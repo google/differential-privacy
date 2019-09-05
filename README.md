@@ -62,6 +62,17 @@ We also include the following example code:
 - A [PostgreSQL extension](https://github.com/google/differential-privacy/tree/master/differential_privacy/postgres)
 that adds epsilon-DP aggregate functions.
 
+## Caveats
+
+All of our code assume that each user contributes only a single row to each
+aggregation. You can use the library to build systems that allow multiple
+contributions per user - [our paper](https://arxiv.org/abs/1909.01917) describes
+one such system. To do so, multiple user contributions should be combined before
+they are passed to our algorithms. We chose not to implement this step at the
+library level because it's not the logical place for it - it's much easier to
+sort contributions by user and combine them together with a distributed
+processing framework before they're passed to our algorithms.
+
 ## Support
 
 We will continue to publish updates and improvements to the library. We will
