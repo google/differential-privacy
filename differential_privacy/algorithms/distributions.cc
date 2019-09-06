@@ -32,10 +32,10 @@ LaplaceDistribution::LaplaceDistribution(double b) : b_(b) { CHECK_GE(b, 0.0); }
 double LaplaceDistribution::GetUniformDouble() { return UniformDouble(); }
 
 // Generates samples from the Laplace Distribution according to the
-// Ratio of Uniforms method outlined in Section 7.2
-// Steele, J. Michael. "Non-Uniform Random Variate Generation (Luc Devroye)."
-// (1987): 675. Cleaner and more accurate than the typical Inverse CDF method
-// under fixed precision arithmetic.
+// Ratio of Uniforms method outlined in Section 4.7
+// Devroye, Luc. "Non-Uniform Random Variate Generation" (1987): 195. Cleaner
+// and more accurate than the typical Inverse CDF method under fixed precision
+// arithmetic.
 double LaplaceDistribution::Sample(double scale) {
   DCHECK_GT(scale, 0);
   double u1 = GetUniformDouble();

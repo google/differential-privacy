@@ -75,10 +75,10 @@ processing framework before they're passed to our algorithms.
 
 ## Support
 
-We will continue to publish updates and improvements to the library. We will
-will not accept pull requests for the immediate future. We will respond to
-issues filed in this project. If we intend to stop publishing improvements and
-responding to issues we will publish notice here at least 3 months in advance.
+We will continue to publish updates and improvements to the library. We will not
+accept pull requests for the immediate future. We will respond to issues filed
+in this project. If we intend to stop publishing improvements and responding to
+issues we will publish notice here at least 3 months in advance.
 
 ## License
 
