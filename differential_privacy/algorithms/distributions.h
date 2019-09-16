@@ -59,8 +59,7 @@ class LaplaceDistribution {
 // https://en.wikipedia.org/wiki/Normal_distribution
 class GaussianDistribution {
  public:
-  // Constructor for Gaussian with specified stddev. If rng is nullptr, uses
-  // an internal prng.
+  // Constructor for Gaussian with specified stddev.
   explicit GaussianDistribution(double stddev);
 
   virtual ~GaussianDistribution() {}

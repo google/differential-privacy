@@ -27,7 +27,8 @@ cc_binary(
     srcs = ["anon_func.cc"],
     copts = [
         "-Wno-sign-compare",
-        # These paths may need to change depending on the system building the binary.
+        # These paths may need to be changed depending on the system building the binary.
+        # eg. "k8-fastbuild" may need to be changed to "darwin-fastbuild".
         "-isystem bazel-out/k8-fastbuild/bin/external/postgres/postgres/include/server",
         "-isystem bazel-out/k8-fastbuild/bin/external/postgres/postgres/include/internal",
         "-isystem bazel-out/k8-fastbuild/genfiles/external/postgres/postgres/include/server",

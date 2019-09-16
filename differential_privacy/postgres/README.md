@@ -5,7 +5,9 @@ aggregate functions. We will refer to them as the anonymous functions.
 
 ## Setup
 
-* Install Postgres 11.
+* Install Postgres 11 using the source code.
+  *  Source: https://www.postgresql.org/ftp/source/
+  *  Instructions: https://www.postgresql.org/docs/9.3/install-short.html
 
 * Set `$PG_DIR` to the directory of your postgres installation. E.g.
 
@@ -26,6 +28,64 @@ aggregate functions. We will refer to them as the anonymous functions.
     ```
     CREATE EXTENSION anon_func;
     ```
+
+### Common Issues
+
+There are several known setup problems; we list suggested solutions for them
+below.
+
+##### Postgres headers not linking
+
+If the postgres headers are not linking correctly when installing the
+extension, you might see an error like the following:
+
+```
+fatal error: postgres.h: No such file or directory
+ #include "postgres.h"
+          ^~~~~~~~~~~~
+```
+
+You may need to update paths in `differential-privacy/postgres/BUILD`
+depending on the system building the binary. Under the `cc_binary` rule for
+`anon_func.so`, in the `copt` field, update the `-isystem` paths to the ones for
+your system that contain the postgres headers, eg,  `k8-fastbuild` may need to
+be changed to `darwin-fastbuild`.
+
+
+
+##### Extension files missing
+
+While loading the extension, you might see an error like the following:
+
+```
+could not access file "anon_func": No such file or directory
+```
+or
+
+```
+could not open extension control file "/usr/local/share/postgresql/extension/anon_func.control": No such file or directory
+```
+
+The installation script assumes you installed Postgres using the source code and
+the instructions listed above. However, if you are using a different
+installation, the paths to the lib and extension directories may be different.
+If so, move the files to the proper locations. For the files
+`anon_func.control` and `anon_func--1.0.0.sql`, move them to the proper
+extension directory, e.g.
+
+```
+mv $PG_DIR/share/extension/anon_func.control /usr/local/share/postgresql/extension/
+```
+
+For the file `anon_func.so`, move it to the lib directory, which can often be
+found by running `pg_config --pkglibdir`. However, if you have multiple
+installations or have uninstalled previous versions, the path may be
+erroneous.
+
+```
+mv $PG_DIR/lib/anon_func.so `pg_config  --pkglibdir`
+```
+
 
 ## Anonymous Functions
 

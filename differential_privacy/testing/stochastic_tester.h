@@ -123,7 +123,8 @@ class StochasticTester<T, OutputT> {
  private:
   struct SelectionVectorHash {
     size_t operator()(const SelectionVector& v) const {
-      const std::string serialized_v = absl::StrJoin(v, SelectionVectorDelimiter);
+      const std::string serialized_v =
+          absl::StrJoin(v, SelectionVectorDelimiter);
       return absl::Hash<std::string>()(serialized_v);
     }
   };

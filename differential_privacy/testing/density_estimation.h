@@ -119,7 +119,8 @@ class Histogram {
         std::string lb = BoundToString(i);
         std::string ub = BoundToString(i + 1);
         std::string bin_count = BinCountToString(i, max_count_len);
-        std::string percent = PercentageToString(bin_counts_[i] * 100.0 / Total());
+        std::string percent =
+            PercentageToString(bin_counts_[i] * 100.0 / Total());
         int bar_length = std::round(static_cast<double>(bin_counts_[i]) /
                                     max_count * kMaxBinBar);
         absl::StrAppend(&out, "[ ", lb, ", ", ub, ") ", bin_count, " ", percent,

@@ -489,11 +489,24 @@ class ApproxBounds : public Algorithm<T> {
       : Algorithm<T>(epsilon),
         pos_bins_(num_bins, 0),
         neg_bins_(num_bins, 0),
+        bin_boundaries_(num_bins, 0),
         scale_(scale),
         base_(base),
         k_(k),
         preset_k_(preset_k),
-        mechanism_(std::move(mechanism)) {}
+        mechanism_(std::move(mechanism)) {
+    // Cache the bin boundary magnitudes for performance. Note that casting
+    // numeric limits lead to inconsistencies.
+    auto get_boundary = [boundary = scale_, base = base_]() mutable {
+      if (boundary >= std::numeric_limits<T>::max() / base) {
+        return std::numeric_limits<T>::max();
+      }
+      double this_boundary = boundary;
+      boundary *= base;
+      return static_cast<T>(this_boundary);
+    };
+    std::generate(bin_boundaries_.begin(), bin_boundaries_.end(), get_boundary);
+  }
 
   // Given a bin index, finds the larger-magnitude boundary of the corresponding
   // bin for negative bin.
@@ -507,14 +520,7 @@ class ApproxBounds : public Algorithm<T> {
 
   // Given a bin index, finds the larger-magnitude boundary of the corresponding
   // bin for positive bin.
-  T PosRightBinBoundary(int bin_index) {
-    // Subtract the exponent contribution from scale_ to avoid overflow.
-    double value_index = bin_index + log(scale_) / log(base_);
-    if (value_index >= log(std::numeric_limits<T>::max()) / log(base_)) {
-      return std::numeric_limits<T>::max();
-    }
-    return static_cast<T>(std::pow(base_, value_index));
-  }
+  T PosRightBinBoundary(int bin_index) { return bin_boundaries_[bin_index]; }
 
  private:
   // Add noise to each member of bins and return noisy vector.
@@ -611,6 +617,9 @@ class ApproxBounds : public Algorithm<T> {
   // generating the result.
   std::vector<T> noisy_pos_bins_;
   std::vector<T> noisy_neg_bins_;
+
+  // The bin boundary magnitudes, starting from lowest positive magnitude.
+  std::vector<T> bin_boundaries_;
 
   // Multiplicative factor for inputs
   double scale_;

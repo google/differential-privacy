@@ -143,8 +143,8 @@ class BoundedMean : public Algorithm<T> {
                        approx_bounds_->GenerateResult(bounds_budget));
       lower_ = GetValue<T>(bounds.elements(0).value());
       upper_ = GetValue<T>(bounds.elements(1).value());
-      midpoint_ = lower_ + (upper_ - lower_) / 2;
       RETURN_IF_ERROR(Builder::CheckBounds(lower_, upper_));
+      midpoint_ = lower_ + (upper_ - lower_) / 2;
 
       // To find the sum, pass the identity function as the transform.
       sum = approx_bounds_->template ComputeFromPartials<T>(
