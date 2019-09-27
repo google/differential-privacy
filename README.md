@@ -35,7 +35,7 @@ resolution. Install bazel and run the following:
 
 Here's a minimal example showing how to compute the count of some data:
 
-```
+``` cpp
 #include "differential_privacy/algorithms/count.h"
 
 // Epsilon is a configurable parameter. A lower value means more privacy but
