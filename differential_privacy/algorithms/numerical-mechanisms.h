@@ -137,7 +137,9 @@ class LaplaceMechanism {
   // with a given epsilon then they could add noise to each value with a privacy
   // budget of 0.5 (or 0.4 and 0.6, etc).
   virtual double AddNoise(double result, double privacy_budget) {
-    CHECK_GT(privacy_budget, 0);
+    if (privacy_budget <= 0) {
+      privacy_budget = std::numeric_limits<double>::min();
+    }
     // Implements the snapping mechanism defined by
     // Mironov (2012, "On Significance of the Least Significant Bits For
     // Differential Privacy").
@@ -163,10 +165,13 @@ class LaplaceMechanism {
   // chance of being in the domain [x,y].
   virtual ConfidenceInterval NoiseConfidenceInterval(double confidence_level,
                                                      double privacy_budget) {
-    CHECK_GT(epsilon_, 0);
-    CHECK_GT(privacy_budget, 0);
-    double bound = diversity_ * log(1 - confidence_level) / privacy_budget;
     ConfidenceInterval confidence;
+    if (epsilon_ <= 0 || privacy_budget <= 0) {
+      confidence.set_lower_bound(std::numeric_limits<double>::lowest());
+      confidence.set_upper_bound(std::numeric_limits<double>::max());
+    }
+
+    double bound = diversity_ * log(1 - confidence_level) / privacy_budget;
     confidence.set_lower_bound(bound);
     confidence.set_upper_bound(-bound);
     confidence.set_confidence_level(confidence_level);

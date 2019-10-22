@@ -587,7 +587,7 @@ void StochasticTester<T, OutputT>::CheckDifferentiallyPrivateOnDataset(
         std::vector<T> c_current = VectorFilter(dataset, current_selector);
         LOG(INFO) << std::setprecision(16) << VectorToString(c_current);
         std::vector<T> c_succ = VectorFilter(dataset, succ_selector);
-        LOG(INFO) << std::setprecision(16) << VectorToString(c_current);
+        LOG(INFO) << std::setprecision(16) << VectorToString(c_succ);
       } else {
         ++num_comparison_success_;
       }

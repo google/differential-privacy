@@ -198,8 +198,8 @@ template <typename T>
 std::vector<T> VectorFilter(const std::vector<T>& v,
                             const std::vector<bool> selection) {
   std::vector<T> result;
-  CHECK(v.size() == selection.size());
-  for (int i = 0; i < v.size(); ++i) {
+  DCHECK(v.size() == selection.size());
+  for (int i = 0; i < std::min(v.size(), selection.size()); ++i) {
     if (selection[i]) {
       result.push_back(v[i]);
     }

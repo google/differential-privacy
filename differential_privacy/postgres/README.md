@@ -92,7 +92,9 @@ mv $PG_DIR/lib/anon_func.so `pg_config  --pkglibdir`
 We offer a suite of anonymous functions. Each function wraps around the
 corresponding algorithm in the differential privacy library. Notice that these
 functions, like their algorithms, assume that each entry is owned by a distinct
-user.
+user. In addition, due to the limitations of defining aggregates, the functions
+return NULL for the empty set. This means the functions are not DP for the empty
+set.
 
 The first argument for each function is the column over which the aggregation is
 performed. Each function may also take a couple of additional parameters. They

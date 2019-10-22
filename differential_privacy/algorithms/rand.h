@@ -49,18 +49,18 @@ class SecureURBG {
   static constexpr result_type(max)() {
     return (std::numeric_limits<result_type>::max)();
   }
-  result_type operator()() LOCKS_EXCLUDED(mutex_);
+  result_type operator()() ABSL_LOCKS_EXCLUDED(mutex_);
 
  private:
   SecureURBG() { cache_ = new uint8_t[kCacheSize]; }
   ~SecureURBG() { delete[] cache_; }
   // Refesh the cache with new random bytes.
-  void RefreshCache() EXCLUSIVE_LOCKS_REQUIRED(mutex_);
+  void RefreshCache() ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
   static constexpr int kCacheSize = 65536;
   // The corrent index in the cache.
-  int current_index_ GUARDED_BY(mutex_) = kCacheSize;
-  uint8_t* cache_ GUARDED_BY(mutex_);
+  int current_index_ ABSL_GUARDED_BY(mutex_) = kCacheSize;
+  uint8_t* cache_ ABSL_GUARDED_BY(mutex_);
   absl::Mutex mutex_;
 };
 }  // namespace differential_privacy

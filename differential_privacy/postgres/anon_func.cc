@@ -119,13 +119,14 @@ Datum bounded_accum(PG_FUNCTION_ARGS, bool with_bounds, bool is_integral) {
 
     // Construct the DP function.
     std::string err;
-    arg0 = new DpFunction(&err, !with_epsilon, epsilon, !with_bounds, lower, upper);
+    arg0 = new DpFunction(&err, !with_epsilon, epsilon,
+                          !with_bounds, lower, upper);
     if (!err.empty()) {
       ereport(ERROR,
               (errcode(ERRCODE_INVALID_PARAMETER_VALUE), errmsg(err.c_str())));
     }
   } else {
-    arg0 = reinterpret_cast<DpFunction*>( PG_GETARG_POINTER(0));
+    arg0 = reinterpret_cast<DpFunction*>(PG_GETARG_POINTER(0));
   }
 
   add_arg_entry(fcinfo, arg0, is_integral);
@@ -136,6 +137,9 @@ Datum bounded_accum(PG_FUNCTION_ARGS, bool with_bounds, bool is_integral) {
 template <typename DpFunction>
 Datum int_extract(PG_FUNCTION_ARGS){
   CHECK_AGG_CONTEXT(fcinfo);
+  if (PG_ARGISNULL(0)) {
+    PG_RETURN_NULL();
+  }
   DpFunction* arg = reinterpret_cast<DpFunction*>(PG_GETARG_POINTER(0));
   std::string err;
   int64_t result = arg->ResultRounded(&err);
@@ -151,6 +155,9 @@ Datum int_extract(PG_FUNCTION_ARGS){
 template <typename DpFunction>
 Datum double_extract(PG_FUNCTION_ARGS){
   CHECK_AGG_CONTEXT(fcinfo);
+  if (PG_ARGISNULL(0)) {
+    PG_RETURN_NULL();
+  }
   DpFunction* arg = reinterpret_cast<DpFunction*>(PG_GETARG_POINTER(0));
   std::string err;
   double result = arg->Result(&err);
@@ -301,7 +308,8 @@ Datum ntile_accum(PG_FUNCTION_ARGS, bool is_integral) {
     std::string err;
     if (PG_NARGS() > 5) {
       float8 epsilon = PG_GETARG_FLOAT8(5);
-      arg0 = new DpNtile(&err, percentile, lower, upper, /*default_epsilon=*/false, epsilon);
+      arg0 = new DpNtile(&err, percentile, lower, upper,
+                         /*default_epsilon=*/false, epsilon);
     } else {
       arg0 = new DpNtile(&err, percentile, lower, upper);
     }

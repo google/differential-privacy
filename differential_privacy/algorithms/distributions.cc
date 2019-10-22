@@ -60,7 +60,7 @@ double LaplaceDistribution::cdf(double b, double x) {
 }
 
 GaussianDistribution::GaussianDistribution(double stddev) : stddev_(stddev) {
-  CHECK_GE(stddev, 0.0);
+  DCHECK_GE(stddev, 0.0);
 }
 
 double GaussianDistribution::Sample(double scale) {
