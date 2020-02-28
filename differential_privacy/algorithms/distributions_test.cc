@@ -30,6 +30,7 @@ namespace internal {
 namespace {
 
 constexpr int64_t kNumSamples = 10000000;
+constexpr int64_t kNumGeometricSamples = 1000000;
 constexpr double kOneOverLog2 = 1.44269504089;
 
 double Skew(const std::vector<double>& samples, double mu, double sigma) {
