@@ -4,12 +4,13 @@
 
 # Algorithm
 
-[`Algorithm`](https://github.com/google/differential-privacy/blob/master/differential_privacy/algorithms/algorithm.h) is the base class of all
-differentially private algorithms. Each algorithm can be constructed using the
-builder pattern, which sets its parameters. `Algorithms` are incremental: it's
-possible to insert some data and get a result, then _add more data_ and get a
-new result. (It's also possible to add data in chunks but still only get one
-result). Algorithms are templated on the input type.
+[`Algorithm`](https://github.com/google/differential-privacy/blob/master/differential_privacy/algorithms/algorithm.h)
+is the base class of all differentially private algorithms. Each algorithm can
+be constructed using the builder pattern, which sets its parameters.
+`Algorithms` are incremental: it's possible to insert some data and get a
+result, then _add more data_ and get a new result. (It's also possible to add
+data in chunks but still only get one result). Algorithms are templated on the
+input type.
 
 ## Privacy budget
 
@@ -22,13 +23,13 @@ starts with a privacy budget of `1`, and reading uses up that budget.
 ```
 util::StatusOr<std::unique_ptr<Algorithm>> algorithm =
  AlgorithmBuilder.SetEpsilon(double epsilon)
-                 .SetLaplaceMechanism(std::unique_ptr<LaplaceMechanismBuilder> laplace_mechanism_builder)
+                 .SetLaplaceMechanism(std::unique_ptr<LaplaceMechanism::Builder> laplace_mechanism_builder)
                  .Build();
 ```
 
 *   `double epsilon`: The `epsilon` differential privacy parameter. A smaller
     number means more privacy but less accuracy. 
-*   `std::unique_ptr<LaplaceMechanismBuilder> laplace_mechanism_builder`: Used
+*   `std::unique_ptr<LaplaceMechanism::Builder> laplace_mechanism_builder`: Used
     to specify the type of laplace mechanism the algorithm will use to add
     noise. In most cases they should not be set (and a default LaplaceMechanism
     will be used), but it can be used to remove or mock noise during testing.

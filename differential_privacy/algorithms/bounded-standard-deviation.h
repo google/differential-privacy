@@ -17,11 +17,11 @@
 #ifndef DIFFERENTIAL_PRIVACY_ALGORITHMS_BOUNDED_STANDARD_DEVIATION_H_
 #define DIFFERENTIAL_PRIVACY_ALGORITHMS_BOUNDED_STANDARD_DEVIATION_H_
 
+#include "absl/memory/memory.h"
 #include "differential_privacy/algorithms/algorithm.h"
 #include "differential_privacy/algorithms/bounded-algorithm.h"
 #include "differential_privacy/algorithms/bounded-variance.h"
 #include "differential_privacy/algorithms/numerical-mechanisms.h"
-#include "absl/memory/memory.h"
 
 namespace differential_privacy {
 

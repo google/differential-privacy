@@ -220,8 +220,9 @@ class IsOkAndHoldsMatcher {
 // used as a Matcher<T>.
 class StatusIsMatcherCommonImpl {
  public:
-  StatusIsMatcherCommonImpl(::testing::Matcher<StatusCode> code_matcher,
-                            ::testing::Matcher<const std::string&> message_matcher)
+  StatusIsMatcherCommonImpl(
+      ::testing::Matcher<StatusCode> code_matcher,
+      ::testing::Matcher<const std::string&> message_matcher)
       : code_matcher_(std::move(code_matcher)),
         message_matcher_(std::move(message_matcher)) {}
 

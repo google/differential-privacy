@@ -59,7 +59,8 @@ message Output {
 
 Converting to/from these types can be cumbersome, so we provide utility
 functions for the common cases. We outline some of these functions below. See
-the [utility function file](https://github.com/google/differential-privacy/blob/master/differential_privacy/proto/util.h) for the full list.
+the [utility function file](https://github.com/google/differential-privacy/blob/master/differential_privacy/proto/util.h)
+for the full list.
 
 ### GetValue&lt;T&gt;
 

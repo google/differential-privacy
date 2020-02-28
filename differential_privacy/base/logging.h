@@ -155,7 +155,8 @@ class CheckOpMessageBuilder {
 };
 
 template <typename T1, typename T2>
-std::string *MakeCheckOpString(const T1 &v1, const T2 &v2, const char *exprtext) {
+std::string *MakeCheckOpString(const T1 &v1, const T2 &v2,
+                               const char *exprtext) {
   CheckOpMessageBuilder comb(exprtext);
   MakeCheckOpValueString(comb.ForVar1(), v1);
   MakeCheckOpValueString(comb.ForVar2(), v2);
@@ -170,15 +171,15 @@ std::string *MakeCheckOpString(const T1 &v1, const T2 &v2, const char *exprtext)
 // name: an identifier that is the name of the comparison, such as
 //       Check_EQ or Check_NE.
 // op: the comparison operator, such as == or !=.
-#define DEFINE_CHECK_OP_IMPL(name, op)                              \
-  template <typename T1, typename T2>                               \
+#define DEFINE_CHECK_OP_IMPL(name, op)                                   \
+  template <typename T1, typename T2>                                    \
   inline std::string *name##Impl(const T1 &v1, const T2 &v2,             \
-                            const char *exprtext) {                 \
-    if (v1 op v2) return nullptr;                                   \
-    return MakeCheckOpString(v1, v2, exprtext);                     \
-  }                                                                 \
+                                 const char *exprtext) {                 \
+    if (v1 op v2) return nullptr;                                        \
+    return MakeCheckOpString(v1, v2, exprtext);                          \
+  }                                                                      \
   inline std::string *name##Impl(int v1, int v2, const char *exprtext) { \
-    return name##Impl<int, int>(v1, v2, exprtext);                  \
+    return name##Impl<int, int>(v1, v2, exprtext);                       \
   }
 
 // We use the full name Check_EQ, Check_NE, etc.

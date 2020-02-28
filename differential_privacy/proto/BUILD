@@ -49,9 +49,7 @@ cc_library(
     name = "util-lib",
     hdrs = ["util.h"],
     copts = ["-Wno-sign-compare"],
-    deps = [
-        ":data_cc_proto",
-    ],
+    deps = [":data_cc_proto"],
 )
 
 cc_test(

@@ -18,6 +18,9 @@
 
 #include <memory>
 
+#include "gmock/gmock.h"
+#include "gtest/gtest.h"
+#include "absl/random/distributions.h"
 #include "differential_privacy/algorithms/algorithm.h"
 #include "differential_privacy/algorithms/bounded-sum.h"
 #include "differential_privacy/algorithms/count.h"
@@ -25,9 +28,6 @@
 #include "differential_privacy/algorithms/numerical-mechanisms.h"
 #include "differential_privacy/algorithms/util.h"
 #include "differential_privacy/testing/sequence.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
-#include "absl/random/distributions.h"
 
 namespace differential_privacy {
 namespace testing {

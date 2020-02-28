@@ -18,11 +18,11 @@
 
 #include <cmath>
 
-#include "differential_privacy/algorithms/rand.h"
-#include "differential_privacy/algorithms/util.h"
 #include "absl/memory/memory.h"
 #include "absl/random/random.h"
 #include "absl/strings/string_view.h"
+#include "differential_privacy/algorithms/rand.h"
+#include "differential_privacy/algorithms/util.h"
 
 namespace differential_privacy {
 namespace internal {

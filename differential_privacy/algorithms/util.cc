@@ -59,4 +59,22 @@ base::StatusOr<double> Qnorm(double p, double mu, double sigma) {
   return normalized * sigma + mu;
 }
 
+double RoundToNearestMultiple(double n, double base) {
+  if (base == 0.0) return n;
+  double remainder = fmod(n, base);
+  if (fabs(remainder) > base / 2) {
+    return n - remainder + sign(remainder) * base;
+  }
+  if (fabs(remainder) == base / 2) {
+    return n + base / 2;
+  }
+  return n - remainder;
+}
+
+double sign(double n) {
+  if (n > 0.0) return 1.0;
+  if (n < 0.0) return -1.0;
+  return 0;
+}
+
 }  // namespace differential_privacy

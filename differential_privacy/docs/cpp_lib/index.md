@@ -53,6 +53,6 @@ double count(const vector<double>& vals, double epsilon) {
 ## Caveats
 
 All of our algorithms assume one input element per user. All of a user's
-contributions should be reduced to a single input element before being passed
-to our algorithms.
+contributions should be reduced to a single input element before being passed to
+our algorithms.
 

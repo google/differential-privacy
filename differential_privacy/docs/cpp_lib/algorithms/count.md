@@ -4,8 +4,8 @@
 
 # Count
 
-[`Count`](https://github.com/google/differential-privacy/blob/master/differential_privacy/algorithms/count.h) computes the number of values in
-a dataset, in a differentially private manner.
+[`Count`](https://github.com/google/differential-privacy/blob/master/differential_privacy/algorithms/count.h) computes
+the number of values in a dataset, in a differentially private manner.
 
 ## Input & Output
 
@@ -33,5 +33,4 @@ util::StatusOr<std::unique_ptr<Count<int64>>> count =
 
 ### Result Performance
 
-For `Count`, calling `Result` is an O(n) operation. `Count` uses O(1) memory,
-and its performance is not impacted by sorting.
+For `Count`, calling `Result` is an O(n) operation. `Count` uses O(1) memory.

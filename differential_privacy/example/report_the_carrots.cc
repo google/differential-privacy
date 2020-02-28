@@ -14,13 +14,13 @@
 // limitations under the License.
 //
 
-#include "differential_privacy/algorithms/confidence-interval.pb.h"
-#include "differential_privacy/algorithms/util.h"
-#include "differential_privacy/proto/data.pb.h"
-#include "differential_privacy/proto/util.h"
 #include "absl/flags/flag.h"
 #include "absl/strings/str_format.h"
+#include "differential_privacy/algorithms/confidence-interval.pb.h"
+#include "differential_privacy/algorithms/util.h"
 #include "differential_privacy/example/animals_and_carrots.h"
+#include "differential_privacy/proto/data.pb.h"
+#include "differential_privacy/proto/util.h"
 
 using absl::PrintF;
 using differential_privacy::BoundingReport;
@@ -46,7 +46,8 @@ int main(int argc, char **argv) {
   const double epsilon = 4 * DefaultEpsilon();
   CarrotReporter reporter(absl::GetFlag(FLAGS_CarrotsDataFile), epsilon);
 
-  // Query for the total number of carrots.
+  // Query for the total number of carrots. Notice that we explicitly use 25% of
+  // our privacy budget.
   PrintF(
       "\nFarmer Fred asks the animals how many total carrots they have "
       "eaten. The animals know the true sum but report the "

@@ -4,8 +4,9 @@
 
 # Bounded Variance
 
-[`BoundedVariance`](https://github.com/google/differential-privacy/blob/master/differential_privacy/algorithms/bounded-variance.h) computes the
-variance of values in a dataset, in a differentially private manner.
+[`BoundedVariance`](https://github.com/google/differential-privacy/blob/master/differential_privacy/algorithms/bounded-variance.h)
+computes the variance of values in a dataset, in a differentially private
+manner.
 
 ## Input & Output
 
@@ -40,5 +41,4 @@ API.
 ### Result Performance
 
 For `BoundedVariance`, calling `Result` is an O(n) operation and requires O(1)
-additional memory. Its performance is __not impacted__ by the provided iterator
-category or by whether the data is sorted.
+additional memory.

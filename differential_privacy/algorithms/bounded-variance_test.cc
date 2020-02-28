@@ -16,12 +16,13 @@
 
 #include "differential_privacy/algorithms/bounded-variance.h"
 
-#include "differential_privacy/algorithms/numerical-mechanisms-testing.h"
 #include "differential_privacy/base/testing/proto_matchers.h"
 #include "differential_privacy/base/testing/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/random/distributions.h"
+#include "differential_privacy/algorithms/approx-bounds.h"
+#include "differential_privacy/algorithms/numerical-mechanisms-testing.h"
 
 namespace differential_privacy {
 namespace {

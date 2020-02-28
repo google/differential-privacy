@@ -12,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
 
 package(
     default_visibility = ["//visibility:public"],
@@ -36,8 +35,8 @@ cc_test(
     copts = ["-Wno-sign-compare"],
     deps = [
         ":sequence",
-        "//differential_privacy/algorithms:util",
         "@com_google_googletest//:gtest_main",
+        "//differential_privacy/algorithms:util",
         "@com_google_absl//absl/memory",
     ],
 )
@@ -81,13 +80,13 @@ cc_test(
     deps = [
         ":sequence",
         ":stochastic_tester",
+        "@com_google_googletest//:gtest_main",
         "//differential_privacy/algorithms:algorithm",
         "//differential_privacy/algorithms:bounded-sum",
         "//differential_privacy/algorithms:count",
         "//differential_privacy/algorithms:numerical-mechanisms",
         "//differential_privacy/algorithms:numerical-mechanisms-testing",
         "//differential_privacy/algorithms:util",
-        "@com_google_googletest//:gtest_main",
         "@com_google_absl//absl/random:distributions",
     ],
 )

@@ -42,7 +42,8 @@ TEST(ToPayload, Works) {
 // Note: most code should not validate Status values this way.  Use
 // cs/testing/base/public/gmock_utils/status-matchers.h instead.
 static void CheckStatus(const Status& s, const StatusCode error_code,
-                        const std::string& message, const std::string& payload_type,
+                        const std::string& message,
+                        const std::string& payload_type,
                         const std::string& payload_msg) {
   SCOPED_TRACE(testing::Message() << "Where s is " << s);
   EXPECT_EQ(error_code, s.CanonicalCode());

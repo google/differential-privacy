@@ -14,6 +14,8 @@
 // limitations under the License.
 //
 
+#include "gmock/gmock.h"
+#include "gtest/gtest.h"
 #include "differential_privacy/algorithms/approx-bounds.h"
 #include "differential_privacy/algorithms/bounded-mean.h"
 #include "differential_privacy/algorithms/bounded-standard-deviation.h"
@@ -22,10 +24,9 @@
 #include "differential_privacy/algorithms/count.h"
 #include "differential_privacy/algorithms/numerical-mechanisms-testing.h"
 #include "differential_privacy/algorithms/order-statistics.h"
+#include "differential_privacy/algorithms/util.h"
 #include "differential_privacy/testing/sequence.h"
 #include "differential_privacy/testing/stochastic_tester.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 namespace differential_privacy {
 namespace {
@@ -87,7 +88,6 @@ TEST(StochasticDifferentialPrivacyTest, Max) {
                        .SetEpsilon(DefaultEpsilon())
                        .SetLower(lower)
                        .SetUpper(upper)
-                       .SetDatapoints(20)
                        .Build()
                        .ValueOrDie();
   StochasticTester<double> tester(std::move(algorithm), std::move(sequence),
@@ -109,7 +109,6 @@ TEST(StochasticDifferentialPrivacyTest, Min) {
                        .SetEpsilon(DefaultEpsilon())
                        .SetLower(lower)
                        .SetUpper(upper)
-                       .SetDatapoints(20)
                        .Build()
                        .ValueOrDie();
   StochasticTester<double> tester(std::move(algorithm), std::move(sequence),

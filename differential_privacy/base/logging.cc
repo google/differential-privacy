@@ -199,7 +199,7 @@ LogMessage::LogMessage(const char *file, int line)
   : LogMessage(file, line, absl::LogSeverity::kInfo) {}
 
 LogMessage::LogMessage(const char *file, int line, const std::string &result)
-  : LogMessage(file, line, absl::LogSeverity::kFatal) {
+    : LogMessage(file, line, absl::LogSeverity::kFatal) {
   stream() << "Check failed: " << result << " ";
 }
 

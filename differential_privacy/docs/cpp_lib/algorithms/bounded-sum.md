@@ -4,8 +4,8 @@
 
 # Bounded Sum
 
-[`BoundedSum`](https://github.com/google/differential-privacy/blob/master/differential_privacy/algorithms/bounded-sum.h) computes the sum of
-values in a dataset, in a differentially private manner.
+[`BoundedSum`](https://github.com/google/differential-privacy/blob/master/differential_privacy/algorithms/bounded-sum.h)
+computes the sum of values in a dataset, in a differentially private manner.
 
 ## Input & Output
 
@@ -37,6 +37,4 @@ supports its full API.
 
 ### Result Performance
 
-For `BoundedSum`, calling `Result` is an O(n) operation. Its performance is
-__not impacted__ by the provided iterator category or by whether the data is
-sorted.
+For `BoundedSum`, calling `Result` is an O(n) operation.

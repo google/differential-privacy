@@ -95,7 +95,6 @@ Datum bounded_accum(PG_FUNCTION_ARGS, bool with_bounds, bool is_integral) {
 
   // Create DpFunction if it doesn't exist.
   if (PG_ARGISNULL(0)) {
-
     // Grab the optional variables, if provided.
     float8 epsilon = 0, lower = 0, upper = 0;
     bool with_epsilon = false;
@@ -123,7 +122,8 @@ Datum bounded_accum(PG_FUNCTION_ARGS, bool with_bounds, bool is_integral) {
                           !with_bounds, lower, upper);
     if (!err.empty()) {
       ereport(ERROR,
-              (errcode(ERRCODE_INVALID_PARAMETER_VALUE), errmsg(err.c_str())));
+              (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+              errmsg("%s", err.c_str())));
     }
   } else {
     arg0 = reinterpret_cast<DpFunction*>(PG_GETARG_POINTER(0));
@@ -144,7 +144,7 @@ Datum int_extract(PG_FUNCTION_ARGS){
   std::string err;
   int64_t result = arg->ResultRounded(&err);
   if (!err.empty()) {
-    elog(INFO, (err + " Returning NULL.").c_str());
+    ereport(INFO, (errmsg("%s Returning NULL.", err.c_str())));
     PG_RETURN_NULL();
   }
   delete arg;
@@ -162,7 +162,7 @@ Datum double_extract(PG_FUNCTION_ARGS){
   std::string err;
   double result = arg->Result(&err);
   if (!err.empty()) {
-    elog(INFO, (err + " Returning NULL.").c_str());
+    ereport(INFO, (errmsg("%s Returning NULL.", err.c_str())));
     PG_RETURN_NULL();
   }
   delete arg;
@@ -187,7 +187,8 @@ Datum anon_count_accum(PG_FUNCTION_ARGS) {
     }
     if (!err.empty()) {
       ereport(ERROR,
-              (errcode(ERRCODE_INVALID_PARAMETER_VALUE), errmsg(err.c_str())));
+              (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+              errmsg("%s", err.c_str())));
     }
   } else {
     arg0 = reinterpret_cast<DpCount*>(PG_GETARG_POINTER(0));
@@ -315,7 +316,7 @@ Datum ntile_accum(PG_FUNCTION_ARGS, bool is_integral) {
     }
     if (!err.empty()) {
       ereport(ERROR,
-              (errcode(ERRCODE_INVALID_PARAMETER_VALUE), errmsg(err.c_str())));
+              (errcode(ERRCODE_INVALID_PARAMETER_VALUE), errmsg("%s", err.c_str())));
     }
   } else {
     arg0 = reinterpret_cast<DpNtile*>(PG_GETARG_POINTER(0));

@@ -49,13 +49,6 @@
 //
 //   Output:
 //     Median: 14
-//
-// The "datapoints" variable is used to buffer the noisy less and noisy more
-// count for finding extreme quantiles (at 0 and 1). It approximately can be
-// thought of as you're looking for a value within datapoints away from the
-// desired quantile. If "datapoints" is too small, then we are likely to obtain
-// a very inaccurate result, because the inside the interval between the search
-// space upper bound and the largest element, values cannot be discriminated.
 
 namespace differential_privacy {
 
@@ -137,14 +130,13 @@ class BinarySearch : public Algorithm<T> {
 
  protected:
   BinarySearch(
-      double epsilon, T lower, T upper, int64_t datapoints, double quantile,
+      double epsilon, T lower, T upper, double quantile,
       std::unique_ptr<LaplaceMechanism> mechanism,
       std::unique_ptr<base::Percentile<T>> input_sketch)
       : Algorithm<T>(epsilon),
         quantile_(quantile),
         upper_(upper),
         lower_(lower),
-        datapoints_(datapoints),
         mechanism_(std::move(mechanism)),
         quantiles_(std::move(input_sketch)) {}
 
@@ -180,12 +172,13 @@ class BinarySearch : public Algorithm<T> {
       double noisy_more = mechanism_->AddNoise(
           (1 - percentile) * quantiles_->num_values(), local_budget);
 
+      double noised_size = noisy_less + noisy_more;
       // For extreme percentiles, we want to push the result toward the range of
       // the input data.
-      if (quantile_ == 0) {
-        noisy_less -= datapoints_;
-      } else if (quantile_ == 1) {
-        noisy_more -= datapoints_;
+      if (quantile_ < kSingularityTolerance) {
+        noisy_less -= GetDatapoints(noised_size);
+      } else if ((1 - quantile_) < kSingularityTolerance) {
+        noisy_more -= GetDatapoints(noised_size);
       }
 
       // Calculate update multipliers.
@@ -238,6 +231,19 @@ class BinarySearch : public Algorithm<T> {
         ErrorConfidenceInterval(kDefaultConfidenceLevel, weight, m);
 
     return output;
+  }
+
+  // The "datapoints" is used to buffer the noisy less and noisy more
+  // count for finding extreme quantiles (at 0 and 1). It approximately can be
+  // thought of as you're looking for a value within datapoints away from the
+  // desired quantile. If "datapoints" is too small, then we are likely to
+  // obtain a very inaccurate result, because values between
+  // the search space upper bound and the largest element cannot be
+  // discriminated.
+  // The formula was derived here:
+  // (broken link)
+  double GetDatapoints(double noised_size) {
+    return std::max(2.0, std::min(45.0, 14.0 * noised_size / 100.0));
   }
 
   // Given a noisy lower L and noisy greater count U for some value in a set,
@@ -387,10 +393,6 @@ class BinarySearch : public Algorithm<T> {
   double quantile_;
   T upper_;
   T lower_;
-
-  // Used by max and min functions to push the result in the direction of the
-  // data.
-  int64_t datapoints_;
 
   std::unique_ptr<LaplaceMechanism> mechanism_;
   std::unique_ptr<base::Percentile<T>> quantiles_;

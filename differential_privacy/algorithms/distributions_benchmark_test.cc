@@ -14,9 +14,9 @@
 // limitations under the License.
 //
 
-#include "differential_privacy/algorithms/distributions.h"
 #include "absl/strings/str_format.h"
 #include "benchmark/benchmark.h"
+#include "differential_privacy/algorithms/distributions.h"
 
 namespace differential_privacy {
 namespace internal {

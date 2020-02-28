@@ -18,8 +18,10 @@
 #define DIFFERENTIAL_PRIVACY_ALGORITHMS_ORDER_STATISTICS_H_
 
 #include "differential_privacy/base/percentile.h"
+#include "differential_privacy/algorithms/algorithm.h"
 #include "differential_privacy/algorithms/binary-search.h"
 #include "differential_privacy/algorithms/bounded-algorithm.h"
+#include "differential_privacy/algorithms/numerical-mechanisms.h"
 #include "differential_privacy/base/status.h"
 
 namespace differential_privacy {
@@ -39,18 +41,10 @@ class OrderStatisticsBuilder
     BoundedBuilder::upper_ = std::numeric_limits<T>::max();
   }
 
-  Builder& SetDatapoints(int64_t datapoints) {
-    datapoints_ = datapoints;
-    return *static_cast<Builder*>(this);
-  }
-
  protected:
   // Check numeric parameters and construct quantiles and mechanism. Called
   // only at build.
   base::Status ConstructDependencies() {
-    if (datapoints_ < 0) {
-      return base::InvalidArgumentError("Datapoints must be nonnegative.");
-    }
     if (BoundedBuilder::upper_ < BoundedBuilder::lower_) {
       return base::InvalidArgumentError(
           "Upper bound cannot be less than lower bound.");
@@ -62,8 +56,6 @@ class OrderStatisticsBuilder
     quantiles_ = absl::make_unique<base::Percentile<T>>();
     return base::OkStatus();
   }
-
-  int64_t datapoints_ = 50;
 
   // Constructed when processing parameters.
   std::unique_ptr<LaplaceMechanism> mechanism_;
@@ -84,17 +76,16 @@ class Max : public BinarySearch<T> {
       RETURN_IF_ERROR(OrderBuilder::ConstructDependencies());
       return absl::WrapUnique(
           new Max(AlgorithmBuilder::epsilon_, BoundedBuilder::lower_,
-                  BoundedBuilder::upper_, OrderBuilder::datapoints_,
-                  std::move(OrderBuilder::mechanism_),
+                  BoundedBuilder::upper_, std::move(OrderBuilder::mechanism_),
                   std::move(OrderBuilder::quantiles_)));
     }
   };
 
  private:
-  Max(double epsilon, T lower, T upper, int64_t datapoints,
+  Max(double epsilon, T lower, T upper,
       std::unique_ptr<LaplaceMechanism> mechanism,
       std::unique_ptr<base::Percentile<T>> quantiles)
-      : BinarySearch<T>(epsilon, lower, upper, datapoints, /*quantile=*/1,
+      : BinarySearch<T>(epsilon, lower, upper, /*quantile=*/1,
                         std::move(mechanism), std::move(quantiles)) {}
 };
 
@@ -112,17 +103,16 @@ class Min : public BinarySearch<T> {
       RETURN_IF_ERROR(OrderBuilder::ConstructDependencies());
       return absl::WrapUnique(
           new Min(AlgorithmBuilder::epsilon_, BoundedBuilder::lower_,
-                  BoundedBuilder::upper_, OrderBuilder::datapoints_,
-                  std::move(OrderBuilder::mechanism_),
+                  BoundedBuilder::upper_, std::move(OrderBuilder::mechanism_),
                   std::move(OrderBuilder::quantiles_)));
     }
   };
 
  private:
-  Min(double epsilon, T lower, T upper, int64_t datapoints,
+  Min(double epsilon, T lower, T upper,
       std::unique_ptr<LaplaceMechanism> mechanism,
       std::unique_ptr<base::Percentile<T>> quantiles)
-      : BinarySearch<T>(epsilon, lower, upper, datapoints, /*quantile=*/0,
+      : BinarySearch<T>(epsilon, lower, upper, /*quantile=*/0,
                         std::move(mechanism), std::move(quantiles)) {}
 };
 
@@ -149,9 +139,8 @@ class Median : public BinarySearch<T> {
   Median(double epsilon, T lower, T upper,
          std::unique_ptr<LaplaceMechanism> mechanism,
          std::unique_ptr<base::Percentile<T>> quantiles)
-      : BinarySearch<T>(epsilon, lower, upper, /*datapoints=*/0,
-                        /*quantile=*/0.5, std::move(mechanism),
-                        std::move(quantiles)) {}
+      : BinarySearch<T>(epsilon, lower, upper, /*quantile=*/0.5,
+                        std::move(mechanism), std::move(quantiles)) {}
 };
 
 template <typename T>
@@ -178,8 +167,7 @@ class Percentile : public BinarySearch<T> {
       }
       return absl::WrapUnique(new Percentile(
           percentile_, AlgorithmBuilder::epsilon_, BoundedBuilder::lower_,
-          BoundedBuilder::upper_, OrderBuilder::datapoints_,
-          std::move(OrderBuilder::mechanism_),
+          BoundedBuilder::upper_, std::move(OrderBuilder::mechanism_),
           std::move(OrderBuilder::quantiles_)));
     }
 
@@ -190,10 +178,10 @@ class Percentile : public BinarySearch<T> {
 
  private:
   Percentile(double percentile, double epsilon, T lower, T upper,
-             int64_t datapoints, std::unique_ptr<LaplaceMechanism> mechanism,
+             std::unique_ptr<LaplaceMechanism> mechanism,
              std::unique_ptr<base::Percentile<T>> quantiles)
-      : BinarySearch<T>(epsilon, lower, upper, datapoints, percentile,
-                        std::move(mechanism), std::move(quantiles)),
+      : BinarySearch<T>(epsilon, lower, upper, percentile, std::move(mechanism),
+                        std::move(quantiles)),
         percentile_(percentile) {}
 
   const double percentile_;

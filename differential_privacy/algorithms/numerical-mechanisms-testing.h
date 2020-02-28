@@ -19,11 +19,11 @@
 
 #include <random>
 
+#include "gmock/gmock.h"
+#include "absl/random/random.h"
 #include "differential_privacy/algorithms/confidence-interval.pb.h"
 #include "differential_privacy/algorithms/distributions.h"
 #include "differential_privacy/algorithms/numerical-mechanisms.h"
-#include "gmock/gmock.h"
-#include "absl/random/random.h"
 #include "differential_privacy/base/statusor.h"
 
 namespace differential_privacy {
@@ -40,15 +40,18 @@ class ZeroNoiseMechanism : public LaplaceMechanism {
 
     base::StatusOr<std::unique_ptr<LaplaceMechanism>> Build() override {
       return base::StatusOr<std::unique_ptr<LaplaceMechanism>>(
-          absl::make_unique<ZeroNoiseMechanism>(
-              LaplaceMechanism::Builder::epsilon_,
-              LaplaceMechanism::Builder::sensitivity_));
+          absl::make_unique<ZeroNoiseMechanism>(epsilon_.value_or(1),
+                                               l1_sensitivity_.value_or(1)));
     }
 
     std::unique_ptr<LaplaceMechanism::Builder> Clone() const override {
       Builder clone;
-      clone.SetEpsilon(LaplaceMechanism::Builder::epsilon_)
-          .SetSensitivity(LaplaceMechanism::Builder::sensitivity_);
+      if (epsilon_.has_value()) {
+        clone.SetEpsilon(epsilon_.value());
+      }
+      if (l1_sensitivity_.has_value()) {
+        clone.SetL1Sensitivity(l1_sensitivity_.value());
+      }
       return absl::make_unique<Builder>(clone);
     }
   };
@@ -111,16 +114,19 @@ class SeededLaplaceMechanism : public LaplaceMechanism {
     base::StatusOr<std::unique_ptr<LaplaceMechanism>> Build() override {
       return base::StatusOr<std::unique_ptr<LaplaceMechanism>>(
           absl::make_unique<SeededLaplaceMechanism>(
-              LaplaceMechanism::Builder::epsilon_,
-              LaplaceMechanism::Builder::sensitivity_, rand_gen_));
+              epsilon_.value_or(1), l1_sensitivity_.value_or(1), rand_gen_));
     }
 
     std::unique_ptr<LaplaceMechanism::Builder> Clone() const override {
       SeededLaplaceMechanism::Builder clone;
-      clone.rand_gen(rand_gen_)
-          .SetEpsilon(LaplaceMechanism::Builder::epsilon_)
-          .SetSensitivity(LaplaceMechanism::Builder::sensitivity_);
-      return absl::make_unique<SeededLaplaceMechanism::Builder>(clone);
+      clone.rand_gen(rand_gen_);
+      if (epsilon_.has_value()) {
+        clone.SetEpsilon(epsilon_.value());
+      }
+      if (l1_sensitivity_.has_value()) {
+        clone.SetL1Sensitivity(l1_sensitivity_.value());
+      }
+      return absl::make_unique<Builder>(clone);
     }
 
     SeededLaplaceMechanism::Builder& rand_gen(std::mt19937* rand_gen) {

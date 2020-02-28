@@ -32,11 +32,12 @@
 //     RETURN_IF_ERROR(foo.Method(args...));
 //     return differential_privacy::base::OkStatus();
 //   }
-#define RETURN_IF_ERROR(expr)      \
-  STATUS_MACROS_IMPL_ELSE_BLOCKER_ \
-  if (expr.ok()) {                 \
-  } else /* NOLINT */              \
-    return expr
+#define RETURN_IF_ERROR(expr)                                              \
+  STATUS_MACROS_IMPL_ELSE_BLOCKER_                                         \
+  if (differential_privacy::base::status_macro_internal::                  \
+          StatusAdaptorForMacros status_macro_internal_adaptor = {expr}) { \
+  } else /* NOLINT */                                                      \
+    return status_macro_internal_adaptor.Consume()
 
 // Executes an expression `rexpr` that returns a
 // `differential_privacy::base::StatusOr<T>`. On OK, extracts its value into the
@@ -101,5 +102,30 @@
   switch (0)                             \
   case 0:                                \
   default:  // NOLINT
+
+namespace differential_privacy {
+namespace base {
+namespace status_macro_internal {
+// Provides a conversion to bool so that it can be used inside an if statement
+// that declares a variable.
+class StatusAdaptorForMacros {
+ public:
+  StatusAdaptorForMacros(const Status& status) : status_(status) {}
+
+  StatusAdaptorForMacros(Status&& status) : status_(std::move(status)) {}
+
+  StatusAdaptorForMacros(const StatusAdaptorForMacros&) = delete;
+  StatusAdaptorForMacros& operator=(const StatusAdaptorForMacros&) = delete;
+
+  explicit operator bool() const { return status_.ok(); }
+
+  differential_privacy::base::Status&& Consume() { return std::move(status_); }
+
+ private:
+  differential_privacy::base::Status status_;
+};
+}  // namespace status_macro_internal
+}  // namespace base
+}  // namespace differential_privacy
 
 #endif  // DIFFERENTIAL_PRIVACY_BASE_STATUS_MACROS_H_

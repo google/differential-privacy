@@ -16,15 +16,16 @@
 
 #include "differential_privacy/algorithms/bounded-sum.h"
 
-#include "differential_privacy/algorithms/algorithm.h"
-#include "differential_privacy/algorithms/numerical-mechanisms-testing.h"
-#include "differential_privacy/algorithms/numerical-mechanisms.h"
-#include "differential_privacy/proto/util.h"
 #include "differential_privacy/base/testing/proto_matchers.h"
 #include "differential_privacy/base/testing/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/memory/memory.h"
+#include "differential_privacy/algorithms/algorithm.h"
+#include "differential_privacy/algorithms/approx-bounds.h"
+#include "differential_privacy/algorithms/numerical-mechanisms-testing.h"
+#include "differential_privacy/algorithms/numerical-mechanisms.h"
+#include "differential_privacy/proto/util.h"
 
 namespace differential_privacy {
 namespace {

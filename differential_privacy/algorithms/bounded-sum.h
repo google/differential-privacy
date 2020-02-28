@@ -20,11 +20,13 @@
 #include <limits>
 
 #include "google/protobuf/any.pb.h"
+#include "absl/memory/memory.h"
 #include "differential_privacy/algorithms/algorithm.h"
+#include "differential_privacy/algorithms/approx-bounds.h"
 #include "differential_privacy/algorithms/bounded-algorithm.h"
 #include "differential_privacy/algorithms/numerical-mechanisms.h"
+#include "differential_privacy/algorithms/util.h"
 #include "differential_privacy/proto/summary.pb.h"
-#include "absl/memory/memory.h"
 #include "differential_privacy/base/status.h"
 
 namespace differential_privacy {

@@ -126,6 +126,36 @@ TEST(ReturnIfError, WorksWithLambda) {
   EXPECT_THAT(func().error_message(), Eq("EXPECTED"));
 }
 
+TEST(ReturnIfError, CallsFunctionOnce) {
+  auto successFunc = []() -> Status {
+    bool calledBefore = false;
+    auto successfulCalledOnceFunc = [&calledBefore]() -> Status {
+      if (!calledBefore) {
+        calledBefore = true;
+        return ReturnOk();
+      }
+      return ReturnError("ERROR");
+    };
+    RETURN_IF_ERROR(successfulCalledOnceFunc());
+    return ReturnOk();
+  };
+  EXPECT_TRUE(successFunc().ok());
+
+  auto failureFunc = []() -> Status {
+    bool calledBefore = false;
+    auto successfulCalledOnceFunc = [&calledBefore]() -> Status {
+      if (!calledBefore) {
+        calledBefore = true;
+        return ReturnError("EXPECTED");
+      }
+      return ReturnError("ERROR");
+    };
+    RETURN_IF_ERROR(successfulCalledOnceFunc());
+    return ReturnOk();
+  };
+  EXPECT_THAT(failureFunc().error_message(), Eq("EXPECTED"));
+}
+
 }  // namespace
 }  // namespace base
 }  // namespace differential_privacy

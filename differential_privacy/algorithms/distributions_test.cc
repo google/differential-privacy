@@ -14,16 +14,15 @@
 // limitations under the License.
 //
 
-
 #include "differential_privacy/algorithms/distributions.h"
 
 #include <unordered_map>
 
-#include "differential_privacy/algorithms/numerical-mechanisms-testing.h"
-#include "differential_privacy/algorithms/util.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/memory/memory.h"
+#include "differential_privacy/algorithms/numerical-mechanisms-testing.h"
+#include "differential_privacy/algorithms/util.h"
 #include "differential_privacy/base/status.h"
 
 namespace differential_privacy {
@@ -31,6 +30,7 @@ namespace internal {
 namespace {
 
 constexpr int64_t kNumSamples = 10000000;
+constexpr int64_t kNumGeometricSamples = 1000000;
 constexpr double kOneOverLog2 = 1.44269504089;
 
 double Skew(const std::vector<double>& samples, double mu, double sigma) {

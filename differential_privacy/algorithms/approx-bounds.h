@@ -22,6 +22,7 @@
 
 #include "google/protobuf/any.pb.h"
 #include "differential_privacy/algorithms/algorithm.h"
+#include "differential_privacy/algorithms/numerical-mechanisms.h"
 #include "differential_privacy/proto/util.h"
 #include "differential_privacy/base/status_macros.h"
 

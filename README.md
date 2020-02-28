@@ -26,21 +26,41 @@ property no longer hold.
 
 ## How to Build
 
-This project uses [bazel](https://bazel.build) for building and dependency
-resolution. Install bazel and run the following:
+In order to run the differential private library, you need to install Bazel,
+if you don't have it already. [Follow the instructions for your platform on the
+Bazel website](https://docs.bazel.build/versions/master/install.html)
+
+You also need to install Git, if you don't have it already.
+[Follow the instructions for your platform on the Git website.](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
+
+Once you've installed Bazel and Git, open a Terminal and clone the
+differential privacy directory into a local folder:
+
+```git clone https://github.com/google/differential-privacy.git```
+
+Navigate into the ```differential-privacy``` folder you just created,
+and build the differential privacy library and dependencies using Bazel:
 
 ```bazel build differential_privacy/...```
 
-## Examples
+You may need to install additional dependencies when building the PostgreSQL
+extension, for example on Ubuntu you will need these packages:
 
-Here's a minimal example showing how to compute the count of some data:
+```sudo apt-get install libreadline-dev bison flex```
+
+## How to Use
+
+Full documentation on how to use the library is in the
+[cpp/docs](https://github.com/google/differential-privacy/tree/master/differential_privacy/docs)
+subdirectory. Here's a minimal example showing how to compute the count of some
+data:
 
 ```
 #include "differential_privacy/algorithms/count.h"
 
 // Epsilon is a configurable parameter. A lower value means more privacy but
 // less accuracy.
-int64_t count(const vector<double>& vals, double epsilon) {
+int64_t count(const vector<double>& values, double epsilon) {
   // Construct the Count object to run on double inputs.
   std::unique_pointer<differential_privacy::Count<double>> count =
      differential_privacy::Count<double>::Builder().SetEpsilon(epsilon)
@@ -48,7 +68,8 @@ int64_t count(const vector<double>& vals, double epsilon) {
                                                    .ValueOrDie();
 
   // Compute the count and get the result.
-  differential_privacy::Output result = count->Result(v.begin(), v.end());
+  differential_privacy::Output result =
+     count->Result(values.begin(), values.end());
 
   // GetValue can be used to extract the value from an Output protobuf. For
   // count, this is always an int64_t value.

@@ -69,29 +69,108 @@ T ClampDouble(T lower, T upper, double value) {
   return value;
 }
 
+// Provides a common abstraction for NumericalMechanism.  Numerical mechanisms
+// can add noise to data and track the remaining privacy budget.
+class NumericalMechanism {
+ public:
+  virtual ~NumericalMechanism() = default;
+
+  virtual double AddNoise(double result, double privacy_budget) = 0;
+
+  double AddNoise(double result) { return AddNoise(result, 1.0); }
+
+  virtual int64_t MemoryUsed() = 0;
+};
+
+// Provides a common abstraction for Builders for NumericalMechanism.
+template <class Builder, class Mechanism>
+class NumericalMechanismBuilder {
+ public:
+  virtual ~NumericalMechanismBuilder() = default;
+
+  Builder& SetEpsilon(double epsilon) {
+    epsilon_ = epsilon;
+    return *static_cast<Builder*>(this);
+  }
+
+  Builder& SetDelta(double delta) {
+    delta_ = delta;
+    return *static_cast<Builder*>(this);
+  }
+
+  Builder& SetL0Sensitivity(double l0_sensitivity) {
+    l0_sensitivity_ = l0_sensitivity;
+    return *static_cast<Builder*>(this);
+  }
+
+  Builder& SetLInfSensitivity(double linf_sensitivity) {
+    linf_sensitivity_ = linf_sensitivity;
+    return *static_cast<Builder*>(this);
+  }
+
+  virtual base::StatusOr<std::unique_ptr<Mechanism>> Build() = 0;
+
+  virtual std::unique_ptr<Builder> Clone() const {
+    Builder clone;
+    if (epsilon_.has_value()) {
+      clone.SetEpsilon(epsilon_.value());
+    }
+    if (delta_.has_value()) {
+      clone.SetDelta(delta_.value());
+    }
+    if (l0_sensitivity_.has_value()) {
+      clone.SetL0Sensitivity(l0_sensitivity_.value());
+    }
+    if (linf_sensitivity_.has_value()) {
+      clone.SetLInfSensitivity(linf_sensitivity_.value());
+    }
+    return absl::make_unique<Builder>(clone);
+  }
+
+ protected:
+  absl::optional<double> epsilon_;
+  absl::optional<double> delta_;
+
+  absl::optional<double> l0_sensitivity_;
+  absl::optional<double> linf_sensitivity_;
+};
+
 // Provides differential privacy by adding Laplace noise. This class also
 // contains supporting functions related to the noise added.
-class LaplaceMechanism {
+class LaplaceMechanism : public NumericalMechanism {
  public:
   // Builder for LaplaceMechanism.
-  class Builder {
+  class Builder : public NumericalMechanismBuilder<Builder, LaplaceMechanism> {
    public:
-    Builder() : epsilon_(0), sensitivity_(1) {}
-    virtual ~Builder() = default;
+    // This method is deprecated and SetL1Sensitivity() should be used instead.
+    Builder& SetSensitivity(double l1_sensitivity) {
+      return SetL1Sensitivity(l1_sensitivity);
+    }
 
-    Builder& SetEpsilon(double epsilon) {
-      epsilon_ = epsilon;
+    Builder& SetL1Sensitivity(double sensitivity_l1) {
+      l1_sensitivity_ = sensitivity_l1;
       return *this;
     }
 
-    Builder& SetSensitivity(double sensitivity) {
-      sensitivity_ = sensitivity;
-      return *this;
-    }
-
-    virtual base::StatusOr<std::unique_ptr<LaplaceMechanism>> Build() {
+    base::StatusOr<std::unique_ptr<LaplaceMechanism>> Build() override {
+      if (!epsilon_.has_value()) {
+        // Epsilon has been previously set to 1 as default.  Need to check if
+        // anything breaks.
+        return base::InvalidArgumentError(
+            "Laplace Mechanism requires epsilon to be set.");
+      }
+      // Check if L1 sensitivity is provided or make an estimate.
+      if (!l1_sensitivity_.has_value()) {
+        if (l0_sensitivity_.has_value() && linf_sensitivity_.has_value()) {
+          l1_sensitivity_ = l0_sensitivity_.value() * linf_sensitivity_.value();
+        } else {
+          // Sensitivity of 1 has been the default previously.  This will only
+          // be set for LaplaceMechanism for backwards compatabability.
+          l1_sensitivity_ = 1;
+        }
+      }
       // Check that generated noise is not likely to overflow.
-      double diversity = sensitivity_ / epsilon_;
+      double diversity = l1_sensitivity_.value() / epsilon_.value();
       double overflow_probability =
           (1 - internal::LaplaceDistribution::cdf(
                    diversity, std::numeric_limits<double>::max())) +
@@ -102,18 +181,21 @@ class LaplaceMechanism {
       }
 
       return base::StatusOr<std::unique_ptr<LaplaceMechanism>>(
-          absl::make_unique<LaplaceMechanism>(epsilon_, sensitivity_));
+          absl::make_unique<LaplaceMechanism>(epsilon_.value(),
+                                             l1_sensitivity_.value()));
     }
 
-    virtual std::unique_ptr<LaplaceMechanism::Builder> Clone() const {
-      LaplaceMechanism::Builder clone;
-      clone.SetEpsilon(epsilon_).SetSensitivity(sensitivity_);
-      return absl::make_unique<LaplaceMechanism::Builder>(clone);
+    std::unique_ptr<Builder> Clone() const override {
+      std::unique_ptr<Builder> clone =
+          NumericalMechanismBuilder<Builder, LaplaceMechanism>::Clone();
+      if (l1_sensitivity_.has_value()) {
+        clone->l1_sensitivity_ = l1_sensitivity_.value();
+      }
+      return clone;
     }
 
    protected:
-    double epsilon_;
-    double sensitivity_;
+    absl::optional<double> l1_sensitivity_;
   };
 
   explicit LaplaceMechanism(double epsilon, double sensitivity = 1.0)
@@ -130,13 +212,15 @@ class LaplaceMechanism {
 
   virtual ~LaplaceMechanism() = default;
 
+  using NumericalMechanism::AddNoise;
+
   // Adds differentially private noise to a provided value. The privacy_budget
   // is multiplied with epsilon for this particular result. Privacy budget
   // should be in (0, 1], and is a way to divide an epsilon between multiple
   // values. For instance, if a user wanted to add noise to two different values
   // with a given epsilon then they could add noise to each value with a privacy
   // budget of 0.5 (or 0.4 and 0.6, etc).
-  virtual double AddNoise(double result, double privacy_budget) {
+  double AddNoise(double result, double privacy_budget) override {
     if (privacy_budget <= 0) {
       privacy_budget = std::numeric_limits<double>::min();
     }
@@ -148,13 +232,11 @@ class LaplaceMechanism {
         Clamp<double>(LowerBound<double>(), UpperBound<double>(), result) +
         noise;
     double nearest_power = GetNextPowerOfTwo(diversity_ / privacy_budget);
-    double remainder =
-        (nearest_power == 0.0) ? 0.0 : fmod(noised_result, nearest_power);
-    double rounded_result = noised_result - remainder;
+    double rounded_result =
+        RoundToNearestMultiple(noised_result, nearest_power);
     return ClampDouble<double>(LowerBound<double>(), UpperBound<double>(),
                                rounded_result);
   }
-  double AddNoise(double result) { return AddNoise(result, 1.0); }
 
   virtual double GetUniformDouble() { return distro_->GetUniformDouble(); }
 

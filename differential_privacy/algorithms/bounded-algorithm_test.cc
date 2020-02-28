@@ -19,6 +19,8 @@
 #include "differential_privacy/base/testing/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "differential_privacy/algorithms/algorithm.h"
+#include "differential_privacy/algorithms/approx-bounds.h"
 
 namespace differential_privacy {
 namespace {

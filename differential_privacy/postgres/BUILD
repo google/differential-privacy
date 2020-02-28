@@ -22,19 +22,33 @@ package(
     default_visibility = ["//visibility:private"],
 )
 
+config_setting(
+    name = "darwin_build",
+    values = {"cpu": "darwin"},
+)
+
 cc_binary(
     name = "anon_func.so",
     srcs = ["anon_func.cc"],
     copts = [
         "-Wno-sign-compare",
+        "-fPIC",
+    ] + select({
+        ":darwin_build": [
+            "-isystem bazel-out/darwin-fastbuild/bin/external/postgres/postgres/include/server",
+            "-isystem bazel-out/darwin-fastbuild/bin/external/postgres/postgres/include/internal",
+            "-isystem bazel-out/darwin-fastbuild/genfiles/external/postgres/postgres/include/server",
+            "-isystem bazel-out/darwin-fastbuild/genfiles/external/postgres/postgres/include/internal",
+        ],
         # These paths may need to be changed depending on the system building the binary.
         # eg. "k8-fastbuild" may need to be changed to "darwin-fastbuild".
-        "-isystem bazel-out/k8-fastbuild/bin/external/postgres/postgres/include/server",
-        "-isystem bazel-out/k8-fastbuild/bin/external/postgres/postgres/include/internal",
-        "-isystem bazel-out/k8-fastbuild/genfiles/external/postgres/postgres/include/server",
-        "-isystem bazel-out/k8-fastbuild/genfiles/external/postgres/postgres/include/internal",
-        "-fPIC",
-    ],
+        "//conditions:default": [
+            "-isystem bazel-out/k8-fastbuild/bin/external/postgres/postgres/include/server",
+            "-isystem bazel-out/k8-fastbuild/bin/external/postgres/postgres/include/internal",
+            "-isystem bazel-out/k8-fastbuild/genfiles/external/postgres/postgres/include/server",
+            "-isystem bazel-out/k8-fastbuild/genfiles/external/postgres/postgres/include/internal",
+        ],
+    }),
     linkopts = [
         "-fno-strict-aliasing",
         "-fwrapv",
@@ -56,6 +70,7 @@ cc_library(
     hdrs = ["dp_func.h"],
     copts = ["-Wno-sign-compare"],
     deps = [
+        "//differential_privacy/algorithms:algorithm",
         "//differential_privacy/algorithms:bounded-mean",
         "//differential_privacy/algorithms:bounded-standard-deviation",
         "//differential_privacy/algorithms:bounded-sum",

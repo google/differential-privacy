@@ -105,8 +105,8 @@ cc_test(
     copts = ["-Wno-sign-compare"],
     deps = [
         ":percentile",
-        "//differential_privacy/proto:summary_cc_proto",
         "@com_google_googletest//:gtest_main",
+        "//differential_privacy/proto:summary_cc_proto",
     ],
 )
 

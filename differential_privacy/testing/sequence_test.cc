@@ -16,10 +16,10 @@
 
 #include "differential_privacy/testing/sequence.h"
 
-#include "differential_privacy/algorithms/util.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/memory/memory.h"
+#include "differential_privacy/algorithms/util.h"
 
 namespace differential_privacy {
 namespace testing {

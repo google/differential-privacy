@@ -16,6 +16,7 @@
 
 #include "dp_func.h"
 
+#include "differential_privacy/algorithms/algorithm.h"
 #include "differential_privacy/algorithms/bounded-mean.h"
 #include "differential_privacy/algorithms/bounded-standard-deviation.h"
 #include "differential_privacy/algorithms/bounded-sum.h"
@@ -117,7 +118,9 @@ DpSum::DpSum(std::string* err, bool default_epsilon, double epsilon,
 }
 DpSum::~DpSum() { DeleteAlgorithm<BoundedSum<double, nullptr>>(sum_); }
 bool DpSum::AddEntry(double entry) { return AlgorithmAddEntry(sum_, entry); }
-double DpSum::Result(std::string* err) { return AlgorithmResult<double>(sum_, err); }
+double DpSum::Result(std::string* err) {
+  return AlgorithmResult<double>(sum_, err);
+}
 
 // DP mean.
 DpMean::DpMean(std::string* err, bool default_epsilon, double epsilon,
@@ -165,8 +168,8 @@ double DpStandardDeviation::Result(std::string* err) {
 }
 
 // DP Ntile.
-DpNtile::DpNtile(std::string* err, double percentile, double lower, double upper,
-                 bool default_epsilon, double epsilon) {
+DpNtile::DpNtile(std::string* err, double percentile, double lower,
+                 double upper, bool default_epsilon, double epsilon) {
   if (default_epsilon) {
     epsilon = DefaultEpsilon();
   }

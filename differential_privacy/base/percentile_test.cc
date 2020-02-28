@@ -16,9 +16,9 @@
 
 #include "differential_privacy/base/percentile.h"
 
-#include "differential_privacy/proto/summary.pb.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "differential_privacy/proto/summary.pb.h"
 
 namespace differential_privacy {
 namespace base {

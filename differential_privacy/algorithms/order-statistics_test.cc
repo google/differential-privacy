@@ -16,11 +16,11 @@
 
 #include "differential_privacy/algorithms/order-statistics.h"
 
-#include "differential_privacy/algorithms/numerical-mechanisms-testing.h"
-#include "differential_privacy/algorithms/util.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/random/distributions.h"
+#include "differential_privacy/algorithms/numerical-mechanisms-testing.h"
+#include "differential_privacy/algorithms/util.h"
 
 namespace differential_privacy {
 namespace continuous {
@@ -122,8 +122,7 @@ TEST(OrderStatisticsTest, InvalidParameters) {
                   .SetUpper(2)
                   .Build()
                   .ok());
-  EXPECT_FALSE(builder.SetDatapoints(-1).Build().ok());
-  EXPECT_FALSE(builder.SetDatapoints(1).SetLower(3).Build().ok());
+  EXPECT_FALSE(builder.SetLower(3).Build().ok());
   EXPECT_FALSE(builder.SetLower(1).SetPercentile(-1).Build().ok());
   EXPECT_FALSE(builder.SetPercentile(2).Build().ok());
 }

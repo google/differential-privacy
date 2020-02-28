@@ -45,6 +45,13 @@ double DefaultEpsilon();
 // Includes negative powers.
 double GetNextPowerOfTwo(double n);
 
+// Rounds n to the nearest multiple of base. Ties are broken towards +inf.
+// If base is 0, returns n.
+double RoundToNearestMultiple(double n, double base);
+
+// Return 1.0 if n > 0, -1.0 if n < 0, and 0 if n == 0.
+double sign(double n);
+
 // Estimation of the inverse cdf of the normal distribution centered at mu with
 // standard deviation sigma, at probability p. Based on Abramowitz and Stegun
 // formula 26.2.23. The error of the estimation is bounded by 4.5 e-4. This

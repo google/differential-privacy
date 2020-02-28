@@ -4,8 +4,8 @@
 
 # Bounded Mean
 
-[`BoundedMean`](https://github.com/google/differential-privacy/blob/master/differential_privacy/algorithms/bounded-mean.h) computes the average
-of values in a dataset, in a differentially private manner.
+[`BoundedMean`](https://github.com/google/differential-privacy/blob/master/differential_privacy/algorithms/bounded-mean.h)
+computes the average of values in a dataset, in a differentially private manner.
 
 ## Input & Output
 
@@ -37,6 +37,4 @@ and supports its full API.
 
 ### Result Performance
 
-For `BoundedMean`, calling `Result` is an O(n) operation. Its performance is
-__not impacted__ by the provided iterator category or by whether the data is
-sorted.
+For `BoundedMean`, calling `Result` is an O(n) operation.

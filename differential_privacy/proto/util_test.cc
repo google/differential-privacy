@@ -17,6 +17,7 @@
 #include "differential_privacy/proto/util.h"
 
 #include <string>
+
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 

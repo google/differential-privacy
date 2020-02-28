@@ -4,11 +4,11 @@
 
 # Approx Bounds
 
-[`ApproxBounds`](https://github.com/google/differential-privacy/blob/master/differential_privacy/algorithms/approx-bounds.h) computes an
-approximate minimum and maximum of the input set. It is designed to be used to
-find the approximate support of a large input set, not to obtain an accurate
-(but still differentially private) minimum or maximum. In practice, this
-algorithm is used to determine the bounds of input sets inside
+[`ApproxBounds`](https://github.com/google/differential-privacy/blob/master/differential_privacy/algorithms/approx-bounds.h)
+computes an approximate minimum and maximum of the input set. It is designed to
+be used to find the approximate support of a large input set, not to obtain a
+precise minimum or maximum. In practice, this algorithm is used to determine the
+bounds of input sets inside
 [bounded algorithms](https://github.com/google/differential-privacy/blob/master/differential_privacy/docs/cpp_lib/algorithms/bounded-algorithm.md).
 
 ## Input & Output
@@ -79,11 +79,10 @@ builder.SetApproxBounds(std::unique_ptr<ApproxBounds> approx_bounds)
 ```
 
 Since `ApproxBounds` is designed to be called by other algorithms, it contains
-additional functions in its [API](https://github.com/google/differential-privacy/blob/master/differential_privacy/algorithms/approx-bounds.h)
-to reveal its underlying structure.
+additional functions in its
+[API](https://github.com/google/differential-privacy/blob/master/differential_privacy/algorithms/approx-bounds.h) to
+reveal its underlying structure.
 
 ### Result Performance
 
-For `ApproxBounds`, calling `Result` is an O(n) operation. Its performance is
-__not impacted__ by the provided iterator category or by whether the data is
-sorted.
+For `ApproxBounds`, calling `Result` is an O(n) operation.

@@ -18,9 +18,9 @@
 
 #include <limits>
 
+#include "gtest/gtest.h"
 #include "differential_privacy/algorithms/distributions.h"
 #include "differential_privacy/algorithms/numerical-mechanisms-testing.h"
-#include "gtest/gtest.h"
 #include "differential_privacy/base/status.h"
 
 namespace differential_privacy {
@@ -97,6 +97,24 @@ TEST(NextPowerTest, NegativePowers) {
 TEST(NextPowerTest, ExactNegativePowers) {
   EXPECT_NEAR(GetNextPowerOfTwo(0.5), 0.5, kTolerance);
   EXPECT_NEAR(GetNextPowerOfTwo(0.125), 0.125, kTolerance);
+}
+
+TEST(RoundTest, PositiveNoTies) {
+  EXPECT_NEAR(RoundToNearestMultiple(4.9, 2.0), 4.0, kTolerance);
+  EXPECT_NEAR(RoundToNearestMultiple(5.1, 2.0), 6.0, kTolerance);
+}
+
+TEST(RoundTest, NegativesNoTies) {
+  EXPECT_NEAR(RoundToNearestMultiple(-4.9, 2.0), -4.0, kTolerance);
+  EXPECT_NEAR(RoundToNearestMultiple(-5.1, 2.0), -6.0, kTolerance);
+}
+
+TEST(RoundTest, PositiveTies) {
+  EXPECT_NEAR(RoundToNearestMultiple(5.0, 2.0), 6.0, kTolerance);
+}
+
+TEST(RoundTest, NegativeTies) {
+  EXPECT_NEAR(RoundToNearestMultiple(-5.0, 2.0), -4.0, kTolerance);
 }
 
 TEST(QnormTest, InvalidProbability) {

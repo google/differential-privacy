@@ -18,12 +18,12 @@
 
 #include <fstream>
 
+#include "absl/strings/numbers.h"
+#include "absl/strings/str_split.h"
 #include "differential_privacy/algorithms/bounded-mean.h"
 #include "differential_privacy/algorithms/bounded-sum.h"
 #include "differential_privacy/algorithms/count.h"
 #include "differential_privacy/algorithms/order-statistics.h"
-#include "absl/strings/numbers.h"
-#include "absl/strings/str_split.h"
 
 namespace differential_privacy {
 namespace example {

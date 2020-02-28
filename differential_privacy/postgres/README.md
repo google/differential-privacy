@@ -32,7 +32,8 @@ aggregate functions. We will refer to them as the anonymous functions.
 ### Common Issues
 
 There are several known setup problems; we list suggested solutions for them
-below.
+below. This library was built for Linux and MacOS; there may be errors using
+Windows.
 
 ##### Postgres headers not linking
 
@@ -189,6 +190,18 @@ Column   | Type        | Description                           |
 uid      | integer     | Uniquely identifies a person.         |
 fruit    | varchar(20) | The name of the fruit the person ate. |
 
+Create the table and import the data from the csv file we have provided in this
+directory called `fruiteaten.csv`. Make sure to change the file path below to
+point to where you cloned the directory.
+
+```
+CREATE TABLE FruitEaten (
+  uid integer,
+  fruit character varying(20)
+);
+COPY fruiteaten(uid, fruit) FROM 'fruiteaten.csv' DELIMITER ',' CSV HEADER;
+```
+
 In this table, each row represents one fruit eaten. So if person `1` eats two
 `apple`s, then there will be two rows in the table with column values
 `(1, apple)`. Consider a simple query counting how many of each fruit have been
@@ -341,6 +354,17 @@ Column   | Type        | Description                           |
 -------- | ----------- | ------------------------------------- |
 uid      | integer     | Uniquely dentifies a person.          |
 color    | varchar(20) | The name of the person's shirt color. |
+
+Create the table and import the data provided by `shirts.csv`.  Make sure to
+change the file path below to point to where you cloned the directory.
+
+```
+CREATE TABLE Shirts (
+  uid integer,
+  color character varying(20)
+);
+COPY shirts(uid, color) FROM 'shirts.csv' DELIMITER ',' CSV HEADER;
+```
 
 Let's say we want to find out, for each shirt color, how many fruit all the
 people wearing that shirt color ate, altogether.

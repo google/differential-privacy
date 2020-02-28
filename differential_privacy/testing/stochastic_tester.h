@@ -23,14 +23,14 @@
 #include <stack>
 
 #include "differential_privacy/base/logging.h"
+#include "absl/container/flat_hash_map.h"
+#include "absl/hash/hash.h"
+#include "absl/strings/str_cat.h"
 #include "differential_privacy/algorithms/algorithm.h"
 #include "differential_privacy/algorithms/util.h"
 #include "differential_privacy/proto/util.h"
 #include "differential_privacy/testing/density_estimation.h"
 #include "differential_privacy/testing/sequence.h"
-#include "absl/container/flat_hash_map.h"
-#include "absl/hash/hash.h"
-#include "absl/strings/str_cat.h"
 
 namespace differential_privacy {
 namespace testing {
@@ -504,13 +504,17 @@ bool StochasticTester<T, OutputT>::CheckDpPredicate(
     // We only report that the predicate is not satisfied if it also exceeds
     // the confidence bounds.
     if (bound_exceeded) {
-      LOG(INFO) << absl::StrCat("bin: ", (i + 1), "/", actual_num_buckets,
-                                ", [", dx_hist.BinBoundary(i), ", ",
-                                dx_hist.BinBoundary(i + 1), "]");
+      LOG(INFO) << "Violation found on histograms ============================";
+      LOG(INFO) << dx_hist.ToString();
+      LOG(INFO) << dy_hist.ToString();
+      LOG(INFO) << absl::StrCat(
+          "Bin with violation: ", (i + 1), "/", actual_num_buckets, ", [",
+          dx_hist.BinBoundary(i), ", ", dx_hist.BinBoundary(i + 1), "]");
       LOG(INFO) << absl::StrCat("epsilon=", epsilon);
       // The error bin refers to the bin reserved for storing error values.
-      LOG(INFO) << absl::StrCat("The bin containing ", options.lowest,
-                                " is the error bin.");
+      LOG(INFO) << absl::StrCat(
+          "The bin starting at ", options.lowest,
+          " is the number of times the algorithm returned an error.");
       if (px_lower_bound > py_upper_differential_privacy_bound) {
         LOG(INFO) << absl::StrCat("px: ", px);
         LOG(INFO) << absl::StrCat("px_lower_bound: ", px_lower_bound);
@@ -526,9 +530,9 @@ bool StochasticTester<T, OutputT>::CheckDpPredicate(
       } else {
         LOG(INFO) << absl::StrCat("py: ", py);
         LOG(INFO) << absl::StrCat("py_lower_bound: ", py_lower_bound);
-        LOG(INFO) << absl::StrCat("px_differential_privacy_bound",
+        LOG(INFO) << absl::StrCat("px_differential_privacy_bound: ",
                                   px_differential_privacy_bound);
-        LOG(INFO) << absl::StrCat("px_upper_differential_privacy_bound",
+        LOG(INFO) << absl::StrCat("px_upper_differential_privacy_bound: ",
                                   px_upper_differential_privacy_bound);
         LOG(INFO) << absl::StrCat(
             "py_lower_bound > px_upper_differential_privacy_bound: ",
@@ -536,10 +540,9 @@ bool StochasticTester<T, OutputT>::CheckDpPredicate(
         LOG(INFO) << absl::StrCat("py > px_differential_privacy_bound: ", py,
                                   " > ", px_differential_privacy_bound);
       }
-      LOG(INFO) << dx_hist.ToString();
-      LOG(INFO) << dy_hist.ToString();
-      LOG(INFO) << absl::StrCat("Bounds exceeded (>100%): ",
+      LOG(INFO) << absl::StrCat("Bounds exceeded by (>100%): ",
                                 max_violation_pct_);
+      LOG(INFO) << " ";
       return false;
     }
   }

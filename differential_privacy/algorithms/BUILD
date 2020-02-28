@@ -52,6 +52,7 @@ cc_test(
     copts = ["-Wno-sign-compare"],
     shard_count = 16,
     deps = [
+        "@com_google_googletest//:gtest_main",
         ":approx-bounds",
         ":bounded-mean",
         ":bounded-standard-deviation",
@@ -60,9 +61,9 @@ cc_test(
         ":count",
         ":numerical-mechanisms-testing",
         ":order-statistics",
+        ":util",
         "//differential_privacy/testing:sequence",
         "//differential_privacy/testing:stochastic_tester",
-        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -102,8 +103,10 @@ cc_library(
     hdrs = ["order-statistics.h"],
     copts = ["-Wno-sign-compare"],
     deps = [
+        ":algorithm",
         ":binary-search",
         ":bounded-algorithm",
+        ":numerical-mechanisms",
         "//differential_privacy/base:percentile",
         "//differential_privacy/base:status",
     ],
@@ -129,8 +132,10 @@ cc_library(
     copts = ["-Wno-sign-compare"],
     deps = [
         ":algorithm",
+        ":approx-bounds",
         ":bounded-algorithm",
         ":numerical-mechanisms",
+        ":util",
         "//differential_privacy/base:status",
         "//differential_privacy/proto:summary_cc_proto",
         "@com_google_absl//absl/memory",
@@ -144,8 +149,10 @@ cc_library(
     copts = ["-Wno-sign-compare"],
     deps = [
         ":algorithm",
+        ":approx-bounds",
         ":bounded-algorithm",
         ":numerical-mechanisms",
+        ":util",
         "//differential_privacy/base:status",
         "//differential_privacy/proto:summary_cc_proto",
         "@com_google_absl//absl/random:distributions",
@@ -162,6 +169,7 @@ cc_library(
         ":approx-bounds",
         ":bounded-algorithm",
         ":numerical-mechanisms",
+        ":util",
         "//differential_privacy/proto:util-lib",
         "@com_google_absl//absl/memory",
         "@com_google_protobuf//:cc_wkt_protos",
@@ -187,13 +195,14 @@ cc_test(
     copts = ["-Wno-sign-compare"],
     deps = [
         ":algorithm",
+        ":approx-bounds",
         ":bounded-sum",
         ":numerical-mechanisms",
         ":numerical-mechanisms-testing",
         "//differential_privacy/base/testing:proto_matchers",
         "//differential_privacy/base/testing:status_matchers",
-        "//differential_privacy/proto:util-lib",
         "@com_google_googletest//:gtest_main",
+        "//differential_privacy/proto:util-lib",
         "@com_google_absl//absl/memory",
     ],
 )
@@ -203,6 +212,7 @@ cc_test(
     srcs = ["bounded-mean_test.cc"],
     copts = ["-Wno-sign-compare"],
     deps = [
+        ":approx-bounds",
         ":bounded-mean",
         ":numerical-mechanisms-testing",
         "//differential_privacy/base/testing:proto_matchers",
@@ -216,6 +226,7 @@ cc_test(
     srcs = ["bounded-variance_test.cc"],
     copts = ["-Wno-sign-compare"],
     deps = [
+        ":approx-bounds",
         ":bounded-variance",
         ":numerical-mechanisms-testing",
         "//differential_privacy/base/testing:proto_matchers",
@@ -230,6 +241,7 @@ cc_test(
     srcs = ["bounded-standard-deviation_test.cc"],
     copts = ["-Wno-sign-compare"],
     deps = [
+        ":approx-bounds",
         ":bounded-standard-deviation",
         ":distributions",
         ":numerical-mechanisms-testing",
@@ -262,9 +274,9 @@ cc_test(
         ":numerical-mechanisms-testing",
         "//differential_privacy/base/testing:proto_matchers",
         "//differential_privacy/base/testing:status_matchers",
+        "@com_google_googletest//:gtest_main",
         "//differential_privacy/proto:data_cc_proto",
         "//differential_privacy/proto:summary_cc_proto",
-        "@com_google_googletest//:gtest_main",
         "@com_google_protobuf//:cc_wkt_protos",
     ],
 )
@@ -367,6 +379,8 @@ cc_test(
     srcs = ["bounded-algorithm_test.cc"],
     copts = ["-Wno-sign-compare"],
     deps = [
+        ":algorithm",
+        ":approx-bounds",
         ":bounded-algorithm",
         "//differential_privacy/base/testing:status_matchers",
         "@com_google_googletest//:gtest_main",
@@ -382,8 +396,9 @@ cc_library(
         ":confidence_interval_cc_proto",
         ":distributions",
         ":numerical-mechanisms",
-        "@com_google_googletest//:gtest",
         "//differential_privacy/base:statusor",
+        "@com_google_googletest//:gtest",
+        "@com_google_absl//absl/random",
     ],
 )
 
@@ -403,6 +418,7 @@ cc_library(
     copts = ["-Wno-sign-compare"],
     deps = [
         ":algorithm",
+        ":numerical-mechanisms",
         "//differential_privacy/base:status",
         "//differential_privacy/proto:util-lib",
         "@com_google_protobuf//:cc_wkt_protos",

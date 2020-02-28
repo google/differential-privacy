@@ -19,13 +19,13 @@
 #include <memory>
 
 #include "google/protobuf/any.pb.h"
-#include "differential_privacy/algorithms/numerical-mechanisms-testing.h"
-#include "differential_privacy/proto/data.pb.h"
-#include "differential_privacy/proto/summary.pb.h"
 #include "differential_privacy/base/testing/proto_matchers.h"
 #include "differential_privacy/base/testing/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "differential_privacy/algorithms/numerical-mechanisms-testing.h"
+#include "differential_privacy/proto/data.pb.h"
+#include "differential_privacy/proto/summary.pb.h"
 
 namespace differential_privacy {
 namespace {

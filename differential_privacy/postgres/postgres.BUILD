@@ -27,14 +27,29 @@ filegroup(
     srcs = glob(["**"]),
 )
 
+config_setting(
+    name = "darwin_build",
+    values = {"cpu": "darwin"},
+)
+
 configure_make(
     name = "postgres",
     configure_command = "configure",
-    configure_env_vars = {
-        # Neccessary to create a fully static linked library.
-        "CXXFLAGS": "-fPIC",
-        "CFLAGS": "-fPIC",
-    },
+    configure_env_vars = select({
+        ":darwin_build": {
+            # Neccessary to create a fully static linked library.
+            "CXXFLAGS": "-fPIC",
+            "CFLAGS": "-fPIC",
+            # OSX crosstools specific flags
+            "LDFLAGS": "-undefined error",
+            "AR": "",
+        },
+        "//conditions:default": {
+            # Neccessary to create a fully static linked library.
+            "CXXFLAGS": "-fPIC",
+            "CFLAGS": "-fPIC",
+        },
+    }),
     headers_only = True,
     lib_source = "@postgres//:all",
 )

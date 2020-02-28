@@ -154,7 +154,9 @@ inline bool Status::ok() const { return StatusCode::kOk == code_; }
 
 inline int Status::error_code() const { return static_cast<int>(code()); }
 
-inline std::string Status::error_message() const { return std::string(message()); }
+inline std::string Status::error_message() const {
+  return std::string(message());
+}
 
 inline StatusCode Status::CanonicalCode() const { return code(); }
 

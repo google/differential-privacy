@@ -42,5 +42,4 @@ API.
 ### Result Performance
 
 For `BoundedStandardDeviation`, calling `Result` is an O(n) operation and
-requires O(1) additional memory. Its performance is __not impacted__ by the
-provided iterator category or by whether the data is sorted.
+requires O(1) additional memory.

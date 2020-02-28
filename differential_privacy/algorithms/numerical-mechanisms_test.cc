@@ -16,9 +16,9 @@
 
 #include "differential_privacy/algorithms/numerical-mechanisms.h"
 
-#include "differential_privacy/algorithms/distributions.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "differential_privacy/algorithms/distributions.h"
 
 namespace differential_privacy {
 namespace {
@@ -26,6 +26,7 @@ namespace {
 using testing::_;
 using testing::DoubleEq;
 using testing::DoubleNear;
+using testing::Ge;
 using testing::Return;
 
 class MockLaplaceDistribution : public internal::LaplaceDistribution {
@@ -138,6 +139,16 @@ TYPED_TEST(NumericalMechanismsTest, LaplaceBuilderClone) {
 
   EXPECT_DOUBLE_EQ(test_mechanism->GetEpsilon(), 1);
   EXPECT_DOUBLE_EQ(test_mechanism->GetSensitivity(), 3);
+}
+
+TEST(NumericalMechanismsTest, LaplaceEstimatesL1WithL0AndLInf) {
+  LaplaceMechanism::Builder builder;
+  std::unique_ptr<LaplaceMechanism> mechanism = builder.SetEpsilon(1)
+                                                    .SetL0Sensitivity(5)
+                                                    .SetLInfSensitivity(3)
+                                                    .Build()
+                                                    .ValueOrDie();
+  EXPECT_THAT(mechanism->GetSensitivity(), Ge(3));
 }
 
 }  // namespace

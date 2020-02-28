@@ -19,14 +19,14 @@
 #include <climits>
 #include <memory>
 
-#include "differential_privacy/algorithms/algorithm.h"
-#include "differential_privacy/algorithms/numerical-mechanisms-testing.h"
-#include "differential_privacy/algorithms/numerical-mechanisms.h"
-#include "differential_privacy/algorithms/util.h"
 #include "differential_privacy/base/testing/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/random/distributions.h"
+#include "differential_privacy/algorithms/algorithm.h"
+#include "differential_privacy/algorithms/numerical-mechanisms-testing.h"
+#include "differential_privacy/algorithms/numerical-mechanisms.h"
+#include "differential_privacy/algorithms/util.h"
 
 namespace differential_privacy {
 namespace {
@@ -43,9 +43,8 @@ template <typename T>
 class TestPercentileSearch : public BinarySearch<T> {
  public:
   TestPercentileSearch(double percentile, double epsilon, T lower, T upper,
-                       int64_t datapoints,
                        std::unique_ptr<LaplaceMechanism::Builder> builder)
-      : BinarySearch<T>(epsilon, lower, upper, datapoints, percentile,
+      : BinarySearch<T>(epsilon, lower, upper, percentile,
                         builder->Build().ValueOrDie(),
                         absl::make_unique<base::Percentile<T>>()
         ) {}
@@ -55,7 +54,7 @@ TEST(BinarySearchTest, MedianTest) {
   double epsilon = DefaultEpsilon();
   int64_t lower = 0, upper = 400;
   TestPercentileSearch<int64_t> search(
-      .5, epsilon, lower, upper, 0,
+      .5, epsilon, lower, upper,
       absl::make_unique<test_utils::ZeroNoiseMechanism::Builder>());
   for (double i = 0; i < kDataSize; ++i) {
     search.AddEntry(std::round(200 * i / kDataSize));
@@ -67,7 +66,7 @@ TEST(BinarySearchTest, PercentileTest) {
   double epsilon = DefaultEpsilon();
   int64_t lower = 0, upper = 400;
   TestPercentileSearch<int64_t> search(
-      .6, epsilon, lower, upper, 0,
+      .6, epsilon, lower, upper,
       absl::make_unique<test_utils::ZeroNoiseMechanism::Builder>());
   for (double i = 0; i < kDataSize; ++i) {
     search.AddEntry(std::round(200 * i / kDataSize));
@@ -77,9 +76,9 @@ TEST(BinarySearchTest, PercentileTest) {
 
 TEST(BinarySearchTest, RepeatedResultTest) {
   double epsilon = DefaultEpsilon();
-  int64_t lower = 0, upper = 400, accuracy = 1;
+  int64_t lower = 0, upper = 400;
   TestPercentileSearch<int64_t> search(
-      .5, epsilon, lower, upper, accuracy,
+      .5, epsilon, lower, upper,
       absl::make_unique<test_utils::ZeroNoiseMechanism::Builder>());
   for (int64_t i = 0; i < kDataSize; ++i) {
     search.AddEntry(std::round(200 * i / kDataSize));
@@ -92,7 +91,7 @@ TEST(BinarySearchTest, MinTest) {
   double epsilon = DefaultEpsilon();
   int64_t lower = 0, upper = 400;
   TestPercentileSearch<int64_t> search(
-      0, epsilon, lower, upper, 0,
+      0, epsilon, lower, upper,
       absl::make_unique<test_utils::ZeroNoiseMechanism::Builder>());
   for (double i = 0; i < kDataSize; ++i) {
     search.AddEntry(std::round(200 * i / kDataSize));
@@ -104,7 +103,7 @@ TEST(BinarySearchTest, MaxTest) {
   double epsilon = DefaultEpsilon();
   int64_t lower = 0, upper = 400;
   TestPercentileSearch<int64_t> search(
-      1, epsilon, lower, upper, 0,
+      1, epsilon, lower, upper,
       absl::make_unique<test_utils::ZeroNoiseMechanism::Builder>());
   for (double i = 0; i < kDataSize; ++i) {
     search.AddEntry(std::round(200 * i / kDataSize));
@@ -117,7 +116,7 @@ TEST(BinarySearchTest, SerializeMergeTest) {
   double epsilon = DefaultEpsilon();
   int64_t lower = 0, upper = 400;
   TestPercentileSearch<int64_t> search(
-      .5, epsilon, lower, upper, 0,
+      .5, epsilon, lower, upper,
       absl::make_unique<test_utils::ZeroNoiseMechanism::Builder>());
   for (int64_t i = 0; i < 100; ++i) {
     search.AddEntry(100);
@@ -131,7 +130,7 @@ TEST(BinarySearchTest, SerializeMergeTest) {
 
   // Merge the summary back.
   TestPercentileSearch<int64_t> search_2(
-      .5, epsilon, lower, upper, 0,
+      .5, epsilon, lower, upper,
       absl::make_unique<test_utils::ZeroNoiseMechanism::Builder>());
   for (int64_t i = 0; i < 100; ++i) {
     search_2.AddEntry(300);
@@ -145,7 +144,7 @@ TEST(BinarySearchTest, DropNanEntries) {
   double epsilon = 1;
   int64_t lower = 0, upper = 400;
   TestPercentileSearch<double> search(
-      .5, epsilon, lower, upper, 0,
+      .5, epsilon, lower, upper,
       absl::make_unique<test_utils::ZeroNoiseMechanism::Builder>());
   for (double i = 0; i < kDataSize; ++i) {
     search.AddEntry(std::round(200 * i / kDataSize));
@@ -161,7 +160,7 @@ TEST(BinarySearchTest, ExtremeBoundsMedianSearch) {
   int64_t lower = std::numeric_limits<int64_t>::lowest();
   int64_t upper = std::numeric_limits<int64_t>::max();
   TestPercentileSearch<int64_t> search(
-      .5, epsilon, lower, upper, 0,
+      .5, epsilon, lower, upper,
       absl::make_unique<test_utils::ZeroNoiseMechanism::Builder>());
   for (double i = 0; i < kDataSize; ++i) {
     search.AddEntry(std::round(200 * i / kDataSize));
@@ -173,7 +172,7 @@ TEST(BinarySearchTest, ErrorConfidenceInterval) {
   double epsilon = DefaultEpsilon();
   double lower = 0, upper = 1000;
   TestPercentileSearch<int64_t> search(
-      .5, epsilon, lower, upper, 0,
+      .5, epsilon, lower, upper,
       absl::make_unique<test_utils::ZeroNoiseMechanism::Builder>());
   for (int64_t i = 0; i < kDataSize; ++i) {
     search.AddEntry(100);
@@ -188,7 +187,7 @@ TEST(BinarySearchTest, ErrorConfidenceInterval) {
 
 TEST(BinarySearchTest, MemoryUsed) {
   TestPercentileSearch<double> search(
-      .5, DefaultEpsilon(), 1, 2, 1,
+      .5, DefaultEpsilon(), 1, 2,
       absl::make_unique<test_utils::ZeroNoiseMechanism::Builder>());
   EXPECT_GT(search.MemoryUsed(), 0);
 }

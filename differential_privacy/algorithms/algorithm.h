@@ -22,13 +22,13 @@
 #include <memory>
 #include <string>
 
+#include "absl/memory/memory.h"
 #include "differential_privacy/algorithms/confidence-interval.pb.h"
 #include "differential_privacy/algorithms/numerical-mechanisms.h"
 #include "differential_privacy/algorithms/util.h"
 #include "differential_privacy/proto/data.pb.h"
 #include "differential_privacy/proto/summary.pb.h"
 #include "differential_privacy/proto/util.h"
-#include "absl/memory/memory.h"
 #include "differential_privacy/base/canonical_errors.h"
 #include "differential_privacy/base/status.h"
 #include "differential_privacy/base/statusor.h"
