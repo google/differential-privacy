@@ -1,4 +1,0 @@
-numpy
-scipy
-absl-py
-dataclasses
