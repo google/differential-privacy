@@ -34,10 +34,7 @@ namespace {
 static constexpr size_t kDataSize = 10000;
 static constexpr size_t kStatsSize = 500;
 
-using test_utils::ZeroNoiseMechanism;
-using ::testing::DoubleNear;
-using ::testing::Eq;
-using ::testing::Return;
+using ::differential_privacy::test_utils::ZeroNoiseMechanism;
 
 template <typename T>
 class TestPercentileSearch : public BinarySearch<T> {
@@ -190,6 +187,16 @@ TEST(BinarySearchTest, MemoryUsed) {
       .5, DefaultEpsilon(), 1, 2,
       absl::make_unique<test_utils::ZeroNoiseMechanism::Builder>());
   EXPECT_GT(search.MemoryUsed(), 0);
+}
+
+TEST(BinarySearchTest, LowerEqualsUpper) {
+  TestPercentileSearch<int64_t> search(
+      .5, DefaultEpsilon(), 1, 1,
+      absl::make_unique<test_utils::ZeroNoiseMechanism::Builder>());
+  Output output = search.PartialResult(1).ValueOrDie();
+  EXPECT_EQ(GetValue<int64_t>(output), 1);
+  EXPECT_EQ(output.error_report().noise_confidence_interval().lower_bound(), 1);
+  EXPECT_EQ(output.error_report().noise_confidence_interval().upper_bound(), 1);
 }
 
 }  // namespace

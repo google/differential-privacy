@@ -142,6 +142,18 @@ class BinarySearch : public Algorithm<T> {
 
  private:
   base::StatusOr<Output> BayesianSearch(double privacy_budget) {
+    // If the bounds are equal, we return the only possible value with total
+    // confidence.
+    if (lower_ == upper_) {
+      Output output = MakeOutput<T>(lower_);
+      ConfidenceInterval* ci =
+          output.mutable_error_report()->mutable_noise_confidence_interval();
+      ci->set_lower_bound(lower_);
+      ci->set_upper_bound(lower_);
+      ci->set_confidence_level(kDefaultConfidenceLevel);
+      return output;
+    }
+
     // Start the local_budget at a fraction of the total budget.
     double local_budget = privacy_budget * kDefaultLocalBudgetFraction;
     double remaining_budget = privacy_budget;
@@ -214,10 +226,14 @@ class BinarySearch : public Algorithm<T> {
       // Split the bucket into two assuming uniform distribution of probability
       // within the bucket. The bucket starting at lower_bound will retain the
       // weight proportional to its length. The bucket starting at the new
-      // split-point will get the remaining weight.
+      // split-point will get the remaining weight. Do not split the bucket if
+      // m is lower_bound or upper_bound.
       m = (.5 - sum_w + w) / w * (upper_bound - lower_bound) + lower_bound;
-      weight[lower_bound] = w * (m - lower_bound) / (upper_bound - lower_bound);
-      weight[m] = w * (upper_bound - m) / (upper_bound - lower_bound);
+      if (lower_bound < m && m < upper_bound) {
+        weight[lower_bound] =
+            w * (m - lower_bound) / (upper_bound - lower_bound);
+        weight[m] = w * (upper_bound - m) / (upper_bound - lower_bound);
+      }
     }
 
     // Round the result instead of truncation.
