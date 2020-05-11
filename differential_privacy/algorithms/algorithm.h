@@ -23,6 +23,7 @@
 #include <string>
 
 #include "absl/memory/memory.h"
+#include "differential_privacy/base/status.h"
 #include "differential_privacy/algorithms/confidence-interval.pb.h"
 #include "differential_privacy/algorithms/numerical-mechanisms.h"
 #include "differential_privacy/algorithms/util.h"
@@ -82,14 +83,25 @@ class Algorithm {
     return PartialResult();
   }
 
+  // Gets the algorithm result, consuming the remaining privacy budget.
+  base::StatusOr<Output> PartialResult() {
+    return PartialResult(RemainingPrivacyBudget());
+  }
+
+  // Same as above, but consumes only the `privacy_budget` amount of budget.
   // Privacy budget, defined on [0,1], represents the fraction of the total
   // budget to consume.
   base::StatusOr<Output> PartialResult(double privacy_budget) {
-    return GenerateResult(ConsumePrivacyBudget(privacy_budget));
+    return GenerateResult(ConsumePrivacyBudget(privacy_budget),
+                          kDefaultConfidenceLevel);
   }
 
-  base::StatusOr<Output> PartialResult() {
-    return PartialResult(RemainingPrivacyBudget());
+  // Same as above, but provides the confidence level of the noise confidence
+  // interval, which may be included in the algorithm output.
+  base::StatusOr<Output> PartialResult(double privacy_budget,
+                                       double noise_interval_level) {
+    return GenerateResult(ConsumePrivacyBudget(privacy_budget),
+                          noise_interval_level);
   }
 
   double RemainingPrivacyBudget() { return privacy_budget_; }
@@ -153,11 +165,12 @@ class Algorithm {
   virtual double GetEpsilon() const { return epsilon_; }
 
  protected:
-  // Return the result of the algorithm when run on all the input that has been
+  // Returns the result of the algorithm when run on all the input that has been
   // provided via AddEntr[y|ies] since the last call to Reset.
   // Apportioning of privacy budget is handled by calls from PartialResult
   // above.
-  virtual base::StatusOr<Output> GenerateResult(double privacy_budget) = 0;
+  virtual base::StatusOr<Output> GenerateResult(
+      double privacy_budget, double noise_interval_level) = 0;
 
   // Allows child classes to reset their state as part of a global reset.
   virtual void ResetState() = 0;

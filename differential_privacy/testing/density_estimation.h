@@ -20,6 +20,7 @@
 #include <limits>
 #include <numeric>
 
+#include "differential_privacy/base/status.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "differential_privacy/base/canonical_errors.h"

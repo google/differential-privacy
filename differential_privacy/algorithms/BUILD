@@ -170,6 +170,7 @@ cc_library(
         ":bounded-algorithm",
         ":numerical-mechanisms",
         ":util",
+        "//differential_privacy/base:status",
         "//differential_privacy/proto:util-lib",
         "@com_google_absl//absl/memory",
         "@com_google_protobuf//:cc_wkt_protos",
@@ -185,6 +186,7 @@ cc_library(
         ":bounded-algorithm",
         ":bounded-variance",
         ":numerical-mechanisms",
+        "//differential_privacy/base:status",
         "@com_google_absl//absl/memory",
     ],
 )
@@ -260,6 +262,7 @@ cc_library(
     deps = [
         ":algorithm",
         ":numerical-mechanisms",
+        "//differential_privacy/base:status",
         "//differential_privacy/proto:summary_cc_proto",
         "@com_google_protobuf//:cc_wkt_protos",
     ],
@@ -316,6 +319,7 @@ cc_library(
     deps = [
         ":rand",
         ":util",
+        "//differential_privacy/base:status",
         "//differential_privacy/base:statusor",
         "@com_google_absl//absl/memory",
         "@com_google_absl//absl/random",
@@ -325,6 +329,7 @@ cc_library(
 
 cc_test(
     name = "distributions_test",
+    size = "large",
     srcs = ["distributions_test.cc"],
     copts = ["-Wno-sign-compare"],
     deps = [

@@ -32,8 +32,6 @@
 namespace differential_privacy {
 namespace testing {
 namespace {
-const char kRandomSeed[] = "***fixed seed***";
-}  // namespace
 
 // Trivial non-DP sum that returns the exact value determinisitically.
 template <typename T,
@@ -45,7 +43,8 @@ class NonDpSum : public Algorithm<T> {
   NonDpSum() : Algorithm<T>(0), result_(0) {}
   void AddEntry(const T& t) override { result_ += t; }
 
-  base::StatusOr<Output> GenerateResult(double /*privacy_budget*/) override {
+  base::StatusOr<Output> GenerateResult(
+      double /*privacy_budget*/, double /*noise_interval_level*/) override {
     return MakeOutput<T>(result_);
   }
   void ResetState() override { result_ = 0; }
@@ -67,7 +66,8 @@ class NonDpCount : public Algorithm<T> {
   NonDpCount() : Algorithm<T>(0), result_(0) {}
   void AddEntry(const T& t) override { ++result_; }
 
-  base::StatusOr<Output> GenerateResult(double /*privacy_budget*/) override {
+  base::StatusOr<Output> GenerateResult(
+      double /*privacy_budget*/, double /*noise_interval_level*/) override {
     return MakeOutput<int64_t>(result_);
   }
   void ResetState() override { result_ = 0; }
@@ -112,11 +112,12 @@ class BoundedSumWithError : public BoundedSum<T> {
                       nullptr),
         mechanism_(builder->Build().ValueOrDie()) {}
 
-  base::StatusOr<Output> GenerateResult(double privacy_budget) override {
+  base::StatusOr<Output> GenerateResult(double privacy_budget,
+                                        double noise_interval_level) override {
     if (mechanism_->GetUniformDouble() < 0.25) {
       return base::InvalidArgumentError("BoundedSumWithError returns error.");
     }
-    return BoundedSum<T>::GenerateResult(privacy_budget);
+    return BoundedSum<T>::GenerateResult(privacy_budget, noise_interval_level);
   }
 
  private:
@@ -133,11 +134,12 @@ class CountNoDpError : public Count<T> {
                               .Build()
                               .ValueOrDie()) {}
 
-  base::StatusOr<Output> GenerateResult(double privacy_budget) override {
+  base::StatusOr<Output> GenerateResult(double privacy_budget,
+                                        double noise_interval_level) override {
     if (Count<T>::count_ == 0) {
       return base::InvalidArgumentError("CountNoDpError returns error.");
     }
-    return Count<T>::GenerateResult(privacy_budget);
+    return Count<T>::GenerateResult(privacy_budget, noise_interval_level);
   }
 };
 
@@ -151,7 +153,8 @@ class AlwaysError : public Algorithm<T> {
   AlwaysError() : Algorithm<T>(0), result_(0) {}
   void AddEntry(const T& t) override {}
 
-  base::StatusOr<Output> GenerateResult(double /*privacy_budget*/) override {
+  base::StatusOr<Output> GenerateResult(
+      double /*privacy_budget*/, double /*noise_interval_level*/) override {
     return base::InvalidArgumentError("AlwaysError returns error.");
   }
   void ResetState() override {}
@@ -310,5 +313,6 @@ TEST(StochasticTesterTest, AllError) {
   EXPECT_TRUE(tester.Run());
 }
 
+}  // namespace
 }  // namespace testing
 }  // namespace differential_privacy

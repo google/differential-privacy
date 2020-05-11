@@ -17,8 +17,11 @@
 #ifndef DIFFERENTIAL_PRIVACY_ALGORITHMS_BOUNDED_MEAN_H_
 #define DIFFERENTIAL_PRIVACY_ALGORITHMS_BOUNDED_MEAN_H_
 
+#include <type_traits>
+
 #include "google/protobuf/any.pb.h"
 #include "absl/random/distributions.h"
+#include "differential_privacy/base/status.h"
 #include "differential_privacy/algorithms/algorithm.h"
 #include "differential_privacy/algorithms/approx-bounds.h"
 #include "differential_privacy/algorithms/bounded-algorithm.h"
@@ -36,10 +39,7 @@ namespace differential_privacy {
 // to doing noisy sum / noisy count). This algorithm is taken from section 2.5.5
 // of the following book (algorithm 2.4):
 // https://books.google.com/books?id=WFttDQAAQBAJ&pg=PA24#v=onepage&q&f=false
-template <typename T,
-          typename std::enable_if<std::is_integral<T>::value ||
-                                  std::is_floating_point<T>::value>::type* =
-              nullptr>
+template <typename T, std::enable_if_t<std::is_arithmetic<T>::value>* = nullptr>
 class BoundedMean : public Algorithm<T> {
  public:
   // Builder for BoundedMean algorithm.
@@ -50,9 +50,8 @@ class BoundedMean : public Algorithm<T> {
 
    public:
     // For integral type, check for no overflow in the subtraction.
-    template <
-        typename T2 = T,
-        typename std::enable_if<std::is_integral<T2>::value>::type* = nullptr>
+    template <typename T2 = T,
+              std::enable_if_t<std::is_integral<T2>::value>* = nullptr>
     static base::Status CheckBounds(T lower, T upper) {
       T subtract_result;
       if (!SafeSubtract(upper, lower, &subtract_result)) {
@@ -63,8 +62,8 @@ class BoundedMean : public Algorithm<T> {
     }
 
     // No checks for floating point type.
-    template <typename T2 = T, typename std::enable_if<std::is_floating_point<
-                                   T2>::value>::type* = nullptr>
+    template <typename T2 = T,
+              std::enable_if_t<std::is_floating_point<T2>::value>* = nullptr>
     static base::Status CheckBounds(T lower, T upper) {
       return base::OkStatus();
     }
@@ -125,73 +124,6 @@ class BoundedMean : public Algorithm<T> {
       } else {
         approx_bounds_->template AddToPartialSums<T>(&neg_sum_, t);
       }
-    }
-  }
-
-  base::StatusOr<Output> GenerateResult(double privacy_budget) override {
-    DCHECK_GT(privacy_budget, 0.0)
-        << "Privacy budget should be greater than zero.";
-    if (privacy_budget == 0.0) return Output();
-    double sum = 0;
-    double remaining_budget = privacy_budget;
-    Output output;
-
-    // Find bounds and sum.
-    if (approx_bounds_) {
-      // Use a fraction of the privacy budget to find the approximate bounds.
-      double bounds_budget = privacy_budget / 2;
-      remaining_budget -= bounds_budget;
-      ASSIGN_OR_RETURN(Output bounds,
-                       approx_bounds_->GenerateResult(bounds_budget));
-      lower_ = GetValue<T>(bounds.elements(0).value());
-      upper_ = GetValue<T>(bounds.elements(1).value());
-      RETURN_IF_ERROR(Builder::CheckBounds(lower_, upper_));
-      midpoint_ = lower_ + (upper_ - lower_) / 2;
-
-      // To find the sum, pass the identity function as the transform.
-      sum = approx_bounds_->template ComputeFromPartials<T>(
-          pos_sum_, neg_sum_, [](T x) { return x; }, lower_, upper_,
-          raw_count_);
-
-      // Populate the bounding report with ApproxBounds information.
-      *(output.mutable_error_report()->mutable_bounding_report()) =
-          approx_bounds_->GetBoundingReport(lower_, upper_);
-
-      // Clear the mechanism. The sensitivity might have changed.
-      sum_mechanism_.reset();
-    } else {
-      // Manual bounds were set and clamping was done upon adding entries.
-      sum = pos_sum_[0];
-    }
-
-    // Construct mechanism if needed.
-    RETURN_IF_ERROR(BuildMechanism());
-
-    double count_budget = remaining_budget / 2;
-    remaining_budget -= count_budget;
-    double noised_count = count_mechanism_->AddNoise(raw_count_, count_budget);
-
-    // If we don't have data.
-    if (noised_count <= 1) {
-      AddToOutput<double>(&output, midpoint_);
-      return output;
-    }
-
-    // Normal case: we actually have data.
-    double normalized_sum = sum_mechanism_->AddNoise(
-        sum - raw_count_ * midpoint_, remaining_budget);
-    double average = normalized_sum / noised_count + midpoint_;
-    AddToOutput<double>(&output, Clamp<double>(lower_, upper_, average));
-    return output;
-  }
-
-  void ResetState() override {
-    std::fill(pos_sum_.begin(), pos_sum_.end(), 0);
-    std::fill(neg_sum_.begin(), neg_sum_.end(), 0);
-    raw_count_ = 0;
-    if (approx_bounds_) {
-      approx_bounds_->ResetState();
-      sum_mechanism_ = nullptr;
     }
   }
 
@@ -289,6 +221,74 @@ class BoundedMean : public Algorithm<T> {
       neg_sum_.resize(approx_bounds_->NumPositiveBins(), 0);
     } else {
       pos_sum_.push_back(0);
+    }
+  }
+
+  base::StatusOr<Output> GenerateResult(double privacy_budget,
+                                        double noise_interval_level) override {
+    DCHECK_GT(privacy_budget, 0.0)
+        << "Privacy budget should be greater than zero.";
+    if (privacy_budget == 0.0) return Output();
+    double sum = 0;
+    double remaining_budget = privacy_budget;
+    Output output;
+
+    // Find bounds and sum.
+    if (approx_bounds_) {
+      // Use a fraction of the privacy budget to find the approximate bounds.
+      double bounds_budget = privacy_budget / 2;
+      remaining_budget -= bounds_budget;
+      ASSIGN_OR_RETURN(Output bounds, approx_bounds_->PartialResult(
+                                          bounds_budget, noise_interval_level));
+      lower_ = GetValue<T>(bounds.elements(0).value());
+      upper_ = GetValue<T>(bounds.elements(1).value());
+      RETURN_IF_ERROR(Builder::CheckBounds(lower_, upper_));
+      midpoint_ = lower_ + (upper_ - lower_) / 2;
+
+      // To find the sum, pass the identity function as the transform.
+      sum = approx_bounds_->template ComputeFromPartials<T>(
+          pos_sum_, neg_sum_, [](T x) { return x; }, lower_, upper_,
+          raw_count_);
+
+      // Populate the bounding report with ApproxBounds information.
+      *(output.mutable_error_report()->mutable_bounding_report()) =
+          approx_bounds_->GetBoundingReport(lower_, upper_);
+
+      // Clear the mechanism. The sensitivity might have changed.
+      sum_mechanism_.reset();
+    } else {
+      // Manual bounds were set and clamping was done upon adding entries.
+      sum = pos_sum_[0];
+    }
+
+    // Construct mechanism if needed.
+    RETURN_IF_ERROR(BuildMechanism());
+
+    double count_budget = remaining_budget / 2;
+    remaining_budget -= count_budget;
+    double noised_count = count_mechanism_->AddNoise(raw_count_, count_budget);
+
+    // If we don't have data.
+    if (noised_count <= 1) {
+      AddToOutput<double>(&output, midpoint_);
+      return output;
+    }
+
+    // Normal case: we actually have data.
+    double normalized_sum = sum_mechanism_->AddNoise(
+        sum - raw_count_ * midpoint_, remaining_budget);
+    double average = normalized_sum / noised_count + midpoint_;
+    AddToOutput<double>(&output, Clamp<double>(lower_, upper_, average));
+    return output;
+  }
+
+  void ResetState() override {
+    std::fill(pos_sum_.begin(), pos_sum_.end(), 0);
+    std::fill(neg_sum_.begin(), neg_sum_.end(), 0);
+    raw_count_ = 0;
+    if (approx_bounds_) {
+      approx_bounds_->Reset();
+      sum_mechanism_ = nullptr;
     }
   }
 

@@ -73,7 +73,7 @@ double LaplaceChiSquared(const std::vector<double>& v, double scale) {
 }
 
 void BM_laplace_chi_squared(benchmark::State& state) {
-  LaplaceDistribution dist(1.0);
+  LaplaceDistribution dist(1.0, 1.0);
   std::vector<double> samples(kNumSamples);
   for (auto _ : state) {
     std::generate(samples.begin(), samples.end(),

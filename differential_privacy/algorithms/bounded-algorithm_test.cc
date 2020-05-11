@@ -59,7 +59,8 @@ class BoundedAlgorithm : public Algorithm<T> {
 
   // Trivial implementations of virtual functions.
   void AddEntry(const T& t) override {}
-  base::StatusOr<Output> GenerateResult(double /*privacy_budget*/) override {
+  base::StatusOr<Output> GenerateResult(
+      double /*privacy_budget*/, double /*noise_interval_level*/) override {
     return Output();
   }
   void ResetState() override {}

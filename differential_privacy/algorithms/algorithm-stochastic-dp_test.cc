@@ -159,22 +159,6 @@ TEST(StochasticDifferentialPrivacyTest, Percentile) {
   EXPECT_TRUE(tester.Run());
 }
 
-TEST(StochasticDifferentialPrivacyTest, Count) {
-  auto sequence = absl::make_unique<HaltonSequence<int64_t>>(
-      testing::DefaultDatasetSize(), true /* sorted_only */,
-      testing::DefaultDataScale(), testing::DefaultDataOffset());
-  std::unique_ptr<Count<int64_t>> algorithm =
-      Count<int64_t>::Builder()
-          .SetLaplaceMechanism(
-              absl::make_unique<SeededLaplaceMechanism::Builder>())
-          .SetEpsilon(DefaultEpsilon())
-          .Build()
-          .ValueOrDie();
-  StochasticTester<int64_t> tester(std::move(algorithm), std::move(sequence),
-                                 kNumDatasetsToTest, kNumSamplesPerHistogram);
-  EXPECT_TRUE(tester.Run());
-}
-
 // For Count, by creating a single dataset of a particular size, executing the
 // DP tester for this dataset on a single path in the search space is
 // equivalent to testing all datasets of that size, assuming that the

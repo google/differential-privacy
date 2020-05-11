@@ -56,6 +56,16 @@ TEST(StoredSequenceTest, CheckStoredSequenceReturnsExpectedOutput) {
   EXPECT_EQ(samples, expected_samples);
 }
 
+TEST(StoredSequenceTest, NextNDimensions) {
+  StoredSequence<double> sequence({{1.0}, {1.0, 2.0}, {1.0, 2.0, 3.0}});
+  const std::vector<int64_t> expected = {1, 2, 3, 1};
+  const std::vector<int64_t> dimensions =
+      sequence.NextNDimensions(expected.size());
+  for (int i = 0; i < expected.size(); ++i) {
+    EXPECT_EQ(dimensions[i], expected[i]);
+  }
+}
+
 void CheckUniformStatistics(const std::vector<std::vector<double>>& samples) {
   for (int i = 0; i < kDimensions; ++i) {
     // Generate vector of values on the k^th dimension.
@@ -98,6 +108,14 @@ TEST(HaltonSequenceTest, CheckHaltonSequenceForLowCorrelation) {
   std::vector<std::vector<double>> samples(
       GenerateSamplesFromSequence(&sequence, kNumSamples));
   CheckLowCorrelation(samples);
+}
+
+TEST(HaltonSequenceTest, NextNDimensions) {
+  HaltonSequence<double> sequence(kDimensions);
+  const std::vector<int64_t> dimensions = sequence.NextNDimensions(4);
+  for (int i = 0; i < dimensions.size(); ++i) {
+    EXPECT_EQ(dimensions[i], kDimensions);
+  }
 }
 
 TEST(HaltonTest, Base2) {

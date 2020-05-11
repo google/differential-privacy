@@ -18,6 +18,7 @@
 #define DIFFERENTIAL_PRIVACY_ALGORITHMS_ORDER_STATISTICS_H_
 
 #include "differential_privacy/base/percentile.h"
+#include "differential_privacy/base/status.h"
 #include "differential_privacy/algorithms/algorithm.h"
 #include "differential_privacy/algorithms/binary-search.h"
 #include "differential_privacy/algorithms/bounded-algorithm.h"

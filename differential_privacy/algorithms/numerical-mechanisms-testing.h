@@ -80,8 +80,9 @@ class ZeroNoiseMechanism : public LaplaceMechanism {
 // snapping. Use only for testing. Not differentially private.
 class SeededLaplaceDistribution : public internal::LaplaceDistribution {
  public:
-  explicit SeededLaplaceDistribution(double b, std::mt19937* rand_gen = nullptr)
-      : internal::LaplaceDistribution(b) {
+  explicit SeededLaplaceDistribution(double epsilon, double sensitivity,
+                                     std::mt19937* rand_gen = nullptr)
+      : internal::LaplaceDistribution(epsilon, sensitivity) {
     if (rand_gen) {
       rand_gen_ = rand_gen;
     } else {
@@ -141,13 +142,13 @@ class SeededLaplaceMechanism : public LaplaceMechanism {
   explicit SeededLaplaceMechanism(double epsilon, double sensitivity = 1.0)
       : LaplaceMechanism(epsilon, sensitivity,
                          absl::make_unique<SeededLaplaceDistribution>(
-                             sensitivity / epsilon)) {}
+                             epsilon, sensitivity)) {}
 
   explicit SeededLaplaceMechanism(double epsilon, double sensitivity,
                                   std::mt19937* rand_gen)
       : LaplaceMechanism(epsilon, sensitivity,
                          absl::make_unique<SeededLaplaceDistribution>(
-                             sensitivity / epsilon, rand_gen)) {}
+                             epsilon, sensitivity, rand_gen)) {}
 };
 
 // A mock Laplace mechanism using gmock. Can be set to return any value.

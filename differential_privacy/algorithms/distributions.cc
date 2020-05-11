@@ -13,7 +13,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-
 #include "differential_privacy/algorithms/distributions.h"
 
 #include <cmath>
@@ -27,7 +26,13 @@
 namespace differential_privacy {
 namespace internal {
 
-LaplaceDistribution::LaplaceDistribution(double b) : b_(b) { CHECK_GE(b, 0.0); }
+LaplaceDistribution::LaplaceDistribution(double b) : b_(b) {
+  CHECK_GE(b, 0.0);
+}
+
+LaplaceDistribution::LaplaceDistribution(double epsilon,
+                                                     double sensitivity)
+    : LaplaceDistribution(sensitivity / epsilon) {}
 
 double LaplaceDistribution::GetUniformDouble() { return UniformDouble(); }
 
@@ -57,6 +62,10 @@ double LaplaceDistribution::cdf(double b, double x) {
     return 1 - .5 * exp(-x / b);
   }
   return .5 * exp(x / b);
+}
+
+int64_t LaplaceDistribution::MemoryUsed() {
+  return sizeof(LaplaceDistribution);
 }
 
 GaussianDistribution::GaussianDistribution(double stddev) : stddev_(stddev) {

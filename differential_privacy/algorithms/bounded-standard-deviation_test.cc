@@ -29,9 +29,8 @@
 namespace differential_privacy {
 namespace {
 
-using test_utils::ZeroNoiseMechanism;
+using ::differential_privacy::test_utils::ZeroNoiseMechanism;
 using ::differential_privacy::base::testing::EqualsProto;
-using ::testing::Return;
 
 template <typename T>
 class BoundedStandardDeviationTest : public testing::Test {

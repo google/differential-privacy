@@ -26,9 +26,8 @@
 namespace differential_privacy {
 namespace {
 
-using test_utils::ZeroNoiseMechanism;
+using ::differential_privacy::test_utils::ZeroNoiseMechanism;
 using ::differential_privacy::base::testing::EqualsProto;
-using ::testing::Return;
 
 constexpr double kSmallEpsilon = 0.00000001;
 constexpr double kNumSamples = 10000;
@@ -121,7 +120,7 @@ TYPED_TEST(BoundedMeanTest, HighClampTest) {
   }
 }
 
-TYPED_TEST(BoundedMeanTest, InfEpsilonTest) {
+TYPED_TEST(BoundedMeanTest, LargeEpsilonTest) {
   std::vector<TypeParam> a = {6, 3, 5, 1, 7, 2, 3, 3, 4, 6, 5, 1};
 
   // Compute the expected mean
@@ -133,7 +132,7 @@ TYPED_TEST(BoundedMeanTest, InfEpsilonTest) {
 
   std::unique_ptr<BoundedMean<TypeParam>> mean =
       typename BoundedMean<TypeParam>::Builder()
-          .SetEpsilon(DBL_MAX)
+          .SetEpsilon(std::pow(10, 20))
           .SetLower(1)
           .SetUpper(7)
           .Build()

@@ -21,6 +21,7 @@
 #include <limits>
 
 #include "google/protobuf/any.pb.h"
+#include "differential_privacy/base/status.h"
 #include "differential_privacy/algorithms/algorithm.h"
 #include "differential_privacy/algorithms/numerical-mechanisms.h"
 #include "differential_privacy/proto/util.h"
@@ -201,77 +202,6 @@ class ApproxBounds : public Algorithm<T> {
       ++neg_bins_[index];
     }
   }
-
-  // Returns an output containing approximate min as the first element and
-  // approximate max as the second element. If not enough inputs exist to pass
-  // the threshold, populate the output with an error status.
-  base::StatusOr<Output> GenerateResult(double privacy_budget) override {
-    DCHECK_GT(privacy_budget, 0.0)
-        << "Privacy budget should be greater than zero.";
-    if (privacy_budget == 0.0) return Output();
-
-    // If k was not user set, scale it by the privacy_budget to ensure the
-    // correct probability of success.
-    double threshold = k_;
-    if (!preset_k_) {
-      threshold /= privacy_budget;
-    }
-
-    // Populate noisy versions of the histogram bins.
-    noisy_pos_bins_ = AddNoise(privacy_budget, pos_bins_);
-    noisy_neg_bins_ = AddNoise(privacy_budget, neg_bins_);
-
-    Output output;
-
-    // Find first bin above threshold for minimum.
-    for (int i = neg_bins_.size() - 1; i >= 0; --i) {
-      if (noisy_neg_bins_[i] >= threshold) {
-        AddToOutput<T>(&output, NegRightBinBoundary(i));
-        break;
-      }
-    }
-    if (output.elements_size() == 0) {
-      for (int i = 0; i < pos_bins_.size(); ++i) {
-        if (noisy_pos_bins_[i] >= threshold) {
-          AddToOutput<T>(&output, PosLeftBinBoundary(i));
-          break;
-        }
-      }
-    }
-
-    // Find first bin above threshold for maximum.
-    for (int i = pos_bins_.size() - 1; i >= 0; --i) {
-      if (noisy_pos_bins_[i] >= threshold) {
-        AddToOutput<T>(&output, PosRightBinBoundary(i));
-        break;
-      }
-    }
-    if (output.elements_size() < 2) {
-      for (int i = 0; i < neg_bins_.size(); ++i) {
-        if (noisy_neg_bins_[i] >= threshold) {
-          AddToOutput<T>(&output, NegLeftBinBoundary(i));
-          break;
-        }
-      }
-    }
-
-    // Record error status if approx min or max was not found.
-    if (output.elements_size() < 2) {
-      return base::InvalidArgumentError(
-          "Bin count threshold was too large to find approximate "
-          "bounds. Either run over a larger dataset or decrease "
-          "success_probability and try again.");
-    }
-
-    return output;
-  }
-
-  void ResetState() override {
-    std::fill(pos_bins_.begin(), pos_bins_.end(), 0);
-    std::fill(neg_bins_.begin(), neg_bins_.end(), 0);
-  }
-
-  // TODO: Generate confidence interval.
 
   // Serialize the positive and negative bin counts.
   Summary Serialize() override {
@@ -507,6 +437,76 @@ class ApproxBounds : public Algorithm<T> {
       return static_cast<T>(this_boundary);
     };
     std::generate(bin_boundaries_.begin(), bin_boundaries_.end(), get_boundary);
+  }
+
+  // Returns an output containing approximate min as the first element and
+  // approximate max as the second element. If not enough inputs exist to pass
+  // the threshold, populate the output with an error status.
+  base::StatusOr<Output> GenerateResult(double privacy_budget,
+                                        double noise_interval_level) override {
+    DCHECK_GT(privacy_budget, 0.0)
+        << "Privacy budget should be greater than zero.";
+    if (privacy_budget == 0.0) return Output();
+
+    // If k was not user set, scale it by the privacy_budget to ensure the
+    // correct probability of success.
+    double threshold = k_;
+    if (!preset_k_) {
+      threshold /= privacy_budget;
+    }
+
+    // Populate noisy versions of the histogram bins.
+    noisy_pos_bins_ = AddNoise(privacy_budget, pos_bins_);
+    noisy_neg_bins_ = AddNoise(privacy_budget, neg_bins_);
+
+    Output output;
+
+    // Find first bin above threshold for minimum.
+    for (int i = neg_bins_.size() - 1; i >= 0; --i) {
+      if (noisy_neg_bins_[i] >= threshold) {
+        AddToOutput<T>(&output, NegRightBinBoundary(i));
+        break;
+      }
+    }
+    if (output.elements_size() == 0) {
+      for (int i = 0; i < pos_bins_.size(); ++i) {
+        if (noisy_pos_bins_[i] >= threshold) {
+          AddToOutput<T>(&output, PosLeftBinBoundary(i));
+          break;
+        }
+      }
+    }
+
+    // Find first bin above threshold for maximum.
+    for (int i = pos_bins_.size() - 1; i >= 0; --i) {
+      if (noisy_pos_bins_[i] >= threshold) {
+        AddToOutput<T>(&output, PosRightBinBoundary(i));
+        break;
+      }
+    }
+    if (output.elements_size() < 2) {
+      for (int i = 0; i < neg_bins_.size(); ++i) {
+        if (noisy_neg_bins_[i] >= threshold) {
+          AddToOutput<T>(&output, NegLeftBinBoundary(i));
+          break;
+        }
+      }
+    }
+
+    // Record error status if approx min or max was not found.
+    if (output.elements_size() < 2) {
+      return base::InvalidArgumentError(
+          "Bin count threshold was too large to find approximate "
+          "bounds. Either run over a larger dataset or decrease "
+          "success_probability and try again.");
+    }
+
+    return output;
+  }
+
+  void ResetState() override {
+    std::fill(pos_bins_.begin(), pos_bins_.end(), 0);
+    std::fill(neg_bins_.begin(), neg_bins_.end(), 0);
   }
 
   // Given a bin index, finds the larger-magnitude boundary of the corresponding

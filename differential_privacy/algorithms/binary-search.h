@@ -19,6 +19,7 @@
 
 #include "differential_privacy/base/percentile.h"
 #include "google/protobuf/any.pb.h"
+#include "differential_privacy/base/status.h"
 #include "differential_privacy/algorithms/algorithm.h"
 #include "differential_privacy/algorithms/numerical-mechanisms.h"
 #include "differential_privacy/proto/util.h"
@@ -85,15 +86,6 @@ class BinarySearch : public Algorithm<T> {
     }
   }
 
-  void ResetState() override { quantiles_->Reset(); }
-
-  base::StatusOr<Output> GenerateResult(double privacy_budget) override {
-    DCHECK_GT(privacy_budget, 0.0)
-        << "Privacy budget should be greater than zero.";
-    if (privacy_budget == 0.0) return Output();
-    return BayesianSearch(privacy_budget);
-  }
-
   Summary Serialize() override {
     BinarySearchSummary bs_summary;
     quantiles_->SerializeToProto(bs_summary.mutable_input());
@@ -140,8 +132,19 @@ class BinarySearch : public Algorithm<T> {
         mechanism_(std::move(mechanism)),
         quantiles_(std::move(input_sketch)) {}
 
+  void ResetState() override { quantiles_->Reset(); }
+
+  base::StatusOr<Output> GenerateResult(double privacy_budget,
+                                        double noise_interval_level) override {
+    DCHECK_GT(privacy_budget, 0.0)
+        << "Privacy budget should be greater than zero.";
+    if (privacy_budget == 0.0) return Output();
+    return BayesianSearch(privacy_budget, noise_interval_level);
+  }
+
  private:
-  base::StatusOr<Output> BayesianSearch(double privacy_budget) {
+  base::StatusOr<Output> BayesianSearch(double privacy_budget,
+                                        double noise_interval_level) {
     // If the bounds are equal, we return the only possible value with total
     // confidence.
     if (lower_ == upper_) {
@@ -150,7 +153,7 @@ class BinarySearch : public Algorithm<T> {
           output.mutable_error_report()->mutable_noise_confidence_interval();
       ci->set_lower_bound(lower_);
       ci->set_upper_bound(lower_);
-      ci->set_confidence_level(kDefaultConfidenceLevel);
+      ci->set_confidence_level(noise_interval_level);
       return output;
     }
 
@@ -244,7 +247,7 @@ class BinarySearch : public Algorithm<T> {
     // Return 95% confidence interval of the error.
     Output output = MakeOutput<T>(m);
     *(output.mutable_error_report()->mutable_noise_confidence_interval()) =
-        ErrorConfidenceInterval(kDefaultConfidenceLevel, weight, m);
+        ErrorConfidenceInterval(noise_interval_level, weight, m);
 
     return output;
   }
@@ -272,7 +275,7 @@ class BinarySearch : public Algorithm<T> {
   virtual double BayesianProbabilityLeft(double privacy_budget, double L,
                                          double U) {
     double p = quantile_;
-    double b = privacy_budget * Algorithm<T>::GetEpsilon();
+    double b = privacy_budget / mechanism_->GetDiversity();
 
     // Removable singularity at p=1/2.
     if (std::abs(p - .5) < kSingularityTolerance) {

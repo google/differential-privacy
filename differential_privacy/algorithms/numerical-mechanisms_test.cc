@@ -31,7 +31,7 @@ using testing::Return;
 
 class MockLaplaceDistribution : public internal::LaplaceDistribution {
  public:
-  MockLaplaceDistribution() : internal::LaplaceDistribution(1.0) {}
+  MockLaplaceDistribution() : internal::LaplaceDistribution(1.0, 1.0) {}
   MOCK_METHOD1(Sample, double(double));
 };
 
@@ -150,6 +150,5 @@ TEST(NumericalMechanismsTest, LaplaceEstimatesL1WithL0AndLInf) {
                                                     .ValueOrDie();
   EXPECT_THAT(mechanism->GetSensitivity(), Ge(3));
 }
-
 }  // namespace
 }  // namespace differential_privacy

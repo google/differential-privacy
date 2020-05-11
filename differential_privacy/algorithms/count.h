@@ -18,6 +18,7 @@
 #define DIFFERENTIAL_PRIVACY_ALGORITHMS_COUNT_H_
 
 #include "google/protobuf/any.pb.h"
+#include "differential_privacy/base/status.h"
 #include "differential_privacy/algorithms/algorithm.h"
 #include "differential_privacy/algorithms/numerical-mechanisms.h"
 #include "differential_privacy/proto/summary.pb.h"
@@ -76,14 +77,15 @@ class Count : public Algorithm<T> {
   }
 
  protected:
-  base::StatusOr<Output> GenerateResult(double privacy_budget) override {
+  base::StatusOr<Output> GenerateResult(double privacy_budget,
+                                        double noise_interval_level) override {
     Output output;
     std::size_t countWithNoise = std::max<int64_t>(
         std::round(mechanism_->AddNoise(count_, privacy_budget)), 0);
     AddToOutput<int64_t>(&output, countWithNoise);
 
     base::StatusOr<ConfidenceInterval> interval =
-        NoiseConfidenceInterval(kDefaultConfidenceLevel, privacy_budget);
+        NoiseConfidenceInterval(noise_interval_level, privacy_budget);
     if (interval.ok()) {
       *(output.mutable_error_report()->mutable_noise_confidence_interval()) =
           interval.ValueOrDie();
