@@ -19,6 +19,7 @@
 
 #include <memory>
 
+#include "differential_privacy/base/status.h"
 #include "differential_privacy/algorithms/algorithm.h"
 #include "differential_privacy/algorithms/approx-bounds.h"
 #include "differential_privacy/base/status.h"

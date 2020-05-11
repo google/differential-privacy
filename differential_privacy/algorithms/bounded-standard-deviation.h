@@ -17,7 +17,10 @@
 #ifndef DIFFERENTIAL_PRIVACY_ALGORITHMS_BOUNDED_STANDARD_DEVIATION_H_
 #define DIFFERENTIAL_PRIVACY_ALGORITHMS_BOUNDED_STANDARD_DEVIATION_H_
 
+#include <type_traits>
+
 #include "absl/memory/memory.h"
+#include "differential_privacy/base/status.h"
 #include "differential_privacy/algorithms/algorithm.h"
 #include "differential_privacy/algorithms/bounded-algorithm.h"
 #include "differential_privacy/algorithms/bounded-variance.h"
@@ -34,10 +37,7 @@ namespace differential_privacy {
 // root, which is differentially private by the post-processing theorem. It
 // relies on the fact that the bounded variance algorithm guarantees that the
 // output is non-negative.
-template <typename T,
-          typename std::enable_if<std::is_integral<T>::value ||
-                                  std::is_floating_point<T>::value>::type* =
-              nullptr>
+template <typename T, std::enable_if_t<std::is_arithmetic<T>::value>* = nullptr>
 class BoundedStandardDeviation : public Algorithm<T> {
  public:
   // Builder for BoundedStandardDeviation algorithm.
@@ -81,17 +81,6 @@ class BoundedStandardDeviation : public Algorithm<T> {
 
   void AddEntry(const T& t) override { variance_->AddEntry(t); }
 
-  base::StatusOr<Output> GenerateResult(double privacy_budget) override {
-    ASSIGN_OR_RETURN(Output variance_output,
-                     variance_->GenerateResult(privacy_budget));
-    double stdev = std::sqrt(GetValue<double>(variance_output));
-    SetValue<double>(variance_output.mutable_elements(0)->mutable_value(),
-                     stdev);
-    return variance_output;
-  }
-
-  void ResetState() override { variance_->ResetState(); }
-
   // Returns a BoundedVarianceSummary.
   Summary Serialize() override { return variance_->Serialize(); }
 
@@ -113,6 +102,18 @@ class BoundedStandardDeviation : public Algorithm<T> {
                            std::unique_ptr<BoundedVariance<T>> variance)
       : Algorithm<T>(epsilon), variance_(std::move(variance)) {}
 
+  base::StatusOr<Output> GenerateResult(double privacy_budget,
+                                        double noise_interval_level) override {
+    ASSIGN_OR_RETURN(
+        Output variance_output,
+        variance_->PartialResult(privacy_budget, noise_interval_level));
+    double stdev = std::sqrt(GetValue<double>(variance_output));
+    SetValue<double>(variance_output.mutable_elements(0)->mutable_value(),
+                     stdev);
+    return variance_output;
+  }
+
+  void ResetState() override { variance_->Reset(); }
   std::unique_ptr<BoundedVariance<T>> variance_;
 };
 

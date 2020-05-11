@@ -31,6 +31,7 @@ namespace example {
 CarrotReporter::CarrotReporter(std::string data_filename, double epsilon)
     : epsilon_(epsilon) {
   std::ifstream file(data_filename);
+  CHECK(file.is_open()) << "could not open file " << data_filename;
   std::string line;
   while (getline(file, line)) {
     std::vector<std::string> animal_and_count = absl::StrSplit(line, ',');

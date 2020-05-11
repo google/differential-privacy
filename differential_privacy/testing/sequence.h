@@ -35,6 +35,10 @@ template <typename T>
 class Sequence {
  public:
   virtual std::vector<T> GetSample() = 0;
+
+  // Returns the dimensions of the next `n` samples.
+  virtual std::vector<int64_t> NextNDimensions(int n) = 0;
+
   virtual ~Sequence() = default;
 };
 
@@ -59,6 +63,16 @@ class StoredSequence : public Sequence<T> {
     return stored_sequence_[current_index_++ % stored_sequence_.size()];
   }
 
+  std::vector<int64_t> NextNDimensions(int n) override {
+    std::vector<int64_t> dimensions;
+    int temp_index = current_index_;
+    for (int i = 0; i < n; i++) {
+      dimensions.push_back(
+          stored_sequence_[temp_index++ % stored_sequence_.size()].size());
+    }
+    return dimensions;
+  }
+
   StoredSequence() = delete;
   ~StoredSequence() override = default;
 
@@ -81,6 +95,10 @@ class HypercubeSequence : public Sequence<T> {
                              double shift = 0.0)
       : dimension_(dimension), scale_(scale), shift_(shift) {}
   std::vector<T> GetSample() override = 0;
+
+  std::vector<int64_t> NextNDimensions(int n) override {
+    return std::vector<int64_t>(n, dimension_);
+  }
 
   // In general, the range of the dataset elements is [offset, scale + offset]
   // since Sequence ranges are transformed by scaling first then applying the

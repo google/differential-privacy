@@ -30,10 +30,9 @@
 namespace differential_privacy {
 namespace {
 
-using test_utils::ZeroNoiseMechanism;
+using ::differential_privacy::test_utils::ZeroNoiseMechanism;
 using ::testing::Eq;
 using ::differential_privacy::base::testing::EqualsProto;
-using ::testing::Return;
 using ::differential_privacy::base::testing::IsOkAndHolds;
 
 template <typename T>

@@ -17,8 +17,11 @@
 #ifndef DIFFERENTIAL_PRIVACY_ALGORITHMS_BOUNDED_VARIANCE_H_
 #define DIFFERENTIAL_PRIVACY_ALGORITHMS_BOUNDED_VARIANCE_H_
 
+#include <type_traits>
+
 #include "google/protobuf/any.pb.h"
 #include "absl/memory/memory.h"
+#include "differential_privacy/base/status.h"
 #include "differential_privacy/algorithms/algorithm.h"
 #include "differential_privacy/algorithms/approx-bounds.h"
 #include "differential_privacy/algorithms/bounded-algorithm.h"
@@ -42,10 +45,7 @@ namespace differential_privacy {
 // The algorithm is a variation of the algorithm for differentially private mean
 // from "Differential Privacy: From Theory to Practice", section 2.5.5:
 // https://books.google.com/books?id=WFttDQAAQBAJ&pg=PA24#v=onepage&q&f=false
-template <typename T,
-          typename std::enable_if<std::is_integral<T>::value ||
-                                  std::is_floating_point<T>::value>::type* =
-              nullptr>
+template <typename T, std::enable_if_t<std::is_arithmetic<T>::value>* = nullptr>
 class BoundedVariance : public Algorithm<T> {
  public:
   // Builder for BoundedVariance algorithm.
@@ -58,9 +58,8 @@ class BoundedVariance : public Algorithm<T> {
 
    public:
     // For integral type, check for no overflow in subtraction squared.
-    template <
-        typename T2 = T,
-        typename std::enable_if<std::is_integral<T2>::value>::type* = nullptr>
+    template <typename T2 = T,
+              std::enable_if_t<std::is_integral<T2>::value>* = nullptr>
     static base::Status CheckBounds(T lower, T upper) {
       if (lower > upper) {
         return base::InvalidArgumentError(
@@ -80,8 +79,8 @@ class BoundedVariance : public Algorithm<T> {
       return base::OkStatus();
     }
 
-    template <typename T2 = T, typename std::enable_if<std::is_floating_point<
-                                   T2>::value>::type* = nullptr>
+    template <typename T2 = T,
+              std::enable_if_t<std::is_floating_point<T2>::value>* = nullptr>
     static base::Status CheckBounds(T lower, T upper) {
       if (lower > upper) {
         return base::InvalidArgumentError(
@@ -172,110 +171,6 @@ class BoundedVariance : public Algorithm<T> {
         approx_bounds_->template AddToPartials<double>(&neg_sum_of_squares_, t,
                                                        difference_of_squares);
       }
-    }
-  }
-
-  base::StatusOr<Output> GenerateResult(double privacy_budget) override {
-    DCHECK_GT(privacy_budget, 0.0)
-        << "Privacy budget should be greater than zero.";
-    if (privacy_budget == 0.0) return Output();
-    double remaining_budget = privacy_budget;
-    Output output;
-
-    // We need these values to find the final variance.
-    double sum = 0;
-    double sos = 0;  // Sum of squares.
-
-    if (approx_bounds_) {
-      // Get bounds with a fraction of the privacy budget.
-      double bounds_budget = privacy_budget / 2;
-      remaining_budget -= bounds_budget;
-      ASSIGN_OR_RETURN(Output bounds,
-                       approx_bounds_->GenerateResult(bounds_budget));
-      lower_ = GetValue<T>(bounds.elements(0).value());
-      upper_ = GetValue<T>(bounds.elements(1).value());
-      RETURN_IF_ERROR(Builder::CheckBounds(lower_, upper_));
-
-      // To find the sum, pass the identity function as the transform.
-      sum = approx_bounds_->template ComputeFromPartials<T>(
-          pos_sum_, neg_sum_, [](T x) { return x; }, lower_, upper_,
-          raw_count_);
-
-      // To find sum of squares, pass the square function.
-      sos = approx_bounds_->template ComputeFromPartials<double>(
-          pos_sum_of_squares_, neg_sum_of_squares_, [](T x) { return x * x; },
-          lower_, upper_, raw_count_);
-
-      // Populate the bounding report with ApproxBounds information.
-      *(output.mutable_error_report()->mutable_bounding_report()) =
-          approx_bounds_->GetBoundingReport(lower_, upper_);
-
-      // Clear the mechanism. The sensitivity might have changed.
-      sum_mechanism_.reset();
-      sos_mechanism_.reset();
-    } else {
-      // In this case, lower and upper were manually set. The clamped partial
-      // values are stored and do not need processing.
-      sum = pos_sum_[0];
-      sos = pos_sum_of_squares_[0];
-    }
-
-    // From this point lower_ and upper_ are guaranteed to be set, either from
-    // ApproxBounds results or manually at construction. Construct mechanism
-    // with the correct noise if needed.
-    RETURN_IF_ERROR(BuildMechanism());
-
-    T sum_midpoint = lower_ + (upper_ - lower_) / 2;
-    T sos_midpoint = MidpointOfSquares(lower_, upper_);
-
-    double count_budget = remaining_budget / 4;
-    remaining_budget -= count_budget;
-    double noised_sum_count =
-        count_mechanism_->AddNoise(raw_count_, count_budget);
-    remaining_budget -= count_budget;
-    double noised_sos_count =
-        count_mechanism_->AddNoise(raw_count_, count_budget);
-
-    // Exact output is sum_of_squares/count - sum*sum/(count*count).
-    double sum_budget = remaining_budget / 2;
-    remaining_budget -= sum_budget;
-    double normalized_sum = sum_mechanism_->AddNoise(
-        sum - static_cast<double>(raw_count_) * sum_midpoint, sum_budget);
-    double normalized_sos = sos_mechanism_->AddNoise(
-        sos - static_cast<double>(raw_count_) * sos_midpoint, remaining_budget);
-
-    double mean;
-    if (noised_sum_count <= 1) {
-      mean = sum_midpoint;
-    } else {
-      mean = normalized_sum / noised_sum_count + sum_midpoint;
-    }
-
-    double mean_of_square;
-    if (noised_sos_count <= 1) {
-      mean_of_square = sos_midpoint;
-    } else {
-      mean_of_square = normalized_sos / noised_sos_count + sos_midpoint;
-    }
-
-    double noised_variance = mean_of_square - pow(mean, 2);
-    AddToOutput<double>(
-        &output, Clamp<double>(0.0, IntervalLengthSquared(lower_, upper_) / 4,
-                               noised_variance));
-    return output;
-  }
-
-  void ResetState() override {
-    std::fill(pos_sum_.begin(), pos_sum_.end(), 0);
-    std::fill(pos_sum_of_squares_.begin(), pos_sum_of_squares_.end(), 0);
-    std::fill(neg_sum_.begin(), neg_sum_.end(), 0);
-    std::fill(neg_sum_of_squares_.begin(), neg_sum_of_squares_.end(), 0);
-    raw_count_ = 0;
-
-    if (approx_bounds_) {
-      approx_bounds_->ResetState();
-      sum_mechanism_ = nullptr;
-      sos_mechanism_ = nullptr;
     }
   }
 
@@ -398,6 +293,111 @@ class BoundedVariance : public Algorithm<T> {
     } else {
       pos_sum_.push_back(0);
       pos_sum_of_squares_.push_back(0);
+    }
+  }
+
+  base::StatusOr<Output> GenerateResult(double privacy_budget,
+                                        double noise_interval_level) override {
+    DCHECK_GT(privacy_budget, 0.0)
+        << "Privacy budget should be greater than zero.";
+    if (privacy_budget == 0.0) return Output();
+    double remaining_budget = privacy_budget;
+    Output output;
+
+    // We need these values to find the final variance.
+    double sum = 0;
+    double sos = 0;  // Sum of squares.
+
+    if (approx_bounds_) {
+      // Get bounds with a fraction of the privacy budget.
+      double bounds_budget = privacy_budget / 2;
+      remaining_budget -= bounds_budget;
+      ASSIGN_OR_RETURN(Output bounds, approx_bounds_->PartialResult(
+                                          bounds_budget, noise_interval_level));
+      lower_ = GetValue<T>(bounds.elements(0).value());
+      upper_ = GetValue<T>(bounds.elements(1).value());
+      RETURN_IF_ERROR(Builder::CheckBounds(lower_, upper_));
+
+      // To find the sum, pass the identity function as the transform.
+      sum = approx_bounds_->template ComputeFromPartials<T>(
+          pos_sum_, neg_sum_, [](T x) { return x; }, lower_, upper_,
+          raw_count_);
+
+      // To find sum of squares, pass the square function.
+      sos = approx_bounds_->template ComputeFromPartials<double>(
+          pos_sum_of_squares_, neg_sum_of_squares_, [](T x) { return x * x; },
+          lower_, upper_, raw_count_);
+
+      // Populate the bounding report with ApproxBounds information.
+      *(output.mutable_error_report()->mutable_bounding_report()) =
+          approx_bounds_->GetBoundingReport(lower_, upper_);
+
+      // Clear the mechanism. The sensitivity might have changed.
+      sum_mechanism_.reset();
+      sos_mechanism_.reset();
+    } else {
+      // In this case, lower and upper were manually set. The clamped partial
+      // values are stored and do not need processing.
+      sum = pos_sum_[0];
+      sos = pos_sum_of_squares_[0];
+    }
+
+    // From this point lower_ and upper_ are guaranteed to be set, either from
+    // ApproxBounds results or manually at construction. Construct mechanism
+    // with the correct noise if needed.
+    RETURN_IF_ERROR(BuildMechanism());
+
+    T sum_midpoint = lower_ + (upper_ - lower_) / 2;
+    T sos_midpoint = MidpointOfSquares(lower_, upper_);
+
+    double count_budget = remaining_budget / 4;
+    remaining_budget -= count_budget;
+    double noised_sum_count =
+        count_mechanism_->AddNoise(raw_count_, count_budget);
+    remaining_budget -= count_budget;
+    double noised_sos_count =
+        count_mechanism_->AddNoise(raw_count_, count_budget);
+
+    // Exact output is sum_of_squares/count - sum*sum/(count*count).
+    double sum_budget = remaining_budget / 2;
+    remaining_budget -= sum_budget;
+    double normalized_sum = sum_mechanism_->AddNoise(
+        sum - static_cast<double>(raw_count_) * sum_midpoint, sum_budget);
+    double normalized_sos = sos_mechanism_->AddNoise(
+        sos - static_cast<double>(raw_count_) * sos_midpoint, remaining_budget);
+
+    double mean;
+    if (noised_sum_count <= 1) {
+      mean = sum_midpoint;
+    } else {
+      mean = normalized_sum / noised_sum_count + sum_midpoint;
+    }
+
+    double mean_of_square;
+    if (noised_sos_count <= 1) {
+      mean_of_square = sos_midpoint;
+    } else {
+      mean_of_square = normalized_sos / noised_sos_count + sos_midpoint;
+    }
+
+    double noised_variance = mean_of_square - pow(mean, 2);
+    AddToOutput<double>(
+        &output, Clamp<double>(0.0, IntervalLengthSquared(lower_, upper_) / 4,
+                               noised_variance));
+    return output;
+  }
+
+  void ResetState() override {
+    std::fill(pos_sum_.begin(), pos_sum_.end(), 0);
+    std::fill(pos_sum_of_squares_.begin(), pos_sum_of_squares_.end(), 0);
+    std::fill(neg_sum_.begin(), neg_sum_.end(), 0);
+    std::fill(neg_sum_of_squares_.begin(), neg_sum_of_squares_.end(), 0);
+    raw_count_ = 0;
+
+    if (approx_bounds_) {
+      approx_bounds_->Reset();
+      sum_mechanism_ = nullptr;
+      sos_mechanism_ = nullptr;
     }
   }
 

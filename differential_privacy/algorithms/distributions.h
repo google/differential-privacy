@@ -25,8 +25,8 @@ namespace internal {
 // improvements (snapping, conversion from DP parameters to laplace parameter)
 // that are error-prone to replicate.
 //
-// Allows samples to be drawn from a LaplaceDistribution over a given parameter
-// with optional per-sample scaling.
+// Allows samples to be drawn from a LaplaceDistribution over a given
+// parameter with optional per-sample scaling.
 // https://en.wikipedia.org/wiki/Laplace_distribution
 // LaplaceDistribution is thread compatible ((broken link) but not
 // necessarily thread safe ((broken link)
@@ -34,6 +34,7 @@ class LaplaceDistribution {
  public:
   // Constructor for Laplace parameter b.
   explicit LaplaceDistribution(double b);
+  explicit LaplaceDistribution(double epsilon, double sensitivity);
 
   virtual ~LaplaceDistribution() {}
 
@@ -49,6 +50,8 @@ class LaplaceDistribution {
 
   // Returns the cdf of the laplacian distribution with scale b at point x.
   static double cdf(double b, double x);
+
+  virtual int64_t MemoryUsed();
 
  private:
   double b_;

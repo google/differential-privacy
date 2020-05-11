@@ -31,6 +31,11 @@ cc_proto_library(
     deps = [":data-proto"],
 )
 
+java_proto_library(
+    name = "data_java_proto",
+    deps = [":data-proto"],
+)
+
 proto_library(
     name = "summary-proto",
     srcs = ["summary.proto"],
@@ -42,6 +47,11 @@ proto_library(
 
 cc_proto_library(
     name = "summary_cc_proto",
+    deps = [":summary-proto"],
+)
+
+java_proto_library(
+    name = "summary_java_proto",
     deps = [":summary-proto"],
 )
 

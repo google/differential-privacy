@@ -17,6 +17,8 @@
 #ifndef DIFFERENTIAL_PRIVACY_ALGORITHMS_NUMERICAL_MECHANISMS_H_
 #define DIFFERENTIAL_PRIVACY_ALGORITHMS_NUMERICAL_MECHANISMS_H_
 
+#include <limits>
+#include <memory>
 #include <string>
 
 #include "differential_privacy/algorithms/confidence-interval.pb.h"
@@ -159,6 +161,11 @@ class LaplaceMechanism : public NumericalMechanism {
         return base::InvalidArgumentError(
             "Laplace Mechanism requires epsilon to be set.");
       }
+      if (std::isnan(epsilon_.value()) ||
+          std::abs(epsilon_.value()) ==
+              std::numeric_limits<double>::infinity()) {
+        return base::InvalidArgumentError("Epsilon must be a real number.");
+      }
       // Check if L1 sensitivity is provided or make an estimate.
       if (!l1_sensitivity_.has_value()) {
         if (l0_sensitivity_.has_value() && linf_sensitivity_.has_value()) {
@@ -180,9 +187,8 @@ class LaplaceMechanism : public NumericalMechanism {
         return base::InvalidArgumentError("Sensitivity is too high.");
       }
 
-      return base::StatusOr<std::unique_ptr<LaplaceMechanism>>(
-          absl::make_unique<LaplaceMechanism>(epsilon_.value(),
-                                             l1_sensitivity_.value()));
+      return absl::make_unique<LaplaceMechanism>(epsilon_.value(),
+                                                l1_sensitivity_.value());
     }
 
     std::unique_ptr<Builder> Clone() const override {
@@ -202,7 +208,8 @@ class LaplaceMechanism : public NumericalMechanism {
       : epsilon_(epsilon),
         sensitivity_(sensitivity),
         diversity_(sensitivity / epsilon),
-        distro_(absl::make_unique<internal::LaplaceDistribution>(diversity_)) {}
+        distro_(absl::make_unique<internal::LaplaceDistribution>(
+            epsilon_, sensitivity_)) {}
 
   LaplaceMechanism(double epsilon, double sensitivity,
                    std::unique_ptr<internal::LaplaceDistribution> distro)
@@ -264,7 +271,7 @@ class LaplaceMechanism : public NumericalMechanism {
   virtual int64_t MemoryUsed() {
     int64_t memory = sizeof(LaplaceMechanism);
     if (distro_) {
-      memory += sizeof(*distro_);
+      memory += distro_->MemoryUsed();
     }
     return memory;
   }

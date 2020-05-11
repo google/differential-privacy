@@ -21,6 +21,7 @@
 #include <cmath>
 #include <iomanip>
 #include <stack>
+#include <type_traits>
 
 #include "differential_privacy/base/logging.h"
 #include "absl/container/flat_hash_map.h"
@@ -28,9 +29,9 @@
 #include "absl/strings/str_cat.h"
 #include "differential_privacy/algorithms/algorithm.h"
 #include "differential_privacy/algorithms/util.h"
-#include "differential_privacy/proto/util.h"
 #include "differential_privacy/testing/density_estimation.h"
 #include "differential_privacy/testing/sequence.h"
+#include "differential_privacy/proto/util.h"
 
 namespace differential_privacy {
 namespace testing {
@@ -50,9 +51,6 @@ constexpr double MinimumRealBinWidth() { return 1e-10; }
 constexpr double MinimumIntegralBinWidth() { return 1.0; }
 constexpr int MinimumBinCountCombined() { return 2; }
 constexpr int MinimumBinCountSingle() { return 1; }
-
-// Arbitrary delimiter used to serialize SelectionVectors.
-constexpr char SelectionVectorDelimiter[] = ".";
 
 template <typename OutputT>
 using AlgorithmResultSamples = std::vector<OutputT>;
@@ -74,9 +72,7 @@ using SelectionVectorAndSizePair = std::pair<SelectionVector, size_t>;
 // Therefore, the template parameter should be initialized to be the same as
 // that of the output type of the algorithm being tested.
 template <typename T, typename OutputT = T,
-          typename =
-              typename std::enable_if<std::is_integral<T>::value ||
-                                      std::is_floating_point<T>::value>::type>
+          typename = std::enable_if_t<std::is_arithmetic<T>::value>>
 class StochasticTester;
 
 template <typename T, typename OutputT>
@@ -99,21 +95,22 @@ class StochasticTester<T, OutputT> {
     Reset();
 
     // For each dataset, check each member of its powerset for whether it
-    // satisfies the dp predicate and record it in class variables.
+    // satisfies the dp predicate and record it in class variables. If too
+    // many failures are seen, return early.
+    const double num_failures_ok = kHistogramPaddingAlpha * num_comparison_;
     for (int i = 0; i < num_datasets_; ++i) {
       std::vector<T> dataset = GenerateDataset();
       CheckDifferentiallyPrivateOnDataset(dataset);
+      if (num_comparison_failures_ > num_failures_ok) {
+        LOG(INFO)
+            << "More than " << kHistogramPaddingAlpha
+            << " of comparisons failed so the algorithm is likely not DP.";
+        return false;
+      }
     }
 
-    // Check whether enough comparisons passed the dp predicate within error.
-    LOG(INFO) << "Across all datasets, proportion of comparisons passed: "
-              << num_comparison_success_ << " / " << num_comparison_;
-    if (static_cast<double>(num_comparison_success_) / num_comparison_ <
-        1 - kHistogramPaddingAlpha) {
-      LOG(INFO) << "More than " << kHistogramPaddingAlpha
-                << " of comparisons failed so the algorithm is likely not DP.";
-      return false;
-    }
+    LOG(INFO) << "Across all datasets, proportion of comparisons failed: "
+              << num_comparison_failures_ << " / " << num_comparison_;
     LOG(INFO) << absl::StrCat(
         "Tested DP over ", num_datasets_,
         " dataset(s). (Maximum violation %: ", max_violation_pct_ * 100, ")");
@@ -123,8 +120,7 @@ class StochasticTester<T, OutputT> {
  private:
   struct SelectionVectorHash {
     size_t operator()(const SelectionVector& v) const {
-      const std::string serialized_v =
-          absl::StrJoin(v, SelectionVectorDelimiter);
+      const std::string serialized_v = absl::StrJoin(v, ".");
       return absl::Hash<std::string>()(serialized_v);
     }
   };
@@ -242,8 +238,16 @@ class StochasticTester<T, OutputT> {
 
   void Reset() {
     max_violation_pct_ = 0.0;
-    num_comparison_success_ = 0;
+    num_comparison_failures_ = 0;
     num_comparison_ = 0;
+    for (const int64_t d : sequence_->NextNDimensions(num_datasets_)) {
+      // Without search branching, each subsequence only has 1 child.
+      //
+      // With search branching, for a sequence of size n, there are (n choose k)
+      // unique subsequences of size k. Each of these has k children. Thus there
+      // are sum from k={1, 2, ... , n} of (n choose k) * k total comparisons.
+      num_comparison_ += disable_search_branching_ ? d : std::pow(2, d - 1) * d;
+    }
   }
 
   // For a pair of vector of samples, find a value that is lower than all
@@ -279,11 +283,11 @@ class StochasticTester<T, OutputT> {
   // histograms comparison. 0.05 is chosen arbitrarily.
   static constexpr double kHistogramPaddingAlpha = 0.05;
 
-  // We use these to keep track of what percent of histogram comparisons passed
-  // the dp check. We expect at most (1 - kHistogramPaddingAlpha) of comparisons
-  // to fail.
+  // We use these to keep track of what percent of histogram comparisons failed
+  // the dp check. We expect at most kHistogramPaddingAlpha of comparisons to
+  // fail.
   int64_t num_comparison_ = 0;
-  int64_t num_comparison_success_ = 0;
+  int64_t num_comparison_failures_ = 0;
 };
 
 template <typename T, typename OutputT>
@@ -583,7 +587,6 @@ void StochasticTester<T, OutputT>::CheckDifferentiallyPrivateOnDataset(
         }
         sample_cache[succ_selector] = GenerateSamples(&subset, succ_size);
       }
-      ++num_comparison_;
       if (!CheckDpPredicate(sample_cache[current_selector],
                             sample_cache[succ_selector])) {
         LOG(INFO) << "Fails DP on: ";
@@ -591,8 +594,7 @@ void StochasticTester<T, OutputT>::CheckDifferentiallyPrivateOnDataset(
         LOG(INFO) << std::setprecision(16) << VectorToString(c_current);
         std::vector<T> c_succ = VectorFilter(dataset, succ_selector);
         LOG(INFO) << std::setprecision(16) << VectorToString(c_succ);
-      } else {
-        ++num_comparison_success_;
+        ++num_comparison_failures_;
       }
 
       // Only include successors with non-empty subsets and have not been

@@ -28,7 +28,6 @@ namespace differential_privacy {
 namespace {
 
 using ::testing::DoubleNear;
-using ::testing::Return;
 
 const double kTestPrecision = 1e-5;
 
@@ -44,8 +43,13 @@ class TestAlgorithm : public Algorithm<T> {
   int64_t MemoryUsed() override { return sizeof(TestAlgorithm<T>); }
 
  protected:
-  base::StatusOr<Output> GenerateResult(double privacy_budget) override {
-    return Output();
+  base::StatusOr<Output> GenerateResult(double privacy_budget,
+                                        double noise_interval_level) override {
+    Output output;
+    output.mutable_error_report()
+        ->mutable_noise_confidence_interval()
+        ->set_confidence_level(noise_interval_level);
+    return output;
   }
   void ResetState() override {}
 };
@@ -72,6 +76,15 @@ TEST(IncrementalAlgorithmTest, PartialResultConsumesPartialBudgetMultiRound) {
   alg.PartialResult(0.5).ValueOrDie();
   alg.ConsumePrivacyBudget(0.5);
   EXPECT_THAT(alg.RemainingPrivacyBudget(), DoubleNear(0.0, kTestPrecision));
+}
+
+TEST(IncrementalAlgorithmTest, PartialResultPassesConfidenceLevel) {
+  TestAlgorithm<double> alg;
+  const double level = .9;
+  const Output output = alg.PartialResult(1, level).ValueOrDie();
+  EXPECT_EQ(
+      output.error_report().noise_confidence_interval().confidence_level(),
+      level);
 }
 
 TEST(IncrementalAlgorithmTest, Reset) {

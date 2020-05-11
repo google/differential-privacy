@@ -30,24 +30,16 @@ namespace differential_privacy {
 template <typename T>
 class Count;
 
-template <typename T,
-          typename std::enable_if<std::is_integral<T>::value ||
-                                  std::is_floating_point<T>::value>::type*>
+template <typename T, std::enable_if_t<std::is_arithmetic<T>::value>*>
 class BoundedSum;
 
-template <typename T,
-          typename std::enable_if<std::is_integral<T>::value ||
-                                  std::is_floating_point<T>::value>::type*>
+template <typename T, std::enable_if_t<std::is_arithmetic<T>::value>*>
 class BoundedMean;
 
-template <typename T,
-          typename std::enable_if<std::is_integral<T>::value ||
-                                  std::is_floating_point<T>::value>::type*>
+template <typename T, std::enable_if_t<std::is_arithmetic<T>::value>*>
 class BoundedVariance;
 
-template <typename T,
-          typename std::enable_if<std::is_integral<T>::value ||
-                                  std::is_floating_point<T>::value>::type*>
+template <typename T, std::enable_if_t<std::is_arithmetic<T>::value>*>
 class BoundedStandardDeviation;
 
 namespace continuous {

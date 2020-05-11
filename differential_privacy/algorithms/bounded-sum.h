@@ -18,9 +18,11 @@
 #define DIFFERENTIAL_PRIVACY_ALGORITHMS_BOUNDED_SUM_H_
 
 #include <limits>
+#include <type_traits>
 
 #include "google/protobuf/any.pb.h"
 #include "absl/memory/memory.h"
+#include "differential_privacy/base/status.h"
 #include "differential_privacy/algorithms/algorithm.h"
 #include "differential_privacy/algorithms/approx-bounds.h"
 #include "differential_privacy/algorithms/bounded-algorithm.h"
@@ -33,10 +35,7 @@ namespace differential_privacy {
 
 // Incrementally provides a differentially private sum, clamped between upper
 // and lower values. Bounds can be manually set or privately inferred.
-template <typename T,
-          typename std::enable_if<std::is_integral<T>::value ||
-                                  std::is_floating_point<T>::value>::type* =
-              nullptr>
+template <typename T, std::enable_if_t<std::is_arithmetic<T>::value>* = nullptr>
 class BoundedSum : public Algorithm<T> {
  public:
   // Builder for BoundedSum algorithm.
@@ -105,71 +104,6 @@ class BoundedSum : public Algorithm<T> {
     }
   }
 
-  base::StatusOr<Output> GenerateResult(double privacy_budget) override {
-    DCHECK_GT(privacy_budget, 0.0)
-        << "Privacy budget should be greater than zero.";
-    if (privacy_budget == 0.0) return Output();
-
-    Output output;
-    double sum = 0;
-    double remaining_budget = privacy_budget;
-
-    if (approx_bounds_) {
-      // Use a fraction of the privacy budget to find the approximate bounds.
-      // Analysis for choosing the fraction in
-      // (broken link)
-      double bounds_budget = privacy_budget / 2;
-      remaining_budget -= bounds_budget;
-      ASSIGN_OR_RETURN(Output bounds,
-                       approx_bounds_->GenerateResult(bounds_budget));
-      T lower = GetValue<T>(bounds.elements(0).value());
-      T upper = GetValue<T>(bounds.elements(1).value());
-      RETURN_IF_ERROR(Builder::CheckLowerBound(lower));
-
-      // Since sensitivity is determined only by the larger-magnitude bound,
-      // set the smaller-magnitude bound to be the negative of the larger. This
-      // minimizes clamping and so maximizes accuracy.
-      lower_ = std::min(lower, -1 * upper);
-      upper_ = std::max(upper, -1 * lower);
-
-      // To find the sum, pass the identity function as the transform. We pass
-      // count = 0 because the count should never be used.
-      sum = approx_bounds_->template ComputeFromPartials<T>(
-          pos_sum_, neg_sum_, [](T x) { return x; }, lower_, upper_, 0);
-
-      // Populate the bounding report with ApproxBounds information.
-      *(output.mutable_error_report()->mutable_bounding_report()) =
-          approx_bounds_->GetBoundingReport(lower_, upper_);
-
-      // Clear the mechanism. The sensitivity might have changed.
-      mechanism_.reset();
-    } else {
-      // Manual bounds were set and clamping was done upon adding entries.
-      sum = pos_sum_[0];
-    }
-
-    // Construct mechanism if needed. Mechanism is already constructed if
-    // NoiseConfidenceInterval() was called with manual bounds.
-    RETURN_IF_ERROR(BuildMechanism());
-
-    // Add noise confidence interval to the error report.
-    base::StatusOr<ConfidenceInterval> interval =
-        NoiseConfidenceIntervalImpl(kDefaultConfidenceLevel, remaining_budget);
-    if (interval.ok()) {
-      *(output.mutable_error_report()->mutable_noise_confidence_interval()) =
-          interval.ValueOrDie();
-    }
-
-    // Add noise to sum. Use the remaining privacy budget.
-    double noisy_sum = mechanism_->AddNoise(sum, remaining_budget);
-    if (std::is_integral<T>::value) {
-      AddToOutput<T>(&output, std::round(noisy_sum));
-    } else {
-      AddToOutput<T>(&output, noisy_sum);
-    }
-    return output;
-  }
-
   // Only return noise confidence interval for manually set bounds, since it is
   // dynamic upon result generation for auto-bounds.
   base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
@@ -180,15 +114,6 @@ class BoundedSum : public Algorithm<T> {
           "automatically-determined sensitivity.");
     }
     return NoiseConfidenceIntervalImpl(confidence_level, privacy_budget);
-  }
-
-  void ResetState() override {
-    std::fill(pos_sum_.begin(), pos_sum_.end(), 0);
-    std::fill(neg_sum_.begin(), neg_sum_.end(), 0);
-    if (approx_bounds_) {
-      approx_bounds_->ResetState();
-      mechanism_ = nullptr;
-    }
   }
 
   T lower() { return lower_; }
@@ -283,6 +208,81 @@ class BoundedSum : public Algorithm<T> {
       neg_sum_.resize(approx_bounds_->NumPositiveBins(), 0);
     } else {
       pos_sum_.push_back(0);
+    }
+  }
+
+  base::StatusOr<Output> GenerateResult(double privacy_budget,
+                                        double noise_interval_level) override {
+    DCHECK_GT(privacy_budget, 0.0)
+        << "Privacy budget should be greater than zero.";
+    if (privacy_budget == 0.0) return Output();
+
+    Output output;
+    double sum = 0;
+    double remaining_budget = privacy_budget;
+
+    if (approx_bounds_) {
+      // Use a fraction of the privacy budget to find the approximate bounds.
+      // Analysis for choosing the fraction in
+      // (broken link)
+      double bounds_budget = privacy_budget / 2;
+      remaining_budget -= bounds_budget;
+      ASSIGN_OR_RETURN(Output bounds, approx_bounds_->PartialResult(
+                                          bounds_budget, noise_interval_level));
+      T lower = GetValue<T>(bounds.elements(0).value());
+      T upper = GetValue<T>(bounds.elements(1).value());
+      RETURN_IF_ERROR(Builder::CheckLowerBound(lower));
+
+      // Since sensitivity is determined only by the larger-magnitude bound,
+      // set the smaller-magnitude bound to be the negative of the larger. This
+      // minimizes clamping and so maximizes accuracy.
+      lower_ = std::min(lower, -1 * upper);
+      upper_ = std::max(upper, -1 * lower);
+
+      // To find the sum, pass the identity function as the transform. We pass
+      // count = 0 because the count should never be used.
+      sum = approx_bounds_->template ComputeFromPartials<T>(
+          pos_sum_, neg_sum_, [](T x) { return x; }, lower_, upper_, 0);
+
+      // Populate the bounding report with ApproxBounds information.
+      *(output.mutable_error_report()->mutable_bounding_report()) =
+          approx_bounds_->GetBoundingReport(lower_, upper_);
+
+      // Clear the mechanism. The sensitivity might have changed.
+      mechanism_.reset();
+    } else {
+      // Manual bounds were set and clamping was done upon adding entries.
+      sum = pos_sum_[0];
+    }
+
+    // Construct mechanism if needed. Mechanism is already constructed if
+    // NoiseConfidenceInterval() was called with manual bounds.
+    RETURN_IF_ERROR(BuildMechanism());
+
+    // Add noise confidence interval to the error report.
+    base::StatusOr<ConfidenceInterval> interval =
+        NoiseConfidenceIntervalImpl(noise_interval_level, remaining_budget);
+    if (interval.ok()) {
+      *(output.mutable_error_report()->mutable_noise_confidence_interval()) =
+          interval.ValueOrDie();
+    }
+
+    // Add noise to sum. Use the remaining privacy budget.
+    double noisy_sum = mechanism_->AddNoise(sum, remaining_budget);
+    if (std::is_integral<T>::value) {
+      AddToOutput<T>(&output, std::round(noisy_sum));
+    } else {
+      AddToOutput<T>(&output, noisy_sum);
+    }
+    return output;
+  }
+
+  void ResetState() override {
+    std::fill(pos_sum_.begin(), pos_sum_.end(), 0);
+    std::fill(neg_sum_.begin(), neg_sum_.end(), 0);
+    if (approx_bounds_) {
+      approx_bounds_->Reset();
+      mechanism_ = nullptr;
     }
   }
 

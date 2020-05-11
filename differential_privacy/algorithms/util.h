@@ -21,6 +21,7 @@
 #include <limits>
 #include <numeric>
 #include <string>
+#include <type_traits>
 
 #include "differential_privacy/base/logging.h"
 #include "absl/strings/str_cat.h"
@@ -68,8 +69,7 @@ inline const T& Clamp(const T& low, const T& high, const T& value) {
 }
 
 // Return true and assign the addition result if the addition will not overflow.
-template <typename T,
-          typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
+template <typename T, std::enable_if_t<std::is_integral<T>::value>* = nullptr>
 inline bool SafeAdd(T lhs, T rhs, T* result) {
   if (lhs > 0) {
     // For negative rhs, we will never overflow.
@@ -90,8 +90,7 @@ inline bool SafeAdd(T lhs, T rhs, T* result) {
 
 // Return true and assign the subtraction result if the subtraction will not
 // overflow.
-template <typename T,
-          typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
+template <typename T, std::enable_if_t<std::is_integral<T>::value>* = nullptr>
 inline bool SafeSubtract(T lhs, T rhs, T* result) {
   // For integral values the min numeric limit is larger in magnitude than the
   // max numeric limit, so we cannot negate it. For unsigned types, the lowest
@@ -110,8 +109,7 @@ inline bool SafeSubtract(T lhs, T rhs, T* result) {
 }
 
 // Return true and assign the square result if squaring will not overflow.
-template <typename T,
-          typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
+template <typename T, std::enable_if_t<std::is_integral<T>::value>* = nullptr>
 inline bool SafeSquare(T num, T* result) {
   double max_root = std::pow(std::numeric_limits<T>::max(), 0.5);
   if (num > 0 && num > static_cast<T>(max_root)) return false;
