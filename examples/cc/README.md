@@ -54,5 +54,5 @@ queries.
 
 ## How to Run
 
-```bazel run differential_privacy/example:report_the_carrots```
+```bazel run examples/cc:report_the_carrots```
 
