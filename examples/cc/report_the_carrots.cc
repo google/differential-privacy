@@ -14,11 +14,12 @@
 // limitations under the License.
 //
 
+#include "examples/cc/animals_and_carrots.h"
+
 #include "absl/flags/flag.h"
 #include "absl/strings/str_format.h"
 #include "differential_privacy/algorithms/confidence-interval.pb.h"
 #include "differential_privacy/algorithms/util.h"
-#include "differential_privacy/example/animals_and_carrots.h"
 #include "differential_privacy/proto/data.pb.h"
 #include "differential_privacy/proto/util.h"
 

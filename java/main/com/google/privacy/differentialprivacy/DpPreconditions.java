@@ -28,9 +28,6 @@ import javax.annotation.Nullable;
 /** Utilities which validate the correctness of DP parameters. */
 public class DpPreconditions {
 
-  // The maximum allowed probability that the generated noise overflows.
-  private static final double MAX_NOISE_OVERFLOW_PROBABILITY = Math.pow(2.0, -64);
-
   private DpPreconditions() {}
 
   static void checkEpsilon(double epsilon) {
@@ -92,17 +89,6 @@ public class DpPreconditions {
             + "lower = %s upper = %s",
         lower,
         upper);
-  }
-
-  /**
-   * Checks that the probability is sufficiently low that a generated random noise value overflows
-   * (i.e., exceeds min or max double values).
-   */
-  static void checkOverflowProbability(double maxValueCdf, double minValueCdf) {
-    double overflowProbability = 1.0 - maxValueCdf + minValueCdf;
-    if (overflowProbability >= MAX_NOISE_OVERFLOW_PROBABILITY) {
-      throw new IllegalArgumentException("Sensitivity is too high - the noise may overflow.");
-    }
   }
 
   static void checkMergeDeltaAreEqual(@Nullable Double delta1, double delta2) {

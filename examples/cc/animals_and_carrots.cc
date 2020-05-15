@@ -14,7 +14,7 @@
 // limitations under the License.
 //
 
-#include "differential_privacy/example/animals_and_carrots.h"
+#include "examples/cc/animals_and_carrots.h"
 
 #include <fstream>
 

@@ -157,8 +157,8 @@ public class GaussianNoise implements Noise {
    * Returns the smallest delta such that the Gaussian mechanism with standard deviation {@code
    * sigma} obtains {@code (epsilon, delta)}-differential privacy with respect to the provided L_2
    * sensitivity. The calculation is based on Theorem 8 of Balle and Wang's "Improving the Gaussian
-   * Mechanism for Differential Privacy: Analytical Calibration and Optimal Denoising", available at
-   * https://arxiv.org/abs/1805.06530v2.
+   * Mechanism for Differential Privacy: Analytical Calibration and Optimal Denoising", available
+   * <a href="https://arxiv.org/abs/1805.06530v2">here</a>.
    */
   private static double getDelta(double sigma, double l2Sensitivity, double epsilon) {
     // Denoting by CDF the CDF function of the standard Gaussian distribution (mean 0, variance 1),
@@ -183,8 +183,8 @@ public class GaussianNoise implements Noise {
    * Returns a random sample m where {@code m + n / 2} is drawn from a binomial distribution of
    * {@code n} Bernoulli trials that have a success probability of 1 / 2 each. The sampling
    * technique is based on Bringmann et al.'s rejection sampling approach proposed in "Internal DLA:
-   * Efficient Simulation of a Physical Growth Model", available at
-   * https://people.mpi-inf.mpg.de/~kbringma/paper/2014ICALP.pdf.
+   * Efficient Simulation of a Physical Growth Model", available
+   * <a href="https://people.mpi-inf.mpg.de/~kbringma/paper/2014ICALP.pdf">here</a>.
    *
    * <p>The square root of {@code n} must be at least 10^6. This is to ensure an accurate
    * approximation of a Gaussian distribution.

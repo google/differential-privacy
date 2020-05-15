@@ -60,21 +60,12 @@ T LowerBound() {
   return std::numeric_limits<T>::lowest();
 }
 
-template <typename T>
-T ClampDouble(T lower, T upper, double value) {
-  if (value > upper) {
-    return upper;
-  }
-  if (value < lower) {
-    return lower;
-  }
-  return value;
-}
-
 // Provides a common abstraction for NumericalMechanism.  Numerical mechanisms
 // can add noise to data and track the remaining privacy budget.
 class NumericalMechanism {
  public:
+  NumericalMechanism(double epsilon) : epsilon_(epsilon) {}
+
   virtual ~NumericalMechanism() = default;
 
   virtual double AddNoise(double result, double privacy_budget) = 0;
@@ -82,6 +73,19 @@ class NumericalMechanism {
   double AddNoise(double result) { return AddNoise(result, 1.0); }
 
   virtual int64_t MemoryUsed() = 0;
+
+  double GetEpsilon() { return epsilon_; }
+
+ protected:
+  double epsilon_;
+
+  // Checks and clamps the budget so that it is in the interval (0,1].
+  inline double CheckAndClampBudget(double privacy_budget) {
+    LOG_IF(ERROR, !(0 < privacy_budget && privacy_budget <= 1))
+        << "privacy_budget should be in the interval (0, 1] but is "
+        << privacy_budget;
+    return Clamp<double>(std::numeric_limits<double>::min(), 1, privacy_budget);
+  }
 };
 
 // Provides a common abstraction for Builders for NumericalMechanism.
@@ -132,9 +136,25 @@ class NumericalMechanismBuilder {
  protected:
   absl::optional<double> epsilon_;
   absl::optional<double> delta_;
-
   absl::optional<double> l0_sensitivity_;
   absl::optional<double> linf_sensitivity_;
+
+  // Checks if epsilon is set and valid to be used for building any of the
+  // mechanisms.
+  base::Status EpsilonIsSetAndValid() {
+    if (!epsilon_.has_value()) {
+      return base::InvalidArgumentError("Epsilon has to be set.");
+    }
+    if (!std::isfinite(epsilon_.value())) {
+      return base::InvalidArgumentError(
+          absl::StrCat("Epsilon has to be finite but is ", epsilon_.value()));
+    }
+    if (epsilon_.value() <= 0) {
+      return base::InvalidArgumentError(
+          absl::StrCat("Epsilon has to be positive but is ", epsilon_.value()));
+    }
+    return base::OkStatus();
+  }
 };
 
 // Provides differential privacy by adding Laplace noise. This class also
@@ -155,16 +175,9 @@ class LaplaceMechanism : public NumericalMechanism {
     }
 
     base::StatusOr<std::unique_ptr<LaplaceMechanism>> Build() override {
-      if (!epsilon_.has_value()) {
-        // Epsilon has been previously set to 1 as default.  Need to check if
-        // anything breaks.
-        return base::InvalidArgumentError(
-            "Laplace Mechanism requires epsilon to be set.");
-      }
-      if (std::isnan(epsilon_.value()) ||
-          std::abs(epsilon_.value()) ==
-              std::numeric_limits<double>::infinity()) {
-        return base::InvalidArgumentError("Epsilon must be a real number.");
+      base::Status epsilon_status = EpsilonIsSetAndValid();
+      if (!epsilon_status.ok()) {
+        return epsilon_status;
       }
       // Check if L1 sensitivity is provided or make an estimate.
       if (!l1_sensitivity_.has_value()) {
@@ -205,7 +218,7 @@ class LaplaceMechanism : public NumericalMechanism {
   };
 
   explicit LaplaceMechanism(double epsilon, double sensitivity = 1.0)
-      : epsilon_(epsilon),
+      : NumericalMechanism(epsilon),
         sensitivity_(sensitivity),
         diversity_(sensitivity / epsilon),
         distro_(absl::make_unique<internal::LaplaceDistribution>(
@@ -228,9 +241,7 @@ class LaplaceMechanism : public NumericalMechanism {
   // with a given epsilon then they could add noise to each value with a privacy
   // budget of 0.5 (or 0.4 and 0.6, etc).
   double AddNoise(double result, double privacy_budget) override {
-    if (privacy_budget <= 0) {
-      privacy_budget = std::numeric_limits<double>::min();
-    }
+    privacy_budget = CheckAndClampBudget(privacy_budget);
     // Implements the snapping mechanism defined by
     // Mironov (2012, "On Significance of the Least Significant Bits For
     // Differential Privacy").
@@ -241,8 +252,8 @@ class LaplaceMechanism : public NumericalMechanism {
     double nearest_power = GetNextPowerOfTwo(diversity_ / privacy_budget);
     double rounded_result =
         RoundToNearestMultiple(noised_result, nearest_power);
-    return ClampDouble<double>(LowerBound<double>(), UpperBound<double>(),
-                               rounded_result);
+    return Clamp<double>(LowerBound<double>(), UpperBound<double>(),
+                         rounded_result);
   }
 
   virtual double GetUniformDouble() { return distro_->GetUniformDouble(); }
@@ -276,14 +287,12 @@ class LaplaceMechanism : public NumericalMechanism {
     return memory;
   }
 
-  double GetEpsilon() { return epsilon_; }
   double GetSensitivity() { return sensitivity_; }
 
   // Returns the calculated diversity of the underlying laplace distribution.
   double GetDiversity() { return diversity_; }
 
  private:
-  double epsilon_;
   double sensitivity_;
   double diversity_;
   std::unique_ptr<internal::LaplaceDistribution> distro_;

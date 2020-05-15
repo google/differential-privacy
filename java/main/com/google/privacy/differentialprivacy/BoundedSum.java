@@ -16,10 +16,9 @@
 
 package com.google.privacy.differentialprivacy;
 
-import com.google.differentialprivacy.SummaryOuterClass.BoundedSumSummary;
-
 import com.google.auto.value.AutoValue;
 import com.google.differentialprivacy.Data.ValueType;
+import com.google.differentialprivacy.SummaryOuterClass.BoundedSumSummary;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.Collection;
 import javax.annotation.Nullable;
@@ -27,23 +26,24 @@ import javax.annotation.Nullable;
 /**
  * Calculates a differentially private sum for a collection of values.
  *
- * <p> This class allows an individual privacy unit (e.g., a single user) to contribute data to
- *  multiple different partitions. The class does not check whether the number of partitions is
- *  within the specified bounds. This is the responsibility of the caller
+ * <p>This class allows an individual privacy unit (e.g., a single user) to contribute data to
+ * multiple different partitions. The class does not check whether the number of partitions is
+ * within the specified bounds. This is the responsibility of the caller
  *
- * <p> This class assumes that each privacy unit may contribute to a single partition only once
+ * <p>This class assumes that each privacy unit may contribute to a single partition only once
  * (i.e., only one data contribution per privacy unit per partition). Multiple contributions from a
  * single privacy unit should be pre-aggregated before they are passed to this class.
  *
- * <p> The user can provide a {@link Noise} instance which will be used to generate the noise. If no
+ * <p>The user can provide a {@link Noise} instance which will be used to generate the noise. If no
  * instance is specified, {@link LaplaceNoise} is applied.
  *
- * <p> Note: this class is not thread-safe.
+ * <p>Note: this class is not thread-safe.
  *
- * <p> For more implementation details, see {@link #computeResult()}.
+ * <p>For more implementation details, see {@link #computeResult()}.
  *
- * <p> For general details and key definitions, see
- * https://github.com/google/differential-privacy/blob/master/differential_privacy.md#key-definition.
+ * <p>For general details and key definitions, see <a href=
+ * "https://github.com/google/differential-privacy/blob/master/differential_privacy.md#key-definition">
+ * the introduction to Differential Privacy</a>.
  */
 public class BoundedSum {
 
