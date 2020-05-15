@@ -14,26 +14,12 @@
 // limitations under the License.
 //
 
-package com.google.privacy.differentialprivacy;
+package com.google.privacy.differentialprivacy.example;
 
-import org.junit.runner.RunWith;
-import org.junit.runners.Suite;
-import org.junit.runners.Suite.SuiteClasses;
+/** Stores paths to the input files. */
+public final class InputFilePath {
+  static final String DAY_STATISTICS = "day_data.csv";
+  static final String WEEK_STATISTICS = "week_data.csv";
 
-/**
- * Provides a list of JUnit test classes to Bazel.
- * When creating a new test class, add it here.
- */
-@RunWith(Suite.class)
-@SuiteClasses({
-    BoundedSumBuilderTest.class,
-    BoundedSumTest.class,
-    CountBuilderTest.class,
-    CountTest.class,
-    GaussianNoiseTest.class,
-    LaplaceNoiseTest.class,
-})
-public class AllTests {}
-
-
-
+  private InputFilePath(){}
+}

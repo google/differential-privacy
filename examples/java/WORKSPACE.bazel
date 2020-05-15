@@ -14,11 +14,16 @@
 # limitations under the License.
 #
 
-workspace(name = "com_google_java_differential_privacy")
+workspace(name = "examples_java")
 
 local_repository(
     name = "com_google_differential_privacy",
-    path = "..",
+    path = "../..",
+)
+
+local_repository(
+    name = "com_google_java_differential_privacy",
+    path = "../../java",
 )
 
 # Load dependencies for the base workspace.
@@ -35,5 +40,4 @@ dp_java_deps_prework()
 
 load("@com_google_java_differential_privacy//:dp_java_deps.bzl", "dp_java_deps")
 dp_java_deps()
-
 

@@ -14,26 +14,24 @@
 // limitations under the License.
 //
 
-package com.google.privacy.differentialprivacy;
+package com.google.privacy.differentialprivacy.example;
 
-import org.junit.runner.RunWith;
-import org.junit.runners.Suite;
-import org.junit.runners.Suite.SuiteClasses;
+import com.google.auto.value.AutoValue;
+import java.time.LocalTime;
 
-/**
- * Provides a list of JUnit test classes to Bazel.
- * When creating a new test class, add it here.
- */
-@RunWith(Suite.class)
-@SuiteClasses({
-    BoundedSumBuilderTest.class,
-    BoundedSumTest.class,
-    CountBuilderTest.class,
-    CountTest.class,
-    GaussianNoiseTest.class,
-    LaplaceNoiseTest.class,
-})
-public class AllTests {}
+/** Stores data about single visit of a user to the restaurant. */
+@AutoValue
+abstract class Visit {
 
+  static Visit create(String visitorId, LocalTime entryTime, int minutesSpent, int eurosSpent) {
+    return new AutoValue_Visit(visitorId, entryTime, minutesSpent, eurosSpent);
+  }
 
+  abstract String visitorId();
 
+  abstract LocalTime entryTime();
+
+  abstract int minutesSpent();
+
+  abstract int eurosSpent();
+}

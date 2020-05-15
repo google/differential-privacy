@@ -1,7 +1,7 @@
 # Differential privacy
 
 Differential privacy offers a tradeoff between the accuracy of aggregations over
-statistical databases (e.g. mean) and the chance of learning something about
+statistical databases (for example, mean) and the chance of learning something about
 individual records in the database. This tradeoff is an easily configured
 parameter; you can increase privacy by decreasing the accuracy of your statistics
 (or vice versa). Unlike other anonymization schemes (such as k-anonymity) that
@@ -33,5 +33,5 @@ particular person visited any particular restaurant.
 
 *Contribution bounding* is a process of limiting contributions by a single
 individual (or an entity represented by a privacy key) to the output dataset
-or it’s partition. This is key for DP algorithms, since protecting unbounded
+or its partition. This is key for DP algorithms, since protecting unbounded
 contributions would require adding infinite noise.

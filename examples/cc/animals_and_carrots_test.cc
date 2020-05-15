@@ -13,7 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-#include "differential_privacy/example/animals_and_carrots.h"
+
+#include "examples/cc/animals_and_carrots.h"
 
 #include "differential_privacy/base/testing/status_matchers.h"
 #include "gmock/gmock.h"
@@ -25,7 +26,7 @@ namespace example {
 namespace {
 
 constexpr char kDatafile[] =
-"differential_privacy/example/animals_and_carrots.csv";
+"examples/cc/animals_and_carrots.csv";
 
 TEST(CarrotReporterTest, TrueStatistics) {
   CarrotReporter reporter(kDatafile, 1);

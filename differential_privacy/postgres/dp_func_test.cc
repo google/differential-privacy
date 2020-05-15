@@ -31,7 +31,7 @@ TYPED_TEST_SUITE(BoundedDpFuncTest, BoundedDpFuncs);
 TEST(DpCount, BadEpsilon) {
   std::string err;
   auto dp_count = DpCount(&err, false, 0);
-  EXPECT_EQ(err, "Sensitivity is too high.");
+  EXPECT_EQ(err, "Epsilon has to be positive but is 0");
 }
 
 TEST(DpCount, AddEntryMissingAlgorithm) {
