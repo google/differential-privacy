@@ -17,17 +17,17 @@
 package com.google.privacy.differentialprivacy;
 
 import static com.google.common.truth.Truth.assertThat;
-import com.google.differentialprivacy.SummaryOuterClass.BoundedSumSummary;
 import static com.google.differentialprivacy.SummaryOuterClass.MechanismType.GAUSSIAN;
 import static com.google.differentialprivacy.SummaryOuterClass.MechanismType.LAPLACE;
+import static java.lang.Double.NaN;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static java.lang.Double.NaN;
 
+import com.google.differentialprivacy.SummaryOuterClass.BoundedSumSummary;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.Arrays;
 import org.junit.Before;
@@ -40,9 +40,10 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
 /**
- * Tests the accuracy of {@link BoundedSum}. The test mocks {@link Noise} instance which generates 0
- * noise.
- * Statistical and DP properties of the algorithm are implemented in
+ * Tests the accuracy of {@link BoundedSum}. The test mocks {@link Noise} instance which generates
+ * zero noise.
+ *
+ * Statistical and DP properties of the algorithm are tested in
  * TODO: add a link to the statistical tests.
  */
 @RunWith(JUnit4.class)
@@ -53,8 +54,7 @@ public class BoundedSumTest {
   @Mock private Noise noise;
   private BoundedSum sum;
 
-  @Rule
-  public final MockitoRule mocks = MockitoJUnit.rule();
+  @Rule public final MockitoRule mocks = MockitoJUnit.rule();
 
   @Before
   public void setUp() {
@@ -202,12 +202,7 @@ public class BoundedSumTest {
     // max(abs(lower), abs(upper)) * maxContributionsPerPartition =
     // max(-Integer.MIN_VALUE, 0) = -Integer.MIN_VALUE
     verify(noise)
-        .addNoise(
-            anyDouble(),
-            anyInt(),
-            eq(-(double) Integer.MIN_VALUE),
-            anyDouble(),
-            anyDouble());
+        .addNoise(anyDouble(), anyInt(), eq(-(double) Integer.MIN_VALUE), anyDouble(), anyDouble());
   }
 
   @Test
@@ -241,7 +236,6 @@ public class BoundedSumTest {
     assertThat(summary.getPartialSum().getFloatValue()).isEqualTo(Double.MIN_VALUE);
   }
 
-
   @Test
   public void getSerializableSummary_copiesNegativeSumCorrectly() {
     sum.addEntry(-5.0);
@@ -255,7 +249,6 @@ public class BoundedSumTest {
     BoundedSumSummary summary = getSummary(sum);
     assertThat(summary.getPartialSum().getFloatValue()).isEqualTo(5.0);
   }
-
 
   @Test
   public void getSerializableSummary_calledAfterComputeResult_throwsException() {
@@ -370,14 +363,10 @@ public class BoundedSumTest {
 
   @Test
   public void merge_nullDelta_noException() {
-    BoundedSum targetSum = getBoundedSumBuilderWithFields()
-        .noise(new LaplaceNoise())
-        .delta(null)
-        .build();
-    BoundedSum sourceSum = getBoundedSumBuilderWithFields()
-        .noise(new LaplaceNoise())
-        .delta(null)
-        .build();
+    BoundedSum targetSum =
+        getBoundedSumBuilderWithFields().noise(new LaplaceNoise()).delta(null).build();
+    BoundedSum sourceSum =
+        getBoundedSumBuilderWithFields().noise(new LaplaceNoise()).delta(null).build();
     // No exception should be thrown
     targetSum.mergeWith(sourceSum.getSerializableSummary());
   }
@@ -402,13 +391,9 @@ public class BoundedSumTest {
 
   @Test
   public void merge_differentNoise_throwsException() {
-    BoundedSum targetSum = getBoundedSumBuilderWithFields()
-        .noise(new LaplaceNoise())
-        .delta(null)
-        .build();
-    BoundedSum sourceSum = getBoundedSumBuilderWithFields()
-        .noise(new GaussianNoise())
-        .build();
+    BoundedSum targetSum =
+        getBoundedSumBuilderWithFields().noise(new LaplaceNoise()).delta(null).build();
+    BoundedSum sourceSum = getBoundedSumBuilderWithFields().noise(new GaussianNoise()).build();
     assertThrows(
         IllegalArgumentException.class,
         () -> targetSum.mergeWith(sourceSum.getSerializableSummary()));
@@ -457,8 +442,7 @@ public class BoundedSumTest {
 
     targetSum.computeResult();
     assertThrows(
-        IllegalStateException.class,
-        () -> targetSum.mergeWith(sourceSum.getSerializableSummary()));
+        IllegalStateException.class, () -> targetSum.mergeWith(sourceSum.getSerializableSummary()));
   }
 
   @Test
@@ -468,8 +452,7 @@ public class BoundedSumTest {
 
     sourceSum.computeResult();
     assertThrows(
-        IllegalStateException.class,
-        () -> targetSum.mergeWith(sourceSum.getSerializableSummary()));
+        IllegalStateException.class, () -> targetSum.mergeWith(sourceSum.getSerializableSummary()));
   }
 
   private BoundedSum.Params.Builder getBoundedSumBuilderWithFields() {
@@ -485,9 +468,9 @@ public class BoundedSumTest {
   }
 
   /**
-   * Note that {@link BoundedSumSummary} isn't visible to the actual clients, who only see an
-   * opaque {@code byte[]} blob. Here, we parse said blob to perform whitebox testing, to verify
-   * some expectations of the blob's content. We do this because achieving good coverage with pure
+   * Note that {@link BoundedSumSummary} isn't visible to the actual clients, who only see an opaque
+   * {@code byte[]} blob. Here, we parse said blob to perform whitebox testing, to verify some
+   * expectations of the blob's content. We do this because achieving good coverage with pure
    * behaviour testing (i.e., blackbox testing) isn't possible.
    */
   private static BoundedSumSummary getSummary(BoundedSum sum) {
@@ -499,4 +482,3 @@ public class BoundedSumTest {
     }
   }
 }
-

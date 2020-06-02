@@ -20,8 +20,8 @@
 #include <map>
 #include <string>
 
-#include "differential_privacy/proto/data.pb.h"
-#include "differential_privacy/base/statusor.h"
+#include "proto/data.pb.h"
+#include "base/statusor.h"
 
 namespace differential_privacy {
 namespace example {

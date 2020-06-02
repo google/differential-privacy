@@ -37,8 +37,11 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
 /**
- * Tests behavior of {@link Count}. The test mocks a {@link Noise} instance to always
- * generate zero noise. Testing the statistical and DP properties of the algorithm are out of scope.
+ * Tests behavior of {@link Count}. The test mocks a {@link Noise} instance to always generate zero
+ * noise.
+ *
+ * Statistical and DP properties of the algorithm are tested in
+ * TODO: add a link to the statistical tests.
  */
 @RunWith(JUnit4.class)
 public class CountTest {

@@ -23,12 +23,12 @@ cc_binary(
     srcs = ["report_the_carrots.cc"],
     deps = [
         ":animals_and_carrots",
-        "//differential_privacy/algorithms:confidence_interval_cc_proto",
-        "//differential_privacy/algorithms:util",
-        "//differential_privacy/proto:data_cc_proto",
-        "//differential_privacy/proto:util-lib",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/strings:str_format",
+        "@com_google_cc_differential_privacy//algorithms:util",
+        "@com_google_cc_differential_privacy//proto:util-lib",
+        "@com_google_differential_privacy//proto:confidence_interval_cc_proto",
+        "@com_google_differential_privacy//proto:data_cc_proto",
     ],
 )
 
@@ -39,13 +39,13 @@ cc_library(
     copts = ["-Wno-sign-compare"],
     data = ["animals_and_carrots.csv"],
     deps = [
-        "//differential_privacy/base:statusor",
-        "//differential_privacy/algorithms:bounded-mean",
-        "//differential_privacy/algorithms:bounded-sum",
-        "//differential_privacy/algorithms:count",
-        "//differential_privacy/algorithms:order-statistics",
-        "//differential_privacy/proto:data_cc_proto",
         "@com_google_absl//absl/strings",
+        "@com_google_cc_differential_privacy//algorithms:bounded-mean",
+        "@com_google_cc_differential_privacy//algorithms:bounded-sum",
+        "@com_google_cc_differential_privacy//algorithms:count",
+        "@com_google_cc_differential_privacy//algorithms:order-statistics",
+        "@com_google_cc_differential_privacy//base:statusor",
+        "@com_google_differential_privacy//proto:data_cc_proto",
     ],
 )
 
@@ -55,8 +55,8 @@ cc_test(
     copts = ["-Wno-sign-compare"],
     deps = [
         ":animals_and_carrots",
-        "//differential_privacy/base:status",
-        "//differential_privacy/base/testing:status_matchers",
+        "@com_google_cc_differential_privacy//base:status",
+        "@com_google_cc_differential_privacy//base/testing:status_matchers",
         "@com_google_googletest//:gtest_main",
     ],
 )

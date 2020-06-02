@@ -92,7 +92,7 @@ public class Count {
   }
 
   @AutoValue
-  abstract static class Params {
+  public abstract static class Params {
     abstract Noise noise();
 
     abstract double epsilon();

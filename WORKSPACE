@@ -25,7 +25,3 @@ differential_privacy_deps()
 # Protobuf transitive dependencies.
 load("@com_google_protobuf//:protobuf_deps.bzl", "protobuf_deps")
 protobuf_deps()
-
-# Allows us to take source-dependencies on non-bazelified packages.
-load("@rules_foreign_cc//:workspace_definitions.bzl", "rules_foreign_cc_dependencies")
-rules_foreign_cc_dependencies()

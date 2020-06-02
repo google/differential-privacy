@@ -1,0 +1,125 @@
+//
+// Copyright 2019 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
+// This file defines the summary data format for the count algorithm.
+
+syntax = "proto2";
+
+package differential_privacy;
+
+import "google/protobuf/any.proto";
+import "proto/data.proto";
+
+option java_package = "com.google.differentialprivacy";
+
+// Serialized summary data of a subset of the input data, to be merged at a
+// later time.
+message Summary {
+  // The summary data.
+  optional google.protobuf.Any data = 2;
+}
+
+message CountSummary {
+  // Count of the data subset.
+  optional int64 count = 1;
+}
+
+message BoundedSumSummary {
+  // Partial sum data for the dataset. For automatically set bounds, partial
+  // sum values are stored corresponding to each ApproxBounds bin.
+  // For manually set bounds, clamped sum will be stored in pos_sum.
+  // Currently, used only by C++ library.
+  repeated ValueType pos_sum = 1;
+  // neg_sum is used only when bounds are determined automatically.
+  repeated ValueType neg_sum = 2;
+
+  // ApproxBounds data if available.
+  optional ApproxBoundsSummary bounds_summary = 3;
+
+  // partial_sum is used by the Java library to store partial sum.
+  // TODO: Use partial_sum in C++ library
+  //  when bounds are set manually.
+  optional ValueType partial_sum = 4;
+
+  // TODO: Use below fields in C++ library.
+  // partial_sum is used by Java library to store sum
+  // Sum parameters:
+  optional double epsilon = 5;
+  optional double delta = 6;
+  optional MechanismType mechanism_type = 7;
+  optional double lower = 8;
+  optional double upper = 9;
+  optional int32 max_partitions_contributed = 10;
+  optional int32 max_contributions_per_partition = 11;
+}
+
+enum MechanismType {
+  EMPTY = 0;
+  LAPLACE = 1;
+  GAUSSIAN = 2;
+}
+
+message BoundedMeanSummary {
+  // Count of the data subset.
+  optional int64 count = 1;
+
+  // Partial sum data for the dataset.
+  repeated ValueType pos_sum = 2;
+  repeated ValueType neg_sum = 3;
+
+  // ApproxBounds data if available.
+  optional ApproxBoundsSummary bounds_summary = 4;
+}
+
+// Used for BoundedVariance and BoundedStandardDeviation algorithms.
+message BoundedVarianceSummary {
+  // Count of the dataset.
+  optional int64 count = 1;
+
+  // Partial sum data for the dataset. For manually set bounds, the clamped sum
+  // will be stored in pos_sum. For automatically set bounds, partial sum values
+  // stored corresponding to each ApproxBounds bin.
+  repeated ValueType pos_sum = 2;
+  repeated ValueType neg_sum = 3;
+
+  // Partial sum of squares for the dataset. For manually set bounds, clamped
+  // sum of squares is stored in pos_sum_of_squares.
+  repeated double pos_sum_of_squares = 4;
+  repeated double neg_sum_of_squares = 5;
+
+  // ApproxBounds data if available.
+  optional ApproxBoundsSummary bounds_summary = 6;
+}
+
+message Elements {
+  repeated string element = 1;
+}
+
+message HistogramSummary {
+  repeated int64 bin_count = 1;
+}
+
+message BinarySearchSummary {
+  reserved 1;
+
+  // Store all inputs.
+  repeated ValueType input = 2;
+}
+
+message ApproxBoundsSummary {
+  repeated int64 pos_bin_count = 1;
+  repeated int64 neg_bin_count = 2;
+}
