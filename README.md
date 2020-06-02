@@ -18,13 +18,13 @@ Currently, we provide algorithms to compute the following:
 
 We also provide an implementation of the Laplace and Gaussian mechanism that
 can be used to perform computations that aren't covered by our pre-built
-algorithms. 
+algorithms.
 
 All of these algorithms are suitable for research, experimental or production
 use cases.
 
 This project also contains a
-[stochastic tester](https://github.com/google/differential-privacy/tree/master/differential_privacy/testing),
+[stochastic tester](https://github.com/google/differential-privacy/tree/master/cc/testing),
 used to help catch regressions that could make the differential privacy
 property no longer hold.
 
@@ -45,11 +45,11 @@ differential privacy directory into a local folder:
 Navigate into the ```differential-privacy``` folder you just created,
 and build the differential privacy library and dependencies using Bazel:
 
-
-<!-- TODO: Update build instructions to reflect the new repo
-     structure -->
 To build the C++ library, run:
-```bazel build differential_privacy/...```
+```
+cd cc
+bazel build ...
+```
 
 To build the Java library, run:
 ```
@@ -95,3 +95,11 @@ issues we will publish notice here at least 3 months in advance.
 ## Support Disclaimer
 
 This is not an officially supported Google product.
+
+## Reach out 
+
+We are always keen on hearing what use cases this library is helping you to
+solve. Please email us at dp-open-source@google.com about your use cases and
+what more we can do to help. Please refrain from sending us any personal
+identifiable information. If you wish to delete a message you've previously
+sent, please contact us.

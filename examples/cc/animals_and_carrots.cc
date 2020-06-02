@@ -14,16 +14,16 @@
 // limitations under the License.
 //
 
-#include "examples/cc/animals_and_carrots.h"
+#include "animals_and_carrots.h"
 
 #include <fstream>
 
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_split.h"
-#include "differential_privacy/algorithms/bounded-mean.h"
-#include "differential_privacy/algorithms/bounded-sum.h"
-#include "differential_privacy/algorithms/count.h"
-#include "differential_privacy/algorithms/order-statistics.h"
+#include "algorithms/bounded-mean.h"
+#include "algorithms/bounded-sum.h"
+#include "algorithms/count.h"
+#include "algorithms/order-statistics.h"
 
 namespace differential_privacy {
 namespace example {

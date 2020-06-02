@@ -31,7 +31,7 @@ java_test(
     test_class = "com.google.privacy.differentialprivacy.AllTests",
     deps = [
                "//main/com/google/privacy/differentialprivacy",
-               "@com_google_differential_privacy//differential_privacy/proto:summary_java_proto",
+               "@com_google_differential_privacy//proto:summary_java_proto",
                "@maven//:com_google_guava_guava",
                "@maven//:com_google_truth_truth",
                "@maven//:junit_junit",

@@ -53,6 +53,8 @@ budget is no longer positive, the animals refuse to answer any more of Fred's
 queries.
 
 ## How to Run
-
-```bazel run examples/cc:report_the_carrots```
+```
+$ cd examples/cc
+$ bazel run report_the_carrots
+```
 
