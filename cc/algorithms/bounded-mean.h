@@ -76,16 +76,17 @@ class BoundedMean : public Algorithm<T> {
       // If manual bounding, check bounds and construct mechanism so we can fail
       // on build if sensitivity is inappropriate.
       std::unique_ptr<LaplaceMechanism> sum_mechanism = nullptr;
-      if (BoundedBuilder::has_upper_ && BoundedBuilder::has_lower_) {
-        RETURN_IF_ERROR(
-            CheckBounds(BoundedBuilder::lower_, BoundedBuilder::upper_));
-        ASSIGN_OR_RETURN(sum_mechanism,
-                         AlgorithmBuilder::laplace_mechanism_builder_
-                             ->SetEpsilon(AlgorithmBuilder::epsilon_.value())
-                             .SetSensitivity(std::abs(BoundedBuilder::upper_ -
-                                                      BoundedBuilder::lower_) /
-                                             2)
-                             .Build());
+      if (BoundedBuilder::BoundsAreSet()) {
+        RETURN_IF_ERROR(CheckBounds(BoundedBuilder::lower_.value(),
+                                    BoundedBuilder::upper_.value()));
+        ASSIGN_OR_RETURN(
+            sum_mechanism,
+            AlgorithmBuilder::laplace_mechanism_builder_
+                ->SetEpsilon(AlgorithmBuilder::epsilon_.value())
+                .SetSensitivity(std::abs(BoundedBuilder::upper_.value() -
+                                         BoundedBuilder::lower_.value()) /
+                                2)
+                .Build());
       }
 
       // The count noising doesn't depend on the bounds, so we can always
@@ -100,8 +101,9 @@ class BoundedMean : public Algorithm<T> {
       // Construct BoundedMean.
       auto mech_builder = AlgorithmBuilder::laplace_mechanism_builder_->Clone();
       return absl::WrapUnique(new BoundedMean(
-          AlgorithmBuilder::epsilon_.value(), BoundedBuilder::lower_,
-          BoundedBuilder::upper_, std::move(mech_builder),
+          AlgorithmBuilder::epsilon_.value(),
+          BoundedBuilder::lower_.value_or(0),
+          BoundedBuilder::upper_.value_or(0), std::move(mech_builder),
           std::move(sum_mechanism), std::move(count_mechanism),
           std::move(BoundedBuilder::approx_bounds_)));
     }
@@ -266,15 +268,8 @@ class BoundedMean : public Algorithm<T> {
 
     double count_budget = remaining_budget / 2;
     remaining_budget -= count_budget;
-    double noised_count = count_mechanism_->AddNoise(raw_count_, count_budget);
-
-    // If we don't have data.
-    if (noised_count <= 1) {
-      AddToOutput<double>(&output, midpoint_);
-      return output;
-    }
-
-    // Normal case: we actually have data.
+    double noised_count =
+        std::max(1.0, count_mechanism_->AddNoise(raw_count_, count_budget));
     double normalized_sum = sum_mechanism_->AddNoise(
         sum - raw_count_ * midpoint_, remaining_budget);
     double average = normalized_sum / noised_count + midpoint_;

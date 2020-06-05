@@ -631,7 +631,7 @@ class ApproxBounds : public Algorithm<T> {
   // Whether k was user-set. If true, then do not scale by privacy budget.
   bool preset_k_;
 
-  // Mechanism for adding Laplace noise to buckets.
+  // Mechanism for adding noise to buckets.
   std::unique_ptr<NumericalMechanism> mechanism_;
 };
 

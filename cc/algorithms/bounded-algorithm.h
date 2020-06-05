@@ -47,21 +47,19 @@ class BoundedAlgorithmBuilder : public AlgorithmBuilder<T, Algorithm, Builder> {
  public:
   Builder& SetLower(T lower) {
     lower_ = lower;
-    has_lower_ = true;
     return *static_cast<Builder*>(this);
   }
 
   Builder& SetUpper(T upper) {
     upper_ = upper;
-    has_upper_ = true;
     return *static_cast<Builder*>(this);
   }
 
   // ClearBounds resets the builder. Erases bounds and bounding objects that
   // were previously set.
   Builder& ClearBounds() {
-    has_lower_ = false;
-    has_upper_ = false;
+    lower_.reset();
+    upper_.reset();
     approx_bounds_ = nullptr;
     return *static_cast<Builder*>(this);
   }
@@ -75,10 +73,15 @@ class BoundedAlgorithmBuilder : public AlgorithmBuilder<T, Algorithm, Builder> {
   }
 
  protected:
+  // Returns whether bounds have been set for this builder.
+  inline bool BoundsAreSet() {
+    return lower_.has_value() && upper_.has_value();
+  }
+
   base::Status BoundsSetup() {
     // If either bound is not set and we do not have an ApproxBounds,
     // construct the default one.
-    if ((!has_lower_ || !has_upper_) && !approx_bounds_) {
+    if (!BoundsAreSet() && !approx_bounds_) {
       auto mech_builder = AlgorithmBuilder::laplace_mechanism_builder_->Clone();
       ASSIGN_OR_RETURN(approx_bounds_,
                        typename ApproxBounds<T>::Builder()
@@ -89,13 +92,10 @@ class BoundedAlgorithmBuilder : public AlgorithmBuilder<T, Algorithm, Builder> {
     return base::OkStatus();
   }
 
-  // Manually set bounds.
-  T lower_, upper_;
-
-  // Tracks whether manual bounds were set. If not, automatic bounds will be
-  // determined.
-  bool has_lower_ = false;
-  bool has_upper_ = false;
+  // Bounds are optional and do not need to be set.  If they are not set,
+  // automatic bounds will be determined.
+  absl::optional<T> lower_;
+  absl::optional<T> upper_;
 
   // Used to automatically determine approximate mimimum and maximum to become
   // lower and upper bounds, respectively.

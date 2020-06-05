@@ -70,7 +70,7 @@ public class CountVisitsPerHour {
 
     visits.forEach(v -> {
       int hour = v.entryTime().getHour();
-      // validate that the visit happened during one of valid hours
+      // Validate that the visit happened during one of valid hours.
       checkArgument(VALID_HOURS.contains(hour));
       int newCount = counts.get(hour) + 1;
       counts.put(hour, newCount);
@@ -85,24 +85,21 @@ public class CountVisitsPerHour {
    * {@return} a {@link ImmutableSortedMap} that maps an hour to anonymized count of visits.
    */
   private static ImmutableSortedMap<Integer, Integer> getPrivateCounts(Collection<Visit> visits) {
-    // construct DP Count objects which will be used to calculate DP counts
-    // one Count is created for every work hour
+    // Construct DP Count objects which will be used to calculate DP counts
+    // one Count is created for every work hour.
     Map<Integer, Count> dpCounts = new HashMap<>();
     for (int i = OPENING_HOUR; i <= CLOSING_HOUR; i++) {
       Count dpCount = Count.builder()
-          // we use epsilon = log(3) in the example as suggested in
-          // [Cynthia Dwork and Aaron Roth (2014),
-          // "The Algorithmic Foundations of Differential Privacy"]
           .epsilon(LN_3)
           .maxPartitionsContributed(1)
           .build();
       dpCounts.put(i, dpCount);
     }
 
-    // go through all visits and update Counts at the corresponding hours
+    // Go through all visits and update Counts at the corresponding hours.
     visits.forEach(v -> dpCounts.get(v.entryTime().getHour()).increment());
 
-    // trigger DP logic to produce anonymized counts of visits
+    // Trigger DP logic to produce anonymized counts of visits.
     return ImmutableSortedMap.copyOf(
         dpCounts.entrySet().stream()
         .collect(

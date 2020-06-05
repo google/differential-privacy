@@ -112,7 +112,7 @@ class NumericalMechanism {
 };
 
 // Provides a common abstraction for Builders for NumericalMechanism.
-template <class Builder, class Mechanism>
+template <class Mechanism, class Builder = typename Mechanism::Builder>
 class NumericalMechanismBuilder {
  public:
   virtual ~NumericalMechanismBuilder() = default;
@@ -201,9 +201,10 @@ class NumericalMechanismBuilder {
 class LaplaceMechanism : public NumericalMechanism {
  public:
   // Builder for LaplaceMechanism.
-  class Builder : public NumericalMechanismBuilder<Builder, LaplaceMechanism> {
+  class Builder : public NumericalMechanismBuilder<LaplaceMechanism> {
    public:
-    // This method is deprecated and SetL1Sensitivity() should be used instead.
+    ABSL_DEPRECATED(
+        "Set LInf and L0 sensitivity instead or use SetL1Sensitivity in tests")
     Builder& SetSensitivity(double l1_sensitivity) {
       return SetL1Sensitivity(l1_sensitivity);
     }
@@ -245,7 +246,7 @@ class LaplaceMechanism : public NumericalMechanism {
 
     std::unique_ptr<Builder> Clone() const override {
       std::unique_ptr<Builder> clone =
-          NumericalMechanismBuilder<Builder, LaplaceMechanism>::Clone();
+          NumericalMechanismBuilder<LaplaceMechanism>::Clone();
       if (l1_sensitivity_.has_value()) {
         clone->l1_sensitivity_ = l1_sensitivity_.value();
       }

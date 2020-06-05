@@ -24,10 +24,12 @@ import javax.annotation.Nullable;
  *
  * <p>This class allows an individual privacy unit (e.g., a single user) to contribute data to
  * multiple different partitions. The class does not check whether the number of partitions is
- * within the specified bounds. This is the responsibility of the caller
+ * within the specified bounds. This is the responsibility of the caller.
  *
  * <p>This class assumes that each privacy unit may contribute to a single partition only once
- * (i.e., only one data contribution per privacy unit per partition).
+ * (i.e., only one data contribution per privacy unit per partition), it doesn't do clamping. For
+ * datasets with multiple contributions from the same user to a single partition {@link BoundedSum}
+ * should be used instead.
  *
  * <p>The user can provide a {@link Noise} instance which will be used to generate the noise. If no
  * instance is specified, {@link LaplaceNoise} is applied.
@@ -60,7 +62,10 @@ public class Count {
     incrementBy(1);
   }
 
-  /** Increments count by the given value. */
+  /**
+   * Increments count by the given value. Note, that this shouldn't be used to count multiple
+   * contributions to a partition from the same user.
+   */
   public void incrementBy(int count) {
     if (resultReturned) {
       throw new IllegalStateException(

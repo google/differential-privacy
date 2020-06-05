@@ -33,7 +33,7 @@ public class ContributionBoundingUtils {
 
   /**
    * @return {@link VisitsForWeek} containing the restaurant visits limited to
-   * {@code maxVisitsPerWeek} per {@link Visit#visitorId}
+   * {@code maxVisitsPerWeek} per {@link Visit#visitorId}.
    */
   static VisitsForWeek boundVisits(VisitsForWeek visits, int maxVisitsPerWeek) {
     Map<String, Integer> visitorIdToVisitsCount = new HashMap<>();

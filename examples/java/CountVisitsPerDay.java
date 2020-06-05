@@ -75,9 +75,6 @@ public class CountVisitsPerDay {
     Arrays.stream(DayOfWeek.values()).forEach(d -> {
       Count dpCount =
           Count.builder()
-              // We use epsilon = log(3) in the example as suggested in
-              // [Cynthia Dwork and Aaron Roth (2014),
-              // "The Algorithmic Foundations of Differential Privacy"].
               .epsilon(LN_3)
               // The data was pre-processed so that
               // each user may visit the restaurant up to MAX_VISITS_PER_WEEK times per week.

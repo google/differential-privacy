@@ -64,23 +64,24 @@ class BoundedSum : public Algorithm<T> {
       // If manual bounding, construct mechanism so we can fail on build if
       // sensitivity is inappropriate.
       std::unique_ptr<LaplaceMechanism> mechanism = nullptr;
-      if (BoundedBuilder::has_upper_ && BoundedBuilder::has_lower_) {
-        RETURN_IF_ERROR(CheckLowerBound(BoundedBuilder::lower_));
-        ASSIGN_OR_RETURN(
-            mechanism,
-            AlgorithmBuilder::laplace_mechanism_builder_
-                ->SetEpsilon(AlgorithmBuilder::epsilon_.value())
-                .SetSensitivity(std::max(std::abs(BoundedBuilder::lower_),
-                                         std::abs(BoundedBuilder::upper_)))
-                .Build());
+      if (BoundedBuilder::BoundsAreSet()) {
+        RETURN_IF_ERROR(CheckLowerBound(BoundedBuilder::lower_.value()));
+        ASSIGN_OR_RETURN(mechanism,
+                         AlgorithmBuilder::laplace_mechanism_builder_
+                             ->SetEpsilon(AlgorithmBuilder::epsilon_.value())
+                             .SetSensitivity(std::max(
+                                 std::abs(BoundedBuilder::lower_.value()),
+                                 std::abs(BoundedBuilder::upper_.value())))
+                             .Build());
       }
 
       // Construct BoundedSum.
       auto mech_builder = AlgorithmBuilder::laplace_mechanism_builder_->Clone();
       return absl::WrapUnique(new BoundedSum(
-          AlgorithmBuilder::epsilon_.value(), BoundedBuilder::lower_,
-          BoundedBuilder::upper_, std::move(mech_builder), std::move(mechanism),
-          std::move(BoundedBuilder::approx_bounds_)));
+          AlgorithmBuilder::epsilon_.value(),
+          BoundedBuilder::lower_.value_or(0),
+          BoundedBuilder::upper_.value_or(0), std::move(mech_builder),
+          std::move(mechanism), std::move(BoundedBuilder::approx_bounds_)));
     }
   };
 

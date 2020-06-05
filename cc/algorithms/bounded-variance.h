@@ -99,23 +99,24 @@ class BoundedVariance : public Algorithm<T> {
       // on build if sensitivity is inappropriate.
       std::unique_ptr<LaplaceMechanism> sum_mechanism = nullptr;
       std::unique_ptr<LaplaceMechanism> sos_mechanism = nullptr;
-      if (BoundedBuilder::has_upper_ && BoundedBuilder::has_lower_) {
-        RETURN_IF_ERROR(
-            CheckBounds(BoundedBuilder::lower_, BoundedBuilder::upper_));
+      if (BoundedBuilder::BoundsAreSet()) {
+        RETURN_IF_ERROR(CheckBounds(BoundedBuilder::lower_.value(),
+                                    BoundedBuilder::upper_.value()));
         ASSIGN_OR_RETURN(
             sum_mechanism,
             AlgorithmBuilder::laplace_mechanism_builder_
                 ->SetEpsilon(AlgorithmBuilder::epsilon_.value())
-                .SetSensitivity(static_cast<double>(BoundedBuilder::upper_ -
-                                                    BoundedBuilder::lower_) /
-                                2)
+                .SetSensitivity(
+                    static_cast<double>(BoundedBuilder::upper_.value() -
+                                        BoundedBuilder::lower_.value()) /
+                    2)
                 .Build());
         ASSIGN_OR_RETURN(
             sos_mechanism,
             AlgorithmBuilder::laplace_mechanism_builder_
                 ->SetEpsilon(AlgorithmBuilder::epsilon_.value())
-                .SetSensitivity(RangeOfSquares(BoundedBuilder::lower_,
-                                               BoundedBuilder::upper_) /
+                .SetSensitivity(RangeOfSquares(BoundedBuilder::lower_.value(),
+                                               BoundedBuilder::upper_.value()) /
                                 2)
                 .Build());
       }
@@ -130,8 +131,9 @@ class BoundedVariance : public Algorithm<T> {
       // Construct bounded variance.
       auto mech_builder = AlgorithmBuilder::laplace_mechanism_builder_->Clone();
       return absl::WrapUnique(new BoundedVariance(
-          AlgorithmBuilder::epsilon_.value(), BoundedBuilder::lower_,
-          BoundedBuilder::upper_, std::move(mech_builder),
+          AlgorithmBuilder::epsilon_.value(),
+          BoundedBuilder::lower_.value_or(0),
+          BoundedBuilder::upper_.value_or(0), std::move(mech_builder),
           std::move(sum_mechanism), std::move(sos_mechanism),
           std::move(count_mechanism),
           std::move(BoundedBuilder::approx_bounds_)));

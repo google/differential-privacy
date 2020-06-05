@@ -76,10 +76,10 @@ class Max : public BinarySearch<T> {
    private:
     base::StatusOr<std::unique_ptr<Max<T>>> BuildAlgorithm() override {
       RETURN_IF_ERROR(OrderBuilder::ConstructDependencies());
-      return absl::WrapUnique(
-          new Max(AlgorithmBuilder::epsilon_.value(), BoundedBuilder::lower_,
-                  BoundedBuilder::upper_, std::move(OrderBuilder::mechanism_),
-                  std::move(OrderBuilder::quantiles_)));
+      return absl::WrapUnique(new Max(
+          AlgorithmBuilder::epsilon_.value(), BoundedBuilder::lower_.value(),
+          BoundedBuilder::upper_.value(), std::move(OrderBuilder::mechanism_),
+          std::move(OrderBuilder::quantiles_)));
     }
   };
 
@@ -103,10 +103,10 @@ class Min : public BinarySearch<T> {
    private:
     base::StatusOr<std::unique_ptr<Min<T>>> BuildAlgorithm() override {
       RETURN_IF_ERROR(OrderBuilder::ConstructDependencies());
-      return absl::WrapUnique(
-          new Min(AlgorithmBuilder::epsilon_.value(), BoundedBuilder::lower_,
-                  BoundedBuilder::upper_, std::move(OrderBuilder::mechanism_),
-                  std::move(OrderBuilder::quantiles_)));
+      return absl::WrapUnique(new Min(
+          AlgorithmBuilder::epsilon_.value(), BoundedBuilder::lower_.value(),
+          BoundedBuilder::upper_.value(), std::move(OrderBuilder::mechanism_),
+          std::move(OrderBuilder::quantiles_)));
     }
   };
 
@@ -131,8 +131,8 @@ class Median : public BinarySearch<T> {
     base::StatusOr<std::unique_ptr<Median<T>>> BuildAlgorithm() override {
       RETURN_IF_ERROR(OrderBuilder::ConstructDependencies());
       return absl::WrapUnique(new Median(
-          AlgorithmBuilder::epsilon_.value(), BoundedBuilder::lower_,
-          BoundedBuilder::upper_, std::move(OrderBuilder::mechanism_),
+          AlgorithmBuilder::epsilon_.value(), BoundedBuilder::lower_.value(),
+          BoundedBuilder::upper_.value(), std::move(OrderBuilder::mechanism_),
           std::move(OrderBuilder::quantiles_)));
     }
   };
@@ -167,11 +167,11 @@ class Percentile : public BinarySearch<T> {
         return base::InvalidArgumentError(
             "Percentile must be between 0 and 1.");
       }
-      return absl::WrapUnique(
-          new Percentile(percentile_, AlgorithmBuilder::epsilon_.value(),
-                         BoundedBuilder::lower_, BoundedBuilder::upper_,
-                         std::move(OrderBuilder::mechanism_),
-                         std::move(OrderBuilder::quantiles_)));
+      return absl::WrapUnique(new Percentile(
+          percentile_, AlgorithmBuilder::epsilon_.value(),
+          BoundedBuilder::lower_.value(), BoundedBuilder::upper_.value(),
+          std::move(OrderBuilder::mechanism_),
+          std::move(OrderBuilder::quantiles_)));
     }
 
     double percentile_;
