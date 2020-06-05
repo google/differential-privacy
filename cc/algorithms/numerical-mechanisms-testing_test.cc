@@ -31,12 +31,14 @@ class NumericalMechanismsTestingTest : public ::testing::Test {};
 typedef ::testing::Types<int64_t, double> NumericTypes;
 TYPED_TEST_SUITE(NumericalMechanismsTestingTest, NumericTypes);
 
-TYPED_TEST(NumericalMechanismsTestingTest, OwnedSeedConsistency) {
+TYPED_TEST(NumericalMechanismsTestingTest, DifferentSeeds) {
   SeededLaplaceMechanism a(1.0, 1.0);
   SeededLaplaceMechanism b(1.0, 1.0);
-  for (int i = 0; i < 100; ++i) {
-    EXPECT_EQ(a.AddNoise(i), b.AddNoise(i));
+  bool is_equal = true;
+  for (int i = 0; i < 10; ++i) {
+    is_equal &= (a.AddNoise(i) == b.AddNoise(i));
   }
+  EXPECT_FALSE(is_equal);
 }
 
 TYPED_TEST(NumericalMechanismsTestingTest, PassedSeedConsistency) {

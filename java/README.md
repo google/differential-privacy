@@ -1,6 +1,6 @@
 ## Differential Privacy library in Java
 
-This is a Java implementation of a differential privacy library. For general
+This is the Java implementation of the differential privacy library. For general
 details and key definitions, see the top-level documentation.
 This document describes Java-specific aspects.
 

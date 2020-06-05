@@ -28,7 +28,7 @@ import javax.annotation.Nullable;
  *
  * <p>This class allows an individual privacy unit (e.g., a single user) to contribute data to
  * multiple different partitions. The class does not check whether the number of partitions is
- * within the specified bounds. This is the responsibility of the caller
+ * within the specified bounds. This is the responsibility of the caller.
  *
  * <p>This class assumes that each privacy unit may contribute to a single partition only once
  * (i.e., only one data contribution per privacy unit per partition). Multiple contributions from a

@@ -72,7 +72,7 @@ public class BoundedSumTest {
             .noise(noise)
             .maxPartitionsContributed(1)
             .maxContributionsPerPartition(1)
-            // the lower and upper bounds are arbitrarily chosen negative and positive values.
+            // The lower and upper bounds are arbitrarily chosen negative and positive values.
             .lower(-Double.MAX_VALUE)
             .upper(Double.MAX_VALUE)
             .build();
@@ -200,7 +200,7 @@ public class BoundedSumTest {
     // More precisely:
     // L_Inf sensitivity =
     // max(abs(lower), abs(upper)) * maxContributionsPerPartition =
-    // max(-Integer.MIN_VALUE, 0) = -Integer.MIN_VALUE
+    // max(-Integer.MIN_VALUE, 0) = -Integer.MIN_VALUE.
     verify(noise)
         .addNoise(anyDouble(), anyInt(), eq(-(double) Integer.MIN_VALUE), anyDouble(), anyDouble());
   }
@@ -367,7 +367,7 @@ public class BoundedSumTest {
         getBoundedSumBuilderWithFields().noise(new LaplaceNoise()).delta(null).build();
     BoundedSum sourceSum =
         getBoundedSumBuilderWithFields().noise(new LaplaceNoise()).delta(null).build();
-    // No exception should be thrown
+    // No exception should be thrown.
     targetSum.mergeWith(sourceSum.getSerializableSummary());
   }
 
@@ -461,7 +461,7 @@ public class BoundedSumTest {
         .delta(DELTA)
         .noise(noise)
         .maxPartitionsContributed(1)
-        // lower, upper and, maxContributionsPerPartition have arbitrarily chosen values
+        // lower, upper and, maxContributionsPerPartition have arbitrarily chosen values.
         .maxContributionsPerPartition(10)
         .lower(-10)
         .upper(10);

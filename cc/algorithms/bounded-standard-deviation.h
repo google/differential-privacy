@@ -53,11 +53,11 @@ class BoundedStandardDeviation : public Algorithm<T> {
     base::StatusOr<std::unique_ptr<BoundedStandardDeviation<T>>>
     BuildAlgorithm() override {
       // Set bounding info if appropriate.
-      if (BoundedBuilder::has_lower_) {
-        variance_builder_.SetLower(BoundedBuilder::lower_);
+      if (BoundedBuilder::lower_.has_value()) {
+        variance_builder_.SetLower(BoundedBuilder::lower_.value());
       }
-      if (BoundedBuilder::has_upper_) {
-        variance_builder_.SetUpper(BoundedBuilder::upper_);
+      if (BoundedBuilder::upper_.has_value()) {
+        variance_builder_.SetUpper(BoundedBuilder::upper_.value());
       }
       if (BoundedBuilder::approx_bounds_) {
         variance_builder_.SetApproxBounds(

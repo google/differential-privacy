@@ -1,6 +1,6 @@
 ## Differential Privacy library in C++
 
-This is a C++ implementation of a differential privacy library. For general
+This is the C++ implementation of the differential privacy library. For general
 details and key definitions, see the top-level documentation.
 This document describes C++-specific aspects.
 
