@@ -21,6 +21,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/memory/memory.h"
+#include "absl/strings/str_replace.h"
 #include "algorithms/numerical-mechanisms-testing.h"
 #include "algorithms/util.h"
 #include "base/status.h"

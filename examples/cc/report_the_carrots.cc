@@ -17,10 +17,10 @@
 #include "absl/flags/flag.h"
 #include "absl/strings/str_format.h"
 #include "algorithms/util.h"
+#include "proto/util.h"
 #include "animals_and_carrots.h"
 #include "proto/confidence-interval.pb.h"
 #include "proto/data.pb.h"
-#include "proto/util.h"
 
 using absl::PrintF;
 using differential_privacy::BoundingReport;

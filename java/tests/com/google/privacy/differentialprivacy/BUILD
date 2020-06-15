@@ -21,6 +21,8 @@ java_test(
     name = "AllTests",
     srcs = [
         "AllTests.java",
+        "BoundedMeanBuilderTest.java",
+        "BoundedMeanTest.java",
         "BoundedSumBuilderTest.java",
         "BoundedSumTest.java",
         "CountBuilderTest.java",

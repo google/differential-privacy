@@ -43,7 +43,7 @@ public class GaussianNoise implements Noise {
   /**
    * The absolute bound of the two sided geometric samples k that are used for creating a binomial
    * sample m + n / 2. For performance reasons, m is not composed of n Bernoulli trials. Instead m
-   * is obtained via a rejection sampling technique, which sets m = (k + l) * (sqrt(2 *n) + 1),
+   * is obtained via a rejection sampling technique, which sets m = (k + l) * (sqrt(2 * n) + 1),
    * where l is a uniform random sample between 0 and 1. Bounding k is therefore necessary to
    * prevent m from overflowing.
    *

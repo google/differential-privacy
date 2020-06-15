@@ -11,7 +11,7 @@ Currently, we provide algorithms to compute the following:
 | -------------      |:-------------:| -----:|
 | Count              | Supported     | Supported |
 | Sum                | Supported     | Supported |
-| Mean               | Supported     | Planned   |
+| Mean               | Supported     | Supported   |
 | Variance           | Supported     | Planned   |
 | Standard deviation |Supported      | Planned   |
 |Order statistics (incl. min, max, and median) |Supported   | Planned |
