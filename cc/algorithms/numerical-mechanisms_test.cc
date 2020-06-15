@@ -209,5 +209,74 @@ TEST(NumericalMechanismsTest, LaplaceEstimatesL1WithL0AndLInf) {
                                                     .ValueOrDie();
   EXPECT_THAT(mechanism->GetSensitivity(), Ge(3));
 }
+
+TEST(NumericalMechanismsTest, GaussianBuilderFailsDeltaNotSet) {
+  GaussianMechanism::Builder test_builder;
+  auto failed_build = test_builder.SetL2Sensitivity(1).SetEpsilon(1).Build();
+  EXPECT_THAT(failed_build.status().code(),
+              Eq(base::StatusCode::kInvalidArgument));
+  // Convert message to std::string so that the matcher works in the open source
+  // version.
+  std::string message(std::string(failed_build.status().message()));
+  EXPECT_THAT(message, MatchesRegex("^Delta has to be set.*"));
+}
+
+TEST(NumericalMechanismsTest, GaussianBuilderFailsDeltaNan) {
+  GaussianMechanism::Builder test_builder;
+  auto failed_build =
+      test_builder.SetL2Sensitivity(1).SetEpsilon(1).SetDelta(NAN).Build();
+  EXPECT_THAT(failed_build.status().code(),
+              Eq(base::StatusCode::kInvalidArgument));
+  // Convert message to std::string so that the matcher works in the open source
+  // version.
+  std::string message(std::string(failed_build.status().message()));
+  EXPECT_THAT(message, MatchesRegex("^Delta has to be finite.*"));
+}
+
+TEST(NumericalMechanismsTest, GaussianBuilderFailsDeltaNegative) {
+  GaussianMechanism::Builder test_builder;
+  auto failed_build =
+      test_builder.SetL2Sensitivity(1).SetEpsilon(1).SetDelta(-1).Build();
+  EXPECT_THAT(failed_build.status().code(),
+              Eq(base::StatusCode::kInvalidArgument));
+  // Convert message to std::string so that the matcher works in the open source
+  // version.
+  std::string message(std::string(failed_build.status().message()));
+  EXPECT_THAT(message, MatchesRegex("^Delta has to be in the interval.*"));
+}
+
+TEST(NumericalMechanismsTest, GaussianBuilderFailsDeltaOne) {
+  GaussianMechanism::Builder test_builder;
+  auto failed_build =
+      test_builder.SetL2Sensitivity(1).SetEpsilon(1).SetDelta(1).Build();
+  EXPECT_THAT(failed_build.status().code(),
+              Eq(base::StatusCode::kInvalidArgument));
+  // Convert message to std::string so that the matcher works in the open source
+  // version.
+  std::string message(std::string(failed_build.status().message()));
+  EXPECT_THAT(message, MatchesRegex("^Delta has to be in the interval.*"));
+}
+
+TEST(NumericalMechanismsTest, GaussianMechanismAddsNoise) {
+  GaussianMechanism mechanism(1.0, 0.5, 1.0);
+
+  EXPECT_TRUE(mechanism.AddNoise(1.0) != 1.0);
+  EXPECT_TRUE(mechanism.AddNoise(1.1) != 1.1);
+
+  // Test values that should be clamped.
+  EXPECT_FALSE(std::isnan(mechanism.AddNoise(1.1, 2.0)));
+  EXPECT_FALSE(std::isnan(mechanism.AddNoise(1.1, -2.0)));
+}
+
+TEST(NumericalMechanismsTest, GaussianBuilderClone) {
+  GaussianMechanism::Builder test_builder;
+  auto clone =
+      test_builder.SetEpsilon(1.1).SetDelta(0.5).SetL2Sensitivity(1.2).Clone();
+  auto mechanism = clone->Build().ValueOrDie();
+
+  EXPECT_DOUBLE_EQ(mechanism->GetEpsilon(), 1.1);
+  EXPECT_DOUBLE_EQ(mechanism->GetDelta(), 0.5);
+  EXPECT_DOUBLE_EQ(mechanism->GetL2Sensitivity(), 1.2);
+}
 }  // namespace
 }  // namespace differential_privacy

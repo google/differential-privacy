@@ -302,7 +302,7 @@ class LaplaceMechanism : public NumericalMechanism {
   // noise that AddNoise() would add with the specified privacy budget.
   // If the returned value is <x,y>, then the noise added has a confidence_level
   // chance of being in the domain [x,y].
-  virtual base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
+  base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
       double confidence_level, double privacy_budget) override {
     base::Status status = CheckConfidenceLevel(confidence_level);
     status.Update(CheckPrivacyBudget(privacy_budget));
@@ -337,6 +337,106 @@ class LaplaceMechanism : public NumericalMechanism {
   double sensitivity_;
   double diversity_;
   std::unique_ptr<internal::LaplaceDistribution> distro_;
+};
+
+class GaussianMechanism : public NumericalMechanism {
+ public:
+  class Builder : public NumericalMechanismBuilder<GaussianMechanism> {
+   public:
+    Builder& SetL2Sensitivity(double l2_sensitivity) {
+      l2_sensitivity_ = l2_sensitivity;
+      return *this;
+    }
+
+    base::StatusOr<std::unique_ptr<GaussianMechanism>> Build() override {
+      base::Status status = EpsilonIsSetAndValid();
+      status.Update(DeltaIsSetAndValid());
+      if (!l2_sensitivity_.has_value()) {
+        if (l0_sensitivity_.has_value() && linf_sensitivity_.has_value()) {
+          // Use an upper bound for the L2 sensitivity based on L1 and Linf
+          // sensitivity.
+          l2_sensitivity_ =
+              std::sqrt(l0_sensitivity_.value()) * linf_sensitivity_.value();
+        } else {
+          status.Update(base::InvalidArgumentError(
+              "Gaussian Mechanism requires either L2 sensitivity or both, L0 "
+              "and LInf sensitivity to be set."));
+        }
+      }
+      if (!status.ok()) {
+        return status;
+      }
+      return absl::make_unique<GaussianMechanism>(
+          epsilon_.value(), delta_.value(), l2_sensitivity_.value());
+    }
+
+    std::unique_ptr<Builder> Clone() const override {
+      std::unique_ptr<Builder> clone =
+          NumericalMechanismBuilder<GaussianMechanism>::Clone();
+      clone->l2_sensitivity_.reset();
+      if (l2_sensitivity_.has_value()) {
+        clone->l2_sensitivity_ = l2_sensitivity_.value();
+      }
+      return clone;
+    }
+
+   protected:
+    absl::optional<double> l2_sensitivity_;
+  };
+
+  explicit GaussianMechanism(double epsilon, double delta,
+                             double l2_sensitivity)
+      : NumericalMechanism(epsilon),
+        delta_(delta),
+        l2_sensitivity_(l2_sensitivity),
+        distro_(absl::make_unique<internal::GaussianDistribution>(1)) {}
+
+  virtual ~GaussianMechanism() = default;
+
+  using NumericalMechanism::AddNoise;
+
+  // Adds differentially private noise to a provided value. The privacy_budget
+  // is multiplied with epsilon and delta for this particular result. Privacy
+  // budget should be in (0, 1], and is a way to divide an epsilon between
+  // multiple values. For instance, if a user wanted to add noise to two
+  // different values with a given epsilon and delta then they could add noise
+  // to each value with a privacy budget of 0.5 (or 0.4 and 0.6, etc).
+  double AddNoise(double result, double privacy_budget) override {
+    privacy_budget = CheckAndClampBudget(privacy_budget);
+
+    double local_epsilon = privacy_budget * epsilon_;
+    double local_delta = privacy_budget * delta_;
+    double stddev = CalculateStddev(local_epsilon, local_delta);
+
+    return result + distro_->Sample(stddev);
+  }
+
+  virtual int64_t MemoryUsed() {
+    int64_t memory = sizeof(GaussianMechanism);
+    if (distro_) {
+      memory += sizeof(internal::GaussianDistribution);
+    }
+    return memory;
+  }
+
+  double GetDelta() { return delta_; }
+
+  double GetL2Sensitivity() { return l2_sensitivity_; }
+
+ private:
+  double delta_;
+  double l2_sensitivity_;
+  std::unique_ptr<internal::GaussianDistribution> distro_;
+
+  // Calculate the required standard deviation for provided epsilon and delta.
+  // This formula can be derived from Proposition 3 and Corollary 3 of Ilya's
+  // paper on Renyi DP (https://arxiv.org/abs/1702.07476v3).
+  double CalculateStddev(double epsilon, double delta) {
+    double logOneDivDelta = std::log(1 / delta);
+    return (l2_sensitivity_ / (std::sqrt(2) * epsilon)) *
+           (std::sqrt(logOneDivDelta + epsilon / l2_sensitivity_) +
+            std::sqrt(logOneDivDelta));
+  }
 };
 
 }  // namespace differential_privacy

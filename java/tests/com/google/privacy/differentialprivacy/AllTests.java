@@ -26,6 +26,8 @@ import org.junit.runners.Suite.SuiteClasses;
  */
 @RunWith(Suite.class)
 @SuiteClasses({
+    BoundedMeanBuilderTest.class,
+    BoundedMeanTest.class,
     BoundedSumBuilderTest.class,
     BoundedSumTest.class,
     CountBuilderTest.class,

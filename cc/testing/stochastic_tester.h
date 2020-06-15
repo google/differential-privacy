@@ -29,9 +29,9 @@
 #include "absl/strings/str_cat.h"
 #include "algorithms/algorithm.h"
 #include "algorithms/util.h"
+#include "proto/util.h"
 #include "testing/density_estimation.h"
 #include "testing/sequence.h"
-#include "proto/util.h"
 
 namespace differential_privacy {
 namespace testing {

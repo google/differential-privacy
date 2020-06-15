@@ -26,10 +26,10 @@ cc_library(
         ":util",
         "//base:status",
         "//base:statusor",
+        "//proto:util-lib",
         "@com_google_differential_privacy//proto:confidence_interval_cc_proto",
         "@com_google_differential_privacy//proto:data_cc_proto",
         "@com_google_differential_privacy//proto:summary_cc_proto",
-        "//proto:util-lib",
         "@com_google_absl//absl/memory",
     ],
 )
@@ -339,6 +339,7 @@ cc_test(
         "//base:status",
         "@com_google_googletest//:gtest_main",
         "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/strings",
     ],
 )
 
