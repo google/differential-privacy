@@ -43,6 +43,37 @@ double DefaultEpsilon() { return std::log(3); }
 
 double GetNextPowerOfTwo(double n) { return pow(2.0, ceil(log2(n))); }
 
+
+float inverseErrorFunction(float x) {
+
+  float LESS_THAN_FIVE_CONSTANTS[] = {2.81022636e-08f, 3.43273939e-07f, -3.5233877e-06f, 
+    -4.39150654e-06f, 0.00021858087f, -0.00125372503f, -0.00417768164f, 0.246640727f, 1.50140941f};
+  float GREATER_THAN_FIVE_CONSTANTS[] = {-0.000200214257, 0.000100950558f, 0.00134934322f, 
+    -0.00367342844f, 0.00573950773f, -0.0076224613f, 0.00943887047f, 1.00167406f, 2.83297682f};
+
+  float constantArray[9];
+  float w = -std::log((1-x)*(1+x));
+  float ans = 0;
+  
+  if (std::abs(x) == 1){
+    return x*std::numeric_limits<double>::infinity();
+  }
+  
+  if (w < 5){
+    w = w-2.5;
+    std::copy(std::begin(LESS_THAN_FIVE_CONSTANTS),std::end(LESS_THAN_FIVE_CONSTANTS),std::begin(constantArray));
+  } else{
+    w = std::sqrt(w)-3;
+    std::copy(std::begin(GREATER_THAN_FIVE_CONSTANTS),std::end(GREATER_THAN_FIVE_CONSTANTS),std::begin(constantArray));
+  } 
+  for (int i = 0; i < 9; i++){
+    float coefficient = constantArray[i];
+    ans = coefficient + ans*w;
+  }
+  
+  return ans * x;
+}
+
 base::StatusOr<double> Qnorm(double p, double mu, double sigma) {
   if (p <= 0.0 || p >= 1.0) {
     return base::InvalidArgumentError(

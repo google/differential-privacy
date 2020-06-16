@@ -419,14 +419,36 @@ class GaussianMechanism : public NumericalMechanism {
     return memory;
   }
 
+  // Returns the confidence interval of the specified confidence level of the
+  // noise that AddNoise() would add with the specified privacy budget.
+  // If the returned value is <x,y>, then the noise added has a confidence_level
+  // chance of being in the domain [x,y].
+  base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
+      double confidence_level, double privacy_budget) override {
+    base::Status status = CheckConfidenceLevel(confidence_level);
+    status.Update(CheckPrivacyBudget(privacy_budget));
+    if (!status.ok()) {
+      return status;
+    }
+
+    double local_epsilon = privacy_budget * epsilon_;
+    double local_delta = privacy_budget * delta_;
+    double stddev = CalculateStddev(local_epsilon, local_delta);
+
+    ConfidenceInterval confidence;
+    float x = -1*confidence_level;
+    float bound = inverseErrorFunction(x)*stddev*std::sqrt(2);
+    confidence.set_lower_bound(bound);
+    confidence.set_upper_bound(-bound);
+    confidence.set_confidence_level(confidence_level);
+
+    return confidence;
+  }
+
+
   double GetDelta() { return delta_; }
 
   double GetL2Sensitivity() { return l2_sensitivity_; }
-
- private:
-  double delta_;
-  double l2_sensitivity_;
-  std::unique_ptr<internal::GaussianDistribution> distro_;
 
   // Calculate the required standard deviation for provided epsilon and delta.
   // This formula can be derived from Proposition 3 and Corollary 3 of Ilya's
@@ -437,6 +459,11 @@ class GaussianMechanism : public NumericalMechanism {
            (std::sqrt(logOneDivDelta + epsilon / l2_sensitivity_) +
             std::sqrt(logOneDivDelta));
   }
+
+ private:
+  double delta_;
+  double l2_sensitivity_;
+  std::unique_ptr<internal::GaussianDistribution> distro_;
 };
 
 }  // namespace differential_privacy
