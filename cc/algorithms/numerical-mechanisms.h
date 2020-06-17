@@ -436,8 +436,7 @@ class GaussianMechanism : public NumericalMechanism {
     double stddev = CalculateStddev(local_epsilon, local_delta);
 
     ConfidenceInterval confidence;
-    float x = -1*confidence_level;
-    float bound = inverseErrorFunction(x)*stddev*std::sqrt(2);
+    float bound = inverseErrorFunction(-1*confidence_level)*stddev*std::sqrt(2);
     confidence.set_lower_bound(bound);
     confidence.set_upper_bound(-bound);
     confidence.set_confidence_level(confidence_level);
@@ -450,6 +449,11 @@ class GaussianMechanism : public NumericalMechanism {
 
   double GetL2Sensitivity() { return l2_sensitivity_; }
 
+ private:
+  double delta_;
+  double l2_sensitivity_;
+  std::unique_ptr<internal::GaussianDistribution> distro_;
+
   // Calculate the required standard deviation for provided epsilon and delta.
   // This formula can be derived from Proposition 3 and Corollary 3 of Ilya's
   // paper on Renyi DP (https://arxiv.org/abs/1702.07476v3).
@@ -459,11 +463,6 @@ class GaussianMechanism : public NumericalMechanism {
            (std::sqrt(logOneDivDelta + epsilon / l2_sensitivity_) +
             std::sqrt(logOneDivDelta));
   }
-
- private:
-  double delta_;
-  double l2_sensitivity_;
-  std::unique_ptr<internal::GaussianDistribution> distro_;
 };
 
 }  // namespace differential_privacy

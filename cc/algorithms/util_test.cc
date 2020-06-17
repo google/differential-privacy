@@ -100,9 +100,13 @@ TEST(NextPowerTest, ExactNegativePowers) {
 }
 
 TEST(InverseErrorTest, ProperResults) {
+  // true values are pre-calculated
   EXPECT_NEAR(inverseErrorFunction(0.24), 0.216, 0.001);
   EXPECT_NEAR(inverseErrorFunction(0.9999), 2.751, 0.001);
   EXPECT_NEAR(inverseErrorFunction(0.0012), 0.001, 0.001);
+  EXPECT_NEAR(inverseErrorFunction(0.5), 0.476, 0.001);
+  EXPECT_NEAR(inverseErrorFunction(0.39), 0.360, 0.001);
+  EXPECT_NEAR(inverseErrorFunction(0.0067), 0.0059, 0.001);
 }
 
 TEST(InverseErrorTest, EdgeCases){

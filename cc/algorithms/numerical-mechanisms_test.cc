@@ -268,29 +268,77 @@ TEST(NumericalMechanismsTest, GaussianMechanismAddsNoise) {
   EXPECT_FALSE(std::isnan(mechanism.AddNoise(1.1, -2.0)));
 }
 
-TEST(NumericalMechanismsTest, GaussConfidenceInterval) {
-  double epsilon = 1.0;
-  double delta = 0.5;
+TEST(NumericalMechanismsTest, GaussNoiseConfidenceInterval) {
+  // Tests the NoiseConfidenceInterval method for Gaussian noise.
+  // Standard deviations are pre-calculated using CalculateStdDev
+  // in the Gaussian mechanism class. True bounds are also pre-calculated
+  // using a confidence interval calcualtor. 
+
+  // first test
+  // stddev of 3.4855 for confidence interval calculation 
+  double epsilon = 1.2;
+  double delta = 0.3;
   double sensitivity = 1.0;
-  double level = .95;
+  double level = .9;
   double budget = .5;
 
   GaussianMechanism mechanism(epsilon, delta, sensitivity);
   base::StatusOr<ConfidenceInterval> confidence_interval =
       mechanism.NoiseConfidenceInterval(level, budget);
 
-  double stddev = mechanism.CalculateStddev(budget*epsilon, budget*delta);
-
-  float x = -1*level;
-  float bound = inverseErrorFunction(x)*stddev*std::sqrt(2);
-
+  float true_lower_bound = -5.733;
+  float true_upper_bound = 5.733;
 
   EXPECT_TRUE(confidence_interval.ok());
-  EXPECT_EQ(confidence_interval.ValueOrDie().lower_bound(),
-            bound);
-  EXPECT_EQ(confidence_interval.ValueOrDie().upper_bound(),
-            -1*bound);
+  EXPECT_NEAR(confidence_interval.ValueOrDie().lower_bound(),
+            true_lower_bound,0.001);
+  EXPECT_NEAR(confidence_interval.ValueOrDie().upper_bound(),
+            true_upper_bound,0.001);
   EXPECT_EQ(confidence_interval.ValueOrDie().confidence_level(), level);
+
+  // second test 
+  // stddev of 3.60742 for confidence interval calculation
+  epsilon = 1.0;
+  delta = 0.5;
+  sensitivity = 1.0;
+  level = .95;
+  budget = .5;
+
+  GaussianMechanism second_mechanism(epsilon, delta, sensitivity);
+  confidence_interval = second_mechanism.NoiseConfidenceInterval(level, budget);
+
+  true_lower_bound = -7.07;
+  true_upper_bound = 7.07;
+
+  EXPECT_TRUE(confidence_interval.ok());
+  EXPECT_NEAR(confidence_interval.ValueOrDie().lower_bound(),
+            true_lower_bound,0.001);
+  EXPECT_NEAR(confidence_interval.ValueOrDie().upper_bound(),
+            true_upper_bound,0.001);
+  EXPECT_EQ(confidence_interval.ValueOrDie().confidence_level(), level);
+
+  // third test 
+  // stddev of 0.367936 for confidence interval calculation
+  epsilon = 10.0;
+  delta = 0.5;
+  sensitivity = 1.0;
+  level = .95;
+  budget = .75;
+
+  GaussianMechanism third_mechanism(epsilon, delta, sensitivity);
+  confidence_interval = third_mechanism.NoiseConfidenceInterval(level, budget);
+
+  true_lower_bound = -0.7211;
+  true_upper_bound = 0.7211;
+
+  EXPECT_TRUE(confidence_interval.ok());
+  EXPECT_NEAR(confidence_interval.ValueOrDie().lower_bound(),
+            true_lower_bound,0.0001);
+  EXPECT_NEAR(confidence_interval.ValueOrDie().upper_bound(),
+            true_upper_bound,0.0001);
+  EXPECT_EQ(confidence_interval.ValueOrDie().confidence_level(), level);
+
+
 }
 
 TEST(NumericalMechanismsTest, GaussianBuilderClone) {
