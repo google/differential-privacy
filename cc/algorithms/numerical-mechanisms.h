@@ -436,6 +436,8 @@ class GaussianMechanism : public NumericalMechanism {
     double stddev = CalculateStddev(local_epsilon, local_delta);
 
     ConfidenceInterval confidence;
+    // calculated using the symmetric properties of the Gaussian distribution
+    // and the cumulative distribution function for the distribution
     float bound = inverseErrorFunction(-1*confidence_level)*stddev*std::sqrt(2);
     confidence.set_lower_bound(bound);
     confidence.set_upper_bound(-bound);
