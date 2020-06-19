@@ -107,6 +107,11 @@ TEST(InverseErrorTest, ProperResults) {
   EXPECT_NEAR(inverseErrorFunction(0.5), 0.476, 0.001);
   EXPECT_NEAR(inverseErrorFunction(0.39), 0.360, 0.001);
   EXPECT_NEAR(inverseErrorFunction(0.0067), 0.0059, 0.001);
+
+  for (int i = 0; i < 100; i++){
+    double n = (double) rand()/RAND_MAX;
+    EXPECT_NEAR(std::erf(inverseErrorFunction(n)),n,0.0001);
+  }
 }
 
 TEST(InverseErrorTest, EdgeCases){
