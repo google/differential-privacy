@@ -44,10 +44,10 @@ double DefaultEpsilon() { return std::log(3); }
 double GetNextPowerOfTwo(double n) { return pow(2.0, ceil(log2(n))); }
 
 
-double inverseErrorFunction(double x) {
+double InverseErrorFunction(double x) {
 
-  double LESS_THAN_FIVE_CONSTANTS[] = {2.81022636*pow(10,-8), 3.43273939*pow(10,-7), 
-    -3.5233877*pow(10,-6), -4.39150654*pow(10,-6), 0.00021858087, -0.00125372503, 
+  double LESS_THAN_FIVE_CONSTANTS[] = {0.0000000281022636, 0.000000343273939, 
+    -0.0000035233877, -0.00000439150654, 0.00021858087, -0.00125372503, 
     -0.00417768164, 0.246640727, 1.50140941};
   double GREATER_THAN_FIVE_CONSTANTS[] = {-0.000200214257, 
     0.000100950558, 0.00134934322, -0.00367342844, 0.00573950773, 

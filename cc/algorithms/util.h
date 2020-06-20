@@ -57,7 +57,7 @@ double sign(double n);
 // Implementation based on Table 5 in Giles' paper 
 // on approximating the inverse of the error function 
 // (https://people.maths.ox.ac.uk/gilesm/files/gems_erfinv.pdf).
-double inverseErrorFunction(double x);
+double InverseErrorFunction(double x);
 
   
 

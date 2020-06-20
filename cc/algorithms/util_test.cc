@@ -101,27 +101,27 @@ TEST(NextPowerTest, ExactNegativePowers) {
 
 TEST(InverseErrorTest, ProperResults) {
   // true values are pre-calculated
-  EXPECT_NEAR(inverseErrorFunction(0.24), 0.216, 0.001);
-  EXPECT_NEAR(inverseErrorFunction(0.9999), 2.751, 0.001);
-  EXPECT_NEAR(inverseErrorFunction(0.0012), 0.001, 0.001);
-  EXPECT_NEAR(inverseErrorFunction(0.5), 0.476, 0.001);
-  EXPECT_NEAR(inverseErrorFunction(0.39), 0.360, 0.001);
-  EXPECT_NEAR(inverseErrorFunction(0.0067), 0.0059, 0.001);
+  EXPECT_NEAR(InverseErrorFunction(0.24), 0.216, 0.001);
+  EXPECT_NEAR(InverseErrorFunction(0.9999), 2.751, 0.001);
+  EXPECT_NEAR(InverseErrorFunction(0.0012), 0.001, 0.001);
+  EXPECT_NEAR(InverseErrorFunction(0.5), 0.476, 0.001);
+  EXPECT_NEAR(InverseErrorFunction(0.39), 0.360, 0.001);
+  EXPECT_NEAR(InverseErrorFunction(0.0067), 0.0059, 0.001);
 
   double max = 1;
   double min = -1;
   for (int i = 0; i < 1000; i++){
     double n = (max-min)*((double) rand()/RAND_MAX) + min;
-    EXPECT_NEAR(std::erf(inverseErrorFunction(n)),n,0.001);
+    EXPECT_NEAR(std::erf(InverseErrorFunction(n)),n,0.001);
   }
 }
 
 TEST(InverseErrorTest, EdgeCases){
-  EXPECT_EQ(inverseErrorFunction(-1), 
+  EXPECT_EQ(InverseErrorFunction(-1), 
     -1*std::numeric_limits<double>::infinity());
-  EXPECT_EQ(inverseErrorFunction(1), 
+  EXPECT_EQ(InverseErrorFunction(1), 
     std::numeric_limits<double>::infinity());
-  EXPECT_EQ(inverseErrorFunction(0), 0);
+  EXPECT_EQ(InverseErrorFunction(0), 0);
 }
 
 
