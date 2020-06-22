@@ -272,7 +272,7 @@ TEST(NumericalMechanismsTest, GaussNoiseConfidenceInterval) {
   // Tests the NoiseConfidenceInterval method for Gaussian noise.
   // Standard deviations are pre-calculated using CalculateStdDev
   // in the Gaussian mechanism class. True bounds are also pre-calculated
-  // using a confidence interval calcualtor. 
+  // using a confidence interval calcualtor.
 
   int NUM_TESTS = 3;
   double epsilons[] = {1.2, 1.0, 10.0};
@@ -280,11 +280,11 @@ TEST(NumericalMechanismsTest, GaussNoiseConfidenceInterval) {
   double sensitivities[] = {1.0, 1.0, 1.0};
   double levels[] = {.9, .95, .95};
   double budgets[] = {.5, .5, .75};
-  // calculated using standard deviations of 
-  // 3.4855, 3.60742, 0.367936 respectively 
+  // calculated using standard deviations of
+  // 3.4855, 3.60742, 0.367936 respectively
   double true_bounds[] = {-5.733, -7.07, -0.7211};
 
-  for (int i = 0; i < NUM_TESTS; i++){
+  for (int i = 0; i < NUM_TESTS; i++) {
     double epsilon = epsilons[i];
     double delta = deltas[i];
     double sensitivity = sensitivities[i];
@@ -299,12 +299,11 @@ TEST(NumericalMechanismsTest, GaussNoiseConfidenceInterval) {
 
     EXPECT_TRUE(confidence_interval.ok());
     EXPECT_NEAR(confidence_interval.ValueOrDie().lower_bound(),
-            true_lower_bound,0.001);
+            true_lower_bound, 0.001);
     EXPECT_NEAR(confidence_interval.ValueOrDie().upper_bound(),
-            true_upper_bound,0.001);
+            true_upper_bound, 0.001);
     EXPECT_EQ(confidence_interval.ValueOrDie().confidence_level(), level);
   }
-
 }
 
 TEST(NumericalMechanismsTest, GaussianBuilderClone) {
