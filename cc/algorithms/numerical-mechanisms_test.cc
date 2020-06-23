@@ -187,6 +187,17 @@ TEST(NumericalMechanismsTest, LaplaceConfidenceInterval) {
   EXPECT_EQ(confidence_interval.ValueOrDie().upper_bound(),
             -log(1 - level) / epsilon / budget);
   EXPECT_EQ(confidence_interval.ValueOrDie().confidence_level(), level);
+
+  double result = 19.3;
+  base::StatusOr<ConfidenceInterval> confidence_interval_with_result =
+      mechanism.NoiseConfidenceInterval(level, budget, result);
+  EXPECT_TRUE(confidence_interval.ok());
+  EXPECT_EQ(confidence_interval_with_result.ValueOrDie().lower_bound(),
+            result + (log(1 - level) / epsilon / budget));
+  EXPECT_EQ(confidence_interval_with_result.ValueOrDie().upper_bound(),
+            result - (log(1 - level) / epsilon / budget));
+  EXPECT_EQ(confidence_interval_with_result.ValueOrDie().confidence_level(), level);
+
 }
 
 TYPED_TEST(NumericalMechanismsTest, LaplaceBuilderClone) {
@@ -280,6 +291,7 @@ TEST(NumericalMechanismsTest, GaussNoiseConfidenceInterval) {
   double sensitivities[] = {1.0, 1.0, 1.0};
   double levels[] = {.9, .95, .95};
   double budgets[] = {.5, .5, .75};
+  double results[] = {0,1.3,2.7};
   // calculated using standard deviations of
   // 3.4855, 3.60742, 0.367936 respectively
   double true_bounds[] = {-5.733, -7.07, -0.7211};
@@ -290,12 +302,13 @@ TEST(NumericalMechanismsTest, GaussNoiseConfidenceInterval) {
     double sensitivity = sensitivities[i];
     double level = levels[i];
     double budget = budgets[i];
-    float true_lower_bound = true_bounds[i];
-    float true_upper_bound = -true_bounds[i];
+    double result = results[i];
+    double true_lower_bound = result + true_bounds[i];
+    double true_upper_bound = result - true_bounds[i];
 
     GaussianMechanism mechanism(epsilon, delta, sensitivity);
     base::StatusOr<ConfidenceInterval> confidence_interval =
-      mechanism.NoiseConfidenceInterval(level, budget);
+      mechanism.NoiseConfidenceInterval(level, budget, result);
 
     EXPECT_TRUE(confidence_interval.ok());
     EXPECT_NEAR(confidence_interval.ValueOrDie().lower_bound(),

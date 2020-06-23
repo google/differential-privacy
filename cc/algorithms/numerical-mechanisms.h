@@ -75,7 +75,7 @@ class NumericalMechanism {
   virtual int64_t MemoryUsed() = 0;
 
   virtual base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
-      double confidence_level, double privacy_budget) {
+      double confidence_level, double privacy_budget, double noised_result = 0) {
     return base::UnimplementedError(
         "NoiseConfidenceInterval() unsupported for this numerical mechanism.");
   }
@@ -303,7 +303,7 @@ class LaplaceMechanism : public NumericalMechanism {
   // If the returned value is <x,y>, then the noise added has a confidence_level
   // chance of being in the domain [x,y].
   base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
-      double confidence_level, double privacy_budget) override {
+      double confidence_level, double privacy_budget, double noised_result = 0) override {
     base::Status status = CheckConfidenceLevel(confidence_level);
     status.Update(CheckPrivacyBudget(privacy_budget));
     if (!status.ok()) {
@@ -313,8 +313,8 @@ class LaplaceMechanism : public NumericalMechanism {
     double bound = diversity_ * log(1 - confidence_level) / privacy_budget;
 
     ConfidenceInterval confidence;
-    confidence.set_lower_bound(bound);
-    confidence.set_upper_bound(-bound);
+    confidence.set_lower_bound(noised_result + bound);
+    confidence.set_upper_bound(noised_result - bound);
     confidence.set_confidence_level(confidence_level);
     return confidence;
   }
@@ -424,7 +424,7 @@ class GaussianMechanism : public NumericalMechanism {
   // If the returned value is <x,y>, then the noise added has a confidence_level
   // chance of being in the domain [x,y].
   base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
-      double confidence_level, double privacy_budget) override {
+      double confidence_level, double privacy_budget, double noised_result = 0) override {
     base::Status status = CheckConfidenceLevel(confidence_level);
     status.Update(CheckPrivacyBudget(privacy_budget));
     if (!status.ok()) {
@@ -439,8 +439,8 @@ class GaussianMechanism : public NumericalMechanism {
     // calculated using the symmetric properties of the Gaussian distribution
     // and the cumulative distribution function for the distribution
     float bound = InverseErrorFunction(-1*confidence_level)*stddev*std::sqrt(2);
-    confidence.set_lower_bound(bound);
-    confidence.set_upper_bound(-bound);
+    confidence.set_lower_bound(noised_result+bound);
+    confidence.set_upper_bound(noised_result-bound);
     confidence.set_confidence_level(confidence_level);
 
     return confidence;
