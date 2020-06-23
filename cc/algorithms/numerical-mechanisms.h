@@ -75,7 +75,8 @@ class NumericalMechanism {
   virtual int64_t MemoryUsed() = 0;
 
   virtual base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
-      double confidence_level, double privacy_budget, double noised_result = 0) {
+      double confidence_level, double privacy_budget,
+      double noised_result = 0) {
     return base::UnimplementedError(
         "NoiseConfidenceInterval() unsupported for this numerical mechanism.");
   }
@@ -303,7 +304,8 @@ class LaplaceMechanism : public NumericalMechanism {
   // If the returned value is <x,y>, then the noise added has a confidence_level
   // chance of being in the domain [x,y].
   base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
-      double confidence_level, double privacy_budget, double noised_result = 0) override {
+      double confidence_level, double privacy_budget,
+      double noised_result = 0) override {
     base::Status status = CheckConfidenceLevel(confidence_level);
     status.Update(CheckPrivacyBudget(privacy_budget));
     if (!status.ok()) {
@@ -424,7 +426,8 @@ class GaussianMechanism : public NumericalMechanism {
   // If the returned value is <x,y>, then the noise added has a confidence_level
   // chance of being in the domain [x,y].
   base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
-      double confidence_level, double privacy_budget, double noised_result = 0) override {
+      double confidence_level, double privacy_budget,
+      double noised_result = 0) override {
     base::Status status = CheckConfidenceLevel(confidence_level);
     status.Update(CheckPrivacyBudget(privacy_budget));
     if (!status.ok()) {

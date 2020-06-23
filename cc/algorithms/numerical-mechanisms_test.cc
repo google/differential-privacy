@@ -196,8 +196,8 @@ TEST(NumericalMechanismsTest, LaplaceConfidenceInterval) {
             result + (log(1 - level) / epsilon / budget));
   EXPECT_EQ(confidence_interval_with_result.ValueOrDie().upper_bound(),
             result - (log(1 - level) / epsilon / budget));
-  EXPECT_EQ(confidence_interval_with_result.ValueOrDie().confidence_level(), level);
-
+  EXPECT_EQ(confidence_interval_with_result.ValueOrDie().confidence_level(),
+   level);
 }
 
 TYPED_TEST(NumericalMechanismsTest, LaplaceBuilderClone) {
@@ -291,7 +291,7 @@ TEST(NumericalMechanismsTest, GaussNoiseConfidenceInterval) {
   double sensitivities[] = {1.0, 1.0, 1.0};
   double levels[] = {.9, .95, .95};
   double budgets[] = {.5, .5, .75};
-  double results[] = {0,1.3,2.7};
+  double results[] = {0, 1.3, 2.7};
   // calculated using standard deviations of
   // 3.4855, 3.60742, 0.367936 respectively
   double true_bounds[] = {-5.733, -7.07, -0.7211};
