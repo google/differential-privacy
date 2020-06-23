@@ -474,3 +474,22 @@ cc_test(
         "@com_google_absl//absl/strings:str_format",
     ],
 )
+
+cc_library(
+    name = "partition-selection-strategies",
+    hdrs = ["partition-selection-strategies.h"],
+    copts = ["-Wno-sign-compare"],
+    deps = [
+    "//base:canonical_errors",
+    ],
+)
+
+cc_test(
+    name = "partition-selection-strategies_test",
+    srcs = ["partition-selection-strategies_test.cc"],
+    copts = ["-Wno-sign-compare"],
+    deps = [
+        ":partition-selection-strategies",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
