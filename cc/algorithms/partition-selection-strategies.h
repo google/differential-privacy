@@ -77,6 +77,12 @@ class MagicPartitionSelection : public PartitionSelectionStrategy {
 
   virtual ~MagicPartitionSelection() = default;
 
+  double GetAdjustedEpsilon() { return adjusted_epsilon_; }
+
+  double GetFirstCrossover() { return crossover_1_; }
+
+  double GetSecondCrossover() { return crossover_2_; }
+
   bool shouldKeep() override {
     //generate a random number between 0 and 1
     srand(time(NULL));
