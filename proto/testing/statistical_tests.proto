@@ -1,0 +1,227 @@
+//
+// Copyright 2020 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto2";
+
+package testing;
+
+option java_package = "com.google.differentialprivacy.testing";
+
+// The following protos are intended to store the parameters required to asses
+// the DP library based on the statistical tests.
+
+enum NoiseType {
+  UNDEFINED = 0;
+  LAPLACE = 1;
+  GAUSSIAN = 2;
+}
+
+// Parameters required for running a closeness test
+message ClosenessTestParameters {
+  // mean of the distribution that is used as a reference
+  optional double mean = 1;
+  // variance of the distribution that is used as a reference
+  optional double variance = 2;
+  // l2 distance deemed acceptable between the distribution that is being tested
+  // for and the reference distribution
+  optional double l2_tolerance = 3;
+  // parameter quantifying the amount of discretization that is applied to
+  // samples before testing
+  optional double granularity = 4;
+}
+
+// Parameters required for running an approximate DP test
+message DpTestParameters {
+  // epsilon value that is being tested for
+  optional double epsilon = 1;
+  // delta value that is being tested for
+  optional double delta = 2;
+  // deviation from the delta value deemed acceptable
+  optional double delta_tolerance = 3;
+  // parameter quantifying the amount of discretization that is applied to
+  // samples before testing
+  optional double granularity = 4;
+}
+
+// Parameters required for drawing samples from the addNoise method of the DP
+// library.
+message NoiseSamplingParameters {
+  optional int32 number_of_samples = 1;
+  optional int32 l0_sensitivity = 2;
+  optional double linf_sensitivity = 3;
+  optional double epsilon = 4;
+  optional double delta = 5;
+  optional double raw_input = 6;
+}
+
+// Parameters required for drawing samples from the count aggregation of the DP
+// library.
+message CountSamplingParameters {
+  optional int32 number_of_samples = 1;
+  optional NoiseType noise_type = 2;
+  optional int32 max_partitions_contributed = 3;
+  optional double epsilon = 4;
+  optional double delta = 5;
+  repeated int64 raw_increment_by = 6;
+  repeated int64 neighbour_raw_increment_by = 7;
+}
+
+// Parameters required for drawing samples from the bounded sum aggregation of
+// the DP library.
+message BoundedSumSamplingParameters {
+  optional int32 number_of_samples = 1;
+  optional NoiseType noise_type = 2;
+  optional int32 max_partitions_contributed = 3;
+  optional double lower_bound = 4;
+  optional double upper_bound = 5;
+  optional double epsilon = 6;
+  optional double delta = 7;
+  repeated double raw_entry = 8;
+  repeated double neighbour_raw_entry = 9;
+}
+
+// Parameters required for drawing samples from the bounded mean aggregation of
+// the DP library.
+message BoundedMeanSamplingParameters {
+  optional int32 number_of_samples = 1;
+  optional NoiseType noise_type = 2;
+  optional int32 max_contributions_per_partition = 3;
+  optional int32 max_partitions_contributed = 4;
+  optional double lower_bound = 5;
+  optional double upper_bound = 6;
+  optional double epsilon = 7;
+  optional double delta = 8;
+  repeated double raw_entry = 9;
+  repeated double neighbour_raw_entry = 10;
+}
+
+// Parameters required for drawing samples from the bounded order statistics
+// aggregation of the DP library.
+message BoundedOrderStatisticsSamplingParameters {
+  optional int32 number_of_samples = 1;
+  optional double quantile = 2;
+  optional int32 max_contributions_per_partition = 3;
+  optional double lower_bound = 4;
+  optional double upper_bound = 5;
+  optional double epsilon = 6;
+  repeated double raw_entry = 7;
+}
+
+// Parameters specifying a voting mechanism for evaluating multiple runs of a
+// particular statistical test. This is intended to reduce the probability of
+// error compared to evaluating just a single run of the respective test.
+message VotingParameters {
+  optional int32 number_of_votes = 1;
+}
+
+// Parameters quantifying notions of specificity that a particular closeness
+// test should satisfy.
+message ClosenessTestValidityParameters {
+  // The minimum difference between the mean of two sets of samples relative to
+  // their standard deviation that should be rejected.
+  optional double shift_specificity = 1;
+  // The minimum difference in scale between the variance of two sets of samples
+  // that should be rejected.
+  optional double scale_specificity = 2;
+}
+
+// Parameters quantifying notions of specificity that a particular approximate
+// DP test should satisfy.
+message DpTestValidityParameters {
+  // The minimum distance between two sets of samples relative to their
+  // anticipated distance that should be rejected.
+  optional double distance_specificity = 1;
+  // The minimum rate of catastrophic privacy failures relative to the delta
+  // tolerance of the DP test that should be rejected.
+  optional double failure_specificity = 2;
+}
+
+message DistributionClosenessTestCase {
+  optional string name = 1;
+  optional ClosenessTestParameters closeness_test_parameters = 2;
+  optional NoiseSamplingParameters noise_sampling_parameters = 3;
+}
+
+message DistributionDpTestCase {
+  optional string name = 1;
+  optional DpTestParameters dp_test_parameters = 2;
+  optional NoiseSamplingParameters noise_sampling_parameters = 3;
+}
+
+message CountDpTestCase {
+  optional string name = 1;
+  optional DpTestParameters dp_test_parameters = 2;
+  optional CountSamplingParameters count_sampling_parameters = 3;
+}
+
+message BoundedSumDpTestCase {
+  optional string name = 1;
+  optional DpTestParameters dp_test_parameters = 2;
+  optional BoundedSumSamplingParameters bounded_sum_sampling_parameters = 3;
+}
+
+message BoundedMeanDpTestCase {
+  optional string name = 1;
+  optional DpTestParameters dp_test_parameters = 2;
+  optional BoundedMeanSamplingParameters bounded_mean_sampling_parameters = 3;
+}
+
+message BoundedOrderStatisticsDpTestCase {
+  optional string name = 1;
+  optional DpTestParameters dp_test_parameters = 2;
+  optional BoundedOrderStatisticsSamplingParameters
+      bounded_order_statistics_sampling_parameters = 3;
+}
+
+message DistributionClosenessTestCaseCollection {
+  repeated DistributionClosenessTestCase distribution_closeness_test_case = 1;
+  optional VotingParameters voting_parameters = 2;
+  optional ClosenessTestValidityParameters validity_parameters = 3;
+}
+
+message DistributionDpTestCaseCollection {
+  repeated DistributionDpTestCase distribution_dp_test_case = 1;
+  optional VotingParameters voting_parameters = 2;
+  optional DpTestValidityParameters validity_parameters = 3;
+}
+
+message CountDpTestCaseCollection {
+  repeated CountDpTestCase count_dp_test_case = 1;
+  optional VotingParameters voting_parameters = 2;
+  optional DpTestValidityParameters validity_parameters = 3;
+}
+
+message BoundedSumDpTestCaseCollection {
+  repeated BoundedSumDpTestCase bounded_sum_dp_test_case = 1;
+  optional VotingParameters voting_parameters = 2;
+  optional DpTestValidityParameters validity_parameters = 3;
+}
+
+message BoundedMeanDpTestCaseCollection {
+  repeated BoundedMeanDpTestCase bounded_mean_dp_test_case = 1;
+  optional VotingParameters voting_parameters = 2;
+  optional DpTestValidityParameters validity_parameters = 3;
+}
+
+message BoundedOrderStatisticsDpTestCaseCollection {
+  repeated BoundedOrderStatisticsDpTestCase
+      bounded_order_statistics_dp_test_case = 1;
+  optional VotingParameters voting_parameters = 2;
+  // The collection does not contain validity_parameters since an implementation
+  // independent validation of bounded mean is not clearly defined. Instead,
+  // the test case parameters are chosen based on the theoretical bounds
+  // established in Theorem 14 of https://arxiv.org/pdf/1806.06427.pdf. Note
+  // that the generality of these bounds makes them looser in practice.
+}

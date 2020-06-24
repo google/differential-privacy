@@ -1,4 +1,4 @@
-VisitorId,Time entered,Time spent (mins),Money spent (euros),Day
+VisitorId,Time entered,Time spent (minutes),Money spent (euros),Day
 580,9:27:00 AM,29,17,1
 1215,9:16:00 AM,45,18,1
 448,11:55:00 AM,12,16,1

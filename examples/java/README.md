@@ -25,7 +25,7 @@ Navigate to `examples/java` folder, build the codelab code and run it with the
 
 ```shell
 $ cd examples/java
-$ bazel build...
+$ bazel build ...
 $ bazel-bin/Main COUNT_VISITS_PER_HOUR
 ```
 
@@ -104,7 +104,7 @@ Build the codelab code and run it with the `COUNT_VISITS_PER_DAY` argument.
 
 ```shell
 $ cd examples/java
-$ bazel build...
+$ bazel build ...
 $ bazel-bin/Main COUNT_VISITS_PER_DAY
 ```
 
@@ -134,17 +134,19 @@ uses `Count` to calculate the differentially private count of visits for a
 single day.
 
 ```java
-// An estimate of how many times on average a visitor may enter the restaurant per week.
-private static final int MAX_VISITS_PER_WEEK = 3;
+// Number of days a visitor may contribute to is limited to 3. All exceeding
+// visits will be discarded.
+private static final int MAX_CONTRIBUTED_DAYS = 3;
 // Default epsilon.
 private static final double LN_3 = Math.log(3);
 
 // Construct DP Count.
 Count dpCount = Count.builder()
   .epsilon(LN_3)
-  // Each visitor may enter the restaurant up to MAX_VISITS_PER_WEEK times per week.
-  // Hence, each visitor may contribute up to MAX_VISITS_PER_WEEK daily counts.
-  .maxPartitionsContributed(MAX_VISITS_PER_WEEK)
+  // Each visitor may enter the restaurant on up to MAX_CONTRIBUTED_DAYS days
+  // per week. Hence, each visitor may contribute up to MAX_CONTRIBUTED_DAYS
+  // daily counts.
+  .maxPartitionsContributed(MAX_CONTRIBUTED_DAYS)
   .build();
 // Run DP Count to calculate a differentially private result.
 dpCount.incrementBy(boundedVisits.getVisitsForDay(day).size());
@@ -182,7 +184,7 @@ Build the codelab code and run it with the `SUM_REVENUE_PER_DAY` argument.
 
 ```shell
 $ cd examples/java
-$ bazel build...
+$ bazel build ...
 $ bazel-bin/Main SUM_REVENUE_PER_DAY
 ```
 
@@ -203,8 +205,9 @@ The code below uses `BoundedSum` to calculate the differentially private sums of
 the visitors' spendings for a single day.
 
 ```java
-  // Number of weekly visits for a visitor is limited to 4. All exceeding visits will be discarded.
-  private static final int MAX_VISITS_PER_WEEK = 4;
+  // Number of days a visitor may contribute to is limited to 4. All exceeding
+  // visits will be discarded.
+  private static final int MAX_CONTRIBUTED_DAYS = 4;
   // Minimum amount of money we expect a visitor to spend on a single visit.
   private static final int MIN_EUROS_SPENT = 0;
   // Maximum amount of money we expect a visitor to spend on a single visit.
@@ -214,7 +217,7 @@ the visitors' spendings for a single day.
 
   BoundedSum dpSum = BoundedSum.builder()
     .epsilon(LN_3)
-    .maxPartitionsContributed(MAX_VISITS_PER_WEEK)
+    .maxPartitionsContributed(MAX_CONTRIBUTED_DAYS)
     // Set contribution bounds. BoundedSum will clamp input contributions.
     .lower(MIN_EUROS_SPENT)
     .upper(MAX_EUROS_SPENT)

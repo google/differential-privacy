@@ -466,6 +466,7 @@ cc_test(
 
 cc_test(
     name = "distributions_benchmark_test",
+    timeout = "long",
     srcs = ["distributions_benchmark_test.cc"],
     copts = ["-Wno-sign-compare"],
     deps = [

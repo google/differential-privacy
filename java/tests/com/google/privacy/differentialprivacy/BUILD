@@ -41,3 +41,45 @@ java_test(
                "@maven//:com_google_protobuf_protobuf_java",
     ],
 )
+
+java_test(
+    name = "laplace_closeness_tests",
+    size = "enormous",
+    srcs = ["LaplaceClosenessTest.java"],
+    resources = [
+        "@com_google_differential_privacy//proto/testing:laplace_closeness_test_cases.textproto",
+    ],
+    # The shard count must match the number of test cases defined in laplace_closeness_test_cases.textproto
+    shard_count = 19,
+    test_class = "com.google.privacy.differentialprivacy.LaplaceClosenessTest",
+    deps = [
+        "//main/com/google/privacy/differentialprivacy",
+        "//main/com/google/privacy/differentialprivacy/testing",
+        "@com_google_differential_privacy//proto/testing:statistical_tests_java_proto",
+        "@com_google_protobuf//:protobuf_java",
+        "@maven//:com_google_guava_guava",
+        "@maven//:com_google_truth_truth",
+        "@maven//:junit_junit",
+    ],
+)
+
+java_test(
+    name = "count_dp_tests",
+    size = "enormous",
+    srcs = ["CountDpTest.java"],
+    resources = [
+        "@com_google_differential_privacy//proto/testing:count_dp_test_cases.textproto",
+    ],
+    # The shard count must match the number of test cases defined in count_dp_test_cases.textproto
+    shard_count = 36,
+    test_class = "com.google.privacy.differentialprivacy.CountDpTest",
+    deps = [
+        "//main/com/google/privacy/differentialprivacy",
+        "//main/com/google/privacy/differentialprivacy/testing",
+        "@com_google_differential_privacy//proto/testing:statistical_tests_java_proto",
+        "@com_google_protobuf//:protobuf_java",
+        "@maven//:com_google_guava_guava",
+        "@maven//:com_google_truth_truth",
+        "@maven//:junit_junit",
+    ],
+)

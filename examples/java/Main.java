@@ -38,6 +38,10 @@ public class Main {
         break;
       case SUM_REVENUE_PER_DAY:
         SumRevenuePerDay.run();
+        break;
+      case SUM_REVENUE_PER_DAY_WITH_PREAGGREGATION:
+        SumRevenuePerDayWithPreAggregation.run();
+        break;
     }
   }
 
@@ -46,6 +50,7 @@ public class Main {
   enum Scenario {
     COUNT_VISITS_PER_HOUR,
     COUNT_VISITS_PER_DAY,
-    SUM_REVENUE_PER_DAY
+    SUM_REVENUE_PER_DAY,
+    SUM_REVENUE_PER_DAY_WITH_PREAGGREGATION
   }
 }

@@ -35,6 +35,14 @@ message Summary {
 message CountSummary {
   // Count of the data subset.
   optional int64 count = 1;
+
+  // TODO: Use below fields in C++ library.
+  // Count parameters:
+  optional double epsilon = 3;
+  optional double delta = 4;
+  optional MechanismType mechanism_type = 5;
+  optional int32 max_partitions_contributed = 6;
+  optional int32 max_contributions_per_partition = 7;
 }
 
 message BoundedSumSummary {

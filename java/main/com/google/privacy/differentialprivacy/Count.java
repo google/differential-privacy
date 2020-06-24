@@ -17,6 +17,7 @@
 package com.google.privacy.differentialprivacy;
 
 import com.google.auto.value.AutoValue;
+import com.google.differentialprivacy.SummaryOuterClass.CountSummary;
 import javax.annotation.Nullable;
 
 /**
@@ -66,7 +67,7 @@ public class Count {
    * Increments count by the given value. Note, that this shouldn't be used to count multiple
    * contributions to a partition from the same user.
    */
-  public void incrementBy(int count) {
+  public void incrementBy(long count) {
     if (resultReturned) {
       throw new IllegalStateException(
           "The count has already been calculated and returned. It cannot be amended.");
@@ -94,6 +95,35 @@ public class Count {
             params.maxContributionsPerPartition(),
             params.epsilon(),
             params.delta());
+  }
+
+  /**
+   * Returns a serializable version of the current state of {@link Count} and the parameters used to
+   * calculate it. After calling this method, this instance of Count will be unusable, since the
+   * result can only be output once.
+   */
+  public byte[] getSerializableSummary() {
+    if (resultReturned) {
+      throw new IllegalStateException(
+          "The count has already been returned. It cannot be returned again.");
+    }
+
+    CountSummary.Builder builder =
+        CountSummary.newBuilder()
+            .setCount(rawCount)
+            .setEpsilon(params.epsilon())
+            .setMaxPartitionsContributed(params.maxPartitionsContributed())
+            .setMaxContributionsPerPartition(params.maxContributionsPerPartition())
+            .setMechanismType(params.noise().getMechanismType());
+    if (params.delta() != null) {
+      builder.setDelta(params.delta());
+    }
+
+    // Record that this object is no longer suitable for producing a differentially private count,
+    // since serialization exposes the object's raw state.
+    resultReturned = true;
+
+    return builder.build().toByteArray();
   }
 
   @AutoValue
