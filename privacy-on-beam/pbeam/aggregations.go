@@ -23,6 +23,7 @@ import (
 	"reflect"
 
 	log "github.com/golang/glog"
+	"github.com/google/differential-privacy/go/checks"
 	"github.com/google/differential-privacy/go/dpagg"
 	"github.com/google/differential-privacy/go/noise"
 	"github.com/google/differential-privacy/privacy-on-beam/internal/kv"
@@ -192,15 +193,24 @@ func (fn *decodePairFloat64Fn) ProcessElement(pair pairFloat64) (beam.X, float64
 }
 
 func newBoundedSumFn(epsilon, delta float64, maxPartitionsContributed int64, lower, upper float64, noiseKind noise.Kind, vKind reflect.Kind) interface{} {
+	var err error
+	var bsFn interface{}
+
 	switch vKind {
 	case reflect.Int64:
-		return newBoundedSumInt64Fn(epsilon, delta, maxPartitionsContributed, int64(lower), int64(upper), noiseKind)
+		err = checks.CheckBoundsFloat64AsInt64("pbeam.newBoundedSumFn", lower, upper)
+		bsFn = newBoundedSumInt64Fn(epsilon, delta, maxPartitionsContributed, int64(lower), int64(upper), noiseKind)
 	case reflect.Float64:
-		return newBoundedSumFloat64Fn(epsilon, delta, maxPartitionsContributed, lower, upper, noiseKind)
+		err = checks.CheckBoundsFloat64("pbeam.newBoundedSumFn", lower, upper)
+		bsFn = newBoundedSumFloat64Fn(epsilon, delta, maxPartitionsContributed, lower, upper, noiseKind)
 	default:
 		log.Exitf("pbeam.newBoundedSumFn: vKind(%v) should be int64 or float64", vKind)
 	}
-	return nil
+
+	if err != nil {
+		log.Exit(err)
+	}
+	return bsFn
 }
 
 type boundedSumAccumInt64 struct {

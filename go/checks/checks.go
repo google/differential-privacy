@@ -128,6 +128,25 @@ func CheckBoundsFloat64(label string, lower, upper float64) error {
 	return nil
 }
 
+// CheckBoundsFloat64AsInt64 returns an error if lower is larger are NaN, or if either parameter overflow after conversion to int64.
+func CheckBoundsFloat64AsInt64(label string, lower, upper float64) error {
+	if math.IsNaN(lower) {
+		return fmt.Errorf("%s: Lower must not be NaN", label)
+	}
+	if math.IsNaN(upper) {
+		return fmt.Errorf("%s: Upper must not be NaN", label)
+	}
+	maxInt := float64(math.MaxInt64)
+	minInt := float64(math.MinInt64)
+	if lower < minInt || lower > maxInt {
+		return fmt.Errorf("%s: Lower should be within MinInt64 and MaxInt64 bounds, got %f", label, lower)
+	}
+	if upper < minInt || upper > maxInt {
+		return fmt.Errorf("%s: Upper should be within MinInt64 and MaxInt64 bounds, got %f", label, upper)
+	}
+	return nil
+}
+
 // CheckUserCount returns an error if userCount is strictly negative.
 func CheckUserCount(label string, userCount int64) error {
 	if userCount < 0 {
