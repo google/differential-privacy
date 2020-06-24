@@ -14,13 +14,14 @@
 // limitations under the License.
 //
 
+//TODO once this is done do a thorough comb through according to the style guide
+
 #ifndef DIFFERENTIAL_PRIVACY_ALGORITHMS_PARTITION_SELECTION_STRATEGIES_H_
 #define DIFFERENTIAL_PRIVACY_ALGORITHMS_PARTITION_SELECTION_STRATEGIES_H_
 
 #include <math.h>
 #include <stdlib.h>
 #include <time.h>
-#include "base/canonical_errors.h"
 
 namespace differential_privacy{
 
@@ -30,7 +31,8 @@ namespace differential_privacy{
 class PartitionSelectionStrategy {
  public:
   PartitionSelectionStrategy(double epsilon, double delta, int num_users, int max_partitions)
-  	: epsilon_(epsilon), delta_(delta), num_users_(num_users), max_partitions_(max_partitions) {}
+  	: epsilon_(epsilon), delta_(delta), adjusted_delta_(1.0 - pow(1 - delta, (double) max_partitions)),
+    num_users_(num_users), max_partitions_(max_partitions) {}
 
   virtual ~PartitionSelectionStrategy() = default;
 
@@ -38,41 +40,39 @@ class PartitionSelectionStrategy {
 
   double GetDelta() { return delta_; }
 
+  double GetAdjustedDelta() { return adjusted_delta_; }
+
   int GetNumUsers() { return num_users_; }
 
-  /*virtual bool shouldKeep() {
-    return base::UnimplementedError(
-        "shouldKeep() unsupported for this partition selection strategy.");
-  }*/
 
-   virtual bool shouldKeep() {return NULL; }; //TODO can I fix this to work like above...
-
+  virtual bool shouldKeep() = 0;
 
  protected:
   double epsilon_;
   double delta_;
+  double adjusted_delta_;
   int num_users_;
   int max_partitions_;
 };
 
 
-//TODO
+
 class MagicPartitionSelection : public PartitionSelectionStrategy {
  public:
   MagicPartitionSelection(double epsilon, double delta, int num_users, int max_partitions)
   	: PartitionSelectionStrategy(epsilon, delta, num_users, max_partitions) {
     if(epsilon_ != 0) {
-      adjusted_epsilon_ = (double)max_partitions / epsilon;
+      adjusted_epsilon_ = epsilon / (double)max_partitions;
     }
     else {
       adjusted_epsilon_ = 0;
     }
     crossover_1_ = 1 + floor((1.0/adjusted_epsilon_)
                        *  log((exp(adjusted_epsilon_) + 2.0 * delta_ - 1.0)
-                          / ((exp(adjusted_epsilon_) + 1) * delta_))); //TODO how the heck do I space this
+                          / ((exp(adjusted_epsilon_) + 1) * delta_)));
     crossover_2_ = crossover_1_ + floor((1.0/adjusted_epsilon_)
                         *  log(1 + ((exp(adjusted_epsilon_) - 1) / delta_)
-                          * (1 - probabilityOfKeep(crossover_1_)))); //TODO once again, how the heck do I space this
+                          * (1 - probabilityOfKeep(crossover_1_))));
   }
 
   virtual ~MagicPartitionSelection() = default;
@@ -86,7 +86,7 @@ class MagicPartitionSelection : public PartitionSelectionStrategy {
   }
 
  protected:
-  double adjusted_epsilon_; //TODO check with Daniel if this is a suitable name
+  double adjusted_epsilon_;
   double crossover_1_;
   double crossover_2_;
 
@@ -99,13 +99,13 @@ class MagicPartitionSelection : public PartitionSelectionStrategy {
     }
     else if (n <= crossover_1_) {
       return (((exp(n * adjusted_epsilon_) - 1) / (exp(adjusted_epsilon_) - 1))
-              * delta_); //TODO spacing ???
+              * delta_);
     }
     else if (n > crossover_1_ && n <= crossover_2_) {
       double m = n - crossover_1_;
       return ((1 - exp(-1 * m * adjusted_epsilon_))
                * (1 + delta_ / (exp(adjusted_epsilon_) - 1))
-               + exp(-1 * m * adjusted_epsilon_) * probabilityOfKeep(crossover_1_)); //TODO spacing ???
+               + exp(-1 * m * adjusted_epsilon_) * probabilityOfKeep(crossover_1_));
     }
     else {
       return 1;

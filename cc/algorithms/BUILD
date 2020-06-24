@@ -480,7 +480,6 @@ cc_library(
     hdrs = ["partition-selection-strategies.h"],
     copts = ["-Wno-sign-compare"],
     deps = [
-    "//base:canonical_errors",
     ],
 )
 
