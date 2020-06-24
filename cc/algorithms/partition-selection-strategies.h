@@ -62,16 +62,16 @@ class MagicPartitionSelection : public PartitionSelectionStrategy {
   MagicPartitionSelection(double epsilon, double delta, int num_users, int max_partitions)
   	: PartitionSelectionStrategy(epsilon, delta, num_users, max_partitions) {
     if(epsilon_ != 0) {
-      adjusted_epsilon_ = epsilon / (double)max_partitions;
+      adjusted_epsilon_ = epsilon / (double) max_partitions;
     }
     else {
       adjusted_epsilon_ = 0;
     }
     crossover_1_ = 1 + floor((1.0/adjusted_epsilon_)
-                       *  log((exp(adjusted_epsilon_) + 2.0 * delta_ - 1.0)
-                          / ((exp(adjusted_epsilon_) + 1) * delta_)));
+                       *  log((exp(adjusted_epsilon_) + 2.0 * adjusted_delta_ - 1.0)
+                          / ((exp(adjusted_epsilon_) + 1) * adjusted_delta_)));
     crossover_2_ = crossover_1_ + floor((1.0/adjusted_epsilon_)
-                        *  log(1 + ((exp(adjusted_epsilon_) - 1) / delta_)
+                        *  log(1 + ((exp(adjusted_epsilon_) - 1) / adjusted_delta_)
                           * (1 - probabilityOfKeep(crossover_1_))));
   }
 
@@ -97,20 +97,20 @@ class MagicPartitionSelection : public PartitionSelectionStrategy {
   double crossover_2_;
 
   double probabilityOfKeep(double n) {
-    if(n == 0 || delta_ == 0) {
+    if(n == 0 || adjusted_delta_ == 0) {
       return 0;
     }
     else if (adjusted_epsilon_ == 0) {
-      return fmin(1.0, n * delta_);
+      return fmin(1.0, n * adjusted_delta_);
     }
     else if (n <= crossover_1_) {
       return (((exp(n * adjusted_epsilon_) - 1) / (exp(adjusted_epsilon_) - 1))
-              * delta_);
+              * adjusted_delta_);
     }
     else if (n > crossover_1_ && n <= crossover_2_) {
       double m = n - crossover_1_;
       return ((1 - exp(-1 * m * adjusted_epsilon_))
-               * (1 + delta_ / (exp(adjusted_epsilon_) - 1))
+               * (1 + adjusted_delta_ / (exp(adjusted_epsilon_) - 1))
                + exp(-1 * m * adjusted_epsilon_) * probabilityOfKeep(crossover_1_));
     }
     else {
