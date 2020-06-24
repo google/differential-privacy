@@ -13,6 +13,7 @@ def dp_java_deps():
             "com.google.errorprone:error_prone_annotations:2.3.4",
             "com.google.guava:guava:28.2-jre",
             "com.google.protobuf:protobuf-java:3.11.4",
+            "org.apache.commons:commons-math3:3.6.1",
             # artifacts for testing only
             "org.mockito:mockito-core:3.3.0",
             "junit:junit:4.13",

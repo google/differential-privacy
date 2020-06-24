@@ -31,9 +31,10 @@ int64_t count(const vector<double>& values, double epsilon) {
   // count, this is always an int64_t value.
   return differential_privacy::GetValue<int64_t>(result);
 }
+```
 
 We also include the following example code:
-- A [tool for releasing epsilon-DP aggregate statistics](https://github.com/google/differential-privacy/tree/master/cc/example).
+- A [tool for releasing epsilon-DP aggregate statistics](https://github.com/google/differential-privacy/tree/master/examples/cc/).
 - A [PostgreSQL extension](https://github.com/google/differential-privacy/tree/master/cc/postgres)
 that adds epsilon-DP aggregate functions.
 

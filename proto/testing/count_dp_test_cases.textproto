@@ -1,0 +1,931 @@
+#
+# Copyright 2020 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# This collection of test cases is intended to statistically evaluate the DP
+# properties of the count aggregation provided by the DP library.
+
+# The test cases and validation parameters are calibrated such that:
+# - An approximate DP test accepts with a probability of at least 0.9 if the
+#   distance between the two raw counts is within the sensitivity.
+# - An approximate DP test rejects with a probability of at least 0.9 if the
+#   distance between the two raw counts is at least the sensitivity times 1.175
+#   or if the catastrophic failure rate at least the delta tolerance times 1.25.
+validity_parameters {
+  distance_specificity: 1.175
+  failure_specificity: 1.25
+}
+
+# Taking the majority vote over 15 repeated runs of a particular test case
+# increases the accept and reject probabilities to 0.99996 or more.
+voting_parameters {
+  number_of_votes: 15
+}
+
+count_dp_test_case {
+  name: "Laplace noise, empty count, default parameters"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.0025
+  }
+  count_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    epsilon: 1.09861228866810969140  # = log(3)
+    # No raw_increment_by fields because the count is empty. The extra
+    # increments of the neighbouring data set equal the l1 sensitivity of the
+    # test case.
+    neighbour_raw_increment_by: 1
+  }
+}
+
+count_dp_test_case {
+  name: "Laplace noise, empty count, two partitions contributed"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.0035
+  }
+  count_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 2
+    epsilon: 1.09861228866810969140  # = log(3)
+    # No raw_increment_by fields because the count is empty. The extra
+    # increments of the neighbouring data set equal the l1 sensitivity of the
+    # test case.
+    neighbour_raw_increment_by: 2
+  }
+}
+
+count_dp_test_case {
+  name: "Laplace noise, empty count, many partitions contributed"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.02
+  }
+  count_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 250
+    epsilon: 1.09861228866810969140  # = log(3)
+    # No raw_increment_by fields because the count is empty. The extra
+    # increments of the neighbouring data set equal the l1 sensitivity of the
+    # test case.
+    neighbour_raw_increment_by: 250
+  }
+}
+
+count_dp_test_case {
+  name: "Laplace noise, empty count, small epsilon"
+  dp_test_parameters {
+    epsilon: 0.01
+    delta: 0.0
+    delta_tolerance: 0.0131
+  }
+  count_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    epsilon: 0.01
+    # No raw_increment_by fields because the count is empty. The extra
+    # increments of the neighbouring data set equal the l1 sensitivity of the
+    # test case.
+    neighbour_raw_increment_by: 1
+  }
+}
+
+count_dp_test_case {
+  name: "Laplace noise, empty count, large epsilon"
+  dp_test_parameters {
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta: 0.0
+    delta_tolerance: 0.0035
+  }
+  count_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    # No raw_increment_by fields because the count is empty. The extra
+    # increments of the neighbouring data set equal the l1 sensitivity of the
+    # test case.
+    neighbour_raw_increment_by: 1
+  }
+}
+
+count_dp_test_case {
+  name: "Laplace noise, small count, default parameters"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.0025
+  }
+  count_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    epsilon: 1.09861228866810969140  # = log(3)
+    raw_increment_by: 7
+    raw_increment_by: 1
+    raw_increment_by: 8
+    raw_increment_by: 12
+    neighbour_raw_increment_by: 7
+    neighbour_raw_increment_by: 1
+    neighbour_raw_increment_by: 8
+    neighbour_raw_increment_by: 12
+    # The extra increments of the neighbouring data set equal the l1 sensitivity
+    # of the test case.
+    neighbour_raw_increment_by: 1
+  }
+}
+
+count_dp_test_case {
+  name: "Laplace noise, small count, two partitions contributed"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.0035
+  }
+  count_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 2
+    epsilon: 1.09861228866810969140  # = log(3)
+    raw_increment_by: 7
+    raw_increment_by: 1
+    raw_increment_by: 8
+    raw_increment_by: 12
+    neighbour_raw_increment_by: 7
+    neighbour_raw_increment_by: 1
+    neighbour_raw_increment_by: 8
+    neighbour_raw_increment_by: 12
+    # The extra increments of the neighbouring data set equal the l1 sensitivity
+    # of the test case.
+    neighbour_raw_increment_by: 2
+  }
+}
+
+count_dp_test_case {
+  name: "Laplace noise, small count, many partitions contributed"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.02
+  }
+  count_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 250
+    epsilon: 1.09861228866810969140  # = log(3)
+    raw_increment_by: 7
+    raw_increment_by: 1
+    raw_increment_by: 8
+    raw_increment_by: 12
+    neighbour_raw_increment_by: 7
+    neighbour_raw_increment_by: 1
+    neighbour_raw_increment_by: 8
+    neighbour_raw_increment_by: 12
+    # The extra increments of the neighbouring data set equal the l1 sensitivity
+    # of the test case.
+    neighbour_raw_increment_by: 250
+  }
+}
+
+count_dp_test_case {
+  name: "Laplace noise, small count, small epsilon"
+  dp_test_parameters {
+    epsilon: 0.01
+    delta: 0.0
+    delta_tolerance: 0.0131
+  }
+  count_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    epsilon: 0.01
+    raw_increment_by: 7
+    raw_increment_by: 1
+    raw_increment_by: 8
+    raw_increment_by: 12
+    neighbour_raw_increment_by: 7
+    neighbour_raw_increment_by: 1
+    neighbour_raw_increment_by: 8
+    neighbour_raw_increment_by: 12
+    # The extra increments of the neighbouring data set equal the l1 sensitivity
+    # of the test case.
+    neighbour_raw_increment_by: 1
+  }
+}
+
+count_dp_test_case {
+  name: "Laplace noise, small count, large epsilon"
+  dp_test_parameters {
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta: 0.0
+    delta_tolerance: 0.0035
+  }
+  count_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    raw_increment_by: 7
+    raw_increment_by: 1
+    raw_increment_by: 8
+    raw_increment_by: 12
+    neighbour_raw_increment_by: 7
+    neighbour_raw_increment_by: 1
+    neighbour_raw_increment_by: 8
+    neighbour_raw_increment_by: 12
+    # The extra increments of the neighbouring data set equal the l1 sensitivity
+    # of the test case.
+    neighbour_raw_increment_by: 1
+  }
+}
+
+count_dp_test_case {
+  name: "Laplace noise, large count, default parameters"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.0025
+  }
+  count_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    epsilon: 1.09861228866810969140  # = log(3)
+    raw_increment_by: 2147483647
+    raw_increment_by: 2146736422
+    raw_increment_by: 1383713414
+    raw_increment_by: 2146374624
+    raw_increment_by: 1989764249
+    neighbour_raw_increment_by: 2147483647
+    neighbour_raw_increment_by: 2146736422
+    neighbour_raw_increment_by: 1383713414
+    neighbour_raw_increment_by: 2146374624
+    neighbour_raw_increment_by: 1989764249
+    # The extra increments of the neighbouring data set equal the l1 sensitivity
+    # of the test case.
+    neighbour_raw_increment_by: 1
+  }
+}
+
+count_dp_test_case {
+  name: "Laplace noise, large count, two partitions contributed"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.0035
+  }
+  count_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 2
+    epsilon: 1.09861228866810969140  # = log(3)
+    raw_increment_by: 2147483647
+    raw_increment_by: 2146736422
+    raw_increment_by: 1383713414
+    raw_increment_by: 2146374624
+    raw_increment_by: 1989764249
+    neighbour_raw_increment_by: 2147483647
+    neighbour_raw_increment_by: 2146736422
+    neighbour_raw_increment_by: 1383713414
+    neighbour_raw_increment_by: 2146374624
+    neighbour_raw_increment_by: 1989764249
+    # The extra increments of the neighbouring data set equal the l1 sensitivity
+    # of the test case.
+    neighbour_raw_increment_by: 2
+  }
+}
+
+count_dp_test_case {
+  name: "Laplace noise, large count, many partitions contributed"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.02
+  }
+  count_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 250
+    epsilon: 1.09861228866810969140  # = log(3)
+    raw_increment_by: 2147483647
+    raw_increment_by: 2146736422
+    raw_increment_by: 1383713414
+    raw_increment_by: 2146374624
+    raw_increment_by: 1989764249
+    neighbour_raw_increment_by: 2147483647
+    neighbour_raw_increment_by: 2146736422
+    neighbour_raw_increment_by: 1383713414
+    neighbour_raw_increment_by: 2146374624
+    neighbour_raw_increment_by: 1989764249
+    # The extra increments of the neighbouring data set equal the l1 sensitivity
+    # of the test case.
+    neighbour_raw_increment_by: 250
+  }
+}
+
+count_dp_test_case {
+  name: "Laplace noise, large count, small epsilon"
+  dp_test_parameters {
+    epsilon: 0.01
+    delta: 0.0
+    delta_tolerance: 0.0131
+  }
+  count_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    epsilon: 0.01
+    raw_increment_by: 2147483647
+    raw_increment_by: 2146736422
+    raw_increment_by: 1383713414
+    raw_increment_by: 2146374624
+    raw_increment_by: 1989764249
+    neighbour_raw_increment_by: 2147483647
+    neighbour_raw_increment_by: 2146736422
+    neighbour_raw_increment_by: 1383713414
+    neighbour_raw_increment_by: 2146374624
+    neighbour_raw_increment_by: 1989764249
+    # The extra increments of the neighbouring data set equal the l1 sensitivity
+    # of the test case.
+    neighbour_raw_increment_by: 1
+  }
+}
+
+count_dp_test_case {
+  name: "Laplace noise, large count, large epsilon"
+  dp_test_parameters {
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta: 0.0
+    delta_tolerance: 0.0035
+  }
+  count_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    raw_increment_by: 2147483647
+    raw_increment_by: 2146736422
+    raw_increment_by: 1383713414
+    raw_increment_by: 2146374624
+    raw_increment_by: 1989764249
+    neighbour_raw_increment_by: 2147483647
+    neighbour_raw_increment_by: 2146736422
+    neighbour_raw_increment_by: 1383713414
+    neighbour_raw_increment_by: 2146374624
+    neighbour_raw_increment_by: 1989764249
+    # The extra increments of the neighbouring data set equal the l1 sensitivity
+    # of the test case.
+    neighbour_raw_increment_by: 1
+  }
+}
+
+count_dp_test_case {
+  name: "Gaussian noise, empty count, default parameters"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.0001
+  }
+  count_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    # No raw_increment_by fields because the count is empty. The extra
+    # increments of the neighbouring data set equal the floor of the l2
+    # sensitivity of the test case.
+    neighbour_raw_increment_by: 1
+  }
+}
+
+count_dp_test_case {
+  name: "Gaussian noise, empty count, two partitions contributed"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.0001
+  }
+  count_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 2
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    # No raw_increment_by fields because the count is empty. The extra
+    # increments of the neighbouring data set equal the floor of the l2
+    # sensitivity of the test case.
+    neighbour_raw_increment_by: 1  # = floor(sqrt(2))
+  }
+}
+
+count_dp_test_case {
+  name: "Gaussian noise, empty count, many partitions contributed"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.00031
+  }
+  count_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 250
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    # No raw_increment_by fields because the count is empty. The extra
+    # increments of the neighbouring data set equal the floor of the l2
+    # sensitivity of the test case.
+    neighbour_raw_increment_by: 15  # = floor(sqrt(250))
+  }
+}
+
+count_dp_test_case {
+  name: "Gaussian noise, empty count, small epsilon"
+  dp_test_parameters {
+    epsilon: 0.1
+    delta: 0.00001
+    delta_tolerance: 0.001
+  }
+  count_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    epsilon: 0.1
+    delta: 0.00001
+    # No raw_increment_by fields because the count is empty. The extra
+    # increments of the neighbouring data set equal the floor of the l2
+    # sensitivity of the test case.
+    neighbour_raw_increment_by: 1
+  }
+}
+
+count_dp_test_case {
+  name: "Gaussian noise, empty count, large epsilon"
+  dp_test_parameters {
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta: 0.00001
+    delta_tolerance: 0.0001
+  }
+  count_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta: 0.00001
+    # No raw_increment_by fields because the count is empty. The extra
+    # increments of the neighbouring data set equal the floor of the l2
+    # sensitivity of the test case.
+    neighbour_raw_increment_by: 1
+  }
+}
+
+count_dp_test_case {
+  name: "Gaussian noise, empty count, small delta"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.000001
+    delta_tolerance: 0.0001
+  }
+  count_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.000001
+    # No raw_increment_by fields because the count is empty. The extra
+    # increments of the neighbouring data set equal the floor of the l2
+    # sensitivity of the test case.
+    neighbour_raw_increment_by: 1
+  }
+}
+
+count_dp_test_case {
+  name: "Gaussian noise, empty count, large delta"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0001
+    delta_tolerance: 0.0005
+  }
+  count_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0001
+    # No raw_increment_by fields because the count is empty. The extra
+    # increments of the neighbouring data set equal the floor of the l2
+    # sensitivity of the test case.
+    neighbour_raw_increment_by: 1
+  }
+}
+
+count_dp_test_case {
+  name: "Gaussian noise, small count, default parameters"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.0001
+  }
+  count_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    raw_increment_by: 7
+    raw_increment_by: 1
+    raw_increment_by: 8
+    raw_increment_by: 12
+    neighbour_raw_increment_by: 7
+    neighbour_raw_increment_by: 1
+    neighbour_raw_increment_by: 8
+    neighbour_raw_increment_by: 12
+    # The extra increments of the neighbouring data set equal the floor of the
+    # l2 sensitivity of the test case.
+    neighbour_raw_increment_by: 1
+  }
+}
+
+count_dp_test_case {
+  name: "Gaussian noise, small count, two partitions contributed"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.0001
+  }
+  count_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 2
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    raw_increment_by: 7
+    raw_increment_by: 1
+    raw_increment_by: 8
+    raw_increment_by: 12
+    neighbour_raw_increment_by: 7
+    neighbour_raw_increment_by: 1
+    neighbour_raw_increment_by: 8
+    neighbour_raw_increment_by: 12
+    # The extra increments of the neighbouring data set equal the floor of the
+    # l2 sensitivity of the test case.
+    neighbour_raw_increment_by: 1  # = floor(sqrt(2))
+  }
+}
+
+count_dp_test_case {
+  name: "Gaussian noise, small count, many partitions contributed"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.00031
+  }
+  count_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 250
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    raw_increment_by: 7
+    raw_increment_by: 1
+    raw_increment_by: 8
+    raw_increment_by: 12
+    neighbour_raw_increment_by: 7
+    neighbour_raw_increment_by: 1
+    neighbour_raw_increment_by: 8
+    neighbour_raw_increment_by: 12
+    # The extra increments of the neighbouring data set equal the floor of the
+    # l2 sensitivity of the test case.
+    neighbour_raw_increment_by: 15  # = floor(sqrt(250))
+  }
+}
+
+count_dp_test_case {
+  name: "Gaussian noise, small count, small epsilon"
+  dp_test_parameters {
+    epsilon: 0.1
+    delta: 0.00001
+    delta_tolerance: 0.001
+  }
+  count_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    epsilon: 0.1
+    delta: 0.00001
+    raw_increment_by: 7
+    raw_increment_by: 1
+    raw_increment_by: 8
+    raw_increment_by: 12
+    neighbour_raw_increment_by: 7
+    neighbour_raw_increment_by: 1
+    neighbour_raw_increment_by: 8
+    neighbour_raw_increment_by: 12
+    # The extra increments of the neighbouring data set equal the floor of the
+    # l2 sensitivity of the test case.
+    neighbour_raw_increment_by: 1
+  }
+}
+
+count_dp_test_case {
+  name: "Gaussian noise, small count, large epsilon"
+  dp_test_parameters {
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta: 0.00001
+    delta_tolerance: 0.0001
+  }
+  count_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta: 0.00001
+    raw_increment_by: 7
+    raw_increment_by: 1
+    raw_increment_by: 8
+    raw_increment_by: 12
+    neighbour_raw_increment_by: 7
+    neighbour_raw_increment_by: 1
+    neighbour_raw_increment_by: 8
+    neighbour_raw_increment_by: 12
+    # The extra increments of the neighbouring data set equal the floor of the
+    # l2 sensitivity of the test case.
+    neighbour_raw_increment_by: 1
+  }
+}
+
+count_dp_test_case {
+  name: "Gaussian noise, small count, small delta"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.000001
+    delta_tolerance: 0.0001
+  }
+  count_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.000001
+    raw_increment_by: 7
+    raw_increment_by: 1
+    raw_increment_by: 8
+    raw_increment_by: 12
+    neighbour_raw_increment_by: 7
+    neighbour_raw_increment_by: 1
+    neighbour_raw_increment_by: 8
+    neighbour_raw_increment_by: 12
+    # The extra increments of the neighbouring data set equal the floor of the
+    # l2 sensitivity of the test case.
+    neighbour_raw_increment_by: 1
+  }
+}
+
+count_dp_test_case {
+  name: "Gaussian noise, small count, large delta"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0001
+    delta_tolerance: 0.0005
+  }
+  count_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0001
+    raw_increment_by: 7
+    raw_increment_by: 1
+    raw_increment_by: 8
+    raw_increment_by: 12
+    neighbour_raw_increment_by: 7
+    neighbour_raw_increment_by: 1
+    neighbour_raw_increment_by: 8
+    neighbour_raw_increment_by: 12
+    # The extra increments of the neighbouring data set equal the floor of the
+    # l2 sensitivity of the test case.
+    neighbour_raw_increment_by: 1
+  }
+}
+
+count_dp_test_case {
+  name: "Gaussian noise, large count, default parameters"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.0001
+  }
+  count_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    raw_increment_by: 2147483647
+    raw_increment_by: 2146736422
+    raw_increment_by: 1383713414
+    raw_increment_by: 2146374624
+    raw_increment_by: 1989764249
+    neighbour_raw_increment_by: 2147483647
+    neighbour_raw_increment_by: 2146736422
+    neighbour_raw_increment_by: 1383713414
+    neighbour_raw_increment_by: 2146374624
+    neighbour_raw_increment_by: 1989764249
+    # The extra increments of the neighbouring data set equal the floor of the
+    # l2 sensitivity of the test case.
+    neighbour_raw_increment_by: 1
+  }
+}
+
+count_dp_test_case {
+  name: "Gaussian noise, large count, two partitions contributed"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.0001
+  }
+  count_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 2
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    raw_increment_by: 2147483647
+    raw_increment_by: 2146736422
+    raw_increment_by: 1383713414
+    raw_increment_by: 2146374624
+    raw_increment_by: 1989764249
+    neighbour_raw_increment_by: 2147483647
+    neighbour_raw_increment_by: 2146736422
+    neighbour_raw_increment_by: 1383713414
+    neighbour_raw_increment_by: 2146374624
+    neighbour_raw_increment_by: 1989764249
+    # The extra increments of the neighbouring data set equal the floor of the
+    # l2 sensitivity of the test case.
+    neighbour_raw_increment_by: 1  # = floor(sqrt(2))
+  }
+}
+
+count_dp_test_case {
+  name: "Gaussian noise, large count, many partitions contributed"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.00031
+  }
+  count_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 250
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    raw_increment_by: 2147483647
+    raw_increment_by: 2146736422
+    raw_increment_by: 1383713414
+    raw_increment_by: 2146374624
+    raw_increment_by: 1989764249
+    neighbour_raw_increment_by: 2147483647
+    neighbour_raw_increment_by: 2146736422
+    neighbour_raw_increment_by: 1383713414
+    neighbour_raw_increment_by: 2146374624
+    neighbour_raw_increment_by: 1989764249
+    # The extra increments of the neighbouring data set equal the floor of the
+    # l2 sensitivity of the test case.
+    neighbour_raw_increment_by: 15  # = floor(sqrt(250))
+  }
+}
+
+count_dp_test_case {
+  name: "Gaussian noise, large count, small epsilon"
+  dp_test_parameters {
+    epsilon: 0.1
+    delta: 0.00001
+    delta_tolerance: 0.001
+  }
+  count_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    epsilon: 0.1
+    delta: 0.00001
+    raw_increment_by: 2147483647
+    raw_increment_by: 2146736422
+    raw_increment_by: 1383713414
+    raw_increment_by: 2146374624
+    raw_increment_by: 1989764249
+    neighbour_raw_increment_by: 2147483647
+    neighbour_raw_increment_by: 2146736422
+    neighbour_raw_increment_by: 1383713414
+    neighbour_raw_increment_by: 2146374624
+    neighbour_raw_increment_by: 1989764249
+    # The extra increments of the neighbouring data set equal the floor of the
+    # l2 sensitivity of the test case.
+    neighbour_raw_increment_by: 1
+  }
+}
+
+count_dp_test_case {
+  name: "Gaussian noise, large count, large epsilon"
+  dp_test_parameters {
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta: 0.00001
+    delta_tolerance: 0.0001
+  }
+  count_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta: 0.00001
+    raw_increment_by: 2147483647
+    raw_increment_by: 2146736422
+    raw_increment_by: 1383713414
+    raw_increment_by: 2146374624
+    raw_increment_by: 1989764249
+    neighbour_raw_increment_by: 2147483647
+    neighbour_raw_increment_by: 2146736422
+    neighbour_raw_increment_by: 1383713414
+    neighbour_raw_increment_by: 2146374624
+    neighbour_raw_increment_by: 1989764249
+    # The extra increments of the neighbouring data set equal the floor of the
+    # l2 sensitivity of the test case.
+    neighbour_raw_increment_by: 1
+  }
+}
+
+count_dp_test_case {
+  name: "Gaussian noise, large count, small delta"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.000001
+    delta_tolerance: 0.0001
+  }
+  count_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.000001
+    raw_increment_by: 2147483647
+    raw_increment_by: 2146736422
+    raw_increment_by: 1383713414
+    raw_increment_by: 2146374624
+    raw_increment_by: 1989764249
+    neighbour_raw_increment_by: 2147483647
+    neighbour_raw_increment_by: 2146736422
+    neighbour_raw_increment_by: 1383713414
+    neighbour_raw_increment_by: 2146374624
+    neighbour_raw_increment_by: 1989764249
+    # The extra increments of the neighbouring data set equal the floor of the
+    # l2 sensitivity of the test case.
+    neighbour_raw_increment_by: 1
+  }
+}
+
+count_dp_test_case {
+  name: "Gaussian noise, large count, large delta"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0001
+    delta_tolerance: 0.0005
+  }
+  count_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0001
+    raw_increment_by: 2147483647
+    raw_increment_by: 2146736422
+    raw_increment_by: 1383713414
+    raw_increment_by: 2146374624
+    raw_increment_by: 1989764249
+    neighbour_raw_increment_by: 2147483647
+    neighbour_raw_increment_by: 2146736422
+    neighbour_raw_increment_by: 1383713414
+    neighbour_raw_increment_by: 2146374624
+    neighbour_raw_increment_by: 1989764249
+    # The extra increments of the neighbouring data set equal the floor of the
+    # l2 sensitivity of the test case.
+    neighbour_raw_increment_by: 1
+  }
+}

@@ -34,9 +34,10 @@ public class CountVisitsPerDay {
   private static final double LN_3 = Math.log(3);
 
   /**
-   * Number of weekly visits for a visitor is limited to 3. All exceeding visits will be discarded.
+   * Number of visit days contributed by a single visitor will be limited to 3. All exceeding
+   * visits will be discarded.
    */
-  private static final int MAX_VISITS_PER_WEEK = 3;
+  private static final int MAX_CONTRIBUTED_DAYS = 3;
 
   private CountVisitsPerDay() {}
 
@@ -67,23 +68,23 @@ public class CountVisitsPerDay {
   private static EnumMap<DayOfWeek, Integer> getPrivateCounts(VisitsForWeek visits) {
     EnumMap<DayOfWeek, Integer> privateCountsPerDay = new EnumMap<>(DayOfWeek.class);
 
-    // Pre-process the data set: limit the number of visits to MAX_VISITS_PER_WEEK
-    // per visitorId.
+    // Pre-process the data set: limit the number of days contributed by a visitor to
+    // MAX_VISIT_DAYS.
     VisitsForWeek boundedVisits =
-        ContributionBoundingUtils.boundVisits(visits, MAX_VISITS_PER_WEEK);
+        ContributionBoundingUtils.boundContributedDays(visits, MAX_CONTRIBUTED_DAYS);
 
     Arrays.stream(DayOfWeek.values()).forEach(d -> {
       Count dpCount =
           Count.builder()
               .epsilon(LN_3)
-              // The data was pre-processed so that
-              // each user may visit the restaurant up to MAX_VISITS_PER_WEEK times per week.
-              // Hence, each user may contribute to up to MAX_VISITS_PER_WEEK daily counts.
+              // The data was pre-processed so that each visitor may visit the restaurant up to
+              // MAX_VISIT_DAYS days per week.
+              // Hence, each user may contribute to up to MAX_VISIT_DAYS daily counts.
               // Note: while the library accepts this limit as a configurable parameter,
               // it doesn't pre-process the data to ensure this limit is respected.
               // It is responsibility of the caller to ensure the data passed to the library
               // is capped for getting the correct privacy guarantee.
-              .maxPartitionsContributed(MAX_VISITS_PER_WEEK)
+              .maxPartitionsContributed(MAX_CONTRIBUTED_DAYS)
               .build();
       dpCount.incrementBy(boundedVisits.getVisitsForDay(d).size());
       privateCountsPerDay.put(d, (int) dpCount.computeResult());

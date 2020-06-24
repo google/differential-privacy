@@ -3,18 +3,19 @@
 This project contains a set of libraries of ε- and (ε, δ)-differentially private
 algorithms, which can be used to produce aggregate statistics over numeric data
 sets containing private or sensitive information. The functionality is currently
-available in C++ and Java.
+available in C++, Go and Java.
 
 Currently, we provide algorithms to compute the following:
 
-| Algorithm          | C++           | Java  |
-| -------------      |:-------------:| -----:|
-| Count              | Supported     | Supported |
-| Sum                | Supported     | Supported |
-| Mean               | Supported     | Supported   |
-| Variance           | Supported     | Planned   |
-| Standard deviation |Supported      | Planned   |
-|Order statistics (incl. min, max, and median) |Supported   | Planned |
+| Algorithm          | C++           | Go        |Java      |
+| -------------      |:-------------:|:---------:|:--------:|
+| Count              | Supported     | Supported |Supported |
+| Sum                | Supported     | Supported |Supported |
+| Mean               | Supported     | Supported |Supported |
+| Variance           | Supported     | Planned   |Planned   |
+| Standard deviation | Supported     | Planned   |Planned   |
+| Order statistics (incl. min, max, and median) | Supported   | Planned | Planned |
+| Automatic bounds approximation | Supported   | Planned | Planned |
 
 We also provide an implementation of the Laplace and Gaussian mechanism that
 can be used to perform computations that aren't covered by our pre-built
@@ -23,10 +24,14 @@ algorithms.
 All of these algorithms are suitable for research, experimental or production
 use cases.
 
-This project also contains a
-[stochastic tester](https://github.com/google/differential-privacy/tree/master/cc/testing),
+This project also contains:
+* A [stochastic tester](https://github.com/google/differential-privacy/tree/master/cc/testing),
 used to help catch regressions that could make the differential privacy
 property no longer hold.
+* [Privacy on Beam](https://github.com/google/differential-privacy/tree/master/privacy-on-beam) -
+an end-to-end differential privacy solution built on [Apache Beam](https://beam.apache.org/documentation/)
+and Go differential privacy library.
+* [Tools for tracking privacy budget.](https://github.com/google/differential-privacy/tree/master/accounting)
 
 ## How to Build
 
@@ -48,6 +53,11 @@ and build the differential privacy library and dependencies using Bazel:
 To build the C++ library, run:
 ```
 cd cc
+bazel build ...
+```
+To build the Go library, run:
+```
+cd go
 bazel build ...
 ```
 
@@ -96,7 +106,7 @@ issues we will publish notice here at least 3 months in advance.
 
 This is not an officially supported Google product.
 
-## Reach out 
+## Reach out
 
 We are always keen on hearing what use cases this library is helping you to
 solve. Please email us at dp-open-source@google.com about your use cases and

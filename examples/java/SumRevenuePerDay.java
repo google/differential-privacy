@@ -34,9 +34,10 @@ public class SumRevenuePerDay {
   private static final double LN_3 = Math.log(3);
 
   /**
-   * Number of weekly visits for a visitor is limited to 3. All exceeding visits will be discarded.
+   * Number of visit days contributed by a single visitor will be limited to 4. All exceeding
+   * visits will be discarded.
    */
-  private static final int MAX_VISITS_PER_WEEK = 4;
+  private static final int MAX_CONTRIBUTED_DAYS = 4;
   /**
    * Minimum amount of money we expect a visitor to spend on a single visit.
    */
@@ -64,7 +65,7 @@ public class SumRevenuePerDay {
   }
 
   /** Returns total raw revenue for each day of the week. */
-  private static EnumMap<DayOfWeek, Integer> getNonPrivateSums(VisitsForWeek visits) {
+  static EnumMap<DayOfWeek, Integer> getNonPrivateSums(VisitsForWeek visits) {
     EnumMap<DayOfWeek, Integer> sumsPerDay = new EnumMap<>(DayOfWeek.class);
     for (DayOfWeek d : DayOfWeek.values()) {
       int sum = 0;
@@ -83,19 +84,20 @@ public class SumRevenuePerDay {
     // Pre-process the data set: limit the number of visits to MAX_VISITS_PER_WEEK
     // per visitorId.
     VisitsForWeek boundedVisits =
-        ContributionBoundingUtils.boundVisits(visits, MAX_VISITS_PER_WEEK);
+        ContributionBoundingUtils.boundContributedDays(visits, MAX_CONTRIBUTED_DAYS);
 
     for (DayOfWeek d : DayOfWeek.values()) {
       BoundedSum dpSum =
           BoundedSum.builder()
               .epsilon(LN_3)
-              // The data was pre-processed so that each user may visit the restaurant up to
-              // MAX_VISITS_PER_WEEK times per week. Hence, each user may contribute to up to
-              // MAX_VISITS_PER_WEEK daily counts. Note: while the library accepts this limit
-              // as a configurable parameter, it doesn't pre-process the data to ensure this limit
-              // is respected. It is responsibility of the caller to ensure the data passed to the
-              // library is capped for getting the correct privacy guarantee.
-              .maxPartitionsContributed(MAX_VISITS_PER_WEEK)
+              // The data was pre-processed so that each visitor may visit the restaurant up to
+              // MAX_VISIT_DAYS days per week.
+              // Hence, each user may contribute to up to MAX_VISIT_DAYS daily counts.
+              // Note: while the library accepts this limit as a configurable parameter,
+              // it doesn't pre-process the data to ensure this limit is respected.
+              // It is responsibility of the caller to ensure the data passed to the library
+              // is capped for getting the correct privacy guarantee.
+              .maxPartitionsContributed(MAX_CONTRIBUTED_DAYS)
               // No need to pre-process the data: BoundedSum will clamp the input values.
               .lower(MIN_EUROS_SPENT)
               .upper(MAX_EUROS_SPENT)
