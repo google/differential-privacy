@@ -33,10 +33,24 @@ using testing::Return;
 
 class PartitionSelectionStrategiesTest : public ::testing::Test {};
 
-TEST(PartitionSelectionStrategiesTest, MagicPartitionSelectionNumUsersZero) {
-	MagicPartitionSelection mp(1.0, 1.0, 0.0, 1);
+TEST(PartitionSelectionStrategiesTest, PreaggPartitionSelectionNumUsersZero) {
+	PreaggPartitionSelection pa1(1.0, 1.0, 0, 1);
+	PreaggPartitionSelection pa2(1.2, 3.4, 0, 5);
+	EXPECT_FALSE(pa1.shouldKeep());
+	EXPECT_FALSE(pa2.shouldKeep());
+}
 
-	EXPECT_FALSE(mp.shouldKeep());
+TEST(PartitionSelectionStrategiesTest, PreaggPartitionSelectionDeltaZero) {
+	PreaggPartitionSelection pa(0.6, 0.0, 78, 9);
+	EXPECT_FALSE(pa.shouldKeep());
+}
+
+TEST(PartitionSelectionStrategiesTest, PreaggPartitionSelectionEpsilonZero) {
+	//TODO
+}
+
+TEST(PartitionSelectionStrategiesTest, PreaggPartitionSelectionNonZeroCases) {
+	//TODO
 }
 
 } //namespace

@@ -23,6 +23,8 @@
 #include <stdlib.h>
 #include <time.h>
 
+#include "algorithms/numerical-mechanisms.h"
+
 namespace differential_privacy{
 
 // Provides a common abstraction for PartitionSelectionStrategy.  Partition
@@ -57,9 +59,9 @@ class PartitionSelectionStrategy {
 
 
 
-class MagicPartitionSelection : public PartitionSelectionStrategy {
+class PreaggPartitionSelection : public PartitionSelectionStrategy {
  public:
-  MagicPartitionSelection(double epsilon, double delta, int num_users, int max_partitions)
+  PreaggPartitionSelection(double epsilon, double delta, int num_users, int max_partitions)
   	: PartitionSelectionStrategy(epsilon, delta, num_users, max_partitions) {
     if(epsilon_ != 0) {
       adjusted_epsilon_ = epsilon / (double) max_partitions;
@@ -75,7 +77,7 @@ class MagicPartitionSelection : public PartitionSelectionStrategy {
                           * (1 - probabilityOfKeep(crossover_1_))));
   }
 
-  virtual ~MagicPartitionSelection() = default;
+  virtual ~PreaggPartitionSelection() = default;
 
   double GetAdjustedEpsilon() { return adjusted_epsilon_; }
 
@@ -120,46 +122,69 @@ class MagicPartitionSelection : public PartitionSelectionStrategy {
 
 };
 
-/*
+
 //TODO
 class LaplacePartitionSelection : public PartitionSelectionStrategy {
  public:
   LaplacePartitionSelection(double epsilon, double delta, int num_users, int max_partitions)
-    : PartitionSelectionStrategy(epsilon, delta, num_users, max_partitions) {
-    //diversity here if that's the right name
-  }
+    : PartitionSelectionStrategy(epsilon, delta, num_users, max_partitions),
+      sensitivity_(max_partitions),
+      diversity_(sensitivity_ / epsilon) {
+        threshold_ = 1 - diversity_ * (log(2 * adjusted_delta_));
+      }
 
   virtual ~LaplacePartitionSelection() = default;
 
   bool shouldKeep() override {
-    return base::UnimplementedError(
-        "shouldKeep() unsupported for this numerical mechanism.");
+    double noised_result = 0; //TODO put right call here
+    if(noised_result == threshold_) {
+      //TODO implement 50/50?
+    }
+    else {
+      return (noised_result > threshold_);
+    }
   }
 
+  double GetSensitivity() { return sensitivity_; }
+
+  double GetDiversity() { return diversity_; }
+
+  double GetThreshold() { return threshold_; }
+
  protected:
-  //more stuff
+  double sensitivity_;
+  double diversity_;
+  double threshold_;
 
 };
+
 
 //TODO
 class GaussianPartitionSelection : public PartitionSelectionStrategy {
  public:
   GaussianPartitionSelection(double epsilon, double delta, int num_users, int max_partitions)
     : PartitionSelectionStrategy(epsilon, delta, num_users, max_partitions) {
-    //diversity here if that's the right name
+      //TODO fix this bit up
   }
 
   virtual ~GaussianPartitionSelection() = default;
 
   bool shouldKeep() override {
-    return base::UnimplementedError(
-        "sshouldKeep() unsupported for this numerical mechanism.");
+    return NULL;
   }
 
- protected:
-  //more stuff
+  double GetL2Sensitivity() { return l2_sensitivity_; }
 
-};*/
+  double GetStandardDev() { return standard_dev_; }
+
+  double GetThreshold() { return threshold_; }
+
+ protected:
+  double l2_sensitivity_;
+  double standard_dev_;
+  double threshold_;
+
+};
 
 } // namespace differential_privacy
 
