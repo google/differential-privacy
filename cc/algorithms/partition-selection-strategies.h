@@ -32,9 +32,10 @@ namespace differential_privacy{
 // dropped or kept.
 class PartitionSelectionStrategy {
  public:
-  PartitionSelectionStrategy(double epsilon, double delta, int num_users, int max_partitions)
-  	: epsilon_(epsilon), delta_(delta), adjusted_delta_(1.0 - pow(1 - delta, (double) max_partitions)),
-    num_users_(num_users), max_partitions_(max_partitions) {}
+  PartitionSelectionStrategy(double epsilon, double delta, int max_partitions)
+  	: epsilon_(epsilon), delta_(delta),
+      adjusted_delta_(1.0 - pow(1 - delta,(double) max_partitions)),
+      max_partitions_(max_partitions) {}
 
   virtual ~PartitionSelectionStrategy() = default;
 
@@ -44,16 +45,13 @@ class PartitionSelectionStrategy {
 
   double GetAdjustedDelta() { return adjusted_delta_; }
 
-  int GetNumUsers() { return num_users_; }
 
-
-  virtual bool shouldKeep() = 0;
+  virtual bool shouldKeep(int num_users) = 0;
 
  protected:
   double epsilon_;
   double delta_;
   double adjusted_delta_;
-  int num_users_;
   int max_partitions_;
 };
 
@@ -61,8 +59,8 @@ class PartitionSelectionStrategy {
 
 class PreaggPartitionSelection : public PartitionSelectionStrategy {
  public:
-  PreaggPartitionSelection(double epsilon, double delta, int num_users, int max_partitions)
-  	: PartitionSelectionStrategy(epsilon, delta, num_users, max_partitions) {
+  PreaggPartitionSelection(double epsilon, double delta, int max_partitions)
+  	: PartitionSelectionStrategy(epsilon, delta, max_partitions) {
     if(epsilon_ != 0) {
       adjusted_epsilon_ = epsilon / (double) max_partitions;
     }
@@ -85,7 +83,7 @@ class PreaggPartitionSelection : public PartitionSelectionStrategy {
 
   double GetSecondCrossover() { return crossover_2_; }
 
-  bool shouldKeep() override {
+  bool shouldKeep(int num_users) override {
     //generate a random number between 0 and 1
     srand(time(NULL));
     double rand_num = ((double) rand() / RAND_MAX);
@@ -126,8 +124,8 @@ class PreaggPartitionSelection : public PartitionSelectionStrategy {
 //TODO
 class LaplacePartitionSelection : public PartitionSelectionStrategy {
  public:
-  LaplacePartitionSelection(double epsilon, double delta, int num_users, int max_partitions)
-    : PartitionSelectionStrategy(epsilon, delta, num_users, max_partitions),
+  LaplacePartitionSelection(double epsilon, double delta, int max_partitions)
+    : PartitionSelectionStrategy(epsilon, delta, max_partitions),
       sensitivity_(max_partitions),
       diversity_(sensitivity_ / epsilon) {
         threshold_ = 1 - diversity_ * (log(2 * adjusted_delta_));
@@ -135,7 +133,7 @@ class LaplacePartitionSelection : public PartitionSelectionStrategy {
 
   virtual ~LaplacePartitionSelection() = default;
 
-  bool shouldKeep() override {
+  bool shouldKeep(int num_users) override {
     double noised_result = 0; //TODO put right call here
     if(noised_result == threshold_) {
       //TODO implement 50/50?
@@ -162,14 +160,14 @@ class LaplacePartitionSelection : public PartitionSelectionStrategy {
 //TODO
 class GaussianPartitionSelection : public PartitionSelectionStrategy {
  public:
-  GaussianPartitionSelection(double epsilon, double delta, int num_users, int max_partitions)
-    : PartitionSelectionStrategy(epsilon, delta, num_users, max_partitions) {
+  GaussianPartitionSelection(double epsilon, double delta, int max_partitions)
+    : PartitionSelectionStrategy(epsilon, delta, max_partitions) {
       //TODO fix this bit up
   }
 
   virtual ~GaussianPartitionSelection() = default;
 
-  bool shouldKeep() override {
+  bool shouldKeep(int num_users) override {
     return NULL;
   }
 
