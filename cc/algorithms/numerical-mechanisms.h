@@ -425,9 +425,16 @@ class GaussianMechanism : public NumericalMechanism {
   // noise that AddNoise() would add with the specified privacy budget.
   // If the returned value is <x,y>, then the noise added has a confidence_level
   // chance of being in the domain [x,y].
+
+  base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
+      double confidence_level, double privacy_budget) {
+    return NoiseConfidenceInterval(confidence_level, privacy_budget, 0);
+  }
+
+
   base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
       double confidence_level, double privacy_budget,
-      double noised_result = 0) override {
+      double noised_result) override {
     base::Status status = CheckConfidenceLevel(confidence_level);
     status.Update(CheckPrivacyBudget(privacy_budget));
     if (!status.ok()) {
