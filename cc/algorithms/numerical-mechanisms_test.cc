@@ -30,6 +30,7 @@ using testing::Eq;
 using testing::Ge;
 using testing::MatchesRegex;
 using testing::Return;
+using testing::Values;
 
 class MockLaplaceDistribution : public internal::LaplaceDistribution {
  public:
@@ -279,32 +280,62 @@ TEST(NumericalMechanismsTest, GaussianMechanismAddsNoise) {
   EXPECT_FALSE(std::isnan(mechanism.AddNoise(1.1, -2.0)));
 }
 
-TEST(NumericalMechanismsTest, GaussNoiseConfidenceInterval) {
+TEST(NumericalMechanismsTest, GaussianBuilderClone) {
+  GaussianMechanism::Builder test_builder;
+  auto clone =
+      test_builder.SetEpsilon(1.1).SetDelta(0.5).SetL2Sensitivity(1.2).Clone();
+  auto mechanism = clone->Build().ValueOrDie();
+
+  EXPECT_DOUBLE_EQ(mechanism->GetEpsilon(), 1.1);
+  EXPECT_DOUBLE_EQ(mechanism->GetDelta(), 0.5);
+  EXPECT_DOUBLE_EQ(mechanism->GetL2Sensitivity(), 1.2);
+}
+
+
+class NoiseIntervalMultipleParametersTests
+:public ::testing::TestWithParam<struct conf_int_params> {
+};
+
+const int NUM_TESTS = 3;
+
+struct conf_int_params{
+  double epsilons[NUM_TESTS];
+  double deltas[NUM_TESTS];
+  double sensitivities[NUM_TESTS];
+  double levels[NUM_TESTS];
+  double budgets[NUM_TESTS];
+  double results[NUM_TESTS];
+  double true_bounds[NUM_TESTS];
+};
+
+// True bounds calculated using standard deviations of
+// 3.4855, 3.60742, 0.367936, respectively.
+struct conf_int_params gauss_noise_params =
+  {.epsilons = {1.2, 1.0, 10.0}, .deltas = {0.3, 0.5, 0.5},
+   .sensitivities = {1.0, 1.0, 1.0}, .levels  = {.9, .95, .95},
+   .budgets = {.5, .5, .75}, .results = {0, 1.3, 2.7},
+   .true_bounds = {-5.733, -7.07, -0.7211}};
+
+INSTANTIATE_TEST_SUITE_P(TestSuite, NoiseIntervalMultipleParametersTests,
+                       testing::Values(gauss_noise_params));
+
+TEST_P(NoiseIntervalMultipleParametersTests, GaussNoiseConfidenceInterval) {
   // Tests the NoiseConfidenceInterval method for Gaussian noise.
   // Standard deviations are pre-calculated using CalculateStdDev
   // in the Gaussian mechanism class. True bounds are also pre-calculated
   // using a confidence interval calcualtor.
 
-  int NUM_TESTS = 3;
-  double epsilons[] = {1.2, 1.0, 10.0};
-  double deltas[] = {0.3, 0.5, 0.5};
-  double sensitivities[] = {1.0, 1.0, 1.0};
-  double levels[] = {.9, .95, .95};
-  double budgets[] = {.5, .5, .75};
-  double results[] = {0, 1.3, 2.7};
-  // calculated using standard deviations of
-  // 3.4855, 3.60742, 0.367936 respectively
-  double true_bounds[] = {-5.733, -7.07, -0.7211};
+  struct conf_int_params variables = GetParam();
 
   for (int i = 0; i < NUM_TESTS; i++) {
-    double epsilon = epsilons[i];
-    double delta = deltas[i];
-    double sensitivity = sensitivities[i];
-    double level = levels[i];
-    double budget = budgets[i];
-    double result = results[i];
-    double true_lower_bound = result + true_bounds[i];
-    double true_upper_bound = result - true_bounds[i];
+    double epsilon = (variables.epsilons)[i];
+    double delta = (variables.deltas)[i];
+    double sensitivity = (variables.sensitivities)[i];
+    double level = (variables.levels)[i];
+    double budget = (variables.budgets)[i];
+    double result = (variables.results)[i];
+    double true_lower_bound = result + (variables.true_bounds)[i];
+    double true_upper_bound = result - (variables.true_bounds)[i];
 
     GaussianMechanism mechanism(epsilon, delta, sensitivity);
     base::StatusOr<ConfidenceInterval> confidence_interval =
@@ -317,17 +348,6 @@ TEST(NumericalMechanismsTest, GaussNoiseConfidenceInterval) {
             true_upper_bound, 0.001);
     EXPECT_EQ(confidence_interval.ValueOrDie().confidence_level(), level);
   }
-}
-
-TEST(NumericalMechanismsTest, GaussianBuilderClone) {
-  GaussianMechanism::Builder test_builder;
-  auto clone =
-      test_builder.SetEpsilon(1.1).SetDelta(0.5).SetL2Sensitivity(1.2).Clone();
-  auto mechanism = clone->Build().ValueOrDie();
-
-  EXPECT_DOUBLE_EQ(mechanism->GetEpsilon(), 1.1);
-  EXPECT_DOUBLE_EQ(mechanism->GetDelta(), 0.5);
-  EXPECT_DOUBLE_EQ(mechanism->GetL2Sensitivity(), 1.2);
 }
 }  // namespace
 }  // namespace differential_privacy
