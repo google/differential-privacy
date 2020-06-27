@@ -296,28 +296,39 @@ class NoiseIntervalMultipleParametersTests
 :public ::testing::TestWithParam<struct conf_int_params> {
 };
 
-const int NUM_TESTS = 3;
-
 struct conf_int_params{
-  double epsilons[NUM_TESTS];
-  double deltas[NUM_TESTS];
-  double sensitivities[NUM_TESTS];
-  double levels[NUM_TESTS];
-  double budgets[NUM_TESTS];
-  double results[NUM_TESTS];
-  double true_bounds[NUM_TESTS];
+  double epsilon;
+  double delta;
+  double sensitivity;
+  double level;
+  double budget;
+  double result;
+  double true_bound;
 };
 
 // True bounds calculated using standard deviations of
 // 3.4855, 3.60742, 0.367936, respectively.
-struct conf_int_params gauss_noise_params =
-  {.epsilons = {1.2, 1.0, 10.0}, .deltas = {0.3, 0.5, 0.5},
-   .sensitivities = {1.0, 1.0, 1.0}, .levels  = {.9, .95, .95},
-   .budgets = {.5, .5, .75}, .results = {0, 1.3, 2.7},
-   .true_bounds = {-5.733, -7.07, -0.7211}};
+struct conf_int_params gauss_params1 =
+  {.epsilon = 1.2, .delta = 0.3,
+   .sensitivity = 1.0, .level  = .9,
+   .budget = .5, .result = 0,
+   .true_bound = -5.733};
+
+struct conf_int_params gauss_params2 =
+  {.epsilon = 1.0, .delta = 0.5,
+   .sensitivity = 1.0, .level  = .95,
+   .budget = .5, .result = 1.3,
+   .true_bound = -7.07};
+
+  struct conf_int_params gauss_params3 =
+  {.epsilon = 10.0, .delta = 0.5,
+   .sensitivity = 1.0, .level = .95,
+   .budget = .75, .result = 2.7,
+   .true_bound = -0.7211};
 
 INSTANTIATE_TEST_SUITE_P(TestSuite, NoiseIntervalMultipleParametersTests,
-                       testing::Values(gauss_noise_params));
+                       testing::Values(gauss_params1,
+                        gauss_params2, gauss_params3));
 
 TEST_P(NoiseIntervalMultipleParametersTests, GaussNoiseConfidenceInterval) {
   // Tests the NoiseConfidenceInterval method for Gaussian noise.
@@ -325,29 +336,26 @@ TEST_P(NoiseIntervalMultipleParametersTests, GaussNoiseConfidenceInterval) {
   // in the Gaussian mechanism class. True bounds are also pre-calculated
   // using a confidence interval calcualtor.
 
-  struct conf_int_params variables = GetParam();
+  struct conf_int_params params = GetParam();
+  double epsilon = params.epsilon;
+  double delta = params.delta;
+  double sensitivity = params.sensitivity;
+  double budget = params.budget;
+  double conf_level = params.level;
+  double result = params.result;
+  double true_lower_bound = params.result + params.true_bound;
+  double true_upper_bound = params.result - params.true_bound;
 
-  for (int i = 0; i < NUM_TESTS; i++) {
-    double epsilon = (variables.epsilons)[i];
-    double delta = (variables.deltas)[i];
-    double sensitivity = (variables.sensitivities)[i];
-    double level = (variables.levels)[i];
-    double budget = (variables.budgets)[i];
-    double result = (variables.results)[i];
-    double true_lower_bound = result + (variables.true_bounds)[i];
-    double true_upper_bound = result - (variables.true_bounds)[i];
+  GaussianMechanism mechanism(epsilon, delta, sensitivity);
+  base::StatusOr<ConfidenceInterval> confidence_interval =
+    mechanism.NoiseConfidenceInterval(conf_level, budget, result);
 
-    GaussianMechanism mechanism(epsilon, delta, sensitivity);
-    base::StatusOr<ConfidenceInterval> confidence_interval =
-      mechanism.NoiseConfidenceInterval(level, budget, result);
-
-    EXPECT_TRUE(confidence_interval.ok());
-    EXPECT_NEAR(confidence_interval.ValueOrDie().lower_bound(),
-            true_lower_bound, 0.001);
-    EXPECT_NEAR(confidence_interval.ValueOrDie().upper_bound(),
-            true_upper_bound, 0.001);
-    EXPECT_EQ(confidence_interval.ValueOrDie().confidence_level(), level);
-  }
+  EXPECT_TRUE(confidence_interval.ok());
+  EXPECT_NEAR(confidence_interval.ValueOrDie().lower_bound(),
+          true_lower_bound, 0.001);
+  EXPECT_NEAR(confidence_interval.ValueOrDie().upper_bound(),
+          true_upper_bound, 0.001);
+  EXPECT_EQ(confidence_interval.ValueOrDie().confidence_level(), conf_level);
 }
 }  // namespace
 }  // namespace differential_privacy
