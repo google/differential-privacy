@@ -28,7 +28,7 @@ import (
 type CountParams struct {
 	// Noise type (which is either LaplaceNoise{} or GaussianNoise{}).
 	//
-	// Defaults to Gaussian{}.
+	// Defaults to LaplaceNoise{}.
 	NoiseKind NoiseKind
 	// Differential privacy budget consumed by this aggregation. If there is
 	// only one aggregation, both Epsilon and Delta can be left 0; in that

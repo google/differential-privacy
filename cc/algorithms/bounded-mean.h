@@ -81,11 +81,11 @@ class BoundedMean : public Algorithm<T> {
                                     BoundedBuilder::upper_.value()));
         ASSIGN_OR_RETURN(
             sum_mechanism,
-            AlgorithmBuilder::laplace_mechanism_builder_
+            AlgorithmBuilder::mechanism_builder_
                 ->SetEpsilon(AlgorithmBuilder::epsilon_.value())
-                .SetSensitivity(std::abs(BoundedBuilder::upper_.value() -
-                                         BoundedBuilder::lower_.value()) /
-                                2)
+                .SetL1Sensitivity(std::abs(BoundedBuilder::upper_.value() -
+                                           BoundedBuilder::lower_.value()) /
+                                  2)
                 .Build());
       }
 
@@ -93,13 +93,13 @@ class BoundedMean : public Algorithm<T> {
       // construct the mechanism we use for it here.
       std::unique_ptr<LaplaceMechanism> count_mechanism;
       ASSIGN_OR_RETURN(count_mechanism,
-                       AlgorithmBuilder::laplace_mechanism_builder_
+                       AlgorithmBuilder::mechanism_builder_
                            ->SetEpsilon(AlgorithmBuilder::epsilon_.value())
-                           .SetSensitivity(1)
+                           .SetL1Sensitivity(1)
                            .Build());
 
       // Construct BoundedMean.
-      auto mech_builder = AlgorithmBuilder::laplace_mechanism_builder_->Clone();
+      auto mech_builder = AlgorithmBuilder::mechanism_builder_->Clone();
       return absl::WrapUnique(new BoundedMean(
           AlgorithmBuilder::epsilon_.value(),
           BoundedBuilder::lower_.value_or(0),
@@ -292,7 +292,7 @@ class BoundedMean : public Algorithm<T> {
       ASSIGN_OR_RETURN(
           sum_mechanism_,
           mechanism_builder_->SetEpsilon(Algorithm<T>::GetEpsilon())
-              .SetSensitivity(std::abs(upper_ - lower_) / 2)
+              .SetL1Sensitivity(std::abs(upper_ - lower_) / 2)
               .Build());
     }
     return base::OkStatus();

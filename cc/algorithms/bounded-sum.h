@@ -67,16 +67,16 @@ class BoundedSum : public Algorithm<T> {
       if (BoundedBuilder::BoundsAreSet()) {
         RETURN_IF_ERROR(CheckLowerBound(BoundedBuilder::lower_.value()));
         ASSIGN_OR_RETURN(mechanism,
-                         AlgorithmBuilder::laplace_mechanism_builder_
+                         AlgorithmBuilder::mechanism_builder_
                              ->SetEpsilon(AlgorithmBuilder::epsilon_.value())
-                             .SetSensitivity(std::max(
+                             .SetL1Sensitivity(std::max(
                                  std::abs(BoundedBuilder::lower_.value()),
                                  std::abs(BoundedBuilder::upper_.value())))
                              .Build());
       }
 
       // Construct BoundedSum.
-      auto mech_builder = AlgorithmBuilder::laplace_mechanism_builder_->Clone();
+      auto mech_builder = AlgorithmBuilder::mechanism_builder_->Clone();
       return absl::WrapUnique(new BoundedSum(
           AlgorithmBuilder::epsilon_.value(),
           BoundedBuilder::lower_.value_or(0),
@@ -292,7 +292,7 @@ class BoundedSum : public Algorithm<T> {
       ASSIGN_OR_RETURN(
           mechanism_,
           laplace_mechanism_builder_->SetEpsilon(Algorithm<T>::GetEpsilon())
-              .SetSensitivity(std::max(std::abs(lower_), std::abs(upper_)))
+              .SetL1Sensitivity(std::max(std::abs(lower_), std::abs(upper_)))
               .Build());
     }
     return base::OkStatus();

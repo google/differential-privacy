@@ -222,8 +222,8 @@ class AlgorithmBuilder {
   }
 
   Builder& SetLaplaceMechanism(
-      std::unique_ptr<LaplaceMechanism::Builder> laplace_mechanism_builder) {
-    laplace_mechanism_builder_ = std::move(laplace_mechanism_builder);
+      std::unique_ptr<LaplaceMechanism::Builder> mechanism_builder) {
+    mechanism_builder_ = std::move(mechanism_builder);
     return *static_cast<Builder*>(this);
   }
 
@@ -236,12 +236,12 @@ class AlgorithmBuilder {
   absl::optional<int> linf_sensitivity_;
 
   // The mechanism builder is used to interject custom mechanisms for testing.
-  std::unique_ptr<LaplaceMechanism::Builder> laplace_mechanism_builder_ =
-      absl::make_unique<LaplaceMechanism::Builder>(LaplaceMechanism::Builder());
+  std::unique_ptr<LaplaceMechanism::Builder> mechanism_builder_ =
+      absl::make_unique<LaplaceMechanism::Builder>();
 
   base::StatusOr<std::unique_ptr<NumericalMechanism>>
   UpdateAndBuildMechanism() {
-    auto clone = laplace_mechanism_builder_->Clone();
+    auto clone = mechanism_builder_->Clone();
     if (epsilon_.has_value()) {
       clone->SetEpsilon(epsilon_.value());
     }

@@ -139,22 +139,7 @@ class NumericalMechanismBuilder {
 
   virtual base::StatusOr<std::unique_ptr<Mechanism>> Build() = 0;
 
-  virtual std::unique_ptr<Builder> Clone() const {
-    Builder clone;
-    if (epsilon_.has_value()) {
-      clone.SetEpsilon(epsilon_.value());
-    }
-    if (delta_.has_value()) {
-      clone.SetDelta(delta_.value());
-    }
-    if (l0_sensitivity_.has_value()) {
-      clone.SetL0Sensitivity(l0_sensitivity_.value());
-    }
-    if (linf_sensitivity_.has_value()) {
-      clone.SetLInfSensitivity(linf_sensitivity_.value());
-    }
-    return absl::make_unique<Builder>(clone);
-  }
+  virtual std::unique_ptr<Builder> Clone() const = 0;
 
  protected:
   absl::optional<double> epsilon_;
@@ -232,25 +217,22 @@ class LaplaceMechanism : public NumericalMechanism {
       // Check that generated noise is not likely to overflow.
       double diversity = l1_sensitivity_.value() / epsilon_.value();
       double overflow_probability =
-          (1 - internal::LaplaceDistribution::cdf(
+          (1 - internal::LegacyLaplaceDistribution::cdf(
                    diversity, std::numeric_limits<double>::max())) +
-          internal::LaplaceDistribution::cdf(
+          internal::LegacyLaplaceDistribution::cdf(
               diversity, std::numeric_limits<double>::lowest());
       if (overflow_probability >= kMaxOverflowProbability) {
         return base::InvalidArgumentError("Sensitivity is too high.");
       }
-
+      base::StatusOr<double> gran_or_status = internal::CalculateGranularity(
+          epsilon_.value(), l1_sensitivity_.value());
+      if (!gran_or_status.ok()) return gran_or_status.status();
       return absl::make_unique<LaplaceMechanism>(epsilon_.value(),
                                                 l1_sensitivity_.value());
     }
 
     std::unique_ptr<Builder> Clone() const override {
-      std::unique_ptr<Builder> clone =
-          NumericalMechanismBuilder<LaplaceMechanism>::Clone();
-      if (l1_sensitivity_.has_value()) {
-        clone->l1_sensitivity_ = l1_sensitivity_.value();
-      }
-      return clone;
+      return absl::make_unique<Builder>(*this);
     }
 
    protected:
@@ -282,18 +264,12 @@ class LaplaceMechanism : public NumericalMechanism {
   // budget of 0.5 (or 0.4 and 0.6, etc).
   double AddNoise(double result, double privacy_budget) override {
     privacy_budget = CheckAndClampBudget(privacy_budget);
-    // Implements the snapping mechanism defined by
-    // Mironov (2012, "On Significance of the Least Significant Bits For
-    // Differential Privacy").
-    double noise = distro_->Sample(1.0 / privacy_budget);
-    double noised_result =
-        Clamp<double>(LowerBound<double>(), UpperBound<double>(), result) +
-        noise;
-    double nearest_power = GetNextPowerOfTwo(diversity_ / privacy_budget);
-    double rounded_result =
-        RoundToNearestMultiple(noised_result, nearest_power);
-    return Clamp<double>(LowerBound<double>(), UpperBound<double>(),
-                         rounded_result);
+    double sample = distro_->Sample(1.0 / privacy_budget);
+    double adjustment = 0;
+    if (distro_->GetGranularity() != 0) {
+      adjustment = -std::remainder(result, distro_->GetGranularity());
+    }
+    return result + adjustment + sample;
   }
 
   virtual double GetUniformDouble() { return distro_->GetUniformDouble(); }
@@ -371,13 +347,7 @@ class GaussianMechanism : public NumericalMechanism {
     }
 
     std::unique_ptr<Builder> Clone() const override {
-      std::unique_ptr<Builder> clone =
-          NumericalMechanismBuilder<GaussianMechanism>::Clone();
-      clone->l2_sensitivity_.reset();
-      if (l2_sensitivity_.has_value()) {
-        clone->l2_sensitivity_ = l2_sensitivity_.value();
-      }
-      return clone;
+      return absl::make_unique<Builder>(*this);
     }
 
    protected:

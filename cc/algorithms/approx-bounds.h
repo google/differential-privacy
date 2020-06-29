@@ -274,7 +274,16 @@ class ApproxBounds : public Algorithm<T> {
 
     // Calculate the most significant bit and clamp to a valid bin index.
     int msb = std::ceil((std::log(abs) - std::log(scale_)) / std::log(base_));
-    return std::max(0, std::min(msb, static_cast<int>(pos_bins_.size() - 1)));
+    int bin_index =
+        std::max(0, std::min(msb, static_cast<int>(pos_bins_.size() - 1)));
+
+    // Floating-point precision errors mean that for some bin boundaries, we'll
+    // end up calculating the larger-magnitude bin rather than the smaller.
+    if ((value > 0 && value <= PosLeftBinBoundary(bin_index)) ||
+        (value < 0 && value >= NegLeftBinBoundary(bin_index))) {
+      return std::max(0, bin_index - 1);
+    }
+    return bin_index;
   }
 
   // Splits the value into the elements of the partials vector, each of which

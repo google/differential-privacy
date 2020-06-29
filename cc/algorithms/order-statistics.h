@@ -51,9 +51,9 @@ class OrderStatisticsBuilder
           "Upper bound cannot be less than lower bound.");
     }
     ASSIGN_OR_RETURN(mechanism_,
-                     AlgorithmBuilder::laplace_mechanism_builder_
+                     AlgorithmBuilder::mechanism_builder_
                          ->SetEpsilon(AlgorithmBuilder::epsilon_.value())
-                         .SetSensitivity(1)
+                         .SetL1Sensitivity(1)
                          .Build());
     quantiles_ = absl::make_unique<base::Percentile<T>>();
     return base::OkStatus();
