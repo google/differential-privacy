@@ -75,11 +75,11 @@ class NumericalMechanism {
   virtual int64_t MemoryUsed() = 0;
 
   virtual base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
-      double confidence_level, double privacy_budget,
-      double noised_result) {
+      double confidence_level, double privacy_budget, double noised_result) {
     return base::UnimplementedError(
         "NoiseConfidenceInterval() unsupported for this numerical mechanism.");
   }
+
   virtual base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
       double confidence_level, double privacy_budget) {
     return base::UnimplementedError(
@@ -411,7 +411,6 @@ class GaussianMechanism : public NumericalMechanism {
     return NoiseConfidenceInterval(confidence_level, privacy_budget, 0);
   }
 
-
   base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
       double confidence_level, double privacy_budget,
       double noised_result) override {
@@ -428,14 +427,14 @@ class GaussianMechanism : public NumericalMechanism {
     ConfidenceInterval confidence;
     // calculated using the symmetric properties of the Gaussian distribution
     // and the cumulative distribution function for the distribution
-    float bound = InverseErrorFunction(-1*confidence_level)*stddev*std::sqrt(2);
-    confidence.set_lower_bound(noised_result+bound);
-    confidence.set_upper_bound(noised_result-bound);
+    float bound =
+        InverseErrorFunction(-1 * confidence_level) * stddev * std::sqrt(2);
+    confidence.set_lower_bound(noised_result + bound);
+    confidence.set_upper_bound(noised_result - bound);
     confidence.set_confidence_level(confidence_level);
 
     return confidence;
   }
-
 
   double GetDelta() { return delta_; }
 
