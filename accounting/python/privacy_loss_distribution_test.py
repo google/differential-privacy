@@ -446,28 +446,37 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
         value_discretization_interval=1)
     self.assertAlmostEqual(expected_x, pld.inverse_privacy_loss(privacy_loss))
 
-  @parameterized.parameters((1, 1, -1, 1, {
+  @parameterized.parameters((1, 1, -1, 1, True, {
       math.inf: 0.15865525,
       -0.5: 0.15865525
-  }), (3, 3, -3, 3, {
+  }), (3, 3, -3, 3, True, {
       math.inf: 0.15865525,
       -0.5: 0.15865525
-  }), (1, 2, -1, 1, {
+  }), (1, 2, -1, 1, True, {
       math.inf: 0.15865525,
       0: 0.15865525
-  }), (4, 8, -4, 4, {
+  }), (4, 8, -4, 4, True, {
       math.inf: 0.15865525,
       0: 0.15865525
+  }), (1, 1, -1, 1, False, {
+      1.5: 0.15865525,
+  }), (3, 3, -3, 3, False, {
+      1.5: 0.15865525,
+  }), (1, 2, -1, 1, False, {
+      4.0: 0.15865525,
+  }), (4, 8, -4, 4, False, {
+      4.0: 0.15865525,
   }))
   def test_gaussian_privacy_loss_tail(self, standard_deviation, sensitivity,
                                       expected_lower_x_truncation,
                                       expected_upper_x_truncation,
+                                      pessimistic_estimate,
                                       expected_tail_probability_mass_function):
     pld = privacy_loss_distribution.GaussianPrivacyLossDistribution(
         standard_deviation,
         sensitivity=sensitivity,
         value_discretization_interval=1,
-        pessimistic_estimate=True,
+        pessimistic_estimate=pessimistic_estimate,
         log_mass_truncation_bound=math.log(2) + stats.norm.logcdf(-1))
     tail_pld = pld.privacy_loss_tail()
     self.assertAlmostEqual(expected_lower_x_truncation,
@@ -538,14 +547,15 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
         pld.rounded_probability_mass_function)
 
   @parameterized.parameters((1, {
-      1: 0.14988228,
+      1: 0.30853754,
       0: 0.38292492,
       -1: 0.14988228
   }), (2, {
       0: 0.14988228,
       1: 0.19146246,
       2: 0.19146246,
-      3: 0.14988228
+      3: 0.14988228,
+      4: 0.15865525,
   }))
   def test_gaussian_optimistic(self, sensitivity,
                                expected_rounded_probability_mass_function):

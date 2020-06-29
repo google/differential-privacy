@@ -39,7 +39,8 @@ const (
 	sum   = "sum"
 )
 
-func drawPlot(hourToValue map[int]float64, dp bool, example, output string) error {
+func drawPlot(hourToValue, dpHourToValue map[int]float64, example, nonDPOutput, dpOutput string) error {
+	// Sort dp and non-dp points.
 	keys := make([]int, 0)
 	for k := range hourToValue {
 		keys = append(keys, k)
@@ -48,6 +49,16 @@ func drawPlot(hourToValue map[int]float64, dp bool, example, output string) erro
 	points := make([]float64, 0)
 	for _, k := range keys {
 		points = append(points, hourToValue[k])
+	}
+
+	dpKeys := make([]int, 0)
+	for k := range dpHourToValue {
+		dpKeys = append(dpKeys, k)
+	}
+	sort.Ints(dpKeys)
+	dpPoints := make([]float64, 0)
+	for _, k := range dpKeys {
+		dpPoints = append(dpPoints, dpHourToValue[k])
 	}
 
 	p, err := plot.New()
@@ -59,42 +70,51 @@ func drawPlot(hourToValue map[int]float64, dp bool, example, output string) erro
 	switch example {
 	case count:
 		p.Y.Label.Text = "Visits"
-		if dp {
-			p.Title.Text = "Private Visits Per Hour"
-		} else {
-			p.Title.Text = "Non-Private Visits Per Hour"
-		}
+		p.Title.Text = "Visits Per Hour"
 	case mean:
 		p.Y.Label.Text = "Time Spent"
-		if dp {
-			p.Title.Text = "Private Mean Time Spent"
-		} else {
-			p.Title.Text = "Non-Private Mean Time Spent"
-		}
+		p.Title.Text = "Mean Time Spent"
 	case sum:
 		p.Y.Label.Text = "Revenue"
-		if dp {
-			p.Title.Text = "Private Revenue Per Hour"
-		} else {
-			p.Title.Text = "Non-Private Revenue Per Hour"
-		}
+		p.Title.Text = "Revenue Per Hour"
 	default:
 		return fmt.Errorf("unknown example %q specified, please use one of 'count', 'sum', 'mean'", example)
 	}
 
 	w := vg.Points(20)
 
+	// Non-DP Plot
 	bars, err := plotter.NewBarChart(plotter.Values(points), w)
 	if err != nil {
 		return fmt.Errorf("could not create bars from points %v: %v", plotter.Values(points), err)
 	}
 	bars.LineStyle.Width = vg.Length(0)
-	bars.Color = plotutil.Color(0)
+	bars.Color = plotutil.Color(2)
 
 	p.Add(bars)
 	p.NominalX("0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23")
 
-	if err := p.Save(10*vg.Inch, 5*vg.Inch, output); err != nil {
+	// Save non-dp plot.
+	if err := p.Save(10*vg.Inch, 5*vg.Inch, nonDPOutput); err != nil {
+		return fmt.Errorf("Could not save plot: %v", err)
+	}
+
+	// DP Plot
+	dpBars, err := plotter.NewBarChart(plotter.Values(dpPoints), w)
+	if err != nil {
+		return fmt.Errorf("could not create bars from points %v: %v", plotter.Values(dpPoints), err)
+	}
+	dpBars.LineStyle.Width = vg.Length(0)
+	dpBars.Color = plotutil.Color(3)
+	dpBars.Offset = w
+
+	p.Add(dpBars)
+	p.Legend.Add("Raw", bars)
+	p.Legend.Add("Private", dpBars)
+	p.Legend.Top = true
+
+	// Save dp plot.
+	if err := p.Save(15*vg.Inch, 5*vg.Inch, dpOutput); err != nil {
 		return fmt.Errorf("Could not save plot: %v", err)
 	}
 	return nil
@@ -107,6 +127,13 @@ func readInput(s beam.Scope, input string) beam.PCollection {
 	s = s.Scope("readInput")
 	lines := textio.Read(s, input)
 	return beam.ParDo(s, codelab.CreateVisitsFn, lines)
+}
+
+func writeOutput(s beam.Scope, output beam.PCollection, outputTextName string) {
+	s = s.Scope("writeOutput")
+	output = beam.ParDo(s, convertToPairFn, output)
+	formattedOutput := beam.Combine(s, &normalizeOutputCombineFn{}, output)
+	textio.Write(s, outputTextName, formattedOutput)
 }
 
 // readOutput reads from a .txt file where each line has an hour (int) associated with

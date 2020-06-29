@@ -37,7 +37,8 @@
 // To understand the main API contract provided by PrivatePCollection, consider
 // the following example pipeline.
 //
-//  s := beam.Scope()
+//  p := beam.NewPipeline()
+//  s := p.Root()
 //  // The input is a series of files in which each line contains the data of a user.
 //  input := textio.Read(s, "/path/to/files/*.txt") // input is a PCollection<string>
 //  // Extracts the user ID and the data associated with each line: extractID is a func(string) (userID,data).

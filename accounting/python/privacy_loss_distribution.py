@@ -916,14 +916,21 @@ class GaussianPrivacyLossDistribution(AdditiveNoisePrivacyLossDistribution):
 
     We set lower_x_truncation so that CDF(lower_x_truncation) =
     0.5 * exp(log_mass_truncation_bound), and then set upper_x_truncation to be
-    -lower_x_truncation. If pessimistic_estimate is False,
-    tail_probability_mass_function is set to empty. On the other hand, if
-    pessimistic_estimate is True, the privacy losses for x < lower_x_truncation
-    and x > upper_x_truncation are rounded up and added to
-    tail_probability_mass_function. In the case x < lower_x_truncation,
+    -lower_x_truncation.
+
+    If pessimistic_estimate is True, the privacy losses for
+    x < lower_x_truncation and x > upper_x_truncation are rounded up and added
+    to tail_probability_mass_function. In the case x < lower_x_truncation,
     the privacy loss is rounded up to infinity. In the case
     x > upper_x_truncation, it is rounded up to the privacy loss at
     upper_x_truncation.
+
+    On the other hand, if pessimistic_estimate is False, the privacy losses for
+    x < lower_x_truncation and x > upper_x_truncation are rounded down and added
+    to tail_probability_mass_function. In the case x < lower_x_truncation, the
+    privacy loss is rounded down to the privacy loss at lower_x_truncation.
+    In the case x > upper_x_truncation, it is rounded down to -infinity and
+    hence not included in tail_probability_mass_function,
 
     Returns:
       A TailPrivacyLossDistribution instance representing the tail of the
@@ -940,7 +947,10 @@ class GaussianPrivacyLossDistribution(AdditiveNoisePrivacyLossDistribution):
               0.5 * math.exp(self._log_mass_truncation_bound)
       }
     else:
-      tail_probability_mass_function = {}
+      tail_probability_mass_function = {
+          self.privacy_loss(lower_x_truncation):
+              0.5 * math.exp(self._log_mass_truncation_bound),
+      }
     return TailPrivacyLossDistribution(lower_x_truncation, upper_x_truncation,
                                        tail_probability_mass_function)
 

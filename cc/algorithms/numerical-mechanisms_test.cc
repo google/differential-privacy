@@ -46,7 +46,7 @@ TYPED_TEST_SUITE(NumericalMechanismsTest, NumericTypes);
 TYPED_TEST(NumericalMechanismsTest, LaplaceBuilder) {
   LaplaceMechanism::Builder test_builder;
   std::unique_ptr<LaplaceMechanism> test_mechanism =
-      test_builder.SetEpsilon(1).SetSensitivity(3).Build().ValueOrDie();
+      test_builder.SetEpsilon(1).SetL1Sensitivity(3).Build().ValueOrDie();
 
   EXPECT_DOUBLE_EQ(test_mechanism->GetEpsilon(), 1);
   EXPECT_DOUBLE_EQ(test_mechanism->GetSensitivity(), 3);
@@ -112,7 +112,7 @@ TYPED_TEST(NumericalMechanismsTest, LaplaceBuilderSensitivityTooHigh) {
   LaplaceMechanism::Builder test_builder;
   base::StatusOr<std::unique_ptr<LaplaceMechanism>> test_mechanism =
       test_builder.SetEpsilon(1)
-          .SetSensitivity(std::numeric_limits<double>::max())
+          .SetL1Sensitivity(std::numeric_limits<double>::max())
           .Build();
   EXPECT_FALSE(test_mechanism.ok());
 }
@@ -154,17 +154,6 @@ TEST(NumericalMechanismsTest, LaplaceBudgetCorrect) {
   mechanism.AddNoise(0.0, 0.25);
 }
 
-TEST(NumericalMechanismsTest, LaplaceSnaps) {
-  auto distro = absl::make_unique<MockLaplaceDistribution>();
-  EXPECT_CALL(*distro, Sample(_))
-      .WillOnce(Return(10.0))
-      .WillOnce(Return(10.001));
-  LaplaceMechanism mechanism(1.0, 1.0, std::move(distro));
-
-  EXPECT_THAT(mechanism.AddNoise(0.0),
-              DoubleNear(mechanism.AddNoise(0.0), 0.0001));
-}
-
 TEST(NumericalMechanismsTest, LaplaceWorksForIntegers) {
   auto distro = absl::make_unique<MockLaplaceDistribution>();
   ON_CALL(*distro, Sample(_)).WillByDefault(Return(10.0));
@@ -192,7 +181,7 @@ TEST(NumericalMechanismsTest, LaplaceConfidenceInterval) {
 TYPED_TEST(NumericalMechanismsTest, LaplaceBuilderClone) {
   LaplaceMechanism::Builder test_builder;
   std::unique_ptr<LaplaceMechanism::Builder> clone =
-      test_builder.SetEpsilon(1).SetSensitivity(3).Clone();
+      test_builder.SetEpsilon(1).SetL1Sensitivity(3).Clone();
   std::unique_ptr<LaplaceMechanism> test_mechanism =
       clone->Build().ValueOrDie();
 
@@ -208,6 +197,28 @@ TEST(NumericalMechanismsTest, LaplaceEstimatesL1WithL0AndLInf) {
                                                     .Build()
                                                     .ValueOrDie();
   EXPECT_THAT(mechanism->GetSensitivity(), Ge(3));
+}
+
+TEST(NumericalMechanismsTest, AddNoise) {
+  auto distro = absl::make_unique<MockLaplaceDistribution>();
+  double granularity = distro->GetGranularity();
+  ON_CALL(*distro, Sample(_)).WillByDefault(Return(10));
+  LaplaceMechanism mechanism(1.0, 1.0, std::move(distro));
+
+  double remainder =
+      std::fmod(mechanism.AddNoise(0.1 * granularity, 1.0), granularity);
+  EXPECT_EQ(remainder, 0);
+  EXPECT_THAT(mechanism.AddNoise(0.1 * granularity, 1.0),
+              DoubleNear(10.0, 0.000001));
+}
+
+TEST(NumericalMechanismsTest, LambdaTooSmall) {
+  LaplaceMechanism::Builder test_builder;
+  base::StatusOr<std::unique_ptr<LaplaceMechanism>> test_mechanism_or =
+      test_builder.SetEpsilon(1.0 / std::pow(10, 100))
+          .SetL1Sensitivity(3)
+          .Build();
+  EXPECT_FALSE(test_mechanism_or.ok());
 }
 
 TEST(NumericalMechanismsTest, GaussianBuilderFailsDeltaNotSet) {

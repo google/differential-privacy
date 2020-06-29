@@ -22,6 +22,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"path"
 	"reflect"
 	"strings"
 
@@ -33,7 +34,6 @@ import (
 	// The following import is required for accessing local files.
 	_ "github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/local"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/direct"
 )
 
@@ -47,18 +47,14 @@ var (
 	// Set this option to choose which example to run.
 	example = flag.String("example", "", "Privacy on Beam example to run, enter 'count', 'sum', 'mean'.")
 
-	// Set this option to true if you want to run the aggregation in a differentially private way.
-	// TODO: Show both graphs when dp is true.
-	differentiallyPrivate = flag.Bool("differentially_private", false, "Whether the example pipeline is run in a differentially private way, false by default.")
-
 	// By default, this reads from day_data.csv.
 	inputName = flag.String("input_name", "codelab/day_data.csv", "File to read.")
 
 	// By default, this writes to 'example_name.txt'.
-	outputTextName = flag.String("output_text_name", "", "Output file. Set to '/tmp/example_name.txt' by default.")
+	outputTextName = flag.String("output_text_name", "", "Output file. Set to '/tmp/{{example_name}}.txt' by default.")
 
 	// By default, this writes to 'example_name.png'.
-	outputImgName = flag.String("output_img_name", "", "Output file. Set to '/tmp/example_name.png' by default.")
+	outputImgName = flag.String("output_img_name", "", "Output file. Set to '/tmp/{{example_name}}.png' by default.")
 )
 
 func main() {
@@ -86,6 +82,10 @@ func main() {
 		*outputImgName = "/tmp/" + *example + ".png"
 	}
 
+	// DP output file names.
+	outputTextNameDP := strings.ReplaceAll(*outputTextName, path.Ext(*outputTextName), "_dp"+path.Ext(*outputTextName))
+	outputImgNameDP := strings.ReplaceAll(*outputImgName, path.Ext(*outputImgName), "_dp"+path.Ext(*outputImgName))
+
 	// Create a pipeline.
 	p := beam.NewPipeline()
 	s := p.Root()
@@ -94,13 +94,13 @@ func main() {
 	visits := readInput(s, *inputName)
 
 	// Run the example pipeline.
-	output := runExample(s, visits, *example, *differentiallyPrivate)
+	rawOutput := runRawExample(s, visits, *example)
+	dpOutput := runDPExample(s, visits, *example)
 
-	// Write the output to file.
-	log.Info("Writing output")
-	output = beam.ParDo(s, convertToPairFn, output)
-	formattedOutput := beam.Combine(s, &normalizeOutputCombineFn{}, output)
-	textio.Write(s, *outputTextName, formattedOutput)
+	// Write the text output to file.
+	log.Info("Writing text output.")
+	writeOutput(s, rawOutput, *outputTextName)
+	writeOutput(s, dpOutput, outputTextNameDP)
 
 	// Execute pipeline.
 	err := direct.Execute(context.Background(), p)
@@ -108,36 +108,45 @@ func main() {
 		log.Exitf("Execution of pipeline failed: %v", err)
 	}
 
-	// Read the output from file.
+	// Read the text output from file.
 	hourToValue, err := readOutput(*outputTextName)
 	if err != nil {
-		log.Exitf("Reading output file failed: %v", err)
+		log.Exitf("Reading output text file (%s) to plot bar charts failed: %v", *outputTextName, err)
+	}
+	dpHourToValue, err := readOutput(outputTextNameDP)
+	if err != nil {
+		log.Exitf("Reading output text file (%s) to plot bar charts failed: %v", outputTextNameDP, err)
 	}
 
-	// Draw the bar chart.
-	if err = drawPlot(hourToValue, *differentiallyPrivate, *example, *outputImgName); err != nil {
+	// Draw the bar charts.
+	if err = drawPlot(hourToValue, dpHourToValue, *example, *outputImgName, outputImgNameDP); err != nil {
 		log.Exitf("Drawing bar chart failed: %v", err)
 	}
 
 }
 
-func runExample(s beam.Scope, col beam.PCollection, example string, dp bool) beam.PCollection {
+func runRawExample(s beam.Scope, col beam.PCollection, example string) beam.PCollection {
 	switch example {
 	case count:
-		if dp {
-			return codelab.PrivateCountVisitsPerHour(s, col)
-		}
 		return codelab.CountVisitsPerHour(s, col)
 	case mean:
-		if dp {
-			return codelab.PrivateMeanTimeSpent(s, col)
-		}
 		return codelab.MeanTimeSpent(s, col)
 	case sum:
-		if dp {
-			return codelab.PrivateRevenuePerHour(s, col)
-		}
 		return codelab.RevenuePerHour(s, col)
+	default:
+		log.Exitf("Unknown example %q specified, please use one of 'count', 'sum', 'mean'", example)
+		return beam.PCollection{}
+	}
+}
+
+func runDPExample(s beam.Scope, col beam.PCollection, example string) beam.PCollection {
+	switch example {
+	case count:
+		return codelab.PrivateCountVisitsPerHour(s, col)
+	case mean:
+		return codelab.PrivateMeanTimeSpent(s, col)
+	case sum:
+		return codelab.PrivateRevenuePerHour(s, col)
 	default:
 		log.Exitf("Unknown example %q specified, please use one of 'count', 'sum', 'mean'", example)
 		return beam.PCollection{}

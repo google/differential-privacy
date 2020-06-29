@@ -51,10 +51,10 @@ func PrivateMeanTimeSpent(s beam.Scope, col beam.PCollection) beam.PCollection {
 
 	hourToTimeSpent := pbeam.ParDo(s, extractVisitHourAndTimeSpentFn, pCol)
 	meanTimeSpent := pbeam.MeanPerKey(s, hourToTimeSpent, pbeam.MeanParams{
-		MaxPartitionsContributed:     1,
-		MaxContributionsPerPartition: 1,
-		MinValue:                     0,
-		MaxValue:                     60,
+		MaxPartitionsContributed:     1,  // Visitors can visit the restaurant once (one hour) a day
+		MaxContributionsPerPartition: 1,  // Visitors can visit the restaurant once within an hour
+		MinValue:                     0,  // Minimum time spent per user (in mins)
+		MaxValue:                     60, // Maximum time spent per user (in mins)
 	})
 	return meanTimeSpent
 }
