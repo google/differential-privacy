@@ -111,19 +111,17 @@ TEST(InverseErrorTest, ProperResults) {
   double max = 1;
   double min = -1;
   for (int i = 0; i < 1000; i++) {
-    double n = (max-min)*((double) rand()/RAND_MAX) + min;
+    double n = (max - min) * ((double)rand() / RAND_MAX) + min;
     EXPECT_NEAR(std::erf(InverseErrorFunction(n)), n, 0.001);
   }
 }
 
 TEST(InverseErrorTest, EdgeCases) {
   EXPECT_EQ(InverseErrorFunction(-1),
-    -1*std::numeric_limits<double>::infinity());
-  EXPECT_EQ(InverseErrorFunction(1),
-    std::numeric_limits<double>::infinity());
+            -1 * std::numeric_limits<double>::infinity());
+  EXPECT_EQ(InverseErrorFunction(1), std::numeric_limits<double>::infinity());
   EXPECT_EQ(InverseErrorFunction(0), 0);
 }
-
 
 TEST(RoundTest, PositiveNoTies) {
   EXPECT_NEAR(RoundToNearestMultiple(4.9, 2.0), 4.0, kTolerance);
