@@ -110,7 +110,8 @@ class BoundedSumWithError : public BoundedSum<T> {
                       std::unique_ptr<LaplaceMechanism::Builder> builder)
       : BoundedSum<T>(epsilon, lower, upper, builder->Clone(), nullptr,
                       nullptr),
-        mechanism_(builder->Build().ValueOrDie()) {}
+        mechanism_(absl::WrapUnique(dynamic_cast<LaplaceMechanism*>(
+            builder->Build().ValueOrDie().release()))) {}
 
   base::StatusOr<Output> GenerateResult(double privacy_budget,
                                         double noise_interval_level) override {

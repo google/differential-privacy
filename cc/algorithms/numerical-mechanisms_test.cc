@@ -45,11 +45,13 @@ TYPED_TEST_SUITE(NumericalMechanismsTest, NumericTypes);
 
 TYPED_TEST(NumericalMechanismsTest, LaplaceBuilder) {
   LaplaceMechanism::Builder test_builder;
-  std::unique_ptr<LaplaceMechanism> test_mechanism =
+  std::unique_ptr<NumericalMechanism> test_mechanism =
       test_builder.SetEpsilon(1).SetL1Sensitivity(3).Build().ValueOrDie();
 
   EXPECT_DOUBLE_EQ(test_mechanism->GetEpsilon(), 1);
-  EXPECT_DOUBLE_EQ(test_mechanism->GetSensitivity(), 3);
+  EXPECT_DOUBLE_EQ(
+      dynamic_cast<LaplaceMechanism*>(test_mechanism.get())->GetSensitivity(),
+      3);
 }
 
 TEST(NumericalMechanismsTest, LaplaceBuilderFailsEpsilonNotSet) {
@@ -110,7 +112,7 @@ TEST(NumericalMechanismsTest, LaplaceBuilderFailsEpsilonInfinity) {
 
 TYPED_TEST(NumericalMechanismsTest, LaplaceBuilderSensitivityTooHigh) {
   LaplaceMechanism::Builder test_builder;
-  base::StatusOr<std::unique_ptr<LaplaceMechanism>> test_mechanism =
+  base::StatusOr<std::unique_ptr<NumericalMechanism>> test_mechanism =
       test_builder.SetEpsilon(1)
           .SetL1Sensitivity(std::numeric_limits<double>::max())
           .Build();
@@ -193,11 +195,13 @@ TYPED_TEST(NumericalMechanismsTest, LaplaceBuilderClone) {
   LaplaceMechanism::Builder test_builder;
   std::unique_ptr<LaplaceMechanism::Builder> clone =
       test_builder.SetEpsilon(1).SetL1Sensitivity(3).Clone();
-  std::unique_ptr<LaplaceMechanism> test_mechanism =
+  std::unique_ptr<NumericalMechanism> test_mechanism =
       clone->Build().ValueOrDie();
 
   EXPECT_DOUBLE_EQ(test_mechanism->GetEpsilon(), 1);
-  EXPECT_DOUBLE_EQ(test_mechanism->GetSensitivity(), 3);
+  EXPECT_DOUBLE_EQ(
+      dynamic_cast<LaplaceMechanism*>(test_mechanism.get())->GetSensitivity(),
+      3);
 }
 
 class NoiseIntervalMultipleParametersTests
@@ -273,12 +277,14 @@ TEST_P(NoiseIntervalMultipleParametersTests, GaussNoiseConfidenceInterval) {
 
 TEST(NumericalMechanismsTest, LaplaceEstimatesL1WithL0AndLInf) {
   LaplaceMechanism::Builder builder;
-  std::unique_ptr<LaplaceMechanism> mechanism = builder.SetEpsilon(1)
-                                                    .SetL0Sensitivity(5)
-                                                    .SetLInfSensitivity(3)
-                                                    .Build()
-                                                    .ValueOrDie();
-  EXPECT_THAT(mechanism->GetSensitivity(), Ge(3));
+  std::unique_ptr<NumericalMechanism> mechanism = builder.SetEpsilon(1)
+                                                      .SetL0Sensitivity(5)
+                                                      .SetLInfSensitivity(3)
+                                                      .Build()
+                                                      .ValueOrDie();
+  EXPECT_THAT(
+      dynamic_cast<LaplaceMechanism*>(mechanism.get())->GetSensitivity(),
+      Ge(3));
 }
 
 TEST(NumericalMechanismsTest, AddNoise) {
@@ -296,7 +302,7 @@ TEST(NumericalMechanismsTest, AddNoise) {
 
 TEST(NumericalMechanismsTest, LambdaTooSmall) {
   LaplaceMechanism::Builder test_builder;
-  base::StatusOr<std::unique_ptr<LaplaceMechanism>> test_mechanism_or =
+  base::StatusOr<std::unique_ptr<NumericalMechanism>> test_mechanism_or =
       test_builder.SetEpsilon(1.0 / std::pow(10, 100))
           .SetL1Sensitivity(3)
           .Build();
@@ -368,8 +374,11 @@ TEST(NumericalMechanismsTest, GaussianBuilderClone) {
   auto mechanism = clone->Build().ValueOrDie();
 
   EXPECT_DOUBLE_EQ(mechanism->GetEpsilon(), 1.1);
-  EXPECT_DOUBLE_EQ(mechanism->GetDelta(), 0.5);
-  EXPECT_DOUBLE_EQ(mechanism->GetL2Sensitivity(), 1.2);
+  EXPECT_DOUBLE_EQ(
+      dynamic_cast<GaussianMechanism*>(mechanism.get())->GetDelta(), 0.5);
+  EXPECT_DOUBLE_EQ(
+      dynamic_cast<GaussianMechanism*>(mechanism.get())->GetL2Sensitivity(),
+      1.2);
 }
 }  // namespace
 }  // namespace differential_privacy
