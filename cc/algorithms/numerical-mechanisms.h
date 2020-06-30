@@ -75,6 +75,12 @@ class NumericalMechanism {
   virtual int64_t MemoryUsed() = 0;
 
   virtual base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
+      double confidence_level, double privacy_budget,
+      double noised_result) {
+    return base::UnimplementedError(
+        "NoiseConfidenceInterval() unsupported for this numerical mechanism.");
+  }
+  virtual base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
       double confidence_level, double privacy_budget) {
     return base::UnimplementedError(
         "NoiseConfidenceInterval() unsupported for this numerical mechanism.");
@@ -280,6 +286,12 @@ class LaplaceMechanism : public NumericalMechanism {
   // chance of being in the domain [x,y].
   base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
       double confidence_level, double privacy_budget) override {
+    return NoiseConfidenceInterval(confidence_level, privacy_budget, 0);
+  }
+
+  base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
+      double confidence_level, double privacy_budget,
+      double noised_result) override {
     base::Status status = CheckConfidenceLevel(confidence_level);
     status.Update(CheckPrivacyBudget(privacy_budget));
     if (!status.ok()) {
@@ -289,8 +301,8 @@ class LaplaceMechanism : public NumericalMechanism {
     double bound = diversity_ * log(1 - confidence_level) / privacy_budget;
 
     ConfidenceInterval confidence;
-    confidence.set_lower_bound(bound);
-    confidence.set_upper_bound(-bound);
+    confidence.set_lower_bound(noised_result + bound);
+    confidence.set_upper_bound(noised_result - bound);
     confidence.set_confidence_level(confidence_level);
     return confidence;
   }
@@ -388,6 +400,42 @@ class GaussianMechanism : public NumericalMechanism {
     }
     return memory;
   }
+
+  // Returns the confidence interval of the specified confidence level of the
+  // noise that AddNoise() would add with the specified privacy budget.
+  // If the returned value is <x,y>, then the noise added has a confidence_level
+  // chance of being in the domain [x,y].
+
+  base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
+      double confidence_level, double privacy_budget) override {
+    return NoiseConfidenceInterval(confidence_level, privacy_budget, 0);
+  }
+
+
+  base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
+      double confidence_level, double privacy_budget,
+      double noised_result) override {
+    base::Status status = CheckConfidenceLevel(confidence_level);
+    status.Update(CheckPrivacyBudget(privacy_budget));
+    if (!status.ok()) {
+      return status;
+    }
+
+    double local_epsilon = privacy_budget * epsilon_;
+    double local_delta = privacy_budget * delta_;
+    double stddev = CalculateStddev(local_epsilon, local_delta);
+
+    ConfidenceInterval confidence;
+    // calculated using the symmetric properties of the Gaussian distribution
+    // and the cumulative distribution function for the distribution
+    float bound = InverseErrorFunction(-1*confidence_level)*stddev*std::sqrt(2);
+    confidence.set_lower_bound(noised_result+bound);
+    confidence.set_upper_bound(noised_result-bound);
+    confidence.set_confidence_level(confidence_level);
+
+    return confidence;
+  }
+
 
   double GetDelta() { return delta_; }
 
