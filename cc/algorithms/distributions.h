@@ -103,7 +103,8 @@ class GeometricDistribution {
   double lambda_;
 };
 
-// Calculates 'r' from the insignificant-bits paper
+// Calculates 'r' from the secure noise paper (see
+// ../../common_docs/Secure_Noise_Generation.pdf)
 base::StatusOr<double> CalculateGranularity(double epsilon, double sensitivity);
 
 // Allows sampling from a secure laplace distribution, which uses a geometric

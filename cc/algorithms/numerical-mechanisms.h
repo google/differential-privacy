@@ -143,7 +143,7 @@ class NumericalMechanismBuilder {
     return *static_cast<Builder*>(this);
   }
 
-  virtual base::StatusOr<std::unique_ptr<Mechanism>> Build() = 0;
+  virtual base::StatusOr<std::unique_ptr<NumericalMechanism>> Build() = 0;
 
   virtual std::unique_ptr<Builder> Clone() const = 0;
 
@@ -205,7 +205,7 @@ class LaplaceMechanism : public NumericalMechanism {
       return *this;
     }
 
-    base::StatusOr<std::unique_ptr<LaplaceMechanism>> Build() override {
+    base::StatusOr<std::unique_ptr<NumericalMechanism>> Build() override {
       base::Status epsilon_status = EpsilonIsSetAndValid();
       if (!epsilon_status.ok()) {
         return epsilon_status;
@@ -233,8 +233,11 @@ class LaplaceMechanism : public NumericalMechanism {
       base::StatusOr<double> gran_or_status = internal::CalculateGranularity(
           epsilon_.value(), l1_sensitivity_.value());
       if (!gran_or_status.ok()) return gran_or_status.status();
-      return absl::make_unique<LaplaceMechanism>(epsilon_.value(),
-                                                l1_sensitivity_.value());
+
+      std::unique_ptr<NumericalMechanism> result =
+          absl::make_unique<LaplaceMechanism>(epsilon_.value(),
+                                             l1_sensitivity_.value());
+      return result;
     }
 
     std::unique_ptr<Builder> Clone() const override {
@@ -336,7 +339,7 @@ class GaussianMechanism : public NumericalMechanism {
       return *this;
     }
 
-    base::StatusOr<std::unique_ptr<GaussianMechanism>> Build() override {
+    base::StatusOr<std::unique_ptr<NumericalMechanism>> Build() override {
       base::Status status = EpsilonIsSetAndValid();
       status.Update(DeltaIsSetAndValid());
       if (!l2_sensitivity_.has_value()) {
@@ -354,8 +357,11 @@ class GaussianMechanism : public NumericalMechanism {
       if (!status.ok()) {
         return status;
       }
-      return absl::make_unique<GaussianMechanism>(
-          epsilon_.value(), delta_.value(), l2_sensitivity_.value());
+
+      std::unique_ptr<NumericalMechanism> result =
+          absl::make_unique<GaussianMechanism>(epsilon_.value(), delta_.value(),
+                                              l2_sensitivity_.value());
+      return result;
     }
 
     std::unique_ptr<Builder> Clone() const override {
