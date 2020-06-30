@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <time.h>
 
+#include "base/statusor.h"
 #include "algorithms/numerical-mechanisms.h"
 
 namespace differential_privacy{
@@ -45,8 +46,10 @@ class PartitionSelectionStrategy {
 
   double GetAdjustedDelta() { return adjusted_delta_; }
 
+  double GetMaxPartitions() { return max_partitions_; }
 
-  virtual bool shouldKeep(int num_users) = 0;
+
+  virtual StatusOr<bool> shouldKeep(int num_users) = 0;
 
  protected:
   double epsilon_;
@@ -77,13 +80,13 @@ class PreaggPartitionSelection : public PartitionSelectionStrategy {
 
   virtual ~PreaggPartitionSelection() = default;
 
-  double GetAdjustedEpsilon() { return adjusted_epsilon_; }
+  double getAdjustedEpsilon() { return adjusted_epsilon_; }
 
-  double GetFirstCrossover() { return crossover_1_; }
+  double getFirstCrossover() { return crossover_1_; }
 
   double GetSecondCrossover() { return crossover_2_; }
 
-  bool shouldKeep(int num_users) override {
+  StatusOr<bool> shouldKeep(int num_users) override {
     //generate a random number between 0 and 1
     srand(time(NULL));
     double rand_num = ((double) rand() / RAND_MAX);
@@ -97,11 +100,15 @@ class PreaggPartitionSelection : public PartitionSelectionStrategy {
   double crossover_2_;
 
   double probabilityOfKeep(double n) {
+    /*
     if(n == 0 || adjusted_delta_ == 0) {
       return 0;
     }
     else if (adjusted_epsilon_ == 0) {
       return fmin(1.0, n * adjusted_delta_);
+    }*/
+    if(n == 0) {
+      return 0;
     }
     else if (n <= crossover_1_) {
       return (((exp(n * adjusted_epsilon_) - 1) / (exp(adjusted_epsilon_) - 1))
@@ -133,7 +140,7 @@ class LaplacePartitionSelection : public PartitionSelectionStrategy {
 
   virtual ~LaplacePartitionSelection() = default;
 
-  bool shouldKeep(int num_users) override {
+  StatusOr<bool> shouldKeep(int num_users) override {
     double noised_result = 0; //TODO put right call here
     if(noised_result == threshold_) {
       //TODO implement 50/50?
@@ -143,11 +150,11 @@ class LaplacePartitionSelection : public PartitionSelectionStrategy {
     }
   }
 
-  double GetSensitivity() { return sensitivity_; }
+  double getSensitivity() { return sensitivity_; }
 
-  double GetDiversity() { return diversity_; }
+  double getDiversity() { return diversity_; }
 
-  double GetThreshold() { return threshold_; }
+  double getThreshold() { return threshold_; }
 
  protected:
   double sensitivity_;
@@ -167,15 +174,15 @@ class GaussianPartitionSelection : public PartitionSelectionStrategy {
 
   virtual ~GaussianPartitionSelection() = default;
 
-  bool shouldKeep(int num_users) override {
+  StatusOr<bool> shouldKeep(int num_users) override {
     return NULL;
   }
 
-  double GetL2Sensitivity() { return l2_sensitivity_; }
+  double getL2Sensitivity() { return l2_sensitivity_; }
 
-  double GetStandardDev() { return standard_dev_; }
+  double getStandardDev() { return standard_dev_; }
 
-  double GetThreshold() { return threshold_; }
+  double getThreshold() { return threshold_; }
 
  protected:
   double l2_sensitivity_;
