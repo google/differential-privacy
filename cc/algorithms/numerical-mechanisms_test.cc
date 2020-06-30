@@ -30,6 +30,7 @@ using testing::Eq;
 using testing::Ge;
 using testing::MatchesRegex;
 using testing::Return;
+using testing::Values;
 
 class MockLaplaceDistribution : public internal::LaplaceDistribution {
  public:
@@ -176,6 +177,17 @@ TEST(NumericalMechanismsTest, LaplaceConfidenceInterval) {
   EXPECT_EQ(confidence_interval.ValueOrDie().upper_bound(),
             -log(1 - level) / epsilon / budget);
   EXPECT_EQ(confidence_interval.ValueOrDie().confidence_level(), level);
+
+  double result = 19.3;
+  base::StatusOr<ConfidenceInterval> confidence_interval_with_result =
+      mechanism.NoiseConfidenceInterval(level, budget, result);
+  EXPECT_TRUE(confidence_interval.ok());
+  EXPECT_EQ(confidence_interval_with_result.ValueOrDie().lower_bound(),
+            result + (log(1 - level) / epsilon / budget));
+  EXPECT_EQ(confidence_interval_with_result.ValueOrDie().upper_bound(),
+            result - (log(1 - level) / epsilon / budget));
+  EXPECT_EQ(confidence_interval_with_result.ValueOrDie().confidence_level(),
+   level);
 }
 
 TYPED_TEST(NumericalMechanismsTest, LaplaceBuilderClone) {
@@ -288,6 +300,73 @@ TEST(NumericalMechanismsTest, GaussianBuilderClone) {
   EXPECT_DOUBLE_EQ(mechanism->GetEpsilon(), 1.1);
   EXPECT_DOUBLE_EQ(mechanism->GetDelta(), 0.5);
   EXPECT_DOUBLE_EQ(mechanism->GetL2Sensitivity(), 1.2);
+}
+
+
+class NoiseIntervalMultipleParametersTests
+:public ::testing::TestWithParam<struct conf_int_params> {
+};
+
+struct conf_int_params{
+  double epsilon;
+  double delta;
+  double sensitivity;
+  double level;
+  double budget;
+  double result;
+  double true_bound;
+};
+
+// True bounds calculated using standard deviations of
+// 3.4855, 3.60742, 0.367936, respectively.
+struct conf_int_params gauss_params1 =
+  {.epsilon = 1.2, .delta = 0.3,
+   .sensitivity = 1.0, .level  = .9,
+   .budget = .5, .result = 0,
+   .true_bound = -5.733};
+
+struct conf_int_params gauss_params2 =
+  {.epsilon = 1.0, .delta = 0.5,
+   .sensitivity = 1.0, .level  = .95,
+   .budget = .5, .result = 1.3,
+   .true_bound = -7.07};
+
+  struct conf_int_params gauss_params3 =
+  {.epsilon = 10.0, .delta = 0.5,
+   .sensitivity = 1.0, .level = .95,
+   .budget = .75, .result = 2.7,
+   .true_bound = -0.7211};
+
+INSTANTIATE_TEST_SUITE_P(TestSuite, NoiseIntervalMultipleParametersTests,
+                       testing::Values(gauss_params1,
+                        gauss_params2, gauss_params3));
+
+TEST_P(NoiseIntervalMultipleParametersTests, GaussNoiseConfidenceInterval) {
+  // Tests the NoiseConfidenceInterval method for Gaussian noise.
+  // Standard deviations are pre-calculated using CalculateStdDev
+  // in the Gaussian mechanism class. True bounds are also pre-calculated
+  // using a confidence interval calcualtor.
+
+  struct conf_int_params params = GetParam();
+  double epsilon = params.epsilon;
+  double delta = params.delta;
+  double sensitivity = params.sensitivity;
+  double budget = params.budget;
+  double conf_level = params.level;
+  double result = params.result;
+  double true_lower_bound = params.result + params.true_bound;
+  double true_upper_bound = params.result - params.true_bound;
+
+  GaussianMechanism mechanism(epsilon, delta, sensitivity);
+  base::StatusOr<ConfidenceInterval> confidence_interval =
+    mechanism.NoiseConfidenceInterval(conf_level, budget, result);
+
+  EXPECT_TRUE(confidence_interval.ok());
+  EXPECT_NEAR(confidence_interval.ValueOrDie().lower_bound(),
+          true_lower_bound, 0.001);
+  EXPECT_NEAR(confidence_interval.ValueOrDie().upper_bound(),
+          true_upper_bound, 0.001);
+  EXPECT_EQ(confidence_interval.ValueOrDie().confidence_level(), conf_level);
 }
 }  // namespace
 }  // namespace differential_privacy

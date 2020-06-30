@@ -53,6 +53,12 @@ double RoundToNearestMultiple(double n, double base);
 // Return 1.0 if n > 0, -1.0 if n < 0, and 0 if n == 0.
 double sign(double n);
 
+// Approximate the inverse of the error function.
+// Implementation based on Table 5 in Giles' paper
+// on approximating the inverse of the error function
+// (https://people.maths.ox.ac.uk/gilesm/files/gems_erfinv.pdf).
+double InverseErrorFunction(double x);
+
 // Estimation of the inverse cdf of the normal distribution centered at mu with
 // standard deviation sigma, at probability p. Based on Abramowitz and Stegun
 // formula 26.2.23. The error of the estimation is bounded by 4.5 e-4. This
