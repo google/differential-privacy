@@ -35,7 +35,7 @@ import javax.annotation.Nullable;
  *
  * <p>Ninghui Li, Min Lyu, Dong Su and Weining Yang also propose Algorithm 2.3 for computing private
  * means, which according to them yields better accuracy. However, the proof of the Algorithm 2.3 is
- * flawed and it is not actually DP. See (broken link) for more information.
+ * flawed and it is not actually DP.
  *
  * <p>BoundedMean Supports contributions from a single user to multiple partitions as well as
  * multiple contributions from a single user to a given partition.

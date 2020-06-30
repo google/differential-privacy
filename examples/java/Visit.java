@@ -17,14 +17,16 @@
 package com.google.privacy.differentialprivacy.example;
 
 import com.google.auto.value.AutoValue;
+import java.time.DayOfWeek;
 import java.time.LocalTime;
 
 /** Stores data about single visit of a user to the restaurant. */
 @AutoValue
 abstract class Visit {
 
-  static Visit create(String visitorId, LocalTime entryTime, int minutesSpent, int eurosSpent) {
-    return new AutoValue_Visit(visitorId, entryTime, minutesSpent, eurosSpent);
+  static Visit create(
+      String visitorId, LocalTime entryTime, int minutesSpent, int eurosSpent, DayOfWeek day) {
+    return new AutoValue_Visit(visitorId, entryTime, minutesSpent, eurosSpent, day);
   }
 
   abstract String visitorId();
@@ -34,4 +36,6 @@ abstract class Visit {
   abstract int minutesSpent();
 
   abstract int eurosSpent();
+
+  abstract DayOfWeek day();
 }

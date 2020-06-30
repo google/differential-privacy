@@ -384,6 +384,23 @@ TYPED_TEST(ApproxBoundsTest, ComputeSumFromPartials) {
             5);
 }
 
+TEST(ApproxBoundsText, ComputeSumFromPartialsAcrossOne) {
+  std::unique_ptr<ApproxBounds<double>> bounds =
+      typename ApproxBounds<double>::Builder().Build().ValueOrDie();
+  std::vector<double> pos_sum(bounds->NumPositiveBins(), 0);
+  std::vector<double> neg_sum(bounds->NumPositiveBins(), 0);
+  auto difference = [](double val1, double val2) { return val1 - val2; };
+  bounds->template AddToPartials<double>(&pos_sum, 6, difference);
+  bounds->template AddToPartials<double>(&neg_sum, -3, difference);
+
+  EXPECT_EQ(bounds->template ComputeFromPartials<double>(
+                pos_sum, neg_sum, [](double x) { return x; }, -4, -0.5, 2),
+            -3.5);
+  EXPECT_EQ(bounds->template ComputeFromPartials<double>(
+                pos_sum, neg_sum, [](double x) { return x; }, 0.5, 4, 2),
+            4.5);
+}
+
 TYPED_TEST(ApproxBoundsTest, GetBoundingReport_NoInputs) {
   std::unique_ptr<ApproxBounds<TypeParam>> bounds =
       typename ApproxBounds<TypeParam>::Builder()

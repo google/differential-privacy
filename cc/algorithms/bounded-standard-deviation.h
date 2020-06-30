@@ -66,7 +66,7 @@ class BoundedStandardDeviation : public Algorithm<T> {
 
       // Construct bounded variance.
       std::unique_ptr<BoundedVariance<T>> variance;
-      auto mech_builder = AlgorithmBuilder::laplace_mechanism_builder_->Clone();
+      auto mech_builder = AlgorithmBuilder::mechanism_builder_->Clone();
       ASSIGN_OR_RETURN(
           variance,
           variance_builder_.SetEpsilon(AlgorithmBuilder::epsilon_.value())

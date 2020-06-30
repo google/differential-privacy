@@ -82,7 +82,7 @@ class BoundedAlgorithmBuilder : public AlgorithmBuilder<T, Algorithm, Builder> {
     // If either bound is not set and we do not have an ApproxBounds,
     // construct the default one.
     if (!BoundsAreSet() && !approx_bounds_) {
-      auto mech_builder = AlgorithmBuilder::laplace_mechanism_builder_->Clone();
+      auto mech_builder = AlgorithmBuilder::mechanism_builder_->Clone();
       ASSIGN_OR_RETURN(approx_bounds_,
                        typename ApproxBounds<T>::Builder()
                            .SetEpsilon(AlgorithmBuilder::epsilon_.value())

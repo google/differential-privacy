@@ -21,8 +21,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Static utils that bound contributions on the input data.
@@ -32,36 +34,42 @@ public class ContributionBoundingUtils {
   private ContributionBoundingUtils() { }
 
   /**
-   * @return {@link VisitsForWeek} containing the restaurant visits limited to
-   * {@code maxVisitsPerWeek} per {@link Visit#visitorId}.
+   * @return {@link VisitsForWeek} containing the restaurant visits where the number of days
+   * contributed by a single visitor is limited to {@code maxContributedDays}.
+   *
+   * TODO: Generalize the logic to be used for different partition keys.
    */
-  static VisitsForWeek boundVisits(VisitsForWeek visits, int maxVisitsPerWeek) {
-    Map<String, Integer> visitorIdToVisitsCount = new HashMap<>();
+  static VisitsForWeek boundContributedDays(VisitsForWeek visits, int maxContributedDays) {
+    Map<String, Set<DayOfWeek>> boundedVisitorDays = new HashMap<>();
     List<Visit> allVisits = new ArrayList<>();
-    Map<Visit, DayOfWeek> visitToDay = new HashMap<>();
     VisitsForWeek boundedVisits = new VisitsForWeek();
 
     // Add all visits to a list in order to shuffle them.
     for (DayOfWeek d : DayOfWeek.values()) {
       Collection<Visit> visitsForDay = visits.getVisitsForDay(d);
       allVisits.addAll(visitsForDay);
-      visitsForDay.forEach(v -> visitToDay.put(v, d));
     }
     Collections.shuffle(allVisits);
 
-    // Go through the unordered collection of visits. Add up to MAX_VISITS_PER_WEEK per visitorId to
-    // the final result.
-    for (Visit v : allVisits) {
-          String visitorId = v.visitorId();
-          Integer visitsCount = visitorIdToVisitsCount.get(visitorId);
-          if (visitsCount == null) {
-            visitorIdToVisitsCount.put(visitorId, 1);
-            boundedVisits.addVisit(visitToDay.get(v), v);
-          } else if (visitsCount < maxVisitsPerWeek) {
-            visitorIdToVisitsCount.put(visitorId, visitsCount + 1);
-            boundedVisits.addVisit(visitToDay.get(v), v);
-          } // Otherwise, ignore the visit.
-    };
+    // For each visitorId, copy their visits for at most maxContributedDays days to the result.
+    for (Visit visit : allVisits) {
+      String visitorId = visit.visitorId();
+      DayOfWeek visitDay = visit.day();
+      if (boundedVisitorDays.containsKey(visitorId)) {
+        Set<DayOfWeek> visitorDays = boundedVisitorDays.get(visitorId);
+        if (visitorDays.contains(visitDay)) {
+          boundedVisits.addVisit(visit);
+        } else if (visitorDays.size() < maxContributedDays) {
+          visitorDays.add(visitDay);
+          boundedVisits.addVisit(visit);
+        }
+      } else {
+        Set<DayOfWeek> visitorDays = new HashSet<>();
+        boundedVisitorDays.put(visitorId, visitorDays);
+        visitorDays.add(visitDay);
+        boundedVisits.addVisit(visit);
+      }
+    }
 
     return boundedVisits;
   }

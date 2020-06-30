@@ -46,7 +46,7 @@ TYPED_TEST_SUITE(NumericalMechanismsTest, NumericTypes);
 TYPED_TEST(NumericalMechanismsTest, LaplaceBuilder) {
   LaplaceMechanism::Builder test_builder;
   std::unique_ptr<LaplaceMechanism> test_mechanism =
-      test_builder.SetEpsilon(1).SetSensitivity(3).Build().ValueOrDie();
+      test_builder.SetEpsilon(1).SetL1Sensitivity(3).Build().ValueOrDie();
 
   EXPECT_DOUBLE_EQ(test_mechanism->GetEpsilon(), 1);
   EXPECT_DOUBLE_EQ(test_mechanism->GetSensitivity(), 3);
@@ -112,7 +112,7 @@ TYPED_TEST(NumericalMechanismsTest, LaplaceBuilderSensitivityTooHigh) {
   LaplaceMechanism::Builder test_builder;
   base::StatusOr<std::unique_ptr<LaplaceMechanism>> test_mechanism =
       test_builder.SetEpsilon(1)
-          .SetSensitivity(std::numeric_limits<double>::max())
+          .SetL1Sensitivity(std::numeric_limits<double>::max())
           .Build();
   EXPECT_FALSE(test_mechanism.ok());
 }
@@ -154,17 +154,6 @@ TEST(NumericalMechanismsTest, LaplaceBudgetCorrect) {
   mechanism.AddNoise(0.0, 0.25);
 }
 
-TEST(NumericalMechanismsTest, LaplaceSnaps) {
-  auto distro = absl::make_unique<MockLaplaceDistribution>();
-  EXPECT_CALL(*distro, Sample(_))
-      .WillOnce(Return(10.0))
-      .WillOnce(Return(10.001));
-  LaplaceMechanism mechanism(1.0, 1.0, std::move(distro));
-
-  EXPECT_THAT(mechanism.AddNoise(0.0),
-              DoubleNear(mechanism.AddNoise(0.0), 0.0001));
-}
-
 TEST(NumericalMechanismsTest, LaplaceWorksForIntegers) {
   auto distro = absl::make_unique<MockLaplaceDistribution>();
   ON_CALL(*distro, Sample(_)).WillByDefault(Return(10.0));
@@ -187,17 +176,99 @@ TEST(NumericalMechanismsTest, LaplaceConfidenceInterval) {
   EXPECT_EQ(confidence_interval.ValueOrDie().upper_bound(),
             -log(1 - level) / epsilon / budget);
   EXPECT_EQ(confidence_interval.ValueOrDie().confidence_level(), level);
+
+  double result = 19.3;
+  base::StatusOr<ConfidenceInterval> confidence_interval_with_result =
+      mechanism.NoiseConfidenceInterval(level, budget, result);
+  EXPECT_TRUE(confidence_interval.ok());
+  EXPECT_EQ(confidence_interval_with_result.ValueOrDie().lower_bound(),
+            result + (log(1 - level) / epsilon / budget));
+  EXPECT_EQ(confidence_interval_with_result.ValueOrDie().upper_bound(),
+            result - (log(1 - level) / epsilon / budget));
+  EXPECT_EQ(confidence_interval_with_result.ValueOrDie().confidence_level(),
+            level);
 }
 
 TYPED_TEST(NumericalMechanismsTest, LaplaceBuilderClone) {
   LaplaceMechanism::Builder test_builder;
   std::unique_ptr<LaplaceMechanism::Builder> clone =
-      test_builder.SetEpsilon(1).SetSensitivity(3).Clone();
+      test_builder.SetEpsilon(1).SetL1Sensitivity(3).Clone();
   std::unique_ptr<LaplaceMechanism> test_mechanism =
       clone->Build().ValueOrDie();
 
   EXPECT_DOUBLE_EQ(test_mechanism->GetEpsilon(), 1);
   EXPECT_DOUBLE_EQ(test_mechanism->GetSensitivity(), 3);
+}
+
+class NoiseIntervalMultipleParametersTests
+    : public ::testing::TestWithParam<struct conf_int_params> {};
+
+struct conf_int_params {
+  double epsilon;
+  double delta;
+  double sensitivity;
+  double level;
+  double budget;
+  double result;
+  double true_bound;
+};
+
+// True bounds calculated using standard deviations of
+// 3.4855, 3.60742, 0.367936, respectively.
+struct conf_int_params gauss_params1 = {.epsilon = 1.2,
+                                        .delta = 0.3,
+                                        .sensitivity = 1.0,
+                                        .level = .9,
+                                        .budget = .5,
+                                        .result = 0,
+                                        .true_bound = -5.733};
+
+struct conf_int_params gauss_params2 = {.epsilon = 1.0,
+                                        .delta = 0.5,
+                                        .sensitivity = 1.0,
+                                        .level = .95,
+                                        .budget = .5,
+                                        .result = 1.3,
+                                        .true_bound = -7.07};
+
+struct conf_int_params gauss_params3 = {.epsilon = 10.0,
+                                        .delta = 0.5,
+                                        .sensitivity = 1.0,
+                                        .level = .95,
+                                        .budget = .75,
+                                        .result = 2.7,
+                                        .true_bound = -0.7211};
+
+INSTANTIATE_TEST_SUITE_P(TestSuite, NoiseIntervalMultipleParametersTests,
+                         testing::Values(gauss_params1, gauss_params2,
+                                         gauss_params3));
+
+TEST_P(NoiseIntervalMultipleParametersTests, GaussNoiseConfidenceInterval) {
+  // Tests the NoiseConfidenceInterval method for Gaussian noise.
+  // Standard deviations are pre-calculated using CalculateStdDev
+  // in the Gaussian mechanism class. True bounds are also pre-calculated
+  // using a confidence interval calcualtor.
+
+  struct conf_int_params params = GetParam();
+  double epsilon = params.epsilon;
+  double delta = params.delta;
+  double sensitivity = params.sensitivity;
+  double budget = params.budget;
+  double conf_level = params.level;
+  double result = params.result;
+  double true_lower_bound = params.result + params.true_bound;
+  double true_upper_bound = params.result - params.true_bound;
+
+  GaussianMechanism mechanism(epsilon, delta, sensitivity);
+  base::StatusOr<ConfidenceInterval> confidence_interval =
+      mechanism.NoiseConfidenceInterval(conf_level, budget, result);
+
+  EXPECT_TRUE(confidence_interval.ok());
+  EXPECT_NEAR(confidence_interval.ValueOrDie().lower_bound(), true_lower_bound,
+              0.001);
+  EXPECT_NEAR(confidence_interval.ValueOrDie().upper_bound(), true_upper_bound,
+              0.001);
+  EXPECT_EQ(confidence_interval.ValueOrDie().confidence_level(), conf_level);
 }
 
 TEST(NumericalMechanismsTest, LaplaceEstimatesL1WithL0AndLInf) {
@@ -208,6 +279,28 @@ TEST(NumericalMechanismsTest, LaplaceEstimatesL1WithL0AndLInf) {
                                                     .Build()
                                                     .ValueOrDie();
   EXPECT_THAT(mechanism->GetSensitivity(), Ge(3));
+}
+
+TEST(NumericalMechanismsTest, AddNoise) {
+  auto distro = absl::make_unique<MockLaplaceDistribution>();
+  double granularity = distro->GetGranularity();
+  ON_CALL(*distro, Sample(_)).WillByDefault(Return(10));
+  LaplaceMechanism mechanism(1.0, 1.0, std::move(distro));
+
+  double remainder =
+      std::fmod(mechanism.AddNoise(0.1 * granularity, 1.0), granularity);
+  EXPECT_EQ(remainder, 0);
+  EXPECT_THAT(mechanism.AddNoise(0.1 * granularity, 1.0),
+              DoubleNear(10.0, 0.000001));
+}
+
+TEST(NumericalMechanismsTest, LambdaTooSmall) {
+  LaplaceMechanism::Builder test_builder;
+  base::StatusOr<std::unique_ptr<LaplaceMechanism>> test_mechanism_or =
+      test_builder.SetEpsilon(1.0 / std::pow(10, 100))
+          .SetL1Sensitivity(3)
+          .Build();
+  EXPECT_FALSE(test_mechanism_or.ok());
 }
 
 TEST(NumericalMechanismsTest, GaussianBuilderFailsDeltaNotSet) {

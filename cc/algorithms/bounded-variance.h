@@ -104,32 +104,33 @@ class BoundedVariance : public Algorithm<T> {
                                     BoundedBuilder::upper_.value()));
         ASSIGN_OR_RETURN(
             sum_mechanism,
-            AlgorithmBuilder::laplace_mechanism_builder_
+            AlgorithmBuilder::mechanism_builder_
                 ->SetEpsilon(AlgorithmBuilder::epsilon_.value())
-                .SetSensitivity(
+                .SetL1Sensitivity(
                     static_cast<double>(BoundedBuilder::upper_.value() -
                                         BoundedBuilder::lower_.value()) /
                     2)
                 .Build());
         ASSIGN_OR_RETURN(
             sos_mechanism,
-            AlgorithmBuilder::laplace_mechanism_builder_
+            AlgorithmBuilder::mechanism_builder_
                 ->SetEpsilon(AlgorithmBuilder::epsilon_.value())
-                .SetSensitivity(RangeOfSquares(BoundedBuilder::lower_.value(),
-                                               BoundedBuilder::upper_.value()) /
-                                2)
+                .SetL1Sensitivity(
+                    RangeOfSquares(BoundedBuilder::lower_.value(),
+                                   BoundedBuilder::upper_.value()) /
+                    2)
                 .Build());
       }
 
       std::unique_ptr<LaplaceMechanism> count_mechanism;
       ASSIGN_OR_RETURN(count_mechanism,
-                       AlgorithmBuilder::laplace_mechanism_builder_
+                       AlgorithmBuilder::mechanism_builder_
                            ->SetEpsilon(AlgorithmBuilder::epsilon_.value())
-                           .SetSensitivity(1)
+                           .SetL1Sensitivity(1)
                            .Build());
 
       // Construct bounded variance.
-      auto mech_builder = AlgorithmBuilder::laplace_mechanism_builder_->Clone();
+      auto mech_builder = AlgorithmBuilder::mechanism_builder_->Clone();
       return absl::WrapUnique(new BoundedVariance(
           AlgorithmBuilder::epsilon_.value(),
           BoundedBuilder::lower_.value_or(0),
@@ -431,14 +432,14 @@ class BoundedVariance : public Algorithm<T> {
       ASSIGN_OR_RETURN(
           sum_mechanism_,
           mechanism_builder_->SetEpsilon(Algorithm<T>::GetEpsilon())
-              .SetSensitivity((upper_ - lower_) / 2)
+              .SetL1Sensitivity((upper_ - lower_) / 2)
               .Build());
     }
     if (!sos_mechanism_) {
       ASSIGN_OR_RETURN(
           sos_mechanism_,
           mechanism_builder_->SetEpsilon(Algorithm<T>::GetEpsilon())
-              .SetSensitivity(RangeOfSquares(lower_, upper_) / 2)
+              .SetL1Sensitivity(RangeOfSquares(lower_, upper_) / 2)
               .Build());
     }
     return base::OkStatus();

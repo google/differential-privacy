@@ -20,6 +20,7 @@ package com.google.privacy.differentialprivacy.example;
 public final class InputFilePath {
   static final String DAY_STATISTICS = "day_data.csv";
   static final String WEEK_STATISTICS = "week_data.csv";
+  static final String WEEK_STATISTICS_N_VISITS_PER_DAY = "week_data_N_visits_per_day.csv";
 
   private InputFilePath(){}
 }

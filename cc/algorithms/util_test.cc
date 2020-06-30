@@ -99,6 +99,30 @@ TEST(NextPowerTest, ExactNegativePowers) {
   EXPECT_NEAR(GetNextPowerOfTwo(0.125), 0.125, kTolerance);
 }
 
+TEST(InverseErrorTest, ProperResults) {
+  // true values are pre-calculated
+  EXPECT_NEAR(InverseErrorFunction(0.24), 0.216, 0.001);
+  EXPECT_NEAR(InverseErrorFunction(0.9999), 2.751, 0.001);
+  EXPECT_NEAR(InverseErrorFunction(0.0012), 0.001, 0.001);
+  EXPECT_NEAR(InverseErrorFunction(0.5), 0.476, 0.001);
+  EXPECT_NEAR(InverseErrorFunction(0.39), 0.360, 0.001);
+  EXPECT_NEAR(InverseErrorFunction(0.0067), 0.0059, 0.001);
+
+  double max = 1;
+  double min = -1;
+  for (int i = 0; i < 1000; i++) {
+    double n = (max - min) * ((double)rand() / RAND_MAX) + min;
+    EXPECT_NEAR(std::erf(InverseErrorFunction(n)), n, 0.001);
+  }
+}
+
+TEST(InverseErrorTest, EdgeCases) {
+  EXPECT_EQ(InverseErrorFunction(-1),
+            -1 * std::numeric_limits<double>::infinity());
+  EXPECT_EQ(InverseErrorFunction(1), std::numeric_limits<double>::infinity());
+  EXPECT_EQ(InverseErrorFunction(0), 0);
+}
+
 TEST(RoundTest, PositiveNoTies) {
   EXPECT_NEAR(RoundToNearestMultiple(4.9, 2.0), 4.0, kTolerance);
   EXPECT_NEAR(RoundToNearestMultiple(5.1, 2.0), 6.0, kTolerance);

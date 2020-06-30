@@ -1,0 +1,89 @@
+#
+# Copyright 2020 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+load("@bazel_gazelle//:def.bzl", "gazelle")
+
+# gazelle:prefix github.com/google/differential-privacy/privacy-on-beam/pbeam
+gazelle(name = "gazelle")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "aggregations.go",
+        "coders.go",
+        "count.go",
+        "distinct_id.go",
+        "mean.go",
+        "pardo.go",
+        "pbeam.go",
+        "sum.go",
+    ],
+    importpath = "github.com/google/differential-privacy/privacy-on-beam/pbeam",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//internal/generated:go_default_library",
+        "//internal/kv:go_default_library",
+        "@com_github_apache_beam//sdks/go/pkg/beam:go_default_library",
+        "@com_github_apache_beam//sdks/go/pkg/beam/core/funcx:go_default_library",
+        "@com_github_apache_beam//sdks/go/pkg/beam/core/typex:go_default_library",
+        "@com_github_apache_beam//sdks/go/pkg/beam/core/util/reflectx:go_default_library",
+        "@com_github_apache_beam//sdks/go/pkg/beam/transforms/filter:go_default_library",
+        "@com_github_apache_beam//sdks/go/pkg/beam/transforms/stats:go_default_library",
+        "@com_github_apache_beam//sdks/go/pkg/beam/transforms/top:go_default_library",
+        "@com_github_golang_glog//:go_default_library",
+        "@com_google_go_differential_privacy//checks:go_default_library",
+        "@com_google_go_differential_privacy//dpagg:go_default_library",
+        "@com_google_go_differential_privacy//noise:go_default_library",
+        "@org_golang_google_protobuf//proto:go_default_library",
+        "@org_golang_google_protobuf//reflect/protoreflect:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = [
+        "aggregations_test.go",
+        "count_test.go",
+        "distinct_id_test.go",
+        "example_test.go",
+        "helpers_test.go",
+        "helpers_test_test.go",
+        "mean_test.go",
+        "pardo_test.go",
+        "pbeam_test.go",
+        "sum_test.go",
+    ],
+    embed = [":go_default_library"],
+    deps = [
+        "//internal/generated:go_default_library",
+        "//internal/kv:go_default_library",
+        "//testdata:go_default_library",
+        "@com_github_apache_beam//sdks/go/pkg/beam:go_default_library",
+        "@com_github_apache_beam//sdks/go/pkg/beam/core/funcx:go_default_library",
+        "@com_github_apache_beam//sdks/go/pkg/beam/core/typex:go_default_library",
+        "@com_github_apache_beam//sdks/go/pkg/beam/io/textio:go_default_library",
+        "@com_github_apache_beam//sdks/go/pkg/beam/runners/direct:go_default_library",
+        "@com_github_apache_beam//sdks/go/pkg/beam/testing/passert:go_default_library",
+        "@com_github_apache_beam//sdks/go/pkg/beam/testing/ptest:go_default_library",
+        "@com_github_apache_beam//sdks/go/pkg/beam/transforms/stats:go_default_library",
+        "@com_github_google_go_cmp//cmp:go_default_library",
+        "@com_github_google_go_cmp//cmp/cmpopts:go_default_library",
+        "@com_google_go_differential_privacy//dpagg:go_default_library",
+        "@com_google_go_differential_privacy//noise:go_default_library",
+        "@org_golang_google_protobuf//proto:go_default_library",
+    ],
+)

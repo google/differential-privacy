@@ -63,7 +63,7 @@ class IOUtils {
 
       return visitsAsText.stream()
           .skip(1)
-          .map(IOUtils::convertLineWithoutDayToVisit)
+          .map(IOUtils::convertLineToVisit)
           .collect(toImmutableSet());
     } catch (IOException e) {
       throw new IllegalStateException(e);
@@ -71,27 +71,10 @@ class IOUtils {
   }
 
   /**
-   * Converts a line of format "visitorId,entryTime, minutesSpent, moneySpent" to {@link Visit}.
-   */
-  private static Visit convertLineWithoutDayToVisit(String visitAsText) {
-    Iterator<String> splitVisit = Splitter.on(CSV_ITEM_SEPARATOR).split(visitAsText).iterator();
-    // element 0
-    String visitorId = splitVisit.next();
-    // element 1
-    LocalTime timeEntered = LocalTime.parse(splitVisit.next(), TIME_FORMATTER);
-    // element 2
-    int timeSpent = Integer.parseInt(splitVisit.next());
-    // element 3
-    int moneySpent = Integer.parseInt(splitVisit.next());
-
-    return Visit.create(visitorId, timeEntered, timeSpent, moneySpent);
-  }
-
-  /**
    * Converts a line of format "visitorId,entryTime, minutesSpent, moneySpent, day" to
-   * {@link VisitDayPair}.
+   * {@link Visit}.
    */
-  private static VisitDayPair convertLineToVisitAndDay(String visitAsText) {
+  private static Visit convertLineToVisit(String visitAsText) {
     Iterator<String> splitVisit = Splitter.on(CSV_ITEM_SEPARATOR).split(visitAsText).iterator();
     // element 0
     String visitorId = splitVisit.next();
@@ -104,7 +87,7 @@ class IOUtils {
     // element 4
     DayOfWeek day = DayOfWeek.of(Integer.parseInt(splitVisit.next()));
 
-    return new VisitDayPair(Visit.create(visitorId, timeEntered, timeSpent, moneySpent), day);
+    return Visit.create(visitorId, timeEntered, timeSpent, moneySpent, day);
   }
 
   /**
@@ -120,8 +103,8 @@ class IOUtils {
       visitsAsText.stream()
           .skip(1)
           .forEach(v -> {
-            VisitDayPair visitDayPair = convertLineToVisitAndDay(v);
-            result.addVisit(visitDayPair.getWeekDay(), visitDayPair.getVisit());
+            Visit visit = convertLineToVisit(v);
+            result.addVisit(visit);
           });
 
     } catch (IOException e) {
@@ -146,24 +129,6 @@ class IOUtils {
           (day, count) -> pw.write(String.format(CSV_DAY_COUNT_WRITE_TEMPLATE, day.name(), count)));
     } catch (IOException e) {
       throw new IllegalStateException(e);
-    }
-  }
-
-  private static class VisitDayPair {
-    private final Visit visit;
-    private final DayOfWeek weekDay;
-
-    private VisitDayPair(Visit visit, DayOfWeek weekDay) {
-      this.visit = visit;
-      this.weekDay = weekDay;
-    }
-
-    private Visit getVisit() {
-      return visit;
-    }
-
-    private DayOfWeek getWeekDay() {
-      return weekDay;
     }
   }
 }

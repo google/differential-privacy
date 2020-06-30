@@ -25,7 +25,7 @@ import java.util.HashSet;
 /**
  * Stores {@link Visit}s for each {@link DayOfWeek}.
  */
-public class VisitsForWeek {
+class VisitsForWeek {
   private final EnumMap<DayOfWeek, Collection<Visit>> visits;
 
   VisitsForWeek() {
@@ -34,10 +34,10 @@ public class VisitsForWeek {
   }
 
   /**
-   * Adds the given {@link Visit} to the given {@link DayOfWeek}.
+   * Adds the given {@link Visit}.
    */
-  void addVisit(DayOfWeek day, Visit visit) {
-    visits.get(day).add(visit);
+  void addVisit(Visit visit) {
+    visits.get(visit.day()).add(visit);
   }
 
   Collection<Visit> getVisitsForDay(DayOfWeek day) {

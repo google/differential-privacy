@@ -17,6 +17,7 @@
 #include "algorithms/util.h"
 
 #include <cmath>
+#include <vector>
 
 #include "base/canonical_errors.h"
 
@@ -42,6 +43,42 @@ std::string XorStrings(const std::string& longer, const std::string& shorter) {
 double DefaultEpsilon() { return std::log(3); }
 
 double GetNextPowerOfTwo(double n) { return pow(2.0, ceil(log2(n))); }
+
+double InverseErrorFunction(double x) {
+  double LESS_THAN_FIVE_CONSTANTS[] = {
+      0.0000000281022636, 0.000000343273939, -0.0000035233877,
+      -0.00000439150654,  0.00021858087,     -0.00125372503,
+      -0.00417768164,     0.246640727,       1.50140941};
+  double GREATER_THAN_FIVE_CONSTANTS[] = {
+      -0.000200214257, 0.000100950558, 0.00134934322,
+      -0.00367342844,  0.00573950773,  -0.0076224613,
+      0.00943887047,   1.00167406,     2.83297682};
+
+  double constantArray[9];
+  double w = -std::log((1 - x) * (1 + x));
+  double ans = 0;
+
+  if (std::abs(x) == 1) {
+    return x * std::numeric_limits<double>::infinity();
+  }
+
+  if (w < 5) {
+    w = w - 2.5;
+    std::copy(std::begin(LESS_THAN_FIVE_CONSTANTS),
+              std::end(LESS_THAN_FIVE_CONSTANTS), std::begin(constantArray));
+  } else {
+    w = std::sqrt(w) - 3;
+    std::copy(std::begin(GREATER_THAN_FIVE_CONSTANTS),
+              std::end(GREATER_THAN_FIVE_CONSTANTS), std::begin(constantArray));
+  }
+
+  for (int i = 0; i < 9; i++) {
+    double coefficient = constantArray[i];
+    ans = coefficient + ans * w;
+  }
+
+  return ans * x;
+}
 
 base::StatusOr<double> Qnorm(double p, double mu, double sigma) {
   if (p <= 0.0 || p >= 1.0) {
