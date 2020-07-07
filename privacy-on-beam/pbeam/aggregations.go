@@ -192,17 +192,17 @@ func (fn *decodePairFloat64Fn) ProcessElement(pair pairFloat64) (beam.X, float64
 	return x, pair.M
 }
 
-func newBoundedSumFn(epsilon, delta float64, maxPartitionsContributed int64, lower, upper float64, noiseKind noise.Kind, vKind reflect.Kind) interface{} {
+func newBoundedSumFn(epsilon, delta float64, maxPartitionsContributed int64, lower, upper float64, noiseKind noise.Kind, partitionsSpecified bool, vKind reflect.Kind) interface{} {
 	var err error
 	var bsFn interface{}
 
 	switch vKind {
 	case reflect.Int64:
 		err = checks.CheckBoundsFloat64AsInt64("pbeam.newBoundedSumFn", lower, upper)
-		bsFn = newBoundedSumInt64Fn(epsilon, delta, maxPartitionsContributed, int64(lower), int64(upper), noiseKind)
+		bsFn = newBoundedSumInt64Fn(epsilon, delta, maxPartitionsContributed, int64(lower), int64(upper), noiseKind, partitionsSpecified)
 	case reflect.Float64:
 		err = checks.CheckBoundsFloat64("pbeam.newBoundedSumFn", lower, upper)
-		bsFn = newBoundedSumFloat64Fn(epsilon, delta, maxPartitionsContributed, lower, upper, noiseKind)
+		bsFn = newBoundedSumFloat64Fn(epsilon, delta, maxPartitionsContributed, lower, upper, noiseKind, partitionsSpecified)
 	default:
 		log.Exitf("pbeam.newBoundedSumFn: vKind(%v) should be int64 or float64", vKind)
 	}
@@ -216,6 +216,7 @@ func newBoundedSumFn(epsilon, delta float64, maxPartitionsContributed int64, low
 type boundedSumAccumInt64 struct {
 	BS *dpagg.BoundedSumInt64
 	SP *dpagg.PreAggSelectPartition
+	PS bool
 }
 
 // boundedSumInt64Fn is a differentially private combineFn for summing values. Do not
@@ -231,15 +232,17 @@ type boundedSumInt64Fn struct {
 	Upper                     int64
 	NoiseKind                 noise.Kind
 	noise                     noise.Noise // Set during Setup phase according to NoiseKind.
+	PartitionsSpecified       bool
 }
 
 // newBoundedSumInt64Fn returns a boundedSumInt64Fn with the given budget and parameters.
-func newBoundedSumInt64Fn(epsilon, delta float64, maxPartitionsContributed, lower, upper int64, noiseKind noise.Kind) *boundedSumInt64Fn {
+func newBoundedSumInt64Fn(epsilon, delta float64, maxPartitionsContributed, lower, upper int64, noiseKind noise.Kind, partitionsSpecified bool) *boundedSumInt64Fn {
 	fn := &boundedSumInt64Fn{
 		MaxPartitionsContributed: maxPartitionsContributed,
 		Lower:                    lower,
 		Upper:                    upper,
 		NoiseKind:                noiseKind,
+		PartitionsSpecified:      partitionsSpecified,
 	}
 	fn.EpsilonNoise = epsilon / 2
 	fn.EpsilonPartitionSelection = epsilon / 2
@@ -262,6 +265,7 @@ func (fn *boundedSumInt64Fn) Setup() {
 
 func (fn *boundedSumInt64Fn) CreateAccumulator() boundedSumAccumInt64 {
 	return boundedSumAccumInt64{
+		PS: fn.PartitionsSpecified,
 		BS: dpagg.NewBoundedSumInt64(&dpagg.BoundedSumInt64Options{
 			Epsilon:                  fn.EpsilonNoise,
 			Delta:                    fn.DeltaNoise,
@@ -291,11 +295,16 @@ func (fn *boundedSumInt64Fn) MergeAccumulators(a, b boundedSumAccumInt64) bounde
 }
 
 func (fn *boundedSumInt64Fn) ExtractOutput(a boundedSumAccumInt64) *int64 {
-	if a.SP.Result() {
-		result := a.BS.Result()
+	result := a.BS.Result()
+	if a.PS {
 		return &result
+	} else {
+		if a.SP.Result() {
+			return &result
+		} else {
+			return nil
+		}
 	}
-	return nil
 }
 
 func (fn *boundedSumInt64Fn) String() string {
@@ -305,6 +314,7 @@ func (fn *boundedSumInt64Fn) String() string {
 type boundedSumAccumFloat64 struct {
 	BS *dpagg.BoundedSumFloat64
 	SP *dpagg.PreAggSelectPartition
+	PS bool
 }
 
 // boundedSumFloat64Fn is a differentially private combineFn for summing values. Do not
@@ -321,15 +331,17 @@ type boundedSumFloat64Fn struct {
 	NoiseKind                 noise.Kind
 	// Noise, set during Setup phase according to NoiseKind.
 	noise noise.Noise
+	PartitionsSpecified       bool
 }
 
 // newBoundedSumFloat64Fn returns a boundedSumFloat64Fn with the given budget and parameters.
-func newBoundedSumFloat64Fn(epsilon, delta float64, maxPartitionsContributed int64, lower, upper float64, noiseKind noise.Kind) *boundedSumFloat64Fn {
+func newBoundedSumFloat64Fn(epsilon, delta float64, maxPartitionsContributed int64, lower, upper float64, noiseKind noise.Kind, partitionsSpecified bool) *boundedSumFloat64Fn {
 	fn := &boundedSumFloat64Fn{
 		MaxPartitionsContributed: maxPartitionsContributed,
 		Lower:                    lower,
 		Upper:                    upper,
 		NoiseKind:                noiseKind,
+		PartitionsSpecified:      partitionsSpecified,
 	}
 	fn.EpsilonNoise = epsilon / 2
 	fn.EpsilonPartitionSelection = epsilon / 2
@@ -364,7 +376,9 @@ func (fn *boundedSumFloat64Fn) CreateAccumulator() boundedSumAccumFloat64 {
 			Epsilon:                  fn.EpsilonPartitionSelection,
 			Delta:                    fn.DeltaPartitionSelection,
 			MaxPartitionsContributed: fn.MaxPartitionsContributed,
-		})}
+		}),
+		PS: fn.PartitionsSpecified,
+	}
 }
 
 func (fn *boundedSumFloat64Fn) AddInput(a boundedSumAccumFloat64, value float64) boundedSumAccumFloat64 {
@@ -380,12 +394,18 @@ func (fn *boundedSumFloat64Fn) MergeAccumulators(a, b boundedSumAccumFloat64) bo
 }
 
 func (fn *boundedSumFloat64Fn) ExtractOutput(a boundedSumAccumFloat64) *float64 {
-	if a.SP.Result() {
-		result := a.BS.Result()
-		return &result
-	}
-	return nil
-}
+	result := a.BS.Result()
+     if a.PS {
+     	return &result
+     } else {
+     	if a.SP.Result() {
+     		return &result
+     	} else {
+     		return nil
+     	}
+     }
+ }
+
 
 func (fn *boundedSumFloat64Fn) String() string {
 	return fmt.Sprintf("%#v", fn)
@@ -450,6 +470,58 @@ func clampNegativePartitionsFloat64Fn(v beam.V, r float64) (beam.V, float64) {
 func convertFloat32ToFloat64Fn(z beam.Z, f float32) (beam.Z, float64) {
 	return z, float64(f)
 }
+
 func convertFloat64ToFloat64Fn(z beam.Z, f float64) (beam.Z, float64) {
 	return z, f
+}
+
+func prepareAddPartitionsInt64Fn(partitionKey beam.X) (k beam.X, v int64) {
+	return partitionKey, 0
+}
+
+func prepareAddPartitionsFloat64Fn(partitionKey beam.X) (k beam.X, v []float64) {
+	return partitionKey, [] float64 {}
+}
+
+
+func prepareDropPartitionsInt64Fn(partitionKey beam.X) (k beam.X, v *int64) {
+	return partitionKey, nil
+}
+
+func prepareDropPartitionsFloat64Fn(partitionKey beam.X) (k beam.X, v *float64) {
+	return partitionKey, nil
+}
+
+func dropUnspecifiedPartitionsInt64Fn(partitionKey beam.X, v1Iter, v2Iter func(**int64) bool, emit func(beam.X, int64)){
+	var v1 = toSliceInt64(v1Iter)
+	var v2 = toSliceInt64(v2Iter)
+	if len(v2) == 1 && len(v1) == 1 {
+		emit(partitionKey, *v1[0])
+	}
+}
+
+func toSliceInt64(vIter func(**int64) bool) []*int64 {
+	var vSlice []*int64
+	var v *int64
+	for vIter(&v) {
+		vSlice = append(vSlice, v)
+	}
+	return vSlice
+}
+
+func dropUnspecifiedPartitionsFloat64Fn(partitionKey beam.X, v1Iter, v2Iter func(**float64) bool, emit func(beam.X, float64)){
+	var v1 = toSliceFloat64(v1Iter)
+	var v2 = toSliceFloat64(v2Iter)
+	if len(v2) == 1 && len(v1) == 1 {
+		emit(partitionKey, *v1[0])
+	}
+}
+
+func toSliceFloat64(vIter func(**float64) bool) []*float64 {
+	var vSlice []*float64
+	var v *float64
+	for vIter(&v) {
+		vSlice = append(vSlice, v)
+	}
+	return vSlice
 }

@@ -18,8 +18,8 @@ package pbeam
 
 import (
 	"bytes"
-	"fmt"
 	"reflect"
+	"fmt"
 
 	log "github.com/golang/glog"
 	"github.com/google/differential-privacy/go/checks"
@@ -160,7 +160,7 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 
 	// Compute the mean for each partition. Result is PCollection<partition, float64>.
 	means := beam.CombinePerKey(s,
-		newBoundedMeanFloat64Fn(epsilon, delta, maxPartitionsContributed, params.MaxContributionsPerPartition, params.MinValue, params.MaxValue, noiseKind),
+		newBoundedMeanFloat64Fn(epsilon, delta, maxPartitionsContributed, params.MaxContributionsPerPartition, params.MinValue, params.MaxValue, noiseKind, false),
 		partialKV)
 	// Finally, drop thresholded partitions.
 	return beam.ParDo(s, dropThresholdedPartitionsFloat64Fn, means)
@@ -180,6 +180,99 @@ func checkMeanPerKeyParams(params MeanParams, epsilon, delta float64) error {
 		return err
 	}
 	return checks.CheckMaxPartitionsContributed("pbeam.MeanPerKey", params.MaxPartitionsContributed)
+
+// MeanPerKey obtains the mean of the values associated with each key in a
+// PrivatePCollection<K,V>, adding differentially private noise to the means and
+// doing pre-aggregation thresholding to remove means with a low number of
+// distinct privacy identifiers.
+//
+// Note: Do not use when your results may cause overflows for Int64 or Float64
+// values.  This aggregation is not hardened for such applications yet.
+//
+// MeanPerKey transforms a PrivatePCollection<K,V> into a PCollection<K,float64>.
+func MeanPerKeyWithPartitions(s beam.Scope, pcol PrivatePCollection, params MeanParams, partitions [] interface {}) beam.PCollection {
+	s = s.Scope("pbeam.MeanPerKeyWithPartitions")
+	// Obtain & validate type information from the underlying PCollection<K,V>.
+	idT, kvT := beam.ValidateKVType(pcol.col)
+	if kvT.Type() != reflect.TypeOf(kv.Pair{}) {
+		log.Exitf("MeanPerKey must be used on a PrivatePCollection of type <K,V>, got type %v instead", kvT)
+	}
+	if pcol.codec == nil {
+		log.Exitf("MeanPerKey: no codec found for the input PrivatePCollection.")
+	}
+	// Get privacy parameters.
+	spec := pcol.privacySpec
+	epsilon, delta, err := spec.consumeBudget(params.Epsilon, params.Delta)
+	if err != nil {
+		log.Exitf("couldn't consume budget: %v", err)
+	}
+	var noiseKind noise.Kind
+	if params.NoiseKind == nil {
+		noiseKind = noise.LaplaceNoise
+		log.Infof("No NoiseKind specified, using Laplace Noise by default.")
+	} else {
+		noiseKind = params.NoiseKind.toNoiseKind()
+	}
+
+	// First, group together the privacy ID and the partition ID and do per-partition contribution bounding.
+	// Result is PCollection<kv.Pair{ID,K},V>
+	decoded := beam.ParDo(s,
+		newPrepareMeanFn(idT, pcol.codec),
+		pcol.col,
+		beam.TypeDefinition{Var: beam.VType, T: pcol.codec.VType.T})
+
+	maxContributionsPerPartition := getMaxContributionsPerPartition(params.MaxContributionsPerPartition)
+	decoded = boundContributions(s, decoded, maxContributionsPerPartition)
+
+	// Convert value to float64.
+	// Result is PCollection<kv.Pair{ID,K},float64>.
+	_, valueT := beam.ValidateKVType(decoded)
+	convertFn, err := findConvertToFloat64Fn(valueT)
+	if err != nil {
+		log.Exit(err)
+	}
+	converted := beam.ParDo(s, convertFn, decoded)
+
+	// Combine all values for <id, partition> into a slice.
+	// Result is PCollection<kv.Pair{ID,K},[]float64>.
+	combined := beam.CombinePerKey(s,
+		&expandValuesCombineFn{},
+		converted)
+
+	// Result is PCollection<ID, pairArrayFloat64>.
+	maxPartitionsContributed := getMaxPartitionsContributed(spec, params.MaxPartitionsContributed)
+	rekeyed := beam.ParDo(s, rekeyArrayFloat64Fn, combined)
+	// Do cross-partition contribution bounding.
+	rekeyed = boundContributions(s, rekeyed, maxPartitionsContributed)
+
+	// Now that the cross-partition contribution bounding is done, remove the privacy keys and decode the values.
+	// Result is PCollection<partition, []float64>.
+	partialPairs := beam.DropKey(s, rekeyed)
+	partitionT := pcol.codec.KType.T
+	partialKV := beam.ParDo(s,
+		newDecodePairArrayFloat64Fn(partitionT),
+		partialPairs,
+		beam.TypeDefinition{Var: beam.XType, T: partitionT})
+
+	// Create PCollection from user-specified partitions
+	partitionsCol := beam.CreateList(s,partitions)
+	// Turn partitionsCol type PCollection<K> into PCollection<K, [] float64]> by adding 
+	// an empty array as the value to each K. 
+	addSpecifiedPartitions := beam.ParDo(s, prepareAddPartitionsFloat64Fn, partitionsCol)
+	// Merge specified partitions with existing partitions
+	allAddPartitions := beam.Flatten(s, partialKV, addSpecifiedPartitions)
+
+	// Compute the mean for each partition. Result is PCollection<partition, float64>.
+	means := beam.CombinePerKey(s,
+		newBoundedMeanFloat64Fn(epsilon, delta, maxPartitionsContributed, params.MaxContributionsPerPartition, params.MinValue, params.MaxValue, noiseKind, true),
+		allAddPartitions)
+
+	// Turn partitionsCol type PCollection<K> into PCollection<K, float64*> by adding value nil to each K. 
+	prepareDropUnspecifiedPartitions := beam.ParDo(s, prepareDropPartitionsFloat64Fn, partitionsCol)
+	allDropPartitions := beam.CoGroupByKey(s, means, prepareDropUnspecifiedPartitions)
+	// Drop unspecified partitions 
+	correctPartitions := beam.ParDo(s, dropUnspecifiedPartitionsFloat64Fn, allDropPartitions)
+	return correctPartitions
 }
 
 // decodePairArrayFloat64Fn transforms a PCollection<pairArrayFloat64<codedX,[]float64>> into a
@@ -337,6 +430,7 @@ func rekeyArrayFloat64Fn(kv kv.Pair, m []float64) ([]byte, pairArrayFloat64) {
 type boundedMeanAccumFloat64 struct {
 	BM *dpagg.BoundedMeanFloat64
 	SP *dpagg.PreAggSelectPartition
+	PS bool
 }
 
 // boundedMeanFloat64Fn is a differentially private combineFn for obtaining mean of values. Do not
@@ -353,16 +447,18 @@ type boundedMeanFloat64Fn struct {
 	Upper                        float64
 	NoiseKind                    noise.Kind
 	noise                        noise.Noise // Set during Setup phase according to NoiseKind.
+	PartitionsSpecified          bool
 }
 
 // newBoundedMeanFloat6464Fn returns a boundedMeanFloat64Fn with the given budget and parameters.
-func newBoundedMeanFloat64Fn(epsilon, delta float64, maxPartitionsContributed, maxContributionsPerPartition int64, lower, upper float64, noiseKind noise.Kind) *boundedMeanFloat64Fn {
+func newBoundedMeanFloat64Fn(epsilon, delta float64, maxPartitionsContributed, maxContributionsPerPartition int64, lower, upper float64, noiseKind noise.Kind, partitionsSpecified bool) *boundedMeanFloat64Fn {
 	fn := &boundedMeanFloat64Fn{
 		MaxPartitionsContributed:     maxPartitionsContributed,
 		MaxContributionsPerPartition: maxContributionsPerPartition,
 		Lower:                        lower,
 		Upper:                        upper,
 		NoiseKind:                    noiseKind,
+		PartitionsSpecified:          partitionsSpecified,
 	}
 	fn.EpsilonNoise = epsilon / 2
 	fn.EpsilonPartitionSelection = epsilon / 2
@@ -400,6 +496,7 @@ func (fn *boundedMeanFloat64Fn) CreateAccumulator() boundedMeanAccumFloat64 {
 			Delta:                    fn.DeltaPartitionSelection,
 			MaxPartitionsContributed: fn.MaxPartitionsContributed,
 		}),
+		PS: fn.PartitionsSpecified,
 	}
 }
 
@@ -421,12 +518,17 @@ func (fn *boundedMeanFloat64Fn) MergeAccumulators(a, b boundedMeanAccumFloat64) 
 }
 
 func (fn *boundedMeanFloat64Fn) ExtractOutput(a boundedMeanAccumFloat64) *float64 {
-	if a.SP.Result() {
-		result := a.BM.Result()
-		return &result
-	}
-	return nil
-}
+	result := a.BM.Result()
+     if a.PS {
+     	return &result
+     } else {
+     	if a.SP.Result() {
+     		return &result
+     	} else {
+     		return nil
+     	}
+     }
+ }
 
 func (fn *boundedMeanFloat64Fn) String() string {
 	return fmt.Sprintf("%#v", fn)

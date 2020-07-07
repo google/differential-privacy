@@ -107,7 +107,7 @@ func DistinctPrivacyID(s beam.Scope, pcol PrivatePCollection, params DistinctPri
 	values := beam.DropKey(s, decoded)
 	dummyCounts := beam.ParDo(s, addOneValueFn, values)
 	noisedCounts := beam.CombinePerKey(s,
-		newCountFn(epsilon, delta, maxPartitionsContributed, noiseKind),
+		newCountFn(epsilon, delta, maxPartitionsContributed, noiseKind, false),
 		dummyCounts)
 	// Finally, drop thresholded partitions and return the result
 	return beam.ParDo(s, dropThresholdedPartitionsInt64Fn, noisedCounts)
@@ -127,6 +127,57 @@ func checkDistinctPrivacyIDParams(params DistinctPrivacyIDParams, noiseKind nois
 		return err
 	}
 	return checks.CheckMaxPartitionsContributed("pbeam.DistinctPrivacyID", params.MaxPartitionsContributed)
+
+func DistinctPrivacyIDWithPartitions(s beam.Scope, pcol PrivatePCollection, params DistinctPrivacyIDParams, partitions [] interface {}) beam.PCollection {
+	s = s.Scope("pbeam.DistinctPrivacyID")
+	// Obtain type information from the underlying PCollection<K,V>.
+	idT, partitionT := beam.ValidateKVType(pcol.col)
+	// Get privacy parameters.
+	spec := pcol.privacySpec
+	epsilon, delta, err := spec.consumeBudget(params.Epsilon, params.Delta)
+	if err != nil {
+		log.Exitf("couldn't consume budget: %v", err)
+	}
+	var noiseKind noise.Kind
+	if params.NoiseKind == nil {
+		noiseKind = noise.LaplaceNoise
+		log.Infof("No NoiseKind specified, using Laplace Noise by default.")
+	} else {
+		noiseKind = params.NoiseKind.toNoiseKind()
+	}
+	maxPartitionsContributed := getMaxPartitionsContributed(spec, params.MaxPartitionsContributed)
+	// First, deduplicate KV pairs by encoding them and calling Distinct.
+	coded := beam.ParDo(s, kv.NewEncodeFn(idT, partitionT), pcol.col)
+	distinct := filter.Distinct(s, coded)
+	decoded := beam.ParDo(s,
+		kv.NewDecodeFn(idT, partitionT),
+		distinct,
+		beam.TypeDefinition{Var: beam.TType, T: idT.Type()},
+		beam.TypeDefinition{Var: beam.VType, T: partitionT.Type()})
+	// Second, do contribution bounding.
+	decoded = boundContributions(s, decoded, maxPartitionsContributed)
+	// Third, now that KV pairs are deduplicated and contribution bounding is
+	// done, remove the keys and count how many times each value appears.
+	values := beam.DropKey(s, decoded)
+	dummyCounts := beam.ParDo(s, addOneValueFn, values)
+
+	partitionsCol := beam.CreateList(s,partitions)
+	// Turn partitionsCol type PCollection<K> into PCollection<K, int64> by adding 
+	// the value zero to each K. 
+	prepareAddSpecifiedPartitions := beam.ParDo(s, prepareAddPartitionsInt64Fn, partitionsCol)
+	// Merge dummyCounts and prepareAddSpecifiedPartitions.
+	allAddPartitions := beam.Flatten(s, dummyCounts, prepareAddSpecifiedPartitions)
+
+	noisedCounts := beam.CombinePerKey(s,
+		newCountFn(epsilon, delta, maxPartitionsContributed, noiseKind, true),
+		allAddPartitions)
+
+	// Turn partitionsCol type PCollection<K> into PCollection<K, int64*> by adding value nil to each K. 
+	prepareDropUnspecifiedPartitions := beam.ParDo(s, prepareDropPartitionsInt64Fn, partitionsCol)
+	allDropPartitions := beam.CoGroupByKey(s, noisedCounts, prepareDropUnspecifiedPartitions)
+	// Drop unspecified partitions.
+	correctPartitions := beam.ParDo(s,dropUnspecifiedPartitionsInt64Fn, allDropPartitions)
+	return correctPartitions
 }
 
 func addOneValueFn(v beam.V) (beam.V, int64) {
@@ -142,13 +193,16 @@ type countFn struct {
 	MaxPartitionsContributed int64
 	NoiseKind                noise.Kind
 	noise                    noise.Noise // Set during Setup phase according to NoiseKind.
+	PartitionsSpecified      bool
+
 }
 
 // newCountFn returns a newCountFn with the given budget and parameters.
-func newCountFn(epsilon, delta float64, maxPartitionsContributed int64, noiseKind noise.Kind) *countFn {
+func newCountFn(epsilon, delta float64, maxPartitionsContributed int64, noiseKind noise.Kind, partitionsSpecified bool) *countFn {
 	fn := &countFn{
 		MaxPartitionsContributed: maxPartitionsContributed,
 		NoiseKind:                noiseKind,
+		PartitionsSpecified:      partitionsSpecified,
 	}
 	fn.Epsilon = epsilon
 	switch noiseKind {
@@ -170,15 +224,19 @@ func (fn *countFn) Setup() {
 
 type countAccum struct {
 	C *dpagg.Count
+	PS bool
 }
 
 func (fn *countFn) CreateAccumulator() countAccum {
-	return countAccum{C: dpagg.NewCount(&dpagg.CountOptions{
+	return countAccum{
+		C: dpagg.NewCount(&dpagg.CountOptions{
 		Epsilon:                  fn.Epsilon,
 		Delta:                    fn.DeltaNoise,
 		MaxPartitionsContributed: fn.MaxPartitionsContributed,
 		Noise:                    fn.noise,
-	})}
+	}),
+    PS: fn.PartitionsSpecified,
+	}
 }
 
 // AddInput adds one to the count of observed values. It ignores the actual
@@ -194,6 +252,10 @@ func (fn *countFn) MergeAccumulators(a, b countAccum) countAccum {
 }
 
 func (fn *countFn) ExtractOutput(a countAccum) *int64 {
+	if a.PS {
+		result := a.C.Result()
+		return &result
+	}
 	return a.C.ThresholdedResult(fn.DeltaThreshold)
 }
 

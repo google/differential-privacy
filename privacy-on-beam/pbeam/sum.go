@@ -140,7 +140,7 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCo
 		partialSumPairs,
 		beam.TypeDefinition{Var: beam.XType, T: partitionT})
 	sums := beam.CombinePerKey(s,
-		newBoundedSumFn(epsilon, delta, maxPartitionsContributed, params.MinValue, params.MaxValue, noiseKind, vKind),
+		newBoundedSumFn(epsilon, delta, maxPartitionsContributed, params.MinValue, params.MaxValue, noiseKind, false, vKind),
 		partialSumKV)
 	// Drop thresholded partitions.
 	sums = beam.ParDo(s, findDropThresholdedPartitionsFn(vKind), sums)
@@ -165,6 +165,87 @@ func checkSumPerKeyParams(params SumParams, epsilon, delta float64) error {
 		return err
 	}
 	return checks.CheckMaxPartitionsContributed("pbeam.SumPerKey", params.MaxPartitionsContributed)
+}
+
+// SumPerKey sums the values associated with each key in a
+// PrivatePCollection<K,V>, adding differentially private noise to the sums and
+// doing pre-aggregation thresholding to remove sums with a low number of
+// distinct privacy identifiers.
+//
+// Note: Do not use when your results may cause overflows for Int64 and Float64
+// values. This aggregation is not hardened for such applications yet.
+//
+// SumPerKey transforms a PrivatePCollection<K,V> either into a
+// PCollection<K,int64> or a PCollection<K,float64>, depending on whether its
+// input is an integer type or a float type.
+func SumPerKeyWithPartitions(s beam.Scope, pcol PrivatePCollection, params SumParams, partitions [] interface {}) beam.PCollection {
+	s = s.Scope("pbeam.SumPerKeyWithPartitions")
+	// Obtain & validate type information from the underlying PCollection<K,V>.
+	idT, kvT := beam.ValidateKVType(pcol.col)
+	if kvT.Type() != reflect.TypeOf(kv.Pair{}) {
+		log.Exitf("SumPerKey must be used on a PrivatePCollection of type <K,V>, got type %v instead", kvT)
+	}
+	if pcol.codec == nil {
+		log.Exitf("SumPerKey: no codec found for the input PrivatePCollection.")
+	}
+	// Get privacy parameters.
+	spec := pcol.privacySpec
+	epsilon, delta, err := spec.consumeBudget(params.Epsilon, params.Delta)
+	if err != nil {
+		log.Exitf("couldn't consume budget: %v", err)
+	}
+	var noiseKind noise.Kind
+	if params.NoiseKind == nil {
+		noiseKind = noise.LaplaceNoise
+		log.Infof("No NoiseKind specified, using Laplace Noise by default.")
+	} else {
+		noiseKind = params.NoiseKind.toNoiseKind()
+	}
+	maxPartitionsContributed := getMaxPartitionsContributed(spec, params.MaxPartitionsContributed)
+	// First, group together the privacy ID and the partition ID, and sum the
+	// values per-user and per-partition.
+	decoded := beam.ParDo(s,
+		newPrepareSumFn(idT, pcol.codec),
+		pcol.col,
+		beam.TypeDefinition{Var: beam.VType, T: pcol.codec.VType.T})
+	summed := stats.SumPerKey(s, decoded)
+	// Second, convert the sum to int64 or float64, and re-key.
+	_, sumT := beam.ValidateKVType(summed)
+	convertFn, err := findConvertFn(sumT)
+	if err != nil {
+		log.Exit(err)
+	}
+	vKind, err := getKind(convertFn)
+	if err != nil {
+		log.Exit(err)
+	}
+	converted := beam.ParDo(s, convertFn, summed)
+	rekeyed := beam.ParDo(s, findRekeyFn(vKind), converted)
+	// Third, do per-user contribution bounding.
+	rekeyed = boundContributions(s, rekeyed, maxPartitionsContributed)
+	// Fourth, now that contribution bounding is done, remove the privacy keys,
+	// decode the value, and do a DP sum with all the partial sums.
+	partialSumPairs := beam.DropKey(s, rekeyed)
+	partitionT := pcol.codec.KType.T
+	partialSumKV := beam.ParDo(s,
+		newDecodePairFn(partitionT, vKind),
+		partialSumPairs,
+		beam.TypeDefinition{Var: beam.XType, T: partitionT})
+	partitionsCol := beam.CreateList(s,partitions)
+	addSpecifiedPartitions := beam.ParDo(s, prepareAddPartitionsInt64Fn,partitionsCol)
+	allAddPartitions := beam.Flatten(s, partialSumKV, addSpecifiedPartitions)
+	sums := beam.CombinePerKey(s,
+		newBoundedSumFn(epsilon, delta, maxPartitionsContributed, params.MinValue, params.MaxValue, noiseKind, true, vKind),
+		allAddPartitions)
+	// Drop thresholded partitions.
+	dropPartitions := beam.ParDo(s, prepareDropPartitionsInt64Fn, partitionsCol)
+	allDropPartitions := beam.CoGroupByKey(s, sums, dropPartitions)
+	correctPartitions := beam.ParDo(s, dropUnspecifiedPartitionsInt64Fn, allDropPartitions)
+	// Clamp negative counts to zero when MinValue is non-negative.
+	if params.MinValue >= 0 {
+		sums = beam.ParDo(s, findClampNegativePartitionsFn(vKind), correctPartitions)
+	}
+	return sums
 }
 
 // prepareSumFn takes a PCollection<ID,kv.Pair{K,V}> as input, and returns a
