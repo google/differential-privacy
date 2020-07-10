@@ -112,8 +112,8 @@ func NewPreAggSelectPartition(opt *PreAggSelectPartitionOptions) *PreAggSelectPa
 		s.l0Sensitivity = 1
 	}
 
-	if err := checks.CheckDelta("dpagg.NewPreAggSelectPartition", s.delta); err != nil {
-		log.Fatalf("%s: CheckDelta failed with %v", &s, err)
+	if err := checks.CheckDeltaStrict("dpagg.NewPreAggSelectPartition", s.delta); err != nil {
+		log.Fatalf("%s: CheckDeltaStrict failed with %v", &s, err)
 	}
 	if err := checks.CheckEpsilon("dpagg.NewPreAggSelectPartition", s.epsilon); err != nil {
 		log.Fatalf("%s: CheckEpsilon failed with %v", &s, err)

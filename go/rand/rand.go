@@ -19,11 +19,14 @@
 package rand
 
 import (
+	"bufio"
 	cryptorand "crypto/rand"
 	"encoding/binary"
+	"io"
 	"math"
 	"math/bits"
 	mathrand "math/rand"
+	"sync"
 
 	log "github.com/golang/glog"
 )
@@ -31,10 +34,25 @@ import (
 // TODO: Add test coverage for the various exported
 // noise-generating functions.
 
+var (
+	randBufLock sync.Mutex
+	randBuf     io.Reader = bufio.NewReaderSize(cryptorand.Reader, 65536)
+
+	randBitLock sync.Mutex
+	randBitBuf  uint8
+	randBitPos  int8 = math.MaxInt8
+)
+
+func readRandBuf(b []byte) (int, error) {
+	randBufLock.Lock()
+	defer randBufLock.Unlock()
+	return io.ReadFull(randBuf, b)
+}
+
 // U64 returns a uniformly random uint64.
 func U64() uint64 {
 	var r [8]uint8
-	if _, err := cryptorand.Read(r[:]); err != nil {
+	if _, err := readRandBuf(r[:]); err != nil {
 		log.Fatalf("out of randomness, should never happen: %v", err)
 	}
 	return binary.LittleEndian.Uint64(r[:])
@@ -43,7 +61,7 @@ func U64() uint64 {
 // U8 returns a uniformly random uint8.
 func U8() uint8 {
 	var r [1]uint8
-	if _, err := cryptorand.Read(r[:]); err != nil {
+	if _, err := readRandBuf(r[:]); err != nil {
 		log.Fatalf("out of randomness, should never happen: %v", err)
 	}
 	return r[0]
@@ -51,7 +69,7 @@ func U8() uint8 {
 
 // Sign returns +1.0 or -1.0 with equal probabilities.
 func Sign() float64 {
-	if U8()%2 == 0 {
+	if Boolean() {
 		return 1.0
 	}
 	return -1.0
@@ -59,7 +77,15 @@ func Sign() float64 {
 
 // Boolean returns true or false with equal probability.
 func Boolean() bool {
-	return U8()%2 == 0
+	randBitLock.Lock()
+	defer randBitLock.Unlock()
+	if randBitPos > 7 { // Out of random bits.
+		randBitBuf = U8()
+		randBitPos = 0
+	}
+	res := randBitBuf&(1<<randBitPos) > 0
+	randBitPos++
+	return res
 }
 
 // I63n returns an integer from the set {0,...,n-1} uniformly at random.
@@ -117,7 +143,7 @@ type randSource struct{}
 // Int63 returns a uniformly random int64 in [0, 1<<63).
 func (rs randSource) Int63() int64 {
 	var r [8]uint8
-	if _, err := cryptorand.Read(r[:]); err != nil {
+	if _, err := readRandBuf(r[:]); err != nil {
 		log.Fatalf("out of randomness, should never happen: %v", err)
 	}
 	i := int64(binary.LittleEndian.Uint64(r[:]))

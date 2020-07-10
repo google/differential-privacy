@@ -42,14 +42,31 @@ func CheckEpsilonStrict(label string, epsilon float64) error {
 
 // CheckEpsilon returns an error if ε is strictly negative or +∞.
 func CheckEpsilon(label string, epsilon float64) error {
-	if epsilon < 0 || math.IsInf(epsilon, 0) {
-		return fmt.Errorf("%s: Epsilon is %f, should be nonnegative (and cannot be infinity)", label, epsilon)
+	if epsilon < 0 || math.IsInf(epsilon, 0) || math.IsNaN(epsilon) {
+		return fmt.Errorf("%s: Epsilon is %f, should be nonnegative (and cannot be infinity or NaN)", label, epsilon)
 	}
 	return nil
 }
 
-// CheckDelta returns an error if δ is nonpositive or larger than 1.
+// CheckDelta returns an error if δ is negative or larger than 1.
 func CheckDelta(label string, delta float64) error {
+	if math.IsNaN(delta) {
+		return fmt.Errorf("%s: Delta is %e, cannot be NaN", label, delta)
+	}
+	if delta < 0 {
+		return fmt.Errorf("%s: Delta is %e, cannot be negative", label, delta)
+	}
+	if delta >= 1 {
+		return fmt.Errorf("%s: Delta is %e, should be strictly less than 1", label, delta)
+	}
+	return nil
+}
+
+// CheckDeltaStrict returns an error if δ is nonpositive or larger than 1.
+func CheckDeltaStrict(label string, delta float64) error {
+	if math.IsNaN(delta) {
+		return fmt.Errorf("%s: Delta is %e, cannot be NaN", label, delta)
+	}
 	if delta <= 0 {
 		return fmt.Errorf("%s: Delta is %e, should be strictly positive", label, delta)
 	}
@@ -77,8 +94,8 @@ func CheckL0Sensitivity(label string, l0Sensitivity int64) error {
 
 // CheckLInfSensitivity returns an error if lInfSensitivity is nonpositive or +∞.
 func CheckLInfSensitivity(label string, lInfSensitivity float64) error {
-	if lInfSensitivity <= 0 || math.IsInf(lInfSensitivity, 0) {
-		return fmt.Errorf("%s: LInfSensitivity is %f, should be strictly positive (and cannot be infinity)", label, lInfSensitivity)
+	if lInfSensitivity <= 0 || math.IsInf(lInfSensitivity, 0) || math.IsNaN(lInfSensitivity) {
+		return fmt.Errorf("%s: LInfSensitivity is %f, should be strictly positive (and cannot be infinity or NaN)", label, lInfSensitivity)
 	}
 	return nil
 }
@@ -151,6 +168,14 @@ func CheckBoundsFloat64AsInt64(label string, lower, upper float64) error {
 func CheckUserCount(label string, userCount int64) error {
 	if userCount < 0 {
 		return fmt.Errorf("%s: userCount is %d, should be nonnegative", label, userCount)
+	}
+	return nil
+}
+
+// CheckMaxPartitionsContributed returns an error if maxPartitionsContributed is nonpositive.
+func CheckMaxPartitionsContributed(label string, maxPartitionsContributed int64) error {
+	if maxPartitionsContributed < 0 {
+		return fmt.Errorf("%s: MaxPartitionsContributed is %d, should not be negative", label, maxPartitionsContributed)
 	}
 	return nil
 }

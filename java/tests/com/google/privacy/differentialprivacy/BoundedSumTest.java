@@ -436,7 +436,7 @@ public class BoundedSumTest {
   }
 
   @Test
-  public void merge_calledAfterComputeResult_ontargetSum_throwsException() {
+  public void merge_calledAfterComputeResult_onTargetSum_throwsException() {
     BoundedSum targetSum = getBoundedSumBuilderWithFields().build();
     BoundedSum sourceSum = getBoundedSumBuilderWithFields().build();
 

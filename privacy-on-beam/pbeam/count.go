@@ -17,7 +17,10 @@
 package pbeam
 
 import (
+	"fmt"
+
 	log "github.com/golang/glog"
+	"github.com/google/differential-privacy/go/checks"
 	"github.com/google/differential-privacy/go/noise"
 	"github.com/google/differential-privacy/privacy-on-beam/internal/kv"
 	"github.com/apache/beam/sdks/go/pkg/beam"
@@ -69,9 +72,15 @@ func Count(s beam.Scope, pcol PrivatePCollection, params CountParams) beam.PColl
 	s = s.Scope("pbeam.Count")
 	// Obtain type information from the underlying PCollection<K,V>.
 	idT, partitionT := beam.ValidateKVType(pcol.col)
+
 	// Get privacy parameters.
 	spec := pcol.privacySpec
 	epsilon, delta, err := spec.consumeBudget(params.Epsilon, params.Delta)
+	err = checkCountParams(params, epsilon, delta)
+	if err != nil {
+		log.Exit(err)
+	}
+
 	if err != nil {
 		log.Exitf("couldn't consume budget: %v", err)
 	}
@@ -105,4 +114,23 @@ func Count(s beam.Scope, pcol PrivatePCollection, params CountParams) beam.PColl
 	counts := beam.ParDo(s, dropThresholdedPartitionsInt64Fn, sums)
 	// Clamp negative counts to zero and return.
 	return beam.ParDo(s, clampNegativePartitionsInt64Fn, counts)
+}
+
+func checkCountParams(params CountParams, epsilon, delta float64) error{
+	err := checks.CheckEpsilon("pbeam.Count", epsilon)
+	if err != nil {
+		return err
+	}
+	err = checks.CheckDeltaStrict("pbeam.Count", delta)
+	if err != nil {
+		return err
+	}
+	err = checks.CheckMaxPartitionsContributed("pbeam.Count", params.MaxPartitionsContributed)
+	if err != nil {
+		return err
+	}
+	if params.MaxValue <= 0 {
+		return fmt.Errorf("pbeam.Count: MaxValue should be strictly positive, got %d", params.MaxValue)
+	}
+	return nil
 }

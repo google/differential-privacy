@@ -22,6 +22,7 @@ import (
 	"reflect"
 
 	log "github.com/golang/glog"
+	"github.com/google/differential-privacy/go/checks"
 	"github.com/google/differential-privacy/go/dpagg"
 	"github.com/google/differential-privacy/go/noise"
 	"github.com/google/differential-privacy/privacy-on-beam/internal/kv"
@@ -98,11 +99,16 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 	if pcol.codec == nil {
 		log.Exitf("MeanPerKey: no codec found for the input PrivatePCollection.")
 	}
+
 	// Get privacy parameters.
 	spec := pcol.privacySpec
 	epsilon, delta, err := spec.consumeBudget(params.Epsilon, params.Delta)
 	if err != nil {
 		log.Exitf("couldn't consume budget: %v", err)
+	}
+	err = checkMeanPerKeyParams(params, epsilon, delta)
+	if err != nil {
+		log.Exit(err)
 	}
 	var noiseKind noise.Kind
 	if params.NoiseKind == nil {
@@ -158,6 +164,22 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 		partialKV)
 	// Finally, drop thresholded partitions.
 	return beam.ParDo(s, dropThresholdedPartitionsFloat64Fn, means)
+}
+
+func checkMeanPerKeyParams(params MeanParams, epsilon, delta float64) error {
+	err := checks.CheckEpsilon("pbeam.MeanPerKey", epsilon)
+	if err != nil {
+		return err
+	}
+	err = checks.CheckDeltaStrict("pbeam.MeanPerKey", delta)
+	if err != nil {
+		return err
+	}
+	err = checks.CheckBoundsFloat64("pbeam.MeanPerKey", params.MinValue, params.MaxValue)
+	if err != nil {
+		return err
+	}
+	return checks.CheckMaxPartitionsContributed("pbeam.MeanPerKey", params.MaxPartitionsContributed)
 }
 
 // decodePairArrayFloat64Fn transforms a PCollection<pairArrayFloat64<codedX,[]float64>> into a

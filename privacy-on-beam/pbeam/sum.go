@@ -22,6 +22,7 @@ import (
 	"reflect"
 
 	log "github.com/golang/glog"
+	"github.com/google/differential-privacy/go/checks"
 	"github.com/google/differential-privacy/go/noise"
 	"github.com/google/differential-privacy/privacy-on-beam/internal/kv"
 	"github.com/apache/beam/sdks/go/pkg/beam"
@@ -89,12 +90,18 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCo
 	if pcol.codec == nil {
 		log.Exitf("SumPerKey: no codec found for the input PrivatePCollection.")
 	}
+
 	// Get privacy parameters.
 	spec := pcol.privacySpec
 	epsilon, delta, err := spec.consumeBudget(params.Epsilon, params.Delta)
 	if err != nil {
 		log.Exitf("couldn't consume budget: %v", err)
 	}
+	err = checkSumPerKeyParams(params, epsilon, delta)
+	if err != nil {
+		log.Exit(err)
+	}
+
 	var noiseKind noise.Kind
 	if params.NoiseKind == nil {
 		noiseKind = noise.LaplaceNoise
@@ -142,6 +149,22 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCo
 		sums = beam.ParDo(s, findClampNegativePartitionsFn(vKind), sums)
 	}
 	return sums
+}
+
+func checkSumPerKeyParams(params SumParams, epsilon, delta float64) error {
+	err := checks.CheckEpsilon("pbeam.SumPerKey", epsilon)
+	if err != nil {
+		return err
+	}
+	err = checks.CheckDeltaStrict("pbeam.SumPerKey", delta)
+	if err != nil {
+		return err
+	}
+	err = checks.CheckBoundsFloat64("pbeam.SumPerKey", params.MinValue, params.MaxValue)
+	if err != nil {
+		return err
+	}
+	return checks.CheckMaxPartitionsContributed("pbeam.SumPerKey", params.MaxPartitionsContributed)
 }
 
 // prepareSumFn takes a PCollection<ID,kv.Pair{K,V}> as input, and returns a
