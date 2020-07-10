@@ -90,7 +90,7 @@ func (gaussian) Threshold(l0Sensitivity int64, lInfSensitivity, epsilon, deltaNo
 		log.Fatalf("gaussian.Threshold(l0sensitivity %d, lInfSensitivity %f, epsilon %f, deltaNoise %e, deltaThreshold %e) checks failed with %v",
 			l0Sensitivity, lInfSensitivity, epsilon, deltaNoise, deltaThreshold, err)
 	}
-	if err := checks.CheckDelta("Threshold (gaussian, deltaNoise)", deltaThreshold); err != nil {
+	if err := checks.CheckDeltaStrict("Threshold (gaussian, deltaNoise)", deltaThreshold); err != nil {
 		log.Fatalf("CheckDelta failed with %v", err)
 	}
 
@@ -123,7 +123,7 @@ func checkArgsGaussian(label string, l0Sensitivity int64, lInfSensitivity, epsil
 	if err := checks.CheckEpsilon(label, epsilon); err != nil {
 		return err
 	}
-	return checks.CheckDelta(label, delta)
+	return checks.CheckDeltaStrict(label, delta)
 }
 
 // addGaussian adds Gaussian noise of scale σ to the specified float64.

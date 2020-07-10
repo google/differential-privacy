@@ -27,10 +27,10 @@ validity_parameters {
   failure_specificity: 1.25
 }
 
-# Taking the majority vote over 15 repeated runs of a particular test case
-# increases the accept and reject probabilities to 0.99996 or more.
+# Taking the majority vote over 9 repeated runs of a particular test case
+# increases the accept and reject probabilities to 0.99911 or more.
 voting_parameters {
-  number_of_votes: 15
+  number_of_votes: 9
 }
 
 count_dp_test_case {

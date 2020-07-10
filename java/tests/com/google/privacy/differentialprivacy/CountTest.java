@@ -266,6 +266,121 @@ public class CountTest {
     assertThat(summary.getMaxContributionsPerPartition()).isEqualTo(maxContributionsPerPartition);
   }
 
+   @Test
+  public void merge_basicExample_sumsCounts() {
+    Count targetCount = getCountBuilderWithFields().build();
+    Count sourceCount = getCountBuilderWithFields().build();
+
+    targetCount.increment();
+    sourceCount.increment();
+
+    targetCount.mergeWith(sourceCount.getSerializableSummary());
+
+    assertThat(targetCount.computeResult()).isEqualTo(2);
+  }
+
+  @Test
+  public void merge_calledTwice_sumsCounts() {
+    Count targetCount = getCountBuilderWithFields().build();
+    Count sourceCount1 = getCountBuilderWithFields().build();
+    Count sourceCount2 = getCountBuilderWithFields().build();
+
+    targetCount.increment();
+    sourceCount1.incrementBy(2);
+    sourceCount2.incrementBy(3);
+
+    targetCount.mergeWith(sourceCount1.getSerializableSummary());
+    targetCount.mergeWith(sourceCount2.getSerializableSummary());
+
+    assertThat(targetCount.computeResult()).isEqualTo(6);
+  }
+
+  @Test
+  public void merge_nullDelta_noException() {
+    Count targetCount = getCountBuilderWithFields()
+        .noise(new LaplaceNoise())
+        .delta(null)
+        .build();
+    Count sourceCount = getCountBuilderWithFields()
+        .noise(new LaplaceNoise())
+        .delta(null)
+        .build();
+    // no exception is thrown
+    targetCount.mergeWith(sourceCount.getSerializableSummary());
+  }
+
+  @Test
+  public void merge_differentEpsilon_throwsException() {
+    Count targetCount = getCountBuilderWithFields().epsilon(EPSILON).build();
+    Count sourceCount = getCountBuilderWithFields().epsilon(2 * EPSILON).build();
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> targetCount.mergeWith(sourceCount.getSerializableSummary()));
+  }
+
+  @Test
+  public void merge_differentDelta_throwsException() {
+    Count targetCount = getCountBuilderWithFields().delta(DELTA).build();
+    Count sourceCount = getCountBuilderWithFields().delta(2 * DELTA).build();
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> targetCount.mergeWith(sourceCount.getSerializableSummary()));
+  }
+
+  @Test
+  public void merge_differentNoise_throwsException() {
+    Count targetCount = getCountBuilderWithFields()
+        .noise(new LaplaceNoise())
+        .delta(null)
+        .build();
+    Count sourceCount = getCountBuilderWithFields()
+        .noise(new GaussianNoise())
+        .build();
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> targetCount.mergeWith(sourceCount.getSerializableSummary()));
+  }
+
+  @Test
+  public void merge_differentMaxPartitionsContributed_throwsException() {
+    Count targetCount = getCountBuilderWithFields().maxPartitionsContributed(1).build();
+    Count sourceCount = getCountBuilderWithFields().maxPartitionsContributed(2).build();
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> targetCount.mergeWith(sourceCount.getSerializableSummary()));
+  }
+
+  @Test
+  public void merge_differentMaxContributionsPerPartition_throwsException() {
+    Count targetCount = getCountBuilderWithFields().maxContributionsPerPartition(1).build();
+    Count sourceCount = getCountBuilderWithFields().maxContributionsPerPartition(2).build();
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> targetCount.mergeWith(sourceCount.getSerializableSummary()));
+  }
+
+  @Test
+  public void merge_calledAfterComputeResult_onTargetCount_throwsException() {
+    Count targetCount = getCountBuilderWithFields().build();
+    Count sourceCount = getCountBuilderWithFields().build();
+
+    targetCount.computeResult();
+    assertThrows(
+        IllegalStateException.class,
+        () -> targetCount.mergeWith(sourceCount.getSerializableSummary()));
+  }
+
+  @Test
+  public void merge_calledAfterComputeResult_onSourceCount_throwsException() {
+    Count targetCount = getCountBuilderWithFields().build();
+    Count sourceCount = getCountBuilderWithFields().build();
+
+    sourceCount.computeResult();
+    assertThrows(
+        IllegalStateException.class,
+        () -> targetCount.mergeWith(sourceCount.getSerializableSummary()));
+  }
+
   private Count.Params.Builder getCountBuilderWithFields() {
     return Count.builder()
         .epsilon(EPSILON)

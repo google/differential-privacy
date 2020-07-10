@@ -18,6 +18,7 @@ package com.google.privacy.differentialprivacy;
 
 import com.google.auto.value.AutoValue;
 import com.google.differentialprivacy.SummaryOuterClass.CountSummary;
+import com.google.protobuf.InvalidProtocolBufferException;
 import javax.annotation.Nullable;
 
 /**
@@ -126,6 +127,48 @@ public class Count {
     return builder.build().toByteArray();
   }
 
+  /**
+   * Merges this instance with the output of {@link #getSerializableSummary()} from a different
+   * {@link Count} and stores the merged result in this instance. This is required in the
+   * distributed calculations context for merging partial results.
+   *
+   * @throws IllegalArgumentException if not all config parameters (e.g., epsilon)
+   *     are equal or if the passed serialized count is invalid.
+   * @throws IllegalStateException if this count has already been calculated or serialized.
+   */
+  public void mergeWith(byte[] otherCountSummary) {
+    if (resultReturned) {
+      throw new IllegalStateException(
+          "The count has already been calculated and returned. It cannot be merged.");
+    }
+
+    CountSummary otherSummaryParsed;
+    try {
+      otherSummaryParsed = CountSummary.parseFrom(otherCountSummary);
+    } catch (InvalidProtocolBufferException pbe) {
+      throw new IllegalArgumentException(pbe);
+    }
+
+    checkMergeParametersAreEqual(otherSummaryParsed);
+    this.rawCount += otherSummaryParsed.getCount();
+  }
+
+  private void checkMergeParametersAreEqual(CountSummary otherCount) {
+    DpPreconditions.checkMergeMechanismTypesAreEqual(
+        params.noise().getMechanismType(), otherCount.getMechanismType());
+    DpPreconditions.checkMergeEpsilonAreEqual(
+        params.epsilon(), otherCount.getEpsilon());
+    DpPreconditions.checkMergeDeltaAreEqual(
+        params.delta(), otherCount.getDelta());
+    DpPreconditions.checkMergeMaxPartitionsContributedAreEqual(
+        params.maxPartitionsContributed(),
+        otherCount.getMaxPartitionsContributed());
+    DpPreconditions.checkMergeMaxContributionsPerPartitionAreEqual(
+        params.maxContributionsPerPartition(), otherCount.getMaxContributionsPerPartition());
+  }
+
+
+
   @AutoValue
   public abstract static class Params {
     abstract Noise noise();
@@ -168,7 +211,7 @@ public class Count {
        */
       public abstract Builder maxPartitionsContributed(int value);
 
-      /** Distribution from which the noise will be generated and added to the sum. */
+      /** Distribution from which the noise will be generated and added to the count. */
       public abstract Builder noise(Noise value);
 
       /**
