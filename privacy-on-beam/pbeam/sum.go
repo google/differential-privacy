@@ -140,7 +140,7 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCo
 		partialSumPairs,
 		beam.TypeDefinition{Var: beam.XType, T: partitionT})
 	sums := beam.CombinePerKey(s,
-		newBoundedSumFn(epsilon, delta, maxPartitionsContributed, params.MinValue, params.MaxValue, noiseKind, false, vKind),
+		newBoundedSumFn(epsilon, delta, maxPartitionsContributed, params.MinValue, params.MaxValue, noiseKind, vKind, false),
 		partialSumKV)
 	// Drop thresholded partitions.
 	sums = beam.ParDo(s, findDropThresholdedPartitionsFn(vKind), sums)
@@ -235,7 +235,7 @@ func SumPerKeyWithPartitions(s beam.Scope, pcol PrivatePCollection, params SumPa
 	addSpecifiedPartitions := beam.ParDo(s, prepareAddPartitionsInt64Fn,partitionsCol)
 	allAddPartitions := beam.Flatten(s, partialSumKV, addSpecifiedPartitions)
 	sums := beam.CombinePerKey(s,
-		newBoundedSumFn(epsilon, delta, maxPartitionsContributed, params.MinValue, params.MaxValue, noiseKind, true, vKind),
+		newBoundedSumFn(epsilon, delta, maxPartitionsContributed, params.MinValue, params.MaxValue, noiseKind, vKind, true),
 		allAddPartitions)
 	// Drop thresholded partitions.
 	dropPartitions := beam.ParDo(s, prepareDropPartitionsInt64Fn, partitionsCol)

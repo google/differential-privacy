@@ -336,7 +336,7 @@ func TestNewCountFn(t *testing.T) {
 				NoiseKind:                noise.GaussianNoise,
 			}},
 	} {
-		got := newCountFn(1, 1e-5, 17, tc.noiseKind)
+		got := newCountFn(1, 1e-5, 17, tc.noiseKind, false)
 		if diff := cmp.Diff(tc.want, got, cmpopts.IgnoreUnexported(countFn{})); diff != "" {
 			t.Errorf("newCountFn mismatch for '%s' (-want +got):\n%s", tc.desc, diff)
 		}
@@ -351,7 +351,7 @@ func TestCountFnSetup(t *testing.T) {
 	}{
 		{"Laplace noise kind", noise.LaplaceNoise, noise.Laplace()},
 		{"Gaussian noise kind", noise.GaussianNoise, noise.Gaussian()}} {
-		got := newCountFn(1, 1e-5, 17, tc.noiseKind)
+		got := newCountFn(1, 1e-5, 17, tc.noiseKind, false)
 		got.Setup()
 		if !cmp.Equal(tc.wantNoise, got.noise) {
 			t.Errorf("Setup: for %s got %v, want %v", tc.desc, got.noise, tc.wantNoise)

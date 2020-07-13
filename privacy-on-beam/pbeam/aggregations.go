@@ -192,7 +192,7 @@ func (fn *decodePairFloat64Fn) ProcessElement(pair pairFloat64) (beam.X, float64
 	return x, pair.M
 }
 
-func newBoundedSumFn(epsilon, delta float64, maxPartitionsContributed int64, lower, upper float64, noiseKind noise.Kind, partitionsSpecified bool, vKind reflect.Kind) interface{} {
+func newBoundedSumFn(epsilon, delta float64, maxPartitionsContributed int64, lower, upper float64, noiseKind noise.Kind, vKind reflect.Kind, partitionsSpecified bool) interface{} {
 	var err error
 	var bsFn interface{}
 
@@ -493,14 +493,14 @@ func prepareDropPartitionsFloat64Fn(partitionKey beam.X) (k beam.X, v *float64) 
 }
 
 func dropUnspecifiedPartitionsInt64Fn(partitionKey beam.X, v1Iter, v2Iter func(**int64) bool, emit func(beam.X, int64)){
-	var v1 = toSliceInt64(v1Iter)
-	var v2 = toSliceInt64(v2Iter)
+	var v1 = toSliceInt64Partition(v1Iter)
+	var v2 = toSliceInt64Partition(v2Iter)
 	if len(v2) == 1 && len(v1) == 1 {
 		emit(partitionKey, *v1[0])
 	}
 }
 
-func toSliceInt64(vIter func(**int64) bool) []*int64 {
+func toSliceInt64Partition(vIter func(**int64) bool) []*int64 {
 	var vSlice []*int64
 	var v *int64
 	for vIter(&v) {
@@ -510,14 +510,14 @@ func toSliceInt64(vIter func(**int64) bool) []*int64 {
 }
 
 func dropUnspecifiedPartitionsFloat64Fn(partitionKey beam.X, v1Iter, v2Iter func(**float64) bool, emit func(beam.X, float64)){
-	var v1 = toSliceFloat64(v1Iter)
-	var v2 = toSliceFloat64(v2Iter)
+	var v1 = toSliceFloat64Partition(v1Iter)
+	var v2 = toSliceFloat64Partition(v2Iter)
 	if len(v2) == 1 && len(v1) == 1 {
 		emit(partitionKey, *v1[0])
 	}
 }
 
-func toSliceFloat64(vIter func(**float64) bool) []*float64 {
+func toSliceFloat64Partition(vIter func(**float64) bool) []*float64 {
 	var vSlice []*float64
 	var v *float64
 	for vIter(&v) {
