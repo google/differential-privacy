@@ -191,6 +191,31 @@ func TestBoundedSumInt64FnExtractOutputReturnsNilForSmallPartitions(t *testing.T
 	}
 }
 
+func TestBoundedSumInt64FnExtractOutputWithPartitionsDoesNotThreshold(t *testing.T) {
+	for _, tc := range []struct {
+		desc      string
+		inputSize int
+	}{
+		{"Empty input", 0},
+		{"Input with 1 user", 1},
+	    {"Input with 10 users", 10},
+	    {"Input with 100 users", 100}} {
+
+		fn := newBoundedSumInt64Fn(1, 1e-23, 1, 0, 2, noise.LaplaceNoise, true)
+		fn.Setup()
+		accum := fn.CreateAccumulator()
+		for i := 0; i < tc.inputSize; i++ {
+			fn.AddInput(accum, 1)
+		}
+
+		got := fn.ExtractOutput(accum)
+
+		if got == nil {
+			t.Errorf("ExtractOutput: for %s got: %d, want actual value", tc.desc, *got)
+		}
+	}
+}
+
 func TestBoundedSumFloat64FnAddInput(t *testing.T) {
 	// Since δ=0.5 and 2 entries are added, PreAggPartitionSelection always emits.
 	// Since ε=1e100, added noise is negligible.
@@ -252,6 +277,30 @@ func TestBoundedSumFloat64FnExtractOutputReturnsNilForSmallPartitions(t *testing
 		// Should return nil output for small partitions.
 		if got != nil {
 			t.Errorf("ExtractOutput: for %s got: %f, want nil", tc.desc, *got)
+		}
+	}
+}
+
+func TestBoundedSumFloat64FnExtractOutputWithSpecifiedPartitionsDoesNotThreshold(t *testing.T) {
+	for _, tc := range []struct {
+		desc      string
+		inputSize int
+	}{
+		{"Empty input", 0},
+		{"Input with 1 user", 1},
+	    {"Input with 10 users", 10},
+	    {"Input with 100 users", 100}} {
+		partitionsSpecified := true
+		fn := newBoundedSumFloat64Fn(1, 1e-23, 1, 0, 2, noise.LaplaceNoise, partitionsSpecified)
+		fn.Setup()
+		accum := fn.CreateAccumulator()
+		for i := 0; i < tc.inputSize; i++ {
+			fn.AddInput(accum, 1)
+		}
+
+		got := fn.ExtractOutput(accum)
+		if got == nil {
+			t.Errorf("ExtractOutput: for %s got: %f, want actual value", tc.desc, *got)
 		}
 	}
 }

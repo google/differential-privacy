@@ -92,6 +92,38 @@ func TestDistinctPrivacyIDNoNoise(t *testing.T) {
 	}
 }
 
+// Checks that DistinctPrivacyID returns a correct answer, in particular that keys
+// are correctly counted (without duplicates).
+func TestDistinctPrivacyIDWithPartitionsNoNoise(t *testing.T) {
+	pairs := concatenatePairs(
+		makePairsWithFixedV(7, 0),
+		makePairsWithFixedV(52, 1),
+		makePairsWithFixedV(99, 2),
+		makePairsWithFixedV(7, 0), // duplicated values should have no influence.
+	    makePairsWithFixedV(20, 3)) 
+	result := []testInt64Metric{
+		{0, 7},
+		{1, 52},
+		{3, 20},
+	}
+	p, s, col, want := ptest.CreateList2(pairs, result)
+	col = beam.ParDo(s, pairToKV, col)
+
+	partitions := [] int {0, 1, 3}
+	partitionsCol := beam.CreateList(s,partitions)
+
+	epsilon, delta, k, l1Sensitivity := 50.0, 1e-200, 25.0, 4.0
+	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+	got := DistinctPrivacyID(s, pcol, DistinctPrivacyIDParams{MaxPartitionsContributed: 4, NoiseKind: LaplaceNoise{}}, partitionsCol)
+	want = beam.ParDo(s, int64MetricToKV, want)
+	if err := approxEqualsKVInt64(s, got, want, laplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
+		t.Fatalf("TestDistinctPrivacyIDNoNoise: %v", err)
+	}
+	if err := ptest.Run(p); err != nil {
+		t.Errorf("TestDistinctPrivacyIDNoNoise: DistinctPrivacyID(%v) = %v, expected %v: %v", col, got, want, err)
+	}
+}
+
 type distinctThresholdTestCase struct {
 	name            string
 	noiseKind       NoiseKind
@@ -432,5 +464,33 @@ func TestCountFnExtractOutputReturnsNilForSmallPartitions(t *testing.T) {
 	// Should return nil output for small partitions.
 	if got != nil {
 		t.Errorf("ExtractOutput: for 10 added values got: %d, want nil", *got)
+	}
+}
+
+func TestCountFnExtractOutputDoesNotReturnNilIfPartitionsSpecified(t *testing.T) {
+	// The laplace threshold for ε=ln3, δ=10⁻²⁰⁰, lInfSensitivity = 1 is ~ 420.
+	// The raw count after adding 10 elements is equal to 10.
+	// The laplace tolerance is equal to 48 for ε=ln3, l1Sensitivity=maxPartitionsContributed=1 and flakiness of 10⁻²³.
+	// The rawCount + laplaceTolerance is less than the threshold with flakiness of 10⁻²³ for chosen parameters: 10 + 48 < 420.
+	fn := countFn{
+		Epsilon:                  ln3,
+		DeltaNoise:               0,
+		DeltaThreshold:           1e-200,
+		MaxPartitionsContributed: 1,
+		NoiseKind:                noise.LaplaceNoise,
+		PartitionsSpecified:      true,
+	}
+
+	fn.Setup()
+	accum := fn.CreateAccumulator()
+	for i := 0; i < 10; i++ {
+		fn.AddInput(accum, 1)
+	}
+
+	got := fn.ExtractOutput(accum)
+
+	// Should return nil output for small partitions.
+	if got == nil {
+		t.Errorf("ExtractOutput: for 10 added values got: %d, do not want nil", *got)
 	}
 }

@@ -89,7 +89,7 @@ type MeanParams struct {
 // values.  This aggregation is not hardened for such applications yet.
 //
 // MeanPerKey transforms a PrivatePCollection<K,V> into a PCollection<K,float64>.
-func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.PCollection {
+func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams, partitions ... beam.PCollection) beam.PCollection {
 	s = s.Scope("pbeam.MeanPerKey")
 	// Obtain & validate type information from the underlying PCollection<K,V>.
 	idT, kvT := beam.ValidateKVType(pcol.col)
@@ -157,13 +157,34 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 		newDecodePairArrayFloat64Fn(partitionT),
 		partialPairs,
 		beam.TypeDefinition{Var: beam.XType, T: partitionT})
+	if len(partitions) == 0 { // no partitions specified
+	// Compute the mean for each partition. Result is PCollection<partition, float64>.
+	means := beam.CombinePerKey(s,
+	newBoundedMeanFloat64Fn(epsilon, delta, maxPartitionsContributed, params.MaxContributionsPerPartition, params.MinValue, params.MaxValue, noiseKind, false),
+	partialKV)
+	// Finally, drop thresholded partitions.
+	return beam.ParDo(s, dropThresholdedPartitionsFloat64Fn, means)
+	} else if len(partitions) > 1 {
+		log.Exitf("Only one partition PCollection can be specified.")
+	} 
+	partitionsCol := partitions[0]
+	// Turn partitionsCol type PCollection<K> into PCollection<K, [] float64]> by adding 
+	// an empty array as the value to each K. 
+	addSpecifiedPartitions := beam.ParDo(s, prepareAddPartitionsFloat64Fn, partitionsCol)
+	// Merge specified partitions with existing partitions
+	allAddPartitions := beam.Flatten(s, partialKV, addSpecifiedPartitions)
 
 	// Compute the mean for each partition. Result is PCollection<partition, float64>.
 	means := beam.CombinePerKey(s,
-		newBoundedMeanFloat64Fn(epsilon, delta, maxPartitionsContributed, params.MaxContributionsPerPartition, params.MinValue, params.MaxValue, noiseKind, false),
-		partialKV)
-	// Finally, drop thresholded partitions.
-	return beam.ParDo(s, dropThresholdedPartitionsFloat64Fn, means)
+		newBoundedMeanFloat64Fn(epsilon, delta, maxPartitionsContributed, params.MaxContributionsPerPartition, params.MinValue, params.MaxValue, noiseKind, true),
+		allAddPartitions)
+
+	// Turn partitionsCol type PCollection<K> into PCollection<K, float64*> by adding value nil to each K. 
+	prepareDropUnspecifiedPartitions := beam.ParDo(s, prepareDropPartitionsFloat64Fn, partitionsCol)
+	allDropPartitions := beam.CoGroupByKey(s, means, prepareDropUnspecifiedPartitions)
+	// Drop unspecified partitions 
+	correctPartitions := beam.ParDo(s, dropUnspecifiedPartitionsFloat64Fn, allDropPartitions)
+	return correctPartitions
 }
 
 func checkMeanPerKeyParams(params MeanParams, epsilon, delta float64) error {
@@ -274,6 +295,7 @@ func MeanPerKeyWithPartitions(s beam.Scope, pcol PrivatePCollection, params Mean
 	correctPartitions := beam.ParDo(s, dropUnspecifiedPartitionsFloat64Fn, allDropPartitions)
 	return correctPartitions
 }
+
 
 // decodePairArrayFloat64Fn transforms a PCollection<pairArrayFloat64<codedX,[]float64>> into a
 // PCollection<X,[]float64>.

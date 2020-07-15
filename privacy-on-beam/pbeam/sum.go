@@ -80,7 +80,7 @@ type SumParams struct {
 // SumPerKey transforms a PrivatePCollection<K,V> either into a
 // PCollection<K,int64> or a PCollection<K,float64>, depending on whether its
 // input is an integer type or a float type.
-func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCollection {
+func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams, partitions ... beam.PCollection) beam.PCollection {
 	s = s.Scope("pbeam.SumPerKey")
 	// Obtain & validate type information from the underlying PCollection<K,V>.
 	idT, kvT := beam.ValidateKVType(pcol.col)
@@ -139,16 +139,36 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCo
 		newDecodePairFn(partitionT, vKind),
 		partialSumPairs,
 		beam.TypeDefinition{Var: beam.XType, T: partitionT})
-	sums := beam.CombinePerKey(s,
+	if len(partitions) == 0 { // no partitions specified
+		sums := beam.CombinePerKey(s,
 		newBoundedSumFn(epsilon, delta, maxPartitionsContributed, params.MinValue, params.MaxValue, noiseKind, vKind, false),
 		partialSumKV)
+		// Drop thresholded partitions.
+		sums = beam.ParDo(s, findDropThresholdedPartitionsFn(vKind), sums)
+		// Clamp negative counts to zero when MinValue is non-negative.
+		if params.MinValue >= 0 {
+			sums = beam.ParDo(s, findClampNegativePartitionsFn(vKind), sums)
+		}
+		return sums
+	} else if len(partitions) > 1 {
+		log.Exitf("Only one partition PCollection can be specified.")
+	} 
+	partitionsCol := partitions[0]
+	addSpecifiedPartitions := beam.ParDo(s, newPrepareAddPartitionsFn(vKind), partitionsCol)
+	allAddPartitions := beam.Flatten(s, partialSumKV, addSpecifiedPartitions)
+	sums := beam.CombinePerKey(s,
+		newBoundedSumFn(epsilon, delta, maxPartitionsContributed, params.MinValue, params.MaxValue, noiseKind, vKind, true),
+		allAddPartitions)
 	// Drop thresholded partitions.
-	sums = beam.ParDo(s, findDropThresholdedPartitionsFn(vKind), sums)
+	dropPartitions := beam.ParDo(s, newPrepareDropPartitionsFn(vKind), partitionsCol)
+	allDropPartitions := beam.CoGroupByKey(s, sums, dropPartitions)
+	correctPartitions := beam.ParDo(s, newDropUnspecifiedPartitionsFn(vKind), allDropPartitions)
+
 	// Clamp negative counts to zero when MinValue is non-negative.
 	if params.MinValue >= 0 {
-		sums = beam.ParDo(s, findClampNegativePartitionsFn(vKind), sums)
+		correctPartitions = beam.ParDo(s, findClampNegativePartitionsFn(vKind), correctPartitions)
 	}
-	return sums
+	return correctPartitions
 }
 
 func checkSumPerKeyParams(params SumParams, epsilon, delta float64) error {
@@ -238,14 +258,15 @@ func SumPerKeyWithPartitions(s beam.Scope, pcol PrivatePCollection, params SumPa
 		newBoundedSumFn(epsilon, delta, maxPartitionsContributed, params.MinValue, params.MaxValue, noiseKind, vKind, true),
 		allAddPartitions)
 	// Drop thresholded partitions.
-	dropPartitions := beam.ParDo(s, prepareDropPartitionsInt64Fn, partitionsCol)
+	dropPartitions := beam.ParDo(s, newPrepareDropPartitionsFn(vKind), partitionsCol)
 	allDropPartitions := beam.CoGroupByKey(s, sums, dropPartitions)
-	correctPartitions := beam.ParDo(s, dropUnspecifiedPartitionsInt64Fn, allDropPartitions)
+	correctPartitions := beam.ParDo(s, newDropUnspecifiedPartitionsFn(vKind), allDropPartitions)
+
 	// Clamp negative counts to zero when MinValue is non-negative.
 	if params.MinValue >= 0 {
-		sums = beam.ParDo(s, findClampNegativePartitionsFn(vKind), correctPartitions)
+		correctPartitions = beam.ParDo(s, findClampNegativePartitionsFn(vKind), correctPartitions)
 	}
-	return sums
+	return correctPartitions
 }
 
 // prepareSumFn takes a PCollection<ID,kv.Pair{K,V}> as input, and returns a

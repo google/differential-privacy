@@ -216,7 +216,7 @@ func newBoundedSumFn(epsilon, delta float64, maxPartitionsContributed int64, low
 type boundedSumAccumInt64 struct {
 	BS *dpagg.BoundedSumInt64
 	SP *dpagg.PreAggSelectPartition
-	PS bool
+	PartitionsSpecified bool
 }
 
 // boundedSumInt64Fn is a differentially private combineFn for summing values. Do not
@@ -265,7 +265,7 @@ func (fn *boundedSumInt64Fn) Setup() {
 
 func (fn *boundedSumInt64Fn) CreateAccumulator() boundedSumAccumInt64 {
 	return boundedSumAccumInt64{
-		PS: fn.PartitionsSpecified,
+		PartitionsSpecified: fn.PartitionsSpecified,
 		BS: dpagg.NewBoundedSumInt64(&dpagg.BoundedSumInt64Options{
 			Epsilon:                  fn.EpsilonNoise,
 			Delta:                    fn.DeltaNoise,
@@ -296,7 +296,7 @@ func (fn *boundedSumInt64Fn) MergeAccumulators(a, b boundedSumAccumInt64) bounde
 
 func (fn *boundedSumInt64Fn) ExtractOutput(a boundedSumAccumInt64) *int64 {
 	result := a.BS.Result()
-	if a.PS {
+	if a.PartitionsSpecified {
 		return &result
 	} else {
 		if a.SP.Result() {
@@ -314,7 +314,7 @@ func (fn *boundedSumInt64Fn) String() string {
 type boundedSumAccumFloat64 struct {
 	BS *dpagg.BoundedSumFloat64
 	SP *dpagg.PreAggSelectPartition
-	PS bool
+	PartitionsSpecified bool
 }
 
 // boundedSumFloat64Fn is a differentially private combineFn for summing values. Do not
@@ -377,7 +377,7 @@ func (fn *boundedSumFloat64Fn) CreateAccumulator() boundedSumAccumFloat64 {
 			Delta:                    fn.DeltaPartitionSelection,
 			MaxPartitionsContributed: fn.MaxPartitionsContributed,
 		}),
-		PS: fn.PartitionsSpecified,
+		PartitionsSpecified: fn.PartitionsSpecified,
 	}
 }
 
@@ -395,7 +395,7 @@ func (fn *boundedSumFloat64Fn) MergeAccumulators(a, b boundedSumAccumFloat64) bo
 
 func (fn *boundedSumFloat64Fn) ExtractOutput(a boundedSumAccumFloat64) *float64 {
 	result := a.BS.Result()
-     if a.PS {
+     if a.PartitionsSpecified {
      	return &result
      } else {
      	if a.SP.Result() {
@@ -475,14 +475,76 @@ func convertFloat64ToFloat64Fn(z beam.Z, f float64) (beam.Z, float64) {
 	return z, f
 }
 
+func newPrepareAddPartitionsFn(vKind reflect.Kind) interface{} {
+	var err error
+	var fn interface{}
+	switch vKind {
+	case reflect.Int64:
+		fn = prepareAddPartitionsInt64Fn
+	case reflect.Float64:
+		fn = prepareAddPartitionsFloat64Fn
+	default:
+		log.Exitf("pbeam.newPrepareAddPartitionsFn: vKind(%v) should be int64 or float64", vKind)
+	}
+
+	if err != nil {
+		log.Exit(err)
+	}
+	return fn
+}
+
+func newPrepareAddMeanPartitionsFn(vKind reflect.Kind) interface{} {
+	var err error
+	var fn interface{}
+	switch vKind {
+	case reflect.Int64:
+		fn = prepareAddPartitionsMeanInt64Fn
+	case reflect.Float64:
+		fn = prepareAddPartitionsMeanFloat64Fn
+	default:
+		log.Exitf("pbeam.newPrepareAddPartitionsFn: vKind(%v) should be int64 or float64", vKind)
+	}
+
+	if err != nil {
+		log.Exit(err)
+	}
+	return fn
+}
+
 func prepareAddPartitionsInt64Fn(partitionKey beam.X) (k beam.X, v int64) {
 	return partitionKey, 0
 }
 
-func prepareAddPartitionsFloat64Fn(partitionKey beam.X) (k beam.X, v []float64) {
+func prepareAddPartitionsFloat64Fn(partitionKey beam.X) (k beam.X, v float64) {
+	return partitionKey, 0
+}
+
+func prepareAddPartitionsMeanInt64Fn(partitionKey beam.X) (k beam.X, v []int64) {
+	return partitionKey, [] int64 {}
+}
+
+func prepareAddPartitionsMeanFloat64Fn(partitionKey beam.X) (k beam.X, v []float64) {
 	return partitionKey, [] float64 {}
 }
 
+
+func newPrepareDropPartitionsFn(vKind reflect.Kind) interface{} {
+	var err error
+	var fn interface{}
+	switch vKind {
+	case reflect.Int64:
+		fn = prepareDropPartitionsInt64Fn
+	case reflect.Float64:
+		fn = prepareDropPartitionsFloat64Fn
+	default:
+		log.Exitf("pbeam.newPrepareDropPartitionsFn: vKind(%v) should be int64 or float64", vKind)
+	}
+
+	if err != nil {
+		log.Exit(err)
+	}
+	return fn
+}
 
 func prepareDropPartitionsInt64Fn(partitionKey beam.X) (k beam.X, v *int64) {
 	return partitionKey, nil
@@ -491,6 +553,26 @@ func prepareDropPartitionsInt64Fn(partitionKey beam.X) (k beam.X, v *int64) {
 func prepareDropPartitionsFloat64Fn(partitionKey beam.X) (k beam.X, v *float64) {
 	return partitionKey, nil
 }
+
+
+func newDropUnspecifiedPartitionsFn(vKind reflect.Kind) interface{} {
+	var err error
+	var fn interface{}
+	switch vKind {
+	case reflect.Int64:
+		fn = dropUnspecifiedPartitionsInt64Fn
+	case reflect.Float64:
+		fn = dropUnspecifiedPartitionsFloat64Fn
+	default:
+		log.Exitf("pbeam.newDropUnspecifiedPartitionsFn: vKind(%v) should be int64 or float64", vKind)
+	}
+
+	if err != nil {
+		log.Exit(err)
+	}
+	return fn
+}
+
 
 func dropUnspecifiedPartitionsInt64Fn(partitionKey beam.X, v1Iter, v2Iter func(**int64) bool, emit func(beam.X, int64)){
 	var v1 = toSliceInt64Partition(v1Iter)
