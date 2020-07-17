@@ -44,8 +44,12 @@ public class DpPreconditions {
           delta);
     } else {
       checkNotNull(delta);
-      checkArgument(delta > 0 && delta < 1, "delta must be > 0 and < 1. Provided value: %s", delta);
+      checkDelta(delta);
     }
+  }
+
+  static void checkDelta(double delta) {
+    checkArgument(delta > 0 && delta < 1, "delta must be > 0 and < 1. Provided value: %s", delta);
   }
 
   static void checkSensitivities(int l0Sensitivity, double lInfSensitivity) {

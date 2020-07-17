@@ -35,6 +35,8 @@ using ::testing::Eq;
 using ::differential_privacy::base::testing::EqualsProto;
 using ::differential_privacy::base::testing::IsOkAndHolds;
 
+constexpr double kNumSamples = 10000;
+
 template <typename T>
 class BoundedSumTest : public ::testing::Test {
  protected:
@@ -190,6 +192,35 @@ TYPED_TEST(BoundedSumTest, LowerBoundMagnitudeOverflows) {
                    .SetUpper(std::numeric_limits<TypeParam>::lowest() + 1)
                    .Build()
                    .ok());
+}
+
+TYPED_TEST(BoundedSumTest, MaxContributionsVarianceTest) {
+  // Use following inputs with sum 0.
+  const std::vector<TypeParam> input = {1, -1, 1, -1, 0, 0, 0};
+
+  std::function<TypeParam(int)> sample_variance_for_max_contributions =
+      [&input](int max_contributions) {
+        double sum = 0;
+        for (int i = 0; i < kNumSamples; ++i) {
+          auto bounded_sum =
+              typename BoundedSum<TypeParam>::Builder()
+                  .SetMaxContributionsPerPartition(max_contributions)
+                  .SetEpsilon(1)
+                  .SetLower(-1)
+                  .SetUpper(1)
+                  .Build();
+          CHECK_EQ(bounded_sum.status(), base::OkStatus());
+          auto out = (*bounded_sum)->Result(input.begin(), input.end());
+          CHECK_EQ(out.status(), base::OkStatus());
+          sum += std::pow(GetValue<TypeParam>(*out), 2);
+        }
+        return sum / (kNumSamples - 1);
+      };
+
+  // We expect the sample variance with max contribution 2 to be (significantly)
+  // bigger than with max contribution 1.
+  EXPECT_GT(sample_variance_for_max_contributions(2),
+            1.1 * sample_variance_for_max_contributions(1));
 }
 
 TYPED_TEST(BoundedSumTest, SetZeroNoiseMechanismBuilder) {

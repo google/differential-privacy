@@ -225,7 +225,7 @@ struct conf_int_params gauss_params1 = {.epsilon = 1.2,
                                         .level = .9,
                                         .budget = .5,
                                         .result = 0,
-                                        .true_bound = -5.733};
+                                        .true_bound = -1.9613};
 
 struct conf_int_params gauss_params2 = {.epsilon = 1.0,
                                         .delta = 0.5,
@@ -233,7 +233,7 @@ struct conf_int_params gauss_params2 = {.epsilon = 1.0,
                                         .level = .95,
                                         .budget = .5,
                                         .result = 1.3,
-                                        .true_bound = -7.07};
+                                        .true_bound = -1.9054};
 
 struct conf_int_params gauss_params3 = {.epsilon = 10.0,
                                         .delta = 0.5,
@@ -241,7 +241,7 @@ struct conf_int_params gauss_params3 = {.epsilon = 10.0,
                                         .level = .95,
                                         .budget = .75,
                                         .result = 2.7,
-                                        .true_bound = -0.7211};
+                                        .true_bound = -0.5154};
 
 INSTANTIATE_TEST_SUITE_P(TestSuite, NoiseIntervalMultipleParametersTests,
                          testing::Values(gauss_params1, gauss_params2,
@@ -364,7 +364,6 @@ TEST(NumericalMechanismsTest, GaussianMechanismAddsNoise) {
 
   // Test values that should be clamped.
   EXPECT_FALSE(std::isnan(mechanism.AddNoise(1.1, 2.0)));
-  EXPECT_FALSE(std::isnan(mechanism.AddNoise(1.1, -2.0)));
 }
 
 TEST(NumericalMechanismsTest, GaussianBuilderClone) {
@@ -380,5 +379,12 @@ TEST(NumericalMechanismsTest, GaussianBuilderClone) {
       dynamic_cast<GaussianMechanism*>(mechanism.get())->GetL2Sensitivity(),
       1.2);
 }
+
+TEST(NumericalMechanismsTest, Stddev) {
+  GaussianMechanism mechanism(log(3), 0.00001, 1.0);
+
+  EXPECT_DOUBLE_EQ(mechanism.CalculateStddev(log(3), 0.00001), 3.42578125);
+}
+
 }  // namespace
 }  // namespace differential_privacy

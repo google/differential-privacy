@@ -268,6 +268,18 @@ func selectPartitionPr(idCount, l0Sensitivity int64, epsilon, delta float64) flo
 		1)
 }
 
+// GetHardThreshold returns a threshold k, where if there are more than
+// k users in a partition, we are guaranteed to keep that partition. This
+// is the conceptual equivalent of the post-aggregation threshold of the
+// noise.Noise interface.
+func (s *PreAggSelectPartition) GetHardThreshold() int {
+	for i := int64(1); ; i++ {
+		if selectPartitionPr(i, s.l0Sensitivity, s.epsilon, s.delta) == 1 { // selectPartitionPr converges to 1.
+			return int(i)
+		}
+	}
+}
+
 // encodablePreAggSelectPartition can be encoded by the gob package.
 type encodablePreAggSelectPartition struct {
 	Epsilon        float64

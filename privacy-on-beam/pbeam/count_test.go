@@ -19,6 +19,7 @@ package pbeam
 import (
 	"testing"
 
+	"github.com/google/differential-privacy/go/dpagg"
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
@@ -51,7 +52,7 @@ func TestCountNoNoise(t *testing.T) {
 
 	// ε=50, δ=10⁻²⁰⁰ and l1Sensitivity=2 gives a threshold of ≈38.
 	// We have 3 partitions. So, to get an overall flakiness of 10⁻²³,
-	// we can have each partition fail with 1-10⁻²⁵ probability (k=25).
+	// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
 	// To see the logic and the math behind flakiness and tolerance calculation,
 	// See https://github.com/google/differential-privacy/blob/master/privacy-on-beam/docs/Tolerance_Calculation.pdf.
 	epsilon, delta, k, l1Sensitivity := 50.0, 1e-200, 25.0, 2.0
@@ -146,66 +147,53 @@ func TestCountAddsNoise(t *testing.T) {
 	for _, tc := range []struct {
 		name      string
 		noiseKind NoiseKind
-		// Test is considered to pass if it passes during any run. Thus, numTries is
-		// used to reduce Flakiness to negligible levels.
-		numTries int
-		// numIDs controls the number of distinct IDs associated with a value.
-		numIDs int
-		// Differential privacy params used. The test assumes sensitivities of 1.
+		// Differential privacy params used.
 		epsilon float64
 		delta   float64
 	}{
 		{
-			// The choice of ε=1, δ=0.01, and sensitivities of 1, the Gaussian threshold
-			// is ≈28 and σ≈10.5. With numIDs one order of magnitude higher than the
-			// threshold, the chance of pairs being reduced below the threshold by noise
-			// is negligible. The probability that no noise is added is ≈4%
 			name:      "Gaussian",
 			noiseKind: GaussianNoise{},
-			// Each run should fail with probability <4% (the chance that no noise is
-			// added). Running 17 times reduces flakes to a negligible rate:
-			// math.Pow(0.04, 17) = 1.7e-24.
-			numTries: 17,
-			numIDs:   280,
-			epsilon:  1,
-			delta:    0.01,
+			epsilon:   2,    // It is split by 2: 1 for the noise and 1 for the partition selection.
+			delta:     0.01, // It is split by 2: 0.005 for the noise and 0.005 for the partition selection.
 		},
 		{
-			// ε=0.001, δ=0.499 and sensitivity=1 gives a threshold of ≈160.  With such
-			// a small ε, noise is added with probability > 99.5%. With
-			// numIDs of 2000, noise will keep us above the threshold with very high
-			// (>1-10⁻⁸) probability.
 			name:      "Laplace",
 			noiseKind: LaplaceNoise{},
-			// Each run should fail with probability <0.5% (the chance that no noise is
-			// added). Running 10 times gives a trivial flake rate:
-			// math.Pow(0.005, 10) ≈ 10⁻²³.
-			numTries: 10,
-			numIDs:   2000,
-			epsilon:  0.001,
-			delta:    0.499,
+			epsilon:   0.2, // It is split by 2: 0.1 for the noise and 0.1 for the partition selection.
+			delta:     0.01,
 		},
 	} {
-		t.Run(tc.name, func(t *testing.T) {
-			fail := true
-			for try := 0; try < tc.numTries && fail; try++ {
-				// pairs contains {1,0}, {2,0}, …, {numIDs,0}.
-				pairs := makePairsWithFixedV(tc.numIDs, 0)
-				p, s, col := ptest.CreateList(pairs)
-				col = beam.ParDo(s, pairToKV, col)
+		// We have 1 partition. So, to get an overall flakiness of 10⁻²³,
+		// we need to have each partition pass with 1-10⁻²³ probability (k=23).
+		epsilonNoise, deltaNoise := tc.epsilon/2, 0.0
+		k := 23.0
+		l0Sensitivity, lInfSensitivity := 1.0, 1.0
+		epsilonPartition, deltaPartition := tc.epsilon/2, tc.delta
+		l1Sensitivity := l0Sensitivity * lInfSensitivity
+		tolerance := complementaryLaplaceTolerance(k, l1Sensitivity, epsilonNoise)
+		if tc.noiseKind == gaussianNoise {
+			deltaNoise = tc.delta / 2
+			deltaPartition = tc.delta / 2
+			tolerance = complementaryGaussianTolerance(k, l0Sensitivity, lInfSensitivity, epsilonNoise, deltaNoise)
+		}
 
-				pcol := MakePrivate(s, col, NewPrivacySpec(tc.epsilon, tc.delta))
-				got := Count(s, pcol, CountParams{MaxPartitionsContributed: 1, MaxValue: 1, NoiseKind: tc.noiseKind})
-				got = beam.ParDo(s, kvToInt64Metric, got)
-				checkInt64MetricsAreNoisy(s, got, tc.numIDs)
-				if err := ptest.Run(p); err == nil {
-					fail = false
-				}
-			}
-			if fail {
-				t.Errorf("Count didn't add any noise, %d times in a row.", tc.numTries)
-			}
-		})
+		// Compute the number of IDs needed to keep the partition.
+		sp := dpagg.NewPreAggSelectPartition(&dpagg.PreAggSelectPartitionOptions{Epsilon: epsilonPartition, Delta: deltaPartition, MaxPartitionsContributed: 1})
+		numIDs := sp.GetHardThreshold()
+
+		// pairs contains {1,0}, {2,0}, …, {numIDs,0}.
+		pairs := makePairsWithFixedV(numIDs, 0)
+		p, s, col := ptest.CreateList(pairs)
+		col = beam.ParDo(s, pairToKV, col)
+
+		pcol := MakePrivate(s, col, NewPrivacySpec(tc.epsilon, tc.delta))
+		got := Count(s, pcol, CountParams{MaxPartitionsContributed: 1, MaxValue: 1, NoiseKind: tc.noiseKind})
+		got = beam.ParDo(s, kvToInt64Metric, got)
+		checkInt64MetricsAreNoisy(s, got, numIDs, tolerance)
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("CountPerKey didn't add any noise: %v", err)
+		}
 	}
 }
 
@@ -224,7 +212,7 @@ func TestCountCrossPartitionContributionBounding(t *testing.T) {
 
 	// ε=50, δ=0.01 and l1Sensitivity=3 gives a threshold of 1.
 	// We have 10 partitions. So, to get an overall flakiness of 10⁻²³,
-	// we can have each partition fail with 1-10⁻²⁵ probability (k=25).
+	// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
 	epsilon, delta, k, l1Sensitivity := 50.0, 0.01, 25.0, 3.0
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 	got := Count(s, pcol, CountParams{MaxPartitionsContributed: 3, MaxValue: 1, NoiseKind: LaplaceNoise{}})

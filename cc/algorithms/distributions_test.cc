@@ -32,6 +32,7 @@ namespace {
 
 constexpr int64_t kNumSamples = 10000000;
 constexpr int64_t kNumGeometricSamples = 1000000;
+constexpr int64_t kGaussianSamples = 1000000;
 constexpr double kOneOverLog2 = 1.44269504089;
 
 double Skew(const std::vector<double>& samples, double mu, double sigma) {
@@ -151,7 +152,7 @@ TEST(LaplaceDistributionTest, Cdf) {
 
 TEST(GaussDistributionTest, CheckStatisticsForUnitValues) {
   GaussianDistribution dist(1.0);
-  std::vector<double> samples(kNumSamples);
+  std::vector<double> samples(kGaussianSamples);
   std::generate(samples.begin(), samples.end(),
                 [&dist]() { return dist.Sample(); });
   EXPECT_NEAR(0.0, Mean(samples), 0.01);
@@ -161,7 +162,7 @@ TEST(GaussDistributionTest, CheckStatisticsForUnitValues) {
 TEST(GaussDistributionTest, CheckStatisticsForSpecificDistribution) {
   double stddev = kOneOverLog2;
   GaussianDistribution dist(stddev);
-  std::vector<double> samples(kNumSamples);
+  std::vector<double> samples(kGaussianSamples);
   std::generate(samples.begin(), samples.end(),
                 [&dist]() { return dist.Sample(); });
   EXPECT_NEAR(0.0, Mean(samples), 0.01);
@@ -172,7 +173,7 @@ TEST(GaussDistributionTest, CheckStatisticsForSpecificScaledDistribution) {
   double stddev = kOneOverLog2;
   double scale = 3.0;
   GaussianDistribution dist(stddev);
-  std::vector<double> samples(kNumSamples);
+  std::vector<double> samples(kGaussianSamples);
   std::generate(samples.begin(), samples.end(),
                 [&dist, scale]() { return dist.Sample(scale); });
   EXPECT_NEAR(0.0, Mean(samples), 0.01 * scale);

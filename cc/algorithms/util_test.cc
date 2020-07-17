@@ -123,22 +123,32 @@ TEST(InverseErrorTest, EdgeCases) {
   EXPECT_EQ(InverseErrorFunction(0), 0);
 }
 
+// In RoundToNearestMultiple tests exact comparison of double is used, because
+// for rounding to multiple of power of 2 RoundToNearestMultiple should provide
+// exact value.
 TEST(RoundTest, PositiveNoTies) {
-  EXPECT_NEAR(RoundToNearestMultiple(4.9, 2.0), 4.0, kTolerance);
-  EXPECT_NEAR(RoundToNearestMultiple(5.1, 2.0), 6.0, kTolerance);
+  EXPECT_EQ(RoundToNearestMultiple(4.9, 2.0), 4.0);
+  EXPECT_EQ(RoundToNearestMultiple(5.1, 2.0), 6.0);
 }
 
 TEST(RoundTest, NegativesNoTies) {
-  EXPECT_NEAR(RoundToNearestMultiple(-4.9, 2.0), -4.0, kTolerance);
-  EXPECT_NEAR(RoundToNearestMultiple(-5.1, 2.0), -6.0, kTolerance);
+  EXPECT_EQ(RoundToNearestMultiple(-4.9, 2.0), -4.0);
+  EXPECT_EQ(RoundToNearestMultiple(-5.1, 2.0), -6.0);
 }
 
 TEST(RoundTest, PositiveTies) {
-  EXPECT_NEAR(RoundToNearestMultiple(5.0, 2.0), 6.0, kTolerance);
+  EXPECT_EQ(RoundToNearestMultiple(5.0, 2.0), 6.0);
 }
 
 TEST(RoundTest, NegativeTies) {
-  EXPECT_NEAR(RoundToNearestMultiple(-5.0, 2.0), -4.0, kTolerance);
+  EXPECT_EQ(RoundToNearestMultiple(-5.0, 2.0), -4.0);
+}
+
+TEST(RoundTest, NegativePowerOf2) {
+  EXPECT_EQ(RoundToNearestMultiple(0.2078795763, 0.25), 0.25);
+  EXPECT_EQ(RoundToNearestMultiple(0.1, 1.0 / (1 << 10)), 0.099609375);
+  EXPECT_EQ(RoundToNearestMultiple(0.3, 1.0 / (1 << 30)),
+            322122547.0 / (1 << 30));
 }
 
 TEST(QnormTest, InvalidProbability) {
@@ -248,4 +258,3 @@ TEST(VectorUtilTest, VectorToString) {
 
 }  // namespace
 }  // namespace differential_privacy
-
