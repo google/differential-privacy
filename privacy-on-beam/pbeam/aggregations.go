@@ -406,6 +406,10 @@ func (fn *boundedSumFloat64Fn) ExtractOutput(a boundedSumAccumFloat64) *float64 
      }
  }
 
+ func CorrectToInt64(key beam.X, v *int64) (k beam.X, value int64) {
+ 	return key, *v
+ }
+
 
 func (fn *boundedSumFloat64Fn) String() string {
 	return fmt.Sprintf("%#v", fn)
@@ -511,6 +515,27 @@ func newPrepareAddMeanPartitionsFn(vKind reflect.Kind) interface{} {
 	return fn
 }
 
+func printContents(s kv.Pair, i int) int64{
+	fmt.Println(s)
+	fmt.Println(i)
+	return 0
+}
+
+func printKeyContents(key interface{}, value interface{}) int64{
+	fmt.Println(key)
+	return 0
+}
+
+func printOriginalContents(s beam.X, i beam.V) int64{
+	fmt.Println(s)
+	fmt.Println(i)
+	return 0
+}
+
+func formatSpecifiedPartitions(partitionKey beam.X) (k beam.X, v (*interface{})) {
+	return partitionKey, nil
+}
+
 func prepareAddPartitionsInt64Fn(partitionKey beam.X) (k beam.X, v int64) {
 	return partitionKey, 0
 }
@@ -573,6 +598,35 @@ func newDropUnspecifiedPartitionsFn(vKind reflect.Kind) interface{} {
 	return fn
 }
 
+func dropUnspecifiedPartitions(partitionKey beam.X, v2Iter, v1Iter func(*UserId) bool, emit func(UserId, beam.X)){
+	var v1 = toSlicePartition(v1Iter)
+	var v2 = toSlicePartition(v2Iter)
+	if len(v1) > 0 {
+		for i := 0; i < len(v2); i++ {
+			emit (v2[i], partitionKey)
+		}
+	}
+}
+
+func toSlicePartition(vIter func(*UserId) bool) []UserId {
+	var vSlice []UserId
+	var v UserId
+	for vIter(&v) {
+		vSlice = append(vSlice, v)
+	}
+	return vSlice
+}
+
+
+// func toSliceStringPartition(vIter func(*interface{}) bool) []interface{}{
+// 	var vSlice []interface{}
+// 	var v interface{}
+// 	for vIter(&v) {
+// 		vSlice = append(vSlice, v)
+// 	}
+// 	return vSlice
+// }
+
 
 func dropUnspecifiedPartitionsInt64Fn(partitionKey beam.X, v1Iter, v2Iter func(**int64) bool, emit func(beam.X, int64)){
 	var v1 = toSliceInt64Partition(v1Iter)
@@ -594,6 +648,8 @@ func toSliceInt64Partition(vIter func(**int64) bool) []*int64 {
 func dropUnspecifiedPartitionsFloat64Fn(partitionKey beam.X, v1Iter, v2Iter func(**float64) bool, emit func(beam.X, float64)){
 	var v1 = toSliceFloat64Partition(v1Iter)
 	var v2 = toSliceFloat64Partition(v2Iter)
+	// TODO: might not need the len(v1) == 1
+	// part of the conditional
 	if len(v2) == 1 && len(v1) == 1 {
 		emit(partitionKey, *v1[0])
 	}
@@ -606,4 +662,12 @@ func toSliceFloat64Partition(vIter func(**float64) bool) []*float64 {
 		vSlice = append(vSlice, v)
 	}
 	return vSlice
+}
+
+func formatUserId(key beam.X, value beam.V) (k beam.X, v UserId){
+	return key, UserId{UserId: value}
+}
+
+func formatPartitions(partitionKey beam.X) (k beam.X, v UserId) {
+	return partitionKey, UserId{UserId: 0}
 }
