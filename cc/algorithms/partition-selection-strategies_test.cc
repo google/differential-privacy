@@ -23,7 +23,7 @@ namespace differential_privacy {
 namespace {
 
 //TODO literally just nabbed this from numerical-mechanisms_test.cc, fix later
-using testing::_;
+/*using testing::_;
 using testing::DoubleEq;
 using testing::DoubleNear;
 using testing::Eq;
@@ -31,26 +31,11 @@ using testing::Ge;
 using testing::MatchesRegex;
 using testing::Return;
 
-class PartitionSelectionStrategiesTest : public ::testing::Test {};
+class PartitionSelectionStrategiesTest : public ::testing::Test {};*/
 
-TEST(PartitionSelectionStrategiesTest, PreaggPartitionSelectionNumUsersZero) {
-	PreaggPartitionSelection pa1(1.0, 1.0, 0, 1);
-	PreaggPartitionSelection pa2(1.2, 3.4, 0, 5);
-	EXPECT_FALSE(pa1.shouldKeep());
-	EXPECT_FALSE(pa2.shouldKeep());
-}
-
-TEST(PartitionSelectionStrategiesTest, PreaggPartitionSelectionDeltaZero) {
-	PreaggPartitionSelection pa(0.6, 0.0, 78, 9);
-	EXPECT_FALSE(pa.shouldKeep());
-}
-
-TEST(PartitionSelectionStrategiesTest, PreaggPartitionSelectionEpsilonZero) {
-	//TODO
-}
-
-TEST(PartitionSelectionStrategiesTest, PreaggPartitionSelectionNonZeroCases) {
-	//TODO
+TEST(PartitionSelectionStrategiesTest, PreaggPartitionSelectionValidInstantiation) {
+	PreaggPartitionSelection::Builder test_builder;
+	test_builder.SetEpsilon(1.0).SetDelta(0.2).SetMaxPartitionsContributed(3); 
 }
 
 } //namespace
