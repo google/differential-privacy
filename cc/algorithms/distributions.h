@@ -59,7 +59,11 @@ class LegacyLaplaceDistribution {
 
 // Allows samples to be drawn from a Gaussian distribution over a given stddev
 // and mean 0 with optional per-sample scaling.
-// https://en.wikipedia.org/wiki/Normal_distribution
+// The Gaussian noise is generated according to the binomial sampling mechanism
+// described in
+// https://github.com/google/differential-privacy/blob/master/common_docs/Secure_Noise_Generation.pdf
+// This approach is robust against unintentional privacy leaks due to artifacts
+// of floating point arithmetic.
 class GaussianDistribution {
  public:
   // Constructor for Gaussian with specified stddev.
@@ -75,8 +79,16 @@ class GaussianDistribution {
   // Returns the standard deviation of this distribution.
   double Stddev();
 
+  double GetGranularity();
+
  private:
+  // Sample from geometric distribution with probability 0.5. It is much faster
+  // then using GeometricDistribution which is suitable for any probability.
+  double SampleGeometric();
+  double SampleBinomial(double sqrt_n);
+
   double stddev_;
+  double granularity_;
 };
 
 // Returns a sample drawn from the geometric distribution of probability
@@ -103,7 +115,8 @@ class GeometricDistribution {
   double lambda_;
 };
 
-// Calculates 'r' from the insignificant-bits paper
+// Calculates 'r' from the secure noise paper (see
+// ../../common_docs/Secure_Noise_Generation.pdf)
 base::StatusOr<double> CalculateGranularity(double epsilon, double sensitivity);
 
 // Allows sampling from a secure laplace distribution, which uses a geometric

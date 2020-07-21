@@ -112,8 +112,8 @@ func NewPreAggSelectPartition(opt *PreAggSelectPartitionOptions) *PreAggSelectPa
 		s.l0Sensitivity = 1
 	}
 
-	if err := checks.CheckDelta("dpagg.NewPreAggSelectPartition", s.delta); err != nil {
-		log.Fatalf("%s: CheckDelta failed with %v", &s, err)
+	if err := checks.CheckDeltaStrict("dpagg.NewPreAggSelectPartition", s.delta); err != nil {
+		log.Fatalf("%s: CheckDeltaStrict failed with %v", &s, err)
 	}
 	if err := checks.CheckEpsilon("dpagg.NewPreAggSelectPartition", s.epsilon); err != nil {
 		log.Fatalf("%s: CheckEpsilon failed with %v", &s, err)
@@ -266,6 +266,18 @@ func selectPartitionPr(idCount, l0Sensitivity int64, epsilon, delta float64) flo
 	return math.Min(
 		1+math.Exp(-float64(m)*pEpsilon)*(selectPartitionPrNCr-1)+sumExpPowers(pEpsilon, -m, m)*pDelta,
 		1)
+}
+
+// GetHardThreshold returns a threshold k, where if there are more than
+// k users in a partition, we are guaranteed to keep that partition. This
+// is the conceptual equivalent of the post-aggregation threshold of the
+// noise.Noise interface.
+func (s *PreAggSelectPartition) GetHardThreshold() int {
+	for i := int64(1); ; i++ {
+		if selectPartitionPr(i, s.l0Sensitivity, s.epsilon, s.delta) == 1 { // selectPartitionPr converges to 1.
+			return int(i)
+		}
+	}
 }
 
 // encodablePreAggSelectPartition can be encoded by the gob package.

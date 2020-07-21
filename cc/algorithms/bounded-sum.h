@@ -63,25 +63,29 @@ class BoundedSum : public Algorithm<T> {
 
       // If manual bounding, construct mechanism so we can fail on build if
       // sensitivity is inappropriate.
-      std::unique_ptr<LaplaceMechanism> mechanism = nullptr;
+      std::unique_ptr<NumericalMechanism> mechanism = nullptr;
       if (BoundedBuilder::BoundsAreSet()) {
         RETURN_IF_ERROR(CheckLowerBound(BoundedBuilder::lower_.value()));
-        ASSIGN_OR_RETURN(mechanism,
-                         AlgorithmBuilder::mechanism_builder_
-                             ->SetEpsilon(AlgorithmBuilder::epsilon_.value())
-                             .SetL1Sensitivity(std::max(
-                                 std::abs(BoundedBuilder::lower_.value()),
-                                 std::abs(BoundedBuilder::upper_.value())))
-                             .Build());
+        ASSIGN_OR_RETURN(
+            mechanism,
+            BuildMechanism(AlgorithmBuilder::mechanism_builder_->Clone(),
+                           AlgorithmBuilder::epsilon_.value(),
+                           AlgorithmBuilder::l0_sensitivity_.value_or(1),
+                           AlgorithmBuilder::linf_sensitivity_.value_or(1),
+                           BoundedBuilder::lower_.value(),
+                           BoundedBuilder::upper_.value()));
       }
 
       // Construct BoundedSum.
       auto mech_builder = AlgorithmBuilder::mechanism_builder_->Clone();
-      return absl::WrapUnique(new BoundedSum(
-          AlgorithmBuilder::epsilon_.value(),
-          BoundedBuilder::lower_.value_or(0),
-          BoundedBuilder::upper_.value_or(0), std::move(mech_builder),
-          std::move(mechanism), std::move(BoundedBuilder::approx_bounds_)));
+      return absl::WrapUnique(
+          new BoundedSum(AlgorithmBuilder::epsilon_.value(),
+                         BoundedBuilder::lower_.value_or(0),
+                         BoundedBuilder::upper_.value_or(0),
+                         AlgorithmBuilder::l0_sensitivity_.value_or(1),
+                         AlgorithmBuilder::linf_sensitivity_.value_or(1),
+                         std::move(mech_builder), std::move(mechanism),
+                         std::move(BoundedBuilder::approx_bounds_)));
     }
   };
 
@@ -184,22 +188,25 @@ class BoundedSum : public Algorithm<T> {
     if (mechanism_) {
       memory += mechanism_->MemoryUsed();
     }
-    if (laplace_mechanism_builder_) {
-      memory += sizeof(*laplace_mechanism_builder_);
+    if (mechanism_builder_) {
+      memory += sizeof(*mechanism_builder_);
     }
     return memory;
   }
 
  protected:
   // Protected constructor to allow for testing.
-  BoundedSum(double epsilon, T lower, T upper,
+  BoundedSum(double epsilon, T lower, T upper, const double l0_sensitivity,
+             const double linf_sensitivity,
              std::unique_ptr<LaplaceMechanism::Builder> mechanism_builder,
-             std::unique_ptr<LaplaceMechanism> mechanism,
+             std::unique_ptr<NumericalMechanism> mechanism,
              std::unique_ptr<ApproxBounds<T>> approx_bounds = nullptr)
       : Algorithm<T>(epsilon),
         lower_(lower),
         upper_(upper),
-        laplace_mechanism_builder_(std::move(mechanism_builder)),
+        l0_sensitivity_(l0_sensitivity),
+        linf_sensitivity_(linf_sensitivity),
+        mechanism_builder_(std::move(mechanism_builder)),
         mechanism_(std::move(mechanism)),
         approx_bounds_(std::move(approx_bounds)) {
     // If automatically determining bounds, we need partial values for each bin
@@ -257,7 +264,13 @@ class BoundedSum : public Algorithm<T> {
 
     // Construct mechanism if needed. Mechanism is already constructed if
     // NoiseConfidenceInterval() was called with manual bounds.
-    RETURN_IF_ERROR(BuildMechanism());
+    if (!mechanism_) {
+      ASSIGN_OR_RETURN(
+          mechanism_,
+          BuildMechanism(mechanism_builder_->Clone(),
+                         Algorithm<T>::GetEpsilon(), l0_sensitivity_,
+                         linf_sensitivity_, lower_, upper_));
+    }
 
     // Add noise confidence interval to the error report.
     base::StatusOr<ConfidenceInterval> interval =
@@ -287,17 +300,6 @@ class BoundedSum : public Algorithm<T> {
   }
 
  private:
-  base::Status BuildMechanism() {
-    if (!mechanism_) {
-      ASSIGN_OR_RETURN(
-          mechanism_,
-          laplace_mechanism_builder_->SetEpsilon(Algorithm<T>::GetEpsilon())
-              .SetL1Sensitivity(std::max(std::abs(lower_), std::abs(upper_)))
-              .Build());
-    }
-    return base::OkStatus();
-  }
-
   base::StatusOr<ConfidenceInterval> NoiseConfidenceIntervalImpl(
       double confidence_level, double privacy_budget = 1) {
     if (!mechanism_) {
@@ -309,6 +311,17 @@ class BoundedSum : public Algorithm<T> {
                                                privacy_budget);
   }
 
+  static base::StatusOr<std::unique_ptr<NumericalMechanism>> BuildMechanism(
+      std::unique_ptr<LaplaceMechanism::Builder> mechanism_builder,
+      const double epsilon, const double l0_sensitivity,
+      const double linf_sensitivity, const T lower, const T upper) {
+    return mechanism_builder->SetEpsilon(epsilon)
+        .SetL0Sensitivity(l0_sensitivity)
+        .SetLInfSensitivity(linf_sensitivity *
+                            std::max(std::abs(lower), std::abs(upper)))
+        .Build();
+  }
+
   // Vectors of partial values stored for automatic clamping.
   std::vector<T> pos_sum_, neg_sum_;
 
@@ -317,11 +330,13 @@ class BoundedSum : public Algorithm<T> {
   T lower_, upper_;
 
   // Used to construct mechanism once bounds are obtained for auto-bounding.
-  std::unique_ptr<LaplaceMechanism::Builder> laplace_mechanism_builder_;
+  std::unique_ptr<LaplaceMechanism::Builder> mechanism_builder_;
+  const double l0_sensitivity_;
+  const double linf_sensitivity_;
 
   // Will be available upon BoundedSum for manual bounding, and constructed upon
   // GenerateResult for auto-bounding.
-  std::unique_ptr<LaplaceMechanism> mechanism_;
+  std::unique_ptr<NumericalMechanism> mechanism_;
 
   // If this is not nullptr, we are automatically determining bounds. Otherwise,
   // lower and upper contain the manually set bounds.

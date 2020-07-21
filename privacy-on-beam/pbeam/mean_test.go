@@ -17,10 +17,10 @@
 package pbeam
 
 import (
-	"math"
 	"reflect"
 	"testing"
 
+	"github.com/google/differential-privacy/go/dpagg"
 	"github.com/google/differential-privacy/go/noise"
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
@@ -192,75 +192,75 @@ func TestMeanPerKeyAddsNoiseFloat(t *testing.T) {
 	for _, tc := range []struct {
 		name      string
 		noiseKind NoiseKind
-		// Test is considered to pass if it passes during any run. Thus, numTries is
-		// used to reduce Flakiness to negligible levels.
-		// TODO: the probability of the noise being added is not correct and must be fixed
-		numTries int
-		// numIDs controls the number of unique IDs associated with a value.
-		numIDs int
-		// Differential privacy params used. The test assumes sensitivities of 1.
+		// Differential privacy params used
 		epsilon float64
 		delta   float64
 	}{
 		{
-			// The choice of ε=1, δ=0.005, and l0Sensitivity=1 gives a threshold of =2.
-			// With numIDs one order of magnitude higher than the
-			// threshold, the chance of pairs being reduced below the threshold by noise
-			// is negligible. The probability that no noise is added is ≈4%
 			name:      "Gaussian",
 			noiseKind: GaussianNoise{},
-			// Each run should fail with probability <4% (the chance that no noise is
-			// added). Running 17 times reduces flakes to a negligible rate:
-			// math.Pow(0.04, 17) = 1.7e-24.
-			numTries: 17,
-			numIDs:   280,
-			epsilon:  2,    // It is split by 2: 1 for the noise and 1 for the partition selection
-			delta:    0.01, // It is split by 2: 0.005 for the noise and 0.005 for the partition selection
+			epsilon:   2,    // It is split by 2: 1 for the noise and 1 for the partition selection.
+			delta:     0.01, // It is split by 2: 0.005 for the noise and 0.005 for the partition selection.
 		},
 		{
-			// The choice of ε=0.001, δ=0.499 and l0Sensitivity=1 gives a threshold of =3.
-			// With such a small ε, noise is added with probability >99.5%. With numIDs of
-			// 2000, noise will keep us above the threshold with very high (>10⁻⁸)
-			// probability.
 			name:      "Laplace",
 			noiseKind: LaplaceNoise{},
-			// Each run should fail with probability <0.5% (the chance that no noise is
-			// added). Running 17 times reduces flakiness to a negligible rate:
-			// math.Pow(0.005, 10) ≈ 10⁻²³.
-			numTries: 10,
-			numIDs:   2000,
-			epsilon:  0.002, // It is split by 2: 0.001 for the noise and 0.001 for the partition selection.
-			delta:    0.499,
+			epsilon:   0.2, // It is split by 2: 0.1 for the noise and 0.1 for the partition selection.
+			delta:     0.01,
 		},
 	} {
-		t.Run(tc.name, func(t *testing.T) {
-			fail := true
-			for try := 0; try < tc.numTries && fail; try++ {
-				// triples contains {1,0,1}, {2,0,1}, …, {numIDs,0,1}.
-				triples := makeDummyTripleWithFloatValue(tc.numIDs, 0)
-				p, s, col := ptest.CreateList(triples)
-				col = beam.ParDo(s, extractIDFromTripleWithFloatValue, col)
+		lower := 0.0
+		upper := 3.0
 
-				pcol := MakePrivate(s, col, NewPrivacySpec(tc.epsilon, tc.delta))
-				pcol = ParDo(s, tripleWithFloatValueToKV, pcol)
-				got := MeanPerKey(s, pcol, MeanParams{
-					MaxPartitionsContributed:     1,
-					MaxContributionsPerPartition: 1,
-					MinValue:                     0.0,
-					MaxValue:                     2.0,
-					NoiseKind:                    tc.noiseKind,
-				})
-				got = beam.ParDo(s, kvToFloat64Metric, got)
+		// We have 1 partition. So, to get an overall flakiness of 10⁻²³,
+		// we need to have each partition pass with 1-10⁻²³ probability (k=23).
+		epsilonNoise, deltaNoise := tc.epsilon/2, 0.0
+		k := 23.0
+		l0Sensitivity, lInfSensitivity := 1.0, 2.0
+		epsilonPartition, deltaPartition := tc.epsilon/2, tc.delta
+		if tc.noiseKind == gaussianNoise {
+			deltaNoise = tc.delta / 2
+			deltaPartition = tc.delta / 2
+		}
 
-				checkFloat64MetricsAreNoisy(s, got, 1.0, math.Pow10(-5))
-				if err := ptest.Run(p); err == nil {
-					fail = false
-				}
+		// Compute the number of IDs needed to keep the partition.
+		sp := dpagg.NewPreAggSelectPartition(&dpagg.PreAggSelectPartitionOptions{Epsilon: epsilonPartition, Delta: deltaPartition, MaxPartitionsContributed: 1})
+		numIDs := sp.GetHardThreshold()
+
+		var tolerance float64
+		var err error
+		if tc.noiseKind == gaussianNoise {
+			tolerance, err = complementaryGaussianToleranceForMean(k, lower, upper, int64(lInfSensitivity), int64(l0Sensitivity), epsilonNoise, deltaNoise, -0.5*float64(numIDs), float64(numIDs), 1.0)
+			if err != nil {
+				t.Fatalf("complementaryGaussianToleranceForMean: got error %v", err)
 			}
-			if fail {
-				t.Errorf("MeanPerKey didn't add any noise, %d times in a row.", tc.numTries)
+		} else {
+			tolerance, err = complementaryLaplaceToleranceForMean(k, lower, upper, int64(lInfSensitivity), int64(l0Sensitivity), epsilonNoise, -0.5*float64(numIDs), float64(numIDs), 1.0)
+			if err != nil {
+				t.Fatalf("complementaryLaplaceToleranceForMean: got error %v", err)
 			}
+		}
+
+		// triples contains {1,0,1}, {2,0,1}, …, {numIDs,0,1}.
+		triples := makeDummyTripleWithFloatValue(numIDs, 0)
+		p, s, col := ptest.CreateList(triples)
+		col = beam.ParDo(s, extractIDFromTripleWithFloatValue, col)
+
+		pcol := MakePrivate(s, col, NewPrivacySpec(tc.epsilon, tc.delta))
+		pcol = ParDo(s, tripleWithFloatValueToKV, pcol)
+		got := MeanPerKey(s, pcol, MeanParams{
+			MaxPartitionsContributed:     1,
+			MaxContributionsPerPartition: 1,
+			MinValue:                     0.0,
+			MaxValue:                     2.0,
+			NoiseKind:                    tc.noiseKind,
 		})
+		got = beam.ParDo(s, kvToFloat64Metric, got)
+
+		checkFloat64MetricsAreNoisy(s, got, 1.0, tolerance)
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("MeanPerKey didn't add any noise with float inputs and %s Noise: %v", tc.name, err)
+		}
 	}
 }
 

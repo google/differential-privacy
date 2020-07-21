@@ -111,7 +111,7 @@ func TestGaussianStatistics(t *testing.T) {
 		}
 		if !nearEqual(sampleVariance, tc.variance, varianceErrorTolerance) {
 			t.Errorf("float64 got variance = %f, want %f (parameters %+v)", sampleVariance, tc.variance, tc)
-			sigma := sigmaForGaussian(tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.delta)
+			sigma := SigmaForGaussian(tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.delta)
 			t.Errorf("btw, true sigma is %f, squares to %f", sigma, sigma*sigma)
 		}
 	}
@@ -333,7 +333,7 @@ func TestSigmaForGaussianInvertsDeltaForGaussian(t *testing.T) {
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			deltaTight := deltaForGaussian(tc.sigma, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon)
-			gotSigma := sigmaForGaussian(tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, deltaTight)
+			gotSigma := SigmaForGaussian(tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, deltaTight)
 			if !(tc.sigma <= gotSigma && gotSigma <= (1+gaussianSigmaAccuracy)*tc.sigma) {
 				t.Errorf("Got sigma: %f, want sigma in [%f, %f]", gotSigma, tc.sigma, (1+gaussianSigmaAccuracy)*tc.sigma)
 
@@ -345,7 +345,7 @@ func TestSigmaForGaussianInvertsDeltaForGaussian(t *testing.T) {
 // This tests any logic that we need to special case for computing sigma (e.g.,
 // precondition checking and boundary conditions).
 func TestSigmaForGaussianWithDeltaOf1(t *testing.T) {
-	got := sigmaForGaussian(1 /* l0 */, 1 /* lInf */, 0 /* ε */, 1 /* δ */)
+	got := SigmaForGaussian(1 /* l0 */, 1 /* lInf */, 0 /* ε */, 1 /* δ */)
 	if got != 0 {
 		t.Errorf("Got sigma: %f, want sigma: 0,", got)
 	}

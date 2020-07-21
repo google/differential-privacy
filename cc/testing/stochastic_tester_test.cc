@@ -94,7 +94,7 @@ class BoundedSumWithInsufficientNoise : public BoundedSum<T> {
   BoundedSumWithInsufficientNoise(
       double epsilon, T lower, T upper,
       std::unique_ptr<LaplaceMechanism::Builder> builder)
-      : BoundedSum<T>(epsilon, lower, upper, std::move(builder), nullptr,
+      : BoundedSum<T>(epsilon, lower, upper, 1, 1, std::move(builder), nullptr,
                       nullptr) {}
   double GetEpsilon() const override { return Algorithm<T>::GetEpsilon() / 2; }
 };
@@ -108,9 +108,10 @@ class BoundedSumWithError : public BoundedSum<T> {
  public:
   BoundedSumWithError(double epsilon, T lower, T upper,
                       std::unique_ptr<LaplaceMechanism::Builder> builder)
-      : BoundedSum<T>(epsilon, lower, upper, builder->Clone(), nullptr,
+      : BoundedSum<T>(epsilon, lower, upper, 1, 1, builder->Clone(), nullptr,
                       nullptr),
-        mechanism_(builder->Build().ValueOrDie()) {}
+        mechanism_(absl::WrapUnique(dynamic_cast<LaplaceMechanism*>(
+            builder->Build().ValueOrDie().release()))) {}
 
   base::StatusOr<Output> GenerateResult(double privacy_budget,
                                         double noise_interval_level) override {

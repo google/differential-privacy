@@ -21,6 +21,7 @@ import (
 	"reflect"
 
 	log "github.com/golang/glog"
+	"github.com/google/differential-privacy/go/checks"
 	"github.com/google/differential-privacy/go/dpagg"
 	"github.com/google/differential-privacy/go/noise"
 	"github.com/google/differential-privacy/privacy-on-beam/internal/kv"
@@ -71,12 +72,7 @@ func DistinctPrivacyID(s beam.Scope, pcol PrivatePCollection, params DistinctPri
 	s = s.Scope("pbeam.DistinctPrivacyID")
 	// Obtain type information from the underlying PCollection<K,V>.
 	idT, partitionT := beam.ValidateKVType(pcol.col)
-	// Get privacy parameters.
-	spec := pcol.privacySpec
-	epsilon, delta, err := spec.consumeBudget(params.Epsilon, params.Delta)
-	if err != nil {
-		log.Exitf("couldn't consume budget: %v", err)
-	}
+
 	var noiseKind noise.Kind
 	if params.NoiseKind == nil {
 		noiseKind = noise.LaplaceNoise
@@ -84,6 +80,17 @@ func DistinctPrivacyID(s beam.Scope, pcol PrivatePCollection, params DistinctPri
 	} else {
 		noiseKind = params.NoiseKind.toNoiseKind()
 	}
+	// Get privacy parameters.
+	spec := pcol.privacySpec
+	epsilon, delta, err := spec.consumeBudget(params.Epsilon, params.Delta)
+	if err != nil {
+		log.Exitf("couldn't consume budget: %v", err)
+	}
+	err = checkDistinctPrivacyIDParams(params, noiseKind, epsilon, delta)
+	if err != nil {
+		log.Exit(err)
+	}
+
 	maxPartitionsContributed := getMaxPartitionsContributed(spec, params.MaxPartitionsContributed)
 	// First, deduplicate KV pairs by encoding them and calling Distinct.
 	coded := beam.ParDo(s, kv.NewEncodeFn(idT, partitionT), pcol.col)
@@ -104,6 +111,22 @@ func DistinctPrivacyID(s beam.Scope, pcol PrivatePCollection, params DistinctPri
 		dummyCounts)
 	// Finally, drop thresholded partitions and return the result
 	return beam.ParDo(s, dropThresholdedPartitionsInt64Fn, noisedCounts)
+}
+
+func checkDistinctPrivacyIDParams(params DistinctPrivacyIDParams, noiseKind noise.Kind, epsilon, delta float64) error {
+	err := checks.CheckEpsilon("pbeam.DistinctPrivacyID", epsilon)
+	if err != nil {
+		return err
+	}
+	if noiseKind == noise.LaplaceNoise {
+		err = checks.CheckDelta("pbeam.DistinctPrivacyID", delta)
+	} else {
+		err = checks.CheckDeltaStrict("pbeam.DistinctPrivacyID", delta)
+	}
+	if err != nil {
+		return err
+	}
+	return checks.CheckMaxPartitionsContributed("pbeam.DistinctPrivacyID", params.MaxPartitionsContributed)
 }
 
 func addOneValueFn(v beam.V) (beam.V, int64) {

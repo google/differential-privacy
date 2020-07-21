@@ -38,7 +38,7 @@ class ZeroNoiseMechanism : public LaplaceMechanism {
    public:
     Builder() : LaplaceMechanism::Builder() {}
 
-    base::StatusOr<std::unique_ptr<LaplaceMechanism>> Build() override {
+    base::StatusOr<std::unique_ptr<NumericalMechanism>> Build() override {
       return base::StatusOr<std::unique_ptr<LaplaceMechanism>>(
           absl::make_unique<ZeroNoiseMechanism>(epsilon_.value_or(1),
                                                l1_sensitivity_.value_or(1)));
@@ -130,10 +130,17 @@ class SeededLaplaceMechanism : public LaplaceMechanism {
    public:
     Builder() : LaplaceMechanism::Builder() {}
 
-    base::StatusOr<std::unique_ptr<LaplaceMechanism>> Build() override {
+    base::StatusOr<std::unique_ptr<NumericalMechanism>> Build() override {
+      double sensitivity;
+      if (l1_sensitivity_.has_value()) {
+        sensitivity = *l1_sensitivity_;
+      } else {
+        sensitivity =
+            l0_sensitivity_.value_or(1) * linf_sensitivity_.value_or(1);
+      }
       return base::StatusOr<std::unique_ptr<LaplaceMechanism>>(
-          absl::make_unique<SeededLaplaceMechanism>(
-              epsilon_.value_or(1), l1_sensitivity_.value_or(1), rand_gen_));
+          absl::make_unique<SeededLaplaceMechanism>(epsilon_.value_or(1),
+                                                   sensitivity, rand_gen_));
     }
 
     std::unique_ptr<LaplaceMechanism::Builder> Clone() const override {
@@ -170,7 +177,7 @@ class MockLaplaceMechanism : public LaplaceMechanism {
     Builder() : mock_(absl::make_unique<MockLaplaceMechanism>()) {}
 
     // Can only be called once.
-    base::StatusOr<std::unique_ptr<LaplaceMechanism>> Build() override {
+    base::StatusOr<std::unique_ptr<NumericalMechanism>> Build() override {
       return base::StatusOr<std::unique_ptr<LaplaceMechanism>>(
           std::unique_ptr<LaplaceMechanism>(mock_.release()));
     }

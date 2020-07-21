@@ -91,18 +91,18 @@ uint64_t Geometric() {
 
 SecureURBG::result_type SecureURBG::operator()() {
   absl::WriterMutexLock lock(&mutex_);
-  if (current_index_ + sizeof(result_type) > kCacheSize) {
-    RefreshCache();
+  if (current_index_ + sizeof(result_type) > kBufferSize) {
+    RefreshBuffer();
   }
   int old_index = current_index_;
   current_index_ += sizeof(result_type);
   result_type result;
-  std::memcpy(&result, cache_ + old_index, sizeof(result_type));
+  std::memcpy(&result, buffer_ + old_index, sizeof(result_type));
   return result;
 }
 
-void SecureURBG::RefreshCache() {
-  RAND_bytes(cache_, kCacheSize);
+void SecureURBG::RefreshBuffer() {
+  RAND_bytes(buffer_, kBufferSize);
   current_index_ = 0;
 }
 }  // namespace differential_privacy

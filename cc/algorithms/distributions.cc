@@ -27,6 +27,31 @@
 namespace differential_privacy {
 namespace internal {
 
+namespace {
+
+static constexpr double kPi = 3.14159265358979323846;
+
+// The square root of the maximum number n of Bernoulli trials from which a
+// binomial sample is drawn. Larger values result in more fine grained noise,
+// but increase the chance of sampling inaccuracies due to overflows. The
+// probability of such an event will be roughly 2^-45 or less, if the square
+// root is set to 2^57.
+static constexpr double kBinomialBound = (double)(1LL << 57);
+
+// Approximates the probability of a random sample m + n / 2 drawn from a
+// binomial distribution of n Bernoulli trials that have a success probability
+// of 1 / 2 each. The approximation is taken from Lemma 7 of the noise
+// generation documentation available in
+// https://github.com/google/differential-privacy/blob/master/common_docs/Secure_Noise_Generation.pdf
+double ApproximateBinomialProbability(double sqrt_n, int64_t m) {
+  if (abs(m) > sqrt_n * sqrt(log(sqrt_n) / 2)) return 0;
+
+  return sqrt(2 / kPi) / sqrt_n * exp(-2.0 * m * m / (sqrt_n * sqrt_n)) *
+         (1 - 0.4 * (2 * pow(log(sqrt_n), 1.5)) / sqrt_n);
+}
+
+}  // namespace
+
 LegacyLaplaceDistribution::LegacyLaplaceDistribution(double b) : b_(b) {
   CHECK_GE(b, 0.0);
 }
@@ -69,26 +94,68 @@ int64_t LegacyLaplaceDistribution::MemoryUsed() {
   return sizeof(LegacyLaplaceDistribution);
 }
 
-GaussianDistribution::GaussianDistribution(double stddev) : stddev_(stddev) {
+GaussianDistribution::GaussianDistribution(double stddev)
+    : stddev_(stddev),
+      granularity_(GetNextPowerOfTwo(2 * stddev / kBinomialBound)) {
   DCHECK_GE(stddev, 0.0);
 }
 
 double GaussianDistribution::Sample(double scale) {
   DCHECK_GT(scale, 0);
-  const double value =
-      absl::Gaussian<double>(SecureURBG::GetSingleton(), 0, scale * stddev_);
-  if (std::isnan(value)) {
-    return 0.0;
-  }
-  return value;
+  // TODO: make graceful behaviour when sigma is too big.
+  double sigma = scale * stddev_;
+
+  // The square root of n is chosen in a way that ensures that the respective
+  // binomial distribution approximates a Gaussian distribution close enough.
+  // The sqrt(n) is taken instead of n, to ensure that all results of arithmetic
+  // operations fit in 64 bit integer range.
+  double sqrt_n = 2.0 * sigma / granularity_;
+  return SampleBinomial(sqrt_n) * granularity_;
 }
 
 double GaussianDistribution::Sample() { return Sample(1.0); }
 
 double GaussianDistribution::Stddev() { return stddev_; }
 
+double GaussianDistribution::GetGranularity() { return granularity_; }
+
 GeometricDistribution::GeometricDistribution(double lambda) : lambda_(lambda) {
   DCHECK_GE(lambda, 0);
+}
+
+double GaussianDistribution::SampleGeometric() {
+  int geom_sample = 0;
+  while (absl::Bernoulli(SecureURBG::GetSingleton(), 0.5)) ++geom_sample;
+  return geom_sample;
+}
+
+// Returns a random sample m where {@code m + n / 2} is drawn from a binomial
+// distribution of n Bernoulli trials that have a success probability of 1 / 2
+// each. The sampling technique is based on Bringmann et al.'s rejection
+// sampling approach proposed in "Internal DLA: Efficient Simulation of a
+// Physical Growth Model", available
+// https://people.mpi-inf.mpg.de/~kbringma/paper/2014ICALP.pdf. The square root
+// of n must be at least 10^6. This is to ensure an accurate approximation of a
+// Gaussian distribution.
+double GaussianDistribution::SampleBinomial(double sqrt_n) {
+  long long step_size = static_cast<long long>(round(sqrt(2.0) * sqrt_n + 1));
+
+  SecureURBG& random = SecureURBG::GetSingleton();
+  while (true) {
+    int geom_sample = SampleGeometric();
+    int two_sided_geom =
+        absl::Bernoulli(random, 0.5) ? geom_sample : (-geom_sample - 1);
+    long long uniform_sample = absl::Uniform(random, 0u, step_size);
+    long long result = step_size * two_sided_geom + uniform_sample;
+
+    double result_prob = ApproximateBinomialProbability(sqrt_n, result);
+    double reject_prob = UniformDouble();
+
+    if (result_prob > 0 && reject_prob > 0 &&
+        reject_prob < result_prob * step_size * pow(2.0, geom_sample - 2)) {
+      return result;
+    }
+  }
 }
 
 double GeometricDistribution::GetUniformDouble() { return UniformDouble(); }

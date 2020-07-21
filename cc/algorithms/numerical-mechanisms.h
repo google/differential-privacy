@@ -44,6 +44,11 @@ static const double kClampFactor = std::pow(2.0, 39);
 // The maximum allowable probability that the noise will overflow.
 static const double kMaxOverflowProbability = std::pow(2.0, -64);
 
+// The relative accuracy at which to stop the binary search to find the tightest
+// sigma such that Gaussian noise satisfies (epsilon, delta)-differential
+// privacy given the sensitivities.
+static const double kGaussianSigmaAccuracy = 1e-3;
+
 template <typename T>
 T UpperBound() {
   if (std::numeric_limits<T>::max() > kClampFactor) {
@@ -143,7 +148,7 @@ class NumericalMechanismBuilder {
     return *static_cast<Builder*>(this);
   }
 
-  virtual base::StatusOr<std::unique_ptr<Mechanism>> Build() = 0;
+  virtual base::StatusOr<std::unique_ptr<NumericalMechanism>> Build() = 0;
 
   virtual std::unique_ptr<Builder> Clone() const = 0;
 
@@ -205,7 +210,7 @@ class LaplaceMechanism : public NumericalMechanism {
       return *this;
     }
 
-    base::StatusOr<std::unique_ptr<LaplaceMechanism>> Build() override {
+    base::StatusOr<std::unique_ptr<NumericalMechanism>> Build() override {
       base::Status epsilon_status = EpsilonIsSetAndValid();
       if (!epsilon_status.ok()) {
         return epsilon_status;
@@ -233,8 +238,11 @@ class LaplaceMechanism : public NumericalMechanism {
       base::StatusOr<double> gran_or_status = internal::CalculateGranularity(
           epsilon_.value(), l1_sensitivity_.value());
       if (!gran_or_status.ok()) return gran_or_status.status();
-      return absl::make_unique<LaplaceMechanism>(epsilon_.value(),
-                                                l1_sensitivity_.value());
+
+      std::unique_ptr<NumericalMechanism> result =
+          absl::make_unique<LaplaceMechanism>(epsilon_.value(),
+                                             l1_sensitivity_.value());
+      return result;
     }
 
     std::unique_ptr<Builder> Clone() const override {
@@ -271,11 +279,7 @@ class LaplaceMechanism : public NumericalMechanism {
   double AddNoise(double result, double privacy_budget) override {
     privacy_budget = CheckAndClampBudget(privacy_budget);
     double sample = distro_->Sample(1.0 / privacy_budget);
-    double adjustment = 0;
-    if (distro_->GetGranularity() != 0) {
-      adjustment = -std::remainder(result, distro_->GetGranularity());
-    }
-    return result + adjustment + sample;
+    return RoundToNearestMultiple(result, distro_->GetGranularity()) + sample;
   }
 
   virtual double GetUniformDouble() { return distro_->GetUniformDouble(); }
@@ -336,7 +340,7 @@ class GaussianMechanism : public NumericalMechanism {
       return *this;
     }
 
-    base::StatusOr<std::unique_ptr<GaussianMechanism>> Build() override {
+    base::StatusOr<std::unique_ptr<NumericalMechanism>> Build() override {
       base::Status status = EpsilonIsSetAndValid();
       status.Update(DeltaIsSetAndValid());
       if (!l2_sensitivity_.has_value()) {
@@ -354,8 +358,11 @@ class GaussianMechanism : public NumericalMechanism {
       if (!status.ok()) {
         return status;
       }
-      return absl::make_unique<GaussianMechanism>(
-          epsilon_.value(), delta_.value(), l2_sensitivity_.value());
+
+      std::unique_ptr<NumericalMechanism> result =
+          absl::make_unique<GaussianMechanism>(epsilon_.value(), delta_.value(),
+                                              l2_sensitivity_.value());
+      return result;
     }
 
     std::unique_ptr<Builder> Clone() const override {
@@ -389,8 +396,9 @@ class GaussianMechanism : public NumericalMechanism {
     double local_epsilon = privacy_budget * epsilon_;
     double local_delta = privacy_budget * delta_;
     double stddev = CalculateStddev(local_epsilon, local_delta);
+    double sample = distro_->Sample(stddev);
 
-    return result + distro_->Sample(stddev);
+    return RoundToNearestMultiple(result, distro_->GetGranularity()) + sample;
   }
 
   virtual int64_t MemoryUsed() {
@@ -436,6 +444,42 @@ class GaussianMechanism : public NumericalMechanism {
     return confidence;
   }
 
+  // Returns the standard deviation of the Gaussian noise necessary to obtain
+  // (epsilon, delta)-differential privacy for the given L_2 sensitivity. The
+  // result will deviate from the tightest possible value sigma_tight by at most
+  // kGaussianSigmaAccuracy * sigma_tight.
+  //
+  // This implementation uses a binary search. Its runtime is roughly
+  // log(kGaussianSigmaAccuracy)
+  // + log(max{sigma_tight / l2_sensitivity_, l2_sensitivity_ / sigma_tight}).
+  double CalculateStddev(double epsilon, double delta) {
+    // l2_sensitivity_ is used as a starting guess for the upper bound, since
+    // the required noise grows linearly with sensitivity.
+    double upper_bound = l2_sensitivity_;
+    double lower_bound = 0;
+
+    // Increase lower_bound and upper_bound until upper_bound is actually an
+    // upper bound of sigma_tight, using exponential search.
+    while (CalculateDelta(upper_bound, epsilon) > delta) {
+      lower_bound = upper_bound;
+      upper_bound = upper_bound * 2;
+    }
+
+    // Binary search [lower_bound, upper_bound] to find a good enough
+    // approximation of sigma_tight.
+    while (upper_bound - lower_bound > kGaussianSigmaAccuracy * lower_bound) {
+      double middle = lower_bound * 0.5 + upper_bound * 0.5;
+      if (CalculateDelta(middle, epsilon) > delta) {
+        lower_bound = middle;
+      } else {
+        upper_bound = middle;
+      }
+    }
+
+    // Return the over-approximation to err on the safe side.
+    return upper_bound;
+  }
+
   double GetDelta() { return delta_; }
 
   double GetL2Sensitivity() { return l2_sensitivity_; }
@@ -445,14 +489,38 @@ class GaussianMechanism : public NumericalMechanism {
   double l2_sensitivity_;
   std::unique_ptr<internal::GaussianDistribution> distro_;
 
-  // Calculate the required standard deviation for provided epsilon and delta.
-  // This formula can be derived from Proposition 3 and Corollary 3 of Ilya's
-  // paper on Renyi DP (https://arxiv.org/abs/1702.07476v3).
-  double CalculateStddev(double epsilon, double delta) {
-    double logOneDivDelta = std::log(1 / delta);
-    return (l2_sensitivity_ / (std::sqrt(2) * epsilon)) *
-           (std::sqrt(logOneDivDelta + epsilon / l2_sensitivity_) +
-            std::sqrt(logOneDivDelta));
+  double StandardNormalDistributionCDF(double x) {
+    return (1 + std::erf(x / sqrt(2))) / 2;
+  }
+
+  // Returns the smallest delta such that the Gaussian mechanism with standard
+  // deviation sigma obtains (epsilon, delta)-differential
+  // privacy with respect to the provided L_2 sensitivity. The calculation is
+  // based on Theorem 8 of Balle and Wang's "Improving the Gaussian Mechanism
+  // for Differential Privacy: Analytical Calibration and Optimal Denoising",
+  // available <a href="https://arxiv.org/abs/1805.06530v2">here</a>.
+
+  double CalculateDelta(double sigma, double epsilon) {
+    // Denoting by CDF the CDF function of the standard Gaussian distribution
+    // (mean 0, variance 1), and s the L2 sensitivity, the tight choice of delta
+    // is:
+    //    CDF(s/(2*sigma) - epsilon*sigma/s) - exp(epsilon)*CDF(-s/(2*sigma) -
+    //    epsilon*sigma/s)
+    // To simplify the reasoning floating-point underflow/overflows, we rewrite
+    // this formula into:
+    //    CDF(a - b) - c * CDF(-a - b)
+    // where a = s / (2 * sigma), b = epsilon * sigma / s, and c = exp(epsilon).
+    double a = l2_sensitivity_ / (2 * sigma);
+    double b = epsilon * sigma / l2_sensitivity_;
+    double c = exp(epsilon);
+
+    if (isinf(b)) {
+      // If either l2_sensitivity_ goes to 0 or e^epsilon goes to infinity,
+      // delta goes to 0.
+      return 0;
+    }
+    return StandardNormalDistributionCDF(a - b) -
+           c * StandardNormalDistributionCDF(-a - b);
   }
 };
 

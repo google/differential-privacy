@@ -41,9 +41,11 @@ class TestPercentileSearch : public BinarySearch<T> {
  public:
   TestPercentileSearch(double percentile, double epsilon, T lower, T upper,
                        std::unique_ptr<LaplaceMechanism::Builder> builder)
-      : BinarySearch<T>(epsilon, lower, upper, percentile,
-                        builder->Build().ValueOrDie(),
-                        absl::make_unique<base::Percentile<T>>()
+      : BinarySearch<T>(
+            epsilon, lower, upper, percentile,
+            absl::WrapUnique<LaplaceMechanism>(dynamic_cast<LaplaceMechanism*>(
+                builder->Build().ValueOrDie().release())),
+            absl::make_unique<base::Percentile<T>>()
         ) {}
 };
 

@@ -65,7 +65,7 @@ func (gaussian) AddNoiseFloat64(x float64, l0Sensitivity int64, lInfSensitivity,
 			l0Sensitivity, lInfSensitivity, epsilon, delta, err)
 	}
 
-	sigma := sigmaForGaussian(l0Sensitivity, lInfSensitivity, epsilon, delta)
+	sigma := SigmaForGaussian(l0Sensitivity, lInfSensitivity, epsilon, delta)
 	return addGaussian(x, sigma)
 }
 
@@ -77,7 +77,7 @@ func (gaussian) AddNoiseInt64(x, l0Sensitivity, lInfSensitivity int64, epsilon, 
 			l0Sensitivity, lInfSensitivity, epsilon, delta, err)
 	}
 
-	sigma := sigmaForGaussian(l0Sensitivity, float64(lInfSensitivity), epsilon, delta)
+	sigma := SigmaForGaussian(l0Sensitivity, float64(lInfSensitivity), epsilon, delta)
 	return int64(math.Round(addGaussian(float64(x), sigma)))
 }
 
@@ -90,11 +90,11 @@ func (gaussian) Threshold(l0Sensitivity int64, lInfSensitivity, epsilon, deltaNo
 		log.Fatalf("gaussian.Threshold(l0sensitivity %d, lInfSensitivity %f, epsilon %f, deltaNoise %e, deltaThreshold %e) checks failed with %v",
 			l0Sensitivity, lInfSensitivity, epsilon, deltaNoise, deltaThreshold, err)
 	}
-	if err := checks.CheckDelta("Threshold (gaussian, deltaNoise)", deltaThreshold); err != nil {
+	if err := checks.CheckDeltaStrict("Threshold (gaussian, deltaNoise)", deltaThreshold); err != nil {
 		log.Fatalf("CheckDelta failed with %v", err)
 	}
 
-	sigma := sigmaForGaussian(l0Sensitivity, lInfSensitivity, epsilon, deltaNoise)
+	sigma := SigmaForGaussian(l0Sensitivity, lInfSensitivity, epsilon, deltaNoise)
 	noiseDist := distuv.Normal{Mu: 0, Sigma: sigma}
 	return lInfSensitivity + noiseDist.Quantile(math.Pow(1-deltaThreshold, 1.0/float64(l0Sensitivity)))
 }
@@ -108,7 +108,7 @@ func (gaussian) DeltaForThreshold(l0Sensitivity int64, lInfSensitivity, epsilon,
 		log.Fatalf("gaussian.DeltaForThreshold(l0sensitivity %d, lInfSensitivity %f, epsilon %f, delta %e, threshold %f) checks failed with %v",
 			l0Sensitivity, lInfSensitivity, epsilon, delta, threshold, err)
 	}
-	sigma := sigmaForGaussian(l0Sensitivity, lInfSensitivity, epsilon, delta)
+	sigma := SigmaForGaussian(l0Sensitivity, lInfSensitivity, epsilon, delta)
 	noiseDist := distuv.Normal{Mu: 0, Sigma: sigma}
 	return 1 - math.Pow(noiseDist.CDF(threshold-lInfSensitivity), float64(l0Sensitivity))
 }
@@ -123,7 +123,7 @@ func checkArgsGaussian(label string, l0Sensitivity int64, lInfSensitivity, epsil
 	if err := checks.CheckEpsilon(label, epsilon); err != nil {
 		return err
 	}
-	return checks.CheckDelta(label, delta)
+	return checks.CheckDeltaStrict(label, delta)
 }
 
 // addGaussian adds Gaussian noise of scale σ to the specified float64.
@@ -215,10 +215,10 @@ func deltaForGaussian(sigma float64, l0Sensitivity int64, lInfSensitivity, epsil
 	return distuv.UnitNormal.CDF(a-b) - c*distuv.UnitNormal.CDF(-a-b)
 }
 
-// sigmaForGaussian calculates the standard deviation σ of Gaussian noise
+// SigmaForGaussian calculates the standard deviation σ of Gaussian noise
 // needed to achieve (ε,δ)-approximate differential privacy.
 //
-// sigmaForGaussian uses binary search. The result will deviate from the exact value
+// SigmaForGaussian uses binary search. The result will deviate from the exact value
 // σ_tight by at most gaussianSigmaAccuracy*σ_tight.
 //
 // Runtime: O(log(max(σ_tight/l2Sensitivity, l2Sensitivity/σ_tight)) +
@@ -226,7 +226,7 @@ func deltaForGaussian(sigma float64, l0Sensitivity int64, lInfSensitivity, epsil
 // where l2Sensitivity := lInfSensitivity * math.Sqrt(l0Sensitivity)
 //
 // TODO: Memorize the results of this function to avoid recomputing it
-func sigmaForGaussian(l0Sensitivity int64, lInfSensitivity, epsilon, delta float64) float64 {
+func SigmaForGaussian(l0Sensitivity int64, lInfSensitivity, epsilon, delta float64) float64 {
 	if delta >= 1 {
 		return 0
 	}

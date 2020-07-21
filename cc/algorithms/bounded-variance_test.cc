@@ -171,6 +171,42 @@ TYPED_TEST(BoundedVarianceTest, GaussianInputTest) {
               0.1);
 }
 
+TYPED_TEST(BoundedVarianceTest, MaxContributionsVarianceTest) {
+  const std::vector<TypeParam> input = {-1, -1, 1, 1};
+
+  // Calculate variance of input.
+  const double real_mean =
+      std::accumulate(input.begin(), input.end(), 0.0) / input.size();
+  double sum = 0;
+  for (const auto& i : input) {
+    sum += std::pow(i - real_mean, 2);
+  }
+  const double real_variance = sum / (input.size() - 1);
+
+  std::function<double(int)> sample_variance_for_max_contribution =
+      [&input, real_variance](int max_contribution) {
+        double sum = 0;
+        for (int i = 0; i < kNumSamples; ++i) {
+          auto variance = typename BoundedVariance<TypeParam>::Builder()
+                              .SetMaxContributionsPerPartition(max_contribution)
+                              .SetEpsilon(1)
+                              .SetLower(-1)
+                              .SetUpper(1)
+                              .Build();
+          CHECK_EQ(variance.status(), base::OkStatus());
+          auto out = (*variance)->Result(input.begin(), input.end());
+          CHECK_EQ(out.status(), base::OkStatus());
+          sum += std::pow(GetValue<double>(*out) - real_variance, 2);
+        }
+        return sum / (kNumSamples - 1);
+      };
+
+  // We expect the sample variance with max contribution 2 to be (significantly)
+  // bigger than with max contribution 1.
+  EXPECT_GT(sample_variance_for_max_contribution(2),
+            1.1 * sample_variance_for_max_contribution(1));
+}
+
 TYPED_TEST(BoundedVarianceTest, MergeDifferentBoundingStrategy) {
   typename BoundedVariance<TypeParam>::Builder bv_builder;
 

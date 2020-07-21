@@ -52,15 +52,15 @@ class SecureURBG {
   result_type operator()() ABSL_LOCKS_EXCLUDED(mutex_);
 
  private:
-  SecureURBG() { cache_ = new uint8_t[kCacheSize]; }
-  ~SecureURBG() { delete[] cache_; }
+  SecureURBG() { buffer_ = new uint8_t[kBufferSize]; }
+  ~SecureURBG() { delete[] buffer_; }
   // Refesh the cache with new random bytes.
-  void RefreshCache() ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
+  void RefreshBuffer() ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
-  static constexpr int kCacheSize = 65536;
+  static constexpr int kBufferSize = 65536;
   // The corrent index in the cache.
-  int current_index_ ABSL_GUARDED_BY(mutex_) = kCacheSize;
-  uint8_t* cache_ ABSL_GUARDED_BY(mutex_);
+  int current_index_ ABSL_GUARDED_BY(mutex_) = kBufferSize;
+  uint8_t* buffer_ ABSL_GUARDED_BY(mutex_);
   absl::Mutex mutex_;
 };
 }  // namespace differential_privacy

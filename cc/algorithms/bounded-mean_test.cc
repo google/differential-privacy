@@ -154,6 +154,34 @@ TYPED_TEST(BoundedMeanTest, PropagateApproxBoundsError) {
   EXPECT_FALSE(bm->PartialResult().ok());
 }
 
+TYPED_TEST(BoundedMeanTest, MaxContributionsVarianceTest) {
+  // Use following inputs with mean 0.
+  const std::vector<TypeParam> input = {1, 1, -1, -1};
+
+  std::function<double(int)> sample_variance_for_max_contributions =
+      [&input](int max_contributions) {
+        double sum = 0;
+        for (int i = 0; i < kNumSamples; ++i) {
+          auto mean = typename BoundedMean<TypeParam>::Builder()
+                          .SetMaxContributionsPerPartition(max_contributions)
+                          .SetEpsilon(1)
+                          .SetLower(-1)
+                          .SetUpper(1)
+                          .Build();
+          CHECK_EQ(mean.status(), base::OkStatus());
+          auto out = (*mean)->Result(input.begin(), input.end());
+          CHECK_EQ(out.status(), base::OkStatus());
+          sum += std::pow(GetValue<double>(*out), 2);
+        }
+        return sum / (kNumSamples - 1);
+      };
+
+  // We expect the sample variance with max contribution 2 to be (significantly)
+  // bigger than with max contribution 1.
+  EXPECT_GT(sample_variance_for_max_contributions(2),
+            1.1 * sample_variance_for_max_contributions(1));
+}
+
 TYPED_TEST(BoundedMeanTest, SerializeMergeTest) {
   typename BoundedMean<TypeParam>::Builder builder;
 
