@@ -282,3 +282,17 @@ func SigmaForGaussian(l0Sensitivity int64, lInfSensitivity, epsilon, delta float
 
 	return upperBound
 }
+
+//Declaration of interface functions, to be completed
+
+func (gaussian) ReturnConfidenceIntervalInt64(noisedValue, l0Sensitivity, lInfSensitivity int64, epsilon, delta,
+	confidenceLevel float64) (*ConfidenceIntervalInt64, error) {
+	//ToDo
+
+}
+
+func (gaussian) ReturnConfidenceIntervalFloat64(noisedValue float64, l0Sensitivity int64, lInfSensitivity, epsilon, delta,
+	confidenceLevel float64) (*ConfidenceIntervalFloat64, error) {
+	//ToDo
+
+}
