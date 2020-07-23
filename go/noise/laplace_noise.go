@@ -157,6 +157,17 @@ func (laplace) DeltaForThreshold(l0Sensitivity int64, lInfSensitivity, epsilon, 
 	return 1 - math.Pow(1-partitionDelta, float64(l0Sensitivity))
 }
 
+func (laplace) ReturnConfidenceIntervalInt64(noisedValue, l0Sensitivity, lInfSensitivity int64, epsilon, delta,
+	confidenceLevel float64) (*ConfidenceIntervalInt64, error) {
+	// TODO: Add implementation of the confidence interval calculation.
+	return nil, nil
+}
+
+func (laplace) ReturnConfidenceIntervalFloat64(noisedValue float64, l0Sensitivity int64, lInfSensitivity, epsilon, delta,
+	confidenceLevel float64) (*ConfidenceIntervalFloat64, error) {
+	// TODO: Add implementation of the confidence interval calculation.
+	return nil, nil
+}
 func checkArgsLaplace(label string, l0Sensitivity int64, lInfSensitivity, epsilon, delta float64) error {
 	if err := checks.CheckL0Sensitivity(label, l0Sensitivity); err != nil {
 		return err
@@ -251,15 +262,4 @@ func twoSidedGeometric(lambda float64) int64 {
 		sign = int64(rand.Sign())
 	}
 	return sample * sign
-}
-
-func (laplace) ReturnConfidenceIntervalInt64(noisedValue, l0Sensitivity, lInfSensitivity int64, epsilon, delta,
-	confidenceLevel float64) (*ConfidenceIntervalInt64, error) {
-	//ToDo
-}
-
-func (laplace) ReturnConfidenceIntervalFloat64(noisedValue float64, l0Sensitivity int64, lInfSensitivity, epsilon, delta,
-	confidenceLevel float64) (*ConfidenceIntervalFloat64, error) {
-	//ToDo
-
 }
