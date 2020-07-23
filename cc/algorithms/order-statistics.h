@@ -52,11 +52,13 @@ class OrderStatisticsBuilder
     }
 
     std::unique_ptr<NumericalMechanism> has_to_be_laplace;
-    ASSIGN_OR_RETURN(has_to_be_laplace,
-                     AlgorithmBuilder::mechanism_builder_
-                         ->SetEpsilon(AlgorithmBuilder::epsilon_.value())
-                         .SetL1Sensitivity(1)
-                         .Build());
+    ASSIGN_OR_RETURN(
+        has_to_be_laplace,
+        AlgorithmBuilder::mechanism_builder_
+            ->SetEpsilon(AlgorithmBuilder::epsilon_.value())
+            .SetL0Sensitivity(AlgorithmBuilder::l0_sensitivity_.value_or(1))
+            .SetLInfSensitivity(AlgorithmBuilder::linf_sensitivity_.value_or(1))
+            .Build());
 
     // TODO: Remove the following dynamic_cast.
     mechanism_ = absl::WrapUnique<LaplaceMechanism>(

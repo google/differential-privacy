@@ -30,6 +30,7 @@ using test_utils::ZeroNoiseMechanism;
 
 static constexpr size_t kDataSize = 10000;
 static constexpr size_t kStatsSize = 500;
+static constexpr double kNumSamples = 10000;
 
 TEST(OrderStatisticsTest, Max) {
   double epsilon = DefaultEpsilon();
@@ -81,6 +82,35 @@ TEST(OrderStatisticsTest, Median) {
     search->AddEntry(std::round(static_cast<double>(200) * i / kDataSize));
   }
   EXPECT_EQ(GetValue<int64_t>(search->PartialResult(1.0).ValueOrDie()), 100);
+}
+
+TEST(OrderStatisticsTest, MedianLinfIncreasesVariance) {
+  // Median is 0
+  const std::vector<double> input = {1, 0, 0, -1};
+
+  std::function<double(int)> sample_variance_for_max_contributions =
+      [&input](int max_contributions) {
+        double sum = 0;
+        for (int i = 0; i < kNumSamples; ++i) {
+          auto bounded_sum =
+              typename Median<double>::Builder()
+                  .SetMaxContributionsPerPartition(max_contributions)
+                  .SetEpsilon(1)
+                  .SetLower(-1)
+                  .SetUpper(1)
+                  .Build();
+          CHECK_EQ(bounded_sum.status(), base::OkStatus());
+          auto out = (*bounded_sum)->Result(input.begin(), input.end());
+          CHECK_EQ(out.status(), base::OkStatus());
+          sum += std::pow(GetValue<double>(*out), 2);
+        }
+        return sum / (kNumSamples - 1);
+      };
+
+  // We expect the sample variance with max contribution 3 to be
+  // bigger than with max contribution 1.
+  EXPECT_GT(sample_variance_for_max_contributions(3),
+            1.1 * sample_variance_for_max_contributions(1));
 }
 
 TEST(OrderStatisticsTest, Percentile) {
