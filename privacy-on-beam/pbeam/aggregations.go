@@ -560,10 +560,6 @@ func prepareAddPartitionsMeanFloat64Fn(partitionKey beam.X) (k beam.X, v []float
 	return partitionKey, [] float64 {}
 }
 
-func fancySwap(key beam.X, pair kv.Pair) (partitionKey PartitionKey, returnValue DecodedPair) {
-	return PartitionKey{pair.K}, DecodedPair{key, pair.V}
-}
-
 
 func newPrepareDropPartitionsFn(vKind reflect.Kind) interface{} {
 	var err error
@@ -666,14 +662,6 @@ func toSliceFloat64Partition(vIter func(**float64) bool) []*float64 {
 	return vSlice
 }
 
-func formatUserId(key beam.X, value beam.V) (k beam.X, v UserId){
-	return key, UserId{UserId: value}
-}
-
-func formatPartitions(partitionKey beam.X) (k beam.X, v UserId) {
-	return partitionKey, UserId{UserId: 0}
-}
-
 func formatSumPartitions(partitionKey beam.X) (k PartitionKey) {
 	return PartitionKey{P: partitionKey}
 }
@@ -699,15 +687,35 @@ func (fn *preparePruneFn) ProcessElement(id beam.W, pair kv.Pair, partitionsIter
 	for partitionsIter(&partition){
 		if partition.P == k {
 			emit(id, pair)
+			break
 		}
 	}
 }
 
-func correctPartitions(s beam.Scope,partitions []beam.PCollection, idT typex.FullType, pcol PrivatePCollection) beam.PCollection {
+func countPruneFn(id beam.X, partitionKey beam.V, partitionsIter func(*PartitionKey) bool, emit func(beam.X, beam.V)) {
+	var partition PartitionKey
+	for partitionsIter(&partition) {
+		if partition.P == partitionKey {
+			emit(id, partitionKey)
+			break
+		}
+	}
+}
+
+func correctPartitions(s beam.Scope, partitions []beam.PCollection, idT typex.FullType, pcol PrivatePCollection) beam.PCollection {
 	if len(partitions) == 1{
 		partitionsCol := partitions[0]
 		formattedPartitions := beam.ParDo(s, formatSumPartitions, partitionsCol)
 		return beam.ParDo(s, newPreparePruneFn(idT, pcol.codec), pcol.col, beam.SideInput{Input: formattedPartitions})
+	}
+	return pcol.col
+}
+
+func correctCountPartitions(s beam.Scope, partitions []beam.PCollection, pcol PrivatePCollection) beam.PCollection {
+	if len(partitions) == 1{
+		partitionsCol := partitions[0]
+		formattedSpecifiedPartitions := beam.ParDo(s, formatSumPartitions, partitionsCol)
+		return beam.ParDo(s, countPruneFn, pcol.col, beam.SideInput{Input: formattedSpecifiedPartitions})
 	}
 	return pcol.col
 }
