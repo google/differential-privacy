@@ -29,6 +29,7 @@ import (
 	"github.com/google/differential-privacy/privacy-on-beam/internal/kv"
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/top"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 )
 
 // This file contains methods & ParDos used by multiple DP aggregations.
@@ -406,7 +407,24 @@ func (fn *boundedSumFloat64Fn) ExtractOutput(a boundedSumAccumFloat64) *float64 
      }
  }
 
+func findCorrectToFn(kind reflect.Kind) interface{} {
+	switch kind {
+	case reflect.Int64:
+		return CorrectToInt64
+	case reflect.Float64:
+		return CorrectToFloat64
+	default:
+		log.Exitf("pbeam.findDropThresholdedPartitionsFn: kind(%v) should be int64 or float64", kind)
+	}
+	return nil
+}
+
+
  func CorrectToInt64(key beam.X, v *int64) (k beam.X, value int64) {
+ 	return key, *v
+ }
+
+  func CorrectToFloat64(key beam.X, v *float64) (k beam.X, value float64) {
  	return key, *v
  }
 
@@ -515,16 +533,6 @@ func newPrepareAddMeanPartitionsFn(vKind reflect.Kind) interface{} {
 	return fn
 }
 
-func printContents(s kv.Pair, i int) int64{
-	fmt.Println(s)
-	fmt.Println(i)
-	return 0
-}
-
-func printKeyContents(key interface{}, value interface{}) int64{
-	fmt.Println(key)
-	return 0
-}
 
 func printOriginalContents(s beam.X, i beam.V) int64{
 	fmt.Println(s)
@@ -550,6 +558,10 @@ func prepareAddPartitionsMeanInt64Fn(partitionKey beam.X) (k beam.X, v []int64) 
 
 func prepareAddPartitionsMeanFloat64Fn(partitionKey beam.X) (k beam.X, v []float64) {
 	return partitionKey, [] float64 {}
+}
+
+func fancySwap(key beam.X, pair kv.Pair) (partitionKey PartitionKey, returnValue DecodedPair) {
+	return PartitionKey{pair.K}, DecodedPair{key, pair.V}
 }
 
 
@@ -618,16 +630,6 @@ func toSlicePartition(vIter func(*UserId) bool) []UserId {
 }
 
 
-// func toSliceStringPartition(vIter func(*interface{}) bool) []interface{}{
-// 	var vSlice []interface{}
-// 	var v interface{}
-// 	for vIter(&v) {
-// 		vSlice = append(vSlice, v)
-// 	}
-// 	return vSlice
-// }
-
-
 func dropUnspecifiedPartitionsInt64Fn(partitionKey beam.X, v1Iter, v2Iter func(**int64) bool, emit func(beam.X, int64)){
 	var v1 = toSliceInt64Partition(v1Iter)
 	var v2 = toSliceInt64Partition(v2Iter)
@@ -670,4 +672,42 @@ func formatUserId(key beam.X, value beam.V) (k beam.X, v UserId){
 
 func formatPartitions(partitionKey beam.X) (k beam.X, v UserId) {
 	return partitionKey, UserId{UserId: 0}
+}
+
+func formatSumPartitions(partitionKey beam.X) (k PartitionKey) {
+	return PartitionKey{P: partitionKey}
+}
+
+// preparePruneFn takes a PCollection<ID,kv.Pair{K,V}> as input, and returns a
+// PCollection<ID, kv.Pair{K,V}>; where unspecified partitions have been dropped.
+
+type preparePruneFn struct {
+	IDType         beam.EncodedType
+	InputPairCodec *kv.Codec
+}
+
+func newPreparePruneFn(idType typex.FullType, kvCodec *kv.Codec) *preparePruneFn {
+	return &preparePruneFn{
+		IDType:         beam.EncodedType{idType.Type()},
+		InputPairCodec: kvCodec,
+	}
+}
+
+func (fn *preparePruneFn) ProcessElement(id beam.W, pair kv.Pair, partitionsIter func(*PartitionKey) bool, emit func(beam.W, kv.Pair)) {
+	var partition PartitionKey
+	k, _ := fn.InputPairCodec.Decode(pair)
+	for partitionsIter(&partition){
+		if partition.P == k {
+			emit(id, pair)
+		}
+	}
+}
+
+func correctPartitions(s beam.Scope,partitions []beam.PCollection, idT typex.FullType, pcol PrivatePCollection) beam.PCollection {
+	if len(partitions) == 1{
+		partitionsCol := partitions[0]
+		formattedPartitions := beam.ParDo(s, formatSumPartitions, partitionsCol)
+		return beam.ParDo(s, newPreparePruneFn(idT, pcol.codec), pcol.col, beam.SideInput{Input: formattedPartitions})
+	}
+	return pcol.col
 }

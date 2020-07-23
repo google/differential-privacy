@@ -118,11 +118,12 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams, partit
 		noiseKind = params.NoiseKind.toNoiseKind()
 	}
 
+	correctPartitions := correctPartitions(s, partitions, idT, pcol)
 	// First, group together the privacy ID and the partition ID and do per-partition contribution bounding.
 	// Result is PCollection<kv.Pair{ID,K},V>
 	decoded := beam.ParDo(s,
 		newPrepareMeanFn(idT, pcol.codec),
-		pcol.col,
+		correctPartitions,
 		beam.TypeDefinition{Var: beam.VType, T: pcol.codec.VType.T})
 
 	maxContributionsPerPartition := getMaxContributionsPerPartition(params.MaxContributionsPerPartition)
@@ -164,13 +165,12 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams, partit
 	partialKV)
 	// Finally, drop thresholded partitions.
 	return beam.ParDo(s, dropThresholdedPartitionsFloat64Fn, means)
-	} else if len(partitions) > 1 {
-		log.Exitf("Only one partition PCollection can be specified.")
 	} 
+
 	partitionsCol := partitions[0]
 	// Turn partitionsCol type PCollection<K> into PCollection<K, [] float64]> by adding 
 	// an empty array as the value to each K. 
-	addSpecifiedPartitions := beam.ParDo(s, prepareAddPartitionsFloat64Fn, partitionsCol)
+	addSpecifiedPartitions := beam.ParDo(s, prepareAddPartitionsMeanFloat64Fn, partitionsCol)
 	// Merge specified partitions with existing partitions
 	allAddPartitions := beam.Flatten(s, partialKV, addSpecifiedPartitions)
 
@@ -179,11 +179,7 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams, partit
 		newBoundedMeanFloat64Fn(epsilon, delta, maxPartitionsContributed, params.MaxContributionsPerPartition, params.MinValue, params.MaxValue, noiseKind, true),
 		allAddPartitions)
 
-	// Turn partitionsCol type PCollection<K> into PCollection<K, float64*> by adding value nil to each K. 
-	prepareDropUnspecifiedPartitions := beam.ParDo(s, prepareDropPartitionsFloat64Fn, partitionsCol)
-	allDropPartitions := beam.CoGroupByKey(s, means, prepareDropUnspecifiedPartitions)
-	// Drop unspecified partitions 
-	correctPartitions := beam.ParDo(s, dropUnspecifiedPartitionsFloat64Fn, allDropPartitions)
+	correctPartitions := beam.ParDo(s, CorrectToFloat64, means)
 	return correctPartitions
 }
 
@@ -319,6 +315,7 @@ func (fn *decodePairArrayFloat64Fn) ProcessElement(pair pairArrayFloat64) (beam.
 	}
 	return x, pair.M
 }
+
 
 // findConvertFn gets the correct conversion to int64 or float64 function.
 func findConvertToFloat64Fn(t typex.FullType) (interface{}, error) {
