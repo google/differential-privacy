@@ -26,8 +26,8 @@ import (
 
 // CheckEpsilonVeryStrict returns an error if ε is +∞ or less than 2⁻⁵⁰.
 func CheckEpsilonVeryStrict(label string, epsilon float64) error {
-	if epsilon < math.Exp2(-50.0) || math.IsInf(epsilon, 0) {
-		return fmt.Errorf("%s: Epsilon is %f, should be at least 2^-50 (and cannot be infinity)", label, epsilon)
+	if epsilon < math.Exp2(-50.0) || math.IsInf(epsilon, 0) || math.IsNaN(epsilon) {
+		return fmt.Errorf("%s: Epsilon is %f, should be at least 2^-50 (and cannot be infinity or NaN)", label, epsilon)
 	}
 	return nil
 }
