@@ -22,13 +22,13 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
+	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
 	"github.com/google/differential-privacy/go/dpagg"
 	"github.com/google/differential-privacy/go/noise"
 	"github.com/google/differential-privacy/privacy-on-beam/internal/kv"
 	testpb "github.com/google/differential-privacy/privacy-on-beam/testdata"
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -333,6 +333,38 @@ func approxEqualsKVInt64(s beam.Scope, col1, col2 beam.PCollection, tolerance fl
 	return nil
 }
 
+func equalsKVInt(s beam.Scope, col1, col2 beam.PCollection) error {
+	wantV := reflect.TypeOf(int(0))
+	if err := checkValueType(col1, wantV); err != nil {
+		return fmt.Errorf("unexpected value type for col1: %v", err)
+	}
+	if err := checkValueType(col2, wantV); err != nil {
+		return fmt.Errorf("unexpected value type for col2: %v", err)
+	}
+
+	coGroupToValue := beam.CoGroupByKey(s, col1, col2)
+	diffs := beam.ParDo(s, diffIntFn, coGroupToValue)
+	combinedDiff := beam.Combine(s, combineDiffs, diffs)
+	beam.ParDo0(s, reportDiffs, combinedDiff)
+	return nil
+}
+
+func equalsKVPairInt(s beam.Scope, col1, col2 beam.PCollection) error {
+	wantV := reflect.TypeOf(int(0))
+	if err := checkValueType(col1, wantV); err != nil {
+		return fmt.Errorf("unexpected value type for col1: %v", err)
+	}
+	if err := checkValueType(col2, wantV); err != nil {
+		return fmt.Errorf("unexpected value type for col2: %v", err)
+	}
+
+	coGroupToValue := beam.CoGroupByKey(s, col1, col2)
+	diffs := beam.ParDo(s, diffKVPairIntFn, coGroupToValue)
+	combinedDiff := beam.Combine(s, combineDiffs, diffs)
+	beam.ParDo0(s, reportDiffs, combinedDiff)
+	return nil
+}
+
 // approxEqualsKVFloat64 checks that two PCollections col1 and col2 of type
 // <K,float64> are approximately equal, where "approximately equal" means
 // "the keys are the same in both col1 and col2, and the value associated to
@@ -383,9 +415,40 @@ func (fn *diffInt64Fn) ProcessElement(k int, v1Iter, v2Iter func(*int64) bool) s
 	return ""
 }
 
+// ProcessElement returns a diff between values associated with a key. It
+// returns an empty string if the values are approximately equal.
+func diffIntFn(k int, v1Iter, v2Iter func(*int) bool) string {
+	var v1 = toSliceInt(v1Iter)
+	var v2 = toSliceInt(v2Iter)
+	if diff := cmp.Diff(v1, v2); diff != "" {
+		return fmt.Sprintf("For k=%d: diff=%s", k, diff)
+	}
+	return ""
+}
+
+// ProcessElement returns a diff between values associated with a key. It
+// returns an empty string if the values are approximately equal.
+func diffKVPairIntFn(k kv.Pair, v1Iter, v2Iter func(*int) bool) string {
+	var v1 = toSliceInt(v1Iter)
+	var v2 = toSliceInt(v2Iter)
+	if diff := cmp.Diff(v1, v2); diff != "" {
+		return fmt.Sprintf("For k=%d: diff=%s", k, diff)
+	}
+	return ""
+}
+
 func toSliceInt64(vIter func(*int64) bool) []float64 {
 	var vSlice []float64
 	var v int64
+	for vIter(&v) {
+		vSlice = append(vSlice, float64(v))
+	}
+	return vSlice
+}
+
+func toSliceInt(vIter func(*int) bool) []float64 {
+	var vSlice []float64
+	var v int
 	for vIter(&v) {
 		vSlice = append(vSlice, float64(v))
 	}

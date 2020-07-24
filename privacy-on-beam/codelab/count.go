@@ -57,9 +57,9 @@ func PrivateCountVisitsPerHour(s beam.Scope, col beam.PCollection) beam.PCollect
 	pCol := pbeam.MakePrivateFromStruct(s, col, spec, "VisitorID")
 
 	visitHours := pbeam.ParDo(s, extractVisitHour, pCol)
-	visitsPerHour := pbeam.CountWithPartitions(s, visitHours, pbeam.CountParams{
+	visitsPerHour := pbeam.Count(s, visitHours, pbeam.CountParams{
 		MaxPartitionsContributed: 1, // Visitors can visit the restaurant once (one hour) a day
 		MaxValue:                 1, // Visitors can visit the restaurant once within an hour
-	}, [] interface{} {0,1,2,3,4})
+	})
 	return visitsPerHour
 }

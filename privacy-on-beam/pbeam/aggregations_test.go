@@ -20,6 +20,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
 	"github.com/google/differential-privacy/go/noise"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -46,7 +48,7 @@ func TestNewBoundedSumFn(t *testing.T) {
 				Lower:                     0,
 				Upper:                     10,
 				NoiseKind:                 noise.LaplaceNoise,
-				PartitionsSpecified:        false,
+				PartitionsSpecified:       false,
 			}},
 		{"Gaussian Float64", noise.GaussianNoise, reflect.Float64,
 			&boundedSumFloat64Fn{
@@ -58,7 +60,7 @@ func TestNewBoundedSumFn(t *testing.T) {
 				Lower:                     0,
 				Upper:                     10,
 				NoiseKind:                 noise.GaussianNoise,
-				PartitionsSpecified:        false,
+				PartitionsSpecified:       false,
 			}},
 		{"Laplace Int64", noise.LaplaceNoise, reflect.Int64,
 			&boundedSumInt64Fn{
@@ -70,7 +72,7 @@ func TestNewBoundedSumFn(t *testing.T) {
 				Lower:                     0,
 				Upper:                     10,
 				NoiseKind:                 noise.LaplaceNoise,
-				PartitionsSpecified:        false,
+				PartitionsSpecified:       false,
 			}},
 		{"Gaussian Int64", noise.GaussianNoise, reflect.Int64,
 			&boundedSumInt64Fn{
@@ -198,8 +200,8 @@ func TestBoundedSumInt64FnExtractOutputWithPartitionsDoesNotThreshold(t *testing
 	}{
 		{"Empty input", 0},
 		{"Input with 1 user", 1},
-	    {"Input with 10 users", 10},
-	    {"Input with 100 users", 100}} {
+		{"Input with 10 users", 10},
+		{"Input with 100 users", 100}} {
 
 		fn := newBoundedSumInt64Fn(1, 1e-23, 1, 0, 2, noise.LaplaceNoise, true)
 		fn.Setup()
@@ -288,8 +290,8 @@ func TestBoundedSumFloat64FnExtractOutputWithSpecifiedPartitionsDoesNotThreshold
 	}{
 		{"Empty input", 0},
 		{"Input with 1 user", 1},
-	    {"Input with 10 users", 10},
-	    {"Input with 100 users", 100}} {
+		{"Input with 10 users", 10},
+		{"Input with 100 users", 100}} {
 		partitionsSpecified := true
 		fn := newBoundedSumFloat64Fn(1, 1e-23, 1, 0, 2, noise.LaplaceNoise, partitionsSpecified)
 		fn.Setup()
@@ -302,5 +304,125 @@ func TestBoundedSumFloat64FnExtractOutputWithSpecifiedPartitionsDoesNotThreshold
 		if got == nil {
 			t.Errorf("ExtractOutput: for %s got: %f, want actual value", tc.desc, *got)
 		}
+	}
+}
+
+func TestCorrectCountPartitions(t *testing.T) {
+	// In this test, we check  that unspecified partitions
+	// are dropped. This function is used for count and
+	// distinct_id.
+	pairs := concatenatePairs(
+		makePairsWithFixedVStartingFromKey(0, 7, 0),
+		makePairsWithFixedVStartingFromKey(7, 52, 1),
+		makePairsWithFixedVStartingFromKey(7, 52, 1),
+		makePairsWithFixedVStartingFromKey(7+52, 99, 2),
+		makePairsWithFixedVStartingFromKey(7+52, 99, 2),
+		makePairsWithFixedVStartingFromKey(7+52, 99, 2),
+		makePairsWithFixedVStartingFromKey(7+52+99, 10, 3),
+		makePairsWithFixedVStartingFromKey(7+52+99, 10, 3),
+		makePairsWithFixedVStartingFromKey(7+52+99, 10, 3),
+		makePairsWithFixedVStartingFromKey(7+52+99, 10, 3),
+	)
+
+	// Keep partitions 0, 2;
+	// drop partitions 1, 3.
+	result := concatenatePairs(
+		makePairsWithFixedVStartingFromKey(0, 7, 0),
+		makePairsWithFixedVStartingFromKey(7+52, 99, 2),
+		makePairsWithFixedVStartingFromKey(7+52, 99, 2),
+		makePairsWithFixedVStartingFromKey(7+52, 99, 2),
+	)
+
+	_, s, col, want := ptest.CreateList2(pairs, result)
+	want = beam.ParDo(s, pairToKV, want)
+	col = beam.ParDo(s, pairToKV, col)
+	partitions := []int{0, 2}
+
+	partitionsCol := beam.CreateList(s, partitions)
+	epsilon, delta := 50.0, 1e-200
+	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+	got := correctCountPartitions(s, []beam.PCollection{partitionsCol}, pcol)
+	if err := equalsKVInt(s, got, want); err != nil {
+		t.Fatalf("CorrectCountPartitions: for %v got: %v, want %v", col, got, want)
+	}
+}
+
+func TestCorrectPartitionsInt(t *testing.T) {
+	// In this test, we check  that unspecified partitions
+	// are dropped. This function is used for sum and mean.
+	triples := concatenateTriplesWithIntValue(
+		makeDummyTripleWithIntValue(7, 0),
+		makeDummyTripleWithIntValue(58, 1),
+		makeDummyTripleWithIntValue(99, 2),
+		makeDummyTripleWithIntValue(45, 100),
+		makeDummyTripleWithIntValue(20, 33))
+	// Keep partitions 0,2;
+	// Drop partitions 1, 33, 100;
+	result := concatenateTriplesWithIntValue(
+		makeDummyTripleWithIntValue(7, 0),
+		makeDummyTripleWithIntValue(99, 2))
+
+	_, s, col, col2 := ptest.CreateList2(triples, result)
+	// Doesn't matter that the values 3, 4, 5, 6, 9, 10
+	// are in the partitions PCollection because we are
+	// just dropping the values that are in our original PCollection
+	// that are not specified.
+	partitionsCol := beam.CreateList(s, []int{0, 2, 3, 4, 5, 6, 9, 10})
+	col = beam.ParDo(s, extractIDFromTripleWithIntValue, col)
+	col2 = beam.ParDo(s, extractIDFromTripleWithIntValue, col2)
+	epsilon, delta := 50.0, 1e-200
+
+	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+	pcol = ParDo(s, tripleWithIntValueToKV, pcol)
+	got := correctPartitions(s, []beam.PCollection{partitionsCol}, pcol)
+	got = beam.SwapKV(s, got)
+
+	pcol2 := MakePrivate(s, col2, NewPrivacySpec(epsilon, delta))
+	pcol2 = ParDo(s, tripleWithIntValueToKV, pcol2)
+	want := pcol2.col
+	want = beam.SwapKV(s, want)
+
+	if err := equalsKVPairInt(s, got, want); err != nil {
+		t.Fatalf("CorrectPartitions: for %v got: %v, want %v", col, got, want)
+	}
+}
+
+func TestCorrectPartitionsFloat(t *testing.T) {
+	// In this test, we check  that unspecified partitions
+	// are dropped. This function is used for sum and mean.
+	triples := concatenateTriplesWithFloatValue(
+		makeTripleWithFloatValue(7, 0, 2.0),
+		makeTripleWithFloatValueStartingFromKey(7, 100, 1, 1.3),
+		makeTripleWithFloatValueStartingFromKey(107, 150, 1, 2.5),
+		makeTripleWithFloatValueStartingFromKey(320, 150, 100, 5.5),
+	)
+	// Keep partition 0;
+	// drop partition 1.
+	result := concatenateTriplesWithFloatValue(
+		makeTripleWithFloatValue(7, 0, 2.0))
+
+	_, s, col, col2 := ptest.CreateList2(triples, result)
+
+	// Doesn't matter that the values 2, 3, 4, 5, 6, 7
+	// are in the partitions PCollection because we are
+	// just dropping the values that are in our original PCollection
+	// that are not specified.
+	partitionsCol := beam.CreateList(s, []int{0, 2, 3, 4, 5, 6, 7})
+	col = beam.ParDo(s, extractIDFromTripleWithFloatValue, col)
+	col2 = beam.ParDo(s, extractIDFromTripleWithFloatValue, col2)
+	epsilon, delta := 50.0, 1e-200
+
+	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+	pcol = ParDo(s, tripleWithFloatValueToKV, pcol)
+	got := correctPartitions(s, []beam.PCollection{partitionsCol}, pcol)
+	got = beam.SwapKV(s, got)
+
+	pcol2 := MakePrivate(s, col2, NewPrivacySpec(epsilon, delta))
+	pcol2 = ParDo(s, tripleWithFloatValueToKV, pcol2)
+	want := pcol2.col
+	want = beam.SwapKV(s, want)
+
+	if err := equalsKVPairInt(s, got, want); err != nil {
+		t.Fatalf("CorrectPartitions: for %v got: %v, want %v", col, got, want)
 	}
 }

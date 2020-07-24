@@ -92,7 +92,7 @@ func TestDistinctPrivacyIDNoNoise(t *testing.T) {
 	}
 }
 
-// Checks that DistinctPrivacyID returns a correct answer, in particular that keys
+// Checks that DistinctPrivacyID with partitions returns a correct answer, in particular that keys
 // are correctly counted (without duplicates).
 func TestDistinctPrivacyIDWithPartitionsNoNoise(t *testing.T) {
 	pairs := concatenatePairs(
@@ -100,17 +100,29 @@ func TestDistinctPrivacyIDWithPartitionsNoNoise(t *testing.T) {
 		makePairsWithFixedV(52, 1),
 		makePairsWithFixedV(99, 2),
 		makePairsWithFixedV(7, 0), // duplicated values should have no influence.
-	    makePairsWithFixedV(20, 3)) 
+		makePairsWithFixedV(20, 3))
 	result := []testInt64Metric{
+		// Specified partitions include 0, which would otherwise be thresholded.
 		{0, 7},
 		{1, 52},
+		// Drop partition 2.
 		{3, 20},
+	}
+	for i := 4; i < 10000; i++ {
+		result = append(result, testInt64Metric{i, 0})
 	}
 	p, s, col, want := ptest.CreateList2(pairs, result)
 	col = beam.ParDo(s, pairToKV, col)
 
-	partitions := [] int {0, 1, 3}
-	partitionsCol := beam.CreateList(s,partitions)
+	partitions := []int{}
+	for i := 0; i < 2; i++ {
+		partitions = append(partitions, i)
+	}
+	for i := 3; i < 10000; i++ {
+		partitions = append(partitions, i)
+	}
+
+	partitionsCol := beam.CreateList(s, partitions)
 
 	epsilon, delta, k, l1Sensitivity := 50.0, 1e-200, 25.0, 4.0
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
@@ -307,6 +319,70 @@ func TestDistinctPrivacyIDCrossPartitionContributionBounding(t *testing.T) {
 	}
 }
 
+// Checks that DistinctPrivacyID bounds cross-partition contributions correctly.
+// The logic mirrors TestCountCrossPartitionContributionBounding.
+func TestDistinctPrivacyIDWithPartitionsCrossPartitionContributionBounding(t *testing.T) {
+	// pairs contains {1,0}, {2,0}, …, {50,0}, {1,1}, …, {50,1}, {1,2}, …, {50,9}.
+	var pairs []pairII
+	for i := 0; i < 10; i++ {
+		pairs = append(pairs, makePairsWithFixedV(50, i)...)
+	}
+	result := []testInt64Metric{
+		{0, 150},
+	}
+	p, s, col, want := ptest.CreateList2(pairs, result)
+	col = beam.ParDo(s, pairToKV, col)
+	partitions := beam.CreateList(s, []int{0, 1, 2})
+
+	epsilon, delta, k, l1Sensitivity := 50.0, 0.01, 25.0, 3.0
+	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+	got := DistinctPrivacyID(s, pcol, DistinctPrivacyIDParams{MaxPartitionsContributed: 3, NoiseKind: LaplaceNoise{}}, partitions)
+	// With a max contribution of 3, all of the data for the three specified partitions should be kept. 
+	// The sum of all elements must then be 150.
+	counts := beam.DropKey(s, got)
+	sumOverPartitions := stats.Sum(s, counts)
+	got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
+	want = beam.ParDo(s, int64MetricToKV, want)
+	if err := approxEqualsKVInt64(s, got, want, laplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
+		t.Fatalf("TestDistinctPrivacyIDCrossPartitionContributionBounding: %v", err)
+	}
+	if err := ptest.Run(p); err != nil {
+		t.Errorf("TestDistinctPrivacyIDCrossPartitionContributionBounding: DistinctPrivacyID(%v) = %v, expected elements to sum to 150: %v", col, got, err)
+	}
+}
+
+// Checks that DistinctPrivacyID bounds per-user contributions correctly.
+// The logic mirrors TestCountCrossPartitionContributionBounding.
+func TestDistinctPrivacyIDWithPartitionsCrossPartitionContributionBounding2(t *testing.T) {
+	// pairs contains {1,0}, {2,0}, …, {50,0}, {1,1}, …, {50,1}, {1,2}, …, {50,9}.
+	var pairs []pairII
+	for i := 0; i < 10; i++ {
+		pairs = append(pairs, makePairsWithFixedV(50, i)...)
+	}
+	result := []testInt64Metric{
+		{0, 100},
+	}
+	p, s, col, want := ptest.CreateList2(pairs, result)
+	col = beam.ParDo(s, pairToKV, col)
+	// Only specify two partitions.
+	partitions := beam.CreateList(s, []int{0, 1})
+
+	epsilon, delta, k, l1Sensitivity := 50.0, 0.01, 25.0, 3.0
+	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+	got := DistinctPrivacyID(s, pcol, DistinctPrivacyIDParams{MaxPartitionsContributed: 3, NoiseKind: LaplaceNoise{}}, partitions)
+	// Since there are only two partitions, a max contribution of 3 does not affect the sum, since none of the data was dropped.
+	counts := beam.DropKey(s, got)
+	sumOverPartitions := stats.Sum(s, counts)
+	got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
+	want = beam.ParDo(s, int64MetricToKV, want)
+	if err := approxEqualsKVInt64(s, got, want, laplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
+		t.Fatalf("TestDistinctPrivacyIDCrossPartitionContributionBounding: %v", err)
+	}
+	if err := ptest.Run(p); err != nil {
+		t.Errorf("TestDistinctPrivacyIDCrossPartitionContributionBounding: DistinctPrivacyID(%v) = %v, expected elements to sum to 150: %v", col, got, err)
+	}
+}
+
 // Checks that DistinctPrivacyID deduplicates KV pairs *before* bounding
 // contribution. To test that, we set the contribution to exactly the number of
 // distinct values per key, and we duplicate many values: if contribution
@@ -489,7 +565,7 @@ func TestCountFnExtractOutputDoesNotReturnNilIfPartitionsSpecified(t *testing.T)
 
 	got := fn.ExtractOutput(accum)
 
-	// Should return nil output for small partitions.
+	// Should not return nil output for small partitions, since partitions are specified.
 	if got == nil {
 		t.Errorf("ExtractOutput: for 10 added values got: %d, do not want nil", *got)
 	}

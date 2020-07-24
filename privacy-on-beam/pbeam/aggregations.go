@@ -22,14 +22,13 @@ import (
 	"math/rand"
 	"reflect"
 
+	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/transforms/top"
 	log "github.com/golang/glog"
 	"github.com/google/differential-privacy/go/checks"
 	"github.com/google/differential-privacy/go/dpagg"
 	"github.com/google/differential-privacy/go/noise"
 	"github.com/google/differential-privacy/privacy-on-beam/internal/kv"
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/transforms/top"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 )
 
 // This file contains methods & ParDos used by multiple DP aggregations.
@@ -215,8 +214,8 @@ func newBoundedSumFn(epsilon, delta float64, maxPartitionsContributed int64, low
 }
 
 type boundedSumAccumInt64 struct {
-	BS *dpagg.BoundedSumInt64
-	SP *dpagg.PreAggSelectPartition
+	BS                  *dpagg.BoundedSumInt64
+	SP                  *dpagg.PreAggSelectPartition
 	PartitionsSpecified bool
 }
 
@@ -297,14 +296,10 @@ func (fn *boundedSumInt64Fn) MergeAccumulators(a, b boundedSumAccumInt64) bounde
 
 func (fn *boundedSumInt64Fn) ExtractOutput(a boundedSumAccumInt64) *int64 {
 	result := a.BS.Result()
-	if a.PartitionsSpecified {
-		return &result
+	if a.PartitionsSpecified || a.SP.Result() {
+		return &result // Do not threshold.
 	} else {
-		if a.SP.Result() {
-			return &result
-		} else {
-			return nil
-		}
+		return nil
 	}
 }
 
@@ -313,8 +308,8 @@ func (fn *boundedSumInt64Fn) String() string {
 }
 
 type boundedSumAccumFloat64 struct {
-	BS *dpagg.BoundedSumFloat64
-	SP *dpagg.PreAggSelectPartition
+	BS                  *dpagg.BoundedSumFloat64
+	SP                  *dpagg.PreAggSelectPartition
 	PartitionsSpecified bool
 }
 
@@ -331,8 +326,8 @@ type boundedSumFloat64Fn struct {
 	Upper                     float64
 	NoiseKind                 noise.Kind
 	// Noise, set during Setup phase according to NoiseKind.
-	noise noise.Noise
-	PartitionsSpecified       bool
+	noise               noise.Noise
+	PartitionsSpecified bool
 }
 
 // newBoundedSumFloat64Fn returns a boundedSumFloat64Fn with the given budget and parameters.
@@ -396,17 +391,14 @@ func (fn *boundedSumFloat64Fn) MergeAccumulators(a, b boundedSumAccumFloat64) bo
 
 func (fn *boundedSumFloat64Fn) ExtractOutput(a boundedSumAccumFloat64) *float64 {
 	result := a.BS.Result()
-     if a.PartitionsSpecified {
-     	return &result
-     } else {
-     	if a.SP.Result() {
-     		return &result
-     	} else {
-     		return nil
-     	}
-     }
- }
+	if a.PartitionsSpecified || a.SP.Result() {
+			return &result
+	} 
 
+	return nil
+}
+
+// Convert from *int64 to int64 or *float64 to float64
 func findCorrectToFn(kind reflect.Kind) interface{} {
 	switch kind {
 	case reflect.Int64:
@@ -419,15 +411,13 @@ func findCorrectToFn(kind reflect.Kind) interface{} {
 	return nil
 }
 
+func CorrectToInt64(key beam.X, v *int64) (k beam.X, value int64) {
+	return key, *v
+}
 
- func CorrectToInt64(key beam.X, v *int64) (k beam.X, value int64) {
- 	return key, *v
- }
-
-  func CorrectToFloat64(key beam.X, v *float64) (k beam.X, value float64) {
- 	return key, *v
- }
-
+func CorrectToFloat64(key beam.X, v *float64) (k beam.X, value float64) {
+	return key, *v
+}
 
 func (fn *boundedSumFloat64Fn) String() string {
 	return fmt.Sprintf("%#v", fn)
@@ -497,6 +487,7 @@ func convertFloat64ToFloat64Fn(z beam.Z, f float64) (beam.Z, float64) {
 	return z, f
 }
 
+// Turn PCollection<V> into PCollection <V,0>.
 func newPrepareAddPartitionsFn(vKind reflect.Kind) interface{} {
 	var err error
 	var fn interface{}
@@ -515,6 +506,7 @@ func newPrepareAddPartitionsFn(vKind reflect.Kind) interface{} {
 	return fn
 }
 
+// Turn PCollection<V> into either PCollection <V,[]int64{0}> or PCollection <V,[]float64{0}>.
 func newPrepareAddMeanPartitionsFn(vKind reflect.Kind) interface{} {
 	var err error
 	var fn interface{}
@@ -533,17 +525,6 @@ func newPrepareAddMeanPartitionsFn(vKind reflect.Kind) interface{} {
 	return fn
 }
 
-
-func printOriginalContents(s beam.X, i beam.V) int64{
-	fmt.Println(s)
-	fmt.Println(i)
-	return 0
-}
-
-func formatSpecifiedPartitions(partitionKey beam.X) (k beam.X, v (*interface{})) {
-	return partitionKey, nil
-}
-
 func prepareAddPartitionsInt64Fn(partitionKey beam.X) (k beam.X, v int64) {
 	return partitionKey, 0
 }
@@ -553,169 +534,68 @@ func prepareAddPartitionsFloat64Fn(partitionKey beam.X) (k beam.X, v float64) {
 }
 
 func prepareAddPartitionsMeanInt64Fn(partitionKey beam.X) (k beam.X, v []int64) {
-	return partitionKey, [] int64 {}
+	return partitionKey, []int64{}
 }
 
 func prepareAddPartitionsMeanFloat64Fn(partitionKey beam.X) (k beam.X, v []float64) {
-	return partitionKey, [] float64 {}
+	return partitionKey, []float64{}
 }
 
-
-func newPrepareDropPartitionsFn(vKind reflect.Kind) interface{} {
-	var err error
-	var fn interface{}
-	switch vKind {
-	case reflect.Int64:
-		fn = prepareDropPartitionsInt64Fn
-	case reflect.Float64:
-		fn = prepareDropPartitionsFloat64Fn
-	default:
-		log.Exitf("pbeam.newPrepareDropPartitionsFn: vKind(%v) should be int64 or float64", vKind)
-	}
-
-	if err != nil {
-		log.Exit(err)
-	}
-	return fn
+func formatPartitions(partitionKey beam.X) (k Partition) {
+	return Partition{PartitionKey: partitionKey}
 }
 
-func prepareDropPartitionsInt64Fn(partitionKey beam.X) (k beam.X, v *int64) {
-	return partitionKey, nil
-}
-
-func prepareDropPartitionsFloat64Fn(partitionKey beam.X) (k beam.X, v *float64) {
-	return partitionKey, nil
-}
-
-
-func newDropUnspecifiedPartitionsFn(vKind reflect.Kind) interface{} {
-	var err error
-	var fn interface{}
-	switch vKind {
-	case reflect.Int64:
-		fn = dropUnspecifiedPartitionsInt64Fn
-	case reflect.Float64:
-		fn = dropUnspecifiedPartitionsFloat64Fn
-	default:
-		log.Exitf("pbeam.newDropUnspecifiedPartitionsFn: vKind(%v) should be int64 or float64", vKind)
-	}
-
-	if err != nil {
-		log.Exit(err)
-	}
-	return fn
-}
-
-func dropUnspecifiedPartitions(partitionKey beam.X, v2Iter, v1Iter func(*UserId) bool, emit func(UserId, beam.X)){
-	var v1 = toSlicePartition(v1Iter)
-	var v2 = toSlicePartition(v2Iter)
-	if len(v1) > 0 {
-		for i := 0; i < len(v2); i++ {
-			emit (v2[i], partitionKey)
-		}
-	}
-}
-
-func toSlicePartition(vIter func(*UserId) bool) []UserId {
-	var vSlice []UserId
-	var v UserId
-	for vIter(&v) {
-		vSlice = append(vSlice, v)
-	}
-	return vSlice
-}
-
-
-func dropUnspecifiedPartitionsInt64Fn(partitionKey beam.X, v1Iter, v2Iter func(**int64) bool, emit func(beam.X, int64)){
-	var v1 = toSliceInt64Partition(v1Iter)
-	var v2 = toSliceInt64Partition(v2Iter)
-	if len(v2) == 1 && len(v1) == 1 {
-		emit(partitionKey, *v1[0])
-	}
-}
-
-func toSliceInt64Partition(vIter func(**int64) bool) []*int64 {
-	var vSlice []*int64
-	var v *int64
-	for vIter(&v) {
-		vSlice = append(vSlice, v)
-	}
-	return vSlice
-}
-
-func dropUnspecifiedPartitionsFloat64Fn(partitionKey beam.X, v1Iter, v2Iter func(**float64) bool, emit func(beam.X, float64)){
-	var v1 = toSliceFloat64Partition(v1Iter)
-	var v2 = toSliceFloat64Partition(v2Iter)
-	// TODO: might not need the len(v1) == 1
-	// part of the conditional
-	if len(v2) == 1 && len(v1) == 1 {
-		emit(partitionKey, *v1[0])
-	}
-}
-
-func toSliceFloat64Partition(vIter func(**float64) bool) []*float64 {
-	var vSlice []*float64
-	var v *float64
-	for vIter(&v) {
-		vSlice = append(vSlice, v)
-	}
-	return vSlice
-}
-
-func formatSumPartitions(partitionKey beam.X) (k PartitionKey) {
-	return PartitionKey{P: partitionKey}
-}
-
-// preparePruneFn takes a PCollection<ID,kv.Pair{K,V}> as input, and returns a
-// PCollection<ID, kv.Pair{K,V}>; where unspecified partitions have been dropped.
-
+// preparePruneFn takes a PCollection<ID, kv.Pair{K,V}> as input, and returns a
+// PCollection<ID, kv.Pair{K,V}>, where unspecified partitions have been dropped.
+// Used for sum and mean.
 type preparePruneFn struct {
-	IDType         beam.EncodedType
 	InputPairCodec *kv.Codec
 }
 
-func newPreparePruneFn(idType typex.FullType, kvCodec *kv.Codec) *preparePruneFn {
+func newPreparePruneFn(kvCodec *kv.Codec) *preparePruneFn {
 	return &preparePruneFn{
-		IDType:         beam.EncodedType{idType.Type()},
 		InputPairCodec: kvCodec,
 	}
 }
 
-func (fn *preparePruneFn) ProcessElement(id beam.W, pair kv.Pair, partitionsIter func(*PartitionKey) bool, emit func(beam.W, kv.Pair)) {
-	var partition PartitionKey
+func (fn *preparePruneFn) ProcessElement(id beam.W, pair kv.Pair, partitionsIter func(*Partition) bool, emit func(beam.W, kv.Pair)) {
+	var p Partition
 	k, _ := fn.InputPairCodec.Decode(pair)
-	for partitionsIter(&partition){
-		if partition.P == k {
-			emit(id, pair)
+	for partitionsIter(&p) {
+		if p.PartitionKey == k {
+			emit(id, pair) // Keep partition if it's specified.
 			break
 		}
 	}
 }
 
-func countPruneFn(id beam.X, partitionKey beam.V, partitionsIter func(*PartitionKey) bool, emit func(beam.X, beam.V)) {
-	var partition PartitionKey
-	for partitionsIter(&partition) {
-		if partition.P == partitionKey {
-			emit(id, partitionKey)
+// Drop unspecified partitions for count and distinct_id.
+func prunePartitionsFn(id beam.X, partitionKey beam.V, partitionsIter func(*Partition) bool, emit func(beam.X, beam.V)) {
+	var p Partition
+	for partitionsIter(&p) {
+		if p.PartitionKey == partitionKey {
+			emit(id, partitionKey) // Keep partition if it's specified.
 			break
 		}
 	}
 }
 
-func correctPartitions(s beam.Scope, partitions []beam.PCollection, idT typex.FullType, pcol PrivatePCollection) beam.PCollection {
-	if len(partitions) == 1{
+// Function for sum and mean.
+func correctPartitions(s beam.Scope, partitions []beam.PCollection, pcol PrivatePCollection) beam.PCollection {
+	if len(partitions) == 1 {
 		partitionsCol := partitions[0]
-		formattedPartitions := beam.ParDo(s, formatSumPartitions, partitionsCol)
-		return beam.ParDo(s, newPreparePruneFn(idT, pcol.codec), pcol.col, beam.SideInput{Input: formattedPartitions})
+		formattedPartitions := beam.ParDo(s, formatPartitions, partitionsCol)
+		return beam.ParDo(s, newPreparePruneFn(pcol.codec), pcol.col, beam.SideInput{Input: formattedPartitions})
 	}
 	return pcol.col
 }
 
+// Function for count and distinct_id.
 func correctCountPartitions(s beam.Scope, partitions []beam.PCollection, pcol PrivatePCollection) beam.PCollection {
-	if len(partitions) == 1{
+	if len(partitions) == 1 {
 		partitionsCol := partitions[0]
-		formattedSpecifiedPartitions := beam.ParDo(s, formatSumPartitions, partitionsCol)
-		return beam.ParDo(s, countPruneFn, pcol.col, beam.SideInput{Input: formattedSpecifiedPartitions})
+		formattedSpecifiedPartitions := beam.ParDo(s, formatPartitions, partitionsCol)
+		return beam.ParDo(s, prunePartitionsFn, pcol.col, beam.SideInput{Input: formattedSpecifiedPartitions})
 	}
 	return pcol.col
 }
