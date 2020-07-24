@@ -70,13 +70,13 @@ type ConfidenceIntervalFloat64 struct {
 }
 
 // NewConfidenceIntervalFloat64 constructor that returns ConfidenceIntervalFloat64 struct with the given
-// lower and upper bounds in float64.
+// float64 lower and upper bounds.
 func NewConfidenceIntervalFloat64(l, u float64) *ConfidenceIntervalFloat64 {
 	return &ConfidenceIntervalFloat64{LowerBound: l, UpperBound: u}
 }
 
 // NewConfidenceIntervalInt64 constructor that returns NewConfidenceIntervalInt64 struct with the given
-// lower and upper bounds in int64.
+// int64 lower and upper bounds.
 func NewConfidenceIntervalInt64(l, u int64) *ConfidenceIntervalInt64 {
 	return &ConfidenceIntervalInt64{LowerBound: l, UpperBound: u}
 }
@@ -131,13 +131,13 @@ type Noise interface {
 	// given assumptions of L_0 and L_∞ sensitivities.
 	Threshold(l0Sensitivity int64, lInfSensitivity, epsilon, deltaNoise, deltaThreshold float64) float64
 
-	// ReturnConfidenceIntervalInt64 will return a pointer to the ConfidenceIntervalInt64 structure using the int64 noisedValue, with the confidenceLevel given
-	// and the l0Sensitivity, lInfSensitivity int64 and epsilon,delta float64 for the distribution.
+	// ReturnConfidenceIntervalInt64 will return a pointer to the ConfidenceIntervalInt64 structure using the int64 noisedValue,
+	// with the confidenceLevel given, and the l0Sensitivity, lInfSensitivity int64 and epsilon, delta float64 for the distribution.
 	ReturnConfidenceIntervalInt64(noisedValue, l0Sensitivity, lInfSensitivity int64, epsilon, delta,
 		confidenceLevel float64) (*ConfidenceIntervalInt64, error)
 
-	// ReturnConfidenceIntervalFloat64 will return a pointer to the ConfidenceIntervalFloat64 structure using the float64 noisedValue, with the confidenceLevel given
-	// and the l0Sensitivity int64 and lInfSensitivity, epsilon, delta float64 for the distribution.
+	// ReturnConfidenceIntervalFloat64 will return a pointer to the ConfidenceIntervalFloat64 structure using the float64 noisedValue,
+	// with the confidenceLevel given, and the l0Sensitivity int64 and lInfSensitivity, epsilon, delta float64 for the distribution.
 	ReturnConfidenceIntervalFloat64(noisedValue float64, l0Sensitivity int64, lInfSensitivity, epsilon, delta,
 		confidenceLevel float64) (*ConfidenceIntervalFloat64, error)
 }
