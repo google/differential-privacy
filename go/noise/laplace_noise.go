@@ -158,15 +158,15 @@ func (laplace) DeltaForThreshold(l0Sensitivity int64, lInfSensitivity, epsilon, 
 }
 
 func (laplace) ReturnConfidenceIntervalInt64(noisedValue, l0Sensitivity, lInfSensitivity int64, epsilon, delta,
-	confidenceLevel float64) (*ConfidenceIntervalInt64, error) {
+	confidenceLevel float64) (ConfidenceIntervalInt64, error) {
 	// TODO: Add implementation of the confidence interval calculation.
-	return nil, nil
+	return ConfidenceIntervalInt64{}, nil
 }
 
 func (laplace) ReturnConfidenceIntervalFloat64(noisedValue float64, l0Sensitivity int64, lInfSensitivity, epsilon, delta,
-	confidenceLevel float64) (*ConfidenceIntervalFloat64, error) {
+	confidenceLevel float64) (ConfidenceIntervalFloat64, error) {
 	// TODO: Add implementation of the confidence interval calculation.
-	return nil, nil
+	return ConfidenceIntervalFloat64{}, nil
 }
 func checkArgsLaplace(label string, l0Sensitivity int64, lInfSensitivity, epsilon, delta float64) error {
 	if err := checks.CheckL0Sensitivity(label, l0Sensitivity); err != nil {

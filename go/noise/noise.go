@@ -69,22 +69,10 @@ type ConfidenceIntervalFloat64 struct {
 	LowerBound, UpperBound float64
 }
 
-// NewConfidenceIntervalFloat64 constructor that returns ConfidenceIntervalFloat64 struct with the given
-// float64 lower and upper bounds.
-func NewConfidenceIntervalFloat64(l, u float64) *ConfidenceIntervalFloat64 {
-	return &ConfidenceIntervalFloat64{LowerBound: l, UpperBound: u}
-}
-
-// NewConfidenceIntervalInt64 constructor that returns NewConfidenceIntervalInt64 struct with the given
-// int64 lower and upper bounds.
-func NewConfidenceIntervalInt64(l, u int64) *ConfidenceIntervalInt64 {
-	return &ConfidenceIntervalInt64{LowerBound: l, UpperBound: u}
-}
-
 // toConfidenceIntervalInt64 returns ConfidenceIntervalInt64 struct after rounding the upper
-// lower bounds of the ConfidenceIntervalFloat64 struct.
-func (confInt *ConfidenceIntervalFloat64) toConfidenceIntervalInt64() *ConfidenceIntervalInt64 {
-	return &ConfidenceIntervalInt64{int64(math.Round(confInt.LowerBound)), int64(math.Round(confInt.UpperBound))}
+// and lower bounds of the ConfidenceIntervalFloat64 struct.
+func (confInt ConfidenceIntervalFloat64) toConfidenceIntervalInt64() ConfidenceIntervalInt64 {
+	return ConfidenceIntervalInt64{int64(math.Round(confInt.LowerBound)), int64(math.Round(confInt.UpperBound))}
 }
 
 // Noise is an interface for primitives that add noise to data to make it differentially private.
@@ -131,13 +119,13 @@ type Noise interface {
 	// given assumptions of L_0 and L_∞ sensitivities.
 	Threshold(l0Sensitivity int64, lInfSensitivity, epsilon, deltaNoise, deltaThreshold float64) float64
 
-	// ReturnConfidenceIntervalInt64 will return a pointer to the ConfidenceIntervalInt64 structure using the int64 noisedValue,
+	// ReturnConfidenceIntervalInt64 will return a ConfidenceIntervalInt64 structure using the int64 noisedValue,
 	// with the confidenceLevel given, and the l0Sensitivity, lInfSensitivity int64 and epsilon, delta float64 for the distribution.
 	ReturnConfidenceIntervalInt64(noisedValue, l0Sensitivity, lInfSensitivity int64, epsilon, delta,
-		confidenceLevel float64) (*ConfidenceIntervalInt64, error)
+		confidenceLevel float64) (ConfidenceIntervalInt64, error)
 
-	// ReturnConfidenceIntervalFloat64 will return a pointer to the ConfidenceIntervalFloat64 structure using the float64 noisedValue,
+	// ReturnConfidenceIntervalFloat64 will return a ConfidenceIntervalFloat64 structure using the float64 noisedValue,
 	// with the confidenceLevel given, and the l0Sensitivity int64 and lInfSensitivity, epsilon, delta float64 for the distribution.
 	ReturnConfidenceIntervalFloat64(noisedValue float64, l0Sensitivity int64, lInfSensitivity, epsilon, delta,
-		confidenceLevel float64) (*ConfidenceIntervalFloat64, error)
+		confidenceLevel float64) (ConfidenceIntervalFloat64, error)
 }
