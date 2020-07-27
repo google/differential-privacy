@@ -36,6 +36,7 @@ cc_library(
 
 cc_test(
     name = "algorithm_test",
+    size = "small",
     srcs = ["algorithm_test.cc"],
     copts = ["-Wno-sign-compare"],
     deps = [
@@ -83,9 +84,9 @@ cc_library(
 
 cc_test(
     name = "binary-search_test",
+    size = "small",
     srcs = ["binary-search_test.cc"],
     copts = ["-Wno-sign-compare"],
-    shard_count = 6,
     deps = [
         ":algorithm",
         ":binary-search",
@@ -114,9 +115,9 @@ cc_library(
 
 cc_test(
     name = "order-statistics_test",
+    size = "small",
     srcs = ["order-statistics_test.cc"],
     copts = ["-Wno-sign-compare"],
-    shard_count = 3,
     deps = [
         ":numerical-mechanisms-testing",
         ":order-statistics",
@@ -143,6 +144,25 @@ cc_library(
     ],
 )
 
+cc_test(
+    name = "bounded-sum_test",
+    size = "small",
+    srcs = ["bounded-sum_test.cc"],
+    copts = ["-Wno-sign-compare"],
+    deps = [
+        ":algorithm",
+        ":approx-bounds",
+        ":bounded-sum",
+        ":numerical-mechanisms",
+        ":numerical-mechanisms-testing",
+        "//base/testing:proto_matchers",
+        "//base/testing:status_matchers",
+        "@com_google_googletest//:gtest_main",
+        "//proto:util-lib",
+        "@com_google_absl//absl/memory",
+    ],
+)
+
 cc_library(
     name = "bounded-mean",
     hdrs = ["bounded-mean.h"],
@@ -157,6 +177,21 @@ cc_library(
         "@com_google_differential_privacy//proto:summary_cc_proto",
         "@com_google_absl//absl/random:distributions",
         "@com_google_protobuf//:cc_wkt_protos",
+    ],
+)
+
+cc_test(
+    name = "bounded-mean_test",
+    size = "small",
+    srcs = ["bounded-mean_test.cc"],
+    copts = ["-Wno-sign-compare"],
+    deps = [
+        ":approx-bounds",
+        ":bounded-mean",
+        ":numerical-mechanisms-testing",
+        "//base/testing:proto_matchers",
+        "//base/testing:status_matchers",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -177,6 +212,22 @@ cc_library(
     ],
 )
 
+cc_test(
+    name = "bounded-variance_test",
+    size = "small",
+    srcs = ["bounded-variance_test.cc"],
+    copts = ["-Wno-sign-compare"],
+    deps = [
+        ":approx-bounds",
+        ":bounded-variance",
+        ":numerical-mechanisms-testing",
+        "//base/testing:proto_matchers",
+        "//base/testing:status_matchers",
+        "@com_google_googletest//:gtest_main",
+        "@com_google_absl//absl/random:distributions",
+    ],
+)
+
 cc_library(
     name = "bounded-standard-deviation",
     hdrs = ["bounded-standard-deviation.h"],
@@ -192,54 +243,8 @@ cc_library(
 )
 
 cc_test(
-    name = "bounded-sum_test",
-    srcs = ["bounded-sum_test.cc"],
-    copts = ["-Wno-sign-compare"],
-    deps = [
-        ":algorithm",
-        ":approx-bounds",
-        ":bounded-sum",
-        ":numerical-mechanisms",
-        ":numerical-mechanisms-testing",
-        "//base/testing:proto_matchers",
-        "//base/testing:status_matchers",
-        "@com_google_googletest//:gtest_main",
-        "//proto:util-lib",
-        "@com_google_absl//absl/memory",
-    ],
-)
-
-cc_test(
-    name = "bounded-mean_test",
-    srcs = ["bounded-mean_test.cc"],
-    copts = ["-Wno-sign-compare"],
-    deps = [
-        ":approx-bounds",
-        ":bounded-mean",
-        ":numerical-mechanisms-testing",
-        "//base/testing:proto_matchers",
-        "//base/testing:status_matchers",
-        "@com_google_googletest//:gtest_main",
-    ],
-)
-
-cc_test(
-    name = "bounded-variance_test",
-    srcs = ["bounded-variance_test.cc"],
-    copts = ["-Wno-sign-compare"],
-    deps = [
-        ":approx-bounds",
-        ":bounded-variance",
-        ":numerical-mechanisms-testing",
-        "//base/testing:proto_matchers",
-        "//base/testing:status_matchers",
-        "@com_google_googletest//:gtest_main",
-        "@com_google_absl//absl/random:distributions",
-    ],
-)
-
-cc_test(
     name = "bounded-standard-deviation_test",
+    size = "small",
     srcs = ["bounded-standard-deviation_test.cc"],
     copts = ["-Wno-sign-compare"],
     deps = [
@@ -270,6 +275,7 @@ cc_library(
 
 cc_test(
     name = "count_test",
+    size = "small",
     srcs = ["count_test.cc"],
     copts = ["-Wno-sign-compare"],
     deps = [
@@ -299,6 +305,7 @@ cc_library(
 
 cc_test(
     name = "util_test",
+    size = "small",
     srcs = ["util_test.cc"],
     copts = ["-Wno-sign-compare"],
     deps = [
@@ -329,9 +336,10 @@ cc_library(
 
 cc_test(
     name = "distributions_test",
-    size = "large",
+    size = "medium",
     srcs = ["distributions_test.cc"],
     copts = ["-Wno-sign-compare"],
+    shard_count = 4,
     deps = [
         ":distributions",
         ":numerical-mechanisms-testing",
@@ -357,38 +365,12 @@ cc_library(
 
 cc_test(
     name = "numerical-mechanisms_test",
+    size = "small",
     srcs = ["numerical-mechanisms_test.cc"],
     copts = ["-Wno-sign-compare"],
     deps = [
         ":distributions",
         ":numerical-mechanisms",
-        "@com_google_googletest//:gtest_main",
-    ],
-)
-
-cc_test(
-    name = "approx-bounds_test",
-    srcs = ["approx-bounds_test.cc"],
-    copts = ["-Wno-sign-compare"],
-    deps = [
-        ":approx-bounds",
-        ":numerical-mechanisms-testing",
-        "//base/testing:proto_matchers",
-        "//base/testing:status_matchers",
-        "@com_google_googletest//:gtest_main",
-        "@com_google_absl//absl/memory",
-    ],
-)
-
-cc_test(
-    name = "bounded-algorithm_test",
-    srcs = ["bounded-algorithm_test.cc"],
-    copts = ["-Wno-sign-compare"],
-    deps = [
-        ":algorithm",
-        ":approx-bounds",
-        ":bounded-algorithm",
-        "//base/testing:status_matchers",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -410,6 +392,7 @@ cc_library(
 
 cc_test(
     name = "numerical-mechanisms-testing_test",
+    size = "small",
     srcs = ["numerical-mechanisms-testing_test.cc"],
     copts = ["-Wno-sign-compare"],
     deps = [
@@ -431,6 +414,21 @@ cc_library(
     ],
 )
 
+cc_test(
+    name = "approx-bounds_test",
+    size = "small",
+    srcs = ["approx-bounds_test.cc"],
+    copts = ["-Wno-sign-compare"],
+    deps = [
+        ":approx-bounds",
+        ":numerical-mechanisms-testing",
+        "//base/testing:proto_matchers",
+        "//base/testing:status_matchers",
+        "@com_google_googletest//:gtest_main",
+        "@com_google_absl//absl/memory",
+    ],
+)
+
 cc_library(
     name = "bounded-algorithm",
     hdrs = ["bounded-algorithm.h"],
@@ -439,6 +437,20 @@ cc_library(
         ":algorithm",
         ":approx-bounds",
         "//base:status",
+    ],
+)
+
+cc_test(
+    name = "bounded-algorithm_test",
+    size = "small",
+    srcs = ["bounded-algorithm_test.cc"],
+    copts = ["-Wno-sign-compare"],
+    deps = [
+        ":algorithm",
+        ":approx-bounds",
+        ":bounded-algorithm",
+        "//base/testing:status_matchers",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -456,6 +468,7 @@ cc_library(
 
 cc_test(
     name = "rand_test",
+    size = "small",
     srcs = ["rand_test.cc"],
     copts = ["-Wno-sign-compare"],
     deps = [

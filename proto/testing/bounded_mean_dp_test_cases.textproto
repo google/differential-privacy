@@ -1,0 +1,1560 @@
+#
+# Copyright 2020 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# This collection of test cases is intended to statistically evaluate the DP
+# properties of the bounded mean aggregation provided by the DP library.
+
+# The test cases and validation parameters are calibrated such that:
+# - An approximate DP test accepts with a probability of at least 0.9 if the
+#   distance between the two raw mean values is within the sensitivity.
+# - An approximate DP test rejects with a probability of at least 0.9 if the
+#   distances between the two data sets is at least 1.375 times the sensitivity
+#   (both in the sum and the count of the elements) or if the catastrophic
+#   failure rate is at least the delta tolerance times 1.25.
+validity_parameters {
+  distance_specificity: 1.375
+  failure_specificity: 1.25
+}
+
+# Taking the majority vote over 9 repeated runs of a particular test case
+# increases the accept and reject probabilities to 0.99911 or more.
+voting_parameters {
+  number_of_votes: 9
+}
+
+bounded_mean_dp_test_case {
+  name: "Laplace noise, empty mean, default parameters"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.003
+    granularity: 0.0078125
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 1.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    # No raw_entry fields because the mean is empty. The number of extra entries
+    # contained in the neighbouring data set equals the maximum total number of
+    # contributions a single privacy unit can make. The entries are set to a
+    # value that maximizes the difference between the two data sets. To ensure
+    # correct bounding, the extra entries significantly exceed the bounds.
+    neighbour_raw_entry: 1000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Laplace noise, empty mean, many partitions contributed"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.0075
+    granularity: 0.25
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 25
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 1.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    # No raw_entry fields because the mean is empty. The number of extra entries
+    # contained in the neighbouring data set equals the maximum total number of
+    # contributions a single privacy unit can make. The entries are set to a
+    # value that maximizes the difference between the two data sets. To ensure
+    # correct bounding, the extra entries significantly exceed the bounds.
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Laplace noise, empty mean, many contributions per partition"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.004
+    granularity: 0.25
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 10
+    lower_bound: 0.0
+    upper_bound: 1.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    # No raw_entry fields because the mean is empty. The number of extra entries
+    # contained in the neighbouring data set equals the maximum total number of
+    # contributions a single privacy unit can make. The entries are set to a
+    # value that maximizes the difference between the two data sets. To ensure
+    # correct bounding, the extra entries significantly exceed the bounds.
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Laplace noise, empty mean, large bounds"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.007
+    granularity: 0.25
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: -50.0
+    upper_bound: 50.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    # No raw_entry fields because the mean is empty. The number of extra entries
+    # contained in the neighbouring data set equals the maximum total number of
+    # contributions a single privacy unit can make. The entries are set to a
+    # value that maximizes the difference between the two data sets. To ensure
+    # correct bounding, the extra entries significantly exceed the bounds.
+    neighbour_raw_entry: -50000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Laplace noise, empty mean, small epsilon"
+  dp_test_parameters {
+    epsilon: 0.1
+    delta: 0.0
+    delta_tolerance: 0.008
+    granularity: 0.0625
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 1.0
+    epsilon: 0.1
+    # No raw_entry fields because the mean is empty. The number of extra entries
+    # contained in the neighbouring data set equals the maximum total number of
+    # contributions a single privacy unit can make. The entries are set to a
+    # value that maximizes the difference between the two data sets. To ensure
+    # correct bounding, the extra entries significantly exceed the bounds.
+    neighbour_raw_entry: 1000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Laplace noise, empty mean, large epsilon"
+  dp_test_parameters {
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta: 0.0
+    delta_tolerance: 0.0009
+    granularity: 0.03125
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 1.0
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    # No raw_entry fields because the mean is empty. The number of extra entries
+    # contained in the neighbouring data set equals the maximum total number of
+    # contributions a single privacy unit can make. The entries are set to a
+    # value that maximizes the difference between the two data sets. To ensure
+    # correct bounding, the extra entries significantly exceed the bounds.
+    neighbour_raw_entry: 1000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Laplace noise, small positive mean, default parameters"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.003
+    granularity: 0.015625
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 1.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    raw_entry: 1.0
+    neighbour_raw_entry: 1.0
+    # The number of extra entries contained in the neighbouring data set equals
+    # the maximum total number of contributions a single privacy unit can make.
+    # The entries are set to a value that maximizes the difference between the
+    # two data sets. To ensure correct bounding, the extra entries significantly
+    # exceed the bounds.
+    neighbour_raw_entry: -1000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Laplace noise, small positive mean, many partitions contributed"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.0075
+    granularity: 0.25
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 25
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 1.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    raw_entry: 1.0
+    neighbour_raw_entry: 1.0
+    # The number of extra entries contained in the neighbouring data set equals
+    # the maximum total number of contributions a single privacy unit can make.
+    # The entries are set to a value that maximizes the difference between the
+    # two data sets. To ensure correct bounding, the extra entries significantly
+    # exceed the bounds.
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Laplace noise, small positive mean, many contributions per partition"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.004
+    granularity: 0.25
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 10
+    lower_bound: 0.0
+    upper_bound: 1.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    raw_entry: 1.0
+    neighbour_raw_entry: 1.0
+    # The number of extra entries contained in the neighbouring data set equals
+    # the maximum total number of contributions a single privacy unit can make.
+    # The entries are set to a value that maximizes the difference between the
+    # two data sets. To ensure correct bounding, the extra entries significantly
+    # exceed the bounds.
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Laplace noise, small positive mean, small epsilon"
+  dp_test_parameters {
+    epsilon: 0.1
+    delta: 0.0
+    delta_tolerance: 0.008
+    granularity: 0.0625
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 1.0
+    epsilon: 0.1
+    raw_entry: 1.0
+    neighbour_raw_entry: 1.0
+    # The number of extra entries contained in the neighbouring data set equals
+    # the maximum total number of contributions a single privacy unit can make.
+    # The entries are set to a value that maximizes the difference between the
+    # two data sets. To ensure correct bounding, the extra entries significantly
+    # exceed the bounds.
+    neighbour_raw_entry: -1000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Laplace noise, small positive mean, large epsilon"
+  dp_test_parameters {
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta: 0.0
+    delta_tolerance: 0.0009
+    granularity: 0.0625
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 1.0
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    raw_entry: 1.0
+    neighbour_raw_entry: 1.0
+    # The number of extra entries contained in the neighbouring data set equals
+    # the maximum total number of contributions a single privacy unit can make.
+    # The entries are set to a value that maximizes the difference between the
+    # two data sets. To ensure correct bounding, the extra entries significantly
+    # exceed the bounds.
+    neighbour_raw_entry: -1000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Laplace noise, small positive mean, multiple entries"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.003
+    granularity: 0.015625
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 1.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    raw_entry: 0.64872
+    raw_entry: 0.12707
+    raw_entry: 0.00128
+    raw_entry: 0.14684
+    raw_entry: 0.86507
+    neighbour_raw_entry: 0.64872
+    neighbour_raw_entry: 0.12707
+    neighbour_raw_entry: 0.00128
+    neighbour_raw_entry: 0.14684
+    neighbour_raw_entry: 0.86507
+    # The number of extra entries contained in the neighbouring data set equals
+    # the maximum total number of contributions a single privacy unit can make.
+    # The entries are set to a value that maximizes the difference between the
+    # two data sets. To ensure correct bounding, the extra entries significantly
+    # exceed the bounds.
+    neighbour_raw_entry: 1000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Laplace noise, large positive mean, default parameters"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.004
+    granularity: 0.25
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 50.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    raw_entry: 50.0
+    neighbour_raw_entry: 50.0
+    # The number of extra entries contained in the neighbouring data set equals
+    # the maximum total number of contributions a single privacy unit can make.
+    # The entries are set to a value that maximizes the difference between the
+    # two data sets. To ensure correct bounding, the extra entries significantly
+    # exceed the bounds.
+    neighbour_raw_entry: -1000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Laplace noise, large positive mean, many partitions contributed"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.025
+    granularity: 2.0
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 25
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 50.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    raw_entry: 50.0
+    neighbour_raw_entry: 50.0
+    # The number of extra entries contained in the neighbouring data set equals
+    # the maximum total number of contributions a single privacy unit can make.
+    # The entries are set to a value that maximizes the difference between the
+    # two data sets. To ensure correct bounding, the extra entries significantly
+    # exceed the bounds.
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Laplace noise, large positive mean, many contributions per partition"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.014
+    granularity: 1.0
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 10
+    lower_bound: 0.0
+    upper_bound: 50.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    raw_entry: 50.0
+    neighbour_raw_entry: 50.0
+    # The number of extra entries contained in the neighbouring data set equals
+    # the maximum total number of contributions a single privacy unit can make.
+    # The entries are set to a value that maximizes the difference between the
+    # two data sets. To ensure correct bounding, the extra entries significantly
+    # exceed the bounds.
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Laplace noise, large positive mean, small epsilon"
+  dp_test_parameters {
+    epsilon: 0.1
+    delta: 0.0
+    delta_tolerance: 0.0105
+    granularity: 2.0
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 50.0
+    epsilon: 0.1
+    raw_entry: 50.0
+    neighbour_raw_entry: 50.0
+    # The number of extra entries contained in the neighbouring data set equals
+    # the maximum total number of contributions a single privacy unit can make.
+    # The entries are set to a value that maximizes the difference between the
+    # two data sets. To ensure correct bounding, the extra entries significantly
+    # exceed the bounds.
+    neighbour_raw_entry: -1000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Laplace noise, large positive mean, large epsilon"
+  dp_test_parameters {
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta: 0.0
+    delta_tolerance: 0.002
+    granularity: 0.5
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 50.0
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    raw_entry: 50.0
+    neighbour_raw_entry: 50.0
+    # The number of extra entries contained in the neighbouring data set equals
+    # the maximum total number of contributions a single privacy unit can make.
+    # The entries are set to a value that maximizes the difference between the
+    # two data sets. To ensure correct bounding, the extra entries significantly
+    # exceed the bounds.
+    neighbour_raw_entry: -1000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Laplace noise, large positive mean, multiple entries"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.004
+    granularity: 0.25
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 50.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    raw_entry: 32.43606
+    raw_entry: 35.35006
+    raw_entry: 40.73424
+    raw_entry: 32.53939
+    raw_entry: 7.081785
+    neighbour_raw_entry: 32.43606
+    neighbour_raw_entry: 35.35006
+    neighbour_raw_entry: 40.73424
+    neighbour_raw_entry: 32.53939
+    neighbour_raw_entry: 7.081785
+    # The number of extra entries contained in the neighbouring data set equals
+    # the maximum total number of contributions a single privacy unit can make.
+    # The entries are set to a value that maximizes the difference between the
+    # two data sets. To ensure correct bounding, the extra entries significantly
+    # exceed the bounds.
+    neighbour_raw_entry: -1000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Laplace noise, large mixed mean, default parameters"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.004
+    granularity: 0.5
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: -50.0
+    upper_bound: 50.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    raw_entry: -50.0
+    neighbour_raw_entry: -50.0
+    # The number of extra entries contained in the neighbouring data set equals
+    # the maximum total number of contributions a single privacy unit can make.
+    # The entries are set to a value that maximizes the difference between the
+    # two data sets. To ensure correct bounding, the extra entries significantly
+    # exceed the bounds.
+    neighbour_raw_entry: 50000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Laplace noise, large mixed mean, many partitions contributed"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.026
+    granularity: 2.0
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 25
+    max_contributions_per_partition: 1
+    lower_bound: -50.0
+    upper_bound: 50.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    raw_entry: -50.0
+    neighbour_raw_entry: -50.0
+    # The number of extra entries contained in the neighbouring data set equals
+    # the maximum total number of contributions a single privacy unit can make.
+    # The entries are set to a value that maximizes the difference between the
+    # two data sets. To ensure correct bounding, the extra entries significantly
+    # exceed the bounds.
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Laplace noise, large mixed mean, many contributions per partition"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.014
+    granularity: 2.0
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 10
+    lower_bound: -50.0
+    upper_bound: 50.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    raw_entry: -50.0
+    neighbour_raw_entry: -50.0
+    # The number of extra entries contained in the neighbouring data set equals
+    # the maximum total number of contributions a single privacy unit can make.
+    # The entries are set to a value that maximizes the difference between the
+    # two data sets. To ensure correct bounding, the extra entries significantly
+    # exceed the bounds.
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Laplace noise, large mixed mean, multiple entries"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.004
+    granularity: 0.5
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: -50.0
+    upper_bound: 50.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    raw_entry: -32.43606
+    raw_entry: 35.35006
+    raw_entry: -40.73424
+    raw_entry: -32.53939
+    raw_entry: 7.081785
+    neighbour_raw_entry: -32.43606
+    neighbour_raw_entry: 35.35006
+    neighbour_raw_entry: -40.73424
+    neighbour_raw_entry: -32.53939
+    neighbour_raw_entry: 7.081785
+    # The number of extra entries contained in the neighbouring data set equals
+    # the maximum total number of contributions a single privacy unit can make.
+    # The entries are set to a value that maximizes the difference between the
+    # two data sets. To ensure correct bounding, the extra entries significantly
+    # exceed the bounds.
+    neighbour_raw_entry: 50000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Gaussian noise, empty mean, default parameters"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.00112
+    granularity: 0.00390625
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 1.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    # No raw_entry fields because the mean is empty. The number of extra entries
+    # contained in the neighbouring data set equals the maximum number of
+    # contributions a single privacy unit can make per partition times the
+    # square root of partitions it can contribute to. The entries are set to a
+    # value that maximizes the difference between the two data sets. To ensure
+    # correct bounding, the extra entries significantly exceed the bounds.
+    neighbour_raw_entry: 1000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Gaussian noise, empty mean, many partitions contributed"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.00145
+    granularity: 0.015625
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 25
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 1.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    # No raw_entry fields because the mean is empty. The number of extra entries
+    # contained in the neighbouring data set equals the maximum number of
+    # contributions a single privacy unit can make per partition times the
+    # square root of partitions it can contribute to. The entries are set to a
+    # value that maximizes the difference between the two data sets. To ensure
+    # correct bounding, the extra entries significantly exceed the bounds.
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Gaussian noise, empty mean, many contributions per partition"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.00141
+    granularity: 0.03125
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 10
+    lower_bound: 0.0
+    upper_bound: 1.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    # No raw_entry fields because the mean is empty. The number of extra entries
+    # contained in the neighbouring data set equals the maximum number of
+    # contributions a single privacy unit can make per partition times the
+    # square root of partitions it can contribute to. The entries are set to a
+    # value that maximizes the difference between the two data sets. To ensure
+    # correct bounding, the extra entries significantly exceed the bounds.
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+    neighbour_raw_entry: 1000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Gaussian noise, empty mean, large bounds"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.0035
+    granularity: 0.125
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: -50.0
+    upper_bound: 50.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    # No raw_entry fields because the mean is empty. The number of extra entries
+    # contained in the neighbouring data set equals the maximum number of
+    # contributions a single privacy unit can make per partition times the
+    # square root of partitions it can contribute to. The entries are set to a
+    # value that maximizes the difference between the two data sets. To ensure
+    # correct bounding, the extra entries significantly exceed the bounds.
+    neighbour_raw_entry: -50000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Gaussian noise, empty mean, small epsilon"
+  dp_test_parameters {
+    epsilon: 0.275
+    delta: 0.00001
+    delta_tolerance: 0.0016
+    granularity: 0.03125
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 1.0
+    epsilon: 0.275
+    delta: 0.00001
+    # No raw_entry fields because the mean is empty. The number of extra entries
+    # contained in the neighbouring data set equals the maximum number of
+    # contributions a single privacy unit can make per partition times the
+    # square root of partitions it can contribute to. The entries are set to a
+    # value that maximizes the difference between the two data sets. To ensure
+    # correct bounding, the extra entries significantly exceed the bounds.
+    neighbour_raw_entry: 1000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Gaussian noise, empty mean, large epsilon"
+  dp_test_parameters {
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta: 0.00001
+    delta_tolerance: 0.00123
+    granularity: 0.001953125
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 1.0
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta: 0.00001
+    # No raw_entry fields because the mean is empty. The number of extra entries
+    # contained in the neighbouring data set equals the maximum number of
+    # contributions a single privacy unit can make per partition times the
+    # square root of partitions it can contribute to. The entries are set to a
+    # value that maximizes the difference between the two data sets. To ensure
+    # correct bounding, the extra entries significantly exceed the bounds.
+    neighbour_raw_entry: 1000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Gaussian noise, empty mean, small delta"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.000001
+    delta_tolerance: 0.0012
+    granularity: 0.00390625
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 1.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.000001
+    # No raw_entry fields because the mean is empty. The number of extra entries
+    # contained in the neighbouring data set equals the maximum number of
+    # contributions a single privacy unit can make per partition times the
+    # square root of partitions it can contribute to. The entries are set to a
+    # value that maximizes the difference between the two data sets. To ensure
+    # correct bounding, the extra entries significantly exceed the bounds.
+    neighbour_raw_entry: 1000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Gaussian noise, small positive mean, default parameters"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.00112
+    granularity: 0.00390625
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 1.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    raw_entry: 1.0
+    neighbour_raw_entry: 1.0
+    # The number of extra entries contained in the neighbouring data set equals
+    # the maximum number of contributions a single privacy unit can make per
+    # partition times the square root of partitions it can contribute to. The
+    # entries are set to a value that maximizes the difference between the two
+    # data sets. To ensure correct bounding, the extra entries significantly
+    # exceed the bounds.
+    neighbour_raw_entry: -1000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Gaussian noise, small positive mean, many partitions contributed"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.00145
+    granularity: 0.015625
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 25
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 1.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    raw_entry: 1.0
+    neighbour_raw_entry: 1.0
+    # The number of extra entries contained in the neighbouring data set equals
+    # the maximum number of contributions a single privacy unit can make per
+    # partition times the square root of partitions it can contribute to. The
+    # entries are set to a value that maximizes the difference between the two
+    # data sets. To ensure correct bounding, the extra entries significantly
+    # exceed the bounds.
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Gaussian noise, small positive mean, many contributions per partition"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.00141
+    granularity: 0.03125
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 10
+    lower_bound: 0.0
+    upper_bound: 1.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    raw_entry: 1.0
+    neighbour_raw_entry: 1.0
+    # The number of extra entries contained in the neighbouring data set equals
+    # the maximum number of contributions a single privacy unit can make per
+    # partition times the square root of partitions it can contribute to. The
+    # entries are set to a value that maximizes the difference between the two
+    # data sets. To ensure correct bounding, the extra entries significantly
+    # exceed the bounds.
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Gaussian noise, small positive mean, small epsilon"
+  dp_test_parameters {
+    epsilon: 0.275
+    delta: 0.00001
+    delta_tolerance: 0.0016
+    granularity: 0.03125
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 1.0
+    epsilon: 0.275
+    delta: 0.00001
+    raw_entry: 1.0
+    neighbour_raw_entry: 1.0
+    # The number of extra entries contained in the neighbouring data set equals
+    # the maximum number of contributions a single privacy unit can make per
+    # partition times the square root of partitions it can contribute to. The
+    # entries are set to a value that maximizes the difference between the two
+    # data sets. To ensure correct bounding, the extra entries significantly
+    # exceed the bounds.
+    neighbour_raw_entry: -1000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Gaussian noise, small positive mean, large epsilon"
+  dp_test_parameters {
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta: 0.00001
+    delta_tolerance: 0.00123
+    granularity: 0.001953125
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 1.0
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta: 0.00001
+    raw_entry: 1.0
+    neighbour_raw_entry: 1.0
+    # The number of extra entries contained in the neighbouring data set equals
+    # the maximum number of contributions a single privacy unit can make per
+    # partition times the square root of partitions it can contribute to. The
+    # entries are set to a value that maximizes the difference between the two
+    # data sets. To ensure correct bounding, the extra entries significantly
+    # exceed the bounds.
+    neighbour_raw_entry: -1000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Gaussian noise, small positive mean, small delta"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.000001
+    delta_tolerance: 0.0012
+    granularity: 0.00390625
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 1.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.000001
+    raw_entry: 1.0
+    neighbour_raw_entry: 1.0
+    # The number of extra entries contained in the neighbouring data set equals
+    # the maximum number of contributions a single privacy unit can make per
+    # partition times the square root of partitions it can contribute to. The
+    # entries are set to a value that maximizes the difference between the two
+    # data sets. To ensure correct bounding, the extra entries significantly
+    # exceed the bounds.
+    neighbour_raw_entry: -1000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Gaussian noise, small positive mean, multiple entries"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.00112
+    granularity: 0.00390625
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 1.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    raw_entry: 0.64872
+    raw_entry: 0.12707
+    raw_entry: 0.00128
+    raw_entry: 0.14684
+    raw_entry: 0.86507
+    neighbour_raw_entry: 0.64872
+    neighbour_raw_entry: 0.12707
+    neighbour_raw_entry: 0.00128
+    neighbour_raw_entry: 0.14684
+    neighbour_raw_entry: 0.86507
+    # The number of extra entries contained in the neighbouring data set equals
+    # the maximum number of contributions a single privacy unit can make per
+    # partition times the square root of partitions it can contribute to. The
+    # entries are set to a value that maximizes the difference between the two
+    # data sets. To ensure correct bounding, the extra entries significantly
+    # exceed the bounds.
+    neighbour_raw_entry: 1000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Gaussian noise, large positive mean, default parameters"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.00725
+    granularity: 0.03125
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 50.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    raw_entry: 50.0
+    neighbour_raw_entry: 50.0
+    # The number of extra entries contained in the neighbouring data set equals
+    # the maximum number of contributions a single privacy unit can make per
+    # partition times the square root of partitions it can contribute to. The
+    # entries are set to a value that maximizes the difference between the two
+    # data sets. To ensure correct bounding, the extra entries significantly
+    # exceed the bounds.
+    neighbour_raw_entry: -1000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Gaussian noise, large positive mean, many partitions contributed"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.00935
+    granularity: 0.125
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 25
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 50.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    raw_entry: 50.0
+    neighbour_raw_entry: 50.0
+    # The number of extra entries contained in the neighbouring data set equals
+    # the maximum number of contributions a single privacy unit can make per
+    # partition times the square root of partitions it can contribute to. The
+    # entries are set to a value that maximizes the difference between the two
+    # data sets. To ensure correct bounding, the extra entries significantly
+    # exceed the bounds.
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Gaussian noise, large positive mean, many contributions per partition"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.00935
+    granularity: 0.25
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 10
+    lower_bound: 0.0
+    upper_bound: 50.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    raw_entry: 50.0
+    neighbour_raw_entry: 50.0
+    # The number of extra entries contained in the neighbouring data set equals
+    # the maximum number of contributions a single privacy unit can make per
+    # partition times the square root of partitions it can contribute to. The
+    # entries are set to a value that maximizes the difference between the two
+    # data sets. To ensure correct bounding, the extra entries significantly
+    # exceed the bounds.
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+    neighbour_raw_entry: -1000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Gaussian noise, large positive mean, small epsilon"
+  dp_test_parameters {
+    epsilon: 0.275
+    delta: 0.00001
+    delta_tolerance: 0.00535
+    granularity: 0.5
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 50.0
+    epsilon: 0.275
+    delta: 0.00001
+    raw_entry: 50.0
+    neighbour_raw_entry: 50.0
+    # The number of extra entries contained in the neighbouring data set equals
+    # the maximum number of contributions a single privacy unit can make per
+    # partition times the square root of partitions it can contribute to. The
+    # entries are set to a value that maximizes the difference between the two
+    # data sets. To ensure correct bounding, the extra entries significantly
+    # exceed the bounds.
+    neighbour_raw_entry: -1000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Gaussian noise, large positive mean, large epsilon"
+  dp_test_parameters {
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta: 0.00001
+    delta_tolerance: 0.00725
+    granularity: 0.015625
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 50.0
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta: 0.00001
+    raw_entry: 50.0
+    neighbour_raw_entry: 50.0
+    # The number of extra entries contained in the neighbouring data set equals
+    # the maximum number of contributions a single privacy unit can make per
+    # partition times the square root of partitions it can contribute to. The
+    # entries are set to a value that maximizes the difference between the two
+    # data sets. To ensure correct bounding, the extra entries significantly
+    # exceed the bounds.
+    neighbour_raw_entry: -1000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Gaussian noise, large positive mean, small delta"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.000001
+    delta_tolerance: 0.00785
+    granularity: 0.03125
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 50.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.000001
+    raw_entry: 50.0
+    neighbour_raw_entry: 50.0
+    # The number of extra entries contained in the neighbouring data set equals
+    # the maximum number of contributions a single privacy unit can make per
+    # partition times the square root of partitions it can contribute to. The
+    # entries are set to a value that maximizes the difference between the two
+    # data sets. To ensure correct bounding, the extra entries significantly
+    # exceed the bounds.
+    neighbour_raw_entry: -1000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Gaussian noise, large positive mean, multiple entries"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.00725
+    granularity: 0.03125
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 50.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    raw_entry: 32.43606
+    raw_entry: 35.35006
+    raw_entry: 40.73424
+    raw_entry: 32.53939
+    raw_entry: 7.081785
+    neighbour_raw_entry: 32.43606
+    neighbour_raw_entry: 35.35006
+    neighbour_raw_entry: 40.73424
+    neighbour_raw_entry: 32.53939
+    neighbour_raw_entry: 7.081785
+    # The number of extra entries contained in the neighbouring data set equals
+    # the maximum number of contributions a single privacy unit can make per
+    # partition times the square root of partitions it can contribute to. The
+    # entries are set to a value that maximizes the difference between the two
+    # data sets. To ensure correct bounding, the extra entries significantly
+    # exceed the bounds.
+    neighbour_raw_entry: -1000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Gaussian noise, large mixed mean, default parameters"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.0035
+    granularity: 0.125
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: -50.0
+    upper_bound: 50.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    raw_entry: -50.0
+    neighbour_raw_entry: -50.0
+    # The number of extra entries contained in the neighbouring data set equals
+    # the maximum number of contributions a single privacy unit can make per
+    # partition times the square root of partitions it can contribute to. The
+    # entries are set to a value that maximizes the difference between the two
+    # data sets. To ensure correct bounding, the extra entries significantly
+    # exceed the bounds.
+    neighbour_raw_entry: 50000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Gaussian noise, large mixed mean, many partitions contributed"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.0045
+    granularity: 0.5
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 25
+    max_contributions_per_partition: 1
+    lower_bound: -50.0
+    upper_bound: 50.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    raw_entry: -50.0
+    neighbour_raw_entry: -50.0
+    # The number of extra entries contained in the neighbouring data set equals
+    # the maximum number of contributions a single privacy unit can make per
+    # partition times the square root of partitions it can contribute to. The
+    # entries are set to a value that maximizes the difference between the two
+    # data sets. To ensure correct bounding, the extra entries significantly
+    # exceed the bounds.
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Gaussian noise, large mixed mean, many contributions per partition"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.00475
+    granularity: 1.0
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 10
+    lower_bound: -50.0
+    upper_bound: 50.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    raw_entry: -50.0
+    neighbour_raw_entry: -50.0
+    # The number of extra entries contained in the neighbouring data set equals
+    # the maximum number of contributions a single privacy unit can make per
+    # partition times the square root of partitions it can contribute to. The
+    # entries are set to a value that maximizes the difference between the two
+    # data sets. To ensure correct bounding, the extra entries significantly
+    # exceed the bounds.
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+    neighbour_raw_entry: 50000.0
+  }
+}
+
+bounded_mean_dp_test_case {
+  name: "Gaussian noise, large mixed mean, multiple entries"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.0035
+    granularity: 0.125
+  }
+  bounded_mean_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: -50.0
+    upper_bound: 50.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    raw_entry: -32.43606
+    raw_entry: 35.35006
+    raw_entry: -40.73424
+    raw_entry: -32.53939
+    raw_entry: 7.081785
+    neighbour_raw_entry: -32.43606
+    neighbour_raw_entry: 35.35006
+    neighbour_raw_entry: -40.73424
+    neighbour_raw_entry: -32.53939
+    neighbour_raw_entry: 7.081785
+    # The number of extra entries contained in the neighbouring data set equals
+    # the maximum number of contributions a single privacy unit can make per
+    # partition times the square root of partitions it can contribute to. The
+    # entries are set to a value that maximizes the difference between the two
+    # data sets. To ensure correct bounding, the extra entries significantly
+    # exceed the bounds.
+    neighbour_raw_entry: 50000.0
+  }
+}
