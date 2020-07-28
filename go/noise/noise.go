@@ -119,13 +119,15 @@ type Noise interface {
 	// given assumptions of L_0 and L_∞ sensitivities.
 	Threshold(l0Sensitivity int64, lInfSensitivity, epsilon, deltaNoise, deltaThreshold float64) float64
 
-	// ReturnConfidenceIntervalInt64 will return a ConfidenceIntervalInt64 struct with the given confidenceLevel, using the int64 noisedValue,
-	// l0Sensitivity, lInfSensitivity int64 and epsilon, delta float64 for the distribution.
+	// ReturnConfidenceIntervalInt64 will return a ConfidenceIntervalInt64 struct with the given
+	// confidenceLevel, using the int64 noisedValue,l0Sensitivity, lInfSensitivity int64 and
+	// epsilon, delta float64 for the distribution.
 	ReturnConfidenceIntervalInt64(noisedValue, l0Sensitivity, lInfSensitivity int64, epsilon, delta,
 		confidenceLevel float64) (ConfidenceIntervalInt64, error)
 
-	// ReturnConfidenceIntervalFloat64 will return a ConfidenceIntervalFloat64 struct with the given confidenceLevel, using the float64 noisedValue,
-	// l0Sensitivity int64 and lInfSensitivity, epsilon, delta float64 for the distribution.
+	// ReturnConfidenceIntervalFloat64 will return a ConfidenceIntervalFloat64 struct with the given
+	// confidenceLevel, using the float64 noisedValue,l0Sensitivity int64 and lInfSensitivity,
+	// epsilon, delta float64 for the distribution.
 	ReturnConfidenceIntervalFloat64(noisedValue float64, l0Sensitivity int64, lInfSensitivity, epsilon, delta,
 		confidenceLevel float64) (ConfidenceIntervalFloat64, error)
 }
