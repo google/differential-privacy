@@ -18,6 +18,8 @@
 package noise
 
 import (
+	"math"
+
 	log "github.com/golang/glog"
 )
 
@@ -55,6 +57,22 @@ func ToKind(n Noise) Kind {
 		log.Warningf("ToKind: unknown Noise (%v) specified", n)
 	}
 	return GaussianNoise
+}
+
+// ConfidenceIntervalInt64 holds upper and lower bounds in int64 for the confidence interval.
+type ConfidenceIntervalInt64 struct {
+	LowerBound, UpperBound int64
+}
+
+// ConfidenceIntervalFloat64 holds upper and lower bounds in float64 for the confidence interval.
+type ConfidenceIntervalFloat64 struct {
+	LowerBound, UpperBound float64
+}
+
+// toConfidenceIntervalInt64 returns ConfidenceIntervalInt64 struct after rounding the upper
+// and lower bounds of the ConfidenceIntervalFloat64 struct.
+func (confInt ConfidenceIntervalFloat64) toConfidenceIntervalInt64() ConfidenceIntervalInt64 {
+	return ConfidenceIntervalInt64{int64(math.Round(confInt.LowerBound)), int64(math.Round(confInt.UpperBound))}
 }
 
 // Noise is an interface for primitives that add noise to data to make it differentially private.
@@ -100,4 +118,14 @@ type Noise interface {
 	// satisfies (epsilon,deltaNoise+deltaThreshold)-differential privacy under the
 	// given assumptions of L_0 and L_∞ sensitivities.
 	Threshold(l0Sensitivity int64, lInfSensitivity, epsilon, deltaNoise, deltaThreshold float64) float64
+
+	// ReturnConfidenceIntervalInt64 will return a ConfidenceIntervalInt64 structure using the int64 noisedValue,
+	// with the confidenceLevel given, and the l0Sensitivity, lInfSensitivity int64 and epsilon, delta float64 for the distribution.
+	ReturnConfidenceIntervalInt64(noisedValue, l0Sensitivity, lInfSensitivity int64, epsilon, delta,
+		confidenceLevel float64) (ConfidenceIntervalInt64, error)
+
+	// ReturnConfidenceIntervalFloat64 will return a ConfidenceIntervalFloat64 structure using the float64 noisedValue,
+	// with the confidenceLevel given, and the l0Sensitivity int64 and lInfSensitivity, epsilon, delta float64 for the distribution.
+	ReturnConfidenceIntervalFloat64(noisedValue float64, l0Sensitivity int64, lInfSensitivity, epsilon, delta,
+		confidenceLevel float64) (ConfidenceIntervalFloat64, error)
 }

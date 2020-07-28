@@ -179,3 +179,11 @@ func CheckMaxPartitionsContributed(label string, maxPartitionsContributed int64)
 	}
 	return nil
 }
+
+//CheckConfidenceLevel returns an error if the supplied confidence level is not between 0 and 1
+func CheckConfidenceLevel(label string, confidenceLevel float64) error {
+	if confidenceLevel < 0 || confidenceLevel > 1 || math.IsNaN(confidenceLevel) {
+		return fmt.Errorf("%s: confidenceLevel is %f, should be between 0 and 1 (and cannot be NaN)", label, confidenceLevel)
+	}
+	return nil
+}
