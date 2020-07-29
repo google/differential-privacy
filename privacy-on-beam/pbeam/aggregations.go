@@ -393,7 +393,7 @@ func (fn *boundedSumFloat64Fn) ExtractOutput(a boundedSumAccumFloat64) *float64 
 	result := a.BS.Result()
 	if a.PartitionsSpecified || a.SP.Result() {
 			return &result
-	} 
+		} 
 
 	return nil
 }
@@ -541,9 +541,61 @@ func prepareAddPartitionsMeanFloat64Fn(partitionKey beam.X) (k beam.X, v []float
 	return partitionKey, []float64{}
 }
 
-func formatPartitions(partitionKey beam.X) (k Partition) {
-	return Partition{PartitionKey: partitionKey}
+
+type Partition struct {
+	PartitionKey interface{}
 }
+
+// Function for sum and mean.
+func correctPartitions(s beam.Scope, partitions []beam.PCollection, pcol PrivatePCollection) beam.PCollection {
+	if len(partitions) == 1 {
+		partitionsCol := partitions[0]
+		partitionsMap := beam.Combine(s, newPartitionsHashMapFn(), partitionsCol)
+		return beam.ParDo(s, newPreparePruneFn(pcol.codec), pcol.col, beam.SideInput{Input: partitionsMap})
+	}
+	return pcol.col
+}
+
+// Function for count and distinct_id.
+func correctCountPartitions(s beam.Scope, partitions []beam.PCollection, pcol PrivatePCollection) beam.PCollection {
+	if len(partitions) == 1 {
+		partitionsCol := partitions[0]
+		partitionsMap := beam.Combine(s, newPartitionsHashMapFn(), partitionsCol)
+		return beam.ParDo(s, prunePartitionsFn, pcol.col, beam.SideInput{Input: partitionsMap})
+	}
+	return pcol.col
+}
+
+type mapAccum struct {
+	PartitionMap map[Partition]bool
+}
+
+type partitionsHashMapFn struct {}
+
+func newPartitionsHashMapFn() *partitionsHashMapFn {
+	return &partitionsHashMapFn{}
+}
+
+func (fn *partitionsHashMapFn) CreateAccumulator() mapAccum {
+	return mapAccum{PartitionMap: make(map[Partition]bool)}
+}
+
+func (fn *partitionsHashMapFn) AddInput(m mapAccum, partitionKey beam.X) mapAccum {
+	m.PartitionMap[Partition{PartitionKey: partitionKey}] = true
+	return m
+}
+
+func (fn *partitionsHashMapFn) MergeAccumulators(a, b mapAccum) mapAccum {
+	for k := range a.PartitionMap {
+		b.PartitionMap[k] = true
+	}
+	return b
+}
+
+func (fn *partitionsHashMapFn) ExtractOutput(m mapAccum) map[Partition]bool {
+	return m.PartitionMap
+}
+
 
 // preparePruneFn takes a PCollection<ID, kv.Pair{K,V}> as input, and returns a
 // PCollection<ID, kv.Pair{K,V}>, where unspecified partitions have been dropped.
@@ -557,45 +609,23 @@ func newPreparePruneFn(kvCodec *kv.Codec) *preparePruneFn {
 		InputPairCodec: kvCodec,
 	}
 }
-
-func (fn *preparePruneFn) ProcessElement(id beam.W, pair kv.Pair, partitionsIter func(*Partition) bool, emit func(beam.W, kv.Pair)) {
-	var p Partition
+func (fn *preparePruneFn) ProcessElement(id beam.W, pair kv.Pair, partitionsIter func(*map[Partition]bool) bool, emit func(beam.W, kv.Pair)) {
+	var p map[Partition]bool
+	partitionsIter(&p)
 	k, _ := fn.InputPairCodec.Decode(pair)
-	for partitionsIter(&p) {
-		if p.PartitionKey == k {
-			emit(id, pair) // Keep partition if it's specified.
-			break
-		}
+	if p[Partition{PartitionKey: k}]{
+		emit (id, pair)
 	}
 }
 
-// Drop unspecified partitions for count and distinct_id.
-func prunePartitionsFn(id beam.X, partitionKey beam.V, partitionsIter func(*Partition) bool, emit func(beam.X, beam.V)) {
-	var p Partition
-	for partitionsIter(&p) {
-		if p.PartitionKey == partitionKey {
-			emit(id, partitionKey) // Keep partition if it's specified.
-			break
-		}
+// preparePruneFn takes a PCollection<K, V> as input, and returns a
+// PCollection<K, V>, where unspecified partitions have been dropped.
+// Used for count and distinct_id.
+func prunePartitionsFn(id beam.X, partitionKey beam.V, partitionsIter func(*map[Partition]bool) bool, emit func(beam.X,beam.V)) {
+	var partitionsMap map[Partition]bool
+	partitionsIter(&partitionsMap)
+	if partitionsMap[Partition{PartitionKey: partitionKey}]{
+		emit (id, partitionKey)
 	}
 }
 
-// Function for sum and mean.
-func correctPartitions(s beam.Scope, partitions []beam.PCollection, pcol PrivatePCollection) beam.PCollection {
-	if len(partitions) == 1 {
-		partitionsCol := partitions[0]
-		formattedPartitions := beam.ParDo(s, formatPartitions, partitionsCol)
-		return beam.ParDo(s, newPreparePruneFn(pcol.codec), pcol.col, beam.SideInput{Input: formattedPartitions})
-	}
-	return pcol.col
-}
-
-// Function for count and distinct_id.
-func correctCountPartitions(s beam.Scope, partitions []beam.PCollection, pcol PrivatePCollection) beam.PCollection {
-	if len(partitions) == 1 {
-		partitionsCol := partitions[0]
-		formattedSpecifiedPartitions := beam.ParDo(s, formatPartitions, partitionsCol)
-		return beam.ParDo(s, prunePartitionsFn, pcol.col, beam.SideInput{Input: formattedSpecifiedPartitions})
-	}
-	return pcol.col
-}
