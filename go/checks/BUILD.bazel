@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 load("@bazel_gazelle//:def.bzl", "gazelle")
 
 # gazelle:prefix github.com/google/differential-privacy/go/checks
@@ -26,4 +26,13 @@ go_library(
     importpath = "github.com/google/differential-privacy/go/checks",
     visibility = ["//visibility:public"],
     deps = ["@com_github_golang_glog//:go_default_library"],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = [
+        "checks_test.go",
+    ],
+    embed = [":go_default_library"],
+    deps = [],
 )

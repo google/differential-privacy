@@ -20,22 +20,16 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 import org.junit.runners.Suite.SuiteClasses;
 
-/**
- * Provides a list of JUnit test classes to Bazel.
- * When creating a new test class, add it here.
- */
+/** Provides a list of JUnit test classes to Bazel. When creating a new test class, add it here. */
 @RunWith(Suite.class)
 @SuiteClasses({
-    BoundedMeanBuilderTest.class,
-    BoundedMeanTest.class,
-    BoundedSumBuilderTest.class,
-    BoundedSumTest.class,
-    CountBuilderTest.class,
-    CountTest.class,
-    GaussianNoiseTest.class,
-    LaplaceNoiseTest.class,
+  BoundedMeanBuilderTest.class,
+  BoundedMeanTest.class,
+  BoundedSumBuilderTest.class,
+  BoundedSumTest.class,
+  CountBuilderTest.class,
+  CountTest.class,
+  GaussianNoiseTest.class,
+  LaplaceNoiseTest.class,
 })
 public class AllTests {}
-
-
-

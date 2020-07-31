@@ -41,12 +41,12 @@ class BoundedAlgorithm : public Algorithm<T> {
 
    public:
     // Methods for testing.
-    T Lower() { return BoundedBuilder::lower_.value(); }
-    T Upper() { return BoundedBuilder::upper_.value(); }
-    bool HasLower() { return BoundedBuilder::lower_.has_value(); }
-    bool HasUpper() { return BoundedBuilder::upper_.has_value(); }
+    T Lower() { return BoundedBuilder::GetLower().value(); }
+    T Upper() { return BoundedBuilder::GetUpper().value(); }
+    bool HasLower() { return BoundedBuilder::GetLower().has_value(); }
+    bool HasUpper() { return BoundedBuilder::GetUpper().has_value(); }
     ApproxBounds<T>* GetApproxBounds() {
-      return BoundedBuilder::approx_bounds_.get();
+      return BoundedBuilder::GetApproxBounds();
     }
 
    private:

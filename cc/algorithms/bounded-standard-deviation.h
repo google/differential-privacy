@@ -53,28 +53,28 @@ class BoundedStandardDeviation : public Algorithm<T> {
     base::StatusOr<std::unique_ptr<BoundedStandardDeviation<T>>>
     BuildAlgorithm() override {
       // Set bounding info if appropriate.
-      if (BoundedBuilder::lower_.has_value()) {
-        variance_builder_.SetLower(BoundedBuilder::lower_.value());
+      if (BoundedBuilder::GetLower().has_value()) {
+        variance_builder_.SetLower(BoundedBuilder::GetLower().value());
       }
-      if (BoundedBuilder::upper_.has_value()) {
-        variance_builder_.SetUpper(BoundedBuilder::upper_.value());
+      if (BoundedBuilder::GetUpper().has_value()) {
+        variance_builder_.SetUpper(BoundedBuilder::GetUpper().value());
       }
-      if (BoundedBuilder::approx_bounds_) {
+      if (BoundedBuilder::GetApproxBounds()) {
         variance_builder_.SetApproxBounds(
-            std::move(BoundedBuilder::approx_bounds_));
+            std::move(BoundedBuilder::MoveApproxBoundsPointer()));
       }
 
       // Construct bounded variance.
       std::unique_ptr<BoundedVariance<T>> variance;
-      auto mech_builder = AlgorithmBuilder::mechanism_builder_->Clone();
+      auto mech_builder = AlgorithmBuilder::GetMechanismBuilderClone();
       ASSIGN_OR_RETURN(
           variance,
-          variance_builder_.SetEpsilon(AlgorithmBuilder::epsilon_.value())
+          variance_builder_.SetEpsilon(AlgorithmBuilder::GetEpsilon().value())
               .SetLaplaceMechanism(std::move(mech_builder))
               .Build());
 
       return absl::WrapUnique(new BoundedStandardDeviation(
-          AlgorithmBuilder::epsilon_.value(), std::move(variance)));
+          AlgorithmBuilder::GetEpsilon().value(), std::move(variance)));
     }
 
     typename BoundedVariance<T>::Builder variance_builder_;

@@ -33,8 +33,8 @@ func init() {
 	beam.RegisterType(reflect.TypeOf((*EncodeFn)(nil)))
 }
 
-// Codec provides functions for encoding a <K,V> pair into a <Pair> and
-// decoding a <Pair> into a <K,V> pair. It can be used for performing <K,V>
+// Codec provides functions for encoding a <K,V> pair into a Pair and
+// decoding a Pair into a <K,V> pair. It can be used for performing <K,V>
 // transforms. Whenever they are used inside a structural doFn, they should be
 // an exported field in order for them to be serialized to JSON.
 //
@@ -97,12 +97,12 @@ func (codec *Codec) Encode(k, v interface{}) Pair {
 }
 
 // Decode transforms a Pair into a <K,V> pair.
-func (codec *Codec) Decode(c Pair) (k, v interface{}) {
-	k, err := codec.kDec.Decode(bytes.NewBuffer(c.K))
+func (codec *Codec) Decode(p Pair) (k, v interface{}) {
+	k, err := codec.kDec.Decode(bytes.NewBuffer(p.K))
 	if err != nil {
 		log.Exitf("kv.Codec.Decode: couldn't Decode key %v: %v", k, err)
 	}
-	v, err = codec.vDec.Decode(bytes.NewBuffer(c.V))
+	v, err = codec.vDec.Decode(bytes.NewBuffer(p.V))
 	if err != nil {
 		log.Exitf("kv.Codec.Decode: couldn't Decode value %v: %v", v, err)
 	}
@@ -118,7 +118,7 @@ type EncodeFn struct {
 	vEnc beam.ElementEncoder
 }
 
-// NewEncodeFn returns an EncodeFn from given types
+// NewEncodeFn returns an EncodeFn from given types.
 func NewEncodeFn(kT, vT typex.FullType) *EncodeFn {
 	return &EncodeFn{
 		KType: beam.EncodedType{kT.Type()},
@@ -157,7 +157,7 @@ type DecodeFn struct {
 	vDec beam.ElementDecoder
 }
 
-// NewDecodeFn returns a DecodeFn from given types
+// NewDecodeFn returns a DecodeFn from given types.
 func NewDecodeFn(kT, vT typex.FullType) *DecodeFn {
 	return &DecodeFn{
 		KType: beam.EncodedType{kT.Type()},

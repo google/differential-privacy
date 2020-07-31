@@ -369,9 +369,9 @@ func (mn mockNoiseCount) AddNoiseInt64(x, l0, lInf int64, eps, del float64) int6
 }
 
 // Threshold checks that the parameters passed are the ones we expect.
-func (mn mockNoiseCount) Threshold(l0 int64, lInf, eps, del, deltaThreshold float64) float64 {
-	if !ApproxEqual(deltaThreshold, 20.0) {
-		mn.t.Errorf("Threshold: for parameter deltaThreshold got %f, want %f", deltaThreshold, 10.0)
+func (mn mockNoiseCount) Threshold(l0 int64, lInf, eps, del, thresholdDelta float64) float64 {
+	if !ApproxEqual(thresholdDelta, 20.0) {
+		mn.t.Errorf("Threshold: for parameter thresholdDelta got %f, want %f", thresholdDelta, 10.0)
 	}
 	if l0 != 3 {
 		mn.t.Errorf("Threshold: for parameter l0Sensitivity got %d, want %d", l0, 1)

@@ -16,7 +16,8 @@
 
 // package main runs the Privacy on Beam codelab.
 // Example command to run:
-// bazel run codelab/codelab -- --example="count" --output_text_name=$(pwd)/codelab/count.txt --output_img_name=$(pwd)/codelab/count.png
+// Linux: bazel run codelab -- --example="count" --input_file=$(pwd)/day_data.csv --output_stats_file=$(pwd)/stats.csv --output_chart_file=$(pwd)/chart.png
+// Windows: bazel run codelab -- --example="count" --input_file=%CD%/day_data.csv --output_stats_file=%CD%/stats.csv --output_chart_file=%CD%/chart.png
 package main
 
 import (
@@ -44,17 +45,13 @@ func init() {
 }
 
 var (
-	// Set this option to choose which example to run.
-	example = flag.String("example", "", "Privacy on Beam example to run, enter 'count', 'sum', 'mean'.")
-
-	// By default, this reads from day_data.csv.
-	inputName = flag.String("input_name", "codelab/day_data.csv", "File to read.")
-
-	// By default, this writes to 'example_name.txt'.
-	outputTextName = flag.String("output_text_name", "", "Output file. Set to '/tmp/{{example_name}}.txt' by default.")
-
-	// By default, this writes to 'example_name.png'.
-	outputImgName = flag.String("output_img_name", "", "Output file. Set to '/tmp/{{example_name}}.png' by default.")
+	example = flag.String("example", "", "Example ID:\n"+
+		"count - counts of visits per hour.\n"+
+		"sum - total revenue per hour.\n"+
+		"mean - average visit time per hour.")
+	inputFile       = flag.String("input_file", "", "Input csv file name with raw data.")
+	outputStatsFile = flag.String("output_stats_file", "", "Output csv file name for stats results.")
+	outputChartFile = flag.String("output_chart_file", "", "Output png file name for chart with stats.")
 )
 
 func main() {
@@ -72,26 +69,26 @@ func main() {
 	default:
 		log.Exitf("Unknown example (%s) specified, please use one of 'count', 'sum', 'mean'", *example)
 	}
-	if *inputName == "" {
+	if *inputFile == "" {
 		log.Exit("No input file specified.")
 	}
-	if *outputTextName == "" {
-		*outputTextName = "/tmp/" + *example + ".txt"
+	if *outputStatsFile == "" {
+		log.Exit("No output stats file specified.")
 	}
-	if *outputImgName == "" {
-		*outputImgName = "/tmp/" + *example + ".png"
+	if *outputChartFile == "" {
+		log.Exit("No output chart file specified.")
 	}
 
 	// DP output file names.
-	outputTextNameDP := strings.ReplaceAll(*outputTextName, path.Ext(*outputTextName), "_dp"+path.Ext(*outputTextName))
-	outputImgNameDP := strings.ReplaceAll(*outputImgName, path.Ext(*outputImgName), "_dp"+path.Ext(*outputImgName))
+	outputStatsFileDP := strings.ReplaceAll(*outputStatsFile, path.Ext(*outputStatsFile), "_dp"+path.Ext(*outputStatsFile))
+	outputChartFileDP := strings.ReplaceAll(*outputChartFile, path.Ext(*outputChartFile), "_dp"+path.Ext(*outputChartFile))
 
 	// Create a pipeline.
 	p := beam.NewPipeline()
 	s := p.Root()
 
 	// Read and parse the input.
-	visits := readInput(s, *inputName)
+	visits := readInput(s, *inputFile)
 
 	// Run the example pipeline.
 	rawOutput := runRawExample(s, visits, *example)
@@ -99,8 +96,8 @@ func main() {
 
 	// Write the text output to file.
 	log.Info("Writing text output.")
-	writeOutput(s, rawOutput, *outputTextName)
-	writeOutput(s, dpOutput, outputTextNameDP)
+	writeOutput(s, rawOutput, *outputStatsFile)
+	writeOutput(s, dpOutput, outputStatsFileDP)
 
 	// Execute pipeline.
 	err := direct.Execute(context.Background(), p)
@@ -109,17 +106,17 @@ func main() {
 	}
 
 	// Read the text output from file.
-	hourToValue, err := readOutput(*outputTextName)
+	hourToValue, err := readOutput(*outputStatsFile)
 	if err != nil {
-		log.Exitf("Reading output text file (%s) to plot bar charts failed: %v", *outputTextName, err)
+		log.Exitf("Reading output text file (%s) to plot bar charts failed: %v", *outputStatsFile, err)
 	}
-	dpHourToValue, err := readOutput(outputTextNameDP)
+	dpHourToValue, err := readOutput(outputStatsFileDP)
 	if err != nil {
-		log.Exitf("Reading output text file (%s) to plot bar charts failed: %v", outputTextNameDP, err)
+		log.Exitf("Reading output text file (%s) to plot bar charts failed: %v", outputStatsFileDP, err)
 	}
 
 	// Draw the bar charts.
-	if err = drawPlot(hourToValue, dpHourToValue, *example, *outputImgName, outputImgNameDP); err != nil {
+	if err = drawPlot(hourToValue, dpHourToValue, *example, *outputChartFile, outputChartFileDP); err != nil {
 		log.Exitf("Drawing bar chart failed: %v", err)
 	}
 

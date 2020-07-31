@@ -51,7 +51,7 @@ type gaussian struct{}
 //
 // The Gaussian noise is based on a binomial sampling mechanism that is robust against
 // unintentional privacy leaks due to artifacts of floating-point arithmetic. See
-// https://github.com/google/differential-privacy/blob/master/common_docs/Secure_Noise_Generation.pdf
+// https://github.com/google/differential-privacy/blob/main/common_docs/Secure_Noise_Generation.pdf
 // for more information.
 func Gaussian() Noise {
 	return gaussian{}
@@ -78,31 +78,38 @@ func (gaussian) AddNoiseInt64(x, l0Sensitivity, lInfSensitivity int64, epsilon, 
 	}
 
 	sigma := SigmaForGaussian(l0Sensitivity, float64(lInfSensitivity), epsilon, delta)
-	return int64(math.Round(addGaussian(float64(x), sigma)))
+	// Calling addGaussian on 0.0 avoids casting x to a float64 value, which is not secure from a
+	// privacy perspective as it can have unforeseen effects on the sensitivity of x. Rounding and
+	// adding the resulting noise to x in a post processing step is a secure operation (for noise of
+	// moderate magnitude, i.e. < 2^53).
+	return int64(math.Round(addGaussian(0.0, sigma))) + x
 }
 
 // Threshold returns the smallest threshold k to use in a differentially private
 // histogram with added Gaussian noise.
 //
-// See https://github.com/google/differential-privacy/blob/master/common_docs/Delta_For_Thresholding.pdf for details on the math underlying this.
-func (gaussian) Threshold(l0Sensitivity int64, lInfSensitivity, epsilon, deltaNoise, deltaThreshold float64) float64 {
-	if err := checkArgsGaussian("Threshold (gaussian)", l0Sensitivity, lInfSensitivity, epsilon, deltaNoise); err != nil {
-		log.Fatalf("gaussian.Threshold(l0sensitivity %d, lInfSensitivity %f, epsilon %f, deltaNoise %e, deltaThreshold %e) checks failed with %v",
-			l0Sensitivity, lInfSensitivity, epsilon, deltaNoise, deltaThreshold, err)
+// See https://github.com/google/differential-privacy/blob/main/common_docs/Delta_For_Thresholding.pdf for details on the math underlying this.
+func (gaussian) Threshold(l0Sensitivity int64, lInfSensitivity, epsilon, noiseDelta, thresholdDelta float64) float64 {
+	if err := checkArgsGaussian("Threshold (gaussian)", l0Sensitivity, lInfSensitivity, epsilon, noiseDelta); err != nil {
+		log.Fatalf("gaussian.Threshold(l0sensitivity %d, lInfSensitivity %f, epsilon %f, noiseDelta %e, thresholdDelta %e) checks failed with %v",
+			l0Sensitivity, lInfSensitivity, epsilon, noiseDelta, thresholdDelta, err)
 	}
-	if err := checks.CheckDeltaStrict("Threshold (gaussian, deltaNoise)", deltaThreshold); err != nil {
+	if err := checks.CheckDeltaStrict("Threshold (gaussian, noiseDelta)", thresholdDelta); err != nil {
 		log.Fatalf("CheckDelta failed with %v", err)
 	}
 
-	sigma := SigmaForGaussian(l0Sensitivity, lInfSensitivity, epsilon, deltaNoise)
+	sigma := SigmaForGaussian(l0Sensitivity, lInfSensitivity, epsilon, noiseDelta)
 	noiseDist := distuv.Normal{Mu: 0, Sigma: sigma}
-	return lInfSensitivity + noiseDist.Quantile(math.Pow(1-deltaThreshold, 1.0/float64(l0Sensitivity)))
+	return lInfSensitivity + noiseDist.Quantile(math.Pow(1-thresholdDelta, 1.0/float64(l0Sensitivity)))
 }
 
 // DeltaForThreshold is the inverse operation of Threshold. Specifically, given
 // the parameters and a threshold, it returns the delta induced by thresholding.
 //
-// See https://github.com/google/differential-privacy/blob/master/common_docs/Delta_For_Thresholding.pdf for details on the math underlying this.
+// Note that this function is not officially supported and might be removed
+// in the future.
+//
+// See https://github.com/google/differential-privacy/blob/main/common_docs/Delta_For_Thresholding.pdf for details on the math underlying this.
 func (gaussian) DeltaForThreshold(l0Sensitivity int64, lInfSensitivity, epsilon, delta, threshold float64) float64 {
 	if err := checkArgsGaussian("DeltaForThreshold (gaussian)", l0Sensitivity, lInfSensitivity, epsilon, delta); err != nil {
 		log.Fatalf("gaussian.DeltaForThreshold(l0sensitivity %d, lInfSensitivity %f, epsilon %f, delta %e, threshold %f) checks failed with %v",
@@ -171,7 +178,7 @@ func symmetricBinomial(sqrtN float64) int64 {
 // Approximates the probability of a random sample m + n / 2 drawn from a binomial
 // distribution of n Bernoulli trials that have a success probability of 1 / 2 each.
 // The approximation is based on Lemma 7 of
-// https://github.com/google/differential-privacy/blob/master/common_docs/Secure_Noise_Generation.pdf
+// https://github.com/google/differential-privacy/blob/main/common_docs/Secure_Noise_Generation.pdf
 func binomialProbability(sqrtN float64, m int64) float64 {
 	if math.Abs(float64(m)) > sqrtN*math.Sqrt(math.Log(sqrtN)/2.0) {
 		return 0.0

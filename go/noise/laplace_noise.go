@@ -28,7 +28,7 @@ var (
 	// granularityParam determines the resolution of the numerical noise that is
 	// being generated relative to the L_inf sensitivity and privacy parameter epsilon.
 	// More precisely, the granularity parameter corresponds to the value 2ᵏ described in
-	// https://github.com/google/differential-privacy/blob/master/common_docs/Secure_Noise_Generation.pdf.
+	// https://github.com/google/differential-privacy/blob/main/common_docs/Secure_Noise_Generation.pdf.
 	// Larger values result in more fine grained noise, but increase the chance of
 	// sampling inaccuracies due to overflows. The probability of an overflow is less
 	// than 2⁻¹⁰⁰⁰, if the granularity parameter is set to a value of 2⁴⁰ or less and
@@ -49,7 +49,7 @@ type laplace struct{}
 //
 // The Laplace noise is based on a geometric sampling mechanism that is robust against
 // unintentional privacy leaks due to artifacts of floating point arithmetic. See
-// https://github.com/google/differential-privacy/blob/master/common_docs/Secure_Noise_Generation.pdf
+// https://github.com/google/differential-privacy/blob/main/common_docs/Secure_Noise_Generation.pdf
 // for more information.
 func Laplace() Noise {
 	return laplace{}
@@ -74,16 +74,20 @@ func (laplace) AddNoiseInt64(x, l0Sensitivity, lInfSensitivity int64, epsilon, d
 		log.Fatalf("laplace.AddNoiseInt64(l0sensitivity %d, lInfSensitivity %d, epsilon %f, delta %e) checks failed with %v",
 			l0Sensitivity, lInfSensitivity, epsilon, delta, err)
 	}
-	return int64(math.Round(addLaplace(float64(x), epsilon, float64(lInfSensitivity*l0Sensitivity) /* l1Sensitivity */)))
+	// Calling addLaplace on 0.0 avoids casting x to a float64 value, which is not secure from a
+	// privacy perspective as it can have unforeseen effects on the sensitivity of x. Rounding and
+	// adding the resulting noise to x in a post processing step is a secure operation (for noise of
+	// moderate magnitude, i.e. < 2^53).
+	return int64(math.Round(addLaplace(0.0, epsilon, float64(lInfSensitivity*l0Sensitivity) /* l1Sensitivity */))) + x
 }
 
 // Threshold returns the smallest threshold k to use in a differentially private
 // histogram with added Laplace noise. Like other functions for Laplace noise,
-// it fails if deltaNoise is non-zero.
-func (laplace) Threshold(l0Sensitivity int64, lInfSensitivity, epsilon, deltaNoise, deltaThreshold float64) float64 {
-	if err := checkArgsLaplace("ThresholdForLaplace", l0Sensitivity, lInfSensitivity, epsilon, deltaNoise); err != nil {
-		log.Fatalf("laplace.Threshold(l0sensitivity %d, lInfSensitivity %f, epsilon %f, deltaNoise %e, deltaThreshold %e) checks failed with %v",
-			l0Sensitivity, lInfSensitivity, epsilon, deltaNoise, deltaThreshold, err)
+// it fails if noiseDelta is non-zero.
+func (laplace) Threshold(l0Sensitivity int64, lInfSensitivity, epsilon, noiseDelta, thresholdDelta float64) float64 {
+	if err := checkArgsLaplace("ThresholdForLaplace", l0Sensitivity, lInfSensitivity, epsilon, noiseDelta); err != nil {
+		log.Fatalf("laplace.Threshold(l0sensitivity %d, lInfSensitivity %f, epsilon %f, noiseDelta %e, thresholdDelta %e) checks failed with %v",
+			l0Sensitivity, lInfSensitivity, epsilon, noiseDelta, thresholdDelta, err)
 	}
 	// λ is the scale of the Laplace noise that needs to be added to each sum
 	// to get pure ε-differential privacy if all keys are the same.
@@ -117,13 +121,13 @@ func (laplace) Threshold(l0Sensitivity int64, lInfSensitivity, epsilon, deltaNoi
 	// corresponds to the case where F(k) ≥ 0.5. We are solving for k in the
 	// inequality F(k) ≥ 1-δ_p, which puts us in the F(k) ≥ 0.5 case when
 	// 1-δ/l0Sensitivity ≥ 0.5 (and hence δ_p ≤ 0.5).
-	partitionDelta := 1 - math.Pow(1-deltaThreshold, 1/float64(l0Sensitivity))
-	if deltaThreshold < deltaLowPrecisionThreshold {
+	partitionDelta := 1 - math.Pow(1-thresholdDelta, 1/float64(l0Sensitivity))
+	if thresholdDelta < deltaLowPrecisionThreshold {
 		// The above calculation of partitionDelta can lose precision in the 1-delta
 		// computation if delta is too small. So, we fall back on the lower bound of
 		// partitionDelta that does not make the independence assumption. This lower
 		// bound will be more accurate for sufficiently small delta.
-		partitionDelta = deltaThreshold / float64(l0Sensitivity)
+		partitionDelta = thresholdDelta / float64(l0Sensitivity)
 	}
 	if partitionDelta <= 0.5 {
 		return lInfSensitivity - lambda*math.Log(2*partitionDelta)
@@ -135,17 +139,20 @@ func (laplace) Threshold(l0Sensitivity int64, lInfSensitivity, epsilon, deltaNoi
 // passed to AddNoise and a threshold, it returns the delta induced by
 // thresholding. Just like other functions for Laplace noise, it fails if
 // delta is non-zero.
-func (laplace) DeltaForThreshold(l0Sensitivity int64, lInfSensitivity, epsilon, delta, k float64) float64 {
+//
+// Note that this function is not officially supported and might be removed
+// in the future.
+func (laplace) DeltaForThreshold(l0Sensitivity int64, lInfSensitivity, epsilon, delta, threshold float64) float64 {
 	if err := checkArgsLaplace("DeltaForThresholdedLaplace", l0Sensitivity, lInfSensitivity, epsilon, delta); err != nil {
 		log.Fatalf("laplace.DeltaForThreshold(l0sensitivity %d, lInfSensitivity %f, epsilon %f, delta %e, k %f) checks failed with %v",
-			l0Sensitivity, lInfSensitivity, epsilon, delta, k, err)
+			l0Sensitivity, lInfSensitivity, epsilon, delta, threshold, err)
 	}
 	lambda := laplaceLambda(l0Sensitivity, lInfSensitivity, epsilon)
 	var partitionDelta float64
-	if k >= lInfSensitivity {
-		partitionDelta = 0.5 * math.Exp(-(k-lInfSensitivity)/lambda)
+	if threshold >= lInfSensitivity {
+		partitionDelta = 0.5 * math.Exp(-(threshold-lInfSensitivity)/lambda)
 	} else {
-		partitionDelta = (1 - 0.5*math.Exp((k-lInfSensitivity)/lambda))
+		partitionDelta = (1 - 0.5*math.Exp((threshold-lInfSensitivity)/lambda))
 	}
 	if partitionDelta < deltaLowPrecisionThreshold {
 		// This is an upper bound on the induced delta that does not use

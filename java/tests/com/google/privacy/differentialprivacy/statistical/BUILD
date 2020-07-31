@@ -18,110 +18,84 @@ package(default_visibility = [
 ])
 
 java_test(
-    name = "reference_noise_util_test",
-    size = "small",
-    srcs = [
-        "ReferenceNoiseUtilTest.java",
-    ],
-    test_class = "com.google.privacy.differentialprivacy.testing.ReferenceNoiseUtilTest",
-    deps = [
-        "//main/com/google/privacy/differentialprivacy/testing",
-        "@maven//:com_google_guava_guava",
-        "@maven//:com_google_truth_truth",
-        "@maven//:junit_junit",
-    ],
-)
-
-java_test(
-    name = "statistical_utils_test",
-    size = "small",
-    srcs = [
-        "StatisticalTestsUtilTest.java",
-    ],
-    test_class = "com.google.privacy.differentialprivacy.testing.StatisticalTestsUtilTest",
-    deps = [
-        "//main/com/google/privacy/differentialprivacy/testing",
-        "@maven//:com_google_guava_guava",
-        "@maven//:com_google_truth_truth",
-        "@maven//:junit_junit",
-    ],
-)
-
-java_test(
-    name = "laplace_closeness_test_cases_validity_tests",
-       size = "enormous",
-    srcs = ["LaplaceClosenessTestCasesValidityTest.java"],
+    name = "laplace_closeness_tests",
+    size = "enormous",
+    srcs = ["LaplaceClosenessTest.java"],
     resources = [
         "@com_google_differential_privacy//proto/testing:laplace_closeness_test_cases.textproto",
     ],
     # The shard count must match the number of test cases defined in laplace_closeness_test_cases.textproto
     shard_count = 19,
-    test_class = "com.google.privacy.differentialprivacy.testing.LaplaceClosenessTestCasesValidityTest",
+    test_class = "com.google.privacy.differentialprivacy.LaplaceClosenessTest",
     deps = [
+        "//main/com/google/privacy/differentialprivacy",
         "//main/com/google/privacy/differentialprivacy/testing",
         "@com_google_differential_privacy//proto/testing:statistical_tests_java_proto",
+        "@com_google_protobuf//:protobuf_java",
         "@maven//:com_google_guava_guava",
-        "@maven//:com_google_protobuf_protobuf_java",
         "@maven//:com_google_truth_truth",
         "@maven//:junit_junit",
     ],
 )
 
 java_test(
-    name = "count_dp_test_cases_validity_tests",
-       size = "enormous",
-    srcs = ["CountDpTestCasesValidityTest.java"],
+    name = "count_dp_tests",
+    size = "enormous",
+    srcs = ["CountDpTest.java"],
     resources = [
         "@com_google_differential_privacy//proto/testing:count_dp_test_cases.textproto",
     ],
     # The shard count must match the number of test cases defined in count_dp_test_cases.textproto
     shard_count = 36,
-    test_class = "com.google.privacy.differentialprivacy.testing.CountDpTestCasesValidityTest",
+    test_class = "com.google.privacy.differentialprivacy.CountDpTest",
     deps = [
+        "//main/com/google/privacy/differentialprivacy",
         "//main/com/google/privacy/differentialprivacy/testing",
         "@com_google_differential_privacy//proto/testing:statistical_tests_java_proto",
+        "@com_google_protobuf//:protobuf_java",
         "@maven//:com_google_guava_guava",
-        "@maven//:com_google_protobuf_protobuf_java",
         "@maven//:com_google_truth_truth",
         "@maven//:junit_junit",
     ],
 )
 
 java_test(
-    name = "bounded_mean_dp_test_cases_validity_tests",
-       size = "enormous",
-    srcs = ["BoundedMeanDpTestCasesValidityTest.java"],
+    name = "bounded_mean_dp_tests",
+    size = "enormous",
+    srcs = ["BoundedMeanDpTest.java"],
     resources = [
         "@com_google_differential_privacy//proto/testing:bounded_mean_dp_test_cases.textproto",
     ],
     # The shard count must match the number of test cases defined in bounded_mean_dp_test_cases.textproto
     shard_count = 47,
-    test_class = "com.google.privacy.differentialprivacy.testing.BoundedMeanDpTestCasesValidityTest",
+    test_class = "com.google.privacy.differentialprivacy.BoundedMeanDpTest",
     deps = [
+        "//main/com/google/privacy/differentialprivacy",
         "//main/com/google/privacy/differentialprivacy/testing",
         "@com_google_differential_privacy//proto/testing:statistical_tests_java_proto",
+        "@com_google_protobuf//:protobuf_java",
         "@maven//:com_google_guava_guava",
-        "@maven//:com_google_protobuf_protobuf_java",
         "@maven//:com_google_truth_truth",
         "@maven//:junit_junit",
     ],
 )
 
 java_test(
-    name = "bounded_sum_dp_test_cases_validity_tests",
-       size = "enormous",
-    srcs = ["BoundedSumDpTestCasesValidityTest.java"],
+    name = "bounded_sum_dp_tests",
+    size = "enormous",
+    srcs = ["BoundedSumDpTest.java"],
     resources = [
         "@com_google_differential_privacy//proto/testing:bounded_sum_dp_test_cases.textproto",
     ],
     # The shard count must match the number of test cases defined in bounded_sum_dp_test_cases.textproto
     shard_count = 38,
-    test_class = "com.google.privacy.differentialprivacy.testing.BoundedSumDpTestCasesValidityTest",
+    test_class = "com.google.privacy.differentialprivacy.BoundedSumDpTest",
     deps = [
+        "//main/com/google/privacy/differentialprivacy",
         "//main/com/google/privacy/differentialprivacy/testing",
         "@com_google_differential_privacy//proto/testing:statistical_tests_java_proto",
+        "@com_google_protobuf//:protobuf_java",
         "@maven//:com_google_guava_guava",
-        "@maven//:com_google_protobuf_protobuf_java",
         "@maven//:com_google_truth_truth",
         "@maven//:junit_junit",
     ],

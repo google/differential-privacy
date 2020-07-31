@@ -185,6 +185,94 @@ public class BoundedSumBuilderTest {
   }
 
   @Test
+  public void maxPartitionsContributedAndUpperTooHigh_l1Overflow_throwsException() {
+    builder
+        .lower(1)
+        .upper(Double.MAX_VALUE / 2)
+        .maxContributionsPerPartition(1)
+        .maxPartitionsContributed(4)
+        .noise(new LaplaceNoise());
+
+    // An exception should be thrown because l1Sensitivity overflows.
+    // More precisely:
+    //   lInfSensitivity =
+    //     max(abs(lower), abs(upper)) * maxContributionsPerPartition =
+    //     max(abs(1), abs(Double.MAX_VALUE / 2)) * 1 =
+    //     Double.MAX_VALUE / 2
+    //   l1Sensitivity = lInfSensitivity * l0Sensitivity =
+    //     (Double.MAX_VALUE / 2) * 4 =
+    //     Double.MAX_VALUE * 2
+    //    => l1Sensitivity overflows
+    assertThrows(IllegalArgumentException.class, builder::build);
+  }
+
+  @Test
+  public void maxPartitionsContributedAndLowerTooHigh_l1Overflow_throwsException() {
+    builder
+        .lower(-Double.MAX_VALUE / 2)
+        .upper(12)
+        .maxContributionsPerPartition(1)
+        .maxPartitionsContributed(4)
+        .noise(new LaplaceNoise());
+
+    // An exception should be thrown because l1Sensitivity overflows.
+    // More precisely:
+    //   lInfSensitivity =
+    //     max(abs(lower), abs(upper)) * maxContributionsPerPartition =
+    //     max(abs(1), abs(Double.MAX_VALUE / 2)) * 1 =
+    //     Double.MAX_VALUE / 2
+    //   l1Sensitivity = lInfSensitivity * l0Sensitivity =
+    //     (Double.MAX_VALUE / 2) * 4 =
+    //     Double.MAX_VALUE * 2
+    //    => l1Sensitivity overflows
+    assertThrows(IllegalArgumentException.class, builder::build);
+  }
+
+  @Test
+  public void maxPartitionsContributedAndUpperTooHigh_l2Overflow_throwsException() {
+    builder
+        .lower(1)
+        .upper(Double.MAX_VALUE / 2)
+        .maxContributionsPerPartition(1)
+        .maxPartitionsContributed(16)
+        .noise(new GaussianNoise());
+
+    // An exception should be thrown because l1Sensitivity overflows.
+    // More precisely:
+    //   lInfSensitivity =
+    //     max(abs(lower), abs(upper)) * maxContributionsPerPartition =
+    //     max(abs(1), abs(Double.MAX_VALUE / 2)) * 1 =
+    //     Double.MAX_VALUE / 2
+    //   l2Sensitivity = lInfSensitivity * sqrt(l0Sensitivity) =
+    //     (Double.MAX_VALUE / 2) * sqrt(16) =
+    //     Double.MAX_VALUE * 2
+    //    => l2Sensitivity overflows
+    assertThrows(IllegalArgumentException.class, builder::build);
+  }
+
+  @Test
+  public void maxPartitionsContributedAndLowerTooHigh_l2Overflow_throwsException() {
+    builder
+        .lower(-Double.MAX_VALUE / 2)
+        .upper(1)
+        .maxContributionsPerPartition(1)
+        .maxPartitionsContributed(16)
+        .noise(new GaussianNoise());
+
+    // An exception should be thrown because l1Sensitivity overflows.
+    // More precisely:
+    //   lInfSensitivity =
+    //     max(abs(lower), abs(upper)) * maxContributionsPerPartition =
+    //     max(abs(1), abs(Double.MAX_VALUE / 2)) * 1 =
+    //     Double.MAX_VALUE / 2
+    //   l2Sensitivity = lInfSensitivity * sqrt(l0Sensitivity) =
+    //     (Double.MAX_VALUE / 2) * sqrt(16) =
+    //     Double.MAX_VALUE * 2
+    //    => l2Sensitivity overflows
+    assertThrows(IllegalArgumentException.class, builder::build);
+  }
+
+  @Test
   public void noise_notProvided_noException() {
     // No exception should be thrown if no Noise instance is provided because the builder
     // should automatically provide a default instance of Noise.
@@ -227,22 +315,30 @@ public class BoundedSumBuilderTest {
   }
 
   @Test
-  public void macContributionsPerPartitionAndUpper_tooHigh_throwsException() {
+  public void macContribsPerPartitionAndUpperTooHigh_lInfOverflow_throwsException() {
     builder.lower(1).upper(Double.MAX_VALUE).maxContributionsPerPartition(2);
 
-    // An exception should be thrown because lInfSensitivity should overflow.
-    // More precisely: lInfSensitivity = max(abs(lower), abs(upper)) * maxContributionsPerPartition
-    // = max(abs(1), abs(Double.MAX_VALUE)) * 2 = Double.MAX_VALUE * 2 => Double overflow.
+    // An exception should be thrown because lInfSensitivity overflows.
+    // More precisely:
+    //   lInfSensitivity =
+    //     max(abs(lower), abs(upper)) * maxContributionsPerPartition =
+    //     max(abs(1), abs(Double.MAX_VALUE)) * 2 =
+    //     Double.MAX_VALUE * 2
+    //     => Double overflow.
     assertThrows(IllegalArgumentException.class, builder::build);
   }
 
   @Test
-  public void maxContributionsPerPartitionAndLower_tooHigh_throwsException() {
+  public void macContribsPerPartitionAndLowerTooHigh_lInfOverflow_throwsException() {
     builder.lower(-Double.MAX_VALUE).upper(1).maxContributionsPerPartition(2);
 
-    // An exception shouldd be thrown because LInfSensitivity should overflow.
-    // More precisely: LInfSensitivity = max(abs(lower), abs(upper)) * maxContributionsPerPartition
-    // = max(abs(-Double.MAX_VALUE), abs(1)) * 2 = Double.MAX_VALUE * 2 => Double overflow.
+    // An exception shouldd be thrown because LInfSensitivity overflows.
+    // More precisely:
+    //   lInfSensitivity =
+    //     max(abs(lower), abs(upper)) * maxContributionsPerPartition =
+    //     max(abs(-Double.MAX_VALUE), abs(1)) * 2 =
+    //     Double.MAX_VALUE * 2
+    //     => Double overflow.
     assertThrows(IllegalArgumentException.class, builder::build);
   }
 }

@@ -42,7 +42,7 @@ static constexpr double kBinomialBound = (double)(1LL << 57);
 // binomial distribution of n Bernoulli trials that have a success probability
 // of 1 / 2 each. The approximation is taken from Lemma 7 of the noise
 // generation documentation available in
-// https://github.com/google/differential-privacy/blob/master/common_docs/Secure_Noise_Generation.pdf
+// https://github.com/google/differential-privacy/blob/main/common_docs/Secure_Noise_Generation.pdf
 double ApproximateBinomialProbability(double sqrt_n, int64_t m) {
   if (abs(m) > sqrt_n * sqrt(log(sqrt_n) / 2)) return 0;
 

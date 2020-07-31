@@ -4,7 +4,7 @@
 
 # Algorithm
 
-[`Algorithm`](https://github.com/google/differential-privacy/blob/master/cc/algorithms/algorithm.h) is the base class of all
+[`Algorithm`](https://github.com/google/differential-privacy/blob/main/cc/algorithms/algorithm.h) is the base class of all
 differentially private algorithms. Each algorithm can be constructed using the
 builder pattern, which sets its parameters. `Algorithms` are incremental: it's
 possible to insert some data and get a result, then _add more data_ and get a

@@ -227,9 +227,7 @@ class AlgorithmBuilder {
     return *static_cast<Builder*>(this);
   }
 
- protected:
-  virtual base::StatusOr<std::unique_ptr<Algorithm>> BuildAlgorithm() = 0;
-
+ private:
   absl::optional<double> epsilon_;
   absl::optional<double> delta_;
   absl::optional<int> l0_sensitivity_;
@@ -238,6 +236,22 @@ class AlgorithmBuilder {
   // The mechanism builder is used to interject custom mechanisms for testing.
   std::unique_ptr<LaplaceMechanism::Builder> mechanism_builder_ =
       absl::make_unique<LaplaceMechanism::Builder>();
+
+ protected:
+  absl::optional<double> GetEpsilon() const { return epsilon_; }
+  absl::optional<double> GetDelta() const { return delta_; }
+  absl::optional<int> GetMaxPartitionsContributed() const {
+    return l0_sensitivity_;
+  }
+  absl::optional<int> GetMaxContributionsPerPartition() const {
+    return linf_sensitivity_;
+  }
+
+  std::unique_ptr<LaplaceMechanism::Builder> GetMechanismBuilderClone() const {
+    return mechanism_builder_->Clone();
+  }
+
+  virtual base::StatusOr<std::unique_ptr<Algorithm>> BuildAlgorithm() = 0;
 
   base::StatusOr<std::unique_ptr<NumericalMechanism>>
   UpdateAndBuildMechanism() {

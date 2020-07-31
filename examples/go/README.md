@@ -26,9 +26,16 @@ and the money the visitor spent at the restaurant.
 Navigate to `examples/go` folder, build the codelab code and run it with the
 `scenario=scenario=CountVisitsPerHour` argument.
 
+Linux
 ```shell
 $ cd examples/go
-$ bazel run examples_main -- --scenario=CountVisitsPerHour --input_file=data/day_data.csv --non_private_output_file=$(pwd)/non_private.csv --private_output_file=$(pwd)/private.csv
+$ bazel run examples_main -- --scenario=CountVisitsPerHour --input_file=$(pwd)/data/day_data.csv --non_private_output_file=$(pwd)/non_private.csv --private_output_file=$(pwd)/private.csv
+```
+
+Windows
+```shell
+$ cd examples/go
+$ bazel run examples_main -- --scenario=CountVisitsPerHour --input_file=%CD%/data/day_data.csv --non_private_output_file=%CD%/non_private.csv --private_output_file=%CD%/private.csv
 ```
 
 This triggers the logic of `CountVisitsPerHourScenario`. It reads the
@@ -108,9 +115,16 @@ the money spent at the restaurant, and the day of the visit.
 Navigate to `examples/go` folder, build the codelab code and run it with the
 `scenario=CountVisitsPerDay` argument.
 
+Linux
 ```shell
 $ cd examples/go
-$ bazel run examples_main -- --scenario=CountVisitsPerDay --input_file=data/week_data.csv --non_private_output_file=$(pwd)/non_private.csv --private_output_file=$(pwd)/private.csv
+$ bazel run examples_main -- --scenario=CountVisitsPerDay --input_file=$(pwd)/data/week_data.csv --non_private_output_file=$(pwd)/non_private.csv --private_output_file=$(pwd)/private.csv
+```
+
+Windows
+```shell
+$ cd examples/go
+$ bazel run examples_main -- --scenario=CountVisitsPerDay --input_file=%CD%/data/week_data.csv --non_private_output_file=%CD%/non_private.csv --private_output_file=%CD%/private.csv
 ```
 
 This triggers the logic of `CountVisitsPerDayScenario`. It calculates
@@ -151,8 +165,8 @@ for _, day := range weekDays {
     dayToDpCount[day] = dpagg.NewCount(&dpagg.CountOptions{
         Epsilon: ln3,
         // The data was pre-processed so that
-        // each user may visit the restaurant up to maxThreeVisitsPerWeek times per week.
-        // Hence, each user may contribute to up to maxThreeVisitsPerWeek daily counts.
+        // each visitor may visit the restaurant up to maxThreeVisitsPerWeek times per week.
+        // Hence, each visitor may contribute to up to maxThreeVisitsPerWeek daily counts.
         // Note: while the library accepts this limit as a configurable parameter,
         // it doesn't pre-process the data to ensure this limit is respected.
         // It is responsibility of the caller to ensure the data passed to the library
@@ -164,7 +178,7 @@ for _, day := range weekDays {
 }
 
 // Pre-process the data set by limiting the number of visits to
-// maxThreeVisitsPerWeek per VisitorId.
+// maxThreeVisitsPerWeek per VisitorID.
 boundedVisits := boundVisits(weekVisits, maxThreeVisitsPerWeek)
 for _, visit := range boundedVisits {
     day := visit.Day
@@ -212,9 +226,16 @@ the money spent at the restaurant, and the day of the visit.
 Navigate to `examples/go` folder, build the codelab code and run it with the
 `scenario=scenario=SumRevenuePerDay` argument.
 
+Linux
 ```shell
 $ cd examples/go
-$ bazel run examples_main -- --scenario=SumRevenuePerDayScenario --input_file=data/week_data.csv --non_private_output_file=$(pwd)/non_private.csv --private_output_file=$(pwd)/private.csv
+$ bazel run examples_main -- --scenario=SumRevenuePerDayScenario --input_file=$(pwd)/data/week_data.csv --non_private_output_file=$(pwd)/non_private.csv --private_output_file=$(pwd)/private.csv
+```
+
+Windows
+```shell
+$ cd examples/go
+$ bazel run examples_main -- --scenario=SumRevenuePerDayScenario --input_file=%CD%/data/week_data.csv --non_private_output_file=%CD%/non_private.csv --private_output_file=%CD%/private.csv
 ```
 
 This triggers the logic of SumRevenuePerDayScenario. It sums the amount of money
@@ -239,7 +260,6 @@ const (
     // TODO: Clarify why we're assuming 4 average visits per week, and why we're calling it a max
     // An estimate of how many times on average a visitor may enter the restaurant per week
     maxFourVisitsPerWeek = 4
-    // TODO: Make geographically agnostic
     minEurosSpent = 0
     // TODO: Clarify why we're limiting how much money may be spent.
     // Maximum amount of money we expect a visitor to spend on a single visit.
@@ -252,8 +272,8 @@ for _, day := range weekDays {
     dayToBoundedSum[day] = dpagg.NewBoundedSumInt64(&dpagg.BoundedSumInt64Options{
         Epsilon: ln3,
         // The data was pre-processed so that
-        // each user may visit the restaurant up to maxFourVisitsPerWeek times per week.
-        // Hence, each user may contribute to up to maxFourVisitsPerWeek daily counts.
+        // each visitor may visit the restaurant up to maxFourVisitsPerWeek times per week.
+        // Hence, each visitor may contribute to up to maxFourVisitsPerWeek daily counts.
         // Note: while the library accepts this limit as a configurable parameter,
         // it doesn't pre-process the data to ensure this limit is respected.
         // It is responsibility of the caller to ensure the data passed to the library
@@ -324,9 +344,16 @@ the money spent at the restaurant, and the day of the visit.
 Navigate to `examples/go` folder, build the codelab code and run it with the
 `scenario=scenario=CountVisitsPerDuration` argument.
 
+Linux
 ```shell
 $ cd examples/go
-$ bazel run examples_main -- --scenario=CountVisitsPerDuration --input_file=data/outliers_week_data.csv --non_private_output_file=$(pwd)/non_private.csv --private_output_file=$(pwd)/private.csv
+$ bazel run examples_main -- --scenario=CountVisitsPerDuration --input_file=$(pwd)/data/outliers_week_data.csv --non_private_output_file=$(pwd)/non_private.csv --private_output_file=$(pwd)/private.csv
+```
+
+Windows
+```shell
+$ cd examples/go
+$ bazel run examples_main -- --scenario=CountVisitsPerDuration --input_file=%CD%/data/outliers_week_data.csv --non_private_output_file=%CD%/non_private.csv --private_output_file=%CD%/private.csv
 ```
 
 This triggers the logic of `CountVisitsPerCertainDurationScenario`. It
@@ -363,7 +390,7 @@ contribute to the same partition.
 
 Even though we want to calculate the count of visit durations, we can't use
 `dpagg.Count` for that because it can only be used for calculating count of
-distinct users, which is not what we want in this case (i.e., we want to include
+distinct visitors, which is not what we want in this case (i.e., we want to include
 the fact that the same visitor may be in the restaurant several times a week).
 Therefore we should use `dpagg.BoundedSumInt64`.
 
@@ -402,7 +429,7 @@ for _, visit := range boundedVisits {
     })
 
     // Construct dpagg.BoundedSumInt64 objects, which will be used to calculate DP
-    // counts with multiple contributions from a single user.
+    // counts with multiple contributions from a single privacy unit (visitor).
     // One dpagg.BoundedSumInt64 is created for every duration.
     // We use epsilon = log(3) / 2 in this example,
     // because we must split epslion between all the functions that apply differential privacy,
@@ -420,7 +447,7 @@ for _, visits := range visitorIDToDurationToVisitCount {
     for duration, totalVisits := range visits {
         durationToBoundedSum[duration].Add(totalVisits)
         // Count distinct visitors for each duration.
-        durationToSelectPartition[duration].Add()
+        durationToSelectPartition[duration].Increment()
     }
 }
 
@@ -430,7 +457,7 @@ for duration, boundedSum := range durationToBoundedSum {
     // If there are enough visitors within this duration,
     // then it will appear in the result statistics table.
     // Otherwise, the duration's partition is simply dropped and excluded from the result.
-    if durationToSelectPartition[duration].Result() {
+    if durationToSelectPartition[duration].ShouldKeepPartition() {
         privateSums[duration] = boundedSum.Result()
     }
 }
@@ -438,19 +465,21 @@ for duration, boundedSum := range durationToBoundedSum {
 
 ### Partition selection
 
-Having too few users contributing to a partition, or having too few results in a
-partition, can put users' privacy at risk, even after adding noise to the data.
-More precisely, if the set of partitions is not known in advance, the presence
-of a particular partition in the output can give an attacker information about
-the users in the dataset. In order to protect against such cases, we need to
-remove these partitions with too few contributions from the output.
+Having too few privacy units (visitors) contributing to a partition, or having
+too few results in a partition, can put users' privacy at risk, even after
+adding noise to the data. More precisely, if the set of partitions is not known
+in advance, the presence of a particular partition in the output can give an
+attacker information about the users in the dataset. In order to protect against
+such cases, we need to remove these partitions with too few contributions from
+the output.
 
 There are 2 approaches for doing this:
 
 *   **Pre-aggregation partition selection**. Drop partitions which do not have
-    a sufficient number of contributing users. Note that these partitions may
-    still be included in other aggregation functions' results, if there are
-    sufficient contributing users for that aggregation.
+    a sufficient number of contributing privacy units. Note that these
+    partitions may still be included in other aggregation functions' results,
+    if there are sufficiently many contributing privacy units for that
+    aggregation.
 *   **Post-aggregation partition selection**. Apply a threshold to the result
     of an aggregation. This can be only used with count and sum aggregations.
     This threshold is independent from the data; it is calculated using given
@@ -470,7 +499,7 @@ for duration, boundedSum := range durationToBoundedSum {
     // If there are enough visitors within this duration,
     // then it will appear in the result statistics table.
     // Otherwise, the duration's partition is simply dropped and excluded from the result.
-    keepPartition := durationToSelectPartition[duration].Result()
+    keepPartition := durationToSelectPartition[duration].ShouldKeepPartition()
     if keepPartition {
         privateSums[duration] = boundedSum.Result()
     }
@@ -485,11 +514,12 @@ these parameters is shown on the following chart:
 
 ![Threshold](img/partition_selection.png)
 
-Notice that the probability of keeping the partitions with >= 30 users
-is equal to 1 and the probability of keeping partitions with < 30 users
-is > 0 and < 1. That means that partitions with >= 30 users will always be kept
-and other partitions might be either eliminated or kept. Thus, we can say that
-30 users is a hard threshold for keeping the partition.
+Notice that the probability of keeping the partitions with >= 30 privacy units
+(visitors) is equal to 1 and the probability of keeping partitions with < 30
+privacy units is > 0 and < 1. That means that partitions with >= 30 privacy
+units will always be kept and other partitions might be either eliminated or
+kept. Thus, we can say that 30 privacy units is a hard threshold for keeping
+the partition.
 
 Let's have a closer look to the result bars above. Two partitions were
 eliminated:
@@ -510,5 +540,5 @@ eliminated:
 
 Another interesting observation is that there are 35 visits with duration of 110
 minutes. Looking at the dataset, it can be seen that they are all from different
-visitors. The probability of keeping a partition with 35 users is equal to 1
-(see the chart above), which is why it isn’t eliminated.
+visitors. The probability of keeping a partition with 35 privacy units (visitors)
+is equal to 1 (see the chart above), which is why it isn’t eliminated.

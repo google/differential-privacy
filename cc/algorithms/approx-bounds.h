@@ -166,12 +166,12 @@ class ApproxBounds : public Algorithm<T> {
         // Laplacian noise is added.
         k_ = -log(2 - 2 * std::pow(success_probability_,
                                    1.0 / (2 * num_bins_ - 1))) /
-             AlgorithmBuilder::epsilon_.value();
+             AlgorithmBuilder::GetEpsilon().value();
       }
 
       // Create ApproxBounds.
       return absl::WrapUnique(
-          new ApproxBounds(AlgorithmBuilder::epsilon_.value(), num_bins_,
+          new ApproxBounds(AlgorithmBuilder::GetEpsilon().value(), num_bins_,
                            scale_, base_, k_, has_k_, std::move(mechanism)));
     }
 
@@ -616,6 +616,7 @@ class ApproxBounds : public Algorithm<T> {
     return NumInputsOutside(0, 0);
   }
 
+ private:
   // Count the values in each logarithmic bin for positives and negatives.
   std::vector<int64_t> pos_bins_;
   std::vector<int64_t> neg_bins_;

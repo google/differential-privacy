@@ -16,7 +16,11 @@
 
 package com.google.privacy.differentialprivacy;
 
+import static java.lang.Math.abs;
+import static java.lang.Math.max;
+
 import com.google.auto.value.AutoValue;
+import com.google.common.base.Preconditions;
 import com.google.differentialprivacy.Data.ValueType;
 import com.google.differentialprivacy.SummaryOuterClass.BoundedSumSummary;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -24,11 +28,12 @@ import java.util.Collection;
 import javax.annotation.Nullable;
 
 /**
- * Calculates a differentially private sum for a collection of values.
+ * Calculates a differentially private sum for a collection of values using the Laplace or Gaussian
+ * mechanism.
  *
- * <p>This class allows an individual privacy unit (e.g., a single user) to contribute data to
- * multiple different partitions. The class does not check whether the number of partitions is
- * within the specified bounds. This is the responsibility of the caller.
+ * <p>This class allows a single privacy unit (e.g., an individual) to contribute data to multiple
+ * different partitions. The class does not check whether the number of partitions is within the
+ * specified bounds. This is the responsibility of the caller.
  *
  * <p>This class assumes that each privacy unit may contribute to a single partition only once
  * (i.e., only one data contribution per privacy unit per partition). Multiple contributions from a
@@ -37,13 +42,16 @@ import javax.annotation.Nullable;
  * <p>The user can provide a {@link Noise} instance which will be used to generate the noise. If no
  * instance is specified, {@link LaplaceNoise} is applied.
  *
+ * <p>This class provides an unbiased estimator for the raw bounded sum meaning that the expected
+ * value of the differentially private bounded sum is equal to the raw bounded sum.
+ *
  * <p>Note: this class is not thread-safe.
  *
  * <p>For more implementation details, see {@link #computeResult()}.
  *
  * <p>For general details and key definitions, see <a href=
- * "https://github.com/google/differential-privacy/blob/master/differential_privacy.md#key-definition">
- * the introduction to Differential Privacy</a>.
+ * "https://github.com/google/differential-privacy/blob/main/differential_privacy.md#key-definitions">
+ * this</a> introduction to Differential Privacy.
  */
 public class BoundedSum {
 
@@ -100,6 +108,14 @@ public class BoundedSum {
    * Computes and returns a differentially private sum of the elements added via {@link #addEntry}
    * and {@link #addEntries}. The method can be called only once for a given collection of elements.
    * All subsequent calls will throw an exception.
+   *
+   * <p>The returned value is an unbiased estimate of the raw bounded sum.
+   *
+   * <p>The returned value may sometimes be outside the set of possible raw bounded sums, e.g., the
+   * differentially private bounded sum may be positive although neither the lower nor the upper
+   * bound are positive. This can be corrected by the caller of this method, e.g., by snapping the
+   * result to the closest value representing a bounded sum that is possible. Note that such post
+   * processing introduces bias to the result.
    */
   public double computeResult() {
     if (resultReturned) {
@@ -107,9 +123,11 @@ public class BoundedSum {
     }
 
     resultReturned = true;
+    double lInfSensitivity =
+        getLInfSensitivity(params.lower(), params.upper(), params.maxContributionsPerPartition());
     return params
         .noise()
-        .addNoise(sum, getL0Sensitivity(), getLInfSensitivity(), params.epsilon(), params.delta());
+        .addNoise(sum, getL0Sensitivity(), lInfSensitivity, params.epsilon(), params.delta());
   }
 
   /**
@@ -173,22 +191,19 @@ public class BoundedSum {
   private void checkMergeParametersAreEqual(BoundedSumSummary otherSum) {
     DpPreconditions.checkMergeMechanismTypesAreEqual(
         params.noise().getMechanismType(), otherSum.getMechanismType());
-    DpPreconditions.checkMergeEpsilonAreEqual(
-        params.epsilon(), otherSum.getEpsilon());
-    DpPreconditions.checkMergeDeltaAreEqual(
-        params.delta(), otherSum.getDelta());
+    DpPreconditions.checkMergeEpsilonAreEqual(params.epsilon(), otherSum.getEpsilon());
+    DpPreconditions.checkMergeDeltaAreEqual(params.delta(), otherSum.getDelta());
     DpPreconditions.checkMergeMaxPartitionsContributedAreEqual(
-        params.maxPartitionsContributed(),
-        otherSum.getMaxPartitionsContributed());
+        params.maxPartitionsContributed(), otherSum.getMaxPartitionsContributed());
     DpPreconditions.checkMergeMaxContributionsPerPartitionAreEqual(
         params.maxContributionsPerPartition(), otherSum.getMaxContributionsPerPartition());
     DpPreconditions.checkMergeBoundsAreEqual(
         params.lower(), otherSum.getLower(), params.upper(), otherSum.getUpper());
   }
 
-  private double getLInfSensitivity() {
-    return Math.max(Math.abs(params.lower()), Math.abs(params.upper()))
-        * params.maxContributionsPerPartition();
+  private static double getLInfSensitivity(
+      double lower, double upper, int maxContributionsPerPartition) {
+    return max(abs(lower), abs(upper)) * maxContributionsPerPartition;
   }
 
   private int getL0Sensitivity() {
@@ -216,16 +231,51 @@ public class BoundedSum {
 
     @AutoValue.Builder
     public abstract static class Builder {
-      private static void checkLInfOverflow(double bound, int maxContributionsPerPartition) {
-        // When Math.abs(bound) * maxContributionsPerPartition overflows, it becomes
-        // Double.POSITIVE_INFINITY, which is bigger than Double.MAX_VALUE.
-        if (Double.compare(Math.abs(bound) * maxContributionsPerPartition, Double.MAX_VALUE) > 0) {
-          throw new IllegalArgumentException(
-              String.format(
-                  "bound and maxContributionsPerPartition are too high - the LInfSensitivity may"
-                      + " overflow. Provided values: bound = %s, maxContributionsPerPartition = %d",
-                  bound, maxContributionsPerPartition));
-        }
+      private static void checkLInfSensitivityOverflow(
+          double lower, double upper, int maxContributionsPerPartition) {
+        double lInfSensitivity = getLInfSensitivity(lower, upper, maxContributionsPerPartition);
+        Preconditions.checkArgument(
+            Double.compare(lInfSensitivity, Double.MAX_VALUE) <= 0,
+            "bounds and maxContributionsPerPartition are too high - the LInfSensitivity "
+                + " overflows. Provided values: lower bound = %s, upper bound = %s,"
+                + " maxContributionsPerPartition = %s",
+            lower,
+            upper,
+            maxContributionsPerPartition);
+      }
+
+      private static void checkL1SensitivityOverflow(
+          double lower,
+          double upper,
+          int maxContributionsPerPartition,
+          int maxPartitionsContributed) {
+        double lInfSensitivity = getLInfSensitivity(lower, upper, maxContributionsPerPartition);
+        double l1Sensitivity = Noise.getL1Sensitivity(maxPartitionsContributed, lInfSensitivity);
+        Preconditions.checkArgument(
+            Double.compare(l1Sensitivity, Double.MAX_VALUE) <= 0,
+            "bounds and maxContributionsPerPartition are too high - the L1Sensitivity "
+                + " overflows. Provided values: lower bound = %s, upper bound = %s,"
+                + " maxContributionsPerPartition = %s",
+            lower,
+            upper,
+            maxContributionsPerPartition);
+      }
+
+      private static void checkL2SensitivityOverflow(
+          double lower,
+          double upper,
+          int maxContributionsPerPartition,
+          int maxPartitionsContributed) {
+        double lInfSensitivity = getLInfSensitivity(lower, upper, maxContributionsPerPartition);
+        double l2Sensitivity = Noise.getL2Sensitivity(maxPartitionsContributed, lInfSensitivity);
+        Preconditions.checkArgument(
+            Double.compare(l2Sensitivity, Double.MAX_VALUE) <= 0,
+            "bounds and maxContributionsPerPartition are too high - the L2Sensitivity "
+                + " overflows. Provided values: lower bound = %s, upper bound = %s,"
+                + " maxContributionsPerPartition = %s",
+            lower,
+            upper,
+            maxContributionsPerPartition);
       }
 
       private static Builder newBuilder() {
@@ -270,10 +320,10 @@ public class BoundedSum {
       public abstract Builder upper(double value);
 
       /**
-       * Maximum number of contributions associated with a single privacy unit (e.g., an
-       * individual) to a single partition. This is used to calculate the sensitivity of the sum
-       * operation. This is not public because it should only be used by other aggregation functions
-       * inside the library. See {@link BoundedSum} for more details.
+       * Maximum number of contributions associated with a single privacy unit (e.g., an individual)
+       * to a single partition. This is used to calculate the sensitivity of the sum operation. This
+       * is not public because it should only be used by other aggregation functions inside the
+       * library. See {@link BoundedSum} for more details.
        */
       abstract Builder maxContributionsPerPartition(int value);
 
@@ -288,8 +338,28 @@ public class BoundedSum {
         DpPreconditions.checkMaxContributionsPerPartition(params.maxContributionsPerPartition());
         DpPreconditions.checkBounds(params.lower(), params.upper());
 
-        checkLInfOverflow(params.lower(), params.maxContributionsPerPartition());
-        checkLInfOverflow(params.upper(), params.maxContributionsPerPartition());
+        switch (params.noise().getMechanismType()) {
+          case LAPLACE:
+            checkL1SensitivityOverflow(
+                params.lower(),
+                params.upper(),
+                params.maxContributionsPerPartition(),
+                params.maxPartitionsContributed());
+            break;
+          case GAUSSIAN:
+            checkL2SensitivityOverflow(
+                params.lower(),
+                params.upper(),
+                params.maxContributionsPerPartition(),
+                params.maxPartitionsContributed());
+            break;
+          default:
+            throw new IllegalArgumentException(
+                "Unable to validate sensitivity overflow: unknown mechanism type: "
+                    + params.noise().getMechanismType());
+        }
+        checkLInfSensitivityOverflow(
+            params.lower(), params.upper(), params.maxContributionsPerPartition());
 
         return new BoundedSum(params);
       }

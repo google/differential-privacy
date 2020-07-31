@@ -356,8 +356,13 @@ class PrivacyLossDistribution(object):
     return cls(rounded_probability_mass_function, value_discretization_interval,
                0)
 
-  def hockey_stick_divergence(self, epsilon: float) -> float:
+  def get_delta_for_epsilon(self, epsilon: float) -> float:
     """Computes the epsilon-hockey stick divergence between mu_upper, mu_lower.
+
+    When this privacy loss distribution corresponds to a mechanism, the
+    epsilon-hockey stick divergence gives the value of delta for which the
+    mechanism is (epsilon, delta)-differentially private. (See Observation 1 in
+    the supplementary material.)
 
     Args:
       epsilon: the epsilon in epsilon-hockey stick divergence.
@@ -573,8 +578,12 @@ class AdditiveNoisePrivacyLossDistribution(
         dict(rounded_probability_mass_function), value_discretization_interval,
         infinity_mass)
 
-  def hockey_stick_divergence(self, epsilon):
+  def get_delta_for_epsilon(self, epsilon):
     """Computes the epsilon-hockey stick divergence of the mechanism.
+
+    The epsilon-hockey stick divergence of the mechanism is the value of delta
+    for which the mechanism is (epsilon, delta)-differentially private. (See
+    Observation 1 in the supplementary material.)
 
     This function assumes the privacy loss is non-increasing as x increases.
     Under this assumption, the hockey stick divergence is simply
@@ -1038,7 +1047,7 @@ class GaussianPrivacyLossDistribution(AdditiveNoisePrivacyLossDistribution):
     while GaussianPrivacyLossDistribution(
         upper_standard_deviation,
         sensitivity=sensitivity,
-        log_mass_truncation_bound=0).hockey_stick_divergence(
+        log_mass_truncation_bound=0).get_delta_for_epsilon(
             privacy_parameters.epsilon) > privacy_parameters.delta:
       upper_standard_deviation *= 2
 
@@ -1050,7 +1059,7 @@ class GaussianPrivacyLossDistribution(AdditiveNoisePrivacyLossDistribution):
       if GaussianPrivacyLossDistribution(
           mid_standard_deviation,
           sensitivity=sensitivity,
-          log_mass_truncation_bound=0).hockey_stick_divergence(
+          log_mass_truncation_bound=0).get_delta_for_epsilon(
               privacy_parameters.epsilon) <= privacy_parameters.delta:
         upper_standard_deviation = mid_standard_deviation
       else:

@@ -36,13 +36,9 @@ public class SumRevenuePerDayWithPreAggregation {
    * visits will be discarded.
    */
   private static final int MAX_CONTRIBUTED_DAYS = 4;
-  /**
-   * Minimum amount of money we expect a visitor to spend on a single visit.
-   */
+  /** Minimum amount of money we expect a visitor to spend on a single visit. */
   private static final int MIN_EUROS_SPENT = 0;
-  /**
-   * Maximum amount of money we expect a visitor to spend on a single visit.
-   */
+  /** Maximum amount of money we expect a visitor to spend on a single visit. */
   private static final int MAX_EUROS_SPENT = 65;
 
   private SumRevenuePerDayWithPreAggregation() { }

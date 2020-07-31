@@ -5,7 +5,7 @@
 # Differential Privacy
 
 For a general introduction to differential privacy, check the
-[top-level docs](https://github.com/google/differential-privacy/blob/master/differential_privacy.md).
+[top-level docs](https://github.com/google/differential-privacy/blob/main/differential_privacy.md).
 
 All of our algorithms inherit from the [`Algorithm`](algorithms/algorithm.md)
 base class; you can find more details about the API there.

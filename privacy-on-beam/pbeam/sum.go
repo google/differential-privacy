@@ -56,7 +56,7 @@ type SumParams struct {
 	MaxPartitionsContributed int64
 	// The total contribution of a given privacy identifier to partition can be
 	// at at least MinValue, and at most MaxValue; otherwise it will be clamped
-	// to these bounds. For example, if a privacy identifier is associated to
+	// to these bounds. For example, if a privacy identifier is associated with
 	// the key-value pairs [("a", -5), ("a", 2), ("b", 7), ("c", 3)] and the
 	// (MinValue, MaxValue) bounds are (0, 5), the contribution for "a" will be
 	// clamped up to 0, the contribution for "b" will be clamped down to 5, and
@@ -110,8 +110,8 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCo
 		noiseKind = params.NoiseKind.toNoiseKind()
 	}
 	maxPartitionsContributed := getMaxPartitionsContributed(spec, params.MaxPartitionsContributed)
-	// First, group together the privacy ID and the partition ID, and sum the
-	// values per-user and per-partition.
+	// First, group together the privacy unit ID and the partition ID, and sum the
+	// values per-privacy unit and per-partition.
 	decoded := beam.ParDo(s,
 		newPrepareSumFn(idT, pcol.codec),
 		pcol.col,
@@ -129,7 +129,7 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCo
 	}
 	converted := beam.ParDo(s, convertFn, summed)
 	rekeyed := beam.ParDo(s, findRekeyFn(vKind), converted)
-	// Third, do per-user contribution bounding.
+	// Third, do per-privacy unit contribution bounding.
 	rekeyed = boundContributions(s, rekeyed, maxPartitionsContributed)
 	// Fourth, now that contribution bounding is done, remove the privacy keys,
 	// decode the value, and do a DP sum with all the partial sums.

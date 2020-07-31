@@ -26,16 +26,16 @@ import (
 
 // CheckEpsilonVeryStrict returns an error if ε is +∞ or less than 2⁻⁵⁰.
 func CheckEpsilonVeryStrict(label string, epsilon float64) error {
-	if epsilon < math.Exp2(-50.0) || math.IsInf(epsilon, 0) {
-		return fmt.Errorf("%s: Epsilon is %f, should be at least 2^-50 (and cannot be infinity)", label, epsilon)
+	if epsilon < math.Exp2(-50.0) || math.IsInf(epsilon, 0) || math.IsNaN(epsilon) {
+		return fmt.Errorf("%s: Epsilon is %f, should be at least 2^-50 (and cannot be infinity or NaN)", label, epsilon)
 	}
 	return nil
 }
 
 // CheckEpsilonStrict returns an error if ε is nonpositive or +∞.
 func CheckEpsilonStrict(label string, epsilon float64) error {
-	if epsilon <= 0 || math.IsInf(epsilon, 0) {
-		return fmt.Errorf("%s: Epsilon is %f, should be strictly positive (and cannot be infinity)", label, epsilon)
+	if epsilon <= 0 || math.IsInf(epsilon, 0) || math.IsNaN(epsilon) {
+		return fmt.Errorf("%s: Epsilon is %f, should be strictly positive (and cannot be infinity or NaN)", label, epsilon)
 	}
 	return nil
 }
@@ -100,14 +100,6 @@ func CheckLInfSensitivity(label string, lInfSensitivity float64) error {
 	return nil
 }
 
-// CheckSigma returns an error if σ (the standard deviation of a normal distribution) is strictly negative or +∞.
-func CheckSigma(label string, sigma float64) error {
-	if sigma < 0 || math.IsInf(sigma, 0) {
-		return fmt.Errorf("%s: Sigma is %f, should be nonnegative (and cannot be infinity)", label, sigma)
-	}
-	return nil
-}
-
 // CheckBoundsInt64 returns an error if lower is larger than upper, and ensures it won't lead to sensitivity overflow.
 func CheckBoundsInt64(label string, lower, upper int64) error {
 	if lower == math.MinInt64 || upper == math.MinInt64 {
@@ -161,15 +153,7 @@ func CheckBoundsFloat64AsInt64(label string, lower, upper float64) error {
 	if upper < minInt || upper > maxInt {
 		return fmt.Errorf("%s: Upper should be within MinInt64 and MaxInt64 bounds, got %f", label, upper)
 	}
-	return nil
-}
-
-// CheckUserCount returns an error if userCount is strictly negative.
-func CheckUserCount(label string, userCount int64) error {
-	if userCount < 0 {
-		return fmt.Errorf("%s: userCount is %d, should be nonnegative", label, userCount)
-	}
-	return nil
+	return CheckBoundsInt64(label, int64(lower), int64(upper))
 }
 
 // CheckMaxPartitionsContributed returns an error if maxPartitionsContributed is nonpositive.

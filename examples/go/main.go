@@ -16,7 +16,8 @@
 
 // This is a command line utility which helps to run different examples of how dp library can be used.
 // Usage example:
-// bazel run examples_main -- --scenario=CountVisitsPerHour --input_file=data/day_data.csv --non_private_output_file=$(pwd)/out1.csv --private_output_file=$(pwd)/out2.csv
+// Linux: bazel run examples_main -- --scenario=CountVisitsPerHour --input_file=$(pwd)/data/day_data.csv --non_private_output_file=$(pwd)/out1.csv --private_output_file=$(pwd)/out2.csv
+// Windows: bazel run examples_main -- --scenario=CountVisitsPerHour --input_file=%CD%/data/day_data.csv --non_private_output_file=%CD%/out1.csv --private_output_file=%CD%/out2.csv
 package main
 
 import (

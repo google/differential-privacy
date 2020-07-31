@@ -65,27 +65,28 @@ class BoundedSum : public Algorithm<T> {
       // sensitivity is inappropriate.
       std::unique_ptr<NumericalMechanism> mechanism = nullptr;
       if (BoundedBuilder::BoundsAreSet()) {
-        RETURN_IF_ERROR(CheckLowerBound(BoundedBuilder::lower_.value()));
+        RETURN_IF_ERROR(CheckLowerBound(BoundedBuilder::GetLower().value()));
         ASSIGN_OR_RETURN(
             mechanism,
-            BuildMechanism(AlgorithmBuilder::mechanism_builder_->Clone(),
-                           AlgorithmBuilder::epsilon_.value(),
-                           AlgorithmBuilder::l0_sensitivity_.value_or(1),
-                           AlgorithmBuilder::linf_sensitivity_.value_or(1),
-                           BoundedBuilder::lower_.value(),
-                           BoundedBuilder::upper_.value()));
+            BuildMechanism(
+                AlgorithmBuilder::GetMechanismBuilderClone(),
+                AlgorithmBuilder::GetEpsilon().value(),
+                AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1),
+                AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(1),
+                BoundedBuilder::GetLower().value(),
+                BoundedBuilder::GetUpper().value()));
       }
 
       // Construct BoundedSum.
-      auto mech_builder = AlgorithmBuilder::mechanism_builder_->Clone();
-      return absl::WrapUnique(
-          new BoundedSum(AlgorithmBuilder::epsilon_.value(),
-                         BoundedBuilder::lower_.value_or(0),
-                         BoundedBuilder::upper_.value_or(0),
-                         AlgorithmBuilder::l0_sensitivity_.value_or(1),
-                         AlgorithmBuilder::linf_sensitivity_.value_or(1),
-                         std::move(mech_builder), std::move(mechanism),
-                         std::move(BoundedBuilder::approx_bounds_)));
+      auto mech_builder = AlgorithmBuilder::GetMechanismBuilderClone();
+      return absl::WrapUnique(new BoundedSum(
+          AlgorithmBuilder::GetEpsilon().value(),
+          BoundedBuilder::GetLower().value_or(0),
+          BoundedBuilder::GetUpper().value_or(0),
+          AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1),
+          AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(1),
+          std::move(mech_builder), std::move(mechanism),
+          std::move(BoundedBuilder::MoveApproxBoundsPointer())));
     }
   };
 

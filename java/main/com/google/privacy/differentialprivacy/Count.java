@@ -22,11 +22,12 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import javax.annotation.Nullable;
 
 /**
- * Calculates a differentially private count for a collection of values.
+ * Calculates a differentially private count for a collection of values using the Laplace or
+ * Gaussian mechanism.
  *
- * <p>This class allows an individual privacy unit (e.g., a single user) to contribute data to
- * multiple different partitions. The class does not check whether the number of partitions is
- * within the specified bounds. This is the responsibility of the caller.
+ * <p>This class allows a single privacy unit (e.g., an individual) to contribute data to multiple
+ * different partitions. The class does not check whether the number of partitions is within the
+ * specified bounds. This is the responsibility of the caller.
  *
  * <p>This class assumes that each privacy unit may contribute to a single partition only once
  * (i.e., only one data contribution per privacy unit per partition), it doesn't do clamping. For
@@ -36,13 +37,16 @@ import javax.annotation.Nullable;
  * <p>The user can provide a {@link Noise} instance which will be used to generate the noise. If no
  * instance is specified, {@link LaplaceNoise} is applied.
  *
+ * <p>This class provides an unbiased estimator for the raw count meaning that the expected value of
+ * the differentially private count is equal to the raw count.
+ *
  * <p>Note: this class is not thread-safe.
  *
  * <p>For more implementation details, see {@link #computeResult()}.
  *
  * <p>For general details and key definitions, see <a
- * href="https://github.com/google/differential-privacy/blob/master/differential_privacy.md#key-definition">
- * the introduction to Differential Privacy</a>.
+ * href="https://github.com/google/differential-privacy/blob/main/differential_privacy.md#key-definitions">
+ * this</a> introduction to Differential Privacy.
  */
 public class Count {
   private final Params params;
@@ -78,9 +82,14 @@ public class Count {
   }
 
   /**
-   * Calculates and returns a differentially private count of elements added using
-   * {@link #increment} and {@link #incrementBy}. The method can be called only once for a given
-   * collection of elements. All subsequent calls will throw an exception.
+   * Calculates and returns a differentially private count of elements added using {@link
+   * #increment} and {@link #incrementBy}. The method can be called only once for a given collection
+   * of elements. All subsequent calls will throw an exception.
+   *
+   * <p>The returned value is an unbiased estimate of the raw count.
+   *
+   * <p>The returned value may sometimes be negative. This can be corrected by setting negative
+   * results to 0. Note that such post processing introduces bias to the result.
    */
   public long computeResult() {
     if (resultReturned) {
@@ -132,8 +141,8 @@ public class Count {
    * {@link Count} and stores the merged result in this instance. This is required in the
    * distributed calculations context for merging partial results.
    *
-   * @throws IllegalArgumentException if not all config parameters (e.g., epsilon)
-   *     are equal or if the passed serialized count is invalid.
+   * @throws IllegalArgumentException if not all config parameters (e.g., epsilon) are equal or if
+   *     the passed serialized count is invalid.
    * @throws IllegalStateException if this count has already been calculated or serialized.
    */
   public void mergeWith(byte[] otherCountSummary) {
@@ -156,18 +165,13 @@ public class Count {
   private void checkMergeParametersAreEqual(CountSummary otherCount) {
     DpPreconditions.checkMergeMechanismTypesAreEqual(
         params.noise().getMechanismType(), otherCount.getMechanismType());
-    DpPreconditions.checkMergeEpsilonAreEqual(
-        params.epsilon(), otherCount.getEpsilon());
-    DpPreconditions.checkMergeDeltaAreEqual(
-        params.delta(), otherCount.getDelta());
+    DpPreconditions.checkMergeEpsilonAreEqual(params.epsilon(), otherCount.getEpsilon());
+    DpPreconditions.checkMergeDeltaAreEqual(params.delta(), otherCount.getDelta());
     DpPreconditions.checkMergeMaxPartitionsContributedAreEqual(
-        params.maxPartitionsContributed(),
-        otherCount.getMaxPartitionsContributed());
+        params.maxPartitionsContributed(), otherCount.getMaxPartitionsContributed());
     DpPreconditions.checkMergeMaxContributionsPerPartitionAreEqual(
         params.maxContributionsPerPartition(), otherCount.getMaxContributionsPerPartition());
   }
-
-
 
   @AutoValue
   public abstract static class Params {
@@ -215,10 +219,10 @@ public class Count {
       public abstract Builder noise(Noise value);
 
       /**
-       * Maximum number of contributions associated with a single privacy unit (e.g., an
-       * individual) to a single partition. This is used to calculate the sensitivity of the count
-       * operation. This is not public because it should be used only by other aggregation functions
-       *  inside the library. See {@link Count} for more details.
+       * Maximum number of contributions associated with a single privacy unit (e.g., an individual)
+       * to a single partition. This is used to calculate the sensitivity of the count operation.
+       * This is not public because it should be used only by other aggregation functions inside the
+       * library. See {@link Count} for more details.
        */
       abstract Builder maxContributionsPerPartition(int value);
 

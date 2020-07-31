@@ -38,15 +38,15 @@ class OrderStatisticsBuilder
  public:
   OrderStatisticsBuilder() : BoundedBuilder() {
     // Default search bounds are numeric limits.
-    BoundedBuilder::lower_ = std::numeric_limits<T>::lowest();
-    BoundedBuilder::upper_ = std::numeric_limits<T>::max();
+    BoundedBuilder::SetLower(std::numeric_limits<T>::lowest());
+    BoundedBuilder::SetUpper(std::numeric_limits<T>::max());
   }
 
  protected:
   // Check numeric parameters and construct quantiles and mechanism. Called
   // only at build.
   base::Status ConstructDependencies() {
-    if (BoundedBuilder::upper_ < BoundedBuilder::lower_) {
+    if (BoundedBuilder::GetUpper() < BoundedBuilder::GetLower()) {
       return base::InvalidArgumentError(
           "Upper bound cannot be less than lower bound.");
     }
@@ -54,10 +54,12 @@ class OrderStatisticsBuilder
     std::unique_ptr<NumericalMechanism> has_to_be_laplace;
     ASSIGN_OR_RETURN(
         has_to_be_laplace,
-        AlgorithmBuilder::mechanism_builder_
-            ->SetEpsilon(AlgorithmBuilder::epsilon_.value())
-            .SetL0Sensitivity(AlgorithmBuilder::l0_sensitivity_.value_or(1))
-            .SetLInfSensitivity(AlgorithmBuilder::linf_sensitivity_.value_or(1))
+        AlgorithmBuilder::GetMechanismBuilderClone()
+            ->SetEpsilon(AlgorithmBuilder::GetEpsilon().value())
+            .SetL0Sensitivity(
+                AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1))
+            .SetLInfSensitivity(
+                AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(1))
             .Build());
 
     // TODO: Remove the following dynamic_cast.
@@ -90,10 +92,11 @@ class Max : public BinarySearch<T> {
    private:
     base::StatusOr<std::unique_ptr<Max<T>>> BuildAlgorithm() override {
       RETURN_IF_ERROR(OrderBuilder::ConstructDependencies());
-      return absl::WrapUnique(new Max(
-          AlgorithmBuilder::epsilon_.value(), BoundedBuilder::lower_.value(),
-          BoundedBuilder::upper_.value(), std::move(OrderBuilder::mechanism_),
-          std::move(OrderBuilder::quantiles_)));
+      return absl::WrapUnique(new Max(AlgorithmBuilder::GetEpsilon().value(),
+                                      BoundedBuilder::GetLower().value(),
+                                      BoundedBuilder::GetUpper().value(),
+                                      std::move(OrderBuilder::mechanism_),
+                                      std::move(OrderBuilder::quantiles_)));
     }
   };
 
@@ -117,10 +120,11 @@ class Min : public BinarySearch<T> {
    private:
     base::StatusOr<std::unique_ptr<Min<T>>> BuildAlgorithm() override {
       RETURN_IF_ERROR(OrderBuilder::ConstructDependencies());
-      return absl::WrapUnique(new Min(
-          AlgorithmBuilder::epsilon_.value(), BoundedBuilder::lower_.value(),
-          BoundedBuilder::upper_.value(), std::move(OrderBuilder::mechanism_),
-          std::move(OrderBuilder::quantiles_)));
+      return absl::WrapUnique(new Min(AlgorithmBuilder::GetEpsilon().value(),
+                                      BoundedBuilder::GetLower().value(),
+                                      BoundedBuilder::GetUpper().value(),
+                                      std::move(OrderBuilder::mechanism_),
+                                      std::move(OrderBuilder::quantiles_)));
     }
   };
 
@@ -144,10 +148,11 @@ class Median : public BinarySearch<T> {
    private:
     base::StatusOr<std::unique_ptr<Median<T>>> BuildAlgorithm() override {
       RETURN_IF_ERROR(OrderBuilder::ConstructDependencies());
-      return absl::WrapUnique(new Median(
-          AlgorithmBuilder::epsilon_.value(), BoundedBuilder::lower_.value(),
-          BoundedBuilder::upper_.value(), std::move(OrderBuilder::mechanism_),
-          std::move(OrderBuilder::quantiles_)));
+      return absl::WrapUnique(new Median(AlgorithmBuilder::GetEpsilon().value(),
+                                         BoundedBuilder::GetLower().value(),
+                                         BoundedBuilder::GetUpper().value(),
+                                         std::move(OrderBuilder::mechanism_),
+                                         std::move(OrderBuilder::quantiles_)));
     }
   };
 
@@ -181,17 +186,18 @@ class Percentile : public BinarySearch<T> {
         return base::InvalidArgumentError(
             "Percentile must be between 0 and 1.");
       }
-      return absl::WrapUnique(new Percentile(
-          percentile_, AlgorithmBuilder::epsilon_.value(),
-          BoundedBuilder::lower_.value(), BoundedBuilder::upper_.value(),
-          std::move(OrderBuilder::mechanism_),
-          std::move(OrderBuilder::quantiles_)));
+      return absl::WrapUnique(
+          new Percentile(percentile_, AlgorithmBuilder::GetEpsilon().value(),
+                         BoundedBuilder::GetLower().value(),
+                         BoundedBuilder::GetUpper().value(),
+                         std::move(OrderBuilder::mechanism_),
+                         std::move(OrderBuilder::quantiles_)));
     }
 
     double percentile_;
   };
 
-  double percentile() { return percentile_; }
+  double GetPercentile() const { return percentile_; }
 
  private:
   Percentile(double percentile, double epsilon, T lower, T upper,

@@ -24,7 +24,7 @@ subject to change.
 Our [codelab](https://codelabs.developers.google.com/codelabs/privacy-on-beam/)
 about computing private statistics with Privacy on Beam
 demonstrates how to use the library. Source code for the codelab is available in
-the [codelab/](https://github.com/google/differential-privacy/tree/master/privacy-on-beam/codelab)
+the [codelab/](https://github.com/google/differential-privacy/tree/main/privacy-on-beam/codelab)
 directory.
 
 Full documentation of the API is available as [godoc](https://godoc.org/github.com/google/differential-privacy/privacy-on-beam/pbeam).

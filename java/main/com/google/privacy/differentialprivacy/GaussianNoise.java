@@ -28,7 +28,7 @@ import org.apache.commons.math3.distribution.NormalDistribution;
  * securely differentially private.
  *
  * <p>The Gaussian noise is generated according to the binomial sampling mechanism described <a
- * href="https://github.com/google/differential-privacy/blob/master/common_docs/Secure_Noise_Generation.pdf">here</a>.
+ * href="https://github.com/google/differential-privacy/blob/main/common_docs/Secure_Noise_Generation.pdf">here</a>.
  * This approach is robust against unintentional privacy leaks due to artifacts of floating point
  * arithmetic.
  */
@@ -102,8 +102,11 @@ public class GaussianNoise implements Noise {
   @Override
   public long addNoise(
       long x, int l0Sensitivity, long lInfSensitivity, double epsilon, Double delta) {
-    return Math.round(
-        addNoise((double) x, l0Sensitivity, (double) lInfSensitivity, epsilon, delta));
+    // Calling addNoise on 0.0 avoids casting x to a double value, which is not secure from a
+    // privacy perspective as it can have unforeseen effects on the sensitivity of x. Rounding and
+    // adding the resulting noise to x in a post processing step is a secure operation (for noise of
+    // moderate magnitude, i.e. < 2^53).
+    return Math.round(addNoise(0.0, l0Sensitivity, (double) lInfSensitivity, epsilon, delta)) + x;
   }
 
   @Override
@@ -244,7 +247,7 @@ public class GaussianNoise implements Noise {
    * Approximates the probability of a random sample {@code m + n / 2} drawn from a binomial
    * distribution of n Bernoulli trials that have a success probability of 1 / 2 each. The
    * approximation is taken from Lemma 7 of the noise generation documentation, available <a
-   * href="https://github.com/google/differential-privacy/blob/master/common_docs/Secure_Noise_Generation.pdf">here</a>.
+   * href="https://github.com/google/differential-privacy/blob/main/common_docs/Secure_Noise_Generation.pdf">here</a>.
    */
   private static double approximateBinomialProbability(double sqrtN, long m) {
     if (Math.abs(m) > sqrtN * Math.sqrt(Math.log(sqrtN) / 2)) {

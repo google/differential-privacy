@@ -110,7 +110,7 @@ anonymous function. In the event that manual bounds are not entered, some
 functions can automatically infer the bounds, provided that there is enough
 input data. If there is not enough data, an error message to that effect will
 be displayed. For more information on automatic bounding, see the [ApproxBounds
-documentation](https://github.com/google/differential-privacy/blob/master/cc/docs/algorithms/approx-bounds.md)
+documentation](https://github.com/google/differential-privacy/blob/main/cc/docs/algorithms/approx-bounds.md)
 
 ### Count
 

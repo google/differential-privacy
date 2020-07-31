@@ -46,7 +46,7 @@ type DistinctPrivacyIDParams struct {
 	// case, the entire budget of the PrivacySpec is consumed.
 	Epsilon, Delta float64
 	// The maximum number of distinct values that a given privacy identifier
-	// can influence. If a privacy identifier is associated to more values,
+	// can influence. If a privacy identifier is associated with more values,
 	// random values will be dropped. There is an inherent trade-off when
 	// choosing this parameter: a larger MaxPartitionsContributed leads to less
 	// data loss due to contribution bounding, but since the noise added in
@@ -58,7 +58,7 @@ type DistinctPrivacyIDParams struct {
 }
 
 // DistinctPrivacyID counts the number of distinct privacy identifiers
-// associated to each value in a PrivatePCollection, adding differentially
+// associated with each value in a PrivatePCollection, adding differentially
 // private noise to the counts and doing post-aggregation thresholding to
 // remove low counts. It is conceptually equivalent to calling Count with
 // MaxValue=1, but is specifically optimized for this use case.
@@ -137,8 +137,8 @@ func addOneValueFn(v beam.V) (beam.V, int64) {
 type countFn struct {
 	// Privacy spec parameters (set during initial construction).
 	Epsilon                  float64
-	DeltaNoise               float64
-	DeltaThreshold           float64
+	NoiseDelta               float64
+	ThresholdDelta           float64
 	MaxPartitionsContributed int64
 	NoiseKind                noise.Kind
 	noise                    noise.Noise // Set during Setup phase according to NoiseKind.
@@ -153,11 +153,11 @@ func newCountFn(epsilon, delta float64, maxPartitionsContributed int64, noiseKin
 	fn.Epsilon = epsilon
 	switch noiseKind {
 	case noise.GaussianNoise:
-		fn.DeltaNoise = delta / 2
-		fn.DeltaThreshold = delta / 2
+		fn.NoiseDelta = delta / 2
+		fn.ThresholdDelta = delta / 2
 	case noise.LaplaceNoise:
-		fn.DeltaNoise = 0
-		fn.DeltaThreshold = delta
+		fn.NoiseDelta = 0
+		fn.ThresholdDelta = delta
 	default:
 		log.Exitf("newCountFn: unknown NoiseKind (%v) is specified. Please specify a valid noise.", noiseKind)
 	}
@@ -175,7 +175,7 @@ type countAccum struct {
 func (fn *countFn) CreateAccumulator() countAccum {
 	return countAccum{C: dpagg.NewCount(&dpagg.CountOptions{
 		Epsilon:                  fn.Epsilon,
-		Delta:                    fn.DeltaNoise,
+		Delta:                    fn.NoiseDelta,
 		MaxPartitionsContributed: fn.MaxPartitionsContributed,
 		Noise:                    fn.noise,
 	})}
@@ -194,7 +194,7 @@ func (fn *countFn) MergeAccumulators(a, b countAccum) countAccum {
 }
 
 func (fn *countFn) ExtractOutput(a countAccum) *int64 {
-	return a.C.ThresholdedResult(fn.DeltaThreshold)
+	return a.C.ThresholdedResult(fn.ThresholdDelta)
 }
 
 func (fn *countFn) String() string {

@@ -23,12 +23,19 @@ import (
 	"github.com/google/differential-privacy/go/noise"
 )
 
-// Count calculates a differentially private count of a collection of values.
+// Count calculates a differentially private count of a collection of values
+// using the Laplace or Gaussian mechanism
 //
-// It supports scaling the noise in the case where users can contribute to
-// multiple partitions (via the MaxPartitionsContributed parameter).
+// It supports privacy units that contribute to multiple partitions (via the
+// MaxPartitionsContributed parameter) by scaling the added noise appropriately.
 // However, it does not support multiple contributions to a single partition from
-// the same user. For that use case, BoundedSumInt64 should be used instead.
+// the same privacy unit. For that use case, BoundedSumInt64 should be used instead.
+//
+// The provided differentially private count is an unbiased estimate of the raw
+// count meaning that its expected value is equal to the raw count.
+//
+// For general details and key definitions, see
+// https://github.com/google/differential-privacy/blob/main/differential_privacy.md#key-definitions.
 //
 // Note: Do not use when your results may cause overflows for int64 values.
 // This aggregation is not hardened for such applications yet.
@@ -60,9 +67,9 @@ func countEquallyInitialized(c1, c2 *Count) bool {
 type CountOptions struct {
 	Epsilon                  float64     // Privacy parameter ε. Required.
 	Delta                    float64     // Privacy parameter δ. Required with Gaussian noise, must be 0 with Laplace noise.
-	MaxPartitionsContributed int64       // How many distinct partitions may a single user contribute to? Defaults to 1.
+	MaxPartitionsContributed int64       // How many distinct partitions may a single privacy unit contribute to? Defaults to 1.
 	Noise                    noise.Noise // Type of noise used. Defaults to Laplace noise.
-	// How many times may a single user contribute to a single partition?
+	// How many times may a single privacy unit contribute to a single partition?
 	// Defaults to 1. This is only needed for other aggregation functions using Count;
 	// which is why the option is not exported.
 	maxContributionsPerPartition int64
@@ -112,7 +119,7 @@ func (c *Count) Increment() {
 
 // IncrementBy increments the count by the given value.
 // Note that this shouldn't be used to count multiple contributions to a
-// single partition from the same user.
+// single partition from the same privacy unit.
 func (c *Count) IncrementBy(count int64) {
 	if c.resultReturned {
 		log.Fatalf("The count has already been calculated and returned. It cannot be amended.")
@@ -146,9 +153,14 @@ func checkMergeCount(c1, c2 *Count) error {
 	return nil
 }
 
-// Result returns a differentially private version of the current count. It can
-// be called only once, after which no further operation can be done on the
-// Count.
+// Result returns a differentially private estimate of the current count. The
+// method can be called only once.
+//
+// The returned value is an unbiased estimate of the raw count.
+//
+// The returned value may sometimes be negative. This can be corrected by setting
+// negative results to 0. Note that such post processing introduces bias to the
+// result.
 func (c *Count) Result() int64 {
 	if c.resultReturned {
 		log.Fatalf("The count has already been calculated and returned. It can only be returned once.")
@@ -160,8 +172,8 @@ func (c *Count) Result() int64 {
 // ThresholdedResult is similar to Result() but applies thresholding to the
 // result. So, if the result is less than the threshold specified by the noise
 // mechanism, it returns nil. Otherwise, it returns the result.
-func (c *Count) ThresholdedResult(deltaThreshold float64) *int64 {
-	threshold := c.noise.Threshold(c.l0Sensitivity, float64(c.lInfSensitivity), c.epsilon, c.delta, deltaThreshold)
+func (c *Count) ThresholdedResult(thresholdDelta float64) *int64 {
+	threshold := c.noise.Threshold(c.l0Sensitivity, float64(c.lInfSensitivity), c.epsilon, c.delta, thresholdDelta)
 	result := c.Result()
 	if result < int64(threshold) {
 		return nil
