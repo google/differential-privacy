@@ -117,6 +117,12 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams, partit
 	if err != nil {
 		log.Exitf("couldn't consume budget: %v", err)
 	}
+
+	err = checkMeanPerKeyParams(params, epsilon, delta)	
+	if err != nil {	
+		log.Exit(err)	
+	}
+
 	var noiseKind noise.Kind
 	if params.NoiseKind == nil {
 		noiseKind = noise.LaplaceNoise
@@ -126,7 +132,7 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams, partit
 	}
 
 	// Drop unspecified partitions, if partitions are specified.
-	correctPartitions := correctPartitions(s, partitions, pcol)
+	correctPartitions := correctPartitions(s, partitions, pcol, pcol.codec.KType)
 
 	// First, group together the privacy ID and the partition ID and do per-partition contribution bounding.
 	// Result is PCollection<kv.Pair{ID,K},V>
@@ -196,7 +202,6 @@ func meanWithCorrectPartitions(s beam.Scope, partitions []beam.PCollection, epsi
 		allAddPartitions)
 	finalPartitions := beam.ParDo(s, CorrectToFloat64, means)
 	return finalPartitions
-
 }
 
 func checkMeanPerKeyParams(params MeanParams, epsilon, delta float64) error {
@@ -458,8 +463,8 @@ func (fn *boundedMeanFloat64Fn) MergeAccumulators(a, b boundedMeanAccumFloat64) 
 }
 
 func (fn *boundedMeanFloat64Fn) ExtractOutput(a boundedMeanAccumFloat64) *float64 {
-	result := a.BM.Result()
 	if a.PartitionsSpecified || a.SP.Result() {
+		result := a.BM.Result()
 		return &result // Do not threshold.
 	}
 	return nil

@@ -121,7 +121,7 @@ func TestDistinctPrivacyIDWithPartitionsNoNoise(t *testing.T) {
 	for i := 3; i < 10000; i++ {
 		partitions = append(partitions, i)
 	}
-
+	// Create partition PCollection.
 	partitionsCol := beam.CreateList(s, partitions)
 
 	epsilon, delta, k, l1Sensitivity := 50.0, 1e-200, 25.0, 4.0
@@ -339,38 +339,6 @@ func TestDistinctPrivacyIDWithPartitionsCrossPartitionContributionBounding(t *te
 	got := DistinctPrivacyID(s, pcol, DistinctPrivacyIDParams{MaxPartitionsContributed: 3, NoiseKind: LaplaceNoise{}}, partitions)
 	// With a max contribution of 3, all of the data for the three specified partitions should be kept. 
 	// The sum of all elements must then be 150.
-	counts := beam.DropKey(s, got)
-	sumOverPartitions := stats.Sum(s, counts)
-	got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
-	want = beam.ParDo(s, int64MetricToKV, want)
-	if err := approxEqualsKVInt64(s, got, want, laplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-		t.Fatalf("TestDistinctPrivacyIDCrossPartitionContributionBounding: %v", err)
-	}
-	if err := ptest.Run(p); err != nil {
-		t.Errorf("TestDistinctPrivacyIDCrossPartitionContributionBounding: DistinctPrivacyID(%v) = %v, expected elements to sum to 150: %v", col, got, err)
-	}
-}
-
-// Checks that DistinctPrivacyID bounds per-user contributions correctly.
-// The logic mirrors TestCountCrossPartitionContributionBounding.
-func TestDistinctPrivacyIDWithPartitionsCrossPartitionContributionBounding2(t *testing.T) {
-	// pairs contains {1,0}, {2,0}, …, {50,0}, {1,1}, …, {50,1}, {1,2}, …, {50,9}.
-	var pairs []pairII
-	for i := 0; i < 10; i++ {
-		pairs = append(pairs, makePairsWithFixedV(50, i)...)
-	}
-	result := []testInt64Metric{
-		{0, 100},
-	}
-	p, s, col, want := ptest.CreateList2(pairs, result)
-	col = beam.ParDo(s, pairToKV, col)
-	// Only specify two partitions.
-	partitions := beam.CreateList(s, []int{0, 1})
-
-	epsilon, delta, k, l1Sensitivity := 50.0, 0.01, 25.0, 3.0
-	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
-	got := DistinctPrivacyID(s, pcol, DistinctPrivacyIDParams{MaxPartitionsContributed: 3, NoiseKind: LaplaceNoise{}}, partitions)
-	// Since there are only two partitions, a max contribution of 3 does not affect the sum, since none of the data was dropped.
 	counts := beam.DropKey(s, got)
 	sumOverPartitions := stats.Sum(s, counts)
 	got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.

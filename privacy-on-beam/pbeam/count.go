@@ -90,6 +90,11 @@ func Count(s beam.Scope, pcol PrivatePCollection, params CountParams, partitions
 	if err != nil {
 		log.Exitf("couldn't consume budget: %v", err)
 	}
+	err = checkCountParams(params, epsilon, delta)	
+	if err != nil {	
+		log.Exit(err)	
+	}
+
 	var noiseKind noise.Kind
 	if params.NoiseKind == nil {
 		noiseKind = noise.LaplaceNoise
@@ -100,7 +105,7 @@ func Count(s beam.Scope, pcol PrivatePCollection, params CountParams, partitions
 
 	maxPartitionsContributed := getMaxPartitionsContributed(spec, params.MaxPartitionsContributed)
 	// Drop unspecified partitions, if partitions are specified.
-	correctPartitions := correctCountPartitions(s, partitions, pcol)
+	correctPartitions := correctCountPartitions(s, partitions, pcol, partitionT)
 	// First, encode KV pairs, count how many times each one appears,
 	// and re-key by the original privacy key.
 	coded := beam.ParDo(s, kv.NewEncodeFn(idT, partitionT), correctPartitions)

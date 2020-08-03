@@ -17,7 +17,6 @@
 package pbeam
 
 import (
-	"math/rand"
 	"testing"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
@@ -68,48 +67,23 @@ func TestCountNoNoise(t *testing.T) {
 	}
 }
 
+// Checks that Count with partitions returns a correct answer.
 func TestCountWithPartitionsNoNoise(t *testing.T) {
-	// In this test, we set the per-partition l1Sensitivity to 2, and:
-	// - value 0 is associated to 7 users;
-	// - value 1 is associated to 52 users appearing twice each, so each of
-	//   them should be counted twice;
-	// - value 2 is associated to 99 users appearing 3 times each, but the
-	//   l1Sensitivity is 2, so each should only be counted twice;
-	// - value 3 is associated to 10 users appearing 4 times each, but the
-	//   l1Sensitivity is 2, so each should only be counted twice;
-	// Each user contributes to at most 1 partition.
-	pairs := concatenatePairs(
-		makePairsWithFixedVStartingFromKey(0, 7, 0),
-		makePairsWithFixedVStartingFromKey(7, 52, 1),
-		makePairsWithFixedVStartingFromKey(7, 52, 1),
-		makePairsWithFixedVStartingFromKey(7+52, 99, 2),
-		makePairsWithFixedVStartingFromKey(7+52, 99, 2),
-		makePairsWithFixedVStartingFromKey(7+52, 99, 2),
-		makePairsWithFixedVStartingFromKey(7+52+99, 10, 3),
-		makePairsWithFixedVStartingFromKey(7+52+99, 10, 3),
-		makePairsWithFixedVStartingFromKey(7+52+99, 10, 3),
-		makePairsWithFixedVStartingFromKey(7+52+99, 10, 3),
-	)
+	var pairs []pairII
+	for i := 0; i < 10000000; i++ {
+		v := makePairsWithFixedVStartingFromKey(i, 1, i)
+		pairs = append(pairs, v...)
+	}
 
-	// Keep partitions 0, 1, 2;
-	// drop partition 3;
-	// Add partitions 4 to 10000 (load test)
-	result := []testInt64Metric{
-		{0, 7},   // 7*1
-		{1, 104}, // 52*2
-		{2, 198}, // 99*2
+	var result []testInt64Metric
+	for i := 9000000; i < 11000000; i++ {
+		result = append(result, testInt64Metric{i, 1})
 	}
-	for i := 4; i < 10000; i++ {
-		result = append(result, testInt64Metric{i, 0})
-	}
+
 	p, s, col, want := ptest.CreateList2(pairs, result)
 	col = beam.ParDo(s, pairToKV, col)
-
 	partitions := []int{}
-	for i := 0; i < 3; i++ {
-		partitions = append(partitions, i)
-	}
-	for i := 4; i < 10000; i++ {
+	for i := 9000000; i < 11000000; i++ {
 		partitions = append(partitions, i)
 	}
 
@@ -290,7 +264,7 @@ func TestCountCrossPartitionContributionBounding(t *testing.T) {
 	}
 }
 
-// Check that count bounds cross-contribution bounding with specified partitions correctly.
+// Checks that Count with partitions bounds per-user contributions correctly.
 func TestCountWithPartitionsCrossPartitionContributionBounding(t *testing.T) {
 	// pairs contains {1,0}, {2,0}, …, {50,0}, {1,1}, …, {50,1}, {1,2}, …, {50,9}.
 	var pairs []pairII
@@ -302,12 +276,14 @@ func TestCountWithPartitionsCrossPartitionContributionBounding(t *testing.T) {
 	}
 	p, s, col, want := ptest.CreateList2(pairs, result)
 	col = beam.ParDo(s, pairToKV, col)
-	partitions := beam.CreateList(s, []int{0, 1, 2})
+
+	partitions := []int{0, 1, 2}
+	partitionsCol := beam.CreateList(s, partitions)
 
 	epsilon, delta, k, l1Sensitivity := 50.0, 0.01, 25.0, 3.0
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
-	got := Count(s, pcol, CountParams{MaxPartitionsContributed: 3, MaxValue: 1, NoiseKind: LaplaceNoise{}}, partitions)
-	// With a max contribution of 3, none of the data for the 3 specified partitions should be dropped.
+	got := Count(s, pcol, CountParams{MaxPartitionsContributed: 3, MaxValue: 1, NoiseKind: LaplaceNoise{}}, partitionsCol)
+	// With a max contribution of 3, all of the data for partitions 0, 1, and 2 should be kept.
 	counts := beam.DropKey(s, got)
 	sumOverPartitions := stats.Sum(s, counts)
 	got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
@@ -319,6 +295,7 @@ func TestCountWithPartitionsCrossPartitionContributionBounding(t *testing.T) {
 		t.Errorf("TestCountCrossPartitionContributionBounding: Metric(%v) = %v, expected elements to sum to 150: %v", col, got, err)
 	}
 }
+
 
 // Check that no negative values are returned from Count.
 func TestCountReturnsNonNegative(t *testing.T) {
@@ -347,14 +324,9 @@ func TestCountWithPartitionsReturnsNonNegative(t *testing.T) {
 	var partitions []int
 	for i := 0; i < 100; i++ {
 		pairs = append(pairs, pairII{i, i})
-		if rand.Intn(2) == 1 { // drop certain partitions with 50% chance.
-			partitions = append(partitions, i)
-		}
 	}
 	for i := 100; i < 200; i++ {
-		if rand.Intn(2) == 1 { // add certain partitions with 50% chance.
-			partitions = append(partitions, i)
-		}
+		partitions = append(partitions, i)
 	}
 	p, s, col := ptest.CreateList(pairs)
 	col = beam.ParDo(s, pairToKV, col)

@@ -30,10 +30,6 @@ import (
 	"github.com/google/differential-privacy/privacy-on-beam/internal/kv"
 )
 
-type Partition struct {
-	PartitionKey interface{}
-}
-
 func init() {
 	beam.RegisterType(reflect.TypeOf((*prepareSumFn)(nil)))
 	// TODO: add tests to make sure we don't forget anything here
@@ -129,7 +125,7 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams, partitio
 	maxPartitionsContributed := getMaxPartitionsContributed(spec, params.MaxPartitionsContributed)
 
 	// Drop unspecified partitions, if partitions are specified.
-	correctPartitions := correctPartitions(s, partitions, pcol)
+	correctPartitions := correctPartitions(s, partitions, pcol, pcol.codec.KType)
 
 	// First, group together the privacy ID and the partition ID, and sum the
 	// values per-user and per-partition.

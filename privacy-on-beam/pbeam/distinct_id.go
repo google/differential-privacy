@@ -102,7 +102,7 @@ func DistinctPrivacyID(s beam.Scope, pcol PrivatePCollection, params DistinctPri
 	}
 	maxPartitionsContributed := getMaxPartitionsContributed(spec, params.MaxPartitionsContributed)
 	// Drop unspecified partitions, if partitions are specified.
-	correctPartitions := correctCountPartitions(s, partitions, pcol)
+	correctPartitions := correctCountPartitions(s, partitions, pcol, partitionT)
 	// First, deduplicate KV pairs by encoding them and calling Distinct.
 	coded := beam.ParDo(s, kv.NewEncodeFn(idT, partitionT), correctPartitions)
 	distinct := filter.Distinct(s, coded)
@@ -155,52 +155,6 @@ func checkDistinctPrivacyIDParams(params DistinctPrivacyIDParams, noiseKind nois
 		return err
 	}
 	return checks.CheckMaxPartitionsContributed("pbeam.DistinctPrivacyID", params.MaxPartitionsContributed)
-}
-
-func DistinctPrivacyIDWithPartitions(s beam.Scope, pcol PrivatePCollection, params DistinctPrivacyIDParams, partitions []interface{}) beam.PCollection {
-	s = s.Scope("pbeam.DistinctPrivacyID")
-	// Obtain type information from the underlying PCollection<K,V>.
-	idT, partitionT := beam.ValidateKVType(pcol.col)
-	// Get privacy parameters.
-	spec := pcol.privacySpec
-	epsilon, delta, err := spec.consumeBudget(params.Epsilon, params.Delta)
-	if err != nil {
-		log.Exitf("couldn't consume budget: %v", err)
-	}
-	var noiseKind noise.Kind
-	if params.NoiseKind == nil {
-		noiseKind = noise.LaplaceNoise
-		log.Infof("No NoiseKind specified, using Laplace Noise by default.")
-	} else {
-		noiseKind = params.NoiseKind.toNoiseKind()
-	}
-	maxPartitionsContributed := getMaxPartitionsContributed(spec, params.MaxPartitionsContributed)
-	// First, deduplicate KV pairs by encoding them and calling Distinct.
-	coded := beam.ParDo(s, kv.NewEncodeFn(idT, partitionT), pcol.col)
-	distinct := filter.Distinct(s, coded)
-	decoded := beam.ParDo(s,
-		kv.NewDecodeFn(idT, partitionT),
-		distinct,
-		beam.TypeDefinition{Var: beam.TType, T: idT.Type()},
-		beam.TypeDefinition{Var: beam.VType, T: partitionT.Type()})
-	// Second, do contribution bounding.
-	decoded = boundContributions(s, decoded, maxPartitionsContributed)
-	// Third, now that KV pairs are deduplicated and contribution bounding is
-	// done, remove the keys and count how many times each value appears.
-	values := beam.DropKey(s, decoded)
-	dummyCounts := beam.ParDo(s, addOneValueFn, values)
-
-	partitionsCol := beam.CreateList(s, partitions)
-	// Turn partitionsCol type PCollection<K> into PCollection<K, int64> by adding
-	// the value zero to each K.
-	prepareAddSpecifiedPartitions := beam.ParDo(s, prepareAddPartitionsInt64Fn, partitionsCol)
-
-	// Merge dummyCounts and prepareAddSpecifiedPartitions.
-	allAddPartitions := beam.Flatten(s, dummyCounts, prepareAddSpecifiedPartitions)
-	noisedCounts := beam.CombinePerKey(s,
-		newCountFn(epsilon, delta, maxPartitionsContributed, noiseKind, true),
-		allAddPartitions)
-	return beam.ParDo(s, CorrectToInt64, noisedCounts)
 }
 
 func addOneValueFn(v beam.V) (beam.V, int64) {
