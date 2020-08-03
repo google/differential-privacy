@@ -157,13 +157,13 @@ func (laplace) DeltaForThreshold(l0Sensitivity int64, lInfSensitivity, epsilon, 
 	return 1 - math.Pow(1-partitionDelta, float64(l0Sensitivity))
 }
 
-func (laplace) ReturnConfidenceIntervalInt64(noisedValue, l0Sensitivity, lInfSensitivity int64, epsilon, delta,
+func (laplace) ConfidenceIntervalInt64(noisedValue, l0Sensitivity, lInfSensitivity int64, epsilon, delta,
 	confidenceLevel float64) (ConfidenceIntervalInt64, error) {
 	// TODO: Implement confidence interval computation.
 	return ConfidenceIntervalInt64{}, nil
 }
 
-func (laplace) ReturnConfidenceIntervalFloat64(noisedValue float64, l0Sensitivity int64, lInfSensitivity, epsilon, delta,
+func (laplace) ConfidenceIntervalFloat64(noisedValue float64, l0Sensitivity int64, lInfSensitivity, epsilon, delta,
 	confidenceLevel float64) (ConfidenceIntervalFloat64, error) {
 	// TODO: Implement confidence interval computation.
 	return ConfidenceIntervalFloat64{}, nil
