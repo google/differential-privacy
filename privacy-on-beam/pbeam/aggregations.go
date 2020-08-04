@@ -533,111 +533,71 @@ func prepareAddPartitionsMeanFloat64Fn(partitionKey beam.X) (k beam.X, v []float
 }
 
 
-type Partition struct {
-	PartitionKey string
-}
-
 // Function for sum and mean. Drop unspecified partitions.
-func dropUnspecifiedPartitions(s beam.Scope, partitions []beam.PCollection, pcol PrivatePCollection, partitionT beam.EncodedType) beam.PCollection {
+func dropUnspecifiedPartitions(s beam.Scope, partitions []beam.PCollection, pcol PrivatePCollection, partitionEncodedType beam.EncodedType) beam.PCollection {
 	if len(partitions) == 1 {
 		partitionsCol := partitions[0]
-		partitionsMap := beam.Combine(s, newKVPartitionsHashMapFn(partitionT), partitionsCol)
-		return beam.ParDo(s, prunePartitionsFn, pcol.col, beam.SideInput{Input: partitionsMap})
+		partitionMap := beam.Combine(s, newPartitionsHashMapFn(partitionEncodedType), partitionsCol)
+		return beam.ParDo(s, prunePartitionsFn, pcol.col, beam.SideInput{Input: partitionMap})
 	}
 	return pcol.col
 }
 
 // Function for count and distinct_id. Drop unspecified partitions.
-func dropUnspecifiedPartitionsForCount(s beam.Scope, partitions []beam.PCollection, pcol PrivatePCollection, partitionT typex.FullType) beam.PCollection {
+func dropUnspecifiedPartitionsForCount(s beam.Scope, partitions []beam.PCollection, pcol PrivatePCollection, partitionFullType typex.FullType) beam.PCollection {
 	if len(partitions) == 1 {
 		partitionsCol := partitions[0]
-		partitionsMap := beam.Combine(s, newPartitionsHashMapFn(partitionT), partitionsCol)
-		return beam.ParDo(s, newPrunePartitionsFnForCount(partitionT), pcol.col, beam.SideInput{Input: partitionsMap})
+		partitionEncodedType := beam.EncodedType{partitionFullType.Type()}
+		partitionMap := beam.Combine(s, newPartitionsHashMapFn(partitionEncodedType), partitionsCol)
+		return beam.ParDo(s, newPrunePartitionsFnForCount(partitionFullType), pcol.col, beam.SideInput{Input: partitionMap})
 	}
 	return pcol.col
 }
 
 type mapAccum struct {
-	PartitionMap map[Partition]bool
-}
-
-// Makes hashmaps for partitions stored as values.
-type partitionsHashMapFn struct {
-	PartitionType         beam.EncodedType
-	partitionEnc          beam.ElementEncoder
-}
-
-func newPartitionsHashMapFn(partitionFullType typex.FullType) *partitionsHashMapFn {
-	return &partitionsHashMapFn{
-		PartitionType:         beam.EncodedType{partitionFullType.Type()},
-	}
-}
-
-func (fn *partitionsHashMapFn) Setup(){
-	fn.partitionEnc = beam.NewElementEncoder(fn.PartitionType.T)
-}
-
-func (fn *partitionsHashMapFn) CreateAccumulator() mapAccum {
-	return mapAccum{PartitionMap: make(map[Partition]bool)}
-}
-
-func (fn *partitionsHashMapFn) AddInput(m mapAccum, partitionKey beam.X) mapAccum {
-	var partitionBuf bytes.Buffer
-	if err := fn.partitionEnc.Encode(partitionKey, &partitionBuf); err != nil {
-		log.Exitf("pbeam.partitionsHashMapFn.ProcessElement: couldn't encode partition key %v: %v", partitionKey, err)
-	}
-	m.PartitionMap[Partition{PartitionKey: string(partitionBuf.Bytes())}] = true
-	return m
-}
-
-func (fn *partitionsHashMapFn) MergeAccumulators(a, b mapAccum) mapAccum {
-	for k := range a.PartitionMap {
-		b.PartitionMap[k] = true
-	}
-	return b
-}
-
-func (fn *partitionsHashMapFn) ExtractOutput(m mapAccum) map[Partition]bool {
-	return m.PartitionMap
+	// Key is string representation of partition encoding.
+	// Value is true.
+	PartitionMap map[string]bool
 }
 
 // Makes hashmaps for partitions stored in kv pairs.
-type KVpartitionsHashMapFn struct {
+type PartitionsHashMapFn struct {
 	PartitionType         beam.EncodedType
 	partitionEnc          beam.ElementEncoder
 }
 
-func newKVPartitionsHashMapFn(partitionType beam.EncodedType) *partitionsHashMapFn {
-	return &partitionsHashMapFn{
+func newPartitionsHashMapFn(partitionType beam.EncodedType) *PartitionsHashMapFn {
+	return &PartitionsHashMapFn{
 		PartitionType:         partitionType,
 	}
 }
 
-func (fn *KVpartitionsHashMapFn) Setup(){
+func (fn *PartitionsHashMapFn) Setup(){
 	fn.partitionEnc = beam.NewElementEncoder(fn.PartitionType.T)
 }
 
-func (fn *KVpartitionsHashMapFn) CreateAccumulator() mapAccum {
-	return mapAccum{PartitionMap: make(map[Partition]bool)}
+func (fn *PartitionsHashMapFn) CreateAccumulator() mapAccum {
+	return mapAccum{PartitionMap: make(map[string]bool)}
 }
 
-func (fn *KVpartitionsHashMapFn) AddInput(m mapAccum, partitionKey beam.X) mapAccum {
+func (fn *PartitionsHashMapFn) AddInput(m mapAccum, partitionKey beam.X) mapAccum {
 	var partitionBuf bytes.Buffer
 	if err := fn.partitionEnc.Encode(partitionKey, &partitionBuf); err != nil {
-		log.Exitf("pbeam.KVpartitionsHashMapFn.ProcessElement: couldn't encode partition key %v: %v", partitionKey, err)
+		log.Exitf("pbeam.PartitionsHashMapFn.ProcessElement: couldn't encode partition key %v: %v", partitionKey, err)
 	}
-	m.PartitionMap[Partition{PartitionKey: string(partitionBuf.Bytes())}] = true
+	encodedPartitionKey := string(partitionBuf.Bytes())
+	m.PartitionMap[encodedPartitionKey] = true
 	return m
 }
 
-func (fn *KVpartitionsHashMapFn) MergeAccumulators(a, b mapAccum) mapAccum {
+func (fn *PartitionsHashMapFn) MergeAccumulators(a, b mapAccum) mapAccum {
 	for k := range a.PartitionMap {
 		b.PartitionMap[k] = true
 	}
 	return b
 }
 
-func (fn *KVpartitionsHashMapFn) ExtractOutput(m mapAccum) map[Partition]bool {
+func (fn *PartitionsHashMapFn) ExtractOutput(m mapAccum) map[string]bool {
 	return m.PartitionMap
 }
 
@@ -660,14 +620,15 @@ func (fn *prunePartitionsFnForCount) Setup() {
 	fn.partitionEnc = beam.NewElementEncoder(fn.PartitionType.T)
 }
 
-func (fn *prunePartitionsFnForCount) ProcessElement(id beam.X, partitionKey beam.V, partitionsIter func(*map[Partition]bool) bool, emit func(beam.X, beam.V)) {
+func (fn *prunePartitionsFnForCount) ProcessElement(id beam.X, partitionKey beam.V, partitionsIter func(*map[string]bool) bool, emit func(beam.X, beam.V)) {
 	var partitionBuf bytes.Buffer
 	if err := fn.partitionEnc.Encode(partitionKey, &partitionBuf); err != nil {
 		log.Exitf("pbeam.preparePruneFn.ProcessElement: couldn't encode partition %v: %v", partitionKey, err)
 	}
-	var partitionsMap map[Partition]bool
-	partitionsIter(&partitionsMap)
-	if partitionsMap[Partition{PartitionKey: string(partitionBuf.Bytes())}]{
+	var partitionMap map[string]bool
+	partitionsIter(&partitionMap)
+	encodedPartitionKey := string(partitionBuf.Bytes())
+	if partitionMap[encodedPartitionKey]{
 		emit (id, partitionKey)
 	}
 }
@@ -675,10 +636,12 @@ func (fn *prunePartitionsFnForCount) ProcessElement(id beam.X, partitionKey beam
 // prunePartitionsFn takes a PCollection<ID, kv.Pair{K,V}> as input, and returns a
 // PCollection<ID, kv.Pair{K,V}>, where unspecified partitions have been dropped.
 // Used for sum and mean.
-func prunePartitionsFn(id beam.X, pair kv.Pair, partitionsIter func(*map[Partition]bool) bool, emit func(beam.X, kv.Pair)) {
-	var p map[Partition]bool
-	partitionsIter(&p)
-	if p[Partition{PartitionKey: string(pair.K)}]{
+func prunePartitionsFn(id beam.X, pair kv.Pair, partitionsIter func(*map[string]bool) bool, emit func(beam.X, kv.Pair)) {
+	var partitionMap map[string]bool
+	partitionsIter(&partitionMap)
+	// Parameters in a kv.Pair are already encoded.
+	encodedPartitionKey := string(pair.K)
+	if partitionMap[encodedPartitionKey]{
 		emit (id, pair)
 	}
 }
