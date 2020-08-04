@@ -309,7 +309,7 @@ func TestBoundedSumFloat64FnExtractOutputWithSpecifiedPartitionsDoesNotThreshold
 
 // Check elements with unspecified partitions are dropped.
 // This function is used for count and distinct_id.
-func TestCorrectCountPartitions(t *testing.T) {
+func TestDropUnspecifiedPartitionsForCount(t *testing.T) {
 	pairs := concatenatePairs(
 		makePairsWithFixedVStartingFromKey(0, 7, 0),
 		makePairsWithFixedVStartingFromKey(7, 52, 1),
@@ -341,15 +341,15 @@ func TestCorrectCountPartitions(t *testing.T) {
 	epsilon, delta := 50.0, 1e-200
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 	_, partitionT := beam.ValidateKVType(pcol.col)
-	got := correctCountPartitions(s, []beam.PCollection{partitionsCol}, pcol, partitionT)
+		got := dropUnspecifiedPartitionsForCount(s, []beam.PCollection{partitionsCol}, pcol, partitionT)
 	if err := equalsKVInt(s, got, want); err != nil {
-		t.Fatalf("CorrectCountPartitions: for %v got: %v, want %v", col, got, want)
+		t.Fatalf("dropUnspecifiedPartitionsForCount: for %v got: %v, want %v", col, got, want)
 	}
 }
 
 // Check that int elements with unspecified partitions
 // are dropped (tests function used for sum and mean).
-func TestCorrectPartitionsInt(t *testing.T) {
+func TestDropUnspecifiedPartitionsInt(t *testing.T) {
 	triples := concatenateTriplesWithIntValue(
 		makeDummyTripleWithIntValue(7, 0),
 		makeDummyTripleWithIntValue(58, 1),
@@ -374,7 +374,7 @@ func TestCorrectPartitionsInt(t *testing.T) {
 
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 	pcol = ParDo(s, tripleWithIntValueToKV, pcol)
-	got := correctPartitions(s, []beam.PCollection{partitionsCol}, pcol, pcol.codec.KType)
+	got := dropUnspecifiedPartitions(s, []beam.PCollection{partitionsCol}, pcol, pcol.codec.KType)
 	got = beam.SwapKV(s, got)
 
 	pcol2 := MakePrivate(s, col2, NewPrivacySpec(epsilon, delta))
@@ -383,13 +383,13 @@ func TestCorrectPartitionsInt(t *testing.T) {
 	want = beam.SwapKV(s, want)
 
 	if err := equalsKVInt(s, got, want); err != nil {
-		t.Fatalf("CorrectPartitions: for %v got: %v, want %v", col, got, want)
+		t.Fatalf("DropUnspecifiedPartitionsInt: for %v got: %v, want %v", col, got, want)
 	}
 }
 
 // Check that float elements with unspecified partitions
 // are dropped (tests function used for sum and mean).
-func TestCorrectPartitionsFloat(t *testing.T) {
+func TestDropUnspecifiedPartitionsFloat(t *testing.T) {
 	// In this test, we check  that unspecified partitions
 	// are dropped. This function is used for sum and mean.
 	triples := concatenateTriplesWithFloatValue(
@@ -416,7 +416,7 @@ func TestCorrectPartitionsFloat(t *testing.T) {
 
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 	pcol = ParDo(s, tripleWithFloatValueToKV, pcol)
-	got := correctPartitions(s, []beam.PCollection{partitionsCol}, pcol, pcol.codec.KType)
+	got := dropUnspecifiedPartitions(s, []beam.PCollection{partitionsCol}, pcol, pcol.codec.KType)
 	got = beam.SwapKV(s, got)
 
 	pcol2 := MakePrivate(s, col2, NewPrivacySpec(epsilon, delta))
@@ -425,6 +425,6 @@ func TestCorrectPartitionsFloat(t *testing.T) {
 	want = beam.SwapKV(s, want)
 
 	if err := equalsKVInt(s, got, want); err != nil {
-		t.Fatalf("CorrectPartitions: for %v got: %v, want %v", col, got, want)
+		t.Fatalf("DropUnspecifiedPartitionsFloat: for %v got: %v, want %v", col, got, want)
 	}
 }

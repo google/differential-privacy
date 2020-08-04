@@ -65,7 +65,8 @@ type DistinctPrivacyIDParams struct {
 // associated to each value in a PrivatePCollection, adding differentially
 // private noise to the counts and doing post-aggregation thresholding to
 // remove low counts. It is conceptually equivalent to calling Count with
-// MaxValue=1, but is specifically optimized for this use case.
+// MaxValue=1, but is specifically optimized for this use case. 
+// User can also specify at most one PCollection of partitions.
 //
 // Note: Do not use when your results may cause overflows for Int64 values.
 // This aggregation is not hardened for such applications yet.
@@ -79,14 +80,14 @@ func DistinctPrivacyID(s beam.Scope, pcol PrivatePCollection, params DistinctPri
 	// Obtain type information from the underlying PCollection<K,V>.
 	idT, partitionT := beam.ValidateKVType(pcol.col)
 	if len(partitions) == 1 {
-		if partitionT.Type() != partitions[0].Type().Type() {
-			log.Exitf("Elements in PartionsCol must be of type %v. Got type %v instead.",
-				partitionT.Type(), partitions[0].Type().Type())
+		partitionsCol := partitions[0]
+		if partitionT.Type() != partitionsCol.Type().Type() {
+			log.Exitf("Specified partitions must be of type %v. Got type %v instead.",
+				partitionT.Type(), partitionsCol.Type().Type())
 		}
 	}
 
 	s = s.Scope("pbeam.DistinctPrivacyID")
-
 	// Get privacy parameters.
 	spec := pcol.privacySpec
 	epsilon, delta, err := spec.consumeBudget(params.Epsilon, params.Delta)
@@ -101,8 +102,10 @@ func DistinctPrivacyID(s beam.Scope, pcol PrivatePCollection, params DistinctPri
 		noiseKind = params.NoiseKind.toNoiseKind()
 	}
 	maxPartitionsContributed := getMaxPartitionsContributed(spec, params.MaxPartitionsContributed)
+
+
 	// Drop unspecified partitions, if partitions are specified.
-	correctPartitions := correctCountPartitions(s, partitions, pcol, partitionT)
+	correctPartitions := dropUnspecifiedPartitionsForCount(s, partitions, pcol, partitionT)
 	// First, deduplicate KV pairs by encoding them and calling Distinct.
 	coded := beam.ParDo(s, kv.NewEncodeFn(idT, partitionT), correctPartitions)
 	distinct := filter.Distinct(s, coded)
@@ -117,20 +120,19 @@ func DistinctPrivacyID(s beam.Scope, pcol PrivatePCollection, params DistinctPri
 	// done, remove the keys and count how many times each value appears.
 	values := beam.DropKey(s, decoded)
 	dummyCounts := beam.ParDo(s, addOneValueFn, values)
-
-	return distinctIdWithCorrectPartitions(s, partitions, epsilon, delta, maxPartitionsContributed, noiseKind, dummyCounts)
+	if len(partitions) == 1 { // Partitions specified.
+		partitionsCol := partitions[0]
+		return addSpecifiedPartitionsForDistinctId(s, partitionsCol, epsilon, delta, maxPartitionsContributed, noiseKind, dummyCounts)
+	}
+	noisedCounts := beam.CombinePerKey(s,
+		newCountFn(epsilon, delta, maxPartitionsContributed, noiseKind, false),
+		dummyCounts)
+	// Finally, drop thresholded partitions and return the result
+	return beam.ParDo(s, dropThresholdedPartitionsInt64Fn, noisedCounts)
 }
 
-func distinctIdWithCorrectPartitions(s beam.Scope, partitions []beam.PCollection, epsilon, delta float64,
+func addSpecifiedPartitionsForDistinctId(s beam.Scope, partitionsCol beam.PCollection, epsilon, delta float64,
 	maxPartitionsContributed int64, noiseKind noise.Kind, dummyCounts beam.PCollection) beam.PCollection {
-	if len(partitions) == 0 {
-		noisedCounts := beam.CombinePerKey(s,
-			newCountFn(epsilon, delta, maxPartitionsContributed, noiseKind, false),
-			dummyCounts)
-		// Finally, drop thresholded partitions and return the result
-		return beam.ParDo(s, dropThresholdedPartitionsInt64Fn, noisedCounts)
-	}
-	partitionsCol := partitions[0]
 	prepareAddSpecifiedPartitions := beam.ParDo(s, prepareAddPartitionsInt64Fn, partitionsCol)
 
 	// Merge dummyCounts and prepareAddSpecifiedPartitions.

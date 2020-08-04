@@ -490,7 +490,6 @@ func convertFloat64ToFloat64Fn(z beam.Z, f float64) (beam.Z, float64) {
 
 // Turn PCollection<V> into PCollection <V,0>.
 func newPrepareAddPartitionsFn(vKind reflect.Kind) interface{} {
-	var err error
 	var fn interface{}
 	switch vKind {
 	case reflect.Int64:
@@ -500,16 +499,11 @@ func newPrepareAddPartitionsFn(vKind reflect.Kind) interface{} {
 	default:
 		log.Exitf("pbeam.newPrepareAddPartitionsFn: vKind(%v) should be int64 or float64", vKind)
 	}
-
-	if err != nil {
-		log.Exit(err)
-	}
 	return fn
 }
 
 // Turn PCollection<V> into either PCollection <V,[]int64{0}> or PCollection <V,[]float64{0}>.
 func newPrepareAddMeanPartitionsFn(vKind reflect.Kind) interface{} {
-	var err error
 	var fn interface{}
 	switch vKind {
 	case reflect.Int64:
@@ -518,10 +512,6 @@ func newPrepareAddMeanPartitionsFn(vKind reflect.Kind) interface{} {
 		fn = prepareAddPartitionsMeanFloat64Fn
 	default:
 		log.Exitf("pbeam.newPrepareAddPartitionsFn: vKind(%v) should be int64 or float64", vKind)
-	}
-
-	if err != nil {
-		log.Exit(err)
 	}
 	return fn
 }
@@ -548,7 +538,7 @@ type Partition struct {
 }
 
 // Function for sum and mean. Drop unspecified partitions.
-func correctPartitions(s beam.Scope, partitions []beam.PCollection, pcol PrivatePCollection, partitionT beam.EncodedType) beam.PCollection {
+func dropUnspecifiedPartitions(s beam.Scope, partitions []beam.PCollection, pcol PrivatePCollection, partitionT beam.EncodedType) beam.PCollection {
 	if len(partitions) == 1 {
 		partitionsCol := partitions[0]
 		partitionsMap := beam.Combine(s, newKVPartitionsHashMapFn(partitionT), partitionsCol)
@@ -558,11 +548,11 @@ func correctPartitions(s beam.Scope, partitions []beam.PCollection, pcol Private
 }
 
 // Function for count and distinct_id. Drop unspecified partitions.
-func correctCountPartitions(s beam.Scope, partitions []beam.PCollection, pcol PrivatePCollection, partitionT typex.FullType) beam.PCollection {
+func dropUnspecifiedPartitionsForCount(s beam.Scope, partitions []beam.PCollection, pcol PrivatePCollection, partitionT typex.FullType) beam.PCollection {
 	if len(partitions) == 1 {
 		partitionsCol := partitions[0]
 		partitionsMap := beam.Combine(s, newPartitionsHashMapFn(partitionT), partitionsCol)
-		return beam.ParDo(s, newPreparePruneFn(partitionT), pcol.col, beam.SideInput{Input: partitionsMap})
+		return beam.ParDo(s, newPrunePartitionsFnForCount(partitionT), pcol.col, beam.SideInput{Input: partitionsMap})
 	}
 	return pcol.col
 }
@@ -614,7 +604,7 @@ func (fn *partitionsHashMapFn) ExtractOutput(m mapAccum) map[Partition]bool {
 // Makes hashmaps for partitions stored in kv pairs.
 type KVpartitionsHashMapFn struct {
 	PartitionType         beam.EncodedType
-	partitionEnc                 beam.ElementEncoder
+	partitionEnc          beam.ElementEncoder
 }
 
 func newKVPartitionsHashMapFn(partitionType beam.EncodedType) *partitionsHashMapFn {
@@ -652,25 +642,25 @@ func (fn *KVpartitionsHashMapFn) ExtractOutput(m mapAccum) map[Partition]bool {
 }
 
 
-// preparePruneFn takes a PCollection<K, V> as input, and returns a
+// prunePartitionsFnForCount takes a PCollection<K, V> as input, and returns a
 // PCollection<K, V>, where unspecified partitions have been dropped.
 // Used for count and distinct_id.
-type preparePruneFn struct {
+type prunePartitionsFnForCount struct {
 	PartitionType   beam.EncodedType
 	partitionEnc    beam.ElementEncoder
 }
 
-func newPreparePruneFn(partitionType typex.FullType) *preparePruneFn {
-	return &preparePruneFn{
+func newPrunePartitionsFnForCount (partitionType typex.FullType) *prunePartitionsFnForCount {
+	return &prunePartitionsFnForCount{
 		PartitionType: beam.EncodedType{partitionType.Type()},
 	}
 }
 
-func (fn *preparePruneFn) Setup() {
+func (fn *prunePartitionsFnForCount) Setup() {
 	fn.partitionEnc = beam.NewElementEncoder(fn.PartitionType.T)
 }
 
-func (fn *preparePruneFn) ProcessElement(id beam.X, partitionKey beam.V, partitionsIter func(*map[Partition]bool) bool, emit func(beam.X, beam.V)) {
+func (fn *prunePartitionsFnForCount) ProcessElement(id beam.X, partitionKey beam.V, partitionsIter func(*map[Partition]bool) bool, emit func(beam.X, beam.V)) {
 	var partitionBuf bytes.Buffer
 	if err := fn.partitionEnc.Encode(partitionKey, &partitionBuf); err != nil {
 		log.Exitf("pbeam.preparePruneFn.ProcessElement: couldn't encode partition %v: %v", partitionKey, err)

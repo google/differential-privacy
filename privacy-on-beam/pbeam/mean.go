@@ -83,7 +83,7 @@ type MeanParams struct {
 // MeanPerKey obtains the mean of the values associated with each key in a
 // PrivatePCollection<K,V>, adding differentially private noise to the means and
 // doing pre-aggregation thresholding to remove means with a low number of
-// distinct privacy identifiers.
+// distinct privacy identifiers. User can also specify at most one PCollection of partitions.
 //
 // Note: Do not use when your results may cause overflows for Int64 or Float64
 // values.  This aggregation is not hardened for such applications yet.
@@ -94,15 +94,15 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams, partit
 		log.Exitf("Only one partition PCollection can be specified. %v were specified.", len(partitions))
 	}
 
-	s = s.Scope("pbeam.MeanPerKey")
-
 	if len(partitions) == 1 {
-		if pcol.codec.KType.T != partitions[0].Type().Type() {
+		partitionsCol := partitions[0]
+		if pcol.codec.KType.T != partitionsCol.Type().Type() {
 			log.Exitf("Specified partitions must be of type %v. Got type %v instead.",
-				pcol.codec.KType.T, partitions[0].Type().Type())
+				pcol.codec.KType.T, partitionsCol.Type().Type())
 		}
 	}
 
+    s = s.Scope("pbeam.MeanPerKey")
 	// Obtain & validate type information from the underlying PCollection<K,V>.
 	idT, kvT := beam.ValidateKVType(pcol.col)
 	if kvT.Type() != reflect.TypeOf(kv.Pair{}) {
@@ -111,6 +111,7 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams, partit
 	if pcol.codec == nil {
 		log.Exitf("MeanPerKey: no codec found for the input PrivatePCollection.")
 	}
+
 	// Get privacy parameters.
 	spec := pcol.privacySpec
 	epsilon, delta, err := spec.consumeBudget(params.Epsilon, params.Delta)
@@ -132,7 +133,7 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams, partit
 	}
 
 	// Drop unspecified partitions, if partitions are specified.
-	correctPartitions := correctPartitions(s, partitions, pcol, pcol.codec.KType)
+	correctPartitions := dropUnspecifiedPartitions(s, partitions, pcol, pcol.codec.KType)
 
 	// First, group together the privacy ID and the partition ID and do per-partition contribution bounding.
 	// Result is PCollection<kv.Pair{ID,K},V>
@@ -173,23 +174,22 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams, partit
 		newDecodePairArrayFloat64Fn(partitionT),
 		partialPairs,
 		beam.TypeDefinition{Var: beam.XType, T: partitionT})
-
-	return meanWithCorrectPartitions(s, partitions, epsilon, delta, maxPartitionsContributed,
+	if len(partitions) == 1 { // partition specified
+		partitionsCol := partitions[0]
+		return addSpecifiedPartitionsForMean(s, partitionsCol, epsilon, delta, maxPartitionsContributed,
 		params, noiseKind, partialKV)
+
+	}
+	// Compute the mean for each partition. Result is PCollection<partition, float64>.
+	means := beam.CombinePerKey(s,
+		newBoundedMeanFloat64Fn(epsilon, delta, maxPartitionsContributed, params.MaxContributionsPerPartition, params.MinValue, params.MaxValue, noiseKind, false),
+		partialKV)
+	// Finally, drop thresholded partitions.
+	return beam.ParDo(s, dropThresholdedPartitionsFloat64Fn, means)
 }
 
-func meanWithCorrectPartitions(s beam.Scope, partitions []beam.PCollection, epsilon, delta float64,
+func addSpecifiedPartitionsForMean(s beam.Scope, partitionsCol beam.PCollection, epsilon, delta float64,
 	maxPartitionsContributed int64, params MeanParams, noiseKind noise.Kind, partialKV beam.PCollection) beam.PCollection {
-	if len(partitions) == 0 { // no partitions specified
-		// Compute the mean for each partition. Result is PCollection<partition, float64>.
-		means := beam.CombinePerKey(s,
-			newBoundedMeanFloat64Fn(epsilon, delta, maxPartitionsContributed, params.MaxContributionsPerPartition, params.MinValue, params.MaxValue, noiseKind, false),
-			partialKV)
-		// Finally, drop thresholded partitions.
-		return beam.ParDo(s, dropThresholdedPartitionsFloat64Fn, means)
-	}
-
-	partitionsCol := partitions[0]
 	// Turn partitionsCol type PCollection<K> into PCollection<K, [] float64]> by adding
 	// an empty array as the value to each K.
 	addSpecifiedPartitions := beam.ParDo(s, prepareAddPartitionsMeanFloat64Fn, partitionsCol)
