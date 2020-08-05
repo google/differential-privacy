@@ -186,7 +186,7 @@ class ApproxBounds : public Algorithm<T> {
   };
 
   void AddEntry(const T& input) override {
-    if (std::isnan(input)) {
+    if (std::isnan(static_cast<double>(input))) { // REF: https://stackoverflow.com/questions/61646166/how-to-resolve-fpclassify-ambiguous-call-to-overloaded-function
       return;
     }
 

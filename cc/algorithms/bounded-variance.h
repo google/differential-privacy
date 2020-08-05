@@ -150,7 +150,7 @@ class BoundedVariance : public Algorithm<T> {
 
   void AddEntry(const T& t) override {
     // Drop value if it is NaN.
-    if (std::isnan(t)) {
+    if (std::isnan(static_cast<double>(t))) {
       return;
     }
 
