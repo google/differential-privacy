@@ -114,6 +114,19 @@ public class GaussianNoise implements Noise {
     return MechanismType.GAUSSIAN;
   }
 
+  /**
+   * Returns {@link ConfidenceInterval} object with the given {@code confidenceLevel},
+   * using {@code noisedValue}, L_0 and L_inf sensitivities,
+   * and {@code epsilon} and {@code delta} for Gaussian distribution.
+   */
+  @Override
+  public ConfidenceInterval getConfidenceInterval(
+          double noisedValue, int l0Sensitivity, double lInfSensitivity,
+          double epsilon, Double delta, double confidenceLevel){
+    // TODO: Implement confidence interval computation.
+    return null;
+  }
+
   private void checkParameters(
       int l0Sensitivity, double lInfSensitivity, double epsilon, Double delta) {
     DpPreconditions.checkSensitivities(l0Sensitivity, lInfSensitivity);

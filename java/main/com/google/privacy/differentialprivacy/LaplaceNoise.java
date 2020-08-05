@@ -118,6 +118,21 @@ public class LaplaceNoise implements Noise {
     return Math.round(addNoise((double) x, l1Sensitivity, epsilon, delta));
   }
 
+  /**
+   * Returns {@link ConfidenceInterval} object with the given {@code confidenceLevel},
+   * using {@code noisedValue}, L_0 and L_inf sensitivities,
+   * and {@code epsilon} and {@code delta} for Laplace distribution.
+   * Note that {@code delta} must be set to {@code null} because it does not parameterize Laplace
+   * noise. Moreover, {@code epsilon} must be at least 2^-50.
+   */
+  @Override
+  public ConfidenceInterval getConfidenceInterval(
+          double noisedValue, int l0Sensitivity, double lInfSensitivity,
+          double epsilon, @Nullable Double delta, double confidenceLevel){
+    // TODO: Implement confidence interval computation.
+    return null;
+  }
+
   private void checkParameters(double l1Sensitivity, double epsilon, @Nullable Double delta) {
     DpPreconditions.checkEpsilon(epsilon);
     DpPreconditions.checkNoiseDelta(delta, this);

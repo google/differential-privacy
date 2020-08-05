@@ -31,6 +31,10 @@ public interface Noise {
   long addNoise(
       long x, int l0Sensitivity, long lInfSensitivity, double epsilon, @Nullable Double delta);
 
+  ConfidenceInterval getConfidenceInterval(
+          double noisedValue, int l0Sensitivity, double lInfSensitivity,
+          double epsilon, @Nullable Double delta, double confidenceLevel);
+
   MechanismType getMechanismType();
 
   static double getL1Sensitivity(int l0Sensitivity, double lInfSensitivity) {
