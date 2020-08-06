@@ -20,12 +20,12 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/google/differential-privacy/go/dpagg"
-	"github.com/google/differential-privacy/go/noise"
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
+	"github.com/google/differential-privacy/go/dpagg"
+	"github.com/google/differential-privacy/go/noise"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -728,10 +728,10 @@ func TestMeanPerKeyWithPartitionsReturnsNonNegativeFloat64(t *testing.T) {
 	col = beam.ParDo(s, extractIDFromTripleWithFloatValue, col)
 
 	var partitions []int
-	for p := 0; p < 200; p++{
+	for p := 0; p < 200; p++ {
 		partitions = append(partitions, p)
 	}
-	partitionsCol := beam.CreateList(s, partitions)
+	partitionsCol := CreateList(s, partitions)
 
 	// Using a low ε, a high δ, and a high maxValue here to add a
 	// lot of noise while keeping partitions.
@@ -751,11 +751,11 @@ func TestMeanPerKeyWithPartitionsReturnsNonNegativeFloat64(t *testing.T) {
 		MaxValue:                     upper,
 		MaxPartitionsContributed:     1,
 		NoiseKind:                    LaplaceNoise{},
-	}, partitionsCol)
+		specifiedPartitions:          partitionsCol})
 	values := beam.DropKey(s, means)
 	beam.ParDo0(s, checkNoNegativeValuesFloat64Fn, values)
 	if err := ptest.Run(p); err != nil {
-		t.Errorf("TestMeanPerKeyReturnsNonNegativeFloat64 returned errors: %v", err)
+		t.Errorf("TestMeanPerKeyWithPartitionsReturnsNonNegativeFloat64 returned errors: %v", err)
 	}
 }
 
@@ -851,9 +851,6 @@ func TestMeanPerKeyWithPartitionsCrossPartitionContributionBounding(t *testing.T
 	p, s, col, want := ptest.CreateList2(triples, result)
 	col = beam.ParDo(s, extractIDFromTripleWithFloatValue, col)
 
-	// ε=60, δ=0.01 and l0Sensitivity=1 gives a threshold of =2.
-	// We have 2 partitions. So, to get an overall flakiness of 10⁻²³,
-	// we can have each partition fail with 10⁻²⁵ probability (k=25).
 	maxContributionsPerPartition := int64(1)
 	maxPartitionsContributed := int64(1)
 	epsilon := 60.0
@@ -862,7 +859,7 @@ func TestMeanPerKeyWithPartitionsCrossPartitionContributionBounding(t *testing.T
 	upper := 150.0
 
 	// Specify partition 0, so id = 0 is guaranteed to contribute to partition 0.
-	partitionsCol := beam.CreateList(s, []int{0})
+	partitionsCol := CreateList(s, []int{0})
 	// ε is split by 2 for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
 	pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
 	pcol = ParDo(s, tripleWithFloatValueToKV, pcol)
@@ -872,7 +869,7 @@ func TestMeanPerKeyWithPartitionsCrossPartitionContributionBounding(t *testing.T
 		MinValue:                     lower,
 		MaxValue:                     upper,
 		NoiseKind:                    LaplaceNoise{},
-	}, partitionsCol)
+		specifiedPartitions:          partitionsCol})
 
 	means := beam.DropKey(s, got)
 	sumOverPartitions := stats.Sum(s, means)
@@ -891,10 +888,10 @@ func TestMeanPerKeyWithPartitionsCrossPartitionContributionBounding(t *testing.T
 		t.Fatalf("laplaceToleranceForMean: got error %v", err)
 	}
 	if err := approxEqualsKVFloat64(s, got, want, tolerance1+tolerance2); err != nil {
-		t.Fatalf("TestMeanPerKeyPerPartitionContributionBounding: %v", err)
+		t.Fatalf("TestMeanPerKeyWithPartitionsPerPartitionContributionBounding: %v", err)
 	}
 	if err := ptest.Run(p); err != nil {
-		t.Errorf("TestMeanPerKeyPerPartitionContributionBounding: MeanPerKey(%v) = %v, want %v, error %v", col, got, want, err)
+		t.Errorf("TestMeanPerKeyWithPartitionsPerPartitionContributionBounding: MeanPerKey(%v) = %v, want %v, error %v", col, got, want, err)
 	}
 }
 
@@ -933,14 +930,14 @@ func TestMeanPerKeyWithPartitionsNoNoiseIntValues(t *testing.T) {
 	// ε is split by 2 for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
 	pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
 	pcol = ParDo(s, tripleWithIntValueToKV, pcol)
-	partitions := beam.CreateList(s, []int{1, 3})
+	partitionsCol := CreateList(s, []int{1, 3})
 	got := MeanPerKey(s, pcol, MeanParams{
 		MaxPartitionsContributed:     maxPartitionsContributed,
 		MaxContributionsPerPartition: maxContributionsPerPartition,
 		MinValue:                     lower,
 		MaxValue:                     upper,
 		NoiseKind:                    LaplaceNoise{},
-	}, partitions)
+		specifiedPartitions:          partitionsCol})
 	want = beam.ParDo(s, float64MetricToKV, want)
 
 	tolerance, err := laplaceToleranceForMean(25, lower, upper, maxContributionsPerPartition, maxPartitionsContributed, epsilon, 150.0, exactCount, exactMean)
@@ -948,9 +945,9 @@ func TestMeanPerKeyWithPartitionsNoNoiseIntValues(t *testing.T) {
 		t.Fatalf("laplaceToleranceForMean: got error %v", err)
 	}
 	if err := approxEqualsKVFloat64(s, got, want, tolerance); err != nil {
-		t.Fatalf("TestMeanPerKeyNoNoise: %v", err)
+		t.Fatalf("TestMeanPerKeyWithPartitionsNoNoise: %v", err)
 	}
 	if err := ptest.Run(p); err != nil {
-		t.Errorf("TestMeanPerKeyNoNoise: MeanPerKey(%v) = %v, want %v, error %v", col, got, want, err)
+		t.Errorf("TestMeanPerKeyWithPartitionsNoNoise: MeanPerKey(%v) = %v, want %v, error %v", col, got, want, err)
 	}
 }

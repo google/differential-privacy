@@ -22,12 +22,12 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/google/differential-privacy/go/noise"
-	testpb "github.com/google/differential-privacy/privacy-on-beam/testdata"
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
+	"github.com/google/differential-privacy/go/noise"
+	testpb "github.com/google/differential-privacy/privacy-on-beam/testdata"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/protobuf/proto"
@@ -122,17 +122,17 @@ func TestDistinctPrivacyIDWithPartitionsNoNoise(t *testing.T) {
 		partitions = append(partitions, i)
 	}
 	// Create partition PCollection.
-	partitionsCol := beam.CreateList(s, partitions)
+	partitionsCol := CreateList(s, partitions)
 
 	epsilon, delta, k, l1Sensitivity := 50.0, 1e-200, 25.0, 4.0
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
-	got := DistinctPrivacyID(s, pcol, DistinctPrivacyIDParams{MaxPartitionsContributed: 4, NoiseKind: LaplaceNoise{}}, partitionsCol)
+	got := DistinctPrivacyID(s, pcol, DistinctPrivacyIDParams{MaxPartitionsContributed: 4, NoiseKind: LaplaceNoise{}, specifiedPartitions: partitionsCol})
 	want = beam.ParDo(s, int64MetricToKV, want)
 	if err := approxEqualsKVInt64(s, got, want, laplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-		t.Fatalf("TestDistinctPrivacyIDNoNoise: %v", err)
+		t.Fatalf("TestDistinctPrivacyIDWithPartitionsNoNoise: %v", err)
 	}
 	if err := ptest.Run(p); err != nil {
-		t.Errorf("TestDistinctPrivacyIDNoNoise: DistinctPrivacyID(%v) = %v, expected %v: %v", col, got, want, err)
+		t.Errorf("TestDistinctPrivacyIDWithPartitionsNoNoise: DistinctPrivacyID(%v) = %v, expected %v: %v", col, got, want, err)
 	}
 }
 
@@ -332,22 +332,22 @@ func TestDistinctPrivacyIDWithPartitionsCrossPartitionContributionBounding(t *te
 	}
 	p, s, col, want := ptest.CreateList2(pairs, result)
 	col = beam.ParDo(s, pairToKV, col)
-	partitions := beam.CreateList(s, []int{0, 1, 2})
+	partitionsCol := CreateList(s, []int{0, 1, 2})
 
 	epsilon, delta, k, l1Sensitivity := 50.0, 0.01, 25.0, 3.0
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
-	got := DistinctPrivacyID(s, pcol, DistinctPrivacyIDParams{MaxPartitionsContributed: 3, NoiseKind: LaplaceNoise{}}, partitions)
-	// With a max contribution of 3, all of the data for the three specified partitions should be kept. 
+	got := DistinctPrivacyID(s, pcol, DistinctPrivacyIDParams{MaxPartitionsContributed: 3, NoiseKind: LaplaceNoise{}, specifiedPartitions: partitionsCol})
+	// With a max contribution of 3, all of the data for the three specified partitions should be kept.
 	// The sum of all elements must then be 150.
 	counts := beam.DropKey(s, got)
 	sumOverPartitions := stats.Sum(s, counts)
 	got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
 	want = beam.ParDo(s, int64MetricToKV, want)
 	if err := approxEqualsKVInt64(s, got, want, laplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-		t.Fatalf("TestDistinctPrivacyIDCrossPartitionContributionBounding: %v", err)
+		t.Fatalf("TestDistinctPrivacyIDWithPartitionsCrossPartitionContributionBounding: %v", err)
 	}
 	if err := ptest.Run(p); err != nil {
-		t.Errorf("TestDistinctPrivacyIDCrossPartitionContributionBounding: DistinctPrivacyID(%v) = %v, expected elements to sum to 150: %v", col, got, err)
+		t.Errorf("TestDistinctPrivacyIDWithPartitionsCrossPartitionContributionBounding: DistinctPrivacyID(%v) = %v, expected elements to sum to 150: %v", col, got, err)
 	}
 }
 

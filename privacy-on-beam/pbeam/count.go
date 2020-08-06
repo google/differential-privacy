@@ -57,6 +57,10 @@ type CountParams struct {
 	//
 	// Required.
 	MaxValue int64
+	// User-specified partitions.
+	//
+	// Optional.
+	specifiedPartitions Partitions
 }
 
 // Count counts the number of times a value appears in a PrivatePCollection,
@@ -68,21 +72,9 @@ type CountParams struct {
 // This aggregation is not hardened for such applications yet.
 //
 // Count transforms a PrivatePCollection<V> into a PCollection<V, int64>.
-func Count(s beam.Scope, pcol PrivatePCollection, params CountParams, partitions ...beam.PCollection) beam.PCollection {
-	if len(partitions) > 1 {
-		log.Exitf("Only one partition PCollection can be specified. %v were specified.", len(partitions))
-	}
-
+func Count(s beam.Scope, pcol PrivatePCollection, params CountParams) beam.PCollection {
 	// Obtain type information from the underlying PCollection<K,V>.
 	idT, partitionT := beam.ValidateKVType(pcol.col)
-	if len(partitions) == 1 {
-		partitionsCol := partitions[0]
-		if partitionT.Type() != partitionsCol.Type().Type() {
-			log.Exitf("Specified partitions must be of type %v. Got type %v instead.",
-				partitionT.Type(), partitionsCol.Type().Type())
-		}
-	}
-
 	s = s.Scope("pbeam.Count")
 	// Get privacy parameters.
 	spec := pcol.privacySpec
@@ -90,9 +82,9 @@ func Count(s beam.Scope, pcol PrivatePCollection, params CountParams, partitions
 	if err != nil {
 		log.Exitf("couldn't consume budget: %v", err)
 	}
-	err = checkCountParams(params, epsilon, delta)	
-	if err != nil {	
-		log.Exit(err)	
+	err = checkCountParams(params, epsilon, delta)
+	if err != nil {
+		log.Exit(err)
 	}
 
 	var noiseKind noise.Kind
@@ -105,8 +97,18 @@ func Count(s beam.Scope, pcol PrivatePCollection, params CountParams, partitions
 
 	maxPartitionsContributed := getMaxPartitionsContributed(spec, params.MaxPartitionsContributed)
 
-	// Drop unspecified partitions, if partitions are specified.
-	correctPartitions := dropUnspecifiedPartitionsForCount(s, partitions, pcol, partitionT)
+	var correctPartitions beam.PCollection
+
+	if params.specifiedPartitions.partitionsSpecified { // Partitions specifie.d
+		if partitionT.Type() != params.specifiedPartitions.partitionsCol.Type().Type() {
+			log.Exitf("Specified partitions must be of type %v. Got type %v instead.",
+				partitionT.Type(), params.specifiedPartitions.partitionsCol.Type().Type())
+		}
+		// Drop unspecified partitions, if partitions are specified.
+		correctPartitions = dropUnspecifiedPartitionsForCount(s, params.specifiedPartitions.partitionsCol, pcol, partitionT)
+	} else {
+		correctPartitions = pcol.col
+	}
 	// First, encode KV pairs, count how many times each one appears,
 	// and re-key by the original privacy key.
 	coded := beam.ParDo(s, kv.NewEncodeFn(idT, partitionT), correctPartitions)
@@ -123,21 +125,22 @@ func Count(s beam.Scope, pcol PrivatePCollection, params CountParams, partitions
 		newDecodePairInt64Fn(partitionT.Type()),
 		countPairs,
 		beam.TypeDefinition{Var: beam.XType, T: partitionT.Type()})
-	if len(partitions) == 1 { //Partitions specified.
-		partitionsCol := partitions[0]
-		return addSpecifiedPartitionsForCount(s, partitionsCol, epsilon, delta, maxPartitionsContributed,
-											params, noiseKind, countsKV)
+
+	if params.specifiedPartitions.partitionsSpecified { // Partitions specified.
+		return addSpecifiedPartitionsForCount(s, epsilon, delta, maxPartitionsContributed,
+			params, noiseKind, countsKV)
 
 	}
 	sums := beam.CombinePerKey(s,
-			newBoundedSumInt64Fn(epsilon, delta, maxPartitionsContributed, 0, params.MaxValue, noiseKind, false),
-			countsKV)
+		newBoundedSumInt64Fn(epsilon, delta, maxPartitionsContributed, 0, params.MaxValue, noiseKind, false),
+		countsKV)
 	counts := beam.ParDo(s, dropThresholdedPartitionsInt64Fn, sums)
 	return beam.ParDo(s, clampNegativePartitionsInt64Fn, counts)
 }
 
-func addSpecifiedPartitionsForCount(s beam.Scope, partitionsCol beam.PCollection, epsilon, delta float64,
+func addSpecifiedPartitionsForCount(s beam.Scope, epsilon, delta float64,
 	maxPartitionsContributed int64, params CountParams, noiseKind noise.Kind, countsKV beam.PCollection) beam.PCollection {
+	partitionsCol := params.specifiedPartitions.partitionsCol
 	// Turn partitionsCol type PCollection<K> into PCollection<K, int64> by adding
 	// the value zero to each K.
 	prepareAddSpecifiedPartitions := beam.ParDo(s, prepareAddPartitionsInt64Fn, partitionsCol)

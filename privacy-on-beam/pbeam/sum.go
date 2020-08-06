@@ -67,6 +67,10 @@ type SumParams struct {
 	//
 	// Required.
 	MinValue, MaxValue float64
+	// User-specified partitions.
+	//
+	// Optional.
+	specifiedPartitions Partitions
 }
 
 // SumPerKey sums the values associated with each key in a
@@ -80,18 +84,7 @@ type SumParams struct {
 // SumPerKey transforms a PrivatePCollection<K,V> either into a
 // PCollection<K,int64> or a PCollection<K,float64>, depending on whether its
 // input is an integer type or a float type.
-func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams, partitions ...beam.PCollection) beam.PCollection {
-	if len(partitions) > 1 {
-		log.Exitf("Only one partition PCollection can be specified. %v were specified.", len(partitions))
-	}
-
-	if len(partitions) == 1 {
-		partitionsCol := partitions[0]
-		if pcol.codec.KType.T != partitionsCol.Type().Type() {
-			log.Exitf("Specified partitions must be of type %v. Got type %v instead.",
-				pcol.codec.KType.T, partitionsCol.Type().Type())
-		}
-	}
+func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCollection {
 
 	s = s.Scope("pbeam.SumPerKey")
 	// Obtain & validate type information from the underlying PCollection<K,V>.
@@ -125,8 +118,18 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams, partitio
 
 	maxPartitionsContributed := getMaxPartitionsContributed(spec, params.MaxPartitionsContributed)
 
-	// Drop unspecified partitions.
-	correctPartitions := dropUnspecifiedPartitions(s, partitions, pcol, pcol.codec.KType)
+	var correctPartitions beam.PCollection
+
+	if params.specifiedPartitions.partitionsSpecified { // Partitions are specified.
+		if pcol.codec.KType.T != (params.specifiedPartitions.partitionsCol).Type().Type() {
+			log.Exitf("Specified partitions must be of type %v. Got type %v instead.",
+				pcol.codec.KType.T, params.specifiedPartitions.partitionsCol.Type().Type())
+		}
+		// Drop unspecified partitions, if partitions are specified.
+		correctPartitions = dropUnspecifiedPartitions(s, params.specifiedPartitions.partitionsCol, pcol, pcol.codec.KType)
+	} else {
+		correctPartitions = pcol.col
+	}
 
 	// First, group together the privacy ID and the partition ID, and sum the
 	// values per-user and per-partition.
@@ -158,14 +161,13 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams, partitio
 		partialSumPairs,
 		beam.TypeDefinition{Var: beam.XType, T: partitionT})
 
-	if len(partitions) == 1 { // Partitions specified.
-		partitionsCol := partitions[0]
-		return addSpecifiedPartitionsForSum(s, partitionsCol, epsilon, delta, maxPartitionsContributed,
-		params, noiseKind, vKind, partialSumKV)
+	if params.specifiedPartitions.partitionsSpecified { // Partitions specified.
+		return addSpecifiedPartitionsForSum(s, epsilon, delta, maxPartitionsContributed,
+			params, noiseKind, vKind, partialSumKV)
 	}
 	sums := beam.CombinePerKey(s,
-			newBoundedSumFn(epsilon, delta, maxPartitionsContributed, params.MinValue, params.MaxValue, noiseKind, vKind, false),
-			partialSumKV)
+		newBoundedSumFn(epsilon, delta, maxPartitionsContributed, params.MinValue, params.MaxValue, noiseKind, vKind, false),
+		partialSumKV)
 	// Drop thresholded partitions.
 	sums = beam.ParDo(s, findDropThresholdedPartitionsFn(vKind), sums)
 	// Clamp negative counts to zero when MinValue is non-negative.
@@ -175,8 +177,9 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams, partitio
 	return sums
 }
 
-func addSpecifiedPartitionsForSum(s beam.Scope, partitionsCol beam.PCollection, epsilon, delta float64,
+func addSpecifiedPartitionsForSum(s beam.Scope, epsilon, delta float64,
 	maxPartitionsContributed int64, params SumParams, noiseKind noise.Kind, vKind reflect.Kind, partialSumKV beam.PCollection) beam.PCollection {
+	partitionsCol := params.specifiedPartitions.partitionsCol
 	addSpecifiedPartitions := beam.ParDo(s, newPrepareAddPartitionsFn(vKind), partitionsCol)
 	allAddPartitions := beam.Flatten(s, partialSumKV, addSpecifiedPartitions)
 	sums := beam.CombinePerKey(s,
