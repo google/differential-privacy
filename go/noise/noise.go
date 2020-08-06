@@ -59,20 +59,15 @@ func ToKind(n Noise) Kind {
 	return GaussianNoise
 }
 
-// ConfidenceIntervalInt64 holds lower and upper bounds as int64 for the confidence interval.
-type ConfidenceIntervalInt64 struct {
-	LowerBound, UpperBound int64
-}
-
-// ConfidenceIntervalFloat64 holds lower and upper bounds as float64 for the confidence interval.
-type ConfidenceIntervalFloat64 struct {
+// ConfidenceInterval holds lower and upper bounds as float64 for the confidence interval.
+type ConfidenceInterval struct {
 	LowerBound, UpperBound float64
 }
 
-// toConfidenceIntervalInt64 converts a ConfidenceIntervalFloat64 struct to ConfidenceIntervalInt64 by
-// rounding the lower and upper bounds.
-func (confInt ConfidenceIntervalFloat64) toConfidenceIntervalInt64() ConfidenceIntervalInt64 {
-	return ConfidenceIntervalInt64{LowerBound: int64(math.Round(confInt.LowerBound)), UpperBound: int64(math.Round(confInt.UpperBound))}
+// toConfidenceIntervalInt64 rounds the lower and upper bounds of a ConfidenceInterval struct for
+// integer valued noise operations.
+func (confInt ConfidenceInterval) toConfidenceIntervalInt64() ConfidenceInterval {
+	return ConfidenceInterval{LowerBound: math.Round(confInt.LowerBound), UpperBound: math.Round(confInt.UpperBound)}
 }
 
 // Noise is an interface for primitives that add noise to data to make it differentially private.
@@ -87,17 +82,17 @@ type Noise interface {
 
 	// Threshold returns the smallest threshold k needed in settings where the Noise instance
 	// is used to achieve differential privacy on histograms where the inclusion of histogram
-	// partitions depends on which users are present in the database.
+	// partitions depends on which privacy units are present in the database.
 	//
 	// Inputs:
-	//   l0Sensitivity: The maximum number of partitions that a user can contribute to.
+	//   l0Sensitivity: The maximum number of partitions that a privacy unit can contribute to.
 	//   lInfSensitivity: How much any single partition's value can change from
-	//     the contribution of a single user. When adding a user results in the
+	//     the contribution of a single privacy unit. When adding a privacy unit results in the
 	//     creation of a new partition, this bounds the magnitude of that partition.
 	//   epsilon: The parameter ε passed to AddNoise.
-	//   deltaNoise: The parameter δ passed to AddNoise.
-	//   deltaThreshold: Differential privacy loss (0, delta) incurred by thresholding,
-	//     i.e. the probability to output a partition that only has one user in it.
+	//   noiseDelta: The parameter δ passed to AddNoise.
+	//   thresholdDelta: Differential privacy loss (0, delta) incurred by thresholding,
+	//     i.e. the probability to output a partition that only has one privacy unit in it.
 	//
 	// More precisely, Threshold returns the smallest k such that the following algorithm:
 	//
@@ -108,26 +103,24 @@ type Noise interface {
 	//     }
 	//     noisySums := make(map[string]float64)
 	//     for key, sum := range sums {
-	//       noisySum := AddNoiseFloat64(sum, sensitivity, epsilon, deltaNoise)
+	//       noisySum := AddNoiseFloat64(sum, sensitivity, epsilon, noiseDelta)
 	//       if noisySum ≥ k:
 	//         noisySums[key] = noisySum
 	//     }
 	//     return noisySums
 	//   }
 	//
-	// satisfies (epsilon,deltaNoise+deltaThreshold)-differential privacy under the
+	// satisfies (epsilon,noiseDelta+thresholdDelta)-differential privacy under the
 	// given assumptions of L_0 and L_∞ sensitivities.
-	Threshold(l0Sensitivity int64, lInfSensitivity, epsilon, deltaNoise, deltaThreshold float64) float64
+	Threshold(l0Sensitivity int64, lInfSensitivity, epsilon, noiseDelta, thresholdDelta float64) float64
 
-	// ConfidenceIntervalInt64 will return a ConfidenceIntervalInt64 struct with the given
+	// ConfidenceIntervalInt64 will return a ConfidenceInterval struct with the given
 	// confidenceLevel, using the int64 noisedValue, l0Sensitivity, lInfSensitivity int64 and
 	// epsilon, delta float64 for the distribution.
-	ConfidenceIntervalInt64(noisedValue, l0Sensitivity, lInfSensitivity int64, epsilon, delta,
-		confidenceLevel float64) (ConfidenceIntervalInt64, error)
+	ConfidenceIntervalInt64(noisedValue, l0Sensitivity, lInfSensitivity int64, epsilon, delta, confidenceLevel float64) (ConfidenceInterval, error)
 
-	// ConfidenceIntervalFloat64 will return a ConfidenceIntervalFloat64 struct with the given
+	// ConfidenceIntervalFloat64 will return a ConfidenceInterval struct with the given
 	// confidenceLevel, using the float64 noisedValue, l0Sensitivity int64 and lInfSensitivity,
 	// epsilon, delta float64 for the distribution.
-	ConfidenceIntervalFloat64(noisedValue float64, l0Sensitivity int64, lInfSensitivity, epsilon, delta,
-		confidenceLevel float64) (ConfidenceIntervalFloat64, error)
+	ConfidenceIntervalFloat64(noisedValue float64, l0Sensitivity int64, lInfSensitivity, epsilon, delta, confidenceLevel float64) (ConfidenceInterval, error)
 }

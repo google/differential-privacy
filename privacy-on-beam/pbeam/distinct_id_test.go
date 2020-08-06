@@ -68,7 +68,7 @@ func TestDistinctPrivacyIDNoNoise(t *testing.T) {
 		makePairsWithFixedV(99, 2),
 		makePairsWithFixedV(7, 0)) // duplicated values should have no influence.
 	result := []testInt64Metric{
-		// Only 7 users are associated to value 0: should be thresholded.
+		// Only 7 privacy units are associated with value 0: should be thresholded.
 		{1, 52},
 		{2, 99},
 	}
@@ -79,7 +79,7 @@ func TestDistinctPrivacyIDNoNoise(t *testing.T) {
 	// We have 4 partitions. So, to get an overall flakiness of 10⁻²³,
 	// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
 	// To see the logic and the math behind flakiness and tolerance calculation,
-	// See https://github.com/google/differential-privacy/blob/master/privacy-on-beam/docs/Tolerance_Calculation.pdf.
+	// See https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf.
 	epsilon, delta, k, l1Sensitivity := 50.0, 1e-200, 25.0, 4.0
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 	got := DistinctPrivacyID(s, pcol, DistinctPrivacyIDParams{MaxPartitionsContributed: 4, NoiseKind: LaplaceNoise{}})
@@ -97,17 +97,17 @@ type distinctThresholdTestCase struct {
 	noiseKind       NoiseKind
 	epsilon         float64
 	delta           float64
-	numValues       int
+	numPartitions   int
 	minAllowedValue int
 }
 
 var distinctThresholdTestCases = []distinctThresholdTestCase{
 	{
-		name:      "Gaussian",
-		noiseKind: GaussianNoise{},
-		epsilon:   1,
-		delta:     0.01,
-		numValues: 25,
+		name:          "Gaussian",
+		noiseKind:     GaussianNoise{},
+		epsilon:       1,
+		delta:         0.01,
+		numPartitions: 25,
 		// We use δ = 0.005 in these calculations since the δ = 0.01 budget is split
 		// in half (50% for adding noise, 50% for thresholding).
 		minAllowedValue: int(noise.Gaussian().Threshold(25, 1, 1, 0.005, 0.005)),
@@ -117,16 +117,27 @@ var distinctThresholdTestCases = []distinctThresholdTestCase{
 		noiseKind:       LaplaceNoise{},
 		epsilon:         1,
 		delta:           0.01,
-		numValues:       25,
+		numPartitions:   25,
 		minAllowedValue: int(noise.Laplace().Threshold(25, 1, 1, 0, 0.01)),
 	},
+}
+
+type checkNothingBelowThresholdFn struct {
+	Threshold int // Exported in order to be usable by Beam.
+}
+
+func (fn *checkNothingBelowThresholdFn) ProcessElement(c testInt64Metric) error {
+	if c.Metric < int64(fn.Threshold) {
+		return fmt.Errorf("found a count of %d<%d for value %d", c.Metric, fn.Threshold, c.Value)
+	}
+	return nil
 }
 
 func buildDistinctPrivacyIDThresholdPipeline(tc distinctThresholdTestCase) (p *beam.Pipeline, s beam.Scope, col beam.PCollection, got beam.PCollection) {
 	// pairs contains {1,0}, {2,0}, …, {minAllowedValue,0}, {1,1}, …, {minAllowedValue,1}, {1,2}, …, {minAllowedValue,9}.
 	var pairs []pairII
-	for i := 0; i < tc.numValues; i++ {
-		// We use minAllowedValue keys per value to place each of the 25 values
+	for i := 0; i < tc.numPartitions; i++ {
+		// We add minAllowedValue privacy keys per value to place each of the values
 		// right next to the distribution's Threshold.
 		pairs = append(pairs, makePairsWithFixedV(tc.minAllowedValue, i)...)
 	}
@@ -134,12 +145,12 @@ func buildDistinctPrivacyIDThresholdPipeline(tc distinctThresholdTestCase) (p *b
 	col = beam.ParDo(s, pairToKV, col)
 
 	pcol := MakePrivate(s, col, NewPrivacySpec(tc.epsilon, tc.delta))
-	got = DistinctPrivacyID(s, pcol, DistinctPrivacyIDParams{MaxPartitionsContributed: int64(tc.numValues), NoiseKind: tc.noiseKind})
+	got = DistinctPrivacyID(s, pcol, DistinctPrivacyIDParams{MaxPartitionsContributed: int64(tc.numPartitions), NoiseKind: tc.noiseKind})
 	got = beam.ParDo(s, kvToInt64Metric, got)
 	return p, s, col, got
 }
 
-// Checks that DistinctPrivacyID correctly removes data under the threshold.
+// Checks that DistinctPrivacyID correctly removes partitions under the threshold.
 func TestDistinctPrivacyIDThresholdsSmallEntries(t *testing.T) {
 	for _, tc := range distinctThresholdTestCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -157,18 +168,7 @@ func TestDistinctPrivacyIDThresholdsSmallEntries(t *testing.T) {
 	}
 }
 
-type checkNothingBelowThresholdFn struct {
-	Threshold int
-}
-
-func (fn *checkNothingBelowThresholdFn) ProcessElement(c testInt64Metric) error {
-	if c.Metric < int64(fn.Threshold) {
-		return fmt.Errorf("found a count of %d<%d for value %d", c.Metric, fn.Threshold, c.Value)
-	}
-	return nil
-}
-
-// Checks that DistinctPrivacyID does not remove all data (portion above the
+// Checks that DistinctPrivacyID does not remove all data (partitions above the
 // threshold should be maintained).
 func TestDistinctPrivacyIDThresholdLeavesSomeEntries(t *testing.T) {
 	for _, tc := range distinctThresholdTestCases {
@@ -212,18 +212,18 @@ func TestDistinctPrivacyIDAddsNoise(t *testing.T) {
 	} {
 		// We have 1 partition. So, to get an overall flakiness of 10⁻²³,
 		// we need to have each partition pass with 1-10⁻²³ probability (k=23).
-		epsilonNoise, deltaNoise := tc.epsilon, 0.0
+		noiseEpsilon, noiseDelta := tc.epsilon, 0.0
 		k := 23.0
 		l0Sensitivity, lInfSensitivity := 1.0, 1.0
-		epsilonPartition, deltaPartition := tc.epsilon, tc.delta
+		partitionSelectionEpsilon, partitionSelectionDelta := tc.epsilon, tc.delta
 		l1Sensitivity := l0Sensitivity * lInfSensitivity
-		tolerance := complementaryLaplaceTolerance(k, l1Sensitivity, epsilonNoise)
-		numIDs := int(noise.Laplace().Threshold(1, 1, epsilonPartition, deltaNoise, deltaPartition) + tolerance)
+		tolerance := complementaryLaplaceTolerance(k, l1Sensitivity, noiseEpsilon)
+		numIDs := int(noise.Laplace().Threshold(1, 1, partitionSelectionEpsilon, noiseDelta, partitionSelectionDelta) + tolerance)
 		if tc.noiseKind == gaussianNoise {
-			deltaNoise = tc.delta / 2
-			deltaPartition = tc.delta / 2
-			tolerance = complementaryGaussianTolerance(k, l0Sensitivity, lInfSensitivity, epsilonNoise, deltaNoise)
-			numIDs = int(noise.Gaussian().Threshold(1, 1, epsilonNoise, deltaNoise, deltaPartition) + tolerance)
+			noiseDelta = tc.delta / 2
+			partitionSelectionDelta = tc.delta / 2
+			tolerance = complementaryGaussianTolerance(k, l0Sensitivity, lInfSensitivity, noiseEpsilon, noiseDelta)
+			numIDs = int(noise.Gaussian().Threshold(1, 1, noiseEpsilon, noiseDelta, partitionSelectionDelta) + tolerance)
 		}
 		// pairs contains {1,0}, {2,0}, …, {numIDs,0}.
 		pairs := makePairsWithFixedV(numIDs, 0)
@@ -241,7 +241,7 @@ func TestDistinctPrivacyIDAddsNoise(t *testing.T) {
 	}
 }
 
-// Checks that DistinctPrivacyID bounds per-user contributions correctly.
+// Checks that DistinctPrivacyID bounds cross-partition contributions correctly.
 // The logic mirrors TestCountCrossPartitionContributionBounding.
 func TestDistinctPrivacyIDCrossPartitionContributionBounding(t *testing.T) {
 	// pairs contains {1,0}, {2,0}, …, {50,0}, {1,1}, …, {50,1}, {1,2}, …, {50,9}.
@@ -322,16 +322,16 @@ func TestNewCountFn(t *testing.T) {
 		{"Laplace", noise.LaplaceNoise,
 			&countFn{
 				Epsilon:                  1,
-				DeltaNoise:               0,
-				DeltaThreshold:           1e-5,
+				NoiseDelta:               0,
+				ThresholdDelta:           1e-5,
 				MaxPartitionsContributed: 17,
 				NoiseKind:                noise.LaplaceNoise,
 			}},
 		{"Gaussian", noise.GaussianNoise,
 			&countFn{
 				Epsilon:                  1,
-				DeltaNoise:               5e-6,
-				DeltaThreshold:           5e-6,
+				NoiseDelta:               5e-6,
+				ThresholdDelta:           5e-6,
 				MaxPartitionsContributed: 17,
 				NoiseKind:                noise.GaussianNoise,
 			}},
@@ -363,9 +363,9 @@ func TestCountFnAddInput(t *testing.T) {
 	cf := countFn{
 		// Use ε=math.MaxFloat64 to deterministically not add any noise when calling ExtractOutput.
 		Epsilon:    math.MaxFloat64,
-		DeltaNoise: 0,
+		NoiseDelta: 0,
 		// Use δ=1 to make certain we do not threshold anything when calling ExtractOutput.
-		DeltaThreshold:           1,
+		ThresholdDelta:           1,
 		MaxPartitionsContributed: 1,
 		NoiseKind:                noise.LaplaceNoise,
 		noise:                    noise.Laplace(),
@@ -386,9 +386,9 @@ func TestCountFnMergeAccumulators(t *testing.T) {
 	cf := countFn{
 		// Use ε=math.MaxFloat64 to deterministically not add any noise when calling ExtractOutput.
 		Epsilon:    math.MaxFloat64,
-		DeltaNoise: 0,
+		NoiseDelta: 0,
 		// Use δ=1 to make certain we do not threshold anything when calling ExtractOutput.
-		DeltaThreshold:           1,
+		ThresholdDelta:           1,
 		MaxPartitionsContributed: 1,
 		NoiseKind:                noise.LaplaceNoise,
 		noise:                    noise.Laplace(),
@@ -415,8 +415,8 @@ func TestCountFnExtractOutputReturnsNilForSmallPartitions(t *testing.T) {
 	// The rawCount + laplaceTolerance is less than the threshold with flakiness of 10⁻²³ for chosen parameters: 10 + 48 < 420.
 	fn := countFn{
 		Epsilon:                  ln3,
-		DeltaNoise:               0,
-		DeltaThreshold:           1e-200,
+		NoiseDelta:               0,
+		ThresholdDelta:           1e-200,
 		MaxPartitionsContributed: 1,
 		NoiseKind:                noise.LaplaceNoise,
 	}

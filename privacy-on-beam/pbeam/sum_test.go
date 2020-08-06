@@ -51,7 +51,7 @@ func TestSumPerKeyNoNoiseInt(t *testing.T) {
 	// We have 3 partitions. So, to get an overall flakiness of 10⁻²³,
 	// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
 	// To see the logic and the math behind flakiness and tolerance calculation,
-	// See https://github.com/google/differential-privacy/blob/master/privacy-on-beam/docs/Tolerance_Calculation.pdf.
+	// See https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf.
 	epsilon, delta, k, l1Sensitivity := 50.0, 1e-200, 25.0, 3.0
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 	pcol = ParDo(s, tripleWithIntValueToKV, pcol)
@@ -81,7 +81,7 @@ func TestSumPerKeyNegativeBoundsInt(t *testing.T) {
 	// We have 3 partitions. So, to get an overall flakiness of 10⁻²³,
 	// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
 	// To see the logic and the math behind flakiness and tolerance calculation,
-	// See https://github.com/google/differential-privacy/blob/master/privacy-on-beam/docs/Tolerance_Calculation.pdf.
+	// See https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf.
 	epsilon, delta, k, l1Sensitivity := 50.0, 1e-200, 25.0, 3.0
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 	pcol = ParDo(s, tripleWithIntValueToKV, pcol)
@@ -103,7 +103,7 @@ func TestSumPerKeyNoNoiseFloat(t *testing.T) {
 		makeDummyTripleWithFloatValue(58, 1),
 		makeDummyTripleWithFloatValue(99, 2))
 	result := []testFloat64Metric{
-		// Only 7 users are associated to value 0: should be thresholded.
+		// Only 7 privacy units are associated with value 0: should be thresholded.
 		{1, 58},
 		{2, 99},
 	}
@@ -179,20 +179,25 @@ func TestSumPerKeyAddsNoiseInt(t *testing.T) {
 	} {
 		// We have 1 partition. So, to get an overall flakiness of 10⁻²³,
 		// we need to have each partition pass with 1-10⁻²³ probability (k=23).
-		epsilonNoise, deltaNoise := tc.epsilon/2, 0.0
+		noiseEpsilon, noiseDelta := tc.epsilon/2, 0.0
 		k := 23.0
 		l0Sensitivity, lInfSensitivity := 1.0, 1.0
-		epsilonPartition, deltaPartition := tc.epsilon/2, tc.delta
+		partitionSelectionEpsilon, partitionSelectionDelta := tc.epsilon/2, tc.delta
 		l1Sensitivity := l0Sensitivity * lInfSensitivity
-		tolerance := complementaryLaplaceTolerance(k, l1Sensitivity, epsilonNoise)
+		tolerance := complementaryLaplaceTolerance(k, l1Sensitivity, noiseEpsilon)
 		if tc.noiseKind == gaussianNoise {
-			deltaNoise = tc.delta / 2
-			deltaPartition = tc.delta / 2
-			tolerance = complementaryGaussianTolerance(k, l0Sensitivity, lInfSensitivity, epsilonNoise, deltaNoise)
+			noiseDelta = tc.delta / 2
+			partitionSelectionDelta = tc.delta / 2
+			tolerance = complementaryGaussianTolerance(k, l0Sensitivity, lInfSensitivity, noiseEpsilon, noiseDelta)
 		}
 
 		// Compute the number of IDs needed to keep the partition.
-		sp := dpagg.NewPreAggSelectPartition(&dpagg.PreAggSelectPartitionOptions{Epsilon: epsilonPartition, Delta: deltaPartition, MaxPartitionsContributed: 1})
+		sp := dpagg.NewPreAggSelectPartition(
+			&dpagg.PreAggSelectPartitionOptions{
+				Epsilon:                  partitionSelectionEpsilon,
+				Delta:                    partitionSelectionDelta,
+				MaxPartitionsContributed: 1,
+			})
 		numIDs := sp.GetHardThreshold()
 
 		// triples contains {1,0,1}, {2,0,1}, …, {numIDs,0,1}.
@@ -237,20 +242,25 @@ func TestSumPerKeyAddsNoiseFloat(t *testing.T) {
 	} {
 		// We have 1 partition. So, to get an overall flakiness of 10⁻²³,
 		// we need to have each partition pass with 1-10⁻²³ probability (k=23).
-		epsilonNoise, deltaNoise := tc.epsilon/2, 0.0
+		noiseEpsilon, noiseDelta := tc.epsilon/2, 0.0
 		k := 23.0
 		l0Sensitivity, lInfSensitivity := 1.0, 1.0
-		epsilonPartition, deltaPartition := tc.epsilon/2, tc.delta
+		partitionSelectionEpsilon, partitionSelectionDelta := tc.epsilon/2, tc.delta
 		l1Sensitivity := l0Sensitivity * lInfSensitivity
-		tolerance := complementaryLaplaceTolerance(k, l1Sensitivity, epsilonNoise)
+		tolerance := complementaryLaplaceTolerance(k, l1Sensitivity, noiseEpsilon)
 		if tc.noiseKind == gaussianNoise {
-			deltaNoise = tc.delta / 2
-			deltaPartition = tc.delta / 2
-			tolerance = complementaryGaussianTolerance(k, l0Sensitivity, lInfSensitivity, epsilonNoise, deltaNoise)
+			noiseDelta = tc.delta / 2
+			partitionSelectionDelta = tc.delta / 2
+			tolerance = complementaryGaussianTolerance(k, l0Sensitivity, lInfSensitivity, noiseEpsilon, noiseDelta)
 		}
 
 		// Compute the number of IDs needed to keep the partition.
-		sp := dpagg.NewPreAggSelectPartition(&dpagg.PreAggSelectPartitionOptions{Epsilon: epsilonPartition, Delta: deltaPartition, MaxPartitionsContributed: 1})
+		sp := dpagg.NewPreAggSelectPartition(
+			&dpagg.PreAggSelectPartitionOptions{
+				Epsilon:                  partitionSelectionEpsilon,
+				Delta:                    partitionSelectionDelta,
+				MaxPartitionsContributed: 1,
+			})
 		numIDs := sp.GetHardThreshold()
 
 		// triples contains {1,0,1}, {2,0,1}, …, {numIDs,0,1}.
@@ -270,7 +280,7 @@ func TestSumPerKeyAddsNoiseFloat(t *testing.T) {
 	}
 }
 
-// Checks that SumPerKey bounds per-user contributions correctly with int values.
+// Checks that SumPerKey bounds cross-partition contributions correctly with int values.
 // The logic mirrors TestCountCrossPartitionContributionBounding.
 func TestSumPerKeyCrossPartitionContributionBoundingInt(t *testing.T) {
 	// triples contains {1,0,1}, {2,0,1}, …, {50,0,1}, {1,1,1}, …, {50,1,1}, {1,2,1}, …, {50,9,1}.
@@ -305,7 +315,7 @@ func TestSumPerKeyCrossPartitionContributionBoundingInt(t *testing.T) {
 	}
 }
 
-// Checks that SumPerKey bounds per-user contributions correctly with float values.
+// Checks that SumPerKey bounds cross-partition contributions correctly with float values.
 // The logic mirrors TestCountCrossPartitionContributionBounding.
 func TestSumPerKeyCrossPartitionContributionBoundingFloat(t *testing.T) {
 	// triples contains {1,0,1.0}, {2,0,1.0}, …, {50,0,1.0}, {1,1,1.0}, …, {50,1,1.0}, {1,2,1.0}, …, {50,9,1.0}.
@@ -344,8 +354,8 @@ func TestSumPerKeyCrossPartitionContributionBoundingFloat(t *testing.T) {
 func TestSumPerKeyPerPartitionContributionBoundingInt(t *testing.T) {
 	var triples []tripleWithIntValue
 	for id := 1; id <= 50; id++ {
-		triples = append(triples, tripleWithIntValue{id, 0, 1}) // partition 0 is associated to 50 times 1
-		triples = append(triples, tripleWithIntValue{id, 1, 4}) // partition 1 is associated to 50 times 4
+		triples = append(triples, tripleWithIntValue{id, 0, 1}) // partition 0 is associated with 50 times 1
+		triples = append(triples, tripleWithIntValue{id, 1, 4}) // partition 1 is associated with 50 times 4
 		// Additional values that should not influence the clamping
 		triples = append(triples, tripleWithIntValue{id, 0, -17}) // should clamp to lower bound
 		triples = append(triples, tripleWithIntValue{id, 1, 42})  // should clamp to upper bound
@@ -377,8 +387,8 @@ func TestSumPerKeyPerPartitionContributionBoundingInt(t *testing.T) {
 func TestSumPerKeyPerPartitionContributionBoundingFloat(t *testing.T) {
 	var triples []tripleWithFloatValue
 	for id := 1; id <= 50; id++ {
-		triples = append(triples, tripleWithFloatValue{id, 0, 1}) // partition 0 is associated to 50 times 1
-		triples = append(triples, tripleWithFloatValue{id, 1, 4}) // partition 1 is associated to 50 times 4
+		triples = append(triples, tripleWithFloatValue{id, 0, 1}) // partition 0 is associated with 50 times 1
+		triples = append(triples, tripleWithFloatValue{id, 1, 4}) // partition 1 is associated with 50 times 4
 		// Additional values that are outside of range [lower, upper]
 		triples = append(triples, tripleWithFloatValue{id, 0, -17}) // should clamp to lower bound
 		triples = append(triples, tripleWithFloatValue{id, 1, 42})  // should clamp to upper bound
@@ -451,19 +461,23 @@ func TestSumPartitionSelectionNonDeterministicInt(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Sanity check that the entriesPerPartition is sensical.
 			if tc.entriesPerPartition <= 0 {
-				t.Errorf("Invalid test case: entriesPerPartition must be positive. Got: %d", tc.entriesPerPartition)
+				t.Fatalf("Invalid test case: entriesPerPartition must be positive. Got: %d", tc.entriesPerPartition)
 			}
 
-			// Build up {ID, Partition, Value} pairs such that each user contributes
-			// 1 value to 1 partition:
+			// Build up {ID, Partition, Value} pairs such that for each of the tc.numPartitions partitions,
+			// tc.entriesPerPartition privacy units contribute a single value:
 			//    {0, 0, 1}, {1, 0, 1}, …, {entriesPerPartition-1, 0, 1}
 			//    {entriesPerPartition, 1, 1}, {entriesPerPartition+1, 1, 1}, …, {entriesPerPartition+entriesPerPartition-1, 1, 1}
 			//    …
 			//    {entriesPerPartition*(numPartitions-1), numPartitions-1, 1}, …, {entriesPerPartition*numPartitions-1, numPartitions-1, 1}
-			var triples []tripleWithIntValue
-			var kOffset = 0
+			var (
+				triples []tripleWithIntValue
+				kOffset = 0
+			)
 			for i := 0; i < tc.numPartitions; i++ {
-				triples = append(triples, makeDummyTripleWithIntValueStartingFromKey(kOffset, tc.entriesPerPartition, i)...)
+				for j := 0; j < tc.entriesPerPartition; j++ {
+					triples = append(triples, tripleWithIntValue{ID: kOffset + j, Partition: i, Value: 1})
+				}
 				kOffset += tc.entriesPerPartition
 			}
 			p, s, col := ptest.CreateList(triples)
@@ -490,19 +504,23 @@ func TestSumPartitionSelectionNonDeterministicFloat(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Sanity check that the entriesPerPartition is sensical.
 			if tc.entriesPerPartition <= 0 {
-				t.Errorf("Invalid test case: entriesPerPartition must be positive. Got: %d", tc.entriesPerPartition)
+				t.Fatalf("Invalid test case: entriesPerPartition must be positive. Got: %d", tc.entriesPerPartition)
 			}
 
-			// Build up {ID, Partition, Value} pairs such that each user contributes
-			// 1 value to 1 partition:
+			// Build up {ID, Partition, Value} pairs such that for each of the tc.numPartitions partitions,
+			// tc.entriesPerPartition privacy units contribute a single value:
 			//    {0, 0, 1}, {1, 0, 1}, …, {entriesPerPartition-1, 0, 1}
 			//    {entriesPerPartition, 1, 1}, {entriesPerPartition+1, 1, 1}, …, {entriesPerPartition+entriesPerPartition-1, 1, 1}
 			//    …
 			//    {entriesPerPartition*(numPartitions-1), numPartitions-1, 1}, …, {entriesPerPartition*numPartitions-1, numPartitions-1, 1}
-			var triples []tripleWithFloatValue
-			var kOffset = 0
+			var (
+				triples []tripleWithFloatValue
+				kOffset = 0
+			)
 			for i := 0; i < tc.numPartitions; i++ {
-				triples = append(triples, makeDummyTripleWithFloatValueStartingFromKey(kOffset, tc.entriesPerPartition, i)...)
+				for j := 0; j < tc.entriesPerPartition; j++ {
+					triples = append(triples, tripleWithFloatValue{ID: kOffset + j, Partition: i, Value: 1.0})
+				}
 				kOffset += tc.entriesPerPartition
 			}
 			p, s, col := ptest.CreateList(triples)

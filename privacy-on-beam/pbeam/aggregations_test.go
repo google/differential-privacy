@@ -38,10 +38,10 @@ func TestNewBoundedSumFn(t *testing.T) {
 	}{
 		{"Laplace Float64", noise.LaplaceNoise, reflect.Float64,
 			&boundedSumFloat64Fn{
-				EpsilonNoise:              0.5,
-				EpsilonPartitionSelection: 0.5,
-				DeltaNoise:                0,
-				DeltaPartitionSelection:   1e-5,
+				NoiseEpsilon:              0.5,
+				PartitionSelectionEpsilon: 0.5,
+				NoiseDelta:                0,
+				PartitionSelectionDelta:   1e-5,
 				MaxPartitionsContributed:  17,
 				Lower:                     0,
 				Upper:                     10,
@@ -49,10 +49,10 @@ func TestNewBoundedSumFn(t *testing.T) {
 			}},
 		{"Gaussian Float64", noise.GaussianNoise, reflect.Float64,
 			&boundedSumFloat64Fn{
-				EpsilonNoise:              0.5,
-				EpsilonPartitionSelection: 0.5,
-				DeltaNoise:                5e-6,
-				DeltaPartitionSelection:   5e-6,
+				NoiseEpsilon:              0.5,
+				PartitionSelectionEpsilon: 0.5,
+				NoiseDelta:                5e-6,
+				PartitionSelectionDelta:   5e-6,
 				MaxPartitionsContributed:  17,
 				Lower:                     0,
 				Upper:                     10,
@@ -60,10 +60,10 @@ func TestNewBoundedSumFn(t *testing.T) {
 			}},
 		{"Laplace Int64", noise.LaplaceNoise, reflect.Int64,
 			&boundedSumInt64Fn{
-				EpsilonNoise:              0.5,
-				EpsilonPartitionSelection: 0.5,
-				DeltaNoise:                0,
-				DeltaPartitionSelection:   1e-5,
+				NoiseEpsilon:              0.5,
+				PartitionSelectionEpsilon: 0.5,
+				NoiseDelta:                0,
+				PartitionSelectionDelta:   1e-5,
 				MaxPartitionsContributed:  17,
 				Lower:                     0,
 				Upper:                     10,
@@ -71,10 +71,10 @@ func TestNewBoundedSumFn(t *testing.T) {
 			}},
 		{"Gaussian Int64", noise.GaussianNoise, reflect.Int64,
 			&boundedSumInt64Fn{
-				EpsilonNoise:              0.5,
-				EpsilonPartitionSelection: 0.5,
-				DeltaNoise:                5e-6,
-				DeltaPartitionSelection:   5e-6,
+				NoiseEpsilon:              0.5,
+				PartitionSelectionEpsilon: 0.5,
+				NoiseDelta:                5e-6,
+				PartitionSelectionDelta:   5e-6,
 				MaxPartitionsContributed:  17,
 				Lower:                     0,
 				Upper:                     10,
@@ -168,8 +168,8 @@ func TestBoundedSumInt64FnExtractOutputReturnsNilForSmallPartitions(t *testing.T
 	}{
 		// It's a special case for partition selection in which the algorithm should always eliminate the partition.
 		{"Empty input", 0},
-		// The probability of keeping a partition with 1 user is equal to δ=1e-23 which results in a flakiness of 10⁻²³.
-		{"Input with 1 user", 1}} {
+		// The probability of keeping a partition with 1 privacy unit is equal to δ=1e-23 which results in a flakiness of 10⁻²³.
+		{"Input with 1 privacy unit", 1}} {
 
 		fn := newBoundedSumInt64Fn(1, 1e-23, 1, 0, 2, noise.LaplaceNoise)
 		fn.Setup()
@@ -233,8 +233,8 @@ func TestBoundedSumFloat64FnExtractOutputReturnsNilForSmallPartitions(t *testing
 	}{
 		// It's a special case for partition selection in which the algorithm should always eliminate the partition.
 		{"Empty input", 0},
-		// The probability of keeping a partition with 1 user is equal to δ=1e-23 which results in a flakiness of 10⁻²³.
-		{"Input with 1 user", 1}} {
+		// The probability of keeping a partition with 1 privacy unit is equal to δ=1e-23 which results in a flakiness of 10⁻²³.
+		{"Input with 1 privacy unit", 1}} {
 
 		fn := newBoundedSumFloat64Fn(1, 1e-23, 1, 0, 2, noise.LaplaceNoise)
 		fn.Setup()

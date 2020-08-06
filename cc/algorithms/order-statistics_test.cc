@@ -33,7 +33,7 @@ static constexpr size_t kStatsSize = 500;
 static constexpr double kNumSamples = 10000;
 
 TEST(OrderStatisticsTest, Max) {
-  double epsilon = DefaultEpsilon();
+  double epsilon = std::log(3);
   int64_t lower = 0, upper = 2048;
   std::unique_ptr<Max<int64_t>> search =
       typename Max<int64_t>::Builder()
@@ -51,7 +51,7 @@ TEST(OrderStatisticsTest, Max) {
 }
 
 TEST(OrderStatisticsTest, Min) {
-  double epsilon = DefaultEpsilon();
+  double epsilon = std::log(3);
   int64_t lower = 0, upper = 2048;
   std::unique_ptr<Min<int64_t>> search =
       typename Min<int64_t>::Builder()
@@ -68,7 +68,7 @@ TEST(OrderStatisticsTest, Min) {
 }
 
 TEST(OrderStatisticsTest, Median) {
-  double epsilon = DefaultEpsilon();
+  double epsilon = std::log(3);
   int64_t lower = 0, upper = 2048;
   std::unique_ptr<Median<int64_t>> search =
       typename Median<int64_t>::Builder()
@@ -114,7 +114,7 @@ TEST(OrderStatisticsTest, MedianLinfIncreasesVariance) {
 }
 
 TEST(OrderStatisticsTest, Percentile) {
-  double epsilon = DefaultEpsilon();
+  double epsilon = std::log(3);
   int64_t lower = 0, upper = 2048;
   std::unique_ptr<Percentile<int64_t>> search =
       typename Percentile<int64_t>::Builder()
@@ -132,7 +132,7 @@ TEST(OrderStatisticsTest, Percentile) {
 }
 
 TEST(OrderStatisticsTest, PercentileGetter) {
-  double epsilon = DefaultEpsilon(), expectedPercentile = 0.9;
+  double epsilon = std::log(3), expectedPercentile = 0.9;
   int64_t lower = 0, upper = 2048;
   std::unique_ptr<Percentile<int64_t>> percentile =
       typename Percentile<int64_t>::Builder()
@@ -142,7 +142,7 @@ TEST(OrderStatisticsTest, PercentileGetter) {
           .SetUpper(upper)
           .Build()
           .ValueOrDie();
-  EXPECT_EQ(percentile->percentile(), expectedPercentile);
+  EXPECT_EQ(percentile->GetPercentile(), expectedPercentile);
 }
 
 TEST(OrderStatisticsTest, InvalidParameters) {
@@ -158,7 +158,7 @@ TEST(OrderStatisticsTest, InvalidParameters) {
 }
 
 TEST(OrderStatisticsTest, Median_DefaultBounds) {
-  double epsilon = DefaultEpsilon();
+  double epsilon = std::log(3);
   std::unique_ptr<Median<int64_t>> search =
       typename Median<int64_t>::Builder()
           .SetEpsilon(epsilon)

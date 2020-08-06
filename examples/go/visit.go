@@ -20,7 +20,7 @@ import (
 	"time"
 )
 
-// Visit stores data about single visit of a user to the restaurant.
+// Visit stores data about single visit of a visitor to the restaurant.
 type Visit struct {
 	VisitorID    int64
 	VisitTime    time.Time

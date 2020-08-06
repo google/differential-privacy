@@ -30,6 +30,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.common.collect.Range;
+import com.google.differentialprivacy.SummaryOuterClass.MechanismType;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
@@ -46,8 +47,7 @@ import org.mockito.junit.MockitoRule;
  * Tests the accuracy of {@link BoundedMean}. The test mocks {@link Noise} instance which generates
  * zero noise.
  *
- * Statistical and DP properties of the algorithm are tested in
- * TODO: add a link to the statistical tests.
+ * <p>Statistical and DP properties of the algorithm are tested in {@link BoundedMeanDpTest}.
  */
 @RunWith(JUnit4.class)
 public class BoundedMeanTest {
@@ -60,11 +60,13 @@ public class BoundedMeanTest {
   private static void mockDoubleNoise(Noise noise, double value) {
     when(noise.addNoise(anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble()))
         .thenAnswer(invocation -> (double) invocation.getArguments()[0] + value);
+    when(noise.getMechanismType()).thenReturn(MechanismType.LAPLACE);
   }
 
   private static void mockLongNoise(Noise noise, long value) {
     when(noise.addNoise(anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble()))
         .thenAnswer(invocation -> (long) invocation.getArguments()[0] + value);
+    when(noise.getMechanismType()).thenReturn(MechanismType.LAPLACE);
   }
 
   @Before

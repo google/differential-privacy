@@ -42,10 +42,10 @@ func TestNewBoundedMeanFloat64Fn(t *testing.T) {
 	}{
 		{"Laplace noise kind", noise.LaplaceNoise,
 			&boundedMeanFloat64Fn{
-				EpsilonNoise:                 0.5,
-				EpsilonPartitionSelection:    0.5,
-				DeltaNoise:                   0,
-				DeltaPartitionSelection:      1e-5,
+				NoiseEpsilon:                 0.5,
+				PartitionSelectionEpsilon:    0.5,
+				NoiseDelta:                   0,
+				PartitionSelectionDelta:      1e-5,
 				MaxPartitionsContributed:     17,
 				MaxContributionsPerPartition: 5,
 				Lower:                        0,
@@ -54,10 +54,10 @@ func TestNewBoundedMeanFloat64Fn(t *testing.T) {
 			}},
 		{"Gaussian noise kind", noise.GaussianNoise,
 			&boundedMeanFloat64Fn{
-				EpsilonNoise:                 0.5,
-				EpsilonPartitionSelection:    0.5,
-				DeltaNoise:                   5e-6,
-				DeltaPartitionSelection:      5e-6,
+				NoiseEpsilon:                 0.5,
+				PartitionSelectionEpsilon:    0.5,
+				NoiseDelta:                   5e-6,
+				PartitionSelectionDelta:      5e-6,
 				MaxPartitionsContributed:     17,
 				MaxContributionsPerPartition: 5,
 				Lower:                        0,
@@ -156,13 +156,13 @@ func TestBoundedMeanFloat64FnMergeAccumulators(t *testing.T) {
 
 func TestBoundedMeanFloat64FnExtractOutputReturnsNilForSmallPartitions(t *testing.T) {
 	for _, tc := range []struct {
-		desc              string
-		inputSize         int
-		datapointsPerUser int
+		desc                     string
+		inputSize                int
+		datapointsPerPrivacyUnit int
 	}{
 		// It's a special case for partition selection in which the algorithm should always eliminate the partition.
 		{"Empty input", 0, 0},
-		{"Input with 1 user with 1 contribution", 1, 1},
+		{"Input with 1 privacy unit with 1 contribution", 1, 1},
 	} {
 
 		// The choice of ε=1e100, δ=10⁻²³, and l0Sensitivity=1 gives a threshold of =2.
@@ -171,8 +171,8 @@ func TestBoundedMeanFloat64FnExtractOutputReturnsNilForSmallPartitions(t *testin
 		fn.Setup()
 		accum := fn.CreateAccumulator()
 		for i := 0; i < tc.inputSize; i++ {
-			values := make([]float64, tc.datapointsPerUser)
-			for i := 0; i < tc.datapointsPerUser; i++ {
+			values := make([]float64, tc.datapointsPerPrivacyUnit)
+			for i := 0; i < tc.datapointsPerPrivacyUnit; i++ {
 				values[i] = 1.0
 			}
 			fn.AddInput(accum, values)
@@ -214,28 +214,33 @@ func TestMeanPerKeyAddsNoiseFloat(t *testing.T) {
 
 		// We have 1 partition. So, to get an overall flakiness of 10⁻²³,
 		// we need to have each partition pass with 1-10⁻²³ probability (k=23).
-		epsilonNoise, deltaNoise := tc.epsilon/2, 0.0
+		noiseEpsilon, noiseDelta := tc.epsilon/2, 0.0
 		k := 23.0
 		l0Sensitivity, lInfSensitivity := 1.0, 2.0
-		epsilonPartition, deltaPartition := tc.epsilon/2, tc.delta
+		partitionSelectionEpsilon, partitionSelectionDelta := tc.epsilon/2, tc.delta
 		if tc.noiseKind == gaussianNoise {
-			deltaNoise = tc.delta / 2
-			deltaPartition = tc.delta / 2
+			noiseDelta = tc.delta / 2
+			partitionSelectionDelta = tc.delta / 2
 		}
 
 		// Compute the number of IDs needed to keep the partition.
-		sp := dpagg.NewPreAggSelectPartition(&dpagg.PreAggSelectPartitionOptions{Epsilon: epsilonPartition, Delta: deltaPartition, MaxPartitionsContributed: 1})
+		sp := dpagg.NewPreAggSelectPartition(
+			&dpagg.PreAggSelectPartitionOptions{
+				Epsilon:                  partitionSelectionEpsilon,
+				Delta:                    partitionSelectionDelta,
+				MaxPartitionsContributed: 1,
+			})
 		numIDs := sp.GetHardThreshold()
 
 		var tolerance float64
 		var err error
 		if tc.noiseKind == gaussianNoise {
-			tolerance, err = complementaryGaussianToleranceForMean(k, lower, upper, int64(lInfSensitivity), int64(l0Sensitivity), epsilonNoise, deltaNoise, -0.5*float64(numIDs), float64(numIDs), 1.0)
+			tolerance, err = complementaryGaussianToleranceForMean(k, lower, upper, int64(lInfSensitivity), int64(l0Sensitivity), noiseEpsilon, noiseDelta, -0.5*float64(numIDs), float64(numIDs), 1.0)
 			if err != nil {
 				t.Fatalf("complementaryGaussianToleranceForMean: got error %v", err)
 			}
 		} else {
-			tolerance, err = complementaryLaplaceToleranceForMean(k, lower, upper, int64(lInfSensitivity), int64(l0Sensitivity), epsilonNoise, -0.5*float64(numIDs), float64(numIDs), 1.0)
+			tolerance, err = complementaryLaplaceToleranceForMean(k, lower, upper, int64(lInfSensitivity), int64(l0Sensitivity), noiseEpsilon, -0.5*float64(numIDs), float64(numIDs), 1.0)
 			if err != nil {
 				t.Fatalf("complementaryLaplaceToleranceForMean: got error %v", err)
 			}
@@ -315,14 +320,14 @@ func TestMeanPerKeyNoNoiseIntValues(t *testing.T) {
 	}
 }
 
-// Checks that MeanPerKey does partition selection correctly by counting user ids correctly,
-// which means if the user has  > 1 contributions to a partition the algorithm will not consider them as new user ids.
-func TestMeanPerKeyCountsUserIDsWithMultipleContributionsCorrectly(t *testing.T) {
+// Checks that MeanPerKey does partition selection correctly by counting privacy unit IDs correctly,
+// which means if the privacy unit has > 1 contributions to a partition the algorithm will not consider them as new privacy unit IDs.
+func TestMeanPerKeyCountsPrivacyUnitIDsWithMultipleContributionsCorrectly(t *testing.T) {
 	triples := concatenateTriplesWithFloatValue(
 		makeTripleWithFloatValue(7, 0, 2.0),
 		makeTripleWithFloatValueStartingFromKey(7, 11, 1, 1.3),
-		// We have a total of 42 contributions to partition 2, but users with id 18 and 19 each contribute 21 times each.
-		// So the actual count of user ids in the partition 2 is equal to 2, not 42.
+		// We have a total of 42 contributions to partition 2, but privacy units with ID 18 and 19 contribute 21 times each.
+		// So the actual count of privacy unit IDs in partition 2 is equal to 2, not 42.
 		// And the threshold is equal to 11, so the partition 2 should be eliminated,
 		// because the probability of keeping the partition with 2 elements is negligible, ≈5.184e-179.
 		makeTripleWithFloatValueStartingFromKey(18, 2, 2, 0))
@@ -467,19 +472,23 @@ func TestMeanPartitionSelectionNonDeterministic(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Sanity check that the entriesPerPartition is sensical.
 			if tc.entriesPerPartition <= 0 {
-				t.Errorf("Invalid test case: entriesPerPartition must be positive. Got: %d", tc.entriesPerPartition)
+				t.Fatalf("Invalid test case: entriesPerPartition must be positive. Got: %d", tc.entriesPerPartition)
 			}
 
-			// Build up {ID, Partition, Value} pairs where each user contributes 1
-			// value to 1 partition:
+			// Build up {ID, Partition, Value} pairs such that for each of the tc.numPartitions partitions,
+			// tc.entriesPerPartition privacy units contribute a single value:
 			//    {0, 0, 1}, {1, 0, 1}, …, {entriesPerPartition-1, 0, 1}
 			//    {entriesPerPartition, 1, 1}, {entriesPerPartition+1, 1, 1}, …, {entriesPerPartition+entriesPerPartition-1, 1, 1}
 			//    …
 			//    {entriesPerPartition*(numPartitions-1), numPartitions-1, 1}, …, {entriesPerPartition*numPartitions-1, numPartitions-1, 1}
-			var triples []tripleWithFloatValue
-			var kOffset = 0
+			var (
+				triples []tripleWithFloatValue
+				kOffset = 0
+			)
 			for i := 0; i < tc.numPartitions; i++ {
-				triples = append(triples, makeDummyTripleWithFloatValueStartingFromKey(kOffset, tc.entriesPerPartition, i)...)
+				for j := 0; j < tc.entriesPerPartition; j++ {
+					triples = append(triples, tripleWithFloatValue{ID: kOffset + j, Partition: i, Value: 1.0})
+				}
 				kOffset += tc.entriesPerPartition
 			}
 			p, s, col := ptest.CreateList(triples)

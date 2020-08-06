@@ -40,6 +40,7 @@ std::string XorStrings(const std::string& longer, const std::string& shorter);
 // this value whenever one is not provided. This value should only be used for
 // testing convenience. For any production use case, please set your own epsilon
 // based on privacy needs.
+ABSL_DEPRECATED("Use your own epsilon based on privacy considerations.")
 double DefaultEpsilon();
 
 // Returns the smallest power of 2 greater than or equal to n. n must be > 0.

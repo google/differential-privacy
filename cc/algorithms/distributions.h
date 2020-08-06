@@ -61,7 +61,7 @@ class LegacyLaplaceDistribution {
 // and mean 0 with optional per-sample scaling.
 // The Gaussian noise is generated according to the binomial sampling mechanism
 // described in
-// https://github.com/google/differential-privacy/blob/master/common_docs/Secure_Noise_Generation.pdf
+// https://github.com/google/differential-privacy/blob/main/common_docs/Secure_Noise_Generation.pdf
 // This approach is robust against unintentional privacy leaks due to artifacts
 // of floating point arithmetic.
 class GaussianDistribution {

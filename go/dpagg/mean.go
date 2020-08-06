@@ -40,10 +40,13 @@ import (
 // preserved. Moreover, for small numbers of entries, this approach will return
 // results that are closer to the actual mean in expectation.
 //
-// BoundedMeanFloat64 supports scaling the noise in the case where users can
-// contribute to multiple partitions (via the MaxPartitionsContributed parameter)
-// and can contribute to a single partition multiple times
-// (via the MaxContributionsPerPartition parameter).
+// BoundedMeanFloat64 supports privacy units that contribute to multiple partitions
+// (via the MaxPartitionsContributed parameter) as well as contribute to the same
+// partition multiple times (via the MaxContributionsPerPartition parameter), by
+// scaling the added noise appropriately.
+//
+// For general details and key definitions, see
+// https://github.com/google/differential-privacy/blob/main/differential_privacy.md#key-definitions.
 //
 // Note: Do not use when your results may cause overflows for int64 or float64
 // values. This aggregation is not hardened for such applications yet.
@@ -127,7 +130,19 @@ func NewBoundedMeanFloat64(opt *BoundedMeanFloat64Options) *BoundedMeanFloat64 {
 	// the noise on some dummy value.
 	n.AddNoiseFloat64(0, 1, 1, halfEpsilon, halfDelta)
 
-	// Noised count of the entities.
+	// normalizedSum yields a differentially private sum of the position of the entries e_i relative
+	// to the midpoint m = (lower + upper) / 2 of the range of the bounded mean, i.e., Σ_i (e_i - m)
+	//
+	// count yields a differentially private count of the entries.
+	//
+	// Given a normalized sum s and count c (both without noise), the true mean can be computed
+	// as: mean =
+	//   s / c + m =
+	//   (Σ_i (e_i - m)) / c + m =
+	//   (Σ_i (e_i - m)) / c + (Σ_i m) / c =
+	//   (Σ_i e_i) / c
+	//
+	// the rest follows from the code.
 	count := NewCount(&CountOptions{
 		Epsilon:                      halfEpsilon,
 		Delta:                        halfDelta,
@@ -136,27 +151,6 @@ func NewBoundedMeanFloat64(opt *BoundedMeanFloat64Options) *BoundedMeanFloat64 {
 		maxContributionsPerPartition: maxContributionsPerPartition,
 	})
 
-	// normalizedSum stores a noised sum of distances of the input entities from the middle of the
-	// range (i.e., "normalized noised sum").
-	// Below are details on how normalizedSum matches the definition from the book mentioned above.
-	//
-	// TODO: Revamp this paragraph to replace "Laplace" with "Noise" in a sensible way.
-	// Let Sum be the exact sum of all entries and Count be the exact count.
-	// We want to return S' = (Sum - Count * midPoint) + Laplace((upper - lower) / epsilon)
-	//
-	// Sum - Count*midPoint = Σ_i (x_i - midpoint) where the x_i are the input values.
-	//
-	// (upper-lower)/epsilon = 2*maxDistFromMidpoint/epsilon =
-	// = maxDistFromMidpoint/halfEpsilon
-	//
-	// => S' = Σ_i (e_i - midpoint) + Laplace(maxDistFromMidpoint/halfEpsilon)
-	//
-	// Below we construct:
-  //
-	// 1. BoundedSum with LInfSensitivity = maxDistFromMidpoint, epsilon = halfEpsilon,
-	// delta = halfDelta. It will sum up (e - midpoint) for each entry e.
-	//
-	// 2. Count with epsilon = halfEpsilon, delta = halfDelta. It will count entities.
 	normalizedSum := NewBoundedSumFloat64(&BoundedSumFloat64Options{
 		Epsilon:                      halfEpsilon,
 		Delta:                        halfDelta,
@@ -199,8 +193,10 @@ func (bm *BoundedMeanFloat64) Add(e float64) {
 	}
 }
 
-// Result returns a differentially private average of elements added so far.
-// It can be called only once, after which no further operation can be done on the BoundedMeanFloat64.
+// Result returns a differentially private estimate of the average of bounded
+// elements added so far. The method can be called only once.
+//
+// Note that the returned value is not an unbiased estimate of the raw bounded mean.
 func (bm *BoundedMeanFloat64) Result() float64 {
 	if bm.resultReturned {
 		// TODO: do not exit the program from within library code

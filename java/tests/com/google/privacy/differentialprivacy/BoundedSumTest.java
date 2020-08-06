@@ -27,6 +27,8 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.math.Stats;
 import com.google.differentialprivacy.SummaryOuterClass.BoundedSumSummary;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.Arrays;
@@ -43,13 +45,14 @@ import org.mockito.junit.MockitoRule;
  * Tests the accuracy of {@link BoundedSum}. The test mocks {@link Noise} instance which generates
  * zero noise.
  *
- * Statistical and DP properties of the algorithm are tested in
- * TODO: add a link to the statistical tests.
+ * <p>Statistical and DP properties of the algorithm are tested in {@link BoundedSumDpTest}.
  */
 @RunWith(JUnit4.class)
 public class BoundedSumTest {
   private static final double EPSILON = 0.123;
   private static final double DELTA = 0.123;
+  private static final int NUM_SAMPLES = 100000;
+  private static final double LN_3 = Math.log(3.0);
 
   @Mock private Noise noise;
   private BoundedSum sum;
@@ -455,6 +458,182 @@ public class BoundedSumTest {
         IllegalStateException.class, () -> targetSum.mergeWith(sourceSum.getSerializableSummary()));
   }
 
+  @Test
+  public void addNoise_gaussianNoiseDefaultParametersEmptySum_isUnbiased() {
+    BoundedSum.Params.Builder sumBuilder =
+        BoundedSum.builder()
+            .epsilon(LN_3)
+            .delta(0.00001)
+            .maxPartitionsContributed(1)
+            .lower(0.0)
+            .upper(1.0)
+            .noise(new GaussianNoise());
+
+    testForBias(sumBuilder, /* rawEntry */ 0.0, /* variance */ 11.735977);
+  }
+
+  @Test
+  public void addNoise_gaussianNoiseDifferentEpsilonEmptySum_isUnbiased() {
+    BoundedSum.Params.Builder sumBuilder =
+        BoundedSum.builder()
+            .epsilon(2.0 * LN_3)
+            .delta(0.00001)
+            .maxPartitionsContributed(1)
+            .lower(0.0)
+            .upper(1.0)
+            .noise(new GaussianNoise());
+
+    testForBias(sumBuilder, /* rawEntry */ 0.0, /* variance */ 3.3634987);
+  }
+
+  @Test
+  public void addNoise_gaussianNoiseDifferentDeltaEmptySum_isUnbiased() {
+    BoundedSum.Params.Builder sumBuilder =
+        BoundedSum.builder()
+            .epsilon(LN_3)
+            .delta(0.01)
+            .maxPartitionsContributed(1)
+            .lower(0.0)
+            .upper(1.0)
+            .noise(new GaussianNoise());
+
+    testForBias(sumBuilder, /* rawEntry */ 0.0, /* variance */ 3.0625);
+  }
+
+  @Test
+  public void addNoise_gaussianNoiseDifferentContributionBoundEmptySum_isUnbiased() {
+    BoundedSum.Params.Builder sumBuilder =
+        BoundedSum.builder()
+            .epsilon(LN_3)
+            .delta(0.00001)
+            .maxPartitionsContributed(25)
+            .lower(0.0)
+            .upper(1.0)
+            .noise(new GaussianNoise());
+
+    testForBias(sumBuilder, /* rawEntry */ 0.0, /* variance */ 293.399425);
+  }
+
+  @Test
+  public void addNoise_gaussianNoiseDifferentEntryBoundsEmptySum_isUnbiased() {
+    BoundedSum.Params.Builder sumBuilder =
+        BoundedSum.builder()
+            .epsilon(LN_3)
+            .delta(0.00001)
+            .maxPartitionsContributed(1)
+            .lower(-0.5)
+            .upper(0.0)
+            .noise(new GaussianNoise());
+
+    testForBias(sumBuilder, /* rawEntry */ 0.0, /* variance */ 2.93399425);
+  }
+
+  @Test
+  public void addNoise_gaussianNoiseDefaultParametersPositiveEntry_isUnbiased() {
+    BoundedSum.Params.Builder sumBuilder =
+        BoundedSum.builder()
+            .epsilon(LN_3)
+            .delta(0.00001)
+            .maxPartitionsContributed(1)
+            .lower(0.0)
+            .upper(1.0)
+            .noise(new GaussianNoise());
+
+    testForBias(sumBuilder, /* rawEntry */ 1.0, /* variance */ 11.735977);
+  }
+
+  @Test
+  public void addNoise_gaussianNoiseDefaultParametersNegativeEntry_isUnbiased() {
+    BoundedSum.Params.Builder sumBuilder =
+        BoundedSum.builder()
+            .epsilon(LN_3)
+            .delta(0.00001)
+            .maxPartitionsContributed(1)
+            .lower(-1.0)
+            .upper(0.0)
+            .noise(new GaussianNoise());
+
+    testForBias(sumBuilder, /* rawEntry */ -1.0, /* variance */ 11.735977);
+  }
+
+    @Test
+  public void addNoise_laplaceNoiseDefaultParametersEmptySum_isUnbiased() {
+    BoundedSum.Params.Builder sumBuilder =
+        BoundedSum.builder()
+            .epsilon(LN_3)
+            .maxPartitionsContributed(1)
+            .lower(0.0)
+            .upper(1.0)
+            .noise(new LaplaceNoise());
+
+    testForBias(sumBuilder, /* rawEntry */ 0.0, /* variance */ 2.0 / (LN_3 * LN_3));
+  }
+
+  @Test
+  public void addNoise_laplaceNoiseDifferentEpsilonEmptySum_isUnbiased() {
+    BoundedSum.Params.Builder sumBuilder =
+        BoundedSum.builder()
+            .epsilon(2.0 * LN_3)
+            .maxPartitionsContributed(1)
+            .lower(0.0)
+            .upper(1.0)
+            .noise(new LaplaceNoise());
+
+    testForBias(sumBuilder, /* rawEntry */ 0.0, /* variance */ 2.0 / (4.0 * LN_3 * LN_3));
+  }
+
+  @Test
+  public void addNoise_laplaceNoiseDifferentContributionBoundEmptySum_isUnbiased() {
+    BoundedSum.Params.Builder sumBuilder =
+        BoundedSum.builder()
+            .epsilon(LN_3)
+            .maxPartitionsContributed(25)
+            .lower(0.0)
+            .upper(1.0)
+            .noise(new LaplaceNoise());
+
+    testForBias(sumBuilder, /* rawEntry */ 0.0, /* variance */ 2.0 * 625.0 / (LN_3 * LN_3));
+  }
+
+  @Test
+  public void addNoise_laplaceNoiseDifferentEntryBoundsEmptySum_isUnbiased() {
+    BoundedSum.Params.Builder sumBuilder =
+        BoundedSum.builder()
+            .epsilon(LN_3)
+            .maxPartitionsContributed(1)
+            .lower(-0.5)
+            .upper(0.0)
+            .noise(new LaplaceNoise());
+
+    testForBias(sumBuilder, /* rawEntry */ 0.0, /* variance */ 2.0 / (4.0 * LN_3 * LN_3));
+  }
+
+  @Test
+  public void addNoise_laplaceNoiseDefaultParametersPositiveEntry_isUnbiased() {
+    BoundedSum.Params.Builder sumBuilder =
+        BoundedSum.builder()
+            .epsilon(LN_3)
+            .maxPartitionsContributed(1)
+            .lower(0.0)
+            .upper(1.0)
+            .noise(new LaplaceNoise());
+
+    testForBias(sumBuilder, /* rawEntry */ 1.0, /* variance */ 2.0 / (LN_3 * LN_3));
+  }
+
+  @Test
+  public void addNoise_laplaceNoiseDefaultParametersNegativeEntry_isUnbiased() {
+    BoundedSum.Params.Builder sumBuilder =
+        BoundedSum.builder()
+            .epsilon(LN_3)
+            .maxPartitionsContributed(1)
+            .lower(-1.0)
+            .upper(0.0)
+            .noise(new LaplaceNoise());
+
+    testForBias(sumBuilder, /* rawEntry */ -1.0, /* variance */ 2.0 / (LN_3 * LN_3));
+  }
+
   private BoundedSum.Params.Builder getBoundedSumBuilderWithFields() {
     return BoundedSum.builder()
         .epsilon(EPSILON)
@@ -480,5 +659,23 @@ public class BoundedSumTest {
     } catch (InvalidProtocolBufferException pbe) {
       throw new IllegalArgumentException(pbe);
     }
+  }
+
+  private static void testForBias(
+      BoundedSum.Params.Builder sumBuilder, double rawEntry, double variance) {
+    ImmutableList.Builder<Double> samples = ImmutableList.builder();
+    for (int i = 0; i < NUM_SAMPLES; i++) {
+      BoundedSum sum = sumBuilder.build();
+      sum.addEntry(rawEntry);
+      samples.add(sum.computeResult());
+    }
+    Stats stats = Stats.of(samples.build());
+
+    // The tolerance is chosen according to the 99.9995% quantile of the anticipated distributions
+    // of the sample mean. Thus, the test falsely rejects with a probability of 10^-5.
+    double sampleTolerance = 4.41717 * Math.sqrt(variance / NUM_SAMPLES);
+    // The DP count is considered unbiased if the expeted value (approximated by stats.mean()) is
+    // equal to the raw count.
+    assertThat(stats.mean()).isWithin(sampleTolerance).of(rawEntry);
   }
 }

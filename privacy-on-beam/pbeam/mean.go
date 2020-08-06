@@ -56,8 +56,8 @@ type MeanParams struct {
 	//
 	// Required.
 	MaxPartitionsContributed int64
-	// The maximum number of contribution from a given privacy identifier
-	// There is an inherent trade-off when choosing this
+	// The maximum number of contributions from a given privacy identifier
+	// for each key. There is an inherent trade-off when choosing this
 	// parameter: a larger MaxContributionsPerPartition leads to less data loss due
 	// to contribution bounding, but since the noise added in aggregations is
 	// scaled according to maxContributionsPerPartition, it also means that more
@@ -67,7 +67,7 @@ type MeanParams struct {
 	MaxContributionsPerPartition int64
 	// The total contribution of a given privacy identifier to partition can be
 	// at at least MinValue, and at most MaxValue; otherwise it will be clamped
-	// to these bounds. For example, if a privacy identifier is associated to
+	// to these bounds. For example, if a privacy identifier is associated with
 	// the key-value pairs [("a", -5), ("a", 2), ("b", 7), ("c", 3)] and the
 	// (MinValue, MaxValue) bounds are (0, 5), the contribution for "a" will be
 	// clamped up to 0, the contribution for "b" will be clamped down to 5, and
@@ -118,7 +118,7 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 		noiseKind = params.NoiseKind.toNoiseKind()
 	}
 
-	// First, group together the privacy ID and the partition ID and do per-partition contribution bounding.
+	// First, group together the privacy unit ID and the partition ID and do per-partition contribution bounding.
 	// Result is PCollection<kv.Pair{ID,K},V>
 	decoded := beam.ParDo(s,
 		newPrepareMeanFn(idT, pcol.codec),
@@ -343,10 +343,10 @@ type boundedMeanAccumFloat64 struct {
 // initialize it yourself, use newBoundedMeanFloat64Fn to create a boundedMeanFloat64Fn instance.
 type boundedMeanFloat64Fn struct {
 	// Privacy spec parameters (set during initial construction).
-	EpsilonNoise                 float64
-	EpsilonPartitionSelection    float64
-	DeltaNoise                   float64
-	DeltaPartitionSelection      float64
+	NoiseEpsilon                 float64
+	PartitionSelectionEpsilon    float64
+	NoiseDelta                   float64
+	PartitionSelectionDelta      float64
 	MaxPartitionsContributed     int64
 	MaxContributionsPerPartition int64
 	Lower                        float64
@@ -364,15 +364,15 @@ func newBoundedMeanFloat64Fn(epsilon, delta float64, maxPartitionsContributed, m
 		Upper:                        upper,
 		NoiseKind:                    noiseKind,
 	}
-	fn.EpsilonNoise = epsilon / 2
-	fn.EpsilonPartitionSelection = epsilon / 2
+	fn.NoiseEpsilon = epsilon / 2
+	fn.PartitionSelectionEpsilon = epsilon / 2
 	switch noiseKind {
 	case noise.GaussianNoise:
-		fn.DeltaNoise = delta / 2
-		fn.DeltaPartitionSelection = delta / 2
+		fn.NoiseDelta = delta / 2
+		fn.PartitionSelectionDelta = delta / 2
 	case noise.LaplaceNoise:
-		fn.DeltaNoise = 0
-		fn.DeltaPartitionSelection = delta
+		fn.NoiseDelta = 0
+		fn.PartitionSelectionDelta = delta
 	default:
 		// TODO: return error instead
 		log.Exitf("newBoundedMeanFloat64Fn: unknown noise.Kind (%v) is specified. Please specify a valid noise.", noiseKind)
@@ -387,8 +387,8 @@ func (fn *boundedMeanFloat64Fn) Setup() {
 func (fn *boundedMeanFloat64Fn) CreateAccumulator() boundedMeanAccumFloat64 {
 	return boundedMeanAccumFloat64{
 		BM: dpagg.NewBoundedMeanFloat64(&dpagg.BoundedMeanFloat64Options{
-			Epsilon:                      fn.EpsilonNoise,
-			Delta:                        fn.DeltaNoise,
+			Epsilon:                      fn.NoiseEpsilon,
+			Delta:                        fn.NoiseDelta,
 			MaxPartitionsContributed:     fn.MaxPartitionsContributed,
 			MaxContributionsPerPartition: fn.MaxContributionsPerPartition,
 			Lower:                        fn.Lower,
@@ -396,8 +396,8 @@ func (fn *boundedMeanFloat64Fn) CreateAccumulator() boundedMeanAccumFloat64 {
 			Noise:                        fn.noise,
 		}),
 		SP: dpagg.NewPreAggSelectPartition(&dpagg.PreAggSelectPartitionOptions{
-			Epsilon:                  fn.EpsilonPartitionSelection,
-			Delta:                    fn.DeltaPartitionSelection,
+			Epsilon:                  fn.PartitionSelectionEpsilon,
+			Delta:                    fn.PartitionSelectionDelta,
 			MaxPartitionsContributed: fn.MaxPartitionsContributed,
 		}),
 	}
@@ -410,7 +410,7 @@ func (fn *boundedMeanFloat64Fn) AddInput(a boundedMeanAccumFloat64, values []flo
 	for _, v := range values {
 		a.BM.Add(v)
 	}
-	a.SP.Add()
+	a.SP.Increment()
 	return a
 }
 
@@ -421,7 +421,7 @@ func (fn *boundedMeanFloat64Fn) MergeAccumulators(a, b boundedMeanAccumFloat64) 
 }
 
 func (fn *boundedMeanFloat64Fn) ExtractOutput(a boundedMeanAccumFloat64) *float64 {
-	if a.SP.Result() {
+	if a.SP.ShouldKeepPartition() {
 		result := a.BM.Result()
 		return &result
 	}

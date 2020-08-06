@@ -145,8 +145,8 @@ func (sc *CountVisitsPerDayScenario) getPrivateResults(weekVisits []Visit) map[i
 		dayToDpCount[day] = dpagg.NewCount(&dpagg.CountOptions{
 			Epsilon: ln3,
 			// The data was pre-processed so that
-			// each user may visit the restaurant up to maxThreeVisitsPerWeek times per week.
-			// Hence, each user may contribute to up to maxThreeVisitsPerWeek daily visit counts.
+			// each visitor may visit the restaurant up to maxThreeVisitsPerWeek times per week.
+			// Hence, each visitor may contribute to up to maxThreeVisitsPerWeek daily visit counts.
 			// Note: while the library accepts this limit as a configurable parameter,
 			// it doesn't pre-process the data to ensure this limit is respected.
 			// It is responsibility of the caller to ensure the data passed to the library
@@ -203,8 +203,8 @@ func (sc *SumRevenuePerDayScenario) getPrivateResults(visits []Visit) map[int64]
 		dayToBoundedSum[day] = dpagg.NewBoundedSumInt64(&dpagg.BoundedSumInt64Options{
 			Epsilon: ln3,
 			// The data was pre-processed so that
-			// each user may visit the restaurant up to maxFourVisitsPerWeek times per week.
-			// Hence, each user may contribute to up to maxFourVisitsPerWeek daily counts.
+			// each visitor may visit the restaurant up to maxFourVisitsPerWeek times per week.
+			// Hence, each privacy unit may contribute to up to maxFourVisitsPerWeek daily counts.
 			// Note: while the library accepts this limit as a configurable parameter,
 			// it doesn't pre-process the data to ensure this limit is respected.
 			// It is responsibility of the caller to ensure the data passed to the library
@@ -242,7 +242,7 @@ func (sc *SumRevenuePerDayScenario) getPrivateResults(visits []Visit) map[int64]
 // and anonymized count of visits per certain duration during the week.
 // Assumes that a visitor may enter the restaurant at most once per day,
 // but may enter multiple times per week.
-// Uses dpagg.BoundedSumInt64 for calculating anonymized counts because the user can
+// Uses dpagg.BoundedSumInt64 for calculating anonymized counts because the visitor can
 // contribute to the same duration multiple times and therefore dpagg.Count can't be used
 // for this.
 type CountVisitsPerCertainDurationScenario struct{}
@@ -299,12 +299,12 @@ func (sc *CountVisitsPerCertainDurationScenario) getPrivateResults(weekVisits []
 			})
 
 			// Construct dpagg.BoundedSumInt64 objects which will be used to calculate DP
-			// counts with multiple contributions from a single user.
+			// counts with multiple contributions from a single privacy unit (visitor).
 			// One dpagg.BoundedSumInt64 is created for every duration.
 			// We use epsilon = log(3) / 2 in this example,
-    	// because we must split epsilon between all the functions that apply differential privacy,
-    	// which, in this case, is 2 functions: BoundedSumInt64 and PreAggSelectPartition.
-    	durationToBoundedSum[duration] = dpagg.NewBoundedSumInt64(&dpagg.BoundedSumInt64Options{
+			// because we must split epsilon between all the functions that apply differential privacy,
+			// which, in this case, is 2 functions: BoundedSumInt64 and PreAggSelectPartition.
+			durationToBoundedSum[duration] = dpagg.NewBoundedSumInt64(&dpagg.BoundedSumInt64Options{
 				Epsilon:                  ln3 / 2,
 				MaxPartitionsContributed: maxThreeVisitsPerWeek,
 				Lower:                    0,
@@ -318,7 +318,7 @@ func (sc *CountVisitsPerCertainDurationScenario) getPrivateResults(weekVisits []
 		for duration, totalVisits := range visits {
 			durationToBoundedSum[duration].Add(totalVisits)
 			// Count distinct visitors for each duration.
-			durationToSelectPartition[duration].Add()
+			durationToSelectPartition[duration].Increment()
 		}
 	}
 
@@ -326,9 +326,9 @@ func (sc *CountVisitsPerCertainDurationScenario) getPrivateResults(weekVisits []
 	for duration, boundedSum := range durationToBoundedSum {
 		// Pre-aggregation partition selection.
 		// If there are enough visitors within this duration,
-    // then it will appear in the result statistics table.
-    // Otherwise, the duration's partition is simply dropped and excluded from the result.
-    if durationToSelectPartition[duration].Result() {
+		// then it will appear in the result statistics table.
+		// Otherwise, the duration's partition is simply dropped and excluded from the result.
+		if durationToSelectPartition[duration].ShouldKeepPartition() {
 			privateSums[duration] = boundedSum.Result()
 		}
 	}
@@ -360,7 +360,7 @@ func boundVisits(initialVisits []Visit, maxVisitsPerWeek int64) []Visit {
 	rand.Shuffle(len(initialVisits), func(i, j int) { initialVisits[i], initialVisits[j] = initialVisits[j], initialVisits[i] })
 
 	// Go through the unordered collection of visits, but only add, at most,
-	// maxVisitsPerWeek visits per VisitorId to the final result, and
+	// maxVisitsPerWeek visits per VisitorID to the final result, and
 	// discard all additional visits.
 	visitorIDToVisitCount := make(map[int64]int64)
 	for _, visit := range initialVisits {

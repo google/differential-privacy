@@ -7,7 +7,7 @@ This document describes C++-specific aspects.
 ## How to Use
 
 Full documentation on how to use the library is in the
-[cpp/docs](https://github.com/google/differential-privacy/tree/master/cc/docs)
+[cpp/docs](https://github.com/google/differential-privacy/tree/main/cc/docs)
 subdirectory. Here's a minimal example showing how to compute the count of some
 data:
 
@@ -34,8 +34,8 @@ int64_t count(const vector<double>& values, double epsilon) {
 ```
 
 We also include the following example code:
-- A [tool for releasing epsilon-DP aggregate statistics](https://github.com/google/differential-privacy/tree/master/examples/cc/).
-- A [PostgreSQL extension](https://github.com/google/differential-privacy/tree/master/cc/postgres)
+- A [tool for releasing epsilon-DP aggregate statistics](https://github.com/google/differential-privacy/tree/main/examples/cc/).
+- A [PostgreSQL extension](https://github.com/google/differential-privacy/tree/main/cc/postgres)
 that adds epsilon-DP aggregate functions.
 
 

@@ -4,7 +4,7 @@
 
 # Bounded Sum
 
-[`BoundedSum`](https://github.com/google/differential-privacy/blob/master/cc/algorithms/bounded-sum.h) computes the sum of
+[`BoundedSum`](https://github.com/google/differential-privacy/blob/main/cc/algorithms/bounded-sum.h) computes the sum of
 values in a dataset, in a differentially private manner.
 
 ## Input & Output

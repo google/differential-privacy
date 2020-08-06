@@ -52,9 +52,10 @@ func init() {
 // The fact that the resulting permutation is not nesessarily uniformly random is
 // not a problem, since all we require from this function to satisfy DP properties
 // is that it doesn't depend on the data. More specifically, in order to satisfy DP
-// properties, a user's data should not influence another user's permutation of
-// contributions. We assume that the order Beam processes the input values for a user
-// is independent of other users' inputs, in which case this requirement is satisfied.
+// properties, a privacy unit's data should not influence another privacy unit's
+// permutation of contributions. We assume that the order Beam processes the
+// input values for a privacy unit is independent of other privacy units'
+// inputs, in which case this requirement is satisfied.
 func randBool(_, _ beam.V) bool {
 	return rand.Uint32()%2 == 0
 }
@@ -63,16 +64,16 @@ func randBool(_, _ beam.V) bool {
 // at most contributionLimit records with this key. The selection is "mostly random":
 // the records returned are selected randomly, but the randomness isn't secure.
 // This is fine to use in the cross-partition bounding stage or in the per-partition bounding stage,
-// since the privacy guarantee doesn't depend on the user contributions being selected randomly.
+// since the privacy guarantee doesn't depend on the privacy unit contributions being selected randomly.
 //
 // In order to do the cross-partition contribution bounding we need:
-// 	1. the key to be the privacy id.
-//  2. the value to be the pair = {partition id, aggregated statistic
+// 	1. the key to be the privacy unit ID.
+//  2. the value to be the pair = {partition ID, aggregated statistic
 //  (either array of values which are associated with the given id and partition, or sum/count/etc of these values)}.
 //
 // In order to do the per-partition contribution bounding we need:
-// 	1. the key to be the pair = {privacy id, partition id}.
-// 	2. the value to be just the value which is associated with that {privacy id, partition id} pair
+// 	1. the key to be the pair = {privacy unit ID, partition ID}.
+// 	2. the value to be just the value which is associated with that {privacy unit ID, partition ID} pair
 // 	(there could be multiple entries with the same key).
 func boundContributions(s beam.Scope, kvCol beam.PCollection, contributionLimit int64) beam.PCollection {
 	s = s.Scope("boundContributions")
@@ -222,10 +223,10 @@ type boundedSumAccumInt64 struct {
 // initialize it yourself, use newBoundedSumInt64Fn to create a boundedSumInt64Fn instance.
 type boundedSumInt64Fn struct {
 	// Privacy spec parameters (set during initial construction).
-	EpsilonNoise              float64
-	EpsilonPartitionSelection float64
-	DeltaNoise                float64
-	DeltaPartitionSelection   float64
+	NoiseEpsilon              float64
+	PartitionSelectionEpsilon float64
+	NoiseDelta                float64
+	PartitionSelectionDelta   float64
 	MaxPartitionsContributed  int64
 	Lower                     int64
 	Upper                     int64
@@ -241,15 +242,15 @@ func newBoundedSumInt64Fn(epsilon, delta float64, maxPartitionsContributed, lowe
 		Upper:                    upper,
 		NoiseKind:                noiseKind,
 	}
-	fn.EpsilonNoise = epsilon / 2
-	fn.EpsilonPartitionSelection = epsilon / 2
+	fn.NoiseEpsilon = epsilon / 2
+	fn.PartitionSelectionEpsilon = epsilon / 2
 	switch noiseKind {
 	case noise.GaussianNoise:
-		fn.DeltaNoise = delta / 2
-		fn.DeltaPartitionSelection = delta / 2
+		fn.NoiseDelta = delta / 2
+		fn.PartitionSelectionDelta = delta / 2
 	case noise.LaplaceNoise:
-		fn.DeltaNoise = 0
-		fn.DeltaPartitionSelection = delta
+		fn.NoiseDelta = 0
+		fn.PartitionSelectionDelta = delta
 	default:
 		log.Exitf("newBoundedSumInt64Fn: unknown noise.Kind (%v) is specified. Please specify a valid noise.", noiseKind)
 	}
@@ -263,16 +264,16 @@ func (fn *boundedSumInt64Fn) Setup() {
 func (fn *boundedSumInt64Fn) CreateAccumulator() boundedSumAccumInt64 {
 	return boundedSumAccumInt64{
 		BS: dpagg.NewBoundedSumInt64(&dpagg.BoundedSumInt64Options{
-			Epsilon:                  fn.EpsilonNoise,
-			Delta:                    fn.DeltaNoise,
+			Epsilon:                  fn.NoiseEpsilon,
+			Delta:                    fn.NoiseDelta,
 			MaxPartitionsContributed: fn.MaxPartitionsContributed,
 			Lower:                    fn.Lower,
 			Upper:                    fn.Upper,
 			Noise:                    fn.noise,
 		}),
 		SP: dpagg.NewPreAggSelectPartition(&dpagg.PreAggSelectPartitionOptions{
-			Epsilon:                  fn.EpsilonPartitionSelection,
-			Delta:                    fn.DeltaPartitionSelection,
+			Epsilon:                  fn.PartitionSelectionEpsilon,
+			Delta:                    fn.PartitionSelectionDelta,
 			MaxPartitionsContributed: fn.MaxPartitionsContributed,
 		}),
 	}
@@ -280,7 +281,7 @@ func (fn *boundedSumInt64Fn) CreateAccumulator() boundedSumAccumInt64 {
 
 func (fn *boundedSumInt64Fn) AddInput(a boundedSumAccumInt64, value int64) boundedSumAccumInt64 {
 	a.BS.Add(value)
-	a.SP.Add()
+	a.SP.Increment()
 	return a
 }
 
@@ -291,7 +292,7 @@ func (fn *boundedSumInt64Fn) MergeAccumulators(a, b boundedSumAccumInt64) bounde
 }
 
 func (fn *boundedSumInt64Fn) ExtractOutput(a boundedSumAccumInt64) *int64 {
-	if a.SP.Result() {
+	if a.SP.ShouldKeepPartition() {
 		result := a.BS.Result()
 		return &result
 	}
@@ -311,10 +312,10 @@ type boundedSumAccumFloat64 struct {
 // initialize it yourself, use newBoundedSumFloat64Fn to create a boundedSumFloat64Fn instance.
 type boundedSumFloat64Fn struct {
 	// Privacy spec parameters (set during initial construction).
-	EpsilonNoise              float64
-	EpsilonPartitionSelection float64
-	DeltaNoise                float64
-	DeltaPartitionSelection   float64
+	NoiseEpsilon              float64
+	PartitionSelectionEpsilon float64
+	NoiseDelta                float64
+	PartitionSelectionDelta   float64
 	MaxPartitionsContributed  int64
 	Lower                     float64
 	Upper                     float64
@@ -331,15 +332,15 @@ func newBoundedSumFloat64Fn(epsilon, delta float64, maxPartitionsContributed int
 		Upper:                    upper,
 		NoiseKind:                noiseKind,
 	}
-	fn.EpsilonNoise = epsilon / 2
-	fn.EpsilonPartitionSelection = epsilon / 2
+	fn.NoiseEpsilon = epsilon / 2
+	fn.PartitionSelectionEpsilon = epsilon / 2
 	switch noiseKind {
 	case noise.GaussianNoise:
-		fn.DeltaNoise = delta / 2
-		fn.DeltaPartitionSelection = delta / 2
+		fn.NoiseDelta = delta / 2
+		fn.PartitionSelectionDelta = delta / 2
 	case noise.LaplaceNoise:
-		fn.DeltaNoise = 0
-		fn.DeltaPartitionSelection = delta
+		fn.NoiseDelta = 0
+		fn.PartitionSelectionDelta = delta
 	default:
 		log.Exitf("newBoundedSumFloat64Fn: unknown noise.Kind (%v) is specified. Please specify a valid noise.", noiseKind)
 	}
@@ -353,23 +354,23 @@ func (fn *boundedSumFloat64Fn) Setup() {
 func (fn *boundedSumFloat64Fn) CreateAccumulator() boundedSumAccumFloat64 {
 	return boundedSumAccumFloat64{
 		BS: dpagg.NewBoundedSumFloat64(&dpagg.BoundedSumFloat64Options{
-			Epsilon:                  fn.EpsilonNoise,
-			Delta:                    fn.DeltaNoise,
+			Epsilon:                  fn.NoiseEpsilon,
+			Delta:                    fn.NoiseDelta,
 			MaxPartitionsContributed: fn.MaxPartitionsContributed,
 			Lower:                    fn.Lower,
 			Upper:                    fn.Upper,
 			Noise:                    fn.noise,
 		}),
 		SP: dpagg.NewPreAggSelectPartition(&dpagg.PreAggSelectPartitionOptions{
-			Epsilon:                  fn.EpsilonPartitionSelection,
-			Delta:                    fn.DeltaPartitionSelection,
+			Epsilon:                  fn.PartitionSelectionEpsilon,
+			Delta:                    fn.PartitionSelectionDelta,
 			MaxPartitionsContributed: fn.MaxPartitionsContributed,
 		})}
 }
 
 func (fn *boundedSumFloat64Fn) AddInput(a boundedSumAccumFloat64, value float64) boundedSumAccumFloat64 {
 	a.BS.Add(value)
-	a.SP.Add()
+	a.SP.Increment()
 	return a
 }
 
@@ -380,7 +381,7 @@ func (fn *boundedSumFloat64Fn) MergeAccumulators(a, b boundedSumAccumFloat64) bo
 }
 
 func (fn *boundedSumFloat64Fn) ExtractOutput(a boundedSumAccumFloat64) *float64 {
-	if a.SP.Result() {
+	if a.SP.ShouldKeepPartition() {
 		result := a.BS.Result()
 		return &result
 	}

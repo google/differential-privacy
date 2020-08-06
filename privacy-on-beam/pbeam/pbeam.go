@@ -39,12 +39,12 @@
 //
 //  p := beam.NewPipeline()
 //  s := p.Root()
-//  // The input is a series of files in which each line contains the data of a user.
+//  // The input is a series of files in which each line contains the data of a privacy unit (e.g. an individual).
 //  input := textio.Read(s, "/path/to/files/*.txt") // input is a PCollection<string>
-//  // Extracts the user ID and the data associated with each line: extractID is a func(string) (userID,data).
-//  icol := beam.ParDo(s, input, extractID) // icol is a PCollection<userID,data>
+//  // Extracts the privacy unit ID and the data associated with each line: extractID is a func(string) (userID,data).
+//  icol := beam.ParDo(s, input, extractID) // icol is a PCollection<privacyUnitID,data>
 //  // Transforms the input PCollection into a PrivatePCollection with parameters ε=1 and δ=10⁻¹⁰.
-//  // The user ID is "hidden" by the operation: pcol behaves as if it were a PCollection<data>.
+//  // The privacy unit ID is "hidden" by the operation: pcol behaves as if it were a PCollection<data>.
 //  pcol := MakePrivate(s, icol, NewPrivacySpec(1, 1e-10)) // pcol is a PrivatePCollection<data>
 //  // Arbitrary transformations can be applied to the data…
 //  pcol = ParDo(s, pcol, someDoFn)
@@ -321,10 +321,10 @@ func MakePrivate(_ beam.Scope, col beam.PCollection, spec *PrivacySpec) PrivateP
 // pointers to structs.
 //
 // If the privacy key field is not set, all elements without a set field
-// will be attributed to the same (default) user, likely degrading utility
+// will be attributed to the same (default) privacy unit, likely degrading utility
 // of future DP aggregations. Similarly, if the idFieldPath or any of its
 // parents are nil, those elements will be attributed to the same (default)
-// user as well.
+// privacy unit as well.
 func MakePrivateFromStruct(s beam.Scope, col beam.PCollection, spec *PrivacySpec, idFieldPath string) PrivatePCollection {
 	s = s.Scope("pbeam.MakePrivateFromStruct")
 	msgTypex := col.Type()

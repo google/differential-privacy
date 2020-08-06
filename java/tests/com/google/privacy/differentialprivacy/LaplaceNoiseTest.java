@@ -50,13 +50,12 @@ public final class LaplaceNoiseTest {
     }
     Stats stats = Stats.of(samples.build());
 
-    double mean = DEFAULT_MEAN;
     double variance = 2.0 / (LN_3 * LN_3);
     // The tolerance is chosen according to the 99.9995% quantile of the anticipated distributions
     // of the sample mean and variance. Thus, the test falsely rejects with a probability of 10^-5.
     double sampleMeanTolerance = 4.41717 * Math.sqrt(variance / NUM_SAMPLES);
     double sampleVarianceTolerance = 4.41717 * Math.sqrt(5.0 * variance * variance / NUM_SAMPLES);
-    assertThat(stats.mean()).isWithin(sampleMeanTolerance).of(mean);
+    assertThat(stats.mean()).isWithin(sampleMeanTolerance).of(DEFAULT_MEAN);
     assertThat(stats.populationVariance()).isWithin(sampleVarianceTolerance).of(variance);
   }
 
@@ -98,13 +97,12 @@ public final class LaplaceNoiseTest {
     }
     Stats stats = Stats.of(samples.build());
 
-    double mean = DEFAULT_MEAN;
     double variance = 2.0 / (4.0 * LN_3 * LN_3);
     // The tolerance is chosen according to the 99.9995% quantile of the anticipated distributions
     // of the sample mean and variance. Thus, the test falsely rejects with a probability of 10^-5.
     double sampleMeanTolerance = 4.41717 * Math.sqrt(variance / NUM_SAMPLES);
     double sampleVarianceTolerance = 4.41717 * Math.sqrt(5.0 * variance * variance / NUM_SAMPLES);
-    assertThat(stats.mean()).isWithin(sampleMeanTolerance).of(mean);
+    assertThat(stats.mean()).isWithin(sampleMeanTolerance).of(DEFAULT_MEAN);
     assertThat(stats.populationVariance()).isWithin(sampleVarianceTolerance).of(variance);
   }
 
@@ -122,13 +120,12 @@ public final class LaplaceNoiseTest {
     }
     Stats stats = Stats.of(samples.build());
 
-    double mean = DEFAULT_MEAN;
     double variance = 2.0 / (4.0 * LN_3 * LN_3);
     // The tolerance is chosen according to the 99.9995% quantile of the anticipated distributions
     // of the sample mean and variance. Thus, the test falsely rejects with a probability of 10^-5.
     double sampleMeanTolerance = 4.41717 * Math.sqrt(variance / NUM_SAMPLES);
     double sampleVarianceTolerance = 4.41717 * Math.sqrt(5.0 * variance * variance / NUM_SAMPLES);
-    assertThat(stats.mean()).isWithin(sampleMeanTolerance).of(mean);
+    assertThat(stats.mean()).isWithin(sampleMeanTolerance).of(DEFAULT_MEAN);
     assertThat(stats.populationVariance()).isWithin(sampleVarianceTolerance).of(variance);
   }
 
