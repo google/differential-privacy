@@ -146,7 +146,7 @@ public class DpPreconditions {
 
   static void checkConfidenceLevel(double confidenceLevel){
     checkArgument(
-            confidenceLevel < 0 || confidenceLevel > 1 || Double.isNaN(confidenceLevel),
+            0 <= confidenceLevel && confidenceLevel <= 1 && !Double.isNaN(confidenceLevel),
             "confidenceLevel is %s, should be between 0 and 1 (and cannot be NaN)",
             confidenceLevel);
   }
