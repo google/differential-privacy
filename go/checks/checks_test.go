@@ -512,3 +512,23 @@ func TestCheckMaxPartitionsContributed(t *testing.T) {
 		}
 	}
 }
+
+func TestCheckConfidenceLevel(t *testing.T) {
+	for _, tc := range []struct {
+		desc            string
+		ConfidenceLevel float64
+		wantErr         bool
+	}{
+		{"negative confidenceLevel", -2, true},
+		{"confidenceLevel larger than 1", 10, true},
+		{"positive infinity confidenceLevel", math.Inf(1), true},
+		{"negative infinity confidenceLevel", math.Inf(-1), true},
+		{"infinity confidenceLevel", math.Inf(0), true},
+		{"NaN confidenceLevel", math.NaN(), true},
+		{"random confidenceLevel", 0.758464984, false},
+	} {
+		if err := CheckConfidenceLevel("test", tc.ConfidenceLevel); (err != nil) != tc.wantErr {
+			t.Errorf("CheckConfidenceLevel: when %s for err got %v, want %t", tc.desc, err, tc.wantErr)
+		}
+	}
+}

@@ -42,3 +42,11 @@ func BenchmarkLaplaceFloat64(b *testing.B) {
 	}
 	benchResultFloat64 = r
 }
+
+func approxEqual(a, b float64) bool {
+	maxMagnitude := math.Max(math.Abs(a), math.Abs(b))
+	if math.IsInf(maxMagnitude, +1) {
+		return a == b
+	}
+	return math.Abs(a-b) <= 1e-6*maxMagnitude
+}
