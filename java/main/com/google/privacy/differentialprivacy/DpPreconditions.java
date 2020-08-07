@@ -55,7 +55,8 @@ public class DpPreconditions {
   static void checkSensitivities(int l0Sensitivity, double lInfSensitivity) {
     checkL0Sensitivity(l0Sensitivity);
     checkArgument(
-        lInfSensitivity > 0, "lInfSensitivity must be > 0. Provided value: %s", lInfSensitivity);
+        lInfSensitivity > 0 && !Double.isInfinite(lInfSensitivity),
+            "lInfSensitivity must be > 0 (and cannot be Infinity). Provided value: %s", lInfSensitivity);
   }
 
   static void checkL0Sensitivity(int l0Sensitivity) {
@@ -65,7 +66,8 @@ public class DpPreconditions {
 
   static void checkL1Sensitivity(double l1Sensitivity) {
     checkArgument(
-        l1Sensitivity > 0, "l1Sensitivity must be > 0. Provided value: %s", l1Sensitivity);
+        l1Sensitivity > 0 && !Double.isInfinite(l1Sensitivity),
+            "l1Sensitivity must be > 0 (and cannot be Infinity). Provided value: %s", l1Sensitivity);
   }
 
   static void checkMaxPartitionsContributed(int maxPartitionsContributed) {
