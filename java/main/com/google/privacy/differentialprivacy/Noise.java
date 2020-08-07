@@ -32,11 +32,11 @@ public interface Noise {
       long x, int l0Sensitivity, long lInfSensitivity, double epsilon, @Nullable Double delta);
 
   ConfidenceInterval computeConfidenceInterval(
-          double noisedValue, int l0Sensitivity, double lInfSensitivity,
+          double noisedX, int l0Sensitivity, double lInfSensitivity,
           double epsilon, @Nullable Double delta, double confidenceLevel);
 
   ConfidenceInterval computeConfidenceInterval(
-          long noisedValue, int l0Sensitivity, long lInfSensitivity,
+          long noisedX, int l0Sensitivity, long lInfSensitivity,
           double epsilon, @Nullable Double delta, double confidenceLevel);
 
   MechanismType getMechanismType();

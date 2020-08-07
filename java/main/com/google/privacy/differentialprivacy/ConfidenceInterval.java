@@ -7,9 +7,9 @@ import com.google.auto.value.AutoValue;
  */
 @AutoValue
 public abstract class ConfidenceInterval{
-    public abstract double getLowerBound();
+    public abstract double lowerBound();
 
-    public abstract double getUpperBound();
+    public abstract double upperBound();
 
     public static ConfidenceInterval create(double lowerBound, double upperBound){
         return new AutoValue_ConfidenceInterval(lowerBound, upperBound);
