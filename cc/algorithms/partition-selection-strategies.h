@@ -14,8 +14,6 @@
 // limitations under the License.
 //
 
-//TODO once this is done do a thorough comb through according to the style guide
-
 #ifndef DIFFERENTIAL_PRIVACY_ALGORITHMS_PARTITION_SELECTION_STRATEGIES_H_
 #define DIFFERENTIAL_PRIVACY_ALGORITHMS_PARTITION_SELECTION_STRATEGIES_H_
 
@@ -26,6 +24,10 @@
 #include "base/statusor.h"
 #include "base/canonical_errors.h"
 #include "algorithms/numerical-mechanisms.h"
+#include "algorithms/rand.h"
+#include <iostream>
+
+using namespace std;
 
 namespace differential_privacy{
 
@@ -36,47 +38,70 @@ class PartitionSelectionStrategy {
  public:
   //Builder base class
   class Builder {
-    public:
-      virtual ~Builder() = default;
+   public:
+     virtual ~Builder() = default;
 
-      Builder& SetEpsilon(double epsilon) {
-        epsilon_ = epsilon;
-        return *static_cast<Builder*>(this);
-      }
+     Builder& SetEpsilon(double epsilon) {
+       epsilon_ = epsilon;
+       return *static_cast<Builder*>(this);
+     }
 
-      Builder& SetDelta(double delta) {
-        delta_ = delta;
-        return *static_cast<Builder*>(this);
-      }
+     Builder& SetDelta(double delta) {
+       delta_ = delta;
+       return *static_cast<Builder*>(this);
+     }
 
-      Builder& SetMaxPartitionsContributed(int max_partitions_contributed) {
-        max_partitions_contributed_ = max_partitions_contributed;
-        return *static_cast<Builder*>(this);
-      }
+     Builder& SetMaxPartitionsContributed(int max_partitions_contributed) {
+       max_partitions_contributed_ = max_partitions_contributed;
+       return *static_cast<Builder*>(this);
+     }
 
-      virtual base::StatusOr<std::unique_ptr<PartitionSelectionStrategy>> Build() = 0;
+     virtual base::StatusOr<std::unique_ptr<PartitionSelectionStrategy>>
+     Build() = 0;
 
-    protected:
-      absl::optional<double> epsilon_;
-      absl::optional<double> delta_;
-      absl::optional<int> max_partitions_contributed_;
+   protected:
+     absl::optional<double> epsilon_;
+     absl::optional<double> delta_;
+     absl::optional<int> max_partitions_contributed_;
 
-      //Checks if the max number of partitions contributed  to is set and valid.
-      base::Status MaxPartitionsContributedIsSetAndValid() {
-        if (!max_partitions_contributed_.has_value()) {
-          return base::InvalidArgumentError("Max number of partitions a user can contribute to has to be set.");
-        }
-        if (max_partitions_contributed_ <= 0) {
-          return base::InvalidArgumentError(absl::StrCat(
-              "The maximum number of partitions a user can contribute to has to be positive but is ", delta_.value()));
+     //Checks if the max number of partitions contributed  to is set and valid.
+     base::Status MaxPartitionsContributedIsSetAndValid() {
+       if (!max_partitions_contributed_.has_value()) {
+         return base::InvalidArgumentError(
+          "Max number of partitions a user can contribute to has to be set.");
+       }
+       if (max_partitions_contributed_ <= 0) {
+         return base::InvalidArgumentError(absl::StrCat(
+           "Max number of partitions a user can contribute to has to be"
+           " positive but is ",
+           delta_.value()));
+       }
+       return base::OkStatus();
+     }
+
+     // Checks if delta is set and valid.
+     base::Status DeltaIsSetAndValid() {
+       if (!delta_.has_value()) {
+         return base::InvalidArgumentError("Delta has to be set.");
+       }
+       if (!std::isfinite(delta_.value())) {
+         return base::InvalidArgumentError(
+           absl::StrCat("Delta has to be finite but is ", delta_.value()));
+       }
+       if (delta_.value() <= 0 || 1 <= delta_.value()) {
+         return base::InvalidArgumentError(absl::StrCat(
+           "Delta has to be in the interval (0,1) but is ",
+           delta_.value()));
         }
         return base::OkStatus();
       }
   };
 
-  PartitionSelectionStrategy(double epsilon, double delta, int max_partitions_contributed)
+  PartitionSelectionStrategy(double epsilon, double delta,
+                             int max_partitions_contributed)
   	: epsilon_(epsilon), delta_(delta),
-      adjusted_delta_(1.0 - pow(1 - delta,(double) max_partitions_contributed)),
+      adjusted_delta_(1.0 - pow(1 - delta,
+                      (double) max_partitions_contributed)),
       max_partitions_contributed_(max_partitions_contributed) {}
 
   virtual ~PartitionSelectionStrategy() = default;
@@ -103,62 +128,50 @@ class PreaggPartitionSelection : public PartitionSelectionStrategy {
  public:
   //Builder for PreaggPartitionSelection
   class Builder : public PartitionSelectionStrategy::Builder {
-    public:
-      base::StatusOr<std::unique_ptr<PartitionSelectionStrategy>> Build() override {
-        base::Status epsilon_status = EpsilonIsSetAndValid();
-        base::Status delta_status = DeltaIsSetAndValid();
-        base::Status max_partitions_contributed_status = MaxPartitionsContributedIsSetAndValid();
+   public:
+     base::StatusOr<std::unique_ptr<PartitionSelectionStrategy>>
+     Build() override {
+     base::Status epsilon_status = EpsilonIsSetAndValid();
+     base::Status delta_status = DeltaIsSetAndValid();
+     base::Status max_partitions_contributed_status =
+       MaxPartitionsContributedIsSetAndValid();
 
-        if (!epsilon_status.ok()) {
-          return epsilon_status;
-        }
-        else if (!delta_status.ok()) {
-          return delta_status;
-        }
-        else if (!max_partitions_contributed_status.ok()) {
-          return max_partitions_contributed_status;
-        }
-        else {
-          std::unique_ptr<PartitionSelectionStrategy> magic = absl::make_unique<PreaggPartitionSelection>(epsilon_.value(), delta_.value(), max_partitions_contributed_.value());
-          return magic;
-        }
-      }
-    protected:
-      base::Status EpsilonIsSetAndValid() {
-        if (!epsilon_.has_value()) {
-          return base::InvalidArgumentError("Epsilon has to be set.");
-        }
-        if (!std::isfinite(epsilon_.value())) {
-          return base::InvalidArgumentError(
-            absl::StrCat("Epsilon has to be finite but is ", epsilon_.value()));
-        }
-        if (epsilon_.value() <= 0) {
-          return base::InvalidArgumentError(
-            absl::StrCat("Epsilon has to be positive but is ", epsilon_.value()));
-        }
-        return base::OkStatus();
-      }
-
-      // Checks if delta is set and valid.
-      base::Status DeltaIsSetAndValid() {
-        if (!delta_.has_value()) {
-          return base::InvalidArgumentError("Delta has to be set.");
-        }
-        if (!std::isfinite(delta_.value())) {
-          return base::InvalidArgumentError(
-              absl::StrCat("Delta has to be finite but is ", delta_.value()));
-        }
-        if (delta_.value() < 0 || 1 <= delta_.value()) {
-          return base::InvalidArgumentError(absl::StrCat(
-              "Delta has to be in the interval [0,1) but is ", delta_.value()));
-        }
-        return base::OkStatus();
-      }
+     if (!epsilon_status.ok()) {
+       return epsilon_status;
+     }
+     else if (!delta_status.ok()) {
+       return delta_status;
+     }
+     else if (!max_partitions_contributed_status.ok()) {
+       return max_partitions_contributed_status;
+     }
+     else {
+       std::unique_ptr<PartitionSelectionStrategy> magic = 
+         absl::make_unique<PreaggPartitionSelection>(epsilon_.value(),
+         delta_.value(), max_partitions_contributed_.value());
+       return magic;
+     }
+   }
+   protected:
+     base::Status EpsilonIsSetAndValid() {
+       if (!epsilon_.has_value()) {
+         return base::InvalidArgumentError("Epsilon has to be set.");
+       }
+       if (!std::isfinite(epsilon_.value())) {
+         return base::InvalidArgumentError(
+           absl::StrCat("Epsilon has to be finite but is ", epsilon_.value()));
+       }
+       if (epsilon_.value() <= 0) {
+         return base::InvalidArgumentError(
+           absl::StrCat("Epsilon has to be positive but is ",
+                        epsilon_.value()));
+       }
+       return base::OkStatus();
+     }
   };
 
   PreaggPartitionSelection(double epsilon, double delta, int max_partitions)
   	: PartitionSelectionStrategy(epsilon, delta, max_partitions) {
-    srand(time(NULL));
     if(epsilon_ != 0) {
       adjusted_epsilon_ = epsilon / (double) max_partitions;
     }
@@ -166,11 +179,13 @@ class PreaggPartitionSelection : public PartitionSelectionStrategy {
       adjusted_epsilon_ = 0;
     }
     crossover_1_ = 1 + floor((1.0/adjusted_epsilon_)
-                       *  log((exp(adjusted_epsilon_) + 2.0 * adjusted_delta_ - 1.0)
-                          / ((exp(adjusted_epsilon_) + 1) * adjusted_delta_)));
+                     * log((exp(adjusted_epsilon_)
+                     + 2.0 * adjusted_delta_ - 1.0)
+                       / ((exp(adjusted_epsilon_) + 1) * adjusted_delta_)));
     crossover_2_ = crossover_1_ + floor((1.0/adjusted_epsilon_)
-                        *  log(1 + ((exp(adjusted_epsilon_) - 1) / adjusted_delta_)
-                          * (1 - ProbabilityOfKeep(crossover_1_))));
+                                  *  log(1 + ((exp(adjusted_epsilon_) - 1)
+                                  / adjusted_delta_)
+                                  * (1 - ProbabilityOfKeep(crossover_1_))));
   }
 
   virtual ~PreaggPartitionSelection() = default;
@@ -183,8 +198,8 @@ class PreaggPartitionSelection : public PartitionSelectionStrategy {
 
   bool ShouldKeep(int num_users) override {
     //generate a random number between 0 and 1
-    double rand_num = ((double) rand() / RAND_MAX);
-    //only keep partition if random number is less than expected probability of keep
+    double rand_num = UniformDouble();
+    //only keep partition if random number < expected probability of keep
     return (rand_num <= ProbabilityOfKeep(num_users));
   }
 
@@ -205,7 +220,8 @@ class PreaggPartitionSelection : public PartitionSelectionStrategy {
       double m = n - crossover_1_;
       return ((1 - exp(-1 * m * adjusted_epsilon_))
                * (1 + adjusted_delta_ / (exp(adjusted_epsilon_) - 1))
-               + exp(-1 * m * adjusted_epsilon_) * ProbabilityOfKeep(crossover_1_));
+               + exp(-1 * m * adjusted_epsilon_)
+               * ProbabilityOfKeep(crossover_1_));
     }
     else {
       return 1;
@@ -219,43 +235,66 @@ class LaplacePartitionSelection : public PartitionSelectionStrategy {
  public:
   //Builder for LaplacePartitionSelection
   class Builder : public PartitionSelectionStrategy::Builder {
-    public:
-      Builder& SetLaplaceMechanism(LaplaceMechanism::Builder laplace_builder) {
-        laplace_builder_ = laplace_builder;
-        return *static_cast<Builder*>(this);
-      }
+   public:
+     Builder& SetLaplaceMechanism(LaplaceMechanism::Builder* laplace_builder) {
+       laplace_builder_ = laplace_builder;
+       return *static_cast<Builder*>(this);
+     }
 
-      base::StatusOr<std::unique_ptr<PartitionSelectionStrategy>> Build() override {
-        base::Status max_partitions_contributed_status = MaxPartitionsContributedIsSetAndValid();
-        if (!max_partitions_contributed_status.ok()) {
-          return max_partitions_contributed_status;
-        }
-        else if (laplace_builder_.has_value()) {
-          std::unique_ptr<LaplaceMechanism> mechanism_ = laplace_builder_.value().Build();
-          std::unique_ptr<PartitionSelectionStrategy> laplace = absl::make_unique<LaplacePartitionSelection>(
-            epsilon_.value(), delta_.value(), max_partitions_contributed_.value(), mechanism_);
-          return laplace;
-        }
-        else {
-          return base::InvalidArgumentError("you need a builder fix this message later");
-        }
-      }
+     base::StatusOr<std::unique_ptr<PartitionSelectionStrategy>>
+     Build() override {
+       base::Status max_partitions_contributed_status =
+         MaxPartitionsContributedIsSetAndValid();
+       base::Status delta_status = DeltaIsSetAndValid();
+       if (!max_partitions_contributed_status.ok()) {
+         return max_partitions_contributed_status;
+       }
+       else if (!epsilon_.has_value()) {
+         return base::InvalidArgumentError("Epsilon has to be set.");
+       }
+       else if (!delta_status.ok()) {
+         return delta_status;
+       }
+       else if (laplace_builder_.has_value()) {
+         std::unique_ptr<NumericalMechanism> mechanism_ =
+           (*(laplace_builder_.value())).SetEpsilon(epsilon_.value())
+           .SetL1Sensitivity(max_partitions_contributed_.value()).Build()
+           .ValueOrDie();
+         std::unique_ptr<PartitionSelectionStrategy> laplace =
+           absl::make_unique<LaplacePartitionSelection>(
+             epsilon_.value(), delta_.value(),
+             max_partitions_contributed_.value(), std::move(mechanism_));
+         return laplace;
+       }
+       else {
+         return base::InvalidArgumentError("The builder has to be set.");
+       }
+     }
 
-    protected:
-      absl::optional<LaplaceMechanism::Builder> laplace_builder_;
+   protected:
+     absl::optional<LaplaceMechanism::Builder*> laplace_builder_;
+
+     base::Status EpsilonIsSet() {
+       if (!epsilon_.has_value()) {
+         return base::InvalidArgumentError("Epsilon has to be set.");
+       }
+       return base::OkStatus();
+     }
   };
 
-  LaplacePartitionSelection(double epsilon, double delta, int max_partitions_contributed, LaplaceMechanism laplace)
+  LaplacePartitionSelection(double epsilon, double delta,
+                            int max_partitions_contributed,
+                            std::unique_ptr<NumericalMechanism> laplace)
     : PartitionSelectionStrategy(epsilon, delta, max_partitions_contributed),
       l1_sensitivity_(max_partitions_contributed),
-      diversity_(l1_sensitivity_ / epsilon), mechanism_(laplace) {
+      diversity_(l1_sensitivity_ / epsilon), mechanism_(std::move(laplace)) {
         threshold_ = 1 - diversity_ * (log(2 * adjusted_delta_));
       }
 
   virtual ~LaplacePartitionSelection() = default;
 
   bool ShouldKeep(int num_users) override {
-    double noised_result = mechanism_.AddNoise((double) num_users, 1.0);
+    double noised_result = mechanism_->AddNoise((double) num_users, 1.0);
     return (noised_result > threshold_);
   }
 
@@ -265,11 +304,11 @@ class LaplacePartitionSelection : public PartitionSelectionStrategy {
 
   double GetThreshold() { return threshold_; }
 
-  protected:
-    double l1_sensitivity_;
-    double diversity_;
-    double threshold_;
-    LaplaceMechanism mechanism_;
+ protected:
+   double l1_sensitivity_;
+   double diversity_;
+   double threshold_;
+   std::unique_ptr<NumericalMechanism> mechanism_;
 
 };
 

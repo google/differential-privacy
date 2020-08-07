@@ -483,6 +483,7 @@ cc_library(
     deps = [
         ":numerical-mechanisms",
         ":util",
+        ":rand",
         "//base:status",
         "//base:statusor",
     ],
@@ -494,6 +495,7 @@ cc_test(
     copts = ["-Wno-sign-compare"],
     deps = [
         ":partition-selection-strategies",
+        ":numerical-mechanisms-testing",
         "@com_google_googletest//:gtest_main",
     ],
 )
