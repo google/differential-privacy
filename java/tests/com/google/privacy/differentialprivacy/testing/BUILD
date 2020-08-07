@@ -49,7 +49,7 @@ java_test(
 
 java_test(
     name = "laplace_closeness_test_cases_validity_tests",
-    size = "medium",
+       size = "enormous",
     srcs = ["LaplaceClosenessTestCasesValidityTest.java"],
     resources = [
         "@com_google_differential_privacy//proto/testing:laplace_closeness_test_cases.textproto",
@@ -69,7 +69,7 @@ java_test(
 
 java_test(
     name = "count_dp_test_cases_validity_tests",
-    size = "medium",
+       size = "enormous",
     srcs = ["CountDpTestCasesValidityTest.java"],
     resources = [
         "@com_google_differential_privacy//proto/testing:count_dp_test_cases.textproto",
@@ -77,6 +77,26 @@ java_test(
     # The shard count must match the number of test cases defined in count_dp_test_cases.textproto
     shard_count = 36,
     test_class = "com.google.privacy.differentialprivacy.testing.CountDpTestCasesValidityTest",
+    deps = [
+        "//main/com/google/privacy/differentialprivacy/testing",
+        "@com_google_differential_privacy//proto/testing:statistical_tests_java_proto",
+        "@maven//:com_google_guava_guava",
+        "@maven//:com_google_protobuf_protobuf_java",
+        "@maven//:com_google_truth_truth",
+        "@maven//:junit_junit",
+    ],
+)
+
+java_test(
+    name = "bounded_mean_dp_test_cases_validity_tests",
+       size = "enormous",
+    srcs = ["BoundedMeanDpTestCasesValidityTest.java"],
+    resources = [
+        "@com_google_differential_privacy//proto/testing:bounded_mean_dp_test_cases.textproto",
+    ],
+    # The shard count must match the number of test cases defined in bounded_mean_dp_test_cases.textproto
+    shard_count = 47,
+    test_class = "com.google.privacy.differentialprivacy.testing.BoundedMeanDpTestCasesValidityTest",
     deps = [
         "//main/com/google/privacy/differentialprivacy/testing",
         "@com_google_differential_privacy//proto/testing:statistical_tests_java_proto",

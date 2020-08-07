@@ -250,3 +250,85 @@ the bounds. Thus, the closer the bounds are to zero, the less noise is added. On
 the other hand, setting the lower and upper bound close to zero may mean that
 the input values are clamped more aggressively, which can decrease utility as
 well.
+
+### Sum-up revenue per week day (multiple visits per day)
+The above examples were somewhat simplified: we assumed that a visitor
+contributes to each partition at most once. The good news is that the library
+also supports multiple contributions per partition and adjusts the algorithms
+accordingly.
+
+*Note*: the library does not have access to the privacy unit ids and
+hence ensuring the contribution bounds is the responsibility of the caller.
+
+For some aggregation  (e.g., `BoundedMean`) support for multiple contributions
+per partition  is as simple as configuring the `maxContributionsPerPartitions`
+parameter. However, if contributions have very different ranges, the library can
+add much more noise than necessary. For example, assume we calculate
+`BoundedSum` of visitors’ daily spendings. A visitor typically enters the
+restaurant twice a day and pays 10 euros for breakfast and 50 euros for dinner.
+The `lower` and `upper` bounds should be set to 10 and 50 while
+`maxContributionsPerPartitions` equals 2. If we let the library calculate the
+sensitivity of sum (i.e., how much a single visitor can impact the final
+result), this will result in sensitivity of 100 while the actual sensitivity is
+60 (the higher the sensitivity is - the more noise is added). In such a case, it
+makes sense to pre-aggregate all visits, and provide a single contribution with
+adjusted lower and upper bounds (in our example, sum-up 10 and 50 and set the
+upper bound to 60).
+
+Hence, for the algorithms where pre-aggregation is feasible (e.g., `BoundedSum`)
+`maxContributionsPerPartitions` cannot be configured and is assumed to be equal
+to 1. We ask the client to pre-aggregate the input coming from the same privacy
+unit, and pass it to the library as a single contribution. The example below
+demonstrates the pre-aggregation.
+
+Imagine, a visitor may enter the restaurant several times per day. Visit data
+for this example is stored in the week_data_N_visits_per_day.csv file. Build the
+codelab code and run it with the `SUM_REVENUE_PER_DAY_WITH_PREAGGREGATION`
+argument.
+
+```shell
+$ cd examples/java
+$ bazel build …
+$ bazel-bin/Main SUM_REVENUE_PER_DAY_WITH_PREAGGREGATION
+```
+
+This triggers the logic of `SumRevenuePerDayWithPreAggregation.java`. Its logic
+is very similar to `SumRevenuePerDay.java` from the previous example. The
+non-private and private results are printed to
+`non_private_sum_per_day_w_preaggregation.csv` and
+`private_sum_per_day_w_preaggregation.csv` correspondingly. The results are
+illustrated in the image below.
+
+![Daily sums with preaggregation](img/sum_per_day_w_preaggregation.png)
+
+The code-snippet below pre-aggregates visitor’s daily spendings before passing
+data to `BoundedSum`:
+
+```java
+// For each visitor, pre-aggregate their spending for the day.
+Map<String, Integer> visitorToDaySpending = new HashMap<>();
+for (Visit v : boundedVisits.getVisitsForDay(d)) {
+  String visitorId = v.visitorId();
+  if (visitorToDaySpending.containsKey(visitorId)) {
+    int newAmount = visitorToDaySpending.get(visitorId) + v.eurosSpent();
+    visitorToDaySpending.put(visitorId, newAmount);
+  } else {
+    visitorToDaySpending.put(visitorId, v.eurosSpent());
+  }
+}
+```
+
+We also set the `upper` bound of`BoundedSum` to 65 to reflect the approximate
+maximum cumulative amount a visitor may spend on breakfast, lunch, and dinner.
+
+```java
+private static final int MAX_EUROS_SPENT = 65;
+...
+BoundedSum dpSum =
+    BoundedSum.builder()
+        .epsilon(LN_3)
+        .maxPartitionsContributed(MAX_CONTRIBUTED_DAYS)
+        .lower(MIN_EUROS_SPENT)
+        .upper(MAX_EUROS_SPENT)
+        .build();
+```
