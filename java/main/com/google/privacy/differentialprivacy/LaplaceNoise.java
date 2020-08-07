@@ -119,14 +119,14 @@ public class LaplaceNoise implements Noise {
   }
 
   /**
-   * Returns {@link ConfidenceInterval} object with the given {@code confidenceLevel},
-   * using {@code noisedValue}, L_0 and L_inf sensitivities,
-   * and {@code epsilon} and {@code delta} for Laplace distribution.
+   * Computes a confidence interval that contains the raw value {@code x} passed to
+   * {@link #addNoise(double, int, double, double, Double)} with a probability greater
+   * or equal to {@code confidenceLevel} based on the specified {@noisedValue} and noise parameters.
    * Note that {@code delta} must be set to {@code null} because it does not parameterize Laplace
    * noise. Moreover, {@code epsilon} must be at least 2^-50.
    */
   @Override
-  public ConfidenceInterval getConfidenceInterval(
+  public ConfidenceInterval computeConfidenceInterval(
           double noisedValue, int l0Sensitivity, double lInfSensitivity,
           double epsilon, @Nullable Double delta, double confidenceLevel){
     // TODO: Implement confidence interval computation.
@@ -134,15 +134,15 @@ public class LaplaceNoise implements Noise {
   }
 
   /**
-   * Returns {@link ConfidenceInterval} object with integer bounds for the given {@code confidenceLevel},
-   * using integer {@code noisedValue}, L_0 and L_inf sensitivities,
-   * and {@code epsilon} and {@code delta} for Laplace distribution.
+   * Computes a confidence interval that contains the raw value integer {@code x} passed to
+   * {@link #addNoise(long, int, long, double, Double)} with a probability greater
+   * or equal to {@code confidenceLevel} based on the specified {@noisedValue} and noise parameters.
    * Note that {@code delta} must be set to {@code null} because it does not parameterize Laplace
    * noise. Moreover, {@code epsilon} must be at least 2^-50.
    */
   @Override
-  public ConfidenceInterval getConfidenceInterval(
-          int noisedValue, int l0Sensitivity, long lInfSensitivity,
+  public ConfidenceInterval computeConfidenceInterval(
+          long noisedValue, int l0Sensitivity, long lInfSensitivity,
           double epsilon, @Nullable Double delta, double confidenceLevel){
     // TODO: Implement confidence interval computation.
     return null;

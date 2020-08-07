@@ -3,7 +3,7 @@ package com.google.privacy.differentialprivacy;
 import com.google.auto.value.AutoValue;
 
 /**
- * Valued-typed class that holds real bounds for the confidence interval.
+ * Stores the upper and lower bounds of a confidence interval.
  */
 @AutoValue
 public abstract class ConfidenceInterval{
