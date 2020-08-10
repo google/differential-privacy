@@ -56,7 +56,8 @@ public class DpPreconditions {
     checkL0Sensitivity(l0Sensitivity);
     checkArgument(
         lInfSensitivity > 0 && !Double.isInfinite(lInfSensitivity),
-            "lInfSensitivity must be > 0 (and cannot be Infinity). Provided value: %s", lInfSensitivity);
+        "lInfSensitivity must be > 0 (and cannot be Infinity). Provided value: %s",
+        lInfSensitivity);
   }
 
   static void checkL0Sensitivity(int l0Sensitivity) {
@@ -67,7 +68,8 @@ public class DpPreconditions {
   static void checkL1Sensitivity(double l1Sensitivity) {
     checkArgument(
         l1Sensitivity > 0 && !Double.isInfinite(l1Sensitivity),
-            "l1Sensitivity must be > 0 (and cannot be Infinity). Provided value: %s", l1Sensitivity);
+        "l1Sensitivity must be > 0 (and cannot be Infinity). Provided value: %s",
+        l1Sensitivity);
   }
 
   static void checkMaxPartitionsContributed(int maxPartitionsContributed) {
@@ -146,10 +148,11 @@ public class DpPreconditions {
         "Failed to merge: unequal mechanism types. type1 = %s, type2 = %s", type1, type2);
   }
 
-  static void checkConfidenceLevel(double confidenceLevel){
+  static void checkConfidenceLevel(double confidenceLevel) {
     checkArgument(
-            0 < confidenceLevel && confidenceLevel < 1 && !Double.isNaN(confidenceLevel),
-            "confidenceLevel is %s, should be between 0 and 1 (exclusive and cannot be NaN)",
-            confidenceLevel);
+        0 < confidenceLevel && confidenceLevel < 1 && !Double.isNaN(confidenceLevel),
+        "confidenceLevel should be between 0 and 1 (exclusive and cannot be NaN). "
+            + "Provided value: %s",
+        confidenceLevel);
   }
 }

@@ -115,27 +115,35 @@ public class GaussianNoise implements Noise {
   }
 
   /**
-   * Computes a confidence interval that contains the raw value {@code x} passed to
-   * {@link #addNoise(double, int, double, double, Double)} with a probability equal
-   * to {@code confidenceLevel} based on the specified {@code noisedX} and noise parameters.
+   * Computes a confidence interval that contains the raw value {@code x} passed to {@link
+   * #addNoise(double, int, double, double, Double)} with a probability equal to {@code
+   * confidenceLevel} based on the specified {@code noisedX} and noise parameters.
    */
   @Override
   public ConfidenceInterval computeConfidenceInterval(
-          double noisedX, int l0Sensitivity, double lInfSensitivity,
-          double epsilon, Double delta, double confidenceLevel){
+      double noisedX,
+      int l0Sensitivity,
+      double lInfSensitivity,
+      double epsilon,
+      Double delta,
+      double confidenceLevel) {
     // TODO: Implement confidence interval computation.
     return null;
   }
 
   /**
-   * Computes a confidence interval that contains the raw value integer {@code x} passed to
-   * {@link #addNoise(long, int, long, double, Double)} with a probability greater
-   * or equal to {@code confidenceLevel} based on the specified {@code noisedX} and noise parameters.
+   * Computes a confidence interval that contains the raw value integer {@code x} passed to {@link
+   * #addNoise(long, int, long, double, Double)} with a probability greater or equal to {@code
+   * confidenceLevel} based on the specified {@code noisedX} and noise parameters.
    */
   @Override
   public ConfidenceInterval computeConfidenceInterval(
-          long noisedX, int l0Sensitivity, long lInfSensitivity,
-          double epsilon, Double delta, double confidenceLevel){
+      long noisedX,
+      int l0Sensitivity,
+      long lInfSensitivity,
+      double epsilon,
+      Double delta,
+      double confidenceLevel) {
     // TODO: Implement confidence interval computation.
     return null;
   }
