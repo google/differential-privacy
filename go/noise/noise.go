@@ -64,9 +64,9 @@ type ConfidenceInterval struct {
 	LowerBound, UpperBound float64
 }
 
-// toConfidenceIntervalInt64 rounds the lower and upper bounds of a ConfidenceInterval struct for
-// integer valued noise operations.
-func (confInt ConfidenceInterval) toConfidenceIntervalInt64() ConfidenceInterval {
+// toInt64 rounds the lower and upper bounds of a ConfidenceInterval struct for integer
+// valued noise operations.
+func (confInt ConfidenceInterval) toInt64() ConfidenceInterval {
 	return ConfidenceInterval{LowerBound: math.Round(confInt.LowerBound), UpperBound: math.Round(confInt.UpperBound)}
 }
 
@@ -114,13 +114,13 @@ type Noise interface {
 	// given assumptions of L_0 and L_∞ sensitivities.
 	Threshold(l0Sensitivity int64, lInfSensitivity, epsilon, noiseDelta, thresholdDelta float64) float64
 
-	// ConfidenceIntervalInt64 will return a ConfidenceInterval struct with the given
+	// confidenceIntervalInt64 will return a ConfidenceInterval struct with the given
 	// confidenceLevel, using the int64 noisedValue, l0Sensitivity, lInfSensitivity int64 and
 	// epsilon, delta float64 for the distribution.
-	ConfidenceIntervalInt64(noisedValue, l0Sensitivity, lInfSensitivity int64, epsilon, delta, confidenceLevel float64) (ConfidenceInterval, error)
+	computeConfidenceIntervalInt64(noisedValue, l0Sensitivity, lInfSensitivity int64, epsilon, delta, confidenceLevel float64) (ConfidenceInterval, error)
 
-	// ConfidenceIntervalFloat64 will return a ConfidenceInterval struct with the given
+	// confidenceIntervalFloat64 will return a ConfidenceInterval struct with the given
 	// confidenceLevel, using the float64 noisedValue, l0Sensitivity int64 and lInfSensitivity,
 	// epsilon, delta float64 for the distribution.
-	ConfidenceIntervalFloat64(noisedValue float64, l0Sensitivity int64, lInfSensitivity, epsilon, delta, confidenceLevel float64) (ConfidenceInterval, error)
+	computeConfidenceIntervalFloat64(noisedValue float64, l0Sensitivity int64, lInfSensitivity, epsilon, delta, confidenceLevel float64) (ConfidenceInterval, error)
 }

@@ -35,8 +35,8 @@ import (
 // even if no data is associated with a partition, noise is added to the empty
 // aggregation, and the noisy result is materialized. However, when only
 // partitions containing data are materialized, such mechanisms fail to protect
-// privacy for partitions containing data from a single privacy unit ID (e.g.,
-// user). To fix this, partitions with small numbers of privacy unit IDs must
+// privacy for partitions containing data from a single privacy ID (e.g.,
+// user). To fix this, partitions with small numbers of privacy IDs must
 // sometimes be dropped in order to maintain privacy. This process of partition
 // selection incurs an additional (ε,δ) differential privacy budget resulting
 // in a total differential privacy budget of (ε+ε_m,δ+δ_m) being used for the
@@ -44,12 +44,12 @@ import (
 //
 // The partition selection process is made (ε,δ) differentially private by
 // applying the definition of differential privacy to the count of privacy
-// IDs. Supposing l0Sensitivity bounds the number of partitions a privacy unit ID may
+// IDs. Supposing l0Sensitivity bounds the number of partitions a privacy ID may
 // contribute to, we define:
 //     pε := ε/l0Sensitivity
 //     pδ := δ/l0Sensitivity
 // to be the per-partition differential privacy losses incurred by the partition
-// selection process. Letting n denote the number of privacy unit IDs in a partition,
+// selection process. Letting n denote the number of privacy IDs in a partition,
 // the probability of selecting a partition is given by the following recurrence
 // relation:
 //   keepPartitionProbability(n) = min(
@@ -75,7 +75,7 @@ type PreAggSelectPartition struct {
 	l0Sensitivity int64
 
 	// State variables
-	// idCount is the count of unique privacy unit IDs in the partition.
+	// idCount is the count of unique privacy IDs in the partition.
 	idCount int64
 	// whether a result has already been returned / consumed for this PreAggSelectPartition
 	resultReturned bool
@@ -126,7 +126,7 @@ func NewPreAggSelectPartition(opt *PreAggSelectPartitionOptions) *PreAggSelectPa
 }
 
 // Increment increments the ids count by one.
-// The caller must ensure this methods called at most once per privacy unit ID.
+// The caller must ensure this methods called at most once per privacy ID.
 func (s *PreAggSelectPartition) Increment() {
 	if s.resultReturned {
 		log.Exitf("This PreAggSelectPartition has already returned a ShouldKeepPartition. It can only be used once.")
@@ -135,7 +135,7 @@ func (s *PreAggSelectPartition) Increment() {
 }
 
 // Merge merges s2 into s (i.e., add the idCount of s2 to s). This implicitly
-// assumes that s and s2 act on distinct privacy unit IDs. s2 is consumed by this
+// assumes that s and s2 act on distinct privacy IDs. s2 is consumed by this
 // operation: s2 may not be used after it is merged into s.
 //
 // Preconditions: s and s2 must have the same privacy parameters. In addition,

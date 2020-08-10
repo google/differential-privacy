@@ -211,7 +211,8 @@ class BoundedMean : public Algorithm<T> {
 
  private:
   BoundedMean(const double epsilon, T lower, T upper,
-              const double l0_sensitivity, const double linf_sensitivity,
+              const double l0_sensitivity,
+              const double max_contributions_per_partition,
               std::unique_ptr<LaplaceMechanism::Builder> mechanism_builder,
               std::unique_ptr<NumericalMechanism> sum_mechanism,
               std::unique_ptr<NumericalMechanism> count_mechanism,
@@ -222,7 +223,7 @@ class BoundedMean : public Algorithm<T> {
         upper_(upper),
         midpoint_(lower + (upper - lower) / 2),
         l0_sensitivity_(l0_sensitivity),
-        linf_sensitivity_(linf_sensitivity),
+        max_contributions_per_partition_(max_contributions_per_partition),
         mechanism_builder_(std::move(mechanism_builder)),
         sum_mechanism_(std::move(sum_mechanism)),
         count_mechanism_(std::move(count_mechanism)),
@@ -281,7 +282,7 @@ class BoundedMean : public Algorithm<T> {
           sum_mechanism_,
           BuildSumMechanism(mechanism_builder_->Clone(),
                             Algorithm<T>::GetEpsilon(), l0_sensitivity_,
-                            linf_sensitivity_, lower_, upper_));
+                            max_contributions_per_partition_, lower_, upper_));
     }
 
     double count_budget = remaining_budget / 2;
@@ -308,10 +309,12 @@ class BoundedMean : public Algorithm<T> {
   static base::StatusOr<std::unique_ptr<NumericalMechanism>> BuildSumMechanism(
       std::unique_ptr<LaplaceMechanism::Builder> mechanism_builder,
       const double epsilon, const double l0_sensitivity,
-      const double linf_sensitivity, const T lower, const T upper) {
+      const double max_contributions_per_partition, const T lower,
+      const T upper) {
     return mechanism_builder->SetEpsilon(epsilon)
         .SetL0Sensitivity(l0_sensitivity)
-        .SetLInfSensitivity(linf_sensitivity * (std::abs(upper - lower) / 2))
+        .SetLInfSensitivity(max_contributions_per_partition *
+                            (std::abs(upper - lower) / 2))
         .Build();
   }
 
@@ -325,7 +328,7 @@ class BoundedMean : public Algorithm<T> {
   // Used to construct mechanism once bounds are obtained for auto-bounding.
   std::unique_ptr<LaplaceMechanism::Builder> mechanism_builder_;
   const double l0_sensitivity_;
-  const double linf_sensitivity_;
+  const int max_contributions_per_partition_;
 
   // The count and the sum will have different sensitivites, so we need
   // different mechanisms to noise them.

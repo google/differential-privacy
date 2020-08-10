@@ -1,10 +1,8 @@
 
-
-<!-- This file is auto-generated. Do not edit. -->
-
 # Algorithm
 
-[`Algorithm`](https://github.com/google/differential-privacy/blob/main/cc/algorithms/algorithm.h) is the base class of all
+[`Algorithm`](https://github.com/google/differential-privacy/blob/main/cc/algorithms/algorithm.h)
+is the base class of all
 differentially private algorithms. Each algorithm can be constructed using the
 builder pattern, which sets its parameters. `Algorithms` are incremental: it's
 possible to insert some data and get a result, then _add more data_ and get a
@@ -27,7 +25,7 @@ util::StatusOr<std::unique_ptr<Algorithm>> algorithm =
 ```
 
 *   `double epsilon`: The `epsilon` differential privacy parameter. A smaller
-    number means more privacy but less accuracy. 
+    number means more privacy but less accuracy.
 *   `std::unique_ptr<LaplaceMechanism::Builder> laplace_mechanism_builder`: Used
     to specify the type of laplace mechanism the algorithm will use to add
     noise. In most cases they should not be set (and a default LaplaceMechanism
@@ -41,7 +39,6 @@ These functions add data to the `Algorithm`'s internal pool. For most
 algorithms, this doesn't consume additional space; the space consumed is
 typically constant. The exception is the order
 statistics algorithms: the space consumed is linear on the number of inputs.
-<!--* *--> 
 
 ```
 void AddEntry(const T& t);

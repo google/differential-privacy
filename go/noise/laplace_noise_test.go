@@ -201,9 +201,9 @@ func TestGeometricStatistics(t *testing.T) {
 			geometricSamples[i] = geometric(tc.lambda)
 		}
 		sampleMean := stat.Mean(geometricSamples)
-		// Assuming that the geometric samples have the specified mean tc.mean and the standard
-		// deviation of tc.stdDev, sampleMean is approximately Gaussian distributed with a mean
-		// of tc.stdDev and standard deviation of tc.stdDev / sqrt(numberOfSamples).
+		// Assuming that the geometric samples are distributed according to the specified lambda, the
+		// sampleMean is approximately Gaussian distributed with a mean of tc.mean and standard deviation
+		// of tc.stdDev / sqrt(numberOfSamples).
 		//
 		// The meanErrorTolerance is set to the 99.9995% quantile of the anticipated distribution
 		// of sampleMean. Thus, the test falsely rejects with a probability of 10⁻⁵.

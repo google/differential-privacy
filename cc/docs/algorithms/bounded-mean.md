@@ -1,7 +1,4 @@
 
-
-<!-- This file is auto-generated. Do not edit. -->
-
 # Bounded Mean
 
 [`BoundedMean`](https://github.com/google/differential-privacy/blob/main/cc/algorithms/bounded-mean.h) computes the average of

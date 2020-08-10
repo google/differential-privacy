@@ -278,7 +278,8 @@ class BoundedVariance : public Algorithm<T> {
 
  private:
   BoundedVariance(const double epsilon, const T lower, const T upper,
-                  const double l0_sensitivity, const double linf_sensitivity,
+                  const double l0_sensitivity,
+                  const double max_contributions_per_partition,
                   std::unique_ptr<LaplaceMechanism::Builder> mechanism_builder,
                   std::unique_ptr<NumericalMechanism> sum_mechanism,
                   std::unique_ptr<NumericalMechanism> sos_mechanism,
@@ -289,7 +290,7 @@ class BoundedVariance : public Algorithm<T> {
         lower_(lower),
         upper_(upper),
         l0_sensitivity_(l0_sensitivity),
-        linf_sensitivity_(linf_sensitivity),
+        max_contributions_per_partition_(max_contributions_per_partition),
         mechanism_builder_(std::move(mechanism_builder)),
         sum_mechanism_(std::move(sum_mechanism)),
         sos_mechanism_(std::move(sos_mechanism)),
@@ -363,14 +364,14 @@ class BoundedVariance : public Algorithm<T> {
           sum_mechanism_,
           BuildSumMechanism(mechanism_builder_->Clone(),
                             Algorithm<T>::GetEpsilon(), l0_sensitivity_,
-                            linf_sensitivity_, lower_, upper_));
+                            max_contributions_per_partition_, lower_, upper_));
     }
     if (!sos_mechanism_) {
-      ASSIGN_OR_RETURN(
-          sos_mechanism_,
-          BuildSumOfSquaresMechanism(
-              mechanism_builder_->Clone(), Algorithm<T>::GetEpsilon(),
-              l0_sensitivity_, linf_sensitivity_, lower_, upper_));
+      ASSIGN_OR_RETURN(sos_mechanism_,
+                       BuildSumOfSquaresMechanism(
+                           mechanism_builder_->Clone(),
+                           Algorithm<T>::GetEpsilon(), l0_sensitivity_,
+                           max_contributions_per_partition_, lower_, upper_));
     }
 
     T sum_midpoint = lower_ + (upper_ - lower_) / 2;
@@ -453,10 +454,11 @@ class BoundedVariance : public Algorithm<T> {
   static base::StatusOr<std::unique_ptr<NumericalMechanism>> BuildSumMechanism(
       std::unique_ptr<LaplaceMechanism::Builder> mechanism_builder,
       const double epsilon, const double l0_sensitivity,
-      const double linf_sensitivity, const T lower, const T upper) {
+      const double max_contributions_per_partition, const T lower,
+      const T upper) {
     return mechanism_builder->SetEpsilon(epsilon)
         .SetL0Sensitivity(l0_sensitivity)
-        .SetLInfSensitivity(linf_sensitivity *
+        .SetLInfSensitivity(max_contributions_per_partition *
                             static_cast<double>((upper - lower) / 2))
         .Build();
   }
@@ -465,10 +467,11 @@ class BoundedVariance : public Algorithm<T> {
   BuildSumOfSquaresMechanism(
       std::unique_ptr<LaplaceMechanism::Builder> mechanism_builder,
       const double epsilon, const double l0_sensitivity,
-      const double linf_sensitivity, const T lower, const T upper) {
+      const double max_contributions_per_partition, const T lower,
+      const T upper) {
     return mechanism_builder->SetEpsilon(epsilon)
         .SetL0Sensitivity(l0_sensitivity)
-        .SetLInfSensitivity(linf_sensitivity *
+        .SetLInfSensitivity(max_contributions_per_partition *
                             (RangeOfSquares(lower, upper) / 2))
         .Build();
   }
@@ -482,7 +485,7 @@ class BoundedVariance : public Algorithm<T> {
   // Used to construct mechanism once bounds are obtained.
   std::unique_ptr<LaplaceMechanism::Builder> mechanism_builder_;
   const double l0_sensitivity_;
-  const double linf_sensitivity_;
+  const int max_contributions_per_partition_;
 
   std::unique_ptr<NumericalMechanism> sum_mechanism_;
   std::unique_ptr<NumericalMechanism> sos_mechanism_;

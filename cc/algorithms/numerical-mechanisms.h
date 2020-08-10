@@ -241,9 +241,9 @@ class LaplaceMechanism : public NumericalMechanism {
       // Check that generated noise is not likely to overflow.
       double diversity = l1_sensitivity_.value() / GetEpsilon().value();
       double overflow_probability =
-          (1 - internal::LegacyLaplaceDistribution::cdf(
+          (1 - internal::LaplaceDistribution::cdf(
                    diversity, std::numeric_limits<double>::max())) +
-          internal::LegacyLaplaceDistribution::cdf(
+          internal::LaplaceDistribution::cdf(
               diversity, std::numeric_limits<double>::lowest());
       if (overflow_probability >= kMaxOverflowProbability) {
         return base::InvalidArgumentError("Sensitivity is too high.");

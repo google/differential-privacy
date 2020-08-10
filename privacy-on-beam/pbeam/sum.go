@@ -110,7 +110,7 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCo
 		noiseKind = params.NoiseKind.toNoiseKind()
 	}
 	maxPartitionsContributed := getMaxPartitionsContributed(spec, params.MaxPartitionsContributed)
-	// First, group together the privacy unit ID and the partition ID, and sum the
+	// First, group together the privacy ID and the partition ID, and sum the
 	// values per-privacy unit and per-partition.
 	decoded := beam.ParDo(s,
 		newPrepareSumFn(idT, pcol.codec),

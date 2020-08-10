@@ -118,7 +118,7 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 		noiseKind = params.NoiseKind.toNoiseKind()
 	}
 
-	// First, group together the privacy unit ID and the partition ID and do per-partition contribution bounding.
+	// First, group together the privacy ID and the partition ID and do per-partition contribution bounding.
 	// Result is PCollection<kv.Pair{ID,K},V>
 	decoded := beam.ParDo(s,
 		newPrepareMeanFn(idT, pcol.codec),

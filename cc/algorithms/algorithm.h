@@ -216,8 +216,8 @@ class AlgorithmBuilder {
 
   // Note for BoundedAlgorithm, this does not specify the contribution that will
   // be clamped, but the number of contributions to any partition.
-  Builder& SetMaxContributionsPerPartition(int max_contribution) {
-    linf_sensitivity_ = max_contribution;
+  Builder& SetMaxContributionsPerPartition(int max_contributions) {
+    max_contributions_per_partition_ = max_contributions;
     return *static_cast<Builder*>(this);
   }
 
@@ -231,7 +231,7 @@ class AlgorithmBuilder {
   absl::optional<double> epsilon_;
   absl::optional<double> delta_;
   absl::optional<int> l0_sensitivity_;
-  absl::optional<int> linf_sensitivity_;
+  absl::optional<int> max_contributions_per_partition_;
 
   // The mechanism builder is used to interject custom mechanisms for testing.
   std::unique_ptr<LaplaceMechanism::Builder> mechanism_builder_ =
@@ -244,7 +244,7 @@ class AlgorithmBuilder {
     return l0_sensitivity_;
   }
   absl::optional<int> GetMaxContributionsPerPartition() const {
-    return linf_sensitivity_;
+    return max_contributions_per_partition_;
   }
 
   std::unique_ptr<LaplaceMechanism::Builder> GetMechanismBuilderClone() const {
@@ -265,7 +265,7 @@ class AlgorithmBuilder {
     // If not set, we are using 1 as default value for both, L0 and Linf, as
     // fallback for existing clients.
     return clone->SetL0Sensitivity(l0_sensitivity_.value_or(1))
-        .SetLInfSensitivity(linf_sensitivity_.value_or(1))
+        .SetLInfSensitivity(max_contributions_per_partition_.value_or(1))
         .Build();
   }
 };
