@@ -133,7 +133,7 @@ public class LaplaceNoise implements Noise {
       @Nullable Double delta,
       double confidenceLevel) {
     // TODO: Implement confidence interval computation.
-    return null;
+    throw new UnsupportedOperationException("Not implemented yet.");
   }
 
   /**
@@ -151,7 +151,7 @@ public class LaplaceNoise implements Noise {
       @Nullable Double delta,
       double confidenceLevel) {
     // TODO: Implement confidence interval computation.
-    return null;
+    throw new UnsupportedOperationException("Not implemented yet.");
   }
 
   private void checkParameters(double l1Sensitivity, double epsilon, @Nullable Double delta) {

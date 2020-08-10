@@ -128,7 +128,7 @@ public class GaussianNoise implements Noise {
       Double delta,
       double confidenceLevel) {
     // TODO: Implement confidence interval computation.
-    return null;
+    throw new UnsupportedOperationException("Not implemented yet.");
   }
 
   /**
@@ -145,7 +145,7 @@ public class GaussianNoise implements Noise {
       Double delta,
       double confidenceLevel) {
     // TODO: Implement confidence interval computation.
-    return null;
+    throw new UnsupportedOperationException("Not implemented yet.");
   }
 
   private void checkParameters(
