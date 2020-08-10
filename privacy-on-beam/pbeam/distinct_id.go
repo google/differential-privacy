@@ -100,7 +100,7 @@ func DistinctPrivacyID(s beam.Scope, pcol PrivatePCollection, params DistinctPri
 				partitionT.Type(), params.specifiedPartitions.partitionsCol.Type().Type())
 		}
 		// Drop unspecified partitions, if partitions are specified.
-		correctPartitions = dropUnspecifiedPartitionsForCount(s, params.specifiedPartitions.partitionsCol, pcol, partitionT)
+		correctPartitions = dropUnspecifiedPartitionsVFn(s, params.specifiedPartitions.partitionsCol, pcol, partitionT)
 	} else {
 		correctPartitions = pcol.col
 	}
@@ -131,14 +131,13 @@ func DistinctPrivacyID(s beam.Scope, pcol PrivatePCollection, params DistinctPri
 func addSpecifiedPartitionsForDistinctId(s beam.Scope, params DistinctPrivacyIDParams, epsilon, delta float64,
 	maxPartitionsContributed int64, noiseKind noise.Kind, dummyCounts beam.PCollection) beam.PCollection {
 	partitionsCol := params.specifiedPartitions.partitionsCol
-	prepareAddSpecifiedPartitions := beam.ParDo(s, prepareAddPartitionsInt64Fn, partitionsCol)
-
+	prepareAddSpecifiedPartitions := beam.ParDo(s, addValuesToSpecifiedPartitionKeysInt64Fn, partitionsCol)
 	// Merge dummyCounts and prepareAddSpecifiedPartitions.
 	allAddPartitions := beam.Flatten(s, dummyCounts, prepareAddSpecifiedPartitions)
 	noisedCounts := beam.CombinePerKey(s,
 		newCountFn(epsilon, delta, maxPartitionsContributed, noiseKind, true),
 		allAddPartitions)
-	return beam.ParDo(s, CorrectToInt64, noisedCounts)
+	return beam.ParDo(s, DereferenceValuesToInt64, noisedCounts)
 }
 
 func checkDistinctPrivacyIDParams(params DistinctPrivacyIDParams, noiseKind noise.Kind, epsilon, delta float64) error {

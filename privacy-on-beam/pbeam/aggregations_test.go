@@ -341,9 +341,9 @@ func TestDropUnspecifiedPartitionsForCount(t *testing.T) {
 	epsilon, delta := 50.0, 1e-200
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 	_, partitionT := beam.ValidateKVType(pcol.col)
-	got := dropUnspecifiedPartitionsForCount(s, partitionsCol, pcol, partitionT)
+	got := dropUnspecifiedPartitionsVFn(s, partitionsCol, pcol, partitionT)
 	if err := equalsKVInt(s, got, want); err != nil {
-		t.Fatalf("dropUnspecifiedPartitionsForCount: for %v got: %v, want %v", col, got, want)
+		t.Fatalf("dropUnspecifiedPartitionsVFn: for %v got: %v, want %v", col, got, want)
 	}
 }
 
@@ -374,7 +374,7 @@ func TestDropUnspecifiedPartitionsInt(t *testing.T) {
 
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 	pcol = ParDo(s, tripleWithIntValueToKV, pcol)
-	got := dropUnspecifiedPartitions(s, partitionsCol, pcol, pcol.codec.KType)
+	got := dropUnspecifiedPartitionsKVFn(s, partitionsCol, pcol, pcol.codec.KType)
 	got = beam.SwapKV(s, got)
 
 	pcol2 := MakePrivate(s, col2, NewPrivacySpec(epsilon, delta))
@@ -416,7 +416,7 @@ func TestDropUnspecifiedPartitionsFloat(t *testing.T) {
 
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 	pcol = ParDo(s, tripleWithFloatValueToKV, pcol)
-	got := dropUnspecifiedPartitions(s, partitionsCol, pcol, pcol.codec.KType)
+	got := dropUnspecifiedPartitionsKVFn(s, partitionsCol, pcol, pcol.codec.KType)
 	got = beam.SwapKV(s, got)
 
 	pcol2 := MakePrivate(s, col2, NewPrivacySpec(epsilon, delta))

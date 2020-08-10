@@ -165,7 +165,7 @@ func TestSumPerKeyNoNoiseFloat(t *testing.T) {
 	}
 }
 
-// Checks that SumPerKey with partitions returns a correct answer with float values.
+// // Checks that SumPerKey with partitions returns a correct answer with float values.
 func TestSumPerKeyWithPartitionsNoNoiseFloat(t *testing.T) {
 	triples := concatenateTriplesWithFloatValue(
 		makeDummyTripleWithFloatValue(7, 0),
@@ -408,7 +408,7 @@ func TestSumPerKeyCrossPartitionContributionBoundingInt(t *testing.T) {
 	}
 }
 
-// Checks that SumPerKey with partitions bounds cross-partition contributions correctly with int values.
+// // Checks that SumPerKey with partitions bounds cross-partition contributions correctly with int values.
 func TestSumPerKeyWithPartitionsCrossPartitionContributionBoundingInt(t *testing.T) {
 	// triples contains {1,0,1}, {2,0,1}, …, {50,0,1}, {1,1,1}, …, {50,1,1}, {1,2,1}, …, {50,9,1}.
 	var triples []tripleWithIntValue

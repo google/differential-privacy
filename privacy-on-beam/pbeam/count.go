@@ -105,7 +105,7 @@ func Count(s beam.Scope, pcol PrivatePCollection, params CountParams) beam.PColl
 				partitionT.Type(), params.specifiedPartitions.partitionsCol.Type().Type())
 		}
 		// Drop unspecified partitions, if partitions are specified.
-		correctPartitions = dropUnspecifiedPartitionsForCount(s, params.specifiedPartitions.partitionsCol, pcol, partitionT)
+		correctPartitions = dropUnspecifiedPartitionsVFn(s, params.specifiedPartitions.partitionsCol, pcol, partitionT)
 	} else {
 		correctPartitions = pcol.col
 	}
@@ -143,7 +143,7 @@ func addSpecifiedPartitionsForCount(s beam.Scope, epsilon, delta float64,
 	partitionsCol := params.specifiedPartitions.partitionsCol
 	// Turn partitionsCol type PCollection<K> into PCollection<K, int64> by adding
 	// the value zero to each K.
-	prepareAddSpecifiedPartitions := beam.ParDo(s, prepareAddPartitionsInt64Fn, partitionsCol)
+	prepareAddSpecifiedPartitions := beam.ParDo(s, addValuesToSpecifiedPartitionKeysInt64Fn, partitionsCol)
 	// Merge countsKV and prepareAddSpecifiedPartitions.
 	allPartitions := beam.Flatten(s, prepareAddSpecifiedPartitions, countsKV)
 	// Sum and add noise.
@@ -151,7 +151,7 @@ func addSpecifiedPartitionsForCount(s beam.Scope, epsilon, delta float64,
 		newBoundedSumInt64Fn(epsilon, delta, maxPartitionsContributed, 0, params.MaxValue, noiseKind, true),
 		allPartitions)
 
-	finalPartitions := beam.ParDo(s, CorrectToInt64, sums)
+	finalPartitions := beam.ParDo(s, DereferenceValuesToInt64, sums)
 	// Clamp negative counts to zero and return.
 	return beam.ParDo(s, clampNegativePartitionsInt64Fn, finalPartitions)
 

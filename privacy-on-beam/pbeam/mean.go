@@ -131,7 +131,7 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 				pcol.codec.KType.T, params.specifiedPartitions.partitionsCol.Type().Type())
 		}
 		// Drop unspecified partitions, if partitions are specified.
-		correctPartitions = dropUnspecifiedPartitions(s, params.specifiedPartitions.partitionsCol, pcol, pcol.codec.KType)
+		correctPartitions = dropUnspecifiedPartitionsKVFn(s, params.specifiedPartitions.partitionsCol, pcol, pcol.codec.KType)
 	} else {
 		correctPartitions = pcol.col
 	}
@@ -192,9 +192,9 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 func addSpecifiedPartitionsForMean(s beam.Scope, epsilon, delta float64,
 	maxPartitionsContributed int64, params MeanParams, noiseKind noise.Kind, partialKV beam.PCollection) beam.PCollection {
 	partitionsCol := params.specifiedPartitions.partitionsCol
-	// Turn partitionsCol type PCollection<K> into PCollection<K, [] float64]> by adding
-	// an empty array as the value to each K.
-	addSpecifiedPartitions := beam.ParDo(s, prepareAddPartitionsMeanFloat64Fn, partitionsCol)
+	// Turn partitionsCol type PCollection<K> into PCollection<K, []float64 {}> by adding
+	// an empty slice as the value to each K.
+	addSpecifiedPartitions := beam.ParDo(s, addValuesForMeanToSpecifiedPartitionKeysFloat64Fn, partitionsCol)
 	// Merge specified partitions with existing partitions
 	allAddPartitions := beam.Flatten(s, partialKV, addSpecifiedPartitions)
 
@@ -202,7 +202,7 @@ func addSpecifiedPartitionsForMean(s beam.Scope, epsilon, delta float64,
 	means := beam.CombinePerKey(s,
 		newBoundedMeanFloat64Fn(epsilon, delta, maxPartitionsContributed, params.MaxContributionsPerPartition, params.MinValue, params.MaxValue, noiseKind, true),
 		allAddPartitions)
-	finalPartitions := beam.ParDo(s, CorrectToFloat64, means)
+	finalPartitions := beam.ParDo(s, DereferenceValuesToFloat64, means)
 	return finalPartitions
 }
 

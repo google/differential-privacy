@@ -53,6 +53,7 @@ func PrivateRevenuePerHour(s beam.Scope, col beam.PCollection) beam.PCollection 
 		MaxPartitionsContributed: 1,  // Visitors can visit the restaurant once (one hour) a day
 		MinValue:                 0,  // Minimum money spent per user (in dollars)
 		MaxValue:                 40, // Maximum money spent per user (in dollars)
+
 	})
 	return revenues
 }
