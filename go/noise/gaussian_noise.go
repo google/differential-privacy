@@ -17,6 +17,7 @@
 package noise
 
 import (
+	"fmt"
 	"math"
 
 	log "github.com/golang/glog"
@@ -120,16 +121,38 @@ func (gaussian) DeltaForThreshold(l0Sensitivity int64, lInfSensitivity, epsilon,
 	return 1 - math.Pow(noiseDist.CDF(threshold-lInfSensitivity), float64(l0Sensitivity))
 }
 
+// ConfidenceIntervalInt64 returns a confidence interval of type float64
+// for the noised sample that was generated from Gaussian distribution, where
+// noisedValue is the noised sample, l0Sensitivity and lInfSensitivity are sensitivity parameters,
+// epsilon and delta are gaussian parameters and confidenceLevel is a value between 0 and 1.
 func (gaussian) ConfidenceIntervalInt64(noisedValue, l0Sensitivity, lInfSensitivity int64, epsilon, delta, confidenceLevel float64) (ConfidenceInterval, error) {
-	// TODO: Implement confidence interval computation.
-	return ConfidenceInterval{}, nil
+	if err := checkArgsConfidenceIntervalGaussian("GaussianNoiseInterval", l0Sensitivity, float64(lInfSensitivity), epsilon, delta,
+		confidenceLevel); err != nil {
+		err := fmt.Errorf("confInt.GaussianNoiseInterval( l0sensitivity %d, lInfSensitivity %d, epsilon %f, delta %e, confidenceLevel %f) checks failed with %v",
+			l0Sensitivity, lInfSensitivity, epsilon, delta, confidenceLevel, err)
+		return ConfidenceInterval{}, err
+	}
+	sigma := SigmaForGaussian(l0Sensitivity, float64(lInfSensitivity), epsilon, delta)
+	confidenceInterval := getConfidenceIntervalGaussian(float64(noisedValue), confidenceLevel, sigma)
+	return ConfidenceInterval{confidenceInterval.LowerBound, confidenceInterval.UpperBound}.toConfidenceIntervalInt64(), nil
 }
 
+// ConfidenceIntervalFloat64 returns a confidence interval of type float64
+// for the noised sample that was generated from Gaussian distribution, where
+// noisedValue is the noised sample, l0Sensitivity and lInfSensitivity are sensitivity parameters,
+// epsilon and delta are gaussian parameters and confidenceLevel is a value between 0 and 1.
 func (gaussian) ConfidenceIntervalFloat64(noisedValue float64, l0Sensitivity int64, lInfSensitivity, epsilon, delta, confidenceLevel float64) (ConfidenceInterval, error) {
-	// TODO: Implement confidence interval computation.
-	return ConfidenceInterval{}, nil
+	if err := checkArgsConfidenceIntervalGaussian("GaussianNoiseInterval", l0Sensitivity, lInfSensitivity, epsilon, delta,
+		confidenceLevel); err != nil {
+		err = fmt.Errorf("confInt.GaussianNoiseInterval( l0sensitivity %d, lInfSensitivity %f, epsilon %f, delta %e, confidenceLevel %f) checks failed with %v",
+			l0Sensitivity, lInfSensitivity, epsilon, delta, confidenceLevel, err)
+		return ConfidenceInterval{}, err
+	}
+	sigma := SigmaForGaussian(l0Sensitivity, lInfSensitivity, epsilon, delta)
+	return getConfidenceIntervalGaussian(noisedValue, confidenceLevel, sigma), nil
 }
 
+// checkArgsGaussian checks the parameters for gaussian confidence interval.
 func checkArgsGaussian(label string, l0Sensitivity int64, lInfSensitivity, epsilon, delta float64) error {
 	if err := checks.CheckL0Sensitivity(label, l0Sensitivity); err != nil {
 		return err
@@ -143,6 +166,14 @@ func checkArgsGaussian(label string, l0Sensitivity int64, lInfSensitivity, epsil
 	return checks.CheckDeltaStrict(label, delta)
 }
 
+// checkArgsConfidenceIntervalGaussian checks the parameters for gaussian confidence interval, as well as the provided confidence level.
+func checkArgsConfidenceIntervalGaussian(label string, l0Sensitivity int64, lInfSensitivity, epsilon, delta, confidenceLevel float64) error {
+	if err := checks.CheckConfidenceLevel(label, confidenceLevel); err != nil {
+		return err
+	}
+	return checkArgsGaussian(label, l0Sensitivity, lInfSensitivity, epsilon, delta)
+}
+
 // addGaussian adds Gaussian noise of scale σ to the specified float64.
 func addGaussian(x, sigma float64) float64 {
 	granularity := ceilPowerOfTwo(2.0 * sigma / binomialBound)
@@ -153,6 +184,23 @@ func addGaussian(x, sigma float64) float64 {
 	sqrtN := 2.0 * sigma / granularity
 	sample := symmetricBinomial(sqrtN)
 	return roundToMultipleOfPowerOfTwo(x, granularity) + float64(sample)*granularity
+}
+
+// getConfidenceIntervalGaussian computes the confidence interval using the inverse error function.
+func getConfidenceIntervalGaussian(noisedValue, confidenceLevel, sigma float64) ConfidenceInterval {
+	shiftingValue := inverseCDFGaussian(sigma, confidenceLevel)
+	FloatLowerBound := noisedValue - shiftingValue
+	FloatUpperBound := noisedValue + shiftingValue
+	FloatInterval := ConfidenceInterval{LowerBound: FloatLowerBound,
+		UpperBound: FloatUpperBound}
+	return FloatInterval
+}
+
+// inverseCDFGaussian returns z with the property that Pr( Y <= z ) = p, where p is the confidence level and Y is
+// a random variable.
+func inverseCDFGaussian(sigma, confidenceLevel float64) float64 {
+	return sigma * math.Sqrt(2) * math.Erfinv(2.00*confidenceLevel-1)
+
 }
 
 // symmetricBinomial returns a random sample m where the term m + n / 2 is drawn from
