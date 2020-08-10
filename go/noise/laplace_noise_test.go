@@ -177,21 +177,19 @@ func TestInverseCDFLaplace(t *testing.T) {
 		desc                     string
 		mean, lambda, prob, want float64
 	}{
-		// 2 high-precision calculated random tests.
 		{
-			desc:   "High-precision random test",
+			desc:   "Arbitrary test",
 			mean:   64,
 			lambda: 4,
 			prob:   0.7875404240919761168041,
 			want:   67.4234254367},
 		{
-			desc:   "High-precision random test",
+			desc:   "Arbitrary test",
 			mean:   23,
 			lambda: 2,
 			prob:   0.1479685611330654517049,
 			want:   20.564783456,
 		},
-		// Edge cases where p = 0 or p = 1.(Output should be infinite)
 		{
 			desc:   "Negative infinity output when probablity is 0",
 			mean:   0,
@@ -206,22 +204,21 @@ func TestInverseCDFLaplace(t *testing.T) {
 			prob:   1,
 			want:   math.Inf(1),
 		},
-		// Logical testing (with p = 0.5, return value should be mean regardless of lambda)
+		// For a probablity of 0.5 the result should be the mean regardless of lambda
 		{
-			desc:   "%50 confidence level, different lambda",
+			desc:   "0.5 Probablity, output is mean",
 			mean:   5,
 			lambda: 5,
 			prob:   0.5,
 			want:   5,
 		},
 		{
-			desc:   "%50 confidence level, different lambda",
+			desc:   "0.5 Probablity, output is mean",
 			mean:   5,
 			lambda: 10,
 			prob:   0.5,
 			want:   5,
 		},
-		// Edge cases where probablity is low or high. (Tests for accuracy)
 		{
 			desc:   "Low probablity",
 			mean:   0,
@@ -254,49 +251,47 @@ func TestConfidenceIntervalLaplace(t *testing.T) {
 		lambda, confidenceLevel float64
 		want                    ConfidenceInterval
 	}{
-		// 4 Random pre-calculated tests.
 		{
-			desc:            "Random test",
+			desc:            "Arbitrary test",
 			noisedValue:     13,
 			lambda:          27.33333333333,
 			confidenceLevel: 0.95,
 			want:            ConfidenceInterval{-68.88334881, 94.88334881},
 		},
 		{
-			desc:            "Random test",
+			desc:            "Arbitrary test",
 			noisedValue:     83.1235,
 			lambda:          60,
 			confidenceLevel: 0.76,
 			want:            ConfidenceInterval{-2.503481338, 168.7504813},
 		},
 		{
-			desc:            "Random test",
+			desc:            "Arbitrary test",
 			noisedValue:     5,
 			lambda:          6.6666666666667,
 			confidenceLevel: 0.4,
 			want:            ConfidenceInterval{1.594495842, 8.405504158},
 		},
 		{
-			desc:            "Random test",
+			desc:            "Arbitrary test",
 			noisedValue:     65.4621,
 			lambda:          700,
 			confidenceLevel: 0.2,
 			want:            ConfidenceInterval{-90.73838592, 221.6625859},
 		},
-		// Near 0 and 1 confidence levels.
 		{
-			desc:            "Low confidence level",
-			noisedValue:     50,
+			desc:            "Extremely low confidence level",
+			noisedValue:     0,
 			lambda:          10,
-			confidenceLevel: 0.01,
-			want:            ConfidenceInterval{49.89949664, 50.1005033595},
+			confidenceLevel: 3.548957438e-10,
+			want:            ConfidenceInterval{-3.548957437370245055312e-9, 3.548957437370245055312e-9},
 		},
 		{
-			desc:            "High confidence level",
+			desc:            "Extremely high confidence level",
 			noisedValue:     50,
 			lambda:          10,
-			confidenceLevel: 0.99,
-			want:            ConfidenceInterval{3.94829814, 96.05170186},
+			confidenceLevel: 1 - 7.856382354e-10,
+			want:            ConfidenceInterval{-159.6452468975697118041, 259.6452468975697118041},
 		},
 	} {
 		got := getConfidenceIntervalLaplace(tc.noisedValue, tc.lambda, tc.confidenceLevel)
@@ -324,7 +319,7 @@ func TestConfidenceIntervalFloat64(t *testing.T) {
 		wantErr                                          bool
 	}{
 		{
-			desc:            "Random test",
+			desc:            "Arbitrary test",
 			noisedValue:     38.4234,
 			l0Sensitivity:   2,
 			lInfSensitivity: 4.3,
@@ -522,7 +517,7 @@ func TestConfidenceIntervalInt64(t *testing.T) {
 		wantErr                                     bool
 	}{
 		{
-			desc:            "Random test",
+			desc:            "Arbitrary test",
 			noisedValue:     -12,
 			l0Sensitivity:   5,
 			lInfSensitivity: 6,
