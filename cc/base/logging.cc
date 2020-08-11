@@ -24,22 +24,22 @@
 #include <sys/types.h>
 #ifdef _WIN32
 // START PATCH
-// HACK: This is not a solution just an attempt at see what is going on and getting PyDP to build on windows.
+// This `if` code block conditionally defines and imports windows system specific code.
+// This block defines the windows alternatives to the functions defined in <unistd.h> 
+// which is included in the `else` section below.
 #include <Windows.h>
-#include <time.h>
+#include <time.h> // for: timespec
 #include <io.h> // for: access 
 #include <direct.h> // for: _mkdir
-
+// By design Windows does not have a `mode` parameter.
 # undef mkdir
-# define mkdir(path, mode) _mkdir(path) // Fix api. Not sure 
+# define mkdir(path, mode) _mkdir(path)  
 
 #ifndef S_ISDIR
 #define S_ISDIR(mode) (((mode) & S_IFMT) == S_IFDIR)
 #endif
 
-#define R_OK 4
 #define W_OK 2
-#define X_OK 0
 #define F_OK 0
 #define CLOCK_REALTIME 0
 
@@ -51,7 +51,6 @@ static int clock_gettime(int, struct timespec *spec)      //C-file part
     spec->tv_nsec = wintime % 10000000i64 * 100;      //nano-seconds
     return 0;
 }
-
 // END PATCH
 #elif
 #include <unistd.h>
