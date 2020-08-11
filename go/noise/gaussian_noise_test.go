@@ -443,26 +443,25 @@ func TestInverseCDFGaussian(t *testing.T) {
 		desc                         string
 		sigma, confidenceLevel, want float64
 	}{
-		// High precision tests.
+
 		{
-			desc:            "High precision test, with random input",
+			desc:            "Abitrary input test",
 			sigma:           1,
 			confidenceLevel: 0.95,
 			want:            1.64485362695,
 		},
 		{
-			desc:            "High precision test, with random input",
+			desc:            "Abitrary input test",
 			sigma:           2.342354,
 			confidenceLevel: 0.8734521154362147425,
 			want:            2.67698807013,
 		},
 		{
-			desc:            "High precision test, with random input",
+			desc:            "Abitrary input test",
 			sigma:           0.3,
 			confidenceLevel: 0.75345892435835346586,
 			want:            0.205624466704,
 		},
-		// Edge cases tests.
 		{
 			desc:            "Edge case test with probability = 0",
 			sigma:           0.3,
@@ -487,15 +486,27 @@ func TestInverseCDFGaussian(t *testing.T) {
 			confidenceLevel: 0.99,
 			want:            1.95413221419,
 		},
-		// Logical tests with probability of 0.5, it should return 0 = mean.
 		{
-			desc:            "Logical test, with probability = 0.5",
+			desc:            "Test with probability of 1",
+			sigma:           0.356,
+			confidenceLevel: 1,
+			want:            math.Inf(1),
+		},
+		{
+			desc:            "Test with probability of 0",
+			sigma:           0.84,
+			confidenceLevel: 0,
+			want:            math.Inf(-1),
+		},
+		// For a probablity of 0.5 the result should be the mean regardless of lambda
+		{
+			desc:            "Test with probability = 0.5",
 			sigma:           0.3,
 			confidenceLevel: 0.5,
 			want:            0,
 		},
 		{
-			desc:            "Logical test, with probability = 0.5",
+			desc:            "Test with probability = 0.5",
 			sigma:           0.8235243,
 			confidenceLevel: 0.5,
 			want:            0,
@@ -519,52 +530,50 @@ func TestConfidenceIntervalGaussian(t *testing.T) {
 		sigma           float64
 		want            ConfidenceInterval
 	}{
-		// 4 random input tests.
 		{
-			desc:            "getConfidenceIntervalGaussian random input test",
+			desc:            "getConfidenceIntervalGaussian arbitrary input test",
 			noisedValue:     21,
-			sigma:           0.99999,
+			sigma:           1,
 			confidenceLevel: 0.95,
-			want:            ConfidenceInterval{19.3551628216, 22.6448371784},
+			want:            ConfidenceInterval{19.0400360155, 22.9599639845},
 		},
 		{
-			desc:            "getConfidenceIntervalGaussian random input test",
+			desc:            "getConfidenceIntervalGaussian arbitrary input test",
 			noisedValue:     40.003,
 			sigma:           0.333,
 			confidenceLevel: 0.888,
-			want:            ConfidenceInterval{39.5980851802, 40.4079148198},
+			want:            ConfidenceInterval{39.473773903501886, 40.532226096498114},
 		},
 		{
-			desc:            "getConfidenceIntervalGaussian random input test",
+			desc:            "getConfidenceIntervalGaussian arbitrary input test",
 			noisedValue:     0.1,
-			sigma:           9.123450004,
-			confidenceLevel: 0.555,
-			want:            ConfidenceInterval{-1.16181152668, 1.36181152668},
+			sigma:           0.292929,
+			confidenceLevel: 0.888,
+			want:            ConfidenceInterval{-0.36554255621950726, 0.5655425562195072},
 		},
 		{
-			desc:            "getConfidenceIntervalGaussian random input test",
+			desc:            "getConfidenceIntervalGaussian arbitrary input test",
 			noisedValue:     99.98989898,
 			sigma:           15423235,
 			confidenceLevel: 0.111,
-			want:            ConfidenceInterval{18835374.4248, -18835174.445},
+			want:            ConfidenceInterval{-2.1525159435946424e+06, 2.1527159233926027e+06},
 		},
-		// Near 0 and 1 confidence levels.
 		{
 			desc:            "Low confidence level",
 			noisedValue:     100,
 			sigma:           10,
-			confidenceLevel: 0.001,
-			want:            ConfidenceInterval{130.902323062, 69.0976769383},
+			confidenceLevel: 10e-10,
+			want:            ConfidenceInterval{99.99999998746686, 100.00000001253314},
 		},
 		{
 			desc:            "High confidence level",
 			noisedValue:     100,
 			sigma:           10,
-			confidenceLevel: 0.9999,
-			want:            ConfidenceInterval{62.8098351454, 137.190164855},
+			confidenceLevel: 1 - 10e-10,
+			want:            ConfidenceInterval{38.90589790616554, 161.09410209383446},
 		},
 	} {
-		result := getConfidenceIntervalGaussian(tc.noisedValue, tc.confidenceLevel, tc.sigma)
+		result := getConfidenceIntervalGaussian(tc.noisedValue, tc.sigma, tc.confidenceLevel)
 		if !approxEqual(result.LowerBound, tc.want.LowerBound) {
 			t.Errorf("TestConfidenceIntervalGaussian(%f, %f, %f)=%0.10f, want %0.10f, desc %s, LowerBound is not equal",
 				tc.noisedValue, tc.confidenceLevel, tc.sigma,
@@ -588,7 +597,7 @@ func TestConfidenceIntervalInt64(t *testing.T) {
 		wantErr                                     bool
 	}{
 		{
-			desc:            "Random test",
+			desc:            "Arbitrary test",
 			noisedValue:     70,
 			l0Sensitivity:   6,
 			lInfSensitivity: 10,
@@ -599,7 +608,7 @@ func TestConfidenceIntervalInt64(t *testing.T) {
 			wantErr:         false,
 		},
 		{
-			desc:            "Random test",
+			desc:            "Arbitrary test",
 			noisedValue:     1,
 			l0Sensitivity:   1,
 			lInfSensitivity: 15,
@@ -743,7 +752,7 @@ func TestConfidenceIntervalInt64(t *testing.T) {
 			wantErr:         true,
 		},
 		{
-			desc:            "Random test with 0 probability",
+			desc:            "Arbitrary test with 0 probability",
 			noisedValue:     70,
 			l0Sensitivity:   5,
 			epsilon:         0.8,
@@ -753,7 +762,7 @@ func TestConfidenceIntervalInt64(t *testing.T) {
 			wantErr:         true,
 		},
 		{
-			desc:            "Random test with 1 probability",
+			desc:            "Arbitrary test with 1 probability",
 			noisedValue:     70,
 			l0Sensitivity:   5,
 			lInfSensitivity: 36,
@@ -764,7 +773,7 @@ func TestConfidenceIntervalInt64(t *testing.T) {
 			wantErr:         true,
 		},
 		{
-			desc:            "Random test with negative probability",
+			desc:            "Arbitrary test with negative probability",
 			noisedValue:     70,
 			l0Sensitivity:   5,
 			lInfSensitivity: 36,
@@ -775,7 +784,7 @@ func TestConfidenceIntervalInt64(t *testing.T) {
 			wantErr:         true,
 		},
 		{
-			desc:            "Random test with greater than 1 probability",
+			desc:            "Arbitrary test with greater than 1 probability",
 			noisedValue:     70,
 			l0Sensitivity:   5,
 			lInfSensitivity: 36,
@@ -786,7 +795,7 @@ func TestConfidenceIntervalInt64(t *testing.T) {
 			wantErr:         true,
 		},
 		{
-			desc:            "Random test with NaN probability",
+			desc:            "Arbitrary test with NaN probability",
 			noisedValue:     70,
 			l0Sensitivity:   5,
 			lInfSensitivity: 36,
@@ -825,7 +834,7 @@ func TestConfidenceIntervalFloat64(t *testing.T) {
 		wantErr                                          bool
 	}{
 		{
-			desc:            "Random test",
+			desc:            "Arbitrary test",
 			noisedValue:     70,
 			l0Sensitivity:   5,
 			lInfSensitivity: 36,
@@ -836,7 +845,7 @@ func TestConfidenceIntervalFloat64(t *testing.T) {
 			wantErr:         false,
 		},
 		{
-			desc:            "Random test with 0 probability",
+			desc:            "Arbitrary test with 0 probability",
 			noisedValue:     70,
 			l0Sensitivity:   5,
 			lInfSensitivity: 36,
@@ -847,7 +856,7 @@ func TestConfidenceIntervalFloat64(t *testing.T) {
 			wantErr:         true,
 		},
 		{
-			desc:            "Random test with 1 probability",
+			desc:            "Arbitrary test with 1 probability",
 			noisedValue:     70,
 			l0Sensitivity:   5,
 			lInfSensitivity: 36,
@@ -858,7 +867,7 @@ func TestConfidenceIntervalFloat64(t *testing.T) {
 			wantErr:         true,
 		},
 		{
-			desc:            "Random test",
+			desc:            "Arbitrary test",
 			noisedValue:     60,
 			l0Sensitivity:   1,
 			lInfSensitivity: 5,
