@@ -26,7 +26,7 @@ java_test(
     ],
     # The shard count must match the number of test cases defined in laplace_closeness_test_cases.textproto
     shard_count = 19,
-    test_class = "com.google.privacy.differentialprivacy.LaplaceClosenessTest",
+    test_class = "com.google.privacy.differentialprivacy.statistical.LaplaceClosenessTest",
     deps = [
         "//main/com/google/privacy/differentialprivacy",
         "//main/com/google/privacy/differentialprivacy/testing",
@@ -47,7 +47,7 @@ java_test(
     ],
     # The shard count must match the number of test cases defined in count_dp_test_cases.textproto
     shard_count = 36,
-    test_class = "com.google.privacy.differentialprivacy.CountDpTest",
+    test_class = "com.google.privacy.differentialprivacy.statistical.CountDpTest",
     deps = [
         "//main/com/google/privacy/differentialprivacy",
         "//main/com/google/privacy/differentialprivacy/testing",
@@ -68,7 +68,7 @@ java_test(
     ],
     # The shard count must match the number of test cases defined in bounded_mean_dp_test_cases.textproto
     shard_count = 47,
-    test_class = "com.google.privacy.differentialprivacy.BoundedMeanDpTest",
+    test_class = "com.google.privacy.differentialprivacy.statistical.BoundedMeanDpTest",
     deps = [
         "//main/com/google/privacy/differentialprivacy",
         "//main/com/google/privacy/differentialprivacy/testing",
@@ -89,7 +89,7 @@ java_test(
     ],
     # The shard count must match the number of test cases defined in bounded_sum_dp_test_cases.textproto
     shard_count = 38,
-    test_class = "com.google.privacy.differentialprivacy.BoundedSumDpTest",
+    test_class = "com.google.privacy.differentialprivacy.statistical.BoundedSumDpTest",
     deps = [
         "//main/com/google/privacy/differentialprivacy",
         "//main/com/google/privacy/differentialprivacy/testing",

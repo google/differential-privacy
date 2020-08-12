@@ -1,7 +1,4 @@
 
-
-<!-- This file is auto-generated. Do not edit. -->
-
 # Bounded Standard Deviation
 
 [`BoundedStandardDeviation`](https://github.com/google/differential-privacy/blob/main/cc/algorithms/bounded-standard-deviation.h)

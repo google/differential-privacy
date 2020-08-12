@@ -23,6 +23,7 @@ import (
 
 	"github.com/google/differential-privacy/go/noise"
 	"github.com/google/go-cmp/cmp"
+	"github.com/grd/stat"
 )
 
 func getNoiselessBSI() *BoundedSumInt64 {
@@ -1386,6 +1387,332 @@ func TestBSEquallyInitializedFloat64(t *testing.T) {
 	} {
 		if bsEquallyInitializedFloat64(tc.bs1, tc.bs2) != tc.equal {
 			t.Errorf("bsEquallyInitializedFloat64: when %v got %t, want %t", tc.desc, !tc.equal, tc.equal)
+		}
+	}
+}
+
+func TestBoundedSumInt64IsUnbiased(t *testing.T) {
+	const numberOfSamples = 100000
+	for _, tc := range []struct {
+		desc     string
+		opt      *BoundedSumInt64Options
+		rawEntry int64
+		variance float64
+	}{
+		{
+			opt: &BoundedSumInt64Options{
+				Epsilon:                  ln3,
+				Delta:                    0.00001,
+				MaxPartitionsContributed: 1,
+				Lower:                    0,
+				Upper:                    1,
+				Noise:                    noise.Gaussian(),
+			},
+			rawEntry: 0,
+			variance: 11.9, // approximated via a simulation
+		}, {
+			opt: &BoundedSumInt64Options{
+				Epsilon:                  2.0 * ln3,
+				Delta:                    0.00001,
+				MaxPartitionsContributed: 1,
+				Lower:                    0,
+				Upper:                    1,
+				Noise:                    noise.Gaussian(),
+			},
+			rawEntry: 0,
+			variance: 3.5, // approximated via a simulation
+		}, {
+			opt: &BoundedSumInt64Options{
+				Epsilon:                  ln3,
+				Delta:                    0.01,
+				MaxPartitionsContributed: 1,
+				Lower:                    0,
+				Upper:                    1,
+				Noise:                    noise.Gaussian(),
+			},
+			rawEntry: 0,
+			variance: 3.2, // approximated via a simulation
+		}, {
+			opt: &BoundedSumInt64Options{
+				Epsilon:                  ln3,
+				Delta:                    0.00001,
+				MaxPartitionsContributed: 25,
+				Lower:                    0,
+				Upper:                    1,
+				Noise:                    noise.Gaussian(),
+			},
+			rawEntry: 0,
+			variance: 295.0, // approximated via a simulation
+		}, {
+			opt: &BoundedSumInt64Options{
+				Epsilon:                  ln3,
+				Delta:                    0.00001,
+				MaxPartitionsContributed: 1,
+				Lower:                    0,
+				Upper:                    1,
+				Noise:                    noise.Gaussian(),
+			},
+			rawEntry: 1,
+			variance: 11.9, // approximated via a simulation
+		}, {
+			opt: &BoundedSumInt64Options{
+				Epsilon:                  ln3,
+				Delta:                    0.00001,
+				MaxPartitionsContributed: 1,
+				Lower:                    -1,
+				Upper:                    1,
+				Noise:                    noise.Gaussian(),
+			},
+			rawEntry: -1,
+			variance: 11.9, // approximated via a simulation
+		}, {
+			opt: &BoundedSumInt64Options{
+				Epsilon:                  ln3,
+				Delta:                    0.0,
+				MaxPartitionsContributed: 1,
+				Lower:                    0,
+				Upper:                    1,
+				Noise:                    noise.Laplace(),
+			},
+			rawEntry: 0,
+			variance: 1.8, // approximated via a simulation
+		}, {
+			opt: &BoundedSumInt64Options{
+				Epsilon:                  2.0 * ln3,
+				Delta:                    0.0,
+				MaxPartitionsContributed: 1,
+				Lower:                    0,
+				Upper:                    1,
+				Noise:                    noise.Laplace(),
+			},
+			rawEntry: 0,
+			variance: 0.5, // approximated via a simulation
+		}, {
+			opt: &BoundedSumInt64Options{
+				Epsilon:                  ln3,
+				Delta:                    0.0,
+				MaxPartitionsContributed: 25,
+				Lower:                    0,
+				Upper:                    1,
+				Noise:                    noise.Laplace(),
+			},
+			rawEntry: 0,
+			variance: 1035.0, // approximated via a simulation
+		}, {
+			opt: &BoundedSumInt64Options{
+				Epsilon:                  ln3,
+				Delta:                    0.0,
+				MaxPartitionsContributed: 1,
+				Lower:                    0,
+				Upper:                    1,
+				Noise:                    noise.Laplace(),
+			},
+			rawEntry: 1,
+			variance: 1.8, // approximated via a simulation
+		}, {
+			opt: &BoundedSumInt64Options{
+				Epsilon:                  ln3,
+				Delta:                    0.0,
+				MaxPartitionsContributed: 1,
+				Lower:                    -1,
+				Upper:                    1,
+				Noise:                    noise.Laplace(),
+			},
+			rawEntry: -1,
+			variance: 1.8, // approximated via a simulation
+		},
+	} {
+		sumSamples := make(stat.IntSlice, numberOfSamples)
+		for i := 0; i < numberOfSamples; i++ {
+			sum := NewBoundedSumInt64(tc.opt)
+			sum.Add(tc.rawEntry)
+			sumSamples[i] = sum.Result()
+		}
+		sampleMean := stat.Mean(sumSamples)
+		// Assuming that sum is unbiased, each sample should have a mean of tc.rawEntry
+		// and a variance of tc.variance. The resulting sampleMean is approximately Gaussian
+		// distributed with the same mean and a variance of tc.variance / numberOfSamples.
+		//
+		// The tolerance is set to the 99.9995% quantile of the anticipated distribution
+		// of sampleMean. Thus, the test falsely rejects with a probability of 10⁻⁵.
+		tolerance := 4.41717 * math.Sqrt(tc.variance/float64(numberOfSamples))
+
+		if math.Abs(sampleMean-float64(tc.rawEntry)) > tolerance {
+			t.Errorf("got mean = %f, want %f (parameters %+v)", sampleMean, float64(tc.rawEntry), tc)
+		}
+	}
+}
+
+func TestBoundedSumFloat64IsUnbiased(t *testing.T) {
+	const numberOfSamples = 100000
+	for _, tc := range []struct {
+		desc     string
+		opt      *BoundedSumFloat64Options
+		rawEntry float64
+		variance float64
+	}{
+		{
+			opt: &BoundedSumFloat64Options{
+				Epsilon:                  ln3,
+				Delta:                    0.00001,
+				MaxPartitionsContributed: 1,
+				Lower:                    0.0,
+				Upper:                    1.0,
+				Noise:                    noise.Gaussian(),
+			},
+			rawEntry: 0.0,
+			variance: 11.735977,
+		}, {
+			opt: &BoundedSumFloat64Options{
+				Epsilon:                  2.0 * ln3,
+				Delta:                    0.00001,
+				MaxPartitionsContributed: 1,
+				Lower:                    0.0,
+				Upper:                    1.0,
+				Noise:                    noise.Gaussian(),
+			},
+			rawEntry: 0.0,
+			variance: 3.3634987,
+		}, {
+			opt: &BoundedSumFloat64Options{
+				Epsilon:                  ln3,
+				Delta:                    0.01,
+				MaxPartitionsContributed: 1,
+				Lower:                    0.0,
+				Upper:                    1.0,
+				Noise:                    noise.Gaussian(),
+			},
+			rawEntry: 0.0,
+			variance: 3.0625,
+		}, {
+			opt: &BoundedSumFloat64Options{
+				Epsilon:                  ln3,
+				Delta:                    0.00001,
+				MaxPartitionsContributed: 25,
+				Lower:                    0.0,
+				Upper:                    1.0,
+				Noise:                    noise.Gaussian(),
+			},
+			rawEntry: 0.0,
+			variance: 293.399425,
+		}, {
+			opt: &BoundedSumFloat64Options{
+				Epsilon:                  ln3,
+				Delta:                    0.00001,
+				MaxPartitionsContributed: 1,
+				Lower:                    -0.5,
+				Upper:                    0.0,
+				Noise:                    noise.Gaussian(),
+			},
+			rawEntry: 0.0,
+			variance: 2.93399425,
+		}, {
+			opt: &BoundedSumFloat64Options{
+				Epsilon:                  ln3,
+				Delta:                    0.00001,
+				MaxPartitionsContributed: 1,
+				Lower:                    0.0,
+				Upper:                    1.0,
+				Noise:                    noise.Gaussian(),
+			},
+			rawEntry: 1.0,
+			variance: 11.735977,
+		}, {
+			opt: &BoundedSumFloat64Options{
+				Epsilon:                  ln3,
+				Delta:                    0.00001,
+				MaxPartitionsContributed: 1.0,
+				Lower:                    -1.0,
+				Upper:                    1.0,
+				Noise:                    noise.Gaussian(),
+			},
+			rawEntry: -1.0,
+			variance: 11.735977,
+		}, {
+			opt: &BoundedSumFloat64Options{
+				Epsilon:                  ln3,
+				Delta:                    0.0,
+				MaxPartitionsContributed: 1,
+				Lower:                    0.0,
+				Upper:                    1.0,
+				Noise:                    noise.Laplace(),
+			},
+			rawEntry: 0.0,
+			variance: 2.0 / (ln3 * ln3),
+		}, {
+			opt: &BoundedSumFloat64Options{
+				Epsilon:                  2.0 * ln3,
+				Delta:                    0.0,
+				MaxPartitionsContributed: 1,
+				Lower:                    0.0,
+				Upper:                    1.0,
+				Noise:                    noise.Laplace(),
+			},
+			rawEntry: 0.0,
+			variance: 2.0 / (4.0 * ln3 * ln3),
+		}, {
+			opt: &BoundedSumFloat64Options{
+				Epsilon:                  ln3,
+				Delta:                    0.0,
+				MaxPartitionsContributed: 25,
+				Lower:                    0.0,
+				Upper:                    1.0,
+				Noise:                    noise.Laplace(),
+			},
+			rawEntry: 0,
+			variance: 2.0 * 625.0 / (ln3 * ln3),
+		}, {
+			opt: &BoundedSumFloat64Options{
+				Epsilon:                  ln3,
+				Delta:                    0.0,
+				MaxPartitionsContributed: 1,
+				Lower:                    -0.5,
+				Upper:                    0.0,
+				Noise:                    noise.Laplace(),
+			},
+			rawEntry: 0.0,
+			variance: 2.0 / (4.0 * ln3 * ln3),
+		}, {
+			opt: &BoundedSumFloat64Options{
+				Epsilon:                  ln3,
+				Delta:                    0.0,
+				MaxPartitionsContributed: 1,
+				Lower:                    0.0,
+				Upper:                    1.0,
+				Noise:                    noise.Laplace(),
+			},
+			rawEntry: 1.0,
+			variance: 2.0 / (ln3 * ln3),
+		}, {
+			opt: &BoundedSumFloat64Options{
+				Epsilon:                  ln3,
+				Delta:                    0.0,
+				MaxPartitionsContributed: 1,
+				Lower:                    -1.0,
+				Upper:                    1.0,
+				Noise:                    noise.Laplace(),
+			},
+			rawEntry: -1.0,
+			variance: 2.0 / (ln3 * ln3),
+		},
+	} {
+		sumSamples := make(stat.Float64Slice, numberOfSamples)
+		for i := 0; i < numberOfSamples; i++ {
+			sum := NewBoundedSumFloat64(tc.opt)
+			sum.Add(tc.rawEntry)
+			sumSamples[i] = sum.Result()
+		}
+		sampleMean := stat.Mean(sumSamples)
+		// Assuming that sum is unbiased, each sample should have a mean of tc.rawEntry
+		// and a variance of tc.variance. The resulting sampleMean is approximately Gaussian
+		// distributed with the same mean and a variance of tc.variance / numberOfSamples.
+		//
+		// The tolerance is set to the 99.9995% quantile of the anticipated distribution
+		// of sampleMean. Thus, the test falsely rejects with a probability of 10⁻⁵.
+		tolerance := 4.41717 * math.Sqrt(tc.variance/float64(numberOfSamples))
+
+		if math.Abs(sampleMean-tc.rawEntry) > tolerance {
+			t.Errorf("got mean = %f, want %f (parameters %+v)", sampleMean, tc.rawEntry, tc)
 		}
 	}
 }

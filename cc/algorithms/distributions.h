@@ -21,41 +21,6 @@
 
 namespace differential_privacy {
 namespace internal {
-// DO NOT USE. Use LaplaceMechanism instead. LaplaceMechanism has several
-// improvements (snapping, conversion from DP parameters to laplace parameter)
-// that are error-prone to replicate.
-//
-// Allows samples to be drawn from a LegacyLaplaceDistribution over a given
-// parameter with optional per-sample scaling.
-// https://en.wikipedia.org/wiki/Laplace_distribution
-// LegacyLaplaceDistribution is thread compatible but not necessarily thread
-// safe.
-class LegacyLaplaceDistribution {
- public:
-  // Constructor for Laplace parameter b.
-  explicit LegacyLaplaceDistribution(double b);
-  explicit LegacyLaplaceDistribution(double epsilon, double sensitivity);
-
-  virtual ~LegacyLaplaceDistribution() {}
-
-  virtual double GetUniformDouble();
-
-  virtual double Sample();
-
-  // Samples the Laplacian with distribution Lap(scale*b)
-  virtual double Sample(double scale);
-
-  // Returns the parameter defining this distribution, often labeled b.
-  double GetDiversity();
-
-  // Returns the cdf of the laplacian distribution with scale b at point x.
-  static double cdf(double b, double x);
-
-  virtual int64_t MemoryUsed();
-
- private:
-  double b_;
-};
 
 // Allows samples to be drawn from a Gaussian distribution over a given stddev
 // and mean 0 with optional per-sample scaling.
@@ -119,6 +84,10 @@ class GeometricDistribution {
 // ../../common_docs/Secure_Noise_Generation.pdf)
 base::StatusOr<double> CalculateGranularity(double epsilon, double sensitivity);
 
+// DO NOT USE. Use LaplaceMechanism instead. LaplaceMechanism has an interface
+// that directly accepts DP parameters, rather than requiring an error-prone
+// conversion to laplace parameters.
+//
 // Allows sampling from a secure laplace distribution, which uses a geometric
 // distribution to generate its noise in order to avoid the attack from
 // Mironov's 2012 paper, "On Significance of the Least Significant Bits For
@@ -144,6 +113,9 @@ class LaplaceDistribution {
 
   // Returns the parameter defining this distribution, often labeled b.
   double GetDiversity();
+
+  // Returns the cdf of the laplacian distribution with scale b at point x.
+  static double cdf(double b, double x);
 
  private:
   double epsilon_;

@@ -58,45 +58,6 @@ double Kurtosis(const std::vector<double>& samples, double mu, double var) {
   return kurt;
 }
 
-TEST(LaplaceDistributionTest, CheckStatisticsForUnitValues) {
-  LegacyLaplaceDistribution dist(1.0);
-  std::vector<double> samples(kNumSamples);
-  std::generate(samples.begin(), samples.end(),
-                [&dist]() { return dist.Sample(); });
-  double mean = Mean(samples);
-  double var = Variance(samples);
-  EXPECT_NEAR(0.0, mean, 0.01);
-  EXPECT_NEAR(2.0, var, 0.1);
-  EXPECT_NEAR(0.0, Skew(samples, mean, std::sqrt(var)), 0.1);
-  EXPECT_NEAR(3.0, Kurtosis(samples, mean, var), 0.1);
-}
-
-TEST(LaplaceDistributionTest, CheckStatisticsForSpecificDistribution) {
-  double b = kOneOverLog2;
-  LegacyLaplaceDistribution dist(b);
-  std::vector<double> samples(kNumSamples);
-  std::generate(samples.begin(), samples.end(),
-                [&dist]() { return dist.Sample(); });
-  double mean = Mean(samples);
-  double var = Variance(samples);
-
-  EXPECT_NEAR(0.0, mean, 0.01);
-  EXPECT_NEAR(2.0 * b * b, var, 0.1);
-  EXPECT_NEAR(0.0, Skew(samples, mean, std::sqrt(var)), 0.1);
-  EXPECT_NEAR(3.0, Kurtosis(samples, mean, var), 0.1);
-}
-
-TEST(LaplaceDistributionTest, CheckStatisticsForSpecificScaledDistribution) {
-  double b = kOneOverLog2;
-  double scale = 3.0;
-  LegacyLaplaceDistribution dist(b);
-  std::vector<double> samples(kNumSamples);
-  std::generate(samples.begin(), samples.end(),
-                [&dist, scale]() { return dist.Sample(scale); });
-  EXPECT_NEAR(0.0, Mean(samples), 0.01 * scale);
-  EXPECT_NEAR(2.0 * scale * scale * b * b, Variance(samples), 0.15 * scale);
-}
-
 TEST(LaplaceDistributionTest, CheckStatisticsForGeoUnitValues) {
   LaplaceDistribution dist(1.0, 1.0);
   std::vector<double> samples(kNumGeometricSamples);
@@ -137,17 +98,10 @@ TEST(LaplaceDistributionTest, CheckStatisticsForGeoSpecificScaledDistribution) {
               Variance(samples), 0.15 * scale);
 }
 
-TEST(LaplaceDistributionTest, DiversityGetter) {
-  double b = kOneOverLog2;
-  LegacyLaplaceDistribution dist(b);
-
-  EXPECT_EQ(dist.GetDiversity(), b);
-}
-
 TEST(LaplaceDistributionTest, Cdf) {
-  EXPECT_EQ(LegacyLaplaceDistribution::cdf(5, 0), .5);
-  EXPECT_EQ(LegacyLaplaceDistribution::cdf(1, -1), .5 * exp(-1));
-  EXPECT_EQ(LegacyLaplaceDistribution::cdf(1, 1), 1 - .5 * exp(-1));
+  EXPECT_EQ(LaplaceDistribution::cdf(5, 0), .5);
+  EXPECT_EQ(LaplaceDistribution::cdf(1, -1), .5 * exp(-1));
+  EXPECT_EQ(LaplaceDistribution::cdf(1, 1), 1 - .5 * exp(-1));
 }
 
 TEST(GaussDistributionTest, CheckStatisticsForUnitValues) {

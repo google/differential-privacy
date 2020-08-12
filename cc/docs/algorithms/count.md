@@ -1,11 +1,8 @@
 
-
-<!-- This file is auto-generated. Do not edit. -->
-
 # Count
 
-[`Count`](https://github.com/google/differential-privacy/blob/main/cc/algorithms/count.h) computes the number of values in a
-dataset, in a differentially private manner.
+[`Count`](https://github.com/google/differential-privacy/blob/main/cc/algorithms/count.h)
+computes the number of values in a dataset, in a differentially private manner.
 
 ## Input & Output
 
@@ -13,6 +10,10 @@ dataset, in a differentially private manner.
 [`Output`](../protos.md) message containing a single element containing the
 differentially private count, and a `ConfidenceInterval` containing the 95%
 confidence interval of noise added.
+
+The differentially private count provided by the `Output` is an unbiased
+estimate of the raw count. Consequently, its value may sometimes be negative, in
+particular if the raw count is close to 0.
 
 ## Construction
 

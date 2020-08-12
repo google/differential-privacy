@@ -1,15 +1,11 @@
 
-
-<!-- This file is auto-generated. Do not edit. -->
-
 # Bounded Algorithms
 
 A bounded algorithm is any algorithm that requires lower and upper input bounds
 as parameters. Note that there does not exist a `BoundedAlgorithm` interface as
 a subclass of [`Algorithm`](algorithm.md). Bounded algorithms are constructed
-using a
-[`BoundedAlgorithmBuilder`](https://github.com/google/differential-privacy/blob/main/cc/algorithms/bounded-algorithm.h), which
-is a subclass of [`AlgorithmBuilder`](https://github.com/google/differential-privacy/blob/main/cc/algorithms/algorithm.h).
+using a [`BoundedAlgorithmBuilder`](https://github.com/google/differential-privacy/blob/main/cc/algorithms/bounded-algorithm.h),
+which is a subclass of [`AlgorithmBuilder`](https://github.com/google/differential-privacy/blob/main/cc/algorithms/algorithm.h).
 
 ## Construction
 
