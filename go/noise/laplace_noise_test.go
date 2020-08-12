@@ -174,69 +174,51 @@ func TestDeltaForThresholdLaplace(t *testing.T) {
 }
 func TestInverseCDFLaplace(t *testing.T) {
 	for _, tc := range []struct {
-		desc                     string
-		mean, lambda, prob, want float64
+		desc               string
+		lambda, prob, want float64
 	}{
 		{
 			desc:   "Arbitrary test",
-			mean:   64,
 			lambda: 4,
 			prob:   0.7875404240919761168041,
-			want:   67.4234254367},
+			want:   3.4234254367,
+		},
 		{
 			desc:   "Arbitrary test",
-			mean:   23,
 			lambda: 2,
 			prob:   0.1479685611330654517049,
-			want:   20.564783456,
+			want:   -2.435216544,
 		},
+		// For a probablity of 0.5 the result should be the zero regardless of lambda
 		{
-			desc:   "Negative infinity output when probablity is 0",
-			mean:   0,
-			lambda: 1,
-			prob:   0,
-			want:   math.Inf(-1),
-		},
-		{
-			desc:   "Positive infinity output when probablity is 1",
-			mean:   1,
-			lambda: 1,
-			prob:   1,
-			want:   math.Inf(1),
-		},
-		// For a probablity of 0.5 the result should be the mean regardless of lambda
-		{
-			desc:   "0.5 Probablity, output is mean",
-			mean:   5,
+			desc:   "0.5 Probablity, output is zero",
 			lambda: 5,
 			prob:   0.5,
-			want:   5,
+			want:   0,
 		},
 		{
-			desc:   "0.5 Probablity, output is mean",
-			mean:   5,
+			desc:   "0.5 Probablity, output is zero",
 			lambda: 10,
 			prob:   0.5,
-			want:   5,
+			want:   0,
 		},
+		// Tests for convergence to infinities with low and high probablities.
 		{
 			desc:   "Low probablity",
-			mean:   0,
 			lambda: 3,
-			prob:   2.88887425971E-8,
-			want:   -50,
+			prob:   1.23757362E-15,
+			want:   -100.897429529251364,
 		},
 		{
 			desc:   "High probablitiy",
-			mean:   0,
 			lambda: 3,
-			prob:   0.999999971111257,
-			want:   50,
+			prob:   0.999999999876242638,
+			want:   66.3586531343406788,
 		},
 	} {
-		got := inverseCDFLaplace(tc.mean, tc.lambda, tc.prob)
+		got := inverseCDFLaplace(tc.lambda, tc.prob)
 		if !approxEqual(got, tc.want) {
-			t.Errorf("TestInverseCDFLaplace(%f,%f,%f)=%0.12f, want %0.12f, desc: %s", tc.mean, tc.lambda,
+			t.Errorf("TestInverseCDFLaplace(%f,%f)=%0.12f, want %0.12f, desc: %s", tc.lambda,
 				tc.prob, got, tc.want, tc.desc)
 		}
 	}
@@ -244,66 +226,64 @@ func TestInverseCDFLaplace(t *testing.T) {
 }
 
 func TestConfidenceIntervalLaplace(t *testing.T) {
-	// Tests for getConfidenceIntervalLaplace function
+	// Tests for computeConfidenceIntervalLaplace function
 	for _, tc := range []struct {
-		desc                    string
-		noisedValue             float64
-		lambda, confidenceLevel float64
-		want                    ConfidenceInterval
+		desc          string
+		noisedX       float64
+		lambda, alpha float64
+		want          ConfidenceInterval
 	}{
 		{
-			desc:            "Arbitrary test",
-			noisedValue:     13,
-			lambda:          27.33333333333,
-			confidenceLevel: 0.95,
-			want:            ConfidenceInterval{-68.88334881, 94.88334881},
+			desc:    "Arbitrary test",
+			noisedX: 13,
+			lambda:  27.33333333333,
+			alpha:   0.05,
+			want:    ConfidenceInterval{-68.88334881, 94.88334881},
 		},
 		{
-			desc:            "Arbitrary test",
-			noisedValue:     83.1235,
-			lambda:          60,
-			confidenceLevel: 0.76,
-			want:            ConfidenceInterval{-2.503481338, 168.7504813},
+			desc:    "Arbitrary test",
+			noisedX: 83.1235,
+			lambda:  60,
+			alpha:   0.24,
+			want:    ConfidenceInterval{-2.503481338, 168.7504813},
 		},
 		{
-			desc:            "Arbitrary test",
-			noisedValue:     5,
-			lambda:          6.6666666666667,
-			confidenceLevel: 0.4,
-			want:            ConfidenceInterval{1.594495842, 8.405504158},
+			desc:    "Arbitrary test",
+			noisedX: 5,
+			lambda:  6.6666666666667,
+			alpha:   0.6,
+			want:    ConfidenceInterval{1.594495842, 8.405504158},
 		},
 		{
-			desc:            "Arbitrary test",
-			noisedValue:     65.4621,
-			lambda:          700,
-			confidenceLevel: 0.2,
-			want:            ConfidenceInterval{-90.73838592, 221.6625859},
+			desc:    "Arbitrary test",
+			noisedX: 65.4621,
+			lambda:  700,
+			alpha:   0.8,
+			want:    ConfidenceInterval{-90.73838592, 221.6625859},
 		},
 		{
-			desc:            "Extremely low confidence level",
-			noisedValue:     0,
-			lambda:          10,
-			confidenceLevel: 3.548957438e-10,
-			want:            ConfidenceInterval{-3.548957437370245055312e-9, 3.548957437370245055312e-9},
+			desc:    "Extremely low confidence level",
+			noisedX: 0,
+			lambda:  10,
+			alpha:   1 - 3.548957438e-10,
+			want:    ConfidenceInterval{-3.548957437370245055312e-9, 3.548957437370245055312e-9},
 		},
 		{
-			desc:            "Extremely high confidence level",
-			noisedValue:     50,
-			lambda:          10,
-			confidenceLevel: 1 - 7.856382354e-10,
-			want:            ConfidenceInterval{-159.6452468975697118041, 259.6452468975697118041},
+			desc:    "Extremely high confidence level",
+			noisedX: 50,
+			lambda:  10,
+			alpha:   7.856382354e-10,
+			want:    ConfidenceInterval{-159.6452468975697118041, 259.6452468975697118041},
 		},
 	} {
-		got := getConfidenceIntervalLaplace(tc.noisedValue, tc.lambda, tc.confidenceLevel)
+		got := computeConfidenceIntervalLaplace(tc.noisedX, tc.lambda, tc.alpha)
 		if !approxEqual(got.LowerBound, tc.want.LowerBound) {
 			t.Errorf("TestConfidenceIntervalLaplace(%f, %f, %f)=%0.10f, want %0.10f, desc %s, LowerBound is not equal",
-				tc.noisedValue, tc.lambda, tc.confidenceLevel,
-				got.LowerBound, tc.want.LowerBound, tc.desc)
+				tc.noisedX, tc.lambda, tc.alpha, got.LowerBound, tc.want.LowerBound, tc.desc)
 		}
 		if !approxEqual(got.UpperBound, tc.want.UpperBound) {
 			t.Errorf("TestConfidenceIntervalLaplace(%f, %f, %f)=%0.10f, want %0.10f, desc %s, UpperBound is not equal",
-				tc.noisedValue, tc.lambda, tc.confidenceLevel,
-				got.UpperBound, tc.want.UpperBound, tc.desc)
+				tc.noisedX, tc.lambda, tc.alpha, got.UpperBound, tc.want.UpperBound, tc.desc)
 		}
 	}
 
@@ -311,378 +291,374 @@ func TestConfidenceIntervalLaplace(t *testing.T) {
 
 func TestConfidenceIntervalFloat64(t *testing.T) {
 	for _, tc := range []struct {
-		desc                                             string
-		noisedValue                                      float64
-		l0Sensitivity                                    int64
-		lInfSensitivity, epsilon, confidenceLevel, delta float64
-		want                                             ConfidenceInterval
-		wantErr                                          bool
+		desc                                   string
+		noisedX                                float64
+		l0Sensitivity                          int64
+		lInfSensitivity, epsilon, alpha, delta float64
+		want                                   ConfidenceInterval
+		wantErr                                bool
 	}{
 		{
 			desc:            "Arbitrary test",
-			noisedValue:     38.4234,
+			noisedX:         38.4234,
 			l0Sensitivity:   2,
 			lInfSensitivity: 4.3,
 			epsilon:         0.6,
-			confidenceLevel: 0.8,
+			alpha:           0.2,
 			want:            ConfidenceInterval{15.35478992, 61.49201008},
 		},
 		// Argument checking
 		{
 			desc:            "Zero l0Sensitivity",
-			noisedValue:     0,
+			noisedX:         0,
 			l0Sensitivity:   0,
 			lInfSensitivity: 1,
 			epsilon:         0.1,
-			confidenceLevel: 0.5,
+			alpha:           0.5,
 			want:            ConfidenceInterval{},
 			wantErr:         true,
 		},
 		{
 			desc:            "Negative l0Sensitivity",
-			noisedValue:     0,
+			noisedX:         0,
 			l0Sensitivity:   -1,
 			lInfSensitivity: 1,
 			epsilon:         0.1,
-			confidenceLevel: 0.5,
+			alpha:           0.5,
 			want:            ConfidenceInterval{},
 			wantErr:         true,
 		},
 		{
 			desc:            "Zero lInfSensitivity",
-			noisedValue:     0,
+			noisedX:         0,
 			l0Sensitivity:   1,
 			lInfSensitivity: 0,
 			epsilon:         0.1,
-			confidenceLevel: 0.5,
+			alpha:           0.5,
 			want:            ConfidenceInterval{},
 			wantErr:         true,
 		},
 		{
 			desc:            "Negative lInfSensitivity",
-			noisedValue:     0,
+			noisedX:         0,
 			l0Sensitivity:   1,
 			lInfSensitivity: -1,
 			epsilon:         0.1,
-			confidenceLevel: 0.5,
+			alpha:           0.5,
 			want:            ConfidenceInterval{},
 			wantErr:         true,
 		},
 		{
 			desc:            "Infinte lInfSensitivity",
-			noisedValue:     0,
+			noisedX:         0,
 			l0Sensitivity:   1,
 			lInfSensitivity: math.Inf(1),
 			epsilon:         0.1,
-			confidenceLevel: 0.5,
+			alpha:           0.5,
 			want:            ConfidenceInterval{},
 			wantErr:         true,
 		},
 		{
 			desc:            "NaN lInfSensitivity",
-			noisedValue:     0,
+			noisedX:         0,
 			l0Sensitivity:   1,
 			lInfSensitivity: math.NaN(),
 			epsilon:         0.1,
-			confidenceLevel: 0.5,
+			alpha:           0.5,
 			want:            ConfidenceInterval{},
 			wantErr:         true,
 		},
 		{
 			desc:            "Zero epsilon",
-			noisedValue:     0,
+			noisedX:         0,
 			l0Sensitivity:   1,
 			lInfSensitivity: 1,
 			epsilon:         0,
-			confidenceLevel: 0.5,
+			alpha:           0.5,
 			want:            ConfidenceInterval{},
 			wantErr:         true,
 		},
 		{
 			desc:            "Negative epsilon",
-			noisedValue:     0,
+			noisedX:         0,
 			l0Sensitivity:   1,
 			lInfSensitivity: 1,
 			epsilon:         -1,
-			confidenceLevel: 0.5,
+			alpha:           0.5,
 			want:            ConfidenceInterval{},
 			wantErr:         true,
 		},
 		{
 			desc:            "Infinite epsilon",
-			noisedValue:     0,
+			noisedX:         0,
 			l0Sensitivity:   1,
 			lInfSensitivity: 1,
 			epsilon:         math.Inf(1),
-			confidenceLevel: 0.5,
+			alpha:           0.5,
 			want:            ConfidenceInterval{},
 			wantErr:         true,
 		},
 		{
 			desc:            "NaN epsilon",
-			noisedValue:     0,
+			noisedX:         0,
 			l0Sensitivity:   1,
 			lInfSensitivity: 1,
 			epsilon:         math.NaN(),
-			confidenceLevel: 0.5,
+			alpha:           0.5,
 			want:            ConfidenceInterval{},
 			wantErr:         true,
 		},
 		{
 			desc:            "Non-zero delta",
-			noisedValue:     0,
+			noisedX:         0,
 			l0Sensitivity:   1,
 			lInfSensitivity: 1,
 			epsilon:         0.1,
 			delta:           1,
-			confidenceLevel: 0.5,
+			alpha:           0.5,
 			want:            ConfidenceInterval{},
 			wantErr:         true,
 		},
 		{
-			desc:            "Zero confidence level",
-			noisedValue:     0,
+			desc:            "Zero alpha",
+			noisedX:         0,
 			l0Sensitivity:   1,
 			lInfSensitivity: 1,
 			epsilon:         0.1,
-			confidenceLevel: 0,
+			alpha:           0,
 			want:            ConfidenceInterval{},
 			wantErr:         true,
 		},
 		{
-			desc:            "Negative confidence level",
-			noisedValue:     0,
+			desc:            "Negative alpha",
+			noisedX:         0,
 			l0Sensitivity:   1,
 			lInfSensitivity: 1,
 			epsilon:         0.1,
-			confidenceLevel: -1,
+			alpha:           -1,
 			want:            ConfidenceInterval{},
 			wantErr:         true,
 		},
 		{
-			desc:            "1 confidence level",
-			noisedValue:     0,
+			desc:            "1 alpha",
+			noisedX:         0,
 			l0Sensitivity:   1,
 			lInfSensitivity: 1,
 			epsilon:         0.1,
-			confidenceLevel: 1,
+			alpha:           1,
 			want:            ConfidenceInterval{},
 			wantErr:         true,
 		},
 		{
-			desc:            "Greater than 1 confidence level",
-			noisedValue:     0,
+			desc:            "Greater than 1 alpha",
+			noisedX:         0,
 			l0Sensitivity:   1,
 			lInfSensitivity: 1,
 			epsilon:         0.1,
-			confidenceLevel: 2,
+			alpha:           2,
 			want:            ConfidenceInterval{},
 			wantErr:         true,
 		},
 		{
-			desc:            "NaN confidence level",
-			noisedValue:     0,
+			desc:            "NaN alpha",
+			noisedX:         0,
 			l0Sensitivity:   1,
 			lInfSensitivity: 1,
 			epsilon:         0.1,
-			confidenceLevel: math.NaN(),
+			alpha:           math.NaN(),
 			want:            ConfidenceInterval{},
 			wantErr:         true,
 		},
 	} {
-		got, err := lap.ConfidenceIntervalFloat64(tc.noisedValue, tc.l0Sensitivity, tc.lInfSensitivity,
-			tc.epsilon, tc.delta, tc.confidenceLevel)
+		got, err := lap.computeConfidenceIntervalFloat64(tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity,
+			tc.epsilon, tc.delta, tc.alpha)
 		if (err != nil) != tc.wantErr {
-			t.Errorf("ConfidenceIntervalFloat64: when %v for err got %v, want %t", tc.desc, err, tc.wantErr)
+			t.Errorf("computeConfidenceIntervalFloat64: when %v for err got %v, want %t", tc.desc, err, tc.wantErr)
 			continue
 		}
 		if !approxEqual(got.LowerBound, tc.want.LowerBound) {
 			t.Errorf("TestConfidenceIntervalFloat64(%f, %d, %f, %f, %f)=%0.10f, want %0.10f, desc %s, LowerBound is not equal",
-				tc.noisedValue, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.confidenceLevel,
-				got.LowerBound, tc.want.LowerBound, tc.desc)
+				tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.alpha, got.LowerBound, tc.want.LowerBound, tc.desc)
 		}
 		if !approxEqual(got.UpperBound, tc.want.UpperBound) {
 			t.Errorf("TestConfidenceIntervalFloat64(%f, %d, %f, %f, %f)=%0.10f, want %0.10f, desc %s, UpperBound is not equal",
-				tc.noisedValue, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.confidenceLevel,
-				got.UpperBound, tc.want.UpperBound, tc.desc)
+				tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.alpha, got.UpperBound, tc.want.UpperBound, tc.desc)
 		}
 	}
 }
 func TestConfidenceIntervalInt64(t *testing.T) {
 	for _, tc := range []struct {
-		desc                                        string
-		noisedValue, l0Sensitivity, lInfSensitivity int64
-		epsilon, delta, confidenceLevel             float64
-		want                                        ConfidenceInterval
-		wantErr                                     bool
+		desc                                    string
+		noisedX, l0Sensitivity, lInfSensitivity int64
+		epsilon, delta, alpha                   float64
+		want                                    ConfidenceInterval
+		wantErr                                 bool
 	}{
 		{
 			desc:            "Arbitrary test",
-			noisedValue:     -12,
+			noisedX:         -12,
 			l0Sensitivity:   5,
 			lInfSensitivity: 6,
 			epsilon:         0.1,
-			confidenceLevel: 0.2,
+			alpha:           0.8,
 			want:            ConfidenceInterval{-79, 55},
 		},
 		// Argument checking
 		{
 			desc:            "Zero l0Sensitivity",
-			noisedValue:     0,
+			noisedX:         0,
 			l0Sensitivity:   0,
 			lInfSensitivity: 1,
 			epsilon:         0.1,
-			confidenceLevel: 0.5,
+			alpha:           0.5,
 			want:            ConfidenceInterval{},
 			wantErr:         true,
 		},
 		{
 			desc:            "Negative l0Sensitivity",
-			noisedValue:     0,
+			noisedX:         0,
 			l0Sensitivity:   -1,
 			lInfSensitivity: 1,
 			epsilon:         0.1,
-			confidenceLevel: 0.5,
+			alpha:           0.5,
 			want:            ConfidenceInterval{},
 			wantErr:         true,
 		},
 		{
 			desc:            "Zero lInfSensitivity",
-			noisedValue:     0,
+			noisedX:         0,
 			l0Sensitivity:   1,
 			lInfSensitivity: 0,
 			epsilon:         0.1,
-			confidenceLevel: 0.5,
+			alpha:           0.5,
 			want:            ConfidenceInterval{},
 			wantErr:         true,
 		},
 		{
 			desc:            "Negative lInfSensitivity",
-			noisedValue:     0,
+			noisedX:         0,
 			l0Sensitivity:   1,
 			lInfSensitivity: -1,
 			epsilon:         0.1,
-			confidenceLevel: 0.5,
+			alpha:           0.5,
 			want:            ConfidenceInterval{},
 			wantErr:         true,
 		},
 		{
 			desc:            "Zero epsilon",
-			noisedValue:     0,
+			noisedX:         0,
 			l0Sensitivity:   1,
 			lInfSensitivity: 1,
 			epsilon:         0,
-			confidenceLevel: 0.5,
+			alpha:           0.5,
 			want:            ConfidenceInterval{},
 			wantErr:         true,
 		},
 		{
 			desc:            "Negative epsilon",
-			noisedValue:     0,
+			noisedX:         0,
 			l0Sensitivity:   1,
 			lInfSensitivity: 1,
 			epsilon:         -1,
-			confidenceLevel: 0.5,
+			alpha:           0.5,
 			want:            ConfidenceInterval{},
 			wantErr:         true,
 		},
 		{
 			desc:            "Infinite epsilon",
-			noisedValue:     0,
+			noisedX:         0,
 			l0Sensitivity:   1,
 			lInfSensitivity: 1,
 			epsilon:         math.Inf(1),
-			confidenceLevel: 0.5,
+			alpha:           0.5,
 			want:            ConfidenceInterval{},
 			wantErr:         true,
 		},
 		{
 			desc:            "NaN epsilon",
-			noisedValue:     0,
+			noisedX:         0,
 			l0Sensitivity:   1,
 			lInfSensitivity: 1,
 			epsilon:         math.NaN(),
-			confidenceLevel: 0.5,
+			alpha:           0.5,
 			want:            ConfidenceInterval{},
 			wantErr:         true,
 		},
 		{
 			desc:            "Non-zero delta",
-			noisedValue:     0,
+			noisedX:         0,
 			l0Sensitivity:   1,
 			lInfSensitivity: 1,
 			epsilon:         0.1,
 			delta:           1,
-			confidenceLevel: 0.5,
+			alpha:           0.5,
 			want:            ConfidenceInterval{},
 			wantErr:         true,
 		},
 		{
-			desc:            "Zero confidence level",
-			noisedValue:     0,
+			desc:            "Zero alpha",
+			noisedX:         0,
 			l0Sensitivity:   1,
 			lInfSensitivity: 1,
 			epsilon:         0.1,
-			confidenceLevel: 0,
+			alpha:           0,
 			want:            ConfidenceInterval{},
 			wantErr:         true,
 		},
 		{
-			desc:            "Negative confidence level",
-			noisedValue:     0,
+			desc:            "Negative alpha",
+			noisedX:         0,
 			l0Sensitivity:   1,
 			lInfSensitivity: 1,
 			epsilon:         0.1,
-			confidenceLevel: -1,
+			alpha:           -1,
 			want:            ConfidenceInterval{},
 			wantErr:         true,
 		},
 		{
-			desc:            "1 confidence level",
-			noisedValue:     0,
+			desc:            "1 alpha",
+			noisedX:         0,
 			l0Sensitivity:   1,
 			lInfSensitivity: 1,
 			epsilon:         0.1,
-			confidenceLevel: 1,
+			alpha:           1,
 			want:            ConfidenceInterval{},
 			wantErr:         true,
 		},
 		{
-			desc:            "Greater than 1 confidence level",
-			noisedValue:     0,
+			desc:            "Greater than 1 alpha",
+			noisedX:         0,
 			l0Sensitivity:   1,
 			lInfSensitivity: 1,
 			epsilon:         0.1,
-			confidenceLevel: 2,
+			alpha:           2,
 			want:            ConfidenceInterval{},
 			wantErr:         true,
 		},
 		{
-			desc:            "NaN confidence level",
-			noisedValue:     0,
+			desc:            "NaN alpha",
+			noisedX:         0,
 			l0Sensitivity:   1,
 			lInfSensitivity: 1,
 			epsilon:         0.1,
-			confidenceLevel: math.NaN(),
+			alpha:           math.NaN(),
 			want:            ConfidenceInterval{},
 			wantErr:         true,
 		},
 	} {
-		got, err := lap.ConfidenceIntervalInt64(tc.noisedValue, tc.l0Sensitivity, tc.lInfSensitivity,
-			tc.epsilon, tc.delta, tc.confidenceLevel)
+		got, err := lap.computeConfidenceIntervalInt64(tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity,
+			tc.epsilon, tc.delta, tc.alpha)
 		if (err != nil) != tc.wantErr {
-			t.Errorf("ConfidenceIntervalInt64: when %v for err got %v, want %t", tc.desc, err, tc.wantErr)
+			t.Errorf("computeConfidenceIntervalInt64: when %v for err got %v, want %t", tc.desc, err, tc.wantErr)
 			continue
 		}
 		if got.LowerBound != tc.want.LowerBound {
 			t.Errorf("TestConfidenceIntervalInt64(%d, %d, %d, %f, %f)=%0.10f, want %0.10f, desc %s, LowerBound is not equal",
-				tc.noisedValue, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.confidenceLevel,
-				got.LowerBound, tc.want.LowerBound, tc.desc)
+				tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.alpha, got.LowerBound, tc.want.LowerBound, tc.desc)
 		}
 		if got.UpperBound != tc.want.UpperBound {
 			t.Errorf("TestConfidenceIntervalInt64(%d, %d, %d, %f, %f)=%0.10f, want %0.10f, desc %s, UpperBound is not equal",
-				tc.noisedValue, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.confidenceLevel,
-				got.UpperBound, tc.want.UpperBound, tc.desc)
+				tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.alpha, got.UpperBound, tc.want.UpperBound, tc.desc)
 		}
 	}
 }
