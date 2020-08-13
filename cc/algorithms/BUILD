@@ -377,7 +377,7 @@ cc_test(
 
 cc_library(
     name = "numerical-mechanisms-testing",
-    testonly = 1,
+#    testonly = 1,
     hdrs = ["numerical-mechanisms-testing.h"],
     copts = ["-Wno-sign-compare"],
     deps = [
