@@ -183,8 +183,8 @@ func addGaussian(x, sigma float64) float64 {
 
 // computeConfidenceIntervalGaussian computes a confidence interval that contains the raw value x from which
 // float64 noisedX is computed with a probability equal to 1 - alpha with the given sigma
-func computeConfidenceIntervalGaussian(noisedX, sigma, p float64) ConfidenceInterval {
-	z := inverseCDFGaussian(sigma, p/2)
+func computeConfidenceIntervalGaussian(noisedX, sigma, alpha float64) ConfidenceInterval {
+	z := inverseCDFGaussian(sigma, alpha/2)
 	FloatLowerBound := noisedX + z
 	FloatUpperBound := noisedX - z
 	FloatInterval := ConfidenceInterval{LowerBound: FloatLowerBound,
@@ -194,8 +194,8 @@ func computeConfidenceIntervalGaussian(noisedX, sigma, p float64) ConfidenceInte
 
 // inverseCDFGaussian computes the quantile z satisfying Pr[Y <= z] = p for a random variable Y that is Gaussian
 // distributed with the specified sigma
-func inverseCDFGaussian(sigma, confidenceLevel float64) float64 {
-	return sigma * math.Sqrt(2) * math.Erfinv(2.00*confidenceLevel-1)
+func inverseCDFGaussian(sigma, p float64) float64 {
+	return -sigma * math.Sqrt(2) * math.Erfcinv(2.00*p)
 }
 
 // symmetricBinomial returns a random sample m where the term m + n / 2 is drawn from
