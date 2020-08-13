@@ -225,8 +225,7 @@ func TestInverseCDFLaplace(t *testing.T) {
 
 }
 
-func TestConfidenceIntervalLaplace(t *testing.T) {
-	// Tests for computeConfidenceIntervalLaplace function
+func TestComputeConfidenceIntervalLaplace(t *testing.T) {
 	for _, tc := range []struct {
 		desc          string
 		noisedX       float64
@@ -278,18 +277,18 @@ func TestConfidenceIntervalLaplace(t *testing.T) {
 	} {
 		got := computeConfidenceIntervalLaplace(tc.noisedX, tc.lambda, tc.alpha)
 		if !approxEqual(got.LowerBound, tc.want.LowerBound) {
-			t.Errorf("TestConfidenceIntervalLaplace(%f, %f, %f)=%0.10f, want %0.10f, desc %s, LowerBound is not equal",
+			t.Errorf("TestComputeConfidenceIntervalLaplace(%f, %f, %f)=%0.10f, want %0.10f, desc %s, LowerBounds are not equal",
 				tc.noisedX, tc.lambda, tc.alpha, got.LowerBound, tc.want.LowerBound, tc.desc)
 		}
 		if !approxEqual(got.UpperBound, tc.want.UpperBound) {
-			t.Errorf("TestConfidenceIntervalLaplace(%f, %f, %f)=%0.10f, want %0.10f, desc %s, UpperBound is not equal",
+			t.Errorf("TestComputeConfidenceIntervalLaplace(%f, %f, %f)=%0.10f, want %0.10f, desc %s, UpperBounds are not equal",
 				tc.noisedX, tc.lambda, tc.alpha, got.UpperBound, tc.want.UpperBound, tc.desc)
 		}
 	}
 
 }
 
-func TestConfidenceIntervalFloat64(t *testing.T) {
+func TestComputeConfidenceIntervalFloat64(t *testing.T) {
 	for _, tc := range []struct {
 		desc                                   string
 		noisedX                                float64
@@ -470,23 +469,23 @@ func TestConfidenceIntervalFloat64(t *testing.T) {
 			wantErr:         true,
 		},
 	} {
-		got, err := lap.computeConfidenceIntervalFloat64(tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity,
+		got, err := lap.ComputeConfidenceIntervalFloat64(tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity,
 			tc.epsilon, tc.delta, tc.alpha)
 		if (err != nil) != tc.wantErr {
-			t.Errorf("computeConfidenceIntervalFloat64: when %v for err got %v, want %t", tc.desc, err, tc.wantErr)
+			t.Errorf("ComputeConfidenceIntervalFloat64: when %v for err got %v, want %t", tc.desc, err, tc.wantErr)
 			continue
 		}
 		if !approxEqual(got.LowerBound, tc.want.LowerBound) {
-			t.Errorf("TestConfidenceIntervalFloat64(%f, %d, %f, %f, %f)=%0.10f, want %0.10f, desc %s, LowerBound is not equal",
+			t.Errorf("TestComputeConfidenceIntervalFloat64(%f, %d, %f, %f, %f)=%0.10f, want %0.10f, desc %s, LowerBounds are not equal",
 				tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.alpha, got.LowerBound, tc.want.LowerBound, tc.desc)
 		}
 		if !approxEqual(got.UpperBound, tc.want.UpperBound) {
-			t.Errorf("TestConfidenceIntervalFloat64(%f, %d, %f, %f, %f)=%0.10f, want %0.10f, desc %s, UpperBound is not equal",
+			t.Errorf("TestComputeConfidenceIntervalFloat64(%f, %d, %f, %f, %f)=%0.10f, want %0.10f, desc %s, UpperBounds are not equal",
 				tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.alpha, got.UpperBound, tc.want.UpperBound, tc.desc)
 		}
 	}
 }
-func TestConfidenceIntervalInt64(t *testing.T) {
+func TestComputeConfidenceIntervalInt64(t *testing.T) {
 	for _, tc := range []struct {
 		desc                                    string
 		noisedX, l0Sensitivity, lInfSensitivity int64
@@ -646,18 +645,18 @@ func TestConfidenceIntervalInt64(t *testing.T) {
 			wantErr:         true,
 		},
 	} {
-		got, err := lap.computeConfidenceIntervalInt64(tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity,
+		got, err := lap.ComputeConfidenceIntervalInt64(tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity,
 			tc.epsilon, tc.delta, tc.alpha)
 		if (err != nil) != tc.wantErr {
-			t.Errorf("computeConfidenceIntervalInt64: when %v for err got %v, want %t", tc.desc, err, tc.wantErr)
+			t.Errorf("ComputeConfidenceIntervalInt64: when %v for err got %v, want %t", tc.desc, err, tc.wantErr)
 			continue
 		}
 		if got.LowerBound != tc.want.LowerBound {
-			t.Errorf("TestConfidenceIntervalInt64(%d, %d, %d, %f, %f)=%0.10f, want %0.10f, desc %s, LowerBound is not equal",
+			t.Errorf("TestComputeConfidenceIntervalInt64(%d, %d, %d, %f, %f)=%0.10f, want %0.10f, desc %s, LowerBounds are not equal",
 				tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.alpha, got.LowerBound, tc.want.LowerBound, tc.desc)
 		}
 		if got.UpperBound != tc.want.UpperBound {
-			t.Errorf("TestConfidenceIntervalInt64(%d, %d, %d, %f, %f)=%0.10f, want %0.10f, desc %s, UpperBound is not equal",
+			t.Errorf("TestComputeConfidenceIntervalInt64(%d, %d, %d, %f, %f)=%0.10f, want %0.10f, desc %s, UpperBounds are not equal",
 				tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.alpha, got.UpperBound, tc.want.UpperBound, tc.desc)
 		}
 	}

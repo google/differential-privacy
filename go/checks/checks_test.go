@@ -525,10 +525,10 @@ func TestCheckAlpha(t *testing.T) {
 		{"negative infinity alpha", math.Inf(-1), true},
 		{"infinity alpha", math.Inf(0), true},
 		{"NaN alpha", math.NaN(), true},
-		{"Arbitrary alpha", 0.758464984, false},
+		{"arbitrary alpha", 0.758464984, false},
 	} {
 		if err := CheckAlpha("test", tc.alpha); (err != nil) != tc.wantErr {
-			t.Errorf("checkAlpha: when %s for err got %v, want %t", tc.desc, err, tc.wantErr)
+			t.Errorf("CheckAlpha: when %s for err got %v, want %t", tc.desc, err, tc.wantErr)
 		}
 	}
 }
