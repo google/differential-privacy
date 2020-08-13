@@ -20,13 +20,13 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/transforms/filter"
 	log "github.com/golang/glog"
 	"github.com/google/differential-privacy/go/checks"
 	"github.com/google/differential-privacy/go/dpagg"
 	"github.com/google/differential-privacy/go/noise"
 	"github.com/google/differential-privacy/privacy-on-beam/internal/kv"
+	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/transforms/filter"
 )
 
 func init() {
@@ -58,7 +58,7 @@ type DistinctPrivacyIDParams struct {
 	// User-specified partitions.
 	//
 	// Optional.
-	specifiedPartitions Partitions
+	partitionsCol beam.PCollection
 }
 
 // DistinctPrivacyID counts the number of distinct privacy identifiers
@@ -74,15 +74,10 @@ type DistinctPrivacyIDParams struct {
 // DistinctPrivacyID transforms a PrivatePCollection<V> into a
 // PCollection<V,int64>.
 func DistinctPrivacyID(s beam.Scope, pcol PrivatePCollection, params DistinctPrivacyIDParams) beam.PCollection {
+	s = s.Scope("pbeam.DistinctPrivacyID")
 	// Obtain type information from the underlying PCollection<K,V>.
 	idT, partitionT := beam.ValidateKVType(pcol.col)
-	s = s.Scope("pbeam.DistinctPrivacyID")
-	// Get privacy parameters.
-	spec := pcol.privacySpec
-	epsilon, delta, err := spec.consumeBudget(params.Epsilon, params.Delta)
-	if err != nil {
-		log.Exitf("couldn't consume budget: %v", err)
-	}
+	
 	var noiseKind noise.Kind
 	if params.NoiseKind == nil {
 		noiseKind = noise.LaplaceNoise
@@ -90,22 +85,28 @@ func DistinctPrivacyID(s beam.Scope, pcol PrivatePCollection, params DistinctPri
 	} else {
 		noiseKind = params.NoiseKind.toNoiseKind()
 	}
-
-	maxPartitionsContributed := getMaxPartitionsContributed(spec, params.MaxPartitionsContributed)
-
-	var correctPartitions beam.PCollection
-	if params.specifiedPartitions.partitionsSpecified {
-		if partitionT.Type() != params.specifiedPartitions.partitionsCol.Type().Type() {
-			log.Exitf("Specified partitions must be of type %v. Got type %v instead.",
-				partitionT.Type(), params.specifiedPartitions.partitionsCol.Type().Type())
-		}
-		// Drop unspecified partitions, if partitions are specified.
-		correctPartitions = dropUnspecifiedPartitionsVFn(s, params.specifiedPartitions.partitionsCol, pcol, partitionT)
-	} else {
-		correctPartitions = pcol.col
+	// Get privacy parameters.
+	spec := pcol.privacySpec
+	epsilon, delta, err := spec.consumeBudget(params.Epsilon, params.Delta)
+	if err != nil {
+		log.Exitf("couldn't consume budget: %v", err)
 	}
+	err = checkDistinctPrivacyIDParams(params, noiseKind, epsilon, delta)
+	if err != nil {
+		log.Exit(err)
+	}
+	maxPartitionsContributed := getMaxPartitionsContributed(spec, params.MaxPartitionsContributed)
+	// Drop unspecified partitions, if partitions are specified.
+	if (params.partitionsCol).IsValid() {
+		if partitionT.Type() != (params.partitionsCol).Type().Type() {
+			log.Exitf("Specified partitions must be of type %v. Got type %v instead.",
+				partitionT.Type(), (params.partitionsCol).Type().Type())
+		}
+		partitionEncodedType := beam.EncodedType{partitionT.Type()}
+		pcol.col = dropUnspecifiedPartitionsVFn(s, params.partitionsCol, pcol, partitionEncodedType)
+	} 
 	// First, deduplicate KV pairs by encoding them and calling Distinct.
-	coded := beam.ParDo(s, kv.NewEncodeFn(idT, partitionT), correctPartitions)
+	coded := beam.ParDo(s, kv.NewEncodeFn(idT, partitionT), pcol.col)
 	distinct := filter.Distinct(s, coded)
 	decoded := beam.ParDo(s,
 		kv.NewDecodeFn(idT, partitionT),
@@ -118,7 +119,7 @@ func DistinctPrivacyID(s beam.Scope, pcol PrivatePCollection, params DistinctPri
 	// done, remove the keys and count how many times each value appears.
 	values := beam.DropKey(s, decoded)
 	dummyCounts := beam.ParDo(s, addOneValueFn, values)
-	if params.specifiedPartitions.partitionsSpecified { // Partitions specified.
+	if (params.partitionsCol).IsValid(){ // Partitions specified.
 		return addSpecifiedPartitionsForDistinctId(s, params, epsilon, delta, maxPartitionsContributed, noiseKind, dummyCounts)
 	}
 	noisedCounts := beam.CombinePerKey(s,
@@ -129,15 +130,14 @@ func DistinctPrivacyID(s beam.Scope, pcol PrivatePCollection, params DistinctPri
 }
 
 func addSpecifiedPartitionsForDistinctId(s beam.Scope, params DistinctPrivacyIDParams, epsilon, delta float64,
-	maxPartitionsContributed int64, noiseKind noise.Kind, dummyCounts beam.PCollection) beam.PCollection {
-	partitionsCol := params.specifiedPartitions.partitionsCol
-	prepareAddSpecifiedPartitions := beam.ParDo(s, addValuesToSpecifiedPartitionKeysInt64Fn, partitionsCol)
-	// Merge dummyCounts and prepareAddSpecifiedPartitions.
-	allAddPartitions := beam.Flatten(s, dummyCounts, prepareAddSpecifiedPartitions)
+	maxPartitionsContributed int64, noiseKind noise.Kind, countsKV beam.PCollection) beam.PCollection {
+	prepareAddSpecifiedPartitions := beam.ParDo(s, addDummyValuesToSpecifiedPartitionsInt64Fn, params.partitionsCol)
+	// Merge countsKV and prepareAddSpecifiedPartitions.
+	allAddPartitions := beam.Flatten(s, countsKV, prepareAddSpecifiedPartitions)
 	noisedCounts := beam.CombinePerKey(s,
 		newCountFn(epsilon, delta, maxPartitionsContributed, noiseKind, true),
 		allAddPartitions)
-	return beam.ParDo(s, DereferenceValuesToInt64, noisedCounts)
+	return beam.ParDo(s, dereferenceValueToInt64, noisedCounts)
 }
 
 func checkDistinctPrivacyIDParams(params DistinctPrivacyIDParams, noiseKind noise.Kind, epsilon, delta float64) error {
@@ -147,6 +147,9 @@ func checkDistinctPrivacyIDParams(params DistinctPrivacyIDParams, noiseKind nois
 	}
 	if noiseKind == noise.LaplaceNoise {
 		err = checks.CheckDelta("pbeam.DistinctPrivacyID", delta)
+		if (params.partitionsCol).IsValid() {
+			err = checks.CheckNoDelta("pbeam.DistinctPrivacyID", delta)
+		}
 	} else {
 		err = checks.CheckDeltaStrict("pbeam.DistinctPrivacyID", delta)
 	}

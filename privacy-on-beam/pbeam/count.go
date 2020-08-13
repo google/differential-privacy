@@ -19,12 +19,12 @@ package pbeam
 import (
 	"fmt"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
 	log "github.com/golang/glog"
 	"github.com/google/differential-privacy/go/checks"
 	"github.com/google/differential-privacy/go/noise"
 	"github.com/google/differential-privacy/privacy-on-beam/internal/kv"
+	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
 )
 
 // CountParams specifies the parameters associated with a Count aggregation.
@@ -57,10 +57,10 @@ type CountParams struct {
 	//
 	// Required.
 	MaxValue int64
-	// User-specified partitions.
+	// Client-specified partitions.
 	//
 	// Optional.
-	specifiedPartitions Partitions
+	partitionsCol beam.PCollection
 }
 
 // Count counts the number of times a value appears in a PrivatePCollection,
@@ -73,18 +73,14 @@ type CountParams struct {
 //
 // Count transforms a PrivatePCollection<V> into a PCollection<V, int64>.
 func Count(s beam.Scope, pcol PrivatePCollection, params CountParams) beam.PCollection {
+	s = s.Scope("pbeam.Count")
 	// Obtain type information from the underlying PCollection<K,V>.
 	idT, partitionT := beam.ValidateKVType(pcol.col)
-	s = s.Scope("pbeam.Count")
 	// Get privacy parameters.
 	spec := pcol.privacySpec
 	epsilon, delta, err := spec.consumeBudget(params.Epsilon, params.Delta)
 	if err != nil {
 		log.Exitf("couldn't consume budget: %v", err)
-	}
-	err = checkCountParams(params, epsilon, delta)
-	if err != nil {
-		log.Exit(err)
 	}
 
 	var noiseKind noise.Kind
@@ -95,28 +91,29 @@ func Count(s beam.Scope, pcol PrivatePCollection, params CountParams) beam.PColl
 		noiseKind = params.NoiseKind.toNoiseKind()
 	}
 
-	maxPartitionsContributed := getMaxPartitionsContributed(spec, params.MaxPartitionsContributed)
-
-	var correctPartitions beam.PCollection
-
-	if params.specifiedPartitions.partitionsSpecified { // Partitions specifie.d
-		if partitionT.Type() != params.specifiedPartitions.partitionsCol.Type().Type() {
-			log.Exitf("Specified partitions must be of type %v. Got type %v instead.",
-				partitionT.Type(), params.specifiedPartitions.partitionsCol.Type().Type())
-		}
-		// Drop unspecified partitions, if partitions are specified.
-		correctPartitions = dropUnspecifiedPartitionsVFn(s, params.specifiedPartitions.partitionsCol, pcol, partitionT)
-	} else {
-		correctPartitions = pcol.col
+	err = checkCountParams(params, epsilon, delta, noiseKind)
+	if err != nil {
+		log.Exit(err)
 	}
+
+
+	maxPartitionsContributed := getMaxPartitionsContributed(spec, params.MaxPartitionsContributed)
+	// Drop unspecified partitions, if partitions are specified.
+	if (params.partitionsCol).IsValid(){
+		if partitionT.Type() != params.partitionsCol.Type().Type() {
+			log.Exitf("Specified partitions must be of type %v. Got type %v instead.",
+				partitionT.Type(), params.partitionsCol.Type().Type())
+		}
+		partitionEncodedType := beam.EncodedType{partitionT.Type()}
+		pcol.col = dropUnspecifiedPartitionsVFn(s, params.partitionsCol, pcol, partitionEncodedType)
+	} 
 	// First, encode KV pairs, count how many times each one appears,
 	// and re-key by the original privacy key.
-	coded := beam.ParDo(s, kv.NewEncodeFn(idT, partitionT), correctPartitions)
+	coded := beam.ParDo(s, kv.NewEncodeFn(idT, partitionT), pcol.col)
 	kvCounts := stats.Count(s, coded)
 	counts64 := beam.ParDo(s, vToInt64Fn, kvCounts)
 	rekeyed := beam.ParDo(s, rekeyInt64Fn, counts64)
-	// Second, do per-user contribution bounding.
-	// cross partition bounding happens here
+	// Second, do cross-partition contribution bounding.
 	rekeyed = boundContributions(s, rekeyed, maxPartitionsContributed)
 	// Third, now that contribution bounding is done, remove the privacy keys,
 	// decode the value, and sum all the counts bounded by maxCountContrib.
@@ -125,47 +122,45 @@ func Count(s beam.Scope, pcol PrivatePCollection, params CountParams) beam.PColl
 		newDecodePairInt64Fn(partitionT.Type()),
 		countPairs,
 		beam.TypeDefinition{Var: beam.XType, T: partitionT.Type()})
-
-	if params.specifiedPartitions.partitionsSpecified { // Partitions specified.
-		return addSpecifiedPartitionsForCount(s, epsilon, delta, maxPartitionsContributed,
-			params, noiseKind, countsKV)
-
+	// Add specified partitions, if partitions are specified.
+	if (params.partitionsCol).IsValid() { 
+		return addSpecifiedPartitionsForCount(s, epsilon, delta, maxPartitionsContributed, params, noiseKind, countsKV)
 	}
 	sums := beam.CombinePerKey(s,
-		newBoundedSumInt64Fn(epsilon, delta, maxPartitionsContributed, 0, params.MaxValue, noiseKind, false),
-		countsKV)
+		newBoundedSumInt64Fn(epsilon, delta, maxPartitionsContributed, 0, params.MaxValue, noiseKind, false), countsKV)
+	// Drop thresholded partitions.
 	counts := beam.ParDo(s, dropThresholdedPartitionsInt64Fn, sums)
+	// Clamp negative counts to zero and return.
 	return beam.ParDo(s, clampNegativePartitionsInt64Fn, counts)
 }
 
 func addSpecifiedPartitionsForCount(s beam.Scope, epsilon, delta float64,
 	maxPartitionsContributed int64, params CountParams, noiseKind noise.Kind, countsKV beam.PCollection) beam.PCollection {
-	partitionsCol := params.specifiedPartitions.partitionsCol
 	// Turn partitionsCol type PCollection<K> into PCollection<K, int64> by adding
 	// the value zero to each K.
-	prepareAddSpecifiedPartitions := beam.ParDo(s, addValuesToSpecifiedPartitionKeysInt64Fn, partitionsCol)
-	// Merge countsKV and prepareAddSpecifiedPartitions.
-	allPartitions := beam.Flatten(s, prepareAddSpecifiedPartitions, countsKV)
+	dummyCounts := beam.ParDo(s, addDummyValuesToSpecifiedPartitionsInt64Fn, params.partitionsCol)
+	// Merge countsKV and dummyCounts.
+	allPartitions := beam.Flatten(s, dummyCounts, countsKV)
 	// Sum and add noise.
-	sums := beam.CombinePerKey(s,
-		newBoundedSumInt64Fn(epsilon, delta, maxPartitionsContributed, 0, params.MaxValue, noiseKind, true),
-		allPartitions)
-
-	finalPartitions := beam.ParDo(s, DereferenceValuesToInt64, sums)
+	sums := beam.CombinePerKey(s, newBoundedSumInt64Fn(epsilon, delta, maxPartitionsContributed, 0, params.MaxValue, noiseKind, true), allPartitions)
+	finalPartitions := beam.ParDo(s, dereferenceValueToInt64, sums)
 	// Clamp negative counts to zero and return.
 	return beam.ParDo(s, clampNegativePartitionsInt64Fn, finalPartitions)
-
 }
 
-func checkCountParams(params CountParams, epsilon, delta float64) error {
+func checkCountParams(params CountParams, epsilon, delta float64, noiseKind noise.Kind) error {
 	err := checks.CheckEpsilon("pbeam.Count", epsilon)
 	if err != nil {
 		return err
 	}
-	err = checks.CheckDeltaStrict("pbeam.Count", delta)
+	if (params.partitionsCol).IsValid() && noiseKind == noise.LaplaceNoise {
+		err = checks.CheckNoDelta("pbeam.Count", delta)
+	} else {
+		err = checks.CheckDeltaStrict("pbeam.Count", delta)
+	}
 	if err != nil {
 		return err
-	}
+	    }
 	err = checks.CheckMaxPartitionsContributed("pbeam.Count", params.MaxPartitionsContributed)
 	if err != nil {
 		return err

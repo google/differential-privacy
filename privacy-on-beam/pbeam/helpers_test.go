@@ -22,13 +22,13 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
-	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
 	"github.com/google/differential-privacy/go/dpagg"
 	"github.com/google/differential-privacy/go/noise"
 	"github.com/google/differential-privacy/privacy-on-beam/internal/kv"
 	testpb "github.com/google/differential-privacy/privacy-on-beam/testdata"
+	"github.com/apache/beam/sdks/go/pkg/beam"	
+	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -333,11 +333,8 @@ func approxEqualsKVInt64(s beam.Scope, col1, col2 beam.PCollection, tolerance fl
 	return nil
 }
 
-// approxEqualsKVInt64 checks that two PCollections col1 and col2 of type
-// <K,int64> are approximately equal, where "approximately equal" means
-// "the keys are the same in both col1 and col2, and the value associated to
-// key k in col1 is within the specified tolerance of the value associated to k
-// in col2". Each key can only hold a single value.
+// equalsKVInt checks that two PCollections col1 and col2 of type
+// <K,int> are equal.
 func equalsKVInt(s beam.Scope, col1, col2 beam.PCollection) error {
 	wantV := reflect.TypeOf(int(0))
 	if err := checkValueType(col1, wantV); err != nil {

@@ -20,9 +20,9 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/google/differential-privacy/go/noise"
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
-	"github.com/google/differential-privacy/go/noise"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -193,7 +193,7 @@ func TestBoundedSumInt64FnExtractOutputReturnsNilForSmallPartitions(t *testing.T
 	}
 }
 
-func TestBoundedSumInt64FnExtractOutputWithPartitionsDoesNotThreshold(t *testing.T) {
+func TestBoundedSumInt64FnExtractOutputWithSpecifiedPartitionsDoesNotThreshold(t *testing.T) {
 	for _, tc := range []struct {
 		desc      string
 		inputSize int
@@ -203,7 +203,7 @@ func TestBoundedSumInt64FnExtractOutputWithPartitionsDoesNotThreshold(t *testing
 		{"Input with 10 users", 10},
 		{"Input with 100 users", 100}} {
 
-		fn := newBoundedSumInt64Fn(1, 1e-23, 1, 0, 2, noise.LaplaceNoise, true)
+		fn := newBoundedSumInt64Fn(1, 0, 1, 0, 2, noise.LaplaceNoise, true)
 		fn.Setup()
 		accum := fn.CreateAccumulator()
 		for i := 0; i < tc.inputSize; i++ {
@@ -213,7 +213,7 @@ func TestBoundedSumInt64FnExtractOutputWithPartitionsDoesNotThreshold(t *testing
 		got := fn.ExtractOutput(accum)
 
 		if got == nil {
-			t.Errorf("ExtractOutput: for %s got: %d, want actual value", tc.desc, *got)
+			t.Errorf("ExtractOutput for %s thresholded with specified partitions when it shouldn't", tc.desc)
 		}
 	}
 }
@@ -293,7 +293,7 @@ func TestBoundedSumFloat64FnExtractOutputWithSpecifiedPartitionsDoesNotThreshold
 		{"Input with 10 users", 10},
 		{"Input with 100 users", 100}} {
 		partitionsSpecified := true
-		fn := newBoundedSumFloat64Fn(1, 1e-23, 1, 0, 2, noise.LaplaceNoise, partitionsSpecified)
+		fn := newBoundedSumFloat64Fn(1, 0, 1, 0, 2, noise.LaplaceNoise, partitionsSpecified)
 		fn.Setup()
 		accum := fn.CreateAccumulator()
 		for i := 0; i < tc.inputSize; i++ {
@@ -302,34 +302,30 @@ func TestBoundedSumFloat64FnExtractOutputWithSpecifiedPartitionsDoesNotThreshold
 
 		got := fn.ExtractOutput(accum)
 		if got == nil {
-			t.Errorf("ExtractOutput: for %s got: %f, want actual value", tc.desc, *got)
+			t.Errorf("ExtractOutput for %s thresholded with specified partitions when it shouldn't", tc.desc)
 		}
 	}
 }
 
-// Check elements with unspecified partitions are dropped.
+// TestDropUnspecifiedPartitionsVFn check that elements with unspecified partitions are dropped.
 // This function is used for count and distinct_id.
-func TestDropUnspecifiedPartitionsForCount(t *testing.T) {
+func TestDropUnspecifiedPartitionsVFn(t *testing.T) {
 	pairs := concatenatePairs(
-		makePairsWithFixedVStartingFromKey(0, 7, 0),
-		makePairsWithFixedVStartingFromKey(7, 52, 1),
-		makePairsWithFixedVStartingFromKey(7, 52, 1),
-		makePairsWithFixedVStartingFromKey(7+52, 99, 2),
-		makePairsWithFixedVStartingFromKey(7+52, 99, 2),
-		makePairsWithFixedVStartingFromKey(7+52, 99, 2),
-		makePairsWithFixedVStartingFromKey(7+52+99, 10, 3),
-		makePairsWithFixedVStartingFromKey(7+52+99, 10, 3),
-		makePairsWithFixedVStartingFromKey(7+52+99, 10, 3),
-		makePairsWithFixedVStartingFromKey(7+52+99, 10, 3),
+		makePairsWithFixedV(7, 0),
+		makePairsWithFixedV(52, 1),
+		makePairsWithFixedV(99, 2),
+		makePairsWithFixedV(99, 2),
+		makePairsWithFixedV(99, 2),
+		makePairsWithFixedV(10, 3),
 	)
 
 	// Keep partitions 0, 2;
 	// drop partitions 1, 3.
 	result := concatenatePairs(
-		makePairsWithFixedVStartingFromKey(0, 7, 0),
-		makePairsWithFixedVStartingFromKey(7+52, 99, 2),
-		makePairsWithFixedVStartingFromKey(7+52, 99, 2),
-		makePairsWithFixedVStartingFromKey(7+52, 99, 2),
+		makePairsWithFixedV(7, 0),
+		makePairsWithFixedV(99, 2),
+		makePairsWithFixedV(99, 2),
+		makePairsWithFixedV(99, 2),
 	)
 
 	_, s, col, want := ptest.CreateList2(pairs, result)
@@ -341,23 +337,24 @@ func TestDropUnspecifiedPartitionsForCount(t *testing.T) {
 	epsilon, delta := 50.0, 1e-200
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 	_, partitionT := beam.ValidateKVType(pcol.col)
-	got := dropUnspecifiedPartitionsVFn(s, partitionsCol, pcol, partitionT)
+	partitionEncodedType := beam.EncodedType{partitionT.Type()}
+	got := dropUnspecifiedPartitionsVFn(s, partitionsCol, pcol, partitionEncodedType)
 	if err := equalsKVInt(s, got, want); err != nil {
 		t.Fatalf("dropUnspecifiedPartitionsVFn: for %v got: %v, want %v", col, got, want)
 	}
 }
 
-// Check that int elements with unspecified partitions
+// TestDropUnspecifiedPartitionsKVFn checks that int elements with unspecified partitions
 // are dropped (tests function used for sum and mean).
-func TestDropUnspecifiedPartitionsInt(t *testing.T) {
+func TestDropUnspecifiedPartitionsKVFn(t *testing.T) {
 	triples := concatenateTriplesWithIntValue(
 		makeDummyTripleWithIntValue(7, 0),
 		makeDummyTripleWithIntValue(58, 1),
 		makeDummyTripleWithIntValue(99, 2),
 		makeDummyTripleWithIntValue(45, 100),
 		makeDummyTripleWithIntValue(20, 33))
-	// Keep partitions 0,2;
-	// Drop partitions 1, 33, 100;
+	// Keep partitions 0,2.
+	// Drop partitions 1, 33, 100.
 	result := concatenateTriplesWithIntValue(
 		makeDummyTripleWithIntValue(7, 0),
 		makeDummyTripleWithIntValue(99, 2))
@@ -383,7 +380,7 @@ func TestDropUnspecifiedPartitionsInt(t *testing.T) {
 	want = beam.SwapKV(s, want)
 
 	if err := equalsKVInt(s, got, want); err != nil {
-		t.Fatalf("DropUnspecifiedPartitionsInt: for %v got: %v, want %v", col, got, want)
+		t.Fatalf("dropUnspecifiedPartitionsKVFn: for %v got: %v, want %v", col, got, want)
 	}
 }
 
@@ -392,13 +389,13 @@ func TestDropUnspecifiedPartitionsInt(t *testing.T) {
 func TestDropUnspecifiedPartitionsFloat(t *testing.T) {
 	// In this test, we check  that unspecified partitions
 	// are dropped. This function is used for sum and mean.
+	// Used example values from the mean test.
 	triples := concatenateTriplesWithFloatValue(
 		makeTripleWithFloatValue(7, 0, 2.0),
 		makeTripleWithFloatValueStartingFromKey(7, 100, 1, 1.3),
 		makeTripleWithFloatValueStartingFromKey(107, 150, 1, 2.5),
-		makeTripleWithFloatValueStartingFromKey(320, 150, 100, 5.5),
 	)
-	// Keep partition 0;
+	// Keep partition 0.
 	// drop partition 1.
 	result := concatenateTriplesWithFloatValue(
 		makeTripleWithFloatValue(7, 0, 2.0))

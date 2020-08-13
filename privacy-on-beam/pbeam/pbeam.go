@@ -113,11 +113,11 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	log "github.com/golang/glog"
 	"github.com/google/differential-privacy/go/noise"
 	"github.com/google/differential-privacy/privacy-on-beam/internal/kv"
+	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
@@ -143,7 +143,7 @@ type PrivacySpec struct {
 	epsilon           float64 // ε budget available for this PrivatePCollection.
 	delta             float64 // δ budget available for this PrivatePCollection.
 	partiallyConsumed bool    // Whether some privacy budget has already been consumed from this PrivacySpec.
-	mux               sync.Mutex
+	mux sync.Mutex
 }
 
 // consumeBudget consumes a differential privacy budget (ε,δ) from a
@@ -485,14 +485,4 @@ func (ext *extractProtoFieldFn) extractField(pb protoreflect.Message) (interface
 		}
 	}
 	return nil, fmt.Errorf("submessage field %s found in the proto message", ext.IDFieldPath)
-}
-
-type Partitions struct {
-	partitionsCol       beam.PCollection
-	partitionsSpecified bool
-}
-
-func CreateList(s beam.Scope, partitions interface{}) Partitions {
-	pCol := beam.CreateList(s, partitions)
-	return Partitions{partitionsCol: pCol, partitionsSpecified: true}
 }

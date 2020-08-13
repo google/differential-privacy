@@ -22,12 +22,12 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/google/differential-privacy/go/noise"
+	testpb "github.com/google/differential-privacy/privacy-on-beam/testdata"
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
-	"github.com/google/differential-privacy/go/noise"
-	testpb "github.com/google/differential-privacy/privacy-on-beam/testdata"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/protobuf/proto"
@@ -105,28 +105,26 @@ func TestDistinctPrivacyIDWithPartitionsNoNoise(t *testing.T) {
 		// Specified partitions include 0, which would otherwise be thresholded.
 		{0, 7},
 		{1, 52},
-		// Drop partition 2.
+		// Drop unspecified partition 2.
 		{3, 20},
-	}
-	for i := 4; i < 10000; i++ {
-		result = append(result, testInt64Metric{i, 0})
+		// Add specified partition 4.
+		{4, 0},
 	}
 	p, s, col, want := ptest.CreateList2(pairs, result)
 	col = beam.ParDo(s, pairToKV, col)
 
-	partitions := []int{}
-	for i := 0; i < 2; i++ {
-		partitions = append(partitions, i)
-	}
-	for i := 3; i < 10000; i++ {
-		partitions = append(partitions, i)
-	}
+	partitions := []int{0, 1, 3, 4}
 	// Create partition PCollection.
-	partitionsCol := CreateList(s, partitions)
+	partitionsCol := beam.CreateList(s, partitions)
 
-	epsilon, delta, k, l1Sensitivity := 50.0, 1e-200, 25.0, 4.0
+	// We have ε=50, δ=0, and l1Sensitivity=4.
+	// We have 4 partitions. So, to get an overall flakiness of 10⁻²³,
+	// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
+	// To see the logic and the math behind flakiness and tolerance calculation,
+	// See https://github.com/google/differential-privacy/blob/master/privacy-on-beam/docs/Tolerance_Calculation.pdf.
+	epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 25.0, 4.0
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
-	got := DistinctPrivacyID(s, pcol, DistinctPrivacyIDParams{MaxPartitionsContributed: 4, NoiseKind: LaplaceNoise{}, specifiedPartitions: partitionsCol})
+	got := DistinctPrivacyID(s, pcol, DistinctPrivacyIDParams{MaxPartitionsContributed: 4, NoiseKind: LaplaceNoise{}, partitionsCol: partitionsCol})
 	want = beam.ParDo(s, int64MetricToKV, want)
 	if err := approxEqualsKVInt64(s, got, want, laplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 		t.Fatalf("TestDistinctPrivacyIDWithPartitionsNoNoise: %v", err)
@@ -332,12 +330,15 @@ func TestDistinctPrivacyIDWithPartitionsCrossPartitionContributionBounding(t *te
 	}
 	p, s, col, want := ptest.CreateList2(pairs, result)
 	col = beam.ParDo(s, pairToKV, col)
-	partitionsCol := CreateList(s, []int{0, 1, 2})
+	partitionsCol := beam.CreateList(s, []int{0, 1, 2, 3, 4})
 
-	epsilon, delta, k, l1Sensitivity := 50.0, 0.01, 25.0, 3.0
+	// We have ε=50, δ=0 and l1Sensitivity=3.
+	// We have 5 partitions. So, to get an overall flakiness of 10⁻²³,
+	// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
+	epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 25.0, 3.0
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
-	got := DistinctPrivacyID(s, pcol, DistinctPrivacyIDParams{MaxPartitionsContributed: 3, NoiseKind: LaplaceNoise{}, specifiedPartitions: partitionsCol})
-	// With a max contribution of 3, all of the data for the three specified partitions should be kept.
+	got := DistinctPrivacyID(s, pcol, DistinctPrivacyIDParams{MaxPartitionsContributed: 3, NoiseKind: LaplaceNoise{}, partitionsCol: partitionsCol})
+	// With a max contribution of 3, 40% of the partitions should be dropped.
 	// The sum of all elements must then be 150.
 	counts := beam.DropKey(s, got)
 	sumOverPartitions := stats.Sum(s, counts)
@@ -512,7 +513,7 @@ func TestCountFnExtractOutputReturnsNilForSmallPartitions(t *testing.T) {
 }
 
 func TestCountFnExtractOutputDoesNotReturnNilIfPartitionsSpecified(t *testing.T) {
-	// The laplace threshold for ε=ln3, δ=10⁻²⁰⁰, lInfSensitivity = 1 is ~ 420.
+	// Thresholding does not occur because partitions are specified.
 	// The raw count after adding 10 elements is equal to 10.
 	// The laplace tolerance is equal to 48 for ε=ln3, l1Sensitivity=maxPartitionsContributed=1 and flakiness of 10⁻²³.
 	// The rawCount + laplaceTolerance is less than the threshold with flakiness of 10⁻²³ for chosen parameters: 10 + 48 < 420.
@@ -527,7 +528,7 @@ func TestCountFnExtractOutputDoesNotReturnNilIfPartitionsSpecified(t *testing.T)
 
 	fn.Setup()
 	accum := fn.CreateAccumulator()
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 1; i++ {
 		fn.AddInput(accum, 1)
 	}
 
@@ -535,6 +536,6 @@ func TestCountFnExtractOutputDoesNotReturnNilIfPartitionsSpecified(t *testing.T)
 
 	// Should not return nil output for small partitions, since partitions are specified.
 	if got == nil {
-		t.Errorf("ExtractOutput: for 10 added values got: %d, do not want nil", *got)
+		t.Errorf("ExtractOutput: for 1 added value got: %d, do not want nil", *got)
 	}
 }
