@@ -67,13 +67,13 @@ func randBool(_, _ beam.V) bool {
 // since the privacy guarantee doesn't depend on the privacy unit contributions being selected randomly.
 //
 // In order to do the cross-partition contribution bounding we need:
-// 	1. the key to be the privacy unit ID.
+// 	1. the key to be the privacy ID.
 //  2. the value to be the pair = {partition ID, aggregated statistic
 //  (either array of values which are associated with the given id and partition, or sum/count/etc of these values)}.
 //
 // In order to do the per-partition contribution bounding we need:
-// 	1. the key to be the pair = {privacy unit ID, partition ID}.
-// 	2. the value to be just the value which is associated with that {privacy unit ID, partition ID} pair
+// 	1. the key to be the pair = {privacy ID, partition ID}.
+// 	2. the value to be just the value which is associated with that {privacy ID, partition ID} pair
 // 	(there could be multiple entries with the same key).
 func boundContributions(s beam.Scope, kvCol beam.PCollection, contributionLimit int64) beam.PCollection {
 	s = s.Scope("boundContributions")

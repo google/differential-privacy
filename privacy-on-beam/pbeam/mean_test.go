@@ -320,14 +320,14 @@ func TestMeanPerKeyNoNoiseIntValues(t *testing.T) {
 	}
 }
 
-// Checks that MeanPerKey does partition selection correctly by counting privacy unit IDs correctly,
-// which means if the privacy unit has > 1 contributions to a partition the algorithm will not consider them as new privacy unit IDs.
+// Checks that MeanPerKey does partition selection correctly by counting privacy IDs correctly,
+// which means if the privacy unit has > 1 contributions to a partition the algorithm will not consider them as new privacy IDs.
 func TestMeanPerKeyCountsPrivacyUnitIDsWithMultipleContributionsCorrectly(t *testing.T) {
 	triples := concatenateTriplesWithFloatValue(
 		makeTripleWithFloatValue(7, 0, 2.0),
 		makeTripleWithFloatValueStartingFromKey(7, 11, 1, 1.3),
 		// We have a total of 42 contributions to partition 2, but privacy units with ID 18 and 19 contribute 21 times each.
-		// So the actual count of privacy unit IDs in partition 2 is equal to 2, not 42.
+		// So the actual count of privacy IDs in partition 2 is equal to 2, not 42.
 		// And the threshold is equal to 11, so the partition 2 should be eliminated,
 		// because the probability of keeping the partition with 2 elements is negligible, ≈5.184e-179.
 		makeTripleWithFloatValueStartingFromKey(18, 2, 2, 0))

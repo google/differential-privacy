@@ -17,11 +17,13 @@
 package dpagg
 
 import (
+	"math"
 	"reflect"
 	"testing"
 
 	"github.com/google/differential-privacy/go/noise"
 	"github.com/google/go-cmp/cmp"
+	"github.com/grd/stat"
 )
 
 func TestNewCount(t *testing.T) {
@@ -531,6 +533,117 @@ func TestCountEquallyInitialized(t *testing.T) {
 	} {
 		if countEquallyInitialized(tc.count1, tc.count2) != tc.equal {
 			t.Errorf("countEquallyInitialized: when %v got %t, want %t", tc.desc, !tc.equal, tc.equal)
+		}
+	}
+}
+
+func TestCountIsUnbiased(t *testing.T) {
+	const numberOfSamples = 100000
+	for _, tc := range []struct {
+		opt      *CountOptions
+		rawCount int64
+		variance float64
+	}{
+		{
+			opt: &CountOptions{
+				Epsilon:                  ln3,
+				Delta:                    0.00001,
+				MaxPartitionsContributed: 1,
+				Noise:                    noise.Gaussian(),
+			},
+			rawCount: 0,
+			variance: 11.9, // approximated via a simulation
+		}, {
+			opt: &CountOptions{
+				Epsilon:                  2.0 * ln3,
+				Delta:                    0.00001,
+				MaxPartitionsContributed: 1,
+				Noise:                    noise.Gaussian(),
+			},
+			rawCount: 0,
+			variance: 3.5, // approximated via a simulation
+		}, {
+			opt: &CountOptions{
+				Epsilon:                  ln3,
+				Delta:                    0.01,
+				MaxPartitionsContributed: 1,
+				Noise:                    noise.Gaussian(),
+			},
+			rawCount: 0,
+			variance: 3.2, // approximated via a simulation
+		}, {
+			opt: &CountOptions{
+				Epsilon:                  ln3,
+				Delta:                    0.00001,
+				MaxPartitionsContributed: 25,
+				Noise:                    noise.Gaussian(),
+			},
+			rawCount: 0,
+			variance: 295.0, // approximated via a simulation
+		}, {
+			opt: &CountOptions{
+				Epsilon:                  ln3,
+				Delta:                    0.00001,
+				MaxPartitionsContributed: 1,
+				Noise:                    noise.Gaussian(),
+			},
+			rawCount: 3380636,
+			variance: 11.9, // approximated via a simulation
+		}, {
+			opt: &CountOptions{
+				Epsilon:                  ln3,
+				Delta:                    0.0,
+				MaxPartitionsContributed: 1,
+				Noise:                    noise.Laplace(),
+			},
+			rawCount: 0,
+			variance: 1.8, // approximated via a simulation
+		}, {
+			opt: &CountOptions{
+				Epsilon:                  2.0 * ln3,
+				Delta:                    0.0,
+				MaxPartitionsContributed: 1,
+				Noise:                    noise.Laplace(),
+			},
+			rawCount: 0,
+			variance: 0.5, // approximated via a simulation
+		}, {
+			opt: &CountOptions{
+				Epsilon:                  ln3,
+				Delta:                    0.0,
+				MaxPartitionsContributed: 25,
+				Noise:                    noise.Laplace(),
+			},
+			rawCount: 0,
+			variance: 1035.0, // approximated via a simulation
+		}, {
+			opt: &CountOptions{
+				Epsilon:                  ln3,
+				Delta:                    0.0,
+				MaxPartitionsContributed: 1,
+				Noise:                    noise.Laplace(),
+			},
+			rawCount: 3380636,
+			variance: 1.8, // approximated via a simulation
+		},
+	} {
+		countSamples := make(stat.IntSlice, numberOfSamples)
+		for i := 0; i < numberOfSamples; i++ {
+			count := NewCount(tc.opt)
+			count.IncrementBy(tc.rawCount)
+			countSamples[i] = count.Result()
+		}
+		sampleMean := stat.Mean(countSamples)
+		// Assuming that count is unbiased, each sample should have a mean of tc.rawCount
+		// and a variance of tc.variance. The resulting sampleMean is approximately Gaussian
+		// distributed with the same mean and a variance of tc.variance / numberOfSamples.
+		//
+		// The tolerance is set to the 99.9995% quantile of the anticipated distribution
+		// of sampleMean. Thus, the test falsely rejects with a probability of 10⁻⁵.
+		tolerance := 4.41717 * math.Sqrt(tc.variance/float64(numberOfSamples))
+
+		if math.Abs(sampleMean-float64(tc.rawCount)) > tolerance {
+			t.Errorf("got mean = %f, want %f (parameters %+v)", sampleMean, float64(tc.rawCount), tc)
 		}
 	}
 }

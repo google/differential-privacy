@@ -1,7 +1,4 @@
 
-
-<!-- This file is auto-generated. Do not edit. -->
-
 # Input and Output
 
 Our `Algorithm`s are templated by the input data type, and return output encoded

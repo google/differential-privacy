@@ -1,7 +1,4 @@
 
-
-<!-- This file is auto-generated. Do not edit. -->
-
 # Approx Bounds
 
 [`ApproxBounds`](https://github.com/google/differential-privacy/blob/main/cc/algorithms/approx-bounds.h) computes an

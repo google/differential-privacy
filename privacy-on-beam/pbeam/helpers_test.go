@@ -138,7 +138,7 @@ func makePairsWithFixedVStartingFromKey(kOffset, numKeys, v int) []pairII {
 	return s
 }
 
-// tripleWithIntValue contains a privacy unit ID, a partition ID, and an int value.
+// tripleWithIntValue contains a privacy ID, a partition ID, and an int value.
 type tripleWithIntValue struct {
 	ID        int
 	Partition int
@@ -197,7 +197,7 @@ func concatenateTriplesWithIntValue(slices ...[]tripleWithIntValue) []tripleWith
 	return t
 }
 
-// tripleWithFloatValue contains a privacy unit ID, a partition ID, and a float value.
+// tripleWithFloatValue contains a privacy ID, a partition ID, and a float value.
 type tripleWithFloatValue struct {
 	ID        int
 	Partition int

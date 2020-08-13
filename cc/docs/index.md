@@ -1,7 +1,4 @@
 
-
-<!-- This file is auto-generated. Do not edit. -->
-
 # Differential Privacy
 
 For a general introduction to differential privacy, check the
@@ -13,7 +10,7 @@ base class; you can find more details about the API there.
 Here's a minimal example showing how to compute the count of some data:
 
 ```
-#include "cc/algorithms/count.h"
+#include "algorithms/count.h"
 
 // Epsilon is a configurable parameter. A lower value means more privacy but
 // less accuracy.
@@ -39,4 +36,3 @@ double count(const vector<double>& vals, double epsilon) {
 All of our algorithms assume one input element per user. All of a user's
 contributions should be reduced to a single input element before being passed to
 our algorithms.
-
