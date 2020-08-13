@@ -209,7 +209,7 @@ class BoundedMean : public Algorithm<T> {
     return memory;
   }
 
- private:
+ protected:
   BoundedMean(const double epsilon, T lower, T upper,
               const double l0_sensitivity,
               const double max_contributions_per_partition,
