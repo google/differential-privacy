@@ -107,6 +107,8 @@ bool RunStochasticTester(std::string algorithm, double ratio, double num_dataset
   }
 }
 
+// Runs the Stochastic Tester on the specified algorithm for a continuous range
+// of ratios and sends the test results to an output file.
 
 void GetTestResults(std::ofstream& datafile, std::string algorithm,
   double num_datasets, double num_samples_per_histogram, double ratio_min,
@@ -126,7 +128,7 @@ void GetTestResults(std::ofstream& datafile, std::string algorithm,
       num_samples_per_histogram);
     num_tests++;
 
-    if (outcome == 0) { // correct outcome is false, e.g., DP predicate rejected 
+    if (outcome == 0) { 
       num_tests_passed++;
       maximum_ratio_passed = ratio;
     }
