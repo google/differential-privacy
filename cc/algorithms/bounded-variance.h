@@ -90,7 +90,7 @@ class BoundedVariance : public Algorithm<T> {
     }
 
    private:
-    base::StatusOr<std::unique_ptr<BoundedVariance<T>>> BuildAlgorithm()
+    base::StatusOr<std::unique_ptr<BoundedVariance<T>>> BuildBoundedAlgorithm()
         override {
       // Ensure that either bounds are manually set or ApproxBounds is made.
       RETURN_IF_ERROR(BoundedBuilder::BoundsSetup());
@@ -280,7 +280,7 @@ class BoundedVariance : public Algorithm<T> {
   BoundedVariance(const double epsilon, const T lower, const T upper,
                   const double l0_sensitivity,
                   const double max_contributions_per_partition,
-                  std::unique_ptr<LaplaceMechanism::Builder> mechanism_builder,
+                  std::unique_ptr<NumericalMechanismBuilder> mechanism_builder,
                   std::unique_ptr<NumericalMechanism> sum_mechanism,
                   std::unique_ptr<NumericalMechanism> sos_mechanism,
                   std::unique_ptr<NumericalMechanism> count_mechanism,
@@ -452,7 +452,7 @@ class BoundedVariance : public Algorithm<T> {
   }
 
   static base::StatusOr<std::unique_ptr<NumericalMechanism>> BuildSumMechanism(
-      std::unique_ptr<LaplaceMechanism::Builder> mechanism_builder,
+      std::unique_ptr<NumericalMechanismBuilder> mechanism_builder,
       const double epsilon, const double l0_sensitivity,
       const double max_contributions_per_partition, const T lower,
       const T upper) {
@@ -465,7 +465,7 @@ class BoundedVariance : public Algorithm<T> {
 
   static base::StatusOr<std::unique_ptr<NumericalMechanism>>
   BuildSumOfSquaresMechanism(
-      std::unique_ptr<LaplaceMechanism::Builder> mechanism_builder,
+      std::unique_ptr<NumericalMechanismBuilder> mechanism_builder,
       const double epsilon, const double l0_sensitivity,
       const double max_contributions_per_partition, const T lower,
       const T upper) {
@@ -483,7 +483,7 @@ class BoundedVariance : public Algorithm<T> {
   T lower_, upper_;
 
   // Used to construct mechanism once bounds are obtained.
-  std::unique_ptr<LaplaceMechanism::Builder> mechanism_builder_;
+  std::unique_ptr<NumericalMechanismBuilder> mechanism_builder_;
   const double l0_sensitivity_;
   const int max_contributions_per_partition_;
 

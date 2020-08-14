@@ -25,6 +25,7 @@
 #include "algorithms/util.h"
 #include "proto/confidence-interval.pb.h"
 #include "base/canonical_errors.h"
+#include "base/status_macros.h"
 
 // A set of classes for adding differentially private noise to numerical data.
 // Rather than sampling directly from the distribution, these classes allow
@@ -124,67 +125,52 @@ class NumericalMechanism {
 };
 
 // Provides a common abstraction for Builders for NumericalMechanism.
-template <class Mechanism, class Builder = typename Mechanism::Builder>
 class NumericalMechanismBuilder {
  public:
   virtual ~NumericalMechanismBuilder() = default;
 
-  NumericalMechanismBuilder<Mechanism, Builder>& SetEpsilon(double epsilon) {
+  NumericalMechanismBuilder& SetEpsilon(double epsilon) {
     epsilon_ = epsilon;
     return *this;
   }
 
-  NumericalMechanismBuilder<Mechanism, Builder>& SetDelta(double delta) {
+  NumericalMechanismBuilder& SetDelta(double delta) {
     delta_ = delta;
     return *this;
   }
 
-  NumericalMechanismBuilder<Mechanism, Builder>& SetL0Sensitivity(
-      double l0_sensitivity) {
+  NumericalMechanismBuilder& SetL0Sensitivity(double l0_sensitivity) {
     l0_sensitivity_ = l0_sensitivity;
     return *this;
   }
 
-  NumericalMechanismBuilder<Mechanism, Builder>& SetLInfSensitivity(
-      double linf_sensitivity) {
+  NumericalMechanismBuilder& SetLInfSensitivity(double linf_sensitivity) {
     linf_sensitivity_ = linf_sensitivity;
     return *this;
   }
 
   virtual base::StatusOr<std::unique_ptr<NumericalMechanism>> Build() = 0;
 
-  virtual std::unique_ptr<Builder> Clone() const = 0;
+  virtual std::unique_ptr<NumericalMechanismBuilder> Clone() const = 0;
 
  protected:
   // Checks if epsilon is set and valid to be used for building any of the
   // mechanisms.
-  base::Status EpsilonIsSetAndValid() {
-    if (!epsilon_.has_value()) {
-      return base::InvalidArgumentError("Epsilon has to be set.");
-    }
-    if (!std::isfinite(epsilon_.value())) {
+  base::Status EpsilonIsSetAndValid() const {
+    ASSIGN_OR_RETURN(double epsilon, ExistsAndIsFinite("Epsilon", epsilon_));
+    if (epsilon <= 0) {
       return base::InvalidArgumentError(
-          absl::StrCat("Epsilon has to be finite but is ", epsilon_.value()));
-    }
-    if (epsilon_.value() <= 0) {
-      return base::InvalidArgumentError(
-          absl::StrCat("Epsilon has to be positive but is ", epsilon_.value()));
+          absl::StrCat("Epsilon has to be positive but is ", epsilon));
     }
     return base::OkStatus();
   }
 
   // Checks if delta is set and valid to be used in the Gaussian mechanism.
-  base::Status DeltaIsSetAndValid() {
-    if (!delta_.has_value()) {
-      return base::InvalidArgumentError("Delta has to be set.");
-    }
-    if (!std::isfinite(delta_.value())) {
-      return base::InvalidArgumentError(
-          absl::StrCat("Delta has to be finite but is ", delta_.value()));
-    }
-    if (delta_.value() < 0 || 1 <= delta_.value()) {
+  base::Status DeltaIsSetAndValid() const {
+    ASSIGN_OR_RETURN(double delta, ExistsAndIsFinite("Delta", delta_));
+    if (delta <= 0 || 1 <= delta) {
       return base::InvalidArgumentError(absl::StrCat(
-          "Delta has to be in the interval [0,1) but is ", delta_.value()));
+          "Delta has to be in the interval (0, 1) but is ", delta));
     }
     return base::OkStatus();
   }
@@ -194,6 +180,18 @@ class NumericalMechanismBuilder {
   absl::optional<double> GetL0Sensitivity() const { return l0_sensitivity_; }
   absl::optional<double> GetLInfSensitivity() const {
     return linf_sensitivity_;
+  }
+
+  static base::StatusOr<double> ExistsAndIsFinite(absl::string_view name,
+                                                  absl::optional<double> opt) {
+    if (!opt.has_value()) {
+      return base::InvalidArgumentError(absl::StrCat(name, " has to be set."));
+    }
+    if (!std::isfinite(opt.value())) {
+      return base::InvalidArgumentError(
+          absl::StrCat(name, " has to be finite but is ", opt.value()));
+    }
+    return opt.value();
   }
 
  private:
@@ -208,7 +206,7 @@ class NumericalMechanismBuilder {
 class LaplaceMechanism : public NumericalMechanism {
  public:
   // Builder for LaplaceMechanism.
-  class Builder : public NumericalMechanismBuilder<LaplaceMechanism> {
+  class Builder : public NumericalMechanismBuilder {
    public:
     ABSL_DEPRECATED(
         "Set LInf and L0 sensitivity instead or use SetL1Sensitivity in tests")
@@ -222,24 +220,10 @@ class LaplaceMechanism : public NumericalMechanism {
     }
 
     base::StatusOr<std::unique_ptr<NumericalMechanism>> Build() override {
-      base::Status epsilon_status = EpsilonIsSetAndValid();
-      if (!epsilon_status.ok()) {
-        return epsilon_status;
-      }
-      // Check if L1 sensitivity is provided or make an estimate.
-      if (!l1_sensitivity_.has_value()) {
-        if (GetL0Sensitivity().has_value() &&
-            GetLInfSensitivity().has_value()) {
-          l1_sensitivity_ =
-              GetL0Sensitivity().value() * GetLInfSensitivity().value();
-        } else {
-          // Sensitivity of 1 has been the default previously.  This will only
-          // be set for LaplaceMechanism for backwards compatabability.
-          l1_sensitivity_ = 1;
-        }
-      }
+      RETURN_IF_ERROR(EpsilonIsSetAndValid());
+      ASSIGN_OR_RETURN(double L1, CalculateL1Sensitivity());
       // Check that generated noise is not likely to overflow.
-      double diversity = l1_sensitivity_.value() / GetEpsilon().value();
+      double diversity = L1 / GetEpsilon().value();
       double overflow_probability =
           (1 - internal::LaplaceDistribution::cdf(
                    diversity, std::numeric_limits<double>::max())) +
@@ -248,17 +232,16 @@ class LaplaceMechanism : public NumericalMechanism {
       if (overflow_probability >= kMaxOverflowProbability) {
         return base::InvalidArgumentError("Sensitivity is too high.");
       }
-      base::StatusOr<double> gran_or_status = internal::CalculateGranularity(
-          GetEpsilon().value(), l1_sensitivity_.value());
+      base::StatusOr<double> gran_or_status =
+          internal::CalculateGranularity(GetEpsilon().value(), L1);
       if (!gran_or_status.ok()) return gran_or_status.status();
 
       std::unique_ptr<NumericalMechanism> result =
-          absl::make_unique<LaplaceMechanism>(GetEpsilon().value(),
-                                             l1_sensitivity_.value());
+          absl::make_unique<LaplaceMechanism>(GetEpsilon().value(), L1);
       return result;
     }
 
-    std::unique_ptr<Builder> Clone() const override {
+    std::unique_ptr<NumericalMechanismBuilder> Clone() const override {
       return absl::make_unique<Builder>(*this);
     }
 
@@ -267,6 +250,31 @@ class LaplaceMechanism : public NumericalMechanism {
 
    private:
     absl::optional<double> l1_sensitivity_;
+
+    // Returns the l1 sensitivity when it has been set or returns an upper bound
+    // on the l1 sensitivity calculated from l0 and linf sensitivities.
+    base::StatusOr<double> CalculateL1Sensitivity() {
+      if (l1_sensitivity_.has_value()) {
+        return ExistsAndIsFinite("L1 sensitivity", l1_sensitivity_);
+      }
+      if (GetL0Sensitivity().has_value() && GetLInfSensitivity().has_value()) {
+        ASSIGN_OR_RETURN(
+            double l0, ExistsAndIsFinite("L0 sensitivity", GetL0Sensitivity()));
+        ASSIGN_OR_RETURN(double linf, ExistsAndIsFinite("LInf sensitivity",
+                                                        GetLInfSensitivity()));
+        double l1 = l0 * linf;
+        if (!std::isfinite(l1)) {
+          return base::InvalidArgumentError(absl::StrCat(
+              "The result of the L1 sensitivity calculation is not finite: ",
+              l1,
+              ". Please check your contribution and sensitivity settings."));
+        }
+        return l1;
+      }
+      // Sensitivity of 1 has been the default previously.  This will only
+      // be set for LaplaceMechanism for backwards compatibility.
+      return 1;
+    }
   };
 
   explicit LaplaceMechanism(double epsilon, double sensitivity = 1.0)
@@ -349,7 +357,7 @@ class LaplaceMechanism : public NumericalMechanism {
 
 class GaussianMechanism : public NumericalMechanism {
  public:
-  class Builder : public NumericalMechanismBuilder<GaussianMechanism> {
+  class Builder : public NumericalMechanismBuilder {
    public:
     Builder& SetL2Sensitivity(double l2_sensitivity) {
       l2_sensitivity_ = l2_sensitivity;
@@ -357,38 +365,48 @@ class GaussianMechanism : public NumericalMechanism {
     }
 
     base::StatusOr<std::unique_ptr<NumericalMechanism>> Build() override {
-      base::Status status = EpsilonIsSetAndValid();
-      status.Update(DeltaIsSetAndValid());
-      if (!l2_sensitivity_.has_value()) {
-        if (GetL0Sensitivity().has_value() &&
-            GetLInfSensitivity().has_value()) {
-          // Use an upper bound for the L2 sensitivity based on L1 and Linf
-          // sensitivity.
-          l2_sensitivity_ = std::sqrt(GetL0Sensitivity().value()) *
-                            GetLInfSensitivity().value();
-        } else {
-          status.Update(base::InvalidArgumentError(
-              "Gaussian Mechanism requires either L2 sensitivity or both, L0 "
-              "and LInf sensitivity to be set."));
-        }
-      }
-      if (!status.ok()) {
-        return status;
-      }
-
+      RETURN_IF_ERROR(EpsilonIsSetAndValid());
+      RETURN_IF_ERROR(DeltaIsSetAndValid());
+      ASSIGN_OR_RETURN(double l2, CalculateL2Sensitivity());
       std::unique_ptr<NumericalMechanism> result =
           absl::make_unique<GaussianMechanism>(GetEpsilon().value(),
-                                              GetDelta().value(),
-                                              l2_sensitivity_.value());
+                                              GetDelta().value(), l2);
       return result;
     }
 
-    std::unique_ptr<Builder> Clone() const override {
+    std::unique_ptr<NumericalMechanismBuilder> Clone() const override {
       return absl::make_unique<Builder>(*this);
     }
 
    protected:
     absl::optional<double> l2_sensitivity_;
+
+   private:
+    // Returns the l2 sensitivity when it has been set or returns an upper bound
+    // on the l2 sensitivity calculated from l0 and linf sensitivities.
+    base::StatusOr<double> CalculateL2Sensitivity() {
+      if (l2_sensitivity_.has_value()) {
+        return ExistsAndIsFinite("L2 sensitivity", l2_sensitivity_);
+      } else if (GetL0Sensitivity().has_value() &&
+                 GetLInfSensitivity().has_value()) {
+        // Try to calculate L2 sensitivity from L0 and LInf sensitivities
+        ASSIGN_OR_RETURN(
+            double l0, ExistsAndIsFinite("L0 sensitivity", GetL0Sensitivity()));
+        ASSIGN_OR_RETURN(double linf, ExistsAndIsFinite("LInf sensitivity",
+                                                        GetLInfSensitivity()));
+        double l2 = std::sqrt(l0) * linf;
+        if (!std::isfinite(l2)) {
+          return base::InvalidArgumentError(absl::StrCat(
+              "The result of the L2 sensitivity calculation is not finite: ",
+              l2,
+              ". Please check your contribution and sensitivity settings."));
+        }
+        return l2;
+      }
+      return base::InvalidArgumentError(
+          "Gaussian Mechanism requires either L2 sensitivity or both, L0 "
+          "and LInf sensitivity to be set.");
+    }
   };
 
   explicit GaussianMechanism(double epsilon, double delta,

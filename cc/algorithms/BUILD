@@ -267,6 +267,7 @@ cc_library(
     deps = [
         ":algorithm",
         ":numerical-mechanisms",
+        ":util",
         "//base:status",
         "@com_google_differential_privacy//proto:summary_cc_proto",
         "@com_google_protobuf//:cc_wkt_protos",
@@ -408,6 +409,7 @@ cc_library(
     deps = [
         ":algorithm",
         ":numerical-mechanisms",
+        ":util",
         "//base:status",
         "//proto:util-lib",
         "@com_google_protobuf//:cc_wkt_protos",

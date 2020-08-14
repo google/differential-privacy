@@ -117,7 +117,7 @@ public final class BoundedSumDpTest {
         .isTrue();
   }
 
-  private int getNumberOfVotesFromFile() {
+  private static int getNumberOfVotesFromFile() {
     return getTestCaseCollectionFromFile().getVotingParameters().getNumberOfVotes();
   }
 

@@ -46,11 +46,6 @@ class OrderStatisticsBuilder
   // Check numeric parameters and construct quantiles and mechanism. Called
   // only at build.
   base::Status ConstructDependencies() {
-    if (BoundedBuilder::GetUpper() < BoundedBuilder::GetLower()) {
-      return base::InvalidArgumentError(
-          "Upper bound cannot be less than lower bound.");
-    }
-
     std::unique_ptr<NumericalMechanism> has_to_be_laplace;
     ASSIGN_OR_RETURN(
         has_to_be_laplace,
@@ -90,7 +85,7 @@ class Max : public BinarySearch<T> {
     using OrderBuilder = OrderStatisticsBuilder<T, Max<T>, Builder>;
 
    private:
-    base::StatusOr<std::unique_ptr<Max<T>>> BuildAlgorithm() override {
+    base::StatusOr<std::unique_ptr<Max<T>>> BuildBoundedAlgorithm() override {
       RETURN_IF_ERROR(OrderBuilder::ConstructDependencies());
       return absl::WrapUnique(new Max(AlgorithmBuilder::GetEpsilon().value(),
                                       BoundedBuilder::GetLower().value(),
@@ -118,7 +113,7 @@ class Min : public BinarySearch<T> {
     using OrderBuilder = OrderStatisticsBuilder<T, Min<T>, Builder>;
 
    private:
-    base::StatusOr<std::unique_ptr<Min<T>>> BuildAlgorithm() override {
+    base::StatusOr<std::unique_ptr<Min<T>>> BuildBoundedAlgorithm() override {
       RETURN_IF_ERROR(OrderBuilder::ConstructDependencies());
       return absl::WrapUnique(new Min(AlgorithmBuilder::GetEpsilon().value(),
                                       BoundedBuilder::GetLower().value(),
@@ -146,7 +141,8 @@ class Median : public BinarySearch<T> {
     using OrderBuilder = OrderStatisticsBuilder<T, Median<T>, Builder>;
 
    private:
-    base::StatusOr<std::unique_ptr<Median<T>>> BuildAlgorithm() override {
+    base::StatusOr<std::unique_ptr<Median<T>>> BuildBoundedAlgorithm()
+        override {
       RETURN_IF_ERROR(OrderBuilder::ConstructDependencies());
       return absl::WrapUnique(new Median(AlgorithmBuilder::GetEpsilon().value(),
                                          BoundedBuilder::GetLower().value(),
@@ -180,7 +176,8 @@ class Percentile : public BinarySearch<T> {
     }
 
    private:
-    base::StatusOr<std::unique_ptr<Percentile<T>>> BuildAlgorithm() override {
+    base::StatusOr<std::unique_ptr<Percentile<T>>> BuildBoundedAlgorithm()
+        override {
       RETURN_IF_ERROR(OrderBuilder::ConstructDependencies());
       if (percentile_ < 0 || percentile_ > 1) {
         return base::InvalidArgumentError(

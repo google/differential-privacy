@@ -17,6 +17,7 @@
 package com.google.privacy.differentialprivacy.testing;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static java.lang.Math.max;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -128,7 +129,6 @@ public final class StatisticalTestsUtil {
         computeAproximateDpTestValue(histogramA, histogramB, epsilon, samplesA.length);
     double testValueB =
         computeAproximateDpTestValue(histogramB, histogramA, epsilon, samplesA.length);
-
     return testValueA < delta + deltaTolerance && testValueB < delta + deltaTolerance;
   }
 
@@ -159,8 +159,7 @@ public final class StatisticalTestsUtil {
       double sampleCountA = histogramA.get(sample);
       if (histogramB.containsKey(sample)) {
         double sampleCountB = histogramB.get(sample);
-        testValue +=
-            Math.max(0.0, (sampleCountA - Math.exp(epsilon) * sampleCountB) / numOfSamples);
+        testValue += max(0.0, (sampleCountA - Math.exp(epsilon) * sampleCountB) / numOfSamples);
       } else {
         testValue += sampleCountA / numOfSamples;
       }

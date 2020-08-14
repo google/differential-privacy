@@ -44,7 +44,7 @@ class ZeroNoiseMechanism : public LaplaceMechanism {
                                                GetL1Sensitivity().value_or(1)));
     }
 
-    std::unique_ptr<LaplaceMechanism::Builder> Clone() const override {
+    std::unique_ptr<NumericalMechanismBuilder> Clone() const override {
       return absl::make_unique<Builder>(*this);
     }
   };
@@ -143,7 +143,7 @@ class SeededLaplaceMechanism : public LaplaceMechanism {
                                                    sensitivity, rand_gen_));
     }
 
-    std::unique_ptr<LaplaceMechanism::Builder> Clone() const override {
+    std::unique_ptr<NumericalMechanismBuilder> Clone() const override {
       return absl::make_unique<Builder>(*this);
     }
 
@@ -184,7 +184,7 @@ class MockLaplaceMechanism : public LaplaceMechanism {
 
     MockLaplaceMechanism* mock() { return mock_.get(); }
 
-    std::unique_ptr<LaplaceMechanism::Builder> Clone() const override {
+    std::unique_ptr<NumericalMechanismBuilder> Clone() const override {
       return absl::make_unique<MockLaplaceMechanism::Builder>();
     }
 

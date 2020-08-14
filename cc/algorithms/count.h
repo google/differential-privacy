@@ -21,6 +21,7 @@
 #include "base/status.h"
 #include "algorithms/algorithm.h"
 #include "algorithms/numerical-mechanisms.h"
+#include "algorithms/util.h"
 #include "proto/summary.pb.h"
 #include "base/status_macros.h"
 
@@ -81,8 +82,8 @@ class Count : public Algorithm<T> {
   base::StatusOr<Output> GenerateResult(double privacy_budget,
                                         double noise_interval_level) override {
     Output output;
-    int64_t countWithNoise =
-        std::round(mechanism_->AddNoise(count_, privacy_budget));
+    int64_t countWithNoise = SafeCastFromDouble<int64_t>(
+        std::round(mechanism_->AddNoise(count_, privacy_budget)));
     AddToOutput<int64_t>(&output, countWithNoise);
 
     base::StatusOr<ConfidenceInterval> interval =

@@ -50,7 +50,7 @@ class BoundedAlgorithm : public Algorithm<T> {
     }
 
    private:
-    base::StatusOr<std::unique_ptr<BoundedAlgorithm<T>>> BuildAlgorithm()
+    base::StatusOr<std::unique_ptr<BoundedAlgorithm<T>>> BuildBoundedAlgorithm()
         override {
       RETURN_IF_ERROR(BoundedBuilder::BoundsSetup());
       return absl::WrapUnique(new BoundedAlgorithm());
