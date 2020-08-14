@@ -152,13 +152,16 @@ void GetTestResults(std::ofstream& datafile, std::string algorithm,
   } // namespace testing
 } // namespace differential_privacy
 
+// TODO: Make sure ratio_min and ratio_max cannot exceed 100
+
 int main(int argc, char *argv[]) {
 
-  double num_datasets = 15;
+  std::ofstream datafile;
+  int64_t num_datasets;
   double num_samples_per_histogram = 10;
   double ratio_min = 80.0;
   double ratio_max = 81.0;
-  std::ofstream datafile;
+
   std::vector<std::string> algorithms={"count","boundedsum","boundedmean"};
 
     if (argc >= 2) {
@@ -167,6 +170,14 @@ int main(int argc, char *argv[]) {
 
     else {
       datafile.open("stochastic_tester_results.txt");
+    }
+
+    if (argc >=3) {
+      num_datasets = argv[2];
+
+    }
+    else {
+      int num_datasets = 15;
     }
 
   datafile << "test_name,algorithm,expected,actual,ratio,num_datasets," <<
