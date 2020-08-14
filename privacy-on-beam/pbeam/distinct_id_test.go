@@ -452,16 +452,16 @@ func TestNewCountFn(t *testing.T) {
 		{"Laplace", noise.LaplaceNoise,
 			&countFn{
 				Epsilon:                  1,
-				DeltaNoise:               0,
-				DeltaThreshold:           1e-5,
+				NoiseDelta:               0,
+				ThresholdDelta:           1e-5,
 				MaxPartitionsContributed: 17,
 				NoiseKind:                noise.LaplaceNoise,
 			}},
 		{"Gaussian", noise.GaussianNoise,
 			&countFn{
 				Epsilon:                  1,
-				DeltaNoise:               5e-6,
-				DeltaThreshold:           5e-6,
+				NoiseDelta:               5e-6,
+				ThresholdDelta:           5e-6,
 				MaxPartitionsContributed: 17,
 				NoiseKind:                noise.GaussianNoise,
 			}},
@@ -493,9 +493,9 @@ func TestCountFnAddInput(t *testing.T) {
 	cf := countFn{
 		// Use ε=math.MaxFloat64 to deterministically not add any noise when calling ExtractOutput.
 		Epsilon:    math.MaxFloat64,
-		DeltaNoise: 0,
+		NoiseDelta: 0,
 		// Use δ=1 to make certain we do not threshold anything when calling ExtractOutput.
-		DeltaThreshold:           1,
+		ThresholdDelta:           1,
 		MaxPartitionsContributed: 1,
 		NoiseKind:                noise.LaplaceNoise,
 		noise:                    noise.Laplace(),
@@ -516,9 +516,9 @@ func TestCountFnMergeAccumulators(t *testing.T) {
 	cf := countFn{
 		// Use ε=math.MaxFloat64 to deterministically not add any noise when calling ExtractOutput.
 		Epsilon:    math.MaxFloat64,
-		DeltaNoise: 0,
+		NoiseDelta: 0,
 		// Use δ=1 to make certain we do not threshold anything when calling ExtractOutput.
-		DeltaThreshold:           1,
+		ThresholdDelta:           1,
 		MaxPartitionsContributed: 1,
 		NoiseKind:                noise.LaplaceNoise,
 		noise:                    noise.Laplace(),
@@ -545,8 +545,8 @@ func TestCountFnExtractOutputReturnsNilForSmallPartitions(t *testing.T) {
 	// The rawCount + laplaceTolerance is less than the threshold with flakiness of 10⁻²³ for chosen parameters: 10 + 48 < 420.
 	fn := countFn{
 		Epsilon:                  ln3,
-		DeltaNoise:               0,
-		DeltaThreshold:           1e-200,
+		NoiseDelta:               0,
+		ThresholdDelta:           1e-200,
 		MaxPartitionsContributed: 1,
 		NoiseKind:                noise.LaplaceNoise,
 	}
@@ -572,8 +572,8 @@ func TestCountFnExtractOutputDoesNotReturnNilIfPartitionsSpecified(t *testing.T)
 	// The rawCount + laplaceTolerance is less than the threshold with flakiness of 10⁻²³ for chosen parameters: 10 + 48 < 420.
 	fn := countFn{
 		Epsilon:                  ln3,
-		DeltaNoise:               0,
-		DeltaThreshold:           1e-200,
+		NoiseDelta:               0,
+		ThresholdDelta:           1e-200,
 		MaxPartitionsContributed: 1,
 		NoiseKind:                noise.LaplaceNoise,
 		PartitionsSpecified:      true,

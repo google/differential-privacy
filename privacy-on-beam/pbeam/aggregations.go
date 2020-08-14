@@ -281,9 +281,7 @@ func (fn *boundedSumInt64Fn) CreateAccumulator() boundedSumAccumInt64 {
 			Lower:                    fn.Lower,
 			Upper:                    fn.Upper,
 			Noise:                    fn.noise,
-		}),
-		PartitionsSpecified: fn.PartitionsSpecified,
-	}
+		}), PartitionsSpecified: fn.PartitionsSpecified}
 	if !fn.PartitionsSpecified {
 		accum.SP = dpagg.NewPreAggSelectPartition(&dpagg.PreAggSelectPartitionOptions{
 			Epsilon:                  fn.EpsilonPartitionSelection,
@@ -297,7 +295,7 @@ func (fn *boundedSumInt64Fn) CreateAccumulator() boundedSumAccumInt64 {
 func (fn *boundedSumInt64Fn) AddInput(a boundedSumAccumInt64, value int64) boundedSumAccumInt64 {
 	a.BS.Add(value)
 	if !fn.PartitionsSpecified{
-		a.SP.Add()
+		a.SP.Increment()
 	}
 	return a
 }
@@ -312,7 +310,7 @@ func (fn *boundedSumInt64Fn) MergeAccumulators(a, b boundedSumAccumInt64) bounde
 
 func (fn *boundedSumInt64Fn) ExtractOutput(a boundedSumAccumInt64) *int64 {
 	result := a.BS.Result()
-	if a.PartitionsSpecified || a.SP.Result() {
+	if a.PartitionsSpecified || a.SP.ShouldKeepPartition(){
 		return &result // Do not threshold.
 	} 
 	return nil
@@ -390,9 +388,7 @@ func (fn *boundedSumFloat64Fn) CreateAccumulator() boundedSumAccumFloat64 {
 			Lower:                    fn.Lower,
 			Upper:                    fn.Upper,
 			Noise:                    fn.noise,
-		}),
-		PartitionsSpecified: fn.PartitionsSpecified,
-	}
+		}), PartitionsSpecified: fn.PartitionsSpecified}
 	if !fn.PartitionsSpecified {
 		accum.SP = dpagg.NewPreAggSelectPartition(&dpagg.PreAggSelectPartitionOptions{
 			Epsilon:                  fn.EpsilonPartitionSelection,
@@ -406,7 +402,7 @@ func (fn *boundedSumFloat64Fn) CreateAccumulator() boundedSumAccumFloat64 {
 func (fn *boundedSumFloat64Fn) AddInput(a boundedSumAccumFloat64, value float64) boundedSumAccumFloat64 {
 	a.BS.Add(value)
 	if !fn.PartitionsSpecified{
-		a.SP.Add()
+		a.SP.Increment()
 	}
 	return a
 }
@@ -421,7 +417,7 @@ func (fn *boundedSumFloat64Fn) MergeAccumulators(a, b boundedSumAccumFloat64) bo
 
 func (fn *boundedSumFloat64Fn) ExtractOutput(a boundedSumAccumFloat64) *float64 {
 	result := a.BS.Result()
-	if a.PartitionsSpecified || a.SP.Result() {
+	if a.PartitionsSpecified || a.SP.ShouldKeepPartition() {
 		return &result
 	}
 	return nil

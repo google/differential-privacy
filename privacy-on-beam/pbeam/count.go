@@ -134,6 +134,28 @@ func Count(s beam.Scope, pcol PrivatePCollection, params CountParams) beam.PColl
 	return beam.ParDo(s, clampNegativePartitionsInt64Fn, counts)
 }
 
+func checkCountParams(params CountParams, epsilon, delta float64, noiseKind noise.Kind) error {
+	err := checks.CheckEpsilon("pbeam.Count", epsilon)
+	if err != nil {
+		return err
+	}
+	err = checks.CheckDeltaStrict("pbeam.Count", delta)
+	if (params.partitionsCol).IsValid() && noiseKind == noise.LaplaceNoise {
+		err = checks.CheckNoDelta("pbeam.Count", delta)
+	} 
+	if err != nil {
+		return err
+	 }
+	err = checks.CheckMaxPartitionsContributed("pbeam.Count", params.MaxPartitionsContributed)
+	if err != nil {
+		return err
+	}
+	if params.MaxValue <= 0 {
+		return fmt.Errorf("pbeam.Count: MaxValue should be strictly positive, got %d", params.MaxValue)
+	}
+	return nil
+}
+
 func addSpecifiedPartitionsForCount(s beam.Scope, epsilon, delta float64,
 	maxPartitionsContributed int64, params CountParams, noiseKind noise.Kind, countsKV beam.PCollection) beam.PCollection {
 	// Turn partitionsCol type PCollection<K> into PCollection<K, int64> by adding
@@ -148,25 +170,3 @@ func addSpecifiedPartitionsForCount(s beam.Scope, epsilon, delta float64,
 	return beam.ParDo(s, clampNegativePartitionsInt64Fn, finalPartitions)
 }
 
-func checkCountParams(params CountParams, epsilon, delta float64, noiseKind noise.Kind) error {
-	err := checks.CheckEpsilon("pbeam.Count", epsilon)
-	if err != nil {
-		return err
-	}
-	if (params.partitionsCol).IsValid() && noiseKind == noise.LaplaceNoise {
-		err = checks.CheckNoDelta("pbeam.Count", delta)
-	} else {
-		err = checks.CheckDeltaStrict("pbeam.Count", delta)
-	}
-	if err != nil {
-		return err
-	    }
-	err = checks.CheckMaxPartitionsContributed("pbeam.Count", params.MaxPartitionsContributed)
-	if err != nil {
-		return err
-	}
-	if params.MaxValue <= 0 {
-		return fmt.Errorf("pbeam.Count: MaxValue should be strictly positive, got %d", params.MaxValue)
-	}
-	return nil
-}

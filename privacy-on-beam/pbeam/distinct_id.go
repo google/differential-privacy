@@ -91,7 +91,7 @@ func DistinctPrivacyID(s beam.Scope, pcol PrivatePCollection, params DistinctPri
 	if err != nil {
 		log.Exitf("couldn't consume budget: %v", err)
 	}
-	err = checkDistinctPrivacyIDParams(params, noiseKind, epsilon, delta)
+	err = checkDistinctPrivacyIDParams(params, epsilon, delta, noiseKind)
 	if err != nil {
 		log.Exit(err)
 	}
@@ -140,18 +140,17 @@ func addSpecifiedPartitionsForDistinctId(s beam.Scope, params DistinctPrivacyIDP
 	return beam.ParDo(s, dereferenceValueToInt64, noisedCounts)
 }
 
-func checkDistinctPrivacyIDParams(params DistinctPrivacyIDParams, noiseKind noise.Kind, epsilon, delta float64) error {
+func checkDistinctPrivacyIDParams(params DistinctPrivacyIDParams, epsilon, delta float64, noiseKind noise.Kind) error {
 	err := checks.CheckEpsilon("pbeam.DistinctPrivacyID", epsilon)
 	if err != nil {
 		return err
 	}
+	err = checks.CheckDeltaStrict("pbeam.DistinctPrivacyID", delta)
 	if noiseKind == noise.LaplaceNoise {
 		err = checks.CheckDelta("pbeam.DistinctPrivacyID", delta)
 		if (params.partitionsCol).IsValid() {
 			err = checks.CheckNoDelta("pbeam.DistinctPrivacyID", delta)
 		}
-	} else {
-		err = checks.CheckDeltaStrict("pbeam.DistinctPrivacyID", delta)
 	}
 	if err != nil {
 		return err
@@ -167,8 +166,8 @@ func addOneValueFn(v beam.V) (beam.V, int64) {
 type countFn struct {
 	// Privacy spec parameters (set during initial construction).
 	Epsilon                  float64
-	DeltaNoise               float64
-	DeltaThreshold           float64
+	NoiseDelta               float64
+	ThresholdDelta           float64
 	MaxPartitionsContributed int64
 	NoiseKind                noise.Kind
 	noise                    noise.Noise // Set during Setup phase according to NoiseKind.
@@ -185,11 +184,11 @@ func newCountFn(epsilon, delta float64, maxPartitionsContributed int64, noiseKin
 	fn.Epsilon = epsilon
 	switch noiseKind {
 	case noise.GaussianNoise:
-		fn.DeltaNoise = delta / 2
-		fn.DeltaThreshold = delta / 2
+		fn.NoiseDelta = delta / 2
+		fn.ThresholdDelta = delta / 2
 	case noise.LaplaceNoise:
 		fn.DeltaNoise = 0
-		fn.DeltaThreshold = delta
+		fn.ThresholdDelta = delta
 	default:
 		log.Exitf("newCountFn: unknown NoiseKind (%v) is specified. Please specify a valid noise.", noiseKind)
 	}
@@ -206,15 +205,12 @@ type countAccum struct {
 }
 
 func (fn *countFn) CreateAccumulator() countAccum {
-	return countAccum{
-		C: dpagg.NewCount(&dpagg.CountOptions{
+	return countAccum{C: dpagg.NewCount(&dpagg.CountOptions{
 			Epsilon:                  fn.Epsilon,
 			Delta:                    fn.DeltaNoise,
 			MaxPartitionsContributed: fn.MaxPartitionsContributed,
 			Noise:                    fn.noise,
-		}),
-		PartitionsSpecified: fn.PartitionsSpecified,
-	}
+		}), PartitionsSpecified: fn.PartitionsSpecified}
 }
 
 // AddInput adds one to the count of observed values. It ignores the actual
@@ -234,7 +230,7 @@ func (fn *countFn) ExtractOutput(a countAccum) *int64 {
 		result := a.C.Result()
 		return &result
 	}
-	return a.C.ThresholdedResult(fn.DeltaThreshold)
+	return a.C.ThresholdedResult(fn.ThresholdDelta)
 }
 
 func (fn *countFn) String() string {

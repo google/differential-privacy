@@ -438,9 +438,7 @@ func (fn *boundedMeanFloat64Fn) CreateAccumulator() boundedMeanAccumFloat64 {
 			Lower:                        fn.Lower,
 			Upper:                        fn.Upper,
 			Noise:                        fn.noise,
-		}),
-		partitionsSpecified: fn.partitionsSpecified,
-	}
+		}), partitionsSpecified: fn.partitionsSpecified}
 	if !fn.partitionsSpecified {
 		accum.SP = dpagg.NewPreAggSelectPartition(&dpagg.PreAggSelectPartitionOptions{
 			Epsilon:                  fn.EpsilonPartitionSelection,
@@ -459,7 +457,7 @@ func (fn *boundedMeanFloat64Fn) AddInput(a boundedMeanAccumFloat64, values []flo
 		a.BM.Add(v)
 	}
 	if !fn.partitionsSpecified{
-		a.SP.Add()
+		a.SP.Increment()
 	}
 	return a
 }
@@ -473,7 +471,7 @@ func (fn *boundedMeanFloat64Fn) MergeAccumulators(a, b boundedMeanAccumFloat64) 
 }
 
 func (fn *boundedMeanFloat64Fn) ExtractOutput(a boundedMeanAccumFloat64) *float64 {
-	if a.partitionsSpecified || a.SP.Result() {
+	if a.partitionsSpecified || a.SP.ShouldKeepPartition() {
 		result := a.BM.Result()
 		return &result // Do not threshold.
 	}
