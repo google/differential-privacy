@@ -98,6 +98,7 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCo
 	// Get privacy parameters.
 	spec := pcol.privacySpec
 	epsilon, delta, err := spec.consumeBudget(params.Epsilon, params.Delta)
+	
 	if err != nil {
 		log.Exitf("couldn't consume budget: %v", err)
 	}
@@ -109,7 +110,7 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCo
 	} else {
 		noiseKind = params.NoiseKind.toNoiseKind()
 	}
-	err = checkSumPerKeyParams(params, epsilon, delta)
+	err = checkSumPerKeyParams(params, epsilon, delta, noiseKind)
 	if err != nil {
 		log.Exit(err)
 	}
@@ -121,7 +122,7 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCo
 			log.Exitf("Specified partitions must be of type %v. Got type %v instead.",
 				pcol.codec.KType.T, params.partitionsCol.Type().Type())
 		}
-		pcol.col = dropUnspecifiedPartitionsVFn(s, params.partitionsCol, pcol, pcol.codec.KType)
+		pcol.col = dropUnspecifiedPartitionsKVFn(s, params.partitionsCol, pcol, pcol.codec.KType)
 	}
 
 	// First, group together the privacy ID and the partition ID, and sum the
@@ -173,9 +174,10 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCo
 func addSpecifiedPartitionsForSum(s beam.Scope, epsilon, delta float64, maxPartitionsContributed int64, params SumParams, noiseKind noise.Kind, vKind reflect.Kind, partialSumKV beam.PCollection) beam.PCollection {
 	sums := beam.CombinePerKey(s,
 		newBoundedSumFn(epsilon, delta, maxPartitionsContributed, params.MinValue, params.MaxValue, noiseKind, vKind, true),
-		partialSumKV)
+	 	partialSumKV)
 	partitionT, _ := beam.ValidateKVType(sums)
-	sumsPartitions := beam.DropValue(s, sums)
+	dummySums := sums
+	sumsPartitions := beam.DropValue(s, dummySums)
 	// Create map with partitions in the data as keys. 
 	partitionMap := beam.Combine(s, newPartitionsMapFn(beam.EncodedType{partitionT.Type()}), sumsPartitions)
 	partitionsCol := params.partitionsCol
@@ -198,19 +200,15 @@ func addSpecifiedPartitionsForSum(s beam.Scope, epsilon, delta float64, maxParti
 	return allSums
 }
 
-func checkSumPerKeyParams(params SumParams, epsilon, delta float64) error {
+func checkSumPerKeyParams(params SumParams, epsilon, delta float64, noiseKind noise.Kind) error {
 	err := checks.CheckEpsilon("pbeam.SumPerKey", epsilon)
 	if err != nil {
 		return err
 	}
-	if (params.partitionsCol).IsValid() && params.NoiseKind.toNoiseKind() == noise.LaplaceNoise {
-		err = checks.CheckNoDelta("pbeam.SumPerKey", delta)
-	} else {
-		err = checks.CheckDeltaStrict("pbeam.SumPerKey", delta)
-		}
-	if err != nil {
-		return err
-	    }
+	err = checks.CheckDeltaStrict("pbeam.Count", delta)
+	if (params.partitionsCol).IsValid() && noiseKind == noise.LaplaceNoise {
+		err = checks.CheckNoDelta("pbeam.Count", delta)
+	} 
 	err = checks.CheckBoundsFloat64("pbeam.SumPerKey", params.MinValue, params.MaxValue)
 	if err != nil {
 		return err

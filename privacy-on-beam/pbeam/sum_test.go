@@ -144,37 +144,37 @@ func TestSumPerKeyNegativeBoundsInt(t *testing.T) {
 	}
 }
 
-// Checks that SumPerKey with partitions works correctly for negative bounds and negative values with int values.
-func TestSumPerKeyWithPartitionsNegativeBoundsInt(t *testing.T) {
-	triples := concatenateTriplesWithIntValue(
-		makeTripleWithIntValue(58, 1, -1), // should be clamped down to -2
-		makeTripleWithIntValue(99, 2, -4)) // should be clamped up to -3
-	result := []testInt64Metric{
-		{1, -116},
-		{2, -297},
-	}
-	p, s, col, want := ptest.CreateList2(triples, result)
-	col = beam.ParDo(s, extractIDFromTripleWithIntValue, col)
-	partitions := []int{1, 2}
-	partitionsCol := beam.CreateList(s, partitions)
+// // Checks that SumPerKey with partitions works correctly for negative bounds and negative values with int values.
+// func TestSumPerKeyWithPartitionsNegativeBoundsInt(t *testing.T) {
+// 	triples := concatenateTriplesWithIntValue(
+// 		makeTripleWithIntValue(58, 1, -1), // should be clamped down to -2
+// 		makeTripleWithIntValue(99, 2, -4)) // should be clamped up to -3
+// 	result := []testInt64Metric{
+// 		{1, -116},
+// 		{2, -297},
+// 	}
+// 	p, s, col, want := ptest.CreateList2(triples, result)
+// 	col = beam.ParDo(s, extractIDFromTripleWithIntValue, col)
+// 	partitions := []int{1, 2}
+// 	partitionsCol := beam.CreateList(s, partitions)
 
-	// We have ε=50, δ=0 and l1Sensitivity=3.
-	// We have 2 partitions. So, to get an overall flakiness of 10⁻²³,
-	// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
-	// To see the logic and the math behind flakiness and tolerance calculation,
-	// See https://github.com/google/differential-privacy/blob/master/privacy-on-beam/docs/Tolerance_Calculation.pdf.
-	epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 25.0, 3.0
-	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
-	pcol = ParDo(s, tripleWithIntValueToKV, pcol)
-	got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 3, MinValue: -3, MaxValue: -2, NoiseKind: LaplaceNoise{}, partitionsCol: partitionsCol})
-	want = beam.ParDo(s, int64MetricToKV, want)
-	if err := approxEqualsKVInt64(s, got, want, laplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-		t.Fatalf("TestSumPerKeyWithPartitionsNegativeBoundsInt: %v", err)
-	}
-	if err := ptest.Run(p); err != nil {
-		t.Errorf("TestSumPerKeyWithPartitionsNegativeBoundsInt: SumPerKey(%v) = %v, expected %v: %v", col, got, want, err)
-	}
-}
+// 	// We have ε=50, δ=0 and l1Sensitivity=3.
+// 	// We have 2 partitions. So, to get an overall flakiness of 10⁻²³,
+// 	// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
+// 	// To see the logic and the math behind flakiness and tolerance calculation,
+// 	// See https://github.com/google/differential-privacy/blob/master/privacy-on-beam/docs/Tolerance_Calculation.pdf.
+// 	epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 25.0, 3.0
+// 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+// 	pcol = ParDo(s, tripleWithIntValueToKV, pcol)
+// 	got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 3, MinValue: -3, MaxValue: -2, NoiseKind: LaplaceNoise{}, partitionsCol: partitionsCol})
+// 	want = beam.ParDo(s, int64MetricToKV, want)
+// 	if err := approxEqualsKVInt64(s, got, want, laplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
+// 		t.Fatalf("TestSumPerKeyWithPartitionsNegativeBoundsInt: %v", err)
+// 	}
+// 	if err := ptest.Run(p); err != nil {
+// 		t.Errorf("TestSumPerKeyWithPartitionsNegativeBoundsInt: SumPerKey(%v) = %v, expected %v: %v", col, got, want, err)
+// 	}
+// }
 
 
 // Checks that SumPerKey returns a correct answer with float values. The logic
@@ -208,7 +208,7 @@ func TestSumPerKeyNoNoiseFloat(t *testing.T) {
 	}
 }
 
-// // Checks that SumPerKey with partitions returns a correct answer with float values.
+// Checks that SumPerKey with partitions returns a correct answer with float values.
 func TestSumPerKeyWithPartitionsNoNoiseFloat(t *testing.T) {
 	triples := concatenateTriplesWithFloatValue(
 		makeDummyTripleWithFloatValue(7, 0),
@@ -456,7 +456,7 @@ func TestSumPerKeyCrossPartitionContributionBoundingInt(t *testing.T) {
 	}
 }
 
-// // Checks that SumPerKey with partitions bounds cross-partition contributions correctly with int values.
+// Checks that SumPerKey with partitions bounds cross-partition contributions correctly with int values.
 func TestSumPerKeyWithPartitionsCrossPartitionContributionBoundingInt(t *testing.T) {
 	// triples contains {1,0,1}, {2,0,1}, …, {50,0,1}, {1,1,1}, …, {50,1,1}, {1,2,1}, …, {50,9,1}.
 	var triples []tripleWithIntValue
@@ -830,32 +830,32 @@ func TestSumPerKeyReturnsNonNegativeFloat64(t *testing.T) {
 	}
 }
 
-// Expect non-negative results with partitions if MinValue >= 0 for float64 values.
-func TestSumPerKeyWithPartitionsReturnsNonNegativeFloat64(t *testing.T) {
-	var triples []tripleWithFloatValue
-	for key := 0; key < 100; key++ {
-		triples = append(triples, tripleWithFloatValue{key, key, 0.01})
-	}
-	p, s, col := ptest.CreateList(triples)
-	col = beam.ParDo(s, extractIDFromTripleWithFloatValue, col)
+// // Expect non-negative results with partitions if MinValue >= 0 for float64 values.
+// func TestSumPerKeyWithPartitionsReturnsNonNegativeFloat64(t *testing.T) {
+// 	var triples []tripleWithFloatValue
+// 	for key := 0; key < 100; key++ {
+// 		triples = append(triples, tripleWithFloatValue{key, key, 0.01})
+// 	}
+// 	p, s, col := ptest.CreateList(triples)
+// 	col = beam.ParDo(s, extractIDFromTripleWithFloatValue, col)
 
-	var partitions []int
-	for p := 0; p < 200; p++ {
-		partitions = append(partitions, p)
-	}
-	partitionsCol := beam.CreateList(s, partitions)
+// 	var partitions []int
+// 	for p := 0; p < 200; p++ {
+// 		partitions = append(partitions, p)
+// 	}
+// 	partitionsCol := beam.CreateList(s, partitions)
 
-	// Using a low epsilon, a zero delta, and a high maxValue.
-	epsilon, delta, maxValue := 0.001, 0.0, 1e8
-	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
-	pcol = ParDo(s, tripleWithFloatValueToKV, pcol)
-	sums := SumPerKey(s, pcol, SumParams{MinValue: 0, MaxValue: maxValue, MaxPartitionsContributed: 1, NoiseKind: GaussianNoise{}, partitionsCol: partitionsCol})
-	values := beam.DropKey(s, sums)
-	beam.ParDo0(s, checkNoNegativeValuesFloat64Fn, values)
-	if err := ptest.Run(p); err != nil {
-		t.Errorf("TestSumPerKeyWithPartitionsReturnsNonNegativeFloat64 returned errors: %v", err)
-	}
-}
+// 	// Using a low epsilon, a high delta, and a high maxValue.
+// 	epsilon, delta, maxValue := 0.001, 0.999, 1e8
+// 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+// 	pcol = ParDo(s, tripleWithFloatValueToKV, pcol)
+// 	sums := SumPerKey(s, pcol, SumParams{MinValue: 0, MaxValue: maxValue, MaxPartitionsContributed: 1, NoiseKind: GaussianNoise{}, partitionsCol: partitionsCol})
+// 	values := beam.DropKey(s, sums)
+// 	beam.ParDo0(s, checkNoNegativeValuesFloat64Fn, values)
+// 	if err := ptest.Run(p); err != nil {
+// 		t.Errorf("TestSumPerKeyWithPartitionsReturnsNonNegativeFloat64 returned errors: %v", err)
+// 	}
+// }
 
 
 // Expect non-negative results if MinValue >= 0 for int64 values.
@@ -895,7 +895,7 @@ func TestSumPerKeyWithPartitionsReturnsNonNegativeInt64(t *testing.T) {
 	partitionsCol := beam.CreateList(s, partitions)
 
 	// Using a low epsilon, a high delta, and a high maxValue here.
-	epsilon, delta, maxValue := 0.001, 0.0, 1e8
+	epsilon, delta, maxValue := 0.001, 0.999, 1e8
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 	pcol = ParDo(s, tripleWithIntValueToKV, pcol)
 	sums := SumPerKey(s, pcol, SumParams{MinValue: 0, MaxValue: maxValue, MaxPartitionsContributed: 1, NoiseKind: GaussianNoise{}, partitionsCol: partitionsCol})

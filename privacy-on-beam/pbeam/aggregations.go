@@ -248,6 +248,9 @@ func newBoundedSumInt64Fn(epsilon, delta float64, maxPartitionsContributed, lowe
 	if fn.PartitionsSpecified {
 		fn.EpsilonNoise = epsilon
 		fn.DeltaNoise = delta 
+		if noiseKind == noise.LaplaceNoise {
+			fn.DeltaNoise = 0
+		}
 		return fn
 	}
 	fn.EpsilonNoise = epsilon / 2
@@ -301,7 +304,9 @@ func (fn *boundedSumInt64Fn) AddInput(a boundedSumAccumInt64, value int64) bound
 
 func (fn *boundedSumInt64Fn) MergeAccumulators(a, b boundedSumAccumInt64) boundedSumAccumInt64 {
 	a.BS.Merge(b.BS)
-	a.SP.Merge(b.SP)
+	if !fn.PartitionsSpecified {
+		a.SP.Merge(b.SP)
+	}
 	return a
 }
 
@@ -352,6 +357,9 @@ func newBoundedSumFloat64Fn(epsilon, delta float64, maxPartitionsContributed int
 	if fn.PartitionsSpecified {
 		fn.EpsilonNoise = epsilon
 		fn.DeltaNoise = delta 
+		if noiseKind == noise.LaplaceNoise {
+			fn.DeltaNoise = 0
+		}
 		return fn
 	}
 	fn.EpsilonNoise = epsilon / 2
@@ -405,7 +413,9 @@ func (fn *boundedSumFloat64Fn) AddInput(a boundedSumAccumFloat64, value float64)
 
 func (fn *boundedSumFloat64Fn) MergeAccumulators(a, b boundedSumAccumFloat64) boundedSumAccumFloat64 {
 	a.BS.Merge(b.BS)
-	a.SP.Merge(b.SP)
+	if !fn.PartitionsSpecified{
+		a.SP.Merge(b.SP)
+	}
 	return a
 }
 
@@ -662,7 +672,7 @@ func (fn *emitPartitionsNotInTheDataFn) ProcessElement(partitionKey beam.X, valu
 	partitionsIter(&partitionMap)
 	if partitionMap != nil {
 		encodedPartitionKey := string(partitionBuf.Bytes())
-		if partitionMap[encodedPartitionKey] {
+		if !partitionMap[encodedPartitionKey] {
 			emit(partitionKey, value)
 		}
 	}
