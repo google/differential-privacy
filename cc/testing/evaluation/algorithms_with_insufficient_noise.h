@@ -64,7 +64,9 @@ class CountWithInsufficientNoise : public differential_privacy::Count<T> {
       .SetLInfSensitivity(1)
       .Build()
       .ValueOrDie()),
-      ratio_(ratio) {} 
+      ratio_(ratio) {}
+// Overrides epsilon such that amount of noise applied is only a fraction of
+// what privacy protection claimed 
   double GetEpsilon() const override { return Algorithm<T>::GetEpsilon()
     * ratio_; }
   private:
@@ -104,6 +106,8 @@ class MeanWithInsufficientNoise : public differential_privacy::BoundedMean<T> {
       .SetEpsilon(epsilon)
       .Build()
       .ValueOrDie(), nullptr), ratio_(ratio) {}
+// Overrides epsilon such that amount of noise applied is only a fraction of
+// what privacy protection claimed
     double GetEpsilon() const override { return Algorithm<T>::GetEpsilon()
      * ratio_; }
  private:
