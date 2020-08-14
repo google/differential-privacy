@@ -20,7 +20,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/google/differential-privacy/go/dpagg"
+	// "github.com/google/differential-privacy/go/dpagg"
 	"github.com/google/differential-privacy/go/noise"
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
@@ -455,33 +455,37 @@ func TestMeanPerKeyNoNoiseFloatValues(t *testing.T) {
 // Checks that MeanPerKey with partitions returns a correct answer for float input values.
 func TestMeanPerKeyWithPartitionsNoNoiseFloatValues(t *testing.T) {
 	triples := concatenateTriplesWithFloatValue(
-		makeTripleWithFloatValue(7, 0, 2.0),
-		makeTripleWithFloatValueStartingFromKey(7, 100, 1, 1.3),
-		makeTripleWithFloatValueStartingFromKey(107, 150, 1, 2.5))
+		makeTripleWithFloatValue(7, 0, 2),
+		makeTripleWithFloatValueStartingFromKey(7, 100, 1, 1),
+		makeTripleWithFloatValueStartingFromKey(107, 150, 1, 2))
 
-	exactCount := 250.0
-	exactMean := (1.3*100 + 2.5*150) / exactCount
+	exactCount0 :=  7.0
+	exactMean0 := 14.0/exactCount0
+	exactCount := 250.0 
+	exactMean := (100.0 + 2.0*150.0) / exactCount
 	result := []testFloat64Metric{
+		{0, exactMean0},
 		{1, exactMean},
 	}
+
 	p, s, col, want := ptest.CreateList2(triples, result)
 	col = beam.ParDo(s, extractIDFromTripleWithFloatValue, col)
 
 	partitions := []int{0, 1}
 	partitionsCol := beam.CreateList(s, partitions)
 
-	// We have ε=50, δ=0 and l0Sensitivity=1. No thresholding is done because partitions are specified
+	// We have ε=50, δ=0 and l0Sensitivity=1. No thresholding is done because partitions are specified.
 	// We have 2 partitions. So, to get an overall flakiness of 10⁻²³,
 	// we can have each partition fail with 10⁻²⁵ probability (k=25).
 	maxContributionsPerPartition := int64(1)
 	maxPartitionsContributed := int64(1)
-	epsilon := 50.0
+	epsilon := 100.0
 	delta := 0.0
 	lower := 1.0
 	upper := 3.0
 
-	// ε is split by 2 for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
-	pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
+	// ε is not split because partitions are specified.
+	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 	pcol = ParDo(s, tripleWithFloatValueToKV, pcol)
 	got := MeanPerKey(s, pcol, MeanParams{
 		MaxPartitionsContributed:     maxPartitionsContributed,
