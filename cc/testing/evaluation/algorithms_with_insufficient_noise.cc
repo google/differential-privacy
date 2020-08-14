@@ -111,17 +111,17 @@ bool RunStochasticTester(std::string algorithm, double ratio, int num_datasets,
 // of ratios and sends the test results to an output file.
 
 void GetTestResults(std::ofstream& datafile, std::string algorithm,
-  int num_datasets, int num_samples_per_histogram, double ratio_min,
-  double ratio_max) {
+  int num_datasets, int num_samples_per_histogram, int ratio_min,
+  int ratio_max) {
 
   double num_tests = 0;
   double num_tests_passed = 0;
   double maximum_ratio_passed = 0;
   auto start = std::chrono::high_resolution_clock::now();
 
-  for (double i=ratio_min; i<=ratio_max; i++) {
+  for (int i=ratio_min; i<=ratio_max; i++) {
     auto start_test_run = std::chrono::high_resolution_clock::now();
-    double ratio = i/100.0;
+    double ratio = static_cast<double>(i)/100.0;
     std::cout << "Now calculating " << algorithm << " algorithm with ratio: " << 
       ratio << std::endl;
     bool outcome = RunStochasticTester(algorithm, ratio, num_datasets,
