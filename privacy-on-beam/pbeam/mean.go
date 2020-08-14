@@ -404,8 +404,8 @@ func newBoundedMeanFloat64Fn(epsilon, delta float64, maxPartitionsContributed, m
 		partitionsSpecified:          partitionsSpecified,
 	}
 	if fn.partitionsSpecified {
-		fn.EpsilonNoise = epsilon
-		fn.DeltaNoise = delta 
+		fn.NoiseEpsilon = epsilon
+		fn.NoiseDelta = delta 
 		return fn
 	}
 	fn.NoiseEpsilon = epsilon / 2

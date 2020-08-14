@@ -207,7 +207,7 @@ type countAccum struct {
 func (fn *countFn) CreateAccumulator() countAccum {
 	return countAccum{C: dpagg.NewCount(&dpagg.CountOptions{
 			Epsilon:                  fn.Epsilon,
-			Delta:                    fn.DeltaNoise,
+			Delta:                    fn.NoiseDelta,
 			MaxPartitionsContributed: fn.MaxPartitionsContributed,
 			Noise:                    fn.noise,
 		}), PartitionsSpecified: fn.PartitionsSpecified}

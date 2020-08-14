@@ -247,10 +247,10 @@ func newBoundedSumInt64Fn(epsilon, delta float64, maxPartitionsContributed, lowe
 		PartitionsSpecified:      partitionsSpecified,
 	}
 	if fn.PartitionsSpecified {
-		fn.EpsilonNoise = epsilon
-		fn.DeltaNoise = delta 
+		fn.NoiseEpsilon = epsilon
+		fn.NoiseDelta = delta 
 		if noiseKind == noise.LaplaceNoise {
-			fn.DeltaNoise = 0
+			fn.NoiseDelta = 0
 		}
 		return fn
 	}
@@ -354,10 +354,10 @@ func newBoundedSumFloat64Fn(epsilon, delta float64, maxPartitionsContributed int
 		PartitionsSpecified:      partitionsSpecified,
 	}
 	if fn.PartitionsSpecified {
-		fn.EpsilonNoise = epsilon
-		fn.DeltaNoise = delta 
+		fn.NoiseEpsilon = epsilon
+		fn.NoiseDelta = delta 
 		if noiseKind == noise.LaplaceNoise {
-			fn.DeltaNoise = 0
+			fn.NoiseDelta = 0
 		}
 		return fn
 	}
