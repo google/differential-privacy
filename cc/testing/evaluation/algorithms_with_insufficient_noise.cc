@@ -50,8 +50,8 @@ namespace testing {
 // BoundedSum, and BoundedMean) in which the privacy protection claimed exceeds 
 // the amount of noise applied. Sends results of each run to an output file.
 
-bool RunStochasticTester(std::string algorithm, double ratio, double num_datasets,
-  double num_samples_per_histogram) {
+bool RunStochasticTester(std::string algorithm, double ratio, int num_datasets,
+  int num_samples_per_histogram) {
 
   auto sequence = absl::make_unique<HaltonSequence<double>>(
     DefaultDatasetSize(), true, DefaultDataScale(), DefaultDataOffset());
@@ -111,7 +111,7 @@ bool RunStochasticTester(std::string algorithm, double ratio, double num_dataset
 // of ratios and sends the test results to an output file.
 
 void GetTestResults(std::ofstream& datafile, std::string algorithm,
-  double num_datasets, double num_samples_per_histogram, double ratio_min,
+  int num_datasets, int num_samples_per_histogram, double ratio_min,
   double ratio_max) {
 
   double num_tests = 0;
