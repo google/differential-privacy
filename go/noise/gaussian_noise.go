@@ -137,9 +137,9 @@ func (gaussian) computeConfidenceIntervalInt64(noisedX, l0Sensitivity, lInfSensi
 // computeConfidenceIntervalFloat64 computes a confidence interval that contains the raw value x from which float64
 // noisedX is computed with a probability equal to 1 - alpha based on the specified gaussian noise parameters.
 func (gaussian) computeConfidenceIntervalFloat64(noisedX float64, l0Sensitivity int64, lInfSensitivity, epsilon, delta, alpha float64) (ConfidenceInterval, error) {
-	if err := checkArgsConfidenceIntervalGaussian("GaussianNoiseInterval", l0Sensitivity, lInfSensitivity, epsilon, delta,
+	if err := checkArgsConfidenceIntervalGaussian("computeConfidenceIntervalFloat64", l0Sensitivity, lInfSensitivity, epsilon, delta,
 		alpha); err != nil {
-		err = fmt.Errorf("confInt.GaussianNoiseInterval( l0sensitivity %d, lInfSensitivity %f, epsilon %f, delta %e, alpha %f) checks failed with %v",
+		err = fmt.Errorf("computeConfidenceIntervalFloat64(l0sensitivity %d, lInfSensitivity %f, epsilon %f, delta %e, alpha %f) checks failed with %v",
 			l0Sensitivity, lInfSensitivity, epsilon, delta, alpha, err)
 		return ConfidenceInterval{}, err
 	}
@@ -182,7 +182,7 @@ func addGaussian(x, sigma float64) float64 {
 }
 
 // computeConfidenceIntervalGaussian computes a confidence interval that contains the raw value x from which
-// float64 noisedX is computed with a probability equal to 1 - alpha with the given sigma
+// float64 noisedX is computed with a probability equal to 1 - alpha with the given sigma.
 func computeConfidenceIntervalGaussian(noisedX, sigma, alpha float64) ConfidenceInterval {
 	z := inverseCDFGaussian(sigma, alpha/2)
 	FloatLowerBound := noisedX + z
@@ -193,7 +193,7 @@ func computeConfidenceIntervalGaussian(noisedX, sigma, alpha float64) Confidence
 }
 
 // inverseCDFGaussian computes the quantile z satisfying Pr[Y <= z] = p for a random variable Y that is Gaussian
-// distributed with the specified sigma
+// distributed with the specified sigma.
 func inverseCDFGaussian(sigma, p float64) float64 {
 	return -sigma * math.Sqrt(2) * math.Erfcinv(2.00*p)
 }
