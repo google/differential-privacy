@@ -402,10 +402,8 @@ func TestDropUnspecifiedPartitionsFloat(t *testing.T) {
 
 	_, s, col, col2 := ptest.CreateList2(triples, result)
 
-	// Doesn't matter that the values 2, 3, 4, 5, 6, 7
-	// are in the partitions PCollection because we are
-	// just dropping the values that are in our original PCollection
-	// that are not specified.
+	// Doesn't matter that the values 2, 3, 4, 5, 6, 7 are in the partitions PCollection.
+	// We are just dropping the values that are in our original PCollection that are not specified.
 	partitionsCol := beam.CreateList(s, []int{0, 2, 3, 4, 5, 6, 7})
 	col = beam.ParDo(s, extractIDFromTripleWithFloatValue, col)
 	col2 = beam.ParDo(s, extractIDFromTripleWithFloatValue, col2)
