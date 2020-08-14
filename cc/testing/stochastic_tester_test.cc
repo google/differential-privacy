@@ -137,7 +137,7 @@ class CountNoDpError : public Count<T> {
 
   base::StatusOr<Output> GenerateResult(double privacy_budget,
                                         double noise_interval_level) override {
-    if (Count<T>::count_ == 0) {
+    if (Count<T>::GetCount() == 0) {
       return base::InvalidArgumentError("CountNoDpError returns error.");
     }
     return Count<T>::GenerateResult(privacy_budget, noise_interval_level);
@@ -178,7 +178,7 @@ TEST(StochasticTesterTest, SingleDatasetBoundedSumTest) {
       BoundedSum<double>::Builder()
           .SetLaplaceMechanism(
               absl::make_unique<test_utils::SeededLaplaceMechanism::Builder>())
-          .SetEpsilon(DefaultEpsilon())
+          .SetEpsilon(std::log(3))
           .SetLower(sequence->RangeMin())
           .SetUpper(sequence->RangeMax())
           .Build()
@@ -207,7 +207,7 @@ TEST(StochasticTesterTest, SingleDatasetCountTest) {
       Count<double>::Builder()
           .SetLaplaceMechanism(
               absl::make_unique<test_utils::SeededLaplaceMechanism::Builder>())
-          .SetEpsilon(DefaultEpsilon())
+          .SetEpsilon(std::log(3))
           .Build()
           .ValueOrDie();
   StochasticTester<double, int64_t> tester(
@@ -233,7 +233,7 @@ TEST(StochasticTesterTest, SingleDatasetCountNoBranchingTest) {
       Count<double>::Builder()
           .SetLaplaceMechanism(
               absl::make_unique<test_utils::SeededLaplaceMechanism::Builder>())
-          .SetEpsilon(DefaultEpsilon())
+          .SetEpsilon(std::log(3))
           .Build()
           .ValueOrDie();
   StochasticTester<double, int64_t> tester(
@@ -262,7 +262,7 @@ TEST(StochasticTesterTest, MultipleDatasetBoundedSumTest) {
       BoundedSum<double>::Builder()
           .SetLaplaceMechanism(
               absl::make_unique<test_utils::SeededLaplaceMechanism::Builder>())
-          .SetEpsilon(DefaultEpsilon())
+          .SetEpsilon(std::log(3))
           .SetLower(sequence->RangeMin())
           .SetUpper(sequence->RangeMax())
           .Build()
@@ -277,7 +277,7 @@ TEST(StochasticTesterTest, MultipleDatasetBoundedSumWithInsufficientNoiseTest) {
       DefaultDatasetSize(), /*sorted_only=*/true, DefaultDataScale(),
       DefaultDataOffset());
   auto algorithm = absl::make_unique<BoundedSumWithInsufficientNoise<double>>(
-      DefaultEpsilon(), sequence->RangeMin(), sequence->RangeMax(),
+      std::log(3), sequence->RangeMin(), sequence->RangeMax(),
       absl::make_unique<test_utils::SeededLaplaceMechanism::Builder>());
   StochasticTester<double> tester(std::move(algorithm), std::move(sequence));
   EXPECT_FALSE(tester.Run());
@@ -288,7 +288,7 @@ TEST(StochasticTesterTest, ReplaceErrorWithValue) {
       DefaultDatasetSize(), /*sorted_only=*/true, DefaultDataScale(),
       DefaultDataOffset());
   auto algorithm = absl::make_unique<BoundedSumWithError<double>>(
-      DefaultEpsilon(), sequence->RangeMin(), sequence->RangeMax(),
+      std::log(3), sequence->RangeMin(), sequence->RangeMax(),
       absl::make_unique<test_utils::SeededLaplaceMechanism::Builder>());
   StochasticTester<double> tester(std::move(algorithm), std::move(sequence));
   EXPECT_TRUE(tester.Run());
@@ -299,7 +299,7 @@ TEST(StochasticTesterTest, ErrorStatusWithoutDP) {
   auto sequence = absl::make_unique<HaltonSequence<int64_t>>(
       DefaultDatasetSize(), /*sorted_only=*/true, DefaultDataScale(),
       DefaultDataOffset());
-  auto algorithm = absl::make_unique<CountNoDpError<int64_t>>(DefaultEpsilon());
+  auto algorithm = absl::make_unique<CountNoDpError<int64_t>>(std::log(3));
   StochasticTester<int64_t> tester(std::move(algorithm), std::move(sequence));
   EXPECT_FALSE(tester.Run());
 }

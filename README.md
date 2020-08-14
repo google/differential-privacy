@@ -25,13 +25,13 @@ All of these algorithms are suitable for research, experimental or production
 use cases.
 
 This project also contains:
-* A [stochastic tester](https://github.com/google/differential-privacy/tree/master/cc/testing),
+* A [stochastic tester](https://github.com/google/differential-privacy/tree/main/cc/testing),
 used to help catch regressions that could make the differential privacy
 property no longer hold.
-* [Privacy on Beam](https://github.com/google/differential-privacy/tree/master/privacy-on-beam) -
+* [Privacy on Beam](https://github.com/google/differential-privacy/tree/main/privacy-on-beam) -
 an end-to-end differential privacy solution built on [Apache Beam](https://beam.apache.org/documentation/)
 and Go differential privacy library.
-* [Tools for tracking privacy budget.](https://github.com/google/differential-privacy/tree/master/accounting)
+* [Tools for tracking privacy budget.](https://github.com/google/differential-privacy/tree/main/accounting)
 
 ## How to Build
 

@@ -27,10 +27,18 @@ import (
 )
 
 // BoundedSumInt64 calculates a differentially private sum of a collection of
-// int64 values. It supports scaling the noise in the case where users can
-// contribute to multiple partitions (via the MaxPartitionsContributed parameter), but it
-// assumes that in each BoundedSum instance (partition), each user contributes
-// at most one value.
+// int64 values. It supports privacy units that contribute to multiple partitions
+// (via the MaxPartitionsContributed parameter) by scaling the added noise
+// appropriately. However, it assumes that for each BoundedSumInt64 instance
+// (partition), each privacy unit contributes at most one value. If a privacy unit
+// contributes more, the contributions should be pre-aggregated before passing them
+// to BoundedSumInt64.
+//
+// The provided differentially private sum is an unbiased estimate of the raw
+// bounded sum in the sense that its expected value is equal to the raw bounded sum.
+//
+// For general details and key definitions, see
+// https://github.com/google/differential-privacy/blob/main/differential_privacy.md#key-definitions.
 //
 // Note: Do not use when your results may cause overflows for int64
 // values. This aggregation is not hardened for such applications yet.
@@ -64,13 +72,13 @@ func bsEquallyInitializedint64(s1, s2 *BoundedSumInt64) bool {
 
 // BoundedSumInt64Options contains the options necessary to initialize a BoundedSumInt64.
 type BoundedSumInt64Options struct {
-	Epsilon                  float64     // Privacy parameter ε. Required.
-	Delta                    float64     // Privacy parameter δ. Required with Gaussian noise, must be 0 with Laplace noise.
-	MaxPartitionsContributed int64       // How many distinct partitions may a single user contribute to? Defaults to 1.
+	Epsilon                  float64 // Privacy parameter ε. Required.
+	Delta                    float64 // Privacy parameter δ. Required with Gaussian noise, must be 0 with Laplace noise.
+	MaxPartitionsContributed int64   // How many distinct partitions may a single privacy unit contribute to? Defaults to 1.
 	// Lower and Upper bounds for clamping. Default to 0; must be such that Lower < Upper.
-	Lower, Upper						 int64
-	Noise                    noise.Noise // Type of noise used in BoundedSum. Defaults to Laplace noise.
-	// How many times may a single user contribute to a single partition?
+	Lower, Upper int64
+	Noise        noise.Noise // Type of noise used in BoundedSum. Defaults to Laplace noise.
+	// How many times may a single privacy unit contribute to a single partition?
 	// Defaults to 1. This is only needed for other aggregation functions using BoundedSum;
 	// which is why the option is not exported.
 	maxContributionsPerPartition int64
@@ -207,9 +215,17 @@ func checkMergeBoundedSumInt64(bs1, bs2 *BoundedSumInt64) error {
 	return nil
 }
 
-// Result returns a differentially private version of the clamped sum of
-// elements added so far. It can be called only once, after which no further
-// operation can be done on the BoundedSumInt64.
+// Result returns a differentially private estimate of the sum of bounded
+// elements added so far. The method can be called only once.
+//
+// The returned value is an unbiased estimate of the raw bounded sum.
+//
+// The returned value may sometimes be outside the set of possible raw bounded
+// sums, e.g., the differentially private bounded sum may be positive although
+// neither the lower nor the upper bound are positive. This can be corrected
+// by the caller of this method, e.g., by snapping the result to the closest
+// value representing a bounded sum that is possible. Note that such post
+// processing introduces bias to the result.
 func (bs *BoundedSumInt64) Result() int64 {
 	if bs.resultReturned {
 		// TODO: do not exit the program from within library code
@@ -222,8 +238,8 @@ func (bs *BoundedSumInt64) Result() int64 {
 // ThresholdedResult is similar to Result() but applies thresholding to the
 // result. So, if the result is less than the threshold specified by the noise
 // mechanism, it returns nil. Otherwise, it returns the result.
-func (bs *BoundedSumInt64) ThresholdedResult(deltaThreshold float64) *int64 {
-	threshold := bs.noise.Threshold(bs.l0Sensitivity, float64(bs.lInfSensitivity), bs.epsilon, bs.delta, deltaThreshold)
+func (bs *BoundedSumInt64) ThresholdedResult(thresholdDelta float64) *int64 {
+	threshold := bs.noise.Threshold(bs.l0Sensitivity, float64(bs.lInfSensitivity), bs.epsilon, bs.delta, thresholdDelta)
 	result := bs.Result()
 	// To make sure floating-point rounding doesn't break DP guarantees, we err on
 	// the side of dropping the result if it is exactly equal to the threshold.
@@ -287,13 +303,18 @@ func (bs *BoundedSumInt64) GobDecode(data []byte) error {
 }
 
 // BoundedSumFloat64 calculates a differentially private sum of a collection of
-// float64 values. It supports scaling the noise in the case where users can
-// contribute to multiple partitions (via the MaxPartitionsContributed parameter), but it
-// assumes that in each BoundedSum instance (i.e., partition), each user contributes
-// at most one value.
+// float64 values. It supports privacy units that contribute to multiple partitions
+// (via the MaxPartitionsContributed parameter) by scaling the added noise
+// appropriately. However, it assumes that for each BoundedSumFloat64 instance
+// (partition), each privacy unit contributes at most one value. If a privacy unit
+// contributes more, the contributions should be pre-aggregated before passing them
+// to BoundedSumFloat64.
 //
-// Note: Do not use when your results may cause overflows for float64
-// values. This aggregation is not hardened for such applications yet.
+// The provided differentially private sum is an unbiased estimate of the raw
+// bounded sum meaning that its expected value is equal to the raw bounded sum.
+//
+// For general details and key definitions, see
+// https://github.com/google/differential-privacy/blob/main/differential_privacy.md#key-definitions,
 //
 // Not thread-safe.
 type BoundedSumFloat64 struct {
@@ -324,13 +345,13 @@ func bsEquallyInitializedFloat64(s1, s2 *BoundedSumFloat64) bool {
 
 // BoundedSumFloat64Options contains the options necessary to initialize a BoundedSumFloat64.
 type BoundedSumFloat64Options struct {
-	Epsilon                  float64     // Privacy parameter ε. Required.
-	Delta                    float64     // Privacy parameter δ. Required with Gaussian noise, must be 0 with Laplace noise.
-	MaxPartitionsContributed int64       // How many distinct partitions may a single user contribute to? Defaults to 1.
+	Epsilon                  float64 // Privacy parameter ε. Required.
+	Delta                    float64 // Privacy parameter δ. Required with Gaussian noise, must be 0 with Laplace noise.
+	MaxPartitionsContributed int64   // How many distinct partitions may a single privacy unit contribute to? Defaults to 1.
 	// Lower and Upper bounds for clamping. Default to 0; must be such that Lower < Upper.
-	Lower, Upper             float64
-	Noise                    noise.Noise // Type of noise used in BoundedSum. Defaults to Laplace noise.
-	// How many times may a single user contribute to a single partition?
+	Lower, Upper float64
+	Noise        noise.Noise // Type of noise used in BoundedSum. Defaults to Laplace noise.
+	// How many times may a single privacy unit contribute to a single partition?
 	// Defaults to 1. This is only needed for other aggregation functions using BoundedSum;
 	// which is why the option is not exported.
 	maxContributionsPerPartition int64
@@ -464,9 +485,17 @@ func checkMergeBoundedSumFloat64(bs1, bs2 *BoundedSumFloat64) error {
 	return nil
 }
 
-// Result returns a differentially private version of the clamped sum of
-// elements added so far. It can be called only once, after which no further
-// operation can be done on the BoundedSumFloat64.
+// Result returns a differentially private estimate of the sum of bounded
+// elements added so far. The method can be called only once.
+//
+// The returned value is an unbiased estimate of the raw bounded sum.
+//
+// The returned value may sometimes be outside the set of possible raw bounded
+// sums, e.g., the differentially private bounded sum may be positive although
+// neither the lower nor the upper bound are positive. This can be corrected
+// by the caller of this method, e.g., by snapping the result to the closest
+// value representing a bounded sum that is possible. Note that such post
+// processing introduces bias to the result.
 func (bs *BoundedSumFloat64) Result() float64 {
 	if bs.resultReturned {
 		// TODO: do not exit the program from within library code
@@ -479,8 +508,8 @@ func (bs *BoundedSumFloat64) Result() float64 {
 // ThresholdedResult is similar to Result() but applies thresholding to the
 // result. So, if the result is less than the threshold specified by the noise,
 // mechanism, it returns nil. Otherwise, it returns the result.
-func (bs *BoundedSumFloat64) ThresholdedResult(deltaThreshold float64) *float64 {
-	threshold := bs.noise.Threshold(bs.l0Sensitivity, bs.lInfSensitivity, bs.epsilon, bs.delta, deltaThreshold)
+func (bs *BoundedSumFloat64) ThresholdedResult(thresholdDela float64) *float64 {
+	threshold := bs.noise.Threshold(bs.l0Sensitivity, bs.lInfSensitivity, bs.epsilon, bs.delta, thresholdDela)
 	result := bs.Result()
 	if result < threshold {
 		return nil

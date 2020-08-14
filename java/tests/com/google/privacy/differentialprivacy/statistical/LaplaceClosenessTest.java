@@ -14,22 +14,23 @@
 // limitations under the License.
 //
 
-package com.google.privacy.differentialprivacy;
+package com.google.privacy.differentialprivacy.statistical;
 
 import static com.google.common.truth.Truth.assertThat;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import com.google.common.base.Supplier;
 import com.google.differentialprivacy.testing.StatisticalTests.ClosenessTestParameters;
 import com.google.differentialprivacy.testing.StatisticalTests.DistributionClosenessTestCase;
 import com.google.differentialprivacy.testing.StatisticalTests.DistributionClosenessTestCaseCollection;
 import com.google.differentialprivacy.testing.StatisticalTests.NoiseSamplingParameters;
+import com.google.privacy.differentialprivacy.LaplaceNoise;
 import com.google.privacy.differentialprivacy.testing.ReferenceNoiseUtil;
 import com.google.privacy.differentialprivacy.testing.StatisticalTestsUtil;
 import com.google.privacy.differentialprivacy.testing.VotingUtil;
 import com.google.protobuf.TextFormat;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.function.Supplier;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;

@@ -210,19 +210,20 @@ class BinarySearch : public Algorithm<T> {
 
       // Find the subrange to split the bucket and its weight in two.
       double sum_w = 0.0;
-      std::map<double, double>::iterator it;
-      for (it = weight.begin(); it != weight.end(); it++) {
+      double lower_bound = static_cast<double>(lower_);
+      double w = 0;
+      auto it = weight.begin();
+      for (; it != weight.end(); it++) {
         sum_w += it->second;
+        lower_bound = it->first;
+        w = it->second;
         if (sum_w >= .5) {
           break;
         }
       }
-      double lower_bound = it->first;
-      double w = it->second;
-      double upper_bound = 0;
-      if (++it == weight.end()) {
-        upper_bound = static_cast<double>(upper_);
-      } else {
+
+      double upper_bound = static_cast<double>(upper_);
+      if (it != weight.end() && ++it != weight.end()) {
         upper_bound = it->first;
       }
 

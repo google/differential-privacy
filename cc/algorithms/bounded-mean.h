@@ -77,16 +77,17 @@ class BoundedMean : public Algorithm<T> {
       // on build if sensitivity is inappropriate.
       std::unique_ptr<NumericalMechanism> sum_mechanism = nullptr;
       if (BoundedBuilder::BoundsAreSet()) {
-        RETURN_IF_ERROR(CheckBounds(BoundedBuilder::lower_.value(),
-                                    BoundedBuilder::upper_.value()));
+        RETURN_IF_ERROR(CheckBounds(BoundedBuilder::GetLower().value(),
+                                    BoundedBuilder::GetUpper().value()));
         ASSIGN_OR_RETURN(
             sum_mechanism,
-            BuildSumMechanism(AlgorithmBuilder::mechanism_builder_->Clone(),
-                              AlgorithmBuilder::epsilon_.value(),
-                              AlgorithmBuilder::l0_sensitivity_.value_or(1),
-                              AlgorithmBuilder::linf_sensitivity_.value_or(1),
-                              BoundedBuilder::upper_.value(),
-                              BoundedBuilder::lower_.value()));
+            BuildSumMechanism(
+                AlgorithmBuilder::GetMechanismBuilderClone(),
+                AlgorithmBuilder::GetEpsilon().value(),
+                AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1),
+                AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(1),
+                BoundedBuilder::GetUpper().value(),
+                BoundedBuilder::GetLower().value()));
       }
 
       // The count noising doesn't depend on the bounds, so we can always
@@ -94,24 +95,26 @@ class BoundedMean : public Algorithm<T> {
       std::unique_ptr<NumericalMechanism> count_mechanism;
       ASSIGN_OR_RETURN(
           count_mechanism,
-          AlgorithmBuilder::mechanism_builder_
-              ->SetEpsilon(AlgorithmBuilder::epsilon_.value())
-              .SetL0Sensitivity(AlgorithmBuilder::l0_sensitivity_.value_or(1))
+          AlgorithmBuilder::GetMechanismBuilderClone()
+              ->SetEpsilon(AlgorithmBuilder::GetEpsilon().value())
+              .SetL0Sensitivity(
+                  AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1))
               .SetLInfSensitivity(
-                  AlgorithmBuilder::linf_sensitivity_.value_or(1))
+                  AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(
+                      1))
               .Build());
 
       // Construct BoundedMean.
-      auto mech_builder = AlgorithmBuilder::mechanism_builder_->Clone();
-      return absl::WrapUnique(
-          new BoundedMean(AlgorithmBuilder::epsilon_.value(),
-                          BoundedBuilder::lower_.value_or(0),
-                          BoundedBuilder::upper_.value_or(0),
-                          AlgorithmBuilder::l0_sensitivity_.value_or(1),
-                          AlgorithmBuilder::linf_sensitivity_.value_or(1),
-                          std::move(mech_builder), std::move(sum_mechanism),
-                          std::move(count_mechanism),
-                          std::move(BoundedBuilder::approx_bounds_)));
+      auto mech_builder = AlgorithmBuilder::GetMechanismBuilderClone();
+      return absl::WrapUnique(new BoundedMean(
+          AlgorithmBuilder::GetEpsilon().value(),
+          BoundedBuilder::GetLower().value_or(0),
+          BoundedBuilder::GetUpper().value_or(0),
+          AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1),
+          AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(1),
+          std::move(mech_builder), std::move(sum_mechanism),
+          std::move(count_mechanism),
+          std::move(BoundedBuilder::MoveApproxBoundsPointer())));
     }
   };
 
@@ -208,7 +211,8 @@ class BoundedMean : public Algorithm<T> {
 
  private:
   BoundedMean(const double epsilon, T lower, T upper,
-              const double l0_sensitivity, const double linf_sensitivity,
+              const double l0_sensitivity,
+              const double max_contributions_per_partition,
               std::unique_ptr<LaplaceMechanism::Builder> mechanism_builder,
               std::unique_ptr<NumericalMechanism> sum_mechanism,
               std::unique_ptr<NumericalMechanism> count_mechanism,
@@ -219,7 +223,7 @@ class BoundedMean : public Algorithm<T> {
         upper_(upper),
         midpoint_(lower + (upper - lower) / 2),
         l0_sensitivity_(l0_sensitivity),
-        linf_sensitivity_(linf_sensitivity),
+        max_contributions_per_partition_(max_contributions_per_partition),
         mechanism_builder_(std::move(mechanism_builder)),
         sum_mechanism_(std::move(sum_mechanism)),
         count_mechanism_(std::move(count_mechanism)),
@@ -278,7 +282,7 @@ class BoundedMean : public Algorithm<T> {
           sum_mechanism_,
           BuildSumMechanism(mechanism_builder_->Clone(),
                             Algorithm<T>::GetEpsilon(), l0_sensitivity_,
-                            linf_sensitivity_, lower_, upper_));
+                            max_contributions_per_partition_, lower_, upper_));
     }
 
     double count_budget = remaining_budget / 2;
@@ -305,10 +309,12 @@ class BoundedMean : public Algorithm<T> {
   static base::StatusOr<std::unique_ptr<NumericalMechanism>> BuildSumMechanism(
       std::unique_ptr<LaplaceMechanism::Builder> mechanism_builder,
       const double epsilon, const double l0_sensitivity,
-      const double linf_sensitivity, const T lower, const T upper) {
+      const double max_contributions_per_partition, const T lower,
+      const T upper) {
     return mechanism_builder->SetEpsilon(epsilon)
         .SetL0Sensitivity(l0_sensitivity)
-        .SetLInfSensitivity(linf_sensitivity * (std::abs(upper - lower) / 2))
+        .SetLInfSensitivity(max_contributions_per_partition *
+                            (std::abs(upper - lower) / 2))
         .Build();
   }
 
@@ -322,7 +328,7 @@ class BoundedMean : public Algorithm<T> {
   // Used to construct mechanism once bounds are obtained for auto-bounding.
   std::unique_ptr<LaplaceMechanism::Builder> mechanism_builder_;
   const double l0_sensitivity_;
-  const double linf_sensitivity_;
+  const int max_contributions_per_partition_;
 
   // The count and the sum will have different sensitivites, so we need
   // different mechanisms to noise them.

@@ -356,8 +356,8 @@ var thresholdGaussianTestCases = []struct {
 	l0Sensitivity   int64
 	lInfSensitivity float64
 	epsilon         float64
-	deltaNoise      float64
-	deltaThreshold  float64
+	noiseDelta      float64
+	thresholdDelta  float64
 	threshold       float64
 }{
 	{
@@ -365,11 +365,11 @@ var thresholdGaussianTestCases = []struct {
 		l0Sensitivity:   1,
 		lInfSensitivity: 1,
 		epsilon:         ln3,
-		// deltaNoise is chosen to get a sigma of 1.
-		deltaNoise: 0.10985556344445052,
+		// noiseDelta is chosen to get a sigma of 1.
+		noiseDelta: 0.10985556344445052,
 		// 0.022750131948 is the 1-sided tail probability of landing more than 2
 		// standard deviations from the mean of the Gaussian distribution.
-		deltaThreshold: 0.022750131948,
+		thresholdDelta: 0.022750131948,
 		threshold:      3,
 	},
 	{
@@ -377,9 +377,9 @@ var thresholdGaussianTestCases = []struct {
 		l0Sensitivity:   1,
 		lInfSensitivity: 0.5,
 		epsilon:         ln3,
-		// deltaNoise is chosen to get a sigma of 1.
-		deltaNoise:     0.0041597422340007885,
-		deltaThreshold: 0.000232629079,
+		// noiseDelta is chosen to get a sigma of 1.
+		noiseDelta:     0.0041597422340007885,
+		thresholdDelta: 0.000232629079,
 		threshold:      4,
 	},
 	{
@@ -387,9 +387,9 @@ var thresholdGaussianTestCases = []struct {
 		l0Sensitivity:   1,
 		lInfSensitivity: 2,
 		epsilon:         ln3,
-		// deltaNoise is chosen to get a sigma of 2.
-		deltaNoise:     0.10985556344445052,
-		deltaThreshold: 0.022750131948,
+		// noiseDelta is chosen to get a sigma of 2.
+		noiseDelta:     0.10985556344445052,
+		thresholdDelta: 0.022750131948,
 		threshold:      6,
 	},
 	{
@@ -397,21 +397,21 @@ var thresholdGaussianTestCases = []struct {
 		l0Sensitivity:   2,
 		lInfSensitivity: 1,
 		epsilon:         ln3,
-		// deltaNoise is chosen to get a sigma of 1.
-		deltaNoise:     0.26546844106038714,
-		deltaThreshold: 0.022828893856,
+		// noiseDelta is chosen to get a sigma of 1.
+		noiseDelta:     0.26546844106038714,
+		thresholdDelta: 0.022828893856,
 		threshold:      3.275415487306,
 	},
 	{
-		desc:            "small deltaThreshold",
+		desc:            "small thresholdDelta",
 		l0Sensitivity:   1,
 		lInfSensitivity: 1,
 		epsilon:         ln3,
-		// deltaNoise is chosen to get a sigma of 1.
-		deltaNoise: 0.10985556344445052,
+		// noiseDelta is chosen to get a sigma of 1.
+		noiseDelta: 0.10985556344445052,
 		// 3e-5 is an approximate 1-sided tail probability of landing 4 standard
 		// deviations from the mean of a Gaussian distribution.
-		deltaThreshold: 3e-5,
+		thresholdDelta: 3e-5,
 		threshold:      5.012810811118,
 	},
 }
@@ -419,7 +419,7 @@ var thresholdGaussianTestCases = []struct {
 func TestThresholdGaussian(t *testing.T) {
 	for _, tc := range thresholdGaussianTestCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			gotThreshold := gauss.Threshold(tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.deltaNoise, tc.deltaThreshold)
+			gotThreshold := gauss.Threshold(tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.noiseDelta, tc.thresholdDelta)
 			if math.Abs(gotThreshold-tc.threshold) > 1e-10 {
 				t.Errorf("Got threshold: %0.12f, want threshold: %0.12f", gotThreshold, tc.threshold)
 			}
@@ -430,9 +430,9 @@ func TestThresholdGaussian(t *testing.T) {
 func TestDeltaForThresholdGaussian(t *testing.T) {
 	for _, tc := range thresholdGaussianTestCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			gotDelta := gauss.(gaussian).DeltaForThreshold(tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.deltaNoise, tc.threshold)
-			if math.Abs(gotDelta-tc.deltaThreshold) > 1e-10 {
-				t.Errorf("Got delta: %0.12f, want delta: %0.12f", gotDelta, tc.deltaThreshold)
+			gotDelta := gauss.(gaussian).DeltaForThreshold(tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.noiseDelta, tc.threshold)
+			if math.Abs(gotDelta-tc.thresholdDelta) > 1e-10 {
+				t.Errorf("Got delta: %0.12f, want delta: %0.12f", gotDelta, tc.thresholdDelta)
 			}
 		})
 	}

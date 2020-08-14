@@ -17,7 +17,6 @@ package(default_visibility = [
     "//visibility:public"
 ])
 
-# If you would like to use this library, please contact pwg-anonymization@.
 java_library(
     name = "testing",
     testonly = 1,

@@ -51,8 +51,8 @@ func PrivateRevenuePerHour(s beam.Scope, col beam.PCollection) beam.PCollection 
 	hourToMoneySpent := pbeam.ParDo(s, extractVisitHourAndTimeSpentFn, pCol)
 	revenues := pbeam.SumPerKey(s, hourToMoneySpent, pbeam.SumParams{
 		MaxPartitionsContributed: 1,  // Visitors can visit the restaurant once (one hour) a day
-		MinValue:                 0,  // Minimum money spent per user (in dollars)
-		MaxValue:                 40, // Maximum money spent per user (in dollars)
+		MinValue:                 0,  // Minimum money spent per user (in euros)
+		MaxValue:                 40, // Maximum money spent per user (in euros)
 	})
 	return revenues
 }

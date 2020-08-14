@@ -32,7 +32,7 @@ func TestNewCodec(t *testing.T) {
 	}{
 		{"calling NewCodec with (KType, VType) (int, int)", reflect.TypeOf(int(0)), reflect.TypeOf(int(0)), &Codec{KType: beam.EncodedType{T: reflect.TypeOf(int(0))}, VType: beam.EncodedType{T: reflect.TypeOf(int(0))}}},
 		{"calling NewCodec with (KType, VType) (int, nil)", reflect.TypeOf(int(0)), nil, nil},
-		{"calling NewCodec with (KType, VType) (int, nil)", nil, reflect.TypeOf(int(0)), nil},
+		{"calling NewCodec with (KType, VType) (nil, int)", nil, reflect.TypeOf(int(0)), nil},
 		{"calling NewCodec with (KType, VType) (nil, nil)", nil, nil, nil},
 	} {
 

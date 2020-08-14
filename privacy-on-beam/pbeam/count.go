@@ -38,7 +38,7 @@ type CountParams struct {
 	// case, the entire budget of the PrivacySpec is consumed.
 	Epsilon, Delta float64
 	// The maximum number of distinct values that a given privacy identifier
-	// can influence. If a privacy identifier is associated to more values,
+	// can influence. If a privacy identifier is associated with more values,
 	// random values will be dropped. There is an inherent trade-off when
 	// choosing this parameter: a larger MaxPartitionsContributed leads to less
 	// data loss due to contribution bounding, but since the noise added in
@@ -50,7 +50,7 @@ type CountParams struct {
 	// The maximum number of times that a privacy identifier can contribute to
 	// a single count (or, equivalently, the maximum value that a privacy
 	// identifier can add to a single count in total). If MaxValue=10 and a
-	// privacy identifier is associated to the same value in 15 records, Count
+	// privacy identifier is associated with the same value in 15 records, Count
 	// ignores 5 of these records and only adds 10 to the count for this value.
 	// There is an inherent trade-off when choosing MaxValue: a larger
 	// parameter means that less records are lost, but a larger noise.
@@ -169,4 +169,3 @@ func addSpecifiedPartitionsForCount(s beam.Scope, epsilon, delta float64,
 	// Clamp negative counts to zero and return.
 	return beam.ParDo(s, clampNegativePartitionsInt64Fn, finalPartitions)
 }
-

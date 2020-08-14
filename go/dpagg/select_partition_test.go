@@ -78,56 +78,15 @@ func TestPreAggSelectPartitionSerialization(t *testing.T) {
 	}
 }
 
-func TestPreAggSelectPartitionPr(t *testing.T) {
+func TestPreAggSelectPartitionKeepPartitionProbability(t *testing.T) {
 	for _, tc := range []struct {
 		name          string
 		l0Sensitivity int64
 		epsilon       float64
 		delta         float64
-		// want maps idCount to the desired partition selection probability.
+		// want maps idCount to the desired keep partition probability.
 		want map[int64]float64
 	}{
-		{
-			name:          "ε=0, δ divides 1 evenly",
-			l0Sensitivity: 1,
-			epsilon:       0,
-			delta:         0.5,
-			want: map[int64]float64{
-				0:             0,
-				1:             0.5,
-				2:             1,
-				3:             1,
-				math.MaxInt64: 1,
-			},
-		},
-		{
-			name:          "ε=0, δ does not divide 1 evenly",
-			l0Sensitivity: 1,
-			epsilon:       0,
-			delta:         0.4,
-			want: map[int64]float64{
-				0:             0,
-				1:             0.4,
-				2:             0.8,
-				3:             1,
-				math.MaxInt64: 1,
-			},
-		},
-		{
-			name:          "ε=0 with non-trivial sensitivity",
-			l0Sensitivity: 2,
-			epsilon:       0,
-			delta:         0.5,
-			want: map[int64]float64{
-				0:             0,
-				1:             0.25,
-				2:             0.5,
-				3:             0.75,
-				4:             1,
-				5:             1,
-				math.MaxInt64: 1,
-			},
-		},
 		{
 			name:          "ε != 0",
 			l0Sensitivity: 1,
@@ -211,24 +170,12 @@ func TestPreAggSelectPartitionPr(t *testing.T) {
 				math.MaxInt64: 1,
 			},
 		},
-		{
-			name:          "δ=1 handling.",
-			l0Sensitivity: 1,
-			epsilon:       1,
-			delta:         1,
-			want: map[int64]float64{
-				0:             0,
-				1:             1,
-				2:             1,
-				math.MaxInt64: 1,
-			},
-		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			for privacyIDCount, wantProbability := range tc.want {
-				gotProbability := selectPartitionPr(privacyIDCount, tc.l0Sensitivity, tc.epsilon, tc.delta)
+				gotProbability := keepPartitionProbability(privacyIDCount, tc.l0Sensitivity, tc.epsilon, tc.delta)
 				if !approxEqual(gotProbability, wantProbability) {
-					t.Errorf("selectPartitionPr(%d, %d, %e, %e) = %e, want: %e",
+					t.Errorf("keepPartitionProbability(%d, %d, %e, %e) = %e, want: %e",
 						privacyIDCount, tc.l0Sensitivity, tc.epsilon, tc.delta, gotProbability, wantProbability)
 				}
 			}
@@ -271,13 +218,6 @@ func TestSumExpPowers(t *testing.T) {
 			minPower:  0,
 			numPowers: 3,
 			want:      13,
-		},
-		{
-			name:      "epsilon=0",
-			epsilon:   0,
-			minPower:  0,
-			numPowers: 100,
-			want:      100,
 		},
 		{
 			name:      "exp(-epsilon) = 0",
@@ -325,7 +265,7 @@ func TestPreAggSelectPartition(t *testing.T) {
 			name:           "Should never select partition",
 			privacyIDCount: 0,
 			opts: &PreAggSelectPartitionOptions{
-				Epsilon: 0,
+				Epsilon: math.Log(2),
 				Delta:   0.3,
 			},
 			wantSelectionRate: 0,
@@ -347,7 +287,7 @@ func TestPreAggSelectPartition(t *testing.T) {
 			name:           "Should sometimes select partition",
 			privacyIDCount: 1,
 			opts: &PreAggSelectPartitionOptions{
-				Epsilon: 0,
+				Epsilon: math.Log(2),
 				Delta:   0.3,
 			},
 			wantSelectionRate:   0.3,
@@ -370,7 +310,7 @@ func TestPreAggSelectPartition(t *testing.T) {
 			name:           "Should sometimes select partition database-level privacy",
 			privacyIDCount: 1,
 			opts: &PreAggSelectPartitionOptions{
-				Epsilon:                  0,
+				Epsilon:                  math.Log(2),
 				Delta:                    0.6,
 				MaxPartitionsContributed: 2,
 			},
@@ -383,7 +323,7 @@ func TestPreAggSelectPartition(t *testing.T) {
 			name:           "Should always select partition",
 			privacyIDCount: 4,
 			opts: &PreAggSelectPartitionOptions{
-				Epsilon: 0,
+				Epsilon: math.Log(2),
 				Delta:   0.3,
 			},
 			wantSelectionRate: 1,
@@ -397,9 +337,9 @@ func TestPreAggSelectPartition(t *testing.T) {
 				for trial := 0; trial < tc.numTrials; trial++ {
 					s := NewPreAggSelectPartition(tc.opts)
 					for i := int64(0); i < tc.privacyIDCount; i++ {
-						s.Add()
+						s.Increment()
 					}
-					if s.Result() {
+					if s.ShouldKeepPartition() {
 						selections++
 					}
 				}
@@ -429,10 +369,10 @@ func TestMergePreAggSelectPartition(t *testing.T) {
 	s1 := NewPreAggSelectPartition(&PreAggSelectPartitionOptions{Epsilon: 0.1, Delta: 0.2})
 	s2 := NewPreAggSelectPartition(&PreAggSelectPartitionOptions{Epsilon: 0.1, Delta: 0.2})
 	for i := 0; i < 5; i++ {
-		s1.Add()
+		s1.Increment()
 	}
 	for i := 0; i < 3; i++ {
-		s2.Add()
+		s2.Increment()
 	}
 	s1.Merge(s2)
 

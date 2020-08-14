@@ -1,17 +1,14 @@
 
-
-<!-- This file is auto-generated. Do not edit. -->
-
 # Order Statistics
 
 We support multiple algorithms obtaining
-[order statistics](https://github.com/google/differential-privacy/blob/master/cc/algorithms/order-statistics.h). Order
-statistics are specific quantiles of an input set. The following algorithms are
-supported:
+[order statistics](https://github.com/google/differential-privacy/blob/main/cc/algorithms/order-statistics.h).
+Order statistics are specific quantiles of an input set. The following
+algorithms are supported:
 
 *   `Max`
 *   `Min`
-*   `Median`
+*   `Median` 
 *   `Percentile` for percentile `p`.
 
 Notice that the `Percentile` algorithm can be used to find maximum, minimum, or
@@ -33,14 +30,11 @@ algorithm:
 
 ```
 util::StatusOr<std::unique_ptr<Percentile<T>>> percentile =
-   Percentile<T>::Builder.
-                         .SetPercentile(double percentile)
+   Percentile<T>::Builder.SetPercentile(double percentile)
                          .Build();
 ```
 
 *   `T`: The input type, for example `double` or `int64`.
-
-    
 *   `double percentile`: This parameter is required for the `Percentile`
     algorithm and cannot be set for the other order statistics algorithms. It is
     the percentile you wish to find.
@@ -53,5 +47,4 @@ its full API.
 ### Result Performance
 
 For order statistics algorithms, calling `Result` has a time complexity of O(n).
-Since all inputs are stored in an internal vector,
-space complexity is O(n).
+Since all inputs are stored in an internal vector, space complexity is O(n).

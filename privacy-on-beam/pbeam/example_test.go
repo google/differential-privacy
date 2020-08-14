@@ -82,13 +82,14 @@ func Example() {
 		// δ=10⁻³). If multiple aggregations are present, we would need to
 		// manually specify the privacy budget used by each.
 
-		// If a user is present in more than 4 weekdays, some of these
-		// contributions will be randomly dropped. This is necessary to achieve
-		// differential privacy.
+		// If a visitor of the restaurant is present in more
+		// than 4 weekdays, some of these contributions will be randomly dropped.
+		// This is necessary to achieve differential privacy.
 		MaxPartitionsContributed: 4,
 
-		// If a user spends more than 50€, or less than 0€, their contribution
-		// will be clamped. This is necessary to achieve differential privacy.
+		// If a visitor of the restaurant spends more than 50 euros, or less
+		// than 0 euros, their contribution will be clamped. This is necessary
+		// to achieve differential privacy.
 		MinValue: 0,
 		MaxValue: 50,
 	}
@@ -96,7 +97,7 @@ func Example() {
 
 	// ocol is a regular PCollection; it can be written to disk.
 	formatted := beam.ParDo(s, func(weekday int, sum int64) string {
-		return fmt.Sprintf("Weekday n°%d: total spend is %d€", weekday, sum)
+		return fmt.Sprintf("Weekday n°%d: total spend is %d euros", weekday, sum)
 	}, ocol)
 	textio.Write(s, "spend_per_weekday.txt", formatted)
 

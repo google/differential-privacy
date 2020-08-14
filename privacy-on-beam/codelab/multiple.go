@@ -54,8 +54,8 @@ func ComputeCountMeanSum(s beam.Scope, col beam.PCollection) (visitsPerHour, mea
 		Epsilon:                  epsilon / 3,
 		Delta:                    delta / 3,
 		MaxPartitionsContributed: 1,  // Visitors can visit the restaurant once (one hour) a day
-		MinValue:                 0,  // Minimum money spent per user (in dollars)
-		MaxValue:                 40, // Maximum money spent per user (in dollars)
+		MinValue:                 0,  // Minimum money spent per user (in euros)
+		MaxValue:                 40, // Maximum money spent per user (in euros)
 	})
 
 	return visitsPerHour, meanTimeSpent, revenues

@@ -28,6 +28,7 @@ java_proto_library(
 
 exports_files([
     "bounded_mean_dp_test_cases.textproto",
+    "bounded_sum_dp_test_cases.textproto",
     "count_dp_test_cases.textproto",
     "laplace_closeness_test_cases.textproto",
     "laplace_dp_test_cases.textproto",

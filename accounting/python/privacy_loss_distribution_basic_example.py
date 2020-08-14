@@ -37,7 +37,7 @@ def main(argv):
   composed_laplace_pld = laplace_pld.self_compose(num_laplace)
 
   epsilon = 10
-  delta = composed_laplace_pld.hockey_stick_divergence(epsilon)
+  delta = composed_laplace_pld.get_delta_for_epsilon(epsilon)
   print(f'An algorithm that executes the Laplace Mechanism with parameter '
         f'{parameter_laplace} for a total of {num_laplace} times is '
         f'({epsilon}, {delta})-DP.')
@@ -56,7 +56,7 @@ def main(argv):
   composed_laplace_and_gaussian_pld = composed_laplace_pld.compose(gaussian_pld)
 
   epsilon = 10
-  delta = composed_laplace_and_gaussian_pld.hockey_stick_divergence(epsilon)
+  delta = composed_laplace_and_gaussian_pld.get_delta_for_epsilon(epsilon)
   print(f'An algorithm that executes the Laplace Mechanism with parameter '
         f'{parameter_laplace} for a total of {num_laplace} times and in '
         f'addition executes once the Gaussian Mechanism with STD '

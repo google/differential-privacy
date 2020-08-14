@@ -81,8 +81,8 @@ class Count : public Algorithm<T> {
   base::StatusOr<Output> GenerateResult(double privacy_budget,
                                         double noise_interval_level) override {
     Output output;
-    std::size_t countWithNoise = std::max<int64_t>(
-        std::round(mechanism_->AddNoise(count_, privacy_budget)), 0);
+    int64_t countWithNoise =
+        std::round(mechanism_->AddNoise(count_, privacy_budget));
     AddToOutput<int64_t>(&output, countWithNoise);
 
     base::StatusOr<ConfidenceInterval> interval =
@@ -96,13 +96,14 @@ class Count : public Algorithm<T> {
 
   void ResetState() override { count_ = 0; }
 
+  std::size_t GetCount() const { return count_; }
+
   // The constructor and count_ are non-private for testing.
   Count(double epsilon, std::unique_ptr<NumericalMechanism> mechanism)
       : Algorithm<T>(epsilon), count_(0), mechanism_(std::move(mechanism)) {}
 
-  std::size_t count_;
-
  private:
+  std::size_t count_;
   std::unique_ptr<NumericalMechanism> mechanism_;
 };
 
@@ -117,8 +118,8 @@ class Count<T>::Builder
     std::unique_ptr<NumericalMechanism> mechanism;
     ASSIGN_OR_RETURN(mechanism, AlgorithmBuilder::UpdateAndBuildMechanism());
 
-    return absl::WrapUnique(
-        new Count<T>(AlgorithmBuilder::epsilon_.value(), std::move(mechanism)));
+    return absl::WrapUnique(new Count<T>(AlgorithmBuilder::GetEpsilon().value(),
+                                         std::move(mechanism)));
   }
 };
 

@@ -42,7 +42,7 @@ static constexpr double kBinomialBound = (double)(1LL << 57);
 // binomial distribution of n Bernoulli trials that have a success probability
 // of 1 / 2 each. The approximation is taken from Lemma 7 of the noise
 // generation documentation available in
-// https://github.com/google/differential-privacy/blob/master/common_docs/Secure_Noise_Generation.pdf
+// https://github.com/google/differential-privacy/blob/main/common_docs/Secure_Noise_Generation.pdf
 double ApproximateBinomialProbability(double sqrt_n, int64_t m) {
   if (abs(m) > sqrt_n * sqrt(log(sqrt_n) / 2)) return 0;
 
@@ -51,48 +51,6 @@ double ApproximateBinomialProbability(double sqrt_n, int64_t m) {
 }
 
 }  // namespace
-
-LegacyLaplaceDistribution::LegacyLaplaceDistribution(double b) : b_(b) {
-  CHECK_GE(b, 0.0);
-}
-
-LegacyLaplaceDistribution::LegacyLaplaceDistribution(double epsilon,
-                                                     double sensitivity)
-    : LegacyLaplaceDistribution(sensitivity / epsilon) {}
-
-double LegacyLaplaceDistribution::GetUniformDouble() { return UniformDouble(); }
-
-// Generates samples from the Laplace Distribution according to the
-// Ratio of Uniforms method outlined in Section 4.7
-// Devroye, Luc. "Non-Uniform Random Variate Generation" (1987): 195. Cleaner
-// and more accurate than the typical Inverse CDF method under fixed precision
-// arithmetic.
-double LegacyLaplaceDistribution::Sample(double scale) {
-  DCHECK_GT(scale, 0);
-  double u1 = GetUniformDouble();
-  double u2 = GetUniformDouble();
-
-  const double value = std::log(u1 / u2) * (scale * b_);
-  if (std::isnan(value)) {
-    return 0.0;
-  }
-  return value;
-}
-
-double LegacyLaplaceDistribution::Sample() { return Sample(1.0); }
-
-double LegacyLaplaceDistribution::GetDiversity() { return b_; }
-
-double LegacyLaplaceDistribution::cdf(double b, double x) {
-  if (x > 0) {
-    return 1 - .5 * exp(-x / b);
-  }
-  return .5 * exp(x / b);
-}
-
-int64_t LegacyLaplaceDistribution::MemoryUsed() {
-  return sizeof(LegacyLaplaceDistribution);
-}
 
 GaussianDistribution::GaussianDistribution(double stddev)
     : stddev_(stddev),
@@ -257,6 +215,13 @@ double LaplaceDistribution::Sample(double scale) {
 double LaplaceDistribution::GetGranularity() { return granularity_; }
 
 double LaplaceDistribution::GetDiversity() { return sensitivity_ / epsilon_; }
+
+double LaplaceDistribution::cdf(double b, double x) {
+  if (x > 0) {
+    return 1 - .5 * exp(-x / b);
+  }
+  return .5 * exp(x / b);
+}
 
 int64_t LaplaceDistribution::MemoryUsed() {
   int64_t memory = sizeof(LaplaceDistribution);

@@ -64,7 +64,7 @@ TYPED_TEST(StochasticDifferentialPrivacyTest, AllBoundedDpAlgorithms) {
   auto algorithm = typename TypeParam::Builder()
                        .SetLaplaceMechanism(
                            absl::make_unique<SeededLaplaceMechanism::Builder>())
-                       .SetEpsilon(DefaultEpsilon())
+                       .SetEpsilon(std::log(3))
                        .SetLower(sequence->RangeMin())
                        .SetUpper(sequence->RangeMax())
                        .Build()
@@ -85,7 +85,7 @@ TEST(StochasticDifferentialPrivacyTest, Max) {
   auto algorithm = Max<double>::Builder()
                        .SetLaplaceMechanism(
                            absl::make_unique<SeededLaplaceMechanism::Builder>())
-                       .SetEpsilon(DefaultEpsilon())
+                       .SetEpsilon(std::log(3))
                        .SetLower(lower)
                        .SetUpper(upper)
                        .Build()
@@ -106,7 +106,7 @@ TEST(StochasticDifferentialPrivacyTest, Min) {
   auto algorithm = Min<double>::Builder()
                        .SetLaplaceMechanism(
                            absl::make_unique<SeededLaplaceMechanism::Builder>())
-                       .SetEpsilon(DefaultEpsilon())
+                       .SetEpsilon(std::log(3))
                        .SetLower(lower)
                        .SetUpper(upper)
                        .Build()
@@ -126,7 +126,7 @@ TEST(StochasticDifferentialPrivacyTest, Median) {
   auto algorithm = Median<double>::Builder()
                        .SetLaplaceMechanism(
                            absl::make_unique<SeededLaplaceMechanism::Builder>())
-                       .SetEpsilon(DefaultEpsilon())
+                       .SetEpsilon(std::log(3))
                        .SetLower(lower)
                        .SetUpper(upper)
                        .Build()
@@ -148,7 +148,7 @@ TEST(StochasticDifferentialPrivacyTest, Percentile) {
                        .SetLaplaceMechanism(
                            absl::make_unique<SeededLaplaceMechanism::Builder>())
                        .SetPercentile(percentile)
-                       .SetEpsilon(DefaultEpsilon())
+                       .SetEpsilon(std::log(3))
                        .SetLower(lower)
                        .SetUpper(upper)
                        .Build()
@@ -173,7 +173,7 @@ TEST(StochasticDifferentialPrivacyTest, CountNonBranchingSearch) {
       Count<int64_t>::Builder()
           .SetLaplaceMechanism(
               absl::make_unique<SeededLaplaceMechanism::Builder>())
-          .SetEpsilon(DefaultEpsilon())
+          .SetEpsilon(std::log(3))
           .Build()
           .ValueOrDie();
   StochasticTester<int64_t> tester(std::move(algorithm), std::move(sequence),
@@ -211,7 +211,7 @@ TYPED_TEST(StochasticDifferentialPrivacyTest, AllApproxBoundedDpAlgorithms) {
       ApproxBounds<double>::Builder()
           .SetLaplaceMechanism(
               absl::make_unique<SeededLaplaceMechanism::Builder>())
-          .SetEpsilon(DefaultEpsilon())
+          .SetEpsilon(std::log(3))
           .SetScale(.2)
           .SetBase(2)
           .SetNumBins(1)
@@ -228,7 +228,7 @@ TYPED_TEST(StochasticDifferentialPrivacyTest, AllApproxBoundedDpAlgorithms) {
       typename TypeParam::Builder()
           .SetLaplaceMechanism(
               absl::make_unique<SeededLaplaceMechanism::Builder>(mech_builder))
-          .SetEpsilon(DefaultEpsilon())
+          .SetEpsilon(std::log(3))
           .SetApproxBounds(std::move(bounds))
           .Build()
           .ValueOrDie();

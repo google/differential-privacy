@@ -27,7 +27,9 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.google.differentialprivacy.SummaryOuterClass.CountSummary;;
+import com.google.common.collect.ImmutableList;
+import com.google.common.math.Stats;
+import com.google.differentialprivacy.SummaryOuterClass.CountSummary;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.Collection;
 import org.junit.Before;
@@ -43,13 +45,15 @@ import org.mockito.junit.MockitoRule;
  * Tests behavior of {@link Count}. The test mocks a {@link Noise} instance to always generate zero
  * noise.
  *
- * Statistical and DP properties of the algorithm are tested in {@link CountDpTest}.
+ * <p>Statistical and DP properties of the algorithm are tested in {@link CountDpTest}.
  */
 @RunWith(JUnit4.class)
 public class CountTest {
 
   private static final double EPSILON = 0.123;
   private static final double DELTA = 0.123;
+  private static final int NUM_SAMPLES = 100000;
+  private static final double LN_3 = Math.log(3.0);
 
   @Mock private Noise noise;
   @Mock private Collection<Double> hugeCollection;
@@ -266,7 +270,7 @@ public class CountTest {
     assertThat(summary.getMaxContributionsPerPartition()).isEqualTo(maxContributionsPerPartition);
   }
 
-   @Test
+  @Test
   public void merge_basicExample_sumsCounts() {
     Count targetCount = getCountBuilderWithFields().build();
     Count sourceCount = getCountBuilderWithFields().build();
@@ -297,14 +301,8 @@ public class CountTest {
 
   @Test
   public void merge_nullDelta_noException() {
-    Count targetCount = getCountBuilderWithFields()
-        .noise(new LaplaceNoise())
-        .delta(null)
-        .build();
-    Count sourceCount = getCountBuilderWithFields()
-        .noise(new LaplaceNoise())
-        .delta(null)
-        .build();
+    Count targetCount = getCountBuilderWithFields().noise(new LaplaceNoise()).delta(null).build();
+    Count sourceCount = getCountBuilderWithFields().noise(new LaplaceNoise()).delta(null).build();
     // no exception is thrown
     targetCount.mergeWith(sourceCount.getSerializableSummary());
   }
@@ -329,13 +327,8 @@ public class CountTest {
 
   @Test
   public void merge_differentNoise_throwsException() {
-    Count targetCount = getCountBuilderWithFields()
-        .noise(new LaplaceNoise())
-        .delta(null)
-        .build();
-    Count sourceCount = getCountBuilderWithFields()
-        .noise(new GaussianNoise())
-        .build();
+    Count targetCount = getCountBuilderWithFields().noise(new LaplaceNoise()).delta(null).build();
+    Count sourceCount = getCountBuilderWithFields().noise(new GaussianNoise()).build();
     assertThrows(
         IllegalArgumentException.class,
         () -> targetCount.mergeWith(sourceCount.getSerializableSummary()));
@@ -381,6 +374,98 @@ public class CountTest {
         () -> targetCount.mergeWith(sourceCount.getSerializableSummary()));
   }
 
+  @Test
+  public void addNoise_gaussianNoiseDefaultParametersEmptyCount_isUnbiased() {
+    Count.Params.Builder countBuilder =
+        Count.builder()
+            .epsilon(LN_3)
+            .delta(0.00001)
+            .maxPartitionsContributed(1)
+            .noise(new GaussianNoise());
+
+    testForBias(countBuilder, /* rawCount */ 0, /* (over) approximation of variance */ 11.9);
+  }
+
+  @Test
+  public void addNoise_gaussianNoiseDifferentEpsilonEmptyCount_isUnbiased() {
+    Count.Params.Builder countBuilder =
+        Count.builder()
+            .epsilon(2.0 * LN_3)
+            .delta(0.00001)
+            .maxPartitionsContributed(1)
+            .noise(new GaussianNoise());
+
+    testForBias(countBuilder, /* rawCount */ 0, /* (over) approximation of variance */ 3.5);
+  }
+
+  @Test
+  public void addNoise_gaussianNoiseDifferentDeltaEmptyCount_isUnbiased() {
+    Count.Params.Builder countBuilder =
+        Count.builder()
+            .epsilon(LN_3)
+            .delta(0.01)
+            .maxPartitionsContributed(1)
+            .noise(new GaussianNoise());
+
+    testForBias(countBuilder, /* rawCount */ 0, /* (over) approximation of variance */ 3.2);
+  }
+
+  @Test
+  public void addNoise_gaussianNoiseDifferentContributionBoundEmptyCount_isUnbiased() {
+    Count.Params.Builder countBuilder =
+        Count.builder()
+            .epsilon(LN_3)
+            .delta(0.00001)
+            .maxPartitionsContributed(25)
+            .noise(new GaussianNoise());
+
+    testForBias(countBuilder, /* rawCount */ 0, /* (over) approximation of variance */ 295.0);
+  }
+
+  @Test
+  public void addNoise_gaussianNoiseDefaultParameters_isUnbiased() {
+    Count.Params.Builder countBuilder =
+        Count.builder()
+            .epsilon(LN_3)
+            .delta(0.00001)
+            .maxPartitionsContributed(1)
+            .noise(new GaussianNoise());
+
+    testForBias(countBuilder, /* rawCount */ 3380636, /* (over) approximation of variance */ 11.9);
+  }
+
+  @Test
+  public void addNoise_laplaceNoiseDefaultParametersEmptyCount_isUnbiased() {
+    Count.Params.Builder countBuilder =
+        Count.builder().epsilon(LN_3).maxPartitionsContributed(1).noise(new LaplaceNoise());
+
+    testForBias(countBuilder, /* rawCount */ 0, /* (over) approximation of variance */ 1.8);
+  }
+
+  @Test
+  public void addNoise_laplaceNoiseDifferentEpsilonEmptyCount_isUnbiased() {
+    Count.Params.Builder countBuilder =
+        Count.builder().epsilon(2.0 * LN_3).maxPartitionsContributed(1).noise(new LaplaceNoise());
+
+    testForBias(countBuilder, /* rawCount */ 0, /* (over) approximation of variance */ 0.5);
+  }
+
+  @Test
+  public void addNoise_laplaceNoiseDifferentContributionBoundEmptyCount_isUnbiased() {
+    Count.Params.Builder countBuilder =
+        Count.builder().epsilon(LN_3).maxPartitionsContributed(25).noise(new LaplaceNoise());
+
+    testForBias(countBuilder, /* rawCount */ 0, /* (over) approximation of variance */ 1035.0);
+  }
+
+  @Test
+  public void addNoise_laplaceNoiseDefaultParameters_isUnbiased() {
+    Count.Params.Builder countBuilder =
+        Count.builder().epsilon(LN_3).maxPartitionsContributed(1).noise(new LaplaceNoise());
+
+    testForBias(countBuilder, /* rawCount */ 3380636, /* (over) approximation of variance */ 1.8);
+  }
+
   private Count.Params.Builder getCountBuilderWithFields() {
     return Count.builder()
         .epsilon(EPSILON)
@@ -408,5 +493,23 @@ public class CountTest {
     } catch (InvalidProtocolBufferException pbe) {
       throw new IllegalArgumentException(pbe);
     }
+  }
+
+  private static void testForBias(
+      Count.Params.Builder countBuilder, int rawCount, double variance) {
+    ImmutableList.Builder<Double> samples = ImmutableList.builder();
+    for (int i = 0; i < NUM_SAMPLES; i++) {
+      Count count = countBuilder.build();
+      count.incrementBy(rawCount);
+      samples.add((double) count.computeResult());
+    }
+    Stats stats = Stats.of(samples.build());
+
+    // The tolerance is chosen according to the 99.9995% quantile of the anticipated distributions
+    // of the sample mean. Thus, the test falsely rejects with a probability of 10^-5.
+    double sampleTolerance = 4.41717 * Math.sqrt(variance / NUM_SAMPLES);
+    // The DP count is considered unbiased if the expeted value (approximated by stats.mean()) is
+    // equal to the raw count.
+    assertThat(stats.mean()).isWithin(sampleTolerance).of((double) rawCount);
   }
 }

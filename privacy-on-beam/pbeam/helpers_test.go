@@ -117,7 +117,7 @@ func kvToProtoPair(key string, pb *testpb.TestAnon) protoPair {
 	return protoPair{key, pb}
 }
 
-// makePairsWithFixedV returns dummy data where the same value is associated to
+// makePairsWithFixedV returns dummy data where the same value is associated with
 // multiple privacy keys: it returns a slice of pairs {0, v}, {1, v}, ..., {numKeys-1, v}.
 func makePairsWithFixedV(numKeys, v int) []pairII {
 	s := make([]pairII, 0, numKeys)
@@ -127,7 +127,7 @@ func makePairsWithFixedV(numKeys, v int) []pairII {
 	return s
 }
 
-// makePairsWithFixedVStartingFromKey returns dummy data where the same value is associated to
+// makePairsWithFixedVStartingFromKey returns dummy data where the same value is associated with
 // multiple privacy keys: it returns a slice of pairs {0, v}, {1, v}, ..., {numKeys-1, v}.
 // Privacy keys start from kOffset.
 func makePairsWithFixedVStartingFromKey(kOffset, numKeys, v int) []pairII {
@@ -146,22 +146,14 @@ type tripleWithIntValue struct {
 }
 
 // makeDummyTripleWithIntValue returns dummy int data where the same partition ID is
-// associated to multiple privacy keys, every time with the value 1: it returns
+// associated with multiple privacy keys, every time with the value 1: it returns
 // a slice of tripleInts {0,p,1}, {1,p,1}, ..., {numKeys-1,p,1}.
 func makeDummyTripleWithIntValue(numKeys, p int) []tripleWithIntValue {
 	return makeTripleWithIntValue(numKeys, p, 1)
 }
 
-// makeDummyTripleWithIntValueStartingFromKey returns dummy int data where the same partition ID is
-// associated to multiple privacy keys, every time with the value 1: it returns
-// a slice of tripleInts {0,p,1}, {1,p,1}, ..., {numKeys-1,p,1}.
-// Privacy keys start from kOffset.
-func makeDummyTripleWithIntValueStartingFromKey(kOffset, numKeys, p int) []tripleWithIntValue {
-	return makeTripleWithIntValueStartingFromKey(kOffset, numKeys, p, 1)
-}
-
 // makeTripleWithIntValueStartingFromKey returns int data where the same partition ID is
-// associated to multiple privacy keys (starting from provided key), to the given value v: it returns
+// associated with multiple privacy keys (starting from provided key), to the given value v: it returns
 // a slice of tripleInts {k,p,v}, {k + 1,p,v}, ..., {numKeys + k - 1,p,v}.
 // Privacy keys start from kOffset.
 func makeTripleWithIntValueStartingFromKey(kOffset, numKeys, p, v int) []tripleWithIntValue {
@@ -173,7 +165,7 @@ func makeTripleWithIntValueStartingFromKey(kOffset, numKeys, p, v int) []tripleW
 }
 
 // makeTripleWithIntValue returns int data where the same partition ID is
-// associated to multiple privacy keys, to the given value v: it returns
+// associated with multiple privacy keys, to the given value v: it returns
 // a slice of tripleInts {0,p,v}, {1,p,v}, ..., {numKeys-1,p,v}.
 func makeTripleWithIntValue(numKeys, p, v int) []tripleWithIntValue {
 	s := make([]tripleWithIntValue, numKeys)
@@ -213,22 +205,14 @@ type tripleWithFloatValue struct {
 }
 
 // makeDummyTripleWithFloatValue returns dummy float data where the same partition ID is
-// associated to multiple privacy keys, every time with the value 1.0: it returns
+// associated with multiple privacy keys, every time with the value 1.0: it returns
 // a slice of tripleFloats {0,p,1}, {1,p,1}, ..., {numKeys-1,p,1}.
 func makeDummyTripleWithFloatValue(numKeys, p int) []tripleWithFloatValue {
 	return makeTripleWithFloatValue(numKeys, p, 1.0)
 }
 
-// makeDummyTripleWithFloatValueStartingFromKey returns dummy float data where the same partition ID is
-// associated to multiple privacy keys, every time with the value 1.0: it returns
-// a slice of tripleFloats {0,p,1}, {1,p,1}, ..., {numKeys-1,p,1}.
-// Privacy keys start from kOffset.
-func makeDummyTripleWithFloatValueStartingFromKey(kOffset, numKeys, p int) []tripleWithFloatValue {
-	return makeTripleWithFloatValueStartingFromKey(kOffset, numKeys, p, 1.0)
-}
-
 // makeTripleWithIntValue returns float data where the same partition ID is
-// associated to multiple privacy keys, to the given value v: it returns
+// associated with multiple privacy keys, to the given value v: it returns
 // a slice of tripleInts {0,p,v}, {1,p,v}, ..., {numKeys-1,p,v}.
 func makeTripleWithFloatValue(numKeys, p int, v float32) []tripleWithFloatValue {
 	s := make([]tripleWithFloatValue, numKeys, numKeys)
@@ -239,7 +223,7 @@ func makeTripleWithFloatValue(numKeys, p int, v float32) []tripleWithFloatValue 
 }
 
 // makeTripleWithFloatValueStartingFromKey returns float data where the same partition ID is
-// associated to multiple privacy keys (starting from provided key), to the given value v: it returns
+// associated with multiple privacy keys (starting from provided key), to the given value v: it returns
 // a slice of tripleFloats {k,p,v}, {k + 1,p,v}, ..., {numKeys + k - 1,p,v}.
 // Privacy keys start from kOffset.
 func makeTripleWithFloatValueStartingFromKey(kOffset, numKeys, p int, v float32) []tripleWithFloatValue {
@@ -314,8 +298,8 @@ func float64MetricToInt64Metric(tm testFloat64Metric) testInt64Metric {
 
 // approxEqualsKVInt64 checks that two PCollections col1 and col2 of type
 // <K,int64> are approximately equal, where "approximately equal" means
-// "the keys are the same in both col1 and col2, and the value associated to
-// key k in col1 is within the specified tolerance of the value associated to k
+// "the keys are the same in both col1 and col2, and the value associated with
+// key k in col1 is within the specified tolerance of the value associated with k
 // in col2". Each key can only hold a single value.
 func approxEqualsKVInt64(s beam.Scope, col1, col2 beam.PCollection, tolerance float64) error {
 	wantV := reflect.TypeOf(int64(0))
@@ -353,8 +337,8 @@ func equalsKVInt(s beam.Scope, col1, col2 beam.PCollection) error {
 
 // approxEqualsKVFloat64 checks that two PCollections col1 and col2 of type
 // <K,float64> are approximately equal, where "approximately equal" means
-// "the keys are the same in both col1 and col2, and the value associated to
-// key k in col1 is within the specified tolerance of the value associated to k
+// "the keys are the same in both col1 and col2, and the value associated with
+// key k in col1 is within the specified tolerance of the value associated with k
 // in col2". Each key can only hold a single value.
 func approxEqualsKVFloat64(s beam.Scope, col1, col2 beam.PCollection, tolerance float64) error {
 	wantV := reflect.TypeOf(float64(0))
@@ -470,7 +454,7 @@ func checkValueType(col beam.PCollection, wantValueType reflect.Type) error {
 // l1Sensitivity and epsilon are the DP parameters of the test.
 //
 // To see the logic and the math behind flakiness and tolerance calculation,
-// See https://github.com/google/differential-privacy/blob/master/privacy-on-beam/docs/Tolerance_Calculation.pdf.
+// See https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf.
 func laplaceTolerance(flakinessK, l1Sensitivity, epsilon float64) float64 {
 	return l1Sensitivity * flakinessK * math.Log(10) / epsilon
 }
@@ -482,7 +466,7 @@ func laplaceTolerance(flakinessK, l1Sensitivity, epsilon float64) float64 {
 // l1Sensitivity, epsilon and delta are the DP parameters of the test.
 //
 // To see the logic and the math behind flakiness and tolerance calculation,
-// See https://github.com/google/differential-privacy/blob/master/privacy-on-beam/docs/Tolerance_Calculation.pdf
+// See https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf
 func complementaryLaplaceTolerance(flakinessK, l1Sensitivity, epsilon float64) float64 {
 	// We need arbitrary precision arithmetics here because ln(1-10⁻ᵏ) evaluates to
 	// 0 with float64, making the output 0.
@@ -500,7 +484,7 @@ func complementaryLaplaceTolerance(flakinessK, l1Sensitivity, epsilon float64) f
 // for mean.
 //
 // To see the logic and the math behind flakiness and tolerance calculation,
-// See https://github.com/google/differential-privacy/blob/master/privacy-on-beam/docs/Tolerance_Calculation.pdf.
+// See https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf.
 func oneSidedLaplaceTolerance(flakinessK, l1Sensitivity, epsilon float64) float64 {
 	return l1Sensitivity * (flakinessK*math.Log(10) - math.Log(2)) / epsilon
 }
@@ -511,7 +495,7 @@ func oneSidedLaplaceTolerance(flakinessK, l1Sensitivity, epsilon float64) float6
 // for mean.
 //
 // To see the logic and the math behind flakiness and tolerance calculation,
-// See https://github.com/google/differential-privacy/blob/master/privacy-on-beam/docs/Tolerance_Calculation.pdf.
+// See https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf.
 func oneSidedComplementaryLaplaceTolerance(flakinessK, l1Sensitivity, epsilon float64) float64 {
 	// We need arbitrary precision arithmetics here because ln(1-2.10⁻ᵏ) evaluates to
 	// 0 with float64, making the output 0.
@@ -529,7 +513,7 @@ func oneSidedComplementaryLaplaceTolerance(flakinessK, l1Sensitivity, epsilon fl
 // be on the safe side.
 //
 // To see the logic and the math behind flakiness and tolerance calculation,
-// See https://github.com/google/differential-privacy/blob/master/privacy-on-beam/docs/Tolerance_Calculation.pdf
+// See https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf
 func roundedLaplaceTolerance(flakinessK, l1Sensitivity, epsilon float64) float64 {
 	return math.Ceil(laplaceTolerance(flakinessK, l1Sensitivity, epsilon))
 }
@@ -541,7 +525,7 @@ func roundedLaplaceTolerance(flakinessK, l1Sensitivity, epsilon float64) float64
 // l0Sensitivity, lInfSensitivity, epsilon and delta are the DP parameters of the test.
 //
 // To see the logic and the math behind flakiness and tolerance calculation,
-// See https://github.com/google/differential-privacy/blob/master/privacy-on-beam/docs/Tolerance_Calculation.pdf
+// See https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf
 func complementaryGaussianTolerance(flakinessK, l0Sensitivity, lInfSensitivity, epsilon, delta float64) float64 {
 	return math.Erfinv(math.Pow(10, -flakinessK)) * noise.SigmaForGaussian(int64(l0Sensitivity), lInfSensitivity, epsilon, delta) * math.Sqrt(2)
 }
@@ -552,7 +536,7 @@ func complementaryGaussianTolerance(flakinessK, l0Sensitivity, lInfSensitivity, 
 // for mean.
 //
 // To see the logic and the math behind flakiness and tolerance calculation,
-// See https://github.com/google/differential-privacy/blob/master/privacy-on-beam/docs/Tolerance_Calculation.pdf
+// See https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf
 func oneSidedComplementaryGaussianTolerance(flakinessK, l0Sensitivity, lInfSensitivity, epsilon, delta float64) float64 {
 	return math.Erfinv(2*math.Pow(10, -flakinessK)) * noise.SigmaForGaussian(int64(l0Sensitivity), lInfSensitivity, epsilon, delta) * math.Sqrt(2)
 }
@@ -562,7 +546,7 @@ func oneSidedComplementaryGaussianTolerance(flakinessK, l0Sensitivity, lInfSensi
 // be on the safe side.
 //
 // To see the logic and the math behind flakiness and tolerance calculation,
-// See https://github.com/google/differential-privacy/blob/master/privacy-on-beam/docs/Tolerance_Calculation.pdf
+// See https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf
 func roundedComplementaryGaussianTolerance(flakinessK, l0Sensitivity, lInfSensitivity, epsilon, delta float64) float64 {
 	return math.Ceil(complementaryGaussianTolerance(flakinessK, l0Sensitivity, lInfSensitivity, epsilon, delta))
 }
@@ -576,7 +560,7 @@ func roundedComplementaryGaussianTolerance(flakinessK, l0Sensitivity, lInfSensit
 // exactNormalizedSum is needed for calculating tolerance because the algorithm of the mean aggregation uses noisy normalized sum in its calculations.
 //
 // To see the logic and the math behind flakiness and tolerance calculation,
-// See https://github.com/google/differential-privacy/blob/master/privacy-on-beam/docs/Tolerance_Calculation.pdf
+// See https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf
 func laplaceToleranceForMean(flakinessK, lower, upper float64, maxContributionsPerPartition, maxPartitionsContributed int64, epsilon float64, exactNormalizedSum, exactCount, exactMean float64) (float64, error) {
 	halfFlakiness := flakinessK / 2
 	halfEpsilon := epsilon / 2
@@ -598,7 +582,7 @@ func laplaceToleranceForMean(flakinessK, lower, upper float64, maxContributionsP
 // exactNormalizedSum is needed for calculating tolerance because the algorithm of the mean aggregation uses noisy normalized sum in its calculations.
 //
 // To see the logic and the math behind flakiness and tolerance calculation,
-// See https://github.com/google/differential-privacy/blob/master/privacy-on-beam/docs/Tolerance_Calculation.pdf
+// See https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf
 func complementaryLaplaceToleranceForMean(flakinessK, lower, upper float64, maxContributionsPerPartition, maxPartitionsContributed int64, epsilon float64, exactNormalizedSum, exactCount, exactMean float64) (float64, error) {
 	halfFlakiness := flakinessK / 2
 	epsilonCount, epsilonSum := epsilon/2, epsilon/2
@@ -606,7 +590,7 @@ func complementaryLaplaceToleranceForMean(flakinessK, lower, upper float64, maxC
 	_, l1Count, _ := sensitivitiesForCount(maxContributionsPerPartition, maxPartitionsContributed)
 	_, l1NormalizedSum, _ := sensitivitiesForNormalizedSum(lower, upper, maxContributionsPerPartition, maxPartitionsContributed)
 
-	countTolerance := math.Ceil(oneSidedComplementaryLaplaceTolerance(halfFlakiness, l1Count, epsilonCount))
+	countTolerance := math.Round(oneSidedComplementaryLaplaceTolerance(halfFlakiness, l1Count, epsilonCount))
 	normalizedSumTolerance := oneSidedComplementaryLaplaceTolerance(halfFlakiness, l1NormalizedSum, epsilonSum)
 	return toleranceForMean(lower, upper, exactNormalizedSum, exactCount, exactMean, countTolerance, normalizedSumTolerance)
 }
@@ -620,7 +604,7 @@ func complementaryLaplaceToleranceForMean(flakinessK, lower, upper float64, maxC
 // exactNormalizedSum is needed for calculating tolerance because the algorithm of the mean aggregation uses noisy normalized sum in its calculations.
 //
 // To see the logic and the math behind flakiness and tolerance calculation,
-// See https://github.com/google/differential-privacy/blob/master/privacy-on-beam/docs/Tolerance_Calculation.pdf
+// See https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf
 func complementaryGaussianToleranceForMean(flakinessK, lower, upper float64, maxContributionsPerPartition, maxPartitionsContributed int64, epsilon, delta float64, exactNormalizedSum, exactCount, exactMean float64) (float64, error) {
 	halfFlakiness := flakinessK / 2
 	epsilonCount, epsilonSum := epsilon/2, epsilon/2
@@ -629,7 +613,7 @@ func complementaryGaussianToleranceForMean(flakinessK, lower, upper float64, max
 	l0Count, _, lInfCount := sensitivitiesForCount(maxContributionsPerPartition, maxPartitionsContributed)
 	l0NormalizedSum, _, lInfNormalizedSum := sensitivitiesForNormalizedSum(lower, upper, maxContributionsPerPartition, maxPartitionsContributed)
 
-	countTolerance := math.Ceil(oneSidedComplementaryGaussianTolerance(halfFlakiness, l0Count, lInfCount, epsilonCount, deltaCount))
+	countTolerance := math.Round(oneSidedComplementaryGaussianTolerance(halfFlakiness, l0Count, lInfCount, epsilonCount, deltaCount))
 	normalizedSumTolerance := oneSidedComplementaryGaussianTolerance(halfFlakiness, l0NormalizedSum, lInfNormalizedSum, epsilonSum, deltaSum)
 	return toleranceForMean(lower, upper, exactNormalizedSum, exactCount, exactMean, countTolerance, normalizedSumTolerance)
 }
@@ -645,7 +629,7 @@ func complementaryGaussianToleranceForMean(flakinessK, lower, upper float64, max
 // exactNormalizedSum is needed for calculating tolerance because the algorithm of the mean aggregation uses noisy normalized sum in its calculations.
 //
 // To see the logic and the math behind flakiness and tolerance calculation,
-// see https://github.com/google/differential-privacy/blob/master/privacy-on-beam/docs/Tolerance_Calculation.pdf.
+// see https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf.
 func toleranceForMean(lower, upper, exactNormalizedSum, exactCount, exactMean, countTolerance, normalizedSumTolerance float64) (float64, error) {
 	midPoint := lower + (upper-lower)/2.0
 

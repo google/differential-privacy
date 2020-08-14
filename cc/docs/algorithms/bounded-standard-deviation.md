@@ -1,10 +1,7 @@
 
-
-<!-- This file is auto-generated. Do not edit. -->
-
 # Bounded Standard Deviation
 
-[`BoundedStandardDeviation`](https://github.com/google/differential-privacy/blob/master/cc/algorithms/bounded-standard-deviation.h)
+[`BoundedStandardDeviation`](https://github.com/google/differential-privacy/blob/main/cc/algorithms/bounded-standard-deviation.h)
 computes the standard deviation of values in a dataset, in a differentially
 private manner.
 

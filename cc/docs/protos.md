@@ -1,7 +1,4 @@
 
-
-<!-- This file is auto-generated. Do not edit. -->
-
 # Input and Output
 
 Our `Algorithm`s are templated by the input data type, and return output encoded
@@ -12,7 +9,7 @@ scalar data to/from `Output` protos.
 
 Algorithms should be templated on the input type. For example, we can find the
 mean of integer values by building the
-[`BoundedMean`](https://github.com/google/differential-privacy/blob/master/cc/algorithms/bounded-mean.h) algorithm like below.
+[`BoundedMean`](https://github.com/google/differential-privacy/blob/main/cc/algorithms/bounded-mean.h) algorithm like below.
 Note that the mean will always be double type despite the template type.
 
 ```
@@ -23,7 +20,7 @@ util::StatusOr<std::unique_ptr<BoundedMean<int64>>> bounded_mean =
                              .Build();
 ```
 
-## [`Output`](https://github.com/google/differential-privacy/blob/master/proto/data.proto)
+## [`Output`](https://github.com/google/differential-privacy/blob/main/proto/data.proto)
 
 The `Output` contains the algorithm results, and any available accuracy details.
 
@@ -58,7 +55,7 @@ message Output {
 
 Converting to/from these types can be cumbersome, so we provide utility
 functions for the common cases. We outline some of these functions below. See
-the [utility function file](https://github.com/google/differential-privacy/blob/master/cc/proto/util.h) for the full list.
+the [utility function file](https://github.com/google/differential-privacy/blob/main/cc/proto/util.h) for the full list.
 
 ### GetValue&lt;T&gt;
 

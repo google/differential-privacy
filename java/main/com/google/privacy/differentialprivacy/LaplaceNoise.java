@@ -28,17 +28,16 @@ import javax.annotation.Nullable;
  * securely differentially private.
  *
  * <p>The Laplace noise is generated according to the geometric sampling mechanism described <a
- * href="https://github.com/google/differential-privacy/blob/master/common_docs/Secure_Noise_Generation.pdf">here</a>.
+ * href="https://github.com/google/differential-privacy/blob/main/common_docs/Secure_Noise_Generation.pdf">here</a>.
  * This approach is robust against unintentional privacy leaks due to artifacts of floating point
  * arithmetic.
  */
-
 public class LaplaceNoise implements Noise {
   /**
    * This parameter determines the resolution of the numerical noise that is being generated
    * relative to the L_inf sensitivity and privacy parameter epsilon. More precisely, the
    * granularity parameter corresponds to the value 2^k as described <a
- * href="https://github.com/google/differential-privacy/blob/master/common_docs/Secure_Noise_Generation.pdf">here</a>..
+   * href="https://github.com/google/differential-privacy/blob/main/common_docs/Secure_Noise_Generation.pdf">here</a>..
    * Larger values result in more fine grained noise, but increase the chance of sampling
    * inaccuracies due to overflows. The probability of an overflow is less than 2^-1000, if the
    * granularity parameter is set to a value of 2^40 or less and the epsilon passed to addNoise is
@@ -96,8 +95,11 @@ public class LaplaceNoise implements Noise {
   @Override
   public long addNoise(
       long x, int l0Sensitivity, long lInfSensitivity, double epsilon, @Nullable Double delta) {
-    return Math.round(
-        addNoise((double) x, l0Sensitivity, (double) lInfSensitivity, epsilon, delta));
+    // Calling addNoise on 0.0 avoids casting x to a double value, which is not secure from a
+    // privacy perspective as it can have unforeseen effects on the sensitivity of x. Rounding and
+    // adding the resulting noise to x in a post processing step is a secure operation (for noise of
+    // moderate magnitude, i.e. < 2^53).
+    return Math.round(addNoise(0.0, l0Sensitivity, (double) lInfSensitivity, epsilon, delta)) + x;
   }
 
   @Override
@@ -114,6 +116,42 @@ public class LaplaceNoise implements Noise {
    */
   public long addNoise(long x, int l1Sensitivity, double epsilon, @Nullable Double delta) {
     return Math.round(addNoise((double) x, l1Sensitivity, epsilon, delta));
+  }
+
+  /**
+   * Computes a confidence interval that contains the raw value {@code x} passed to {@link
+   * #addNoise(double, int, double, double, Double)} with a probability equal to {@code
+   * confidenceLevel} based on the specified {@code noisedX} and noise parameters. Note that {@code
+   * delta} must be set to {@code null} because it does not parameterize Laplace noise.
+   */
+  @Override
+  public ConfidenceInterval computeConfidenceInterval(
+      double noisedX,
+      int l0Sensitivity,
+      double lInfSensitivity,
+      double epsilon,
+      @Nullable Double delta,
+      double confidenceLevel) {
+    // TODO: Implement confidence interval computation.
+    throw new UnsupportedOperationException("Not implemented yet.");
+  }
+
+  /**
+   * Computes a confidence interval that contains the raw value integer {@code x} passed to {@link
+   * #addNoise(long, int, long, double, Double)} with a probability greater or equal to {@code
+   * confidenceLevel} based on the specified {@code noisedX} and noise parameters. Note that {@code
+   * delta} must be set to {@code null} because it does not parameterize Laplace noise.
+   */
+  @Override
+  public ConfidenceInterval computeConfidenceInterval(
+      long noisedX,
+      int l0Sensitivity,
+      long lInfSensitivity,
+      double epsilon,
+      @Nullable Double delta,
+      double confidenceLevel) {
+    // TODO: Implement confidence interval computation.
+    throw new UnsupportedOperationException("Not implemented yet.");
   }
 
   private void checkParameters(double l1Sensitivity, double epsilon, @Nullable Double delta) {

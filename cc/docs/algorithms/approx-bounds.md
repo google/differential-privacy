@@ -1,10 +1,7 @@
 
-
-<!-- This file is auto-generated. Do not edit. -->
-
 # Approx Bounds
 
-[`ApproxBounds`](https://github.com/google/differential-privacy/blob/master/cc/algorithms/approx-bounds.h) computes an
+[`ApproxBounds`](https://github.com/google/differential-privacy/blob/main/cc/algorithms/approx-bounds.h) computes an
 approximate minimum and maximum of the input set. It is designed to be used to
 find the approximate support of a large input set, not to obtain a precise
 minimum or maximum. In practice, this algorithm is used to determine the bounds
@@ -75,7 +72,7 @@ builder.SetApproxBounds(std::unique_ptr<ApproxBounds> approx_bounds)
 ```
 
 Since `ApproxBounds` is designed to be called by other algorithms, it contains
-additional functions in its [API](https://github.com/google/differential-privacy/blob/master/cc/algorithms/approx-bounds.h) to
+additional functions in its [API](https://github.com/google/differential-privacy/blob/main/cc/algorithms/approx-bounds.h) to
 reveal its underlying structure.
 
 ### Result Performance

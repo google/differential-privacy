@@ -1,10 +1,7 @@
 
-
-<!-- This file is auto-generated. Do not edit. -->
-
 # Bounded Mean
 
-[`BoundedMean`](https://github.com/google/differential-privacy/blob/master/cc/algorithms/bounded-mean.h) computes the average of
+[`BoundedMean`](https://github.com/google/differential-privacy/blob/main/cc/algorithms/bounded-mean.h) computes the average of
 values in a dataset, in a differentially private manner.
 
 ## Input & Output

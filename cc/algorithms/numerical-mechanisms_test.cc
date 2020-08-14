@@ -46,7 +46,7 @@ TYPED_TEST_SUITE(NumericalMechanismsTest, NumericTypes);
 TYPED_TEST(NumericalMechanismsTest, LaplaceBuilder) {
   LaplaceMechanism::Builder test_builder;
   std::unique_ptr<NumericalMechanism> test_mechanism =
-      test_builder.SetEpsilon(1).SetL1Sensitivity(3).Build().ValueOrDie();
+      test_builder.SetL1Sensitivity(3).SetEpsilon(1).Build().ValueOrDie();
 
   EXPECT_DOUBLE_EQ(test_mechanism->GetEpsilon(), 1);
   EXPECT_DOUBLE_EQ(
@@ -113,8 +113,8 @@ TEST(NumericalMechanismsTest, LaplaceBuilderFailsEpsilonInfinity) {
 TYPED_TEST(NumericalMechanismsTest, LaplaceBuilderSensitivityTooHigh) {
   LaplaceMechanism::Builder test_builder;
   base::StatusOr<std::unique_ptr<NumericalMechanism>> test_mechanism =
-      test_builder.SetEpsilon(1)
-          .SetL1Sensitivity(std::numeric_limits<double>::max())
+      test_builder.SetL1Sensitivity(std::numeric_limits<double>::max())
+          .SetEpsilon(1)
           .Build();
   EXPECT_FALSE(test_mechanism.ok());
 }
@@ -194,7 +194,7 @@ TEST(NumericalMechanismsTest, LaplaceConfidenceInterval) {
 TYPED_TEST(NumericalMechanismsTest, LaplaceBuilderClone) {
   LaplaceMechanism::Builder test_builder;
   std::unique_ptr<LaplaceMechanism::Builder> clone =
-      test_builder.SetEpsilon(1).SetL1Sensitivity(3).Clone();
+      test_builder.SetL1Sensitivity(3).SetEpsilon(1).Clone();
   std::unique_ptr<NumericalMechanism> test_mechanism =
       clone->Build().ValueOrDie();
 
@@ -303,8 +303,8 @@ TEST(NumericalMechanismsTest, AddNoise) {
 TEST(NumericalMechanismsTest, LambdaTooSmall) {
   LaplaceMechanism::Builder test_builder;
   base::StatusOr<std::unique_ptr<NumericalMechanism>> test_mechanism_or =
-      test_builder.SetEpsilon(1.0 / std::pow(10, 100))
-          .SetL1Sensitivity(3)
+      test_builder.SetL1Sensitivity(3)
+          .SetEpsilon(1.0 / std::pow(10, 100))
           .Build();
   EXPECT_FALSE(test_mechanism_or.ok());
 }
@@ -369,7 +369,7 @@ TEST(NumericalMechanismsTest, GaussianMechanismAddsNoise) {
 TEST(NumericalMechanismsTest, GaussianBuilderClone) {
   GaussianMechanism::Builder test_builder;
   auto clone =
-      test_builder.SetEpsilon(1.1).SetDelta(0.5).SetL2Sensitivity(1.2).Clone();
+      test_builder.SetL2Sensitivity(1.2).SetEpsilon(1.1).SetDelta(0.5).Clone();
   auto mechanism = clone->Build().ValueOrDie();
 
   EXPECT_DOUBLE_EQ(mechanism->GetEpsilon(), 1.1);

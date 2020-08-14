@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Tests for google3.third_party.differential_privacy.accounting.python.privacy_loss_distribution."""
-
+"""Tests for privacy_loss_distribution.py"""
 import math
 import unittest
 from absl.testing import parameterized
@@ -74,37 +73,37 @@ class PrivacyLossDistributionTest(unittest.TestCase):
     # The true 0-hockey stick divergence is 0.1
     # When using pessimistic estimate, the output should be in [0.1, 0.1+1e-4]
     self.assertLessEqual(
-        0.1, privacy_loss_distribution_pessimistic.hockey_stick_divergence(0.0))
+        0.1, privacy_loss_distribution_pessimistic.get_delta_for_epsilon(0.0))
     self.assertGreaterEqual(
         0.1 + 1e-4,
-        privacy_loss_distribution_pessimistic.hockey_stick_divergence(0.0))
+        privacy_loss_distribution_pessimistic.get_delta_for_epsilon(0.0))
 
     # When using optimistic estimate, the output should be in [0.1 - 1e-4, 0.1]
     self.assertGreaterEqual(
-        0.1, privacy_loss_distribution_optimistic.hockey_stick_divergence(0.0))
+        0.1, privacy_loss_distribution_optimistic.get_delta_for_epsilon(0.0))
     self.assertLessEqual(
         0.1 - 1e-4,
-        privacy_loss_distribution_optimistic.hockey_stick_divergence(0.0))
+        privacy_loss_distribution_optimistic.get_delta_for_epsilon(0.0))
 
     # The true math.log(1.1)-hockey stick divergence is 0.05
     # When using pessimistic estimate, the output should be in [0.05, 0.05+1e-4]
     self.assertLessEqual(
         0.05,
-        privacy_loss_distribution_pessimistic.hockey_stick_divergence(
+        privacy_loss_distribution_pessimistic.get_delta_for_epsilon(
             math.log(1.1)))
     self.assertGreaterEqual(
         0.05 + 1e-4,
-        privacy_loss_distribution_pessimistic.hockey_stick_divergence(
+        privacy_loss_distribution_pessimistic.get_delta_for_epsilon(
             math.log(1.1)))
 
     # When using optimistic estimate, the output should be in [0.05-1e-4, 0.05]
     self.assertGreaterEqual(
         0.05,
-        privacy_loss_distribution_optimistic.hockey_stick_divergence(
+        privacy_loss_distribution_optimistic.get_delta_for_epsilon(
             math.log(1.1)))
     self.assertLessEqual(
         0.05 - 1e-4,
-        privacy_loss_distribution_pessimistic.hockey_stick_divergence(
+        privacy_loss_distribution_pessimistic.get_delta_for_epsilon(
             math.log(1.1)))
 
   def test_hockey_stick_unequal_support(self):
@@ -137,36 +136,36 @@ class PrivacyLossDistributionTest(unittest.TestCase):
     # The true 0-hockey stick divergence is 0.6
     # When using pessimistic estimate, the output should be in [0.6, 0.6+1e-4]
     self.assertLessEqual(
-        0.6, privacy_loss_distribution_pessimistic.hockey_stick_divergence(0.0))
+        0.6, privacy_loss_distribution_pessimistic.get_delta_for_epsilon(0.0))
     self.assertGreaterEqual(
         0.6 + 1e-4,
-        privacy_loss_distribution_pessimistic.hockey_stick_divergence(0.0))
+        privacy_loss_distribution_pessimistic.get_delta_for_epsilon(0.0))
 
     # When using optimistic estimate, the output should lie in [0.6 - 1e-4, 0.6]
     self.assertGreaterEqual(
-        0.6, privacy_loss_distribution_optimistic.hockey_stick_divergence(0.0))
+        0.6, privacy_loss_distribution_optimistic.get_delta_for_epsilon(0.0))
     self.assertLessEqual(
         0.6 - 1e-4,
-        privacy_loss_distribution_optimistic.hockey_stick_divergence(0.0))
+        privacy_loss_distribution_optimistic.get_delta_for_epsilon(0.0))
 
     # The true 0.5-hockey stick divergence is 0.34051149172
     # When using pessimistic estimate, the output should be in
     # [0.3405, 0.3405 + 1e-4]
     self.assertLessEqual(
         0.3405,
-        privacy_loss_distribution_pessimistic.hockey_stick_divergence(0.5))
+        privacy_loss_distribution_pessimistic.get_delta_for_epsilon(0.5))
     self.assertGreaterEqual(
         0.3405 + 1e-4,
-        privacy_loss_distribution_pessimistic.hockey_stick_divergence(0.5))
+        privacy_loss_distribution_pessimistic.get_delta_for_epsilon(0.5))
 
     # When using optimistic estimate, the output should lie in
     # [0.3405 - 1e-4, 0.3405]
     self.assertGreaterEqual(
         0.3405,
-        privacy_loss_distribution_optimistic.hockey_stick_divergence(0.5))
+        privacy_loss_distribution_optimistic.get_delta_for_epsilon(0.5))
     self.assertLessEqual(
         0.3405 - 1e-4,
-        privacy_loss_distribution_optimistic.hockey_stick_divergence(0.5))
+        privacy_loss_distribution_optimistic.get_delta_for_epsilon(0.5))
 
   def test_truncation(self):
     # Test for truncation
@@ -204,9 +203,9 @@ class PrivacyLossDistributionTest(unittest.TestCase):
     # The 10-hockey stick should be zero, but due to the mass truncation, the
     # output will be 0.05 in the pessimistic case.
     self.assertAlmostEqual(
-        privacy_loss_distribution_pessimistic.hockey_stick_divergence(10), 0.05)
+        privacy_loss_distribution_pessimistic.get_delta_for_epsilon(10), 0.05)
     self.assertAlmostEqual(
-        privacy_loss_distribution_optimistic.hockey_stick_divergence(10), 0)
+        privacy_loss_distribution_optimistic.get_delta_for_epsilon(10), 0)
 
   def test_composition(self):
     # Test for composition of privacy loss distribution
@@ -263,11 +262,11 @@ class PrivacyLossDistributionTest(unittest.TestCase):
     self.assertAlmostEqual(expected_result.infinity_mass,
                            result.infinity_mass)
     self.assertAlmostEqual(
-        expected_result.hockey_stick_divergence(0),
-        result.hockey_stick_divergence(0))
+        expected_result.get_delta_for_epsilon(0),
+        result.get_delta_for_epsilon(0))
     self.assertAlmostEqual(
-        expected_result.hockey_stick_divergence(0.5),
-        result.hockey_stick_divergence(0.5))
+        expected_result.get_delta_for_epsilon(0.5),
+        result.get_delta_for_epsilon(0.5))
 
   def test_self_composition(self):
     # Test for self composition of privacy loss distribution
@@ -303,11 +302,11 @@ class PrivacyLossDistributionTest(unittest.TestCase):
     self.assertAlmostEqual(expected_result.infinity_mass,
                            result.infinity_mass)
     self.assertAlmostEqual(
-        expected_result.hockey_stick_divergence(0),
-        result.hockey_stick_divergence(0))
+        expected_result.get_delta_for_epsilon(0),
+        result.get_delta_for_epsilon(0))
     self.assertAlmostEqual(
-        expected_result.hockey_stick_divergence(0.5),
-        result.hockey_stick_divergence(0.5))
+        expected_result.get_delta_for_epsilon(0.5),
+        result.get_delta_for_epsilon(0.5))
 
 
 class LaplacePrivacyLossDistributionTest(parameterized.TestCase):
@@ -406,12 +405,12 @@ class LaplacePrivacyLossDistributionTest(parameterized.TestCase):
   @parameterized.parameters((1, 1, 1, 0), (3, 3, 1, 0), (2, 4, 2, 0),
                             (2, 4, 0.5, 0.52763345), (1, 1, 0, 0.39346934),
                             (2, 2, 0, 0.39346934), (1, 1, -2, 0.86466472))
-  def test_laplace_hockey_stick_divergence(
+  def test_laplace_get_delta_for_epsilon(
       self, parameter, sensitivity, epsilon, expected_divergence):
     pld = privacy_loss_distribution.LaplacePrivacyLossDistribution(
         parameter, sensitivity=sensitivity, value_discretization_interval=1)
     self.assertAlmostEqual(expected_divergence,
-                           pld.hockey_stick_divergence(epsilon))
+                           pld.get_delta_for_epsilon(epsilon))
 
   @parameterized.parameters((1, 1, 0, 1), (1, 1, 0.1, 1), (2, 1, 0.01, 2),
                             (1, 3, 0.01, 0.33333333))
@@ -575,14 +574,14 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
   @parameterized.parameters((1, 1, 1, 0.12693674), (2, 2, 1, 0.12693674),
                             (1, 3, 1, 0.78760074), (2, 6, 1, 0.78760074),
                             (1, 1, 2, 0.02092364), (5, 5, 2, 0.02092364))
-  def test_gaussian_hockey_stick_divergence(
+  def test_gaussian_get_delta_for_epsilon(
       self, standard_deviation, sensitivity, epsilon, expected_divergence):
     pld = privacy_loss_distribution.GaussianPrivacyLossDistribution(
         standard_deviation,
         sensitivity=sensitivity,
         value_discretization_interval=1)
     self.assertAlmostEqual(expected_divergence,
-                           pld.hockey_stick_divergence(epsilon))
+                           pld.get_delta_for_epsilon(epsilon))
 
   @parameterized.parameters((1, 1, 0.12693674, 1), (2, 1, 0.12693674, 2),
                             (3, 1, 0.78760074, 1), (6, 1, 0.78760074, 2),
@@ -775,12 +774,12 @@ class DiscreteLaplacePrivacyLossDistributionTest(parameterized.TestCase):
   @parameterized.parameters((1, 1, 1, 0), (0.333333, 3, 1, 0), (0.5, 4, 2, 0),
                             (0.5, 4, 0.5, 0.54202002), (0.5, 4, 1, 0.39346934),
                             (0.5, 4, -0.5, 0.72222110))
-  def test_laplace_hockey_stick_divergence(
+  def test_laplace_get_delta_for_epsilon(
       self, parameter, sensitivity, epsilon, expected_divergence):
     pld = privacy_loss_distribution.DiscreteLaplacePrivacyLossDistribution(
         parameter, sensitivity=sensitivity, value_discretization_interval=1)
     self.assertAlmostEqual(expected_divergence,
-                           pld.hockey_stick_divergence(epsilon))
+                           pld.get_delta_for_epsilon(epsilon))
 
   @parameterized.parameters((1, 1, 0, 1), (1, 1, 0.1, 1), (2, 1, 0.01, 0.5),
                             (1, 3, 0.01, 3))

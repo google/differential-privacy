@@ -1,10 +1,7 @@
 
-
-<!-- This file is auto-generated. Do not edit. -->
-
 # Bounded Variance
 
-[`BoundedVariance`](https://github.com/google/differential-privacy/blob/master/cc/algorithms/bounded-variance.h) computes the
+[`BoundedVariance`](https://github.com/google/differential-privacy/blob/main/cc/algorithms/bounded-variance.h) computes the
 variance of values in a dataset, in a differentially private manner.
 
 ## Input & Output
