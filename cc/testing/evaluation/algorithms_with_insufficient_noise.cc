@@ -67,8 +67,9 @@ bool RunStochasticTester(std::string algorithm, double ratio, double num_dataset
     StochasticTester<int64_t> tester(std::move(algorithm), std::move(sequence),
       num_datasets, num_samples_per_histogram);
 
-    bool algo_is_dp = tester.Run(); // false = 0, true = 1
-    return algo_is_dp; // correct outcome is false, e.g., DP premise rejected
+  // Desired outcome is false, since algorithm has been engineered to violate DP.
+    bool algo_is_dp = tester.Run();
+    return algo_is_dp; 
   }
 
   else if (algorithm == "boundedsum") {
@@ -80,8 +81,9 @@ bool RunStochasticTester(std::string algorithm, double ratio, double num_dataset
     StochasticTester<double> tester(std::move(algorithm), std::move(sequence),
       num_datasets, num_samples_per_histogram);
 
-    bool algo_is_dp = tester.Run(); // false = 0, true = 1
-    return algo_is_dp; // correct outcome is false, e.g., DP premise rejected
+  // Desired outcome is false, since algorithm has been engineered to violate DP.
+    bool algo_is_dp = tester.Run();
+    return algo_is_dp;
 
   }
 
@@ -94,8 +96,9 @@ bool RunStochasticTester(std::string algorithm, double ratio, double num_dataset
     StochasticTester<double> tester(std::move(algorithm), std::move(sequence),
       num_datasets, num_samples_per_histogram);
 
-    bool algo_is_dp = tester.Run(); // false = 0, true = 1
-    return algo_is_dp; // correct outcome is false, e.g., DP premise rejected
+  // Desired outcome is false, since algorithm has been engineered to violate DP.
+    bool algo_is_dp = tester.Run();
+    return algo_is_dp; 
   }
 
   else {
