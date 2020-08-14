@@ -64,11 +64,10 @@ bool RunStochasticTester(std::string algorithm, double ratio, double num_dataset
     auto algorithm = absl::make_unique<CountWithInsufficientNoise<int64_t>>(
       std::log(3), ratio);
     
-    StochasticTester<int64_t> tester( std::move(algorithm), std::move(sequence),
+    StochasticTester<int64_t> tester(std::move(algorithm), std::move(sequence),
       num_datasets, num_samples_per_histogram);
 
     bool algo_is_dp = tester.Run(); // false = 0, true = 1
-    std::cout << algo_is_dp << std::endl; 
     return algo_is_dp; // correct outcome is false, e.g., DP premise rejected
   }
 
@@ -82,7 +81,6 @@ bool RunStochasticTester(std::string algorithm, double ratio, double num_dataset
       num_datasets, num_samples_per_histogram);
 
     bool algo_is_dp = tester.Run(); // false = 0, true = 1
-    std::cout << algo_is_dp << std::endl; 
     return algo_is_dp; // correct outcome is false, e.g., DP premise rejected
 
   }
@@ -97,7 +95,6 @@ bool RunStochasticTester(std::string algorithm, double ratio, double num_dataset
       num_datasets, num_samples_per_histogram);
 
     bool algo_is_dp = tester.Run(); // false = 0, true = 1
-    std::cout << algo_is_dp << std::endl; 
     return algo_is_dp; // correct outcome is false, e.g., DP premise rejected
   }
 
