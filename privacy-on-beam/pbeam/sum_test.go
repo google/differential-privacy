@@ -144,37 +144,37 @@ func TestSumPerKeyNegativeBoundsInt(t *testing.T) {
 	}
 }
 
-// // Checks that SumPerKey with partitions works correctly for negative bounds and negative values with int values.
-// func TestSumPerKeyWithPartitionsNegativeBoundsInt(t *testing.T) {
-// 	triples := concatenateTriplesWithIntValue(
-// 		makeTripleWithIntValue(58, 1, -1), // should be clamped down to -2
-// 		makeTripleWithIntValue(99, 2, -4)) // should be clamped up to -3
-// 	result := []testInt64Metric{
-// 		{1, -116},
-// 		{2, -297},
-// 	}
-// 	p, s, col, want := ptest.CreateList2(triples, result)
-// 	col = beam.ParDo(s, extractIDFromTripleWithIntValue, col)
-// 	partitions := []int{1, 2}
-// 	partitionsCol := beam.CreateList(s, partitions)
+// Checks that SumPerKey with partitions works correctly for negative bounds and negative values with int values.
+func TestSumPerKeyWithPartitionsNegativeBoundsInt(t *testing.T) {
+	triples := concatenateTriplesWithIntValue(
+		makeTripleWithIntValue(58, 1, -1), // should be clamped down to -2
+		makeTripleWithIntValue(99, 2, -4)) // should be clamped up to -3
+	result := []testInt64Metric{
+		{1, -116},
+		{2, -297},
+	}
+	p, s, col, want := ptest.CreateList2(triples, result)
+	col = beam.ParDo(s, extractIDFromTripleWithIntValue, col)
+	partitions := []int{1, 2}
+	partitionsCol := beam.CreateList(s, partitions)
 
-// 	// We have ε=50, δ=0 and l1Sensitivity=3.
-// 	// We have 2 partitions. So, to get an overall flakiness of 10⁻²³,
-// 	// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
-// 	// To see the logic and the math behind flakiness and tolerance calculation,
-// 	// See https://github.com/google/differential-privacy/blob/master/privacy-on-beam/docs/Tolerance_Calculation.pdf.
-// 	epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 25.0, 3.0
-// 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
-// 	pcol = ParDo(s, tripleWithIntValueToKV, pcol)
-// 	got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 3, MinValue: -3, MaxValue: -2, NoiseKind: LaplaceNoise{}, partitionsCol: partitionsCol})
-// 	want = beam.ParDo(s, int64MetricToKV, want)
-// 	if err := approxEqualsKVInt64(s, got, want, laplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-// 		t.Fatalf("TestSumPerKeyWithPartitionsNegativeBoundsInt: %v", err)
-// 	}
-// 	if err := ptest.Run(p); err != nil {
-// 		t.Errorf("TestSumPerKeyWithPartitionsNegativeBoundsInt: SumPerKey(%v) = %v, expected %v: %v", col, got, want, err)
-// 	}
-// }
+	// We have ε=50, δ=0 and l1Sensitivity=3.
+	// We have 2 partitions. So, to get an overall flakiness of 10⁻²³,
+	// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
+	// To see the logic and the math behind flakiness and tolerance calculation,
+	// See https://github.com/google/differential-privacy/blob/master/privacy-on-beam/docs/Tolerance_Calculation.pdf.
+	epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 25.0, 3.0
+	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+	pcol = ParDo(s, tripleWithIntValueToKV, pcol)
+	got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 3, MinValue: -3, MaxValue: -2, NoiseKind: LaplaceNoise{}, partitionsCol: partitionsCol})
+	want = beam.ParDo(s, int64MetricToKV, want)
+	if err := approxEqualsKVInt64(s, got, want, laplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
+		t.Fatalf("TestSumPerKeyWithPartitionsNegativeBoundsInt: %v", err)
+	}
+	if err := ptest.Run(p); err != nil {
+		t.Errorf("TestSumPerKeyWithPartitionsNegativeBoundsInt: SumPerKey(%v) = %v, expected %v: %v", col, got, want, err)
+	}
+}
 
 
 // Checks that SumPerKey returns a correct answer with float values. The logic

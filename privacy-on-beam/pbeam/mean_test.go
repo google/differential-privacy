@@ -20,7 +20,7 @@ import (
 	"reflect"
 	"testing"
 
-	// "github.com/google/differential-privacy/go/dpagg"
+	"github.com/google/differential-privacy/go/dpagg"
 	"github.com/google/differential-privacy/go/noise"
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
