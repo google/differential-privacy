@@ -13,7 +13,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-// #include "bounded-sum-with-insufficient-noise.h"
 
 #include "algorithms_with_insufficient_noise.h"
 
@@ -156,9 +155,9 @@ void GetTestResults(std::ofstream& datafile, std::string algorithm,
 int main(int argc, char *argv[]) {
 
   double num_datasets = 15;
-  double num_samples_per_histogram = 1000000;
+  double num_samples_per_histogram = 10;
   double ratio_min = 80.0;
-  double ratio_max = 99.0;
+  double ratio_max = 81.0;
   std::ofstream datafile;
   std::vector<std::string> algorithms={"count","boundedsum","boundedmean"};
 
