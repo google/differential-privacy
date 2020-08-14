@@ -231,6 +231,57 @@ func TestCountAddsNoise(t *testing.T) {
 	}
 }
 
+// Checks that Count with partitions adds noise to its output.
+func TestCountAddsNoiseWithPartitions(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		noiseKind NoiseKind
+		// Differential privacy params used.
+		epsilon float64
+		delta   float64
+	}{
+		// Epsilon and delta are not split because partitions are specified. All of it is used for the noise.
+		{
+			name:      "Gaussian",
+			noiseKind: GaussianNoise{},
+			epsilon:   1, 
+			delta:     0.005, 
+		},
+		{
+			name:      "Laplace",
+			noiseKind: LaplaceNoise{},
+			epsilon:   0.1, 
+			delta:     0, // It is 0 because partitions are specified (so no thresholding occurs) and we are adding Laplace noise.
+		},
+	} {
+		// We have 1 partition. So, to get an overall flakiness of 10⁻²³,
+		// we need to have each partition pass with 1-10⁻²³ probability (k=23).
+		epsilonNoise, deltaNoise := tc.epsilon, tc.delta
+		k := 23.0
+		l0Sensitivity, lInfSensitivity := 1.0, 1.0
+		l1Sensitivity := l0Sensitivity * lInfSensitivity
+		tolerance := complementaryLaplaceTolerance(k, l1Sensitivity, epsilonNoise)
+		if tc.noiseKind == gaussianNoise {
+			deltaNoise = tc.delta
+			tolerance = complementaryGaussianTolerance(k, l0Sensitivity, lInfSensitivity, epsilonNoise, deltaNoise)
+		}
+
+		// pairs contains {1,0}, {2,0}, …, {10,0}.
+		pairs := makePairsWithFixedV(10, 0)
+		p, s, col := ptest.CreateList(pairs)
+		col = beam.ParDo(s, pairToKV, col)
+		partitionsCol := beam.CreateList(s, []int{0, 1})
+		pcol := MakePrivate(s, col, NewPrivacySpec(tc.epsilon, tc.delta))
+		got := Count(s, pcol, CountParams{MaxPartitionsContributed: 1, MaxValue: 1, NoiseKind: tc.noiseKind, partitionsCol: partitionsCol})
+		got = beam.ParDo(s, kvToInt64Metric, got)
+		checkInt64MetricsAreNoisy(s, got, 10, tolerance)
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("CountPerKey didn't add any noise: %v", err)
+		}
+	}
+}
+
+
 // Checks that Count bounds per-user contributions correctly.
 func TestCountCrossPartitionContributionBounding(t *testing.T) {
 	// pairs contains {1,0}, {2,0}, …, {50,0}, {1,1}, …, {50,1}, {1,2}, …, {50,9}.
@@ -334,8 +385,8 @@ func TestCountWithPartitionsReturnsNonNegative(t *testing.T) {
 	col = beam.ParDo(s, pairToKV, col)
 	partitionsCol := beam.CreateList(s, partitions)
 	// Using a low epsilon and high maxValue adds a lot of noise and using
-	// zero delta because partitions are specified.
-	epsilon, delta, maxValue := 0.001, 0.0, int64(1e8)
+	// a high delta keeps many partitions.
+	epsilon, delta, maxValue := 0.001, 0.999, int64(1e8)
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 	counts := Count(s, pcol, CountParams{MaxValue: maxValue, MaxPartitionsContributed: 1, NoiseKind: GaussianNoise{}, partitionsCol: partitionsCol})
 	values := beam.DropKey(s, counts)

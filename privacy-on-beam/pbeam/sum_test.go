@@ -363,6 +363,60 @@ func TestSumPerKeyAddsNoiseInt(t *testing.T) {
 	}
 }
 
+// Checks that SumPerKey with partitions adds noise to its output with int values. The logic
+// mirrors TestDistinctPrivacyIDAddsNoise.
+func TestSumPerKeyWithPartitionsAddsNoiseInt(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		noiseKind NoiseKind
+		// Differential privacy params used.
+		epsilon float64
+		delta   float64
+	}{
+		// Epsilon and delta are not split because partitions are specified. All of it is used for the noise.
+		{
+			name:      "Gaussian",
+			noiseKind: GaussianNoise{},
+			epsilon:   1,    
+			delta:     0.005, 
+		},
+		{
+			name:      "Laplace",
+			noiseKind: LaplaceNoise{},
+			epsilon:   0.1, 
+			delta:     0, // It is 0 because partitions are specified (so no thresholding occurs) and we are adding Laplace noise.
+		},
+	} {
+		// We have 1 partition. So, to get an overall flakiness of 10⁻²³,
+		// we need to have each partition pass with 1-10⁻²³ probability (k=23).
+		epsilonNoise, deltaNoise := tc.epsilon, tc.delta
+		k := 23.0
+		l0Sensitivity, lInfSensitivity := 1.0, 1.0
+		l1Sensitivity := l0Sensitivity * lInfSensitivity
+		tolerance := complementaryLaplaceTolerance(k, l1Sensitivity, epsilonNoise)
+		if tc.noiseKind == gaussianNoise {
+			deltaNoise = tc.delta
+			tolerance = complementaryGaussianTolerance(k, l0Sensitivity, lInfSensitivity, epsilonNoise, deltaNoise)
+		}
+
+		// triples contains {1,0,1}, {2,0,1}, …, {10,0,1}.
+		triples := makeDummyTripleWithIntValue(10, 0)
+		p, s, col := ptest.CreateList(triples)
+		col = beam.ParDo(s, extractIDFromTripleWithIntValue, col)
+		partitionsCol := beam.CreateList(s, []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
+
+		pcol := MakePrivate(s, col, NewPrivacySpec(tc.epsilon, tc.delta))
+		pcol = ParDo(s, tripleWithIntValueToKV, pcol)
+		got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 1, MinValue: 0, MaxValue: 1, NoiseKind: tc.noiseKind, partitionsCol: partitionsCol})
+		got = beam.ParDo(s, kvToInt64Metric, got)
+
+		checkInt64MetricsAreNoisy(s, got, 10, tolerance)
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("SumPerKey didn't add any noise with int inputs and %s Noise: %v", tc.name, err)
+		}
+	}
+}
+
 // Checks that SumPerKey adds noise to its output with float values. The logic
 // mirrors TestDistinctPrivacyIDAddsNoise.
 func TestSumPerKeyAddsNoiseFloat(t *testing.T) {

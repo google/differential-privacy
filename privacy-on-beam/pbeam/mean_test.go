@@ -294,6 +294,83 @@ func TestMeanPerKeyAddsNoiseFloat(t *testing.T) {
 	}
 }
 
+// Checks that MeanPerKey with partitions adds noise to its output with float values.
+func TestMeanPerKeyWithPartitionsAddsNoiseFloat(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		noiseKind NoiseKind
+		// Differential privacy params used
+		epsilon float64
+		delta   float64
+	}{
+		// Epsilon and delta are not split because partitions are specified. All of it is used for the noise.
+		{
+			name:      "Gaussian",
+			noiseKind: GaussianNoise{},
+			epsilon:   1, 
+			delta:     0.005, 
+		},
+		{
+			name:      "Laplace",
+			noiseKind: LaplaceNoise{},
+			epsilon:   0.1,
+			delta:     0, // It is 0 because partitions are specified (so no thresholding occurs) and we are adding Laplace noise.
+		},
+	} {
+		lower := 0.0
+		upper := 3.0
+
+		// We have 1 partition. So, to get an overall flakiness of 10⁻²³,
+		// we need to have each partition pass with 1-10⁻²³ probability (k=23).
+		epsilonNoise, deltaNoise := tc.epsilon, tc.delta
+		k := 23.0
+		l0Sensitivity, lInfSensitivity := 1.0, 2.0
+		if tc.noiseKind == gaussianNoise {
+			deltaNoise = tc.delta
+		}
+
+		numIDs := 10
+
+		var tolerance float64
+		var err error
+		if tc.noiseKind == gaussianNoise {
+			tolerance, err = complementaryGaussianToleranceForMean(k, lower, upper, int64(lInfSensitivity), int64(l0Sensitivity), epsilonNoise, deltaNoise, -0.5*float64(numIDs), float64(numIDs), 1.0)
+			if err != nil {
+				t.Fatalf("complementaryGaussianToleranceForMean: got error %v", err)
+			}
+		} else {
+			tolerance, err = complementaryLaplaceToleranceForMean(k, lower, upper, int64(lInfSensitivity), int64(l0Sensitivity), epsilonNoise, -0.5*float64(numIDs), float64(numIDs), 1.0)
+			if err != nil {
+				t.Fatalf("complementaryLaplaceToleranceForMean: got error %v", err)
+			}
+		}
+
+		// triples contains {1,0,1}, {2,0,1}, …, {numIDs,0,1}.
+		triples := makeDummyTripleWithFloatValue(numIDs, 0)
+		p, s, col := ptest.CreateList(triples)
+		col = beam.ParDo(s, extractIDFromTripleWithFloatValue, col)
+		partitionsCol := beam.CreateList(s, []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
+
+		pcol := MakePrivate(s, col, NewPrivacySpec(tc.epsilon, tc.delta))
+		pcol = ParDo(s, tripleWithFloatValueToKV, pcol)
+		got := MeanPerKey(s, pcol, MeanParams{
+			MaxPartitionsContributed:     1,
+			MaxContributionsPerPartition: 1,
+			MinValue:                     0.0,
+			MaxValue:                     2.0,
+			NoiseKind:                    tc.noiseKind,
+			partitionsCol:                partitionsCol,
+		})
+		got = beam.ParDo(s, kvToFloat64Metric, got)
+
+		checkFloat64MetricsAreNoisy(s, got, 1.0, tolerance)
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("MeanPerKey didn't add any noise with float inputs and %s Noise: %v", tc.name, err)
+		}
+	}
+}
+
+
 // Checks that MeanPerKey returns a correct answer for int input values.
 // They should be correctly converted to float64 and then correct result
 // with float statistic should be computed.
