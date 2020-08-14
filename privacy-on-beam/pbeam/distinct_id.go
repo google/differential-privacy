@@ -55,7 +55,7 @@ type DistinctPrivacyIDParams struct {
 	//
 	// Required.
 	MaxPartitionsContributed int64
-	// User-specified partitions.
+	// Client-specified partitions.
 	//
 	// Optional.
 	partitionsCol beam.PCollection
@@ -66,7 +66,7 @@ type DistinctPrivacyIDParams struct {
 // private noise to the counts and doing post-aggregation thresholding to
 // remove low counts. It is conceptually equivalent to calling Count with
 // MaxValue=1, but is specifically optimized for this use case.
-// User can also specify at most one PCollection of partitions.
+// Client can also specify a PCollection of partitions.
 //
 // Note: Do not use when your results may cause overflows for Int64 values.
 // This aggregation is not hardened for such applications yet.
@@ -95,6 +95,7 @@ func DistinctPrivacyID(s beam.Scope, pcol PrivatePCollection, params DistinctPri
 	if err != nil {
 		log.Exit(err)
 	}
+	
 	maxPartitionsContributed := getMaxPartitionsContributed(spec, params.MaxPartitionsContributed)
 	// Drop unspecified partitions, if partitions are specified.
 	if (params.partitionsCol).IsValid() {

@@ -325,13 +325,13 @@ func TestDistinctPrivacyIDWithPartitionsAddsNoise(t *testing.T) {
 		col = beam.ParDo(s, pairToKV, col)
 
 		pcol := MakePrivate(s, col, NewPrivacySpec(tc.epsilon, tc.delta))
-		partitionsCol := beam.CreateList(s, []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
+		partitionsCol := beam.CreateList(s, []int{0})
 		got := DistinctPrivacyID(s, pcol, DistinctPrivacyIDParams{MaxPartitionsContributed: 1, NoiseKind: tc.noiseKind, partitionsCol: partitionsCol})
 		got = beam.ParDo(s, kvToInt64Metric, got)
 
 		checkInt64MetricsAreNoisy(s, got, numIDs, tolerance)
 		if err := ptest.Run(p); err != nil {
-			t.Errorf("DistinctPrivacyID didn't add any noise: %v", err)
+			t.Errorf("DistinctPrivacyID with partitions didn't add any noise: %v", err)
 		}
 	}
 }

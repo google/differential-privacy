@@ -87,7 +87,7 @@ type MeanParams struct {
 // MeanPerKey obtains the mean of the values associated with each key in a
 // PrivatePCollection<K,V>, adding differentially private noise to the means and
 // doing pre-aggregation thresholding to remove means with a low number of
-// distinct privacy identifiers. User can also specify a PCollection of partitions.
+// distinct privacy identifiers. Client can also specify a PCollection of partitions.
 //
 // Note: Do not use when your results may cause overflows for Int64 or Float64
 // values.  This aggregation is not hardened for such applications yet.
@@ -110,7 +110,6 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 	if err != nil {
 		log.Exitf("couldn't consume budget: %v", err)
 	}
-
 	var noiseKind noise.Kind
 	if params.NoiseKind == nil {
 		noiseKind = noise.LaplaceNoise
@@ -122,20 +121,20 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 	if err != nil {
 		log.Exit(err)
 	}
-	correctPartitions := pcol.col
+
 	// Drop unspecified partitions, if partitions are specified.
 	if (params.partitionsCol).IsValid(){ // Partitions are specified.
 		if pcol.codec.KType.T != (params.partitionsCol).Type().Type() {
 			log.Exitf("Specified partitions must be of type %v. Got type %v instead.",
 				pcol.codec.KType.T, (params.partitionsCol).Type().Type())
 		}
-		correctPartitions = dropUnspecifiedPartitionsKVFn(s, params.partitionsCol, pcol, pcol.codec.KType)
+		pcol.col = dropUnspecifiedPartitionsKVFn(s, params.partitionsCol, pcol, pcol.codec.KType)
 	} 
 	// First, group together the privacy ID and the partition ID and do per-partition contribution bounding.
 	// Result is PCollection<kv.Pair{ID,K},V>
 	decoded := beam.ParDo(s,
 		newPrepareMeanFn(idT, pcol.codec),
-		correctPartitions,
+		pcol.col,
 		beam.TypeDefinition{Var: beam.VType, T: pcol.codec.VType.T})
 
 	maxContributionsPerPartition := getMaxContributionsPerPartition(params.MaxContributionsPerPartition)

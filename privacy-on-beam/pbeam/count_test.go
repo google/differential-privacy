@@ -278,13 +278,13 @@ func TestCountAddsNoiseWithPartitions(t *testing.T) {
 		pairs := makePairsWithFixedV(10, 0)
 		p, s, col := ptest.CreateList(pairs)
 		col = beam.ParDo(s, pairToKV, col)
-		partitionsCol := beam.CreateList(s, []int{0, 1})
+		partitionsCol := beam.CreateList(s, []int{0})
 		pcol := MakePrivate(s, col, NewPrivacySpec(tc.epsilon, tc.delta))
 		got := Count(s, pcol, CountParams{MaxPartitionsContributed: 1, MaxValue: 1, NoiseKind: tc.noiseKind, partitionsCol: partitionsCol})
 		got = beam.ParDo(s, kvToInt64Metric, got)
 		checkInt64MetricsAreNoisy(s, got, 10, tolerance)
 		if err := ptest.Run(p); err != nil {
-			t.Errorf("CountPerKey didn't add any noise: %v", err)
+			t.Errorf("CountPerKey with partitions didn't add any noise: %v", err)
 		}
 	}
 }

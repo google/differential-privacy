@@ -66,7 +66,7 @@ type CountParams struct {
 // Count counts the number of times a value appears in a PrivatePCollection,
 // adding differentially private noise to the counts and doing pre-aggregation
 // thresholding to remove counts with a low number of distinct privacy
-// identifiers. User can also specify at most one PCollection of partitions.
+// identifiers. Client can also specify a PCollection of partitions.
 //
 // Note: Do not use when your results may cause overflows for Int64 values.
 // This aggregation is not hardened for such applications yet.
@@ -76,13 +76,13 @@ func Count(s beam.Scope, pcol PrivatePCollection, params CountParams) beam.PColl
 	s = s.Scope("pbeam.Count")
 	// Obtain type information from the underlying PCollection<K,V>.
 	idT, partitionT := beam.ValidateKVType(pcol.col)
+	
 	// Get privacy parameters.
 	spec := pcol.privacySpec
 	epsilon, delta, err := spec.consumeBudget(params.Epsilon, params.Delta)
 	if err != nil {
 		log.Exitf("couldn't consume budget: %v", err)
 	}
-
 	var noiseKind noise.Kind
 	if params.NoiseKind == nil {
 		noiseKind = noise.LaplaceNoise
@@ -90,12 +90,10 @@ func Count(s beam.Scope, pcol PrivatePCollection, params CountParams) beam.PColl
 	} else {
 		noiseKind = params.NoiseKind.toNoiseKind()
 	}
-
 	err = checkCountParams(params, epsilon, delta, noiseKind)
 	if err != nil {
 		log.Exit(err)
 	}
-
 
 	maxPartitionsContributed := getMaxPartitionsContributed(spec, params.MaxPartitionsContributed)
 	// Drop unspecified partitions, if partitions are specified.

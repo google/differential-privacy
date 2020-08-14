@@ -76,7 +76,7 @@ type SumParams struct {
 // SumPerKey sums the values associated with each key in a
 // PrivatePCollection<K,V>, adding differentially private noise to the sums and
 // doing pre-aggregation thresholding to remove sums with a low number of
-// distinct privacy identifiers. User can also specify at most one PCollection of partitions.
+// distinct privacy identifiers. Client can also specify a PCollection of partitions.
 //
 // Note: Do not use when your results may cause overflows for Int64 and Float64
 // values. This aggregation is not hardened for such applications yet.
@@ -98,11 +98,9 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCo
 	// Get privacy parameters.
 	spec := pcol.privacySpec
 	epsilon, delta, err := spec.consumeBudget(params.Epsilon, params.Delta)
-	
 	if err != nil {
 		log.Exitf("couldn't consume budget: %v", err)
 	}
-	
 	var noiseKind noise.Kind
 	if params.NoiseKind == nil {
 		noiseKind = noise.LaplaceNoise
@@ -124,7 +122,6 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCo
 		}
 		pcol.col = dropUnspecifiedPartitionsKVFn(s, params.partitionsCol, pcol, pcol.codec.KType)
 	}
-
 	// First, group together the privacy ID and the partition ID, and sum the
 	// values per-privacy unit and per-partition.
 	decoded := beam.ParDo(s,
