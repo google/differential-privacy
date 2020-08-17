@@ -202,10 +202,14 @@ func checkSumPerKeyParams(params SumParams, epsilon, delta float64, noiseKind no
 	if err != nil {
 		return err
 	}
-	err = checks.CheckDeltaStrict("pbeam.Count", delta)
 	if (params.partitionsCol).IsValid() && noiseKind == noise.LaplaceNoise {
-		err = checks.CheckNoDelta("pbeam.Count", delta)
-	} 
+		err = checks.CheckNoDelta("pbeam.SumPerKey", delta)
+	} else{
+		err = checks.CheckDeltaStrict("pbeam.SumPerKey", delta)
+	}
+	if err != nil {
+		return err
+	}
 	err = checks.CheckBoundsFloat64("pbeam.SumPerKey", params.MinValue, params.MaxValue)
 	if err != nil {
 		return err

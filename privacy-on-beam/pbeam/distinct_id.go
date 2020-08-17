@@ -147,12 +147,13 @@ func checkDistinctPrivacyIDParams(params DistinctPrivacyIDParams, epsilon, delta
 	if err != nil {
 		return err
 	}
-	err = checks.CheckDeltaStrict("pbeam.DistinctPrivacyID", delta)
 	if noiseKind == noise.LaplaceNoise {
 		err = checks.CheckDelta("pbeam.DistinctPrivacyID", delta)
 		if (params.partitionsCol).IsValid() {
 			err = checks.CheckNoDelta("pbeam.DistinctPrivacyID", delta)
 		}
+	} else {
+		checks.CheckDeltaStrict("pbeam.DistinctPrivacyID", delta)
 	}
 	if err != nil {
 		return err

@@ -137,10 +137,11 @@ func checkCountParams(params CountParams, epsilon, delta float64, noiseKind nois
 	if err != nil {
 		return err
 	}
-	err = checks.CheckDeltaStrict("pbeam.Count", delta)
 	if (params.partitionsCol).IsValid() && noiseKind == noise.LaplaceNoise {
 		err = checks.CheckNoDelta("pbeam.Count", delta)
-	} 
+	} else{
+		err = checks.CheckDeltaStrict("pbeam.Count", delta)
+	}
 	if err != nil {
 		return err
 	}

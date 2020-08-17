@@ -214,9 +214,10 @@ func checkMeanPerKeyParams(params MeanParams, epsilon, delta float64, noiseKind 
 	if err != nil {
 		return err
 	}
-	err = checks.CheckDeltaStrict("pbeam.MeanPerKey", delta)
 	if (params.partitionsCol).IsValid() && noiseKind == noise.LaplaceNoise {
 		err = checks.CheckNoDelta("pbeam.MeanPerKey", delta)
+	} else{
+		err = checks.CheckDeltaStrict("pbeam.MeanPerKey", delta)
 	} 
 	if err != nil {
 		return err
