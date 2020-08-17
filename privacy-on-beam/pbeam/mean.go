@@ -184,18 +184,29 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 }
 
 func addSpecifiedPartitionsForMean(s beam.Scope, epsilon, delta float64, maxPartitionsContributed int64, params MeanParams, noiseKind noise.Kind, partialKV beam.PCollection) beam.PCollection {
-	// Turn partitionsCol type PCollection<K> into PCollection<K, []float64 {}> by adding
-	// an empty slice as the value to each K.
-	dummyValues := beam.ParDo(s, addDummyValuesForMeanToSpecifiedPartitionsFloat64Fn, params.partitionsCol)
-	// Merge specified partitions with existing partitions
-	allAddPartitions := beam.Flatten(s, partialKV, dummyValues)
-
 	// Compute the mean for each partition. Result is PCollection<partition, float64>.
 	means := beam.CombinePerKey(s,
 		newBoundedMeanFloat64Fn(epsilon, delta, maxPartitionsContributed, params.MaxContributionsPerPartition, params.MinValue, params.MaxValue, noiseKind, true),
-		allAddPartitions)
-	finalPartitions := beam.ParDo(s, dereferenceValueToFloat64, means)
-	return finalPartitions
+		partialKV)
+	partitionT, _ := beam.ValidateKVType(means)
+	dummyMeans := means
+	meansPartitions := beam.DropValue(s, dummyMeans)
+	// Create map with partitions in the data as keys. 
+	partitionMap := beam.Combine(s, newPartitionsMapFn(beam.EncodedType{partitionT.Type()}), meansPartitions)
+	partitionsCol := params.partitionsCol
+	// Add value of empty array to each partition key in partitionsCol.
+	specifiedPartitionsWithValues := beam.ParDo(s,addDummyValuesForMeanToSpecifiedPartitionsFloat64Fn, partitionsCol)
+	// emptySpecifiedPartitions are the partitions that are specified but not found in the data.
+	emptySpecifiedPartitions := beam.ParDo(s, newEmitPartitionsNotInTheDataFn(partitionT), specifiedPartitionsWithValues, beam.SideInput{Input: partitionMap})
+	// Add noise to the empty specified partitions.
+	unspecifiedMeans := beam.CombinePerKey(s,
+		newBoundedMeanFloat64Fn(epsilon, delta, maxPartitionsContributed, params.MaxContributionsPerPartition, params.MinValue, params.MaxValue, noiseKind, true),
+		emptySpecifiedPartitions)
+	means = beam.ParDo(s, dereferenceValueToFloat64, means)
+	unspecifiedMeans = beam.ParDo(s, dereferenceValueToFloat64, unspecifiedMeans)
+	// Merge means from data with means from the empty specified partitions.
+	allMeans := beam.Flatten(s, means, unspecifiedMeans)
+	return allMeans
 }
 
 func checkMeanPerKeyParams(params MeanParams, epsilon, delta float64, noiseKind noise.Kind) error {
