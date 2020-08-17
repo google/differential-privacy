@@ -169,8 +169,8 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 		newDecodePairArrayFloat64Fn(partitionT),
 		partialPairs,
 		beam.TypeDefinition{Var: beam.XType, T: partitionT})
-
-	if (params.partitionsCol).IsValid() { // Partitions specified.
+	// Add specified partitions and return the aggregation output, if partitions are specified.
+	if (params.partitionsCol).IsValid() {
 		return addSpecifiedPartitionsForMean(s, epsilon, delta, maxPartitionsContributed,
 			params, noiseKind, partialKV)
 

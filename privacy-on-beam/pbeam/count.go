@@ -120,7 +120,7 @@ func Count(s beam.Scope, pcol PrivatePCollection, params CountParams) beam.PColl
 		newDecodePairInt64Fn(partitionT.Type()),
 		countPairs,
 		beam.TypeDefinition{Var: beam.XType, T: partitionT.Type()})
-	// Add specified partitions, if partitions are specified.
+	// Add specified partitions and return the aggregation output, if partitions are specified.
 	if (params.partitionsCol).IsValid() { 
 		return addSpecifiedPartitionsForCount(s, epsilon, delta, maxPartitionsContributed, params, noiseKind, countsKV)
 	}
@@ -143,7 +143,7 @@ func checkCountParams(params CountParams, epsilon, delta float64, noiseKind nois
 	} 
 	if err != nil {
 		return err
-	 }
+	}
 	err = checks.CheckMaxPartitionsContributed("pbeam.Count", params.MaxPartitionsContributed)
 	if err != nil {
 		return err
@@ -154,9 +154,8 @@ func checkCountParams(params CountParams, epsilon, delta float64, noiseKind nois
 	return nil
 }
 
-func addSpecifiedPartitionsForCount(s beam.Scope, epsilon, delta float64,
-	maxPartitionsContributed int64, params CountParams, noiseKind noise.Kind, countsKV beam.PCollection) beam.PCollection {
-	// Turn partitionsCol type PCollection<K> into PCollection<K, int64> by adding
+func addSpecifiedPartitionsForCount(s beam.Scope, epsilon, delta float64, maxPartitionsContributed int64, params CountParams, noiseKind noise.Kind, countsKV beam.PCollection) beam.PCollection {
+	// Turn partitionsCol from PCollection<K> into PCollection<K, int64> by adding
 	// the value zero to each K.
 	dummyCounts := beam.ParDo(s, addDummyValuesToSpecifiedPartitionsInt64Fn, params.partitionsCol)
 	// Merge countsKV and dummyCounts.

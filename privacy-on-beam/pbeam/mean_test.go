@@ -308,7 +308,7 @@ func TestMeanPerKeyWithPartitionsAddsNoiseFloat(t *testing.T) {
 		epsilon float64
 		delta   float64
 	}{
-		// Epsilon and delta are not split because partitions are specified. All of it is used for the noise.
+		// Epsilon and delta are not split because partitions are specified. All of them are used for the noise.
 		{
 			name:      "Gaussian",
 			noiseKind: GaussianNoise{},
@@ -319,7 +319,7 @@ func TestMeanPerKeyWithPartitionsAddsNoiseFloat(t *testing.T) {
 			name:      "Laplace",
 			noiseKind: LaplaceNoise{},
 			epsilon:   0.1,
-			delta:     0, // It is 0 because partitions are specified (so no thresholding occurs) and we are adding Laplace noise.
+			delta:     0, // It is 0 because partitions are specified and we are using Laplace noise.
 		},
 	} {
 		lower := 0.0

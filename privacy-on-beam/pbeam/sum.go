@@ -151,7 +151,7 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCo
 		newDecodePairFn(partitionT, vKind),
 		partialSumPairs,
 		beam.TypeDefinition{Var: beam.XType, T: partitionT})
-	// Add specified partitions, if partitions are specified.
+	// Add specified partitions and return the aggregation output, if partitions are specified.
 	if (params.partitionsCol).IsValid() { 
 		return addSpecifiedPartitionsForSum(s, epsilon, delta, maxPartitionsContributed,
 			params, noiseKind, vKind, partialSumKV)

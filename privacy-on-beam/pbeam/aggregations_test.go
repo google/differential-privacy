@@ -307,14 +307,12 @@ func TestBoundedSumFloat64FnExtractOutputWithSpecifiedPartitionsDoesNotThreshold
 	}
 }
 
-// TestDropUnspecifiedPartitionsVFn check that elements with unspecified partitions are dropped.
+// Checks that elements with unspecified partitions are dropped.
 // This function is used for count and distinct_id.
 func TestDropUnspecifiedPartitionsVFn(t *testing.T) {
 	pairs := concatenatePairs(
 		makePairsWithFixedV(7, 0),
 		makePairsWithFixedV(52, 1),
-		makePairsWithFixedV(99, 2),
-		makePairsWithFixedV(99, 2),
 		makePairsWithFixedV(99, 2),
 		makePairsWithFixedV(10, 3),
 	)
@@ -323,7 +321,6 @@ func TestDropUnspecifiedPartitionsVFn(t *testing.T) {
 	// drop partitions 1, 3.
 	result := concatenatePairs(
 		makePairsWithFixedV(7, 0),
-		makePairsWithFixedV(99, 2),
 		makePairsWithFixedV(99, 2),
 		makePairsWithFixedV(99, 2),
 	)
@@ -353,7 +350,7 @@ func TestDropUnspecifiedPartitionsKVFn(t *testing.T) {
 		makeDummyTripleWithIntValue(99, 2),
 		makeDummyTripleWithIntValue(45, 100),
 		makeDummyTripleWithIntValue(20, 33))
-	// Keep partitions 0,2.
+	// Keep partitions 0, 2.
 	// Drop partitions 1, 33, 100.
 	result := concatenateTriplesWithIntValue(
 		makeDummyTripleWithIntValue(7, 0),

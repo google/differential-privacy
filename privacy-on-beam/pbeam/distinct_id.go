@@ -120,7 +120,8 @@ func DistinctPrivacyID(s beam.Scope, pcol PrivatePCollection, params DistinctPri
 	// done, remove the keys and count how many times each value appears.
 	values := beam.DropKey(s, decoded)
 	dummyCounts := beam.ParDo(s, addOneValueFn, values)
-	if (params.partitionsCol).IsValid(){ // Partitions specified.
+	// Add specified partitions and return the aggregation output, if partitions are specified.
+	if (params.partitionsCol).IsValid(){ 
 		return addSpecifiedPartitionsForDistinctId(s, params, epsilon, delta, maxPartitionsContributed, noiseKind, dummyCounts)
 	}
 	noisedCounts := beam.CombinePerKey(s,

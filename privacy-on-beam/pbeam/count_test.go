@@ -248,7 +248,7 @@ func TestCountAddsNoiseWithPartitions(t *testing.T) {
 		epsilon float64
 		delta   float64
 	}{
-		// Epsilon and delta are not split because partitions are specified. All of it is used for the noise.
+		// Epsilon and delta are not split because partitions are specified. All of them are used for the noise.
 		{
 			name:      "Gaussian",
 			noiseKind: GaussianNoise{},
@@ -259,7 +259,7 @@ func TestCountAddsNoiseWithPartitions(t *testing.T) {
 			name:      "Laplace",
 			noiseKind: LaplaceNoise{},
 			epsilon:   0.1, 
-			delta:     0, // It is 0 because partitions are specified (so no thresholding occurs) and we are adding Laplace noise.
+			delta:     0, // It is 0 because partitions are specified and we are using Laplace noise.
 		},
 	} {
 		// We have 1 partition. So, to get an overall flakiness of 10⁻²³,
@@ -344,8 +344,8 @@ func TestCountWithPartitionsCrossPartitionContributionBounding(t *testing.T) {
 	epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 25.0, 3.0
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 	got := Count(s, pcol, CountParams{MaxPartitionsContributed: 3, MaxValue: 1, NoiseKind: LaplaceNoise{}, partitionsCol: partitionsCol})
-	// With a max contribution of 3, 40% of the data should be
-	// dropped. The sum of all elements must then be 150.
+	// With a max contribution of 3, 40% of the data from the specified partitions should be dropped. 
+	// The sum of all elements must then be 150.
 	counts := beam.DropKey(s, got)
 	sumOverPartitions := stats.Sum(s, counts)
 	got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
