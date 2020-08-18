@@ -536,58 +536,77 @@ func TestMeanPerKeyNoNoiseFloatValues(t *testing.T) {
 
 // Checks that MeanPerKey with partitions returns a correct answer for float input values.
 func TestMeanPerKeyWithPartitionsNoNoiseFloatValues(t *testing.T) {
-	triples := concatenateTriplesWithFloatValue(
-		makeTripleWithFloatValue(7, 0, 2),
-		makeTripleWithFloatValueStartingFromKey(7, 100, 1, 1),
-		makeTripleWithFloatValueStartingFromKey(107, 150, 1, 2))
+	for _, tc := range []struct {
+		lower float64
+		upper float64
+	}{
+		// Used for MinValue and MaxValue. Tests case when specified partitions are already in the data.
+		{
+			lower: 1.0, 
+			upper: 3.0,
+		},
+		{
+			lower: 0.0,
+			upper: 2.0,
+		},
+		{
+			lower: -10.0,
+			upper: 10.0,
+		},
+	} {
+		triples := concatenateTriplesWithFloatValue(
+			makeTripleWithFloatValue(7, 0, 2),
+			makeTripleWithFloatValueStartingFromKey(7, 100, 1, 1),
+			makeTripleWithFloatValueStartingFromKey(107, 150, 1, 2))
 
-	exactCount0 :=  7.0
-	exactMean0 := 14.0/exactCount0
-	exactCount := 250.0 
-	exactMean := (100.0 + 2.0*150.0) / exactCount
-	result := []testFloat64Metric{
-		{0, exactMean0},
-		{1, exactMean},
-	}
+		exactCount0 :=  7.0
+		exactMean0 := 14.0/exactCount0
+		exactCount := 250.0 
+		exactMean := (100.0 + 2.0*150.0) / exactCount
+		result := []testFloat64Metric{
+			{0, exactMean0},
+			{1, exactMean},
+		}
 
-	p, s, col, want := ptest.CreateList2(triples, result)
-	col = beam.ParDo(s, extractIDFromTripleWithFloatValue, col)
+		p, s, col, want := ptest.CreateList2(triples, result)
+		col = beam.ParDo(s, extractIDFromTripleWithFloatValue, col)
 
-	partitions := []int{0, 1}
-	partitionsCol := beam.CreateList(s, partitions)
+		partitions := []int{0, 1}
+		partitionsCol := beam.CreateList(s, partitions)
 
-	// We have ε=50, δ=0 and l0Sensitivity=1. No thresholding is done because partitions are specified.
-	// We have 2 partitions. So, to get an overall flakiness of 10⁻²³,
-	// we can have each partition fail with 10⁻²⁵ probability (k=25).
-	maxContributionsPerPartition := int64(1)
-	maxPartitionsContributed := int64(1)
-	epsilon := 100.0
-	delta := 0.0
-	lower := 1.0
-	upper := 3.0
+		// We have ε=50, δ=0 and l0Sensitivity=1. No thresholding is done because partitions are specified.
+		// We have 2 partitions. So, to get an overall flakiness of 10⁻²³,
+		// we can have each partition fail with 10⁻²⁵ probability (k=25).
+		maxContributionsPerPartition := int64(1)
+		maxPartitionsContributed := int64(1)
+		epsilon := 100.0
+		delta := 0.0
+		lower := tc.lower
+		upper := tc.upper
 
-	// ε is not split because partitions are specified.
-	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
-	pcol = ParDo(s, tripleWithFloatValueToKV, pcol)
-	got := MeanPerKey(s, pcol, MeanParams{
-		MaxPartitionsContributed:     maxPartitionsContributed,
-		MaxContributionsPerPartition: maxContributionsPerPartition,
-		MinValue:                     lower,
-		MaxValue:                     upper,
-		NoiseKind:                    LaplaceNoise{},
-		partitionsCol: partitionsCol,
-	})
+		// ε is not split because partitions are specified.
+		pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+		pcol = ParDo(s, tripleWithFloatValueToKV, pcol)
+		got := MeanPerKey(s, pcol, MeanParams{
+			MaxPartitionsContributed:     maxPartitionsContributed,
+			MaxContributionsPerPartition: maxContributionsPerPartition,
+			MinValue:                     lower,
+			MaxValue:                     upper,
+			NoiseKind:                    LaplaceNoise{},
+			partitionsCol: partitionsCol,
+		})
 
-	want = beam.ParDo(s, float64MetricToKV, want)
-	tolerance, err := laplaceToleranceForMean(25, lower, upper, maxContributionsPerPartition, maxPartitionsContributed, epsilon, 5, exactCount, exactMean)
-	if err != nil {
-		t.Fatalf("laplaceToleranceForMean: got error %v", err)
-	}
-	if err := approxEqualsKVFloat64(s, got, want, tolerance); err != nil {
-		t.Fatalf("TestMeanPerKeyWithPartitionsNoNoise: %v", err)
-	}
-	if err := ptest.Run(p); err != nil {
-		t.Errorf("TestMeanPerKeyWithPartitionsNoNoise: MeanPerKey(%v) = %v, want %v, error %v", col, got, want, err)
+		want = beam.ParDo(s, float64MetricToKV, want)
+		tolerance, err := laplaceToleranceForMean(25, lower, upper, maxContributionsPerPartition, maxPartitionsContributed, epsilon, 5, exactCount, exactMean)
+		if err != nil {
+			t.Fatalf("laplaceToleranceForMean: got error %v", err)
+		}
+		if err := approxEqualsKVFloat64(s, got, want, tolerance); err != nil {
+			t.Fatalf("TestMeanPerKeyWithPartitionsNoNoise: %v", err)
+		}
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("TestMeanPerKeyWithPartitionsNoNoise: MeanPerKey(%v) = %v, want %v, error %v", col, got, want, err)
+		}
 	}
 }
 
@@ -1068,55 +1087,74 @@ func TestMeanPerKeyWithPartitionsCrossPartitionContributionBounding(t *testing.T
 // They should be correctly converted to float64 and then correct result
 // with float statistic should be computed.
 func TestMeanPerKeyWithPartitionsNoNoiseIntValues(t *testing.T) {
-	triples := concatenateTriplesWithIntValue(
-		makeTripleWithIntValue(7, 0, 2),
-		makeTripleWithIntValueStartingFromKey(7, 100, 1, 1),
-		makeTripleWithIntValueStartingFromKey(107, 150, 1, 2))
+	for _, tc := range []struct {
+		lower float64
+		upper float64
+	}{
+		// Used for MinValue and MaxValue. Tests case when specified partitions are already in the data.
+		{
+			lower: 1.0, 
+			upper: 3.0,
+		},
+		{
+			lower: 0.0,
+			upper: 2.0,
+		},
+		{
+			lower: -10.0,
+			upper: 10.0,
+		},
+	} {
+		triples := concatenateTriplesWithIntValue(
+			makeTripleWithIntValue(7, 0, 2),
+			makeTripleWithIntValueStartingFromKey(7, 100, 1, 1),
+			makeTripleWithIntValueStartingFromKey(107, 150, 1, 2))
 
-	exactCount := 250.0
-	exactMean := (100.0 + 2.0*150.0) / exactCount
+		exactCount := 250.0
+		exactMean := (100.0 + 2.0*150.0) / exactCount
 
-	// We have ε=50, δ=0 and l0Sensitivity=1.
-	// We do not use thresholding because partitions are specified.
-	// We have 2 partitions. So, to get an overall flakiness of 10⁻²³,
-	// we can have each partition fail with 10⁻²⁵ probability (k=25).
-	maxContributionsPerPartition := int64(1)
-	maxPartitionsContributed := int64(1)
-	epsilon := 10e20
-	delta := 0.0 // Using Laplace noise, and partitions are specified.
-	lower := 0.0
-	upper := 2.0
-	midpoint := lower + (upper-lower)/2.0
+		// We have ε=50, δ=0 and l0Sensitivity=1.
+		// We do not use thresholding because partitions are specified.
+		// We have 2 partitions. So, to get an overall flakiness of 10⁻²³,
+		// we can have each partition fail with 10⁻²⁵ probability (k=25).
+		maxContributionsPerPartition := int64(1)
+		maxPartitionsContributed := int64(1)
+		epsilon := 10e20
+		delta := 0.0 // Using Laplace noise, and partitions are specified.
+		lower := tc.lower
+		upper := tc.upper
+		midpoint := lower + (upper-lower)/2.0
 
-	result := []testFloat64Metric{
-		{1, exactMean},
-		{3, midpoint},
-	}
+		result := []testFloat64Metric{
+			{1, exactMean},
+			{3, midpoint},
+		}
 
-	p, s, col, want := ptest.CreateList2(triples, result)
-	col = beam.ParDo(s, extractIDFromTripleWithIntValue, col)
+		p, s, col, want := ptest.CreateList2(triples, result)
+		col = beam.ParDo(s, extractIDFromTripleWithIntValue, col)
 
-	// ε is not split, because partitions are specified.
-	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
-	pcol = ParDo(s, tripleWithIntValueToKV, pcol)
-	partitionsCol := beam.CreateList(s, []int{1, 3})
-	got := MeanPerKey(s, pcol, MeanParams{
-		MaxPartitionsContributed:     maxPartitionsContributed,
-		MaxContributionsPerPartition: maxContributionsPerPartition,
-		MinValue:                     lower,
-		MaxValue:                     upper,
-		NoiseKind:                    LaplaceNoise{},
-		partitionsCol:          partitionsCol})
-	want = beam.ParDo(s, float64MetricToKV, want)
+		// ε is not split, because partitions are specified.
+		pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+		pcol = ParDo(s, tripleWithIntValueToKV, pcol)
+		partitionsCol := beam.CreateList(s, []int{1, 3})
+		got := MeanPerKey(s, pcol, MeanParams{
+			MaxPartitionsContributed:     maxPartitionsContributed,
+			MaxContributionsPerPartition: maxContributionsPerPartition,
+			MinValue:                     lower,
+			MaxValue:                     upper,
+			NoiseKind:                    LaplaceNoise{},
+			partitionsCol:          partitionsCol})
+		want = beam.ParDo(s, float64MetricToKV, want)
 
-	tolerance, err := laplaceToleranceForMean(25, lower, upper, maxContributionsPerPartition, maxPartitionsContributed, epsilon, 150.0, exactCount, exactMean)
-	if err != nil {
-		t.Fatalf("laplaceToleranceForMean: got error %v", err)
-	}
-	if err := approxEqualsKVFloat64(s, got, want, tolerance); err != nil {
-		t.Fatalf("TestMeanPerKeyWithPartitionsNoNoise: %v", err)
-	}
-	if err := ptest.Run(p); err != nil {
-		t.Errorf("TestMeanPerKeyWithPartitionsNoNoise: MeanPerKey(%v) = %v, want %v, error %v", col, got, want, err)
+		tolerance, err := laplaceToleranceForMean(25, lower, upper, maxContributionsPerPartition, maxPartitionsContributed, epsilon, 150.0, exactCount, exactMean)
+		if err != nil {
+			t.Fatalf("laplaceToleranceForMean: got error %v", err)
+		}
+		if err := approxEqualsKVFloat64(s, got, want, tolerance); err != nil {
+			t.Fatalf("TestMeanPerKeyWithPartitionsNoNoise: %v", err)
+		}
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("TestMeanPerKeyWithPartitionsNoNoise: MeanPerKey(%v) = %v, want %v, error %v", col, got, want, err)
+		}
 	}
 }

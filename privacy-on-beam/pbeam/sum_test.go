@@ -65,55 +65,74 @@ func TestSumPerKeyNoNoiseInt(t *testing.T) {
 
 // Checks that SumPerKey with partitions returns a correct answer with int values.
 func TestSumPerKeyWithPartitionsNoNoiseInt(t *testing.T) {
-	// ID:1 contributes 3 partitions.
-	// Of these 5 partitions, 2 will be dropped.
-	// Tests that with a maximum contribution of 3, cross-partition contribution bounding happens after partitions are dropped.
-	triples := concatenateTriplesWithIntValue(
-		makeDummyTripleWithIntValue(7, 0),
-		makeDummyTripleWithIntValue(58, 1),
-		makeDummyTripleWithIntValue(99, 2),
-		makeDummyTripleWithIntValue(1, 5),
-		makeDummyTripleWithIntValue(1, 6),
-		makeDummyTripleWithIntValue(1, 7),
-		makeDummyTripleWithIntValue(1, 8),
-		makeDummyTripleWithIntValue(1, 9),)
+	for _, tc := range []struct {
+		lower float64
+		upper float64
+	}{
+		// Used for MinValue and MaxValue. Tests case when specified partitions are already in the data.
+		{
+			lower: 1.0, 
+			upper: 3.0,
+		},
+		{
+			lower: 0.0,
+			upper: 2.0,
+		},
+		{
+			lower: -10.0,
+			upper: 10.0,
+		},
+	} {
+		// ID:1 contributes 3 partitions.
+		// Of these 5 partitions, 2 will be dropped.
+		// Tests that with a maximum contribution of 3, cross-partition contribution bounding happens after partitions are dropped.
+		triples := concatenateTriplesWithIntValue(
+			makeDummyTripleWithIntValue(7, 0),
+			makeDummyTripleWithIntValue(58, 1),
+			makeDummyTripleWithIntValue(99, 2),
+			makeDummyTripleWithIntValue(1, 5),
+			makeDummyTripleWithIntValue(1, 6),
+			makeDummyTripleWithIntValue(1, 7),
+			makeDummyTripleWithIntValue(1, 8),
+			makeDummyTripleWithIntValue(1, 9),)
 
-	// Keep partitions 0 and 2.
-	// drop partition 6 to 9.
-	// Add partitions 5, 10, and 11.
-	result := []testInt64Metric{
-		{0, 7},
-		{2, 99},
-		{5, 1},
-		{10, 0},
-		{11, 0},
-	}
+		// Keep partitions 0 and 2.
+		// drop partition 6 to 9.
+		// Add partitions 5, 10, and 11.
+		result := []testInt64Metric{
+			{0, 7},
+			{2, 99},
+			{5, 1},
+			{10, 0},
+			{11, 0},
+		}
 
-	p, s, col, want := ptest.CreateList2(triples, result)
-	col = beam.ParDo(s, extractIDFromTripleWithIntValue, col)
+		p, s, col, want := ptest.CreateList2(triples, result)
+		col = beam.ParDo(s, extractIDFromTripleWithIntValue, col)
 
-	partitions := []int{0, 2, 5, 10, 11}
+		partitions := []int{0, 2, 5, 10, 11}
 
-	partitionsCol := beam.CreateList(s, partitions)
+		partitionsCol := beam.CreateList(s, partitions)
 
-	// We have ε=50, δ=0, and l1Sensitivity=3.
-	// We have 5 partitions. So, to get an overall flakiness of 10⁻²³,
-	// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
-	epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 25.0, 3.0
-	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
-	pcol = ParDo(s, tripleWithIntValueToKV, pcol)
-	got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 3, MinValue: 0.0, MaxValue: 1, NoiseKind: LaplaceNoise{}, partitionsCol: partitionsCol})
-	want = beam.ParDo(s, int64MetricToKV, want)
-	if err := approxEqualsKVInt64(s, got, want, laplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-		t.Fatalf("TestSumPerKeyWithPartitionsNoNoiseInt: %v", err)
-	}
-	if err := ptest.Run(p); err != nil {
-		t.Errorf("TestSumPerKeyWithPartitionsNoNoiseInt: SumPerKey(%v) = %v, expected %v: %v", col, got, want, err)
+		// We have ε=50, δ=0, and l1Sensitivity=3.
+		// We have 5 partitions. So, to get an overall flakiness of 10⁻²³,
+		// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
+		epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 25.0, 3.0
+		pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+		pcol = ParDo(s, tripleWithIntValueToKV, pcol)
+		got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 3, MinValue: tc.lower, MaxValue: tc.upper, NoiseKind: LaplaceNoise{}, partitionsCol: partitionsCol})
+		want = beam.ParDo(s, int64MetricToKV, want)
+		if err := approxEqualsKVInt64(s, got, want, laplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
+			t.Fatalf("TestSumPerKeyWithPartitionsNoNoiseInt: %v", err)
+		}
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("TestSumPerKeyWithPartitionsNoNoiseInt: SumPerKey(%v) = %v, expected %v: %v", col, got, want, err)
+		}
 	}
 }
 
-// Checks that SumPerKey works correctly for negative bounds and negative values with int values.
-func TestSumPerKeyNegativeBoundsInt(t *testing.T) {
+	// Checks that SumPerKey works correctly for negative bounds and negative values with int values.
+	func TestSumPerKeyNegativeBoundsInt(t *testing.T) {
 	triples := concatenateTriplesWithIntValue(
 		makeTripleWithIntValue(58, 1, -1), // should be clamped down to -2
 		makeTripleWithIntValue(99, 2, -4)) // should be clamped up to -3
@@ -206,40 +225,59 @@ func TestSumPerKeyNoNoiseFloat(t *testing.T) {
 
 // Checks that SumPerKey with partitions returns a correct answer with float values.
 func TestSumPerKeyWithPartitionsNoNoiseFloat(t *testing.T) {
-	triples := concatenateTriplesWithFloatValue(
-		makeDummyTripleWithFloatValue(7, 0),
-		makeDummyTripleWithFloatValue(58, 1),
-		makeDummyTripleWithFloatValue(99, 2))
-	for i := 5; i < 1000000; i++ {
-		triples = append(triples, makeDummyTripleWithFloatValue(1, i) ...)
-	}
-	// Keep partitions 0, 3, and 5.
-	// Drop other partitions up to 100000.
-	result := []testFloat64Metric{
-		{0, 7},
-		{3, 0},
-		{5, 0},
-	}
+	for _, tc := range []struct {
+		lower float64
+		upper float64
+	}{
+		// Used for MinValue and MaxValue. Tests case when specified partitions are already in the data.
+		{
+			lower: 0.0, 
+			upper: 1.0,
+		},
+		{
+			lower: 1.0,
+			upper: 5.0,
+		},
+		{
+			lower: -10.0,
+			upper: 10.0,
+		},
+	} {
+		triples := concatenateTriplesWithFloatValue(
+			makeDummyTripleWithFloatValue(7, 0),
+			makeDummyTripleWithFloatValue(58, 1),
+			makeDummyTripleWithFloatValue(99, 2))
+		for i := 5; i < 1000000; i++ {
+			triples = append(triples, makeDummyTripleWithFloatValue(1, i) ...)
+		}
+		// Keep partitions 0, 3, and 5.
+		// Drop other partitions up to 100000.
+		result := []testFloat64Metric{
+			{0, 7},
+			{3, 0},
+			{5, 0},
+		}
 
-	p, s, col, want := ptest.CreateList2(triples, result)
-	col = beam.ParDo(s, extractIDFromTripleWithFloatValue, col)
+		p, s, col, want := ptest.CreateList2(triples, result)
+		col = beam.ParDo(s, extractIDFromTripleWithFloatValue, col)
 
-	partitions := []int{0, 3, 5}
-	partitionsCol := beam.CreateList(s, partitions)
+		partitions := []int{0, 3, 5}
+		partitionsCol := beam.CreateList(s, partitions)
 
-	// We have ε=50, δ=0 and l1Sensitivity=3.
-	// We have 3 partitions. So, to get an overall flakiness of 10⁻²³,
-	// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
-	epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 25.0, 3.0
-	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
-	pcol = ParDo(s, tripleWithFloatValueToKV, pcol)
-	got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 3, MinValue: 0.0, MaxValue: 1.0, NoiseKind: LaplaceNoise{}, partitionsCol: partitionsCol})
-	want = beam.ParDo(s, float64MetricToKV, want)
-	if err := approxEqualsKVFloat64(s, got, want, laplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-		t.Fatalf("TestSumPerKeyWithPartitionsNoNoiseFloat: %v", err)
-	}
-	if err := ptest.Run(p); err != nil {
-		t.Errorf("TestSumPerKeyWithPartitionsNoNoiseFloat: SumPerKey(%v) = %v, expected %v: %v", col, got, want, err)
+		// We have ε=50, δ=0 and l1Sensitivity=3.
+		// We have 3 partitions. So, to get an overall flakiness of 10⁻²³,
+		// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
+		epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 25.0, 3.0
+		pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+		pcol = ParDo(s, tripleWithFloatValueToKV, pcol)
+		got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 3, MinValue: tc.lower, MaxValue: tc.upper, NoiseKind: LaplaceNoise{}, partitionsCol: partitionsCol})
+		want = beam.ParDo(s, float64MetricToKV, want)
+		if err := approxEqualsKVFloat64(s, got, want, laplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
+			t.Fatalf("TestSumPerKeyWithPartitionsNoNoiseFloat: %v", err)
+		}
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("TestSumPerKeyWithPartitionsNoNoiseFloat: SumPerKey(%v) = %v, expected %v: %v", col, got, want, err)
+		}
 	}
 }
 
