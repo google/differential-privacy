@@ -187,8 +187,14 @@ func newCountFn(epsilon, delta float64, maxPartitionsContributed int64, noiseKin
 	fn.Epsilon = epsilon
 	switch noiseKind {
 	case noise.GaussianNoise:
-		fn.NoiseDelta = delta / 2
-		fn.ThresholdDelta = delta / 2
+		if fn.PartitionsSpecified {
+			fn.NoiseDelta = delta 
+			fn.ThresholdDelta = 0
+		} else {
+			fn.NoiseDelta = delta / 2
+			fn.ThresholdDelta = delta / 2
+
+		}
 	case noise.LaplaceNoise:
 		fn.NoiseDelta = 0
 		fn.ThresholdDelta = delta

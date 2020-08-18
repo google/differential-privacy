@@ -216,7 +216,7 @@ func checkMeanPerKeyParams(params MeanParams, epsilon, delta float64, noiseKind 
 	}
 	if (params.partitionsCol).IsValid() && noiseKind == noise.LaplaceNoise {
 		err = checks.CheckNoDelta("pbeam.MeanPerKey", delta)
-	} else{
+	} else {
 		err = checks.CheckDeltaStrict("pbeam.MeanPerKey", delta)
 	} 
 	if err != nil {
@@ -484,7 +484,7 @@ func (fn *boundedMeanFloat64Fn) MergeAccumulators(a, b boundedMeanAccumFloat64) 
 func (fn *boundedMeanFloat64Fn) ExtractOutput(a boundedMeanAccumFloat64) *float64 {
 	if a.partitionsSpecified || a.SP.ShouldKeepPartition() {
 		result := a.BM.Result()
-		return &result // Do not threshold.
+		return &result
 	}
 	return nil
 }

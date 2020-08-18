@@ -87,8 +87,6 @@ func TestCountWithPartitionsNoNoise(t *testing.T) {
 	// We use ε=50, δ=0 and l1Sensitivity=2.
 	// We have 2 partitions. So, to get an overall flakiness of 10⁻²³,
 	// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
-	// To see the logic and the math behind flakiness and tolerance calculation,
-	// See https://github.com/google/differential-privacy/blob/master/privacy-on-beam/docs/Tolerance_Calculation.pdf.
 	epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 25.0, 2.0
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 	got := Count(s, pcol, CountParams{MaxValue: 2, MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}, partitionsCol: partitionsCol})

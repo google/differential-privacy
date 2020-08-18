@@ -309,7 +309,7 @@ func (fn *boundedSumInt64Fn) MergeAccumulators(a, b boundedSumAccumInt64) bounde
 func (fn *boundedSumInt64Fn) ExtractOutput(a boundedSumAccumInt64) *int64 {
 	if a.PartitionsSpecified || a.SP.ShouldKeepPartition(){
 		result := a.BS.Result()
-		return &result // Do not threshold.
+		return &result
 	}
 	return nil
 }
@@ -607,36 +607,40 @@ func (fn *prunePartitionsVFn) Setup() {
 	fn.partitionEnc = beam.NewElementEncoder(fn.PartitionType.T)
 }
 
-func (fn *prunePartitionsVFn) ProcessElement(id beam.X, partitionKey beam.V, partitionsIter func(*PMap) bool, emit func(beam.X, beam.V)) {
+func (fn *prunePartitionsVFn) ProcessElement(id beam.X, partitionKey beam.V, partitionsIter func(*PMap) bool, emit func(beam.X, beam.V)) error {
 	var partitionBuf bytes.Buffer
 	if err := fn.partitionEnc.Encode(partitionKey, &partitionBuf); err != nil {
 		log.Exitf("pbeam.prunePartitionsVFn.ProcessElement: couldn't encode partition %v: %v", partitionKey, err)
 	}
 	var partitionMap PMap
 	partitionsIter(&partitionMap)
+	var err error
 	if partitionMap == nil {
-		log.Exitf("pbeam.prunePartitionsVFn.ProcessElement: partitionMap nil.")
+		return err
 	}
 	encodedPartitionKey := string(partitionBuf.Bytes())
 	if partitionMap[encodedPartitionKey] {
 		emit(id, partitionKey)
 	}
+	return nil
 }
 
 // prunePartitionsFn takes a PCollection<ID, kv.Pair{K,V}> as input, and returns a
 // PCollection<ID, kv.Pair{K,V}>, where unspecified partitions have been dropped.
 // Used for sum and mean.
-func prunePartitionsKVFn(id beam.X, pair kv.Pair, partitionsIter func(*PMap) bool, emit func(beam.X, kv.Pair)) {
+func prunePartitionsKVFn(id beam.X, pair kv.Pair, partitionsIter func(*PMap) bool, emit func(beam.X, kv.Pair)) error {
 	var partitionMap PMap
 	partitionsIter(&partitionMap)
+	var err error
 	if partitionMap == nil {
-		log.Exitf("pbeam.prunePartitionsKVFn: partitionMap nil.")
+		return err
 	}
 	// Parameters in a kv.Pair are already encoded.
 	encodedPartitionKey := string(pair.K)
 	if partitionMap[encodedPartitionKey] {
 		emit(id, pair)
 	}
+	return nil
 }
 
 // emitPartitionsNotInTheDataFn emits partitions that are specified but not found in the data.

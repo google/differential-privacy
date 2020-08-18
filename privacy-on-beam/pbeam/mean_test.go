@@ -187,7 +187,7 @@ func TestBoundedMeanFloat64FnExtractOutputReturnsNilForSmallPartitions(t *testin
 	}
 }
 
-func TestBoundedMeanFloat64FnWithSpecifiedPartitionsExtractOutputReturnsNilForSmallPartitions(t *testing.T) {
+func TestBoundedMeanFloat64FnWithSpecifiedPartitionsExtractOutputDoesNotReturnNilForSmallPartitions(t *testing.T) {
 	for _, tc := range []struct {
 		desc              string
 		inputSize         int
