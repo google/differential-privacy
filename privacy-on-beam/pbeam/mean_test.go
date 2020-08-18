@@ -187,7 +187,7 @@ func TestBoundedMeanFloat64FnExtractOutputReturnsNilForSmallPartitions(t *testin
 	}
 }
 
-func TestBoundedMeanFloat64FnWithSpecifiedPartitionsExtractOutputDoesNotReturnNilForSmallPartitions(t *testing.T) {
+func TestBoundedMeanFloat64FnWithPartitionsExtractOutputDoesNotReturnNilForSmallPartitions(t *testing.T) {
 	for _, tc := range []struct {
 		desc              string
 		inputSize         int
@@ -197,7 +197,7 @@ func TestBoundedMeanFloat64FnWithSpecifiedPartitionsExtractOutputDoesNotReturnNi
 		{"Input with 1 user with 1 contribution", 1, 1},
 	} {
 
-		fn := newBoundedMeanFloat64Fn(2*1e100, 1e-23, 1, 1, 0, 10, noise.LaplaceNoise, false)
+		fn := newBoundedMeanFloat64Fn(1e100, 0, 1, 1, 0, 10, noise.LaplaceNoise, true)
 		fn.Setup()
 		accum := fn.CreateAccumulator()
 		for i := 0; i < tc.inputSize; i++ {
@@ -211,7 +211,7 @@ func TestBoundedMeanFloat64FnWithSpecifiedPartitionsExtractOutputDoesNotReturnNi
 		got := fn.ExtractOutput(accum)
 
 		// Should not return nil output for small partitions in the case of specified partitions.
-		if got != nil {
+		if got == nil {
 			t.Errorf("ExtractOutput for %s thresholded with specified partitions when it shouldn't", tc.desc)
 		}
 	}
