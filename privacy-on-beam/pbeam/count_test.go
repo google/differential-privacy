@@ -268,7 +268,6 @@ func TestCountAddsNoiseWithPartitions(t *testing.T) {
 		l1Sensitivity := l0Sensitivity * lInfSensitivity
 		tolerance := complementaryLaplaceTolerance(k, l1Sensitivity, epsilonNoise)
 		if tc.noiseKind == gaussianNoise {
-			deltaNoise = tc.delta
 			tolerance = complementaryGaussianTolerance(k, l0Sensitivity, lInfSensitivity, epsilonNoise, deltaNoise)
 		}
 

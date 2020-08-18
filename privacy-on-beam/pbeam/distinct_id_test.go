@@ -307,14 +307,13 @@ func TestDistinctPrivacyIDWithPartitionsAddsNoise(t *testing.T) {
 	} {
 		// We have 1 partition. So, to get an overall flakiness of 10⁻²³,
 		// we need to have each partition pass with 1-10⁻²³ probability (k=23).
-		epsilonNoise, deltaNoise := tc.epsilon, 0.0
+		epsilonNoise, deltaNoise := tc.epsilon, tc.delta
 		k := 23.0
 		l0Sensitivity, lInfSensitivity := 1.0, 1.0
 		l1Sensitivity := l0Sensitivity * lInfSensitivity
 		tolerance := complementaryLaplaceTolerance(k, l1Sensitivity, epsilonNoise)
 		numIDs := 10
 		if tc.noiseKind == gaussianNoise {
-			deltaNoise = tc.delta
 			tolerance = complementaryGaussianTolerance(k, l0Sensitivity, lInfSensitivity, epsilonNoise, deltaNoise)
 		}
 		// pairs contains {1,0}, {2,0}, …, {numIDs,0}.

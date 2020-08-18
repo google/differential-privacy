@@ -330,10 +330,7 @@ func TestMeanPerKeyWithPartitionsAddsNoiseFloat(t *testing.T) {
 		epsilonNoise, deltaNoise := tc.epsilon, tc.delta
 		k := 23.0
 		l0Sensitivity, lInfSensitivity := 1.0, 2.0
-		if tc.noiseKind == gaussianNoise {
-			deltaNoise = tc.delta
-		}
-
+		
 		numIDs := 10
 
 		var tolerance float64
