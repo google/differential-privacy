@@ -184,7 +184,7 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 }
 
 func addSpecifiedPartitionsForMean(s beam.Scope, epsilon, delta float64, maxPartitionsContributed int64, params MeanParams, noiseKind noise.Kind, partialKV beam.PCollection) beam.PCollection {
-	// Compute the mean for each partition. Result is PCollection<partition, float64>.
+	// Compute the mean for each partition with unspecified partitions dropped. Result is PCollection<partition, float64>.
 	means := beam.CombinePerKey(s,
 		newBoundedMeanFloat64Fn(epsilon, delta, maxPartitionsContributed, params.MaxContributionsPerPartition, params.MinValue, params.MaxValue, noiseKind, true),
 		partialKV)

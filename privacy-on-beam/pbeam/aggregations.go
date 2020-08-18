@@ -249,9 +249,6 @@ func newBoundedSumInt64Fn(epsilon, delta float64, maxPartitionsContributed, lowe
 	if fn.PartitionsSpecified {
 		fn.NoiseEpsilon = epsilon
 		fn.NoiseDelta = delta 
-		if noiseKind == noise.LaplaceNoise {
-			fn.NoiseDelta = 0
-		}
 		return fn
 	}
 	fn.NoiseEpsilon = epsilon / 2
@@ -311,9 +308,9 @@ func (fn *boundedSumInt64Fn) MergeAccumulators(a, b boundedSumAccumInt64) bounde
 
 func (fn *boundedSumInt64Fn) ExtractOutput(a boundedSumAccumInt64) *int64 {
 	if a.PartitionsSpecified || a.SP.ShouldKeepPartition(){
-    result := a.BS.Result()
+		result := a.BS.Result()
 		return &result // Do not threshold.
-	} 
+	}
 	return nil
 }
 
@@ -356,9 +353,6 @@ func newBoundedSumFloat64Fn(epsilon, delta float64, maxPartitionsContributed int
 	if fn.PartitionsSpecified {
 		fn.NoiseEpsilon = epsilon
 		fn.NoiseDelta = delta 
-		if noiseKind == noise.LaplaceNoise {
-			fn.NoiseDelta = 0
-		}
 		return fn
 	}
 	fn.NoiseEpsilon = epsilon / 2
@@ -593,6 +587,7 @@ func (fn *PartitionsMapFn) MergeAccumulators(a, b mapAccum) mapAccum {
 }
 
 func (fn *PartitionsMapFn) ExtractOutput(m mapAccum) PMap {
+	fmt.Println("HELLO %v", m.PartitionMap, m.PartitionMap == nil)
 	return m.PartitionMap
 }
 
@@ -605,9 +600,7 @@ type prunePartitionsVFn struct {
 }
 
 func newPrunePartitionsVFn(partitionType beam.EncodedType) *prunePartitionsVFn {
-	return &prunePartitionsVFn{
-		PartitionType: partitionType,
-	}
+	return &prunePartitionsVFn{PartitionType: partitionType}
 }
 
 func (fn *prunePartitionsVFn) Setup() {
@@ -621,11 +614,12 @@ func (fn *prunePartitionsVFn) ProcessElement(id beam.X, partitionKey beam.V, par
 	}
 	var partitionMap PMap
 	partitionsIter(&partitionMap)
-	if partitionMap != nil {
-		encodedPartitionKey := string(partitionBuf.Bytes())
-		if partitionMap[encodedPartitionKey] {
-			emit(id, partitionKey)
-		}
+	if partitionMap == nil {
+		log.Exitf("pbeam.prunePartitionsVFn.ProcessElement: partitionMap nil.")
+	}
+	encodedPartitionKey := string(partitionBuf.Bytes())
+	if partitionMap[encodedPartitionKey] {
+		emit(id, partitionKey)
 	}
 }
 
@@ -635,12 +629,13 @@ func (fn *prunePartitionsVFn) ProcessElement(id beam.X, partitionKey beam.V, par
 func prunePartitionsKVFn(id beam.X, pair kv.Pair, partitionsIter func(*PMap) bool, emit func(beam.X, kv.Pair)) {
 	var partitionMap PMap
 	partitionsIter(&partitionMap)
-	if partitionMap != nil {
-		// Parameters in a kv.Pair are already encoded.
-		encodedPartitionKey := string(pair.K)
-		if partitionMap[encodedPartitionKey] {
-			emit(id, pair)
-		}
+	if partitionMap == nil {
+		log.Exitf("pbeam.prunePartitionsKVFn: partitionMap nil.")
+	}
+	// Parameters in a kv.Pair are already encoded.
+	encodedPartitionKey := string(pair.K)
+	if partitionMap[encodedPartitionKey] {
+		emit(id, pair)
 	}
 }
 
@@ -667,10 +662,8 @@ func (fn *emitPartitionsNotInTheDataFn) ProcessElement(partitionKey beam.X, valu
 	}
 	var partitionMap PMap
 	partitionsIter(&partitionMap)
-	if partitionMap != nil {
-		encodedPartitionKey := string(partitionBuf.Bytes())
-		if !partitionMap[encodedPartitionKey] {
-			emit(partitionKey, value)
-		}
+	encodedPartitionKey := string(partitionBuf.Bytes())
+	if !partitionMap[encodedPartitionKey] {
+		emit(partitionKey, value)
 	}
 }

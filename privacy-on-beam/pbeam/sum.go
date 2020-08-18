@@ -169,6 +169,7 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCo
 }
 
 func addSpecifiedPartitionsForSum(s beam.Scope, epsilon, delta float64, maxPartitionsContributed int64, params SumParams, noiseKind noise.Kind, vKind reflect.Kind, partialSumKV beam.PCollection) beam.PCollection {
+	// Calculate sums with unspecified partitions dropped. Result is PCollection<partition, int64> or PCollection<partition, float64>.
 	sums := beam.CombinePerKey(s,
 		newBoundedSumFn(epsilon, delta, maxPartitionsContributed, params.MinValue, params.MaxValue, noiseKind, vKind, true),
 	 	partialSumKV)
