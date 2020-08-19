@@ -157,10 +157,10 @@ void GetTestResults(std::ofstream& datafile, std::string algorithm,
 int main(int argc, char *argv[]) {
 
   std::ofstream datafile;
-  int64_t num_datasets;
-  double num_samples_per_histogram = 10;
+  int num_datasets = 15;
+  double num_samples_per_histogram = 1000000;
   double ratio_min = 80.0;
-  double ratio_max = 81.0;
+  double ratio_max = 99.0;
 
   std::vector<std::string> algorithms={"count","boundedsum","boundedmean"};
 
@@ -172,23 +172,15 @@ int main(int argc, char *argv[]) {
       datafile.open("stochastic_tester_results.txt");
     }
 
-    if (argc >=3) {
-      num_datasets = argv[2];
-
-    }
-    else {
-      int num_datasets = 15;
-    }
-
   datafile << "test_name,algorithm,expected,actual,ratio,num_datasets," <<
     "num_samples,time(sec)" << "\n";
 
   for (std::string& algorithm : algorithms) {
-    // run the test on each algorithm 10 times
-    for (int i=1; i<=3; i++) {
+    // ideally run the test on each algorithm 10 times
+    for (int i=1; i<=1; i++) {
       differential_privacy::testing::GetTestResults(datafile,algorithm,
         num_datasets,num_samples_per_histogram,ratio_min,ratio_max);
-      std::cout << "Number of iterations completed: " << i << "/10" << std::endl;
+      std::cout << "Number of iterations completed: " << i << "/1" << std::endl;
     }
   }
 
