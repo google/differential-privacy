@@ -498,7 +498,7 @@ cc_library(
         ":util",
         ":rand",
         "//base:status",
-        "//base:statusor",
+        "//base:statusor"
     ],
 )
 

@@ -29,9 +29,12 @@ using testing::DoubleNear;
 using testing::DoubleEq;
 using testing::MatchesRegex;
 
+const int num_samples = 10000000;
+const int num_samples_less = 1000000;
+
 //PreaggregationPartitionSelection Tests
 
-TEST(PartitionSelectionStrategiesTest, PreaggPartitionSelectionUnsetEpsilon) {
+TEST(PartitionSelectionTest, PreaggPartitionSelectionUnsetEpsilon) {
   	PreaggPartitionSelection::Builder test_builder;
   	auto failed_build = test_builder.SetDelta(0.1)
   									.SetMaxPartitionsContributed(2).Build();
@@ -41,8 +44,7 @@ TEST(PartitionSelectionStrategiesTest, PreaggPartitionSelectionUnsetEpsilon) {
   	EXPECT_THAT(message, MatchesRegex("^Epsilon has to be set.*"));
 }
 
-TEST(PartitionSelectionStrategiesTest,
-	 PreaggPartitionSelectionNotFiniteEpsilon) {
+TEST(PartitionSelectionTest, PreaggPartitionSelectionNotFiniteEpsilon) {
   	PreaggPartitionSelection::Builder test_builder;
   	auto failed_build = test_builder.SetEpsilon(NAN).SetDelta(0.3)
   									.SetMaxPartitionsContributed(4).Build();
@@ -52,8 +54,7 @@ TEST(PartitionSelectionStrategiesTest,
   	EXPECT_THAT(message, MatchesRegex("^Epsilon has to be finite.*"));
 }
 
-TEST(PartitionSelectionStrategiesTest,
-	 PreaggPartitionSelectionNegativeEpsilon) {
+TEST(PartitionSelectionTest, PreaggPartitionSelectionNegativeEpsilon) {
 	PreaggPartitionSelection::Builder test_builder;
   	auto failed_build = test_builder.SetEpsilon(-5.0).SetDelta(0.6)
   									.SetMaxPartitionsContributed(7).Build();
@@ -63,7 +64,7 @@ TEST(PartitionSelectionStrategiesTest,
   	EXPECT_THAT(message, MatchesRegex("^Epsilon has to be positive.*"));
 }
 
-TEST(PartitionSelectionStrategiesTest, PreaggPartitionSelectionUnsetDelta) {
+TEST(PartitionSelectionTest, PreaggPartitionSelectionUnsetDelta) {
 	PreaggPartitionSelection::Builder test_builder;
   	auto failed_build = test_builder.SetEpsilon(8.0)
   									.SetMaxPartitionsContributed(9).Build();
@@ -73,7 +74,7 @@ TEST(PartitionSelectionStrategiesTest, PreaggPartitionSelectionUnsetDelta) {
   	EXPECT_THAT(message, MatchesRegex("^Delta has to be set.*"));
 }
 
-TEST(PartitionSelectionStrategiesTest, PreaggPartitionSelectionNotFiniteDelta) {
+TEST(PartitionSelectionTest, PreaggPartitionSelectionNotFiniteDelta) {
 	PreaggPartitionSelection::Builder test_builder;
   	auto failed_build = test_builder.SetEpsilon(1.2).SetDelta(NAN)
   									.SetMaxPartitionsContributed(3).Build();
@@ -83,7 +84,7 @@ TEST(PartitionSelectionStrategiesTest, PreaggPartitionSelectionNotFiniteDelta) {
   	EXPECT_THAT(message, MatchesRegex("^Delta has to be finite.*"));
 }
 
-TEST(PartitionSelectionStrategiesTest, PreaggPartitionSelectionInvalidDelta) {
+TEST(PartitionSelectionTest, PreaggPartitionSelectionInvalidDelta) {
 	PreaggPartitionSelection::Builder test_builder;
   	auto failed_build = test_builder.SetEpsilon(4.5).SetDelta(6.0)
   									.SetMaxPartitionsContributed(7).Build();
@@ -93,7 +94,7 @@ TEST(PartitionSelectionStrategiesTest, PreaggPartitionSelectionInvalidDelta) {
   	EXPECT_THAT(message, MatchesRegex("^Delta has to be in the interval.*"));
 }
 
-TEST(PartitionSelectionStrategiesTest,
+TEST(PartitionSelectionTest,
 	 PreaggPartitionSelectionUnsetMaxPartitionsContributed) {
 	PreaggPartitionSelection::Builder test_builder;
   	auto failed_build = test_builder.SetEpsilon(0.8).SetDelta(0.9).Build();
@@ -104,7 +105,7 @@ TEST(PartitionSelectionStrategiesTest,
   									  " contribute to has to be set.*"));
 }
 
-TEST(PartitionSelectionStrategiesTest,
+TEST(PartitionSelectionTest,
 	 PreaggPartitionSelectionNegativeMaxPartitionsContributed) {
 	PreaggPartitionSelection::Builder test_builder;
   	auto failed_build = test_builder.SetEpsilon(0.1).SetDelta(0.2)
@@ -118,35 +119,32 @@ TEST(PartitionSelectionStrategiesTest,
 
 //We expect the probability of keeping a partition with one user
 //will be approximately delta
-TEST(PartitionSelectionStrategiesTest, PreaggPartitionSelectionOneUser) {
+TEST(PartitionSelectionTest, PreaggPartitionSelectionOneUser) {
 	PreaggPartitionSelection::Builder test_builder;
 	std::unique_ptr<PartitionSelectionStrategy> build =
 		test_builder.SetEpsilon(0.5).SetDelta(0.02)
 					.SetMaxPartitionsContributed(1).Build().ValueOrDie();
   	double num_kept = 0.0;
-  	for(int i = 0; i < 1000000; i++) {
+  	for(int i = 0; i < num_samples_less; i++) {
   		if(build->ShouldKeep(1))
   			num_kept++;
   	}
-  	EXPECT_THAT(num_kept/1000000, DoubleNear(build->GetDelta(), 0.001));
+  	EXPECT_THAT(num_kept/num_samples_less, DoubleNear(build->GetDelta(), 0.001));
  }
 
-//We expect the probability of keeping a partition
-//with no users will always be zero
-TEST(PartitionSelectionStrategiesTest, PreaggPartitionSelectionNoUsers) {
+//We expect the probability of keeping a partition with no users will be zero
+TEST(PartitionSelectionTest, PreaggPartitionSelectionNoUsers) {
 	PreaggPartitionSelection::Builder test_builder;
 	std::unique_ptr<PartitionSelectionStrategy> build =
 		test_builder.SetEpsilon(0.5).SetDelta(0.02)
 					.SetMaxPartitionsContributed(1).Build().ValueOrDie();
-  	double num_kept = 0.0;
-  	for(int i = 0; i < 100000; i++) {
-  		if(build->ShouldKeep(0))
-  			num_kept++;
-  	}
-  	EXPECT_THAT(num_kept/100000, DoubleEq(0));
+	for(int i = 0; i < 1000; i++)
+	{
+		EXPECT_FALSE(build->ShouldKeep(0));
+	}
  }
 
-TEST(PartitionSelectionStrategiesTest, PreaggPartitionSelectionFirstCrossover) {
+TEST(PartitionSelectionTest, PreaggPartitionSelectionFirstCrossover) {
 	 PreaggPartitionSelection::Builder test_builder;
 	std::unique_ptr<PartitionSelectionStrategy> build =
 		test_builder.SetEpsilon(0.5).SetDelta(0.02)
@@ -157,8 +155,7 @@ TEST(PartitionSelectionStrategiesTest, PreaggPartitionSelectionFirstCrossover) {
  }
 
 
- TEST(PartitionSelectionStrategiesTest,
- 	  PreaggPartitionSelectionSecondCrossover) {
+ TEST(PartitionSelectionTest, PreaggPartitionSelectionSecondCrossover) {
 	PreaggPartitionSelection::Builder test_builder;
 	std::unique_ptr<PartitionSelectionStrategy> build =
 		test_builder.SetEpsilon(0.5).SetDelta(0.02)
@@ -169,60 +166,56 @@ TEST(PartitionSelectionStrategiesTest, PreaggPartitionSelectionFirstCrossover) {
  }
 
 //Values calculated with formula
-TEST(PartitionSelectionStrategiesTest,
-	 PreaggPartitionSelectionNumUsersEqFirstCrossover) {
+TEST(PartitionSelectionTest, PreaggPartitionSelectionNumUsersEqFirstCrossover) {
 	PreaggPartitionSelection::Builder test_builder;
 	std::unique_ptr<PartitionSelectionStrategy> build =
 		test_builder.SetEpsilon(0.5).SetDelta(0.02)
 					.SetMaxPartitionsContributed(1).Build().ValueOrDie();
   	double num_kept = 0.0;
-  	for(int i = 0; i < 10000000; i++) {
+  	for(int i = 0; i < num_samples; i++) {
   		if(build->ShouldKeep(6))
   			num_kept++;
   	}
-  	EXPECT_THAT(num_kept/10000000, DoubleNear(0.58840484458, 0.001));
+  	EXPECT_THAT(num_kept/num_samples, DoubleNear(0.58840484458, 0.001));
  }
 
 //Values calculated with formula
-TEST(PartitionSelectionStrategiesTest,
-	 PreaggPartitionSelectionNumUsersBtwnCrossovers) {
+TEST(PartitionSelectionTest, PreaggPartitionSelectionNumUsersBtwnCrossovers) {
 	PreaggPartitionSelection::Builder test_builder;
 	std::unique_ptr<PartitionSelectionStrategy> build =
 		test_builder.SetEpsilon(0.5).SetDelta(0.02)
 					.SetMaxPartitionsContributed(1).Build().ValueOrDie();
   	double num_kept = 0.0;
-  	for(int i = 0; i < 10000000; i++) {
+  	for(int i = 0; i < num_samples; i++) {
   		if(build->ShouldKeep(8))
   			num_kept++;
   	}
-  	EXPECT_THAT(num_kept/10000000, DoubleNear(0.86807080625, 0.001));
+  	EXPECT_THAT(num_kept/num_samples, DoubleNear(0.86807080625, 0.001));
  }
 
-//Values calculated with formula
-TEST(PartitionSelectionStrategiesTest,
+//Values calculated with formula - 15 should be so large that this partition is
+//always kept.
+TEST(PartitionSelectionTest,
 	 PreaggPartitionSelectionNumUsersGreaterThanCrossovers) {
 	PreaggPartitionSelection::Builder test_builder;
 	std::unique_ptr<PartitionSelectionStrategy> build =
 		test_builder.SetEpsilon(0.5).SetDelta(0.02)
 					.SetMaxPartitionsContributed(1).Build().ValueOrDie();
-  	double num_kept = 0.0;
-  	for(int i = 0; i < 10000000; i++) {
-  		if(build->ShouldKeep(15))
-  			num_kept++;
-  	}
-  	EXPECT_THAT(num_kept/10000000, DoubleEq(1.0));
+	for(int i = 0; i < 1000; i++) {
+		EXPECT_TRUE(build->ShouldKeep(15));
+	}
  }
 
 //LaplacePartitionSelection Tests
 //Due to the inheritance, SetLaplaceMechanism must be
 //called before SetDelta, SetEpsilon, etc.
 
-TEST(PartitionSelectionStrategiesTest,
-	 LaplacePartitionSelectionUnsetMaxPartitionsContributed) {
+TEST(PartitionSelectionTest,
+	LaplacePartitionSelectionUnsetMaxPartitionsContributed) {
   	LaplacePartitionSelection::Builder test_builder;
-  	LaplaceMechanism::Builder laplace_builder;
-  	auto failed_build = test_builder.SetLaplaceMechanism(&laplace_builder)
-  									.SetDelta(0.1).SetEpsilon(2).Build();
+  	auto failed_build = test_builder
+  		.SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
+  		.SetDelta(0.1).SetEpsilon(2).Build();
   	EXPECT_THAT(failed_build.status().code(),
                 Eq(base::StatusCode::kInvalidArgument));
   	std::string message(std::string(failed_build.status().message()));
@@ -230,13 +223,12 @@ TEST(PartitionSelectionStrategiesTest,
   									  " contribute to has to be set.*"));
 }
 
-TEST(PartitionSelectionStrategiesTest,
+TEST(PartitionSelectionTest,
 	 LaplacePartitionSelectionNegativeMaxPartitionsContributed) {
   	LaplacePartitionSelection::Builder test_builder;
-  	LaplaceMechanism::Builder laplace_builder;
-  	auto failed_build = test_builder.SetLaplaceMechanism(&laplace_builder)
-  									.SetDelta(0.1).SetEpsilon(2)
-  									.SetMaxPartitionsContributed(-3).Build();
+  	auto failed_build = test_builder
+  		.SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
+  		.SetDelta(0.1).SetEpsilon(2).SetMaxPartitionsContributed(-3).Build();
   	EXPECT_THAT(failed_build.status().code(),
                 Eq(base::StatusCode::kInvalidArgument));
   	std::string message(std::string(failed_build.status().message()));
@@ -244,128 +236,125 @@ TEST(PartitionSelectionStrategiesTest,
   									  " contribute to has to be positive.*"));
 }
 
-TEST(PartitionSelectionStrategiesTest, LaplacePartitionSelectionUnsetEpsilon) {
+TEST(PartitionSelectionTest, LaplacePartitionSelectionUnsetEpsilon) {
   	LaplacePartitionSelection::Builder test_builder;
-  	LaplaceMechanism::Builder laplace_builder;
-  	auto failed_build = test_builder.SetLaplaceMechanism(&laplace_builder)
-  									.SetDelta(0.1)
-  									.SetMaxPartitionsContributed(2).Build();
+  	auto failed_build = test_builder
+  		.SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
+		.SetDelta(0.1)
+		.SetMaxPartitionsContributed(2).Build();
   	EXPECT_THAT(failed_build.status().code(),
                 Eq(base::StatusCode::kInvalidArgument));
   	std::string message(std::string(failed_build.status().message()));
   	EXPECT_THAT(message, MatchesRegex("^Epsilon has to be set.*"));
 }
 
-TEST(PartitionSelectionStrategiesTest, LaplacePartitionSelectionUnsetDelta) {
+TEST(PartitionSelectionTest, LaplacePartitionSelectionUnsetDelta) {
   	LaplacePartitionSelection::Builder test_builder;
-  	LaplaceMechanism::Builder laplace_builder;
-  	auto failed_build = test_builder.SetLaplaceMechanism(&laplace_builder)
-  									.SetEpsilon(0.1)
-  									.SetMaxPartitionsContributed(2).Build();
+  	auto failed_build = test_builder
+  		.SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
+		.SetEpsilon(0.1)
+		.SetMaxPartitionsContributed(2).Build();
   	EXPECT_THAT(failed_build.status().code(),
                 Eq(base::StatusCode::kInvalidArgument));
   	std::string message(std::string(failed_build.status().message()));
   	EXPECT_THAT(message, MatchesRegex("^Delta has to be set.*"));
 }
 
-TEST(PartitionSelectionStrategiesTest,
-	 LaplacePartitionSelectionNotFiniteDelta) {
+TEST(PartitionSelectionTest, LaplacePartitionSelectionNotFiniteDelta) {
   	LaplacePartitionSelection::Builder test_builder;
-  	LaplaceMechanism::Builder laplace_builder;
-  	auto failed_build = test_builder.SetLaplaceMechanism(&laplace_builder)
-  									.SetEpsilon(0.1).SetDelta(NAN)
-  									.SetMaxPartitionsContributed(2).Build();
+  	auto failed_build = test_builder
+  		.SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
+		.SetEpsilon(0.1).SetDelta(NAN)
+		.SetMaxPartitionsContributed(2).Build();
   	EXPECT_THAT(failed_build.status().code(),
                 Eq(base::StatusCode::kInvalidArgument));
   	std::string message(std::string(failed_build.status().message()));
   	EXPECT_THAT(message, MatchesRegex("^Delta has to be finite.*"));
 }
 
-TEST(PartitionSelectionStrategiesTest, LaplacePartitionSelectionInvalidDelta) {
+TEST(PartitionSelectionTest, LaplacePartitionSelectionInvalidDelta) {
   	LaplacePartitionSelection::Builder test_builder;
-  	LaplaceMechanism::Builder laplace_builder;
-  	auto failed_build = test_builder.SetLaplaceMechanism(&laplace_builder)
-  									.SetEpsilon(0.1).SetDelta(5.2)
-  									.SetMaxPartitionsContributed(2).Build();
+  	auto failed_build = test_builder
+  		.SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
+		.SetEpsilon(0.1).SetDelta(5.2)
+		.SetMaxPartitionsContributed(2).Build();
   	EXPECT_THAT(failed_build.status().code(),
                 Eq(base::StatusCode::kInvalidArgument));
   	std::string message(std::string(failed_build.status().message()));
   	EXPECT_THAT(message, MatchesRegex("^Delta has to be in the interval.*"));
 }
 
-TEST(PartitionSelectionStrategiesTest, LaplacePartitionSelectionUnsetBuilder) {
-  	LaplacePartitionSelection::Builder test_builder;
-  	auto failed_build = test_builder.SetDelta(0.3).SetEpsilon(4)
-  									.SetMaxPartitionsContributed(5).Build();
-  	EXPECT_THAT(failed_build.status().code(),
-                Eq(base::StatusCode::kInvalidArgument));
-  	std::string message(std::string(failed_build.status().message()));
-  	EXPECT_THAT(message, MatchesRegex("^The builder has to be set.*"));
-}
-
 //We expect the probability of keeping a partition with one user
 // will be approximately delta
-TEST(PartitionSelectionStrategiesTest, LaplacePartitionSelectionOneUser) {
+TEST(PartitionSelectionTest, LaplacePartitionSelectionOneUser) {
 	LaplacePartitionSelection::Builder test_builder;
-	LaplaceMechanism::Builder laplace_builder;
-	std::unique_ptr<PartitionSelectionStrategy> build =
-		test_builder.SetLaplaceMechanism(&laplace_builder).SetEpsilon(0.5)
-					.SetDelta(0.02).SetMaxPartitionsContributed(1).Build()
-					.ValueOrDie();
+	std::unique_ptr<PartitionSelectionStrategy> build = test_builder
+		.SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
+		.SetEpsilon(0.5)
+		.SetDelta(0.02).SetMaxPartitionsContributed(1).Build()
+		.ValueOrDie();
   	double num_kept = 0.0;
-  	for(int i = 0; i < 1000000; i++) {
+  	for(int i = 0; i < num_samples_less; i++) {
   		if(build->ShouldKeep(1))
   			num_kept++;
   	}
-  	EXPECT_THAT(num_kept/1000000, DoubleNear(build->GetDelta(), 0.001));
+  	EXPECT_THAT(num_kept/num_samples_less, DoubleNear(build->GetDelta(), 0.001));
  }
 
  //When the number of users is at the threshold, we expect drop/keep is 50/50.
  //These numbers should make the threshold approximately 5.
-TEST(PartitionSelectionStrategiesTest, LaplacePartitionSelectionAtThreshold) {
+TEST(PartitionSelectionTest, LaplacePartitionSelectionAtThreshold) {
 	LaplacePartitionSelection::Builder test_builder;
-	LaplaceMechanism::Builder laplace_builder;
-	std::unique_ptr<PartitionSelectionStrategy> build =
-		test_builder.SetLaplaceMechanism(&laplace_builder).SetEpsilon(0.5)
-					.SetDelta(0.06766764161).SetMaxPartitionsContributed(1)
-					.Build().ValueOrDie();
+	std::unique_ptr<PartitionSelectionStrategy> build =test_builder.
+		SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
+		.SetEpsilon(0.5).SetDelta(0.06766764161).SetMaxPartitionsContributed(1)
+		.Build().ValueOrDie();
   	double num_kept = 0.0;
-  	for(int i = 0; i < 1000000; i++) {
+  	for(int i = 0; i < num_samples_less; i++) {
   		if(build->ShouldKeep(5))
   			num_kept++;
   	}
-  	EXPECT_THAT(num_kept/1000000, DoubleNear(0.5, 0.01));
+  	EXPECT_THAT(num_kept/num_samples_less, DoubleNear(0.5, 0.01));
  }
 
-TEST(PartitionSelectionStrategiesTest, LaplacePartitionSelectionThreshold) {
+TEST(PartitionSelectionTest, LaplacePartitionSelectionThreshold) {
 	LaplacePartitionSelection::Builder test_builder;
-	LaplaceMechanism::Builder laplace_builder;
-	std::unique_ptr<PartitionSelectionStrategy> build =
-		test_builder.SetLaplaceMechanism(&laplace_builder).SetEpsilon(0.5)
-					.SetDelta(0.02).SetMaxPartitionsContributed(1).Build()
-					.ValueOrDie();
+	std::unique_ptr<PartitionSelectionStrategy> build = test_builder
+		.SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
+		.SetEpsilon(0.5).SetDelta(0.02).SetMaxPartitionsContributed(1).Build()
+		.ValueOrDie();
 	LaplacePartitionSelection* laplace =
 		dynamic_cast<LaplacePartitionSelection*>(build.get());
   	EXPECT_THAT(laplace->GetThreshold(), DoubleNear(7.43775164974, 0.001));
  }
-
-TEST(PartitionSelectionStrategiesTest, LaplacePartitionSelectionLow) {
-	LaplacePartitionSelection::Builder test_builder;
-	test_utils::ZeroNoiseMechanism::Builder laplace_builder;
+ 
+ TEST(PartitionSelectionTest, LaplacePartitionSelectionUnsetBuilderThreshold) {
+  	LaplacePartitionSelection::Builder test_builder;
 	std::unique_ptr<PartitionSelectionStrategy> build =
-		test_builder.SetLaplaceMechanism(&laplace_builder).SetEpsilon(0.5)
-					.SetDelta(0.02).SetMaxPartitionsContributed(1)
-					.Build().ValueOrDie();
+		test_builder.SetEpsilon(0.5).SetDelta(0.02)
+					.SetMaxPartitionsContributed(1).Build().ValueOrDie();
+	LaplacePartitionSelection* laplace =
+		dynamic_cast<LaplacePartitionSelection*>(build.get());
+  	EXPECT_THAT(laplace->GetThreshold(), DoubleNear(7.43775164974, 0.001));
+}
+
+TEST(PartitionSelectionTest, LaplacePartitionSelectionLow) {
+	LaplacePartitionSelection::Builder test_builder;
+	std::unique_ptr<PartitionSelectionStrategy> build = test_builder
+		.SetLaplaceMechanism(
+			absl::make_unique<test_utils::ZeroNoiseMechanism::Builder>())
+		.SetEpsilon(0.5).SetDelta(0.02).SetMaxPartitionsContributed(1)
+		.Build().ValueOrDie();
   	EXPECT_THAT(build->ShouldKeep(7), Eq(false));
  }
 
- TEST(PartitionSelectionStrategiesTest, LaplacePartitionSelectionHigh) {
+ TEST(PartitionSelectionTest, LaplacePartitionSelectionHigh) {
 	LaplacePartitionSelection::Builder test_builder;
-	test_utils::ZeroNoiseMechanism::Builder laplace_builder;
-	std::unique_ptr<PartitionSelectionStrategy> build =
-		test_builder.SetLaplaceMechanism(&laplace_builder).SetEpsilon(0.5)
-					.SetDelta(0.02).SetMaxPartitionsContributed(1).Build()
-					.ValueOrDie();
+	std::unique_ptr<PartitionSelectionStrategy> build = test_builder
+		.SetLaplaceMechanism(
+			absl::make_unique<test_utils::ZeroNoiseMechanism::Builder>())
+		.SetEpsilon(0.5).SetDelta(0.02).SetMaxPartitionsContributed(1).Build()
+		.ValueOrDie();
   	EXPECT_THAT(build->ShouldKeep(8), Eq(true));
  }
 
