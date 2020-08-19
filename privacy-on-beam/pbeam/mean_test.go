@@ -922,7 +922,7 @@ func TestMeanPerKeyWithPartitionsReturnsNonNegativeFloat64(t *testing.T) {
 	}
 	partitionsCol := beam.CreateList(s, partitions)
 
-	// Using a low ε, zero δ, and a high maxValue.
+	// Using a low ε, zero δ, and a high maxValue to add a lot of noise.
 	maxContributionsPerPartition := int64(1)
 	epsilon := 0.001
 	delta := 0.0
