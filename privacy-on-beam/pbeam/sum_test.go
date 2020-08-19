@@ -239,15 +239,15 @@ func TestSumPerKeyWithPartitionsNoNoiseFloat(t *testing.T) {
 			upper: 5.0,
 		},
 		{
-			lower: -10.0,
-			upper: 10.0,
+			lower: -5.0,
+			upper: 5.0,
 		},
 	} {
 		triples := concatenateTriplesWithFloatValue(
 			makeDummyTripleWithFloatValue(7, 0),
 			makeDummyTripleWithFloatValue(58, 1),
 			makeDummyTripleWithFloatValue(99, 2))
-		for i := 5; i < 1000000; i++ {
+		for i := 5; i < 100; i++ {
 			triples = append(triples, makeDummyTripleWithFloatValue(1, i) ...)
 		}
 		// Keep partitions 0, 3, and 5.
@@ -255,7 +255,7 @@ func TestSumPerKeyWithPartitionsNoNoiseFloat(t *testing.T) {
 		result := []testFloat64Metric{
 			{0, 7},
 			{3, 0},
-			{5, 0},
+			{5, 1},
 		}
 
 		p, s, col, want := ptest.CreateList2(triples, result)
