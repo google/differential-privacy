@@ -590,7 +590,7 @@ func TestMeanPerKeyWithPartitionsNoNoiseFloatValues(t *testing.T) {
 			MinValue:                     lower,
 			MaxValue:                     upper,
 			NoiseKind:                    LaplaceNoise{},
-			partitionsCol: partitionsCol,
+			partitionsCol:                partitionsCol,
 		})
 
 		want = beam.ParDo(s, float64MetricToKV, want)
@@ -938,7 +938,8 @@ func TestMeanPerKeyWithPartitionsReturnsNonNegativeFloat64(t *testing.T) {
 		MaxValue:                     upper,
 		MaxPartitionsContributed:     1,
 		NoiseKind:                    LaplaceNoise{},
-		partitionsCol:          partitionsCol,})
+		partitionsCol:                partitionsCol,
+	})
 	values := beam.DropKey(s, means)
 	beam.ParDo0(s, checkNoNegativeValuesFloat64Fn, values)
 	if err := ptest.Run(p); err != nil {
@@ -1054,7 +1055,8 @@ func TestMeanPerKeyWithPartitionsCrossPartitionContributionBounding(t *testing.T
 		MinValue:                     lower,
 		MaxValue:                     upper,
 		NoiseKind:                    LaplaceNoise{},
-		partitionsCol:          partitionsCol})
+		partitionsCol:                partitionsCol,
+	})
 
 	means := beam.DropKey(s, got)
 	sumOverPartitions := stats.Sum(s, means)
@@ -1140,7 +1142,8 @@ func TestMeanPerKeyWithPartitionsNoNoiseIntValues(t *testing.T) {
 			MinValue:                     lower,
 			MaxValue:                     upper,
 			NoiseKind:                    LaplaceNoise{},
-			partitionsCol:          partitionsCol})
+			partitionsCol:                partitionsCol,
+		})
 		want = beam.ParDo(s, float64MetricToKV, want)
 
 		tolerance, err := laplaceToleranceForMean(25, lower, upper, maxContributionsPerPartition, maxPartitionsContributed, epsilon, 150.0, exactCount, exactMean)
