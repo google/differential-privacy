@@ -1155,9 +1155,7 @@ func TestMeanPerKeyWithPartitionsNoNoiseIntValues(t *testing.T) {
 	}
 }
 
-// Checks that MeanPerKey with empty specified partitions returns a correct answer for int input values.
-// They should be correctly converted to float64 and then correct result
-// with float statistic should be computed.
+// Checks that MeanPerKey with empty specified partitions returns a correct answer.
 func TestMeanPerKeyWithEmptyPartitionsNoNoise(t *testing.T) {
 	for _, tc := range []struct {
 		lower float64
@@ -1182,7 +1180,7 @@ func TestMeanPerKeyWithEmptyPartitionsNoNoise(t *testing.T) {
 
 		midpoint := tc.lower + (tc.upper-tc.lower)/2.0
 		exactCount := 0.0
-		exactMean := midpoint
+		exactMean := midpoint // Mean of 0 elements is midpoint.
 
 		// We have ε=50, δ=0 and l0Sensitivity=1.
 		// We do not use thresholding because partitions are specified.
@@ -1221,10 +1219,10 @@ func TestMeanPerKeyWithEmptyPartitionsNoNoise(t *testing.T) {
 			t.Fatalf("laplaceToleranceForMean: got error %v", err)
 		}
 		if err := approxEqualsKVFloat64(s, got, want, tolerance); err != nil {
-			t.Fatalf("TestMeanPerKeyWithPartitionsNoNoise: %v", err)
+			t.Fatalf("TestMeanPerKeyWithEmptyPartitionsNoNoise: %v", err)
 		}
 		if err := ptest.Run(p); err != nil {
-			t.Errorf("TestMeanPerKeyWithPartitionsNoNoise: MeanPerKey(%v) = %v, want %v, error %v", col, got, want, err)
+			t.Errorf("TestMeanPerKeyWithEmptyPartitionsNoNoise: MeanPerKey(%v) = %v, want %v, error %v", col, got, want, err)
 		}
 	}
 }

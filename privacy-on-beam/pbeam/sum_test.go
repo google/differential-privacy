@@ -118,7 +118,7 @@ func TestSumPerKeyWithPartitionsNoNoiseInt(t *testing.T) {
 
 		partitionsCol := beam.CreateList(s, partitions)
 
-		// We have ε=50, δ=0, and l1Sensitivity=3*lInfSensitivity, to scale with the noise with different MinValues and MaxValues.
+		// We have ε=50, δ=0, and l1Sensitivity=3*lInfSensitivity, to scale the noise with different MinValues and MaxValues.
 		epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 25.0, 3.0*tc.lInfSensitivity
 		pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 		pcol = ParDo(s, tripleWithIntValueToKV, pcol)
@@ -253,11 +253,11 @@ func TestSumPerKeyWithPartitionsNoNoiseFloat(t *testing.T) {
 			makeDummyTripleWithFloatValue(7, 0),
 			makeDummyTripleWithFloatValue(58, 1),
 			makeDummyTripleWithFloatValue(99, 2))
-		for i := 5; i < 100; i++ {
+		for i := 5; i < 10; i++ {
 			triples = append(triples, makeDummyTripleWithFloatValue(1, i) ...)
 		}
 		// Keep partitions 0, 3, and 5.
-		// Drop other partitions up to 100.
+		// Drop other partitions up to 10.
 		result := []testFloat64Metric{
 			{0, 7},
 			{3, 0},
