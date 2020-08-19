@@ -587,7 +587,6 @@ func (fn *PartitionsMapFn) MergeAccumulators(a, b mapAccum) mapAccum {
 }
 
 func (fn *PartitionsMapFn) ExtractOutput(m mapAccum) PMap {
-	fmt.Println("HELLO %v", m.PartitionMap, m.PartitionMap == nil)
 	return m.PartitionMap
 }
 

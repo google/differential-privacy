@@ -257,7 +257,7 @@ func TestSumPerKeyWithPartitionsNoNoiseFloat(t *testing.T) {
 			triples = append(triples, makeDummyTripleWithFloatValue(1, i) ...)
 		}
 		// Keep partitions 0, 3, and 5.
-		// Drop other partitions up to 100000.
+		// Drop other partitions up to 100.
 		result := []testFloat64Metric{
 			{0, 7},
 			{3, 0},
