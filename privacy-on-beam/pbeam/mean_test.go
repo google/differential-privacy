@@ -1054,7 +1054,7 @@ func TestMeanPerKeyWithPartitionsCrossPartitionContributionBounding(t *testing.T
 		MinValue:                     lower,
 		MaxValue:                     upper,
 		NoiseKind:                    LaplaceNoise{},
-		partitionsCol:                partitionsCol})
+		partitionsCol:          partitionsCol})
 
 	means := beam.DropKey(s, got)
 	sumOverPartitions := stats.Sum(s, means)
@@ -1116,7 +1116,7 @@ func TestMeanPerKeyWithPartitionsNoNoiseIntValues(t *testing.T) {
 		// we can have each partition fail with 10⁻²⁵ probability (k=25).
 		maxContributionsPerPartition := int64(1)
 		maxPartitionsContributed := int64(1)
-		epsilon := 50.0
+		epsilon := 10e20
 		delta := 0.0 // Using Laplace noise, and partitions are specified.
 		lower := tc.lower
 		upper := tc.upper
