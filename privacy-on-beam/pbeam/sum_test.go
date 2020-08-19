@@ -270,9 +270,7 @@ func TestSumPerKeyWithPartitionsNoNoiseFloat(t *testing.T) {
 		partitions := []int{0, 3, 5}
 		partitionsCol := beam.CreateList(s, partitions)
 
-		// We have ε=50, δ=0 and l1Sensitivity=3*tc.lInfSensitivity.
-		// We have 3 partitions. So, to get an overall flakiness of 10⁻²³,
-		// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
+		// We have ε=50, δ=0 and l1Sensitivity=3*tc.lInfSensitivity,to scale with the noise with different MinValues and MaxValues.
 		epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 25.0, 3.0*tc.lInfSensitivity
 		pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 		pcol = ParDo(s, tripleWithFloatValueToKV, pcol)
