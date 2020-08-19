@@ -1118,7 +1118,7 @@ func TestMeanPerKeyWithPartitionsNoNoiseIntValues(t *testing.T) {
 		// we can have each partition fail with 10⁻²⁵ probability (k=25).
 		maxContributionsPerPartition := int64(1)
 		maxPartitionsContributed := int64(1)
-		epsilon := 10e20
+		epsilon := 50.0
 		delta := 0.0 // Using Laplace noise, and partitions are specified.
 		lower := tc.lower
 		upper := tc.upper
