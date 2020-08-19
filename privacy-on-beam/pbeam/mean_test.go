@@ -329,7 +329,7 @@ func TestMeanPerKeyWithPartitionsAddsNoiseFloat(t *testing.T) {
 		// we need to have each partition pass with 1-10⁻²³ probability (k=23).
 		epsilonNoise, deltaNoise := tc.epsilon, tc.delta
 		k := 23.0
-		l0Sensitivity, lInfSensitivity := 1.0, 2.0
+		l0Sensitivity, lInfSensitivity := 1.0, 3.0
 		
 		numIDs := 10
 
@@ -358,8 +358,8 @@ func TestMeanPerKeyWithPartitionsAddsNoiseFloat(t *testing.T) {
 		got := MeanPerKey(s, pcol, MeanParams{
 			MaxPartitionsContributed:     1,
 			MaxContributionsPerPartition: 1,
-			MinValue:                     0.0,
-			MaxValue:                     2.0,
+			MinValue:                     lower,
+			MaxValue:                     upper,
 			NoiseKind:                    tc.noiseKind,
 			partitionsCol:                partitionsCol,
 		})
@@ -576,7 +576,7 @@ func TestMeanPerKeyWithPartitionsNoNoiseFloatValues(t *testing.T) {
 		// we can have each partition fail with 10⁻²⁵ probability (k=25).
 		maxContributionsPerPartition := int64(1)
 		maxPartitionsContributed := int64(1)
-		epsilon := 100.0
+		epsilon := 50.0
 		delta := 0.0
 		lower := tc.lower
 		upper := tc.upper

@@ -68,19 +68,23 @@ func TestSumPerKeyWithPartitionsNoNoiseInt(t *testing.T) {
 	for _, tc := range []struct {
 		lower float64
 		upper float64
+		lInfSensitivity float64
 	}{
 		// Used for MinValue and MaxValue. Tests case when specified partitions are already in the data.
 		{
 			lower: 1.0, 
 			upper: 3.0,
+			lInfSensitivity: 3.0,
 		},
 		{
 			lower: 0.0,
 			upper: 2.0,
+			lInfSensitivity: 2.0,
 		},
 		{
 			lower: -10.0,
 			upper: 10.0,
+			lInfSensitivity: 10.0,
 		},
 	} {
 		// ID:1 contributes 3 partitions.
@@ -114,10 +118,8 @@ func TestSumPerKeyWithPartitionsNoNoiseInt(t *testing.T) {
 
 		partitionsCol := beam.CreateList(s, partitions)
 
-		// We have ε=50, δ=0, and l1Sensitivity=3.
-		// We have 5 partitions. So, to get an overall flakiness of 10⁻²³,
-		// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
-		epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 25.0, 3.0
+		// We have ε=50, δ=0, and l1Sensitivity=3*lInfSensitivity, to scale with the noise with different MinValues and MaxValues.
+		epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 25.0, 3.0*tc.lInfSensitivity
 		pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 		pcol = ParDo(s, tripleWithIntValueToKV, pcol)
 		got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 3, MinValue: tc.lower, MaxValue: tc.upper, NoiseKind: LaplaceNoise{}, partitionsCol: partitionsCol})
@@ -131,8 +133,8 @@ func TestSumPerKeyWithPartitionsNoNoiseInt(t *testing.T) {
 	}
 }
 
-	// Checks that SumPerKey works correctly for negative bounds and negative values with int values.
-	func TestSumPerKeyNegativeBoundsInt(t *testing.T) {
+// Checks that SumPerKey works correctly for negative bounds and negative values with int values.
+func TestSumPerKeyNegativeBoundsInt(t *testing.T) {
 	triples := concatenateTriplesWithIntValue(
 		makeTripleWithIntValue(58, 1, -1), // should be clamped down to -2
 		makeTripleWithIntValue(99, 2, -4)) // should be clamped up to -3
@@ -228,26 +230,30 @@ func TestSumPerKeyWithPartitionsNoNoiseFloat(t *testing.T) {
 	for _, tc := range []struct {
 		lower float64
 		upper float64
+		lInfSensitivity float64
 	}{
 		// Used for MinValue and MaxValue. Tests case when specified partitions are already in the data.
 		{
 			lower: 0.0, 
 			upper: 1.0,
+			lInfSensitivity: 1.0,
 		},
 		{
-			lower: 1.0,
-			upper: 5.0,
+			lower: 3.0,
+			upper: 10.0,
+			lInfSensitivity: 10.0,
 		},
 		{
-			lower: -5.0,
-			upper: 5.0,
+			lower: -50.0,
+			upper: 50.0,
+			lInfSensitivity: 50.0,
 		},
 	} {
 		triples := concatenateTriplesWithFloatValue(
 			makeDummyTripleWithFloatValue(7, 0),
 			makeDummyTripleWithFloatValue(58, 1),
 			makeDummyTripleWithFloatValue(99, 2))
-		for i := 5; i < 100; i++ {
+		for i := 5; i < 10000; i++ {
 			triples = append(triples, makeDummyTripleWithFloatValue(1, i) ...)
 		}
 		// Keep partitions 0, 3, and 5.
@@ -264,10 +270,10 @@ func TestSumPerKeyWithPartitionsNoNoiseFloat(t *testing.T) {
 		partitions := []int{0, 3, 5}
 		partitionsCol := beam.CreateList(s, partitions)
 
-		// We have ε=50, δ=0 and l1Sensitivity=3.
+		// We have ε=50, δ=0 and l1Sensitivity=3*tc.lInfSensitivity.
 		// We have 3 partitions. So, to get an overall flakiness of 10⁻²³,
 		// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
-		epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 25.0, 3.0
+		epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 25.0, 3.0*tc.lInfSensitivity
 		pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 		pcol = ParDo(s, tripleWithFloatValueToKV, pcol)
 		got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 3, MinValue: tc.lower, MaxValue: tc.upper, NoiseKind: LaplaceNoise{}, partitionsCol: partitionsCol})

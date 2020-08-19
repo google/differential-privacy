@@ -664,10 +664,12 @@ func (fn *emitPartitionsNotInTheDataFn) ProcessElement(partitionKey beam.X, valu
 	if err := fn.partitionEnc.Encode(partitionKey, &partitionBuf); err != nil {
 		log.Exitf("pbeam.emitPartitionsNotInTheDataFn.ProcessElement: couldn't encode partition %v: %v", partitionKey, err)
 	}
-	var partitionMap PMap
-	partitionsIter(&partitionMap)
+	var partitionsInDataMap PMap
+	partitionsIter(&partitionsInDataMap)
 	encodedPartitionKey := string(partitionBuf.Bytes())
-	if !partitionMap[encodedPartitionKey] {
-		emit(partitionKey, value)
+	// If partitionsInDataMap is nil, partitionMap is empty, so none of the partitions are in the data, which means we need to emit them.
+	// Similarly, if a partition is not in partitionsInDataMap, it means that the partition is not in the data, so we need to emit it.
+	if partitionsInDataMap == nil || !partitionsInDataMap[encodedPartitionKey]{
+			emit(partitionKey, value)
 	}
 }
