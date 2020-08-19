@@ -14,7 +14,7 @@
 // limitations under the License.
 //
 
-#include "algorithms/partition-selection-strategies.h"
+#include "algorithms/partition-selection.h"
 #include "algorithms/numerical-mechanisms-testing.h"
 
 #include "gmock/gmock.h"

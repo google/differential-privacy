@@ -490,8 +490,8 @@ cc_test(
 )
 
 cc_library(
-    name = "partition-selection-strategies",
-    hdrs = ["partition-selection-strategies.h"],
+    name = "partition-selection",
+    hdrs = ["partition-selection.h"],
     copts = ["-Wno-sign-compare"],
     deps = [
         ":numerical-mechanisms",
@@ -503,11 +503,11 @@ cc_library(
 )
 
 cc_test(
-    name = "partition-selection-strategies_test",
-    srcs = ["partition-selection-strategies_test.cc"],
+    name = "partition-selection_test",
+    srcs = ["partition-selection_test.cc"],
     copts = ["-Wno-sign-compare"],
     deps = [
-        ":partition-selection-strategies",
+        ":partition-selection",
         ":numerical-mechanisms-testing",
         "@com_google_googletest//:gtest_main",
     ],
