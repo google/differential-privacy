@@ -108,14 +108,6 @@ class PartitionSelectionStrategy {
      absl::optional<int> max_partitions_contributed_;
   };
 
-  PartitionSelectionStrategy(double epsilon, double delta,
-                             int max_partitions_contributed)
-  	: epsilon_(epsilon), delta_(delta),
-      max_partitions_contributed_(max_partitions_contributed) {
-        adjusted_delta_ = AdjustDelta(delta);
-      }
-
-
   virtual ~PartitionSelectionStrategy() = default;
 
   const double GetEpsilon() { return epsilon_; }
@@ -148,6 +140,13 @@ class PartitionSelectionStrategy {
   double AdjustDelta(double delta) {
     return (1.0 - pow(1 - delta, (double) max_partitions_contributed_));
   }
+
+  PartitionSelectionStrategy(double epsilon, double delta,
+                             int max_partitions_contributed)
+    : epsilon_(epsilon), delta_(delta),
+      max_partitions_contributed_(max_partitions_contributed) {
+        adjusted_delta_ = AdjustDelta(delta);
+  }
 };
 
 // PreAggPartitionSelection implements magic partition selection - instead of
@@ -167,8 +166,8 @@ class PreaggPartitionSelection : public PartitionSelectionStrategy {
       RETURN_IF_ERROR(DeltaIsSetAndValid());
       RETURN_IF_ERROR(MaxPartitionsContributedIsSetAndValid());
       std::unique_ptr<PartitionSelectionStrategy> magic_selection = 
-        absl::make_unique<PreaggPartitionSelection>(GetEpsilon().value(),
-        GetDelta().value(), GetMaxPartitionsContributed().value());
+        absl::WrapUnique (new PreaggPartitionSelection(GetEpsilon().value(),
+        GetDelta().value(), GetMaxPartitionsContributed().value()));
       return magic_selection;
    }
    private:
@@ -189,20 +188,6 @@ class PreaggPartitionSelection : public PartitionSelectionStrategy {
        return base::OkStatus();
      }
   };
-
-  PreaggPartitionSelection(double epsilon, double delta, int max_partitions)
-  	: PartitionSelectionStrategy(epsilon, delta, max_partitions),
-     adjusted_epsilon_(epsilon / (double) max_partitions) {
-    double adjusted_delta_ = GetAdjustedDelta();
-    crossover_1_ = 1 + floor((1.0/adjusted_epsilon_)
-                     * log((exp(adjusted_epsilon_)
-                     + 2.0 * adjusted_delta_ - 1.0)
-                       / ((exp(adjusted_epsilon_) + 1) * adjusted_delta_)));
-    crossover_2_ = crossover_1_ + floor((1.0/adjusted_epsilon_)
-                                  *  log(1 + ((exp(adjusted_epsilon_) - 1)
-                                  / adjusted_delta_)
-                                  * (1 - ProbabilityOfKeep(crossover_1_))));
-  }
 
   virtual ~PreaggPartitionSelection() = default;
 
@@ -247,6 +232,21 @@ class PreaggPartitionSelection : public PartitionSelectionStrategy {
     }
   }
 
+ protected:
+  PreaggPartitionSelection(double epsilon, double delta, int max_partitions)
+  : PartitionSelectionStrategy(epsilon, delta, max_partitions),
+   adjusted_epsilon_(epsilon / (double) max_partitions) {
+  double adjusted_delta_ = GetAdjustedDelta();
+  crossover_1_ = 1 + floor((1.0/adjusted_epsilon_)
+                   * log((exp(adjusted_epsilon_)
+                   + 2.0 * adjusted_delta_ - 1.0)
+                     / ((exp(adjusted_epsilon_) + 1) * adjusted_delta_)));
+  crossover_2_ = crossover_1_ + floor((1.0/adjusted_epsilon_)
+                                *  log(1 + ((exp(adjusted_epsilon_) - 1)
+                                / adjusted_delta_)
+                                * (1 - ProbabilityOfKeep(crossover_1_))));
+  }
+
 };
 
 // LaplacePartitionSelection calculates a threshold based on the CDF of the
@@ -271,35 +271,24 @@ class LaplacePartitionSelection : public PartitionSelectionStrategy {
        if (!GetEpsilon().has_value()) {
          return base::InvalidArgumentError("Epsilon has to be set.");
        }
-       if (!laplace_builder_.has_value()) {
+       if (laplace_builder_ == nullptr) {
         laplace_builder_ = absl::make_unique<LaplaceMechanism::Builder>();
        }
        std::unique_ptr<NumericalMechanism> mechanism_;
        ASSIGN_OR_RETURN(mechanism_,
-                        laplace_builder_.value()->
-                        SetEpsilon(GetEpsilon().value())
-                        .SetL0Sensitivity(GetMaxPartitionsContributed().value())
-                        .SetLInfSensitivity(1).Build());
+                        laplace_builder_-> SetEpsilon(GetEpsilon().value())                        
+                          .SetL0Sensitivity(GetMaxPartitionsContributed()
+                          .value()).SetLInfSensitivity(1).Build());
        std::unique_ptr<PartitionSelectionStrategy> laplace =
-         absl::make_unique<LaplacePartitionSelection>(
+         absl::WrapUnique(new LaplacePartitionSelection(
            GetEpsilon().value(), GetDelta().value(),
-           GetMaxPartitionsContributed().value(), std::move(mechanism_));
+           GetMaxPartitionsContributed().value(), std::move(mechanism_)));
        return laplace;
      }
 
    private:
-     absl::optional<std::unique_ptr<LaplaceMechanism::Builder>> laplace_builder_;
+     std::unique_ptr<LaplaceMechanism::Builder> laplace_builder_;
   };
-
-  LaplacePartitionSelection(double epsilon, double delta,
-                            int max_partitions_contributed,
-                            std::unique_ptr<NumericalMechanism> laplace)
-    : PartitionSelectionStrategy(epsilon, delta, max_partitions_contributed),
-      l1_sensitivity_(max_partitions_contributed),
-      diversity_(l1_sensitivity_ / epsilon), mechanism_(std::move(laplace)) {
-        double adjusted_delta_ = GetAdjustedDelta();
-        threshold_ = 1 - diversity_ * (log(2 * adjusted_delta_));
-      }
 
   virtual ~LaplacePartitionSelection() = default;
 
@@ -319,6 +308,17 @@ class LaplacePartitionSelection : public PartitionSelectionStrategy {
    double diversity_;
    double threshold_;
    std::unique_ptr<NumericalMechanism> mechanism_;
+
+ protected:
+  LaplacePartitionSelection(double epsilon, double delta,
+                          int max_partitions_contributed,
+                          std::unique_ptr<NumericalMechanism> laplace)
+  : PartitionSelectionStrategy(epsilon, delta, max_partitions_contributed),
+    l1_sensitivity_(max_partitions_contributed),
+    diversity_(l1_sensitivity_ / epsilon), mechanism_(std::move(laplace)) {
+      double adjusted_delta_ = GetAdjustedDelta();
+      threshold_ = 1 - diversity_ * (log(2 * adjusted_delta_));
+  }
 
 };
 

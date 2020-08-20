@@ -30,7 +30,7 @@ using testing::DoubleEq;
 using testing::MatchesRegex;
 
 const int num_samples = 10000000;
-const int num_samples_less = 1000000;
+const int small_num_samples = 1000000;
 
 //PreaggregationPartitionSelection Tests
 
@@ -125,11 +125,11 @@ TEST(PartitionSelectionTest, PreaggPartitionSelectionOneUser) {
 		test_builder.SetEpsilon(0.5).SetDelta(0.02)
 					.SetMaxPartitionsContributed(1).Build().ValueOrDie();
   	double num_kept = 0.0;
-  	for(int i = 0; i < num_samples_less; i++) {
+  	for(int i = 0; i < small_num_samples; i++) {
   		if(build->ShouldKeep(1))
   			num_kept++;
   	}
-  	EXPECT_THAT(num_kept/num_samples_less, DoubleNear(build->GetDelta(), 0.001));
+  	EXPECT_THAT(num_kept/small_num_samples, DoubleNear(build->GetDelta(), 0.001));
  }
 
 //We expect the probability of keeping a partition with no users will be zero
@@ -294,11 +294,11 @@ TEST(PartitionSelectionTest, LaplacePartitionSelectionOneUser) {
 		.SetDelta(0.02).SetMaxPartitionsContributed(1).Build()
 		.ValueOrDie();
   	double num_kept = 0.0;
-  	for(int i = 0; i < num_samples_less; i++) {
+  	for(int i = 0; i < small_num_samples; i++) {
   		if(build->ShouldKeep(1))
   			num_kept++;
   	}
-  	EXPECT_THAT(num_kept/num_samples_less, DoubleNear(build->GetDelta(), 0.001));
+  	EXPECT_THAT(num_kept/small_num_samples, DoubleNear(build->GetDelta(), 0.001));
  }
 
  //When the number of users is at the threshold, we expect drop/keep is 50/50.
@@ -310,11 +310,11 @@ TEST(PartitionSelectionTest, LaplacePartitionSelectionAtThreshold) {
 		.SetEpsilon(0.5).SetDelta(0.06766764161).SetMaxPartitionsContributed(1)
 		.Build().ValueOrDie();
   	double num_kept = 0.0;
-  	for(int i = 0; i < num_samples_less; i++) {
+  	for(int i = 0; i < small_num_samples; i++) {
   		if(build->ShouldKeep(5))
   			num_kept++;
   	}
-  	EXPECT_THAT(num_kept/num_samples_less, DoubleNear(0.5, 0.01));
+  	EXPECT_THAT(num_kept/small_num_samples, DoubleNear(0.5, 0.01));
  }
 
 TEST(PartitionSelectionTest, LaplacePartitionSelectionThreshold) {
