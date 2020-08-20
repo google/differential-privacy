@@ -114,11 +114,11 @@ type Noise interface {
 	// given assumptions of L_0 and L_∞ sensitivities.
 	Threshold(l0Sensitivity int64, lInfSensitivity, epsilon, noiseDelta, thresholdDelta float64) float64
 
-	// computeConfidenceIntervalInt64 computes a confidence interval that contains the raw integer value x from which int64
+	// ComputeConfidenceIntervalInt64 computes a confidence interval that contains the raw integer value x from which int64
 	// noisedX is computed with a probability greater or equal to 1 - alpha based on the specified noise parameters.
-	computeConfidenceIntervalInt64(noisedX, l0Sensitivity, lInfSensitivity int64, epsilon, delta, alpha float64) (ConfidenceInterval, error)
+	ComputeConfidenceIntervalInt64(noisedX, l0Sensitivity, lInfSensitivity int64, epsilon, delta, alpha float64) (ConfidenceInterval, error)
 
-	// computeConfidenceIntervalFloat64 computes a confidence interval that contains the raw value x from which float64
+	// ComputeConfidenceIntervalFloat64 computes a confidence interval that contains the raw value x from which float64
 	// noisedX is computed with a probability equal to 1 - alpha based on the specified noise parameters.
-	computeConfidenceIntervalFloat64(noisedX float64, l0Sensitivity int64, lInfSensitivity, epsilon, delta, alpha float64) (ConfidenceInterval, error)
+	ComputeConfidenceIntervalFloat64(noisedX float64, l0Sensitivity int64, lInfSensitivity, epsilon, delta, alpha float64) (ConfidenceInterval, error)
 }

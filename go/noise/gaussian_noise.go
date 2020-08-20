@@ -121,12 +121,12 @@ func (gaussian) DeltaForThreshold(l0Sensitivity int64, lInfSensitivity, epsilon,
 	return 1 - math.Pow(noiseDist.CDF(threshold-lInfSensitivity), float64(l0Sensitivity))
 }
 
-// computeConfidenceIntervalInt64 computes a confidence interval that contains the raw integer value x from which int64 noisedX
+// ComputeConfidenceIntervalInt64 computes a confidence interval that contains the raw integer value x from which int64 noisedX
 // is computed with a probability greater or equal to 1 - alpha based on the specified gaussian noise parameters.
-func (gaussian) computeConfidenceIntervalInt64(noisedX, l0Sensitivity, lInfSensitivity int64, epsilon, delta, alpha float64) (ConfidenceInterval, error) {
-	if err := checkArgsConfidenceIntervalGaussian("computeConfidenceIntervalInt64", l0Sensitivity, float64(lInfSensitivity), epsilon, delta,
-		alpha); err != nil {
-		err := fmt.Errorf("computeConfidenceIntervalInt64(l0sensitivity %d, lInfSensitivity %d, epsilon %f, delta %e, alpha %f) checks failed with %v",
+func (gaussian) ComputeConfidenceIntervalInt64(noisedX, l0Sensitivity, lInfSensitivity int64, epsilon, delta, alpha float64) (ConfidenceInterval, error) {
+	err := checkArgsConfidenceIntervalGaussian("computeConfidenceIntervalInt64", l0Sensitivity, float64(lInfSensitivity), epsilon, delta, alpha)
+	if err != nil {
+		err := fmt.Errorf("ComputeConfidenceIntervalInt64(l0sensitivity %d, lInfSensitivity %d, epsilon %f, delta %e, alpha %f) checks failed with %v",
 			l0Sensitivity, lInfSensitivity, epsilon, delta, alpha, err)
 		return ConfidenceInterval{}, err
 	}
@@ -134,12 +134,12 @@ func (gaussian) computeConfidenceIntervalInt64(noisedX, l0Sensitivity, lInfSensi
 	return computeConfidenceIntervalGaussian(float64(noisedX), sigma, alpha).roundToInt64(), nil
 }
 
-// computeConfidenceIntervalFloat64 computes a confidence interval that contains the raw value x from which float64
+// ComputeConfidenceIntervalFloat64 computes a confidence interval that contains the raw value x from which float64
 // noisedX is computed with a probability equal to 1 - alpha based on the specified gaussian noise parameters.
-func (gaussian) computeConfidenceIntervalFloat64(noisedX float64, l0Sensitivity int64, lInfSensitivity, epsilon, delta, alpha float64) (ConfidenceInterval, error) {
-	if err := checkArgsConfidenceIntervalGaussian("computeConfidenceIntervalFloat64", l0Sensitivity, lInfSensitivity, epsilon, delta,
-		alpha); err != nil {
-		err = fmt.Errorf("computeConfidenceIntervalFloat64(l0sensitivity %d, lInfSensitivity %f, epsilon %f, delta %e, alpha %f) checks failed with %v",
+func (gaussian) ComputeConfidenceIntervalFloat64(noisedX float64, l0Sensitivity int64, lInfSensitivity, epsilon, delta, alpha float64) (ConfidenceInterval, error) {
+	err := checkArgsConfidenceIntervalGaussian("ComputeConfidenceIntervalFloat64", l0Sensitivity, lInfSensitivity, epsilon, delta, alpha)
+	if err != nil {
+		err = fmt.Errorf("ComputeConfidenceIntervalFloat64(l0sensitivity %d, lInfSensitivity %f, epsilon %f, delta %e, alpha %f) checks failed with %v",
 			l0Sensitivity, lInfSensitivity, epsilon, delta, alpha, err)
 		return ConfidenceInterval{}, err
 	}
@@ -184,18 +184,16 @@ func addGaussian(x, sigma float64) float64 {
 // computeConfidenceIntervalGaussian computes a confidence interval that contains the raw value x from which
 // float64 noisedX is computed with a probability equal to 1 - alpha with the given sigma.
 func computeConfidenceIntervalGaussian(noisedX, sigma, alpha float64) ConfidenceInterval {
-	z := inverseCDFGaussian(sigma, alpha/2)
+	z := inverseCDFGaussian(sigma, alpha/2) // z will hold a negative value.
 	FloatLowerBound := noisedX + z
 	FloatUpperBound := noisedX - z
-	FloatInterval := ConfidenceInterval{LowerBound: FloatLowerBound,
-		UpperBound: FloatUpperBound}
-	return FloatInterval
+	return ConfidenceInterval{LowerBound: FloatLowerBound, UpperBound: FloatUpperBound}
 }
 
 // inverseCDFGaussian computes the quantile z satisfying Pr[Y <= z] = p for a random variable Y that is Gaussian
-// distributed with the specified sigma.
+// distributed with the specified sigma and mean 0.
 func inverseCDFGaussian(sigma, p float64) float64 {
-	return -sigma * math.Sqrt(2) * math.Erfcinv(2.00*p)
+	return -sigma * math.Sqrt(2) * math.Erfcinv(2*p)
 }
 
 // symmetricBinomial returns a random sample m where the term m + n / 2 is drawn from

@@ -356,8 +356,8 @@ var thresholdGaussianTestCases = []struct {
 	l0Sensitivity   int64
 	lInfSensitivity float64
 	epsilon         float64
-	deltaNoise      float64
-	deltaThreshold  float64
+	noiseDelta      float64
+	thresholdDelta  float64
 	threshold       float64
 }{
 	{
@@ -365,11 +365,11 @@ var thresholdGaussianTestCases = []struct {
 		l0Sensitivity:   1,
 		lInfSensitivity: 1,
 		epsilon:         ln3,
-		// deltaNoise is chosen to get a sigma of 1.
-		deltaNoise: 0.10985556344445052,
+		// noiseDelta is chosen to get a sigma of 1.
+		noiseDelta: 0.10985556344445052,
 		// 0.022750131948 is the 1-sided tail probability of landing more than 2
 		// standard deviations from the mean of the Gaussian distribution.
-		deltaThreshold: 0.022750131948,
+		thresholdDelta: 0.022750131948,
 		threshold:      3,
 	},
 	{
@@ -377,9 +377,9 @@ var thresholdGaussianTestCases = []struct {
 		l0Sensitivity:   1,
 		lInfSensitivity: 0.5,
 		epsilon:         ln3,
-		// deltaNoise is chosen to get a sigma of 1.
-		deltaNoise:     0.0041597422340007885,
-		deltaThreshold: 0.000232629079,
+		// noiseDelta is chosen to get a sigma of 1.
+		noiseDelta:     0.0041597422340007885,
+		thresholdDelta: 0.000232629079,
 		threshold:      4,
 	},
 	{
@@ -387,9 +387,9 @@ var thresholdGaussianTestCases = []struct {
 		l0Sensitivity:   1,
 		lInfSensitivity: 2,
 		epsilon:         ln3,
-		// deltaNoise is chosen to get a sigma of 2.
-		deltaNoise:     0.10985556344445052,
-		deltaThreshold: 0.022750131948,
+		// noiseDelta is chosen to get a sigma of 2.
+		noiseDelta:     0.10985556344445052,
+		thresholdDelta: 0.022750131948,
 		threshold:      6,
 	},
 	{
@@ -397,21 +397,21 @@ var thresholdGaussianTestCases = []struct {
 		l0Sensitivity:   2,
 		lInfSensitivity: 1,
 		epsilon:         ln3,
-		// deltaNoise is chosen to get a sigma of 1.
-		deltaNoise:     0.26546844106038714,
-		deltaThreshold: 0.022828893856,
+		// noiseDelta is chosen to get a sigma of 1.
+		noiseDelta:     0.26546844106038714,
+		thresholdDelta: 0.022828893856,
 		threshold:      3.275415487306,
 	},
 	{
-		desc:            "small deltaThreshold",
+		desc:            "small thresholdDelta",
 		l0Sensitivity:   1,
 		lInfSensitivity: 1,
 		epsilon:         ln3,
-		// deltaNoise is chosen to get a sigma of 1.
-		deltaNoise: 0.10985556344445052,
+		// noiseDelta is chosen to get a sigma of 1.
+		noiseDelta: 0.10985556344445052,
 		// 3e-5 is an approximate 1-sided tail probability of landing 4 standard
 		// deviations from the mean of a Gaussian distribution.
-		deltaThreshold: 3e-5,
+		thresholdDelta: 3e-5,
 		threshold:      5.012810811118,
 	},
 }
@@ -419,7 +419,7 @@ var thresholdGaussianTestCases = []struct {
 func TestThresholdGaussian(t *testing.T) {
 	for _, tc := range thresholdGaussianTestCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			gotThreshold := gauss.Threshold(tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.deltaNoise, tc.deltaThreshold)
+			gotThreshold := gauss.Threshold(tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.noiseDelta, tc.thresholdDelta)
 			if math.Abs(gotThreshold-tc.threshold) > 1e-10 {
 				t.Errorf("Got threshold: %0.12f, want threshold: %0.12f", gotThreshold, tc.threshold)
 			}
@@ -430,9 +430,9 @@ func TestThresholdGaussian(t *testing.T) {
 func TestDeltaForThresholdGaussian(t *testing.T) {
 	for _, tc := range thresholdGaussianTestCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			gotDelta := gauss.(gaussian).DeltaForThreshold(tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.deltaNoise, tc.threshold)
-			if math.Abs(gotDelta-tc.deltaThreshold) > 1e-10 {
-				t.Errorf("Got delta: %0.12f, want delta: %0.12f", gotDelta, tc.deltaThreshold)
+			gotDelta := gauss.(gaussian).DeltaForThreshold(tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.noiseDelta, tc.threshold)
+			if math.Abs(gotDelta-tc.thresholdDelta) > 1e-10 {
+				t.Errorf("Got delta: %0.12f, want delta: %0.12f", gotDelta, tc.thresholdDelta)
 			}
 		})
 	}
@@ -474,7 +474,7 @@ func TestInverseCDFGaussian(t *testing.T) {
 			p:     1 - 10e-10,
 			want:  5.0381578964653757,
 		},
-		// For p = 0.5, the result should be the mean regardless of sigma
+		// For p = 0.5, the result should be the mean regardless of sigma.
 		{
 			desc:  "Test with p = 0.5",
 			sigma: 0.3,
@@ -488,7 +488,6 @@ func TestInverseCDFGaussian(t *testing.T) {
 			want:  0,
 		},
 	} {
-
 		Zc := inverseCDFGaussian(tc.sigma, tc.p)
 		if !(approxEqual(Zc, tc.want)) {
 			t.Errorf(" TestInverseCDFGaussian(%f, %f) = %0.16f, want %0.16f, desc: %s", tc.sigma, tc.p, Zc, tc.want, tc.desc)
@@ -538,27 +537,25 @@ func TestComputeConfidenceIntervalGaussian(t *testing.T) {
 			desc:    "Low confidence level",
 			noisedX: 100,
 			sigma:   10,
-			alpha:   1 - 10e-10,
-			want:    ConfidenceInterval{99.99999998746686, 100.00000001253314},
+			alpha:   1 - 1e-10,
+			want:    ConfidenceInterval{99.9999999987466878792474745, 100.0000000012533121207525255},
 		},
 		{
 			desc:    "High confidence level",
 			noisedX: 100,
 			sigma:   10,
-			alpha:   10e-10,
-			want:    ConfidenceInterval{38.90589790616554, 161.09410209383446},
+			alpha:   1e-10,
+			want:    ConfidenceInterval{35.3304891275948307338694576, 164.6695108724051692661305424},
 		},
 	} {
 		result := computeConfidenceIntervalGaussian(tc.noisedX, tc.sigma, tc.alpha)
 		if !approxEqual(result.LowerBound, tc.want.LowerBound) {
 			t.Errorf("TestComputeConfidenceIntervalGaussian(%f, %f, %f)=%0.10f, want %0.10f, desc %s, LowerBound is not equal",
-				tc.noisedX, tc.alpha, tc.sigma,
-				result.LowerBound, tc.want.LowerBound, tc.desc)
+				tc.noisedX, tc.alpha, tc.sigma, result.LowerBound, tc.want.LowerBound, tc.desc)
 		}
 		if !approxEqual(result.UpperBound, tc.want.UpperBound) {
-			t.Errorf("TestConfidenceIntervalLaplace(%f, %f, %f)=%0.10f, want %0.10f, desc %s, UpperBound is not equal",
-				tc.noisedX, tc.alpha, tc.sigma,
-				result.UpperBound, tc.want.UpperBound, tc.desc)
+			t.Errorf("TestConfidenceIntervalGaussian(%f, %f, %f)=%0.10f, want %0.10f, desc %s, UpperBound is not equal",
+				tc.noisedX, tc.alpha, tc.sigma, result.UpperBound, tc.want.UpperBound, tc.desc)
 		}
 	}
 
@@ -804,26 +801,22 @@ func TestComputeConfidenceIntervalInt64(t *testing.T) {
 			wantErr:         true,
 		},
 	} {
-		got, err := gauss.computeConfidenceIntervalInt64(tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity,
-			tc.epsilon, tc.delta, tc.alpha)
+		got, err := gauss.ComputeConfidenceIntervalInt64(tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.delta, tc.alpha)
 		if (err != nil) != tc.wantErr {
-			t.Errorf("computeConfidenceIntervalInt64: when %s for err got %v", tc.desc, err)
-			continue
+			t.Errorf("ComputeConfidenceIntervalInt64: when %s got err %v, wantErr=%t", tc.desc, err, tc.wantErr)
 		}
 		if got.LowerBound != tc.want.LowerBound {
 			t.Errorf("TestComputeConfidenceIntervalInt64(%d, %d, %d, %f, %f, %f)=%f, want %f, desc %s, LowerBound is not equal",
-				tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.delta, tc.alpha,
-				got.LowerBound, tc.want.LowerBound, tc.desc)
+				tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.delta, tc.alpha, got.LowerBound, tc.want.LowerBound, tc.desc)
 		}
 		if got.UpperBound != tc.want.UpperBound {
 			t.Errorf("TestComputeConfidenceIntervalInt64(%d, %d, %d, %f, %f, %f)=%f, want %f, desc %s, UpperBound is not equal",
-				tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.delta, tc.alpha,
-				got.UpperBound, tc.want.UpperBound, tc.desc)
+				tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.delta, tc.alpha, got.UpperBound, tc.want.UpperBound, tc.desc)
 		}
 	}
 }
 
-func TestComputeConfidenceIntervalFloat644(t *testing.T) {
+func TestComputeConfidenceIntervalFloat64(t *testing.T) {
 	for _, tc := range []struct {
 		desc                                   string
 		noisedX                                float64
@@ -1065,21 +1058,17 @@ func TestComputeConfidenceIntervalFloat644(t *testing.T) {
 			wantErr:         true,
 		},
 	} {
-		got, err := gauss.computeConfidenceIntervalFloat64(tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity,
-			tc.epsilon, tc.delta, tc.alpha)
+		got, err := gauss.ComputeConfidenceIntervalFloat64(tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.delta, tc.alpha)
 		if (err != nil) != tc.wantErr {
-			t.Errorf("computeConfidenceIntervalFloat644: when %s for err got %v", tc.desc, err)
-			continue
+			t.Errorf("ComputeConfidenceIntervalFloat64: when %s got err %v, wantErr=%t", tc.desc, err, tc.wantErr)
 		}
 		if !approxEqual(got.LowerBound, tc.want.LowerBound) {
 			t.Errorf("TestComputeConfidenceIntervalFloat644(%f, %d, %f, %f, %f)=%0.10f, want %0.10f, desc %s, LowerBound is not equal",
-				tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.alpha,
-				got.UpperBound, tc.want.UpperBound, tc.desc)
+				tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.alpha, got.UpperBound, tc.want.UpperBound, tc.desc)
 		}
 		if !approxEqual(got.UpperBound, tc.want.UpperBound) {
 			t.Errorf("TestComputeConfidenceIntervalFloat644(%f, %d, %f, %f, %f)=%0.10f, want %0.10f, desc %s, UpperBound is not equal",
-				tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.alpha,
-				got.LowerBound, tc.want.LowerBound, tc.desc)
+				tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.alpha, got.LowerBound, tc.want.LowerBound, tc.desc)
 		}
 	}
 }
