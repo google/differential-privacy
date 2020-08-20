@@ -33,8 +33,6 @@
 #include "absl/memory/memory.h"
 
 #include "algorithms/algorithm.h"
-#include "algorithms/bounded-mean.h"
-#include "algorithms/bounded-sum.h"
 #include "algorithms/numerical-mechanisms.h"
 #include "algorithms/numerical-mechanisms-testing.h"
 #include "algorithms/util.h"
@@ -75,10 +73,6 @@ void CreateSingleScenario(int scenario, double true_value, int number_of_samples
   double neighbor_value = true_value + increment;
   double implemented_epsilon = epsilon / ratio;
 
-// Create folder to hold the samples.
-  // std::string folder_name = "CountSamples";
-  // mkdir(folder_name.c_str(), 0777);
-
 // Create pairs of vectors with arbitrary value of 100.
   std::vector<int> sampleA(true_value,100);
   std::vector<int> sampleB(neighbor_value,100);
@@ -98,8 +92,8 @@ void CreateSingleScenario(int scenario, double true_value, int number_of_samples
       int64_t outputB = CountAlgorithm(sampleB, implemented_epsilon,max_partitions);
         samplefileB << outputB << "\n";
     }
-    samplefileA.close();
-    samplefileB.close();
+  samplefileA.close();
+  samplefileB.close();
   }
 }
 

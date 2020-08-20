@@ -13,10 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef CREATE_SAMPLES_COUNT_H_
-#define CREATE_SAMPLES_COUNT_H_
+#ifndef CREATE_SAMPLES_SUM_H_
+#define CREATE_SAMPLES_SUM_H_
 
-#include "algorithms/count.h"
+#include "algorithms/bounded-sum.h"
 
 #include <chrono>
 #include <cstdlib>
@@ -35,6 +35,7 @@
 #include "absl/memory/memory.h"
 
 #include "algorithms/algorithm.h"
+#include "algorithms/bounded-mean.h"
 #include "algorithms/numerical-mechanisms.h"
 #include "algorithms/numerical-mechanisms-testing.h"
 #include "algorithms/util.h"
@@ -46,14 +47,14 @@ namespace differential_privacy {
 
 namespace testing {
 
-// Creates samples of data pairs using the Count algorithm. Each data pair
+// Creates samples of data pairs using the BoundedSum algorithm. Each data pair
 // and its associated input parameters replicates a scenario constructed in 
-// the [textproto](https://github.com/google/differential-privacy/blob/main/proto/testing/count_dp_test_cases.textproto)
-// for CountDpTest.java.
+// the [textproto](https://github.com/google/differential-privacy/blob/main/proto/testing/bounded_sum_dp_test_cases.textproto)
+// for BoundedSumDpTest.java.
 extern const std::string folder_name;
 
-// Construct Count algorithm.
-int64_t CountAlgorithm(const std::vector<int>& values, double epsilon,
+// Construct BoundedSum algorithm.
+int64_t BoundedSumAlgorithm(const std::vector<int>& values, double epsilon,
   int max_partitions);
 
 // Creates a folder to contain all samples with a particular ratio value
@@ -62,11 +63,10 @@ int64_t CountAlgorithm(const std::vector<int>& values, double epsilon,
 void CreateSingleScenario(int scenario, double true_value, int number_of_samples,
   int increment, int max_partitions, double epsilon, double ratio);
 
-// Run each data pair to mirror parameters specified in the [textproto](https://github.com/google/differential-privacy/blob/main/proto/testing/count_dp_test_cases.textproto)
-// for CountDpTest.java.
+// Run each data pair to mirror parameters specified in the [textproto](https://github.com/google/differential-privacy/blob/main/proto/testing/bounded_sum_dp_test_cases.textproto).
 void GenerateAllScenarios(double ratio); 
 
 } // testing
 } // differential_privacy
 
-#endif  // CREATE_SAMPLES_COUNT_H_
+#endif  // CREATE_SAMPLES_SUM_H_
