@@ -21,6 +21,8 @@ import (
 	"testing"
 
 	"github.com/google/differential-privacy/go/noise"
+	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -46,6 +48,7 @@ func TestNewBoundedSumFn(t *testing.T) {
 				Lower:                     0,
 				Upper:                     10,
 				NoiseKind:                 noise.LaplaceNoise,
+				PartitionsSpecified:       false,
 			}},
 		{"Gaussian Float64", noise.GaussianNoise, reflect.Float64,
 			&boundedSumFloat64Fn{
@@ -57,6 +60,7 @@ func TestNewBoundedSumFn(t *testing.T) {
 				Lower:                     0,
 				Upper:                     10,
 				NoiseKind:                 noise.GaussianNoise,
+				PartitionsSpecified:       false,
 			}},
 		{"Laplace Int64", noise.LaplaceNoise, reflect.Int64,
 			&boundedSumInt64Fn{
@@ -68,6 +72,7 @@ func TestNewBoundedSumFn(t *testing.T) {
 				Lower:                     0,
 				Upper:                     10,
 				NoiseKind:                 noise.LaplaceNoise,
+				PartitionsSpecified:       false,
 			}},
 		{"Gaussian Int64", noise.GaussianNoise, reflect.Int64,
 			&boundedSumInt64Fn{
@@ -79,9 +84,10 @@ func TestNewBoundedSumFn(t *testing.T) {
 				Lower:                     0,
 				Upper:                     10,
 				NoiseKind:                 noise.GaussianNoise,
+				PartitionsSpecified:       false,
 			}},
 	} {
-		got := newBoundedSumFn(1, 1e-5, 17, 0, 10, tc.noiseKind, tc.vKind)
+		got := newBoundedSumFn(1, 1e-5, 17, 0, 10, tc.noiseKind, tc.vKind, false)
 		if diff := cmp.Diff(tc.want, got, opts...); diff != "" {
 			t.Errorf("newBoundedSumFn mismatch for '%s' (-want +got):\n%s", tc.desc, diff)
 		}
@@ -96,7 +102,7 @@ func TestBoundedSumFloat64FnSetup(t *testing.T) {
 	}{
 		{"Laplace noise kind", noise.LaplaceNoise, noise.Laplace()},
 		{"Gaussian noise kind", noise.GaussianNoise, noise.Gaussian()}} {
-		got := newBoundedSumFloat64Fn(1, 1e-5, 17, 0, 10, tc.noiseKind)
+		got := newBoundedSumFloat64Fn(1, 1e-5, 17, 0, 10, tc.noiseKind, false)
 		got.Setup()
 		if !cmp.Equal(tc.wantNoise, got.noise) {
 			t.Errorf("Setup: for %s got %v, want %v", tc.desc, got.noise, tc.wantNoise)
@@ -112,7 +118,7 @@ func TestBoundedSumInt64FnSetup(t *testing.T) {
 	}{
 		{"Laplace noise kind", noise.LaplaceNoise, noise.Laplace()},
 		{"Gaussian noise kind", noise.GaussianNoise, noise.Gaussian()}} {
-		got := newBoundedSumInt64Fn(1, 1e-5, 17, 0, 10, tc.noiseKind)
+		got := newBoundedSumInt64Fn(1, 1e-5, 17, 0, 10, tc.noiseKind, false)
 		got.Setup()
 		if !cmp.Equal(tc.wantNoise, got.noise) {
 			t.Errorf("Setup: for %s got %v, want %v", tc.desc, got.noise, tc.wantNoise)
@@ -124,7 +130,7 @@ func TestBoundedSumInt64FnAddInput(t *testing.T) {
 	// Since δ=0.5 and 2 entries are added, PreAggPartitionSelection always emits.
 	// Since ε=1e100, the noise is added with probability in the order of exp(-1e100),
 	// which means we don't have to worry about tolerance/flakiness calculations.
-	fn := newBoundedSumInt64Fn(1e100, 0.5, 1, 0, 2, noise.LaplaceNoise)
+	fn := newBoundedSumInt64Fn(1e100, 0.5, 1, 0, 2, noise.LaplaceNoise, false)
 	fn.Setup()
 
 	accum := fn.CreateAccumulator()
@@ -145,7 +151,7 @@ func TestBoundedSumInt64FnMergeAccumulators(t *testing.T) {
 	//
 	// Since ε=1e100, the noise is added with probability in the order of exp(-1e100),
 	// which means we don't have to worry about tolerance/flakiness calculations.
-	fn := newBoundedSumInt64Fn(1e100, 0.5, 1, 0, 2, noise.LaplaceNoise)
+	fn := newBoundedSumInt64Fn(1e100, 0.5, 1, 0, 2, noise.LaplaceNoise, false)
 	fn.Setup()
 
 	accum1 := fn.CreateAccumulator()
@@ -171,7 +177,7 @@ func TestBoundedSumInt64FnExtractOutputReturnsNilForSmallPartitions(t *testing.T
 		// The probability of keeping a partition with 1 privacy unit is equal to δ=1e-23 which results in a flakiness of 10⁻²³.
 		{"Input with 1 privacy unit", 1}} {
 
-		fn := newBoundedSumInt64Fn(1, 1e-23, 1, 0, 2, noise.LaplaceNoise)
+		fn := newBoundedSumInt64Fn(1, 1e-23, 1, 0, 2, noise.LaplaceNoise, false)
 		fn.Setup()
 		accum := fn.CreateAccumulator()
 		for i := 0; i < tc.inputSize; i++ {
@@ -187,10 +193,35 @@ func TestBoundedSumInt64FnExtractOutputReturnsNilForSmallPartitions(t *testing.T
 	}
 }
 
+func TestBoundedSumInt64FnExtractOutputWithSpecifiedPartitionsDoesNotThreshold(t *testing.T) {
+	for _, tc := range []struct {
+		desc      string
+		inputSize int
+	}{
+		{"Empty input", 0},
+		{"Input with 1 user", 1},
+		{"Input with 10 users", 10},
+		{"Input with 100 users", 100}} {
+
+		fn := newBoundedSumInt64Fn(1, 0, 1, 0, 2, noise.LaplaceNoise, true)
+		fn.Setup()
+		accum := fn.CreateAccumulator()
+		for i := 0; i < tc.inputSize; i++ {
+			fn.AddInput(accum, 1)
+		}
+
+		got := fn.ExtractOutput(accum)
+
+		if got == nil {
+			t.Errorf("ExtractOutput for %s thresholded with specified partitions when it shouldn't", tc.desc)
+		}
+	}
+}
+
 func TestBoundedSumFloat64FnAddInput(t *testing.T) {
 	// Since δ=0.5 and 2 entries are added, PreAggPartitionSelection always emits.
 	// Since ε=1e100, added noise is negligible.
-	fn := newBoundedSumFloat64Fn(1e100, 0.5, 1, 0, 2, noise.LaplaceNoise)
+	fn := newBoundedSumFloat64Fn(1e100, 0.5, 1, 0, 2, noise.LaplaceNoise, false)
 	fn.Setup()
 
 	accum := fn.CreateAccumulator()
@@ -210,7 +241,7 @@ func TestBoundedSumFloat64FnMergeAccumulators(t *testing.T) {
 	// accumulators is also effecting our partition selection outcome.
 	//
 	// Since ε=1e100, added noise is negligible.
-	fn := newBoundedSumFloat64Fn(1e100, 0.5, 1, 0, 2, noise.LaplaceNoise)
+	fn := newBoundedSumFloat64Fn(1e100, 0.5, 1, 0, 2, noise.LaplaceNoise, false)
 	fn.Setup()
 
 	accum1 := fn.CreateAccumulator()
@@ -236,7 +267,7 @@ func TestBoundedSumFloat64FnExtractOutputReturnsNilForSmallPartitions(t *testing
 		// The probability of keeping a partition with 1 privacy unit is equal to δ=1e-23 which results in a flakiness of 10⁻²³.
 		{"Input with 1 privacy unit", 1}} {
 
-		fn := newBoundedSumFloat64Fn(1, 1e-23, 1, 0, 2, noise.LaplaceNoise)
+		fn := newBoundedSumFloat64Fn(1, 1e-23, 1, 0, 2, noise.LaplaceNoise, false)
 		fn.Setup()
 		accum := fn.CreateAccumulator()
 		for i := 0; i < tc.inputSize; i++ {
@@ -249,5 +280,143 @@ func TestBoundedSumFloat64FnExtractOutputReturnsNilForSmallPartitions(t *testing
 		if got != nil {
 			t.Errorf("ExtractOutput: for %s got: %f, want nil", tc.desc, *got)
 		}
+	}
+}
+
+func TestBoundedSumFloat64FnExtractOutputWithSpecifiedPartitionsDoesNotThreshold(t *testing.T) {
+	for _, tc := range []struct {
+		desc      string
+		inputSize int
+	}{
+		{"Empty input", 0},
+		{"Input with 1 user", 1},
+		{"Input with 10 users", 10},
+		{"Input with 100 users", 100}} {
+		partitionsSpecified := true
+		fn := newBoundedSumFloat64Fn(1, 0, 1, 0, 2, noise.LaplaceNoise, partitionsSpecified)
+		fn.Setup()
+		accum := fn.CreateAccumulator()
+		for i := 0; i < tc.inputSize; i++ {
+			fn.AddInput(accum, 1)
+		}
+
+		got := fn.ExtractOutput(accum)
+		if got == nil {
+			t.Errorf("ExtractOutput for %s thresholded with specified partitions when it shouldn't", tc.desc)
+		}
+	}
+}
+
+// Checks that elements with unspecified partitions are dropped.
+// This function is used for count and distinct_id.
+func TestDropUnspecifiedPartitionsVFn(t *testing.T) {
+	pairs := concatenatePairs(
+		makePairsWithFixedV(7, 0),
+		makePairsWithFixedV(52, 1),
+		makePairsWithFixedV(99, 2),
+		makePairsWithFixedV(10, 3),
+	)
+
+	// Keep partitions 0, 2;
+	// drop partitions 1, 3.
+	result := concatenatePairs(
+		makePairsWithFixedV(7, 0),
+		makePairsWithFixedV(99, 2),
+		makePairsWithFixedV(99, 2),
+	)
+
+	_, s, col, want := ptest.CreateList2(pairs, result)
+	want = beam.ParDo(s, pairToKV, want)
+	col = beam.ParDo(s, pairToKV, col)
+	partitions := []int{0, 2}
+
+	partitionsCol := beam.CreateList(s, partitions)
+	epsilon, delta := 50.0, 1e-200
+	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+	_, partitionT := beam.ValidateKVType(pcol.col)
+	partitionEncodedType := beam.EncodedType{partitionT.Type()}
+	got := dropUnspecifiedPartitionsVFn(s, partitionsCol, pcol, partitionEncodedType)
+	if err := equalsKVInt(s, got, want); err != nil {
+		t.Fatalf("dropUnspecifiedPartitionsVFn: for %v got: %v, want %v", col, got, want)
+	}
+}
+
+// TestDropUnspecifiedPartitionsKVFn checks that int elements with unspecified partitions
+// are dropped (tests function used for sum and mean).
+func TestDropUnspecifiedPartitionsKVFn(t *testing.T) {
+	triples := concatenateTriplesWithIntValue(
+		makeDummyTripleWithIntValue(7, 0),
+		makeDummyTripleWithIntValue(58, 1),
+		makeDummyTripleWithIntValue(99, 2),
+		makeDummyTripleWithIntValue(45, 100),
+		makeDummyTripleWithIntValue(20, 33))
+	// Keep partitions 0, 2.
+	// Drop partitions 1, 33, 100.
+	result := concatenateTriplesWithIntValue(
+		makeDummyTripleWithIntValue(7, 0),
+		makeDummyTripleWithIntValue(99, 2))
+
+	_, s, col, col2 := ptest.CreateList2(triples, result)
+	// Doesn't matter that the values 3, 4, 5, 6, 9, 10
+	// are in the partitions PCollection because we are
+	// just dropping the values that are in our original PCollection
+	// that are not specified.
+	partitionsCol := beam.CreateList(s, []int{0, 2, 3, 4, 5, 6, 9, 10})
+	col = beam.ParDo(s, extractIDFromTripleWithIntValue, col)
+	col2 = beam.ParDo(s, extractIDFromTripleWithIntValue, col2)
+	epsilon, delta := 50.0, 1e-200
+
+	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+	pcol = ParDo(s, tripleWithIntValueToKV, pcol)
+	got := dropUnspecifiedPartitionsKVFn(s, partitionsCol, pcol, pcol.codec.KType)
+	got = beam.SwapKV(s, got)
+
+	pcol2 := MakePrivate(s, col2, NewPrivacySpec(epsilon, delta))
+	pcol2 = ParDo(s, tripleWithIntValueToKV, pcol2)
+	want := pcol2.col
+	want = beam.SwapKV(s, want)
+
+	if err := equalsKVInt(s, got, want); err != nil {
+		t.Fatalf("dropUnspecifiedPartitionsKVFn: for %v got: %v, want %v", col, got, want)
+	}
+}
+
+// Check that float elements with unspecified partitions
+// are dropped (tests function used for sum and mean).
+func TestDropUnspecifiedPartitionsFloat(t *testing.T) {
+	// In this test, we check  that unspecified partitions
+	// are dropped. This function is used for sum and mean.
+	// Used example values from the mean test.
+	triples := concatenateTriplesWithFloatValue(
+		makeTripleWithFloatValue(7, 0, 2.0),
+		makeTripleWithFloatValueStartingFromKey(7, 100, 1, 1.3),
+		makeTripleWithFloatValueStartingFromKey(107, 150, 1, 2.5),
+	)
+	// Keep partition 0.
+	// drop partition 1.
+	result := concatenateTriplesWithFloatValue(
+		makeTripleWithFloatValue(7, 0, 2.0))
+
+	_, s, col, col2 := ptest.CreateList2(triples, result)
+
+	// Doesn't matter that the values 2, 3, 4, 5, 6, 7 are in the partitions PCollection.
+	// We are just dropping the values that are in our original PCollection that are not specified.
+	partitionsCol := beam.CreateList(s, []int{0, 2, 3, 4, 5, 6, 7})
+	col = beam.ParDo(s, extractIDFromTripleWithFloatValue, col)
+	col2 = beam.ParDo(s, extractIDFromTripleWithFloatValue, col2)
+	epsilon, delta := 50.0, 1e-200
+
+	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+	pcol = ParDo(s, tripleWithFloatValueToKV, pcol)
+	got := dropUnspecifiedPartitionsKVFn(s, partitionsCol, pcol, pcol.codec.KType)
+	got = beam.SwapKV(s, got)
+
+	pcol2 := MakePrivate(s, col2, NewPrivacySpec(epsilon, delta))
+	pcol2 = ParDo(s, tripleWithFloatValueToKV, pcol2)
+	want := pcol2.col
+	want = beam.SwapKV(s, want)
+
+	if err := equalsKVInt(s, got, want); err != nil {
+		t.Fatalf("DropUnspecifiedPartitionsFloat: for %v got: %v, want %v", col, got, want)
 	}
 }
