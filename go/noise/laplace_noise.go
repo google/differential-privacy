@@ -168,10 +168,10 @@ func (laplace) DeltaForThreshold(l0Sensitivity int64, lInfSensitivity, epsilon, 
 // ComputeConfidenceIntervalInt64 computes a confidence interval that contains the raw integer value x from which int64 noisedX
 // is computed with a probability greater or equal to 1 - alpha based on the specified laplace noise parameters.
 func (laplace) ComputeConfidenceIntervalInt64(noisedX, l0Sensitivity, lInfSensitivity int64, epsilon, delta, alpha float64) (ConfidenceInterval, error) {
-	if err := checkArgsConfidenceIntervalLaplace("ComputeConfidenceIntervalInt64 (Laplace)", l0Sensitivity, float64(lInfSensitivity), epsilon,
-		delta, alpha); err != nil {
-		err = fmt.Errorf("ComputeConfidenceIntervalInt64(noisedX %d, l0sensitivity %d, lInfSensitivity %d, epsilon %f,"+
-			"delta %e, alpha %f) checks failed with %v", noisedX, l0Sensitivity, lInfSensitivity, epsilon, delta, alpha, err)
+	err := checkArgsConfidenceIntervalLaplace("ComputeConfidenceIntervalInt64 (Laplace)", l0Sensitivity, float64(lInfSensitivity), epsilon, delta, alpha)
+	if err != nil {
+		err = fmt.Errorf("ComputeConfidenceIntervalInt64(noisedX %d, l0sensitivity %d, lInfSensitivity %d, epsilon %f, delta %e, alpha %f) checks failed with %v",
+			noisedX, l0Sensitivity, lInfSensitivity, epsilon, delta, alpha, err)
 		return ConfidenceInterval{}, err
 	}
 	lambda := laplaceLambda(l0Sensitivity, float64(lInfSensitivity), epsilon)
@@ -181,10 +181,10 @@ func (laplace) ComputeConfidenceIntervalInt64(noisedX, l0Sensitivity, lInfSensit
 // ComputeConfidenceIntervalFloat64 computes a confidence interval that contains the raw value x from which float64
 // noisedX is computed with a probability equal to 1 - alpha based on the specified laplace noise parameters.
 func (laplace) ComputeConfidenceIntervalFloat64(noisedX float64, l0Sensitivity int64, lInfSensitivity, epsilon, delta, alpha float64) (ConfidenceInterval, error) {
-	if err := checkArgsConfidenceIntervalLaplace("ComputeConfidenceIntervalFloat64 (Laplace)", l0Sensitivity, lInfSensitivity, epsilon,
-		delta, alpha); err != nil {
-		err = fmt.Errorf("ComputeConfidenceIntervalFloat64(noisedX %f, l0sensitivity %d, lInfSensitivity %f, epsilon %f,"+
-			"delta %e, alpha %f) checks failed with %v", noisedX, l0Sensitivity, lInfSensitivity, epsilon, delta, alpha, err)
+	err := checkArgsConfidenceIntervalLaplace("ComputeConfidenceIntervalFloat64 (Laplace)", l0Sensitivity, lInfSensitivity, epsilon, delta, alpha)
+	if err != nil {
+		err = fmt.Errorf("ComputeConfidenceIntervalFloat64(noisedX %f, l0sensitivity %d, lInfSensitivity %f, epsilon %f, delta %e, alpha %f) checks failed with %v",
+			noisedX, l0Sensitivity, lInfSensitivity, epsilon, delta, alpha, err)
 		return ConfidenceInterval{}, err
 	}
 	lambda := laplaceLambda(l0Sensitivity, lInfSensitivity, epsilon)
@@ -246,7 +246,7 @@ func computeConfidenceIntervalLaplace(noisedX float64, lambda, alpha float64) Co
 	return ConfidenceInterval{noisedX + Z, noisedX - Z}
 }
 
-// inverseCDFLaplace computes the qunatile z satisfying Pr[Y <= z] = p for a random variable Y
+// inverseCDFLaplace computes the quantile z satisfying Pr[Y <= z] = p for a random variable Y
 // that is Laplace distributed with the specified lambda where mean is zero.
 func inverseCDFLaplace(lambda, p float64) float64 {
 	if p < 0.5 {

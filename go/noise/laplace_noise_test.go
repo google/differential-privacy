@@ -189,28 +189,28 @@ func TestInverseCDFLaplace(t *testing.T) {
 			prob:   0.1479685611330654517049,
 			want:   -2.435216544,
 		},
-		// For a probablity of 0.5 the result should be the zero regardless of lambda
+		// For a probability of 0.5, the result should be the zero regardless of lambda.
 		{
-			desc:   "0.5 Probablity, output is zero",
+			desc:   "0.5 Probability, output is zero",
 			lambda: 5,
 			prob:   0.5,
 			want:   0,
 		},
 		{
-			desc:   "0.5 Probablity, output is zero",
+			desc:   "0.5 Probability, output is zero",
 			lambda: 10,
 			prob:   0.5,
 			want:   0,
 		},
-		// Tests for convergence to infinities with low and high probablities.
+		// Tests for convergence to infinities with low and high probabilities.
 		{
-			desc:   "Low probablity",
+			desc:   "Low probability",
 			lambda: 3,
 			prob:   1.23757362E-15,
 			want:   -100.897429529251364,
 		},
 		{
-			desc:   "High probablitiy",
+			desc:   "High probability",
 			lambda: 3,
 			prob:   0.999999999876242638,
 			want:   66.3586531343406788,
@@ -348,7 +348,7 @@ func TestComputeConfidenceIntervalFloat64(t *testing.T) {
 			wantErr:         true,
 		},
 		{
-			desc:            "Infinte lInfSensitivity",
+			desc:            "Infinite lInfSensitivity",
 			noisedX:         0,
 			l0Sensitivity:   1,
 			lInfSensitivity: math.Inf(1),
@@ -473,7 +473,6 @@ func TestComputeConfidenceIntervalFloat64(t *testing.T) {
 			tc.epsilon, tc.delta, tc.alpha)
 		if (err != nil) != tc.wantErr {
 			t.Errorf("ComputeConfidenceIntervalFloat64: when %v for err got %v, want %t", tc.desc, err, tc.wantErr)
-			continue
 		}
 		if !approxEqual(got.LowerBound, tc.want.LowerBound) {
 			t.Errorf("TestComputeConfidenceIntervalFloat64(%f, %d, %f, %f, %f)=%0.10f, want %0.10f, desc %s, LowerBounds are not equal",
@@ -649,7 +648,6 @@ func TestComputeConfidenceIntervalInt64(t *testing.T) {
 			tc.epsilon, tc.delta, tc.alpha)
 		if (err != nil) != tc.wantErr {
 			t.Errorf("ComputeConfidenceIntervalInt64: when %v for err got %v, want %t", tc.desc, err, tc.wantErr)
-			continue
 		}
 		if got.LowerBound != tc.want.LowerBound {
 			t.Errorf("TestComputeConfidenceIntervalInt64(%d, %d, %d, %f, %f)=%0.10f, want %0.10f, desc %s, LowerBounds are not equal",
