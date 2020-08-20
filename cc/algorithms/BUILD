@@ -490,3 +490,27 @@ cc_test(
         "@com_google_absl//absl/strings:str_format",
     ],
 )
+
+cc_library(
+    name = "partition-selection",
+    hdrs = ["partition-selection.h"],
+    copts = ["-Wno-sign-compare"],
+    deps = [
+        ":numerical-mechanisms",
+        ":util",
+        ":rand",
+        "//base:status",
+        "//base:statusor"
+    ],
+)
+
+cc_test(
+    name = "partition-selection_test",
+    srcs = ["partition-selection_test.cc"],
+    copts = ["-Wno-sign-compare"],
+    deps = [
+        ":partition-selection",
+        ":numerical-mechanisms-testing",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
