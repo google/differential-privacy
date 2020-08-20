@@ -86,17 +86,7 @@ public final class LaplaceClosenessTest {
         .isTrue();
   }
 
-  private int getNumberOfVotesFromFile() {
-    DistributionClosenessTestCaseCollection.Builder testCaseCollectionBuilder =
-        DistributionClosenessTestCaseCollection.newBuilder();
-    try {
-      TextFormat.merge(
-          new InputStreamReader(
-              getClass().getClassLoader().getResourceAsStream(TEST_CASES_FILE_PATH), UTF_8),
-          testCaseCollectionBuilder);
-    } catch (IOException e) {
-      throw new RuntimeException("Unable to read input.", e);
-    }
+  private static int getNumberOfVotesFromFile() {
     return getTestCaseCollectionFromFile().getVotingParameters().getNumberOfVotes();
   }
 

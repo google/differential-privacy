@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Tests for privacy_loss_distribution.py"""
+"""Tests for privacy_loss_distribution.py."""
 import math
 import unittest
 from absl.testing import parameterized
@@ -57,7 +57,7 @@ class ConvolveTest(unittest.TestCase):
     dictionary_almost_equal(self, expected_result, result)
 
 
-class PrivacyLossDistributionTest(unittest.TestCase):
+class PrivacyLossDistributionTest(parameterized.TestCase):
 
   def test_hockey_stick_basic(self):
     # Basic hockey stick divergence computation test
@@ -166,6 +166,19 @@ class PrivacyLossDistributionTest(unittest.TestCase):
     self.assertLessEqual(
         0.3405 - 1e-4,
         privacy_loss_distribution_optimistic.get_delta_for_epsilon(0.5))
+
+  @parameterized.parameters(
+      ({4: 0.2, 2: 0.7}, 0.5, 0.1, 0.5, 0.56358432),
+      ({4: 0.2, 2: 0.7}, 0.5, 0.1, 0.2, 1.30685282),
+      ({1: 0.2, -1: 0.7}, 1, 0.1, 0.4, 0),
+      ({1: 0.6}, 1, 0.5, 0.4, math.inf))
+  def test_get_delta_from_epsilon(self, rounded_probability_mass_function,
+                                  value_discretization_interval, infinity_mass,
+                                  delta, expected_epsilon):
+    pld = privacy_loss_distribution.PrivacyLossDistribution(
+        rounded_probability_mass_function, value_discretization_interval,
+        infinity_mass)
+    self.assertAlmostEqual(expected_epsilon, pld.get_epsilon_for_delta(delta))
 
   def test_truncation(self):
     # Test for truncation

@@ -121,7 +121,7 @@ public final class BoundedMeanDpTest {
         .isTrue();
   }
 
-  private int getNumberOfVotesFromFile() {
+  private static int getNumberOfVotesFromFile() {
     return getTestCaseCollectionFromFile().getVotingParameters().getNumberOfVotes();
   }
 

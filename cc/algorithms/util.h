@@ -125,6 +125,24 @@ inline bool SafeSquare(T num, T* result) {
   return true;
 }
 
+// Convert double to integral types while avoiding overflows.
+template <typename T, std::enable_if_t<std::is_integral<T>::value>* = nullptr>
+inline T SafeCastFromDouble(double d) {
+  if (d > std::numeric_limits<T>::max()) {
+    return std::numeric_limits<T>::max();
+  } else if (d < std::numeric_limits<T>::lowest()) {
+    return std::numeric_limits<T>::lowest();
+  }
+  return T{d};
+}
+
+// Convert double to other floating points.
+template <typename T,
+          std::enable_if_t<std::is_floating_point<T>::value>* = nullptr>
+inline T SafeCastFromDouble(double d) {
+  return T{d};
+}
+
 template <typename T>
 inline double Mean(const std::vector<T>& v) {
   return std::accumulate(v.begin(), v.end(), 0.0) / v.size();

@@ -119,6 +119,22 @@ message BoundedOrderStatisticsSamplingParameters {
   repeated double raw_entry = 7;
 }
 
+// Parameters required for drawing sample bounds from the approximate bounds
+// calculator of the DP library.
+message ApproximateBoundsSamplingParameters {
+  optional int32 number_of_samples = 1;
+  optional NoiseType noise_type = 2;
+  optional int32 max_partitions_contributed = 3;
+  optional int32 number_of_bins = 4;
+  optional double scale = 5;
+  optional double base = 6;
+  optional double threshold_probability = 7;
+  optional double epsilon = 8;
+  optional double delta = 9;
+  repeated double raw_entry = 10;
+  repeated double neighbour_raw_entry = 11;
+}
+
 // Parameters specifying a voting mechanism for evaluating multiple runs of a
 // particular statistical test. This is intended to reduce the probability of
 // error compared to evaluating just a single run of the respective test.
@@ -146,6 +162,11 @@ message DpTestValidityParameters {
   // The minimum rate of catastrophic privacy failures relative to the delta
   // tolerance of the DP test that should be rejected.
   optional double failure_specificity = 2;
+  // The minimum ratio between an epsilon that should be accepted and an epsilon
+  // that should be rejected, i.e., if epsilon is the smallest privacy parameter
+  // for which we expect the test to accept, the test should reject for a
+  // privacy parameter of epsilon / epsilon_specificity.
+  optional double epsilon_specificity = 3;
 }
 
 message DistributionClosenessTestCase {
@@ -185,6 +206,13 @@ message BoundedOrderStatisticsDpTestCase {
       bounded_order_statistics_sampling_parameters = 3;
 }
 
+message ApproximateBoundsDpTestCase {
+  optional string name = 1;
+  optional DpTestParameters dp_test_parameters = 2;
+  optional ApproximateBoundsSamplingParameters
+      approximate_bounds_sampling_parameters = 3;
+}
+
 message DistributionClosenessTestCaseCollection {
   repeated DistributionClosenessTestCase distribution_closeness_test_case = 1;
   optional VotingParameters voting_parameters = 2;
@@ -220,8 +248,14 @@ message BoundedOrderStatisticsDpTestCaseCollection {
       bounded_order_statistics_dp_test_case = 1;
   optional VotingParameters voting_parameters = 2;
   // The collection does not contain validity_parameters since an implementation
-  // independent validation of bounded mean is not clearly defined. Instead,
+  // independent validation of order statistics is not clearly defined. Instead,
   // the test case parameters are chosen based on the theoretical bounds
   // established in Theorem 14 of https://arxiv.org/pdf/1806.06427.pdf. Note
   // that the generality of these bounds makes them looser in practice.
+}
+
+message ApproximateBoundsDpTestCaseCollection {
+  repeated ApproximateBoundsDpTestCase approximate_bounds_dp_test_case = 1;
+  optional VotingParameters voting_parameters = 2;
+  optional DpTestValidityParameters validity_parameters = 3;
 }

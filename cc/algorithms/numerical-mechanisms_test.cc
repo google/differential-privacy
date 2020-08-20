@@ -61,7 +61,7 @@ TEST(NumericalMechanismsTest, LaplaceBuilderFailsEpsilonNotSet) {
               Eq(base::StatusCode::kInvalidArgument));
   // Convert message to std::string so that the matcher works in the open source
   // version.
-  std::string message(std::string(failed_build.status().message()));
+  std::string message(failed_build.status().message());
   EXPECT_THAT(message, MatchesRegex("^Epsilon has to be set.*"));
 }
 
@@ -72,7 +72,7 @@ TEST(NumericalMechanismsTest, LaplaceBuilderFailsEpsilonZero) {
               Eq(base::StatusCode::kInvalidArgument));
   // Convert message to std::string so that the matcher works in the open source
   // version.
-  std::string message(std::string(failed_build.status().message()));
+  std::string message(failed_build.status().message());
   EXPECT_THAT(message, MatchesRegex("^Epsilon has to be positive.*"));
 }
 
@@ -83,7 +83,7 @@ TEST(NumericalMechanismsTest, LaplaceBuilderFailsEpsilonNegative) {
               Eq(base::StatusCode::kInvalidArgument));
   // Convert message to std::string so that the matcher works in the open source
   // version.
-  std::string message(std::string(failed_build.status().message()));
+  std::string message(failed_build.status().message());
   EXPECT_THAT(message, MatchesRegex("^Epsilon has to be positive.*"));
 }
 
@@ -94,7 +94,7 @@ TEST(NumericalMechanismsTest, LaplaceBuilderFailsEpsilonNan) {
               Eq(base::StatusCode::kInvalidArgument));
   // Convert message to std::string so that the matcher works in the open source
   // version.
-  std::string message(std::string(failed_build.status().message()));
+  std::string message(failed_build.status().message());
   EXPECT_THAT(message, MatchesRegex("^Epsilon has to be finite.*"));
 }
 
@@ -106,8 +106,50 @@ TEST(NumericalMechanismsTest, LaplaceBuilderFailsEpsilonInfinity) {
               Eq(base::StatusCode::kInvalidArgument));
   // Convert message to std::string so that the matcher works in the open source
   // version.
-  std::string message(std::string(failed_build.status().message()));
+  std::string message(failed_build.status().message());
   EXPECT_THAT(message, MatchesRegex("^Epsilon has to be finite.*"));
+}
+
+TEST(NumericalMechanismsTest, LaplaceBuilderFailsL0SensitivityNan) {
+  LaplaceMechanism::Builder test_builder;
+  auto failed_build = test_builder.SetL0Sensitivity(NAN)
+                          .SetLInfSensitivity(1)
+                          .SetEpsilon(1)
+                          .Build();
+  EXPECT_THAT(failed_build.status().code(),
+              Eq(base::StatusCode::kInvalidArgument));
+  // Convert message to std::string so that the matcher works in the open source
+  // version.
+  std::string message(failed_build.status().message());
+  EXPECT_THAT(message, MatchesRegex("^L0 sensitivity has to be finite.*"));
+}
+
+TEST(NumericalMechanismsTest, LaplaceBuilderFailsL0SensitivityInfinity) {
+  LaplaceMechanism::Builder test_builder;
+  auto failed_build = test_builder.SetL0Sensitivity(INFINITY)
+                          .SetLInfSensitivity(1)
+                          .SetEpsilon(1)
+                          .Build();
+  EXPECT_THAT(failed_build.status().code(),
+              Eq(base::StatusCode::kInvalidArgument));
+  // Convert message to std::string so that the matcher works in the open source
+  // version.
+  std::string message(failed_build.status().message());
+  EXPECT_THAT(message, MatchesRegex("^L0 sensitivity has to be finite.*"));
+}
+
+TEST(NumericalMechanismsTest, LaplaceBuilderFailsLInfSensitivityNan) {
+  LaplaceMechanism::Builder test_builder;
+  auto failed_build = test_builder.SetL0Sensitivity(1)
+                          .SetLInfSensitivity(NAN)
+                          .SetEpsilon(1)
+                          .Build();
+  EXPECT_THAT(failed_build.status().code(),
+              Eq(base::StatusCode::kInvalidArgument));
+  // Convert message to std::string so that the matcher works in the open source
+  // version.
+  std::string message(failed_build.status().message());
+  EXPECT_THAT(message, MatchesRegex("^LInf sensitivity has to be finite.*"));
 }
 
 TYPED_TEST(NumericalMechanismsTest, LaplaceBuilderSensitivityTooHigh) {
@@ -193,7 +235,7 @@ TEST(NumericalMechanismsTest, LaplaceConfidenceInterval) {
 
 TYPED_TEST(NumericalMechanismsTest, LaplaceBuilderClone) {
   LaplaceMechanism::Builder test_builder;
-  std::unique_ptr<LaplaceMechanism::Builder> clone =
+  std::unique_ptr<NumericalMechanismBuilder> clone =
       test_builder.SetL1Sensitivity(3).SetEpsilon(1).Clone();
   std::unique_ptr<NumericalMechanism> test_mechanism =
       clone->Build().ValueOrDie();
@@ -316,7 +358,7 @@ TEST(NumericalMechanismsTest, GaussianBuilderFailsDeltaNotSet) {
               Eq(base::StatusCode::kInvalidArgument));
   // Convert message to std::string so that the matcher works in the open source
   // version.
-  std::string message(std::string(failed_build.status().message()));
+  std::string message(failed_build.status().message());
   EXPECT_THAT(message, MatchesRegex("^Delta has to be set.*"));
 }
 
@@ -328,7 +370,7 @@ TEST(NumericalMechanismsTest, GaussianBuilderFailsDeltaNan) {
               Eq(base::StatusCode::kInvalidArgument));
   // Convert message to std::string so that the matcher works in the open source
   // version.
-  std::string message(std::string(failed_build.status().message()));
+  std::string message(failed_build.status().message());
   EXPECT_THAT(message, MatchesRegex("^Delta has to be finite.*"));
 }
 
@@ -340,7 +382,7 @@ TEST(NumericalMechanismsTest, GaussianBuilderFailsDeltaNegative) {
               Eq(base::StatusCode::kInvalidArgument));
   // Convert message to std::string so that the matcher works in the open source
   // version.
-  std::string message(std::string(failed_build.status().message()));
+  std::string message(failed_build.status().message());
   EXPECT_THAT(message, MatchesRegex("^Delta has to be in the interval.*"));
 }
 
@@ -352,8 +394,62 @@ TEST(NumericalMechanismsTest, GaussianBuilderFailsDeltaOne) {
               Eq(base::StatusCode::kInvalidArgument));
   // Convert message to std::string so that the matcher works in the open source
   // version.
-  std::string message(std::string(failed_build.status().message()));
+  std::string message(failed_build.status().message());
   EXPECT_THAT(message, MatchesRegex("^Delta has to be in the interval.*"));
+}
+
+TEST(NumericalMechanismsTest, GaussianBuilderFailsDeltaZero) {
+  GaussianMechanism::Builder test_builder;
+  auto failed_build =
+      test_builder.SetL2Sensitivity(1).SetEpsilon(1).SetDelta(0).Build();
+  EXPECT_THAT(failed_build.status().code(),
+              Eq(base::StatusCode::kInvalidArgument));
+  // Convert message to std::string so that the matcher works in the open source
+  // version.
+  std::string message(failed_build.status().message());
+  EXPECT_THAT(message, MatchesRegex("^Delta has to be in the interval.*"));
+}
+
+TEST(NumericalMechanismsTest, GaussianBuilderFailsL0SensitivityNan) {
+  GaussianMechanism::Builder test_builder;
+  auto failed_build = test_builder.SetL0Sensitivity(NAN)
+                          .SetLInfSensitivity(1)
+                          .SetEpsilon(1)
+                          .SetDelta(0.2)
+                          .Build();
+  EXPECT_THAT(failed_build.status().code(),
+              Eq(base::StatusCode::kInvalidArgument));
+  // Convert message to std::string so that the matcher works in the open source
+  // version.
+  std::string message(failed_build.status().message());
+  EXPECT_THAT(message, MatchesRegex("^L0 sensitivity has to be finite.*"));
+}
+
+TEST(NumericalMechanismsTest, GaussianBuilderFailsLInfSensitivityInfinity) {
+  GaussianMechanism::Builder test_builder;
+  auto failed_build = test_builder.SetL0Sensitivity(1)
+                          .SetLInfSensitivity(INFINITY)
+                          .SetEpsilon(1)
+                          .SetDelta(0.2)
+                          .Build();
+  EXPECT_THAT(failed_build.status().code(),
+              Eq(base::StatusCode::kInvalidArgument));
+  // Convert message to std::string so that the matcher works in the open source
+  // version.
+  std::string message(failed_build.status().message());
+  EXPECT_THAT(message, MatchesRegex("^LInf sensitivity has to be finite.*"));
+}
+
+TEST(NumericalMechanismsTest, GaussianBuilderFailsL2SensitivityNan) {
+  GaussianMechanism::Builder test_builder;
+  auto failed_build =
+      test_builder.SetL2Sensitivity(NAN).SetEpsilon(1).SetDelta(0.2).Build();
+  EXPECT_THAT(failed_build.status().code(),
+              Eq(base::StatusCode::kInvalidArgument));
+  // Convert message to std::string so that the matcher works in the open source
+  // version.
+  std::string message(failed_build.status().message());
+  EXPECT_THAT(message, MatchesRegex("^L2 sensitivity has to be finite.*"));
 }
 
 TEST(NumericalMechanismsTest, GaussianMechanismAddsNoise) {

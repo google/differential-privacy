@@ -74,7 +74,7 @@ TEST(DpNtile, BadPercentile) {
 TEST(DpNtile, BadBounds) {
   std::string err;
   auto func = DpNtile(&err, -1, 5, 1);
-  EXPECT_EQ(err, "Upper bound cannot be less than lower bound.");
+  EXPECT_EQ(err, "Lower bound cannot be greater than upper bound.");
 }
 
 TEST(DpNtile, BasicTest) {

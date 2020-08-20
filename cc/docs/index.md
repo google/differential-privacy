@@ -16,7 +16,7 @@ Here's a minimal example showing how to compute the count of some data:
 // less accuracy.
 double count(const vector<double>& vals, double epsilon) {
   // Construct the Count object to run on double inputs.
-  std::unique_pointer<differential_privacy::Count<double>> count =
+  std::unique_ptr<differential_privacy::Count<double>> count =
      differential_privacy::Count<double>::Builder().SetEpsilon(epsilon)
                                                    .Build()
                                                    .ValueOrDie();

@@ -57,7 +57,8 @@ class BoundedSum : public Algorithm<T> {
     }
 
    private:
-    base::StatusOr<std::unique_ptr<BoundedSum<T>>> BuildAlgorithm() override {
+    base::StatusOr<std::unique_ptr<BoundedSum<T>>> BuildBoundedAlgorithm()
+        override {
       // Ensure that either bounds are manually set or ApproxBounds is made.
       RETURN_IF_ERROR(BoundedBuilder::BoundsSetup());
 
@@ -199,7 +200,7 @@ class BoundedSum : public Algorithm<T> {
   // Protected constructor to allow for testing.
   BoundedSum(double epsilon, T lower, T upper, const double l0_sensitivity,
              const double max_contributions_per_partition,
-             std::unique_ptr<LaplaceMechanism::Builder> mechanism_builder,
+             std::unique_ptr<NumericalMechanismBuilder> mechanism_builder,
              std::unique_ptr<NumericalMechanism> mechanism,
              std::unique_ptr<ApproxBounds<T>> approx_bounds = nullptr)
       : Algorithm<T>(epsilon),
@@ -313,7 +314,7 @@ class BoundedSum : public Algorithm<T> {
   }
 
   static base::StatusOr<std::unique_ptr<NumericalMechanism>> BuildMechanism(
-      std::unique_ptr<LaplaceMechanism::Builder> mechanism_builder,
+      std::unique_ptr<NumericalMechanismBuilder> mechanism_builder,
       const double epsilon, const double l0_sensitivity,
       const double max_contributions_per_partition, const T lower,
       const T upper) {
@@ -332,7 +333,7 @@ class BoundedSum : public Algorithm<T> {
   T lower_, upper_;
 
   // Used to construct mechanism once bounds are obtained for auto-bounding.
-  std::unique_ptr<LaplaceMechanism::Builder> mechanism_builder_;
+  std::unique_ptr<NumericalMechanismBuilder> mechanism_builder_;
   const double l0_sensitivity_;
   const int max_contributions_per_partition_;
 

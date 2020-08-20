@@ -24,6 +24,7 @@
 #include "base/status.h"
 #include "algorithms/algorithm.h"
 #include "algorithms/numerical-mechanisms.h"
+#include "algorithms/util.h"
 #include "proto/util.h"
 #include "base/status_macros.h"
 
@@ -535,7 +536,9 @@ class ApproxBounds : public Algorithm<T> {
                                 const std::vector<int64_t>& bins) {
     std::vector<T> noisy_bins(bins.size());
     for (int i = 0; i < bins.size(); ++i) {
-      noisy_bins[i] = mechanism_->AddNoise(bins[i], privacy_budget);
+      double noised_dbl =
+          mechanism_->AddNoise(static_cast<double>(bins[i]), privacy_budget);
+      noisy_bins[i] = SafeCastFromDouble<T>(noised_dbl);
     }
     return noisy_bins;
   }

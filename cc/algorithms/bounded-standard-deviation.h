@@ -51,7 +51,7 @@ class BoundedStandardDeviation : public Algorithm<T> {
 
    private:
     base::StatusOr<std::unique_ptr<BoundedStandardDeviation<T>>>
-    BuildAlgorithm() override {
+    BuildBoundedAlgorithm() override {
       // Set bounding info if appropriate.
       if (BoundedBuilder::GetLower().has_value()) {
         variance_builder_.SetLower(BoundedBuilder::GetLower().value());
