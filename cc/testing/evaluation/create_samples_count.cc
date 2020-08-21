@@ -44,10 +44,12 @@ namespace differential_privacy {
 
 namespace testing {
 
-// Creates samples of data pairs using the Count algorithm. Each data pair
-// and its associated input parameters replicates a scenario constructed in 
-// the @see [textproto](https://github.com/google/differential-privacy/blob/main/proto/testing/count_dp_test_cases.textproto)
-// for CountDpTest.java.
+/** Creates samples of data pairs using the Count algorithm. Each data pair
+and its associated input parameters replicates a scenario constructed in 
+the 
+* @see [textproto](https://github.com/google/differential-privacy/blob/main/proto/testing/count_dp_test_cases.textproto)
+for CountDpTest.java.
+*/
 
 const std::string folder_name = "CountSamples";
 
