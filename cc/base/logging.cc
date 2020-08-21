@@ -52,7 +52,7 @@ static int clock_gettime(int, struct timespec *spec)      //C-file part
     return 0;
 }
 // END PATCH
-#elif
+#else
 #include <unistd.h>
 #endif
 
