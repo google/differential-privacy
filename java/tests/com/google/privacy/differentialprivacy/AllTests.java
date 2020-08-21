@@ -29,6 +29,7 @@ import org.junit.runners.Suite.SuiteClasses;
   BoundedSumTest.class,
   CountBuilderTest.class,
   CountTest.class,
+  ConfidenceIntervalLaplaceTest.class,
   GaussianNoiseTest.class,
   LaplaceNoiseTest.class,
 })

@@ -231,7 +231,7 @@ public class Count {
       public Count build() {
         Params params = autoBuild();
         // No need to check if noise is null: Laplace noise is used by default.
-        DpPreconditions.checkEpsilon(params.epsilon());
+        DpPreconditions.checkEpsilonVeryStrict(params.epsilon());
         DpPreconditions.checkNoiseDelta(params.delta(), params.noise());
         DpPreconditions.checkMaxPartitionsContributed(params.maxPartitionsContributed());
         DpPreconditions.checkMaxContributionsPerPartition(params.maxContributionsPerPartition());
