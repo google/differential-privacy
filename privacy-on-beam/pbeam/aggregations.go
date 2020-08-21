@@ -28,6 +28,7 @@ import (
 	"github.com/google/differential-privacy/go/noise"
 	"github.com/google/differential-privacy/privacy-on-beam/internal/kv"
 	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/top"
 )
 
@@ -193,17 +194,17 @@ func (fn *decodePairFloat64Fn) ProcessElement(pair pairFloat64) (beam.X, float64
 	return x, pair.M
 }
 
-func newBoundedSumFn(epsilon, delta float64, maxPartitionsContributed int64, lower, upper float64, noiseKind noise.Kind, vKind reflect.Kind) interface{} {
+func newBoundedSumFn(epsilon, delta float64, maxPartitionsContributed int64, lower, upper float64, noiseKind noise.Kind, vKind reflect.Kind, partitionsSpecified bool) interface{} {
 	var err error
 	var bsFn interface{}
 
 	switch vKind {
 	case reflect.Int64:
 		err = checks.CheckBoundsFloat64AsInt64("pbeam.newBoundedSumFn", lower, upper)
-		bsFn = newBoundedSumInt64Fn(epsilon, delta, maxPartitionsContributed, int64(lower), int64(upper), noiseKind)
+		bsFn = newBoundedSumInt64Fn(epsilon, delta, maxPartitionsContributed, int64(lower), int64(upper), noiseKind, partitionsSpecified)
 	case reflect.Float64:
 		err = checks.CheckBoundsFloat64("pbeam.newBoundedSumFn", lower, upper)
-		bsFn = newBoundedSumFloat64Fn(epsilon, delta, maxPartitionsContributed, lower, upper, noiseKind)
+		bsFn = newBoundedSumFloat64Fn(epsilon, delta, maxPartitionsContributed, lower, upper, noiseKind, partitionsSpecified)
 	default:
 		log.Exitf("pbeam.newBoundedSumFn: vKind(%v) should be int64 or float64", vKind)
 	}
@@ -215,8 +216,9 @@ func newBoundedSumFn(epsilon, delta float64, maxPartitionsContributed int64, low
 }
 
 type boundedSumAccumInt64 struct {
-	BS *dpagg.BoundedSumInt64
-	SP *dpagg.PreAggSelectPartition
+	BS                  *dpagg.BoundedSumInt64
+	SP                  *dpagg.PreAggSelectPartition
+	PartitionsSpecified bool
 }
 
 // boundedSumInt64Fn is a differentially private combineFn for summing values. Do not
@@ -232,15 +234,22 @@ type boundedSumInt64Fn struct {
 	Upper                     int64
 	NoiseKind                 noise.Kind
 	noise                     noise.Noise // Set during Setup phase according to NoiseKind.
+	PartitionsSpecified       bool
 }
 
 // newBoundedSumInt64Fn returns a boundedSumInt64Fn with the given budget and parameters.
-func newBoundedSumInt64Fn(epsilon, delta float64, maxPartitionsContributed, lower, upper int64, noiseKind noise.Kind) *boundedSumInt64Fn {
+func newBoundedSumInt64Fn(epsilon, delta float64, maxPartitionsContributed, lower, upper int64, noiseKind noise.Kind, partitionsSpecified bool) *boundedSumInt64Fn {
 	fn := &boundedSumInt64Fn{
 		MaxPartitionsContributed: maxPartitionsContributed,
 		Lower:                    lower,
 		Upper:                    upper,
 		NoiseKind:                noiseKind,
+		PartitionsSpecified:      partitionsSpecified,
+	}
+	if fn.PartitionsSpecified {
+		fn.NoiseEpsilon = epsilon
+		fn.NoiseDelta = delta 
+		return fn
 	}
 	fn.NoiseEpsilon = epsilon / 2
 	fn.PartitionSelectionEpsilon = epsilon / 2
@@ -262,7 +271,7 @@ func (fn *boundedSumInt64Fn) Setup() {
 }
 
 func (fn *boundedSumInt64Fn) CreateAccumulator() boundedSumAccumInt64 {
-	return boundedSumAccumInt64{
+	accum := boundedSumAccumInt64{
 		BS: dpagg.NewBoundedSumInt64(&dpagg.BoundedSumInt64Options{
 			Epsilon:                  fn.NoiseEpsilon,
 			Delta:                    fn.NoiseDelta,
@@ -270,29 +279,35 @@ func (fn *boundedSumInt64Fn) CreateAccumulator() boundedSumAccumInt64 {
 			Lower:                    fn.Lower,
 			Upper:                    fn.Upper,
 			Noise:                    fn.noise,
-		}),
-		SP: dpagg.NewPreAggSelectPartition(&dpagg.PreAggSelectPartitionOptions{
+    }), PartitionsSpecified: fn.PartitionsSpecified}
+	if !fn.PartitionsSpecified {
+		accum.SP = dpagg.NewPreAggSelectPartition(&dpagg.PreAggSelectPartitionOptions{
 			Epsilon:                  fn.PartitionSelectionEpsilon,
 			Delta:                    fn.PartitionSelectionDelta,
 			MaxPartitionsContributed: fn.MaxPartitionsContributed,
-		}),
+		})
 	}
+	return accum
 }
 
 func (fn *boundedSumInt64Fn) AddInput(a boundedSumAccumInt64, value int64) boundedSumAccumInt64 {
 	a.BS.Add(value)
-	a.SP.Increment()
+	if !fn.PartitionsSpecified{
+		a.SP.Increment()
+	}
 	return a
 }
 
 func (fn *boundedSumInt64Fn) MergeAccumulators(a, b boundedSumAccumInt64) boundedSumAccumInt64 {
 	a.BS.Merge(b.BS)
-	a.SP.Merge(b.SP)
+	if !fn.PartitionsSpecified {
+		a.SP.Merge(b.SP)
+	}
 	return a
 }
 
 func (fn *boundedSumInt64Fn) ExtractOutput(a boundedSumAccumInt64) *int64 {
-	if a.SP.ShouldKeepPartition() {
+	if a.PartitionsSpecified || a.SP.ShouldKeepPartition(){
 		result := a.BS.Result()
 		return &result
 	}
@@ -304,8 +319,9 @@ func (fn *boundedSumInt64Fn) String() string {
 }
 
 type boundedSumAccumFloat64 struct {
-	BS *dpagg.BoundedSumFloat64
-	SP *dpagg.PreAggSelectPartition
+	BS                  *dpagg.BoundedSumFloat64
+	SP                  *dpagg.PreAggSelectPartition
+	PartitionsSpecified bool
 }
 
 // boundedSumFloat64Fn is a differentially private combineFn for summing values. Do not
@@ -321,16 +337,23 @@ type boundedSumFloat64Fn struct {
 	Upper                     float64
 	NoiseKind                 noise.Kind
 	// Noise, set during Setup phase according to NoiseKind.
-	noise noise.Noise
+	noise               noise.Noise
+	PartitionsSpecified bool
 }
 
 // newBoundedSumFloat64Fn returns a boundedSumFloat64Fn with the given budget and parameters.
-func newBoundedSumFloat64Fn(epsilon, delta float64, maxPartitionsContributed int64, lower, upper float64, noiseKind noise.Kind) *boundedSumFloat64Fn {
+func newBoundedSumFloat64Fn(epsilon, delta float64, maxPartitionsContributed int64, lower, upper float64, noiseKind noise.Kind, partitionsSpecified bool) *boundedSumFloat64Fn {
 	fn := &boundedSumFloat64Fn{
 		MaxPartitionsContributed: maxPartitionsContributed,
 		Lower:                    lower,
 		Upper:                    upper,
 		NoiseKind:                noiseKind,
+		PartitionsSpecified:      partitionsSpecified,
+	}
+	if fn.PartitionsSpecified {
+		fn.NoiseEpsilon = epsilon
+		fn.NoiseDelta = delta 
+		return fn
 	}
 	fn.NoiseEpsilon = epsilon / 2
 	fn.PartitionSelectionEpsilon = epsilon / 2
@@ -352,7 +375,7 @@ func (fn *boundedSumFloat64Fn) Setup() {
 }
 
 func (fn *boundedSumFloat64Fn) CreateAccumulator() boundedSumAccumFloat64 {
-	return boundedSumAccumFloat64{
+	accum := boundedSumAccumFloat64{
 		BS: dpagg.NewBoundedSumFloat64(&dpagg.BoundedSumFloat64Options{
 			Epsilon:                  fn.NoiseEpsilon,
 			Delta:                    fn.NoiseDelta,
@@ -360,32 +383,60 @@ func (fn *boundedSumFloat64Fn) CreateAccumulator() boundedSumAccumFloat64 {
 			Lower:                    fn.Lower,
 			Upper:                    fn.Upper,
 			Noise:                    fn.noise,
-		}),
-		SP: dpagg.NewPreAggSelectPartition(&dpagg.PreAggSelectPartitionOptions{
+    }), PartitionsSpecified: fn.PartitionsSpecified}
+	if !fn.PartitionsSpecified {
+		accum.SP = dpagg.NewPreAggSelectPartition(&dpagg.PreAggSelectPartitionOptions{
 			Epsilon:                  fn.PartitionSelectionEpsilon,
 			Delta:                    fn.PartitionSelectionDelta,
 			MaxPartitionsContributed: fn.MaxPartitionsContributed,
-		})}
+		})
+	}
+	return accum
 }
 
 func (fn *boundedSumFloat64Fn) AddInput(a boundedSumAccumFloat64, value float64) boundedSumAccumFloat64 {
 	a.BS.Add(value)
-	a.SP.Increment()
+	if !fn.PartitionsSpecified{
+		a.SP.Increment()
+	}
 	return a
 }
 
 func (fn *boundedSumFloat64Fn) MergeAccumulators(a, b boundedSumAccumFloat64) boundedSumAccumFloat64 {
 	a.BS.Merge(b.BS)
-	a.SP.Merge(b.SP)
+	if !fn.PartitionsSpecified{
+		a.SP.Merge(b.SP)
+	}
 	return a
 }
 
 func (fn *boundedSumFloat64Fn) ExtractOutput(a boundedSumAccumFloat64) *float64 {
-	if a.SP.ShouldKeepPartition() {
+	if a.PartitionsSpecified || a.SP.ShouldKeepPartition() {
 		result := a.BS.Result()
 		return &result
 	}
 	return nil
+}
+
+// findDereferenceValueFn dereferences a *int64 to int64 or *float64 to float64.
+func findDereferenceValueFn(kind reflect.Kind) interface{} {
+	switch kind {
+	case reflect.Int64:
+		return dereferenceValueToInt64
+	case reflect.Float64:
+		return dereferenceValueToFloat64
+	default:
+		log.Exitf("pbeam.findDereferenceValueFn: kind(%v) should be int64 or float64", kind)
+	}
+	return nil
+}
+
+func dereferenceValueToInt64(key beam.X, value *int64) (k beam.X, v int64) {
+	return key, *value
+}
+
+func dereferenceValueToFloat64(key beam.X, value *float64) (k beam.X, v float64) {
+	return key, *value
 }
 
 func (fn *boundedSumFloat64Fn) String() string {
@@ -451,6 +502,173 @@ func clampNegativePartitionsFloat64Fn(v beam.V, r float64) (beam.V, float64) {
 func convertFloat32ToFloat64Fn(z beam.Z, f float32) (beam.Z, float64) {
 	return z, float64(f)
 }
+
 func convertFloat64ToFloat64Fn(z beam.Z, f float64) (beam.Z, float64) {
 	return z, f
+}
+
+// newAddDummyValuesToSpecifiedPartitionsFn turns a PCollection<V> into PCollection<V,0>.
+func newAddDummyValuesToSpecifiedPartitionsFn(vKind reflect.Kind) interface{} {
+	var fn interface{}
+	switch vKind {
+	case reflect.Int64:
+		fn = addDummyValuesToSpecifiedPartitionsInt64Fn
+	case reflect.Float64:
+		fn = addDummyValuesToSpecifiedPartitionsFloat64Fn
+	default:
+		log.Exitf("pbeam.newAddValuesToSpecifiedPartitionsFn: vKind(%v) should be int64 or float64", vKind)
+	}
+	return fn
+}
+
+func addDummyValuesToSpecifiedPartitionsInt64Fn(partition beam.X) (k beam.X, v int64) {
+	return partition, 0
+}
+
+func addDummyValuesToSpecifiedPartitionsFloat64Fn(partition beam.X) (k beam.X, v float64) {
+	return partition, 0
+}
+
+func addDummyValuesForMeanToSpecifiedPartitionsFloat64Fn(partition beam.X) (k beam.X, v []float64) {
+	return partition, []float64{}
+}
+
+// dropUnspecifiedPartitionsKVFn drops partitions not specified in partitionsCol from pcol. It can be used for aggregations on <K,V> pairs, e.g. sum and mean.
+func dropUnspecifiedPartitionsKVFn(s beam.Scope, partitionsCol beam.PCollection, pcol PrivatePCollection, partitionEncodedType beam.EncodedType) beam.PCollection {
+	partitionMap := beam.Combine(s, newPartitionsMapFn(partitionEncodedType), partitionsCol)
+	return beam.ParDo(s, prunePartitionsKVFn, pcol.col, beam.SideInput{Input: partitionMap})
+}
+
+// dropUnspecifiedPartitionsVFn drops partitions not specified in partitionsCol from pcol. It can be used for aggregations on V values, e.g. count and distinctid.
+func dropUnspecifiedPartitionsVFn(s beam.Scope, partitionsCol beam.PCollection, pcol PrivatePCollection, partitionEncodedType beam.EncodedType) beam.PCollection {
+	partitionMap := beam.Combine(s, newPartitionsMapFn(partitionEncodedType), partitionsCol)
+	return beam.ParDo(s, newPrunePartitionsVFn(partitionEncodedType), pcol.col, beam.SideInput{Input: partitionMap})
+}
+
+type mapAccum struct {
+	// Key is the string representation of encoded partition key.
+	// Value is always set to true.
+	PartitionMap PMap
+}
+
+// PartitionsMapFn makes a map consisting of specified partitions.
+type PartitionsMapFn struct {
+	PartitionType beam.EncodedType
+	partitionEnc  beam.ElementEncoder
+}
+
+func newPartitionsMapFn(partitionType beam.EncodedType) *PartitionsMapFn {
+	return &PartitionsMapFn{PartitionType: partitionType}
+}
+
+func (fn *PartitionsMapFn) Setup() {
+	fn.partitionEnc = beam.NewElementEncoder(fn.PartitionType.T)
+}
+
+func (fn *PartitionsMapFn) CreateAccumulator() mapAccum {
+	return mapAccum{PartitionMap: make(PMap)}
+}
+
+func (fn *PartitionsMapFn) AddInput(m mapAccum, partitionKey beam.X) mapAccum {
+	var partitionBuf bytes.Buffer
+	if err := fn.partitionEnc.Encode(partitionKey, &partitionBuf); err != nil {
+		log.Exitf("pbeam.PartitionsMapFn.AddInput: couldn't encode partition key %v: %v", partitionKey, err)
+	}
+	encodedPartitionKey := string(partitionBuf.Bytes())
+	m.PartitionMap[encodedPartitionKey] = true
+	return m
+}
+
+func (fn *PartitionsMapFn) MergeAccumulators(a, b mapAccum) mapAccum {
+	for k := range a.PartitionMap {
+		b.PartitionMap[k] = true
+	}
+	return b
+}
+
+func (fn *PartitionsMapFn) ExtractOutput(m mapAccum) PMap {
+	return m.PartitionMap
+}
+
+// prunePartitionsVFn takes a PCollection<K, V> as input, and returns a
+// PCollection<K, V>, where unspecified partitions have been dropped.
+// Used for count and distinct_id.
+type prunePartitionsVFn struct {
+	PartitionType beam.EncodedType
+	partitionEnc  beam.ElementEncoder
+}
+
+func newPrunePartitionsVFn(partitionType beam.EncodedType) *prunePartitionsVFn {
+	return &prunePartitionsVFn{PartitionType: partitionType}
+}
+
+func (fn *prunePartitionsVFn) Setup() {
+	fn.partitionEnc = beam.NewElementEncoder(fn.PartitionType.T)
+}
+
+func (fn *prunePartitionsVFn) ProcessElement(id beam.X, partitionKey beam.V, partitionsIter func(*PMap) bool, emit func(beam.X, beam.V)) error {
+	var partitionBuf bytes.Buffer
+	if err := fn.partitionEnc.Encode(partitionKey, &partitionBuf); err != nil {
+		log.Exitf("pbeam.prunePartitionsVFn.ProcessElement: couldn't encode partition %v: %v", partitionKey, err)
+	}
+	var partitionMap PMap
+	partitionsIter(&partitionMap)
+	var err error
+	if partitionMap == nil {
+		return err
+	}
+	encodedPartitionKey := string(partitionBuf.Bytes())
+	if partitionMap[encodedPartitionKey] {
+		emit(id, partitionKey)
+	}
+	return nil
+}
+
+// prunePartitionsFn takes a PCollection<ID, kv.Pair{K,V}> as input, and returns a
+// PCollection<ID, kv.Pair{K,V}>, where unspecified partitions have been dropped.
+// Used for sum and mean.
+func prunePartitionsKVFn(id beam.X, pair kv.Pair, partitionsIter func(*PMap) bool, emit func(beam.X, kv.Pair)) error {
+	var partitionMap PMap
+	partitionsIter(&partitionMap)
+	var err error
+	if partitionMap == nil {
+		return err
+	}
+	// Parameters in a kv.Pair are already encoded.
+	encodedPartitionKey := string(pair.K)
+	if partitionMap[encodedPartitionKey] {
+		emit(id, pair)
+	}
+	return nil
+}
+
+// emitPartitionsNotInTheDataFn emits partitions that are specified but not found in the data.
+type emitPartitionsNotInTheDataFn struct {
+	PartitionType beam.EncodedType
+	partitionEnc  beam.ElementEncoder
+}
+
+func newEmitPartitionsNotInTheDataFn(partitionType typex.FullType) *emitPartitionsNotInTheDataFn {
+	return &emitPartitionsNotInTheDataFn{
+		PartitionType: beam.EncodedType{partitionType.Type()},
+	}
+}
+
+func (fn *emitPartitionsNotInTheDataFn) Setup() {
+	fn.partitionEnc = beam.NewElementEncoder(fn.PartitionType.T)
+}
+
+func (fn *emitPartitionsNotInTheDataFn) ProcessElement(partitionKey beam.X, value beam.V, partitionsIter func(*PMap) bool, emit func(beam.X, beam.V)) {
+	var partitionBuf bytes.Buffer
+	if err := fn.partitionEnc.Encode(partitionKey, &partitionBuf); err != nil {
+		log.Exitf("pbeam.emitPartitionsNotInTheDataFn.ProcessElement: couldn't encode partition %v: %v", partitionKey, err)
+	}
+	var partitionsInDataMap PMap
+	partitionsIter(&partitionsInDataMap)
+	encodedPartitionKey := string(partitionBuf.Bytes())
+	// If partitionsInDataMap is nil, partitionsInDataMap is empty, so none of the partitions are in the data, which means we need to emit all of them.
+	// Similarly, if a partition is not in partitionsInDataMap, it means that the partition is not in the data, so we need to emit it.
+	if partitionsInDataMap == nil || !partitionsInDataMap[encodedPartitionKey]{
+			emit(partitionKey, value)
+	}
 }

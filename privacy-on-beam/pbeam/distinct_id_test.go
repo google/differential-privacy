@@ -92,6 +92,46 @@ func TestDistinctPrivacyIDNoNoise(t *testing.T) {
 	}
 }
 
+// Checks that DistinctPrivacyID with partitions returns a correct answer, in particular that keys
+// are correctly counted (without duplicates).
+func TestDistinctPrivacyIDWithPartitionsNoNoise(t *testing.T) {
+	pairs := concatenatePairs(
+		makePairsWithFixedV(7, 0),
+		makePairsWithFixedV(52, 1),
+		makePairsWithFixedV(99, 2),
+		makePairsWithFixedV(7, 0), // duplicated values should have no influence.
+		makePairsWithFixedV(20, 3))
+	result := []testInt64Metric{
+		// Specified partitions include 0, which would otherwise be thresholded.
+		{0, 7},
+		{1, 52},
+		// Drop unspecified partition 2.
+		{3, 20},
+		// Add specified partition 4.
+		{4, 0},
+	}
+	p, s, col, want := ptest.CreateList2(pairs, result)
+	col = beam.ParDo(s, pairToKV, col)
+
+	partitions := []int{0, 1, 3, 4}
+	// Create partition PCollection.
+	partitionsCol := beam.CreateList(s, partitions)
+
+	// We have ε=50, δ=0, and l1Sensitivity=4.
+	// We have 4 partitions. So, to get an overall flakiness of 10⁻²³,
+	// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
+	epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 25.0, 4.0
+	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+	got := DistinctPrivacyID(s, pcol, DistinctPrivacyIDParams{MaxPartitionsContributed: 4, NoiseKind: LaplaceNoise{}, partitionsCol: partitionsCol})
+	want = beam.ParDo(s, int64MetricToKV, want)
+	if err := approxEqualsKVInt64(s, got, want, laplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
+		t.Fatalf("TestDistinctPrivacyIDWithPartitionsNoNoise: %v", err)
+	}
+	if err := ptest.Run(p); err != nil {
+		t.Errorf("TestDistinctPrivacyIDWithPartitionsNoNoise: DistinctPrivacyID(%v) = %v, expected %v: %v", col, got, want, err)
+	}
+}
+
 type distinctThresholdTestCase struct {
 	name            string
 	noiseKind       NoiseKind
@@ -241,6 +281,59 @@ func TestDistinctPrivacyIDAddsNoise(t *testing.T) {
 	}
 }
 
+// Checks that DistinctPrivacyID with partitions adds noise to its output.
+func TestDistinctPrivacyIDWithPartitionsAddsNoise(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		noiseKind NoiseKind
+		// Differential privacy params used. The test assumes sensitivities of 1.
+		epsilon float64
+		delta   float64
+	}{
+		// Epsilon and delta are not split because partitions are specified. All of them are used for the noise.
+		{
+			name:      "Gaussian",
+			noiseKind: GaussianNoise{},
+			epsilon:   0.5,
+			delta:     0.005, 
+		},
+		{
+
+			name:      "Laplace",
+			noiseKind: LaplaceNoise{},
+			epsilon:   0.05,
+			delta:     0, // It is 0 because partitions are specified and we are using Laplace noise.
+		},
+	} {
+		// We have 1 partition. So, to get an overall flakiness of 10⁻²³,
+		// we need to have each partition pass with 1-10⁻²³ probability (k=23).
+		epsilonNoise, deltaNoise := tc.epsilon, tc.delta
+		k := 23.0
+		l0Sensitivity, lInfSensitivity := 1.0, 1.0
+		l1Sensitivity := l0Sensitivity * lInfSensitivity
+		tolerance := complementaryLaplaceTolerance(k, l1Sensitivity, epsilonNoise)
+		numIDs := 10
+		if tc.noiseKind == gaussianNoise {
+			tolerance = complementaryGaussianTolerance(k, l0Sensitivity, lInfSensitivity, epsilonNoise, deltaNoise)
+		}
+		// pairs contains {1,0}, {2,0}, …, {numIDs,0}.
+		pairs := makePairsWithFixedV(numIDs, 0)
+		p, s, col := ptest.CreateList(pairs)
+		col = beam.ParDo(s, pairToKV, col)
+
+		pcol := MakePrivate(s, col, NewPrivacySpec(tc.epsilon, tc.delta))
+		partitionsCol := beam.CreateList(s, []int{0})
+		got := DistinctPrivacyID(s, pcol, DistinctPrivacyIDParams{MaxPartitionsContributed: 1, NoiseKind: tc.noiseKind, partitionsCol: partitionsCol})
+		got = beam.ParDo(s, kvToInt64Metric, got)
+
+		checkInt64MetricsAreNoisy(s, got, numIDs, tolerance)
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("DistinctPrivacyID with partitions didn't add any noise: %v", err)
+		}
+	}
+}
+
+
 // Checks that DistinctPrivacyID bounds cross-partition contributions correctly.
 // The logic mirrors TestCountCrossPartitionContributionBounding.
 func TestDistinctPrivacyIDCrossPartitionContributionBounding(t *testing.T) {
@@ -272,6 +365,41 @@ func TestDistinctPrivacyIDCrossPartitionContributionBounding(t *testing.T) {
 	}
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestDistinctPrivacyIDCrossPartitionContributionBounding: DistinctPrivacyID(%v) = %v, expected elements to sum to 150: %v", col, got, err)
+	}
+}
+
+// Checks that DistinctPrivacyID bounds cross-partition contributions correctly.
+// The logic mirrors TestCountCrossPartitionContributionBounding.
+func TestDistinctPrivacyIDWithPartitionsCrossPartitionContributionBounding(t *testing.T) {
+	// pairs contains {1,0}, {2,0}, …, {50,0}, {1,1}, …, {50,1}, {1,2}, …, {50,9}.
+	var pairs []pairII
+	for i := 0; i < 10; i++ {
+		pairs = append(pairs, makePairsWithFixedV(50, i)...)
+	}
+	result := []testInt64Metric{
+		{0, 150},
+	}
+	p, s, col, want := ptest.CreateList2(pairs, result)
+	col = beam.ParDo(s, pairToKV, col)
+	partitionsCol := beam.CreateList(s, []int{0, 1, 2})
+
+	// We have ε=50, δ=0 and l1Sensitivity=3.
+	// We have 5 partitions. So, to get an overall flakiness of 10⁻²³,
+	// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
+	epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 25.0, 3.0
+	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+	got := DistinctPrivacyID(s, pcol, DistinctPrivacyIDParams{MaxPartitionsContributed: 3, NoiseKind: LaplaceNoise{}, partitionsCol: partitionsCol})
+	// With a max contribution of 3, 40% of the specified partitions should be dropped.
+	// The sum of all elements must then be 150.
+	counts := beam.DropKey(s, got)
+	sumOverPartitions := stats.Sum(s, counts)
+	got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
+	want = beam.ParDo(s, int64MetricToKV, want)
+	if err := approxEqualsKVInt64(s, got, want, laplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
+		t.Fatalf("TestDistinctPrivacyIDWithPartitionsCrossPartitionContributionBounding: %v", err)
+	}
+	if err := ptest.Run(p); err != nil {
+		t.Errorf("TestDistinctPrivacyIDWithPartitionsCrossPartitionContributionBounding: DistinctPrivacyID(%v) = %v, expected elements to sum to 150: %v", col, got, err)
 	}
 }
 
@@ -336,7 +464,7 @@ func TestNewCountFn(t *testing.T) {
 				NoiseKind:                noise.GaussianNoise,
 			}},
 	} {
-		got := newCountFn(1, 1e-5, 17, tc.noiseKind)
+		got := newCountFn(1, 1e-5, 17, tc.noiseKind, false)
 		if diff := cmp.Diff(tc.want, got, cmpopts.IgnoreUnexported(countFn{})); diff != "" {
 			t.Errorf("newCountFn mismatch for '%s' (-want +got):\n%s", tc.desc, diff)
 		}
@@ -351,7 +479,7 @@ func TestCountFnSetup(t *testing.T) {
 	}{
 		{"Laplace noise kind", noise.LaplaceNoise, noise.Laplace()},
 		{"Gaussian noise kind", noise.GaussianNoise, noise.Gaussian()}} {
-		got := newCountFn(1, 1e-5, 17, tc.noiseKind)
+		got := newCountFn(1, 1e-5, 17, tc.noiseKind, false)
 		got.Setup()
 		if !cmp.Equal(tc.wantNoise, got.noise) {
 			t.Errorf("Setup: for %s got %v, want %v", tc.desc, got.noise, tc.wantNoise)
@@ -432,5 +560,30 @@ func TestCountFnExtractOutputReturnsNilForSmallPartitions(t *testing.T) {
 	// Should return nil output for small partitions.
 	if got != nil {
 		t.Errorf("ExtractOutput: for 10 added values got: %d, want nil", *got)
+	}
+}
+
+func TestCountFnExtractOutputDoesNotReturnNilIfPartitionsSpecified(t *testing.T) {
+	// Thresholding does not occur because partitions are specified.
+	fn := countFn{
+		Epsilon:                  ln3,
+		NoiseDelta:               0,
+		ThresholdDelta:           1e-200,
+		MaxPartitionsContributed: 1,
+		NoiseKind:                noise.LaplaceNoise,
+		PartitionsSpecified:      true,
+	}
+
+	fn.Setup()
+	accum := fn.CreateAccumulator()
+	for i := 0; i < 1; i++ {
+		fn.AddInput(accum, 1)
+	}
+
+	got := fn.ExtractOutput(accum)
+
+	// Should not return nil output for small partitions, since partitions are specified.
+	if got == nil {
+		t.Errorf("ExtractOutput: for 1 added value got: %d, do not want nil", *got)
 	}
 }

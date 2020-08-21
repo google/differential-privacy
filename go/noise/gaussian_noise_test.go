@@ -561,7 +561,7 @@ func TestComputeConfidenceIntervalGaussian(t *testing.T) {
 
 }
 
-func TestComputeConfidenceIntervalInt64(t *testing.T) {
+func TestComputeConfidenceIntervalInt64Gaussian(t *testing.T) {
 	for _, tc := range []struct {
 		desc                                    string
 		noisedX, l0Sensitivity, lInfSensitivity int64
@@ -816,7 +816,7 @@ func TestComputeConfidenceIntervalInt64(t *testing.T) {
 	}
 }
 
-func TestComputeConfidenceIntervalFloat64(t *testing.T) {
+func TestComputeConfidenceIntervalFloat64Gaussian(t *testing.T) {
 	for _, tc := range []struct {
 		desc                                   string
 		noisedX                                float64
@@ -1063,11 +1063,11 @@ func TestComputeConfidenceIntervalFloat64(t *testing.T) {
 			t.Errorf("ComputeConfidenceIntervalFloat64: when %s got err %v, wantErr=%t", tc.desc, err, tc.wantErr)
 		}
 		if !approxEqual(got.LowerBound, tc.want.LowerBound) {
-			t.Errorf("TestComputeConfidenceIntervalFloat644(%f, %d, %f, %f, %f)=%0.10f, want %0.10f, desc %s, LowerBound is not equal",
+			t.Errorf("TestComputeConfidenceIntervalFloat64(%f, %d, %f, %f, %f)=%0.10f, want %0.10f, desc %s, LowerBound is not equal",
 				tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.alpha, got.UpperBound, tc.want.UpperBound, tc.desc)
 		}
 		if !approxEqual(got.UpperBound, tc.want.UpperBound) {
-			t.Errorf("TestComputeConfidenceIntervalFloat644(%f, %d, %f, %f, %f)=%0.10f, want %0.10f, desc %s, UpperBound is not equal",
+			t.Errorf("TestComputeConfidenceIntervalFloat64(%f, %d, %f, %f, %f)=%0.10f, want %0.10f, desc %s, UpperBound is not equal",
 				tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.alpha, got.LowerBound, tc.want.LowerBound, tc.desc)
 		}
 	}
