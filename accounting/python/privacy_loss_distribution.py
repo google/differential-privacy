@@ -253,17 +253,11 @@ class PrivacyLossDistribution(object):
     # Discretize the probability mass so that the values are integer multiples
     # of value_discretization_interval
     rounded_probability_mass_function = collections.defaultdict(lambda: 0)
+    round_fn = math.ceil if pessimistic_estimate else math.floor
     for val in probability_mass_function:
-      if pessimistic_estimate:
-        # When we would like a pessimistic estimate, round the value up.
-        rounded_probability_mass_function[int(
-            math.ceil(val / value_discretization_interval)
-        )] += probability_mass_function[val]
-      else:
-        # When we would like an optimistic estimate, round the value down.
-        rounded_probability_mass_function[int(
-            math.floor(val / value_discretization_interval)
-        )] += probability_mass_function[val]
+      rounded_probability_mass_function[
+          round_fn(val / value_discretization_interval)
+          ] += probability_mass_function[val]
 
     return cls(rounded_probability_mass_function, value_discretization_interval,
                infinity_mass)

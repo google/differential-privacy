@@ -295,7 +295,7 @@ func TestDistinctPrivacyIDWithPartitionsAddsNoise(t *testing.T) {
 			name:      "Gaussian",
 			noiseKind: GaussianNoise{},
 			epsilon:   0.5,
-			delta:     0.005, 
+			delta:     0.005,
 		},
 		{
 
@@ -332,7 +332,6 @@ func TestDistinctPrivacyIDWithPartitionsAddsNoise(t *testing.T) {
 		}
 	}
 }
-
 
 // Checks that DistinctPrivacyID bounds cross-partition contributions correctly.
 // The logic mirrors TestCountCrossPartitionContributionBounding.
@@ -584,6 +583,6 @@ func TestCountFnExtractOutputDoesNotReturnNilIfPartitionsSpecified(t *testing.T)
 
 	// Should not return nil output for small partitions, since partitions are specified.
 	if got == nil {
-		t.Errorf("ExtractOutput: for 1 added value got: %d, do not want nil", *got)
+		t.Errorf("ExtractOutput: for 1 added value got: %d, do not want nil", got)
 	}
 }

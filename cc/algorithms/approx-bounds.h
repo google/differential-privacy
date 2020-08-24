@@ -263,6 +263,10 @@ class ApproxBounds : public Algorithm<T> {
       return 0;
     }
 
+    // Clamp infinities to highest and lowest value.
+    value = Clamp(std::numeric_limits<T>::lowest(),
+                  std::numeric_limits<T>::max(), value);
+
     // Sometimes the minimum numeric limit has greater magnitude than the
     // maximum. In this case clamp its magnitude at the maximum numeric limit to
     // find msb. In reality our negative bin will accommodate the value.
@@ -538,7 +542,7 @@ class ApproxBounds : public Algorithm<T> {
     for (int i = 0; i < bins.size(); ++i) {
       double noised_dbl =
           mechanism_->AddNoise(static_cast<double>(bins[i]), privacy_budget);
-      noisy_bins[i] = SafeCastFromDouble<T>(noised_dbl);
+      SafeCastFromDouble<T>(noised_dbl, noisy_bins[i]);
     }
     return noisy_bins;
   }

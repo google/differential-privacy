@@ -122,14 +122,15 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-type PMap map[string]bool
+type pMap map[string]bool
 
 func init() {
 	beam.RegisterType(reflect.TypeOf((*extractProtoFieldFn)(nil)))
 	beam.RegisterType(reflect.TypeOf((*extractStructFieldFn)(nil)))
 	beam.RegisterType(reflect.TypeOf((*PartitionsMapFn)(nil)).Elem())
 	beam.RegisterType(reflect.TypeOf((*prunePartitionsVFn)(nil)).Elem())
-	beam.RegisterType(reflect.TypeOf((*PMap)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*pMap)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*emitPartitionsNotInTheDataFn)(nil)).Elem())
 	// TODO: add tests to make sure we don't forget anything here
 }
 

@@ -18,12 +18,15 @@
 #define DIFFERENTIAL_PRIVACY_ALGORITHMS_UTIL_H_
 
 #include <algorithm>
+#include <cmath>
 #include <limits>
 #include <numeric>
 #include <string>
 #include <type_traits>
+#include <vector>
 
 #include "base/logging.h"
+#include "absl/base/attributes.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 #include "base/statusor.h"
@@ -125,22 +128,32 @@ inline bool SafeSquare(T num, T* result) {
   return true;
 }
 
-// Convert double to integral types while avoiding overflows.
+// Tries to convert a double value to an integral values while avoiding
+// overflows.  Returns whether the cast was successful and has been written to
+// `out`.
 template <typename T, std::enable_if_t<std::is_integral<T>::value>* = nullptr>
-inline T SafeCastFromDouble(double d) {
-  if (d > std::numeric_limits<T>::max()) {
-    return std::numeric_limits<T>::max();
-  } else if (d < std::numeric_limits<T>::lowest()) {
-    return std::numeric_limits<T>::lowest();
+inline bool SafeCastFromDouble(const double in, T& out) {
+  if (std::isnan(in)) {
+    // Integral types do not support NaN values.
+    return false;
+  } else if (in >= std::numeric_limits<T>::max()) {
+    out = std::numeric_limits<T>::max();
+    return true;
+  } else if (in <= std::numeric_limits<T>::lowest()) {
+    out = std::numeric_limits<T>::lowest();
+    return true;
   }
-  return T{d};
+  out = T{in};
+  return true;
 }
 
-// Convert double to other floating points.
+// Convert double to other floating points.  This should be mostly a no-op since
+// we are typically only using doubles.
 template <typename T,
           std::enable_if_t<std::is_floating_point<T>::value>* = nullptr>
-inline T SafeCastFromDouble(double d) {
-  return T{d};
+inline bool SafeCastFromDouble(const double in, T& out) {
+  out = T{in};
+  return true;
 }
 
 template <typename T>
@@ -226,7 +239,7 @@ double Correlation(const std::vector<T>& x, const std::vector<T>& y) {
 // selected elements in v, preserving order.
 template <typename T>
 std::vector<T> VectorFilter(const std::vector<T>& v,
-                            const std::vector<bool> selection) {
+                            const std::vector<bool>& selection) {
   std::vector<T> result;
   DCHECK(v.size() == selection.size());
   for (int i = 0; i < std::min(v.size(), selection.size()); ++i) {

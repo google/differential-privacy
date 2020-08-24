@@ -312,8 +312,8 @@ func TestMeanPerKeyWithPartitionsAddsNoiseFloat(t *testing.T) {
 		{
 			name:      "Gaussian",
 			noiseKind: GaussianNoise{},
-			epsilon:   1, 
-			delta:     0.005, 
+			epsilon:   1,
+			delta:     0.005,
 		},
 		{
 			name:      "Laplace",
@@ -330,7 +330,7 @@ func TestMeanPerKeyWithPartitionsAddsNoiseFloat(t *testing.T) {
 		epsilonNoise, deltaNoise := tc.epsilon, tc.delta
 		k := 23.0
 		l0Sensitivity, lInfSensitivity := 1.0, 3.0
-		
+
 		numIDs := 10
 
 		var tolerance float64
@@ -371,7 +371,6 @@ func TestMeanPerKeyWithPartitionsAddsNoiseFloat(t *testing.T) {
 		}
 	}
 }
-
 
 // Checks that MeanPerKey returns a correct answer for int input values.
 // They should be correctly converted to float64 and then correct result
@@ -539,7 +538,7 @@ func TestMeanPerKeyWithPartitionsNoNoiseFloatValues(t *testing.T) {
 	}{
 		// Used for MinValue and MaxValue. Tests case when specified partitions are already in the data.
 		{
-			lower: 1.0, 
+			lower: 1.0,
 			upper: 3.0,
 		},
 		{
@@ -556,9 +555,9 @@ func TestMeanPerKeyWithPartitionsNoNoiseFloatValues(t *testing.T) {
 			makeTripleWithFloatValueStartingFromKey(7, 100, 1, 1),
 			makeTripleWithFloatValueStartingFromKey(107, 150, 1, 2))
 
-		exactCount0 :=  7.0
-		exactMean0 := 14.0/exactCount0
-		exactCount := 250.0 
+		exactCount0 := 7.0
+		exactMean0 := 14.0 / exactCount0
+		exactCount := 250.0
 		exactMean := (100.0 + 2.0*150.0) / exactCount
 		result := []testFloat64Metric{
 			{0, exactMean0},
@@ -1092,7 +1091,7 @@ func TestMeanPerKeyWithPartitionsNoNoiseIntValues(t *testing.T) {
 	}{
 		// Used for MinValue and MaxValue. Tests case when specified partitions are already in the data.
 		{
-			lower: 1.0, 
+			lower: 1.0,
 			upper: 3.0,
 		},
 		{
@@ -1107,7 +1106,8 @@ func TestMeanPerKeyWithPartitionsNoNoiseIntValues(t *testing.T) {
 		triples := concatenateTriplesWithIntValue(
 			makeTripleWithIntValue(7, 0, 2),
 			makeTripleWithIntValueStartingFromKey(7, 100, 1, 1),
-			makeTripleWithIntValueStartingFromKey(107, 150, 1, 2))
+			makeTripleWithIntValueStartingFromKey(107, 150, 1, 2),
+		)
 
 		exactCount := 250.0
 		exactMean := (100.0 + 2.0*150.0) / exactCount
@@ -1132,6 +1132,7 @@ func TestMeanPerKeyWithPartitionsNoNoiseIntValues(t *testing.T) {
 		pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 		pcol = ParDo(s, tripleWithIntValueToKV, pcol)
 		partitionsCol := beam.CreateList(s, []int{1})
+
 		got := MeanPerKey(s, pcol, MeanParams{
 			MaxPartitionsContributed:     maxPartitionsContributed,
 			MaxContributionsPerPartition: maxContributionsPerPartition,
@@ -1163,7 +1164,7 @@ func TestMeanPerKeyWithEmptyPartitionsNoNoise(t *testing.T) {
 	}{
 		// Used for MinValue and MaxValue. Tests case when specified partitions are already in the data.
 		{
-			lower: 1.0, 
+			lower: 1.0,
 			upper: 3.0,
 		},
 		{

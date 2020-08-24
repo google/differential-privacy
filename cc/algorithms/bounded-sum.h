@@ -285,7 +285,9 @@ class BoundedSum : public Algorithm<T> {
     // Add noise to sum. Use the remaining privacy budget.
     double noisy_sum = mechanism_->AddNoise(sum, remaining_budget);
     if (std::is_integral<T>::value) {
-      AddToOutput<T>(&output, std::round(noisy_sum));
+      T value;
+      SafeCastFromDouble<T>(std::round(noisy_sum), value);
+      AddToOutput<T>(&output, value);
     } else {
       AddToOutput<T>(&output, noisy_sum);
     }

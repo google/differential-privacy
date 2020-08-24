@@ -123,13 +123,14 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 	}
 
 	// Drop unspecified partitions, if partitions are specified.
-	if (params.partitionsCol).IsValid(){ // Partitions are specified.
+	if (params.partitionsCol).IsValid() { // Partitions are specified.
 		if pcol.codec.KType.T != (params.partitionsCol).Type().Type() {
 			log.Exitf("Specified partitions must be of type %v. Got type %v instead.",
 				pcol.codec.KType.T, (params.partitionsCol).Type().Type())
 		}
 		pcol.col = dropUnspecifiedPartitionsKVFn(s, params.partitionsCol, pcol, pcol.codec.KType)
-	} 
+	}
+
 	// First, group together the privacy ID and the partition ID and do per-partition contribution bounding.
 	// Result is PCollection<kv.Pair{ID,K},V>
 	decoded := beam.ParDo(s,
@@ -173,7 +174,6 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 	if (params.partitionsCol).IsValid() {
 		return addSpecifiedPartitionsForMean(s, epsilon, delta, maxPartitionsContributed,
 			params, noiseKind, partialKV)
-
 	}
 	// Compute the mean for each partition. Result is PCollection<partition, float64>.
 	means := beam.CombinePerKey(s,
@@ -191,11 +191,11 @@ func addSpecifiedPartitionsForMean(s beam.Scope, epsilon, delta float64, maxPart
 	partitionT, _ := beam.ValidateKVType(means)
 	dummyMeans := means
 	meansPartitions := beam.DropValue(s, dummyMeans)
-	// Create map with partitions in the data as keys. 
+	// Create map with partitions in the data as keys.
 	partitionMap := beam.Combine(s, newPartitionsMapFn(beam.EncodedType{partitionT.Type()}), meansPartitions)
 	partitionsCol := params.partitionsCol
 	// Add value of empty array to each partition key in partitionsCol.
-	specifiedPartitionsWithValues := beam.ParDo(s,addDummyValuesForMeanToSpecifiedPartitionsFloat64Fn, partitionsCol)
+	specifiedPartitionsWithValues := beam.ParDo(s, addDummyValuesForMeanToSpecifiedPartitionsFloat64Fn, partitionsCol)
 	// emptySpecifiedPartitions are the partitions that are specified but not found in the data.
 	emptySpecifiedPartitions := beam.ParDo(s, newEmitPartitionsNotInTheDataFn(partitionT), specifiedPartitionsWithValues, beam.SideInput{Input: partitionMap})
 	// Add noise to the empty specified partitions.
@@ -218,7 +218,7 @@ func checkMeanPerKeyParams(params MeanParams, epsilon, delta float64, noiseKind 
 		err = checks.CheckNoDelta("pbeam.MeanPerKey", delta)
 	} else {
 		err = checks.CheckDeltaStrict("pbeam.MeanPerKey", delta)
-	} 
+	}
 	if err != nil {
 		return err
 	}
@@ -384,7 +384,7 @@ func rekeyArrayFloat64Fn(kv kv.Pair, m []float64) ([]byte, pairArrayFloat64) {
 type boundedMeanAccumFloat64 struct {
 	BM                  *dpagg.BoundedMeanFloat64
 	SP                  *dpagg.PreAggSelectPartition
-	partitionsSpecified bool
+	PartitionsSpecified bool
 }
 
 // boundedMeanFloat64Fn is a differentially private combineFn for obtaining mean of values. Do not
@@ -401,22 +401,22 @@ type boundedMeanFloat64Fn struct {
 	Upper                        float64
 	NoiseKind                    noise.Kind
 	noise                        noise.Noise // Set during Setup phase according to NoiseKind.
-	partitionsSpecified          bool
+	PartitionsSpecified          bool
 }
 
 // newBoundedMeanFloat6464Fn returns a boundedMeanFloat64Fn with the given budget and parameters.
-func newBoundedMeanFloat64Fn(epsilon, delta float64, maxPartitionsContributed, maxContributionsPerPartition int64, lower, upper float64, noiseKind noise.Kind, partitionsSpecified bool) *boundedMeanFloat64Fn {
+func newBoundedMeanFloat64Fn(epsilon, delta float64, maxPartitionsContributed, maxContributionsPerPartition int64, lower, upper float64, noiseKind noise.Kind, PartitionsSpecified bool) *boundedMeanFloat64Fn {
 	fn := &boundedMeanFloat64Fn{
 		MaxPartitionsContributed:     maxPartitionsContributed,
 		MaxContributionsPerPartition: maxContributionsPerPartition,
 		Lower:                        lower,
 		Upper:                        upper,
 		NoiseKind:                    noiseKind,
-		partitionsSpecified:          partitionsSpecified,
+		PartitionsSpecified:          PartitionsSpecified,
 	}
-	if fn.partitionsSpecified {
+	if fn.PartitionsSpecified {
 		fn.NoiseEpsilon = epsilon
-		fn.NoiseDelta = delta 
+		fn.NoiseDelta = delta
 		return fn
 	}
 	fn.NoiseEpsilon = epsilon / 2
@@ -449,8 +449,8 @@ func (fn *boundedMeanFloat64Fn) CreateAccumulator() boundedMeanAccumFloat64 {
 			Lower:                        fn.Lower,
 			Upper:                        fn.Upper,
 			Noise:                        fn.noise,
-		}), partitionsSpecified: fn.partitionsSpecified}
-	if !fn.partitionsSpecified {
+		}), PartitionsSpecified: fn.PartitionsSpecified}
+	if !fn.PartitionsSpecified {
 		accum.SP = dpagg.NewPreAggSelectPartition(&dpagg.PreAggSelectPartitionOptions{
 			Epsilon:                  fn.PartitionSelectionEpsilon,
 			Delta:                    fn.PartitionSelectionDelta,
@@ -467,7 +467,7 @@ func (fn *boundedMeanFloat64Fn) AddInput(a boundedMeanAccumFloat64, values []flo
 	for _, v := range values {
 		a.BM.Add(v)
 	}
-	if !fn.partitionsSpecified{
+	if !fn.PartitionsSpecified {
 		a.SP.Increment()
 	}
 	return a
@@ -475,14 +475,14 @@ func (fn *boundedMeanFloat64Fn) AddInput(a boundedMeanAccumFloat64, values []flo
 
 func (fn *boundedMeanFloat64Fn) MergeAccumulators(a, b boundedMeanAccumFloat64) boundedMeanAccumFloat64 {
 	a.BM.Merge(b.BM)
-	if !fn.partitionsSpecified{
+	if !fn.PartitionsSpecified {
 		a.SP.Merge(b.SP)
 	}
 	return a
 }
 
 func (fn *boundedMeanFloat64Fn) ExtractOutput(a boundedMeanAccumFloat64) *float64 {
-	if a.partitionsSpecified || a.SP.ShouldKeepPartition() {
+	if a.PartitionsSpecified || a.SP.ShouldKeepPartition() {
 		result := a.BM.Result()
 		return &result
 	}

@@ -256,5 +256,47 @@ TEST(VectorUtilTest, VectorToString) {
   EXPECT_EQ(VectorToString(v), "[1, 2, 2, 3]");
 }
 
+TEST(SafeCastFromDoubleTest, Converts20ToIntegral) {
+  int64_t integral = 345;
+  EXPECT_TRUE(SafeCastFromDouble(20.0, integral));
+  EXPECT_EQ(integral, 20);
+}
+
+TEST(SafeCastFromDoubleTest, ConvertsHighValueToMaxIntegral) {
+  int64_t integral = 345;
+  EXPECT_TRUE(SafeCastFromDouble(1.0e200, integral));
+  EXPECT_EQ(integral, std::numeric_limits<int64_t>::max());
+}
+
+TEST(SafeCastFromDoubleTest, ConvertsLowValueToLowestIntegral) {
+  int64_t integral = 345;
+  EXPECT_TRUE(SafeCastFromDouble(-1.0e200, integral));
+  EXPECT_EQ(integral, std::numeric_limits<int64_t>::lowest());
+}
+
+TEST(SafeCastFromDoubleTest, ReturnsFalseOnNanForIntegrals) {
+  int64_t integral = 345;
+  EXPECT_FALSE(SafeCastFromDouble(NAN, integral));
+  EXPECT_EQ(integral, 345);
+}
+
+// Combine all tests for float outputs.  Should be nothing unexpected here since
+// this is just a cast from double to float.
+TEST(SafeCastFromDoubleTest, ForFloat) {
+  float floating_point;
+
+  // Normal case.
+  EXPECT_TRUE(SafeCastFromDouble(0.5, floating_point));
+  EXPECT_EQ(floating_point, 0.5);
+
+  // NaN double should convert into NaN float.
+  EXPECT_TRUE(SafeCastFromDouble(NAN, floating_point));
+  EXPECT_TRUE(std::isnan(floating_point));
+
+  // High double should convert into infinite float.
+  EXPECT_TRUE(SafeCastFromDouble(1.0e200, floating_point));
+  EXPECT_TRUE(std::isinf(floating_point));
+}
+
 }  // namespace
 }  // namespace differential_privacy

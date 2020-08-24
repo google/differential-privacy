@@ -80,6 +80,7 @@ cc_test(
     deps = [
         ":sequence",
         ":stochastic_tester",
+        "//base:statusor",
         "@com_google_googletest//:gtest_main",
         "//algorithms:algorithm",
         "//algorithms:bounded-sum",

@@ -101,6 +101,7 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCo
 	if err != nil {
 		log.Exitf("couldn't consume budget: %v", err)
 	}
+
 	var noiseKind noise.Kind
 	if params.NoiseKind == nil {
 		noiseKind = noise.LaplaceNoise
@@ -115,7 +116,7 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCo
 
 	maxPartitionsContributed := getMaxPartitionsContributed(spec, params.MaxPartitionsContributed)
 	// Drop unspecified partitions, if partitions are specified.
-	if (params.partitionsCol).IsValid() { 
+	if (params.partitionsCol).IsValid() {
 		if pcol.codec.KType.T != (params.partitionsCol).Type().Type() {
 			log.Exitf("Specified partitions must be of type %v. Got type %v instead.",
 				pcol.codec.KType.T, params.partitionsCol.Type().Type())
@@ -152,7 +153,7 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCo
 		partialSumPairs,
 		beam.TypeDefinition{Var: beam.XType, T: partitionT})
 	// Add specified partitions and return the aggregation output, if partitions are specified.
-	if (params.partitionsCol).IsValid() { 
+	if (params.partitionsCol).IsValid() {
 		return addSpecifiedPartitionsForSum(s, epsilon, delta, maxPartitionsContributed,
 			params, noiseKind, vKind, partialSumKV)
 	}
@@ -172,11 +173,11 @@ func addSpecifiedPartitionsForSum(s beam.Scope, epsilon, delta float64, maxParti
 	// Calculate sums with unspecified partitions dropped. Result is PCollection<partition, int64> or PCollection<partition, float64>.
 	sums := beam.CombinePerKey(s,
 		newBoundedSumFn(epsilon, delta, maxPartitionsContributed, params.MinValue, params.MaxValue, noiseKind, vKind, true),
-	 	partialSumKV)
+		partialSumKV)
 	partitionT, _ := beam.ValidateKVType(sums)
 	dummySums := sums
 	sumsPartitions := beam.DropValue(s, dummySums)
-	// Create map with partitions in the data as keys. 
+	// Create map with partitions in the data as keys.
 	partitionMap := beam.Combine(s, newPartitionsMapFn(beam.EncodedType{partitionT.Type()}), sumsPartitions)
 	partitionsCol := params.partitionsCol
 	// Add value of 0 to each partition key in partitionsCol.

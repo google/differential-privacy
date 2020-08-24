@@ -459,7 +459,7 @@ class BoundedVariance : public Algorithm<T> {
     return mechanism_builder->SetEpsilon(epsilon)
         .SetL0Sensitivity(l0_sensitivity)
         .SetLInfSensitivity(max_contributions_per_partition *
-                            static_cast<double>((upper - lower) / 2))
+                            static_cast<double>(upper - lower) / 2.0)
         .Build();
   }
 

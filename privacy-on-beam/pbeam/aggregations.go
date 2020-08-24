@@ -248,7 +248,7 @@ func newBoundedSumInt64Fn(epsilon, delta float64, maxPartitionsContributed, lowe
 	}
 	if fn.PartitionsSpecified {
 		fn.NoiseEpsilon = epsilon
-		fn.NoiseDelta = delta 
+		fn.NoiseDelta = delta
 		return fn
 	}
 	fn.NoiseEpsilon = epsilon / 2
@@ -279,7 +279,7 @@ func (fn *boundedSumInt64Fn) CreateAccumulator() boundedSumAccumInt64 {
 			Lower:                    fn.Lower,
 			Upper:                    fn.Upper,
 			Noise:                    fn.noise,
-    }), PartitionsSpecified: fn.PartitionsSpecified}
+		}), PartitionsSpecified: fn.PartitionsSpecified}
 	if !fn.PartitionsSpecified {
 		accum.SP = dpagg.NewPreAggSelectPartition(&dpagg.PreAggSelectPartitionOptions{
 			Epsilon:                  fn.PartitionSelectionEpsilon,
@@ -292,7 +292,7 @@ func (fn *boundedSumInt64Fn) CreateAccumulator() boundedSumAccumInt64 {
 
 func (fn *boundedSumInt64Fn) AddInput(a boundedSumAccumInt64, value int64) boundedSumAccumInt64 {
 	a.BS.Add(value)
-	if !fn.PartitionsSpecified{
+	if !fn.PartitionsSpecified {
 		a.SP.Increment()
 	}
 	return a
@@ -307,7 +307,7 @@ func (fn *boundedSumInt64Fn) MergeAccumulators(a, b boundedSumAccumInt64) bounde
 }
 
 func (fn *boundedSumInt64Fn) ExtractOutput(a boundedSumAccumInt64) *int64 {
-	if a.PartitionsSpecified || a.SP.ShouldKeepPartition(){
+	if a.PartitionsSpecified || a.SP.ShouldKeepPartition() {
 		result := a.BS.Result()
 		return &result
 	}
@@ -352,7 +352,7 @@ func newBoundedSumFloat64Fn(epsilon, delta float64, maxPartitionsContributed int
 	}
 	if fn.PartitionsSpecified {
 		fn.NoiseEpsilon = epsilon
-		fn.NoiseDelta = delta 
+		fn.NoiseDelta = delta
 		return fn
 	}
 	fn.NoiseEpsilon = epsilon / 2
@@ -383,7 +383,7 @@ func (fn *boundedSumFloat64Fn) CreateAccumulator() boundedSumAccumFloat64 {
 			Lower:                    fn.Lower,
 			Upper:                    fn.Upper,
 			Noise:                    fn.noise,
-    }), PartitionsSpecified: fn.PartitionsSpecified}
+		}), PartitionsSpecified: fn.PartitionsSpecified}
 	if !fn.PartitionsSpecified {
 		accum.SP = dpagg.NewPreAggSelectPartition(&dpagg.PreAggSelectPartitionOptions{
 			Epsilon:                  fn.PartitionSelectionEpsilon,
@@ -396,7 +396,7 @@ func (fn *boundedSumFloat64Fn) CreateAccumulator() boundedSumAccumFloat64 {
 
 func (fn *boundedSumFloat64Fn) AddInput(a boundedSumAccumFloat64, value float64) boundedSumAccumFloat64 {
 	a.BS.Add(value)
-	if !fn.PartitionsSpecified{
+	if !fn.PartitionsSpecified {
 		a.SP.Increment()
 	}
 	return a
@@ -404,7 +404,7 @@ func (fn *boundedSumFloat64Fn) AddInput(a boundedSumAccumFloat64, value float64)
 
 func (fn *boundedSumFloat64Fn) MergeAccumulators(a, b boundedSumAccumFloat64) boundedSumAccumFloat64 {
 	a.BS.Merge(b.BS)
-	if !fn.PartitionsSpecified{
+	if !fn.PartitionsSpecified {
 		a.SP.Merge(b.SP)
 	}
 	return a
@@ -548,7 +548,7 @@ func dropUnspecifiedPartitionsVFn(s beam.Scope, partitionsCol beam.PCollection, 
 type mapAccum struct {
 	// Key is the string representation of encoded partition key.
 	// Value is always set to true.
-	PartitionMap PMap
+	PartitionMap pMap
 }
 
 // PartitionsMapFn makes a map consisting of specified partitions.
@@ -561,24 +561,27 @@ func newPartitionsMapFn(partitionType beam.EncodedType) *PartitionsMapFn {
 	return &PartitionsMapFn{PartitionType: partitionType}
 }
 
+// Setup is our "constructor"
 func (fn *PartitionsMapFn) Setup() {
 	fn.partitionEnc = beam.NewElementEncoder(fn.PartitionType.T)
 }
 
+// CreateAccumulator creates a new accumulator for the appropriate data type
 func (fn *PartitionsMapFn) CreateAccumulator() mapAccum {
-	return mapAccum{PartitionMap: make(PMap)}
+	return mapAccum{PartitionMap: make(pMap)}
 }
 
+// AddInput adds the specified partition key to the map
 func (fn *PartitionsMapFn) AddInput(m mapAccum, partitionKey beam.X) mapAccum {
 	var partitionBuf bytes.Buffer
 	if err := fn.partitionEnc.Encode(partitionKey, &partitionBuf); err != nil {
 		log.Exitf("pbeam.PartitionsMapFn.AddInput: couldn't encode partition key %v: %v", partitionKey, err)
 	}
-	encodedPartitionKey := string(partitionBuf.Bytes())
-	m.PartitionMap[encodedPartitionKey] = true
+	m.PartitionMap[string(partitionBuf.Bytes())] = true
 	return m
 }
 
+// MergeAccumulators adds the keys from a to b
 func (fn *PartitionsMapFn) MergeAccumulators(a, b mapAccum) mapAccum {
 	for k := range a.PartitionMap {
 		b.PartitionMap[k] = true
@@ -586,7 +589,8 @@ func (fn *PartitionsMapFn) MergeAccumulators(a, b mapAccum) mapAccum {
 	return b
 }
 
-func (fn *PartitionsMapFn) ExtractOutput(m mapAccum) PMap {
+// ExtractOutput returns the completed partition map
+func (fn *PartitionsMapFn) ExtractOutput(m mapAccum) pMap {
 	return m.PartitionMap
 }
 
@@ -606,19 +610,18 @@ func (fn *prunePartitionsVFn) Setup() {
 	fn.partitionEnc = beam.NewElementEncoder(fn.PartitionType.T)
 }
 
-func (fn *prunePartitionsVFn) ProcessElement(id beam.X, partitionKey beam.V, partitionsIter func(*PMap) bool, emit func(beam.X, beam.V)) error {
+func (fn *prunePartitionsVFn) ProcessElement(id beam.X, partitionKey beam.V, partitionsIter func(*pMap) bool, emit func(beam.X, beam.V)) error {
 	var partitionBuf bytes.Buffer
 	if err := fn.partitionEnc.Encode(partitionKey, &partitionBuf); err != nil {
 		log.Exitf("pbeam.prunePartitionsVFn.ProcessElement: couldn't encode partition %v: %v", partitionKey, err)
 	}
-	var partitionMap PMap
+	var partitionMap pMap
 	partitionsIter(&partitionMap)
 	var err error
 	if partitionMap == nil {
 		return err
 	}
-	encodedPartitionKey := string(partitionBuf.Bytes())
-	if partitionMap[encodedPartitionKey] {
+	if partitionMap[string(partitionBuf.Bytes())] {
 		emit(id, partitionKey)
 	}
 	return nil
@@ -627,16 +630,15 @@ func (fn *prunePartitionsVFn) ProcessElement(id beam.X, partitionKey beam.V, par
 // prunePartitionsFn takes a PCollection<ID, kv.Pair{K,V}> as input, and returns a
 // PCollection<ID, kv.Pair{K,V}>, where unspecified partitions have been dropped.
 // Used for sum and mean.
-func prunePartitionsKVFn(id beam.X, pair kv.Pair, partitionsIter func(*PMap) bool, emit func(beam.X, kv.Pair)) error {
-	var partitionMap PMap
+func prunePartitionsKVFn(id beam.X, pair kv.Pair, partitionsIter func(*pMap) bool, emit func(beam.X, kv.Pair)) error {
+	var partitionMap pMap
 	partitionsIter(&partitionMap)
 	var err error
 	if partitionMap == nil {
 		return err
 	}
 	// Parameters in a kv.Pair are already encoded.
-	encodedPartitionKey := string(pair.K)
-	if partitionMap[encodedPartitionKey] {
+	if partitionMap[string(pair.K)] {
 		emit(id, pair)
 	}
 	return nil
@@ -658,17 +660,16 @@ func (fn *emitPartitionsNotInTheDataFn) Setup() {
 	fn.partitionEnc = beam.NewElementEncoder(fn.PartitionType.T)
 }
 
-func (fn *emitPartitionsNotInTheDataFn) ProcessElement(partitionKey beam.X, value beam.V, partitionsIter func(*PMap) bool, emit func(beam.X, beam.V)) {
+func (fn *emitPartitionsNotInTheDataFn) ProcessElement(partitionKey beam.X, value beam.V, partitionsIter func(*pMap) bool, emit func(beam.X, beam.V)) {
 	var partitionBuf bytes.Buffer
 	if err := fn.partitionEnc.Encode(partitionKey, &partitionBuf); err != nil {
 		log.Exitf("pbeam.emitPartitionsNotInTheDataFn.ProcessElement: couldn't encode partition %v: %v", partitionKey, err)
 	}
-	var partitionsInDataMap PMap
+	var partitionsInDataMap pMap
 	partitionsIter(&partitionsInDataMap)
-	encodedPartitionKey := string(partitionBuf.Bytes())
 	// If partitionsInDataMap is nil, partitionsInDataMap is empty, so none of the partitions are in the data, which means we need to emit all of them.
 	// Similarly, if a partition is not in partitionsInDataMap, it means that the partition is not in the data, so we need to emit it.
-	if partitionsInDataMap == nil || !partitionsInDataMap[encodedPartitionKey]{
-			emit(partitionKey, value)
+	if partitionsInDataMap == nil || !partitionsInDataMap[string(partitionBuf.Bytes())] {
+		emit(partitionKey, value)
 	}
 }
