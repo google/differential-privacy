@@ -64,9 +64,9 @@ type ConfidenceInterval struct {
 	LowerBound, UpperBound float64
 }
 
-// toInt64 rounds the lower and upper bounds of a ConfidenceInterval struct for integer
-// valued noise operations.
-func (confInt ConfidenceInterval) toInt64() ConfidenceInterval {
+// roundToInt64 rounds the lower and upper bounds of a ConfidenceInterval struct for
+// integer valued noise operations.
+func (confInt ConfidenceInterval) roundToInt64() ConfidenceInterval {
 	return ConfidenceInterval{LowerBound: math.Round(confInt.LowerBound), UpperBound: math.Round(confInt.UpperBound)}
 }
 
@@ -114,13 +114,11 @@ type Noise interface {
 	// given assumptions of L_0 and L_∞ sensitivities.
 	Threshold(l0Sensitivity int64, lInfSensitivity, epsilon, noiseDelta, thresholdDelta float64) float64
 
-	// confidenceIntervalInt64 will return a ConfidenceInterval struct with the given
-	// confidenceLevel, using the int64 noisedValue, l0Sensitivity, lInfSensitivity int64 and
-	// epsilon, delta float64 for the distribution.
-	computeConfidenceIntervalInt64(noisedValue, l0Sensitivity, lInfSensitivity int64, epsilon, delta, confidenceLevel float64) (ConfidenceInterval, error)
+	// ComputeConfidenceIntervalInt64 computes a confidence interval that contains the raw integer value x from which int64
+	// noisedX is computed with a probability greater or equal to 1 - alpha based on the specified noise parameters.
+	ComputeConfidenceIntervalInt64(noisedX, l0Sensitivity, lInfSensitivity int64, epsilon, delta, alpha float64) (ConfidenceInterval, error)
 
-	// confidenceIntervalFloat64 will return a ConfidenceInterval struct with the given
-	// confidenceLevel, using the float64 noisedValue, l0Sensitivity int64 and lInfSensitivity,
-	// epsilon, delta float64 for the distribution.
-	computeConfidenceIntervalFloat64(noisedValue float64, l0Sensitivity int64, lInfSensitivity, epsilon, delta, confidenceLevel float64) (ConfidenceInterval, error)
+	// ComputeConfidenceIntervalFloat64 computes a confidence interval that contains the raw value x from which float64
+	// noisedX is computed with a probability equal to 1 - alpha based on the specified noise parameters.
+	ComputeConfidenceIntervalFloat64(noisedX float64, l0Sensitivity int64, lInfSensitivity, epsilon, delta, alpha float64) (ConfidenceInterval, error)
 }
