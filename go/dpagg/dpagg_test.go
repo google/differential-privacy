@@ -27,9 +27,10 @@ import (
 // This file contains structs, functions, and values used to test DP aggregations.
 
 var (
-	ln3     = math.Log(3)
-	tenten  = math.Pow10(-10)
-	tenfive = math.Pow10(-5)
+	ln3        = math.Log(3)
+	tenten     = math.Pow10(-10)
+	tenfive    = math.Pow10(-5)
+	alphaLevel = 0.05
 )
 
 // noNoise is a Noise instance that doesn't add noise to the data, and has a
@@ -52,4 +53,37 @@ func ApproxEqual(x, y float64) bool {
 
 func (noNoise) Threshold(_ int64, _, _, _, _ float64) float64 {
 	return 5
+}
+
+func (nN noNoise) ComputeConfidenceIntervalInt64(noisedX, l0, lInf int64, eps, del, alpha float64) (noise.ConfidenceInterval, error) {
+	confInt, err := nN.Noise.ComputeConfidenceIntervalInt64(noisedX, l0, lInf, eps, del, alpha)
+	return confInt, err
+}
+
+func (nN noNoise) ComputeConfidenceIntervalFloat64(noisedX float64, l0 int64, lInf, eps, del, alpha float64) (noise.ConfidenceInterval, error) {
+	confInt, err := nN.Noise.ComputeConfidenceIntervalFloat64(noisedX, l0, lInf, eps, del, alpha)
+	return confInt, err
+}
+
+func getNoiselessConfInt(noise noise.Noise) noise.Noise {
+	return noNoise{noise}
+}
+
+// mockConfInt is a Noise instance that returns an already set confidence interval.
+// Useful in testing post-processing in confidence intervals.
+type mockConfInt struct {
+	noNoise
+	confInt noise.ConfidenceInterval
+}
+
+func (mCI mockConfInt) ComputeConfidenceIntervalInt64(_, _, _ int64, _, _, _ float64) (noise.ConfidenceInterval, error) {
+	return mCI.confInt, nil
+}
+
+func (mCI mockConfInt) ComputeConfidenceIntervalFloat64(_ float64, _ int64, _, _, _, _ float64) (noise.ConfidenceInterval, error) {
+	return mCI.confInt, nil
+}
+
+func getMockConfInt(confInt noise.ConfidenceInterval) noise.Noise {
+	return mockConfInt{confInt: confInt}
 }
