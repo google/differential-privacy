@@ -46,10 +46,10 @@ namespace differential_privacy {
 
 namespace testing {
 
-// Creates samples of data pairs using the Count algorithm. Each data pair
-// and its associated input parameters replicates a scenario constructed in 
-// the [textproto](https://github.com/google/differential-privacy/blob/main/proto/testing/count_dp_test_cases.textproto)
-// for CountDpTest.java.
+// Creates pairs of samples of differentially private counts. 
+// Each sample-pair replicates a unique scenario constructed in the proto for
+// CountDpTest.java, available here:
+// https://github.com/google/differential-privacy/blob/main/proto/testing/count_dp_test_cases.textproto.
 extern const std::string folder_name;
 
 // Construct Count algorithm.
@@ -57,15 +57,14 @@ int64_t CountAlgorithm(const std::vector<int>& values, double epsilon,
   int max_partitions);
 
 // Creates a folder to contain all samples with a particular ratio value
-// (e.g., R95). Every folder contains 10 subfolders for each distinct data pair.
-// Every subfolder contains seven iterations of each data pair.
+// (e.g., R95). Every folder contains 10 subfolders for each unique sample-pair.
+// Every subfolder contains seven runs of each sample-pair (14 files in total).
 void CreateSingleScenario(int scenario, double true_value, int number_of_samples,
   int increment, int max_partitions, double epsilon, double ratio);
 
-// Run each data pair to mirror parameters specified in the [textproto](https://github.com/google/differential-privacy/blob/main/proto/testing/count_dp_test_cases.textproto)
-// for CountDpTest.java.
+// Runs each sample-pair with parameters that replicate those specified in:
+// https://github.com/google/differential-privacy/blob/main/proto/testing/count_dp_test_cases.textproto
 void GenerateAllScenarios(double ratio); 
-
 } // testing
 } // differential_privacy
 

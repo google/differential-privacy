@@ -40,10 +40,10 @@
 #include "proto/data.pb.h"
 #include "testing/sequence.h"
 
-// Creates samples of data pairs using the BoundedSum algorithm. Each data pair
-// and its associated input parameters replicates a scenario constructed in 
-// the [textproto](https://github.com/google/differential-privacy/blob/main/proto/testing/bounded_sum_dp_test_cases.textproto)
-// for BoundedSumDpTest.java.
+// Creates pairs of samples of differentially private sums. 
+// Each sample-pair replicates a unique scenario constructed in the proto for
+// BoundedSumDpTest.java, available here:
+// https://github.com/google/differential-privacy/blob/main/proto/testing/bounded_sum_dp_test_cases.textproto.
 
 namespace differential_privacy {
 
@@ -92,22 +92,17 @@ double BoundedSumAlgorithm(std::vector<double> values, double granularity,
 }
 
 // Creates a folder to contain all samples with a particular ratio value
-// (e.g., R95). Every folder contains 17 subfolders for each distinct data pair.
-// Every subfolder contains seven iterations of each data pair.
-
+// (e.g., R95). Every folder contains 17 subfolders for each unique sample-pair.
+// Every subfolder contains seven runs of each sample-pair (14 files in total).
 void CreateSingleScenario(int scenario, std::vector<double> values,
   double granularity, double epsilon, int max_partitions,
 	int lower, int upper, int number_of_samples, int increment, double ratio) { 
   std::vector<double> neighbor_values = values;
   neighbor_values.push_back(increment);
   double implemented_epsilon = epsilon / ratio;
-
   std::string filepath = folder_name+"/R"
     +std::to_string(static_cast<int>(ratio*100))+"/Scenario"+std::to_string(scenario);
   mkdir(filepath.c_str(), 0777);
-
-// For each sample, run BoundedSumAlgorithm 1M times. Run each sample seven times. 
-// Generates 14 files (seven pairs of files) with each run.
   for (int i=0; i<7; i++) {
     std::ofstream samplefileA;
     std::ofstream samplefileB;

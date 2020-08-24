@@ -44,13 +44,10 @@ namespace differential_privacy {
 
 namespace testing {
 
-/** Creates samples of data pairs using the Count algorithm. Each data pair
-and its associated input parameters replicates a scenario constructed in 
-the 
-* @see [textproto](https://github.com/google/differential-privacy/blob/main/proto/testing/count_dp_test_cases.textproto)
-for CountDpTest.java.
-*/
-
+// Creates pairs of samples of differentially private counts. 
+// Each sample-pair replicates a unique scenario constructed in the proto for
+// CountDpTest.java, available here:
+// https://github.com/google/differential-privacy/blob/main/proto/testing/count_dp_test_cases.textproto.
 const std::string folder_name = "CountSamples";
 
 // Construct Count algorithm.
@@ -67,22 +64,18 @@ int64_t CountAlgorithm(const std::vector<int>& values, double epsilon,
 }
 
 // Creates a folder to contain all samples with a particular ratio value
-// (e.g., R95). Every folder contains 10 subfolders for each distinct data pair.
-// Every subfolder contains seven iterations of each data pair.
-
+// (e.g., R95). Every folder contains 10 subfolders for each unique sample-pair.
+// Every subfolder contains seven runs of each sample-pair (14 files in total).
 void CreateSingleScenario(int scenario, double true_value, int number_of_samples,
   int increment, int max_partitions, double epsilon, double ratio) { 
   double neighbor_value = true_value + increment;
   double implemented_epsilon = epsilon / ratio;
-
 // Create pairs of vectors with arbitrary value of 100.
   std::vector<int> sampleA(true_value,100);
   std::vector<int> sampleB(neighbor_value,100);
   std::string filepath = folder_name+"/R"
     +std::to_string(static_cast<int>(ratio*100))+"/Scenario"+std::to_string(scenario);
   mkdir(filepath.c_str(), 0777);
-// For each sample, run CountAlgorithm 1M times. Run each sample seven times. 
-// Generates 14 files (seven pairs of files) with each run.
   for (int i=0; i<7; i++) {
     std::ofstream samplefileA;
     std::ofstream samplefileB;
@@ -99,9 +92,8 @@ void CreateSingleScenario(int scenario, double true_value, int number_of_samples
   }
 }
 
-// Run each data pair to mirror parameters specified in the [textproto](https://github.com/google/differential-privacy/blob/main/proto/testing/count_dp_test_cases.textproto)
-// for CountDpTest.java.
-
+// Runs each sample-pair with parameters that replicate those specified in:
+// https://github.com/google/differential-privacy/blob/main/proto/testing/count_dp_test_cases.textproto
 void GenerateAllScenarios(double ratio) {
   const int num_of_samples = 1000000;
   double small_epsilon = 0.01;
@@ -147,16 +139,14 @@ void GenerateAllScenarios(double ratio) {
 // Laplace noise, small count, large epsilon
   differential_privacy::testing::CreateSingleScenario(10,28,num_of_samples,1,1,
     large_epsilon,ratio);
-
   }
 } // testing
 } // differential_privacy
 
 int main(int argc, char** argv) {
-// Create folder to hold the samples.
+// Creates folder to hold all samples.
   mkdir(differential_privacy::testing::folder_name.c_str(), 0777);
   for (int i = 80; i <= 99; i++) {
-    std::cout << i << std::endl;
     std::string filepath = differential_privacy::testing::folder_name
       +"/R"+std::to_string(i);
     mkdir(filepath.c_str(), 0777);

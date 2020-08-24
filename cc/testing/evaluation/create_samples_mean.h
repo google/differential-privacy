@@ -13,10 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef CREATE_SAMPLES_SUM_H_
-#define CREATE_SAMPLES_SUM_H_
+#ifndef CREATE_SAMPLES_MEAN_H_
+#define CREATE_SAMPLES_MEAN_H_
 
-#include "algorithms/bounded-sum.h"
+#include "algorithms/bounded-mean.h"
 
 #include <chrono>
 #include <cstdlib>
@@ -35,7 +35,8 @@
 #include "absl/memory/memory.h"
 
 #include "algorithms/algorithm.h"
-#include "algorithms/bounded-mean.h"
+#include "algorithms/bounded-sum.h"
+#include "algorithms/count.h"
 #include "algorithms/numerical-mechanisms.h"
 #include "algorithms/numerical-mechanisms-testing.h"
 #include "algorithms/util.h"
@@ -47,28 +48,36 @@ namespace differential_privacy {
 
 namespace testing {
 
-// Creates pairs of samples of differentially private sums. 
+// Creates pairs of samples of differentially private means. 
 // Each sample-pair replicates a unique scenario constructed in the proto for
-// BoundedSumDpTest.java, available here:
-// https://github.com/google/differential-privacy/blob/main/proto/testing/bounded_sum_dp_test_cases.textproto.
+// BoundedMeanDpTest.java, available here:
+// https://github.com/google/differential-privacy/blob/main/proto/testing/bounded_mean_dp_test_cases.textproto.
 	
 extern const std::string folder_name;
 
-// Construct BoundedSum algorithm.
-double BoundedSumAlgorithm(std::vector<double> values, double granularity,
-  double epsilon, int max_partitions, int lower, int upper);
+// Construct BoundedMean algorithm.
+double BoundedMeanAlgorithm(std::vector<double> values, double granularity,
+  double epsilon, int max_partitions, int max_contributions, int lower, int upper);
+
+// Construct the BoundedMean algorithm for large values.
+double LargeBoundedMeanAlgorithm(double initial_value, double extra_values_length, 
+  double extra_value, double granularity, double epsilon, int max_partitions,
+  int max_contributions, int lower, int upper);
 
 // Creates a folder to contain all samples with a particular ratio value
-// (e.g., R95). Every folder contains 17 subfolders for each unique sample-pair.
+// (e.g., R95). Every folder contains 22 subfolders for each unique sample-pair.
 // Every subfolder contains seven runs of each sample-pair (14 files in total).
-void CreateSingleScenario(int scenario, double true_value, int number_of_samples,
-  int increment, int max_partitions, double epsilon, double ratio);
+void CreateSingleScenario(int scenario, std::vector<double>valuesA,
+  std::vector<double>valuesB, double granularity, double epsilon,
+  int max_partitions, int max_contributions, int lower, int upper,
+  int number_of_samples, double ratio, double initial_value = 0,
+  double extra_values_length = 0, double extra_value = 0);
 
 // Runs each sample-pair with parameters that replicate those specified in:
-// https://github.com/google/differential-privacy/blob/main/proto/testing/bounded_sum_dp_test_cases.textproto.
+// https://github.com/google/differential-privacy/blob/main/proto/testing/bounded_mean_dp_test_cases.textproto.
 void GenerateAllScenarios(double ratio); 
 
 } // testing
 } // differential_privacy
 
-#endif  // CREATE_SAMPLES_SUM_H_
+#endif  // CREATE_SAMPLES_MEAN_H_
