@@ -69,8 +69,13 @@ func getNoiselessConfInt(noise noise.Noise) noise.Noise {
 	return noNoise{noise}
 }
 
+<<<<<<< HEAD
 // mockConfInt is a Noise instance that returns a pre-set confidence interval.
 // Useful for testing post-processing in confidence intervals.
+=======
+// mockConfInt is a Noise instance that returns an already set confidence interval.
+// Useful in testing post-processing in confidence intervals.
+>>>>>>> Go: Add Confidence Intervals for BoundedSum aggregation.
 type mockConfInt struct {
 	noNoise
 	confInt noise.ConfidenceInterval

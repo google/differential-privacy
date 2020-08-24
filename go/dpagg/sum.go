@@ -58,6 +58,7 @@ type BoundedSumInt64 struct {
 	// State variables
 	sum            int64
 	resultReturned bool // whether the result has already been returned
+	noisedSum      int64
 }
 
 func bsEquallyInitializedint64(s1, s2 *BoundedSumInt64) bool {
@@ -232,7 +233,8 @@ func (bs *BoundedSumInt64) Result() int64 {
 		log.Fatalf("The sum has already been calculated and returned. It can only be returned once.")
 	}
 	bs.resultReturned = true
-	return bs.noise.AddNoiseInt64(bs.sum, bs.l0Sensitivity, bs.lInfSensitivity, bs.epsilon, bs.delta)
+	bs.noisedSum = bs.noise.AddNoiseInt64(bs.sum, bs.l0Sensitivity, bs.lInfSensitivity, bs.epsilon, bs.delta)
+	return bs.noisedSum
 }
 
 // ThresholdedResult is similar to Result() but applies thresholding to the
@@ -247,6 +249,27 @@ func (bs *BoundedSumInt64) ThresholdedResult(thresholdDelta float64) *int64 {
 		return nil
 	}
 	return &result
+}
+
+// ComputeConfidenceInterval computes a confidence interval with integer bounds that contains the true sum with
+// a probability greater or equal to 1 - alpha using the noised sum computed by Result().
+func (bs *BoundedSumInt64) ComputeConfidenceInterval(alpha float64) (noise.ConfidenceInterval, error) {
+	if !bs.resultReturned {
+		return noise.ConfidenceInterval{}, fmt.Errorf("Noised sum has not been computed yet")
+	}
+	confInt, err := bs.noise.ComputeConfidenceIntervalInt64(bs.noisedSum, bs.l0Sensitivity, bs.lInfSensitivity, bs.epsilon, bs.delta, alpha)
+	if err != nil {
+		return noise.ConfidenceInterval{}, err
+	}
+	// If lower and upper bounds are non-negative, trim any negative interval.
+	if bs.lower >= 0 && bs.upper >= 0 {
+		confInt.LowerBound, confInt.UpperBound = math.Max(0, confInt.LowerBound), math.Max(0, confInt.UpperBound)
+	}
+	// Similarly, if lower and upper bounds are non-positive, trim any positive interval.
+	if bs.lower <= 0 && bs.upper <= 0 {
+		confInt.LowerBound, confInt.UpperBound = math.Min(0, confInt.LowerBound), math.Min(0, confInt.UpperBound)
+	}
+	return confInt, nil
 }
 
 // encodableBoundedSumFloat64 can be encoded by the gob package.
@@ -331,6 +354,7 @@ type BoundedSumFloat64 struct {
 	// State variables
 	sum            float64
 	resultReturned bool // whether the result has already been returned
+	noisedSum      float64
 }
 
 func bsEquallyInitializedFloat64(s1, s2 *BoundedSumFloat64) bool {
@@ -502,7 +526,8 @@ func (bs *BoundedSumFloat64) Result() float64 {
 		log.Fatalf("The sum has already been calculated and returned. It can only be returned once.")
 	}
 	bs.resultReturned = true
-	return bs.noise.AddNoiseFloat64(bs.sum, bs.l0Sensitivity, bs.lInfSensitivity, bs.epsilon, bs.delta)
+	bs.noisedSum = bs.noise.AddNoiseFloat64(bs.sum, bs.l0Sensitivity, bs.lInfSensitivity, bs.epsilon, bs.delta)
+	return bs.noisedSum
 }
 
 // ThresholdedResult is similar to Result() but applies thresholding to the
@@ -515,6 +540,27 @@ func (bs *BoundedSumFloat64) ThresholdedResult(thresholdDela float64) *float64 {
 		return nil
 	}
 	return &result
+}
+
+// ComputeConfidenceInterval computes a confidence interval that contains the true sum with
+// a probability equal to 1 - alpha using the noised sum computed by Result().
+func (bs *BoundedSumFloat64) ComputeConfidenceInterval(alpha float64) (noise.ConfidenceInterval, error) {
+	if !bs.resultReturned {
+		return noise.ConfidenceInterval{}, fmt.Errorf("Noised sum has not been computed yet")
+	}
+	confInt, err := bs.noise.ComputeConfidenceIntervalFloat64(bs.noisedSum, bs.l0Sensitivity, bs.lInfSensitivity, bs.epsilon, bs.delta, alpha)
+	if err != nil {
+		return noise.ConfidenceInterval{}, err
+	}
+	// If lower and upper bounds are non-negative, trim any negative interval.
+	if bs.lower >= 0 && bs.upper >= 0 {
+		confInt.LowerBound, confInt.UpperBound = math.Max(0, confInt.LowerBound), math.Max(0, confInt.UpperBound)
+	}
+	// Similarly if lower and upper bounds are non-positive, trim any positive interval.
+	if bs.lower <= 0 && bs.upper <= 0 {
+		confInt.LowerBound, confInt.UpperBound = math.Min(0, confInt.LowerBound), math.Min(0, confInt.UpperBound)
+	}
+	return confInt, nil
 }
 
 // encodableBoundedSumFloat64 can be encoded by the gob package.
