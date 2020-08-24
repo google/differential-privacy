@@ -6,7 +6,7 @@ This evaluation framework assesses and compares the effectiveness of two testing
 
 Under typical circumstances, the epsilon parameter in a differentially private algorithm determines the amount of noise applied to the data. Smaller epsilon values result in more noise, which leads to greater privacy protection. This same epsilon value is also used by both testing tools to evaluate if a given algorithm violates the mathematical premise of differential privacy.
 
-The following framework operates by deliberately constructing algorithms that *violate* differential privacy. This allows users to measure and compare each Testers' ability to identify known violations.
+The following framework works by constructing algorithms that *deliberately violate* differential privacy. This allows users to measure and compare each Testers' ability to identify known violations.
 
 We employ an approach we will call the `insufficient_noise` test to construct differential privacy-violating algorithms. For all algorithms with `insufficient_noise`, the `advertised_epsilon`, or the epsilon value used to evaluate the algorithm for differential privacy violations, *is always less than* the `implemented_epsilon`, or the actual amount of noise applied to the algorithm. This deliberate mismatch ensures that the algorithm will *always* violate differential privacy, because it is always claiming to have more privacy protection than the true amount of noise applied to the data.
 
