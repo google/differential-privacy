@@ -14,7 +14,7 @@
 # limitations under the License.
 
 package(default_visibility = [
-    "//visibility:public"
+    "//visibility:public",
 ])
 
 java_library(

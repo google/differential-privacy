@@ -14,14 +14,14 @@
 # limitations under the License.
 
 package(default_visibility = [
-    "//visibility:public"
+    "//visibility:public",
 ])
 
 java_plugin(
     name = "autovalue_plugin",
     processor_class = "com.google.auto.value.processor.AutoValueProcessor",
     deps = [
-        "@maven//:com_google_auto_value_auto_value"
+        "@maven//:com_google_auto_value_auto_value",
     ],
 )
 
@@ -41,9 +41,9 @@ java_binary(
     main_class = "com.google.privacy.differentialprivacy.example.Main",
     resources = glob(["*.csv"]),
     deps = [
-               ":autovalue",
-               "@com_google_java_differential_privacy//main/com/google/privacy/differentialprivacy",
-               "@maven//:com_google_auto_value_auto_value_annotations",
-               "@maven//:com_google_guava_guava",
+        ":autovalue",
+        "@com_google_java_differential_privacy//main/com/google/privacy/differentialprivacy",
+        "@maven//:com_google_auto_value_auto_value_annotations",
+        "@maven//:com_google_guava_guava",
     ],
 )

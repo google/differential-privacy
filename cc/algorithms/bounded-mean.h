@@ -120,6 +120,8 @@ class BoundedMean : public Algorithm<T> {
   };
 
   void AddEntry(const T& t) override {
+    // REF:
+    // https://stackoverflow.com/questions/61646166/how-to-resolve-fpclassify-ambiguous-call-to-overloaded-function
     if (std::isnan(static_cast<double>(t))) {
       return;
     }

@@ -491,7 +491,6 @@ func TestInverseCDFGaussian(t *testing.T) {
 		Zc := inverseCDFGaussian(tc.sigma, tc.p)
 		if !(approxEqual(Zc, tc.want)) {
 			t.Errorf(" TestInverseCDFGaussian(%f, %f) = %0.16f, want %0.16f, desc: %s", tc.sigma, tc.p, Zc, tc.want, tc.desc)
-
 		}
 	}
 }
@@ -558,7 +557,6 @@ func TestComputeConfidenceIntervalGaussian(t *testing.T) {
 				tc.noisedX, tc.alpha, tc.sigma, result.UpperBound, tc.want.UpperBound, tc.desc)
 		}
 	}
-
 }
 
 func TestComputeConfidenceIntervalInt64Gaussian(t *testing.T) {

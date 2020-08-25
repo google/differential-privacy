@@ -14,14 +14,14 @@
 # limitations under the License.
 
 package(default_visibility = [
-    "//visibility:public"
+    "//visibility:public",
 ])
 
 java_plugin(
     name = "autovalue_plugin",
     processor_class = "com.google.auto.value.processor.AutoValueProcessor",
     deps = [
-        "@maven//:com_google_auto_value_auto_value"
+        "@maven//:com_google_auto_value_auto_value",
     ],
 )
 
@@ -44,13 +44,13 @@ java_test(
     ),
     test_class = "com.google.privacy.differentialprivacy.AllTests",
     deps = [
-               ":autovalue",
-               "//main/com/google/privacy/differentialprivacy",
-               "@com_google_differential_privacy//proto:summary_java_proto",
-               "@maven//:com_google_guava_guava",
-               "@maven//:com_google_truth_truth",
-               "@maven//:junit_junit",
-               "@maven//:org_mockito_mockito_core",
-               "@maven//:com_google_protobuf_protobuf_java",
+        ":autovalue",
+        "//main/com/google/privacy/differentialprivacy",
+        "@com_google_differential_privacy//proto:summary_java_proto",
+        "@maven//:com_google_guava_guava",
+        "@maven//:com_google_protobuf_protobuf_java",
+        "@maven//:com_google_truth_truth",
+        "@maven//:junit_junit",
+        "@maven//:org_mockito_mockito_core",
     ],
 )

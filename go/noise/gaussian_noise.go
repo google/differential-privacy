@@ -147,7 +147,6 @@ func (gaussian) ComputeConfidenceIntervalFloat64(noisedX float64, l0Sensitivity 
 	return computeConfidenceIntervalGaussian(noisedX, sigma, alpha), nil
 }
 
-// checkArgsGaussian checks the parameters for gaussian confidence interval.
 func checkArgsGaussian(label string, l0Sensitivity int64, lInfSensitivity, epsilon, delta float64) error {
 	if err := checks.CheckL0Sensitivity(label, l0Sensitivity); err != nil {
 		return err

@@ -69,7 +69,6 @@ cc_test(
     }),
     shard_count = 16,
     deps = [
-        "@com_google_googletest//:gtest_main",
         ":approx-bounds",
         ":bounded-mean",
         ":bounded-standard-deviation",
@@ -79,6 +78,7 @@ cc_test(
         ":numerical-mechanisms-testing",
         ":order-statistics",
         ":util",
+        "@com_google_googletest//:gtest_main",
         "//testing:sequence",
         "//testing:stochastic_tester",
     ],
@@ -94,8 +94,8 @@ cc_library(
     deps = [
         ":algorithm",
         ":numerical-mechanisms",
-        "//base:percentile",
         "//base:status",
+        "//base:percentile",
         "//proto:util-lib",
         "@com_google_protobuf//:cc_wkt_protos",
     ],
@@ -133,8 +133,8 @@ cc_library(
         ":binary-search",
         ":bounded-algorithm",
         ":numerical-mechanisms",
-        "//base:percentile",
         "//base:status",
+        "//base:percentile",
     ],
 )
 
