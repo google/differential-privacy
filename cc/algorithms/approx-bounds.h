@@ -187,7 +187,7 @@ class ApproxBounds : public Algorithm<T> {
   };
 
   void AddEntry(const T& input) override {
-    if (std::isnan(input)) {
+    if (std::isnan(static_cast<double>(input))) { // REF: https://stackoverflow.com/questions/61646166/how-to-resolve-fpclassify-ambiguous-call-to-overloaded-function
       return;
     }
 
@@ -262,6 +262,10 @@ class ApproxBounds : public Algorithm<T> {
     if (value == 0) {
       return 0;
     }
+
+    // Clamp infinities to highest and lowest value.
+    value = Clamp(std::numeric_limits<T>::lowest(),
+                  std::numeric_limits<T>::max(), value);
 
     // Sometimes the minimum numeric limit has greater magnitude than the
     // maximum. In this case clamp its magnitude at the maximum numeric limit to
@@ -538,7 +542,7 @@ class ApproxBounds : public Algorithm<T> {
     for (int i = 0; i < bins.size(); ++i) {
       double noised_dbl =
           mechanism_->AddNoise(static_cast<double>(bins[i]), privacy_budget);
-      noisy_bins[i] = SafeCastFromDouble<T>(noised_dbl);
+      SafeCastFromDouble<T>(noised_dbl, noisy_bins[i]);
     }
     return noisy_bins;
   }

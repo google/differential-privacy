@@ -150,7 +150,7 @@ class BoundedVariance : public Algorithm<T> {
 
   void AddEntry(const T& t) override {
     // Drop value if it is NaN.
-    if (std::isnan(t)) {
+    if (std::isnan(static_cast<double>(t))) {
       return;
     }
 
@@ -459,7 +459,7 @@ class BoundedVariance : public Algorithm<T> {
     return mechanism_builder->SetEpsilon(epsilon)
         .SetL0Sensitivity(l0_sensitivity)
         .SetLInfSensitivity(max_contributions_per_partition *
-                            static_cast<double>((upper - lower) / 2))
+                            static_cast<double>(upper - lower) / 2.0)
         .Build();
   }
 

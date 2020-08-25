@@ -17,6 +17,9 @@
 #ifndef DIFFERENTIAL_PRIVACY_ALGORITHMS_DISTRIBUTIONS_H_
 #define DIFFERENTIAL_PRIVACY_ALGORITHMS_DISTRIBUTIONS_H_
 
+#include <memory>
+
+#include <cstdint>
 #include "base/statusor.h"
 
 namespace differential_privacy {
@@ -44,7 +47,10 @@ class GaussianDistribution {
   // Returns the standard deviation of this distribution.
   double Stddev();
 
-  double GetGranularity();
+  // Returns the granularity that is also used when calculating Sample(). Be
+  // careful when using GetGranularity() together with Sample() and make sure to
+  // use the same parameter for scale in such cases.
+  double GetGranularity(double scale) const;
 
  private:
   // Sample from geometric distribution with probability 0.5. It is much faster
@@ -53,7 +59,6 @@ class GaussianDistribution {
   double SampleBinomial(double sqrt_n);
 
   double stddev_;
-  double granularity_;
 };
 
 // Returns a sample drawn from the geometric distribution of probability

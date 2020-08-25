@@ -23,11 +23,20 @@ package(
     ],
 )
 
+config_setting(
+    name = "windows",
+    values = {"cpu": "x64_windows"},
+    visibility = ["//visibility:public"],
+)
+
 cc_library(
     name = "proto_matchers",
     testonly = 1,
     hdrs = ["proto_matchers.h"],
-    copts = ["-Wno-sign-compare"],
+    copts = select({
+        ":windows": [],
+        "//conditions:default": ["-Wno-sign-compare"],
+    }),
     deps = [
         "@com_google_googletest//:gtest_main",
         "@com_google_absl//absl/strings",
@@ -40,7 +49,10 @@ cc_library(
     testonly = 1,
     srcs = ["status_matchers.cc"],
     hdrs = ["status_matchers.h"],
-    copts = ["-Wno-sign-compare"],
+    copts = select({
+        ":windows": [],
+        "//conditions:default": ["-Wno-sign-compare"],
+    }),
     deps = [
         "@com_google_googletest//:gtest",
         "//base:status",
@@ -53,7 +65,10 @@ cc_test(
     name = "status_matchers_test",
     size = "small",
     srcs = ["status_matchers_test.cc"],
-    copts = ["-Wno-sign-compare"],
+    copts = select({
+        ":windows": [],
+        "//conditions:default": ["-Wno-sign-compare"],
+    }),
     deps = [
         ":status_matchers",
         "@com_google_googletest//:gtest_main",

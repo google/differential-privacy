@@ -23,6 +23,7 @@
 #include "base/testing/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "base/statusor.h"
 
 namespace differential_privacy {
 namespace {

@@ -29,6 +29,7 @@ py_library(
     srcs = [
         "privacy_loss_distribution.py",
     ],
+    srcs_version = "PY3",
     deps = [
         requirement("numpy"),
         requirement("scipy"),

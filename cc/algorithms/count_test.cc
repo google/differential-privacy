@@ -23,6 +23,7 @@
 #include "base/testing/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "base/statusor.h"
 #include "algorithms/numerical-mechanisms-testing.h"
 #include "proto/data.pb.h"
 #include "proto/summary.pb.h"

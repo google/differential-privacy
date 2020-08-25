@@ -16,11 +16,18 @@
 package(
     default_visibility = ["//visibility:public"],
 )
+config_setting(
+    name = "windows",
+    values = {"cpu": "x64_windows"},
+)
 
 cc_library(
     name = "sequence",
     hdrs = ["sequence.h"],
-    copts = ["-Wno-sign-compare"],
+    copts = select({
+        ":windows": [],
+        "//conditions:default": ["-Wno-sign-compare"],
+    }),
     deps = [
         "//base:logging",
         "@com_google_absl//absl/memory",
@@ -32,7 +39,10 @@ cc_test(
     name = "sequence_test",
     size = "small",
     srcs = ["sequence_test.cc"],
-    copts = ["-Wno-sign-compare"],
+    copts = select({
+        ":windows": [],
+        "//conditions:default": ["-Wno-sign-compare"],
+    }),
     deps = [
         ":sequence",
         "@com_google_googletest//:gtest_main",
@@ -44,7 +54,10 @@ cc_test(
 cc_library(
     name = "stochastic_tester",
     hdrs = ["stochastic_tester.h"],
-    copts = ["-Wno-sign-compare"],
+    copts = select({
+        ":windows": [],
+        "//conditions:default": ["-Wno-sign-compare"],
+    }),
     deps = [
         ":density_estimation",
         ":sequence",
@@ -61,7 +74,10 @@ cc_library(
 cc_library(
     name = "density_estimation",
     hdrs = ["density_estimation.h"],
-    copts = ["-Wno-sign-compare"],
+    copts = select({
+        ":windows": [],
+        "//conditions:default": ["-Wno-sign-compare"],
+    }),
     deps = [
         "//base:status",
         "//base:statusor",
@@ -75,11 +91,15 @@ cc_test(
     size = "small",
     timeout = "long",
     srcs = ["stochastic_tester_test.cc"],
-    copts = ["-Wno-sign-compare"],
+    copts = select({
+        ":windows": [],
+        "//conditions:default": ["-Wno-sign-compare"],
+    }),
     shard_count = 10,
     deps = [
         ":sequence",
         ":stochastic_tester",
+        "//base:statusor",
         "@com_google_googletest//:gtest_main",
         "//algorithms:algorithm",
         "//algorithms:bounded-sum",
@@ -94,7 +114,10 @@ cc_test(
 cc_test(
     name = "density_estimation_test",
     srcs = ["density_estimation_test.cc"],
-    copts = ["-Wno-sign-compare"],
+    copts = select({
+        ":windows": [],
+        "//conditions:default": ["-Wno-sign-compare"],
+    }),
     deps = [
         ":density_estimation",
         "//base:status",

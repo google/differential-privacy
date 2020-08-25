@@ -16,9 +16,11 @@
 #include "algorithms/distributions.h"
 
 #include <cmath>
+#include <limits>
 
 #include "absl/memory/memory.h"
 #include "absl/random/random.h"
+#include "base/statusor.h"
 #include "absl/strings/string_view.h"
 #include "algorithms/rand.h"
 #include "algorithms/util.h"
@@ -52,9 +54,7 @@ double ApproximateBinomialProbability(double sqrt_n, int64_t m) {
 
 }  // namespace
 
-GaussianDistribution::GaussianDistribution(double stddev)
-    : stddev_(stddev),
-      granularity_(GetNextPowerOfTwo(2 * stddev / kBinomialBound)) {
+GaussianDistribution::GaussianDistribution(double stddev) : stddev_(stddev) {
   DCHECK_GE(stddev, 0.0);
 }
 
@@ -62,20 +62,24 @@ double GaussianDistribution::Sample(double scale) {
   DCHECK_GT(scale, 0);
   // TODO: make graceful behaviour when sigma is too big.
   double sigma = scale * stddev_;
+  double granularity = GetGranularity(scale);
 
   // The square root of n is chosen in a way that ensures that the respective
   // binomial distribution approximates a Gaussian distribution close enough.
   // The sqrt(n) is taken instead of n, to ensure that all results of arithmetic
   // operations fit in 64 bit integer range.
-  double sqrt_n = 2.0 * sigma / granularity_;
-  return SampleBinomial(sqrt_n) * granularity_;
+  double sqrt_n = 2.0 * sigma / granularity;
+  return SampleBinomial(sqrt_n) * granularity;
 }
 
 double GaussianDistribution::Sample() { return Sample(1.0); }
 
 double GaussianDistribution::Stddev() { return stddev_; }
 
-double GaussianDistribution::GetGranularity() { return granularity_; }
+double GaussianDistribution::GetGranularity(double scale) const {
+  double sigma = scale * stddev_;
+  return GetNextPowerOfTwo(2 * sigma / kBinomialBound);
+}
 
 GeometricDistribution::GeometricDistribution(double lambda) : lambda_(lambda) {
   DCHECK_GE(lambda, 0);

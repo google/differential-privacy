@@ -1,3 +1,4 @@
+//
 // Copyright 2020 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,6 +12,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+//
 
 package pbeam
 
@@ -66,24 +68,24 @@ func TestSumPerKeyNoNoiseInt(t *testing.T) {
 // Checks that SumPerKey with partitions returns a correct answer with int values.
 func TestSumPerKeyWithPartitionsNoNoiseInt(t *testing.T) {
 	for _, tc := range []struct {
-		lower float64
-		upper float64
+		lower           float64
+		upper           float64
 		lInfSensitivity float64
 	}{
 		// Used for MinValue and MaxValue. Tests case when specified partitions are already in the data.
 		{
-			lower: 1.0, 
-			upper: 3.0,
+			lower:           1.0,
+			upper:           3.0,
 			lInfSensitivity: 3.0,
 		},
 		{
-			lower: 0.0,
-			upper: 2.0,
+			lower:           0.0,
+			upper:           2.0,
 			lInfSensitivity: 2.0,
 		},
 		{
-			lower: -10.0,
-			upper: 10.0,
+			lower:           -10.0,
+			upper:           10.0,
 			lInfSensitivity: 10.0,
 		},
 	} {
@@ -98,7 +100,7 @@ func TestSumPerKeyWithPartitionsNoNoiseInt(t *testing.T) {
 			makeDummyTripleWithIntValue(1, 6),
 			makeDummyTripleWithIntValue(1, 7),
 			makeDummyTripleWithIntValue(1, 8),
-			makeDummyTripleWithIntValue(1, 9),)
+			makeDummyTripleWithIntValue(1, 9))
 
 		// Keep partitions 0 and 2.
 		// drop partition 6 to 9.
@@ -135,30 +137,30 @@ func TestSumPerKeyWithPartitionsNoNoiseInt(t *testing.T) {
 
 // Checks that SumPerKey works correctly for negative bounds and negative values with int values.
 func TestSumPerKeyNegativeBoundsInt(t *testing.T) {
-triples := concatenateTriplesWithIntValue(
-	makeTripleWithIntValue(58, 1, -1), // should be clamped down to -2
-	makeTripleWithIntValue(99, 2, -4)) // should be clamped up to -3
-result := []testInt64Metric{
-	{1, -116},
-	{2, -297},
-}
-p, s, col, want := ptest.CreateList2(triples, result)
-col = beam.ParDo(s, extractIDFromTripleWithIntValue, col)
+	triples := concatenateTriplesWithIntValue(
+		makeTripleWithIntValue(58, 1, -1), // should be clamped down to -2
+		makeTripleWithIntValue(99, 2, -4)) // should be clamped up to -3
+	result := []testInt64Metric{
+		{1, -116},
+		{2, -297},
+	}
+	p, s, col, want := ptest.CreateList2(triples, result)
+	col = beam.ParDo(s, extractIDFromTripleWithIntValue, col)
 
-// ε=50, δ=10⁻²⁰⁰ and l1Sensitivity=3 gives a threshold of ≈58.
-// We have 3 partitions. So, to get an overall flakiness of 10⁻²³,
-// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
-// To see the logic and the math behind flakiness and tolerance calculation,
-// See https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf.
-epsilon, delta, k, l1Sensitivity := 50.0, 1e-200, 25.0, 3.0
-pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
-pcol = ParDo(s, tripleWithIntValueToKV, pcol)
-got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 3, MinValue: -3, MaxValue: -2, NoiseKind: LaplaceNoise{}})
-want = beam.ParDo(s, int64MetricToKV, want)
-if err := approxEqualsKVInt64(s, got, want, laplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
+	// ε=50, δ=10⁻²⁰⁰ and l1Sensitivity=3 gives a threshold of ≈58.
+	// We have 3 partitions. So, to get an overall flakiness of 10⁻²³,
+	// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
+	// To see the logic and the math behind flakiness and tolerance calculation,
+	// See https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf.
+	epsilon, delta, k, l1Sensitivity := 50.0, 1e-200, 25.0, 3.0
+	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+	pcol = ParDo(s, tripleWithIntValueToKV, pcol)
+	got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 3, MinValue: -3, MaxValue: -2, NoiseKind: LaplaceNoise{}})
+	want = beam.ParDo(s, int64MetricToKV, want)
+	if err := approxEqualsKVInt64(s, got, want, laplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 		t.Fatalf("TestSumPerKeyNegativeBoundsInt: %v", err)
 	}
-if err := ptest.Run(p); err != nil {
+	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestSumPerKeyNegativeBoundsInt: SumPerKey(%v) = %v, expected %v: %v", col, got, want, err)
 	}
 }
@@ -192,7 +194,6 @@ func TestSumPerKeyWithPartitionsNegativeBoundsInt(t *testing.T) {
 		t.Errorf("TestSumPerKeyWithPartitionsNegativeBoundsInt: SumPerKey(%v) = %v, expected %v: %v", col, got, want, err)
 	}
 }
-
 
 // Checks that SumPerKey returns a correct answer with float values. The logic
 // mirrors TestDistinctPrivacyIDNoNoise, without duplicates.
@@ -228,24 +229,24 @@ func TestSumPerKeyNoNoiseFloat(t *testing.T) {
 // Checks that SumPerKey with partitions returns a correct answer with float values.
 func TestSumPerKeyWithPartitionsNoNoiseFloat(t *testing.T) {
 	for _, tc := range []struct {
-		lower float64
-		upper float64
+		lower           float64
+		upper           float64
 		lInfSensitivity float64
 	}{
 		// Used for MinValue and MaxValue. Tests case when specified partitions are already in the data.
 		{
-			lower: 0.0, 
-			upper: 1.0,
+			lower:           0.0,
+			upper:           1.0,
 			lInfSensitivity: 1.0,
 		},
 		{
-			lower: 3.0,
-			upper: 10.0,
+			lower:           3.0,
+			upper:           10.0,
 			lInfSensitivity: 10.0,
 		},
 		{
-			lower: -50.0,
-			upper: 50.0,
+			lower:           -50.0,
+			upper:           50.0,
 			lInfSensitivity: 50.0,
 		},
 	} {
@@ -254,7 +255,7 @@ func TestSumPerKeyWithPartitionsNoNoiseFloat(t *testing.T) {
 			makeDummyTripleWithFloatValue(58, 1),
 			makeDummyTripleWithFloatValue(99, 2))
 		for i := 5; i < 10; i++ {
-			triples = append(triples, makeDummyTripleWithFloatValue(1, i) ...)
+			triples = append(triples, makeDummyTripleWithFloatValue(1, i)...)
 		}
 		// Keep partitions 0, 3, and 5.
 		// Drop other partitions up to 10.
@@ -422,13 +423,13 @@ func TestSumPerKeyWithPartitionsAddsNoiseInt(t *testing.T) {
 		{
 			name:      "Gaussian",
 			noiseKind: GaussianNoise{},
-			epsilon:   1,    
-			delta:     0.005, 
+			epsilon:   1,
+			delta:     0.005,
 		},
 		{
 			name:      "Laplace",
 			noiseKind: LaplaceNoise{},
-			epsilon:   0.1, 
+			epsilon:   0.1,
 			delta:     0, // It is 0 because partitions are specified and we are using Laplace noise.
 		},
 	} {
@@ -967,7 +968,6 @@ func TestSumPerKeyWithPartitionsReturnsNonNegativeFloat64(t *testing.T) {
 		t.Errorf("TestSumPerKeyWithPartitionsReturnsNonNegativeFloat64 returned errors: %v", err)
 	}
 }
-
 
 // Expect non-negative results if MinValue >= 0 for int64 values.
 func TestSumPerKeyReturnsNonNegativeInt64(t *testing.T) {

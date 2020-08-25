@@ -241,6 +241,27 @@ TEST(ApproxBoundsTest, DropNanEntries) {
   EXPECT_EQ(result.elements(1).value().float_value(), 1);
 }
 
+TEST(ApproxBounds, HandleInfinityEntries) {
+  std::vector<double> a = {1, 1, 1, INFINITY, INFINITY};
+  const double bins = 13;
+  const double base = 2;
+  const double scale = 7;
+  std::unique_ptr<ApproxBounds<double>> bounds =
+      ApproxBounds<double>::Builder()
+          .SetNumBins(bins)
+          .SetBase(base)
+          .SetScale(scale)
+          .SetThreshold(2)
+          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .Build()
+          .ValueOrDie();
+  bounds->AddEntries(a.begin(), a.end());
+  auto result = bounds->PartialResult().ValueOrDie();
+  EXPECT_EQ(result.elements(0).value().float_value(), 0);
+  const double max_result = scale * std::pow(base, bins - 1);
+  EXPECT_EQ(result.elements(1).value().float_value(), max_result);
+}
+
 TEST(ApproxBoundsTest, NumPositiveBins) {
   std::unique_ptr<ApproxBounds<double>> bounds = ApproxBounds<double>::Builder()
                                                      .SetNumBins(2)

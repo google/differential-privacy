@@ -40,6 +40,14 @@ frameworks.
 * **Fine building blocks over large aggregates:** one should be able to
 use sub-operations like noise generation and bounds approximation separately
 from aggregation functions.
+* **Unbiasedness:** aggregations should be unbiased if possible. In particular,
+we prefer unbiased aggregations over aggregations that post process results for
+consistency reasons (e.g. we do not clipp negative count values to 0 as this
+would introduce bias). However, we may use biased aggregations if an unbiased
+solution is not known, provides inferior utility, does not support distributed
+computation or is significantly more complex to understand/implement/maintain.
+The library should clearly indicate which aggregations are unbiased and test for
+this property.
 * **Robust Testing:** each feature must come with a full set of unit tests, and
 the privacy guarantees must be tested end-to-end.
 * Markdown is preferred for explaining complex concepts and math over lengthy

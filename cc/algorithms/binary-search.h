@@ -81,7 +81,7 @@ template <typename T>
 class BinarySearch : public Algorithm<T> {
  public:
   void AddEntry(const T& t) override {
-    if (!std::isnan(t)) {
+    if (!std::isnan(static_cast<double>(t))) {
       quantiles_->Add(t);
     }
   }

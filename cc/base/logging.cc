@@ -22,7 +22,39 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#ifdef _WIN32
+// START PATCH
+// This `if` code block conditionally defines and imports windows system specific code.
+// This block defines the windows alternatives to the functions defined in <unistd.h> 
+// which is included in the `else` section below.
+#include <Windows.h>
+#include <time.h> // for: timespec
+#include <io.h> // for: access 
+#include <direct.h> // for: _mkdir
+// By design Windows does not have a `mode` parameter.
+# undef mkdir
+# define mkdir(path, mode) _mkdir(path)  
+
+#ifndef S_ISDIR
+#define S_ISDIR(mode) (((mode) & S_IFMT) == S_IFDIR)
+#endif
+
+#define W_OK 2
+#define F_OK 0
+#define CLOCK_REALTIME 0
+
+static int clock_gettime(int, struct timespec *spec)      //C-file part
+{
+    __int64 wintime; GetSystemTimeAsFileTime((FILETIME*)&wintime);
+    wintime -= 116444736000000000i64;  //1jan1601 to 1jan1970
+    spec->tv_sec = wintime / 10000000i64;           //seconds
+    spec->tv_nsec = wintime % 10000000i64 * 100;      //nano-seconds
+    return 0;
+}
+// END PATCH
+#else
 #include <unistd.h>
+#endif
 
 #include <cctype>
 #include <cstdio>

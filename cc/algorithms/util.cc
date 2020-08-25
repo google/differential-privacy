@@ -19,6 +19,7 @@
 #include <cmath>
 #include <vector>
 
+#include "base/statusor.h"
 #include "base/canonical_errors.h"
 
 namespace differential_privacy {

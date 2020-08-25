@@ -120,7 +120,7 @@ class BoundedMean : public Algorithm<T> {
   };
 
   void AddEntry(const T& t) override {
-    if (std::isnan(t)) {
+    if (std::isnan(static_cast<double>(t))) {
       return;
     }
     ++raw_count_;

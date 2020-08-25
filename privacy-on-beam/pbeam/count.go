@@ -76,10 +76,11 @@ func Count(s beam.Scope, pcol PrivatePCollection, params CountParams) beam.PColl
 	s = s.Scope("pbeam.Count")
 	// Obtain type information from the underlying PCollection<K,V>.
 	idT, partitionT := beam.ValidateKVType(pcol.col)
-	
+
 	// Get privacy parameters.
 	spec := pcol.privacySpec
 	epsilon, delta, err := spec.consumeBudget(params.Epsilon, params.Delta)
+
 	if err != nil {
 		log.Exitf("couldn't consume budget: %v", err)
 	}
@@ -97,14 +98,14 @@ func Count(s beam.Scope, pcol PrivatePCollection, params CountParams) beam.PColl
 
 	maxPartitionsContributed := getMaxPartitionsContributed(spec, params.MaxPartitionsContributed)
 	// Drop unspecified partitions, if partitions are specified.
-	if (params.partitionsCol).IsValid(){
+	if (params.partitionsCol).IsValid() {
 		if partitionT.Type() != params.partitionsCol.Type().Type() {
 			log.Exitf("Specified partitions must be of type %v. Got type %v instead.",
 				partitionT.Type(), params.partitionsCol.Type().Type())
 		}
 		partitionEncodedType := beam.EncodedType{partitionT.Type()}
 		pcol.col = dropUnspecifiedPartitionsVFn(s, params.partitionsCol, pcol, partitionEncodedType)
-	} 
+	}
 	// First, encode KV pairs, count how many times each one appears,
 	// and re-key by the original privacy key.
 	coded := beam.ParDo(s, kv.NewEncodeFn(idT, partitionT), pcol.col)
@@ -121,11 +122,12 @@ func Count(s beam.Scope, pcol PrivatePCollection, params CountParams) beam.PColl
 		countPairs,
 		beam.TypeDefinition{Var: beam.XType, T: partitionT.Type()})
 	// Add specified partitions and return the aggregation output, if partitions are specified.
-	if (params.partitionsCol).IsValid() { 
+	if (params.partitionsCol).IsValid() {
 		return addSpecifiedPartitionsForCount(s, epsilon, delta, maxPartitionsContributed, params, noiseKind, countsKV)
 	}
 	sums := beam.CombinePerKey(s,
-		newBoundedSumInt64Fn(epsilon, delta, maxPartitionsContributed, 0, params.MaxValue, noiseKind, false), countsKV)
+		newBoundedSumInt64Fn(epsilon, delta, maxPartitionsContributed, 0, params.MaxValue, noiseKind, false),
+		countsKV)
 	// Drop thresholded partitions.
 	counts := beam.ParDo(s, dropThresholdedPartitionsInt64Fn, sums)
 	// Clamp negative counts to zero and return.

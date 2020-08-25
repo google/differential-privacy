@@ -528,7 +528,7 @@ func TestCheckAlpha(t *testing.T) {
 		{"arbitrary alpha", 0.758464984, false},
 	} {
 		if err := CheckAlpha("test", tc.alpha); (err != nil) != tc.wantErr {
-			t.Errorf("checkAlpha: when %s for err got %v, want %t", tc.desc, err, tc.wantErr)
+			t.Errorf("CheckAlpha: when %s for err got %v, want %t", tc.desc, err, tc.wantErr)
 		}
 	}
 }

@@ -18,6 +18,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "base/statusor.h"
 #include "algorithms/distributions.h"
 
 namespace differential_privacy {
@@ -152,6 +153,36 @@ TEST(NumericalMechanismsTest, LaplaceBuilderFailsLInfSensitivityNan) {
   EXPECT_THAT(message, MatchesRegex("^LInf sensitivity has to be finite.*"));
 }
 
+TEST(NumericalMechanismsTest, LaplaceBuilderFailsL0SensitivityNegative) {
+  LaplaceMechanism::Builder test_builder;
+  auto failed_build = test_builder.SetL0Sensitivity(-1)
+                          .SetLInfSensitivity(1)
+                          .SetEpsilon(1)
+                          .Build();
+  EXPECT_THAT(failed_build.status().code(),
+              Eq(base::StatusCode::kInvalidArgument));
+  // Convert message to std::string so that the matcher works in the open source
+  // version.
+  std::string message(failed_build.status().message());
+  EXPECT_THAT(message,
+              MatchesRegex("^L0 sensitivity has to be positive but is.*"));
+}
+
+TEST(NumericalMechanismsTest, LaplaceBuilderFailsLInfSensitivityZero) {
+  LaplaceMechanism::Builder test_builder;
+  auto failed_build = test_builder.SetL0Sensitivity(1)
+                          .SetLInfSensitivity(0)
+                          .SetEpsilon(1)
+                          .Build();
+  EXPECT_THAT(failed_build.status().code(),
+              Eq(base::StatusCode::kInvalidArgument));
+  // Convert message to std::string so that the matcher works in the open source
+  // version.
+  std::string message(failed_build.status().message());
+  EXPECT_THAT(message,
+              MatchesRegex("^LInf sensitivity has to be positive but is.*"));
+}
+
 TYPED_TEST(NumericalMechanismsTest, LaplaceBuilderSensitivityTooHigh) {
   LaplaceMechanism::Builder test_builder;
   base::StatusOr<std::unique_ptr<NumericalMechanism>> test_mechanism =
@@ -233,6 +264,29 @@ TEST(NumericalMechanismsTest, LaplaceConfidenceInterval) {
             level);
 }
 
+TEST(NumericalMechanismsTest, LaplaceConfidenceIntervalFailsForBudgetNan) {
+  LaplaceMechanism mechanism(1.0, 1.0);
+  auto failed_confidence_interval = mechanism.NoiseConfidenceInterval(0.5, NAN);
+  EXPECT_THAT(failed_confidence_interval.status().code(),
+              Eq(base::StatusCode::kInvalidArgument));
+  // Convert message to std::string so that the matcher works in the open source
+  // version.
+  std::string message(failed_confidence_interval.status().message());
+  EXPECT_THAT(message, MatchesRegex("^privacy_budget has to be in.*"));
+}
+
+TEST(NumericalMechanismsTest,
+     LaplaceConfidenceIntervalFailsForConfidenceLevelNan) {
+  LaplaceMechanism mechanism(1.0, 1.0);
+  auto failed_confidence_interval = mechanism.NoiseConfidenceInterval(NAN, 1.0);
+  EXPECT_THAT(failed_confidence_interval.status().code(),
+              Eq(base::StatusCode::kInvalidArgument));
+  // Convert message to std::string so that the matcher works in the open source
+  // version.
+  std::string message(failed_confidence_interval.status().message());
+  EXPECT_THAT(message, MatchesRegex("^Confidence level has to be in.*"));
+}
+
 TYPED_TEST(NumericalMechanismsTest, LaplaceBuilderClone) {
   LaplaceMechanism::Builder test_builder;
   std::unique_ptr<NumericalMechanismBuilder> clone =
@@ -261,29 +315,29 @@ struct conf_int_params {
 
 // True bounds calculated using standard deviations of
 // 3.4855, 3.60742, 0.367936, respectively.
-struct conf_int_params gauss_params1 = {.epsilon = 1.2,
-                                        .delta = 0.3,
-                                        .sensitivity = 1.0,
-                                        .level = .9,
-                                        .budget = .5,
-                                        .result = 0,
-                                        .true_bound = -1.9613};
+struct conf_int_params gauss_params1 = {1.2,
+                                         0.3,
+                                         1.0,
+                                         .9,
+                                         .5,
+                                         0,
+                                         -1.9613};
 
-struct conf_int_params gauss_params2 = {.epsilon = 1.0,
-                                        .delta = 0.5,
-                                        .sensitivity = 1.0,
-                                        .level = .95,
-                                        .budget = .5,
-                                        .result = 1.3,
-                                        .true_bound = -1.9054};
+struct conf_int_params gauss_params2 = { 1.0,
+                                         0.5,
+                                         1.0,
+                                         .95,
+                                         .5,
+                                         1.3,
+                                         -1.9054};
 
-struct conf_int_params gauss_params3 = {.epsilon = 10.0,
-                                        .delta = 0.5,
-                                        .sensitivity = 1.0,
-                                        .level = .95,
-                                        .budget = .75,
-                                        .result = 2.7,
-                                        .true_bound = -0.5154};
+struct conf_int_params gauss_params3 = { 10.0,
+                                         0.5,
+                                         1.0,
+                                         .95,
+                                         .75,
+                                         2.7,
+                                         -0.5154};
 
 INSTANTIATE_TEST_SUITE_P(TestSuite, NoiseIntervalMultipleParametersTests,
                          testing::Values(gauss_params1, gauss_params2,
@@ -450,6 +504,26 @@ TEST(NumericalMechanismsTest, GaussianBuilderFailsL2SensitivityNan) {
   // version.
   std::string message(failed_build.status().message());
   EXPECT_THAT(message, MatchesRegex("^L2 sensitivity has to be finite.*"));
+}
+
+TEST(NumericalMechanismsTest, GaussianBuilderFailsCalculatedL2SensitivityZero) {
+  GaussianMechanism::Builder test_builder;
+  auto failed_build = test_builder.SetEpsilon(1)
+                          .SetDelta(0.2)
+                          // Use very low L0 and LInf sensitivities so that the
+                          // calculation of l2 will result in 0.
+                          .SetL0Sensitivity(4.94065645841247e-323)
+                          .SetLInfSensitivity(5.24566986113514e-317)
+                          .Build();
+  EXPECT_THAT(failed_build.status().code(),
+              Eq(base::StatusCode::kInvalidArgument));
+  // Convert message to std::string so that the matcher works in the open source
+  // version.
+  std::string message(failed_build.status().message());
+  EXPECT_THAT(
+      message,
+      MatchesRegex(
+          "^The calculated L2 sensitivity has to be positive and finite.*"));
 }
 
 TEST(NumericalMechanismsTest, GaussianMechanismAddsNoise) {

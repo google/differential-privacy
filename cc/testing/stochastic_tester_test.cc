@@ -21,6 +21,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/random/distributions.h"
+#include "base/statusor.h"
 #include "algorithms/algorithm.h"
 #include "algorithms/bounded-sum.h"
 #include "algorithms/count.h"

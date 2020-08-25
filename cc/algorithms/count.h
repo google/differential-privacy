@@ -82,8 +82,9 @@ class Count : public Algorithm<T> {
   base::StatusOr<Output> GenerateResult(double privacy_budget,
                                         double noise_interval_level) override {
     Output output;
-    int64_t countWithNoise = SafeCastFromDouble<int64_t>(
-        std::round(mechanism_->AddNoise(count_, privacy_budget)));
+    int64_t countWithNoise;
+    SafeCastFromDouble(std::round(mechanism_->AddNoise(count_, privacy_budget)),
+                       countWithNoise);
     AddToOutput<int64_t>(&output, countWithNoise);
 
     base::StatusOr<ConfidenceInterval> interval =

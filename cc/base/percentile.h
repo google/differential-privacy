@@ -52,7 +52,7 @@ class Percentile {
   Percentile() {}
 
   void Add(const T& t) {
-    if (!std::isnan(t)) {
+    if (!std::isnan(static_cast<double>(t))) {
       inputs_.push_back(t);
       sorted_ = false;
     }

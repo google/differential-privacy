@@ -17,10 +17,22 @@
 #ifndef DIFFERENTIAL_PRIVACY_ALGORITHMS_NUMERICAL_MECHANISMS_H_
 #define DIFFERENTIAL_PRIVACY_ALGORITHMS_NUMERICAL_MECHANISMS_H_
 
+#include <math.h>
+
 #include <limits>
 #include <memory>
 #include <string>
+#include <utility>
 
+#include <cstdint>
+#include "base/logging.h"
+#include "absl/base/attributes.h"
+#include "absl/memory/memory.h"
+#include "base/status.h"
+#include "base/statusor.h"
+#include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
 #include "algorithms/distributions.h"
 #include "algorithms/util.h"
 #include "proto/confidence-interval.pb.h"
@@ -96,7 +108,8 @@ class NumericalMechanism {
 
  protected:
   base::Status CheckConfidenceLevel(double confidence_level) {
-    if (!(0 < confidence_level && confidence_level < 1)) {
+    if (std::isnan(confidence_level) ||
+        !(0 < confidence_level && confidence_level < 1)) {
       return base::InvalidArgumentError(absl::StrCat(
           "Confidence level has to be in the open interval (0,1), but is ",
           confidence_level));
@@ -105,7 +118,8 @@ class NumericalMechanism {
   }
 
   base::Status CheckPrivacyBudget(double privacy_budget) {
-    if (!(0 < privacy_budget && privacy_budget <= 1)) {
+    if (std::isnan(privacy_budget) ||
+        !(0 < privacy_budget && privacy_budget <= 1)) {
       return base::InvalidArgumentError(absl::StrCat(
           "privacy_budget has to be in the interval (0, 1], but is ",
           privacy_budget));
@@ -113,10 +127,17 @@ class NumericalMechanism {
     return base::OkStatus();
   }
 
-  // Checks and clamps the budget so that it is in the interval (0,1].
+  // Checks and clamps the budget so that it is in the interval (0,1].  Should
+  // only be used in methods where we no longer can return an base::Status, as
+  // it tries some recovery from invalid states.
   double CheckAndClampBudget(double privacy_budget) {
     base::Status status = CheckPrivacyBudget(privacy_budget);
     LOG_IF(ERROR, !status.ok()) << status.message();
+    if (std::isnan(privacy_budget)) {
+      // Recover from this invalid state by returning the minimal possible
+      // privacy budget.
+      return std::numeric_limits<double>::min();
+    }
     return Clamp<double>(std::numeric_limits<double>::min(), 1, privacy_budget);
   }
 
@@ -154,20 +175,9 @@ class NumericalMechanismBuilder {
   virtual std::unique_ptr<NumericalMechanismBuilder> Clone() const = 0;
 
  protected:
-  // Checks if epsilon is set and valid to be used for building any of the
-  // mechanisms.
-  base::Status EpsilonIsSetAndValid() const {
-    ASSIGN_OR_RETURN(double epsilon, ExistsAndIsFinite("Epsilon", epsilon_));
-    if (epsilon <= 0) {
-      return base::InvalidArgumentError(
-          absl::StrCat("Epsilon has to be positive but is ", epsilon));
-    }
-    return base::OkStatus();
-  }
-
   // Checks if delta is set and valid to be used in the Gaussian mechanism.
   base::Status DeltaIsSetAndValid() const {
-    ASSIGN_OR_RETURN(double delta, ExistsAndIsFinite("Delta", delta_));
+    ASSIGN_OR_RETURN(double delta, GetValueIfSetAndFinite(delta_, "Delta"));
     if (delta <= 0 || 1 <= delta) {
       return base::InvalidArgumentError(absl::StrCat(
           "Delta has to be in the interval (0, 1) but is ", delta));
@@ -182,8 +192,11 @@ class NumericalMechanismBuilder {
     return linf_sensitivity_;
   }
 
-  static base::StatusOr<double> ExistsAndIsFinite(absl::string_view name,
-                                                  absl::optional<double> opt) {
+  // Returns the value of optional `opt` if it is set and finite.  Will return
+  // an InvalidArgumentError otherwise that includes `name` in the error
+  // message.
+  static base::StatusOr<double> GetValueIfSetAndFinite(
+      absl::optional<double> opt, absl::string_view name) {
     if (!opt.has_value()) {
       return base::InvalidArgumentError(absl::StrCat(name, " has to be set."));
     }
@@ -192,6 +205,19 @@ class NumericalMechanismBuilder {
           absl::StrCat(name, " has to be finite but is ", opt.value()));
     }
     return opt.value();
+  }
+
+  // Returns the value of optional `opt` if it is set, finite, and positive.
+  // Will return an InvalidArgumentError otherwise that includes `name` in the
+  // error message.
+  static base::StatusOr<double> GetValueIfSetAndPositive(
+      absl::optional<double> opt, absl::string_view name) {
+    ASSIGN_OR_RETURN(double d, GetValueIfSetAndFinite(opt, name));
+    if (d <= 0) {
+      return base::InvalidArgumentError(
+          absl::StrCat(name, " has to be positive but is ", d));
+    }
+    return d;
   }
 
  private:
@@ -220,10 +246,11 @@ class LaplaceMechanism : public NumericalMechanism {
     }
 
     base::StatusOr<std::unique_ptr<NumericalMechanism>> Build() override {
-      RETURN_IF_ERROR(EpsilonIsSetAndValid());
+      ASSIGN_OR_RETURN(double epsilon,
+                       GetValueIfSetAndPositive(GetEpsilon(), "Epsilon"));
       ASSIGN_OR_RETURN(double L1, CalculateL1Sensitivity());
       // Check that generated noise is not likely to overflow.
-      double diversity = L1 / GetEpsilon().value();
+      double diversity = L1 / epsilon;
       double overflow_probability =
           (1 - internal::LaplaceDistribution::cdf(
                    diversity, std::numeric_limits<double>::max())) +
@@ -233,11 +260,11 @@ class LaplaceMechanism : public NumericalMechanism {
         return base::InvalidArgumentError("Sensitivity is too high.");
       }
       base::StatusOr<double> gran_or_status =
-          internal::CalculateGranularity(GetEpsilon().value(), L1);
+          internal::CalculateGranularity(epsilon, L1);
       if (!gran_or_status.ok()) return gran_or_status.status();
 
       std::unique_ptr<NumericalMechanism> result =
-          absl::make_unique<LaplaceMechanism>(GetEpsilon().value(), L1);
+          absl::make_unique<LaplaceMechanism>(epsilon, L1);
       return result;
     }
 
@@ -255,13 +282,14 @@ class LaplaceMechanism : public NumericalMechanism {
     // on the l1 sensitivity calculated from l0 and linf sensitivities.
     base::StatusOr<double> CalculateL1Sensitivity() {
       if (l1_sensitivity_.has_value()) {
-        return ExistsAndIsFinite("L1 sensitivity", l1_sensitivity_);
+        return GetValueIfSetAndPositive(l1_sensitivity_, "L1 sensitivity");
       }
       if (GetL0Sensitivity().has_value() && GetLInfSensitivity().has_value()) {
+        ASSIGN_OR_RETURN(double l0, GetValueIfSetAndPositive(GetL0Sensitivity(),
+                                                             "L0 sensitivity"));
         ASSIGN_OR_RETURN(
-            double l0, ExistsAndIsFinite("L0 sensitivity", GetL0Sensitivity()));
-        ASSIGN_OR_RETURN(double linf, ExistsAndIsFinite("LInf sensitivity",
-                                                        GetLInfSensitivity()));
+            double linf,
+            GetValueIfSetAndPositive(GetLInfSensitivity(), "LInf sensitivity"));
         double l1 = l0 * linf;
         if (!std::isfinite(l1)) {
           return base::InvalidArgumentError(absl::StrCat(
@@ -320,11 +348,8 @@ class LaplaceMechanism : public NumericalMechanism {
   base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
       double confidence_level, double privacy_budget,
       double noised_result) override {
-    base::Status status = CheckConfidenceLevel(confidence_level);
-    status.Update(CheckPrivacyBudget(privacy_budget));
-    if (!status.ok()) {
-      return status;
-    }
+    RETURN_IF_ERROR(CheckConfidenceLevel(confidence_level));
+    RETURN_IF_ERROR(CheckPrivacyBudget(privacy_budget));
 
     double bound = diversity_ * log(1 - confidence_level) / privacy_budget;
 
@@ -365,12 +390,12 @@ class GaussianMechanism : public NumericalMechanism {
     }
 
     base::StatusOr<std::unique_ptr<NumericalMechanism>> Build() override {
-      RETURN_IF_ERROR(EpsilonIsSetAndValid());
+      ASSIGN_OR_RETURN(double epsilon,
+                       GetValueIfSetAndPositive(GetEpsilon(), "Epsilon"));
       RETURN_IF_ERROR(DeltaIsSetAndValid());
       ASSIGN_OR_RETURN(double l2, CalculateL2Sensitivity());
       std::unique_ptr<NumericalMechanism> result =
-          absl::make_unique<GaussianMechanism>(GetEpsilon().value(),
-                                              GetDelta().value(), l2);
+          absl::make_unique<GaussianMechanism>(epsilon, GetDelta().value(), l2);
       return result;
     }
 
@@ -386,20 +411,23 @@ class GaussianMechanism : public NumericalMechanism {
     // on the l2 sensitivity calculated from l0 and linf sensitivities.
     base::StatusOr<double> CalculateL2Sensitivity() {
       if (l2_sensitivity_.has_value()) {
-        return ExistsAndIsFinite("L2 sensitivity", l2_sensitivity_);
+        return GetValueIfSetAndPositive(l2_sensitivity_, "L2 sensitivity");
       } else if (GetL0Sensitivity().has_value() &&
                  GetLInfSensitivity().has_value()) {
         // Try to calculate L2 sensitivity from L0 and LInf sensitivities
+        ASSIGN_OR_RETURN(double l0, GetValueIfSetAndPositive(GetL0Sensitivity(),
+                                                             "L0 sensitivity"));
         ASSIGN_OR_RETURN(
-            double l0, ExistsAndIsFinite("L0 sensitivity", GetL0Sensitivity()));
-        ASSIGN_OR_RETURN(double linf, ExistsAndIsFinite("LInf sensitivity",
-                                                        GetLInfSensitivity()));
+            double linf,
+            GetValueIfSetAndPositive(GetLInfSensitivity(), "LInf sensitivity"));
         double l2 = std::sqrt(l0) * linf;
-        if (!std::isfinite(l2)) {
+        if (!std::isfinite(l2) || l2 <= 0) {
           return base::InvalidArgumentError(absl::StrCat(
-              "The result of the L2 sensitivity calculation is not finite: ",
+              "The calculated L2 sensitivity has to be positive and finite but "
+              "is ",
               l2,
-              ". Please check your contribution and sensitivity settings."));
+              ". Contribution or sensitivity settings might be too high or too "
+              "low."));
         }
         return l2;
       }
@@ -434,7 +462,8 @@ class GaussianMechanism : public NumericalMechanism {
     double stddev = CalculateStddev(local_epsilon, local_delta);
     double sample = distro_->Sample(stddev);
 
-    return RoundToNearestMultiple(result, distro_->GetGranularity()) + sample;
+    return RoundToNearestMultiple(result, distro_->GetGranularity(stddev)) +
+           sample;
   }
 
   virtual int64_t MemoryUsed() {
@@ -458,11 +487,8 @@ class GaussianMechanism : public NumericalMechanism {
   base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
       double confidence_level, double privacy_budget,
       double noised_result) override {
-    base::Status status = CheckConfidenceLevel(confidence_level);
-    status.Update(CheckPrivacyBudget(privacy_budget));
-    if (!status.ok()) {
-      return status;
-    }
+    RETURN_IF_ERROR(CheckConfidenceLevel(confidence_level));
+    RETURN_IF_ERROR(CheckPrivacyBudget(privacy_budget));
 
     double local_epsilon = privacy_budget * GetEpsilon();
     double local_delta = privacy_budget * delta_;
