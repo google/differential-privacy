@@ -1,6 +1,6 @@
 
 //
-// Copyright 2019 Google LLC
+// Copyright 2020 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -48,10 +48,11 @@
 namespace differential_privacy {
 
 namespace testing {
-
-// Runs the Stochastic Tester on a continuous range of three algorithms (Count, 
-// BoundedSum, and BoundedMean) in which the privacy protection claimed exceeds 
-// the amount of noise applied. Sends results of each run to an output file.
+  
+// Runs the Stochastic Tester on three algorithm types, each of which has been
+// deliberately constructed to violate differential privacy. Measures the 
+// Stochastic Tester's ability to detect the differential privacy violations
+// over a continuous range of ratio values.
 
 template <typename T>
 class CountWithInsufficientNoise : public differential_privacy::Count<T> {
@@ -60,8 +61,6 @@ class CountWithInsufficientNoise : public differential_privacy::Count<T> {
     : Count<T>(epsilon,
     LaplaceMechanism::Builder()
       .SetEpsilon(epsilon)
-      .SetL0Sensitivity(1)
-      .SetLInfSensitivity(1)
       .Build()
       .ValueOrDie()),
       ratio_(ratio) {}
@@ -77,10 +76,16 @@ template <typename T, typename std::enable_if<std::is_integral<T>::value ||
 	std::is_floating_point<T>::value>::type* = nullptr>
 class SumWithInsufficientNoise : public differential_privacy::BoundedSum<T> {
  public:
-  SumWithInsufficientNoise(double epsilon, T lower, T upper,
-    std::unique_ptr<LaplaceMechanism::Builder> builder, double ratio)
-    : BoundedSum<T>(epsilon, lower, upper, 1, 1, std::move(builder),
-    nullptr, nullptr), ratio_(ratio) {} // set sensitivity values to 1
+  SumWithInsufficientNoise(double epsilon, T lower, T upper, const double l0_sensitivity,
+    const double max_contributions_per_partition, std::unique_ptr<LaplaceMechanism::Builder> builder, double ratio)
+    : BoundedSum<T>(epsilon, lower, upper, l0_sensitivity, max_contributions_per_partition, std::move(builder),
+      LaplaceMechanism::Builder()
+        .SetEpsilon(epsilon)
+        .SetL0Sensitivity(l0_sensitivity)
+        .SetLInfSensitivity(max_contributions_per_partition * std::max(std::abs(lower),std::abs(upper)))
+        .Build()
+        .ValueOrDie(), nullptr), ratio_(ratio) {}
+
 // Overrides epsilon such that amount of noise applied is only a fraction of
 // what privacy protection claimed
   double GetEpsilon() const override { return Algorithm<T>::GetEpsilon() 
@@ -94,12 +99,13 @@ std::is_floating_point<T>::value>::type* = nullptr>
 class MeanWithInsufficientNoise : public differential_privacy::BoundedMean<T> {
  public:
   MeanWithInsufficientNoise(double epsilon, T lower, T upper,
+    const double l0_sensitivity, const double max_contributions_per_partition, 
     std::unique_ptr<LaplaceMechanism::Builder> builder, double ratio)
-    : BoundedMean<T>(epsilon, lower, upper, 1, 1, std::move(builder),
+    : BoundedMean<T>(epsilon, lower, upper, l0_sensitivity, max_contributions_per_partition, std::move(builder),
     LaplaceMechanism::Builder()
       .SetEpsilon(epsilon)
-      .SetL0Sensitivity(1)
-      .SetLInfSensitivity(1)
+      .SetL0Sensitivity(l0_sensitivity)
+      .SetLInfSensitivity(max_contributions_per_partition * (std::abs(upper - lower) / 2))
       .Build()
       .ValueOrDie(),
     LaplaceMechanism::Builder()
@@ -113,12 +119,6 @@ class MeanWithInsufficientNoise : public differential_privacy::BoundedMean<T> {
  private:
   double ratio_;
 };
-
-bool RunStochasticTester(double ratio, double num_datasets,
-  double num_samples_per_histogram);
-
-void GetTestResults(std::ofstream& datafile, double num_datasets, 
-  double num_samples_per_histogram, double ratio_min, double ratio_max);
 
 } // namespace testing  
 } // namespace differential_privacy

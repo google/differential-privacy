@@ -46,74 +46,67 @@ namespace differential_privacy {
 
 namespace testing {
 
-// Runs the Stochastic Tester on a continuous range of three algorithms (Count, 
-// BoundedSum, and BoundedMean) in which the privacy protection claimed exceeds 
-// the amount of noise applied. Sends results of each run to an output file.
+// Runs the Stochastic Tester on three algorithm types, each of which has been
+// deliberately constructed to violate differential privacy. Measures the 
+// Stochastic Tester's ability to detect the differential privacy violations
+// over a continuous range of ratio values.
 
-bool RunStochasticTester(std::string algorithm, double ratio, int num_datasets,
+const double epsilon_value = std::log(3);
+
+bool RunStochasticTesterOnCount(double ratio, int num_datasets,
   int num_samples_per_histogram) {
-
   auto sequence = absl::make_unique<HaltonSequence<double>>(
     DefaultDatasetSize(), true, DefaultDataScale(), DefaultDataOffset());
-
-  if (algorithm == "count") {
-
-    auto sequence = absl::make_unique<HaltonSequence<int64_t>>(
-      DefaultDatasetSize(), true, DefaultDataScale(), DefaultDataOffset());
-
-    auto algorithm = absl::make_unique<CountWithInsufficientNoise<int64_t>>(
-      std::log(3), ratio);
-    
-    StochasticTester<int64_t> tester(std::move(algorithm), std::move(sequence),
-      num_datasets, num_samples_per_histogram);
-
-  // Desired outcome is false, since algorithm has been engineered to violate DP.
-    bool algo_is_dp = tester.Run();
-    return algo_is_dp; 
-  }
-
-  else if (algorithm == "boundedsum") {
-
-    auto algorithm = absl::make_unique<SumWithInsufficientNoise<double>>(
-      std::log(3), sequence->RangeMin(), sequence->RangeMax(),
-      absl::make_unique<test_utils::SeededLaplaceMechanism::Builder>(), ratio);
-
-    StochasticTester<double> tester(std::move(algorithm), std::move(sequence),
-      num_datasets, num_samples_per_histogram);
-
-  // Desired outcome is false, since algorithm has been engineered to violate DP.
-    bool algo_is_dp = tester.Run();
-    return algo_is_dp;
-
-  }
-
-  else if (algorithm == "boundedmean") {
-
-    auto algorithm = absl::make_unique<MeanWithInsufficientNoise<double>>(
-      std::log(3),sequence->RangeMin(), sequence->RangeMax(),
-      absl::make_unique<test_utils::SeededLaplaceMechanism::Builder>(), ratio);
-
-    StochasticTester<double> tester(std::move(algorithm), std::move(sequence),
-      num_datasets, num_samples_per_histogram);
-
-  // Desired outcome is false, since algorithm has been engineered to violate DP.
-    bool algo_is_dp = tester.Run();
-    return algo_is_dp; 
-  }
-
-  else {
-    std::cout << "The algorithm specified was not recognized." << 
-      "Try count, boundedsum, or boundedmean instead." << std::endl;
-  }
+  auto algorithm = absl::make_unique<CountWithInsufficientNoise<double>>(
+    epsilon_value, ratio);
+  StochasticTester<double, int64_t> tester(std::move(algorithm),
+    std::move(sequence), num_datasets, num_samples_per_histogram);
+// Desired outcome is false, since algorithm has been engineered to violate DP.
+  bool algo_is_dp = tester.Run();
+  return algo_is_dp; 
 }
+
+bool RunStochasticTesterOnSum(double ratio, int num_datasets,
+  int num_samples_per_histogram) {
+  auto sequence = absl::make_unique<HaltonSequence<double>>(
+    DefaultDatasetSize(), true, DefaultDataScale(), DefaultDataOffset());
+  auto algorithm = absl::make_unique<SumWithInsufficientNoise<double>>(
+    epsilon_value, sequence->RangeMin(), sequence->RangeMax(),1,1,
+    absl::make_unique<test_utils::SeededLaplaceMechanism::Builder>(), ratio);
+  StochasticTester<double> tester(std::move(algorithm), std::move(sequence),
+    num_datasets, num_samples_per_histogram);
+// Desired outcome is false, since algorithm has been engineered to violate DP.
+  bool algo_is_dp = tester.Run();
+  return algo_is_dp;
+}
+
+bool RunStochasticTesterOnMean(double ratio, int num_datasets,
+  int num_samples_per_histogram) {
+  auto sequence = absl::make_unique<HaltonSequence<double>>(
+    DefaultDatasetSize(), true, DefaultDataScale(), DefaultDataOffset());
+  auto algorithm = absl::make_unique<MeanWithInsufficientNoise<double>>(
+    epsilon_value,sequence->RangeMin(), sequence->RangeMax(),1,1,
+    absl::make_unique<test_utils::SeededLaplaceMechanism::Builder>(), ratio);
+  StochasticTester<double> tester(std::move(algorithm), std::move(sequence),
+    num_datasets, num_samples_per_histogram);
+// Desired outcome is false, since algorithm has been engineered to violate DP.
+  bool algo_is_dp = tester.Run();
+  return algo_is_dp;   
+}
+
+ struct SummaryResults {
+      int num_tests;
+      int num_tests_passed;
+      double maximum_ratio;
+      std::chrono::duration<double> total_time;
+};
 
 // Runs the Stochastic Tester on the specified algorithm for a continuous range
 // of ratios and sends the test results to an output file.
+base::StatusOr<SummaryResults> GetTestResultsForCount(int num_datasets,
+  int num_samples_per_histogram, int ratio_min, int ratio_max, std::ofstream& datafile) {
 
-void GetTestResults(std::ofstream& datafile, std::string algorithm,
-  int num_datasets, int num_samples_per_histogram, int ratio_min,
-  int ratio_max) {
-
+  SummaryResults sr;
   double num_tests = 0;
   double num_tests_passed = 0;
   double maximum_ratio_passed = 0;
@@ -122,12 +115,11 @@ void GetTestResults(std::ofstream& datafile, std::string algorithm,
   for (int i=ratio_min; i<=ratio_max; i++) {
     auto start_test_run = std::chrono::high_resolution_clock::now();
     double ratio = static_cast<double>(i)/100.0;
-    std::cout << "Now calculating " << algorithm << " algorithm with ratio: " << 
+    std::cout << "Now calculating count algorithm with ratio: " << 
       ratio << std::endl;
-    bool outcome = RunStochasticTester(algorithm, ratio, num_datasets,
-      num_samples_per_histogram);
+    bool outcome = RunStochasticTesterOnCount(ratio, num_datasets, 
+      num_samples_per_histogram);  
     num_tests++;
-
     if (outcome == 0) { 
       num_tests_passed++;
       maximum_ratio_passed = ratio;
@@ -137,7 +129,7 @@ void GetTestResults(std::ofstream& datafile, std::string algorithm,
     std::chrono::duration<double> test_run_length =
       std::chrono::duration_cast<std::chrono::duration<double>>(
       finish_test_run - start_test_run);
-    datafile << "insufficient_noise," << algorithm << ",0," << outcome << "," <<
+    datafile << "insufficient_noise," << "count" << ",0," << outcome << "," <<
       ratio << "," << num_datasets << "," << num_samples_per_histogram << "," <<
       test_run_length.count() << "\n";
   }
@@ -145,9 +137,93 @@ void GetTestResults(std::ofstream& datafile, std::string algorithm,
   auto end = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> time_elapsed =
     std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
-  std::cout << num_tests_passed << " out of " << num_tests << " passed. " <<
-    "The largest ratio value that passed was " << maximum_ratio_passed << "." <<
-    std::endl;
+  sr.num_tests = num_tests;
+  sr.num_tests_passed = num_tests_passed;
+  sr.maximum_ratio = maximum_ratio_passed;
+  sr.total_time = time_elapsed;
+  return sr;
+    }
+
+base::StatusOr<SummaryResults> GetTestResultsForSum(int num_datasets,
+  int num_samples_per_histogram, int ratio_min, int ratio_max, std::ofstream& datafile) {
+
+  SummaryResults sr;
+  double num_tests = 0;
+  double num_tests_passed = 0;
+  double maximum_ratio_passed = 0;
+  auto start = std::chrono::high_resolution_clock::now();
+
+  for (int i=ratio_min; i<=ratio_max; i++) {
+    auto start_test_run = std::chrono::high_resolution_clock::now();
+    double ratio = static_cast<double>(i)/100.0;
+    std::cout << "Now calculating bounded_sum algorithm with ratio: " << 
+      ratio << std::endl;
+    bool outcome = RunStochasticTesterOnSum(ratio, num_datasets, 
+      num_samples_per_histogram);  
+    num_tests++;
+    if (outcome == 0) { 
+      num_tests_passed++;
+      maximum_ratio_passed = ratio;
+    }
+
+    auto finish_test_run = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> test_run_length =
+      std::chrono::duration_cast<std::chrono::duration<double>>(
+      finish_test_run - start_test_run);
+    datafile << "insufficient_noise," << "bounded_sum" << ",0," << outcome << "," <<
+      ratio << "," << num_datasets << "," << num_samples_per_histogram << "," <<
+      test_run_length.count() << "\n";
+  }
+
+  auto end = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> time_elapsed =
+    std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
+  sr.num_tests = num_tests;
+  sr.num_tests_passed = num_tests_passed;
+  sr.maximum_ratio = maximum_ratio_passed;
+  sr.total_time = time_elapsed;
+  return sr;
+    }
+
+base::StatusOr<SummaryResults> GetTestResultsForMean(int num_datasets,
+  int num_samples_per_histogram, int ratio_min, int ratio_max, std::ofstream& datafile) {
+
+  SummaryResults sr;
+  double num_tests = 0;
+  double num_tests_passed = 0;
+  double maximum_ratio_passed = 0;
+  auto start = std::chrono::high_resolution_clock::now();
+
+  for (int i=ratio_min; i<=ratio_max; i++) {
+    auto start_test_run = std::chrono::high_resolution_clock::now();
+    double ratio = static_cast<double>(i)/100.0;
+    std::cout << "Now calculating bounded_mean algorithm with ratio: " << 
+      ratio << std::endl;
+    bool outcome = RunStochasticTesterOnMean(ratio, num_datasets, 
+      num_samples_per_histogram);  
+    num_tests++;
+    if (outcome == 0) { 
+      num_tests_passed++;
+      maximum_ratio_passed = ratio;
+    }
+
+    auto finish_test_run = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> test_run_length =
+      std::chrono::duration_cast<std::chrono::duration<double>>(
+      finish_test_run - start_test_run);
+    datafile << "insufficient_noise," << "bounded_mean" << ",0," << outcome << "," <<
+      ratio << "," << num_datasets << "," << num_samples_per_histogram << "," <<
+      test_run_length.count() << "\n";
+  }
+
+  auto end = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> time_elapsed =
+    std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
+  sr.num_tests = num_tests;
+  sr.num_tests_passed = num_tests_passed;
+  sr.maximum_ratio = maximum_ratio_passed;
+  sr.total_time = time_elapsed;
+  return sr;
     }
   } // namespace testing
 } // namespace differential_privacy
@@ -156,34 +232,46 @@ void GetTestResults(std::ofstream& datafile, std::string algorithm,
 
 int main(int argc, char *argv[]) {
 
-  std::ofstream datafile;
-  int num_datasets = 15;
-  double num_samples_per_histogram = 1000000;
-  double ratio_min = 80.0;
-  double ratio_max = 99.0;
+  std::ofstream countfile;
+  std::ofstream sumfile;
+  std::ofstream meanfile;
 
-  std::vector<std::string> algorithms={"count","boundedsum","boundedmean"};
+  differential_privacy::base::StatusOr<differential_privacy::testing::SummaryResults> count_summary;
+  differential_privacy::base::StatusOr<differential_privacy::testing::SummaryResults> sum_summary;
+  differential_privacy::base::StatusOr<differential_privacy::testing::SummaryResults> mean_summary;
 
-    if (argc >= 2) {
-      datafile.open(argv[1]);
-    }
+  int const count_num_datasets = 10;
+  int const sum_num_datasets = 17;
+  int const mean_num_datasets = 22;
 
-    else {
-      datafile.open("stochastic_tester_results.txt");
-    }
+  double const num_samples_per_histogram = 100;
+  double const ratio_min = 90.0;
+  double const ratio_max = 91.0;
+  std::string header = "test_name,algorithm,expected,actual,ratio,num_datasets,num_samples,time(sec)";
 
-  datafile << "test_name,algorithm,expected,actual,ratio,num_datasets," <<
-    "num_samples,time(sec)" << "\n";
-
-  for (std::string& algorithm : algorithms) {
-    // ideally run the test on each algorithm 10 times
-    for (int i=1; i<=1; i++) {
-      differential_privacy::testing::GetTestResults(datafile,algorithm,
-        num_datasets,num_samples_per_histogram,ratio_min,ratio_max);
-      std::cout << "Number of iterations completed: " << i << "/1" << std::endl;
-    }
+  if (argc >= 2) {
+//    datafile.open(argv[1]);
+    std::cout << "This is a test!" << std::endl;
   }
 
-datafile.close();
-return 0;
+  else {
+    countfile.open("testing/evaluation/stochastic_tester_results_counttest.txt");
+    countfile << header << "\n";
+    count_summary = differential_privacy::testing::GetTestResultsForCount(
+      count_num_datasets,num_samples_per_histogram,ratio_min,ratio_max,countfile);
+    countfile.close();
+
+    sumfile.open("testing/evaluation/stochastic_tester_results_sumtest.txt");
+    sumfile << header << "\n";
+    sum_summary = differential_privacy::testing::GetTestResultsForSum(
+      sum_num_datasets,num_samples_per_histogram,ratio_min,ratio_max,sumfile);
+    sumfile.close();
+
+    meanfile.open("testing/evaluation/stochastic_tester_results_meantest.txt");
+    meanfile << header << "\n";
+    mean_summary = differential_privacy::testing::GetTestResultsForMean(
+      mean_num_datasets,num_samples_per_histogram,ratio_min,ratio_max,meanfile);
+    meanfile.close();
+  }
+  return 0;
 }
