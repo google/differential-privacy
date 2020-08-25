@@ -18,8 +18,8 @@ package(
 )
 
 cc_library(
-    name = "algorithms_with_insufficient_noise",
-    hdrs = ["algorithms_with_insufficient_noise.h"],
+    name = "create_insufficient_noise_algorithms",
+    hdrs = ["create_insufficient_noise_algorithms.h"],
     deps = [
         "@com_google_absl//absl/strings",
         "//algorithms:bounded-mean",
@@ -46,10 +46,10 @@ cc_library(
 )
 
 cc_binary(
-    name = "algorithms_with_insufficient_noise_test",
-    srcs = ["algorithms_with_insufficient_noise.cc"],
+    name = "test_stochastic_tester",
+    srcs = ["test_stochastic_tester.cc"],
     deps = [
-        ":algorithms_with_insufficient_noise",
+        ":create_insufficient_noise_algorithms",
         "@com_google_absl//absl/strings",
         "//algorithms:bounded-mean",
         "//algorithms:bounded-sum",

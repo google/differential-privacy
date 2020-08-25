@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "algorithms_with_insufficient_noise.h"
+#include "create_insufficient_noise_algorithms.h"
 
 #include <chrono>
 #include <ctime>
