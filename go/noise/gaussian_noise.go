@@ -17,6 +17,7 @@
 package noise
 
 import (
+	"fmt"
 	"math"
 
 	log "github.com/golang/glog"
@@ -120,16 +121,33 @@ func (gaussian) DeltaForThreshold(l0Sensitivity int64, lInfSensitivity, epsilon,
 	return 1 - math.Pow(noiseDist.CDF(threshold-lInfSensitivity), float64(l0Sensitivity))
 }
 
+// ComputeConfidenceIntervalInt64 computes a confidence interval that contains the raw integer value x from which int64 noisedX
+// is computed with a probability greater or equal to 1 - alpha based on the specified gaussian noise parameters.
 func (gaussian) ComputeConfidenceIntervalInt64(noisedX, l0Sensitivity, lInfSensitivity int64, epsilon, delta, alpha float64) (ConfidenceInterval, error) {
-	// TODO: Implement confidence interval computation.
-	return ConfidenceInterval{}, nil
+	err := checkArgsConfidenceIntervalGaussian("computeConfidenceIntervalInt64", l0Sensitivity, float64(lInfSensitivity), epsilon, delta, alpha)
+	if err != nil {
+		err := fmt.Errorf("ComputeConfidenceIntervalInt64(l0sensitivity %d, lInfSensitivity %d, epsilon %f, delta %e, alpha %f) checks failed with %v",
+			l0Sensitivity, lInfSensitivity, epsilon, delta, alpha, err)
+		return ConfidenceInterval{}, err
+	}
+	sigma := SigmaForGaussian(l0Sensitivity, float64(lInfSensitivity), epsilon, delta)
+	return computeConfidenceIntervalGaussian(float64(noisedX), sigma, alpha).roundToInt64(), nil
 }
 
+// ComputeConfidenceIntervalFloat64 computes a confidence interval that contains the raw value x from which float64
+// noisedX is computed with a probability equal to 1 - alpha based on the specified gaussian noise parameters.
 func (gaussian) ComputeConfidenceIntervalFloat64(noisedX float64, l0Sensitivity int64, lInfSensitivity, epsilon, delta, alpha float64) (ConfidenceInterval, error) {
-	// TODO: Implement confidence interval computation.
-	return ConfidenceInterval{}, nil
+	err := checkArgsConfidenceIntervalGaussian("ComputeConfidenceIntervalFloat64", l0Sensitivity, lInfSensitivity, epsilon, delta, alpha)
+	if err != nil {
+		err = fmt.Errorf("ComputeConfidenceIntervalFloat64(l0sensitivity %d, lInfSensitivity %f, epsilon %f, delta %e, alpha %f) checks failed with %v",
+			l0Sensitivity, lInfSensitivity, epsilon, delta, alpha, err)
+		return ConfidenceInterval{}, err
+	}
+	sigma := SigmaForGaussian(l0Sensitivity, lInfSensitivity, epsilon, delta)
+	return computeConfidenceIntervalGaussian(noisedX, sigma, alpha), nil
 }
 
+// checkArgsGaussian checks the parameters for gaussian confidence interval.
 func checkArgsGaussian(label string, l0Sensitivity int64, lInfSensitivity, epsilon, delta float64) error {
 	if err := checks.CheckL0Sensitivity(label, l0Sensitivity); err != nil {
 		return err
@@ -143,6 +161,14 @@ func checkArgsGaussian(label string, l0Sensitivity int64, lInfSensitivity, epsil
 	return checks.CheckDeltaStrict(label, delta)
 }
 
+// checkArgsConfidenceIntervalGaussian checks the parameters for gaussian confidence interval, as well as the provided confidence level.
+func checkArgsConfidenceIntervalGaussian(label string, l0Sensitivity int64, lInfSensitivity, epsilon, delta, alpha float64) error {
+	if err := checks.CheckAlpha(label, alpha); err != nil {
+		return err
+	}
+	return checkArgsGaussian(label, l0Sensitivity, lInfSensitivity, epsilon, delta)
+}
+
 // addGaussian adds Gaussian noise of scale σ to the specified float64.
 func addGaussian(x, sigma float64) float64 {
 	granularity := ceilPowerOfTwo(2.0 * sigma / binomialBound)
@@ -153,6 +179,21 @@ func addGaussian(x, sigma float64) float64 {
 	sqrtN := 2.0 * sigma / granularity
 	sample := symmetricBinomial(sqrtN)
 	return roundToMultipleOfPowerOfTwo(x, granularity) + float64(sample)*granularity
+}
+
+// computeConfidenceIntervalGaussian computes a confidence interval that contains the raw value x from which
+// float64 noisedX is computed with a probability equal to 1 - alpha with the given sigma.
+func computeConfidenceIntervalGaussian(noisedX, sigma, alpha float64) ConfidenceInterval {
+	z := inverseCDFGaussian(sigma, alpha/2) // z will hold a negative value.
+	FloatLowerBound := noisedX + z
+	FloatUpperBound := noisedX - z
+	return ConfidenceInterval{LowerBound: FloatLowerBound, UpperBound: FloatUpperBound}
+}
+
+// inverseCDFGaussian computes the quantile z satisfying Pr[Y <= z] = p for a random variable Y that is Gaussian
+// distributed with the specified sigma and mean 0.
+func inverseCDFGaussian(sigma, p float64) float64 {
+	return -sigma * math.Sqrt(2) * math.Erfcinv(2*p)
 }
 
 // symmetricBinomial returns a random sample m where the term m + n / 2 is drawn from
