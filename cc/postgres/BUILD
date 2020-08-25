@@ -26,6 +26,10 @@ config_setting(
     name = "darwin_build",
     values = {"cpu": "darwin"},
 )
+config_setting(
+    name = "windows",
+    values = {"cpu": "x64_windows"},
+)
 
 cc_binary(
     name = "anon_func.so",
@@ -68,7 +72,10 @@ cc_library(
     name = "dp_func",
     srcs = ["dp_func.cc"],
     hdrs = ["dp_func.h"],
-    copts = ["-Wno-sign-compare"],
+    copts = select({
+        ":windows": [],
+        "//conditions:default": ["-Wno-sign-compare"],
+    }),
     deps = [
         "//algorithms:algorithm",
         "//algorithms:bounded-mean",
@@ -84,7 +91,10 @@ cc_library(
 cc_test(
     name = "dp_func_test",
     srcs = ["dp_func_test.cc"],
-    copts = ["-Wno-sign-compare"],
+    copts = select({
+        ":windows": [],
+        "//conditions:default": ["-Wno-sign-compare"],
+    }),
     deps = [
         ":dp_func",
         "@com_google_googletest//:gtest_main",
