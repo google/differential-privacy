@@ -30,10 +30,25 @@ public class DpPreconditions {
 
   private DpPreconditions() {}
 
+  static void checkEpsilonVeryStrict(double epsilon) {
+    checkArgument(
+            epsilon >= 1.0 / (1L << 50) && epsilon < POSITIVE_INFINITY,
+            "epsilon must be at least 2^-50 (and cannot be infinity). Provided value: %s",
+            epsilon);
+  }
+
+  static void checkEpsilonStrict(double epsilon) {
+    checkArgument(
+            epsilon > 0 && epsilon < POSITIVE_INFINITY,
+            "epsilon must be strictly positive (and cannot be infinity). Provided value: %s",
+            epsilon);
+  }
+
   static void checkEpsilon(double epsilon) {
-    checkArgument(epsilon >= 1.0 / (1L << 50)
-       && epsilon < POSITIVE_INFINITY,
-        "epsilon must be > 0 and < infinity. Provided value: %s", epsilon);
+    checkArgument(
+            epsilon >= 0 && epsilon < POSITIVE_INFINITY,
+            "epsilon must be nonnegative (and cannot be infinity). Provided value: %s",
+            epsilon);
   }
 
   static void checkNoiseDelta(Double delta, Noise noise) {
@@ -148,11 +163,11 @@ public class DpPreconditions {
         "Failed to merge: unequal mechanism types. type1 = %s, type2 = %s", type1, type2);
   }
 
-  static void checkConfidenceLevel(double confidenceLevel) {
+  static void checkAlpha(double alpha) {
     checkArgument(
-        0 < confidenceLevel && confidenceLevel < 1 && !Double.isNaN(confidenceLevel),
-        "confidenceLevel should be between 0 and 1 (exclusive and cannot be NaN). "
-            + "Provided value: %s",
-        confidenceLevel);
+            0 < alpha && alpha < 1 && !Double.isNaN(alpha),
+            "confidenceLevel should be between 0 and 1 (exclusive and cannot be NaN). "
+                    + "Provided value: %s",
+            alpha);
   }
 }
