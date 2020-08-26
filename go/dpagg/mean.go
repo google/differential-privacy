@@ -218,9 +218,11 @@ func (bm *BoundedMeanFloat64) Result() float64 {
 
 // ComputeConfidenceInterval computes a confidence interval that contains the true count with a probability
 // greater than or equal to 1 - alpha using the confidence interval for sum and count.
+//
+// Note Result() needs to be called before ComputeConfidenceInterval, otherwise this will return an error.
 func (bm *BoundedMeanFloat64) ComputeConfidenceInterval(alpha float64) (noise.ConfidenceInterval, error) {
 	if !bm.resultReturned {
-		return noise.ConfidenceInterval{}, fmt.Errorf("Noised mean has not been computed yet")
+		return noise.ConfidenceInterval{}, fmt.Errorf("You need to call Result() before calling ComputeConfidenceInterval()")
 	}
 	// Brute force for the tightest confidence interval by iterating through
 	// a fixed number of splits numSplits for countAlpha where it takes the
@@ -247,9 +249,11 @@ func (bm *BoundedMeanFloat64) ComputeConfidenceInterval(alpha float64) (noise.Co
 // As opposed to the former function, this function has countAlpha where you can set confidence
 // level for count confidence interval. It computes the coresponding alpha for sum confidence
 // interval to return a confidence interval with a confidence level of at least 1 - meanAlpha.
+//
+// Note Result() needs to be called before ComputeConfidenceInterval, otherwise this will return an error.
 func (bm *BoundedMeanFloat64) computeConfidenceIntervalSplit(meanAlpha, countAlpha float64) (noise.ConfidenceInterval, error) {
 	if !bm.resultReturned {
-		return noise.ConfidenceInterval{}, fmt.Errorf("Noised mean has not been computed yet")
+		return noise.ConfidenceInterval{}, fmt.Errorf("You need to call Result() before calling ComputeConfidenceInterval()")
 	}
 	if err := checkSplit(meanAlpha, countAlpha); err != nil {
 		return noise.ConfidenceInterval{}, err
@@ -283,6 +287,9 @@ func (bm *BoundedMeanFloat64) computeConfidenceIntervalSplit(meanAlpha, countAlp
 	} else {
 		meanUpperBound = sumConfInt.UpperBound / countConfInt.UpperBound
 	}
+	// We are using normalizedSum so we need to add midPoint to both bounds.
+	meanLowerBound, meanUpperBound = meanLowerBound+bm.midPoint, meanUpperBound+bm.midPoint
+
 	// Clamp mean bounds to lower and upper bounds.
 	meanLowerBound, err = ClampFloat64(meanLowerBound, bm.lower, bm.upper)
 	if err != nil {
