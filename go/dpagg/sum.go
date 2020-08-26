@@ -252,10 +252,11 @@ func (bs *BoundedSumInt64) ThresholdedResult(thresholdDelta float64) *int64 {
 }
 
 // ComputeConfidenceInterval computes a confidence interval with integer bounds that contains the true sum with
-// a probability greater or equal to 1 - alpha using the noised sum computed by Result().
+// a probability greater than or equal to 1 - alpha using the noised sum computed by Result(). Note Result()
+// needs to be called before ComputeConfidenceInterval, otherwise this will return an error.
 func (bs *BoundedSumInt64) ComputeConfidenceInterval(alpha float64) (noise.ConfidenceInterval, error) {
 	if !bs.resultReturned {
-		return noise.ConfidenceInterval{}, fmt.Errorf("Noised sum has not been computed yet")
+		return noise.ConfidenceInterval{}, fmt.Errorf("You need to call Result() before calling ComputeConfidenceInterval()")
 	}
 	confInt, err := bs.noise.ComputeConfidenceIntervalInt64(bs.noisedSum, bs.l0Sensitivity, bs.lInfSensitivity, bs.epsilon, bs.delta, alpha)
 	if err != nil {
@@ -543,10 +544,11 @@ func (bs *BoundedSumFloat64) ThresholdedResult(thresholdDela float64) *float64 {
 }
 
 // ComputeConfidenceInterval computes a confidence interval that contains the true sum with
-// a probability equal to 1 - alpha using the noised sum computed by Result().
+// a probability equal to 1 - alpha using the noised sum computed by Result(). Note Result()
+// needs to be called before ComputeConfidenceInterval, otherwise this will return an error.
 func (bs *BoundedSumFloat64) ComputeConfidenceInterval(alpha float64) (noise.ConfidenceInterval, error) {
 	if !bs.resultReturned {
-		return noise.ConfidenceInterval{}, fmt.Errorf("Noised sum has not been computed yet")
+		return noise.ConfidenceInterval{}, fmt.Errorf("You need to call Result() before calling ComputeConfidenceInterval()")
 	}
 	confInt, err := bs.noise.ComputeConfidenceIntervalFloat64(bs.noisedSum, bs.l0Sensitivity, bs.lInfSensitivity, bs.epsilon, bs.delta, alpha)
 	if err != nil {

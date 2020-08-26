@@ -903,14 +903,14 @@ func TestThresholdedResultFloat64(t *testing.T) {
 	}
 }
 
+// Tests ComputeConfidenceInterval that If both bounds are non-negative, then trim any negative interval. Similarly, if both
+// bounds are non-positive then trim any positive interval from the confidence interval.
 func TestSumComputeConfidenceIntervalForInt64PostProcessing(t *testing.T) {
-	// Tests If both bounds are non-negative, then trim any negative interval. Similarly, if both bounds are
-	// non-positive then trim any positive interval from the confidence interval.
 	// noNoise is set to skip initial argument checking.
 	noNoise := noNoise{}
 	for _, tc := range []struct {
 		opt     *BoundedSumInt64Options
-		confInt noise.ConfidenceInterval // Pre-processing.
+		confInt noise.ConfidenceInterval // Raw confidence interval.
 		want    noise.ConfidenceInterval // Post-processing.
 	}{
 		{
@@ -941,7 +941,7 @@ func TestSumComputeConfidenceIntervalForInt64PostProcessing(t *testing.T) {
 		},
 	} {
 		c := NewBoundedSumInt64(tc.opt)
-		// This makes Noise interface return the pre-processing confidence interval when ComputeConfidenceIntervalInt64 is called.
+		// This makes Noise interface return the raw confidence interval when ComputeConfidenceIntervalInt64 is called.
 		c.noise = getMockConfInt(tc.confInt)
 
 		c.Result()
@@ -958,14 +958,14 @@ func TestSumComputeConfidenceIntervalForInt64PostProcessing(t *testing.T) {
 	}
 }
 
+// Tests ComputeConfidenceInterval that If both bounds are non-negative, then trim any negative interval. Similarly, if both
+// bounds are non-positive then trim any positive interval from the confidence interval.
 func TestSumComputeConfidenceIntervalForFloat64PostProcessing(t *testing.T) {
-	// Tests If both bounds are non-negative, then trim any negative interval. Similarly, if both bounds are
-	// non-positive then trim any positive interval from the confidence interval.
 	// noNoise is set to skip initial argument checking.
 	noNoise := noNoise{}
 	for _, tc := range []struct {
 		opt     *BoundedSumFloat64Options
-		confInt noise.ConfidenceInterval // Pre-processing.
+		confInt noise.ConfidenceInterval // Raw confidence interval.
 		want    noise.ConfidenceInterval // Post-processing.
 	}{
 		{
@@ -996,7 +996,7 @@ func TestSumComputeConfidenceIntervalForFloat64PostProcessing(t *testing.T) {
 		},
 	} {
 		c := NewBoundedSumFloat64(tc.opt)
-		// This makes Noise interface return the pre-processing confidence interval when ComputeConfidenceIntervalFloat64 is called.
+		// This makes Noise interface return the raw confidence interval when ComputeConfidenceIntervalFloat64 is called.
 		c.noise = getMockConfInt(tc.confInt)
 
 		c.Result()
@@ -1013,8 +1013,8 @@ func TestSumComputeConfidenceIntervalForFloat64PostProcessing(t *testing.T) {
 	}
 }
 
+// Tests that ComputeConfidenceInterval returns a correct interval for a given sum.
 func TestSumComputeConfidenceIntervalForInt64Computation(t *testing.T) {
-	// Tests returned confidence intervals using Laplace or Gaussian for a given sum.
 	for _, tc := range []struct {
 		desc string
 		opt  *BoundedSumInt64Options
@@ -1049,6 +1049,7 @@ func TestSumComputeConfidenceIntervalForInt64Computation(t *testing.T) {
 	}
 }
 
+// Tests that ComputeConfidenceInterval returns a correct interval for a given sum.
 func TestSumComputeConfidenceIntervalForFloat64Computation(t *testing.T) {
 	// Tests returned confidence intervals using Laplace or Gaussian for a given sum.
 	for _, tc := range []struct {
@@ -1085,21 +1086,21 @@ func TestSumComputeConfidenceIntervalForFloat64Computation(t *testing.T) {
 	}
 }
 
-func TestSumComputeConfIntCannotBeCalledBeforeResultForInt64(t *testing.T) {
+// Tests that calling ComputeConfidenceInterval without calling Result() produces an error.
+func TestSumComputeConfidenceIntervalCannotBeCalledBeforeResultForInt64(t *testing.T) {
 	c := getNoiselessBSI()
-	// Calling ComputeConfidenceInterval without calling Result() first will produce an error.
 	_, err := c.ComputeConfidenceInterval(0.1)
 	if err == nil {
-		t.Errorf("TestSumComputeConfIntCannotBeCalledBeforeResultForInt64: No error was returned")
+		t.Errorf("TestSumComputeConfidenceIntervalCannotBeCalledBeforeResultForInt64: No error was returned, expected error")
 	}
 }
 
-func TestSumComputeConfIntCannotBeCalledBeforeResultForFloat64(t *testing.T) {
+// Tests that calling ComputeConfidenceInterval without calling Result() produces an error.
+func TestSumComputeConfidenceIntervalCannotBeCalledBeforeResultForFloat64(t *testing.T) {
 	c := getNoiselessBSF()
-	// Calling ComputeConfidenceInterval without calling Result() first will produce an error.
 	_, err := c.ComputeConfidenceInterval(0.1)
 	if err == nil {
-		t.Errorf("TestSumComputeConfIntCannotBeCalledBeforeResultForFloat64: No error was returned")
+		t.Errorf("TestSumComputeConfidenceIntervalCannotBeCalledBeforeResultForFloat64: No error was returned, expected error")
 	}
 }
 
