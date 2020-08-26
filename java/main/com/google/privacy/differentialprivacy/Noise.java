@@ -17,7 +17,7 @@
 package com.google.privacy.differentialprivacy;
 
 import com.google.differentialprivacy.SummaryOuterClass.MechanismType;
-import jdk.internal.jline.internal.Nullable;
+import javax.annotation.Nullable;
 
 /**
  * Interface for primitives that add noise to numerical data, for use in differential privacy
@@ -32,20 +32,20 @@ public interface Noise {
       long x, int l0Sensitivity, long lInfSensitivity, double epsilon, @Nullable Double delta);
 
   ConfidenceInterval computeConfidenceInterval(
-          double noisedX,
-          int l0Sensitivity,
-          double lInfSensitivity,
-          double epsilon,
-          @Nullable Double delta,
-          double alpha);
+      double noisedX,
+      int l0Sensitivity,
+      double lInfSensitivity,
+      double epsilon,
+      @Nullable Double delta,
+      double alpha);
 
   ConfidenceInterval computeConfidenceInterval(
-          long noisedX,
-          int l0Sensitivity,
-          long lInfSensitivity,
-          double epsilon,
-          @Nullable Double delta,
-          double alpha);
+      long noisedX,
+      int l0Sensitivity,
+      long lInfSensitivity,
+      double epsilon,
+      @Nullable Double delta,
+      double alpha);
 
   MechanismType getMechanismType();
 

@@ -98,7 +98,7 @@ public class ConfidenceIntervalGaussianTest {
         }
 
         @Test
-        public void computeConfidenceIntervalDouble() {
+        public void computeConfidenceInterval_hasAccurateResultsForDouble() {
             ConfidenceInterval confInt =
                     gauss.computeConfidenceInterval(
                             testCase.noisedX(),
@@ -143,7 +143,7 @@ public class ConfidenceIntervalGaussianTest {
         }
 
         @Test
-        public void computeConfidenceIntervalLong() {
+        public void computeConfidenceInterval_hasAccurateResultsForLong() {
             ConfidenceInterval confInt =
                     gauss.computeConfidenceInterval(
                             (long) testCase.noisedX(),

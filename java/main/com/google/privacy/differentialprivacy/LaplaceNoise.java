@@ -155,7 +155,7 @@ public class LaplaceNoise implements Noise {
   }
 
   private void checkParameters(double l1Sensitivity, double epsilon, @Nullable Double delta) {
-    DpPreconditions.checkEpsilon(epsilon);
+    DpPreconditions.checkEpsilonVeryStrict(epsilon);
     DpPreconditions.checkNoiseDelta(delta, this);
     DpPreconditions.checkL1Sensitivity(l1Sensitivity);
   }
