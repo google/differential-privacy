@@ -345,11 +345,11 @@ func TestCountThresholdedResult(t *testing.T) {
 	}
 }
 
+// Tests that confidence interval bounds for count are non-negative.
 func TestCountComputeConfidenceIntervalPostProcessing(t *testing.T) {
-	// Confidence interval bounds for count should be non-negative.
 	for _, tc := range []struct {
-		confInt noise.ConfidenceInterval // Pre-processing.
-		want    noise.ConfidenceInterval // Post-processing.
+		confInt noise.ConfidenceInterval // Raw confidence interval.
+		want    noise.ConfidenceInterval // Confidence interval after post-processing.
 	}{
 		{
 			confInt: noise.ConfidenceInterval{LowerBound: 5, UpperBound: 10},
@@ -370,7 +370,7 @@ func TestCountComputeConfidenceIntervalPostProcessing(t *testing.T) {
 		},
 	} {
 		c := getNoiselessCount()
-		// This makes Noise interface return the pre-processing confidence interval when ComputeConfidenceIntervalInt64 is called.
+		// This makes Noise interface return the raw confidence interval when ComputeConfidenceIntervalInt64 is called.
 		c.noise = getMockConfInt(tc.confInt)
 
 		c.Result()
@@ -387,8 +387,8 @@ func TestCountComputeConfidenceIntervalPostProcessing(t *testing.T) {
 	}
 }
 
+// Tests that ComputeConfidenceInterval returns a correct interval for a given count.
 func TestCountComputeConfidenceIntervalComputation(t *testing.T) {
-	// Tests returned confidence intervals using Laplace or Gaussian for a given count.
 	for _, tc := range []struct {
 		desc string
 		opt  *CountOptions
@@ -423,12 +423,12 @@ func TestCountComputeConfidenceIntervalComputation(t *testing.T) {
 	}
 }
 
-func TestCountComputeConfIntCannotBeCalledBeforeResult(t *testing.T) {
+// Tests that calling ComputeConfidenceInterval without calling Result() produces an error.
+func TestCountComputeConfindenceIntervalCannotBeCalledBeforeResult(t *testing.T) {
 	c := getNoiselessCount()
-	// Calling ComputeConfidenceInterval without calling Result() first will produce an error.
 	_, err := c.ComputeConfidenceInterval(0.1)
 	if err == nil {
-		t.Errorf("TestCountComputeConfIntCannotBeCalledBeforeResult: No error was returned")
+		t.Errorf("TestCountComputeConfindenceIntervalCannotBeCalledBeforeResult: No error was returned, expected error")
 	}
 }
 
