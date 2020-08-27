@@ -903,15 +903,14 @@ func TestThresholdedResultFloat64(t *testing.T) {
 	}
 }
 
-// Tests ComputeConfidenceInterval that If both bounds are non-negative, then trim any negative interval. Similarly, if both
-// bounds are non-positive then trim any positive interval from the confidence interval.
+// Tests that ComputeConfidenceInterval for int64 trims negative intervals if both bounds are non-negative;
+// and trims positive intervals if both bounds are non-positive.
 func TestSumComputeConfidenceIntervalForInt64PostProcessing(t *testing.T) {
-	// noNoise is set to skip initial argument checking.
-	noNoise := noNoise{}
+	noNoise := noNoise{} // To skip initial argument checking.
 	for _, tc := range []struct {
 		opt     *BoundedSumInt64Options
 		confInt noise.ConfidenceInterval // Raw confidence interval.
-		want    noise.ConfidenceInterval // Post-processing.
+		want    noise.ConfidenceInterval // Confidence Interval after Post-processing.
 	}{
 		{
 			opt:     &BoundedSumInt64Options{Lower: 2, Upper: 3, Noise: noNoise},
@@ -958,15 +957,14 @@ func TestSumComputeConfidenceIntervalForInt64PostProcessing(t *testing.T) {
 	}
 }
 
-// Tests ComputeConfidenceInterval that If both bounds are non-negative, then trim any negative interval. Similarly, if both
-// bounds are non-positive then trim any positive interval from the confidence interval.
+// Tests that ComputeConfidenceInterval for float64 trims negative intervals if both bounds are non-negative;
+// and trims positive intervals if both bounds are non-positive.
 func TestSumComputeConfidenceIntervalForFloat64PostProcessing(t *testing.T) {
-	// noNoise is set to skip initial argument checking.
-	noNoise := noNoise{}
+	noNoise := noNoise{} // To skip initial argument checking.
 	for _, tc := range []struct {
 		opt     *BoundedSumFloat64Options
 		confInt noise.ConfidenceInterval // Raw confidence interval.
-		want    noise.ConfidenceInterval // Post-processing.
+		want    noise.ConfidenceInterval // Confidence Interval after Post-processing.
 	}{
 		{
 			opt:     &BoundedSumFloat64Options{Lower: 2, Upper: 3, Noise: noNoise},
@@ -1013,7 +1011,7 @@ func TestSumComputeConfidenceIntervalForFloat64PostProcessing(t *testing.T) {
 	}
 }
 
-// Tests that ComputeConfidenceInterval returns a correct interval for a given sum.
+// Tests that ComputeConfidenceInterval for int64 returns a correct interval for a given sum.
 func TestSumComputeConfidenceIntervalForInt64Computation(t *testing.T) {
 	for _, tc := range []struct {
 		desc string
@@ -1049,9 +1047,8 @@ func TestSumComputeConfidenceIntervalForInt64Computation(t *testing.T) {
 	}
 }
 
-// Tests that ComputeConfidenceInterval returns a correct interval for a given sum.
+// Tests that ComputeConfidenceInterval for float64 returns a correct interval for a given sum.
 func TestSumComputeConfidenceIntervalForFloat64Computation(t *testing.T) {
-	// Tests returned confidence intervals using Laplace or Gaussian for a given sum.
 	for _, tc := range []struct {
 		desc string
 		opt  *BoundedSumFloat64Options
@@ -1086,7 +1083,7 @@ func TestSumComputeConfidenceIntervalForFloat64Computation(t *testing.T) {
 	}
 }
 
-// Tests that calling ComputeConfidenceInterval without calling Result() produces an error.
+// Tests that calling ComputeConfidenceInterval for int64 without calling Result() produces an error.
 func TestSumComputeConfidenceIntervalCannotBeCalledBeforeResultForInt64(t *testing.T) {
 	c := getNoiselessBSI()
 	_, err := c.ComputeConfidenceInterval(0.1)
@@ -1095,7 +1092,7 @@ func TestSumComputeConfidenceIntervalCannotBeCalledBeforeResultForInt64(t *testi
 	}
 }
 
-// Tests that calling ComputeConfidenceInterval without calling Result() produces an error.
+// Tests that calling ComputeConfidenceInterval for float64 without calling Result() produces an error.
 func TestSumComputeConfidenceIntervalCannotBeCalledBeforeResultForFloat64(t *testing.T) {
 	c := getNoiselessBSF()
 	_, err := c.ComputeConfidenceInterval(0.1)

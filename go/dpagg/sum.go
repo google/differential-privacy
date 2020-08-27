@@ -252,8 +252,9 @@ func (bs *BoundedSumInt64) ThresholdedResult(thresholdDelta float64) *int64 {
 }
 
 // ComputeConfidenceInterval computes a confidence interval with integer bounds that contains the true sum with
-// a probability greater than or equal to 1 - alpha using the noised sum computed by Result(). Note Result()
-// needs to be called before ComputeConfidenceInterval, otherwise this will return an error.
+// a probability greater than or equal to 1 - alpha using the noised sum computed by Result(). 
+//
+// Note Result() needs to be called before ComputeConfidenceInterval, otherwise this will return an error.
 func (bs *BoundedSumInt64) ComputeConfidenceInterval(alpha float64) (noise.ConfidenceInterval, error) {
 	if !bs.resultReturned {
 		return noise.ConfidenceInterval{}, fmt.Errorf("You need to call Result() before calling ComputeConfidenceInterval()")
@@ -262,11 +263,11 @@ func (bs *BoundedSumInt64) ComputeConfidenceInterval(alpha float64) (noise.Confi
 	if err != nil {
 		return noise.ConfidenceInterval{}, err
 	}
-	// If lower and upper bounds are non-negative, trim any negative interval.
+	// If lower and upper bounds are non-negative, trim the negative part of the interval.
 	if bs.lower >= 0 && bs.upper >= 0 {
 		confInt.LowerBound, confInt.UpperBound = math.Max(0, confInt.LowerBound), math.Max(0, confInt.UpperBound)
 	}
-	// Similarly, if lower and upper bounds are non-positive, trim any positive interval.
+	// Similarly, if lower and upper bounds are non-positive, trim the positive part of the interval.
 	if bs.lower <= 0 && bs.upper <= 0 {
 		confInt.LowerBound, confInt.UpperBound = math.Min(0, confInt.LowerBound), math.Min(0, confInt.UpperBound)
 	}
@@ -544,8 +545,9 @@ func (bs *BoundedSumFloat64) ThresholdedResult(thresholdDela float64) *float64 {
 }
 
 // ComputeConfidenceInterval computes a confidence interval that contains the true sum with
-// a probability equal to 1 - alpha using the noised sum computed by Result(). Note Result()
-// needs to be called before ComputeConfidenceInterval, otherwise this will return an error.
+// a probability equal to 1 - alpha using the noised sum computed by Result().
+//
+//  Note Result() needs to be called before ComputeConfidenceInterval, otherwise this will return an error.
 func (bs *BoundedSumFloat64) ComputeConfidenceInterval(alpha float64) (noise.ConfidenceInterval, error) {
 	if !bs.resultReturned {
 		return noise.ConfidenceInterval{}, fmt.Errorf("You need to call Result() before calling ComputeConfidenceInterval()")
@@ -554,11 +556,11 @@ func (bs *BoundedSumFloat64) ComputeConfidenceInterval(alpha float64) (noise.Con
 	if err != nil {
 		return noise.ConfidenceInterval{}, err
 	}
-	// If lower and upper bounds are non-negative, trim any negative interval.
+	// If lower and upper bounds are non-negative, trim the negative part of the interval.
 	if bs.lower >= 0 && bs.upper >= 0 {
 		confInt.LowerBound, confInt.UpperBound = math.Max(0, confInt.LowerBound), math.Max(0, confInt.UpperBound)
 	}
-	// Similarly if lower and upper bounds are non-positive, trim any positive interval.
+	// Similarly if lower and upper bounds are non-positive, trim the positive part of the interval.
 	if bs.lower <= 0 && bs.upper <= 0 {
 		confInt.LowerBound, confInt.UpperBound = math.Min(0, confInt.LowerBound), math.Min(0, confInt.UpperBound)
 	}
