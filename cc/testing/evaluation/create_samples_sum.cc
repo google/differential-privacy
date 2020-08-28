@@ -120,7 +120,8 @@ void CreateSingleScenario(int scenario, std::vector<double> values,
   samplefileB.close();
   }
 }
-
+// Runs each sample-pair with parameters that replicate those specified in:
+// https://github.com/google/differential-privacy/blob/main/proto/testing/bounded_sum_dp_test_cases.textproto.
 void GenerateAllScenarios(double ratio) {
   const int num_of_samples = 1000000;
   double small_epsilon = 0.1;
@@ -197,7 +198,6 @@ CreateSingleScenario(17,vec3,0.5,large_epsilon,1,-50,49.9,num_of_samples,-50000,
 }
 } // testing
 } // differential_privacy
-
 
 int main(int argc, char** argv) {
 // Create folder to hold the samples.
