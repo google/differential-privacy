@@ -13,7 +13,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "create_samples_count.h"
 #include "algorithms/count.h"
 
 #include <chrono>
@@ -95,58 +94,48 @@ void CreateSingleScenario(int scenario, double true_value, int number_of_samples
 // Runs each sample-pair with parameters that replicate those specified in:
 // https://github.com/google/differential-privacy/blob/main/proto/testing/count_dp_test_cases.textproto
 void GenerateAllScenarios(double ratio) {
-  const int num_of_samples = 1000000;
+  const int num_of_samples = 100;
   double small_epsilon = 0.01;
   double default_epsilon = std::log(3);
   double large_epsilon = 2*std::log(3);
 
 // Laplace noise, empty count, default parameters
-  differential_privacy::testing::CreateSingleScenario(1,0,num_of_samples,1,1,
-    default_epsilon,ratio);
+  CreateSingleScenario(1,0,num_of_samples,1,1,default_epsilon,ratio);
 
 // Laplace noise, empty count, two partitions contributed
-  differential_privacy::testing::CreateSingleScenario(2,0,num_of_samples,2,2,
-    default_epsilon,ratio);
+  CreateSingleScenario(2,0,num_of_samples,2,2,default_epsilon,ratio);
 
 // Laplace noise, empty count, many partitions contributed
-  differential_privacy::testing::CreateSingleScenario(3,0,num_of_samples,250,250,
-    default_epsilon,ratio);
+  CreateSingleScenario(3,0,num_of_samples,250,250,default_epsilon,ratio);
 
 // Laplace noise, empty count, small epsilon
-  differential_privacy::testing::CreateSingleScenario(4,0,num_of_samples,1,1,
-    small_epsilon,ratio);
+  CreateSingleScenario(4,0,num_of_samples,1,1,small_epsilon,ratio);
 
 // Laplace noise, empty count, large epsilon
-  differential_privacy::testing::CreateSingleScenario(5,0,num_of_samples,1,1,
-    large_epsilon,ratio);
+  CreateSingleScenario(5,0,num_of_samples,1,1,large_epsilon,ratio);
 
 // Laplace noise, small count, default parameters
-  differential_privacy::testing::CreateSingleScenario(6,28,num_of_samples,1,1,
-    default_epsilon,ratio);
+  CreateSingleScenario(6,28,num_of_samples,1,1,default_epsilon,ratio);
 
 // Laplace noise, small count, two partitions contributed
-  differential_privacy::testing::CreateSingleScenario(7,28,num_of_samples,2,2,
-    default_epsilon,ratio);
+  CreateSingleScenario(7,28,num_of_samples,2,2,default_epsilon,ratio);
 
 // Laplace noise, small count, many partitions contributed
-  differential_privacy::testing::CreateSingleScenario(8,28,num_of_samples,250,250,
-    default_epsilon,ratio);
+  CreateSingleScenario(8,28,num_of_samples,250,250,default_epsilon,ratio);
 
 // Laplace noise, small count, small epsilon
-  differential_privacy::testing::CreateSingleScenario(9,28,num_of_samples,1,1,
-    small_epsilon,ratio);
+  CreateSingleScenario(9,28,num_of_samples,1,1,small_epsilon,ratio);
 
 // Laplace noise, small count, large epsilon
-  differential_privacy::testing::CreateSingleScenario(10,28,num_of_samples,1,1,
-    large_epsilon,ratio);
-  }
+  CreateSingleScenario(10,28,num_of_samples,1,1,large_epsilon,ratio);
+}
 } // testing
 } // differential_privacy
 
 int main(int argc, char** argv) {
 // Creates folder to hold all samples.
   mkdir(differential_privacy::testing::folder_name.c_str(), 0777);
-  for (int i = 80; i <= 99; i++) {
+  for (int i = 80; i <= 85; i++) {
     std::string filepath = differential_privacy::testing::folder_name
       +"/R"+std::to_string(i);
     mkdir(filepath.c_str(), 0777);

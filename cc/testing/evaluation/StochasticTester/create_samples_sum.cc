@@ -13,7 +13,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "create_samples_sum.h"
 #include "algorithms/bounded-sum.h"
 
 #include <chrono>
@@ -71,7 +70,7 @@ double Discretize(double true_value, double granularity) {
 // Construct the BoundedSum algorithm.
 double BoundedSumAlgorithm(std::vector<double> values, double granularity,
   double epsilon, int max_partitions, int lower, int upper) {
-  std::unique_ptr<BoundedSum<double>> boundedsum = BoundedSum<double>::Builder()
+    std::unique_ptr<BoundedSum<double>> boundedsum = BoundedSum<double>::Builder()
     .SetEpsilon(epsilon)
     .SetMaxPartitionsContributed(max_partitions)
     .SetLower(lower)
@@ -122,78 +121,78 @@ void CreateSingleScenario(int scenario, std::vector<double> values,
 }
 
 void GenerateAllScenarios(double ratio) {
-  const int num_of_samples = 1000000;
+  const int num_of_samples = 100;
   double small_epsilon = 0.1;
   double default_epsilon = std::log(3);
   double large_epsilon = 2*std::log(3);
 
 // Laplace noise, empty sum, default parameters
-std::vector<double>zero_vector{0};
-CreateSingleScenario(1,zero_vector,0.015625,default_epsilon,1,0,1,num_of_samples,
-  1000,ratio);
+  std::vector<double>zero_vector{0};
+  CreateSingleScenario(1,zero_vector,0.015625,default_epsilon,1,0,1,num_of_samples,
+    1000,ratio);
 
 // Laplace noise, empty sum, many partitions contributed
-CreateSingleScenario(2,zero_vector,0.125,default_epsilon,25,0,1,num_of_samples,
-  25000,ratio);
+  CreateSingleScenario(2,zero_vector,0.125,default_epsilon,25,0,1,num_of_samples,
+    25000,ratio);
 
 // Laplace noise, empty sum, large bounds
-CreateSingleScenario(3,zero_vector,0.25,default_epsilon,1,-50,49,num_of_samples,
-  -50000,ratio);
+  CreateSingleScenario(3,zero_vector,0.25,default_epsilon,1,-50,49,num_of_samples,
+    -50000,ratio);
 
 // Laplace noise, empty sum, small epsilon
-CreateSingleScenario(4,zero_vector,0.0625,default_epsilon,1,0,1,num_of_samples,
-  1000,ratio);
+  CreateSingleScenario(4,zero_vector,0.0625,default_epsilon,1,0,1,num_of_samples,
+    1000,ratio);
 
 // Laplace noise, empty sum, large epsilon
-CreateSingleScenario(5,zero_vector,0.03125,large_epsilon,1,0,1,num_of_samples,
-  1000,ratio);
+  CreateSingleScenario(5,zero_vector,0.03125,large_epsilon,1,0,1,num_of_samples,
+    1000,ratio);
 
 // Laplace noise, small positive sum, default parameters
-std::vector<double>vec1{0.64872,0.12707,0.00128,0.14684,0.86507};
-CreateSingleScenario(6,vec1,0.015625,default_epsilon,1,0,1,num_of_samples,1000,
-  ratio);
+  std::vector<double>vec1{0.64872,0.12707,0.00128,0.14684,0.86507};
+  CreateSingleScenario(6,vec1,0.015625,default_epsilon,1,0,1,num_of_samples,1000,
+    ratio);
 
 // Laplace noise, small positive sum, many partitions contributed
-CreateSingleScenario(7,vec1,0.125,default_epsilon,25,0,1,num_of_samples,25000,
-  ratio);
+  CreateSingleScenario(7,vec1,0.125,default_epsilon,25,0,1,num_of_samples,25000,
+    ratio);
 
 // Laplace noise, small positive sum, small epsilon
-CreateSingleScenario(8,vec1,0.0625,small_epsilon,1,0,1,num_of_samples,1000,ratio);
+  CreateSingleScenario(8,vec1,0.0625,small_epsilon,1,0,1,num_of_samples,1000,ratio);
 
 // Laplace noise, small positive sum, large epsilon
-CreateSingleScenario(9,vec1,0.0625,large_epsilon,1,0,1,num_of_samples,1000,ratio);
+  CreateSingleScenario(9,vec1,0.0625,large_epsilon,1,0,1,num_of_samples,1000,ratio);
 
 // Laplace noise, large positive sum, default parameters
-std::vector<double>vec2{32.43606,35.35006,40.73424,32.53939,7.081785};
-CreateSingleScenario(10,vec2,0.25,default_epsilon,1,0,50,num_of_samples,50000,
-  ratio);
+  std::vector<double>vec2{32.43606,35.35006,40.73424,32.53939,7.081785};
+  CreateSingleScenario(10,vec2,0.25,default_epsilon,1,0,50,num_of_samples,50000,
+    ratio);
 
 // Laplace noise, large positive sum, many partitions contributed
-CreateSingleScenario(11,vec2,1,default_epsilon,25,0,50,num_of_samples,50000*25,
-  ratio);
+  CreateSingleScenario(11,vec2,1,default_epsilon,25,0,50,num_of_samples,50000*25,
+    ratio);
 
 // Laplace noise, large positive sum, small epsilon
-CreateSingleScenario(12,vec2,1,small_epsilon,1,0,50,num_of_samples,50000,ratio);
+  CreateSingleScenario(12,vec2,1,small_epsilon,1,0,50,num_of_samples,50000,ratio);
 
 // Laplace noise, large positive sum, large epsilon
-CreateSingleScenario(13,vec2,0.5,large_epsilon,1,0,50,num_of_samples,50000,ratio);
+  CreateSingleScenario(13,vec2,0.5,large_epsilon,1,0,50,num_of_samples,50000,ratio);
 
 // Laplace noise, large mixed sum, default parameters
-std::vector<double>vec3{-32.43606,35.35006,-40.73424,-32.53939,7.081785};
-CreateSingleScenario(14,vec3,0.25,default_epsilon,1,-50,49.9,num_of_samples,
-  -50000,ratio);
+  std::vector<double>vec3{-32.43606,35.35006,-40.73424,-32.53939,7.081785};
+  CreateSingleScenario(14,vec3,0.25,default_epsilon,1,-50,49.9,num_of_samples,
+    -50000,ratio);
 
 // Laplace noise, large mixed sum, many partitions contributed
-CreateSingleScenario(15,vec3,1,default_epsilon,1,-50,49.9,num_of_samples,
-  -50000*25,ratio);
+  CreateSingleScenario(15,vec3,1,default_epsilon,1,-50,49.9,num_of_samples,
+    -50000*25,ratio);
 
 // Laplace noise, large mixed sum, small epsilon
-CreateSingleScenario(16,vec3,1,small_epsilon,1,-50,49.9,num_of_samples,-50000,
-  ratio);
+  CreateSingleScenario(16,vec3,1,small_epsilon,1,-50,49.9,num_of_samples,-50000,
+    ratio);
 
 // Laplace noise, large mixed sum, large epsilon
-CreateSingleScenario(17,vec3,0.5,large_epsilon,1,-50,49.9,num_of_samples,-50000,
-  ratio);
+  CreateSingleScenario(17,vec3,0.5,large_epsilon,1,-50,49.9,num_of_samples,-50000,
+    ratio);
 }
 } // testing
 } // differential_privacy
@@ -202,7 +201,7 @@ CreateSingleScenario(17,vec3,0.5,large_epsilon,1,-50,49.9,num_of_samples,-50000,
 int main(int argc, char** argv) {
 // Create folder to hold the samples.
   mkdir(differential_privacy::testing::folder_name.c_str(), 0777);
-  for (int i = 80; i <= 82; i++) {
+  for (int i = 80; i <= 85; i++) {
     std::cout << i << std::endl;
     std::string filepath = differential_privacy::testing::folder_name
       +"/R"+std::to_string(i);

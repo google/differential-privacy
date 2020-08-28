@@ -1,4 +1,3 @@
- 
 //
 // Copyright 2020 Google LLC
 //
@@ -49,7 +48,7 @@ namespace testing {
 // Runs the Stochastic Tester on three algorithm types, each of which has been
 // deliberately constructed to violate differential privacy. Measures the 
 // Stochastic Tester's ability to detect the differential privacy violations
-// over a continuous range of ratio values.
+// over algorithms with increasingly more subtle violations.
 
 const double epsilon_value = std::log(3);
 
@@ -101,10 +100,11 @@ bool RunStochasticTesterOnMean(double ratio, int num_datasets,
       std::chrono::duration<double> total_time;
 };
 
-// Runs the Stochastic Tester on the specified algorithm for a continuous range
-// of ratios and sends the test results to an output file.
+// Applies the Stochastic Tester to the constructed Count algorithm over a 
+// continuous range of ratio values and sends the test results to an output file.
 base::StatusOr<SummaryResults> GetTestResultsForCount(int num_datasets,
-  int num_samples_per_histogram, int ratio_min, int ratio_max, std::ofstream& datafile) {
+  int num_samples_per_histogram, int ratio_min, int ratio_max,
+  std::ofstream& datafile) {
 
   SummaryResults sr;
   double num_tests = 0;
@@ -142,10 +142,13 @@ base::StatusOr<SummaryResults> GetTestResultsForCount(int num_datasets,
   sr.maximum_ratio = maximum_ratio_passed;
   sr.total_time = time_elapsed;
   return sr;
-    }
+}
 
+// Applies the Stochastic Tester to the constructed Bounded Sum algorithm over a
+// continuous range of ratio values and sends the test results to an output file.
 base::StatusOr<SummaryResults> GetTestResultsForSum(int num_datasets,
-  int num_samples_per_histogram, int ratio_min, int ratio_max, std::ofstream& datafile) {
+  int num_samples_per_histogram, int ratio_min, int ratio_max,
+  std::ofstream& datafile) {
 
   SummaryResults sr;
   double num_tests = 0;
@@ -183,10 +186,11 @@ base::StatusOr<SummaryResults> GetTestResultsForSum(int num_datasets,
   sr.maximum_ratio = maximum_ratio_passed;
   sr.total_time = time_elapsed;
   return sr;
-    }
+}
 
 base::StatusOr<SummaryResults> GetTestResultsForMean(int num_datasets,
-  int num_samples_per_histogram, int ratio_min, int ratio_max, std::ofstream& datafile) {
+  int num_samples_per_histogram, int ratio_min, int ratio_max,
+  std::ofstream& datafile) {
 
   SummaryResults sr;
   double num_tests = 0;
@@ -224,8 +228,8 @@ base::StatusOr<SummaryResults> GetTestResultsForMean(int num_datasets,
   sr.maximum_ratio = maximum_ratio_passed;
   sr.total_time = time_elapsed;
   return sr;
-    }
-  } // namespace testing
+}
+} // namespace testing
 } // namespace differential_privacy
 
 // TODO: Make sure ratio_min and ratio_max cannot exceed 100
@@ -240,38 +244,81 @@ int main(int argc, char *argv[]) {
   differential_privacy::base::StatusOr<differential_privacy::testing::SummaryResults> sum_summary;
   differential_privacy::base::StatusOr<differential_privacy::testing::SummaryResults> mean_summary;
 
+// Dataset values have been hard-coded in order to maintain consistency with 
+// the Statistical Tester. They should not be changed under any circumstances.
   int const count_num_datasets = 10;
   int const sum_num_datasets = 17;
   int const mean_num_datasets = 22;
 
-  double const num_samples_per_histogram = 100;
-  double const ratio_min = 90.0;
-  double const ratio_max = 91.0;
-  std::string header = "test_name,algorithm,expected,actual,ratio,num_datasets,num_samples,time(sec)";
+// Default values which can be changed by the user.
+  double num_samples_per_histogram = 100;
+  double ratio_min = 90.0;
+  double ratio_max = 91.0;
 
-  if (argc >= 2) {
-//    datafile.open(argv[1]);
-    std::cout << "This is a test!" << std::endl;
+  std::string header = "test_name,algorithm,expected,actual,ratio,num_datasets,num_samples,time(sec)";
+  std::string filepath = "testing/evaluation/Results/";
+
+  time_t now = time(0); 
+  char* dt = ctime(&now);
+
+// Specify name of files, ratio_min, ratio_max, number of samples on the command line. 
+  if (argc == 6) {
+    countfile.open(filepath+argv[1]);
+    sumfile.open(filepath+argv[2]);
+    meanfile.open(filepath+argv[3]);
+
+    double ratio_min = strtod(argv[4],NULL);
+    double ratio_max = strtod(argv[5],NULL);
+    double num_samples_per_histogram = strtod(argv[6],NULL);
+
+    if ((ratio_min > 0) && (ratio_max > 0) && (ratio_min < 1) && (ratio_max < 1)
+      && (num_samples_per_histogram > 0)) {
+      countfile << dt << "\n";
+      countfile << header << "\n";
+      count_summary = differential_privacy::testing::GetTestResultsForCount(
+      count_num_datasets,num_samples_per_histogram,ratio_min,ratio_max,countfile);
+      countfile.close();
+
+      sumfile << dt << "\n";
+      sumfile << header << "\n";
+      sum_summary = differential_privacy::testing::GetTestResultsForSum(
+        sum_num_datasets,num_samples_per_histogram,ratio_min,ratio_max,sumfile);
+      sumfile.close();
+
+      meanfile << dt << "\n";
+      meanfile << header << "\n";
+      mean_summary = differential_privacy::testing::GetTestResultsForMean(
+        mean_num_datasets,num_samples_per_histogram,ratio_min,ratio_max,meanfile);
+      meanfile.close();
+    }
+    else {
+      std::cout << "Invalid parameter(s) specified." << std::endl; 
+    }
   }
 
   else {
-    countfile.open("testing/evaluation/stochastic_tester_results_counttest.txt");
+// Use default parameter values.
+    countfile.open(filepath+"stochastic_tester_results_counttest.txt");
+    countfile << dt << "\n";
     countfile << header << "\n";
     count_summary = differential_privacy::testing::GetTestResultsForCount(
-      count_num_datasets,num_samples_per_histogram,ratio_min,ratio_max,countfile);
+    count_num_datasets,num_samples_per_histogram,ratio_min,ratio_max,countfile);
     countfile.close();
 
-    sumfile.open("testing/evaluation/stochastic_tester_results_sumtest.txt");
+    sumfile.open(filepath+"stochastic_tester_results_sumtest.txt");
+    sumfile << dt << "\n";
     sumfile << header << "\n";
     sum_summary = differential_privacy::testing::GetTestResultsForSum(
       sum_num_datasets,num_samples_per_histogram,ratio_min,ratio_max,sumfile);
     sumfile.close();
 
-    meanfile.open("testing/evaluation/stochastic_tester_results_meantest.txt");
+    meanfile.open(filepath+"stochastic_tester_results_meantest.txt");
+    meanfile << dt << "\n";
     meanfile << header << "\n";
     mean_summary = differential_privacy::testing::GetTestResultsForMean(
       mean_num_datasets,num_samples_per_histogram,ratio_min,ratio_max,meanfile);
     meanfile.close();
   }
+  
   return 0;
 }

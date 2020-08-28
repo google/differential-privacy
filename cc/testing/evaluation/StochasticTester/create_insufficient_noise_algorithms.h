@@ -1,4 +1,3 @@
-
 //
 // Copyright 2020 Google LLC
 //
@@ -57,39 +56,59 @@ namespace testing {
 template <typename T>
 class CountWithInsufficientNoise : public differential_privacy::Count<T> {
  public:
-  CountWithInsufficientNoise(double epsilon, double ratio)
-    : Count<T>(epsilon,
+  CountWithInsufficientNoise(double epsilon, double ratio) : Count<T>(epsilon,
     LaplaceMechanism::Builder()
-      .SetEpsilon(epsilon)
-      .Build()
-      .ValueOrDie()),
-      ratio_(ratio) {}
+    .SetEpsilon(epsilon)
+    .Build()
+    .ValueOrDie()),
+    ratio_(ratio) {}
 // Overrides epsilon such that amount of noise applied is only a fraction of
 // what privacy protection claimed 
   double GetEpsilon() const override { return Algorithm<T>::GetEpsilon()
     * ratio_; }
-  private:
-    double ratio_;
+ private:
+  double ratio_;
 };
+
+// template <typename T>
+// class CountWithInsufficientNoise : public differential_privacy::Count<T> {
+//  public:
+//   CountWithInsufficientNoise(double epsilon,
+//     std::unique_ptr<LaplaceMechanism::Builder> builder, double ratio)
+//     : Count<T>(epsilon,
+//     builder
+//     .SetEpsilon(epsilon)
+//     .Build()
+//     .ValueOrDie()),
+//     ratio_(ratio) {}
+// // Overrides epsilon such that amount of noise applied is only a fraction of
+// // what privacy protection claimed 
+//   double GetEpsilon() const override { return Algorithm<T>::GetEpsilon()
+//     * ratio_; }
+//  private:
+//   double ratio_;
+// };
 
 template <typename T, typename std::enable_if<std::is_integral<T>::value || 
 	std::is_floating_point<T>::value>::type* = nullptr>
 class SumWithInsufficientNoise : public differential_privacy::BoundedSum<T> {
  public:
-  SumWithInsufficientNoise(double epsilon, T lower, T upper, const double l0_sensitivity,
-    const double max_contributions_per_partition, std::unique_ptr<LaplaceMechanism::Builder> builder, double ratio)
-    : BoundedSum<T>(epsilon, lower, upper, l0_sensitivity, max_contributions_per_partition, std::move(builder),
-      LaplaceMechanism::Builder()
-        .SetEpsilon(epsilon)
-        .SetL0Sensitivity(l0_sensitivity)
-        .SetLInfSensitivity(max_contributions_per_partition * std::max(std::abs(lower),std::abs(upper)))
-        .Build()
-        .ValueOrDie(), nullptr), ratio_(ratio) {}
-
+  SumWithInsufficientNoise(double epsilon, T lower, T upper,
+    const double l0_sensitivity, const double max_contributions_per_partition,
+    std::unique_ptr<LaplaceMechanism::Builder> builder, double ratio)
+    : BoundedSum<T>(epsilon, lower, upper, l0_sensitivity, 
+    max_contributions_per_partition, std::move(builder),
+    LaplaceMechanism::Builder()
+    .SetEpsilon(epsilon)
+    .SetL0Sensitivity(l0_sensitivity)
+    .SetLInfSensitivity(max_contributions_per_partition * std::max(std::abs(lower),std::abs(upper)))
+    .Build()
+    .ValueOrDie(),nullptr),
+    ratio_(ratio) {}
 // Overrides epsilon such that amount of noise applied is only a fraction of
 // what privacy protection claimed
   double GetEpsilon() const override { return Algorithm<T>::GetEpsilon() 
-   * ratio_; } 
+    * ratio_; } 
  private: 
   double ratio_;
 };
@@ -101,25 +120,26 @@ class MeanWithInsufficientNoise : public differential_privacy::BoundedMean<T> {
   MeanWithInsufficientNoise(double epsilon, T lower, T upper,
     const double l0_sensitivity, const double max_contributions_per_partition, 
     std::unique_ptr<LaplaceMechanism::Builder> builder, double ratio)
-    : BoundedMean<T>(epsilon, lower, upper, l0_sensitivity, max_contributions_per_partition, std::move(builder),
+    : BoundedMean<T>(epsilon, lower, upper, l0_sensitivity,
+    max_contributions_per_partition, std::move(builder),
     LaplaceMechanism::Builder()
-      .SetEpsilon(epsilon)
-      .SetL0Sensitivity(l0_sensitivity)
-      .SetLInfSensitivity(max_contributions_per_partition * (std::abs(upper - lower) / 2))
-      .Build()
-      .ValueOrDie(),
+    .SetEpsilon(epsilon)
+    .SetL0Sensitivity(l0_sensitivity)
+    .SetLInfSensitivity(max_contributions_per_partition * (std::abs(upper - lower) / 2))
+    .Build()
+    .ValueOrDie(),
     LaplaceMechanism::Builder()
-      .SetEpsilon(epsilon)
-      .Build()
-      .ValueOrDie(), nullptr), ratio_(ratio) {}
+    .SetEpsilon(epsilon)
+    .Build()
+    .ValueOrDie(),nullptr),
+    ratio_(ratio) {}
 // Overrides epsilon such that amount of noise applied is only a fraction of
 // what privacy protection claimed
-    double GetEpsilon() const override { return Algorithm<T>::GetEpsilon()
-     * ratio_; }
+  double GetEpsilon() const override { return Algorithm<T>::GetEpsilon()
+    * ratio_; }
  private:
   double ratio_;
 };
-
 } // namespace testing  
 } // namespace differential_privacy
 
