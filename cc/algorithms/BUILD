@@ -377,6 +377,22 @@ cc_test(
 
 cc_library(
     name = "numerical-mechanisms-testing",
+    testonly = 1,
+    hdrs = ["numerical-mechanisms-testing.h"],
+    copts = ["-Wno-sign-compare"],
+    deps = [
+        ":distributions",
+        ":numerical-mechanisms",
+        "//base:statusor",
+        "@com_google_googletest//:gtest",
+        "@com_google_differential_privacy//proto:confidence_interval_cc_proto",
+        "@com_google_absl//absl/random",
+    ],
+)
+
+cc_library(
+    name = "numerical-mechanisms-testing-for-eval",
+    visibility = ["//testing/evaluation:__pkg__"],
     hdrs = ["numerical-mechanisms-testing.h"],
     copts = ["-Wno-sign-compare"],
     deps = [
