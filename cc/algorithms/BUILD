@@ -392,7 +392,7 @@ cc_library(
 
 cc_library(
     name = "numerical-mechanisms-testing-for-eval",
-    visibility = ["//testing/evaluation/StochasticTester:__pkg__"],
+    visibility = ["//testing/evaluation/stochastictester:__pkg__"],
     hdrs = ["numerical-mechanisms-testing.h"],
     copts = ["-Wno-sign-compare"],
     deps = [
