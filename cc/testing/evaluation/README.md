@@ -1,12 +1,12 @@
 # Evaluating Testing Tools for Differential Privacy
 
-The purpose of this evaluation is to measure and compare the effectiveness of the two testing tools designed to detect differential privacy violations within this library: the [DP Stochastic Tester](https://github.com/google/differential-privacy/tree/main/cc/testing) and the [DP Statistical Tester](https://github.com/google/differential-privacy/tree/main/java/tests/com/google/privacy/differentialprivacy/statistical). 
+The purpose of this evaluation framework is to measure and compare the effectiveness of the two testing tools available to detect potential diferential privacy violations: the [DP Stochastic Tester](https://github.com/google/differential-privacy/tree/main/cc/testing) and the [DP Statistical Tester](https://github.com/google/differential-privacy/tree/main/java/tests/com/google/privacy/differentialprivacy/statistical). 
 
-## Overview
+## Overview.  
 
-Under typical circumstances, the epsilon parameter in a differentially private algorithm determines the amount of noise applied to the data. Smaller epsilon values result in more noise, which leads to greater privacy protection. This same epsilon value is also used by both testing tools to evaluate if a given algorithm violates the mathematical premise of differential privacy.
+The evaluation works by deliberately constructing a series of algorithms that violate differential privacy. Each algorithm is then passed to the Stochastic and Statistical Tester for evaluation. Because each algorithm is built to violate differential privacy, the desired outcome for every test is that the Tester rejects the differentially private nature of the algorithm. This setup enables the Testers' ability to identify known violations to be measured and compared.
 
-The following framework works by constructing algorithms that *deliberately violate* differential privacy. This allows users to measure and compare each Testers' ability to identify known violations.
+Algorithms are constructed to violate differential privacy by deliberately manipulating the epsilon value. Under typical circumstances, the epsilon value in a differentially private algorithm determines the amount of noise applied to the data. Smaller epsilon values result in more noise, which leads to greater privacy protection. Larger epsilon values result in less noise, which leads to less privacy protection. The testing tools use this epsilon value (along with other parameters) when assessing if the amount of noise that has been applied to the data satisfies or violates the mathematical premise of differential privacy
 
 We employ an approach we will call the `insufficient_noise` test to construct differential privacy-violating algorithms. For all algorithms with `insufficient_noise`, the `advertised_epsilon`, or the epsilon value used to evaluate the algorithm for differential privacy violations, *is always less than* the `implemented_epsilon`, or the actual amount of noise applied to the algorithm. This deliberate mismatch ensures that the algorithm will *always* violate differential privacy, because it is always claiming to have more privacy protection than the true amount of noise applied to the data.
 
