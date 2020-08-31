@@ -1,6 +1,6 @@
 # Evaluating Testing Tools for Differential Privacy
 
-This evaluation framework assesses and compares the effectiveness of two testing tools designed to detect differential privacy violations: the [DP Stochastic Tester](https://github.com/google/differential-privacy/tree/main/cc/testing) and the [DP Statistical Tester](https://github.com/google/differential-privacy/tree/main/java/tests/com/google/privacy/differentialprivacy/statistical). 
+The purpose of this evaluation is to measure and compare the effectiveness of the two testing tools designed to detect differential privacy violations within this library: the [DP Stochastic Tester](https://github.com/google/differential-privacy/tree/main/cc/testing) and the [DP Statistical Tester](https://github.com/google/differential-privacy/tree/main/java/tests/com/google/privacy/differentialprivacy/statistical). 
 
 ## Overview
 
