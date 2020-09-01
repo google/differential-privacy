@@ -13,31 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "algorithms/count.h"
-
-#include <chrono>
-#include <cstdlib>
-#include <ctime>
-#include <filesystem>
-#include <fstream>
-#include <iomanip>
-#include <iostream>
-#include <iterator>
-#include <map>
-#include <memory>
-#include <vector>
-#include <string>
-
-#include "absl/random/distributions.h"
-#include "absl/memory/memory.h"
-
-#include "algorithms/algorithm.h"
-#include "algorithms/numerical-mechanisms.h"
-#include "algorithms/numerical-mechanisms-testing.h"
-#include "algorithms/util.h"
-#include "base/statusor.h"
-#include "proto/data.pb.h"
-#include "testing/sequence.h"
+#include "create_samples_count.h"
 
 namespace differential_privacy {
 
@@ -47,7 +23,8 @@ namespace testing {
 // Each sample-pair replicates a unique scenario constructed in the proto for
 // CountDpTest.java, available here:
 // https://github.com/google/differential-privacy/blob/main/proto/testing/count_dp_test_cases.textproto.
-const std::string folder_name = "../statisticaltester/countsamples";
+
+const std::string count_samples_folder = "testing/evaluation/statisticaltester/countsamples";
 
 // Construct Count algorithm.
 int64_t CountAlgorithm(const std::vector<int>& values, double epsilon,
@@ -72,7 +49,7 @@ void CreateSingleScenarioCount(int scenario, double true_value, int number_of_sa
 // Create pairs of vectors with arbitrary value of 100.
   std::vector<int> sampleA(true_value,100);
   std::vector<int> sampleB(neighbor_value,100);
-  std::string filepath = folder_name+"/R"
+  std::string filepath = count_samples_folder+"/R"
     +std::to_string(static_cast<int>(ratio*100))+"/Scenario"+std::to_string(scenario);
   mkdir(filepath.c_str(), 0777);
   for (int i=0; i<7; i++) {
@@ -132,15 +109,15 @@ void GenerateAllScenariosCount(double ratio) {
 } // testing
 } // differential_privacy
 
-int main(int argc, char** argv) {
-// Creates folder to hold all samples.
-  mkdir(differential_privacy::testing::folder_name.c_str(), 0777);
-  for (int i = 80; i <= 85; i++) {
-    std::string filepath = differential_privacy::testing::folder_name
-      +"/R"+std::to_string(i);
-    mkdir(filepath.c_str(), 0777);
-    const double r = i / 100.0;
-    differential_privacy::testing::GenerateAllScenariosCount(r);
-  }
-  return 0;
-}
+// int main(int argc, char** argv) {
+// // Creates folder to hold all samples.
+//   mkdir(differential_privacy::testing::count_sample_folder.c_str(), 0777);
+//   for (int i = 80; i <= 85; i++) {
+//     std::string filepath = differential_privacy::testing::count_sample_folder
+//       +"/R"+std::to_string(i);
+//     mkdir(filepath.c_str(), 0777);
+//     const double r = i / 100.0;
+//     differential_privacy::testing::GenerateAllScenariosCount(r);
+//   }
+//   return 0;
+// }

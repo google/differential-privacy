@@ -13,31 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "algorithms/bounded-sum.h"
-
-#include <chrono>
-#include <cstdlib>
-#include <ctime>
-#include <filesystem>
-#include <fstream>
-#include <iomanip>
-#include <iostream>
-#include <iterator>
-#include <map>
-#include <memory>
-#include <vector>
-#include <string>
-
-#include "absl/random/distributions.h"
-#include "absl/memory/memory.h"
-
-#include "algorithms/algorithm.h"
-#include "algorithms/numerical-mechanisms.h"
-#include "algorithms/numerical-mechanisms-testing.h"
-#include "algorithms/util.h"
-#include "base/statusor.h"
-#include "proto/data.pb.h"
-#include "testing/sequence.h"
+#include "create_samples_sum.h"
 
 // Creates pairs of samples of differentially private sums. 
 // Each sample-pair replicates a unique scenario constructed in the proto for
@@ -48,7 +24,7 @@ namespace differential_privacy {
 
 namespace testing {
 
-const std::string folder_name = "../statisticaltester/boundedsumsamples";
+const std::string sum_samples_folder = "testing/evaluation/statisticaltester/boundedsumsamples";
 
 double DiscretizeSum(double true_value, double granularity) {
   if (granularity > 0) {
@@ -80,7 +56,7 @@ double BoundedSumAlgorithm(std::vector<double> values, double granularity,
 
   std::vector<double> discretized_values;
   for (double i : values) {
-    double discretized_value = Discretize(i, granularity);
+    double discretized_value = DiscretizeSum(i, granularity);
     discretized_values.push_back(discretized_value);
   }
 
@@ -99,8 +75,9 @@ void CreateSingleScenarioSum(int scenario, std::vector<double> values,
   std::vector<double> neighbor_values = values;
   neighbor_values.push_back(increment);
   double implemented_epsilon = epsilon / ratio;
-  std::string filepath = folder_name+"/R"
-    +std::to_string(static_cast<int>(ratio*100))+"/Scenario"+std::to_string(scenario);
+  std::string filepath = sum_samples_folder+"/R"
+    +std::to_string(static_cast<int>(ratio*100))+"/Scenario"
+    +std::to_string(scenario);
   mkdir(filepath.c_str(), 0777);
   for (int i=0; i<7; i++) {
     std::ofstream samplefileA;
@@ -198,17 +175,17 @@ void GenerateAllScenariosSum(double ratio) {
 } // differential_privacy
 
 
-int main(int argc, char** argv) {
-// Create folder to hold the samples.
-  mkdir(differential_privacy::testing::folder_name.c_str(), 0777);
-  for (int i = 80; i <= 85; i++) {
-    std::cout << i << std::endl;
-    std::string filepath = differential_privacy::testing::folder_name
-      +"/R"+std::to_string(i);
-    mkdir(filepath.c_str(), 0777);
-    const double r = i / 100.0;
-    differential_privacy::testing::GenerateAllScenariosSum(r);
-  }
-  return 0;
-}
+// int main(int argc, char** argv) {
+// // Create folder to hold the samples.
+//   mkdir(differential_privacy::testing::folder_name.c_str(), 0777);
+//   for (int i = 80; i <= 85; i++) {
+//     std::cout << i << std::endl;
+//     std::string filepath = differential_privacy::testing::folder_name
+//       +"/R"+std::to_string(i);
+//     mkdir(filepath.c_str(), 0777);
+//     const double r = i / 100.0;
+//     differential_privacy::testing::GenerateAllScenariosSum(r);
+//   }
+//   return 0;
+// }
 

@@ -15,32 +15,6 @@
 
 #include "insufficient_noise_algorithms.h"
 
-#include <chrono>
-#include <ctime>
-#include <fstream>
-#include <iterator>
-#include <iostream>
-#include <map>
-#include <memory>
-#include <string>
-#include <type_traits>
-#include <vector>
-
-#include "absl/memory/memory.h"
-#include "absl/random/distributions.h"
-
-#include "algorithms/algorithm.h"
-#include "algorithms/bounded-sum.h"
-#include "algorithms/bounded-mean.h"
-#include "algorithms/count.h"
-#include "algorithms/numerical-mechanisms.h"
-#include "algorithms/numerical-mechanisms-testing.h"
-#include "algorithms/util.h"
-#include "base/statusor.h"
-#include "proto/data.pb.h"
-#include "testing/sequence.h"
-#include "testing/stochastic_tester.h"
-
 namespace differential_privacy {
 
 namespace testing {

@@ -14,8 +14,8 @@
 // limitations under the License.
 //
 
-#ifndef ALGORITHMS_WITH_INSUFFICIENT_NOISE_H_
-#define ALGORITHMS_WITH_INSUFFICIENT_NOISE_H_
+#ifndef INSUFFICIENT_NOISE_ALGORITHMS_H_
+#define INSUFFICIENT_NOISE_ALGORITHMS_H_
 
 #include "algorithms/count.h"
 #include "algorithms/bounded-sum.h"
@@ -37,7 +37,6 @@
 
 #include "algorithms/algorithm.h"
 #include "algorithms/numerical-mechanisms.h"
-#include "algorithms/numerical-mechanisms-testing.h"
 #include "algorithms/util.h"
 #include "base/statusor.h"
 #include "proto/data.pb.h"
@@ -154,4 +153,4 @@ base::StatusOr<SummaryResults> GetTestResultsForMean(int num_datasets,
 } // namespace testing  
 } // namespace differential_privacy
 
-#endif  // ALGORITHMS_WITH_INSUFFICIENT_NOISE_H_
+#endif  // INSUFFICIENT_NOISE_ALGORITHMS_H_
