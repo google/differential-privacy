@@ -102,8 +102,9 @@ void CreateSingleScenarioMean(int scenario, std::vector<double>valuesA,
   double extra_values_length, double extra_value) { 
 
   double implemented_epsilon = epsilon / ratio;
-  std::string filepath = mean_samples_folder+"R/"
-    +std::to_string(static_cast<int>(ratio*100))+"/Scenario"+std::to_string(scenario);
+  std::string filepath = mean_samples_folder+"/R"
+    +std::to_string(static_cast<int>(ratio*100))+"/Scenario"
+    +std::to_string(scenario);
   mkdir(filepath.c_str(), 0777);
 
   for (int i=0; i<7; i++) {
@@ -111,6 +112,7 @@ void CreateSingleScenarioMean(int scenario, std::vector<double>valuesA,
     std::ofstream samplefileB;
     samplefileA.open(filepath+"/TestCase"+std::to_string(i)+"A.txt");
     samplefileB.open(filepath+"/TestCase"+std::to_string(i)+"B.txt");
+
     if (extra_values_length == 0) {
       for (int i=0; i<number_of_samples; i++) {
         double outputA = BoundedMeanAlgorithm(valuesA, granularity,
