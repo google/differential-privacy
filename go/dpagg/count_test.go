@@ -345,6 +345,93 @@ func TestCountThresholdedResult(t *testing.T) {
 	}
 }
 
+// Tests that confidence interval bounds for count are non-negative.
+func TestCountComputeConfidenceIntervalPostProcessing(t *testing.T) {
+	for _, tc := range []struct {
+		confInt noise.ConfidenceInterval // Raw confidence interval.
+		want    noise.ConfidenceInterval // Confidence interval after post-processing.
+	}{
+		{
+			confInt: noise.ConfidenceInterval{LowerBound: 5, UpperBound: 10},
+			want:    noise.ConfidenceInterval{LowerBound: 5, UpperBound: 10},
+		},
+		{
+			confInt: noise.ConfidenceInterval{LowerBound: -5, UpperBound: 5},
+			want:    noise.ConfidenceInterval{LowerBound: 0, UpperBound: 5},
+		},
+		{
+			confInt: noise.ConfidenceInterval{LowerBound: -5, UpperBound: -5},
+			want:    noise.ConfidenceInterval{LowerBound: 0, UpperBound: 0},
+		},
+		// Infinite bounds happens for extremely small alpha for Gaussian.
+		{
+			confInt: noise.ConfidenceInterval{LowerBound: math.Inf(-1), UpperBound: math.Inf(1)},
+			want:    noise.ConfidenceInterval{LowerBound: 0, UpperBound: math.Inf(1)},
+		},
+	} {
+		c := getNoiselessCount()
+		// This makes Noise interface return the raw confidence interval when ComputeConfidenceIntervalInt64 is called.
+		c.noise = getMockConfInt(tc.confInt)
+
+		c.Result()
+		got, _ := c.ComputeConfidenceInterval(0.1) // alpha is ignored in mockConfInt.
+
+		if got.LowerBound != tc.want.LowerBound {
+			t.Errorf("TestCountComputeConfidenceIntervalPostProcessing(ConfidenceInterval{%f, %f})=%0.10f, want %0.10f, LowerBounds are not equal",
+				tc.confInt.LowerBound, tc.confInt.UpperBound, got.LowerBound, tc.want.LowerBound)
+		}
+		if got.UpperBound != tc.want.UpperBound {
+			t.Errorf("TestCountComputeConfidenceIntervalPostProcessing(ConfidenceInterval{%f, %f})=%0.10f, want %0.10f, UpperBounds are not equal",
+				tc.confInt.LowerBound, tc.confInt.UpperBound, got.UpperBound, tc.want.UpperBound)
+		}
+	}
+}
+
+// Tests that ComputeConfidenceInterval returns a correct interval for a given count.
+func TestCountComputeConfidenceIntervalComputation(t *testing.T) {
+	for _, tc := range []struct {
+		desc string
+		opt  *CountOptions
+		want noise.ConfidenceInterval
+	}{
+		{
+			desc: "Gaussian",
+			opt:  &CountOptions{Epsilon: 0.1, Delta: 0.1, Noise: getNoiselessConfInt(noise.Gaussian())},
+			want: noise.ConfidenceInterval{LowerBound: 8, UpperBound: 12},
+		},
+		{
+			desc: "Laplace",
+			opt:  &CountOptions{Epsilon: 0.1, Noise: getNoiselessConfInt(noise.Laplace())},
+			want: noise.ConfidenceInterval{LowerBound: 3, UpperBound: 17},
+		},
+	} {
+		c := NewCount(tc.opt)
+		for i := 0; i < 10; i++ {
+			c.Increment()
+		}
+		c.Result()
+		got, _ := c.ComputeConfidenceInterval(0.5)
+
+		if got.LowerBound != tc.want.LowerBound {
+			t.Errorf("TestCountComputeConfidenceIntervalComputation(Noise: %s)=%0.10f, want %0.10f, LowerBounds are not equal",
+				tc.desc, got.LowerBound, tc.want.LowerBound)
+		}
+		if got.UpperBound != tc.want.UpperBound {
+			t.Errorf("TestCountComputeConfidenceIntervalComputation(Noise: %s)=%0.10f, want %0.10f, UpperBounds are not equal",
+				tc.desc, got.UpperBound, tc.want.UpperBound)
+		}
+	}
+}
+
+// Tests that calling ComputeConfidenceInterval without calling Result() produces an error.
+func TestCountComputeConfindenceIntervalCannotBeCalledBeforeResult(t *testing.T) {
+	c := getNoiselessCount()
+	_, err := c.ComputeConfidenceInterval(0.1)
+	if err == nil {
+		t.Errorf("TestCountComputeConfindenceIntervalCannotBeCalledBeforeResult: No error was returned, expected error")
+	}
+}
+
 type mockNoiseCount struct {
 	t *testing.T
 	noise.Noise
@@ -390,6 +477,29 @@ func (mn mockNoiseCount) Threshold(l0 int64, lInf, eps, del, thresholdDelta floa
 	return 0 // ignored
 }
 
+// ComputeConfidenceIntervalInt64 checks that the parameters passed are the ones we expect.
+func (mn mockNoiseCount) ComputeConfidenceIntervalInt64(noisedX, l0, lInf int64, eps, del, alpha float64) (noise.ConfidenceInterval, error) {
+	if noisedX != 0 { // AddNoiseInt64 returns a noised value of zero in mockNoiseCount.
+		mn.t.Errorf("ComputeConfidenceIntervalInt64: for parameter x got %d, want %d", noisedX, 0)
+	}
+	if l0 != 3 {
+		mn.t.Errorf("ComputeConfidenceIntervalInt64: for parameter l0Sensitivity got %d, want %d", l0, 3)
+	}
+	if lInf != 2 {
+		mn.t.Errorf("ComputeConfidenceIntervalInt64: for parameter lInfSensitivity got %d, want %d", lInf, 2)
+	}
+	if !ApproxEqual(eps, ln3) {
+		mn.t.Errorf("ComputeConfidenceIntervalInt64: for parameter epsilon got %f, want %f", eps, ln3)
+	}
+	if !ApproxEqual(del, tenten) {
+		mn.t.Errorf("ComputeConfidenceIntervalInt64: for parameter delta got %f, want %f", del, tenten)
+	}
+	if !ApproxEqual(alpha, alphaLevel) {
+		mn.t.Errorf("ComputeConfidenceIntervalInt64: for parameter alpha got %f, want %f", alpha, alphaLevel)
+	}
+	return noise.ConfidenceInterval{}, nil
+}
+
 func getMockCount(t *testing.T) *Count {
 	return NewCount(&CountOptions{
 		Epsilon:                      ln3,
@@ -414,6 +524,12 @@ func TestThresholdIsCorrectlyCalledForCount(t *testing.T) {
 		count.Increment()
 	}
 	count.ThresholdedResult(20) // will fail if parameters are wrong
+}
+
+func TestComputeConfidenceIntervalInt64IsCorrectlyCalledForCount(t *testing.T) {
+	count := getMockCount(t)
+	count.Result()
+	count.ComputeConfidenceInterval(alphaLevel) // will fail if parameters are wrong
 }
 
 func TestCountEquallyInitialized(t *testing.T) {
