@@ -264,7 +264,7 @@ public class StatisticalTesterMean {
     String columnNamesList = "test_name,algorithm,expected,actual,ratio,num_datasets,num_samples,time(sec)";
     builder.append(columnNamesList +"\n");
 
-		for (int i = ratio_min; i <= ratio_min; i++) {
+		for (int i = ratio_min; i <= ratio_max; i++) {
 			String r = Integer.toString(i);
 			String Outcome = Integer.toString(getOverallOutcome(numberOfSamples, r));
 	    builder.append(test_name+","+algorithm+","+expected+","+Outcome+","+r+","+num_datasets+","+num_samples+","+time);
