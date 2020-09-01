@@ -42,7 +42,7 @@ Running the Stochastic Tester on the `insufficient_noise` algorithms will result
 	ratio: The ratio value used in the test. 
 	num_datasets: The number of datasets used by the Stochastic Tester.
 	num_samples`: The number samples used to build each histogram in the Stochastic Tester.
-	time(sec): The number of seconds the test took to run.Output from the tests appear in the `results` folder.
+	time(sec): The number of seconds the test took to run output from the tests appear in the results folder.
 
 #### Creating Samples with Insufficient Noise
 
