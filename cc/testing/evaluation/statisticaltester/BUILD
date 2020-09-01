@@ -36,9 +36,28 @@ java_library(
 )
 
 java_binary(
-    name = "StatisticalTesterCount",
+    name = "statistical_tester",
+    srcs = ["StatisticalTester.java"],
+    main_class = "StatisticalTester",
+    deps = [
+                ":autovalue",
+                ":statistical_tester_count",
+                ":statistical_tester_sum",
+                ":statistical_tester_mean",
+               "@com_google_java_differential_privacy//main/com/google/privacy/differentialprivacy",
+               "@com_google_java_differential_privacy//main/com/google/privacy/differentialprivacy/testing:statistical_utils",
+                "@com_google_differential_privacy//proto/testing:statistical_tests_java_proto",
+                "@com_google_protobuf//:protobuf_java",
+                "@maven//:com_google_guava_guava",
+                "@maven//:com_google_truth_truth",
+                "@maven//:junit_junit",
+               "@maven//:com_google_auto_value_auto_value_annotations",
+    ],
+)
+
+java_library(
+    name = "statistical_tester_count",
     srcs = ["StatisticalTesterCount.java"],
-    main_class = "StatisticalTesterCount",
     deps = [
                 ":autovalue",
                "@com_google_java_differential_privacy//main/com/google/privacy/differentialprivacy",
@@ -52,10 +71,9 @@ java_binary(
     ],
 )
 
-java_binary(
-    name = "StatisticalTesterSum",
+java_library(
+    name = "statistical_tester_sum",
     srcs = ["StatisticalTesterSum.java"],
-    main_class = "StatisticalTesterSum",
     deps = [
                 ":autovalue",
                "@com_google_java_differential_privacy//main/com/google/privacy/differentialprivacy",
@@ -69,10 +87,9 @@ java_binary(
     ],
 )
 
-java_binary(
-    name = "StatisticalTesterMean",
+java_library(
+    name = "statistical_tester_mean",
     srcs = ["StatisticalTesterMean.java"],
-    main_class = "StatisticalTesterMean",
     deps = [
                 ":autovalue",
                "@com_google_java_differential_privacy//main/com/google/privacy/differentialprivacy",

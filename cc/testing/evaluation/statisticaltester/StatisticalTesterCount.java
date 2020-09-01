@@ -29,9 +29,9 @@ insufficient noise. Records the results in an output text file.
 */
 public class StatisticalTesterCount {
 
-	private static final String homedir = "CountSamples/";
+	private static final String homedir = "countsamples/";
 
-// Reads in text files of differentially private counts.
+// Reads in samples of Count algorithms with insufficient noise.
 	public static Long[] getData(String filepath) {
 
 	  File file = new File(filepath);
@@ -104,9 +104,8 @@ public class StatisticalTesterCount {
 
 // Run each test case according to parameters specified by CountDpTest.java.
 // If any one test fails to satisfy DP, the algorithm is considered not DP.
-	public static int getOverallOutcome(String ratio) {
+	public static int getOverallOutcome(int numberOfSamples, String ratio) {
 
-		int numberOfSamples = 1000000;
 		int counter = 0;
 		double small_epsilon = 0.01;
 		double medium_epsilon = Math.log(3);
@@ -179,19 +178,20 @@ public class StatisticalTesterCount {
 		}
 	}
 
-	public static void collectData(int ratio_min, int ratio_max) {
+	public static void collectData(int numberOfSamples, int ratio_min,
+		int ratio_max, String filename) {
 		String test_name = "insufficient_noise";
 		String algorithm = "count";
 		String expected = "0";
 		String num_datasets = "10";
-		String num_samples = "1000000";
+		String num_samples = Integer.toString(numberOfSamples);
 // TODO: Add time in future iteration
 		String time = "null";
 		SimpleDateFormat sdf = new SimpleDateFormat("yyyy.MM.dd.HH.mm.ss");
 
     PrintWriter pw = null;
     try {
-      pw = new PrintWriter(new File("../Results/statistical_tester_results_count.txt"));
+      pw = new PrintWriter(new File("../results/"+filename));
     } catch (FileNotFoundException e) {
         e.printStackTrace();
     }
@@ -203,18 +203,14 @@ public class StatisticalTesterCount {
     builder.append(columnNamesList +"\n");
 
 		for (int i = ratio_min; i <= ratio_max; i++) {
+			System.out.println(i);
 			String r = Integer.toString(i);
-			String Outcome = Integer.toString(getOverallOutcome(r));
+			String Outcome = Integer.toString(getOverallOutcome(numberOfSamples, r));
 	    builder.append(test_name+","+algorithm+","+expected+","+Outcome+","+r+","
 	    	+String.valueOf(num_datasets)+","+String.valueOf(num_samples)+","+time);
 	    builder.append('\n');
     }
     pw.write(builder.toString());
  		pw.close();
-	}
-
-	public static void main(String[] args) {
-		StatisticalTesterCount st = new StatisticalTesterCount();
-		st.collectData(80,99);
 	}
 }
