@@ -97,11 +97,11 @@ class BoundedAlgorithmBuilder : public AlgorithmBuilder<T, Algorithm, Builder> {
     // Check if bounds are finite when a floating point type is used and bounds
     // have been set manually.
     if (BoundsAreSet() && std::is_floating_point<T>::value) {
-      if (!std::isfinite(lower_.value())) {
+      if (!std::isfinite(static_cast<double>(lower_.value()))) {
         return base::InvalidArgumentError(absl::StrCat(
             "Lower bound has to be finite but is ", lower_.value()));
       }
-      if (!std::isfinite(upper_.value())) {
+      if (!std::isfinite(static_cast<double>(upper_.value()))) {
         return base::InvalidArgumentError(absl::StrCat(
             "Upper bound has to be finite but is ", upper_.value()));
       }
