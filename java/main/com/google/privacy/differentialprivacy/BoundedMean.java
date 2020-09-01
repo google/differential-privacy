@@ -242,7 +242,7 @@ public class BoundedMean {
       public BoundedMean build() {
         BoundedMean.Params params = autoBuild();
         // No need to check noise nullability: the noise is defaulted to Laplace noise.
-        DpPreconditions.checkEpsilonVeryStrict(params.epsilon());
+        DpPreconditions.checkEpsilon(params.epsilon());
         DpPreconditions.checkNoiseDelta(params.delta(), params.noise());
         DpPreconditions.checkL0Sensitivity(params.maxPartitionsContributed());
         DpPreconditions.checkMaxContributionsPerPartition(params.maxContributionsPerPartition());

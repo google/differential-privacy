@@ -151,7 +151,7 @@ public class GaussianNoise implements Noise {
   private void checkParameters(
       int l0Sensitivity, double lInfSensitivity, double epsilon, Double delta) {
     DpPreconditions.checkSensitivities(l0Sensitivity, lInfSensitivity);
-    DpPreconditions.checkEpsilonVeryStrict(epsilon);
+    DpPreconditions.checkEpsilon(epsilon);
     DpPreconditions.checkNoiseDelta(delta, this);
   }
 

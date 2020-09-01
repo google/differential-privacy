@@ -122,7 +122,8 @@ public class LaplaceNoise implements Noise {
    * Computes a confidence interval that contains the raw value {@code x} passed to {@link
    * #addNoise(double, int, double, double, Double)} with a probability equal to {@code 1 - alpha}
    * based on the specified {@code noisedX} and noise parameters. Note that {@code delta} must be
-   * set to {@code null} because it does not parameterize Laplace noise.
+   * set to {@code null} because it does not parameterize Laplace noise. Moreover, {@code epsilon}
+   * must be at least 2^-50.
    */
   @Override
   public ConfidenceInterval computeConfidenceInterval(
@@ -132,7 +133,7 @@ public class LaplaceNoise implements Noise {
       double epsilon,
       @Nullable Double delta,
       double alpha) {
-    checkConfidenceParameters(l0Sensitivity, lInfSensitivity, epsilon, delta, alpha);
+    checkConfidenceIntervalParameters(l0Sensitivity, lInfSensitivity, epsilon, delta, alpha);
     return computeConfidenceInterval(
         noisedX, Noise.getL1Sensitivity(l0Sensitivity, lInfSensitivity) / epsilon, alpha);
   }
@@ -141,7 +142,8 @@ public class LaplaceNoise implements Noise {
    * Computes a confidence interval that contains the raw value integer {@code x} passed to {@link
    * #addNoise(long, int, long, double, Double)} with a probability greater or equal to {@code 1 -
    * alpha} based on the specified {@code noisedX} and noise parameters. Note that {@code delta}
-   * must be set to {@code null} because it does not parameterize Laplace noise.
+   * must be set to {@code null} because it does not parameterize Laplace noise. Moreover, {@code
+   * epsilon} must be at least 2^-50.
    */
   @Override
   public ConfidenceInterval computeConfidenceInterval(
@@ -151,51 +153,52 @@ public class LaplaceNoise implements Noise {
       double epsilon,
       @Nullable Double delta,
       double alpha) {
-    checkConfidenceParameters(l0Sensitivity, lInfSensitivity, epsilon, delta, alpha);
+    checkConfidenceIntervalParameters(l0Sensitivity, lInfSensitivity, epsilon, delta, alpha);
     ConfidenceInterval confInt =
         computeConfidenceInterval(
-            noisedX, Noise.getL1Sensitivity(l0Sensitivity, lInfSensitivity) / epsilon, alpha);
+            0, Noise.getL1Sensitivity(l0Sensitivity, lInfSensitivity) / epsilon, alpha);
     return ConfidenceInterval.create(
-        Math.round(confInt.lowerBound()), Math.round(confInt.upperBound()));
+        SecureNoiseMath.nextSmallerDouble(Math.round(confInt.lowerBound()) + noisedX),
+        SecureNoiseMath.nextLargerDouble(Math.round(confInt.upperBound()) + noisedX));
   }
 
   private void checkParameters(double l1Sensitivity, double epsilon, @Nullable Double delta) {
-    DpPreconditions.checkEpsilonVeryStrict(epsilon);
+    DpPreconditions.checkEpsilon(epsilon);
     DpPreconditions.checkNoiseDelta(delta, this);
     DpPreconditions.checkL1Sensitivity(l1Sensitivity);
   }
 
-  private void checkConfidenceParameters(
+  private void checkConfidenceIntervalParameters(
       int l0Sensitivity,
       double lInfSensitivity,
       double epsilon,
       @Nullable Double delta,
       double alpha) {
-    DpPreconditions.checkEpsilonStrict(epsilon);
-    DpPreconditions.checkNoiseDelta(delta, this);
-    DpPreconditions.checkSensitivities(l0Sensitivity, lInfSensitivity);
     DpPreconditions.checkAlpha(alpha);
+    DpPreconditions.checkSensitivities(l0Sensitivity, lInfSensitivity);
+    checkParameters(Noise.getL1Sensitivity(l0Sensitivity, lInfSensitivity), epsilon, delta);
   }
 
   /**
-   * Computes a confidence interval that contains the raw value {@code x} passed to {@link
-   * #addNoise(double, int, double, double, Double)} with a probability equal to {@code 1 - alpha}
-   * based on the specified {@code noisedX} and lambda.
+   * See {@link #computeConfidenceInterval(double, int, double, double, Double, double)}.
+   *
+   * <p>As opposed to the latter method, this accepts the {@code lambda} of the Laplace noise
+   * directly.
    */
   private ConfidenceInterval computeConfidenceInterval(
       double noisedX, double lambda, double alpha) {
     // Finding a symmetrical confidence interval around a Laplace of (0, lambda)
-    // by calculating Z_(alpha/2) using inverseCdfLaplace which will return a
+    // by calculating Z_(alpha/2) using computeLaplacePercentile which will return a
     // negative value by symmetry to gain more accuracy for extremely small alpha.
-    double z = inverseCdfLaplace(lambda, alpha / 2);
+    double z = computeLaplacePercentile(lambda, alpha / 2);
     return ConfidenceInterval.create(noisedX + z, noisedX - z);
   }
 
   /**
-   * Computes the quantile z satisfying Pr[Y <= z] = p for a random variable Y that is Laplace
-   * distributed with the specified lambda where mean is zero.
+   * Computes the percentile z satisfying Pr[Y <= z] = {@code p} for a random variable Y that is
+   * Laplace distributed with the specified {@code lambda} and a mean of zero.
    */
-  private double inverseCdfLaplace(double lambda, double p) {
+  private double computeLaplacePercentile(double lambda, double p) {
     if (p < 0.5) {
       return lambda * Math.log(2 * p);
     }

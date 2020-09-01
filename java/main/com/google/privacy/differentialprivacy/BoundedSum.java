@@ -332,7 +332,7 @@ public class BoundedSum {
       public BoundedSum build() {
         Params params = autoBuild();
         // No need to check if noise is null: Laplace noise is used by default.
-        DpPreconditions.checkEpsilonVeryStrict(params.epsilon());
+        DpPreconditions.checkEpsilon(params.epsilon());
         DpPreconditions.checkNoiseDelta(params.delta(), params.noise());
         DpPreconditions.checkMaxPartitionsContributed(params.maxPartitionsContributed());
         DpPreconditions.checkMaxContributionsPerPartition(params.maxContributionsPerPartition());
