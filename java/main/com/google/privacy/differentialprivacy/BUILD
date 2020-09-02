@@ -40,14 +40,14 @@ java_library(
     srcs = glob(["*.java"]),
     deps = [
                ":autovalue",
-               "@com_google_differential_privacy//proto:data_java_proto",
                "@com_google_differential_privacy//proto:summary_java_proto",
+               "@com_google_differential_privacy//proto:data_java_proto",
+               "@maven//:org_apache_commons_commons_math3",
                "@maven//:com_google_auto_value_auto_value",
                "@maven//:com_google_auto_value_auto_value_annotations",
                "@maven//:com_google_code_findbugs_jsr305",
                "@maven//:com_google_errorprone_error_prone_annotations",
                "@maven//:com_google_guava_guava",
                "@maven//:com_google_protobuf_protobuf_java",
-               "@maven//:org_apache_commons_commons_math3"
     ],
 )

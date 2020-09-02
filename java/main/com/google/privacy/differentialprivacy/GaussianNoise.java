@@ -26,7 +26,6 @@ import org.apache.commons.math3.special.Erf;
 
 import java.lang.Math;
 
-
 /**
  * Generates and adds Gaussian noise to a raw piece of numerical data such that the result is
  * securely differentially private.
@@ -120,8 +119,8 @@ public class GaussianNoise implements Noise {
 
   /**
    * Computes a confidence interval that contains the raw value {@code x} passed to {@link
-   * #addNoise(double, int, double, double, Double)} with a probability equal to {@code
-   * confidenceLevel} based on the specified {@code noisedX} and noise parameters.
+   * #addNoise(double, int, double, double, Double)} with a probability equal to {@code 1-alpha}
+   * based on the specified {@code noisedX} and noise parameters.
    */
   @Override
   public ConfidenceInterval computeConfidenceInterval(
@@ -131,8 +130,8 @@ public class GaussianNoise implements Noise {
       double epsilon,
       Double delta,
       double alpha) {
-    CheckConfidenceIntervalParameters(l0Sensitivity, lInfSensitivity, epsilon, delta, alpha);
-    double l2Sensitivity = lInfSensitivity * Math.sqrt(l0Sensitivity);
+    checkConfidenceIntervalParameters(l0Sensitivity, lInfSensitivity, epsilon, delta, alpha);
+    double l2Sensitivity = Noise.getL2Sensitivity(l0Sensitivity, lInfSensitivity);
     double sigma = getSigma(l2Sensitivity, epsilon, delta);
     return computeConfidenceInterval(noisedX, sigma, alpha);
   }
@@ -140,7 +139,7 @@ public class GaussianNoise implements Noise {
   /**
    * Computes a confidence interval that contains the raw value integer {@code x} passed to {@link
    * #addNoise(long, int, long, double, Double)} with a probability greater or equal to {@code
-   * confidenceLevel} based on the specified {@code noisedX} and noise parameters.
+   * 1-alpha} based on the specified {@code noisedX} and noise parameters.
    */
   @Override
   public ConfidenceInterval computeConfidenceInterval(
@@ -150,42 +149,42 @@ public class GaussianNoise implements Noise {
       double epsilon,
       Double delta,
       double alpha) {
-    CheckConfidenceIntervalParameters(l0Sensitivity, lInfSensitivity, epsilon, delta, alpha);
-    double l2Sensitivity = lInfSensitivity * Math.sqrt((double) l0Sensitivity);
+    checkConfidenceIntervalParameters(l0Sensitivity, lInfSensitivity, epsilon, delta, alpha);
+    double l2Sensitivity = Noise.getL2Sensitivity(l0Sensitivity, lInfSensitivity);
     double sigma = getSigma(l2Sensitivity, epsilon, delta);
-    ConfidenceInterval confInt = computeConfidenceInterval((double) noisedX, sigma, alpha);
+    ConfidenceInterval confInt = computeConfidenceInterval(0.0, sigma, alpha);
     return ConfidenceInterval.create(
-        Math.round(confInt.lowerBound()), Math.round(confInt.upperBound()));
+        SecureNoiseMath.nextSmallerDouble(Math.round(confInt.lowerBound()) + noisedX),
+        SecureNoiseMath.nextLargerDouble(Math.round(confInt.upperBound())) + noisedX);
   }
 
   /**
-   * Returns {@link ConfidenceInterval} object with 1-{@code alpha} confidence level and
-   * {@code sigma} parameters.
+   * See {@link #computeConfidenceInterval(double, int, double, double, Double, double)}.
+   *
+   * <p> As opposed to the latter method, this accepts the standard deviation {@code sigma} of the Gaussian noise directly.
    */
-  public ConfidenceInterval computeConfidenceInterval(double noisedX, double sigma, double alpha) {
-    double z = inverseCDFGaussian(sigma, alpha / 2); // z will hold a negative value.
-    double lowerBound = noisedX + z;
-    double upperBound = noisedX - z;
-    return ConfidenceInterval.create(lowerBound, upperBound);
+  private ConfidenceInterval computeConfidenceInterval(double noisedX, double sigma, double alpha) {
+    double z = computeGaussianPercentile(sigma, alpha / 2); // z will hold a negative value.
+    return ConfidenceInterval.create(noisedX + z, noisedX - z);
   }
 
   /**
-   * inverseCDFGaussian returns z with the property that Pr( Y <= z ) = p, where p is {@code
-   * confidenceLevel} and Y is a random variable.
+   * Computes the percentile z satisfying Pr[Y <= z] = {@code p} for a random variable Y that is
+   * Gaussian distributed with the specified {@code sigma} and a mean of zero.
    */
-  private double inverseCDFGaussian(double sigma, double p) {
+  private double computeGaussianPercentile(double sigma, double p) {
     return -sigma * Math.sqrt(2) * Erf.erfcInv(2 * p);
   }
 
   private void checkParameters(
       int l0Sensitivity, double lInfSensitivity, double epsilon, Double delta) {
     DpPreconditions.checkSensitivities(l0Sensitivity, lInfSensitivity);
-    DpPreconditions.checkEpsilonStrict(epsilon);
+    DpPreconditions.checkEpsilon(epsilon);
     DpPreconditions.checkNoiseDelta(delta, this);
   }
 
-  private void CheckConfidenceIntervalParameters(
-          int l0Sensitivity, double lInfSensitivity, double epsilon, Double delta, double alpha) {
+  private void checkConfidenceIntervalParameters(
+      int l0Sensitivity, double lInfSensitivity, double epsilon, Double delta, double alpha) {
     DpPreconditions.checkAlpha(alpha);
     checkParameters(l0Sensitivity, lInfSensitivity, epsilon, delta);
   }
