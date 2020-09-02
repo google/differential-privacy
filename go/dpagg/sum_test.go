@@ -903,6 +903,204 @@ func TestThresholdedResultFloat64(t *testing.T) {
 	}
 }
 
+// Tests that ComputeConfidenceInterval for int64 trims negative intervals if both bounds are non-negative;
+// and trims positive intervals if both bounds are non-positive.
+func TestSumComputeConfidenceIntervalForInt64PostProcessing(t *testing.T) {
+	noNoise := noNoise{} // To skip initial argument checking.
+	for _, tc := range []struct {
+		opt     *BoundedSumInt64Options
+		confInt noise.ConfidenceInterval // Raw confidence interval.
+		want    noise.ConfidenceInterval // Confidence Interval after Post-processing.
+	}{
+		{
+			opt:     &BoundedSumInt64Options{Lower: 2, Upper: 3, Noise: noNoise},
+			confInt: noise.ConfidenceInterval{LowerBound: 5, UpperBound: 10},
+			want:    noise.ConfidenceInterval{LowerBound: 5, UpperBound: 10},
+		},
+		{
+			opt:     &BoundedSumInt64Options{Lower: 2, Upper: 3, Noise: noNoise},
+			confInt: noise.ConfidenceInterval{LowerBound: -5, UpperBound: 5},
+			want:    noise.ConfidenceInterval{LowerBound: 0, UpperBound: 5},
+		},
+		{
+			opt:     &BoundedSumInt64Options{Lower: -3, Upper: -2, Noise: noNoise},
+			confInt: noise.ConfidenceInterval{LowerBound: -5, UpperBound: 5},
+			want:    noise.ConfidenceInterval{LowerBound: -5, UpperBound: 0},
+		},
+		{
+			opt:     &BoundedSumInt64Options{Lower: -2, Upper: 3, Noise: noNoise},
+			confInt: noise.ConfidenceInterval{LowerBound: -5, UpperBound: 5},
+			want:    noise.ConfidenceInterval{LowerBound: -5, UpperBound: 5},
+		},
+		// Infinite bounds happens for extremely small alpha for Gaussian.
+		{
+			opt:     &BoundedSumInt64Options{Lower: 2, Upper: 3, Noise: noNoise},
+			confInt: noise.ConfidenceInterval{LowerBound: math.Inf(-1), UpperBound: math.Inf(1)},
+			want:    noise.ConfidenceInterval{LowerBound: 0, UpperBound: math.Inf(1)},
+		},
+	} {
+		c := NewBoundedSumInt64(tc.opt)
+		// This makes Noise interface return the raw confidence interval when ComputeConfidenceIntervalInt64 is called.
+		c.noise = getMockConfInt(tc.confInt)
+
+		c.Result()
+		got, _ := c.ComputeConfidenceInterval(0.1) // alpha is ignored in mockConfInt.
+
+		if got.LowerBound != tc.want.LowerBound {
+			t.Errorf("TestSumComputeConfidenceIntervalForInt64PostProcessing(ConfidenceInterval{%f, %f})=%0.10f, want %0.10f, LowerBounds are not equal",
+				tc.confInt.LowerBound, tc.confInt.UpperBound, got.LowerBound, tc.want.LowerBound)
+		}
+		if got.UpperBound != tc.want.UpperBound {
+			t.Errorf("TestSumComputeConfidenceIntervalForInt64PostProcessing(ConfidenceInterval{%f, %f})=%0.10f, want %0.10f, UpperBounds are not equal",
+				tc.confInt.LowerBound, tc.confInt.UpperBound, got.UpperBound, tc.want.UpperBound)
+		}
+	}
+}
+
+// Tests that ComputeConfidenceInterval for float64 trims negative intervals if both bounds are non-negative;
+// and trims positive intervals if both bounds are non-positive.
+func TestSumComputeConfidenceIntervalForFloat64PostProcessing(t *testing.T) {
+	noNoise := noNoise{} // To skip initial argument checking.
+	for _, tc := range []struct {
+		opt     *BoundedSumFloat64Options
+		confInt noise.ConfidenceInterval // Raw confidence interval.
+		want    noise.ConfidenceInterval // Confidence Interval after Post-processing.
+	}{
+		{
+			opt:     &BoundedSumFloat64Options{Lower: 2, Upper: 3, Noise: noNoise},
+			confInt: noise.ConfidenceInterval{LowerBound: 5, UpperBound: 10},
+			want:    noise.ConfidenceInterval{LowerBound: 5, UpperBound: 10},
+		},
+		{
+			opt:     &BoundedSumFloat64Options{Lower: 2, Upper: 3, Noise: noNoise},
+			confInt: noise.ConfidenceInterval{LowerBound: -5, UpperBound: 5},
+			want:    noise.ConfidenceInterval{LowerBound: 0, UpperBound: 5},
+		},
+		{
+			opt:     &BoundedSumFloat64Options{Lower: -3, Upper: -2, Noise: noNoise},
+			confInt: noise.ConfidenceInterval{LowerBound: -5, UpperBound: 5},
+			want:    noise.ConfidenceInterval{LowerBound: -5, UpperBound: 0},
+		},
+		{
+			opt:     &BoundedSumFloat64Options{Lower: -2, Upper: 3, Noise: noNoise},
+			confInt: noise.ConfidenceInterval{LowerBound: -5, UpperBound: 5},
+			want:    noise.ConfidenceInterval{LowerBound: -5, UpperBound: 5},
+		},
+		// Infinite bounds happens for extremely small alpha for Gaussian.
+		{
+			opt:     &BoundedSumFloat64Options{Lower: 2, Upper: 3, Noise: noNoise},
+			confInt: noise.ConfidenceInterval{LowerBound: math.Inf(-1), UpperBound: math.Inf(1)},
+			want:    noise.ConfidenceInterval{LowerBound: 0, UpperBound: math.Inf(1)},
+		},
+	} {
+		c := NewBoundedSumFloat64(tc.opt)
+		// This makes Noise interface return the raw confidence interval when ComputeConfidenceIntervalFloat64 is called.
+		c.noise = getMockConfInt(tc.confInt)
+
+		c.Result()
+		got, _ := c.ComputeConfidenceInterval(0.1) // alpha is ignored in mockConfInt.
+
+		if !ApproxEqual(got.LowerBound, tc.want.LowerBound) {
+			t.Errorf("TestSumComputeConfidenceIntervalForFloat64PostProcessing(ConfidenceInterval{%f, %f})=%0.10f, want %0.10f, LowerBounds are not equal",
+				tc.confInt.LowerBound, tc.confInt.UpperBound, got.LowerBound, tc.want.LowerBound)
+		}
+		if !ApproxEqual(got.UpperBound, tc.want.UpperBound) {
+			t.Errorf("TestSumComputeConfidenceIntervalForFloat64PostProcessing(ConfidenceInterval{%f, %f})=%0.10f, want %0.10f, UpperBounds are not equal",
+				tc.confInt.LowerBound, tc.confInt.UpperBound, got.UpperBound, tc.want.UpperBound)
+		}
+	}
+}
+
+// Tests that ComputeConfidenceInterval for int64 returns a correct interval for a given sum.
+func TestSumComputeConfidenceIntervalForInt64Computation(t *testing.T) {
+	for _, tc := range []struct {
+		desc string
+		opt  *BoundedSumInt64Options
+		want noise.ConfidenceInterval
+	}{
+		{
+			desc: "Gaussian",
+			opt:  &BoundedSumInt64Options{Epsilon: 0.1, Delta: 0.1, Lower: 0, Upper: 5, Noise: getNoiselessConfInt(noise.Gaussian())},
+			want: noise.ConfidenceInterval{LowerBound: 40, UpperBound: 60},
+		},
+		{
+			desc: "Laplace",
+			opt:  &BoundedSumInt64Options{Epsilon: 0.1, Lower: 0, Upper: 5, Noise: getNoiselessConfInt(noise.Laplace())},
+			want: noise.ConfidenceInterval{LowerBound: 15, UpperBound: 85},
+		},
+	} {
+		c := NewBoundedSumInt64(tc.opt)
+		for i := 0; i < 10; i++ {
+			c.Add(5)
+		}
+		c.Result()
+		got, _ := c.ComputeConfidenceInterval(0.5)
+
+		if got.LowerBound != tc.want.LowerBound {
+			t.Errorf("TestSumComputeConfidenceIntervalForInt64Computation(Noise: %s)=%0.10f, want %0.10f, LowerBounds are not equal",
+				tc.desc, got.LowerBound, tc.want.LowerBound)
+		}
+		if got.UpperBound != tc.want.UpperBound {
+			t.Errorf("TestSumComputeConfidenceIntervalForInt64Computation(Noise: %s)=%0.10f, want %0.10f, UpperBounds are not equal",
+				tc.desc, got.UpperBound, tc.want.UpperBound)
+		}
+	}
+}
+
+// Tests that ComputeConfidenceInterval for float64 returns a correct interval for a given sum.
+func TestSumComputeConfidenceIntervalForFloat64Computation(t *testing.T) {
+	for _, tc := range []struct {
+		desc string
+		opt  *BoundedSumFloat64Options
+		want noise.ConfidenceInterval
+	}{
+		{
+			desc: "Gaussian",
+			opt:  &BoundedSumFloat64Options{Epsilon: 0.1, Delta: 0.1, Lower: 0, Upper: 5, Noise: getNoiselessConfInt(noise.Gaussian())},
+			want: noise.ConfidenceInterval{LowerBound: 15.8964252365, UpperBound: 35.1035747635},
+		},
+		{
+			desc: "Laplace",
+			opt:  &BoundedSumFloat64Options{Epsilon: 0.1, Lower: 0, Upper: 5, Noise: getNoiselessConfInt(noise.Laplace())},
+			want: noise.ConfidenceInterval{LowerBound: 0.0000000000, UpperBound: 60.1573590280},
+		},
+	} {
+		c := NewBoundedSumFloat64(tc.opt)
+		for i := 0; i < 10; i++ {
+			c.Add(2.55)
+		}
+		c.Result()
+		got, _ := c.ComputeConfidenceInterval(0.5)
+
+		if !ApproxEqual(got.LowerBound, tc.want.LowerBound) {
+			t.Errorf("TestSumComputeConfidenceIntervalForFloat64Computation(Noise: %s)=%0.10f, want %0.10f, LowerBounds are not equal",
+				tc.desc, got.LowerBound, tc.want.LowerBound)
+		}
+		if !ApproxEqual(got.UpperBound, tc.want.UpperBound) {
+			t.Errorf("TestSumComputeConfidenceIntervalForFloat64Computation(Noise: %s)=%0.10f, want %0.10f, UpperBounds are not equal",
+				tc.desc, got.UpperBound, tc.want.UpperBound)
+		}
+	}
+}
+
+// Tests that calling ComputeConfidenceInterval for int64 without calling Result() produces an error.
+func TestSumComputeConfidenceIntervalCannotBeCalledBeforeResultForInt64(t *testing.T) {
+	c := getNoiselessBSI()
+	_, err := c.ComputeConfidenceInterval(0.1)
+	if err == nil {
+		t.Errorf("TestSumComputeConfidenceIntervalCannotBeCalledBeforeResultForInt64: No error was returned, expected error")
+	}
+}
+
+// Tests that calling ComputeConfidenceInterval for float64 without calling Result() produces an error.
+func TestSumComputeConfidenceIntervalCannotBeCalledBeforeResultForFloat64(t *testing.T) {
+	c := getNoiselessBSF()
+	_, err := c.ComputeConfidenceInterval(0.1)
+	if err == nil {
+		t.Errorf("TestSumComputeConfidenceIntervalCannotBeCalledBeforeResultForFloat64: No error was returned, expected error")
+	}
+}
+
 type mockNoise struct {
 	t *testing.T
 	noise.Noise
@@ -969,6 +1167,52 @@ func (mn mockNoise) Threshold(l0 int64, lInf, eps, del, thresholdDelta float64) 
 	return 0 // ignored
 }
 
+// ComputeConfidenceIntervalInt64 checks that the parameters passed are the ones we expect.
+func (mn mockNoise) ComputeConfidenceIntervalInt64(noisedX, l0, lInf int64, eps, del, alpha float64) (noise.ConfidenceInterval, error) {
+	if noisedX != 0 { // AddNoiseInt64 returns a noised value of zero in mockNoise.
+		mn.t.Errorf("ComputeConfidenceIntervalInt64: for parameter x got %d, want %d", noisedX, 0)
+	}
+	if l0 != 1 {
+		mn.t.Errorf("ComputeConfidenceIntervalInt64: for parameter l0Sensitivity got %d, want %d", l0, 1)
+	}
+	if lInf != 5 {
+		mn.t.Errorf("ComputeConfidenceIntervalInt64: for parameter lInfSensitivity got %d, want %d", lInf, 5)
+	}
+	if !ApproxEqual(eps, ln3) {
+		mn.t.Errorf("ComputeConfidenceIntervalInt64: for parameter epsilon got %f, want %f", eps, ln3)
+	}
+	if !ApproxEqual(del, tenten) {
+		mn.t.Errorf("ComputeConfidenceIntervalInt64: for parameter delta got %f, want %f", del, tenten)
+	}
+	if !ApproxEqual(alpha, alphaLevel) {
+		mn.t.Errorf("ComputeConfidenceIntervalInt64: for parameter alpha got %f, want %f", alpha, alphaLevel)
+	}
+	return noise.ConfidenceInterval{}, nil
+}
+
+// ComputeConfidenceIntervalFloat64 checks that the parameters passed are the ones we expect.
+func (mn mockNoise) ComputeConfidenceIntervalFloat64(noisedX float64, l0 int64, lInf, eps, del, alpha float64) (noise.ConfidenceInterval, error) {
+	if !approxEqual(noisedX, 0) { // AddNoiseFloat64 returns a noised value of zero in mockNoise.
+		mn.t.Errorf("ComputeConfidenceIntervalFloat64: for parameter x got %f, want %d", noisedX, 0)
+	}
+	if l0 != 1 {
+		mn.t.Errorf("ComputeConfidenceIntervalFloat64: for parameter l0Sensitivity got %d, want %d", l0, 1)
+	}
+	if !ApproxEqual(lInf, 5.0) {
+		mn.t.Errorf("ComputeConfidenceIntervalFloat64: for parameter lInfSensitivity got %f, want %f", lInf, 5.0)
+	}
+	if !ApproxEqual(eps, ln3) {
+		mn.t.Errorf("ComputeConfidenceIntervalFloat64: for parameter epsilon got %f, want %f", eps, ln3)
+	}
+	if !ApproxEqual(del, tenten) {
+		mn.t.Errorf("ComputeConfidenceIntervalFloat64: for parameter delta got %f, want %f", del, tenten)
+	}
+	if !ApproxEqual(alpha, alphaLevel) {
+		mn.t.Errorf("ComputeConfidenceIntervalFloat64: for parameter alpha got %f, want %f", alpha, alphaLevel)
+	}
+	return noise.ConfidenceInterval{}, nil
+}
+
 func getMockBSI(t *testing.T) *BoundedSumInt64 {
 	return NewBoundedSumInt64(&BoundedSumInt64Options{
 		Epsilon:                  ln3,
@@ -1025,6 +1269,18 @@ func TestThresholdsCorrectlyCalledForSumInt64(t *testing.T) {
 	bsf.Add(3)
 	bsf.Add(4)
 	bsf.ThresholdedResult(10) // will fail if parameters are wrong
+}
+
+func TestComputeConfidenceIntervalIsCorrectlyCalledForSumInt64(t *testing.T) {
+	bsf := getMockBSI(t)
+	bsf.Result()
+	bsf.ComputeConfidenceInterval(alphaLevel) // will fail if parameters are wrong
+}
+
+func TestComputeConfidenceIntervalIsCorrectlyCalledForSumFloat64(t *testing.T) {
+	bsf := getMockBSF(t)
+	bsf.Result()
+	bsf.ComputeConfidenceInterval(alphaLevel) // will fail if parameters are wrong
 }
 
 func TestBSEquallyInitializedInt64(t *testing.T) {
