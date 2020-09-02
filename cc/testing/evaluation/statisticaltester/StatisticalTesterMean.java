@@ -60,10 +60,11 @@ public class StatisticalTesterMean {
 	public static boolean getOutcome(
 		String fileA,
 		String fileB,
-	    int numberOfSamples,
-	    double epsilon,
-	    double delta,
-	    double l2Tolerance) {
+	  int numberOfSamples,
+	  double epsilon,
+	  double delta,
+	  double l2Tolerance,
+	  int numberOfVotes) {
 
 		Long[] samplesA = getData(fileA);
 		Long[] samplesB = getData(fileB);
@@ -78,7 +79,8 @@ public class StatisticalTesterMean {
 		int numberOfSamples,
 		double epsilon,
 		double delta,
-		double l2Tolerance) {
+		double l2Tolerance,
+		int numberOfVotes) {
 
 		String fullpath = homedir+subfolder;
 		int num_passed = 0;
@@ -86,27 +88,28 @@ public class StatisticalTesterMean {
 		for (int i = 0; i < 7; i++) {
   			String fileA = fullpath+"TestCase"+Integer.toString(i)+"A.txt";
   			String fileB = fullpath+"TestCase"+Integer.toString(i)+"B.txt";
-  			boolean Outcome = getOutcome(fileA,fileB,numberOfSamples,epsilon,delta,l2Tolerance);
+  			boolean Outcome = getOutcome(fileA,fileB,numberOfSamples,epsilon,delta,l2Tolerance,numberOfVotes);
   			if (Outcome == true) {
   				num_passed++;
   			}
 		}
 
-		System.out.println("The algorithm passed "+Integer.toString(num_passed)+" out of 7 test runs.");
+		System.out.println("The algorithm passed "+Integer.toString(num_passed)
+			+" out of "+Integer.toString(numberOfVotes)+" test runs.");
 
-		if (num_passed >= 4) {
+		long majority_vote = Math.round(numberOfVotes*0.5);
+		if (num_passed >= majority_vote) {
 			return 1;
 		}
-
 		else {
 			return 0;
 		}
-
 	}
 
 // Run each test case according to parameters specified by MeanDpTest.java.
 // If any one test fails to satisfy DP, the algorithm is considered not DP.
-	public static int getOverallOutcome(int numberOfSamples, String ratio) {
+	public static int getOverallOutcome(int numberOfSamples, String ratio,
+		int numberOfVotes) {
 
 		int counter = 0;
 		double small_epsilon = 0.1;
@@ -115,112 +118,112 @@ public class StatisticalTesterMean {
 		final int delta = 0;
 
 		int testcase1 = getMajorityVote("R"+ratio+"/Scenario1/",numberOfSamples,
-			medium_epsilon,0,0.003);
+			medium_epsilon,0,0.003,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
 		int testcase2 = getMajorityVote("R"+ratio+"/Scenario2/",numberOfSamples,
-			medium_epsilon,0,0.0075);
+			medium_epsilon,0,0.0075,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
 		int testcase3 = getMajorityVote("R"+ratio+"/Scenario3/",numberOfSamples,
-			medium_epsilon,0,0.004);
+			medium_epsilon,0,0.004,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
 		int testcase4 = getMajorityVote("R"+ratio+"/Scenario4/",numberOfSamples,
-			medium_epsilon,0,0.007);
+			medium_epsilon,0,0.007,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
 		int testcase5 = getMajorityVote("R"+ratio+"/Scenario5/",numberOfSamples,
-			small_epsilon,0,0.008);
+			small_epsilon,0,0.008,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
 		int testcase6 = getMajorityVote("R"+ratio+"/Scenario6/",numberOfSamples,
-			large_epsilon,0,0.0009);
+			large_epsilon,0,0.0009,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
 		int testcase7 = getMajorityVote("R"+ratio+"/Scenario7/",numberOfSamples,
-			medium_epsilon,0,0.003);
+			medium_epsilon,0,0.003,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
 		int testcase8 = getMajorityVote("R"+ratio+"/Scenario8/",numberOfSamples,
-			medium_epsilon,0,0.0075);
+			medium_epsilon,0,0.0075,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
 		int testcase9 = getMajorityVote("R"+ratio+"/Scenario9/",numberOfSamples,
-			medium_epsilon,0,0.004);
+			medium_epsilon,0,0.004,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
 		int testcase10 = getMajorityVote("R"+ratio+"/Scenario10/",numberOfSamples,
-			small_epsilon,0,0.008);
+			small_epsilon,0,0.008,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
 		int testcase11 = getMajorityVote("R"+ratio+"/Scenario11/",numberOfSamples,
-			large_epsilon,0,0.0009);
+			large_epsilon,0,0.0009,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
 		int testcase12 = getMajorityVote("R"+ratio+"/Scenario12/",numberOfSamples,
-			medium_epsilon,0,0.003); 
+			medium_epsilon,0,0.003,numberOfVotes); 
 		counter++;
 		System.out.println(counter);
 
 		int testcase13 = getMajorityVote("R"+ratio+"/Scenario13/",numberOfSamples,
-			medium_epsilon,0,0.004); 
+			medium_epsilon,0,0.004,numberOfVotes); 
 		counter++;
 		System.out.println(counter);
 
 		int testcase14 = getMajorityVote("R"+ratio+"/Scenario14/",numberOfSamples,
-			medium_epsilon,0,0.025); 
+			medium_epsilon,0,0.025,numberOfVotes); 
 		counter++;
 		System.out.println(counter);
 
 		int testcase15 = getMajorityVote("R"+ratio+"/Scenario15/",numberOfSamples,
-			medium_epsilon,0,0.014);
+			medium_epsilon,0,0.014,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
 		int testcase16 = getMajorityVote("R"+ratio+"/Scenario16/",numberOfSamples,
-			small_epsilon,0,0.0105);
+			small_epsilon,0,0.0105,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
 		int testcase17 = getMajorityVote("R"+ratio+"/Scenario17/",numberOfSamples,
-			large_epsilon,0,0.002);
+			large_epsilon,0,0.002,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
 		int testcase18 = getMajorityVote("R"+ratio+"/Scenario18/",numberOfSamples,
-			medium_epsilon,0,0.004);
+			medium_epsilon,0,0.004,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
 		int testcase19 = getMajorityVote("R"+ratio+"/Scenario19/",numberOfSamples,
-			medium_epsilon,0,0.004);
+			medium_epsilon,0,0.004,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
 		int testcase20 = getMajorityVote("R"+ratio+"/Scenario20/",numberOfSamples,
-			medium_epsilon,0,0.026);
+			medium_epsilon,0,0.026,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
 		int testcase21 = getMajorityVote("R"+ratio+"/Scenario21/",numberOfSamples,
-			medium_epsilon,0,0.014);
+			medium_epsilon,0,0.014,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
 		int testcase22 = getMajorityVote("R"+ratio+"/Scenario22/",numberOfSamples,
-			medium_epsilon,0,0.004);
+			medium_epsilon,0,0.004,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
@@ -242,7 +245,7 @@ public class StatisticalTesterMean {
 		}
 	}
 
-	public static void collectData(int numberOfSamples, int ratio_min,
+	public static void collectData(int numberOfVotes, int numberOfSamples, int ratio_min,
 		int ratio_max, String filename) {
 		String test_name = "insufficient_noise";
 		String algorithm = "bounded_mean";
@@ -266,7 +269,7 @@ public class StatisticalTesterMean {
 
 		for (int i = ratio_min; i <= ratio_max; i++) {
 			String r = Integer.toString(i);
-			String Outcome = Integer.toString(getOverallOutcome(numberOfSamples, r));
+			String Outcome = Integer.toString(getOverallOutcome(numberOfSamples,r,numberOfVotes));
 	    builder.append(test_name+","+algorithm+","+expected+","+Outcome+","+r+","+num_datasets+","+num_samples+","+time);
 	    builder.append('\n');
     }

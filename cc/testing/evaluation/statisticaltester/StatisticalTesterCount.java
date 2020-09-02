@@ -77,12 +77,13 @@ public class StatisticalTesterCount {
 		int numberOfSamples,
 		double epsilon,
 		double delta,
-		double l2Tolerance) {
+		double l2Tolerance,
+		int numberOfVotes) {
 
 		String fullpath = homedir+subfolder;
 		int num_passed = 0;
 		
-		for (int i = 0; i < 7; i++) {
+		for (int i = 0; i < numberOfVotes; i++) {
   		String fileA = fullpath+"TestCase"+Integer.toString(i)+"A.txt";
   		String fileB = fullpath+"TestCase"+Integer.toString(i)+"B.txt";
   		boolean Outcome = getOutcome(fileA,fileB,numberOfSamples,epsilon,delta,l2Tolerance);
@@ -92,9 +93,10 @@ public class StatisticalTesterCount {
 		}
 
 		System.out.println("The algorithm passed "+Integer.toString(num_passed)
-			+" out of 7 test runs.");
+			+" out of "+Integer.toString(numberOfVotes)+" test runs.");
 
-		if (num_passed >= 4) {
+		long majority_vote = Math.round(numberOfVotes*0.5);
+		if (num_passed >= majority_vote) {
 			return 1;
 		}
 		else {
@@ -104,7 +106,8 @@ public class StatisticalTesterCount {
 
 // Run each test case according to parameters specified by CountDpTest.java.
 // If any one test fails to satisfy DP, the algorithm is considered not DP.
-	public static int getOverallOutcome(int numberOfSamples, String ratio) {
+	public static int getOverallOutcome(int numberOfSamples, String ratio,
+		int numberOfVotes) {
 
 		int counter = 0;
 		double small_epsilon = 0.01;
@@ -113,52 +116,52 @@ public class StatisticalTesterCount {
 		final int delta = 0;
 
 		int testcase1 = getMajorityVote("R"+ratio+"/Scenario1/",numberOfSamples,
-			medium_epsilon,delta,0.0025);
+			medium_epsilon,delta,0.0025,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
 		int testcase2 = getMajorityVote("R"+ratio+"/Scenario2/",numberOfSamples,
-			medium_epsilon,delta,0.0035);
+			medium_epsilon,delta,0.0035,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
 		int testcase3 = getMajorityVote("R"+ratio+"/Scenario3/",numberOfSamples,
-			medium_epsilon,delta,0.02);
+			medium_epsilon,delta,0.02,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
 		int testcase4 = getMajorityVote("R"+ratio+"/Scenario4/",numberOfSamples,
-			small_epsilon,delta,0.0131);
+			small_epsilon,delta,0.0131,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
 		int testcase5 = getMajorityVote("R"+ratio+"/Scenario5/",numberOfSamples,
-			large_epsilon,delta,0.0035);
+			large_epsilon,delta,0.0035,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
 		int testcase6 = getMajorityVote("R"+ratio+"/Scenario6/",numberOfSamples,
-			medium_epsilon,delta,0.0025);
+			medium_epsilon,delta,0.0025,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
 		int testcase7 = getMajorityVote("R"+ratio+"/Scenario7/",numberOfSamples,
-			medium_epsilon,delta,0.0035);
+			medium_epsilon,delta,0.0035,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
 		int testcase8 = getMajorityVote("R"+ratio+"/Scenario8/",numberOfSamples,
-			medium_epsilon,delta,0.0025);
+			medium_epsilon,delta,0.0025,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
 		int testcase9 = getMajorityVote("R"+ratio+"/Scenario9/",numberOfSamples,
-			medium_epsilon,delta,0.02);
+			medium_epsilon,delta,0.02,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
 		int testcase10 = getMajorityVote("R"+ratio+"/Scenario10/",numberOfSamples,
-			small_epsilon,delta,0.0131);
+			small_epsilon,delta,0.0131,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
@@ -178,13 +181,14 @@ public class StatisticalTesterCount {
 		}
 	}
 
-	public static void collectData(int numberOfSamples, int ratio_min,
+	public static void collectData(int numberOfVotes, int numberOfSamples, int ratio_min,
 		int ratio_max, String filename) {
 		String test_name = "insufficient_noise";
 		String algorithm = "count";
 		String expected = "0";
 		String num_datasets = "10";
 		String num_samples = Integer.toString(numberOfSamples);
+		numberOfVotes = 7;
 // TODO: Add time in future iteration
 		String time = "null";
 		SimpleDateFormat sdf = new SimpleDateFormat("yyyy.MM.dd.HH.mm.ss");
@@ -205,7 +209,7 @@ public class StatisticalTesterCount {
 		for (int i = ratio_min; i <= ratio_max; i++) {
 			System.out.println(i);
 			String r = Integer.toString(i);
-			String Outcome = Integer.toString(getOverallOutcome(numberOfSamples, r));
+			String Outcome = Integer.toString(getOverallOutcome(numberOfSamples,r,numberOfVotes));
 	    builder.append(test_name+","+algorithm+","+expected+","+Outcome+","+r+","
 	    	+String.valueOf(num_datasets)+","+String.valueOf(num_samples)+","+time);
 	    builder.append('\n');

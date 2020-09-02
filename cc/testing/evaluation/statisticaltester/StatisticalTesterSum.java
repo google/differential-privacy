@@ -62,7 +62,8 @@ public class StatisticalTesterSum {
 	  int numberOfSamples,
 	  double epsilon,
 	  double delta,
-	  double l2Tolerance) {
+	  double l2Tolerance,
+	  int numberOfVotes) {
 
 		Long[] samplesA = getData(fileA);
 		Long[] samplesB = getData(fileB);
@@ -77,7 +78,8 @@ public class StatisticalTesterSum {
 		int numberOfSamples,
 		double epsilon,
 		double delta,
-		double l2Tolerance) {
+		double l2Tolerance,
+		int numberOfVotes) {
 
 		String fullpath = homedir+subfolder;
 		int num_passed = 0;
@@ -85,19 +87,19 @@ public class StatisticalTesterSum {
 		for (int i = 0; i < 7; i++) {
   			String fileA = fullpath+"TestCase"+Integer.toString(i)+"A.txt";
   			String fileB = fullpath+"TestCase"+Integer.toString(i)+"B.txt";
-  			boolean Outcome = getOutcome(fileA,fileB,numberOfSamples,epsilon,delta,l2Tolerance);
+  			boolean Outcome = getOutcome(fileA,fileB,numberOfSamples,epsilon,delta,l2Tolerance,numberOfVotes);
   			if (Outcome == true) {
   				num_passed++;
   			}
 		}
 
 		System.out.println("The algorithm passed "+Integer.toString(num_passed)
-			+" out of 7 test runs.");
+			+" out of "+Integer.toString(numberOfVotes)+" test runs.");
 
-		if (num_passed >= 4) {
+		long majority_vote = Math.round(numberOfVotes*0.5);
+		if (num_passed >= majority_vote) {
 			return 1;
 		}
-
 		else {
 			return 0;
 		}
@@ -105,7 +107,8 @@ public class StatisticalTesterSum {
 
 // Run each test case according to parameters specified by SumDpTest.java.
 // If any one test fails to satisfy DP, the algorithm is considered not DP.
-	public static int getOverallOutcome(int numberOfSamples, String ratio) {
+	public static int getOverallOutcome(int numberOfSamples, String ratio,
+		int numberOfVotes) {
 
 		int counter = 0;
 		double small_epsilon = 0.1;
@@ -114,87 +117,87 @@ public class StatisticalTesterSum {
 		final int delta = 0;
 
 		int testcase1 = getMajorityVote("R"+ratio+"/Scenario1/",numberOfSamples,
-			medium_epsilon,delta,0.02);
+			medium_epsilon,delta,0.02,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
 		int testcase2 = getMajorityVote("R"+ratio+"/Scenario2/",numberOfSamples,
-			medium_epsilon,delta,0.04);
+			medium_epsilon,delta,0.04,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
 		int testcase3 = getMajorityVote("R"+ratio+"/Scenario3/",numberOfSamples,
-			medium_epsilon,delta,0.04); 
+			medium_epsilon,delta,0.04,numberOfVotes); 
 		counter++;
 		System.out.println(counter);
 
 		int testcase4 = getMajorityVote("R"+ratio+"/Scenario4/",numberOfSamples,
-			small_epsilon,delta,0.0135); 
+			small_epsilon,delta,0.0135,numberOfVotes); 
 		counter++;
 		System.out.println(counter);
 
 		int testcase5 = getMajorityVote("R"+ratio+"/Scenario5/",numberOfSamples,
-			large_epsilon,delta,0.0135);
+			large_epsilon,delta,0.0135,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
 		int testcase6 = getMajorityVote("R"+ratio+"/Scenario6/",numberOfSamples,
-			medium_epsilon,delta,0.02);
+			medium_epsilon,delta,0.02,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
 		int testcase7 = getMajorityVote("R"+ratio+"/Scenario7/",numberOfSamples,
-			medium_epsilon,delta,0.04);
+			medium_epsilon,delta,0.04,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
 		int testcase8 = getMajorityVote("R"+ratio+"/Scenario8/",numberOfSamples,
-			small_epsilon,delta,0.0135);
+			small_epsilon,delta,0.0135,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
 		int testcase9 = getMajorityVote("R"+ratio+"/Scenario9/",numberOfSamples,
-			large_epsilon,delta,0.0135);
+			large_epsilon,delta,0.0135,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
 		int testcase10 = getMajorityVote("R"+ratio+"/Scenario10/",numberOfSamples,
-			medium_epsilon,delta,0.04); 
+			medium_epsilon,delta,0.04,numberOfVotes); 
 		counter++;
 		System.out.println(counter);
 
 		int testcase11 = getMajorityVote("R"+ratio+"/Scenario11/",numberOfSamples,
-			medium_epsilon,delta,0.04);
+			medium_epsilon,delta,0.04,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
 		int testcase12 = getMajorityVote("R"+ratio+"/Scenario12/",numberOfSamples,
-			small_epsilon,delta,0.023);
+			small_epsilon,delta,0.023,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
 		int testcase13 = getMajorityVote("R"+ratio+"/Scenario13/",numberOfSamples,
-			large_epsilon,delta,0.023);
+			large_epsilon,delta,0.023,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
 		int testcase14 = getMajorityVote("R"+ratio+"/Scenario14/",numberOfSamples,
-			medium_epsilon,delta,0.04);
+			medium_epsilon,delta,0.04,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
 		int testcase15 = getMajorityVote("R"+ratio+"/Scenario15/",numberOfSamples,
-			medium_epsilon,delta,0.04); 
+			medium_epsilon,delta,0.04,numberOfVotes); 
 		counter++;
 		System.out.println(counter);
 
 		int testcase16 = getMajorityVote("R"+ratio+"/Scenario16/",numberOfSamples,
-				small_epsilon,delta,0.023);
+				small_epsilon,delta,0.023,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
 		int testcase17 = getMajorityVote("R"+ratio+"/Scenario17/",numberOfSamples,
-			large_epsilon,delta,0.023);
+			large_epsilon,delta,0.023,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
@@ -213,7 +216,7 @@ public class StatisticalTesterSum {
 		}
 	}
 
-	public static void collectData(int numberOfSamples, int ratio_min,
+	public static void collectData(int numberOfVotes, int numberOfSamples, int ratio_min,
 		int ratio_max, String filename) {
 		String test_name = "insufficient_noise";
 		String algorithm = "bounded_sum";
@@ -238,7 +241,7 @@ public class StatisticalTesterSum {
 
 		for (int i = ratio_min; i <= ratio_max; i++) {
 			String r = Integer.toString(i);
-			String Outcome = Integer.toString(getOverallOutcome(numberOfSamples, r));
+			String Outcome = Integer.toString(getOverallOutcome(numberOfSamples,r,numberOfVotes));
 	    builder.append(test_name+","+algorithm+","+expected+","+Outcome+","+r+","+num_datasets+","+num_samples+","+time);
 	    builder.append('\n');
     }

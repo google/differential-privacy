@@ -31,6 +31,7 @@ public class StatisticalTester {
 		int ratio_min;
 		int ratio_max;
 		int numberOfSamples;
+		int numberOfVotes = 7;
 		String filename;
 // Specify arguments on command line.
 		if (args.length>0) {
@@ -41,13 +42,13 @@ public class StatisticalTester {
 
 				if (ratio_min>0 && ratio_min<1 && ratio_max>0 && ratio_max<1 && numberOfSamples>0 && args[3] instanceof String) {
 					StatisticalTesterCount st_count = new StatisticalTesterCount();
-					st_count.collectData(ratio_min,ratio_max,numberOfSamples,args[3]);
+					st_count.collectData(numberOfVotes,ratio_min,ratio_max,numberOfSamples,args[3]);
 
 					StatisticalTesterMean st_mean = new StatisticalTesterMean();
-					st_mean.collectData(ratio_min,ratio_max,numberOfSamples,args[4]);
+					st_mean.collectData(numberOfVotes,ratio_min,ratio_max,numberOfSamples,args[4]);
 
 					StatisticalTesterSum st_sum = new StatisticalTesterSum();
-					st_sum.collectData(ratio_min,ratio_max,numberOfSamples,args[5]);
+					st_sum.collectData(numberOfVotes,ratio_min,ratio_max,numberOfSamples,args[5]);
 				}
 				else {
 					System.out.println("An invalid parameter was specified. Try again, please!");
@@ -63,16 +64,17 @@ public class StatisticalTester {
 			ratio_min = 80;
 			ratio_max = 85;
 			numberOfSamples = 100;
+			numberOfVotes = 7;
 			filename = "statistical_tester_results_";
 
 			StatisticalTesterCount st_count = new StatisticalTesterCount();
-			st_count.collectData(numberOfSamples,ratio_min,ratio_max,filename+"_count.txt");
+			st_count.collectData(numberOfVotes,numberOfSamples,ratio_min,ratio_max,filename+"_count.txt");
 
 			StatisticalTesterSum st_sum = new StatisticalTesterSum();
-			st_sum.collectData(numberOfSamples,ratio_min,ratio_max,filename+"_sum.txt");
+			st_sum.collectData(numberOfVotes,numberOfSamples,ratio_min,ratio_max,filename+"_sum.txt");
 
 			StatisticalTesterMean st_mean = new StatisticalTesterMean();
-			st_mean.collectData(numberOfSamples,ratio_min,ratio_max,filename+"_mean.txt");
+			st_mean.collectData(numberOfVotes,numberOfSamples,ratio_min,ratio_max,filename+"_mean.txt");
 
 		}
 	}
