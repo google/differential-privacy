@@ -58,11 +58,11 @@ extern const std::string mean_samples_folder;
 double DiscretizeMean(double true_value, double granularity);
 
 // Construct the BoundedMean algorithm.
-double BoundedMeanAlgorithm(std::vector<double> values, double granularity,
+double DPMean(std::vector<double> values, double granularity,
   double epsilon, int max_partitions, int max_contributions, int lower, int upper);
 
 // Construct the BoundedMean algorithm for large values.
-double LargeBoundedMeanAlgorithm(double initial_value, double extra_values_length, 
+double DPLargeMean(double initial_value, double extra_values_length, 
   double extra_value, double granularity, double epsilon, int max_partitions,
   int max_contributions, int lower, int upper);
 

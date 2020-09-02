@@ -72,17 +72,18 @@ int main(int argc, char *argv[]) {
   time_t now = time(0); 
   char* dt = ctime(&now);
 
-// Specify name of files, ratio_min, ratio_max, number of samples on the command line. 
-  if (argc == 6) {
-    countfile.open(filepath+argv[1]);
-    sumfile.open(filepath+argv[2]);
-    meanfile.open(filepath+argv[3]);
+// Specify ratio_min, ratio_max, number of samples, and name of files on the command line. 
+  if (argc==7) {
 
-    double ratio_min = strtod(argv[4],NULL);
-    double ratio_max = strtod(argv[5],NULL);
-    double num_samples_per_histogram = strtod(argv[6],NULL);
+    double ratio_min = strtod(argv[1],NULL);
+    double ratio_max = strtod(argv[2],NULL);
+    double num_samples_per_histogram = strtod(argv[3],NULL);
 
-    if ((ratio_min > 0) && (ratio_max > 0) && (ratio_min < 1) && (ratio_max < 1)
+    countfile.open(filepath+argv[4]);
+    sumfile.open(filepath+argv[5]);
+    meanfile.open(filepath+argv[6]);
+
+    if ((ratio_min > 0) && (ratio_max > 0) && (ratio_min < 100) && (ratio_max < 100)
       && (num_samples_per_histogram > 0)) {
       countfile << dt << "\n";
       countfile << header << "\n";

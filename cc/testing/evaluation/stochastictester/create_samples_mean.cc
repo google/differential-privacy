@@ -44,7 +44,7 @@ double DiscretizeMean(double true_value, double granularity) {
 }
 
 // Construct the BoundedMean algorithm.
-double BoundedMeanAlgorithm(std::vector<double> values, double granularity,
+double DPMean(std::vector<double> values, double granularity,
   double epsilon, int max_partitions, int max_contributions, int lower, int upper) {
     std::unique_ptr<BoundedMean<double>> boundedmean =
     BoundedMean<double>::Builder()
@@ -69,7 +69,7 @@ double BoundedMeanAlgorithm(std::vector<double> values, double granularity,
 }
 
 // Construct the BoundedMean algorithm for large values.
-double LargeBoundedMeanAlgorithm(double initial_value, double extra_values_length, 
+double DPLargeMean(double initial_value, double extra_values_length, 
   double extra_value, double granularity, double epsilon, int max_partitions,
   int max_contributions, int lower, int upper) {
     std::unique_ptr<BoundedMean<double>> boundedmean =
@@ -115,10 +115,10 @@ void CreateSingleScenarioMean(int scenario, std::vector<double>valuesA,
 
     if (extra_values_length == 0) {
       for (int i=0; i<number_of_samples; i++) {
-        double outputA = BoundedMeanAlgorithm(valuesA, granularity,
+        double outputA = DPMean(valuesA, granularity,
           implemented_epsilon, max_partitions, max_contributions, lower, upper);
         samplefileA << outputA << "\n";
-        double outputB = BoundedMeanAlgorithm(valuesB, granularity,
+        double outputB = DPMean(valuesB, granularity,
           implemented_epsilon, max_partitions, max_contributions, lower, upper);
         samplefileB << outputB << "\n";
       }
@@ -127,10 +127,10 @@ void CreateSingleScenarioMean(int scenario, std::vector<double>valuesA,
     }
     else {
       for (int i=0; i<number_of_samples; i++) {
-      double outputA = BoundedMeanAlgorithm(valuesA, granularity,
+      double outputA = DPMean(valuesA, granularity,
         implemented_epsilon, max_partitions, max_contributions, lower, upper);
         samplefileA << outputA << "\n";
-      double outputB = LargeBoundedMeanAlgorithm(initial_value, extra_values_length,
+      double outputB = DPLargeMean(initial_value, extra_values_length,
         extra_value, granularity, implemented_epsilon, max_partitions,
         max_contributions, lower, upper);
         samplefileB << outputB << "\n";
@@ -250,17 +250,3 @@ void GenerateAllScenariosMean(double ratio) {
 }
 } // testing
 } // differential_privacy
-
-// int main(int argc, char** argv) {
-// // Create folder to hold the samples.
-//   mkdir(differential_privacy::testing::folder_name.c_str(), 0777);
-//   for (int i = 80; i <= 85; i++) {
-//     std::cout << i << std::endl;
-//     std::string filepath = differential_privacy::testing::folder_name
-//       +"/R"+std::to_string(i);
-//     mkdir(filepath.c_str(), 0777);
-//     const double r = i / 100.0;
-//     differential_privacy::testing::GenerateAllScenarios(r);
-//   }
-//   return 0;
-// }

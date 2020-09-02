@@ -56,9 +56,9 @@ template <typename T>
 class CountWithInsufficientNoise : public differential_privacy::Count<T> {
  public:
   CountWithInsufficientNoise(double epsilon,
-    std::unique_ptr<LaplaceMechanism::Builder> count_builder, double ratio)
+    std::unique_ptr<LaplaceMechanism::Builder> builder, double ratio)
     : Count<T>(epsilon,
-    count_builder->SetEpsilon(epsilon)
+    builder->SetEpsilon(epsilon)
     .Build()
     .ValueOrDie()),
     ratio_(ratio) {}
@@ -76,11 +76,10 @@ class SumWithInsufficientNoise : public differential_privacy::BoundedSum<T> {
  public:
   SumWithInsufficientNoise(double epsilon, T lower, T upper,
     const double l0_sensitivity, const double max_contributions_per_partition,
-    std::unique_ptr<LaplaceMechanism::Builder> sum_builder, double ratio)
+    std::unique_ptr<LaplaceMechanism::Builder> builder, double ratio)
     : BoundedSum<T>(epsilon, lower, upper, l0_sensitivity, 
     max_contributions_per_partition, std::move(sum_builder),
-    LaplaceMechanism::Builder()
-    .SetEpsilon(epsilon)
+    builder->SetEpsilon(epsilon)
     .SetL0Sensitivity(l0_sensitivity)
     .SetLInfSensitivity(max_contributions_per_partition * std::max(std::abs(lower),std::abs(upper)))
     .Build()
@@ -100,17 +99,15 @@ class MeanWithInsufficientNoise : public differential_privacy::BoundedMean<T> {
  public:
   MeanWithInsufficientNoise(double epsilon, T lower, T upper,
     const double l0_sensitivity, const double max_contributions_per_partition, 
-    std::unique_ptr<LaplaceMechanism::Builder> mean_builder, double ratio)
+    std::unique_ptr<LaplaceMechanism::Builder> builder, double ratio)
     : BoundedMean<T>(epsilon, lower, upper, l0_sensitivity,
     max_contributions_per_partition, std::move(mean_builder),
-    LaplaceMechanism::Builder()
-    .SetEpsilon(epsilon)
+    builder->SetEpsilon(epsilon)
     .SetL0Sensitivity(l0_sensitivity)
     .SetLInfSensitivity(max_contributions_per_partition * (std::abs(upper - lower) / 2))
     .Build()
     .ValueOrDie(),
-    LaplaceMechanism::Builder()
-    .SetEpsilon(epsilon)
+    builder->SetEpsilon(epsilon)
     .Build()
     .ValueOrDie(),nullptr),
     ratio_(ratio) {}

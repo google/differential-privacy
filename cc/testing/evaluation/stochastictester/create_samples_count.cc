@@ -24,10 +24,10 @@ namespace testing {
 // CountDpTest.java, available here:
 // https://github.com/google/differential-privacy/blob/main/proto/testing/count_dp_test_cases.textproto.
 
-const std::string count_samples_folder = "testing/evaluation/statisticaltester/countsamples";
+const std::string count_samples_folder = "statisticaltester/countsamples";
 
 // Construct Count algorithm.
-int64_t CountAlgorithm(const std::vector<int>& values, double epsilon,
+int64_t DPCount(const std::vector<int>& values, double epsilon,
   int max_partitions) {
   std::unique_ptr<Count<int64_t>> count = Count<int64_t>::Builder()
     .SetEpsilon(epsilon)
@@ -58,9 +58,9 @@ void CreateSingleScenarioCount(int scenario, double true_value, int number_of_sa
     samplefileA.open(filepath+"/TestCase"+std::to_string(i)+"A.txt");
     samplefileB.open(filepath+"/TestCase"+std::to_string(i)+"B.txt");
     for (int i=0; i<number_of_samples; i++) {
-      int64_t outputA = CountAlgorithm(sampleA, implemented_epsilon, max_partitions);
+      int64_t outputA = DPCount(sampleA, implemented_epsilon, max_partitions);
       samplefileA << outputA << "\n";
-      int64_t outputB = CountAlgorithm(sampleB, implemented_epsilon,max_partitions);
+      int64_t outputB = DPCount(sampleB, implemented_epsilon,max_partitions);
         samplefileB << outputB << "\n";
     }
   samplefileA.close();
@@ -108,16 +108,3 @@ void GenerateAllScenariosCount(double ratio) {
 }
 } // testing
 } // differential_privacy
-
-// int main(int argc, char** argv) {
-// // Creates folder to hold all samples.
-//   mkdir(differential_privacy::testing::count_sample_folder.c_str(), 0777);
-//   for (int i = 80; i <= 85; i++) {
-//     std::string filepath = differential_privacy::testing::count_sample_folder
-//       +"/R"+std::to_string(i);
-//     mkdir(filepath.c_str(), 0777);
-//     const double r = i / 100.0;
-//     differential_privacy::testing::GenerateAllScenariosCount(r);
-//   }
-//   return 0;
-// }

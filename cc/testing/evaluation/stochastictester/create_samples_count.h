@@ -55,7 +55,7 @@ extern const std::string count_samples_folder;
 //std::string count_samples_folder = "../statisticaltester/countsamples";
 
 // Construct Count algorithm.
-int64_t CountAlgorithm(const std::vector<int>& values, double epsilon,
+int64_t DPCount(const std::vector<int>& values, double epsilon,
   int max_partitions);
 
 // Creates a folder to contain all samples with a particular ratio value

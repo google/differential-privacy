@@ -174,18 +174,3 @@ void GenerateAllScenariosSum(double ratio) {
 } // testing
 } // differential_privacy
 
-
-// int main(int argc, char** argv) {
-// // Create folder to hold the samples.
-//   mkdir(differential_privacy::testing::folder_name.c_str(), 0777);
-//   for (int i = 80; i <= 85; i++) {
-//     std::cout << i << std::endl;
-//     std::string filepath = differential_privacy::testing::folder_name
-//       +"/R"+std::to_string(i);
-//     mkdir(filepath.c_str(), 0777);
-//     const double r = i / 100.0;
-//     differential_privacy::testing::GenerateAllScenariosSum(r);
-//   }
-//   return 0;
-// }
-
