@@ -57,6 +57,7 @@ public class BoundedSum {
 
   private final Params params;
   private double sum;
+  private double noisedSum;
 
   // Was the sum returned to the user?
   private boolean resultReturned;
@@ -124,10 +125,38 @@ public class BoundedSum {
 
     resultReturned = true;
     double lInfSensitivity =
-        getLInfSensitivity(params.lower(), params.upper(), params.maxContributionsPerPartition());
-    return params
-        .noise()
-        .addNoise(sum, getL0Sensitivity(), lInfSensitivity, params.epsilon(), params.delta());
+            getLInfSensitivity(params.lower(), params.upper(), params.maxContributionsPerPartition());
+    noisedSum =
+            params
+                  .noise()
+                  .addNoise(sum, getL0Sensitivity(), lInfSensitivity, params.epsilon(), params.delta());
+    return noisedSum;
+  }
+
+  // ComputeConfidenceInterval computes a confidence interval that contains the true count with
+  // a probability greater or equal to 1 - alpha using the noised sum computed by computeResult().
+  public ConfidenceInterval computeConfidenceInterval(double alpha) {
+    if (!resultReturned) {
+      throw new IllegalStateException("Noised sum must be computed before calling this function.");
+    }
+    ConfidenceInterval confInt =
+            params
+                    .noise()
+                    .computeConfidenceInterval(
+                            noisedSum,
+                            params.maxPartitionsContributed(),
+                            (double) params.maxContributionsPerPartition(),
+                            params.epsilon(),
+                            params.delta(),
+                            alpha);
+    if ((params.lower() < 0) && (params.upper() <= 0)) {
+      if (confInt.lowerBound() > 0) confInt = ConfidenceInterval.create(0, confInt.upperBound());
+      if (confInt.upperBound() > 0) confInt = ConfidenceInterval.create(confInt.lowerBound(), 0);
+    } else if ((params.lower() >= 0) && (params.upper() > 0)) {
+      if (confInt.lowerBound() < 0) confInt = ConfidenceInterval.create(0, confInt.upperBound());
+      if (confInt.upperBound() < 0) confInt = ConfidenceInterval.create(confInt.lowerBound(), 0);
+    }
+    return confInt.create(confInt.lowerBound(), confInt.upperBound());
   }
 
   /**
