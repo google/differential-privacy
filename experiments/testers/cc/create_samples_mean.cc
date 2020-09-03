@@ -79,20 +79,13 @@ double DPLargeMean(double initial_value, double extra_values_length,
     .ValueOrDie();
 
 // Add entry with initial value
-  boundedmean->AddEntry(DiscretizeMean(initial_value,granularity));
-
+  boundedmean->AddEntry(initial_value,granularity);
 // Add entry with subsequent values
   for (int i=0; i<extra_values_length; i++) {
     boundedmean->AddEntry(extra_value);
   }
   return GetValue<double>(boundedmean->PartialResult().ValueOrDie());
 }
-
-  // std::vector<double> discretized_values;
-  // for (double i : values) {
-  //   double discretized_value = DiscretizeMean(i, granularity);
-  //   discretized_values.push_back(discretized_value);
-  // }
 
 // Creates a folder to contain all samples with a particular ratio value
 // (e.g., R95). Every folder contains 22 subfolders for each unique sample-pair.
