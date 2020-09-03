@@ -51,6 +51,7 @@ import javax.annotation.Nullable;
 public class Count {
   private final Params params;
   private long rawCount;
+  private long noisedCount;
 
   // Was the count returned to the user?
   private boolean resultReturned;
@@ -97,14 +98,38 @@ public class Count {
     }
 
     resultReturned = true;
-    return params
-        .noise()
-        .addNoise(
-            rawCount,
-            params.maxPartitionsContributed(),
-            params.maxContributionsPerPartition(),
-            params.epsilon(),
-            params.delta());
+    noisedCount = params
+            .noise()
+            .addNoise(
+                    rawCount,
+                    params.maxPartitionsContributed(),
+                    params.maxContributionsPerPartition(),
+                    params.epsilon(),
+                    params.delta());
+    return noisedCount;
+  }
+
+  // ComputeConfidenceInterval computes a confidence interval with integer bounds that contains the true count with
+  // a probability greater or equal to 1 - alpha using the noised count computed by computeResult().
+  public ConfidenceInterval computeConfidenceInterval(double alpha) {
+    if (!resultReturned) {
+      throw new IllegalStateException("Noised count must be computed.");
+    }
+    ConfidenceInterval confInt =
+            params
+                    .noise()
+                    .computeConfidenceInterval(
+                            noisedCount,
+                            params.maxPartitionsContributed(),
+                            params.maxContributionsPerPartition(),
+                            params.epsilon(),
+                            params.delta(),
+                            alpha);
+    confInt =
+            ConfidenceInterval.create(
+                    Math.round(Math.max(0, confInt.lowerBound())),
+                    Math.round(Math.max(0, confInt.upperBound())));
+    return confInt;
   }
 
   /**
