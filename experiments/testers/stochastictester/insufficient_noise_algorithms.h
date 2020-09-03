@@ -66,7 +66,6 @@ class CountWithInsufficientNoise : public differential_privacy::Count<T> {
 // what privacy protection claimed 
   double GetEpsilon() const override { return Algorithm<T>::GetEpsilon()
     * ratio_; }
- private:
   double ratio_;
 };
 
@@ -89,7 +88,6 @@ class SumWithInsufficientNoise : public differential_privacy::BoundedSum<T> {
 // what privacy protection claimed
   double GetEpsilon() const override { return Algorithm<T>::GetEpsilon() 
     * ratio_; } 
- private: 
   double ratio_;
 };
 
@@ -136,16 +134,16 @@ struct SummaryResults {
 };
 
 base::StatusOr<SummaryResults> GetTestResultsForCount(int num_datasets,
-  int num_samples_per_histogram, int ratio_min, int ratio_max,
-  std::ofstream& datafile);
+  int num_samples_per_histogram, double ratio_min, double ratio_max,
+  double increment, std::ofstream& datafile);
 
 base::StatusOr<SummaryResults> GetTestResultsForSum(int num_datasets,
-  int num_samples_per_histogram, int ratio_min, int ratio_max,
-  std::ofstream& datafile);
+  int num_samples_per_histogram, double ratio_min, double ratio_max,
+  double increment, std::ofstream& datafile);
 
 base::StatusOr<SummaryResults> GetTestResultsForMean(int num_datasets,
-  int num_samples_per_histogram, int ratio_min, int ratio_max,
-  std::ofstream& datafile);
+  int num_samples_per_histogram, double ratio_min, double ratio_max,
+  double increment, std::ofstream& datafile);
 
 } // namespace testing  
 } // namespace differential_privacy

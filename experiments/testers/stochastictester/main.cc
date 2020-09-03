@@ -20,6 +20,7 @@
 
 #include <chrono>
 #include <ctime>
+#include <filesystem>
 #include <fstream>
 #include <iterator>
 #include <iostream>
@@ -63,8 +64,9 @@ int main(int argc, char *argv[]) {
 
 // Default values which can be changed by the user.
   double num_samples_per_histogram = 100;
-  double ratio_min = 80.0;
-  double ratio_max = 85.0;
+  double ratio_min = 0.80;
+  double ratio_max = 0.85;
+  double increment = 0.01;
 
   std::string header = "test_name,algorithm,expected,actual,ratio,num_datasets,num_samples,time(sec)";
   std::string filepath = "../results/";
@@ -82,85 +84,87 @@ int main(int argc, char *argv[]) {
     countfile.open(filepath+argv[4]);
     sumfile.open(filepath+argv[5]);
     meanfile.open(filepath+argv[6]);
+  }
 
-    if ((ratio_min > 0) && (ratio_max > 0) && (ratio_min < 100) && (ratio_max < 100)
-      && (num_samples_per_histogram > 0)) {
-      countfile << dt << "\n";
-      countfile << header << "\n";
-      count_summary = differential_privacy::testing::GetTestResultsForCount(
-      count_num_datasets,num_samples_per_histogram,ratio_min,ratio_max,countfile);
-      countfile.close();
-
-      sumfile << dt << "\n";
-      sumfile << header << "\n";
-      sum_summary = differential_privacy::testing::GetTestResultsForSum(
-        sum_num_datasets,num_samples_per_histogram,ratio_min,ratio_max,sumfile);
-      sumfile.close();
-
-      meanfile << dt << "\n";
-      meanfile << header << "\n";
-      mean_summary = differential_privacy::testing::GetTestResultsForMean(
-        mean_num_datasets,num_samples_per_histogram,ratio_min,ratio_max,meanfile);
-      meanfile.close();
-    }
     else {
       std::cout << "Invalid parameter(s) specified." << std::endl; 
     }
-  }
-
-  else {
 // Use default parameter values.
     countfile.open(filepath+"stochastic_tester_results_count.txt");
     countfile << dt << "\n";
     countfile << header << "\n";
     count_summary = differential_privacy::testing::GetTestResultsForCount(
-    count_num_datasets,num_samples_per_histogram,ratio_min,ratio_max,countfile);
+    count_num_datasets,num_samples_per_histogram,ratio_min,ratio_max,0.01,countfile);
     countfile.close();
 
     sumfile.open(filepath+"stochastic_tester_results_sum.txt");
     sumfile << dt << "\n";
     sumfile << header << "\n";
     sum_summary = differential_privacy::testing::GetTestResultsForSum(
-      sum_num_datasets,num_samples_per_histogram,ratio_min,ratio_max,sumfile);
+      sum_num_datasets,num_samples_per_histogram,ratio_min,ratio_max,0.01,sumfile);
     sumfile.close();
 
     meanfile.open(filepath+"stochastic_tester_results_mean.txt");
     meanfile << dt << "\n";
     meanfile << header << "\n";
     mean_summary = differential_privacy::testing::GetTestResultsForMean(
-      mean_num_datasets,num_samples_per_histogram,ratio_min,ratio_max,meanfile);
+      mean_num_datasets,num_samples_per_histogram,ratio_min,ratio_max,0.01,meanfile);
     meanfile.close();
-  }
 
 // Generates samples of Count algorithm with insufficient noise.
   mkdir(differential_privacy::testing::count_samples_folder.c_str(), 0777);
-  for (int i = ratio_min; i <= ratio_max; i++) {
+  int num_iterations = ceil((ratio_max - ratio_min) / increment);
+  for (double i=0; i <= num_iterations; ++i) {
+    double ratio = i * increment + ratio_min;
+    int ratio_name = (int)lround(ratio*100);
     std::string count_path = differential_privacy::testing::count_samples_folder
-      +"/R"+std::to_string(i);
+      +"/R"+std::to_string(ratio_name);
     mkdir(count_path.c_str(), 0777);
-    const double r = i / 100.0;
-    differential_privacy::testing::GenerateAllScenariosCount(r);
+    differential_privacy::testing::GenerateAllScenariosCount(ratio);
   }
 
-// Generates samples of BoundedSum algorithm with insufficient noise.
+// // Generates samples of BoundedSum algorithm with insufficient noise.
   mkdir(differential_privacy::testing::sum_samples_folder.c_str(), 0777);
-  for (int i = ratio_min; i <= ratio_max; i++) {
+  for (double i=0; i <= num_iterations; ++i) {
+    double ratio = i * increment + ratio_min;
+    int ratio_name = (int)lround(ratio*100);
     std::string sum_path = differential_privacy::testing::sum_samples_folder
-      +"/R"+std::to_string(i);
+      +"/R"+std::to_string(ratio_name);
     mkdir(sum_path.c_str(), 0777);
-    const double r = i / 100.0;
-    differential_privacy::testing::GenerateAllScenariosSum(r);
+    differential_privacy::testing::GenerateAllScenariosSum(ratio);
   }
 
-// Generates samples of BoundedMean algorithm with insufficient noise.
+// // Generates samples of BoundedMean algorithm with insufficient noise.
   mkdir(differential_privacy::testing::mean_samples_folder.c_str(), 0777);
-  for (int i = ratio_min; i <= ratio_max; i++) {
+  for (double i=0; i <= num_iterations; ++i) {
+    double ratio = i * increment + ratio_min;
+    int ratio_name = (int)lround(ratio*100);
     std::string mean_path = differential_privacy::testing::mean_samples_folder
-      +"/R"+std::to_string(i);
+      +"/R"+std::to_string(ratio_name);
     mkdir(mean_path.c_str(), 0777);
-    const double r = i / 100.0;
-    differential_privacy::testing::GenerateAllScenariosMean(r);
+    differential_privacy::testing::GenerateAllScenariosMean(ratio);
   }
   
   return 0;
 }
+
+    // if ((ratio_min > 0) && (ratio_max > 0) && (ratio_min < 100) && (ratio_max < 100)
+    //   && (num_samples_per_histogram > 0)) {
+    //   countfile << dt << "\n";
+    //   countfile << header << "\n";
+    //   count_summary = differential_privacy::testing::GetTestResultsForCount(
+    //   count_num_datasets,num_samples_per_histogram,ratio_min,ratio_max,0.1,countfile);
+    //   countfile.close();
+
+    //   sumfile << dt << "\n";
+    //   sumfile << header << "\n";
+    //   sum_summary = differential_privacy::testing::GetTestResultsForSum(
+    //     sum_num_datasets,num_samples_per_histogram,ratio_min,ratio_max,0.1,sumfile);
+    //   sumfile.close();
+
+    //   meanfile << dt << "\n";
+    //   meanfile << header << "\n";
+    //   mean_summary = differential_privacy::testing::GetTestResultsForMean(
+    //     mean_num_datasets,num_samples_per_histogram,ratio_min,ratio_max,0.1,meanfile);
+    //   meanfile.close();
+    // }

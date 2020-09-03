@@ -54,14 +54,8 @@ double BoundedSumAlgorithm(std::vector<double> values, double granularity,
     .Build()
     .ValueOrDie();
 
-  std::vector<double> discretized_values;
-  for (double i : values) {
-    double discretized_value = DiscretizeSum(i, granularity);
-    discretized_values.push_back(discretized_value);
-  }
-
-  base::StatusOr<Output> result = boundedsum->Result(discretized_values.begin(),
-    discretized_values.end());
+  base::StatusOr<Output> result = boundedsum->Result(values.begin(),
+    values.end());
   Output obj = result.ValueOrDie();
   return GetValue<double>(obj);
 }
@@ -87,10 +81,12 @@ void CreateSingleScenarioSum(int scenario, std::vector<double> values,
     for (int i=0; i<number_of_samples; i++) {
       int64_t outputA = BoundedSumAlgorithm(values, granularity,
         implemented_epsilon, max_partitions, lower, upper);
-      samplefileA << outputA << "\n";
+      double discretized_outputA = DiscretizeSum(outputA, granularity);
+      samplefileA << discretized_outputA << "\n";
       int64_t outputB = BoundedSumAlgorithm(neighbor_values, granularity,
         implemented_epsilon, max_partitions, lower, upper);
-      samplefileB << outputB << "\n";
+      double discretized_outputB = DiscretizeSum(outputB, granularity);
+      samplefileB << discretized_outputB << "\n";
     }
   samplefileA.close();
   samplefileB.close();

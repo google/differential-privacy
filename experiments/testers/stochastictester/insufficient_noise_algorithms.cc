@@ -71,8 +71,8 @@ bool RunStochasticTesterOnMean(double ratio, int num_datasets,
 // Applies the Stochastic Tester to the constructed Count algorithm over a 
 // continuous range of ratio values and sends the test results to an output file.
 base::StatusOr<SummaryResults> GetTestResultsForCount(int num_datasets,
-  int num_samples_per_histogram, int ratio_min, int ratio_max,
-  std::ofstream& datafile) {
+  int num_samples_per_histogram, double ratio_min, double ratio_max,
+  double increment, std::ofstream& datafile) {
 
   SummaryResults sr;
   double num_tests = 0;
@@ -80,13 +80,14 @@ base::StatusOr<SummaryResults> GetTestResultsForCount(int num_datasets,
   double maximum_ratio_passed = 0;
   auto start = std::chrono::high_resolution_clock::now();
 
-  for (int i=ratio_min; i<=ratio_max; i++) {
+  int num_iterations = ceil((ratio_max - ratio_min) / increment);
+  for (double i=0; i <= num_iterations; ++i) {
     auto start_test_run = std::chrono::high_resolution_clock::now();
-    double ratio = static_cast<double>(i)/100.0;
+    double ratio = i * increment + ratio_min;
     std::cout << "Now calculating count algorithm with ratio: " << 
       ratio << std::endl;
     bool outcome = RunStochasticTesterOnCount(ratio, num_datasets, 
-      num_samples_per_histogram);  
+      num_samples_per_histogram); 
     num_tests++;
     if (outcome == 0) { 
       num_tests_passed++;
@@ -115,8 +116,8 @@ base::StatusOr<SummaryResults> GetTestResultsForCount(int num_datasets,
 // Applies the Stochastic Tester to the constructed Bounded Sum algorithm over a
 // continuous range of ratio values and sends the test results to an output file.
 base::StatusOr<SummaryResults> GetTestResultsForSum(int num_datasets,
-  int num_samples_per_histogram, int ratio_min, int ratio_max,
-  std::ofstream& datafile) {
+  int num_samples_per_histogram, double ratio_min, double ratio_max,
+  double increment, std::ofstream& datafile) {
 
   SummaryResults sr;
   double num_tests = 0;
@@ -124,9 +125,10 @@ base::StatusOr<SummaryResults> GetTestResultsForSum(int num_datasets,
   double maximum_ratio_passed = 0;
   auto start = std::chrono::high_resolution_clock::now();
 
-  for (int i=ratio_min; i<=ratio_max; i++) {
+  int num_iterations = ceil((ratio_max - ratio_min) / increment);
+  for (double i=0; i <= num_iterations; ++i) {
     auto start_test_run = std::chrono::high_resolution_clock::now();
-    double ratio = static_cast<double>(i)/100.0;
+    double ratio = i * increment + ratio_min;
     std::cout << "Now calculating bounded_sum algorithm with ratio: " << 
       ratio << std::endl;
     bool outcome = RunStochasticTesterOnSum(ratio, num_datasets, 
@@ -157,8 +159,8 @@ base::StatusOr<SummaryResults> GetTestResultsForSum(int num_datasets,
 }
 
 base::StatusOr<SummaryResults> GetTestResultsForMean(int num_datasets,
-  int num_samples_per_histogram, int ratio_min, int ratio_max,
-  std::ofstream& datafile) {
+  int num_samples_per_histogram, double ratio_min, double ratio_max,
+  double increment, std::ofstream& datafile) {
 
   SummaryResults sr;
   double num_tests = 0;
@@ -166,9 +168,10 @@ base::StatusOr<SummaryResults> GetTestResultsForMean(int num_datasets,
   double maximum_ratio_passed = 0;
   auto start = std::chrono::high_resolution_clock::now();
 
-  for (int i=ratio_min; i<=ratio_max; i++) {
+  int num_iterations = ceil((ratio_max - ratio_min) / increment);
+  for (double i=0; i <= num_iterations; ++i) {
     auto start_test_run = std::chrono::high_resolution_clock::now();
-    double ratio = static_cast<double>(i)/100.0;
+    double ratio = i * increment + ratio_min;
     std::cout << "Now calculating bounded_mean algorithm with ratio: " << 
       ratio << std::endl;
     bool outcome = RunStochasticTesterOnMean(ratio, num_datasets, 

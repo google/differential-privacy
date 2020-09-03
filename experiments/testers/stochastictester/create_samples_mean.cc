@@ -56,19 +56,15 @@ double DPMean(std::vector<double> values, double granularity,
     .Build()
     .ValueOrDie();
 
-  std::vector<double> discretized_values;
-  for (double i : values) {
-    double discretized_value = DiscretizeMean(i, granularity);
-    discretized_values.push_back(discretized_value);
-  }
-
-  base::StatusOr<Output> result = boundedmean->Result(discretized_values.begin(),
-    discretized_values.end());
+  base::StatusOr<Output> result = boundedmean->Result(values.begin(),
+    values.end());
   Output obj = result.ValueOrDie();
   return GetValue<double>(obj);
 }
 
 // Construct the BoundedMean algorithm for large values.
+// Additional parameters enable large values to be added
+// to the algorithm one by one.
 double DPLargeMean(double initial_value, double extra_values_length, 
   double extra_value, double granularity, double epsilon, int max_partitions,
   int max_contributions, int lower, int upper) {
@@ -87,10 +83,16 @@ double DPLargeMean(double initial_value, double extra_values_length,
 
 // Add entry with subsequent values
   for (int i=0; i<extra_values_length; i++) {
-    boundedmean->AddEntry(DiscretizeMean(extra_value,granularity));
+    boundedmean->AddEntry(extra_value);
   }
   return GetValue<double>(boundedmean->PartialResult().ValueOrDie());
 }
+
+  // std::vector<double> discretized_values;
+  // for (double i : values) {
+  //   double discretized_value = DiscretizeMean(i, granularity);
+  //   discretized_values.push_back(discretized_value);
+  // }
 
 // Creates a folder to contain all samples with a particular ratio value
 // (e.g., R95). Every folder contains 22 subfolders for each unique sample-pair.
@@ -117,10 +119,12 @@ void CreateSingleScenarioMean(int scenario, std::vector<double>valuesA,
       for (int i=0; i<number_of_samples; i++) {
         double outputA = DPMean(valuesA, granularity,
           implemented_epsilon, max_partitions, max_contributions, lower, upper);
-        samplefileA << outputA << "\n";
+        double discretized_outputA = DiscretizeMean(outputA, granularity);
+        samplefileA << discretized_outputA << "\n";
         double outputB = DPMean(valuesB, granularity,
           implemented_epsilon, max_partitions, max_contributions, lower, upper);
-        samplefileB << outputB << "\n";
+        double discretized_outputB = DiscretizeMean(outputB, granularity);
+        samplefileB << discretized_outputB << "\n";
       }
       samplefileA.close();
       samplefileB.close();
@@ -129,11 +133,13 @@ void CreateSingleScenarioMean(int scenario, std::vector<double>valuesA,
       for (int i=0; i<number_of_samples; i++) {
       double outputA = DPMean(valuesA, granularity,
         implemented_epsilon, max_partitions, max_contributions, lower, upper);
-        samplefileA << outputA << "\n";
+      double discretized_outputA = DiscretizeMean(outputA, granularity);
+        samplefileA << discretized_outputA << "\n";
       double outputB = DPLargeMean(initial_value, extra_values_length,
         extra_value, granularity, implemented_epsilon, max_partitions,
         max_contributions, lower, upper);
-        samplefileB << outputB << "\n";
+      double discretized_outputB = DiscretizeMean(outputB, granularity);
+        samplefileB << discretized_outputB << "\n";
       }
       samplefileA.close();
       samplefileB.close();
