@@ -26,7 +26,7 @@ import java.util.Date;
 
 public class StatisticalUtils {
 // Reads in samples of Count algorithms with insufficient noise.
-	public static Long[] getData(String filepath) {
+	protected static Long[] getData(String filepath) {
 
 	  File file = new File(filepath);
 	  int counter = 0;
@@ -48,9 +48,9 @@ public class StatisticalUtils {
 	    return sample_array;
 	}
 
-// Runs the Statistical Tester on a given pair of differentially private samples.
+// Runs the Statistical Tester on a given pair of differentially protected samples.
 // Desired outcome is 0 or false since the samples are known to violate DP.
-	public static boolean getOutcome(
+	protected static boolean getOutcome(
 		String fileA,
 		String fileB,
 	  int numberOfSamples,
@@ -66,7 +66,7 @@ public class StatisticalUtils {
 	}
 
 // Uses majority-vote protocol to determine overall outcome of the test. 
-	public static int getMajorityVote(
+	protected static int getMajorityVote(
 		String subfolder,
 		int numberOfSamples,
 		double epsilon,

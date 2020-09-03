@@ -33,7 +33,7 @@ public class StatisticalTesterMean {
 
 // Run each test case according to parameters specified by MeanDpTest.java.
 // If any one test fails to satisfy DP, the algorithm is considered not DP.
-	public static int getOverallOutcome(int numberOfSamples, String ratio,
+	private static int getOverallOutcome(int numberOfSamples, String ratio,
 		int numberOfVotes) {
 
 		int counter = 0;
@@ -170,7 +170,7 @@ public class StatisticalTesterMean {
 		}
 	}
 
-	public static void collectData(int numberOfVotes, int numberOfSamples, int ratio_min,
+	protected static void collectData(int numberOfVotes, int numberOfSamples, int ratio_min,
 		int ratio_max, String filename) {
 		String test_name = "insufficient_noise";
 		String algorithm_type = "bounded_mean";
