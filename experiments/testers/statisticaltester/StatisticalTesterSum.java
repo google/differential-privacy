@@ -31,80 +31,6 @@ public class StatisticalTesterSum {
 
 	private static final String homedir = "boundedsumsamples/";
 
-// Reads in samples of Bounded Sum algorithms with insufficient noise.
-	public static Long[] getData(String filepath) {
-
-	  File file = new File(filepath);
-	  int counter = 0;
-	  ArrayList<Long> sample = new ArrayList<Long>();
-
-	  try (BufferedReader br = new BufferedReader(new FileReader(file))) {
-	    String line;
-	    while ((line = br.readLine()) != null) {
-	    	counter++;
-				int i = Double.valueOf(line).intValue();
-	      Long dpsum = Long.valueOf(i);
-	      sample.add(dpsum);
-	    }
-	  } catch (IOException e) {
-	      e.printStackTrace();
-	 	}
-	    Long sample_array[] = new Long[counter];
-	    sample_array = sample.toArray(sample_array);
-	    return sample_array;
-	}
-
-// Runs the Statistical Tester on a given pair of differentially private samples.
-// Desired outcome is 0 or false since the samples are known to violate DP.
-	public static boolean getOutcome(
-		String fileA,
-		String fileB,
-	  int numberOfSamples,
-	  double epsilon,
-	  double delta,
-	  double l2Tolerance,
-	  int numberOfVotes) {
-
-		Long[] samplesA = getData(fileA);
-		Long[] samplesB = getData(fileB);
-
-	  return StatisticalTestsUtil.verifyApproximateDp(
-	  	samplesA, samplesB, epsilon, delta, l2Tolerance);
-	}
-
-// Uses majority-vote protocol to determine overall outcome of the test. 
-	public static int getMajorityVote(
-		String subfolder,
-		int numberOfSamples,
-		double epsilon,
-		double delta,
-		double l2Tolerance,
-		int numberOfVotes) {
-
-		String fullpath = homedir+subfolder;
-		int num_passed = 0;
-		
-		for (int i = 0; i < 7; i++) {
-  			String fileA = fullpath+"TestCase"+Integer.toString(i)+"A.txt";
-  			String fileB = fullpath+"TestCase"+Integer.toString(i)+"B.txt";
-  			boolean Outcome = getOutcome(fileA,fileB,numberOfSamples,epsilon,delta,l2Tolerance,numberOfVotes);
-  			if (Outcome == true) {
-  				num_passed++;
-  			}
-		}
-
-		System.out.println("The algorithm passed "+Integer.toString(num_passed)
-			+" out of "+Integer.toString(numberOfVotes)+" test runs.");
-
-		long majority_vote = Math.round(numberOfVotes*0.5);
-		if (num_passed >= majority_vote) {
-			return 1;
-		}
-		else {
-			return 0;
-		}
-	}
-
 // Run each test case according to parameters specified by SumDpTest.java.
 // If any one test fails to satisfy DP, the algorithm is considered not DP.
 	public static int getOverallOutcome(int numberOfSamples, String ratio,
@@ -116,87 +42,87 @@ public class StatisticalTesterSum {
 		double large_epsilon = 2*Math.log(3);
 		final int delta = 0;
 
-		int testcase1 = getMajorityVote("R"+ratio+"/Scenario1/",numberOfSamples,
+		int testcase1 = StatisticalUtils.getMajorityVote(homedir+"R"+ratio+"/Scenario1/",numberOfSamples,
 			medium_epsilon,delta,0.02,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
-		int testcase2 = getMajorityVote("R"+ratio+"/Scenario2/",numberOfSamples,
+		int testcase2 = StatisticalUtils.getMajorityVote(homedir+"R"+ratio+"/Scenario2/",numberOfSamples,
 			medium_epsilon,delta,0.04,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
-		int testcase3 = getMajorityVote("R"+ratio+"/Scenario3/",numberOfSamples,
+		int testcase3 = StatisticalUtils.getMajorityVote(homedir+"R"+ratio+"/Scenario3/",numberOfSamples,
 			medium_epsilon,delta,0.04,numberOfVotes); 
 		counter++;
 		System.out.println(counter);
 
-		int testcase4 = getMajorityVote("R"+ratio+"/Scenario4/",numberOfSamples,
+		int testcase4 = StatisticalUtils.getMajorityVote(homedir+"R"+ratio+"/Scenario4/",numberOfSamples,
 			small_epsilon,delta,0.0135,numberOfVotes); 
 		counter++;
 		System.out.println(counter);
 
-		int testcase5 = getMajorityVote("R"+ratio+"/Scenario5/",numberOfSamples,
+		int testcase5 = StatisticalUtils.getMajorityVote(homedir+"R"+ratio+"/Scenario5/",numberOfSamples,
 			large_epsilon,delta,0.0135,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
-		int testcase6 = getMajorityVote("R"+ratio+"/Scenario6/",numberOfSamples,
+		int testcase6 = StatisticalUtils.getMajorityVote(homedir+"R"+ratio+"/Scenario6/",numberOfSamples,
 			medium_epsilon,delta,0.02,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
-		int testcase7 = getMajorityVote("R"+ratio+"/Scenario7/",numberOfSamples,
+		int testcase7 = StatisticalUtils.getMajorityVote(homedir+"R"+ratio+"/Scenario7/",numberOfSamples,
 			medium_epsilon,delta,0.04,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
-		int testcase8 = getMajorityVote("R"+ratio+"/Scenario8/",numberOfSamples,
+		int testcase8 = StatisticalUtils.getMajorityVote(homedir+"R"+ratio+"/Scenario8/",numberOfSamples,
 			small_epsilon,delta,0.0135,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
-		int testcase9 = getMajorityVote("R"+ratio+"/Scenario9/",numberOfSamples,
+		int testcase9 = StatisticalUtils.getMajorityVote(homedir+"R"+ratio+"/Scenario9/",numberOfSamples,
 			large_epsilon,delta,0.0135,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
-		int testcase10 = getMajorityVote("R"+ratio+"/Scenario10/",numberOfSamples,
+		int testcase10 = StatisticalUtils.getMajorityVote(homedir+"R"+ratio+"/Scenario10/",numberOfSamples,
 			medium_epsilon,delta,0.04,numberOfVotes); 
 		counter++;
 		System.out.println(counter);
 
-		int testcase11 = getMajorityVote("R"+ratio+"/Scenario11/",numberOfSamples,
+		int testcase11 = StatisticalUtils.getMajorityVote(homedir+"R"+ratio+"/Scenario11/",numberOfSamples,
 			medium_epsilon,delta,0.04,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
-		int testcase12 = getMajorityVote("R"+ratio+"/Scenario12/",numberOfSamples,
+		int testcase12 = StatisticalUtils.getMajorityVote(homedir+"R"+ratio+"/Scenario12/",numberOfSamples,
 			small_epsilon,delta,0.023,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
-		int testcase13 = getMajorityVote("R"+ratio+"/Scenario13/",numberOfSamples,
+		int testcase13 = StatisticalUtils.getMajorityVote(homedir+"R"+ratio+"/Scenario13/",numberOfSamples,
 			large_epsilon,delta,0.023,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
-		int testcase14 = getMajorityVote("R"+ratio+"/Scenario14/",numberOfSamples,
+		int testcase14 = StatisticalUtils.getMajorityVote(homedir+"R"+ratio+"/Scenario14/",numberOfSamples,
 			medium_epsilon,delta,0.04,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
-		int testcase15 = getMajorityVote("R"+ratio+"/Scenario15/",numberOfSamples,
+		int testcase15 = StatisticalUtils.getMajorityVote(homedir+"R"+ratio+"/Scenario15/",numberOfSamples,
 			medium_epsilon,delta,0.04,numberOfVotes); 
 		counter++;
 		System.out.println(counter);
 
-		int testcase16 = getMajorityVote("R"+ratio+"/Scenario16/",numberOfSamples,
+		int testcase16 = StatisticalUtils.getMajorityVote(homedir+"R"+ratio+"/Scenario16/",numberOfSamples,
 				small_epsilon,delta,0.023,numberOfVotes);
 		counter++;
 		System.out.println(counter);
 
-		int testcase17 = getMajorityVote("R"+ratio+"/Scenario17/",numberOfSamples,
+		int testcase17 = StatisticalUtils.getMajorityVote(homedir+"R"+ratio+"/Scenario17/",numberOfSamples,
 			large_epsilon,delta,0.023,numberOfVotes);
 		counter++;
 		System.out.println(counter);
@@ -219,7 +145,7 @@ public class StatisticalTesterSum {
 	public static void collectData(int numberOfVotes, int numberOfSamples, int ratio_min,
 		int ratio_max, String filename) {
 		String test_name = "insufficient_noise";
-		String algorithm = "bounded_sum";
+		String algorithm_type = "bounded_sum";
 		String expected = "0";
 		String num_datasets = "17";
 		String num_samples = Integer.toString(numberOfSamples);
@@ -242,7 +168,7 @@ public class StatisticalTesterSum {
 		for (int i = ratio_min; i <= ratio_max; i++) {
 			String r = Integer.toString(i);
 			String Outcome = Integer.toString(getOverallOutcome(numberOfSamples,r,numberOfVotes));
-	    builder.append(test_name+","+algorithm+","+expected+","+Outcome+","+r+","+num_datasets+","+num_samples+","+time);
+	    builder.append(test_name+","+algorithm_type+","+expected+","+Outcome+","+r+","+num_datasets+","+num_samples+","+time);
 	    builder.append('\n');
     }
     pw.write(builder.toString());

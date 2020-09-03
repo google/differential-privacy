@@ -417,7 +417,7 @@ cc_library(
 cc_test(
     name = "approx-bounds_test",
     size = "small",
-    srcs = ["approx-bounds_test.cc"],l
+    srcs = ["approx-bounds_test.cc"],
     copts = ["-Wno-sign-compare"],
     deps = [
         ":approx-bounds",
