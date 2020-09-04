@@ -25,3 +25,13 @@ The evaluation contains two folders: `cc` and `java`. The `cc` folder must be ru
 The `java` folder must be run second. The Java files read in the samples that were created in the C++ differential privacy library. Then the Stochastic Tester is run over a series of algorithms with `insufficient_noise`, and results are recorded in the `results` folder.
 
 ## How to Use
+
+The evaluation is run in two parts. Part 1 is written in C++ and Part 2 is written in Java. Part 1 must be run before Part 2.
+
+### Part 1
+
+#### Creating Samples with Insufficient Noise
+
+The second stage of Part 1 generates samples for three algorithms with insufficient_noise (Count, BoundedSum, and BoundedMean), to be used when testing the Statistical Tester. The samples are automatically created in the statisticaltester folder. Note that the ratio_min and ratio_max parameters also apply to the Statistical Tester test, as both testing tools should be evaluated over the same range of ratio values.
+
+To run Part 1 using all default parameters, simply run:

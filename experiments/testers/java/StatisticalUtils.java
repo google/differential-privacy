@@ -65,7 +65,7 @@ public class StatisticalUtils {
 	  	delta, l2Tolerance);
 	}
 
-// Uses majority-vote protocol to determine overall outcome of the test. 
+// Determines overall outcome of the test by taking a majority vote. 
 	protected static int getMajorityVote(
 		String subfolder,
 		int numberOfSamples,
