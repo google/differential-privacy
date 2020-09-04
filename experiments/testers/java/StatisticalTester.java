@@ -26,10 +26,10 @@ import java.util.Date;
 
 public class StatisticalTester {
 
-		static int ratio_min;
-		static int ratio_max;
+		static int ratioMin;
+		static int ratioMax;
 		static int numberOfSamples;
-		static String filename;
+		static String fileName;
 		static int numberOfVotes = 7;
 
 	public static void main(String[] args) {
@@ -37,11 +37,11 @@ public class StatisticalTester {
 // Specify arguments on command line.
 		if (args.length>0) {
 			try {
-				ratio_min = Integer.parseInt(args[0]);
-				ratio_max = Integer.parseInt(args[1]);
+				ratioMin = Integer.parseInt(args[0]);
+				ratioMax = Integer.parseInt(args[1]);
 				numberOfSamples = Integer.parseInt(args[2]);
 
-				if (ratio_min>0 && ratio_min<1 && ratio_max>0 && ratio_max<1 && numberOfSamples>0 && args[3] instanceof String) {
+				if (ratioMin>0 && ratioMin<1 && ratioMax>0 && ratioMax<1 && numberOfSamples>0 && args[3] instanceof String) {
 				}
 				else {
 					System.out.println("An invalid parameter was specified. Try again, please!");
@@ -54,19 +54,19 @@ public class StatisticalTester {
 		}
 		else {
 // Use default arguments.
-			ratio_min = 80;
-			ratio_max = 85;
+			ratioMin = 80;
+			ratioMax = 85;
 			numberOfSamples = 100;
-			filename = "statistical_tester_results_";
+			fileName = "statistical_tester_results_";
 		}
 
-		StatisticalTesterCount st_count = new StatisticalTesterCount();
-		st_count.collectData(numberOfVotes,numberOfSamples,ratio_min,ratio_max,filename+"_count.txt");
+		StatisticalTesterCount stCount = new StatisticalTesterCount();
+		stCount.collectData(numberOfVotes,numberOfSamples,ratioMin,ratioMax,fileName+"_count.txt");
 
-		StatisticalTesterSum st_sum = new StatisticalTesterSum();
-		st_sum.collectData(numberOfVotes,numberOfSamples,ratio_min,ratio_max,filename+"_sum.txt");
+		StatisticalTesterSum stSum = new StatisticalTesterSum();
+		stSum.collectData(numberOfVotes,numberOfSamples,ratioMin,ratioMax,fileName+"_sum.txt");
 
-		StatisticalTesterMean st_mean = new StatisticalTesterMean();
-		st_mean.collectData(numberOfVotes,numberOfSamples,ratio_min,ratio_max,filename+"_mean.txt");
+		StatisticalTesterMean stMean = new StatisticalTesterMean();
+		stMean.collectData(numberOfVotes,numberOfSamples,ratioMin,ratioMax,fileName+"_mean.txt");
 }
 }

@@ -74,22 +74,22 @@ public class StatisticalUtils {
 		double l2Tolerance,
 		int numberOfVotes) {
 
-		int num_passed = 0;
+		int numPassed = 0;
 		
 		for (int i = 0; i < numberOfVotes; i++) {
   		String fileA = subfolder+"TestCase"+Integer.toString(i)+"A.txt";
   		String fileB = subfolder+"TestCase"+Integer.toString(i)+"B.txt";
   		boolean Outcome = getOutcome(fileA,fileB,numberOfSamples,epsilon,delta,l2Tolerance);
   		if (Outcome == true) {
-  			num_passed++;
+  			numPassed++;
   		}
 		}
 
-		System.out.println("The algorithm passed "+Integer.toString(num_passed)
+		System.out.println("The algorithm passed "+Integer.toString(numPassed)
 			+" out of "+Integer.toString(numberOfVotes)+" test runs.");
 
-		long majority_vote = Math.round(numberOfVotes*0.5);
-		if (num_passed >= majority_vote) {
+		long majorityVote = Math.round(numberOfVotes*0.5);
+		if (numPassed >= majorityVote) {
 			return 1;
 		}
 		else {
