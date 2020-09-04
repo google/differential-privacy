@@ -10,9 +10,9 @@ The testing algorithms have been engineered to violate differential privacy by m
 
 However, if the testing tools evaluate a given algorithm using an epsilon that is smaller than the epsilon used to generate noise, then a differential privacy violation occurs. This is because `insufficient_noise` has been applied to the algorithm; in other words, the algorithm is claiming that it provides more privacy protection than it actually does.
 
-For all algorithms with insufficient_noise, the advertised_epsilon, or the epsilon used to evaluate the algorithm for differential privacy, is always less than the implemented_epsilon, or the actual amount of noise applied to the algorithm. This deliberate mismatch ensures that the algorithm will always violate differential privacy, because it is always claiming to provide more privacy protection than the true amount of noise applied to the data.
+For all algorithms with `insufficient_noise`, the `advertised_epsilon`, or the epsilon used to evaluate the algorithm for differential privacy, is always less than the `implemented_epsilon`, or the actual amount of noise applied to the algorithm. This deliberate mismatch ensures that the algorithm will always violate differential privacy, because it is always claiming to provide more privacy protection than the true amount of noise applied to the data.
 
-The relationship between the advertised_epsilon and the implemented_epsilon can be represented by a third variable, ratio, where ratio = advertised_epsilon / implemented epsilon. For example, if advertised_epsilon = 2 and implemented_epsilon = 5, then ratio = 0.4, meaning that only 40% of privacy protection that is claimed is actually being applied. (Note: We do not recommend using the aforementioned values of epsilon in practice. They were chosen only to clearly illustrate the meaning of `ratio`.)
+The relationship between the `advertised_epsilon` and the `implemented_epsilon` can be represented by a third variable, `ratio`, where `ratio = advertised_epsilon / implemented epsilon.` For example, if `advertised_epsilon = 2` and `implemented_epsilon = 5`, then `ratio = 0.4`, meaning that only 40% of privacy protection that is claimed is actually being applied. (Note: We do not recommend using the aforementioned values of epsilon in practice. They were chosen only to clearly illustrate the meaning of `ratio`.)
 
 ## Architecture
 
@@ -30,27 +30,33 @@ The evaluation is run in two parts. Part 1 is written in C++ and Part 2 is writt
 
 ### Part 1: Creating Samples with Insufficient Noise and Testing the Stochastic Tester
 
-The first stage of Part 1 generates samples for algorithms with insufficient_noise (e.g., Count, BoundedSum). Text files containing these samples are automatically created in the `java` folder, as they are evaluated by the Statistical Tester in Part 2.
+The first stage of Part 1 generates samples for algorithms with `insufficient_noise` (e.g., Count, BoundedSum). Text files containing these samples are automatically created in the `java` folder, as they are evaluated by the Statistical Tester in Part 2.
 
-The second stage of Part 1 runs the Stochastic Tester on algorithms with `insufficient_noise` (e.g., Count, BoundedSum) and records the results by algorithm type in the `results` folder. (There is no need to create or read in samples from text files when running the Stochastic Tester, because the Tester creates samples as part of the evaluation process.)
+The second stage of Part 1 runs the Stochastic Tester on algorithms with `insufficient_noise` (e.g., Count, BoundedSum) and records the results by algorithm type in the `results` folder. (There is no need to create or read in samples from text files when running the Stochastic Tester, because the Tester creates samples as part of its process.)
 
 Note that the Stochastic Tester test contains several default parameters:
-`num_samples_per_histogram = 1000000
+```
+num_samples_per_histogram = 1000000
 ratio_min = 50.0
 ratio_max = 99.0
-output_filename = "stochastic_tester_results_[algorithm_type].txt"`
+output_filename = "stochastic_tester_results_[algorithm_type].txt"
+```
 
 These parameters are mutable, and users can specify their own on the command line.
 
 To run Part 1 using all default parameters, run:
 
-`bazel build part1`
-`bazel-bin/part1`
+```
+bazel build part1
+bazel-bin/part1
+```
 
 Users can also specify parameters to override the default values. To run this test with user-supplied parameters, run:
 
-`bazel build part1
-bazel-bin/part1 [count_results_filename] [sum_results_filename] [mean_results_filename] [ratio_min] [ratio_max] [num_samples_per_histogram]`
+```
+bazel build part1
+bazel-bin/part1 [count_results_filename] [sum_results_filename] [mean_results_filename] [ratio_min] [ratio_max] [num_samples_per_histogram]
+```
 
 ### Part 2: Testing the Statistical Tester
 
@@ -59,25 +65,31 @@ Part2 runs the Statistical Tester on algorithms with `insufficient noise` (e.g.,
 Note that the Statistical Tester contains the same default parameters with the same default values as the Stochastic Tester. These parameters are mutable, and users can specify their own on the command line. However, they must be equal to the comparable parameters specified in the Stochastic Tester test.
 
 To run Part 2 using all default parameters, run:
-`bazel build part2`
-`bazel-bin/part2`
+```
+bazel build part2
+bazel-bin/part2
+```
 
 To run this test with user-supplied parameters, run:
-`bazel build part2`
-`bazel build part2 [ratio_min] [ratio_max] [number_of_samples_per_histogram] [count_results_filename] [sum_results_filename] [mean_results_filename]`
+```
+bazel build part2
+bazel build part2 [ratio_min] [ratio_max] [number_of_samples_per_histogram] [count_results_filename] [sum_results_filename] [mean_results_filename]
+```
 
 ### Part 3: Evaluating the Results
 
-Running Part1 and Part2 will result in six output files, located in the `results` folder, which contain outcomes from both Testers over all algorithm types. The files are separated by algorithm type (e.g., Count, BoundedSum, or BoundedMean). Each line represents a single test run and contains the following data:
+Running Part1 and Part2 will result in several output files, located in the `results` folder, which contain outcomes from both Testers over all algorithm types. The files are separated by algorithm type (e.g., Count, BoundedSum, BoundedMean). Each line represents a single test run and contains the following data:
 
-`test_name: Name of the test performed. All tests should implement the insufficient_noise test. More tests may be implemented in future versions of this framework.
+```
+test_name: Name of the test performed. All tests should implement the insufficient_noise test. More tests may be implemented in future versions of this framework.
 algorithm_type: The name of algorithm constructed (e.g., Count, BoundedSum)
 expected: The expected outcome of the test. Since all algorithms violate DP, all outcomes should be `false` or 0.
 actual: The actual outcome of the test.
 ratio: The ratio value used in the test.
 num_datasets: The number of algorithms created with distinct parameters.
 num_samples: The number samples used to build each histogram.
-time(sec): The number of seconds the test took to run. [Note: This is currently null for the Statistical Tester tests]`
+time(sec): The number of seconds the test took to run. [Note: This is currently null for the Statistical Tester tests]
+```
 
 Take a look at the performances of the Stochastic and Statistical Testers and see which Tester performed best!
 
