@@ -18,7 +18,7 @@ package(
 )
 
 cc_binary(
-    name = "stochastic_tester",
+    name = "part1",
     srcs = ["main.cc"],
     deps = [
         ":insufficient_noise_algorithms",
