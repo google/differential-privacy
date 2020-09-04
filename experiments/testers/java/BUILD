@@ -36,7 +36,7 @@ java_library(
 )
 
 java_binary(
-    name = "statistical_tester",
+    name = "part2",
     srcs = ["StatisticalTester.java"],
     main_class = "StatisticalTester",
     deps = [
