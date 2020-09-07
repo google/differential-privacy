@@ -134,8 +134,8 @@ public class LaplaceNoise implements Noise {
       @Nullable Double delta,
       double alpha) {
     checkConfidenceIntervalParameters(l0Sensitivity, lInfSensitivity, epsilon, delta, alpha);
-    return computeConfidenceInterval(
-        noisedX, Noise.getL1Sensitivity(l0Sensitivity, lInfSensitivity) / epsilon, alpha);
+    double lambda = Noise.getL1Sensitivity(l0Sensitivity, lInfSensitivity) / epsilon;
+    return computeConfidenceInterval(noisedX, lambda, alpha);
   }
 
   /**
@@ -154,12 +154,11 @@ public class LaplaceNoise implements Noise {
       @Nullable Double delta,
       double alpha) {
     checkConfidenceIntervalParameters(l0Sensitivity, lInfSensitivity, epsilon, delta, alpha);
-    ConfidenceInterval confInt =
-        computeConfidenceInterval(
-            0, Noise.getL1Sensitivity(l0Sensitivity, lInfSensitivity) / epsilon, alpha);
+    double lambda = Noise.getL1Sensitivity(l0Sensitivity, lInfSensitivity) / epsilon;
+    ConfidenceInterval confIntAroundZero = computeConfidenceInterval(0, lambda, alpha);
     return ConfidenceInterval.create(
-        SecureNoiseMath.nextSmallerDouble(Math.round(confInt.lowerBound()) + noisedX),
-        SecureNoiseMath.nextLargerDouble(Math.round(confInt.upperBound()) + noisedX));
+        SecureNoiseMath.nextSmallerDouble(Math.round(confIntAroundZero.lowerBound()) + noisedX),
+        SecureNoiseMath.nextLargerDouble(Math.round(confIntAroundZero.upperBound()) + noisedX));
   }
 
   private void checkParameters(double l1Sensitivity, double epsilon, @Nullable Double delta) {

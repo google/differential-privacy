@@ -23,18 +23,7 @@ public class LaplaceNoiseConfidenceIntervalTest {
     return Math.abs(a - b) <= TOLERANCE * mxMagnitude;
   }
 
-  private void isEqual(ConfidenceInterval a, ConfidenceInterval b) {
-    assertWithMessage("Lower bounds are not equal.")
-        .that(a.lowerBound())
-        .isWithin(TOLERANCE)
-        .of(b.lowerBound());
-    assertWithMessage("Upper bounds are not equal.")
-        .that(a.upperBound())
-        .isWithin(TOLERANCE)
-        .of(b.upperBound());
-  }
-
-  private void isApproxEqual(ConfidenceInterval a, ConfidenceInterval b) {
+  private void verifyApproxEqual(ConfidenceInterval a, ConfidenceInterval b) {
     assertWithMessage("Lower bounds are not equal.")
         .that(approxEqual(a.lowerBound(), b.lowerBound()))
         .isTrue();
@@ -44,8 +33,8 @@ public class LaplaceNoiseConfidenceIntervalTest {
   }
 
   @Test
-  public void computeConfidenceInterval_double_arbitraryTest() {
-    ConfidenceInterval confInt =
+  public void computeConfidenceInterval_forDouble_arbitraryTest() {
+    ConfidenceInterval actual =
         NOISE.computeConfidenceInterval(
             /* noisedX */ 13.0,
             DEFAULT_L_0_SENSITIVITY,
@@ -54,12 +43,12 @@ public class LaplaceNoiseConfidenceIntervalTest {
             DEFAULT_DELTA,
             /* alpha */ 0.05);
     ConfidenceInterval expected = ConfidenceInterval.create(3.014225755, 22.98577425);
-    isEqual(confInt, expected);
+    verifyApproxEqual(actual, expected);
   }
 
   @Test
-  public void computeConfidenceInterval_double_lowConfidenceLevel() {
-    ConfidenceInterval confInt =
+  public void computeConfidenceInterval_forDouble_lowConfidenceLevel() {
+    ConfidenceInterval actual =
         NOISE.computeConfidenceInterval(
             DEFAULT_NOISEDX,
             DEFAULT_L_0_SENSITIVITY,
@@ -68,13 +57,12 @@ public class LaplaceNoiseConfidenceIntervalTest {
             DEFAULT_DELTA,
             /* alpha */ 1 - 3.548957438e-10);
     ConfidenceInterval expected = ConfidenceInterval.create(-3.548957437370e-9, 3.548957437370e-9);
-    // Relative error is used instead of absolute error since bounds values are less than TOLERANCE.
-    isApproxEqual(confInt, expected);
+    verifyApproxEqual(actual, expected);
   }
 
   @Test
-  public void computeConfidenceInterval_double_highConfidenceLevel() {
-    ConfidenceInterval confInt =
+  public void computeConfidenceInterval_forDouble_highConfidenceLevel() {
+    ConfidenceInterval actual =
         NOISE.computeConfidenceInterval(
             /* noisedX */ 50,
             DEFAULT_L_0_SENSITIVITY,
@@ -83,12 +71,12 @@ public class LaplaceNoiseConfidenceIntervalTest {
             DEFAULT_DELTA,
             /* alpha */ 7.856382354e-10);
     ConfidenceInterval expected = ConfidenceInterval.create(-159.645246897, 259.645246897);
-    isEqual(confInt, expected);
+    verifyApproxEqual(actual, expected);
   }
 
   @Test
-  public void computeConfidenceInterval_double_lowEpsilon() {
-    ConfidenceInterval confInt =
+  public void computeConfidenceInterval_forDouble_lowEpsilon() {
+    ConfidenceInterval actual =
         NOISE.computeConfidenceInterval(
             DEFAULT_NOISEDX,
             DEFAULT_L_0_SENSITIVITY,
@@ -97,12 +85,12 @@ public class LaplaceNoiseConfidenceIntervalTest {
             DEFAULT_DELTA,
             DEFAULT_ALPHA);
     ConfidenceInterval expected = ConfidenceInterval.create(-14691210451.04132, 14691210451.04132);
-    isEqual(confInt, expected);
+    verifyApproxEqual(actual, expected);
   }
 
   @Test
-  public void computeConfidenceInterval_double_highEpsilon() {
-    ConfidenceInterval confInt =
+  public void computeConfidenceInterval_forDouble_highEpsilon() {
+    ConfidenceInterval actual =
         NOISE.computeConfidenceInterval(
             DEFAULT_NOISEDX,
             DEFAULT_L_0_SENSITIVITY,
@@ -111,13 +99,12 @@ public class LaplaceNoiseConfidenceIntervalTest {
             DEFAULT_DELTA,
             DEFAULT_ALPHA);
     ConfidenceInterval expected = ConfidenceInterval.create(-1.4691210451E-10, 1.4691210451E-10);
-    // Relative error is used instead of absolute error since bounds values are less than TOLERANCE.
-    isApproxEqual(confInt, expected);
+    verifyApproxEqual(actual, expected);
   }
 
   @Test
-  public void computeConfidenceInterval_double_highPositiveNoisedX() {
-    ConfidenceInterval confInt =
+  public void computeConfidenceInterval_forDouble_highPositiveNoisedX() {
+    ConfidenceInterval actual =
         NOISE.computeConfidenceInterval(
             /* noisedX */ 3847569385690.0,
             DEFAULT_L_0_SENSITIVITY,
@@ -128,12 +115,12 @@ public class LaplaceNoiseConfidenceIntervalTest {
     // Double precision should be accurate for abs(noisedX) < 2^54.
     ConfidenceInterval expected =
         ConfidenceInterval.create(3847569385666.974149, 3847569385713.02585093);
-    isEqual(confInt, expected);
+    verifyApproxEqual(actual, expected);
   }
 
   @Test
-  public void computeConfidenceInterval_double_highNegativeNoisedX() {
-    ConfidenceInterval confInt =
+  public void computeConfidenceInterval_forDouble_highNegativeNoisedX() {
+    ConfidenceInterval actual =
         NOISE.computeConfidenceInterval(
             /* noisedX */ -3847569385690.0,
             DEFAULT_L_0_SENSITIVITY,
@@ -144,11 +131,11 @@ public class LaplaceNoiseConfidenceIntervalTest {
     // Double precision should be accurate for abs(noisedX) < 2^54.
     ConfidenceInterval expected =
         ConfidenceInterval.create(-3847569385713.02585093, -3847569385666.97414907);
-    isEqual(confInt, expected);
+    verifyApproxEqual(actual, expected);
   }
 
   @Test
-  public void computeConfidenceInterval_double_zeroL0Sensitivity_throwsException() {
+  public void computeConfidenceInterval_forDouble_zeroL0Sensitivity_throwsException() {
     assertThrows(
         IllegalArgumentException.class,
         () ->
@@ -162,7 +149,7 @@ public class LaplaceNoiseConfidenceIntervalTest {
   }
 
   @Test
-  public void computeConfidenceInterval_double_negativeL0Sensitivity_throwsException() {
+  public void computeConfidenceInterval_forDouble_negativeL0Sensitivity_throwsException() {
     assertThrows(
         IllegalArgumentException.class,
         () ->
@@ -176,7 +163,7 @@ public class LaplaceNoiseConfidenceIntervalTest {
   }
 
   @Test
-  public void computeConfidenceInterval_double_zeroLInfSensitivity_throwsException() {
+  public void computeConfidenceInterval_forDouble_zeroLInfSensitivity_throwsException() {
     assertThrows(
         IllegalArgumentException.class,
         () ->
@@ -190,7 +177,7 @@ public class LaplaceNoiseConfidenceIntervalTest {
   }
 
   @Test
-  public void computeConfidenceInterval_double_negativeLInfSensitivity_throwsException() {
+  public void computeConfidenceInterval_forDouble_negativeLInfSensitivity_throwsException() {
     assertThrows(
         IllegalArgumentException.class,
         () ->
@@ -204,7 +191,7 @@ public class LaplaceNoiseConfidenceIntervalTest {
   }
 
   @Test
-  public void computeConfidenceInterval_double_infiniteLInfSensitivity_throwsException() {
+  public void computeConfidenceInterval_forDouble_infiniteLInfSensitivity_throwsException() {
     assertThrows(
         IllegalArgumentException.class,
         () ->
@@ -218,7 +205,7 @@ public class LaplaceNoiseConfidenceIntervalTest {
   }
 
   @Test
-  public void computeConfidenceInterval_double_NaNLInfSensitivity_throwsException() {
+  public void computeConfidenceInterval_forDouble_NaNLInfSensitivity_throwsException() {
     assertThrows(
         IllegalArgumentException.class,
         () ->
@@ -232,7 +219,7 @@ public class LaplaceNoiseConfidenceIntervalTest {
   }
 
   @Test
-  public void computeConfidenceInterval_double_tooSmallEpsilon_throwsException() {
+  public void computeConfidenceInterval_forDouble_tooSmallEpsilon_throwsException() {
     assertThrows(
         IllegalArgumentException.class,
         () ->
@@ -246,7 +233,7 @@ public class LaplaceNoiseConfidenceIntervalTest {
   }
 
   @Test
-  public void computeConfidenceInterval_double_infiniteEpsilon_throwsException() {
+  public void computeConfidenceInterval_forDouble_infiniteEpsilon_throwsException() {
     assertThrows(
         IllegalArgumentException.class,
         () ->
@@ -260,7 +247,7 @@ public class LaplaceNoiseConfidenceIntervalTest {
   }
 
   @Test
-  public void computeConfidenceInterval_double_NaNEpsilon_throwsException() {
+  public void computeConfidenceInterval_forDouble_NaNEpsilon_throwsException() {
     assertThrows(
         IllegalArgumentException.class,
         () ->
@@ -274,7 +261,7 @@ public class LaplaceNoiseConfidenceIntervalTest {
   }
 
   @Test
-  public void computeConfidenceInterval_double_nonNullDelta_throwsException() {
+  public void computeConfidenceInterval_forDouble_nonNullDelta_throwsException() {
     assertThrows(
         IllegalArgumentException.class,
         () ->
@@ -288,7 +275,7 @@ public class LaplaceNoiseConfidenceIntervalTest {
   }
 
   @Test
-  public void computeConfidenceInterval_double_zeroAlpha_throwsException() {
+  public void computeConfidenceInterval_forDouble_zeroAlpha_throwsException() {
     assertThrows(
         IllegalArgumentException.class,
         () ->
@@ -302,7 +289,7 @@ public class LaplaceNoiseConfidenceIntervalTest {
   }
 
   @Test
-  public void computeConfidenceInterval_double_negativeAlpha_throwsException() {
+  public void computeConfidenceInterval_forDouble_negativeAlpha_throwsException() {
     assertThrows(
         IllegalArgumentException.class,
         () ->
@@ -316,7 +303,7 @@ public class LaplaceNoiseConfidenceIntervalTest {
   }
 
   @Test
-  public void computeConfidenceInterval_double_alphaEqualToOne_throwsException() {
+  public void computeConfidenceInterval_forDouble_alphaEqualToOne_throwsException() {
     assertThrows(
         IllegalArgumentException.class,
         () ->
@@ -330,7 +317,7 @@ public class LaplaceNoiseConfidenceIntervalTest {
   }
 
   @Test
-  public void computeConfidenceInterval_double_alphaGreaterThanOne_throwsException() {
+  public void computeConfidenceInterval_forDouble_alphaGreaterThanOne_throwsException() {
     assertThrows(
         IllegalArgumentException.class,
         () ->
@@ -344,7 +331,7 @@ public class LaplaceNoiseConfidenceIntervalTest {
   }
 
   @Test
-  public void computeConfidenceInterval_double_NaNAlpha_throwsException() {
+  public void computeConfidenceInterval_forDouble_NaNAlpha_throwsException() {
     assertThrows(
         IllegalArgumentException.class,
         () ->
@@ -358,8 +345,8 @@ public class LaplaceNoiseConfidenceIntervalTest {
   }
 
   @Test
-  public void computeConfidenceInterval_long_arbitraryTest() {
-    ConfidenceInterval confInt =
+  public void computeConfidenceInterval_forLong_arbitraryTest() {
+    ConfidenceInterval actual =
         NOISE.computeConfidenceInterval(
             /* noisedX */ 83,
             /* l0Sensitivity */ 3,
@@ -368,12 +355,12 @@ public class LaplaceNoiseConfidenceIntervalTest {
             DEFAULT_DELTA,
             /* alpha */ 0.24);
     ConfidenceInterval expected = ConfidenceInterval.create(-3, 169);
-    isEqual(confInt, expected);
+    verifyApproxEqual(actual, expected);
   }
 
   @Test
-  public void computeConfidenceInterval_long_lowConfidenceLevel() {
-    ConfidenceInterval confInt =
+  public void computeConfidenceInterval_forLong_lowConfidenceLevel() {
+    ConfidenceInterval actual =
         NOISE.computeConfidenceInterval(
             (long) DEFAULT_NOISEDX,
             DEFAULT_L_0_SENSITIVITY,
@@ -382,12 +369,12 @@ public class LaplaceNoiseConfidenceIntervalTest {
             DEFAULT_DELTA,
             /* alpha */ 1 - 3.548957438e-10);
     ConfidenceInterval expected = ConfidenceInterval.create(0, 0);
-    isEqual(confInt, expected);
+    verifyApproxEqual(actual, expected);
   }
 
   @Test
-  public void computeConfidenceInterval_long_highConfidenceLevel() {
-    ConfidenceInterval confInt =
+  public void computeConfidenceInterval_forLong_highConfidenceLevel() {
+    ConfidenceInterval actual =
         NOISE.computeConfidenceInterval(
             /* noisedX */ 50L,
             DEFAULT_L_0_SENSITIVITY,
@@ -396,12 +383,12 @@ public class LaplaceNoiseConfidenceIntervalTest {
             DEFAULT_DELTA,
             /* alpha */ 7.856382354e-10);
     ConfidenceInterval expected = ConfidenceInterval.create(-160, 260);
-    isEqual(confInt, expected);
+    verifyApproxEqual(actual, expected);
   }
 
   @Test
-  public void computeConfidenceInterval_long_lowEpsilon() {
-    ConfidenceInterval confInt =
+  public void computeConfidenceInterval_forLong_lowEpsilon() {
+    ConfidenceInterval actual =
         NOISE.computeConfidenceInterval(
             (long) DEFAULT_NOISEDX,
             DEFAULT_L_0_SENSITIVITY,
@@ -410,12 +397,12 @@ public class LaplaceNoiseConfidenceIntervalTest {
             DEFAULT_DELTA,
             DEFAULT_ALPHA);
     ConfidenceInterval expected = ConfidenceInterval.create(-14691210451.0, 14691210451.0);
-    isEqual(confInt, expected);
+    verifyApproxEqual(actual, expected);
   }
 
   @Test
-  public void computeConfidenceInterval_long_highEpsilon() {
-    ConfidenceInterval confInt =
+  public void computeConfidenceInterval_forLong_highEpsilon() {
+    ConfidenceInterval actual =
         NOISE.computeConfidenceInterval(
             (long) DEFAULT_NOISEDX,
             DEFAULT_L_0_SENSITIVITY,
@@ -424,12 +411,12 @@ public class LaplaceNoiseConfidenceIntervalTest {
             DEFAULT_DELTA,
             DEFAULT_ALPHA);
     ConfidenceInterval expected = ConfidenceInterval.create(0, 0);
-    isEqual(confInt, expected);
+    verifyApproxEqual(actual, expected);
   }
 
   @Test
-  public void computeConfidenceInterval_long_highPositiveNoisedX() {
-    ConfidenceInterval confInt =
+  public void computeConfidenceInterval_forLong_highPositiveNoisedX() {
+    ConfidenceInterval actual =
         NOISE.computeConfidenceInterval(
             /* noisedX */ (1L << 58),
             DEFAULT_L_0_SENSITIVITY,
@@ -443,12 +430,12 @@ public class LaplaceNoiseConfidenceIntervalTest {
     // nextSmaller returns the same value.
     ConfidenceInterval expected =
         ConfidenceInterval.create(288230376151711712.0, 288230376151711808.0);
-    isEqual(confInt, expected);
+    verifyApproxEqual(actual, expected);
   }
 
   @Test
-  public void computeConfidenceInterval_long_highNegativeNoisedX() {
-    ConfidenceInterval confInt =
+  public void computeConfidenceInterval_forLong_highNegativeNoisedX() {
+    ConfidenceInterval actual =
         NOISE.computeConfidenceInterval(
             /* noisedX */ -(1L << 58),
             DEFAULT_L_0_SENSITIVITY,
@@ -462,11 +449,11 @@ public class LaplaceNoiseConfidenceIntervalTest {
     // nextSmaller rounds it back down to -288230376151711808.
     ConfidenceInterval expected =
         ConfidenceInterval.create(-288230376151711808.0, -288230376151711712.0);
-    isEqual(confInt, expected);
+    verifyApproxEqual(actual, expected);
   }
 
   @Test
-  public void computeConfidenceInterval_long_zeroL0Sensitivity_throwsException() {
+  public void computeConfidenceInterval_forLong_zeroL0Sensitivity_throwsException() {
     assertThrows(
         IllegalArgumentException.class,
         () ->
@@ -480,7 +467,7 @@ public class LaplaceNoiseConfidenceIntervalTest {
   }
 
   @Test
-  public void computeConfidenceInterval_long_negativeL0Sensitivity_throwsException() {
+  public void computeConfidenceInterval_forLong_negativeL0Sensitivity_throwsException() {
     assertThrows(
         IllegalArgumentException.class,
         () ->
@@ -494,7 +481,7 @@ public class LaplaceNoiseConfidenceIntervalTest {
   }
 
   @Test
-  public void computeConfidenceInterval_long_zeroLInfSensitivity_throwsException() {
+  public void computeConfidenceInterval_forLong_zeroLInfSensitivity_throwsException() {
     assertThrows(
         IllegalArgumentException.class,
         () ->
@@ -508,7 +495,7 @@ public class LaplaceNoiseConfidenceIntervalTest {
   }
 
   @Test
-  public void computeConfidenceInterval_long_negativeLInfSensitivity_throwsException() {
+  public void computeConfidenceInterval_forLong_negativeLInfSensitivity_throwsException() {
     assertThrows(
         IllegalArgumentException.class,
         () ->
@@ -522,7 +509,7 @@ public class LaplaceNoiseConfidenceIntervalTest {
   }
 
   @Test
-  public void computeConfidenceInterval_long_tooSmallEpsilon_throwsException() {
+  public void computeConfidenceInterval_forLong_tooSmallEpsilon_throwsException() {
     assertThrows(
         IllegalArgumentException.class,
         () ->
@@ -536,7 +523,7 @@ public class LaplaceNoiseConfidenceIntervalTest {
   }
 
   @Test
-  public void computeConfidenceInterval_long_infiniteEpsilon_throwsException() {
+  public void computeConfidenceInterval_forLong_infiniteEpsilon_throwsException() {
     assertThrows(
         IllegalArgumentException.class,
         () ->
@@ -550,7 +537,7 @@ public class LaplaceNoiseConfidenceIntervalTest {
   }
 
   @Test
-  public void computeConfidenceInterval_long_NaNEpsilon_throwsException() {
+  public void computeConfidenceInterval_forLong_NaNEpsilon_throwsException() {
     assertThrows(
         IllegalArgumentException.class,
         () ->
@@ -564,7 +551,7 @@ public class LaplaceNoiseConfidenceIntervalTest {
   }
 
   @Test
-  public void computeConfidenceInterval_long_nonNullDelta_throwsException() {
+  public void computeConfidenceInterval_forLong_nonNullDelta_throwsException() {
     assertThrows(
         IllegalArgumentException.class,
         () ->
@@ -578,7 +565,7 @@ public class LaplaceNoiseConfidenceIntervalTest {
   }
 
   @Test
-  public void computeConfidenceInterval_long_zeroAlpha_throwsException() {
+  public void computeConfidenceInterval_forLong_zeroAlpha_throwsException() {
     assertThrows(
         IllegalArgumentException.class,
         () ->
@@ -592,7 +579,7 @@ public class LaplaceNoiseConfidenceIntervalTest {
   }
 
   @Test
-  public void computeConfidenceInterval_long_negativeAlpha_throwsException() {
+  public void computeConfidenceInterval_forLong_negativeAlpha_throwsException() {
     assertThrows(
         IllegalArgumentException.class,
         () ->
@@ -606,7 +593,7 @@ public class LaplaceNoiseConfidenceIntervalTest {
   }
 
   @Test
-  public void computeConfidenceInterval_long_alphaEqualToOne_throwsException() {
+  public void computeConfidenceInterval_forLong_alphaEqualToOne_throwsException() {
     assertThrows(
         IllegalArgumentException.class,
         () ->
@@ -620,7 +607,7 @@ public class LaplaceNoiseConfidenceIntervalTest {
   }
 
   @Test
-  public void computeConfidenceInterval_long_alphaGreaterThanOne_throwsException() {
+  public void computeConfidenceInterval_forLong_alphaGreaterThanOne_throwsException() {
     assertThrows(
         IllegalArgumentException.class,
         () ->
@@ -634,7 +621,7 @@ public class LaplaceNoiseConfidenceIntervalTest {
   }
 
   @Test
-  public void computeConfidenceInterval_long_NaNAlpha_throwsException() {
+  public void computeConfidenceInterval_forLong_NaNAlpha_throwsException() {
     assertThrows(
         IllegalArgumentException.class,
         () ->

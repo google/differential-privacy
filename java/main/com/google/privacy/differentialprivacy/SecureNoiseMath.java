@@ -86,15 +86,37 @@ final class SecureNoiseMath {
     }
   }
 
-  /** Computes the closest double value that is larger than or equal to the provided long value. */
+  /**
+   * Computes the closest double value that is larger than or equal to the provided long value.
+   *
+   * <p>Mapping from long to double for large long values (> 2^53) is inaccurate since they cannot be
+   * represented as a double. Implicit/explicit conversion from long to double either rounds up or
+   * down the long value to the nearest representable double. This function ensures that {@code n}
+   * <= (double) {@code n} by computing the difference between the double value and {@code n}, if
+   * the diff is negative, it rounds up the double value to the next representable double value
+   * which is greater than {@code n}.
+   */
   public static double nextLargerDouble(long n) {
+    // Given long n = 288230376151711767 when converted into double it lies between
+    // two representable numbers 288230376151711744 and 288230376151711808. It gets
+    // rounded down to 288230376151711744 when converted to double. long diff is then
+    // equal to -23. Since diff is negative, it gets rounded back up to 288230376151711808.
     double result = n;
     long dif = (long) result - n;
     return dif >= 0 ? result : Math.nextUp(result);
   }
 
-  /** Computes the closest double value that is smaller than or equal to the provided long value. */
+  /**
+   * See {@link #nextLargerDouble(long)}.
+   *
+   * <p>As opposed to the latter method, this computes the closest double value that is smaller than
+   * or equal to the provided long value ( {@code n} >= (double) {@code n} ).
+   */
   public static double nextSmallerDouble(long n) {
+    // Given long n = 288230376151711790 when converted into double it lies between
+    // two representable numbers 288230376151711744 and 288230376151711808. It gets
+    // rounded up to 288230376151711808 when converted to double. long diff is then
+    // equal to 18. Since diff is positive, it gets rounded back down to 288230376151711744.
     double result = n;
     long dif = (long) result - n;
     return dif <= 0 ? result : Math.nextDown(result);
