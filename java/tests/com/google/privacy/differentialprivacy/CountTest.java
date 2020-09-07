@@ -20,6 +20,7 @@ import static com.google.common.truth.Truth.assertThat;
 import static com.google.differentialprivacy.SummaryOuterClass.MechanismType.GAUSSIAN;
 import static com.google.differentialprivacy.SummaryOuterClass.MechanismType.LAPLACE;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -600,5 +601,58 @@ public class CountTest {
     count.computeResult();
 
     assertThat(count.computeConfidenceInterval(0.5)).isEqualTo(ConfidenceInterval.create(3,17));
+  }
+
+  @Test
+  public void throwError_Long_whenComputeResultNotCalled() {
+    when(noise.computeConfidenceInterval(anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+            .thenAnswer(invocation -> new LaplaceNoise().computeConfidenceInterval(
+                    (Long) invocation.getArguments()[0],  (Integer) invocation.getArguments()[1], (Long) invocation.getArguments()[2],
+                    (Double) invocation.getArguments()[3], null,  (Double) invocation.getArguments()[5]));
+    // Mock the noise mechanism. Since noise is not Laplace, nor Gaussian, delta will be passed as a value instead of null, in order to pass the checks.
+    count = Count.builder()
+            .epsilon(0.1)
+            .noise(noise)
+            .delta(0.5)
+            .maxPartitionsContributed(1)
+            .build();
+    count.incrementBy(10);
+    Exception exception = assertThrows(IllegalStateException.class, () -> {
+      count.computeConfidenceInterval(0.1554684);
+    });
+
+    String expectedMessage = "Noised count must be computed before calling this function.";
+    String actualMessage = exception.getMessage();
+
+    assertTrue(actualMessage.contains(expectedMessage));
+  }
+
+  @Test
+  public void computeResult_callsNoiseCorrectly_ForConfidenceIntervals() {
+    double alpha = 0.1524;
+    when(noise.computeConfidenceInterval(anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble(), anyDouble()))
+            .thenAnswer(invocation -> new GaussianNoise().computeConfidenceInterval(
+                    (Long) invocation.getArguments()[0],  (Integer) invocation.getArguments()[1], (Long) invocation.getArguments()[2],
+                    (Double) invocation.getArguments()[3],  (Double) invocation.getArguments()[4],  (Double) invocation.getArguments()[5]));
+    // Mock the noise mechanism.
+    count = Count.builder()
+            .epsilon(EPSILON)
+            .noise(noise)
+            .delta(DELTA)
+            .maxPartitionsContributed(1)
+            .maxContributionsPerPartition(1)
+            .build();
+    count.incrementBy(10);
+    count.computeResult();
+    ConfidenceInterval confInt = count.computeConfidenceInterval(alpha);
+
+    verify(noise)
+            .computeConfidenceInterval(
+                    eq(10L),
+                    eq(1),
+                    eq(1L),
+                    eq(EPSILON),
+                    eq(DELTA),
+                    eq(alpha));
   }
 }

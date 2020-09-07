@@ -113,7 +113,7 @@ public class Count {
   // a probability greater or equal to 1 - alpha using the noised count computed by computeResult().
   public ConfidenceInterval computeConfidenceInterval(double alpha) {
     if (!resultReturned) {
-      throw new IllegalStateException("Noised count must be computed.");
+      throw new IllegalStateException("Noised count must be computed before calling this function.");
     }
     ConfidenceInterval confInt =
             params
