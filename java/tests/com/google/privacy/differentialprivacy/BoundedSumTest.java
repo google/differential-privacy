@@ -21,11 +21,13 @@ import static com.google.differentialprivacy.SummaryOuterClass.MechanismType.GAU
 import static com.google.differentialprivacy.SummaryOuterClass.MechanismType.LAPLACE;
 import static java.lang.Double.NaN;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.times;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.math.Stats;
@@ -807,5 +809,86 @@ public class BoundedSumTest {
 
     assertThat(sum.computeConfidenceInterval(0.5)).isEqualTo(ConfidenceInterval.create(3.068528194400547,16.931471805599454));
   }
-}
 
+  @Test
+  public void throwError_Long_whenComputeResultNotCalled() {
+    when(noise.computeConfidenceInterval(anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+            .thenAnswer(invocation -> new LaplaceNoise().computeConfidenceInterval(
+                    (Long) invocation.getArguments()[0],  (Integer) invocation.getArguments()[1], (Long) invocation.getArguments()[2],
+                    (Double) invocation.getArguments()[3], null,  (Double) invocation.getArguments()[5]));
+    // Mock the noise mechanism. Since noise is not Laplace, nor Gaussian, delta will be passed as a value instead of null, in order to pass the checks.
+    BoundedSum.builder()
+            .epsilon(EPSILON)
+            .delta(DELTA)
+            .noise(noise)
+            .maxPartitionsContributed(1)
+            .lower(1)
+            .upper(5)
+            .build();
+    sum.addEntry(10);
+    Exception exception = assertThrows(IllegalStateException.class, () -> {
+      sum.computeConfidenceInterval(0.1554684);
+    });
+
+    String expectedMessage = "Noised sum must be computed before calling this function.";
+    String actualMessage = exception.getMessage();
+
+    assertTrue(actualMessage.contains(expectedMessage));
+  }
+
+  @Test
+  public void throwError_Double_whenComputeResultNotCalled() {
+    when(noise.computeConfidenceInterval(anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+            .thenAnswer(invocation -> new LaplaceNoise().computeConfidenceInterval(
+                    (Double) invocation.getArguments()[0],  (Integer) invocation.getArguments()[1], (Double) invocation.getArguments()[2],
+                    (Double) invocation.getArguments()[3], null,  (Double) invocation.getArguments()[5]));
+    // Mock the noise mechanism. Since noise is not Laplace, nor Gaussian, delta will be passed as a value instead of null, in order to pass the checks.
+    BoundedSum.builder()
+            .epsilon(EPSILON)
+            .delta(DELTA)
+            .noise(noise)
+            .maxPartitionsContributed(1)
+            .lower(1)
+            .upper(5)
+            .build();
+    sum.addEntry(10.58687487);
+    Exception exception = assertThrows(IllegalStateException.class, () -> {
+      sum.computeConfidenceInterval(0.1554684);
+    });
+
+    String expectedMessage = "Noised sum must be computed before calling this function.";
+    String actualMessage = exception.getMessage();
+
+    assertTrue(actualMessage.contains(expectedMessage));
+  }
+
+  @Test
+  public void computeResult_callsNoiseCorrectly_ForConfidenceIntervals() {
+    double alpha = 0.1524;
+    when(noise.computeConfidenceInterval(anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+            .thenAnswer(invocation -> new GaussianNoise().computeConfidenceInterval(
+                    (Double) invocation.getArguments()[0],  (Integer) invocation.getArguments()[1], (Double) invocation.getArguments()[2],
+                    (Double) invocation.getArguments()[3],  (Double) invocation.getArguments()[4],  (Double) invocation.getArguments()[5]));
+    sum =
+            BoundedSum.builder()
+                    .epsilon(EPSILON)
+                    .delta(DELTA)
+                    .noise(noise)
+                    .maxPartitionsContributed(1)
+                    .maxContributionsPerPartition(1)
+                    .lower(0)
+                    .upper(100)
+                    .build();
+    sum.computeResult();
+    ConfidenceInterval confInt = sum.computeConfidenceInterval(alpha);
+
+    verify(noise)
+            .computeConfidenceInterval(
+                    eq(0.0),
+                    eq(1),
+                    eq(1.0),
+                    eq(EPSILON),
+                    eq(DELTA),
+                    eq(alpha));
+  }
+  }
