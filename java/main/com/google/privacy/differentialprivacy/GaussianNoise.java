@@ -152,10 +152,10 @@ public class GaussianNoise implements Noise {
     checkConfidenceIntervalParameters(l0Sensitivity, lInfSensitivity, epsilon, delta, alpha);
     double l2Sensitivity = Noise.getL2Sensitivity(l0Sensitivity, lInfSensitivity);
     double sigma = getSigma(l2Sensitivity, epsilon, delta);
-    ConfidenceInterval confInt = computeConfidenceInterval(0.0, sigma, alpha);
+    ConfidenceInterval confIntAroundZero = computeConfidenceInterval(0.0, sigma, alpha);
     return ConfidenceInterval.create(
-        SecureNoiseMath.nextSmallerDouble(Math.round(confInt.lowerBound()) + noisedX),
-        SecureNoiseMath.nextLargerDouble(Math.round(confInt.upperBound())) + noisedX);
+        SecureNoiseMath.nextSmallerDouble(Math.round(confIntAroundZero.lowerBound()) + noisedX),
+        SecureNoiseMath.nextLargerDouble(Math.round(confIntAroundZero.upperBound())) + noisedX);
   }
 
   /**
@@ -169,8 +169,8 @@ public class GaussianNoise implements Noise {
   }
 
   /**
-   * Computes the percentile z satisfying Pr[Y <= z] = {@code p} for a random variable Y that is
-   * Gaussian distributed with the specified {@code sigma} and a mean of zero.
+   * Returns the {@code p}-percentile z of a Gaussian random variable X with a mean of 0 and a standard deviation
+   * of {@code sigma}, i.e., Pr[X ≤ z] = {@code p}.
    */
   private double computeGaussianPercentile(double sigma, double p) {
     return -sigma * Math.sqrt(2) * Erf.erfcInv(2 * p);

@@ -47,8 +47,6 @@ java_test(
               ":autovalue",
               "//main/com/google/privacy/differentialprivacy",
               "@com_google_differential_privacy//proto:summary_java_proto",
-              "@maven//:com_google_auto_value_auto_value",
-              "@maven//:com_google_auto_value_auto_value_annotations",
               "@maven//:com_google_guava_guava",
               "@maven//:com_google_protobuf_protobuf_java",
               "@maven//:com_google_truth_truth",

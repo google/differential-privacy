@@ -85,18 +85,4 @@ final class SecureNoiseMath {
       return x;
     }
   }
-
-  /** Computes the closest double value that is larger than or equal to the provided long value. */
-  public static double nextLargerDouble(long n) {
-    double result = n;
-    long dif = (long) result - n;
-    return dif >= 0 ? result : Math.nextUp(result);
-  }
-
-  /** Computes the closest double value that is smaller than or equal to the provided long value. */
-  public static double nextSmallerDouble(long n) {
-    double result = n;
-    long dif = (long) result - n;
-    return dif <= 0 ? result : Math.nextDown(result);
-  }
 }
