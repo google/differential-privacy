@@ -30,6 +30,7 @@ import org.junit.runners.Suite.SuiteClasses;
   CountBuilderTest.class,
   CountTest.class,
   GaussianNoiseTest.class,
+  LaplaceNoiseConfidenceIntervalTest.class,
   LaplaceNoiseTest.class,
 })
 public class AllTests {}

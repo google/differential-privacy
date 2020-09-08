@@ -148,11 +148,10 @@ public class DpPreconditions {
         "Failed to merge: unequal mechanism types. type1 = %s, type2 = %s", type1, type2);
   }
 
-  static void checkConfidenceLevel(double confidenceLevel) {
+  static void checkAlpha(double alpha) {
     checkArgument(
-        0 < confidenceLevel && confidenceLevel < 1 && !Double.isNaN(confidenceLevel),
-        "confidenceLevel should be between 0 and 1 (exclusive and cannot be NaN). "
-            + "Provided value: %s",
-        confidenceLevel);
+        0 < alpha && alpha < 1,
+        "alpha should be strictly between 0 and 1. Provided value: %s",
+        alpha);
   }
 }
