@@ -5,6 +5,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import static com.google.common.truth.Truth.assertWithMessage;
+import static java.lang.Math.max;
 import static org.junit.Assert.assertThrows;
 
 @RunWith(JUnit4.class)
@@ -17,20 +18,6 @@ public class LaplaceNoiseConfidenceIntervalTest {
   private static final double DEFAULT_EPSILON = 0.1;
   private static final Double DEFAULT_DELTA = null;
   private static final double DEFAULT_ALPHA = 0.1;
-
-  private boolean approxEqual(double a, double b) {
-    double mxMagnitude = Math.max(Math.abs(a), Math.abs(b));
-    return Math.abs(a - b) <= TOLERANCE * mxMagnitude;
-  }
-
-  private void verifyApproxEqual(ConfidenceInterval a, ConfidenceInterval b) {
-    assertWithMessage("Lower bounds are not equal.")
-        .that(approxEqual(a.lowerBound(), b.lowerBound()))
-        .isTrue();
-    assertWithMessage("Upper bounds are not equal.")
-        .that(approxEqual(a.upperBound(), b.upperBound()))
-        .isTrue();
-  }
 
   @Test
   public void computeConfidenceInterval_forDouble_arbitraryTest() {
@@ -114,7 +101,7 @@ public class LaplaceNoiseConfidenceIntervalTest {
             DEFAULT_ALPHA);
     // Double precision should be accurate for abs(noisedX) < 2^54.
     ConfidenceInterval expected =
-        ConfidenceInterval.create(3847569385666.974149, 3847569385713.02585093);
+        ConfidenceInterval.create(3847569385666.974, 3847569385713.026);
     verifyApproxEqual(actual, expected);
   }
 
@@ -130,7 +117,7 @@ public class LaplaceNoiseConfidenceIntervalTest {
             DEFAULT_ALPHA);
     // Double precision should be accurate for abs(noisedX) < 2^54.
     ConfidenceInterval expected =
-        ConfidenceInterval.create(-3847569385713.02585093, -3847569385666.97414907);
+        ConfidenceInterval.create(-3847569385713.026, -3847569385666.974);
     verifyApproxEqual(actual, expected);
   }
 
@@ -205,7 +192,7 @@ public class LaplaceNoiseConfidenceIntervalTest {
   }
 
   @Test
-  public void computeConfidenceInterval_forDouble_NaNLInfSensitivity_throwsException() {
+  public void computeConfidenceInterval_forDouble_lInfSensitivityNan_throwsException() {
     assertThrows(
         IllegalArgumentException.class,
         () ->
@@ -247,7 +234,7 @@ public class LaplaceNoiseConfidenceIntervalTest {
   }
 
   @Test
-  public void computeConfidenceInterval_forDouble_NaNEpsilon_throwsException() {
+  public void computeConfidenceInterval_forDouble_epsilonNan_throwsException() {
     assertThrows(
         IllegalArgumentException.class,
         () ->
@@ -331,7 +318,7 @@ public class LaplaceNoiseConfidenceIntervalTest {
   }
 
   @Test
-  public void computeConfidenceInterval_forDouble_NaNAlpha_throwsException() {
+  public void computeConfidenceInterval_forDouble_alphaNan_throwsException() {
     assertThrows(
         IllegalArgumentException.class,
         () ->
@@ -355,7 +342,7 @@ public class LaplaceNoiseConfidenceIntervalTest {
             DEFAULT_DELTA,
             /* alpha */ 0.24);
     ConfidenceInterval expected = ConfidenceInterval.create(-3, 169);
-    verifyApproxEqual(actual, expected);
+    verifyEqual(actual, expected);
   }
 
   @Test
@@ -369,7 +356,7 @@ public class LaplaceNoiseConfidenceIntervalTest {
             DEFAULT_DELTA,
             /* alpha */ 1 - 3.548957438e-10);
     ConfidenceInterval expected = ConfidenceInterval.create(0, 0);
-    verifyApproxEqual(actual, expected);
+    verifyEqual(actual, expected);
   }
 
   @Test
@@ -383,7 +370,7 @@ public class LaplaceNoiseConfidenceIntervalTest {
             DEFAULT_DELTA,
             /* alpha */ 7.856382354e-10);
     ConfidenceInterval expected = ConfidenceInterval.create(-160, 260);
-    verifyApproxEqual(actual, expected);
+    verifyEqual(actual, expected);
   }
 
   @Test
@@ -397,7 +384,7 @@ public class LaplaceNoiseConfidenceIntervalTest {
             DEFAULT_DELTA,
             DEFAULT_ALPHA);
     ConfidenceInterval expected = ConfidenceInterval.create(-14691210451.0, 14691210451.0);
-    verifyApproxEqual(actual, expected);
+    verifyEqual(actual, expected);
   }
 
   @Test
@@ -411,7 +398,7 @@ public class LaplaceNoiseConfidenceIntervalTest {
             DEFAULT_DELTA,
             DEFAULT_ALPHA);
     ConfidenceInterval expected = ConfidenceInterval.create(0, 0);
-    verifyApproxEqual(actual, expected);
+    verifyEqual(actual, expected);
   }
 
   @Test
@@ -429,8 +416,8 @@ public class LaplaceNoiseConfidenceIntervalTest {
     // lowerBound = 1 << 58 - 23 = 288230376151711721 gets rounded down to 288230376151711712,
     // nextSmaller returns the same value.
     ConfidenceInterval expected =
-        ConfidenceInterval.create(288230376151711712.0, 288230376151711808.0);
-    verifyApproxEqual(actual, expected);
+        ConfidenceInterval.create(288230376151711712.0, 2.8823037615171181E+17);
+    verifyEqual(actual, expected);
   }
 
   @Test
@@ -448,8 +435,8 @@ public class LaplaceNoiseConfidenceIntervalTest {
     // lowerBound = -(1 << 58) - 23 = -288230376151711767 gets rounded up to -288230376151711744,
     // nextSmaller rounds it back down to -288230376151711808.
     ConfidenceInterval expected =
-        ConfidenceInterval.create(-288230376151711808.0, -288230376151711712.0);
-    verifyApproxEqual(actual, expected);
+        ConfidenceInterval.create(-2.8823037615171181E+17, -288230376151711712.0);
+    verifyEqual(actual, expected);
   }
 
   @Test
@@ -537,7 +524,7 @@ public class LaplaceNoiseConfidenceIntervalTest {
   }
 
   @Test
-  public void computeConfidenceInterval_forLong_NaNEpsilon_throwsException() {
+  public void computeConfidenceInterval_forLong_epsilonNan_throwsException() {
     assertThrows(
         IllegalArgumentException.class,
         () ->
@@ -621,7 +608,7 @@ public class LaplaceNoiseConfidenceIntervalTest {
   }
 
   @Test
-  public void computeConfidenceInterval_forLong_NaNAlpha_throwsException() {
+  public void computeConfidenceInterval_forLong_alphaNan_throwsException() {
     assertThrows(
         IllegalArgumentException.class,
         () ->
@@ -632,5 +619,28 @@ public class LaplaceNoiseConfidenceIntervalTest {
                 DEFAULT_EPSILON,
                 DEFAULT_DELTA,
                 /* alpha */ Double.NaN));
+  }
+
+  private static boolean approxEqual(double a, double b) {
+    double maxMagnitude = max(Math.abs(a), Math.abs(b));
+    return Math.abs(a - b) <= TOLERANCE * maxMagnitude;
+  }
+
+  private static void verifyApproxEqual(ConfidenceInterval a, ConfidenceInterval b) {
+    assertWithMessage("Lower bounds are not equal.")
+        .that(approxEqual(a.lowerBound(), b.lowerBound()))
+        .isTrue();
+    assertWithMessage("Upper bounds are not equal.")
+        .that(approxEqual(a.upperBound(), b.upperBound()))
+        .isTrue();
+  }
+
+  private static void verifyEqual(ConfidenceInterval a, ConfidenceInterval b) {
+    assertWithMessage("Lower bounds are not equal.")
+        .that(a.lowerBound())
+        .isEqualTo(b.lowerBound());
+    assertWithMessage("Upper bounds are not equal.")
+        .that(a.upperBound())
+        .isEqualTo(b.upperBound());
   }
 }

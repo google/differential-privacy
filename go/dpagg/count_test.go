@@ -406,9 +406,7 @@ func TestCountComputeConfidenceIntervalComputation(t *testing.T) {
 		},
 	} {
 		c := NewCount(tc.opt)
-		for i := 0; i < 10; i++ {
-			c.Increment()
-		}
+		c.IncrementBy(10)
 		c.Result()
 		got, _ := c.ComputeConfidenceInterval(0.5)
 

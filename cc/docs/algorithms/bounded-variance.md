@@ -21,7 +21,7 @@ Information on how to construct a `BoundedVariance` is found in the
 construction example.
 
 ```
-util::StatusOr<std::unique_ptr<BoundedVariance<int64>>> bounded_var =
+base::StatusOr<std::unique_ptr<BoundedVariance<int64>>> bounded_var =
             BoundedVariance<int64>::Builder.SetEpsilon(1)
                                            .SetLower(-10)
                                            .SetUpper(10)

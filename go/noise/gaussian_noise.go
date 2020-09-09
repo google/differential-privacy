@@ -107,9 +107,6 @@ func (gaussian) Threshold(l0Sensitivity int64, lInfSensitivity, epsilon, noiseDe
 // DeltaForThreshold is the inverse operation of Threshold. Specifically, given
 // the parameters and a threshold, it returns the delta induced by thresholding.
 //
-// Note that this function is not officially supported and might be removed
-// in the future.
-//
 // See https://github.com/google/differential-privacy/blob/main/common_docs/Delta_For_Thresholding.pdf for details on the math underlying this.
 func (gaussian) DeltaForThreshold(l0Sensitivity int64, lInfSensitivity, epsilon, delta, threshold float64) float64 {
 	if err := checkArgsGaussian("DeltaForThreshold (gaussian)", l0Sensitivity, lInfSensitivity, epsilon, delta); err != nil {

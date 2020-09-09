@@ -18,7 +18,6 @@ package com.google.privacy.differentialprivacy;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
-import static java.lang.Double.POSITIVE_INFINITY;
 import static java.lang.Double.isFinite;
 
 import com.google.differentialprivacy.SummaryOuterClass.MechanismType;
@@ -31,9 +30,12 @@ public class DpPreconditions {
   private DpPreconditions() {}
 
   static void checkEpsilon(double epsilon) {
-    checkArgument(epsilon >= 1.0 / (1L << 50)
-       && epsilon < POSITIVE_INFINITY,
-        "epsilon must be > 0 and < infinity. Provided value: %s", epsilon);
+    double epsilonLowerBound = 1.0 / (1L << 50);
+    checkArgument(
+        Double.isFinite(epsilon) && epsilon >= epsilonLowerBound,
+        "epsilon must be >= %s and < infinity. Provided value: %s",
+        epsilonLowerBound,
+        epsilon);
   }
 
   static void checkNoiseDelta(Double delta, Noise noise) {
@@ -55,8 +57,8 @@ public class DpPreconditions {
   static void checkSensitivities(int l0Sensitivity, double lInfSensitivity) {
     checkL0Sensitivity(l0Sensitivity);
     checkArgument(
-        lInfSensitivity > 0 && !Double.isInfinite(lInfSensitivity),
-        "lInfSensitivity must be > 0 (and cannot be Infinity). Provided value: %s",
+        Double.isFinite(lInfSensitivity) && lInfSensitivity > 0,
+        "lInfSensitivity must be > 0 and finite. Provided value: %s",
         lInfSensitivity);
   }
 
@@ -67,8 +69,8 @@ public class DpPreconditions {
 
   static void checkL1Sensitivity(double l1Sensitivity) {
     checkArgument(
-        l1Sensitivity > 0 && !Double.isInfinite(l1Sensitivity),
-        "l1Sensitivity must be > 0 (and cannot be Infinity). Provided value: %s",
+        Double.isFinite(l1Sensitivity) && l1Sensitivity > 0,
+        "l1Sensitivity must be > 0 and finite. Provided value: %s",
         l1Sensitivity);
   }
 

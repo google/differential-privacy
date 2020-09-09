@@ -139,7 +139,7 @@ public class LaplaceNoise implements Noise {
   }
 
   /**
-   * Computes a confidence interval that contains the raw value integer {@code x} passed to {@link
+   * Computes a confidence interval that contains the raw integer value {@code x} passed to {@link
    * #addNoise(long, int, long, double, Double)} with a probability greater or equal to {@code 1 -
    * alpha} based on the specified {@code noisedX} and noise parameters. Note that {@code delta}
    * must be set to {@code null} because it does not parameterize Laplace noise. Moreover, {@code
@@ -161,6 +161,21 @@ public class LaplaceNoise implements Noise {
         SecureNoiseMath.nextLargerDouble(Math.round(confIntAroundZero.upperBound()) + noisedX));
   }
 
+  /**
+   * See {@link #computeConfidenceInterval(double, int, double, double, Double, double)}.
+   *
+   * <p>As opposed to the latter method, this accepts the {@code lambda} of the Laplace noise
+   * directly.
+   */
+  private static ConfidenceInterval computeConfidenceInterval(
+      double noisedX, double lambda, double alpha) {
+    // Finding a symmetrical confidence interval around a Laplace of (0, lambda)
+    // by calculating Z_(alpha/2) using computeLaplacePercentile which will return a
+    // negative value by symmetry to gain more accuracy for extremely small alpha.
+    double z = computeLaplacePercentile(lambda, alpha / 2);
+    return ConfidenceInterval.create(noisedX + z, noisedX - z);
+  }
+
   private void checkParameters(double l1Sensitivity, double epsilon, @Nullable Double delta) {
     DpPreconditions.checkEpsilon(epsilon);
     DpPreconditions.checkNoiseDelta(delta, this);
@@ -179,25 +194,10 @@ public class LaplaceNoise implements Noise {
   }
 
   /**
-   * See {@link #computeConfidenceInterval(double, int, double, double, Double, double)}.
-   *
-   * <p>As opposed to the latter method, this accepts the {@code lambda} of the Laplace noise
-   * directly.
-   */
-  private ConfidenceInterval computeConfidenceInterval(
-      double noisedX, double lambda, double alpha) {
-    // Finding a symmetrical confidence interval around a Laplace of (0, lambda)
-    // by calculating Z_(alpha/2) using computeLaplacePercentile which will return a
-    // negative value by symmetry to gain more accuracy for extremely small alpha.
-    double z = computeLaplacePercentile(lambda, alpha / 2);
-    return ConfidenceInterval.create(noisedX + z, noisedX - z);
-  }
-
-  /**
    * Computes the percentile z satisfying Pr[Y <= z] = {@code p} for a random variable Y that is
    * Laplace distributed with the specified {@code lambda} and a mean of zero.
    */
-  private double computeLaplacePercentile(double lambda, double p) {
+  private static double computeLaplacePercentile(double lambda, double p) {
     if (p < 0.5) {
       return lambda * Math.log(2 * p);
     }

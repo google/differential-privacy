@@ -20,7 +20,7 @@ Information on how to construct a `BoundedMean` is found in the
 construction example.
 
 ```
-util::StatusOr<std::unique_ptr<BoundedMean<int64>>> bounded_mean =
+base::StatusOr<std::unique_ptr<BoundedMean<int64>>> bounded_mean =
    BoundedMean<int64>::Builder.SetEpsilon(1)
                                .SetLower(-10)
                                .SetUpper(10)

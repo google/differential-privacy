@@ -309,7 +309,7 @@ class BoundedMean : public Algorithm<T> {
     }
   }
 
-private:
+ private:
   static base::StatusOr<std::unique_ptr<NumericalMechanism>> BuildSumMechanism(
       std::unique_ptr<NumericalMechanismBuilder> mechanism_builder,
       const double epsilon, const double l0_sensitivity,

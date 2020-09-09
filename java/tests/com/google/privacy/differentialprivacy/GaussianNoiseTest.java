@@ -327,15 +327,19 @@ public final class GaussianNoiseTest {
 
   @Test
   public void addNoise_lInfSensitivityTooHigh_throwsException() {
-    assertThrows(
-        IllegalArgumentException.class,
-        () ->
-            NOISE.addNoise(
-                DEFAULT_MEAN,
-                DEFAULT_L_0_SENSITIVITY,
-                /* lInfSensitvity */ Double.MAX_VALUE,
-                DEFAULT_EPSILON,
-                DEFAULT_DELTA));
+    IllegalArgumentException thrown =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                NOISE.addNoise(
+                    DEFAULT_MEAN,
+                    DEFAULT_L_0_SENSITIVITY,
+                    /* lInfSensitvity */ Double.MAX_VALUE,
+                    DEFAULT_EPSILON,
+                    DEFAULT_DELTA));
+    assertThat(thrown)
+        .hasMessageThat()
+        .startsWith("2 * lInfSensitivity must be finite but is Infinity");
   }
 
   @Test

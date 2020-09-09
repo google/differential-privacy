@@ -22,7 +22,7 @@ found in the [bounded algorithm documentation](bounded-algorithm.md). Below is a
 minimal construction example.
 
 ```
-util::StatusOr<std::unique_ptr<BoundedStandardDeviation<int64>>> bounded_stdev =
+base::StatusOr<std::unique_ptr<BoundedStandardDeviation<int64>>> bounded_stdev =
    BoundedStandardDeviation<int64>::Builder.SetEpsilon(1)
                                            .SetLower(-10)
                                            .SetUpper(10)

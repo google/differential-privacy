@@ -143,7 +143,7 @@ inline bool SafeCastFromDouble(const double in, T& out) {
     out = std::numeric_limits<T>::lowest();
     return true;
   }
-  out = T{static_cast<T>(in)};
+  out = static_cast<T>(in);
   return true;
 }
 

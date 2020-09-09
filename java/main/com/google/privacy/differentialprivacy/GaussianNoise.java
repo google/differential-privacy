@@ -132,7 +132,7 @@ public class GaussianNoise implements Noise {
   }
 
   /**
-   * Computes a confidence interval that contains the raw value integer {@code x} passed to {@link
+   * Computes a confidence interval that contains the raw integer value {@code x} passed to {@link
    * #addNoise(long, int, long, double, Double)} with a probability greater or equal to {@code 1 -
    * alpha} based on the specified {@code noisedX} and noise parameters.
    */
@@ -153,6 +153,13 @@ public class GaussianNoise implements Noise {
     DpPreconditions.checkSensitivities(l0Sensitivity, lInfSensitivity);
     DpPreconditions.checkEpsilon(epsilon);
     DpPreconditions.checkNoiseDelta(delta, this);
+
+    // The secure Gaussian noise implementation will fail if 2 * lInfSensitivity is infinite.
+    double twoLInf = 2.0 * lInfSensitivity;
+    checkArgument(
+        Double.isFinite(twoLInf),
+        "2 * lInfSensitivity must be finite but is %s",
+        twoLInf);
   }
 
   /**
@@ -229,6 +236,7 @@ public class GaussianNoise implements Noise {
   @VisibleForTesting
   long sampleSymmetricBinomial(double sqrtN) {
     checkArgument(sqrtN >= 1000000.0, "Input must be at least 10^6. Provided value: %s", sqrtN);
+    checkArgument(Double.isFinite(sqrtN), "Input must be finite. Provided value: %s", sqrtN);
 
     long stepSize = Math.round(Math.sqrt(2) * sqrtN + 1.0);
     while (true) {
