@@ -120,6 +120,8 @@ class BoundedMean : public Algorithm<T> {
   };
 
   void AddEntry(const T& t) override {
+    // REF:
+    // https://stackoverflow.com/questions/61646166/how-to-resolve-fpclassify-ambiguous-call-to-overloaded-function
     if (std::isnan(static_cast<double>(t))) {
       return;
     }
@@ -210,7 +212,7 @@ class BoundedMean : public Algorithm<T> {
     return memory;
   }
 
- private:
+ protected:
   BoundedMean(const double epsilon, T lower, T upper,
               const double l0_sensitivity,
               const double max_contributions_per_partition,
@@ -307,6 +309,7 @@ class BoundedMean : public Algorithm<T> {
     }
   }
 
+private:
   static base::StatusOr<std::unique_ptr<NumericalMechanism>> BuildSumMechanism(
       std::unique_ptr<NumericalMechanismBuilder> mechanism_builder,
       const double epsilon, const double l0_sensitivity,

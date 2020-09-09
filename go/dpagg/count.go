@@ -18,6 +18,7 @@ package dpagg
 
 import (
 	"fmt"
+	"math"
 
 	log "github.com/golang/glog"
 	"github.com/google/differential-privacy/go/noise"
@@ -53,6 +54,7 @@ type Count struct {
 	// State variables
 	count          int64
 	resultReturned bool // whether the result has already been returned
+	noisedCount    int64
 }
 
 func countEquallyInitialized(c1, c2 *Count) bool {
@@ -166,7 +168,8 @@ func (c *Count) Result() int64 {
 		log.Fatalf("The count has already been calculated and returned. It can only be returned once.")
 	}
 	c.resultReturned = true
-	return c.noise.AddNoiseInt64(c.count, c.l0Sensitivity, c.lInfSensitivity, c.epsilon, c.delta)
+	c.noisedCount = c.noise.AddNoiseInt64(c.count, c.l0Sensitivity, c.lInfSensitivity, c.epsilon, c.delta)
+	return c.noisedCount
 }
 
 // ThresholdedResult is similar to Result() but applies thresholding to the
@@ -179,6 +182,23 @@ func (c *Count) ThresholdedResult(thresholdDelta float64) *int64 {
 		return nil
 	}
 	return &result
+}
+
+// ComputeConfidenceInterval computes a confidence interval with integer bounds that contains the true count
+// with a probability greater than or equal to 1 - alpha using the noised count computed by Result().
+// 
+// Note Result() needs to be called before ComputeConfidenceInterval, otherwise this will return an error.
+func (c *Count) ComputeConfidenceInterval(alpha float64) (noise.ConfidenceInterval, error) {
+	if !c.resultReturned {
+		return noise.ConfidenceInterval{}, fmt.Errorf("You need to call Result() before calling ComputeConfidenceInterval()")
+	}
+	confInt, err := c.noise.ComputeConfidenceIntervalInt64(c.noisedCount, c.l0Sensitivity, c.lInfSensitivity, c.epsilon, c.delta, alpha)
+	if err != nil {
+		return noise.ConfidenceInterval{}, err
+	}
+	// True count cannot be negative.
+	confInt.LowerBound, confInt.UpperBound = math.Max(0, confInt.LowerBound), math.Max(0, confInt.UpperBound)
+	return confInt, nil
 }
 
 // encodableCount can be encoded by the gob package.

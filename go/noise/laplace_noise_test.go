@@ -172,6 +172,7 @@ func TestDeltaForThresholdLaplace(t *testing.T) {
 		}
 	}
 }
+
 func TestInverseCDFLaplace(t *testing.T) {
 	for _, tc := range []struct {
 		desc               string
@@ -206,7 +207,7 @@ func TestInverseCDFLaplace(t *testing.T) {
 		{
 			desc:   "Low probability",
 			lambda: 3,
-			prob:   1.23757362E-15,
+			prob:   1.23757362e-15,
 			want:   -100.897429529251364,
 		},
 		{
@@ -222,7 +223,6 @@ func TestInverseCDFLaplace(t *testing.T) {
 				tc.prob, got, tc.want, tc.desc)
 		}
 	}
-
 }
 
 func TestComputeConfidenceIntervalLaplace(t *testing.T) {
@@ -285,7 +285,6 @@ func TestComputeConfidenceIntervalLaplace(t *testing.T) {
 				tc.noisedX, tc.lambda, tc.alpha, got.UpperBound, tc.want.UpperBound, tc.desc)
 		}
 	}
-
 }
 
 func TestComputeConfidenceIntervalFloat64Laplace(t *testing.T) {
@@ -484,6 +483,7 @@ func TestComputeConfidenceIntervalFloat64Laplace(t *testing.T) {
 		}
 	}
 }
+
 func TestComputeConfidenceIntervalInt64Laplace(t *testing.T) {
 	for _, tc := range []struct {
 		desc                                    string

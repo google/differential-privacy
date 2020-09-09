@@ -184,7 +184,7 @@ func sumExpPowers(epsilon float64, minPower, numPowers int64) float64 {
 		log.Fatalf("CheckEpsilon failed with %v", err)
 	}
 	if numPowers <= 0 {
-		log.Fatalf("numPowers must be > 0. Provided value: %s", numPowers)
+		log.Fatalf("numPowers must be > 0. Provided value: %d", numPowers)
 	}
 
 	// expEpsilonPow returns exp(a * epsilon).

@@ -14,7 +14,7 @@
 # limitations under the License.
 
 package(default_visibility = [
-    "//visibility:public"
+    "//visibility:public",
 ])
 
 java_test(
@@ -25,7 +25,8 @@ java_test(
     ],
     test_class = "com.google.privacy.differentialprivacy.testing.ReferenceNoiseUtilTest",
     deps = [
-        "//main/com/google/privacy/differentialprivacy/testing",
+        "//main/com/google/privacy/differentialprivacy/testing:statistical_utils",
+        "//main/com/google/privacy/differentialprivacy/testing:reference_noise",        
         "@maven//:com_google_guava_guava",
         "@maven//:com_google_truth_truth",
         "@maven//:junit_junit",
@@ -40,7 +41,8 @@ java_test(
     ],
     test_class = "com.google.privacy.differentialprivacy.testing.StatisticalTestsUtilTest",
     deps = [
-        "//main/com/google/privacy/differentialprivacy/testing",
+        "//main/com/google/privacy/differentialprivacy/testing:statistical_utils",
+        "//main/com/google/privacy/differentialprivacy/testing:reference_noise",  
         "@maven//:com_google_guava_guava",
         "@maven//:com_google_truth_truth",
         "@maven//:junit_junit",
@@ -49,7 +51,7 @@ java_test(
 
 java_test(
     name = "laplace_closeness_test_cases_validity_tests",
-       size = "enormous",
+    size = "enormous",
     srcs = ["LaplaceClosenessTestCasesValidityTest.java"],
     resources = [
         "@com_google_differential_privacy//proto/testing:laplace_closeness_test_cases.textproto",
@@ -58,7 +60,8 @@ java_test(
     shard_count = 19,
     test_class = "com.google.privacy.differentialprivacy.testing.LaplaceClosenessTestCasesValidityTest",
     deps = [
-        "//main/com/google/privacy/differentialprivacy/testing",
+        "//main/com/google/privacy/differentialprivacy/testing:statistical_utils",
+        "//main/com/google/privacy/differentialprivacy/testing:reference_noise",  
         "@com_google_differential_privacy//proto/testing:statistical_tests_java_proto",
         "@maven//:com_google_guava_guava",
         "@maven//:com_google_protobuf_protobuf_java",
@@ -69,7 +72,7 @@ java_test(
 
 java_test(
     name = "count_dp_test_cases_validity_tests",
-       size = "enormous",
+    size = "enormous",
     srcs = ["CountDpTestCasesValidityTest.java"],
     resources = [
         "@com_google_differential_privacy//proto/testing:count_dp_test_cases.textproto",
@@ -78,7 +81,8 @@ java_test(
     shard_count = 36,
     test_class = "com.google.privacy.differentialprivacy.testing.CountDpTestCasesValidityTest",
     deps = [
-        "//main/com/google/privacy/differentialprivacy/testing",
+        "//main/com/google/privacy/differentialprivacy/testing:statistical_utils",
+        "//main/com/google/privacy/differentialprivacy/testing:reference_noise",  
         "@com_google_differential_privacy//proto/testing:statistical_tests_java_proto",
         "@maven//:com_google_guava_guava",
         "@maven//:com_google_protobuf_protobuf_java",
@@ -89,7 +93,7 @@ java_test(
 
 java_test(
     name = "bounded_mean_dp_test_cases_validity_tests",
-       size = "enormous",
+    size = "enormous",
     srcs = ["BoundedMeanDpTestCasesValidityTest.java"],
     resources = [
         "@com_google_differential_privacy//proto/testing:bounded_mean_dp_test_cases.textproto",
@@ -98,7 +102,8 @@ java_test(
     shard_count = 47,
     test_class = "com.google.privacy.differentialprivacy.testing.BoundedMeanDpTestCasesValidityTest",
     deps = [
-        "//main/com/google/privacy/differentialprivacy/testing",
+        "//main/com/google/privacy/differentialprivacy/testing:statistical_utils",
+        "//main/com/google/privacy/differentialprivacy/testing:reference_noise",  
         "@com_google_differential_privacy//proto/testing:statistical_tests_java_proto",
         "@maven//:com_google_guava_guava",
         "@maven//:com_google_protobuf_protobuf_java",
@@ -109,7 +114,7 @@ java_test(
 
 java_test(
     name = "bounded_sum_dp_test_cases_validity_tests",
-       size = "enormous",
+    size = "enormous",
     srcs = ["BoundedSumDpTestCasesValidityTest.java"],
     resources = [
         "@com_google_differential_privacy//proto/testing:bounded_sum_dp_test_cases.textproto",

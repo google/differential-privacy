@@ -315,29 +315,29 @@ struct conf_int_params {
 
 // True bounds calculated using standard deviations of
 // 3.4855, 3.60742, 0.367936, respectively.
-struct conf_int_params gauss_params1 = {1.2,
-                                         0.3,
-                                         1.0,
-                                         .9,
-                                         .5,
-                                         0,
-                                         -1.9613};
+struct conf_int_params gauss_params1 = {/*epsilon =*/1.2,
+                                        /*delta =*/0.3,
+                                        /*sensitivity =*/1.0,
+                                        /*level =*/.9,
+                                        /*budget =*/.5,
+                                        /*result =*/0,
+                                        /*true_bound =*/-1.9613};
 
-struct conf_int_params gauss_params2 = { 1.0,
-                                         0.5,
-                                         1.0,
-                                         .95,
-                                         .5,
-                                         1.3,
-                                         -1.9054};
+struct conf_int_params gauss_params2 = {/*epsilon =*/1.0,
+                                        /*delta =*/0.5,
+                                        /*sensitivity =*/1.0,
+                                        /*level =*/.95,
+                                        /*budget =*/.5,
+                                        /*result =*/1.3,
+                                        /*true_bound =*/-1.9054};
 
-struct conf_int_params gauss_params3 = { 10.0,
-                                         0.5,
-                                         1.0,
-                                         .95,
-                                         .75,
-                                         2.7,
-                                         -0.5154};
+struct conf_int_params gauss_params3 = {/*epsilon =*/10.0,
+                                        /*delta =*/0.5,
+                                        /*sensitivity =*/1.0,
+                                        /*level =*/.95,
+                                        /*budget =*/.75,
+                                        /*result =*/2.7,
+                                        /*true_bound =*/-0.5154};
 
 INSTANTIATE_TEST_SUITE_P(TestSuite, NoiseIntervalMultipleParametersTests,
                          testing::Values(gauss_params1, gauss_params2,
