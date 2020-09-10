@@ -78,10 +78,25 @@ type MeanParams struct {
 	//
 	// Required.
 	MinValue, MaxValue float64
-	// Client-specified partitions.
+	// You can input the list of partitions present in the output if you know
+	// them in advance. When you specify partitions, partition selection /
+	// thresholding will be disabled and partitions will appear in the output
+	// if and only if they appear in the set of specified partitions.
+	//
+	// You should not derive the list of partitions non-privately from private
+	// data. You should only use this in either of the following cases:
+	// 	1. The list of partitions is data-independent. For example, if you are
+	// 	aggregating a metric by hour, you could provide a list of all possible
+	// 	hourly period.
+	// 	2. You use a differentially private operation to come up with the list of
+	// 	partitions. For example, you could use the keys of a DistinctPrivacyID
+	// 	operation as the list of pre-specified partitions.
+	//
+	// Note that current implementation limitations only allow up to millions of
+	// public partitions.
 	//
 	// Optional.
-	partitionsCol beam.PCollection
+	PublicPartitions beam.PCollection
 }
 
 // MeanPerKey obtains the mean of the values associated with each key in a
@@ -89,8 +104,8 @@ type MeanParams struct {
 // doing pre-aggregation thresholding to remove means with a low number of
 // distinct privacy identifiers. Client can also specify a PCollection of partitions.
 //
-// Note: Do not use when your results may cause overflows for Int64 or Float64
-// values.  This aggregation is not hardened for such applications yet.
+// Note: Do not use when your results may cause overflows for float64 values.
+// This aggregation is not hardened for such applications yet.
 //
 // MeanPerKey transforms a PrivatePCollection<K,V> into a PCollection<K,float64>.
 func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.PCollection {
@@ -123,12 +138,12 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 	}
 
 	// Drop unspecified partitions, if partitions are specified.
-	if (params.partitionsCol).IsValid() { // Partitions are specified.
-		if pcol.codec.KType.T != (params.partitionsCol).Type().Type() {
+	if (params.PublicPartitions).IsValid() { // Partitions are specified.
+		if pcol.codec.KType.T != (params.PublicPartitions).Type().Type() {
 			log.Exitf("Specified partitions must be of type %v. Got type %v instead.",
-				pcol.codec.KType.T, (params.partitionsCol).Type().Type())
+				pcol.codec.KType.T, (params.PublicPartitions).Type().Type())
 		}
-		pcol.col = dropUnspecifiedPartitionsKVFn(s, params.partitionsCol, pcol, pcol.codec.KType)
+		pcol.col = dropUnspecifiedPartitionsKVFn(s, params.PublicPartitions, pcol, pcol.codec.KType)
 	}
 
 	// First, group together the privacy ID and the partition ID and do per-partition contribution bounding.
@@ -171,7 +186,7 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 		partialPairs,
 		beam.TypeDefinition{Var: beam.XType, T: partitionT})
 	// Add specified partitions and return the aggregation output, if partitions are specified.
-	if (params.partitionsCol).IsValid() {
+	if (params.PublicPartitions).IsValid() {
 		return addSpecifiedPartitionsForMean(s, epsilon, delta, maxPartitionsContributed,
 			params, noiseKind, partialKV)
 	}
@@ -193,8 +208,8 @@ func addSpecifiedPartitionsForMean(s beam.Scope, epsilon, delta float64, maxPart
 	meansPartitions := beam.DropValue(s, dummyMeans)
 	// Create map with partitions in the data as keys.
 	partitionMap := beam.Combine(s, newPartitionsMapFn(beam.EncodedType{partitionT.Type()}), meansPartitions)
-	partitionsCol := params.partitionsCol
-	// Add value of empty array to each partition key in partitionsCol.
+	partitionsCol := params.PublicPartitions
+	// Add value of empty array to each partition key in PublicPartitions.
 	specifiedPartitionsWithValues := beam.ParDo(s, addDummyValuesForMeanToSpecifiedPartitionsFloat64Fn, partitionsCol)
 	// emptySpecifiedPartitions are the partitions that are specified but not found in the data.
 	emptySpecifiedPartitions := beam.ParDo(s, newEmitPartitionsNotInTheDataFn(partitionT), specifiedPartitionsWithValues, beam.SideInput{Input: partitionMap})
@@ -214,7 +229,7 @@ func checkMeanPerKeyParams(params MeanParams, epsilon, delta float64, noiseKind 
 	if err != nil {
 		return err
 	}
-	if (params.partitionsCol).IsValid() && noiseKind == noise.LaplaceNoise {
+	if (params.PublicPartitions).IsValid() && noiseKind == noise.LaplaceNoise {
 		err = checks.CheckNoDelta("pbeam.MeanPerKey", delta)
 	} else {
 		err = checks.CheckDeltaStrict("pbeam.MeanPerKey", delta)

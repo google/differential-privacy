@@ -140,9 +140,6 @@ func (laplace) Threshold(l0Sensitivity int64, lInfSensitivity, epsilon, noiseDel
 // passed to AddNoise and a threshold, it returns the delta induced by
 // thresholding. Just like other functions for Laplace noise, it fails if
 // delta is non-zero.
-//
-// Note that this function is not officially supported and might be removed
-// in the future.
 func (laplace) DeltaForThreshold(l0Sensitivity int64, lInfSensitivity, epsilon, delta, threshold float64) float64 {
 	if err := checkArgsLaplace("DeltaForThresholdedLaplace", l0Sensitivity, lInfSensitivity, epsilon, delta); err != nil {
 		log.Fatalf("laplace.DeltaForThreshold(l0sensitivity %d, lInfSensitivity %f, epsilon %f, delta %e, k %f) checks failed with %v",

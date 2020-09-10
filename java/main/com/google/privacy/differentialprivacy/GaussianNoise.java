@@ -119,7 +119,7 @@ public class GaussianNoise implements Noise {
 
   /**
    * Computes a confidence interval that contains the raw value {@code x} passed to {@link
-   * #addNoise(double, int, double, double, Double)} with a probability equal to {@code 1-alpha}
+   * #addNoise(double, int, double, double, Double)} with a probability equal to {@code 1 - alpha}
    * based on the specified {@code noisedX} and noise parameters.
    */
   @Override
@@ -137,9 +137,9 @@ public class GaussianNoise implements Noise {
   }
 
   /**
-   * Computes a confidence interval that contains the raw value integer {@code x} passed to {@link
+   * Computes a confidence interval that contains the raw integer value {@code x} passed to {@link
    * #addNoise(long, int, long, double, Double)} with a probability greater or equal to {@code
-   * 1-alpha} based on the specified {@code noisedX} and noise parameters.
+   * 1 - alpha} based on the specified {@code noisedX} and noise parameters.
    */
   @Override
   public ConfidenceInterval computeConfidenceInterval(
@@ -263,6 +263,7 @@ public class GaussianNoise implements Noise {
   @VisibleForTesting
   long sampleSymmetricBinomial(double sqrtN) {
     checkArgument(sqrtN >= 1000000.0, "Input must be at least 10^6. Provided value: %s", sqrtN);
+    checkArgument(Double.isFinite(sqrtN), "Input must be finite. Provided value: %s", sqrtN);
 
     long stepSize = Math.round(Math.sqrt(2) * sqrtN + 1.0);
     while (true) {

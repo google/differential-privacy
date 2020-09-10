@@ -118,13 +118,13 @@ func TestSumPerKeyWithPartitionsNoNoiseInt(t *testing.T) {
 
 		partitions := []int{0, 2, 5, 10, 11}
 
-		partitionsCol := beam.CreateList(s, partitions)
+		publicPartitions := beam.CreateList(s, partitions)
 
 		// We have ε=50, δ=0, and l1Sensitivity=3*lInfSensitivity, to scale the noise with different MinValues and MaxValues.
 		epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 25.0, 3.0*tc.lInfSensitivity
 		pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 		pcol = ParDo(s, tripleWithIntValueToKV, pcol)
-		got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 3, MinValue: tc.lower, MaxValue: tc.upper, NoiseKind: LaplaceNoise{}, partitionsCol: partitionsCol})
+		got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 3, MinValue: tc.lower, MaxValue: tc.upper, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions})
 		want = beam.ParDo(s, int64MetricToKV, want)
 		if err := approxEqualsKVInt64(s, got, want, laplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 			t.Fatalf("TestSumPerKeyWithPartitionsNoNoiseInt: %v", err)
@@ -177,7 +177,7 @@ func TestSumPerKeyWithPartitionsNegativeBoundsInt(t *testing.T) {
 	p, s, col, want := ptest.CreateList2(triples, result)
 	col = beam.ParDo(s, extractIDFromTripleWithIntValue, col)
 	partitions := []int{1, 2}
-	partitionsCol := beam.CreateList(s, partitions)
+	publicPartitions := beam.CreateList(s, partitions)
 
 	// We have ε=50, δ=0 and l1Sensitivity=3.
 	// We have 2 partitions. So, to get an overall flakiness of 10⁻²³,
@@ -185,7 +185,7 @@ func TestSumPerKeyWithPartitionsNegativeBoundsInt(t *testing.T) {
 	epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 25.0, 3.0
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 	pcol = ParDo(s, tripleWithIntValueToKV, pcol)
-	got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 3, MinValue: -3, MaxValue: -2, NoiseKind: LaplaceNoise{}, partitionsCol: partitionsCol})
+	got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 3, MinValue: -3, MaxValue: -2, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions})
 	want = beam.ParDo(s, int64MetricToKV, want)
 	if err := approxEqualsKVInt64(s, got, want, laplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 		t.Fatalf("TestSumPerKeyWithPartitionsNegativeBoundsInt: %v", err)
@@ -269,7 +269,7 @@ func TestSumPerKeyWithPartitionsNoNoiseFloat(t *testing.T) {
 		col = beam.ParDo(s, extractIDFromTripleWithFloatValue, col)
 
 		partitions := []int{0, 3, 5}
-		partitionsCol := beam.CreateList(s, partitions)
+		publicPartitions := beam.CreateList(s, partitions)
 
 		// We have ε=50, δ=0 and l1Sensitivity=3*tc.lInfSensitivity.
 		// We have 3 partitions. So, to get an overall flakiness of 10⁻²³,
@@ -277,7 +277,7 @@ func TestSumPerKeyWithPartitionsNoNoiseFloat(t *testing.T) {
 		epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 25.0, 3.0*tc.lInfSensitivity
 		pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 		pcol = ParDo(s, tripleWithFloatValueToKV, pcol)
-		got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 3, MinValue: tc.lower, MaxValue: tc.upper, NoiseKind: LaplaceNoise{}, partitionsCol: partitionsCol})
+		got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 3, MinValue: tc.lower, MaxValue: tc.upper, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions})
 		want = beam.ParDo(s, float64MetricToKV, want)
 		if err := approxEqualsKVFloat64(s, got, want, laplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 			t.Fatalf("TestSumPerKeyWithPartitionsNoNoiseFloat: %v", err)
@@ -328,7 +328,7 @@ func TestSumPerKeyWithPartitionsNegativeBoundsFloat(t *testing.T) {
 	p, s, col, want := ptest.CreateList2(triples, result)
 	col = beam.ParDo(s, extractIDFromTripleWithFloatValue, col)
 	partitions := []int{1, 2}
-	partitionsCol := beam.CreateList(s, partitions)
+	publicPartitions := beam.CreateList(s, partitions)
 
 	// We have ε=50, δ=0 and l1Sensitivity=3.
 	// We have 2 partitions. So, to get an overall flakiness of 10⁻²³,
@@ -336,7 +336,7 @@ func TestSumPerKeyWithPartitionsNegativeBoundsFloat(t *testing.T) {
 	epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 25.0, 3.0
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 	pcol = ParDo(s, tripleWithFloatValueToKV, pcol)
-	got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 3, MinValue: -3.0, MaxValue: -2.0, NoiseKind: LaplaceNoise{}, partitionsCol: partitionsCol})
+	got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 3, MinValue: -3.0, MaxValue: -2.0, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions})
 	want = beam.ParDo(s, float64MetricToKV, want)
 	if err := approxEqualsKVFloat64(s, got, want, laplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 		t.Fatalf("TestSumPerKeyWithPartitionsNegativeBoundsFloat: %v", err)
@@ -448,11 +448,11 @@ func TestSumPerKeyWithPartitionsAddsNoiseInt(t *testing.T) {
 		triples := makeDummyTripleWithIntValue(10, 0)
 		p, s, col := ptest.CreateList(triples)
 		col = beam.ParDo(s, extractIDFromTripleWithIntValue, col)
-		partitionsCol := beam.CreateList(s, []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
+		publicPartitions := beam.CreateList(s, []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
 
 		pcol := MakePrivate(s, col, NewPrivacySpec(tc.epsilon, tc.delta))
 		pcol = ParDo(s, tripleWithIntValueToKV, pcol)
-		got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 1, MinValue: 0, MaxValue: 1, NoiseKind: tc.noiseKind, partitionsCol: partitionsCol})
+		got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 1, MinValue: 0, MaxValue: 1, NoiseKind: tc.noiseKind, PublicPartitions: publicPartitions})
 		got = beam.ParDo(s, kvToInt64Metric, got)
 
 		checkInt64MetricsAreNoisy(s, got, 10, tolerance)
@@ -572,7 +572,7 @@ func TestSumPerKeyWithPartitionsCrossPartitionContributionBoundingInt(t *testing
 	}
 	p, s, col, want := ptest.CreateList2(triples, result)
 	col = beam.ParDo(s, extractIDFromTripleWithIntValue, col)
-	partitionsCol := beam.CreateList(s, []int{0, 1, 2, 3, 4})
+	publicPartitions := beam.CreateList(s, []int{0, 1, 2, 3, 4})
 
 	// We have ε=50, δ=0.0 and l1Sensitivity=3.
 	// We have 5 partitions. So, to get an overall flakiness of 10⁻²³,
@@ -580,7 +580,7 @@ func TestSumPerKeyWithPartitionsCrossPartitionContributionBoundingInt(t *testing
 	epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 25.0, 3.0
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 	pcol = ParDo(s, tripleWithIntValueToKV, pcol)
-	got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 3, MinValue: 0, MaxValue: 1, NoiseKind: LaplaceNoise{}, partitionsCol: partitionsCol})
+	got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 3, MinValue: 0, MaxValue: 1, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions})
 	// With a max contribution of 3, all of the data going to three partitions
 	// should be kept. The sum of all elements must then be 150.
 	counts := beam.DropKey(s, got)
@@ -644,7 +644,7 @@ func TestSumPerKeyWithPartitionsCrossPartitionContributionBoundingFloat(t *testi
 	p, s, col, want := ptest.CreateList2(triples, result)
 	col = beam.ParDo(s, extractIDFromTripleWithFloatValue, col)
 	partitions := []int{0, 1, 2, 3, 4}
-	partitionsCol := beam.CreateList(s, partitions)
+	publicPartitions := beam.CreateList(s, partitions)
 
 	// We have ε=50, δ=0.0 and l1Sensitivity=3.
 	// We have 5 partitions. So, to get an overall flakiness of 10⁻²³,
@@ -652,7 +652,7 @@ func TestSumPerKeyWithPartitionsCrossPartitionContributionBoundingFloat(t *testi
 	epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 25.0, 3.0
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 	pcol = ParDo(s, tripleWithFloatValueToKV, pcol)
-	got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 3, MinValue: 0.0, MaxValue: 1.0, NoiseKind: LaplaceNoise{}, partitionsCol: partitionsCol})
+	got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 3, MinValue: 0.0, MaxValue: 1.0, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions})
 	// With a max contribution of 3, all of the data for three partitions should be kept.
 	// The sum of all elements must then be 150.
 	counts := beam.DropKey(s, got)
@@ -955,13 +955,13 @@ func TestSumPerKeyWithPartitionsReturnsNonNegativeFloat64(t *testing.T) {
 	for p := 0; p < 200; p++ {
 		partitions = append(partitions, p)
 	}
-	partitionsCol := beam.CreateList(s, partitions)
+	publicPartitions := beam.CreateList(s, partitions)
 
 	// Using a low epsilon, a high delta, and a high maxValue.
 	epsilon, delta, maxValue := 0.001, 0.999, 1e8
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 	pcol = ParDo(s, tripleWithFloatValueToKV, pcol)
-	sums := SumPerKey(s, pcol, SumParams{MinValue: 0, MaxValue: maxValue, MaxPartitionsContributed: 1, NoiseKind: GaussianNoise{}, partitionsCol: partitionsCol})
+	sums := SumPerKey(s, pcol, SumParams{MinValue: 0, MaxValue: maxValue, MaxPartitionsContributed: 1, NoiseKind: GaussianNoise{}, PublicPartitions: publicPartitions})
 	values := beam.DropKey(s, sums)
 	beam.ParDo0(s, checkNoNegativeValuesFloat64Fn, values)
 	if err := ptest.Run(p); err != nil {
@@ -1003,13 +1003,13 @@ func TestSumPerKeyWithPartitionsReturnsNonNegativeInt64(t *testing.T) {
 	for p := 0; p < 200; p++ {
 		partitions = append(partitions, p)
 	}
-	partitionsCol := beam.CreateList(s, partitions)
+	publicPartitions := beam.CreateList(s, partitions)
 
 	// Using a low epsilon, a high delta, and a high maxValue here.
 	epsilon, delta, maxValue := 0.001, 0.999, 1e8
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 	pcol = ParDo(s, tripleWithIntValueToKV, pcol)
-	sums := SumPerKey(s, pcol, SumParams{MinValue: 0, MaxValue: maxValue, MaxPartitionsContributed: 1, NoiseKind: GaussianNoise{}, partitionsCol: partitionsCol})
+	sums := SumPerKey(s, pcol, SumParams{MinValue: 0, MaxValue: maxValue, MaxPartitionsContributed: 1, NoiseKind: GaussianNoise{}, PublicPartitions: publicPartitions})
 	values := beam.DropKey(s, sums)
 	beam.ParDo0(s, checkNoNegativeValuesInt64Fn, values)
 	if err := ptest.Run(p); err != nil {

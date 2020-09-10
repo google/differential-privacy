@@ -29,7 +29,8 @@ java_test(
     test_class = "com.google.privacy.differentialprivacy.statistical.LaplaceClosenessTest",
     deps = [
         "//main/com/google/privacy/differentialprivacy",
-        "//main/com/google/privacy/differentialprivacy/testing",
+        "//main/com/google/privacy/differentialprivacy/testing:reference_noise",
+        "//main/com/google/privacy/differentialprivacy/testing:statistical_utils",
         "@com_google_differential_privacy//proto/testing:statistical_tests_java_proto",
         "@com_google_protobuf//:protobuf_java",
         "@maven//:com_google_guava_guava",
@@ -50,7 +51,8 @@ java_test(
     test_class = "com.google.privacy.differentialprivacy.statistical.CountDpTest",
     deps = [
         "//main/com/google/privacy/differentialprivacy",
-        "//main/com/google/privacy/differentialprivacy/testing",
+        "//main/com/google/privacy/differentialprivacy/testing:reference_noise",
+        "//main/com/google/privacy/differentialprivacy/testing:statistical_utils",
         "@com_google_differential_privacy//proto/testing:statistical_tests_java_proto",
         "@com_google_protobuf//:protobuf_java",
         "@maven//:com_google_guava_guava",
@@ -71,7 +73,8 @@ java_test(
     test_class = "com.google.privacy.differentialprivacy.statistical.BoundedMeanDpTest",
     deps = [
         "//main/com/google/privacy/differentialprivacy",
-        "//main/com/google/privacy/differentialprivacy/testing",
+        "//main/com/google/privacy/differentialprivacy/testing:reference_noise",
+        "//main/com/google/privacy/differentialprivacy/testing:statistical_utils",
         "@com_google_differential_privacy//proto/testing:statistical_tests_java_proto",
         "@com_google_protobuf//:protobuf_java",
         "@maven//:com_google_guava_guava",
@@ -92,7 +95,8 @@ java_test(
     test_class = "com.google.privacy.differentialprivacy.statistical.BoundedSumDpTest",
     deps = [
         "//main/com/google/privacy/differentialprivacy",
-        "//main/com/google/privacy/differentialprivacy/testing",
+        "//main/com/google/privacy/differentialprivacy/testing:reference_noise",
+        "//main/com/google/privacy/differentialprivacy/testing:statistical_utils",
         "@com_google_differential_privacy//proto/testing:statistical_tests_java_proto",
         "@com_google_protobuf//:protobuf_java",
         "@maven//:com_google_guava_guava",

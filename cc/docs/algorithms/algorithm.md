@@ -18,7 +18,7 @@ starts with a privacy budget of `1`, and reading uses up that budget.
 ## Construction
 
 ```
-util::StatusOr<std::unique_ptr<Algorithm>> algorithm =
+base::StatusOr<std::unique_ptr<Algorithm>> algorithm =
  AlgorithmBuilder.SetEpsilon(double epsilon)
                  .SetLaplaceMechanism(std::unique_ptr<LaplaceMechanism::Builder> laplace_mechanism_builder)
                  .Build();

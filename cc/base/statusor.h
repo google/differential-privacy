@@ -114,8 +114,6 @@ class StatusOr : private statusor_internal::StatusOrData<T>,
   StatusOr& operator=(StatusOr&&) = default;
 
   // Conversion copy/move constructor, T must be convertible from U.
-  // TODO: These should not participate in overload resolution if U
-  // is not convertible to T.
   template <typename U>
   StatusOr(const StatusOr<U>& other);
   template <typename U>

@@ -351,7 +351,7 @@ func TestMeanPerKeyWithPartitionsAddsNoiseFloat(t *testing.T) {
 		triples := makeDummyTripleWithFloatValue(numIDs, 0)
 		p, s, col := ptest.CreateList(triples)
 		col = beam.ParDo(s, extractIDFromTripleWithFloatValue, col)
-		partitionsCol := beam.CreateList(s, []int{0})
+		publicPartitions := beam.CreateList(s, []int{0})
 
 		pcol := MakePrivate(s, col, NewPrivacySpec(tc.epsilon, tc.delta))
 		pcol = ParDo(s, tripleWithFloatValueToKV, pcol)
@@ -361,7 +361,7 @@ func TestMeanPerKeyWithPartitionsAddsNoiseFloat(t *testing.T) {
 			MinValue:                     lower,
 			MaxValue:                     upper,
 			NoiseKind:                    tc.noiseKind,
-			partitionsCol:                partitionsCol,
+			PublicPartitions:             publicPartitions,
 		})
 		got = beam.ParDo(s, kvToFloat64Metric, got)
 
@@ -568,7 +568,7 @@ func TestMeanPerKeyWithPartitionsNoNoiseFloatValues(t *testing.T) {
 		col = beam.ParDo(s, extractIDFromTripleWithFloatValue, col)
 
 		partitions := []int{0, 1}
-		partitionsCol := beam.CreateList(s, partitions)
+		publicPartitions := beam.CreateList(s, partitions)
 
 		// We have ε=50, δ=0 and l0Sensitivity=1. No thresholding is done because partitions are specified.
 		// We have 2 partitions. So, to get an overall flakiness of 10⁻²³,
@@ -589,7 +589,7 @@ func TestMeanPerKeyWithPartitionsNoNoiseFloatValues(t *testing.T) {
 			MinValue:                     lower,
 			MaxValue:                     upper,
 			NoiseKind:                    LaplaceNoise{},
-			partitionsCol:                partitionsCol,
+			PublicPartitions:             publicPartitions,
 		})
 
 		want = beam.ParDo(s, float64MetricToKV, want)
@@ -919,7 +919,7 @@ func TestMeanPerKeyWithPartitionsReturnsNonNegativeFloat64(t *testing.T) {
 	for p := 0; p < 200; p++ {
 		partitions = append(partitions, p)
 	}
-	partitionsCol := beam.CreateList(s, partitions)
+	publicPartitions := beam.CreateList(s, partitions)
 
 	// Using a low ε, zero δ, and a high maxValue to add a lot of noise.
 	maxContributionsPerPartition := int64(1)
@@ -937,7 +937,7 @@ func TestMeanPerKeyWithPartitionsReturnsNonNegativeFloat64(t *testing.T) {
 		MaxValue:                     upper,
 		MaxPartitionsContributed:     1,
 		NoiseKind:                    LaplaceNoise{},
-		partitionsCol:                partitionsCol,
+		PublicPartitions:             publicPartitions,
 	})
 	values := beam.DropKey(s, means)
 	beam.ParDo0(s, checkNoNegativeValuesFloat64Fn, values)
@@ -1044,7 +1044,7 @@ func TestMeanPerKeyWithPartitionsCrossPartitionContributionBounding(t *testing.T
 	lower := 0.0
 	upper := 150.0
 
-	partitionsCol := beam.CreateList(s, []int{0, 1})
+	publicPartitions := beam.CreateList(s, []int{0, 1})
 	// ε is not split, because partitions are specified.
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 	pcol = ParDo(s, tripleWithFloatValueToKV, pcol)
@@ -1054,7 +1054,7 @@ func TestMeanPerKeyWithPartitionsCrossPartitionContributionBounding(t *testing.T
 		MinValue:                     lower,
 		MaxValue:                     upper,
 		NoiseKind:                    LaplaceNoise{},
-		partitionsCol:                partitionsCol,
+		PublicPartitions:             publicPartitions,
 	})
 
 	means := beam.DropKey(s, got)
@@ -1131,7 +1131,7 @@ func TestMeanPerKeyWithPartitionsNoNoiseIntValues(t *testing.T) {
 		// ε is not split, because partitions are specified.
 		pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 		pcol = ParDo(s, tripleWithIntValueToKV, pcol)
-		partitionsCol := beam.CreateList(s, []int{1})
+		publicPartitions := beam.CreateList(s, []int{1})
 
 		got := MeanPerKey(s, pcol, MeanParams{
 			MaxPartitionsContributed:     maxPartitionsContributed,
@@ -1139,7 +1139,7 @@ func TestMeanPerKeyWithPartitionsNoNoiseIntValues(t *testing.T) {
 			MinValue:                     tc.lower,
 			MaxValue:                     tc.upper,
 			NoiseKind:                    LaplaceNoise{},
-			partitionsCol:                partitionsCol,
+			PublicPartitions:             publicPartitions,
 		})
 		want = beam.ParDo(s, float64MetricToKV, want)
 
@@ -1204,14 +1204,14 @@ func TestMeanPerKeyWithEmptyPartitionsNoNoise(t *testing.T) {
 		// ε is not split, because partitions are specified.
 		pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 		pcol = ParDo(s, tripleWithIntValueToKV, pcol)
-		partitionsCol := beam.CreateList(s, []int{1, 2, 3})
+		publicPartitions := beam.CreateList(s, []int{1, 2, 3})
 		got := MeanPerKey(s, pcol, MeanParams{
 			MaxPartitionsContributed:     maxPartitionsContributed,
 			MaxContributionsPerPartition: maxContributionsPerPartition,
 			MinValue:                     tc.lower,
 			MaxValue:                     tc.upper,
 			NoiseKind:                    LaplaceNoise{},
-			partitionsCol:                partitionsCol,
+			PublicPartitions:             publicPartitions,
 		})
 		want = beam.ParDo(s, float64MetricToKV, want)
 
