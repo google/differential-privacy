@@ -181,6 +181,13 @@ public class GaussianNoise implements Noise {
     DpPreconditions.checkSensitivities(l0Sensitivity, lInfSensitivity);
     DpPreconditions.checkEpsilon(epsilon);
     DpPreconditions.checkNoiseDelta(delta, this);
+
+    // The secure Gaussian noise implementation will fail if 2 * lInfSensitivity is infinite.
+    double twoLInf = 2.0 * lInfSensitivity;
+    checkArgument(
+            Double.isFinite(twoLInf),
+            "2 * lInfSensitivity must be finite but is %s",
+            twoLInf);
   }
 
   private void checkConfidenceIntervalParameters(
