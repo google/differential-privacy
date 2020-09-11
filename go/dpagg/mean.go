@@ -66,8 +66,7 @@ type BoundedMeanFloat64 struct {
 	resultReturned bool // whether the result has already been returned
 }
 
-// numSplits sets the number of splits used in bruteforce for Confidence intervals.
-var numSplits = 1000
+var numSplits = 1000 // number of splits used in bruteforce for Confidence intervals.
 
 func bmEquallyInitializedFloat64(bm1, bm2 *BoundedMeanFloat64) bool {
 	return bm1.lower == bm2.lower &&
@@ -216,44 +215,44 @@ func (bm *BoundedMeanFloat64) Result() float64 {
 	return clamped
 }
 
-// ComputeConfidenceInterval computes a confidence interval that contains the true count with a probability
-// greater than or equal to 1 - alpha using the confidence interval for sum and count.
+// ComputeConfidenceInterval computes a confidence interval that contains the true mean with
+// probability greater than or equal to 1 - alpha. The computation is based exclusively on the
+// confidence intervals for sum and count. Thus no privacy budget is consumed by this operation.
 //
-// Note Result() needs to be called before ComputeConfidenceInterval, otherwise this will return an error.
+// Result() needs to be called before ComputeConfidenceInterval, otherwise this will return an error.
 func (bm *BoundedMeanFloat64) ComputeConfidenceInterval(alpha float64) (noise.ConfidenceInterval, error) {
 	if !bm.resultReturned {
-		return noise.ConfidenceInterval{}, fmt.Errorf("You need to call Result() before calling ComputeConfidenceInterval()")
+		return noise.ConfidenceInterval{}, fmt.Errorf("Result() must be called before calling ComputeConfidenceInterval()")
 	}
-	// Brute force for the tightest confidence interval by iterating through
-	// a fixed number of splits numSplits for countAlpha where it takes the
+	// Brute force optimization for finding the tightest confidence interval: Iterate
+	// through a fixed numSplits number of splits for countAlpha where it takes the
 	// range of values strictly from 0 to alpha.
 	increment := alpha / float64(numSplits)
-	curCountAlpha := increment
-	bestTightness := math.Inf(1)
-	var bestConfInt noise.ConfidenceInterval
-	for curCountAlpha < alpha {
+	tightest := math.Inf(1)
+	var tightestConfInt noise.ConfidenceInterval
+	for curCountAlpha := increment; curCountAlpha < alpha; curCountAlpha += increment {
 		confInt, err := bm.computeConfidenceIntervalSplit(alpha, curCountAlpha)
 		if err != nil {
 			return noise.ConfidenceInterval{}, err
 		}
 		tightness := confInt.UpperBound - confInt.LowerBound
-		if tightness < bestTightness {
-			bestTightness = tightness
-			bestConfInt = confInt
+		if tightness < tightest {
+			tightest = tightness
+			tightestConfInt = confInt
 		}
-		curCountAlpha += increment
 	}
-	return bestConfInt, nil
+	return tightestConfInt, nil
 }
 
-// As opposed to the former function, this function has countAlpha where you can set confidence
-// level for count confidence interval. It computes the coresponding alpha for sum confidence
-// interval to return a confidence interval with a confidence level of at least 1 - meanAlpha.
+// computeConfidenceIntervalSplit computes a confidence interval for mean with a given 1 - countAlpha
+// confidence level for count. It computes the corresponding alpha for sum to return a confidence interval
+// with a confidence level of at least 1 - meanAlpha. The computation is based exclusively on the confidence
+// intervals for sum and count. Thus no privacy budget is consumed by this operation.
 //
-// Note Result() needs to be called before ComputeConfidenceInterval, otherwise this will return an error.
+// Result() needs to be called before ComputeConfidenceInterval, otherwise this will return an error.
 func (bm *BoundedMeanFloat64) computeConfidenceIntervalSplit(meanAlpha, countAlpha float64) (noise.ConfidenceInterval, error) {
 	if !bm.resultReturned {
-		return noise.ConfidenceInterval{}, fmt.Errorf("You need to call Result() before calling ComputeConfidenceInterval()")
+		return noise.ConfidenceInterval{}, fmt.Errorf("Result() must be called before calling computeConfidenceIntervalSplit()")
 	}
 	if err := checkSplit(meanAlpha, countAlpha); err != nil {
 		return noise.ConfidenceInterval{}, err
@@ -269,8 +268,7 @@ func (bm *BoundedMeanFloat64) computeConfidenceIntervalSplit(meanAlpha, countAlp
 		return noise.ConfidenceInterval{}, err
 	}
 
-	// The BoundedMean algorithms maximizes bounds in the denominator to 1, since count
-	// cannot be less than one and to avoid division by zero.
+	// BoundedMean maximizes the denominator (count) to 1.
 	countConfInt.LowerBound = math.Max(countConfInt.LowerBound, 1)
 	countConfInt.UpperBound = math.Max(countConfInt.UpperBound, 1)
 
@@ -293,11 +291,11 @@ func (bm *BoundedMeanFloat64) computeConfidenceIntervalSplit(meanAlpha, countAlp
 	// Clamp mean bounds to lower and upper bounds.
 	meanLowerBound, err = ClampFloat64(meanLowerBound, bm.lower, bm.upper)
 	if err != nil {
-		return noise.ConfidenceInterval{}, err
+		return noise.ConfidenceInterval{}, fmt.Errorf("Couldn't clamp lower bound for mean: %v", err)
 	}
 	meanUpperBound, err = ClampFloat64(meanUpperBound, bm.lower, bm.upper)
 	if err != nil {
-		return noise.ConfidenceInterval{}, err
+		return noise.ConfidenceInterval{}, fmt.Errorf("Couldn't clamp upper bound for mean: %v", err)
 	}
 	return noise.ConfidenceInterval{LowerBound: meanLowerBound, UpperBound: meanUpperBound}, nil
 }
@@ -307,7 +305,7 @@ func checkSplit(meanAlpha, countAlpha float64) error {
 		return err
 	}
 	if 0 >= countAlpha || countAlpha >= meanAlpha {
-		return fmt.Errorf("computeConfidenceIntervalSplit: countAlpha should be strictly between 0 and meanAlpha %f, got %f", meanAlpha, countAlpha)
+		return fmt.Errorf("computeConfidenceIntervalSplit: countAlpha is %f, should be strictly between 0 and meanAlpha = %f", countAlpha, meanAlpha)
 	}
 	return nil
 }
