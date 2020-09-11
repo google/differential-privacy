@@ -109,8 +109,9 @@ public class Count {
     return noisedCount;
   }
 
-  // ComputeConfidenceInterval computes a confidence interval with integer bounds that contains the true count with
-  // a probability greater or equal to 1 - alpha using the noised count computed by computeResult().
+  /** ComputeConfidenceInterval computes a {@link ConfidenceInterval} with integer bounds that contains the true {@link Count} with
+   *  a probability greater or equal to 1 - alpha using the noised {@link Count} computed by {@code computeResult()}.
+   */
   public ConfidenceInterval computeConfidenceInterval(double alpha) {
     if (!resultReturned) {
       throw new IllegalStateException("Noised count must be computed before calling this function.");
@@ -125,11 +126,9 @@ public class Count {
                             params.epsilon(),
                             params.delta(),
                             alpha);
-    confInt =
-            ConfidenceInterval.create(
-                    Math.round(Math.max(0, confInt.lowerBound())),
-                    Math.round(Math.max(0, confInt.upperBound())));
-    return confInt;
+    return ConfidenceInterval.create(
+            Math.round(Math.max(0, confInt.lowerBound())),
+            Math.round(Math.max(0, confInt.upperBound())));
   }
 
   /**
