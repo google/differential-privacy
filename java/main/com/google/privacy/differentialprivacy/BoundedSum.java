@@ -133,8 +133,9 @@ public class BoundedSum {
     return noisedSum;
   }
 
-  // ComputeConfidenceInterval computes a confidence interval that contains the true count with
-  // a probability greater or equal to 1 - alpha using the noised sum computed by computeResult().
+  /** ComputeConfidenceInterval computes a confidence interval that contains the true {@link BoundedSum} with
+   *  a probability greater or equal to 1 - alpha using the noised {@link BoundedSum} computed by {@code computeResult()}.
+   */
   public ConfidenceInterval computeConfidenceInterval(double alpha) {
     if (!resultReturned) {
       throw new IllegalStateException("Noised sum must be computed before calling this function.");
@@ -149,14 +150,13 @@ public class BoundedSum {
                             params.epsilon(),
                             params.delta(),
                             alpha);
-    if ((params.lower() < 0) && (params.upper() <= 0)) {
-      if (confInt.lowerBound() > 0) confInt = ConfidenceInterval.create(0, confInt.upperBound());
-      if (confInt.upperBound() > 0) confInt = ConfidenceInterval.create(confInt.lowerBound(), 0);
-    } else if ((params.lower() >= 0) && (params.upper() > 0)) {
-      if (confInt.lowerBound() < 0) confInt = ConfidenceInterval.create(0, confInt.upperBound());
-      if (confInt.upperBound() < 0) confInt = ConfidenceInterval.create(confInt.lowerBound(), 0);
+    if (params.lower() >= 0) {
+      confInt = confInt.create(Math.max(0, confInt.lowerBound()), Math.max(0, confInt.upperBound()));
     }
-    return confInt.create(confInt.lowerBound(), confInt.upperBound());
+    if (params.upper() <= 0) {
+      confInt = confInt.create(Math.min(0, confInt.lowerBound()), Math.min(0, confInt.upperBound()));
+    }
+    return confInt;
   }
 
   /**

@@ -21,13 +21,11 @@ import static com.google.differentialprivacy.SummaryOuterClass.MechanismType.GAU
 import static com.google.differentialprivacy.SummaryOuterClass.MechanismType.LAPLACE;
 import static java.lang.Double.NaN;
 import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.times;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.math.Stats;
@@ -694,10 +692,10 @@ public class BoundedSumTest {
                     .build();
     when(noise.computeConfidenceInterval(
             anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
-            .thenReturn(ConfidenceInterval.create(-5,3));
+            .thenReturn(ConfidenceInterval.create(-5, 3));
     sum.computeResult();
 
-    // The result interval = (-5, 3), but it should be clamped to (-5, 0), because the bounds are negative.
+    // The result interval = (-5, 3), but the bounds are negative, therefore it should be clamped to (-5, 0).
     assertThat(sum.computeConfidenceInterval(0.152145599))
             .isEqualTo(ConfidenceInterval.create(-5, 0));
   }
@@ -715,10 +713,10 @@ public class BoundedSumTest {
                     .build();
     when(noise.computeConfidenceInterval(
             anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
-            .thenReturn(ConfidenceInterval.create(-5,3));
+            .thenReturn(ConfidenceInterval.create(-5, 3));
     sum.computeResult();
 
-    // The result interval = (-5, 3), but it should be clamped to (0, 3), because the bounds are positive.
+    // The result interval = (-5, 3), but the bounds are positive, therefore it should be clamped to (0, 3).
     assertThat(sum.computeConfidenceInterval(0.152145599))
             .isEqualTo(ConfidenceInterval.create(0, 3));
   }
@@ -736,10 +734,10 @@ public class BoundedSumTest {
                     .build();
     when(noise.computeConfidenceInterval(
             anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
-            .thenReturn(ConfidenceInterval.create(-5,3));
+            .thenReturn(ConfidenceInterval.create(-5, 3));
     sum.computeResult();
 
-    // The result interval = (-5, 3) and it should not be clamped.
+    // The result interval = (-5, 3) and the signs of the bounds are different, therefore it should not be clamped.
     assertThat(sum.computeConfidenceInterval(0.152145599))
             .isEqualTo(ConfidenceInterval.create(-5, 3));
   }
@@ -757,21 +755,22 @@ public class BoundedSumTest {
                     .build();
     when(noise.computeConfidenceInterval(
             anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
-            .thenReturn(ConfidenceInterval.create(Double.NEGATIVE_INFINITY,Double.POSITIVE_INFINITY));
+            .thenReturn(ConfidenceInterval.create(Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY));
     sum.computeResult();
 
-    // The result interval = (Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY), but it should be clamped to (0, Double.POSITIVE_INFINITY).
+    // The result interval = (Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY), but the bounds are positive,
+    // therefore it should be clamped to (0, Double.POSITIVE_INFINITY).
     assertThat(sum.computeConfidenceInterval(0.152145599))
             .isEqualTo(ConfidenceInterval.create(0, Double.POSITIVE_INFINITY));
   }
 
   @Test
   public void computeConfidenceInterval_gaussianTest() {
+    // Mock the noise mechanism.
     when(noise.computeConfidenceInterval(anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
             .thenAnswer(invocation -> new GaussianNoise().computeConfidenceInterval(
                     (Double) invocation.getArguments()[0],  (Integer) invocation.getArguments()[1], (Double) invocation.getArguments()[2],
                     (Double) invocation.getArguments()[3],  (Double) invocation.getArguments()[4],  (Double) invocation.getArguments()[5]));
-    // Mock the noise mechanism.
     sum =
             BoundedSum.builder()
                     .epsilon(0.5)
@@ -784,17 +783,18 @@ public class BoundedSumTest {
     sum.addEntry(1);
     sum.computeResult();
 
-    // The result interval = (-0.5760855815594823, 2.5760855815594823), but it should be clamped to (0, 2.5760855815594823).
-    assertThat(sum.computeConfidenceInterval(0.152145599)).isEqualTo(ConfidenceInterval.create(0,2.5760855815594823));
+    // The result interval = (-0.5760855815594823, 2.5760855815594823), but the bounds are negative,
+    // therefore it should be clamped to (0, 2.5760855815594823).
+    assertThat(sum.computeConfidenceInterval(0.152145599)).isEqualTo(ConfidenceInterval.create(0, 2.5760855815594823));
   }
 
   @Test
   public void computeConfidenceInterval_laplaceTest() {
+    // Mock the noise mechanism. Since noise is not Laplace, nor Gaussian, delta will be passed as a value instead of null, in order to pass the checks.
     when(noise.computeConfidenceInterval(anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
             .thenAnswer(invocation -> new LaplaceNoise().computeConfidenceInterval(
                     (Double) invocation.getArguments()[0],  (Integer) invocation.getArguments()[1], (Double) invocation.getArguments()[2],
                     (Double) invocation.getArguments()[3], null,  (Double) invocation.getArguments()[5]));
-    // Mock the noise mechanism. Since noise is not Laplace, nor Gaussian, delta will be passed as a value instead of null, in order to pass the checks.
     sum =
             BoundedSum.builder()
                     .epsilon(0.1)
@@ -807,16 +807,16 @@ public class BoundedSumTest {
     sum.addEntry(10);
     sum.computeResult();
 
-    assertThat(sum.computeConfidenceInterval(0.5)).isEqualTo(ConfidenceInterval.create(3.068528194400547,16.931471805599454));
+    assertThat(sum.computeConfidenceInterval(0.5)).isEqualTo(ConfidenceInterval.create(3.068528194400547, 16.931471805599454));
   }
 
   @Test
-  public void throwError_Long_whenComputeResultNotCalled() {
+  public void computeConfidenceInterval_whenComputeResultWasNotCalled_throwsException_forLong() {
+    // Mock the noise mechanism. Since noise is not Laplace, nor Gaussian, delta will be passed as a value instead of null, in order to pass the checks.
     when(noise.computeConfidenceInterval(anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
             .thenAnswer(invocation -> new LaplaceNoise().computeConfidenceInterval(
                     (Long) invocation.getArguments()[0],  (Integer) invocation.getArguments()[1], (Long) invocation.getArguments()[2],
                     (Double) invocation.getArguments()[3], null,  (Double) invocation.getArguments()[5]));
-    // Mock the noise mechanism. Since noise is not Laplace, nor Gaussian, delta will be passed as a value instead of null, in order to pass the checks.
     BoundedSum.builder()
             .epsilon(EPSILON)
             .delta(DELTA)
@@ -829,20 +829,18 @@ public class BoundedSumTest {
     Exception exception = assertThrows(IllegalStateException.class, () -> {
       sum.computeConfidenceInterval(0.1554684);
     });
-
-    String expectedMessage = "Noised sum must be computed before calling this function.";
-    String actualMessage = exception.getMessage();
-
-    assertTrue(actualMessage.contains(expectedMessage));
+    assertThat(exception)
+            .hasMessageThat()
+            .startsWith("Noised sum must be computed before calling this function.");
   }
 
   @Test
-  public void throwError_Double_whenComputeResultNotCalled() {
+  public void computeConfidenceInterval_whenComputeResultWasNotCalled_throwsException_forDouble() {
+    // Mock the noise mechanism. Since noise is not Laplace, nor Gaussian, delta will be passed as a value instead of null, in order to pass the checks.
     when(noise.computeConfidenceInterval(anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
             .thenAnswer(invocation -> new LaplaceNoise().computeConfidenceInterval(
                     (Double) invocation.getArguments()[0],  (Integer) invocation.getArguments()[1], (Double) invocation.getArguments()[2],
                     (Double) invocation.getArguments()[3], null,  (Double) invocation.getArguments()[5]));
-    // Mock the noise mechanism. Since noise is not Laplace, nor Gaussian, delta will be passed as a value instead of null, in order to pass the checks.
     BoundedSum.builder()
             .epsilon(EPSILON)
             .delta(DELTA)
@@ -855,11 +853,9 @@ public class BoundedSumTest {
     Exception exception = assertThrows(IllegalStateException.class, () -> {
       sum.computeConfidenceInterval(0.1554684);
     });
-
-    String expectedMessage = "Noised sum must be computed before calling this function.";
-    String actualMessage = exception.getMessage();
-
-    assertTrue(actualMessage.contains(expectedMessage));
+    assertThat(exception)
+            .hasMessageThat()
+            .startsWith("Noised sum must be computed before calling this function.");
   }
 
   @Test
