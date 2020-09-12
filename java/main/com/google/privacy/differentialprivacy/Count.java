@@ -19,6 +19,8 @@ package com.google.privacy.differentialprivacy;
 import com.google.auto.value.AutoValue;
 import com.google.differentialprivacy.SummaryOuterClass.CountSummary;
 import com.google.protobuf.InvalidProtocolBufferException;
+import static java.lang.Math.max;
+import static java.lang.Math.min;
 import javax.annotation.Nullable;
 
 /**
@@ -109,12 +111,14 @@ public class Count {
     return noisedCount;
   }
 
-  /** ComputeConfidenceInterval computes a {@link ConfidenceInterval} with integer bounds that contains the true {@link Count} with
-   *  a probability greater or equal to 1 - alpha using the noised {@link Count} computed by {@code computeResult()}.
+  /**
+   * ComputeConfidenceInterval computes a {@link ConfidenceInterval} with integer bounds that contains the true
+   * {@link Count} with a probability greater or equal to 1 - alpha using the noised {@link Count} computed by
+   * {@code computeResult()}.
    */
   public ConfidenceInterval computeConfidenceInterval(double alpha) {
     if (!resultReturned) {
-      throw new IllegalStateException("Noised count must be computed before calling this function.");
+      throw new IllegalStateException("computeResult must be called before calling computeConfidenceInterval.");
     }
     ConfidenceInterval confInt =
             params
@@ -127,8 +131,8 @@ public class Count {
                             params.delta(),
                             alpha);
     return ConfidenceInterval.create(
-            Math.round(Math.max(0, confInt.lowerBound())),
-            Math.round(Math.max(0, confInt.upperBound())));
+            max(0.0, confInt.lowerBound()),
+            max(0.0, confInt.upperBound()));
   }
 
   /**

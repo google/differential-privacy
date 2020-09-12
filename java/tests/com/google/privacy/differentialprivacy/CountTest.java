@@ -54,6 +54,7 @@ public class CountTest {
   private static final double DELTA = 0.123;
   private static final int NUM_SAMPLES = 100000;
   private static final double LN_3 = Math.log(3.0);
+  private static final double ALPHA = 0.152145599;
 
   @Mock private Noise noise;
   @Mock private Collection<Double> hugeCollection;
@@ -517,151 +518,119 @@ public class CountTest {
   public void computeConfidenceInterval_negativeBounds_clampsToZero() {
     when(noise.computeConfidenceInterval(
             anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble(), anyDouble()))
-            .thenReturn(ConfidenceInterval.create(-5,-3));
+            .thenReturn(ConfidenceInterval.create(-5.0, -3.0));
     count.computeResult();
 
-    // The result interval = (-5, -3), but count can't be negative, therefore it will be clamped to (0, 0).
-    assertThat(count.computeConfidenceInterval(0.152145599))
-            .isEqualTo(ConfidenceInterval.create(0, 0));
+    assertThat(count.computeConfidenceInterval(ALPHA))
+            .isEqualTo(ConfidenceInterval.create(0.0, 0.0));
   }
 
   @Test
-  public void computeConfidenceInterval_positiveBounds() {
+  public void computeConfidenceInterval_positiveBounds_returnsTheseBounds() {
     when(noise.computeConfidenceInterval(
             anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble(), anyDouble()))
-            .thenReturn(ConfidenceInterval.create(5, 3));
+            .thenReturn(ConfidenceInterval.create(5.0, 3.0));
     count.computeResult();
 
-    // The result interval bounds are positive and equal to (5, 3), therefore it will not be clamped.
-    assertThat(count.computeConfidenceInterval(0.152145599))
-            .isEqualTo(ConfidenceInterval.create(5, 3));
+    assertThat(count.computeConfidenceInterval(ALPHA))
+            .isEqualTo(ConfidenceInterval.create(5.0, 3.0));
   }
 
   @Test
   public void computeConfidenceInterval_negativeLowerBound_clampsToZero() {
     when(noise.computeConfidenceInterval(
             anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble(), anyDouble()))
-            .thenReturn(ConfidenceInterval.create(-5, 8));
+            .thenReturn(ConfidenceInterval.create(-5.0, 8.0));
     count.computeResult();
 
-    // The result interval = (-5, 8), but count can't be negative, therefore it will be clamped to (0, 8).
-    assertThat(count.computeConfidenceInterval(0.152145599))
-            .isEqualTo(ConfidenceInterval.create(0, 8));
+    assertThat(count.computeConfidenceInterval(ALPHA))
+            .isEqualTo(ConfidenceInterval.create(0.0, 8.0));
   }
 
   @Test
   public void computeConfidenceInterval_clampsNegativeInfinityToZero() {
     when(noise.computeConfidenceInterval(
             anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble(), anyDouble()))
-            .thenReturn(ConfidenceInterval.create(Double.NEGATIVE_INFINITY, 10));
+            .thenReturn(ConfidenceInterval.create(Double.NEGATIVE_INFINITY, 10.0));
     count.computeResult();
 
-    // The result interval = (Double.NEGATIVE_INFINITY, 10), but count can't be negative, therefore it will be clamped to (0, 10).
-    assertThat(count.computeConfidenceInterval(0.152145599))
-            .isEqualTo(ConfidenceInterval.create(0, 10));
+    assertThat(count.computeConfidenceInterval(ALPHA))
+            .isEqualTo(ConfidenceInterval.create(0.0, 10.0));
   }
 
   @Test
-  public void infiniteUpperBound_roundsToMaxLong() {
+  public void computeConfidenceInterval_infiniteUpperBound_clampsToMaxLong() {
     when(noise.computeConfidenceInterval(
             anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble(), anyDouble()))
-            .thenReturn(ConfidenceInterval.create(1, Double.POSITIVE_INFINITY));
+            .thenReturn(ConfidenceInterval.create(1.0, Double.POSITIVE_INFINITY));
     count.computeResult();
 
-    // The result interval = (1, POSITIVE_INFINITY), but because of the long type, it will be (1, Long.MAX_VALUE).
-    assertThat(count.computeConfidenceInterval(0.152145599))
-            .isEqualTo(ConfidenceInterval.create(1, Long.MAX_VALUE));
+    assertThat(count.computeConfidenceInterval(ALPHA))
+            .isEqualTo(ConfidenceInterval.create(1.0, Double.POSITIVE_INFINITY));
   }
 
   @Test
-  public void computeConfidenceInterval_gaussianTest() {
+  public void computeConfidenceInterval_forGaussianNoise() {
     // Mock the noise mechanism.
     when(noise.computeConfidenceInterval(anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble(), anyDouble()))
             .thenAnswer(invocation -> new GaussianNoise().computeConfidenceInterval(
-                    (Long) invocation.getArguments()[0],  (Integer) invocation.getArguments()[1], (Long) invocation.getArguments()[2],
-                    (Double) invocation.getArguments()[3],  (Double) invocation.getArguments()[4],  (Double) invocation.getArguments()[5]));
-    count =
-            Count.builder()
-                    .epsilon(0.5)
-                    .delta(0.9)
-                    .noise(noise)
-                    .maxPartitionsContributed(15)
-                    .build();
+                    (Long) invocation.getArguments()[0], (Integer) invocation.getArguments()[1], (Long) invocation.getArguments()[2],
+                    (Double) invocation.getArguments()[3], (Double) invocation.getArguments()[4], (Double) invocation.getArguments()[5]));
     count.increment();
     count.computeResult();
 
-    // The result interval = (-1, 3), but count can't be equal to 0, therefore it will be clamped to 0.
-    assertThat(count.computeConfidenceInterval(0.152145599)).isEqualTo(ConfidenceInterval.create(0,3));
+    assertThat(count.computeConfidenceInterval(ALPHA)).isEqualTo(ConfidenceInterval.create(0.0, 4.0));
   }
 
   @Test
-  public void computeConfidenceInterval_laplaceTest() {
-    // Mock the noise mechanism. Since noise is not Laplace, nor Gaussian, delta will be passed as a value instead of null, in order to pass the checks.
+  public void computeConfidenceInterval_forLaplaceNoise() {
+    // Mock the noise mechanism. Since noise is not Laplace, nor Gaussian, delta will be
+    // passed as null, in order to pass the checks.
     when(noise.computeConfidenceInterval(anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble(), anyDouble()))
             .thenAnswer(invocation -> new LaplaceNoise().computeConfidenceInterval(
-                    (Long) invocation.getArguments()[0],  (Integer) invocation.getArguments()[1], (Long) invocation.getArguments()[2],
-                    (Double) invocation.getArguments()[3],  null,  (Double) invocation.getArguments()[5]));
-    count =
-            Count.builder()
-                    .epsilon(0.1)
-                    .noise(noise)
-                    .delta(0.5)
-                    .maxPartitionsContributed(1)
-                    .build();
-    count.incrementBy(10);
+                    (Long) invocation.getArguments()[0], (Integer) invocation.getArguments()[1], (Long) invocation.getArguments()[2],
+                    (Double) invocation.getArguments()[3], null, (Double) invocation.getArguments()[5]));
+    count.increment();
     count.computeResult();
 
-    assertThat(count.computeConfidenceInterval(0.5)).isEqualTo(ConfidenceInterval.create(3,17));
+    assertThat(count.computeConfidenceInterval(ALPHA)).isEqualTo(ConfidenceInterval.create(0.0, 16.0));
   }
 
   @Test
-  public void computeConfidenceInterval_whenComputeResultWasNotCalled_throwsException() {
-    // Mock the noise mechanism. Since noise is not Laplace, nor Gaussian, delta will be passed as a value instead of null, in order to pass the checks.
+  public void computeConfidenceInterval_computeResultWasNotCalled_throwsException() {
+    // Mock the noise mechanism. Since noise is not Laplace, nor Gaussian, delta will be
+    // passed as null, in order to pass the checks.
     when(noise.computeConfidenceInterval(anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
             .thenAnswer(invocation -> new LaplaceNoise().computeConfidenceInterval(
                     (Long) invocation.getArguments()[0], (Integer) invocation.getArguments()[1], (Long) invocation.getArguments()[2],
                     (Double) invocation.getArguments()[3], null, (Double) invocation.getArguments()[5]));
-    count = Count.builder()
-            .epsilon(0.1)
-            .noise(noise)
-            .delta(0.5)
-            .maxPartitionsContributed(1)
-            .build();
-    count.incrementBy(10);
-    Exception exception = assertThrows(IllegalStateException.class, () -> {
-      count.computeConfidenceInterval(0.1554684);
+    count.increment();
+    IllegalStateException exception = assertThrows(IllegalStateException.class, () -> {
+      count.computeConfidenceInterval(ALPHA);
     });
     assertThat(exception)
             .hasMessageThat()
-            .startsWith("Noised count must be computed before calling this function.");
+            .startsWith("computeResult must be called before calling computeConfidenceInterval.");
   }
 
   @Test
-  public void computeResult_callsNoiseCorrectly_forConfidenceIntervals() {
-    double alpha = 0.1524;
+  public void computeConfidenceIntervals_defaultParameters_callsNoiseCorrectly() {
     // Mock the noise mechanism.
     when(noise.computeConfidenceInterval(anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble(), anyDouble()))
             .thenAnswer(invocation -> new GaussianNoise().computeConfidenceInterval(
-                    (Long) invocation.getArguments()[0],  (Integer) invocation.getArguments()[1], (Long) invocation.getArguments()[2],
-                    (Double) invocation.getArguments()[3],  (Double) invocation.getArguments()[4],  (Double) invocation.getArguments()[5]));
-    count = Count.builder()
-            .epsilon(EPSILON)
-            .noise(noise)
-            .delta(DELTA)
-            .maxPartitionsContributed(1)
-            .maxContributionsPerPartition(1)
-            .build();
-    count.incrementBy(10);
+                    (Long) invocation.getArguments()[0], (Integer) invocation.getArguments()[1], (Long) invocation.getArguments()[2],
+                    (Double) invocation.getArguments()[3], (Double) invocation.getArguments()[4], (Double) invocation.getArguments()[5]));
+    count.increment();
     count.computeResult();
-    ConfidenceInterval confInt = count.computeConfidenceInterval(alpha);
+    count.computeConfidenceInterval(ALPHA);
 
     verify(noise)
             .computeConfidenceInterval(
-                    eq(10L),
-                    eq(1),
-                    eq(1L),
+                    eq(1L), // count of added entries = 1L
+                    eq(/* l0Sensitivity = maxPartitionsContributed = 1 */1),
+                    eq(/* lInfSensitivity = maxContributionsPerPartition = 1L */1L),
                     eq(EPSILON),
                     eq(DELTA),
-                    eq(alpha));
+                    eq(ALPHA));
   }
 }
