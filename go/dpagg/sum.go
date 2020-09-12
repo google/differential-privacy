@@ -255,7 +255,6 @@ func (bs *BoundedSumInt64) ThresholdedResult(thresholdDelta float64) *int64 {
 // contains the true sum with a probability greater than or equal to 1 - alpha using
 // the noised sum computed by Result(). The computation is based exclusively on the
 // noised sum returned by Result(). Thus no privacy budget is consumed by this operation.
-// ComputeConfidenceInterval computes a confidence interval with integer bounds that contains the true sum with
 //
 // Result() needs to be called before ComputeConfidenceInterval, otherwise this will return
 // an error.
