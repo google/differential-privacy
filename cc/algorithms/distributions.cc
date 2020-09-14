@@ -62,7 +62,10 @@ double GaussianDistribution::Sample(double scale) {
   DCHECK_GT(scale, 0);
   // TODO: make graceful behaviour when sigma is too big.
   double sigma = scale * stddev_;
-  double granularity = GetGranularity(scale);
+  // Use at least the lowest positive floating point number as granularity when
+  // sigma is very small.
+  double granularity =
+      std::max(GetGranularity(scale), std::numeric_limits<double>::min());
 
   // The square root of n is chosen in a way that ensures that the respective
   // binomial distribution approximates a Gaussian distribution close enough.

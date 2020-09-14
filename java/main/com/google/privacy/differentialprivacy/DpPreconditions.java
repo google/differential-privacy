@@ -156,4 +156,17 @@ public class DpPreconditions {
         "alpha should be strictly between 0 and 1. Provided value: %s",
         alpha);
   }
+
+  static void checkNoiseComputeQuantileArguments(
+      Noise noise,
+      double rank,
+      int l0Sensitivity,
+      double lInfSensitivity,
+      double epsilon,
+      @Nullable Double delta) {
+    checkSensitivities(l0Sensitivity, lInfSensitivity);
+    checkEpsilon(epsilon);
+    checkNoiseDelta(delta, noise);
+    checkArgument(rank > 0 && rank < 1, "rank must be > 0 and < 1. Provided value: %s", rank);
+  }
 }

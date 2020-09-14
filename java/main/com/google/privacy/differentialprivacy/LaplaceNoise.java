@@ -169,11 +169,30 @@ public class LaplaceNoise implements Noise {
    */
   private static ConfidenceInterval computeConfidenceInterval(
       double noisedX, double lambda, double alpha) {
-    // Finding a symmetrical confidence interval around a Laplace of (0, lambda)
-    // by calculating Z_(alpha/2) using computeLaplacePercentile which will return a
-    // negative value by symmetry to gain more accuracy for extremely small alpha.
-    double z = computeLaplacePercentile(lambda, alpha / 2);
+    double z = computeLaplaceQuantile(lambda, alpha / 2);
+    // Because of the symmetry of the Laplace distribution,
+    // -z corresponds to the (1 - alpha/2)-quantile of the distribution,
+    // meaning that the interval [z, -z] contains 1-alpha of the probability mass.
+    // Deriving the (1 - alpha/2)-quantile from the (alpha/2)-quantile and not vice versa is a
+    // deliberate choice. The reason is that alpha tends to be very small.
+    // Consequently, alpha/2 is more accurately representable as a double than 1 - alpha/2,
+    // facilitating numerical computations.
     return ConfidenceInterval.create(noisedX + z, noisedX - z);
+  }
+
+  @Override
+  public double computeQuantile(
+      double rank,
+      double x,
+      int l0Sensitivity,
+      double lInfSensitivity,
+      double epsilon,
+      @Nullable Double delta) {
+    DpPreconditions.checkNoiseComputeQuantileArguments(
+        this, rank, l0Sensitivity, lInfSensitivity, epsilon, delta);
+
+    // TODO: implement the logic
+    throw new UnsupportedOperationException("Not implemented");
   }
 
   private void checkParameters(double l1Sensitivity, double epsilon, @Nullable Double delta) {
@@ -194,10 +213,10 @@ public class LaplaceNoise implements Noise {
   }
 
   /**
-   * Computes the percentile z satisfying Pr[Y <= z] = {@code p} for a random variable Y that is
+   * Computes the quantile z satisfying Pr[Y <= z] = {@code p} for a random variable Y that is
    * Laplace distributed with the specified {@code lambda} and a mean of zero.
    */
-  private static double computeLaplacePercentile(double lambda, double p) {
+  private static double computeLaplaceQuantile(double lambda, double p) {
     if (p < 0.5) {
       return lambda * Math.log(2 * p);
     }

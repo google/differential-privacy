@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.differentialprivacy.SummaryOuterClass.MechanismType;
 import java.security.SecureRandom;
+import javax.annotation.Nullable;
 import org.apache.commons.math3.distribution.NormalDistribution;
 import org.apache.commons.math3.special.Erf;
 
@@ -161,19 +162,43 @@ public class GaussianNoise implements Noise {
   /**
    * See {@link #computeConfidenceInterval(double, int, double, double, Double, double)}.
    *
-   * <p> As opposed to the latter method, this accepts the standard deviation {@code sigma} of the Gaussian noise directly.
+   * <p>As opposed to the latter method, this accepts the standard deviation {@code sigma} of the
+   * Gaussian noise directly.
    */
-  private ConfidenceInterval computeConfidenceInterval(double noisedX, double sigma, double alpha) {
-    double z = computeGaussianPercentile(sigma, alpha / 2); // z will hold a negative value.
+  private static ConfidenceInterval computeConfidenceInterval(
+      double noisedX, double sigma, double alpha) {
+    double z = computeGaussianQuantile(sigma, alpha / 2);
+    // Because of the symmetry of the Gaussian distribution,
+    // -z corresponds to the (1 - alpha/2)-quantile of the distribution,
+    // meaning that the interval [z, -z] contains 1-alpha of the probability mass.
+    // Deriving the (1 - alpha/2)-quantile from the (alpha/2)-quantile and not vice versa is a
+    // deliberate choice. The reason is that alpha tends to be very small.
+    // Consequently, alpha/2 is more accurately representable as a double than 1 - alpha/2,
+    // facilitating numerical computations.
     return ConfidenceInterval.create(noisedX + z, noisedX - z);
   }
 
   /**
-   * Returns the {@code p}-percentile z of a Gaussian random variable X with a mean of 0 and a standard deviation
+   * Returns the {@code p}-quantile z of a Gaussian random variable X with a mean of 0 and a standard deviation
    * of {@code sigma}, i.e., Pr[X ≤ z] = {@code p}.
    */
-  private double computeGaussianPercentile(double sigma, double p) {
+  private static double computeGaussianQuantile(double sigma, double p) {
     return -sigma * Math.sqrt(2) * Erf.erfcInv(2 * p);
+  }
+
+  @Override
+  public double computeQuantile(
+      double rank,
+      double x,
+      int l0Sensitivity,
+      double lInfSensitivity,
+      double epsilon,
+      @Nullable Double delta) {
+    DpPreconditions.checkNoiseComputeQuantileArguments(
+        this, rank, l0Sensitivity, lInfSensitivity, epsilon, delta);
+
+    // TODO: implement the logic
+    throw new UnsupportedOperationException("Not implemented");
   }
 
   private void checkParameters(
@@ -185,9 +210,9 @@ public class GaussianNoise implements Noise {
     // The secure Gaussian noise implementation will fail if 2 * lInfSensitivity is infinite.
     double twoLInf = 2.0 * lInfSensitivity;
     checkArgument(
-            Double.isFinite(twoLInf),
-            "2 * lInfSensitivity must be finite but is %s",
-            twoLInf);
+        Double.isFinite(twoLInf),
+        "2 * lInfSensitivity must be finite but is %s",
+        twoLInf);
   }
 
   private void checkConfidenceIntervalParameters(
