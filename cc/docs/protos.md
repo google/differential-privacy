@@ -13,7 +13,7 @@ mean of integer values by building the
 Note that the mean will always be double type despite the template type.
 
 ```
-util::StatusOr<std::unique_ptr<BoundedMean<int64>>> bounded_mean =
+base::StatusOr<std::unique_ptr<BoundedMean<int64>>> bounded_mean =
   BoundedMean<int64>::Builder.SetEpsilon(1)
                              .SetLower(-10)
                              .SetUpper(10)

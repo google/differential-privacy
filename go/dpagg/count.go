@@ -184,13 +184,16 @@ func (c *Count) ThresholdedResult(thresholdDelta float64) *int64 {
 	return &result
 }
 
-// ComputeConfidenceInterval computes a confidence interval with integer bounds that contains the true count
-// with a probability greater than or equal to 1 - alpha using the noised count computed by Result().
-// 
-// Note Result() needs to be called before ComputeConfidenceInterval, otherwise this will return an error.
+// ComputeConfidenceInterval computes a confidence interval with integer bounds that
+// contains the true count with a probability greater than or equal to 1 - alpha using
+// the noised count computed by Result(). The computation is based exclusively on the
+// noised count returned by Result(). Thus no privacy budget is consumed by this operation.
+//
+// Result() needs to be called before ComputeConfidenceInterval, otherwise this will return
+// an error.
 func (c *Count) ComputeConfidenceInterval(alpha float64) (noise.ConfidenceInterval, error) {
 	if !c.resultReturned {
-		return noise.ConfidenceInterval{}, fmt.Errorf("You need to call Result() before calling ComputeConfidenceInterval()")
+		return noise.ConfidenceInterval{}, fmt.Errorf("Result() must be called before calling ComputeConfidenceInterval()")
 	}
 	confInt, err := c.noise.ComputeConfidenceIntervalInt64(c.noisedCount, c.l0Sensitivity, c.lInfSensitivity, c.epsilon, c.delta, alpha)
 	if err != nil {

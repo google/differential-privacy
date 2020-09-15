@@ -55,10 +55,25 @@ type DistinctPrivacyIDParams struct {
 	//
 	// Required.
 	MaxPartitionsContributed int64
-	// Client-specified partitions.
+	// You can input the list of partitions present in the output if you know
+	// them in advance. When you specify partitions, partition selection /
+	// thresholding will be disabled and partitions will appear in the output
+	// if and only if they appear in the set of specified partitions.
+	//
+	// You should not derive the list of partitions non-privately from private
+	// data. You should only use this in either of the following cases:
+	// 	1. The list of partitions is data-independent. For example, if you are
+	// 	aggregating a metric by hour, you could provide a list of all possible
+	// 	hourly period.
+	// 	2. You use a differentially private operation to come up with the list of
+	// 	partitions. For example, you could use the keys of a DistinctPrivacyID
+	// 	operation as the list of pre-specified partitions.
+	//
+	// Note that current implementation limitations only allow up to millions of
+	// public partitions.
 	//
 	// Optional.
-	partitionsCol beam.PCollection
+	PublicPartitions beam.PCollection
 }
 
 // DistinctPrivacyID counts the number of distinct privacy identifiers
@@ -68,7 +83,7 @@ type DistinctPrivacyIDParams struct {
 // MaxValue=1, but is specifically optimized for this use case.
 // Client can also specify a PCollection of partitions.
 //
-// Note: Do not use when your results may cause overflows for Int64 values.
+// Note: Do not use when your results may cause overflows for int64 values.
 // This aggregation is not hardened for such applications yet.
 //
 // DistinctPrivacyID transforms a PrivatePCollection<V> into a
@@ -98,13 +113,13 @@ func DistinctPrivacyID(s beam.Scope, pcol PrivatePCollection, params DistinctPri
 
 	maxPartitionsContributed := getMaxPartitionsContributed(spec, params.MaxPartitionsContributed)
 	// Drop unspecified partitions, if partitions are specified.
-	if (params.partitionsCol).IsValid() {
-		if partitionT.Type() != (params.partitionsCol).Type().Type() {
+	if (params.PublicPartitions).IsValid() {
+		if partitionT.Type() != (params.PublicPartitions).Type().Type() {
 			log.Exitf("Specified partitions must be of type %v. Got type %v instead.",
-				partitionT.Type(), (params.partitionsCol).Type().Type())
+				partitionT.Type(), (params.PublicPartitions).Type().Type())
 		}
 		partitionEncodedType := beam.EncodedType{partitionT.Type()}
-		pcol.col = dropUnspecifiedPartitionsVFn(s, params.partitionsCol, pcol, partitionEncodedType)
+		pcol.col = dropUnspecifiedPartitionsVFn(s, params.PublicPartitions, pcol, partitionEncodedType)
 	}
 	// First, deduplicate KV pairs by encoding them and calling Distinct.
 	coded := beam.ParDo(s, kv.NewEncodeFn(idT, partitionT), pcol.col)
@@ -121,7 +136,7 @@ func DistinctPrivacyID(s beam.Scope, pcol PrivatePCollection, params DistinctPri
 	values := beam.DropKey(s, decoded)
 	dummyCounts := beam.ParDo(s, addOneValueFn, values)
 	// Add specified partitions and return the aggregation output, if partitions are specified.
-	if (params.partitionsCol).IsValid() {
+	if (params.PublicPartitions).IsValid() {
 		return addSpecifiedPartitionsForDistinctID(s, params, epsilon, delta, maxPartitionsContributed, noiseKind, dummyCounts)
 	}
 	noisedCounts := beam.CombinePerKey(s,
@@ -133,7 +148,7 @@ func DistinctPrivacyID(s beam.Scope, pcol PrivatePCollection, params DistinctPri
 
 func addSpecifiedPartitionsForDistinctID(s beam.Scope, params DistinctPrivacyIDParams, epsilon, delta float64,
 	maxPartitionsContributed int64, noiseKind noise.Kind, countsKV beam.PCollection) beam.PCollection {
-	prepareAddSpecifiedPartitions := beam.ParDo(s, addDummyValuesToSpecifiedPartitionsInt64Fn, params.partitionsCol)
+	prepareAddSpecifiedPartitions := beam.ParDo(s, addDummyValuesToSpecifiedPartitionsInt64Fn, params.PublicPartitions)
 	// Merge countsKV and prepareAddSpecifiedPartitions.
 	allAddPartitions := beam.Flatten(s, countsKV, prepareAddSpecifiedPartitions)
 	noisedCounts := beam.CombinePerKey(s,
@@ -149,7 +164,7 @@ func checkDistinctPrivacyIDParams(params DistinctPrivacyIDParams, epsilon, delta
 	}
 	if noiseKind == noise.LaplaceNoise {
 		err = checks.CheckDelta("pbeam.DistinctPrivacyID", delta)
-		if (params.partitionsCol).IsValid() {
+		if (params.PublicPartitions).IsValid() {
 			err = checks.CheckNoDelta("pbeam.DistinctPrivacyID", delta)
 		}
 	} else {

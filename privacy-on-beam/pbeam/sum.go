@@ -67,10 +67,25 @@ type SumParams struct {
 	//
 	// Required.
 	MinValue, MaxValue float64
-	// Client-specified partitions.
+	// You can input the list of partitions present in the output if you know
+	// them in advance. When you specify partitions, partition selection /
+	// thresholding will be disabled and partitions will appear in the output
+	// if and only if they appear in the set of specified partitions.
+	//
+	// You should not derive the list of partitions non-privately from private
+	// data. You should only use this in either of the following cases:
+	// 	1. The list of partitions is data-independent. For example, if you are
+	// 	aggregating a metric by hour, you could provide a list of all possible
+	// 	hourly period.
+	// 	2. You use a differentially private operation to come up with the list of
+	// 	partitions. For example, you could use the keys of a DistinctPrivacyID
+	// 	operation as the list of pre-specified partitions.
+	//
+	// Note that current implementation limitations only allow up to millions of
+	// public partitions.
 	//
 	// Optional.
-	partitionsCol beam.PCollection
+	PublicPartitions beam.PCollection
 }
 
 // SumPerKey sums the values associated with each key in a
@@ -78,7 +93,7 @@ type SumParams struct {
 // doing pre-aggregation thresholding to remove sums with a low number of
 // distinct privacy identifiers. Client can also specify a PCollection of partitions.
 //
-// Note: Do not use when your results may cause overflows for Int64 and Float64
+// Note: Do not use when your results may cause overflows for int64 and float64
 // values. This aggregation is not hardened for such applications yet.
 //
 // SumPerKey transforms a PrivatePCollection<K,V> either into a
@@ -116,12 +131,12 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCo
 
 	maxPartitionsContributed := getMaxPartitionsContributed(spec, params.MaxPartitionsContributed)
 	// Drop unspecified partitions, if partitions are specified.
-	if (params.partitionsCol).IsValid() {
-		if pcol.codec.KType.T != (params.partitionsCol).Type().Type() {
+	if (params.PublicPartitions).IsValid() {
+		if pcol.codec.KType.T != (params.PublicPartitions).Type().Type() {
 			log.Exitf("Specified partitions must be of type %v. Got type %v instead.",
-				pcol.codec.KType.T, params.partitionsCol.Type().Type())
+				pcol.codec.KType.T, params.PublicPartitions.Type().Type())
 		}
-		pcol.col = dropUnspecifiedPartitionsKVFn(s, params.partitionsCol, pcol, pcol.codec.KType)
+		pcol.col = dropUnspecifiedPartitionsKVFn(s, params.PublicPartitions, pcol, pcol.codec.KType)
 	}
 	// First, group together the privacy ID and the partition ID, and sum the
 	// values per-privacy unit and per-partition.
@@ -153,7 +168,7 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCo
 		partialSumPairs,
 		beam.TypeDefinition{Var: beam.XType, T: partitionT})
 	// Add specified partitions and return the aggregation output, if partitions are specified.
-	if (params.partitionsCol).IsValid() {
+	if (params.PublicPartitions).IsValid() {
 		return addSpecifiedPartitionsForSum(s, epsilon, delta, maxPartitionsContributed,
 			params, noiseKind, vKind, partialSumKV)
 	}
@@ -179,8 +194,8 @@ func addSpecifiedPartitionsForSum(s beam.Scope, epsilon, delta float64, maxParti
 	sumsPartitions := beam.DropValue(s, dummySums)
 	// Create map with partitions in the data as keys.
 	partitionMap := beam.Combine(s, newPartitionsMapFn(beam.EncodedType{partitionT.Type()}), sumsPartitions)
-	partitionsCol := params.partitionsCol
-	// Add value of 0 to each partition key in partitionsCol.
+	partitionsCol := params.PublicPartitions
+	// Add value of 0 to each partition key in PublicPartitions.
 	specifiedPartitionsWithValues := beam.ParDo(s, newAddDummyValuesToSpecifiedPartitionsFn(vKind), partitionsCol)
 	// emptySpecifiedPartitions are the partitions that are specified but not found in the data.
 	emptySpecifiedPartitions := beam.ParDo(s, newEmitPartitionsNotInTheDataFn(partitionT), specifiedPartitionsWithValues, beam.SideInput{Input: partitionMap})
@@ -204,7 +219,7 @@ func checkSumPerKeyParams(params SumParams, epsilon, delta float64, noiseKind no
 	if err != nil {
 		return err
 	}
-	if (params.partitionsCol).IsValid() && noiseKind == noise.LaplaceNoise {
+	if (params.PublicPartitions).IsValid() && noiseKind == noise.LaplaceNoise {
 		err = checks.CheckNoDelta("pbeam.SumPerKey", delta)
 	} else {
 		err = checks.CheckDeltaStrict("pbeam.SumPerKey", delta)

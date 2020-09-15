@@ -85,4 +85,40 @@ final class SecureNoiseMath {
       return x;
     }
   }
+
+  /**
+   * Computes the closest double value that is larger than or equal to the provided long value.
+   *
+   * <p>Mapping from long to double for large long values (> 2^53) is inaccurate since they may not
+   * be represented as a double. The default conversion from long to double either rounds up or down
+   * the long value to the nearest representable double. This function ensures that {@code n} <=
+   * (double) {@code nextLargerDouble(long n)}.
+   */
+  public static double nextLargerDouble(long n) {
+    // Large long values n may lie between two representable double values a and b,
+    // i.e., a < n < b, (note that in this case a and b are guaranteed to be integers).
+    // If the standard conversion to double rounds the long value down,
+    // e.g. (double) n = a, the difference a - n will be negative, indicating that the result needs
+    // to be incremented to the next double value b.
+    double result = n;
+    long dif = (long) result - n;
+    return dif >= 0 ? result : Math.nextUp(result);
+  }
+
+  /**
+   * See {@link #nextLargerDouble(long)}.
+   *
+   * <p>As opposed to the latter method, this computes the closest double value that is smaller than
+   * or equal to the provided long value {@code n} >= {@code nextSmallerDouble(long n)}.
+   */
+  public static double nextSmallerDouble(long n) {
+    // GLarge long values n may lie between two representable double values a and b,
+    // i.e., a < n < b, (note that in this case a and b are guaranteed to be integers).
+    // If the standard conversion to double rounds the long value up, e.g. (double) n = b,
+    // the difference b - n will be positive, indicating that the result needs to be decremented
+    // to the previous double value a.
+    double result = n;
+    long dif = (long) result - n;
+    return dif <= 0 ? result : Math.nextDown(result);
+  }
 }

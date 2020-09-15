@@ -82,13 +82,13 @@ func TestCountWithPartitionsNoNoise(t *testing.T) {
 	p, s, col, want := ptest.CreateList2(pairs, result)
 	col = beam.ParDo(s, pairToKV, col)
 	partitions := []int{9, 10}
-	partitionsCol := beam.CreateList(s, partitions)
+	publicPartitions := beam.CreateList(s, partitions)
 	// We use ε=50, δ=0 and l1Sensitivity=2.
 	// We have 2 partitions. So, to get an overall flakiness of 10⁻²³,
 	// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
 	epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 25.0, 2.0
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
-	got := Count(s, pcol, CountParams{MaxValue: 2, MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}, partitionsCol: partitionsCol})
+	got := Count(s, pcol, CountParams{MaxValue: 2, MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions})
 	want = beam.ParDo(s, int64MetricToKV, want)
 	if err := approxEqualsKVInt64(s, got, want, laplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 		t.Fatalf("TestCountWithPartitionsNoNoise: %v", err)
@@ -274,9 +274,9 @@ func TestCountAddsNoiseWithPartitions(t *testing.T) {
 		pairs := makePairsWithFixedV(10, 0)
 		p, s, col := ptest.CreateList(pairs)
 		col = beam.ParDo(s, pairToKV, col)
-		partitionsCol := beam.CreateList(s, []int{0})
+		publicPartitions := beam.CreateList(s, []int{0})
 		pcol := MakePrivate(s, col, NewPrivacySpec(tc.epsilon, tc.delta))
-		got := Count(s, pcol, CountParams{MaxPartitionsContributed: 1, MaxValue: 1, NoiseKind: tc.noiseKind, partitionsCol: partitionsCol})
+		got := Count(s, pcol, CountParams{MaxPartitionsContributed: 1, MaxValue: 1, NoiseKind: tc.noiseKind, PublicPartitions: publicPartitions})
 		got = beam.ParDo(s, kvToInt64Metric, got)
 		checkInt64MetricsAreNoisy(s, got, 10, tolerance)
 		if err := ptest.Run(p); err != nil {
@@ -332,13 +332,13 @@ func TestCountWithPartitionsCrossPartitionContributionBounding(t *testing.T) {
 	col = beam.ParDo(s, pairToKV, col)
 
 	partitions := []int{0, 1, 2, 3, 4}
-	partitionsCol := beam.CreateList(s, partitions)
+	publicPartitions := beam.CreateList(s, partitions)
 
 	// We have 5 partitions. So, to get an overall flakiness of 10⁻²³,
 	// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
 	epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 25.0, 3.0
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
-	got := Count(s, pcol, CountParams{MaxPartitionsContributed: 3, MaxValue: 1, NoiseKind: LaplaceNoise{}, partitionsCol: partitionsCol})
+	got := Count(s, pcol, CountParams{MaxPartitionsContributed: 3, MaxValue: 1, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions})
 	// With a max contribution of 3, 40% of the data from the specified partitions should be dropped.
 	// The sum of all elements must then be 150.
 	counts := beam.DropKey(s, got)
@@ -386,12 +386,12 @@ func TestCountWithPartitionsReturnsNonNegative(t *testing.T) {
 	}
 	p, s, col := ptest.CreateList(pairs)
 	col = beam.ParDo(s, pairToKV, col)
-	partitionsCol := beam.CreateList(s, partitions)
+	publicPartitions := beam.CreateList(s, partitions)
 	// Using a low epsilon and high maxValue adds a lot of noise and using
 	// a high delta keeps many partitions.
 	epsilon, delta, maxValue := 0.001, 0.999, int64(1e8)
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
-	counts := Count(s, pcol, CountParams{MaxValue: maxValue, MaxPartitionsContributed: 1, NoiseKind: GaussianNoise{}, partitionsCol: partitionsCol})
+	counts := Count(s, pcol, CountParams{MaxValue: maxValue, MaxPartitionsContributed: 1, NoiseKind: GaussianNoise{}, PublicPartitions: publicPartitions})
 	values := beam.DropKey(s, counts)
 	// Check if we have negative elements.
 	beam.ParDo0(s, checkNoNegativeValuesInt64Fn, values)

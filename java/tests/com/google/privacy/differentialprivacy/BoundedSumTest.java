@@ -45,7 +45,8 @@ import org.mockito.junit.MockitoRule;
  * Tests the accuracy of {@link BoundedSum}. The test mocks {@link Noise} instance which generates
  * zero noise.
  *
- * <p>Statistical and DP properties of the algorithm are tested in {@link BoundedSumDpTest}.
+ * <p>Statistical and DP properties of the algorithm are tested in
+ * {@link com.google.privacy.differentialprivacy.statistical.BoundedSumDpTest}.
  */
 @RunWith(JUnit4.class)
 public class BoundedSumTest {

@@ -48,7 +48,8 @@ differential privacy directory into a local folder:
 ```git clone https://github.com/google/differential-privacy.git```
 
 Navigate into the ```differential-privacy``` folder you just created,
-and build the differential privacy library and dependencies using Bazel:
+and build the differential privacy library and dependencies using Bazel
+(note: *...* is a part of the command and not a placeholder):
 
 To build the C++ library, run:
 ```

@@ -115,14 +115,14 @@ func TestDistinctPrivacyIDWithPartitionsNoNoise(t *testing.T) {
 
 	partitions := []int{0, 1, 3, 4}
 	// Create partition PCollection.
-	partitionsCol := beam.CreateList(s, partitions)
+	publicPartitions := beam.CreateList(s, partitions)
 
 	// We have ε=50, δ=0, and l1Sensitivity=4.
 	// We have 4 partitions. So, to get an overall flakiness of 10⁻²³,
 	// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
 	epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 25.0, 4.0
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
-	got := DistinctPrivacyID(s, pcol, DistinctPrivacyIDParams{MaxPartitionsContributed: 4, NoiseKind: LaplaceNoise{}, partitionsCol: partitionsCol})
+	got := DistinctPrivacyID(s, pcol, DistinctPrivacyIDParams{MaxPartitionsContributed: 4, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions})
 	want = beam.ParDo(s, int64MetricToKV, want)
 	if err := approxEqualsKVInt64(s, got, want, laplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 		t.Fatalf("TestDistinctPrivacyIDWithPartitionsNoNoise: %v", err)
@@ -322,8 +322,8 @@ func TestDistinctPrivacyIDWithPartitionsAddsNoise(t *testing.T) {
 		col = beam.ParDo(s, pairToKV, col)
 
 		pcol := MakePrivate(s, col, NewPrivacySpec(tc.epsilon, tc.delta))
-		partitionsCol := beam.CreateList(s, []int{0})
-		got := DistinctPrivacyID(s, pcol, DistinctPrivacyIDParams{MaxPartitionsContributed: 1, NoiseKind: tc.noiseKind, partitionsCol: partitionsCol})
+		publicPartitions := beam.CreateList(s, []int{0})
+		got := DistinctPrivacyID(s, pcol, DistinctPrivacyIDParams{MaxPartitionsContributed: 1, NoiseKind: tc.noiseKind, PublicPartitions: publicPartitions})
 		got = beam.ParDo(s, kvToInt64Metric, got)
 
 		checkInt64MetricsAreNoisy(s, got, numIDs, tolerance)
@@ -380,14 +380,14 @@ func TestDistinctPrivacyIDWithPartitionsCrossPartitionContributionBounding(t *te
 	}
 	p, s, col, want := ptest.CreateList2(pairs, result)
 	col = beam.ParDo(s, pairToKV, col)
-	partitionsCol := beam.CreateList(s, []int{0, 1, 2})
+	publicPartitions := beam.CreateList(s, []int{0, 1, 2})
 
 	// We have ε=50, δ=0 and l1Sensitivity=3.
 	// We have 5 partitions. So, to get an overall flakiness of 10⁻²³,
 	// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
 	epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 25.0, 3.0
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
-	got := DistinctPrivacyID(s, pcol, DistinctPrivacyIDParams{MaxPartitionsContributed: 3, NoiseKind: LaplaceNoise{}, partitionsCol: partitionsCol})
+	got := DistinctPrivacyID(s, pcol, DistinctPrivacyIDParams{MaxPartitionsContributed: 3, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions})
 	// With a max contribution of 3, 40% of the specified partitions should be dropped.
 	// The sum of all elements must then be 150.
 	counts := beam.DropKey(s, got)
