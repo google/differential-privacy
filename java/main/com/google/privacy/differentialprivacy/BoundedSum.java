@@ -18,6 +18,7 @@ package com.google.privacy.differentialprivacy;
 
 import static java.lang.Math.abs;
 import static java.lang.Math.max;
+import static java.lang.Math.min;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Preconditions;
@@ -151,10 +152,10 @@ public class BoundedSum {
                             params.delta(),
                             alpha);
     if (params.lower() >= 0) {
-      confInt = confInt.create(Math.max(0, confInt.lowerBound()), Math.max(0, confInt.upperBound()));
+      confInt = confInt.create(max(0, confInt.lowerBound()), max(0, confInt.upperBound()));
     }
     if (params.upper() <= 0) {
-      confInt = confInt.create(Math.min(0, confInt.lowerBound()), Math.min(0, confInt.upperBound()));
+      confInt = confInt.create(min(0, confInt.lowerBound()), min(0, confInt.upperBound()));
     }
     return confInt;
   }
