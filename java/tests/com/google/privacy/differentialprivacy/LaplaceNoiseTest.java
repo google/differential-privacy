@@ -18,6 +18,7 @@ package com.google.privacy.differentialprivacy;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.differentialprivacy.SummaryOuterClass.MechanismType.LAPLACE;
+import static java.lang.Double.NaN;
 import static org.junit.Assert.assertThrows;
 
 import com.google.common.collect.ImmutableList;
@@ -33,6 +34,7 @@ public final class LaplaceNoiseTest {
   private static final double LN_3 = Math.log(3);
   private static final double DEFAULT_MEAN = 0.0;
   private static final double DEFAULT_EPSILON = LN_3;
+  private static final double DEFAULT_RANK = Math.pow(10, -5);
   private static final int DEFAULT_L_0_SENSITIVITY = 1;
   private static final double DEFAULT_L_INF_SENSITIVITY = 1.0;
 
@@ -192,7 +194,7 @@ public final class LaplaceNoiseTest {
   }
 
   @Test
-  public void addNoise_deltaNonnul_throwsEsception() {
+  public void addNoise_deltaNonnul_throwsException() {
     assertThrows(
         IllegalArgumentException.class,
         () ->
@@ -355,5 +357,261 @@ public final class LaplaceNoiseTest {
   @Test
   public void getMechanismType_returnsGaussian() {
     assertThat(NOISE.getMechanismType()).isEqualTo(LAPLACE);
+  }
+
+  @Test
+  public void computeQuantile_epsilonNegative_throwsException() {
+    Exception e =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                NOISE.computeQuantile(
+                    DEFAULT_RANK,
+                    DEFAULT_MEAN,
+                    DEFAULT_L_0_SENSITIVITY,
+                    DEFAULT_L_INF_SENSITIVITY,
+                    /* epsilon */ -0.1,
+                    /* delta */ null));
+    assertThat(e).hasMessageThat().startsWith("epsilon must be");
+  }
+
+  @Test
+  public void computeQuantile_epsilonZero_throwsException() {
+    Exception e =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                NOISE.computeQuantile(
+                    DEFAULT_RANK,
+                    DEFAULT_MEAN,
+                    DEFAULT_L_0_SENSITIVITY,
+                    DEFAULT_L_INF_SENSITIVITY,
+                    /* epsilon */ 0.0,
+                    /* delta */ null));
+    assertThat(e).hasMessageThat().startsWith("epsilon must be");
+  }
+
+  @Test
+  public void computeThreshold_epsilonTooSmall_throwsException() {
+    Exception e =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                NOISE.computeQuantile(
+                    DEFAULT_RANK,
+                    DEFAULT_MEAN,
+                    DEFAULT_L_0_SENSITIVITY,
+                    DEFAULT_L_INF_SENSITIVITY,
+                    /* epsilon */ 1.0 / (1L << 51),
+                    /* delta */ null));
+    assertThat(e).hasMessageThat().startsWith("epsilon must be");
+  }
+
+  @Test
+  public void computeQuantile_epsilonPosInfinity_throwsException() {
+    Exception e =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                NOISE.computeQuantile(
+                    DEFAULT_RANK,
+                    DEFAULT_MEAN,
+                    DEFAULT_L_0_SENSITIVITY,
+                    DEFAULT_L_INF_SENSITIVITY,
+                    /* epsilon */ Double.POSITIVE_INFINITY,
+                    /* delta */ null));
+    assertThat(e).hasMessageThat().startsWith("epsilon must be");
+  }
+
+  @Test
+  public void computeQuantile_epsilonNan_throwsException() {
+    Exception e =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                NOISE.computeQuantile(
+                    DEFAULT_RANK,
+                    DEFAULT_MEAN,
+                    DEFAULT_L_0_SENSITIVITY,
+                    DEFAULT_L_INF_SENSITIVITY,
+                    /* epsilon */ Double.NaN,
+                    /* delta */ null));
+    assertThat(e).hasMessageThat().startsWith("epsilon must be");
+  }
+
+  @Test
+  public void computeQuantile_deltaNonnul_throwsException() {
+    Exception e =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                NOISE.computeQuantile(
+                    DEFAULT_RANK,
+                    DEFAULT_MEAN,
+                    DEFAULT_L_0_SENSITIVITY,
+                    DEFAULT_L_INF_SENSITIVITY,
+                    /* epsilon */ DEFAULT_EPSILON,
+                    /* delta */ 0.1));
+    assertThat(e).hasMessageThat().startsWith("delta should not be set");
+  }
+
+  @Test
+  public void computeQuantile_rankNegative_throwsException() {
+    Exception e =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                NOISE.computeQuantile(
+                    /* rank */ -1.0,
+                    DEFAULT_MEAN,
+                    DEFAULT_L_0_SENSITIVITY,
+                    DEFAULT_L_INF_SENSITIVITY,
+                    DEFAULT_EPSILON,
+                    /* delta */ null));
+    assertThat(e).hasMessageThat().startsWith("rank must be");
+  }
+
+  @Test
+  public void computeQuantile_rankZero_throwsException() {
+    Exception e =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                NOISE.computeQuantile(
+                    /* rank */ 0.0,
+                    DEFAULT_MEAN,
+                    DEFAULT_L_0_SENSITIVITY,
+                    DEFAULT_L_INF_SENSITIVITY,
+                    DEFAULT_EPSILON,
+                    /* delta */ null));
+    assertThat(e).hasMessageThat().startsWith("rank must be");
+  }
+
+  @Test
+  public void computeQuantile_rankOne_throwsException() {
+    Exception e =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                NOISE.computeQuantile(
+                    /* rank */ 1.0,
+                    DEFAULT_MEAN,
+                    DEFAULT_L_0_SENSITIVITY,
+                    DEFAULT_L_INF_SENSITIVITY,
+                    DEFAULT_EPSILON,
+                    /* delta */ null));
+    assertThat(e).hasMessageThat().startsWith("rank must be");
+  }
+
+  @Test
+  public void computeQuantile_rankGreaterThanOne_throwsException() {
+    Exception e =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                NOISE.computeQuantile(
+                    /* rank */ 2.0,
+                    DEFAULT_MEAN,
+                    DEFAULT_L_0_SENSITIVITY,
+                    DEFAULT_L_INF_SENSITIVITY,
+                    DEFAULT_EPSILON,
+                    /* delta */ null));
+    assertThat(e).hasMessageThat().startsWith("rank must be");
+  }
+
+  @Test
+  public void computeQuantile_rankNaN_throwsException() {
+    Exception e =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                NOISE.computeQuantile(
+                    /* rank */ NaN,
+                    DEFAULT_MEAN,
+                    DEFAULT_L_0_SENSITIVITY,
+                    DEFAULT_L_INF_SENSITIVITY,
+                    DEFAULT_EPSILON,
+                    /* delta */ null));
+    assertThat(e).hasMessageThat().startsWith("rank must be");
+  }
+
+  @Test
+  public void computeQuantile_lInfSensitivityNan_throwsException() {
+    Exception e =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                NOISE.computeQuantile(
+                    DEFAULT_RANK,
+                    DEFAULT_MEAN,
+                    DEFAULT_L_0_SENSITIVITY,
+                    /* lInfSensitvity */ Double.NaN,
+                    /* epsilon */ 1,
+                    /* delta */ null));
+    assertThat(e).hasMessageThat().startsWith("lInfSensitivity must be");
+  }
+
+  @Test
+  public void computeQuantile_lInfSensitivityNegative_throwsException() {
+    Exception e =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                NOISE.computeQuantile(
+                    DEFAULT_RANK,
+                    DEFAULT_MEAN,
+                    DEFAULT_L_0_SENSITIVITY,
+                    /* lInfSensitivity */ -1.0,
+                    DEFAULT_EPSILON,
+                    /* delta */ null));
+    assertThat(e).hasMessageThat().startsWith("lInfSensitivity must be");
+  }
+
+  @Test
+  public void computeQuantile_lInfSensitivityZero_throwsException() {
+    Exception e =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                NOISE.computeQuantile(
+                    DEFAULT_RANK,
+                    DEFAULT_MEAN,
+                    DEFAULT_L_0_SENSITIVITY,
+                    /* lInfSensitivity */ 0.0,
+                    DEFAULT_EPSILON,
+                    /* delta */ null));
+    assertThat(e).hasMessageThat().startsWith("lInfSensitivity must be");
+  }
+
+  @Test
+  public void computeQuantile_l0SensitivityNegative_throwsException() {
+    Exception e =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                NOISE.computeQuantile(
+                    DEFAULT_RANK,
+                    DEFAULT_MEAN,
+                    /* l0Sensitivity */ -1,
+                    DEFAULT_L_INF_SENSITIVITY,
+                    DEFAULT_EPSILON,
+                    /* delta */ null));
+    assertThat(e).hasMessageThat().startsWith("l0Sensitivity must be");
+  }
+
+  @Test
+  public void computeQuantile_l0SensitivityZero_throwsException() {
+    Exception e =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                NOISE.computeQuantile(
+                    DEFAULT_RANK,
+                    DEFAULT_MEAN,
+                    /* lInfSensitivity */ 0,
+                    DEFAULT_L_INF_SENSITIVITY,
+                    DEFAULT_EPSILON,
+                    /* delta */ null));
+    assertThat(e).hasMessageThat().startsWith("l0Sensitivity must be");
   }
 }

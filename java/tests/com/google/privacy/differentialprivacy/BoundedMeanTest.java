@@ -47,7 +47,8 @@ import org.mockito.junit.MockitoRule;
  * Tests the accuracy of {@link BoundedMean}. The test mocks {@link Noise} instance which generates
  * zero noise.
  *
- * <p>Statistical and DP properties of the algorithm are tested in {@link BoundedMeanDpTest}.
+ * <p>Statistical and DP properties of the algorithm are tested in
+ * {@link com.google.privacy.differentialprivacy.statistical.BoundedMeanDpTest}.
  */
 @RunWith(JUnit4.class)
 public class BoundedMeanTest {

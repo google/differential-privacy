@@ -45,7 +45,8 @@ import org.mockito.junit.MockitoRule;
  * Tests behavior of {@link Count}. The test mocks a {@link Noise} instance to always generate zero
  * noise.
  *
- * <p>Statistical and DP properties of the algorithm are tested in {@link CountDpTest}.
+ * <p>Statistical and DP properties of the algorithm are tested in
+ * {@link com.google.privacy.differentialprivacy.statistical.CountDpTest}.
  */
 @RunWith(JUnit4.class)
 public class CountTest {
@@ -471,6 +472,42 @@ public class CountTest {
         Count.builder().epsilon(LN_3).maxPartitionsContributed(1).noise(new LaplaceNoise());
 
     testForBias(countBuilder, /* rawCount */ 3380636, /* (over) approximation of variance */ 1.8);
+  }
+
+  @Test
+  public void count_computeThresholdedResult_deltaNegative_throwsException() {
+    Exception e =
+        assertThrows(IllegalArgumentException.class, () -> count.computeThresholdedResult(-1.0));
+    assertThat(e).hasMessageThat().startsWith("delta must be");
+  }
+
+  @Test
+  public void count_computeThresholdedResult_deltaZero_throwsException() {
+    Exception e =
+        assertThrows(IllegalArgumentException.class, () -> count.computeThresholdedResult(-0.0));
+    assertThat(e).hasMessageThat().startsWith("delta must be");
+  }
+
+  @Test
+  public void count_computeThresholdedResult_deltaOne_throwsException() {
+    Exception e =
+        assertThrows(IllegalArgumentException.class, () -> count.computeThresholdedResult(1.0));
+    assertThat(e).hasMessageThat().startsWith("delta must be");
+  }
+
+  @Test
+  public void count_computeThresholdedResult_deltaGreaterThanOne_throwsException() {
+    Exception e =
+        assertThrows(IllegalArgumentException.class, () -> count.computeThresholdedResult(2.0));
+    assertThat(e).hasMessageThat().startsWith("delta must be");
+  }
+
+  @Test
+  public void count_computeThresholdedResult_deltaNaN_throwsException() {
+    Exception e =
+        assertThrows(
+            IllegalArgumentException.class, () -> count.computeThresholdedResult(Double.NaN));
+    assertThat(e).hasMessageThat().startsWith("delta must be");
   }
 
   private Count.Params.Builder getCountBuilderWithFields() {

@@ -69,11 +69,11 @@ class PartitionSelectionStrategy {
         return base::InvalidArgumentError(
             "Max number of partitions a user can contribute to has to be set.");
       }
-      if (max_partitions_contributed_ <= 0) {
+      if (max_partitions_contributed_.value() <= 0) {
         return base::InvalidArgumentError(absl::StrCat(
             "Max number of partitions a user can contribute to has to be"
             " positive but is ",
-            delta_.value()));
+            max_partitions_contributed_.value()));
       }
       return base::OkStatus();
     }

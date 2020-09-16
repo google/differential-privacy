@@ -21,7 +21,11 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.differentialprivacy.SummaryOuterClass.MechanismType;
 import java.security.SecureRandom;
+import javax.annotation.Nullable;
 import org.apache.commons.math3.distribution.NormalDistribution;
+import org.apache.commons.math3.special.Erf;
+
+import java.lang.Math;
 
 /**
  * Generates and adds Gaussian noise to a raw piece of numerical data such that the result is
@@ -116,8 +120,8 @@ public class GaussianNoise implements Noise {
 
   /**
    * Computes a confidence interval that contains the raw value {@code x} passed to {@link
-   * #addNoise(double, int, double, double, Double)} with a probability equal to {@code
-   * confidenceLevel} based on the specified {@code noisedX} and noise parameters.
+   * #addNoise(double, int, double, double, Double)} with a probability equal to {@code 1 - alpha}
+   * based on the specified {@code noisedX} and noise parameters.
    */
   @Override
   public ConfidenceInterval computeConfidenceInterval(
@@ -126,15 +130,17 @@ public class GaussianNoise implements Noise {
       double lInfSensitivity,
       double epsilon,
       Double delta,
-      double confidenceLevel) {
-    // TODO: Implement confidence interval computation.
-    throw new UnsupportedOperationException("Not implemented yet.");
+      double alpha) {
+    checkConfidenceIntervalParameters(l0Sensitivity, lInfSensitivity, epsilon, delta, alpha);
+    double l2Sensitivity = Noise.getL2Sensitivity(l0Sensitivity, lInfSensitivity);
+    double sigma = getSigma(l2Sensitivity, epsilon, delta);
+    return computeConfidenceInterval(noisedX, sigma, alpha);
   }
 
   /**
-   * Computes a confidence interval that contains the raw value integer {@code x} passed to {@link
+   * Computes a confidence interval that contains the raw integer value {@code x} passed to {@link
    * #addNoise(long, int, long, double, Double)} with a probability greater or equal to {@code
-   * confidenceLevel} based on the specified {@code noisedX} and noise parameters.
+   * 1 - alpha} based on the specified {@code noisedX} and noise parameters.
    */
   @Override
   public ConfidenceInterval computeConfidenceInterval(
@@ -143,9 +149,56 @@ public class GaussianNoise implements Noise {
       long lInfSensitivity,
       double epsilon,
       Double delta,
-      double confidenceLevel) {
-    // TODO: Implement confidence interval computation.
-    throw new UnsupportedOperationException("Not implemented yet.");
+      double alpha) {
+    checkConfidenceIntervalParameters(l0Sensitivity, lInfSensitivity, epsilon, delta, alpha);
+    double l2Sensitivity = Noise.getL2Sensitivity(l0Sensitivity, lInfSensitivity);
+    double sigma = getSigma(l2Sensitivity, epsilon, delta);
+    ConfidenceInterval confIntAroundZero = computeConfidenceInterval(0.0, sigma, alpha);
+    return ConfidenceInterval.create(
+        SecureNoiseMath.nextSmallerDouble(Math.round(confIntAroundZero.lowerBound()) + noisedX),
+        SecureNoiseMath.nextLargerDouble(Math.round(confIntAroundZero.upperBound())) + noisedX);
+  }
+
+  /**
+   * See {@link #computeConfidenceInterval(double, int, double, double, Double, double)}.
+   *
+   * <p>As opposed to the latter method, this accepts the standard deviation {@code sigma} of the
+   * Gaussian noise directly.
+   */
+  private static ConfidenceInterval computeConfidenceInterval(
+      double noisedX, double sigma, double alpha) {
+    double z = computeGaussianQuantile(sigma, alpha / 2);
+    // Because of the symmetry of the Gaussian distribution,
+    // -z corresponds to the (1 - alpha/2)-quantile of the distribution,
+    // meaning that the interval [z, -z] contains 1-alpha of the probability mass.
+    // Deriving the (1 - alpha/2)-quantile from the (alpha/2)-quantile and not vice versa is a
+    // deliberate choice. The reason is that alpha tends to be very small.
+    // Consequently, alpha/2 is more accurately representable as a double than 1 - alpha/2,
+    // facilitating numerical computations.
+    return ConfidenceInterval.create(noisedX + z, noisedX - z);
+  }
+
+  /**
+   * Returns the {@code p}-quantile z of a Gaussian random variable X with a mean of 0 and a standard deviation
+   * of {@code sigma}, i.e., Pr[X ≤ z] = {@code p}.
+   */
+  private static double computeGaussianQuantile(double sigma, double p) {
+    return -sigma * Math.sqrt(2) * Erf.erfcInv(2 * p);
+  }
+
+  @Override
+  public double computeQuantile(
+      double rank,
+      double x,
+      int l0Sensitivity,
+      double lInfSensitivity,
+      double epsilon,
+      @Nullable Double delta) {
+    DpPreconditions.checkNoiseComputeQuantileArguments(
+        this, rank, l0Sensitivity, lInfSensitivity, epsilon, delta);
+
+    // TODO: implement the logic
+    throw new UnsupportedOperationException("Not implemented");
   }
 
   private void checkParameters(
@@ -153,6 +206,19 @@ public class GaussianNoise implements Noise {
     DpPreconditions.checkSensitivities(l0Sensitivity, lInfSensitivity);
     DpPreconditions.checkEpsilon(epsilon);
     DpPreconditions.checkNoiseDelta(delta, this);
+
+    // The secure Gaussian noise implementation will fail if 2 * lInfSensitivity is infinite.
+    double twoLInf = 2.0 * lInfSensitivity;
+    checkArgument(
+        Double.isFinite(twoLInf),
+        "2 * lInfSensitivity must be finite but is %s",
+        twoLInf);
+  }
+
+  private void checkConfidenceIntervalParameters(
+      int l0Sensitivity, double lInfSensitivity, double epsilon, Double delta, double alpha) {
+    DpPreconditions.checkAlpha(alpha);
+    checkParameters(l0Sensitivity, lInfSensitivity, epsilon, delta);
   }
 
   /**
@@ -229,6 +295,7 @@ public class GaussianNoise implements Noise {
   @VisibleForTesting
   long sampleSymmetricBinomial(double sqrtN) {
     checkArgument(sqrtN >= 1000000.0, "Input must be at least 10^6. Provided value: %s", sqrtN);
+    checkArgument(Double.isFinite(sqrtN), "Input must be finite. Provided value: %s", sqrtN);
 
     long stepSize = Math.round(Math.sqrt(2) * sqrtN + 1.0);
     while (true) {

@@ -533,15 +533,15 @@ func addDummyValuesForMeanToSpecifiedPartitionsFloat64Fn(partition beam.X) (k be
 	return partition, []float64{}
 }
 
-// dropUnspecifiedPartitionsKVFn drops partitions not specified in partitionsCol from pcol. It can be used for aggregations on <K,V> pairs, e.g. sum and mean.
-func dropUnspecifiedPartitionsKVFn(s beam.Scope, partitionsCol beam.PCollection, pcol PrivatePCollection, partitionEncodedType beam.EncodedType) beam.PCollection {
-	partitionMap := beam.Combine(s, newPartitionsMapFn(partitionEncodedType), partitionsCol)
+// dropUnspecifiedPartitionsKVFn drops partitions not specified in publicPartitions from pcol. It can be used for aggregations on <K,V> pairs, e.g. sum and mean.
+func dropUnspecifiedPartitionsKVFn(s beam.Scope, publicPartitions beam.PCollection, pcol PrivatePCollection, partitionEncodedType beam.EncodedType) beam.PCollection {
+	partitionMap := beam.Combine(s, newPartitionsMapFn(partitionEncodedType), publicPartitions)
 	return beam.ParDo(s, prunePartitionsKVFn, pcol.col, beam.SideInput{Input: partitionMap})
 }
 
-// dropUnspecifiedPartitionsVFn drops partitions not specified in partitionsCol from pcol. It can be used for aggregations on V values, e.g. count and distinctid.
-func dropUnspecifiedPartitionsVFn(s beam.Scope, partitionsCol beam.PCollection, pcol PrivatePCollection, partitionEncodedType beam.EncodedType) beam.PCollection {
-	partitionMap := beam.Combine(s, newPartitionsMapFn(partitionEncodedType), partitionsCol)
+// dropUnspecifiedPartitionsVFn drops partitions not specified in publicPartitions from pcol. It can be used for aggregations on V values, e.g. count and distinctid.
+func dropUnspecifiedPartitionsVFn(s beam.Scope, publicPartitions beam.PCollection, pcol PrivatePCollection, partitionEncodedType beam.EncodedType) beam.PCollection {
+	partitionMap := beam.Combine(s, newPartitionsMapFn(partitionEncodedType), publicPartitions)
 	return beam.ParDo(s, newPrunePartitionsVFn(partitionEncodedType), pcol.col, beam.SideInput{Input: partitionMap})
 }
 

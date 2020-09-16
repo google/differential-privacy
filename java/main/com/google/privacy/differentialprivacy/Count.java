@@ -17,9 +17,12 @@
 package com.google.privacy.differentialprivacy;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.base.Preconditions;
 import com.google.differentialprivacy.SummaryOuterClass.CountSummary;
+import com.google.differentialprivacy.SummaryOuterClass.MechanismType;
 import com.google.protobuf.InvalidProtocolBufferException;
 import static java.lang.Math.max;
+import java.util.Optional;
 import javax.annotation.Nullable;
 
 /**
@@ -132,6 +135,62 @@ public class Count {
     return ConfidenceInterval.create(
             max(0.0, confInt.lowerBound()),
             max(0.0, confInt.upperBound()));
+  }
+
+  /**
+   * Returns either of {@link #computeResult} or {@link Optional#empty}. The result is (epsilon,
+   * noiseDelta + thresholdDelta)-differentially private assuming that empty counts are not
+   * published. The method can be called only once for a given collection of elements. All
+   * subsequent calls will throw an exception.
+   *
+   * <p>To ensure that the signal about a count being published satisfies (0,
+   * thresholdDelta)-differential privacy, noised counts smaller than an appropriately set threshold
+   * k > 0 are returned as {@link Optional#empty}. It is the responsibility of the caller of this
+   * method to ensure that empty counts are not published.
+   *
+   * @param thresholdDelta the amount of privacy budget spent on publishing non-empty counts.
+   */
+  public Optional<Long> computeThresholdedResult(double thresholdDelta) {
+    DpPreconditions.checkDelta(thresholdDelta);
+
+    long noisyCount = computeResult();
+
+    // The implementation will work only for symmetrical noise.
+    Preconditions.checkState(
+        params.noise().getMechanismType() == MechanismType.LAPLACE
+            || params.noise().getMechanismType() == MechanismType.GAUSSIAN,
+        "Unable to calculate the threshold for an unknown mechanism type %s",
+        params.noise().getMechanismType());
+
+    /*
+    Below we calculate a threshold s.t. a partition with noised contributions from a single
+    privacy ID will exceed the threshold with a probability not greater than thresholdDelta.
+    This is equivalent to calculating quantile on the Noise with rank = (1-thresholdDelta)
+    and x=maxContributionsPerPartition where x is the raw value being noised.
+
+    The call below is equivalent to calling noise.computeQuantile(1-thresholdDelta, ...)
+    but because thresholdDelta is typically very small, 1-thresholdDelta might be rounded
+    to 1 because of the limited resolution of double values around 1. To avoid rounding, we
+    calculate the quantile for rank = thresholdDelta and negate the result. This works because the
+    noise is symmetrical.
+    */
+    double threshold =
+        -1.0
+                * params
+                    .noise()
+                    .computeQuantile(
+                        /* rank= */ thresholdDelta,
+                        /* x= */ 0.0,
+                        params.maxPartitionsContributed(),
+                        params.maxContributionsPerPartition(),
+                        params.epsilon(),
+                        params.delta())
+            + params.maxContributionsPerPartition();
+    if (Double.compare((double) noisyCount, threshold) >= 0) {
+      return Optional.of(noisyCount);
+    } else {
+      return Optional.empty();
+    }
   }
 
   /**

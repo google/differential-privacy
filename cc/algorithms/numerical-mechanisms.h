@@ -509,7 +509,8 @@ class GaussianMechanism : public NumericalMechanism {
   // Returns the standard deviation of the Gaussian noise necessary to obtain
   // (epsilon, delta)-differential privacy for the given L_2 sensitivity. The
   // result will deviate from the tightest possible value sigma_tight by at most
-  // kGaussianSigmaAccuracy * sigma_tight.
+  // kGaussianSigmaAccuracy * sigma_tight. To be on the safe side, the lowest
+  // result from this method is the minimum positive floating point number.
   //
   // This implementation uses a binary search. Its runtime is roughly
   // log(kGaussianSigmaAccuracy)
@@ -518,7 +519,7 @@ class GaussianMechanism : public NumericalMechanism {
     // l2_sensitivity_ is used as a starting guess for the upper bound, since
     // the required noise grows linearly with sensitivity.
     double upper_bound = l2_sensitivity_;
-    double lower_bound = 0;
+    double lower_bound = std::numeric_limits<double>::min();
 
     // Increase lower_bound and upper_bound until upper_bound is actually an
     // upper bound of sigma_tight, using exponential search.

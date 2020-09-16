@@ -14,7 +14,10 @@ algorithm is not DP. Details can be found in section 5.3 of
 
 stochastic_tester_test.cc contains typical usage examples. To run the tests, use
 
-```bazel test differential_privacy/cpp/testing:stochastic_tester_test.cc```
+```
+cd cc
+bazel test testing:stochastic_test_test.cc
+```
 
 We also run through a simple example here. First, create a Halton sequence.
 
@@ -34,7 +37,7 @@ the algorithm you want to test.
 std::unique_ptr<Count<double>> algorithm =
       Count<double>::Builder()
           .SetLaplaceMechanism(
-              absl::MakeUnique<test_utils::SeededLaplaceMechanism::Builder>())
+              absl::make_unique<test_utils::SeededLaplaceMechanism::Builder>())
           .SetEpsilon(.1)
           .Build()
           .ValueOrDie();
