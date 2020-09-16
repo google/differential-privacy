@@ -20,7 +20,6 @@ import com.google.auto.value.AutoValue;
 import com.google.differentialprivacy.SummaryOuterClass.CountSummary;
 import com.google.protobuf.InvalidProtocolBufferException;
 import static java.lang.Math.max;
-import static java.lang.Math.min;
 import javax.annotation.Nullable;
 
 /**
@@ -112,9 +111,9 @@ public class Count {
   }
 
   /**
-   * ComputeConfidenceInterval computes a {@link ConfidenceInterval} with integer bounds that contains the true
-   * {@link Count} with a probability greater or equal to 1 - alpha using the noised {@link Count} computed by
-   * {@code computeResult()}.
+   * ComputeConfidenceInterval computes a {@link ConfidenceInterval} with integer bounds that
+   * contains the true {@link Count} with a probability greater or equal to 1 - alpha using the
+   * noised {@link Count} computed by {@code computeResult()}.
    */
   public ConfidenceInterval computeConfidenceInterval(double alpha) {
     if (!resultReturned) {

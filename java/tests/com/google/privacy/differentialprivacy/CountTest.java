@@ -70,6 +70,12 @@ public class CountTest {
     // Tests that use serialization need to access to the type of the noise they use. Because the
     // tests don't rely on a specific noise type, we arbitrarily return Gaussian.
     when(noise.getMechanismType()).thenReturn(GAUSSIAN);
+      when(noise.computeConfidenceInterval(
+              anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble(), anyDouble()))
+              .thenReturn(ConfidenceInterval.create(0.0, 0.0));
+      when(noise.computeConfidenceInterval(
+              anyDouble(), anyInt(), anyLong(), anyDouble(), anyDouble(), anyDouble()))
+              .thenReturn(ConfidenceInterval.create(0.0, 0.0));
 
     count =
         Count.builder()
@@ -573,13 +579,21 @@ public class CountTest {
   public void computeConfidenceInterval_forGaussianNoise() {
     // Mock the noise mechanism.
     when(noise.computeConfidenceInterval(anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble(), anyDouble()))
-            .thenAnswer(invocation -> new GaussianNoise().computeConfidenceInterval(
-                    (Long) invocation.getArguments()[0], (Integer) invocation.getArguments()[1], (Long) invocation.getArguments()[2],
-                    (Double) invocation.getArguments()[3], (Double) invocation.getArguments()[4], (Double) invocation.getArguments()[5]));
+            .thenAnswer(
+                    invocation ->
+                            new GaussianNoise()
+                                    .computeConfidenceInterval(
+                                            (Long) invocation.getArguments()[0],
+                                            (Integer) invocation.getArguments()[1],
+                                            (Long) invocation.getArguments()[2],
+                                            (Double) invocation.getArguments()[3],
+                                            (Double) invocation.getArguments()[4],
+                                            (Double) invocation.getArguments()[5]));
     count.increment();
     count.computeResult();
 
-    assertThat(count.computeConfidenceInterval(ALPHA)).isEqualTo(ConfidenceInterval.create(0.0, 4.0));
+    assertThat(count.computeConfidenceInterval(ALPHA))
+            .isEqualTo(ConfidenceInterval.create(0.0, 4.0));
   }
 
   @Test
@@ -587,27 +601,32 @@ public class CountTest {
     // Mock the noise mechanism. Since noise is not Laplace, nor Gaussian, delta will be
     // passed as null, in order to pass the checks.
     when(noise.computeConfidenceInterval(anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble(), anyDouble()))
-            .thenAnswer(invocation -> new LaplaceNoise().computeConfidenceInterval(
-                    (Long) invocation.getArguments()[0], (Integer) invocation.getArguments()[1], (Long) invocation.getArguments()[2],
-                    (Double) invocation.getArguments()[3], null, (Double) invocation.getArguments()[5]));
+            .thenAnswer(
+                    invocation ->
+                            new LaplaceNoise()
+                                    .computeConfidenceInterval(
+                                            (Long) invocation.getArguments()[0],
+                                            (Integer) invocation.getArguments()[1],
+                                            (Long) invocation.getArguments()[2],
+                                            (Double) invocation.getArguments()[3],
+                                            null,
+                                            (Double) invocation.getArguments()[5]));
     count.increment();
     count.computeResult();
 
-    assertThat(count.computeConfidenceInterval(ALPHA)).isEqualTo(ConfidenceInterval.create(0.0, 16.0));
+    assertThat(count.computeConfidenceInterval(ALPHA))
+            .isEqualTo(ConfidenceInterval.create(0.0, 16.0));
   }
 
   @Test
   public void computeConfidenceInterval_computeResultWasNotCalled_throwsException() {
-    // Mock the noise mechanism. Since noise is not Laplace, nor Gaussian, delta will be
-    // passed as null, in order to pass the checks.
-    when(noise.computeConfidenceInterval(anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
-            .thenAnswer(invocation -> new LaplaceNoise().computeConfidenceInterval(
-                    (Long) invocation.getArguments()[0], (Integer) invocation.getArguments()[1], (Long) invocation.getArguments()[2],
-                    (Double) invocation.getArguments()[3], null, (Double) invocation.getArguments()[5]));
     count.increment();
-    IllegalStateException exception = assertThrows(IllegalStateException.class, () -> {
-      count.computeConfidenceInterval(ALPHA);
-    });
+    IllegalStateException exception =
+            assertThrows(
+                    IllegalStateException.class,
+                    () -> {
+                      count.computeConfidenceInterval(ALPHA);
+                    });
     assertThat(exception)
             .hasMessageThat()
             .startsWith("computeResult must be called before calling computeConfidenceInterval.");
@@ -615,11 +634,6 @@ public class CountTest {
 
   @Test
   public void computeConfidenceIntervals_defaultParameters_callsNoiseCorrectly() {
-    // Mock the noise mechanism.
-    when(noise.computeConfidenceInterval(anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble(), anyDouble()))
-            .thenAnswer(invocation -> new GaussianNoise().computeConfidenceInterval(
-                    (Long) invocation.getArguments()[0], (Integer) invocation.getArguments()[1], (Long) invocation.getArguments()[2],
-                    (Double) invocation.getArguments()[3], (Double) invocation.getArguments()[4], (Double) invocation.getArguments()[5]));
     count.increment();
     count.computeResult();
     count.computeConfidenceInterval(ALPHA);
