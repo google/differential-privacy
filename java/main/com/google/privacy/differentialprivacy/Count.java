@@ -21,6 +21,7 @@ import com.google.common.base.Preconditions;
 import com.google.differentialprivacy.SummaryOuterClass.CountSummary;
 import com.google.differentialprivacy.SummaryOuterClass.MechanismType;
 import com.google.protobuf.InvalidProtocolBufferException;
+import static java.lang.Math.max;
 import java.util.Optional;
 import javax.annotation.Nullable;
 
@@ -54,6 +55,7 @@ import javax.annotation.Nullable;
 public class Count {
   private final Params params;
   private long rawCount;
+  private long noisedCount;
 
   // Was the count returned to the user?
   private boolean resultReturned;
@@ -100,14 +102,39 @@ public class Count {
     }
 
     resultReturned = true;
-    return params
-        .noise()
-        .addNoise(
-            rawCount,
-            params.maxPartitionsContributed(),
-            params.maxContributionsPerPartition(),
-            params.epsilon(),
-            params.delta());
+    noisedCount = params
+            .noise()
+            .addNoise(
+                    rawCount,
+                    params.maxPartitionsContributed(),
+                    params.maxContributionsPerPartition(),
+                    params.epsilon(),
+                    params.delta());
+    return noisedCount;
+  }
+
+  /**
+   * ComputeConfidenceInterval computes a {@link ConfidenceInterval} with integer bounds that
+   * contains the true {@link Count} with a probability greater or equal to 1 - alpha using the
+   * noised {@link Count} computed by {@code computeResult()}.
+   */
+  public ConfidenceInterval computeConfidenceInterval(double alpha) {
+    if (!resultReturned) {
+      throw new IllegalStateException("computeResult must be called before calling computeConfidenceInterval.");
+    }
+    ConfidenceInterval confInt =
+            params
+                    .noise()
+                    .computeConfidenceInterval(
+                            noisedCount,
+                            params.maxPartitionsContributed(),
+                            params.maxContributionsPerPartition(),
+                            params.epsilon(),
+                            params.delta(),
+                            alpha);
+    return ConfidenceInterval.create(
+            max(0.0, confInt.lowerBound()),
+            max(0.0, confInt.upperBound()));
   }
 
   /**
