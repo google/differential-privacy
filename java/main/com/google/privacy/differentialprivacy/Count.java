@@ -16,12 +16,13 @@
 
 package com.google.privacy.differentialprivacy;
 
+import static java.lang.Math.max;
+
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Preconditions;
 import com.google.differentialprivacy.SummaryOuterClass.CountSummary;
 import com.google.differentialprivacy.SummaryOuterClass.MechanismType;
 import com.google.protobuf.InvalidProtocolBufferException;
-import static java.lang.Math.max;
 import java.util.Optional;
 import javax.annotation.Nullable;
 
@@ -102,39 +103,43 @@ public class Count {
     }
 
     resultReturned = true;
-    noisedCount = params
+    noisedCount =
+        params
             .noise()
             .addNoise(
-                    rawCount,
-                    params.maxPartitionsContributed(),
-                    params.maxContributionsPerPartition(),
-                    params.epsilon(),
-                    params.delta());
+                rawCount,
+                params.maxPartitionsContributed(),
+                params.maxContributionsPerPartition(),
+                params.epsilon(),
+                params.delta());
     return noisedCount;
   }
 
   /**
-   * ComputeConfidenceInterval computes a {@link ConfidenceInterval} with integer bounds that
+   * Computes a {@link ConfidenceInterval} with integer bounds that
    * contains the true {@link Count} with a probability greater or equal to 1 - alpha using the
    * noised {@link Count} computed by {@code computeResult()}.
+   *
+   * <p>See <a href="https://github.com/google/differential-privacy/tree/main/common_docs/confidence_intervals.md">
+   * the confidence intervals doc</a>.
    */
   public ConfidenceInterval computeConfidenceInterval(double alpha) {
     if (!resultReturned) {
-      throw new IllegalStateException("computeResult must be called before calling computeConfidenceInterval.");
+      throw new IllegalStateException(
+          "computeResult must be called before calling computeConfidenceInterval.");
     }
     ConfidenceInterval confInt =
-            params
-                    .noise()
-                    .computeConfidenceInterval(
-                            noisedCount,
-                            params.maxPartitionsContributed(),
-                            params.maxContributionsPerPartition(),
-                            params.epsilon(),
-                            params.delta(),
-                            alpha);
+        params
+            .noise()
+            .computeConfidenceInterval(
+                noisedCount,
+                params.maxPartitionsContributed(),
+                params.maxContributionsPerPartition(),
+                params.epsilon(),
+                params.delta(),
+                alpha);
     return ConfidenceInterval.create(
-            max(0.0, confInt.lowerBound()),
-            max(0.0, confInt.upperBound()));
+        max(0.0, confInt.lowerBound()), max(0.0, confInt.upperBound()));
   }
 
   /**
@@ -143,12 +148,12 @@ public class Count {
    * published. The method can be called only once for a given collection of elements. All
    * subsequent calls will throw an exception.
    *
-   * <p>To ensure that the signal about a count being published satisfies (0,
+   * <p>To ensure that the boolean signal of a count's publication satisfies (0,
    * thresholdDelta)-differential privacy, noised counts smaller than an appropriately set threshold
    * k > 0 are returned as {@link Optional#empty}. It is the responsibility of the caller of this
-   * method to ensure that empty counts are not published.
+   * method to ensure that a count that returned empty is not published.
    *
-   * @param thresholdDelta the amount of privacy budget spent on publishing non-empty counts.
+   * @param thresholdDelta the privacy budget spent on publishing non-empty counts.
    */
   public Optional<Long> computeThresholdedResult(double thresholdDelta) {
     DpPreconditions.checkDelta(thresholdDelta);
@@ -162,24 +167,27 @@ public class Count {
         "Unable to calculate the threshold for an unknown mechanism type %s",
         params.noise().getMechanismType());
 
-    /*
-    Below we calculate a threshold s.t. a partition with noised contributions from a single
-    privacy ID will exceed the threshold with a probability not greater than thresholdDelta.
-    This is equivalent to calculating quantile on the Noise with rank = (1-thresholdDelta)
-    and x=maxContributionsPerPartition where x is the raw value being noised.
+    double thresholdDeltaPerPartition = thresholdDelta / params.maxContributionsPerPartition();
 
-    The call below is equivalent to calling noise.computeQuantile(1-thresholdDelta, ...)
-    but because thresholdDelta is typically very small, 1-thresholdDelta might be rounded
-    to 1 because of the limited resolution of double values around 1. To avoid rounding, we
-    calculate the quantile for rank = thresholdDelta and negate the result. This works because the
-    noise is symmetrical.
+    /*
+    The threshold is set s.t. the noised count of a single privacy ID will not exceed it with a
+    probability greater than thresholdDeltaPerPartition. This is equivalent to calculating the
+    rank = (1-thresholdDeltaPerPartition) quantile of the noise added to
+    x = maxContributionsPerPartition, i.e., the max contribution of a single privacy ID.
+
+    The call below is equivalent to calling noise.computeQuantile(1-thresholdDeltaPerPartition,
+    maxContributionsPerPartition, ...). But because thresholdDeltaPerPartition is typically very
+    small, 1-thresholdDelta might be rounded to 1 as a result of the limited resolution of double
+    values around 1. To mitigate inaccuracy, we calculate the rank = thresholdDeltaPerPartition
+    quantile for x = 0.0, negate the result and shift it by maxContributionsPerPartition. This works
+    because the noise is symmetrical and invariant to translation.
     */
     double threshold =
         -1.0
                 * params
                     .noise()
                     .computeQuantile(
-                        /* rank= */ thresholdDelta,
+                        /* rank= */ thresholdDeltaPerPartition,
                         /* x= */ 0.0,
                         params.maxPartitionsContributed(),
                         params.maxContributionsPerPartition(),

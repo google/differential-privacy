@@ -28,8 +28,8 @@ using testing::DoubleNear;
 using testing::Eq;
 using testing::MatchesRegex;
 
-const int num_samples = 10000000;
-const int small_num_samples = 1000000;
+constexpr int kNumSamples = 10000000;
+constexpr int kSmallNumSamples = 1000000;
 
 // PreaggregationPartitionSelection Tests
 
@@ -137,10 +137,10 @@ TEST(PartitionSelectionTest, PreaggPartitionSelectionOneUser) {
           .Build()
           .ValueOrDie();
   double num_kept = 0.0;
-  for (int i = 0; i < small_num_samples; i++) {
+  for (int i = 0; i < kSmallNumSamples; i++) {
     if (build->ShouldKeep(1)) num_kept++;
   }
-  EXPECT_THAT(num_kept / small_num_samples,
+  EXPECT_THAT(num_kept / kSmallNumSamples,
               DoubleNear(build->GetDelta(), 0.001));
 }
 
@@ -194,10 +194,10 @@ TEST(PartitionSelectionTest, PreaggPartitionSelectionNumUsersEqFirstCrossover) {
           .Build()
           .ValueOrDie();
   double num_kept = 0.0;
-  for (int i = 0; i < num_samples; i++) {
+  for (int i = 0; i < kNumSamples; i++) {
     if (build->ShouldKeep(6)) num_kept++;
   }
-  EXPECT_THAT(num_kept / num_samples, DoubleNear(0.58840484458, 0.001));
+  EXPECT_THAT(num_kept / kNumSamples, DoubleNear(0.58840484458, 0.001));
 }
 
 // Values calculated with formula
@@ -210,10 +210,10 @@ TEST(PartitionSelectionTest, PreaggPartitionSelectionNumUsersBtwnCrossovers) {
           .Build()
           .ValueOrDie();
   double num_kept = 0.0;
-  for (int i = 0; i < num_samples; i++) {
+  for (int i = 0; i < kNumSamples; i++) {
     if (build->ShouldKeep(8)) num_kept++;
   }
-  EXPECT_THAT(num_kept / num_samples, DoubleNear(0.86807080625, 0.001));
+  EXPECT_THAT(num_kept / kNumSamples, DoubleNear(0.86807080625, 0.001));
 }
 
 // Values calculated with formula - 15 should be so large that this partition is
@@ -232,6 +232,53 @@ TEST(PartitionSelectionTest,
   }
 }
 
+// For tiny epsilon probability of keeping is basically n * delta.
+TEST(PartitionSelectionTest, PreaggPartitionSelectionTinyEpsilon) {
+  PreaggPartitionSelection::Builder test_builder;
+  std::unique_ptr<PartitionSelectionStrategy> build =
+      test_builder.SetEpsilon(1e-20)
+          .SetDelta(0.02)
+          .SetMaxPartitionsContributed(1)
+          .Build()
+          .ValueOrDie();
+  double num_kept = 0.0;
+  for (int i = 0; i < kNumSamples; i++) {
+    if (build->ShouldKeep(6)) num_kept++;
+  }
+  EXPECT_THAT(num_kept / kNumSamples, DoubleNear(0.12, 0.001));
+}
+
+TEST(PartitionSelectionTest, PreaggPartitionSelectionTinyEpsilonLargeDelta) {
+  PreaggPartitionSelection::Builder test_builder;
+  std::unique_ptr<PartitionSelectionStrategy> build =
+      test_builder.SetEpsilon(1e-20)
+          .SetDelta(0.15)
+          .SetMaxPartitionsContributed(1)
+          .Build()
+          .ValueOrDie();
+  double num_kept = 0.0;
+  for (int i = 0; i < kNumSamples; i++) {
+    if (build->ShouldKeep(3)) num_kept++;
+  }
+  EXPECT_THAT(num_kept / kNumSamples, DoubleNear(0.45, 0.001));
+}
+
+// For tiny epsilon probability of keeping is basically n * delta.
+TEST(PartitionSelectionTest,
+     PreaggPartitionSelectionTinyEpsilonBtwnCrossovers) {
+  PreaggPartitionSelection::Builder test_builder;
+  std::unique_ptr<PartitionSelectionStrategy> build =
+      test_builder.SetEpsilon(1e-20)
+          .SetDelta(0.02)
+          .SetMaxPartitionsContributed(1)
+          .Build()
+          .ValueOrDie();
+  double num_kept = 0.0;
+  for (int i = 0; i < kNumSamples; i++) {
+    if (build->ShouldKeep(40)) num_kept++;
+  }
+  EXPECT_THAT(num_kept / kNumSamples, DoubleNear(0.8, 0.001));
+}
 // LaplacePartitionSelection Tests
 // Due to the inheritance, SetLaplaceMechanism must be
 // called before SetDelta, SetEpsilon, etc.
@@ -340,10 +387,10 @@ TEST(PartitionSelectionTest, LaplacePartitionSelectionOneUser) {
           .Build()
           .ValueOrDie();
   double num_kept = 0.0;
-  for (int i = 0; i < small_num_samples; i++) {
+  for (int i = 0; i < kSmallNumSamples; i++) {
     if (build->ShouldKeep(1)) num_kept++;
   }
-  EXPECT_THAT(num_kept / small_num_samples,
+  EXPECT_THAT(num_kept / kSmallNumSamples,
               DoubleNear(build->GetDelta(), 0.001));
 }
 
@@ -360,10 +407,10 @@ TEST(PartitionSelectionTest, LaplacePartitionSelectionAtThreshold) {
           .Build()
           .ValueOrDie();
   double num_kept = 0.0;
-  for (int i = 0; i < small_num_samples; i++) {
+  for (int i = 0; i < kSmallNumSamples; i++) {
     if (build->ShouldKeep(5)) num_kept++;
   }
-  EXPECT_THAT(num_kept / small_num_samples, DoubleNear(0.5, 0.01));
+  EXPECT_THAT(num_kept / kSmallNumSamples, DoubleNear(0.5, 0.01));
 }
 
 TEST(PartitionSelectionTest, LaplacePartitionSelectionThreshold) {

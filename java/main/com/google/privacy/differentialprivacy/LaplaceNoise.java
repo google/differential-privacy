@@ -124,6 +124,9 @@ public class LaplaceNoise implements Noise {
    * based on the specified {@code noisedX} and noise parameters. Note that {@code delta} must be
    * set to {@code null} because it does not parameterize Laplace noise. Moreover, {@code epsilon}
    * must be at least 2^-50.
+   *
+   * <p>See <a href="https://github.com/google/differential-privacy/tree/main/common_docs/confidence_intervals.md">
+   * the confidence intervals doc</a>.
    */
   @Override
   public ConfidenceInterval computeConfidenceInterval(
@@ -134,8 +137,15 @@ public class LaplaceNoise implements Noise {
       @Nullable Double delta,
       double alpha) {
     checkConfidenceIntervalParameters(l0Sensitivity, lInfSensitivity, epsilon, delta, alpha);
-    double lambda = Noise.getL1Sensitivity(l0Sensitivity, lInfSensitivity) / epsilon;
-    return computeConfidenceInterval(noisedX, lambda, alpha);
+    double z =
+        computeQuantile(alpha / 2.0, noisedX, l0Sensitivity, lInfSensitivity, epsilon, delta);
+    // Because of the symmetry of the Laplace distribution, 2 * noisedX - z corresponds to the
+    // (1 - alpha/2)-quantile of the distribution, meaning that the interval [z, 2 * noisedX - z]
+    // contains 1-alpha of the probability mass. Deriving the (1 - alpha/2)-quantile from the
+    // (alpha/2)-quantile and not vice versa is a deliberate choice. The reason is that alpha tends
+    // to be very small. Consequently, alpha/2 is more accurately representable as a double than
+    // 1 - alpha/2, facilitating numerical computations.
+    return ConfidenceInterval.create(z, 2.0 * noisedX - z);
   }
 
   /**
@@ -144,6 +154,9 @@ public class LaplaceNoise implements Noise {
    * alpha} based on the specified {@code noisedX} and noise parameters. Note that {@code delta}
    * must be set to {@code null} because it does not parameterize Laplace noise. Moreover, {@code
    * epsilon} must be at least 2^-50.
+   *
+   * <p>See <a href="https://github.com/google/differential-privacy/tree/main/common_docs/confidence_intervals.md">
+   * the confidence intervals doc</a>.
    */
   @Override
   public ConfidenceInterval computeConfidenceInterval(
@@ -153,33 +166,22 @@ public class LaplaceNoise implements Noise {
       double epsilon,
       @Nullable Double delta,
       double alpha) {
-    checkConfidenceIntervalParameters(l0Sensitivity, lInfSensitivity, epsilon, delta, alpha);
-    double lambda = Noise.getL1Sensitivity(l0Sensitivity, lInfSensitivity) / epsilon;
-    ConfidenceInterval confIntAroundZero = computeConfidenceInterval(0, lambda, alpha);
+    // Computing the confidence interval around zero rather than nosiedX helps represent the
+    // interval bounds more accurately. The reason is that the resolution of double values is most
+    // fine grained around zero.
+    ConfidenceInterval confIntAroundZero =
+        computeConfidenceInterval(0.0, l0Sensitivity, lInfSensitivity, epsilon, delta, alpha);
+    // Adding noisedX after converting the interval bounds to long ensures that no precision is lost
+    // due to the coarse resolution of double values for large instances of noisedX.
     return ConfidenceInterval.create(
         SecureNoiseMath.nextSmallerDouble(Math.round(confIntAroundZero.lowerBound()) + noisedX),
         SecureNoiseMath.nextLargerDouble(Math.round(confIntAroundZero.upperBound()) + noisedX));
   }
 
   /**
-   * See {@link #computeConfidenceInterval(double, int, double, double, Double, double)}.
-   *
-   * <p>As opposed to the latter method, this accepts the {@code lambda} of the Laplace noise
-   * directly.
+   * Computes the quantile z satisfying Pr[Y <= z] = {@code rank} for a Laplace ranodm variable Y
+   * with mean {@code x} and variance according to the specified privacy parameters.
    */
-  private static ConfidenceInterval computeConfidenceInterval(
-      double noisedX, double lambda, double alpha) {
-    double z = computeLaplaceQuantile(lambda, alpha / 2);
-    // Because of the symmetry of the Laplace distribution,
-    // -z corresponds to the (1 - alpha/2)-quantile of the distribution,
-    // meaning that the interval [z, -z] contains 1-alpha of the probability mass.
-    // Deriving the (1 - alpha/2)-quantile from the (alpha/2)-quantile and not vice versa is a
-    // deliberate choice. The reason is that alpha tends to be very small.
-    // Consequently, alpha/2 is more accurately representable as a double than 1 - alpha/2,
-    // facilitating numerical computations.
-    return ConfidenceInterval.create(noisedX + z, noisedX - z);
-  }
-
   @Override
   public double computeQuantile(
       double rank,
@@ -191,8 +193,11 @@ public class LaplaceNoise implements Noise {
     DpPreconditions.checkNoiseComputeQuantileArguments(
         this, rank, l0Sensitivity, lInfSensitivity, epsilon, delta);
 
-    // TODO: implement the logic
-    throw new UnsupportedOperationException("Not implemented");
+    double lambda = Noise.getL1Sensitivity(l0Sensitivity, lInfSensitivity) / epsilon;
+    if (rank < 0.5) {
+      return x + lambda * Math.log(2 * rank);
+    }
+    return x - lambda * Math.log(2 * (1 - rank));
   }
 
   private void checkParameters(double l1Sensitivity, double epsilon, @Nullable Double delta) {
@@ -210,17 +215,6 @@ public class LaplaceNoise implements Noise {
     DpPreconditions.checkAlpha(alpha);
     DpPreconditions.checkSensitivities(l0Sensitivity, lInfSensitivity);
     checkParameters(Noise.getL1Sensitivity(l0Sensitivity, lInfSensitivity), epsilon, delta);
-  }
-
-  /**
-   * Computes the quantile z satisfying Pr[Y <= z] = {@code p} for a random variable Y that is
-   * Laplace distributed with the specified {@code lambda} and a mean of zero.
-   */
-  private static double computeLaplaceQuantile(double lambda, double p) {
-    if (p < 0.5) {
-      return lambda * Math.log(2 * p);
-    }
-    return -lambda * Math.log(2 * (1 - p));
   }
 
   /**

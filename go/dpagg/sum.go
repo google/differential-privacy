@@ -258,6 +258,8 @@ func (bs *BoundedSumInt64) ThresholdedResult(thresholdDelta float64) *int64 {
 //
 // Result() needs to be called before ComputeConfidenceInterval, otherwise this will return
 // an error.
+//
+// See https://github.com/google/differential-privacy/tree/main/common_docs/confidence_intervals.md.
 func (bs *BoundedSumInt64) ComputeConfidenceInterval(alpha float64) (noise.ConfidenceInterval, error) {
 	if !bs.resultReturned {
 		return noise.ConfidenceInterval{}, fmt.Errorf("You need to call Result() before calling ComputeConfidenceInterval()")
@@ -554,6 +556,8 @@ func (bs *BoundedSumFloat64) ThresholdedResult(thresholdDela float64) *float64 {
 //
 // Result() needs to be called before ComputeConfidenceInterval, otherwise this will return
 // an error.
+//
+// See https://github.com/google/differential-privacy/tree/main/common_docs/confidence_intervals.md.
 func (bs *BoundedSumFloat64) ComputeConfidenceInterval(alpha float64) (noise.ConfidenceInterval, error) {
 	if !bs.resultReturned {
 		return noise.ConfidenceInterval{}, fmt.Errorf("Result() must be called before calling ComputeConfidenceInterval()")

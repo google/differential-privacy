@@ -27,7 +27,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class GaussianNoiseConfidenceIntervalTest {
   private static final Noise NOISE = new GaussianNoise();
-  private static final double TOLERANCE = 1e-7;
+  private static final double TOLERANCE = 1E-7;
   private static final double DEFAULT_EPSILON = Math.log(3);
   private static final int DEFAULT_L_0_SENSITIVITY = 1;
   private static final double DEFAULT_L_INF_SENSITIVITY = 1.0;
@@ -39,217 +39,14 @@ public class GaussianNoiseConfidenceIntervalTest {
   public void computeConfidenceInterval_forDouble_arbitraryTest() {
     ConfidenceInterval actual =
         NOISE.computeConfidenceInterval(
-            /* noisedX=*/ 70.00,
-            /* l0Sensitivity= */ 5,
-            /* lInfSensitivity= */ 36,
-            /* epsilon= */ 0.8,
-            /* delta= */ 0.8,
-            /* alpha= */ 0.2);
-    ConfidenceInterval expected = ConfidenceInterval.create(35.26815080641682, 104.73184919358317);
+            /* noisedX= */ 83.0,
+            /* l0Sensitivity= */ 3,
+            /* lInfSensitivity= */ 2.0,
+            DEFAULT_EPSILON,
+            DEFAULT_DELTA,
+            /* alpha= */ 0.24);
+    ConfidenceInterval expected = ConfidenceInterval.create(69.056133, 96.943867);
     verifyApproxEqual(actual, expected);
-  }
-
-  @Test
-  public void computeConfidenceInterval_forDouble_largeAlpha() {
-    ConfidenceInterval actual =
-        NOISE.computeConfidenceInterval(
-            DEFAULT_NOISED_X,
-            DEFAULT_L_0_SENSITIVITY,
-            DEFAULT_L_INF_SENSITIVITY,
-            DEFAULT_EPSILON,
-            DEFAULT_DELTA,
-            /* alpha= */ 1 - 7.856382354e-10);
-
-    ConfidenceInterval expected = ConfidenceInterval.create(-3.37320061009355E-9, 3.37320061009355E-9);
-    verifyApproxEqual(actual, expected);
-  }
-
-  @Test
-  public void computeConfidenceInterval_forDouble_smallAlpha() {
-    ConfidenceInterval actual =
-        NOISE.computeConfidenceInterval(
-            DEFAULT_NOISED_X,
-            DEFAULT_L_0_SENSITIVITY,
-            DEFAULT_L_INF_SENSITIVITY,
-            DEFAULT_EPSILON,
-            DEFAULT_DELTA,
-            /* alpha= */ 7.856382354e-10);
-    ConfidenceInterval expected = ConfidenceInterval.create(-21.061026180190087, 21.061026180190087);
-    verifyApproxEqual(actual, expected);
-  }
-
-  @Test
-  public void computeConfidenceInterval_forDouble_largeNoisedX() {
-    ConfidenceInterval actual =
-        NOISE.computeConfidenceInterval(
-            /* noisedX= */ 9.58655474558e10,
-            DEFAULT_L_0_SENSITIVITY,
-            DEFAULT_L_INF_SENSITIVITY,
-            DEFAULT_EPSILON,
-            DEFAULT_DELTA,
-            DEFAULT_ALPHA);
-    ConfidenceInterval expected = ConfidenceInterval.create(95865547454.4, 95865547457.2);
-    // Relative error is used instead of absolute error since bounds values are less than TOLERANCE.
-    verifyApproxEqual(actual, expected);
-  }
-
-  @Test
-  public void computeConfidenceInterval_forDouble_smallNoisedX() {
-    ConfidenceInterval actual =
-        NOISE.computeConfidenceInterval(
-            /* noisedX= */ 1.58655474558e-12,
-            DEFAULT_L_0_SENSITIVITY,
-            DEFAULT_L_INF_SENSITIVITY,
-            DEFAULT_EPSILON,
-            DEFAULT_DELTA,
-            DEFAULT_ALPHA);
-    ConfidenceInterval expected = ConfidenceInterval.create(-5.634908714203265, 5.634908714206437);
-    verifyApproxEqual(actual, expected);
-  }
-
-  @Test
-  public void computeConfidenceInterval_forDouble_negativeNoisedX() {
-    ConfidenceInterval actual =
-        NOISE.computeConfidenceInterval(
-            /* noisedX= */ -1.58655474558,
-            DEFAULT_L_0_SENSITIVITY,
-            DEFAULT_L_INF_SENSITIVITY,
-            DEFAULT_EPSILON,
-            DEFAULT_DELTA,
-            DEFAULT_ALPHA);
-    ConfidenceInterval expected =
-        ConfidenceInterval.create(-7.221463459784851, 4.048353968624851);
-    verifyApproxEqual(actual, expected);
-  }
-
-  @Test
-  public void computeConfidenceInterval_forDouble_smallDelta() {
-    ConfidenceInterval actual =
-        NOISE.computeConfidenceInterval(
-            DEFAULT_NOISED_X,
-            DEFAULT_L_0_SENSITIVITY,
-            DEFAULT_L_INF_SENSITIVITY,
-            DEFAULT_EPSILON,
-            /* delta= */ 1.78468549878e-10,
-            DEFAULT_ALPHA);
-    ConfidenceInterval expected =
-        ConfidenceInterval.create(-8.686883217337467, 8.686883217337467);
-    verifyApproxEqual(actual, expected);
-  }
-
-  @Test
-  public void computeConfidenceInterval_forDouble_largeDelta() {
-    ConfidenceInterval actual =
-        NOISE.computeConfidenceInterval(
-            DEFAULT_NOISED_X,
-            DEFAULT_L_0_SENSITIVITY,
-            DEFAULT_L_INF_SENSITIVITY,
-            DEFAULT_EPSILON,
-            /* delta= */ 1 - 1.78468549878e-10,
-            DEFAULT_ALPHA);
-    ConfidenceInterval expected =
-        ConfidenceInterval.create(-0.12729946282803148, 0.12729946282803148);
-    verifyApproxEqual(actual, expected);
-  }
-
-  @Test
-  public void computeConfidenceInterval_forDouble_smallEpsilon() {
-    ConfidenceInterval actual =
-        NOISE.computeConfidenceInterval(
-            DEFAULT_NOISED_X,
-            DEFAULT_L_0_SENSITIVITY,
-            DEFAULT_L_INF_SENSITIVITY,
-            /* epsilon= */ 1.65463453425e-10,
-            DEFAULT_DELTA,
-            DEFAULT_ALPHA);
-    ConfidenceInterval expected = ConfidenceInterval.create(-65636.23912987158, 65636.23912987158);
-    verifyApproxEqual(actual, expected);
-  }
-
-  @Test
-  public void computeConfidenceInterval_forDouble_largeEpsilon() {
-    ConfidenceInterval actual =
-        NOISE.computeConfidenceInterval(
-            DEFAULT_NOISED_X,
-            DEFAULT_L_0_SENSITIVITY,
-            DEFAULT_L_INF_SENSITIVITY,
-            /* epsilon= */ 1.65463453425e10,
-            DEFAULT_DELTA,
-            DEFAULT_ALPHA);
-    ConfidenceInterval expected = ConfidenceInterval.create(0.0, 0.0);
-    verifyApproxEqual(actual, expected);
-  }
-
-  @Test
-  public void computeConfidenceInterval_forLong_arbitraryTest() {
-    ConfidenceInterval actual =
-        NOISE.computeConfidenceInterval(
-            70,
-            /* l0Sensitivity= */ 5,
-            /* lInfSensitivity= */ 36,
-            /* epsilon= */ 0.8,
-            /* delta= */ 0.8,
-            /* alpha= */ 0.2);
-    ConfidenceInterval expected = ConfidenceInterval.create(35.0, 104.73184919358317);
-    verifyEqual(actual, expected);
-  }
-
-  @Test
-  public void computeConfidenceInterval_forLong_largeAlpha() {
-    ConfidenceInterval actual =
-        NOISE.computeConfidenceInterval(
-            (long) DEFAULT_NOISED_X,
-            DEFAULT_L_0_SENSITIVITY,
-            DEFAULT_L_INF_SENSITIVITY,
-            DEFAULT_EPSILON,
-            DEFAULT_DELTA,
-            /* alpha= */ 1 - 7.856382354e-1);
-    ConfidenceInterval expected = ConfidenceInterval.create(-4.253658048550822, 103.6507514735091);
-    verifyEqual(actual, expected);
-  }
-
-  @Test
-  public void computeConfidenceInterval_forLong_smallAlpha() {
-    ConfidenceInterval actual =
-        NOISE.computeConfidenceInterval(
-            (long) DEFAULT_NOISED_X,
-            DEFAULT_L_0_SENSITIVITY,
-            (long) DEFAULT_L_INF_SENSITIVITY,
-            DEFAULT_EPSILON,
-            DEFAULT_DELTA,
-            /* alpha= */ 7.856382354e-10);
-    ConfidenceInterval expected = ConfidenceInterval.create(-21.0, 236.61408831584356);
-    verifyEqual(actual, expected);
-  }
-
-  @Test
-  public void computeConfidenceInterval_forLong_largeNoisedX() {
-    ConfidenceInterval actual =
-        NOISE.computeConfidenceInterval(
-            /* noisedX= */  (1L << 58),
-            DEFAULT_L_0_SENSITIVITY,
-            (long) DEFAULT_L_INF_SENSITIVITY,
-            DEFAULT_EPSILON,
-            DEFAULT_DELTA,
-            DEFAULT_ALPHA);
-    ConfidenceInterval expected = ConfidenceInterval.create(2.88230376151711712E17, 9.000000001E9);
-    // Relative error is used instead of absolute error since bounds values are less than TOLERANCE.
-    verifyEqual(actual, expected);
-  }
-
-  @Test
-  public void computeConfidenceInterval_forLong_defaultParameters() {
-    ConfidenceInterval actual =
-        NOISE.computeConfidenceInterval(
-            (long) DEFAULT_NOISED_X,
-            DEFAULT_L_0_SENSITIVITY,
-            (long) DEFAULT_L_INF_SENSITIVITY,
-            DEFAULT_EPSILON,
-            DEFAULT_DELTA,
-            DEFAULT_ALPHA);
-    ConfidenceInterval expected =
-        ConfidenceInterval.create(-6.0, 1.4247902022519106);
-    verifyEqual(actual, expected);
   }
 
   @Test
@@ -262,81 +59,149 @@ public class GaussianNoiseConfidenceIntervalTest {
             DEFAULT_EPSILON,
             DEFAULT_DELTA,
             DEFAULT_ALPHA);
-    ConfidenceInterval expected =
-        ConfidenceInterval.create(-5.634908714204851, 5.634908714204851);
+    ConfidenceInterval expected = ConfidenceInterval.create(-5.6349087, 5.6349087);
     verifyApproxEqual(actual, expected);
   }
 
   @Test
-  public void computeConfidenceInterval_forLong_negativeNoisedX() {
+  public void computeConfidenceInterval_forDouble_positiveNoisedX() {
     ConfidenceInterval actual =
         NOISE.computeConfidenceInterval(
-            /* noisedX= */ -10,
+            /* noisedX= */ 1.5865547456,
             DEFAULT_L_0_SENSITIVITY,
-            (long) DEFAULT_L_INF_SENSITIVITY,
+            DEFAULT_L_INF_SENSITIVITY,
             DEFAULT_EPSILON,
             DEFAULT_DELTA,
             DEFAULT_ALPHA);
-    ConfidenceInterval expected =
-        ConfidenceInterval.create(-16.0, -8.575209797748089);
-    verifyEqual(actual, expected);
+    ConfidenceInterval expected = ConfidenceInterval.create(-4.0483540, 7.2214635);
+    verifyApproxEqual(actual, expected);
   }
 
   @Test
-  public void computeConfidenceInterval_forLong_smallDelta() {
+  public void computeConfidenceInterval_forDouble_negativeNoisedX() {
     ConfidenceInterval actual =
         NOISE.computeConfidenceInterval(
-            (long) DEFAULT_NOISED_X,
+            /* noisedX= */ -1.5865547456,
             DEFAULT_L_0_SENSITIVITY,
-            (long) DEFAULT_L_INF_SENSITIVITY,
+            DEFAULT_L_INF_SENSITIVITY,
             DEFAULT_EPSILON,
-            /* delta= */ 1.78468549878e-10,
-            DEFAULT_ALPHA);
-    ConfidenceInterval expected = ConfidenceInterval.create(-9.0, 88.50460330320408);
-    verifyEqual(actual, expected);
-  }
-
-  @Test
-  public void computeConfidenceInterval_forLong_largeDelta() {
-    ConfidenceInterval actual =
-        NOISE.computeConfidenceInterval(
-            (long) DEFAULT_NOISED_X,
-            DEFAULT_L_0_SENSITIVITY,
-            (long) DEFAULT_L_INF_SENSITIVITY,
-            DEFAULT_EPSILON,
-            /* delta= */ 1 - 1.78468549878e-10,
-            DEFAULT_ALPHA);
-    ConfidenceInterval expected =
-        ConfidenceInterval.create(0.0, 70.1282030079112);
-    verifyEqual(actual, expected);
-  }
-
-  @Test
-  public void computeConfidenceInterval_forLong_smallEpsilon() {
-    ConfidenceInterval actual =
-        NOISE.computeConfidenceInterval(
-            (long) DEFAULT_NOISED_X,
-            DEFAULT_L_0_SENSITIVITY,
-            (long) DEFAULT_L_INF_SENSITIVITY,
-            /* epsilon= */ 1.65463453425e-10,
             DEFAULT_DELTA,
             DEFAULT_ALPHA);
-    ConfidenceInterval expected = ConfidenceInterval.create(-65636.0, 74.26955169964552);
-    verifyEqual(actual, expected);
+    ConfidenceInterval expected = ConfidenceInterval.create(-7.2214635, 4.0483540);
+    verifyApproxEqual(actual, expected);
   }
 
   @Test
-  public void computeConfidenceInterval_forLong_largeEpsilon() {
+  public void computeConfidenceInterval_forDouble_largePositiveNoisedX() {
     ConfidenceInterval actual =
         NOISE.computeConfidenceInterval(
-            (long) DEFAULT_NOISED_X,
+            /* noisedX= */ 958655.4745,
             DEFAULT_L_0_SENSITIVITY,
-            (long) DEFAULT_L_INF_SENSITIVITY,
-            /* epsilon= */ 1.65463453425e10,
+            DEFAULT_L_INF_SENSITIVITY,
+            DEFAULT_EPSILON,
             DEFAULT_DELTA,
             DEFAULT_ALPHA);
-    ConfidenceInterval expected = ConfidenceInterval.create(0.0, 70);
-    verifyEqual(actual, expected);
+    ConfidenceInterval expected = ConfidenceInterval.create(958649.84, 958661.11);
+    verifyApproxEqual(actual, expected);
+  }
+
+  @Test
+  public void computeConfidenceInterval_forDouble_largeNegativeNoisedX() {
+    ConfidenceInterval actual =
+        NOISE.computeConfidenceInterval(
+            /* noisedX= */ -958655.4745,
+            DEFAULT_L_0_SENSITIVITY,
+            DEFAULT_L_INF_SENSITIVITY,
+            DEFAULT_EPSILON,
+            DEFAULT_DELTA,
+            DEFAULT_ALPHA);
+    ConfidenceInterval expected = ConfidenceInterval.create(-958661.11, -958649.84);
+    verifyApproxEqual(actual, expected);
+  }
+
+  @Test
+  public void computeConfidenceInterval_forDouble_smallAlpha() {
+    ConfidenceInterval actual =
+        NOISE.computeConfidenceInterval(
+            DEFAULT_NOISED_X,
+            DEFAULT_L_0_SENSITIVITY,
+            DEFAULT_L_INF_SENSITIVITY,
+            DEFAULT_EPSILON,
+            DEFAULT_DELTA,
+            /* alpha= */ 7.856382354E-10);
+    ConfidenceInterval expected = ConfidenceInterval.create(-21.061026, 21.061026);
+    verifyApproxEqual(actual, expected);
+  }
+
+  @Test
+  public void computeConfidenceInterval_forDouble_largeAlpha() {
+    ConfidenceInterval actual =
+        NOISE.computeConfidenceInterval(
+            DEFAULT_NOISED_X,
+            DEFAULT_L_0_SENSITIVITY,
+            DEFAULT_L_INF_SENSITIVITY,
+            DEFAULT_EPSILON,
+            DEFAULT_DELTA,
+            /* alpha= */ 1 - 7.856382354E-10);
+
+    ConfidenceInterval expected = ConfidenceInterval.create(-3.3732006E-9, 3.3732006E-9);
+    verifyApproxEqual(actual, expected);
+  }
+
+  @Test
+  public void computeConfidenceInterval_forDouble_smallDelta() {
+    ConfidenceInterval actual =
+        NOISE.computeConfidenceInterval(
+            DEFAULT_NOISED_X,
+            DEFAULT_L_0_SENSITIVITY,
+            DEFAULT_L_INF_SENSITIVITY,
+            DEFAULT_EPSILON,
+            /* delta= */ 1.78468549878E-10,
+            DEFAULT_ALPHA);
+    ConfidenceInterval expected = ConfidenceInterval.create(-8.6868832, 8.6868832);
+    verifyApproxEqual(actual, expected);
+  }
+
+  @Test
+  public void computeConfidenceInterval_forDouble_largeDelta() {
+    ConfidenceInterval actual =
+        NOISE.computeConfidenceInterval(
+            DEFAULT_NOISED_X,
+            DEFAULT_L_0_SENSITIVITY,
+            DEFAULT_L_INF_SENSITIVITY,
+            DEFAULT_EPSILON,
+            /* delta= */ 1 - 1.78468549878E-10,
+            DEFAULT_ALPHA);
+    ConfidenceInterval expected = ConfidenceInterval.create(-0.12729946, 0.12729946);
+    verifyApproxEqual(actual, expected);
+  }
+
+  @Test
+  public void computeConfidenceInterval_forDouble_smallEpsilon() {
+    ConfidenceInterval actual =
+        NOISE.computeConfidenceInterval(
+            DEFAULT_NOISED_X,
+            DEFAULT_L_0_SENSITIVITY,
+            DEFAULT_L_INF_SENSITIVITY,
+            /* epsilon= */ 1.65463453425E-10,
+            DEFAULT_DELTA,
+            DEFAULT_ALPHA);
+    ConfidenceInterval expected = ConfidenceInterval.create(-65636.239, 65636.239);
+    verifyApproxEqual(actual, expected);
+  }
+
+  @Test
+  public void computeConfidenceInterval_forDouble_largeEpsilon() {
+    ConfidenceInterval actual =
+        NOISE.computeConfidenceInterval(
+            DEFAULT_NOISED_X,
+            DEFAULT_L_0_SENSITIVITY,
+            DEFAULT_L_INF_SENSITIVITY,
+            /* epsilon= */ 1.65463453425E10,
+            DEFAULT_DELTA,
+            DEFAULT_ALPHA);
+    ConfidenceInterval expected = ConfidenceInterval.create(0.0, 0.0);
+    verifyApproxEqual(actual, expected);
   }
 
   @Test
@@ -536,6 +401,182 @@ public class GaussianNoiseConfidenceIntervalTest {
   }
 
   @Test
+  public void computeConfidenceInterval_forLong_arbitraryTest() {
+    ConfidenceInterval actual =
+        NOISE.computeConfidenceInterval(
+            /* noisedX= */ 83L,
+            /* l0Sensitivity= */ 3,
+            /* lInfSensitivity= */ 2L,
+            DEFAULT_EPSILON,
+            DEFAULT_DELTA,
+            /* alpha= */ 0.24);
+    ConfidenceInterval expected = ConfidenceInterval.create(69.0, 97.0);
+    verifyEqual(actual, expected);
+  }
+
+  @Test
+  public void computeConfidenceInterval_forLong_defaultParameters() {
+    ConfidenceInterval actual =
+        NOISE.computeConfidenceInterval(
+            (long) DEFAULT_NOISED_X,
+            DEFAULT_L_0_SENSITIVITY,
+            (long) DEFAULT_L_INF_SENSITIVITY,
+            DEFAULT_EPSILON,
+            DEFAULT_DELTA,
+            DEFAULT_ALPHA);
+    ConfidenceInterval expected = ConfidenceInterval.create(-6.0, 6.0);
+    verifyEqual(actual, expected);
+  }
+
+  @Test
+  public void computeConfidenceInterval_forLong_largePositiveNoisedX() {
+    ConfidenceInterval actual =
+        NOISE.computeConfidenceInterval(
+            // Distance to neighbouring doubles is greater than half the size of the confidence
+            // interval.
+            /* noisedX= */ (1L << 58),
+            DEFAULT_L_0_SENSITIVITY,
+            (long) DEFAULT_L_INF_SENSITIVITY,
+            DEFAULT_EPSILON,
+            DEFAULT_DELTA,
+            DEFAULT_ALPHA);
+    ConfidenceInterval expected =
+        ConfidenceInterval.create(
+            Math.nextDown(Math.pow(2.0, 58.0)), Math.nextUp(Math.pow(2.0, 58.0)));
+    verifyEqual(actual, expected);
+  }
+
+  @Test
+  public void computeConfidenceInterval_forLong_largeNegativeNoisedX() {
+    ConfidenceInterval actual =
+        NOISE.computeConfidenceInterval(
+            // Distance to neighbouring doubles is greater than half the size of the confidence
+            // interval.
+            /* noisedX= */ -(1L << 58),
+            DEFAULT_L_0_SENSITIVITY,
+            (long) DEFAULT_L_INF_SENSITIVITY,
+            DEFAULT_EPSILON,
+            DEFAULT_DELTA,
+            DEFAULT_ALPHA);
+    ConfidenceInterval expected =
+        ConfidenceInterval.create(
+            Math.nextDown(-Math.pow(2.0, 58.0)), Math.nextUp(-Math.pow(2.0, 58.0)));
+    verifyEqual(actual, expected);
+  }
+
+  @Test
+  public void computeConfidenceInterval_forLong_positiveNoisedX() {
+    ConfidenceInterval actual =
+        NOISE.computeConfidenceInterval(
+            /* noisedX= */ 10,
+            DEFAULT_L_0_SENSITIVITY,
+            (long) DEFAULT_L_INF_SENSITIVITY,
+            DEFAULT_EPSILON,
+            DEFAULT_DELTA,
+            DEFAULT_ALPHA);
+    ConfidenceInterval expected = ConfidenceInterval.create(4.0, 16.0);
+    verifyEqual(actual, expected);
+  }
+
+  @Test
+  public void computeConfidenceInterval_forLong_negativeNoisedX() {
+    ConfidenceInterval actual =
+        NOISE.computeConfidenceInterval(
+            /* noisedX= */ -10,
+            DEFAULT_L_0_SENSITIVITY,
+            (long) DEFAULT_L_INF_SENSITIVITY,
+            DEFAULT_EPSILON,
+            DEFAULT_DELTA,
+            DEFAULT_ALPHA);
+    ConfidenceInterval expected = ConfidenceInterval.create(-16.0, -4.0);
+    verifyEqual(actual, expected);
+  }
+
+  @Test
+  public void computeConfidenceInterval_forLong_smallAlpha() {
+    ConfidenceInterval actual =
+        NOISE.computeConfidenceInterval(
+            (long) DEFAULT_NOISED_X,
+            DEFAULT_L_0_SENSITIVITY,
+            (long) DEFAULT_L_INF_SENSITIVITY,
+            DEFAULT_EPSILON,
+            DEFAULT_DELTA,
+            /* alpha= */ 7.856382354E-10);
+    ConfidenceInterval expected = ConfidenceInterval.create(-21.0, 21.0);
+    verifyEqual(actual, expected);
+  }
+
+  @Test
+  public void computeConfidenceInterval_forLong_largeAlpha() {
+    ConfidenceInterval actual =
+        NOISE.computeConfidenceInterval(
+            (long) DEFAULT_NOISED_X,
+            DEFAULT_L_0_SENSITIVITY,
+            (long) DEFAULT_L_INF_SENSITIVITY,
+            DEFAULT_EPSILON,
+            DEFAULT_DELTA,
+            /* alpha= */ 1 - 7.856382354E-10);
+    ConfidenceInterval expected = ConfidenceInterval.create(0.0, 0.0);
+    verifyEqual(actual, expected);
+  }
+
+  @Test
+  public void computeConfidenceInterval_forLong_smallDelta() {
+    ConfidenceInterval actual =
+        NOISE.computeConfidenceInterval(
+            (long) DEFAULT_NOISED_X,
+            DEFAULT_L_0_SENSITIVITY,
+            (long) DEFAULT_L_INF_SENSITIVITY,
+            DEFAULT_EPSILON,
+            /* delta= */ 1.78468549878E-10,
+            DEFAULT_ALPHA);
+    ConfidenceInterval expected = ConfidenceInterval.create(-9.0, 9.0);
+    verifyEqual(actual, expected);
+  }
+
+  @Test
+  public void computeConfidenceInterval_forLong_largeDelta() {
+    ConfidenceInterval actual =
+        NOISE.computeConfidenceInterval(
+            (long) DEFAULT_NOISED_X,
+            DEFAULT_L_0_SENSITIVITY,
+            (long) DEFAULT_L_INF_SENSITIVITY,
+            DEFAULT_EPSILON,
+            /* delta= */ 1 - 1.78468549878E-10,
+            DEFAULT_ALPHA);
+    ConfidenceInterval expected = ConfidenceInterval.create(0.0, 0.0);
+    verifyEqual(actual, expected);
+  }
+
+  @Test
+  public void computeConfidenceInterval_forLong_smallEpsilon() {
+    ConfidenceInterval actual =
+        NOISE.computeConfidenceInterval(
+            (long) DEFAULT_NOISED_X,
+            DEFAULT_L_0_SENSITIVITY,
+            (long) DEFAULT_L_INF_SENSITIVITY,
+            /* epsilon= */ 1.65463453425E-10,
+            DEFAULT_DELTA,
+            DEFAULT_ALPHA);
+    ConfidenceInterval expected = ConfidenceInterval.create(-65636.0, 65636.0);
+    verifyEqual(actual, expected);
+  }
+
+  @Test
+  public void computeConfidenceInterval_forLong_largeEpsilon() {
+    ConfidenceInterval actual =
+        NOISE.computeConfidenceInterval(
+            (long) DEFAULT_NOISED_X,
+            DEFAULT_L_0_SENSITIVITY,
+            (long) DEFAULT_L_INF_SENSITIVITY,
+            /* epsilon= */ 1.65463453425E10,
+            DEFAULT_DELTA,
+            DEFAULT_ALPHA);
+    ConfidenceInterval expected = ConfidenceInterval.create(0.0, 0.0);
+    verifyEqual(actual, expected);
+  }
+
+  @Test
   public void computeConfidenceInterval_forLong_zeroL0Sensitivity_throwsException() {
     assertThrows(
         IllegalArgumentException.class,
@@ -710,12 +751,12 @@ public class GaussianNoiseConfidenceIntervalTest {
 
   private static void verifyApproxEqual(ConfidenceInterval actual, ConfidenceInterval expected) {
     assertWithMessage(
-            "Lower bounds are not equal. First = %s, second = %s",
+            "Lower bounds are not equal. Actual = %s, expected = %s",
             actual.lowerBound(), expected.lowerBound())
         .that(approxEqual(actual.lowerBound(), expected.lowerBound()))
         .isTrue();
     assertWithMessage(
-            "Upper bounds are not equal. First = %s, second = %s",
+            "Upper bounds are not equal. Actual = %s, expected = %s",
             actual.upperBound(), expected.upperBound())
         .that(approxEqual(actual.upperBound(), expected.upperBound()))
         .isTrue();
@@ -730,7 +771,7 @@ public class GaussianNoiseConfidenceIntervalTest {
     assertWithMessage(
             "Upper bounds are not equal. Actual = %s, expected = %s",
             actual.upperBound(), expected.upperBound())
-        .that(actual.lowerBound())
-        .isEqualTo(expected.lowerBound());
+        .that(actual.upperBound())
+        .isEqualTo(expected.upperBound());
   }
 }

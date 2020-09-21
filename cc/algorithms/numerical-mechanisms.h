@@ -48,12 +48,6 @@
 // differentially private results (e.g. snapping).
 namespace differential_privacy {
 
-// Clamping factor.
-// Using a factor of 2^39 means that the clamp+round-to-power-of-2 approach
-// adds at most a factor of 2^-10 extra (i.e. around 0.1%) to the privacy
-// budget (Theorem 1, Mironov 2012).
-static const double kClampFactor = std::pow(2.0, 39);
-
 // The maximum allowable probability that the noise will overflow.
 static const double kMaxOverflowProbability = std::pow(2.0, -64);
 
@@ -61,22 +55,6 @@ static const double kMaxOverflowProbability = std::pow(2.0, -64);
 // sigma such that Gaussian noise satisfies (epsilon, delta)-differential
 // privacy given the sensitivities.
 static const double kGaussianSigmaAccuracy = 1e-3;
-
-template <typename T>
-T UpperBound() {
-  if (std::numeric_limits<T>::max() > kClampFactor) {
-    return static_cast<T>(kClampFactor);
-  }
-  return std::numeric_limits<T>::max();
-}
-
-template <typename T>
-T LowerBound() {
-  if (std::numeric_limits<T>::lowest() < -kClampFactor) {
-    return static_cast<T>(-kClampFactor);
-  }
-  return std::numeric_limits<T>::lowest();
-}
 
 // Provides a common abstraction for NumericalMechanism.  Numerical mechanisms
 // can add noise to data and track the remaining privacy budget.

@@ -18,10 +18,10 @@
 #define DIFFERENTIAL_PRIVACY_CPP_ALGORITHMS_PARTITION_SELECTION_H_
 
 #include <math.h>
-#include <stdlib.h>
-#include <time.h>
 
 #include <iostream>
+#include <string>
+#include <utility>
 
 #include "base/statusor.h"
 #include "algorithms/numerical-mechanisms.h"
@@ -110,11 +110,11 @@ class PartitionSelectionStrategy {
 
   virtual ~PartitionSelectionStrategy() = default;
 
-  const double GetEpsilon() { return epsilon_; }
+  double GetEpsilon() const { return epsilon_; }
 
-  const double GetDelta() { return delta_; }
+  double GetDelta() const { return delta_; }
 
-  const double GetMaxPartitionsContributed() {
+  double GetMaxPartitionsContributed() const {
     return max_partitions_contributed_;
   }
 
@@ -127,18 +127,17 @@ class PartitionSelectionStrategy {
                              int max_partitions_contributed)
       : epsilon_(epsilon),
         delta_(delta),
-        max_partitions_contributed_(max_partitions_contributed) {
-    adjusted_delta_ = AdjustDelta(delta);
-  }
+        max_partitions_contributed_(max_partitions_contributed),
+        adjusted_delta_(AdjustDelta(delta)) {}
 
  private:
   double epsilon_;
   double delta_;
-  double adjusted_delta_;
   int max_partitions_contributed_;
+  double adjusted_delta_;
 
  protected:
-  const double GetAdjustedDelta() { return adjusted_delta_; }
+  double GetAdjustedDelta() const { return adjusted_delta_; }
 
   // We must derive adjusted_delta_, the probability of keeping a single
   // partition with one user, from delta, the probability we keep any of the
@@ -146,8 +145,10 @@ class PartitionSelectionStrategy {
   // a partition with a single user is 1 - adjusted_delta_, and raising this
   // expression to the power of the max number of partitions one user can
   // contribute to will get us delta, we can solve to get the following formula.
-  double AdjustDelta(double delta) {
-    return (1.0 - pow(1 - delta, (double)max_partitions_contributed_));
+  double AdjustDelta(double delta) const {
+    // Numerically stable equivalent of
+    // 1- pow(1 - delta, 1 / max_partitions_contributed_).
+    return -expm1(log1p(-delta) / max_partitions_contributed_);
   }
 };
 
@@ -193,11 +194,11 @@ class PreaggPartitionSelection : public PartitionSelectionStrategy {
 
   virtual ~PreaggPartitionSelection() = default;
 
-  const double GetAdjustedEpsilon() { return adjusted_epsilon_; }
+  double GetAdjustedEpsilon() const { return adjusted_epsilon_; }
 
-  const double GetFirstCrossover() { return crossover_1_; }
+  double GetFirstCrossover() const { return crossover_1_; }
 
-  const double GetSecondCrossover() { return crossover_2_; }
+  double GetSecondCrossover() const { return crossover_2_; }
 
   bool ShouldKeep(int num_users) override {
     // generate a random number between 0 and 1
@@ -209,17 +210,16 @@ class PreaggPartitionSelection : public PartitionSelectionStrategy {
  protected:
   PreaggPartitionSelection(double epsilon, double delta, int max_partitions)
       : PartitionSelectionStrategy(epsilon, delta, max_partitions),
-        adjusted_epsilon_(epsilon / (double)max_partitions) {
-    double adjusted_delta_ = GetAdjustedDelta();
+        adjusted_epsilon_(epsilon / static_cast<double>(max_partitions)) {
+    const double adjusted_delta = GetAdjustedDelta();
     crossover_1_ =
-        1 + floor((1.0 / adjusted_epsilon_) *
-                  log((exp(adjusted_epsilon_) + 2.0 * adjusted_delta_ - 1.0) /
-                      ((exp(adjusted_epsilon_) + 1) * adjusted_delta_)));
+        1 +
+        floor(log1p(tanh(adjusted_epsilon_ / 2) * (1 / adjusted_delta - 1)) /
+              adjusted_epsilon_);
     crossover_2_ =
-        crossover_1_ +
-        floor((1.0 / adjusted_epsilon_) *
-              log(1 + ((exp(adjusted_epsilon_) - 1) / adjusted_delta_) *
-                          (1 - ProbabilityOfKeep(crossover_1_))));
+        crossover_1_ + floor((1.0 / adjusted_epsilon_) *
+                             log1p((expm1(adjusted_epsilon_) / adjusted_delta) *
+                                   (1 - ProbabilityOfKeep(crossover_1_))));
   }
 
  private:
@@ -229,20 +229,19 @@ class PreaggPartitionSelection : public PartitionSelectionStrategy {
 
   // ProbabilityOfKeep returns the probability with which a partition with n
   // users should be kept, Thm. 1 of https://arxiv.org/pdf/2006.03684.pdf
-  double ProbabilityOfKeep(double n) {
-    double adjusted_delta_ = GetAdjustedDelta();
+  double ProbabilityOfKeep(double n) const {
+    const double adjusted_delta = GetAdjustedDelta();
     if (n == 0) {
       return 0;
     } else if (n <= crossover_1_) {
-      return (
-          ((exp(n * adjusted_epsilon_) - 1) / (exp(adjusted_epsilon_) - 1)) *
-          adjusted_delta_);
+      return ((expm1(n * adjusted_epsilon_) / expm1(adjusted_epsilon_)) *
+              adjusted_delta);
     } else if (n > crossover_1_ && n <= crossover_2_) {
-      double m = n - crossover_1_;
-      return ((1 - exp(-1 * m * adjusted_epsilon_)) *
-                  (1 + adjusted_delta_ / (exp(adjusted_epsilon_) - 1)) +
-              exp(-1 * m * adjusted_epsilon_) *
-                  ProbabilityOfKeep(crossover_1_));
+      const double m = n - crossover_1_;
+      const double p_crossover = ProbabilityOfKeep(crossover_1_);
+      return p_crossover -
+             (1 - p_crossover + (adjusted_delta / expm1(adjusted_epsilon_))) *
+                 expm1(-m * adjusted_epsilon_);
     } else {
       return 1;
     }
@@ -295,15 +294,16 @@ class LaplacePartitionSelection : public PartitionSelectionStrategy {
   virtual ~LaplacePartitionSelection() = default;
 
   bool ShouldKeep(int num_users) override {
-    double noised_result = mechanism_->AddNoise((double)num_users, 1.0);
+    const double noised_result =
+        mechanism_->AddNoise(static_cast<double>(num_users), 1.0);
     return (noised_result > threshold_);
   }
 
-  const double GetL1Sensitivity() { return l1_sensitivity_; }
+  double GetL1Sensitivity() const { return l1_sensitivity_; }
 
-  const double GetDiversity() { return diversity_; }
+  double GetDiversity() const { return diversity_; }
 
-  const double GetThreshold() { return threshold_; }
+  double GetThreshold() const { return threshold_; }
 
  protected:
   LaplacePartitionSelection(double epsilon, double delta,
@@ -313,8 +313,7 @@ class LaplacePartitionSelection : public PartitionSelectionStrategy {
         l1_sensitivity_(max_partitions_contributed),
         diversity_(l1_sensitivity_ / epsilon),
         mechanism_(std::move(laplace)) {
-    double adjusted_delta_ = GetAdjustedDelta();
-    threshold_ = 1 - diversity_ * (log(2 * adjusted_delta_));
+    threshold_ = 1 - diversity_ * (log(2 * GetAdjustedDelta()));
   }
 
  private:
