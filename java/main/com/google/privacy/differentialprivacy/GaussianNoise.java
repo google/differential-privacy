@@ -218,7 +218,8 @@ public class GaussianNoise implements Noise {
    * <p>This implementation uses a binary search. Its runtime is rougly log(GAUSSIAN_SIGMA_ACCURACY)
    * + log(max{sigma_tight / l2sensitivity, l2sensitivity / sigma_tight}).
    */
-  private static double getSigma(double l2Sensitivity, double epsilon, double delta) {
+  @VisibleForTesting
+  double getSigma(double l2Sensitivity, double epsilon, double delta) {
     // We use l2sensitivity as a starting guess for the upper bound, since the required noise grows
     // linearly with sensitivity.
     double upperBound = l2Sensitivity;

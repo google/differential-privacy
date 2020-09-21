@@ -19,14 +19,27 @@ package com.google.privacy.differentialprivacy;
 import static com.google.common.truth.Truth.assertWithMessage;
 import static java.lang.Math.max;
 import static org.junit.Assert.assertThrows;
+import static org.mockito.ArgumentMatchers.anyDouble;
+import static org.mockito.Mockito.*;
 
+import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.Spy;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 @RunWith(JUnit4.class)
 public class GaussianNoiseConfidenceIntervalTest {
-  private static final Noise NOISE = new GaussianNoise();
+  @Rule public final MockitoRule mocks = MockitoJUnit.rule();
+  /**
+   * Partial mock to mock only {@link GaussianNoise#getSigma} while keeping the real implementation
+   * of every other function.
+   */
+  @Spy private GaussianNoise NOISE;
+
   private static final double TOLERANCE = 1E-7;
   private static final double DEFAULT_EPSILON = Math.log(3);
   private static final int DEFAULT_L_0_SENSITIVITY = 1;
@@ -34,9 +47,41 @@ public class GaussianNoiseConfidenceIntervalTest {
   private static final double DEFAULT_DELTA = 0.00001;
   private static final double DEFAULT_NOISED_X = 0.0;
   private static final double DEFAULT_ALPHA = 0.1;
+  /**
+   * Default accurate sigma up to 8 significant digits given the default privacy parameters. Every
+   * test with non-default parameters has its sigma value calculated up to the same accuracy.
+   */
+  private static final double DEFAULT_SIGMA = 3.4246624;
+
+  /**
+   * {@link GaussianNoise#getSigma} only guarantees at most 3 significant digits therefore in order
+   * to not make the tests dependent on the accuracy of {@link GaussianNoise#getSigma}, we mock the
+   * function to return a more exact sigma parameter.
+   */
+  private void mockAccurateSigma(double sigma) {
+    when(NOISE.getSigma(anyDouble(), anyDouble(), anyDouble())).thenReturn(sigma);
+  }
+
+  @Before
+  public void setUp() {
+    mockAccurateSigma(DEFAULT_SIGMA);
+  }
+
+  @Test
+  public void computeConfidenceInterval_forDouble_callsGetSigmaCorrectly() {
+    NOISE.computeConfidenceInterval(
+            DEFAULT_NOISED_X,
+            DEFAULT_L_0_SENSITIVITY,
+            DEFAULT_L_INF_SENSITIVITY,
+            DEFAULT_EPSILON,
+            DEFAULT_DELTA,
+            DEFAULT_ALPHA);
+    verify(NOISE).getSigma(/* L2Sensitivity= */ 1.0, DEFAULT_EPSILON, DEFAULT_DELTA);
+  }
 
   @Test
   public void computeConfidenceInterval_forDouble_arbitraryTest() {
+    mockAccurateSigma(11.863379);
     ConfidenceInterval actual =
         NOISE.computeConfidenceInterval(
             /* noisedX= */ 83.0,
@@ -45,7 +90,7 @@ public class GaussianNoiseConfidenceIntervalTest {
             DEFAULT_EPSILON,
             DEFAULT_DELTA,
             /* alpha= */ 0.24);
-    ConfidenceInterval expected = ConfidenceInterval.create(69.056133, 96.943867);
+    ConfidenceInterval expected = ConfidenceInterval.create(69.0606869, 96.939313);
     verifyApproxEqual(actual, expected);
   }
 
@@ -59,7 +104,7 @@ public class GaussianNoiseConfidenceIntervalTest {
             DEFAULT_EPSILON,
             DEFAULT_DELTA,
             DEFAULT_ALPHA);
-    ConfidenceInterval expected = ConfidenceInterval.create(-5.6349087, 5.6349087);
+    ConfidenceInterval expected = ConfidenceInterval.create(-5.6330684, 5.6330684);
     verifyApproxEqual(actual, expected);
   }
 
@@ -73,7 +118,7 @@ public class GaussianNoiseConfidenceIntervalTest {
             DEFAULT_EPSILON,
             DEFAULT_DELTA,
             DEFAULT_ALPHA);
-    ConfidenceInterval expected = ConfidenceInterval.create(-4.0483540, 7.2214635);
+    ConfidenceInterval expected = ConfidenceInterval.create(-4.0465136, 7.2196231);
     verifyApproxEqual(actual, expected);
   }
 
@@ -87,7 +132,7 @@ public class GaussianNoiseConfidenceIntervalTest {
             DEFAULT_EPSILON,
             DEFAULT_DELTA,
             DEFAULT_ALPHA);
-    ConfidenceInterval expected = ConfidenceInterval.create(-7.2214635, 4.0483540);
+    ConfidenceInterval expected = ConfidenceInterval.create(-7.2196231, 4.0465136);
     verifyApproxEqual(actual, expected);
   }
 
@@ -129,7 +174,7 @@ public class GaussianNoiseConfidenceIntervalTest {
             DEFAULT_EPSILON,
             DEFAULT_DELTA,
             /* alpha= */ 7.856382354E-10);
-    ConfidenceInterval expected = ConfidenceInterval.create(-21.061026, 21.061026);
+    ConfidenceInterval expected = ConfidenceInterval.create(-21.054148, 21.054148);
     verifyApproxEqual(actual, expected);
   }
 
@@ -144,12 +189,13 @@ public class GaussianNoiseConfidenceIntervalTest {
             DEFAULT_DELTA,
             /* alpha= */ 1 - 7.856382354E-10);
 
-    ConfidenceInterval expected = ConfidenceInterval.create(-3.3732006E-9, 3.3732006E-9);
+    ConfidenceInterval expected = ConfidenceInterval.create(-3.3720990E-9, 3.3720990E-9);
     verifyApproxEqual(actual, expected);
   }
 
   @Test
   public void computeConfidenceInterval_forDouble_smallDelta() {
+    mockAccurateSigma(5.2782077);
     ConfidenceInterval actual =
         NOISE.computeConfidenceInterval(
             DEFAULT_NOISED_X,
@@ -158,12 +204,13 @@ public class GaussianNoiseConfidenceIntervalTest {
             DEFAULT_EPSILON,
             /* delta= */ 1.78468549878E-10,
             DEFAULT_ALPHA);
-    ConfidenceInterval expected = ConfidenceInterval.create(-8.6868832, 8.6868832);
+    ConfidenceInterval expected = ConfidenceInterval.create(-8.6818791, 8.6818791);
     verifyApproxEqual(actual, expected);
   }
 
   @Test
   public void computeConfidenceInterval_forDouble_largeDelta() {
+    mockAccurateSigma(0.077376611);
     ConfidenceInterval actual =
         NOISE.computeConfidenceInterval(
             DEFAULT_NOISED_X,
@@ -172,12 +219,13 @@ public class GaussianNoiseConfidenceIntervalTest {
             DEFAULT_EPSILON,
             /* delta= */ 1 - 1.78468549878E-10,
             DEFAULT_ALPHA);
-    ConfidenceInterval expected = ConfidenceInterval.create(-0.12729946, 0.12729946);
+    ConfidenceInterval expected = ConfidenceInterval.create(-0.12727320, 0.12727320);
     verifyApproxEqual(actual, expected);
   }
 
   @Test
   public void computeConfidenceInterval_forDouble_smallEpsilon() {
+    mockAccurateSigma(39893.898);
     ConfidenceInterval actual =
         NOISE.computeConfidenceInterval(
             DEFAULT_NOISED_X,
@@ -186,12 +234,13 @@ public class GaussianNoiseConfidenceIntervalTest {
             /* epsilon= */ 1.65463453425E-10,
             DEFAULT_DELTA,
             DEFAULT_ALPHA);
-    ConfidenceInterval expected = ConfidenceInterval.create(-65636.239, 65636.239);
+    ConfidenceInterval expected = ConfidenceInterval.create(-65619.623, 65619.623);
     verifyApproxEqual(actual, expected);
   }
 
   @Test
   public void computeConfidenceInterval_forDouble_largeEpsilon() {
+    mockAccurateSigma(0.0);
     ConfidenceInterval actual =
         NOISE.computeConfidenceInterval(
             DEFAULT_NOISED_X,
@@ -402,6 +451,7 @@ public class GaussianNoiseConfidenceIntervalTest {
 
   @Test
   public void computeConfidenceInterval_forLong_arbitraryTest() {
+    mockAccurateSigma(11.863379);
     ConfidenceInterval actual =
         NOISE.computeConfidenceInterval(
             /* noisedX= */ 83L,
@@ -522,6 +572,7 @@ public class GaussianNoiseConfidenceIntervalTest {
 
   @Test
   public void computeConfidenceInterval_forLong_smallDelta() {
+    mockAccurateSigma(5.2782077);
     ConfidenceInterval actual =
         NOISE.computeConfidenceInterval(
             (long) DEFAULT_NOISED_X,
@@ -536,6 +587,7 @@ public class GaussianNoiseConfidenceIntervalTest {
 
   @Test
   public void computeConfidenceInterval_forLong_largeDelta() {
+    mockAccurateSigma(0.077376611);
     ConfidenceInterval actual =
         NOISE.computeConfidenceInterval(
             (long) DEFAULT_NOISED_X,
@@ -550,6 +602,7 @@ public class GaussianNoiseConfidenceIntervalTest {
 
   @Test
   public void computeConfidenceInterval_forLong_smallEpsilon() {
+    mockAccurateSigma(39893.898);
     ConfidenceInterval actual =
         NOISE.computeConfidenceInterval(
             (long) DEFAULT_NOISED_X,
@@ -558,12 +611,13 @@ public class GaussianNoiseConfidenceIntervalTest {
             /* epsilon= */ 1.65463453425E-10,
             DEFAULT_DELTA,
             DEFAULT_ALPHA);
-    ConfidenceInterval expected = ConfidenceInterval.create(-65636.0, 65636.0);
+    ConfidenceInterval expected = ConfidenceInterval.create(-65620.0, 65620.0);
     verifyEqual(actual, expected);
   }
 
   @Test
   public void computeConfidenceInterval_forLong_largeEpsilon() {
+    mockAccurateSigma(0);
     ConfidenceInterval actual =
         NOISE.computeConfidenceInterval(
             (long) DEFAULT_NOISED_X,

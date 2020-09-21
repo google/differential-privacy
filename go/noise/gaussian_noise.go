@@ -123,14 +123,22 @@ func (gaussian) DeltaForThreshold(l0Sensitivity int64, lInfSensitivity, epsilon,
 //
 // See https://github.com/google/differential-privacy/tree/main/common_docs/confidence_intervals.md.
 func (gaussian) ComputeConfidenceIntervalInt64(noisedX, l0Sensitivity, lInfSensitivity int64, epsilon, delta, alpha float64) (ConfidenceInterval, error) {
-	err := checkArgsConfidenceIntervalGaussian("computeConfidenceIntervalInt64", l0Sensitivity, float64(lInfSensitivity), epsilon, delta, alpha)
+	err := checkArgsConfidenceIntervalGaussian("ComputeConfidenceIntervalInt64 (gaussian)", l0Sensitivity, float64(lInfSensitivity), epsilon, delta, alpha)
 	if err != nil {
 		err := fmt.Errorf("ComputeConfidenceIntervalInt64(l0sensitivity %d, lInfSensitivity %d, epsilon %f, delta %e, alpha %f) checks failed with %v",
 			l0Sensitivity, lInfSensitivity, epsilon, delta, alpha, err)
 		return ConfidenceInterval{}, err
 	}
 	sigma := SigmaForGaussian(l0Sensitivity, float64(lInfSensitivity), epsilon, delta)
-	return computeConfidenceIntervalGaussian(float64(noisedX), sigma, alpha).roundToInt64(), nil
+	// Computing the confidence interval around zero rather than nosiedX helps represent the
+	// interval bounds more accurately. The reason is that the resolution of float64 values is most
+	// fine grained around zero.
+	confIntAroundZero := computeConfidenceIntervalGaussian(0, sigma, alpha).roundToInt64()
+	// Adding noisedX after converting the interval bounds to int64 ensures that no precision is lost
+	// due to the coarse resolution of float64 values for large instances of noisedX.
+	lowerBound := nextSmallerFloat64(int64(confIntAroundZero.LowerBound) + noisedX)
+	upperBound := nextLargerFloat64(int64(confIntAroundZero.UpperBound) + noisedX)
+	return ConfidenceInterval{LowerBound: lowerBound, UpperBound: upperBound}, nil
 }
 
 // ComputeConfidenceIntervalFloat64 computes a confidence interval that contains the raw value x from which float64
@@ -138,7 +146,7 @@ func (gaussian) ComputeConfidenceIntervalInt64(noisedX, l0Sensitivity, lInfSensi
 //
 // See https://github.com/google/differential-privacy/tree/main/common_docs/confidence_intervals.md.
 func (gaussian) ComputeConfidenceIntervalFloat64(noisedX float64, l0Sensitivity int64, lInfSensitivity, epsilon, delta, alpha float64) (ConfidenceInterval, error) {
-	err := checkArgsConfidenceIntervalGaussian("ComputeConfidenceIntervalFloat64", l0Sensitivity, lInfSensitivity, epsilon, delta, alpha)
+	err := checkArgsConfidenceIntervalGaussian("ComputeConfidenceIntervalFloat64 (gaussian)", l0Sensitivity, lInfSensitivity, epsilon, delta, alpha)
 	if err != nil {
 		err = fmt.Errorf("ComputeConfidenceIntervalFloat64(l0sensitivity %d, lInfSensitivity %f, epsilon %f, delta %e, alpha %f) checks failed with %v",
 			l0Sensitivity, lInfSensitivity, epsilon, delta, alpha, err)
@@ -184,10 +192,15 @@ func addGaussian(x, sigma float64) float64 {
 // computeConfidenceIntervalGaussian computes a confidence interval that contains the raw value x from which
 // float64 noisedX is computed with a probability equal to 1 - alpha with the given sigma.
 func computeConfidenceIntervalGaussian(noisedX, sigma, alpha float64) ConfidenceInterval {
-	z := inverseCDFGaussian(sigma, alpha/2) // z will hold a negative value.
-	FloatLowerBound := noisedX + z
-	FloatUpperBound := noisedX - z
-	return ConfidenceInterval{LowerBound: FloatLowerBound, UpperBound: FloatUpperBound}
+	z := inverseCDFGaussian(sigma, alpha/2)
+	// Because of the symmetry of the Gaussian distribution,
+	// -z corresponds to the (1 - alpha/2)-quantile of the distribution,
+	// meaning that the interval [z, -z] contains 1-alpha of the probability mass.
+	// Deriving the (1 - alpha/2)-quantile from the (alpha/2)-quantile and not vice versa is a
+	// deliberate choice. The reason is that alpha tends to be very small.
+	// Consequently, alpha/2 is more accurately representable as a float64 than 1 - alpha/2,
+	// facilitating numerical computations.
+	return ConfidenceInterval{LowerBound: noisedX + z, UpperBound: noisedX - z}
 }
 
 // inverseCDFGaussian computes the quantile z satisfying Pr[Y <= z] = p for a random variable Y that is Gaussian

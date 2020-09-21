@@ -117,7 +117,7 @@ func TestGaussianStatistics(t *testing.T) {
 	}
 }
 
-func TestSymmetricBinomialStatisitcs(t *testing.T) {
+func TestSymmetricBinomialStatistics(t *testing.T) {
 	const numberOfSamples = 125000
 	for _, tc := range []struct {
 		sqrtN  float64
@@ -278,7 +278,7 @@ func TestSigmaForGaussianInvertsDeltaForGaussian(t *testing.T) {
 	// tolerance. This validates that the function
 	//   delta ↦ SigmaForGaussian(l2Sensitivity, epsilon, delta)
 	// is an approximate inverse function of
-	//   sigma ↦ DeltaForGuassian(sigma, l2Sensitivity, epsilon).
+	//   sigma ↦ DeltaForGaussian(sigma, l2Sensitivity, epsilon).
 
 	for _, tc := range []struct {
 		desc            string
@@ -445,52 +445,52 @@ func TestInverseCDFGaussian(t *testing.T) {
 	}{
 
 		{
-			desc:  "Abitrary input test",
-			sigma: 1,
+			desc:  "Arbitrary input test",
+			sigma: 1.0,
 			p:     0.05,
-			want:  -1.64485362695,
+			want:  -1.6448536,
 		},
 		{
-			desc:  "Abitrary input test",
+			desc:  "Arbitrary input test",
 			sigma: 2.342354,
 			p:     0.0240299,
-			want:  -4.630457396977453,
+			want:  -4.6304574,
 		},
 		{
-			desc:  "Abitrary input test",
+			desc:  "Arbitrary input test",
 			sigma: 0.3,
-			p:     0.075345892435835346586,
-			want:  -0.431127673071454,
+			p:     0.07534589,
+			want:  -0.43112767,
 		},
 		{
 			desc:  "Edge case test with low alpha",
 			sigma: 0.356,
 			p:     10e-10,
-			want:  -2.1352192973427364,
+			want:  -2.1352193,
 		},
 		{
 			desc:  "Edge case test with high alpha",
 			sigma: 0.84,
 			p:     1 - 10e-10,
-			want:  5.0381578964653757,
+			want:  5.0381579,
 		},
 		// For p = 0.5, the result should be the mean regardless of sigma.
 		{
 			desc:  "Test with p = 0.5",
 			sigma: 0.3,
 			p:     0.5,
-			want:  0,
+			want:  0.0,
 		},
 		{
 			desc:  "Test with p = 0.5",
 			sigma: 0.8235243,
 			p:     0.5,
-			want:  0,
+			want:  0.0,
 		},
 	} {
 		Zc := inverseCDFGaussian(tc.sigma, tc.p)
-		if !(approxEqual(Zc, tc.want)) {
-			t.Errorf(" TestInverseCDFGaussian(%f, %f) = %0.16f, want %0.16f, desc: %s", tc.sigma, tc.p, Zc, tc.want, tc.desc)
+		if !approxEqual(Zc, tc.want) {
+			t.Errorf("TestInverseCDFGaussian(%f, %f) = %0.10f, want %0.10f, desc: %s", tc.sigma, tc.p, Zc, tc.want, tc.desc)
 		}
 	}
 }
@@ -505,55 +505,70 @@ func TestComputeConfidenceIntervalGaussian(t *testing.T) {
 		want    ConfidenceInterval
 	}{
 		{
-			desc:    "computeConfidenceIntervalGaussian arbitrary input test",
-			noisedX: 21,
-			sigma:   1,
+			desc:    "Arbitrary input test",
+			noisedX: 21.0,
+			sigma:   1.0,
 			alpha:   0.05,
-			want:    ConfidenceInterval{19.0400360155, 22.9599639845},
+			want:    ConfidenceInterval{19.040036, 22.959964},
 		},
 		{
-			desc:    "computeConfidenceIntervalGaussian arbitrary input test",
+			desc:    "Arbitrary input test",
 			noisedX: 40.003,
 			sigma:   0.333,
 			alpha:   1 - 0.888,
-			want:    ConfidenceInterval{39.473773903501886, 40.532226096498114},
+			want:    ConfidenceInterval{39.473774, 40.532226},
 		},
 		{
-			desc:    "computeConfidenceIntervalGaussian arbitrary input test",
+			desc:    "Arbitrary input test",
 			noisedX: 0.1,
 			sigma:   0.292929,
 			alpha:   1 - 0.888,
-			want:    ConfidenceInterval{-0.36554255621950726, 0.5655425562195072},
+			want:    ConfidenceInterval{-0.36554256, 0.56554256},
 		},
 		{
-			desc:    "computeConfidenceIntervalGaussian arbitrary input test",
+			desc:    "Arbitrary input test",
 			noisedX: 99.98989898,
 			sigma:   15423235,
 			alpha:   1 - 0.111,
-			want:    ConfidenceInterval{-2.1525159435946424e+06, 2.1527159233926027e+06},
+			want:    ConfidenceInterval{-2.1525159e+06, 2.1527159e+06},
 		},
 		{
 			desc:    "Low confidence level",
-			noisedX: 100,
-			sigma:   10,
+			noisedX: 100.0,
+			sigma:   10.0,
 			alpha:   1 - 1e-10,
-			want:    ConfidenceInterval{99.9999999987466878792474745, 100.0000000012533121207525255},
+			want:    ConfidenceInterval{99.999999, 100.00000},
 		},
 		{
 			desc:    "High confidence level",
-			noisedX: 100,
-			sigma:   10,
+			noisedX: 100.0,
+			sigma:   10.0,
 			alpha:   1e-10,
-			want:    ConfidenceInterval{35.3304891275948307338694576, 164.6695108724051692661305424},
+			want:    ConfidenceInterval{35.330489, 164.66951},
+		},
+		// Testing that bounds are accurate for abs(bound) < 2^53
+		{
+			desc:    "Large positive noisedX",
+			noisedX: 38475693.0,
+			sigma:   2.8469244,
+			alpha:   0.1,
+			want:    ConfidenceInterval{38475688.3, 38475697.7},
+		},
+		{
+			desc:    "Large negative noisedX",
+			noisedX: -38475693.0,
+			sigma:   2.8469244,
+			alpha:   0.1,
+			want:    ConfidenceInterval{-38475697.7, -38475688.3},
 		},
 	} {
 		result := computeConfidenceIntervalGaussian(tc.noisedX, tc.sigma, tc.alpha)
 		if !approxEqual(result.LowerBound, tc.want.LowerBound) {
-			t.Errorf("TestComputeConfidenceIntervalGaussian(%f, %f, %f)=%0.10f, want %0.10f, desc %s, LowerBound is not equal",
+			t.Errorf("TestComputeConfidenceIntervalGaussian(%f, %f, %f)=%0.10f, want %0.10f, desc %s, LowerBounds are not equal",
 				tc.noisedX, tc.alpha, tc.sigma, result.LowerBound, tc.want.LowerBound, tc.desc)
 		}
 		if !approxEqual(result.UpperBound, tc.want.UpperBound) {
-			t.Errorf("TestConfidenceIntervalGaussian(%f, %f, %f)=%0.10f, want %0.10f, desc %s, UpperBound is not equal",
+			t.Errorf("TestComputeConfidenceIntervalGaussian(%f, %f, %f)=%0.10f, want %0.10f, desc %s, UpperBounds are not equal",
 				tc.noisedX, tc.alpha, tc.sigma, result.UpperBound, tc.want.UpperBound, tc.desc)
 		}
 	}
@@ -565,7 +580,6 @@ func TestComputeConfidenceIntervalInt64Gaussian(t *testing.T) {
 		noisedX, l0Sensitivity, lInfSensitivity int64
 		epsilon, delta, alpha                   float64
 		want                                    ConfidenceInterval
-		wantErr                                 bool
 	}{
 		{
 			desc:            "Arbitrary test",
@@ -576,7 +590,6 @@ func TestComputeConfidenceIntervalInt64Gaussian(t *testing.T) {
 			delta:           0.1,
 			alpha:           0.2,
 			want:            ConfidenceInterval{8, 132},
-			wantErr:         false,
 		},
 		{
 			desc:            "Arbitrary test",
@@ -587,31 +600,73 @@ func TestComputeConfidenceIntervalInt64Gaussian(t *testing.T) {
 			delta:           0.9,
 			alpha:           0.152145599,
 			want:            ConfidenceInterval{-5, 7},
-			wantErr:         false,
 		},
-		// Testing checkArgsConfidenceIntervalGaussian.
 		{
 			desc:            "Arbitrary test with high alpha",
-			noisedX:         70.0,
+			noisedX:         70,
 			l0Sensitivity:   5,
 			lInfSensitivity: 36,
 			epsilon:         0.8,
 			delta:           0.8,
 			alpha:           1 - 7.856382354e-10,
 			want:            ConfidenceInterval{70, 70},
-			wantErr:         false,
 		},
 		{
 			desc:            "Arbitrary test with low alpha",
-			noisedX:         70.0,
+			noisedX:         70,
 			l0Sensitivity:   5,
 			lInfSensitivity: 36,
 			epsilon:         0.8,
 			delta:           0.8,
 			alpha:           7.856382354e-10,
 			want:            ConfidenceInterval{-97, 237},
-			wantErr:         false,
 		},
+		// Tests for nextSmallerFloat64 and nextLargerFloat64.
+		{
+			desc: "Large positive noisedX",
+			// Distance to neighbouring float64 values is greater than half the size of the confidence interval.
+			noisedX:         (1 << 58),
+			l0Sensitivity:   1,
+			lInfSensitivity: 1,
+			epsilon:         0.1,
+			delta:           0.1,
+			alpha:           0.1,
+			want:            ConfidenceInterval{math.Nextafter(1<<58, math.Inf(-1)), math.Nextafter(1<<58, math.Inf(1))},
+		},
+		{
+			desc: "Large negative noisedX",
+			// Distance to neighbouring float64 values is greater than half the size of the confidence interval.
+			noisedX:         -(1 << 58),
+			l0Sensitivity:   1,
+			lInfSensitivity: 1,
+			epsilon:         0.1,
+			delta:           0.1,
+			alpha:           0.1,
+			want:            ConfidenceInterval{math.Nextafter(-1<<58, math.Inf(-1)), math.Nextafter(-1<<58, math.Inf(1))},
+		},
+	} {
+		got, err := gauss.ComputeConfidenceIntervalInt64(tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.delta, tc.alpha)
+		if err != nil {
+			t.Errorf("ComputeConfidenceIntervalInt64Gaussian: when %s got err %v", tc.desc, err)
+		}
+		if got.LowerBound != tc.want.LowerBound {
+			t.Errorf("TestComputeConfidenceIntervalInt64Gaussian(%d, %d, %d, %f, %f, %f)=%f, want %f, desc %s, LowerBounds are not equal",
+				tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.delta, tc.alpha, got.LowerBound, tc.want.LowerBound, tc.desc)
+		}
+		if got.UpperBound != tc.want.UpperBound {
+			t.Errorf("TestComputeConfidenceIntervalInt64Gaussian(%d, %d, %d, %f, %f, %f)=%f, want %f, desc %s, UpperBounds are not equal",
+				tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.delta, tc.alpha, got.UpperBound, tc.want.UpperBound, tc.desc)
+		}
+	}
+}
+
+func TestComputeConfidenceIntervalInt64GaussianArgumentCheck(t *testing.T) {
+	// Test
+	for _, tc := range []struct {
+		desc                                    string
+		noisedX, l0Sensitivity, lInfSensitivity int64
+		epsilon, delta, alpha                   float64
+	}{
 		{
 			desc:            "Testing alpha bigger than 1",
 			noisedX:         1,
@@ -620,8 +675,6 @@ func TestComputeConfidenceIntervalInt64Gaussian(t *testing.T) {
 			epsilon:         0.5,
 			delta:           0.9,
 			alpha:           1.2, // alpha should not be larger than 1.
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Testing negative alpha",
@@ -631,8 +684,6 @@ func TestComputeConfidenceIntervalInt64Gaussian(t *testing.T) {
 			epsilon:         0.5,
 			delta:           0.9,
 			alpha:           -5, // alpha should not be smaller than 0.
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Testing negative l0Sensitivity",
@@ -642,8 +693,6 @@ func TestComputeConfidenceIntervalInt64Gaussian(t *testing.T) {
 			epsilon:         0.5,
 			delta:           0.9,
 			alpha:           0.2,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Testing zero l0Sensitivity",
@@ -653,8 +702,6 @@ func TestComputeConfidenceIntervalInt64Gaussian(t *testing.T) {
 			epsilon:         0.5,
 			delta:           0.9,
 			alpha:           0.2,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Testing negative lInfSensitivity",
@@ -664,8 +711,6 @@ func TestComputeConfidenceIntervalInt64Gaussian(t *testing.T) {
 			epsilon:         0.5,
 			delta:           0.9,
 			alpha:           0.2,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Testing zero lInfSensitivity",
@@ -675,8 +720,6 @@ func TestComputeConfidenceIntervalInt64Gaussian(t *testing.T) {
 			epsilon:         0.5,
 			delta:           0.9,
 			alpha:           0.2,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Testing negative epsilon",
@@ -686,8 +729,6 @@ func TestComputeConfidenceIntervalInt64Gaussian(t *testing.T) {
 			epsilon:         -0.05, // epsilon should be strictly positive.
 			delta:           0.9,
 			alpha:           0.2,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Testing infinite epsilon",
@@ -697,8 +738,6 @@ func TestComputeConfidenceIntervalInt64Gaussian(t *testing.T) {
 			epsilon:         math.Inf(1), // epsilon cannot be infinite.
 			delta:           0.9,
 			alpha:           0.2,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Testing NaN epsilon",
@@ -708,8 +747,6 @@ func TestComputeConfidenceIntervalInt64Gaussian(t *testing.T) {
 			epsilon:         math.Inf(1), // epsilon cannot be NaN.
 			delta:           0.9,
 			alpha:           0.2,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Testing negative delta",
@@ -719,8 +756,6 @@ func TestComputeConfidenceIntervalInt64Gaussian(t *testing.T) {
 			epsilon:         0.05,
 			delta:           -0.9, // delta should be strictly positive and smaller than 1.
 			alpha:           0.2,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Testing bigger than 1 delta",
@@ -730,8 +765,6 @@ func TestComputeConfidenceIntervalInt64Gaussian(t *testing.T) {
 			epsilon:         0.05,
 			delta:           10, // delta should be strictly positive and smaller than 1.
 			alpha:           0.2,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Testing zero delta",
@@ -741,8 +774,6 @@ func TestComputeConfidenceIntervalInt64Gaussian(t *testing.T) {
 			epsilon:         0.05,
 			delta:           10, // delta should be strictly positive and smaller than 1.
 			alpha:           0.2,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:          "Arbitrary test with 0 alpha",
@@ -751,8 +782,6 @@ func TestComputeConfidenceIntervalInt64Gaussian(t *testing.T) {
 			epsilon:       0.8,
 			delta:         0.8,
 			alpha:         0,
-			want:          ConfidenceInterval{},
-			wantErr:       true,
 		},
 		{
 			desc:            "Arbitrary test with 1 alpha",
@@ -762,8 +791,6 @@ func TestComputeConfidenceIntervalInt64Gaussian(t *testing.T) {
 			epsilon:         0.8,
 			delta:           0.8,
 			alpha:           1,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Arbitrary test with negative alpha",
@@ -773,8 +800,6 @@ func TestComputeConfidenceIntervalInt64Gaussian(t *testing.T) {
 			epsilon:         0.8,
 			delta:           0.8,
 			alpha:           -1,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Arbitrary test with greater than 1 alpha",
@@ -784,8 +809,6 @@ func TestComputeConfidenceIntervalInt64Gaussian(t *testing.T) {
 			epsilon:         0.8,
 			delta:           0.8,
 			alpha:           10,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Arbitrary test with NaN alpha",
@@ -795,101 +818,47 @@ func TestComputeConfidenceIntervalInt64Gaussian(t *testing.T) {
 			epsilon:         0.8,
 			delta:           0.8,
 			alpha:           math.NaN(),
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 	} {
 		got, err := gauss.ComputeConfidenceIntervalInt64(tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.delta, tc.alpha)
-		if (err != nil) != tc.wantErr {
-			t.Errorf("ComputeConfidenceIntervalInt64: when %s got err %v, wantErr=%t", tc.desc, err, tc.wantErr)
+		if err == nil {
+			t.Errorf("ComputeConfidenceIntervalInt64Gaussian: when %s no error was returned, expected error", tc.desc)
 		}
-		if got.LowerBound != tc.want.LowerBound {
-			t.Errorf("TestComputeConfidenceIntervalInt64(%d, %d, %d, %f, %f, %f)=%f, want %f, desc %s, LowerBound is not equal",
-				tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.delta, tc.alpha, got.LowerBound, tc.want.LowerBound, tc.desc)
-		}
-		if got.UpperBound != tc.want.UpperBound {
-			t.Errorf("TestComputeConfidenceIntervalInt64(%d, %d, %d, %f, %f, %f)=%f, want %f, desc %s, UpperBound is not equal",
-				tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.delta, tc.alpha, got.UpperBound, tc.want.UpperBound, tc.desc)
+		// Checks default confidence interval is returned when err is generated.
+		if (got != ConfidenceInterval{}) {
+			t.Errorf("TestComputeConfidenceIntervalInt64GaussianArgumentCheck(%d, %d, %d, %f, %f)=[LowerBound: %0.10f, UpperBound: %0.10f], want [LowerBound: 0.0, UpperBound: 0.0]",
+				tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.alpha, got.LowerBound, got.UpperBound)
 		}
 	}
 }
 
-func TestComputeConfidenceIntervalFloat64Gaussian(t *testing.T) {
+func TestComputeConfidenceIntervalFloat64GaussianArgumentCheck(t *testing.T) {
+	// Test
 	for _, tc := range []struct {
 		desc                                   string
 		noisedX                                float64
 		l0Sensitivity                          int64
 		lInfSensitivity, epsilon, delta, alpha float64
 		want                                   ConfidenceInterval
-		wantErr                                bool
 	}{
 		{
-			desc:            "Arbitrary test",
-			noisedX:         70.0,
-			l0Sensitivity:   5,
-			lInfSensitivity: 36,
-			epsilon:         0.8,
-			delta:           0.8,
-			alpha:           0.2,
-			want:            ConfidenceInterval{35.26815080641682, 104.73184919358317},
-			wantErr:         false,
-		},
-		{
-			desc:            "Arbitrary test with high alpha",
-			noisedX:         70.0,
-			l0Sensitivity:   5,
-			lInfSensitivity: 36,
-			epsilon:         0.8,
-			delta:           0.8,
-			alpha:           1 - 7.856382354e-10,
-			want:            ConfidenceInterval{69.9999999733, 70.0000000267},
-			wantErr:         false,
-		},
-		{
-			desc:            "Arbitrary test with low alpha",
-			noisedX:         70.0,
-			l0Sensitivity:   5,
-			lInfSensitivity: 36,
-			epsilon:         0.8,
-			delta:           0.8,
-			alpha:           7.856382354e-10,
-			want:            ConfidenceInterval{-96.6140883158, 236.6140883158},
-			wantErr:         false,
-		},
-		{
 			desc:            "Arbitrary test with 0 alpha",
-			noisedX:         598.21547558328,
+			noisedX:         598.21548,
 			l0Sensitivity:   5,
 			lInfSensitivity: 36,
 			epsilon:         0.8,
 			delta:           0.8,
 			alpha:           0,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Arbitrary test with 1 alpha",
-			noisedX:         70,
+			noisedX:         70.0,
 			l0Sensitivity:   5,
 			lInfSensitivity: 36,
 			epsilon:         0.8,
 			delta:           0.8,
 			alpha:           1,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
-		{
-			desc:            "Arbitrary test",
-			noisedX:         699.2402199905,
-			l0Sensitivity:   1,
-			lInfSensitivity: 5,
-			epsilon:         0.333,
-			delta:           0.9,
-			alpha:           0.001256458,
-			want:            ConfidenceInterval{694.5583238637953, 703.9221161172047},
-			wantErr:         false,
-		},
-		// Testing checkArgsConfidenceIntervalGaussian
 		{
 			desc:            "Testing alpha bigger than 1",
 			noisedX:         1,
@@ -898,8 +867,6 @@ func TestComputeConfidenceIntervalFloat64Gaussian(t *testing.T) {
 			epsilon:         0.5,
 			delta:           0.9,
 			alpha:           1.2, // alpha should not be smaller than 0.
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Testing negative alpha",
@@ -909,8 +876,6 @@ func TestComputeConfidenceIntervalFloat64Gaussian(t *testing.T) {
 			epsilon:         0.5,
 			delta:           0.9,
 			alpha:           -5, // alpha should not be smaller than 0.
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Testing negative l0Sensitivity",
@@ -920,8 +885,6 @@ func TestComputeConfidenceIntervalFloat64Gaussian(t *testing.T) {
 			epsilon:         0.5,
 			delta:           0.9,
 			alpha:           0.2,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Testing zero l0Sensitivity",
@@ -931,8 +894,6 @@ func TestComputeConfidenceIntervalFloat64Gaussian(t *testing.T) {
 			epsilon:         0.5,
 			delta:           0.9,
 			alpha:           0.2,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Testing negative lInfSensitivity",
@@ -942,8 +903,6 @@ func TestComputeConfidenceIntervalFloat64Gaussian(t *testing.T) {
 			epsilon:         0.5,
 			delta:           0.9,
 			alpha:           0.2,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Testing zero lInfSensitivity",
@@ -953,8 +912,6 @@ func TestComputeConfidenceIntervalFloat64Gaussian(t *testing.T) {
 			epsilon:         0.5,
 			delta:           0.9,
 			alpha:           0.2,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Testing positive infinity lInfSensitivity",
@@ -964,8 +921,6 @@ func TestComputeConfidenceIntervalFloat64Gaussian(t *testing.T) {
 			epsilon:         0.5,
 			delta:           0.9,
 			alpha:           0.2,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Testing NaN lInfSensitivity",
@@ -975,8 +930,6 @@ func TestComputeConfidenceIntervalFloat64Gaussian(t *testing.T) {
 			epsilon:         0.5,
 			delta:           0.9,
 			alpha:           0.2,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Testing negative epsilon",
@@ -986,8 +939,6 @@ func TestComputeConfidenceIntervalFloat64Gaussian(t *testing.T) {
 			epsilon:         -0.05, // epsilon should be strictly positive.
 			delta:           0.9,
 			alpha:           0.2,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Testing infinite epsilon",
@@ -997,8 +948,6 @@ func TestComputeConfidenceIntervalFloat64Gaussian(t *testing.T) {
 			epsilon:         math.Inf(1), // epsilon should not be infinite.
 			delta:           0.9,
 			alpha:           0.2,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Testing NaN epsilon",
@@ -1008,19 +957,15 @@ func TestComputeConfidenceIntervalFloat64Gaussian(t *testing.T) {
 			epsilon:         math.NaN(), // epsilon cannot be NaN.
 			delta:           0.9,
 			alpha:           0.2,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
-			desc:            "Testing negative dela",
+			desc:            "Testing negative delta",
 			noisedX:         1,
 			l0Sensitivity:   4,
 			lInfSensitivity: 5,
 			epsilon:         0.05,
 			delta:           -0.9, // delta should be strictly positive and smaller than 1.
 			alpha:           0.2,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Testing bigger than 1 delta",
@@ -1030,8 +975,6 @@ func TestComputeConfidenceIntervalFloat64Gaussian(t *testing.T) {
 			epsilon:         0.05,
 			delta:           10, // delta should be strictly positive and smaller than 1.
 			alpha:           0.2,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Testing zero delta",
@@ -1041,8 +984,6 @@ func TestComputeConfidenceIntervalFloat64Gaussian(t *testing.T) {
 			epsilon:         0.05,
 			delta:           0, // delta should be strictly positive and smaller than 1.
 			alpha:           0.2,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Testing infinite delta",
@@ -1052,21 +993,16 @@ func TestComputeConfidenceIntervalFloat64Gaussian(t *testing.T) {
 			epsilon:         0.05,
 			delta:           math.Inf(1), // delta should be strictly positive and smaller than 1.
 			alpha:           0.2,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 	} {
 		got, err := gauss.ComputeConfidenceIntervalFloat64(tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.delta, tc.alpha)
-		if (err != nil) != tc.wantErr {
-			t.Errorf("ComputeConfidenceIntervalFloat64: when %s got err %v, wantErr=%t", tc.desc, err, tc.wantErr)
+		if err == nil {
+			t.Errorf("ComputeConfidenceIntervalFloat64Gaussian: when %s no error was returned, expected error", tc.desc)
 		}
-		if !approxEqual(got.LowerBound, tc.want.LowerBound) {
-			t.Errorf("TestComputeConfidenceIntervalFloat64(%f, %d, %f, %f, %f)=%0.10f, want %0.10f, desc %s, LowerBound is not equal",
-				tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.alpha, got.UpperBound, tc.want.UpperBound, tc.desc)
-		}
-		if !approxEqual(got.UpperBound, tc.want.UpperBound) {
-			t.Errorf("TestComputeConfidenceIntervalFloat64(%f, %d, %f, %f, %f)=%0.10f, want %0.10f, desc %s, UpperBound is not equal",
-				tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.alpha, got.LowerBound, tc.want.LowerBound, tc.desc)
+		// Checks default confidence interval is returned when err is generated.
+		if (got != ConfidenceInterval{}) {
+			t.Errorf("TestComputeConfidenceIntervalFloat64GaussianArgumentCheck(%f, %d, %f, %f, %f)=[LowerBound: %0.10f, UpperBound: %0.10f], want [LowerBound: 0.0, UpperBound: 0.0]",
+				tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.alpha, got.LowerBound, got.UpperBound)
 		}
 	}
 }

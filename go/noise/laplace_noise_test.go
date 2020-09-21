@@ -126,7 +126,7 @@ func TestThresholdLaplace(t *testing.T) {
 		{1, 10, ln3, 1 - 1e-10, -193.28},
 		// Scale l0Sensitivity
 		{10, 10, 10 * ln3, 1e-9, 213.28},
-		{10, 10, 10 * ln3, 1 - 1e-9, -2.55}, // l0Sensitivity != 1, not expecting symmetry in "want" threhsold around lInfSensitivity.
+		{10, 10, 10 * ln3, 1 - 1e-9, -2.55}, // l0Sensitivity != 1, not expecting symmetry in "want" threshold around lInfSensitivity.
 		// High precision delta case
 		{1, 1, ln3, 1e-200, 419.55},
 	} {
@@ -180,41 +180,41 @@ func TestInverseCDFLaplace(t *testing.T) {
 	}{
 		{
 			desc:   "Arbitrary test",
-			lambda: 4,
-			prob:   0.7875404240919761168041,
-			want:   3.4234254367,
+			lambda: 4.0,
+			prob:   0.78754042,
+			want:   3.4234254,
 		},
 		{
 			desc:   "Arbitrary test",
-			lambda: 2,
-			prob:   0.1479685611330654517049,
-			want:   -2.435216544,
+			lambda: 2.0,
+			prob:   0.14796856,
+			want:   -2.4352165,
 		},
 		// For a probability of 0.5, the result should be the zero regardless of lambda.
 		{
 			desc:   "0.5 Probability, output is zero",
-			lambda: 5,
+			lambda: 5.0,
 			prob:   0.5,
 			want:   0,
 		},
 		{
 			desc:   "0.5 Probability, output is zero",
-			lambda: 10,
+			lambda: 10.0,
 			prob:   0.5,
 			want:   0,
 		},
 		// Tests for convergence to infinities with low and high probabilities.
 		{
 			desc:   "Low probability",
-			lambda: 3,
-			prob:   1.23757362e-15,
-			want:   -100.897429529251364,
+			lambda: 3.0,
+			prob:   1.2375736e-15,
+			want:   -100.89743,
 		},
 		{
 			desc:   "High probability",
-			lambda: 3,
-			prob:   0.999999999876242638,
-			want:   66.3586531343406788,
+			lambda: 3.0,
+			prob:   1 - 1.237574E-10,
+			want:   66.358653,
 		},
 	} {
 		got := inverseCDFLaplace(tc.lambda, tc.prob)
@@ -234,45 +234,60 @@ func TestComputeConfidenceIntervalLaplace(t *testing.T) {
 	}{
 		{
 			desc:    "Arbitrary test",
-			noisedX: 13,
-			lambda:  27.33333333333,
+			noisedX: 13.0,
+			lambda:  27.333333,
 			alpha:   0.05,
-			want:    ConfidenceInterval{-68.88334881, 94.88334881},
+			want:    ConfidenceInterval{-68.883349, 94.883349},
 		},
 		{
 			desc:    "Arbitrary test",
 			noisedX: 83.1235,
-			lambda:  60,
+			lambda:  60.0,
 			alpha:   0.24,
-			want:    ConfidenceInterval{-2.503481338, 168.7504813},
+			want:    ConfidenceInterval{-2.5034813, 168.75048},
 		},
 		{
 			desc:    "Arbitrary test",
-			noisedX: 5,
-			lambda:  6.6666666666667,
+			noisedX: 5.0,
+			lambda:  6.6666667,
 			alpha:   0.6,
-			want:    ConfidenceInterval{1.594495842, 8.405504158},
+			want:    ConfidenceInterval{1.5944958, 8.40550416},
 		},
 		{
 			desc:    "Arbitrary test",
 			noisedX: 65.4621,
-			lambda:  700,
+			lambda:  700.0,
 			alpha:   0.8,
-			want:    ConfidenceInterval{-90.73838592, 221.6625859},
+			want:    ConfidenceInterval{-90.738386, 221.66259},
 		},
 		{
 			desc:    "Extremely low confidence level",
 			noisedX: 0,
-			lambda:  10,
-			alpha:   1 - 3.548957438e-10,
-			want:    ConfidenceInterval{-3.548957437370245055312e-9, 3.548957437370245055312e-9},
+			lambda:  10.0,
+			alpha:   1 - 3.5489574e-10,
+			want:    ConfidenceInterval{-3.5489574e-9, 3.5489574e-9},
 		},
 		{
 			desc:    "Extremely high confidence level",
-			noisedX: 50,
-			lambda:  10,
-			alpha:   7.856382354e-10,
-			want:    ConfidenceInterval{-159.6452468975697118041, 259.6452468975697118041},
+			noisedX: 50.0,
+			lambda:  10.0,
+			alpha:   7.8563824e-10,
+			want:    ConfidenceInterval{-159.64525, 259.64525},
+		},
+		// Testing that bounds are accurate for abs(bound) < 2^53
+		{
+			desc:    "Large positive noisedX",
+			noisedX: 38475693.0,
+			lambda:  10.0,
+			alpha:   0.1,
+			want:    ConfidenceInterval{38475670.0, 38475716.0},
+		},
+		{
+			desc:    "Large negative noisedX",
+			noisedX: -38475693.0,
+			lambda:  10.0,
+			alpha:   0.1,
+			want:    ConfidenceInterval{-38475716.0, -38475670.0},
 		},
 	} {
 		got := computeConfidenceIntervalLaplace(tc.noisedX, tc.lambda, tc.alpha)
@@ -287,25 +302,13 @@ func TestComputeConfidenceIntervalLaplace(t *testing.T) {
 	}
 }
 
-func TestComputeConfidenceIntervalFloat64Laplace(t *testing.T) {
+func TestComputeConfidenceIntervalFloat64LaplaceArgumentCheck(t *testing.T) {
 	for _, tc := range []struct {
 		desc                                   string
 		noisedX                                float64
 		l0Sensitivity                          int64
 		lInfSensitivity, epsilon, alpha, delta float64
-		want                                   ConfidenceInterval
-		wantErr                                bool
 	}{
-		{
-			desc:            "Arbitrary test",
-			noisedX:         38.4234,
-			l0Sensitivity:   2,
-			lInfSensitivity: 4.3,
-			epsilon:         0.6,
-			alpha:           0.2,
-			want:            ConfidenceInterval{15.35478992, 61.49201008},
-		},
-		// Argument checking
 		{
 			desc:            "Zero l0Sensitivity",
 			noisedX:         0,
@@ -313,8 +316,6 @@ func TestComputeConfidenceIntervalFloat64Laplace(t *testing.T) {
 			lInfSensitivity: 1,
 			epsilon:         0.1,
 			alpha:           0.5,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Negative l0Sensitivity",
@@ -323,8 +324,6 @@ func TestComputeConfidenceIntervalFloat64Laplace(t *testing.T) {
 			lInfSensitivity: 1,
 			epsilon:         0.1,
 			alpha:           0.5,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Zero lInfSensitivity",
@@ -333,8 +332,6 @@ func TestComputeConfidenceIntervalFloat64Laplace(t *testing.T) {
 			lInfSensitivity: 0,
 			epsilon:         0.1,
 			alpha:           0.5,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Negative lInfSensitivity",
@@ -343,8 +340,6 @@ func TestComputeConfidenceIntervalFloat64Laplace(t *testing.T) {
 			lInfSensitivity: -1,
 			epsilon:         0.1,
 			alpha:           0.5,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Infinite lInfSensitivity",
@@ -353,8 +348,6 @@ func TestComputeConfidenceIntervalFloat64Laplace(t *testing.T) {
 			lInfSensitivity: math.Inf(1),
 			epsilon:         0.1,
 			alpha:           0.5,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "NaN lInfSensitivity",
@@ -363,18 +356,14 @@ func TestComputeConfidenceIntervalFloat64Laplace(t *testing.T) {
 			lInfSensitivity: math.NaN(),
 			epsilon:         0.1,
 			alpha:           0.5,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
-			desc:            "Zero epsilon",
+			desc:            "Epsilon less than 2^-50",
 			noisedX:         0,
 			l0Sensitivity:   1,
 			lInfSensitivity: 1,
-			epsilon:         0,
+			epsilon:         1.0 / (1 << 51),
 			alpha:           0.5,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Negative epsilon",
@@ -383,8 +372,6 @@ func TestComputeConfidenceIntervalFloat64Laplace(t *testing.T) {
 			lInfSensitivity: 1,
 			epsilon:         -1,
 			alpha:           0.5,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Infinite epsilon",
@@ -393,8 +380,6 @@ func TestComputeConfidenceIntervalFloat64Laplace(t *testing.T) {
 			lInfSensitivity: 1,
 			epsilon:         math.Inf(1),
 			alpha:           0.5,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "NaN epsilon",
@@ -403,8 +388,6 @@ func TestComputeConfidenceIntervalFloat64Laplace(t *testing.T) {
 			lInfSensitivity: 1,
 			epsilon:         math.NaN(),
 			alpha:           0.5,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Non-zero delta",
@@ -414,8 +397,6 @@ func TestComputeConfidenceIntervalFloat64Laplace(t *testing.T) {
 			epsilon:         0.1,
 			delta:           1,
 			alpha:           0.5,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Zero alpha",
@@ -424,8 +405,6 @@ func TestComputeConfidenceIntervalFloat64Laplace(t *testing.T) {
 			lInfSensitivity: 1,
 			epsilon:         0.1,
 			alpha:           0,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Negative alpha",
@@ -434,8 +413,6 @@ func TestComputeConfidenceIntervalFloat64Laplace(t *testing.T) {
 			lInfSensitivity: 1,
 			epsilon:         0.1,
 			alpha:           -1,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "1 alpha",
@@ -444,8 +421,6 @@ func TestComputeConfidenceIntervalFloat64Laplace(t *testing.T) {
 			lInfSensitivity: 1,
 			epsilon:         0.1,
 			alpha:           1,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Greater than 1 alpha",
@@ -454,8 +429,6 @@ func TestComputeConfidenceIntervalFloat64Laplace(t *testing.T) {
 			lInfSensitivity: 1,
 			epsilon:         0.1,
 			alpha:           2,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "NaN alpha",
@@ -464,22 +437,18 @@ func TestComputeConfidenceIntervalFloat64Laplace(t *testing.T) {
 			lInfSensitivity: 1,
 			epsilon:         0.1,
 			alpha:           math.NaN(),
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 	} {
 		got, err := lap.ComputeConfidenceIntervalFloat64(tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity,
 			tc.epsilon, tc.delta, tc.alpha)
-		if (err != nil) != tc.wantErr {
-			t.Errorf("ComputeConfidenceIntervalFloat64Laplace: when %v for err got %v, want %t", tc.desc, err, tc.wantErr)
+
+		if err == nil {
+			t.Errorf("ComputeConfidenceIntervalFloat64Laplace: when %s no error was returned, expected error", tc.desc)
 		}
-		if !approxEqual(got.LowerBound, tc.want.LowerBound) {
-			t.Errorf("TestComputeConfidenceIntervalFloat64Laplace(%f, %d, %f, %f, %f)=%0.10f, want %0.10f, desc %s, LowerBounds are not equal",
-				tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.alpha, got.LowerBound, tc.want.LowerBound, tc.desc)
-		}
-		if !approxEqual(got.UpperBound, tc.want.UpperBound) {
-			t.Errorf("TestComputeConfidenceIntervalFloat64Laplace(%f, %d, %f, %f, %f)=%0.10f, want %0.10f, desc %s, UpperBounds are not equal",
-				tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.alpha, got.UpperBound, tc.want.UpperBound, tc.desc)
+		// Checks default confidence interval is returned when err is generated.
+		if (got != ConfidenceInterval{}) {
+			t.Errorf("TestComputeConfidenceIntervalFloat64LaplaceArgumentCheck(%f, %d, %f, %f, %f)=[LowerBound: %0.10f, UpperBound: %0.10f], want [LowerBound: 0.0, UpperBound: 0.0]",
+				tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.alpha, got.LowerBound, got.UpperBound)
 		}
 	}
 }
@@ -490,7 +459,6 @@ func TestComputeConfidenceIntervalInt64Laplace(t *testing.T) {
 		noisedX, l0Sensitivity, lInfSensitivity int64
 		epsilon, delta, alpha                   float64
 		want                                    ConfidenceInterval
-		wantErr                                 bool
 	}{
 		{
 			desc:            "Arbitrary test",
@@ -501,7 +469,50 @@ func TestComputeConfidenceIntervalInt64Laplace(t *testing.T) {
 			alpha:           0.8,
 			want:            ConfidenceInterval{-79, 55},
 		},
-		// Argument checking
+		// Tests for nextSmallerFloat64 and nextLargerFloat64.
+		{
+			desc: "Large positive noisedX",
+			// Distance to neighbouring float64 values is greater than half the size of the confidence interval.
+			noisedX:         (1 << 58),
+			l0Sensitivity:   1,
+			lInfSensitivity: 1,
+			epsilon:         0.1,
+			alpha:           0.1,
+			want:            ConfidenceInterval{math.Nextafter(1<<58, math.Inf(-1)), math.Nextafter(1<<58, math.Inf(1))},
+		},
+		{
+			desc: "Large negative noisedX",
+			// Distance to neighbouring float64 values is greater than half the size of the confidence interval.
+			noisedX:         -(1 << 58),
+			l0Sensitivity:   1,
+			lInfSensitivity: 1,
+			epsilon:         0.1,
+			alpha:           0.1,
+			want:            ConfidenceInterval{math.Nextafter(-1<<58, math.Inf(-1)), math.Nextafter(-1<<58, math.Inf(1))},
+		},
+	} {
+		got, err := lap.ComputeConfidenceIntervalInt64(tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity,
+			tc.epsilon, tc.delta, tc.alpha)
+		if err != nil {
+			t.Errorf("ComputeConfidenceIntervalInt64Laplace: when %v for err got %v", tc.desc, err)
+		}
+		if got.LowerBound != tc.want.LowerBound {
+			t.Errorf("TestComputeConfidenceIntervalInt64Laplace(%d, %d, %d, %f, %f)=%0.10f, want %0.10f, desc %s, LowerBounds are not equal",
+				tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.alpha, got.LowerBound, tc.want.LowerBound, tc.desc)
+		}
+		if got.UpperBound != tc.want.UpperBound {
+			t.Errorf("TestComputeConfidenceIntervalInt64Laplace(%d, %d, %d, %f, %f)=%0.10f, want %0.10f, desc %s, UpperBounds are not equal",
+				tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.alpha, got.UpperBound, tc.want.UpperBound, tc.desc)
+		}
+	}
+}
+
+func TestComputeConfidenceIntervalInt64LaplaceArgumentCheck(t *testing.T) {
+	for _, tc := range []struct {
+		desc                                    string
+		noisedX, l0Sensitivity, lInfSensitivity int64
+		epsilon, alpha, delta                   float64
+	}{
 		{
 			desc:            "Zero l0Sensitivity",
 			noisedX:         0,
@@ -509,8 +520,6 @@ func TestComputeConfidenceIntervalInt64Laplace(t *testing.T) {
 			lInfSensitivity: 1,
 			epsilon:         0.1,
 			alpha:           0.5,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Negative l0Sensitivity",
@@ -519,8 +528,6 @@ func TestComputeConfidenceIntervalInt64Laplace(t *testing.T) {
 			lInfSensitivity: 1,
 			epsilon:         0.1,
 			alpha:           0.5,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Zero lInfSensitivity",
@@ -529,8 +536,6 @@ func TestComputeConfidenceIntervalInt64Laplace(t *testing.T) {
 			lInfSensitivity: 0,
 			epsilon:         0.1,
 			alpha:           0.5,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Negative lInfSensitivity",
@@ -539,18 +544,14 @@ func TestComputeConfidenceIntervalInt64Laplace(t *testing.T) {
 			lInfSensitivity: -1,
 			epsilon:         0.1,
 			alpha:           0.5,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
-			desc:            "Zero epsilon",
+			desc:            "Epsilon less than 2^-50",
 			noisedX:         0,
 			l0Sensitivity:   1,
 			lInfSensitivity: 1,
-			epsilon:         0,
+			epsilon:         1.0 / (1 << 51),
 			alpha:           0.5,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Negative epsilon",
@@ -559,8 +560,6 @@ func TestComputeConfidenceIntervalInt64Laplace(t *testing.T) {
 			lInfSensitivity: 1,
 			epsilon:         -1,
 			alpha:           0.5,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Infinite epsilon",
@@ -569,8 +568,6 @@ func TestComputeConfidenceIntervalInt64Laplace(t *testing.T) {
 			lInfSensitivity: 1,
 			epsilon:         math.Inf(1),
 			alpha:           0.5,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "NaN epsilon",
@@ -579,8 +576,6 @@ func TestComputeConfidenceIntervalInt64Laplace(t *testing.T) {
 			lInfSensitivity: 1,
 			epsilon:         math.NaN(),
 			alpha:           0.5,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Non-zero delta",
@@ -590,8 +585,6 @@ func TestComputeConfidenceIntervalInt64Laplace(t *testing.T) {
 			epsilon:         0.1,
 			delta:           1,
 			alpha:           0.5,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Zero alpha",
@@ -600,8 +593,6 @@ func TestComputeConfidenceIntervalInt64Laplace(t *testing.T) {
 			lInfSensitivity: 1,
 			epsilon:         0.1,
 			alpha:           0,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Negative alpha",
@@ -610,8 +601,6 @@ func TestComputeConfidenceIntervalInt64Laplace(t *testing.T) {
 			lInfSensitivity: 1,
 			epsilon:         0.1,
 			alpha:           -1,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "1 alpha",
@@ -620,8 +609,6 @@ func TestComputeConfidenceIntervalInt64Laplace(t *testing.T) {
 			lInfSensitivity: 1,
 			epsilon:         0.1,
 			alpha:           1,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "Greater than 1 alpha",
@@ -630,8 +617,6 @@ func TestComputeConfidenceIntervalInt64Laplace(t *testing.T) {
 			lInfSensitivity: 1,
 			epsilon:         0.1,
 			alpha:           2,
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 		{
 			desc:            "NaN alpha",
@@ -640,22 +625,18 @@ func TestComputeConfidenceIntervalInt64Laplace(t *testing.T) {
 			lInfSensitivity: 1,
 			epsilon:         0.1,
 			alpha:           math.NaN(),
-			want:            ConfidenceInterval{},
-			wantErr:         true,
 		},
 	} {
 		got, err := lap.ComputeConfidenceIntervalInt64(tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity,
 			tc.epsilon, tc.delta, tc.alpha)
-		if (err != nil) != tc.wantErr {
-			t.Errorf("ComputeConfidenceIntervalInt64Laplace: when %v for err got %v, want %t", tc.desc, err, tc.wantErr)
+
+		if err == nil {
+			t.Errorf("ComputeConfidenceIntervalInt64Laplace: when %s no error was returned, expected error", tc.desc)
 		}
-		if got.LowerBound != tc.want.LowerBound {
-			t.Errorf("TestComputeConfidenceIntervalInt64Laplace(%d, %d, %d, %f, %f)=%0.10f, want %0.10f, desc %s, LowerBounds are not equal",
-				tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.alpha, got.LowerBound, tc.want.LowerBound, tc.desc)
-		}
-		if got.UpperBound != tc.want.UpperBound {
-			t.Errorf("TestComputeConfidenceIntervalInt64Laplace(%d, %d, %d, %f, %f)=%0.10f, want %0.10f, desc %s, UpperBounds are not equal",
-				tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.alpha, got.UpperBound, tc.want.UpperBound, tc.desc)
+		// Checks default confidence interval is returned when err is generated.
+		if (got != ConfidenceInterval{}) {
+			t.Errorf("TestComputeConfidenceIntervalInt64LaplaceArgumentCheck(%d, %d, %d, %f, %f)=[LowerBound: %0.10f, UpperBound: %0.10f], want [LowerBound: 0.0, UpperBound: 0.0]",
+				tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.alpha, got.LowerBound, got.UpperBound)
 		}
 	}
 }

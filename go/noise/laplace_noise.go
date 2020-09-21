@@ -174,7 +174,15 @@ func (laplace) ComputeConfidenceIntervalInt64(noisedX, l0Sensitivity, lInfSensit
 		return ConfidenceInterval{}, err
 	}
 	lambda := laplaceLambda(l0Sensitivity, float64(lInfSensitivity), epsilon)
-	return computeConfidenceIntervalLaplace(float64(noisedX), lambda, alpha).roundToInt64(), nil
+	// Computing the confidence interval around zero rather than nosiedX helps represent the
+	// interval bounds more accurately. The reason is that the resolution of float64 values is most
+	// fine grained around zero.
+	confIntAroundZero := computeConfidenceIntervalLaplace(0, lambda, alpha).roundToInt64()
+	// Adding noisedX after converting the interval bounds to int64 ensures that no precision is lost
+	// due to the coarse resolution of float64 values for large instances of noisedX.
+	lowerBound := nextSmallerFloat64(int64(confIntAroundZero.LowerBound) + noisedX)
+	upperBound := nextLargerFloat64(int64(confIntAroundZero.UpperBound) + noisedX)
+	return ConfidenceInterval{LowerBound: lowerBound, UpperBound: upperBound}, nil
 }
 
 // ComputeConfidenceIntervalFloat64 computes a confidence interval that contains the raw value x from which float64
@@ -209,16 +217,7 @@ func checkArgsConfidenceIntervalLaplace(label string, l0Sensitivity int64, lInfS
 	if err := checks.CheckAlpha(label, alpha); err != nil {
 		return err
 	}
-	if err := checks.CheckL0Sensitivity(label, l0Sensitivity); err != nil {
-		return err
-	}
-	if err := checks.CheckLInfSensitivity(label, lInfSensitivity); err != nil {
-		return err
-	}
-	if err := checks.CheckEpsilonStrict(label, epsilon); err != nil {
-		return err
-	}
-	return checks.CheckNoDelta(label, delta)
+	return checkArgsLaplace(label, l0Sensitivity, lInfSensitivity, epsilon, delta)
 }
 
 // addLaplace adds Laplace noise scaled to the given epsilon and l1Sensitivity to the
@@ -240,11 +239,15 @@ func laplaceLambda(l0Sensitivity int64, lInfSensitivity, epsilon float64) float6
 // computeConfidenceIntervalLaplace computes a confidence interval that contains the raw value x from which
 // float64 noisedX is computed with a probability equal to 1 - alpha with the given lambda.
 func computeConfidenceIntervalLaplace(noisedX float64, lambda, alpha float64) ConfidenceInterval {
-	// Finding a symmetrical confidence interval around a Laplace of (0, lambda)
-	// by calculating Z_(alpha/2) using inverseCDFLaplace which will return a
-	// negative value by symmetry to gain more accuracy for extremely small alpha.
-	Z := inverseCDFLaplace(lambda, alpha/2)
-	return ConfidenceInterval{noisedX + Z, noisedX - Z}
+	z := inverseCDFLaplace(lambda, alpha/2)
+	// Because of the symmetry of the Laplace distribution,
+	// -z corresponds to the (1 - alpha/2)-quantile of the distribution,
+	// meaning that the interval [z, -z] contains 1-alpha of the probability mass.
+	// Deriving the (1 - alpha/2)-quantile from the (alpha/2)-quantile and not vice versa is a
+	// deliberate choice. The reason is that alpha tends to be very small.
+	// Consequently, alpha/2 is more accurately representable as a float64 than 1 - alpha/2,
+	// facilitating numerical computations.
+	return ConfidenceInterval{LowerBound: noisedX + z, UpperBound: noisedX - z}
 }
 
 // inverseCDFLaplace computes the quantile z satisfying Pr[Y <= z] = p for a random variable Y

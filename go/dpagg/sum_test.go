@@ -1050,19 +1050,22 @@ func TestSumComputeConfidenceIntervalForInt64Computation(t *testing.T) {
 // Tests that ComputeConfidenceInterval for float64 returns a correct interval for a given sum.
 func TestSumComputeConfidenceIntervalForFloat64Computation(t *testing.T) {
 	for _, tc := range []struct {
-		desc string
-		opt  *BoundedSumFloat64Options
-		want noise.ConfidenceInterval
+		desc      string
+		opt       *BoundedSumFloat64Options
+		want      noise.ConfidenceInterval
+		tolerance float64
 	}{
 		{
-			desc: "Gaussian",
-			opt:  &BoundedSumFloat64Options{Epsilon: 0.1, Delta: 0.1, Lower: 0, Upper: 5, Noise: getNoiselessConfInt(noise.Gaussian())},
-			want: noise.ConfidenceInterval{LowerBound: 15.8964252365, UpperBound: 35.1035747635},
+			desc:      "Gaussian",
+			opt:       &BoundedSumFloat64Options{Epsilon: 0.1, Delta: 0.1, Lower: 0, Upper: 5, Noise: getNoiselessConfInt(noise.Gaussian())},
+			want:      noise.ConfidenceInterval{LowerBound: 15.898893, UpperBound: 35.101107},
+			tolerance: 1e-3,
 		},
 		{
-			desc: "Laplace",
-			opt:  &BoundedSumFloat64Options{Epsilon: 0.1, Lower: 0, Upper: 5, Noise: getNoiselessConfInt(noise.Laplace())},
-			want: noise.ConfidenceInterval{LowerBound: 0.0000000000, UpperBound: 60.1573590280},
+			desc:      "Laplace",
+			opt:       &BoundedSumFloat64Options{Epsilon: 0.1, Lower: 0, Upper: 5, Noise: getNoiselessConfInt(noise.Laplace())},
+			want:      noise.ConfidenceInterval{LowerBound: 0.0, UpperBound: 60.157359},
+			tolerance: 1e-6,
 		},
 	} {
 		c := NewBoundedSumFloat64(tc.opt)
@@ -1072,11 +1075,11 @@ func TestSumComputeConfidenceIntervalForFloat64Computation(t *testing.T) {
 		c.Result()
 		got, _ := c.ComputeConfidenceInterval(0.5)
 
-		if !ApproxEqual(got.LowerBound, tc.want.LowerBound) {
+		if math.Abs(got.LowerBound-tc.want.LowerBound) > tc.tolerance*math.Max(got.LowerBound, tc.want.LowerBound) {
 			t.Errorf("TestSumComputeConfidenceIntervalForFloat64Computation(Noise: %s)=%0.10f, want %0.10f, LowerBounds are not equal",
 				tc.desc, got.LowerBound, tc.want.LowerBound)
 		}
-		if !ApproxEqual(got.UpperBound, tc.want.UpperBound) {
+		if math.Abs(got.UpperBound-tc.want.UpperBound) > tc.tolerance*math.Max(got.UpperBound, tc.want.UpperBound) {
 			t.Errorf("TestSumComputeConfidenceIntervalForFloat64Computation(Noise: %s)=%0.10f, want %0.10f, UpperBounds are not equal",
 				tc.desc, got.UpperBound, tc.want.UpperBound)
 		}
