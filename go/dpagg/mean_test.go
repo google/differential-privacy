@@ -748,33 +748,57 @@ func TestMeanComputeConfidenceIntervalForExplicitAlphaSplit(t *testing.T) {
 		want         noise.ConfidenceInterval // Confidence Interval after Post-processing.
 	}{
 		{ // Positive lower and upper bounds for sum.
-			meanOpt:      &BoundedMeanFloat64Options{Lower: 0.2, Upper: 15.0, Noise: noNoise, MaxContributionsPerPartition: 1},
+			meanOpt:      &BoundedMeanFloat64Options{
+				Lower: 0.2,
+				Upper: 15.0,
+				Noise: noNoise,
+				MaxContributionsPerPartition: 1,
+			},
 			sumConfInt:   noise.ConfidenceInterval{LowerBound: 5.0, UpperBound: 10.0},
 			countConfInt: noise.ConfidenceInterval{LowerBound: 5.0, UpperBound: 10.0},
 			want:         noise.ConfidenceInterval{LowerBound: 8.1, UpperBound: 9.6},
 		},
 		{ // Negative lower and upper bounds for sum.
-			meanOpt:      &BoundedMeanFloat64Options{Lower: 1.0, Upper: 7.0, Noise: noNoise, MaxContributionsPerPartition: 1},
+			meanOpt:      &BoundedMeanFloat64Options{
+				Lower: 1.0,
+				Upper: 7.0,
+				Noise: noNoise,
+				MaxContributionsPerPartition: 1,
+			},
 			sumConfInt:   noise.ConfidenceInterval{LowerBound: -15.0, UpperBound: -5.0},
 			countConfInt: noise.ConfidenceInterval{LowerBound: 2.0, UpperBound: 4.0},
 			want:         noise.ConfidenceInterval{LowerBound: 1.0, UpperBound: 2.75},
 		},
 		{ // Negative lower bound for sum.
-			meanOpt:      &BoundedMeanFloat64Options{Lower: 1.0, Upper: 7.0, Noise: noNoise, MaxContributionsPerPartition: 1},
+			meanOpt:      &BoundedMeanFloat64Options{
+				Lower: 1.0,
+				Upper: 7.0,
+				Noise: noNoise,
+				MaxContributionsPerPartition: 1,
+			},
 			sumConfInt:   noise.ConfidenceInterval{LowerBound: -10.0, UpperBound: 0.0},
 			countConfInt: noise.ConfidenceInterval{LowerBound: 2.0, UpperBound: 4.0},
 			want:         noise.ConfidenceInterval{LowerBound: 1.0, UpperBound: 4.0},
 		},
 		// Clamp too low bounds.
 		{
-			meanOpt:      &BoundedMeanFloat64Options{Lower: 1.0, Upper: 9.0, Noise: noNoise, MaxContributionsPerPartition: 1},
+			meanOpt:      &BoundedMeanFloat64Options{
+				Lower: 1.0,
+				Upper: 9.0,
+				Noise: noNoise,
+				MaxContributionsPerPartition: 1,
+			},
 			sumConfInt:   noise.ConfidenceInterval{LowerBound: -100.0, UpperBound: -50.0},
 			countConfInt: noise.ConfidenceInterval{LowerBound: 2.0, UpperBound: 5.0},
 			want:         noise.ConfidenceInterval{LowerBound: 1.0, UpperBound: 1.0},
 		},
 		// Clamp too high bounds.
 		{
-			meanOpt:      &BoundedMeanFloat64Options{Lower: 1.0, Upper: 9.0, Noise: noNoise, MaxContributionsPerPartition: 1},
+			meanOpt:      &BoundedMeanFloat64Options{
+				Lower: 1.0,
+				Upper: 9.0,
+				Noise: noNoise,
+				MaxContributionsPerPartition: 1},
 			sumConfInt:   noise.ConfidenceInterval{LowerBound: 70.0, UpperBound: 100.0},
 			countConfInt: noise.ConfidenceInterval{LowerBound: 2.0, UpperBound: 5.0},
 			want:         noise.ConfidenceInterval{LowerBound: 9.0, UpperBound: 9.0},
@@ -810,31 +834,36 @@ func TestMeanComputeConfidenceInterval_confidenceBoundsAlwaysInsideProvidedBound
 	// Generate a random meanAlpha and a random split.
 	meanAlpha := rand.Uniform()
 	countAlpha := rand.Uniform() * meanAlpha
-	meanConfInt, _ := mean.computeConfidenceIntervalForExplicitAlphaSplit(meanAlpha, countAlpha)
+	meanConfInt, err := mean.computeConfidenceIntervalForExplicitAlphaSplit(meanAlpha, countAlpha)
+	if err != nil {
+		t.Errorf("computeConfidenceIntervalForExplicitAlphaSplit(%f, %f) got err %v", meanAlpha, countAlpha, err)
+	}
 	if meanConfInt.LowerBound < lower || meanConfInt.LowerBound > upper {
-		t.Errorf("TestMeanComputeConfidenceInterval_confidenceBoundsAlwaysInsideProvidedBoundaries")
+		t.Errorf("computeConfidenceIntervalForExplicitAlphaSplit: lower bound = %f is outside of provided boundaries = [%f, %f]", 
+		meanConfInt.LowerBound, lower, upper)
 	}
 	if meanConfInt.UpperBound < lower || meanConfInt.UpperBound > upper {
-		t.Errorf("TestMeanComputeConfidenceInterval_confidenceBoundsAlwaysInsideProvidedBoundaries")
+		t.Errorf("computeConfidenceIntervalForExplicitAlphaSplit: upper bound = %f is outside of provided boundaries = 	[%f, %f]",
+		meanConfInt.UpperBound, lower, upper)
 	}
 }
 
 // ComputeConfidenceInterval checks that the parameters passed are the ones we expect for sum.
-func (mn mockBMNoise) ComputeConfidenceIntervalFloat64(noisedX float64, l0 int64, lInf, eps, del, alpha float64) (noise.ConfidenceInterval, error) {
+func (mn mockBMNoise) ComputeConfidenceIntervalFloat64(noisedX float64, l0Sensitivity int64, lInfSensitivity, epsilon, delta, alpha float64) (noise.ConfidenceInterval, error) {
 	if noisedX != 100{
 		mn.t.Errorf("ComputeConfidenceIntervalFloat64: for parameter noisedX got %f, want %f", noisedX, 100.0)
 	}
-	if l0 != 1 {
-		mn.t.Errorf("ComputeConfidenceIntervalFloat64: for parameter l0Sensitivity got %d, want %d", l0, 1)
+	if l0Sensitivity != 1 {
+		mn.t.Errorf("ComputeConfidenceIntervalFloat64: for parameter l0Sensitivity got %d, want %d", l0Sensitivity, 1)
 	}
-	if lInf != 3 {
-		mn.t.Errorf("ComputeConfidenceIntervalFloat64: for parameter lInfSensitivity got %f, want %d", lInf, 3)
+	if lInfSensitivity != 3 {
+		mn.t.Errorf("ComputeConfidenceIntervalFloat64: for parameter lInfSensitivity got %f, want %d", lInfSensitivity, 3)
 	}
-	if !ApproxEqual(eps, ln3*0.5) {
-		mn.t.Errorf("ComputeConfidenceIntervalFloat64: for parameter epsilon got %f, want %f", eps, ln3*0.5)
+	if !ApproxEqual(epsilon, ln3*0.5) {
+		mn.t.Errorf("ComputeConfidenceIntervalFloat64: for parameter epsilon got %f, want %f", epsilon, ln3*0.5)
 	}
-	if !ApproxEqual(del, tenten*0.5) {
-		mn.t.Errorf("ComputeConfidenceIntervalFloat64: for parameter delta got %f, want %f", del, tenten*0.5)
+	if !ApproxEqual(delta, tenten*0.5) {
+		mn.t.Errorf("ComputeConfidenceIntervalFloat64: for parameter delta got %f, want %f", delta, tenten*0.5)
 	}
 	if !ApproxEqual(alpha, 0.025/0.975) {
 		mn.t.Errorf("ComputeConfidenceIntervalFloat64: for parameter alpha got %f, want %f", alpha, 0.02564103)
@@ -843,21 +872,21 @@ func (mn mockBMNoise) ComputeConfidenceIntervalFloat64(noisedX float64, l0 int64
 }
 
 // ComputeConfidenceIntervalInt64 checks that the parameters passed are the ones we expect for count.
-func (mn mockBMNoise) ComputeConfidenceIntervalInt64(noisedX, l0, lInf int64, eps, del, alpha float64) (noise.ConfidenceInterval, error) {
-	if noisedX != 10{
+func (mn mockBMNoise) ComputeConfidenceIntervalInt64(noisedX, l0Sensitivity, lInfSensitivity int64, epsilon, delta, alpha float64) (noise.ConfidenceInterval, error) {
+	if noisedX != 10 {
 		mn.t.Errorf("ComputeConfidenceIntervalInt64: for parameter noisedX got %d, want %d", noisedX, 10)
 	}
-	if l0 != 1 {
-		mn.t.Errorf("ComputeConfidenceIntervalInt64: for parameter l0Sensitivity got %d, want %d", l0, 1)
+	if l0Sensitivity != 1 {
+		mn.t.Errorf("ComputeConfidenceIntervalInt64: for parameter l0Sensitivity got %d, want %d", l0Sensitivity, 1)
 	}
-	if lInf != 1 {
-		mn.t.Errorf("ComputeConfidenceIntervalInt64: for parameter lInfSensitivity got %d, want %d", lInf, 1)
+	if lInfSensitivity != 1 {
+		mn.t.Errorf("ComputeConfidenceIntervalInt64: for parameter lInfSensitivity got %d, want %d", lInfSensitivity, 1)
 	}
-	if !ApproxEqual(eps, ln3*0.5) {
-		mn.t.Errorf("ComputeConfidenceIntervalInt64: for parameter epsilon got %f, want %f", eps, ln3*0.5)
+	if !ApproxEqual(epsilon, ln3*0.5) {
+		mn.t.Errorf("ComputeConfidenceIntervalInt64: for parameter epsilon got %f, want %f", epsilon, ln3*0.5)
 	}
-	if !ApproxEqual(del, tenten*0.5) {
-		mn.t.Errorf("ComputeConfidenceIntervalInt64: for parameter delta got %f, want %f", del, tenten*0.5)
+	if !ApproxEqual(delta, tenten*0.5) {
+		mn.t.Errorf("ComputeConfidenceIntervalInt64: for parameter delta got %f, want %f", delta, tenten*0.5)
 	}
 	if alpha != alphaLevel/2 {
 		mn.t.Errorf("ComputeConfidenceIntervalInt64: for parameter alpha got %f, want %f", alpha, alphaLevel/2)

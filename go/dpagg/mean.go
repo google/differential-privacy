@@ -66,8 +66,6 @@ type BoundedMeanFloat64 struct {
 	resultReturned bool // whether the result has already been returned
 }
 
-var numSplits = 1000 // number of splits used in bruteforce for Confidence intervals.
-
 func bmEquallyInitializedFloat64(bm1, bm2 *BoundedMeanFloat64) bool {
 	return bm1.lower == bm2.lower &&
 		bm1.upper == bm2.upper &&
@@ -228,6 +226,7 @@ func (bm *BoundedMeanFloat64) ComputeConfidenceInterval(alpha float64) (noise.Co
 	// Brute force optimization to find the tightest confidence interval:
 	// Iterate through a fixed numSplits number of splits for alphaSplit where it takes the
 	// range of values strictly from 0 to alpha.
+	var numSplits = 1000 // number of splits used in bruteforce for Confidence intervals.
 	increment := alpha / float64(numSplits)
 	minSize := math.Inf(1) // Minimum difference between lower and upper bounds.
 	var tightestConfInt noise.ConfidenceInterval
