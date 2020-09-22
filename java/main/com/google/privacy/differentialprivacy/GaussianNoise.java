@@ -21,10 +21,9 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.differentialprivacy.SummaryOuterClass.MechanismType;
 import java.security.SecureRandom;
+import javax.annotation.Nullable;
 import org.apache.commons.math3.distribution.NormalDistribution;
 import org.apache.commons.math3.special.Erf;
-
-import java.lang.Math;
 
 /**
  * Generates and adds Gaussian noise to a raw piece of numerical data such that the result is
@@ -121,6 +120,9 @@ public class GaussianNoise implements Noise {
    * Computes a confidence interval that contains the raw value {@code x} passed to {@link
    * #addNoise(double, int, double, double, Double)} with a probability equal to {@code 1 - alpha}
    * based on the specified {@code noisedX} and noise parameters.
+   *
+   * <p>See <a href="https://github.com/google/differential-privacy/tree/main/common_docs/confidence_intervals.md">
+   * the confidence intervals doc</a>.
    */
   @Override
   public ConfidenceInterval computeConfidenceInterval(
@@ -131,15 +133,24 @@ public class GaussianNoise implements Noise {
       Double delta,
       double alpha) {
     checkConfidenceIntervalParameters(l0Sensitivity, lInfSensitivity, epsilon, delta, alpha);
-    double l2Sensitivity = Noise.getL2Sensitivity(l0Sensitivity, lInfSensitivity);
-    double sigma = getSigma(l2Sensitivity, epsilon, delta);
-    return computeConfidenceInterval(noisedX, sigma, alpha);
+    double z =
+        computeQuantile(alpha / 2.0, noisedX, l0Sensitivity, lInfSensitivity, epsilon, delta);
+    // Because of the symmetry of the Gaussian distribution, 2 * noisedX - z corresponds to the
+    // (1 - alpha/2)-quantile of the distribution, meaning that the interval [z, 2 * noisedX - z]
+    // contains 1-alpha of the probability mass. Deriving the (1 - alpha/2)-quantile from the
+    // (alpha/2)-quantile and not vice versa is a deliberate choice. The reason is that alpha tends
+    // to be very small. Consequently, alpha/2 is more accurately representable as a double than
+    // 1 - alpha/2, facilitating numerical computations.
+    return ConfidenceInterval.create(z, 2.0 * noisedX - z);
   }
 
   /**
    * Computes a confidence interval that contains the raw integer value {@code x} passed to {@link
-   * #addNoise(long, int, long, double, Double)} with a probability greater or equal to {@code
-   * 1 - alpha} based on the specified {@code noisedX} and noise parameters.
+   * #addNoise(long, int, long, double, Double)} with a probability greater or equal to {@code 1 -
+   * alpha} based on the specified {@code noisedX} and noise parameters.
+   *
+   * <p>See <a href="https://github.com/google/differential-privacy/tree/main/common_docs/confidence_intervals.md">
+   * the confidence intervals doc</a>.
    */
   @Override
   public ConfidenceInterval computeConfidenceInterval(
@@ -149,31 +160,36 @@ public class GaussianNoise implements Noise {
       double epsilon,
       Double delta,
       double alpha) {
-    checkConfidenceIntervalParameters(l0Sensitivity, lInfSensitivity, epsilon, delta, alpha);
-    double l2Sensitivity = Noise.getL2Sensitivity(l0Sensitivity, lInfSensitivity);
-    double sigma = getSigma(l2Sensitivity, epsilon, delta);
-    ConfidenceInterval confIntAroundZero = computeConfidenceInterval(0.0, sigma, alpha);
+    // Computing the confidence interval around zero rather than nosiedX helps represent the
+    // interval bounds more accurately. The reason is that the resolution of double values is most
+    // fine grained around zero.
+    ConfidenceInterval confIntAroundZero =
+        computeConfidenceInterval(0.0, l0Sensitivity, lInfSensitivity, epsilon, delta, alpha);
+    // Adding noisedX after converting the interval bounds to long ensures that no precision is lost
+    // due to the coarse resolution of double values for large instances of noisedX.
     return ConfidenceInterval.create(
         SecureNoiseMath.nextSmallerDouble(Math.round(confIntAroundZero.lowerBound()) + noisedX),
-        SecureNoiseMath.nextLargerDouble(Math.round(confIntAroundZero.upperBound())) + noisedX);
+        SecureNoiseMath.nextLargerDouble(Math.round(confIntAroundZero.upperBound()) + noisedX));
   }
 
   /**
-   * See {@link #computeConfidenceInterval(double, int, double, double, Double, double)}.
-   *
-   * <p> As opposed to the latter method, this accepts the standard deviation {@code sigma} of the Gaussian noise directly.
+   * Computes the quantile z satisfying Pr[Y <= z] = {@code rank} for a Gaussian ranodm variable Y
+   * with mean {@code x} and variance according to the specified privacy parameters.
    */
-  private ConfidenceInterval computeConfidenceInterval(double noisedX, double sigma, double alpha) {
-    double z = computeGaussianPercentile(sigma, alpha / 2); // z will hold a negative value.
-    return ConfidenceInterval.create(noisedX + z, noisedX - z);
-  }
+  @Override
+  public double computeQuantile(
+      double rank,
+      double x,
+      int l0Sensitivity,
+      double lInfSensitivity,
+      double epsilon,
+      @Nullable Double delta) {
+    DpPreconditions.checkNoiseComputeQuantileArguments(
+        this, rank, l0Sensitivity, lInfSensitivity, epsilon, delta);
 
-  /**
-   * Returns the {@code p}-percentile z of a Gaussian random variable X with a mean of 0 and a standard deviation
-   * of {@code sigma}, i.e., Pr[X ≤ z] = {@code p}.
-   */
-  private double computeGaussianPercentile(double sigma, double p) {
-    return -sigma * Math.sqrt(2) * Erf.erfcInv(2 * p);
+    double l2Sensitivity = Noise.getL2Sensitivity(l0Sensitivity, lInfSensitivity);
+    double sigma = getSigma(l2Sensitivity, epsilon, delta);
+    return x - sigma * Math.sqrt(2) * Erf.erfcInv(2 * rank);
   }
 
   private void checkParameters(
@@ -185,9 +201,7 @@ public class GaussianNoise implements Noise {
     // The secure Gaussian noise implementation will fail if 2 * lInfSensitivity is infinite.
     double twoLInf = 2.0 * lInfSensitivity;
     checkArgument(
-            Double.isFinite(twoLInf),
-            "2 * lInfSensitivity must be finite but is %s",
-            twoLInf);
+        Double.isFinite(twoLInf), "2 * lInfSensitivity must be finite but is %s", twoLInf);
   }
 
   private void checkConfidenceIntervalParameters(

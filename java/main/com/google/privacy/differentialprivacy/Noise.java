@@ -56,4 +56,16 @@ public interface Noise {
   static double getL2Sensitivity(int l0Sensitivity, double lInfSensitivity) {
     return Math.sqrt(l0Sensitivity) * lInfSensitivity;
   }
+
+  /**
+   * Calculates a value k s.t. with probability {@code rank} the result of {@link #addNoise} with
+   * the given parameters will be less or equal to k.
+   */
+  double computeQuantile(
+      double rank,
+      double x,
+      int l0Sensitivity,
+      double lInfSensitivity,
+      double epsilon,
+      @Nullable Double delta);
 }

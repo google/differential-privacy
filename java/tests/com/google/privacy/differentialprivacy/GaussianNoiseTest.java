@@ -32,7 +32,7 @@ public final class GaussianNoiseTest {
   private static final GaussianNoise NOISE = new GaussianNoise();
   private static final int NUM_SAMPLES = 100000;
   private static final double LN_3 = Math.log(3);
-  private static final double DEFAULT_MEAN = 0.0;
+  private static final double DEFAULT_X = 0.0;
   private static final double DEFAULT_EPSILON = LN_3;
   private static final double DEFAULT_DELTA = 0.00001;
   private static final int DEFAULT_L_0_SENSITIVITY = 1;
@@ -44,7 +44,7 @@ public final class GaussianNoiseTest {
     for (int i = 0; i < NUM_SAMPLES; i++) {
       samples.add(
           NOISE.addNoise(
-              DEFAULT_MEAN,
+              DEFAULT_X,
               DEFAULT_L_0_SENSITIVITY,
               DEFAULT_L_INF_SENSITIVITY,
               DEFAULT_EPSILON,
@@ -57,7 +57,7 @@ public final class GaussianNoiseTest {
     // of the sample mean and variance. Thus, the test falsely rejects with a probability of 10^-5.
     double sampleMeanTolerance = 4.41717 * Math.sqrt(variance / NUM_SAMPLES);
     double sampleVarianceTolerance = 4.41717 * variance * Math.sqrt(2.0 / NUM_SAMPLES);
-    assertThat(stats.mean()).isWithin(sampleMeanTolerance).of(DEFAULT_MEAN);
+    assertThat(stats.mean()).isWithin(sampleMeanTolerance).of(DEFAULT_X);
     assertThat(stats.populationVariance()).isWithin(sampleVarianceTolerance).of(variance);
   }
 
@@ -67,7 +67,7 @@ public final class GaussianNoiseTest {
     for (int i = 0; i < NUM_SAMPLES; i++) {
       samples.add(
           NOISE.addNoise(
-              /* mean */ 42.0,
+              /* x= */ 42.0,
               DEFAULT_L_0_SENSITIVITY,
               DEFAULT_L_INF_SENSITIVITY,
               DEFAULT_EPSILON,
@@ -91,9 +91,9 @@ public final class GaussianNoiseTest {
     for (int i = 0; i < NUM_SAMPLES; i++) {
       samples.add(
           NOISE.addNoise(
-              DEFAULT_MEAN,
+              DEFAULT_X,
               DEFAULT_L_0_SENSITIVITY,
-              /* lInfSensitivity */ 0.5,
+              /* lInfSensitivity= */ 0.5,
               DEFAULT_EPSILON,
               DEFAULT_DELTA));
     }
@@ -104,7 +104,7 @@ public final class GaussianNoiseTest {
     // of the sample mean and variance. Thus, the test falsely rejects with a probability of 10^-5.
     double sampleMeanTolerance = 4.41717 * Math.sqrt(variance / NUM_SAMPLES);
     double sampleVarianceTolerance = 4.41717 * variance * Math.sqrt(2.0 / NUM_SAMPLES);
-    assertThat(stats.mean()).isWithin(sampleMeanTolerance).of(DEFAULT_MEAN);
+    assertThat(stats.mean()).isWithin(sampleMeanTolerance).of(DEFAULT_X);
     assertThat(stats.populationVariance()).isWithin(sampleVarianceTolerance).of(variance);
   }
 
@@ -114,10 +114,10 @@ public final class GaussianNoiseTest {
     for (int i = 0; i < NUM_SAMPLES; i++) {
       samples.add(
           NOISE.addNoise(
-              DEFAULT_MEAN,
+              DEFAULT_X,
               DEFAULT_L_0_SENSITIVITY,
               DEFAULT_L_INF_SENSITIVITY,
-              /* epsilon */ 2 * LN_3,
+              /* epsilon= */ 2 * LN_3,
               DEFAULT_DELTA));
     }
     Stats stats = Stats.of(samples.build());
@@ -127,7 +127,7 @@ public final class GaussianNoiseTest {
     // of the sample mean and variance. Thus, the test falsely rejects with a probability of 10^-5.
     double sampleMeanTolerance = 4.41717 * Math.sqrt(variance / NUM_SAMPLES);
     double sampleVarianceTolerance = 4.41717 * variance * Math.sqrt(2.0 / NUM_SAMPLES);
-    assertThat(stats.mean()).isWithin(sampleMeanTolerance).of(DEFAULT_MEAN);
+    assertThat(stats.mean()).isWithin(sampleMeanTolerance).of(DEFAULT_X);
     assertThat(stats.populationVariance()).isWithin(sampleVarianceTolerance).of(variance);
   }
 
@@ -137,11 +137,11 @@ public final class GaussianNoiseTest {
     for (int i = 0; i < NUM_SAMPLES; i++) {
       samples.add(
           NOISE.addNoise(
-              DEFAULT_MEAN,
+              DEFAULT_X,
               DEFAULT_L_0_SENSITIVITY,
               DEFAULT_L_INF_SENSITIVITY,
               DEFAULT_EPSILON,
-              /* delta */ 0.01));
+              /* delta= */ 0.01));
     }
     Stats stats = Stats.of(samples.build());
 
@@ -150,7 +150,7 @@ public final class GaussianNoiseTest {
     // of the sample mean and variance. Thus, the test falsely rejects with a probability of 10^-5.
     double sampleMeanTolerance = 4.41717 * Math.sqrt(variance / NUM_SAMPLES);
     double sampleVarianceTolerance = 4.41717 * variance * Math.sqrt(2.0 / NUM_SAMPLES);
-    assertThat(stats.mean()).isWithin(sampleMeanTolerance).of(DEFAULT_MEAN);
+    assertThat(stats.mean()).isWithin(sampleMeanTolerance).of(DEFAULT_X);
     assertThat(stats.populationVariance()).isWithin(sampleVarianceTolerance).of(variance);
   }
 
@@ -160,9 +160,9 @@ public final class GaussianNoiseTest {
     for (int i = 0; i < NUM_SAMPLES; i++) {
       samples.add(
           NOISE.addNoise(
-              /* mean */ 0L,
+              /* x= */ 0L,
               DEFAULT_L_0_SENSITIVITY,
-              /* lInfSensitivity */ 1L,
+              /* lInfSensitivity= */ 1L,
               DEFAULT_EPSILON,
               DEFAULT_DELTA));
     }
@@ -183,10 +183,10 @@ public final class GaussianNoiseTest {
         IllegalArgumentException.class,
         () ->
             NOISE.addNoise(
-                DEFAULT_MEAN,
+                DEFAULT_X,
                 DEFAULT_L_0_SENSITIVITY,
                 DEFAULT_L_INF_SENSITIVITY,
-                /* epsilon */ 1.0 / (1L << 51),
+                /* epsilon= */ 1.0 / (1L << 51),
                 DEFAULT_DELTA));
   }
 
@@ -196,10 +196,10 @@ public final class GaussianNoiseTest {
         IllegalArgumentException.class,
         () ->
             NOISE.addNoise(
-                DEFAULT_MEAN,
+                DEFAULT_X,
                 DEFAULT_L_0_SENSITIVITY,
                 DEFAULT_L_INF_SENSITIVITY,
-                /* epsilon */ Double.POSITIVE_INFINITY,
+                /* epsilon= */ Double.POSITIVE_INFINITY,
                 DEFAULT_DELTA));
   }
 
@@ -209,10 +209,10 @@ public final class GaussianNoiseTest {
         IllegalArgumentException.class,
         () ->
             NOISE.addNoise(
-                DEFAULT_MEAN,
+                DEFAULT_X,
                 DEFAULT_L_0_SENSITIVITY,
                 DEFAULT_L_INF_SENSITIVITY,
-                /* epsilon */ Double.NaN,
+                /* epsilon= */ Double.NaN,
                 DEFAULT_DELTA));
   }
 
@@ -222,11 +222,11 @@ public final class GaussianNoiseTest {
         IllegalArgumentException.class,
         () ->
             NOISE.addNoise(
-                DEFAULT_MEAN,
+                DEFAULT_X,
                 DEFAULT_L_0_SENSITIVITY,
                 DEFAULT_L_INF_SENSITIVITY,
                 DEFAULT_EPSILON,
-                /* delta */ -1.0));
+                /* delta= */ -1.0));
   }
 
   @Test
@@ -235,11 +235,11 @@ public final class GaussianNoiseTest {
         IllegalArgumentException.class,
         () ->
             NOISE.addNoise(
-                DEFAULT_MEAN,
+                DEFAULT_X,
                 DEFAULT_L_0_SENSITIVITY,
                 DEFAULT_L_INF_SENSITIVITY,
                 DEFAULT_EPSILON,
-                /* delta */ 1.0));
+                /* delta= */ 1.0));
   }
 
   @Test
@@ -248,11 +248,11 @@ public final class GaussianNoiseTest {
         IllegalArgumentException.class,
         () ->
             NOISE.addNoise(
-                DEFAULT_MEAN,
+                DEFAULT_X,
                 DEFAULT_L_0_SENSITIVITY,
                 DEFAULT_L_INF_SENSITIVITY,
                 DEFAULT_EPSILON,
-                /* delta */ 2.0));
+                /* delta= */ 2.0));
   }
 
   @Test
@@ -261,11 +261,11 @@ public final class GaussianNoiseTest {
         NullPointerException.class,
         () ->
             NOISE.addNoise(
-                DEFAULT_MEAN,
+                DEFAULT_X,
                 DEFAULT_L_0_SENSITIVITY,
                 DEFAULT_L_INF_SENSITIVITY,
                 DEFAULT_EPSILON,
-                /* delta */ null));
+                /* delta= */ null));
   }
 
   @Test
@@ -279,8 +279,8 @@ public final class GaussianNoiseTest {
         IllegalArgumentException.class,
         () ->
             NOISE.addNoise(
-                DEFAULT_MEAN,
-                /* l0Sensitivity */ -1,
+                DEFAULT_X,
+                /* l0Sensitivity= */ -1,
                 DEFAULT_L_INF_SENSITIVITY,
                 DEFAULT_EPSILON,
                 DEFAULT_DELTA));
@@ -292,8 +292,8 @@ public final class GaussianNoiseTest {
         IllegalArgumentException.class,
         () ->
             NOISE.addNoise(
-                DEFAULT_MEAN,
-                /* lInfSensitivity */ 0,
+                DEFAULT_X,
+                /* l0Sensitivity= */ 0,
                 DEFAULT_L_INF_SENSITIVITY,
                 DEFAULT_EPSILON,
                 DEFAULT_DELTA));
@@ -305,9 +305,9 @@ public final class GaussianNoiseTest {
         IllegalArgumentException.class,
         () ->
             NOISE.addNoise(
-                DEFAULT_MEAN,
+                DEFAULT_X,
                 DEFAULT_L_0_SENSITIVITY,
-                /* lInfSensitivity */ -1.0,
+                /* lInfSensitivity= */ -1.0,
                 DEFAULT_EPSILON,
                 DEFAULT_DELTA));
   }
@@ -318,9 +318,9 @@ public final class GaussianNoiseTest {
         IllegalArgumentException.class,
         () ->
             NOISE.addNoise(
-                DEFAULT_MEAN,
+                DEFAULT_X,
                 DEFAULT_L_0_SENSITIVITY,
-                /* lInfSensitivity */ 0.0,
+                /* lInfSensitivity= */ 0.0,
                 DEFAULT_EPSILON,
                 DEFAULT_DELTA));
   }
@@ -332,9 +332,9 @@ public final class GaussianNoiseTest {
             IllegalArgumentException.class,
             () ->
                 NOISE.addNoise(
-                    DEFAULT_MEAN,
+                    DEFAULT_X,
                     DEFAULT_L_0_SENSITIVITY,
-                    /* lInfSensitvity */ Double.MAX_VALUE,
+                    /* lInfSensitivity= */ Double.MAX_VALUE,
                     DEFAULT_EPSILON,
                     DEFAULT_DELTA));
     assertThat(thrown)

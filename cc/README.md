@@ -12,11 +12,11 @@ subdirectory. Here's a minimal example showing how to compute the count of some
 data:
 
 ```
-#include "differential_privacy/algorithms/count.h"
+#include "algorithms/count.h"
 
 // Epsilon is a configurable parameter. A lower value means more privacy but
 // less accuracy.
-int64_t count(const vector<double>& values, double epsilon) {
+int64_t count(const std::vector<double>& values, double epsilon) {
   // Construct the Count object to run on double inputs.
   std::unique_ptr<differential_privacy::Count<double>> count =
      differential_privacy::Count<double>::Builder().SetEpsilon(epsilon)
@@ -24,12 +24,15 @@ int64_t count(const vector<double>& values, double epsilon) {
                                                    .ValueOrDie();
 
   // Compute the count and get the result.
-  differential_privacy::Output result =
+  base::StatusOr<differential_privacy::Output> result =
      count->Result(values.begin(), values.end());
+  if (!result.ok()) {
+    return 0;
+  }
 
   // GetValue can be used to extract the value from an Output protobuf. For
   // count, this is always an int64_t value.
-  return differential_privacy::GetValue<int64_t>(result);
+  return differential_privacy::GetValue<int64_t>(result.ValueOrDie());
 }
 ```
 

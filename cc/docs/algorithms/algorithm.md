@@ -103,6 +103,6 @@ Add the entries from `begin` to `end`, and then get the result with the full
 remaining privacy budget.
 
 Values are returned from `Result` in an [`Output`](../protos.md) proto. For most
-algorithms, this is a single `int64` or `double` value. Some algorithma contain
+algorithms, this is a single `int64` or `double` value. Some algorithms contain
 additional data about accuracy and algorithm mechanisms. You can use
 [`GetValue<Type>`](../protos.md) to get values out of `Output`s easily.

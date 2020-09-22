@@ -18,6 +18,7 @@ package com.google.privacy.differentialprivacy;
 
 import static java.lang.Math.abs;
 import static java.lang.Math.max;
+import static java.lang.Math.min;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Preconditions;
@@ -57,6 +58,7 @@ public class BoundedSum {
 
   private final Params params;
   private double sum;
+  private double noisedSum;
 
   // Was the sum returned to the user?
   private boolean resultReturned;
@@ -125,9 +127,44 @@ public class BoundedSum {
     resultReturned = true;
     double lInfSensitivity =
         getLInfSensitivity(params.lower(), params.upper(), params.maxContributionsPerPartition());
-    return params
-        .noise()
-        .addNoise(sum, getL0Sensitivity(), lInfSensitivity, params.epsilon(), params.delta());
+    noisedSum =
+        params
+            .noise()
+            .addNoise(sum, getL0Sensitivity(), lInfSensitivity, params.epsilon(), params.delta());
+    return noisedSum;
+  }
+
+  /**
+   * Computes a confidence interval that contains the true {@link
+   * BoundedSum} with a probability greater or equal to 1 - alpha using the noised {@link
+   * BoundedSum} computed by {@code computeResult()}.
+   *
+   * <p>See <a href="https://github.com/google/differential-privacy/tree/main/common_docs/confidence_intervals.md">
+   * the confidence intervals doc</a>.
+   */
+  public ConfidenceInterval computeConfidenceInterval(double alpha) {
+    if (!resultReturned) {
+      throw new IllegalStateException(
+          "computeResult must be called before calling computeConfidenceInterval.");
+    }
+    ConfidenceInterval confInt =
+        params
+            .noise()
+            .computeConfidenceInterval(
+                noisedSum,
+                params.maxPartitionsContributed(),
+                params.maxContributionsPerPartition(),
+                params.epsilon(),
+                params.delta(),
+                alpha);
+    if (params.lower() >= 0.0) {
+      confInt =
+          ConfidenceInterval.create(max(0.0, confInt.lowerBound()), max(0.0, confInt.upperBound()));
+    } else if (params.upper() <= 0.0) {
+      confInt =
+          ConfidenceInterval.create(min(0.0, confInt.lowerBound()), min(0.0, confInt.upperBound()));
+    }
+    return confInt;
   }
 
   /**

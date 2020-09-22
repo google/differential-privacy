@@ -17,12 +17,15 @@
 package com.google.privacy.differentialprivacy;
 
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
 import static com.google.differentialprivacy.SummaryOuterClass.MechanismType.GAUSSIAN;
 import static com.google.differentialprivacy.SummaryOuterClass.MechanismType.LAPLACE;
 import static java.lang.Double.NaN;
+import static java.lang.Math.max;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -45,14 +48,17 @@ import org.mockito.junit.MockitoRule;
  * Tests the accuracy of {@link BoundedSum}. The test mocks {@link Noise} instance which generates
  * zero noise.
  *
- * <p>Statistical and DP properties of the algorithm are tested in {@link BoundedSumDpTest}.
+ * <p>Statistical and DP properties of the algorithm are tested in
+ * {@link com.google.privacy.differentialprivacy.statistical.BoundedSumDpTest}.
  */
 @RunWith(JUnit4.class)
 public class BoundedSumTest {
+  private static final double TOLERANCE = 1E-3;
   private static final double EPSILON = 0.123;
   private static final double DELTA = 0.123;
   private static final int NUM_SAMPLES = 100000;
   private static final double LN_3 = Math.log(3.0);
+  private static final double ALPHA = 0.152145599;
 
   @Mock private Noise noise;
   private BoundedSum sum;
@@ -67,6 +73,12 @@ public class BoundedSumTest {
     // Tests that use serialization need to access to the type of the noise they use. Because the
     // tests don't rely on a specific noise type, we arbitrarily return Gaussian.
     when(noise.getMechanismType()).thenReturn(GAUSSIAN);
+    when(noise.computeConfidenceInterval(
+        anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble(), anyDouble()))
+        .thenReturn(ConfidenceInterval.create(0.0, 0.0));
+    when(noise.computeConfidenceInterval(
+        anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+        .thenReturn(ConfidenceInterval.create(0.0, 0.0));
 
     sum =
         BoundedSum.builder()
@@ -677,5 +689,202 @@ public class BoundedSumTest {
     // The DP count is considered unbiased if the expeted value (approximated by stats.mean()) is
     // equal to the raw count.
     assertThat(stats.mean()).isWithin(sampleTolerance).of(rawEntry);
+  }
+
+  @Test
+  public void computeConfidenceInterval_negativeSumBounds_noClamping() {
+    sum = getBoundedSumBuilderWithFields().lower(-8.0).upper(-2.0).build();
+    when(noise.computeConfidenceInterval(
+        anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+        .thenReturn(ConfidenceInterval.create(-5.0, -3.0));
+    sum.computeResult();
+
+    assertThat(sum.computeConfidenceInterval(ALPHA))
+        .isEqualTo(ConfidenceInterval.create(-5.0, -3.0));
+  }
+
+  @Test
+  public void computeConfidenceInterval_negativeSumBounds_clampsPositiveInterval() {
+    sum = getBoundedSumBuilderWithFields().lower(-5.0).upper(-1.0).build();
+    when(noise.computeConfidenceInterval(
+        anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+        .thenReturn(ConfidenceInterval.create(-5.0, 3.0));
+    sum.computeResult();
+
+    assertThat(sum.computeConfidenceInterval(ALPHA))
+        .isEqualTo(ConfidenceInterval.create(-5.0, 0.0));
+  }
+
+  @Test
+  public void computeConfidenceInterval_negativeSumBounds_clampsInterval() {
+    sum = getBoundedSumBuilderWithFields().lower(-5.0).upper(-1.0).build();
+    when(noise.computeConfidenceInterval(
+        anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+        .thenReturn(ConfidenceInterval.create(3.0, 5.0));
+    sum.computeResult();
+
+    assertThat(sum.computeConfidenceInterval(ALPHA))
+        .isEqualTo(ConfidenceInterval.create(0.0, 0.0));
+  }
+
+  @Test
+  public void computeConfidenceInterval_positiveSumBounds_noClamping() {
+    sum = getBoundedSumBuilderWithFields().lower(1.0).upper(5.0).build();
+    when(noise.computeConfidenceInterval(
+        anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+        .thenReturn(ConfidenceInterval.create(1.0, 3.0));
+    sum.computeResult();
+
+    assertThat(sum.computeConfidenceInterval(ALPHA))
+        .isEqualTo(ConfidenceInterval.create(1.0, 3.0));
+  }
+
+  @Test
+  public void computeConfidenceInterval_positiveSumBounds_clampsNegativeInterval() {
+    sum = getBoundedSumBuilderWithFields().lower(1.0).upper(5.0).build();
+    when(noise.computeConfidenceInterval(
+        anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+        .thenReturn(ConfidenceInterval.create(-5.0, 3.0));
+    sum.computeResult();
+
+    assertThat(sum.computeConfidenceInterval(ALPHA))
+        .isEqualTo(ConfidenceInterval.create(0.0, 3.0));
+  }
+
+  @Test
+  public void computeConfidenceInterval_positiveSumBounds_clampsInterval() {
+    sum = getBoundedSumBuilderWithFields().lower(1.0).upper(5.0).build();
+    when(noise.computeConfidenceInterval(
+        anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+        .thenReturn(ConfidenceInterval.create(-3.0, -1.0));
+    sum.computeResult();
+
+    assertThat(sum.computeConfidenceInterval(ALPHA))
+        .isEqualTo(ConfidenceInterval.create(0.0, 0.0));
+  }
+
+  @Test
+  public void computeConfidenceInterval_differentSumBoundsSigns_noClamping() {
+    sum = getBoundedSumBuilderWithFields().lower(-1.0).upper(5.0).build();
+    when(noise.computeConfidenceInterval(
+        anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+        .thenReturn(ConfidenceInterval.create(-5.0, 3.0));
+    sum.computeResult();
+
+    assertThat(sum.computeConfidenceInterval(ALPHA))
+        .isEqualTo(ConfidenceInterval.create(-5.0, 3.0));
+  }
+
+  @Test
+  public void computeConfidenceInterval_infiniteSumBounds_clampsNegativeInterval() {
+    sum = getBoundedSumBuilderWithFields().lower(1.0).upper(5.0).build();
+    when(noise.computeConfidenceInterval(
+        anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+        .thenReturn(ConfidenceInterval.create(Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY));
+    sum.computeResult();
+
+    assertThat(sum.computeConfidenceInterval(ALPHA))
+        .isEqualTo(ConfidenceInterval.create(0.0, Double.POSITIVE_INFINITY));
+  }
+
+  @Test
+  public void computeConfidenceInterval_forGaussianNoise() {
+    // Mock the noise mechanism.
+    when(noise.computeConfidenceInterval(
+        anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+        .thenAnswer(
+            invocation ->
+                new GaussianNoise()
+                    .computeConfidenceInterval(
+                        (Double) invocation.getArguments()[0],
+                        (Integer) invocation.getArguments()[1],
+                        (Double) invocation.getArguments()[2],
+                        (Double) invocation.getArguments()[3],
+                        (Double) invocation.getArguments()[4],
+                        (Double) invocation.getArguments()[5]));
+    sum = getBoundedSumBuilderWithFields().lower(1.0).upper(5.0).build();
+    sum.addEntry(1);
+    sum.computeResult();
+    ConfidenceInterval confInt = sum.computeConfidenceInterval(ALPHA);
+
+    assertWithMessage("Lower bound is not precise: actual = %s, expected = %s.", confInt.lowerBound(), 0.0 )
+        .that(approxEqual(confInt.lowerBound(), 0.0))
+        .isTrue();
+    assertWithMessage("Upper bound is not precise: actual = %s, expected = %s.", confInt.upperBound(), 34.338)
+        .that(approxEqual(confInt.upperBound(), 34.338))
+        .isTrue();
+  }
+
+  @Test
+  public void computeConfidenceInterval_forLaplaceNoise() {
+    // Mock the noise mechanism. Since noise is not Laplace, nor Gaussian, delta will be passed
+    // as null, in order to pass the checks.
+    when(noise.computeConfidenceInterval(
+        anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+        .thenAnswer(
+            invocation ->
+                new LaplaceNoise()
+                    .computeConfidenceInterval(
+                        (Double) invocation.getArguments()[0],
+                        (Integer) invocation.getArguments()[1],
+                        (Double) invocation.getArguments()[2],
+                        (Double) invocation.getArguments()[3],
+                        null,
+                        (Double) invocation.getArguments()[5]));
+    sum = getBoundedSumBuilderWithFields().lower(1.0).upper(10.0).build();
+    sum.addEntry(1);
+    sum.computeResult();
+    ConfidenceInterval confInt = sum.computeConfidenceInterval(ALPHA);
+
+    assertWithMessage("Lower bound is not precise: actual = %s, expected = %s.", confInt.lowerBound(), 0.0 )
+        .that(approxEqual(confInt.lowerBound(), 0.0))
+        .isTrue();
+    assertWithMessage("Upper bound is not precise: actual = %s, expected = %s.", confInt.upperBound(), 154.082)
+        .that(approxEqual(confInt.upperBound(), 154.082))
+        .isTrue();
+  }
+
+  @Test
+  public void computeConfidenceInterval_computeResultWasNotCalled_forLong_throwsException() {
+    sum = getBoundedSumBuilderWithFields().lower(1.0).upper(5.0).build();
+    sum.addEntry(1.0);
+    IllegalStateException exception = assertThrows(IllegalStateException.class, () -> {
+      sum.computeConfidenceInterval(ALPHA);
+    });
+    assertThat(exception)
+        .hasMessageThat()
+        .startsWith("computeResult must be called before calling computeConfidenceInterval.");
+  }
+
+  @Test
+  public void computeConfidenceInterval_computeResultWasNotCalled_forDouble_throwsException() {
+    sum = getBoundedSumBuilderWithFields().lower(1.0).upper(5.0).build();
+    sum.addEntry(1.0);
+    IllegalStateException exception = assertThrows(IllegalStateException.class, () -> {
+      sum.computeConfidenceInterval(ALPHA);
+    });
+    assertThat(exception)
+        .hasMessageThat()
+        .startsWith("computeResult must be called before calling computeConfidenceInterval.");
+  }
+
+  @Test
+  public void computeConfidenceIntervals_defaultParameters_callsNoiseCorrectly() {
+    sum = getBoundedSumBuilderWithFields().lower(0.0).upper(100.0).build();
+    sum.computeResult();
+    sum.computeConfidenceInterval(ALPHA);
+    verify(noise)
+        .computeConfidenceInterval(
+            eq(0.0d), // sum of added entries = 0.0
+            eq(/* l0Sensitivity = maxPartitionsContributed = 1 */1),
+            eq(/* lInfSensitivity = maxContributionsPerPartition = 10.0 */10.0d),
+            eq(EPSILON),
+            eq(DELTA),
+            eq(ALPHA));
+  }
+
+  private static boolean approxEqual(double a, double b) {
+    double maxMagnitude = max(Math.abs(a), Math.abs(b));
+    return Math.abs(a - b) <= TOLERANCE * maxMagnitude;
   }
 }

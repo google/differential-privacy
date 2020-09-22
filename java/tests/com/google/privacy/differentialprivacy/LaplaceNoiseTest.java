@@ -31,7 +31,7 @@ public final class LaplaceNoiseTest {
   private static final LaplaceNoise NOISE = new LaplaceNoise();
   private static final int NUM_SAMPLES = 100000;
   private static final double LN_3 = Math.log(3);
-  private static final double DEFAULT_MEAN = 0.0;
+  private static final double DEFAULT_X = 0.0;
   private static final double DEFAULT_EPSILON = LN_3;
   private static final int DEFAULT_L_0_SENSITIVITY = 1;
   private static final double DEFAULT_L_INF_SENSITIVITY = 1.0;
@@ -42,11 +42,11 @@ public final class LaplaceNoiseTest {
     for (int i = 0; i < NUM_SAMPLES; i++) {
       samples.add(
           NOISE.addNoise(
-              DEFAULT_MEAN,
+              DEFAULT_X,
               DEFAULT_L_0_SENSITIVITY,
               DEFAULT_L_INF_SENSITIVITY,
               DEFAULT_EPSILON,
-              /* delta */ null));
+              /* delta= */ null));
     }
     Stats stats = Stats.of(samples.build());
 
@@ -55,21 +55,21 @@ public final class LaplaceNoiseTest {
     // of the sample mean and variance. Thus, the test falsely rejects with a probability of 10^-5.
     double sampleMeanTolerance = 4.41717 * Math.sqrt(variance / NUM_SAMPLES);
     double sampleVarianceTolerance = 4.41717 * Math.sqrt(5.0 * variance * variance / NUM_SAMPLES);
-    assertThat(stats.mean()).isWithin(sampleMeanTolerance).of(DEFAULT_MEAN);
+    assertThat(stats.mean()).isWithin(sampleMeanTolerance).of(DEFAULT_X);
     assertThat(stats.populationVariance()).isWithin(sampleVarianceTolerance).of(variance);
   }
 
   @Test
-  public void addNoise_differentMean_hasAccurateStatisticalProperties() {
+  public void addNoise_differentX_hasAccurateStatisticalProperties() {
     ImmutableList.Builder<Double> samples = ImmutableList.builder();
     for (int i = 0; i < NUM_SAMPLES; i++) {
       samples.add(
           NOISE.addNoise(
-              /* mean */ 42.0,
+              /* x= */ 42.0,
               DEFAULT_L_0_SENSITIVITY,
               DEFAULT_L_INF_SENSITIVITY,
               DEFAULT_EPSILON,
-              /* delta */ null));
+              /* delta= */ null));
     }
     Stats stats = Stats.of(samples.build());
 
@@ -89,11 +89,11 @@ public final class LaplaceNoiseTest {
     for (int i = 0; i < NUM_SAMPLES; i++) {
       samples.add(
           NOISE.addNoise(
-              DEFAULT_MEAN,
+              DEFAULT_X,
               DEFAULT_L_0_SENSITIVITY,
-              /* lInfSensitivity */ 0.5,
+              /* lInfSensitivity= */ 0.5,
               DEFAULT_EPSILON,
-              /* delta */ null));
+              /* delta= */ null));
     }
     Stats stats = Stats.of(samples.build());
 
@@ -102,7 +102,7 @@ public final class LaplaceNoiseTest {
     // of the sample mean and variance. Thus, the test falsely rejects with a probability of 10^-5.
     double sampleMeanTolerance = 4.41717 * Math.sqrt(variance / NUM_SAMPLES);
     double sampleVarianceTolerance = 4.41717 * Math.sqrt(5.0 * variance * variance / NUM_SAMPLES);
-    assertThat(stats.mean()).isWithin(sampleMeanTolerance).of(DEFAULT_MEAN);
+    assertThat(stats.mean()).isWithin(sampleMeanTolerance).of(DEFAULT_X);
     assertThat(stats.populationVariance()).isWithin(sampleVarianceTolerance).of(variance);
   }
 
@@ -112,11 +112,11 @@ public final class LaplaceNoiseTest {
     for (int i = 0; i < NUM_SAMPLES; i++) {
       samples.add(
           NOISE.addNoise(
-              DEFAULT_MEAN,
+              DEFAULT_X,
               DEFAULT_L_0_SENSITIVITY,
               DEFAULT_L_INF_SENSITIVITY,
-              /* epsilon */ 2 * LN_3,
-              /* delta */ null));
+              /* epsilon= */ 2 * LN_3,
+              /* delta= */ null));
     }
     Stats stats = Stats.of(samples.build());
 
@@ -125,21 +125,21 @@ public final class LaplaceNoiseTest {
     // of the sample mean and variance. Thus, the test falsely rejects with a probability of 10^-5.
     double sampleMeanTolerance = 4.41717 * Math.sqrt(variance / NUM_SAMPLES);
     double sampleVarianceTolerance = 4.41717 * Math.sqrt(5.0 * variance * variance / NUM_SAMPLES);
-    assertThat(stats.mean()).isWithin(sampleMeanTolerance).of(DEFAULT_MEAN);
+    assertThat(stats.mean()).isWithin(sampleMeanTolerance).of(DEFAULT_X);
     assertThat(stats.populationVariance()).isWithin(sampleVarianceTolerance).of(variance);
   }
 
   @Test
-  public void addNoise_integralMean_hasAccurateStatisticalProperties() {
+  public void addNoise_integralX_hasAccurateStatisticalProperties() {
     ImmutableList.Builder<Long> samples = ImmutableList.builder();
     for (int i = 0; i < NUM_SAMPLES; i++) {
       samples.add(
           NOISE.addNoise(
-              /* mean */ 0L,
+              /* x= */ 0L,
               DEFAULT_L_0_SENSITIVITY,
-              /* lInfSensitivity */ 1L,
+              /* lInfSensitivity= */ 1L,
               DEFAULT_EPSILON,
-              /* delta */ null));
+              /* delta= */ null));
     }
     Stats stats = Stats.of(samples.build());
 
@@ -158,11 +158,11 @@ public final class LaplaceNoiseTest {
         IllegalArgumentException.class,
         () ->
             NOISE.addNoise(
-                DEFAULT_MEAN,
+                DEFAULT_X,
                 DEFAULT_L_0_SENSITIVITY,
                 DEFAULT_L_INF_SENSITIVITY,
-                /* epsilon */ 1.0 / (1L << 51),
-                /* delta */ null));
+                /* epsilon= */ 1.0 / (1L << 51),
+                /* delta= */ null));
   }
 
   @Test
@@ -171,11 +171,11 @@ public final class LaplaceNoiseTest {
         IllegalArgumentException.class,
         () ->
             NOISE.addNoise(
-                DEFAULT_MEAN,
+                DEFAULT_X,
                 DEFAULT_L_0_SENSITIVITY,
                 DEFAULT_L_INF_SENSITIVITY,
-                /* epsilon */ Double.POSITIVE_INFINITY,
-                /* delta */ null));
+                /* epsilon= */ Double.POSITIVE_INFINITY,
+                /* delta= */ null));
   }
 
   @Test
@@ -184,24 +184,24 @@ public final class LaplaceNoiseTest {
         IllegalArgumentException.class,
         () ->
             NOISE.addNoise(
-                DEFAULT_MEAN,
+                DEFAULT_X,
                 DEFAULT_L_0_SENSITIVITY,
                 DEFAULT_L_INF_SENSITIVITY,
-                /* epsilon */ Double.NaN,
-                /* delta */ null));
+                /* epsilon= */ Double.NaN,
+                /* delta= */ null));
   }
 
   @Test
-  public void addNoise_deltaNonnul_throwsEsception() {
+  public void addNoise_deltaNonnul_throwsException() {
     assertThrows(
         IllegalArgumentException.class,
         () ->
             NOISE.addNoise(
-                DEFAULT_MEAN,
+                DEFAULT_X,
                 DEFAULT_L_0_SENSITIVITY,
                 DEFAULT_L_INF_SENSITIVITY,
                 DEFAULT_EPSILON,
-                /* delta */ 0.0));
+                /* delta= */ 0.0));
   }
 
   @Test
@@ -210,11 +210,11 @@ public final class LaplaceNoiseTest {
         IllegalArgumentException.class,
         () ->
             NOISE.addNoise(
-                DEFAULT_MEAN,
+                DEFAULT_X,
                 DEFAULT_L_0_SENSITIVITY,
-                /* lInfSensitvity */ Double.MAX_VALUE,
+                /* lInfSensitivity= */ Double.MAX_VALUE,
                 DEFAULT_EPSILON,
-                /* delta */ null));
+                /* delta= */ null));
   }
 
   @Test
@@ -223,11 +223,11 @@ public final class LaplaceNoiseTest {
         IllegalArgumentException.class,
         () ->
             NOISE.addNoise(
-                DEFAULT_MEAN,
+                DEFAULT_X,
                 DEFAULT_L_0_SENSITIVITY,
-                /* lInfSensitvity */ Double.NaN,
-                /* epsilon */ 1,
-                /* delta */ null));
+                /* lInfSensitivity= */ Double.NaN,
+                /* epsilon= */ 1.0,
+                /* delta= */ null));
   }
 
   @Test
@@ -236,11 +236,11 @@ public final class LaplaceNoiseTest {
         IllegalArgumentException.class,
         () ->
             NOISE.addNoise(
-                DEFAULT_MEAN,
+                DEFAULT_X,
                 DEFAULT_L_0_SENSITIVITY,
-                /* lInfSensitivity */ -1.0,
+                /* lInfSensitivity= */ -1.0,
                 DEFAULT_EPSILON,
-                /* delta */ null));
+                /* delta= */ null));
   }
 
   @Test
@@ -249,11 +249,11 @@ public final class LaplaceNoiseTest {
         IllegalArgumentException.class,
         () ->
             NOISE.addNoise(
-                DEFAULT_MEAN,
+                DEFAULT_X,
                 DEFAULT_L_0_SENSITIVITY,
-                /* lInfSensitivity */ 0.0,
+                /* lInfSensitivity= */ 0.0,
                 DEFAULT_EPSILON,
-                /* delta */ null));
+                /* delta= */ null));
   }
 
   @Test
@@ -262,11 +262,11 @@ public final class LaplaceNoiseTest {
         IllegalArgumentException.class,
         () ->
             NOISE.addNoise(
-                DEFAULT_MEAN,
-                /* l0Sensitivity */ -1,
+                DEFAULT_X,
+                /* l0Sensitivity= */ -1,
                 DEFAULT_L_INF_SENSITIVITY,
                 DEFAULT_EPSILON,
-                /* delta */ null));
+                /* delta= */ null));
   }
 
   @Test
@@ -275,11 +275,11 @@ public final class LaplaceNoiseTest {
         IllegalArgumentException.class,
         () ->
             NOISE.addNoise(
-                DEFAULT_MEAN,
-                /* lInfSensitivity */ 0,
+                DEFAULT_X,
+                /* l0Sensitivity= */ 0,
                 DEFAULT_L_INF_SENSITIVITY,
                 DEFAULT_EPSILON,
-                /* delta */ null));
+                /* delta= */ null));
   }
 
   @Test
@@ -288,7 +288,7 @@ public final class LaplaceNoiseTest {
         IllegalArgumentException.class,
         () ->
             NOISE.addNoise(
-                DEFAULT_MEAN, /* l1Sensitivity */ -1.0, DEFAULT_EPSILON, /* delta */ null));
+                DEFAULT_X, /* l1Sensitivity= */ -1.0, DEFAULT_EPSILON, /* delta= */ null));
   }
 
   @Test
@@ -297,7 +297,7 @@ public final class LaplaceNoiseTest {
         IllegalArgumentException.class,
         () ->
             NOISE.addNoise(
-                DEFAULT_MEAN, /* l1Sensitivity */ 0.0, DEFAULT_EPSILON, /* delta */ null));
+                DEFAULT_X, /* l1Sensitivity= */ 0.0, DEFAULT_EPSILON, /* delta= */ null));
   }
 
   @Test
@@ -306,7 +306,7 @@ public final class LaplaceNoiseTest {
         IllegalArgumentException.class,
         () ->
             NOISE.addNoise(
-                DEFAULT_MEAN, /* l1Sensitivity */ Double.NaN, DEFAULT_EPSILON, /* delta */ null));
+                DEFAULT_X, /* l1Sensitivity= */ Double.NaN, DEFAULT_EPSILON, /* delta= */ null));
   }
 
   @Test

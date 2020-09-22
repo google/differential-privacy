@@ -536,6 +536,20 @@ TEST(NumericalMechanismsTest, GaussianMechanismAddsNoise) {
   EXPECT_FALSE(std::isnan(mechanism.AddNoise(1.1, 2.0)));
 }
 
+TEST(NumericalMechanismsTest,
+     GaussianMechanismAddsNoiseForHighEpsilonAndLowDelta) {
+  auto test_mechanism = GaussianMechanism::Builder()
+                            .SetL2Sensitivity(6.2324042213746395e-184)
+                            .SetDelta(2.7161546250836291e-312)
+                            .SetEpsilon(1.257239018692402e+232)
+                            .Build();
+  EXPECT_TRUE(test_mechanism.ok());
+
+  const double raw_value = 2.7161546250836291e-312;
+  double noised_value = (*test_mechanism)->AddNoise(raw_value);
+  EXPECT_TRUE(std::isfinite(noised_value));
+}
+
 TEST(NumericalMechanismsTest, GaussianBuilderClone) {
   GaussianMechanism::Builder test_builder;
   auto clone =

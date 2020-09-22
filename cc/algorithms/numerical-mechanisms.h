@@ -48,12 +48,6 @@
 // differentially private results (e.g. snapping).
 namespace differential_privacy {
 
-// Clamping factor.
-// Using a factor of 2^39 means that the clamp+round-to-power-of-2 approach
-// adds at most a factor of 2^-10 extra (i.e. around 0.1%) to the privacy
-// budget (Theorem 1, Mironov 2012).
-static const double kClampFactor = std::pow(2.0, 39);
-
 // The maximum allowable probability that the noise will overflow.
 static const double kMaxOverflowProbability = std::pow(2.0, -64);
 
@@ -61,22 +55,6 @@ static const double kMaxOverflowProbability = std::pow(2.0, -64);
 // sigma such that Gaussian noise satisfies (epsilon, delta)-differential
 // privacy given the sensitivities.
 static const double kGaussianSigmaAccuracy = 1e-3;
-
-template <typename T>
-T UpperBound() {
-  if (std::numeric_limits<T>::max() > kClampFactor) {
-    return static_cast<T>(kClampFactor);
-  }
-  return std::numeric_limits<T>::max();
-}
-
-template <typename T>
-T LowerBound() {
-  if (std::numeric_limits<T>::lowest() < -kClampFactor) {
-    return static_cast<T>(-kClampFactor);
-  }
-  return std::numeric_limits<T>::lowest();
-}
 
 // Provides a common abstraction for NumericalMechanism.  Numerical mechanisms
 // can add noise to data and track the remaining privacy budget.
@@ -509,7 +487,8 @@ class GaussianMechanism : public NumericalMechanism {
   // Returns the standard deviation of the Gaussian noise necessary to obtain
   // (epsilon, delta)-differential privacy for the given L_2 sensitivity. The
   // result will deviate from the tightest possible value sigma_tight by at most
-  // kGaussianSigmaAccuracy * sigma_tight.
+  // kGaussianSigmaAccuracy * sigma_tight. To be on the safe side, the lowest
+  // result from this method is the minimum positive floating point number.
   //
   // This implementation uses a binary search. Its runtime is roughly
   // log(kGaussianSigmaAccuracy)
@@ -518,7 +497,7 @@ class GaussianMechanism : public NumericalMechanism {
     // l2_sensitivity_ is used as a starting guess for the upper bound, since
     // the required noise grows linearly with sensitivity.
     double upper_bound = l2_sensitivity_;
-    double lower_bound = 0;
+    double lower_bound = std::numeric_limits<double>::min();
 
     // Increase lower_bound and upper_bound until upper_bound is actually an
     // upper bound of sigma_tight, using exponential search.
