@@ -147,13 +147,15 @@ public class BoundedSum {
       throw new IllegalStateException(
           "computeResult must be called before calling computeConfidenceInterval.");
     }
+    double lInfSensitivity =
+            getLInfSensitivity(params.lower(), params.upper(), params.maxContributionsPerPartition());
     ConfidenceInterval confInt =
         params
             .noise()
             .computeConfidenceInterval(
                 noisedSum,
-                params.maxPartitionsContributed(),
-                params.maxContributionsPerPartition(),
+                getL0Sensitivity(),
+                lInfSensitivity,
                 params.epsilon(),
                 params.delta(),
                 alpha);
