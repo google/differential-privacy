@@ -213,25 +213,22 @@ func (bm *BoundedMeanFloat64) Result() float64 {
 	return clamped
 }
 
-// ComputeConfidenceInterval computes a confidence interval that contains the true mean with
-// probability greater than or equal to 1 - alpha. The computation is based exclusively on the
-// confidence intervals for sum and count, which are based only on the noised value and privacy
-// parameters. Thus no privacy budget is consumed by this operation.
+// The computation is based exclusively on noised data and the privacy parameters.
 //
 // Result() needs to be called before ComputeConfidenceInterval, otherwise this will return an error.
 func (bm *BoundedMeanFloat64) ComputeConfidenceInterval(alpha float64) (noise.ConfidenceInterval, error) {
 	if !bm.resultReturned {
 		return noise.ConfidenceInterval{}, fmt.Errorf("Result() must be called before calling ComputeConfidenceInterval()")
 	}
-	// Brute force optimization to find the tightest confidence interval:
-	// Iterate through a fixed numSplits number of splits for alphaSplit where it takes the
-	// range of values strictly from 0 to alpha.
-	var numSplits = 1000 // number of splits used in bruteforce for Confidence intervals.
-	increment := alpha / float64(numSplits)
-	minSize := math.Inf(1) // Minimum difference between lower and upper bounds.
+	// The confidence interval of bounded mean is derived from confidence intervals of the mean's numerator and denominator.
+	// The respective confidence levels 1 - alphaNum and 1 - alphaDen can be chosen arbitrarily as long as (1 - alphaNum) *
+	// (1 - alphaDen) = 1 - alpha. The following is a brute force search for alphaNum that minimizes the size of the
+	// confidence interval of bounded mean.
+	minSize := math.Inf(1)
 	var tightestConfInt noise.ConfidenceInterval
-	for alphaSplit := increment; alphaSplit < alpha; alphaSplit += increment {
-		confInt, err := bm.computeConfidenceIntervalForExplicitAlphaSplit(alpha, alphaSplit)
+	for i:= 1; i < 1000; i++ {
+		alphaNum := (float64(i) / 1000.0) * alpha
+		confInt, err := bm.computeConfidenceIntervalForExplicitAlphaNum(alpha, alphaNum)
 		if err != nil {
 			return noise.ConfidenceInterval{}, err
 		}
@@ -244,43 +241,39 @@ func (bm *BoundedMeanFloat64) ComputeConfidenceInterval(alpha float64) (noise.Co
 	return tightestConfInt, nil
 }
 
-// computeConfidenceIntervalForExplicitAlphaSplit computes a confidence interval for mean with a given 1 - alphaSplit
-// confidence level for count. It computes the corresponding alpha for sum to return a confidence interval
-// with a confidence level of at least 1 - alpha. The computation is based exclusively on the confidence
-// intervals for sum and count. Thus no privacy budget is consumed by this operation.
+// computeConfidenceIntervalForExplicitAlphaNum computes a confidence interval that contains the true mean with probability
+// greater than or equal to 1 - alpha with the additional constraint that the confidence level of the mean's numerator is
+// 1 - alphaNum. The computation is based exclusively on the noised numerator and denominator as well as the privacy parameters.
+// Thus, no privacy budget is consumed by this operation.
 //
 // Result() needs to be called before ComputeConfidenceInterval, otherwise this will return an error.
-func (bm *BoundedMeanFloat64) computeConfidenceIntervalForExplicitAlphaSplit(alpha, alphaSplit float64) (noise.ConfidenceInterval, error) {
-	sumAlpha := (alpha - alphaSplit) / (1 - alphaSplit)
-	sumConfInt, err := bm.normalizedSum.ComputeConfidenceInterval(sumAlpha)
+func (bm *BoundedMeanFloat64) computeConfidenceIntervalForExplicitAlphaNum(alpha, alphaNum float64) (noise.ConfidenceInterval, error) {
+	alphaDen := (alpha - alphaNum) / (1 - alphaNum) // setting alphaDen such that (1 - alpha) = (1 - alphaNum) * (1 - alphaDen)
+	confIntNum, err := bm.normalizedSum.ComputeConfidenceInterval(alphaDen)
 	if err != nil {
 		return noise.ConfidenceInterval{}, err
 	}
-	countConfInt, err := bm.count.ComputeConfidenceInterval(alphaSplit)
+	confIntDen, err := bm.count.ComputeConfidenceInterval(alphaNum)
 	if err != nil {
 		return noise.ConfidenceInterval{}, err
 	}
 
-	// BoundedMean maximizes the denominator (count) to 1.
-	countConfInt.LowerBound = math.Max(countConfInt.LowerBound, 1)
-	countConfInt.UpperBound = math.Max(countConfInt.UpperBound, 1)
+	// Ensuring that the lower and upper bounds of the denominator are consistent with how Result() processes the denominator.
+	confIntDen.LowerBound = math.Max(confIntDen.LowerBound, 1)
+	confIntDen.UpperBound = math.Max(confIntDen.UpperBound, 1)
 
-	// Estimate the lower and upper bounds as minimum and maximum values for mean using lower and
-	// upper bounds of confidence intervals for sum and count.
 	var meanLowerBound, meanUpperBound float64
-	if sumConfInt.LowerBound >= 0 {
-		meanLowerBound = sumConfInt.LowerBound / countConfInt.UpperBound
+	if confIntNum.LowerBound >= 0 {
+		meanLowerBound = confIntNum.LowerBound / confIntDen.UpperBound
 	} else {
-		meanLowerBound = sumConfInt.LowerBound / countConfInt.LowerBound
+		meanLowerBound = confIntNum.LowerBound / confIntDen.LowerBound
 	}
-	if sumConfInt.UpperBound >= 0 {
-		meanUpperBound = sumConfInt.UpperBound / countConfInt.LowerBound
+	if confIntNum.UpperBound >= 0 {
+		meanUpperBound = confIntNum.UpperBound / confIntDen.LowerBound
 	} else {
-		meanUpperBound = sumConfInt.UpperBound / countConfInt.UpperBound
+		meanUpperBound = confIntNum.UpperBound / confIntDen.UpperBound
 	}
-	// We are using normalizedSum so we need to add midPoint to both bounds. This is consistent with
-	// the Result() method, where the average of the bounded, added elements is equal to
-	// noisedSum/noisedCount+bm.midPoint.
+	// Ensuring that the lower and upper bounds of the mean are consistent with how Reult() processes the mean.
 	meanLowerBound, meanUpperBound = meanLowerBound+bm.midPoint, meanUpperBound+bm.midPoint
 
 	meanLowerBound, err = ClampFloat64(meanLowerBound, bm.lower, bm.upper)

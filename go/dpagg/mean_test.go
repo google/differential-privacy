@@ -739,112 +739,119 @@ func TestBMFloat64Serialization(t *testing.T) {
 	}
 }
 
-func TestMeanComputeConfidenceIntervalForExplicitAlphaSplit(t *testing.T) {
+func TestMeanComputeConfidenceIntervalForExplicitAlphaNumFractionsIntoCorrectMeanConfInt(t *testing.T) {
 	noNoise := noNoise{} // To skip initial argument checking.
 	for _, tc := range []struct {
 		meanOpt      *BoundedMeanFloat64Options
 		sumConfInt   noise.ConfidenceInterval
 		countConfInt noise.ConfidenceInterval
-		want         noise.ConfidenceInterval // Confidence Interval after Post-processing.
+		want         noise.ConfidenceInterval
 	}{
 		{ // Positive lower and upper bounds for sum.
 			meanOpt:      &BoundedMeanFloat64Options{
-				Lower: 0.2,
-				Upper: 15.0,
+				Lower: 0.0,
+				Upper: 10.0,
 				Noise: noNoise,
 				MaxContributionsPerPartition: 1,
 			},
-			sumConfInt:   noise.ConfidenceInterval{LowerBound: 5.0, UpperBound: 10.0},
+			sumConfInt:   noise.ConfidenceInterval{LowerBound: 0.0, UpperBound: 10.0},
 			countConfInt: noise.ConfidenceInterval{LowerBound: 5.0, UpperBound: 10.0},
-			want:         noise.ConfidenceInterval{LowerBound: 8.1, UpperBound: 9.6},
+			want:         noise.ConfidenceInterval{LowerBound: 5.0, UpperBound: 7.0},
 		},
 		{ // Negative lower and upper bounds for sum.
 			meanOpt:      &BoundedMeanFloat64Options{
-				Lower: 1.0,
-				Upper: 7.0,
+				Lower: 0.0,
+				Upper: 10.0,
 				Noise: noNoise,
 				MaxContributionsPerPartition: 1,
 			},
-			sumConfInt:   noise.ConfidenceInterval{LowerBound: -15.0, UpperBound: -5.0},
+			sumConfInt:   noise.ConfidenceInterval{LowerBound: -10.0, UpperBound: -1.0},
 			countConfInt: noise.ConfidenceInterval{LowerBound: 2.0, UpperBound: 4.0},
-			want:         noise.ConfidenceInterval{LowerBound: 1.0, UpperBound: 2.75},
+			want:         noise.ConfidenceInterval{LowerBound: 0.0, UpperBound: 4.75},
 		},
 		{ // Negative lower bound for sum.
 			meanOpt:      &BoundedMeanFloat64Options{
-				Lower: 1.0,
-				Upper: 7.0,
+				Lower: 0.0,
+				Upper: 10.0,
 				Noise: noNoise,
 				MaxContributionsPerPartition: 1,
 			},
 			sumConfInt:   noise.ConfidenceInterval{LowerBound: -10.0, UpperBound: 0.0},
-			countConfInt: noise.ConfidenceInterval{LowerBound: 2.0, UpperBound: 4.0},
-			want:         noise.ConfidenceInterval{LowerBound: 1.0, UpperBound: 4.0},
+			countConfInt: noise.ConfidenceInterval{LowerBound: 1.0, UpperBound: 10.0},
+			want:         noise.ConfidenceInterval{LowerBound: 0.0, UpperBound: 5.0},
 		},
 		// Clamp too low bounds.
 		{
 			meanOpt:      &BoundedMeanFloat64Options{
-				Lower: 1.0,
-				Upper: 9.0,
+				Lower: 0.0,
+				Upper: 10.0,
 				Noise: noNoise,
 				MaxContributionsPerPartition: 1,
 			},
-			sumConfInt:   noise.ConfidenceInterval{LowerBound: -100.0, UpperBound: -50.0},
-			countConfInt: noise.ConfidenceInterval{LowerBound: 2.0, UpperBound: 5.0},
-			want:         noise.ConfidenceInterval{LowerBound: 1.0, UpperBound: 1.0},
+			sumConfInt:   noise.ConfidenceInterval{LowerBound: -100.0, UpperBound: -10.0},
+			countConfInt: noise.ConfidenceInterval{LowerBound: 0.0, UpperBound: 1.0},
+			want:         noise.ConfidenceInterval{LowerBound: 0.0, UpperBound: 0.0},
 		},
 		// Clamp too high bounds.
 		{
 			meanOpt:      &BoundedMeanFloat64Options{
-				Lower: 1.0,
-				Upper: 9.0,
+				Lower: 0.0,
+				Upper: 10.0,
 				Noise: noNoise,
 				MaxContributionsPerPartition: 1},
-			sumConfInt:   noise.ConfidenceInterval{LowerBound: 70.0, UpperBound: 100.0},
-			countConfInt: noise.ConfidenceInterval{LowerBound: 2.0, UpperBound: 5.0},
-			want:         noise.ConfidenceInterval{LowerBound: 9.0, UpperBound: 9.0},
+			sumConfInt:   noise.ConfidenceInterval{LowerBound: 100.0, UpperBound: 1000.0},
+			countConfInt: noise.ConfidenceInterval{LowerBound: 1.0, UpperBound: 10.0},
+			want:         noise.ConfidenceInterval{LowerBound: 10.0, UpperBound: 10.0},
 		},
 	} {
 		mean := NewBoundedMeanFloat64(tc.meanOpt)
 		mean.normalizedSum.noise = getMockConfInt(tc.sumConfInt)
 		mean.count.noise = getMockConfInt(tc.countConfInt)
 		mean.Result()
-		got, _ := mean.computeConfidenceIntervalForExplicitAlphaSplit(0.1, 0.05) // Parameters are ignored.
+		got, _ := mean.computeConfidenceIntervalForExplicitAlphaNum(0.1, 0.05) // Parameters are ignored.
 		if !ApproxEqual(got.LowerBound, tc.want.LowerBound) {
-			t.Errorf("TestMeanComputeConfidenceIntervalForExplicitAlphaSplit(ConfidenceInterval{%f, %f})=%0.10f, want %0.10f, LowerBounds are not equal",
+			t.Errorf("TestMeanComputeConfidenceIntervalForExplicitAlphaNumFractionsIntoCorrectMeanConfInt(ConfidenceInterval{%f, %f})=%0.10f, want %0.10f, LowerBounds are not equal",
 				tc.meanOpt.Lower, tc.meanOpt.Upper, got.LowerBound, tc.want.LowerBound)
 		}
 		if !ApproxEqual(got.UpperBound, tc.want.UpperBound) {
-			t.Errorf("TestMeanComputeConfidenceIntervalForExplicitAlphaSplit(ConfidenceInterval{%f, %f})=%0.10f, want %0.10f, UpperBounds are not equal",
+			t.Errorf("TestMeanComputeConfidenceIntervalForExplicitAlphaNumFractionsIntoCorrectMeanConfInt(ConfidenceInterval{%f, %f})=%0.10f, want %0.10f, UpperBounds are not equal",
 				tc.meanOpt.Lower, tc.meanOpt.Upper, got.UpperBound, tc.want.UpperBound)
 		}
 	}
 }
 
 // This test was designed to be deterministic. It checks that bounding is done correctly.
-func TestMeanComputeConfidenceInterval_confidenceBoundsAlwaysInsideProvidedBoundaries(t *testing.T) {
+func TestMeanComputeConfidenceIntervalForExplicitAlphaNum(t *testing.T) {
 	lower := 0.0
 	upper := 1.0
-	meanOpt := &BoundedMeanFloat64Options{Epsilon: 1.0, Delta: 0.123, Lower: lower, Upper: upper, Noise: noise.Gaussian(), MaxContributionsPerPartition: 1}
+	meanOpt := &BoundedMeanFloat64Options{
+		Epsilon: 1.0,
+		Delta: 0.123,
+		Lower: lower,
+		Upper: upper,
+		Noise: noise.Gaussian(),
+		MaxContributionsPerPartition: 1}
 	mean := NewBoundedMeanFloat64(meanOpt)
-	mean.Add(-1.0)
-	mean.Add(0.0)
-	mean.Add(1.0)
-	mean.Add(2.0)
+	mean.Add(10.0)
 	mean.Result()
 	// Generate a random meanAlpha and a random split.
-	meanAlpha := rand.Uniform()
-	countAlpha := rand.Uniform() * meanAlpha
-	meanConfInt, err := mean.computeConfidenceIntervalForExplicitAlphaSplit(meanAlpha, countAlpha)
-	if err != nil {
-		t.Errorf("computeConfidenceIntervalForExplicitAlphaSplit(%f, %f) got err %v", meanAlpha, countAlpha, err)
-	}
-	if meanConfInt.LowerBound < lower || meanConfInt.LowerBound > upper {
-		t.Errorf("computeConfidenceIntervalForExplicitAlphaSplit: lower bound = %f is outside of provided boundaries = [%f, %f]", 
-		meanConfInt.LowerBound, lower, upper)
-	}
-	if meanConfInt.UpperBound < lower || meanConfInt.UpperBound > upper {
-		t.Errorf("computeConfidenceIntervalForExplicitAlphaSplit: upper bound = %f is outside of provided boundaries = 	[%f, %f]",
-		meanConfInt.UpperBound, lower, upper)
+	meanAlpha := [5]float64{0.1, 0.3, 0.5, 0.9, 0.99}
+	countAlpha :=[5]float64{0.001, 0.025, 0.005, 0.075, 0.09}
+	for i := 0; i < 5; i+=1{
+		for j := 0; j < 5; j+=1{
+			meanConfInt, err := mean.computeConfidenceIntervalForExplicitAlphaNum(meanAlpha[i], countAlpha[j])
+			if err != nil {
+				t.Errorf("TestMeanComputeConfidenceIntervalForExplicitAlphaNum(%f, %f) got err %v", meanAlpha, countAlpha, err)
+			}
+			if meanConfInt.LowerBound < lower || meanConfInt.LowerBound > upper {
+				t.Errorf("TestMeanComputeConfidenceIntervalForExplicitAlphaNum: lower bound = %f is outside of provided boundaries = [%f, %f]",
+				meanConfInt.LowerBound, lower, upper)
+			}
+			if meanConfInt.UpperBound < lower || meanConfInt.UpperBound > upper {
+				t.Errorf("TestMeanComputeConfidenceIntervalForExplicitAlphaNum: upper bound = %f is outside of provided boundaries = 	[%f, %f]",
+				meanConfInt.UpperBound, lower, upper)
+			}
+		}
 	}
 }
 
@@ -894,16 +901,16 @@ func (mn mockBMNoise) ComputeConfidenceIntervalInt64(noisedX, l0Sensitivity, lIn
 	return noise.ConfidenceInterval{}, nil
 }
 
-func TestMeanComputeConfidenceInterval_callsNoiseComputeConfidenceIntervalCorrectly(t *testing.T) {
+func TestMeanComputeConfidenceIntervalCallsNoiseComputeConfidenceIntervalCorrectly(t *testing.T) {
 	bmf := getMockBMF(t)
 	bmf.Result()
-	bmf.computeConfidenceIntervalForExplicitAlphaSplit(alphaLevel, alphaLevel/2)
+	bmf.computeConfidenceIntervalForExplicitAlphaNum(alphaLevel, alphaLevel/2)
 }
 
-func TestMeanComputeConfidenceInterval_calledBeforeResult(t *testing.T) {
+func TestMeanComputeConfidenceIntervalCalledBeforeResult(t *testing.T) {
 	bmf := getMockBMF(t)
-	_, err := bmf.computeConfidenceIntervalForExplicitAlphaSplit(alphaLevel, alphaLevel/2)
+	_, err := bmf.computeConfidenceIntervalForExplicitAlphaNum(alphaLevel, alphaLevel/2)
 	if err == nil {
-		t.Errorf("Calling computeConfidenceIntervalForExplicitAlphaSplit before Result() does not throw an error.")
+		t.Errorf("Calling computeConfidenceIntervalForExplicitAlphaNum before Result() does not throw an error.")
 	}
 }
