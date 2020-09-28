@@ -19,6 +19,7 @@
 
 #include <math.h>
 
+#include <cstddef>
 #include <iostream>
 #include <string>
 #include <utility>
@@ -63,7 +64,7 @@ class PartitionSelectionStrategy {
     Build() = 0;
 
    protected:
-    // Checks if the max number of partitions contributed  to is set and valid.
+    // Checks if the max number of partitions contributed to is set and valid.
     base::Status MaxPartitionsContributedIsSetAndValid() {
       if (!max_partitions_contributed_.has_value()) {
         return base::InvalidArgumentError(
@@ -128,7 +129,8 @@ class PartitionSelectionStrategy {
       : epsilon_(epsilon),
         delta_(delta),
         max_partitions_contributed_(max_partitions_contributed),
-        adjusted_delta_(AdjustDelta(delta)) {}
+        adjusted_delta_(
+            CalculateAdjustedDelta(delta, max_partitions_contributed)) {}
 
  private:
   double epsilon_;
@@ -145,10 +147,11 @@ class PartitionSelectionStrategy {
   // a partition with a single user is 1 - adjusted_delta_, and raising this
   // expression to the power of the max number of partitions one user can
   // contribute to will get us delta, we can solve to get the following formula.
-  double AdjustDelta(double delta) const {
+  static double CalculateAdjustedDelta(double delta,
+                                       int max_partitions_contributed) {
     // Numerically stable equivalent of
-    // 1- pow(1 - delta, 1 / max_partitions_contributed_).
-    return -expm1(log1p(-delta) / max_partitions_contributed_);
+    // 1- pow(1 - delta, 1 / max_partitions_contributed).
+    return -expm1(log1p(-delta) / max_partitions_contributed);
   }
 };
 
@@ -299,6 +302,22 @@ class LaplacePartitionSelection : public PartitionSelectionStrategy {
     return (noised_result > threshold_);
   }
 
+  static double CalculateDelta(double epsilon, double threshold,
+                               double max_partitions_contributed) {
+    return -expm1(
+        -log1p((exp((1 - threshold) /
+                    CalculateDiversity(epsilon, max_partitions_contributed))) /
+               2) *
+        max_partitions_contributed);
+  }
+
+  static double CalculateThreshold(double epsilon, double delta,
+                                   int max_partitions_contributed) {
+    return 1 - CalculateDiversity(epsilon, max_partitions_contributed) *
+                   (log(2 * CalculateAdjustedDelta(
+                                delta, max_partitions_contributed)));
+  }
+
   double GetL1Sensitivity() const { return l1_sensitivity_; }
 
   double GetDiversity() const { return diversity_; }
@@ -311,9 +330,13 @@ class LaplacePartitionSelection : public PartitionSelectionStrategy {
                             std::unique_ptr<NumericalMechanism> laplace)
       : PartitionSelectionStrategy(epsilon, delta, max_partitions_contributed),
         l1_sensitivity_(max_partitions_contributed),
-        diversity_(l1_sensitivity_ / epsilon),
+        diversity_(CalculateDiversity(epsilon, l1_sensitivity_)),
         mechanism_(std::move(laplace)) {
-    threshold_ = 1 - diversity_ * (log(2 * GetAdjustedDelta()));
+    threshold_ = CalculateThreshold(epsilon, delta, max_partitions_contributed);
+  }
+
+  static double CalculateDiversity(double epsilon, int l1_sensitivity) {
+    return l1_sensitivity / epsilon;
   }
 
  private:

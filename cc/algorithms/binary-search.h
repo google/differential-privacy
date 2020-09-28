@@ -98,12 +98,12 @@ class BinarySearch : public Algorithm<T> {
 
   base::Status Merge(const Summary& summary) override {
     if (!summary.has_data()) {
-      return base::InvalidArgumentError(
+      return base::InternalError(
           "Cannot merge summary with no binary search data.");
     }
     BinarySearchSummary bs_summary;
     if (!summary.data().UnpackTo(&bs_summary)) {
-      return base::InvalidArgumentError(
+      return base::InternalError(
           "Binary search summary unable to be unpacked.");
     }
     quantiles_->MergeFromProto(bs_summary.input());

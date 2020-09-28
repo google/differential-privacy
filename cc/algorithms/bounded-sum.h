@@ -152,19 +152,18 @@ class BoundedSum : public Algorithm<T> {
 
   base::Status Merge(const Summary& summary) override {
     if (!summary.has_data()) {
-      return base::InvalidArgumentError(
+      return base::InternalError(
           "Cannot merge summary with no bounded sum data.");
     }
 
     // Add bounded sum partial values.
     BoundedSumSummary bs_summary;
     if (!summary.data().UnpackTo(&bs_summary)) {
-      return base::InvalidArgumentError(
-          "Bounded sum summary unable to be unpacked.");
+      return base::InternalError("Bounded sum summary unable to be unpacked.");
     }
     if (pos_sum_.size() != bs_summary.pos_sum_size() ||
         neg_sum_.size() != bs_summary.neg_sum_size()) {
-      return base::InvalidArgumentError(
+      return base::InternalError(
           "Merged BoundedSum must have the same amount of partial sum "
           "values as this BoundedSum.");
     }

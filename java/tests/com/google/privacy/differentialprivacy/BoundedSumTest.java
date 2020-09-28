@@ -807,10 +807,12 @@ public class BoundedSumTest {
     sum.computeResult();
     ConfidenceInterval confInt = sum.computeConfidenceInterval(ALPHA);
 
-    assertWithMessage("Lower bound is not precise: actual = %s, expected = %s.", confInt.lowerBound(), 0.0 )
+    assertWithMessage(
+            "Lower bound is not precise: actual = %s, expected = %s.", confInt.lowerBound(), 0.0)
         .that(approxEqual(confInt.lowerBound(), 0.0))
         .isTrue();
-    assertWithMessage("Upper bound is not precise: actual = %s, expected = %s.", confInt.upperBound(), 167.68)
+    assertWithMessage(
+            "Upper bound is not precise: actual = %s, expected = %s.", confInt.upperBound(), 167.68)
         .that(approxEqual(confInt.upperBound(), 167.68))
         .isTrue();
   }
@@ -836,10 +838,13 @@ public class BoundedSumTest {
     sum.computeResult();
     ConfidenceInterval confInt = sum.computeConfidenceInterval(ALPHA);
 
-    assertWithMessage("Lower bound is not precise: actual = %s, expected = %s.", confInt.lowerBound(), 0.0 )
+    assertWithMessage(
+            "Lower bound is not precise: actual = %s, expected = %s.", confInt.lowerBound(), 0.0)
         .that(approxEqual(confInt.lowerBound(), 0.0))
         .isTrue();
-    assertWithMessage("Upper bound is not precise: actual = %s, expected = %s.", confInt.upperBound(), 1531.827)
+    assertWithMessage(
+            "Upper bound is not precise: actual = %s, expected = %s.",
+            confInt.upperBound(), 1531.827)
         .that(approxEqual(confInt.upperBound(), 1531.827))
         .isTrue();
   }
@@ -875,9 +880,9 @@ public class BoundedSumTest {
     sum.computeConfidenceInterval(ALPHA);
     verify(noise)
         .computeConfidenceInterval(
-            eq(0.0d), // sum of added entries = 0.0
-            eq(/* l0Sensitivity = maxPartitionsContributed = 1 */ 1),
-            eq(/* lInfSensitivity = max(lower, upper) * maxContributionsPerPartition = 10.0 * 100 = 1000 */ 1000.0),
+            eq(/* sum of added entries = */ 0.0d),
+            eq(/* l0Sensitivity = maxPartitionsContributed = */ 1),
+            eq(/* lInfSensitivity = max(|lower|, |upper|) * maxContributionsPerPartition = */1000.0d),
             eq(EPSILON),
             eq(DELTA),
             eq(ALPHA));

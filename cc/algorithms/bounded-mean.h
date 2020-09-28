@@ -165,20 +165,19 @@ class BoundedMean : public Algorithm<T> {
 
   base::Status Merge(const Summary& summary) override {
     if (!summary.has_data()) {
-      return base::InvalidArgumentError(
+      return base::InternalError(
           "Cannot merge summary with no bounded mean data.");
     }
 
     // Add counts and bounded sums.
     BoundedMeanSummary bm_summary;
     if (!summary.data().UnpackTo(&bm_summary)) {
-      return base::InvalidArgumentError(
-          "Bounded mean summary unable to be unpacked.");
+      return base::InternalError("Bounded mean summary unable to be unpacked.");
     }
     raw_count_ += bm_summary.count();
     if (pos_sum_.size() != bm_summary.pos_sum_size() ||
         neg_sum_.size() != bm_summary.neg_sum_size()) {
-      return base::InvalidArgumentError(
+      return base::InternalError(
           "Merged BoundedMeans must have equal number of partial sums.");
     }
     for (int i = 0; i < pos_sum_.size(); ++i) {

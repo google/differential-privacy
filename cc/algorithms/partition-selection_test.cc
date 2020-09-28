@@ -441,6 +441,50 @@ TEST(PartitionSelectionTest, LaplacePartitionSelectionUnsetBuilderThreshold) {
   EXPECT_THAT(laplace->GetThreshold(), DoubleNear(7.43775164974, 0.001));
 }
 
+TEST(PartitionSelectionTest, LaplacePartitionSelectionCalculateDelta) {
+  EXPECT_THAT(LaplacePartitionSelection::CalculateDelta(0.5, 7.43775164974, 1),
+              DoubleNear(0.02, 0.001));
+  EXPECT_THAT(LaplacePartitionSelection::CalculateDelta(1.0986, 10.85, 1),
+              DoubleNear(0.00001, 0.000001));
+  EXPECT_THAT(LaplacePartitionSelection::CalculateDelta(2.1972, 5.92, 1),
+              DoubleNear(0.00001, 0.000001));
+  EXPECT_THAT(LaplacePartitionSelection::CalculateDelta(2.1972, 29.28, 5),
+              DoubleNear(0.00001, 0.000001));
+}
+
+TEST(PartitionSelectionTest, LaplacePartitionSelectionCalculateThreshold) {
+  EXPECT_THAT(LaplacePartitionSelection::CalculateThreshold(0.5, 0.02, 1),
+              DoubleNear(7.43775164974, 0.01));
+  EXPECT_THAT(LaplacePartitionSelection::CalculateThreshold(1.0986, 0.00001, 1),
+              DoubleNear(10.85, 0.01));
+  EXPECT_THAT(LaplacePartitionSelection::CalculateThreshold(2.1972, 0.00001, 1),
+              DoubleNear(5.92, 0.01));
+  EXPECT_THAT(LaplacePartitionSelection::CalculateThreshold(2.1972, 0.00001, 5),
+              DoubleNear(29.28, 0.01));
+}
+
+TEST(PartitionSelectionTest, LaplacePartitionSelectionCalculateThresholdDelta) {
+  double epsilon = 0.5;
+  double delta = 0.02;
+  double max_partitions_contributed = 1;
+  double threshold = LaplacePartitionSelection::CalculateThreshold(
+      epsilon, delta, max_partitions_contributed);
+  EXPECT_THAT(LaplacePartitionSelection::CalculateDelta(
+                  epsilon, threshold, max_partitions_contributed),
+              DoubleNear(delta, 0.001));
+}
+
+TEST(PartitionSelectionTest, LaplacePartitionSelectionCalculateDeltaThreshold) {
+  double epsilon = 0.5;
+  double threshold = 10;
+  double max_partitions_contributed = 1;
+  double delta = LaplacePartitionSelection::CalculateDelta(
+      epsilon, threshold, max_partitions_contributed);
+  EXPECT_THAT(LaplacePartitionSelection::CalculateThreshold(
+                  epsilon, delta, max_partitions_contributed),
+              DoubleNear(threshold, 0.02));
+}
+
 TEST(PartitionSelectionTest, LaplacePartitionSelectionLow) {
   LaplacePartitionSelection::Builder test_builder;
   std::unique_ptr<PartitionSelectionStrategy> build =

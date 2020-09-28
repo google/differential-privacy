@@ -27,6 +27,8 @@ import org.junit.runners.Suite.SuiteClasses;
   BoundedMeanTest.class,
   LaplaceNoiseConfidenceIntervalTest.class,
   GaussianNoiseConfidenceIntervalTest.class,
+  LaplaceNoiseQuantileTest.class,
+  GaussianNoiseQuantileTest.class,
   BoundedSumBuilderTest.class,
   BoundedSumTest.class,
   CountBuilderTest.class,

@@ -56,14 +56,13 @@ class Count : public Algorithm<T> {
   // Add count from serialized data.
   base::Status Merge(const Summary& summary) override {
     if (!summary.has_data()) {
-      return base::InvalidArgumentError(
-          "Cannot merge summary with no count data.");
+      return base::InternalError("Cannot merge summary with no count data.");
     }
 
     // Add counts.
     CountSummary count_summary;
     if (!summary.data().UnpackTo(&count_summary)) {
-      return base::InvalidArgumentError("Count summary unable to be unpacked.");
+      return base::InternalError("Count summary unable to be unpacked.");
     }
     count_ += count_summary.count();
 

@@ -213,7 +213,9 @@ func (bm *BoundedMeanFloat64) Result() float64 {
 	return clamped
 }
 
-// The computation is based exclusively on noised data and the privacy parameters.
+// ComputeConfidenceInterval computes a confidence interval that contains the true mean with
+// probability greater than or equal to 1 - alpha. The computation is based exclusively on
+// noised data and the privacy parameters. Thus no privacy budget is consumed by this operation.
 //
 // Result() needs to be called before ComputeConfidenceInterval, otherwise this will return an error.
 func (bm *BoundedMeanFloat64) ComputeConfidenceInterval(alpha float64) (noise.ConfidenceInterval, error) {
@@ -226,7 +228,7 @@ func (bm *BoundedMeanFloat64) ComputeConfidenceInterval(alpha float64) (noise.Co
 	// confidence interval of bounded mean.
 	minSize := math.Inf(1)
 	var tightestConfInt noise.ConfidenceInterval
-	for i:= 1; i < 1000; i++ {
+	for i := 1; i < 1000; i++ {
 		alphaNum := (float64(i) / 1000.0) * alpha
 		confInt, err := bm.computeConfidenceIntervalForExplicitAlphaNum(alpha, alphaNum)
 		if err != nil {
@@ -258,7 +260,8 @@ func (bm *BoundedMeanFloat64) computeConfidenceIntervalForExplicitAlphaNum(alpha
 		return noise.ConfidenceInterval{}, err
 	}
 
-	// Ensuring that the lower and upper bounds of the denominator are consistent with how Result() processes the denominator.
+	// Ensuring that the lower and upper bounds of the denominator are consistent
+	// with how Result() processes the denominator.
 	confIntDen.LowerBound = math.Max(confIntDen.LowerBound, 1)
 	confIntDen.UpperBound = math.Max(confIntDen.UpperBound, 1)
 
@@ -273,9 +276,8 @@ func (bm *BoundedMeanFloat64) computeConfidenceIntervalForExplicitAlphaNum(alpha
 	} else {
 		meanUpperBound = confIntNum.UpperBound / confIntDen.UpperBound
 	}
-	// Ensuring that the lower and upper bounds of the mean are consistent with how Reult() processes the mean.
+	// Ensuring that the lower and upper bounds of the mean are consistent with how Result() processes the mean.
 	meanLowerBound, meanUpperBound = meanLowerBound+bm.midPoint, meanUpperBound+bm.midPoint
-
 	meanLowerBound, err = ClampFloat64(meanLowerBound, bm.lower, bm.upper)
 	if err != nil {
 		return noise.ConfidenceInterval{}, fmt.Errorf("Couldn't clamp lower bound for mean: %v", err)

@@ -216,25 +216,25 @@ class BoundedVariance : public Algorithm<T> {
 
   base::Status Merge(const Summary& summary) override {
     if (!summary.has_data()) {
-      return base::InvalidArgumentError(
+      return base::InternalError(
           "Cannot merge summary with no bounded variance data.");
     }
 
     // Unpack bounded variance summary.
     BoundedVarianceSummary bv_summary;
     if (!summary.data().UnpackTo(&bv_summary)) {
-      return base::InvalidArgumentError(
+      return base::InternalError(
           "Bounded variance summary unable to be unpacked.");
     }
     if ((approx_bounds_ != nullptr) != bv_summary.has_bounds_summary()) {
-      return base::InvalidArgumentError(
+      return base::InternalError(
           "Merged BoundedVariance must have the same bounding strategy.");
     }
     if (pos_sum_.size() != bv_summary.pos_sum_size() ||
         neg_sum_.size() != bv_summary.neg_sum_size() ||
         pos_sum_of_squares_.size() != bv_summary.pos_sum_of_squares_size() ||
         neg_sum_of_squares_.size() != bv_summary.neg_sum_of_squares_size()) {
-      return base::InvalidArgumentError(
+      return base::InternalError(
           "Merged BoundedVariance must have the same amount of partial "
           "sum or sum of squares values as this BoundedVariance.");
     }

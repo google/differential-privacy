@@ -26,6 +26,7 @@
 #include "algorithms/numerical-mechanisms.h"
 #include "algorithms/util.h"
 #include "proto/util.h"
+#include "base/canonical_errors.h"
 #include "base/status_macros.h"
 
 namespace differential_privacy {
@@ -216,18 +217,18 @@ class ApproxBounds : public Algorithm<T> {
   // Retrieve positive and negative bin counts from summary and add them.
   base::Status Merge(const Summary& summary) override {
     if (!summary.has_data()) {
-      return base::InvalidArgumentError(
+      return base::InternalError(
           "Cannot merge summary with no histogram data.");
     }
     ApproxBoundsSummary am_summary;
     if (!summary.data().UnpackTo(&am_summary)) {
-      return base::InvalidArgumentError(
+      return base::InternalError(
           "Approximate bounds summary unable to be unpacked.");
     }
 
     if (pos_bins_.size() != am_summary.pos_bin_count_size() ||
         neg_bins_.size() != am_summary.neg_bin_count_size()) {
-      return base::InvalidArgumentError(
+      return base::InternalError(
           "Merged approximate max summary must have the same number of "
           "bin counts as this histogram.");
     }
@@ -508,7 +509,7 @@ class ApproxBounds : public Algorithm<T> {
 
     // Record error status if approx min or max was not found.
     if (output.elements_size() < 2) {
-      return base::InvalidArgumentError(
+      return base::FailedPreconditionError(
           "Bin count threshold was too large to find approximate "
           "bounds. Either run over a larger dataset or decrease "
           "success_probability and try again.");

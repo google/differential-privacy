@@ -125,12 +125,13 @@ public class BoundedSum {
     }
 
     resultReturned = true;
-    double lInfSensitivity =
-        getLInfSensitivity(params.lower(), params.upper(), params.maxContributionsPerPartition());
-    noisedSum =
-        params
-            .noise()
-            .addNoise(sum, getL0Sensitivity(), lInfSensitivity, params.epsilon(), params.delta());
+    noisedSum = params.noise().addNoise(
+        sum,
+        getL0Sensitivity(),
+        getLInfSensitivity(),
+        params.epsilon(),
+        params.delta()
+    );
     return noisedSum;
   }
 
@@ -147,15 +148,13 @@ public class BoundedSum {
       throw new IllegalStateException(
           "computeResult must be called before calling computeConfidenceInterval.");
     }
-    double lInfSensitivity =
-            getLInfSensitivity(params.lower(), params.upper(), params.maxContributionsPerPartition());
     ConfidenceInterval confInt =
         params
             .noise()
             .computeConfidenceInterval(
                 noisedSum,
                 getL0Sensitivity(),
-                lInfSensitivity,
+                getLInfSensitivity(),
                 params.epsilon(),
                 params.delta(),
                 alpha);
@@ -240,15 +239,20 @@ public class BoundedSum {
         params.lower(), otherSum.getLower(), params.upper(), otherSum.getUpper());
   }
 
-  private static double getLInfSensitivity(
-      double lower, double upper, int maxContributionsPerPartition) {
-    return max(abs(lower), abs(upper)) * maxContributionsPerPartition;
-  }
-
   private int getL0Sensitivity() {
     // maxPartitionsContributed is the user-facing parameter, which is technically the same as
     // L_0 sensitivity used by the noise internally.
     return params.maxPartitionsContributed();
+  }
+
+  private double getLInfSensitivity() {
+    return getLInfSensitivity(
+        params.lower(), params.upper(), params.maxContributionsPerPartition());
+  }
+
+  private static double getLInfSensitivity(
+      double lower, double upper, int maxContributionsPerPartition) {
+    return max(abs(lower), abs(upper)) * maxContributionsPerPartition;
   }
 
   @AutoValue

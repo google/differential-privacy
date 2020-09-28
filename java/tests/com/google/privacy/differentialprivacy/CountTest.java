@@ -24,14 +24,17 @@ import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.math.Stats;
 import com.google.differentialprivacy.SummaryOuterClass.CountSummary;
+import com.google.differentialprivacy.SummaryOuterClass.MechanismType;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.Collection;
+import java.util.Optional;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -53,6 +56,7 @@ public class CountTest {
 
   private static final double EPSILON = 0.123;
   private static final double DELTA = 0.123;
+  private static final double THRESHOLD_DELTA = 1e-10;
   private static final int NUM_SAMPLES = 100000;
   private static final double LN_3 = Math.log(3.0);
   private static final double ALPHA = 0.152145599;
@@ -67,6 +71,8 @@ public class CountTest {
   public void setUp() {
     // Mock the noise mechanism so that it does not add any noise.
     when(noise.addNoise(anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble()))
+        .thenAnswer(invocation -> invocation.getArguments()[0]);
+    when(noise.addNoise(anyLong(), anyInt(), anyLong(), anyDouble(), isNull()))
         .thenAnswer(invocation -> invocation.getArguments()[0]);
     // Tests that use serialization need to access to the type of the noise they use. Because the
     // tests don't rely on a specific noise type, we arbitrarily return Gaussian.
@@ -475,39 +481,272 @@ public class CountTest {
   }
 
   @Test
-  public void count_computeThresholdedResult_deltaNegative_throwsException() {
-    Exception e =
-        assertThrows(IllegalArgumentException.class, () -> count.computeThresholdedResult(-1.0));
-    assertThat(e).hasMessageThat().startsWith("delta must be");
+  public void computeThresholdedResult_computeResultAlreadyCalled_throwsException() {
+    count.computeResult();
+    IllegalStateException exception =
+        assertThrows(
+            IllegalStateException.class,
+            () -> {
+              count.computeThresholdedResult(THRESHOLD_DELTA);
+            });
+    assertThat(exception)
+        .hasMessageThat()
+        .startsWith("The result can be calculated and returned only once.");
   }
 
   @Test
-  public void count_computeThresholdedResult_deltaZero_throwsException() {
-    Exception e =
-        assertThrows(IllegalArgumentException.class, () -> count.computeThresholdedResult(-0.0));
-    assertThat(e).hasMessageThat().startsWith("delta must be");
+  public void computeThresholdedResult_negativeThresholdDelta_throwsException() {
+    IllegalArgumentException exception =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> count.computeThresholdedResult(-2.0));
+    assertThat(exception)
+        .hasMessageThat()
+        .startsWith("delta must be > 0 and < 1.");
   }
 
   @Test
-  public void count_computeThresholdedResult_deltaOne_throwsException() {
-    Exception e =
-        assertThrows(IllegalArgumentException.class, () -> count.computeThresholdedResult(1.0));
-    assertThat(e).hasMessageThat().startsWith("delta must be");
-  }
-
-  @Test
-  public void count_computeThresholdedResult_deltaGreaterThanOne_throwsException() {
-    Exception e =
-        assertThrows(IllegalArgumentException.class, () -> count.computeThresholdedResult(2.0));
-    assertThat(e).hasMessageThat().startsWith("delta must be");
-  }
-
-  @Test
-  public void count_computeThresholdedResult_deltaNaN_throwsException() {
+  public void count_computeThresholdedResult_thresholdDeltaNaN_throwsException() {
     Exception e =
         assertThrows(
             IllegalArgumentException.class, () -> count.computeThresholdedResult(Double.NaN));
     assertThat(e).hasMessageThat().startsWith("delta must be");
+  }
+
+  @Test
+  public void computeThresholdedResult_thresholdDeltaZero_throwsException() {
+    IllegalArgumentException exception =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> count.computeThresholdedResult(0.0));
+    assertThat(exception)
+        .hasMessageThat()
+        .startsWith("delta must be");
+  }
+
+  @Test
+  public void computeThresholdedResult_thresholdDeltaOne_throwsException() {
+    IllegalArgumentException exception =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> count.computeThresholdedResult(1.0));
+    assertThat(exception)
+        .hasMessageThat()
+        .startsWith("delta must be");
+  }
+
+  @Test
+  public void computeThresholdedResult_thresholdDeltaGreaterThanOne_throwsException() {
+    IllegalArgumentException exception =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> count.computeThresholdedResult(2.0));
+    assertThat(exception)
+        .hasMessageThat()
+        .startsWith("delta must be");
+  }
+
+  @Test
+  public void computeThresholdedResult_unknownNoiseType_throwsException() {
+    when(noise.getMechanismType()).thenReturn(MechanismType.EMPTY);
+
+    IllegalStateException exception =
+        assertThrows(
+            IllegalStateException.class,
+            () -> count.computeThresholdedResult(THRESHOLD_DELTA));
+    assertThat(exception)
+        .hasMessageThat()
+        .contains("unknown mechanism type");
+  }
+
+  @Test
+  public void computeThresholdedResult_defaultParams_callsNoiseCorrectly() {
+    count.computeThresholdedResult(THRESHOLD_DELTA);
+
+    verify(noise)
+        .computeQuantile(
+            eq(THRESHOLD_DELTA), // rank = thresholdDelta / lInfSensitivity = THRESHOLD_DELTA / 1
+            eq(/* x = mean = */0.0),
+            eq(/* l0Sensitivity = maxPartitionsContributed = */ 1),
+            eq(/* lInfSensitivity = maxContributionsPerPartition = */ 1.0),
+            eq(EPSILON),
+            eq(DELTA));
+  }
+
+  @Test
+  public void computeThresholdedResult_scaledLinfSensitivity_callsNoiseCorrectly() {
+    count = getCountBuilderWithFields().maxContributionsPerPartition(10).build();
+
+    count.computeThresholdedResult(THRESHOLD_DELTA);
+
+    verify(noise)
+        .computeQuantile(
+            eq(
+                THRESHOLD_DELTA
+                    / 10.0), // rank = thresholdDelta / lInfSensitivity = THRESHOLD_DELTA / 10
+            eq(/* x = mean = */0.0),
+            eq(/* l0Sensitivity = maxPartitionsContributed = */ 1),
+            eq(/* lInfSensitivity = maxContributionsPerPartition = */ 10.0),
+            eq(EPSILON),
+            eq(DELTA));
+  }
+
+  @Test
+  public void computeThresholdedResult_countBelowThreshold_returnsEmptyResult() {
+    double quantile = -10.0;
+    when(noise.computeQuantile(
+        anyDouble(),
+        anyDouble(),
+        anyInt(),
+        anyDouble(),
+        anyDouble(),
+        anyDouble())
+    ).thenReturn(quantile);
+
+    // threshold is equal to -1 * quantile + maxContributionsPerPartition = 11;
+    // the result count is equal to 1 which doesn't pass the
+    // threshold of 11 and therefore the empty result should be returned.
+    count.increment();
+    Optional<Long> actualResult = count.computeThresholdedResult(THRESHOLD_DELTA);
+    assertThat(actualResult.isPresent()).isFalse();
+  }
+
+  @Test
+  public void computeThresholdedResult_countGreaterThanThreshold_returnsComputedResult() {
+    double quantile = -10.0;
+    when(noise.computeQuantile(
+            anyDouble(), anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble()))
+        .thenReturn(quantile);
+
+    // threshold is equal to -1 * quantile + maxContributionsPerPartition = 11;
+    // the result count is equal to 15 which passes the
+    // threshold of 11 and therefore the computed result should be returned.
+    count.incrementBy(15);
+    Optional<Long> actualResult = count.computeThresholdedResult(THRESHOLD_DELTA);
+    assertThat(actualResult.get()).isEqualTo(15);
+  }
+
+  @Test
+  public void computeThresholdedResult_forLaplace_rawCountAsFloorThreshold_returnsEmptyResult() {
+    when(noise.getMechanismType()).thenReturn(LAPLACE);
+    when(noise.computeQuantile(
+            anyDouble(), anyDouble(), anyInt(), anyDouble(), anyDouble(), isNull()))
+        .thenAnswer(
+            invocation ->
+                new LaplaceNoise()
+                    .computeQuantile(
+                        (double) invocation.getArguments()[0],
+                        (double) invocation.getArguments()[1],
+                        (int) invocation.getArguments()[2],
+                        (double) invocation.getArguments()[3],
+                        (double) invocation.getArguments()[4],
+                        null));
+
+    Count count =
+        Count.builder()
+            .epsilon(Math.log(3))
+            .maxContributionsPerPartition(1)
+            .maxPartitionsContributed(1)
+            .noise(noise)
+            .build();
+
+    count.incrementBy((long) Math.floor(21.33));
+    // threshold is equal to 21.33
+    Optional<Long> actualResult = count.computeThresholdedResult(1e-10);
+    assertThat(actualResult.isPresent()).isFalse();
+  }
+
+  @Test
+  public void computeThresholdedResult_forLaplace_rawCountAsCeilThreshold_returnsComputedResult() {
+    when(noise.getMechanismType()).thenReturn(LAPLACE);
+    when(noise.computeQuantile(
+            anyDouble(), anyDouble(), anyInt(), anyDouble(), anyDouble(), isNull()))
+        .thenAnswer(
+            invocation ->
+                new LaplaceNoise()
+                    .computeQuantile(
+                        (double) invocation.getArguments()[0],
+                        (double) invocation.getArguments()[1],
+                        (int) invocation.getArguments()[2],
+                        (double) invocation.getArguments()[3],
+                        (double) invocation.getArguments()[4],
+                        null));
+
+    Count count =
+        Count.builder()
+            .epsilon(Math.log(3))
+            .maxContributionsPerPartition(1)
+            .maxPartitionsContributed(1)
+            .noise(noise)
+            .build();
+
+    long rawCount = (long) Math.ceil(21.33);
+    count.incrementBy(rawCount);
+    // threshold is equal to 21.33
+    Optional<Long> actualResult = count.computeThresholdedResult(1e-10);
+    assertThat(actualResult.get()).isEqualTo(rawCount);
+  }
+
+  @Test
+  public void computeThresholdedResult_forGaussian_rawCountAsFloorThreshold_returnsEmptyResult() {
+    when(noise.computeQuantile(
+            anyDouble(), anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble()))
+        .thenAnswer(
+            invocation ->
+                new GaussianNoise()
+                    .computeQuantile(
+                        (double) invocation.getArguments()[0],
+                        (double) invocation.getArguments()[1],
+                        (int) invocation.getArguments()[2],
+                        (double) invocation.getArguments()[3],
+                        (double) invocation.getArguments()[4],
+                        (double) invocation.getArguments()[5]));
+
+    Count count =
+        Count.builder()
+            .epsilon(Math.log(3))
+            .delta(0.26546844106038714)
+            .maxContributionsPerPartition(1)
+            .maxPartitionsContributed(2)
+            .noise(noise)
+            .build();
+
+    long rawCount = (long) Math.floor(2.9997099087500634);
+    count.incrementBy(rawCount);
+    // threshold is equal to 2.9997099087500634
+    Optional<Long> actualResult = count.computeThresholdedResult(0.022828893856);
+    assertThat(actualResult.isPresent()).isFalse();
+  }
+
+  @Test
+  public void computeThresholdedResult_forGaussian_rawCountAsCeilThreshold_returnsComputedResult() {
+    when(noise.computeQuantile(
+            anyDouble(), anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble()))
+        .thenAnswer(
+            invocation ->
+                new GaussianNoise()
+                    .computeQuantile(
+                        (double) invocation.getArguments()[0],
+                        (double) invocation.getArguments()[1],
+                        (int) invocation.getArguments()[2],
+                        (double) invocation.getArguments()[3],
+                        (double) invocation.getArguments()[4],
+                        (double) invocation.getArguments()[5]));
+
+    Count count =
+        Count.builder()
+            .epsilon(Math.log(3))
+            .delta(0.26546844106038714)
+            .maxContributionsPerPartition(1)
+            .maxPartitionsContributed(2)
+            .noise(noise)
+            .build();
+
+    long rawCount = (long) Math.ceil(2.9997099087500634);
+    count.incrementBy(rawCount);
+    // threshold is equal to 2.9997099087500634
+    Optional<Long> actualResult = count.computeThresholdedResult(0.022828893856);
+    assertThat(actualResult.get()).isEqualTo(rawCount);
   }
 
   private Count.Params.Builder getCountBuilderWithFields() {
@@ -554,7 +793,7 @@ public class CountTest {
     double sampleTolerance = 4.41717 * Math.sqrt(variance / NUM_SAMPLES);
     // The DP count is considered unbiased if the expeted value (approximated by stats.mean()) is
     // equal to the raw count.
-    assertThat(stats.mean()).isWithin(sampleTolerance).of((double) rawCount);
+    assertThat(stats.mean()).isWithin(sampleTolerance).of(rawCount);
   }
 
   @Test
@@ -677,9 +916,7 @@ public class CountTest {
     IllegalStateException exception =
         assertThrows(
             IllegalStateException.class,
-            () -> {
-              count.computeConfidenceInterval(ALPHA);
-            });
+            () -> count.computeConfidenceInterval(ALPHA));
     assertThat(exception)
         .hasMessageThat()
         .startsWith("computeResult must be called before calling computeConfidenceInterval.");

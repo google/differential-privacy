@@ -39,7 +39,7 @@ public class DpPreconditions {
   }
 
   static void checkNoiseDelta(Double delta, Noise noise) {
-    if (noise instanceof LaplaceNoise) {
+    if (noise.getMechanismType() == MechanismType.LAPLACE) {
       checkArgument(
           delta == null,
           "delta should not be set when Laplace noise is used. Provided value: %s",

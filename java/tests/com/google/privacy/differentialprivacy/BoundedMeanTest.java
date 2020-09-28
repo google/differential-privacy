@@ -61,13 +61,13 @@ public class BoundedMeanTest {
   private static void mockDoubleNoise(Noise noise, double value) {
     when(noise.addNoise(anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble()))
         .thenAnswer(invocation -> (double) invocation.getArguments()[0] + value);
-    when(noise.getMechanismType()).thenReturn(MechanismType.LAPLACE);
+    when(noise.getMechanismType()).thenReturn(MechanismType.GAUSSIAN);
   }
 
   private static void mockLongNoise(Noise noise, long value) {
     when(noise.addNoise(anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble()))
         .thenAnswer(invocation -> (long) invocation.getArguments()[0] + value);
-    when(noise.getMechanismType()).thenReturn(MechanismType.LAPLACE);
+    when(noise.getMechanismType()).thenReturn(MechanismType.GAUSSIAN);
   }
 
   @Before

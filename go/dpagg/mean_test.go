@@ -739,7 +739,7 @@ func TestBMFloat64Serialization(t *testing.T) {
 	}
 }
 
-func TestMeanComputeConfidenceIntervalForExplicitAlphaNumFractionsIntoCorrectMeanConfInt(t *testing.T) {
+func TestMeanComputeConfidenceIntervalForExplicitAlphaNumFractionsItIntoCorrectMeanConfInt(t *testing.T) {
 	noNoise := noNoise{} // To skip initial argument checking.
 	for _, tc := range []struct {
 		meanOpt      *BoundedMeanFloat64Options
@@ -798,7 +798,8 @@ func TestMeanComputeConfidenceIntervalForExplicitAlphaNumFractionsIntoCorrectMea
 				Lower: 0.0,
 				Upper: 10.0,
 				Noise: noNoise,
-				MaxContributionsPerPartition: 1},
+				MaxContributionsPerPartition: 1,
+			},
 			sumConfInt:   noise.ConfidenceInterval{LowerBound: 100.0, UpperBound: 1000.0},
 			countConfInt: noise.ConfidenceInterval{LowerBound: 1.0, UpperBound: 10.0},
 			want:         noise.ConfidenceInterval{LowerBound: 10.0, UpperBound: 10.0},
@@ -821,7 +822,7 @@ func TestMeanComputeConfidenceIntervalForExplicitAlphaNumFractionsIntoCorrectMea
 }
 
 // This test was designed to be deterministic. It checks that bounding is done correctly.
-func TestMeanComputeConfidenceIntervalForExplicitAlphaNum(t *testing.T) {
+func TestMeanComputeConfidenceIntervalForExplicitAlphaNumResultConfIntInsideProvidedBoundaries(t *testing.T) {
 	lower := 0.0
 	upper := 1.0
 	meanOpt := &BoundedMeanFloat64Options{
@@ -829,27 +830,28 @@ func TestMeanComputeConfidenceIntervalForExplicitAlphaNum(t *testing.T) {
 		Delta: 0.123,
 		Lower: lower,
 		Upper: upper,
-		Noise: noise.Gaussian(),
-		MaxContributionsPerPartition: 1}
+		Noise: noNoise{noise.Gaussian()},
+		MaxContributionsPerPartition: 1,
+	}
 	mean := NewBoundedMeanFloat64(meanOpt)
 	mean.Add(10.0)
 	mean.Result()
-	// Generate a random meanAlpha and a random split.
-	meanAlpha := [5]float64{0.1, 0.3, 0.5, 0.9, 0.99}
-	countAlpha :=[5]float64{0.001, 0.025, 0.005, 0.075, 0.09}
-	for i := 0; i < 5; i+=1{
-		for j := 0; j < 5; j+=1{
-			meanConfInt, err := mean.computeConfidenceIntervalForExplicitAlphaNum(meanAlpha[i], countAlpha[j])
+	meanAlpha := []float64 {0.1, 0.3, 0.5, 0.9, 0.99}
+	alphaFraction :=[]float64 {0.1, 0.25, 0.5, 0.5, 0.9}
+	for i := 0; i < 5; i++ {
+		for j := 0; j < 5; j++ {
+			alphaNum := meanAlpha[i] * alphaFraction[j]
+			meanConfInt, err := mean.computeConfidenceIntervalForExplicitAlphaNum(meanAlpha[i], alphaNum)
 			if err != nil {
-				t.Errorf("TestMeanComputeConfidenceIntervalForExplicitAlphaNum(%f, %f) got err %v", meanAlpha, countAlpha, err)
+				t.Errorf("TestMeanComputeConfidenceIntervalForExplicitAlphaNum(%f, %f) got err %v", meanAlpha, alphaNum, err)
 			}
 			if meanConfInt.LowerBound < lower || meanConfInt.LowerBound > upper {
 				t.Errorf("TestMeanComputeConfidenceIntervalForExplicitAlphaNum: lower bound = %f is outside of provided boundaries = [%f, %f]",
-				meanConfInt.LowerBound, lower, upper)
+					meanConfInt.LowerBound, lower, upper)
 			}
 			if meanConfInt.UpperBound < lower || meanConfInt.UpperBound > upper {
 				t.Errorf("TestMeanComputeConfidenceIntervalForExplicitAlphaNum: upper bound = %f is outside of provided boundaries = 	[%f, %f]",
-				meanConfInt.UpperBound, lower, upper)
+					meanConfInt.UpperBound, lower, upper)
 			}
 		}
 	}
@@ -857,7 +859,7 @@ func TestMeanComputeConfidenceIntervalForExplicitAlphaNum(t *testing.T) {
 
 // ComputeConfidenceInterval checks that the parameters passed are the ones we expect for sum.
 func (mn mockBMNoise) ComputeConfidenceIntervalFloat64(noisedX float64, l0Sensitivity int64, lInfSensitivity, epsilon, delta, alpha float64) (noise.ConfidenceInterval, error) {
-	if noisedX != 100{
+	if noisedX != 100 {
 		mn.t.Errorf("ComputeConfidenceIntervalFloat64: for parameter noisedX got %f, want %f", noisedX, 100.0)
 	}
 	if l0Sensitivity != 1 {
