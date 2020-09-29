@@ -396,12 +396,12 @@ func TestCountComputeConfidenceIntervalComputation(t *testing.T) {
 	}{
 		{
 			desc: "Gaussian",
-			opt:  &CountOptions{Epsilon: 0.1, Delta: 0.1, Noise: getNoiselessConfInt(noise.Gaussian())},
+			opt:  &CountOptions{Epsilon: 0.1, Delta: 0.1, Noise: noNoise{noise.Gaussian()}},
 			want: noise.ConfidenceInterval{LowerBound: 8, UpperBound: 12},
 		},
 		{
 			desc: "Laplace",
-			opt:  &CountOptions{Epsilon: 0.1, Noise: getNoiselessConfInt(noise.Laplace())},
+			opt:  &CountOptions{Epsilon: 0.1, Noise: noNoise{noise.Laplace()}},
 			want: noise.ConfidenceInterval{LowerBound: 3, UpperBound: 17},
 		},
 	} {

@@ -219,7 +219,7 @@ func TestInverseCDFLaplace(t *testing.T) {
 	} {
 		got := inverseCDFLaplace(tc.lambda, tc.prob)
 		if !approxEqual(got, tc.want) {
-			t.Errorf("TestInverseCDFLaplace(%f,%f)=%0.12f, want %0.12f, desc: %s", tc.lambda,
+			t.Errorf("inverseCDFLaplace(%f,%f)=%0.12f, want %0.12f, desc: %s", tc.lambda,
 				tc.prob, got, tc.want, tc.desc)
 		}
 	}
@@ -292,11 +292,11 @@ func TestComputeConfidenceIntervalLaplace(t *testing.T) {
 	} {
 		got := computeConfidenceIntervalLaplace(tc.noisedX, tc.lambda, tc.alpha)
 		if !approxEqual(got.LowerBound, tc.want.LowerBound) {
-			t.Errorf("TestComputeConfidenceIntervalLaplace(%f, %f, %f)=%0.10f, want %0.10f, desc %s, LowerBounds are not equal",
+			t.Errorf("computeConfidenceIntervalLaplace(%f, %f, %f)=%0.10f, want %0.10f, desc %s, LowerBounds are not equal",
 				tc.noisedX, tc.lambda, tc.alpha, got.LowerBound, tc.want.LowerBound, tc.desc)
 		}
 		if !approxEqual(got.UpperBound, tc.want.UpperBound) {
-			t.Errorf("TestComputeConfidenceIntervalLaplace(%f, %f, %f)=%0.10f, want %0.10f, desc %s, UpperBounds are not equal",
+			t.Errorf("computeConfidenceIntervalLaplace(%f, %f, %f)=%0.10f, want %0.10f, desc %s, UpperBounds are not equal",
 				tc.noisedX, tc.lambda, tc.alpha, got.UpperBound, tc.want.UpperBound, tc.desc)
 		}
 	}
@@ -439,16 +439,11 @@ func TestComputeConfidenceIntervalFloat64LaplaceArgumentCheck(t *testing.T) {
 			alpha:           math.NaN(),
 		},
 	} {
-		got, err := lap.ComputeConfidenceIntervalFloat64(tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity,
+		_, err := lap.ComputeConfidenceIntervalFloat64(tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity,
 			tc.epsilon, tc.delta, tc.alpha)
 
 		if err == nil {
-			t.Errorf("ComputeConfidenceIntervalFloat64Laplace: when %s no error was returned, expected error", tc.desc)
-		}
-		// Checks default confidence interval is returned when err is generated.
-		if (got != ConfidenceInterval{}) {
-			t.Errorf("TestComputeConfidenceIntervalFloat64LaplaceArgumentCheck(%f, %d, %f, %f, %f)=[LowerBound: %0.10f, UpperBound: %0.10f], want [LowerBound: 0.0, UpperBound: 0.0]",
-				tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.alpha, got.LowerBound, got.UpperBound)
+			t.Errorf("ComputeConfidenceIntervalFloat64: when %s no error was returned, expected error", tc.desc)
 		}
 	}
 }
@@ -494,14 +489,14 @@ func TestComputeConfidenceIntervalInt64Laplace(t *testing.T) {
 		got, err := lap.ComputeConfidenceIntervalInt64(tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity,
 			tc.epsilon, tc.delta, tc.alpha)
 		if err != nil {
-			t.Errorf("ComputeConfidenceIntervalInt64Laplace: when %v for err got %v", tc.desc, err)
+			t.Errorf("ComputeConfidenceIntervalInt64: when %v for err got %v", tc.desc, err)
 		}
 		if got.LowerBound != tc.want.LowerBound {
-			t.Errorf("TestComputeConfidenceIntervalInt64Laplace(%d, %d, %d, %f, %f)=%0.10f, want %0.10f, desc %s, LowerBounds are not equal",
+			t.Errorf("ComputeConfidenceIntervalInt64(%d, %d, %d, %f, %f)=%0.10f, want %0.10f, desc %s, LowerBounds are not equal",
 				tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.alpha, got.LowerBound, tc.want.LowerBound, tc.desc)
 		}
 		if got.UpperBound != tc.want.UpperBound {
-			t.Errorf("TestComputeConfidenceIntervalInt64Laplace(%d, %d, %d, %f, %f)=%0.10f, want %0.10f, desc %s, UpperBounds are not equal",
+			t.Errorf("ComputeConfidenceIntervalInt64(%d, %d, %d, %f, %f)=%0.10f, want %0.10f, desc %s, UpperBounds are not equal",
 				tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.alpha, got.UpperBound, tc.want.UpperBound, tc.desc)
 		}
 	}
@@ -627,16 +622,11 @@ func TestComputeConfidenceIntervalInt64LaplaceArgumentCheck(t *testing.T) {
 			alpha:           math.NaN(),
 		},
 	} {
-		got, err := lap.ComputeConfidenceIntervalInt64(tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity,
+		_, err := lap.ComputeConfidenceIntervalInt64(tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity,
 			tc.epsilon, tc.delta, tc.alpha)
 
 		if err == nil {
-			t.Errorf("ComputeConfidenceIntervalInt64Laplace: when %s no error was returned, expected error", tc.desc)
-		}
-		// Checks default confidence interval is returned when err is generated.
-		if (got != ConfidenceInterval{}) {
-			t.Errorf("TestComputeConfidenceIntervalInt64LaplaceArgumentCheck(%d, %d, %d, %f, %f)=[LowerBound: %0.10f, UpperBound: %0.10f], want [LowerBound: 0.0, UpperBound: 0.0]",
-				tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.alpha, got.LowerBound, got.UpperBound)
+			t.Errorf("ComputeConfidenceIntervalInt64: when %s no error was returned, expected error", tc.desc)
 		}
 	}
 }

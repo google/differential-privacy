@@ -1020,12 +1020,12 @@ func TestSumComputeConfidenceIntervalForInt64Computation(t *testing.T) {
 	}{
 		{
 			desc: "Gaussian",
-			opt:  &BoundedSumInt64Options{Epsilon: 0.1, Delta: 0.1, Lower: 0, Upper: 5, Noise: getNoiselessConfInt(noise.Gaussian())},
+			opt:  &BoundedSumInt64Options{Epsilon: 0.1, Delta: 0.1, Lower: 0, Upper: 5, Noise: noNoise{noise.Gaussian()}},
 			want: noise.ConfidenceInterval{LowerBound: 40, UpperBound: 60},
 		},
 		{
 			desc: "Laplace",
-			opt:  &BoundedSumInt64Options{Epsilon: 0.1, Lower: 0, Upper: 5, Noise: getNoiselessConfInt(noise.Laplace())},
+			opt:  &BoundedSumInt64Options{Epsilon: 0.1, Lower: 0, Upper: 5, Noise: noNoise{noise.Laplace()}},
 			want: noise.ConfidenceInterval{LowerBound: 15, UpperBound: 85},
 		},
 	} {
@@ -1057,13 +1057,13 @@ func TestSumComputeConfidenceIntervalForFloat64Computation(t *testing.T) {
 	}{
 		{
 			desc:      "Gaussian",
-			opt:       &BoundedSumFloat64Options{Epsilon: 0.1, Delta: 0.1, Lower: 0, Upper: 5, Noise: getNoiselessConfInt(noise.Gaussian())},
+			opt:       &BoundedSumFloat64Options{Epsilon: 0.1, Delta: 0.1, Lower: 0, Upper: 5, Noise: noNoise{noise.Gaussian()}},
 			want:      noise.ConfidenceInterval{LowerBound: 15.898893, UpperBound: 35.101107},
 			tolerance: 1e-3,
 		},
 		{
 			desc:      "Laplace",
-			opt:       &BoundedSumFloat64Options{Epsilon: 0.1, Lower: 0, Upper: 5, Noise: getNoiselessConfInt(noise.Laplace())},
+			opt:       &BoundedSumFloat64Options{Epsilon: 0.1, Lower: 0, Upper: 5, Noise: noNoise{noise.Laplace()}},
 			want:      noise.ConfidenceInterval{LowerBound: 0.0, UpperBound: 60.157359},
 			tolerance: 1e-6,
 		},
@@ -1075,6 +1075,7 @@ func TestSumComputeConfidenceIntervalForFloat64Computation(t *testing.T) {
 		c.Result()
 		got, _ := c.ComputeConfidenceInterval(0.5)
 
+		// TODO: Replace with appropriate approxEqual function.
 		if math.Abs(got.LowerBound-tc.want.LowerBound) > tc.tolerance*math.Max(got.LowerBound, tc.want.LowerBound) {
 			t.Errorf("TestSumComputeConfidenceIntervalForFloat64Computation(Noise: %s)=%0.10f, want %0.10f, LowerBounds are not equal",
 				tc.desc, got.LowerBound, tc.want.LowerBound)

@@ -78,8 +78,8 @@ func nextLargerFloat64(n int64) float64 {
 	// the difference a - n will be negative, indicating that the result needs to be incremented
 	// to the next float64 value b.
 	result := float64(n)
-	dif := int64(result) - n
-	if dif < 0 {
+	diff := int64(result) - n
+	if diff < 0 {
 		return math.Nextafter(result, math.Inf(1))
 	}
 	return result
@@ -93,8 +93,8 @@ func nextSmallerFloat64(n int64) float64 {
 	// the difference b - n will be positive, indicating that the result needs to be decremented
 	// to the previous float64 value a.
 	result := float64(n)
-	dif := int64(result) - n
-	if dif > 0 {
+	diff := int64(result) - n
+	if diff > 0 {
 		return math.Nextafter(result, math.Inf(-1))
 	}
 	return result

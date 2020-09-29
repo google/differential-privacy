@@ -490,7 +490,7 @@ func TestInverseCDFGaussian(t *testing.T) {
 	} {
 		Zc := inverseCDFGaussian(tc.sigma, tc.p)
 		if !approxEqual(Zc, tc.want) {
-			t.Errorf("TestInverseCDFGaussian(%f, %f) = %0.10f, want %0.10f, desc: %s", tc.sigma, tc.p, Zc, tc.want, tc.desc)
+			t.Errorf("inverseCDFGaussian(%f, %f) = %0.10f, want %0.10f, desc: %s", tc.sigma, tc.p, Zc, tc.want, tc.desc)
 		}
 	}
 }
@@ -564,11 +564,11 @@ func TestComputeConfidenceIntervalGaussian(t *testing.T) {
 	} {
 		result := computeConfidenceIntervalGaussian(tc.noisedX, tc.sigma, tc.alpha)
 		if !approxEqual(result.LowerBound, tc.want.LowerBound) {
-			t.Errorf("TestComputeConfidenceIntervalGaussian(%f, %f, %f)=%0.10f, want %0.10f, desc %s, LowerBounds are not equal",
+			t.Errorf("computeConfidenceIntervalGaussian(%f, %f, %f)=%0.10f, want %0.10f, desc %s, LowerBounds are not equal",
 				tc.noisedX, tc.alpha, tc.sigma, result.LowerBound, tc.want.LowerBound, tc.desc)
 		}
 		if !approxEqual(result.UpperBound, tc.want.UpperBound) {
-			t.Errorf("TestComputeConfidenceIntervalGaussian(%f, %f, %f)=%0.10f, want %0.10f, desc %s, UpperBounds are not equal",
+			t.Errorf("computeConfidenceIntervalGaussian(%f, %f, %f)=%0.10f, want %0.10f, desc %s, UpperBounds are not equal",
 				tc.noisedX, tc.alpha, tc.sigma, result.UpperBound, tc.want.UpperBound, tc.desc)
 		}
 	}
@@ -647,21 +647,20 @@ func TestComputeConfidenceIntervalInt64Gaussian(t *testing.T) {
 	} {
 		got, err := gauss.ComputeConfidenceIntervalInt64(tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.delta, tc.alpha)
 		if err != nil {
-			t.Errorf("ComputeConfidenceIntervalInt64Gaussian: when %s got err %v", tc.desc, err)
+			t.Errorf("ComputeConfidenceIntervalInt64: when %s got err %v", tc.desc, err)
 		}
 		if got.LowerBound != tc.want.LowerBound {
-			t.Errorf("TestComputeConfidenceIntervalInt64Gaussian(%d, %d, %d, %f, %f, %f)=%f, want %f, desc %s, LowerBounds are not equal",
+			t.Errorf("ComputeConfidenceIntervalInt64(%d, %d, %d, %f, %f, %f)=%f, want %f, desc %s, LowerBounds are not equal",
 				tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.delta, tc.alpha, got.LowerBound, tc.want.LowerBound, tc.desc)
 		}
 		if got.UpperBound != tc.want.UpperBound {
-			t.Errorf("TestComputeConfidenceIntervalInt64Gaussian(%d, %d, %d, %f, %f, %f)=%f, want %f, desc %s, UpperBounds are not equal",
+			t.Errorf("ComputeConfidenceIntervalInt64(%d, %d, %d, %f, %f, %f)=%f, want %f, desc %s, UpperBounds are not equal",
 				tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.delta, tc.alpha, got.UpperBound, tc.want.UpperBound, tc.desc)
 		}
 	}
 }
 
 func TestComputeConfidenceIntervalInt64GaussianArgumentCheck(t *testing.T) {
-	// Test
 	for _, tc := range []struct {
 		desc                                    string
 		noisedX, l0Sensitivity, lInfSensitivity int64
@@ -820,20 +819,14 @@ func TestComputeConfidenceIntervalInt64GaussianArgumentCheck(t *testing.T) {
 			alpha:           math.NaN(),
 		},
 	} {
-		got, err := gauss.ComputeConfidenceIntervalInt64(tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.delta, tc.alpha)
+		_, err := gauss.ComputeConfidenceIntervalInt64(tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.delta, tc.alpha)
 		if err == nil {
-			t.Errorf("ComputeConfidenceIntervalInt64Gaussian: when %s no error was returned, expected error", tc.desc)
-		}
-		// Checks default confidence interval is returned when err is generated.
-		if (got != ConfidenceInterval{}) {
-			t.Errorf("TestComputeConfidenceIntervalInt64GaussianArgumentCheck(%d, %d, %d, %f, %f)=[LowerBound: %0.10f, UpperBound: %0.10f], want [LowerBound: 0.0, UpperBound: 0.0]",
-				tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.alpha, got.LowerBound, got.UpperBound)
+			t.Errorf("ComputeConfidenceIntervalInt64: when %s no error was returned, expected error", tc.desc)
 		}
 	}
 }
 
 func TestComputeConfidenceIntervalFloat64GaussianArgumentCheck(t *testing.T) {
-	// Test
 	for _, tc := range []struct {
 		desc                                   string
 		noisedX                                float64
@@ -995,14 +988,9 @@ func TestComputeConfidenceIntervalFloat64GaussianArgumentCheck(t *testing.T) {
 			alpha:           0.2,
 		},
 	} {
-		got, err := gauss.ComputeConfidenceIntervalFloat64(tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.delta, tc.alpha)
+		_, err := gauss.ComputeConfidenceIntervalFloat64(tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.delta, tc.alpha)
 		if err == nil {
-			t.Errorf("ComputeConfidenceIntervalFloat64Gaussian: when %s no error was returned, expected error", tc.desc)
-		}
-		// Checks default confidence interval is returned when err is generated.
-		if (got != ConfidenceInterval{}) {
-			t.Errorf("TestComputeConfidenceIntervalFloat64GaussianArgumentCheck(%f, %d, %f, %f, %f)=[LowerBound: %0.10f, UpperBound: %0.10f], want [LowerBound: 0.0, UpperBound: 0.0]",
-				tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.alpha, got.LowerBound, got.UpperBound)
+			t.Errorf("ComputeConfidenceIntervalFloat64: when %s no error was returned, expected error", tc.desc)
 		}
 	}
 }
