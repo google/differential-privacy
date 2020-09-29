@@ -75,14 +75,14 @@ public class BoundedMeanTest {
     when(noise.computeConfidenceInterval(
             anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
         .thenAnswer(invocation -> confInt);
-    when(noise.getMechanismType()).thenReturn(MechanismType.LAPLACE);
+    when(noise.getMechanismType()).thenReturn(MechanismType.GAUSSIAN);
   }
 
-  private static void mockIntConfInt(Noise noise, ConfidenceInterval confInt) {
+  private static void mockLongConfInt(Noise noise, ConfidenceInterval confInt) {
     when(noise.computeConfidenceInterval(
             anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble(), anyDouble()))
         .thenAnswer(invocation -> confInt);
-    when(noise.getMechanismType()).thenReturn(MechanismType.LAPLACE);
+    when(noise.getMechanismType()).thenReturn(MechanismType.GAUSSIAN);
   }
 
   @Before
@@ -90,6 +90,8 @@ public class BoundedMeanTest {
     // Mock the noise mechanism so that it does not add any noise.
     mockDoubleNoise(noise, 0);
     mockLongNoise(noise, 0);
+    mockDoubleConfInt(noise, ConfidenceInterval.create(0,0));
+    mockLongConfInt(noise, ConfidenceInterval.create(0,0));
 
     mean =
         BoundedMean.builder()
@@ -417,9 +419,9 @@ public class BoundedMeanTest {
     // Confidence interval for normalized sum.
     verify(noise)
         .computeConfidenceInterval(
-            eq(/* x1 + x2 - midpoint * count = 3 + 7 - 6 * 2 = */ -2.0),
-            eq(maxPartitionsContributed),
-            eq(/* maxContributionsPerPartition * (upper - lower) / 2 = 3 * (10 - 2) / 2 = */ 12.0),
+            eq(/* x = x1 + x2 - midpoint * count = 3 + 7 - 6 * 2 = */ -2.0),
+            eq(/* l0Sensitivity = */ maxPartitionsContributed),
+            eq(/* lInfSensitivity = maxContributionsPerPartition * (upper - lower) / 2 = 3 * (10 - 2) / 2 = */ 12.0),
             eq(EPSILON / 2.0),
             eq(DELTA / 2.0),
             eq(alpha / 2));
@@ -427,12 +429,12 @@ public class BoundedMeanTest {
     // Confidence interval for count.
     verify(noise)
         .computeConfidenceInterval(
-            eq(/* count */ 2L),
-            eq(maxPartitionsContributed),
-            eq(/* sensitivity of count  = maxContributionsPerPartition */ (long) maxContributionsPerPartition),
+            eq(/* x = */ 2L),
+            eq(/* l0Sensitivity = */ maxPartitionsContributed),
+            eq(/* lInfSensitivity = maxContributionsPerPartition = */ (long) maxContributionsPerPartition),
             eq(EPSILON / 2.0),
             eq(DELTA / 2.0),
-            eq(/* alphaDen = (alpha - alphaNum) / (1 - alphaNum) = 0.25/0.75 */ 1.0 / 3.0));
+            eq(/* alphaDen = (alpha - alphaNum) / (1 - alphaNum) = 0.25/0.75 = */ 1.0 / 3.0));
   }
 
   @Test
@@ -440,7 +442,7 @@ public class BoundedMeanTest {
     // Sum confidence interval.
     mockDoubleConfInt(noise, ConfidenceInterval.create(0, 5));
     // Count confidence interval.
-    mockIntConfInt(noise, ConfidenceInterval.create(2, 5));
+    mockLongConfInt(noise, ConfidenceInterval.create(2, 5));
     mean.computeResult();
 
     // mean_upperbound = sum_upperBound / count_lowerBound + midPoint =  5.0 / 2.0 + (1.0+9.0)/2.0 = 7.5
@@ -453,7 +455,7 @@ public class BoundedMeanTest {
     // Sum confidence interval.
     mockDoubleConfInt(noise, ConfidenceInterval.create(-10, -5));
     // Count confidence interval.
-    mockIntConfInt(noise, ConfidenceInterval.create(2, 5));
+    mockLongConfInt(noise, ConfidenceInterval.create(2, 5));
     mean.computeResult();
 
     // mean_upperbound = sum_upperBound / count_upperBound + midPoint =  -5.0 / 5.0 + (1.0+9.0)/2.0 = 4.0
@@ -466,7 +468,7 @@ public class BoundedMeanTest {
     // Sum confidence interval.
     mockDoubleConfInt(noise, ConfidenceInterval.create(5, 10));
     // Count confidence interval.
-    mockIntConfInt(noise, ConfidenceInterval.create(2, 5));
+    mockLongConfInt(noise, ConfidenceInterval.create(2, 5));
     mean.computeResult();
 
     // mean_lowerBound = sum_lowerBound / count_upperBound + midPoint =  5.0 / 5.0 + (1.0+9.0)/2.0 = 6.0
@@ -479,7 +481,7 @@ public class BoundedMeanTest {
     // Sum confidence interval.
     mockDoubleConfInt(noise, ConfidenceInterval.create(-5, 0));
     // Count confidence interval.
-    mockIntConfInt(noise, ConfidenceInterval.create(2, 5));
+    mockLongConfInt(noise, ConfidenceInterval.create(2, 5));
     mean.computeResult();
 
     // mean_lowerBound = sum_lowerBound / count_lowerBound + midPoint =  -5.0 / 2 + (1.0+9.0)/2.0 = 2.5
@@ -492,7 +494,7 @@ public class BoundedMeanTest {
     // Sum confidence interval, large negative values are used to test lower clamping.
     mockDoubleConfInt(noise, ConfidenceInterval.create(-100, -50));
     // Count confidence interval.
-    mockIntConfInt(noise, ConfidenceInterval.create(2, 5));
+    mockLongConfInt(noise, ConfidenceInterval.create(2, 5));
     mean.computeResult();
 
     // Both bounds should be clamped to lower = 1
@@ -505,7 +507,7 @@ public class BoundedMeanTest {
     // Sum confidence interval, large positive values are used to test upper clamping.
     mockDoubleConfInt(noise, ConfidenceInterval.create(50, 100));
     // Count confidence interval.
-    mockIntConfInt(noise, ConfidenceInterval.create(2, 5));
+    mockLongConfInt(noise, ConfidenceInterval.create(2, 5));
     mean.computeResult();
 
     // Both bounds should be clamped to upper = 9
