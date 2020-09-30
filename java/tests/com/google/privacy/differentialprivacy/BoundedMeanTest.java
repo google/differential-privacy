@@ -56,42 +56,39 @@ public class BoundedMeanTest {
   private static final double DELTA = 0.123;
   private static final double ALPHA = 0.1;
   @Rule public final MockitoRule mocks = MockitoJUnit.rule();
-  @Mock private Noise noise;
+  @Mock private static Noise noise;
   private BoundedMean mean;
 
-  private static void mockDoubleNoise(Noise noise, double value) {
+  private static void mockDoubleNoise(double value) {
     when(noise.addNoise(anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble()))
         .thenAnswer(invocation -> (double) invocation.getArguments()[0] + value);
-    when(noise.getMechanismType()).thenReturn(MechanismType.GAUSSIAN);
   }
 
-  private static void mockLongNoise(Noise noise, long value) {
+  private static void mockLongNoise(long value) {
     when(noise.addNoise(anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble()))
         .thenAnswer(invocation -> (long) invocation.getArguments()[0] + value);
-    when(noise.getMechanismType()).thenReturn(MechanismType.GAUSSIAN);
   }
 
-  private static void mockDoubleConfInt(Noise noise, ConfidenceInterval confInt) {
+  private static void mockDoubleConfInt(ConfidenceInterval confInt) {
     when(noise.computeConfidenceInterval(
             anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
         .thenAnswer(invocation -> confInt);
-    when(noise.getMechanismType()).thenReturn(MechanismType.GAUSSIAN);
   }
 
-  private static void mockLongConfInt(Noise noise, ConfidenceInterval confInt) {
+  private static void mockLongConfInt(ConfidenceInterval confInt) {
     when(noise.computeConfidenceInterval(
             anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble(), anyDouble()))
         .thenAnswer(invocation -> confInt);
-    when(noise.getMechanismType()).thenReturn(MechanismType.GAUSSIAN);
   }
 
   @Before
   public void setUp() {
+    when(noise.getMechanismType()).thenReturn(MechanismType.GAUSSIAN);
     // Mock the noise mechanism so that it does not add any noise.
-    mockDoubleNoise(noise, 0);
-    mockLongNoise(noise, 0);
-    mockDoubleConfInt(noise, ConfidenceInterval.create(0,0));
-    mockLongConfInt(noise, ConfidenceInterval.create(0,0));
+    mockDoubleNoise(0);
+    mockLongNoise(0);
+    mockDoubleConfInt(ConfidenceInterval.create(0,0));
+    mockLongConfInt(ConfidenceInterval.create(0,0));
 
     mean =
         BoundedMean.builder()
@@ -234,9 +231,9 @@ public class BoundedMeanTest {
   @Test
   public void computeResult_addsNoiseToSum() {
     // Mock the noise mechanism so that it adds noise to the sum == 10.0.
-    mockDoubleNoise(noise, 10);
+    mockDoubleNoise(10);
     // Mock the noise mechanism so that it adds noise to the count == 0.
-    mockLongNoise(noise, 0);
+    mockLongNoise(0);
 
     mean =
         BoundedMean.builder()
@@ -261,9 +258,9 @@ public class BoundedMeanTest {
   @Test
   public void computeResult_addsNoiseToCount() {
     // Mock the noise mechanism so that it adds noise to the sum == 0.0.
-    mockDoubleNoise(noise, 0);
+    mockDoubleNoise(0);
     // Mock the noise mechanism so that it adds noise to the count == 2.
-    mockLongNoise(noise, 2);
+    mockLongNoise(2);
 
     mean =
         BoundedMean.builder()
@@ -291,9 +288,9 @@ public class BoundedMeanTest {
     // (i.e., outside of the bounds). If no noise is added then the average will always be within
     // the bounds because the input values are clamped.
     // The noise added to sum is 100.
-    mockDoubleNoise(noise, 100);
+    mockDoubleNoise(100);
     // The noise added to sum is 0.
-    mockLongNoise(noise, 0);
+    mockLongNoise(0);
 
     mean =
         BoundedMean.builder()
@@ -322,9 +319,9 @@ public class BoundedMeanTest {
     // (i.e., outside of the bounds). If no noise is added then the average will always be within
     // the bounds because the input values are clamped.
     // The noise added to sum is 100.
-    mockDoubleNoise(noise, -100);
+    mockDoubleNoise(-100);
     // The noise added to sum is 0.
-    mockLongNoise(noise, 0);
+    mockLongNoise(0);
 
     mean =
         BoundedMean.builder()
@@ -440,9 +437,9 @@ public class BoundedMeanTest {
   @Test
   public void computeConfidenceInterval_positiveSumUpperBound() {
     // Sum confidence interval.
-    mockDoubleConfInt(noise, ConfidenceInterval.create(0, 5));
+    mockDoubleConfInt(ConfidenceInterval.create(0, 5));
     // Count confidence interval.
-    mockLongConfInt(noise, ConfidenceInterval.create(2, 5));
+    mockLongConfInt(ConfidenceInterval.create(2, 5));
     mean.computeResult();
 
     // mean_upperbound = sum_upperBound / count_lowerBound + midPoint =  5.0 / 2.0 + (1.0+9.0)/2.0 = 7.5
@@ -453,9 +450,9 @@ public class BoundedMeanTest {
   @Test
   public void computeConfidenceInterval_negativeSumUpperBound() {
     // Sum confidence interval.
-    mockDoubleConfInt(noise, ConfidenceInterval.create(-10, -5));
+    mockDoubleConfInt(ConfidenceInterval.create(-10, -5));
     // Count confidence interval.
-    mockLongConfInt(noise, ConfidenceInterval.create(2, 5));
+    mockLongConfInt(ConfidenceInterval.create(2, 5));
     mean.computeResult();
 
     // mean_upperbound = sum_upperBound / count_upperBound + midPoint =  -5.0 / 5.0 + (1.0+9.0)/2.0 = 4.0
@@ -466,9 +463,9 @@ public class BoundedMeanTest {
   @Test
   public void computeConfidenceInterval_positiveSumLowerBound() {
     // Sum confidence interval.
-    mockDoubleConfInt(noise, ConfidenceInterval.create(5, 10));
+    mockDoubleConfInt(ConfidenceInterval.create(5, 10));
     // Count confidence interval.
-    mockLongConfInt(noise, ConfidenceInterval.create(2, 5));
+    mockLongConfInt(ConfidenceInterval.create(2, 5));
     mean.computeResult();
 
     // mean_lowerBound = sum_lowerBound / count_upperBound + midPoint =  5.0 / 5.0 + (1.0+9.0)/2.0 = 6.0
@@ -479,9 +476,9 @@ public class BoundedMeanTest {
   @Test
   public void computeConfidenceInterval_negativeSumLowerBound() {
     // Sum confidence interval.
-    mockDoubleConfInt(noise, ConfidenceInterval.create(-5, 0));
+    mockDoubleConfInt(ConfidenceInterval.create(-5, 0));
     // Count confidence interval.
-    mockLongConfInt(noise, ConfidenceInterval.create(2, 5));
+    mockLongConfInt(ConfidenceInterval.create(2, 5));
     mean.computeResult();
 
     // mean_lowerBound = sum_lowerBound / count_lowerBound + midPoint =  -5.0 / 2 + (1.0+9.0)/2.0 = 2.5
@@ -492,9 +489,9 @@ public class BoundedMeanTest {
   @Test
   public void computeConfidenceInterval_clampTooLowBounds() {
     // Sum confidence interval, large negative values are used to test lower clamping.
-    mockDoubleConfInt(noise, ConfidenceInterval.create(-100, -50));
+    mockDoubleConfInt(ConfidenceInterval.create(-100, -50));
     // Count confidence interval.
-    mockLongConfInt(noise, ConfidenceInterval.create(2, 5));
+    mockLongConfInt(ConfidenceInterval.create(2, 5));
     mean.computeResult();
 
     // Both bounds should be clamped to lower = 1
@@ -505,9 +502,9 @@ public class BoundedMeanTest {
   @Test
   public void computeConfidenceInterval_clampTooHighBounds() {
     // Sum confidence interval, large positive values are used to test upper clamping.
-    mockDoubleConfInt(noise, ConfidenceInterval.create(50, 100));
+    mockDoubleConfInt(ConfidenceInterval.create(50, 100));
     // Count confidence interval.
-    mockLongConfInt(noise, ConfidenceInterval.create(2, 5));
+    mockLongConfInt(ConfidenceInterval.create(2, 5));
     mean.computeResult();
 
     // Both bounds should be clamped to upper = 9
