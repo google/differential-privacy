@@ -239,11 +239,15 @@ func laplaceLambda(l0Sensitivity int64, lInfSensitivity, epsilon float64) float6
 // computeConfidenceIntervalLaplace computes a confidence interval that contains the raw value x from which
 // float64 noisedX is computed with a probability equal to 1 - alpha with the given lambda.
 func computeConfidenceIntervalLaplace(noisedX float64, lambda, alpha float64) ConfidenceInterval {
-	// Finding a symmetrical confidence interval around a Laplace of (0, lambda)
-	// by calculating Z_(alpha/2) using inverseCDFLaplace which will return a
-	// negative value by symmetry to gain more accuracy for extremely small alpha.
-	Z := inverseCDFLaplace(lambda, alpha/2)
-	return ConfidenceInterval{noisedX + Z, noisedX - Z}
+	z := inverseCDFLaplace(lambda, alpha/2)
+	// Because of the symmetry of the Laplace distribution,
+	// -z corresponds to the (1 - alpha/2)-quantile of the distribution,
+	// meaning that the interval [z, -z] contains 1-alpha of the probability mass.
+	// Deriving the (1 - alpha/2)-quantile from the (alpha/2)-quantile and not vice versa is a
+	// deliberate choice. The reason is that alpha tends to be very small.
+	// Consequently, alpha/2 is more accurately representable as a float64 than 1 - alpha/2,
+	// facilitating numerical computations.
+	return ConfidenceInterval{LowerBound: noisedX + z, UpperBound: noisedX - z}
 }
 
 // inverseCDFLaplace computes the quantile z satisfying Pr[Y <= z] = p for a random variable Y
