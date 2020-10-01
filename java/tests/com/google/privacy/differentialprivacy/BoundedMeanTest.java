@@ -87,8 +87,8 @@ public class BoundedMeanTest {
     // Mock the noise mechanism so that it does not add any noise.
     mockDoubleNoise(0);
     mockLongNoise(0);
-    mockDoubleConfInt(ConfidenceInterval.create(0,0));
-    mockLongConfInt(ConfidenceInterval.create(0,0));
+    mockDoubleConfInt(ConfidenceInterval.create(0, 0));
+    mockLongConfInt(ConfidenceInterval.create(0, 0));
 
     mean =
         BoundedMean.builder()
@@ -393,7 +393,7 @@ public class BoundedMeanTest {
   }
 
   @Test
-  public void computeConfidenceInterval_callsNoiseComputeConfidenceIntervalCorrectly() {
+  public void computeConfidenceInterval_callsNoiseCorrectly() {
     int maxPartitionsContributed = 1;
     int maxContributionsPerPartition = 3;
     double alpha = 0.5;
@@ -411,17 +411,17 @@ public class BoundedMeanTest {
     mean.addEntry(3.0);
     mean.addEntry(7.0);
     mean.computeResult();
-    mean.computeConfidenceInterval(alpha, alpha / 2);
+    mean.computeConfidenceInterval(alpha, alpha / 2.0);
 
     // Confidence interval for normalized sum.
     verify(noise)
         .computeConfidenceInterval(
-            eq(/* x = x1 + x2 - midpoint * count = 3 + 7 - 6 * 2 = */ -2.0),
+            eq(/* x = x1 + x2 - midpoint * count = 3.0 + 7.0 - 6.0 * 2.0 = */ -2.0),
             eq(/* l0Sensitivity = */ maxPartitionsContributed),
-            eq(/* lInfSensitivity = maxContributionsPerPartition * (upper - lower) / 2 = 3 * (10 - 2) / 2 = */ 12.0),
+            eq(/* lInfSensitivity = maxContributionsPerPartition * (upper - lower) / 2.0 = 3.0 * (10.0 - 2.0) / 2.0 = */ 12.0),
             eq(EPSILON / 2.0),
             eq(DELTA / 2.0),
-            eq(alpha / 2));
+            eq(alpha / 2.0));
 
     // Confidence interval for count.
     verify(noise)
@@ -431,18 +431,18 @@ public class BoundedMeanTest {
             eq(/* lInfSensitivity = maxContributionsPerPartition = */ (long) maxContributionsPerPartition),
             eq(EPSILON / 2.0),
             eq(DELTA / 2.0),
-            eq(/* alphaDen = (alpha - alphaNum) / (1 - alphaNum) = 0.25/0.75 = */ 1.0 / 3.0));
+            eq(/* alphaDen = (alpha - alphaNum) / (1 - alphaNum) = 0.25 / 0.75 = */ 1.0 / 3.0));
   }
 
   @Test
   public void computeConfidenceInterval_positiveSumUpperBound() {
     // Sum confidence interval.
-    mockDoubleConfInt(ConfidenceInterval.create(0, 5));
+    mockDoubleConfInt(ConfidenceInterval.create(0.0, 5.0));
     // Count confidence interval.
-    mockLongConfInt(ConfidenceInterval.create(2, 5));
+    mockLongConfInt(ConfidenceInterval.create(2.0, 5.0));
     mean.computeResult();
 
-    // mean_upperbound = sum_upperBound / count_lowerBound + midPoint =  5.0 / 2.0 + (1.0+9.0)/2.0 = 7.5
+    // mean_upperbound = sum_upperBound / count_lowerBound + midPoint = 5.0 / 2.0 + (1.0 + 9.0) / 2.0 = 7.5
     assertThat(mean.computeConfidenceInterval(ALPHA).upperBound()) // parameters are ignored.
         .isEqualTo(7.5);
   }
@@ -450,12 +450,12 @@ public class BoundedMeanTest {
   @Test
   public void computeConfidenceInterval_negativeSumUpperBound() {
     // Sum confidence interval.
-    mockDoubleConfInt(ConfidenceInterval.create(-10, -5));
+    mockDoubleConfInt(ConfidenceInterval.create(-10.0, -5.0));
     // Count confidence interval.
-    mockLongConfInt(ConfidenceInterval.create(2, 5));
+    mockLongConfInt(ConfidenceInterval.create(2.0, 5.0));
     mean.computeResult();
 
-    // mean_upperbound = sum_upperBound / count_upperBound + midPoint =  -5.0 / 5.0 + (1.0+9.0)/2.0 = 4.0
+    // mean_upperbound = sum_upperBound / count_upperBound + midPoint = -5.0 / 5.0 + (1.0 + 9.0) / 2.0 = 4.0
     assertThat(mean.computeConfidenceInterval(ALPHA).upperBound()) // parameters are ignored.
         .isEqualTo(4.0);
   }
@@ -463,12 +463,12 @@ public class BoundedMeanTest {
   @Test
   public void computeConfidenceInterval_positiveSumLowerBound() {
     // Sum confidence interval.
-    mockDoubleConfInt(ConfidenceInterval.create(5, 10));
+    mockDoubleConfInt(ConfidenceInterval.create(5.0, 10.0));
     // Count confidence interval.
-    mockLongConfInt(ConfidenceInterval.create(2, 5));
+    mockLongConfInt(ConfidenceInterval.create(2.0, 5.0));
     mean.computeResult();
 
-    // mean_lowerBound = sum_lowerBound / count_upperBound + midPoint =  5.0 / 5.0 + (1.0+9.0)/2.0 = 6.0
+    // mean_lowerBound = sum_lowerBound / count_upperBound + midPoint = 5.0 / 5.0 + (1.0 + 9.0) / 2.0 = 6.0
     assertThat(mean.computeConfidenceInterval(ALPHA).lowerBound()) // parameters are ignored.
         .isEqualTo(6.0);
   }
@@ -476,12 +476,12 @@ public class BoundedMeanTest {
   @Test
   public void computeConfidenceInterval_negativeSumLowerBound() {
     // Sum confidence interval.
-    mockDoubleConfInt(ConfidenceInterval.create(-5, 0));
+    mockDoubleConfInt(ConfidenceInterval.create(-5.0, 0.0));
     // Count confidence interval.
-    mockLongConfInt(ConfidenceInterval.create(2, 5));
+    mockLongConfInt(ConfidenceInterval.create(2.0, 5.0));
     mean.computeResult();
 
-    // mean_lowerBound = sum_lowerBound / count_lowerBound + midPoint =  -5.0 / 2 + (1.0+9.0)/2.0 = 2.5
+    // mean_lowerBound = sum_lowerBound / count_lowerBound + midPoint = -5.0 / 2.0 + (1.0 + 9.0) / 2.0 = 2.5
     assertThat(mean.computeConfidenceInterval(ALPHA).lowerBound()) // parameters are ignored.
         .isEqualTo(2.5);
   }
@@ -489,27 +489,27 @@ public class BoundedMeanTest {
   @Test
   public void computeConfidenceInterval_clampTooLowBounds() {
     // Sum confidence interval, large negative values are used to test lower clamping.
-    mockDoubleConfInt(ConfidenceInterval.create(-100, -50));
+    mockDoubleConfInt(ConfidenceInterval.create(-100.0, -50.0));
     // Count confidence interval.
-    mockLongConfInt(ConfidenceInterval.create(2, 5));
+    mockLongConfInt(ConfidenceInterval.create(2.0, 5.0));
     mean.computeResult();
 
-    // Both bounds should be clamped to lower = 1
+    // Both bounds should be clamped to lower = 1.0
     assertThat(mean.computeConfidenceInterval(ALPHA)) // parameters are ignored.
-        .isEqualTo(ConfidenceInterval.create(1, 1));
+        .isEqualTo(ConfidenceInterval.create(1.0, 1.0));
   }
 
   @Test
   public void computeConfidenceInterval_clampTooHighBounds() {
     // Sum confidence interval, large positive values are used to test upper clamping.
-    mockDoubleConfInt(ConfidenceInterval.create(50, 100));
+    mockDoubleConfInt(ConfidenceInterval.create(50.0, 100.0));
     // Count confidence interval.
-    mockLongConfInt(ConfidenceInterval.create(2, 5));
+    mockLongConfInt(ConfidenceInterval.create(2.0, 5.0));
     mean.computeResult();
 
-    // Both bounds should be clamped to upper = 9
+    // Both bounds should be clamped to upper = 9.0
     assertThat(mean.computeConfidenceInterval(ALPHA)) // parameters are ignored.
-        .isEqualTo(ConfidenceInterval.create(9, 9));
+        .isEqualTo(ConfidenceInterval.create(9.0, 9.0));
   }
 
   @Test

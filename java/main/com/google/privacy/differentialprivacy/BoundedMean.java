@@ -17,6 +17,8 @@
 package com.google.privacy.differentialprivacy;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.annotations.VisibleForTesting;
+
 import java.util.Collection;
 import javax.annotation.Nullable;
 
@@ -212,6 +214,7 @@ public class BoundedMean {
    * with the additional constraint that the confidence level of the mean's numerator is {@code 1 -
    * alphaNum}.
    */
+  @VisibleForTesting
   ConfidenceInterval computeConfidenceInterval(double alpha, double alphaNum) {
     // Setting alphaDen such that (1 - alpha) = (1 - alphaNum) * (1 - alphaDen).
     double alphaDen = (alpha - alphaNum) / (1 - alphaNum);
