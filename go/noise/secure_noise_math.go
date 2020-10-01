@@ -64,3 +64,38 @@ func ceilPowerOfTwo(x float64) float64 {
 func roundToMultipleOfPowerOfTwo(x, granularity float64) float64 {
 	return math.Round(x/granularity) * granularity
 }
+
+// nextLargerFloat64 computes the closest float64 value that is larger than or equal to the provided int64 value.
+//
+// Mapping from int64 to float64 for large int64 values (> 2^53) is inaccurate since they cannot be
+// represented as a float64. Implicit/explicit conversion from int64 to float64 either rounds up or
+// down the int64 value to the nearest representable float64. This function ensures that int64 n <=
+// float64 nextLargerFloat64(n)
+func nextLargerFloat64(n int64) float64 {
+	// Large int64 values n may lie between two representable float64 values a and b,
+	// i.e., a < n < b, (note that in this case a and b are guaranteed to be integers).
+	// If the standard conversion to float64 rounds the int64 value down, e.g. float64(n) = a,
+	// the difference a - n will be negative, indicating that the result needs to be incremented
+	// to the next float64 value b.
+	result := float64(n)
+	diff := int64(result) - n
+	if diff < 0 {
+		return math.Nextafter(result, math.Inf(1))
+	}
+	return result
+}
+
+// nextSmallerFloat64 computes the closest float64 value that is smaller than or equal to the provided int64 value.
+func nextSmallerFloat64(n int64) float64 {
+	// Large int64 values n may lie between two representable float64 values a and b,
+	// i.e., a < n < b, (note that in this case a and b are guaranteed to be integers).
+	// If the standard conversion to float64 rounds the int64 value up, e.g. int64(n) = b,
+	// the difference b - n will be positive, indicating that the result needs to be decremented
+	// to the previous float64 value a.
+	result := float64(n)
+	diff := int64(result) - n
+	if diff > 0 {
+		return math.Nextafter(result, math.Inf(-1))
+	}
+	return result
+}

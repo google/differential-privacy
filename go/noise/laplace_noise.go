@@ -174,7 +174,15 @@ func (laplace) ComputeConfidenceIntervalInt64(noisedX, l0Sensitivity, lInfSensit
 		return ConfidenceInterval{}, err
 	}
 	lambda := laplaceLambda(l0Sensitivity, float64(lInfSensitivity), epsilon)
-	return computeConfidenceIntervalLaplace(float64(noisedX), lambda, alpha).roundToInt64(), nil
+	// Computing the confidence interval around zero rather than nosiedX helps represent the
+	// interval bounds more accurately. The reason is that the resolution of float64 values is most
+	// fine grained around zero.
+	confIntAroundZero := computeConfidenceIntervalLaplace(0, lambda, alpha).roundToInt64()
+	// Adding noisedX after converting the interval bounds to int64 ensures that no precision is lost
+	// due to the coarse resolution of float64 values for large instances of noisedX.
+	lowerBound := nextSmallerFloat64(int64(confIntAroundZero.LowerBound) + noisedX)
+	upperBound := nextLargerFloat64(int64(confIntAroundZero.UpperBound) + noisedX)
+	return ConfidenceInterval{LowerBound: lowerBound, UpperBound: upperBound}, nil
 }
 
 // ComputeConfidenceIntervalFloat64 computes a confidence interval that contains the raw value x from which float64
@@ -209,16 +217,7 @@ func checkArgsConfidenceIntervalLaplace(label string, l0Sensitivity int64, lInfS
 	if err := checks.CheckAlpha(label, alpha); err != nil {
 		return err
 	}
-	if err := checks.CheckL0Sensitivity(label, l0Sensitivity); err != nil {
-		return err
-	}
-	if err := checks.CheckLInfSensitivity(label, lInfSensitivity); err != nil {
-		return err
-	}
-	if err := checks.CheckEpsilonStrict(label, epsilon); err != nil {
-		return err
-	}
-	return checks.CheckNoDelta(label, delta)
+	return checkArgsLaplace(label, l0Sensitivity, lInfSensitivity, epsilon, delta)
 }
 
 // addLaplace adds Laplace noise scaled to the given epsilon and l1Sensitivity to the

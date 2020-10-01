@@ -305,6 +305,25 @@ func TestComputeConfidenceIntervalFloat64Laplace(t *testing.T) {
 			alpha:           0.2,
 			want:            ConfidenceInterval{15.35478992, 61.49201008},
 		},
+		// Testing that bounds are accurate for abs(bound) < 2^53
+		{
+			desc:            "Large positive noisedX",
+			noisedX:         958655.4745,
+			l0Sensitivity:   1,
+			lInfSensitivity: 1.0,
+			epsilon:         0.1,
+			alpha:           0.1,
+			want:            ConfidenceInterval{958632.45, 958678.50},
+		},
+		{
+			desc:            "Large negative noisedX",
+			noisedX:         -958655.4745,
+			l0Sensitivity:   1,
+			lInfSensitivity: 1.0,
+			epsilon:         0.1,
+			alpha:           0.1,
+			want:            ConfidenceInterval{-958678.50, -958632.45},
+		},
 		// Argument checking
 		{
 			desc:            "Zero l0Sensitivity",
@@ -367,11 +386,11 @@ func TestComputeConfidenceIntervalFloat64Laplace(t *testing.T) {
 			wantErr:         true,
 		},
 		{
-			desc:            "Zero epsilon",
+			desc:            "Epsilon less than 2^-50",
 			noisedX:         0,
 			l0Sensitivity:   1,
 			lInfSensitivity: 1,
-			epsilon:         0,
+			epsilon:         1.0 / (1 << 51),
 			alpha:           0.5,
 			want:            ConfidenceInterval{},
 			wantErr:         true,
@@ -501,6 +520,27 @@ func TestComputeConfidenceIntervalInt64Laplace(t *testing.T) {
 			alpha:           0.8,
 			want:            ConfidenceInterval{-79, 55},
 		},
+		// Tests for nextSmallerFloat64 and nextLargerFloat64.
+		{
+			desc: "Large positive noisedX",
+			// Distance to neighbouring float64 values is greater than half the size of the confidence interval.
+			noisedX:         (1 << 58),
+			l0Sensitivity:   1,
+			lInfSensitivity: 1,
+			epsilon:         0.1,
+			alpha:           0.1,
+			want:            ConfidenceInterval{math.Nextafter(1<<58, math.Inf(-1)), math.Nextafter(1<<58, math.Inf(1))},
+		},
+		{
+			desc: "Large negative noisedX",
+			// Distance to neighbouring float64 values is greater than half the size of the confidence interval.
+			noisedX:         -(1 << 58),
+			l0Sensitivity:   1,
+			lInfSensitivity: 1,
+			epsilon:         0.1,
+			alpha:           0.1,
+			want:            ConfidenceInterval{math.Nextafter(-1<<58, math.Inf(-1)), math.Nextafter(-1<<58, math.Inf(1))},
+		},
 		// Argument checking
 		{
 			desc:            "Zero l0Sensitivity",
@@ -543,11 +583,11 @@ func TestComputeConfidenceIntervalInt64Laplace(t *testing.T) {
 			wantErr:         true,
 		},
 		{
-			desc:            "Zero epsilon",
+			desc:            "Epsilon less than 2^-50",
 			noisedX:         0,
 			l0Sensitivity:   1,
 			lInfSensitivity: 1,
-			epsilon:         0,
+			epsilon:         1.0 / (1 << 51),
 			alpha:           0.5,
 			want:            ConfidenceInterval{},
 			wantErr:         true,

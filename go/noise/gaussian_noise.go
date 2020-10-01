@@ -130,7 +130,15 @@ func (gaussian) ComputeConfidenceIntervalInt64(noisedX, l0Sensitivity, lInfSensi
 		return ConfidenceInterval{}, err
 	}
 	sigma := SigmaForGaussian(l0Sensitivity, float64(lInfSensitivity), epsilon, delta)
-	return computeConfidenceIntervalGaussian(float64(noisedX), sigma, alpha).roundToInt64(), nil
+	// Computing the confidence interval around zero rather than nosiedX helps represent the
+	// interval bounds more accurately. The reason is that the resolution of float64 values is most
+	// fine grained around zero.
+	confIntAroundZero := computeConfidenceIntervalGaussian(0, sigma, alpha).roundToInt64()
+	// Adding noisedX after converting the interval bounds to int64 ensures that no precision is lost
+	// due to the coarse resolution of float64 values for large instances of noisedX.
+	lowerBound := nextSmallerFloat64(int64(confIntAroundZero.LowerBound) + noisedX)
+	upperBound := nextLargerFloat64(int64(confIntAroundZero.UpperBound) + noisedX)
+	return ConfidenceInterval{LowerBound: lowerBound, UpperBound: upperBound}, nil
 }
 
 // ComputeConfidenceIntervalFloat64 computes a confidence interval that contains the raw value x from which float64
