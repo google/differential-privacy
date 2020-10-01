@@ -17,6 +17,8 @@
 package com.google.privacy.differentialprivacy;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.annotations.VisibleForTesting;
+
 import java.util.Collection;
 import javax.annotation.Nullable;
 
@@ -173,6 +175,75 @@ public class BoundedMean {
     // Clamp the average before returning it to ensure it does not exceed the lower and upper
     // bounds.
     return clamp(normalizedNoisedSum / noisedCount + midpoint);
+  }
+
+  /**
+   * Computes a confidence interval that contains the true mean with a probability greater or equal
+   * to {@code 1 - alpha}. The computation is based exclusively on the noised data and the privacy
+   * parameters. Thus no privacy budget is consumed by this operation.
+   *
+   * <p>See <a href="https://github.com/google/differential-privacy/tree/main/common_docs/confidence_intervals.md">
+   * the confidence intervals doc</a>.
+   */
+  public ConfidenceInterval computeConfidenceInterval(double alpha) {
+    if (!resultReturned) {
+      throw new IllegalStateException("computeResult() must be called before calling computeConfidenceInterval()");
+    }
+    // The confidence interval of bounded mean is derived from confidence intervals of mean's numerator and denominator.
+    // The respective confidence levels 1 - alphaNum and 1 - alphaDen can be chosen arbitrarily as long as (1 - alphaNum) *
+    // (1 - alphaDen) = 1 - alpha. The following is a brute force search for alphaNum that minimizes the size of the confidence
+    // interval of bounded mean.
+    double minSize = Double.POSITIVE_INFINITY;
+    ConfidenceInterval tightestConfInt = null;
+    for (int i = 1; i < 1000; i++) {
+      double alphaNum = (i / 1000.0) * alpha;
+      ConfidenceInterval confInt = computeConfidenceInterval(alpha, alphaNum);
+      double size = confInt.upperBound() - confInt.lowerBound();
+      if (size < minSize) {
+        minSize = size;
+        tightestConfInt = confInt;
+      }
+    }
+    return tightestConfInt;
+  }
+
+  /**
+   * See {@link #computeConfidenceInterval(double)}.
+   *
+   * <p>As opposed to the former function, this function computes a confidence interval for mean
+   * with the additional constraint that the confidence level of the mean's numerator is {@code 1 -
+   * alphaNum}.
+   */
+  @VisibleForTesting
+  ConfidenceInterval computeConfidenceInterval(double alpha, double alphaNum) {
+    // Setting alphaDen such that (1 - alpha) = (1 - alphaNum) * (1 - alphaDen).
+    double alphaDen = (alpha - alphaNum) / (1 - alphaNum);
+    ConfidenceInterval confIntNum = normalizedSum.computeConfidenceInterval(alphaNum);
+    ConfidenceInterval confIntDen = count.computeConfidenceInterval(alphaDen);
+
+    // Ensuring that the lower and upper bounds of the denominator are consistent with how
+    // computeResult() processes the denominator.
+    confIntDen =
+        ConfidenceInterval.create(
+            Math.max(1, confIntDen.lowerBound()), Math.max(1, confIntDen.upperBound()));
+
+    double meanLowerBound, meanUpperBound;
+    if (confIntNum.lowerBound() >= 0) {
+      meanLowerBound = confIntNum.lowerBound() / confIntDen.upperBound();
+    } else {
+      meanLowerBound = confIntNum.lowerBound() / confIntDen.lowerBound();
+    }
+    if (confIntNum.upperBound() >= 0) {
+      meanUpperBound = confIntNum.upperBound() / confIntDen.lowerBound();
+    } else {
+      meanUpperBound = confIntNum.upperBound() / confIntDen.upperBound();
+    }
+
+    // Ensuring that the lower and upper bounds of the mean are consistent with how computeResult()
+    // processes the mean.
+    meanLowerBound = clamp(meanLowerBound + midpoint);
+    meanUpperBound = clamp(meanUpperBound + midpoint);
+    return ConfidenceInterval.create(meanLowerBound, meanUpperBound);
   }
 
   @AutoValue
