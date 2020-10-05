@@ -65,7 +65,7 @@ func roundToMultipleOfPowerOfTwo(x, granularity float64) float64 {
 	return math.Round(x/granularity) * granularity
 }
 
-// nextLargerFloat64 computes the closest float64 value that is larger than or equal to the provided int64 value.
+// nextLargerFloat64 computes the smallest float64 value that is larger than or equal to the provided int64 value.
 //
 // Mapping from int64 to float64 for large int64 values (> 2^53) is inaccurate since they cannot be
 // represented as a float64. Implicit/explicit conversion from int64 to float64 either rounds up or
@@ -85,7 +85,12 @@ func nextLargerFloat64(n int64) float64 {
 	return result
 }
 
-// nextSmallerFloat64 computes the closest float64 value that is smaller than or equal to the provided int64 value.
+// nextSmallerFloat64 computes the largest float64 value that is smaller than or equal to the provided int64 value.
+//
+// Mapping from int64 to float64 for large int64 values (> 2^53) is inaccurate since they cannot be
+// represented as a float64. Implicit/explicit conversion from int64 to float64 either rounds up or
+// down the int64 value to the nearest representable float64. This function ensures that int64 n >=
+// float64 nextSmallerFloat64(n)
 func nextSmallerFloat64(n int64) float64 {
 	// Large int64 values n may lie between two representable float64 values a and b,
 	// i.e., a < n < b, (note that in this case a and b are guaranteed to be integers).

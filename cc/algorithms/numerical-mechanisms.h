@@ -170,34 +170,6 @@ class NumericalMechanismBuilder {
     return linf_sensitivity_;
   }
 
-  // Returns the value of optional `opt` if it is set and finite.  Will return
-  // an InvalidArgumentError otherwise that includes `name` in the error
-  // message.
-  static base::StatusOr<double> GetValueIfSetAndFinite(
-      absl::optional<double> opt, absl::string_view name) {
-    if (!opt.has_value()) {
-      return base::InvalidArgumentError(absl::StrCat(name, " has to be set."));
-    }
-    if (!std::isfinite(opt.value())) {
-      return base::InvalidArgumentError(
-          absl::StrCat(name, " has to be finite but is ", opt.value()));
-    }
-    return opt.value();
-  }
-
-  // Returns the value of optional `opt` if it is set, finite, and positive.
-  // Will return an InvalidArgumentError otherwise that includes `name` in the
-  // error message.
-  static base::StatusOr<double> GetValueIfSetAndPositive(
-      absl::optional<double> opt, absl::string_view name) {
-    ASSIGN_OR_RETURN(double d, GetValueIfSetAndFinite(opt, name));
-    if (d <= 0) {
-      return base::InvalidArgumentError(
-          absl::StrCat(name, " has to be positive but is ", d));
-    }
-    return d;
-  }
-
  private:
   absl::optional<double> epsilon_;
   absl::optional<double> delta_;

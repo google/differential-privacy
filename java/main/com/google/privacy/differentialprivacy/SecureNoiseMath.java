@@ -87,7 +87,7 @@ final class SecureNoiseMath {
   }
 
   /**
-   * Computes the closest double value that is larger than or equal to the provided long value.
+   * Computes the smallest double value that is larger than or equal to the provided long value.
    *
    * <p>Mapping from long to double for large long values (> 2^53) is inaccurate since they may not
    * be represented as a double. The default conversion from long to double either rounds up or down
@@ -108,11 +108,11 @@ final class SecureNoiseMath {
   /**
    * See {@link #nextLargerDouble(long)}.
    *
-   * <p>As opposed to the latter method, this computes the closest double value that is smaller than
+   * <p>As opposed to the latter method, this computes the largest double value that is smaller than
    * or equal to the provided long value {@code n} >= {@code nextSmallerDouble(long n)}.
    */
   public static double nextSmallerDouble(long n) {
-    // GLarge long values n may lie between two representable double values a and b,
+    // Large long values n may lie between two representable double values a and b,
     // i.e., a < n < b, (note that in this case a and b are guaranteed to be integers).
     // If the standard conversion to double rounds the long value up, e.g. (double) n = b,
     // the difference b - n will be positive, indicating that the result needs to be decremented

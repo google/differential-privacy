@@ -455,8 +455,8 @@ TYPED_TEST(BoundedVarianceTest, AutomaticBoundsDefault) {
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build()
           .ValueOrDie();
-  std::vector<TypeParam> big(57, 10);
-  std::vector<TypeParam> small(57, -10);
+  std::vector<TypeParam> big(570, 10);
+  std::vector<TypeParam> small(570, -10);
   bv->AddEntries(big.begin(), big.end());
   bv->AddEntries(small.begin(), small.end());
 
@@ -536,6 +536,24 @@ TYPED_TEST(BoundedVarianceTest, MemoryUsed) {
   std::unique_ptr<BoundedVariance<TypeParam>> bv =
       typename BoundedVariance<TypeParam>::Builder().Build().ValueOrDie();
   EXPECT_GT(bv->MemoryUsed(), 0);
+}
+
+TYPED_TEST(BoundedVarianceTest, SplitsEpsilonWithAutomaticBounds) {
+  double epsilon = 1.0;
+
+  std::unique_ptr<BoundedVariance<TypeParam>> bv =
+      typename BoundedVariance<TypeParam>::Builder()
+          .SetEpsilon(epsilon)
+          .Build()
+          .ValueOrDie();
+
+  EXPECT_NEAR(bv->GetEpsilon(), epsilon, 1e-10);
+  EXPECT_NEAR(bv->GetEpsilon(),
+              bv->GetBoundingEpsilon() + bv->GetAggregationEpsilon(), 1e-10);
+  EXPECT_GT(bv->GetBoundingEpsilon(), 0);
+  EXPECT_LT(bv->GetBoundingEpsilon(), epsilon);
+  EXPECT_GT(bv->GetAggregationEpsilon(), 0);
+  EXPECT_LT(bv->GetAggregationEpsilon(), epsilon);
 }
 
 }  //  namespace

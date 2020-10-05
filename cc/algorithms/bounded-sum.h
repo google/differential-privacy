@@ -59,6 +59,12 @@ class BoundedSum : public Algorithm<T> {
    private:
     base::StatusOr<std::unique_ptr<BoundedSum<T>>> BuildBoundedAlgorithm()
         override {
+      // We have to check epsilon now, otherwise the split during ApproxBounds
+      // construction might make the error message confusing.
+      RETURN_IF_ERROR(
+          GetValueIfSetAndPositive(AlgorithmBuilder::GetEpsilon(), "Epsilon")
+              .status());
+
       // Ensure that either bounds are manually set or ApproxBounds is made.
       RETURN_IF_ERROR(BoundedBuilder::BoundsSetup());
 
@@ -71,7 +77,7 @@ class BoundedSum : public Algorithm<T> {
             mechanism,
             BuildMechanism(
                 AlgorithmBuilder::GetMechanismBuilderClone(),
-                AlgorithmBuilder::GetEpsilon().value(),
+                BoundedBuilder::GetRemainingEpsilon().value(),
                 AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1),
                 AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(1),
                 BoundedBuilder::GetLower().value(),
@@ -81,7 +87,7 @@ class BoundedSum : public Algorithm<T> {
       // Construct BoundedSum.
       auto mech_builder = AlgorithmBuilder::GetMechanismBuilderClone();
       return absl::WrapUnique(new BoundedSum(
-          AlgorithmBuilder::GetEpsilon().value(),
+          BoundedBuilder::GetRemainingEpsilon().value(),
           BoundedBuilder::GetLower().value_or(0),
           BoundedBuilder::GetUpper().value_or(0),
           AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1),
@@ -181,6 +187,26 @@ class BoundedSum : public Algorithm<T> {
     }
     return base::OkStatus();
   }
+
+  double GetEpsilon() const override {
+    if (approx_bounds_) {
+      return approx_bounds_->GetEpsilon() + Algorithm<T>::GetEpsilon();
+    }
+    return Algorithm<T>::GetEpsilon();
+  }
+
+  // Returns the epsilon used to calculate approximate bounds. If approximate
+  // bounds are not used, returns 0.
+  double GetBoundingEpsilon() const {
+    if (approx_bounds_) {
+      return approx_bounds_->GetEpsilon();
+    }
+    return 0;
+  }
+
+  // Returns the epsilon used to calculate the noisy mean. If bounds are
+  // specified explicitly, this will be the total epsilon used by the algorithm.
+  double GetAggregationEpsilon() const { return Algorithm<T>::GetEpsilon(); }
 
   int64_t MemoryUsed() override {
     int64_t memory = sizeof(BoundedSum<T>) +

@@ -115,4 +115,26 @@ double sign(double n) {
   return 0;
 }
 
+base::StatusOr<double> GetValueIfSetAndFinite(absl::optional<double> opt,
+                                              absl::string_view name) {
+  if (!opt.has_value()) {
+    return base::InvalidArgumentError(absl::StrCat(name, " has to be set."));
+  }
+  if (!std::isfinite(opt.value())) {
+    return base::InvalidArgumentError(
+        absl::StrCat(name, " has to be finite but is ", opt.value()));
+  }
+  return opt.value();
+}
+
+base::StatusOr<double> GetValueIfSetAndPositive(absl::optional<double> opt,
+                                                absl::string_view name) {
+  ASSIGN_OR_RETURN(double d, GetValueIfSetAndFinite(opt, name));
+  if (d <= 0) {
+    return base::InvalidArgumentError(
+        absl::StrCat(name, " has to be positive but is ", d));
+  }
+  return d;
+}
+
 }  // namespace differential_privacy

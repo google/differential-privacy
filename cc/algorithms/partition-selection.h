@@ -64,35 +64,16 @@ class PartitionSelectionStrategy {
     Build() = 0;
 
    protected:
-    // Checks if the max number of partitions contributed to is set and valid.
+    // Convenience methods to check if the Builder variables are set & valid
     base::Status MaxPartitionsContributedIsSetAndValid() {
-      if (!max_partitions_contributed_.has_value()) {
-        return base::InvalidArgumentError(
-            "Max number of partitions a user can contribute to has to be set.");
-      }
-      if (max_partitions_contributed_.value() <= 0) {
-        return base::InvalidArgumentError(absl::StrCat(
-            "Max number of partitions a user can contribute to has to be"
-            " positive but is ",
-            max_partitions_contributed_.value()));
-      }
-      return base::OkStatus();
+      return PartitionSelectionStrategy::MaxPartitionsContributedIsSetAndValid(
+          max_partitions_contributed_);
     }
-
-    // Checks if delta is set and valid.
     base::Status DeltaIsSetAndValid() {
-      if (!delta_.has_value()) {
-        return base::InvalidArgumentError("Delta has to be set.");
-      }
-      if (!std::isfinite(delta_.value())) {
-        return base::InvalidArgumentError(
-            absl::StrCat("Delta has to be finite but is ", delta_.value()));
-      }
-      if (delta_.value() <= 0 || delta_.value() >= 1) {
-        return base::InvalidArgumentError(absl::StrCat(
-            "Delta has to be in the interval (0,1) but is ", delta_.value()));
-      }
-      return base::OkStatus();
+      return PartitionSelectionStrategy::DeltaIsSetAndValid(delta_);
+    }
+    base::Status EpsilonIsSetAndValid() {
+      return PartitionSelectionStrategy::EpsilonIsSetAndValid(epsilon_);
     }
 
     absl::optional<double> GetEpsilon() { return epsilon_; }
@@ -131,6 +112,54 @@ class PartitionSelectionStrategy {
         max_partitions_contributed_(max_partitions_contributed),
         adjusted_delta_(
             CalculateAdjustedDelta(delta, max_partitions_contributed)) {}
+
+  // Checks if the max number of partitions contributed to is set and valid.
+  static base::Status MaxPartitionsContributedIsSetAndValid(
+      absl::optional<int> max_partitions_contributed) {
+    if (!max_partitions_contributed.has_value()) {
+      return base::InvalidArgumentError(
+          "Max number of partitions a user can contribute to has to be set.");
+    }
+    if (max_partitions_contributed.value() <= 0) {
+      return base::InvalidArgumentError(absl::StrCat(
+          "Max number of partitions a user can contribute to has to be"
+          " positive but is ",
+          max_partitions_contributed.value()));
+    }
+    return base::OkStatus();
+  }
+
+  // Checks if delta is set and valid.
+  static base::Status DeltaIsSetAndValid(absl::optional<double> delta) {
+    if (!delta.has_value()) {
+      return base::InvalidArgumentError("Delta has to be set.");
+    }
+    if (!std::isfinite(delta.value())) {
+      return base::InvalidArgumentError(
+          absl::StrCat("Delta has to be finite but is ", delta.value()));
+    }
+    if (delta.value() <= 0 || delta.value() >= 1) {
+      return base::InvalidArgumentError(absl::StrCat(
+          "Delta has to be in the interval (0,1) but is ", delta.value()));
+    }
+    return base::OkStatus();
+  }
+
+  // Checks if epsilon is set and valid.
+  static base::Status EpsilonIsSetAndValid(absl::optional<double> epsilon) {
+    if (!epsilon.has_value()) {
+      return base::InvalidArgumentError("Epsilon has to be set.");
+    }
+    if (!std::isfinite(epsilon.value())) {
+      return base::InvalidArgumentError(
+          absl::StrCat("Epsilon has to be finite but is ", epsilon.value()));
+    }
+    if (epsilon.value() <= 0) {
+      return base::InvalidArgumentError(
+          absl::StrCat("Epsilon has to be positive but is ", epsilon.value()));
+    }
+    return base::OkStatus();
+  }
 
  private:
   double epsilon_;
@@ -176,22 +205,6 @@ class PreaggPartitionSelection : public PartitionSelectionStrategy {
               GetEpsilon().value(), GetDelta().value(),
               GetMaxPartitionsContributed().value()));
       return magic_selection;
-    }
-
-   private:
-    base::Status EpsilonIsSetAndValid() {
-      if (!GetEpsilon().has_value()) {
-        return base::InvalidArgumentError("Epsilon has to be set.");
-      }
-      if (!std::isfinite(GetEpsilon().value())) {
-        return base::InvalidArgumentError(absl::StrCat(
-            "Epsilon has to be finite but is ", GetEpsilon().value()));
-      }
-      if (GetEpsilon().value() <= 0) {
-        return base::InvalidArgumentError(absl::StrCat(
-            "Epsilon has to be positive but is ", GetEpsilon().value()));
-      }
-      return base::OkStatus();
     }
   };
 

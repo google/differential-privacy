@@ -56,30 +56,8 @@ public class BoundedMeanTest {
   private static final double DELTA = 0.123;
   private static final double ALPHA = 0.1;
   @Rule public final MockitoRule mocks = MockitoJUnit.rule();
-  @Mock private static Noise noise;
+  @Mock private Noise noise;
   private BoundedMean mean;
-
-  private static void mockDoubleNoise(double value) {
-    when(noise.addNoise(anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble()))
-        .thenAnswer(invocation -> (double) invocation.getArguments()[0] + value);
-  }
-
-  private static void mockLongNoise(long value) {
-    when(noise.addNoise(anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble()))
-        .thenAnswer(invocation -> (long) invocation.getArguments()[0] + value);
-  }
-
-  private static void mockDoubleConfInt(ConfidenceInterval confInt) {
-    when(noise.computeConfidenceInterval(
-            anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
-        .thenAnswer(invocation -> confInt);
-  }
-
-  private static void mockLongConfInt(ConfidenceInterval confInt) {
-    when(noise.computeConfidenceInterval(
-            anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble(), anyDouble()))
-        .thenAnswer(invocation -> confInt);
-  }
 
   @Before
   public void setUp() {
@@ -385,8 +363,7 @@ public class BoundedMeanTest {
           .isIn(Range.closed(lower, upper));
     }
   }
-
-  /** Calling computeConfidenceInterval before noised mean is computed throws an exception. */
+  
   @Test
   public void computeConfidenceInterval_calledBeforeResult() {
     assertThrows(IllegalStateException.class, () -> mean.computeConfidenceInterval(ALPHA));
@@ -416,9 +393,11 @@ public class BoundedMeanTest {
     // Confidence interval for normalized sum.
     verify(noise)
         .computeConfidenceInterval(
-            eq(/* x = x1 + x2 - midpoint * count = 3.0 + 7.0 - 6.0 * 2.0 = */ -2.0),
-            eq(/* l0Sensitivity = */ maxPartitionsContributed),
-            eq(/* lInfSensitivity = maxContributionsPerPartition * (upper - lower) / 2.0 = 3.0 * (10.0 - 2.0) / 2.0 = */ 12.0),
+            eq(/* x1 + x2 - midpoint * count = 3.0 + 7.0 - 6.0 * 2.0 = */ -2.0),
+            eq(maxPartitionsContributed),
+            eq(
+                /* maxContributionsPerPartition * (upper - lower) / 2.0
+                = 3.0 * (10.0 - 2.0) / 2.0 = */ 12.0),
             eq(EPSILON / 2.0),
             eq(DELTA / 2.0),
             eq(alpha / 2.0));
@@ -426,9 +405,9 @@ public class BoundedMeanTest {
     // Confidence interval for count.
     verify(noise)
         .computeConfidenceInterval(
-            eq(/* x = */ 2L),
-            eq(/* l0Sensitivity = */ maxPartitionsContributed),
-            eq(/* lInfSensitivity = maxContributionsPerPartition = */ (long) maxContributionsPerPartition),
+            eq(/* count of added elements = */ 2L),
+            eq(maxPartitionsContributed),
+            eq((long) maxContributionsPerPartition),
             eq(EPSILON / 2.0),
             eq(DELTA / 2.0),
             eq(/* alphaDen = (alpha - alphaNum) / (1 - alphaNum) = 0.25 / 0.75 = */ 1.0 / 3.0));
@@ -442,7 +421,8 @@ public class BoundedMeanTest {
     mockLongConfInt(ConfidenceInterval.create(2.0, 5.0));
     mean.computeResult();
 
-    // mean_upperbound = sum_upperBound / count_lowerBound + midPoint = 5.0 / 2.0 + (1.0 + 9.0) / 2.0 = 7.5
+    // mean_upperbound = sum_upperBound / count_lowerBound + midPoint = 5.0 / 2.0 + (1.0 + 9.0) /
+    // 2.0 = 7.5
     assertThat(mean.computeConfidenceInterval(ALPHA).upperBound()) // parameters are ignored.
         .isEqualTo(7.5);
   }
@@ -455,7 +435,8 @@ public class BoundedMeanTest {
     mockLongConfInt(ConfidenceInterval.create(2.0, 5.0));
     mean.computeResult();
 
-    // mean_upperbound = sum_upperBound / count_upperBound + midPoint = -5.0 / 5.0 + (1.0 + 9.0) / 2.0 = 4.0
+    // mean_upperbound = sum_upperBound / count_upperBound + midPoint = -5.0 / 5.0 + (1.0 + 9.0) /
+    // 2.0 = 4.0
     assertThat(mean.computeConfidenceInterval(ALPHA).upperBound()) // parameters are ignored.
         .isEqualTo(4.0);
   }
@@ -468,7 +449,8 @@ public class BoundedMeanTest {
     mockLongConfInt(ConfidenceInterval.create(2.0, 5.0));
     mean.computeResult();
 
-    // mean_lowerBound = sum_lowerBound / count_upperBound + midPoint = 5.0 / 5.0 + (1.0 + 9.0) / 2.0 = 6.0
+    // mean_lowerBound = sum_lowerBound / count_upperBound + midPoint = 5.0 / 5.0 + (1.0 + 9.0) /
+    // 2.0 = 6.0
     assertThat(mean.computeConfidenceInterval(ALPHA).lowerBound()) // parameters are ignored.
         .isEqualTo(6.0);
   }
@@ -481,7 +463,8 @@ public class BoundedMeanTest {
     mockLongConfInt(ConfidenceInterval.create(2.0, 5.0));
     mean.computeResult();
 
-    // mean_lowerBound = sum_lowerBound / count_lowerBound + midPoint = -5.0 / 2.0 + (1.0 + 9.0) / 2.0 = 2.5
+    // mean_lowerBound = sum_lowerBound / count_lowerBound + midPoint = -5.0 / 2.0 + (1.0 + 9.0) /
+    // 2.0 = 2.5
     assertThat(mean.computeConfidenceInterval(ALPHA).lowerBound()) // parameters are ignored.
         .isEqualTo(2.5);
   }
@@ -514,7 +497,8 @@ public class BoundedMeanTest {
 
   @Test
   public void computeConfidenceInterval_boundsAlwaysInsideProvidedBoundaries() {
-    double lower = 0.0, upper = 1.0;
+    double lower = 0.0;
+    double upper = 1.0;
     mean =
         BoundedMean.builder()
             .epsilon(EPSILON)
@@ -535,6 +519,28 @@ public class BoundedMeanTest {
         assertThat(confInt.upperBound()).isIn(Range.closed(lower, upper));
       }
     }
+  }
+
+  private void mockDoubleNoise(double value) {
+    when(noise.addNoise(anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble()))
+        .thenAnswer(invocation -> (double) invocation.getArguments()[0] + value);
+  }
+
+  private void mockLongNoise(long value) {
+    when(noise.addNoise(anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble()))
+        .thenAnswer(invocation -> (long) invocation.getArguments()[0] + value);
+  }
+
+  private void mockDoubleConfInt(ConfidenceInterval confInt) {
+    when(noise.computeConfidenceInterval(
+        anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+        .thenAnswer(invocation -> confInt);
+  }
+
+  private void mockLongConfInt(ConfidenceInterval confInt) {
+    when(noise.computeConfidenceInterval(
+        anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble(), anyDouble()))
+        .thenAnswer(invocation -> confInt);
   }
 
   private static int getRandomSign(Random random) {

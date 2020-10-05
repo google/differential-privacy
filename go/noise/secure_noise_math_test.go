@@ -284,7 +284,7 @@ func TestNextLargerFloat64InputRepresentableAsFloat64(t *testing.T) {
 }
 
 func TestNextLargerFloat64InputNotRepresentableAsFloat64(t *testing.T) {
-	// Verify that nextLargerFloat64 computes the closest float64 value that is larger than
+	// Verify that nextLargerFloat64 computes the smallest float64 value that is larger than
 	// or equal to the provided int64 value.
 	for _, tc := range []struct {
 		n    int64
@@ -306,7 +306,7 @@ func TestNextLargerFloat64InputNotRepresentableAsFloat64(t *testing.T) {
 		}
 	}
 
-	// Casting math.MaxInt64 to float64 should result in the next larger float64 i.e 2^63.
+	// Casting math.MaxInt64 to float64 should result in the next larger float64, i.e 2^63.
 	// This equality has to be done in float64.
 	got := nextLargerFloat64(math.MaxInt64)
 	want := float64(1 << 63)
@@ -341,7 +341,7 @@ func TestNextSmallerFloat64InputRepresentableAsFloat64(t *testing.T) {
 }
 
 func TestNextSmallerFloat64InputNotRepresentableAsFloat64(t *testing.T) {
-	// Verify that nextSmallerFloat64 computes the closest float64 value that is smaller than
+	// Verify that nextSmallerFloat64 computes the largest float64 value that is smaller than
 	// or equal to the provided int64 value.
 	for _, tc := range []struct {
 		n    int64

@@ -259,8 +259,8 @@ TYPED_TEST(BoundedStandardDeviationTest, AutomaticBoundsDefault) {
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build()
           .ValueOrDie();
-  std::vector<TypeParam> big(100, 10);
-  std::vector<TypeParam> small(100, -10);
+  std::vector<TypeParam> big(1000, 10);
+  std::vector<TypeParam> small(1000, -10);
   bsd->AddEntries(big.begin(), big.end());
   bsd->AddEntries(small.begin(), small.end());
 
@@ -287,6 +287,22 @@ TYPED_TEST(BoundedStandardDeviationTest, MemoryUsed) {
           .Build()
           .ValueOrDie();
   EXPECT_GT(bsd->MemoryUsed(), 0);
+}
+
+TYPED_TEST(BoundedStandardDeviationTest, SplitsEpsilonWithAutomaticBounds) {
+  double epsilon = 1.0;
+  std::unique_ptr<BoundedStandardDeviation<TypeParam>> bsd =
+      typename BoundedStandardDeviation<TypeParam>::Builder()
+          .SetEpsilon(epsilon)
+          .Build()
+          .ValueOrDie();
+  EXPECT_NEAR(bsd->GetEpsilon(), epsilon, 1e-10);
+  EXPECT_NEAR(bsd->GetEpsilon(),
+              bsd->GetBoundingEpsilon() + bsd->GetAggregationEpsilon(), 1e-10);
+  EXPECT_GT(bsd->GetBoundingEpsilon(), 0);
+  EXPECT_LT(bsd->GetBoundingEpsilon(), epsilon);
+  EXPECT_GT(bsd->GetAggregationEpsilon(), 0);
+  EXPECT_LT(bsd->GetAggregationEpsilon(), epsilon);
 }
 
 }  // namespace

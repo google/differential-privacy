@@ -399,8 +399,8 @@ TYPED_TEST(BoundedMeanTest, AutomaticBoundsDefault) {
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build()
           .ValueOrDie();
-  std::vector<TypeParam> big(100, 10);
-  std::vector<TypeParam> small(100, -10);
+  std::vector<TypeParam> big(1000, 10);
+  std::vector<TypeParam> small(1000, -10);
   bm->AddEntries(big.begin(), big.end());
   bm->AddEntries(small.begin(), small.end());
 
@@ -488,6 +488,22 @@ TYPED_TEST(BoundedMeanTest, MemoryUsed) {
   std::unique_ptr<BoundedMean<TypeParam>> bm =
       typename BoundedMean<TypeParam>::Builder().Build().ValueOrDie();
   EXPECT_GT(bm->MemoryUsed(), 0);
+}
+
+TYPED_TEST(BoundedMeanTest, SplitsEpsilonWithAutomaticBounds) {
+  double epsilon = 1.0;
+  std::unique_ptr<BoundedMean<TypeParam>> bm =
+      typename BoundedMean<TypeParam>::Builder()
+          .SetEpsilon(epsilon)
+          .Build()
+          .ValueOrDie();
+  EXPECT_NEAR(bm->GetEpsilon(), epsilon, 1e-10);
+  EXPECT_NEAR(bm->GetEpsilon(),
+              bm->GetBoundingEpsilon() + bm->GetAggregationEpsilon(), 1e-10);
+  EXPECT_GT(bm->GetBoundingEpsilon(), 0);
+  EXPECT_LT(bm->GetBoundingEpsilon(), epsilon);
+  EXPECT_GT(bm->GetAggregationEpsilon(), 0);
+  EXPECT_LT(bm->GetAggregationEpsilon(), epsilon);
 }
 
 }  //  namespace

@@ -98,6 +98,18 @@ class BoundedStandardDeviation : public Algorithm<T> {
     return memory;
   }
 
+  double GetEpsilon() const override { return variance_->GetEpsilon(); }
+
+  // Returns the epsilon used to calculate approximate bounds. If approximate
+  // bounds are not used, returns 0.
+  double GetBoundingEpsilon() const { return variance_->GetBoundingEpsilon(); }
+
+  // Returns the epsilon used to calculate the noisy mean. If bounds are
+  // specified explicitly, this will be the total epsilon used by the algorithm.
+  double GetAggregationEpsilon() const {
+    return variance_->GetAggregationEpsilon();
+  }
+
  private:
   BoundedStandardDeviation(const double epsilon,
                            std::unique_ptr<BoundedVariance<T>> variance)

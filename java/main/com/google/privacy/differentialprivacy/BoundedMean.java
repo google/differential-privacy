@@ -18,9 +18,9 @@ package com.google.privacy.differentialprivacy;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
-
 import java.util.Collection;
 import javax.annotation.Nullable;
+
 
 /**
  * Calculates differentially private average for a collection of values.
@@ -187,11 +187,14 @@ public class BoundedMean {
    */
   public ConfidenceInterval computeConfidenceInterval(double alpha) {
     if (!resultReturned) {
-      throw new IllegalStateException("computeResult() must be called before calling computeConfidenceInterval()");
+      throw new IllegalStateException(
+          "computeResult() must be called before calling computeConfidenceInterval()");
     }
-    // The confidence interval of bounded mean is derived from confidence intervals of mean's numerator and denominator.
-    // The respective confidence levels 1 - alphaNum and 1 - alphaDen can be chosen arbitrarily as long as (1 - alphaNum) *
-    // (1 - alphaDen) = 1 - alpha. The following is a brute force search for alphaNum that minimizes the size of the confidence
+    // The confidence interval of bounded mean is derived from confidence intervals of the mean's
+    // numerator and denominator. The respective confidence levels 1 - alphaNum and 1 - alphaDen can
+    // be chosen arbitrarily as long as
+    //   (1 - alphaNum) * (1 - alphaDen) = 1 - alpha.
+    // The following is a brute force search for alphaNum that minimizes the size of the confidence
     // interval of bounded mean.
     double minSize = Double.POSITIVE_INFINITY;
     ConfidenceInterval tightestConfInt = null;
@@ -208,11 +211,8 @@ public class BoundedMean {
   }
 
   /**
-   * See {@link #computeConfidenceInterval(double)}.
-   *
-   * <p>As opposed to the former function, this function computes a confidence interval for mean
-   * with the additional constraint that the confidence level of the mean's numerator is {@code 1 -
-   * alphaNum}.
+   * Like {@link #computeConfidenceInterval(double)} with the additional constraint that the
+   * confidence level of the mean's numerator is {@code 1 - alphaNum}.
    */
   @VisibleForTesting
   ConfidenceInterval computeConfidenceInterval(double alpha, double alphaNum) {
@@ -225,15 +225,16 @@ public class BoundedMean {
     // computeResult() processes the denominator.
     confIntDen =
         ConfidenceInterval.create(
-            Math.max(1, confIntDen.lowerBound()), Math.max(1, confIntDen.upperBound()));
+            Math.max(1.0, confIntDen.lowerBound()), Math.max(1.0, confIntDen.upperBound()));
 
-    double meanLowerBound, meanUpperBound;
-    if (confIntNum.lowerBound() >= 0) {
+    double meanLowerBound;
+    double meanUpperBound;
+    if (confIntNum.lowerBound() >= 0.0) {
       meanLowerBound = confIntNum.lowerBound() / confIntDen.upperBound();
     } else {
       meanLowerBound = confIntNum.lowerBound() / confIntDen.lowerBound();
     }
-    if (confIntNum.upperBound() >= 0) {
+    if (confIntNum.upperBound() >= 0.0) {
       meanUpperBound = confIntNum.upperBound() / confIntDen.lowerBound();
     } else {
       meanUpperBound = confIntNum.upperBound() / confIntDen.upperBound();

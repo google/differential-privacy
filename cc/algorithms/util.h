@@ -29,6 +29,7 @@
 #include "absl/base/attributes.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
+#include "base/status_macros.h"
 #include "base/statusor.h"
 
 namespace differential_privacy {
@@ -255,6 +256,18 @@ template <typename T>
 std::string VectorToString(const std::vector<T>& v) {
   return absl::StrCat("[", absl::StrJoin(v, ", "), "]");
 }
+
+// Returns the value of optional `opt` if it is set and finite.  Will return
+// an InvalidArgumentError otherwise that includes `name` in the error
+// message.
+base::StatusOr<double> GetValueIfSetAndFinite(absl::optional<double> opt,
+                                              absl::string_view name);
+
+// Returns the value of optional `opt` if it is set, finite, and positive.
+// Will return an InvalidArgumentError otherwise that includes `name` in the
+// error message.
+base::StatusOr<double> GetValueIfSetAndPositive(absl::optional<double> opt,
+                                                absl::string_view name);
 
 }  // namespace differential_privacy
 

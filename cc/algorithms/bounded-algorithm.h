@@ -27,6 +27,10 @@
 
 namespace differential_privacy {
 
+// If the user does not manually specify an ApproxBounds object, we will use
+// this fraction of the total epsilon to calculate them.
+const double kDefaultBoundsBudgetFraction = 0.5;
+
 // BoundedAlgorithmBuilder is used to build algorithms which need lower and
 // upper input bounds to determine sensitivity and/or clamp inputs. It provides
 // three ways to provide bounds for an algorithm built by this type of builder:
@@ -87,10 +91,14 @@ class BoundedAlgorithmBuilder : public AlgorithmBuilder<T, Algorithm, Builder> {
     // If either bound is not set and we do not have an ApproxBounds,
     // construct the default one.
     if (!BoundsAreSet() && !approx_bounds_) {
+      double bounds_epsilon =
+          AlgorithmBuilder::GetEpsilon().value() * kDefaultBoundsBudgetFraction;
+      remaining_epsilon_ =
+          AlgorithmBuilder::GetEpsilon().value() - bounds_epsilon;
       auto mech_builder = AlgorithmBuilder::GetMechanismBuilderClone();
       ASSIGN_OR_RETURN(approx_bounds_,
                        typename ApproxBounds<T>::Builder()
-                           .SetEpsilon(AlgorithmBuilder::GetEpsilon().value())
+                           .SetEpsilon(bounds_epsilon)
                            .SetLaplaceMechanism(std::move(mech_builder))
                            .Build());
     }
@@ -109,6 +117,19 @@ class BoundedAlgorithmBuilder : public AlgorithmBuilder<T, Algorithm, Builder> {
     return base::OkStatus();
   }
 
+  // Returns the epsilon allotted for calculating the aggregation. If bounds
+  // are set manually, or an ApproximateBounds object has been manually
+  // specified, this will be the full epsilon. If an ApproxBounds was created
+  // automatically this will be the full epsilon - epsilon spent on that
+  // ApproxBounds. If called before BoundsSetup this will always return the full
+  // epsilon.
+  absl::optional<double> GetRemainingEpsilon() {
+    if (remaining_epsilon_.has_value()) {
+      return remaining_epsilon_;
+    }
+    return AlgorithmBuilder::GetEpsilon();
+  }
+
   std::unique_ptr<ApproxBounds<T>> MoveApproxBoundsPointer() {
     return std::move(approx_bounds_);
   }
@@ -122,6 +143,9 @@ class BoundedAlgorithmBuilder : public AlgorithmBuilder<T, Algorithm, Builder> {
   // automatic bounds will be determined.
   absl::optional<T> lower_;
   absl::optional<T> upper_;
+
+  // Epsilon left over after creating an ApproxBounds.
+  absl::optional<double> remaining_epsilon_;
 
   // Used to automatically determine approximate mimimum and maximum to become
   // lower and upper bounds, respectively.

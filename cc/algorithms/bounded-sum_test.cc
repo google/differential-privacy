@@ -459,8 +459,8 @@ TYPED_TEST(BoundedSumTest, AutomaticBoundsDefault) {
           .ValueOrDie();
 
   // Threshold is below 100.
-  std::vector<TypeParam> big(101, 10);
-  std::vector<TypeParam> small(100, -10);
+  std::vector<TypeParam> big(1001, 10);
+  std::vector<TypeParam> small(1000, -10);
   bs->AddEntries(big.begin(), big.end());
   bs->AddEntries(small.begin(), small.end());
   Output output = bs->PartialResult().ValueOrDie();
@@ -533,6 +533,24 @@ TYPED_TEST(BoundedSumTest, Memory) {
           .ValueOrDie();
 
   EXPECT_GE(bs_big->MemoryUsed(), bs_small->MemoryUsed());
+}
+
+TYPED_TEST(BoundedSumTest, SplitsEpsilonWithAutomaticBounds) {
+  double epsilon = 1.0;
+
+  std::unique_ptr<BoundedSum<TypeParam>> bs =
+      typename BoundedSum<TypeParam>::Builder()
+          .SetEpsilon(epsilon)
+          .Build()
+          .ValueOrDie();
+
+  EXPECT_NEAR(bs->GetEpsilon(), epsilon, 1e-10);
+  EXPECT_NEAR(bs->GetEpsilon(),
+              bs->GetBoundingEpsilon() + bs->GetAggregationEpsilon(), 1e-10);
+  EXPECT_GT(bs->GetBoundingEpsilon(), 0);
+  EXPECT_LT(bs->GetBoundingEpsilon(), epsilon);
+  EXPECT_GT(bs->GetAggregationEpsilon(), 0);
+  EXPECT_LT(bs->GetAggregationEpsilon(), epsilon);
 }
 
 }  //  namespace

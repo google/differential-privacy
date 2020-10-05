@@ -71,6 +71,11 @@ class BoundedMean : public Algorithm<T> {
    private:
     base::StatusOr<std::unique_ptr<BoundedMean<T>>> BuildBoundedAlgorithm()
         override {
+      // We have to check epsilon now, otherwise the split during ApproxBounds
+      // construction might make the error message confusing.
+      RETURN_IF_ERROR(
+          GetValueIfSetAndPositive(AlgorithmBuilder::GetEpsilon(), "Epsilon")
+              .status());
       // Ensure that either bounds are manually set or ApproxBounds is made.
       RETURN_IF_ERROR(BoundedBuilder::BoundsSetup());
 
@@ -84,7 +89,7 @@ class BoundedMean : public Algorithm<T> {
             sum_mechanism,
             BuildSumMechanism(
                 AlgorithmBuilder::GetMechanismBuilderClone(),
-                AlgorithmBuilder::GetEpsilon().value(),
+                BoundedBuilder::GetRemainingEpsilon().value(),
                 AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1),
                 AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(1),
                 BoundedBuilder::GetUpper().value(),
@@ -97,7 +102,7 @@ class BoundedMean : public Algorithm<T> {
       ASSIGN_OR_RETURN(
           count_mechanism,
           AlgorithmBuilder::GetMechanismBuilderClone()
-              ->SetEpsilon(AlgorithmBuilder::GetEpsilon().value())
+              ->SetEpsilon(BoundedBuilder::GetRemainingEpsilon().value())
               .SetL0Sensitivity(
                   AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1))
               .SetLInfSensitivity(
@@ -108,7 +113,7 @@ class BoundedMean : public Algorithm<T> {
       // Construct BoundedMean.
       auto mech_builder = AlgorithmBuilder::GetMechanismBuilderClone();
       return absl::WrapUnique(new BoundedMean(
-          AlgorithmBuilder::GetEpsilon().value(),
+          BoundedBuilder::GetRemainingEpsilon().value(),
           BoundedBuilder::GetLower().value_or(0),
           BoundedBuilder::GetUpper().value_or(0),
           AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1),
@@ -210,6 +215,26 @@ class BoundedMean : public Algorithm<T> {
     }
     return memory;
   }
+
+  double GetEpsilon() const override {
+    if (approx_bounds_) {
+      return approx_bounds_->GetEpsilon() + Algorithm<T>::GetEpsilon();
+    }
+    return Algorithm<T>::GetEpsilon();
+  }
+
+  // Returns the epsilon used to calculate approximate bounds. If approximate
+  // bounds are not used, returns 0.
+  double GetBoundingEpsilon() const {
+    if (approx_bounds_) {
+      return approx_bounds_->GetEpsilon();
+    }
+    return 0;
+  }
+
+  // Returns the epsilon used to calculate the noisy mean. If bounds are
+  // specified explicitly, this will be the total epsilon used by the algorithm.
+  double GetAggregationEpsilon() const { return Algorithm<T>::GetEpsilon(); }
 
  protected:
   BoundedMean(const double epsilon, T lower, T upper,
