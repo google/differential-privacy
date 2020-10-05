@@ -53,7 +53,6 @@ func TestNewBoundedMeanFloat64(t *testing.T) {
 					lInfSensitivity: 2,
 					noise:           noNoise{},
 					count:           0,
-					resultReturned:  false,
 				},
 				normalizedSum: BoundedSumFloat64{
 					epsilon:         ln3 * 0.5,
@@ -64,7 +63,6 @@ func TestNewBoundedMeanFloat64(t *testing.T) {
 					upper:           3,
 					noise:           noNoise{},
 					sum:             0,
-					resultReturned:  false,
 				},
 			}},
 		{"Noise is not set",
@@ -89,7 +87,6 @@ func TestNewBoundedMeanFloat64(t *testing.T) {
 					noiseKind:       noise.LaplaceNoise,
 					noise:           noise.Laplace(),
 					count:           0,
-					resultReturned:  false,
 				},
 				normalizedSum: BoundedSumFloat64{
 					epsilon:         ln3 * 0.5,
@@ -101,7 +98,6 @@ func TestNewBoundedMeanFloat64(t *testing.T) {
 					noiseKind:       noise.LaplaceNoise,
 					noise:           noise.Laplace(),
 					sum:             0,
-					resultReturned:  false,
 				},
 			}},
 	} {

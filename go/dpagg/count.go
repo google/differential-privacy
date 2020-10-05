@@ -53,7 +53,7 @@ type Count struct {
 
 	// State variables
 	count          int64
-	resultReturned bool // whether the result has already been returned
+	state          state 
 	noisedCount    int64
 }
 
@@ -110,7 +110,7 @@ func NewCount(opt *CountOptions) *Count {
 		noise:           n,
 		noiseKind:       noise.ToKind(n),
 		count:           0,
-		resultReturned:  false,
+		state:           Default,
 	}
 }
 
@@ -123,8 +123,8 @@ func (c *Count) Increment() {
 // Note that this shouldn't be used to count multiple contributions to a
 // single partition from the same privacy unit.
 func (c *Count) IncrementBy(count int64) {
-	if c.resultReturned {
-		log.Fatalf("The count has already been calculated and returned. It cannot be amended.")
+	if c.state != Default {
+		log.Fatalf("Count cannot be amended. Reason: %v", c.state.errorMessage("Count"))
 	}
 	c.count += count
 }
@@ -137,15 +137,15 @@ func (c *Count) Merge(c2 *Count) {
 		log.Exit(e)
 	}
 	c.count += c2.count
-	c2.resultReturned = true
+	c2.state = Merged
 }
 
 func checkMergeCount(c1, c2 *Count) error {
-	if c1.resultReturned {
-		return fmt.Errorf("checkMergeCount: c1 already returned the result, cannot be merged with another Count instance")
+	if c1.state != Default {
+		return fmt.Errorf("checkMergeCount: c1 cannot be merged with another Count instance. Reason: %v", c1.state.errorMessage("Count"))
 	}
-	if c2.resultReturned {
-		return fmt.Errorf("checkMergeCount: c2 already returned the result, cannot be merged with another Count instance")
+	if c2.state != Default {
+		return fmt.Errorf("checkMergeCount: c2 cannot be merged with another Count instance. Reason: %v", c2.state.errorMessage("Count"))
 	}
 
 	if !countEquallyInitialized(c1, c2) {
@@ -164,10 +164,10 @@ func checkMergeCount(c1, c2 *Count) error {
 // negative results to 0. Note that such post processing introduces bias to the
 // result.
 func (c *Count) Result() int64 {
-	if c.resultReturned {
-		log.Fatalf("The count has already been calculated and returned. It can only be returned once.")
+	if c.state != Default {
+		log.Fatalf("The noised result cannot be computed. Reason: " + c.state.errorMessage("Count"))
 	}
-	c.resultReturned = true
+	c.state = ResultReturned
 	c.noisedCount = c.noise.AddNoiseInt64(c.count, c.l0Sensitivity, c.lInfSensitivity, c.epsilon, c.delta)
 	return c.noisedCount
 }
@@ -194,7 +194,7 @@ func (c *Count) ThresholdedResult(thresholdDelta float64) *int64 {
 //
 // See https://github.com/google/differential-privacy/tree/main/common_docs/confidence_intervals.md.
 func (c *Count) ComputeConfidenceInterval(alpha float64) (noise.ConfidenceInterval, error) {
-	if !c.resultReturned {
+	if c.state != ResultReturned {
 		return noise.ConfidenceInterval{}, fmt.Errorf("Result() must be called before calling ComputeConfidenceInterval()")
 	}
 	confInt, err := c.noise.ComputeConfidenceIntervalInt64(c.noisedCount, c.l0Sensitivity, c.lInfSensitivity, c.epsilon, c.delta, alpha)
@@ -214,11 +214,13 @@ type encodableCount struct {
 	LInfSensitivity int64
 	NoiseKind       noise.Kind
 	Count           int64
-	ResultReturned  bool
 }
 
 // GobEncode encodes Count.
 func (c *Count) GobEncode() ([]byte, error) {
+	if c.state != Default {
+		return nil, fmt.Errorf("Count object cannot be serialized. Reason: " + c.state.errorMessage("Count"))
+	}
 	enc := encodableCount{
 		Epsilon:         c.epsilon,
 		Delta:           c.delta,
@@ -226,9 +228,8 @@ func (c *Count) GobEncode() ([]byte, error) {
 		LInfSensitivity: c.lInfSensitivity,
 		NoiseKind:       noise.ToKind(c.noise),
 		Count:           c.count,
-		ResultReturned:  c.resultReturned,
 	}
-	c.resultReturned = true
+	c.state = Serialized
 	return encode(enc)
 }
 
@@ -248,7 +249,6 @@ func (c *Count) GobDecode(data []byte) error {
 		noiseKind:       enc.NoiseKind,
 		noise:           noise.ToNoise(enc.NoiseKind),
 		count:           enc.Count,
-		resultReturned:  enc.ResultReturned,
 	}
 	return nil
 }

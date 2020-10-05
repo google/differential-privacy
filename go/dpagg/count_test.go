@@ -17,6 +17,7 @@
 package dpagg
 
 import (
+	"fmt"
 	"math"
 	"reflect"
 	"testing"
@@ -46,7 +47,7 @@ func TestNewCount(t *testing.T) {
 				lInfSensitivity: 2,
 				noise:           noNoise{},
 				count:           0,
-				resultReturned:  false,
+				state:           Default,
 			}},
 		{"maxContributionsPerPartition is not set",
 			&CountOptions{
@@ -63,7 +64,7 @@ func TestNewCount(t *testing.T) {
 				noise:           noise.Laplace(),
 				noiseKind:       noise.LaplaceNoise,
 				count:           0,
-				resultReturned:  false,
+				state:           Default,
 			}},
 		{"Noise is not set",
 			&CountOptions{
@@ -80,7 +81,7 @@ func TestNewCount(t *testing.T) {
 				noise:           noise.Laplace(),
 				noiseKind:       noise.LaplaceNoise,
 				count:           0,
-				resultReturned:  false,
+				state:           Default,
 			}},
 	} {
 		got := NewCount(tc.opt)
@@ -98,7 +99,7 @@ func compareCount(c1, c2 *Count) bool {
 		c1.noise == c2.noise &&
 		c1.noiseKind == c2.noiseKind &&
 		c1.count == c2.count &&
-		c1.resultReturned == c2.resultReturned
+		c1.state == c2.state
 }
 
 // Tests that serialization for Count works as expected.
@@ -131,10 +132,40 @@ func TestCountSerialization(t *testing.T) {
 		if !cmp.Equal(cUnchanged, cUnmarshalled, cmp.Comparer(compareCount)) {
 			t.Errorf("decode(encode(_)): when %s got %v, want %v", tc.desc, cUnmarshalled, c)
 		}
-		// Check that the original Count has its resultReturned set to true after serialization.
-		if !c.resultReturned {
-			t.Errorf("Count %v should have its resultReturned set to true after being serialized", c)
+		if c.state != Serialized {
+			t.Errorf("Count should have its state set to Serialized, got %v, want Serialized", c.state)
 		}
+	}
+}
+
+// Tests that serialization cannot be called after Result().
+func TestCountSerializationAfterResult(t *testing.T) {
+	c := getNoiselessCount()
+	c.Result()
+
+	expectedErrMessage := "Count object cannot be serialized. Reason: Noised result was already computed and returned."
+	_, err := c.GobEncode()
+	if err == nil {
+		t.Errorf("GobEncode: No error was returned, expected error")
+	}
+	if err.Error() != expectedErrMessage {
+		t.Errorf("GobEncode: Error messages are not equal:\n got: %v\n want: %v", err.Error(), expectedErrMessage)
+	}
+}
+
+// Tests that serialization cannot be called after Merge() for the source count.
+func TestCountSerializationAfterMerge(t *testing.T) {
+	sourceCount := getNoiselessCount()
+	targetCount := getNoiselessCount()
+	targetCount.Merge(sourceCount)
+
+	expectedErrMessage := "Count object cannot be serialized. Reason: Count object has been already merged."
+	_, err := sourceCount.GobEncode()
+	if err == nil {
+		t.Errorf("GobEncode: No error was returned, expected error")
+	}
+	if err.Error() != expectedErrMessage {
+		t.Errorf("GobEncode: Error messages are not equal:\n got: %v\n want: %v", err.Error(), expectedErrMessage)
 	}
 }
 
@@ -184,19 +215,18 @@ func TestCountMerge(t *testing.T) {
 	if got != want {
 		t.Errorf("Merge: when merging 2 instances of Count got %d, want %d", got, want)
 	}
-	if !c2.resultReturned {
-		t.Errorf("Merge: when merging 2 instances of Count for c2.resultReturned got false, want true")
+	if c2.state != Merged {
+		t.Errorf("Merge: when merging 2 instances of Count for c2.state got %v, want Merged", c2.state)
 	}
 }
 
-func TestCountCheckMerge(t *testing.T) {
+// Tests that checkMergeCount() checks the compatibility of two counts for merge correctly.
+func TestCountCheckMergeCompatibility(t *testing.T) {
 	for _, tc := range []struct {
-		desc          string
-		opt1          *CountOptions
-		opt2          *CountOptions
-		returnResult1 bool
-		returnResult2 bool
-		wantErr       bool
+		desc    string
+		opt1    *CountOptions
+		opt2    *CountOptions
+		wantErr bool
 	}{
 		{"same options, all fields filled",
 			&CountOptions{
@@ -213,8 +243,6 @@ func TestCountCheckMerge(t *testing.T) {
 				Noise:                        noise.Gaussian(),
 				maxContributionsPerPartition: 2,
 			},
-			false,
-			false,
 			false},
 		{"same options, only required fields filled",
 			&CountOptions{
@@ -223,29 +251,7 @@ func TestCountCheckMerge(t *testing.T) {
 			&CountOptions{
 				Epsilon: ln3,
 			},
-			false,
-			false,
 			false},
-		{"same options, first result returned",
-			&CountOptions{
-				Epsilon: ln3,
-			},
-			&CountOptions{
-				Epsilon: ln3,
-			},
-			true,
-			false,
-			true},
-		{"same options, second result returned",
-			&CountOptions{
-				Epsilon: ln3,
-			},
-			&CountOptions{
-				Epsilon: ln3,
-			},
-			false,
-			true,
-			true},
 		{"different epsilon",
 			&CountOptions{
 				Epsilon: ln3,
@@ -253,8 +259,6 @@ func TestCountCheckMerge(t *testing.T) {
 			&CountOptions{
 				Epsilon: 2,
 			},
-			false,
-			false,
 			true},
 		{"different delta",
 			&CountOptions{
@@ -267,8 +271,6 @@ func TestCountCheckMerge(t *testing.T) {
 				Delta:   tenfive,
 				Noise:   noise.Gaussian(),
 			},
-			false,
-			false,
 			true},
 		{"different MaxPartitionsContributed",
 			&CountOptions{
@@ -279,8 +281,6 @@ func TestCountCheckMerge(t *testing.T) {
 				Epsilon:                  ln3,
 				MaxPartitionsContributed: 2,
 			},
-			false,
-			false,
 			true},
 		{"different maxContributionsPerPartition",
 			&CountOptions{
@@ -291,8 +291,6 @@ func TestCountCheckMerge(t *testing.T) {
 				Epsilon:                      ln3,
 				maxContributionsPerPartition: 5,
 			},
-			false,
-			false,
 			true},
 		{"different noise",
 			&CountOptions{
@@ -304,22 +302,83 @@ func TestCountCheckMerge(t *testing.T) {
 				Epsilon: ln3,
 				Noise:   noise.Laplace(),
 			},
-			false,
-			false,
 			true},
 	} {
 		c1 := NewCount(tc.opt1)
 		c2 := NewCount(tc.opt2)
 
-		if tc.returnResult1 {
+		if err := checkMergeCount(c1, c2); (err != nil) != tc.wantErr {
+			t.Errorf("CheckMerge: when %v for err got %v, want %t", tc.desc, err, tc.wantErr)
+		}
+	}
+}
+
+// Tests that checkMergeCount() returns errors correctly after call to Result().
+func TestCountCheckMergeAfterResult(t *testing.T) {
+	expectedErrMessage := "checkMergeCount: %v cannot be merged with another Count instance. " +
+		"Reason: Noised result was already computed and returned."
+	for _, tc := range []struct {
+		callResult1 bool
+		callResult2 bool
+		wantErr     bool
+		errMessage  string
+	}{
+		{false, false, false, ""},
+		{true, false, true, fmt.Sprintf(expectedErrMessage, "c1")},
+		{false, true, true, fmt.Sprintf(expectedErrMessage, "c2")},
+		{true, true, true, fmt.Sprintf(expectedErrMessage, "c1")},
+	} {
+		c1 := getNoiselessCount()
+		c2 := getNoiselessCount()
+
+		if tc.callResult1 {
 			c1.Result()
 		}
-		if tc.returnResult2 {
+		if tc.callResult2 {
 			c2.Result()
 		}
 
-		if err := checkMergeCount(c1, c2); (err != nil) != tc.wantErr {
-			t.Errorf("CheckMerge: when %v for err got %v, want %t", tc.desc, err, tc.wantErr)
+		err := checkMergeCount(c1, c2)
+		if (err != nil) != tc.wantErr {
+			t.Errorf("CheckMerge: No error was returned, expected error")
+		}
+		if tc.wantErr && err.Error() != tc.errMessage {
+			t.Errorf("CheckMerge: Error messages are not equal:\n got: %v\n want: %v", err.Error(), tc.errMessage)
+		}
+	}
+}
+
+// Tests that checkMergeCount() returns errors correctly after call to GobEncode().
+func TestCountCheckMergeAfterSerialization(t *testing.T) {
+	expectedErrMessage := "checkMergeCount: %v cannot be merged with another Count instance. " +
+		"Reason: Count object has been already serialized."
+	for _, tc := range []struct {
+		callEncode1 bool
+		callEncode2 bool
+		wantErr     bool
+		errMessage  string
+	}{
+		{false, false, false, ""},
+		{true, false, true, fmt.Sprintf(expectedErrMessage, "c1")},
+		{false, true, true, fmt.Sprintf(expectedErrMessage, "c2")},
+		{true, true, true, fmt.Sprintf(expectedErrMessage, "c1")},
+	} {
+		c1 := getNoiselessCount()
+		c2 := getNoiselessCount()
+
+		if tc.callEncode1 {
+			c1.GobEncode()
+		}
+		if tc.callEncode2 {
+			c2.GobEncode()
+		}
+
+		err := checkMergeCount(c1, c2)
+		if (err != nil) != tc.wantErr {
+			t.Errorf("CheckMerge: No error was returned, expected error")
+		}
+		if tc.wantErr && err.Error() != tc.errMessage {
+			t.Errorf("CheckMerge: Error messages are not equal:\n got: %v\n want: %v", err.Error(), tc.errMessage)
 		}
 	}
 }
@@ -426,7 +485,28 @@ func TestCountComputeConfindenceIntervalCannotBeCalledBeforeResult(t *testing.T)
 	c := getNoiselessCount()
 	_, err := c.ComputeConfidenceInterval(0.1)
 	if err == nil {
-		t.Errorf("TestCountComputeConfindenceIntervalCannotBeCalledBeforeResult: No error was returned, expected error")
+		t.Errorf("ComputeConfidenceInterval: No error was returned, expected error")
+	}
+}
+
+// Tests that calling ComputeConfidenceInterval after Serialization produces an error.
+func TestCountComputeConfindenceIntervalCannotBeCalledAfterSerialization(t *testing.T) {
+	c := getNoiselessCount()
+	c.GobEncode()
+	_, err := c.ComputeConfidenceInterval(0.1)
+	if err == nil {
+		t.Errorf("ComputeConfidenceInterval: No error was returned, expected error")
+	}
+}
+
+// Tests that calling ComputeConfidenceInterval for source count after Merge() produces an error.
+func TestCountComputeConfindenceIntervalCannotBeCalledAfterMerge(t *testing.T) {
+	source := getNoiselessCount()
+	target := getNoiselessCount()
+	target.Merge(source)
+	_, err := source.ComputeConfidenceInterval(0.1)
+	if err == nil {
+		t.Errorf("ComputeConfidenceInterval: No error was returned, expected error")
 	}
 }
 
@@ -562,8 +642,7 @@ func TestCountEquallyInitialized(t *testing.T) {
 				l0Sensitivity:   1,
 				lInfSensitivity: 1,
 				noiseKind:       noise.LaplaceNoise,
-				count:           0,
-				resultReturned:  false},
+				count:           0},
 			&Count{
 				epsilon:         1,
 				delta:           0,
@@ -580,8 +659,7 @@ func TestCountEquallyInitialized(t *testing.T) {
 				l0Sensitivity:   1,
 				lInfSensitivity: 1,
 				noiseKind:       noise.GaussianNoise,
-				count:           0,
-				resultReturned:  false},
+				count:           0},
 			&Count{
 				epsilon:         ln3,
 				delta:           0.6,
@@ -598,8 +676,7 @@ func TestCountEquallyInitialized(t *testing.T) {
 				l0Sensitivity:   1,
 				lInfSensitivity: 1,
 				noiseKind:       noise.LaplaceNoise,
-				count:           0,
-				resultReturned:  false},
+				count:           0},
 			&Count{
 				epsilon:         ln3,
 				delta:           0,
@@ -616,8 +693,7 @@ func TestCountEquallyInitialized(t *testing.T) {
 				l0Sensitivity:   1,
 				lInfSensitivity: 1,
 				noiseKind:       noise.LaplaceNoise,
-				count:           0,
-				resultReturned:  false},
+				count:           0},
 			&Count{
 				epsilon:         ln3,
 				delta:           0,
@@ -634,8 +710,7 @@ func TestCountEquallyInitialized(t *testing.T) {
 				l0Sensitivity:   1,
 				lInfSensitivity: 1,
 				noiseKind:       noise.LaplaceNoise,
-				count:           0,
-				resultReturned:  false},
+				count:           0},
 			&Count{
 				epsilon:         ln3,
 				delta:           0,
