@@ -257,3 +257,109 @@ func TestRoundToMultipleOfPowerOfTwoXIsNotAMultiple(t *testing.T) {
 		}
 	}
 }
+
+func TestNextLargerFloat64InputRepresentableAsFloat64(t *testing.T) {
+	// Verify that nextLargerFloat64 returns a float64 of the same value.
+	for _, x := range []int64{
+		0,
+		1,
+		-1,
+		// Smallest positive float64 for which next float64 is a distance of 2 away.
+		9007199254740992,
+		// Largest negative float64 for which previous float64 is a distance of 2 away.
+		-9007199254740992,
+		// Arbitrary representable number.
+		8646911284551352320,
+		-8646911284551352320,
+		// Largest int64 value accurately representable as a float64.
+		math.MaxInt64 - 1023,
+		// Smallest int64 value accurately representable as a float64.
+		math.MinInt64,
+	} {
+		got := int64(nextLargerFloat64(x))
+		if got != x {
+			t.Errorf("nextLargerFloat64(%d) = %d, want %d", x, got, x)
+		}
+	}
+}
+
+func TestNextLargerFloat64InputNotRepresentableAsFloat64(t *testing.T) {
+	// Verify that nextLargerFloat64 computes the closest float64 value that is larger than
+	// or equal to the provided int64 value.
+	for _, tc := range []struct {
+		n    int64
+		want int64
+	}{
+		// Smallest positive int64 value not representable as a float64.
+		{n: 9007199254740993, want: 9007199254740994},
+		// Largest negative int64 value not representable as a float64.
+		{n: -9007199254740993, want: -9007199254740992},
+		// Testing non-representable int64 values that lie between arbitrary float64 gap.
+		{n: 8646911284551352321, want: 8646911284551353344},
+		{n: 8646911284551353343, want: 8646911284551353344},
+		{n: -8646911284551352321, want: -8646911284551352320},
+		{n: -8646911284551353343, want: -8646911284551352320},
+	} {
+		got := int64(nextLargerFloat64(tc.n))
+		if got != tc.want {
+			t.Errorf("nextLargerFloat64(%d) = %d, want %d", tc.n, got, tc.want)
+		}
+	}
+
+	// Casting math.MaxInt64 to float64 should result in the next larger float64 i.e 2^63.
+	// This equality has to be done in float64.
+	got := nextLargerFloat64(math.MaxInt64)
+	want := float64(1 << 63)
+	if got != want {
+		t.Errorf("nextLargerFloat64(%d) = %f, want %f", math.MaxInt64, got, want)
+	}
+}
+
+func TestNextSmallerFloat64InputRepresentableAsFloat64(t *testing.T) {
+	// Verify that nextSmallerFloat64 returns a float64 of the same value.
+	for _, x := range []int64{
+		0,
+		1,
+		-1,
+		// Smallest positive float64 for which next float64 is a distance of 2 away.
+		9007199254740992,
+		// Largest negative float64 for which previous float64 is a distance of 2 away.
+		-9007199254740992,
+		// Arbitrary representable number.
+		8646911284551352320,
+		-8646911284551352320,
+		// Largest int64 value accurately representable as a float64.
+		math.MaxInt64 - 1023,
+		// Smallest int64 value accurately representable as a float64.
+		math.MinInt64,
+	} {
+		got := int64(nextSmallerFloat64(x))
+		if got != x {
+			t.Errorf("nextSmallerFloat64(%d) = %d, want %d", x, got, x)
+		}
+	}
+}
+
+func TestNextSmallerFloat64InputNotRepresentableAsFloat64(t *testing.T) {
+	// Verify that nextSmallerFloat64 computes the closest float64 value that is smaller than
+	// or equal to the provided int64 value.
+	for _, tc := range []struct {
+		n    int64
+		want int64
+	}{
+		// Smallest positive int64 value not representable as a float64.
+		{n: 9007199254740993, want: 9007199254740992},
+		// Largest negative int64 value not representable as a float64.
+		{n: -9007199254740993, want: -9007199254740994},
+		// Testing non-representable int64 values that lie between arbitrary float64 gap.
+		{n: 8646911284551352321, want: 8646911284551352320},
+		{n: 8646911284551353343, want: 8646911284551352320},
+		{n: -8646911284551352321, want: -8646911284551353344},
+		{n: -8646911284551353343, want: -8646911284551353344},
+	} {
+		got := int64(nextSmallerFloat64(tc.n))
+		if got != tc.want {
+			t.Errorf("nextSmallerFloat64(%d) = %d, want %d", tc.n, got, tc.want)
+		}
+	}
+}

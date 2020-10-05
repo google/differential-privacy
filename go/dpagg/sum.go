@@ -262,7 +262,7 @@ func (bs *BoundedSumInt64) ThresholdedResult(thresholdDelta float64) *int64 {
 // See https://github.com/google/differential-privacy/tree/main/common_docs/confidence_intervals.md.
 func (bs *BoundedSumInt64) ComputeConfidenceInterval(alpha float64) (noise.ConfidenceInterval, error) {
 	if !bs.resultReturned {
-		return noise.ConfidenceInterval{}, fmt.Errorf("You need to call Result() before calling ComputeConfidenceInterval()")
+		return noise.ConfidenceInterval{}, fmt.Errorf("Result() must be called before calling ComputeConfidenceInterval()")
 	}
 	confInt, err := bs.noise.ComputeConfidenceIntervalInt64(bs.noisedSum, bs.l0Sensitivity, bs.lInfSensitivity, bs.epsilon, bs.delta, alpha)
 	if err != nil {
