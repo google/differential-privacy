@@ -14,26 +14,19 @@
 // limitations under the License.
 //
 
-package dpagg
+package com.google.privacy.differentialprivacy;
 
-type state int
+public enum AggregationState {
+    DEFAULT(""),
+    SERIALIZED("Object has been already serialized."),
+    RESULT_RETURNED("Noised result is already computed and returned.");
+    private String errorMessage;
 
-var errorMessages = []string{"", " object has been already merged.", " object has been already serialized.", "Noised result was already computed and returned." }
-var stateName = []string{"Default", "Merged", "Serialized", "ResultReturned"}
-const (
-	Default = iota
-	Merged
-	Serialized
-	ResultReturned
-)
+    AggregationState(String errorMessage) {
+        this.errorMessage = errorMessage;
+    }
 
-func (s state) errorMessage(label string) string {
-	if(s == Merged || s == Serialized){
-		return label + errorMessages[s]
-	}
-	return errorMessages[s]
-}
-
-func (s state) String() string{
-	return stateName[s]
+    public String getErrorMessage() {
+        return errorMessage;
+    }
 }

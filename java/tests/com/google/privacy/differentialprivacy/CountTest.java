@@ -130,14 +130,8 @@ public class CountTest {
   @Test
   public void computeResult_multipleCalls_throwsException() {
     count.increment();
-
     count.computeResult();
-    IllegalStateException exception =
-        assertThrows(IllegalStateException.class, count::computeResult);
-    assertThat(exception)
-        .hasMessageThat()
-        .startsWith(
-            "The noised result cannot be computed. Reason: Noised result was already computed and returned.");
+    assertThrows(IllegalStateException.class, count::computeResult);
   }
 
   @Test
@@ -227,34 +221,19 @@ public class CountTest {
   @Test
   public void getSerializableSummary_calledAfterComputeResult_throwsException() {
     count.computeResult();
-    IllegalStateException exception =
-        assertThrows(IllegalStateException.class, () -> count.getSerializableSummary());
-    assertThat(exception)
-        .hasMessageThat()
-        .startsWith(
-            "Count object cannot be serialized. Reason: Noised result was already computed and returned.");
+    assertThrows(IllegalStateException.class, () -> count.getSerializableSummary());
   }
 
   @Test
   public void getSerializableSummary_twoCalls_throwsException() {
     count.getSerializableSummary();
-    IllegalStateException exception =
-        assertThrows(IllegalStateException.class, () -> count.getSerializableSummary());
-    assertThat(exception)
-        .hasMessageThat()
-        .startsWith(
-            "Count object cannot be serialized. Reason: Count object has been already serialized.");
+    assertThrows(IllegalStateException.class, () -> count.getSerializableSummary());
   }
 
   @Test
   public void computeResult_calledAfterSerialize_throwsException() {
     count.getSerializableSummary();
-    IllegalStateException exception =
-        assertThrows(IllegalStateException.class, () -> count.computeResult());
-    assertThat(exception)
-        .hasMessageThat()
-        .startsWith(
-            "The noised result cannot be computed. Reason: Count object has been already serialized.");
+    assertThrows(IllegalStateException.class, () -> count.computeResult());
   }
 
   @Test
@@ -392,14 +371,9 @@ public class CountTest {
     Count sourceCount = getCountBuilderWithFields().build();
 
     targetCount.computeResult();
-    IllegalStateException exception =
-        assertThrows(
-            IllegalStateException.class,
-            () -> targetCount.mergeWith(sourceCount.getSerializableSummary()));
-    assertThat(exception)
-        .hasMessageThat()
-        .startsWith(
-            "Count object cannot be merged. Reason: Noised result was already computed and returned.");
+    assertThrows(
+        IllegalStateException.class,
+        () -> targetCount.mergeWith(sourceCount.getSerializableSummary()));
   }
 
   @Test
@@ -408,14 +382,9 @@ public class CountTest {
     Count sourceCount = getCountBuilderWithFields().build();
 
     sourceCount.computeResult();
-    IllegalStateException exception =
-        assertThrows(
-            IllegalStateException.class,
-            () -> targetCount.mergeWith(sourceCount.getSerializableSummary()));
-    assertThat(exception)
-        .hasMessageThat()
-        .startsWith(
-            "Count object cannot be serialized. Reason: Noised result was already computed and returned.");
+    assertThrows(
+        IllegalStateException.class,
+        () -> targetCount.mergeWith(sourceCount.getSerializableSummary()));
   }
 
   @Test
@@ -424,14 +393,9 @@ public class CountTest {
     Count sourceCount = getCountBuilderWithFields().build();
 
     targetCount.getSerializableSummary();
-    IllegalStateException exception =
-        assertThrows(
-            IllegalStateException.class,
-            () -> targetCount.mergeWith(sourceCount.getSerializableSummary()));
-    assertThat(exception)
-        .hasMessageThat()
-        .startsWith(
-            "Count object cannot be merged. Reason: Count object has been already serialized.");
+    assertThrows(
+        IllegalStateException.class,
+        () -> targetCount.mergeWith(sourceCount.getSerializableSummary()));
   }
 
   @Test
@@ -537,7 +501,7 @@ public class CountTest {
             });
     assertThat(exception)
         .hasMessageThat()
-        .startsWith("The noised result cannot be computed. Reason: Noised result was already computed and returned.");
+        .startsWith("Count's noised result cannot be computed. Reason: Noised result is already computed and returned.");
   }
 
   @Test
@@ -944,25 +908,13 @@ public class CountTest {
 
   @Test
   public void computeConfidenceInterval_computeResultWasNotCalled_throwsException() {
-    IllegalStateException exception =
-        assertThrows(
-            IllegalStateException.class,
-            () -> count.computeConfidenceInterval(ALPHA));
-    assertThat(exception)
-        .hasMessageThat()
-        .startsWith("computeResult must be called before calling computeConfidenceInterval.");
+    assertThrows(IllegalStateException.class, () -> count.computeConfidenceInterval(ALPHA));
   }
 
   @Test
   public void computeConfidenceInterval_afterSerialization_throwsException() {
     count.getSerializableSummary();
-    IllegalStateException exception =
-            assertThrows(
-                    IllegalStateException.class,
-                    () -> count.computeConfidenceInterval(ALPHA));
-    assertThat(exception)
-            .hasMessageThat()
-            .startsWith("computeResult must be called before calling computeConfidenceInterval.");
+    assertThrows(IllegalStateException.class, () -> count.computeConfidenceInterval(ALPHA));
   }
 
   @Test

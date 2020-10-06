@@ -52,9 +52,9 @@ type Count struct {
 	noiseKind       noise.Kind // necessary for serializing noise.Noise information
 
 	// State variables
-	count          int64
-	state          state 
-	noisedCount    int64
+	count       int64
+	state       aggregationState
+	noisedCount int64
 }
 
 func countEquallyInitialized(c1, c2 *Count) bool {
@@ -62,7 +62,8 @@ func countEquallyInitialized(c1, c2 *Count) bool {
 		c1.delta == c2.delta &&
 		c1.l0Sensitivity == c2.l0Sensitivity &&
 		c1.lInfSensitivity == c2.lInfSensitivity &&
-		c1.noiseKind == c2.noiseKind
+		c1.noiseKind == c2.noiseKind &&
+		c1.state == c2.state
 }
 
 // CountOptions contains the options necessary to initialize a Count.
@@ -124,7 +125,7 @@ func (c *Count) Increment() {
 // single partition from the same privacy unit.
 func (c *Count) IncrementBy(count int64) {
 	if c.state != Default {
-		log.Fatalf("Count cannot be amended. Reason: %v", c.state.errorMessage("Count"))
+		log.Fatalf("Count cannot be amended. Reason: %v", c.state.errorMessage())
 	}
 	c.count += count
 }
@@ -142,10 +143,10 @@ func (c *Count) Merge(c2 *Count) {
 
 func checkMergeCount(c1, c2 *Count) error {
 	if c1.state != Default {
-		return fmt.Errorf("checkMergeCount: c1 cannot be merged with another Count instance. Reason: %v", c1.state.errorMessage("Count"))
+		return fmt.Errorf("checkMergeCount: c1 cannot be merged with another Count instance. Reason: %v", c1.state.errorMessage())
 	}
 	if c2.state != Default {
-		return fmt.Errorf("checkMergeCount: c2 cannot be merged with another Count instance. Reason: %v", c2.state.errorMessage("Count"))
+		return fmt.Errorf("checkMergeCount: c2 cannot be merged with another Count instance. Reason: %v", c2.state.errorMessage())
 	}
 
 	if !countEquallyInitialized(c1, c2) {
@@ -165,7 +166,7 @@ func checkMergeCount(c1, c2 *Count) error {
 // result.
 func (c *Count) Result() int64 {
 	if c.state != Default {
-		log.Fatalf("The noised result cannot be computed. Reason: " + c.state.errorMessage("Count"))
+		log.Fatalf("Count's noised result cannot be computed. Reason: " + c.state.errorMessage())
 	}
 	c.state = ResultReturned
 	c.noisedCount = c.noise.AddNoiseInt64(c.count, c.l0Sensitivity, c.lInfSensitivity, c.epsilon, c.delta)
@@ -219,7 +220,7 @@ type encodableCount struct {
 // GobEncode encodes Count.
 func (c *Count) GobEncode() ([]byte, error) {
 	if c.state != Default {
-		return nil, fmt.Errorf("Count object cannot be serialized. Reason: " + c.state.errorMessage("Count"))
+		return nil, fmt.Errorf("Count object cannot be serialized. Reason: " + c.state.errorMessage())
 	}
 	enc := encodableCount{
 		Epsilon:         c.epsilon,

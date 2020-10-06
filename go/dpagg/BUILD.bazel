@@ -28,7 +28,7 @@ go_library(
         "helpers.go",
         "mean.go",
         "select_partition.go",
-        "state.go",
+        "aggregation_state.go",
         "sum.go",
     ],
     importpath = "github.com/google/differential-privacy/go/dpagg",

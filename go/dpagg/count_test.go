@@ -17,7 +17,6 @@
 package dpagg
 
 import (
-	"fmt"
 	"math"
 	"reflect"
 	"testing"
@@ -138,34 +137,24 @@ func TestCountSerialization(t *testing.T) {
 	}
 }
 
-// Tests that serialization cannot be called after Result().
-func TestCountSerializationAfterResult(t *testing.T) {
-	c := getNoiselessCount()
-	c.Result()
+// Tests that GobEncode() returns errors correctly with different Count aggregation states.
+func TestCountSerializationStateChecks(t *testing.T) {
+	for _, tc := range []struct {
+		state   aggregationState
+		wantErr bool
+	}{
+		{Default, false},
+		{Merged, true},
+		{Serialized, true},
+		{ResultReturned, true},
+	} {
+		c := getNoiselessCount()
+		c.state = tc.state
 
-	expectedErrMessage := "Count object cannot be serialized. Reason: Noised result was already computed and returned."
-	_, err := c.GobEncode()
-	if err == nil {
-		t.Errorf("GobEncode: No error was returned, expected error")
-	}
-	if err.Error() != expectedErrMessage {
-		t.Errorf("GobEncode: Error messages are not equal:\n got: %v\n want: %v", err.Error(), expectedErrMessage)
-	}
-}
-
-// Tests that serialization cannot be called after Merge() for the source count.
-func TestCountSerializationAfterMerge(t *testing.T) {
-	sourceCount := getNoiselessCount()
-	targetCount := getNoiselessCount()
-	targetCount.Merge(sourceCount)
-
-	expectedErrMessage := "Count object cannot be serialized. Reason: Count object has been already merged."
-	_, err := sourceCount.GobEncode()
-	if err == nil {
-		t.Errorf("GobEncode: No error was returned, expected error")
-	}
-	if err.Error() != expectedErrMessage {
-		t.Errorf("GobEncode: Error messages are not equal:\n got: %v\n want: %v", err.Error(), expectedErrMessage)
+		_, err := c.GobEncode()
+		if (err != nil) != tc.wantErr {
+			t.Errorf("GobEncode: for err got %v, want %t", err, tc.wantErr)
+		}
 	}
 }
 
@@ -313,73 +302,40 @@ func TestCountCheckMergeCompatibility(t *testing.T) {
 	}
 }
 
-// Tests that checkMergeCount() returns errors correctly after call to Result().
-func TestCountCheckMergeAfterResult(t *testing.T) {
-	expectedErrMessage := "checkMergeCount: %v cannot be merged with another Count instance. " +
-		"Reason: Noised result was already computed and returned."
+// Tests that checkMergeCount() returns errors correctly with different Count aggregation states.
+func TestCountCheckMergeStateChecks(t *testing.T) {
 	for _, tc := range []struct {
-		callResult1 bool
-		callResult2 bool
-		wantErr     bool
-		errMessage  string
+		state1  aggregationState
+		state2  aggregationState
+		wantErr bool
 	}{
-		{false, false, false, ""},
-		{true, false, true, fmt.Sprintf(expectedErrMessage, "c1")},
-		{false, true, true, fmt.Sprintf(expectedErrMessage, "c2")},
-		{true, true, true, fmt.Sprintf(expectedErrMessage, "c1")},
+		{Default, Default, false},
+		{ResultReturned, Default, true},
+		{Default, ResultReturned, true},
+		{Serialized, Default, true},
+		{Default, Serialized, true},
+		{Default, Merged, true},
+		{Merged, Default, true},
 	} {
 		c1 := getNoiselessCount()
 		c2 := getNoiselessCount()
 
-		if tc.callResult1 {
-			c1.Result()
-		}
-		if tc.callResult2 {
-			c2.Result()
-		}
+		c1.state = tc.state1
+		c2.state = tc.state2
 
 		err := checkMergeCount(c1, c2)
 		if (err != nil) != tc.wantErr {
-			t.Errorf("CheckMerge: No error was returned, expected error")
-		}
-		if tc.wantErr && err.Error() != tc.errMessage {
-			t.Errorf("CheckMerge: Error messages are not equal:\n got: %v\n want: %v", err.Error(), tc.errMessage)
+			t.Errorf("CheckMerge: for err got %v, want %t", err, tc.wantErr)
 		}
 	}
 }
 
-// Tests that checkMergeCount() returns errors correctly after call to GobEncode().
-func TestCountCheckMergeAfterSerialization(t *testing.T) {
-	expectedErrMessage := "checkMergeCount: %v cannot be merged with another Count instance. " +
-		"Reason: Count object has been already serialized."
-	for _, tc := range []struct {
-		callEncode1 bool
-		callEncode2 bool
-		wantErr     bool
-		errMessage  string
-	}{
-		{false, false, false, ""},
-		{true, false, true, fmt.Sprintf(expectedErrMessage, "c1")},
-		{false, true, true, fmt.Sprintf(expectedErrMessage, "c2")},
-		{true, true, true, fmt.Sprintf(expectedErrMessage, "c1")},
-	} {
-		c1 := getNoiselessCount()
-		c2 := getNoiselessCount()
+func TestCountResultSetsStateCorrectly(t *testing.T) {
+	c1 := getNoiselessCount()
+	c1.Result()
 
-		if tc.callEncode1 {
-			c1.GobEncode()
-		}
-		if tc.callEncode2 {
-			c2.GobEncode()
-		}
-
-		err := checkMergeCount(c1, c2)
-		if (err != nil) != tc.wantErr {
-			t.Errorf("CheckMerge: No error was returned, expected error")
-		}
-		if tc.wantErr && err.Error() != tc.errMessage {
-			t.Errorf("CheckMerge: Error messages are not equal:\n got: %v\n want: %v", err.Error(), tc.errMessage)
-		}
+	if c1.state != ResultReturned {
+		t.Errorf("Count should have its state set to ResultReturned. got %v, want ResultReturned", c1.state)
 	}
 }
 
@@ -480,33 +436,24 @@ func TestCountComputeConfidenceIntervalComputation(t *testing.T) {
 	}
 }
 
-// Tests that calling ComputeConfidenceInterval without calling Result() produces an error.
-func TestCountComputeConfindenceIntervalCannotBeCalledBeforeResult(t *testing.T) {
-	c := getNoiselessCount()
-	_, err := c.ComputeConfidenceInterval(0.1)
-	if err == nil {
-		t.Errorf("ComputeConfidenceInterval: No error was returned, expected error")
-	}
-}
+// Tests that ComputeConfidenceInterval() returns errors correctly with different Count aggregation states.
+func TestCountComputeConfidenceIntervalStateChecks(t *testing.T) {
+	for _, tc := range []struct {
+		state   aggregationState
+		wantErr bool
+	}{
+		{ResultReturned, false},
+		{Default, true},
+		{Merged, true},
+		{Serialized, true},
+	} {
+		c := getNoiselessCount()
+		c.state = tc.state
 
-// Tests that calling ComputeConfidenceInterval after Serialization produces an error.
-func TestCountComputeConfindenceIntervalCannotBeCalledAfterSerialization(t *testing.T) {
-	c := getNoiselessCount()
-	c.GobEncode()
-	_, err := c.ComputeConfidenceInterval(0.1)
-	if err == nil {
-		t.Errorf("ComputeConfidenceInterval: No error was returned, expected error")
-	}
-}
-
-// Tests that calling ComputeConfidenceInterval for source count after Merge() produces an error.
-func TestCountComputeConfindenceIntervalCannotBeCalledAfterMerge(t *testing.T) {
-	source := getNoiselessCount()
-	target := getNoiselessCount()
-	target.Merge(source)
-	_, err := source.ComputeConfidenceInterval(0.1)
-	if err == nil {
-		t.Errorf("ComputeConfidenceInterval: No error was returned, expected error")
+		_, err := c.ComputeConfidenceInterval(0.1)
+		if (err != nil) != tc.wantErr {
+			t.Errorf("ComputeConfidenceInterval: for err got %v, want %t", err, tc.wantErr)
+		}
 	}
 }
 
@@ -625,13 +572,16 @@ func TestCountEquallyInitialized(t *testing.T) {
 				l0Sensitivity:   1,
 				lInfSensitivity: 1,
 				noiseKind:       noise.LaplaceNoise,
+				state:           Default,
 			},
 			&Count{
 				epsilon:         ln3,
 				delta:           0,
 				l0Sensitivity:   1,
 				lInfSensitivity: 1,
-				noiseKind:       noise.LaplaceNoise},
+				noiseKind:       noise.LaplaceNoise,
+				state:           Default,
+			},
 			true,
 		},
 		{
@@ -642,13 +592,17 @@ func TestCountEquallyInitialized(t *testing.T) {
 				l0Sensitivity:   1,
 				lInfSensitivity: 1,
 				noiseKind:       noise.LaplaceNoise,
-				count:           0},
+				count:           0,
+				state:           Default,
+			},
 			&Count{
 				epsilon:         1,
 				delta:           0,
 				l0Sensitivity:   1,
 				lInfSensitivity: 1,
-				noiseKind:       noise.LaplaceNoise},
+				noiseKind:       noise.LaplaceNoise,
+				state:           Default,
+			},
 			false,
 		},
 		{
@@ -659,13 +613,17 @@ func TestCountEquallyInitialized(t *testing.T) {
 				l0Sensitivity:   1,
 				lInfSensitivity: 1,
 				noiseKind:       noise.GaussianNoise,
-				count:           0},
+				count:           0,
+				state:           Default,
+			},
 			&Count{
 				epsilon:         ln3,
 				delta:           0.6,
 				l0Sensitivity:   1,
 				lInfSensitivity: 1,
-				noiseKind:       noise.GaussianNoise},
+				noiseKind:       noise.GaussianNoise,
+				state:           Default,
+			},
 			false,
 		},
 		{
@@ -676,13 +634,17 @@ func TestCountEquallyInitialized(t *testing.T) {
 				l0Sensitivity:   1,
 				lInfSensitivity: 1,
 				noiseKind:       noise.LaplaceNoise,
-				count:           0},
+				count:           0,
+				state:           Default,
+			},
 			&Count{
 				epsilon:         ln3,
 				delta:           0,
 				l0Sensitivity:   2,
 				lInfSensitivity: 1,
-				noiseKind:       noise.LaplaceNoise},
+				noiseKind:       noise.LaplaceNoise,
+				state:           Default,
+			},
 			false,
 		},
 		{
@@ -693,13 +655,17 @@ func TestCountEquallyInitialized(t *testing.T) {
 				l0Sensitivity:   1,
 				lInfSensitivity: 1,
 				noiseKind:       noise.LaplaceNoise,
-				count:           0},
+				count:           0,
+				state:           Default,
+			},
 			&Count{
 				epsilon:         ln3,
 				delta:           0,
 				l0Sensitivity:   1,
 				lInfSensitivity: 2,
-				noiseKind:       noise.LaplaceNoise},
+				noiseKind:       noise.LaplaceNoise,
+				state:           Default,
+			},
 			false,
 		},
 		{
@@ -710,13 +676,38 @@ func TestCountEquallyInitialized(t *testing.T) {
 				l0Sensitivity:   1,
 				lInfSensitivity: 1,
 				noiseKind:       noise.LaplaceNoise,
-				count:           0},
+				count:           0,
+				state:           Default,
+			},
 			&Count{
 				epsilon:         ln3,
 				delta:           0,
 				l0Sensitivity:   1,
 				lInfSensitivity: 1,
-				noiseKind:       noise.GaussianNoise},
+				noiseKind:       noise.GaussianNoise,
+				state:           Default,
+			},
+			false,
+		},
+		{
+			"different state",
+			&Count{
+				epsilon:         ln3,
+				delta:           0,
+				l0Sensitivity:   1,
+				lInfSensitivity: 1,
+				noiseKind:       noise.LaplaceNoise,
+				count:           0,
+				state:           Default,
+			},
+			&Count{
+				epsilon:         ln3,
+				delta:           0,
+				l0Sensitivity:   1,
+				lInfSensitivity: 1,
+				noiseKind:       noise.GaussianNoise,
+				state:           Merged,
+			},
 			false,
 		},
 	} {

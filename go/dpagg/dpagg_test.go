@@ -55,12 +55,22 @@ func (noNoise) Threshold(_ int64, _, _, _, _ float64) float64 {
 	return 5
 }
 
+// If noNoise is not initialized with a noise distribution, confidence interval functions will return a default confidence interval i.e [0,0].
+// Otherwise, it will forward the function call to the embedded noise distribution.
+//
+// Note that initializing noNoise with a noise distribution doesn't apply to addNoise functions since they are overridden.
 func (nN noNoise) ComputeConfidenceIntervalInt64(noisedX, l0, lInf int64, eps, del, alpha float64) (noise.ConfidenceInterval, error) {
+	if nN.Noise == nil {
+		return noise.ConfidenceInterval{}, nil
+	}
 	confInt, err := nN.Noise.ComputeConfidenceIntervalInt64(noisedX, l0, lInf, eps, del, alpha)
 	return confInt, err
 }
 
 func (nN noNoise) ComputeConfidenceIntervalFloat64(noisedX float64, l0 int64, lInf, eps, del, alpha float64) (noise.ConfidenceInterval, error) {
+	if nN.Noise == nil {
+		return noise.ConfidenceInterval{}, nil
+	}
 	confInt, err := nN.Noise.ComputeConfidenceIntervalFloat64(noisedX, l0, lInf, eps, del, alpha)
 	return confInt, err
 }
