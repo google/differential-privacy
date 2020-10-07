@@ -63,8 +63,7 @@ public class BoundedMean {
    */
   private final double midpoint;
 
-  /** Was the mean returned to the user? */
-  private boolean resultReturned;
+  private AggregationState state = AggregationState.DEFAULT;
 
   private BoundedMean(BoundedMean.Params params) {
     this.params = params;
@@ -120,9 +119,8 @@ public class BoundedMean {
 
   /** Clamps the input value and adds it to the average. */
   public void addEntry(double e) {
-    if (resultReturned) {
-      throw new IllegalStateException(
-          "The mean has already been calculated and returned. It cannot be amended.");
+    if (state != AggregationState.DEFAULT) {
+      throw new IllegalStateException("Mean cannot be amended. Reason: " + state.getErrorMessage());
     }
 
     // NaN is ignored because introducing even a single NaN entry will result in a NaN mean
@@ -163,11 +161,12 @@ public class BoundedMean {
    * <p>Note that the returned value is not an unbiased estimate of the raw bounded mean.
    */
   public double computeResult() {
-    if (resultReturned) {
-      throw new IllegalStateException("The result can be calculated and returned only once.");
+    if (state != AggregationState.DEFAULT) {
+      throw new IllegalStateException(
+          "Mean's noised result cannot be computed. Reason: " + state.getErrorMessage());
     }
 
-    resultReturned = true;
+    state = AggregationState.RESULT_RETURNED;
 
     long noisedCount = Math.max(1, count.computeResult());
     double normalizedNoisedSum = normalizedSum.computeResult();
@@ -186,9 +185,8 @@ public class BoundedMean {
    * the confidence intervals doc</a>.
    */
   public ConfidenceInterval computeConfidenceInterval(double alpha) {
-    if (!resultReturned) {
-      throw new IllegalStateException(
-          "computeResult() must be called before calling computeConfidenceInterval()");
+    if (state != AggregationState.RESULT_RETURNED) {
+      throw new IllegalStateException("computeResult() must be called before calling computeConfidenceInterval()");
     }
     // The confidence interval of bounded mean is derived from confidence intervals of the mean's
     // numerator and denominator. The respective confidence levels 1 - alphaNum and 1 - alphaDen can
