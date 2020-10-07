@@ -62,8 +62,8 @@ type BoundedMeanFloat64 struct {
 	count         Count
 	// The midpoint between lower and upper bounds. It cannot be set by the user;
 	// it will be calculated based on the lower and upper values.
-	midPoint       float64
-	resultReturned bool // whether the result has already been returned
+	midPoint float64
+	state    aggregationState
 }
 
 func bmEquallyInitializedFloat64(bm1, bm2 *BoundedMeanFloat64) bool {
@@ -75,13 +75,13 @@ func bmEquallyInitializedFloat64(bm1, bm2 *BoundedMeanFloat64) bool {
 
 // BoundedMeanFloat64Options contains the options necessary to initialize a BoundedMeanFloat64.
 type BoundedMeanFloat64Options struct {
-	Epsilon                      float64     // Privacy parameter ε. Required.
-	Delta                        float64     // Privacy parameter δ. Required with Gaussian noise, must be 0 with Laplace noise.
-	MaxPartitionsContributed     int64       // How many distinct partitions may a single user contribute to? Defaults to 1.
-	MaxContributionsPerPartition int64       // How many times may a single user contribute to a single partition? Required.
+	Epsilon                      float64 // Privacy parameter ε. Required.
+	Delta                        float64 // Privacy parameter δ. Required with Gaussian noise, must be 0 with Laplace noise.
+	MaxPartitionsContributed     int64   // How many distinct partitions may a single user contribute to? Defaults to 1.
+	MaxContributionsPerPartition int64   // How many times may a single user contribute to a single partition? Required.
 	// Lower and Upper bounds for clamping. Default to 0; must be such that Lower < Upper.
-	Lower, Upper                 float64
-	Noise                        noise.Noise // Type of noise used in BoundedMean. Defaults to Laplace noise.
+	Lower, Upper float64
+	Noise        noise.Noise // Type of noise used in BoundedMean. Defaults to Laplace noise.
 }
 
 // NewBoundedMeanFloat64 returns a new BoundedMeanFloat64.
@@ -162,12 +162,12 @@ func NewBoundedMeanFloat64(opt *BoundedMeanFloat64Options) *BoundedMeanFloat64 {
 	})
 
 	return &BoundedMeanFloat64{
-		lower:          lower,
-		upper:          upper,
-		midPoint:       midPoint,
-		count:          *count,
-		normalizedSum:  *normalizedSum,
-		resultReturned: false,
+		lower:         lower,
+		upper:         upper,
+		midPoint:      midPoint,
+		count:         *count,
+		normalizedSum: *normalizedSum,
+		state:         Default,
 	}
 }
 
@@ -176,9 +176,9 @@ func NewBoundedMeanFloat64(opt *BoundedMeanFloat64Options) *BoundedMeanFloat64 {
 // regardless of other entries, which would break the indistinguishability
 // property required for differential privacy.
 func (bm *BoundedMeanFloat64) Add(e float64) {
-	if bm.resultReturned {
+	if bm.state != ResultReturned {
 		// TODO: do not exit the program from within library code
-		log.Fatalf("The mean has already been calculated and returned. It cannot be amended.")
+		log.Fatalf("Mean cannot be amended. Reason: %v", bm.state.errorMessage())
 	}
 	if !math.IsNaN(e) {
 		clamped, err := ClampFloat64(e, bm.lower, bm.upper)
@@ -198,11 +198,11 @@ func (bm *BoundedMeanFloat64) Add(e float64) {
 //
 // Note that the returned value is not an unbiased estimate of the raw bounded mean.
 func (bm *BoundedMeanFloat64) Result() float64 {
-	if bm.resultReturned {
+	if bm.state != Default {
 		// TODO: do not exit the program from within library code
-		log.Fatalf("The mean has already been calculated and returned. It can only be returned once.")
+		log.Fatalf("Mean's noised result cannot be computed. Reason: " + bm.state.errorMessage())
 	}
-	bm.resultReturned = true
+	bm.state = ResultReturned
 	noisedCount := math.Max(1.0, float64(bm.count.Result()))
 	noisedSum := bm.normalizedSum.Result()
 	clamped, err := ClampFloat64(noisedSum/noisedCount+bm.midPoint, bm.lower, bm.upper)
@@ -219,7 +219,7 @@ func (bm *BoundedMeanFloat64) Result() float64 {
 //
 // Result() needs to be called before ComputeConfidenceInterval, otherwise this will return an error.
 func (bm *BoundedMeanFloat64) ComputeConfidenceInterval(alpha float64) (noise.ConfidenceInterval, error) {
-	if !bm.resultReturned {
+	if bm.state != ResultReturned {
 		return noise.ConfidenceInterval{}, fmt.Errorf("Result() must be called before calling ComputeConfidenceInterval()")
 	}
 	// The confidence interval of bounded mean is derived from confidence intervals of the mean's numerator and denominator.
@@ -299,15 +299,15 @@ func (bm *BoundedMeanFloat64) Merge(bm2 *BoundedMeanFloat64) {
 	}
 	bm.normalizedSum.sum += bm2.normalizedSum.sum
 	bm.count.count += bm2.count.count
-	bm2.resultReturned = true
+	bm2.state = Merged
 }
 
 func checkMergeBoundedMeanFloat64(bm1, bm2 *BoundedMeanFloat64) error {
-	if bm1.resultReturned {
-		return fmt.Errorf("checkMergeBoundedMeanFloat64: bm1 already returned the result, cannot be merged with another BoundedMean instance")
+	if bm1.state != Default {
+		return fmt.Errorf("checkMergeBoundedMeanFloat64: bm1 cannot be merged with another BoundedMean instance. Reason: %v", bm1.state.errorMessage())
 	}
-	if bm2.resultReturned {
-		return fmt.Errorf("checkMergeBoundedMeanFloat64: bm2 already returned the result, cannot be merged with another BoundedMean instance")
+	if bm2.state != Default {
+		return fmt.Errorf("checkMergeBoundedMeanFloat64: bm2 cannot be merged with another BoundedMean instance. Reason: %v", bm2.state.errorMessage())
 	}
 
 	if !bmEquallyInitializedFloat64(bm1, bm2) {
@@ -319,15 +319,17 @@ func checkMergeBoundedMeanFloat64(bm1, bm2 *BoundedMeanFloat64) error {
 
 // GobEncode encodes Count.
 func (bm *BoundedMeanFloat64) GobEncode() ([]byte, error) {
+	if bm.state != Default {
+		return nil, fmt.Errorf("Mean object cannot be serialized. Reason: " + bm.state.errorMessage())
+	}
 	enc := encodableBoundedMeanFloat64{
 		Lower:                  bm.lower,
 		Upper:                  bm.upper,
 		EncodableCount:         &bm.count,
 		EncodableNormalizedSum: &bm.normalizedSum,
 		MidPoint:               bm.midPoint,
-		ResultReturned:         bm.resultReturned,
 	}
-	bm.resultReturned = true
+	bm.state = Serialized
 	return encode(enc)
 }
 
@@ -340,12 +342,11 @@ func (bm *BoundedMeanFloat64) GobDecode(data []byte) error {
 		return err
 	}
 	*bm = BoundedMeanFloat64{
-		lower:          enc.Lower,
-		upper:          enc.Upper,
-		count:          *enc.EncodableCount,
-		normalizedSum:  *enc.EncodableNormalizedSum,
-		midPoint:       enc.MidPoint,
-		resultReturned: enc.ResultReturned,
+		lower:         enc.Lower,
+		upper:         enc.Upper,
+		count:         *enc.EncodableCount,
+		normalizedSum: *enc.EncodableNormalizedSum,
+		midPoint:      enc.MidPoint,
 	}
 	return nil
 }
@@ -357,5 +358,4 @@ type encodableBoundedMeanFloat64 struct {
 	EncodableCount         *Count
 	EncodableNormalizedSum *BoundedSumFloat64
 	MidPoint               float64
-	ResultReturned         bool
 }
