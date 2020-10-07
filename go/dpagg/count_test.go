@@ -151,9 +151,8 @@ func TestCountSerializationStateChecks(t *testing.T) {
 		c := getNoiselessCount()
 		c.state = tc.state
 
-		_, err := c.GobEncode()
-		if (err != nil) != tc.wantErr {
-			t.Errorf("GobEncode: for err got %v, want %t", err, tc.wantErr)
+		if _, err := c.GobEncode(); (err != nil) != tc.wantErr {
+			t.Errorf("GobEncode: when state %v for err got %v, want %t", tc.state, err, tc.wantErr)
 		}
 	}
 }
@@ -323,19 +322,18 @@ func TestCountCheckMergeStateChecks(t *testing.T) {
 		c1.state = tc.state1
 		c2.state = tc.state2
 
-		err := checkMergeCount(c1, c2)
-		if (err != nil) != tc.wantErr {
-			t.Errorf("CheckMerge: for err got %v, want %t", err, tc.wantErr)
+		if err := checkMergeCount(c1, c2); (err != nil) != tc.wantErr {
+			t.Errorf("CheckMerge: when states [%v, %v] for err got %v, want %t", tc.state1, tc.state2, err, tc.wantErr)
 		}
 	}
 }
 
 func TestCountResultSetsStateCorrectly(t *testing.T) {
-	c1 := getNoiselessCount()
-	c1.Result()
+	c := getNoiselessCount()
+	c.Result()
 
-	if c1.state != ResultReturned {
-		t.Errorf("Count should have its state set to ResultReturned. got %v, want ResultReturned", c1.state)
+	if c.state != ResultReturned {
+		t.Errorf("Count should have its state set to ResultReturned, got %v, want ResultReturned", c.state)
 	}
 }
 
@@ -450,9 +448,8 @@ func TestCountComputeConfidenceIntervalStateChecks(t *testing.T) {
 		c := getNoiselessCount()
 		c.state = tc.state
 
-		_, err := c.ComputeConfidenceInterval(0.1)
-		if (err != nil) != tc.wantErr {
-			t.Errorf("ComputeConfidenceInterval: for err got %v, want %t", err, tc.wantErr)
+		if _, err := c.ComputeConfidenceInterval(0.1); (err != nil) != tc.wantErr {
+			t.Errorf("ComputeConfidenceInterval: when state %v for err got %v, want %t", tc.state, err, tc.wantErr)
 		}
 	}
 }

@@ -96,7 +96,7 @@ func TestBoundedSumInt64Serialization(t *testing.T) {
 			t.Errorf("decode(encode(_)): when %s got %v, want %v", tc.desc, bsUnmarshalled, bs)
 		}
 		if bs.state != Serialized {
-			t.Errorf("BoundedSumInt64 %v should have its state set to Serialized, got %v, want Serialized", bs, bs.state)
+			t.Errorf("BoundedSumInt64 should have its state set to Serialized, got %v, want Serialized", bs.state)
 		}
 	}
 }
@@ -115,9 +115,8 @@ func TestBoundedSumInt64SerializationStateChecks(t *testing.T) {
 		bs := getNoiselessBSI()
 		bs.state = tc.state
 
-		_, err := bs.GobEncode()
-		if (err != nil) != tc.wantErr {
-			t.Errorf("GobEncode: for err got %v, want %t", err, tc.wantErr)
+		if _, err := bs.GobEncode(); (err != nil) != tc.wantErr {
+			t.Errorf("GobEncode: when state %v for err got %v, want %t", tc.state, err, tc.wantErr)
 		}
 	}
 }
@@ -170,7 +169,7 @@ func TestBoundedSumFloat64Serialization(t *testing.T) {
 			t.Errorf("decode(encode(_)): when %s got %v, want %v", tc.desc, bsUnmarshalled, bs)
 		}
 		if bs.state != Serialized {
-			t.Errorf("BoundedSumFloat64 %v should have its state set to Serialized, got %v, want Serialized", bs, bs.state)
+			t.Errorf("BoundedSumFloat64 should have its state set to Serialized, got %v, want Serialized", bs.state)
 		}
 	}
 }
@@ -186,12 +185,11 @@ func TestBoundedSumFloat64SerializationStateChecks(t *testing.T) {
 		{Serialized, true},
 		{ResultReturned, true},
 	} {
-		bs := getNoiselessBSI()
+		bs := getNoiselessBSF()
 		bs.state = tc.state
 
-		_, err := bs.GobEncode()
-		if (err != nil) != tc.wantErr {
-			t.Errorf("GobEncode: for err got %v, want %t", err, tc.wantErr)
+		if _, err := bs.GobEncode(); (err != nil) != tc.wantErr {
+			t.Errorf("GobEncode: when state %v for err got %v, want %t", tc.state, err, tc.wantErr)
 		}
 	}
 }
@@ -647,7 +645,7 @@ func TestCheckMergeBoundedSumInt64StateChecks(t *testing.T) {
 		bs2.state = tc.state2
 
 		if err := checkMergeBoundedSumInt64(bs1, bs2); (err != nil) != tc.wantErr {
-			t.Errorf("CheckMerge: for err got %v, want %t", err, tc.wantErr)
+			t.Errorf("CheckMerge: when states [%v, %v] for err got %v, want %t", tc.state1, tc.state2, err, tc.wantErr)
 		}
 	}
 }
@@ -781,7 +779,7 @@ func TestCheckMergeBoundedSumFloat64Compatibility(t *testing.T) {
 			},
 			&BoundedSumFloat64Options{
 				Epsilon: ln3,
-				Lower:   0,
+				Lower:   -1,
 				Upper:   5,
 				Noise:   noise.Laplace(),
 			},
@@ -818,7 +816,7 @@ func TestCheckMergeBoundedSumFloat64StateChecks(t *testing.T) {
 		bs2.state = tc.state2
 
 		if err := checkMergeBoundedSumFloat64(bs1, bs2); (err != nil) != tc.wantErr {
-			t.Errorf("CheckMerge: for err got %v, want %t", err, tc.wantErr)
+			t.Errorf("CheckMerge: when states [%v, %v] for err got %v, want %t", tc.state1, tc.state2, err, tc.wantErr)
 		}
 	}
 }
@@ -852,7 +850,7 @@ func TestBoundedSumInt64ResultSetsStateCorrectly(t *testing.T) {
 	bs.Result()
 
 	if bs.state != ResultReturned {
-		t.Errorf("BoundedSumInt64 should have its state set to ResultReturned. got %v, want ResultReturned", bs.state)
+		t.Errorf("BoundedSumInt64 should have its state set to ResultReturned, got %v, want ResultReturned", bs.state)
 	}
 }
 
@@ -861,7 +859,7 @@ func TestBoundedSumFloat64ResultSetsStateCorrectly(t *testing.T) {
 	bs.Result()
 
 	if bs.state != ResultReturned {
-		t.Errorf("BoundedSumFloat64 should have its state set to ResultReturned. got %v, want ResultReturned", bs.state)
+		t.Errorf("BoundedSumFloat64 should have its state set to ResultReturned, got %v, want ResultReturned", bs.state)
 	}
 }
 
@@ -1103,9 +1101,8 @@ func TestBoundedSumInt64ComputeConfidenceIntervalStateChecks(t *testing.T) {
 		bs := getNoiselessBSI()
 		bs.state = tc.state
 
-		_, err := bs.ComputeConfidenceInterval(0.1)
-		if (err != nil) != tc.wantErr {
-			t.Errorf("ComputeConfidenceInterval: for err got %v, want %t", err, tc.wantErr)
+		if _, err := bs.ComputeConfidenceInterval(0.1); (err != nil) != tc.wantErr {
+			t.Errorf("ComputeConfidenceInterval: when state %v for err got %v, want %t", tc.state, err, tc.wantErr)
 		}
 	}
 }
@@ -1124,9 +1121,8 @@ func TestBoundedSumFloat64ComputeConfidenceIntervalStateChecks(t *testing.T) {
 		bs := getNoiselessBSF()
 		bs.state = tc.state
 
-		_, err := bs.ComputeConfidenceInterval(0.1)
-		if (err != nil) != tc.wantErr {
-			t.Errorf("ComputeConfidenceInterval: for err got %v, want %t", err, tc.wantErr)
+		if _, err := bs.ComputeConfidenceInterval(0.1); (err != nil) != tc.wantErr {
+			t.Errorf("ComputeConfidenceInterval: when state %v for err got %v, want %t", tc.state, err, tc.wantErr)
 		}
 	}
 }
@@ -1460,7 +1456,7 @@ func TestBSEquallyInitializedInt64(t *testing.T) {
 				noiseKind:       noise.LaplaceNoise,
 				lower:           -1,
 				upper:           1,
-				sum:             1,
+				sum:             0,
 				state:           Default},
 			false,
 		},
@@ -1484,7 +1480,7 @@ func TestBSEquallyInitializedInt64(t *testing.T) {
 				noiseKind:       noise.LaplaceNoise,
 				lower:           0,
 				upper:           2,
-				sum:             1,
+				sum:             0,
 				state:           Default},
 			false,
 		},
@@ -1507,8 +1503,8 @@ func TestBSEquallyInitializedInt64(t *testing.T) {
 				lInfSensitivity: 1,
 				noiseKind:       noise.LaplaceNoise,
 				lower:           0,
-				upper:           2,
-				sum:             1,
+				upper:           1,
+				sum:             0,
 				state:           Merged},
 			false,
 		},
@@ -1666,7 +1662,7 @@ func TestBSEquallyInitializedFloat64(t *testing.T) {
 				noiseKind:       noise.LaplaceNoise,
 				lower:           -1,
 				upper:           1,
-				sum:             1,
+				sum:             0,
 				state:           Default},
 			false,
 		},
@@ -1690,7 +1686,7 @@ func TestBSEquallyInitializedFloat64(t *testing.T) {
 				noiseKind:       noise.LaplaceNoise,
 				lower:           0,
 				upper:           2,
-				sum:             1,
+				sum:             0,
 				state:           Default},
 			false,
 		},
@@ -1713,8 +1709,8 @@ func TestBSEquallyInitializedFloat64(t *testing.T) {
 				lInfSensitivity: 1,
 				noiseKind:       noise.LaplaceNoise,
 				lower:           0,
-				upper:           2,
-				sum:             1,
+				upper:           1,
+				sum:             0,
 				state:           Merged},
 			false,
 		},

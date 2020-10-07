@@ -194,7 +194,7 @@ func TestBoundedMeanFloat64ResultSetsStateCorrectly(t *testing.T) {
 	bm.Result()
 
 	if bm.state != ResultReturned {
-		t.Errorf("BoundedMeanFloat64 should have its state set to ResultReturned. got %v, want ResultReturned", bm.state)
+		t.Errorf("BoundedMeanFloat64 should have its state set to ResultReturned, got %v, want ResultReturned", bm.state)
 	}
 }
 
@@ -467,7 +467,7 @@ func TestCheckMergeBoundedMeanFloat64Compatibility(t *testing.T) {
 			},
 			&BoundedMeanFloat64Options{
 				Epsilon:                      ln3,
-				Delta:                        tenten,
+				Delta:                        0,
 				MaxPartitionsContributed:     1,
 				Lower:                        -1,
 				Upper:                        5,
@@ -527,7 +527,7 @@ func TestCheckMergeBoundedMeanFloat64StateChecks(t *testing.T) {
 		bm2.state = tc.state2
 
 		if err := checkMergeBoundedMeanFloat64(bm1, bm2); (err != nil) != tc.wantErr {
-			t.Errorf("CheckMerge: for states[%v , %v] err got %v, want %t", tc.state1, tc.state2, err, tc.wantErr)
+			t.Errorf("CheckMerge: when states [%v, %v] for err got %v, want %t", tc.state1, tc.state2, err, tc.wantErr)
 		}
 	}
 }
@@ -629,6 +629,24 @@ func TestBMEquallyInitializedFloat64(t *testing.T) {
 				state:         Default},
 			false,
 		},
+		{
+			"different state",
+			&BoundedMeanFloat64{
+				lower:         0,
+				upper:         2,
+				midPoint:      1,
+				normalizedSum: BoundedSumFloat64{},
+				count:         Count{},
+				state:         Default},
+			&BoundedMeanFloat64{
+				lower:         0,
+				upper:         2,
+				midPoint:      1,
+				normalizedSum: BoundedSumFloat64{},
+				count:         Count{},
+				state:         Merged},
+			false,
+		},
 	} {
 		if bmEquallyInitializedFloat64(tc.bm1, tc.bm2) != tc.equal {
 			t.Errorf("bmEquallyInitializedFloat64: when %v got %t, want %t", tc.desc, !tc.equal, tc.equal)
@@ -681,7 +699,7 @@ func TestBMFloat64Serialization(t *testing.T) {
 		if !cmp.Equal(bmUnchanged, bmUnmarshalled, cmp.Comparer(compareBoundedMeanFloat64)) {
 			t.Errorf("decode(encode(_)): when %s got %v, want %v", tc.desc, bmUnmarshalled, bm)
 		}
-		if bm.state == Serialized {
+		if bm.state != Serialized {
 			t.Errorf("BoundedMean should have its state set to Serialized, got %v , want Serialized", bm.state)
 		}
 	}
@@ -701,9 +719,8 @@ func TestBoundedMeanFloat64SerializationStateChecks(t *testing.T) {
 		bm := getNoiselessBMF()
 		bm.state = tc.state
 
-		_, err := bm.GobEncode()
-		if (err != nil) != tc.wantErr {
-			t.Errorf("GobEncode: for state %v err got %v, want %t", tc.state, err, tc.wantErr)
+		if _, err := bm.GobEncode(); (err != nil) != tc.wantErr {
+			t.Errorf("GobEncode: when state %v for err got %v, want %t", tc.state, err, tc.wantErr)
 		}
 	}
 }
@@ -896,9 +913,8 @@ func TestBoundedMeanFloat64ComputeConfidenceIntervalStateChecks(t *testing.T) {
 		bm.count.state = tc.state
 		bm.normalizedSum.state = tc.state
 
-		_, err := bm.ComputeConfidenceInterval(0.1)
-		if (err != nil) != tc.wantErr {
-			t.Errorf("ComputeConfidenceInterval: for state %v err got %v, want %t", tc.state, err, tc.wantErr)
+		if _, err := bm.ComputeConfidenceInterval(0.1); (err != nil) != tc.wantErr {
+			t.Errorf("ComputeConfidenceInterval: when state %v for err got %v, want %t", tc.state, err, tc.wantErr)
 		}
 	}
 }

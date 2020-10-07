@@ -20,9 +20,9 @@ type aggregationState int
 
 var errorMessages = map[int]string{
 	Default:        "",
-	Merged:         "Object has been already merged.",
-	Serialized:     "Object has been already serialized.",
-	ResultReturned: "Noised result is already computed and returned.",
+	Merged:         "Object has been already merged",
+	Serialized:     "Object has been already serialized",
+	ResultReturned: "Noised result is already computed and returned",
 }
 var stateName = map[int]string{
 	Default:        "Default",

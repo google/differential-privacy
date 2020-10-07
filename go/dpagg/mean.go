@@ -69,20 +69,22 @@ type BoundedMeanFloat64 struct {
 func bmEquallyInitializedFloat64(bm1, bm2 *BoundedMeanFloat64) bool {
 	return bm1.lower == bm2.lower &&
 		bm1.upper == bm2.upper &&
+		bm1.state == bm2.state &&
 		countEquallyInitialized(&bm1.count, &bm2.count) &&
 		bsEquallyInitializedFloat64(&bm1.normalizedSum, &bm2.normalizedSum)
 }
 
 // BoundedMeanFloat64Options contains the options necessary to initialize a BoundedMeanFloat64.
 type BoundedMeanFloat64Options struct {
-	Epsilon                      float64 // Privacy parameter ε. Required.
-	Delta                        float64 // Privacy parameter δ. Required with Gaussian noise, must be 0 with Laplace noise.
-	MaxPartitionsContributed     int64   // How many distinct partitions may a single user contribute to? Defaults to 1.
-	MaxContributionsPerPartition int64   // How many times may a single user contribute to a single partition? Required.
+	Epsilon                      float64     // Privacy parameter ε. Required.
+	Delta                        float64     // Privacy parameter δ. Required with Gaussian noise, must be 0 with Laplace noise.
+	MaxPartitionsContributed     int64       // How many distinct partitions may a single user contribute to? Defaults to 1.
+	MaxContributionsPerPartition int64       // How many times may a single user contribute to a single partition? Required.
 	// Lower and Upper bounds for clamping. Default to 0; must be such that Lower < Upper.
-	Lower, Upper float64
-	Noise        noise.Noise // Type of noise used in BoundedMean. Defaults to Laplace noise.
+	Lower, Upper                 float64
+	Noise                        noise.Noise // Type of noise used in BoundedMean. Defaults to Laplace noise.
 }
+
 
 // NewBoundedMeanFloat64 returns a new BoundedMeanFloat64.
 func NewBoundedMeanFloat64(opt *BoundedMeanFloat64Options) *BoundedMeanFloat64 {
@@ -176,7 +178,7 @@ func NewBoundedMeanFloat64(opt *BoundedMeanFloat64Options) *BoundedMeanFloat64 {
 // regardless of other entries, which would break the indistinguishability
 // property required for differential privacy.
 func (bm *BoundedMeanFloat64) Add(e float64) {
-	if bm.state != ResultReturned {
+	if bm.state != Default {
 		// TODO: do not exit the program from within library code
 		log.Fatalf("Mean cannot be amended. Reason: %v", bm.state.errorMessage())
 	}

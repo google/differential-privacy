@@ -55,7 +55,7 @@ func (noNoise) Threshold(_ int64, _, _, _, _ float64) float64 {
 	return 5
 }
 
-// If noNoise is not initialized with a noise distribution, confidence interval functions will return a default confidence interval i.e [0,0].
+// If noNoise is not initialized with a noise distribution, confidence interval functions will return a default confidence interval, i.e [0,0].
 // Otherwise, it will forward the function call to the embedded noise distribution.
 //
 // Note that initializing noNoise with a noise distribution doesn't apply to addNoise functions since they are overridden.
