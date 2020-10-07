@@ -56,9 +56,9 @@ type BoundedSumInt64 struct {
 	noiseKind       noise.Kind // necessary for serializing noise.Noise information
 
 	// State variables
-	sum            int64
-	resultReturned bool // whether the result has already been returned
-	noisedSum      int64
+	sum       int64
+	state     aggregationState
+	noisedSum int64
 }
 
 func bsEquallyInitializedint64(s1, s2 *BoundedSumInt64) bool {
@@ -68,7 +68,8 @@ func bsEquallyInitializedint64(s1, s2 *BoundedSumInt64) bool {
 		s1.lInfSensitivity == s2.lInfSensitivity &&
 		s1.lower == s2.lower &&
 		s1.upper == s2.upper &&
-		s1.noiseKind == s2.noiseKind
+		s1.noiseKind == s2.noiseKind &&
+		s1.state == s2.state
 }
 
 // BoundedSumInt64Options contains the options necessary to initialize a BoundedSumInt64.
@@ -135,7 +136,7 @@ func NewBoundedSumInt64(opt *BoundedSumInt64Options) *BoundedSumInt64 {
 		noise:           n,
 		noiseKind:       noise.ToKind(n),
 		sum:             0,
-		resultReturned:  false,
+		state:           Default,
 	}
 }
 
@@ -179,9 +180,9 @@ func getLInfInt(lower, upper, maxContributionsPerPartition int64) (int64, error)
 
 // Add adds a new summand to the BoundedSumInt64.
 func (bs *BoundedSumInt64) Add(e int64) {
-	if bs.resultReturned {
+	if bs.state != Default {
 		// TODO: do not exit the program from within library code
-		log.Fatalf("The sum has already been calculated and returned. It cannot be amended.")
+		log.Fatalf("Sum cannot be amended. Reason: %v", bs.state.errorMessage())
 	}
 	clamped, err := ClampInt64(e, bs.lower, bs.upper)
 	if err != nil {
@@ -199,15 +200,15 @@ func (bs *BoundedSumInt64) Merge(bs2 *BoundedSumInt64) {
 		log.Exit(e)
 	}
 	bs.sum += bs2.sum
-	bs2.resultReturned = true
+	bs2.state = Merged
 }
 
 func checkMergeBoundedSumInt64(bs1, bs2 *BoundedSumInt64) error {
-	if bs1.resultReturned {
-		return fmt.Errorf("checkMergeBoundedSumInt64: bs1 already returned the result, cannot be merged with another BoundedSum instance")
+	if bs1.state != Default {
+		return fmt.Errorf("checkMergeBoundedSumInt64: bs1 cannot be merged with another BoundedSum instance. Reason: %v", bs1.state.errorMessage())
 	}
-	if bs2.resultReturned {
-		return fmt.Errorf("checkMergeBoundedSumInt64: bs2 already returned the result, cannot be merged with another BoundedSum instance")
+	if bs2.state != Default {
+		return fmt.Errorf("checkMergeBoundedSumInt64: bs2 cannot be merged with another BoundedSum instance. Reason: %v", bs2.state.errorMessage())
 	}
 
 	if !bsEquallyInitializedint64(bs1, bs2) {
@@ -228,11 +229,11 @@ func checkMergeBoundedSumInt64(bs1, bs2 *BoundedSumInt64) error {
 // value representing a bounded sum that is possible. Note that such post
 // processing introduces bias to the result.
 func (bs *BoundedSumInt64) Result() int64 {
-	if bs.resultReturned {
+	if bs.state != Default {
 		// TODO: do not exit the program from within library code
-		log.Fatalf("The sum has already been calculated and returned. It can only be returned once.")
+		log.Fatalf("Sum's noised result cannot be computed. Reason: " + bs.state.errorMessage())
 	}
-	bs.resultReturned = true
+	bs.state = ResultReturned
 	bs.noisedSum = bs.noise.AddNoiseInt64(bs.sum, bs.l0Sensitivity, bs.lInfSensitivity, bs.epsilon, bs.delta)
 	return bs.noisedSum
 }
@@ -261,7 +262,7 @@ func (bs *BoundedSumInt64) ThresholdedResult(thresholdDelta float64) *int64 {
 //
 // See https://github.com/google/differential-privacy/tree/main/common_docs/confidence_intervals.md.
 func (bs *BoundedSumInt64) ComputeConfidenceInterval(alpha float64) (noise.ConfidenceInterval, error) {
-	if !bs.resultReturned {
+	if bs.state != ResultReturned {
 		return noise.ConfidenceInterval{}, fmt.Errorf("Result() must be called before calling ComputeConfidenceInterval()")
 	}
 	confInt, err := bs.noise.ComputeConfidenceIntervalInt64(bs.noisedSum, bs.l0Sensitivity, bs.lInfSensitivity, bs.epsilon, bs.delta, alpha)
@@ -289,11 +290,13 @@ type encodableBoundedSumInt64 struct {
 	Upper           int64
 	NoiseKind       noise.Kind
 	Sum             int64
-	ResultReturned  bool
 }
 
 // GobEncode encodes BoundedSumInt64.
 func (bs *BoundedSumInt64) GobEncode() ([]byte, error) {
+	if bs.state != Default {
+		return nil, fmt.Errorf("Sum object cannot be serialized. Reason: " + bs.state.errorMessage())
+	}
 	enc := encodableBoundedSumInt64{
 		Epsilon:         bs.epsilon,
 		Delta:           bs.delta,
@@ -303,9 +306,8 @@ func (bs *BoundedSumInt64) GobEncode() ([]byte, error) {
 		Upper:           bs.upper,
 		NoiseKind:       noise.ToKind(bs.noise),
 		Sum:             bs.sum,
-		ResultReturned:  bs.resultReturned,
 	}
-	bs.resultReturned = true
+	bs.state = Serialized
 	return encode(enc)
 }
 
@@ -327,7 +329,6 @@ func (bs *BoundedSumInt64) GobDecode(data []byte) error {
 		noiseKind:       enc.NoiseKind,
 		noise:           noise.ToNoise(enc.NoiseKind),
 		sum:             enc.Sum,
-		resultReturned:  enc.ResultReturned,
 	}
 	return nil
 }
@@ -359,9 +360,9 @@ type BoundedSumFloat64 struct {
 	noiseKind       noise.Kind // necessary for serializing noise.Noise information
 
 	// State variables
-	sum            float64
-	resultReturned bool // whether the result has already been returned
-	noisedSum      float64
+	sum       float64
+	state     aggregationState
+	noisedSum float64
 }
 
 func bsEquallyInitializedFloat64(s1, s2 *BoundedSumFloat64) bool {
@@ -371,7 +372,8 @@ func bsEquallyInitializedFloat64(s1, s2 *BoundedSumFloat64) bool {
 		s1.lInfSensitivity == s2.lInfSensitivity &&
 		s1.lower == s2.lower &&
 		s1.upper == s2.upper &&
-		s1.noiseKind == s2.noiseKind
+		s1.noiseKind == s2.noiseKind &&
+		s1.state == s2.state
 }
 
 // BoundedSumFloat64Options contains the options necessary to initialize a BoundedSumFloat64.
@@ -438,7 +440,7 @@ func NewBoundedSumFloat64(opt *BoundedSumFloat64Options) *BoundedSumFloat64 {
 		noise:           n,
 		noiseKind:       noise.ToKind(n),
 		sum:             0,
-		resultReturned:  false,
+		state:           Default,
 	}
 }
 
@@ -477,9 +479,9 @@ func getLInfFloat(lower, upper float64, maxContributionsPerPartition int64) (flo
 // regardless of other summands, which would break the indistinguishability
 // property required for differential privacy.
 func (bs *BoundedSumFloat64) Add(e float64) {
-	if bs.resultReturned {
+	if bs.state != Default {
 		// TODO: do not exit the program from within library code
-		log.Fatalf("The sum has already been calculated and returned. It cannot be amended.")
+		log.Fatalf("Sum cannot be amended. Reason: %v", bs.state.errorMessage())
 	}
 	if !math.IsNaN(e) {
 		clamped, err := ClampFloat64(e, bs.lower, bs.upper)
@@ -499,15 +501,15 @@ func (bs *BoundedSumFloat64) Merge(bs2 *BoundedSumFloat64) {
 		log.Exit(e)
 	}
 	bs.sum += bs2.sum
-	bs2.resultReturned = true
+	bs2.state = Merged
 }
 
 func checkMergeBoundedSumFloat64(bs1, bs2 *BoundedSumFloat64) error {
-	if bs1.resultReturned {
-		return fmt.Errorf("checkMergeBoundedSumFloat64: bs1 already returned the result, cannot be merged with another BoundedSum instance")
+	if bs1.state != Default {
+		return fmt.Errorf("checkMergeBoundedSumFloat64: bs1 cannot be merged with another BoundedSum instance. Reason: %v", bs1.state.errorMessage())
 	}
-	if bs2.resultReturned {
-		return fmt.Errorf("checkMergeBoundedSumFloat64: bs2 already returned the result, cannot be merged with another BoundedSum instance")
+	if bs2.state != Default {
+		return fmt.Errorf("checkMergeBoundedSumFloat64: bs2 cannot be merged with another BoundedSum instance. Reason: %v", bs2.state.errorMessage())
 	}
 
 	if !bsEquallyInitializedFloat64(bs1, bs2) {
@@ -528,11 +530,11 @@ func checkMergeBoundedSumFloat64(bs1, bs2 *BoundedSumFloat64) error {
 // value representing a bounded sum that is possible. Note that such post
 // processing introduces bias to the result.
 func (bs *BoundedSumFloat64) Result() float64 {
-	if bs.resultReturned {
+	if bs.state != Default {
 		// TODO: do not exit the program from within library code
-		log.Fatalf("The sum has already been calculated and returned. It can only be returned once.")
+		log.Fatalf("Sum's noised result cannot be computed. Reason: " + bs.state.errorMessage())
 	}
-	bs.resultReturned = true
+	bs.state = ResultReturned
 	bs.noisedSum = bs.noise.AddNoiseFloat64(bs.sum, bs.l0Sensitivity, bs.lInfSensitivity, bs.epsilon, bs.delta)
 	return bs.noisedSum
 }
@@ -559,7 +561,7 @@ func (bs *BoundedSumFloat64) ThresholdedResult(thresholdDela float64) *float64 {
 //
 // See https://github.com/google/differential-privacy/tree/main/common_docs/confidence_intervals.md.
 func (bs *BoundedSumFloat64) ComputeConfidenceInterval(alpha float64) (noise.ConfidenceInterval, error) {
-	if !bs.resultReturned {
+	if bs.state != ResultReturned {
 		return noise.ConfidenceInterval{}, fmt.Errorf("Result() must be called before calling ComputeConfidenceInterval()")
 	}
 	confInt, err := bs.noise.ComputeConfidenceIntervalFloat64(bs.noisedSum, bs.l0Sensitivity, bs.lInfSensitivity, bs.epsilon, bs.delta, alpha)
@@ -587,11 +589,13 @@ type encodableBoundedSumFloat64 struct {
 	Upper           float64
 	NoiseKind       noise.Kind
 	Sum             float64
-	ResultReturned  bool
 }
 
 // GobEncode encodes BoundedSumInt64.
 func (bs *BoundedSumFloat64) GobEncode() ([]byte, error) {
+	if bs.state != Default {
+		return nil, fmt.Errorf("Sum object cannot be serialized. Reason: " + bs.state.errorMessage())
+	}
 	enc := encodableBoundedSumFloat64{
 		Epsilon:         bs.epsilon,
 		Delta:           bs.delta,
@@ -601,9 +605,8 @@ func (bs *BoundedSumFloat64) GobEncode() ([]byte, error) {
 		Upper:           bs.upper,
 		NoiseKind:       noise.ToKind(bs.noise),
 		Sum:             bs.sum,
-		ResultReturned:  bs.resultReturned,
 	}
-	bs.resultReturned = true
+	bs.state = Serialized
 	return encode(enc)
 }
 
@@ -625,7 +628,6 @@ func (bs *BoundedSumFloat64) GobDecode(data []byte) error {
 		noiseKind:       enc.NoiseKind,
 		noise:           noise.ToNoise(enc.NoiseKind),
 		sum:             enc.Sum,
-		resultReturned:  enc.ResultReturned,
 	}
 	return nil
 }

@@ -58,7 +58,7 @@ func compareBoundedSumInt64(bs1, bs2 *BoundedSumInt64) bool {
 		bs1.noise == bs2.noise &&
 		bs1.noiseKind == bs2.noiseKind &&
 		bs1.sum == bs2.sum &&
-		bs1.resultReturned == bs2.resultReturned
+		bs1.state == bs2.state
 }
 
 // Tests that serialization for BoundedSumInt64 works as expected.
@@ -95,9 +95,29 @@ func TestBoundedSumInt64Serialization(t *testing.T) {
 		if !cmp.Equal(bsUnchanged, bsUnmarshalled, cmp.Comparer(compareBoundedSumInt64)) {
 			t.Errorf("decode(encode(_)): when %s got %v, want %v", tc.desc, bsUnmarshalled, bs)
 		}
-		// Check that the original BoundedSumInt64 has its resultReturned set to true after serialization.
-		if !bs.resultReturned {
-			t.Errorf("BoundedSumInt64 %v should have its resultReturned set to true after being serialized", bs)
+		if bs.state != Serialized {
+			t.Errorf("BoundedSumInt64 %v should have its state set to Serialized, got %v, want Serialized", bs, bs.state)
+		}
+	}
+}
+
+// Tests that GobEncode() returns errors correctly with different BoundedSumInt64 aggregation states.
+func TestBoundedSumInt64SerializationStateChecks(t *testing.T) {
+	for _, tc := range []struct {
+		state   aggregationState
+		wantErr bool
+	}{
+		{Default, false},
+		{Merged, true},
+		{Serialized, true},
+		{ResultReturned, true},
+	} {
+		bs := getNoiselessBSI()
+		bs.state = tc.state
+
+		_, err := bs.GobEncode()
+		if (err != nil) != tc.wantErr {
+			t.Errorf("GobEncode: for err got %v, want %t", err, tc.wantErr)
 		}
 	}
 }
@@ -112,7 +132,7 @@ func compareBoundedSumFloat64(bs1, bs2 *BoundedSumFloat64) bool {
 		bs1.noise == bs2.noise &&
 		bs1.noiseKind == bs2.noiseKind &&
 		bs1.sum == bs2.sum &&
-		bs1.resultReturned == bs2.resultReturned
+		bs1.state == bs2.state
 }
 
 // Tests that serialization for BoundedSumFloat64 works as expected.
@@ -149,9 +169,29 @@ func TestBoundedSumFloat64Serialization(t *testing.T) {
 		if !cmp.Equal(bsUnchanged, bsUnmarshalled, cmp.Comparer(compareBoundedSumFloat64)) {
 			t.Errorf("decode(encode(_)): when %s got %v, want %v", tc.desc, bsUnmarshalled, bs)
 		}
-		// Check that the original BoundedSumFloat64 has its resultReturned set to true after serialization.
-		if !bs.resultReturned {
-			t.Errorf("BoundedSumFloat64 %v should have its resultReturned set to true after being serialized", bs)
+		if bs.state != Serialized {
+			t.Errorf("BoundedSumFloat64 %v should have its state set to Serialized, got %v, want Serialized", bs, bs.state)
+		}
+	}
+}
+
+// Tests that GobEncode() returns errors correctly with different BoundedSumFloat64 aggregation states.
+func TestBoundedSumFloat64SerializationStateChecks(t *testing.T) {
+	for _, tc := range []struct {
+		state   aggregationState
+		wantErr bool
+	}{
+		{Default, false},
+		{Merged, true},
+		{Serialized, true},
+		{ResultReturned, true},
+	} {
+		bs := getNoiselessBSI()
+		bs.state = tc.state
+
+		_, err := bs.GobEncode()
+		if (err != nil) != tc.wantErr {
+			t.Errorf("GobEncode: for err got %v, want %t", err, tc.wantErr)
 		}
 	}
 }
@@ -240,7 +280,7 @@ func TestNewBoundedSumInt64(t *testing.T) {
 				upper:           5,
 				noise:           noNoise{},
 				sum:             0,
-				resultReturned:  false,
+				state:           Default,
 			}},
 		{"maxContributionsPerPartition is not set",
 			&BoundedSumInt64Options{
@@ -260,7 +300,7 @@ func TestNewBoundedSumInt64(t *testing.T) {
 				upper:           5,
 				noise:           noNoise{},
 				sum:             0,
-				resultReturned:  false,
+				state:           Default,
 			}},
 		{"Noise is not set",
 			&BoundedSumInt64Options{
@@ -281,7 +321,7 @@ func TestNewBoundedSumInt64(t *testing.T) {
 				noise:           noise.Laplace(),
 				noiseKind:       noise.LaplaceNoise,
 				sum:             0,
-				resultReturned:  false,
+				state:           Default,
 			}},
 	} {
 		got := NewBoundedSumInt64(tc.opt)
@@ -315,7 +355,7 @@ func TestNewBoundedSumFloat64(t *testing.T) {
 				upper:           5,
 				noise:           noNoise{},
 				sum:             0,
-				resultReturned:  false,
+				state:           Default,
 			}},
 		{"maxContributionsPerPartition is not set",
 			&BoundedSumFloat64Options{
@@ -335,7 +375,7 @@ func TestNewBoundedSumFloat64(t *testing.T) {
 				upper:           5,
 				noise:           noNoise{},
 				sum:             0,
-				resultReturned:  false,
+				state:           Default,
 			}},
 		{"Noise is not set",
 			&BoundedSumFloat64Options{
@@ -356,7 +396,7 @@ func TestNewBoundedSumFloat64(t *testing.T) {
 				noise:           noise.Laplace(),
 				noiseKind:       noise.LaplaceNoise,
 				sum:             0,
-				resultReturned:  false,
+				state:           Default,
 			}},
 	} {
 		got := NewBoundedSumFloat64(tc.opt)
@@ -417,8 +457,8 @@ func TestMergeBoundedSumInt64(t *testing.T) {
 	if got != want {
 		t.Errorf("Merge: when merging 2 instances of Sum got %d, want %d", got, want)
 	}
-	if !bs2.resultReturned {
-		t.Errorf("Merge: when merging 2 instances of Sum for bs2.resultReturned got false, want true")
+	if bs2.state != Merged {
+		t.Errorf("Merge: when merging 2 instances of Sum for bs2.state got %v, want Merged", bs2.state)
 	}
 }
 
@@ -436,19 +476,17 @@ func TestMergeBoundedSumFloat64(t *testing.T) {
 	if !ApproxEqual(got, want) {
 		t.Errorf("Add: when 1, 2, 3.5, 4, 4.5 were added got %f, want %f", got, want)
 	}
-	if !bs2.resultReturned {
-		t.Errorf("Add: when 1, 2, 3.5, 4, 4.5 were added for bs2.resultReturned got false, want true")
+	if bs2.state != Merged {
+		t.Errorf("Add: when 1, 2, 3.5, 4, 4.5 were added for bs2.state got %v, want Merged", bs2.state)
 	}
 }
 
-func TestCheckMergeBoundedSumInt64(t *testing.T) {
+func TestCheckMergeBoundedSumInt64Compatibility(t *testing.T) {
 	for _, tc := range []struct {
-		desc          string
-		opt1          *BoundedSumInt64Options
-		opt2          *BoundedSumInt64Options
-		returnResult1 bool
-		returnResult2 bool
-		wantErr       bool
+		desc    string
+		opt1    *BoundedSumInt64Options
+		opt2    *BoundedSumInt64Options
+		wantErr bool
 	}{
 		{"same options, all fields filled",
 			&BoundedSumInt64Options{
@@ -469,8 +507,6 @@ func TestCheckMergeBoundedSumInt64(t *testing.T) {
 				Noise:                        noise.Gaussian(),
 				maxContributionsPerPartition: 2,
 			},
-			false,
-			false,
 			false},
 		{"same options, only required fields filled",
 			&BoundedSumInt64Options{
@@ -483,37 +519,7 @@ func TestCheckMergeBoundedSumInt64(t *testing.T) {
 				Lower:   -1,
 				Upper:   5,
 			},
-			false,
-			false,
 			false},
-		{"same options, first result returned",
-			&BoundedSumInt64Options{
-				Epsilon: ln3,
-				Lower:   -1,
-				Upper:   5,
-			},
-			&BoundedSumInt64Options{
-				Epsilon: ln3,
-				Lower:   -1,
-				Upper:   5,
-			},
-			true,
-			false,
-			true},
-		{"same options, second result returned",
-			&BoundedSumInt64Options{
-				Epsilon: ln3,
-				Lower:   -1,
-				Upper:   5,
-			},
-			&BoundedSumInt64Options{
-				Epsilon: ln3,
-				Lower:   -1,
-				Upper:   5,
-			},
-			false,
-			true,
-			true},
 		{"different epsilon",
 			&BoundedSumInt64Options{
 				Epsilon: ln3,
@@ -525,8 +531,6 @@ func TestCheckMergeBoundedSumInt64(t *testing.T) {
 				Lower:   -1,
 				Upper:   5,
 			},
-			false,
-			false,
 			true},
 		{"different delta",
 			&BoundedSumInt64Options{
@@ -543,8 +547,6 @@ func TestCheckMergeBoundedSumInt64(t *testing.T) {
 				Upper:   5,
 				Noise:   noise.Gaussian(),
 			},
-			false,
-			false,
 			true},
 		{"different MaxPartitionsContributed",
 			&BoundedSumInt64Options{
@@ -559,8 +561,6 @@ func TestCheckMergeBoundedSumInt64(t *testing.T) {
 				Lower:                    -1,
 				Upper:                    5,
 			},
-			false,
-			false,
 			true},
 		{"different maxContributionsPerPartition",
 			&BoundedSumInt64Options{
@@ -575,8 +575,6 @@ func TestCheckMergeBoundedSumInt64(t *testing.T) {
 				Upper:                        5,
 				maxContributionsPerPartition: 5,
 			},
-			false,
-			false,
 			true},
 		{"different lower bound",
 			&BoundedSumInt64Options{
@@ -589,8 +587,6 @@ func TestCheckMergeBoundedSumInt64(t *testing.T) {
 				Lower:   0,
 				Upper:   5,
 			},
-			false,
-			false,
 			true},
 		{"different upper bound",
 			&BoundedSumInt64Options{
@@ -603,8 +599,6 @@ func TestCheckMergeBoundedSumInt64(t *testing.T) {
 				Lower:   -1,
 				Upper:   6,
 			},
-			false,
-			false,
 			true},
 		{"different noise",
 			&BoundedSumInt64Options{
@@ -620,19 +614,10 @@ func TestCheckMergeBoundedSumInt64(t *testing.T) {
 				Upper:   5,
 				Noise:   noise.Laplace(),
 			},
-			false,
-			false,
 			true},
 	} {
 		bs1 := NewBoundedSumInt64(tc.opt1)
 		bs2 := NewBoundedSumInt64(tc.opt2)
-
-		if tc.returnResult1 {
-			bs1.Result()
-		}
-		if tc.returnResult2 {
-			bs2.Result()
-		}
 
 		if err := checkMergeBoundedSumInt64(bs1, bs2); (err != nil) != tc.wantErr {
 			t.Errorf("CheckMerge: when %v for err got got %v, want %t", tc.desc, err, tc.wantErr)
@@ -640,14 +625,39 @@ func TestCheckMergeBoundedSumInt64(t *testing.T) {
 	}
 }
 
-func TestCheckMergeBoundedSumFloat64(t *testing.T) {
+// Tests that checkMergeBoundedSumInt64() returns errors correctly with different BoundedSumInt64 aggregation states.
+func TestCheckMergeBoundedSumInt64StateChecks(t *testing.T) {
 	for _, tc := range []struct {
-		desc            string
-		opt1            *BoundedSumFloat64Options
-		opt2            *BoundedSumFloat64Options
-		resultReturned1 bool
-		resultReturned2 bool
-		wantErr         bool
+		state1  aggregationState
+		state2  aggregationState
+		wantErr bool
+	}{
+		{Default, Default, false},
+		{ResultReturned, Default, true},
+		{Default, ResultReturned, true},
+		{Serialized, Default, true},
+		{Default, Serialized, true},
+		{Default, Merged, true},
+		{Merged, Default, true},
+	} {
+		bs1 := getNoiselessBSI()
+		bs2 := getNoiselessBSI()
+
+		bs1.state = tc.state1
+		bs2.state = tc.state2
+
+		if err := checkMergeBoundedSumInt64(bs1, bs2); (err != nil) != tc.wantErr {
+			t.Errorf("CheckMerge: for err got %v, want %t", err, tc.wantErr)
+		}
+	}
+}
+
+func TestCheckMergeBoundedSumFloat64Compatibility(t *testing.T) {
+	for _, tc := range []struct {
+		desc    string
+		opt1    *BoundedSumFloat64Options
+		opt2    *BoundedSumFloat64Options
+		wantErr bool
 	}{
 		{"same options, all fields filled",
 			&BoundedSumFloat64Options{
@@ -668,8 +678,6 @@ func TestCheckMergeBoundedSumFloat64(t *testing.T) {
 				Noise:                        noise.Gaussian(),
 				maxContributionsPerPartition: 2,
 			},
-			false,
-			false,
 			false},
 		{"same options, only required fields filled",
 			&BoundedSumFloat64Options{
@@ -682,37 +690,7 @@ func TestCheckMergeBoundedSumFloat64(t *testing.T) {
 				Lower:   -1,
 				Upper:   5,
 			},
-			false,
-			false,
 			false},
-		{"same options, first result returned",
-			&BoundedSumFloat64Options{
-				Epsilon: ln3,
-				Lower:   -1,
-				Upper:   5,
-			},
-			&BoundedSumFloat64Options{
-				Epsilon: ln3,
-				Lower:   -1,
-				Upper:   5,
-			},
-			true,
-			false,
-			true},
-		{"same options, second result returned",
-			&BoundedSumFloat64Options{
-				Epsilon: ln3,
-				Lower:   -1,
-				Upper:   5,
-			},
-			&BoundedSumFloat64Options{
-				Epsilon: ln3,
-				Lower:   -1,
-				Upper:   5,
-			},
-			false,
-			true,
-			true},
 		{"different epsilon",
 			&BoundedSumFloat64Options{
 				Epsilon: ln3,
@@ -724,8 +702,6 @@ func TestCheckMergeBoundedSumFloat64(t *testing.T) {
 				Lower:   -1,
 				Upper:   5,
 			},
-			false,
-			false,
 			true},
 		{"different delta",
 			&BoundedSumFloat64Options{
@@ -742,8 +718,6 @@ func TestCheckMergeBoundedSumFloat64(t *testing.T) {
 				Upper:   5,
 				Noise:   noise.Gaussian(),
 			},
-			false,
-			false,
 			true},
 		{"different MaxPartitionsContributed",
 			&BoundedSumFloat64Options{
@@ -758,8 +732,6 @@ func TestCheckMergeBoundedSumFloat64(t *testing.T) {
 				Lower:                    -1,
 				Upper:                    5,
 			},
-			false,
-			false,
 			true},
 		{"different maxContributionsPerPartition",
 			&BoundedSumFloat64Options{
@@ -774,8 +746,6 @@ func TestCheckMergeBoundedSumFloat64(t *testing.T) {
 				Upper:                        5,
 				maxContributionsPerPartition: 5,
 			},
-			false,
-			false,
 			true},
 		{"different lower bound",
 			&BoundedSumFloat64Options{
@@ -788,8 +758,6 @@ func TestCheckMergeBoundedSumFloat64(t *testing.T) {
 				Lower:   0,
 				Upper:   5,
 			},
-			false,
-			false,
 			true},
 		{"different upper bound",
 			&BoundedSumFloat64Options{
@@ -802,8 +770,6 @@ func TestCheckMergeBoundedSumFloat64(t *testing.T) {
 				Lower:   -1,
 				Upper:   6,
 			},
-			false,
-			false,
 			true},
 		{"different noise",
 			&BoundedSumFloat64Options{
@@ -819,18 +785,40 @@ func TestCheckMergeBoundedSumFloat64(t *testing.T) {
 				Upper:   5,
 				Noise:   noise.Laplace(),
 			},
-			false,
-			false,
 			true},
 	} {
 		bs1 := NewBoundedSumFloat64(tc.opt1)
 		bs2 := NewBoundedSumFloat64(tc.opt2)
 
-		bs1.resultReturned = tc.resultReturned1
-		bs2.resultReturned = tc.resultReturned2
-
 		if err := checkMergeBoundedSumFloat64(bs1, bs2); (err != nil) != tc.wantErr {
 			t.Errorf("CheckMerge: when %v for err got %v, want %t", tc.desc, err, tc.wantErr)
+		}
+	}
+}
+
+// Tests that checkMergeBoundedSumFloat64() returns errors correctly with different BoundedSumFloat64 aggregation states.
+func TestCheckMergeBoundedSumFloat64StateChecks(t *testing.T) {
+	for _, tc := range []struct {
+		state1  aggregationState
+		state2  aggregationState
+		wantErr bool
+	}{
+		{Default, Default, false},
+		{ResultReturned, Default, true},
+		{Default, ResultReturned, true},
+		{Serialized, Default, true},
+		{Default, Serialized, true},
+		{Default, Merged, true},
+		{Merged, Default, true},
+	} {
+		bs1 := getNoiselessBSF()
+		bs2 := getNoiselessBSF()
+
+		bs1.state = tc.state1
+		bs2.state = tc.state2
+
+		if err := checkMergeBoundedSumFloat64(bs1, bs2); (err != nil) != tc.wantErr {
+			t.Errorf("CheckMerge: for err got %v, want %t", err, tc.wantErr)
 		}
 	}
 }
@@ -856,6 +844,24 @@ func TestBSClampFloat64(t *testing.T) {
 	want := 7.5
 	if !ApproxEqual(got, want) {
 		t.Errorf("Add: when 3.5, 8.3, -7.5 were added got %f, want %f", got, want)
+	}
+}
+
+func TestBoundedSumInt64ResultSetsStateCorrectly(t *testing.T) {
+	bs := getNoiselessBSI()
+	bs.Result()
+
+	if bs.state != ResultReturned {
+		t.Errorf("BoundedSumInt64 should have its state set to ResultReturned. got %v, want ResultReturned", bs.state)
+	}
+}
+
+func TestBoundedSumFloat64ResultSetsStateCorrectly(t *testing.T) {
+	bs := getNoiselessBSF()
+	bs.Result()
+
+	if bs.state != ResultReturned {
+		t.Errorf("BoundedSumFloat64 should have its state set to ResultReturned. got %v, want ResultReturned", bs.state)
 	}
 }
 
@@ -939,12 +945,12 @@ func TestSumComputeConfidenceIntervalForInt64PostProcessing(t *testing.T) {
 			want:    noise.ConfidenceInterval{LowerBound: 0, UpperBound: math.Inf(1)},
 		},
 	} {
-		c := NewBoundedSumInt64(tc.opt)
+		bs := NewBoundedSumInt64(tc.opt)
 		// This makes Noise interface return the raw confidence interval when ComputeConfidenceIntervalInt64 is called.
-		c.noise = getMockConfInt(tc.confInt)
+		bs.noise = getMockConfInt(tc.confInt)
 
-		c.Result()
-		got, _ := c.ComputeConfidenceInterval(0.1) // alpha is ignored in mockConfInt.
+		bs.Result()
+		got, _ := bs.ComputeConfidenceInterval(0.1) // alpha is ignored in mockConfInt.
 
 		if got.LowerBound != tc.want.LowerBound {
 			t.Errorf("TestSumComputeConfidenceIntervalForInt64PostProcessing(ConfidenceInterval{%f, %f})=%0.10f, want %0.10f, LowerBounds are not equal",
@@ -993,12 +999,12 @@ func TestSumComputeConfidenceIntervalForFloat64PostProcessing(t *testing.T) {
 			want:    noise.ConfidenceInterval{LowerBound: 0, UpperBound: math.Inf(1)},
 		},
 	} {
-		c := NewBoundedSumFloat64(tc.opt)
+		bs := NewBoundedSumFloat64(tc.opt)
 		// This makes Noise interface return the raw confidence interval when ComputeConfidenceIntervalFloat64 is called.
-		c.noise = getMockConfInt(tc.confInt)
+		bs.noise = getMockConfInt(tc.confInt)
 
-		c.Result()
-		got, _ := c.ComputeConfidenceInterval(0.1) // alpha is ignored in mockConfInt.
+		bs.Result()
+		got, _ := bs.ComputeConfidenceInterval(0.1) // alpha is ignored in mockConfInt.
 
 		if !ApproxEqual(got.LowerBound, tc.want.LowerBound) {
 			t.Errorf("TestSumComputeConfidenceIntervalForFloat64PostProcessing(ConfidenceInterval{%f, %f})=%0.10f, want %0.10f, LowerBounds are not equal",
@@ -1029,12 +1035,12 @@ func TestSumComputeConfidenceIntervalForInt64Computation(t *testing.T) {
 			want: noise.ConfidenceInterval{LowerBound: 15, UpperBound: 85},
 		},
 	} {
-		c := NewBoundedSumInt64(tc.opt)
+		bs := NewBoundedSumInt64(tc.opt)
 		for i := 0; i < 10; i++ {
-			c.Add(5)
+			bs.Add(5)
 		}
-		c.Result()
-		got, _ := c.ComputeConfidenceInterval(0.5)
+		bs.Result()
+		got, _ := bs.ComputeConfidenceInterval(0.5)
 
 		if got.LowerBound != tc.want.LowerBound {
 			t.Errorf("TestSumComputeConfidenceIntervalForInt64Computation(Noise: %s)=%0.10f, want %0.10f, LowerBounds are not equal",
@@ -1065,12 +1071,12 @@ func TestSumComputeConfidenceIntervalForFloat64Computation(t *testing.T) {
 			want: noise.ConfidenceInterval{LowerBound: 0.0000000000, UpperBound: 60.1573590280},
 		},
 	} {
-		c := NewBoundedSumFloat64(tc.opt)
+		bs := NewBoundedSumFloat64(tc.opt)
 		for i := 0; i < 10; i++ {
-			c.Add(2.55)
+			bs.Add(2.55)
 		}
-		c.Result()
-		got, _ := c.ComputeConfidenceInterval(0.5)
+		bs.Result()
+		got, _ := bs.ComputeConfidenceInterval(0.5)
 
 		if !ApproxEqual(got.LowerBound, tc.want.LowerBound) {
 			t.Errorf("TestSumComputeConfidenceIntervalForFloat64Computation(Noise: %s)=%0.10f, want %0.10f, LowerBounds are not equal",
@@ -1083,21 +1089,45 @@ func TestSumComputeConfidenceIntervalForFloat64Computation(t *testing.T) {
 	}
 }
 
-// Tests that calling ComputeConfidenceInterval for int64 without calling Result() produces an error.
-func TestSumComputeConfidenceIntervalCannotBeCalledBeforeResultForInt64(t *testing.T) {
-	c := getNoiselessBSI()
-	_, err := c.ComputeConfidenceInterval(0.1)
-	if err == nil {
-		t.Errorf("TestSumComputeConfidenceIntervalCannotBeCalledBeforeResultForInt64: No error was returned, expected error")
+// Tests that ComputeConfidenceInterval() returns errors correctly with different BoundedSumInt64 aggregation states.
+func TestBoundedSumInt64ComputeConfidenceIntervalStateChecks(t *testing.T) {
+	for _, tc := range []struct {
+		state   aggregationState
+		wantErr bool
+	}{
+		{ResultReturned, false},
+		{Default, true},
+		{Merged, true},
+		{Serialized, true},
+	} {
+		bs := getNoiselessBSI()
+		bs.state = tc.state
+
+		_, err := bs.ComputeConfidenceInterval(0.1)
+		if (err != nil) != tc.wantErr {
+			t.Errorf("ComputeConfidenceInterval: for err got %v, want %t", err, tc.wantErr)
+		}
 	}
 }
 
-// Tests that calling ComputeConfidenceInterval for float64 without calling Result() produces an error.
-func TestSumComputeConfidenceIntervalCannotBeCalledBeforeResultForFloat64(t *testing.T) {
-	c := getNoiselessBSF()
-	_, err := c.ComputeConfidenceInterval(0.1)
-	if err == nil {
-		t.Errorf("TestSumComputeConfidenceIntervalCannotBeCalledBeforeResultForFloat64: No error was returned, expected error")
+// Tests that ComputeConfidenceInterval() returns errors correctly with different BoundedSumFloat64 aggregation states.
+func TestBoundedSumFloat64ComputeConfidenceIntervalStateChecks(t *testing.T) {
+	for _, tc := range []struct {
+		state   aggregationState
+		wantErr bool
+	}{
+		{ResultReturned, false},
+		{Default, true},
+		{Merged, true},
+		{Serialized, true},
+	} {
+		bs := getNoiselessBSF()
+		bs.state = tc.state
+
+		_, err := bs.ComputeConfidenceInterval(0.1)
+		if (err != nil) != tc.wantErr {
+			t.Errorf("ComputeConfidenceInterval: for err got %v, want %t", err, tc.wantErr)
+		}
 	}
 }
 
@@ -1301,7 +1331,7 @@ func TestBSEquallyInitializedInt64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				resultReturned:  false},
+				state:           Default},
 			&BoundedSumInt64{
 				epsilon:         ln3,
 				delta:           0,
@@ -1311,7 +1341,7 @@ func TestBSEquallyInitializedInt64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				resultReturned:  false},
+				state:           Default},
 			true,
 		},
 		{
@@ -1325,7 +1355,7 @@ func TestBSEquallyInitializedInt64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				resultReturned:  false},
+				state:           Default},
 			&BoundedSumInt64{
 				epsilon:         1,
 				delta:           0,
@@ -1335,7 +1365,7 @@ func TestBSEquallyInitializedInt64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				resultReturned:  false},
+				state:           Default},
 			false,
 		},
 		{
@@ -1349,7 +1379,7 @@ func TestBSEquallyInitializedInt64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				resultReturned:  false},
+				state:           Default},
 			&BoundedSumInt64{
 				epsilon:         ln3,
 				delta:           0.6,
@@ -1359,7 +1389,7 @@ func TestBSEquallyInitializedInt64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				resultReturned:  false},
+				state:           Default},
 			false,
 		},
 		{
@@ -1373,7 +1403,7 @@ func TestBSEquallyInitializedInt64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				resultReturned:  false},
+				state:           Default},
 			&BoundedSumInt64{
 				epsilon:         ln3,
 				delta:           0,
@@ -1383,7 +1413,7 @@ func TestBSEquallyInitializedInt64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				resultReturned:  false},
+				state:           Default},
 			false,
 		},
 		{
@@ -1397,7 +1427,7 @@ func TestBSEquallyInitializedInt64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				resultReturned:  false},
+				state:           Default},
 			&BoundedSumInt64{
 				epsilon:         ln3,
 				delta:           0,
@@ -1407,7 +1437,7 @@ func TestBSEquallyInitializedInt64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				resultReturned:  false},
+				state:           Default},
 			false,
 		},
 		{
@@ -1421,7 +1451,7 @@ func TestBSEquallyInitializedInt64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				resultReturned:  false},
+				state:           Default},
 			&BoundedSumInt64{
 				epsilon:         ln3,
 				delta:           0,
@@ -1431,7 +1461,7 @@ func TestBSEquallyInitializedInt64(t *testing.T) {
 				lower:           -1,
 				upper:           1,
 				sum:             1,
-				resultReturned:  false},
+				state:           Default},
 			false,
 		},
 		{
@@ -1445,7 +1475,7 @@ func TestBSEquallyInitializedInt64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				resultReturned:  false},
+				state:           Default},
 			&BoundedSumInt64{
 				epsilon:         ln3,
 				delta:           0,
@@ -1455,7 +1485,31 @@ func TestBSEquallyInitializedInt64(t *testing.T) {
 				lower:           0,
 				upper:           2,
 				sum:             1,
-				resultReturned:  false},
+				state:           Default},
+			false,
+		},
+		{
+			"different state",
+			&BoundedSumInt64{
+				epsilon:         ln3,
+				delta:           0,
+				l0Sensitivity:   1,
+				lInfSensitivity: 1,
+				noiseKind:       noise.LaplaceNoise,
+				lower:           0,
+				upper:           1,
+				sum:             0,
+				state:           Default},
+			&BoundedSumInt64{
+				epsilon:         ln3,
+				delta:           0,
+				l0Sensitivity:   1,
+				lInfSensitivity: 1,
+				noiseKind:       noise.LaplaceNoise,
+				lower:           0,
+				upper:           2,
+				sum:             1,
+				state:           Merged},
 			false,
 		},
 	} {
@@ -1483,7 +1537,7 @@ func TestBSEquallyInitializedFloat64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				resultReturned:  false},
+				state:           Default},
 			&BoundedSumFloat64{
 				epsilon:         ln3,
 				delta:           0,
@@ -1493,7 +1547,7 @@ func TestBSEquallyInitializedFloat64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				resultReturned:  false},
+				state:           Default},
 			true,
 		},
 		{
@@ -1507,7 +1561,7 @@ func TestBSEquallyInitializedFloat64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				resultReturned:  false},
+				state:           Default},
 			&BoundedSumFloat64{
 				epsilon:         1,
 				delta:           0,
@@ -1517,7 +1571,7 @@ func TestBSEquallyInitializedFloat64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				resultReturned:  false},
+				state:           Default},
 			false,
 		},
 		{
@@ -1531,7 +1585,7 @@ func TestBSEquallyInitializedFloat64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				resultReturned:  false},
+				state:           Default},
 			&BoundedSumFloat64{
 				epsilon:         ln3,
 				delta:           0.6,
@@ -1541,7 +1595,7 @@ func TestBSEquallyInitializedFloat64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				resultReturned:  false},
+				state:           Default},
 			false,
 		},
 		{
@@ -1555,7 +1609,7 @@ func TestBSEquallyInitializedFloat64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				resultReturned:  false},
+				state:           Default},
 			&BoundedSumFloat64{
 				epsilon:         ln3,
 				delta:           0,
@@ -1565,7 +1619,7 @@ func TestBSEquallyInitializedFloat64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				resultReturned:  false},
+				state:           Default},
 			false,
 		},
 		{
@@ -1579,7 +1633,7 @@ func TestBSEquallyInitializedFloat64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				resultReturned:  false},
+				state:           Default},
 			&BoundedSumFloat64{
 				epsilon:         ln3,
 				delta:           0,
@@ -1589,7 +1643,7 @@ func TestBSEquallyInitializedFloat64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				resultReturned:  false},
+				state:           Default},
 			false,
 		},
 		{
@@ -1603,7 +1657,7 @@ func TestBSEquallyInitializedFloat64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				resultReturned:  false},
+				state:           Default},
 			&BoundedSumFloat64{
 				epsilon:         ln3,
 				delta:           0,
@@ -1613,7 +1667,7 @@ func TestBSEquallyInitializedFloat64(t *testing.T) {
 				lower:           -1,
 				upper:           1,
 				sum:             1,
-				resultReturned:  false},
+				state:           Default},
 			false,
 		},
 		{
@@ -1627,7 +1681,7 @@ func TestBSEquallyInitializedFloat64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				resultReturned:  false},
+				state:           Default},
 			&BoundedSumFloat64{
 				epsilon:         ln3,
 				delta:           0,
@@ -1637,7 +1691,31 @@ func TestBSEquallyInitializedFloat64(t *testing.T) {
 				lower:           0,
 				upper:           2,
 				sum:             1,
-				resultReturned:  false},
+				state:           Default},
+			false,
+		},
+		{
+			"different state",
+			&BoundedSumFloat64{
+				epsilon:         ln3,
+				delta:           0,
+				l0Sensitivity:   1,
+				lInfSensitivity: 1,
+				noiseKind:       noise.LaplaceNoise,
+				lower:           0,
+				upper:           1,
+				sum:             0,
+				state:           Default},
+			&BoundedSumFloat64{
+				epsilon:         ln3,
+				delta:           0,
+				l0Sensitivity:   1,
+				lInfSensitivity: 1,
+				noiseKind:       noise.LaplaceNoise,
+				lower:           0,
+				upper:           2,
+				sum:             1,
+				state:           Merged},
 			false,
 		},
 	} {
