@@ -471,6 +471,17 @@ public class BoundedSumTest {
   }
 
   @Test
+  public void merge_calledAfterSerialization_onTargetSum_throwsException() {
+    BoundedSum targetSum = getBoundedSumBuilderWithFields().build();
+    BoundedSum sourceSum = getBoundedSumBuilderWithFields().build();
+
+    targetSum.getSerializableSummary();
+    assertThrows(
+            IllegalStateException.class,
+            () -> targetSum.mergeWith(sourceSum.getSerializableSummary()));
+  }
+
+  @Test
   public void addNoise_gaussianNoiseDefaultParametersEmptySum_isUnbiased() {
     BoundedSum.Params.Builder sumBuilder =
         BoundedSum.builder()
@@ -850,27 +861,14 @@ public class BoundedSumTest {
   }
 
   @Test
-  public void computeConfidenceInterval_computeResultWasNotCalled_forLong_throwsException() {
-    sum = getBoundedSumBuilderWithFields().lower(1.0).upper(5.0).build();
-    sum.addEntry(1.0);
-    IllegalStateException exception = assertThrows(IllegalStateException.class, () -> {
-      sum.computeConfidenceInterval(ALPHA);
-    });
-    assertThat(exception)
-        .hasMessageThat()
-        .startsWith("computeResult must be called before calling computeConfidenceInterval.");
+  public void computeConfidenceInterval_computeResultWasNotCalled_throwsException() {
+    assertThrows(IllegalStateException.class, () -> sum.computeConfidenceInterval(ALPHA));
   }
 
   @Test
-  public void computeConfidenceInterval_computeResultWasNotCalled_forDouble_throwsException() {
-    sum = getBoundedSumBuilderWithFields().lower(1.0).upper(5.0).build();
-    sum.addEntry(1.0);
-    IllegalStateException exception = assertThrows(IllegalStateException.class, () -> {
-      sum.computeConfidenceInterval(ALPHA);
-    });
-    assertThat(exception)
-        .hasMessageThat()
-        .startsWith("computeResult must be called before calling computeConfidenceInterval.");
+  public void computeConfidenceInterval_afterSerialization_throwsException() {
+    sum.getSerializableSummary();
+    assertThrows(IllegalStateException.class, () -> sum.computeConfidenceInterval(ALPHA));
   }
 
   @Test

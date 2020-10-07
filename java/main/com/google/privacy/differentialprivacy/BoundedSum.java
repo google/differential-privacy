@@ -25,6 +25,8 @@ import com.google.common.base.Preconditions;
 import com.google.differentialprivacy.Data.ValueType;
 import com.google.differentialprivacy.SummaryOuterClass.BoundedSumSummary;
 import com.google.protobuf.InvalidProtocolBufferException;
+
+import java.io.Serializable;
 import java.util.Collection;
 import javax.annotation.Nullable;
 
@@ -60,8 +62,7 @@ public class BoundedSum {
   private double sum;
   private double noisedSum;
 
-  // Was the sum returned to the user?
-  private boolean resultReturned;
+  private AggregationState state = AggregationState.DEFAULT;
 
   private BoundedSum(Params params) {
     sum = 0.0;
@@ -74,9 +75,8 @@ public class BoundedSum {
 
   /** Clamps the input value and adds it to the sum. */
   public void addEntry(double e) {
-    if (resultReturned) {
-      throw new IllegalStateException(
-          "The sum has already been calculated and returned. It cannot be amended.");
+    if (state != AggregationState.DEFAULT) {
+      throw new IllegalStateException("Sum cannot be amended. Reason: " + state.getErrorMessage());
     }
 
     // NaN is ignored because introducing even a single NaN entry will result in a NaN sum
@@ -120,11 +120,12 @@ public class BoundedSum {
    * processing introduces bias to the result.
    */
   public double computeResult() {
-    if (resultReturned) {
-      throw new IllegalStateException("The result can be calculated and returned only once.");
+    if (state != AggregationState.DEFAULT) {
+      throw new IllegalStateException(
+          "Sum's noised result cannot be computed. Reason: " + state.getErrorMessage());
     }
 
-    resultReturned = true;
+    state = AggregationState.RESULT_RETURNED;
     noisedSum = params.noise().addNoise(
         sum,
         getL0Sensitivity(),
@@ -144,7 +145,7 @@ public class BoundedSum {
    * the confidence intervals doc</a>.
    */
   public ConfidenceInterval computeConfidenceInterval(double alpha) {
-    if (!resultReturned) {
+    if (state != AggregationState.RESULT_RETURNED) {
       throw new IllegalStateException(
           "computeResult must be called before calling computeConfidenceInterval.");
     }
@@ -174,9 +175,9 @@ public class BoundedSum {
    * since the result can only be output once.
    */
   public byte[] getSerializableSummary() {
-    if (resultReturned) {
+    if (state != AggregationState.DEFAULT) {
       throw new IllegalStateException(
-          "The sum has already been returned. It cannot be returned again.");
+          "Sum object cannot be serialized. Reason: " + state.getErrorMessage());
     }
 
     ValueType sumValue = ValueType.newBuilder().setFloatValue(sum).build();
@@ -195,7 +196,7 @@ public class BoundedSum {
 
     // Record that this object is no longer suitable for producing a differentially private sum,
     // since serialization exposes the object's raw state.
-    resultReturned = true;
+    state = AggregationState.SERIALIZED;
 
     return builder.build().toByteArray();
   }
@@ -210,9 +211,9 @@ public class BoundedSum {
    * @throws IllegalStateException if this sum has already been calculated or serialized.
    */
   public void mergeWith(byte[] otherBoundedSumSummary) {
-    if (resultReturned) {
+    if (state != AggregationState.DEFAULT) {
       throw new IllegalStateException(
-          "The sum has already been calculated and returned. It cannot be merged.");
+          "Sum object cannot be merged. Reason: " + state.getErrorMessage());
     }
 
     BoundedSumSummary otherSummaryParsed;
