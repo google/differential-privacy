@@ -25,8 +25,6 @@ import com.google.common.base.Preconditions;
 import com.google.differentialprivacy.Data.ValueType;
 import com.google.differentialprivacy.SummaryOuterClass.BoundedSumSummary;
 import com.google.protobuf.InvalidProtocolBufferException;
-
-import java.io.Serializable;
 import java.util.Collection;
 import javax.annotation.Nullable;
 

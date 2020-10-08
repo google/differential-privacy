@@ -329,6 +329,7 @@ func (bs *BoundedSumInt64) GobDecode(data []byte) error {
 		noiseKind:       enc.NoiseKind,
 		noise:           noise.ToNoise(enc.NoiseKind),
 		sum:             enc.Sum,
+		state:           Default,
 	}
 	return nil
 }
@@ -628,6 +629,7 @@ func (bs *BoundedSumFloat64) GobDecode(data []byte) error {
 		noiseKind:       enc.NoiseKind,
 		noise:           noise.ToNoise(enc.NoiseKind),
 		sum:             enc.Sum,
+		state:           Default,
 	}
 	return nil
 }

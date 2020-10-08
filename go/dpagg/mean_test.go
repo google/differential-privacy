@@ -500,7 +500,7 @@ func TestCheckMergeBoundedMeanFloat64Compatibility(t *testing.T) {
 		bm2 := NewBoundedMeanFloat64(tc.opt2)
 
 		if err := checkMergeBoundedMeanFloat64(bm1, bm2); (err != nil) != tc.wantErr {
-			t.Errorf("CheckMerge: when %v for err got %v, want %t", tc.desc, err, tc.wantErr)
+			t.Errorf("CheckMerge: when %v for err got %v, wantErr %t", tc.desc, err, tc.wantErr)
 		}
 	}
 }
@@ -527,7 +527,7 @@ func TestCheckMergeBoundedMeanFloat64StateChecks(t *testing.T) {
 		bm2.state = tc.state2
 
 		if err := checkMergeBoundedMeanFloat64(bm1, bm2); (err != nil) != tc.wantErr {
-			t.Errorf("CheckMerge: when states [%v, %v] for err got %v, want %t", tc.state1, tc.state2, err, tc.wantErr)
+			t.Errorf("CheckMerge: when states [%v, %v] for err got %v, wantErr %t", tc.state1, tc.state2, err, tc.wantErr)
 		}
 	}
 }
@@ -720,7 +720,7 @@ func TestBoundedMeanFloat64SerializationStateChecks(t *testing.T) {
 		bm.state = tc.state
 
 		if _, err := bm.GobEncode(); (err != nil) != tc.wantErr {
-			t.Errorf("GobEncode: when state %v for err got %v, want %t", tc.state, err, tc.wantErr)
+			t.Errorf("GobEncode: when state %v for err got %v, wantErr %t", tc.state, err, tc.wantErr)
 		}
 	}
 }
@@ -914,7 +914,7 @@ func TestBoundedMeanFloat64ComputeConfidenceIntervalStateChecks(t *testing.T) {
 		bm.normalizedSum.state = tc.state
 
 		if _, err := bm.ComputeConfidenceInterval(0.1); (err != nil) != tc.wantErr {
-			t.Errorf("ComputeConfidenceInterval: when state %v for err got %v, want %t", tc.state, err, tc.wantErr)
+			t.Errorf("ComputeConfidenceInterval: when state %v for err got %v, wantErr %t", tc.state, err, tc.wantErr)
 		}
 	}
 }

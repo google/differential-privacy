@@ -349,6 +349,7 @@ func (bm *BoundedMeanFloat64) GobDecode(data []byte) error {
 		count:         *enc.EncodableCount,
 		normalizedSum: *enc.EncodableNormalizedSum,
 		midPoint:      enc.MidPoint,
+		state:         Default,
 	}
 	return nil
 }

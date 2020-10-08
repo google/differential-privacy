@@ -116,7 +116,7 @@ func TestBoundedSumInt64SerializationStateChecks(t *testing.T) {
 		bs.state = tc.state
 
 		if _, err := bs.GobEncode(); (err != nil) != tc.wantErr {
-			t.Errorf("GobEncode: when state %v for err got %v, want %t", tc.state, err, tc.wantErr)
+			t.Errorf("GobEncode: when state %v for err got %v, wantErr %t", tc.state, err, tc.wantErr)
 		}
 	}
 }
@@ -189,7 +189,7 @@ func TestBoundedSumFloat64SerializationStateChecks(t *testing.T) {
 		bs.state = tc.state
 
 		if _, err := bs.GobEncode(); (err != nil) != tc.wantErr {
-			t.Errorf("GobEncode: when state %v for err got %v, want %t", tc.state, err, tc.wantErr)
+			t.Errorf("GobEncode: when state %v for err got %v, wantErr %t", tc.state, err, tc.wantErr)
 		}
 	}
 }
@@ -618,7 +618,7 @@ func TestCheckMergeBoundedSumInt64Compatibility(t *testing.T) {
 		bs2 := NewBoundedSumInt64(tc.opt2)
 
 		if err := checkMergeBoundedSumInt64(bs1, bs2); (err != nil) != tc.wantErr {
-			t.Errorf("CheckMerge: when %v for err got got %v, want %t", tc.desc, err, tc.wantErr)
+			t.Errorf("CheckMerge: when %v for err got got %v, wantErr %t", tc.desc, err, tc.wantErr)
 		}
 	}
 }
@@ -645,7 +645,7 @@ func TestCheckMergeBoundedSumInt64StateChecks(t *testing.T) {
 		bs2.state = tc.state2
 
 		if err := checkMergeBoundedSumInt64(bs1, bs2); (err != nil) != tc.wantErr {
-			t.Errorf("CheckMerge: when states [%v, %v] for err got %v, want %t", tc.state1, tc.state2, err, tc.wantErr)
+			t.Errorf("CheckMerge: when states [%v, %v] for err got %v, wantErr %t", tc.state1, tc.state2, err, tc.wantErr)
 		}
 	}
 }
@@ -789,7 +789,7 @@ func TestCheckMergeBoundedSumFloat64Compatibility(t *testing.T) {
 		bs2 := NewBoundedSumFloat64(tc.opt2)
 
 		if err := checkMergeBoundedSumFloat64(bs1, bs2); (err != nil) != tc.wantErr {
-			t.Errorf("CheckMerge: when %v for err got %v, want %t", tc.desc, err, tc.wantErr)
+			t.Errorf("CheckMerge: when %v for err got %v, wantErr %t", tc.desc, err, tc.wantErr)
 		}
 	}
 }
@@ -816,7 +816,7 @@ func TestCheckMergeBoundedSumFloat64StateChecks(t *testing.T) {
 		bs2.state = tc.state2
 
 		if err := checkMergeBoundedSumFloat64(bs1, bs2); (err != nil) != tc.wantErr {
-			t.Errorf("CheckMerge: when states [%v, %v] for err got %v, want %t", tc.state1, tc.state2, err, tc.wantErr)
+			t.Errorf("CheckMerge: when states [%v, %v] for err got %v, wantErr %t", tc.state1, tc.state2, err, tc.wantErr)
 		}
 	}
 }
@@ -1102,7 +1102,7 @@ func TestBoundedSumInt64ComputeConfidenceIntervalStateChecks(t *testing.T) {
 		bs.state = tc.state
 
 		if _, err := bs.ComputeConfidenceInterval(0.1); (err != nil) != tc.wantErr {
-			t.Errorf("ComputeConfidenceInterval: when state %v for err got %v, want %t", tc.state, err, tc.wantErr)
+			t.Errorf("ComputeConfidenceInterval: when state %v for err got %v, wantErr %t", tc.state, err, tc.wantErr)
 		}
 	}
 }
@@ -1122,7 +1122,7 @@ func TestBoundedSumFloat64ComputeConfidenceIntervalStateChecks(t *testing.T) {
 		bs.state = tc.state
 
 		if _, err := bs.ComputeConfidenceInterval(0.1); (err != nil) != tc.wantErr {
-			t.Errorf("ComputeConfidenceInterval: when state %v for err got %v, want %t", tc.state, err, tc.wantErr)
+			t.Errorf("ComputeConfidenceInterval: when state %v for err got %v, wantErr %t", tc.state, err, tc.wantErr)
 		}
 	}
 }

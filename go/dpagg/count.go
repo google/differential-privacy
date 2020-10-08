@@ -250,6 +250,7 @@ func (c *Count) GobDecode(data []byte) error {
 		noiseKind:       enc.NoiseKind,
 		noise:           noise.ToNoise(enc.NoiseKind),
 		count:           enc.Count,
+		state:           Default,
 	}
 	return nil
 }

@@ -152,7 +152,7 @@ func TestCountSerializationStateChecks(t *testing.T) {
 		c.state = tc.state
 
 		if _, err := c.GobEncode(); (err != nil) != tc.wantErr {
-			t.Errorf("GobEncode: when state %v for err got %v, want %t", tc.state, err, tc.wantErr)
+			t.Errorf("GobEncode: when state %v for err got %v, wantErr %t", tc.state, err, tc.wantErr)
 		}
 	}
 }
@@ -296,7 +296,7 @@ func TestCountCheckMergeCompatibility(t *testing.T) {
 		c2 := NewCount(tc.opt2)
 
 		if err := checkMergeCount(c1, c2); (err != nil) != tc.wantErr {
-			t.Errorf("CheckMerge: when %v for err got %v, want %t", tc.desc, err, tc.wantErr)
+			t.Errorf("CheckMerge: when %v for err got %v, wantErr %t", tc.desc, err, tc.wantErr)
 		}
 	}
 }
@@ -323,7 +323,7 @@ func TestCountCheckMergeStateChecks(t *testing.T) {
 		c2.state = tc.state2
 
 		if err := checkMergeCount(c1, c2); (err != nil) != tc.wantErr {
-			t.Errorf("CheckMerge: when states [%v, %v] for err got %v, want %t", tc.state1, tc.state2, err, tc.wantErr)
+			t.Errorf("CheckMerge: when states [%v, %v] for err got %v, wantErr %t", tc.state1, tc.state2, err, tc.wantErr)
 		}
 	}
 }
@@ -449,7 +449,7 @@ func TestCountComputeConfidenceIntervalStateChecks(t *testing.T) {
 		c.state = tc.state
 
 		if _, err := c.ComputeConfidenceInterval(0.1); (err != nil) != tc.wantErr {
-			t.Errorf("ComputeConfidenceInterval: when state %v for err got %v, want %t", tc.state, err, tc.wantErr)
+			t.Errorf("ComputeConfidenceInterval: when state %v for err got %v, wantErr %t", tc.state, err, tc.wantErr)
 		}
 	}
 }
