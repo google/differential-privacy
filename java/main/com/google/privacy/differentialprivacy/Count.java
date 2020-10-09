@@ -58,8 +58,7 @@ public class Count {
   private long rawCount;
   private long noisedCount;
 
-  // Was the count returned to the user?
-  private boolean resultReturned;
+  private AggregationState state = AggregationState.DEFAULT;
 
   private Count(Params params) {
     this.params = params;
@@ -79,9 +78,9 @@ public class Count {
    * contributions to a partition from the same user.
    */
   public void incrementBy(long count) {
-    if (resultReturned) {
+    if (state != AggregationState.DEFAULT) {
       throw new IllegalStateException(
-          "The count has already been calculated and returned. It cannot be amended.");
+          "Count cannot be amended. Reason: " + state.getErrorMessage());
     }
 
     this.rawCount += count;
@@ -98,11 +97,12 @@ public class Count {
    * results to 0. Note that such post processing introduces bias to the result.
    */
   public long computeResult() {
-    if (resultReturned) {
-      throw new IllegalStateException("The result can be calculated and returned only once.");
+    if (state != AggregationState.DEFAULT) {
+      throw new IllegalStateException(
+          "Count's noised result cannot be computed. Reason: " + state.getErrorMessage());
     }
 
-    resultReturned = true;
+    state = AggregationState.RESULT_RETURNED;
     noisedCount =
         params
             .noise()
@@ -124,7 +124,7 @@ public class Count {
    * the confidence intervals doc</a>.
    */
   public ConfidenceInterval computeConfidenceInterval(double alpha) {
-    if (!resultReturned) {
+    if (state != AggregationState.RESULT_RETURNED) {
       throw new IllegalStateException(
           "computeResult must be called before calling computeConfidenceInterval.");
     }
@@ -207,9 +207,9 @@ public class Count {
    * result can only be output once.
    */
   public byte[] getSerializableSummary() {
-    if (resultReturned) {
+    if (state != AggregationState.DEFAULT) {
       throw new IllegalStateException(
-          "The count has already been returned. It cannot be returned again.");
+          "Count object cannot be serialized. Reason: " + state.getErrorMessage());
     }
 
     CountSummary.Builder builder =
@@ -225,7 +225,7 @@ public class Count {
 
     // Record that this object is no longer suitable for producing a differentially private count,
     // since serialization exposes the object's raw state.
-    resultReturned = true;
+    state = AggregationState.SERIALIZED;
 
     return builder.build().toByteArray();
   }
@@ -240,9 +240,9 @@ public class Count {
    * @throws IllegalStateException if this count has already been calculated or serialized.
    */
   public void mergeWith(byte[] otherCountSummary) {
-    if (resultReturned) {
+    if (state != AggregationState.DEFAULT) {
       throw new IllegalStateException(
-          "The count has already been calculated and returned. It cannot be merged.");
+          "Count object cannot be merged. Reason: " + state.getErrorMessage());
     }
 
     CountSummary otherSummaryParsed;

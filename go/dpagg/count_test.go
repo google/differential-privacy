@@ -46,7 +46,7 @@ func TestNewCount(t *testing.T) {
 				lInfSensitivity: 2,
 				noise:           noNoise{},
 				count:           0,
-				resultReturned:  false,
+				state:           Default,
 			}},
 		{"maxContributionsPerPartition is not set",
 			&CountOptions{
@@ -63,7 +63,7 @@ func TestNewCount(t *testing.T) {
 				noise:           noise.Laplace(),
 				noiseKind:       noise.LaplaceNoise,
 				count:           0,
-				resultReturned:  false,
+				state:           Default,
 			}},
 		{"Noise is not set",
 			&CountOptions{
@@ -80,7 +80,7 @@ func TestNewCount(t *testing.T) {
 				noise:           noise.Laplace(),
 				noiseKind:       noise.LaplaceNoise,
 				count:           0,
-				resultReturned:  false,
+				state:           Default,
 			}},
 	} {
 		got := NewCount(tc.opt)
@@ -98,7 +98,7 @@ func compareCount(c1, c2 *Count) bool {
 		c1.noise == c2.noise &&
 		c1.noiseKind == c2.noiseKind &&
 		c1.count == c2.count &&
-		c1.resultReturned == c2.resultReturned
+		c1.state == c2.state
 }
 
 // Tests that serialization for Count works as expected.
@@ -131,9 +131,28 @@ func TestCountSerialization(t *testing.T) {
 		if !cmp.Equal(cUnchanged, cUnmarshalled, cmp.Comparer(compareCount)) {
 			t.Errorf("decode(encode(_)): when %s got %v, want %v", tc.desc, cUnmarshalled, c)
 		}
-		// Check that the original Count has its resultReturned set to true after serialization.
-		if !c.resultReturned {
-			t.Errorf("Count %v should have its resultReturned set to true after being serialized", c)
+		if c.state != Serialized {
+			t.Errorf("Count should have its state set to Serialized, got %v, want Serialized", c.state)
+		}
+	}
+}
+
+// Tests that GobEncode() returns errors correctly with different Count aggregation states.
+func TestCountSerializationStateChecks(t *testing.T) {
+	for _, tc := range []struct {
+		state   aggregationState
+		wantErr bool
+	}{
+		{Default, false},
+		{Merged, true},
+		{Serialized, true},
+		{ResultReturned, true},
+	} {
+		c := getNoiselessCount()
+		c.state = tc.state
+
+		if _, err := c.GobEncode(); (err != nil) != tc.wantErr {
+			t.Errorf("GobEncode: when state %v for err got %v, wantErr %t", tc.state, err, tc.wantErr)
 		}
 	}
 }
@@ -184,19 +203,18 @@ func TestCountMerge(t *testing.T) {
 	if got != want {
 		t.Errorf("Merge: when merging 2 instances of Count got %d, want %d", got, want)
 	}
-	if !c2.resultReturned {
-		t.Errorf("Merge: when merging 2 instances of Count for c2.resultReturned got false, want true")
+	if c2.state != Merged {
+		t.Errorf("Merge: when merging 2 instances of Count for c2.state got %v, want Merged", c2.state)
 	}
 }
 
-func TestCountCheckMerge(t *testing.T) {
+// Tests that checkMergeCount() checks the compatibility of two counts for merge correctly.
+func TestCountCheckMergeCompatibility(t *testing.T) {
 	for _, tc := range []struct {
-		desc          string
-		opt1          *CountOptions
-		opt2          *CountOptions
-		returnResult1 bool
-		returnResult2 bool
-		wantErr       bool
+		desc    string
+		opt1    *CountOptions
+		opt2    *CountOptions
+		wantErr bool
 	}{
 		{"same options, all fields filled",
 			&CountOptions{
@@ -213,8 +231,6 @@ func TestCountCheckMerge(t *testing.T) {
 				Noise:                        noise.Gaussian(),
 				maxContributionsPerPartition: 2,
 			},
-			false,
-			false,
 			false},
 		{"same options, only required fields filled",
 			&CountOptions{
@@ -223,29 +239,7 @@ func TestCountCheckMerge(t *testing.T) {
 			&CountOptions{
 				Epsilon: ln3,
 			},
-			false,
-			false,
 			false},
-		{"same options, first result returned",
-			&CountOptions{
-				Epsilon: ln3,
-			},
-			&CountOptions{
-				Epsilon: ln3,
-			},
-			true,
-			false,
-			true},
-		{"same options, second result returned",
-			&CountOptions{
-				Epsilon: ln3,
-			},
-			&CountOptions{
-				Epsilon: ln3,
-			},
-			false,
-			true,
-			true},
 		{"different epsilon",
 			&CountOptions{
 				Epsilon: ln3,
@@ -253,8 +247,6 @@ func TestCountCheckMerge(t *testing.T) {
 			&CountOptions{
 				Epsilon: 2,
 			},
-			false,
-			false,
 			true},
 		{"different delta",
 			&CountOptions{
@@ -267,8 +259,6 @@ func TestCountCheckMerge(t *testing.T) {
 				Delta:   tenfive,
 				Noise:   noise.Gaussian(),
 			},
-			false,
-			false,
 			true},
 		{"different MaxPartitionsContributed",
 			&CountOptions{
@@ -279,8 +269,6 @@ func TestCountCheckMerge(t *testing.T) {
 				Epsilon:                  ln3,
 				MaxPartitionsContributed: 2,
 			},
-			false,
-			false,
 			true},
 		{"different maxContributionsPerPartition",
 			&CountOptions{
@@ -291,8 +279,6 @@ func TestCountCheckMerge(t *testing.T) {
 				Epsilon:                      ln3,
 				maxContributionsPerPartition: 5,
 			},
-			false,
-			false,
 			true},
 		{"different noise",
 			&CountOptions{
@@ -304,23 +290,50 @@ func TestCountCheckMerge(t *testing.T) {
 				Epsilon: ln3,
 				Noise:   noise.Laplace(),
 			},
-			false,
-			false,
 			true},
 	} {
 		c1 := NewCount(tc.opt1)
 		c2 := NewCount(tc.opt2)
 
-		if tc.returnResult1 {
-			c1.Result()
+		if err := checkMergeCount(c1, c2); (err != nil) != tc.wantErr {
+			t.Errorf("CheckMerge: when %v for err got %v, wantErr %t", tc.desc, err, tc.wantErr)
 		}
-		if tc.returnResult2 {
-			c2.Result()
-		}
+	}
+}
+
+// Tests that checkMergeCount() returns errors correctly with different Count aggregation states.
+func TestCountCheckMergeStateChecks(t *testing.T) {
+	for _, tc := range []struct {
+		state1  aggregationState
+		state2  aggregationState
+		wantErr bool
+	}{
+		{Default, Default, false},
+		{ResultReturned, Default, true},
+		{Default, ResultReturned, true},
+		{Serialized, Default, true},
+		{Default, Serialized, true},
+		{Default, Merged, true},
+		{Merged, Default, true},
+	} {
+		c1 := getNoiselessCount()
+		c2 := getNoiselessCount()
+
+		c1.state = tc.state1
+		c2.state = tc.state2
 
 		if err := checkMergeCount(c1, c2); (err != nil) != tc.wantErr {
-			t.Errorf("CheckMerge: when %v for err got %v, want %t", tc.desc, err, tc.wantErr)
+			t.Errorf("CheckMerge: when states [%v, %v] for err got %v, wantErr %t", tc.state1, tc.state2, err, tc.wantErr)
 		}
+	}
+}
+
+func TestCountResultSetsStateCorrectly(t *testing.T) {
+	c := getNoiselessCount()
+	c.Result()
+
+	if c.state != ResultReturned {
+		t.Errorf("Count should have its state set to ResultReturned, got %v, want ResultReturned", c.state)
 	}
 }
 
@@ -421,12 +434,23 @@ func TestCountComputeConfidenceIntervalComputation(t *testing.T) {
 	}
 }
 
-// Tests that calling ComputeConfidenceInterval without calling Result() produces an error.
-func TestCountComputeConfindenceIntervalCannotBeCalledBeforeResult(t *testing.T) {
-	c := getNoiselessCount()
-	_, err := c.ComputeConfidenceInterval(0.1)
-	if err == nil {
-		t.Errorf("TestCountComputeConfindenceIntervalCannotBeCalledBeforeResult: No error was returned, expected error")
+// Tests that ComputeConfidenceInterval() returns errors correctly with different Count aggregation states.
+func TestCountComputeConfidenceIntervalStateChecks(t *testing.T) {
+	for _, tc := range []struct {
+		state   aggregationState
+		wantErr bool
+	}{
+		{ResultReturned, false},
+		{Default, true},
+		{Merged, true},
+		{Serialized, true},
+	} {
+		c := getNoiselessCount()
+		c.state = tc.state
+
+		if _, err := c.ComputeConfidenceInterval(0.1); (err != nil) != tc.wantErr {
+			t.Errorf("ComputeConfidenceInterval: when state %v for err got %v, wantErr %t", tc.state, err, tc.wantErr)
+		}
 	}
 }
 
@@ -545,13 +569,16 @@ func TestCountEquallyInitialized(t *testing.T) {
 				l0Sensitivity:   1,
 				lInfSensitivity: 1,
 				noiseKind:       noise.LaplaceNoise,
+				state:           Default,
 			},
 			&Count{
 				epsilon:         ln3,
 				delta:           0,
 				l0Sensitivity:   1,
 				lInfSensitivity: 1,
-				noiseKind:       noise.LaplaceNoise},
+				noiseKind:       noise.LaplaceNoise,
+				state:           Default,
+			},
 			true,
 		},
 		{
@@ -563,13 +590,16 @@ func TestCountEquallyInitialized(t *testing.T) {
 				lInfSensitivity: 1,
 				noiseKind:       noise.LaplaceNoise,
 				count:           0,
-				resultReturned:  false},
+				state:           Default,
+			},
 			&Count{
 				epsilon:         1,
 				delta:           0,
 				l0Sensitivity:   1,
 				lInfSensitivity: 1,
-				noiseKind:       noise.LaplaceNoise},
+				noiseKind:       noise.LaplaceNoise,
+				state:           Default,
+			},
 			false,
 		},
 		{
@@ -581,13 +611,16 @@ func TestCountEquallyInitialized(t *testing.T) {
 				lInfSensitivity: 1,
 				noiseKind:       noise.GaussianNoise,
 				count:           0,
-				resultReturned:  false},
+				state:           Default,
+			},
 			&Count{
 				epsilon:         ln3,
 				delta:           0.6,
 				l0Sensitivity:   1,
 				lInfSensitivity: 1,
-				noiseKind:       noise.GaussianNoise},
+				noiseKind:       noise.GaussianNoise,
+				state:           Default,
+			},
 			false,
 		},
 		{
@@ -599,13 +632,16 @@ func TestCountEquallyInitialized(t *testing.T) {
 				lInfSensitivity: 1,
 				noiseKind:       noise.LaplaceNoise,
 				count:           0,
-				resultReturned:  false},
+				state:           Default,
+			},
 			&Count{
 				epsilon:         ln3,
 				delta:           0,
 				l0Sensitivity:   2,
 				lInfSensitivity: 1,
-				noiseKind:       noise.LaplaceNoise},
+				noiseKind:       noise.LaplaceNoise,
+				state:           Default,
+			},
 			false,
 		},
 		{
@@ -617,13 +653,16 @@ func TestCountEquallyInitialized(t *testing.T) {
 				lInfSensitivity: 1,
 				noiseKind:       noise.LaplaceNoise,
 				count:           0,
-				resultReturned:  false},
+				state:           Default,
+			},
 			&Count{
 				epsilon:         ln3,
 				delta:           0,
 				l0Sensitivity:   1,
 				lInfSensitivity: 2,
-				noiseKind:       noise.LaplaceNoise},
+				noiseKind:       noise.LaplaceNoise,
+				state:           Default,
+			},
 			false,
 		},
 		{
@@ -635,13 +674,37 @@ func TestCountEquallyInitialized(t *testing.T) {
 				lInfSensitivity: 1,
 				noiseKind:       noise.LaplaceNoise,
 				count:           0,
-				resultReturned:  false},
+				state:           Default,
+			},
 			&Count{
 				epsilon:         ln3,
 				delta:           0,
 				l0Sensitivity:   1,
 				lInfSensitivity: 1,
-				noiseKind:       noise.GaussianNoise},
+				noiseKind:       noise.GaussianNoise,
+				state:           Default,
+			},
+			false,
+		},
+		{
+			"different state",
+			&Count{
+				epsilon:         ln3,
+				delta:           0,
+				l0Sensitivity:   1,
+				lInfSensitivity: 1,
+				noiseKind:       noise.LaplaceNoise,
+				count:           0,
+				state:           Default,
+			},
+			&Count{
+				epsilon:         ln3,
+				delta:           0,
+				l0Sensitivity:   1,
+				lInfSensitivity: 1,
+				noiseKind:       noise.GaussianNoise,
+				state:           Merged,
+			},
 			false,
 		},
 	} {

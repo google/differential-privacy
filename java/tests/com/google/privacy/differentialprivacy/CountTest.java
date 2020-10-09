@@ -130,7 +130,6 @@ public class CountTest {
   @Test
   public void computeResult_multipleCalls_throwsException() {
     count.increment();
-
     count.computeResult();
     assertThrows(IllegalStateException.class, count::computeResult);
   }
@@ -389,6 +388,17 @@ public class CountTest {
   }
 
   @Test
+  public void merge_calledAfterSerialization_onTargetCount_throwsException() {
+    Count targetCount = getCountBuilderWithFields().build();
+    Count sourceCount = getCountBuilderWithFields().build();
+
+    targetCount.getSerializableSummary();
+    assertThrows(
+        IllegalStateException.class,
+        () -> targetCount.mergeWith(sourceCount.getSerializableSummary()));
+  }
+
+  @Test
   public void addNoise_gaussianNoiseDefaultParametersEmptyCount_isUnbiased() {
     Count.Params.Builder countBuilder =
         Count.builder()
@@ -491,7 +501,7 @@ public class CountTest {
             });
     assertThat(exception)
         .hasMessageThat()
-        .startsWith("The result can be calculated and returned only once.");
+        .startsWith("Count's noised result cannot be computed. Reason: Noised result is already computed and returned.");
   }
 
   @Test
@@ -898,28 +908,13 @@ public class CountTest {
 
   @Test
   public void computeConfidenceInterval_computeResultWasNotCalled_throwsException() {
-    // Mock the noise mechanism. Since noise is not Laplace, nor Gaussian, delta will be
-    // passed as null, in order to pass the checks.
-    when(noise.computeConfidenceInterval(
-            anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
-        .thenAnswer(
-            invocation ->
-                new LaplaceNoise()
-                    .computeConfidenceInterval(
-                        (Long) invocation.getArguments()[0],
-                        (Integer) invocation.getArguments()[1],
-                        (Long) invocation.getArguments()[2],
-                        (Double) invocation.getArguments()[3],
-                        null,
-                        (Double) invocation.getArguments()[5]));
-    count.increment();
-    IllegalStateException exception =
-        assertThrows(
-            IllegalStateException.class,
-            () -> count.computeConfidenceInterval(ALPHA));
-    assertThat(exception)
-        .hasMessageThat()
-        .startsWith("computeResult must be called before calling computeConfidenceInterval.");
+    assertThrows(IllegalStateException.class, () -> count.computeConfidenceInterval(ALPHA));
+  }
+
+  @Test
+  public void computeConfidenceInterval_afterSerialization_throwsException() {
+    count.getSerializableSummary();
+    assertThrows(IllegalStateException.class, () -> count.computeConfidenceInterval(ALPHA));
   }
 
   @Test
