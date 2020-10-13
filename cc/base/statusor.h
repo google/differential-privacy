@@ -170,6 +170,18 @@ class StatusOr : private statusor_internal::StatusOrData<T>,
   const Status& status() const&;
   Status status() &&;
 
+  // StatusOr<T>::value()
+  //
+  // This is only added for transitioning to base::StatusOr [1], which has this
+  // method implemented.  Here, we will only be calling ValueOrDie, which will
+  // not throw an exception.
+  //
+  // [1] https://github.com/abseil/abseil-cpp/blob/master/absl/status/statusor.h
+  const T& value() const& { return ValueOrDie(); }
+  T& value() & { return ValueOrDie(); }
+  const T&& value() const&& { return ValueOrDie(); }
+  T&& value() && { return ValueOrDie(); }
+
   // Returns a reference to our current value, or CHECK-fails if !this->ok(). If
   // you have already checked the status using this->ok() or operator bool(),
   // then you probably want to use operator*() or operator->() to access the

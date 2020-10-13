@@ -21,10 +21,10 @@
 
 #include "gmock/gmock.h"
 #include "absl/random/random.h"
+#include "base/statusor.h"
 #include "algorithms/distributions.h"
 #include "algorithms/numerical-mechanisms.h"
 #include "proto/confidence-interval.pb.h"
-#include "base/statusor.h"
 
 namespace differential_privacy {
 namespace test_utils {

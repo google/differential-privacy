@@ -81,7 +81,7 @@ type MeanParams struct {
 	// You can input the list of partitions present in the output if you know
 	// them in advance. When you specify partitions, partition selection /
 	// thresholding will be disabled and partitions will appear in the output
-	// if and only if they appear in the set of specified partitions.
+	// if and only if they appear in the set of public partitions.
 	//
 	// You should not derive the list of partitions non-privately from private
 	// data. You should only use this in either of the following cases:
@@ -90,7 +90,7 @@ type MeanParams struct {
 	// 	hourly period.
 	// 	2. You use a differentially private operation to come up with the list of
 	// 	partitions. For example, you could use the keys of a DistinctPrivacyID
-	// 	operation as the list of pre-specified partitions.
+	// 	operation as the list of public partitions.
 	//
 	// Note that current implementation limitations only allow up to millions of
 	// public partitions.
@@ -137,13 +137,13 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 		log.Exit(err)
 	}
 
-	// Drop unspecified partitions, if partitions are specified.
-	if (params.PublicPartitions).IsValid() { // Partitions are specified.
+	// Drop non-public partitions, if public partitions are specified.
+	if (params.PublicPartitions).IsValid() {
 		if pcol.codec.KType.T != (params.PublicPartitions).Type().Type() {
-			log.Exitf("Specified partitions must be of type %v. Got type %v instead.",
+			log.Exitf("Public partitions must be of type %v. Got type %v instead.",
 				pcol.codec.KType.T, (params.PublicPartitions).Type().Type())
 		}
-		pcol.col = dropUnspecifiedPartitionsKVFn(s, params.PublicPartitions, pcol, pcol.codec.KType)
+		pcol.col = dropNonPublicPartitionsKVFn(s, params.PublicPartitions, pcol, pcol.codec.KType)
 	}
 
 	// First, group together the privacy ID and the partition ID and do per-partition contribution bounding.
@@ -185,9 +185,9 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 		newDecodePairArrayFloat64Fn(partitionT),
 		partialPairs,
 		beam.TypeDefinition{Var: beam.XType, T: partitionT})
-	// Add specified partitions and return the aggregation output, if partitions are specified.
+	// Add public partitions and return the aggregation output, if public partitions are specified.
 	if (params.PublicPartitions).IsValid() {
-		return addSpecifiedPartitionsForMean(s, epsilon, delta, maxPartitionsContributed,
+		return addPublicPartitionsForMean(s, epsilon, delta, maxPartitionsContributed,
 			params, noiseKind, partialKV)
 	}
 	// Compute the mean for each partition. Result is PCollection<partition, float64>.
@@ -198,29 +198,28 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 	return beam.ParDo(s, dropThresholdedPartitionsFloat64Fn, means)
 }
 
-func addSpecifiedPartitionsForMean(s beam.Scope, epsilon, delta float64, maxPartitionsContributed int64, params MeanParams, noiseKind noise.Kind, partialKV beam.PCollection) beam.PCollection {
-	// Compute the mean for each partition with unspecified partitions dropped. Result is PCollection<partition, float64>.
+func addPublicPartitionsForMean(s beam.Scope, epsilon, delta float64, maxPartitionsContributed int64, params MeanParams, noiseKind noise.Kind, partialKV beam.PCollection) beam.PCollection {
+	// Compute the mean for each partition with non-public partitions dropped. Result is PCollection<partition, float64>.
 	means := beam.CombinePerKey(s,
 		newBoundedMeanFloat64Fn(epsilon, delta, maxPartitionsContributed, params.MaxContributionsPerPartition, params.MinValue, params.MaxValue, noiseKind, true),
 		partialKV)
 	partitionT, _ := beam.ValidateKVType(means)
-	dummyMeans := means
-	meansPartitions := beam.DropValue(s, dummyMeans)
+	meansPartitions := beam.DropValue(s, means)
 	// Create map with partitions in the data as keys.
 	partitionMap := beam.Combine(s, newPartitionsMapFn(beam.EncodedType{partitionT.Type()}), meansPartitions)
 	partitionsCol := params.PublicPartitions
 	// Add value of empty array to each partition key in PublicPartitions.
-	specifiedPartitionsWithValues := beam.ParDo(s, addDummyValuesForMeanToSpecifiedPartitionsFloat64Fn, partitionsCol)
-	// emptySpecifiedPartitions are the partitions that are specified but not found in the data.
-	emptySpecifiedPartitions := beam.ParDo(s, newEmitPartitionsNotInTheDataFn(partitionT), specifiedPartitionsWithValues, beam.SideInput{Input: partitionMap})
-	// Add noise to the empty specified partitions.
-	unspecifiedMeans := beam.CombinePerKey(s,
+	publicPartitionsWithValues := beam.ParDo(s, addDummyValuesForMeanToPublicPartitionsFloat64Fn, partitionsCol)
+	// emptyPublicPartitions are the partitions that are public but not found in the data.
+	emptyPublicPartitions := beam.ParDo(s, newEmitPartitionsNotInTheDataFn(partitionT), publicPartitionsWithValues, beam.SideInput{Input: partitionMap})
+	// Add noise to the empty public partitions.
+	emptyMeans := beam.CombinePerKey(s,
 		newBoundedMeanFloat64Fn(epsilon, delta, maxPartitionsContributed, params.MaxContributionsPerPartition, params.MinValue, params.MaxValue, noiseKind, true),
-		emptySpecifiedPartitions)
+		emptyPublicPartitions)
 	means = beam.ParDo(s, dereferenceValueToFloat64, means)
-	unspecifiedMeans = beam.ParDo(s, dereferenceValueToFloat64, unspecifiedMeans)
-	// Merge means from data with means from the empty specified partitions.
-	allMeans := beam.Flatten(s, means, unspecifiedMeans)
+	emptyMeans = beam.ParDo(s, dereferenceValueToFloat64, emptyMeans)
+	// Merge means from data with means from the empty public partitions.
+	allMeans := beam.Flatten(s, means, emptyMeans)
 	return allMeans
 }
 
@@ -397,9 +396,9 @@ func rekeyArrayFloat64Fn(kv kv.Pair, m []float64) ([]byte, pairArrayFloat64) {
 }
 
 type boundedMeanAccumFloat64 struct {
-	BM                  *dpagg.BoundedMeanFloat64
-	SP                  *dpagg.PreAggSelectPartition
-	PartitionsSpecified bool
+	BM               *dpagg.BoundedMeanFloat64
+	SP               *dpagg.PreAggSelectPartition
+	PublicPartitions bool
 }
 
 // boundedMeanFloat64Fn is a differentially private combineFn for obtaining mean of values. Do not
@@ -416,20 +415,20 @@ type boundedMeanFloat64Fn struct {
 	Upper                        float64
 	NoiseKind                    noise.Kind
 	noise                        noise.Noise // Set during Setup phase according to NoiseKind.
-	PartitionsSpecified          bool
+	PublicPartitions             bool
 }
 
 // newBoundedMeanFloat6464Fn returns a boundedMeanFloat64Fn with the given budget and parameters.
-func newBoundedMeanFloat64Fn(epsilon, delta float64, maxPartitionsContributed, maxContributionsPerPartition int64, lower, upper float64, noiseKind noise.Kind, PartitionsSpecified bool) *boundedMeanFloat64Fn {
+func newBoundedMeanFloat64Fn(epsilon, delta float64, maxPartitionsContributed, maxContributionsPerPartition int64, lower, upper float64, noiseKind noise.Kind, publicPartitions bool) *boundedMeanFloat64Fn {
 	fn := &boundedMeanFloat64Fn{
 		MaxPartitionsContributed:     maxPartitionsContributed,
 		MaxContributionsPerPartition: maxContributionsPerPartition,
 		Lower:                        lower,
 		Upper:                        upper,
 		NoiseKind:                    noiseKind,
-		PartitionsSpecified:          PartitionsSpecified,
+		PublicPartitions:             publicPartitions,
 	}
-	if fn.PartitionsSpecified {
+	if fn.PublicPartitions {
 		fn.NoiseEpsilon = epsilon
 		fn.NoiseDelta = delta
 		return fn
@@ -464,8 +463,8 @@ func (fn *boundedMeanFloat64Fn) CreateAccumulator() boundedMeanAccumFloat64 {
 			Lower:                        fn.Lower,
 			Upper:                        fn.Upper,
 			Noise:                        fn.noise,
-		}), PartitionsSpecified: fn.PartitionsSpecified}
-	if !fn.PartitionsSpecified {
+		}), PublicPartitions: fn.PublicPartitions}
+	if !fn.PublicPartitions {
 		accum.SP = dpagg.NewPreAggSelectPartition(&dpagg.PreAggSelectPartitionOptions{
 			Epsilon:                  fn.PartitionSelectionEpsilon,
 			Delta:                    fn.PartitionSelectionDelta,
@@ -482,7 +481,7 @@ func (fn *boundedMeanFloat64Fn) AddInput(a boundedMeanAccumFloat64, values []flo
 	for _, v := range values {
 		a.BM.Add(v)
 	}
-	if !fn.PartitionsSpecified {
+	if !fn.PublicPartitions {
 		a.SP.Increment()
 	}
 	return a
@@ -490,14 +489,14 @@ func (fn *boundedMeanFloat64Fn) AddInput(a boundedMeanAccumFloat64, values []flo
 
 func (fn *boundedMeanFloat64Fn) MergeAccumulators(a, b boundedMeanAccumFloat64) boundedMeanAccumFloat64 {
 	a.BM.Merge(b.BM)
-	if !fn.PartitionsSpecified {
+	if !fn.PublicPartitions {
 		a.SP.Merge(b.SP)
 	}
 	return a
 }
 
 func (fn *boundedMeanFloat64Fn) ExtractOutput(a boundedMeanAccumFloat64) *float64 {
-	if a.PartitionsSpecified || a.SP.ShouldKeepPartition() {
+	if a.PublicPartitions || a.SP.ShouldKeepPartition() {
 		result := a.BM.Result()
 		return &result
 	}

@@ -19,23 +19,23 @@ package dpagg
 type aggregationState int
 
 var errorMessages = map[int]string{
-	Default:        "",
-	Merged:         "Object has been already merged",
-	Serialized:     "Object has been already serialized",
-	ResultReturned: "Noised result is already computed and returned",
+	defaultState:   "",
+	merged:         "Object has been already merged",
+	serialized:     "Object has been already serialized",
+	resultReturned: "DP result was already computed and returned.",
 }
 var stateName = map[int]string{
-	Default:        "Default",
-	Merged:         "Merged",
-	Serialized:     "Serialized",
-	ResultReturned: "ResultReturned",
+	defaultState:   "Default",
+	merged:         "Merged",
+	serialized:     "Serialized",
+	resultReturned: "ResultReturned",
 }
 
 const (
-	Default = iota
-	Merged
-	Serialized
-	ResultReturned
+	defaultState = iota
+	merged
+	serialized
+	resultReturned
 )
 
 func (s aggregationState) errorMessage() string {

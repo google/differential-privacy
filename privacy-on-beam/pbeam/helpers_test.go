@@ -22,6 +22,7 @@ import (
 	"reflect"
 	"testing"
 
+	log "github.com/golang/glog"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
 	"github.com/google/differential-privacy/go/dpagg"
 	"github.com/google/differential-privacy/go/noise"
@@ -120,9 +121,9 @@ func kvToProtoPair(key string, pb *testpb.TestAnon) protoPair {
 // makePairsWithFixedV returns dummy data where the same value is associated with
 // multiple privacy keys: it returns a slice of pairs {0, v}, {1, v}, ..., {numKeys-1, v}.
 func makePairsWithFixedV(numKeys, v int) []pairII {
-	s := make([]pairII, 0, numKeys)
+	s := make([]pairII, numKeys)
 	for k := 0; k < numKeys; k++ {
-		s = append(s, pairII{k, v})
+		s[k] = pairII{k, v}
 	}
 	return s
 }
@@ -131,9 +132,9 @@ func makePairsWithFixedV(numKeys, v int) []pairII {
 // multiple privacy keys: it returns a slice of pairs {0, v}, {1, v}, ..., {numKeys-1, v}.
 // Privacy keys start from kOffset.
 func makePairsWithFixedVStartingFromKey(kOffset, numKeys, v int) []pairII {
-	s := make([]pairII, 0, numKeys)
+	s := make([]pairII, numKeys)
 	for k := 0; k < numKeys; k++ {
-		s = append(s, pairII{k + kOffset, v})
+		s[k] = pairII{k + kOffset, v}
 	}
 	return s
 }
@@ -157,7 +158,7 @@ func makeDummyTripleWithIntValue(numKeys, p int) []tripleWithIntValue {
 // a slice of tripleInts {k,p,v}, {k + 1,p,v}, ..., {numKeys + k - 1,p,v}.
 // Privacy keys start from kOffset.
 func makeTripleWithIntValueStartingFromKey(kOffset, numKeys, p, v int) []tripleWithIntValue {
-	s := make([]tripleWithIntValue, numKeys, numKeys)
+	s := make([]tripleWithIntValue, numKeys)
 	for k := 0; k < numKeys; k++ {
 		s[k] = tripleWithIntValue{k + kOffset, p, v}
 	}
@@ -215,7 +216,7 @@ func makeDummyTripleWithFloatValue(numKeys, p int) []tripleWithFloatValue {
 // associated with multiple privacy keys, to the given value v: it returns
 // a slice of tripleInts {0,p,v}, {1,p,v}, ..., {numKeys-1,p,v}.
 func makeTripleWithFloatValue(numKeys, p int, v float32) []tripleWithFloatValue {
-	s := make([]tripleWithFloatValue, numKeys, numKeys)
+	s := make([]tripleWithFloatValue, numKeys)
 	for k := 0; k < numKeys; k++ {
 		s[k] = tripleWithFloatValue{k, p, v}
 	}
@@ -227,7 +228,7 @@ func makeTripleWithFloatValue(numKeys, p int, v float32) []tripleWithFloatValue 
 // a slice of tripleFloats {k,p,v}, {k + 1,p,v}, ..., {numKeys + k - 1,p,v}.
 // Privacy keys start from kOffset.
 func makeTripleWithFloatValueStartingFromKey(kOffset, numKeys, p int, v float32) []tripleWithFloatValue {
-	s := make([]tripleWithFloatValue, numKeys, numKeys)
+	s := make([]tripleWithFloatValue, numKeys)
 	for k := 0; k < numKeys; k++ {
 		s[k] = tripleWithFloatValue{k + kOffset, p, v}
 	}
@@ -447,9 +448,9 @@ func checkValueType(col beam.PCollection, wantValueType reflect.Type) error {
 	return nil
 }
 
-// laplaceTolerance returns tolerance to be used in approxEquals for tests
-// with Laplace Noise to pass with 10⁻ᵏ flakiness. flakinessK is the parameter
-// used to specify this.
+// laplaceTolerance returns tolerance to be used in approxEquals or in threshold
+// computations for tests with Laplace Noise to pass with 10⁻ᵏ flakiness.
+// flakinessK is the parameter used to specify this.
 //
 // l1Sensitivity and epsilon are the DP parameters of the test.
 //
@@ -518,6 +519,25 @@ func roundedLaplaceTolerance(flakinessK, l1Sensitivity, epsilon float64) float64
 	return math.Ceil(laplaceTolerance(flakinessK, l1Sensitivity, epsilon))
 }
 
+// gaussianTolerance returns tolerance to be used in approxEquals or in threshold
+// computations for tests with Gaussian Noise to pass with 10⁻ᵏ flakiness.
+// flakinessK is the parameter used to specify this.
+//
+// l0Sensitivity, lInfSensitivity, epsilon and delta are the DP parameters of the test.
+//
+// To see the logic and the math behind flakiness and tolerance calculation,
+// See https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf
+func gaussianTolerance(flakinessK, l0Sensitivity, lInfSensitivity, epsilon, delta float64) float64 {
+	// We need arbitrary precision arithmetics here because (1-10⁻ᵏ) evaluates to
+	// 1 with float64, making the output Inf.
+	sum := big.NewFloat(math.Pow(10, -flakinessK)).SetMode(big.AwayFromZero) // 10⁻ᵏ
+	sum.Neg(sum)                                                             // -10⁻ᵏ
+	sum.SetMode(big.ToZero).Add(sum, big.NewFloat(1))                        // 1-10⁻ᵏ
+	erfinv, _ := sum.Float64()
+	erfinv = math.Erfinv(erfinv) // Erfinv(1-10⁻ᵏ)
+	return erfinv * noise.SigmaForGaussian(int64(l0Sensitivity), lInfSensitivity, epsilon, delta) * math.Sqrt(2)
+}
+
 // complementaryGaussianTolerance returns tolerance to be used in checkMetricsAreNoisy
 // for tests with Gaussian Noise to pass with 10⁻ᵏ flakiness. flakinessK is the
 // parameter used to specify this.
@@ -527,6 +547,8 @@ func roundedLaplaceTolerance(flakinessK, l1Sensitivity, epsilon float64) float64
 // To see the logic and the math behind flakiness and tolerance calculation,
 // See https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf
 func complementaryGaussianTolerance(flakinessK, l0Sensitivity, lInfSensitivity, epsilon, delta float64) float64 {
+	sigma := noise.SigmaForGaussian(int64(l0Sensitivity), lInfSensitivity, epsilon, delta)
+	log.Warningf("SIGMA %f)", sigma)
 	return math.Erfinv(math.Pow(10, -flakinessK)) * noise.SigmaForGaussian(int64(l0Sensitivity), lInfSensitivity, epsilon, delta) * math.Sqrt(2)
 }
 
@@ -709,7 +731,7 @@ type checkInt64MetricsAreNoisyFn struct {
 }
 
 func (fn *checkInt64MetricsAreNoisyFn) ProcessElement(m testInt64Metric) error {
-	if cmp.Equal(m.Metric, fn.ExactMetric, cmpopts.EquateApprox(0, fn.Tolerance)) {
+	if cmp.Equal(float64(m.Metric), float64(fn.ExactMetric), cmpopts.EquateApprox(0, fn.Tolerance)) {
 		return fmt.Errorf("found a non-noisy output of %d for (value, exactOutput)=(%d, %d)", m.Metric, m.Value, fn.ExactMetric)
 	}
 	return nil

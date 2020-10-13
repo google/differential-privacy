@@ -130,6 +130,7 @@ public class CountTest {
   @Test
   public void computeResult_multipleCalls_throwsException() {
     count.increment();
+
     count.computeResult();
     assertThrows(IllegalStateException.class, count::computeResult);
   }
@@ -499,9 +500,7 @@ public class CountTest {
             () -> {
               count.computeThresholdedResult(THRESHOLD_DELTA);
             });
-    assertThat(exception)
-        .hasMessageThat()
-        .startsWith("Count's noised result cannot be computed. Reason: Noised result is already computed and returned.");
+    assertThat(exception).hasMessageThat().contains("DP result was already computed");
   }
 
   @Test

@@ -188,7 +188,11 @@ base::StatusOr<double> CalculateGranularity(double epsilon,
 LaplaceDistribution::LaplaceDistribution(double epsilon, double sensitivity) {
   epsilon_ = epsilon;
   sensitivity_ = sensitivity;
-  granularity_ = CalculateGranularity(epsilon_, sensitivity_).ValueOrDie();
+
+  base::StatusOr<double> granularity =
+      CalculateGranularity(epsilon_, sensitivity_);
+  CHECK(granularity.ok()) << granularity.status();
+  granularity_ = granularity.value();
 
   double lambda;
   if (sensitivity_ == 0) {

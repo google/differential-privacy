@@ -27,9 +27,9 @@ def cc_differential_privacy_deps():
     # Abseil
     http_archive(
         name = "com_google_absl",
-        url = "https://github.com/abseil/abseil-cpp/archive/20200225.2.tar.gz",
-        sha256 = "f41868f7a938605c92936230081175d1eae87f6ea2c248f41077c8f88316f111",
-        strip_prefix = "abseil-cpp-20200225.2",
+        url = "https://github.com/abseil/abseil-cpp/archive/20200923.1.tar.gz",
+        sha256 = "808350c4d7238315717749bab0067a1acd208023d41eaf0c7360f29cc8bc8f21",
+        strip_prefix = "abseil-cpp-20200923.1",
     )
 
     # Common bazel rules

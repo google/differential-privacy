@@ -16,17 +16,21 @@
 
 package com.google.privacy.differentialprivacy;
 
+/** Represents the state of the aggregation. */
 public enum AggregationState {
-    DEFAULT(""),
-    SERIALIZED("Object has been already serialized."),
-    RESULT_RETURNED("Noised result is already computed and returned.");
-    private String errorMessage;
+  /** Object hasn't been serialized and computeResult() hasn't been called. */
+  DEFAULT(""),
+  /** Object has been serialized. */
+  SERIALIZED("Object has been already serialized."),
+  /** computeResult() was called. */
+  RESULT_RETURNED("DP result was already computed and returned.");
+  private final String errorMessage;
 
-    AggregationState(String errorMessage) {
-        this.errorMessage = errorMessage;
-    }
+  AggregationState(String errorMessage) {
+    this.errorMessage = errorMessage;
+  }
 
-    public String getErrorMessage() {
-        return errorMessage;
-    }
+  public String getErrorMessage() {
+    return errorMessage;
+  }
 }

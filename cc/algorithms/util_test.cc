@@ -19,9 +19,9 @@
 #include <limits>
 
 #include "gtest/gtest.h"
+#include "base/status.h"
 #include "algorithms/distributions.h"
 #include "algorithms/numerical-mechanisms-testing.h"
-#include "base/status.h"
 
 namespace differential_privacy {
 namespace {

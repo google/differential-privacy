@@ -23,6 +23,7 @@
 #include "algorithms/algorithm.h"
 #include "algorithms/numerical-mechanisms.h"
 #include "proto/util.h"
+#include "base/canonical_errors.h"
 #include "base/status_macros.h"
 
 // Differentially private binary search.
@@ -183,7 +184,7 @@ class BinarySearch : public Algorithm<T> {
 
       // Find noisy counts for number of values above and below m. A single
       // input only contributes to one of the two counts.
-      const double percentile = Percentile(m).ValueOrDie();
+      ASSIGN_OR_RETURN(const double percentile, Percentile(m));
       double noisy_less = mechanism_->AddNoise(
           percentile * quantiles_->num_values(), local_budget);
       double noisy_more = mechanism_->AddNoise(

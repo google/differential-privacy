@@ -419,10 +419,10 @@ class ApproxBounds : public Algorithm<T> {
     base::StatusOr<double> count = NumInputs();
     base::StatusOr<double> count_outside = NumInputsOutside(lower, upper);
     if (count.ok()) {
-      report.set_num_inputs(count.ValueOrDie());
+      report.set_num_inputs(count.value());
     }
     if (count_outside.ok()) {
-      report.set_num_outside(count_outside.ValueOrDie());
+      report.set_num_outside(count_outside.value());
     }
     return report;
   }

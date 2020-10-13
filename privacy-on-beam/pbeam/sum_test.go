@@ -89,9 +89,9 @@ func TestSumPerKeyWithPartitionsNoNoiseInt(t *testing.T) {
 			lInfSensitivity: 10.0,
 		},
 	} {
-		// ID:1 contributes 3 partitions.
-		// Of these 5 partitions, 2 will be dropped.
-		// Tests that with a maximum contribution of 3, cross-partition contribution bounding happens after partitions are dropped.
+		// ID:1 contributes to 8 partitions, only 3 of which are public partitions. So none
+		// should be dropped with maxPartitionsContributed=3.
+		// Tests that cross-partition contribution bounding happens after non-public partitions are dropped.
 		triples := concatenateTriplesWithIntValue(
 			makeDummyTripleWithIntValue(7, 0),
 			makeDummyTripleWithIntValue(58, 1),
@@ -102,9 +102,9 @@ func TestSumPerKeyWithPartitionsNoNoiseInt(t *testing.T) {
 			makeDummyTripleWithIntValue(1, 8),
 			makeDummyTripleWithIntValue(1, 9))
 
-		// Keep partitions 0 and 2.
+		// Keep partitions 0, 2 and 5.
 		// drop partition 6 to 9.
-		// Add partitions 5, 10, and 11.
+		// Add partitions 10 and 11.
 		result := []testInt64Metric{
 			{0, 7},
 			{2, 99},
@@ -233,7 +233,7 @@ func TestSumPerKeyWithPartitionsNoNoiseFloat(t *testing.T) {
 		upper           float64
 		lInfSensitivity float64
 	}{
-		// Used for MinValue and MaxValue. Tests case when specified partitions are already in the data.
+		// Used for MinValue and MaxValue. Tests case when public partitions are already in the data.
 		{
 			lower:           0.0,
 			upper:           1.0,
@@ -359,28 +359,36 @@ func TestSumPerKeyAddsNoiseInt(t *testing.T) {
 		{
 			name:      "Gaussian",
 			noiseKind: GaussianNoise{},
-			epsilon:   2,    // It is split by 2: 1 for the noise and 1 for the partition selection.
-			delta:     0.01, // It is split by 2: 0.005 for the noise and 0.005 for the partition selection.
+			epsilon:   2 * 1e-15, // It is split by 2: 1e-15 for the noise and 1e-15 for the partition selection.
+			delta:     2 * 1e-5,  // It is split by 2: 1e-5 for the noise and 1e-5 for the partition selection.
 		},
 		{
 			name:      "Laplace",
 			noiseKind: LaplaceNoise{},
-			epsilon:   0.2, // It is split by 2: 0.1 for the noise and 0.1 for the partition selection.
+			epsilon:   2 * 1e-15, // It is split by 2: 1e-15 for the noise and 1e-15 for the partition selection.
 			delta:     0.01,
 		},
 	} {
-		// We have 1 partition. So, to get an overall flakiness of 10⁻²³,
-		// we need to have each partition pass with 1-10⁻²³ probability (k=23).
-		noiseEpsilon, noiseDelta := tc.epsilon/2, 0.0
-		k := 23.0
-		l0Sensitivity, lInfSensitivity := 1.0, 1.0
+		// Because this is an integer aggregation, we can't use the regular complementary
+		// tolerance computations. Instead, we do the following:
+		//
+		// If generated noise is between -0.5 and 0.5, it will be rounded to 0 and the
+		// test will fail. For Laplace, this will happen with probability
+		//   P ~= Laplace_CDF(0.5) - Laplace_CDF(-0.5).
+		// Given that Laplace scale = l1_sensitivity / ε = 10¹⁵, P ~= 5e-16.
+		// For Gaussian, this will happen with probability
+		//	 P ~= Gaussian_CDF(0.5) - Gaussian_CDF(-0.5).
+		// For given ε=1e-15, δ=1e-5 => sigma = 39904, P ~= 1e-5.
+		//
+		// We want to keep numIDs low (otherwise the tests take a long time) while
+		// also keeping P low. We use magic partition selection here, meaning that
+		// numIDs cap at 1/δ. So, we can have tiny epsilon without having to worry
+		// about tests taking long.
+		tolerance := 0.0
+		l0Sensitivity, minValue, maxValue := int64(1), 0.0, 1.0
 		partitionSelectionEpsilon, partitionSelectionDelta := tc.epsilon/2, tc.delta
-		l1Sensitivity := l0Sensitivity * lInfSensitivity
-		tolerance := complementaryLaplaceTolerance(k, l1Sensitivity, noiseEpsilon)
 		if tc.noiseKind == gaussianNoise {
-			noiseDelta = tc.delta / 2
 			partitionSelectionDelta = tc.delta / 2
-			tolerance = complementaryGaussianTolerance(k, l0Sensitivity, lInfSensitivity, noiseEpsilon, noiseDelta)
 		}
 
 		// Compute the number of IDs needed to keep the partition.
@@ -388,7 +396,7 @@ func TestSumPerKeyAddsNoiseInt(t *testing.T) {
 			&dpagg.PreAggSelectPartitionOptions{
 				Epsilon:                  partitionSelectionEpsilon,
 				Delta:                    partitionSelectionDelta,
-				MaxPartitionsContributed: 1,
+				MaxPartitionsContributed: l0Sensitivity,
 			})
 		numIDs := sp.GetHardThreshold()
 
@@ -399,7 +407,7 @@ func TestSumPerKeyAddsNoiseInt(t *testing.T) {
 
 		pcol := MakePrivate(s, col, NewPrivacySpec(tc.epsilon, tc.delta))
 		pcol = ParDo(s, tripleWithIntValueToKV, pcol)
-		got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 1, MinValue: 0, MaxValue: 1, NoiseKind: tc.noiseKind})
+		got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: l0Sensitivity, MinValue: minValue, MaxValue: maxValue, NoiseKind: tc.noiseKind})
 		got = beam.ParDo(s, kvToInt64Metric, got)
 
 		checkInt64MetricsAreNoisy(s, got, numIDs, tolerance)
@@ -419,43 +427,49 @@ func TestSumPerKeyWithPartitionsAddsNoiseInt(t *testing.T) {
 		epsilon float64
 		delta   float64
 	}{
-		// Epsilon and delta are not split because partitions are specified. All of them are used for the noise.
+		// Epsilon and delta are not split because partitions are public. All of them are used for the noise.
 		{
 			name:      "Gaussian",
 			noiseKind: GaussianNoise{},
-			epsilon:   1,
-			delta:     0.005,
+			epsilon:   1e-15,
+			delta:     1e-15,
 		},
 		{
 			name:      "Laplace",
 			noiseKind: LaplaceNoise{},
-			epsilon:   0.1,
-			delta:     0, // It is 0 because partitions are specified and we are using Laplace noise.
+			epsilon:   1e-15,
+			delta:     0, // It is 0 because partitions are public and we are using Laplace noise.
 		},
 	} {
-		// We have 1 partition. So, to get an overall flakiness of 10⁻²³,
-		// we need to have each partition pass with 1-10⁻²³ probability (k=23).
-		epsilonNoise, deltaNoise := tc.epsilon, tc.delta
-		k := 23.0
-		l0Sensitivity, lInfSensitivity := 1.0, 1.0
-		l1Sensitivity := l0Sensitivity * lInfSensitivity
-		tolerance := complementaryLaplaceTolerance(k, l1Sensitivity, epsilonNoise)
-		if tc.noiseKind == gaussianNoise {
-			tolerance = complementaryGaussianTolerance(k, l0Sensitivity, lInfSensitivity, epsilonNoise, deltaNoise)
-		}
+		// Because this is an integer aggregation, we can't use the regular complementary
+		// tolerance computations. Instead, we do the following:
+		//
+		// If generated noise is between -0.5 and 0.5, it will be rounded to 0 and the
+		// test will fail. For Laplace, this will happen with probability
+		//   P ~= Laplace_CDF(0.5) - Laplace_CDF(-0.5).
+		// Given that Laplace scale = l1_sensitivity / ε = 10¹⁵, P ~= 5e-16.
+		// For Gaussian, this will happen with probability
+		//	 P ~= Gaussian_CDF(0.5) - Gaussian_CDF(-0.5).
+		// For given ε=1e-15, δ=1e-15 => sigma = 261134011596800, P ~= 1e-15.
+		//
+		// Since no partitions selection / thresholding happens, numIDs doesn't depend
+		// on ε & δ. We can use arbitrarily small ε & δ.
+		tolerance := 0.0
+		l0Sensitivity, minValue, maxValue := int64(1), 0.0, 1.0
+		numIDs := 10
 
 		// triples contains {1,0,1}, {2,0,1}, …, {10,0,1}.
-		triples := makeDummyTripleWithIntValue(10, 0)
+		triples := makeDummyTripleWithIntValue(numIDs, 0)
 		p, s, col := ptest.CreateList(triples)
 		col = beam.ParDo(s, extractIDFromTripleWithIntValue, col)
 		publicPartitions := beam.CreateList(s, []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
 
 		pcol := MakePrivate(s, col, NewPrivacySpec(tc.epsilon, tc.delta))
 		pcol = ParDo(s, tripleWithIntValueToKV, pcol)
-		got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 1, MinValue: 0, MaxValue: 1, NoiseKind: tc.noiseKind, PublicPartitions: publicPartitions})
+		got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: l0Sensitivity, MinValue: minValue, MaxValue: maxValue, NoiseKind: tc.noiseKind, PublicPartitions: publicPartitions})
 		got = beam.ParDo(s, kvToInt64Metric, got)
 
-		checkInt64MetricsAreNoisy(s, got, 10, tolerance)
+		checkInt64MetricsAreNoisy(s, got, numIDs, tolerance)
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("SumPerKey with partitions didn't add any noise with int inputs and %s Noise: %v", tc.name, err)
 		}
@@ -1021,7 +1035,7 @@ func TestSumPerKeyWithPartitionsReturnsNonNegativeInt64(t *testing.T) {
 // MinValue < 0 for float64 values.
 func TestSumPerKeyNoClampingForNegativeMinValueFloat64(t *testing.T) {
 	var triples []tripleWithFloatValue
-	for key := 0; key < 1000; key++ {
+	for key := 0; key < 100; key++ {
 		triples = append(triples, tripleWithFloatValue{key, key, 0})
 	}
 	p, s, col := ptest.CreateList(triples)
@@ -1051,7 +1065,7 @@ func checkAllValuesNegativeInt64Fn(v int64) error {
 // MinValue < 0 for int64 values.
 func TestSumPerKeyNoClampingForNegativeMinValueInt64(t *testing.T) {
 	var triples []tripleWithIntValue
-	for key := 0; key < 1000; key++ {
+	for key := 0; key < 100; key++ {
 		triples = append(triples, tripleWithIntValue{key, key, 0})
 	}
 	p, s, col := ptest.CreateList(triples)

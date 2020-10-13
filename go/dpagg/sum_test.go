@@ -95,7 +95,7 @@ func TestBoundedSumInt64Serialization(t *testing.T) {
 		if !cmp.Equal(bsUnchanged, bsUnmarshalled, cmp.Comparer(compareBoundedSumInt64)) {
 			t.Errorf("decode(encode(_)): when %s got %v, want %v", tc.desc, bsUnmarshalled, bs)
 		}
-		if bs.state != Serialized {
+		if bs.state != serialized {
 			t.Errorf("BoundedSumInt64 should have its state set to Serialized, got %v, want Serialized", bs.state)
 		}
 	}
@@ -107,10 +107,10 @@ func TestBoundedSumInt64SerializationStateChecks(t *testing.T) {
 		state   aggregationState
 		wantErr bool
 	}{
-		{Default, false},
-		{Merged, true},
-		{Serialized, true},
-		{ResultReturned, true},
+		{defaultState, false},
+		{merged, true},
+		{serialized, true},
+		{resultReturned, true},
 	} {
 		bs := getNoiselessBSI()
 		bs.state = tc.state
@@ -168,7 +168,7 @@ func TestBoundedSumFloat64Serialization(t *testing.T) {
 		if !cmp.Equal(bsUnchanged, bsUnmarshalled, cmp.Comparer(compareBoundedSumFloat64)) {
 			t.Errorf("decode(encode(_)): when %s got %v, want %v", tc.desc, bsUnmarshalled, bs)
 		}
-		if bs.state != Serialized {
+		if bs.state != serialized {
 			t.Errorf("BoundedSumFloat64 should have its state set to Serialized, got %v, want Serialized", bs.state)
 		}
 	}
@@ -180,10 +180,10 @@ func TestBoundedSumFloat64SerializationStateChecks(t *testing.T) {
 		state   aggregationState
 		wantErr bool
 	}{
-		{Default, false},
-		{Merged, true},
-		{Serialized, true},
-		{ResultReturned, true},
+		{defaultState, false},
+		{merged, true},
+		{serialized, true},
+		{resultReturned, true},
 	} {
 		bs := getNoiselessBSF()
 		bs.state = tc.state
@@ -278,7 +278,7 @@ func TestNewBoundedSumInt64(t *testing.T) {
 				upper:           5,
 				noise:           noNoise{},
 				sum:             0,
-				state:           Default,
+				state:           defaultState,
 			}},
 		{"maxContributionsPerPartition is not set",
 			&BoundedSumInt64Options{
@@ -298,7 +298,7 @@ func TestNewBoundedSumInt64(t *testing.T) {
 				upper:           5,
 				noise:           noNoise{},
 				sum:             0,
-				state:           Default,
+				state:           defaultState,
 			}},
 		{"Noise is not set",
 			&BoundedSumInt64Options{
@@ -319,7 +319,7 @@ func TestNewBoundedSumInt64(t *testing.T) {
 				noise:           noise.Laplace(),
 				noiseKind:       noise.LaplaceNoise,
 				sum:             0,
-				state:           Default,
+				state:           defaultState,
 			}},
 	} {
 		got := NewBoundedSumInt64(tc.opt)
@@ -353,7 +353,7 @@ func TestNewBoundedSumFloat64(t *testing.T) {
 				upper:           5,
 				noise:           noNoise{},
 				sum:             0,
-				state:           Default,
+				state:           defaultState,
 			}},
 		{"maxContributionsPerPartition is not set",
 			&BoundedSumFloat64Options{
@@ -373,7 +373,7 @@ func TestNewBoundedSumFloat64(t *testing.T) {
 				upper:           5,
 				noise:           noNoise{},
 				sum:             0,
-				state:           Default,
+				state:           defaultState,
 			}},
 		{"Noise is not set",
 			&BoundedSumFloat64Options{
@@ -394,7 +394,7 @@ func TestNewBoundedSumFloat64(t *testing.T) {
 				noise:           noise.Laplace(),
 				noiseKind:       noise.LaplaceNoise,
 				sum:             0,
-				state:           Default,
+				state:           defaultState,
 			}},
 	} {
 		got := NewBoundedSumFloat64(tc.opt)
@@ -455,7 +455,7 @@ func TestMergeBoundedSumInt64(t *testing.T) {
 	if got != want {
 		t.Errorf("Merge: when merging 2 instances of Sum got %d, want %d", got, want)
 	}
-	if bs2.state != Merged {
+	if bs2.state != merged {
 		t.Errorf("Merge: when merging 2 instances of Sum for bs2.state got %v, want Merged", bs2.state)
 	}
 }
@@ -474,7 +474,7 @@ func TestMergeBoundedSumFloat64(t *testing.T) {
 	if !ApproxEqual(got, want) {
 		t.Errorf("Add: when 1, 2, 3.5, 4, 4.5 were added got %f, want %f", got, want)
 	}
-	if bs2.state != Merged {
+	if bs2.state != merged {
 		t.Errorf("Add: when 1, 2, 3.5, 4, 4.5 were added for bs2.state got %v, want Merged", bs2.state)
 	}
 }
@@ -630,13 +630,13 @@ func TestCheckMergeBoundedSumInt64StateChecks(t *testing.T) {
 		state2  aggregationState
 		wantErr bool
 	}{
-		{Default, Default, false},
-		{ResultReturned, Default, true},
-		{Default, ResultReturned, true},
-		{Serialized, Default, true},
-		{Default, Serialized, true},
-		{Default, Merged, true},
-		{Merged, Default, true},
+		{defaultState, defaultState, false},
+		{resultReturned, defaultState, true},
+		{defaultState, resultReturned, true},
+		{serialized, defaultState, true},
+		{defaultState, serialized, true},
+		{defaultState, merged, true},
+		{merged, defaultState, true},
 	} {
 		bs1 := getNoiselessBSI()
 		bs2 := getNoiselessBSI()
@@ -801,13 +801,13 @@ func TestCheckMergeBoundedSumFloat64StateChecks(t *testing.T) {
 		state2  aggregationState
 		wantErr bool
 	}{
-		{Default, Default, false},
-		{ResultReturned, Default, true},
-		{Default, ResultReturned, true},
-		{Serialized, Default, true},
-		{Default, Serialized, true},
-		{Default, Merged, true},
-		{Merged, Default, true},
+		{defaultState, defaultState, false},
+		{resultReturned, defaultState, true},
+		{defaultState, resultReturned, true},
+		{serialized, defaultState, true},
+		{defaultState, serialized, true},
+		{defaultState, merged, true},
+		{merged, defaultState, true},
 	} {
 		bs1 := getNoiselessBSF()
 		bs2 := getNoiselessBSF()
@@ -849,7 +849,7 @@ func TestBoundedSumInt64ResultSetsStateCorrectly(t *testing.T) {
 	bs := getNoiselessBSI()
 	bs.Result()
 
-	if bs.state != ResultReturned {
+	if bs.state != resultReturned {
 		t.Errorf("BoundedSumInt64 should have its state set to ResultReturned, got %v, want ResultReturned", bs.state)
 	}
 }
@@ -858,7 +858,7 @@ func TestBoundedSumFloat64ResultSetsStateCorrectly(t *testing.T) {
 	bs := getNoiselessBSF()
 	bs.Result()
 
-	if bs.state != ResultReturned {
+	if bs.state != resultReturned {
 		t.Errorf("BoundedSumFloat64 should have its state set to ResultReturned, got %v, want ResultReturned", bs.state)
 	}
 }
@@ -1093,10 +1093,10 @@ func TestBoundedSumInt64ComputeConfidenceIntervalStateChecks(t *testing.T) {
 		state   aggregationState
 		wantErr bool
 	}{
-		{ResultReturned, false},
-		{Default, true},
-		{Merged, true},
-		{Serialized, true},
+		{resultReturned, false},
+		{defaultState, true},
+		{merged, true},
+		{serialized, true},
 	} {
 		bs := getNoiselessBSI()
 		bs.state = tc.state
@@ -1113,10 +1113,10 @@ func TestBoundedSumFloat64ComputeConfidenceIntervalStateChecks(t *testing.T) {
 		state   aggregationState
 		wantErr bool
 	}{
-		{ResultReturned, false},
-		{Default, true},
-		{Merged, true},
-		{Serialized, true},
+		{resultReturned, false},
+		{defaultState, true},
+		{merged, true},
+		{serialized, true},
 	} {
 		bs := getNoiselessBSF()
 		bs.state = tc.state
@@ -1327,7 +1327,7 @@ func TestBSEquallyInitializedInt64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				state:           Default},
+				state:           defaultState},
 			&BoundedSumInt64{
 				epsilon:         ln3,
 				delta:           0,
@@ -1337,7 +1337,7 @@ func TestBSEquallyInitializedInt64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				state:           Default},
+				state:           defaultState},
 			true,
 		},
 		{
@@ -1351,7 +1351,7 @@ func TestBSEquallyInitializedInt64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				state:           Default},
+				state:           defaultState},
 			&BoundedSumInt64{
 				epsilon:         1,
 				delta:           0,
@@ -1361,7 +1361,7 @@ func TestBSEquallyInitializedInt64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				state:           Default},
+				state:           defaultState},
 			false,
 		},
 		{
@@ -1375,7 +1375,7 @@ func TestBSEquallyInitializedInt64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				state:           Default},
+				state:           defaultState},
 			&BoundedSumInt64{
 				epsilon:         ln3,
 				delta:           0.6,
@@ -1385,7 +1385,7 @@ func TestBSEquallyInitializedInt64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				state:           Default},
+				state:           defaultState},
 			false,
 		},
 		{
@@ -1399,7 +1399,7 @@ func TestBSEquallyInitializedInt64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				state:           Default},
+				state:           defaultState},
 			&BoundedSumInt64{
 				epsilon:         ln3,
 				delta:           0,
@@ -1409,7 +1409,7 @@ func TestBSEquallyInitializedInt64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				state:           Default},
+				state:           defaultState},
 			false,
 		},
 		{
@@ -1423,7 +1423,7 @@ func TestBSEquallyInitializedInt64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				state:           Default},
+				state:           defaultState},
 			&BoundedSumInt64{
 				epsilon:         ln3,
 				delta:           0,
@@ -1433,7 +1433,7 @@ func TestBSEquallyInitializedInt64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				state:           Default},
+				state:           defaultState},
 			false,
 		},
 		{
@@ -1447,7 +1447,7 @@ func TestBSEquallyInitializedInt64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				state:           Default},
+				state:           defaultState},
 			&BoundedSumInt64{
 				epsilon:         ln3,
 				delta:           0,
@@ -1457,7 +1457,7 @@ func TestBSEquallyInitializedInt64(t *testing.T) {
 				lower:           -1,
 				upper:           1,
 				sum:             0,
-				state:           Default},
+				state:           defaultState},
 			false,
 		},
 		{
@@ -1471,7 +1471,7 @@ func TestBSEquallyInitializedInt64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				state:           Default},
+				state:           defaultState},
 			&BoundedSumInt64{
 				epsilon:         ln3,
 				delta:           0,
@@ -1481,7 +1481,7 @@ func TestBSEquallyInitializedInt64(t *testing.T) {
 				lower:           0,
 				upper:           2,
 				sum:             0,
-				state:           Default},
+				state:           defaultState},
 			false,
 		},
 		{
@@ -1495,7 +1495,7 @@ func TestBSEquallyInitializedInt64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				state:           Default},
+				state:           defaultState},
 			&BoundedSumInt64{
 				epsilon:         ln3,
 				delta:           0,
@@ -1505,7 +1505,7 @@ func TestBSEquallyInitializedInt64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				state:           Merged},
+				state:           merged},
 			false,
 		},
 	} {
@@ -1533,7 +1533,7 @@ func TestBSEquallyInitializedFloat64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				state:           Default},
+				state:           defaultState},
 			&BoundedSumFloat64{
 				epsilon:         ln3,
 				delta:           0,
@@ -1543,7 +1543,7 @@ func TestBSEquallyInitializedFloat64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				state:           Default},
+				state:           defaultState},
 			true,
 		},
 		{
@@ -1557,7 +1557,7 @@ func TestBSEquallyInitializedFloat64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				state:           Default},
+				state:           defaultState},
 			&BoundedSumFloat64{
 				epsilon:         1,
 				delta:           0,
@@ -1567,7 +1567,7 @@ func TestBSEquallyInitializedFloat64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				state:           Default},
+				state:           defaultState},
 			false,
 		},
 		{
@@ -1581,7 +1581,7 @@ func TestBSEquallyInitializedFloat64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				state:           Default},
+				state:           defaultState},
 			&BoundedSumFloat64{
 				epsilon:         ln3,
 				delta:           0.6,
@@ -1591,7 +1591,7 @@ func TestBSEquallyInitializedFloat64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				state:           Default},
+				state:           defaultState},
 			false,
 		},
 		{
@@ -1605,7 +1605,7 @@ func TestBSEquallyInitializedFloat64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				state:           Default},
+				state:           defaultState},
 			&BoundedSumFloat64{
 				epsilon:         ln3,
 				delta:           0,
@@ -1615,7 +1615,7 @@ func TestBSEquallyInitializedFloat64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				state:           Default},
+				state:           defaultState},
 			false,
 		},
 		{
@@ -1629,7 +1629,7 @@ func TestBSEquallyInitializedFloat64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				state:           Default},
+				state:           defaultState},
 			&BoundedSumFloat64{
 				epsilon:         ln3,
 				delta:           0,
@@ -1639,7 +1639,7 @@ func TestBSEquallyInitializedFloat64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				state:           Default},
+				state:           defaultState},
 			false,
 		},
 		{
@@ -1653,7 +1653,7 @@ func TestBSEquallyInitializedFloat64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				state:           Default},
+				state:           defaultState},
 			&BoundedSumFloat64{
 				epsilon:         ln3,
 				delta:           0,
@@ -1663,7 +1663,7 @@ func TestBSEquallyInitializedFloat64(t *testing.T) {
 				lower:           -1,
 				upper:           1,
 				sum:             0,
-				state:           Default},
+				state:           defaultState},
 			false,
 		},
 		{
@@ -1677,7 +1677,7 @@ func TestBSEquallyInitializedFloat64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				state:           Default},
+				state:           defaultState},
 			&BoundedSumFloat64{
 				epsilon:         ln3,
 				delta:           0,
@@ -1687,7 +1687,7 @@ func TestBSEquallyInitializedFloat64(t *testing.T) {
 				lower:           0,
 				upper:           2,
 				sum:             0,
-				state:           Default},
+				state:           defaultState},
 			false,
 		},
 		{
@@ -1701,7 +1701,7 @@ func TestBSEquallyInitializedFloat64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				state:           Default},
+				state:           defaultState},
 			&BoundedSumFloat64{
 				epsilon:         ln3,
 				delta:           0,
@@ -1711,7 +1711,7 @@ func TestBSEquallyInitializedFloat64(t *testing.T) {
 				lower:           0,
 				upper:           1,
 				sum:             0,
-				state:           Merged},
+				state:           merged},
 			false,
 		},
 	} {

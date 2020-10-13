@@ -23,6 +23,7 @@
 #include "algorithms/numerical-mechanisms.h"
 #include "algorithms/util.h"
 #include "proto/summary.pb.h"
+#include "base/canonical_errors.h"
 #include "base/status_macros.h"
 
 namespace differential_privacy {
@@ -90,7 +91,7 @@ class Count : public Algorithm<T> {
         NoiseConfidenceInterval(noise_interval_level, privacy_budget);
     if (interval.ok()) {
       *(output.mutable_error_report()->mutable_noise_confidence_interval()) =
-          interval.ValueOrDie();
+          interval.value();
     }
     return output;
   }

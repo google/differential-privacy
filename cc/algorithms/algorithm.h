@@ -24,6 +24,7 @@
 
 #include "absl/memory/memory.h"
 #include "base/status.h"
+#include "base/statusor.h"
 #include "algorithms/numerical-mechanisms.h"
 #include "algorithms/util.h"
 #include "proto/util.h"
@@ -31,8 +32,6 @@
 #include "proto/data.pb.h"
 #include "proto/summary.pb.h"
 #include "base/canonical_errors.h"
-#include "base/status.h"
-#include "base/statusor.h"
 
 namespace differential_privacy {
 

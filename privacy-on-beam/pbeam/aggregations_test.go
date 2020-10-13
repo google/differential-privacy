@@ -48,7 +48,7 @@ func TestNewBoundedSumFn(t *testing.T) {
 				Lower:                     0,
 				Upper:                     10,
 				NoiseKind:                 noise.LaplaceNoise,
-				PartitionsSpecified:       false,
+				PublicPartitions:          false,
 			}},
 		{"Gaussian Float64", noise.GaussianNoise, reflect.Float64,
 			&boundedSumFloat64Fn{
@@ -60,7 +60,7 @@ func TestNewBoundedSumFn(t *testing.T) {
 				Lower:                     0,
 				Upper:                     10,
 				NoiseKind:                 noise.GaussianNoise,
-				PartitionsSpecified:       false,
+				PublicPartitions:          false,
 			}},
 		{"Laplace Int64", noise.LaplaceNoise, reflect.Int64,
 			&boundedSumInt64Fn{
@@ -72,7 +72,7 @@ func TestNewBoundedSumFn(t *testing.T) {
 				Lower:                     0,
 				Upper:                     10,
 				NoiseKind:                 noise.LaplaceNoise,
-				PartitionsSpecified:       false,
+				PublicPartitions:          false,
 			}},
 		{"Gaussian Int64", noise.GaussianNoise, reflect.Int64,
 			&boundedSumInt64Fn{
@@ -84,7 +84,7 @@ func TestNewBoundedSumFn(t *testing.T) {
 				Lower:                     0,
 				Upper:                     10,
 				NoiseKind:                 noise.GaussianNoise,
-				PartitionsSpecified:       false,
+				PublicPartitions:          false,
 			}},
 	} {
 		got := newBoundedSumFn(1, 1e-5, 17, 0, 10, tc.noiseKind, tc.vKind, false)
@@ -193,7 +193,7 @@ func TestBoundedSumInt64FnExtractOutputReturnsNilForSmallPartitions(t *testing.T
 	}
 }
 
-func TestBoundedSumInt64FnExtractOutputWithSpecifiedPartitionsDoesNotThreshold(t *testing.T) {
+func TestBoundedSumInt64FnExtractOutputWithPublicPartitionsDoesNotThreshold(t *testing.T) {
 	for _, tc := range []struct {
 		desc      string
 		inputSize int
@@ -213,7 +213,7 @@ func TestBoundedSumInt64FnExtractOutputWithSpecifiedPartitionsDoesNotThreshold(t
 		got := fn.ExtractOutput(accum)
 
 		if got == nil {
-			t.Errorf("ExtractOutput for %s thresholded with specified partitions when it shouldn't", tc.desc)
+			t.Errorf("ExtractOutput for %s thresholded with public partitions when it shouldn't", tc.desc)
 		}
 	}
 }
@@ -283,7 +283,7 @@ func TestBoundedSumFloat64FnExtractOutputReturnsNilForSmallPartitions(t *testing
 	}
 }
 
-func TestBoundedSumFloat64FnExtractOutputWithSpecifiedPartitionsDoesNotThreshold(t *testing.T) {
+func TestBoundedSumFloat64FnExtractOutputWithPublicPartitionsDoesNotThreshold(t *testing.T) {
 	for _, tc := range []struct {
 		desc      string
 		inputSize int
@@ -292,8 +292,8 @@ func TestBoundedSumFloat64FnExtractOutputWithSpecifiedPartitionsDoesNotThreshold
 		{"Input with 1 user", 1},
 		{"Input with 10 users", 10},
 		{"Input with 100 users", 100}} {
-		partitionsSpecified := true
-		fn := newBoundedSumFloat64Fn(1, 0, 1, 0, 2, noise.LaplaceNoise, partitionsSpecified)
+		publicPartitions := true
+		fn := newBoundedSumFloat64Fn(1, 0, 1, 0, 2, noise.LaplaceNoise, publicPartitions)
 		fn.Setup()
 		accum := fn.CreateAccumulator()
 		for i := 0; i < tc.inputSize; i++ {
@@ -302,14 +302,14 @@ func TestBoundedSumFloat64FnExtractOutputWithSpecifiedPartitionsDoesNotThreshold
 
 		got := fn.ExtractOutput(accum)
 		if got == nil {
-			t.Errorf("ExtractOutput for %s thresholded with specified partitions when it shouldn't", tc.desc)
+			t.Errorf("ExtractOutput for %s thresholded with public partitions when it shouldn't", tc.desc)
 		}
 	}
 }
 
-// Checks that elements with unspecified partitions are dropped.
+// Checks that elements with non-public partitions are dropped.
 // This function is used for count and distinct_id.
-func TestDropUnspecifiedPartitionsVFn(t *testing.T) {
+func TestDropNonPublicPartitionsVFn(t *testing.T) {
 	pairs := concatenatePairs(
 		makePairsWithFixedV(7, 0),
 		makePairsWithFixedV(52, 1),
@@ -335,15 +335,15 @@ func TestDropUnspecifiedPartitionsVFn(t *testing.T) {
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 	_, partitionT := beam.ValidateKVType(pcol.col)
 	partitionEncodedType := beam.EncodedType{partitionT.Type()}
-	got := dropUnspecifiedPartitionsVFn(s, partitionsCol, pcol, partitionEncodedType)
+	got := dropNonPublicPartitionsVFn(s, partitionsCol, pcol, partitionEncodedType)
 	if err := equalsKVInt(s, got, want); err != nil {
-		t.Fatalf("dropUnspecifiedPartitionsVFn: for %v got: %v, want %v", col, got, want)
+		t.Fatalf("dropNonPublicPartitionsVFn: for %v got: %v, want %v", col, got, want)
 	}
 }
 
-// TestDropUnspecifiedPartitionsKVFn checks that int elements with unspecified partitions
+// TestDropNonPublicPartitionsKVFn checks that int elements with non-public partitions
 // are dropped (tests function used for sum and mean).
-func TestDropUnspecifiedPartitionsKVFn(t *testing.T) {
+func TestDropNonPublicPartitionsKVFn(t *testing.T) {
 	triples := concatenateTriplesWithIntValue(
 		makeDummyTripleWithIntValue(7, 0),
 		makeDummyTripleWithIntValue(58, 1),
@@ -360,7 +360,7 @@ func TestDropUnspecifiedPartitionsKVFn(t *testing.T) {
 	// Doesn't matter that the values 3, 4, 5, 6, 9, 10
 	// are in the partitions PCollection because we are
 	// just dropping the values that are in our original PCollection
-	// that are not specified.
+	// that are not in public partitions.
 	partitionsCol := beam.CreateList(s, []int{0, 2, 3, 4, 5, 6, 9, 10})
 	col = beam.ParDo(s, extractIDFromTripleWithIntValue, col)
 	col2 = beam.ParDo(s, extractIDFromTripleWithIntValue, col2)
@@ -368,7 +368,7 @@ func TestDropUnspecifiedPartitionsKVFn(t *testing.T) {
 
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 	pcol = ParDo(s, tripleWithIntValueToKV, pcol)
-	got := dropUnspecifiedPartitionsKVFn(s, partitionsCol, pcol, pcol.codec.KType)
+	got := dropNonPublicPartitionsKVFn(s, partitionsCol, pcol, pcol.codec.KType)
 	got = beam.SwapKV(s, got)
 
 	pcol2 := MakePrivate(s, col2, NewPrivacySpec(epsilon, delta))
@@ -377,14 +377,14 @@ func TestDropUnspecifiedPartitionsKVFn(t *testing.T) {
 	want = beam.SwapKV(s, want)
 
 	if err := equalsKVInt(s, got, want); err != nil {
-		t.Fatalf("dropUnspecifiedPartitionsKVFn: for %v got: %v, want %v", col, got, want)
+		t.Fatalf("dropPublicPartitionsKVFn: for %v got: %v, want %v", col, got, want)
 	}
 }
 
-// Check that float elements with unspecified partitions
+// Check that float elements with non-public partitions
 // are dropped (tests function used for sum and mean).
-func TestDropUnspecifiedPartitionsFloat(t *testing.T) {
-	// In this test, we check  that unspecified partitions
+func TestDropNonPublicPartitionsFloat(t *testing.T) {
+	// In this test, we check  that non-public partitions
 	// are dropped. This function is used for sum and mean.
 	// Used example values from the mean test.
 	triples := concatenateTriplesWithFloatValue(
@@ -400,7 +400,8 @@ func TestDropUnspecifiedPartitionsFloat(t *testing.T) {
 	_, s, col, col2 := ptest.CreateList2(triples, result)
 
 	// Doesn't matter that the values 2, 3, 4, 5, 6, 7 are in the partitions PCollection.
-	// We are just dropping the values that are in our original PCollection that are not specified.
+	// We are just dropping the values that are in our original PCollection that are not in
+	// public partitions.
 	partitionsCol := beam.CreateList(s, []int{0, 2, 3, 4, 5, 6, 7})
 	col = beam.ParDo(s, extractIDFromTripleWithFloatValue, col)
 	col2 = beam.ParDo(s, extractIDFromTripleWithFloatValue, col2)
@@ -408,7 +409,7 @@ func TestDropUnspecifiedPartitionsFloat(t *testing.T) {
 
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 	pcol = ParDo(s, tripleWithFloatValueToKV, pcol)
-	got := dropUnspecifiedPartitionsKVFn(s, partitionsCol, pcol, pcol.codec.KType)
+	got := dropNonPublicPartitionsKVFn(s, partitionsCol, pcol, pcol.codec.KType)
 	got = beam.SwapKV(s, got)
 
 	pcol2 := MakePrivate(s, col2, NewPrivacySpec(epsilon, delta))
@@ -417,6 +418,6 @@ func TestDropUnspecifiedPartitionsFloat(t *testing.T) {
 	want = beam.SwapKV(s, want)
 
 	if err := equalsKVInt(s, got, want); err != nil {
-		t.Fatalf("DropUnspecifiedPartitionsFloat: for %v got: %v, want %v", col, got, want)
+		t.Fatalf("DropNonPublicPartitionsFloat: for %v got: %v, want %v", col, got, want)
 	}
 }

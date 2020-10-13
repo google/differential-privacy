@@ -321,6 +321,22 @@ class PrivacyLossDistributionTest(parameterized.TestCase):
         expected_result.get_delta_for_epsilon(0.5),
         result.get_delta_for_epsilon(0.5))
 
+  @parameterized.parameters(
+      (1, 0, 1, {1: 0.73105858, -1: 0.26894142}, 0),
+      (1, 0, 0.3, {4: 0.73105858, -3: 0.26894142}, 0),
+      (0.5, 0.2, 0.5, {1: 0.49796746, -1: 0.30203254}, 0.2),
+      (0.5, 0.2, 0.07, {8: 0.49796746, -7: 0.30203254}, 0.2))
+  def test_from_privacy_parameters(self, epsilon, delta,
+                                   value_discretization_interval,
+                                   expected_rounded_probability_mass_function,
+                                   expected_infinity_mass):
+    pld = privacy_loss_distribution.PrivacyLossDistribution.from_privacy_parameters(
+        privacy_loss_distribution.DifferentialPrivacyParameters(epsilon, delta),
+        value_discretization_interval=value_discretization_interval)
+    self.assertAlmostEqual(expected_infinity_mass, pld.infinity_mass)
+    dictionary_almost_equal(self, expected_rounded_probability_mass_function,
+                            pld.rounded_probability_mass_function)
+
 
 class LaplacePrivacyLossDistributionTest(parameterized.TestCase):
 

@@ -21,9 +21,10 @@
 #include <type_traits>
 
 #include "base/status.h"
+#include "base/statusor.h"
 #include "algorithms/algorithm.h"
 #include "algorithms/approx-bounds.h"
-#include "base/status.h"
+#include "base/canonical_errors.h"
 
 namespace differential_privacy {
 

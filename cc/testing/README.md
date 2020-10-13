@@ -16,7 +16,7 @@ stochastic_tester_test.cc contains typical usage examples. To run the tests, use
 
 ```
 cd cc
-bazel test testing:stochastic_test_test.cc
+bazel test testing:stochastic_tester_test
 ```
 
 We also run through a simple example here. First, create a Halton sequence.

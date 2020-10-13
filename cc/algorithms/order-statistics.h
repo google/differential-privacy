@@ -19,11 +19,12 @@
 
 #include "base/percentile.h"
 #include "base/status.h"
+#include "base/statusor.h"
 #include "algorithms/algorithm.h"
 #include "algorithms/binary-search.h"
 #include "algorithms/bounded-algorithm.h"
 #include "algorithms/numerical-mechanisms.h"
-#include "base/status.h"
+#include "base/canonical_errors.h"
 
 namespace differential_privacy {
 namespace continuous {

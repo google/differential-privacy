@@ -44,7 +44,7 @@ func TestNewBoundedMeanFloat64(t *testing.T) {
 			&BoundedMeanFloat64{
 				lower:    -1,
 				upper:    5,
-				state:    Default,
+				state:    defaultState,
 				midPoint: 2,
 				count: Count{
 					epsilon:         ln3 * 0.5,
@@ -53,7 +53,7 @@ func TestNewBoundedMeanFloat64(t *testing.T) {
 					lInfSensitivity: 2,
 					noise:           noNoise{},
 					count:           0,
-					state:           Default,
+					state:           defaultState,
 				},
 				normalizedSum: BoundedSumFloat64{
 					epsilon:         ln3 * 0.5,
@@ -64,7 +64,7 @@ func TestNewBoundedMeanFloat64(t *testing.T) {
 					upper:           3,
 					noise:           noNoise{},
 					sum:             0,
-					state:           Default,
+					state:           defaultState,
 				},
 			}},
 		{"Noise is not set",
@@ -79,7 +79,7 @@ func TestNewBoundedMeanFloat64(t *testing.T) {
 			&BoundedMeanFloat64{
 				lower:    -1,
 				upper:    5,
-				state:    Default,
+				state:    defaultState,
 				midPoint: 2,
 				count: Count{
 					epsilon:         ln3 * 0.5,
@@ -89,7 +89,7 @@ func TestNewBoundedMeanFloat64(t *testing.T) {
 					noiseKind:       noise.LaplaceNoise,
 					noise:           noise.Laplace(),
 					count:           0,
-					state:           Default,
+					state:           defaultState,
 				},
 				normalizedSum: BoundedSumFloat64{
 					epsilon:         ln3 * 0.5,
@@ -101,7 +101,7 @@ func TestNewBoundedMeanFloat64(t *testing.T) {
 					noiseKind:       noise.LaplaceNoise,
 					noise:           noise.Laplace(),
 					sum:             0,
-					state:           Default,
+					state:           defaultState,
 				},
 			}},
 	} {
@@ -193,7 +193,7 @@ func TestBoundedMeanFloat64ResultSetsStateCorrectly(t *testing.T) {
 	bm := getNoiselessBMF()
 	bm.Result()
 
-	if bm.state != ResultReturned {
+	if bm.state != resultReturned {
 		t.Errorf("BoundedMeanFloat64 should have its state set to ResultReturned, got %v, want ResultReturned", bm.state)
 	}
 }
@@ -323,7 +323,7 @@ func TestMergeBoundedMeanFloat64(t *testing.T) {
 	if !ApproxEqual(got, want) {
 		t.Errorf("Merge: when merging 2 instances of BoundedMean got %f, want %f", got, want)
 	}
-	if bm2.state != Merged {
+	if bm2.state != merged {
 		t.Errorf("Merge: when merging 2 instances of BoundedMean for bm2.state got %v, want Merged", bm2.state)
 	}
 }
@@ -512,13 +512,13 @@ func TestCheckMergeBoundedMeanFloat64StateChecks(t *testing.T) {
 		state2  aggregationState
 		wantErr bool
 	}{
-		{Default, Default, false},
-		{ResultReturned, Default, true},
-		{Default, ResultReturned, true},
-		{Serialized, Default, true},
-		{Default, Serialized, true},
-		{Default, Merged, true},
-		{Merged, Default, true},
+		{defaultState, defaultState, false},
+		{resultReturned, defaultState, true},
+		{defaultState, resultReturned, true},
+		{serialized, defaultState, true},
+		{defaultState, serialized, true},
+		{defaultState, merged, true},
+		{merged, defaultState, true},
 	} {
 		bm1 := getNoiselessBMF()
 		bm2 := getNoiselessBMF()
@@ -547,14 +547,14 @@ func TestBMEquallyInitializedFloat64(t *testing.T) {
 				midPoint:      1,
 				normalizedSum: BoundedSumFloat64{},
 				count:         Count{},
-				state:         Default},
+				state:         defaultState},
 			&BoundedMeanFloat64{
 				lower:         0,
 				upper:         2,
 				midPoint:      1,
 				normalizedSum: BoundedSumFloat64{},
 				count:         Count{},
-				state:         Default},
+				state:         defaultState},
 			true,
 		},
 		{
@@ -565,14 +565,14 @@ func TestBMEquallyInitializedFloat64(t *testing.T) {
 				midPoint:      1,
 				normalizedSum: BoundedSumFloat64{},
 				count:         Count{},
-				state:         Default},
+				state:         defaultState},
 			&BoundedMeanFloat64{
 				lower:         0,
 				upper:         2,
 				midPoint:      1,
 				normalizedSum: BoundedSumFloat64{},
 				count:         Count{},
-				state:         Default},
+				state:         defaultState},
 			false,
 		},
 		{
@@ -583,14 +583,14 @@ func TestBMEquallyInitializedFloat64(t *testing.T) {
 				midPoint:      1,
 				normalizedSum: BoundedSumFloat64{},
 				count:         Count{},
-				state:         Default},
+				state:         defaultState},
 			&BoundedMeanFloat64{
 				lower:         0,
 				upper:         3,
 				midPoint:      1,
 				normalizedSum: BoundedSumFloat64{},
 				count:         Count{},
-				state:         Default},
+				state:         defaultState},
 			false,
 		},
 		{
@@ -601,14 +601,14 @@ func TestBMEquallyInitializedFloat64(t *testing.T) {
 				midPoint:      1,
 				normalizedSum: BoundedSumFloat64{},
 				count:         Count{epsilon: ln3},
-				state:         Default},
+				state:         defaultState},
 			&BoundedMeanFloat64{
 				lower:         0,
 				upper:         2,
 				midPoint:      1,
 				normalizedSum: BoundedSumFloat64{},
 				count:         Count{epsilon: 1},
-				state:         Default},
+				state:         defaultState},
 			false,
 		},
 		{
@@ -619,14 +619,14 @@ func TestBMEquallyInitializedFloat64(t *testing.T) {
 				midPoint:      1,
 				normalizedSum: BoundedSumFloat64{epsilon: ln3},
 				count:         Count{},
-				state:         Default},
+				state:         defaultState},
 			&BoundedMeanFloat64{
 				lower:         0,
 				upper:         2,
 				midPoint:      1,
 				normalizedSum: BoundedSumFloat64{epsilon: 1},
 				count:         Count{},
-				state:         Default},
+				state:         defaultState},
 			false,
 		},
 		{
@@ -637,14 +637,14 @@ func TestBMEquallyInitializedFloat64(t *testing.T) {
 				midPoint:      1,
 				normalizedSum: BoundedSumFloat64{},
 				count:         Count{},
-				state:         Default},
+				state:         defaultState},
 			&BoundedMeanFloat64{
 				lower:         0,
 				upper:         2,
 				midPoint:      1,
 				normalizedSum: BoundedSumFloat64{},
 				count:         Count{},
-				state:         Merged},
+				state:         merged},
 			false,
 		},
 	} {
@@ -699,7 +699,7 @@ func TestBMFloat64Serialization(t *testing.T) {
 		if !cmp.Equal(bmUnchanged, bmUnmarshalled, cmp.Comparer(compareBoundedMeanFloat64)) {
 			t.Errorf("decode(encode(_)): when %s got %v, want %v", tc.desc, bmUnmarshalled, bm)
 		}
-		if bm.state != Serialized {
+		if bm.state != serialized {
 			t.Errorf("BoundedMean should have its state set to Serialized, got %v , want Serialized", bm.state)
 		}
 	}
@@ -711,10 +711,10 @@ func TestBoundedMeanFloat64SerializationStateChecks(t *testing.T) {
 		state   aggregationState
 		wantErr bool
 	}{
-		{Default, false},
-		{Merged, true},
-		{Serialized, true},
-		{ResultReturned, true},
+		{defaultState, false},
+		{merged, true},
+		{serialized, true},
+		{resultReturned, true},
 	} {
 		bm := getNoiselessBMF()
 		bm.state = tc.state
@@ -734,10 +734,10 @@ func TestMeanComputeConfidenceIntervalForExplicitAlphaNumFractionsItIntoCorrectM
 		want         noise.ConfidenceInterval
 	}{
 		{ // Positive lower and upper bounds for sum.
-			meanOpt:      &BoundedMeanFloat64Options{
-				Lower: 0.0,
-				Upper: 10.0,
-				Noise: noNoise,
+			meanOpt: &BoundedMeanFloat64Options{
+				Lower:                        0.0,
+				Upper:                        10.0,
+				Noise:                        noNoise,
 				MaxContributionsPerPartition: 1,
 			},
 			sumConfInt:   noise.ConfidenceInterval{LowerBound: 0.0, UpperBound: 10.0},
@@ -745,10 +745,10 @@ func TestMeanComputeConfidenceIntervalForExplicitAlphaNumFractionsItIntoCorrectM
 			want:         noise.ConfidenceInterval{LowerBound: 5.0, UpperBound: 7.0},
 		},
 		{ // Negative lower and upper bounds for sum.
-			meanOpt:      &BoundedMeanFloat64Options{
-				Lower: 0.0,
-				Upper: 10.0,
-				Noise: noNoise,
+			meanOpt: &BoundedMeanFloat64Options{
+				Lower:                        0.0,
+				Upper:                        10.0,
+				Noise:                        noNoise,
 				MaxContributionsPerPartition: 1,
 			},
 			sumConfInt:   noise.ConfidenceInterval{LowerBound: -10.0, UpperBound: -1.0},
@@ -756,10 +756,10 @@ func TestMeanComputeConfidenceIntervalForExplicitAlphaNumFractionsItIntoCorrectM
 			want:         noise.ConfidenceInterval{LowerBound: 0.0, UpperBound: 4.75},
 		},
 		{ // Negative lower bound for sum.
-			meanOpt:      &BoundedMeanFloat64Options{
-				Lower: 0.0,
-				Upper: 10.0,
-				Noise: noNoise,
+			meanOpt: &BoundedMeanFloat64Options{
+				Lower:                        0.0,
+				Upper:                        10.0,
+				Noise:                        noNoise,
 				MaxContributionsPerPartition: 1,
 			},
 			sumConfInt:   noise.ConfidenceInterval{LowerBound: -10.0, UpperBound: 0.0},
@@ -768,10 +768,10 @@ func TestMeanComputeConfidenceIntervalForExplicitAlphaNumFractionsItIntoCorrectM
 		},
 		// Clamp too low bounds.
 		{
-			meanOpt:      &BoundedMeanFloat64Options{
-				Lower: 0.0,
-				Upper: 10.0,
-				Noise: noNoise,
+			meanOpt: &BoundedMeanFloat64Options{
+				Lower:                        0.0,
+				Upper:                        10.0,
+				Noise:                        noNoise,
 				MaxContributionsPerPartition: 1,
 			},
 			sumConfInt:   noise.ConfidenceInterval{LowerBound: -100.0, UpperBound: -10.0},
@@ -780,10 +780,10 @@ func TestMeanComputeConfidenceIntervalForExplicitAlphaNumFractionsItIntoCorrectM
 		},
 		// Clamp too high bounds.
 		{
-			meanOpt:      &BoundedMeanFloat64Options{
-				Lower: 0.0,
-				Upper: 10.0,
-				Noise: noNoise,
+			meanOpt: &BoundedMeanFloat64Options{
+				Lower:                        0.0,
+				Upper:                        10.0,
+				Noise:                        noNoise,
 				MaxContributionsPerPartition: 1,
 			},
 			sumConfInt:   noise.ConfidenceInterval{LowerBound: 100.0, UpperBound: 1000.0},
@@ -812,11 +812,11 @@ func TestMeanComputeConfidenceIntervalForExplicitAlphaNumResultConfIntInsideProv
 	lower := 0.0
 	upper := 1.0
 	meanOpt := &BoundedMeanFloat64Options{
-		Epsilon: 1.0,
-		Delta: 0.123,
-		Lower: lower,
-		Upper: upper,
-		Noise: noNoise{noise.Gaussian()},
+		Epsilon:                      1.0,
+		Delta:                        0.123,
+		Lower:                        lower,
+		Upper:                        upper,
+		Noise:                        noNoise{noise.Gaussian()},
 		MaxContributionsPerPartition: 1,
 	}
 	mean := NewBoundedMeanFloat64(meanOpt)
@@ -901,10 +901,10 @@ func TestBoundedMeanFloat64ComputeConfidenceIntervalStateChecks(t *testing.T) {
 		state   aggregationState
 		wantErr bool
 	}{
-		{ResultReturned, false},
-		{Default, true},
-		{Merged, true},
-		{Serialized, true},
+		{resultReturned, false},
+		{defaultState, true},
+		{merged, true},
+		{serialized, true},
 	} {
 		bm := getNoiselessBMF()
 		// Count and sum have to be also set to the same state

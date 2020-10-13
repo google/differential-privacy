@@ -23,6 +23,7 @@ import (
 
 	log "github.com/golang/glog"
 	"github.com/google/differential-privacy/go/checks"
+	"github.com/google/differential-privacy/go/noise"
 	"github.com/google/differential-privacy/go/rand"
 )
 
@@ -42,10 +43,13 @@ import (
 // in a total differential privacy budget of (ε+ε_m,δ+δ_m) being used for the
 // aggregation with partition selection.
 //
-// The partition selection process is made (ε,δ) differentially private by
-// applying the definition of differential privacy to the count of privacy
-// IDs. Supposing l0Sensitivity bounds the number of partitions a privacy ID may
-// contribute to, we define:
+// Depending on the l0sensitivity, the PreAggSelectPartition uses one of two
+// differentially private partition selection algorithms.
+//
+// When l0sensitivity ≤ 3, the partition selection process is made (ε,δ)
+// differentially private by applying the definition of differential privacy to
+// the count of privacy IDs. Supposing l0Sensitivity bounds the number of partitions
+// a privacy ID may contribute to, we define:
 //     pε := ε/l0Sensitivity
 //     pδ := δ/l0Sensitivity
 // to be the per-partition differential privacy losses incurred by the partition
@@ -63,6 +67,19 @@ import (
 // approximations. For efficiency, we use a closed-form solution to this
 // recurrence relation. See [Differentially private partition selection paper]
 // https://arxiv.org/pdf/2006.03684.pdf for details on the underlying mathematics.
+//
+// When l0sensitivity > 3, the partition selection process is made (ε,δ)
+// differentially private by using the ThresholdedResult() of the Count primitive
+// with Gaussian noise. Count computes a (ε,δ/2) differentially private count of
+// the privacy IDs in a partition by adding Gaussian noise. Then, it computes
+// a threshold T for which the probability that a (ε,δ/2) differentially private
+// count of a single privacy ID can exceed T is δ/2. It keeps the partition iff
+// differentially private count exceeds the threshold.
+//
+// The reason two different algorithms for deciding whether to keep a partition
+// is used is because the first algorithm ("magic partition selection") is optimal
+// when l0sensitivity ≤ 3 but is outperformed by Gaussian-based thresholding when
+// l0sensitivity > 3.
 //
 // PreAggSelectPartition is a utility for maintaining the count of IDs in a single
 // partition and then determining whether the partition should be
@@ -171,6 +188,15 @@ func (s *PreAggSelectPartition) ShouldKeepPartition() bool {
 		log.Exitf("This PreAggSelectPartition has already returned a ShouldKeepPartition. It can only be used once.")
 	}
 	s.resultReturned = true
+	if s.l0Sensitivity > 3 { // Gaussian thresholding outperforms in this case.
+		c := NewCount(&CountOptions{
+			Epsilon:                  s.epsilon,
+			Delta:                    s.delta / 2,
+			MaxPartitionsContributed: s.l0Sensitivity,
+			Noise:                    noise.Gaussian()})
+		c.IncrementBy(s.idCount)
+		return c.ThresholdedResult(s.delta/2) != nil
+	}
 	return rand.Uniform() < keepPartitionProbability(s.idCount, s.l0Sensitivity, s.epsilon, s.delta)
 }
 

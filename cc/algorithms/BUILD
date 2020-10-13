@@ -134,6 +134,7 @@ cc_library(
         ":bounded-algorithm",
         ":numerical-mechanisms",
         "//base:status",
+        "//base:statusor",
         "//base:percentile",
     ],
 )
@@ -169,6 +170,7 @@ cc_library(
         ":numerical-mechanisms",
         ":util",
         "//base:status",
+        "//base:statusor",
         "@com_google_differential_privacy//proto:summary_cc_proto",
         "@com_google_absl//absl/memory",
         "@com_google_protobuf//:cc_wkt_protos",
@@ -540,6 +542,7 @@ cc_library(
         ":algorithm",
         ":approx-bounds",
         "//base:status",
+        "//base:statusor",
     ],
 )
 
@@ -622,6 +625,7 @@ cc_test(
     name = "partition-selection_test",
     srcs = ["partition-selection_test.cc"],
     copts = ["-Wno-sign-compare"],
+    shard_count = 2,
     deps = [
         ":numerical-mechanisms-testing",
         ":partition-selection",

@@ -58,7 +58,7 @@ type DistinctPrivacyIDParams struct {
 	// You can input the list of partitions present in the output if you know
 	// them in advance. When you specify partitions, partition selection /
 	// thresholding will be disabled and partitions will appear in the output
-	// if and only if they appear in the set of specified partitions.
+	// if and only if they appear in the set of public partitions.
 	//
 	// You should not derive the list of partitions non-privately from private
 	// data. You should only use this in either of the following cases:
@@ -67,7 +67,7 @@ type DistinctPrivacyIDParams struct {
 	// 	hourly period.
 	// 	2. You use a differentially private operation to come up with the list of
 	// 	partitions. For example, you could use the keys of a DistinctPrivacyID
-	// 	operation as the list of pre-specified partitions.
+	// 	operation as the list of public partitions.
 	//
 	// Note that current implementation limitations only allow up to millions of
 	// public partitions.
@@ -112,14 +112,14 @@ func DistinctPrivacyID(s beam.Scope, pcol PrivatePCollection, params DistinctPri
 	}
 
 	maxPartitionsContributed := getMaxPartitionsContributed(spec, params.MaxPartitionsContributed)
-	// Drop unspecified partitions, if partitions are specified.
+	// Drop non-public partitions, if public partitions are specified.
 	if (params.PublicPartitions).IsValid() {
 		if partitionT.Type() != (params.PublicPartitions).Type().Type() {
-			log.Exitf("Specified partitions must be of type %v. Got type %v instead.",
+			log.Exitf("Public partitions must be of type %v. Got type %v instead.",
 				partitionT.Type(), (params.PublicPartitions).Type().Type())
 		}
 		partitionEncodedType := beam.EncodedType{partitionT.Type()}
-		pcol.col = dropUnspecifiedPartitionsVFn(s, params.PublicPartitions, pcol, partitionEncodedType)
+		pcol.col = dropNonPublicPartitionsVFn(s, params.PublicPartitions, pcol, partitionEncodedType)
 	}
 	// First, deduplicate KV pairs by encoding them and calling Distinct.
 	coded := beam.ParDo(s, kv.NewEncodeFn(idT, partitionT), pcol.col)
@@ -135,9 +135,9 @@ func DistinctPrivacyID(s beam.Scope, pcol PrivatePCollection, params DistinctPri
 	// done, remove the keys and count how many times each value appears.
 	values := beam.DropKey(s, decoded)
 	dummyCounts := beam.ParDo(s, addOneValueFn, values)
-	// Add specified partitions and return the aggregation output, if partitions are specified.
+	// Add public partitions and return the aggregation output, if public partitions are specified.
 	if (params.PublicPartitions).IsValid() {
-		return addSpecifiedPartitionsForDistinctID(s, params, epsilon, delta, maxPartitionsContributed, noiseKind, dummyCounts)
+		return addPublicPartitionsForDistinctID(s, params, epsilon, delta, maxPartitionsContributed, noiseKind, dummyCounts)
 	}
 	noisedCounts := beam.CombinePerKey(s,
 		newCountFn(epsilon, delta, maxPartitionsContributed, noiseKind, false),
@@ -146,11 +146,11 @@ func DistinctPrivacyID(s beam.Scope, pcol PrivatePCollection, params DistinctPri
 	return beam.ParDo(s, dropThresholdedPartitionsInt64Fn, noisedCounts)
 }
 
-func addSpecifiedPartitionsForDistinctID(s beam.Scope, params DistinctPrivacyIDParams, epsilon, delta float64,
+func addPublicPartitionsForDistinctID(s beam.Scope, params DistinctPrivacyIDParams, epsilon, delta float64,
 	maxPartitionsContributed int64, noiseKind noise.Kind, countsKV beam.PCollection) beam.PCollection {
-	prepareAddSpecifiedPartitions := beam.ParDo(s, addDummyValuesToSpecifiedPartitionsInt64Fn, params.PublicPartitions)
-	// Merge countsKV and prepareAddSpecifiedPartitions.
-	allAddPartitions := beam.Flatten(s, countsKV, prepareAddSpecifiedPartitions)
+	prepareAddPublicPartitions := beam.ParDo(s, addDummyValuesToPublicPartitionsInt64Fn, params.PublicPartitions)
+	// Merge countsKV and prepareAddPublicPartitions.
+	allAddPartitions := beam.Flatten(s, countsKV, prepareAddPublicPartitions)
 	noisedCounts := beam.CombinePerKey(s,
 		newCountFn(epsilon, delta, maxPartitionsContributed, noiseKind, true),
 		allAddPartitions)
@@ -189,18 +189,18 @@ type countFn struct {
 	MaxPartitionsContributed int64
 	NoiseKind                noise.Kind
 	noise                    noise.Noise // Set during Setup phase according to NoiseKind.
-	PartitionsSpecified      bool
+	PublicPartitions         bool
 }
 
 // newCountFn returns a newCountFn with the given budget and parameters.
-func newCountFn(epsilon, delta float64, maxPartitionsContributed int64, noiseKind noise.Kind, partitionsSpecified bool) *countFn {
+func newCountFn(epsilon, delta float64, maxPartitionsContributed int64, noiseKind noise.Kind, publicPartitions bool) *countFn {
 	fn := &countFn{
 		MaxPartitionsContributed: maxPartitionsContributed,
 		NoiseKind:                noiseKind,
-		PartitionsSpecified:      partitionsSpecified,
+		PublicPartitions:         publicPartitions,
 	}
 	fn.Epsilon = epsilon
-	if fn.PartitionsSpecified {
+	if fn.PublicPartitions {
 		fn.NoiseDelta = delta
 		return fn
 	}
@@ -222,8 +222,8 @@ func (fn *countFn) Setup() {
 }
 
 type countAccum struct {
-	C                   *dpagg.Count
-	PartitionsSpecified bool
+	C                *dpagg.Count
+	PublicPartitions bool
 }
 
 func (fn *countFn) CreateAccumulator() countAccum {
@@ -232,7 +232,7 @@ func (fn *countFn) CreateAccumulator() countAccum {
 		Delta:                    fn.NoiseDelta,
 		MaxPartitionsContributed: fn.MaxPartitionsContributed,
 		Noise:                    fn.noise,
-	}), PartitionsSpecified: fn.PartitionsSpecified}
+	}), PublicPartitions: fn.PublicPartitions}
 }
 
 // AddInput adds one to the count of observed values. It ignores the actual
@@ -248,7 +248,7 @@ func (fn *countFn) MergeAccumulators(a, b countAccum) countAccum {
 }
 
 func (fn *countFn) ExtractOutput(a countAccum) *int64 {
-	if a.PartitionsSpecified {
+	if a.PublicPartitions {
 		result := a.C.Result()
 		return &result
 	}

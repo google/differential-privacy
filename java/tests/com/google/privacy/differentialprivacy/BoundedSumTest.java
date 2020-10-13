@@ -477,8 +477,7 @@ public class BoundedSumTest {
 
     targetSum.getSerializableSummary();
     assertThrows(
-            IllegalStateException.class,
-            () -> targetSum.mergeWith(sourceSum.getSerializableSummary()));
+        IllegalStateException.class, () -> targetSum.mergeWith(sourceSum.getSerializableSummary()));
   }
 
   @Test

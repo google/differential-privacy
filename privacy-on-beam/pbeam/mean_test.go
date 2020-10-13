@@ -210,9 +210,9 @@ func TestBoundedMeanFloat64FnWithPartitionsExtractOutputDoesNotReturnNilForSmall
 
 		got := fn.ExtractOutput(accum)
 
-		// Should not return nil output for small partitions in the case of specified partitions.
+		// Should not return nil output for small partitions in the case of public partitions.
 		if got == nil {
-			t.Errorf("ExtractOutput for %s thresholded with specified partitions when it shouldn't", tc.desc)
+			t.Errorf("ExtractOutput for %s thresholded with public partitions when it shouldn't", tc.desc)
 		}
 	}
 }
@@ -308,7 +308,7 @@ func TestMeanPerKeyWithPartitionsAddsNoiseFloat(t *testing.T) {
 		epsilon float64
 		delta   float64
 	}{
-		// Epsilon and delta are not split because partitions are specified. All of them are used for the noise.
+		// Epsilon and delta are not split because partitions are public. All of them are used for the noise.
 		{
 			name:      "Gaussian",
 			noiseKind: GaussianNoise{},
@@ -319,7 +319,7 @@ func TestMeanPerKeyWithPartitionsAddsNoiseFloat(t *testing.T) {
 			name:      "Laplace",
 			noiseKind: LaplaceNoise{},
 			epsilon:   0.1,
-			delta:     0, // It is 0 because partitions are specified and we are using Laplace noise.
+			delta:     0, // It is 0 because partitions are public and we are using Laplace noise.
 		},
 	} {
 		lower := 0.0
@@ -536,7 +536,7 @@ func TestMeanPerKeyWithPartitionsNoNoiseFloatValues(t *testing.T) {
 		lower float64
 		upper float64
 	}{
-		// Used for MinValue and MaxValue. Tests case when specified partitions are already in the data.
+		// Used for MinValue and MaxValue. Tests case when public partitions are already in the data.
 		{
 			lower: 1.0,
 			upper: 3.0,
@@ -570,7 +570,7 @@ func TestMeanPerKeyWithPartitionsNoNoiseFloatValues(t *testing.T) {
 		partitions := []int{0, 1}
 		publicPartitions := beam.CreateList(s, partitions)
 
-		// We have ε=50, δ=0 and l0Sensitivity=1. No thresholding is done because partitions are specified.
+		// We have ε=50, δ=0 and l0Sensitivity=1. No thresholding is done because partitions are public.
 		// We have 2 partitions. So, to get an overall flakiness of 10⁻²³,
 		// we can have each partition fail with 10⁻²⁵ probability (k=25).
 		maxContributionsPerPartition := int64(1)
@@ -580,7 +580,7 @@ func TestMeanPerKeyWithPartitionsNoNoiseFloatValues(t *testing.T) {
 		lower := tc.lower
 		upper := tc.upper
 
-		// ε is not split because partitions are specified.
+		// ε is not split because partitions are public.
 		pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 		pcol = ParDo(s, tripleWithFloatValueToKV, pcol)
 		got := MeanPerKey(s, pcol, MeanParams{
@@ -928,7 +928,7 @@ func TestMeanPerKeyWithPartitionsReturnsNonNegativeFloat64(t *testing.T) {
 	lower := 0.0
 	upper := 1e8
 
-	// ε is not split, because partitions are specified.
+	// ε is not split, because partitions are public.
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 	pcol = ParDo(s, tripleWithFloatValueToKV, pcol)
 	means := MeanPerKey(s, pcol, MeanParams{
@@ -951,8 +951,8 @@ func TestMeanPerKeyWithPartitionsReturnsNonNegativeFloat64(t *testing.T) {
 func TestMeanPerKeyNoClampingForNegativeMinValueFloat64(t *testing.T) {
 	var triples []tripleWithFloatValue
 	// The probability that any given partition has a negative noisy mean is 1/2 * 0.999.
-	// The probability of none of the partitions having a noisy negative mean is 1 - (1/2 * 0.999)^1000, which is negligible.
-	for key := 0; key < 1000; key++ {
+	// The probability of none of the partitions having a noisy negative mean is 1 - (1/2 * 0.999)^100, which is negligible.
+	for key := 0; key < 100; key++ {
 		triples = append(triples, tripleWithFloatValue{key, key, 0})
 	}
 	p, s, col := ptest.CreateList(triples)
@@ -1014,7 +1014,7 @@ func TestFindConvertToFloat64Fn(t *testing.T) {
 	}
 }
 
-// Checks that MeanPerKey with specified partitions does cross-partition contribution bounding correctly.
+// Checks that MeanPerKey with public partitions does cross-partition contribution bounding correctly.
 func TestMeanPerKeyWithPartitionsCrossPartitionContributionBounding(t *testing.T) {
 	var triples []tripleWithFloatValue
 
@@ -1040,12 +1040,12 @@ func TestMeanPerKeyWithPartitionsCrossPartitionContributionBounding(t *testing.T
 	maxContributionsPerPartition := int64(1)
 	maxPartitionsContributed := int64(1)
 	epsilon := 60.0
-	delta := 0.0 // Zero delta because partitions are specified.
+	delta := 0.0 // Zero delta because partitions are public.
 	lower := 0.0
 	upper := 150.0
 
 	publicPartitions := beam.CreateList(s, []int{0, 1})
-	// ε is not split, because partitions are specified.
+	// ε is not split, because partitions are public.
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 	pcol = ParDo(s, tripleWithFloatValueToKV, pcol)
 	got := MeanPerKey(s, pcol, MeanParams{
@@ -1081,7 +1081,7 @@ func TestMeanPerKeyWithPartitionsCrossPartitionContributionBounding(t *testing.T
 	}
 }
 
-// Checks that MeanPerKey with specified partitions returns a correct answer for int input values.
+// Checks that MeanPerKey with public partitions returns a correct answer for int input values.
 // They should be correctly converted to float64 and then correct result
 // with float statistic should be computed.
 func TestMeanPerKeyWithPartitionsNoNoiseIntValues(t *testing.T) {
@@ -1089,7 +1089,7 @@ func TestMeanPerKeyWithPartitionsNoNoiseIntValues(t *testing.T) {
 		lower float64
 		upper float64
 	}{
-		// Used for MinValue and MaxValue. Tests case when specified partitions are already in the data.
+		// Used for MinValue and MaxValue. Tests case when public partitions are already in the data.
 		{
 			lower: 1.0,
 			upper: 3.0,
@@ -1113,13 +1113,13 @@ func TestMeanPerKeyWithPartitionsNoNoiseIntValues(t *testing.T) {
 		exactMean := (100.0 + 2.0*150.0) / exactCount
 
 		// We have ε=50, δ=0 and l0Sensitivity=1.
-		// We do not use thresholding because partitions are specified.
+		// We do not use thresholding because partitions are public.
 		// We have 1 partition. So, to get an overall flakiness of 10⁻²³,
 		// we can have each partition fail with 10⁻²³ probability (k=23).
 		maxContributionsPerPartition := int64(1)
 		maxPartitionsContributed := int64(1)
 		epsilon := 50.0
-		delta := 0.0 // Using Laplace noise, and partitions are specified.
+		delta := 0.0 // Using Laplace noise, and partitions are public.
 
 		result := []testFloat64Metric{
 			{1, exactMean},
@@ -1128,7 +1128,7 @@ func TestMeanPerKeyWithPartitionsNoNoiseIntValues(t *testing.T) {
 		p, s, col, want := ptest.CreateList2(triples, result)
 		col = beam.ParDo(s, extractIDFromTripleWithIntValue, col)
 
-		// ε is not split, because partitions are specified.
+		// ε is not split, because partitions are public.
 		pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 		pcol = ParDo(s, tripleWithIntValueToKV, pcol)
 		publicPartitions := beam.CreateList(s, []int{1})
@@ -1156,13 +1156,13 @@ func TestMeanPerKeyWithPartitionsNoNoiseIntValues(t *testing.T) {
 	}
 }
 
-// Checks that MeanPerKey with empty specified partitions returns a correct answer.
+// Checks that MeanPerKey with empty public partitions returns a correct answer.
 func TestMeanPerKeyWithEmptyPartitionsNoNoise(t *testing.T) {
 	for _, tc := range []struct {
 		lower float64
 		upper float64
 	}{
-		// Used for MinValue and MaxValue. Tests case when specified partitions are already in the data.
+		// Used for MinValue and MaxValue. Tests case when public partitions are already in the data.
 		{
 			lower: 1.0,
 			upper: 3.0,
@@ -1184,13 +1184,13 @@ func TestMeanPerKeyWithEmptyPartitionsNoNoise(t *testing.T) {
 		exactMean := midpoint // Mean of 0 elements is midpoint.
 
 		// We have ε=50, δ=0 and l0Sensitivity=1.
-		// We do not use thresholding because partitions are specified.
+		// We do not use thresholding because partitions are public.
 		// We have 3 partitions. So, to get an overall flakiness of 10⁻²³,
 		// we can have each partition fail with 10⁻²⁵ probability (k=25).
 		maxContributionsPerPartition := int64(1)
 		maxPartitionsContributed := int64(1)
 		epsilon := 50.0
-		delta := 0.0 // Using Laplace noise, and partitions are specified.
+		delta := 0.0 // Using Laplace noise, and partitions are public.
 
 		result := []testFloat64Metric{
 			{1, midpoint},
@@ -1201,7 +1201,7 @@ func TestMeanPerKeyWithEmptyPartitionsNoNoise(t *testing.T) {
 		p, s, col, want := ptest.CreateList2(triples, result)
 		col = beam.ParDo(s, extractIDFromTripleWithIntValue, col)
 
-		// ε is not split, because partitions are specified.
+		// ε is not split, because partitions are public.
 		pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 		pcol = ParDo(s, tripleWithIntValueToKV, pcol)
 		publicPartitions := beam.CreateList(s, []int{1, 2, 3})

@@ -27,10 +27,11 @@
 
 #include "base/logging.h"
 #include "absl/base/attributes.h"
+#include "base/status.h"
+#include "base/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 #include "base/status_macros.h"
-#include "base/statusor.h"
 
 namespace differential_privacy {
 

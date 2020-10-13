@@ -128,6 +128,18 @@ def self_convolve_dictionary(input_dictionary: typing.Mapping[int, float],
   return list_to_dictionary(result_list_real_part, min_val * num_times)
 
 
+@dataclasses.dataclass
+class DifferentialPrivacyParameters(object):
+  """Representation of the differential privacy parameters of a mechanism.
+
+  Attributes:
+    epsilon: the epsilon in (epsilon, delta)-differential privacy.
+    delta: the delta in (epsilon, delta)-differential privacy.
+  """
+  epsilon: float
+  delta: float = 0
+
+
 class PrivacyLossDistribution(object):
   """Class for privacy loss distributions and computation involving them.
 
@@ -350,6 +362,42 @@ class PrivacyLossDistribution(object):
     return cls(rounded_probability_mass_function, value_discretization_interval,
                0)
 
+  @classmethod
+  def from_privacy_parameters(
+      cls,
+      privacy_parameters: DifferentialPrivacyParameters,
+      value_discretization_interval: float = 1e-4) -> 'PrivacyLossDistribution':
+    """Constructs pessimistic PLD from epsilon and delta parameters.
+
+    When the mechanism is (epsilon, delta)-differentially private, the following
+    is a pessimistic estimate of its privacy loss distribution (see Section 3.5
+    of the supplementary material for more explanation):
+      - infinity with probability delta.
+      - epsilon with probability (1 - delta) / (1 + exp(-eps))
+      - -epsilon with probability (1 - delta) / (1 + exp(eps))
+
+    Args:
+      privacy_parameters: the privacy guarantee of the mechanism.
+      value_discretization_interval: the length of the dicretization interval
+        for the privacy loss distribution. The values will be rounded up/down to
+        be an integer multiple of this number.
+
+    Returns:
+      The privacy loss distribution constructed as specified.
+    """
+    delta = privacy_parameters.delta
+    epsilon = privacy_parameters.epsilon
+
+    rounded_probability_mass_function = {
+        math.ceil(epsilon / value_discretization_interval):
+            (1 - delta) / (1 + math.exp(-epsilon)),
+        math.ceil(-epsilon / value_discretization_interval):
+            (1 - delta) / (1 + math.exp(epsilon))
+    }
+
+    return cls(rounded_probability_mass_function, value_discretization_interval,
+               privacy_parameters.delta)
+
   def get_delta_for_epsilon(self, epsilon: float) -> float:
     """Computes the epsilon-hockey stick divergence between mu_upper, mu_lower.
 
@@ -496,18 +544,6 @@ class TailPrivacyLossDistribution(object):
   lower_x_truncation: float
   upper_x_truncation: float
   tail_probability_mass_function: typing.Mapping[float, float]
-
-
-@dataclasses.dataclass
-class DifferentialPrivacyParameters(object):
-  """Representation of the differential privacy parameters of a mechanism.
-
-  Attributes:
-    epsilon: the epsilon in (epsilon, delta)-differential privacy.
-    delta: the delta in (epsilon, delta)-differential privacy.
-  """
-  epsilon: float
-  delta: float = 0
 
 
 class AdditiveNoisePrivacyLossDistribution(

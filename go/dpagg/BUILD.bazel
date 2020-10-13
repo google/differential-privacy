@@ -23,12 +23,12 @@ gazelle(name = "gazelle")
 go_library(
     name = "go_default_library",
     srcs = [
+        "aggregation_state.go",
         "coders.go",
         "count.go",
         "helpers.go",
         "mean.go",
         "select_partition.go",
-        "aggregation_state.go",
         "sum.go",
     ],
     importpath = "github.com/google/differential-privacy/go/dpagg",

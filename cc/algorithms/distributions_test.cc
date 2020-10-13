@@ -24,7 +24,6 @@
 #include "absl/strings/str_replace.h"
 #include "algorithms/numerical-mechanisms-testing.h"
 #include "algorithms/util.h"
-#include "base/status.h"
 
 namespace differential_privacy {
 namespace internal {

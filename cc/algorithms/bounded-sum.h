@@ -23,13 +23,14 @@
 #include "google/protobuf/any.pb.h"
 #include "absl/memory/memory.h"
 #include "base/status.h"
+#include "base/statusor.h"
 #include "algorithms/algorithm.h"
 #include "algorithms/approx-bounds.h"
 #include "algorithms/bounded-algorithm.h"
 #include "algorithms/numerical-mechanisms.h"
 #include "algorithms/util.h"
 #include "proto/summary.pb.h"
-#include "base/status.h"
+#include "base/canonical_errors.h"
 
 namespace differential_privacy {
 
@@ -306,7 +307,7 @@ class BoundedSum : public Algorithm<T> {
         NoiseConfidenceIntervalImpl(noise_interval_level, remaining_budget);
     if (interval.ok()) {
       *(output.mutable_error_report()->mutable_noise_confidence_interval()) =
-          interval.ValueOrDie();
+          interval.value();
     }
 
     // Add noise to sum. Use the remaining privacy budget.

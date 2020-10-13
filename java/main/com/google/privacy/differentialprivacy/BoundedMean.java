@@ -21,7 +21,6 @@ import com.google.common.annotations.VisibleForTesting;
 import java.util.Collection;
 import javax.annotation.Nullable;
 
-
 /**
  * Calculates differentially private average for a collection of values.
  *
@@ -186,7 +185,8 @@ public class BoundedMean {
    */
   public ConfidenceInterval computeConfidenceInterval(double alpha) {
     if (state != AggregationState.RESULT_RETURNED) {
-      throw new IllegalStateException("computeResult() must be called before calling computeConfidenceInterval()");
+      throw new IllegalStateException(
+          "computeResult() must be called before calling computeConfidenceInterval()");
     }
     // The confidence interval of bounded mean is derived from confidence intervals of the mean's
     // numerator and denominator. The respective confidence levels 1 - alphaNum and 1 - alphaDen can
