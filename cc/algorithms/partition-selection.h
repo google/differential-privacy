@@ -162,20 +162,13 @@ class PartitionSelectionStrategy {
     return base::OkStatus();
   }
 
- private:
-  double epsilon_;
-  double delta_;
-  int64_t max_partitions_contributed_;
-  double adjusted_delta_;
-
- protected:
   double GetAdjustedDelta() const { return adjusted_delta_; }
 
-  // We must derive adjusted_delta_, the probability of keeping a single
-  // partition with one user, from delta, the probability we keep any of the
-  // partitions contributed to by a single user.  Since the probability we drop
-  // a partition with a single user is 1 - adjusted_delta_, and raising this
-  // expression to the power of the max number of partitions one user can
+  // We must derive an adjusted delta, to be used as the probability of keeping
+  // a single partition with one user, from delta, the probability we keep any
+  // of the partitions contributed to by a single user.  Since the probability
+  // we drop a partition with a single user is 1 - adjusted_delta_, and raising
+  // this expression to the power of the max number of partitions one user can
   // contribute to will get us delta, we can solve to get the following formula.
   static base::StatusOr<double> CalculateAdjustedDelta(
       double delta, int64_t max_partitions_contributed) {
@@ -208,6 +201,12 @@ class PartitionSelectionStrategy {
     }
     return -expm1(max_partitions_contributed * log1p(-adjusted_delta));
   }
+
+ private:
+  double epsilon_;
+  double delta_;
+  int max_partitions_contributed_;
+  double adjusted_delta_;
 };
 
 // PreAggPartitionSelection implements magic partition selection - instead of

@@ -16,6 +16,7 @@
 
 #include "algorithms/order-statistics.h"
 
+#include "base/testing/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/random/distributions.h"
@@ -26,62 +27,66 @@ namespace differential_privacy {
 namespace continuous {
 namespace {
 
-using test_utils::ZeroNoiseMechanism;
+using ::differential_privacy::test_utils::ZeroNoiseMechanism;
+using ::testing::HasSubstr;
+using ::differential_privacy::base::testing::StatusIs;
 
 static constexpr size_t kDataSize = 10000;
-static constexpr size_t kStatsSize = 500;
 static constexpr double kNumSamples = 10000;
 
 TEST(OrderStatisticsTest, Max) {
   double epsilon = std::log(3);
   int64_t lower = 0, upper = 2048;
-  std::unique_ptr<Max<int64_t>> search =
-      typename Max<int64_t>::Builder()
+  base::StatusOr<std::unique_ptr<Max<int64_t>>> search =
+      Max<int64_t>::Builder()
           .SetEpsilon(epsilon)
           .SetLower(lower)
           .SetUpper(upper)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
-          .Build()
-          .ValueOrDie();
+          .Build();
+  ASSERT_OK(search);
   for (int64_t i = 0; i < kDataSize; ++i) {
-    search->AddEntry(std::round(static_cast<double>(200) * i / kDataSize));
+    (*search)->AddEntry(std::round(static_cast<double>(200) * i / kDataSize));
   }
-  EXPECT_NEAR(GetValue<int64_t>(search->PartialResult(1.0).ValueOrDie()), 200,
+  EXPECT_NEAR(GetValue<int64_t>((*search)->PartialResult(1.0).ValueOrDie()), 200,
               10);
 }
 
 TEST(OrderStatisticsTest, Min) {
   double epsilon = std::log(3);
   int64_t lower = 0, upper = 2048;
-  std::unique_ptr<Min<int64_t>> search =
-      typename Min<int64_t>::Builder()
+  base::StatusOr<std::unique_ptr<Min<int64_t>>> search =
+      Min<int64_t>::Builder()
           .SetEpsilon(epsilon)
           .SetLower(lower)
           .SetUpper(upper)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
-          .Build()
-          .ValueOrDie();
+          .Build();
   for (int64_t i = 0; i < kDataSize; ++i) {
-    search->AddEntry(std::round(static_cast<double>(200) * i / kDataSize));
+    (*search)->AddEntry(std::round(static_cast<double>(200) * i / kDataSize));
   }
-  EXPECT_NEAR(GetValue<int64_t>(search->PartialResult(1.0).ValueOrDie()), 0, 10);
+  base::StatusOr<Output> result = (*search)->PartialResult(1.0);
+  ASSERT_OK(result);
+  EXPECT_NEAR(GetValue<int64_t>(*result), 0, 10);
 }
 
 TEST(OrderStatisticsTest, Median) {
   double epsilon = std::log(3);
   int64_t lower = 0, upper = 2048;
-  std::unique_ptr<Median<int64_t>> search =
-      typename Median<int64_t>::Builder()
+  base::StatusOr<std::unique_ptr<Median<int64_t>>> search =
+      Median<int64_t>::Builder()
           .SetEpsilon(epsilon)
           .SetLower(lower)
           .SetUpper(upper)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
-          .Build()
-          .ValueOrDie();
+          .Build();
+  ASSERT_OK(search);
   for (int64_t i = 0; i < kDataSize; ++i) {
-    search->AddEntry(std::round(static_cast<double>(200) * i / kDataSize));
+    (*search)->AddEntry(std::round(static_cast<double>(200) * i / kDataSize));
   }
-  EXPECT_EQ(GetValue<int64_t>(search->PartialResult(1.0).ValueOrDie()), 100);
+  base::StatusOr<Output> result = (*search)->PartialResult(1.0);
+  ASSERT_OK(result);
+  EXPECT_EQ(GetValue<int64_t>(*result), 100);
 }
 
 TEST(OrderStatisticsTest, MedianLinfIncreasesVariance) {
@@ -92,15 +97,16 @@ TEST(OrderStatisticsTest, MedianLinfIncreasesVariance) {
       [&input](int max_contributions) {
         double sum = 0;
         for (int i = 0; i < kNumSamples; ++i) {
-          auto bounded_sum =
-              typename Median<double>::Builder()
+          base::StatusOr<std::unique_ptr<Median<double>>> bounded_sum =
+              Median<double>::Builder()
                   .SetMaxContributionsPerPartition(max_contributions)
                   .SetEpsilon(1)
                   .SetLower(-1)
                   .SetUpper(1)
                   .Build();
           CHECK_EQ(bounded_sum.status(), base::OkStatus());
-          auto out = (*bounded_sum)->Result(input.begin(), input.end());
+          base::StatusOr<Output> out =
+              (*bounded_sum)->Result(input.begin(), input.end());
           CHECK_EQ(out.status(), base::OkStatus());
           sum += std::pow(GetValue<double>(*out), 2);
         }
@@ -116,59 +122,66 @@ TEST(OrderStatisticsTest, MedianLinfIncreasesVariance) {
 TEST(OrderStatisticsTest, Percentile) {
   double epsilon = std::log(3);
   int64_t lower = 0, upper = 2048;
-  std::unique_ptr<Percentile<int64_t>> search =
-      typename Percentile<int64_t>::Builder()
+  base::StatusOr<std::unique_ptr<Percentile<int64_t>>> search =
+      Percentile<int64_t>::Builder()
           .SetPercentile(.45)
           .SetEpsilon(epsilon)
           .SetLower(lower)
           .SetUpper(upper)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
-          .Build()
-          .ValueOrDie();
+          .Build();
+  ASSERT_OK(search);
   for (int64_t i = 0; i < kDataSize; ++i) {
-    search->AddEntry(std::round(static_cast<double>(200) * i / kDataSize));
+    (*search)->AddEntry(std::round(static_cast<double>(200) * i / kDataSize));
   }
-  EXPECT_EQ(GetValue<int64_t>(search->PartialResult(1.0).ValueOrDie()), 90);
+  base::StatusOr<Output> result = (*search)->PartialResult(1.0);
+  ASSERT_OK(result);
+  EXPECT_EQ(GetValue<int64_t>(*result), 90);
 }
 
 TEST(OrderStatisticsTest, PercentileGetter) {
   double epsilon = std::log(3), expectedPercentile = 0.9;
   int64_t lower = 0, upper = 2048;
-  std::unique_ptr<Percentile<int64_t>> percentile =
-      typename Percentile<int64_t>::Builder()
+  base::StatusOr<std::unique_ptr<Percentile<int64_t>>> percentile =
+      Percentile<int64_t>::Builder()
           .SetPercentile(expectedPercentile)
           .SetEpsilon(epsilon)
           .SetLower(lower)
           .SetUpper(upper)
-          .Build()
-          .ValueOrDie();
-  EXPECT_EQ(percentile->GetPercentile(), expectedPercentile);
+          .Build();
+  ASSERT_OK(percentile);
+  EXPECT_EQ((*percentile)->GetPercentile(), expectedPercentile);
 }
 
 TEST(OrderStatisticsTest, InvalidParameters) {
   Percentile<int64_t>::Builder builder;
-  EXPECT_TRUE(builder.SetPercentile(.9)
-                  .SetLower(1)
-                  .SetUpper(2)
-                  .Build()
-                  .ok());
-  EXPECT_FALSE(builder.SetLower(3).Build().ok());
-  EXPECT_FALSE(builder.SetLower(1).SetPercentile(-1).Build().ok());
-  EXPECT_FALSE(builder.SetPercentile(2).Build().ok());
+  EXPECT_OK(builder.SetPercentile(.9).SetLower(1).SetUpper(2).Build());
+  EXPECT_THAT(
+      builder.SetLower(3).Build(),
+      StatusIs(base::StatusCode::kInvalidArgument,
+               HasSubstr("Lower bound cannot be greater than upper bound")));
+  EXPECT_THAT(builder.SetLower(1).SetPercentile(-1).Build(),
+              StatusIs(base::StatusCode::kInvalidArgument,
+                       HasSubstr("Percentile must be between 0 and 1")));
+  EXPECT_THAT(builder.SetPercentile(2).Build(),
+              StatusIs(base::StatusCode::kInvalidArgument,
+                       HasSubstr("Percentile must be between 0 and 1")));
 }
 
 TEST(OrderStatisticsTest, Median_DefaultBounds) {
   double epsilon = std::log(3);
-  std::unique_ptr<Median<int64_t>> search =
-      typename Median<int64_t>::Builder()
+  base::StatusOr<std::unique_ptr<Median<int64_t>>> search =
+      Median<int64_t>::Builder()
           .SetEpsilon(epsilon)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
-          .Build()
-          .ValueOrDie();
+          .Build();
+  ASSERT_OK(search);
   for (int64_t i = 0; i < kDataSize; ++i) {
-    search->AddEntry(std::round(static_cast<double>(200) * i / kDataSize));
+    (*search)->AddEntry(std::round(static_cast<double>(200) * i / kDataSize));
   }
-  EXPECT_EQ(GetValue<int64_t>(search->PartialResult(1.0).ValueOrDie()), 100);
+  base::StatusOr<Output> result = (*search)->PartialResult(1.0);
+  ASSERT_OK(result);
+  EXPECT_EQ(GetValue<int64_t>(*result), 100);
 }
 
 }  // namespace

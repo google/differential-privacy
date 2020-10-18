@@ -171,10 +171,14 @@ class PrivacyLossDistributionTest(parameterized.TestCase):
       ({4: 0.2, 2: 0.7}, 0.5, 0.1, 0.5, 0.56358432),
       ({4: 0.2, 2: 0.7}, 0.5, 0.1, 0.2, 1.30685282),
       ({1: 0.2, -1: 0.7}, 1, 0.1, 0.4, 0),
-      ({1: 0.6}, 1, 0.5, 0.4, math.inf))
-  def test_get_delta_from_epsilon(self, rounded_probability_mass_function,
-                                  value_discretization_interval, infinity_mass,
-                                  delta, expected_epsilon):
+      ({1: 0.6}, 1, 0.5, 0.4, math.inf),
+      ({-1: 0.1}, 1, 0, 0, 0),
+      # Test resilience against overflow
+      ({5000: 1}, 1, 0, 0.1, 5000),
+      ({5000: 0.2, 4000: 0.1, 3000: 0.7}, 1, 0.1, 0.4, 4000))
+  def test_get_epsilon_for_delta(self, rounded_probability_mass_function,
+                                 value_discretization_interval, infinity_mass,
+                                 delta, expected_epsilon):
     pld = privacy_loss_distribution.PrivacyLossDistribution(
         rounded_probability_mass_function, value_discretization_interval,
         infinity_mass)
@@ -622,7 +626,7 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
         privacy_loss_distribution.DifferentialPrivacyParameters(epsilon, delta),
         sensitivity,
         value_discretization_interval=1)
-    self.assertAlmostEqual(expected_standard_deviation, pld._standard_deviation,
+    self.assertAlmostEqual(expected_standard_deviation, pld.standard_deviation,
                            3)
 
   @parameterized.parameters((1, 1, 4, 1, 2), (2, 1, 9, 2, 3))
@@ -635,7 +639,7 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
         value_discretization_interval=1)
     composed_pld = pld.self_compose(num_times)
     self.assertAlmostEqual(expected_standard_deviation,
-                           composed_pld._standard_deviation)
+                           composed_pld.standard_deviation)
     self.assertAlmostEqual(expected_sensitivity, composed_pld._sensitivity)
 
 

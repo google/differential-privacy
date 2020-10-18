@@ -18,15 +18,16 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "base/statusor.h"
 #include "algorithms/numerical-mechanisms-testing.h"
 
 namespace differential_privacy {
 namespace {
 
-using testing::DoubleEq;
-using testing::DoubleNear;
-using testing::Eq;
-using testing::MatchesRegex;
+using ::testing::DoubleEq;
+using ::testing::DoubleNear;
+using ::testing::Eq;
+using ::testing::MatchesRegex;
 
 constexpr int kNumSamples = 10000000;
 constexpr int kSmallNumSamples = 1000000;

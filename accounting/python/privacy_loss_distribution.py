@@ -458,12 +458,18 @@ class PrivacyLossDistribution(object):
         self.rounded_probability_mass_function.keys(), reverse=True):
       val = i * self.value_discretization_interval
 
-      if mass_upper - math.exp(val) * mass_lower >= delta:
+      if (mass_upper > delta and mass_lower > 0 and
+          math.log((mass_upper - delta) / mass_lower) >= val):
         # Epsilon is greater than or equal to val.
         break
 
       mass_upper += self.rounded_probability_mass_function[i]
       mass_lower += (math.exp(-val) * self.rounded_probability_mass_function[i])
+
+      if mass_upper >= delta and mass_lower == 0:
+        # This only occurs when val is very large, which results in exp(-val)
+        # being treated as zero.
+        return max(0, val)
 
     if mass_upper <= mass_lower + delta:
       return 0
@@ -1142,6 +1148,11 @@ class GaussianPrivacyLossDistribution(AdditiveNoisePrivacyLossDistribution):
         sensitivity=sensitivity,
         pessimistic_estimate=pessimistic_estimate,
         value_discretization_interval=value_discretization_interval)
+
+  @property
+  def standard_deviation(self) -> float:
+    """The standard deviation of the noise associated with this PLD."""
+    return self._standard_deviation
 
   def self_compose(self, num_times: int) -> 'GaussianPrivacyLossDistribution':
     """Computes PLD resulting from repeated composing the PLD with itself.

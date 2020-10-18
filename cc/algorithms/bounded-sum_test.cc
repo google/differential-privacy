@@ -157,7 +157,7 @@ TYPED_TEST(BoundedSumTest, BoundGetters) {
 
 TYPED_TEST(BoundedSumTest, SensitivityTooHigh) {
   // Increase the lower bound by one so that taking the magnitude wont overflow.
-  EXPECT_EQ(typename BoundedSum<double>::Builder()
+  EXPECT_EQ(BoundedSum<double>::Builder()
                 .SetEpsilon(1.0)
                 .SetLower(std::numeric_limits<double>::lowest() + 1)
                 .SetUpper(std::numeric_limits<double>::max())
@@ -169,13 +169,13 @@ TYPED_TEST(BoundedSumTest, SensitivityTooHigh) {
 
 TYPED_TEST(BoundedSumTest, SensitivityTooHighApproxBounds) {
   auto bounds =
-      typename ApproxBounds<double>::Builder()
+      ApproxBounds<double>::Builder()
           .SetEpsilon(1)
           .SetThreshold(1)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
-  auto bs = typename BoundedSum<double>::Builder()
+  auto bs = BoundedSum<double>::Builder()
                 .SetEpsilon(1)
                 .SetApproxBounds(std::move(*bounds))
                 .Build();

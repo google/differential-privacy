@@ -28,6 +28,8 @@ namespace {
 
 using ::differential_privacy::test_utils::ZeroNoiseMechanism;
 using ::differential_privacy::base::testing::EqualsProto;
+using ::testing::HasSubstr;
+using ::differential_privacy::base::testing::StatusIs;
 
 constexpr double kSmallEpsilon = 0.00000001;
 constexpr double kNumSamples = 10000;
@@ -40,50 +42,54 @@ TYPED_TEST_SUITE(BoundedMeanTest, NumericTypes);
 
 TYPED_TEST(BoundedMeanTest, BasicTest) {
   std::vector<TypeParam> a = {2, 4, 6, 8};
-  std::unique_ptr<BoundedMean<TypeParam>> mean =
-      typename BoundedMean<TypeParam>::Builder()
-          .SetEpsilon(1.0)
-          .SetLower(1)
-          .SetUpper(9)
-          .Build()
-          .ValueOrDie();
-  Output result = mean->Result(a.begin(), a.end()).ValueOrDie();
-  EXPECT_GE(GetValue<double>(result), 1);
-  EXPECT_LE(GetValue<double>(result), 9);
+  auto mean = typename BoundedMean<TypeParam>::Builder()
+                  .SetEpsilon(1.0)
+                  .SetLower(1)
+                  .SetUpper(9)
+                  .Build();
+  ASSERT_OK(mean);
+  auto result = (*mean)->Result(a.begin(), a.end());
+  ASSERT_OK(result);
+  EXPECT_GE(GetValue<double>(*result), 1);
+  EXPECT_LE(GetValue<double>(*result), 9);
 }
 
 TYPED_TEST(BoundedMeanTest, RepeatedResultTest) {
   std::vector<TypeParam> a = {2, 4, 6, 8};
 
-  std::unique_ptr<BoundedMean<TypeParam>> mean =
+  auto mean =
       typename BoundedMean<TypeParam>::Builder()
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .SetEpsilon(1.0)
           .SetLower(1)
           .SetUpper(9)
-          .Build()
-          .ValueOrDie();
-  mean->AddEntries(a.begin(), a.end());
+          .Build();
+  ASSERT_OK(mean);
+  (*mean)->AddEntries(a.begin(), a.end());
 
-  EXPECT_EQ(GetValue<double>(mean->PartialResult(0.5).ValueOrDie()),
-            GetValue<double>(mean->PartialResult(0.5).ValueOrDie()));
+  auto result1 = (*mean)->PartialResult(0.5);
+  ASSERT_OK(result1);
+  auto result2 = (*mean)->PartialResult(0.5);
+  ASSERT_OK(result2);
+
+  EXPECT_EQ(GetValue<double>(*result1), GetValue<double>(*result2));
 }
 
 TYPED_TEST(BoundedMeanTest, BasicTestWithoutIterator) {
   std::vector<TypeParam> a = {2, 4, 6, 8};
-  std::unique_ptr<BoundedMean<TypeParam>> mean =
-      typename BoundedMean<TypeParam>::Builder()
-          .SetEpsilon(1.0)
-          .SetLower(1)
-          .SetUpper(9)
-          .Build()
-          .ValueOrDie();
+  auto mean = typename BoundedMean<TypeParam>::Builder()
+                  .SetEpsilon(1.0)
+                  .SetLower(1)
+                  .SetUpper(9)
+                  .Build();
+  ASSERT_OK(mean);
   for (const auto& input : a) {
-    mean->AddEntry(input);
+    (*mean)->AddEntry(input);
   }
-  Output result = mean->PartialResult().ValueOrDie();
-  EXPECT_GE(GetValue<double>(result), 1);
-  EXPECT_LE(GetValue<double>(result), 9);
+  auto result = (*mean)->PartialResult();
+  ASSERT_OK(result);
+  EXPECT_GE(GetValue<double>(*result), 1);
+  EXPECT_LE(GetValue<double>(*result), 9);
 }
 
 // This test verifies that BoundedMean never returns a value outside of the
@@ -92,15 +98,15 @@ TYPED_TEST(BoundedMeanTest, LowClampTest) {
   std::vector<TypeParam> a = {0, 0, 0, 0};
 
   for (int i = 0; i < kNumSamples; ++i) {
-    std::unique_ptr<BoundedMean<TypeParam>> mean =
-        typename BoundedMean<TypeParam>::Builder()
-            .SetEpsilon(kSmallEpsilon)
-            .SetLower(0)
-            .SetUpper(10)
-            .Build()
-            .ValueOrDie();
-    Output result = mean->Result(a.begin(), a.end()).ValueOrDie();
-    EXPECT_GE(GetValue<double>(result), 0);
+    auto mean = typename BoundedMean<TypeParam>::Builder()
+                    .SetEpsilon(kSmallEpsilon)
+                    .SetLower(0)
+                    .SetUpper(10)
+                    .Build();
+    ASSERT_OK(mean);
+    auto result = (*mean)->Result(a.begin(), a.end());
+    ASSERT_OK(result);
+    EXPECT_GE(GetValue<double>(*result), 0);
   }
 }
 
@@ -108,15 +114,14 @@ TYPED_TEST(BoundedMeanTest, HighClampTest) {
   std::vector<TypeParam> a = {10, 10, 10, 10};
 
   for (int i = 0; i < kNumSamples; ++i) {
-    std::unique_ptr<BoundedMean<TypeParam>> mean =
-        typename BoundedMean<TypeParam>::Builder()
-            .SetEpsilon(kSmallEpsilon)
-            .SetLower(0)
-            .SetUpper(10)
-            .Build()
-            .ValueOrDie();
-    Output result = mean->Result(a.begin(), a.end()).ValueOrDie();
-    EXPECT_LE(GetValue<double>(result), 10);
+    auto mean = typename BoundedMean<TypeParam>::Builder()
+                    .SetEpsilon(kSmallEpsilon)
+                    .SetLower(0)
+                    .SetUpper(10)
+                    .Build();
+    ASSERT_OK(mean);
+    auto result = (*mean)->Result(a.begin(), a.end());
+    EXPECT_LE(GetValue<double>(*result), 10);
   }
 }
 
@@ -130,28 +135,30 @@ TYPED_TEST(BoundedMeanTest, LargeEpsilonTest) {
   }
   expected /= a.size();
 
-  std::unique_ptr<BoundedMean<TypeParam>> mean =
-      typename BoundedMean<TypeParam>::Builder()
-          .SetEpsilon(std::pow(10, 20))
-          .SetLower(1)
-          .SetUpper(7)
-          .Build()
-          .ValueOrDie();
-  Output actual = mean->Result(a.begin(), a.end()).ValueOrDie();
+  auto mean = typename BoundedMean<TypeParam>::Builder()
+                  .SetEpsilon(std::pow(10, 20))
+                  .SetLower(1)
+                  .SetUpper(7)
+                  .Build();
+  ASSERT_OK(mean);
+  auto actual = (*mean)->Result(a.begin(), a.end());
+  ASSERT_OK(actual);
 
-  EXPECT_DOUBLE_EQ(GetValue<double>(actual), expected);
+  EXPECT_DOUBLE_EQ(GetValue<double>(*actual), expected);
 }
 
 TYPED_TEST(BoundedMeanTest, PropagateApproxBoundsError) {
-  std::unique_ptr<BoundedMean<TypeParam>> bm =
+  auto bm =
       typename BoundedMean<TypeParam>::Builder()
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
-          .Build()
-          .ValueOrDie();
+          .Build();
+  ASSERT_OK(bm);
 
   // Automatic bounds are needed but there is no input, so the count-threshhold
   // should exceed any bin count.
-  EXPECT_FALSE(bm->PartialResult().ok());
+  EXPECT_THAT((*bm)->PartialResult(),
+              StatusIs(base::StatusCode::kFailedPrecondition,
+                       HasSubstr("Bin count threshold was too large")));
 }
 
 TYPED_TEST(BoundedMeanTest, MaxContributionsVarianceTest) {
@@ -185,23 +192,28 @@ TYPED_TEST(BoundedMeanTest, MaxContributionsVarianceTest) {
 TYPED_TEST(BoundedMeanTest, SerializeMergeTest) {
   typename BoundedMean<TypeParam>::Builder builder;
 
-  std::unique_ptr<BoundedMean<TypeParam>> bm =
+  auto bm1 =
       builder
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .SetLower(0)
           .SetUpper(3)
-          .Build()
-          .ValueOrDie();
-  bm->AddEntry(1);
-  Summary summary = bm->Serialize();
-  bm->AddEntry(3);
+          .Build();
+  ASSERT_OK(bm1);
+  (*bm1)->AddEntry(1);
+  Summary summary = (*bm1)->Serialize();
+  (*bm1)->AddEntry(3);
 
-  std::unique_ptr<BoundedMean<TypeParam>> bm2 = builder.Build().ValueOrDie();
-  EXPECT_OK(bm2->Merge(summary));
-  bm2->AddEntry(3);
+  auto bm2 = builder.Build();
+  ASSERT_OK(bm2);
+  EXPECT_OK((*bm2)->Merge(summary));
+  (*bm2)->AddEntry(3);
 
-  EXPECT_EQ(GetValue<double>(bm->PartialResult().ValueOrDie()),
-            GetValue<double>(bm2->PartialResult().ValueOrDie()));
+  auto result1 = (*bm1)->PartialResult();
+  ASSERT_OK(result1);
+  auto result2 = (*bm2)->PartialResult();
+  ASSERT_OK(result2);
+
+  EXPECT_EQ(GetValue<double>(*result1), GetValue<double>(*result2));
 }
 
 TYPED_TEST(BoundedMeanTest, SerializeMergePartialSumsTest) {
@@ -209,54 +221,57 @@ TYPED_TEST(BoundedMeanTest, SerializeMergePartialSumsTest) {
   typename BoundedMean<TypeParam>::Builder builder;
 
   // Automatic bounding, so entries will be split and stored as partial sums.
-  std::unique_ptr<ApproxBounds<TypeParam>> bounds =
+  auto bounds =
       bounds_builder.SetThreshold(1)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
-          .Build()
-          .ValueOrDie();
-  std::unique_ptr<BoundedMean<TypeParam>> bm =
+          .Build();
+  ASSERT_OK(bounds);
+  auto bm1 =
       builder
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
-          .SetApproxBounds(std::move(bounds))
-          .Build()
-          .ValueOrDie();
-  bm->AddEntry(-10);
-  bm->AddEntry(4);
-  Summary summary = bm->Serialize();
-  bm->AddEntry(6);
+          .SetApproxBounds(std::move(*bounds))
+          .Build();
+  ASSERT_OK(bm1);
+  (*bm1)->AddEntry(-10);
+  (*bm1)->AddEntry(4);
+  Summary summary = (*bm1)->Serialize();
+  (*bm1)->AddEntry(6);
 
   // Merge summary into second BoundedVariance.
-  std::unique_ptr<ApproxBounds<TypeParam>> bounds2 =
-      bounds_builder.Build().ValueOrDie();
-  std::unique_ptr<BoundedMean<TypeParam>> bm2 =
-      builder.SetApproxBounds(std::move(bounds2)).Build().ValueOrDie();
-  bm2->AddEntry(6);
-  EXPECT_OK(bm2->Merge(summary));
+  auto bounds2 = bounds_builder.Build();
+  ASSERT_OK(bounds2);
+  auto bm2 = builder.SetApproxBounds(std::move(*bounds2)).Build();
+  ASSERT_OK(bm2);
+  (*bm2)->AddEntry(6);
+  EXPECT_OK((*bm2)->Merge(summary));
 
   // Check equality.  Bounds are set to [-16, 8].
-  EXPECT_EQ(GetValue<double>(bm->PartialResult().ValueOrDie()),
-            GetValue<double>(bm2->PartialResult().ValueOrDie()));
+  auto result1 = (*bm1)->PartialResult();
+  ASSERT_OK(result1);
+  auto result2 = (*bm2)->PartialResult();
+  ASSERT_OK(result2);
+  EXPECT_EQ(GetValue<double>(*result1), GetValue<double>(*result2));
 }
 
 TYPED_TEST(BoundedMeanTest, AutomaticBoundsNegative) {
   std::vector<TypeParam> a = {9, -2, -2, -1, -6, -6};
-  std::unique_ptr<ApproxBounds<TypeParam>> bounds =
+  auto bounds =
       typename ApproxBounds<TypeParam>::Builder()
           .SetNumBins(5)
           .SetBase(2)
           .SetScale(1)
           .SetThreshold(2)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
-          .Build()
-          .ValueOrDie();
-  std::unique_ptr<BoundedMean<TypeParam>> bm =
+          .Build();
+  ASSERT_OK(bounds);
+  auto bm =
       typename BoundedMean<TypeParam>::Builder()
           .SetEpsilon(1)
-          .SetApproxBounds(std::move(bounds))
+          .SetApproxBounds(std::move(*bounds))
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
-          .Build()
-          .ValueOrDie();
-  bm->AddEntries(a.begin(), a.end());
+          .Build();
+  ASSERT_OK(bm);
+  (*bm)->AddEntries(a.begin(), a.end());
 
   // 9 gets clamped to -1.
   Output expected_output;
@@ -268,27 +283,30 @@ TYPED_TEST(BoundedMeanTest, AutomaticBoundsNegative) {
   report->set_num_inputs(a.size());
   report->set_num_outside(2);
 
-  EXPECT_THAT(bm->PartialResult().ValueOrDie(), EqualsProto(expected_output));
+  auto actual_output = (*bm)->PartialResult();
+  ASSERT_OK(actual_output);
+
+  EXPECT_THAT(*actual_output, EqualsProto(expected_output));
 }
 
 TYPED_TEST(BoundedMeanTest, AutomaticBoundsPositive) {
   std::vector<TypeParam> a = {-9, 2, 2, 1, 6, 6};
-  std::unique_ptr<ApproxBounds<TypeParam>> bounds =
+  auto bounds =
       typename ApproxBounds<TypeParam>::Builder()
           .SetNumBins(5)
           .SetBase(2)
           .SetScale(1)
           .SetThreshold(2)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
-          .Build()
-          .ValueOrDie();
-  std::unique_ptr<BoundedMean<TypeParam>> bm =
+          .Build();
+  ASSERT_OK(bounds);
+  auto bm =
       typename BoundedMean<TypeParam>::Builder()
-          .SetApproxBounds(std::move(bounds))
+          .SetApproxBounds(std::move(*bounds))
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
-          .Build()
-          .ValueOrDie();
-  bm->AddEntries(a.begin(), a.end());
+          .Build();
+  ASSERT_OK(bm);
+  (*bm)->AddEntries(a.begin(), a.end());
 
   // -9 gets clamped to 1.
   Output expected_output;
@@ -300,26 +318,28 @@ TYPED_TEST(BoundedMeanTest, AutomaticBoundsPositive) {
   report->set_num_inputs(a.size());
   report->set_num_outside(2);
 
-  EXPECT_THAT(bm->PartialResult().ValueOrDie(), EqualsProto(expected_output));
+  auto actual_output = (*bm)->PartialResult();
+  ASSERT_OK(actual_output);
+
+  EXPECT_THAT(*actual_output, EqualsProto(expected_output));
 }
 
 TEST(BoundedMeanTest, DropNanEntries) {
   std::vector<double> a = {2, 4, 6, NAN, 8};
-  std::unique_ptr<BoundedMean<double>> mean =
-      typename BoundedMean<double>::Builder()
-          .SetEpsilon(1)
-          .SetLower(1)
-          .SetUpper(9)
-          .Build()
-          .ValueOrDie();
-  Output result = mean->Result(a.begin(), a.end()).ValueOrDie();
-  EXPECT_GE(GetValue<double>(result), 1);
-  EXPECT_LE(GetValue<double>(result), 9);
+  auto mean = BoundedMean<double>::Builder()
+                  .SetEpsilon(1)
+                  .SetLower(1)
+                  .SetUpper(9)
+                  .Build();
+  ASSERT_OK(mean);
+  auto result = (*mean)->Result(a.begin(), a.end());
+  EXPECT_GE(GetValue<double>(*result), 1);
+  EXPECT_LE(GetValue<double>(*result), 9);
 }
 
 TEST(BoundedMeanTest, SensitivityOverflow) {
   // Check for error when upper - lower causes integer overflow.
-  EXPECT_EQ(typename BoundedMean<int>::Builder()
+  EXPECT_EQ(BoundedMean<int>::Builder()
                 .SetEpsilon(1.0)
                 .SetLower(INT_MIN)
                 .SetUpper(INT_MAX)
@@ -330,26 +350,27 @@ TEST(BoundedMeanTest, SensitivityOverflow) {
 }
 
 TEST(BoundedMeanTest, SensitivityOverflowApproxBounds) {
-  std::unique_ptr<ApproxBounds<int>> bounds =
-      typename ApproxBounds<int>::Builder()
+  auto bounds =
+      ApproxBounds<int>::Builder()
           .SetEpsilon(1)
           .SetThreshold(1)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
-          .Build()
-          .ValueOrDie();
-  std::unique_ptr<BoundedMean<int>> bm = typename BoundedMean<int>::Builder()
-                                             .SetEpsilon(1)
-                                             .SetApproxBounds(std::move(bounds))
-                                             .Build()
-                                             .ValueOrDie();
+          .Build();
+  ASSERT_OK(bounds);
+  auto bm = BoundedMean<int>::Builder()
+                .SetEpsilon(1)
+                .SetApproxBounds(std::move(*bounds))
+                .Build();
+  ASSERT_OK(bm);
 
   // Adding these two entries make the bounds [-1, max]. Sensitivity is
   // calculated |max - (-1)|, which overflowss.
-  bm->AddEntry(-1);
-  bm->AddEntry(INT_MAX);
+  (*bm)->AddEntry(-1);
+  (*bm)->AddEntry(INT_MAX);
 
-  EXPECT_EQ(bm->PartialResult().status().message(),
-            "Upper - lower caused integer overflow.");
+  EXPECT_THAT((*bm)->PartialResult(),
+              StatusIs(base::StatusCode::kInvalidArgument,
+                       HasSubstr("Upper - lower caused integer overflow.")));
 }
 
 // Test when 0 is in [lower, upper].
@@ -360,7 +381,7 @@ TYPED_TEST(BoundedMeanTest, AutomaticBoundsContainZero) {
                               -1,
                               std::numeric_limits<TypeParam>::lowest(),
                               std::numeric_limits<TypeParam>::max()};
-  std::unique_ptr<ApproxBounds<TypeParam>> bounds =
+  auto bounds =
       typename ApproxBounds<TypeParam>::Builder()
           .SetEpsilon(1)
           .SetNumBins(4)
@@ -368,16 +389,16 @@ TYPED_TEST(BoundedMeanTest, AutomaticBoundsContainZero) {
           .SetScale(1)
           .SetThreshold(2)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
-          .Build()
-          .ValueOrDie();
-  std::unique_ptr<BoundedMean<TypeParam>> bm =
+          .Build();
+  ASSERT_OK(bounds);
+  auto bm =
       typename BoundedMean<TypeParam>::Builder()
           .SetEpsilon(1)
-          .SetApproxBounds(std::move(bounds))
+          .SetApproxBounds(std::move(*bounds))
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
-          .Build()
-          .ValueOrDie();
-  bm->AddEntries(a.begin(), a.end());
+          .Build();
+  ASSERT_OK(bm);
+  (*bm)->AddEntries(a.begin(), a.end());
 
   Output expected_output;
   AddToOutput<double>(&expected_output, 1.5);
@@ -388,21 +409,24 @@ TYPED_TEST(BoundedMeanTest, AutomaticBoundsContainZero) {
   report->set_num_inputs(a.size());
   report->set_num_outside(2);
 
-  EXPECT_THAT(bm->PartialResult().ValueOrDie(), EqualsProto(expected_output));
+  auto actual_output = (*bm)->PartialResult();
+  ASSERT_OK(actual_output);
+
+  EXPECT_THAT(*actual_output, EqualsProto(expected_output));
 }
 
 // Test not providing ApproxBounds and instead using the default.
 TYPED_TEST(BoundedMeanTest, AutomaticBoundsDefault) {
-  std::unique_ptr<BoundedMean<TypeParam>> bm =
+  auto bm =
       typename BoundedMean<TypeParam>::Builder()
           .SetEpsilon(1)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
-          .Build()
-          .ValueOrDie();
+          .Build();
+  ASSERT_OK(bm);
   std::vector<TypeParam> big(1000, 10);
   std::vector<TypeParam> small(1000, -10);
-  bm->AddEntries(big.begin(), big.end());
-  bm->AddEntries(small.begin(), small.end());
+  (*bm)->AddEntries(big.begin(), big.end());
+  (*bm)->AddEntries(small.begin(), small.end());
 
   BoundingReport bounding_report;
   SetValue<TypeParam>(bounding_report.mutable_lower_bound(), -16);
@@ -412,16 +436,17 @@ TYPED_TEST(BoundedMeanTest, AutomaticBoundsDefault) {
   Output::ErrorReport expected_report;
   *(expected_report.mutable_bounding_report()) = bounding_report;
 
-  Output result = bm->PartialResult().ValueOrDie();
-  EXPECT_THAT(result.error_report(), EqualsProto(expected_report));
-  EXPECT_NEAR(GetValue<double>(result.elements(0).value()), 0.0,
+  auto result = (*bm)->PartialResult();
+  ASSERT_OK(result);
+  EXPECT_THAT(result->error_report(), EqualsProto(expected_report));
+  EXPECT_NEAR(GetValue<double>(result->elements(0).value()), 0.0,
               std::pow(10, -10));
 }
 
 // Test when a bound is 0.
 TYPED_TEST(BoundedMeanTest, AutomaticBoundsZero) {
   std::vector<TypeParam> a = {0, 0, 4, 4, -2, 2, 7};
-  std::unique_ptr<ApproxBounds<TypeParam>> bounds =
+  auto bounds =
       typename ApproxBounds<TypeParam>::Builder()
           .SetEpsilon(1)
           .SetNumBins(4)
@@ -429,16 +454,16 @@ TYPED_TEST(BoundedMeanTest, AutomaticBoundsZero) {
           .SetScale(1)
           .SetThreshold(2)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
-          .Build()
-          .ValueOrDie();
-  std::unique_ptr<BoundedMean<TypeParam>> bm =
+          .Build();
+  ASSERT_OK(bounds);
+  auto bm =
       typename BoundedMean<TypeParam>::Builder()
           .SetEpsilon(1)
-          .SetApproxBounds(std::move(bounds))
+          .SetApproxBounds(std::move(*bounds))
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
-          .Build()
-          .ValueOrDie();
-  bm->AddEntries(a.begin(), a.end());
+          .Build();
+  ASSERT_OK(bm);
+  (*bm)->AddEntries(a.begin(), a.end());
 
   // -2 gets clamped to 0. 7 gets clamped to 4.
   Output expected_output;
@@ -450,60 +475,60 @@ TYPED_TEST(BoundedMeanTest, AutomaticBoundsZero) {
   report->set_num_inputs(a.size());
   report->set_num_outside(2);
 
-  EXPECT_THAT(bm->PartialResult().ValueOrDie(), EqualsProto(expected_output));
+  auto actual_output = (*bm)->PartialResult();
+  ASSERT_OK(actual_output);
+
+  EXPECT_THAT(*actual_output, EqualsProto(expected_output));
 }
 
 TYPED_TEST(BoundedMeanTest, Reset) {
   // Construct bounded sum with approximate bounding.
-  std::unique_ptr<ApproxBounds<TypeParam>> bounds =
+  auto bounds =
       typename ApproxBounds<TypeParam>::Builder()
           .SetNumBins(3)
           .SetBase(10)
           .SetScale(1)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .SetThreshold(1)
-          .Build()
-          .ValueOrDie();
-  std::unique_ptr<BoundedMean<TypeParam>> bm =
+          .Build();
+  ASSERT_OK(bounds);
+  auto bm =
       typename BoundedMean<TypeParam>::Builder()
-          .SetApproxBounds(std::move(bounds))
+          .SetApproxBounds(std::move(*bounds))
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
-          .Build()
-          .ValueOrDie();
+          .Build();
+  ASSERT_OK(bm);
 
   // Reset between adding vectors.
   std::vector<TypeParam> a = {-10, 1000};
   std::vector<TypeParam> b = {-100, 100, 3};
-  bm->AddEntries(a.begin(), a.end());
-  bm->Reset();
-  bm->AddEntries(b.begin(), b.end());
+  (*bm)->AddEntries(a.begin(), a.end());
+  (*bm)->Reset();
+  (*bm)->AddEntries(b.begin(), b.end());
 
   // Check result is only affected by vector b.
-  auto result = bm->PartialResult();
+  auto result = (*bm)->PartialResult();
   EXPECT_OK(result);
-  EXPECT_EQ(GetValue<double>(result.ValueOrDie().elements(0).value()), 1);
+  EXPECT_EQ(GetValue<double>(result->elements(0).value()), 1);
 }
 
 TYPED_TEST(BoundedMeanTest, MemoryUsed) {
-  std::unique_ptr<BoundedMean<TypeParam>> bm =
-      typename BoundedMean<TypeParam>::Builder().Build().ValueOrDie();
-  EXPECT_GT(bm->MemoryUsed(), 0);
+  auto bm = typename BoundedMean<TypeParam>::Builder().Build();
+  EXPECT_GT((*bm)->MemoryUsed(), 0);
 }
 
 TYPED_TEST(BoundedMeanTest, SplitsEpsilonWithAutomaticBounds) {
   double epsilon = 1.0;
-  std::unique_ptr<BoundedMean<TypeParam>> bm =
-      typename BoundedMean<TypeParam>::Builder()
-          .SetEpsilon(epsilon)
-          .Build()
-          .ValueOrDie();
-  EXPECT_NEAR(bm->GetEpsilon(), epsilon, 1e-10);
-  EXPECT_NEAR(bm->GetEpsilon(),
-              bm->GetBoundingEpsilon() + bm->GetAggregationEpsilon(), 1e-10);
-  EXPECT_GT(bm->GetBoundingEpsilon(), 0);
-  EXPECT_LT(bm->GetBoundingEpsilon(), epsilon);
-  EXPECT_GT(bm->GetAggregationEpsilon(), 0);
-  EXPECT_LT(bm->GetAggregationEpsilon(), epsilon);
+  auto bm =
+      typename BoundedMean<TypeParam>::Builder().SetEpsilon(epsilon).Build();
+  EXPECT_NEAR((*bm)->GetEpsilon(), epsilon, 1e-10);
+  EXPECT_NEAR((*bm)->GetEpsilon(),
+              (*bm)->GetBoundingEpsilon() + (*bm)->GetAggregationEpsilon(),
+              1e-10);
+  EXPECT_GT((*bm)->GetBoundingEpsilon(), 0);
+  EXPECT_LT((*bm)->GetBoundingEpsilon(), epsilon);
+  EXPECT_GT((*bm)->GetAggregationEpsilon(), 0);
+  EXPECT_LT((*bm)->GetAggregationEpsilon(), epsilon);
 }
 
 }  //  namespace

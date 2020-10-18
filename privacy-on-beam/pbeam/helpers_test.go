@@ -22,7 +22,6 @@ import (
 	"reflect"
 	"testing"
 
-	log "github.com/golang/glog"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
 	"github.com/google/differential-privacy/go/dpagg"
 	"github.com/google/differential-privacy/go/noise"
@@ -547,8 +546,6 @@ func gaussianTolerance(flakinessK, l0Sensitivity, lInfSensitivity, epsilon, delt
 // To see the logic and the math behind flakiness and tolerance calculation,
 // See https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf
 func complementaryGaussianTolerance(flakinessK, l0Sensitivity, lInfSensitivity, epsilon, delta float64) float64 {
-	sigma := noise.SigmaForGaussian(int64(l0Sensitivity), lInfSensitivity, epsilon, delta)
-	log.Warningf("SIGMA %f)", sigma)
 	return math.Erfinv(math.Pow(10, -flakinessK)) * noise.SigmaForGaussian(int64(l0Sensitivity), lInfSensitivity, epsilon, delta) * math.Sqrt(2)
 }
 

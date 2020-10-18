@@ -22,6 +22,7 @@
 #include "google/protobuf/any.pb.h"
 #include "absl/random/distributions.h"
 #include "base/status.h"
+#include "base/statusor.h"
 #include "algorithms/algorithm.h"
 #include "algorithms/approx-bounds.h"
 #include "algorithms/bounded-algorithm.h"

@@ -27,7 +27,7 @@
 namespace differential_privacy {
 namespace {
 
-using test_utils::ZeroNoiseMechanism;
+using ::differential_privacy::test_utils::ZeroNoiseMechanism;
 using ::testing::DoubleNear;
 using ::differential_privacy::base::testing::EqualsProto;
 using ::testing::Return;
@@ -285,7 +285,7 @@ TYPED_TEST(BoundedVarianceTest, SerializeMergePartialValuesTest) {
 }
 
 TEST(BoundedVarianceTest, SensitivityOverflow) {
-  auto statusor = typename BoundedVariance<int64_t>::Builder()
+  auto statusor = BoundedVariance<int64_t>::Builder()
                       .SetEpsilon(1.0)
                       .SetLower(std::numeric_limits<int64_t>::lowest())
                       .SetUpper(std::numeric_limits<int64_t>::max())
@@ -296,7 +296,7 @@ TEST(BoundedVarianceTest, SensitivityOverflow) {
 
 TYPED_TEST(BoundedVarianceTest, SensitivityTooHigh) {
   // Make bounds so taking the interval squared won't overflow.
-  EXPECT_EQ(typename BoundedVariance<double>::Builder()
+  EXPECT_EQ(BoundedVariance<double>::Builder()
                 .SetLower(0)
                 .SetUpper(std::pow(std::numeric_limits<double>::max() / 2, .5))
                 .Build()
@@ -368,7 +368,7 @@ TYPED_TEST(BoundedVarianceTest, AutomaticBoundsContainZero) {
 TEST(BoundedVarianceTest, AutomaticBoundsNegative) {
   std::vector<double> a = {5, -2, -2, -4, -6, -6};
   std::unique_ptr<ApproxBounds<double>> bounds =
-      typename ApproxBounds<double>::Builder()
+      ApproxBounds<double>::Builder()
           .SetEpsilon(1)
           .SetNumBins(5)
           .SetBase(2)
@@ -378,7 +378,7 @@ TEST(BoundedVarianceTest, AutomaticBoundsNegative) {
           .Build()
           .ValueOrDie();
   std::unique_ptr<BoundedVariance<double>> bv =
-      typename BoundedVariance<double>::Builder()
+      BoundedVariance<double>::Builder()
           .SetEpsilon(1)
           .SetApproxBounds(std::move(bounds))
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
@@ -409,7 +409,7 @@ TEST(BoundedVarianceTest, AutomaticBoundsNegative) {
 TEST(BoundedVarianceTest, AutomaticBoundsPositive) {
   std::vector<double> a = {-5, 2, 2, 4, 6, 6};
   std::unique_ptr<ApproxBounds<double>> bounds =
-      typename ApproxBounds<double>::Builder()
+      ApproxBounds<double>::Builder()
           .SetEpsilon(1)
           .SetNumBins(5)
           .SetBase(2)
@@ -419,7 +419,7 @@ TEST(BoundedVarianceTest, AutomaticBoundsPositive) {
           .Build()
           .ValueOrDie();
   std::unique_ptr<BoundedVariance<double>> bv =
-      typename BoundedVariance<double>::Builder()
+      BoundedVariance<double>::Builder()
           .SetEpsilon(1)
           .SetApproxBounds(std::move(bounds))
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())

@@ -288,7 +288,7 @@ TEST(ApproxBoundsTest, MostSignificantBit) {
 }
 
 TEST(ApproxBoundsTest, ThresholdByPrivacyBudget) {
-  typename ApproxBounds<int>::Builder builder;
+  ApproxBounds<int>::Builder builder;
   std::vector<int> a = {1, 1};
 
   // Threshold = 1.9 / privacy_budget = 3.8, so no bounds are found.
@@ -407,7 +407,7 @@ TYPED_TEST(ApproxBoundsTest, ComputeSumFromPartials) {
 
 TEST(ApproxBoundsText, ComputeSumFromPartialsAcrossOne) {
   std::unique_ptr<ApproxBounds<double>> bounds =
-      typename ApproxBounds<double>::Builder().Build().ValueOrDie();
+      ApproxBounds<double>::Builder().Build().ValueOrDie();
   std::vector<double> pos_sum(bounds->NumPositiveBins(), 0);
   std::vector<double> neg_sum(bounds->NumPositiveBins(), 0);
   auto difference = [](double val1, double val2) { return val1 - val2; };

@@ -16,6 +16,7 @@
 
 #include "algorithms/numerical-mechanisms.h"
 
+#include "base/testing/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "base/statusor.h"
@@ -24,13 +25,15 @@
 namespace differential_privacy {
 namespace {
 
-using testing::_;
-using testing::DoubleEq;
-using testing::DoubleNear;
-using testing::Eq;
-using testing::Ge;
-using testing::MatchesRegex;
-using testing::Return;
+using ::testing::_;
+using ::testing::DoubleEq;
+using ::testing::DoubleNear;
+using ::testing::Eq;
+using ::testing::Ge;
+using ::testing::HasSubstr;
+using ::testing::MatchesRegex;
+using ::testing::Return;
+using ::differential_privacy::base::testing::StatusIs;
 
 class MockLaplaceDistribution : public internal::LaplaceDistribution {
  public:
@@ -46,12 +49,12 @@ TYPED_TEST_SUITE(NumericalMechanismsTest, NumericTypes);
 
 TYPED_TEST(NumericalMechanismsTest, LaplaceBuilder) {
   LaplaceMechanism::Builder test_builder;
-  std::unique_ptr<NumericalMechanism> test_mechanism =
-      test_builder.SetL1Sensitivity(3).SetEpsilon(1).Build().ValueOrDie();
+  auto test_mechanism = test_builder.SetL1Sensitivity(3).SetEpsilon(1).Build();
+  ASSERT_OK(test_mechanism);
 
-  EXPECT_DOUBLE_EQ(test_mechanism->GetEpsilon(), 1);
+  EXPECT_DOUBLE_EQ((*test_mechanism)->GetEpsilon(), 1);
   EXPECT_DOUBLE_EQ(
-      dynamic_cast<LaplaceMechanism*>(test_mechanism.get())->GetSensitivity(),
+      dynamic_cast<LaplaceMechanism*>(test_mechanism->get())->GetSensitivity(),
       3);
 }
 
@@ -245,58 +248,51 @@ TEST(NumericalMechanismsTest, LaplaceConfidenceInterval) {
   LaplaceMechanism mechanism(epsilon, sensitivity);
   base::StatusOr<ConfidenceInterval> confidence_interval =
       mechanism.NoiseConfidenceInterval(level, budget);
-  EXPECT_TRUE(confidence_interval.ok());
-  EXPECT_EQ(confidence_interval.ValueOrDie().lower_bound(),
+  ASSERT_OK(confidence_interval);
+  EXPECT_EQ(confidence_interval->lower_bound(),
             log(1 - level) / epsilon / budget);
-  EXPECT_EQ(confidence_interval.ValueOrDie().upper_bound(),
+  EXPECT_EQ(confidence_interval->upper_bound(),
             -log(1 - level) / epsilon / budget);
-  EXPECT_EQ(confidence_interval.ValueOrDie().confidence_level(), level);
+  EXPECT_EQ(confidence_interval->confidence_level(), level);
 
   double result = 19.3;
   base::StatusOr<ConfidenceInterval> confidence_interval_with_result =
       mechanism.NoiseConfidenceInterval(level, budget, result);
-  EXPECT_TRUE(confidence_interval.ok());
-  EXPECT_EQ(confidence_interval_with_result.ValueOrDie().lower_bound(),
+  ASSERT_OK(confidence_interval_with_result);
+  EXPECT_EQ(confidence_interval_with_result->lower_bound(),
             result + (log(1 - level) / epsilon / budget));
-  EXPECT_EQ(confidence_interval_with_result.ValueOrDie().upper_bound(),
+  EXPECT_EQ(confidence_interval_with_result->upper_bound(),
             result - (log(1 - level) / epsilon / budget));
-  EXPECT_EQ(confidence_interval_with_result.ValueOrDie().confidence_level(),
-            level);
+  EXPECT_EQ(confidence_interval_with_result->confidence_level(), level);
 }
 
 TEST(NumericalMechanismsTest, LaplaceConfidenceIntervalFailsForBudgetNan) {
   LaplaceMechanism mechanism(1.0, 1.0);
   auto failed_confidence_interval = mechanism.NoiseConfidenceInterval(0.5, NAN);
-  EXPECT_THAT(failed_confidence_interval.status().code(),
-              Eq(base::StatusCode::kInvalidArgument));
-  // Convert message to std::string so that the matcher works in the open source
-  // version.
-  std::string message(failed_confidence_interval.status().message());
-  EXPECT_THAT(message, MatchesRegex("^privacy_budget has to be in.*"));
+  EXPECT_THAT(failed_confidence_interval,
+              StatusIs(base::StatusCode::kInvalidArgument,
+                       HasSubstr("privacy_budget has to be in")));
 }
 
 TEST(NumericalMechanismsTest,
      LaplaceConfidenceIntervalFailsForConfidenceLevelNan) {
   LaplaceMechanism mechanism(1.0, 1.0);
   auto failed_confidence_interval = mechanism.NoiseConfidenceInterval(NAN, 1.0);
-  EXPECT_THAT(failed_confidence_interval.status().code(),
-              Eq(base::StatusCode::kInvalidArgument));
-  // Convert message to std::string so that the matcher works in the open source
-  // version.
-  std::string message(failed_confidence_interval.status().message());
-  EXPECT_THAT(message, MatchesRegex("^Confidence level has to be in.*"));
+  EXPECT_THAT(failed_confidence_interval,
+              StatusIs(base::StatusCode::kInvalidArgument,
+                       HasSubstr("Confidence level has to be in")));
 }
 
 TYPED_TEST(NumericalMechanismsTest, LaplaceBuilderClone) {
   LaplaceMechanism::Builder test_builder;
   std::unique_ptr<NumericalMechanismBuilder> clone =
       test_builder.SetL1Sensitivity(3).SetEpsilon(1).Clone();
-  std::unique_ptr<NumericalMechanism> test_mechanism =
-      clone->Build().ValueOrDie();
+  auto test_mechanism = clone->Build();
+  ASSERT_OK(test_mechanism);
 
-  EXPECT_DOUBLE_EQ(test_mechanism->GetEpsilon(), 1);
+  EXPECT_DOUBLE_EQ((*test_mechanism)->GetEpsilon(), 1);
   EXPECT_DOUBLE_EQ(
-      dynamic_cast<LaplaceMechanism*>(test_mechanism.get())->GetSensitivity(),
+      dynamic_cast<LaplaceMechanism*>(test_mechanism->get())->GetSensitivity(),
       3);
 }
 
@@ -363,23 +359,19 @@ TEST_P(NoiseIntervalMultipleParametersTests, GaussNoiseConfidenceInterval) {
   base::StatusOr<ConfidenceInterval> confidence_interval =
       mechanism.NoiseConfidenceInterval(conf_level, budget, result);
 
-  EXPECT_TRUE(confidence_interval.ok());
-  EXPECT_NEAR(confidence_interval.ValueOrDie().lower_bound(), true_lower_bound,
-              0.001);
-  EXPECT_NEAR(confidence_interval.ValueOrDie().upper_bound(), true_upper_bound,
-              0.001);
-  EXPECT_EQ(confidence_interval.ValueOrDie().confidence_level(), conf_level);
+  ASSERT_OK(confidence_interval);
+  EXPECT_NEAR(confidence_interval->lower_bound(), true_lower_bound, 0.001);
+  EXPECT_NEAR(confidence_interval->upper_bound(), true_upper_bound, 0.001);
+  EXPECT_EQ(confidence_interval->confidence_level(), conf_level);
 }
 
 TEST(NumericalMechanismsTest, LaplaceEstimatesL1WithL0AndLInf) {
   LaplaceMechanism::Builder builder;
-  std::unique_ptr<NumericalMechanism> mechanism = builder.SetEpsilon(1)
-                                                      .SetL0Sensitivity(5)
-                                                      .SetLInfSensitivity(3)
-                                                      .Build()
-                                                      .ValueOrDie();
+  auto mechanism =
+      builder.SetEpsilon(1).SetL0Sensitivity(5).SetLInfSensitivity(3).Build();
+  ASSERT_OK(mechanism);
   EXPECT_THAT(
-      dynamic_cast<LaplaceMechanism*>(mechanism.get())->GetSensitivity(),
+      dynamic_cast<LaplaceMechanism*>(mechanism->get())->GetSensitivity(),
       Ge(3));
 }
 
@@ -554,13 +546,14 @@ TEST(NumericalMechanismsTest, GaussianBuilderClone) {
   GaussianMechanism::Builder test_builder;
   auto clone =
       test_builder.SetL2Sensitivity(1.2).SetEpsilon(1.1).SetDelta(0.5).Clone();
-  auto mechanism = clone->Build().ValueOrDie();
+  auto mechanism = clone->Build();
+  ASSERT_OK(mechanism);
 
-  EXPECT_DOUBLE_EQ(mechanism->GetEpsilon(), 1.1);
+  EXPECT_DOUBLE_EQ((*mechanism)->GetEpsilon(), 1.1);
   EXPECT_DOUBLE_EQ(
-      dynamic_cast<GaussianMechanism*>(mechanism.get())->GetDelta(), 0.5);
+      dynamic_cast<GaussianMechanism*>(mechanism->get())->GetDelta(), 0.5);
   EXPECT_DOUBLE_EQ(
-      dynamic_cast<GaussianMechanism*>(mechanism.get())->GetL2Sensitivity(),
+      dynamic_cast<GaussianMechanism*>(mechanism->get())->GetL2Sensitivity(),
       1.2);
 }
 

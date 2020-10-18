@@ -31,8 +31,7 @@
 namespace differential_privacy {
 namespace {
 
-using test_utils::ZeroNoiseMechanism;
-using testing::Contains;
+using ::differential_privacy::test_utils::ZeroNoiseMechanism;
 using ::differential_privacy::base::testing::EqualsProto;
 using ::differential_privacy::base::testing::IsOkAndHolds;
 
@@ -44,55 +43,63 @@ TYPED_TEST_SUITE(CountTest, NumericTypes);
 
 TYPED_TEST(CountTest, BasicTest) {
   std::vector<TypeParam> c = {1, 2, 3, 4, 2, 3};
-  std::unique_ptr<Count<TypeParam>> count =
+  auto count =
       typename Count<TypeParam>::Builder()
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
-          .Build()
-          .ValueOrDie();
-  EXPECT_EQ(GetValue<int64_t>(count->Result(c.begin(), c.end()).ValueOrDie()), 6);
+          .Build();
+  ASSERT_OK(count);
+  auto result = (*count)->Result(c.begin(), c.end());
+  ASSERT_OK(result);
+  EXPECT_EQ(GetValue<int64_t>(*result), 6);
 }
 
 TYPED_TEST(CountTest, RepeatedResultTest) {
   std::vector<TypeParam> c = {1, 2, 3, 4, 2, 3};
-  std::unique_ptr<Count<TypeParam>> count =
+  auto count =
       typename Count<TypeParam>::Builder()
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
-          .Build()
-          .ValueOrDie();
+          .Build();
+  ASSERT_OK(count);
 
-  count->AddEntries(c.begin(), c.end());
+  (*count)->AddEntries(c.begin(), c.end());
 
-  EXPECT_EQ(GetValue<int64_t>(count->PartialResult(0.5).ValueOrDie()),
-            GetValue<int64_t>(count->PartialResult(0.5).ValueOrDie()));
+  auto result1 = (*count)->PartialResult(0.5);
+  ASSERT_OK(result1);
+  auto result2 = (*count)->PartialResult(0.5);
+  ASSERT_OK(result2);
+
+  EXPECT_EQ(GetValue<int64_t>(*result1), GetValue<int64_t>(*result2));
 }
 
 TEST(CountTest, ConfidenceIntervalTest) {
   double epsilon = 0.5;
   double level = .95;
-  std::unique_ptr<Count<double>> count =
-      Count<double>::Builder().SetEpsilon(0.5).Build().ValueOrDie();
+  auto count = Count<double>::Builder().SetEpsilon(0.5).Build();
+  ASSERT_OK(count);
+
   ConfidenceInterval wantConfidenceInterval;
   wantConfidenceInterval.set_lower_bound(log(1 - level) / epsilon);
   wantConfidenceInterval.set_upper_bound(-log(1 - level) / epsilon);
   wantConfidenceInterval.set_confidence_level(level);
 
   base::StatusOr<ConfidenceInterval> confidenceInterval =
-      count->NoiseConfidenceInterval(level);
+      (*count)->NoiseConfidenceInterval(level);
   EXPECT_THAT(confidenceInterval,
               IsOkAndHolds(EqualsProto(wantConfidenceInterval)));
-  EXPECT_THAT(count->PartialResult()
-                  .ValueOrDie()
-                  .error_report()
-                  .noise_confidence_interval(),
+
+  auto actual_result = (*count)->PartialResult();
+  ASSERT_OK(actual_result);
+
+  EXPECT_THAT(actual_result->error_report().noise_confidence_interval(),
               EqualsProto(wantConfidenceInterval));
 }
 
 TEST(CountTest, SerializeTest) {
-  std::unique_ptr<Count<double>> count =
-      Count<double>::Builder().SetEpsilon(0.5).Build().ValueOrDie();
-  count->AddEntry(1);
-  count->AddEntry(2);
-  Summary summary = count->Serialize();
+  auto count = Count<double>::Builder().SetEpsilon(0.5).Build();
+  ASSERT_OK(count);
+  (*count)->AddEntry(1);
+  (*count)->AddEntry(2);
+  Summary summary = (*count)->Serialize();
 
   CountSummary count_summary;
   EXPECT_TRUE(summary.has_data());
@@ -108,21 +115,25 @@ TEST(CountTest, MergeTest) {
   summary.mutable_data()->PackFrom(count_summary);
 
   // Merge.
-  std::unique_ptr<Count<double>> count =
+  auto count =
       Count<double>::Builder()
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
-          .Build()
-          .ValueOrDie();
-  count->AddEntry(0);
+          .Build();
+  ASSERT_OK(count);
+  (*count)->AddEntry(0);
 
-  EXPECT_OK(count->Merge(summary));
-  EXPECT_EQ(GetValue<int64_t>(count->PartialResult().ValueOrDie()), 3);
+  EXPECT_OK((*count)->Merge(summary));
+
+  auto result = (*count)->PartialResult();
+  ASSERT_OK(result);
+
+  EXPECT_EQ(GetValue<int64_t>(*result), 3);
 }
 
 TEST(CountTest, MemoryUsed) {
-  std::unique_ptr<Count<double>> count =
-      Count<double>::Builder().Build().ValueOrDie();
-  EXPECT_GT(count->MemoryUsed(), 0);
+  auto count = Count<double>::Builder().Build();
+  ASSERT_OK(count);
+  EXPECT_GT((*count)->MemoryUsed(), 0);
 }
 
 }  // namespace

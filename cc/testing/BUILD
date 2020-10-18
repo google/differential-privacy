@@ -64,6 +64,7 @@ cc_library(
         ":density_estimation",
         ":sequence",
         "//base:logging",
+        "//base:statusor",
         "//algorithms:algorithm",
         "//algorithms:util",
         "//proto:util-lib",
