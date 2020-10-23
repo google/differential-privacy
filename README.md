@@ -71,7 +71,7 @@ bazel build ...
 You may need to install additional dependencies when building the PostgreSQL
 extension, for example on Ubuntu you will need these packages:
 
-```sudo apt-get install libreadline-dev bison flex```
+```sudo apt-get install make libreadline-dev bison flex```
 
 ## Caveats
 

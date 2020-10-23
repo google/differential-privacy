@@ -18,29 +18,15 @@
 
 package(default_visibility = ["//visibility:public"])
 
-config_setting(
-    name = "windows",
-    values = {"cpu": "x64_windows"},
-    visibility = ["//visibility:public"],
-)
-
 cc_library(
     name = "util-lib",
     hdrs = ["util.h"],
-    copts = select({
-        ":windows": [],
-        "//conditions:default": ["-Wno-sign-compare"],
-    }),
     deps = ["@com_google_differential_privacy//proto:data_cc_proto"],
 )
 
 cc_test(
     name = "util_test",
     srcs = ["util_test.cc"],
-    copts = select({
-        ":windows": [],
-        "//conditions:default": ["-Wno-sign-compare"],
-    }),
     deps = [
         ":util-lib",
         "@com_google_googletest//:gtest_main",

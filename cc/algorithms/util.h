@@ -154,7 +154,7 @@ inline bool SafeCastFromDouble(const double in, T& out) {
 template <typename T,
           std::enable_if_t<std::is_floating_point<T>::value>* = nullptr>
 inline bool SafeCastFromDouble(const double in, T& out) {
-  out = T{in};
+  out = static_cast<T>(in);
   return true;
 }
 

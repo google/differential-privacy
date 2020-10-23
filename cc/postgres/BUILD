@@ -31,24 +31,8 @@ cc_binary(
     name = "anon_func.so",
     srcs = ["anon_func.cc"],
     copts = [
-        "-Wno-sign-compare",
         "-fPIC",
-    ] + select({
-        ":darwin_build": [
-            "-isystem bazel-out/darwin-fastbuild/bin/external/postgres/postgres/include/server",
-            "-isystem bazel-out/darwin-fastbuild/bin/external/postgres/postgres/include/internal",
-            "-isystem bazel-out/darwin-fastbuild/genfiles/external/postgres/postgres/include/server",
-            "-isystem bazel-out/darwin-fastbuild/genfiles/external/postgres/postgres/include/internal",
-        ],
-        # These paths may need to be changed depending on the system building the binary.
-        # eg. "k8-fastbuild" may need to be changed to "darwin-fastbuild".
-        "//conditions:default": [
-            "-isystem bazel-out/k8-fastbuild/bin/external/postgres/postgres/include/server",
-            "-isystem bazel-out/k8-fastbuild/bin/external/postgres/postgres/include/internal",
-            "-isystem bazel-out/k8-fastbuild/genfiles/external/postgres/postgres/include/server",
-            "-isystem bazel-out/k8-fastbuild/genfiles/external/postgres/postgres/include/internal",
-        ],
-    }),
+    ],
     linkopts = [
         "-fno-strict-aliasing",
         "-fwrapv",
@@ -68,7 +52,6 @@ cc_library(
     name = "dp_func",
     srcs = ["dp_func.cc"],
     hdrs = ["dp_func.h"],
-    copts = ["-Wno-sign-compare"],
     deps = [
         "//algorithms:algorithm",
         "//algorithms:bounded-mean",
@@ -84,7 +67,6 @@ cc_library(
 cc_test(
     name = "dp_func_test",
     srcs = ["dp_func_test.cc"],
-    copts = ["-Wno-sign-compare"],
     deps = [
         ":dp_func",
         "@com_google_googletest//:gtest_main",

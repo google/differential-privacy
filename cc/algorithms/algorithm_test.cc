@@ -62,19 +62,19 @@ TEST(IncrementalAlgorithmTest, StartsWithFullBudget) {
 
 TEST(IncrementalAlgorithmTest, PartialResultConsumesBudget) {
   TestAlgorithm<double> alg;
-  alg.PartialResult().ValueOrDie();
+  ASSERT_OK(alg.PartialResult());
   EXPECT_THAT(alg.RemainingPrivacyBudget(), DoubleNear(0.0, kTestPrecision));
 }
 
 TEST(IncrementalAlgorithmTest, PartialResultConsumesPartialBudget) {
   TestAlgorithm<double> alg;
-  alg.PartialResult(0.5).ValueOrDie();
+  ASSERT_OK(alg.PartialResult(0.5));
   EXPECT_THAT(alg.RemainingPrivacyBudget(), DoubleNear(0.5, kTestPrecision));
 }
 
 TEST(IncrementalAlgorithmTest, PartialResultConsumesPartialBudgetMultiRound) {
   TestAlgorithm<double> alg;
-  alg.PartialResult(0.5).ValueOrDie();
+  ASSERT_OK(alg.PartialResult(0.5));
   alg.ConsumePrivacyBudget(0.5);
   EXPECT_THAT(alg.RemainingPrivacyBudget(), DoubleNear(0.0, kTestPrecision));
 }
@@ -82,15 +82,16 @@ TEST(IncrementalAlgorithmTest, PartialResultConsumesPartialBudgetMultiRound) {
 TEST(IncrementalAlgorithmTest, PartialResultPassesConfidenceLevel) {
   TestAlgorithm<double> alg;
   const double level = .9;
-  const Output output = alg.PartialResult(1, level).ValueOrDie();
+  base::StatusOr<Output> result = alg.PartialResult(1, level);
+  ASSERT_OK(result);
   EXPECT_EQ(
-      output.error_report().noise_confidence_interval().confidence_level(),
+      result->error_report().noise_confidence_interval().confidence_level(),
       level);
 }
 
 TEST(IncrementalAlgorithmTest, Reset) {
   TestAlgorithm<double> alg;
-  alg.PartialResult(0.5).ValueOrDie();
+  ASSERT_OK(alg.PartialResult(0.5));
   alg.ConsumePrivacyBudget(0.5);
   alg.Reset();
   EXPECT_THAT(alg.RemainingPrivacyBudget(), DoubleNear(1.0, kTestPrecision));
@@ -102,13 +103,13 @@ TEST(IncrementalAlgorithmTest, MergedPartialResultConsumesBudget) {
   TestAlgorithm<double> alg_2;
   Summary summary_1 = alg_1.Serialize();
   EXPECT_OK(alg_2.Merge(summary_1));
-  alg_2.PartialResult().ValueOrDie();
+  ASSERT_OK(alg_2.PartialResult());
   EXPECT_THAT(alg_2.RemainingPrivacyBudget(), DoubleNear(0.0, kTestPrecision));
 }
 
 TEST(IncrementalAlgorithmDeathTest, BudgetTooHigh) {
   TestAlgorithm<double> alg;
-  alg.PartialResult(0.5).ValueOrDie();
+  ASSERT_OK(alg.PartialResult(0.5));
   EXPECT_DEATH(alg.ConsumePrivacyBudget(0.6), "Requested budget.*");
 }
 

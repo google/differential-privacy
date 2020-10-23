@@ -57,6 +57,10 @@ configure_make(
 cc_library(
     name = "pg_headers",
     hdrs = glob(["**/*.h"]),
+    includes = [
+        "postgres/include/internal",
+        "postgres/include/server",
+    ],
     deps = [
         "postgres",
     ],
