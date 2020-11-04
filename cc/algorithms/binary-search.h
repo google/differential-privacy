@@ -244,9 +244,11 @@ class BinarySearch : public Algorithm<T> {
       }
     }
 
-    // Round the result instead of truncation.
+    // Round the result instead of truncation, and ensure the result is within
+    // the valid bounds of T (to prevent overflows or underflows).
     if (std::is_integral<T>::value) {
-      m = std::round(m);
+      m = Clamp<double>(std::numeric_limits<T>::lowest(),
+                        std::numeric_limits<T>::max(), std::round(m));
     }
 
     // Return 95% confidence interval of the error.

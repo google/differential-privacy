@@ -207,13 +207,12 @@ func newCountFn(epsilon, delta float64, maxPartitionsContributed int64, noiseKin
 	switch noiseKind {
 	case noise.GaussianNoise:
 		fn.NoiseDelta = delta / 2
-		fn.ThresholdDelta = delta / 2
 	case noise.LaplaceNoise:
 		fn.NoiseDelta = 0
-		fn.ThresholdDelta = delta
 	default:
 		log.Exitf("newCountFn: unknown NoiseKind (%v) is specified. Please specify a valid noise.", noiseKind)
 	}
+	fn.ThresholdDelta = delta - fn.NoiseDelta
 	return fn
 }
 

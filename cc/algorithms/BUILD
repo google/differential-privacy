@@ -215,6 +215,7 @@ cc_test(
         ":approx-bounds",
         ":bounded-variance",
         ":numerical-mechanisms-testing",
+        "//base:status",
         "//base/testing:proto_matchers",
         "//base/testing:status_matchers",
         "@com_google_googletest//:gtest_main",
@@ -407,6 +408,7 @@ cc_library(
         "//base:status",
         "//base:statusor",
         "//proto:util-lib",
+        "@com_google_absl//absl/strings",
         "@com_google_protobuf//:cc_wkt_protos",
     ],
 )

@@ -41,6 +41,7 @@ func init() {
 	beam.RegisterFunction(randBool)
 	beam.RegisterFunction(clampNegativePartitionsInt64Fn)
 	beam.RegisterFunction(clampNegativePartitionsFloat64Fn)
+	beam.RegisterType(reflect.TypeOf((*dropValuesFn)(nil)))
 	// TODO: add tests to make sure we don't forget anything here
 }
 
@@ -69,8 +70,9 @@ func randBool(_, _ beam.V) bool {
 //
 // In order to do the cross-partition contribution bounding we need:
 // 	1. the key to be the privacy ID.
-//  2. the value to be the pair = {partition ID, aggregated statistic
-//  (either array of values which are associated with the given id and partition, or sum/count/etc of these values)}.
+//  2. the value to be the partition ID or the pair = {partition ID, aggregated statistic},
+//  where aggregated statistic is either array of values which are associated with the given id
+//	and partition, or sum/count/etc of these values.
 //
 // In order to do the per-partition contribution bounding we need:
 // 	1. the key to be the pair = {privacy ID, partition ID}.
@@ -252,17 +254,16 @@ func newBoundedSumInt64Fn(epsilon, delta float64, maxPartitionsContributed, lowe
 		return fn
 	}
 	fn.NoiseEpsilon = epsilon / 2
-	fn.PartitionSelectionEpsilon = epsilon / 2
+	fn.PartitionSelectionEpsilon = epsilon - fn.NoiseEpsilon
 	switch noiseKind {
 	case noise.GaussianNoise:
 		fn.NoiseDelta = delta / 2
-		fn.PartitionSelectionDelta = delta / 2
 	case noise.LaplaceNoise:
 		fn.NoiseDelta = 0
-		fn.PartitionSelectionDelta = delta
 	default:
 		log.Exitf("newBoundedSumInt64Fn: unknown noise.Kind (%v) is specified. Please specify a valid noise.", noiseKind)
 	}
+	fn.PartitionSelectionDelta = delta - fn.NoiseDelta
 	return fn
 }
 
@@ -356,17 +357,16 @@ func newBoundedSumFloat64Fn(epsilon, delta float64, maxPartitionsContributed int
 		return fn
 	}
 	fn.NoiseEpsilon = epsilon / 2
-	fn.PartitionSelectionEpsilon = epsilon / 2
+	fn.PartitionSelectionEpsilon = epsilon - fn.NoiseEpsilon
 	switch noiseKind {
 	case noise.GaussianNoise:
 		fn.NoiseDelta = delta / 2
-		fn.PartitionSelectionDelta = delta / 2
 	case noise.LaplaceNoise:
 		fn.NoiseDelta = 0
-		fn.PartitionSelectionDelta = delta
 	default:
 		log.Exitf("newBoundedSumFloat64Fn: unknown noise.Kind (%v) is specified. Please specify a valid noise.", noiseKind)
 	}
+	fn.PartitionSelectionDelta = delta - fn.NoiseDelta
 	return fn
 }
 
@@ -672,4 +672,17 @@ func (fn *emitPartitionsNotInTheDataFn) ProcessElement(partitionKey beam.X, valu
 	if partitionsInDataMap == nil || !partitionsInDataMap[string(partitionBuf.Bytes())] {
 		emit(partitionKey, value)
 	}
+}
+
+type dropValuesFn struct {
+	Codec *kv.Codec
+}
+
+func (fn *dropValuesFn) Setup() {
+	fn.Codec.Setup()
+}
+
+func (fn *dropValuesFn) ProcessElement(id beam.Z, kv kv.Pair) (beam.Z, beam.W) {
+	k, _ := fn.Codec.Decode(kv)
+	return id, k
 }

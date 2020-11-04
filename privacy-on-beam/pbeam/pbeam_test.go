@@ -275,6 +275,70 @@ func TestExtractProtoField(t *testing.T) {
 	}
 }
 
+// Tests that we can get get the whole budget and consume it partially afterwards.
+func TestGetFullBudget(t *testing.T) {
+	spec := NewPrivacySpec(2, 2e-10)
+	eps, del, err := spec.getBudget(0, 0)
+	if err != nil {
+		t.Errorf("expected no error but got error: %v", err)
+	}
+	if eps != 2.0 || del != 2e-10 {
+		t.Errorf("Trying to get the whole budget: Got (epsilon,delta)=(%f,%e), expected=(%f,%e)", eps, del, 2.0, 2e-10)
+	}
+
+	// Split the budget and consume it in two calls.
+	eps, del, err = spec.consumeBudget(1, 1e-10)
+	if err != nil {
+		t.Errorf("expected no error but got error: %v", err)
+	}
+	if eps != 1.0 || del != 1e-10 {
+		t.Errorf("Trying to consume the budget after getBudget call: Got (epsilon,delta)=(%f,%e), expected=(%f,%e)", eps, del, 1.0, 1e-10)
+	}
+	eps, del, err = spec.consumeBudget(1, 1e-10)
+	if err != nil {
+		t.Errorf("expected no error but got error: %v", err)
+	}
+	if eps != 1.0 || del != 1e-10 {
+		t.Errorf("Trying to consume the budget after getBudget call: Got (epsilon,delta)=(%f,%e), expected=(%f,%e)", eps, del, 1.0, 1e-10)
+	}
+}
+
+// Tests that we can get and consume the budget partially.
+func TestGetPartialBudget(t *testing.T) {
+	spec := NewPrivacySpec(2, 2e-10)
+	eps, del, err := spec.getBudget(1, 1e-10)
+	if err != nil {
+		t.Errorf("expected no error but got error: %v", err)
+	}
+	if eps != 1.0 || del != 1e-10 {
+		t.Errorf("Trying to get first half of the budget: Got (epsilon,delta)=(%f,%e), expected=(%f,%e)", eps, del, 1.0, 1e-10)
+	}
+
+	eps, del, err = spec.consumeBudget(1, 1e-10)
+	if err != nil {
+		t.Errorf("expected no error but got error: %v", err)
+	}
+	if eps != 1.0 || del != 1e-10 {
+		t.Errorf("Trying to consume second half of the budget after getBudget call: Got (epsilon,delta)=(%f,%e), expected=(%f,%e)", eps, del, 1.0, 1e-10)
+	}
+
+	eps, del, err = spec.getBudget(1, 1e-10)
+	if err != nil {
+		t.Errorf("expected no error but got error: %v", err)
+	}
+	if eps != 1.0 || del != 1e-10 {
+		t.Errorf("Trying to get second half of the budget: Got (epsilon,delta)=(%f,%e), expected=(%f,%e)", eps, del, 1.0, 1e-10)
+	}
+
+	eps, del, err = spec.consumeBudget(1, 1e-10)
+	if err != nil {
+		t.Errorf("expected no error but got error: %v", err)
+	}
+	if eps != 1.0 || del != 1e-10 {
+		t.Errorf("Trying to consume second half the budget after getBudget call: Got (epsilon,delta)=(%f,%e), expected=(%f,%e)", eps, del, 1.0, 1e-10)
+	}
+}
+
 // Tests that we can consume all the budget at once.
 func TestBudgetFullyConsumed(t *testing.T) {
 	values := []pairII{

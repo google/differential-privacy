@@ -32,6 +32,7 @@ func init() {
 	beam.RegisterCoder(reflect.TypeOf(boundedSumAccumFloat64{}), encodeBoundedSumAccumFloat64, decodeBoundedSumAccumFloat64)
 	beam.RegisterCoder(reflect.TypeOf(boundedMeanAccumFloat64{}), encodeBoundedMeanAccumFloat64, decodeBoundedMeanAccumFloat64)
 	beam.RegisterCoder(reflect.TypeOf(expandValuesAccum{}), encodeExpandValuesAccum, decodeExpandValuesAccum)
+	beam.RegisterCoder(reflect.TypeOf(partitionSelectionAccum{}), encodePartitionSelectionAccum, decodePartitionSelectionAccum)
 }
 
 func encodeCountAccum(ca countAccum) ([]byte, error) {
@@ -80,6 +81,16 @@ func encodeExpandValuesAccum(v expandValuesAccum) ([]byte, error) {
 
 func decodeExpandValuesAccum(data []byte) (expandValuesAccum, error) {
 	var ret expandValuesAccum
+	err := decode(&ret, data)
+	return ret, err
+}
+
+func encodePartitionSelectionAccum(v partitionSelectionAccum) ([]byte, error) {
+	return encode(v)
+}
+
+func decodePartitionSelectionAccum(data []byte) (partitionSelectionAccum, error) {
+	var ret partitionSelectionAccum
 	err := decode(&ret, data)
 	return ret, err
 }

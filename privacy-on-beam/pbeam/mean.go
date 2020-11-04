@@ -434,18 +434,17 @@ func newBoundedMeanFloat64Fn(epsilon, delta float64, maxPartitionsContributed, m
 		return fn
 	}
 	fn.NoiseEpsilon = epsilon / 2
-	fn.PartitionSelectionEpsilon = epsilon / 2
+	fn.PartitionSelectionEpsilon = epsilon - fn.NoiseEpsilon
 	switch noiseKind {
 	case noise.GaussianNoise:
 		fn.NoiseDelta = delta / 2
-		fn.PartitionSelectionDelta = delta / 2
 	case noise.LaplaceNoise:
 		fn.NoiseDelta = 0
-		fn.PartitionSelectionDelta = delta
 	default:
 		// TODO: return error instead
 		log.Exitf("newBoundedMeanFloat64Fn: unknown noise.Kind (%v) is specified. Please specify a valid noise.", noiseKind)
 	}
+	fn.PartitionSelectionDelta = delta - fn.NoiseDelta
 	return fn
 }
 

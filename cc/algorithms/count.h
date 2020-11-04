@@ -35,7 +35,7 @@ class Count : public Algorithm<T> {
  public:
   class Builder;
 
-  void AddEntry(const T& v) override { ++count_; }
+  void AddEntry(const T& v) override { AddMultipleEntries(v, 1); }
 
   base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
       double confidence_level, double privacy_budget = 1) override {
@@ -66,7 +66,7 @@ class Count : public Algorithm<T> {
     if (!summary.data().UnpackTo(&count_summary)) {
       return base::InternalError("Count summary unable to be unpacked.");
     }
-    count_ += count_summary.count();
+    SafeAdd<uint64_t>(count_, count_summary.count(), &count_);
 
     return base::OkStatus();
   }
@@ -99,14 +99,21 @@ class Count : public Algorithm<T> {
 
   void ResetState() override { count_ = 0; }
 
-  std::size_t GetCount() const { return count_; }
+  uint64_t GetCount() const { return count_; }
 
   // The constructor and count_ are non-private for testing.
   Count(double epsilon, std::unique_ptr<NumericalMechanism> mechanism)
       : Algorithm<T>(epsilon), count_(0), mechanism_(std::move(mechanism)) {}
 
  private:
-  std::size_t count_;
+  void AddMultipleEntries(const T& v, uint64_t num_of_entries) {
+    SafeAdd<uint64_t>(count_, num_of_entries, &count_);
+  }
+
+  // Friend class for testing only
+  friend class CountTestPeer;
+
+  uint64_t count_;
   std::unique_ptr<NumericalMechanism> mechanism_;
 };
 

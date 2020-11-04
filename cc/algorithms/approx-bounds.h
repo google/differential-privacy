@@ -23,6 +23,7 @@
 #include "google/protobuf/any.pb.h"
 #include "base/status.h"
 #include "base/statusor.h"
+#include "absl/strings/str_cat.h"
 #include "algorithms/algorithm.h"
 #include "algorithms/numerical-mechanisms.h"
 #include "algorithms/util.h"
@@ -74,8 +75,8 @@ namespace differential_privacy {
 //   (2, 4]: 1
 //   (4, 8]: 4
 // Then if success_probability=.9 and epsilon=1 we will obtain approximately
-// threshold=3.5. Since the count of bin (4, 8] > threshold we return an
-// approx max of 2^3 = 8. Since the count of bin [0,1] > threshold we return an
+// threshold=3.5. Since the count of bin (4, 8] > threshold, we return an
+// approx max of 2^3 = 8. Since the count of bin [0,1] > threshold, we return an
 // approx min of 0.
 template <typename T>
 class ApproxBounds : public Algorithm<T> {
@@ -149,6 +150,9 @@ class ApproxBounds : public Algorithm<T> {
       if (base_ <= 1) {
         return base::InvalidArgumentError("Base must be greater than 1.");
       }
+      // TODO: Handle case where scale * base^num_bins >
+      // std::numeric_limits<T>::max, even though the ApproxBounds constructor
+      // addresses this
       if (has_k_) {
         if (k_ < 0) {
           return base::InvalidArgumentError("k threshold must be nonnegative.");
@@ -188,22 +192,7 @@ class ApproxBounds : public Algorithm<T> {
     double success_probability_;
   };
 
-  void AddEntry(const T& input) override {
-    // REF:
-    // https://stackoverflow.com/questions/61646166/how-to-resolve-fpclassify-ambiguous-call-to-overloaded-function
-    if (std::isnan(static_cast<double>(input))) {
-      return;
-    }
-
-    // Place into correct bin according to most significant bit and sign. Note
-    // that MostSignificantBit returns 0 for 0.
-    int index = MostSignificantBit(input);
-    if (input >= 0) {
-      ++pos_bins_[index];
-    } else {  // value < 0
-      ++neg_bins_[index];
-    }
-  }
+  void AddEntry(const T& input) override { AddMultipleEntries(input, 1); }
 
   // Serialize the positive and negative bin counts.
   Summary Serialize() override {
@@ -236,8 +225,8 @@ class ApproxBounds : public Algorithm<T> {
 
     // Add bin count from summary to each bin.
     for (int i = 0; i < pos_bins_.size(); ++i) {
-      pos_bins_[i] += am_summary.pos_bin_count(i);
-      neg_bins_[i] += am_summary.neg_bin_count(i);
+      SafeAdd<int64_t>(pos_bins_[i], am_summary.pos_bin_count(i), &pos_bins_[i]);
+      SafeAdd<int64_t>(neg_bins_[i], am_summary.neg_bin_count(i), &neg_bins_[i]);
     }
     return base::OkStatus();
   }
@@ -317,48 +306,12 @@ class ApproxBounds : public Algorithm<T> {
   template <typename T2>
   void AddToPartials(std::vector<T2>* partials, T value,
                      std::function<T2(T, T)> make_partial) {
-    int msb = MostSignificantBit(value);
-
-    // Each bin of the logarithmic histograms in ApproxBounds can be a candidate
-    // for auto-determined upper and lower bounds. Thus, we store a contribution
-    // of the value from the value for each bin.
-    for (int i = 0; i <= msb; ++i) {
-      // The maximum contribution to the bin is the partial between boundaries.
-      T2 partial = 0;
-      if (value >= 0) {
-        partial = make_partial(PosRightBinBoundary(i), PosLeftBinBoundary(i));
-      } else {
-        partial = make_partial(NegRightBinBoundary(i), NegLeftBinBoundary(i));
-      }
-
-      if (i < msb) {
-        // For indices below the msb, add the maximum contribution to the
-        // partial.
-        (*partials)[i] += partial;
-      } else {
-        // For i = msb, add the remaining contribution, but not more than the
-        // maximum contribution to the partial for this bin. This may occur if
-        // the msb was clamped by the ApproxBounds not having enough bins.
-        T2 remainder;
-        if (value > 0) {
-          remainder = make_partial(value, PosLeftBinBoundary(i));
-        } else {
-          remainder = make_partial(value, NegLeftBinBoundary(i));
-        }
-        if (std::abs(partial) < std::abs(remainder)) {
-          (*partials)[msb] += partial;
-        } else {
-          (*partials)[msb] += remainder;
-        }
-      }
-    }
+    AddMultipleEntriesToPartials<T2>(partials, value, 1, make_partial);
   }
 
-  // Break value into its partial sums and store it into the sums vector. A
-  // specific use case of AddToPartials used in some algorithms.
   template <typename T2>
   void AddToPartialSums(std::vector<T2>* sums, T value) {
-    AddToPartials<T2>(sums, value, [](T val1, T val2) { return val1 - val2; });
+    AddMultipleEntriesToPartialSums<T2>(sums, value, 1);
   }
 
   // Given two vectors of partial values, add the partials in the bins between
@@ -369,7 +322,7 @@ class ApproxBounds : public Algorithm<T> {
   T2 ComputeFromPartials(const std::vector<T2>& pos_partials,
                          const std::vector<T2>& neg_partials,
                          std::function<T2(T)> value_transform, T lower, T upper,
-                         size_t count) {
+                         uint64_t count) {
     // Find value by adding the partial values corresponding to bins that are
     // between the lower and upper bound. ApproxBounds will always return a
     // bin boundary as lower and upper bounds.
@@ -383,29 +336,33 @@ class ApproxBounds : public Algorithm<T> {
       // to 0 to upper, and also from 0 to lower in the negative vectors.
       if (lower < 0) {
         for (int i = 0; i <= lower_msb; ++i) {
-          value += neg_partials[i];
+          SafeAdd<T2>(value, neg_partials[i], &value);
         }
       }
       if (upper > 0) {
         for (int i = 0; i <= upper_msb; ++i) {
-          value += pos_partials[i];
+          SafeAdd<T2>(value, pos_partials[i], &value);
         }
       }
     } else if (upper < 0) {
       // If lower and upper are negative, each value is clamped so that they
       // contributed at most upper. Anything less they contributed is stored
       // in partial values between lower and upper, which we add.
-      value += count * value_transform(upper);
+      T2 bound_product;
+      SafeMultiply<T2>(value_transform(upper), count, &bound_product);
+      SafeAdd<T2>(value, bound_product, &value);
       for (int i = upper_msb + 1; i <= lower_msb; ++i) {
-        value += neg_partials[i];
+        SafeAdd<T2>(value, neg_partials[i], &value);
       }
     } else {  // 0 < lower <= upper
       // If lower and upper are both positive, each value is clamped to it
       // contributed at least lower. Anything more contributed is stored
       // between lower and upper in positive vectors, which we add.
-      value += count * value_transform(lower);
+      T2 bound_product;
+      SafeMultiply<T2>(value_transform(lower), count, &bound_product);
+      SafeAdd<T2>(value, bound_product, &value);
       for (int i = lower_msb + 1; i <= upper_msb; ++i) {
-        value += pos_partials[i];
+        SafeAdd<T2>(value, pos_partials[i], &value);
       }
     }
     return value;
@@ -539,6 +496,84 @@ class ApproxBounds : public Algorithm<T> {
   T PosRightBinBoundary(int bin_index) { return bin_boundaries_[bin_index]; }
 
  private:
+  // Add input num_of_entries times to the bins.
+  void AddMultipleEntries(const T& input, uint64_t num_of_entries) {
+    // REF:
+    // https://stackoverflow.com/questions/61646166/how-to-resolve-fpclassify-ambiguous-call-to-overloaded-function
+    if (std::isnan(static_cast<double>(input))) {
+      return;
+    }
+
+    // Place into correct bin according to most significant bit and sign. Note
+    // that MostSignificantBit returns 0 for 0.
+    int index = MostSignificantBit(input);
+    if (input >= 0) {
+      SafeAdd<int64_t>(pos_bins_[index], num_of_entries, &pos_bins_[index]);
+    } else {  // value < 0
+      SafeAdd<int64_t>(neg_bins_[index], num_of_entries, &neg_bins_[index]);
+    }
+  }
+
+  // Adds value to partials (as described in comment for AddToPartials())
+  // num_of_entries times. This function more efficiently adds multiple entries
+  // at once, instead of using AddToPartials() in a for-loop.
+  template <typename T2>
+  void AddMultipleEntriesToPartials(std::vector<T2>* partials, T value,
+                                    uint64_t num_of_entries,
+                                    std::function<T2(T, T)> make_partial) {
+    int msb = MostSignificantBit(value);
+
+    // Each bin of the logarithmic histograms in ApproxBounds can be a candidate
+    // for auto-determined upper and lower bounds. Thus, we store a contribution
+    // of the value from the value for each bin.
+    for (int i = 0; i <= msb; ++i) {
+      // The maximum contribution to the bin is the partial between boundaries.
+      T2 partial = 0;
+      if (value >= 0) {
+        partial = make_partial(PosRightBinBoundary(i), PosLeftBinBoundary(i));
+      } else {
+        partial = make_partial(NegRightBinBoundary(i), NegLeftBinBoundary(i));
+      }
+
+      T2 multiplied_partial;
+      if (i < msb) {
+        // For indices below the msb, add the maximum contribution
+        // (num_of_entries times) to the partial.
+
+        SafeMultiply<T2>(partial, num_of_entries, &multiplied_partial);
+        SafeAdd<T2>((*partials)[i], multiplied_partial, &(*partials)[i]);
+      } else {
+        // For i = msb, add the remaining contribution (num_of_entries times),
+        // but not more than the maximum contribution to the partial for this
+        // bin. This may occur if the msb was clamped by the ApproxBounds not
+        // having enough bins.
+        T2 remainder;
+        if (value > 0) {
+          remainder = make_partial(value, PosLeftBinBoundary(i));
+        } else {
+          remainder = make_partial(value, NegLeftBinBoundary(i));
+        }
+        if (std::abs(partial) < std::abs(remainder)) {
+          SafeMultiply<T2>(partial, num_of_entries, &multiplied_partial);
+          SafeAdd<T2>((*partials)[msb], multiplied_partial, &(*partials)[msb]);
+        } else {
+          SafeMultiply<T2>(remainder, num_of_entries, &multiplied_partial);
+          SafeAdd<T2>((*partials)[msb], multiplied_partial, &(*partials)[msb]);
+        }
+      }
+    }
+  }
+
+  // Break value into its partial sums and store it into the sums vector. A
+  // specific use case of AddToPartials used in some algorithms.
+  template <typename T2>
+  void AddMultipleEntriesToPartialSums(std::vector<T2>* sums, T value,
+                                       uint64_t num_of_entries) {
+    AddMultipleEntriesToPartials<T2>(
+        sums, value, num_of_entries,
+        [](T val1, T val2) { return val1 - val2; });
+  }
+
   // Add noise to each member of bins and return noisy vector.
   const std::vector<T> AddNoise(double privacy_budget,
                                 const std::vector<int64_t>& bins) {
@@ -626,6 +661,15 @@ class ApproxBounds : public Algorithm<T> {
     // Number of inputs outside of the empty set.
     return NumInputsOutside(0, 0);
   }
+
+  // Friend class for testing only.
+  friend class ApproxBoundsTestPeer;
+
+  // Needed for classes that rely on ApproxBounds::AddMultipleEntries()
+  template <typename T2, std::enable_if_t<std::is_arithmetic<T2>::value>*>
+  friend class BoundedMean;
+  template <typename T2, std::enable_if_t<std::is_arithmetic<T2>::value>*>
+  friend class BoundedVariance;
 
  private:
   // Count the values in each logarithmic bin for positives and negatives.

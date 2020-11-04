@@ -147,6 +147,29 @@ type PrivacySpec struct {
 	mux sync.Mutex
 }
 
+// getBudget computes the differential privacy budget (ε,δ) to consume
+// from a PrivacySpec. If epsilon and delta are 0, it gets the entire
+// budget, which is only possible if this is the first time its budget
+// is to be consumed.
+//
+// Returns the budget to consume.
+//
+// Warning: use consumeBudget to actually consume the budget.
+func (ps *PrivacySpec) getBudget(epsilon, delta float64) (eps, del float64, err error) {
+	ps.mux.Lock()
+	defer ps.mux.Unlock()
+	return ps.getBudgetThreadUnsafe(epsilon, delta)
+}
+
+// getBudgetThreadUnsafe is not thread-safe and should not be used directly. Instead, use getBudget
+// or consumeBudget.
+func (ps *PrivacySpec) getBudgetThreadUnsafe(epsilon, delta float64) (eps, del float64, err error) {
+	if epsilon == 0 && delta == 0 {
+		return ps.getEntireBudget()
+	}
+	return ps.getPartialBudget(epsilon, delta)
+}
+
 // consumeBudget consumes a differential privacy budget (ε,δ) from a
 // PrivacySpec. If epsilon and delta are 0, it consumes the entire budget,
 // which is only possible if this is the first time its budget is consumed.
@@ -154,24 +177,21 @@ type PrivacySpec struct {
 func (ps *PrivacySpec) consumeBudget(epsilon, delta float64) (eps, del float64, err error) {
 	ps.mux.Lock()
 	defer ps.mux.Unlock()
-	if epsilon == 0 && delta == 0 {
-		return ps.consumeEntireBudget()
-	}
-	return ps.consumePartialBudget(epsilon, delta)
-}
-
-func (ps *PrivacySpec) consumeEntireBudget() (eps, del float64, err error) {
-	if ps.partiallyConsumed {
-		return 0, 0, fmt.Errorf("trying to consume entire budget of PrivacySpec, but it has already been partially or fully consumed: %+v ", ps)
-	}
-	eps, del = ps.epsilon, ps.delta
-	ps.epsilon = 0
-	ps.delta = 0
+	eps, del, err = ps.getBudgetThreadUnsafe(epsilon, delta)
+	ps.epsilon = ps.epsilon - eps
+	ps.delta = ps.delta - del
 	ps.partiallyConsumed = true
 	return eps, del, nil
 }
 
-func (ps *PrivacySpec) consumePartialBudget(epsilon, delta float64) (eps, del float64, err error) {
+func (ps *PrivacySpec) getEntireBudget() (eps, del float64, err error) {
+	if ps.partiallyConsumed {
+		return 0, 0, fmt.Errorf("trying to consume entire budget of PrivacySpec, but it has already been partially or fully consumed: %+v ", ps)
+	}
+	return ps.epsilon, ps.delta, nil
+}
+
+func (ps *PrivacySpec) getPartialBudget(epsilon, delta float64) (eps, del float64, err error) {
 	if budgetSlightlyTooLarge(ps.epsilon, epsilon) {
 		log.Infof("corrected rounding error for epsilon budget allocation (requested: %f, available: %f, difference: %e)", epsilon, ps.epsilon, epsilon-ps.epsilon)
 		epsilon = ps.epsilon
@@ -183,9 +203,6 @@ func (ps *PrivacySpec) consumePartialBudget(epsilon, delta float64) (eps, del fl
 	if ps.epsilon < epsilon || ps.delta < delta {
 		return 0, 0, fmt.Errorf("not enough budget left for PrivacySpec: trying to consume epsilon=%f and delta=%e out of %+v", epsilon, delta, ps)
 	}
-	ps.epsilon -= epsilon
-	ps.delta -= delta
-	ps.partiallyConsumed = true
 	return epsilon, delta, nil
 }
 

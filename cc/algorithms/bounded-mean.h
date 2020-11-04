@@ -17,6 +17,7 @@
 #ifndef DIFFERENTIAL_PRIVACY_ALGORITHMS_BOUNDED_MEAN_H_
 #define DIFFERENTIAL_PRIVACY_ALGORITHMS_BOUNDED_MEAN_H_
 
+#include <limits>
 #include <type_traits>
 
 #include "google/protobuf/any.pb.h"
@@ -126,27 +127,7 @@ class BoundedMean : public Algorithm<T> {
     }
   };
 
-  void AddEntry(const T& t) override {
-    // REF:
-    // https://stackoverflow.com/questions/61646166/how-to-resolve-fpclassify-ambiguous-call-to-overloaded-function
-    if (std::isnan(static_cast<double>(t))) {
-      return;
-    }
-    ++raw_count_;
-
-    if (!approx_bounds_) {
-      pos_sum_[0] += Clamp<T>(lower_, upper_, t);
-    } else {
-      approx_bounds_->AddEntry(t);
-
-      // Find partial sums.
-      if (t >= 0) {
-        approx_bounds_->template AddToPartialSums<T>(&pos_sum_, t);
-      } else {
-        approx_bounds_->template AddToPartialSums<T>(&neg_sum_, t);
-      }
-    }
-  }
+  void AddEntry(const T& input) override { AddMultipleEntries(input, 1); }
 
   Summary Serialize() override {
     // Create BoundedMeanSummary.
@@ -170,6 +151,10 @@ class BoundedMean : public Algorithm<T> {
     return summary;
   }
 
+  // Note that the partial sums pos_sum_[i] and neg_sum_[i] will not surpass T's
+  // numeric limits (see SafeAdd implementation), but the raw counts will still
+  // be added together. Thus, the resulting mean will be incorrect,
+  // but warning the user of this would unfortunately violate DP.
   base::Status Merge(const Summary& summary) override {
     if (!summary.has_data()) {
       return base::InternalError(
@@ -181,17 +166,17 @@ class BoundedMean : public Algorithm<T> {
     if (!summary.data().UnpackTo(&bm_summary)) {
       return base::InternalError("Bounded mean summary unable to be unpacked.");
     }
-    raw_count_ += bm_summary.count();
+    SafeAdd<uint64_t>(raw_count_, bm_summary.count(), &raw_count_);
     if (pos_sum_.size() != bm_summary.pos_sum_size() ||
         neg_sum_.size() != bm_summary.neg_sum_size()) {
       return base::InternalError(
           "Merged BoundedMeans must have equal number of partial sums.");
     }
     for (int i = 0; i < pos_sum_.size(); ++i) {
-      pos_sum_[i] += GetValue<T>(bm_summary.pos_sum(i));
+      SafeAdd(pos_sum_[i], GetValue<T>(bm_summary.pos_sum(i)), &pos_sum_[i]);
     }
     for (int i = 0; i < neg_sum_.size(); ++i) {
-      neg_sum_[i] += GetValue<T>(bm_summary.neg_sum(i));
+      SafeAdd(neg_sum_[i], GetValue<T>(bm_summary.neg_sum(i)), &neg_sum_[i]);
     }
     if (approx_bounds_) {
       Summary approx_bounds_summary;
@@ -336,6 +321,40 @@ class BoundedMean : public Algorithm<T> {
   }
 
  private:
+  // Note that for manual bounds, pos_sum_[0] will not surpass T's numeric
+  // limit (see SafeAdd implementation), but will continue to increment
+  // raw_count_ for every call to AddEntry(). Thus, the resulting mean will be
+  // incorrect, but warning the user of this would unfortunately violate DP.
+  void AddMultipleEntries(const T& input, uint64_t num_of_entries) {
+    // REF:
+    // https://stackoverflow.com/questions/61646166/how-to-resolve-fpclassify-ambiguous-call-to-overloaded-function
+    if (std::isnan(static_cast<double>(input))) {
+      return;
+    }
+
+    SafeAdd<uint64_t>(raw_count_, num_of_entries, &raw_count_);
+
+    if (!approx_bounds_) {
+      T total_input;
+      SafeMultiply<T>(Clamp<T>(lower_, upper_, input),
+                      Clamp<T>(std::numeric_limits<T>::lowest(),
+                               std::numeric_limits<T>::max(), num_of_entries),
+                      &total_input);
+      SafeAdd(pos_sum_[0], total_input, &pos_sum_[0]);
+    } else {
+      approx_bounds_->AddMultipleEntries(input, num_of_entries);
+
+      // Find partial sums.
+      if (input >= 0) {
+        approx_bounds_->template AddMultipleEntriesToPartialSums<T>(
+            &pos_sum_, input, num_of_entries);
+      } else {
+        approx_bounds_->template AddMultipleEntriesToPartialSums<T>(
+            &neg_sum_, input, num_of_entries);
+      }
+    }
+  }
+
   static base::StatusOr<std::unique_ptr<NumericalMechanism>> BuildSumMechanism(
       std::unique_ptr<NumericalMechanismBuilder> mechanism_builder,
       const double epsilon, const double l0_sensitivity,
@@ -348,10 +367,13 @@ class BoundedMean : public Algorithm<T> {
         .Build();
   }
 
+  // Friend class for testing only.
+  friend class BoundedMeanTestPeer;
+
   // Vectors of partial values stored for automatic clamping.
   std::vector<T> pos_sum_, neg_sum_;
 
-  size_t raw_count_;
+  uint64_t raw_count_;
   T lower_, upper_;
   double midpoint_;
 

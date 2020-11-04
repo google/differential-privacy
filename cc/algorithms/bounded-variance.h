@@ -17,6 +17,7 @@
 #ifndef DIFFERENTIAL_PRIVACY_ALGORITHMS_BOUNDED_VARIANCE_H_
 #define DIFFERENTIAL_PRIVACY_ALGORITHMS_BOUNDED_VARIANCE_H_
 
+#include <limits>
 #include <type_traits>
 
 #include "google/protobuf/any.pb.h"
@@ -29,7 +30,6 @@
 #include "algorithms/numerical-mechanisms.h"
 #include "algorithms/util.h"
 #include "proto/util.h"
-#include "base/canonical_errors.h"
 
 namespace differential_privacy {
 
@@ -156,43 +156,7 @@ class BoundedVariance : public Algorithm<T> {
     }
   };
 
-  void AddEntry(const T& t) override {
-    // Drop value if it is NaN.
-    // REF:
-    // https://stackoverflow.com/questions/61646166/how-to-resolve-fpclassify-ambiguous-call-to-overloaded-function
-    if (std::isnan(static_cast<double>(t))) {
-      return;
-    }
-
-    // Count is unaffected by clamping.
-    ++raw_count_;
-
-    // If bounds exist, clamp and record. Otherwise, store partial results and
-    // feed input into ApproxBounds algorithm.
-    if (!approx_bounds_) {
-      double clamped = Clamp<double>(lower_, upper_, t);
-      pos_sum_[0] += clamped;
-      pos_sum_of_squares_[0] += clamped * clamped;
-    } else {
-      approx_bounds_->AddEntry(t);
-
-      // Add to partial sums and sum of squares.
-      auto difference_of_squares = [](T val1, T val2) {
-        // Lessen the chance of becoming inf/-inf by calculating it like this.
-        return (static_cast<double>(val1) + val2) *
-               (static_cast<double>(val1) - val2);
-      };
-      if (t >= 0) {
-        approx_bounds_->template AddToPartialSums<T>(&pos_sum_, t);
-        approx_bounds_->template AddToPartials<double>(&pos_sum_of_squares_, t,
-                                                       difference_of_squares);
-      } else {
-        approx_bounds_->template AddToPartialSums<T>(&neg_sum_, t);
-        approx_bounds_->template AddToPartials<double>(&neg_sum_of_squares_, t,
-                                                       difference_of_squares);
-      }
-    }
-  }
+  void AddEntry(const T& t) override { AddMultipleEntries(t, 1); }
 
   Summary Serialize() override {
     // Create BoundedVarianceSummary.
@@ -204,10 +168,10 @@ class BoundedVariance : public Algorithm<T> {
     for (T x : neg_sum_) {
       SetValue(bv_summary.add_neg_sum(), x);
     }
-    for (T x : pos_sum_of_squares_) {
+    for (double x : pos_sum_of_squares_) {
       bv_summary.add_pos_sum_of_squares(x);
     }
-    for (T x : neg_sum_of_squares_) {
+    for (double x : neg_sum_of_squares_) {
       bv_summary.add_neg_sum_of_squares(x);
     }
     if (approx_bounds_) {
@@ -248,13 +212,13 @@ class BoundedVariance : public Algorithm<T> {
     }
 
     // Add count and partial values to current ones.
-    raw_count_ += bv_summary.count();
+    SafeAdd(raw_count_, bv_summary.count(), &raw_count_);
     for (int i = 0; i < pos_sum_.size(); ++i) {
-      pos_sum_[i] += GetValue<T>(bv_summary.pos_sum(i));
+      SafeAdd(pos_sum_[i], GetValue<T>(bv_summary.pos_sum(i)), &pos_sum_[i]);
       pos_sum_of_squares_[i] += bv_summary.pos_sum_of_squares(i);
     }
     for (int i = 0; i < neg_sum_.size(); ++i) {
-      neg_sum_[i] += GetValue<T>(bv_summary.neg_sum(i));
+      SafeAdd(neg_sum_[i], GetValue<T>(bv_summary.neg_sum(i)), &neg_sum_[i]);
       neg_sum_of_squares_[i] += bv_summary.neg_sum_of_squares(i);
     }
 
@@ -354,7 +318,7 @@ class BoundedVariance : public Algorithm<T> {
 
     if (approx_bounds_) {
       // Get bounds with a fraction of the privacy budget.
-      double bounds_budget = privacy_budget / 2;
+      double bounds_budget = remaining_budget / 2;
       remaining_budget -= bounds_budget;
       ASSIGN_OR_RETURN(Output bounds, approx_bounds_->PartialResult(
                                           bounds_budget, noise_interval_level));
@@ -438,6 +402,7 @@ class BoundedVariance : public Algorithm<T> {
     }
 
     double noised_variance = mean_of_square - pow(mean, 2);
+
     AddToOutput<double>(
         &output, Clamp<double>(0.0, IntervalLengthSquared(lower_, upper_) / 4,
                                noised_variance));
@@ -506,10 +471,71 @@ class BoundedVariance : public Algorithm<T> {
         .Build();
   }
 
+  void AddMultipleEntries(const T& t, uint64_t num_of_entries) {
+    // Drop value if it is NaN.
+    // REF:
+    // https://stackoverflow.com/questions/61646166/how-to-resolve-fpclassify-ambiguous-call-to-overloaded-function
+    if (std::isnan(static_cast<double>(t))) {
+      return;
+    }
+
+    // Count is unaffected by clamping.
+    SafeAdd<uint64_t>(raw_count_, num_of_entries, &raw_count_);
+
+    // If bounds exist, clamp and record. Otherwise, store partial results and
+    // feed input into ApproxBounds algorithm.
+    if (!approx_bounds_) {
+      CHECK_EQ(
+          AddManualBoundsEntries(Clamp<T>(lower_, upper_, t), num_of_entries),
+          base::OkStatus());
+    } else {
+      approx_bounds_->AddMultipleEntries(t, num_of_entries);
+
+      // Add to partial sums and sum of squares.
+      auto difference_of_squares = [](T val1, T val2) {
+        // Lessen the chance of becoming inf/-inf by calculating it like this.
+        return (static_cast<double>(val1) + val2) *
+               (static_cast<double>(val1) - val2);
+      };
+      if (t >= 0) {
+        approx_bounds_->template AddMultipleEntriesToPartialSums<T>(
+            &pos_sum_, t, num_of_entries);
+        approx_bounds_->template AddMultipleEntriesToPartials<double>(
+            &pos_sum_of_squares_, t, num_of_entries, difference_of_squares);
+      } else {
+        approx_bounds_->template AddMultipleEntriesToPartialSums<T>(
+            &neg_sum_, t, num_of_entries);
+        approx_bounds_->template AddMultipleEntriesToPartials<double>(
+            &neg_sum_of_squares_, t, num_of_entries, difference_of_squares);
+      }
+    }
+  }
+
+  base::Status AddManualBoundsEntries(const T& t, uint64_t num_of_entries) {
+    if (approx_bounds_) {
+      return base::InternalError(
+          "AddManualBoundsEntry() can only be used when bounds were set "
+          "manually.");
+    }
+    SafeAdd(pos_sum_[0],
+            Clamp<T>(std::numeric_limits<T>::lowest(),
+                     std::numeric_limits<T>::max(), t * num_of_entries),
+            &pos_sum_[0]);
+    pos_sum_of_squares_[0] += pow(t, 2) * num_of_entries;
+    return base::OkStatus();
+  }
+
+  base::Status AddManualBoundsEntry(const T& t) {
+    return AddManualBoundsEntries(t, 1);
+  }
+
+  // Friend class for testing only
+  friend class BoundedVarianceTestPeer;
+
   // Vectors of partial values stored for automatic clamping.
   std::vector<T> pos_sum_, neg_sum_;
   std::vector<double> pos_sum_of_squares_, neg_sum_of_squares_;
-  size_t raw_count_;
+  uint64_t raw_count_;
   T lower_, upper_;
 
   // Used to construct mechanism once bounds are obtained.

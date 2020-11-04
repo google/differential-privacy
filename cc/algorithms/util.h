@@ -80,35 +80,54 @@ inline const T& Clamp(const T& low, const T& high, const T& value) {
   return value;
 }
 
-// Return true and assign the addition result if the addition will not overflow.
+// When T is an integral type, return true and assign the addition result if the
+// addition will not overflow. Otherwise, assign the numeric limit to result and
+// return false.
 template <typename T, std::enable_if_t<std::is_integral<T>::value>* = nullptr>
 inline bool SafeAdd(T lhs, T rhs, T* result) {
   if (lhs > 0) {
     // For negative rhs, we will never overflow.
     if (rhs > 0) {
       T safe_distance = std::numeric_limits<T>::max() - lhs;
-      if (safe_distance < rhs) return false;
+      if (safe_distance < rhs) {
+        *result = std::numeric_limits<T>::max();
+        return false;
+      }
     }
   } else if (lhs < 0) {
     // For positive rhs, we will never overflow.
     if (rhs < 0) {
       T safe_distance = std::numeric_limits<T>::lowest() - lhs;
-      if (safe_distance > rhs) return false;
+      if (safe_distance > rhs) {
+        *result = std::numeric_limits<T>::lowest();
+        return false;
+      }
     }
   }
   *result = lhs + rhs;
   return true;
 }
 
-// Return true and assign the subtraction result if the subtraction will not
-// overflow.
+// When T is a floating-point type, perform a simple addition, since
+// floating-point types don't have the same overflow issues as integral types.
+template <typename T,
+          std::enable_if_t<std::is_floating_point<T>::value>* = nullptr>
+inline bool SafeAdd(T lhs, T rhs, T* result) {
+  *result = lhs + rhs;
+  return true;
+}
+
+// When T is an integral type, return true and assign the subtraction result if
+// the subtraction will not overflow. Otherwise, assign the numeric limit to
+// result and return false.
 template <typename T, std::enable_if_t<std::is_integral<T>::value>* = nullptr>
 inline bool SafeSubtract(T lhs, T rhs, T* result) {
   // For integral values the min numeric limit is larger in magnitude than the
   // max numeric limit, so we cannot negate it. For unsigned types, the lowest
-  // numeric limit is 0. FOr signed types, it is negative.
+  // numeric limit is 0. For signed types, it is negative.
   if (rhs == std::numeric_limits<T>::lowest() && rhs != 0) {
     if (lhs > 0) {
+      *result = std::numeric_limits<T>::lowest();
       return false;
     } else {
       *result = lhs - rhs;
@@ -118,6 +137,62 @@ inline bool SafeSubtract(T lhs, T rhs, T* result) {
 
   // For all other values of rhs, add the negation.
   return SafeAdd(lhs, -rhs, result);
+}
+
+// When T is a floating-point type, perform a simple subtraction, since
+// floating-point types don't have the same overflow issues as integral types.
+template <typename T,
+          std::enable_if_t<std::is_floating_point<T>::value>* = nullptr>
+inline bool SafeSubtract(T lhs, T rhs, T* result) {
+  *result = lhs - rhs;
+  return true;
+}
+
+// When T is an integral type, return true and assign the multiplication result
+// if the multiplication will not overflow. Otherwise, assign the numeric limit
+// to result and return false.
+template <typename T, std::enable_if_t<std::is_integral<T>::value>* = nullptr>
+inline bool SafeMultiply(T lhs, T rhs, T* result) {
+  if (lhs > 0) {
+    if (rhs > 0) {
+      T safe_distance = std::numeric_limits<T>::max() / lhs;
+      if (safe_distance < rhs) {
+        *result = std::numeric_limits<T>::max();
+        return false;
+      }
+    } else if (rhs < 0) {
+      T safe_distance = std::numeric_limits<T>::lowest() / lhs;
+      if (safe_distance > rhs) {
+        *result = std::numeric_limits<T>::lowest();
+        return false;
+      }
+    }
+  } else if (lhs < 0) {
+    if (rhs < 0) {
+      T safe_distance = std::numeric_limits<T>::max() / lhs;
+      if (safe_distance > rhs) {
+        *result = std::numeric_limits<T>::max();
+        return false;
+      }
+    } else if (rhs > 0) {
+      T safe_distance = std::numeric_limits<T>::lowest() / rhs;
+      if (safe_distance > lhs) {
+        *result = std::numeric_limits<T>::lowest();
+        return false;
+      }
+    }
+  }
+  *result = lhs * rhs;
+  return true;
+}
+
+// When T is a floating-point type, perform a simple multiplication, since
+// floating-point types don't have the same overflow issues as integral types.
+template <typename T,
+          std::enable_if_t<std::is_floating_point<T>::value>* = nullptr>
+inline bool SafeMultiply(T lhs, T rhs, T* result) {
+  *result = lhs * rhs;
+  return true;
 }
 
 // Return true and assign the square result if squaring will not overflow.

@@ -308,6 +308,98 @@ TYPED_TEST(BoundedSumTest, SerializeMergePartialSumsTest) {
   EXPECT_EQ(GetValue<TypeParam>(*output1), GetValue<TypeParam>(*output2));
 }
 
+TEST(BoundedSumTest, OverflowAddEntryManualBounds) {
+  typename BoundedSum<int64_t>::Builder builder;
+
+  std::unique_ptr<BoundedSum<int64_t>> bs =
+      builder
+          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLower(0)
+          .SetUpper(std::numeric_limits<int64_t>::max())
+          .Build()
+          .ValueOrDie();
+  bs->AddEntry(std::numeric_limits<int64_t>::max());
+  bs->AddEntry(1);
+  bs->AddEntry(1);
+  bs->AddEntry(std::numeric_limits<int64_t>::max());
+
+  auto result = bs->PartialResult();
+  EXPECT_OK(result.status());
+  EXPECT_EQ(GetValue<int64_t>(result.value()), std::numeric_limits<int64_t>::max());
+}
+
+TEST(BoundedSumTest, UnderflowAddEntryManualBounds) {
+  typename BoundedSum<int64_t>::Builder builder;
+
+  std::unique_ptr<BoundedSum<int64_t>> bs =
+      builder
+          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLower(std::numeric_limits<int64_t>::lowest() + 1)
+          .SetUpper(0)
+          .Build()
+          .ValueOrDie();
+  bs->AddEntry(std::numeric_limits<int64_t>::lowest());
+  bs->AddEntry(-1);
+  bs->AddEntry(-1);
+  bs->AddEntry(std::numeric_limits<int64_t>::lowest());
+
+  auto result = bs->PartialResult();
+  EXPECT_OK(result.status());
+  EXPECT_EQ(GetValue<int64_t>(result.value()),
+            std::numeric_limits<int64_t>::lowest());
+}
+
+TEST(BoundedSumTest, OverflowMergeManualBoundsTest) {
+  typename BoundedSum<int64_t>::Builder builder;
+
+  std::unique_ptr<BoundedSum<int64_t>> bs =
+      builder
+          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLower(0)
+          .SetUpper(std::numeric_limits<int64_t>::max())
+          .Build()
+          .ValueOrDie();
+  bs->AddEntry(std::numeric_limits<int64_t>::max());
+  Summary summary = bs->Serialize();
+
+  std::unique_ptr<BoundedSum<int64_t>> bs2 = builder.Build().ValueOrDie();
+  bs2->AddEntry(1);
+  bs2->AddEntry(1);
+  bs2->AddEntry(1);
+
+  EXPECT_OK(bs2->Merge(summary));
+
+  auto result = bs2->PartialResult();
+  EXPECT_OK(result.status());
+  EXPECT_EQ(GetValue<int64_t>(result.value()), std::numeric_limits<int64_t>::max());
+}
+
+TEST(BoundedSumTest, UnderflowMergeManualBoundsTest) {
+  typename BoundedSum<int64_t>::Builder builder;
+
+  std::unique_ptr<BoundedSum<int64_t>> bs =
+      builder
+          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLower(std::numeric_limits<int64_t>::lowest() + 1)
+          .SetUpper(0)
+          .Build()
+          .ValueOrDie();
+  bs->AddEntry(std::numeric_limits<int64_t>::lowest());
+  Summary summary = bs->Serialize();
+
+  std::unique_ptr<BoundedSum<int64_t>> bs2 = builder.Build().ValueOrDie();
+  bs2->AddEntry(-1);
+  bs2->AddEntry(-1);
+  bs2->AddEntry(-1);
+
+  EXPECT_OK(bs2->Merge(summary));
+
+  auto result = bs2->PartialResult();
+  EXPECT_OK(result.status());
+  EXPECT_EQ(GetValue<int64_t>(result.value()),
+            std::numeric_limits<int64_t>::lowest());
+}
+
 TEST(BoundedSumTest, DropNanEntriesManualBounds) {
   std::vector<double> a = {NAN, 1};
   auto bs =
@@ -319,7 +411,7 @@ TEST(BoundedSumTest, DropNanEntriesManualBounds) {
   ASSERT_OK(bs);
   auto output = (*bs)->Result(a.begin(), a.end());
   ASSERT_OK(output);
-  EXPECT_EQ(GetValue<double>(*output), 1.0);
+  EXPECT_DOUBLE_EQ(GetValue<double>(*output), 1.0);
 }
 
 TEST(BoundedSumTest, DropNanEntriesApproxBounds) {
@@ -343,7 +435,7 @@ TEST(BoundedSumTest, DropNanEntriesApproxBounds) {
   // Bounds are set to [-1, 1].
   auto output = (*bs)->Result(a.begin(), a.end());
   ASSERT_OK(output);
-  EXPECT_EQ(GetValue<double>(*output), 1.0);
+  EXPECT_DOUBLE_EQ(GetValue<double>(*output), 1.0);
 }
 
 TYPED_TEST(BoundedSumTest, PropagateApproxBoundsError) {

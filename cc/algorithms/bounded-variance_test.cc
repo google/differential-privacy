@@ -16,18 +16,34 @@
 
 #include "algorithms/bounded-variance.h"
 
+#include <limits>
+
 #include "base/testing/proto_matchers.h"
 #include "base/testing/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/random/distributions.h"
+#include "base/status.h"
 #include "algorithms/approx-bounds.h"
 #include "algorithms/numerical-mechanisms-testing.h"
 
 namespace differential_privacy {
+
+// Provides limited-scope static methods for interacting with a BoundedVariance
+// object for testing purposes.
+class BoundedVarianceTestPeer {
+ public:
+  template <typename T,
+            std::enable_if_t<std::is_arithmetic<T>::value>* = nullptr>
+  static void AddMultipleEntries(const T& t, uint64_t num_of_entries,
+                                 BoundedVariance<T>* bv) {
+    bv->AddMultipleEntries(t, num_of_entries);
+  }
+};
+
 namespace {
 
-using ::differential_privacy::test_utils::ZeroNoiseMechanism;
+using test_utils::ZeroNoiseMechanism;
 using ::testing::DoubleNear;
 using ::differential_privacy::base::testing::EqualsProto;
 using ::testing::HasSubstr;
@@ -35,6 +51,9 @@ using ::differential_privacy::base::testing::StatusIs;
 
 constexpr double kSmallEpsilon = 0.00000001;
 constexpr int64_t kNumSamples = 10000;
+// Max upper bound (and negative lower bound) BoundedVariance will accept
+// Used in overflow-related tests
+const int64_t kSqrtInt64Max = sqrt(std::numeric_limits<int64_t>::max());
 
 template <typename T>
 class BoundedVarianceTest : public testing::Test {
@@ -42,6 +61,21 @@ class BoundedVarianceTest : public testing::Test {
   void SetUp() override {}
 
   void TearDown() override {}
+
+ private:
+  double Variance(std::vector<T> values) {
+    if (values.empty()) {
+      return 0;
+    }
+    int num_of_values = values.size();
+    double mean = accumulate(values.begin(), values.end(), 0.0) / num_of_values;
+    double variance = 0;
+    for (int i = 0; i < num_of_values; ++i) {
+      variance += (values[i] - mean) * (values[i] - mean);
+    }
+    variance /= num_of_values;
+    return variance;
+  }
 };
 
 // Typed test to iterate all test cases through all supported versions of
@@ -61,7 +95,26 @@ TYPED_TEST(BoundedVarianceTest, BasicTest) {
   ASSERT_OK(bv);
   base::StatusOr<Output> result = (*bv)->Result(a.begin(), a.end());
   ASSERT_OK(result);
-  EXPECT_EQ(GetValue<double>(*result), 2.0);
+  EXPECT_DOUBLE_EQ(GetValue<double>(*result), 2.0);
+}
+
+TYPED_TEST(BoundedVarianceTest, BasicMultipleEntriesTest) {
+  std::vector<TypeParam> a = {1, 2, 3, 4, 5};
+  base::StatusOr<std::unique_ptr<BoundedVariance<TypeParam>>> bv =
+      typename BoundedVariance<TypeParam>::Builder()
+          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetEpsilon(1.0)
+          .SetLower(0)
+          .SetUpper(6)
+          .Build();
+  ASSERT_OK(bv);
+  for (const auto& input : a) {
+    BoundedVarianceTestPeer::AddMultipleEntries<TypeParam>(input, input,
+                                                           (*bv).get());
+  }
+  base::StatusOr<Output> result = (*bv)->PartialResult();
+  ASSERT_OK(result);
+  EXPECT_NEAR(GetValue<double>(*result), 14.0 / 9.0, 0.0000001);
 }
 
 TYPED_TEST(BoundedVarianceTest, RepeatedResultTest) {
@@ -79,7 +132,7 @@ TYPED_TEST(BoundedVarianceTest, RepeatedResultTest) {
   ASSERT_OK(result1);
   base::StatusOr<Output> result2 = (*bv)->PartialResult(0.5);
   ASSERT_OK(result2);
-  EXPECT_EQ(GetValue<double>(*result1), GetValue<double>(*result2));
+  EXPECT_DOUBLE_EQ(GetValue<double>(*result1), GetValue<double>(*result2));
 }
 
 TYPED_TEST(BoundedVarianceTest, ClampInputTest) {
@@ -94,7 +147,7 @@ TYPED_TEST(BoundedVarianceTest, ClampInputTest) {
   ASSERT_OK(bv);
   base::StatusOr<Output> result = (*bv)->Result(a.begin(), a.end());
   ASSERT_OK(result);
-  EXPECT_EQ(GetValue<double>(*result), 1.0);
+  EXPECT_DOUBLE_EQ(GetValue<double>(*result), 1.0);
 }
 
 TYPED_TEST(BoundedVarianceTest, ClampOutputLowerTest) {
@@ -264,7 +317,7 @@ TYPED_TEST(BoundedVarianceTest, SerializeMergeTest) {
   ASSERT_OK(result1);
   base::StatusOr<Output> result2 = (*bv2)->PartialResult();
   ASSERT_OK(result2);
-  EXPECT_EQ(GetValue<double>(*result1), GetValue<double>(*result2));
+  EXPECT_DOUBLE_EQ(GetValue<double>(*result1), GetValue<double>(*result2));
 }
 
 TYPED_TEST(BoundedVarianceTest, SerializeMergePartialValuesTest) {
@@ -303,7 +356,153 @@ TYPED_TEST(BoundedVarianceTest, SerializeMergePartialValuesTest) {
   ASSERT_OK(result1);
   base::StatusOr<Output> result2 = (*bv2)->PartialResult();
   ASSERT_OK(result2);
-  EXPECT_EQ(GetValue<double>(*result1), GetValue<double>(*result2));
+  EXPECT_DOUBLE_EQ(GetValue<double>(*result1), GetValue<double>(*result2));
+}
+
+TEST(BoundedVarianceTest, OverflowRawCountTest) {
+  typename BoundedVariance<double>::Builder builder;
+
+  std::unique_ptr<BoundedVariance<double>> bv =
+      builder
+          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLower(-1)
+          .SetUpper(1)
+          .Build()
+          .ValueOrDie();
+  BoundedVarianceTestPeer::AddMultipleEntries<double>(
+      -0.5, std::numeric_limits<uint64_t>::max() / 2, bv.get());
+  BoundedVarianceTestPeer::AddMultipleEntries<double>(
+      0.5, std::numeric_limits<uint64_t>::max() / 2, bv.get());
+  BoundedVarianceTestPeer::AddMultipleEntries<double>(1, 5, bv.get());
+
+  auto result = bv->PartialResult();
+  EXPECT_OK(result.status());
+  // A raw_count_ overflow would result in a larger variance of 1.
+  EXPECT_DOUBLE_EQ(GetValue<double>(result.value()), 0.25);
+}
+
+TEST(BoundedVarianceTest, OverflowAddEntryManualBounds) {
+  typename BoundedVariance<int64_t>::Builder builder;
+
+  std::unique_ptr<BoundedVariance<int64_t>> bv =
+      builder
+          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLower(-1)
+          .SetUpper(1)
+          .Build()
+          .ValueOrDie();
+  // Try to overflow so far that it would result in an running sum of almost 0.
+  BoundedVarianceTestPeer::AddMultipleEntries<int64_t>(
+      1, std::numeric_limits<int64_t>::max(), bv.get());
+  BoundedVarianceTestPeer::AddMultipleEntries<int64_t>(
+      1, std::numeric_limits<int64_t>::max(), bv.get());
+
+  auto result = bv->PartialResult();
+  EXPECT_OK(result.status());
+  // Overflow would result in a variance of 1.0
+  EXPECT_DOUBLE_EQ(GetValue<double>(result.value()), 0.75);
+}
+
+TEST(BoundedVarianceTest, UnderflowAddEntryManualBounds) {
+  typename BoundedVariance<int64_t>::Builder builder;
+
+  std::unique_ptr<BoundedVariance<int64_t>> bv =
+      builder
+          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLower(-1)
+          .SetUpper(1)
+          .Build()
+          .ValueOrDie();
+  BoundedVarianceTestPeer::AddMultipleEntries<int64_t>(
+      -1, std::numeric_limits<int64_t>::max(), bv.get());
+  BoundedVarianceTestPeer::AddMultipleEntries<int64_t>(
+      -1, std::numeric_limits<int64_t>::max(), bv.get());
+
+  auto result = bv->PartialResult();
+  EXPECT_OK(result.status());
+  // Overflow would result in a variance of 1.0
+  EXPECT_DOUBLE_EQ(GetValue<double>(result.value()), 0.75);
+}
+
+TEST(BoundedVarianceTest, OverflowRawCountMergeManualBoundsTest) {
+  typename BoundedVariance<double>::Builder builder;
+
+  std::unique_ptr<BoundedVariance<double>> bv =
+      builder
+          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLower(0)
+          .SetUpper(10)
+          .Build()
+          .ValueOrDie();
+  BoundedVarianceTestPeer::AddMultipleEntries<double>(
+      10, std::numeric_limits<uint64_t>::max(), bv.get());
+
+  Summary summary = bv->Serialize();
+
+  std::unique_ptr<BoundedVariance<double>> bv2 = builder.Build().ValueOrDie();
+  bv2->AddEntry(10);
+  bv2->AddEntry(10);
+
+  EXPECT_OK(bv2->Merge(summary));
+
+  auto result = bv2->PartialResult();
+  EXPECT_OK(result.status());
+  // An overflow would cause the count of entries to be 1, which would result in
+  // the variance being based entirely on the midpoint between the upper and
+  // lower bounds, instead of based upon the actual data entries.
+  EXPECT_DOUBLE_EQ(GetValue<double>(result.value()), 0);
+}
+
+TEST(BoundedVarianceTest, OverflowMergeManualBoundsTest) {
+  typename BoundedVariance<int64_t>::Builder builder;
+
+  std::unique_ptr<BoundedVariance<int64_t>> bv =
+      builder
+          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLower(-1)
+          .SetUpper(1)
+          .Build()
+          .ValueOrDie();
+  BoundedVarianceTestPeer::AddMultipleEntries<int64_t>(
+      1, std::numeric_limits<int64_t>::max(), bv.get());
+  Summary summary = bv->Serialize();
+
+  std::unique_ptr<BoundedVariance<int64_t>> bv2 = builder.Build().ValueOrDie();
+  BoundedVarianceTestPeer::AddMultipleEntries<int64_t>(
+      1, std::numeric_limits<int64_t>::max(), bv2.get());
+
+  EXPECT_OK(bv2->Merge(summary));
+
+  auto result = bv2->PartialResult();
+  EXPECT_OK(result.status());
+  // Overflow would result in a variance of 1.0
+  EXPECT_DOUBLE_EQ(GetValue<double>(result.value()), 0.75);
+}
+
+TEST(BoundedVarianceTest, UnderflowMergeManualBoundsTest) {
+  typename BoundedVariance<int64_t>::Builder builder;
+
+  std::unique_ptr<BoundedVariance<int64_t>> bv =
+      builder
+          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLower(-1)
+          .SetUpper(1)
+          .Build()
+          .ValueOrDie();
+  BoundedVarianceTestPeer::AddMultipleEntries<int64_t>(
+      -1, std::numeric_limits<int64_t>::max(), bv.get());
+  Summary summary = bv->Serialize();
+
+  std::unique_ptr<BoundedVariance<int64_t>> bv2 = builder.Build().ValueOrDie();
+  BoundedVarianceTestPeer::AddMultipleEntries<int64_t>(
+      -1, std::numeric_limits<int64_t>::max(), bv2.get());
+
+  EXPECT_OK(bv2->Merge(summary));
+
+  auto result = bv2->PartialResult();
+  EXPECT_OK(result.status());
+  // Overflow would result in a variance of 1.0
+  EXPECT_DOUBLE_EQ(GetValue<double>(result.value()), 0.75);
 }
 
 TEST(BoundedVarianceTest, SensitivityOverflow) {
@@ -342,7 +541,7 @@ TEST(BoundedVarianceTest, DropNanEntries) {
   ASSERT_OK(bv);
   base::StatusOr<Output> result = (*bv)->Result(a.begin(), a.end());
   ASSERT_OK(result);
-  EXPECT_EQ(GetValue<double>(*result), 2.0);
+  EXPECT_DOUBLE_EQ(GetValue<double>(*result), 2.0);
 }
 
 TYPED_TEST(BoundedVarianceTest, PropagateApproxBoundsError) {
@@ -530,7 +729,7 @@ TYPED_TEST(BoundedVarianceTest, AutomaticBoundsZero) {
   // Bounds are [0, 4]. -2 gets clamped to 0. 7 gets clamped to 4.
   base::StatusOr<Output> result = (*bv)->PartialResult();
   ASSERT_OK(result);
-  EXPECT_EQ(GetValue<double>(result->elements(0).value()), 4);
+  EXPECT_DOUBLE_EQ(GetValue<double>(result->elements(0).value()), 4);
 }
 
 TYPED_TEST(BoundedVarianceTest, Reset) {
@@ -562,7 +761,7 @@ TYPED_TEST(BoundedVarianceTest, Reset) {
   // Check result is only affected by vector b. Bounds are [-100, 100].
   base::StatusOr<Output> result = (*bv)->PartialResult();
   ASSERT_OK(result);
-  EXPECT_EQ(GetValue<double>(result->elements(0).value()), 10000);
+  EXPECT_DOUBLE_EQ(GetValue<double>(result->elements(0).value()), 10000);
 }
 
 TYPED_TEST(BoundedVarianceTest, MemoryUsed) {

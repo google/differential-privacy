@@ -181,7 +181,7 @@ TEST(ClampTest, DefaultTest) {
   EXPECT_EQ(Clamp(1.0, 3.0, -2.0), 1);
 }
 
-TEST(SafeOperationsTest, SafeAdd) {
+TEST(SafeOperationsTest, SafeAddInt) {
   int64_t int_result;
   EXPECT_TRUE(SafeAdd<int64_t>(10, 20, &int_result));
   EXPECT_EQ(int_result, 30);
@@ -191,19 +191,41 @@ TEST(SafeOperationsTest, SafeAdd) {
   EXPECT_EQ(int_result, -1);
   EXPECT_FALSE(
       SafeAdd<int64_t>(std::numeric_limits<int64_t>::max(), 1, &int_result));
+  EXPECT_EQ(int_result, std::numeric_limits<int64_t>::max());
   EXPECT_FALSE(
       SafeAdd<int64_t>(std::numeric_limits<int64_t>::lowest(), -1, &int_result));
+  EXPECT_EQ(int_result, std::numeric_limits<int64_t>::lowest());
   EXPECT_TRUE(
       SafeAdd<int64_t>(std::numeric_limits<int64_t>::lowest(), 0, &int_result));
   EXPECT_EQ(int_result, std::numeric_limits<int64_t>::lowest());
 }
 
-TEST(SafeOperationsTest, SafeSubtract) {
+TEST(SafeOperationsTest, SafeAddDouble) {
+  double double_result;
+  EXPECT_TRUE(SafeAdd<double>(10, 20, &double_result));
+  EXPECT_EQ(double_result, 30);
+  EXPECT_TRUE(SafeAdd<double>(std::numeric_limits<double>::max(),
+                              std::numeric_limits<double>::lowest(),
+                              &double_result));
+  EXPECT_FLOAT_EQ(double_result, 0);
+  EXPECT_TRUE(
+      SafeAdd<double>(std::numeric_limits<double>::max(), 1.0, &double_result));
+  EXPECT_FLOAT_EQ(double_result, std::numeric_limits<double>::infinity());
+  EXPECT_TRUE(SafeAdd<double>(std::numeric_limits<double>::lowest(), -1.0,
+                              &double_result));
+  EXPECT_FLOAT_EQ(double_result, -std::numeric_limits<double>::infinity());
+  EXPECT_TRUE(SafeAdd<double>(std::numeric_limits<double>::lowest(), 0.0,
+                              &double_result));
+  EXPECT_EQ(double_result, std::numeric_limits<double>::lowest());
+}
+
+TEST(SafeOperationsTest, SafeSubtractInt) {
   int64_t int_result;
   EXPECT_TRUE(SafeSubtract<int64_t>(10, 20, &int_result));
   EXPECT_EQ(int_result, -10);
   EXPECT_FALSE(SafeSubtract<int64_t>(1, std::numeric_limits<int64_t>::lowest(),
                                    &int_result));
+  EXPECT_EQ(int_result, std::numeric_limits<int64_t>::lowest());
   EXPECT_TRUE(SafeSubtract<int64_t>(-1, std::numeric_limits<int64_t>::lowest(),
                                   &int_result));
   EXPECT_EQ(int_result, std::numeric_limits<int64_t>::max());
@@ -216,6 +238,111 @@ TEST(SafeOperationsTest, SafeSubtract) {
   EXPECT_TRUE(SafeSubtract<uint64_t>(1, std::numeric_limits<uint64_t>::lowest(),
                                    &uint_result));
   EXPECT_EQ(uint_result, 1);
+}
+
+TEST(SafeOperationsTest, SafeSubtractDouble) {
+  double double_result;
+  EXPECT_TRUE(SafeSubtract<double>(10.0, 20.0, &double_result));
+  EXPECT_DOUBLE_EQ(double_result, -10.0);
+  EXPECT_TRUE(SafeSubtract<double>(1.0, std::numeric_limits<double>::lowest(),
+                                   &double_result));
+  EXPECT_DOUBLE_EQ(double_result, std::numeric_limits<double>::infinity());
+  EXPECT_TRUE(SafeSubtract<double>(-1.0, std::numeric_limits<double>::lowest(),
+                                   &double_result));
+  EXPECT_DOUBLE_EQ(double_result, std::numeric_limits<double>::infinity());
+  EXPECT_TRUE(SafeSubtract<double>(std::numeric_limits<double>::lowest(),
+                                   std::numeric_limits<double>::lowest(),
+                                   &double_result));
+  EXPECT_EQ(double_result, 0);
+}
+
+TEST(SafeOperationsTest, SafeMultiplyInt) {
+  int64_t int_result;
+
+  EXPECT_TRUE(SafeMultiply<int64_t>(1, 1, &int_result));
+  EXPECT_EQ(int_result, 1);
+  EXPECT_TRUE(SafeMultiply<int64_t>(-1, 1, &int_result));
+  EXPECT_EQ(int_result, -1);
+  EXPECT_TRUE(SafeMultiply<int64_t>(1, -1, &int_result));
+  EXPECT_EQ(int_result, -1);
+  EXPECT_TRUE(SafeMultiply<int64_t>(-1, -1, &int_result));
+  EXPECT_EQ(int_result, 1);
+  EXPECT_TRUE(SafeMultiply<int64_t>(10, -20, &int_result));
+  EXPECT_EQ(int_result, -200);
+
+  EXPECT_FALSE(SafeMultiply<int64_t>(std::numeric_limits<int64_t>::max(),
+                                   std::numeric_limits<int64_t>::lowest(),
+                                   &int_result));
+  EXPECT_EQ(int_result, std::numeric_limits<int64_t>::lowest());
+  EXPECT_FALSE(SafeMultiply<int64_t>(std::numeric_limits<int64_t>::lowest(),
+                                   std::numeric_limits<int64_t>::max(),
+                                   &int_result));
+  EXPECT_EQ(int_result, std::numeric_limits<int64_t>::lowest());
+
+  EXPECT_FALSE(
+      SafeMultiply<int64_t>(std::numeric_limits<int64_t>::max(), 2, &int_result));
+  EXPECT_EQ(int_result, std::numeric_limits<int64_t>::max());
+  EXPECT_FALSE(SafeMultiply<int64_t>(std::numeric_limits<int64_t>::lowest(), -2,
+                                   &int_result));
+  EXPECT_EQ(int_result, std::numeric_limits<int64_t>::max());
+
+  EXPECT_FALSE(
+      SafeMultiply<int64_t>(std::numeric_limits<int64_t>::max(), -2, &int_result));
+  EXPECT_EQ(int_result, std::numeric_limits<int64_t>::lowest());
+  EXPECT_FALSE(
+      SafeMultiply<int64_t>(-2, std::numeric_limits<int64_t>::max(), &int_result));
+  EXPECT_EQ(int_result, std::numeric_limits<int64_t>::lowest());
+
+  EXPECT_FALSE(SafeMultiply<int64_t>(std::numeric_limits<int64_t>::lowest(), 2,
+                                   &int_result));
+  EXPECT_EQ(int_result, std::numeric_limits<int64_t>::lowest());
+  EXPECT_FALSE(SafeMultiply<int64_t>(2, std::numeric_limits<int64_t>::lowest(),
+                                   &int_result));
+  EXPECT_EQ(int_result, std::numeric_limits<int64_t>::lowest());
+
+  EXPECT_TRUE(SafeMultiply<int64_t>(std::numeric_limits<int64_t>::lowest(), 0,
+                                  &int_result));
+  EXPECT_EQ(int_result, 0);
+  EXPECT_TRUE(
+      SafeMultiply<int64_t>(0, std::numeric_limits<int64_t>::max(), &int_result));
+  EXPECT_EQ(int_result, 0);
+}
+
+TEST(SafeOperationsTest, SafeMultiplyDouble) {
+  double double_result;
+  EXPECT_TRUE(SafeMultiply<double>(1.0, 1.0, &double_result));
+  EXPECT_DOUBLE_EQ(double_result, 1.0);
+  EXPECT_TRUE(SafeMultiply<double>(-1.0, 1.0, &double_result));
+  EXPECT_DOUBLE_EQ(double_result, -1.0);
+  EXPECT_TRUE(SafeMultiply<double>(1.0, -1.0, &double_result));
+  EXPECT_DOUBLE_EQ(double_result, -1.0);
+  EXPECT_TRUE(SafeMultiply<double>(-1.0, -1.0, &double_result));
+  EXPECT_DOUBLE_EQ(double_result, 1.0);
+  EXPECT_TRUE(SafeMultiply<double>(10.0, -20.0, &double_result));
+  EXPECT_DOUBLE_EQ(double_result, -200.0);
+  EXPECT_TRUE(SafeMultiply<double>(std::numeric_limits<double>::max(),
+                                   std::numeric_limits<double>::lowest(),
+                                   &double_result));
+  EXPECT_DOUBLE_EQ(double_result, std::numeric_limits<double>::max() *
+                                      std::numeric_limits<double>::lowest());
+  EXPECT_TRUE(SafeMultiply<double>(std::numeric_limits<double>::max(), 2.0,
+                                   &double_result));
+  EXPECT_DOUBLE_EQ(double_result, std::numeric_limits<double>::infinity());
+  EXPECT_TRUE(SafeMultiply<double>(std::numeric_limits<double>::max(), -2.0,
+                                   &double_result));
+  EXPECT_DOUBLE_EQ(double_result, -std::numeric_limits<double>::infinity());
+  EXPECT_TRUE(SafeMultiply<double>(std::numeric_limits<double>::lowest(), -2.0,
+                                   &double_result));
+  EXPECT_DOUBLE_EQ(double_result, std::numeric_limits<double>::infinity());
+  EXPECT_TRUE(SafeMultiply<double>(std::numeric_limits<double>::lowest(), 2.0,
+                                   &double_result));
+  EXPECT_DOUBLE_EQ(double_result, -std::numeric_limits<double>::infinity());
+  EXPECT_TRUE(SafeMultiply<double>(std::numeric_limits<double>::lowest(), 0.0,
+                                   &double_result));
+  EXPECT_EQ(double_result, 0);
+  EXPECT_TRUE(SafeMultiply<double>(0.0, std::numeric_limits<double>::max(),
+                                   &double_result));
+  EXPECT_EQ(double_result, 0);
 }
 
 TEST(SafeOperationsTest, SafeSquare) {

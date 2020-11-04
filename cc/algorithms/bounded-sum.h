@@ -108,7 +108,7 @@ class BoundedSum : public Algorithm<T> {
     // If manual bounds are set, clamp immediately and store sum. Otherwise,
     // feed inputs into ApproxBounds and store temporary partial sums.
     if (!approx_bounds_) {
-      pos_sum_[0] += Clamp<T>(lower_, upper_, t);
+      SafeAdd(pos_sum_[0], Clamp<T>(lower_, upper_, t), &pos_sum_[0]);
     } else {
       approx_bounds_->AddEntry(t);
 
@@ -175,10 +175,10 @@ class BoundedSum : public Algorithm<T> {
           "values as this BoundedSum.");
     }
     for (int i = 0; i < pos_sum_.size(); ++i) {
-      pos_sum_[i] += GetValue<T>(bs_summary.pos_sum(i));
+      SafeAdd(pos_sum_[i], GetValue<T>(bs_summary.pos_sum(i)), &pos_sum_[i]);
     }
     for (int i = 0; i < neg_sum_.size(); ++i) {
-      neg_sum_[i] += GetValue<T>(bs_summary.neg_sum(i));
+      SafeAdd(neg_sum_[i], GetValue<T>(bs_summary.neg_sum(i)), &neg_sum_[i]);
     }
     if (approx_bounds_) {
       Summary approx_bounds_summary;

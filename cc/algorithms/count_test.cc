@@ -29,6 +29,18 @@
 #include "proto/summary.pb.h"
 
 namespace differential_privacy {
+
+// Provides limited-scope static methods for interacting with a Count object for
+// testing purposes.
+class CountTestPeer {
+ public:
+  template <typename T>
+  static void AddMultipleEntries(const T& v, uint64_t num_of_entries,
+                                 Count<T>* c) {
+    c->AddMultipleEntries(v, num_of_entries);
+  }
+};
+
 namespace {
 
 using ::differential_privacy::test_utils::ZeroNoiseMechanism;
@@ -94,6 +106,24 @@ TEST(CountTest, ConfidenceIntervalTest) {
               EqualsProto(wantConfidenceInterval));
 }
 
+TEST(CountTest, OverflowTest) {
+  auto count =
+      typename Count<uint64_t>::Builder()
+          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .Build();
+
+  CountTestPeer::AddMultipleEntries<uint64_t>(
+      1, std::numeric_limits<uint64_t>::max(), &**count);
+  (*count)->AddEntry(1);
+  (*count)->AddEntry(1);
+  (*count)->AddEntry(1);
+
+  auto result = (*count)->PartialResult();
+  ASSERT_OK(result);
+
+  EXPECT_EQ(GetValue<int64_t>(*result), std::numeric_limits<int64_t>::max());
+}
+
 TEST(CountTest, SerializeTest) {
   auto count = Count<double>::Builder().SetEpsilon(0.5).Build();
   ASSERT_OK(count);
@@ -128,6 +158,32 @@ TEST(CountTest, MergeTest) {
   ASSERT_OK(result);
 
   EXPECT_EQ(GetValue<int64_t>(*result), 3);
+}
+
+TEST(CountTest, SerializeAndMergeOverflowTest) {
+  auto count1 =
+      Count<uint64_t>::Builder()
+          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .Build();
+  ASSERT_OK(count1);
+  CountTestPeer::AddMultipleEntries<uint64_t>(
+      1, std::numeric_limits<uint64_t>::max(), &**count1);
+  Summary summary = (*count1)->Serialize();
+
+  auto count2 =
+      Count<uint64_t>::Builder()
+          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .Build();
+  ASSERT_OK(count2);
+  (*count2)->AddEntry(1);
+  (*count2)->AddEntry(2);
+
+  EXPECT_OK((*count2)->Merge(summary));
+
+  auto result = (*count2)->PartialResult();
+  ASSERT_OK(result);
+
+  EXPECT_EQ(GetValue<int64_t>(*result), std::numeric_limits<int64_t>::max());
 }
 
 TEST(CountTest, MemoryUsed) {
