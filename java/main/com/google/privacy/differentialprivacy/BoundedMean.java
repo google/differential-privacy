@@ -180,8 +180,9 @@ public class BoundedMean {
    * to {@code 1 - alpha}. The computation is based exclusively on the noised data and the privacy
    * parameters. Thus no privacy budget is consumed by this operation.
    *
-   * <p>See <a href="https://github.com/google/differential-privacy/tree/main/common_docs/confidence_intervals.md">
-   * the confidence intervals doc</a>.
+   * <p>Refer to <a
+   * href="https://github.com/google/differential-privacy/tree/main/common_docs/confidence_intervals.md">this</a> doc for
+   * more information.
    */
   public ConfidenceInterval computeConfidenceInterval(double alpha) {
     if (state != AggregationState.RESULT_RETURNED) {

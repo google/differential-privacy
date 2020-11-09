@@ -17,6 +17,8 @@
 package com.google.privacy.differentialprivacy;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static java.lang.Math.max;
+import static java.lang.Math.min;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.differentialprivacy.SummaryOuterClass.MechanismType;
@@ -37,7 +39,7 @@ public class LaplaceNoise implements Noise {
    * This parameter determines the resolution of the numerical noise that is being generated
    * relative to the L_inf sensitivity and privacy parameter epsilon. More precisely, the
    * granularity parameter corresponds to the value 2^k as described <a
-   * href="https://github.com/google/differential-privacy/blob/main/common_docs/Secure_Noise_Generation.pdf">here</a>..
+   * href="https://github.com/google/differential-privacy/blob/main/common_docs/Secure_Noise_Generation.pdf">here</a>.
    * Larger values result in more fine grained noise, but increase the chance of sampling
    * inaccuracies due to overflows. The probability of an overflow is less than 2^-1000, if the
    * granularity parameter is set to a value of 2^40 or less and the epsilon passed to addNoise is
@@ -78,8 +80,7 @@ public class LaplaceNoise implements Noise {
   public double addNoise(double x, double l1Sensitivity, double epsilon, @Nullable Double delta) {
     checkParameters(l1Sensitivity, epsilon, delta);
 
-    double granularity =
-        SecureNoiseMath.ceilPowerOfTwo((l1Sensitivity / epsilon) / GRANULARITY_PARAM);
+    double granularity = getGranularity(l1Sensitivity, epsilon);
     long twoSidedGeomericSample =
         sampleTwoSidedGeometric(granularity * epsilon / (l1Sensitivity + granularity));
     return SecureNoiseMath.roundToMultipleOfPowerOfTwo(x, granularity)
@@ -95,27 +96,32 @@ public class LaplaceNoise implements Noise {
   @Override
   public long addNoise(
       long x, int l0Sensitivity, long lInfSensitivity, double epsilon, @Nullable Double delta) {
-    // Calling addNoise on 0.0 avoids casting x to a double value, which is not secure from a
-    // privacy perspective as it can have unforeseen effects on the sensitivity of x. Rounding and
-    // adding the resulting noise to x in a post processing step is a secure operation (for noise of
-    // moderate magnitude, i.e. < 2^53).
-    return Math.round(addNoise(0.0, l0Sensitivity, (double) lInfSensitivity, epsilon, delta)) + x;
-  }
+    DpPreconditions.checkSensitivities(l0Sensitivity, lInfSensitivity);
 
-  @Override
-  public MechanismType getMechanismType() {
-    return MechanismType.LAPLACE;
+    return addNoise(
+        x, (long) Noise.getL1Sensitivity(l0Sensitivity, lInfSensitivity), epsilon, delta);
   }
 
   /**
    * See {@link #addNoise(long, int, long, double, Double)}.
    *
    * <p>As opposed to the latter method, this accepts the L_1 sensitivity of {@code x} directly
-   * instead of the L_0 and L_Inf proxies. This should be used in settings where it's more
-   * convenient (or feasible) to calculate the L_1 sensitivity directly.
+   * instead of the L_0 and L_Inf proxies. This should be used in settings where it is feasible or
+   * more convenient to calculate the L_1 sensitivity directly.
    */
-  public long addNoise(long x, int l1Sensitivity, double epsilon, @Nullable Double delta) {
-    return Math.round(addNoise((double) x, l1Sensitivity, epsilon, delta));
+  public long addNoise(long x, long l1Sensitivity, double epsilon, @Nullable Double delta) {
+    checkParameters(l1Sensitivity, epsilon, delta);
+
+    double granularity = getGranularity(l1Sensitivity, epsilon);
+    long twoSidedGeomericSample =
+        sampleTwoSidedGeometric(granularity * epsilon / (l1Sensitivity + granularity));
+    return SecureNoiseMath.roundToMultiple(x, max(1, (long) granularity))
+        + Math.round(twoSidedGeomericSample * granularity);
+  }
+
+  @Override
+  public MechanismType getMechanismType() {
+    return MechanismType.LAPLACE;
   }
 
   /**
@@ -125,8 +131,9 @@ public class LaplaceNoise implements Noise {
    * set to {@code null} because it does not parameterize Laplace noise. Moreover, {@code epsilon}
    * must be at least 2^-50.
    *
-   * <p>See <a href="https://github.com/google/differential-privacy/tree/main/common_docs/confidence_intervals.md">
-   * the confidence intervals doc</a>.
+   * <p>Refer to <a
+   * href="https://github.com/google/differential-privacy/tree/main/common_docs/confidence_intervals.md">this</a> doc for
+   * more information.
    */
   @Override
   public ConfidenceInterval computeConfidenceInterval(
@@ -155,8 +162,9 @@ public class LaplaceNoise implements Noise {
    * must be set to {@code null} because it does not parameterize Laplace noise. Moreover, {@code
    * epsilon} must be at least 2^-50.
    *
-   * <p>See <a href="https://github.com/google/differential-privacy/tree/main/common_docs/confidence_intervals.md">
-   * the confidence intervals doc</a>.
+   * <p>Refer to <a
+   * href="https://github.com/google/differential-privacy/tree/main/common_docs/confidence_intervals.md">this</a> doc for
+   * more information.
    */
   @Override
   public ConfidenceInterval computeConfidenceInterval(
@@ -218,6 +226,14 @@ public class LaplaceNoise implements Noise {
   }
 
   /**
+   * Determines the granularity of the output of {@link addNoise} based on the epsilon and
+   * l1Sensitivity of the Laplace mechanism.
+   */
+  private static double getGranularity(double l1Sensitivity, double epsilon) {
+    return SecureNoiseMath.ceilPowerOfTwo((l1Sensitivity / epsilon) / GRANULARITY_PARAM);
+  }
+
+  /**
    * Returns a sample drawn from the geometric distribution of parameter {@code p = 1 - e^-lambda},
    * i.e., the number of Bernoulli trials until the first success where the success probability is
    * {@code 1 - e^-lambda}. The returned sample is truncated to the max long value. To ensure that a
@@ -255,7 +271,7 @@ public class LaplaceNoise implements Noise {
                       - (Math.log(0.5) + Math.log1p(Math.exp(lambda * (left - right)))) / lambda));
       // Ensure that mid is contained in the search interval. This is a safeguard to account for
       // potential mathematical inaccuracies due to finite precision arithmetic.
-      mid = Math.min(Math.max(mid, left + 1), right - 1);
+      mid = min(max(mid, left + 1), right - 1);
 
       // Probability that the sample is at most mid, i.e., q = Pr[X ≤ mid | left < X ≤ right] where
       // X denotes the sample. The value of q should be approximately one half.

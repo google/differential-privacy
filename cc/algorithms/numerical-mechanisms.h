@@ -34,6 +34,7 @@
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "algorithms/distributions.h"
+#include "algorithms/rand.h"
 #include "algorithms/util.h"
 #include "proto/confidence-interval.pb.h"
 #include "base/canonical_errors.h"
@@ -67,6 +68,17 @@ class NumericalMechanism {
   virtual double AddNoise(double result, double privacy_budget) = 0;
 
   double AddNoise(double result) { return AddNoise(result, 1.0); }
+
+  // Quickly determines if result with added noise is greater than threshold.
+  // This method allows for quicker thresholding decisions by using a uniform
+  // random number instead of the slower (i.e., more complex to compute) noise
+  // value from the distribution. Using a faster randomness generation method
+  // for thresholding decisions is still privacy-safe, because the thresholding
+  // decision is binary, so there is no risk of violating DP from the least
+  // significant bits of the returned result (see On Significance of the Least
+  // Significant Bits For Differential Privacy by Ilya Mironov:
+  // http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.366.5957&rep=rep1&type=pdf).
+  virtual bool NoisedValueAboveThreshold(double result, double threshold) = 0;
 
   virtual int64_t MemoryUsed() = 0;
 
@@ -284,6 +296,12 @@ class LaplaceMechanism : public NumericalMechanism {
     return RoundToNearestMultiple(result, distro_->GetGranularity()) + sample;
   }
 
+  // Quickly determines if result is greater than threshold.
+  bool NoisedValueAboveThreshold(double result, double threshold) override {
+    return UniformDouble() >
+           internal::LaplaceDistribution::cdf(diversity_, threshold - result);
+  }
+
   virtual double GetUniformDouble() { return distro_->GetUniformDouble(); }
 
   // Returns the confidence interval of the specified confidence level of the
@@ -416,6 +434,12 @@ class GaussianMechanism : public NumericalMechanism {
            sample;
   }
 
+  // Quickly determines if result is greater than threshold.
+  bool NoisedValueAboveThreshold(double result, double threshold) override {
+    return UniformDouble() > internal::GaussianDistribution::cdf(
+                                 distro_->Stddev(), threshold - result);
+  }
+
   virtual int64_t MemoryUsed() {
     int64_t memory = sizeof(GaussianMechanism);
     if (distro_) {
@@ -503,7 +527,7 @@ class GaussianMechanism : public NumericalMechanism {
   std::unique_ptr<internal::GaussianDistribution> distro_;
 
   double StandardNormalDistributionCDF(double x) {
-    return (1 + std::erf(x / sqrt(2))) / 2;
+    return internal::GaussianDistribution::cdf(1, x);
   }
 
   // Returns the smallest delta such that the Gaussian mechanism with standard

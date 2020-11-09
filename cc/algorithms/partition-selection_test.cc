@@ -406,7 +406,7 @@ TEST(PartitionSelectionTest, LaplacePartitionSelectionOneUser) {
     if (build->ShouldKeep(1)) num_kept++;
   }
   EXPECT_THAT(num_kept / kSmallNumSamples,
-              DoubleNear(build->GetDelta(), 0.001));
+              DoubleNear(build->GetDelta(), 0.0006));
 }
 
 // When the number of users is at the threshold, we expect drop/keep is 50/50.
@@ -425,7 +425,7 @@ TEST(PartitionSelectionTest, LaplacePartitionSelectionAtThreshold) {
   for (int i = 0; i < kSmallNumSamples; i++) {
     if (build->ShouldKeep(5)) num_kept++;
   }
-  EXPECT_THAT(num_kept / kSmallNumSamples, DoubleNear(0.5, 0.01));
+  EXPECT_THAT(num_kept / kSmallNumSamples, DoubleNear(0.5, 0.0025));
 }
 
 TEST(PartitionSelectionTest, LaplacePartitionSelectionThreshold) {
@@ -454,34 +454,6 @@ TEST(PartitionSelectionTest, LaplacePartitionSelectionUnsetBuilderThreshold) {
   LaplacePartitionSelection* laplace =
       dynamic_cast<LaplacePartitionSelection*>(build.get());
   EXPECT_THAT(laplace->GetThreshold(), DoubleNear(7.43775164974, 0.001));
-}
-
-TEST(PartitionSelectionTest, LaplacePartitionSelectionLow) {
-  LaplacePartitionSelection::Builder test_builder;
-  std::unique_ptr<PartitionSelectionStrategy> build =
-      test_builder
-          .SetLaplaceMechanism(
-              absl::make_unique<test_utils::ZeroNoiseMechanism::Builder>())
-          .SetEpsilon(0.5)
-          .SetDelta(0.02)
-          .SetMaxPartitionsContributed(1)
-          .Build()
-          .ValueOrDie();
-  EXPECT_THAT(build->ShouldKeep(7), Eq(false));
-}
-
-TEST(PartitionSelectionTest, LaplacePartitionSelectionHigh) {
-  LaplacePartitionSelection::Builder test_builder;
-  std::unique_ptr<PartitionSelectionStrategy> build =
-      test_builder
-          .SetLaplaceMechanism(
-              absl::make_unique<test_utils::ZeroNoiseMechanism::Builder>())
-          .SetEpsilon(0.5)
-          .SetDelta(0.02)
-          .SetMaxPartitionsContributed(1)
-          .Build()
-          .ValueOrDie();
-  EXPECT_THAT(build->ShouldKeep(8), Eq(true));
 }
 
 // CalculateDelta and CalculateThreshold structs and tests

@@ -140,6 +140,17 @@ TEST(GaussDistributionTest, StandardDeviationGetter) {
   EXPECT_EQ(dist.Stddev(), stddev);
 }
 
+TEST(GaussDistributionTest, Cdf) {
+  EXPECT_NEAR(GaussianDistribution::cdf(1, 0), 0.5, 0.000001);
+  EXPECT_NEAR(GaussianDistribution::cdf(5, 0), 0.5, 0.000001);
+  EXPECT_NEAR(GaussianDistribution::cdf(1, -1), 0.15865525, 0.000001);
+  EXPECT_NEAR(GaussianDistribution::cdf(5, -1), 0.42074029, 0.000001);
+  EXPECT_NEAR(GaussianDistribution::cdf(1, 1), 0.84134475, 0.000001);
+  EXPECT_NEAR(GaussianDistribution::cdf(5, 1), 0.57925971, 0.000001);
+  EXPECT_DEATH(GaussianDistribution::cdf(0, 1), "");
+  EXPECT_DEATH(GaussianDistribution::cdf(-1, 1), "");
+}
+
 TEST(GeometricDistributionTest, SmallProbabilityStats) {
   GeometricDistribution dist(-1.0 * std::log(1.0 - 1e-6));
   std::vector<int64_t> samples(kNumGeometricSamples);

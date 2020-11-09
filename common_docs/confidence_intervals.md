@@ -1,33 +1,27 @@
 # Confidence intervals in the Differential Privacy libraries
 
-The **Differential Privacy (DP)** library supports confidence intervals to assess
-the scale of the noise that has been added to a metric during the anonymization
-process and narrow down its original, true value.
+The mechanisms of the DP library (including the Laplace mechanism, the Gaussian
+mechanism, count, bounded sum and bounded mean) provide confidence intervals to
+capture the scale of the noise they add to a metric during the anonymization
+process.
 
-Given a noised metric **M** and a confidence level of **1 - alpha**, the DP library
-computes a confidence interval **[L, R]** that contains the raw metric **m** (where **m**
-is the metric after contribution bounding, but before applying noise)
-with a probability of at least **1 - alpha**, i.e. **Pr[L ≤ m ≤ R] ≥ 1 - alpha**.
+Given a noised metric **M** and a confidence level **1 - alpha**, the mechanisms
+return confidence intervals **[L, R]** containing the raw metric **m** (where
+**m** is the value after contribution bounding, but before applying noise) with
+a probability of at least **1 - alpha**, i.e., **Pr[L ≤ m ≤ R] ≥ 1 - alpha**.
 
-The computation is performed purely based on the noised metric **M** and on privacy parameters such as *epsilon*, *delta*, *sensitivities* and the *contribution bounds*. As a
-result, no privacy budget is consumed for the computation of confidence intervals.
+A particular confidence interval is purely based on **M** and non-personal
+parameters of the respective mechanism, such as epsilon, delta, sensitivities
+and contribution bounds. In particular, its computation does not access the raw
+metric **m** and consequently it also does not consume any privacy budget.
 
 ## Contribution bounding
-Note that the confidence intervals provided by the library do not take the effects of the contribution bounding into account.
 
-For instance, consider a *Bounded Sum* over where
+The confidence intervals provided by the library do not account for discrepancy
+due to contribution bounding.
 
-*raw entries* = [1, 1, 2, 5, 14, 42, 132]
-
-*lower bound* = 10, *upper bound* = 20
-
-The *actual sum* for these entries is equal to 197, but the
-*bounded sum* is equal to 94 (1, 2 and 5 are clamped to 10 and 43, 132 are clamped to 20).
-So the confidence intervals provided by the library will be based on the *bounded
-sum*, i.e. *m* = 94.
-
-## Alpha
-
-The DP libraries are using **alpha** to parameterize the confidence level **1 - alpha**.
-The reason is that **alpha** provides more accuracy for confidence levels close to 1,
-which is the parametrization we expect.
+For instance, consider a bounded sum over the raw entries [5, 5, 10, 20] with a
+lower bound of 0 and an upper bound of 10. The true sum is 40, but the bounded
+sum is 30. In this case, a confidence interval will contain **m = 30** with the
+respective confidence level. No guarantees whether the interval also contains
+the true sum of 40 are given.

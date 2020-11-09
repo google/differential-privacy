@@ -28,7 +28,7 @@ def main(argv):
   parameter_laplace = 3
   # PLD for one execution of the Laplace Mechanism. (Throughout we assume that
   # sensitivity = 1.)
-  laplace_pld = privacy_loss_distribution.LaplacePrivacyLossDistribution(
+  laplace_pld = privacy_loss_distribution.PrivacyLossDistribution.from_laplace_mechanism(
       parameter_laplace, value_discretization_interval=1e-3)
 
   # Number of times Laplace Mechanism is run
@@ -48,7 +48,7 @@ def main(argv):
   # STD of the Gaussian Noise
   standard_deviation = 5
   # PLD for an execution of the Gaussian Mechanism.
-  gaussian_pld = privacy_loss_distribution.GaussianPrivacyLossDistribution(
+  gaussian_pld = privacy_loss_distribution.PrivacyLossDistribution.from_gaussian_mechanism(
       standard_deviation, value_discretization_interval=1e-3)
 
   # PLD for num_laplace executions of the Laplace Mechanism and one execution of

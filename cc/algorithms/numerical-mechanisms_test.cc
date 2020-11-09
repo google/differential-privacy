@@ -16,6 +16,8 @@
 
 #include "algorithms/numerical-mechanisms.h"
 
+#include <vector>
+
 #include "base/testing/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -34,6 +36,8 @@ using ::testing::HasSubstr;
 using ::testing::MatchesRegex;
 using ::testing::Return;
 using ::differential_privacy::base::testing::StatusIs;
+
+constexpr int kSmallNumSamples = 1000000;
 
 class MockLaplaceDistribution : public internal::LaplaceDistribution {
  public:
@@ -207,6 +211,38 @@ TEST(NumericalMechanismsTest, LaplaceAddsNoNoiseWhenSensitivityIsZero) {
   LaplaceMechanism mechanism(1.0, 0.0);
 
   EXPECT_THAT(mechanism.AddNoise(12.3), DoubleEq(12.3));
+}
+
+TEST(NumericalMechanismsTest, LaplaceNoisedValueAboveThreshold) {
+  LaplaceMechanism::Builder builder;
+  std::unique_ptr<NumericalMechanism> mechanism =
+      builder.SetL1Sensitivity(1).SetEpsilon(1).Build().ValueOrDie();
+
+  struct TestScenario {
+    double input;
+    double threshold;
+    double expected_probability;
+  };
+
+  // To reduce flakiness from randomness, perform multiple trials and declare
+  // the test successful if a sufficient expected number of trials provide the
+  // expected result.
+  std::vector<TestScenario> test_scenarios = {
+      {-0.5, -0.5, 0.5000}, {0.0, -0.5, 0.6967}, {0.5, -0.5, 0.8160},
+      {-0.5,  0.0, 0.3030}, {0.0,  0.0, 0.5000}, {0.5,  0.0, 0.6967},
+      {-0.5,  0.5, 0.1840}, {0.0,  0.5, 0.3030}, {0.5,  0.5, 0.5000},
+  };
+
+  double num_above_thresold;
+  for (TestScenario ts : test_scenarios) {
+    num_above_thresold = 0;
+    for (int i = 0; i < kSmallNumSamples; ++i) {
+      if (mechanism->NoisedValueAboveThreshold(ts.input, ts.threshold))
+        ++num_above_thresold;
+    }
+    EXPECT_NEAR(num_above_thresold / kSmallNumSamples, ts.expected_probability,
+                0.0015);
+  }
 }
 
 TEST(NumericalMechanismsTest, LaplaceDiversityCorrect) {
@@ -540,6 +576,41 @@ TEST(NumericalMechanismsTest,
   const double raw_value = 2.7161546250836291e-312;
   double noised_value = (*test_mechanism)->AddNoise(raw_value);
   EXPECT_TRUE(std::isfinite(noised_value));
+}
+
+TEST(NumericalMechanismsTest, GaussianMechanismNoisedValueAboveThreshold) {
+  GaussianMechanism::Builder builder;
+  std::unique_ptr<NumericalMechanism> mechanism = builder.SetL2Sensitivity(1)
+                                                      .SetEpsilon(1)
+                                                      .SetDelta(0.5)
+                                                      .Build()
+                                                      .ValueOrDie();
+
+  struct TestScenario {
+    double input;
+    double threshold;
+    double expected_probability;
+  };
+
+  // To reduce flakiness from randomness, perform multiple trials and declare
+  // the test successful if a sufficient expected number of trials provide the
+  // expected result.
+  std::vector<TestScenario> test_scenarios = {
+      {-0.5, -0.5, 0.5000}, {0.0, -0.5, 0.6915}, {0.5, -0.5, 0.8410},
+      {-0.5,  0.0, 0.3085}, {0.0,  0.0, 0.5000}, {0.5,  0.0, 0.6915},
+      {-0.5,  0.5, 0.1585}, {0.0,  0.5, 0.3085}, {0.5,  0.5, 0.5000},
+  };
+
+  double num_above_thresold;
+  for (TestScenario ts : test_scenarios) {
+    num_above_thresold = 0;
+    for (int i = 0; i < kSmallNumSamples; ++i) {
+      if (mechanism->NoisedValueAboveThreshold(ts.input, ts.threshold))
+        ++num_above_thresold;
+    }
+    EXPECT_NEAR(num_above_thresold / kSmallNumSamples, ts.expected_probability,
+                0.0015);
+  }
 }
 
 TEST(NumericalMechanismsTest, GaussianBuilderClone) {

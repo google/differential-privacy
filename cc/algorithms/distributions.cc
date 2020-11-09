@@ -84,6 +84,11 @@ double GaussianDistribution::GetGranularity(double scale) const {
   return GetNextPowerOfTwo(2 * sigma / kBinomialBound);
 }
 
+double GaussianDistribution::cdf(double stddev, double x) {
+  DCHECK_GT(stddev, 0);
+  return (1 + std::erf(x / (stddev * sqrt(2)))) / 2;
+}
+
 GeometricDistribution::GeometricDistribution(double lambda) : lambda_(lambda) {
   DCHECK_GE(lambda, 0);
 }
@@ -110,8 +115,8 @@ double GaussianDistribution::SampleBinomial(double sqrt_n) {
     int geom_sample = SampleGeometric();
     int two_sided_geom =
         absl::Bernoulli(random, 0.5) ? geom_sample : (-geom_sample - 1);
-    long long uniform_sample = absl::Uniform(random, 0u, step_size);
-    long long result = step_size * two_sided_geom + uniform_sample;
+    int64_t uniform_sample = absl::Uniform(random, 0u, step_size);
+    int64_t result = step_size * two_sided_geom + uniform_sample;
 
     double result_prob = ApproximateBinomialProbability(sqrt_n, result);
     double reject_prob = UniformDouble();

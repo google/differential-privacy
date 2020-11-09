@@ -349,6 +349,7 @@ cc_library(
     hdrs = ["numerical-mechanisms.h"],
     deps = [
         ":distributions",
+        ":rand",
         ":util",
         "//base:logging",
         "//base:status",

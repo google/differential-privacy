@@ -65,7 +65,7 @@ final class SecureNoiseMath {
    * power of 2. Because {@code granularity} must be a power of 2, the result is exact.
    */
   public static double roundToMultipleOfPowerOfTwo(double x, double granularity) {
-    // y is a power of 2 if and only if it is a positive finite value with a mantissa of 0.
+    // granularity is a power of 2 if and only if it's a positive finite value with a mantissa of 0.
     checkArgument(
         granularity > 0.0
             && Double.isFinite(granularity)
@@ -84,6 +84,13 @@ final class SecureNoiseMath {
       // granularity.
       return x;
     }
+  }
+
+  /** Rounds {@code x} to the closest multiple of {@code granularity}. This operation is exact. */
+  public static long roundToMultiple(long x, long granularity) {
+    checkArgument(granularity > 0, "Granularity must be positive. Provided value: %s", granularity);
+    return ((x / granularity) + Math.round((x % granularity) / ((double) granularity)))
+        * granularity;
   }
 
   /**

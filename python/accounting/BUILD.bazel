@@ -31,9 +31,9 @@ py_library(
     ],
     srcs_version = "PY3",
     deps = [
+        ":privacy_loss_mechanism",
         requirement("numpy"),
         requirement("scipy"),
-        requirement("dataclasses"),
     ],
 )
 
@@ -44,9 +44,45 @@ py_test(
     python_version = "PY3",
     deps = [
         ":privacy_loss_distribution",
+        ":privacy_loss_mechanism",
+        ":test_util",
         requirement("absl-py"),
         requirement("scipy"),
     ],
+)
+
+py_library(
+    name = "privacy_loss_mechanism",
+    srcs = [
+        "privacy_loss_mechanism.py",
+    ],
+    srcs_version = "PY3",
+    deps = [
+        requirement("numpy"),
+        requirement("scipy"),
+        requirement("dataclasses"),
+    ],
+)
+
+py_test(
+    name = "privacy_loss_mechanism_test",
+    size = "small",
+    srcs = ["privacy_loss_mechanism_test.py"],
+    python_version = "PY3",
+    deps = [
+        ":privacy_loss_mechanism",
+        ":test_util",
+        requirement("absl-py"),
+        requirement("scipy"),
+    ],
+)
+
+py_library(
+    name = "test_util",
+    srcs = [
+        "test_util.py",
+    ],
+    srcs_version = "PY3",
 )
 
 py_binary(

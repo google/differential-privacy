@@ -53,6 +53,10 @@ class GaussianDistribution {
   // use the same parameter for scale in such cases.
   double GetGranularity(double scale) const;
 
+  // Returns the cdf of the Gaussian distribution with standard deviation stddev
+  // at point x.
+  static double cdf(double stddev, double x);
+
  private:
   // Sample from geometric distribution with probability 0.5. It is much faster
   // then using GeometricDistribution which is suitable for any probability.
@@ -92,12 +96,13 @@ base::StatusOr<double> CalculateGranularity(double epsilon, double sensitivity);
 
 // DO NOT USE. Use LaplaceMechanism instead. LaplaceMechanism has an interface
 // that directly accepts DP parameters, rather than requiring an error-prone
-// conversion to laplace parameters.
+// conversion to Laplace parameters.
 //
-// Allows sampling from a secure laplace distribution, which uses a geometric
+// Allows sampling from a secure Laplace distribution, which uses a geometric
 // distribution to generate its noise in order to avoid the attack from
 // Mironov's 2012 paper, "On Significance of the Least Significant Bits For
-// Differential Privacy".
+// Differential Privacy":
+// http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.366.5957&rep=rep1&type=pdf
 class LaplaceDistribution {
  public:
   explicit LaplaceDistribution(double epsilon, double sensitivity);
@@ -108,7 +113,7 @@ class LaplaceDistribution {
 
   virtual double Sample();
 
-  // Samples the Laplacian with distribution Lap(scale*b)
+  // Samples the Laplace distribution with Lap(scale*b)
   virtual double Sample(double scale);
 
   virtual int64_t MemoryUsed();
@@ -120,7 +125,7 @@ class LaplaceDistribution {
   // Returns the parameter defining this distribution, often labeled b.
   double GetDiversity();
 
-  // Returns the cdf of the laplacian distribution with scale b at point x.
+  // Returns the cdf of the Laplace distribution with scale b at point x.
   static double cdf(double b, double x);
 
  private:

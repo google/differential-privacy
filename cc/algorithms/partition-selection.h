@@ -353,9 +353,7 @@ class LaplacePartitionSelection : public PartitionSelectionStrategy {
   virtual ~LaplacePartitionSelection() = default;
 
   bool ShouldKeep(int num_users) override {
-    const double noised_result =
-        mechanism_->AddNoise(static_cast<double>(num_users), 1.0);
-    return (noised_result > threshold_);
+    return mechanism_->NoisedValueAboveThreshold(num_users, threshold_);
   }
 
   static base::StatusOr<double> CalculateDelta(

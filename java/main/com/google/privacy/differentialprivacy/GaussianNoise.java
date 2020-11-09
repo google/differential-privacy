@@ -17,6 +17,7 @@
 package com.google.privacy.differentialprivacy;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static java.lang.Math.max;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.differentialprivacy.SummaryOuterClass.MechanismType;
@@ -86,7 +87,7 @@ public class GaussianNoise implements Noise {
     double l2Sensitivity = Noise.getL2Sensitivity(l0Sensitivity, lInfSensitivity);
     double sigma = getSigma(l2Sensitivity, epsilon, delta);
 
-    double granularity = SecureNoiseMath.ceilPowerOfTwo(2.0 * sigma / BINOMIAL_BOUND);
+    double granularity = getGranularity(sigma);
 
     // The square root of n is chosen in a way that places it in the interval between BINOMIAL_BOUND
     // and BINOMIAL_BOUND / 2. This ensures that the respective binomial distribution consists of
@@ -103,12 +104,21 @@ public class GaussianNoise implements Noise {
    */
   @Override
   public long addNoise(
-      long x, int l0Sensitivity, long lInfSensitivity, double epsilon, Double delta) {
-    // Calling addNoise on 0.0 avoids casting x to a double value, which is not secure from a
-    // privacy perspective as it can have unforeseen effects on the sensitivity of x. Rounding and
-    // adding the resulting noise to x in a post processing step is a secure operation (for noise of
-    // moderate magnitude, i.e. < 2^53).
-    return Math.round(addNoise(0.0, l0Sensitivity, (double) lInfSensitivity, epsilon, delta)) + x;
+      long x, int l0Sensitivity, long lInfSensitivity, double epsilon, @Nullable Double delta) {
+    checkParameters(l0Sensitivity, lInfSensitivity, epsilon, delta);
+
+    double l2Sensitivity = Noise.getL2Sensitivity(l0Sensitivity, lInfSensitivity);
+    double sigma = getSigma(l2Sensitivity, epsilon, delta);
+
+    double granularity = getGranularity(sigma);
+
+    // The square root of n is chosen in a way that places it in the interval between BINOMIAL_BOUND
+    // and BINOMIAL_BOUND / 2. This ensures that the respective binomial distribution consists of
+    // enough Bernoulli samples to closely approximate a Gaussian distribution.
+    double sqrtN = 2.0 * sigma / granularity;
+    long binomialSample = sampleSymmetricBinomial(sqrtN);
+    return SecureNoiseMath.roundToMultiple(x, max(1, (long) granularity))
+        + Math.round(binomialSample * granularity);
   }
 
   @Override
@@ -121,8 +131,9 @@ public class GaussianNoise implements Noise {
    * #addNoise(double, int, double, double, Double)} with a probability equal to {@code 1 - alpha}
    * based on the specified {@code noisedX} and noise parameters.
    *
-   * <p>See <a href="https://github.com/google/differential-privacy/tree/main/common_docs/confidence_intervals.md">
-   * the confidence intervals doc</a>.
+   * <p>Refer to <a
+   * href="https://github.com/google/differential-privacy/tree/main/common_docs/confidence_intervals.md">this</a> doc for
+   * more information.
    */
   @Override
   public ConfidenceInterval computeConfidenceInterval(
@@ -149,8 +160,9 @@ public class GaussianNoise implements Noise {
    * #addNoise(long, int, long, double, Double)} with a probability greater or equal to {@code 1 -
    * alpha} based on the specified {@code noisedX} and noise parameters.
    *
-   * <p>See <a href="https://github.com/google/differential-privacy/tree/main/common_docs/confidence_intervals.md">
-   * the confidence intervals doc</a>.
+   * <p>Refer to <a
+   * href="https://github.com/google/differential-privacy/tree/main/common_docs/confidence_intervals.md">this</a> doc for
+   * more information.
    */
   @Override
   public ConfidenceInterval computeConfidenceInterval(
@@ -269,6 +281,14 @@ public class GaussianNoise implements Noise {
     }
     return NORMAL_DISTRIBUTION.cumulativeProbability(a - b)
         - c * NORMAL_DISTRIBUTION.cumulativeProbability(-a - b);
+  }
+
+  /**
+   * Determines the granularity of the output of {@link addNoise} based on the sigma of the Gaussian
+   * noise.
+   */
+  private static double getGranularity(double sigma) {
+    return SecureNoiseMath.ceilPowerOfTwo(2.0 * sigma / BINOMIAL_BOUND);
   }
 
   /**

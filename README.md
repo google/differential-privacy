@@ -31,7 +31,7 @@ property no longer hold.
 * [Privacy on Beam](https://github.com/google/differential-privacy/tree/main/privacy-on-beam) -
 an end-to-end differential privacy solution built on [Apache Beam](https://beam.apache.org/documentation/)
 and Go differential privacy library.
-* [Tools for tracking privacy budget.](https://github.com/google/differential-privacy/tree/main/accounting)
+* [Tools for tracking privacy budget.](https://github.com/google/differential-privacy/tree/main/python/accounting)
 
 ## How to Build
 
