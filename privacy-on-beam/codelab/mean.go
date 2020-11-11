@@ -45,16 +45,20 @@ func extractVisitHourAndTimeSpentFn(v Visit) (int, int) {
 // who entered the restaurant for each hour in a differentially private way.
 func PrivateMeanTimeSpent(s beam.Scope, col beam.PCollection) beam.PCollection {
 	s = s.Scope("PrivateMeanTimeSpent")
-	// Create a Privacy Spec and convert col into a PrivatePCollection
-	spec := pbeam.NewPrivacySpec(epsilon, delta)
+	// Create a Privacy Spec and convert col into a PrivatePCollection.
+	spec := pbeam.NewPrivacySpec(epsilon /* delta */, 0)
 	pCol := pbeam.MakePrivateFromStruct(s, col, spec, "VisitorID")
+
+	// Create a PCollection of output partitions, i.e. restaurant's work hours (from 9 am till 9pm (exclusive)).
+	hours := beam.CreateList(s, [12]int{9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20})
 
 	hourToTimeSpent := pbeam.ParDo(s, extractVisitHourAndTimeSpentFn, pCol)
 	meanTimeSpent := pbeam.MeanPerKey(s, hourToTimeSpent, pbeam.MeanParams{
-		MaxPartitionsContributed:     1,  // Visitors can visit the restaurant once (one hour) a day
-		MaxContributionsPerPartition: 1,  // Visitors can visit the restaurant once within an hour
-		MinValue:                     0,  // Minimum time spent per user (in mins)
-		MaxValue:                     60, // Maximum time spent per user (in mins)
+		MaxPartitionsContributed:     1,     // Visitors can visit the restaurant once (one hour) a day
+		MaxContributionsPerPartition: 1,     // Visitors can visit the restaurant once within an hour
+		MinValue:                     0,     // Minimum time spent per user (in mins)
+		MaxValue:                     60,    // Maximum time spent per user (in mins)
+		PublicPartitions:             hours, // Visitors only visit during work hours
 	})
 	return meanTimeSpent
 }

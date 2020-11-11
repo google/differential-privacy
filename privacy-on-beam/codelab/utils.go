@@ -34,9 +34,10 @@ import (
 
 const (
 	// Constants to differentiate between examples.
-	count = "count"
-	mean  = "mean"
-	sum   = "sum"
+	count            = "count"
+	mean             = "mean"
+	sum              = "sum"
+	publicPartitions = "public_partitions"
 )
 
 func drawPlot(hourToValue, dpHourToValue map[int]float64, example, nonDPOutput, dpOutput string) error {
@@ -68,7 +69,7 @@ func drawPlot(hourToValue, dpHourToValue map[int]float64, example, nonDPOutput, 
 
 	p.X.Label.Text = "Hour"
 	switch example {
-	case count:
+	case count, publicPartitions: // count & publicPartitions both compute visits per hour.
 		p.Y.Label.Text = "Visits"
 		p.Title.Text = "Visits Per Hour"
 	case mean:
@@ -78,7 +79,7 @@ func drawPlot(hourToValue, dpHourToValue map[int]float64, example, nonDPOutput, 
 		p.Y.Label.Text = "Revenue"
 		p.Title.Text = "Revenue Per Hour"
 	default:
-		return fmt.Errorf("unknown example %q specified, please use one of 'count', 'sum', 'mean'", example)
+		return fmt.Errorf("unknown example %q specified, please use one of 'count', 'sum', 'mean', 'public_partitions'", example)
 	}
 
 	w := vg.Points(20)

@@ -48,7 +48,8 @@ var (
 	example = flag.String("example", "", "Example ID:\n"+
 		"count - counts of visits per hour.\n"+
 		"sum - total revenue per hour.\n"+
-		"mean - average visit time per hour.")
+		"mean - average visit time per hour.\n"+
+		"public_partitions - count of visits per hour with public partitions.")
 	inputFile       = flag.String("input_file", "", "Input csv file name with raw data.")
 	outputStatsFile = flag.String("output_stats_file", "", "Output csv file name for stats results.")
 	outputChartFile = flag.String("output_chart_file", "", "Output png file name for chart with stats.")
@@ -63,11 +64,11 @@ func main() {
 
 	// Flag validation.
 	switch *example {
-	case count, mean, sum:
+	case count, mean, sum, publicPartitions:
 	case "":
 		log.Exit("No example specified.")
 	default:
-		log.Exitf("Unknown example (%s) specified, please use one of 'count', 'sum', 'mean'", *example)
+		log.Exitf("Unknown example (%s) specified, please use one of 'count', 'sum', 'mean', 'public_partitions'", *example)
 	}
 	if *inputFile == "" {
 		log.Exit("No input file specified.")
@@ -130,8 +131,10 @@ func runRawExample(s beam.Scope, col beam.PCollection, example string) beam.PCol
 		return codelab.MeanTimeSpent(s, col)
 	case sum:
 		return codelab.RevenuePerHour(s, col)
+	case publicPartitions:
+		return codelab.CountVisitsPerHour(s, col)
 	default:
-		log.Exitf("Unknown example %q specified, please use one of 'count', 'sum', 'mean'", example)
+		log.Exitf("Unknown example %q specified, please use one of 'count', 'sum', 'mean', 'public_partitions'", example)
 		return beam.PCollection{}
 	}
 }
@@ -144,8 +147,10 @@ func runDPExample(s beam.Scope, col beam.PCollection, example string) beam.PColl
 		return codelab.PrivateMeanTimeSpent(s, col)
 	case sum:
 		return codelab.PrivateRevenuePerHour(s, col)
+	case publicPartitions:
+		return codelab.PrivateCountVisitsPerHourWithPublicPartitions(s, col)
 	default:
-		log.Exitf("Unknown example %q specified, please use one of 'count', 'sum', 'mean'", example)
+		log.Exitf("Unknown example %q specified, please use one of 'count', 'sum', 'mean', 'public_partitions'", example)
 		return beam.PCollection{}
 	}
 }

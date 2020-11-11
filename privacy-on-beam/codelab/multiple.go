@@ -27,35 +27,41 @@ import (
 // that they share the same privacy budget.
 func ComputeCountMeanSum(s beam.Scope, col beam.PCollection) (visitsPerHour, meanTimeSpent, revenues beam.PCollection) {
 	s = s.Scope("ComputeCountMeanSum")
-	// Create a Privacy Spec and convert col into a PrivatePCollection
-	spec := pbeam.NewPrivacySpec(epsilon, delta) // Shared by count, mean and sum.
+	// Create a Privacy Spec and convert col into a PrivatePCollection.
+	spec := pbeam.NewPrivacySpec(epsilon /* delta */, 0) // Shared by count, mean and sum.
 	pCol := pbeam.MakePrivateFromStruct(s, col, spec, "VisitorID")
+
+	// Create a PCollection of output partitions, i.e. restaurant's work hours (from 9 am till 9pm (exclusive)).
+	hours := beam.CreateList(s, [12]int{9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20})
 
 	visitHours := pbeam.ParDo(s, extractVisitHour, pCol)
 	visitsPerHour = pbeam.Count(s, visitHours, pbeam.CountParams{
 		Epsilon:                  epsilon / 3,
-		Delta:                    delta / 3,
-		MaxPartitionsContributed: 1, // Visitors can visit the restaurant once (one hour) a day
-		MaxValue:                 1, // Visitors can visit the restaurant once within an hour
+		Delta:                    0,
+		MaxPartitionsContributed: 1,     // Visitors can visit the restaurant once (one hour) a day
+		MaxValue:                 1,     // Visitors can visit the restaurant once within an hour
+		PublicPartitions:         hours, // Visitors only visit during work hours
 	})
 
 	hourToTimeSpent := pbeam.ParDo(s, extractVisitHourAndTimeSpentFn, pCol)
 	meanTimeSpent = pbeam.MeanPerKey(s, hourToTimeSpent, pbeam.MeanParams{
 		Epsilon:                      epsilon / 3,
-		Delta:                        delta / 3,
-		MaxPartitionsContributed:     1,  // Visitors can visit the restaurant once (one hour) a day
-		MaxContributionsPerPartition: 1,  // Visitors can visit the restaurant once within an hour
-		MinValue:                     0,  // Minimum time spent per user (in mins)
-		MaxValue:                     60, // Maximum time spent per user (in mins)
+		Delta:                        0,
+		MaxPartitionsContributed:     1,     // Visitors can visit the restaurant once (one hour) a day
+		MaxContributionsPerPartition: 1,     // Visitors can visit the restaurant once within an hour
+		MinValue:                     0,     // Minimum time spent per user (in mins)
+		MaxValue:                     60,    // Maximum time spent per user (in mins)
+		PublicPartitions:             hours, // Visitors only visit during work hours
 	})
 
 	hourToMoneySpent := pbeam.ParDo(s, extractVisitHourAndTimeSpentFn, pCol)
 	revenues = pbeam.SumPerKey(s, hourToMoneySpent, pbeam.SumParams{
 		Epsilon:                  epsilon / 3,
-		Delta:                    delta / 3,
-		MaxPartitionsContributed: 1,  // Visitors can visit the restaurant once (one hour) a day
-		MinValue:                 0,  // Minimum money spent per user (in euros)
-		MaxValue:                 40, // Maximum money spent per user (in euros)
+		Delta:                    0,
+		MaxPartitionsContributed: 1,     // Visitors can visit the restaurant once (one hour) a day
+		MinValue:                 0,     // Minimum money spent per user (in euros)
+		MaxValue:                 40,    // Maximum money spent per user (in euros)
+		PublicPartitions:         hours, // Visitors only visit during work hours
 	})
 
 	return visitsPerHour, meanTimeSpent, revenues

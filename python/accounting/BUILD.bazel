@@ -78,6 +78,31 @@ py_test(
 )
 
 py_library(
+    name = "accountant",
+    srcs = [
+        "accountant.py",
+    ],
+    srcs_version = "PY3",
+    deps = [
+        ":privacy_loss_distribution",
+        ":privacy_loss_mechanism",
+        requirement("dataclasses"),
+    ],
+)
+
+py_test(
+    name = "accountant_test",
+    size = "small",
+    srcs = ["accountant_test.py"],
+    python_version = "PY3",
+    deps = [
+        ":accountant",
+        ":privacy_loss_mechanism",
+        requirement("absl-py"),
+    ],
+)
+
+py_library(
     name = "test_util",
     srcs = [
         "test_util.py",

@@ -26,6 +26,7 @@ go_library(
         "count.go",
         "mean.go",
         "multiple.go",
+        "public_partitions.go",
         "sum.go",
         "visit.go",
     ],
