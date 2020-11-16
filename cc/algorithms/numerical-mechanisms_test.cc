@@ -229,8 +229,8 @@ TEST(NumericalMechanismsTest, LaplaceNoisedValueAboveThreshold) {
   // expected result.
   std::vector<TestScenario> test_scenarios = {
       {-0.5, -0.5, 0.5000}, {0.0, -0.5, 0.6967}, {0.5, -0.5, 0.8160},
-      {-0.5,  0.0, 0.3030}, {0.0,  0.0, 0.5000}, {0.5,  0.0, 0.6967},
-      {-0.5,  0.5, 0.1840}, {0.0,  0.5, 0.3030}, {0.5,  0.5, 0.5000},
+      {-0.5,  0.0, 0.3035}, {0.0,  0.0, 0.5000}, {0.5,  0.0, 0.6967},
+      {-0.5,  0.5, 0.1840}, {0.0,  0.5, 0.3035}, {0.5,  0.5, 0.5000},
   };
 
   double num_above_thresold;
@@ -241,7 +241,7 @@ TEST(NumericalMechanismsTest, LaplaceNoisedValueAboveThreshold) {
         ++num_above_thresold;
     }
     EXPECT_NEAR(num_above_thresold / kSmallNumSamples, ts.expected_probability,
-                0.0015);
+                0.0025);
   }
 }
 
@@ -609,7 +609,7 @@ TEST(NumericalMechanismsTest, GaussianMechanismNoisedValueAboveThreshold) {
         ++num_above_thresold;
     }
     EXPECT_NEAR(num_above_thresold / kSmallNumSamples, ts.expected_probability,
-                0.0015);
+                0.0025);
   }
 }
 

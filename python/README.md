@@ -13,6 +13,6 @@ with more detailed definitions and references can be found
 We provide basic examples on how to use the library in
 privacy_loss_distribution_basic_example.py. To demonstrate, run:
 ```
-bazel build ...
-bazel run privacy_loss_distribution_basic_example
+bazel build accounting:all
+bazel run accounting:privacy_loss_distribution_basic_example
 ```

@@ -26,6 +26,8 @@ import typing
 import dataclasses
 from scipy import stats
 
+from dp_accounting import common
+
 
 @dataclasses.dataclass
 class TailPrivacyLossDistribution(object):
@@ -44,18 +46,6 @@ class TailPrivacyLossDistribution(object):
   lower_x_truncation: float
   upper_x_truncation: float
   tail_probability_mass_function: typing.Mapping[float, float]
-
-
-@dataclasses.dataclass
-class DifferentialPrivacyParameters(object):
-  """Representation of the differential privacy parameters of a mechanism.
-
-  Attributes:
-    epsilon: the epsilon in (epsilon, delta)-differential privacy.
-    delta: the delta in (epsilon, delta)-differential privacy.
-  """
-  epsilon: float
-  delta: float = 0
 
 
 class AdditiveNoisePrivacyLoss(metaclass=abc.ABCMeta):
@@ -183,7 +173,7 @@ class AdditiveNoisePrivacyLoss(metaclass=abc.ABCMeta):
   @abc.abstractmethod
   def from_privacy_guarantee(
       cls,
-      privacy_parameters: DifferentialPrivacyParameters,
+      privacy_parameters: common.DifferentialPrivacyParameters,
       sensitivity: float = 1,
       pessimistic_estimate: bool = True
   ) -> 'AdditiveNoisePrivacyLoss':
@@ -308,7 +298,7 @@ class LaplacePrivacyLoss(AdditiveNoisePrivacyLoss):
   @classmethod
   def from_privacy_guarantee(
       cls,
-      privacy_parameters: DifferentialPrivacyParameters,
+      privacy_parameters: common.DifferentialPrivacyParameters,
       sensitivity: float = 1,
       pessimistic_estimate: bool = True
   ) -> 'LaplacePrivacyLoss':
@@ -468,7 +458,7 @@ class GaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
   @classmethod
   def from_privacy_guarantee(
       cls,
-      privacy_parameters: DifferentialPrivacyParameters,
+      privacy_parameters: common.DifferentialPrivacyParameters,
       sensitivity: float = 1,
       pessimistic_estimate: bool = True,
   ) -> 'GaussianPrivacyLoss':
@@ -495,37 +485,25 @@ class GaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
     # epsilon is no more than one, the Gaussian mechanism with this standard
     # deviation is (epsilon, delta)-DP. See e.g. Appendix A in Dwork and Roth
     # book, "The Algorithmic Foundations of Differential Privacy".
-    initial_standard_deviation = math.sqrt(
-        2 * math.log(1.5 / privacy_parameters.delta)
-    ) * sensitivity / privacy_parameters.epsilon
+    search_parameters = common.BinarySearchParameters(
+        0,
+        math.inf,
+        initial_guess=math.sqrt(2 * math.log(1.5 / privacy_parameters.delta)) *
+        sensitivity / privacy_parameters.epsilon)
 
-    # When epsilon > 1, it can be the case that the above standard deviation is
-    # not sufficient to guarantee (eps, delta)-DP. Below we repeatedly doubling
-    # the standard deviation until the mechanism is (eps, delta)-DP.
-    upper_standard_deviation = initial_standard_deviation
-    while GaussianPrivacyLoss(
-        upper_standard_deviation,
-        sensitivity=sensitivity,
-        log_mass_truncation_bound=0).get_delta_for_epsilon(
-            privacy_parameters.epsilon) > privacy_parameters.delta:
-      upper_standard_deviation *= 2
-
-    lower_standard_deviation = 0
-
-    while upper_standard_deviation - lower_standard_deviation > 1e-7:
-      mid_standard_deviation = (upper_standard_deviation +
-                                lower_standard_deviation) / 2
-      if GaussianPrivacyLoss(
-          mid_standard_deviation,
+    def _get_delta_for_standard_deviation(current_standard_deviation):
+      return GaussianPrivacyLoss(
+          current_standard_deviation,
           sensitivity=sensitivity,
           log_mass_truncation_bound=0).get_delta_for_epsilon(
-              privacy_parameters.epsilon) <= privacy_parameters.delta:
-        upper_standard_deviation = mid_standard_deviation
-      else:
-        lower_standard_deviation = mid_standard_deviation
+              privacy_parameters.epsilon)
+
+    standard_deviation = common.inverse_monotone_function(
+        _get_delta_for_standard_deviation, privacy_parameters.delta,
+        search_parameters)
 
     return GaussianPrivacyLoss(
-        upper_standard_deviation,
+        standard_deviation,
         sensitivity=sensitivity,
         pessimistic_estimate=pessimistic_estimate)
 
@@ -652,7 +630,7 @@ class DiscreteLaplacePrivacyLoss(AdditiveNoisePrivacyLoss):
   @classmethod
   def from_privacy_guarantee(
       cls,
-      privacy_parameters: DifferentialPrivacyParameters,
+      privacy_parameters: common.DifferentialPrivacyParameters,
       sensitivity: float = 1
   ) -> 'DiscreteLaplacePrivacyLoss':
     """Creates privacy loss for discrete Laplace mechanism with desired privacy.

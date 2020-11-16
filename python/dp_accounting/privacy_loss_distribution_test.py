@@ -18,9 +18,9 @@ import unittest
 from absl.testing import parameterized
 from scipy import stats
 
-import privacy_loss_distribution
-import privacy_loss_mechanism
-import test_util
+from dp_accounting import common
+from dp_accounting import privacy_loss_distribution
+from dp_accounting import test_util
 
 
 class ConvolveTest(unittest.TestCase):
@@ -329,7 +329,7 @@ class PrivacyLossDistributionTest(parameterized.TestCase):
                                    expected_rounded_probability_mass_function,
                                    expected_infinity_mass):
     pld = privacy_loss_distribution.PrivacyLossDistribution.from_privacy_parameters(
-        privacy_loss_mechanism.DifferentialPrivacyParameters(epsilon, delta),
+        common.DifferentialPrivacyParameters(epsilon, delta),
         value_discretization_interval=value_discretization_interval)
     self.assertAlmostEqual(expected_infinity_mass, pld.infinity_mass)
     test_util.dictionary_almost_equal(

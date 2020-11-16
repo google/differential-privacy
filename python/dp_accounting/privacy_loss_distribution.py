@@ -27,7 +27,8 @@ import typing
 import numpy
 from scipy import signal
 
-import privacy_loss_mechanism
+from dp_accounting import common
+from dp_accounting import privacy_loss_mechanism
 
 
 def dictionary_to_list(
@@ -525,7 +526,7 @@ class PrivacyLossDistribution(object):
   @classmethod
   def from_privacy_parameters(
       cls,
-      privacy_parameters: privacy_loss_mechanism.DifferentialPrivacyParameters,
+      privacy_parameters: common.DifferentialPrivacyParameters,
       value_discretization_interval: float = 1e-4) -> 'PrivacyLossDistribution':
     """Constructs pessimistic PLD from epsilon and delta parameters.
 

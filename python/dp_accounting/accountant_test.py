@@ -14,54 +14,14 @@
 
 """Tests for accountant."""
 
-import math
 import unittest
 from absl.testing import parameterized
 
-import accountant
-import privacy_loss_mechanism
+from dp_accounting import accountant
+from dp_accounting import common
 
 
 class AccountantTest(parameterized.TestCase):
-
-  @parameterized.named_parameters(
-      {
-          'testcase_name': 'no_initial_guess',
-          'func': (lambda x: -x),
-          'value': -5,
-          'lower_x': 0,
-          'upper_x': 10,
-          'initial_guess_x': None,
-          'expected_x': 5,
-      },
-      {
-          'testcase_name': 'with_initial_guess',
-          'func': (lambda x: -x),
-          'value': -5,
-          'lower_x': 0,
-          'upper_x': math.inf,
-          'initial_guess_x': 2,
-          'expected_x': 5,
-      },
-      {
-          'testcase_name': 'out_of_range',
-          'func': (lambda x: -x),
-          'value': -5,
-          'lower_x': 0,
-          'upper_x': 4,
-          'initial_guess_x': None,
-          'expected_x': None,
-      })
-  def test_inverse_monotone_function(self, func, value, lower_x, upper_x,
-                                     initial_guess_x, expected_x):
-    search_parameters = accountant.BinarySearchParameters(
-        lower_x, upper_x, initial_guess=initial_guess_x)
-    self.assertAlmostEqual(
-        expected_x,
-        accountant.inverse_monotone_function(
-            func,
-            value,
-            search_parameters))
 
   @parameterized.named_parameters(
       {
@@ -90,7 +50,7 @@ class AccountantTest(parameterized.TestCase):
       },)
   def test_get_smallest_laplace_noise(self, epsilon, delta, num_queries,
                                       sensitivity, expected_parameter):
-    privacy_parameters = privacy_loss_mechanism.DifferentialPrivacyParameters(
+    privacy_parameters = common.DifferentialPrivacyParameters(
         epsilon, delta)
     self.assertAlmostEqual(
         expected_parameter,
@@ -126,7 +86,7 @@ class AccountantTest(parameterized.TestCase):
   def test_get_smallest_discrete_laplace_noise(self, epsilon, delta,
                                                num_queries, sensitivity,
                                                expected_parameter):
-    privacy_parameters = privacy_loss_mechanism.DifferentialPrivacyParameters(
+    privacy_parameters = common.DifferentialPrivacyParameters(
         epsilon, delta)
     self.assertAlmostEqual(
         expected_parameter,
@@ -153,7 +113,7 @@ class AccountantTest(parameterized.TestCase):
       })
   def test_get_smallest_gaussian_noise(self, epsilon, delta, num_queries,
                                        sensitivity, expected_std):
-    privacy_parameters = privacy_loss_mechanism.DifferentialPrivacyParameters(
+    privacy_parameters = common.DifferentialPrivacyParameters(
         epsilon, delta)
     self.assertAlmostEqual(
         expected_std,

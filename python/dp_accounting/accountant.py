@@ -16,73 +16,17 @@
 import math
 import typing
 
-import dataclasses
-
-import privacy_loss_distribution
-import privacy_loss_mechanism
-
-
-@dataclasses.dataclass
-class BinarySearchParameters(object):
-  """Parameters used for binary search.
-
-  Attributes:
-    upper_bound: An upper bound on the binary search range.
-    lower_bound: A lower bound on the binary search range.
-    initial_guess: An initial guess to start the search with. Must be positive.
-      When this guess is close to the true value, it can help make the binary
-      search faster.
-    tolerance: An acceptable error on the returned value.
-  """
-  lower_bound: float
-  upper_bound: float
-  initial_guess: typing.Optional[float] = None
-  tolerance: float = 1e-7
-
-
-def inverse_monotone_function(
-    func: typing.Callable[[float], float], value: float,
-    search_parameters: BinarySearchParameters) -> typing.Union[float, None]:
-  """Inverse a monotonically decreasing function.
-
-  Args:
-    func: The function to be inversed.
-    value: The desired value of the function.
-    search_parameters: Parameters used for binary search.
-
-  Returns:
-    x such that f(x) is no more than value, when such x exists; it is guaranteed
-    that the returned x is within search_parameters.tolerance of the smallest
-    such x. When no such x exists within the given range, returns None.
-  """
-  lower_x = search_parameters.lower_bound
-  upper_x = search_parameters.upper_bound
-  initial_guess_x = search_parameters.initial_guess
-
-  if func(upper_x) > value:
-    return None
-
-  if initial_guess_x is not None:
-    while (initial_guess_x < upper_x and func(initial_guess_x) > value):
-      lower_x = initial_guess_x
-      initial_guess_x *= 2
-    upper_x = min(upper_x, initial_guess_x)
-
-  while upper_x - lower_x > search_parameters.tolerance:
-    mid_x = (upper_x + lower_x) / 2
-    if func(mid_x) > value:
-      lower_x = mid_x
-    else:
-      upper_x = mid_x
-
-  return upper_x
+from dp_accounting import common
+from dp_accounting import privacy_loss_distribution
+from dp_accounting import privacy_loss_mechanism
 
 
 def get_smallest_parameter(
-    privacy_parameters: privacy_loss_mechanism.DifferentialPrivacyParameters,
-    num_queries: int, privacy_loss_distribution_constructor: typing.Callable[
+    privacy_parameters: common.DifferentialPrivacyParameters, num_queries: int,
+    privacy_loss_distribution_constructor: typing.Callable[
         [float], privacy_loss_distribution.PrivacyLossDistribution],
-    search_parameters: BinarySearchParameters) -> typing.Union[float, None]:
+    search_parameters: common.BinarySearchParameters
+) -> typing.Union[float, None]:
   """Find smallest parameter for which the mechanism satisfies desired privacy.
 
   This function computes the smallest "parameter" for which the corresponding
@@ -110,12 +54,13 @@ def get_smallest_parameter(
     pld_all_queries = pld_single_query.self_compose(num_queries)
     return pld_all_queries.get_delta_for_epsilon(privacy_parameters.epsilon)
 
-  return inverse_monotone_function(get_delta_for_parameter,
-                                   privacy_parameters.delta, search_parameters)
+  return common.inverse_monotone_function(get_delta_for_parameter,
+                                          privacy_parameters.delta,
+                                          search_parameters)
 
 
 def get_smallest_laplace_noise(
-    privacy_parameters: privacy_loss_mechanism.DifferentialPrivacyParameters,
+    privacy_parameters: common.DifferentialPrivacyParameters,
     num_queries: int,
     sensitivity: float = 1) -> float:
   """Find smallest Laplace noise for which the mechanism satisfies desired privacy.
@@ -144,7 +89,7 @@ def get_smallest_laplace_noise(
 
   # Laplace mechanism with parameter sensitivity * num_queries / epsilon is
   # epsilon-DP (for num_queries queries).
-  search_parameters = BinarySearchParameters(
+  search_parameters = common.BinarySearchParameters(
       0, num_queries * sensitivity / privacy_parameters.epsilon)
 
   parameter = get_smallest_parameter(privacy_parameters, num_queries,
@@ -156,7 +101,7 @@ def get_smallest_laplace_noise(
 
 
 def get_smallest_discrete_laplace_noise(
-    privacy_parameters: privacy_loss_mechanism.DifferentialPrivacyParameters,
+    privacy_parameters: common.DifferentialPrivacyParameters,
     num_queries: int,
     sensitivity: int = 1) -> float:
   """Find smallest discrete Laplace noise for which the mechanism satisfies desired privacy.
@@ -192,7 +137,7 @@ def get_smallest_discrete_laplace_noise(
   # discrete Laplace mechanism with parameter
   # epsilon / (sensitivity * num_queries) is epsilon-DP (for num_queries
   # queries).
-  search_parameters = BinarySearchParameters(
+  search_parameters = common.BinarySearchParameters(
       0, num_queries * sensitivity / privacy_parameters.epsilon)
 
   inverse_parameter = get_smallest_parameter(
@@ -206,7 +151,7 @@ def get_smallest_discrete_laplace_noise(
 
 
 def get_smallest_gaussian_noise(
-    privacy_parameters: privacy_loss_mechanism.DifferentialPrivacyParameters,
+    privacy_parameters: common.DifferentialPrivacyParameters,
     num_queries: int,
     sensitivity: float = 1) -> float:
   """Find smallest Gaussian noise for which the mechanism satisfies desired privacy.

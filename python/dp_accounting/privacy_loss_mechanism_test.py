@@ -19,8 +19,9 @@ import unittest
 from absl.testing import parameterized
 from scipy import stats
 
-import privacy_loss_mechanism
-import test_util
+from dp_accounting import common
+from dp_accounting import privacy_loss_mechanism
+from dp_accounting import test_util
 
 
 class LaplacePrivacyLossTest(parameterized.TestCase):
@@ -76,7 +77,7 @@ class LaplacePrivacyLossTest(parameterized.TestCase):
   def test_laplace_from_privacy_parameters(self, sensitivity, epsilon, delta,
                                            expected_parameter):
     pl = privacy_loss_mechanism.LaplacePrivacyLoss.from_privacy_guarantee(
-        privacy_loss_mechanism.DifferentialPrivacyParameters(epsilon, delta),
+        common.DifferentialPrivacyParameters(epsilon, delta),
         sensitivity)
     self.assertAlmostEqual(expected_parameter, pl.parameter)
 
@@ -163,7 +164,7 @@ class GaussianPrivacyLossTest(parameterized.TestCase):
   def test_gaussian_from_privacy_parameters(self, sensitivity, epsilon, delta,
                                             expected_standard_deviation):
     pl = privacy_loss_mechanism.GaussianPrivacyLoss.from_privacy_guarantee(
-        privacy_loss_mechanism.DifferentialPrivacyParameters(epsilon, delta),
+        common.DifferentialPrivacyParameters(epsilon, delta),
         sensitivity)
     self.assertAlmostEqual(expected_standard_deviation, pl.standard_deviation,
                            3)
@@ -241,7 +242,7 @@ class DiscreteLaplacePrivacyLossDistributionTest(parameterized.TestCase):
                                                     delta, expected_parameter):
     pl = (privacy_loss_mechanism.DiscreteLaplacePrivacyLoss
           .from_privacy_guarantee(
-              privacy_loss_mechanism.DifferentialPrivacyParameters(
+              common.DifferentialPrivacyParameters(
                   epsilon, delta),
               sensitivity))
     self.assertAlmostEqual(expected_parameter, pl.parameter)

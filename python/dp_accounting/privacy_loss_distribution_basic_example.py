@@ -17,7 +17,7 @@
 
 from absl import app
 
-import privacy_loss_distribution
+from dp_accounting import privacy_loss_distribution
 
 
 def main(argv):

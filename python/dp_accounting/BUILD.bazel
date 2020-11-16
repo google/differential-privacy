@@ -17,12 +17,54 @@
 # Tools for tracking privacy budget.
 
 load("@accounting_py_pip_deps//:requirements.bzl", "requirement")
+load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
 
 package(default_visibility = [
     "//visibility:public",
 ])
 
 licenses(["notice"])
+
+# For specifying python version. When running with python version > 3.6, should
+# specify via this flag, e.g. --//dp_accounting:python_version=3.7
+string_flag(
+    name = "python_version",
+    build_setting_default = "3.6",
+)
+
+config_setting(
+    name = "python_version_3.6",
+    flag_values = {
+        ":python_version": "3.6",
+    },
+)
+
+# For python version 3.7 onwards, dataclasses module is already included as part
+# of the core library.
+DATACLASSES_DEP = select({
+    ":python_version_3.6": [requirement("dataclasses")],
+    "//conditions:default": [],
+})
+
+py_library(
+    name = "common",
+    srcs = [
+        "common.py",
+    ],
+    srcs_version = "PY3",
+    deps = DATACLASSES_DEP,
+)
+
+py_test(
+    name = "common_test",
+    size = "small",
+    srcs = ["common_test.py"],
+    python_version = "PY3",
+    deps = [
+        ":common",
+        requirement("absl-py"),
+    ],
+)
 
 py_library(
     name = "privacy_loss_distribution",
@@ -31,6 +73,7 @@ py_library(
     ],
     srcs_version = "PY3",
     deps = [
+        ":common",
         ":privacy_loss_mechanism",
         requirement("numpy"),
         requirement("scipy"),
@@ -43,8 +86,8 @@ py_test(
     srcs = ["privacy_loss_distribution_test.py"],
     python_version = "PY3",
     deps = [
+        ":common",
         ":privacy_loss_distribution",
-        ":privacy_loss_mechanism",
         ":test_util",
         requirement("absl-py"),
         requirement("scipy"),
@@ -58,10 +101,10 @@ py_library(
     ],
     srcs_version = "PY3",
     deps = [
+        ":common",
         requirement("numpy"),
         requirement("scipy"),
-        requirement("dataclasses"),
-    ],
+    ] + DATACLASSES_DEP,
 )
 
 py_test(
@@ -70,6 +113,7 @@ py_test(
     srcs = ["privacy_loss_mechanism_test.py"],
     python_version = "PY3",
     deps = [
+        ":common",
         ":privacy_loss_mechanism",
         ":test_util",
         requirement("absl-py"),
@@ -84,10 +128,10 @@ py_library(
     ],
     srcs_version = "PY3",
     deps = [
+        ":common",
         ":privacy_loss_distribution",
         ":privacy_loss_mechanism",
-        requirement("dataclasses"),
-    ],
+    ] + DATACLASSES_DEP,
 )
 
 py_test(
@@ -97,6 +141,7 @@ py_test(
     python_version = "PY3",
     deps = [
         ":accountant",
+        ":common",
         ":privacy_loss_mechanism",
         requirement("absl-py"),
     ],
