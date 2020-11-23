@@ -20,7 +20,7 @@
 #include <limits>
 #include <numeric>
 
-#include "base/status.h"
+#include "absl/status/status.h"
 #include "base/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
@@ -55,7 +55,7 @@ class Histogram {
         bin_counts_(std::vector<int>(num_bins, 0)) {}
 
   // Increment the count of the bin into which t falls.
-  base::Status Add(T element) {
+  absl::Status Add(T element) {
     double index = (element - lowest_) / width_;
     if (index < 0) {
       return base::InvalidArgumentError("The element is out of bounds.");
@@ -65,7 +65,7 @@ class Histogram {
     } else {
       ++bin_counts_[static_cast<int>(index)];
     }
-    return base::OkStatus();
+    return absl::OkStatus();
   }
 
   // Number of elements in bin index.

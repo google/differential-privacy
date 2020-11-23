@@ -104,10 +104,10 @@ TEST(OrderStatisticsTest, MedianLinfIncreasesVariance) {
                   .SetLower(-1)
                   .SetUpper(1)
                   .Build();
-          CHECK_EQ(bounded_sum.status(), base::OkStatus());
+          CHECK_EQ(bounded_sum.status(), absl::OkStatus());
           base::StatusOr<Output> out =
               (*bounded_sum)->Result(input.begin(), input.end());
-          CHECK_EQ(out.status(), base::OkStatus());
+          CHECK_EQ(out.status(), absl::OkStatus());
           sum += std::pow(GetValue<double>(*out), 2);
         }
         return sum / (kNumSamples - 1);
@@ -158,13 +158,13 @@ TEST(OrderStatisticsTest, InvalidParameters) {
   EXPECT_OK(builder.SetPercentile(.9).SetLower(1).SetUpper(2).Build());
   EXPECT_THAT(
       builder.SetLower(3).Build(),
-      StatusIs(base::StatusCode::kInvalidArgument,
+      StatusIs(absl::StatusCode::kInvalidArgument,
                HasSubstr("Lower bound cannot be greater than upper bound")));
   EXPECT_THAT(builder.SetLower(1).SetPercentile(-1).Build(),
-              StatusIs(base::StatusCode::kInvalidArgument,
+              StatusIs(absl::StatusCode::kInvalidArgument,
                        HasSubstr("Percentile must be between 0 and 1")));
   EXPECT_THAT(builder.SetPercentile(2).Build(),
-              StatusIs(base::StatusCode::kInvalidArgument,
+              StatusIs(absl::StatusCode::kInvalidArgument,
                        HasSubstr("Percentile must be between 0 and 1")));
 }
 

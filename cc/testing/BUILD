@@ -62,6 +62,7 @@ cc_library(
     deps = [
         "//base:status",
         "//base:statusor",
+        "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/strings:str_format",
     ],

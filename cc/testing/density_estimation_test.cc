@@ -44,16 +44,16 @@ TYPED_TEST(HistogramTest, EmptyHistogram) {
 
 TYPED_TEST(HistogramTest, AddOutOfBounds) {
   Histogram<TypeParam> hist(-2, .5, 8);
-  EXPECT_EQ(hist.Add(-3).code(), base::StatusCode::kInvalidArgument);
+  EXPECT_EQ(hist.Add(-3).code(), absl::StatusCode::kInvalidArgument);
 }
 
 TYPED_TEST(HistogramTest, BinCountOutOfBounds) {
   const int num_bins = 8;
   Histogram<TypeParam> hist(-2, .5, num_bins);
   EXPECT_EQ(hist.BinCount(-1).status().code(),
-            base::StatusCode::kInvalidArgument);
+            absl::StatusCode::kInvalidArgument);
   EXPECT_EQ(hist.BinCount(num_bins + 1).status().code(),
-            base::StatusCode::kInvalidArgument);
+            absl::StatusCode::kInvalidArgument);
 }
 
 TYPED_TEST(HistogramTest, BinBoundaries) {

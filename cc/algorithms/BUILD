@@ -30,6 +30,7 @@ cc_library(
         "@com_google_differential_privacy//proto:data_cc_proto",
         "@com_google_differential_privacy//proto:summary_cc_proto",
         "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/status",
     ],
 )
 
@@ -76,6 +77,7 @@ cc_library(
         "//base:statusor",
         "//base:percentile",
         "//proto:util-lib",
+        "@com_google_absl//absl/status",
         "@com_google_protobuf//:cc_wkt_protos",
     ],
 )
@@ -107,6 +109,7 @@ cc_library(
         "//base:status",
         "//base:statusor",
         "//base:percentile",
+        "@com_google_absl//absl/status",
     ],
 )
 
@@ -137,6 +140,7 @@ cc_library(
         "//base:statusor",
         "@com_google_differential_privacy//proto:summary_cc_proto",
         "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/status",
         "@com_google_protobuf//:cc_wkt_protos",
     ],
 )
@@ -172,6 +176,7 @@ cc_library(
         "//base:statusor",
         "@com_google_differential_privacy//proto:summary_cc_proto",
         "@com_google_absl//absl/random:distributions",
+        "@com_google_absl//absl/status",
         "@com_google_protobuf//:cc_wkt_protos",
     ],
 )
@@ -199,10 +204,10 @@ cc_library(
         ":bounded-algorithm",
         ":numerical-mechanisms",
         ":util",
-        "//base:status",
         "//base:statusor",
         "//proto:util-lib",
         "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/status",
         "@com_google_protobuf//:cc_wkt_protos",
     ],
 )
@@ -215,11 +220,11 @@ cc_test(
         ":approx-bounds",
         ":bounded-variance",
         ":numerical-mechanisms-testing",
-        "//base:status",
         "//base/testing:proto_matchers",
         "//base/testing:status_matchers",
         "@com_google_googletest//:gtest_main",
         "@com_google_absl//absl/random:distributions",
+        "@com_google_absl//absl/status",
     ],
 )
 
@@ -231,9 +236,9 @@ cc_library(
         ":bounded-algorithm",
         ":bounded-variance",
         ":numerical-mechanisms",
-        "//base:status",
         "//base:statusor",
         "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/status",
     ],
 )
 
@@ -264,6 +269,7 @@ cc_library(
         "//base:status",
         "//base:statusor",
         "@com_google_differential_privacy//proto:summary_cc_proto",
+        "@com_google_absl//absl/status",
         "@com_google_protobuf//:cc_wkt_protos",
     ],
 )
@@ -294,6 +300,7 @@ cc_library(
         "//base:status",
         "//base:statusor",
         "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
     ],
 )
@@ -306,8 +313,8 @@ cc_test(
         ":distributions",
         ":numerical-mechanisms-testing",
         ":util",
-        "//base:status",
         "@com_google_googletest//:gtest_main",
+        "@com_google_absl//absl/status",
     ],
 )
 
@@ -324,6 +331,7 @@ cc_library(
         "//base:statusor",
         "@com_google_absl//absl/memory",
         "@com_google_absl//absl/random",
+        "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
     ],
 )
@@ -357,6 +365,7 @@ cc_library(
         "@com_google_differential_privacy//proto:confidence_interval_cc_proto",
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:optional",
     ],
@@ -409,6 +418,7 @@ cc_library(
         "//base:status",
         "//base:statusor",
         "//proto:util-lib",
+        "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
         "@com_google_protobuf//:cc_wkt_protos",
     ],
@@ -436,6 +446,7 @@ cc_library(
         ":approx-bounds",
         "//base:status",
         "//base:statusor",
+        "@com_google_absl//absl/status",
     ],
 )
 
@@ -494,6 +505,7 @@ cc_library(
         ":util",
         "//base:status",
         "//base:statusor",
+        "@com_google_absl//absl/status",
     ],
 )
 

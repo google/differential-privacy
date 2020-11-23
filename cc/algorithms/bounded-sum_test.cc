@@ -212,9 +212,9 @@ TYPED_TEST(BoundedSumTest, MaxContributionsVarianceTest) {
                   .SetLower(-1)
                   .SetUpper(1)
                   .Build();
-          CHECK_EQ(bounded_sum.status(), base::OkStatus());
+          CHECK_EQ(bounded_sum.status(), absl::OkStatus());
           auto out = (*bounded_sum)->Result(input.begin(), input.end());
-          CHECK_EQ(out.status(), base::OkStatus());
+          CHECK_EQ(out.status(), absl::OkStatus());
           sum += std::pow(GetValue<TypeParam>(*out), 2);
         }
         return sum / (kNumSamples - 1);

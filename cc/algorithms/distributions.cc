@@ -183,7 +183,7 @@ base::StatusOr<double> CalculateGranularity(double epsilon,
   double gran = GetNextPowerOfTwo((sensitivity / epsilon) / GRANULARITY_PARAM);
   double lambda = gran * epsilon / (sensitivity + gran);
   if (lambda < 1.0 / (int64_t{1} << 59)) {
-    return base::InvalidArgumentError(
+    return absl::InvalidArgumentError(
         "The provided parameters may cause an overflow. Probably epsilon is "
         "too small.");
   }

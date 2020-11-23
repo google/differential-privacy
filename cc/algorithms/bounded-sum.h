@@ -22,7 +22,7 @@
 
 #include "google/protobuf/any.pb.h"
 #include "absl/memory/memory.h"
-#include "base/status.h"
+#include "absl/status/status.h"
 #include "base/statusor.h"
 #include "algorithms/algorithm.h"
 #include "algorithms/approx-bounds.h"
@@ -47,14 +47,14 @@ class BoundedSum : public Algorithm<T> {
 
    public:
     // Check that bounds are appropriate.
-    static base::Status CheckLowerBound(T lower) {
+    static absl::Status CheckLowerBound(T lower) {
       if (lower < -1 * std::numeric_limits<T>::max()) {
-        return base::InvalidArgumentError(
+        return absl::InvalidArgumentError(
             "Lower bound cannot be higher in magnitude than the max "
             "numeric limit. If manually bounding, please increase it by "
             "at least 1.");
       }
-      return base::OkStatus();
+      return absl::OkStatus();
     }
 
    private:
@@ -126,7 +126,7 @@ class BoundedSum : public Algorithm<T> {
   base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
       double confidence_level, double privacy_budget = 1) override {
     if (approx_bounds_) {
-      return base::InvalidArgumentError(
+      return absl::InvalidArgumentError(
           "NoiseConfidenceInterval changes per result generation for "
           "automatically-determined sensitivity.");
     }
@@ -157,20 +157,20 @@ class BoundedSum : public Algorithm<T> {
     return summary;
   }
 
-  base::Status Merge(const Summary& summary) override {
+  absl::Status Merge(const Summary& summary) override {
     if (!summary.has_data()) {
-      return base::InternalError(
+      return absl::InternalError(
           "Cannot merge summary with no bounded sum data.");
     }
 
     // Add bounded sum partial values.
     BoundedSumSummary bs_summary;
     if (!summary.data().UnpackTo(&bs_summary)) {
-      return base::InternalError("Bounded sum summary unable to be unpacked.");
+      return absl::InternalError("Bounded sum summary unable to be unpacked.");
     }
     if (pos_sum_.size() != bs_summary.pos_sum_size() ||
         neg_sum_.size() != bs_summary.neg_sum_size()) {
-      return base::InternalError(
+      return absl::InternalError(
           "Merged BoundedSum must have the same amount of partial sum "
           "values as this BoundedSum.");
     }
@@ -186,7 +186,7 @@ class BoundedSum : public Algorithm<T> {
           bs_summary.bounds_summary());
       RETURN_IF_ERROR(approx_bounds_->Merge(approx_bounds_summary));
     }
-    return base::OkStatus();
+    return absl::OkStatus();
   }
 
   double GetEpsilon() const override {
@@ -234,9 +234,9 @@ class BoundedSum : public Algorithm<T> {
       : Algorithm<T>(epsilon),
         lower_(lower),
         upper_(upper),
+        mechanism_builder_(std::move(mechanism_builder)),
         l0_sensitivity_(l0_sensitivity),
         max_contributions_per_partition_(max_contributions_per_partition),
-        mechanism_builder_(std::move(mechanism_builder)),
         mechanism_(std::move(mechanism)),
         approx_bounds_(std::move(approx_bounds)) {
     // If automatically determining bounds, we need partial values for each bin
@@ -335,7 +335,7 @@ class BoundedSum : public Algorithm<T> {
   base::StatusOr<ConfidenceInterval> NoiseConfidenceIntervalImpl(
       double confidence_level, double privacy_budget = 1) {
     if (!mechanism_) {
-      return base::InvalidArgumentError(
+      return absl::InvalidArgumentError(
           "Mechanism not yet constructed. Try getting noise confidence "
           "interval after generating result.");
     }

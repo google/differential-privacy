@@ -18,7 +18,7 @@
 #define DIFFERENTIAL_PRIVACY_ALGORITHMS_COUNT_H_
 
 #include "google/protobuf/any.pb.h"
-#include "base/status.h"
+#include "absl/status/status.h"
 #include "base/statusor.h"
 #include "algorithms/algorithm.h"
 #include "algorithms/numerical-mechanisms.h"
@@ -56,19 +56,19 @@ class Count : public Algorithm<T> {
   }
 
   // Add count from serialized data.
-  base::Status Merge(const Summary& summary) override {
+  absl::Status Merge(const Summary& summary) override {
     if (!summary.has_data()) {
-      return base::InternalError("Cannot merge summary with no count data.");
+      return absl::InternalError("Cannot merge summary with no count data.");
     }
 
     // Add counts.
     CountSummary count_summary;
     if (!summary.data().UnpackTo(&count_summary)) {
-      return base::InternalError("Count summary unable to be unpacked.");
+      return absl::InternalError("Count summary unable to be unpacked.");
     }
     SafeAdd<uint64_t>(count_, count_summary.count(), &count_);
 
-    return base::OkStatus();
+    return absl::OkStatus();
   }
 
   int64_t MemoryUsed() override {

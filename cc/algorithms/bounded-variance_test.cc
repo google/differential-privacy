@@ -23,7 +23,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/random/distributions.h"
-#include "base/status.h"
+#include "absl/status/status.h"
 #include "algorithms/approx-bounds.h"
 #include "algorithms/numerical-mechanisms-testing.h"
 
@@ -253,9 +253,9 @@ TYPED_TEST(BoundedVarianceTest, MaxContributionsVarianceTest) {
                               .SetLower(-1)
                               .SetUpper(1)
                               .Build();
-          CHECK_EQ(variance.status(), base::OkStatus());
+          CHECK_EQ(variance.status(), absl::OkStatus());
           auto out = (*variance)->Result(input.begin(), input.end());
-          CHECK_EQ(out.status(), base::OkStatus());
+          CHECK_EQ(out.status(), absl::OkStatus());
           sum += std::pow(GetValue<double>(*out) - real_variance, 2);
         }
         return sum / (kNumSamples - 1);
@@ -285,7 +285,7 @@ TYPED_TEST(BoundedVarianceTest, MergeDifferentBoundingStrategy) {
   ASSERT_THAT(
       (*bv2)->Merge(summary),
       StatusIs(
-          base::StatusCode::kInternal,
+          absl::StatusCode::kInternal,
           HasSubstr(
               "Merged BoundedVariance must have the same bounding strategy.")));
 }
@@ -514,7 +514,7 @@ TEST(BoundedVarianceTest, SensitivityOverflow) {
           .Build();
   EXPECT_THAT(
       failed_bv,
-      StatusIs(base::StatusCode::kInvalidArgument,
+      StatusIs(absl::StatusCode::kInvalidArgument,
                HasSubstr("Sensitivity calculation caused integer overflow.")));
 }
 
@@ -525,7 +525,7 @@ TYPED_TEST(BoundedVarianceTest, SensitivityTooHigh) {
           .SetLower(0)
           .SetUpper(std::pow(std::numeric_limits<double>::max() / 2, .5))
           .Build();
-  EXPECT_THAT(failed_bv, StatusIs(base::StatusCode::kInvalidArgument,
+  EXPECT_THAT(failed_bv, StatusIs(absl::StatusCode::kInvalidArgument,
                                   HasSubstr("Sensitivity is too high.")));
 }
 
@@ -552,7 +552,7 @@ TYPED_TEST(BoundedVarianceTest, PropagateApproxBoundsError) {
   // Automatic bounds are needed but there is no input, so the count-threshhold
   // should exceed any bin count.
   EXPECT_THAT((*bv)->PartialResult(),
-              StatusIs(base::StatusCode::kFailedPrecondition,
+              StatusIs(absl::StatusCode::kFailedPrecondition,
                        HasSubstr("run over a larger dataset")));
 }
 

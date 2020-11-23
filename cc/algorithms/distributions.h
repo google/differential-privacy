@@ -20,7 +20,7 @@
 #include <memory>
 
 #include <cstdint>
-#include "base/status.h"
+#include "absl/status/status.h"
 #include "base/statusor.h"
 
 namespace differential_privacy {

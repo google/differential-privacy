@@ -309,7 +309,7 @@ class IsOkMatcher {
 
 }  // namespace internal_status
 
-// Macros for testing the results of functions that return base::Status or
+// Macros for testing the results of functions that return absl::Status or
 // differential_privacy::base::StatusOr<T> (for any type T).
 #define EXPECT_OK(expression) \
   EXPECT_THAT(expression, ::differential_privacy::base::testing::IsOk())

@@ -64,7 +64,7 @@ TEST(AssignOrReturn, Works) {
     return ReturnError("ERROR");
   };
 
-  EXPECT_THAT(func().error_message(), Eq("EXPECTED"));
+  EXPECT_THAT(func().message(), Eq("EXPECTED"));
 }
 
 TEST(AssignOrReturn, WorksForExistingVariable) {
@@ -78,7 +78,7 @@ TEST(AssignOrReturn, WorksForExistingVariable) {
     return ReturnError("ERROR");
   };
 
-  EXPECT_THAT(func().error_message(), Eq("EXPECTED"));
+  EXPECT_THAT(func().message(), Eq("EXPECTED"));
 }
 
 TEST(AssignOrReturn, UniquePtrWorks) {
@@ -88,7 +88,7 @@ TEST(AssignOrReturn, UniquePtrWorks) {
     return ReturnError("EXPECTED");
   };
 
-  EXPECT_THAT(func().error_message(), Eq("EXPECTED"));
+  EXPECT_THAT(func().message(), Eq("EXPECTED"));
 }
 
 TEST(AssignOrReturn, UniquePtrWorksForExistingVariable) {
@@ -102,7 +102,7 @@ TEST(AssignOrReturn, UniquePtrWorksForExistingVariable) {
     return ReturnError("EXPECTED");
   };
 
-  EXPECT_THAT(func().error_message(), Eq("EXPECTED"));
+  EXPECT_THAT(func().message(), Eq("EXPECTED"));
 }
 
 TEST(ReturnIfError, Works) {
@@ -113,7 +113,7 @@ TEST(ReturnIfError, Works) {
     return ReturnError("ERROR");
   };
 
-  EXPECT_THAT(func().error_message(), Eq("EXPECTED"));
+  EXPECT_THAT(func().message(), Eq("EXPECTED"));
 }
 
 TEST(ReturnIfError, WorksWithLambda) {
@@ -123,7 +123,7 @@ TEST(ReturnIfError, WorksWithLambda) {
     return ReturnError("ERROR");
   };
 
-  EXPECT_THAT(func().error_message(), Eq("EXPECTED"));
+  EXPECT_THAT(func().message(), Eq("EXPECTED"));
 }
 
 TEST(ReturnIfError, CallsFunctionOnce) {
@@ -153,7 +153,7 @@ TEST(ReturnIfError, CallsFunctionOnce) {
     RETURN_IF_ERROR(successfulCalledOnceFunc());
     return ReturnOk();
   };
-  EXPECT_THAT(failureFunc().error_message(), Eq("EXPECTED"));
+  EXPECT_THAT(failureFunc().message(), Eq("EXPECTED"));
 }
 
 }  // namespace

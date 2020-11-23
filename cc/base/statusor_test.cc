@@ -128,21 +128,21 @@ TEST(StatusOr, TestMoveOnlyVector) {
 TEST(StatusOr, TestDefaultCtor) {
   StatusOr<int> thing;
   EXPECT_FALSE(thing.ok());
-  EXPECT_TRUE(thing.status().code() == UNKNOWN);
+  EXPECT_TRUE(thing.status().code() == absl::StatusCode::kUnknown);
 }
 
 TEST(StatusOrDeathTest, TestDefaultCtorValue) {
   StatusOr<int> thing;
-  EXPECT_DEATH(thing.ValueOrDie(), "Unknown");
+  EXPECT_DEATH(thing.ValueOrDie(), "UNKNOWN");
 
   const StatusOr<int> thing2;
-  EXPECT_DEATH(thing.ValueOrDie(), "Unknown");
+  EXPECT_DEATH(thing.ValueOrDie(), "UNKNOWN");
 }
 
 TEST(StatusOr, TestStatusCtor) {
   StatusOr<int> thing(CancelledError(""));
   EXPECT_FALSE(thing.ok());
-  EXPECT_TRUE(thing.status().code() == CANCELLED);
+  EXPECT_TRUE(thing.status().code() == absl::StatusCode::kCancelled);
 }
 
 TEST(StatusOrDeathTest, TestStatusCtorStatusOk) {
@@ -150,10 +150,11 @@ TEST(StatusOrDeathTest, TestStatusCtorStatusOk) {
       {
         // This will DCHECK
         StatusOr<int> thing(OkStatus());
-        // In optimized mode, we are actually going to get INTERNAL for
-        // status here, rather than crashing, so check that.
+        // In optimized mode, we are actually going to get
+        // absl::StatusCode::kInternal for status here, rather than crashing, so
+        // check that.
         EXPECT_FALSE(thing.ok());
-        EXPECT_TRUE(thing.status().code() == INTERNAL);
+        EXPECT_TRUE(thing.status().code() == absl::StatusCode::kInternal);
       },
       "An OK status is not a valid constructor argument");
 }
@@ -176,7 +177,7 @@ TEST(StatusOr, TestCopyCtorStatusOk) {
 TEST(StatusOr, TestCopyCtorStatusNotOk) {
   StatusOr<int> original(CancelledError(""));
   StatusOr<int> copy(original);
-  EXPECT_TRUE(copy.status().code() == CANCELLED);
+  EXPECT_TRUE(copy.status().code() == absl::StatusCode::kCancelled);
 }
 
 TEST(StatusOr, TestCopyCtorNonAssignable) {
@@ -359,7 +360,7 @@ TEST(StatusOr, SelfAssignment) {
     so = *&so;
 
     EXPECT_FALSE(so.ok());
-    EXPECT_THAT(so, StatusIs(NOT_FOUND, "taco"));
+    EXPECT_THAT(so, StatusIs(absl::StatusCode::kNotFound, "taco"));
   }
 
   // Move-assignment with copyable type, status OK
@@ -384,7 +385,7 @@ TEST(StatusOr, SelfAssignment) {
     so = std::move(same);
 
     EXPECT_FALSE(so.ok());
-    EXPECT_THAT(so, StatusIs(NOT_FOUND, "taco"));
+    EXPECT_THAT(so, StatusIs(absl::StatusCode::kNotFound, "taco"));
   }
 
   // Move-assignment with non-copyable type, status OK
@@ -410,7 +411,7 @@ TEST(StatusOr, SelfAssignment) {
     so = std::move(same);
 
     EXPECT_FALSE(so.ok());
-    EXPECT_THAT(so, StatusIs(NOT_FOUND, "taco"));
+    EXPECT_THAT(so, StatusIs(absl::StatusCode::kNotFound, "taco"));
   }
 }
 
@@ -419,7 +420,7 @@ TEST(StatusOr, TestStatus) {
   EXPECT_TRUE(good.ok());
   StatusOr<int> bad(CancelledError(""));
   EXPECT_FALSE(bad.ok());
-  EXPECT_TRUE(bad.status().code() == CANCELLED);
+  EXPECT_TRUE(bad.status().code() == absl::StatusCode::kCancelled);
 }
 
 TEST(StatusOr, OperatorBoolSugarForOk) {
@@ -492,20 +493,6 @@ TEST(StatusOr, OperatorArrow) {
   EXPECT_EQ(std::string("hello"), lvalue->c_str());
 }
 
-TEST(StatusOr, RValueStatus) {
-  StatusOr<int> so(NotFoundError("taco"));
-  const Status s = std::move(so).status();
-
-  EXPECT_THAT(s, StatusIs(NOT_FOUND, "taco"));
-
-  // Check that !ok() still implies !status().ok(), even after moving out of the
-  // object. See the note on the rvalue ref-qualified status method.
-  EXPECT_FALSE(so.ok());  // NOLINT
-  EXPECT_FALSE(so.status().ok());
-  EXPECT_GE(static_cast<int>(so.status().code()), 0);
-  EXPECT_EQ(so.status().message(), "");
-}
-
 TEST(StatusOr, TestValue) {
   const int kI = 4;
   StatusOr<int> thing(kI);
@@ -521,17 +508,18 @@ TEST(StatusOr, TestValueConst) {
 TEST(StatusOr, TestPointerStatusCtor) {
   StatusOr<int*> thing(CancelledError(""));
   EXPECT_FALSE(thing.ok());
-  EXPECT_TRUE(thing.status().code() == CANCELLED);
+  EXPECT_TRUE(thing.status().code() == absl::StatusCode::kCancelled);
 }
 
 TEST(StatusOrDeathTest, TestPointerStatusCtorStatusOk) {
   EXPECT_DEBUG_DEATH(
       {
         StatusOr<int*> thing(OkStatus());
-        // In optimized mode, we are actually going to get INTERNAL for
-        // status here, rather than crashing, so check that.
+        // In optimized mode, we are actually going to get
+        // absl::StatusCode::kInternal for status here, rather than crashing, so
+        // check that.
         EXPECT_FALSE(thing.ok());
-        EXPECT_TRUE(thing.status().code() == INTERNAL);
+        EXPECT_TRUE(thing.status().code() == absl::StatusCode::kInternal);
       },
       "An OK status is not a valid constructor argument");
 }
@@ -577,7 +565,7 @@ TEST(StatusOr, TestPointerCopyCtorStatusOk) {
 TEST(StatusOr, TestPointerCopyCtorStatusNotOk) {
   StatusOr<int*> original(CancelledError(""));
   StatusOr<int*> copy(original);
-  EXPECT_TRUE(copy.status().code() == CANCELLED);
+  EXPECT_TRUE(copy.status().code() == absl::StatusCode::kCancelled);
 }
 
 TEST(StatusOr, TestPointerCopyCtorStatusOKConverting) {
@@ -592,7 +580,7 @@ TEST(StatusOr, TestPointerCopyCtorStatusOKConverting) {
 TEST(StatusOr, TestPointerCopyCtorStatusNotOkConverting) {
   StatusOr<Derived*> original(CancelledError(""));
   StatusOr<Base2*> copy(original);
-  EXPECT_TRUE(copy.status().code() == CANCELLED);
+  EXPECT_TRUE(copy.status().code() == absl::StatusCode::kCancelled);
 }
 
 TEST(StatusOr, TestPointerAssignmentStatusOk) {
@@ -608,7 +596,7 @@ TEST(StatusOr, TestPointerAssignmentStatusNotOk) {
   StatusOr<int*> source(CancelledError(""));
   StatusOr<int*> target;
   target = source;
-  EXPECT_TRUE(target.status().code() == CANCELLED);
+  EXPECT_TRUE(target.status().code() == absl::StatusCode::kCancelled);
 }
 
 TEST(StatusOr, TestPointerAssignmentStatusOKConverting) {
@@ -633,7 +621,7 @@ TEST(StatusOr, TestPointerStatus) {
   StatusOr<const int*> good(&kI);
   EXPECT_TRUE(good.ok());
   StatusOr<const int*> bad(CancelledError(""));
-  EXPECT_TRUE(bad.status().code() == CANCELLED);
+  EXPECT_TRUE(bad.status().code() == absl::StatusCode::kCancelled);
 }
 
 TEST(StatusOr, TestPointerValue) {
@@ -690,12 +678,12 @@ TEST(StatusOr, MapToStatusOrUniquePtr) {
 
 TEST(StatusOrDeathTest, TestPointerValueNotOk) {
   StatusOr<int*> thing(CancelledError(""));
-  EXPECT_DEATH(thing.ValueOrDie(), "ancelled");
+  EXPECT_DEATH(thing.ValueOrDie(), "CANCELLED");
 }
 
 TEST(StatusOrDeathTest, TestPointerValueNotOkConst) {
   const StatusOr<int*> thing(CancelledError(""));
-  EXPECT_DEATH(thing.ValueOrDie(), "ancelled");
+  EXPECT_DEATH(thing.ValueOrDie(), "CANCELLED");
 }
 
 static StatusOr<int> MakeStatus() { return 100; }

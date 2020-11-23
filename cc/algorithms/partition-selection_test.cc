@@ -51,7 +51,7 @@ TEST(PartitionSelectionTest, PreaggPartitionSelectionUnsetEpsilon) {
   auto failed_build =
       test_builder.SetDelta(0.1).SetMaxPartitionsContributed(2).Build();
   EXPECT_THAT(failed_build.status().code(),
-              Eq(base::StatusCode::kInvalidArgument));
+              Eq(absl::StatusCode::kInvalidArgument));
   std::string message(std::string(failed_build.status().message()));
   EXPECT_THAT(message, MatchesRegex("^Epsilon has to be set.*"));
 }
@@ -63,7 +63,7 @@ TEST(PartitionSelectionTest, PreaggPartitionSelectionNotFiniteEpsilon) {
                           .SetMaxPartitionsContributed(4)
                           .Build();
   EXPECT_THAT(failed_build.status().code(),
-              Eq(base::StatusCode::kInvalidArgument));
+              Eq(absl::StatusCode::kInvalidArgument));
   std::string message(std::string(failed_build.status().message()));
   EXPECT_THAT(message, MatchesRegex("^Epsilon has to be finite.*"));
 }
@@ -75,7 +75,7 @@ TEST(PartitionSelectionTest, PreaggPartitionSelectionNegativeEpsilon) {
                           .SetMaxPartitionsContributed(7)
                           .Build();
   EXPECT_THAT(failed_build.status().code(),
-              Eq(base::StatusCode::kInvalidArgument));
+              Eq(absl::StatusCode::kInvalidArgument));
   std::string message(std::string(failed_build.status().message()));
   EXPECT_THAT(message, MatchesRegex("^Epsilon has to be positive.*"));
 }
@@ -85,7 +85,7 @@ TEST(PartitionSelectionTest, PreaggPartitionSelectionUnsetDelta) {
   auto failed_build =
       test_builder.SetEpsilon(8.0).SetMaxPartitionsContributed(9).Build();
   EXPECT_THAT(failed_build.status().code(),
-              Eq(base::StatusCode::kInvalidArgument));
+              Eq(absl::StatusCode::kInvalidArgument));
   std::string message(std::string(failed_build.status().message()));
   EXPECT_THAT(message, MatchesRegex("^Delta has to be set.*"));
 }
@@ -97,7 +97,7 @@ TEST(PartitionSelectionTest, PreaggPartitionSelectionNotFiniteDelta) {
                           .SetMaxPartitionsContributed(3)
                           .Build();
   EXPECT_THAT(failed_build.status().code(),
-              Eq(base::StatusCode::kInvalidArgument));
+              Eq(absl::StatusCode::kInvalidArgument));
   std::string message(std::string(failed_build.status().message()));
   EXPECT_THAT(message, MatchesRegex("^Delta has to be finite.*"));
 }
@@ -109,7 +109,7 @@ TEST(PartitionSelectionTest, PreaggPartitionSelectionInvalidDelta) {
                           .SetMaxPartitionsContributed(7)
                           .Build();
   EXPECT_THAT(failed_build.status().code(),
-              Eq(base::StatusCode::kInvalidArgument));
+              Eq(absl::StatusCode::kInvalidArgument));
   std::string message(std::string(failed_build.status().message()));
   EXPECT_THAT(message,
               MatchesRegex("^Delta has to be in the inclusive interval.*"));
@@ -120,7 +120,7 @@ TEST(PartitionSelectionTest,
   PreaggPartitionSelection::Builder test_builder;
   auto failed_build = test_builder.SetEpsilon(0.8).SetDelta(0.9).Build();
   EXPECT_THAT(failed_build.status().code(),
-              Eq(base::StatusCode::kInvalidArgument));
+              Eq(absl::StatusCode::kInvalidArgument));
   std::string message(std::string(failed_build.status().message()));
   EXPECT_THAT(message, MatchesRegex("^Max number of partitions a user can"
                                     " contribute to has to be set.*"));
@@ -134,7 +134,7 @@ TEST(PartitionSelectionTest,
                           .SetMaxPartitionsContributed(-3)
                           .Build();
   EXPECT_THAT(failed_build.status().code(),
-              Eq(base::StatusCode::kInvalidArgument));
+              Eq(absl::StatusCode::kInvalidArgument));
   std::string message(std::string(failed_build.status().message()));
   EXPECT_THAT(message, MatchesRegex("^Max number of partitions a user can"
                                     " contribute to has to be positive.*"));
@@ -307,7 +307,7 @@ TEST(PartitionSelectionTest,
           .SetEpsilon(2)
           .Build();
   EXPECT_THAT(failed_build.status().code(),
-              Eq(base::StatusCode::kInvalidArgument));
+              Eq(absl::StatusCode::kInvalidArgument));
   std::string message(std::string(failed_build.status().message()));
   EXPECT_THAT(message, MatchesRegex("^Max number of partitions a user can"
                                     " contribute to has to be set.*"));
@@ -324,7 +324,7 @@ TEST(PartitionSelectionTest,
           .SetMaxPartitionsContributed(-3)
           .Build();
   EXPECT_THAT(failed_build.status().code(),
-              Eq(base::StatusCode::kInvalidArgument));
+              Eq(absl::StatusCode::kInvalidArgument));
   std::string message(std::string(failed_build.status().message()));
   EXPECT_THAT(message, MatchesRegex("^Max number of partitions a user can"
                                     " contribute to has to be positive.*"));
@@ -339,7 +339,7 @@ TEST(PartitionSelectionTest, LaplacePartitionSelectionUnsetEpsilon) {
           .SetMaxPartitionsContributed(2)
           .Build();
   EXPECT_THAT(failed_build.status().code(),
-              Eq(base::StatusCode::kInvalidArgument));
+              Eq(absl::StatusCode::kInvalidArgument));
   std::string message(std::string(failed_build.status().message()));
   EXPECT_THAT(message, MatchesRegex("^Epsilon has to be set.*"));
 }
@@ -353,7 +353,7 @@ TEST(PartitionSelectionTest, LaplacePartitionSelectionUnsetDelta) {
           .SetMaxPartitionsContributed(2)
           .Build();
   EXPECT_THAT(failed_build.status().code(),
-              Eq(base::StatusCode::kInvalidArgument));
+              Eq(absl::StatusCode::kInvalidArgument));
   std::string message(std::string(failed_build.status().message()));
   EXPECT_THAT(message, MatchesRegex("^Delta has to be set.*"));
 }
@@ -368,7 +368,7 @@ TEST(PartitionSelectionTest, LaplacePartitionSelectionNotFiniteDelta) {
           .SetMaxPartitionsContributed(2)
           .Build();
   EXPECT_THAT(failed_build.status().code(),
-              Eq(base::StatusCode::kInvalidArgument));
+              Eq(absl::StatusCode::kInvalidArgument));
   std::string message(std::string(failed_build.status().message()));
   EXPECT_THAT(message, MatchesRegex("^Delta has to be finite.*"));
 }
@@ -383,7 +383,7 @@ TEST(PartitionSelectionTest, LaplacePartitionSelectionInvalidDelta) {
           .SetMaxPartitionsContributed(2)
           .Build();
   EXPECT_THAT(failed_build.status().code(),
-              Eq(base::StatusCode::kInvalidArgument));
+              Eq(absl::StatusCode::kInvalidArgument));
   std::string message(std::string(failed_build.status().message()));
   EXPECT_THAT(message,
               MatchesRegex("^Delta has to be in the inclusive interval.*"));

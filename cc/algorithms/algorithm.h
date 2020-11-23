@@ -23,7 +23,7 @@
 #include <string>
 
 #include "absl/memory/memory.h"
-#include "base/status.h"
+#include "absl/status/status.h"
 #include "base/statusor.h"
 #include "algorithms/numerical-mechanisms.h"
 #include "algorithms/util.h"
@@ -136,7 +136,7 @@ class Algorithm {
   // represent data from the same algorithm type with identical parameters. The
   // data field must contain the algorithm summary type of the corresponding
   // algorithm used. The summary proto cannot be empty.
-  virtual base::Status Merge(const Summary& summary) = 0;
+  virtual absl::Status Merge(const Summary& summary) = 0;
 
   // Returns the memory currently used by the algorithm in bytes.
   virtual int64_t MemoryUsed() = 0;
@@ -156,7 +156,7 @@ class Algorithm {
   // confidence intervals rely on input size.
   virtual base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
       double confidence_level, double privacy_budget) {
-    return base::UnimplementedError(
+    return absl::UnimplementedError(
         "NoiseConfidenceInterval() unsupported for this algorithm");
   }
 

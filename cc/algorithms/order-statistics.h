@@ -18,7 +18,7 @@
 #define DIFFERENTIAL_PRIVACY_ALGORITHMS_ORDER_STATISTICS_H_
 
 #include "base/percentile.h"
-#include "base/status.h"
+#include "absl/status/status.h"
 #include "base/statusor.h"
 #include "algorithms/algorithm.h"
 #include "algorithms/binary-search.h"
@@ -46,7 +46,7 @@ class OrderStatisticsBuilder
  protected:
   // Check numeric parameters and construct quantiles and mechanism. Called
   // only at build.
-  base::Status ConstructDependencies() {
+  absl::Status ConstructDependencies() {
     std::unique_ptr<NumericalMechanism> has_to_be_laplace;
     ASSIGN_OR_RETURN(
         has_to_be_laplace,
@@ -63,12 +63,12 @@ class OrderStatisticsBuilder
         dynamic_cast<LaplaceMechanism*>(has_to_be_laplace.release()));
 
     if (mechanism_ == nullptr) {
-      return base::InvalidArgumentError(
+      return absl::InvalidArgumentError(
           "Order statistics are only supported for Laplace mechanism.");
     }
 
     quantiles_ = absl::make_unique<base::Percentile<T>>();
-    return base::OkStatus();
+    return absl::OkStatus();
   }
 
   // Constructed when processing parameters.
@@ -181,7 +181,7 @@ class Percentile : public BinarySearch<T> {
         override {
       RETURN_IF_ERROR(OrderBuilder::ConstructDependencies());
       if (percentile_ < 0 || percentile_ > 1) {
-        return base::InvalidArgumentError(
+        return absl::InvalidArgumentError(
             "Percentile must be between 0 and 1.");
       }
       return absl::WrapUnique(

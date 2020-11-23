@@ -187,7 +187,7 @@ TYPED_TEST(BoundedMeanTest, PropagateApproxBoundsError) {
   // Automatic bounds are needed but there is no input, so the count-threshhold
   // should exceed any bin count.
   EXPECT_THAT((*bm)->PartialResult(),
-              StatusIs(base::StatusCode::kFailedPrecondition,
+              StatusIs(absl::StatusCode::kFailedPrecondition,
                        HasSubstr("Bin count threshold was too large")));
 }
 
@@ -205,9 +205,9 @@ TYPED_TEST(BoundedMeanTest, MaxContributionsVarianceTest) {
                           .SetLower(-1)
                           .SetUpper(1)
                           .Build();
-          CHECK_EQ(mean.status(), base::OkStatus());
+          CHECK_EQ(mean.status(), absl::OkStatus());
           auto out = (*mean)->Result(input.begin(), input.end());
-          CHECK_EQ(out.status(), base::OkStatus());
+          CHECK_EQ(out.status(), absl::OkStatus());
           sum += std::pow(GetValue<double>(*out), 2);
         }
         return sum / (kNumSamples - 1);
@@ -564,7 +564,7 @@ TEST(BoundedMeanTest, SensitivityOverflowApproxBounds) {
   (*bm)->AddEntry(INT_MAX);
 
   EXPECT_THAT((*bm)->PartialResult(),
-              StatusIs(base::StatusCode::kInvalidArgument,
+              StatusIs(absl::StatusCode::kInvalidArgument,
                        HasSubstr("Upper - lower caused integer overflow.")));
 }
 

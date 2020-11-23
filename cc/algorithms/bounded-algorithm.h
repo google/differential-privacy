@@ -20,7 +20,7 @@
 #include <memory>
 #include <type_traits>
 
-#include "base/status.h"
+#include "absl/status/status.h"
 #include "base/statusor.h"
 #include "algorithms/algorithm.h"
 #include "algorithms/approx-bounds.h"
@@ -88,7 +88,7 @@ class BoundedAlgorithmBuilder : public AlgorithmBuilder<T, Algorithm, Builder> {
     return lower_.has_value() && upper_.has_value();
   }
 
-  base::Status BoundsSetup() {
+  absl::Status BoundsSetup() {
     // If either bound is not set and we do not have an ApproxBounds,
     // construct the default one.
     if (!BoundsAreSet() && !approx_bounds_) {
@@ -107,15 +107,15 @@ class BoundedAlgorithmBuilder : public AlgorithmBuilder<T, Algorithm, Builder> {
     // have been set manually.
     if (BoundsAreSet() && std::is_floating_point<T>::value) {
       if (!std::isfinite(static_cast<double>(lower_.value()))) {
-        return base::InvalidArgumentError(absl::StrCat(
+        return absl::InvalidArgumentError(absl::StrCat(
             "Lower bound has to be finite but is ", lower_.value()));
       }
       if (!std::isfinite(static_cast<double>(upper_.value()))) {
-        return base::InvalidArgumentError(absl::StrCat(
+        return absl::InvalidArgumentError(absl::StrCat(
             "Upper bound has to be finite but is ", upper_.value()));
       }
     }
-    return base::OkStatus();
+    return absl::OkStatus();
   }
 
   // Returns the epsilon allotted for calculating the aggregation. If bounds
@@ -152,12 +152,12 @@ class BoundedAlgorithmBuilder : public AlgorithmBuilder<T, Algorithm, Builder> {
   // lower and upper bounds, respectively.
   std::unique_ptr<ApproxBounds<T>> approx_bounds_;
 
-  base::Status CheckBoundsOrder() {
+  absl::Status CheckBoundsOrder() {
     if (BoundsAreSet() && lower_.value() > upper_.value()) {
-      return base::InvalidArgumentError(
+      return absl::InvalidArgumentError(
           "Lower bound cannot be greater than upper bound.");
     }
-    return base::OkStatus();
+    return absl::OkStatus();
   }
 
   // Common initialization and checks for building bounded algorithms.

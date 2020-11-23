@@ -56,7 +56,6 @@ cc_library(
 
 cc_library(
     name = "status",
-    srcs = ["status.cc"],
     hdrs = [
         "status.h",
         "status_macros.h",
@@ -64,6 +63,7 @@ cc_library(
     deps = [
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/container:node_hash_map",
+        "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:optional",
     ],
@@ -71,12 +71,9 @@ cc_library(
 
 cc_library(
     name = "canonical_errors",
-    srcs = ["canonical_errors.cc"],
     hdrs = ["canonical_errors.h"],
     deps = [
         ":status",
-        "@com_google_absl//absl/base:core_headers",
-        "@com_google_absl//absl/strings",
     ],
 )
 
@@ -100,15 +97,6 @@ cc_test(
         ":percentile",
         "@com_google_googletest//:gtest_main",
         "@com_google_differential_privacy//proto:summary_cc_proto",
-    ],
-)
-
-cc_test(
-    name = "status_test",
-    srcs = ["status_test.cc"],
-    deps = [
-        ":status",
-        "@com_google_googletest//:gtest_main",
     ],
 )
 

@@ -21,7 +21,7 @@
 #include <limits>
 
 #include "google/protobuf/any.pb.h"
-#include "base/status.h"
+#include "absl/status/status.h"
 #include "base/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "algorithms/algorithm.h"
@@ -142,24 +142,24 @@ class ApproxBounds : public Algorithm<T> {
       // success_probability restrictions prevent undefined threshold
       // calculation.
       if (num_bins_ < 1) {
-        return base::InvalidArgumentError("Must have one or more bins.");
+        return absl::InvalidArgumentError("Must have one or more bins.");
       }
       if (scale_ <= 0) {
-        return base::InvalidArgumentError("Scale must be positive.");
+        return absl::InvalidArgumentError("Scale must be positive.");
       }
       if (base_ <= 1) {
-        return base::InvalidArgumentError("Base must be greater than 1.");
+        return absl::InvalidArgumentError("Base must be greater than 1.");
       }
       // TODO: Handle case where scale * base^num_bins >
       // std::numeric_limits<T>::max, even though the ApproxBounds constructor
       // addresses this
       if (has_k_) {
         if (k_ < 0) {
-          return base::InvalidArgumentError("k threshold must be nonnegative.");
+          return absl::InvalidArgumentError("k threshold must be nonnegative.");
         }
       } else {
         if (success_probability_ <= 0 || success_probability_ >= 1) {
-          return base::InvalidArgumentError(
+          return absl::InvalidArgumentError(
               "Success percentage must be between 0 and 1.");
         }
       }
@@ -205,20 +205,20 @@ class ApproxBounds : public Algorithm<T> {
   }
 
   // Retrieve positive and negative bin counts from summary and add them.
-  base::Status Merge(const Summary& summary) override {
+  absl::Status Merge(const Summary& summary) override {
     if (!summary.has_data()) {
-      return base::InternalError(
+      return absl::InternalError(
           "Cannot merge summary with no histogram data.");
     }
     ApproxBoundsSummary am_summary;
     if (!summary.data().UnpackTo(&am_summary)) {
-      return base::InternalError(
+      return absl::InternalError(
           "Approximate bounds summary unable to be unpacked.");
     }
 
     if (pos_bins_.size() != am_summary.pos_bin_count_size() ||
         neg_bins_.size() != am_summary.neg_bin_count_size()) {
-      return base::InternalError(
+      return absl::InternalError(
           "Merged approximate max summary must have the same number of "
           "bin counts as this histogram.");
     }
@@ -228,7 +228,7 @@ class ApproxBounds : public Algorithm<T> {
       SafeAdd<int64_t>(pos_bins_[i], am_summary.pos_bin_count(i), &pos_bins_[i]);
       SafeAdd<int64_t>(neg_bins_[i], am_summary.neg_bin_count(i), &neg_bins_[i]);
     }
-    return base::OkStatus();
+    return absl::OkStatus();
   }
 
   int64_t MemoryUsed() override {
@@ -467,7 +467,7 @@ class ApproxBounds : public Algorithm<T> {
 
     // Record error status if approx min or max was not found.
     if (output.elements_size() < 2) {
-      return base::FailedPreconditionError(
+      return absl::FailedPreconditionError(
           "Bin count threshold was too large to find approximate "
           "bounds. Either run over a larger dataset or decrease "
           "success_probability and try again.");
@@ -608,7 +608,7 @@ class ApproxBounds : public Algorithm<T> {
   base::StatusOr<double> NumInputsOutside(T lower, T upper) {
     // Check that noisy bins have been populated.
     if (noisy_pos_bins_.empty()) {
-      return base::InvalidArgumentError(
+      return absl::InvalidArgumentError(
           "Noisy histogram bins have not been created. Try generating "
           "results first.");
     }

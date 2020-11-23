@@ -121,7 +121,7 @@ TYPED_TEST(ApproxBoundsTest, EmptyHistogramTest) {
   EXPECT_THAT(
       (*bounds)->PartialResult(),
       StatusIs(
-          base::StatusCode::kFailedPrecondition,
+          absl::StatusCode::kFailedPrecondition,
           HasSubstr(
               "run over a larger dataset or decrease success_probability")));
 }
@@ -184,7 +184,7 @@ TYPED_TEST(ApproxBoundsTest, InvalidParameters) {
                   .SetBase(2)
                   .SetSuccessProbability(.95)
                   .Build(),
-              StatusIs(base::StatusCode::kInvalidArgument,
+              StatusIs(absl::StatusCode::kInvalidArgument,
                        HasSubstr("Must have one or more bins")));
   EXPECT_THAT(typename ApproxBounds<TypeParam>::Builder()
                   .SetNumBins(2)
@@ -192,7 +192,7 @@ TYPED_TEST(ApproxBoundsTest, InvalidParameters) {
                   .SetBase(2)
                   .SetSuccessProbability(.95)
                   .Build(),
-              StatusIs(base::StatusCode::kInvalidArgument,
+              StatusIs(absl::StatusCode::kInvalidArgument,
                        HasSubstr("Scale must be positive")));
   EXPECT_THAT(typename ApproxBounds<TypeParam>::Builder()
                   .SetNumBins(2)
@@ -200,7 +200,7 @@ TYPED_TEST(ApproxBoundsTest, InvalidParameters) {
                   .SetBase(0.5)
                   .SetSuccessProbability(.95)
                   .Build(),
-              StatusIs(base::StatusCode::kInvalidArgument,
+              StatusIs(absl::StatusCode::kInvalidArgument,
                        HasSubstr("Base must be greater than 1")));
   EXPECT_THAT(
       typename ApproxBounds<TypeParam>::Builder()
@@ -209,7 +209,7 @@ TYPED_TEST(ApproxBoundsTest, InvalidParameters) {
           .SetBase(2)
           .SetSuccessProbability(1)
           .Build(),
-      StatusIs(base::StatusCode::kInvalidArgument,
+      StatusIs(absl::StatusCode::kInvalidArgument,
                HasSubstr("Success percentage must be between 0 and 1")));
   EXPECT_THAT(typename ApproxBounds<TypeParam>::Builder()
                   .SetNumBins(2)
@@ -217,7 +217,7 @@ TYPED_TEST(ApproxBoundsTest, InvalidParameters) {
                   .SetBase(2)
                   .SetThreshold(-1)
                   .Build(),
-              StatusIs(base::StatusCode::kInvalidArgument,
+              StatusIs(absl::StatusCode::kInvalidArgument,
                        HasSubstr("k threshold must be nonnegative")));
 }
 
@@ -488,7 +488,7 @@ TEST(ApproxBoundsTest, ThresholdByPrivacyBudget) {
   ASSERT_OK(bounds1);
   (*bounds1)->AddEntries(a.begin(), a.end());
   EXPECT_THAT((*bounds1)->PartialResult(.5),
-              StatusIs(base::StatusCode::kFailedPrecondition,
+              StatusIs(absl::StatusCode::kFailedPrecondition,
                        HasSubstr("decrease success_probability")));
 
   // Threshold = 1.9 / privacy_budget = 1.9, so bounds are found.

@@ -54,11 +54,11 @@ class SecureURBG {
  private:
   SecureURBG() { buffer_ = new uint8_t[kBufferSize]; }
   ~SecureURBG() { delete[] buffer_; }
-  // Refesh the cache with new random bytes.
+  // Refresh the cache with new random bytes.
   void RefreshBuffer() ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
   static constexpr int kBufferSize = 65536;
-  // The corrent index in the cache.
+  // The current index in the cache.
   int current_index_ ABSL_GUARDED_BY(mutex_) = kBufferSize;
   uint8_t* buffer_ ABSL_GUARDED_BY(mutex_);
   absl::Mutex mutex_;

@@ -38,8 +38,8 @@ class TestAlgorithm : public Algorithm<T> {
   TestAlgorithm() : Algorithm<T>(1.0) {}
   void AddEntry(const T& t) override {}
   Summary Serialize() override { return Summary(); }
-  base::Status Merge(const Summary& summary) override {
-    return base::OkStatus();
+  absl::Status Merge(const Summary& summary) override {
+    return absl::OkStatus();
   }
   int64_t MemoryUsed() override { return sizeof(TestAlgorithm<T>); }
 

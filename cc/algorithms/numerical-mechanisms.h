@@ -28,7 +28,7 @@
 #include "base/logging.h"
 #include "absl/base/attributes.h"
 #include "absl/memory/memory.h"
-#include "base/status.h"
+#include "absl/status/status.h"
 #include "base/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
@@ -84,44 +84,44 @@ class NumericalMechanism {
 
   virtual base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
       double confidence_level, double privacy_budget, double noised_result) {
-    return base::UnimplementedError(
+    return absl::UnimplementedError(
         "NoiseConfidenceInterval() unsupported for this numerical mechanism.");
   }
 
   virtual base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
       double confidence_level, double privacy_budget) {
-    return base::UnimplementedError(
+    return absl::UnimplementedError(
         "NoiseConfidenceInterval() unsupported for this numerical mechanism.");
   }
 
   double GetEpsilon() { return epsilon_; }
 
  protected:
-  base::Status CheckConfidenceLevel(double confidence_level) {
+  absl::Status CheckConfidenceLevel(double confidence_level) {
     if (std::isnan(confidence_level) ||
         !(0 < confidence_level && confidence_level < 1)) {
-      return base::InvalidArgumentError(absl::StrCat(
+      return absl::InvalidArgumentError(absl::StrCat(
           "Confidence level has to be in the open interval (0,1), but is ",
           confidence_level));
     }
-    return base::OkStatus();
+    return absl::OkStatus();
   }
 
-  base::Status CheckPrivacyBudget(double privacy_budget) {
+  absl::Status CheckPrivacyBudget(double privacy_budget) {
     if (std::isnan(privacy_budget) ||
         !(0 < privacy_budget && privacy_budget <= 1)) {
-      return base::InvalidArgumentError(absl::StrCat(
+      return absl::InvalidArgumentError(absl::StrCat(
           "privacy_budget has to be in the interval (0, 1], but is ",
           privacy_budget));
     }
-    return base::OkStatus();
+    return absl::OkStatus();
   }
 
   // Checks and clamps the budget so that it is in the interval (0,1].  Should
-  // only be used in methods where we no longer can return an base::Status, as
+  // only be used in methods where we no longer can return an absl::Status, as
   // it tries some recovery from invalid states.
   double CheckAndClampBudget(double privacy_budget) {
-    base::Status status = CheckPrivacyBudget(privacy_budget);
+    absl::Status status = CheckPrivacyBudget(privacy_budget);
     LOG_IF(ERROR, !status.ok()) << status.message();
     if (std::isnan(privacy_budget)) {
       // Recover from this invalid state by returning the minimal possible
@@ -166,13 +166,13 @@ class NumericalMechanismBuilder {
 
  protected:
   // Checks if delta is set and valid to be used in the Gaussian mechanism.
-  base::Status DeltaIsSetAndValid() const {
+  absl::Status DeltaIsSetAndValid() const {
     ASSIGN_OR_RETURN(double delta, GetValueIfSetAndFinite(delta_, "Delta"));
     if (delta <= 0 || 1 <= delta) {
-      return base::InvalidArgumentError(absl::StrCat(
+      return absl::InvalidArgumentError(absl::StrCat(
           "Delta has to be in the interval (0, 1) but is ", delta));
     }
-    return base::OkStatus();
+    return absl::OkStatus();
   }
 
   absl::optional<double> GetEpsilon() const { return epsilon_; }
@@ -219,7 +219,7 @@ class LaplaceMechanism : public NumericalMechanism {
           internal::LaplaceDistribution::cdf(
               diversity, std::numeric_limits<double>::lowest());
       if (overflow_probability >= kMaxOverflowProbability) {
-        return base::InvalidArgumentError("Sensitivity is too high.");
+        return absl::InvalidArgumentError("Sensitivity is too high.");
       }
       base::StatusOr<double> gran_or_status =
           internal::CalculateGranularity(epsilon, L1);
@@ -254,7 +254,7 @@ class LaplaceMechanism : public NumericalMechanism {
             GetValueIfSetAndPositive(GetLInfSensitivity(), "LInf sensitivity"));
         double l1 = l0 * linf;
         if (!std::isfinite(l1)) {
-          return base::InvalidArgumentError(absl::StrCat(
+          return absl::InvalidArgumentError(absl::StrCat(
               "The result of the L1 sensitivity calculation is not finite: ",
               l1,
               ". Please check your contribution and sensitivity settings."));
@@ -390,7 +390,7 @@ class GaussianMechanism : public NumericalMechanism {
             GetValueIfSetAndPositive(GetLInfSensitivity(), "LInf sensitivity"));
         double l2 = std::sqrt(l0) * linf;
         if (!std::isfinite(l2) || l2 <= 0) {
-          return base::InvalidArgumentError(absl::StrCat(
+          return absl::InvalidArgumentError(absl::StrCat(
               "The calculated L2 sensitivity has to be positive and finite but "
               "is ",
               l2,
@@ -399,7 +399,7 @@ class GaussianMechanism : public NumericalMechanism {
         }
         return l2;
       }
-      return base::InvalidArgumentError(
+      return absl::InvalidArgumentError(
           "Gaussian Mechanism requires either L2 sensitivity or both, L0 "
           "and LInf sensitivity to be set.");
     }

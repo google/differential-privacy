@@ -20,7 +20,7 @@
 #include <type_traits>
 
 #include "absl/memory/memory.h"
-#include "base/status.h"
+#include "absl/status/status.h"
 #include "base/statusor.h"
 #include "algorithms/algorithm.h"
 #include "algorithms/bounded-algorithm.h"
@@ -87,7 +87,7 @@ class BoundedStandardDeviation : public Algorithm<T> {
   Summary Serialize() override { return variance_->Serialize(); }
 
   // Merges from BoundedVarianceSummary.
-  base::Status Merge(const Summary& summary) override {
+  absl::Status Merge(const Summary& summary) override {
     return variance_->Merge(summary);
   }
 

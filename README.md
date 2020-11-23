@@ -1,11 +1,23 @@
 # Differential Privacy
 
-This project contains a set of libraries of ε- and (ε, δ)-differentially private
-algorithms, which can be used to produce aggregate statistics over numeric data
-sets containing private or sensitive information. The functionality is currently
-available in C++, Go and Java.
+This repository contains libraries to generate ε- and (ε, δ)-differentially
+private statistics over datasets. It contains the following tools.
 
-Currently, we provide algorithms to compute the following:
+* [Privacy on Beam](privacy-on-beam) is an end-to-end differential privacy
+  framework built on top of [Apache Beam](https://beam.apache.org/documentation/).
+  It is intended to be easy to use, even by non-experts.
+* Three "DP building block" libraries, in [C++](cc), [Go](go), and [Java](java).
+  These libraries implement basic noise addition primitives and differentially
+  private aggregations. Privacy on Beam is implemented using these libraries.
+* A [stochastic tester](cc/testing), used to help catch regressions that could
+  make the differential privacy property no longer hold.
+* A [differential privacy accounting library](python/accounting), used for
+  tracking privacy budget.
+
+To get started on generating differentially private data, we recomend you follow
+the [Privacy on Beam codelab](https://codelabs.developers.google.com/codelabs/privacy-on-beam/).
+
+Currently, the DP building block libraries support the following algorithms:
 
 | Algorithm          | C++           | Go        |Java      |
 | -------------      |:-------------:|:---------:|:--------:|
@@ -17,21 +29,13 @@ Currently, we provide algorithms to compute the following:
 | Order statistics (incl. min, max, and median) | Supported   | Planned | Planned |
 | Automatic bounds approximation | Supported   | Planned | Planned |
 
-We also provide an implementation of the Laplace and Gaussian mechanism that
-can be used to perform computations that aren't covered by our pre-built
-algorithms.
+They also contain [safe implementations](common_docs/Secure_Noise_Generation.pdf)
+of Laplace and Gaussian mechanisms, which can be used to perform computations
+that aren't covered by the algorithms implemented in our libraries.
 
-All of these algorithms are suitable for research, experimental or production
-use cases.
-
-This project also contains:
-* A [stochastic tester](https://github.com/google/differential-privacy/tree/main/cc/testing),
-used to help catch regressions that could make the differential privacy
-property no longer hold.
-* [Privacy on Beam](https://github.com/google/differential-privacy/tree/main/privacy-on-beam) -
-an end-to-end differential privacy solution built on [Apache Beam](https://beam.apache.org/documentation/)
-and Go differential privacy library.
-* [Tools for tracking privacy budget.](https://github.com/google/differential-privacy/tree/main/python/accounting)
+The DP building block libraries are suitable for research, experimental or
+production use cases, while the other tools are currently experimental, and
+subject to change.
 
 ## How to Build
 
@@ -73,23 +77,23 @@ extension, for example on Ubuntu you will need these packages:
 
 ```sudo apt-get install make libreadline-dev bison flex```
 
-## Caveats
+## Caveats of the DP building block libraries
 
-Differential Privacy requires some bound on maximum number of contributions
-each user can make to a single partition. The libraries don't perform such
-bounding.
+Differential privacy requires some bound on maximum number of contributions
+each user can make to a single aggregation. The DP building block libraries
+don't perform such bounding: their implementation assumes that each user
+contributes only a single row to each partition. It neither verifies nor
+enforces this; it is the caller's responsibility to pre-process data to enforce
+this bound.
 
-The libraries implementation assumes that each user contributes only a single
-row to each partition. It neither verifies nor enforces this; it is still the
-caller's responsibility to pre-process data to enforce this bound.
-
-We chose not to implement this step at the library level because it's not the
-logical place for it - it's much easier to sort contributions by user and
+We chose not to implement this step at the DP building block level because it's
+not the logical place for it: it's much easier to sort contributions by user and
 combine them together with a distributed processing framework before they're
-passed to our algorithms. You can use the library to build systems that allow
-multiple contributions per user - [our paper](https://arxiv.org/abs/1909.01917)
-describes one such system. To do so, multiple user contributions should be
-combined before they are passed to our algorithms.
+passed to our algorithms. You can use the DP building block library to implement
+systems that allow multiple contributions per user,
+[our paper](https://arxiv.org/abs/1909.01917) describes one such system. To do
+so, multiple user contributions should be combined before they are passed to our
+algorithms. Privacy on Beam is based on the framework described in this paper.
 
 
 ## Support

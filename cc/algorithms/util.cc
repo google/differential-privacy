@@ -83,7 +83,7 @@ double InverseErrorFunction(double x) {
 
 base::StatusOr<double> Qnorm(double p, double mu, double sigma) {
   if (p <= 0.0 || p >= 1.0) {
-    return base::InvalidArgumentError(
+    return absl::InvalidArgumentError(
         "Probability must be between 0 and 1, exclusive.");
   }
   double t = std::sqrt(-2.0 * log(std::min(p, 1.0 - p)));
@@ -118,10 +118,10 @@ double sign(double n) {
 base::StatusOr<double> GetValueIfSetAndFinite(absl::optional<double> opt,
                                               absl::string_view name) {
   if (!opt.has_value()) {
-    return base::InvalidArgumentError(absl::StrCat(name, " has to be set."));
+    return absl::InvalidArgumentError(absl::StrCat(name, " has to be set."));
   }
   if (!std::isfinite(opt.value())) {
-    return base::InvalidArgumentError(
+    return absl::InvalidArgumentError(
         absl::StrCat(name, " has to be finite but is ", opt.value()));
   }
   return opt.value();
@@ -131,7 +131,7 @@ base::StatusOr<double> GetValueIfSetAndPositive(absl::optional<double> opt,
                                                 absl::string_view name) {
   ASSIGN_OR_RETURN(double d, GetValueIfSetAndFinite(opt, name));
   if (d <= 0) {
-    return base::InvalidArgumentError(
+    return absl::InvalidArgumentError(
         absl::StrCat(name, " has to be positive but is ", d));
   }
   return d;

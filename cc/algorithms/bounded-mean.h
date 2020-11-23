@@ -22,7 +22,7 @@
 
 #include "google/protobuf/any.pb.h"
 #include "absl/random/distributions.h"
-#include "base/status.h"
+#include "absl/status/status.h"
 #include "base/statusor.h"
 #include "algorithms/algorithm.h"
 #include "algorithms/approx-bounds.h"
@@ -55,20 +55,20 @@ class BoundedMean : public Algorithm<T> {
     // For integral type, check for no overflow in the subtraction.
     template <typename T2 = T,
               std::enable_if_t<std::is_integral<T2>::value>* = nullptr>
-    static base::Status CheckBounds(T lower, T upper) {
+    static absl::Status CheckBounds(T lower, T upper) {
       T subtract_result;
       if (!SafeSubtract(upper, lower, &subtract_result)) {
-        return base::InvalidArgumentError(
+        return absl::InvalidArgumentError(
             "Upper - lower caused integer overflow.");
       }
-      return base::OkStatus();
+      return absl::OkStatus();
     }
 
     // No checks for floating point type.
     template <typename T2 = T,
               std::enable_if_t<std::is_floating_point<T2>::value>* = nullptr>
-    static base::Status CheckBounds(T lower, T upper) {
-      return base::OkStatus();
+    static absl::Status CheckBounds(T lower, T upper) {
+      return absl::OkStatus();
     }
 
    private:
@@ -155,21 +155,21 @@ class BoundedMean : public Algorithm<T> {
   // numeric limits (see SafeAdd implementation), but the raw counts will still
   // be added together. Thus, the resulting mean will be incorrect,
   // but warning the user of this would unfortunately violate DP.
-  base::Status Merge(const Summary& summary) override {
+  absl::Status Merge(const Summary& summary) override {
     if (!summary.has_data()) {
-      return base::InternalError(
+      return absl::InternalError(
           "Cannot merge summary with no bounded mean data.");
     }
 
     // Add counts and bounded sums.
     BoundedMeanSummary bm_summary;
     if (!summary.data().UnpackTo(&bm_summary)) {
-      return base::InternalError("Bounded mean summary unable to be unpacked.");
+      return absl::InternalError("Bounded mean summary unable to be unpacked.");
     }
     SafeAdd<uint64_t>(raw_count_, bm_summary.count(), &raw_count_);
     if (pos_sum_.size() != bm_summary.pos_sum_size() ||
         neg_sum_.size() != bm_summary.neg_sum_size()) {
-      return base::InternalError(
+      return absl::InternalError(
           "Merged BoundedMeans must have equal number of partial sums.");
     }
     for (int i = 0; i < pos_sum_.size(); ++i) {
@@ -185,7 +185,7 @@ class BoundedMean : public Algorithm<T> {
       RETURN_IF_ERROR(approx_bounds_->Merge(approx_bounds_summary));
     }
 
-    return base::OkStatus();
+    return absl::OkStatus();
   }
 
   int64_t MemoryUsed() override {
@@ -236,9 +236,9 @@ class BoundedMean : public Algorithm<T> {
         lower_(lower),
         upper_(upper),
         midpoint_(lower + (upper - lower) / 2),
+        mechanism_builder_(std::move(mechanism_builder)),
         l0_sensitivity_(l0_sensitivity),
         max_contributions_per_partition_(max_contributions_per_partition),
-        mechanism_builder_(std::move(mechanism_builder)),
         sum_mechanism_(std::move(sum_mechanism)),
         count_mechanism_(std::move(count_mechanism)),
         approx_bounds_(std::move(approx_bounds)) {

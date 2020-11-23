@@ -22,7 +22,7 @@
 
 #include "google/protobuf/any.pb.h"
 #include "absl/memory/memory.h"
-#include "base/status.h"
+#include "absl/status/status.h"
 #include "base/statusor.h"
 #include "algorithms/algorithm.h"
 #include "algorithms/approx-bounds.h"
@@ -62,33 +62,33 @@ class BoundedVariance : public Algorithm<T> {
     // For integral type, check for no overflow in subtraction squared.
     template <typename T2 = T,
               std::enable_if_t<std::is_integral<T2>::value>* = nullptr>
-    static base::Status CheckBounds(T lower, T upper) {
+    static absl::Status CheckBounds(T lower, T upper) {
       if (lower > upper) {
-        return base::InvalidArgumentError(
+        return absl::InvalidArgumentError(
             "Lower cannot be greater than upper.");
       }
       T subtract_result, square_result;
       if (!SafeSubtract(upper, lower, &subtract_result) ||
           !SafeSquare(subtract_result, &square_result)) {
-        return base::InvalidArgumentError(
+        return absl::InvalidArgumentError(
             "Sensitivity calculation caused integer overflow.");
       }
       if (upper > sqrt(std::numeric_limits<T>::max()) ||
           lower < -1 * sqrt(std::numeric_limits<T>::max())) {
-        return base::InvalidArgumentError(
+        return absl::InvalidArgumentError(
             "Squaring the bounds caused overflow.");
       }
-      return base::OkStatus();
+      return absl::OkStatus();
     }
 
     template <typename T2 = T,
               std::enable_if_t<std::is_floating_point<T2>::value>* = nullptr>
-    static base::Status CheckBounds(T lower, T upper) {
+    static absl::Status CheckBounds(T lower, T upper) {
       if (lower > upper) {
-        return base::InvalidArgumentError(
+        return absl::InvalidArgumentError(
             "Lower cannot be greater than upper.");
       }
-      return base::OkStatus();
+      return absl::OkStatus();
     }
 
    private:
@@ -186,27 +186,27 @@ class BoundedVariance : public Algorithm<T> {
     return summary;
   }
 
-  base::Status Merge(const Summary& summary) override {
+  absl::Status Merge(const Summary& summary) override {
     if (!summary.has_data()) {
-      return base::InternalError(
+      return absl::InternalError(
           "Cannot merge summary with no bounded variance data.");
     }
 
     // Unpack bounded variance summary.
     BoundedVarianceSummary bv_summary;
     if (!summary.data().UnpackTo(&bv_summary)) {
-      return base::InternalError(
+      return absl::InternalError(
           "Bounded variance summary unable to be unpacked.");
     }
     if ((approx_bounds_ != nullptr) != bv_summary.has_bounds_summary()) {
-      return base::InternalError(
+      return absl::InternalError(
           "Merged BoundedVariance must have the same bounding strategy.");
     }
     if (pos_sum_.size() != bv_summary.pos_sum_size() ||
         neg_sum_.size() != bv_summary.neg_sum_size() ||
         pos_sum_of_squares_.size() != bv_summary.pos_sum_of_squares_size() ||
         neg_sum_of_squares_.size() != bv_summary.neg_sum_of_squares_size()) {
-      return base::InternalError(
+      return absl::InternalError(
           "Merged BoundedVariance must have the same amount of partial "
           "sum or sum of squares values as this BoundedVariance.");
     }
@@ -230,7 +230,7 @@ class BoundedVariance : public Algorithm<T> {
       RETURN_IF_ERROR(approx_bounds_->Merge(approx_bounds_summary));
     }
 
-    return base::OkStatus();
+    return absl::OkStatus();
   }
 
   int64_t MemoryUsed() override {
@@ -283,9 +283,9 @@ class BoundedVariance : public Algorithm<T> {
         raw_count_(0),
         lower_(lower),
         upper_(upper),
+        mechanism_builder_(std::move(mechanism_builder)),
         l0_sensitivity_(l0_sensitivity),
         max_contributions_per_partition_(max_contributions_per_partition),
-        mechanism_builder_(std::move(mechanism_builder)),
         sum_mechanism_(std::move(sum_mechanism)),
         sos_mechanism_(std::move(sos_mechanism)),
         count_mechanism_(std::move(count_mechanism)),
@@ -487,7 +487,7 @@ class BoundedVariance : public Algorithm<T> {
     if (!approx_bounds_) {
       CHECK_EQ(
           AddManualBoundsEntries(Clamp<T>(lower_, upper_, t), num_of_entries),
-          base::OkStatus());
+          absl::OkStatus());
     } else {
       approx_bounds_->AddMultipleEntries(t, num_of_entries);
 
@@ -511,9 +511,9 @@ class BoundedVariance : public Algorithm<T> {
     }
   }
 
-  base::Status AddManualBoundsEntries(const T& t, uint64_t num_of_entries) {
+  absl::Status AddManualBoundsEntries(const T& t, uint64_t num_of_entries) {
     if (approx_bounds_) {
-      return base::InternalError(
+      return absl::InternalError(
           "AddManualBoundsEntry() can only be used when bounds were set "
           "manually.");
     }
@@ -522,10 +522,10 @@ class BoundedVariance : public Algorithm<T> {
                      std::numeric_limits<T>::max(), t * num_of_entries),
             &pos_sum_[0]);
     pos_sum_of_squares_[0] += pow(t, 2) * num_of_entries;
-    return base::OkStatus();
+    return absl::OkStatus();
   }
 
-  base::Status AddManualBoundsEntry(const T& t) {
+  absl::Status AddManualBoundsEntry(const T& t) {
     return AddManualBoundsEntries(t, 1);
   }
 

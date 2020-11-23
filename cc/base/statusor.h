@@ -97,10 +97,10 @@ class StatusOr : private statusor_internal::StatusOrData<T>,
  public:
   using element_type = T;
 
-  // Constructs a new StatusOr with Status::UNKNOWN status.  This is marked
-  // 'explicit' to try to catch cases like 'return {};', where people think
-  // StatusOr<std::vector<int>> will be initialized with an empty vector,
-  // instead of a Status::UNKNOWN status.
+  // Constructs a new StatusOr with absl::StatusCode::kUnknown status.  This is
+  // marked 'explicit' to try to catch cases like 'return {};', where people
+  // think StatusOr<std::vector<int>> will be initialized with an empty vector,
+  // instead of a absl::StatusCode::kUnknown status.
   explicit StatusOr();
 
   // StatusOr<T> will be copy constructible/assignable if T is copy
@@ -248,7 +248,7 @@ class StatusOr : private statusor_internal::StatusOrData<T>,
 // Implementation details for StatusOr<T>
 
 template <typename T>
-StatusOr<T>::StatusOr() : Base(Status(UNKNOWN, "")) {}
+StatusOr<T>::StatusOr() : Base(Status(absl::StatusCode::kUnknown, "")) {}
 
 template <typename T>
 StatusOr<T>::StatusOr(const T& value) : Base(value) {}

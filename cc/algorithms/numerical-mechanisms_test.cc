@@ -66,7 +66,7 @@ TEST(NumericalMechanismsTest, LaplaceBuilderFailsEpsilonNotSet) {
   LaplaceMechanism::Builder test_builder;
   auto failed_build = test_builder.SetL1Sensitivity(1).Build();
   EXPECT_THAT(failed_build.status().code(),
-              Eq(base::StatusCode::kInvalidArgument));
+              Eq(absl::StatusCode::kInvalidArgument));
   // Convert message to std::string so that the matcher works in the open source
   // version.
   std::string message(failed_build.status().message());
@@ -77,7 +77,7 @@ TEST(NumericalMechanismsTest, LaplaceBuilderFailsEpsilonZero) {
   LaplaceMechanism::Builder test_builder;
   auto failed_build = test_builder.SetL1Sensitivity(1).SetEpsilon(0).Build();
   EXPECT_THAT(failed_build.status().code(),
-              Eq(base::StatusCode::kInvalidArgument));
+              Eq(absl::StatusCode::kInvalidArgument));
   // Convert message to std::string so that the matcher works in the open source
   // version.
   std::string message(failed_build.status().message());
@@ -88,7 +88,7 @@ TEST(NumericalMechanismsTest, LaplaceBuilderFailsEpsilonNegative) {
   LaplaceMechanism::Builder test_builder;
   auto failed_build = test_builder.SetL1Sensitivity(1).SetEpsilon(-1).Build();
   EXPECT_THAT(failed_build.status().code(),
-              Eq(base::StatusCode::kInvalidArgument));
+              Eq(absl::StatusCode::kInvalidArgument));
   // Convert message to std::string so that the matcher works in the open source
   // version.
   std::string message(failed_build.status().message());
@@ -99,7 +99,7 @@ TEST(NumericalMechanismsTest, LaplaceBuilderFailsEpsilonNan) {
   LaplaceMechanism::Builder test_builder;
   auto failed_build = test_builder.SetL1Sensitivity(1).SetEpsilon(NAN).Build();
   EXPECT_THAT(failed_build.status().code(),
-              Eq(base::StatusCode::kInvalidArgument));
+              Eq(absl::StatusCode::kInvalidArgument));
   // Convert message to std::string so that the matcher works in the open source
   // version.
   std::string message(failed_build.status().message());
@@ -111,7 +111,7 @@ TEST(NumericalMechanismsTest, LaplaceBuilderFailsEpsilonInfinity) {
   auto failed_build =
       test_builder.SetL1Sensitivity(1).SetEpsilon(INFINITY).Build();
   EXPECT_THAT(failed_build.status().code(),
-              Eq(base::StatusCode::kInvalidArgument));
+              Eq(absl::StatusCode::kInvalidArgument));
   // Convert message to std::string so that the matcher works in the open source
   // version.
   std::string message(failed_build.status().message());
@@ -125,7 +125,7 @@ TEST(NumericalMechanismsTest, LaplaceBuilderFailsL0SensitivityNan) {
                           .SetEpsilon(1)
                           .Build();
   EXPECT_THAT(failed_build.status().code(),
-              Eq(base::StatusCode::kInvalidArgument));
+              Eq(absl::StatusCode::kInvalidArgument));
   // Convert message to std::string so that the matcher works in the open source
   // version.
   std::string message(failed_build.status().message());
@@ -139,7 +139,7 @@ TEST(NumericalMechanismsTest, LaplaceBuilderFailsL0SensitivityInfinity) {
                           .SetEpsilon(1)
                           .Build();
   EXPECT_THAT(failed_build.status().code(),
-              Eq(base::StatusCode::kInvalidArgument));
+              Eq(absl::StatusCode::kInvalidArgument));
   // Convert message to std::string so that the matcher works in the open source
   // version.
   std::string message(failed_build.status().message());
@@ -153,7 +153,7 @@ TEST(NumericalMechanismsTest, LaplaceBuilderFailsLInfSensitivityNan) {
                           .SetEpsilon(1)
                           .Build();
   EXPECT_THAT(failed_build.status().code(),
-              Eq(base::StatusCode::kInvalidArgument));
+              Eq(absl::StatusCode::kInvalidArgument));
   // Convert message to std::string so that the matcher works in the open source
   // version.
   std::string message(failed_build.status().message());
@@ -167,7 +167,7 @@ TEST(NumericalMechanismsTest, LaplaceBuilderFailsL0SensitivityNegative) {
                           .SetEpsilon(1)
                           .Build();
   EXPECT_THAT(failed_build.status().code(),
-              Eq(base::StatusCode::kInvalidArgument));
+              Eq(absl::StatusCode::kInvalidArgument));
   // Convert message to std::string so that the matcher works in the open source
   // version.
   std::string message(failed_build.status().message());
@@ -182,7 +182,7 @@ TEST(NumericalMechanismsTest, LaplaceBuilderFailsLInfSensitivityZero) {
                           .SetEpsilon(1)
                           .Build();
   EXPECT_THAT(failed_build.status().code(),
-              Eq(base::StatusCode::kInvalidArgument));
+              Eq(absl::StatusCode::kInvalidArgument));
   // Convert message to std::string so that the matcher works in the open source
   // version.
   std::string message(failed_build.status().message());
@@ -306,7 +306,7 @@ TEST(NumericalMechanismsTest, LaplaceConfidenceIntervalFailsForBudgetNan) {
   LaplaceMechanism mechanism(1.0, 1.0);
   auto failed_confidence_interval = mechanism.NoiseConfidenceInterval(0.5, NAN);
   EXPECT_THAT(failed_confidence_interval,
-              StatusIs(base::StatusCode::kInvalidArgument,
+              StatusIs(absl::StatusCode::kInvalidArgument,
                        HasSubstr("privacy_budget has to be in")));
 }
 
@@ -315,7 +315,7 @@ TEST(NumericalMechanismsTest,
   LaplaceMechanism mechanism(1.0, 1.0);
   auto failed_confidence_interval = mechanism.NoiseConfidenceInterval(NAN, 1.0);
   EXPECT_THAT(failed_confidence_interval,
-              StatusIs(base::StatusCode::kInvalidArgument,
+              StatusIs(absl::StatusCode::kInvalidArgument,
                        HasSubstr("Confidence level has to be in")));
 }
 
@@ -437,7 +437,7 @@ TEST(NumericalMechanismsTest, GaussianBuilderFailsDeltaNotSet) {
   GaussianMechanism::Builder test_builder;
   auto failed_build = test_builder.SetL2Sensitivity(1).SetEpsilon(1).Build();
   EXPECT_THAT(failed_build.status().code(),
-              Eq(base::StatusCode::kInvalidArgument));
+              Eq(absl::StatusCode::kInvalidArgument));
   // Convert message to std::string so that the matcher works in the open source
   // version.
   std::string message(failed_build.status().message());
@@ -449,7 +449,7 @@ TEST(NumericalMechanismsTest, GaussianBuilderFailsDeltaNan) {
   auto failed_build =
       test_builder.SetL2Sensitivity(1).SetEpsilon(1).SetDelta(NAN).Build();
   EXPECT_THAT(failed_build.status().code(),
-              Eq(base::StatusCode::kInvalidArgument));
+              Eq(absl::StatusCode::kInvalidArgument));
   // Convert message to std::string so that the matcher works in the open source
   // version.
   std::string message(failed_build.status().message());
@@ -461,7 +461,7 @@ TEST(NumericalMechanismsTest, GaussianBuilderFailsDeltaNegative) {
   auto failed_build =
       test_builder.SetL2Sensitivity(1).SetEpsilon(1).SetDelta(-1).Build();
   EXPECT_THAT(failed_build.status().code(),
-              Eq(base::StatusCode::kInvalidArgument));
+              Eq(absl::StatusCode::kInvalidArgument));
   // Convert message to std::string so that the matcher works in the open source
   // version.
   std::string message(failed_build.status().message());
@@ -473,7 +473,7 @@ TEST(NumericalMechanismsTest, GaussianBuilderFailsDeltaOne) {
   auto failed_build =
       test_builder.SetL2Sensitivity(1).SetEpsilon(1).SetDelta(1).Build();
   EXPECT_THAT(failed_build.status().code(),
-              Eq(base::StatusCode::kInvalidArgument));
+              Eq(absl::StatusCode::kInvalidArgument));
   // Convert message to std::string so that the matcher works in the open source
   // version.
   std::string message(failed_build.status().message());
@@ -485,7 +485,7 @@ TEST(NumericalMechanismsTest, GaussianBuilderFailsDeltaZero) {
   auto failed_build =
       test_builder.SetL2Sensitivity(1).SetEpsilon(1).SetDelta(0).Build();
   EXPECT_THAT(failed_build.status().code(),
-              Eq(base::StatusCode::kInvalidArgument));
+              Eq(absl::StatusCode::kInvalidArgument));
   // Convert message to std::string so that the matcher works in the open source
   // version.
   std::string message(failed_build.status().message());
@@ -500,7 +500,7 @@ TEST(NumericalMechanismsTest, GaussianBuilderFailsL0SensitivityNan) {
                           .SetDelta(0.2)
                           .Build();
   EXPECT_THAT(failed_build.status().code(),
-              Eq(base::StatusCode::kInvalidArgument));
+              Eq(absl::StatusCode::kInvalidArgument));
   // Convert message to std::string so that the matcher works in the open source
   // version.
   std::string message(failed_build.status().message());
@@ -515,7 +515,7 @@ TEST(NumericalMechanismsTest, GaussianBuilderFailsLInfSensitivityInfinity) {
                           .SetDelta(0.2)
                           .Build();
   EXPECT_THAT(failed_build.status().code(),
-              Eq(base::StatusCode::kInvalidArgument));
+              Eq(absl::StatusCode::kInvalidArgument));
   // Convert message to std::string so that the matcher works in the open source
   // version.
   std::string message(failed_build.status().message());
@@ -527,7 +527,7 @@ TEST(NumericalMechanismsTest, GaussianBuilderFailsL2SensitivityNan) {
   auto failed_build =
       test_builder.SetL2Sensitivity(NAN).SetEpsilon(1).SetDelta(0.2).Build();
   EXPECT_THAT(failed_build.status().code(),
-              Eq(base::StatusCode::kInvalidArgument));
+              Eq(absl::StatusCode::kInvalidArgument));
   // Convert message to std::string so that the matcher works in the open source
   // version.
   std::string message(failed_build.status().message());
@@ -544,7 +544,7 @@ TEST(NumericalMechanismsTest, GaussianBuilderFailsCalculatedL2SensitivityZero) {
                           .SetLInfSensitivity(5.24566986113514e-317)
                           .Build();
   EXPECT_THAT(failed_build.status().code(),
-              Eq(base::StatusCode::kInvalidArgument));
+              Eq(absl::StatusCode::kInvalidArgument));
   // Convert message to std::string so that the matcher works in the open source
   // version.
   std::string message(failed_build.status().message());

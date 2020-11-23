@@ -38,13 +38,13 @@ TEST(CarrotReporterTest, TrueStatistics) {
 TEST(CarrotReporterTest, TooLittleBudget) {
   CarrotReporter reporter(kDatafile, 1);
   EXPECT_EQ(reporter.PrivateCountAbove(2, 50).status().code(),
-            base::StatusCode::kInvalidArgument);
+            absl::StatusCode::kInvalidArgument);
   EXPECT_EQ(reporter.PrivateMax(2).status().code(),
-            base::StatusCode::kInvalidArgument);
+            absl::StatusCode::kInvalidArgument);
   EXPECT_EQ(reporter.PrivateMean(2).status().code(),
-            base::StatusCode::kInvalidArgument);
+            absl::StatusCode::kInvalidArgument);
   EXPECT_EQ(reporter.PrivateSum(2).status().code(),
-            base::StatusCode::kInvalidArgument);
+            absl::StatusCode::kInvalidArgument);
   EXPECT_EQ(reporter.PrivacyBudget(), 1.0);
 }
 

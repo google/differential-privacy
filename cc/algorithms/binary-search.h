@@ -19,7 +19,7 @@
 
 #include "base/percentile.h"
 #include "google/protobuf/any.pb.h"
-#include "base/status.h"
+#include "absl/status/status.h"
 #include "base/statusor.h"
 #include "algorithms/algorithm.h"
 #include "algorithms/numerical-mechanisms.h"
@@ -98,19 +98,19 @@ class BinarySearch : public Algorithm<T> {
     return summary;
   }
 
-  base::Status Merge(const Summary& summary) override {
+  absl::Status Merge(const Summary& summary) override {
     if (!summary.has_data()) {
-      return base::InternalError(
+      return absl::InternalError(
           "Cannot merge summary with no binary search data.");
     }
     BinarySearchSummary bs_summary;
     if (!summary.data().UnpackTo(&bs_summary)) {
-      return base::InternalError(
+      return absl::InternalError(
           "Binary search summary unable to be unpacked.");
     }
     quantiles_->MergeFromProto(bs_summary.input());
 
-    return base::OkStatus();
+    return absl::OkStatus();
   }
 
   int64_t MemoryUsed() override {

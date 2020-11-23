@@ -19,7 +19,7 @@
 #include <limits>
 
 #include "gtest/gtest.h"
-#include "base/status.h"
+#include "absl/status/status.h"
 #include "algorithms/distributions.h"
 #include "algorithms/numerical-mechanisms-testing.h"
 
@@ -152,10 +152,10 @@ TEST(RoundTest, NegativePowerOf2) {
 }
 
 TEST(QnormTest, InvalidProbability) {
-  EXPECT_EQ(Qnorm(-0.1).status().code(), base::StatusCode::kInvalidArgument);
-  EXPECT_EQ(Qnorm(0).status().code(), base::StatusCode::kInvalidArgument);
-  EXPECT_EQ(Qnorm(1).status().code(), base::StatusCode::kInvalidArgument);
-  EXPECT_EQ(Qnorm(2).status().code(), base::StatusCode::kInvalidArgument);
+  EXPECT_EQ(Qnorm(-0.1).status().code(), absl::StatusCode::kInvalidArgument);
+  EXPECT_EQ(Qnorm(0).status().code(), absl::StatusCode::kInvalidArgument);
+  EXPECT_EQ(Qnorm(1).status().code(), absl::StatusCode::kInvalidArgument);
+  EXPECT_EQ(Qnorm(2).status().code(), absl::StatusCode::kInvalidArgument);
 }
 TEST(QnormTest, Accuracy) {
   double theoretical_accuracy = 4.5 * std::pow(10, -4);
