@@ -86,15 +86,20 @@ contributes only a single row to each partition. It neither verifies nor
 enforces this; it is the caller's responsibility to pre-process data to enforce
 this bound.
 
-We chose not to implement this step at the DP building block level because it's
-not the logical place for it: it's much easier to sort contributions by user and
-combine them together with a distributed processing framework before they're
-passed to our algorithms. You can use the DP building block library to implement
-systems that allow multiple contributions per user,
-[our paper](https://arxiv.org/abs/1909.01917) describes one such system. To do
-so, multiple user contributions should be combined before they are passed to our
-algorithms. Privacy on Beam is based on the framework described in this paper.
+We chose not to implement this step at the DP building block level because it
+requires some *global* operation over the data: group by user, and aggregate or
+subsample the contributions of each user before passing them on to the DP
+building block aggregators. Given scalability constraints, this pre-processing
+must be done by a higher-level part of the infrastructure, typically a
+distributed processing framework: for example, Privacy on Beam relies on Apache
+Beam for this operation.
 
+For more detail about our approach to building scalable end-to-end differential
+privacy frameworks, we recommend reading our
+[paper about differentially private SQL](https://arxiv.org/abs/1909.01917),
+which describes such a system. Even though the interface of Privacy on Beam is
+different, it conceptually uses the same framework as the one described in this
+paper.
 
 ## Support
 
