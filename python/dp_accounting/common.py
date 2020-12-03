@@ -14,6 +14,7 @@
 
 """Common classes and functions for the accounting library."""
 
+import math
 import typing
 import dataclasses
 
@@ -67,7 +68,7 @@ def inverse_monotone_function(
   upper_x = search_parameters.upper_bound
   initial_guess_x = search_parameters.initial_guess
 
-  if func(upper_x) > value:
+  if upper_x != math.inf and func(upper_x) > value:
     return None
 
   if initial_guess_x is not None:

@@ -38,7 +38,7 @@ class CommonTest(parameterized.TestCase):
           'func': (lambda x: -x),
           'value': -5,
           'lower_x': 0,
-          'upper_x': math.inf,
+          'upper_x': 10,
           'initial_guess_x': 2,
           'expected_x': 5,
       },
@@ -50,6 +50,15 @@ class CommonTest(parameterized.TestCase):
           'upper_x': 4,
           'initial_guess_x': None,
           'expected_x': None,
+      },
+      {
+          'testcase_name': 'infinite_upper_bound',
+          'func': (lambda x: -1/(1/x)),
+          'value': -5,
+          'lower_x': 0,
+          'upper_x': math.inf,
+          'initial_guess_x': 2,
+          'expected_x': 5,
       })
   def test_inverse_monotone_function(self, func, value, lower_x, upper_x,
                                      initial_guess_x, expected_x):

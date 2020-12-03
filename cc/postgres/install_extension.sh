@@ -18,12 +18,15 @@
 
 echo "Currently set postgres directory:" $PG_DIR
 
-TOOL='bazel'
-DP_DIR='differential_privacy/postgres'
+set -ex
 
-$TOOL build $DP_DIR:anon_func.so
-/bin/mkdir -p $PG_DIR/lib
-/bin/mkdir -p $PG_DIR/share/extension
-/usr/bin/install -c -m 755 $TOOL-bin/$DP_DIR/anon_func.so $PG_DIR/lib/
-/usr/bin/install -c -m 644 $DP_DIR/anon_func.control $PG_DIR/share/extension/
-/usr/bin/install -c -m 644 $DP_DIR/anon_func--1.0.0.sql  $PG_DIR/share/extension/
+WORKSPACE_DIR=`bazel info workspace`
+BIN_DIR=`bazel info -c opt bazel-bin`
+
+LIB_DIR=`ppg_config --pkglibdir`
+SHARE_DIR=`pg_config --sharedir`
+
+bazel build -c opt //postgres:anon_func.so
+sudo install -c -m 755 $BIN_DIR/postgres/anon_func.so $LIB_DIR
+sudo install -c -m 644 $WORKSPACE_DIR/postgres/anon_func.control $SHARE_DIR/extension/
+sudo install -c -m 644 $WORKSPACE_DIR/postgres/anon_func--1.0.0.sql  $SHARE_DIR/extension/
