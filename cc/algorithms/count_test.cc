@@ -209,5 +209,29 @@ TEST(CountTest, MemoryUsed) {
   EXPECT_GT((*count)->MemoryUsed(), 0);
 }
 
+TEST(CountTest, DeltaNotSetGaussian) {
+  auto failed_count = Count<double >::Builder()
+          .SetEpsilon(0.5)
+          .SetLaplaceMechanism(absl::make_unique<differential_privacy::GaussianMechanism::Builder>())
+          .Build();
+  EXPECT_THAT(failed_count,
+  StatusIs(absl::StatusCode::kInvalidArgument,
+  HasSubstr("Delta has to be set")));
+}
+
+TEST(CountTest, BasicGaussian) {
+  std::vector<int> c = {1, 2, 3, 4, 2, 3};
+  auto count =
+      typename Count<int>::Builder()
+          .SetEpsilon(10)
+          .SetDelta(1e-5)
+          .SetLaplaceMechanism(absl::make_unique<differential_privacy::GaussianMechanism::Builder>())
+          .Build();
+  ASSERT_OK(count);
+  auto result = (*count)->Result(c.begin(), c.end());
+  ASSERT_OK(result);
+  EXPECT_EQ(GetValue<int64_t>(*result), 6);
+}
+
 }  // namespace
 }  // namespace differential_privacy

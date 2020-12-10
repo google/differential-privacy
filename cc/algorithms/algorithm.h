@@ -52,13 +52,15 @@ template <typename T>
 class Algorithm {
  public:
   //
-  // Epsilon is a standard parameter of differentially private
+  // Epsilon, delta are standard parameters of differentially private
   // algorithms. See "The Algorithmic Foundations of Differential Privacy" p17.
-  explicit Algorithm(double epsilon)
-      : epsilon_(epsilon), privacy_budget_(kFullPrivacyBudget) {
+  explicit Algorithm(double epsilon, double delta)
+        : epsilon_(epsilon), privacy_budget_(kFullPrivacyBudget) {
     DCHECK_NE(epsilon, std::numeric_limits<double>::infinity());
     DCHECK_GT(epsilon, 0.0);
   }
+  explicit Algorithm(double epsilon)
+      : Algorithm(epsilon, 0) {}
 
   virtual ~Algorithm() = default;
 
@@ -165,6 +167,8 @@ class Algorithm {
 
   virtual double GetEpsilon() const { return epsilon_; }
 
+  virtual double GetDelta() const { return delta_; }
+
  protected:
   // Returns the result of the algorithm when run on all the input that has been
   // provided via AddEntr[y|ies] since the last call to Reset.
@@ -180,6 +184,7 @@ class Algorithm {
   static constexpr double kFullPrivacyBudget = 1.0;
 
   const double epsilon_;
+  const double delta_;
   double privacy_budget_;
 };
 

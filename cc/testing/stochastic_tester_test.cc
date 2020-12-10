@@ -131,7 +131,7 @@ template <typename T>
 class CountNoDpError : public Count<T> {
  public:
   explicit CountNoDpError(double epsilon)
-      : Count<T>(epsilon, LaplaceMechanism::Builder()
+      : Count<T>(epsilon, 0, LaplaceMechanism::Builder()
                               .SetEpsilon(epsilon)
                               .Build()
                               .ValueOrDie()) {}
