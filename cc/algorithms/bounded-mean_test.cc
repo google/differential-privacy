@@ -122,6 +122,47 @@ TYPED_TEST(BoundedMeanTest, BasicMultipleEntriesTest) {
   EXPECT_DOUBLE_EQ(GetValue<double>(*result), 11.0 / 3.0);
 }
 
+TEST(BoundedMeanTest, InvalidParametersTest) {
+  EXPECT_THAT(BoundedMean<double>::Builder()
+                  .SetEpsilon(std::numeric_limits<double>::infinity())
+                  .Build(),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Epsilon must be finite")));
+
+  EXPECT_THAT(BoundedMean<double>::Builder()
+                  .SetEpsilon(std::numeric_limits<double>::quiet_NaN())
+                  .Build(),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Epsilon must be a valid numeric value")));
+
+  EXPECT_THAT(BoundedMean<double>::Builder().SetEpsilon(-0.5).Build(),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Epsilon must be finite and positive")));
+
+  EXPECT_THAT(BoundedMean<double>::Builder().SetEpsilon(0).Build(),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Epsilon must be finite and positive")));
+}
+
+TYPED_TEST(BoundedMeanTest, InsufficientPrivacyBudgetTest) {
+  std::vector<TypeParam> a = {2, 4, 6, 8};
+
+  auto mean =
+      typename BoundedMean<TypeParam>::Builder()
+          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetEpsilon(1.0)
+          .SetLower(1)
+          .SetUpper(9)
+          .Build();
+  ASSERT_OK(mean);
+  (*mean)->AddEntries(a.begin(), a.end());
+
+  ASSERT_OK((*mean)->PartialResult());
+  EXPECT_THAT((*mean)->PartialResult(),
+              StatusIs(absl::StatusCode::kFailedPrecondition,
+                       HasSubstr("Privacy budget must be positive")));
+}
+
 // This test verifies that BoundedMean never returns a value outside of the
 // bounds, even if BoundedSum/Count would be outside the bounds.
 TYPED_TEST(BoundedMeanTest, LowClampTest) {
@@ -222,166 +263,190 @@ TYPED_TEST(BoundedMeanTest, MaxContributionsVarianceTest) {
 TEST(BoundedMeanTest, OverflowRawCountTest) {
   typename BoundedMean<double>::Builder builder;
 
-  std::unique_ptr<BoundedMean<double>> bm =
+  base::StatusOr<std::unique_ptr<BoundedMean<double>>> bm =
       builder
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
-          .SetLower(0)
+          .SetLower(-10)
           .SetUpper(10)
-          .Build()
-          .ValueOrDie();
+          .Build();
+  ASSERT_OK(bm);
   BoundedMeanTestPeer::AddMultipleEntries<double>(
-      1, std::numeric_limits<uint64_t>::max(), bm.get());
-  bm->AddEntry(1);
-  bm->AddEntry(1);
+      0, std::numeric_limits<uint64_t>::max(), (*bm).get());
+  (*bm)->AddEntry(1);
+  (*bm)->AddEntry(1);
 
-  auto result = bm->PartialResult();
-  EXPECT_OK(result.status());
-  EXPECT_DOUBLE_EQ(
-      GetValue<double>(result.value()),
-      (static_cast<double>(std::numeric_limits<uint64_t>::max()) + 2) /
-          std::numeric_limits<uint64_t>::max());
+  base::StatusOr<Output> result = (*bm)->PartialResult();
+  ASSERT_OK(result);
+  // If the uint64_t raw_count_ overflows, it should be 1, resulting in a mean of
+  // ((0 * uint64_max)+1+1) / 1 = 2, instead of the correct mean of nearly 0.
+  EXPECT_DOUBLE_EQ(GetValue<double>(result.value()), 2);
 }
 
 TEST(BoundedMeanTest, OverflowAddMultipleEntriesManualBoundsTest) {
   typename BoundedMean<int64_t>::Builder builder;
 
-  std::unique_ptr<BoundedMean<int64_t>> bm =
+  base::StatusOr<std::unique_ptr<BoundedMean<int64_t>>> bm =
       builder
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .SetLower(-std::numeric_limits<int64_t>::max() / 2)
           .SetUpper(std::numeric_limits<int64_t>::max() / 2)
-          .Build()
-          .ValueOrDie();
+          .Build();
+  ASSERT_OK(bm);
   BoundedMeanTestPeer::AddMultipleEntries<int64_t>(
-      2, std::numeric_limits<int64_t>::max(), bm.get());
+      2, std::numeric_limits<int64_t>::max(), (*bm).get());
 
-  auto result = bm->PartialResult();
-  EXPECT_OK(result.status());
-  // Expect 1, since 2 * int64_max should be capped at int64_max by
-  // SafeMultiply(), resulting in a mean of int64_max / int64_max = 1.
-  EXPECT_DOUBLE_EQ(GetValue<double>(result.value()), 1.0);
+  base::StatusOr<Output> result = (*bm)->PartialResult();
+  ASSERT_OK(result);
+  // Expect -2 / int64_max, since 2 * int64_max should overflow around to -2,
+  // resulting in a mean of -2 / int64_max.
+  EXPECT_DOUBLE_EQ(GetValue<double>(result.value()),
+                   -2.0 / std::numeric_limits<int64_t>::max());
 }
 
 TEST(BoundedMeanTest, OverflowAddEntryManualBoundsTest) {
   typename BoundedMean<int64_t>::Builder builder;
 
-  std::unique_ptr<BoundedMean<int64_t>> bm =
+  base::StatusOr<std::unique_ptr<BoundedMean<int64_t>>> bm =
       builder
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .SetLower(0)
           .SetUpper(std::numeric_limits<int64_t>::max())
-          .Build()
-          .ValueOrDie();
-  bm->AddEntry(std::numeric_limits<int64_t>::max());
-  bm->AddEntry(1);
-  bm->AddEntry(1);
-  bm->AddEntry(std::numeric_limits<int64_t>::max());
+          .Build();
+  ASSERT_OK(bm);
+  (*bm)->AddEntry(std::numeric_limits<int64_t>::max());
+  (*bm)->AddEntry(1);
+  (*bm)->AddEntry(1);
+  (*bm)->AddEntry(std::numeric_limits<int64_t>::max());
 
-  auto result = bm->PartialResult();
-  EXPECT_OK(result.status());
-  EXPECT_DOUBLE_EQ(GetValue<double>(result.value()),
-                   std::numeric_limits<int64_t>::max() / 4);
+  base::StatusOr<Output> result = (*bm)->PartialResult();
+  EXPECT_OK(result);
+  // Overflowing should result in the running sum wrapping around to zero.
+  EXPECT_DOUBLE_EQ(GetValue<double>(result.value()), 0);
 }
 
 TEST(BoundedMeanTest, UnderflowAddEntryManualBoundsTest) {
   typename BoundedMean<int64_t>::Builder builder;
 
-  std::unique_ptr<BoundedMean<int64_t>> bm =
+  base::StatusOr<std::unique_ptr<BoundedMean<int64_t>>> bm =
       builder
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .SetLower(std::numeric_limits<int64_t>::lowest())
           .SetUpper(0)
-          .Build()
-          .ValueOrDie();
-  bm->AddEntry(std::numeric_limits<int64_t>::lowest());
-  bm->AddEntry(-1);
-  bm->AddEntry(-1);
-  bm->AddEntry(std::numeric_limits<int64_t>::lowest());
+          .Build();
+  ASSERT_OK(bm);
+  (*bm)->AddEntry(std::numeric_limits<int64_t>::lowest());
+  (*bm)->AddEntry(-1);
+  (*bm)->AddEntry(-1);
+  (*bm)->AddEntry(std::numeric_limits<int64_t>::lowest());
 
-  auto result = bm->PartialResult();
-  EXPECT_OK(result.status());
-  EXPECT_DOUBLE_EQ(GetValue<double>(result.value()),
-                   std::numeric_limits<int64_t>::lowest() / 4);
+  base::StatusOr<Output> result = (*bm)->PartialResult();
+  EXPECT_OK(result);
+  // Underflowing should result in the running sum wrapping around to zero.
+  EXPECT_DOUBLE_EQ(GetValue<double>(result.value()), 0);
 }
 
 TEST(BoundedMeanTest, OverflowRawCountMergeManualBoundsTest) {
   typename BoundedMean<double>::Builder builder;
 
-  std::unique_ptr<BoundedMean<double>> bm =
+  base::StatusOr<std::unique_ptr<BoundedMean<double>>> bm =
       builder
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
-          .SetLower(-std::numeric_limits<double>::max() / 2)
-          .SetUpper(std::numeric_limits<double>::max() / 2)
-          .Build()
-          .ValueOrDie();
+          .SetLower(-10)
+          .SetUpper(10)
+          .Build();
+  ASSERT_OK(bm);
   BoundedMeanTestPeer::AddMultipleEntries<double>(
-      1, std::numeric_limits<uint64_t>::max(), bm.get());
-  Summary summary = bm->Serialize();
+      0, std::numeric_limits<uint64_t>::max(), (*bm).get());
+  Summary summary = (*bm)->Serialize();
 
-  std::unique_ptr<BoundedMean<double>> bm2 = builder.Build().ValueOrDie();
-  bm2->AddEntry(1);
-  bm2->AddEntry(1);
+  base::StatusOr<std::unique_ptr<BoundedMean<double>>> bm2 = builder.Build();
+  ASSERT_OK(bm2);
+  (*bm2)->AddEntry(1);
+  (*bm2)->AddEntry(1);
 
-  EXPECT_OK(bm2->Merge(summary));
+  ASSERT_OK((*bm2)->Merge(summary));
 
-  auto result = bm2->PartialResult();
-  EXPECT_OK(result.status());
-  EXPECT_DOUBLE_EQ(
-      GetValue<double>(result.value()),
-      (static_cast<double>(std::numeric_limits<uint64_t>::max()) + 2) /
-          std::numeric_limits<uint64_t>::max());
+  base::StatusOr<Output> result = (*bm2)->PartialResult();
+  ASSERT_OK(result);
+  // If the uint64_t raw_count_ overflows, it should be 1, resulting in a mean of
+  // ((0 * uint64_max)+1+1) / 1 = 2, instead of the correct mean of nearly 0.
+  EXPECT_DOUBLE_EQ(GetValue<double>(result.value()), 2);
+
+  // Test post-overflow serialize & merge
+  summary = (*bm2)->Serialize();
+  bm2 = builder.Build();
+  EXPECT_OK((*bm2)->Merge(summary));
+  result = (*bm2)->PartialResult();
+  EXPECT_OK(result);
+  EXPECT_DOUBLE_EQ(GetValue<double>(result.value()), 2);
 }
 
 TEST(BoundedMeanTest, OverflowMergeManualBoundsTest) {
   typename BoundedMean<int64_t>::Builder builder;
 
-  std::unique_ptr<BoundedMean<int64_t>> bm =
+  base::StatusOr<std::unique_ptr<BoundedMean<int64_t>>> bm =
       builder
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .SetLower(0)
           .SetUpper(std::numeric_limits<int64_t>::max())
-          .Build()
-          .ValueOrDie();
-  bm->AddEntry(std::numeric_limits<int64_t>::max());
-  Summary summary = bm->Serialize();
+          .Build();
+  ASSERT_OK(bm);
+  (*bm)->AddEntry(std::numeric_limits<int64_t>::max());
+  Summary summary = (*bm)->Serialize();
 
-  std::unique_ptr<BoundedMean<int64_t>> bm2 = builder.Build().ValueOrDie();
-  bm2->AddEntry(1);
-  bm2->AddEntry(1);
-  bm2->AddEntry(1);
+  base::StatusOr<std::unique_ptr<BoundedMean<int64_t>>> bm2 = builder.Build();
+  (*bm2)->AddEntry(1);
+  (*bm2)->AddEntry(1);
+  (*bm2)->AddEntry(std::numeric_limits<int64_t>::max());
 
-  EXPECT_OK(bm2->Merge(summary));
+  ASSERT_OK((*bm2)->Merge(summary));
 
-  auto result = bm2->PartialResult();
-  EXPECT_OK(result.status());
-  EXPECT_DOUBLE_EQ(GetValue<double>(result.value()),
-                   std::numeric_limits<int64_t>::max() / 4);
+  base::StatusOr<Output> result = (*bm2)->PartialResult();
+  EXPECT_OK(result);
+  // Overflowing should result in the running sum wrapping around to zero.
+  EXPECT_DOUBLE_EQ(GetValue<double>(result.value()), 0.0);
+
+  // Test post-overflow serialize & merge
+  summary = (*bm2)->Serialize();
+  bm2 = builder.Build();
+  EXPECT_OK((*bm2)->Merge(summary));
+  result = (*bm2)->PartialResult();
+  EXPECT_OK(result);
+  EXPECT_DOUBLE_EQ(GetValue<double>(result.value()), 0.0);
 }
 
 TEST(BoundedMeanTest, UnderflowMergeManualBoundsTest) {
   typename BoundedMean<int64_t>::Builder builder;
 
-  std::unique_ptr<BoundedMean<int64_t>> bm =
+  base::StatusOr<std::unique_ptr<BoundedMean<int64_t>>> bm =
       builder
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
-          .SetLower(std::numeric_limits<int64_t>::lowest() + 1)
+          .SetLower(std::numeric_limits<int64_t>::lowest())
           .SetUpper(0)
-          .Build()
-          .ValueOrDie();
-  bm->AddEntry(std::numeric_limits<int64_t>::lowest());
-  Summary summary = bm->Serialize();
+          .Build();
+  ASSERT_OK(bm);
+  (*bm)->AddEntry(std::numeric_limits<int64_t>::lowest());
+  Summary summary = (*bm)->Serialize();
 
-  std::unique_ptr<BoundedMean<int64_t>> bm2 = builder.Build().ValueOrDie();
-  bm2->AddEntry(-1);
-  bm2->AddEntry(-1);
-  bm2->AddEntry(-1);
+  base::StatusOr<std::unique_ptr<BoundedMean<int64_t>>> bm2 = builder.Build();
+  (*bm2)->AddEntry(-1);
+  (*bm2)->AddEntry(-1);
+  (*bm2)->AddEntry(std::numeric_limits<int64_t>::lowest());
 
-  EXPECT_OK(bm2->Merge(summary));
+  ASSERT_OK((*bm2)->Merge(summary));
 
-  auto result = bm2->PartialResult();
-  EXPECT_OK(result.status());
-  EXPECT_DOUBLE_EQ(GetValue<double>(result.value()),
-                   std::numeric_limits<int64_t>::lowest() / 4);
+  base::StatusOr<Output> result = (*bm2)->PartialResult();
+  EXPECT_OK(result);
+  // Underflowing should result in the running sum wrapping around to zero.
+  EXPECT_DOUBLE_EQ(GetValue<double>(result.value()), 0.0);
+
+  // Test post-overflow serialize & merge
+  summary = (*bm2)->Serialize();
+  bm2 = builder.Build();
+  EXPECT_OK((*bm2)->Merge(summary));
+  result = (*bm2)->PartialResult();
+  EXPECT_OK(result);
+  EXPECT_DOUBLE_EQ(GetValue<double>(result.value()), 0.0);
 }
 
 TYPED_TEST(BoundedMeanTest, SerializeMergeTest) {

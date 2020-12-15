@@ -16,8 +16,6 @@
 
 #include "algorithms/bounded-variance.h"
 
-#include <limits>
-
 #include "base/testing/proto_matchers.h"
 #include "base/testing/status_matchers.h"
 #include "gmock/gmock.h"
@@ -133,6 +131,23 @@ TYPED_TEST(BoundedVarianceTest, RepeatedResultTest) {
   base::StatusOr<Output> result2 = (*bv)->PartialResult(0.5);
   ASSERT_OK(result2);
   EXPECT_DOUBLE_EQ(GetValue<double>(*result1), GetValue<double>(*result2));
+}
+
+TYPED_TEST(BoundedVarianceTest, InsufficientPrivacyBudgetTest) {
+  std::vector<TypeParam> a = {1, 2, 3, 4, 5};
+  base::StatusOr<std::unique_ptr<BoundedVariance<TypeParam>>> bv =
+      typename BoundedVariance<TypeParam>::Builder()
+          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetEpsilon(1.0)
+          .SetLower(0)
+          .SetUpper(6)
+          .Build();
+  ASSERT_OK(bv);
+  (*bv)->AddEntries(a.begin(), a.end());
+  ASSERT_OK((*bv)->PartialResult());
+  EXPECT_THAT((*bv)->PartialResult(),
+              StatusIs(absl::StatusCode::kFailedPrecondition,
+                       HasSubstr("Privacy budget must be positive")));
 }
 
 TYPED_TEST(BoundedVarianceTest, ClampInputTest) {
@@ -377,8 +392,8 @@ TEST(BoundedVarianceTest, OverflowRawCountTest) {
 
   auto result = bv->PartialResult();
   EXPECT_OK(result.status());
-  // A raw_count_ overflow would result in a larger variance of 1.
-  EXPECT_DOUBLE_EQ(GetValue<double>(result.value()), 0.25);
+  // A raw_count_ overflow should result in a variance of 1.0.
+  EXPECT_DOUBLE_EQ(GetValue<double>(result.value()), 1.0);
 }
 
 TEST(BoundedVarianceTest, OverflowAddEntryManualBounds) {
@@ -399,8 +414,8 @@ TEST(BoundedVarianceTest, OverflowAddEntryManualBounds) {
 
   auto result = bv->PartialResult();
   EXPECT_OK(result.status());
-  // Overflow would result in a variance of 1.0
-  EXPECT_DOUBLE_EQ(GetValue<double>(result.value()), 0.75);
+  // Overflow should result in a variance of 1.0.
+  EXPECT_DOUBLE_EQ(GetValue<double>(result.value()), 1.0);
 }
 
 TEST(BoundedVarianceTest, UnderflowAddEntryManualBounds) {
@@ -420,8 +435,8 @@ TEST(BoundedVarianceTest, UnderflowAddEntryManualBounds) {
 
   auto result = bv->PartialResult();
   EXPECT_OK(result.status());
-  // Overflow would result in a variance of 1.0
-  EXPECT_DOUBLE_EQ(GetValue<double>(result.value()), 0.75);
+  // Overflow should result in a variance of 1.0
+  EXPECT_DOUBLE_EQ(GetValue<double>(result.value()), 1.0);
 }
 
 TEST(BoundedVarianceTest, OverflowRawCountMergeManualBoundsTest) {
@@ -447,10 +462,12 @@ TEST(BoundedVarianceTest, OverflowRawCountMergeManualBoundsTest) {
 
   auto result = bv2->PartialResult();
   EXPECT_OK(result.status());
-  // An overflow would cause the count of entries to be 1, which would result in
-  // the variance being based entirely on the midpoint between the upper and
-  // lower bounds, instead of based upon the actual data entries.
-  EXPECT_DOUBLE_EQ(GetValue<double>(result.value()), 0);
+  // An overflow should cause the count of entries to be 1, which should result
+  // in the variance so large that it becomes clamped to
+  // IntervalLengthSquared(lower, upper) / 4, instead of based upon the actual
+  // data entries (which would be 0 if there was no count overflow, since all
+  // entries are the same and do not vary).
+  EXPECT_DOUBLE_EQ(GetValue<double>(result.value()), 25.0);
 }
 
 TEST(BoundedVarianceTest, OverflowMergeManualBoundsTest) {
@@ -475,8 +492,8 @@ TEST(BoundedVarianceTest, OverflowMergeManualBoundsTest) {
 
   auto result = bv2->PartialResult();
   EXPECT_OK(result.status());
-  // Overflow would result in a variance of 1.0
-  EXPECT_DOUBLE_EQ(GetValue<double>(result.value()), 0.75);
+  // Overflow should result in a variance of 1.0
+  EXPECT_DOUBLE_EQ(GetValue<double>(result.value()), 1.0);
 }
 
 TEST(BoundedVarianceTest, UnderflowMergeManualBoundsTest) {
@@ -501,8 +518,8 @@ TEST(BoundedVarianceTest, UnderflowMergeManualBoundsTest) {
 
   auto result = bv2->PartialResult();
   EXPECT_OK(result.status());
-  // Overflow would result in a variance of 1.0
-  EXPECT_DOUBLE_EQ(GetValue<double>(result.value()), 0.75);
+  // Underflow should result in a variance of 1.0
+  EXPECT_DOUBLE_EQ(GetValue<double>(result.value()), 1.0);
 }
 
 TEST(BoundedVarianceTest, SensitivityOverflow) {

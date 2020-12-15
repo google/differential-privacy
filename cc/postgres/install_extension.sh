@@ -16,14 +16,12 @@
 
 #!/bin/bash
 
-echo "Currently set postgres directory:" $PG_DIR
-
 set -ex
 
 WORKSPACE_DIR=`bazel info workspace`
 BIN_DIR=`bazel info -c opt bazel-bin`
 
-LIB_DIR=`ppg_config --pkglibdir`
+LIB_DIR=`pg_config --pkglibdir`
 SHARE_DIR=`pg_config --sharedir`
 
 bazel build -c opt //postgres:anon_func.so

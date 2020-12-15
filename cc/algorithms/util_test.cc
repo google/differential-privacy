@@ -16,8 +16,8 @@
 
 #include "algorithms/util.h"
 
-#include <limits>
-
+#include "base/testing/status_matchers.h"
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status.h"
 #include "algorithms/distributions.h"
@@ -25,6 +25,9 @@
 
 namespace differential_privacy {
 namespace {
+
+using ::testing::HasSubstr;
+using ::differential_privacy::base::testing::StatusIs;
 
 const char kSeedString[] = "ABCDEFGHIJKLMNOP";
 constexpr int64_t kStatsSize = 50000;
@@ -256,95 +259,6 @@ TEST(SafeOperationsTest, SafeSubtractDouble) {
   EXPECT_EQ(double_result, 0);
 }
 
-TEST(SafeOperationsTest, SafeMultiplyInt) {
-  int64_t int_result;
-
-  EXPECT_TRUE(SafeMultiply<int64_t>(1, 1, &int_result));
-  EXPECT_EQ(int_result, 1);
-  EXPECT_TRUE(SafeMultiply<int64_t>(-1, 1, &int_result));
-  EXPECT_EQ(int_result, -1);
-  EXPECT_TRUE(SafeMultiply<int64_t>(1, -1, &int_result));
-  EXPECT_EQ(int_result, -1);
-  EXPECT_TRUE(SafeMultiply<int64_t>(-1, -1, &int_result));
-  EXPECT_EQ(int_result, 1);
-  EXPECT_TRUE(SafeMultiply<int64_t>(10, -20, &int_result));
-  EXPECT_EQ(int_result, -200);
-
-  EXPECT_FALSE(SafeMultiply<int64_t>(std::numeric_limits<int64_t>::max(),
-                                   std::numeric_limits<int64_t>::lowest(),
-                                   &int_result));
-  EXPECT_EQ(int_result, std::numeric_limits<int64_t>::lowest());
-  EXPECT_FALSE(SafeMultiply<int64_t>(std::numeric_limits<int64_t>::lowest(),
-                                   std::numeric_limits<int64_t>::max(),
-                                   &int_result));
-  EXPECT_EQ(int_result, std::numeric_limits<int64_t>::lowest());
-
-  EXPECT_FALSE(
-      SafeMultiply<int64_t>(std::numeric_limits<int64_t>::max(), 2, &int_result));
-  EXPECT_EQ(int_result, std::numeric_limits<int64_t>::max());
-  EXPECT_FALSE(SafeMultiply<int64_t>(std::numeric_limits<int64_t>::lowest(), -2,
-                                   &int_result));
-  EXPECT_EQ(int_result, std::numeric_limits<int64_t>::max());
-
-  EXPECT_FALSE(
-      SafeMultiply<int64_t>(std::numeric_limits<int64_t>::max(), -2, &int_result));
-  EXPECT_EQ(int_result, std::numeric_limits<int64_t>::lowest());
-  EXPECT_FALSE(
-      SafeMultiply<int64_t>(-2, std::numeric_limits<int64_t>::max(), &int_result));
-  EXPECT_EQ(int_result, std::numeric_limits<int64_t>::lowest());
-
-  EXPECT_FALSE(SafeMultiply<int64_t>(std::numeric_limits<int64_t>::lowest(), 2,
-                                   &int_result));
-  EXPECT_EQ(int_result, std::numeric_limits<int64_t>::lowest());
-  EXPECT_FALSE(SafeMultiply<int64_t>(2, std::numeric_limits<int64_t>::lowest(),
-                                   &int_result));
-  EXPECT_EQ(int_result, std::numeric_limits<int64_t>::lowest());
-
-  EXPECT_TRUE(SafeMultiply<int64_t>(std::numeric_limits<int64_t>::lowest(), 0,
-                                  &int_result));
-  EXPECT_EQ(int_result, 0);
-  EXPECT_TRUE(
-      SafeMultiply<int64_t>(0, std::numeric_limits<int64_t>::max(), &int_result));
-  EXPECT_EQ(int_result, 0);
-}
-
-TEST(SafeOperationsTest, SafeMultiplyDouble) {
-  double double_result;
-  EXPECT_TRUE(SafeMultiply<double>(1.0, 1.0, &double_result));
-  EXPECT_DOUBLE_EQ(double_result, 1.0);
-  EXPECT_TRUE(SafeMultiply<double>(-1.0, 1.0, &double_result));
-  EXPECT_DOUBLE_EQ(double_result, -1.0);
-  EXPECT_TRUE(SafeMultiply<double>(1.0, -1.0, &double_result));
-  EXPECT_DOUBLE_EQ(double_result, -1.0);
-  EXPECT_TRUE(SafeMultiply<double>(-1.0, -1.0, &double_result));
-  EXPECT_DOUBLE_EQ(double_result, 1.0);
-  EXPECT_TRUE(SafeMultiply<double>(10.0, -20.0, &double_result));
-  EXPECT_DOUBLE_EQ(double_result, -200.0);
-  EXPECT_TRUE(SafeMultiply<double>(std::numeric_limits<double>::max(),
-                                   std::numeric_limits<double>::lowest(),
-                                   &double_result));
-  EXPECT_DOUBLE_EQ(double_result, std::numeric_limits<double>::max() *
-                                      std::numeric_limits<double>::lowest());
-  EXPECT_TRUE(SafeMultiply<double>(std::numeric_limits<double>::max(), 2.0,
-                                   &double_result));
-  EXPECT_DOUBLE_EQ(double_result, std::numeric_limits<double>::infinity());
-  EXPECT_TRUE(SafeMultiply<double>(std::numeric_limits<double>::max(), -2.0,
-                                   &double_result));
-  EXPECT_DOUBLE_EQ(double_result, -std::numeric_limits<double>::infinity());
-  EXPECT_TRUE(SafeMultiply<double>(std::numeric_limits<double>::lowest(), -2.0,
-                                   &double_result));
-  EXPECT_DOUBLE_EQ(double_result, std::numeric_limits<double>::infinity());
-  EXPECT_TRUE(SafeMultiply<double>(std::numeric_limits<double>::lowest(), 2.0,
-                                   &double_result));
-  EXPECT_DOUBLE_EQ(double_result, -std::numeric_limits<double>::infinity());
-  EXPECT_TRUE(SafeMultiply<double>(std::numeric_limits<double>::lowest(), 0.0,
-                                   &double_result));
-  EXPECT_EQ(double_result, 0);
-  EXPECT_TRUE(SafeMultiply<double>(0.0, std::numeric_limits<double>::max(),
-                                   &double_result));
-  EXPECT_EQ(double_result, 0);
-}
-
 TEST(SafeOperationsTest, SafeSquare) {
   int64_t int_result;
   EXPECT_TRUE(SafeSquare<int64_t>(-9, &int_result));
@@ -423,6 +337,517 @@ TEST(SafeCastFromDoubleTest, ForFloat) {
   // High double should convert into infinite float.
   EXPECT_TRUE(SafeCastFromDouble(1.0e200, floating_point));
   EXPECT_TRUE(std::isinf(floating_point));
+}
+
+TEST(ValidateTest, IsSet) {
+  absl::optional<double> opt;
+  EXPECT_THAT(ValidateIsSet(opt, "Test value"),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Test value must be set.")));
+
+  opt = std::numeric_limits<double>::quiet_NaN();
+  EXPECT_THAT(ValidateIsSet(opt, "Test value"),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Test value must be a valid numeric value")));
+
+  std::vector<double> success_values = {
+      -std::numeric_limits<double>::infinity(),
+      std::numeric_limits<double>::lowest(),
+      -1,
+      0,
+      std::numeric_limits<double>::min(),
+      1,
+      std::numeric_limits<double>::max(),
+      std::numeric_limits<double>::infinity()};
+
+  for (double value : success_values) {
+    EXPECT_OK(ValidateIsSet(value, "Test value"));
+  }
+}
+
+TEST(ValidateTest, IsPositive) {
+  std::vector<double> success_values = {
+      std::numeric_limits<double>::min(), 1, std::numeric_limits<double>::max(),
+      std::numeric_limits<double>::infinity()};
+  std::vector<double> error_values = {-std::numeric_limits<double>::infinity(),
+                                      std::numeric_limits<double>::lowest(),
+                                      -10, -1, 0};
+
+  for (double value : success_values) {
+    EXPECT_OK(ValidateIsPositive(value, "Test value"));
+  }
+
+  for (double value : error_values) {
+    EXPECT_THAT(ValidateIsPositive(value, "Test value"),
+                StatusIs(absl::StatusCode::kInvalidArgument,
+                         HasSubstr("Test value must be positive")));
+  }
+}
+
+TEST(ValidateTest, IsNonNegative) {
+  std::vector<double> success_values = {
+      0, std::numeric_limits<double>::min(), 1,
+      std::numeric_limits<double>::max(),
+      std::numeric_limits<double>::infinity()};
+  std::vector<double> error_values = {-std::numeric_limits<double>::infinity(),
+                                      std::numeric_limits<double>::lowest(),
+                                      -10, -1};
+
+  for (double value : success_values) {
+    EXPECT_OK(ValidateIsNonNegative(value, "Test value"));
+  }
+
+  for (double value : error_values) {
+    EXPECT_THAT(ValidateIsNonNegative(value, "Test value"),
+                StatusIs(absl::StatusCode::kInvalidArgument,
+                         HasSubstr("Test value must be non-negative")));
+  }
+}
+
+TEST(ValidateTest, IsFinite) {
+  std::vector<double> success_values = {std::numeric_limits<double>::lowest(),
+                                        -1,
+                                        0,
+                                        std::numeric_limits<double>::min(),
+                                        1,
+                                        std::numeric_limits<double>::max()};
+
+  std::vector<double> error_values = {-std::numeric_limits<double>::infinity(),
+                                      std::numeric_limits<double>::infinity()};
+
+  for (double value : success_values) {
+    EXPECT_OK(ValidateIsFinite(value, "Test value"));
+  }
+
+  for (double value : error_values) {
+    EXPECT_THAT(ValidateIsFinite(value, "Test value"),
+                StatusIs(absl::StatusCode::kInvalidArgument,
+                         HasSubstr("Test value must be finite")));
+  }
+}
+
+TEST(ValidateTest, IsFiniteAndPositive) {
+  std::vector<double> success_values = {std::numeric_limits<double>::min(), 1,
+                                        std::numeric_limits<double>::max()};
+  std::vector<double> error_values = {-std::numeric_limits<double>::infinity(),
+                                      std::numeric_limits<double>::lowest(),
+                                      -10,
+                                      -1,
+                                      0,
+                                      std::numeric_limits<double>::infinity()};
+
+  for (double value : success_values) {
+    EXPECT_OK(ValidateIsFiniteAndPositive(value, "Test value"));
+  }
+
+  for (double value : error_values) {
+    EXPECT_THAT(ValidateIsFiniteAndPositive(value, "Test value"),
+                StatusIs(absl::StatusCode::kInvalidArgument,
+                         HasSubstr("Test value must be finite and positive")));
+  }
+}
+
+TEST(ValidateTest, IsFiniteAndNonNegative) {
+  std::vector<double> success_values = {0, std::numeric_limits<double>::min(),
+                                        1, std::numeric_limits<double>::max()};
+  std::vector<double> error_values = {-std::numeric_limits<double>::infinity(),
+                                      std::numeric_limits<double>::lowest(),
+                                      -10, -1,
+                                      std::numeric_limits<double>::infinity()};
+
+  for (double value : success_values) {
+    EXPECT_OK(ValidateIsFiniteAndNonNegative(value, "Test value"));
+  }
+
+  for (double value : error_values) {
+    EXPECT_THAT(
+        ValidateIsFiniteAndNonNegative(value, "Test value"),
+        StatusIs(absl::StatusCode::kInvalidArgument,
+                 HasSubstr("Test value must be finite and non-negative")));
+  }
+}
+
+TEST(ValidateTest, IsLesserThanOkStatus) {
+  struct LesserThanParams {
+    double value;
+    double upper_bound;
+  };
+
+  std::vector<LesserThanParams> success_params = {
+      {-std::numeric_limits<double>::infinity(),
+       std::numeric_limits<double>::lowest()},
+      {-1, 1},
+      {0, std::numeric_limits<double>::min()},
+      {std::numeric_limits<double>::max(),
+       std::numeric_limits<double>::infinity()},
+  };
+
+  for (LesserThanParams params : success_params) {
+    EXPECT_OK(
+        ValidateIsLesserThan(params.value, params.upper_bound, "Test value"));
+  }
+}
+
+TEST(ValidateTest, IsLesserThanError) {
+  struct LesserThanParams {
+    double value;
+    double upper_bound;
+  };
+
+  std::vector<LesserThanParams> no_equal_error_params = {
+      {-std::numeric_limits<double>::infinity(),
+       -std::numeric_limits<double>::infinity()},
+      {std::numeric_limits<double>::lowest(),
+       std::numeric_limits<double>::lowest()},
+      {-1, -1},
+      {std::numeric_limits<double>::min(), std::numeric_limits<double>::min()},
+      {0, 0},
+      {1, -1},
+      {1, 1},
+      {std::numeric_limits<double>::max(), std::numeric_limits<double>::max()},
+      {std::numeric_limits<double>::infinity(),
+       std::numeric_limits<double>::infinity()}};
+
+  for (LesserThanParams params : no_equal_error_params) {
+    EXPECT_THAT(
+        ValidateIsLesserThan(params.value, params.upper_bound, "Test value"),
+        StatusIs(absl::StatusCode::kInvalidArgument,
+                 HasSubstr("Test value must be lesser than")));
+  }
+}
+
+TEST(ValidateTest, IsLesserThanOrEqualToOkStatus) {
+  struct LesserThanParams {
+    double value;
+    double upper_bound;
+  };
+
+  std::vector<LesserThanParams> success_params = {
+      {-std::numeric_limits<double>::infinity(),
+       -std::numeric_limits<double>::infinity()},
+      {std::numeric_limits<double>::lowest(),
+       std::numeric_limits<double>::lowest()},
+      {-1, -1},
+      {-1, 1},
+      {0, 0},
+      {std::numeric_limits<double>::min(), std::numeric_limits<double>::min()},
+      {
+          1,
+          1,
+      },
+      {std::numeric_limits<double>::max(), std::numeric_limits<double>::max()},
+      {std::numeric_limits<double>::infinity(),
+       std::numeric_limits<double>::infinity()}};
+
+  for (LesserThanParams params : success_params) {
+    EXPECT_OK(ValidateIsLesserThanOrEqualTo(params.value, params.upper_bound,
+                                            "Test value"));
+  }
+}
+
+TEST(ValidateTest, IsLesserThanOrEqualToError) {
+  struct LesserThanParams {
+    double value;
+    double upper_bound;
+  };
+
+  std::vector<LesserThanParams> or_equal_error_params = {
+      {std::numeric_limits<double>::lowest(),
+       -std::numeric_limits<double>::infinity()},
+      {std::numeric_limits<double>::min(), 0},
+      {1, -1},
+      {std::numeric_limits<double>::infinity(),
+       std::numeric_limits<double>::max()}};
+
+  for (LesserThanParams params : or_equal_error_params) {
+    EXPECT_THAT(
+        ValidateIsLesserThanOrEqualTo(params.value, params.upper_bound,
+                                      "Test value"),
+        StatusIs(absl::StatusCode::kInvalidArgument,
+                 HasSubstr("Test value must be lesser than or equal to")));
+  }
+}
+
+TEST(ValidateTest, IsGreaterThanOkStatus) {
+  struct GreaterThanParams {
+    double value;
+    double lower_bound;
+  };
+
+  std::vector<GreaterThanParams> success_params = {
+      {std::numeric_limits<double>::lowest(),
+       -std::numeric_limits<double>::infinity()},
+      {std::numeric_limits<double>::min(), 0},
+      {1, -1},
+      {std::numeric_limits<double>::infinity(),
+       std::numeric_limits<double>::max()},
+  };
+
+  for (GreaterThanParams params : success_params) {
+    EXPECT_OK(
+        ValidateIsGreaterThan(params.value, params.lower_bound, "Test value"));
+  }
+}
+
+TEST(ValidateTest, IsGreaterThanError) {
+  struct GreaterThanParams {
+    double value;
+    double lower_bound;
+  };
+
+  std::vector<GreaterThanParams> no_equal_error_params = {
+      {-std::numeric_limits<double>::infinity(),
+       -std::numeric_limits<double>::infinity()},
+      {std::numeric_limits<double>::lowest(),
+       std::numeric_limits<double>::lowest()},
+      {-1, -1},
+      {std::numeric_limits<double>::min(), std::numeric_limits<double>::min()},
+      {0, 0},
+      {-1, 1},
+      {1, 1},
+      {std::numeric_limits<double>::max(), std::numeric_limits<double>::max()},
+      {std::numeric_limits<double>::infinity(),
+       std::numeric_limits<double>::infinity()}};
+
+  for (GreaterThanParams params : no_equal_error_params) {
+    EXPECT_THAT(
+        ValidateIsGreaterThan(params.value, params.lower_bound, "Test value"),
+        StatusIs(absl::StatusCode::kInvalidArgument,
+                 HasSubstr("Test value must be greater than")));
+  }
+}
+
+TEST(ValidateTest, IsGreaterThanOrEqualToOkStatus) {
+  struct GreaterThanParams {
+    double value;
+    double lower_bound;
+  };
+
+  std::vector<GreaterThanParams> success_params = {
+      {-std::numeric_limits<double>::infinity(),
+       -std::numeric_limits<double>::infinity()},
+      {std::numeric_limits<double>::lowest(),
+       std::numeric_limits<double>::lowest()},
+      {-1, -1},
+      {0, 0},
+      {1, -1},
+      {std::numeric_limits<double>::min(), std::numeric_limits<double>::min()},
+      {1, 1},
+      {std::numeric_limits<double>::max(), std::numeric_limits<double>::max()},
+      {std::numeric_limits<double>::infinity(),
+       std::numeric_limits<double>::infinity()}};
+
+  for (GreaterThanParams params : success_params) {
+    EXPECT_OK(ValidateIsGreaterThanOrEqualTo(params.value, params.lower_bound,
+                                             "Test value"));
+  }
+}
+
+TEST(ValidateTest, IsGreaterThanOrEqualToError) {
+  struct GreaterThanParams {
+    double value;
+    double lower_bound;
+  };
+
+  std::vector<GreaterThanParams> or_equal_error_params = {
+      {-std::numeric_limits<double>::infinity(),
+       std::numeric_limits<double>::lowest()},
+      {0, std::numeric_limits<double>::min()},
+      {-1, 1},
+      {std::numeric_limits<double>::max(),
+       std::numeric_limits<double>::infinity()}};
+
+  for (GreaterThanParams params : or_equal_error_params) {
+    EXPECT_THAT(
+        ValidateIsGreaterThanOrEqualTo(params.value, params.lower_bound,
+                                       "Test value"),
+        StatusIs(absl::StatusCode::kInvalidArgument,
+                 HasSubstr("Test value must be greater than or equal to")));
+  }
+}
+
+TEST(ValidateTest, IsInIntervalOkStatus) {
+  struct IntervalParams {
+    double value;
+    double lower_bound;
+    double upper_bound;
+    bool include_lower;
+    bool include_upper;
+  };
+
+  std::vector<IntervalParams> success_params = {
+      {std::numeric_limits<double>::lowest(),
+       std::numeric_limits<double>::lowest(),
+       std::numeric_limits<double>::lowest(), false, true},
+      {std::numeric_limits<double>::lowest(),
+       std::numeric_limits<double>::lowest(),
+       std::numeric_limits<double>::lowest(), true, false},
+      {std::numeric_limits<double>::lowest(),
+       std::numeric_limits<double>::lowest(),
+       std::numeric_limits<double>::lowest(), true, true},
+      {0, -1, 1, false, false},
+      {0, -1, 1, true, false},
+      {0, -1, 1, false, true},
+      {0, -1, 1, true, true},
+      {0, 0, 0, false, true},
+      {0, 0, 0, true, false},
+      {0, 0, 0, true, true},
+      {0.0, 0.0 - std::numeric_limits<double>::min(),
+       0.0 + std::numeric_limits<double>::min(), false, false},
+      {-1, -1, 1, true, false},
+      {1, -1, 1, false, true},
+      {1, 1, 1, false, true},
+      {1, 1, 1, true, false},
+      {1, 1, 1, true, true},
+      {std::numeric_limits<double>::min(), std::numeric_limits<double>::min(),
+       std::numeric_limits<double>::min(), false, true},
+      {std::numeric_limits<double>::min(), std::numeric_limits<double>::min(),
+       std::numeric_limits<double>::min(), true, false},
+      {std::numeric_limits<double>::min(), std::numeric_limits<double>::min(),
+       std::numeric_limits<double>::min(), true, true},
+      {std::numeric_limits<double>::max(), std::numeric_limits<double>::max(),
+       std::numeric_limits<double>::max(), false, true},
+      {std::numeric_limits<double>::max(), std::numeric_limits<double>::max(),
+       std::numeric_limits<double>::max(), true, false},
+      {std::numeric_limits<double>::max(), std::numeric_limits<double>::max(),
+       std::numeric_limits<double>::max(), true, true},
+  };
+
+  for (IntervalParams params : success_params) {
+    EXPECT_OK(ValidateIsInInterval(params.value, params.lower_bound,
+                                   params.upper_bound, params.include_lower,
+                                   params.include_upper, "Test value"));
+  }
+}
+
+TEST(ValidateTest, IsOutsideExclusiveInterval) {
+  struct IntervalParams {
+    double value;
+    double lower_bound;
+    double upper_bound;
+    bool include_lower;
+    bool include_upper;
+  };
+
+  std::vector<IntervalParams> exclusive_error_params = {
+      {std::numeric_limits<double>::lowest(),
+       std::numeric_limits<double>::lowest(),
+       std::numeric_limits<double>::lowest(), false, false},
+      {-1, 0, 1, false, false},
+      {-1, -1, -1, false, false},
+      {0, 0, 0, false, false},
+      {1, 1, 1, false, false},
+      {std::numeric_limits<double>::min(), std::numeric_limits<double>::min(),
+       std::numeric_limits<double>::min(), false, false},
+      {std::numeric_limits<double>::max(), std::numeric_limits<double>::max(),
+       std::numeric_limits<double>::max(), false, false},
+  };
+
+  for (IntervalParams params : exclusive_error_params) {
+    EXPECT_THAT(
+        ValidateIsInInterval(params.value, params.lower_bound,
+                             params.upper_bound, params.include_lower,
+                             params.include_upper, "Test value"),
+        StatusIs(absl::StatusCode::kInvalidArgument,
+                 HasSubstr("Test value must be in the exclusive interval (")));
+  }
+}
+
+TEST(ValidateTest, IsOutsideInclusiveInterval) {
+  struct IntervalParams {
+    double value;
+    double lower_bound;
+    double upper_bound;
+    bool include_lower;
+    bool include_upper;
+  };
+
+  std::vector<IntervalParams> inclusive_error_params = {
+      {-1, 0, 1, true, true},
+      {0 - std::numeric_limits<double>::min(), 0,
+       std::numeric_limits<double>::min(), true, true},
+  };
+
+  for (IntervalParams params : inclusive_error_params) {
+    EXPECT_THAT(
+        ValidateIsInInterval(params.value, params.lower_bound,
+                             params.upper_bound, params.include_lower,
+                             params.include_upper, "Test value"),
+        StatusIs(absl::StatusCode::kInvalidArgument,
+                 HasSubstr("Test value must be in the inclusive interval [")));
+  }
+}
+
+TEST(ValidateTest, IsOutsideHalfClosedInterval) {
+  struct IntervalParams {
+    double value;
+    double lower_bound;
+    double upper_bound;
+    bool include_lower;
+    bool include_upper;
+  };
+
+  EXPECT_THAT(ValidateIsInInterval(-1, 0, 1, true, false, "Test value"),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Test value must be in the interval [0,1)")));
+
+  EXPECT_THAT(ValidateIsInInterval(-1, 0, 1, false, true, "Test value"),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Test value must be in the interval (0,1]")));
+
+  EXPECT_THAT(ValidateIsInInterval(-1, -1, 1, false, true, "Test value"),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Test value must be in the interval (-1,1]")));
+
+  EXPECT_THAT(ValidateIsInInterval(1, -1, 1, true, false, "Test value"),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Test value must be in the interval [-1,1)")));
+}
+
+// These tests document cases that result in known, incorrect behaviour
+TEST(ValidateTest, IsInIntervalBadBehaviour) {
+  struct IntervalParams {
+    double value;
+    double lower_bound;
+    double upper_bound;
+    bool include_lower;
+    bool include_upper;
+  };
+
+  std::vector<IntervalParams> bad_exclusive_error_params = {
+      // These test parameters should result in an OK_STATUS since the value is
+      // within the bounds, but instead returns a kInvalidArgument status
+      // because of double (im)precision.
+      {-1.0, -1.0 - std::numeric_limits<double>::min(),
+       -1.0 + std::numeric_limits<double>::min(), false, false},
+      {1.0, 1.0 - std::numeric_limits<double>::min(),
+       1.0 + std::numeric_limits<double>::min(), false, false},
+  };
+
+  for (IntervalParams params : bad_exclusive_error_params) {
+    EXPECT_THAT(
+        ValidateIsInInterval(params.value, params.lower_bound,
+                             params.upper_bound, params.include_lower,
+                             params.include_upper, "Test value"),
+        StatusIs(absl::StatusCode::kInvalidArgument,
+                 HasSubstr("Test value must be in the exclusive interval (")));
+  }
+
+  std::vector<IntervalParams> bad_success_params = {
+      // These test parameters should result in an kInvalidArgument status since
+      // the value falls outside of the bounds, but instead returns an OK_STATUS
+      // because of double (im)precision.
+      {-1.0 - std::numeric_limits<double>::min(), -1.0,
+       -1.0 + std::numeric_limits<double>::min(), true, true},
+      {1.0 - std::numeric_limits<double>::min(), 1.0,
+       1.0 + std::numeric_limits<double>::min(), true, true},
+  };
+
+  for (IntervalParams params : bad_success_params) {
+    EXPECT_OK(ValidateIsInInterval(params.value, params.lower_bound,
+                                   params.upper_bound, params.include_lower,
+                                   params.include_upper, "Test value"));
+  }
 }
 
 }  // namespace

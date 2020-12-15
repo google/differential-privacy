@@ -79,6 +79,211 @@ func TestCeilPowerOfTwoInputIsNotPowerOfTwo(t *testing.T) {
 	}
 }
 
+func TestRoundToMultipleGranularityIsOne(t *testing.T) {
+	// Verify that RoundToMultiple returns x if granularity is 1
+	for _, x := range []int64{0, 1, -1, 2, -2, 648391, -648391} {
+		got := roundToMultiple(x, 1)
+		if got != x {
+			t.Errorf(
+				"roundToMultipleOfPowerOfTwo(%d, 1) = %d, want %d",
+				x,
+				got,
+				x,
+			)
+		}
+	}
+}
+
+func TestRoundToMultipleXIsEven(t *testing.T) {
+	for _, tc := range []struct {
+		x           int64
+		granularity int64
+		want        int64
+	}{
+		{
+			x:           0,
+			granularity: 4,
+			want:        0,
+		},
+		{
+			x:           1,
+			granularity: 4,
+			want:        0,
+		},
+		{
+			x:           2,
+			granularity: 4,
+			want:        4,
+		},
+		{
+			x:           3,
+			granularity: 4,
+			want:        4,
+		},
+		{
+			x:           4,
+			granularity: 4,
+			want:        4,
+		},
+		{
+			x:           -1,
+			granularity: 4,
+			want:        0,
+		},
+		{
+			x:           -2,
+			granularity: 4,
+			want:        0,
+		},
+		{
+			x:           -3,
+			granularity: 4,
+			want:        -4,
+		},
+		{
+			x:           -4,
+			granularity: 4,
+			want:        -4,
+		},
+		{
+			x:           648389,
+			granularity: 4,
+			want:        648388,
+		},
+		{
+			x:           648390,
+			granularity: 4,
+			want:        648392,
+		},
+		{
+			x:           648391,
+			granularity: 4,
+			want:        648392,
+		},
+		{
+			x:           648392,
+			granularity: 4,
+			want:        648392,
+		},
+		{
+			x:           -648389,
+			granularity: 4,
+			want:        -648388,
+		},
+		{
+			x:           -648390,
+			granularity: 4,
+			want:        -648388,
+		},
+		{
+			x:           -648391,
+			granularity: 4,
+			want:        -648392,
+		},
+		{
+			x:           -648392,
+			granularity: 4,
+			want:        -648392,
+		},
+	} {
+		got := roundToMultiple(tc.x, tc.granularity)
+		if got != tc.want {
+			t.Errorf(
+				"roundToMultiple(%d, %d) = %d, want %d",
+				tc.x,
+				tc.granularity,
+				got,
+				tc.want,
+			)
+		}
+	}
+}
+
+func TestRoundToMultipleXIsOdd(t *testing.T) {
+	for _, tc := range []struct {
+		x           int64
+		granularity int64
+		want        int64
+	}{
+		{
+			x:           0,
+			granularity: 3,
+			want:        0,
+		},
+		{
+			x:           1,
+			granularity: 3,
+			want:        0,
+		},
+		{
+			x:           2,
+			granularity: 3,
+			want:        3,
+		},
+		{
+			x:           3,
+			granularity: 3,
+			want:        3,
+		},
+		{
+			x:           -1,
+			granularity: 3,
+			want:        0,
+		},
+		{
+			x:           -2,
+			granularity: 3,
+			want:        -3,
+		},
+		{
+			x:           -3,
+			granularity: 3,
+			want:        -3,
+		},
+		{
+			x:           648391,
+			granularity: 3,
+			want:        648390,
+		},
+		{
+			x:           648392,
+			granularity: 3,
+			want:        648393,
+		},
+		{
+			x:           648393,
+			granularity: 3,
+			want:        648393,
+		},
+		{
+			x:           -648391,
+			granularity: 3,
+			want:        -648390,
+		},
+		{
+			x:           -648392,
+			granularity: 3,
+			want:        -648393,
+		},
+		{
+			x:           -648393,
+			granularity: 3,
+			want:        -648393,
+		},
+	} {
+		got := roundToMultiple(tc.x, tc.granularity)
+		if got != tc.want {
+			t.Errorf(
+				"roundToMultiple(%d, %d) = %d, want %d",
+				tc.x,
+				tc.granularity,
+				got,
+				tc.want,
+			)
+		}
+	}
+}
+
 func TestRoundToMultipleOfPowerOfTwoXIsAMultiple(t *testing.T) {
 	// Verify that RoundToMultipleOfPowerOfTwo returns x if x is a
 	// multiple of granularity.

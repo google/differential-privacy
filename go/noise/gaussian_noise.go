@@ -67,7 +67,7 @@ func (gaussian) AddNoiseFloat64(x float64, l0Sensitivity int64, lInfSensitivity,
 	}
 
 	sigma := SigmaForGaussian(l0Sensitivity, lInfSensitivity, epsilon, delta)
-	return addGaussian(x, sigma)
+	return addGaussianFloat64(x, sigma)
 }
 
 // AddNoiseInt64 adds Gaussian noise to the specified int64, so that the
@@ -79,11 +79,7 @@ func (gaussian) AddNoiseInt64(x, l0Sensitivity, lInfSensitivity int64, epsilon, 
 	}
 
 	sigma := SigmaForGaussian(l0Sensitivity, float64(lInfSensitivity), epsilon, delta)
-	// Calling addGaussian on 0.0 avoids casting x to a float64 value, which is not secure from a
-	// privacy perspective as it can have unforeseen effects on the sensitivity of x. Rounding and
-	// adding the resulting noise to x in a post processing step is a secure operation (for noise of
-	// moderate magnitude, i.e. < 2^53).
-	return int64(math.Round(addGaussian(0.0, sigma))) + x
+	return addGaussianInt64(x, sigma)
 }
 
 // Threshold returns the smallest threshold k to use in a differentially private
@@ -177,8 +173,8 @@ func checkArgsConfidenceIntervalGaussian(label string, l0Sensitivity int64, lInf
 	return checkArgsGaussian(label, l0Sensitivity, lInfSensitivity, epsilon, delta)
 }
 
-// addGaussian adds Gaussian noise of scale σ to the specified float64.
-func addGaussian(x, sigma float64) float64 {
+// addGaussianFloat64 adds Gaussian noise of scale σ to the specified float64.
+func addGaussianFloat64(x, sigma float64) float64 {
 	granularity := ceilPowerOfTwo(2.0 * sigma / binomialBound)
 
 	// sqrtN is chosen in a way that places it in the interval between binomialBound
@@ -187,6 +183,21 @@ func addGaussian(x, sigma float64) float64 {
 	sqrtN := 2.0 * sigma / granularity
 	sample := symmetricBinomial(sqrtN)
 	return roundToMultipleOfPowerOfTwo(x, granularity) + float64(sample)*granularity
+}
+
+// addGaussianInt64 adds Gaussian noise of scale σ to the specified int64.
+func addGaussianInt64(x int64, sigma float64) int64 {
+	granularity := ceilPowerOfTwo(2.0 * sigma / binomialBound)
+
+	// sqrtN is chosen in a way that places it in the interval between binomialBound
+	// and binomialBound / 2. This ensures that the respective binomial distribution
+	// consists of enough Bernoulli samples to closely approximate a Gaussian distribution.
+	sqrtN := 2.0 * sigma / granularity
+	sample := symmetricBinomial(sqrtN)
+	if granularity < 1 {
+		return x + int64(math.Round(float64(sample)*granularity))
+	}
+	return roundToMultiple(x, int64(granularity)) + sample*int64(granularity)
 }
 
 // computeConfidenceIntervalGaussian computes a confidence interval that contains the raw value x from which

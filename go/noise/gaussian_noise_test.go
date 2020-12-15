@@ -18,6 +18,7 @@ package noise
 
 import (
 	"math"
+	"math/rand"
 	"testing"
 
 	"github.com/grd/stat"
@@ -268,6 +269,109 @@ func TestDeltaForGaussian(t *testing.T) {
 				t.Errorf("Got delta: %1.11f, want delta: %1.11f", got, tc.wantDelta)
 			}
 		})
+	}
+}
+
+func TestAddGaussianFloat64RoundsToGranularity(t *testing.T) {
+	const numberOfTrials = 1000
+	for _, tc := range []struct {
+		sigma           float64
+		wantGranularity float64
+	}{
+		{
+			sigma:           6.8e10,
+			wantGranularity: 1.0 / 1048576.0,
+		},
+		{
+			sigma:           7.0e13,
+			wantGranularity: 1.0 / 1024.0,
+		},
+		{
+			sigma:           2.2e15,
+			wantGranularity: 1.0 / 32,
+		},
+		{
+			sigma:           1.7e16,
+			wantGranularity: 1.0 / 4.0,
+		},
+		{
+			sigma:           3.5e16,
+			wantGranularity: 1.0 / 2.0,
+		},
+		{
+			sigma:           7.0e16,
+			wantGranularity: 1.0,
+		},
+		{
+			sigma:           1.0e17,
+			wantGranularity: 2.0,
+		},
+		{
+			sigma:           2.0e17,
+			wantGranularity: 4.0,
+		},
+		{
+			sigma:           2.3e18,
+			wantGranularity: 32.0,
+		},
+		{
+			sigma:           7.0e19,
+			wantGranularity: 1024.0,
+		},
+		{
+			sigma:           7.5e22,
+			wantGranularity: 1048576.0,
+		},
+	} {
+		for i := 0; i < numberOfTrials; i++ {
+			// the input x of addGaussianFloat64 can be arbitrary
+			x := rand.Float64()*tc.wantGranularity*10 - tc.wantGranularity*5
+			noisedX := addGaussianFloat64(x, tc.sigma)
+			if math.Round(noisedX/tc.wantGranularity) != noisedX/tc.wantGranularity {
+				t.Errorf("Got noised x: %f, not a multiple of: %f", noisedX, tc.wantGranularity)
+				break
+			}
+		}
+	}
+}
+
+func TestAddGaussianInt64RoundsToGranularity(t *testing.T) {
+	const numberOfTrials = 1000
+	for _, tc := range []struct {
+		sigma           float64
+		wantGranularity int64
+	}{
+		{
+			sigma:           1.0e17,
+			wantGranularity: 2,
+		},
+		{
+			sigma:           2.0e17,
+			wantGranularity: 4,
+		},
+		{
+			sigma:           2.3e18,
+			wantGranularity: 32,
+		},
+		{
+			sigma:           7.0e19,
+			wantGranularity: 1024,
+		},
+		{
+			sigma:           7.5e22,
+			wantGranularity: 1048576,
+		},
+	} {
+		for i := 0; i < numberOfTrials; i++ {
+			// the input x of addGaussianInt64 can be arbitrary but should cover all congruence
+			// classes of the anticipated granularity
+			x := rand.Int63n(tc.wantGranularity*10) - tc.wantGranularity*5
+			noisedX := addGaussianInt64(x, tc.sigma)
+			if noisedX%tc.wantGranularity != 0 {
+				t.Errorf("Got noised x: %d, not devisible by: %d", noisedX, tc.wantGranularity)
+				break
+			}
+		}
 	}
 }
 

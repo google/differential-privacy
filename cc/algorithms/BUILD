@@ -313,6 +313,7 @@ cc_test(
         ":distributions",
         ":numerical-mechanisms-testing",
         ":util",
+        "//base/testing:status_matchers",
         "@com_google_googletest//:gtest_main",
         "@com_google_absl//absl/status",
     ],

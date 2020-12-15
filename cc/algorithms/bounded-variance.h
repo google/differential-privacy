@@ -96,9 +96,8 @@ class BoundedVariance : public Algorithm<T> {
         override {
       // We have to check epsilon now, otherwise the split during ApproxBounds
       // construction might make the error message confusing.
-      RETURN_IF_ERROR(
-          GetValueIfSetAndPositive(AlgorithmBuilder::GetEpsilon(), "Epsilon")
-              .status());
+      RETURN_IF_ERROR(ValidateIsFiniteAndPositive(
+          AlgorithmBuilder::GetEpsilon(), "Epsilon"));
 
       // Ensure that either bounds are manually set or ApproxBounds is made.
       RETURN_IF_ERROR(BoundedBuilder::BoundsSetup());
@@ -212,13 +211,13 @@ class BoundedVariance : public Algorithm<T> {
     }
 
     // Add count and partial values to current ones.
-    SafeAdd(raw_count_, bv_summary.count(), &raw_count_);
+    raw_count_ += bv_summary.count();
     for (int i = 0; i < pos_sum_.size(); ++i) {
-      SafeAdd(pos_sum_[i], GetValue<T>(bv_summary.pos_sum(i)), &pos_sum_[i]);
+      pos_sum_[i] += GetValue<T>(bv_summary.pos_sum(i));
       pos_sum_of_squares_[i] += bv_summary.pos_sum_of_squares(i);
     }
     for (int i = 0; i < neg_sum_.size(); ++i) {
-      SafeAdd(neg_sum_[i], GetValue<T>(bv_summary.neg_sum(i)), &neg_sum_[i]);
+      neg_sum_[i] += GetValue<T>(bv_summary.neg_sum(i));
       neg_sum_of_squares_[i] += bv_summary.neg_sum_of_squares(i);
     }
 
@@ -306,9 +305,9 @@ class BoundedVariance : public Algorithm<T> {
 
   base::StatusOr<Output> GenerateResult(double privacy_budget,
                                         double noise_interval_level) override {
-    DCHECK_GT(privacy_budget, 0.0)
-        << "Privacy budget should be greater than zero.";
-    if (privacy_budget == 0.0) return Output();
+    RETURN_IF_ERROR(ValidateIsPositive(privacy_budget, "Privacy budget",
+                                       absl::StatusCode::kFailedPrecondition));
+
     double remaining_budget = privacy_budget;
     Output output;
 
@@ -480,7 +479,7 @@ class BoundedVariance : public Algorithm<T> {
     }
 
     // Count is unaffected by clamping.
-    SafeAdd<uint64_t>(raw_count_, num_of_entries, &raw_count_);
+    raw_count_ += num_of_entries;
 
     // If bounds exist, clamp and record. Otherwise, store partial results and
     // feed input into ApproxBounds algorithm.
@@ -517,10 +516,8 @@ class BoundedVariance : public Algorithm<T> {
           "AddManualBoundsEntry() can only be used when bounds were set "
           "manually.");
     }
-    SafeAdd(pos_sum_[0],
-            Clamp<T>(std::numeric_limits<T>::lowest(),
-                     std::numeric_limits<T>::max(), t * num_of_entries),
-            &pos_sum_[0]);
+    pos_sum_[0] += Clamp<T>(std::numeric_limits<T>::lowest(),
+                            std::numeric_limits<T>::max(), t * num_of_entries);
     pos_sum_of_squares_[0] += pow(t, 2) * num_of_entries;
     return absl::OkStatus();
   }

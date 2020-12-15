@@ -62,9 +62,8 @@ class BoundedSum : public Algorithm<T> {
         override {
       // We have to check epsilon now, otherwise the split during ApproxBounds
       // construction might make the error message confusing.
-      RETURN_IF_ERROR(
-          GetValueIfSetAndPositive(AlgorithmBuilder::GetEpsilon(), "Epsilon")
-              .status());
+      RETURN_IF_ERROR(ValidateIsFiniteAndPositive(
+          AlgorithmBuilder::GetEpsilon(), "Epsilon"));
 
       // Ensure that either bounds are manually set or ApproxBounds is made.
       RETURN_IF_ERROR(BoundedBuilder::BoundsSetup());
@@ -108,7 +107,7 @@ class BoundedSum : public Algorithm<T> {
     // If manual bounds are set, clamp immediately and store sum. Otherwise,
     // feed inputs into ApproxBounds and store temporary partial sums.
     if (!approx_bounds_) {
-      SafeAdd(pos_sum_[0], Clamp<T>(lower_, upper_, t), &pos_sum_[0]);
+      pos_sum_[0] += Clamp<T>(lower_, upper_, t);
     } else {
       approx_bounds_->AddEntry(t);
 
@@ -175,10 +174,10 @@ class BoundedSum : public Algorithm<T> {
           "values as this BoundedSum.");
     }
     for (int i = 0; i < pos_sum_.size(); ++i) {
-      SafeAdd(pos_sum_[i], GetValue<T>(bs_summary.pos_sum(i)), &pos_sum_[i]);
+      pos_sum_[i] += GetValue<T>(bs_summary.pos_sum(i));
     }
     for (int i = 0; i < neg_sum_.size(); ++i) {
-      SafeAdd(neg_sum_[i], GetValue<T>(bs_summary.neg_sum(i)), &neg_sum_[i]);
+      neg_sum_[i] += GetValue<T>(bs_summary.neg_sum(i));
     }
     if (approx_bounds_) {
       Summary approx_bounds_summary;
@@ -252,9 +251,8 @@ class BoundedSum : public Algorithm<T> {
 
   base::StatusOr<Output> GenerateResult(double privacy_budget,
                                         double noise_interval_level) override {
-    DCHECK_GT(privacy_budget, 0.0)
-        << "Privacy budget should be greater than zero.";
-    if (privacy_budget == 0.0) return Output();
+    RETURN_IF_ERROR(ValidateIsPositive(privacy_budget, "Privacy budget",
+                                       absl::StatusCode::kFailedPrecondition));
 
     Output output;
     double sum = 0;

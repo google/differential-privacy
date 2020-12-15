@@ -76,9 +76,8 @@ class BoundedMean : public Algorithm<T> {
         override {
       // We have to check epsilon now, otherwise the split during ApproxBounds
       // construction might make the error message confusing.
-      RETURN_IF_ERROR(
-          GetValueIfSetAndPositive(AlgorithmBuilder::GetEpsilon(), "Epsilon")
-              .status());
+      RETURN_IF_ERROR(ValidateIsFiniteAndPositive(
+          AlgorithmBuilder::GetEpsilon(), "Epsilon"));
       // Ensure that either bounds are manually set or ApproxBounds is made.
       RETURN_IF_ERROR(BoundedBuilder::BoundsSetup());
 
@@ -151,10 +150,6 @@ class BoundedMean : public Algorithm<T> {
     return summary;
   }
 
-  // Note that the partial sums pos_sum_[i] and neg_sum_[i] will not surpass T's
-  // numeric limits (see SafeAdd implementation), but the raw counts will still
-  // be added together. Thus, the resulting mean will be incorrect,
-  // but warning the user of this would unfortunately violate DP.
   absl::Status Merge(const Summary& summary) override {
     if (!summary.has_data()) {
       return absl::InternalError(
@@ -166,17 +161,17 @@ class BoundedMean : public Algorithm<T> {
     if (!summary.data().UnpackTo(&bm_summary)) {
       return absl::InternalError("Bounded mean summary unable to be unpacked.");
     }
-    SafeAdd<uint64_t>(raw_count_, bm_summary.count(), &raw_count_);
+    raw_count_ += bm_summary.count();
     if (pos_sum_.size() != bm_summary.pos_sum_size() ||
         neg_sum_.size() != bm_summary.neg_sum_size()) {
       return absl::InternalError(
           "Merged BoundedMeans must have equal number of partial sums.");
     }
     for (int i = 0; i < pos_sum_.size(); ++i) {
-      SafeAdd(pos_sum_[i], GetValue<T>(bm_summary.pos_sum(i)), &pos_sum_[i]);
+      pos_sum_[i] += GetValue<T>(bm_summary.pos_sum(i));
     }
     for (int i = 0; i < neg_sum_.size(); ++i) {
-      SafeAdd(neg_sum_[i], GetValue<T>(bm_summary.neg_sum(i)), &neg_sum_[i]);
+      neg_sum_[i] += GetValue<T>(bm_summary.neg_sum(i));
     }
     if (approx_bounds_) {
       Summary approx_bounds_summary;
@@ -255,9 +250,9 @@ class BoundedMean : public Algorithm<T> {
 
   base::StatusOr<Output> GenerateResult(double privacy_budget,
                                         double noise_interval_level) override {
-    DCHECK_GT(privacy_budget, 0.0)
-        << "Privacy budget should be greater than zero.";
-    if (privacy_budget == 0.0) return Output();
+    RETURN_IF_ERROR(ValidateIsPositive(privacy_budget, "Privacy budget",
+                                       absl::StatusCode::kFailedPrecondition));
+
     double sum = 0;
     double remaining_budget = privacy_budget;
     Output output;
@@ -321,10 +316,6 @@ class BoundedMean : public Algorithm<T> {
   }
 
  private:
-  // Note that for manual bounds, pos_sum_[0] will not surpass T's numeric
-  // limit (see SafeAdd implementation), but will continue to increment
-  // raw_count_ for every call to AddEntry(). Thus, the resulting mean will be
-  // incorrect, but warning the user of this would unfortunately violate DP.
   void AddMultipleEntries(const T& input, uint64_t num_of_entries) {
     // REF:
     // https://stackoverflow.com/questions/61646166/how-to-resolve-fpclassify-ambiguous-call-to-overloaded-function
@@ -332,15 +323,10 @@ class BoundedMean : public Algorithm<T> {
       return;
     }
 
-    SafeAdd<uint64_t>(raw_count_, num_of_entries, &raw_count_);
+    raw_count_ += num_of_entries;
 
     if (!approx_bounds_) {
-      T total_input;
-      SafeMultiply<T>(Clamp<T>(lower_, upper_, input),
-                      Clamp<T>(std::numeric_limits<T>::lowest(),
-                               std::numeric_limits<T>::max(), num_of_entries),
-                      &total_input);
-      SafeAdd(pos_sum_[0], total_input, &pos_sum_[0]);
+      pos_sum_[0] += Clamp<T>(lower_, upper_, input) * num_of_entries;
     } else {
       approx_bounds_->AddMultipleEntries(input, num_of_entries);
 

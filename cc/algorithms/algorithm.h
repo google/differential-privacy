@@ -55,7 +55,10 @@ class Algorithm {
   // Epsilon is a standard parameter of differentially private
   // algorithms. See "The Algorithmic Foundations of Differential Privacy" p17.
   explicit Algorithm(double epsilon)
-      : epsilon_(epsilon), privacy_budget_(kFullPrivacyBudget) {}
+      : epsilon_(epsilon), privacy_budget_(kFullPrivacyBudget) {
+    DCHECK_NE(epsilon, std::numeric_limits<double>::infinity());
+    DCHECK_GT(epsilon, 0.0);
+  }
 
   virtual ~Algorithm() = default;
 
@@ -195,6 +198,26 @@ class AlgorithmBuilder {
                    << " is being used. Consider setting your own epsilon based "
                       "on privacy considerations.";
     }
+    RETURN_IF_ERROR(ValidateIsFiniteAndPositive(epsilon_, "Epsilon"));
+
+    if (delta_.has_value()) {
+      RETURN_IF_ERROR(
+          ValidateIsInInclusiveInterval(delta_.value(), 0, 1, "Delta"));
+    }  // TODO: Default delta_ to kDefaultDelta?
+
+    if (l0_sensitivity_.has_value()) {
+      RETURN_IF_ERROR(
+          ValidateIsPositive(l0_sensitivity_.value(),
+                             "Maximum number of partitions that can be "
+                             "contributed to (i.e., L0 sensitivity)"));
+    }  // TODO: Default is set in UpdateAndBuildMechanism() below.
+
+    if (max_contributions_per_partition_.has_value()) {
+      RETURN_IF_ERROR(
+          ValidateIsPositive(max_contributions_per_partition_.value(),
+                             "Maximum number of contributions per partition"));
+    }  // TODO: Default is set in UpdateAndBuildMechanism() below.
+
     return BuildAlgorithm();
   }
 
@@ -263,6 +286,7 @@ class AlgorithmBuilder {
     }
     // If not set, we are using 1 as default value for both, L0 and Linf, as
     // fallback for existing clients.
+    // TODO: Refactor, consolidate, or remove defaults.
     return clone->SetL0Sensitivity(l0_sensitivity_.value_or(1))
         .SetLInfSensitivity(max_contributions_per_partition_.value_or(1))
         .Build();

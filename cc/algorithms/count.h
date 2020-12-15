@@ -66,7 +66,7 @@ class Count : public Algorithm<T> {
     if (!summary.data().UnpackTo(&count_summary)) {
       return absl::InternalError("Count summary unable to be unpacked.");
     }
-    SafeAdd<uint64_t>(count_, count_summary.count(), &count_);
+    count_ += count_summary.count();
 
     return absl::OkStatus();
   }
@@ -82,6 +82,9 @@ class Count : public Algorithm<T> {
  protected:
   base::StatusOr<Output> GenerateResult(double privacy_budget,
                                         double noise_interval_level) override {
+    RETURN_IF_ERROR(ValidateIsPositive(privacy_budget, "Privacy budget",
+                                       absl::StatusCode::kFailedPrecondition));
+
     Output output;
     int64_t countWithNoise;
     SafeCastFromDouble(std::round(mechanism_->AddNoise(count_, privacy_budget)),
@@ -107,7 +110,7 @@ class Count : public Algorithm<T> {
 
  private:
   void AddMultipleEntries(const T& v, uint64_t num_of_entries) {
-    SafeAdd<uint64_t>(count_, num_of_entries, &count_);
+    count_ += num_of_entries;
   }
 
   // Friend class for testing only

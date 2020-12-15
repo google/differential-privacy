@@ -160,12 +160,16 @@ TEST(OrderStatisticsTest, InvalidParameters) {
       builder.SetLower(3).Build(),
       StatusIs(absl::StatusCode::kInvalidArgument,
                HasSubstr("Lower bound cannot be greater than upper bound")));
-  EXPECT_THAT(builder.SetLower(1).SetPercentile(-1).Build(),
-              StatusIs(absl::StatusCode::kInvalidArgument,
-                       HasSubstr("Percentile must be between 0 and 1")));
-  EXPECT_THAT(builder.SetPercentile(2).Build(),
-              StatusIs(absl::StatusCode::kInvalidArgument,
-                       HasSubstr("Percentile must be between 0 and 1")));
+  EXPECT_THAT(
+      builder.SetLower(1).SetPercentile(-1).Build(),
+      StatusIs(
+          absl::StatusCode::kInvalidArgument,
+          HasSubstr("Percentile must be in the inclusive interval [0,1]")));
+  EXPECT_THAT(
+      builder.SetPercentile(2).Build(),
+      StatusIs(
+          absl::StatusCode::kInvalidArgument,
+          HasSubstr("Percentile must be in the inclusive interval [0,1]")));
 }
 
 TEST(OrderStatisticsTest, Median_DefaultBounds) {

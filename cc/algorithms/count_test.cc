@@ -45,7 +45,9 @@ namespace {
 
 using ::differential_privacy::test_utils::ZeroNoiseMechanism;
 using ::differential_privacy::base::testing::EqualsProto;
+using ::testing::HasSubstr;
 using ::differential_privacy::base::testing::IsOkAndHolds;
+using ::differential_privacy::base::testing::StatusIs;
 
 template <typename T>
 class CountTest : public testing::Test {};
@@ -83,6 +85,22 @@ TYPED_TEST(CountTest, RepeatedResultTest) {
   EXPECT_EQ(GetValue<int64_t>(*result1), GetValue<int64_t>(*result2));
 }
 
+TYPED_TEST(CountTest, InsufficientPrivacyBudgetTest) {
+  std::vector<TypeParam> c = {1, 2, 3, 4, 2, 3};
+  auto count =
+      typename Count<TypeParam>::Builder()
+          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .Build();
+  ASSERT_OK(count);
+
+  (*count)->AddEntries(c.begin(), c.end());
+
+  ASSERT_OK((*count)->PartialResult());
+  EXPECT_THAT((*count)->PartialResult(),
+              StatusIs(absl::StatusCode::kFailedPrecondition,
+                       HasSubstr("Privacy budget must be positive")));
+}
+
 TEST(CountTest, ConfidenceIntervalTest) {
   double epsilon = 0.5;
   double level = .95;
@@ -115,13 +133,11 @@ TEST(CountTest, OverflowTest) {
   CountTestPeer::AddMultipleEntries<uint64_t>(
       1, std::numeric_limits<uint64_t>::max(), &**count);
   (*count)->AddEntry(1);
-  (*count)->AddEntry(1);
-  (*count)->AddEntry(1);
 
   auto result = (*count)->PartialResult();
   ASSERT_OK(result);
 
-  EXPECT_EQ(GetValue<int64_t>(*result), std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(GetValue<int64_t>(*result), 0);
 }
 
 TEST(CountTest, SerializeTest) {
@@ -161,29 +177,30 @@ TEST(CountTest, MergeTest) {
 }
 
 TEST(CountTest, SerializeAndMergeOverflowTest) {
-  auto count1 =
-      Count<uint64_t>::Builder()
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
-          .Build();
+  Count<uint64_t>::Builder builder;
+  builder.SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>());
+  base::StatusOr<std::unique_ptr<Count<uint64_t>>> count1 = builder.Build();
   ASSERT_OK(count1);
   CountTestPeer::AddMultipleEntries<uint64_t>(
       1, std::numeric_limits<uint64_t>::max(), &**count1);
   Summary summary = (*count1)->Serialize();
 
-  auto count2 =
-      Count<uint64_t>::Builder()
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
-          .Build();
+  base::StatusOr<std::unique_ptr<Count<uint64_t>>> count2 = builder.Build();
   ASSERT_OK(count2);
   (*count2)->AddEntry(1);
-  (*count2)->AddEntry(2);
-
   EXPECT_OK((*count2)->Merge(summary));
 
-  auto result = (*count2)->PartialResult();
+  base::StatusOr<Output> result = (*count2)->PartialResult();
   ASSERT_OK(result);
+  EXPECT_EQ(GetValue<int64_t>(*result), 0);
 
-  EXPECT_EQ(GetValue<int64_t>(*result), std::numeric_limits<int64_t>::max());
+  // Test post-overflow serialize & merge
+  summary = (*count2)->Serialize();
+  count2 = builder.Build();
+  ASSERT_OK((*count2)->Merge(summary));
+  result = (*count2)->PartialResult();
+  ASSERT_OK(result.status());
+  EXPECT_DOUBLE_EQ(GetValue<int64_t>(result.value()), 0);
 }
 
 TEST(CountTest, MemoryUsed) {

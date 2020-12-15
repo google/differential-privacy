@@ -33,7 +33,9 @@ namespace {
 using ::differential_privacy::test_utils::ZeroNoiseMechanism;
 using ::testing::Eq;
 using ::differential_privacy::base::testing::EqualsProto;
+using ::testing::HasSubstr;
 using ::differential_privacy::base::testing::IsOkAndHolds;
+using ::differential_privacy::base::testing::StatusIs;
 
 constexpr double kNumSamples = 10000;
 
@@ -85,6 +87,23 @@ TYPED_TEST(BoundedSumTest, BasicIOWithoutIterator) {
 
 TYPED_TEST(BoundedSumTest, RepeatedResultTest) {
   std::vector<TypeParam> a = {0, 0, 10, 10};
+  auto bs =
+      typename BoundedSum<TypeParam>::Builder()
+          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetEpsilon(1.0)
+          .SetLower(0)
+          .SetUpper(10)
+          .Build();
+  ASSERT_OK(bs);
+  (*bs)->AddEntries(a.begin(), a.end());
+  ASSERT_OK((*bs)->PartialResult());
+  EXPECT_THAT((*bs)->PartialResult(),
+              StatusIs(absl::StatusCode::kFailedPrecondition,
+                       HasSubstr("Privacy budget must be positive")));
+}
+
+TYPED_TEST(BoundedSumTest, InsufficientPrivacyBudgetTest) {
+  std::vector<TypeParam> a = {1, 2, 3, 4};
   auto bs =
       typename BoundedSum<TypeParam>::Builder()
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
@@ -311,93 +330,113 @@ TYPED_TEST(BoundedSumTest, SerializeMergePartialSumsTest) {
 TEST(BoundedSumTest, OverflowAddEntryManualBounds) {
   typename BoundedSum<int64_t>::Builder builder;
 
-  std::unique_ptr<BoundedSum<int64_t>> bs =
+  base::StatusOr<std::unique_ptr<BoundedSum<int64_t>>> bs =
       builder
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .SetLower(0)
           .SetUpper(std::numeric_limits<int64_t>::max())
-          .Build()
-          .ValueOrDie();
-  bs->AddEntry(std::numeric_limits<int64_t>::max());
-  bs->AddEntry(1);
-  bs->AddEntry(1);
-  bs->AddEntry(std::numeric_limits<int64_t>::max());
+          .Build();
+  ASSERT_OK(bs);
+  (*bs)->AddEntry(std::numeric_limits<int64_t>::max());
+  (*bs)->AddEntry(1);
+  (*bs)->AddEntry(1);
+  (*bs)->AddEntry(std::numeric_limits<int64_t>::max());
 
-  auto result = bs->PartialResult();
-  EXPECT_OK(result.status());
-  EXPECT_EQ(GetValue<int64_t>(result.value()), std::numeric_limits<int64_t>::max());
+  base::StatusOr<Output> result = (*bs)->PartialResult();
+  ASSERT_OK(result);
+  // Overflowing should result in the running sum wrapping around to zero.
+  EXPECT_EQ(GetValue<int64_t>(result.value()), 0);
 }
 
 TEST(BoundedSumTest, UnderflowAddEntryManualBounds) {
   typename BoundedSum<int64_t>::Builder builder;
 
-  std::unique_ptr<BoundedSum<int64_t>> bs =
+  base::StatusOr<std::unique_ptr<BoundedSum<int64_t>>> bs =
       builder
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .SetLower(std::numeric_limits<int64_t>::lowest() + 1)
           .SetUpper(0)
           .Build()
           .ValueOrDie();
-  bs->AddEntry(std::numeric_limits<int64_t>::lowest());
-  bs->AddEntry(-1);
-  bs->AddEntry(-1);
-  bs->AddEntry(std::numeric_limits<int64_t>::lowest());
+  (*bs)->AddEntry(std::numeric_limits<int64_t>::lowest() + 1);
+  (*bs)->AddEntry(-1);
+  (*bs)->AddEntry(-1);
+  (*bs)->AddEntry(std::numeric_limits<int64_t>::lowest() + 1);
 
-  auto result = bs->PartialResult();
-  EXPECT_OK(result.status());
-  EXPECT_EQ(GetValue<int64_t>(result.value()),
-            std::numeric_limits<int64_t>::lowest());
+  base::StatusOr<Output> result = (*bs)->PartialResult();
+  ASSERT_OK(result);
+  // Underflowing should result in the running sum wrapping around to zero.
+  EXPECT_EQ(GetValue<int64_t>(result.value()), 0);
 }
 
 TEST(BoundedSumTest, OverflowMergeManualBoundsTest) {
   typename BoundedSum<int64_t>::Builder builder;
 
-  std::unique_ptr<BoundedSum<int64_t>> bs =
+  base::StatusOr<std::unique_ptr<BoundedSum<int64_t>>> bs =
       builder
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .SetLower(0)
           .SetUpper(std::numeric_limits<int64_t>::max())
-          .Build()
-          .ValueOrDie();
-  bs->AddEntry(std::numeric_limits<int64_t>::max());
-  Summary summary = bs->Serialize();
+          .Build();
+  ASSERT_OK(bs);
+  (*bs)->AddEntry(std::numeric_limits<int64_t>::max());
+  Summary summary = (*bs)->Serialize();
 
-  std::unique_ptr<BoundedSum<int64_t>> bs2 = builder.Build().ValueOrDie();
-  bs2->AddEntry(1);
-  bs2->AddEntry(1);
-  bs2->AddEntry(1);
+  base::StatusOr<std::unique_ptr<BoundedSum<int64_t>>> bs2 = builder.Build();
+  ASSERT_OK(bs2);
+  (*bs2)->AddEntry(1);
+  (*bs2)->AddEntry(1);
+  (*bs2)->AddEntry(std::numeric_limits<int64_t>::max());
 
-  EXPECT_OK(bs2->Merge(summary));
+  ASSERT_OK((*bs2)->Merge(summary));
 
-  auto result = bs2->PartialResult();
-  EXPECT_OK(result.status());
-  EXPECT_EQ(GetValue<int64_t>(result.value()), std::numeric_limits<int64_t>::max());
+  base::StatusOr<Output> result = (*bs2)->PartialResult();
+  EXPECT_OK(result);
+  // Overflowing should result in the running sum wrapping around to zero.
+  EXPECT_EQ(GetValue<int64_t>(result.value()), 0);
+
+  // Test post-overflow serialize & merge
+  summary = (*bs2)->Serialize();
+  bs2 = builder.Build();
+  EXPECT_OK((*bs2)->Merge(summary));
+  result = (*bs2)->PartialResult();
+  EXPECT_OK(result);
+  EXPECT_DOUBLE_EQ(GetValue<double>(result.value()), 0);
 }
 
 TEST(BoundedSumTest, UnderflowMergeManualBoundsTest) {
   typename BoundedSum<int64_t>::Builder builder;
 
-  std::unique_ptr<BoundedSum<int64_t>> bs =
+  base::StatusOr<std::unique_ptr<BoundedSum<int64_t>>> bs =
       builder
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .SetLower(std::numeric_limits<int64_t>::lowest() + 1)
           .SetUpper(0)
           .Build()
           .ValueOrDie();
-  bs->AddEntry(std::numeric_limits<int64_t>::lowest());
-  Summary summary = bs->Serialize();
+  (*bs)->AddEntry(std::numeric_limits<int64_t>::lowest() + 1);
+  Summary summary = (*bs)->Serialize();
 
-  std::unique_ptr<BoundedSum<int64_t>> bs2 = builder.Build().ValueOrDie();
-  bs2->AddEntry(-1);
-  bs2->AddEntry(-1);
-  bs2->AddEntry(-1);
+  base::StatusOr<std::unique_ptr<BoundedSum<int64_t>>> bs2 = builder.Build();
+  ASSERT_OK(bs2);
+  (*bs2)->AddEntry(-1);
+  (*bs2)->AddEntry(-1);
+  (*bs2)->AddEntry(std::numeric_limits<int64_t>::lowest() + 1);
 
-  EXPECT_OK(bs2->Merge(summary));
+  EXPECT_OK((*bs2)->Merge(summary));
 
-  auto result = bs2->PartialResult();
-  EXPECT_OK(result.status());
-  EXPECT_EQ(GetValue<int64_t>(result.value()),
-            std::numeric_limits<int64_t>::lowest());
+  base::StatusOr<Output> result = (*bs2)->PartialResult();
+  EXPECT_OK(result);
+  // Underflowing should result in the running sum wrapping around to zero.
+  EXPECT_EQ(GetValue<int64_t>(result.value()), 0);
+
+  // Test post-overflow serialize & merge
+  summary = (*bs2)->Serialize();
+  bs2 = builder.Build();
+  EXPECT_OK((*bs2)->Merge(summary));
+  result = (*bs2)->PartialResult();
+  EXPECT_OK(result);
+  EXPECT_DOUBLE_EQ(GetValue<double>(result.value()), 0);
 }
 
 TEST(BoundedSumTest, DropNanEntriesManualBounds) {

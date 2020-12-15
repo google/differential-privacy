@@ -118,6 +118,9 @@ class BoundedStandardDeviation : public Algorithm<T> {
 
   base::StatusOr<Output> GenerateResult(double privacy_budget,
                                         double noise_interval_level) override {
+    RETURN_IF_ERROR(ValidateIsPositive(privacy_budget, "Privacy budget",
+                                       absl::StatusCode::kFailedPrecondition));
+
     ASSIGN_OR_RETURN(
         Output variance_output,
         variance_->PartialResult(privacy_budget, noise_interval_level));

@@ -31,6 +31,8 @@ namespace {
 
 using ::differential_privacy::test_utils::ZeroNoiseMechanism;
 using ::differential_privacy::base::testing::EqualsProto;
+using ::testing::HasSubstr;
+using ::differential_privacy::base::testing::StatusIs;
 
 template <typename T>
 class BoundedStandardDeviationTest : public testing::Test {
@@ -73,6 +75,24 @@ TYPED_TEST(BoundedStandardDeviationTest, RepeatedResultTest) {
 
   EXPECT_EQ(GetValue<double>(bsd->PartialResult(0.5).ValueOrDie()),
             GetValue<double>(bsd->PartialResult(0.5).ValueOrDie()));
+}
+
+TYPED_TEST(BoundedStandardDeviationTest, InsufficientPrivacyBudgetTest) {
+  std::vector<TypeParam> a = {1, 5, 7, 9, 13};
+  std::unique_ptr<BoundedStandardDeviation<TypeParam>> bsd =
+      typename BoundedStandardDeviation<TypeParam>::Builder()
+          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetEpsilon(1)
+          .SetLower(0)
+          .SetUpper(15)
+          .Build()
+          .ValueOrDie();
+  bsd->AddEntries(a.begin(), a.end());
+
+  ASSERT_OK(bsd->PartialResult());
+  EXPECT_THAT(bsd->PartialResult(),
+              StatusIs(absl::StatusCode::kFailedPrecondition,
+                       HasSubstr("Privacy budget must be positive")));
 }
 
 TYPED_TEST(BoundedStandardDeviationTest, ClampInputTest) {

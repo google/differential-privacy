@@ -141,27 +141,20 @@ class ApproxBounds : public Algorithm<T> {
       // Check the validity of the histogram parameters. num_bin and
       // success_probability restrictions prevent undefined threshold
       // calculation.
-      if (num_bins_ < 1) {
-        return absl::InvalidArgumentError("Must have one or more bins.");
-      }
-      if (scale_ <= 0) {
-        return absl::InvalidArgumentError("Scale must be positive.");
-      }
-      if (base_ <= 1) {
-        return absl::InvalidArgumentError("Base must be greater than 1.");
-      }
+      RETURN_IF_ERROR(ValidateIsPositive(num_bins_, "Number of bins"));
+      RETURN_IF_ERROR(ValidateIsFiniteAndPositive(scale_, "Scale"));
+      RETURN_IF_ERROR(ValidateIsFinite(base_, "Base"));
+      RETURN_IF_ERROR(ValidateIsGreaterThanOrEqualTo(base_, 1, "Base"));
+
       // TODO: Handle case where scale * base^num_bins >
       // std::numeric_limits<T>::max, even though the ApproxBounds constructor
       // addresses this
       if (has_k_) {
-        if (k_ < 0) {
-          return absl::InvalidArgumentError("k threshold must be nonnegative.");
-        }
+        RETURN_IF_ERROR(ValidateIsFinite(k_, "k threshold"));
+        RETURN_IF_ERROR(ValidateIsNonNegative(k_, "k threshold"));
       } else {
-        if (success_probability_ <= 0 || success_probability_ >= 1) {
-          return absl::InvalidArgumentError(
-              "Success percentage must be between 0 and 1.");
-        }
+        RETURN_IF_ERROR(ValidateIsInExclusiveInterval(
+            success_probability_, 0, 1, "Success probability"));
       }
 
       if (!has_k_) {
@@ -225,8 +218,8 @@ class ApproxBounds : public Algorithm<T> {
 
     // Add bin count from summary to each bin.
     for (int i = 0; i < pos_bins_.size(); ++i) {
-      SafeAdd<int64_t>(pos_bins_[i], am_summary.pos_bin_count(i), &pos_bins_[i]);
-      SafeAdd<int64_t>(neg_bins_[i], am_summary.neg_bin_count(i), &neg_bins_[i]);
+      pos_bins_[i] += am_summary.pos_bin_count(i);
+      neg_bins_[i] += am_summary.neg_bin_count(i);
     }
     return absl::OkStatus();
   }
@@ -336,33 +329,29 @@ class ApproxBounds : public Algorithm<T> {
       // to 0 to upper, and also from 0 to lower in the negative vectors.
       if (lower < 0) {
         for (int i = 0; i <= lower_msb; ++i) {
-          SafeAdd<T2>(value, neg_partials[i], &value);
+          value += neg_partials[i];
         }
       }
       if (upper > 0) {
         for (int i = 0; i <= upper_msb; ++i) {
-          SafeAdd<T2>(value, pos_partials[i], &value);
+          value += pos_partials[i];
         }
       }
     } else if (upper < 0) {
       // If lower and upper are negative, each value is clamped so that they
       // contributed at most upper. Anything less they contributed is stored
       // in partial values between lower and upper, which we add.
-      T2 bound_product;
-      SafeMultiply<T2>(value_transform(upper), count, &bound_product);
-      SafeAdd<T2>(value, bound_product, &value);
+      value += count * value_transform(upper);
       for (int i = upper_msb + 1; i <= lower_msb; ++i) {
-        SafeAdd<T2>(value, neg_partials[i], &value);
+        value += neg_partials[i];
       }
     } else {  // 0 < lower <= upper
       // If lower and upper are both positive, each value is clamped to it
       // contributed at least lower. Anything more contributed is stored
       // between lower and upper in positive vectors, which we add.
-      T2 bound_product;
-      SafeMultiply<T2>(value_transform(lower), count, &bound_product);
-      SafeAdd<T2>(value, bound_product, &value);
+      value += count * value_transform(lower);
       for (int i = lower_msb + 1; i <= upper_msb; ++i) {
-        SafeAdd<T2>(value, pos_partials[i], &value);
+        value += pos_partials[i];
       }
     }
     return value;
@@ -416,9 +405,8 @@ class ApproxBounds : public Algorithm<T> {
   // the threshold, populate the output with an error status.
   base::StatusOr<Output> GenerateResult(double privacy_budget,
                                         double noise_interval_level) override {
-    DCHECK_GT(privacy_budget, 0.0)
-        << "Privacy budget should be greater than zero.";
-    if (privacy_budget == 0.0) return Output();
+    RETURN_IF_ERROR(ValidateIsPositive(privacy_budget, "Privacy budget",
+                                       absl::StatusCode::kFailedPrecondition));
 
     // If k was not user set, scale it by the privacy_budget to ensure the
     // correct probability of success.
@@ -508,9 +496,9 @@ class ApproxBounds : public Algorithm<T> {
     // that MostSignificantBit returns 0 for 0.
     int index = MostSignificantBit(input);
     if (input >= 0) {
-      SafeAdd<int64_t>(pos_bins_[index], num_of_entries, &pos_bins_[index]);
+      pos_bins_[index] += num_of_entries;
     } else {  // value < 0
-      SafeAdd<int64_t>(neg_bins_[index], num_of_entries, &neg_bins_[index]);
+      neg_bins_[index] += num_of_entries;
     }
   }
 
@@ -535,13 +523,11 @@ class ApproxBounds : public Algorithm<T> {
         partial = make_partial(NegRightBinBoundary(i), NegLeftBinBoundary(i));
       }
 
-      T2 multiplied_partial;
       if (i < msb) {
         // For indices below the msb, add the maximum contribution
         // (num_of_entries times) to the partial.
 
-        SafeMultiply<T2>(partial, num_of_entries, &multiplied_partial);
-        SafeAdd<T2>((*partials)[i], multiplied_partial, &(*partials)[i]);
+        (*partials)[i] += partial * num_of_entries;
       } else {
         // For i = msb, add the remaining contribution (num_of_entries times),
         // but not more than the maximum contribution to the partial for this
@@ -554,11 +540,9 @@ class ApproxBounds : public Algorithm<T> {
           remainder = make_partial(value, NegLeftBinBoundary(i));
         }
         if (std::abs(partial) < std::abs(remainder)) {
-          SafeMultiply<T2>(partial, num_of_entries, &multiplied_partial);
-          SafeAdd<T2>((*partials)[msb], multiplied_partial, &(*partials)[msb]);
+          (*partials)[msb] += partial * num_of_entries;
         } else {
-          SafeMultiply<T2>(remainder, num_of_entries, &multiplied_partial);
-          SafeAdd<T2>((*partials)[msb], multiplied_partial, &(*partials)[msb]);
+          (*partials)[msb] += remainder * num_of_entries;
         }
       }
     }

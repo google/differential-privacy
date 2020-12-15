@@ -103,18 +103,6 @@ class BoundedAlgorithmBuilder : public AlgorithmBuilder<T, Algorithm, Builder> {
                            .SetLaplaceMechanism(std::move(mech_builder))
                            .Build());
     }
-    // Check if bounds are finite when a floating point type is used and bounds
-    // have been set manually.
-    if (BoundsAreSet() && std::is_floating_point<T>::value) {
-      if (!std::isfinite(static_cast<double>(lower_.value()))) {
-        return absl::InvalidArgumentError(absl::StrCat(
-            "Lower bound has to be finite but is ", lower_.value()));
-      }
-      if (!std::isfinite(static_cast<double>(upper_.value()))) {
-        return absl::InvalidArgumentError(absl::StrCat(
-            "Upper bound has to be finite but is ", upper_.value()));
-      }
-    }
     return absl::OkStatus();
   }
 
@@ -152,17 +140,23 @@ class BoundedAlgorithmBuilder : public AlgorithmBuilder<T, Algorithm, Builder> {
   // lower and upper bounds, respectively.
   std::unique_ptr<ApproxBounds<T>> approx_bounds_;
 
-  absl::Status CheckBoundsOrder() {
-    if (BoundsAreSet() && lower_.value() > upper_.value()) {
-      return absl::InvalidArgumentError(
-          "Lower bound cannot be greater than upper bound.");
-    }
-    return absl::OkStatus();
-  }
-
   // Common initialization and checks for building bounded algorithms.
   base::StatusOr<std::unique_ptr<Algorithm>> BuildAlgorithm() final {
-    RETURN_IF_ERROR(CheckBoundsOrder());
+    if (lower_.has_value() != upper_.has_value()) {
+      return absl::InvalidArgumentError(
+          "Lower and upper bounds must either both be set or both be unset.");
+    }
+
+    if (BoundsAreSet()) {
+      RETURN_IF_ERROR(ValidateIsFinite(lower_.value(), "Lower bound"));
+      RETURN_IF_ERROR(ValidateIsFinite(upper_.value(), "Upper bound"));
+
+      if (lower_.value() > upper_.value()) {
+        return absl::InvalidArgumentError(
+            "Lower bound cannot be greater than upper bound.");
+      }
+    }
+
     return BuildBoundedAlgorithm();
   }
 };

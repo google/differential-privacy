@@ -134,15 +134,18 @@ class BinarySearch : public Algorithm<T> {
         upper_(upper),
         lower_(lower),
         mechanism_(std::move(mechanism)),
-        quantiles_(std::move(input_sketch)) {}
+        quantiles_(std::move(input_sketch)) {
+    // TODO: Replace with Builder class & parameter validation
+    DCHECK_GE(quantile, 0);
+    DCHECK_LE(quantile, 1);
+  }
 
   void ResetState() override { quantiles_->Reset(); }
 
   base::StatusOr<Output> GenerateResult(double privacy_budget,
                                         double noise_interval_level) override {
-    DCHECK_GT(privacy_budget, 0.0)
-        << "Privacy budget should be greater than zero.";
-    if (privacy_budget == 0.0) return Output();
+    RETURN_IF_ERROR(ValidateIsPositive(privacy_budget, "Privacy budget",
+                                       absl::StatusCode::kFailedPrecondition));
     return BayesianSearch(privacy_budget, noise_interval_level);
   }
 
@@ -244,8 +247,7 @@ class BinarySearch : public Algorithm<T> {
       }
     }
 
-    // Round the result instead of truncation, and ensure the result is within
-    // the valid bounds of T (to prevent overflows or underflows).
+    // Round the result instead of truncation.
     if (std::is_integral<T>::value) {
       m = Clamp<double>(std::numeric_limits<T>::lowest(),
                         std::numeric_limits<T>::max(), std::round(m));

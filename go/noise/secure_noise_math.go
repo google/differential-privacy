@@ -65,6 +65,26 @@ func roundToMultipleOfPowerOfTwo(x, granularity float64) float64 {
 	return math.Round(x/granularity) * granularity
 }
 
+// roundToMultiple returns a multiple of granularity that is closest to x.
+// The result is exact.
+func roundToMultiple(x, granularity int64) int64 {
+	result := (x / granularity) * granularity
+	if x >= 0 {
+		if x-result >= (result+granularity)-x {
+			// round up
+			return result + granularity
+		}
+		// round down
+		return result
+	}
+	if x-(result-granularity) >= result-x {
+		// round up
+		return result
+	}
+	// round down
+	return result - granularity
+}
+
 // nextLargerFloat64 computes the smallest float64 value that is larger than or equal to the provided int64 value.
 //
 // Mapping from int64 to float64 for large int64 values (> 2^53) is inaccurate since they cannot be

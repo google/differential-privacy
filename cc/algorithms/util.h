@@ -19,7 +19,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <limits>
 #include <numeric>
 #include <string>
 #include <type_traits>
@@ -145,44 +144,6 @@ template <typename T,
           std::enable_if_t<std::is_floating_point<T>::value>* = nullptr>
 inline bool SafeSubtract(T lhs, T rhs, T* result) {
   *result = lhs - rhs;
-  return true;
-}
-
-// When T is an integral type, return true and assign the multiplication result
-// if the multiplication will not overflow. Otherwise, assign the numeric limit
-// to result and return false.
-template <typename T, std::enable_if_t<std::is_integral<T>::value>* = nullptr>
-inline bool SafeMultiply(T lhs, T rhs, T* result) {
-  if (lhs > 0) {
-    if (rhs > 0) {
-      T safe_distance = std::numeric_limits<T>::max() / lhs;
-      if (safe_distance < rhs) {
-        *result = std::numeric_limits<T>::max();
-        return false;
-      }
-    } else if (rhs < 0) {
-      T safe_distance = std::numeric_limits<T>::lowest() / lhs;
-      if (safe_distance > rhs) {
-        *result = std::numeric_limits<T>::lowest();
-        return false;
-      }
-    }
-  } else if (lhs < 0) {
-    if (rhs < 0) {
-      T safe_distance = std::numeric_limits<T>::max() / lhs;
-      if (safe_distance > rhs) {
-        *result = std::numeric_limits<T>::max();
-        return false;
-      }
-    } else if (rhs > 0) {
-      T safe_distance = std::numeric_limits<T>::lowest() / rhs;
-      if (safe_distance > lhs) {
-        *result = std::numeric_limits<T>::lowest();
-        return false;
-      }
-    }
-  }
-  *result = lhs * rhs;
   return true;
 }
 
@@ -333,17 +294,106 @@ std::string VectorToString(const std::vector<T>& v) {
   return absl::StrCat("[", absl::StrJoin(v, ", "), "]");
 }
 
-// Returns the value of optional `opt` if it is set and finite.  Will return
-// an InvalidArgumentError otherwise that includes `name` in the error
-// message.
-base::StatusOr<double> GetValueIfSetAndFinite(absl::optional<double> opt,
-                                              absl::string_view name);
+// The functions below provide a common and consistent way for validating
+// arguments and formatting error messages.
 
-// Returns the value of optional `opt` if it is set, finite, and positive.
-// Will return an InvalidArgumentError otherwise that includes `name` in the
+// Returns absl::OkStatus() if the value of optional `opt` if it is set.
+// Otherwise, will return an `error_code` error that includes `name` in the
 // error message.
-base::StatusOr<double> GetValueIfSetAndPositive(absl::optional<double> opt,
-                                                absl::string_view name);
+absl::Status ValidateIsSet(
+    absl::optional<double> opt, absl::string_view name,
+    absl::StatusCode error_code = absl::StatusCode::kInvalidArgument);
+
+// Returns absl::OkStatus() if the value of optional `opt` if it is set and
+// positive. Otherwise, will return an `error_code` error status that includes
+// `name` in the error message.
+absl::Status ValidateIsPositive(
+    absl::optional<double> opt, absl::string_view name,
+    absl::StatusCode error_code = absl::StatusCode::kInvalidArgument);
+
+// Returns absl::OkStatus() if the value of optional `opt` if it is set and
+// non-negative. Otherwise, will return an `error_code` error status that
+// includes `name` in the error message.
+absl::Status ValidateIsNonNegative(
+    absl::optional<double> opt, absl::string_view name,
+    absl::StatusCode error_code = absl::StatusCode::kInvalidArgument);
+
+// Returns absl::OkStatus() if the value of optional `opt` if it is set and
+// finite. Otherwise, will return an `error_code` error status that includes
+// `name` in the error message.
+absl::Status ValidateIsFinite(
+    absl::optional<double> opt, absl::string_view name,
+    absl::StatusCode error_code = absl::StatusCode::kInvalidArgument);
+
+// Returns absl::OkStatus() if the value of optional `opt` if it is set, finite,
+// and positive. Otherwise, will return an `error_code` error status that
+// includes `name` in the error message.
+absl::Status ValidateIsFiniteAndPositive(
+    absl::optional<double> opt, absl::string_view name,
+    absl::StatusCode error_code = absl::StatusCode::kInvalidArgument);
+
+// Returns absl::OkStatus() if the value of optional `opt` if it is set, finite,
+// and non-negative. Otherwise, will return an `error_code` error status that
+// includes `name` in the error message.
+absl::Status ValidateIsFiniteAndNonNegative(
+    absl::optional<double> opt, absl::string_view name,
+    absl::StatusCode error_code = absl::StatusCode::kInvalidArgument);
+
+// Returns absl::OkStatus() if the value of optional `opt` if it is set and
+// within the inclusive (i.e., closed) interval [`lower_bound`, `upper_bound`].
+// Otherwise, will return an `error_code` error status that includes `name` in
+// the error message.
+absl::Status ValidateIsInInclusiveInterval(
+    absl::optional<double> opt, double lower_bound, double upper_bound,
+    absl::string_view name,
+    absl::StatusCode error_code = absl::StatusCode::kInvalidArgument);
+
+// Returns absl::OkStatus() if the value of optional `opt` if it is set and
+// within the exclusive (i.e., open) interval (`lower_bound`, `upper_bound`).
+// Otherwise, will return an `error_code` error status that includes `name` in
+// the error message.
+absl::Status ValidateIsInExclusiveInterval(
+    absl::optional<double> opt, double lower_bound, double upper_bound,
+    absl::string_view name,
+    absl::StatusCode error_code = absl::StatusCode::kInvalidArgument);
+
+// Returns absl::OkStatus() if the value of optional `opt` if it is set and
+// strictly lesser than `upper_bound`. Otherwise, will return an `error_code`
+// error status that includes `name` in the error message.
+absl::Status ValidateIsLesserThan(
+    absl::optional<double> opt, double upper_bound, absl::string_view name,
+    absl::StatusCode error_code = absl::StatusCode::kInvalidArgument);
+
+// Returns absl::OkStatus() if the value of optional `opt` if it is set and
+// lesser than or equal to `upper_bound`. Otherwise, will return an `error_code`
+// error status that includes `name` in the error message.
+absl::Status ValidateIsLesserThanOrEqualTo(
+    absl::optional<double> opt, double upper_bound, absl::string_view name,
+    absl::StatusCode error_code = absl::StatusCode::kInvalidArgument);
+
+// Returns absl::OkStatus() if the value of optional `opt` if it is set and
+// strictly greater than `lower_bound`. Otherwise, will return an `error_code`
+// error status that includes `name` in the error message.
+absl::Status ValidateIsGreaterThan(
+    absl::optional<double> opt, double lower_bound, absl::string_view name,
+    absl::StatusCode error_code = absl::StatusCode::kInvalidArgument);
+
+// Returns absl::OkStatus() if the value of optional `opt` if it is set and
+// greater than or equal to `upper_bound`. Otherwise, will return an
+// `error_code` error status that includes `name` in the error message.
+absl::Status ValidateIsGreaterThanOrEqualTo(
+    absl::optional<double> opt, double lower_bound, absl::string_view name,
+    absl::StatusCode error_code = absl::StatusCode::kInvalidArgument);
+
+// Returns absl::OkStatus() if the value of optional `opt` if it is set and
+// within the interval between `lower_bound` and `upper_bound`, including
+// `lower_bound` and/or `upper_bound` if `include_lower` or `include_upper` are
+// true, respectively. Otherwise, will return an `error_code` error status that
+// includes `name` in the error message.
+absl::Status ValidateIsInInterval(
+    absl::optional<double> opt, double lower_bound, double upper_bound,
+    bool include_lower, bool include_upper, absl::string_view name,
+    absl::StatusCode error_code = absl::StatusCode::kInvalidArgument);
 
 }  // namespace differential_privacy
 

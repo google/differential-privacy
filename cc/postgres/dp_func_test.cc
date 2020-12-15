@@ -31,7 +31,7 @@ TYPED_TEST_SUITE(BoundedDpFuncTest, BoundedDpFuncs);
 TEST(DpCount, BadEpsilon) {
   std::string err;
   auto dp_count = DpCount(&err, false, 0);
-  EXPECT_EQ(err, "Epsilon has to be positive but is 0");
+  EXPECT_EQ(err, "Epsilon must be finite and positive, but is 0.");
 }
 
 TEST(DpCount, AddEntryMissingAlgorithm) {
@@ -68,7 +68,8 @@ TYPED_TEST(BoundedDpFuncTest, BasicTest) {
 TEST(DpNtile, BadPercentile) {
   std::string err;
   auto func = DpNtile(&err, -1, 0, 10);
-  EXPECT_EQ(err, "Percentile must be between 0 and 1.");
+  EXPECT_EQ(err,
+            "Percentile must be in the inclusive interval [0,1], but is -1.");
 }
 
 TEST(DpNtile, BadBounds) {

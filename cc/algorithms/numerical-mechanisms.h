@@ -83,37 +83,23 @@ class NumericalMechanism {
   virtual int64_t MemoryUsed() = 0;
 
   virtual base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
-      double confidence_level, double privacy_budget, double noised_result) {
-    return absl::UnimplementedError(
-        "NoiseConfidenceInterval() unsupported for this numerical mechanism.");
-  }
+      double confidence_level, double privacy_budget, double noised_result) = 0;
 
   virtual base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
-      double confidence_level, double privacy_budget) {
-    return absl::UnimplementedError(
-        "NoiseConfidenceInterval() unsupported for this numerical mechanism.");
-  }
+      double confidence_level, double privacy_budget) = 0;
 
   double GetEpsilon() { return epsilon_; }
 
  protected:
   absl::Status CheckConfidenceLevel(double confidence_level) {
-    if (std::isnan(confidence_level) ||
-        !(0 < confidence_level && confidence_level < 1)) {
-      return absl::InvalidArgumentError(absl::StrCat(
-          "Confidence level has to be in the open interval (0,1), but is ",
-          confidence_level));
-    }
+    RETURN_IF_ERROR(ValidateIsInExclusiveInterval(confidence_level, 0, 1,
+                                                  "Confidence level"));
     return absl::OkStatus();
   }
 
   absl::Status CheckPrivacyBudget(double privacy_budget) {
-    if (std::isnan(privacy_budget) ||
-        !(0 < privacy_budget && privacy_budget <= 1)) {
-      return absl::InvalidArgumentError(absl::StrCat(
-          "privacy_budget has to be in the interval (0, 1], but is ",
-          privacy_budget));
-    }
+    RETURN_IF_ERROR(ValidateIsInInterval(privacy_budget, 0, 1, false, true,
+                                         "Privacy budget"));
     return absl::OkStatus();
   }
 
@@ -167,11 +153,8 @@ class NumericalMechanismBuilder {
  protected:
   // Checks if delta is set and valid to be used in the Gaussian mechanism.
   absl::Status DeltaIsSetAndValid() const {
-    ASSIGN_OR_RETURN(double delta, GetValueIfSetAndFinite(delta_, "Delta"));
-    if (delta <= 0 || 1 <= delta) {
-      return absl::InvalidArgumentError(absl::StrCat(
-          "Delta has to be in the interval (0, 1) but is ", delta));
-    }
+    RETURN_IF_ERROR(ValidateIsFinite(delta_, "Delta"));
+    RETURN_IF_ERROR(ValidateIsInExclusiveInterval(delta_, 0, 1, "Delta"));
     return absl::OkStatus();
   }
 
@@ -208,8 +191,8 @@ class LaplaceMechanism : public NumericalMechanism {
     }
 
     base::StatusOr<std::unique_ptr<NumericalMechanism>> Build() override {
-      ASSIGN_OR_RETURN(double epsilon,
-                       GetValueIfSetAndPositive(GetEpsilon(), "Epsilon"));
+      RETURN_IF_ERROR(ValidateIsFiniteAndPositive(GetEpsilon(), "Epsilon"));
+      double epsilon = GetEpsilon().value();
       ASSIGN_OR_RETURN(double L1, CalculateL1Sensitivity());
       // Check that generated noise is not likely to overflow.
       double diversity = L1 / epsilon;
@@ -244,14 +227,21 @@ class LaplaceMechanism : public NumericalMechanism {
     // on the l1 sensitivity calculated from l0 and linf sensitivities.
     base::StatusOr<double> CalculateL1Sensitivity() {
       if (l1_sensitivity_.has_value()) {
-        return GetValueIfSetAndPositive(l1_sensitivity_, "L1 sensitivity");
+        absl::Status status =
+            ValidateIsFiniteAndPositive(l1_sensitivity_, "L1 sensitivity");
+        if (status.ok()) {
+          return l1_sensitivity_.value();
+        } else {
+          return status;
+        }
       }
       if (GetL0Sensitivity().has_value() && GetLInfSensitivity().has_value()) {
-        ASSIGN_OR_RETURN(double l0, GetValueIfSetAndPositive(GetL0Sensitivity(),
-                                                             "L0 sensitivity"));
-        ASSIGN_OR_RETURN(
-            double linf,
-            GetValueIfSetAndPositive(GetLInfSensitivity(), "LInf sensitivity"));
+        RETURN_IF_ERROR(
+            ValidateIsFiniteAndPositive(GetL0Sensitivity(), "L0 sensitivity"));
+        double l0 = GetL0Sensitivity().value();
+        RETURN_IF_ERROR(ValidateIsFiniteAndPositive(GetLInfSensitivity(),
+                                                    "LInf sensitivity"));
+        double linf = GetLInfSensitivity().value();
         double l1 = l0 * linf;
         if (!std::isfinite(l1)) {
           return absl::InvalidArgumentError(absl::StrCat(
@@ -358,12 +348,13 @@ class GaussianMechanism : public NumericalMechanism {
     }
 
     base::StatusOr<std::unique_ptr<NumericalMechanism>> Build() override {
-      ASSIGN_OR_RETURN(double epsilon,
-                       GetValueIfSetAndPositive(GetEpsilon(), "Epsilon"));
+      absl::optional<double> epsilon = GetEpsilon();
+      RETURN_IF_ERROR(ValidateIsFiniteAndPositive(epsilon, "Epsilon"));
       RETURN_IF_ERROR(DeltaIsSetAndValid());
       ASSIGN_OR_RETURN(double l2, CalculateL2Sensitivity());
       std::unique_ptr<NumericalMechanism> result =
-          absl::make_unique<GaussianMechanism>(epsilon, GetDelta().value(), l2);
+          absl::make_unique<GaussianMechanism>(epsilon.value(),
+                                               GetDelta().value(), l2);
       return result;
     }
 
@@ -379,19 +370,26 @@ class GaussianMechanism : public NumericalMechanism {
     // on the l2 sensitivity calculated from l0 and linf sensitivities.
     base::StatusOr<double> CalculateL2Sensitivity() {
       if (l2_sensitivity_.has_value()) {
-        return GetValueIfSetAndPositive(l2_sensitivity_, "L2 sensitivity");
+        absl::Status status =
+            ValidateIsFiniteAndPositive(l2_sensitivity_, "L2 sensitivity");
+        if (status.ok()) {
+          return l2_sensitivity_.value();
+        } else {
+          return status;
+        }
       } else if (GetL0Sensitivity().has_value() &&
                  GetLInfSensitivity().has_value()) {
         // Try to calculate L2 sensitivity from L0 and LInf sensitivities
-        ASSIGN_OR_RETURN(double l0, GetValueIfSetAndPositive(GetL0Sensitivity(),
-                                                             "L0 sensitivity"));
-        ASSIGN_OR_RETURN(
-            double linf,
-            GetValueIfSetAndPositive(GetLInfSensitivity(), "LInf sensitivity"));
+        RETURN_IF_ERROR(
+            ValidateIsFiniteAndPositive(GetL0Sensitivity(), "L0 sensitivity"));
+        double l0 = GetL0Sensitivity().value();
+        RETURN_IF_ERROR(ValidateIsFiniteAndPositive(GetLInfSensitivity(),
+                                                    "LInf sensitivity"));
+        double linf = GetLInfSensitivity().value();
         double l2 = std::sqrt(l0) * linf;
         if (!std::isfinite(l2) || l2 <= 0) {
           return absl::InvalidArgumentError(absl::StrCat(
-              "The calculated L2 sensitivity has to be positive and finite but "
+              "The calculated L2 sensitivity must be positive and finite but "
               "is ",
               l2,
               ". Contribution or sensitivity settings might be too high or too "

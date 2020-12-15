@@ -64,7 +64,7 @@ func (laplace) AddNoiseFloat64(x float64, l0Sensitivity int64, lInfSensitivity, 
 		log.Fatalf("laplace.AddNoiseFloat64(l0sensitivity %d, lInfSensitivity %f, epsilon %f, delta %e) checks failed with %v",
 			l0Sensitivity, lInfSensitivity, epsilon, delta, err)
 	}
-	return addLaplace(x, epsilon, lInfSensitivity*float64(l0Sensitivity) /* l1Sensitivity */)
+	return addLaplaceFloat64(x, epsilon, lInfSensitivity*float64(l0Sensitivity) /* l1Sensitivity */)
 }
 
 // AddNoiseInt64 adds Laplace noise to the specified int64 x so that the
@@ -75,11 +75,7 @@ func (laplace) AddNoiseInt64(x, l0Sensitivity, lInfSensitivity int64, epsilon, d
 		log.Fatalf("laplace.AddNoiseInt64(l0sensitivity %d, lInfSensitivity %d, epsilon %f, delta %e) checks failed with %v",
 			l0Sensitivity, lInfSensitivity, epsilon, delta, err)
 	}
-	// Calling addLaplace on 0.0 avoids casting x to a float64 value, which is not secure from a
-	// privacy perspective as it can have unforeseen effects on the sensitivity of x. Rounding and
-	// adding the resulting noise to x in a post processing step is a secure operation (for noise of
-	// moderate magnitude, i.e. < 2^53).
-	return int64(math.Round(addLaplace(0.0, epsilon, float64(lInfSensitivity*l0Sensitivity) /* l1Sensitivity */))) + x
+	return addLaplaceInt64(x, epsilon, lInfSensitivity*l0Sensitivity /* l1Sensitivity */)
 }
 
 // Threshold returns the smallest threshold k to use in a differentially private
@@ -220,12 +216,23 @@ func checkArgsConfidenceIntervalLaplace(label string, l0Sensitivity int64, lInfS
 	return checkArgsLaplace(label, l0Sensitivity, lInfSensitivity, epsilon, delta)
 }
 
-// addLaplace adds Laplace noise scaled to the given epsilon and l1Sensitivity to the
+// addLaplaceFloat64 adds Laplace noise scaled to the given epsilon and l1Sensitivity to the
 // specified float64
-func addLaplace(x, epsilon, l1Sensitivity float64) float64 {
+func addLaplaceFloat64(x, epsilon, l1Sensitivity float64) float64 {
 	granularity := ceilPowerOfTwo((l1Sensitivity / epsilon) / granularityParam)
 	sample := twoSidedGeometric(granularity * epsilon / (l1Sensitivity + granularity))
 	return roundToMultipleOfPowerOfTwo(x, granularity) + float64(sample)*granularity
+}
+
+// addLaplaceInt64 adds Laplace noise scaled to the given epsilon and l1Sensitivity to the
+// specified int64
+func addLaplaceInt64(x int64, epsilon float64, l1Sensitivity int64) int64 {
+	granularity := ceilPowerOfTwo((float64(l1Sensitivity) / epsilon) / granularityParam)
+	sample := twoSidedGeometric(granularity * epsilon / (float64(l1Sensitivity) + granularity))
+	if granularity < 1 {
+		return x + int64(math.Round(float64(sample)*granularity))
+	}
+	return roundToMultiple(x, int64(granularity)) + sample*int64(granularity)
 }
 
 // laplaceLambda computes the scale parameter λ for the Laplace noise

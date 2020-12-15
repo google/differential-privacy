@@ -115,50 +115,22 @@ class PartitionSelectionStrategy {
 
   // Checks if epsilon is set and valid.
   static absl::Status EpsilonIsSetAndValid(absl::optional<double> epsilon) {
-    if (!epsilon.has_value()) {
-      return absl::InvalidArgumentError("Epsilon has to be set.");
-    }
-    if (!std::isfinite(epsilon.value())) {
-      return absl::InvalidArgumentError(
-          absl::StrCat("Epsilon has to be finite, but is ", epsilon.value()));
-    }
-    if (epsilon.value() <= 0) {
-      return absl::InvalidArgumentError(
-          absl::StrCat("Epsilon has to be positive, but is ", epsilon.value()));
-    }
+    RETURN_IF_ERROR(ValidateIsFiniteAndPositive(epsilon, "Epsilon"));
     return absl::OkStatus();
   }
 
   // Checks if delta is set and valid.
   static absl::Status DeltaIsSetAndValid(absl::optional<double> delta) {
-    if (!delta.has_value()) {
-      return absl::InvalidArgumentError("Delta has to be set.");
-    }
-    if (!std::isfinite(delta.value())) {
-      return absl::InvalidArgumentError(
-          absl::StrCat("Delta has to be finite, but is ", delta.value()));
-    }
-    if (delta.value() < 0 || delta.value() > 1) {
-      return absl::InvalidArgumentError(absl::StrCat(
-          "Delta has to be in the inclusive interval [0,1], but is ",
-          delta.value()));
-    }
+    RETURN_IF_ERROR(ValidateIsInInclusiveInterval(delta, 0, 1, "Delta"));
     return absl::OkStatus();
   }
 
   // Checks if the max number of partitions contributed to is set and valid.
   static absl::Status MaxPartitionsContributedIsSetAndValid(
       absl::optional<int64_t> max_partitions_contributed) {
-    if (!max_partitions_contributed.has_value()) {
-      return absl::InvalidArgumentError(
-          "Max number of partitions a user can contribute to has to be set.");
-    }
-    if (max_partitions_contributed.value() <= 0) {
-      return absl::InvalidArgumentError(absl::StrCat(
-          "Max number of partitions a user can contribute to has to be"
-          " positive, but is ",
-          max_partitions_contributed.value()));
-    }
+    RETURN_IF_ERROR(ValidateIsPositive(
+        max_partitions_contributed,
+        "Max number of partitions a user can contribute to"));
     return absl::OkStatus();
   }
 

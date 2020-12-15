@@ -180,10 +180,8 @@ class Percentile : public BinarySearch<T> {
     base::StatusOr<std::unique_ptr<Percentile<T>>> BuildBoundedAlgorithm()
         override {
       RETURN_IF_ERROR(OrderBuilder::ConstructDependencies());
-      if (percentile_ < 0 || percentile_ > 1) {
-        return absl::InvalidArgumentError(
-            "Percentile must be between 0 and 1.");
-      }
+      RETURN_IF_ERROR(
+          ValidateIsInInclusiveInterval(percentile_, 0, 1, "Percentile"));
       return absl::WrapUnique(
           new Percentile(percentile_, AlgorithmBuilder::GetEpsilon().value(),
                          BoundedBuilder::GetLower().value(),

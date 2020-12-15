@@ -37,6 +37,9 @@ All of our algorithms assume one input element per user. All of a user's
 contributions should be reduced to a single input element before being passed to
 our algorithms.
 
+Our library does not protect against integer overflows, since such protection
+could violate DP.
+
 ## Error codes
 
 Our libraries use

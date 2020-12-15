@@ -19,6 +19,7 @@
 #include <cmath>
 #include <vector>
 
+#include "absl/status/status.h"
 #include "base/statusor.h"
 #include "base/canonical_errors.h"
 
@@ -115,26 +116,201 @@ double sign(double n) {
   return 0;
 }
 
-base::StatusOr<double> GetValueIfSetAndFinite(absl::optional<double> opt,
-                                              absl::string_view name) {
+absl::Status ValidateIsSet(absl::optional<double> opt, absl::string_view name,
+                           absl::StatusCode error_code) {
   if (!opt.has_value()) {
-    return absl::InvalidArgumentError(absl::StrCat(name, " has to be set."));
+    return absl::InvalidArgumentError(absl::StrCat(name, " must be set."));
   }
-  if (!std::isfinite(opt.value())) {
-    return absl::InvalidArgumentError(
-        absl::StrCat(name, " has to be finite but is ", opt.value()));
+  double d = opt.value();
+  if (isnan(d)) {
+    return absl::Status(
+        error_code,
+        absl::StrCat(name, " must be a valid numeric value, but is ", d, "."));
   }
-  return opt.value();
+  return absl::OkStatus();
 }
 
-base::StatusOr<double> GetValueIfSetAndPositive(absl::optional<double> opt,
-                                                absl::string_view name) {
-  ASSIGN_OR_RETURN(double d, GetValueIfSetAndFinite(opt, name));
+absl::Status ValidateIsPositive(absl::optional<double> opt,
+                                absl::string_view name,
+                                absl::StatusCode error_code) {
+  RETURN_IF_ERROR(ValidateIsSet(opt, name, error_code));
+  double d = opt.value();
   if (d <= 0) {
-    return absl::InvalidArgumentError(
-        absl::StrCat(name, " has to be positive but is ", d));
+    return absl::Status(
+        error_code, absl::StrCat(name, " must be positive, but is ", d, "."));
   }
-  return d;
+  return absl::OkStatus();
+}
+
+absl::Status ValidateIsNonNegative(absl::optional<double> opt,
+                                   absl::string_view name,
+                                   absl::StatusCode error_code) {
+  RETURN_IF_ERROR(ValidateIsSet(opt, name, error_code));
+  double d = opt.value();
+  if (d < 0) {
+    return absl::Status(
+        error_code,
+        absl::StrCat(name, " must be non-negative, but is ", d, "."));
+  }
+  return absl::OkStatus();
+}
+
+absl::Status ValidateIsFinite(absl::optional<double> opt,
+                              absl::string_view name,
+                              absl::StatusCode error_code) {
+  RETURN_IF_ERROR(ValidateIsSet(opt, name, error_code));
+  double d = opt.value();
+  if (!std::isfinite(d)) {
+    return absl::Status(error_code,
+                        absl::StrCat(name, " must be finite, but is ", d, "."));
+  }
+  return absl::OkStatus();
+}
+
+absl::Status ValidateIsFiniteAndPositive(absl::optional<double> opt,
+                                         absl::string_view name,
+                                         absl::StatusCode error_code) {
+  RETURN_IF_ERROR(ValidateIsSet(opt, name, error_code));
+  double d = opt.value();
+  if (d <= 0 || !std::isfinite(d)) {
+    return absl::Status(
+        error_code,
+        absl::StrCat(name, " must be finite and positive, but is ", d, "."));
+  }
+  return absl::OkStatus();
+}
+
+absl::Status ValidateIsFiniteAndNonNegative(absl::optional<double> opt,
+                                            absl::string_view name,
+                                            absl::StatusCode error_code) {
+  RETURN_IF_ERROR(ValidateIsSet(opt, name, error_code));
+  double d = opt.value();
+  if (d < 0 || !std::isfinite(d)) {
+    return absl::Status(
+        error_code,
+        absl::StrCat(name, " must be finite and non-negative, but is ", d,
+                     "."));
+  }
+  return absl::OkStatus();
+}
+
+absl::Status ValidateIsInInclusiveInterval(absl::optional<double> opt,
+                                           double lower_bound,
+                                           double upper_bound,
+                                           absl::string_view name,
+                                           absl::StatusCode error_code) {
+  return ValidateIsInInterval(opt, lower_bound, upper_bound, true, true, name,
+                              error_code);
+}
+
+absl::Status ValidateIsInExclusiveInterval(absl::optional<double> opt,
+                                           double lower_bound,
+                                           double upper_bound,
+                                           absl::string_view name,
+                                           absl::StatusCode error_code) {
+  return ValidateIsInInterval(opt, lower_bound, upper_bound, false, false, name,
+                              error_code);
+}
+
+absl::Status ValidateIsLesserThan(absl::optional<double> opt,
+                                  double upper_bound, absl::string_view name,
+                                  absl::StatusCode error_code) {
+  double lower_bound = -std::numeric_limits<double>::infinity();
+  bool include_lower = lower_bound != upper_bound;
+
+  absl::Status result = ValidateIsInInterval(
+      opt, lower_bound, upper_bound, include_lower, false, name, error_code);
+  if (result.ok()) {
+    return absl::OkStatus();
+  } else {
+    return absl::Status(error_code,
+                        absl::StrCat(name, " must be lesser than ", upper_bound,
+                                     ", but is ", opt.value(), "."));
+  }
+}
+
+absl::Status ValidateIsLesserThanOrEqualTo(absl::optional<double> opt,
+                                           double upper_bound,
+                                           absl::string_view name,
+                                           absl::StatusCode error_code) {
+  absl::Status result =
+      ValidateIsInInterval(opt, -std::numeric_limits<double>::infinity(),
+                           upper_bound, true, true, name, error_code);
+  if (result.ok()) {
+    return absl::OkStatus();
+  } else {
+    return absl::Status(
+        error_code, absl::StrCat(name, " must be lesser than or equal to ",
+                                 upper_bound, ", but is ", opt.value(), "."));
+  }
+}
+
+absl::Status ValidateIsGreaterThan(absl::optional<double> opt,
+                                   double lower_bound, absl::string_view name,
+                                   absl::StatusCode error_code) {
+  double upper_bound = std::numeric_limits<double>::infinity();
+  bool include_upper = lower_bound != upper_bound;
+
+  absl::Status result = ValidateIsInInterval(
+      opt, lower_bound, upper_bound, false, include_upper, name, error_code);
+  if (result.ok()) {
+    return absl::OkStatus();
+  } else {
+    return absl::Status(
+        error_code, absl::StrCat(name, " must be greater than ", lower_bound,
+                                 ", but is ", opt.value(), "."));
+  }
+}
+
+absl::Status ValidateIsGreaterThanOrEqualTo(absl::optional<double> opt,
+                                            double lower_bound,
+                                            absl::string_view name,
+                                            absl::StatusCode error_code) {
+  absl::Status result = ValidateIsInInterval(
+      opt, lower_bound, std::numeric_limits<double>::infinity(), true, true,
+      name, error_code);
+  if (result.ok()) {
+    return absl::OkStatus();
+  } else {
+    return absl::Status(
+        error_code, absl::StrCat(name, " must be greater than or equal to ",
+                                 lower_bound, ", but is ", opt.value(), "."));
+  }
+}
+
+absl::Status ValidateIsInInterval(absl::optional<double> opt,
+                                  double lower_bound, double upper_bound,
+                                  bool include_lower, bool include_upper,
+                                  absl::string_view name,
+                                  absl::StatusCode error_code) {
+  RETURN_IF_ERROR(ValidateIsSet(opt, name, error_code));
+  double d = opt.value();
+
+  if (lower_bound == upper_bound && upper_bound == d &&
+      (include_lower || include_upper)) {
+    return absl::OkStatus();
+  }
+  bool d_is_outside_lower_bound =
+      include_lower ? d < lower_bound : d <= lower_bound;
+  bool d_is_outside_upper_bound =
+      include_upper ? d > upper_bound : d >= upper_bound;
+  if (d_is_outside_lower_bound || d_is_outside_upper_bound) {
+    std::string left_bracket = include_lower ? "[" : "(";
+    std::string right_bracket = include_upper ? "]" : ")";
+    std::string inclusivity = " ";
+    if (include_lower && include_upper) {
+      inclusivity = " inclusive ";
+    } else if (!include_lower && !include_upper) {
+      inclusivity = " exclusive ";
+    }
+
+    return absl::Status(
+        error_code,
+        absl::StrCat(name, " must be in the", inclusivity, "interval ",
+                     left_bracket, lower_bound, ",", upper_bound, right_bracket,
+                     ", but is ", d, "."));
+  }
+  return absl::OkStatus();
 }
 
 }  // namespace differential_privacy

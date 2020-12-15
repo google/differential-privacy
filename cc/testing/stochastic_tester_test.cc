@@ -41,7 +41,7 @@ template <typename T,
               nullptr>
 class NonDpSum : public Algorithm<T> {
  public:
-  NonDpSum() : Algorithm<T>(0), result_(0) {}
+  NonDpSum() : Algorithm<T>(1), result_(0) {}
   void AddEntry(const T& t) override { result_ += t; }
 
   base::StatusOr<Output> GenerateResult(
@@ -64,7 +64,7 @@ class NonDpSum : public Algorithm<T> {
 template <typename T>
 class NonDpCount : public Algorithm<T> {
  public:
-  NonDpCount() : Algorithm<T>(0), result_(0) {}
+  NonDpCount() : Algorithm<T>(1), result_(0) {}
   void AddEntry(const T& t) override { ++result_; }
 
   base::StatusOr<Output> GenerateResult(
@@ -152,7 +152,7 @@ template <typename T,
               nullptr>
 class AlwaysError : public Algorithm<T> {
  public:
-  AlwaysError() : Algorithm<T>(0), result_(0) {}
+  AlwaysError() : Algorithm<T>(1), result_(0) {}
   void AddEntry(const T& t) override {}
 
   base::StatusOr<Output> GenerateResult(

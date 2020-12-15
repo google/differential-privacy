@@ -18,6 +18,7 @@ package noise
 
 import (
 	"math"
+	"math/rand"
 	"testing"
 
 	"github.com/grd/stat"
@@ -97,6 +98,127 @@ func TestLaplaceStatistics(t *testing.T) {
 		}
 		if !nearEqual(sampleVariance, tc.variance, varianceErrorTolerance) {
 			t.Errorf("float64 got variance = %f, want %f (parameters %+v)", sampleVariance, tc.variance, tc)
+		}
+	}
+}
+
+func TestAddLaplaceFloat64RoundsToGranularity(t *testing.T) {
+	const numberOfTrials = 1000
+	for _, tc := range []struct {
+		epsilon         float64
+		l1Sensitivity   float64
+		wantGranularity float64
+	}{
+		{
+			epsilon:         9.6e-7,
+			l1Sensitivity:   1.0,
+			wantGranularity: 1.0 / 1048576.0,
+		},
+		{
+			epsilon:         4.7e-10,
+			l1Sensitivity:   1.0,
+			wantGranularity: 1.0 / 1024.0,
+		},
+		{
+			epsilon:         1.5e-11,
+			l1Sensitivity:   1.0,
+			wantGranularity: 1.0 / 32.0,
+		},
+		{
+			epsilon:         3.7e-12,
+			l1Sensitivity:   1.0,
+			wantGranularity: 1.0 / 4.0,
+		},
+		{
+			epsilon:         1.9e-12,
+			l1Sensitivity:   1.0,
+			wantGranularity: 1.0 / 2.0,
+		},
+		{
+			epsilon:         9.1e-13,
+			l1Sensitivity:   1.0,
+			wantGranularity: 1.0,
+		},
+		{
+			epsilon:         4.6e-13,
+			l1Sensitivity:   1.0,
+			wantGranularity: 2.0,
+		},
+		{
+			epsilon:         2.8e-13,
+			l1Sensitivity:   1.0,
+			wantGranularity: 4.0,
+		},
+		{
+			epsilon:         2.9e-14,
+			l1Sensitivity:   1.0,
+			wantGranularity: 32.0,
+		},
+		{
+			epsilon:         8.9e-16,
+			l1Sensitivity:   1.0,
+			wantGranularity: 1024.0,
+		},
+		{
+			epsilon:         8.7e-19,
+			l1Sensitivity:   1.0,
+			wantGranularity: 1048576.0,
+		},
+	} {
+		for i := 0; i < numberOfTrials; i++ {
+			// the input x of addLaplaceFloat64 can be arbitrary
+			x := rand.Float64()*tc.wantGranularity*10 - tc.wantGranularity*5
+			noisedX := addLaplaceFloat64(x, tc.epsilon, tc.l1Sensitivity)
+			if math.Round(noisedX/tc.wantGranularity) != noisedX/tc.wantGranularity {
+				t.Errorf("Got noised x: %f, not a multiple of: %f", noisedX, tc.wantGranularity)
+				break
+			}
+		}
+	}
+}
+
+func TestAddLaplaceInt64RoundsToGranularity(t *testing.T) {
+	const numberOfTrials = 1000
+	for _, tc := range []struct {
+		epsilon         float64
+		l1Sensitivity   int64
+		wantGranularity int64
+	}{
+		{
+			epsilon:         4.6e-13,
+			l1Sensitivity:   1,
+			wantGranularity: 2,
+		},
+		{
+			epsilon:         2.8e-13,
+			l1Sensitivity:   1,
+			wantGranularity: 4,
+		},
+		{
+			epsilon:         2.9e-14,
+			l1Sensitivity:   1,
+			wantGranularity: 32,
+		},
+		{
+			epsilon:         8.9e-16,
+			l1Sensitivity:   1,
+			wantGranularity: 1024,
+		},
+		{
+			epsilon:         8.7e-19,
+			l1Sensitivity:   1,
+			wantGranularity: 1048576,
+		},
+	} {
+		for i := 0; i < numberOfTrials; i++ {
+			// the input x of addLaplaceInt64 can be arbitrary but should cover all congruence
+			// classes of the anticipated granularity
+			x := rand.Int63n(tc.wantGranularity*10) - tc.wantGranularity*5
+			noisedX := addLaplaceInt64(x, tc.epsilon, tc.l1Sensitivity)
+			if noisedX%tc.wantGranularity != 0 {
+				t.Errorf("Got noised x: %d, not devisible by: %d", noisedX, tc.wantGranularity)
+				break
+			}
 		}
 	}
 }

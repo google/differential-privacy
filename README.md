@@ -11,7 +11,7 @@ private statistics over datasets. It contains the following tools.
   private aggregations. Privacy on Beam is implemented using these libraries.
 * A [stochastic tester](cc/testing), used to help catch regressions that could
   make the differential privacy property no longer hold.
-* A [differential privacy accounting library](python/accounting), used for
+* A [differential privacy accounting library](python/dp_accounting), used for
   tracking privacy budget.
 
 To get started on generating differentially private data, we recomend you follow
