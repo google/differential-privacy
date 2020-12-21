@@ -43,11 +43,11 @@ class CountTestPeer {
 
 namespace {
 
+using ::differential_privacy::test_utils::ZeroNoiseMechanism;
 using ::differential_privacy::base::testing::EqualsProto;
+using ::testing::HasSubstr;
 using ::differential_privacy::base::testing::IsOkAndHolds;
 using ::differential_privacy::base::testing::StatusIs;
-using ::differential_privacy::test_utils::ZeroNoiseMechanism;
-using ::testing::HasSubstr;
 
 template <typename T>
 class CountTest : public testing::Test {};
