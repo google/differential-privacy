@@ -55,7 +55,7 @@ class Algorithm {
   // Epsilon, delta are standard parameters of differentially private
   // algorithms. See "The Algorithmic Foundations of Differential Privacy" p17.
   explicit Algorithm(double epsilon, double delta)
-      : epsilon_(epsilon), privacy_budget_(kFullPrivacyBudget) {
+      : epsilon_(epsilon), delta_(delta), privacy_budget_(kFullPrivacyBudget) {
     DCHECK_NE(epsilon, std::numeric_limits<double>::infinity());
     DCHECK_GT(epsilon, 0.0);
   }

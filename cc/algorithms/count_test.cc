@@ -223,8 +223,8 @@ TEST(CountTest, BasicGaussian) {
   std::vector<int> c = {1, 2, 3, 4, 2, 3};
   auto count =
       typename Count<int>::Builder()
-          .SetEpsilon(10)
-          .SetDelta(1e-5)
+          .SetEpsilon(1e100)
+          .SetDelta(0.99)
           .SetLaplaceMechanism(absl::make_unique<differential_privacy::GaussianMechanism::Builder>())
           .Build();
   ASSERT_OK(count);

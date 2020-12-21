@@ -122,7 +122,7 @@ absl::Status ValidateIsSet(absl::optional<double> opt, absl::string_view name,
     return absl::InvalidArgumentError(absl::StrCat(name, " must be set."));
   }
   double d = opt.value();
-  if (isnan(d)) {
+  if (std::isnan(d)) {
     return absl::Status(
         error_code,
         absl::StrCat(name, " must be a valid numeric value, but is ", d, "."));
