@@ -43,11 +43,11 @@ class CountTestPeer {
 
 namespace {
 
-using ::differential_privacy::test_utils::ZeroNoiseMechanism;
 using ::differential_privacy::base::testing::EqualsProto;
-using ::testing::HasSubstr;
 using ::differential_privacy::base::testing::IsOkAndHolds;
 using ::differential_privacy::base::testing::StatusIs;
+using ::differential_privacy::test_utils::ZeroNoiseMechanism;
+using ::testing::HasSubstr;
 
 template <typename T>
 class CountTest : public testing::Test {};
@@ -210,23 +210,26 @@ TEST(CountTest, MemoryUsed) {
 }
 
 TEST(CountTest, DeltaNotSetGaussian) {
-  auto failed_count = Count<double >::Builder()
+  auto failed_count =
+      Count<double>::Builder()
           .SetEpsilon(0.5)
-          .SetLaplaceMechanism(absl::make_unique<differential_privacy::GaussianMechanism::Builder>())
+          .SetLaplaceMechanism(
+              absl::make_unique<
+                  differential_privacy::GaussianMechanism::Builder>())
           .Build();
-  EXPECT_THAT(failed_count,
-  StatusIs(absl::StatusCode::kInvalidArgument,
-  HasSubstr("Delta has to be set")));
+  EXPECT_THAT(failed_count, StatusIs(absl::StatusCode::kInvalidArgument,
+                                     HasSubstr("Delta has to be set")));
 }
 
 TEST(CountTest, BasicGaussian) {
   std::vector<int> c = {1, 2, 3, 4, 2, 3};
-  auto count =
-      typename Count<int>::Builder()
-          .SetEpsilon(1e100)
-          .SetDelta(0.99)
-          .SetLaplaceMechanism(absl::make_unique<differential_privacy::GaussianMechanism::Builder>())
-          .Build();
+  auto count = typename Count<int>::Builder()
+                   .SetEpsilon(1e100)
+                   .SetDelta(0.99)
+                   .SetLaplaceMechanism(
+                       absl::make_unique<
+                           differential_privacy::GaussianMechanism::Builder>())
+                   .Build();
   ASSERT_OK(count);
   auto result = (*count)->Result(c.begin(), c.end());
   ASSERT_OK(result);
