@@ -221,7 +221,7 @@ TEST(CountTest, DeltaNotSetGaussian) {
                                      HasSubstr("Delta has to be set")));
 }
 
-TEST(CountTest, BasicGaussian) {
+TEST(CountTest, BasicGaussian) {Z
   std::vector<int> c = {1, 2, 3, 4, 2, 3};
   auto count = typename Count<int>::Builder()
                    .SetEpsilon(1e100)
