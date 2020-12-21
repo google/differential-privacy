@@ -218,10 +218,10 @@ TEST(CountTest, DeltaNotSetGaussian) {
                   differential_privacy::GaussianMechanism::Builder>())
           .Build();
   EXPECT_THAT(failed_count, StatusIs(absl::StatusCode::kInvalidArgument,
-                                     HasSubstr("Delta has to be set")));
+                                     HasSubstr("Delta must be set")));
 }
 
-TEST(CountTest, BasicGaussian) {Z
+TEST(CountTest, BasicGaussian) {
   std::vector<int> c = {1, 2, 3, 4, 2, 3};
   auto count = typename Count<int>::Builder()
                    .SetEpsilon(1e100)
