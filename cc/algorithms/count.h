@@ -105,8 +105,11 @@ class Count : public Algorithm<T> {
   uint64_t GetCount() const { return count_; }
 
   // The constructor and count_ are non-private for testing.
-  Count(double epsilon, std::unique_ptr<NumericalMechanism> mechanism)
-      : Algorithm<T>(epsilon), count_(0), mechanism_(std::move(mechanism)) {}
+  Count(double epsilon, double delta,
+        std::unique_ptr<NumericalMechanism> mechanism)
+      : Algorithm<T>(epsilon, delta),
+        count_(0),
+        mechanism_(std::move(mechanism)) {}
 
  private:
   void AddMultipleEntries(const T& v, uint64_t num_of_entries) {
@@ -131,8 +134,9 @@ class Count<T>::Builder
     std::unique_ptr<NumericalMechanism> mechanism;
     ASSIGN_OR_RETURN(mechanism, AlgorithmBuilder::UpdateAndBuildMechanism());
 
-    return absl::WrapUnique(new Count<T>(AlgorithmBuilder::GetEpsilon().value(),
-                                         std::move(mechanism)));
+    return absl::WrapUnique(new Count<T>(
+        AlgorithmBuilder::GetEpsilon().value(),
+        AlgorithmBuilder::GetDelta().value_or(0), std::move(mechanism)));
   }
 };
 
