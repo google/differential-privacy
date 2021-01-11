@@ -121,12 +121,14 @@ inline bool SafeAdd(T lhs, T rhs, T* result) {
 // result and return false.
 template <typename T, std::enable_if_t<std::is_integral<T>::value>* = nullptr>
 inline bool SafeSubtract(T lhs, T rhs, T* result) {
-  // For integral values the min numeric limit is larger in magnitude than the
+  // For integral values, the min numeric limit is larger in magnitude than the
   // max numeric limit, so we cannot negate it. For unsigned types, the lowest
   // numeric limit is 0. For signed types, it is negative.
   if (rhs == std::numeric_limits<T>::lowest() && rhs != 0) {
-    if (lhs > 0) {
-      *result = std::numeric_limits<T>::lowest();
+    if (lhs >= 0) {
+      // We use std::numeric_limits<T>::max() here, since we assume that
+      // std::numeric_limits<T>::max() <= -(-std::numeric_limits<T>::lowest()).
+      *result = std::numeric_limits<T>::max();
       return false;
     } else {
       *result = lhs - rhs;

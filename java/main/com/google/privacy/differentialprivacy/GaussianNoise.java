@@ -17,7 +17,6 @@
 package com.google.privacy.differentialprivacy;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static java.lang.Math.max;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.differentialprivacy.SummaryOuterClass.MechanismType;
@@ -117,8 +116,12 @@ public class GaussianNoise implements Noise {
     // enough Bernoulli samples to closely approximate a Gaussian distribution.
     double sqrtN = 2.0 * sigma / granularity;
     long binomialSample = sampleSymmetricBinomial(sqrtN);
-    return SecureNoiseMath.roundToMultiple(x, max(1, (long) granularity))
-        + Math.round(binomialSample * granularity);
+    if (granularity <= 1.0) {
+      return x + Math.round(binomialSample * granularity);
+    } else {
+      return SecureNoiseMath.roundToMultiple(x, (long) granularity)
+          + binomialSample * (long) granularity;
+    }
   }
 
   @Override
@@ -185,7 +188,7 @@ public class GaussianNoise implements Noise {
   }
 
   /**
-   * Computes the quantile z satisfying Pr[Y <= z] = {@code rank} for a Gaussian ranodm variable Y
+   * Computes the quantile z satisfying Pr[Y <= z] = {@code rank} for a Gaussian random variable Y
    * with mean {@code x} and variance according to the specified privacy parameters.
    */
   @Override

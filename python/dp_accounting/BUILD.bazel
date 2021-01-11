@@ -131,6 +131,7 @@ py_library(
         ":common",
         ":privacy_loss_distribution",
         ":privacy_loss_mechanism",
+        requirement("scipy"),
     ] + DATACLASSES_DEP,
 )
 

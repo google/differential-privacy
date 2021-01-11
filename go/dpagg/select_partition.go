@@ -292,13 +292,17 @@ func keepPartitionProbability(idCount, l0Sensitivity int64, epsilon, delta float
 		1)
 }
 
-// GetHardThreshold returns a threshold k, where if there are more than
+// GetHardThreshold returns a threshold k, where if there are at least
 // k privacy units in a partition, we are guaranteed to keep that partition.
+//
 // This is the conceptual equivalent of the post-aggregation threshold of the
-// noise.Noise interface.
+// noise.Noise interface with the difference that here there is 0 probability
+// of not keeping the partition if it has at least k privacy units, whereas
+// with the post-aggregation threshold there is a non-zero probability
+// (however small).
 func (s *PreAggSelectPartition) GetHardThreshold() int {
 	for i := int64(1); ; i++ {
-		if keepPartitionProbability(i, s.l0Sensitivity, s.epsilon, s.delta) == 1 { // keepPartitionProbability converges to 1.
+		if keepPartitionProbability(i, s.l0Sensitivity, s.epsilon, s.delta) >= 1 { // keepPartitionProbability converges to 1.
 			return int(i)
 		}
 	}

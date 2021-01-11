@@ -330,14 +330,16 @@ TEST(BoundedMeanTest, UnderflowAddEntryManualBoundsTest) {
   base::StatusOr<std::unique_ptr<BoundedMean<int64_t>>> bm =
       builder
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
-          .SetLower(std::numeric_limits<int64_t>::lowest())
+          .SetLower(std::numeric_limits<int64_t>::lowest() + 1)
           .SetUpper(0)
           .Build();
   ASSERT_OK(bm);
-  (*bm)->AddEntry(std::numeric_limits<int64_t>::lowest());
+  (*bm)->AddEntry(std::numeric_limits<int64_t>::lowest() + 1);
   (*bm)->AddEntry(-1);
   (*bm)->AddEntry(-1);
-  (*bm)->AddEntry(std::numeric_limits<int64_t>::lowest());
+  (*bm)->AddEntry(-1);
+  (*bm)->AddEntry(-1);
+  (*bm)->AddEntry(std::numeric_limits<int64_t>::lowest() + 1);
 
   base::StatusOr<Output> result = (*bm)->PartialResult();
   EXPECT_OK(result);
@@ -421,17 +423,19 @@ TEST(BoundedMeanTest, UnderflowMergeManualBoundsTest) {
   base::StatusOr<std::unique_ptr<BoundedMean<int64_t>>> bm =
       builder
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
-          .SetLower(std::numeric_limits<int64_t>::lowest())
+          .SetLower(std::numeric_limits<int64_t>::lowest() + 1)
           .SetUpper(0)
           .Build();
   ASSERT_OK(bm);
-  (*bm)->AddEntry(std::numeric_limits<int64_t>::lowest());
+  (*bm)->AddEntry(std::numeric_limits<int64_t>::lowest() + 1);
+  (*bm)->AddEntry(-1);
   Summary summary = (*bm)->Serialize();
 
   base::StatusOr<std::unique_ptr<BoundedMean<int64_t>>> bm2 = builder.Build();
   (*bm2)->AddEntry(-1);
   (*bm2)->AddEntry(-1);
-  (*bm2)->AddEntry(std::numeric_limits<int64_t>::lowest());
+  (*bm2)->AddEntry(-1);
+  (*bm2)->AddEntry(std::numeric_limits<int64_t>::lowest() + 1);
 
   ASSERT_OK((*bm2)->Merge(summary));
 

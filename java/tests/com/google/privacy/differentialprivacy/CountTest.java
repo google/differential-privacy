@@ -113,6 +113,13 @@ public class CountTest {
   }
 
   @Test
+  public void incrementBy_ignoresNegativeValues() {
+    count.incrementBy(-100);
+
+    assertThat(count.computeResult()).isEqualTo(0);
+  }
+
+  @Test
   public void incrementAndIncrementByAllTogether() {
     count.increment();
     count.incrementBy(7);
@@ -209,14 +216,6 @@ public class CountTest {
 
     CountSummary summary = getSummary(count);
     assertThat(summary.getCount()).isEqualTo(Integer.MAX_VALUE);
-  }
-
-  @Test
-  public void getSerializableSummary_copiesMinIntCountCorrectly() {
-    count.incrementBy(Integer.MIN_VALUE);
-
-    CountSummary summary = getSummary(count);
-    assertThat(summary.getCount()).isEqualTo(Integer.MIN_VALUE);
   }
 
   @Test

@@ -553,7 +553,7 @@ func TestSumPerKeyCrossPartitionContributionBoundingInt(t *testing.T) {
 	p, s, col, want := ptest.CreateList2(triples, result)
 	col = beam.ParDo(s, extractIDFromTripleWithIntValue, col)
 
-	// ε=50, δ=0.01 and l1Sensitivity=3 gives a threshold of 1.
+	// ε=50, δ=0.01 and l1Sensitivity=3 gives a threshold of 3.
 	// We have 10 partitions. So, to get an overall flakiness of 10⁻²³,
 	// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
 	epsilon, delta, k, l1Sensitivity := 50.0, 0.01, 25.0, 3.0
@@ -623,7 +623,7 @@ func TestSumPerKeyCrossPartitionContributionBoundingFloat(t *testing.T) {
 	p, s, col, want := ptest.CreateList2(triples, result)
 	col = beam.ParDo(s, extractIDFromTripleWithFloatValue, col)
 
-	// ε=50, δ=0.01 and l1Sensitivity=3 gives a threshold of 1.
+	// ε=50, δ=0.01 and l1Sensitivity=3 gives a threshold of 3.
 	// We have 10 partitions. So, to get an overall flakiness of 10⁻²³,
 	// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
 	epsilon, delta, k, l1Sensitivity := 50.0, 0.01, 25.0, 3.0

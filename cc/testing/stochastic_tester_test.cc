@@ -131,10 +131,11 @@ template <typename T>
 class CountNoDpError : public Count<T> {
  public:
   explicit CountNoDpError(double epsilon)
-      : Count<T>(epsilon, 0, LaplaceMechanism::Builder()
-                              .SetEpsilon(epsilon)
-                              .Build()
-                              .ValueOrDie()) {}
+      : Count<T>(epsilon, 0,
+                 LaplaceMechanism::Builder()
+                     .SetEpsilon(epsilon)
+                     .Build()
+                     .ValueOrDie()) {}
 
   base::StatusOr<Output> GenerateResult(double privacy_budget,
                                         double noise_interval_level) override {

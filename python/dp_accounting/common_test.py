@@ -32,6 +32,7 @@ class CommonTest(parameterized.TestCase):
           'upper_x': 10,
           'initial_guess_x': None,
           'expected_x': 5,
+          'increasing': False,
       },
       {
           'testcase_name': 'with_initial_guess',
@@ -41,6 +42,7 @@ class CommonTest(parameterized.TestCase):
           'upper_x': 10,
           'initial_guess_x': 2,
           'expected_x': 5,
+          'increasing': False,
       },
       {
           'testcase_name': 'out_of_range',
@@ -50,6 +52,7 @@ class CommonTest(parameterized.TestCase):
           'upper_x': 4,
           'initial_guess_x': None,
           'expected_x': None,
+          'increasing': False,
       },
       {
           'testcase_name': 'infinite_upper_bound',
@@ -59,17 +62,48 @@ class CommonTest(parameterized.TestCase):
           'upper_x': math.inf,
           'initial_guess_x': 2,
           'expected_x': 5,
+          'increasing': False,
+      },
+      {
+          'testcase_name': 'increasing_no_initial_guess',
+          'func': (lambda x: x**2),
+          'value': 25,
+          'lower_x': 0,
+          'upper_x': 10,
+          'initial_guess_x': None,
+          'expected_x': 5,
+          'increasing': True,
+      },
+      {
+          'testcase_name': 'increasing_with_initial_guess',
+          'func': (lambda x: x**2),
+          'value': 25,
+          'lower_x': 0,
+          'upper_x': 10,
+          'initial_guess_x': 2,
+          'expected_x': 5,
+          'increasing': True,
+      },
+      {
+          'testcase_name': 'increasing_out_of_range',
+          'func': (lambda x: x**2),
+          'value': 5,
+          'lower_x': 6,
+          'upper_x': 10,
+          'initial_guess_x': None,
+          'expected_x': None,
+          'increasing': True,
       })
   def test_inverse_monotone_function(self, func, value, lower_x, upper_x,
-                                     initial_guess_x, expected_x):
+                                     initial_guess_x, expected_x, increasing):
     search_parameters = common.BinarySearchParameters(
         lower_x, upper_x, initial_guess=initial_guess_x)
-    self.assertAlmostEqual(
-        expected_x,
-        common.inverse_monotone_function(
-            func,
-            value,
-            search_parameters))
+    x = common.inverse_monotone_function(
+        func, value, search_parameters, increasing=increasing)
+    if expected_x is None:
+      self.assertIsNone(x)
+    else:
+      self.assertAlmostEqual(expected_x, x)
 
 
 if __name__ == '__main__':

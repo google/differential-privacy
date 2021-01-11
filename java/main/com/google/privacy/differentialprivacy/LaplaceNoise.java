@@ -115,8 +115,12 @@ public class LaplaceNoise implements Noise {
     double granularity = getGranularity(l1Sensitivity, epsilon);
     long twoSidedGeomericSample =
         sampleTwoSidedGeometric(granularity * epsilon / (l1Sensitivity + granularity));
-    return SecureNoiseMath.roundToMultiple(x, max(1, (long) granularity))
-        + Math.round(twoSidedGeomericSample * granularity);
+    if (granularity <= 1.0) {
+      return x + Math.round(twoSidedGeomericSample * granularity);
+    } else {
+      return SecureNoiseMath.roundToMultiple(x, (long) granularity)
+          + twoSidedGeomericSample * (long) granularity;
+    }
   }
 
   @Override
@@ -187,7 +191,7 @@ public class LaplaceNoise implements Noise {
   }
 
   /**
-   * Computes the quantile z satisfying Pr[Y <= z] = {@code rank} for a Laplace ranodm variable Y
+   * Computes the quantile z satisfying Pr[Y <= z] = {@code rank} for a Laplace random variable Y
    * with mean {@code x} and variance according to the specified privacy parameters.
    */
   @Override

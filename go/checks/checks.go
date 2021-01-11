@@ -48,7 +48,7 @@ func CheckEpsilon(label string, epsilon float64) error {
 	return nil
 }
 
-// CheckDelta returns an error if δ is negative or larger than 1.
+// CheckDelta returns an error if δ is negative or greater than or equal to 1.
 func CheckDelta(label string, delta float64) error {
 	if math.IsNaN(delta) {
 		return fmt.Errorf("%s: Delta is %e, cannot be NaN", label, delta)
@@ -62,7 +62,7 @@ func CheckDelta(label string, delta float64) error {
 	return nil
 }
 
-// CheckDeltaStrict returns an error if δ is nonpositive or larger than 1.
+// CheckDeltaStrict returns an error if δ is nonpositive or greater than or equal to 1.
 func CheckDeltaStrict(label string, delta float64) error {
 	if math.IsNaN(delta) {
 		return fmt.Errorf("%s: Delta is %e, cannot be NaN", label, delta)

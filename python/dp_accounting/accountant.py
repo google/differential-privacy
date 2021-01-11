@@ -15,6 +15,7 @@
 
 import math
 import typing
+from scipy import special
 
 from dp_accounting import common
 from dp_accounting import privacy_loss_distribution
@@ -27,7 +28,7 @@ def get_smallest_parameter(
         [float], privacy_loss_distribution.PrivacyLossDistribution],
     search_parameters: common.BinarySearchParameters
 ) -> typing.Union[float, None]:
-  """Find smallest parameter for which the mechanism satisfies desired privacy.
+  """Finds smallest parameter for which the mechanism satisfies desired privacy.
 
   This function computes the smallest "parameter" for which the corresponding
   mechanism, when run a specified number of times, satisfies a given privacy
@@ -63,7 +64,7 @@ def get_smallest_laplace_noise(
     privacy_parameters: common.DifferentialPrivacyParameters,
     num_queries: int,
     sensitivity: float = 1) -> float:
-  """Find smallest Laplace noise for which the mechanism satisfies desired privacy.
+  """Finds smallest Laplace noise for which the mechanism satisfies desired privacy.
 
   Args:
     privacy_parameters: The desired privacy guarantee.
@@ -104,7 +105,7 @@ def get_smallest_discrete_laplace_noise(
     privacy_parameters: common.DifferentialPrivacyParameters,
     num_queries: int,
     sensitivity: int = 1) -> float:
-  """Find smallest discrete Laplace noise for which the mechanism satisfies desired privacy.
+  """Finds smallest discrete Laplace noise for which the mechanism satisfies desired privacy.
 
   Note that from the way discrete Laplace distribution is defined, the amount of
   noise decreases as the parameter increases. (In other words, the mechanism
@@ -154,7 +155,7 @@ def get_smallest_gaussian_noise(
     privacy_parameters: common.DifferentialPrivacyParameters,
     num_queries: int,
     sensitivity: float = 1) -> float:
-  """Find smallest Gaussian noise for which the mechanism satisfies desired privacy.
+  """Finds smallest Gaussian noise for which the mechanism satisfies desired privacy.
 
   Args:
     privacy_parameters: The desired privacy guarantee.
@@ -170,3 +171,92 @@ def get_smallest_gaussian_noise(
   return privacy_loss_mechanism.GaussianPrivacyLoss.from_privacy_guarantee(
       privacy_parameters,
       sensitivity=sensitivity * math.sqrt(num_queries)).standard_deviation
+
+
+def advanced_composition(
+    privacy_parameters: common.DifferentialPrivacyParameters,
+    num_queries: int, total_delta: float) -> typing.Optional[float]:
+  """Computes total DP parameters after applying an algorithm with given privacy parameters multiple times.
+
+  Using the optimal advanced composition theorem, Theorem 3.3 from the paper
+  Kairouz, Oh, Viswanath. "The Composition Theorem for Differential Privacy",
+  to compute the total DP parameters given that we are applying an algorithm
+  with a given privacy parameters for a given number of times.
+
+  Note that we can compute this alternatively from PrivacyLossDistribution
+  by invoking from_privacy_parameters and applying the given number of
+  composition. When setting value_discretization_interval appropriately, these
+  two approaches should coincide but using the advanced composition theorem
+  directly is less computational intensive.
+
+  Args:
+    privacy_parameters: The privacy guarantee of a single query.
+    num_queries: Number of times the algorithm is invoked.
+    total_delta: The target value of total delta of the privacy parameters for
+      the multiple runs of the algorithm.
+
+  Returns:
+    total_epsilon such that, when applying the algorithm the given number of
+    times, the result is still (total_epsilon, total_delta)-DP.
+
+    None when the total_delta is less than 1 - (1 - delta)^num_queries, for
+    which no guarantee of (total_epsilon, total_delta)-DP is possible for any
+    value of total_epsilon.
+  """
+  epsilon = privacy_parameters.epsilon
+  delta = privacy_parameters.delta
+  k = num_queries
+
+  # The calculation follows Theorem 3.3 of https://arxiv.org/pdf/1311.0776.pdf
+  for i in range(k // 2, -1, -1):
+    delta_i = 0
+    for l in range(i):
+      delta_i += special.binom(k, l) * (
+          math.exp(epsilon * (k - l)) - math.exp(epsilon * (k - 2 * i + l)))
+    delta_i /= ((1 + math.exp(epsilon))**k)
+    if 1 - ((1 - delta) ** k) * (1 - delta_i) <= total_delta:
+      return epsilon * (k - 2 * i)
+  return None
+
+
+def get_smallest_epsilon_from_advanced_composition(
+    total_privacy_parameters: common.DifferentialPrivacyParameters,
+    num_queries: int, delta: float = 0) -> typing.Optional[float]:
+  """Computes DP parameters that after a certain number of queries remain DP with given parameters.
+
+  Using the optimal advanced composition theorem, Theorem 3.3 from the paper
+  Kairouz, Oh, Viswanath. "The Composition Theorem for Differential Privacy",
+  to compute DP parameter for an algorithm, so that when applied a given number
+  of times it remains DP with given privacy parameters.
+
+  Args:
+    total_privacy_parameters: The desired privacy guarantee after applying the
+      algorithm a given number of times.
+    num_queries: Number of times the algorithm is invoked.
+    delta: The value of DP parameter delta for the algorithm.
+
+  Returns:
+    epsilon such that if an algorithm is (epsilon, delta)-DP, then applying it
+    the given number of times remains DP with total_privacy_parameters.
+
+    None when total_privacy_parameters.delta is less than
+    1 - (1 - delta)^num_queries for which no guarantee of
+    total_privacy_parameters DP is possible for any value of epsilon.
+  """
+  if 1 - ((1 - delta) ** num_queries) > total_privacy_parameters.delta:
+    return None
+
+  search_parameters = common.BinarySearchParameters(
+      total_privacy_parameters.epsilon / num_queries,
+      total_privacy_parameters.epsilon)
+
+  def get_total_epsilon_for_epsilon(epsilon):
+    privacy_parameters = common.DifferentialPrivacyParameters(epsilon, delta)
+    return advanced_composition(privacy_parameters, num_queries,
+                                total_privacy_parameters.delta)
+
+  return common.inverse_monotone_function(
+      get_total_epsilon_for_epsilon,
+      total_privacy_parameters.epsilon,
+      search_parameters,
+      increasing=True)

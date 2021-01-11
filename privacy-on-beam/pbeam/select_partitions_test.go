@@ -21,6 +21,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/google/differential-privacy/go/dpagg"
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
@@ -135,12 +136,12 @@ func TestSelectPartitionsBoundsCrossPartitionContributionsV(t *testing.T) {
 	p, s, col := ptest.CreateList(pairs)
 	col = beam.ParDo(s, pairToKV, col)
 
-	// ε=50, δ=0.01 and l1Sensitivity=3 gives a threshold of 1.
-	epsilon, delta, l1Sensitivity := 50.0, 0.01, 3
+	// ε=50, δ=~1 and l1Sensitivity=1 gives a threshold of 2.
+	epsilon, delta, l1Sensitivity := 50.0, dpagg.LargestRepresentableDelta, 1
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 	got := SelectPartitions(s, pcol, SelectPartitionsParams{MaxPartitionsContributed: int64(l1Sensitivity)})
-	// With a max contribution of 3, only 3 partitions should be outputted.
-	checkNumPartitions(s, got, 3)
+	// With a max contribution of 1, only 1 partition should be outputted.
+	checkNumPartitions(s, got, 1)
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("Did not bound cross partition contributions correctly for PrivatePCollection<V> inputs: %v", err)
 	}
@@ -157,13 +158,13 @@ func TestSelectPartitionsBoundsCrossPartitionContributionsKV(t *testing.T) {
 	p, s, col := ptest.CreateList(triples)
 	col = beam.ParDo(s, extractIDFromTripleWithIntValue, col)
 
-	// ε=50, δ=0.01 and l1Sensitivity=3 gives a threshold of 1.
-	epsilon, delta, l1Sensitivity := 50.0, 0.01, 3
+	// ε=50, δ=~1 and l1Sensitivity=1 gives a threshold of 2.
+	epsilon, delta, l1Sensitivity := 50.0, dpagg.LargestRepresentableDelta, 1
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 	pcol = ParDo(s, tripleWithIntValueToKV, pcol)
 	got := SelectPartitions(s, pcol, SelectPartitionsParams{MaxPartitionsContributed: int64(l1Sensitivity)})
-	// With a max contribution of 3, only 3 partitions should be outputted.
-	checkNumPartitions(s, got, 3)
+	// With a max contribution of 1, only 1 partition should be outputted.
+	checkNumPartitions(s, got, 1)
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("Did not bound cross partition contributions correctly for PrivatePCollection<K,V> inputs: %v", err)
 	}

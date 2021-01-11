@@ -83,7 +83,10 @@ public class Count {
           "Count cannot be amended. Reason: " + state.getErrorMessage());
     }
 
-    this.rawCount += count;
+    // Non-positive values are ignored because they don't make sense.
+    if (count > 0) {
+      this.rawCount += count;
+    }
   }
 
   /**

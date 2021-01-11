@@ -22,6 +22,7 @@ import static org.junit.Assert.assertThrows;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.math.Stats;
+import java.security.SecureRandom;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -307,6 +308,81 @@ public final class LaplaceNoiseTest {
         () ->
             NOISE.addNoise(
                 DEFAULT_X, /* l1Sensitivity= */ Double.NaN, DEFAULT_EPSILON, /* delta= */ null));
+  }
+
+  @Test
+  public void addNoise_returnsMultipleOfGranularity() {
+    SecureRandom random = new SecureRandom();
+    for (int i = 0; i < NUM_SAMPLES; i++) {
+      // The rounding pricess should be independent of the value of x. Set x to a value between
+      // -1*10^6 and 10^6 at random should covere a broad range of congruence classes.
+      double x = random.nextDouble() * 2000000.0 - 1000000.0;
+
+      // The following choice of epsilon, l0 sensitivity and linf sensitivity should result in a
+      // granularity of 2^-10
+      double noisedX =
+          NOISE.addNoise(
+              x,
+              /* l0Sensitivity= */ 1,
+              /* lInfSensitivity= */ 1.0,
+              /* epsilon= */ 4.7e-10,
+              /* delta= */ null);
+      assertThat(Math.floor(noisedX * 1024.0)).isEqualTo(noisedX * 1024.0);
+
+      // The following choice of epsilon, l0 sensitivity and linf sensitivity should result in a
+      // granularity of 2^0
+      noisedX =
+          NOISE.addNoise(
+              x,
+              /* l0Sensitivity= */ 1,
+              /* lInfSensitivity= */ 1.0,
+              /* epsilon= */ 9.1e-13,
+              /* delta= */ null);
+      assertThat(Math.floor(noisedX)).isEqualTo(noisedX);
+
+      // The following choice of epsilon, l0 sensitivity and linf sensitivity should result in a
+      // granularity of 2^10
+      noisedX =
+          NOISE.addNoise(
+              x,
+              /* l0Sensitivity= */ 1,
+              /* lInfSensitivity= */ 1.0,
+              /* epsilon= */ 8.9e-16,
+              /* delta= */ null);
+      assertThat(Math.floor(noisedX / 1024.0)).isEqualTo(noisedX / 1024.0);
+    }
+  }
+
+  @Test
+  public void addNoise_integralX_returnsMultipleOfGranularity() {
+    SecureRandom random = new SecureRandom();
+    for (int i = 0; i < NUM_SAMPLES; i++) {
+      // The rounding pricess should be independent of the value of x. Set x to a value between
+      // -1*10^6 and 10^6 at random should covere a broad range of congruence classes.
+      long x = (long) random.nextInt(2000000) - 1000000;
+
+      // The following choice of epsilon, l0 sensitivity and linf sensitivity should result in a
+      // granularity of 2^1
+      long noisedX =
+          NOISE.addNoise(
+              x,
+              /* l0Sensitivity= */ 1,
+              /* lInfSensitivity= */ 1,
+              /* epsilon= */ 4.6e-13,
+              /* delta= */ null);
+      assertThat(noisedX % 2).isEqualTo(0);
+
+      // The following choice of epsilon, l0 sensitivity and linf sensitivity should result in a
+      // granularity of 2^10
+      noisedX =
+          NOISE.addNoise(
+              x,
+              /* l0Sensitivity= */ 1,
+              /* lInfSensitivity= */ 1,
+              /* epsilon= */ 8.9e-16,
+              /* delta= */ null);
+      assertThat(noisedX % 1024).isEqualTo(0);
+    }
   }
 
   @Test

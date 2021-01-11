@@ -50,38 +50,52 @@ class BinarySearchParameters(object):
 
 
 def inverse_monotone_function(
-    func: typing.Callable[[float], float], value: float,
-    search_parameters: BinarySearchParameters) -> typing.Union[float, None]:
-  """Inverse a monotonically decreasing function.
+    func: typing.Callable[[float], float],
+    value: float,
+    search_parameters: BinarySearchParameters,
+    increasing: bool = False) -> typing.Optional[float]:
+  """Inverse a monotone function.
 
   Args:
     func: The function to be inversed.
     value: The desired value of the function.
     search_parameters: Parameters used for binary search.
+    increasing: Whether the function is monotonically increasing.
 
   Returns:
-    x such that f(x) is no more than value, when such x exists; it is guaranteed
+    x such that f(x) is no more than value, when such x exists. It is guaranteed
     that the returned x is within search_parameters.tolerance of the smallest
-    such x. When no such x exists within the given range, returns None.
+    (for monotonically decreasing f) or the largest (for monotonically
+    increasing f) such x. When no such x exists within the given range, returns
+    None.
   """
   lower_x = search_parameters.lower_bound
   upper_x = search_parameters.upper_bound
   initial_guess_x = search_parameters.initial_guess
 
-  if upper_x != math.inf and func(upper_x) > value:
-    return None
+  if increasing:
+    check = lambda func_value, target_value: func_value <= target_value
+    if lower_x != -math.inf and func(lower_x) > value:
+      return None
+  else:
+    check = lambda func_value, target_value: func_value > target_value
+    if upper_x != math.inf and func(upper_x) > value:
+      return None
 
   if initial_guess_x is not None:
-    while (initial_guess_x < upper_x and func(initial_guess_x) > value):
+    while initial_guess_x < upper_x and check(func(initial_guess_x), value):
       lower_x = initial_guess_x
       initial_guess_x *= 2
     upper_x = min(upper_x, initial_guess_x)
 
   while upper_x - lower_x > search_parameters.tolerance:
     mid_x = (upper_x + lower_x) / 2
-    if func(mid_x) > value:
+    if check(func(mid_x), value):
       lower_x = mid_x
     else:
       upper_x = mid_x
 
-  return upper_x
+  if increasing:
+    return lower_x
+  else:
+    return upper_x

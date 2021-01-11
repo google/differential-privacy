@@ -226,9 +226,12 @@ TEST(SafeOperationsTest, SafeSubtractInt) {
   int64_t int_result;
   EXPECT_TRUE(SafeSubtract<int64_t>(10, 20, &int_result));
   EXPECT_EQ(int_result, -10);
+  EXPECT_FALSE(SafeSubtract<int64_t>(0, std::numeric_limits<int64_t>::lowest(),
+                                   &int_result));
+  EXPECT_EQ(int_result, std::numeric_limits<int64_t>::max());
   EXPECT_FALSE(SafeSubtract<int64_t>(1, std::numeric_limits<int64_t>::lowest(),
                                    &int_result));
-  EXPECT_EQ(int_result, std::numeric_limits<int64_t>::lowest());
+  EXPECT_EQ(int_result, std::numeric_limits<int64_t>::max());
   EXPECT_TRUE(SafeSubtract<int64_t>(-1, std::numeric_limits<int64_t>::lowest(),
                                   &int_result));
   EXPECT_EQ(int_result, std::numeric_limits<int64_t>::max());

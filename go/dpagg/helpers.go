@@ -16,7 +16,13 @@
 
 package dpagg
 
-import "fmt"
+import (
+	"fmt"
+	"math"
+)
+
+// LargestRepresentableDelta is the largest delta we could support in 64 bit precision, approximately equal to one.
+var LargestRepresentableDelta = 1 - math.Pow(2, -53)
 
 // ClampFloat64 clamps e within lower and upper, such that lower is returned
 // if e < lower, and upper is returned if e > upper. Otherwise, e is returned.
