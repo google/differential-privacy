@@ -73,11 +73,13 @@ double LaplaceChiSquared(const std::vector<double>& v, double scale) {
 }
 
 void BM_laplace_chi_squared(benchmark::State& state) {
-  LaplaceDistribution dist(1.0, 1.0);
+  LaplaceDistribution::Builder builder;
+  std::unique_ptr<LaplaceDistribution> dist =
+      builder.SetEpsilon(1.0).SetSensitivity(1.0).Build().ValueOrDie();
   std::vector<double> samples(kNumSamples);
   for (auto _ : state) {
     std::generate(samples.begin(), samples.end(),
-                  [&dist]() { return dist.Sample(); });
+                  [dist = std::move(dist)]() { return dist->Sample(); });
     double chi_sq = LaplaceChiSquared(samples, 1.0);
     state.SetLabel(
         absl::StrFormat("\nLaplace chi squared: %.2f\n"

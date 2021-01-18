@@ -109,6 +109,7 @@ package pbeam
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"reflect"
 	"strings"
 	"sync"
@@ -181,7 +182,7 @@ func (ps *PrivacySpec) consumeBudget(epsilon, delta float64) (eps, del float64, 
 	ps.epsilon = ps.epsilon - eps
 	ps.delta = ps.delta - del
 	ps.partiallyConsumed = true
-	return eps, del, nil
+	return eps, del, err
 }
 
 func (ps *PrivacySpec) getEntireBudget() (eps, del float64, err error) {
@@ -201,7 +202,7 @@ func (ps *PrivacySpec) getPartialBudget(epsilon, delta float64) (eps, del float6
 		delta = ps.delta
 	}
 	if ps.epsilon < epsilon || ps.delta < delta {
-		return 0, 0, fmt.Errorf("not enough budget left for PrivacySpec: trying to consume epsilon=%f and delta=%e out of %+v", epsilon, delta, ps)
+		return 0, 0, fmt.Errorf("not enough budget left for PrivacySpec: trying to consume epsilon=%f and delta=%e out of remaining epsilon=%f and delta=%e. Did you forget to split your budget among aggregations?", epsilon, delta, ps.epsilon, ps.delta)
 	}
 	return epsilon, delta, nil
 }
@@ -210,11 +211,15 @@ func (ps *PrivacySpec) getPartialBudget(epsilon, delta float64) (eps, del float6
 // will consume all remaining budget.
 const eqBudgetRelTol = 1e9
 
+// budgetSlightlyTooLarge returns true if and only if requested is slightly larger
+// than remaining, i.e. requested is larger by remaining up to a rounding error
+// (computed as remaining/eqBudgetRelTol).
 func budgetSlightlyTooLarge(remaining, requested float64) bool {
-	if requested < remaining {
+	diff := remaining - requested
+	if diff >= 0 {
 		return false
 	}
-	return remaining-requested <= remaining/eqBudgetRelTol
+	return math.Abs(diff) <= remaining/eqBudgetRelTol
 }
 
 // PrivacySpecOption is used for customizing PrivacySpecs. In the typical use

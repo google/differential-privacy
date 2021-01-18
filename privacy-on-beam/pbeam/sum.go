@@ -117,7 +117,7 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCo
 	spec := pcol.privacySpec
 	epsilon, delta, err := spec.consumeBudget(params.Epsilon, params.Delta)
 	if err != nil {
-		log.Exitf("couldn't consume budget: %v", err)
+		log.Exitf("Couldn't consume budget for SumPerKey: %v", err)
 	}
 
 	var noiseKind noise.Kind

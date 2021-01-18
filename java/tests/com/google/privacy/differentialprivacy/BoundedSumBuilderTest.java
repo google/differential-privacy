@@ -27,11 +27,15 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests the validations performed by {@link BoundedSum#builder()}. */
+/** Tests validations done by {@link BoundedSum#builder()}. */
 @RunWith(JUnit4.class)
 public class BoundedSumBuilderTest {
-  private static final double EPSILON = 0.123;
-  private static final double DELTA = 0.123;
+  private static final double DEFAULT_EPSILON = 0.5;
+  private static final double DEFAULT_DELTA = 0.00001;
+  private static final int DEFAULT_MAX_CONTRIBUTIONS_PER_PARTITION = 1;
+  private static final int DEFAULT_MAX_PARTITIONS_CONTRIBUTED = 1;
+  private static final double DEFAULT_LOWER = 0.0;
+  private static final double DEFAULT_UPPER = 1.0;
 
   private BoundedSum.Params.Builder builder;
 
@@ -39,24 +43,29 @@ public class BoundedSumBuilderTest {
   public void setup() {
     builder =
         BoundedSum.builder()
-            .delta(DELTA)
-            .epsilon(EPSILON)
+            .epsilon(DEFAULT_EPSILON)
+            .delta(DEFAULT_DELTA)
             .noise(new GaussianNoise())
-            .lower(0)
-            .upper(1)
-            .maxPartitionsContributed(1)
-            .maxContributionsPerPartition(1);
+            .maxContributionsPerPartition(DEFAULT_MAX_CONTRIBUTIONS_PER_PARTITION)
+            .maxPartitionsContributed(DEFAULT_MAX_PARTITIONS_CONTRIBUTED)
+            .lower(DEFAULT_LOWER)
+            .upper(DEFAULT_UPPER);
   }
 
   @Test
-  public void epsilon_belowZero_throwsException() {
-    builder.epsilon(-1);
+  public void defaultParameters_buildsInstance() {
+    assertThat(builder.build()).isNotNull();
+  }
+
+  @Test
+  public void epsilon_lessThanZero_throwsException() {
+    builder.epsilon(-1.0);
     assertThrows(IllegalArgumentException.class, builder::build);
   }
 
   @Test
   public void epsilon_zero_throwsException() {
-    builder.epsilon(0);
+    builder.epsilon(0.0);
     assertThrows(IllegalArgumentException.class, builder::build);
   }
 
@@ -67,225 +76,108 @@ public class BoundedSumBuilderTest {
   }
 
   @Test
-  public void epsilon_Nan_throwsException() {
+  public void epsilon_nan_throwsException() {
     builder.epsilon(NaN);
     assertThrows(IllegalArgumentException.class, builder::build);
   }
 
   @Test
-  public void deltaGaussian_belowZero_throwsException() {
-    builder.delta(-1.0);
-    assertThrows(IllegalArgumentException.class, builder::build);
+  public void epsilon_notProvided_throwsException() {
+    BoundedSum.Params.Builder builder =
+        BoundedSum.builder()
+            .delta(DEFAULT_DELTA)
+            .noise(new GaussianNoise())
+            .maxContributionsPerPartition(DEFAULT_MAX_CONTRIBUTIONS_PER_PARTITION)
+            .maxPartitionsContributed(DEFAULT_MAX_PARTITIONS_CONTRIBUTED)
+            .lower(DEFAULT_LOWER)
+            .upper(DEFAULT_UPPER);
+    assertThrows(IllegalStateException.class, builder::build);
   }
 
   @Test
-  public void deltaGaussian_greaterThanOne_throwsException() {
-    builder.delta(50.0);
+  public void deltaGaussian_lessThanZero_throwsException() {
+    builder.delta(-1.0);
+    builder.noise(new GaussianNoise());
     assertThrows(IllegalArgumentException.class, builder::build);
   }
 
   @Test
   public void deltaGaussian_zero_throwsException() {
     builder.delta(0.0);
+    builder.noise(new GaussianNoise());
+    assertThrows(IllegalArgumentException.class, builder::build);
+  }
+
+  @Test
+  public void deltaGaussian_greaterThanOne_throwsException() {
+    builder.delta(50.0);
+    builder.noise(new GaussianNoise());
+    assertThrows(IllegalArgumentException.class, builder::build);
+  }
+
+  @Test
+  public void deltaGaussian_one_throwsException() {
+    builder.delta(1.0);
+    builder.noise(new GaussianNoise());
     assertThrows(IllegalArgumentException.class, builder::build);
   }
 
   @Test
   public void deltaGaussian_null_throwsException() {
     builder.delta(null);
+    builder.noise(new GaussianNoise());
     assertThrows(NullPointerException.class, builder::build);
   }
 
   @Test
-  public void deltaGaussian_notSet_throwsException() {
+  public void deltaGaussian_nan_throwsException() {
+    builder.delta(NaN);
+    builder.noise(new GaussianNoise());
+    assertThrows(IllegalArgumentException.class, builder::build);
+  }
+
+  @Test
+  public void deltaGaussian_notProvided_throwsException() {
     BoundedSum.Params.Builder builder =
         BoundedSum.builder()
+            .epsilon(DEFAULT_EPSILON)
             .noise(new GaussianNoise())
-            .epsilon(EPSILON)
-            .lower(0)
-            .upper(1)
-            .maxPartitionsContributed(1);
+            .maxContributionsPerPartition(DEFAULT_MAX_CONTRIBUTIONS_PER_PARTITION)
+            .maxPartitionsContributed(DEFAULT_MAX_PARTITIONS_CONTRIBUTED)
+            .lower(DEFAULT_LOWER)
+            .upper(DEFAULT_UPPER);
     assertThrows(NullPointerException.class, builder::build);
   }
 
   @Test
-  public void deltaGaussian_Nan_throwsException() {
-    builder.delta(NaN);
-    assertThrows(IllegalArgumentException.class, builder::build);
-  }
-
-  @Test
-  public void deltaLaplace_nonnull_throwsException() {
+  public void deltaLaplace_notNull_throwsException() {
+    builder.delta(DEFAULT_DELTA);
     builder.noise(new LaplaceNoise());
-    builder.delta(0.1);
     assertThrows(IllegalArgumentException.class, builder::build);
   }
 
   @Test
-  public void bounds_lowerGreaterThanUpper_throwsException() {
-    builder.lower(1);
-    builder.upper(0);
-    assertThrows(IllegalArgumentException.class, builder::build);
-  }
-
-  @Test
-  public void bounds_lowerNegInfinity_throwsException() {
-    builder.lower(NEGATIVE_INFINITY);
-    assertThrows(IllegalArgumentException.class, builder::build);
-  }
-
-  @Test
-  public void bounds_lowerPosInfinity_throwsException() {
-    builder.lower(POSITIVE_INFINITY);
-    assertThrows(IllegalArgumentException.class, builder::build);
-  }
-
-  @Test
-  public void bounds_lowerNan_throwsException() {
-    builder.lower(NaN);
-    assertThrows(IllegalArgumentException.class, builder::build);
-  }
-
-  @Test
-  public void bounds_upperNegInfinity_throwsException() {
-    builder.upper(NEGATIVE_INFINITY);
-    assertThrows(IllegalArgumentException.class, builder::build);
-  }
-
-  @Test
-  public void bounds_upperPosInfinity_throwsException() {
-    builder.upper(POSITIVE_INFINITY);
-    assertThrows(IllegalArgumentException.class, builder::build);
-  }
-
-  @Test
-  public void bounds_upperNan_throwsException() {
-    builder.upper(NaN);
-    assertThrows(IllegalArgumentException.class, builder::build);
-  }
-
-  // It should be possible for lower and upper bounds to be equal.
-  @Test
-  public void bounds_equal_noException() {
-    builder.lower(1);
-    builder.upper(1);
+  public void deltaLaplace_null_buildsInstance() {
+    builder.noise(new LaplaceNoise());
+    builder.delta(null);
     assertThat(builder.build()).isNotNull();
   }
 
   @Test
-  public void maxPartitionsContributed_belowZero_throwsException() {
-    builder.maxPartitionsContributed(-1);
-    assertThrows(IllegalArgumentException.class, builder::build);
+  public void deltaLaplace_notProvided_buildsInstance() {
+    BoundedSum.Params.Builder builder =
+        BoundedSum.builder()
+            .epsilon(DEFAULT_EPSILON)
+            .noise(new LaplaceNoise())
+            .maxContributionsPerPartition(DEFAULT_MAX_CONTRIBUTIONS_PER_PARTITION)
+            .maxPartitionsContributed(DEFAULT_MAX_PARTITIONS_CONTRIBUTED)
+            .lower(DEFAULT_LOWER)
+            .upper(DEFAULT_UPPER);
+    assertThat(builder.build()).isNotNull();
   }
 
   @Test
-  public void maxPartitionsContributed_zero_throwsException() {
-    builder.maxPartitionsContributed(0);
-    assertThrows(IllegalArgumentException.class, builder::build);
-  }
-
-  @Test
-  public void maxPartitionsContributedAndUpperTooHigh_l1Overflow_throwsException() {
-    builder
-        .lower(1)
-        .upper(Double.MAX_VALUE / 2)
-        .maxContributionsPerPartition(1)
-        .maxPartitionsContributed(4)
-        .noise(new LaplaceNoise());
-
-    // An exception should be thrown because l1Sensitivity overflows.
-    // More precisely:
-    //   lInfSensitivity =
-    //     max(abs(lower), abs(upper)) * maxContributionsPerPartition =
-    //     max(abs(1), abs(Double.MAX_VALUE / 2)) * 1 =
-    //     Double.MAX_VALUE / 2
-    //   l1Sensitivity = lInfSensitivity * l0Sensitivity =
-    //     (Double.MAX_VALUE / 2) * 4 =
-    //     Double.MAX_VALUE * 2
-    //    => l1Sensitivity overflows
-    assertThrows(IllegalArgumentException.class, builder::build);
-  }
-
-  @Test
-  public void maxPartitionsContributedAndLowerTooHigh_l1Overflow_throwsException() {
-    builder
-        .lower(-Double.MAX_VALUE / 2)
-        .upper(12)
-        .maxContributionsPerPartition(1)
-        .maxPartitionsContributed(4)
-        .noise(new LaplaceNoise());
-
-    // An exception should be thrown because l1Sensitivity overflows.
-    // More precisely:
-    //   lInfSensitivity =
-    //     max(abs(lower), abs(upper)) * maxContributionsPerPartition =
-    //     max(abs(1), abs(Double.MAX_VALUE / 2)) * 1 =
-    //     Double.MAX_VALUE / 2
-    //   l1Sensitivity = lInfSensitivity * l0Sensitivity =
-    //     (Double.MAX_VALUE / 2) * 4 =
-    //     Double.MAX_VALUE * 2
-    //    => l1Sensitivity overflows
-    assertThrows(IllegalArgumentException.class, builder::build);
-  }
-
-  @Test
-  public void maxPartitionsContributedAndUpperTooHigh_l2Overflow_throwsException() {
-    builder
-        .lower(1)
-        .upper(Double.MAX_VALUE / 2)
-        .maxContributionsPerPartition(1)
-        .maxPartitionsContributed(16)
-        .noise(new GaussianNoise());
-
-    // An exception should be thrown because l1Sensitivity overflows.
-    // More precisely:
-    //   lInfSensitivity =
-    //     max(abs(lower), abs(upper)) * maxContributionsPerPartition =
-    //     max(abs(1), abs(Double.MAX_VALUE / 2)) * 1 =
-    //     Double.MAX_VALUE / 2
-    //   l2Sensitivity = lInfSensitivity * sqrt(l0Sensitivity) =
-    //     (Double.MAX_VALUE / 2) * sqrt(16) =
-    //     Double.MAX_VALUE * 2
-    //    => l2Sensitivity overflows
-    assertThrows(IllegalArgumentException.class, builder::build);
-  }
-
-  @Test
-  public void maxPartitionsContributedAndLowerTooHigh_l2Overflow_throwsException() {
-    builder
-        .lower(-Double.MAX_VALUE / 2)
-        .upper(1)
-        .maxContributionsPerPartition(1)
-        .maxPartitionsContributed(16)
-        .noise(new GaussianNoise());
-
-    // An exception should be thrown because l1Sensitivity overflows.
-    // More precisely:
-    //   lInfSensitivity =
-    //     max(abs(lower), abs(upper)) * maxContributionsPerPartition =
-    //     max(abs(1), abs(Double.MAX_VALUE / 2)) * 1 =
-    //     Double.MAX_VALUE / 2
-    //   l2Sensitivity = lInfSensitivity * sqrt(l0Sensitivity) =
-    //     (Double.MAX_VALUE / 2) * sqrt(16) =
-    //     Double.MAX_VALUE * 2
-    //    => l2Sensitivity overflows
-    assertThrows(IllegalArgumentException.class, builder::build);
-  }
-
-  @Test
-  public void noise_notProvided_noException() {
-    // No exception should be thrown if no Noise instance is provided because the builder
-    // should automatically provide a default instance of Noise.
-    BoundedSum.builder().epsilon(EPSILON).lower(0).upper(1).maxPartitionsContributed(1).build();
-  }
-
-  @Test
-  public void noise_null_throwsException() {
-    assertThrows(NullPointerException.class, () -> BoundedSum.builder().noise(null));
-  }
-
-  @Test
-  public void maxContributionsPerPartition_belowZero_throwsException() {
+  public void maxContributionsPerPartition_lessThanZero_throwsException() {
     builder.maxContributionsPerPartition(-1);
     assertThrows(IllegalArgumentException.class, builder::build);
   }
@@ -297,48 +189,170 @@ public class BoundedSumBuilderTest {
   }
 
   @Test
-  public void maxContributionsPerPartition_aboveZero_noException() {
-    builder.maxContributionsPerPartition(5).build();
+  public void maxContributionsPerPartition_notProvided_buildsInstance() {
+    // No exception is thrown because max contributions per partition is 1 by default.
+    BoundedSum.Params.Builder builder =
+        BoundedSum.builder()
+            .epsilon(DEFAULT_EPSILON)
+            .delta(DEFAULT_DELTA)
+            .noise(new GaussianNoise())
+            .maxPartitionsContributed(DEFAULT_MAX_CONTRIBUTIONS_PER_PARTITION)
+            .lower(DEFAULT_LOWER)
+            .upper(DEFAULT_UPPER);
+    assertThat(builder.build()).isNotNull();
   }
 
   @Test
-  public void maxContributionsPerPartition_notProvided_noException() {
-    // No exception should be thrown if maxContributionsPerPartition is not provided, because
-    // the builder should automatically provide a default value.
-    BoundedSum.builder()
-        .epsilon(EPSILON)
-        .lower(0)
-        .upper(1)
-        .maxPartitionsContributed(1)
-        .noise(new LaplaceNoise())
-        .build();
-  }
-
-  @Test
-  public void macContribsPerPartitionAndUpperTooHigh_lInfOverflow_throwsException() {
-    builder.lower(1).upper(Double.MAX_VALUE).maxContributionsPerPartition(2);
-
-    // An exception should be thrown because lInfSensitivity overflows.
-    // More precisely:
-    //   lInfSensitivity =
-    //     max(abs(lower), abs(upper)) * maxContributionsPerPartition =
-    //     max(abs(1), abs(Double.MAX_VALUE)) * 2 =
-    //     Double.MAX_VALUE * 2
-    //     => Double overflow.
+  public void maxPartitionsContributed_lessThanZero_throwsException() {
+    builder.maxPartitionsContributed(-1);
     assertThrows(IllegalArgumentException.class, builder::build);
   }
 
   @Test
-  public void macContribsPerPartitionAndLowerTooHigh_lInfOverflow_throwsException() {
-    builder.lower(-Double.MAX_VALUE).upper(1).maxContributionsPerPartition(2);
+  public void maxPartitionsContributed_zero_throwsException() {
+    builder.maxPartitionsContributed(0);
+    assertThrows(IllegalArgumentException.class, builder::build);
+  }
 
-    // An exception shouldd be thrown because LInfSensitivity overflows.
-    // More precisely:
-    //   lInfSensitivity =
-    //     max(abs(lower), abs(upper)) * maxContributionsPerPartition =
-    //     max(abs(-Double.MAX_VALUE), abs(1)) * 2 =
-    //     Double.MAX_VALUE * 2
-    //     => Double overflow.
+  @Test
+  public void maxPartitionsContributed_notProvided_throwsException() {
+    BoundedSum.Params.Builder builder =
+        BoundedSum.builder()
+            .epsilon(DEFAULT_EPSILON)
+            .delta(DEFAULT_DELTA)
+            .noise(new GaussianNoise())
+            .maxContributionsPerPartition(DEFAULT_MAX_CONTRIBUTIONS_PER_PARTITION)
+            .lower(DEFAULT_LOWER)
+            .upper(DEFAULT_UPPER);
+    assertThrows(IllegalStateException.class, builder::build);
+  }
+
+  @Test
+  public void lower_negInfinity_throwsException() {
+    builder.lower(NEGATIVE_INFINITY);
+    assertThrows(IllegalArgumentException.class, builder::build);
+  }
+
+  @Test
+  public void lower_posInfinity_throwsException() {
+    builder.lower(POSITIVE_INFINITY);
+    assertThrows(IllegalArgumentException.class, builder::build);
+  }
+
+  @Test
+  public void lower_nan_throwsException() {
+    builder.lower(NaN);
+    assertThrows(IllegalArgumentException.class, builder::build);
+  }
+
+  @Test
+  public void lower_notProvided_throwsException() {
+    BoundedSum.Params.Builder builder =
+        BoundedSum.builder()
+            .epsilon(DEFAULT_EPSILON)
+            .delta(DEFAULT_DELTA)
+            .noise(new GaussianNoise())
+            .maxContributionsPerPartition(DEFAULT_MAX_CONTRIBUTIONS_PER_PARTITION)
+            .maxPartitionsContributed(DEFAULT_MAX_PARTITIONS_CONTRIBUTED)
+            .upper(DEFAULT_UPPER);
+    assertThrows(IllegalStateException.class, builder::build);
+  }
+
+  @Test
+  public void upper_negInfinity_throwsException() {
+    builder.upper(NEGATIVE_INFINITY);
+    assertThrows(IllegalArgumentException.class, builder::build);
+  }
+
+  @Test
+  public void upper_posInfinity_throwsException() {
+    builder.upper(POSITIVE_INFINITY);
+    assertThrows(IllegalArgumentException.class, builder::build);
+  }
+
+  @Test
+  public void upper_nan_throwsException() {
+    builder.lower(NaN);
+    assertThrows(IllegalArgumentException.class, builder::build);
+  }
+
+  @Test
+  public void upper_notProvided_throwsException() {
+    BoundedSum.Params.Builder builder =
+        BoundedSum.builder()
+            .epsilon(DEFAULT_EPSILON)
+            .delta(DEFAULT_DELTA)
+            .noise(new GaussianNoise())
+            .maxContributionsPerPartition(DEFAULT_MAX_CONTRIBUTIONS_PER_PARTITION)
+            .maxPartitionsContributed(DEFAULT_MAX_PARTITIONS_CONTRIBUTED)
+            .lower(DEFAULT_LOWER);
+    assertThrows(IllegalStateException.class, builder::build);
+  }
+
+  @Test
+  public void bounds_lowerGreaterThanUpper_throwsException() {
+    builder.lower(1.0);
+    builder.upper(0.0);
+    assertThrows(IllegalArgumentException.class, builder::build);
+  }
+
+  @Test
+  public void bounds_equal_buildsInstance() {
+    builder.lower(1.0);
+    builder.upper(1.0);
+    assertThat(builder.build()).isNotNull();
+  }
+
+  @Test
+  public void noise_null_throwsException() {
+    assertThrows(NullPointerException.class, () -> builder.noise(null));
+  }
+
+  @Test
+  public void noise_notProvided_delta_notProvided_buildsInstance() {
+    // No exception is thrown because the noise parameter will be set to a default Laplace instance.
+    BoundedSum.Params.Builder builder =
+        BoundedSum.builder()
+            .epsilon(DEFAULT_EPSILON)
+            .maxContributionsPerPartition(DEFAULT_MAX_CONTRIBUTIONS_PER_PARTITION)
+            .maxPartitionsContributed(DEFAULT_MAX_PARTITIONS_CONTRIBUTED)
+            .lower(DEFAULT_LOWER)
+            .upper(DEFAULT_UPPER);
+    assertThat(builder.build()).isNotNull();
+  }
+
+  @Test
+  public void paramtersResultInL1SensitivityOverflow_throwsException() {
+    BoundedSum.Params.Builder builder =
+        BoundedSum.builder()
+            .epsilon(DEFAULT_EPSILON)
+            .noise(new LaplaceNoise())
+            .maxContributionsPerPartition(1)
+            .maxPartitionsContributed(4)
+            .lower(-Double.MAX_VALUE / 2.0)
+            .upper(Double.MAX_VALUE / 2.0);
+    //   l_1 sensitivity (of the numerator of the mean)
+    // = maxContributionsPerPartition * maxPartitionsContributed * |lower - upper| / 2
+    // = 1 * 4 * Double.MAX_VALUE / 2
+    // = 2 * Double.MAX_VALUE
+    assertThrows(IllegalArgumentException.class, builder::build);
+  }
+
+  @Test
+  public void paramtersResultInL2SensitivityOverflow_throwsException() {
+    BoundedSum.Params.Builder builder =
+        BoundedSum.builder()
+            .epsilon(DEFAULT_EPSILON)
+            .delta(DEFAULT_DELTA)
+            .noise(new GaussianNoise())
+            .maxContributionsPerPartition(1)
+            .maxPartitionsContributed(5)
+            .lower(-Double.MAX_VALUE / 2.0)
+            .upper(Double.MAX_VALUE / 2.0);
+    //   l_2 sensitivity (of the numerator of the mean)
+    // = maxContributionsPerPartition * maxPartitionsContributed^0.5 * |lower - upper| / 2
+    // = 1 * 5^0.5 * Double.MAX_VALUE / 2
+    // = (5/4)^0.5 * Double.MAX_VALUE
     assertThrows(IllegalArgumentException.class, builder::build);
   }
 }

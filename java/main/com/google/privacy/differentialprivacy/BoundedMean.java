@@ -18,6 +18,11 @@ package com.google.privacy.differentialprivacy;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
+import com.google.differentialprivacy.SummaryOuterClass.BoundedMeanSummary;
+import com.google.differentialprivacy.SummaryOuterClass.BoundedSumSummary;
+import com.google.differentialprivacy.SummaryOuterClass.CountSummary;
+import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.Collection;
 import javax.annotation.Nullable;
 
@@ -118,9 +123,7 @@ public class BoundedMean {
 
   /** Clamps the input value and adds it to the average. */
   public void addEntry(double e) {
-    if (state != AggregationState.DEFAULT) {
-      throw new IllegalStateException("Mean cannot be amended. Reason: " + state.getErrorMessage());
-    }
+    Preconditions.checkState(state == AggregationState.DEFAULT, "Mean cannot be amended.");
 
     // NaN is ignored because introducing even a single NaN entry will result in a NaN mean
     // regardless of other entries, which would break the indistinguishability
@@ -160,10 +163,8 @@ public class BoundedMean {
    * <p>Note that the returned value is not an unbiased estimate of the raw bounded mean.
    */
   public double computeResult() {
-    if (state != AggregationState.DEFAULT) {
-      throw new IllegalStateException(
-          "Mean's noised result cannot be computed. Reason: " + state.getErrorMessage());
-    }
+    Preconditions.checkState(
+        state == AggregationState.DEFAULT, "Mean's noised result cannot be computed.");
 
     state = AggregationState.RESULT_RETURNED;
 
@@ -185,10 +186,10 @@ public class BoundedMean {
    * more information.
    */
   public ConfidenceInterval computeConfidenceInterval(double alpha) {
-    if (state != AggregationState.RESULT_RETURNED) {
-      throw new IllegalStateException(
-          "computeResult() must be called before calling computeConfidenceInterval()");
-    }
+    Preconditions.checkState(
+        state == AggregationState.RESULT_RETURNED,
+        "computeResult() must be called before calling computeConfidenceInterval()");
+
     // The confidence interval of bounded mean is derived from confidence intervals of the mean's
     // numerator and denominator. The respective confidence levels 1 - alphaNum and 1 - alphaDen can
     // be chosen arbitrarily as long as
@@ -244,6 +245,65 @@ public class BoundedMean {
     meanLowerBound = clamp(meanLowerBound + midpoint);
     meanUpperBound = clamp(meanUpperBound + midpoint);
     return ConfidenceInterval.create(meanLowerBound, meanUpperBound);
+  }
+
+  /**
+   * Returns a serializable version of the current state of {@link BoundedMean} and the parameters
+   * used to calculate it. After calling this method, this instance of BoundedMean will be unusable
+   * - meaning that it is no longer be able to return the computed result, since that would
+   * compromise privacy guarantees. Specifically, it will throw an IllegalStateException.
+   *
+   * @throws IllegalArgumentException if not all config parameters (e.g., epsilon, contribution
+   *     bounds) are equal or if the passed serialized mean is invalid.
+   * @throws IllegalStateException if this mean has already been calculated or serialized.
+   */
+  public byte[] getSerializableSummary() {
+    Preconditions.checkState(state == AggregationState.DEFAULT);
+
+    CountSummary deserializedCount;
+    BoundedSumSummary deserializedNormalizedSum;
+    try {
+      deserializedCount = CountSummary.parseFrom(count.getSerializableSummary());
+      deserializedNormalizedSum =
+          BoundedSumSummary.parseFrom(normalizedSum.getSerializableSummary());
+    } catch (InvalidProtocolBufferException e) {
+      throw new IllegalStateException("Mean object cannot be serialized. Reason: " + e);
+    }
+
+    BoundedMeanSummary serializedMean =
+        BoundedMeanSummary.newBuilder()
+            .setCountSummary(deserializedCount)
+            .setSumSummary(deserializedNormalizedSum)
+            .build();
+
+    // Record that this object is no longer suitable for producing a differentially private mean,
+    // since serialization exposes the object's raw state.
+    state = AggregationState.SERIALIZED;
+
+    return serializedMean.toByteArray();
+  }
+
+  /**
+   * Merges this instance with the output of {@link #getSerializableSummary()} from a different
+   * {@link BoundedMean} and stores the merged result in this instance. This is required in the
+   * distributed calculations context for merging partial results.
+   *
+   * @throws IllegalArgumentException if not all config parameters (e.g., epsilon, contribution
+   *     bounds) are equal or if the passed serialized mean is invalid.
+   * @throws IllegalStateException if this mean has already been calculated or serialized.
+   */
+  public void mergeWith(byte[] otherBoundedMeanSummary) {
+    Preconditions.checkState(state == AggregationState.DEFAULT, "Mean object cannot be merged.");
+
+    BoundedMeanSummary otherSummaryParsed;
+    try {
+      otherSummaryParsed = BoundedMeanSummary.parseFrom(otherBoundedMeanSummary);
+    } catch (InvalidProtocolBufferException pbe) {
+      throw new IllegalArgumentException(pbe);
+    }
+
+    this.normalizedSum.mergeWith(otherSummaryParsed.getSumSummary().toByteArray());
+    this.count.mergeWith(otherSummaryParsed.getCountSummary().toByteArray());
   }
 
   @AutoValue

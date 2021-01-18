@@ -16,8 +16,6 @@
 
 #include "algorithms/numerical-mechanisms.h"
 
-#include <vector>
-
 #include "base/testing/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -28,7 +26,6 @@ namespace differential_privacy {
 namespace {
 
 using ::testing::_;
-using ::testing::DoubleEq;
 using ::testing::DoubleNear;
 using ::testing::Eq;
 using ::testing::Ge;
@@ -274,6 +271,26 @@ TEST(NumericalMechanismsTest, LaplaceBuilderFailsL0SensitivityInfinity) {
   EXPECT_THAT(message, MatchesRegex("^L0 sensitivity must be finite.*"));
 }
 
+// When L1 is not directly provided, it is calculated as L0 * LInf. This tests
+// ensures that floating-point limitations resulting in
+// L1 = L0 * LInf = TINY_DOUBLE * TINY_DOUBLE = 0 are caught and invalidated.
+TEST(NumericalMechanismsTest, LaplaceBuilderFailsSmallL0LargeLInfSensitivity) {
+  LaplaceMechanism::Builder test_builder;
+  auto failed_build =
+      test_builder.SetL0Sensitivity(std::numeric_limits<double>::min())
+          .SetLInfSensitivity(std::numeric_limits<double>::min())
+          .SetEpsilon(1)
+          .Build();
+  EXPECT_THAT(failed_build.status().code(),
+              Eq(absl::StatusCode::kInvalidArgument));
+  // Convert message to std::string so that the matcher works in the open source
+  // version.
+  std::string message(failed_build.status().message());
+  EXPECT_THAT(
+      message,
+      MatchesRegex("^The result of the L1 sensitivity calculation is 0.*"));
+}
+
 TYPED_TEST(NumericalMechanismsTest, LaplaceBuilderSensitivityTooHigh) {
   LaplaceMechanism::Builder test_builder;
   base::StatusOr<std::unique_ptr<NumericalMechanism>> test_mechanism =
@@ -289,12 +306,6 @@ TEST(NumericalMechanismsTest, LaplaceAddsNoise) {
   LaplaceMechanism mechanism(1.0, 1.0, std::move(distro));
 
   EXPECT_THAT(mechanism.AddNoise(0.0), DoubleNear(10.0, 5.0));
-}
-
-TEST(NumericalMechanismsTest, LaplaceAddsNoNoiseWhenSensitivityIsZero) {
-  LaplaceMechanism mechanism(1.0, 0.0);
-
-  EXPECT_THAT(mechanism.AddNoise(12.3), DoubleEq(12.3));
 }
 
 TEST(NumericalMechanismsTest, LaplaceNoisedValueAboveThreshold) {

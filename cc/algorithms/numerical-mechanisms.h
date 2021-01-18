@@ -17,15 +17,8 @@
 #ifndef DIFFERENTIAL_PRIVACY_ALGORITHMS_NUMERICAL_MECHANISMS_H_
 #define DIFFERENTIAL_PRIVACY_ALGORITHMS_NUMERICAL_MECHANISMS_H_
 
-#include <math.h>
-
-#include <limits>
 #include <memory>
-#include <string>
-#include <utility>
 
-#include <cstdint>
-#include "base/logging.h"
 #include "absl/base/attributes.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
@@ -180,7 +173,7 @@ class LaplaceMechanism : public NumericalMechanism {
   class Builder : public NumericalMechanismBuilder {
    public:
     ABSL_DEPRECATED(
-        "Set LInf and L0 sensitivity instead or use SetL1Sensitivity in tests")
+        "Set LInf and L0 sensitivity instead or use SetL1Sensitivity in tests.")
     Builder& SetSensitivity(double l1_sensitivity) {
       return SetL1Sensitivity(l1_sensitivity);
     }
@@ -205,7 +198,7 @@ class LaplaceMechanism : public NumericalMechanism {
         return absl::InvalidArgumentError("Sensitivity is too high.");
       }
       base::StatusOr<double> gran_or_status =
-          internal::CalculateGranularity(epsilon, L1);
+          internal::LaplaceDistribution::CalculateGranularity(epsilon, L1);
       if (!gran_or_status.ok()) return gran_or_status.status();
 
       std::unique_ptr<NumericalMechanism> result =
@@ -223,8 +216,8 @@ class LaplaceMechanism : public NumericalMechanism {
    private:
     absl::optional<double> l1_sensitivity_;
 
-    // Returns the l1 sensitivity when it has been set or returns an upper bound
-    // on the l1 sensitivity calculated from l0 and linf sensitivities.
+    // Returns the L1 sensitivity when it has been set or returns an upper bound
+    // on the L1 sensitivity calculated from L0 and Linf sensitivities.
     base::StatusOr<double> CalculateL1Sensitivity() {
       if (l1_sensitivity_.has_value()) {
         absl::Status status =
@@ -249,6 +242,14 @@ class LaplaceMechanism : public NumericalMechanism {
               l1,
               ". Please check your contribution and sensitivity settings."));
         }
+        if (l1 == 0) {
+          return absl::InvalidArgumentError(absl::StrCat(
+              "The result of the L1 sensitivity calculation is 0, likely "
+              "because either L0 sensitivity (",
+              l0, ") and/or LInf sensitivity (", linf,
+              ") are too small. Please check your contribution and sensitivity "
+              "settings."));
+        }
         return l1;
       }
       // Sensitivity of 1 has been the default previously.  This will only
@@ -257,12 +258,20 @@ class LaplaceMechanism : public NumericalMechanism {
     }
   };
 
+  ABSL_DEPRECATED(
+      "Use LaplaceMechanism::Builder instead of LaplaceMechanism constructor.")
   explicit LaplaceMechanism(double epsilon, double sensitivity = 1.0)
       : NumericalMechanism(epsilon),
         sensitivity_(sensitivity),
-        diversity_(sensitivity / epsilon),
-        distro_(absl::make_unique<internal::LaplaceDistribution>(
-            GetEpsilon(), sensitivity_)) {}
+        diversity_(sensitivity / epsilon) {
+    base::StatusOr<std::unique_ptr<internal::LaplaceDistribution>>
+        status_or_distro = internal::LaplaceDistribution::Builder()
+                               .SetEpsilon(GetEpsilon())
+                               .SetSensitivity(sensitivity)
+                               .Build();
+    DCHECK(status_or_distro.status().ok());
+    distro_ = std::move(status_or_distro.value());
+  }
 
   LaplaceMechanism(double epsilon, double sensitivity,
                    std::unique_ptr<internal::LaplaceDistribution> distro)
@@ -352,9 +361,14 @@ class GaussianMechanism : public NumericalMechanism {
       RETURN_IF_ERROR(ValidateIsFiniteAndPositive(epsilon, "Epsilon"));
       RETURN_IF_ERROR(DeltaIsSetAndValid());
       ASSIGN_OR_RETURN(double l2, CalculateL2Sensitivity());
+
+      internal::GaussianDistribution::Builder builder;
+      ASSIGN_OR_RETURN(std::unique_ptr<internal::GaussianDistribution> distro,
+                       builder.SetStddev(1).Build());
+
       std::unique_ptr<NumericalMechanism> result =
-          absl::make_unique<GaussianMechanism>(epsilon.value(),
-                                               GetDelta().value(), l2);
+          absl::make_unique<GaussianMechanism>(
+              epsilon.value(), GetDelta().value(), l2, std::move(distro));
       return result;
     }
 
@@ -403,12 +417,26 @@ class GaussianMechanism : public NumericalMechanism {
     }
   };
 
+  ABSL_DEPRECATED(
+      "Use GaussianMechanism::Builder instead of GaussianMechanism "
+      "constructor.")
   explicit GaussianMechanism(double epsilon, double delta,
                              double l2_sensitivity)
       : NumericalMechanism(epsilon),
         delta_(delta),
-        l2_sensitivity_(l2_sensitivity),
-        distro_(absl::make_unique<internal::GaussianDistribution>(1)) {}
+        l2_sensitivity_(l2_sensitivity) {
+    base::StatusOr<std::unique_ptr<internal::GaussianDistribution>>
+        status_or_distro =
+            internal::GaussianDistribution::Builder().SetStddev(1).Build();
+    DCHECK(status_or_distro.status().ok());
+    distro_ = std::move(status_or_distro.value());
+  }
+
+  GaussianMechanism(double epsilon, double delta, double l2_sensitivity,
+                    std::unique_ptr<internal::GaussianDistribution> distro)
+      : GaussianMechanism(epsilon, delta, l2_sensitivity) {
+    distro_ = std::move(distro);
+  }
 
   virtual ~GaussianMechanism() = default;
 

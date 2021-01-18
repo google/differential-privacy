@@ -90,6 +90,11 @@ message BoundedMeanSummary {
 
   // ApproxBounds data if available.
   optional ApproxBoundsSummary bounds_summary = 4;
+
+  // These two fields are only used by the Java library (not C++), similarly to
+  // pos_sum and count.
+  optional BoundedSumSummary sum_summary = 5;
+  optional CountSummary count_summary = 6;
 }
 
 // Used for BoundedVariance and BoundedStandardDeviation algorithms.

@@ -355,7 +355,7 @@ func TestBudgetFullyConsumed(t *testing.T) {
 		t.Errorf("expected no error but got error: %v", err)
 	}
 	// Try consuming 1% of the initial budget.
-	if eps, del, err := spec.consumeBudget(0.01, 1e-32); err != nil {
+	if eps, del, err := spec.consumeBudget(0.01, 1e-32); err == nil {
 		t.Errorf("expected spec to be out of budget, but could consume (%f,%e) without any error", eps, del)
 	}
 }
@@ -380,10 +380,10 @@ func TestTwoDistinctBudgets(t *testing.T) {
 		t.Errorf("expected no error but got error: %v", err)
 	}
 	// Try consuming 1% of the initial budget independently for ε and δ.
-	if eps, del, err := spec1.consumeBudget(0, 1e-32); err != nil {
+	if eps, del, err := spec1.consumeBudget(0, 1e-32); err == nil {
 		t.Errorf("expected spec1 to be out of budget, but could consume (%f,%e) without any error", eps, del)
 	}
-	if eps, del, err := spec2.consumeBudget(0.01, 0); err != nil {
+	if eps, del, err := spec2.consumeBudget(0.01, 0); err == nil {
 		t.Errorf("expected spec2 to be out of budget, but could consume (%f,%e) without any error", eps, del)
 	}
 }
@@ -392,27 +392,26 @@ func TestTwoDistinctBudgets(t *testing.T) {
 // epsilon by 3 leads to rounding errors in this test case. Should run without
 // any errors.
 func TestBudgetRounding(t *testing.T) {
-	values := []pairII{
-		{1, 1},
-		{2, 2},
-	}
-	p, s, col := ptest.CreateList(values)
-	colKV := beam.ParDo(s, pairToKV, col)
-	spec := NewPrivacySpec(1, 1e-30)
-	pcol := MakePrivate(s, colKV, spec)
-	eps3 := 1. / 3.
-	del3 := 1e-30 / 3.
-	gotD := DistinctPrivacyID(s, pcol, DistinctPrivacyIDParams{Epsilon: eps3, Delta: del3, MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}})
-	gotC1 := Count(s, pcol, CountParams{Epsilon: eps3, Delta: del3, MaxPartitionsContributed: 1, MaxValue: 1, NoiseKind: LaplaceNoise{}})
-	gotC2 := Count(s, pcol, CountParams{Epsilon: eps3, Delta: del3, MaxPartitionsContributed: 1, MaxValue: 2, NoiseKind: LaplaceNoise{}})
-	passert.Empty(s, gotD)
-	passert.Empty(s, gotC1)
-	passert.Empty(s, gotC2)
-	if err := ptest.Run(p); err != nil {
-		t.Errorf("expected no error but got error: %v", err)
-	}
-	// Now, the budget should be really empty.
-	if eps, del, err := spec.consumeBudget(1e-20, 1e-50); err != nil {
-		t.Errorf("expected spec to be out of budget, but could consume (%f,%e) without any error", eps, del)
+	for numAggregations := 1; numAggregations <= 10; numAggregations++ {
+		values := []pairII{
+			{1, 1},
+			{2, 2},
+		}
+		p, s, col := ptest.CreateList(values)
+		colKV := beam.ParDo(s, pairToKV, col)
+		spec := NewPrivacySpec(1, 1e-30)
+		pcol := MakePrivate(s, colKV, spec)
+		epsPerAggregation := 1. / float64(numAggregations)
+		delPerAggregation := 1e-30 / float64(numAggregations)
+		for i := 0; i < numAggregations; i++ {
+			DistinctPrivacyID(s, pcol, DistinctPrivacyIDParams{Epsilon: epsPerAggregation, Delta: delPerAggregation, MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}})
+		}
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("with %d aggregations, expected no error but got error: %v", numAggregations, err)
+		}
+		// Now, the budget should be really empty.
+		if eps, del, err := spec.consumeBudget(1e-15, 1e-40); err == nil {
+			t.Errorf("with %d aggregations, expected spec to be out of budget, but could consume (%f,%e) without any error", numAggregations, eps, del)
+		}
 	}
 }

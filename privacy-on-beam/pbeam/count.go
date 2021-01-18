@@ -98,7 +98,7 @@ func Count(s beam.Scope, pcol PrivatePCollection, params CountParams) beam.PColl
 	spec := pcol.privacySpec
 	epsilon, delta, err := spec.consumeBudget(params.Epsilon, params.Delta)
 	if err != nil {
-		log.Exitf("Couldn't consume budget: %v", err)
+		log.Exitf("Couldn't consume budget for Count: %v", err)
 	}
 
 	var noiseKind noise.Kind

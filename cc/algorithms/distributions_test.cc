@@ -16,8 +16,11 @@
 
 #include "algorithms/distributions.h"
 
+#include <limits>
+#include <memory>
 #include <unordered_map>
 
+#include "base/testing/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/memory/memory.h"
@@ -29,10 +32,15 @@ namespace differential_privacy {
 namespace internal {
 namespace {
 
+using ::testing::HasSubstr;
+using ::differential_privacy::base::testing::StatusIs;
+
 constexpr int64_t kNumSamples = 10000000;
 constexpr int64_t kNumGeometricSamples = 1000000;
 constexpr int64_t kGaussianSamples = 1000000;
 constexpr double kOneOverLog2 = 1.44269504089;
+constexpr double kNan = std::numeric_limits<double>::quiet_NaN();
+constexpr double kInfinity = std::numeric_limits<double>::infinity();
 
 double Skew(const std::vector<double>& samples, double mu, double sigma) {
   double skew = std::accumulate(
@@ -57,11 +65,50 @@ double Kurtosis(const std::vector<double>& samples, double mu, double var) {
   return kurt;
 }
 
+TEST(LaplaceDistributionTest, ParameterValidation) {
+  LaplaceDistribution::Builder builder;
+
+  EXPECT_THAT(builder.SetEpsilon(-1).Build(),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Epsilon must be finite and positive")));
+
+  EXPECT_THAT(builder.SetEpsilon(0).Build(),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Epsilon must be finite and positive")));
+
+  EXPECT_THAT(builder.SetEpsilon(kNan).Build(),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Epsilon must be a valid numeric value")));
+
+  EXPECT_THAT(builder.SetEpsilon(kInfinity).Build(),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Epsilon must be finite and positive")));
+
+  builder.SetEpsilon(1);
+  EXPECT_THAT(builder.SetSensitivity(-1).Build(),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Sensitivity must be finite and positive")));
+
+  EXPECT_THAT(builder.SetSensitivity(0).Build(),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Sensitivity must be finite and positive")));
+
+  EXPECT_THAT(builder.SetSensitivity(kNan).Build(),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Sensitivity must be a valid numeric value")));
+
+  EXPECT_THAT(builder.SetSensitivity(kInfinity).Build(),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Sensitivity must be finite and positive")));
+}
+
 TEST(LaplaceDistributionTest, CheckStatisticsForGeoUnitValues) {
-  LaplaceDistribution dist(1.0, 1.0);
+  LaplaceDistribution::Builder builder;
+  std::unique_ptr<LaplaceDistribution> dist =
+      builder.SetEpsilon(1.0).SetSensitivity(1.0).Build().ValueOrDie();
   std::vector<double> samples(kNumGeometricSamples);
   std::generate(samples.begin(), samples.end(),
-                [&dist]() { return dist.Sample(1.0); });
+                [dist = std::move(dist)]() { return dist->Sample(1.0); });
   double mean = Mean(samples);
   double var = Variance(samples);
   EXPECT_NEAR(0.0, mean, 0.01);
@@ -72,10 +119,12 @@ TEST(LaplaceDistributionTest, CheckStatisticsForGeoUnitValues) {
 
 TEST(LaplaceDistributionTest, CheckStatisticsForGeoSpecificDistribution) {
   double sensitivity = kOneOverLog2;
-  LaplaceDistribution dist(1.0, sensitivity);
+  LaplaceDistribution::Builder builder;
+  std::unique_ptr<LaplaceDistribution> dist =
+      builder.SetEpsilon(1.0).SetSensitivity(sensitivity).Build().ValueOrDie();
   std::vector<double> samples(kNumGeometricSamples);
   std::generate(samples.begin(), samples.end(),
-                [&dist]() { return dist.Sample(1.0); });
+                [dist = std::move(dist)]() { return dist->Sample(1.0); });
   double mean = Mean(samples);
   double var = Variance(samples);
 
@@ -88,10 +137,13 @@ TEST(LaplaceDistributionTest, CheckStatisticsForGeoSpecificDistribution) {
 TEST(LaplaceDistributionTest, CheckStatisticsForGeoSpecificScaledDistribution) {
   double sensitivity = kOneOverLog2;
   double scale = 3.0;
-  LaplaceDistribution dist(1.0, sensitivity);
+  LaplaceDistribution::Builder builder;
+  std::unique_ptr<LaplaceDistribution> dist =
+      builder.SetEpsilon(1.0).SetSensitivity(sensitivity).Build().ValueOrDie();
   std::vector<double> samples(kNumGeometricSamples);
-  std::generate(samples.begin(), samples.end(),
-                [&dist, scale]() { return dist.Sample(scale); });
+  std::generate(
+      samples.begin(), samples.end(),
+      [dist = std::move(dist), scale]() { return dist->Sample(scale); });
   EXPECT_NEAR(0.0, Mean(samples), 0.01 * scale);
   EXPECT_NEAR(2.0 * scale * scale * sensitivity * sensitivity,
               Variance(samples), 0.15 * scale);
@@ -103,21 +155,81 @@ TEST(LaplaceDistributionTest, Cdf) {
   EXPECT_EQ(LaplaceDistribution::cdf(1, 1), 1 - .5 * exp(-1));
 }
 
+TEST(LaplaceCalculateGranularityTest, InvalidParameters) {
+  const double valid_param = kOneOverLog2;
+  std::vector<double> invalid_params = {0, -0.1, -1, -10, kInfinity};
+
+  for (double invalid_param : invalid_params) {
+    EXPECT_THAT(
+        LaplaceDistribution::CalculateGranularity(invalid_param, valid_param),
+        StatusIs(absl::StatusCode::kInvalidArgument,
+                 HasSubstr("Epsilon must be finite and positive")));
+    EXPECT_THAT(
+        LaplaceDistribution::CalculateGranularity(valid_param, invalid_param),
+        StatusIs(absl::StatusCode::kInvalidArgument,
+                 HasSubstr("Sensitivity must be finite and positive")));
+  }
+
+  // Test NaN
+  EXPECT_THAT(LaplaceDistribution::CalculateGranularity(kNan, valid_param),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Epsilon must be a valid numeric value")));
+  EXPECT_THAT(LaplaceDistribution::CalculateGranularity(valid_param, kNan),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Sensitivity must be a valid numeric value")));
+
+  // Test epsilon < 2^-50. See (broken link)
+  EXPECT_THAT(LaplaceDistribution::CalculateGranularity(1.0 / (int64_t{1} << 51),
+                                                        valid_param),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Epsilon must be at least 2^-50")));
+  EXPECT_THAT(LaplaceDistribution::CalculateGranularity(1.0 / (int64_t{1} << 50),
+                                                        valid_param),
+              StatusIs(absl::StatusCode::kOk));
+}
+
+TEST(GaussDistributionTest, ParameterValidation) {
+  GaussianDistribution::Builder builder;
+
+  EXPECT_THAT(
+      builder.SetStddev(-1).Build(),
+      StatusIs(
+          absl::StatusCode::kInvalidArgument,
+          HasSubstr("Standard deviation must be finite and non-negative")));
+
+  EXPECT_THAT(
+      builder.SetStddev(kNan).Build(),
+      StatusIs(absl::StatusCode::kInvalidArgument,
+               HasSubstr("Standard deviation must be a valid numeric value")));
+
+  EXPECT_THAT(
+      builder.SetStddev(kInfinity).Build(),
+      StatusIs(
+          absl::StatusCode::kInvalidArgument,
+          HasSubstr("Standard deviation must be finite and non-negative")));
+
+  EXPECT_OK(builder.SetStddev(0).Build());
+}
+
 TEST(GaussDistributionTest, CheckStatisticsForUnitValues) {
-  GaussianDistribution dist(1.0);
+  GaussianDistribution::Builder builder;
+  std::unique_ptr<GaussianDistribution> dist =
+      builder.SetStddev(1.0).Build().ValueOrDie();
   std::vector<double> samples(kGaussianSamples);
   std::generate(samples.begin(), samples.end(),
-                [&dist]() { return dist.Sample(); });
+                [&dist]() { return dist->Sample(); });
   EXPECT_NEAR(0.0, Mean(samples), 0.01);
   EXPECT_NEAR(1.0, Variance(samples), 0.1);
 }
 
 TEST(GaussDistributionTest, CheckStatisticsForSpecificDistribution) {
   double stddev = kOneOverLog2;
-  GaussianDistribution dist(stddev);
+  GaussianDistribution::Builder builder;
+  std::unique_ptr<GaussianDistribution> dist =
+      builder.SetStddev(stddev).Build().ValueOrDie();
   std::vector<double> samples(kGaussianSamples);
   std::generate(samples.begin(), samples.end(),
-                [&dist]() { return dist.Sample(); });
+                [&dist]() { return dist->Sample(); });
   EXPECT_NEAR(0.0, Mean(samples), 0.01);
   EXPECT_NEAR(stddev * stddev, Variance(samples), 0.1);
 }
@@ -125,19 +237,23 @@ TEST(GaussDistributionTest, CheckStatisticsForSpecificDistribution) {
 TEST(GaussDistributionTest, CheckStatisticsForSpecificScaledDistribution) {
   double stddev = kOneOverLog2;
   double scale = 3.0;
-  GaussianDistribution dist(stddev);
+  GaussianDistribution::Builder builder;
+  std::unique_ptr<GaussianDistribution> dist =
+      builder.SetStddev(stddev).Build().ValueOrDie();
   std::vector<double> samples(kGaussianSamples);
   std::generate(samples.begin(), samples.end(),
-                [&dist, scale]() { return dist.Sample(scale); });
+                [&dist, scale]() { return dist->Sample(scale); });
   EXPECT_NEAR(0.0, Mean(samples), 0.01 * scale);
   EXPECT_NEAR(stddev * stddev * scale * scale, Variance(samples), 0.1 * scale);
 }
 
 TEST(GaussDistributionTest, StandardDeviationGetter) {
   double stddev = kOneOverLog2;
-  GaussianDistribution dist(stddev);
+  GaussianDistribution::Builder builder;
+  std::unique_ptr<GaussianDistribution> dist =
+      builder.SetStddev(stddev).Build().ValueOrDie();
 
-  EXPECT_EQ(dist.Stddev(), stddev);
+  EXPECT_EQ(dist->Stddev(), stddev);
 }
 
 TEST(GaussDistributionTest, Cdf) {
@@ -151,30 +267,55 @@ TEST(GaussDistributionTest, Cdf) {
   EXPECT_DEATH(GaussianDistribution::cdf(-1, 1), "");
 }
 
+TEST(GeometricDistributionTest, ParameterValidation) {
+  GeometricDistribution::Builder builder;
+
+  EXPECT_THAT(builder.SetLambda(-1).Build(),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Lambda must be finite and non-negative")));
+
+  EXPECT_THAT(builder.SetLambda(kNan).Build(),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Lambda must be a valid numeric value")));
+
+  EXPECT_THAT(builder.SetLambda(kInfinity).Build(),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Lambda must be finite and non-negative")));
+
+  EXPECT_OK(builder.SetLambda(0).Build());
+}
+
 TEST(GeometricDistributionTest, SmallProbabilityStats) {
-  GeometricDistribution dist(-1.0 * std::log(1.0 - 1e-6));
+  GeometricDistribution::Builder builder;
+  std::unique_ptr<GeometricDistribution> dist =
+      builder.SetLambda(-1.0 * std::log(1.0 - 1e-6)).Build().ValueOrDie();
+
   std::vector<int64_t> samples(kNumGeometricSamples);
   std::generate(samples.begin(), samples.end(),
-                [&dist]() { return dist.Sample() + 1; });
+                [dist = std::move(dist)]() { return dist->Sample() + 1; });
   EXPECT_NEAR(1000000, Mean(samples), 10000);
   EXPECT_NEAR(999999.5, std::sqrt(Variance(samples)), 10000);
 }
 
 TEST(GeometricDistributionTest, LargeProbabilityStats) {
-  GeometricDistribution dist(-1.0 * std::log(1.0 - 0.5));
+  GeometricDistribution::Builder builder;
+  std::unique_ptr<GeometricDistribution> dist =
+      builder.SetLambda(-1.0 * std::log(1.0 - 0.5)).Build().ValueOrDie();
   std::vector<int64_t> samples(kNumGeometricSamples);
   std::generate(samples.begin(), samples.end(),
-                [&dist]() { return dist.Sample() + 1; });
+                [dist = std::move(dist)]() { return dist->Sample() + 1; });
   EXPECT_NEAR(2, Mean(samples), 0.01);
   EXPECT_NEAR(std::sqrt(2), std::sqrt(Variance(samples)), 0.05);
 }
 
 TEST(GeometricDistributionTest, Ratios) {
   double p = 1e-2;
-  GeometricDistribution dist(-1.0 * std::log(1.0 - p));
+  GeometricDistribution::Builder builder;
+  std::unique_ptr<GeometricDistribution> dist =
+      builder.SetLambda(-1.0 * std::log(1.0 - p)).Build().ValueOrDie();
   std::vector<int64_t> counts(51, 0);
   for (int i = 0; i < kNumGeometricSamples; ++i) {
-    int64_t sample = dist.Sample();
+    int64_t sample = dist->Sample();
     if (sample < counts.size()) {
       ++counts[sample];
     }
@@ -237,7 +378,10 @@ class GeometricDistributionTest : public ::testing::TestWithParam<double> {};
 TEST_P(GeometricDistributionTest, Distribution) {
   auto lambda = GetParam();
 
-  GeometricDistribution distribution(lambda);
+  GeometricDistribution::Builder builder;
+  std::unique_ptr<GeometricDistribution> distribution =
+      builder.SetLambda(lambda).Build().ValueOrDie();
+
   // Choose bucket sizes so that the expected count in the first bucket is
   // 150.
   const int64_t kBucketSize =
@@ -247,7 +391,7 @@ TEST_P(GeometricDistributionTest, Distribution) {
   const size_t num_buckets = (kMaxValue / kBucketSize) + 1;
   std::vector<size_t> counts(num_buckets, 0);
   for (int i = 0; i < kNumGeometricSamples; ++i) {
-    int64_t val = distribution.Sample() / kBucketSize;
+    int64_t val = distribution->Sample() / kBucketSize;
     // Probability  of exceeding < exp(-100) * num_iterations;
     ASSERT_GE(val, 0);
     ASSERT_LE(val, kMaxValue);
@@ -321,12 +465,14 @@ INSTANTIATE_TEST_SUITE_P(All, GeometricDistributionTest,
 TEST(GeometricDistribution, ImpossibleDoubles) {
   // Using std::geometric_distribution<int64_t> would fail this test, since it
   // can't generate large odd values.
-  GeometricDistribution distribution(1e-15);
-  LOG(ERROR) << "Initialized";
+  GeometricDistribution::Builder builder;
+  std::unique_ptr<GeometricDistribution> distribution =
+      builder.SetLambda(1e-15).Build().ValueOrDie();
+
   double count = 0;
   constexpr int kIter = 1000000;
   for (int i = 0; i < kIter; ++i) {
-    int64_t val = distribution.Sample();
+    int64_t val = distribution->Sample();
     ASSERT_GE(val, 0);
 
     if (val > (1LL << 53) && val % 2) {

@@ -15,11 +15,9 @@
 //
 #include "algorithms/distributions.h"
 
-#include <cmath>
-#include <limits>
-
 #include "absl/memory/memory.h"
 #include "absl/random/random.h"
+#include "absl/status/status.h"
 #include "base/statusor.h"
 #include "absl/strings/string_view.h"
 #include "algorithms/rand.h"
@@ -54,6 +52,20 @@ double ApproximateBinomialProbability(double sqrt_n, int64_t m) {
 
 }  // namespace
 
+GaussianDistribution::Builder& GaussianDistribution::Builder::SetStddev(
+    double stddev) {
+  stddev_ = stddev;
+  return *this;
+}
+
+base::StatusOr<std::unique_ptr<GaussianDistribution>>
+GaussianDistribution::Builder::Build() {
+  RETURN_IF_ERROR(
+      ValidateIsFiniteAndNonNegative(stddev_, "Standard deviation"));
+  return absl::WrapUnique<GaussianDistribution>(
+      new GaussianDistribution(stddev_));
+}
+
 GaussianDistribution::GaussianDistribution(double stddev) : stddev_(stddev) {
   DCHECK_GE(stddev, 0.0);
 }
@@ -87,6 +99,20 @@ double GaussianDistribution::GetGranularity(double scale) const {
 double GaussianDistribution::cdf(double stddev, double x) {
   DCHECK_GT(stddev, 0);
   return (1 + std::erf(x / (stddev * sqrt(2)))) / 2;
+}
+
+GeometricDistribution::Builder& GeometricDistribution::Builder::SetLambda(
+    double lambda) {
+  lambda_ = lambda;
+  return *this;
+}
+
+base::StatusOr<std::unique_ptr<GeometricDistribution>>
+GeometricDistribution::Builder::Build() {
+  RETURN_IF_ERROR(ValidateIsFiniteAndNonNegative(lambda_, "Lambda"));
+
+  return absl::WrapUnique<GeometricDistribution>(
+      new GeometricDistribution(lambda_));
 }
 
 GeometricDistribution::GeometricDistribution(double lambda) : lambda_(lambda) {
@@ -178,16 +204,41 @@ double GeometricDistribution::Lambda() { return lambda_; }
 // and the epsilon passed to addNoise is at least 2^-50.
 const double GRANULARITY_PARAM = static_cast<double>(int64_t{1} << 40);
 
-base::StatusOr<double> CalculateGranularity(double epsilon,
-                                            double sensitivity) {
-  double gran = GetNextPowerOfTwo((sensitivity / epsilon) / GRANULARITY_PARAM);
-  double lambda = gran * epsilon / (sensitivity + gran);
-  if (lambda < 1.0 / (int64_t{1} << 59)) {
+absl::Status LaplaceDistribution::ValidateEpsilon(double epsilon) {
+  RETURN_IF_ERROR(ValidateIsFiniteAndPositive(epsilon, "Epsilon"));
+  if (epsilon < kMinEpsilon) {
     return absl::InvalidArgumentError(
-        "The provided parameters may cause an overflow. Probably epsilon is "
-        "too small.");
+        absl::StrCat("Epsilon must be at least 2^-50, but is ", epsilon, "."));
   }
+  return absl::OkStatus();
+}
+
+base::StatusOr<double> LaplaceDistribution::CalculateGranularity(
+    double epsilon, double sensitivity) {
+  RETURN_IF_ERROR(ValidateEpsilon(epsilon));
+  RETURN_IF_ERROR(ValidateIsFiniteAndPositive(sensitivity, "Sensitivity"));
+  double gran = GetNextPowerOfTwo((sensitivity / epsilon) / GRANULARITY_PARAM);
   return gran;
+}
+
+LaplaceDistribution::Builder& LaplaceDistribution::Builder::SetEpsilon(
+    double epsilon) {
+  epsilon_ = epsilon;
+  return *this;
+}
+
+LaplaceDistribution::Builder& LaplaceDistribution::Builder::SetSensitivity(
+    double sensitivity) {
+  sensitivity_ = sensitivity;
+  return *this;
+}
+
+base::StatusOr<std::unique_ptr<LaplaceDistribution>>
+LaplaceDistribution::Builder::Build() {
+  RETURN_IF_ERROR(ValidateEpsilon(epsilon_));
+  RETURN_IF_ERROR(ValidateIsFiniteAndPositive(sensitivity_, "Sensitivity"));
+  return absl::WrapUnique<LaplaceDistribution>(
+      new LaplaceDistribution(epsilon_, sensitivity_));
 }
 
 LaplaceDistribution::LaplaceDistribution(double epsilon, double sensitivity) {
@@ -201,11 +252,14 @@ LaplaceDistribution::LaplaceDistribution(double epsilon, double sensitivity) {
 
   double lambda;
   if (sensitivity_ == 0) {
+    // Builder validation should prevent this case from ever happening, but if
+    // not, prevent a possible divide-by-zero.
     lambda = std::numeric_limits<double>::infinity();
   } else {
     lambda = granularity_ * epsilon_ / (sensitivity_ + granularity_);
   }
-  geometric_distro_ = absl::make_unique<GeometricDistribution>(lambda);
+  GeometricDistribution::Builder builder;
+  geometric_distro_ = builder.SetLambda(lambda).Build().value();
 }
 
 double LaplaceDistribution::GetUniformDouble() { return UniformDouble(); }
@@ -231,6 +285,8 @@ double LaplaceDistribution::Sample(double scale) {
 double LaplaceDistribution::GetGranularity() { return granularity_; }
 
 double LaplaceDistribution::GetDiversity() { return sensitivity_ / epsilon_; }
+
+double LaplaceDistribution::GetMinEpsilon() { return kMinEpsilon; }
 
 double LaplaceDistribution::cdf(double b, double x) {
   if (x > 0) {

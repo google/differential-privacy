@@ -17,8 +17,6 @@
 #ifndef DIFFERENTIAL_PRIVACY_ALGORITHMS_DISTRIBUTIONS_H_
 #define DIFFERENTIAL_PRIVACY_ALGORITHMS_DISTRIBUTIONS_H_
 
-#include <memory>
-
 #include <cstdint>
 #include "absl/status/status.h"
 #include "base/statusor.h"
@@ -35,8 +33,16 @@ namespace internal {
 // of floating point arithmetic.
 class GaussianDistribution {
  public:
-  // Constructor for Gaussian with specified stddev.
-  explicit GaussianDistribution(double stddev);
+  // Builder for GaussianDistribution.
+  class Builder {
+   public:
+    Builder& SetStddev(double stddev);
+
+    base::StatusOr<std::unique_ptr<GaussianDistribution>> Build();
+
+   private:
+    double stddev_;
+  };
 
   virtual ~GaussianDistribution() {}
 
@@ -58,6 +64,9 @@ class GaussianDistribution {
   static double cdf(double stddev, double x);
 
  private:
+  // Constructor for Gaussian with specified stddev.
+  explicit GaussianDistribution(double stddev);
+
   // Sample from geometric distribution with probability 0.5. It is much faster
   // then using GeometricDistribution which is suitable for any probability.
   double SampleGeometric();
@@ -74,7 +83,16 @@ class GaussianDistribution {
 // of their distribution.
 class GeometricDistribution {
  public:
-  explicit GeometricDistribution(double lambda);
+  // Builder for GeometricDistribution.
+  class Builder {
+   public:
+    Builder& SetLambda(double lambda);
+
+    base::StatusOr<std::unique_ptr<GeometricDistribution>> Build();
+
+   private:
+    double lambda_;
+  };
 
   virtual ~GeometricDistribution() {}
 
@@ -86,13 +104,12 @@ class GeometricDistribution {
 
   double Lambda();
 
+ protected:
+  explicit GeometricDistribution(double lambda);
+
  private:
   double lambda_;
 };
-
-// Calculates 'r' from the secure noise paper (see
-// ../../common_docs/Secure_Noise_Generation.pdf)
-base::StatusOr<double> CalculateGranularity(double epsilon, double sensitivity);
 
 // DO NOT USE. Use LaplaceMechanism instead. LaplaceMechanism has an interface
 // that directly accepts DP parameters, rather than requiring an error-prone
@@ -105,7 +122,19 @@ base::StatusOr<double> CalculateGranularity(double epsilon, double sensitivity);
 // http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.366.5957&rep=rep1&type=pdf
 class LaplaceDistribution {
  public:
-  explicit LaplaceDistribution(double epsilon, double sensitivity);
+  // Builder for LaplaceDistribution.
+  class Builder {
+   public:
+    Builder& SetEpsilon(double epsilon);
+
+    Builder& SetSensitivity(double sensitivity);
+
+    base::StatusOr<std::unique_ptr<LaplaceDistribution>> Build();
+
+   private:
+    double epsilon_;
+    double sensitivity_;
+  };
 
   virtual ~LaplaceDistribution() = default;
 
@@ -125,13 +154,29 @@ class LaplaceDistribution {
   // Returns the parameter defining this distribution, often labeled b.
   double GetDiversity();
 
+  // Returns the smallest possible valid epsilon.
+  static double GetMinEpsilon();
+
   // Returns the cdf of the Laplace distribution with scale b at point x.
   static double cdf(double b, double x);
 
+  // Calculates 'r' from the secure noise paper (see
+  // ../../common_docs/Secure_Noise_Generation.pdf)
+  static base::StatusOr<double> CalculateGranularity(double epsilon,
+                                                     double sensitivity);
+
+ protected:
+  explicit LaplaceDistribution(double epsilon, double sensitivity);
+
  private:
+  static absl::Status ValidateEpsilon(double epsilon);
+
   double epsilon_;
   double sensitivity_;
   double granularity_;
+
+  // Inclusive lower bound for epsilon when calculating granularity.
+  static constexpr double kMinEpsilon = 1.0 / (int64_t{1} << 50);
 
  protected:
   std::unique_ptr<GeometricDistribution> geometric_distro_;

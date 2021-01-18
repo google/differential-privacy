@@ -119,8 +119,16 @@ This is not an officially supported Google product.
 
 ## Reach out
 
-We are always keen on hearing what use cases this library is helping you to
-solve. Please email us at dp-open-source@google.com about your use cases and
-what more we can do to help. Please refrain from sending us any personal
-identifiable information. If you wish to delete a message you've previously
-sent, please contact us.
+We are always keen on learning about how you use this library and what use cases
+it helps you to solve.  We have two communication channels:
+
+  * A [public discussion
+    group](https://groups.google.com/g/dp-open-source-users) where we will also
+    share our preliminary roadmap, updates, events, etc.
+
+  * A private email alias at dp-open-source@google.com where you can reach us
+    directly about your use cases and what more we can do to help.
+
+Please refrain from sending any personal identifiable information. If you wish
+to delete a message you've previously sent, please contact us.
+

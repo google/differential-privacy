@@ -123,7 +123,7 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 	spec := pcol.privacySpec
 	epsilon, delta, err := spec.consumeBudget(params.Epsilon, params.Delta)
 	if err != nil {
-		log.Exitf("couldn't consume budget: %v", err)
+		log.Exitf("Couldn't consume budget for Mean: %v", err)
 	}
 	var noiseKind noise.Kind
 	if params.NoiseKind == nil {

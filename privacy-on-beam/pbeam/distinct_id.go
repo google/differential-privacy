@@ -104,7 +104,7 @@ func DistinctPrivacyID(s beam.Scope, pcol PrivatePCollection, params DistinctPri
 	spec := pcol.privacySpec
 	epsilon, delta, err := spec.consumeBudget(params.Epsilon, params.Delta)
 	if err != nil {
-		log.Exitf("couldn't consume budget: %v", err)
+		log.Exitf("Couldn't consume budget for DistinctPrivacyID: %v", err)
 	}
 	err = checkDistinctPrivacyIDParams(params, epsilon, delta, noiseKind)
 	if err != nil {

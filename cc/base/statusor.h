@@ -179,8 +179,8 @@ class StatusOr : private statusor_internal::StatusOrData<T>,
   // [1] https://github.com/abseil/abseil-cpp/blob/master/absl/status/statusor.h
   const T& value() const& { return ValueOrDie(); }
   T& value() & { return ValueOrDie(); }
-  const T&& value() const&& { return ValueOrDie(); }
-  T&& value() && { return ValueOrDie(); }
+  const T&& value() const&& { return std::move(ValueOrDie()); }
+  T&& value() && { return std::move(ValueOrDie()); }
 
   // Returns a reference to our current value, or CHECK-fails if !this->ok(). If
   // you have already checked the status using this->ok() or operator bool(),
