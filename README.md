@@ -39,9 +39,9 @@ subject to change.
 
 ## How to Build
 
-In order to run the differential private library, you need to install Bazel,
-if you don't have it already. [Follow the instructions for your platform on the
-Bazel website](https://docs.bazel.build/versions/master/install.html)
+In order to run the differential private library, you need to install Bazel in
+version 3.7.2, if you don't have it already.
+[Follow the instructions for your platform on the Bazel website](https://docs.bazel.build/versions/master/install.html)
 
 You also need to install Git, if you don't have it already.
 [Follow the instructions for your platform on the Git website.](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
