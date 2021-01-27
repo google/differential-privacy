@@ -13,6 +13,8 @@ private statistics over datasets. It contains the following tools.
   make the differential privacy property no longer hold.
 * A [differential privacy accounting library](python/dp_accounting), used for
   tracking privacy budget.
+* A [command line interface](examples/zetasql) for running DP queries with
+  [ZetaSQL](https://github.com/google/zetasql).
 
 To get started on generating differentially private data, we recomend you follow
 the [Privacy on Beam codelab](https://codelabs.developers.google.com/codelabs/privacy-on-beam/).

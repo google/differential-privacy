@@ -102,7 +102,7 @@ func Example() {
 	textio.Write(s, "spend_per_weekday.txt", formatted)
 
 	// Execute the pipeline.
-	if _, err := direct.Execute(context.Background(), p); err != nil {
+	if err := direct.Execute(context.Background(), p); err != nil {
 		fmt.Printf("Pipeline failed: %v", err)
 	}
 }
