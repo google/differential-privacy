@@ -23,14 +23,18 @@ includes the visitor’s ID, a timestamp of when the visitor entered the
 restaurant, the duration of the visitor's visit to the restaurant (in minutes),
 and the money the visitor spent at the restaurant.
 
-Navigate to `examples/zetasql` folder, build the code, and run it with the
+Navigate to the `examples/zetasql` folder, build the code, and run it with the
 following query.
 
 Linux
 ```shell
 $ cd examples/zetasql
 $ bazel run execute_query -- --data_set=$(pwd)/data/day_data.csv --userid_col=VisitorId \
-'SELECT WITH ANONYMIZATION OPTIONS(epsilon=1, delta=1e-5, kappa=1) TIME_TRUNC(PARSE_TIME("%I:%M%p", `Time entered`), HOUR) AS `Hour entered`, ANON_COUNT(* CLAMPED BETWEEN 0 AND 1) AS `Total Visitors (DP)` FROM day_data GROUP BY `Hour entered`'
+'SELECT WITH ANONYMIZATION OPTIONS(epsilon=1, delta=1e-5, kappa=1)
+   TIME_TRUNC(PARSE_TIME("%I:%M%p", `Time entered`), HOUR) AS `Hour entered`,
+   ANON_COUNT(* CLAMPED BETWEEN 0 AND 1) AS `Total Visitors (DP)`
+ FROM day_data
+ GROUP BY `Hour entered`'
 ```
 
 This reads the daily statistics and calculates the number of visitors that
@@ -43,7 +47,11 @@ Linux
 ```shell
 $ cd examples/zetasql
 $ bazel run execute_query -- --data_set=$(pwd)/data/day_data.csv --userid_col=VisitorId \
-'SELECT TIME_TRUNC(PARSE_TIME("%I:%M%p", `Time entered`), HOUR) AS `Hour entered`, COUNT(*) AS `Total Visitors (Raw)` FROM day_data GROUP BY `Hour entered`'
+'SELECT
+   TIME_TRUNC(PARSE_TIME("%I:%M%p", `Time entered`), HOUR) AS `Hour entered`,
+   COUNT(*) AS `Total Visitors (Raw)`
+ FROM day_data
+ GROUP BY `Hour entered`'
 ```
 
 The image below illustrates the results. The blue (left) bars represent the
@@ -94,7 +102,7 @@ Next, we will demonstrate how to use the library in scenarios where:
 *   contributed values can be greater than *1*; and
 *   visitors can contribute to a partition multiple times.
 
-## Count visits by day of the week
+## Count the visits per day of the week
 
 The previous example made some over-simplifying assumptions. Now, let’s have a
 look at the use-case where visitors can contribute to multiple partitions.
@@ -108,14 +116,18 @@ The file `data/week_data.csv` contains visit data for a week.
 It includes the visitor’s ID, the visit duration (in minutes),
 the money spent at the restaurant, and the day of the visit.
 
-Navigate to `examples/zetasql` folder, build the code, and run it with the
+Navigate to the `examples/zetasql` folder, build the code, and run it with the
 following query.
 
 Linux
 ```shell
 $ cd examples/zetasql
 $ bazel run execute_query -- --data_set=$(pwd)/data/week_data.csv --userid_col=VisitorId \
-'SELECT WITH ANONYMIZATION OPTIONS(epsilon=1, delta=1e-5, kappa=3) `Day`, ANON_COUNT(* CLAMPED BETWEEN 0 AND 1) AS `Total Visitors (DP)` FROM week_data GROUP BY `Day`'
+'SELECT WITH ANONYMIZATION OPTIONS(epsilon = 1, delta = 1e-5, kappa = 3)
+   Day,
+   ANON_COUNT(* CLAMPED BETWEEN 0 AND 1) AS `Total Visitors (DP)`
+ FROM week_data
+ GROUP BY Day'
 ```
 
 This calculates the number of visitors that entered the restaurant for each day
@@ -128,7 +140,11 @@ Linux
 ```shell
 $ cd examples/zetasql
 $ bazel run execute_query -- --data_set=$(pwd)/data/week_data.csv --userid_col=VisitorId \
-'SELECT `Day`, COUNT(*) AS `Total Visitors (DP)` FROM week_data GROUP BY `Day`'
+'SELECT
+   `Day`,
+   COUNT(*) AS `Total Visitors (DP)`
+ FROM week_data
+ GROUP BY `Day`'
 ```
 
 The results are illustrated in the image below.
@@ -176,14 +192,18 @@ The `data/week_data.csv` file contains visit data for a week.
 It includes the visitor’s ID, the visit duration (in minutes),
 the money spent at the restaurant, and the day of the visit.
 
-Navigate to `examples/zetasql` folder, build the code and run it with the
+Navigate to the `examples/zetasql` folder, build the code and run it with the
 following query.
 
 Linux
 ```shell
 $ cd examples/zetasql
 $ bazel run execute_query -- --data_set=$(pwd)/data/week_data.csv --userid_col=VisitorId \
-'SELECT WITH ANONYMIZATION OPTIONS(epsilon=1, delta=1e-5, kappa=3) `Day`, ANON_SUM(CAST (`Money spent (euros)` AS INT32) CLAMPED BETWEEN 10 AND 50) AS `Total money spent (DP)` FROM week_data GROUP BY `Day`'
+'SELECT WITH ANONYMIZATION OPTIONS(epsilon=1, delta=1e-5, kappa=3)
+   `Day`,
+   ANON_SUM(CAST (`Money spent (euros)` AS INT32) CLAMPED BETWEEN 10 AND 50) AS `Total money spent (DP)`
+ FROM week_data
+ GROUP BY `Day`'
 ```
 
 This sums the amount of money visitors spend at the restaurant on each day of
@@ -196,7 +216,11 @@ Linux
 ```shell
 $ cd examples/zetasql
 $ bazel run execute_query -- --data_set=$(pwd)/data/week_data.csv --userid_col=VisitorId \
-'SELECT `Day`, SUM(CAST (`Money spent (euros)` AS INT32)) AS `Total money spent (Raw)` FROM week_data GROUP BY `Day`'
+'SELECT
+   `Day`,
+   SUM(CAST (`Money spent (euros)` AS INT32)) AS `Total money spent (Raw)`
+ FROM week_data
+ GROUP BY `Day`'
 ```
 
 The results are illustrated in the image below.
@@ -262,14 +286,18 @@ The `data/outliers_week_data.csv` file contains visit data for a week.
 It includes the visitor’s ID, the visit duration (in minutes),
 the money spent at the restaurant, and the day of the visit.
 
-Navigate to `examples/zetasql` folder, build the code and run it with the
+Navigate to the `examples/zetasql` folder, build the code and run it with the
 following query.
 
 Linux
 ```shell
 $ cd examples/zetasql
 $ bazel run execute_query -- --data_set=$(pwd)/data/outliers_week_data.csv --userid_col=VisitorId \
-'SELECT WITH ANONYMIZATION OPTIONS(epsilon=1, delta=1e-5, kappa=1) CAST(SAFE_MULTIPLY(CEIL(SAFE_DIVIDE(CAST (`Time spent (minutes)` AS DOUBLE), 10.0)), 10.0) AS INT32) AS `Time Spent`, ANON_COUNT(CAST(SAFE_MULTIPLY(CEIL(SAFE_DIVIDE(CAST (`Time spent (minutes)` AS DOUBLE), 10.0)), 10.0) AS INT32) CLAMPED BETWEEN 0 AND 3) AS `Total visitors (DP)` FROM outliers_week_data GROUP BY `Time Spent`'
+'SELECT WITH ANONYMIZATION OPTIONS(epsilon = 1, delta = 1e-5, kappa = 1)
+   CAST(SAFE_MULTIPLY(CEIL(SAFE_DIVIDE(CAST(`Time spent (minutes)` AS DOUBLE), 10.0)), 10.0) AS INT32) AS `Time Spent`,
+   ANON_COUNT(CAST(SAFE_MULTIPLY(CEIL(SAFE_DIVIDE(CAST(`Time spent (minutes)` AS DOUBLE), 10.0)), 10.0) AS INT32) CLAMPED BETWEEN 0 AND 3) AS `Total visitors (DP)`
+ FROM outliers_week_data
+ GROUP BY `Time Spent`'
 ```
 
 This calculates the number of visitors who spent a certain amount of time (per
@@ -282,7 +310,11 @@ Linux
 ```shell
 $ cd examples/zetasql
 $ bazel run execute_query -- --data_set=$(pwd)/data/outliers_week_data.csv --userid_col=VisitorId \
-'SELECT CAST(SAFE_MULTIPLY(CEIL(SAFE_DIVIDE(CAST (`Time spent (minutes)` AS DOUBLE), 10.0)), 10.0) AS INT32) AS `Time Spent`, COUNT(CAST(SAFE_MULTIPLY(CEIL(SAFE_DIVIDE(CAST (`Time spent (minutes)` AS DOUBLE), 10.0)), 10.0) AS INT32)) AS `Total visitors (Raw)` FROM outliers_week_data GROUP BY `Time Spent`'
+'SELECT
+   CAST(SAFE_MULTIPLY(CEIL(SAFE_DIVIDE(CAST (`Time spent (minutes)` AS DOUBLE), 10.0)), 10.0) AS INT32) AS `Time Spent`,
+   COUNT(CAST(SAFE_MULTIPLY(CEIL(SAFE_DIVIDE(CAST (`Time spent (minutes)` AS DOUBLE), 10.0)), 10.0) AS INT32)) AS `Total visitors (Raw)`
+ FROM outliers_week_data
+ GROUP BY `Time Spent`'
 ```
 
 The results are illustrated in the image below.

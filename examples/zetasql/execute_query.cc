@@ -37,7 +37,7 @@
 ABSL_FLAG(std::string, data_set, "",
           "A CSV file containing the data to be queried, whose std::string-typed "
           "column names are determined from the first (header) row. The data "
-          "is laoded into a table with the same name as the file (without the "
+          "is loaded into a table with the same name as the file (without the "
           ".csv extension, if it exists).");
 
 ABSL_FLAG(

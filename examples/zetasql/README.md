@@ -3,40 +3,43 @@
 This directory contains a command-line interface (CLI) and an example codelab
 for performing (ε, δ)-differentially private (DP) data analyses using ZetaSQL.
 This CLI provides direct access to the implementation of Wilson et al.'s PETS
-2019 paper on [Differentially Private SQL with Bounded User Contribution](https://arxiv.org/pdf/1909.01917.pdf).
+2019 paper on [Differentially Private SQL with Bounded User Contribution](https://arxiv.org/abs/1909.01917).
 
 The remainder of this document will describe the usage of the ZetaSQL DP CLI. A
 more comprehensive codelab illustrating both the usage of the CLI as well as
-explaining some of the DP concepts and results can be found [here](codelab.mb).
+explaining some of the DP concepts and results can be found [here](codelab.md).
 
 ## How to Build
 
 In order to run the ZetaSQL DP CLI, you need to install Bazel version 1.0.0, if
 you don't have it already. To install Bazel, follow the
-[instructions for your platform on the Bazel website](https://docs.bazel.build/versions/master/install.html)
+[instructions for your platform on the Bazel website](https://docs.bazel.build/versions/master/install.html).
 If this requires you to manage multiple Bazel versions, consider using
 [Bazelisk](https://docs.bazel.build/versions/master/updating-bazel.html#managing-bazel-versions-with-bazelisk).
 
 You also need to install Git, if you don't have it already.
-[Follow the instructions for your platform on the Git website.](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git).
+[Follow the instructions for your platform on the Git website](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git).
 
 Once you've installed Bazel and Git, open a Terminal and clone the differential
 privacy directory into a local folder:
 ```git clone https://github.com/google/differential-privacy.git```
 
+Alternatively, you could download the source code via:
+```https://github.com/google/differential-privacy/archive/main.zip```
+
 Navigate into the ```differential-privacy/examples/zetasql``` folder that was
 just created, and build the ZetaSQL DP CLI and dependencies using Bazel:
-``` bazel build :execute_query ```
+``` bazel build execute_query ```
 
 Once built, the ZetaSQL DP CLI should be ready to use.
 
 ## Usage
 
 The ZetaSQL DP CLI can be run from the
-```differential-privacy/examples/zetasql``` with the following command:
+```differential-privacy/examples/zetasql``` folder with the following command:
 
-```
-bazel run :execute_query -- --data_set=<path_to_csv_file> --userid_col=<userid_column_name_in_data_set> <sql_statement>
+```shell
+bazel run execute_query -- --data_set=<path_to_csv_file> --userid_col=<userid_column_name_in_data_set> <sql_statement>
 ```
 
 The command requires the following arguments:
@@ -54,8 +57,8 @@ privacy units could be, see the [codelab](codelab.md) and other examples in
 this differential privacy library.
 * The last argument should be the SQL query to execute on the ```data_set```.
 This query must specify values for the DP parameters ```epsilon```, ```delta```,
-and ```kappa```[^params] (see the
-[ZetaSQL documentation](https://github.com/google/zetasql/anonymization_syntax.md#anon_kappa)
+and ```kappa```<sup>[1](#params)</sup> (see the
+[ZetaSQL documentation](https://github.com/google/zetasql/blob/master/docs/anonymization_syntax.md#kappa)
 for more information). In queries that contain a GROUP BY clause, ```kappa```
 is the maximum number of different groups (i.e., partitions) to which each user
 may contribute data. See the [codelab](codelab.md) for additional information
@@ -68,13 +71,14 @@ how many euros they spent. The following command queries the data for the DP
 average of how long visitors stayed in the restaurant and the DP sum of how much
 money people spent in the restaurant each hour:
 
-```
-bazel run :execute_query -- --data_set=data/day_data.csv --userid_col=VisitorId
+```shell
+bazel run execute_query -- --data_set=$(pwd)/data/day_data.csv --userid_col=VisitorId \
 'SELECT WITH ANONYMIZATION OPTIONS(epsilon=1, delta=1e-10, kappa=1)
- TIME_TRUNC(PARSE_TIME("%I:%M%p", `Time entered`), HOUR) AS `Hour entered`,
- ANON_AVG(CAST (`Time spent (mins)` AS INT32) CLAMPED BETWEEN 10 AND 120) AS `DP average time spent (mins)`,
- ANON_SUM(CAST (`Money spent (euros)` AS INT32) CLAMPED BETWEEN 10 AND 50) AS `DP total money spent (euros)` 
- FROM day_data GROUP BY `Hour entered`'
+   TIME_TRUNC(PARSE_TIME("%I:%M%p", `Time entered`), HOUR) AS `Hour entered`,
+   ANON_AVG(CAST (`Time spent (mins)` AS INT32) CLAMPED BETWEEN 10 AND 120) AS `DP average time spent (mins)`,
+   ANON_SUM(CAST (`Money spent (euros)` AS INT32) CLAMPED BETWEEN 10 AND 50) AS `DP total money spent (euros)`
+ FROM day_data
+ GROUP BY `Hour entered`'
 ```
 
 Note that, since all data input from ```data_set``` are stored in the SQL table
@@ -85,4 +89,21 @@ For more comprehensive explanations and examples of how to construct DP queries
 using various anonymization aggregation functions with the ZetaSQL DP CLI, see
 the [codelab](codelab.md).
 
-[^params]: All three privacy parameters, epsilon, delta, and kappa, *must* be specified for the ZetaSQL DP CLI to provide (ε, δ)-differentially privacy, despite the ZetaSQL specification stating that some parameters are optional.
+<a name="params">1</a>: All three privacy parameters, epsilon, delta, and kappa,
+*must* be specified for the ZetaSQL DP CLI to provide (ε, δ)-differential
+privacy, despite the ZetaSQL specification stating that some parameters are
+optional.
+
+## Known Issues
+
+1. We are aware of
+   [issues](https://github.com/google/differential-privacy/issues/71) with
+   ZetaSQL on Mac. We're working on a solution, but if you are interested in
+   trying this now, using Bazelisk and Homebrew could work.
+1. There is an issue with date time parsing in Macs. As a workaround, you can
+   change the date time format to avoid "%I" and "%p".
+1. Windows is not a supported configuration.
+
+We will continue to publish updates and improvements to the library. Please
+[reach out](https://github.com/google/differential-privacy#reach-out) to us with
+any feedback.
