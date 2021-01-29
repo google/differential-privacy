@@ -240,7 +240,7 @@ the amount of money a visitor spends on each visit) but on the sum of all such
 contributions per user per partition (i.e., total money spent by a visitor each
 day).
 
-In other words, any sum that is below `lower` will be overriden to become the
+In other words, any sum that is below `lower` will be overridden to become the
 same as `lower`, and any sum greater than `upper` will be reduced to be the
 same as `upper`, so that the sum of all contributions for each visitor will be
 within the bounds of `lower` and `upper`. This is needed for calculating the

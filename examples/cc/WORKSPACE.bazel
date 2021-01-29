@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-""" Workspace for Open Source differential privacy library """
+""" Workspace for C++ Differential Privacy library example """
 
 workspace(name = "animals_and_carrots")
 
@@ -27,7 +27,6 @@ local_repository(
     name = "com_google_cc_differential_privacy",
     path = "../../cc",
 )
-
 
 # Load dependencies for the base workspace.
 load("@com_google_differential_privacy//:differential_privacy_deps.bzl", "differential_privacy_deps")

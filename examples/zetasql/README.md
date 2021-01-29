@@ -5,6 +5,10 @@ for performing (ε, δ)-differentially private (DP) data analyses using ZetaSQL.
 This CLI provides direct access to the implementation of Wilson et al.'s PETS
 2019 paper on [Differentially Private SQL with Bounded User Contribution](https://arxiv.org/abs/1909.01917).
 
+The ZetaSQL DP CLI currently only supports Linux. We are working on support
+for Mac and Windows. See the [Known Issues](#known-issues) section below for
+more details.
+
 The remainder of this document will describe the usage of the ZetaSQL DP CLI. A
 more comprehensive codelab illustrating both the usage of the CLI as well as
 explaining some of the DP concepts and results can be found [here](codelab.md).
@@ -89,11 +93,6 @@ For more comprehensive explanations and examples of how to construct DP queries
 using various anonymization aggregation functions with the ZetaSQL DP CLI, see
 the [codelab](codelab.md).
 
-<a name="params">1</a>: All three privacy parameters, epsilon, delta, and kappa,
-*must* be specified for the ZetaSQL DP CLI to provide (ε, δ)-differential
-privacy, despite the ZetaSQL specification stating that some parameters are
-optional.
-
 ## Known Issues
 
 1. We are aware of
@@ -102,8 +101,15 @@ optional.
    trying this now, using Bazelisk and Homebrew could work.
 1. There is an issue with date time parsing in Macs. As a workaround, you can
    change the date time format to avoid "%I" and "%p".
-1. Windows is not a supported configuration.
+1. Windows is currently not a supported configuration.
 
 We will continue to publish updates and improvements to the library. Please
 [reach out](https://github.com/google/differential-privacy#reach-out) to us with
 any feedback.
+
+# Footnotes
+
+<a name="params">1</a>: All three privacy parameters, epsilon, delta, and kappa,
+*must* be specified for the ZetaSQL DP CLI to provide (ε, δ)-differential
+privacy, despite the ZetaSQL specification stating that some parameters are
+optional.

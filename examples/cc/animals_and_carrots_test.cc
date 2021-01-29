@@ -26,7 +26,7 @@ namespace example {
 namespace {
 
 constexpr char kDatafile[] =
-"animals_and_carrots.csv";
+    "animals_and_carrots.csv";
 
 TEST(CarrotReporterTest, TrueStatistics) {
   CarrotReporter reporter(kDatafile, 1);

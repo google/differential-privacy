@@ -41,7 +41,7 @@ subject to change.
 
 ## How to Build
 
-In order to run the differential private library, you need to install Bazel in
+In order to run the differential privacy library, you need to install Bazel in
 version 3.7.2, if you don't have it already.
 [Follow the instructions for your platform on the Bazel website](https://docs.bazel.build/versions/master/install.html)
 
@@ -58,18 +58,18 @@ and build the differential privacy library and dependencies using Bazel
 (note: *...* is a part of the command and not a placeholder):
 
 To build the C++ library, run:
-```
+```shell
 cd cc
 bazel build ...
 ```
 To build the Go library, run:
-```
+```shell
 cd go
 bazel build ...
 ```
 
 To build the Java library, run:
-```
+```shell
 cd java
 bazel build ...
 ```
