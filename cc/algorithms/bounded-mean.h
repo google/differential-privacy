@@ -17,9 +17,6 @@
 #ifndef DIFFERENTIAL_PRIVACY_ALGORITHMS_BOUNDED_MEAN_H_
 #define DIFFERENTIAL_PRIVACY_ALGORITHMS_BOUNDED_MEAN_H_
 
-#include <limits>
-#include <type_traits>
-
 #include "google/protobuf/any.pb.h"
 #include "absl/random/distributions.h"
 #include "absl/status/status.h"
@@ -270,9 +267,9 @@ class BoundedMean : public Algorithm<T> {
       midpoint_ = lower_ + (upper_ - lower_) / 2;
 
       // To find the sum, pass the identity function as the transform.
-      sum = approx_bounds_->template ComputeFromPartials<T>(
-          pos_sum_, neg_sum_, [](T x) { return x; }, lower_, upper_,
-          raw_count_);
+      ASSIGN_OR_RETURN(sum, approx_bounds_->template ComputeFromPartials<T>(
+                                pos_sum_, neg_sum_, [](T x) { return x; },
+                                lower_, upper_, raw_count_));
 
       // Populate the bounding report with ApproxBounds information.
       *(output.mutable_error_report()->mutable_bounding_report()) =
@@ -316,14 +313,14 @@ class BoundedMean : public Algorithm<T> {
   }
 
  private:
-  void AddMultipleEntries(const T& input, uint64_t num_of_entries) {
+  void AddMultipleEntries(const T& input, int64_t num_of_entries) {
     // REF:
     // https://stackoverflow.com/questions/61646166/how-to-resolve-fpclassify-ambiguous-call-to-overloaded-function
-    if (std::isnan(static_cast<double>(input))) {
+    absl::Status status =
+        ValidateIsPositive(num_of_entries, "Number of entries");
+    if (std::isnan(static_cast<double>(input)) || !status.ok()) {
       return;
     }
-
-    raw_count_ += num_of_entries;
 
     if (!approx_bounds_) {
       pos_sum_[0] += Clamp<T>(lower_, upper_, input) * num_of_entries;
@@ -339,6 +336,7 @@ class BoundedMean : public Algorithm<T> {
             &neg_sum_, input, num_of_entries);
       }
     }
+    raw_count_ += num_of_entries;
   }
 
   static base::StatusOr<std::unique_ptr<NumericalMechanism>> BuildSumMechanism(
@@ -359,8 +357,14 @@ class BoundedMean : public Algorithm<T> {
   // Vectors of partial values stored for automatic clamping.
   std::vector<T> pos_sum_, neg_sum_;
 
-  uint64_t raw_count_;
+  // Raw count of the number of entries added.
+  int64_t raw_count_;
+
+  // Lower and upper bounds on added entries. If not provided,
+  // approx_bounds_ is used instead to determine bounds.
   T lower_, upper_;
+
+  // Midpoint between the lower and upper bounds
   double midpoint_;
 
   // Used to construct mechanism once bounds are obtained for auto-bounding.

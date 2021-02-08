@@ -44,10 +44,16 @@ public class DpPreconditions {
           delta == null,
           "delta should not be set when Laplace noise is used. Provided value: %s",
           delta);
-    } else {
+    } else if (noise.getMechanismType() == MechanismType.GAUSSIAN) {
       checkNotNull(delta);
       checkDelta(delta);
+      // For unknown noise, delta may or may not be null, but if it is not null it should be between
+      // 0 and 1.
+    } else if (delta != null) {
+      checkArgument(
+          delta >= 0 && delta < 1, "delta must be >= 0 and < 1. Provided value: %s", delta);
     }
+
   }
 
   static void checkDelta(double delta) {

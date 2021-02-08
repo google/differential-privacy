@@ -33,7 +33,7 @@ class BoundedVarianceTestPeer {
  public:
   template <typename T,
             std::enable_if_t<std::is_arithmetic<T>::value>* = nullptr>
-  static void AddMultipleEntries(const T& t, uint64_t num_of_entries,
+  static void AddMultipleEntries(const T& t, int64_t num_of_entries,
                                  BoundedVariance<T>* bv) {
     bv->AddMultipleEntries(t, num_of_entries);
   }
@@ -110,6 +110,59 @@ TYPED_TEST(BoundedVarianceTest, BasicMultipleEntriesTest) {
     BoundedVarianceTestPeer::AddMultipleEntries<TypeParam>(input, input,
                                                            (*bv).get());
   }
+  base::StatusOr<Output> result = (*bv)->PartialResult();
+  ASSERT_OK(result);
+  EXPECT_NEAR(GetValue<double>(*result), 14.0 / 9.0, 0.0000001);
+}
+
+TEST(BoundedVarianceTest, AddMultipleEntriesInvalidInputTest) {
+  base::StatusOr<std::unique_ptr<BoundedVariance<float>>> bv =
+      typename BoundedVariance<float>::Builder()
+          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetEpsilon(1.0)
+          .SetLower(0)
+          .SetUpper(6)
+          .Build();
+  ASSERT_OK(bv);
+
+  // Add a few basic entries so we can expect a predictable variance.
+  std::vector<float> a = {1, 2, 3, 4, 5};
+  for (const auto& input : a) {
+    BoundedVarianceTestPeer::AddMultipleEntries<float>(input, input,
+                                                       (*bv).get());
+  }
+
+  BoundedVarianceTestPeer::AddMultipleEntries<float>(
+      std::numeric_limits<float>::quiet_NaN(), 1, (*bv).get());
+  base::StatusOr<Output> result = (*bv)->PartialResult();
+  ASSERT_OK(result);
+  EXPECT_NEAR(GetValue<double>(*result), 14.0 / 9.0, 0.0000001);
+}
+
+TYPED_TEST(BoundedVarianceTest, AddMultipleEntriesInvalidNumberOfEntriesTest) {
+  base::StatusOr<std::unique_ptr<BoundedVariance<TypeParam>>> bv =
+      typename BoundedVariance<TypeParam>::Builder()
+          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetEpsilon(1.0)
+          .SetLower(0)
+          .SetUpper(6)
+          .Build();
+  ASSERT_OK(bv);
+
+  // Add a few basic entries so we can expect a predictable variance.
+  std::vector<TypeParam> a = {1, 2, 3, 4, 5};
+  for (const auto& input : a) {
+    BoundedVarianceTestPeer::AddMultipleEntries<TypeParam>(input, input,
+                                                           (*bv).get());
+  }
+
+  std::vector<int64_t> invalid_entries{0, -1,
+                                     std::numeric_limits<int64_t>::lowest()};
+  for (int64_t n_entries : invalid_entries) {
+    BoundedVarianceTestPeer::AddMultipleEntries<TypeParam>(1, n_entries,
+                                                           (*bv).get());
+  }
+
   base::StatusOr<Output> result = (*bv)->PartialResult();
   ASSERT_OK(result);
   EXPECT_NEAR(GetValue<double>(*result), 14.0 / 9.0, 0.0000001);
@@ -385,9 +438,11 @@ TEST(BoundedVarianceTest, OverflowRawCountTest) {
           .Build()
           .ValueOrDie();
   BoundedVarianceTestPeer::AddMultipleEntries<double>(
-      -0.5, std::numeric_limits<uint64_t>::max() / 2, bv.get());
+      -0.5, std::numeric_limits<int64_t>::max(), bv.get());
+  BoundedVarianceTestPeer::AddMultipleEntries<double>(-0.5, 1, bv.get());
   BoundedVarianceTestPeer::AddMultipleEntries<double>(
-      0.5, std::numeric_limits<uint64_t>::max() / 2, bv.get());
+      0.5, std::numeric_limits<int64_t>::max(), bv.get());
+  BoundedVarianceTestPeer::AddMultipleEntries<double>(0.5, 1, bv.get());
   BoundedVarianceTestPeer::AddMultipleEntries<double>(1, 5, bv.get());
 
   auto result = bv->PartialResult();
@@ -397,20 +452,20 @@ TEST(BoundedVarianceTest, OverflowRawCountTest) {
 }
 
 TEST(BoundedVarianceTest, OverflowAddEntryManualBounds) {
-  typename BoundedVariance<int64_t>::Builder builder;
+  typename BoundedVariance<int32_t>::Builder builder;
 
-  std::unique_ptr<BoundedVariance<int64_t>> bv =
+  std::unique_ptr<BoundedVariance<int32_t>> bv =
       builder
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .SetLower(-1)
           .SetUpper(1)
           .Build()
           .ValueOrDie();
-  // Try to overflow so far that it would result in an running sum of almost 0.
-  BoundedVarianceTestPeer::AddMultipleEntries<int64_t>(
-      1, std::numeric_limits<int64_t>::max(), bv.get());
-  BoundedVarianceTestPeer::AddMultipleEntries<int64_t>(
-      1, std::numeric_limits<int64_t>::max(), bv.get());
+
+  BoundedVarianceTestPeer::AddMultipleEntries<int32_t>(
+      1, std::numeric_limits<int32_t>::max(), bv.get());
+  BoundedVarianceTestPeer::AddMultipleEntries<int32_t>(
+      1, std::numeric_limits<int32_t>::max(), bv.get());
 
   auto result = bv->PartialResult();
   EXPECT_OK(result.status());
@@ -419,19 +474,19 @@ TEST(BoundedVarianceTest, OverflowAddEntryManualBounds) {
 }
 
 TEST(BoundedVarianceTest, UnderflowAddEntryManualBounds) {
-  typename BoundedVariance<int64_t>::Builder builder;
+  typename BoundedVariance<int32_t>::Builder builder;
 
-  std::unique_ptr<BoundedVariance<int64_t>> bv =
+  std::unique_ptr<BoundedVariance<int32_t>> bv =
       builder
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .SetLower(-1)
           .SetUpper(1)
           .Build()
           .ValueOrDie();
-  BoundedVarianceTestPeer::AddMultipleEntries<int64_t>(
-      -1, std::numeric_limits<int64_t>::max(), bv.get());
-  BoundedVarianceTestPeer::AddMultipleEntries<int64_t>(
-      -1, std::numeric_limits<int64_t>::max(), bv.get());
+  BoundedVarianceTestPeer::AddMultipleEntries<int32_t>(
+      -1, std::numeric_limits<int32_t>::max(), bv.get());
+  BoundedVarianceTestPeer::AddMultipleEntries<int32_t>(
+      -1, std::numeric_limits<int32_t>::max(), bv.get());
 
   auto result = bv->PartialResult();
   EXPECT_OK(result.status());
@@ -450,20 +505,23 @@ TEST(BoundedVarianceTest, OverflowRawCountMergeManualBoundsTest) {
           .Build()
           .ValueOrDie();
   BoundedVarianceTestPeer::AddMultipleEntries<double>(
-      10, std::numeric_limits<uint64_t>::max(), bv.get());
+      10, std::numeric_limits<int64_t>::max(), bv.get());
 
   Summary summary = bv->Serialize();
 
   std::unique_ptr<BoundedVariance<double>> bv2 = builder.Build().ValueOrDie();
-  bv2->AddEntry(10);
-  bv2->AddEntry(10);
+  BoundedVarianceTestPeer::AddMultipleEntries<double>(
+      10, std::numeric_limits<int64_t>::max(), bv.get());
 
   EXPECT_OK(bv2->Merge(summary));
 
+  bv2->AddEntry(10);
+  bv2->AddEntry(10);
+
   auto result = bv2->PartialResult();
   EXPECT_OK(result.status());
-  // An overflow should cause the count of entries to be 1, which should result
-  // in the variance so large that it becomes clamped to
+  // An overflow should cause the count of entries wrap around to 1, which
+  // should result in the variance so large that it becomes clamped to
   // IntervalLengthSquared(lower, upper) / 4, instead of based upon the actual
   // data entries (which would be 0 if there was no count overflow, since all
   // entries are the same and do not vary).
@@ -471,22 +529,22 @@ TEST(BoundedVarianceTest, OverflowRawCountMergeManualBoundsTest) {
 }
 
 TEST(BoundedVarianceTest, OverflowMergeManualBoundsTest) {
-  typename BoundedVariance<int64_t>::Builder builder;
+  typename BoundedVariance<int32_t>::Builder builder;
 
-  std::unique_ptr<BoundedVariance<int64_t>> bv =
+  std::unique_ptr<BoundedVariance<int32_t>> bv =
       builder
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .SetLower(-1)
           .SetUpper(1)
           .Build()
           .ValueOrDie();
-  BoundedVarianceTestPeer::AddMultipleEntries<int64_t>(
-      1, std::numeric_limits<int64_t>::max(), bv.get());
+  BoundedVarianceTestPeer::AddMultipleEntries<int32_t>(
+      1, std::numeric_limits<int32_t>::max(), bv.get());
   Summary summary = bv->Serialize();
 
-  std::unique_ptr<BoundedVariance<int64_t>> bv2 = builder.Build().ValueOrDie();
-  BoundedVarianceTestPeer::AddMultipleEntries<int64_t>(
-      1, std::numeric_limits<int64_t>::max(), bv2.get());
+  std::unique_ptr<BoundedVariance<int32_t>> bv2 = builder.Build().ValueOrDie();
+  BoundedVarianceTestPeer::AddMultipleEntries<int32_t>(
+      1, std::numeric_limits<int32_t>::max(), bv2.get());
 
   EXPECT_OK(bv2->Merge(summary));
 
@@ -497,22 +555,22 @@ TEST(BoundedVarianceTest, OverflowMergeManualBoundsTest) {
 }
 
 TEST(BoundedVarianceTest, UnderflowMergeManualBoundsTest) {
-  typename BoundedVariance<int64_t>::Builder builder;
+  typename BoundedVariance<int32_t>::Builder builder;
 
-  std::unique_ptr<BoundedVariance<int64_t>> bv =
+  std::unique_ptr<BoundedVariance<int32_t>> bv =
       builder
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .SetLower(-1)
           .SetUpper(1)
           .Build()
           .ValueOrDie();
-  BoundedVarianceTestPeer::AddMultipleEntries<int64_t>(
-      -1, std::numeric_limits<int64_t>::max(), bv.get());
+  BoundedVarianceTestPeer::AddMultipleEntries<int32_t>(
+      -1, std::numeric_limits<int32_t>::max(), bv.get());
   Summary summary = bv->Serialize();
 
-  std::unique_ptr<BoundedVariance<int64_t>> bv2 = builder.Build().ValueOrDie();
-  BoundedVarianceTestPeer::AddMultipleEntries<int64_t>(
-      -1, std::numeric_limits<int64_t>::max(), bv2.get());
+  std::unique_ptr<BoundedVariance<int32_t>> bv2 = builder.Build().ValueOrDie();
+  BoundedVarianceTestPeer::AddMultipleEntries<int32_t>(
+      -1, std::numeric_limits<int32_t>::max(), bv2.get());
 
   EXPECT_OK(bv2->Merge(summary));
 

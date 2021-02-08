@@ -124,8 +124,9 @@ func DistinctPrivacyID(s beam.Scope, pcol PrivatePCollection, params DistinctPri
 	// First, deduplicate KV pairs by encoding them and calling Distinct.
 	coded := beam.ParDo(s, kv.NewEncodeFn(idT, partitionT), pcol.col)
 	distinct := filter.Distinct(s, coded)
+	decodeFn := kv.NewDecodeFn(idT, partitionT)
 	decoded := beam.ParDo(s,
-		kv.NewDecodeFn(idT, partitionT),
+		decodeFn,
 		distinct,
 		beam.TypeDefinition{Var: beam.TType, T: idT.Type()},
 		beam.TypeDefinition{Var: beam.VType, T: partitionT.Type()})

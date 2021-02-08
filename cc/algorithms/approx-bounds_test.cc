@@ -16,11 +16,16 @@
 
 #include "algorithms/approx-bounds.h"
 
+#include <limits>
+#include <vector>
+
 #include "base/testing/proto_matchers.h"
 #include "base/testing/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/memory/memory.h"
+#include "absl/status/status.h"
+#include "base/statusor.h"
 #include "algorithms/numerical-mechanisms-testing.h"
 
 namespace differential_privacy {
@@ -30,14 +35,14 @@ namespace differential_privacy {
 class ApproxBoundsTestPeer {
  public:
   template <typename T>
-  static void AddMultipleEntries(const T& t, uint64_t num_of_entries,
+  static void AddMultipleEntries(const T& t, int64_t num_of_entries,
                                  ApproxBounds<T>* ab) {
     ab->AddMultipleEntries(t, num_of_entries);
   }
 
   template <typename T, typename T2>
   static void AddMultipleEntriesToPartials(std::vector<T2>* partials, T value,
-                                           uint64_t num_of_entries,
+                                           int64_t num_of_entries,
                                            std::function<T2(T, T)> make_partial,
                                            ApproxBounds<T>* ab) {
     ab->AddMultipleEntriesToPartials(partials, value, num_of_entries,
@@ -46,7 +51,7 @@ class ApproxBoundsTestPeer {
 
   template <typename T, typename T2>
   static void AddMultipleEntriesToPartialSums(std::vector<T2>* sums, T value,
-                                              uint64_t num_of_entries,
+                                              int64_t num_of_entries,
                                               ApproxBounds<T>* ab) {
     ab->AddMultipleEntriesToPartialSums(sums, value, num_of_entries);
   }
@@ -85,12 +90,13 @@ TEST(ApproxBoundsTest, BasicTest) {
 }
 
 TEST(ApproxBoundsTest, BasicMultipleEntriesTest) {
-  std::vector<int64_t> a = {0, 1, 2, 3, 5, 8, 13};
+  std::vector<int64_t> a = {1, 2, 3, 5, 8, 13};
 
   // Make ApproxBounds.
   base::StatusOr<std::unique_ptr<ApproxBounds<int64_t>>> bounds =
-      ApproxBounds<int64_t>::Builder()
+      typename ApproxBounds<int64_t>::Builder()
           .SetNumBins(10)
+          .SetScale(1)
           .SetBase(2)
           .SetThreshold(3)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
@@ -104,6 +110,72 @@ TEST(ApproxBoundsTest, BasicMultipleEntriesTest) {
   ASSERT_OK(result);
   EXPECT_EQ(result->elements(0).value().int_value(), 2);
   EXPECT_EQ(result->elements(1).value().int_value(), 16);
+}
+
+TEST(ApproxBoundsTest, AddMultipleEntriesInvalidInputTest) {
+  std::vector<float> a = {1.0, 2.0, 3.0, 5.0, 8.0, 13.0};
+
+  // Make ApproxBounds.
+  base::StatusOr<std::unique_ptr<ApproxBounds<float>>> bounds =
+      typename ApproxBounds<float>::Builder()
+          .SetNumBins(10)
+          .SetScale(1)
+          .SetBase(2)
+          .SetThreshold(3)
+          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .Build();
+  ASSERT_OK(bounds);
+
+  // Add some normal entries whose result we know what to expect.
+  for (const auto& input : a) {
+    ApproxBoundsTestPeer::AddMultipleEntries(input, input,
+                                             bounds.value().get());
+  }
+
+  // Try adding an invalid entry, which we expect should be ignored.
+  ApproxBoundsTestPeer::AddMultipleEntries(
+      std::numeric_limits<float>::quiet_NaN(), 1, bounds.value().get());
+
+  base::StatusOr<Output> result = (*bounds)->PartialResult();
+  ASSERT_OK(result);
+
+  EXPECT_FLOAT_EQ(result->elements(0).value().float_value(), 2.0);
+  EXPECT_FLOAT_EQ(result->elements(1).value().float_value(), 16.0);
+}
+
+TEST(ApproxBoundsTest, AddMultipleEntriesInvalidNumberOfEntriesTest) {
+  std::vector<int64_t> a = {1, 2, 3, 5, 8, 13};
+
+  // Make ApproxBounds.
+  base::StatusOr<std::unique_ptr<ApproxBounds<int64_t>>> bounds =
+      typename ApproxBounds<int64_t>::Builder()
+          .SetNumBins(10)
+          .SetScale(1)
+          .SetBase(2)
+          .SetThreshold(3)
+          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .Build();
+  ASSERT_OK(bounds);
+
+  // Add some normal entries whose result we know what to expect.
+  for (const auto& input : a) {
+    ApproxBoundsTestPeer::AddMultipleEntries(input, input,
+                                             bounds.value().get());
+  }
+
+  // Expect adding an invalid number of entries to be ignored.
+  std::vector<int64_t> invalid_entries{0, -1,
+                                     std::numeric_limits<int64_t>::lowest()};
+  for (int64_t n_entries : invalid_entries) {
+    ApproxBoundsTestPeer::AddMultipleEntries<int64_t>(1, n_entries,
+                                                    bounds.value().get());
+  }
+
+  base::StatusOr<Output> result = (*bounds)->PartialResult();
+  ASSERT_OK(result);
+
+  EXPECT_FLOAT_EQ(result->elements(0).value().int_value(), 2);
+  EXPECT_FLOAT_EQ(result->elements(1).value().int_value(), 16);
 }
 
 TYPED_TEST(ApproxBoundsTest, EmptyHistogramTest) {
@@ -316,6 +388,36 @@ TYPED_TEST(ApproxBoundsTest, InvalidParameters) {
                   .Build(),
               StatusIs(absl::StatusCode::kInvalidArgument,
                        HasSubstr("k threshold must be a valid numeric value")));
+}
+
+TYPED_TEST(ApproxBoundsTest, ComputeFromPartialsCountValidityTest) {
+  int n_bins = 4;
+  base::StatusOr<std::unique_ptr<ApproxBounds<TypeParam>>> bounds =
+      typename ApproxBounds<TypeParam>::Builder()
+          .SetNumBins(n_bins)
+          .SetBase(2)
+          .SetScale(1)
+          .Build();
+  ASSERT_OK(bounds);
+  std::vector<TypeParam> pos_sum(n_bins, 0);
+  std::vector<TypeParam> neg_sum(n_bins, 0);
+  auto difference = [](TypeParam val1, TypeParam val2) { return val1 - val2; };
+  (*bounds)->template AddToPartials<TypeParam>(&pos_sum, 6, difference);
+  (*bounds)->template AddToPartials<TypeParam>(&neg_sum, -3, difference);
+
+  std::vector<int64_t> invalid_entries{-1, std::numeric_limits<int64_t>::lowest()};
+  base::StatusOr<TypeParam> result;
+  for (int64_t n_entries : invalid_entries) {
+    result = (*bounds)->template ComputeFromPartials<TypeParam>(
+        pos_sum, neg_sum, [](TypeParam x) { return x; }, -4, 4, n_entries);
+    EXPECT_THAT(result.status(),
+                StatusIs(absl::StatusCode::kInvalidArgument,
+                         HasSubstr("Count must be non-negative")));
+  }
+
+  result = (*bounds)->template ComputeFromPartials<TypeParam>(
+      pos_sum, neg_sum, [](TypeParam x) { return x; }, -4, 4, 0);
+  EXPECT_OK(result.status());
 }
 
 TEST(ApproxBoundsTest, DefaultIntTest) {
@@ -673,6 +775,7 @@ TYPED_TEST(ApproxBoundsTest, AddMultipleEntriesToPartials) {
   std::vector<TypeParam> expected = {5, 5, 10, 10};
   ApproxBoundsTestPeer::AddMultipleEntriesToPartials<TypeParam, TypeParam>(
       &sums, 6, n_entries, difference, bounds.value().get());
+
   for (int i = 0; i < n_bins; ++i) {
     EXPECT_EQ(sums[i], expected[i]);
   }
@@ -691,6 +794,57 @@ TYPED_TEST(ApproxBoundsTest, AddMultipleEntriesToPartials) {
   std::fill(expected.begin(), expected.end(), 0);
   ApproxBoundsTestPeer::AddMultipleEntriesToPartials<TypeParam, TypeParam>(
       &sums, 0, n_entries, difference, bounds.value().get());
+  for (int i = 0; i < n_bins; ++i) {
+    EXPECT_EQ(sums[i], expected[i]);
+  }
+}
+
+TEST(ApproxBoundsTest, AddMultipleEntriesToPartialsInvalidValueTest) {
+  int n_bins = 4;
+  int n_entries = 5;
+  base::StatusOr<std::unique_ptr<ApproxBounds<float>>> bounds =
+      typename ApproxBounds<float>::Builder()
+          .SetNumBins(n_bins)
+          .SetBase(2)
+          .SetScale(1)
+          .Build();
+  ASSERT_OK(bounds);
+  auto difference = [](float val1, float val2) { return val1 - val2; };
+
+  std::vector<float> sums(n_bins, 0);
+  std::vector<float> expected(n_bins, 0);
+  ApproxBoundsTestPeer::AddMultipleEntriesToPartials<float, float>(
+      &sums, std::numeric_limits<float>::quiet_NaN(), n_entries, difference,
+      bounds.value().get());
+
+  for (int i = 0; i < n_bins; ++i) {
+    EXPECT_EQ(sums[i], expected[i]);
+  }
+}
+
+TYPED_TEST(ApproxBoundsTest,
+           AddMultipleEntriesToPartialsInvalidNumberOfEntriesTest) {
+  int n_bins = 4;
+  base::StatusOr<std::unique_ptr<ApproxBounds<TypeParam>>> bounds =
+      typename ApproxBounds<TypeParam>::Builder()
+          .SetNumBins(n_bins)
+          .SetBase(2)
+          .SetScale(1)
+          .Build();
+  ASSERT_OK(bounds);
+  auto difference = [](TypeParam val1, TypeParam val2) { return val1 - val2; };
+
+  std::vector<TypeParam> sums(n_bins, 0);
+  std::vector<TypeParam> expected(n_bins, 0);
+
+  std::vector<int64_t> invalid_entries{0, -1,
+                                     std::numeric_limits<int64_t>::lowest()};
+
+  for (int64_t n_entries : invalid_entries) {
+    ApproxBoundsTestPeer::AddMultipleEntriesToPartials<TypeParam, TypeParam>(
+        &sums, 1, n_entries, difference, bounds.value().get());
+  }
+
   for (int i = 0; i < n_bins; ++i) {
     EXPECT_EQ(sums[i], expected[i]);
   }
@@ -804,15 +958,21 @@ TYPED_TEST(ApproxBoundsTest, ComputeSumFromPartials) {
   (*bounds)->template AddToPartials<TypeParam>(&pos_sum, 6, difference);
   (*bounds)->template AddToPartials<TypeParam>(&neg_sum, -3, difference);
 
-  EXPECT_EQ((*bounds)->template ComputeFromPartials<TypeParam>(
-                pos_sum, neg_sum, [](TypeParam x) { return x; }, -4, 4, 2),
-            1);
-  EXPECT_EQ((*bounds)->template ComputeFromPartials<TypeParam>(
-                pos_sum, neg_sum, [](TypeParam x) { return x; }, -4, -1, 2),
-            -4);
-  EXPECT_EQ((*bounds)->template ComputeFromPartials<TypeParam>(
-                pos_sum, neg_sum, [](TypeParam x) { return x; }, 1, 4, 2),
-            5);
+  base::StatusOr<TypeParam> result =
+      (*bounds)->template ComputeFromPartials<TypeParam>(
+          pos_sum, neg_sum, [](TypeParam x) { return x; }, -4, 4, 2);
+  ASSERT_OK(result);
+  EXPECT_EQ(result.value(), 1);
+
+  result = (*bounds)->template ComputeFromPartials<TypeParam>(
+      pos_sum, neg_sum, [](TypeParam x) { return x; }, -4, -1, 2);
+  ASSERT_OK(result);
+  EXPECT_EQ(result.value(), -4);
+
+  result = (*bounds)->template ComputeFromPartials<TypeParam>(
+      pos_sum, neg_sum, [](TypeParam x) { return x; }, 1, 4, 2);
+  ASSERT_OK(result);
+  EXPECT_EQ(result.value(), 5);
 }
 
 TYPED_TEST(ApproxBoundsTest, OverflowComputeFromPartials) {
@@ -829,23 +989,31 @@ TYPED_TEST(ApproxBoundsTest, OverflowComputeFromPartials) {
 
   std::vector<int64_t> neg_sum = {0, -1, -2, int64lowest};
   std::vector<int64_t> pos_sum = {0, 0, 0, 0};
-  int64_t result = (*bounds)->template ComputeFromPartials<int64_t>(
+  base::StatusOr<int64_t> result = (*bounds)->template ComputeFromPartials<int64_t>(
       pos_sum, neg_sum, value_transform, int64lowest, int64max, 2);
-  EXPECT_GT(result, 0);  // The negative sums should overflow to positive
+  ASSERT_OK(result);
+  // The negative sums should overflow to positive
+  EXPECT_GT(result.value(), 0);
 
   result = (*bounds)->template ComputeFromPartials<int64_t>(
       pos_sum, neg_sum, value_transform, int64lowest, -1, 2);
-  EXPECT_GT(result, 0);  // The negative sums should overflow to positive
+  ASSERT_OK(result);
+  // The negative sums should overflow to positive
+  EXPECT_GT(result.value(), 0);
 
   neg_sum = {0, 0, 0, 0};
   pos_sum = {0, 1, 2, int64max};
   result = (*bounds)->template ComputeFromPartials<int64_t>(
       pos_sum, neg_sum, value_transform, int64lowest, int64max, 2);
-  EXPECT_LT(result, 0);  // The positive sums should overflow to negative
+  ASSERT_OK(result);
+  // The positive sums should overflow to negative
+  EXPECT_LT(result.value(), 0);
 
   result = (*bounds)->template ComputeFromPartials<int64_t>(
       pos_sum, neg_sum, value_transform, 1, int64max, 2);
-  EXPECT_LT(result, 0);  // The positive sums should overflow to negative
+  ASSERT_OK(result);
+  // The positive sums should overflow to negative
+  EXPECT_LT(result.value(), 0);
 }
 
 TEST(ApproxBoundsText, ComputeSumFromPartialsAcrossOne) {
@@ -858,13 +1026,16 @@ TEST(ApproxBoundsText, ComputeSumFromPartialsAcrossOne) {
   (*bounds)->template AddToPartials<double>(&pos_sum, 6, difference);
   (*bounds)->template AddToPartials<double>(&neg_sum, -3, difference);
 
-  EXPECT_DOUBLE_EQ(
+  base::StatusOr<double> result =
       (*bounds)->template ComputeFromPartials<double>(
-          pos_sum, neg_sum, [](double x) { return x; }, -4, -0.5, 2),
-      -3.5);
-  EXPECT_DOUBLE_EQ((*bounds)->template ComputeFromPartials<double>(
-                       pos_sum, neg_sum, [](double x) { return x; }, 0.5, 4, 2),
-                   4.5);
+          pos_sum, neg_sum, [](double x) { return x; }, -4, -0.5, 2);
+  ASSERT_OK(result);
+  EXPECT_DOUBLE_EQ(result.value(), -3.5);
+
+  result = (*bounds)->template ComputeFromPartials<double>(
+      pos_sum, neg_sum, [](double x) { return x; }, 0.5, 4, 2);
+  ASSERT_OK(result);
+  EXPECT_DOUBLE_EQ(result.value(), 4.5);
 }
 
 TYPED_TEST(ApproxBoundsTest, GetBoundingReport_NoInputs) {

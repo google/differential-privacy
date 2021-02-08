@@ -143,8 +143,9 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCo
 	}
 	// First, group together the privacy ID and the partition ID, and sum the
 	// values per-privacy unit and per-partition.
+	prepareSumFn := newPrepareSumFn(idT, pcol.codec)
 	decoded := beam.ParDo(s,
-		newPrepareSumFn(idT, pcol.codec),
+		prepareSumFn,
 		pcol.col,
 		beam.TypeDefinition{Var: beam.VType, T: pcol.codec.VType.T})
 	summed := stats.SumPerKey(s, decoded)

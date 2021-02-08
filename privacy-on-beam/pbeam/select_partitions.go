@@ -86,7 +86,8 @@ func SelectPartitions(s beam.Scope, pcol PrivatePCollection, params SelectPartit
 	idT, partitionT := beam.ValidateKVType(partitions)
 	coded := beam.ParDo(s, kv.NewEncodeFn(idT, partitionT), partitions)
 	coded = filter.Distinct(s, coded)
-	partitions = beam.ParDo(s, kv.NewDecodeFn(idT, partitionT), coded, beam.TypeDefinition{Var: beam.TType, T: idT.Type()}, beam.TypeDefinition{Var: beam.VType, T: partitionT.Type()})
+	decodeFn := kv.NewDecodeFn(idT, partitionT)
+	partitions = beam.ParDo(s, decodeFn, coded, beam.TypeDefinition{Var: beam.TType, T: idT.Type()}, beam.TypeDefinition{Var: beam.VType, T: partitionT.Type()})
 
 	// Third, do cross-partition contribution bounding for partition selection.
 	partitions = boundContributions(s, partitions, maxPartitionsContributed)

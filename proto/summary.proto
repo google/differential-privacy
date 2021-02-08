@@ -34,7 +34,7 @@ message Summary {
 
 message CountSummary {
   // Count of the data subset.
-  optional uint64 count = 1;
+  optional int64 count = 1;
 
   // TODO: Use below fields in C++ library.
   // Count parameters:
@@ -82,7 +82,7 @@ enum MechanismType {
 
 message BoundedMeanSummary {
   // Count of the data subset.
-  optional uint64 count = 1;
+  optional int64 count = 1;
 
   // Partial sum data for the dataset.
   repeated ValueType pos_sum = 2;
@@ -100,7 +100,7 @@ message BoundedMeanSummary {
 // Used for BoundedVariance and BoundedStandardDeviation algorithms.
 message BoundedVarianceSummary {
   // Count of the dataset.
-  optional uint64 count = 1;
+  optional int64 count = 1;
 
   // Partial sum data for the dataset. For manually set bounds, the clamped sum
   // will be stored in pos_sum. For automatically set bounds, partial sum values

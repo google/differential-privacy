@@ -17,9 +17,6 @@
 #ifndef DIFFERENTIAL_PRIVACY_ALGORITHMS_APPROX_BOUNDS_H_
 #define DIFFERENTIAL_PRIVACY_ALGORITHMS_APPROX_BOUNDS_H_
 
-#include <cmath>
-#include <limits>
-
 #include "google/protobuf/any.pb.h"
 #include "absl/status/status.h"
 #include "base/statusor.h"
@@ -312,10 +309,12 @@ class ApproxBounds : public Algorithm<T> {
   // The value_transform and count parameters are used to calculate the
   // contribution of values clamped below lower or above upper, if applicable.
   template <typename T2>
-  T2 ComputeFromPartials(const std::vector<T2>& pos_partials,
-                         const std::vector<T2>& neg_partials,
-                         std::function<T2(T)> value_transform, T lower, T upper,
-                         uint64_t count) {
+  base::StatusOr<T2> ComputeFromPartials(const std::vector<T2>& pos_partials,
+                                         const std::vector<T2>& neg_partials,
+                                         std::function<T2(T)> value_transform,
+                                         T lower, T upper, int64_t count) {
+    RETURN_IF_ERROR(ValidateIsNonNegative(count, "Count"));
+
     // Find value by adding the partial values corresponding to bins that are
     // between the lower and upper bound. ApproxBounds will always return a
     // bin boundary as lower and upper bounds.
@@ -484,11 +483,13 @@ class ApproxBounds : public Algorithm<T> {
   T PosRightBinBoundary(int bin_index) { return bin_boundaries_[bin_index]; }
 
  private:
-  // Add input num_of_entries times to the bins.
-  void AddMultipleEntries(const T& input, uint64_t num_of_entries) {
+  // Adds input num_of_entries times to the bins.
+  void AddMultipleEntries(const T& input, int64_t num_of_entries) {
     // REF:
     // https://stackoverflow.com/questions/61646166/how-to-resolve-fpclassify-ambiguous-call-to-overloaded-function
-    if (std::isnan(static_cast<double>(input))) {
+    absl::Status status =
+        ValidateIsPositive(num_of_entries, "Number of entries");
+    if (std::isnan(static_cast<double>(input)) || !status.ok()) {
       return;
     }
 
@@ -507,8 +508,16 @@ class ApproxBounds : public Algorithm<T> {
   // at once, instead of using AddToPartials() in a for-loop.
   template <typename T2>
   void AddMultipleEntriesToPartials(std::vector<T2>* partials, T value,
-                                    uint64_t num_of_entries,
+                                    int64_t num_of_entries,
                                     std::function<T2(T, T)> make_partial) {
+    // REF:
+    // https://stackoverflow.com/questions/61646166/how-to-resolve-fpclassify-ambiguous-call-to-overloaded-function
+    absl::Status status =
+        ValidateIsPositive(num_of_entries, "Number of entries");
+    if (std::isnan(static_cast<double>(value)) || !status.ok()) {
+      return;
+    }
+
     int msb = MostSignificantBit(value);
 
     // Each bin of the logarithmic histograms in ApproxBounds can be a candidate
@@ -552,7 +561,7 @@ class ApproxBounds : public Algorithm<T> {
   // specific use case of AddToPartials used in some algorithms.
   template <typename T2>
   void AddMultipleEntriesToPartialSums(std::vector<T2>* sums, T value,
-                                       uint64_t num_of_entries) {
+                                       int64_t num_of_entries) {
     AddMultipleEntriesToPartials<T2>(
         sums, value, num_of_entries,
         [](T val1, T val2) { return val1 - val2; });

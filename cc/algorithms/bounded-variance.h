@@ -17,9 +17,6 @@
 #ifndef DIFFERENTIAL_PRIVACY_ALGORITHMS_BOUNDED_VARIANCE_H_
 #define DIFFERENTIAL_PRIVACY_ALGORITHMS_BOUNDED_VARIANCE_H_
 
-#include <limits>
-#include <type_traits>
-
 #include "google/protobuf/any.pb.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
@@ -326,14 +323,15 @@ class BoundedVariance : public Algorithm<T> {
       RETURN_IF_ERROR(Builder::CheckBounds(lower_, upper_));
 
       // To find the sum, pass the identity function as the transform.
-      sum = approx_bounds_->template ComputeFromPartials<T>(
-          pos_sum_, neg_sum_, [](T x) { return x; }, lower_, upper_,
-          raw_count_);
+      ASSIGN_OR_RETURN(sum, approx_bounds_->template ComputeFromPartials<T>(
+                                pos_sum_, neg_sum_, [](T x) { return x; },
+                                lower_, upper_, raw_count_));
 
       // To find sum of squares, pass the square function.
-      sos = approx_bounds_->template ComputeFromPartials<double>(
-          pos_sum_of_squares_, neg_sum_of_squares_, [](T x) { return x * x; },
-          lower_, upper_, raw_count_);
+      ASSIGN_OR_RETURN(
+          sos, approx_bounds_->template ComputeFromPartials<double>(
+                   pos_sum_of_squares_, neg_sum_of_squares_,
+                   [](T x) { return x * x; }, lower_, upper_, raw_count_));
 
       // Populate the bounding report with ApproxBounds information.
       *(output.mutable_error_report()->mutable_bounding_report()) =
@@ -470,25 +468,25 @@ class BoundedVariance : public Algorithm<T> {
         .Build();
   }
 
-  void AddMultipleEntries(const T& t, uint64_t num_of_entries) {
+  void AddMultipleEntries(const T& input, int64_t num_of_entries) {
     // Drop value if it is NaN.
     // REF:
     // https://stackoverflow.com/questions/61646166/how-to-resolve-fpclassify-ambiguous-call-to-overloaded-function
-    if (std::isnan(static_cast<double>(t))) {
+    absl::Status status =
+        ValidateIsPositive(num_of_entries, "Number of entries");
+    if (std::isnan(static_cast<double>(input)) || !status.ok()) {
       return;
     }
-
-    // Count is unaffected by clamping.
-    raw_count_ += num_of_entries;
 
     // If bounds exist, clamp and record. Otherwise, store partial results and
     // feed input into ApproxBounds algorithm.
     if (!approx_bounds_) {
-      CHECK_EQ(
-          AddManualBoundsEntries(Clamp<T>(lower_, upper_, t), num_of_entries),
-          absl::OkStatus());
+      pos_sum_[0] +=
+          Clamp<T>(std::numeric_limits<T>::lowest(),
+                   std::numeric_limits<T>::max(), input * num_of_entries);
+      pos_sum_of_squares_[0] += pow(input, 2) * num_of_entries;
     } else {
-      approx_bounds_->AddMultipleEntries(t, num_of_entries);
+      approx_bounds_->AddMultipleEntries(input, num_of_entries);
 
       // Add to partial sums and sum of squares.
       auto difference_of_squares = [](T val1, T val2) {
@@ -496,34 +494,21 @@ class BoundedVariance : public Algorithm<T> {
         return (static_cast<double>(val1) + val2) *
                (static_cast<double>(val1) - val2);
       };
-      if (t >= 0) {
+      if (input >= 0) {
         approx_bounds_->template AddMultipleEntriesToPartialSums<T>(
-            &pos_sum_, t, num_of_entries);
+            &pos_sum_, input, num_of_entries);
         approx_bounds_->template AddMultipleEntriesToPartials<double>(
-            &pos_sum_of_squares_, t, num_of_entries, difference_of_squares);
+            &pos_sum_of_squares_, input, num_of_entries, difference_of_squares);
       } else {
         approx_bounds_->template AddMultipleEntriesToPartialSums<T>(
-            &neg_sum_, t, num_of_entries);
+            &neg_sum_, input, num_of_entries);
         approx_bounds_->template AddMultipleEntriesToPartials<double>(
-            &neg_sum_of_squares_, t, num_of_entries, difference_of_squares);
+            &neg_sum_of_squares_, input, num_of_entries, difference_of_squares);
       }
     }
-  }
 
-  absl::Status AddManualBoundsEntries(const T& t, uint64_t num_of_entries) {
-    if (approx_bounds_) {
-      return absl::InternalError(
-          "AddManualBoundsEntry() can only be used when bounds were set "
-          "manually.");
-    }
-    pos_sum_[0] += Clamp<T>(std::numeric_limits<T>::lowest(),
-                            std::numeric_limits<T>::max(), t * num_of_entries);
-    pos_sum_of_squares_[0] += pow(t, 2) * num_of_entries;
-    return absl::OkStatus();
-  }
-
-  absl::Status AddManualBoundsEntry(const T& t) {
-    return AddManualBoundsEntries(t, 1);
+    // Count is unaffected by clamping.
+    raw_count_ += num_of_entries;
   }
 
   // Friend class for testing only
@@ -532,7 +517,7 @@ class BoundedVariance : public Algorithm<T> {
   // Vectors of partial values stored for automatic clamping.
   std::vector<T> pos_sum_, neg_sum_;
   std::vector<double> pos_sum_of_squares_, neg_sum_of_squares_;
-  uint64_t raw_count_;
+  int64_t raw_count_;
   T lower_, upper_;
 
   // Used to construct mechanism once bounds are obtained.

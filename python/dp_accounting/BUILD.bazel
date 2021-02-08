@@ -52,7 +52,10 @@ py_library(
         "common.py",
     ],
     srcs_version = "PY3",
-    deps = DATACLASSES_DEP,
+    deps = [
+        requirement("numpy"),
+        requirement("scipy"),
+    ] + DATACLASSES_DEP,
 )
 
 py_test(
@@ -62,6 +65,7 @@ py_test(
     python_version = "PY3",
     deps = [
         ":common",
+        ":test_util",
         requirement("absl-py"),
     ],
 )
@@ -75,8 +79,6 @@ py_library(
     deps = [
         ":common",
         ":privacy_loss_mechanism",
-        requirement("numpy"),
-        requirement("scipy"),
     ],
 )
 

@@ -148,8 +148,9 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 
 	// First, group together the privacy ID and the partition ID and do per-partition contribution bounding.
 	// Result is PCollection<kv.Pair{ID,K},V>
+	prepareMeanFn := newPrepareMeanFn(idT, pcol.codec)
 	decoded := beam.ParDo(s,
-		newPrepareMeanFn(idT, pcol.codec),
+		prepareMeanFn,
 		pcol.col,
 		beam.TypeDefinition{Var: beam.VType, T: pcol.codec.VType.T})
 

@@ -778,3 +778,9 @@ func checkAllValuesNegativeFloat64Fn(v float64) error {
 	}
 	return nil
 }
+
+// approxEqual returns true if x and y are approximately equal within
+// a tolerance of 1e-10.
+func approxEqual(x, y float64) bool {
+	return cmp.Equal(x, y, cmpopts.EquateApprox(0, 1e-10))
+}

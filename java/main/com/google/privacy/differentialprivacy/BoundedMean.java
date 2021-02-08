@@ -16,6 +16,9 @@
 
 package com.google.privacy.differentialprivacy;
 
+import static java.lang.Math.max;
+import static java.lang.Math.min;
+
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -98,7 +101,7 @@ public class BoundedMean {
         BoundedSum.builder()
             .noise(params.noise())
             .epsilon(halfEpsilon)
-            // TODO: this can be optimized for the Gaussian noise
+            // TODO: this can be optimized for Gaussian noise
             .delta(halfDelta)
             .maxPartitionsContributed(params.maxPartitionsContributed())
             .maxContributionsPerPartition(params.maxContributionsPerPartition())
@@ -110,7 +113,7 @@ public class BoundedMean {
         Count.builder()
             .noise(params.noise())
             .epsilon(halfEpsilon)
-            // TODO: this can be optimized for the Gaussian noise
+            // TODO: this can be optimized for Gaussian noise
             .delta(halfDelta)
             .maxPartitionsContributed(params.maxPartitionsContributed())
             .maxContributionsPerPartition(params.maxContributionsPerPartition())
@@ -121,9 +124,9 @@ public class BoundedMean {
     return BoundedMean.Params.Builder.newBuilder();
   }
 
-  /** Clamps the input value and adds it to the average. */
+  /** Clamps the input value and adds it to the mean. */
   public void addEntry(double e) {
-    Preconditions.checkState(state == AggregationState.DEFAULT, "Mean cannot be amended.");
+    Preconditions.checkState(state == AggregationState.DEFAULT, "Entry cannot be added.");
 
     // NaN is ignored because introducing even a single NaN entry will result in a NaN mean
     // regardless of other entries, which would break the indistinguishability
@@ -138,21 +141,13 @@ public class BoundedMean {
     count.increment();
   }
 
-  /** Clamps the input values and adds them to the average. */
+  /** Clamps the input values and adds them to the mean. */
   public void addEntries(Collection<Double> e) {
     e.forEach(this::addEntry);
   }
 
-  private double clamp(double e) {
-    if (e > params.upper()) {
-      return params.upper();
-    }
-
-    if (e < params.lower()) {
-      return params.lower();
-    }
-
-    return e;
+  private double clamp(double value) {
+    return max(min(value, params.upper()), params.lower());
   }
 
   /**
@@ -163,8 +158,7 @@ public class BoundedMean {
    * <p>Note that the returned value is not an unbiased estimate of the raw bounded mean.
    */
   public double computeResult() {
-    Preconditions.checkState(
-        state == AggregationState.DEFAULT, "Mean's noised result cannot be computed.");
+    Preconditions.checkState(state == AggregationState.DEFAULT, "DP mean cannot be computed.");
 
     state = AggregationState.RESULT_RETURNED;
 
@@ -358,13 +352,14 @@ public class BoundedMean {
       public abstract BoundedMean.Params.Builder noise(Noise value);
 
       /**
-       * Lower bound for the entries added to the mean. Lower values will be clamped to this bound.
+       * Lower bound for the entries added to the mean. Any entires smaller than this value will be
+       * set to this value.
        */
       public abstract BoundedMean.Params.Builder lower(double value);
 
       /**
-       * Higher bound for the entries added to the mean. Greater values will be clamped to this
-       * bound.
+       * Upper bound for the entries added to the mean. Any entires greater than this value will be
+       * set to this value.
        */
       public abstract BoundedMean.Params.Builder upper(double value);
 
@@ -375,7 +370,7 @@ public class BoundedMean {
         // No need to check noise nullability: the noise is defaulted to Laplace noise.
         DpPreconditions.checkEpsilon(params.epsilon());
         DpPreconditions.checkNoiseDelta(params.delta(), params.noise());
-        DpPreconditions.checkL0Sensitivity(params.maxPartitionsContributed());
+        DpPreconditions.checkMaxPartitionsContributed(params.maxPartitionsContributed());
         DpPreconditions.checkMaxContributionsPerPartition(params.maxContributionsPerPartition());
         DpPreconditions.checkBounds(params.lower(), params.upper());
 

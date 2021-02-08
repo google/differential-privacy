@@ -84,9 +84,10 @@ extension, for example on Ubuntu you will need these packages:
 Differential privacy requires some bound on maximum number of contributions
 each user can make to a single aggregation. The DP building block libraries
 don't perform such bounding: their implementation assumes that each user
-contributes only a single row to each partition. It neither verifies nor
-enforces this; it is the caller's responsibility to pre-process data to enforce
-this bound.
+contributes only a fixed number of rows to each partition. That number
+can be configured by the user. The library neither verifies nor
+enforces this limit; it is the caller's responsibility to pre-process data to
+enforce this.
 
 We chose not to implement this step at the DP building block level because it
 requires some *global* operation over the data: group by user, and aggregate or

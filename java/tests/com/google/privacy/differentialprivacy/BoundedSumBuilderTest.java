@@ -21,11 +21,17 @@ import static java.lang.Double.NEGATIVE_INFINITY;
 import static java.lang.Double.NaN;
 import static java.lang.Double.POSITIVE_INFINITY;
 import static org.junit.Assert.assertThrows;
+import static org.mockito.Mockito.when;
 
+import com.google.differentialprivacy.SummaryOuterClass.MechanismType;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 /** Tests validations done by {@link BoundedSum#builder()}. */
 @RunWith(JUnit4.class)
@@ -39,6 +45,10 @@ public class BoundedSumBuilderTest {
 
   private BoundedSum.Params.Builder builder;
 
+  @Mock private Noise unrecognizedNoise;
+
+  @Rule public final MockitoRule mocks = MockitoJUnit.rule();
+
   @Before
   public void setup() {
     builder =
@@ -50,6 +60,8 @@ public class BoundedSumBuilderTest {
             .maxPartitionsContributed(DEFAULT_MAX_PARTITIONS_CONTRIBUTED)
             .lower(DEFAULT_LOWER)
             .upper(DEFAULT_UPPER);
+
+    when(unrecognizedNoise.getMechanismType()).thenReturn(MechanismType.EMPTY);
   }
 
   @Test
@@ -160,6 +172,68 @@ public class BoundedSumBuilderTest {
   public void deltaLaplace_null_buildsInstance() {
     builder.noise(new LaplaceNoise());
     builder.delta(null);
+    assertThat(builder.build()).isNotNull();
+  }
+
+  @Test
+  public void deltaUnrecognizedNoise_lessThanZero_throwsException() {
+    builder.delta(-1.0);
+    builder.noise(unrecognizedNoise);
+    assertThrows(IllegalArgumentException.class, builder::build);
+  }
+
+  @Test
+  public void deltaUnrecognizedNoise_zero_buildsInstance() {
+    builder.delta(0.0);
+    builder.noise(unrecognizedNoise);
+    assertThat(builder.build()).isNotNull();
+  }
+
+  @Test
+  public void deltaUnrecognizedNoise_one_throwsException() {
+    builder.delta(1.0);
+    builder.noise(unrecognizedNoise);
+    assertThrows(IllegalArgumentException.class, builder::build);
+  }
+
+  @Test
+  public void deltaUnrecognizedNoise_greaterThanOne_throwsException() {
+    builder.delta(2.0);
+    builder.noise(unrecognizedNoise);
+    assertThrows(IllegalArgumentException.class, builder::build);
+  }
+
+  @Test
+  public void deltaUnrecognizedNoise_nan_throwsException() {
+    builder.delta(NaN);
+    builder.noise(unrecognizedNoise);
+    assertThrows(IllegalArgumentException.class, builder::build);
+  }
+
+  @Test
+  public void deltaUnrecognizedNoise_null_buildsInstance() {
+    builder.delta(null);
+    builder.noise(unrecognizedNoise);
+    assertThat(builder.build()).isNotNull();
+  }
+
+  @Test
+  public void deltaUnrecognizedNoise_betweenZeroAndOne_buildsInstance() {
+    builder.delta(DEFAULT_DELTA);
+    builder.noise(unrecognizedNoise);
+    assertThat(builder.build()).isNotNull();
+  }
+
+  @Test
+  public void deltaUnrecognizedNoise_notProvided_buildsInstance() {
+    BoundedSum.Params.Builder builder =
+        BoundedSum.builder()
+            .epsilon(DEFAULT_EPSILON)
+            .noise(unrecognizedNoise)
+            .maxContributionsPerPartition(DEFAULT_MAX_CONTRIBUTIONS_PER_PARTITION)
+            .maxPartitionsContributed(DEFAULT_MAX_PARTITIONS_CONTRIBUTED)
+            .lower(DEFAULT_LOWER)
+            .upper(DEFAULT_UPPER);
     assertThat(builder.build()).isNotNull();
   }
 
@@ -322,7 +396,7 @@ public class BoundedSumBuilderTest {
   }
 
   @Test
-  public void paramtersResultInL1SensitivityOverflow_throwsException() {
+  public void parametersResultInL1SensitivityOverflow_throwsException() {
     BoundedSum.Params.Builder builder =
         BoundedSum.builder()
             .epsilon(DEFAULT_EPSILON)
@@ -339,7 +413,7 @@ public class BoundedSumBuilderTest {
   }
 
   @Test
-  public void paramtersResultInL2SensitivityOverflow_throwsException() {
+  public void parametersResultInL2SensitivityOverflow_throwsException() {
     BoundedSum.Params.Builder builder =
         BoundedSum.builder()
             .epsilon(DEFAULT_EPSILON)
@@ -354,5 +428,41 @@ public class BoundedSumBuilderTest {
     // = 1 * 5^0.5 * Double.MAX_VALUE / 2
     // = (5/4)^0.5 * Double.MAX_VALUE
     assertThrows(IllegalArgumentException.class, builder::build);
+  }
+
+  @Test
+  public void parametersResultInL1SensitivityOverflow_unrecognizedNoise_buildsInstance() {
+    BoundedSum.Params.Builder builder =
+        BoundedSum.builder()
+            .epsilon(DEFAULT_EPSILON)
+            .noise(unrecognizedNoise)
+            .maxContributionsPerPartition(1)
+            .maxPartitionsContributed(4)
+            .lower(-Double.MAX_VALUE / 2.0)
+            .upper(Double.MAX_VALUE / 2.0);
+    //   l_1 sensitivity (of the numerator of the mean)
+    // = maxContributionsPerPartition * maxPartitionsContributed * |lower - upper| / 2
+    // = 1 * 4 * Double.MAX_VALUE / 2
+    // = 2 * Double.MAX_VALUE
+    // But the instance is still built because the noise type isn't recognized.
+    assertThat(builder.build()).isNotNull();
+  }
+
+  @Test
+  public void parametersResultInL2SensitivityOverflow_unrecognizedNoise_buildsInstance() {
+    BoundedSum.Params.Builder builder =
+        BoundedSum.builder()
+            .epsilon(DEFAULT_EPSILON)
+            .noise(unrecognizedNoise)
+            .maxContributionsPerPartition(1)
+            .maxPartitionsContributed(5)
+            .lower(-Double.MAX_VALUE / 2.0)
+            .upper(Double.MAX_VALUE / 2.0);
+    //   l_2 sensitivity (of the numerator of the mean)
+    // = maxContributionsPerPartition * maxPartitionsContributed^0.5 * |lower - upper| / 2
+    // = 1 * 5^0.5 * Double.MAX_VALUE / 2
+    // = (5/4)^0.5 * Double.MAX_VALUE
+    // But the instance is still built because the noise type isn't recognized.
+    assertThat(builder.build()).isNotNull();
   }
 }

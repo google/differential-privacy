@@ -153,8 +153,8 @@ func newDecodePairFn(t reflect.Type, kind reflect.Kind) interface{} {
 // decodePairInt64Fn transforms a PCollection<pairInt64<codedX,int64>> into a
 // PCollection<X,int64>.
 type decodePairInt64Fn struct {
-	XType beam.EncodedType
-	xDec  beam.ElementDecoder
+	XType       beam.EncodedType
+	xDec        beam.ElementDecoder
 }
 
 func newDecodePairInt64Fn(t reflect.Type) *decodePairInt64Fn {

@@ -74,7 +74,7 @@ public class BoundedSum {
   /** Clamps the input value and adds it to the sum. */
   public void addEntry(double e) {
     if (state != AggregationState.DEFAULT) {
-      throw new IllegalStateException("Sum cannot be amended. Reason: " + state.getErrorMessage());
+      throw new IllegalStateException("Entry cannot be added. Reason: " + state.getErrorMessage());
     }
 
     // NaN is ignored because introducing even a single NaN entry will result in a NaN sum
@@ -92,16 +92,8 @@ public class BoundedSum {
     e.forEach(this::addEntry);
   }
 
-  private double clamp(double e) {
-    if (e > params.upper()) {
-      return params.upper();
-    }
-
-    if (e < params.lower()) {
-      return params.lower();
-    }
-
-    return e;
+  private double clamp(double value) {
+    return max(min(value, params.upper()), params.lower());
   }
 
   /**
@@ -120,7 +112,7 @@ public class BoundedSum {
   public double computeResult() {
     if (state != AggregationState.DEFAULT) {
       throw new IllegalStateException(
-          "Sum's noised result cannot be computed. Reason: " + state.getErrorMessage());
+          "DP sum cannot be computed. Reason: " + state.getErrorMessage());
     }
 
     state = AggregationState.RESULT_RETURNED;
@@ -351,14 +343,14 @@ public class BoundedSum {
       public abstract Builder noise(Noise value);
 
       /**
-       * Lower bound for the entries added to the sum. Any data values below this value will be
-       * clamped (i.e., set) to this bound.
+       * Lower bound for the entries added to the sum. Any entires smaller than this value will be
+       * set to this value.
        */
       public abstract Builder lower(double value);
 
       /**
-       * Upper bound for the entries added to the sum. Any data values above this value will be
-       * clamped (i.e., set) to this bound.
+       * Upper bound for the entries added to the sum. Any entires greater than this value will be
+       * set to this value.
        */
       public abstract Builder upper(double value);
 
@@ -397,9 +389,7 @@ public class BoundedSum {
                 params.maxPartitionsContributed());
             break;
           default:
-            throw new IllegalArgumentException(
-                "Unable to validate sensitivity overflow: unknown mechanism type: "
-                    + params.noise().getMechanismType());
+            break;
         }
         checkLInfSensitivityOverflow(
             params.lower(), params.upper(), params.maxContributionsPerPartition());

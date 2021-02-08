@@ -23,34 +23,6 @@ from dp_accounting import privacy_loss_distribution
 from dp_accounting import test_util
 
 
-class ConvolveTest(unittest.TestCase):
-
-  def test_convolve_dictionary(self):
-    dictionary1 = {1: 2, 3: 4}
-    dictionary2 = {2: 3, 4: 6}
-    expected_result = {3: 6, 5: 24, 7: 24}
-    result = privacy_loss_distribution.convolve_dictionary(
-        dictionary1, dictionary2)
-    test_util.dictionary_almost_equal(self, expected_result, result)
-
-  def test_self_convolve_dictionary(self):
-    inp_dictionary = {1: 2, 3: 5, 4: 6}
-    expected_result = {
-        3: 8,
-        5: 60,
-        6: 72,
-        7: 150,
-        8: 360,
-        9: 341,
-        10: 450,
-        11: 540,
-        12: 216
-    }
-    result = privacy_loss_distribution.self_convolve_dictionary(
-        inp_dictionary, 3)
-    test_util.dictionary_almost_equal(self, expected_result, result)
-
-
 class PrivacyLossDistributionTest(parameterized.TestCase):
 
   def test_hockey_stick_basic(self):

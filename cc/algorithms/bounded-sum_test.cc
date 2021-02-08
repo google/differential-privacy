@@ -16,6 +16,8 @@
 
 #include "algorithms/bounded-sum.h"
 
+#include <limits>
+
 #include "base/testing/proto_matchers.h"
 #include "base/testing/status_matchers.h"
 #include "gmock/gmock.h"
@@ -83,6 +85,25 @@ TYPED_TEST(BoundedSumTest, BasicIOWithoutIterator) {
   auto output = (*bs)->PartialResult();
   ASSERT_OK(output);
   EXPECT_THAT(GetValue<TypeParam>(*output), Eq(static_cast<TypeParam>(6)));
+}
+
+TEST(BoundedSumTest, AddEntryInvalidInputIgnored) {
+  std::vector<float> a = {0, 0, std::numeric_limits<float>::quiet_NaN(), 10,
+                          10};
+  auto bs =
+      typename BoundedSum<float>::Builder()
+          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetEpsilon(1.0)
+          .SetLower(1)
+          .SetUpper(2)
+          .Build();
+  ASSERT_OK(bs);
+  for (const auto& input : a) {
+    (*bs)->AddEntry(input);
+  }
+  auto output = (*bs)->PartialResult();
+  ASSERT_OK(output);
+  EXPECT_FLOAT_EQ(GetValue<float>(*output), 6);
 }
 
 TYPED_TEST(BoundedSumTest, RepeatedResultTest) {

@@ -150,8 +150,8 @@ func (fn *EncodeFn) ProcessElement(k beam.T, v beam.V) Pair {
 
 // DecodeFn transforms a PCollection<codedKV> into a PCollection<K,V>.
 type DecodeFn struct {
-	KType beam.EncodedType
-	VType beam.EncodedType
+	KType       beam.EncodedType
+	VType       beam.EncodedType
 
 	kDec beam.ElementDecoder
 	vDec beam.ElementDecoder

@@ -192,6 +192,7 @@ cc_test(
         "//base/testing:proto_matchers",
         "//base/testing:status_matchers",
         "@com_google_googletest//:gtest_main",
+        "@com_google_absl//absl/status",
     ],
 )
 
@@ -287,6 +288,7 @@ cc_test(
         "@com_google_googletest//:gtest_main",
         "@com_google_differential_privacy//proto:data_cc_proto",
         "@com_google_differential_privacy//proto:summary_cc_proto",
+        "@com_google_absl//absl/status",
         "@com_google_protobuf//:cc_wkt_protos",
     ],
 )
@@ -432,10 +434,12 @@ cc_test(
     deps = [
         ":approx-bounds",
         ":numerical-mechanisms-testing",
+        "//base:statusor",
         "//base/testing:proto_matchers",
         "//base/testing:status_matchers",
         "@com_google_googletest//:gtest_main",
         "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/status",
     ],
 )
 

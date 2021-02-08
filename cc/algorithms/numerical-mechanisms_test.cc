@@ -34,7 +34,11 @@ using ::testing::MatchesRegex;
 using ::testing::Return;
 using ::differential_privacy::base::testing::StatusIs;
 
-constexpr int kSmallNumSamples = 1000000;
+// Number of samples to use when taking samples is inexpensive.
+constexpr int kNumSamples = 1e6;
+// Number of samples to use when taking samples is expensive, such as using a
+// NumericalMechanism to add noise.
+constexpr int kSmallNumSamples = 1e4;
 
 class MockLaplaceDistribution : public internal::LaplaceDistribution {
  public:
@@ -331,11 +335,11 @@ TEST(NumericalMechanismsTest, LaplaceNoisedValueAboveThreshold) {
   double num_above_thresold;
   for (TestScenario ts : test_scenarios) {
     num_above_thresold = 0;
-    for (int i = 0; i < kSmallNumSamples; ++i) {
+    for (int i = 0; i < kNumSamples; ++i) {
       if (mechanism->NoisedValueAboveThreshold(ts.input, ts.threshold))
         ++num_above_thresold;
     }
-    EXPECT_NEAR(num_above_thresold / kSmallNumSamples, ts.expected_probability,
+    EXPECT_NEAR(num_above_thresold / kNumSamples, ts.expected_probability,
                 0.0025);
   }
 }
@@ -369,6 +373,87 @@ TEST(NumericalMechanismsTest, LaplaceWorksForIntegers) {
   LaplaceMechanism mechanism(1.0, 1.0, std::move(distro));
 
   EXPECT_EQ(static_cast<int64_t>(mechanism.AddNoise(0)), 10);
+}
+
+TEST(NumericalMechanismsTest, LaplaceRoundsToGranularity_Double) {
+  // These choices of epsilon and sensitivities should result in a granularity
+  // of 2^-10. Granularity ~= sensitivity / epsilon / 2^40 ~= 1 / 2^-30 / 2^40
+  // = 2^30 / 2^40.
+  std::unique_ptr<NumericalMechanism> small_granularity_mech =
+      LaplaceMechanism::Builder()
+          .SetEpsilon(4.7e-10)
+          .SetL0Sensitivity(1)
+          .SetLInfSensitivity(1)
+          .Build()
+          .value();
+
+  // These choices of epsilon and sensitivities should result in a granularity
+  // of 2^0. Granularity ~= sensitivity / epsilon / 2^40 ~= 1 / 2^-40 / 2^40
+  // = 2^40 / 2^40.
+  std::unique_ptr<NumericalMechanism> med_granularity_mech =
+      LaplaceMechanism::Builder()
+          .SetEpsilon(9.1e-13)
+          .SetL0Sensitivity(1)
+          .SetLInfSensitivity(1)
+          .Build()
+          .value();
+
+  // These choices of epsilon and sensitivities should result in a granularity
+  // of 2^10. Granularity ~= sensitivity / epsilon / 2^40 ~= 1 / 2^-50 / 2^40
+  // = 2^50 / 2^40.
+  std::unique_ptr<NumericalMechanism> large_granularity_mech =
+      LaplaceMechanism::Builder()
+          .SetEpsilon(8.9e-16)
+          .SetL0Sensitivity(1)
+          .SetLInfSensitivity(1)
+          .Build()
+          .value();
+
+  for (int i = 0; i < kSmallNumSamples; ++i) {
+    // The rounding process should be independent of the value of x. Setting x
+    // to a value between -1*10^6 and 10^6 at random should covere a broad range
+    // of congruence classes.
+    double input = UniformDouble() * 2e6 - 1e6;
+
+    EXPECT_EQ(std::fmod(small_granularity_mech->AddNoise(input), 1.0 / 1024.0),
+              0);
+    EXPECT_EQ(std::fmod(med_granularity_mech->AddNoise(input), 1), 0);
+    EXPECT_EQ(std::fmod(large_granularity_mech->AddNoise(input), 1024), 0);
+  }
+}
+
+TEST(NumericalMechanismsTest, LaplaceRoundsToGranularity_Int) {
+  // These choices of epsilon and sensitivities should result in a granularity
+  // of 2^1. Granularity ~= sensitivity / epsilon / 2^40 ~= 1 / 2^-41 / 2^40
+  // = 2^41 / 2^40.
+  std::unique_ptr<NumericalMechanism> med_granularity_mech =
+      LaplaceMechanism::Builder()
+          .SetEpsilon(4.6e-13)
+          .SetL0Sensitivity(1)
+          .SetLInfSensitivity(1)
+          .Build()
+          .value();
+
+  // These choices of epsilon and sensitivities should result in a granularity
+  // of 2^10. Granularity ~= sensitivity / epsilon / 2^40 ~= 1 / 2^-50 / 2^40
+  // = 2^50 / 2^40.
+  std::unique_ptr<NumericalMechanism> large_granularity_mech =
+      LaplaceMechanism::Builder()
+          .SetEpsilon(8.9e-16)
+          .SetL0Sensitivity(1)
+          .SetLInfSensitivity(1)
+          .Build()
+          .value();
+
+  for (int i = 0; i < kSmallNumSamples; ++i) {
+    // The rounding process should be independent of the value of x. Setting x
+    // to a value between -1*10^6 and 10^6 at random should covere a broad range
+    // of congruence classes.
+    int64_t input = UniformDouble() * 2e6 - 1e6;
+
+    EXPECT_EQ(std::fmod(med_granularity_mech->AddNoise(input), 2), 0);
+    EXPECT_EQ(std::fmod(large_granularity_mech->AddNoise(input), 1024), 0);
+  }
 }
 
 TEST(NumericalMechanismsTest, LaplaceConfidenceInterval) {
@@ -680,6 +765,89 @@ TEST(NumericalMechanismsTest,
   EXPECT_TRUE(std::isfinite(noised_value));
 }
 
+TEST(NumericalMechanismsTest, GaussianRoundsToGranularity_Double) {
+  // These choices of epsilon and sensitivities should result in a granularity
+  // of 2^-10. Granularity ~= 2 * sigma / 2^57. We pick a sigma that yields a
+  // granularity of 2^-10, and then adjust sensitivity (sigma scales linearly
+  // with LInf sensitivity) to adjust the granularity.
+  std::unique_ptr<NumericalMechanism> small_granularity_mech =
+      GaussianMechanism::Builder()
+          .SetEpsilon(1.0e-15)
+          .SetDelta(1.0e-14)
+          .SetL0Sensitivity(1)
+          .SetLInfSensitivity(1)
+          .Build()
+          .value();
+
+  // These choices of epsilon and sensitivities should result in a granularity
+  // of 2^0.
+  std::unique_ptr<NumericalMechanism> med_granularity_mech =
+      GaussianMechanism::Builder()
+          .SetEpsilon(1.0e-15)
+          .SetDelta(1.0e-14)
+          .SetL0Sensitivity(1)
+          .SetLInfSensitivity(1024)
+          .Build()
+          .value();
+
+  // These choices of epsilon and sensitivities should result in a granularity
+  // of 2^10.
+  std::unique_ptr<NumericalMechanism> large_granularity_mech =
+      GaussianMechanism::Builder()
+          .SetEpsilon(1.0e-15)
+          .SetDelta(1.0e-14)
+          .SetL0Sensitivity(1)
+          .SetLInfSensitivity(1048576.0)
+          .Build()
+          .value();
+
+  for (int i = 0; i < kSmallNumSamples; ++i) {
+    // The rounding process should be independent of the value of x. Setting x
+    // to a value between -1*10^6 and 10^6 at random should covere a broad range
+    // of congruence classes.
+    double input = UniformDouble() * 2000000.0 - 1000000.0;
+
+    EXPECT_EQ(std::fmod(small_granularity_mech->AddNoise(input), 1.0 / 1024.0),
+              0);
+    EXPECT_EQ(std::fmod(med_granularity_mech->AddNoise(input), 1), 0);
+    EXPECT_EQ(std::fmod(large_granularity_mech->AddNoise(input), 1024), 0);
+  }
+}
+
+TEST(NumericalMechanismsTest, GaussianRoundsToGranularity_Int) {
+  // These choices of epsilon and sensitivities should result in a granularity
+  // of 2^1.
+  std::unique_ptr<NumericalMechanism> med_granularity_mech =
+      GaussianMechanism::Builder()
+          .SetEpsilon(1.0e-15)
+          .SetDelta(1.0e-14)
+          .SetL0Sensitivity(1)
+          .SetLInfSensitivity(2048)
+          .Build()
+          .value();
+
+  // These choices of epsilon and sensitivities should result in a granularity
+  // of 2^10.
+  std::unique_ptr<NumericalMechanism> large_granularity_mech =
+      GaussianMechanism::Builder()
+          .SetEpsilon(1.0e-15)
+          .SetDelta(1.0e-14)
+          .SetL0Sensitivity(1)
+          .SetLInfSensitivity(1048576)
+          .Build()
+          .value();
+
+  for (int i = 0; i < kSmallNumSamples; ++i) {
+    // The rounding process should be independent of the value of x. Setting x
+    // to a value between -1*10^6 and 10^6 at random should covere a broad range
+    // of congruence classes.
+    int64_t input = UniformDouble() * 2e6 - 1e6;
+
+    EXPECT_EQ(std::fmod(med_granularity_mech->AddNoise(input), 2), 0);
+    EXPECT_EQ(std::fmod(large_granularity_mech->AddNoise(input), 1024), 0);
+  }
+}
+
 TEST(NumericalMechanismsTest, GaussianMechanismNoisedValueAboveThreshold) {
   GaussianMechanism::Builder builder;
   std::unique_ptr<NumericalMechanism> mechanism = builder.SetL2Sensitivity(1)
@@ -706,11 +874,11 @@ TEST(NumericalMechanismsTest, GaussianMechanismNoisedValueAboveThreshold) {
   double num_above_thresold;
   for (TestScenario ts : test_scenarios) {
     num_above_thresold = 0;
-    for (int i = 0; i < kSmallNumSamples; ++i) {
+    for (int i = 0; i < kNumSamples; ++i) {
       if (mechanism->NoisedValueAboveThreshold(ts.input, ts.threshold))
         ++num_above_thresold;
     }
-    EXPECT_NEAR(num_above_thresold / kSmallNumSamples, ts.expected_probability,
+    EXPECT_NEAR(num_above_thresold / kNumSamples, ts.expected_probability,
                 0.0025);
   }
 }

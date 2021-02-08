@@ -19,6 +19,7 @@ import unittest
 from absl.testing import parameterized
 
 from dp_accounting import common
+from dp_accounting import test_util
 
 
 class CommonTest(parameterized.TestCase):
@@ -27,11 +28,11 @@ class CommonTest(parameterized.TestCase):
       {
           'testcase_name': 'no_initial_guess',
           'func': (lambda x: -x),
-          'value': -5,
+          'value': -4.5,
           'lower_x': 0,
           'upper_x': 10,
           'initial_guess_x': None,
-          'expected_x': 5,
+          'expected_x': 4.5,
           'increasing': False,
       },
       {
@@ -93,17 +94,63 @@ class CommonTest(parameterized.TestCase):
           'initial_guess_x': None,
           'expected_x': None,
           'increasing': True,
+      },
+      {
+          'testcase_name': 'discrete',
+          'func': (lambda x: -x),
+          'value': -4.5,
+          'lower_x': 0,
+          'upper_x': 10,
+          'initial_guess_x': None,
+          'expected_x': 5,
+          'increasing': False,
+          'discrete': True,
       })
   def test_inverse_monotone_function(self, func, value, lower_x, upper_x,
-                                     initial_guess_x, expected_x, increasing):
+                                     initial_guess_x, expected_x, increasing,
+                                     discrete=False):
     search_parameters = common.BinarySearchParameters(
-        lower_x, upper_x, initial_guess=initial_guess_x)
+        lower_x, upper_x, initial_guess=initial_guess_x, discrete=discrete)
     x = common.inverse_monotone_function(
         func, value, search_parameters, increasing=increasing)
     if expected_x is None:
       self.assertIsNone(x)
     else:
       self.assertAlmostEqual(expected_x, x)
+
+
+class ConvolveTest(unittest.TestCase):
+
+  def test_convolve_dictionary(self):
+    dictionary1 = {1: 2, 3: 4}
+    dictionary2 = {2: 3, 4: 6}
+    expected_result = {3: 6, 5: 24, 7: 24}
+    result = common.convolve_dictionary(dictionary1, dictionary2)
+    test_util.dictionary_almost_equal(self, expected_result, result)
+
+  def test_self_convolve_dictionary(self):
+    inp_dictionary = {1: 2, 3: 5, 4: 6}
+    expected_result = {
+        3: 8,
+        5: 60,
+        6: 72,
+        7: 150,
+        8: 360,
+        9: 341,
+        10: 450,
+        11: 540,
+        12: 216
+    }
+    result = common.self_convolve_dictionary(inp_dictionary, 3)
+    test_util.dictionary_almost_equal(self, expected_result, result)
+
+  def test_self_convolve(self):
+    input_list = [3, 5, 7]
+    expected_result = [9, 30, 67, 70, 49]
+    result = common.self_convolve(input_list, 2)
+    self.assertEqual(len(expected_result), len(result))
+    for expected_value, value in zip(expected_result, result):
+      self.assertAlmostEqual(expected_value, value)
 
 
 if __name__ == '__main__':

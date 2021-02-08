@@ -98,7 +98,10 @@ func DistinctPerKey(s beam.Scope, pcol PrivatePCollection, params DistinctPerKey
 	if err != nil {
 		log.Exitf("Couldn't consume budget for DistinctPerKey: %v", err)
 	}
-	checkDistinctPerKeyParams(params, epsilon, delta, maxPartitionsContributed)
+	err = checkDistinctPerKeyParams(params, epsilon, delta, maxPartitionsContributed)
+	if err != nil {
+		log.Exit(err)
+	}
 
 	// Perform partition selection
 	noiseEpsilon, partitionSelectionEpsilon, noiseDelta, partitionSelectionDelta := splitBudget(epsilon, delta, noiseKind)

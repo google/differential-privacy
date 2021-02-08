@@ -20,16 +20,45 @@ starts with a privacy budget of `1`, and reading uses up that budget.
 ```
 base::StatusOr<std::unique_ptr<Algorithm>> algorithm =
  AlgorithmBuilder.SetEpsilon(double epsilon)
+                 .SetMaxPartitionsContributedTo(int max_partitions)
+                 .SetMaxContributionsPerPartition(int max_contributions)
                  .SetLaplaceMechanism(std::unique_ptr<LaplaceMechanism::Builder> laplace_mechanism_builder)
                  .Build();
 ```
 
 *   `double epsilon`: The `epsilon` differential privacy parameter. A smaller
     number means more privacy but less accuracy.
+*   `int max_partitions`: The number of aggregations, or 'partitions,' that each
+    user is allowed to contribute to. Defaults to 1 if unset. The caller must
+    guarantee that this limit is enforced on the input. The library cannot
+    enforce it because it cannot distinguish between users or aggregations. Note
+    that `Algorithm`s that will be merged together are considered part of the
+    same partition.
+*   `int max_contributions`: The number of pieces of input to this aggregation
+    that can belong to a single user. Defaults to 1 if unset. The caller must
+    guarantee that this limit is enforced on the input. The library cannot
+    enforce it because it does not now which inputs belong to which users. If
+    summaries from multiple `Algorithm`s are merged together, the total number
+    of inputs from a single user across all marged `Algorithm`s must not exceed
+    this limit.
 *   `std::unique_ptr<LaplaceMechanism::Builder> laplace_mechanism_builder`: Used
     to specify the type of laplace mechanism the algorithm will use to add
     noise. In most cases they should not be set (and a default LaplaceMechanism
     will be used), but it can be used to remove or mock noise during testing.
+
+### Partitions
+Several of the parameters refer to the concept of a partition. We define a
+partition as a portion of the data for which a single statistic will be
+released. This is best explained through examples: if you're counting the number
+of people is each of a set of age buckets, partitions would correspond to age
+buckets. Or if you want to count the number of cars broken down by color, each
+color would be a partition.
+
+We imagine that you will use one or more `Algorithm`s for the data from each
+partition. A single `Algorithm` should not be used for data from more than one
+partition. If multiple `Algorithm`s are used for a single partition, we imagine
+that serialization (described below) will be used to combine their data into a
+single `Algorithm` and produce a single output.
 
 ## Use
 

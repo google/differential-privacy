@@ -276,8 +276,9 @@ class BoundedSum : public Algorithm<T> {
 
       // To find the sum, pass the identity function as the transform. We pass
       // count = 0 because the count should never be used.
-      sum = approx_bounds_->template ComputeFromPartials<T>(
-          pos_sum_, neg_sum_, [](T x) { return x; }, lower_, upper_, 0);
+      ASSIGN_OR_RETURN(sum, approx_bounds_->template ComputeFromPartials<T>(
+                                pos_sum_, neg_sum_, [](T x) { return x; },
+                                lower_, upper_, 0));
 
       // Populate the bounding report with ApproxBounds information.
       *(output.mutable_error_report()->mutable_bounding_report()) =

@@ -102,7 +102,7 @@ class Count : public Algorithm<T> {
 
   void ResetState() override { count_ = 0; }
 
-  uint64_t GetCount() const { return count_; }
+  int64_t GetCount() const { return count_; }
 
   // The constructor and count_ are non-private for testing.
   Count(double epsilon, double delta,
@@ -112,14 +112,22 @@ class Count : public Algorithm<T> {
         mechanism_(std::move(mechanism)) {}
 
  private:
-  void AddMultipleEntries(const T& v, uint64_t num_of_entries) {
+  void AddMultipleEntries(const T& v, int64_t num_of_entries) {
+    absl::Status status =
+        ValidateIsNonNegative(num_of_entries, "Number of entries");
+    if (!status.ok()) {
+      return;
+    }
+
     count_ += num_of_entries;
   }
 
   // Friend class for testing only
   friend class CountTestPeer;
 
-  uint64_t count_;
+  // Count of the number of entries added.
+  int64_t count_;
+
   std::unique_ptr<NumericalMechanism> mechanism_;
 };
 

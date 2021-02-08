@@ -24,108 +24,9 @@ supplementary material below for more details:
 import collections
 import math
 import typing
-import numpy
-from scipy import signal
 
 from dp_accounting import common
 from dp_accounting import privacy_loss_mechanism
-
-
-def dictionary_to_list(
-    input_dictionary: typing.Mapping[int, float]
-) -> typing.Tuple[int, typing.List[float]]:
-  """Converts an integer-keyed dictionary into an list.
-
-  Args:
-    input_dictionary: A dictionary whose keys are integers.
-
-  Returns:
-    A tuple of an integer offset and a list result_list. The offset is the
-    minimum value of the input dictionary. result_list has length equal to the
-    difference between the maximum and minimum values of the input dictionary.
-    result_list[i] is equal to dictionary[offset + i] and is zero if offset + i
-    is not a key in the input dictionary.
-  """
-  offset = min(input_dictionary)
-  max_val = max(input_dictionary)
-  result_list = [input_dictionary.get(i, 0) for i in range(offset, max_val + 1)]
-  return (offset, result_list)
-
-
-def list_to_dictionary(input_list: typing.List[float],
-                       offset: int) -> typing.Mapping[int, float]:
-  """Converts a list into an integer-key dictionary, with a specified offset.
-
-  Args:
-    input_list: An input list.
-    offset: The offset in the key of the output dictionary
-
-  Returns:
-    A dictionary whose value at key is equal to input_list[key - offset]. If
-    input_list[key - offset] is less than or equal to zero, it is not included
-    in the dictionary.
-  """
-  result_dictionary = {}
-  for i in range(len(input_list)):
-    if input_list[i] > 0:
-      result_dictionary[i + offset] = input_list[i]
-  return result_dictionary
-
-
-def convolve_dictionary(
-    dictionary1: typing.Mapping[int, float],
-    dictionary2: typing.Mapping[int, float]) -> typing.Mapping[int, float]:
-  """Computes a convolution of two dictionaries.
-
-  Args:
-    dictionary1: The first dictionary whose keys are integers.
-    dictionary2: The second dictionary whose keys are integers.
-
-  Returns:
-    The dictionary where for each key its corresponding value is the sum, over
-    all key1, key2 such that key1 + key2 = key, of dictionary1[key1] times
-    dictionary2[key2]
-  """
-
-  # Convert the dictionaries to lists.
-  min1, list1 = dictionary_to_list(dictionary1)
-  min2, list2 = dictionary_to_list(dictionary2)
-
-  # Compute the convolution of the two lists.
-  result_list = signal.fftconvolve(list1, list2)
-
-  # Convert the list back to a dictionary and return
-  return list_to_dictionary(result_list, min1 + min2)
-
-
-def self_convolve_dictionary(input_dictionary: typing.Mapping[int, float],
-                             num_times: int):
-  """Computes a convolution of the input dictionary with itself num_times times.
-
-  Args:
-    input_dictionary: The input dictionary whose keys are integers.
-    num_times: The number of times the dictionary is to be convolved with
-      itself.
-
-  Returns:
-    The dictionary where for each key its corresponding value is the sum, over
-    all key1, key2, ..., key_num_times such that key1 + key2 + ... +
-    key_num_times = key, of input_dictionary[key1] * input_dictionary[key2] *
-    ... * input_dictionary[key_num_times]
-  """
-
-  # Convert the dictionary to list.
-  min_val, input_list = dictionary_to_list(input_dictionary)
-
-  # Use FFT to compute the convolution
-  result_list = numpy.fft.ifft(
-      numpy.fft.fft(input_list, num_times * len(input_list))**num_times)
-
-  # Get rid of complex part of the results in the list
-  result_list_real_part = [numpy.real(i) for i in result_list]
-
-  # Convert the list back to a dictionary and return
-  return list_to_dictionary(result_list_real_part, min_val * num_times)
 
 
 class PrivacyLossDistribution(object):
@@ -662,7 +563,7 @@ class PrivacyLossDistribution(object):
 
     # The probability mass function of the resulting distribution is simply the
     # convolutaion of the two input probability mass functions.
-    new_rounded_probability_mass_function = convolve_dictionary(
+    new_rounded_probability_mass_function = common.convolve_dictionary(
         self.rounded_probability_mass_function,
         privacy_loss_distribution.rounded_probability_mass_function)
 
@@ -684,7 +585,7 @@ class PrivacyLossDistribution(object):
       A privacy loss distribution which is the result of the composition.
     """
 
-    new_rounded_probability_mass_function = self_convolve_dictionary(
+    new_rounded_probability_mass_function = common.self_convolve_dictionary(
         self.rounded_probability_mass_function, num_times)
 
     new_infinity_mass = (1 - ((1 - self.infinity_mass)**num_times))
