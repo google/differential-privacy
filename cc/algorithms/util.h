@@ -149,15 +149,6 @@ inline bool SafeSubtract(T lhs, T rhs, T* result) {
   return true;
 }
 
-// When T is a floating-point type, perform a simple multiplication, since
-// floating-point types don't have the same overflow issues as integral types.
-template <typename T,
-          std::enable_if_t<std::is_floating_point<T>::value>* = nullptr>
-inline bool SafeMultiply(T lhs, T rhs, T* result) {
-  *result = lhs * rhs;
-  return true;
-}
-
 // Return true and assign the square result if squaring will not overflow.
 template <typename T, std::enable_if_t<std::is_integral<T>::value>* = nullptr>
 inline bool SafeSquare(T num, T* result) {

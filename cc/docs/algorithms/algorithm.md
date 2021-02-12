@@ -22,7 +22,7 @@ base::StatusOr<std::unique_ptr<Algorithm>> algorithm =
  AlgorithmBuilder.SetEpsilon(double epsilon)
                  .SetMaxPartitionsContributedTo(int max_partitions)
                  .SetMaxContributionsPerPartition(int max_contributions)
-                 .SetLaplaceMechanism(std::unique_ptr<LaplaceMechanism::Builder> laplace_mechanism_builder)
+                 .SetLaplaceMechanism(std::unique_ptr<NumericalMechanism::Builder> mechanism_builder)
                  .Build();
 ```
 
@@ -41,10 +41,11 @@ base::StatusOr<std::unique_ptr<Algorithm>> algorithm =
     summaries from multiple `Algorithm`s are merged together, the total number
     of inputs from a single user across all marged `Algorithm`s must not exceed
     this limit.
-*   `std::unique_ptr<LaplaceMechanism::Builder> laplace_mechanism_builder`: Used
-    to specify the type of laplace mechanism the algorithm will use to add
-    noise. In most cases they should not be set (and a default LaplaceMechanism
-    will be used), but it can be used to remove or mock noise during testing.
+*   `std::unique_ptr<NumericalMechanism::Builder> mechanism_builder`: Used
+    to specify the type of numerical mechanism the algorithm will use to add
+    noise (e.g. Laplace, Gaussian). In most cases this should not be set (and a
+    default LaplaceMechanism will be used), but it can be used to remove or mock
+    noise during testing.
 
 ### Partitions
 Several of the parameters refer to the concept of a partition. We define a
@@ -76,12 +77,6 @@ void AddEntry(const T& t);
 Adds a single element `t` to the `Algorithm`'s pool. The type of `t` should be
 the `Algorithm`'s templated type `T`.
 
-```
-void Reset();
-```
-
-Clears the algorithm's input pool, and sets your remaining privacy budget back
-to `1.0`.
 
 ```
 template <typename Iterator>
@@ -96,21 +91,29 @@ Adds multiple inputs to the algorithm.
 *   `Iterator begin` and `Iterator end`: The begin and end iterators for your
     data. The `Algorithm` will behave like any STL iterator-based algorithm.
 
+```
+void Reset();
+```
+
+Clears the algorithm's input pool, and sets your remaining privacy budget back
+to `1.0`.
+
 ### Serialization
 
-Since `Algorithm`s can hold an internal state as a result of added entries, we
-can serialize the algorithm to a `Summary` proto. A `Summary` proto holds all
-the information needed to reconstruct an `Algorithm` and its internal state. We
-can merge a `Summary` into another `Algorithm` of the same type and that was
-constructed with identical parameters. Merging `Algorithm`s of different types
-or with different parameters doesn't make sense, and will return an error.
+Since `Algorithm`s hold an internal state to represent all entires that have
+been added, we can serialize the algorithm to a `Summary` proto. A `Summary`
+proto holds all the information needed to reconstruct an `Algorithm` and its
+internal state. We can merge a `Summary` into another `Algorithm` of the same
+type that was constructed with identical parameters. Merging `Algorithm`s of
+different types or with different parameters doesn't make sense, and will return
+an error.
 
 ```
 Summary Serialize();
 util::Status Merge(const Summary& summary);
 ```
 
-Serialization and merging can be used to run these algorithms in a distributed
+Serialization and merging can allow these algorithms to be used in a distributed
 manner. This could be useful for very large input sets, for example.
 
 ### Getting Results

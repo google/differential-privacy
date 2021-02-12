@@ -1,17 +1,17 @@
 
 # Approx Bounds
 
-[`ApproxBounds`](https://github.com/google/differential-privacy/blob/main/cc/algorithms/approx-bounds.h) computes an
-approximate minimum and maximum of the input set. It is designed to be used to
-find the approximate support of a large input set, not to obtain a precise
-minimum or maximum. In practice, this algorithm is used to determine the bounds
-of input sets inside [bounded algorithms](bounded-algorithm.md).
+[`ApproxBounds`](https://github.com/google/differential-privacy/blob/main/cc/algorithms/approx-bounds.h)
+computes an approximate upper and lower bound of the input set. It is designed
+to be used to find the approximate support of a large input set, not to obtain a
+precise minimum or maximum. This algorithm is mainly used to determine the
+bounds of input sets inside [bounded algorithms](bounded-algorithm.md).
 
 ## Input & Output
 
 `ApproxBounds` supports `int64` and `double` type input sets. When successful,
 the returned [`Output`](../protos.md) message will contain two elements. The
-first is the differentially private minimum; the second is the maximum. The
+first is the differentially private lower bound; the second is the upper. The
 `Output` message will contain an error status instead if not enough inputs were
 seen to determine the min and max.
 
@@ -49,10 +49,11 @@ Inputs are partitioned into the histogram bins. When fetching the result, a
 noisy count of inputs inside each bin is checked to see whether it exceeds the
 `threshold`. Out of bins that exceed the `threshold`, the bin representing the
 interval containing the largest values maps to the maximum; the one for the
-smallest values maps to the minimum. Each `threshold` maps to a
-`success_probability`, which is the probability that the bin chosen will not
-contain a true count of 0. We only need to specify either `threshold` or
-`success_probability`, since each maps to a specific value of the other.
+smallest values maps to the minimum. Each `threshold` can be used to calculate a
+`success_probability`, which is the probability that a bin that passes the
+threshold had at least one input in it. We only need to specify either
+`threshold` or `success_probability`, since each maps to a specific value of the
+other.
 
 Without a complete understanding, it is best to use the default
 values for all of these additional parameters.
@@ -64,16 +65,19 @@ values for all of these additional parameters.
 ### By Other Algorithms
 
 `ApproxBounds` is used by some [bounded algorithms](bounded-algorithm.md) to
-automatically infer bounds. While a default `ApproxBounds` algorithm will be
-created by these bounded algorithms, a custom one can be passed in.
+automatically infer bounds. These bounded algorithms will be default create a
+default `ApproxBounds` algorithm, but the caller can pass in a custom one if
+they so choose.
 
 ```
 builder.SetApproxBounds(std::unique_ptr<ApproxBounds> approx_bounds)
 ```
 
 Since `ApproxBounds` is designed to be called by other algorithms, it contains
-additional functions in its [API](https://github.com/google/differential-privacy/blob/main/cc/algorithms/approx-bounds.h) to
-reveal its underlying structure.
+additional functions in its
+[API](https://github.com/google/differential-privacy/blob/main/cc/algorithms/approx-bounds.h)
+to get information on its bin bounds, and to combine inputs into partial
+aggregations that can be clamped and fully aggregated once bounds are known.
 
 ### Result Performance
 

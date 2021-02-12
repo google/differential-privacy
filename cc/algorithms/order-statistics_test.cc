@@ -37,25 +37,25 @@ static constexpr double kNumSamples = 10000;
 TEST(OrderStatisticsTest, Max) {
   double epsilon = std::log(3);
   int64_t lower = 0, upper = 2048;
-  base::StatusOr<std::unique_ptr<Max<int64_t>>> search =
+  base::StatusOr<std::unique_ptr<Max<int64_t>>> max =
       Max<int64_t>::Builder()
           .SetEpsilon(epsilon)
           .SetLower(lower)
           .SetUpper(upper)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
-  ASSERT_OK(search);
+  ASSERT_OK(max);
   for (int64_t i = 0; i < kDataSize; ++i) {
-    (*search)->AddEntry(std::round(static_cast<double>(200) * i / kDataSize));
+    (*max)->AddEntry(std::round(static_cast<double>(200) * i / kDataSize));
   }
-  EXPECT_NEAR(GetValue<int64_t>((*search)->PartialResult(1.0).ValueOrDie()), 200,
+  EXPECT_NEAR(GetValue<int64_t>((*max)->PartialResult(1.0).ValueOrDie()), 200,
               10);
 }
 
 TEST(OrderStatisticsTest, Min) {
   double epsilon = std::log(3);
   int64_t lower = 0, upper = 2048;
-  base::StatusOr<std::unique_ptr<Min<int64_t>>> search =
+  base::StatusOr<std::unique_ptr<Min<int64_t>>> min =
       Min<int64_t>::Builder()
           .SetEpsilon(epsilon)
           .SetLower(lower)
@@ -63,9 +63,9 @@ TEST(OrderStatisticsTest, Min) {
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   for (int64_t i = 0; i < kDataSize; ++i) {
-    (*search)->AddEntry(std::round(static_cast<double>(200) * i / kDataSize));
+    (*min)->AddEntry(std::round(static_cast<double>(200) * i / kDataSize));
   }
-  base::StatusOr<Output> result = (*search)->PartialResult(1.0);
+  base::StatusOr<Output> result = (*min)->PartialResult(1.0);
   ASSERT_OK(result);
   EXPECT_NEAR(GetValue<int64_t>(*result), 0, 10);
 }
@@ -73,18 +73,18 @@ TEST(OrderStatisticsTest, Min) {
 TEST(OrderStatisticsTest, Median) {
   double epsilon = std::log(3);
   int64_t lower = 0, upper = 2048;
-  base::StatusOr<std::unique_ptr<Median<int64_t>>> search =
+  base::StatusOr<std::unique_ptr<Median<int64_t>>> median =
       Median<int64_t>::Builder()
           .SetEpsilon(epsilon)
           .SetLower(lower)
           .SetUpper(upper)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
-  ASSERT_OK(search);
+  ASSERT_OK(median);
   for (int64_t i = 0; i < kDataSize; ++i) {
-    (*search)->AddEntry(std::round(static_cast<double>(200) * i / kDataSize));
+    (*median)->AddEntry(std::round(static_cast<double>(200) * i / kDataSize));
   }
-  base::StatusOr<Output> result = (*search)->PartialResult(1.0);
+  base::StatusOr<Output> result = (*median)->PartialResult(1.0);
   ASSERT_OK(result);
   EXPECT_EQ(GetValue<int64_t>(*result), 100);
 }
@@ -97,16 +97,16 @@ TEST(OrderStatisticsTest, MedianLinfIncreasesVariance) {
       [&input](int max_contributions) {
         double sum = 0;
         for (int i = 0; i < kNumSamples; ++i) {
-          base::StatusOr<std::unique_ptr<Median<double>>> bounded_sum =
+          base::StatusOr<std::unique_ptr<Median<double>>> median =
               Median<double>::Builder()
                   .SetMaxContributionsPerPartition(max_contributions)
                   .SetEpsilon(1)
                   .SetLower(-1)
                   .SetUpper(1)
                   .Build();
-          CHECK_EQ(bounded_sum.status(), absl::OkStatus());
+          CHECK_EQ(median.status(), absl::OkStatus());
           base::StatusOr<Output> out =
-              (*bounded_sum)->Result(input.begin(), input.end());
+              (*median)->Result(input.begin(), input.end());
           CHECK_EQ(out.status(), absl::OkStatus());
           sum += std::pow(GetValue<double>(*out), 2);
         }
@@ -122,7 +122,7 @@ TEST(OrderStatisticsTest, MedianLinfIncreasesVariance) {
 TEST(OrderStatisticsTest, Percentile) {
   double epsilon = std::log(3);
   int64_t lower = 0, upper = 2048;
-  base::StatusOr<std::unique_ptr<Percentile<int64_t>>> search =
+  base::StatusOr<std::unique_ptr<Percentile<int64_t>>> percentile =
       Percentile<int64_t>::Builder()
           .SetPercentile(.45)
           .SetEpsilon(epsilon)
@@ -130,11 +130,12 @@ TEST(OrderStatisticsTest, Percentile) {
           .SetUpper(upper)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
-  ASSERT_OK(search);
+  ASSERT_OK(percentile);
   for (int64_t i = 0; i < kDataSize; ++i) {
-    (*search)->AddEntry(std::round(static_cast<double>(200) * i / kDataSize));
+    (*percentile)
+        ->AddEntry(std::round(static_cast<double>(200) * i / kDataSize));
   }
-  base::StatusOr<Output> result = (*search)->PartialResult(1.0);
+  base::StatusOr<Output> result = (*percentile)->PartialResult(1.0);
   ASSERT_OK(result);
   EXPECT_EQ(GetValue<int64_t>(*result), 90);
 }
@@ -174,16 +175,16 @@ TEST(OrderStatisticsTest, InvalidParameters) {
 
 TEST(OrderStatisticsTest, Median_DefaultBounds) {
   double epsilon = std::log(3);
-  base::StatusOr<std::unique_ptr<Median<int64_t>>> search =
+  base::StatusOr<std::unique_ptr<Median<int64_t>>> median =
       Median<int64_t>::Builder()
           .SetEpsilon(epsilon)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
-  ASSERT_OK(search);
+  ASSERT_OK(median);
   for (int64_t i = 0; i < kDataSize; ++i) {
-    (*search)->AddEntry(std::round(static_cast<double>(200) * i / kDataSize));
+    (*median)->AddEntry(std::round(static_cast<double>(200) * i / kDataSize));
   }
-  base::StatusOr<Output> result = (*search)->PartialResult(1.0);
+  base::StatusOr<Output> result = (*median)->PartialResult(1.0);
   ASSERT_OK(result);
   EXPECT_EQ(GetValue<int64_t>(*result), 100);
 }

@@ -2,13 +2,13 @@
 # Count
 
 [`Count`](https://github.com/google/differential-privacy/blob/main/cc/algorithms/count.h)
-computes the number of values in a dataset, in a differentially private manner.
+computes the number of values in a dataset in a differentially private manner.
 
 ## Input & Output
 
 `Count` supports any input type. Count always returns an
-[`Output`](../protos.md) message containing a single element containing the
-differentially private count, and a `ConfidenceInterval` containing the 95%
+[`Output`](../protos.md) message containing a single element with the
+differentially private count, and a `ConfidenceInterval` with the 95%
 confidence interval of noise added.
 
 The differentially private count provided by the `Output` is an unbiased

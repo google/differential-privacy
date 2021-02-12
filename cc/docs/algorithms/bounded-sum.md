@@ -2,21 +2,19 @@
 # Bounded Sum
 
 [`BoundedSum`](https://github.com/google/differential-privacy/blob/main/cc/algorithms/bounded-sum.h)
-computes the sum of values in a dataset, in a differentially private manner.
+computes the sum of values in a dataset in a differentially private manner.
 
 ## Input & Output
 
-`BoundedSum` supports `int64` and `double` type input sets. When successful, the
-returned [`Output`](../protos.md) message will contain one element containing
+`BoundedSum` supports `int64`s and `double`s as input. When successful, the
+returned [`Output`](../protos.md) message will contain one element with
 the differentially private sum, and a `ConfidenceInterval` describing the 95%
 confidence interval of the noise added. When bounds are inferred, the `Output`
-additionally contains a `BoundingReport`.
+also contains a `BoundingReport`.
 
 The differentially private sum provided by the `Output` is an unbiased estimate
-of the raw bounded sum. Consequently, its value may sometimes be inconsistent
-with the range of possible values of the raw bounded sum, e.g., the
-differentially private sum may be positive although the lower and upper bound
-are not.
+of the raw bounded sum. Consequently, its value may sometimes be higher than the
+upper bound or lower than the lower bound.
 
 ## Construction
 

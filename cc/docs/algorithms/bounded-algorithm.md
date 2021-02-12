@@ -2,25 +2,26 @@
 # Bounded Algorithms
 
 A bounded algorithm is any algorithm that requires lower and upper input bounds
-as parameters. Note that there does not exist a `BoundedAlgorithm` interface as
-a subclass of [`Algorithm`](algorithm.md). Bounded algorithms are constructed
-using a [`BoundedAlgorithmBuilder`](https://github.com/google/differential-privacy/blob/main/cc/algorithms/bounded-algorithm.h),
+as parameters. There is no `BoundedAlgorithm` interface as a subclass of
+[`Algorithm`](algorithm.md), but `Algorithms` that need bounds do share a common
+builder interface. Bounded algorithms are constructed using a [`BoundedAlgorithmBuilder`](https://github.com/google/differential-privacy/blob/main/cc/algorithms/bounded-algorithm.h),
 which is a subclass of [`AlgorithmBuilder`](https://github.com/google/differential-privacy/blob/main/cc/algorithms/algorithm.h).
 
 ## Construction
 
 Bounded algorithms can be constructed in two ways. The first way is to set lower
 and upper input bounds directly. The second is to omit setting the bounds. If
-bounds are omitted, some algorithms will spend a portion of the privacy budget
-to automatically infer and set the bounds. How exactly the bounded algorithm
-infers the bounds can be configured using the [`ApproxBounds`](approx-bounds.md)
-algorithm; see its page for more information. We can set lower and upper bounds
-directly if we have knowledge about the range of our input data. Otherwise, it
-is better to infer the bounds.
+bounds are omitted, some algorithms will spend a portion of their privacy budget
+(epsilon and delta) to automatically infer and set the bounds. How exactly the
+bounded algorithm infers the bounds can be configured using the
+[`ApproxBounds`](approx-bounds.md) algorithm; see its page for more information.
+If you have knowledge about the range of your input data you can use it to set
+bounds explicitly. This will leave more budget for adding noise. Otherwise, it
+is often better to infer the bounds than to guess and overstimate them.
 
 ```
 BoundedAlgorithmBuilder builder =
-  BoundedAlgorithmBuilder.SetEpsilon(double epsilon)
+  BoundedAlgorithmBuilder().SetEpsilon(double epsilon)
 
 // Option 1: Set bounds directly.
 base::StatusOr<std::unique_ptr<Algorithm<T>>> bounded_algorithm =

@@ -2,12 +2,12 @@
 # Bounded Standard Deviation
 
 [`BoundedStandardDeviation`](https://github.com/google/differential-privacy/blob/main/cc/algorithms/bounded-standard-deviation.h)
-computes the standard deviation of values in a dataset, in a differentially
+computes the standard deviation of values in a dataset in a differentially
 private manner.
 
 ## Input & Output
 
-`BoundedStandardDeviation` supports `int64` and `double` type input sets. When
+`BoundedStandardDeviation` supports `int64`s and `double`s as inputs. When
 successful, the returned [`Output`](../protos.md) message will contain one
 element containing the differentially private standard deviation. When bounds
 are inferred, the `Output` additionally contains a `BoundingReport`. The

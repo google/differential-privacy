@@ -19,10 +19,10 @@ double count(const vector<double>& vals, double epsilon) {
   std::unique_ptr<differential_privacy::Count<double>> count =
      differential_privacy::Count<double>::Builder().SetEpsilon(epsilon)
                                                    .Build()
-                                                   .ValueOrDie();
+                                                   .value();
 
   // Compute the count and get the result.
-  differential_privacy::Output result = count->Result(v.begin(), v.end());
+  differential_privacy::Output result = count->Result(vals.begin(), vals.end());
 
   // GetValue can be used to extract the value from an Output (or Input)
   // protobuf. For count, this is always an int value.
@@ -33,9 +33,10 @@ double count(const vector<double>& vals, double epsilon) {
 
 ## Caveats
 
-All of our algorithms assume one input element per user. All of a user's
-contributions should be reduced to a single input element before being passed to
-our algorithms.
+All of our algorithms assume a limited number of input elements per user (1 per
+user by default). Clients are responsible for enforcing that limit before input
+is passed to our library, and can specify how many inputs each user is allowed.
+See the documentation of [`Algorithm`](algorithms/algorithm.md) for more detail.
 
 Our library does not protect against integer overflows, since such protection
 could violate DP.
@@ -47,7 +48,7 @@ Our libraries use
 for the following circumstances:
 
 *   `UNIMPLEMENTED` indicates the functionality is not yet supported by the
-    library.
+    library (e.g. some algorithms do not have confidence intervals implemented).
 *   `INVALID_ARGUMENT` indicates that an argument was improperly set. This
     includes parameters that are nonsensical (e.g., `epsilon < 0`, `delta < 0`),
     not provided, or will not produce useful output (e.g., `epsilon = 0`,
@@ -56,7 +57,9 @@ for the following circumstances:
     would make the geometric distribution overflow, the difference between the
     upper and lower bound is larger than the maximum representable double).
 *   `FAILED_PRECONDITION` generally indicates that there is not enough data to
-    perform the desired computation.
-*   `INTERNAL` indicates the input data is malformed, invalid, missing, or other
-    problems with merging. This likely indicates that the library is being used
-    incorrectly.
+    perform the desired computation. These errors are produced in a
+    differentially private manner, and still consume the allotted epsilon and
+    delta.
+*   `INTERNAL` indicates the input data is malformed, invalid or missing. It
+    usually happens in the context of merging summaries. This likely indicates
+    that there is a bug in the system using the library.
