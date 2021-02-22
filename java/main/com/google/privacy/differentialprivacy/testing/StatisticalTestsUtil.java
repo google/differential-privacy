@@ -18,6 +18,7 @@ package com.google.privacy.differentialprivacy.testing;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.Math.max;
+import static java.lang.Math.min;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -150,6 +151,24 @@ public final class StatisticalTestsUtil {
       // long value without risking an overflow.
       return Math.round(scaledSample) * granularity;
     }
+  }
+
+  /**
+   * Partitions the interval between {@code lower} and {@code upper} into {@code numberOfBuckets}
+   * subintervals of equal size and returns the index (from 0 to {@code numberOfBuckets} - 1) of the
+   * subinterval that contains the specified {@code sample}.
+   *
+   * <p>Note that {@code lower} <= {@code sample} <= {@code upper}, {@code lower} < {@code upper}
+   * and {@code numberOfBuckets} > 0.
+   */
+  public static int bucketize(double sample, double lower, double upper, int numberOfBuckets) {
+    checkArgument(sample >= lower, "sample must be greater or equal to lower");
+    checkArgument(sample <= upper, "sample must be less or equal to upper");
+    checkArgument(lower < upper, "lower must be strictly less than upper");
+    checkArgument(numberOfBuckets > 0, "numberOfBuckets must be greater than 0");
+    return min(
+        numberOfBuckets - 1,
+        (int) Math.floor(((sample - lower) / (upper - lower)) * numberOfBuckets));
   }
 
   private static <T> double computeAproximateDpTestValue(

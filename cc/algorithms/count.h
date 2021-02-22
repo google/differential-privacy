@@ -44,7 +44,7 @@ class Count : public Algorithm<T> {
   }
 
   // Create and return summary containing the count.
-  Summary Serialize() override {
+  Summary Serialize() const override {
     // Create CountSummary.
     CountSummary count_summ;
     count_summ.set_count(count_);
@@ -86,10 +86,9 @@ class Count : public Algorithm<T> {
                                        absl::StatusCode::kFailedPrecondition));
 
     Output output;
-    int64_t countWithNoise;
-    SafeCastFromDouble(std::round(mechanism_->AddNoise(count_, privacy_budget)),
-                       countWithNoise);
-    AddToOutput<int64_t>(&output, countWithNoise);
+    SafeCastResult<int64_t> cast_result = SafeCastFromDouble<int64_t>(
+        std::round(mechanism_->AddNoise(count_, privacy_budget)));
+    AddToOutput<int64_t>(&output, cast_result.value);
 
     base::StatusOr<ConfidenceInterval> interval =
         NoiseConfidenceInterval(noise_interval_level, privacy_budget);

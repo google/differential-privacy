@@ -80,6 +80,23 @@ class PrivacyLossDistribution(object):
     self.infinity_mass = infinity_mass
 
   @classmethod
+  def identity(
+      cls,
+      value_discretization_interval: float = 1e-4) -> 'PrivacyLossDistribution':
+    """Constructs an identity privacy loss distribution.
+
+    Args:
+      value_discretization_interval: the dicretization interval for the privacy
+        loss distribution. The values will be rounded up/down to be integer
+        multiples of this number.
+
+    Returns:
+      The privacy loss distribution corresponding to an algorithm with no
+      privacy leak (i.e. output is independent of input).
+    """
+    return cls({0: 1}, value_discretization_interval, 0)
+
+  @classmethod
   def from_two_probability_mass_functions(
       cls,
       log_probability_mass_function_lower: typing.Mapping[typing.Any, float],
@@ -103,8 +120,8 @@ class PrivacyLossDistribution(object):
         resulting epsilon-hockey stick divergence computation gives an upper
         estimate to the real value.
       value_discretization_interval: the dicretization interval for the privacy
-        loss distribution. The values will be rounded up/down to be an integer
-        multiple of this number.
+        loss distribution. The values will be rounded up/down to be integer
+        multiples of this number.
       log_mass_truncation_bound: when the log of the probability mass of the
         upper distribution is below this bound, it is either (i) included in
         infinity_mass in the case of pessimistic estimate or (ii) discarded
@@ -185,7 +202,7 @@ class PrivacyLossDistribution(object):
         computation gives an upper estimate to the real value.
       value_discretization_interval: the length of the dicretization interval
         for the privacy loss distribution. The values will be rounded up/down to
-        be an integer multiple of this number.
+        be integer multiples of this number.
 
     Returns:
       The privacy loss distribution constructed as specified.
@@ -279,7 +296,7 @@ class PrivacyLossDistribution(object):
         computation gives an upper estimate to the real value.
       value_discretization_interval: the length of the dicretization interval
         for the privacy loss distribution. The values will be rounded up/down to
-        be an integer multiple of this number.
+        be integer multiples of this number.
 
     Returns:
       The privacy loss distribution constructed as specified.
@@ -343,7 +360,7 @@ class PrivacyLossDistribution(object):
         computation gives an upper estimate to the real value.
       value_discretization_interval: the length of the dicretization interval
         for the privacy loss distribution. The values will be rounded up/down to
-        be an integer multiple of this number.
+        be integer multiples of this number.
 
     Returns:
       The privacy loss distribution corresponding to the Laplace mechanism with
@@ -375,7 +392,7 @@ class PrivacyLossDistribution(object):
         computation gives an upper estimate to the real value.
       value_discretization_interval: the length of the dicretization interval
         for the privacy loss distribution. The values will be rounded up/down to
-        be an integer multiple of this number.
+        be integer multiples of this number.
       log_mass_truncation_bound: the ln of the probability mass that might be
         discarded from the noise distribution. The larger this number, the more
         error it may introduce in divergence calculations.
@@ -411,7 +428,7 @@ class PrivacyLossDistribution(object):
         computation gives an upper estimate to the real value.
       value_discretization_interval: the length of the dicretization interval
         for the privacy loss distribution. The values will be rounded up/down to
-        be an integer multiple of this number.
+        be integer multiples of this number.
 
     Returns:
       The privacy loss distribution corresponding to the Discrete Laplace
@@ -442,7 +459,7 @@ class PrivacyLossDistribution(object):
       privacy_parameters: the privacy guarantee of the mechanism.
       value_discretization_interval: the length of the dicretization interval
         for the privacy loss distribution. The values will be rounded up/down to
-        be an integer multiple of this number.
+        be integer multiples of this number.
 
     Returns:
       The privacy loss distribution constructed as specified.

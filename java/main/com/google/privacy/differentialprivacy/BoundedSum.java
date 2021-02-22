@@ -71,11 +71,14 @@ public class BoundedSum {
     return Params.Builder.newBuilder();
   }
 
-  /** Clamps the input value and adds it to the sum. */
+  /**
+   * Clamps the input value and adds it to the sum.
+   *
+   * @throws IllegalStateException if this this instance of {@link BoundedSum} has already been
+   *     queried or serialized.
+   */
   public void addEntry(double e) {
-    if (state != AggregationState.DEFAULT) {
-      throw new IllegalStateException("Entry cannot be added. Reason: " + state.getErrorMessage());
-    }
+    Preconditions.checkState(state == AggregationState.DEFAULT, "Entry cannot be added.");
 
     // NaN is ignored because introducing even a single NaN entry will result in a NaN sum
     // regardless of other entries, which would break the indistinguishability property required
@@ -87,7 +90,12 @@ public class BoundedSum {
     sum += clamp(e);
   }
 
-  /** Clamps the input values and adds them to the sum. */
+  /**
+   * Clamps the input values and adds them to the sum.
+   *
+   * @throws IllegalStateException if this this instance of {@link BoundedSum} has already been
+   *     queried or serialized.
+   */
   public void addEntries(Collection<Double> e) {
     e.forEach(this::addEntry);
   }
@@ -108,38 +116,40 @@ public class BoundedSum {
    * bound are positive. This can be corrected by the caller of this method, e.g., by snapping the
    * result to the closest value representing a bounded sum that is possible. Note that such post
    * processing introduces bias to the result.
+   *
+   * @throws IllegalStateException if this this instance of {@link BoundedSum} has already been
+   *     queried or serialized.
    */
   public double computeResult() {
-    if (state != AggregationState.DEFAULT) {
-      throw new IllegalStateException(
-          "DP sum cannot be computed. Reason: " + state.getErrorMessage());
-    }
+    Preconditions.checkState(state == AggregationState.DEFAULT, "DP sum cannot be computed.");
 
     state = AggregationState.RESULT_RETURNED;
-    noisedSum = params.noise().addNoise(
-        sum,
-        getL0Sensitivity(),
-        getLInfSensitivity(),
-        params.epsilon(),
-        params.delta()
-    );
+
+    noisedSum =
+        params
+            .noise()
+            .addNoise(
+                sum, getL0Sensitivity(), getLInfSensitivity(), params.epsilon(), params.delta());
+
     return noisedSum;
   }
 
   /**
-   * Computes a confidence interval that contains the true {@link
-   * BoundedSum} with a probability greater or equal to 1 - alpha using the noised {@link
-   * BoundedSum} computed by {@code computeResult()}.
+   * Computes a confidence interval that contains the true {@link BoundedSum} with a probability
+   * greater or equal to 1 - alpha using the noised {@link BoundedSum} computed by {@code
+   * computeResult()}.
    *
    * <p>Refer to <a
    * href="https://github.com/google/differential-privacy/tree/main/common_docs/confidence_intervals.md">this</a> doc for
    * more information.
+   *
+   * @throws IllegalStateException if this this instance of {@link BoundedSum} has not been queried
+   *     yet.
    */
   public ConfidenceInterval computeConfidenceInterval(double alpha) {
-    if (state != AggregationState.RESULT_RETURNED) {
-      throw new IllegalStateException(
-          "computeResult must be called before calling computeConfidenceInterval.");
-    }
+    Preconditions.checkState(
+        state == AggregationState.RESULT_RETURNED, "Confidence interval cannot be computed.");
+
     ConfidenceInterval confInt =
         params
             .noise()
@@ -161,15 +171,21 @@ public class BoundedSum {
   }
 
   /**
-   * Returns a serializable version of the current state of {@link BoundedSum} and the parameters
-   * used to calculate it. After calling this method, this instance of BoundedSum will be unusable,
-   * since the result can only be output once.
+   * Returns a serializable summary of the current state of this {@link BoundedSum} instance and its
+   * parameters. The summary can be used to merge this instance with another instance of {@link
+   * BoundedSum}.
+   *
+   * <p>This method cannot be invoked if the sum has already been queried, i.e., {@link
+   * computeResult()} has been called. Moreover, after this instance of {@link BoundedSum} has been
+   * serialized once, no further modification, queries or serialization is possible anymore.
+   *
+   * @throws IllegalStateException if this this instance of {@link BoundedSum} has already been
+   *     queried or serialized.
    */
   public byte[] getSerializableSummary() {
-    if (state != AggregationState.DEFAULT) {
-      throw new IllegalStateException(
-          "Sum object cannot be serialized. Reason: " + state.getErrorMessage());
-    }
+    Preconditions.checkState(state == AggregationState.DEFAULT, "Sum cannot be serialized.");
+
+    state = AggregationState.SERIALIZED;
 
     ValueType sumValue = ValueType.newBuilder().setFloatValue(sum).build();
     BoundedSumSummary.Builder builder =
@@ -185,27 +201,20 @@ public class BoundedSum {
       builder.setDelta(params.delta());
     }
 
-    // Record that this object is no longer suitable for producing a differentially private sum,
-    // since serialization exposes the object's raw state.
-    state = AggregationState.SERIALIZED;
-
     return builder.build().toByteArray();
   }
 
   /**
-   * Merges this instance with the output of {@link #getSerializableSummary()} from a different
-   * {@link BoundedSum} and stores the merged result in this instance. This is required in the
-   * distributed calculations context for merging partial results.
+   * Merges the output of {@link #getSerializableSummary()} from a different instance of {@link
+   * BoundedSum} with this instance. Intended to be used in the context of distributed computation.
    *
-   * @throws IllegalArgumentException if not all config parameters (e.g., epsilon, contribution
-   *     bounds) are equal or if the passed serialized sum is invalid.
-   * @throws IllegalStateException if this sum has already been calculated or serialized.
+   * @throws IllegalArgumentException if the parameters of the two instances (epsilon, delta,
+   *     contribution bounds, etc.) do not match or if the passed serialized summary is invalid.
+   * @throws IllegalStateException if this this instance of {@link BoundedSum} has already been
+   *     queried or serialized.
    */
   public void mergeWith(byte[] otherBoundedSumSummary) {
-    if (state != AggregationState.DEFAULT) {
-      throw new IllegalStateException(
-          "Sum object cannot be merged. Reason: " + state.getErrorMessage());
-    }
+    Preconditions.checkState(state == AggregationState.DEFAULT, "Sums cannot be merged.");
 
     BoundedSumSummary otherSummaryParsed;
     try {
@@ -218,17 +227,17 @@ public class BoundedSum {
     this.sum += otherSummaryParsed.getPartialSum().getFloatValue();
   }
 
-  private void checkMergeParametersAreEqual(BoundedSumSummary otherSum) {
+  private void checkMergeParametersAreEqual(BoundedSumSummary summary) {
     DpPreconditions.checkMergeMechanismTypesAreEqual(
-        params.noise().getMechanismType(), otherSum.getMechanismType());
-    DpPreconditions.checkMergeEpsilonAreEqual(params.epsilon(), otherSum.getEpsilon());
-    DpPreconditions.checkMergeDeltaAreEqual(params.delta(), otherSum.getDelta());
+        params.noise().getMechanismType(), summary.getMechanismType());
+    DpPreconditions.checkMergeEpsilonAreEqual(params.epsilon(), summary.getEpsilon());
+    DpPreconditions.checkMergeDeltaAreEqual(params.delta(), summary.getDelta());
     DpPreconditions.checkMergeMaxPartitionsContributedAreEqual(
-        params.maxPartitionsContributed(), otherSum.getMaxPartitionsContributed());
+        params.maxPartitionsContributed(), summary.getMaxPartitionsContributed());
     DpPreconditions.checkMergeMaxContributionsPerPartitionAreEqual(
-        params.maxContributionsPerPartition(), otherSum.getMaxContributionsPerPartition());
+        params.maxContributionsPerPartition(), summary.getMaxContributionsPerPartition());
     DpPreconditions.checkMergeBoundsAreEqual(
-        params.lower(), otherSum.getLower(), params.upper(), otherSum.getUpper());
+        params.lower(), summary.getLower(), params.upper(), summary.getUpper());
   }
 
   private int getL0Sensitivity() {

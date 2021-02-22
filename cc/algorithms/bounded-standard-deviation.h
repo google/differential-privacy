@@ -38,8 +38,12 @@ namespace differential_privacy {
 // root, which is differentially private by the post-processing theorem. It
 // relies on the fact that the bounded variance algorithm guarantees that the
 // output is non-negative.
-template <typename T, std::enable_if_t<std::is_arithmetic<T>::value>* = nullptr>
+template <typename T>
 class BoundedStandardDeviation : public Algorithm<T> {
+  static_assert(
+      std::is_arithmetic<T>::value,
+      "BoundedStandardDeviation can only be used for arithmetic types");
+
  public:
   // Builder for BoundedStandardDeviation algorithm.
   class Builder : public BoundedAlgorithmBuilder<T, BoundedStandardDeviation<T>,
@@ -84,7 +88,7 @@ class BoundedStandardDeviation : public Algorithm<T> {
   void AddEntry(const T& t) override { variance_->AddEntry(t); }
 
   // Returns a BoundedVarianceSummary.
-  Summary Serialize() override { return variance_->Serialize(); }
+  Summary Serialize() const override { return variance_->Serialize(); }
 
   // Merges from BoundedVarianceSummary.
   absl::Status Merge(const Summary& summary) override {

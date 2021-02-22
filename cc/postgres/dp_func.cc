@@ -113,10 +113,10 @@ double DpCount::Result(std::string* err) {
 // DP sum.
 DpSum::DpSum(std::string* err, bool default_epsilon, double epsilon,
              bool auto_bounds, double lower, double upper) {
-  sum_ = BoundedAlgorithm<BoundedSum<double, nullptr>>(
-      err, default_epsilon, epsilon, auto_bounds, lower, upper);
+  sum_ = BoundedAlgorithm<BoundedSum<double>>(err, default_epsilon, epsilon,
+                                              auto_bounds, lower, upper);
 }
-DpSum::~DpSum() { DeleteAlgorithm<BoundedSum<double, nullptr>>(sum_); }
+DpSum::~DpSum() { DeleteAlgorithm<BoundedSum<double>>(sum_); }
 bool DpSum::AddEntry(double entry) { return AlgorithmAddEntry(sum_, entry); }
 double DpSum::Result(std::string* err) {
   return AlgorithmResult<double>(sum_, err);
@@ -125,10 +125,10 @@ double DpSum::Result(std::string* err) {
 // DP mean.
 DpMean::DpMean(std::string* err, bool default_epsilon, double epsilon,
                bool auto_bounds, double lower, double upper) {
-  mean_ = BoundedAlgorithm<BoundedMean<double, nullptr>>(
-      err, default_epsilon, epsilon, auto_bounds, lower, upper);
+  mean_ = BoundedAlgorithm<BoundedMean<double>>(err, default_epsilon, epsilon,
+                                                auto_bounds, lower, upper);
 }
-DpMean::~DpMean() { DeleteAlgorithm<BoundedMean<double, nullptr>>(mean_); }
+DpMean::~DpMean() { DeleteAlgorithm<BoundedMean<double>>(mean_); }
 bool DpMean::AddEntry(double entry) { return AlgorithmAddEntry(mean_, entry); }
 double DpMean::Result(std::string* err) {
   return AlgorithmResult<double>(mean_, err);
@@ -137,12 +137,10 @@ double DpMean::Result(std::string* err) {
 // DP variance.
 DpVariance::DpVariance(std::string* err, bool default_epsilon, double epsilon,
                        bool auto_bounds, double lower, double upper) {
-  var_ = BoundedAlgorithm<BoundedVariance<double, nullptr>>(
+  var_ = BoundedAlgorithm<BoundedVariance<double>>(
       err, default_epsilon, epsilon, auto_bounds, lower, upper);
 }
-DpVariance::~DpVariance() {
-  DeleteAlgorithm<BoundedVariance<double, nullptr>>(var_);
-}
+DpVariance::~DpVariance() { DeleteAlgorithm<BoundedVariance<double>>(var_); }
 bool DpVariance::AddEntry(double entry) {
   return AlgorithmAddEntry(var_, entry);
 }
@@ -154,11 +152,11 @@ double DpVariance::Result(std::string* err) {
 DpStandardDeviation::DpStandardDeviation(std::string* err, bool default_epsilon,
                                          double epsilon, bool auto_bounds,
                                          double lower, double upper) {
-  sd_ = BoundedAlgorithm<BoundedStandardDeviation<double, nullptr>>(
+  sd_ = BoundedAlgorithm<BoundedStandardDeviation<double>>(
       err, default_epsilon, epsilon, auto_bounds, lower, upper);
 }
 DpStandardDeviation::~DpStandardDeviation() {
-  DeleteAlgorithm<BoundedStandardDeviation<double, nullptr>>(sd_);
+  DeleteAlgorithm<BoundedStandardDeviation<double>>(sd_);
 }
 bool DpStandardDeviation::AddEntry(double entry) {
   return AlgorithmAddEntry(sd_, entry);

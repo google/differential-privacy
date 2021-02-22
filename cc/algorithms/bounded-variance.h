@@ -44,8 +44,11 @@ namespace differential_privacy {
 // The algorithm is a variation of the algorithm for differentially private mean
 // from "Differential Privacy: From Theory to Practice", section 2.5.5:
 // https://books.google.com/books?id=WFttDQAAQBAJ&pg=PA24#v=onepage&q&f=false
-template <typename T, std::enable_if_t<std::is_arithmetic<T>::value>* = nullptr>
+template <typename T>
 class BoundedVariance : public Algorithm<T> {
+  static_assert(std::is_arithmetic<T>::value,
+                "BoundedVariance can only be used for arithmetic types");
+
  public:
   // Builder for BoundedVariance algorithm.
   class Builder
@@ -154,7 +157,7 @@ class BoundedVariance : public Algorithm<T> {
 
   void AddEntry(const T& t) override { AddMultipleEntries(t, 1); }
 
-  Summary Serialize() override {
+  Summary Serialize() const override {
     // Create BoundedVarianceSummary.
     BoundedVarianceSummary bv_summary;
     bv_summary.set_count(raw_count_);

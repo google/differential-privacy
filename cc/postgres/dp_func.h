@@ -30,16 +30,16 @@ namespace differential_privacy {
 template <typename T>
 class Count;
 
-template <typename T, std::enable_if_t<std::is_arithmetic<T>::value>*>
+template <typename T>
 class BoundedSum;
 
-template <typename T, std::enable_if_t<std::is_arithmetic<T>::value>*>
+template <typename T>
 class BoundedMean;
 
-template <typename T, std::enable_if_t<std::is_arithmetic<T>::value>*>
+template <typename T>
 class BoundedVariance;
 
-template <typename T, std::enable_if_t<std::is_arithmetic<T>::value>*>
+template <typename T>
 class BoundedStandardDeviation;
 
 namespace continuous {
@@ -89,7 +89,7 @@ class DpSum : public DpFunc {
   double Result(std::string* err) override;
 
  private:
-  differential_privacy::BoundedSum<double, nullptr>* sum_ = nullptr;
+  differential_privacy::BoundedSum<double>* sum_ = nullptr;
 };
 
 class DpMean : public DpFunc {
@@ -101,7 +101,7 @@ class DpMean : public DpFunc {
   double Result(std::string* err) override;
 
  private:
-  differential_privacy::BoundedMean<double, nullptr>* mean_ = nullptr;
+  differential_privacy::BoundedMean<double>* mean_ = nullptr;
 };
 
 class DpVariance : public DpFunc {
@@ -113,7 +113,7 @@ class DpVariance : public DpFunc {
   double Result(std::string* err) override;
 
  private:
-  differential_privacy::BoundedVariance<double, nullptr>* var_ = nullptr;
+  differential_privacy::BoundedVariance<double>* var_ = nullptr;
 };
 
 class DpStandardDeviation : public DpFunc {
@@ -126,8 +126,7 @@ class DpStandardDeviation : public DpFunc {
   double Result(std::string* err) override;
 
  private:
-  differential_privacy::BoundedStandardDeviation<double, nullptr>* sd_ =
-      nullptr;
+  differential_privacy::BoundedStandardDeviation<double>* sd_ = nullptr;
 };
 
 class DpNtile : public DpFunc {

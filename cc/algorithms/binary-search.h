@@ -90,7 +90,7 @@ class BinarySearch : public Algorithm<T> {
     }
   }
 
-  Summary Serialize() override {
+  Summary Serialize() const override {
     BinarySearchSummary bs_summary;
     quantiles_->SerializeToProto(bs_summary.mutable_input());
     Summary summary;

@@ -17,6 +17,7 @@
 #include "algorithms/util.h"
 
 #include <cmath>
+#include <cstdlib>
 #include <vector>
 
 #include "absl/status/status.h"
@@ -44,7 +45,7 @@ std::string XorStrings(const std::string& longer, const std::string& shorter) {
 
 double DefaultEpsilon() { return std::log(3); }
 
-double GetNextPowerOfTwo(double n) { return pow(2.0, ceil(log2(n))); }
+double GetNextPowerOfTwo(double n) { return std::pow(2.0, ceil(log2(n))); }
 
 double InverseErrorFunction(double x) {
   double LESS_THAN_FIVE_CONSTANTS[] = {
@@ -98,7 +99,7 @@ base::StatusOr<double> Qnorm(double p, double mu, double sigma) {
   return normalized * sigma + mu;
 }
 
-double RoundToNearestMultiple(double n, double base) {
+double RoundToNearestDoubleMultiple(double n, double base) {
   if (base == 0.0) return n;
   double remainder = fmod(n, base);
   if (fabs(remainder) > base / 2) {
@@ -110,10 +111,16 @@ double RoundToNearestMultiple(double n, double base) {
   return n - remainder;
 }
 
-double sign(double n) {
-  if (n > 0.0) return 1.0;
-  if (n < 0.0) return -1.0;
-  return 0;
+int64_t RoundToNearestInt64Multiple(int64_t n, int64_t base) {
+  if (base == 0) return n;
+  int64_t remainder = n % base;
+  if (std::abs(remainder) > base / 2.0) {
+    return n - remainder + sign(remainder) * base;
+  }
+  if (std::abs(remainder) * 2 == base) {
+    return n + base / 2;
+  }
+  return n - remainder;
 }
 
 absl::Status ValidateIsSet(absl::optional<double> opt, absl::string_view name,

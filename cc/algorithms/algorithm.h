@@ -134,7 +134,7 @@ class Algorithm {
   // Serializes summary data of current entries into Summary proto. This allows
   // results from distributed aggregation to be recorded and later merged.
   // Returns empty summary for algorithms for which serialize is unimplemented.
-  virtual Summary Serialize() = 0;
+  virtual Summary Serialize() const = 0;
 
   // Merges serialized summary data into this algorithm. The summary proto must
   // represent data from the same algorithm type with identical parameters. The

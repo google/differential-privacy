@@ -30,6 +30,7 @@
 #include "algorithms/rand.h"
 #include "algorithms/util.h"
 #include "proto/confidence-interval.pb.h"
+#include "proto/numerical-mechanism.pb.h"
 #include "base/canonical_errors.h"
 #include "base/status_macros.h"
 
@@ -81,7 +82,7 @@ class NumericalMechanism {
   virtual base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
       double confidence_level, double privacy_budget) = 0;
 
-  double GetEpsilon() { return epsilon_; }
+  double GetEpsilon() const { return epsilon_; }
 
  protected:
   absl::Status CheckConfidenceLevel(double confidence_level) {
@@ -273,6 +274,19 @@ class LaplaceMechanism : public NumericalMechanism {
     distro_ = std::move(status_or_distro.value());
   }
 
+  // Deserialize the LaplaceMechanism from a proto.
+  static base::StatusOr<std::unique_ptr<NumericalMechanism>> Deserialize(
+      const serialization::LaplaceMechanism& proto) {
+    Builder builder;
+    if (proto.has_epsilon()) {
+      builder.SetEpsilon(proto.epsilon());
+    }
+    if (proto.has_l1_sensitivity()) {
+      builder.SetL1Sensitivity(proto.l1_sensitivity());
+    }
+    return builder.Build();
+  }
+
   LaplaceMechanism(double epsilon, double sensitivity,
                    std::unique_ptr<internal::LaplaceDistribution> distro)
       : LaplaceMechanism(epsilon, sensitivity) {
@@ -327,6 +341,13 @@ class LaplaceMechanism : public NumericalMechanism {
     return confidence;
   }
 
+  serialization::LaplaceMechanism Serialize() const {
+    serialization::LaplaceMechanism output;
+    output.set_epsilon(NumericalMechanism::GetEpsilon());
+    output.set_l1_sensitivity(sensitivity_);
+    return output;
+  }
+
   // Returns the memory usage of the mechanism.
   virtual int64_t MemoryUsed() {
     int64_t memory = sizeof(LaplaceMechanism);
@@ -340,6 +361,9 @@ class LaplaceMechanism : public NumericalMechanism {
 
   // Returns the calculated diversity of the underlying laplace distribution.
   double GetDiversity() const { return diversity_; }
+  static double GetMinEpsilon() {
+    return internal::LaplaceDistribution::GetMinEpsilon();
+  }
 
  private:
   double sensitivity_;
@@ -438,6 +462,22 @@ class GaussianMechanism : public NumericalMechanism {
     distro_ = std::move(distro);
   }
 
+  // Deserialize the GaussianMechanism from a proto.
+  static base::StatusOr<std::unique_ptr<NumericalMechanism>> Deserialize(
+      const serialization::GaussianMechanism& proto) {
+    Builder builder;
+    if (proto.has_epsilon()) {
+      builder.SetEpsilon(proto.epsilon());
+    }
+    if (proto.has_delta()) {
+      builder.SetDelta(proto.delta());
+    }
+    if (proto.has_l2_sensitivity()) {
+      builder.SetL2Sensitivity(proto.l2_sensitivity());
+    }
+    return builder.Build();
+  }
+
   virtual ~GaussianMechanism() = default;
 
   using NumericalMechanism::AddNoise;
@@ -464,6 +504,14 @@ class GaussianMechanism : public NumericalMechanism {
   bool NoisedValueAboveThreshold(double result, double threshold) override {
     return UniformDouble() > internal::GaussianDistribution::cdf(
                                  distro_->Stddev(), threshold - result);
+  }
+
+  serialization::GaussianMechanism Serialize() const {
+    serialization::GaussianMechanism result;
+    result.set_epsilon(NumericalMechanism::GetEpsilon());
+    result.set_delta(delta_);
+    result.set_l2_sensitivity(l2_sensitivity_);
+    return result;
   }
 
   virtual int64_t MemoryUsed() {

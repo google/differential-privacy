@@ -1,23 +1,23 @@
 
 # Order Statistics
 
-We support multiple algorithms obtaining
-[order statistics](https://github.com/google/differential-privacy/blob/main/cc/algorithms/order-statistics.h).
-Order statistics are specific quantiles of an input set. The following
-algorithms are supported:
+We have a set of algorithms for calculating
+[order statistics](https://github.com/google/differential-privacy/blob/main/cc/algorithms/order-statistics.h)
+(aka quantiles, percentiles). The following are supported:
 
 *   `Max`
 *   `Min`
-*   `Median` 
+*   `Median`
 *   `Percentile` for percentile `p`.
 
-Notice that the `Percentile` algorithm can be used to find maximum, minimum, or
-median.
+`Max`, `Min`, and `Median` are convenience wrappers around `Percentile`, which
+can be used to calculate any of the other quantities.
 
 ## Input & Output
 
-The order statistics algorithms support any numeric type. `Output`s contains an
-element with a single value when extracting the result.
+The order statistics algorithms support any numeric type. Their `Output`s
+contain an element with a single value. `ConfidenceInterval` and
+`BoundingReport` are not provided.
 
 ## Construction
 

@@ -41,7 +41,8 @@ import org.junit.runners.Parameterized;
 @RunWith(Parameterized.class)
 public final class BoundedSumDpTest {
   private static final String TEST_CASES_FILE_PATH =
-      "external/com_google_differential_privacy/proto/testing/bounded_sum_dp_test_cases.textproto";
+
+  "external/com_google_differential_privacy/proto/testing/bounded_sum_dp_test_cases.textproto";
 
   private final BoundedSumDpTestCase testCase;
 
@@ -127,7 +128,8 @@ public final class BoundedSumDpTest {
     try {
       TextFormat.merge(
           new InputStreamReader(
-              BoundedSumDpTest.class.getClassLoader().getResourceAsStream(TEST_CASES_FILE_PATH), UTF_8),
+              BoundedSumDpTest.class.getClassLoader().getResourceAsStream(TEST_CASES_FILE_PATH),
+              UTF_8),
           testCaseCollectionBuilder);
     } catch (IOException e) {
       throw new RuntimeException("Unable to read input.", e);

@@ -181,7 +181,7 @@ TEST(BoundedSumTest, ConfidenceIntervalTest) {
               EqualsProto(wantConfidenceInterval));
 }
 
-TYPED_TEST(BoundedSumTest, BoundGetters) {
+TYPED_TEST(BoundedSumTest, BoundGettersForFixedBounds) {
   int expectedLower = 1, expectedUpper = 2;
   auto bs =
       typename BoundedSum<TypeParam>::Builder()
@@ -191,8 +191,19 @@ TYPED_TEST(BoundedSumTest, BoundGetters) {
           .SetUpper(expectedUpper)
           .Build();
   ASSERT_OK(bs);
-  EXPECT_THAT((*bs)->lower(), Eq(expectedLower));
-  EXPECT_THAT((*bs)->upper(), Eq(expectedUpper));
+  EXPECT_THAT((*bs)->lower().value(), Eq(expectedLower));
+  EXPECT_THAT((*bs)->upper().value(), Eq(expectedUpper));
+}
+
+TYPED_TEST(BoundedSumTest, BoundGettersForApproxBounds) {
+  auto bs =
+      typename BoundedSum<TypeParam>::Builder()
+          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetEpsilon(1.0)
+          .Build();
+  ASSERT_OK(bs);
+  EXPECT_FALSE((*bs)->lower().has_value());
+  EXPECT_FALSE((*bs)->upper().has_value());
 }
 
 TYPED_TEST(BoundedSumTest, SensitivityTooHigh) {
@@ -708,14 +719,18 @@ TYPED_TEST(BoundedSumTest, SplitsEpsilonWithAutomaticBounds) {
       typename BoundedSum<TypeParam>::Builder().SetEpsilon(epsilon).Build();
   ASSERT_OK(bs);
 
-  EXPECT_NEAR((*bs)->GetEpsilon(), epsilon, 1e-10);
-  EXPECT_NEAR((*bs)->GetEpsilon(),
-              (*bs)->GetBoundingEpsilon() + (*bs)->GetAggregationEpsilon(),
+  auto* sum_with_approx_bounds =
+      static_cast<BoundedSumWithApproxBounds<TypeParam>*>((*bs).get());
+
+  EXPECT_NEAR(sum_with_approx_bounds->GetEpsilon(), epsilon, 1e-10);
+  EXPECT_NEAR(sum_with_approx_bounds->GetEpsilon(),
+              sum_with_approx_bounds->GetBoundingEpsilon() +
+                  sum_with_approx_bounds->GetAggregationEpsilon(),
               1e-10);
-  EXPECT_GT((*bs)->GetBoundingEpsilon(), 0);
-  EXPECT_LT((*bs)->GetBoundingEpsilon(), epsilon);
-  EXPECT_GT((*bs)->GetAggregationEpsilon(), 0);
-  EXPECT_LT((*bs)->GetAggregationEpsilon(), epsilon);
+  EXPECT_GT(sum_with_approx_bounds->GetBoundingEpsilon(), 0);
+  EXPECT_LT(sum_with_approx_bounds->GetBoundingEpsilon(), epsilon);
+  EXPECT_GT(sum_with_approx_bounds->GetAggregationEpsilon(), 0);
+  EXPECT_LT(sum_with_approx_bounds->GetAggregationEpsilon(), epsilon);
 }
 
 }  //  namespace

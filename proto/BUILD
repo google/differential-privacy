@@ -47,6 +47,16 @@ java_proto_library(
 )
 
 proto_library(
+    name = "numerical_mechanism_proto",
+    srcs = ["numerical-mechanism.proto"],
+)
+
+cc_proto_library(
+    name = "numerical_mechanism_cc_proto",
+    deps = [":numerical_mechanism_proto"],
+)
+
+proto_library(
     name = "summary-proto",
     srcs = ["summary.proto"],
     deps = [

@@ -133,7 +133,7 @@ public final class CountDpTestCasesValidityTest {
     Supplier<Long> criticallyFailingSampleGenerator =
         () ->
             random.nextDouble() > dpTestParameters.getDeltaTolerance() * failureSpecificity
-                ? sampleReferenceNoise(variance, noiseType)
+                ? sampleGenerator.get()
                 : Long.MIN_VALUE;
 
     assertThat(
@@ -156,7 +156,10 @@ public final class CountDpTestCasesValidityTest {
     try {
       TextFormat.merge(
           new InputStreamReader(
-              CountDpTestCasesValidityTest.class.getClassLoader().getResourceAsStream(TEST_CASES_FILE_PATH), UTF_8),
+              CountDpTestCasesValidityTest.class
+                  .getClassLoader()
+                  .getResourceAsStream(TEST_CASES_FILE_PATH),
+              UTF_8),
           testCaseCollectionBuilder);
     } catch (IOException e) {
       throw new RuntimeException("Unable to read input.", e);

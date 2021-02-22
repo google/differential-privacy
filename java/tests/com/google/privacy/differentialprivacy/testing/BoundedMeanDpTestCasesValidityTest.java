@@ -226,8 +226,7 @@ public final class BoundedMeanDpTestCasesValidityTest {
     Supplier<Double> criticallyFailingSampleGenerator =
         () ->
             random.nextDouble() > dpTestParameters.getDeltaTolerance() * failureSpecificity
-                ? sampleReferenceNoise(sumVariance, noiseType)
-                    / Math.max(sampleReferenceNoise(countVariance, noiseType), 1.0)
+                ? sampleGenerator.get()
                 : Double.NaN;
 
     assertThat(

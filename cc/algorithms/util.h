@@ -19,11 +19,13 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <numeric>
 #include <string>
 #include <type_traits>
 #include <vector>
 
+#include <cstdint>
 #include "base/logging.h"
 #include "absl/base/attributes.h"
 #include "absl/status/status.h"
@@ -53,10 +55,31 @@ double GetNextPowerOfTwo(double n);
 
 // Rounds n to the nearest multiple of base. Ties are broken towards +inf.
 // If base is 0, returns n.
-double RoundToNearestMultiple(double n, double base);
+double RoundToNearestDoubleMultiple(double n, double base);
 
-// Return 1.0 if n > 0, -1.0 if n < 0, and 0 if n == 0.
-double sign(double n);
+int64_t RoundToNearestInt64Multiple(int64_t n, int64_t base);
+
+// Templates are needed for RoundToNearestMultiple(), since without them and
+// instead trying to overload RoundToNearestMultiple() causes C++ compiler
+// errors stating, for example, RoundToNearestMultiple(5, 3) is ambiguous.
+template <typename T, std::enable_if_t<std::is_integral<T>::value>* = nullptr>
+T RoundToNearestMultiple(T n, T base) {
+  return RoundToNearestInt64Multiple(n, base);
+}
+
+template <typename T,
+          std::enable_if_t<std::is_floating_point<T>::value>* = nullptr>
+T RoundToNearestMultiple(T n, T base) {
+  return RoundToNearestDoubleMultiple(n, base);
+}
+
+// Return 1 if n > 0, -1 if n < 0, and 0 if n == 0.
+template <typename T>
+T sign(T n) {
+  if (n > 0) return 1;
+  if (n < 0) return -1;
+  return 0;
+}
 
 // Approximate the inverse of the error function.
 // Implementation based on Table 5 in Giles' paper
@@ -159,32 +182,125 @@ inline bool SafeSquare(T num, T* result) {
   return true;
 }
 
-// Tries to convert a double value to an integral values while avoiding
-// overflows.  Returns whether the cast was successful and has been written to
-// `out`.
+// Return value for the SafeCastFromDouble functions below, including the cast
+// value and whether the cast occured without an overflow.
+template <typename T>
+struct SafeCastResult {
+  T value;
+  bool no_overflow;
+};
+
+// Tries to convert a double value to an integral value, manually overflowing
+// if necessary to avoid a SIGILL error from a static_cast outside the numeric
+// limits of T. Returns a pair containing the the cast (and possibly
+// overflowed) value and a boolean indicating whether or not the cast would have
+// been successful (i.e., true if the cast would not have overflowed).
 template <typename T, std::enable_if_t<std::is_integral<T>::value>* = nullptr>
-inline bool SafeCastFromDouble(const double in, T& out) {
-  if (std::isnan(in)) {
-    // Integral types do not support NaN values.
-    return false;
-  } else if (in >= std::numeric_limits<T>::max()) {
-    out = std::numeric_limits<T>::max();
-    return true;
-  } else if (in <= std::numeric_limits<T>::lowest()) {
-    out = std::numeric_limits<T>::lowest();
-    return true;
+inline SafeCastResult<T> SafeCastFromDouble(const double in) {
+  if (std::isnan(in) || !std::isfinite(in)) {
+    // Integral types do not support NaN or infinite values.
+    return SafeCastResult<T>{std::numeric_limits<T>::quiet_NaN(), false};
   }
-  out = static_cast<T>(in);
-  return true;
+  static const int64_t kTMax = std::numeric_limits<T>::max();
+  static const int64_t kTLowest = std::numeric_limits<T>::lowest();
+  double t_range_size = 1.0 + kTMax - kTLowest;
+  bool overflow = false;
+  double d_out = in;
+
+  if (d_out > kTMax) {
+    overflow = true;
+    // Translate `d_out` into the range of T, where
+    // `std::round(d_out / t_range_size)` is the number of times `d_out` would
+    // have overflowed outside of the range of T. For example, suppose:
+    //   T = int16_t;
+    //   d_out = 40000;  which is > MAX_INT16 (== 32767)
+    // It follows that:
+    //   t_range_size = 32767 - (-32768) + 1 = 65536;
+    //   d_out = d_out - t_range_size * std::round(d_out / t_range_size)
+    //         = 40000 - 65536 * std::round(40000 / 65536)
+    //         = 40000 - 65536 * 1
+    //         = 40000 - 65536
+    //         = -25536;
+    // This result is the same as an overflowed int16_t, such that:
+    //   decimal ->  int16_t
+    //   -----------------
+    //         0 ->      0
+    //         1 ->      1
+    //         2 ->      2
+    //          ...
+    //     32766 ->  32766
+    //     32767 ->  32767
+    //     32768 -> -32768   because of an int16_t overflow
+    //     32769 -> -32767
+    //     32770 -> -32766
+    //          ...
+    //     39999 -> -25537
+    //     40000 -> -25536
+    d_out -= t_range_size * std::round(d_out / t_range_size);
+  }
+
+  if (d_out < kTLowest) {
+    overflow = true;
+    // Translate `d_out` into the range of T, where
+    // `std::round(d_out / t_range_size)` is the number of times `d_out` would
+    // have underflowed outside of the range of T. For example, suppose:
+    //   T = int16_t;
+    //   d_out = -40000;  which is < LOWEST_INT16 (== -32768)
+    // It follows that:
+    //   t_range_size = 32767 - (-32768) + 1 = 65536;
+    //   d_out = d_out + t_range_size * std::round(-d_out / t_range_size)
+    //         = -40000 + 65536 * std::round(-(-40000) / 65536)
+    //         = -40000 + 65536 * std::round(40000 / 65536)
+    //         = -40000 + 65536 * 1
+    //         = -40000 + 65536
+    //         = 25536;
+    // This result is the same as an underflowed int16_t, such that:
+    //   decimal ->  int16_t
+    //   -----------------
+    //         0 ->      0
+    //        -1 ->     -1
+    //        -2 ->     -2
+    //          ...
+    //    -32766 ->  -32766
+    //    -32767 ->  -32767
+    //    -32768 ->  -32768
+    //    -32769 ->   32767   because of an int16_t overflow
+    //    -32770 ->   32766
+    //          ...
+    //    -39999 ->   25537
+    //    -40000 ->   25536
+    d_out += t_range_size * std::round(-d_out / t_range_size);
+  }
+  double d_out_floor = std::trunc(d_out);
+
+  // Since floating-point variables are only approximations of values (and not
+  // the precise value itself), they can still have residual decimal values that
+  // are outside of the numeric limits of T, which would cause a static_cast to
+  // crash with a SIGILL error. To illustrate, if `d_out` == MAX_INT64, then
+  // `static_cast<int64_t>(d_out)` will cause a SIGILL error, because the precise
+  // value of d_out is actually larger than MAX_INT64 (i.e., at such large
+  // magnitudes, doubles are actually exact integers, but many fewer integers
+  // can be accurately represented, since the double-precision format can only
+  // inaccurately approximate them). To prevent this, we try to simply set `out`
+  // to the numerical limit when `d_out` is close enough to the numerical limit.
+  T out;
+  if (d_out_floor >= kTMax) {
+    out = kTMax;
+  } else if (d_out_floor <= kTLowest) {
+    out = kTLowest;
+  } else {
+    out = static_cast<T>(d_out_floor);
+  }
+
+  return SafeCastResult<T>{out, !overflow};
 }
 
-// Convert double to other floating points.  This should be mostly a no-op since
+// Converts double to other floating points. This should be mostly a no-op since
 // we are typically only using doubles.
 template <typename T,
           std::enable_if_t<std::is_floating_point<T>::value>* = nullptr>
-inline bool SafeCastFromDouble(const double in, T& out) {
-  out = static_cast<T>(in);
-  return true;
+inline SafeCastResult<T> SafeCastFromDouble(const double in) {
+  return SafeCastResult<T>{static_cast<T>(in), true};
 }
 
 template <typename T>

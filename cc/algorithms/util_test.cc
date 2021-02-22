@@ -16,6 +16,8 @@
 
 #include "algorithms/util.h"
 
+#include <limits>
+
 #include "base/testing/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -129,29 +131,82 @@ TEST(InverseErrorTest, EdgeCases) {
 // In RoundToNearestMultiple tests exact comparison of double is used, because
 // for rounding to multiple of power of 2 RoundToNearestMultiple should provide
 // exact value.
-TEST(RoundTest, PositiveNoTies) {
+TEST(RoundDoubleTest, PositiveNoTies) {
   EXPECT_EQ(RoundToNearestMultiple(4.9, 2.0), 4.0);
   EXPECT_EQ(RoundToNearestMultiple(5.1, 2.0), 6.0);
 }
 
-TEST(RoundTest, NegativesNoTies) {
+TEST(RoundDoubleTest, NegativesNoTies) {
   EXPECT_EQ(RoundToNearestMultiple(-4.9, 2.0), -4.0);
   EXPECT_EQ(RoundToNearestMultiple(-5.1, 2.0), -6.0);
 }
 
-TEST(RoundTest, PositiveTies) {
+TEST(RoundDoubleTest, PositiveTies) {
   EXPECT_EQ(RoundToNearestMultiple(5.0, 2.0), 6.0);
 }
 
-TEST(RoundTest, NegativeTies) {
+TEST(RoundDoubleTest, NegativeTies) {
   EXPECT_EQ(RoundToNearestMultiple(-5.0, 2.0), -4.0);
 }
 
-TEST(RoundTest, NegativePowerOf2) {
+TEST(RoundDoubleTest, NegativePowerOf2) {
   EXPECT_EQ(RoundToNearestMultiple(0.2078795763, 0.25), 0.25);
   EXPECT_EQ(RoundToNearestMultiple(0.1, 1.0 / (1 << 10)), 0.099609375);
   EXPECT_EQ(RoundToNearestMultiple(0.3, 1.0 / (1 << 30)),
             322122547.0 / (1 << 30));
+}
+
+TEST(RoundInt64Test, PositiveNoTies) {
+  EXPECT_EQ(RoundToNearestMultiple(7, 3), 6);
+  EXPECT_EQ(RoundToNearestMultiple(8, 3), 9);
+  EXPECT_EQ(RoundToNearestMultiple(9, 4), 8);
+  EXPECT_EQ(RoundToNearestMultiple(11, 4), 12);
+  EXPECT_EQ(RoundToNearestMultiple(10, 5), 10);
+  EXPECT_EQ(RoundToNearestMultiple(11, 5), 10);
+  EXPECT_EQ(RoundToNearestMultiple(12, 5), 10);
+  EXPECT_EQ(RoundToNearestMultiple(13, 5), 15);
+  EXPECT_EQ(RoundToNearestMultiple(14, 5), 15);
+  EXPECT_EQ(RoundToNearestMultiple(15, 5), 15);
+  EXPECT_EQ(RoundToNearestMultiple(14, 7), 14);
+  EXPECT_EQ(RoundToNearestMultiple(15, 7), 14);
+  EXPECT_EQ(RoundToNearestMultiple(16, 7), 14);
+  EXPECT_EQ(RoundToNearestMultiple(17, 7), 14);
+  EXPECT_EQ(RoundToNearestMultiple(18, 7), 21);
+  EXPECT_EQ(RoundToNearestMultiple(19, 7), 21);
+  EXPECT_EQ(RoundToNearestMultiple(20, 7), 21);
+  EXPECT_EQ(RoundToNearestMultiple(21, 7), 21);
+}
+
+TEST(RoundInt64Test, PositiveTies) {
+  EXPECT_EQ(RoundToNearestMultiple(5, 2), 6);
+  EXPECT_EQ(RoundToNearestMultiple(10, 4), 12);
+  EXPECT_EQ(RoundToNearestMultiple(9, 6), 12);
+  EXPECT_EQ(RoundToNearestMultiple(12, 8), 16);
+  EXPECT_EQ(RoundToNearestMultiple(15, 10), 20);
+}
+
+TEST(RoundInt64Test, NegativeNoTies) {
+  EXPECT_EQ(RoundToNearestMultiple(-7, 3), -6);
+  EXPECT_EQ(RoundToNearestMultiple(-8, 3), -9);
+  EXPECT_EQ(RoundToNearestMultiple(-9, 4), -8);
+  EXPECT_EQ(RoundToNearestMultiple(-11, 4), -12);
+}
+
+TEST(RoundInt64Test, NegativeTies) {
+  EXPECT_EQ(RoundToNearestMultiple(-5, 2), -4);
+  EXPECT_EQ(RoundToNearestMultiple(-10, 4), -8);
+}
+
+TEST(RoundInt64Test, LargeValues) {
+  const int64_t k2Pow29 = 1 << 29;
+  const int64_t k2Pow30 = 1 << 30;
+
+  EXPECT_EQ(RoundToNearestMultiple(k2Pow29, k2Pow30), k2Pow30);
+  // Expect 0 since ties are broken towards +inf
+  EXPECT_EQ(RoundToNearestMultiple(-k2Pow29, k2Pow30), 0);
+
+  EXPECT_EQ(RoundToNearestMultiple(k2Pow30 - 5, k2Pow30), k2Pow30);
+  EXPECT_EQ(RoundToNearestMultiple(-k2Pow30 + 5, k2Pow30), -k2Pow30);
 }
 
 TEST(QnormTest, InvalidProbability) {
@@ -301,45 +356,117 @@ TEST(VectorUtilTest, VectorToString) {
 }
 
 TEST(SafeCastFromDoubleTest, Converts20ToIntegral) {
-  int64_t integral = 345;
-  EXPECT_TRUE(SafeCastFromDouble(20.0, integral));
-  EXPECT_EQ(integral, 20);
+  SafeCastResult<int64_t> cast_result = SafeCastFromDouble<int64_t>(20.0);
+  EXPECT_EQ(cast_result.value, 20);
+  EXPECT_TRUE(cast_result.no_overflow);
 }
 
-TEST(SafeCastFromDoubleTest, ConvertsHighValueToMaxIntegral) {
-  int64_t integral = 345;
-  EXPECT_TRUE(SafeCastFromDouble(1.0e200, integral));
-  EXPECT_EQ(integral, std::numeric_limits<int64_t>::max());
+TEST(SafeCastFromDoubleTest, ConvertsMaxValueToMaxIntegral) {
+  SafeCastResult<int64_t> cast_result =
+      SafeCastFromDouble<int64_t>(std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(cast_result.value, std::numeric_limits<int64_t>::max());
+  EXPECT_TRUE(cast_result.no_overflow);
 }
 
-TEST(SafeCastFromDoubleTest, ConvertsLowValueToLowestIntegral) {
-  int64_t integral = 345;
-  EXPECT_TRUE(SafeCastFromDouble(-1.0e200, integral));
-  EXPECT_EQ(integral, std::numeric_limits<int64_t>::lowest());
+TEST(SafeCastFromDoubleTest, ConvertsMinDoubleValuesToZero) {
+  SafeCastResult<int64_t> cast_result =
+      SafeCastFromDouble<int64_t>(std::numeric_limits<double>::min());
+  EXPECT_EQ(cast_result.value, 0);
+  EXPECT_TRUE(cast_result.no_overflow);
+
+  cast_result = SafeCastFromDouble<int64_t>(-std::numeric_limits<double>::min());
+  EXPECT_EQ(cast_result.value, 0);
+  EXPECT_TRUE(cast_result.no_overflow);
+}
+
+TEST(SafeCastFromDoubleTest, ConvertsLowestValueToLowestIntegral) {
+  SafeCastResult<int64_t> cast_result =
+      SafeCastFromDouble<int64_t>(std::numeric_limits<int64_t>::lowest());
+  EXPECT_EQ(cast_result.value, std::numeric_limits<int64_t>::lowest());
+  EXPECT_TRUE(cast_result.no_overflow);
+}
+
+TEST(SafeCastFromDoubleTest, ConvertsOverLimitValueToOverflowedIntegral) {
+  std::vector<double> overflow_values = {
+      1,
+      2,
+      3,
+      4,
+      5,
+      10,
+      1234,
+      static_cast<double>(std::numeric_limits<int16_t>::max() - 2),
+      static_cast<double>(std::numeric_limits<int16_t>::max() - 1),
+      static_cast<double>(std::numeric_limits<int16_t>::max())};
+  SafeCastResult<int16_t> cast_result;
+  for (double overflow : overflow_values) {
+    cast_result = SafeCastFromDouble<int16_t>(
+        static_cast<double>(std::numeric_limits<int16_t>::max()) + overflow);
+    EXPECT_EQ(cast_result.value,
+              std::numeric_limits<int16_t>::lowest() - 1 + overflow);
+    EXPECT_FALSE(cast_result.no_overflow);
+  }
+}
+
+TEST(SafeCastFromDoubleTest, ConvertsUnderLimitValueToUnderflowedIntegral) {
+  std::vector<double> overflow_values = {
+      1,
+      2,
+      3,
+      4,
+      5,
+      10,
+      1234,
+      static_cast<double>(std::numeric_limits<int16_t>::max() - 2),
+      static_cast<double>(std::numeric_limits<int16_t>::max() - 1),
+      static_cast<double>(std::numeric_limits<int16_t>::max())};
+  SafeCastResult<int16_t> cast_result;
+  for (double overflow : overflow_values) {
+    cast_result = SafeCastFromDouble<int16_t>(
+        static_cast<double>(std::numeric_limits<int16_t>::lowest()) - overflow);
+    EXPECT_EQ(cast_result.value,
+              std::numeric_limits<int16_t>::max() + 1 - overflow);
+    EXPECT_FALSE(cast_result.no_overflow);
+  }
+}
+
+TEST(SafeCastFromDoubleTest, ConvertsHighValueToOverflowedIntegral) {
+  SafeCastResult<int64_t> cast_result = SafeCastFromDouble<int64_t>(1.0e200);
+  EXPECT_LE(cast_result.value, std::numeric_limits<int64_t>::max());
+  EXPECT_FALSE(cast_result.no_overflow);
+}
+
+TEST(SafeCastFromDoubleTest, ConvertsLowValueToUnderflowedIntegral) {
+  SafeCastResult<int64_t> cast_result = SafeCastFromDouble<int64_t>(-1.0e200);
+  EXPECT_GE(cast_result.value, std::numeric_limits<int64_t>::lowest());
+  EXPECT_FALSE(cast_result.no_overflow);
 }
 
 TEST(SafeCastFromDoubleTest, ReturnsFalseOnNanForIntegrals) {
-  int64_t integral = 345;
-  EXPECT_FALSE(SafeCastFromDouble(NAN, integral));
-  EXPECT_EQ(integral, 345);
+  SafeCastResult<int64_t> cast_result = SafeCastFromDouble<int64_t>(NAN);
+  EXPECT_EQ(cast_result.value, std::numeric_limits<int64_t>::quiet_NaN());
+  EXPECT_FALSE(cast_result.no_overflow);
 }
 
 // Combine all tests for float outputs.  Should be nothing unexpected here since
 // this is just a cast from double to float.
 TEST(SafeCastFromDoubleTest, ForFloat) {
-  float floating_point;
+  SafeCastResult<float> cast_result;
 
   // Normal case.
-  EXPECT_TRUE(SafeCastFromDouble(0.5, floating_point));
-  EXPECT_EQ(floating_point, 0.5);
+  cast_result = SafeCastFromDouble<float>(0.5);
+  EXPECT_EQ(cast_result.value, 0.5);
+  EXPECT_TRUE(cast_result.no_overflow);
 
   // NaN double should convert into NaN float.
-  EXPECT_TRUE(SafeCastFromDouble(NAN, floating_point));
-  EXPECT_TRUE(std::isnan(floating_point));
+  cast_result = SafeCastFromDouble<float>(NAN);
+  EXPECT_TRUE(std::isnan(cast_result.value));
+  EXPECT_TRUE(cast_result.no_overflow);
 
   // High double should convert into infinite float.
-  EXPECT_TRUE(SafeCastFromDouble(1.0e200, floating_point));
-  EXPECT_TRUE(std::isinf(floating_point));
+  cast_result = SafeCastFromDouble<float>(1.0e200);
+  EXPECT_TRUE(std::isinf(cast_result.value));
+  EXPECT_TRUE(cast_result.no_overflow);
 }
 
 TEST(ValidateTest, IsSet) {

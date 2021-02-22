@@ -55,7 +55,7 @@ class TestAlgorithm : public Algorithm<T> {
   TestAlgorithm() : Algorithm<T>(1.0) {}
   TestAlgorithm(double epsilon) : Algorithm<T>(epsilon) {}
   void AddEntry(const T& t) override {}
-  Summary Serialize() override { return Summary(); }
+  Summary Serialize() const override { return Summary(); }
   absl::Status Merge(const Summary& summary) override {
     return absl::OkStatus();
   }

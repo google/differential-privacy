@@ -448,7 +448,7 @@ class DiscreteLaplacePrivacyLossDistributionTest(parameterized.TestCase):
       (1.0, 2, {2: 0.73105858, 0: 0.17000340, -2: 0.09893802}),
       (0.8, 2, {2: 0.68997448, 0: 0.17072207, -1: 0.13930345}),
       (0.8, 3, {3: 0.68997448, 1: 0.17072207, 0: 0.07671037, -2: 0.06259307}))
-  def test_discrete_laplace_varying_standard_deviation_and_sensitivity(
+  def test_discrete_laplace_varying_parameter_and_sensitivity(
       self, parameter, sensitivity, expected_rounded_probability_mass_function):
     pld = privacy_loss_distribution.PrivacyLossDistribution.from_discrete_laplace_mechanism(
         parameter, sensitivity=sensitivity, value_discretization_interval=1)
@@ -517,6 +517,22 @@ class RandomizedResponsePrivacyLossDistributionTest(parameterized.TestCase):
     with self.assertRaises(ValueError):
       privacy_loss_distribution.PrivacyLossDistribution.from_randomized_response(
           noise_parameter, num_buckets)
+
+
+class IdentityPrivacyLossDistributionTest(parameterized.TestCase):
+
+  def test_identity(self):
+    pld = privacy_loss_distribution.PrivacyLossDistribution.identity()
+    test_util.dictionary_almost_equal(
+        self, pld.rounded_probability_mass_function, {0: 1})
+    self.assertAlmostEqual(pld.infinity_mass, 0)
+
+    pld = pld.compose(
+        privacy_loss_distribution.PrivacyLossDistribution(
+            {1: 0.5, -1: 0.5}, 1e-4, 0))
+    test_util.dictionary_almost_equal(
+        self, pld.rounded_probability_mass_function, {1: 0.5, -1: 0.5})
+    self.assertAlmostEqual(pld.infinity_mass, 0)
 
 
 if __name__ == '__main__':

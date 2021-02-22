@@ -53,6 +53,9 @@ message DpTestParameters {
   // parameter quantifying the amount of discretization that is applied to
   // samples before testing
   optional double granularity = 4;
+  // parameter quantifying the number of buckets to which the samples are maped
+  // before testing
+  optional int32 num_of_buckets = 5;
 }
 
 // Parameters required for drawing samples from the addNoise method of the DP
@@ -107,16 +110,22 @@ message BoundedMeanSamplingParameters {
   repeated double neighbour_raw_entry = 10;
 }
 
-// Parameters required for drawing samples from the bounded order statistics
+// Parameters required for drawing samples from the bounded quantiles
 // aggregation of the DP library.
-message BoundedOrderStatisticsSamplingParameters {
+message BoundedQuantilesSamplingParameters {
   optional int32 number_of_samples = 1;
-  optional double quantile = 2;
-  optional int32 max_contributions_per_partition = 3;
-  optional double lower_bound = 4;
-  optional double upper_bound = 5;
-  optional double epsilon = 6;
-  repeated double raw_entry = 7;
+  optional NoiseType noise_type = 2;
+  repeated double rank = 3;
+  optional int32 max_contributions_per_partition = 4;
+  optional int32 max_partitions_contributed = 5;
+  optional double lower_bound = 6;
+  optional double upper_bound = 7;
+  optional int32 tree_height = 8;
+  optional int32 branching_factor = 9;
+  optional double epsilon = 10;
+  optional double delta = 11;
+  repeated double raw_entry = 12;
+  repeated double neighbour_raw_entry = 13;
 }
 
 // Parameters required for drawing sample bounds from the approximate bounds
@@ -199,11 +208,11 @@ message BoundedMeanDpTestCase {
   optional BoundedMeanSamplingParameters bounded_mean_sampling_parameters = 3;
 }
 
-message BoundedOrderStatisticsDpTestCase {
+message BoundedQuantilesDpTestCase {
   optional string name = 1;
   optional DpTestParameters dp_test_parameters = 2;
-  optional BoundedOrderStatisticsSamplingParameters
-      bounded_order_statistics_sampling_parameters = 3;
+  optional BoundedQuantilesSamplingParameters
+      bounded_quantiles_sampling_parameters = 3;
 }
 
 message ApproximateBoundsDpTestCase {
@@ -243,15 +252,10 @@ message BoundedMeanDpTestCaseCollection {
   optional DpTestValidityParameters validity_parameters = 3;
 }
 
-message BoundedOrderStatisticsDpTestCaseCollection {
-  repeated BoundedOrderStatisticsDpTestCase
-      bounded_order_statistics_dp_test_case = 1;
+message BoundedQuantilesDpTestCaseCollection {
+  repeated BoundedQuantilesDpTestCase bounded_quantiles_dp_test_case = 1;
   optional VotingParameters voting_parameters = 2;
-  // The collection does not contain validity_parameters since an implementation
-  // independent validation of order statistics is not clearly defined. Instead,
-  // the test case parameters are chosen based on the theoretical bounds
-  // established in Theorem 14 of https://arxiv.org/pdf/1806.06427.pdf. Note
-  // that the generality of these bounds makes them looser in practice.
+  optional DpTestValidityParameters validity_parameters = 3;
 }
 
 message ApproximateBoundsDpTestCaseCollection {

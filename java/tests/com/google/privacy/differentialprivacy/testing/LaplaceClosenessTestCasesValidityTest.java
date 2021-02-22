@@ -30,11 +30,11 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-
 @RunWith(Parameterized.class)
 public final class LaplaceClosenessTestCasesValidityTest {
   private static final String TEST_CASES_FILE_PATH =
-     "external/com_google_differential_privacy/proto/testing/laplace_closeness_test_cases.textproto";
+
+  "external/com_google_differential_privacy/proto/testing/laplace_closeness_test_cases.textproto";
   private final int numberOfVotes =
       getTestCaseCollectionFromFile().getVotingParameters().getNumberOfVotes();
   private final double shiftSpecificity =
@@ -154,7 +154,10 @@ public final class LaplaceClosenessTestCasesValidityTest {
     try {
       TextFormat.merge(
           new InputStreamReader(
-              LaplaceClosenessTestCasesValidityTest.class.getClassLoader().getResourceAsStream(TEST_CASES_FILE_PATH), UTF_8),
+              LaplaceClosenessTestCasesValidityTest.class
+                  .getClassLoader()
+                  .getResourceAsStream(TEST_CASES_FILE_PATH),
+              UTF_8),
           testCaseCollectionBuilder);
     } catch (IOException e) {
       throw new RuntimeException("Unable to read input.", e);

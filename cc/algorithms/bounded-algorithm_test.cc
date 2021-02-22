@@ -68,7 +68,7 @@ class BoundedAlgorithm : public Algorithm<T> {
     return Output();
   }
   void ResetState() override {}
-  Summary Serialize() override { return Summary(); }
+  Summary Serialize() const override { return Summary(); }
   absl::Status Merge(const Summary& summary) override {
     return absl::OkStatus();
   }

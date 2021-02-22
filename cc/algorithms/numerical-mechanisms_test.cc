@@ -59,7 +59,7 @@ TYPED_TEST(NumericalMechanismsTest, LaplaceBuilder) {
 
   EXPECT_DOUBLE_EQ((*test_mechanism)->GetEpsilon(), 1);
   EXPECT_DOUBLE_EQ(
-      dynamic_cast<LaplaceMechanism*>(test_mechanism->get())->GetSensitivity(),
+      dynamic_cast<LaplaceMechanism *>(test_mechanism->get())->GetSensitivity(),
       3);
 }
 
@@ -510,7 +510,7 @@ TYPED_TEST(NumericalMechanismsTest, LaplaceBuilderClone) {
 
   EXPECT_DOUBLE_EQ((*test_mechanism)->GetEpsilon(), 1);
   EXPECT_DOUBLE_EQ(
-      dynamic_cast<LaplaceMechanism*>(test_mechanism->get())->GetSensitivity(),
+      dynamic_cast<LaplaceMechanism *>(test_mechanism->get())->GetSensitivity(),
       3);
 }
 
@@ -589,7 +589,7 @@ TEST(NumericalMechanismsTest, LaplaceEstimatesL1WithL0AndLInf) {
       builder.SetEpsilon(1).SetL0Sensitivity(5).SetLInfSensitivity(3).Build();
   ASSERT_OK(mechanism);
   EXPECT_THAT(
-      dynamic_cast<LaplaceMechanism*>(mechanism->get())->GetSensitivity(),
+      dynamic_cast<LaplaceMechanism *>(mechanism->get())->GetSensitivity(),
       Ge(3));
 }
 
@@ -892,9 +892,9 @@ TEST(NumericalMechanismsTest, GaussianBuilderClone) {
 
   EXPECT_DOUBLE_EQ((*mechanism)->GetEpsilon(), 1.1);
   EXPECT_DOUBLE_EQ(
-      dynamic_cast<GaussianMechanism*>(mechanism->get())->GetDelta(), 0.5);
+      dynamic_cast<GaussianMechanism *>(mechanism->get())->GetDelta(), 0.5);
   EXPECT_DOUBLE_EQ(
-      dynamic_cast<GaussianMechanism*>(mechanism->get())->GetL2Sensitivity(),
+      dynamic_cast<GaussianMechanism *>(mechanism->get())->GetL2Sensitivity(),
       1.2);
 }
 
@@ -902,6 +902,64 @@ TEST(NumericalMechanismsTest, Stddev) {
   GaussianMechanism mechanism(log(3), 0.00001, 1.0);
 
   EXPECT_DOUBLE_EQ(mechanism.CalculateStddev(log(3), 0.00001), 3.42578125);
+}
+
+TEST(NumericalMechanismsTest, LaplaceMechanismSerialization) {
+  const double epsilon = std::log(3);
+  const double l0 = 2;
+  const double linf = 3;
+  base::StatusOr<std::unique_ptr<NumericalMechanism>> test_mechanism =
+      LaplaceMechanism::Builder()
+          .SetEpsilon(epsilon)
+          .SetL0Sensitivity(l0)
+          .SetLInfSensitivity(linf)
+          .Build();
+  ASSERT_OK(test_mechanism);
+  auto *laplace_mechanism =
+      dynamic_cast<LaplaceMechanism *>(test_mechanism->get());
+
+  serialization::LaplaceMechanism serialized_data =
+      laplace_mechanism->Serialize();
+
+  base::StatusOr<std::unique_ptr<NumericalMechanism>> deserialized =
+      LaplaceMechanism::Deserialize(serialized_data);
+  ASSERT_OK(deserialized);
+
+  EXPECT_EQ((*deserialized)->GetEpsilon(), epsilon);
+  EXPECT_EQ(
+      laplace_mechanism->GetSensitivity(),
+      dynamic_cast<LaplaceMechanism *>(deserialized->get())->GetSensitivity());
+}
+
+TEST(NumericalMechanismsTest, GaussianMechanismSerialization) {
+  const double epsilon = std::log(3);
+  const double delta = 10e-8;
+  const double l0 = 2;
+  const double linf = 3;
+  base::StatusOr<std::unique_ptr<NumericalMechanism>> test_mechanism =
+      GaussianMechanism::Builder()
+          .SetEpsilon(epsilon)
+          .SetDelta(delta)
+          .SetL0Sensitivity(l0)
+          .SetLInfSensitivity(linf)
+          .Build();
+  ASSERT_OK(test_mechanism);
+  auto *gaussian_mechanism =
+      dynamic_cast<GaussianMechanism *>(test_mechanism->get());
+
+  serialization::GaussianMechanism serialized_data =
+      gaussian_mechanism->Serialize();
+
+  base::StatusOr<std::unique_ptr<NumericalMechanism>> deserialized =
+      GaussianMechanism::Deserialize(serialized_data);
+  ASSERT_OK(deserialized);
+
+  EXPECT_EQ((*deserialized)->GetEpsilon(), epsilon);
+  auto *deserialized_gaussian =
+      dynamic_cast<GaussianMechanism *>(deserialized->get());
+  EXPECT_EQ(deserialized_gaussian->GetDelta(), delta);
+  EXPECT_EQ(deserialized_gaussian->GetL2Sensitivity(),
+            gaussian_mechanism->GetL2Sensitivity());
 }
 
 }  // namespace

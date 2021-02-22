@@ -68,7 +68,12 @@ public class Count {
     return Params.Builder.newBuilder();
   }
 
-  /** Increments count by one. */
+  /**
+   * Increments count by one.
+   *
+   * @throws IllegalStateException if this this instance of {@link Count} has already been queried
+   *     or serialized.
+   */
   public void increment() {
     incrementBy(1);
   }
@@ -76,12 +81,12 @@ public class Count {
   /**
    * Increments count by the given value. Note, that this shouldn't be used to count multiple
    * contributions to a partition from the same user.
+   *
+   * @throws IllegalStateException if this this instance of {@link Count} has already been queried
+   *     or serialized.
    */
   public void incrementBy(long count) {
-    if (state != AggregationState.DEFAULT) {
-      throw new IllegalStateException(
-          "Count cannot be amended. Reason: " + state.getErrorMessage());
-    }
+    Preconditions.checkState(state == AggregationState.DEFAULT, "Count cannot be incremented.");
 
     // Non-positive values are ignored because they don't make sense.
     if (count > 0) {
@@ -98,14 +103,15 @@ public class Count {
    *
    * <p>The returned value may sometimes be negative. This can be corrected by setting negative
    * results to 0. Note that such post processing introduces bias to the result.
+   *
+   * @throws IllegalStateException if this this instance of {@link Count} has already been queried
+   *     or serialized.
    */
   public long computeResult() {
-    if (state != AggregationState.DEFAULT) {
-      throw new IllegalStateException(
-          "Count's noised result cannot be computed. Reason: " + state.getErrorMessage());
-    }
+    Preconditions.checkState(state == AggregationState.DEFAULT, "DP count cannot be computed.");
 
     state = AggregationState.RESULT_RETURNED;
+
     noisedCount =
         params
             .noise()
@@ -119,19 +125,20 @@ public class Count {
   }
 
   /**
-   * Computes a {@link ConfidenceInterval} with integer bounds that
-   * contains the true {@link Count} with a probability greater or equal to 1 - alpha using the
-   * noised {@link Count} computed by {@code computeResult()}.
+   * Computes a {@link ConfidenceInterval} with integer bounds that contains the true {@link Count}
+   * with a probability greater or equal to 1 - alpha using the noised {@link Count} computed by
+   * {@code computeResult()}.
    *
    * <p>Refer to <a
    * href="https://github.com/google/differential-privacy/tree/main/common_docs/confidence_intervals.md">this</a> doc for
    * more information.
+   *
+   * @throws IllegalStateException if this this instance of {@link Count} has not been queried yet.
    */
   public ConfidenceInterval computeConfidenceInterval(double alpha) {
-    if (state != AggregationState.RESULT_RETURNED) {
-      throw new IllegalStateException(
-          "computeResult must be called before calling computeConfidenceInterval.");
-    }
+    Preconditions.checkState(
+        state == AggregationState.RESULT_RETURNED, "Confidence interval cannot be computed.");
+
     ConfidenceInterval confInt =
         params
             .noise()
@@ -206,15 +213,21 @@ public class Count {
   }
 
   /**
-   * Returns a serializable version of the current state of {@link Count} and the parameters used to
-   * calculate it. After calling this method, this instance of Count will be unusable, since the
-   * result can only be output once.
+   * Returns a serializable summary of the current state of this {@link Count} instance and its
+   * parameters. The summary can be used to merge this instance with another instance of {@link
+   * Count}.
+   *
+   * <p>This method cannot be invoked if the count has already been queried, i.e., {@link
+   * computeResult()} has been called. Moreover, after this instance of {@link Count} has been
+   * serialized once, no further modification, queries or serialization is possible anymore.
+   *
+   * @throws IllegalStateException if this this instance of {@link Count} has already been queried
+   *     or serialized.
    */
   public byte[] getSerializableSummary() {
-    if (state != AggregationState.DEFAULT) {
-      throw new IllegalStateException(
-          "Count object cannot be serialized. Reason: " + state.getErrorMessage());
-    }
+    Preconditions.checkState(state == AggregationState.DEFAULT, "Count cannot be serialized.");
+
+    state = AggregationState.SERIALIZED;
 
     CountSummary.Builder builder =
         CountSummary.newBuilder()
@@ -227,27 +240,20 @@ public class Count {
       builder.setDelta(params.delta());
     }
 
-    // Record that this object is no longer suitable for producing a differentially private count,
-    // since serialization exposes the object's raw state.
-    state = AggregationState.SERIALIZED;
-
     return builder.build().toByteArray();
   }
 
   /**
-   * Merges this instance with the output of {@link #getSerializableSummary()} from a different
-   * {@link Count} and stores the merged result in this instance. This is required in the
-   * distributed calculations context for merging partial results.
+   * Merges the output of {@link #getSerializableSummary()} from a different instance of {@link
+   * Count} with this instance. Intended to be used in the context of distributed computation.
    *
-   * @throws IllegalArgumentException if not all config parameters (e.g., epsilon) are equal or if
-   *     the passed serialized count is invalid.
-   * @throws IllegalStateException if this count has already been calculated or serialized.
+   * @throws IllegalArgumentException if the parameters of the two instances (epsilon, delta,
+   *     contribution bounds, etc.) do not match or if the passed serialized summary is invalid.
+   * @throws IllegalStateException if this this instance of {@link Count} has already been queried
+   *     or serialized.
    */
   public void mergeWith(byte[] otherCountSummary) {
-    if (state != AggregationState.DEFAULT) {
-      throw new IllegalStateException(
-          "Count object cannot be merged. Reason: " + state.getErrorMessage());
-    }
+    Preconditions.checkState(state == AggregationState.DEFAULT, "Counts cannot be merged.");
 
     CountSummary otherSummaryParsed;
     try {
@@ -260,15 +266,15 @@ public class Count {
     this.rawCount += otherSummaryParsed.getCount();
   }
 
-  private void checkMergeParametersAreEqual(CountSummary otherCount) {
+  private void checkMergeParametersAreEqual(CountSummary summary) {
     DpPreconditions.checkMergeMechanismTypesAreEqual(
-        params.noise().getMechanismType(), otherCount.getMechanismType());
-    DpPreconditions.checkMergeEpsilonAreEqual(params.epsilon(), otherCount.getEpsilon());
-    DpPreconditions.checkMergeDeltaAreEqual(params.delta(), otherCount.getDelta());
+        params.noise().getMechanismType(), summary.getMechanismType());
+    DpPreconditions.checkMergeEpsilonAreEqual(params.epsilon(), summary.getEpsilon());
+    DpPreconditions.checkMergeDeltaAreEqual(params.delta(), summary.getDelta());
     DpPreconditions.checkMergeMaxPartitionsContributedAreEqual(
-        params.maxPartitionsContributed(), otherCount.getMaxPartitionsContributed());
+        params.maxPartitionsContributed(), summary.getMaxPartitionsContributed());
     DpPreconditions.checkMergeMaxContributionsPerPartitionAreEqual(
-        params.maxContributionsPerPartition(), otherCount.getMaxContributionsPerPartition());
+        params.maxContributionsPerPartition(), summary.getMaxContributionsPerPartition());
   }
 
   @AutoValue

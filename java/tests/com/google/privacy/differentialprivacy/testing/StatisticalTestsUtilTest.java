@@ -341,6 +341,70 @@ public class StatisticalTestsUtilTest {
   }
 
   @Test
+  public void bucketize_sampleLessThanLower_throwsException() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            StatisticalTestsUtil.bucketize(
+                /*sample=*/ -1.0, /*lower=*/ 0.0, /*upper=*/ 1.0, /*numberOfBuckets=*/ 10));
+  }
+
+  @Test
+  public void bucketize_sampleGreaterThanUpper_throwsException() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            StatisticalTestsUtil.bucketize(
+                /*sample=*/ 2.0, /*lower=*/ 0.0, /*upper=*/ 1.0, /*numberOfBuckets=*/ 10));
+  }
+
+  @Test
+  public void bucketize_lowerEqualToUpper_throwsException() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            StatisticalTestsUtil.bucketize(
+                /*sample=*/ 0.0, /*lower=*/ 0.0, /*upper=*/ 0.0, /*numberOfBuckets=*/ 10));
+  }
+
+  @Test
+  public void bucketize_numberOfBucketsLessThanOne_throwsException() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            StatisticalTestsUtil.bucketize(
+                /*sample=*/ 0.5, /*lower=*/ 0.0, /*upper=*/ 1.0, /*numberOfBuckets=*/ 0));
+  }
+
+  @Test
+  public void bucketize_sampleEqualToLower_returnsZero() {
+    assertThat(
+            StatisticalTestsUtil.bucketize(
+                /*sample=*/ 0.0, /*lower=*/ 0.0, /*upper=*/ 1.0, /*numberOfBuckets=*/ 10))
+        .isEqualTo(0);
+  }
+
+  @Test
+  public void bucketize_sampleEqualUpper_returnsNumberOfBucketsMinusOne() {
+    assertThat(
+            StatisticalTestsUtil.bucketize(
+                /*sample=*/ 1.0, /*lower=*/ 0.0, /*upper=*/ 1.0, /*numberOfBuckets=*/ 10))
+        .isEqualTo(9);
+  }
+
+  @Test
+  public void bucketize_roundsCorrectly() {
+    assertThat(
+            StatisticalTestsUtil.bucketize(
+                /*sample=*/ 0.39999, /*lower=*/ 0.0, /*upper=*/ 1.0, /*numberOfBuckets=*/ 10))
+        .isEqualTo(3);
+    assertThat(
+            StatisticalTestsUtil.bucketize(
+                /*sample=*/ 0.4, /*lower=*/ 0.0, /*upper=*/ 1.0, /*numberOfBuckets=*/ 10))
+        .isEqualTo(4);
+  }
+
+  @Test
   public void roundToNextMultipleOf_sampleIsNegative() {
     assertThat(StatisticalTestsUtil.discretize(-36.4621596072, Math.pow(2.0, -10.0)))
         .isEqualTo(-36.4619140625);

@@ -38,7 +38,8 @@ import org.junit.runners.Parameterized;
 @RunWith(Parameterized.class)
 public final class BoundedSumDpTestCasesValidityTest {
    private static final String TEST_CASES_FILE_PATH =
-     "external/com_google_differential_privacy/proto/testing/bounded_sum_dp_test_cases.textproto";
+
+  "external/com_google_differential_privacy/proto/testing/bounded_sum_dp_test_cases.textproto";
   private final int numberOfVotes =
       getTestCaseCollectionFromFile().getVotingParameters().getNumberOfVotes();
   private final double distanceSpecificity =
@@ -146,7 +147,7 @@ public final class BoundedSumDpTestCasesValidityTest {
     Supplier<Double> criticallyFailingSampleGenerator =
         () ->
             random.nextDouble() > dpTestParameters.getDeltaTolerance() * failureSpecificity
-                ? sampleReferenceNoise(variance, noiseType)
+                ? sampleGenerator.get()
                 : Double.NaN;
 
     assertThat(
@@ -170,7 +171,10 @@ public final class BoundedSumDpTestCasesValidityTest {
     try {
       TextFormat.merge(
           new InputStreamReader(
-              BoundedSumDpTestCasesValidityTest.class.getClassLoader().getResourceAsStream(TEST_CASES_FILE_PATH), UTF_8),
+              BoundedSumDpTestCasesValidityTest.class
+                  .getClassLoader()
+                  .getResourceAsStream(TEST_CASES_FILE_PATH),
+              UTF_8),
           testCaseCollectionBuilder);
     } catch (IOException e) {
       throw new RuntimeException("Unable to read input.", e);

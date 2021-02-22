@@ -30,8 +30,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.math.Stats;
 import com.google.differentialprivacy.SummaryOuterClass.BoundedSumSummary;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.Arrays;
@@ -48,16 +46,14 @@ import org.mockito.junit.MockitoRule;
  * Tests the accuracy of {@link BoundedSum}. The test mocks {@link Noise} instance which generates
  * zero noise.
  *
- * <p>Statistical and DP properties of the algorithm are tested in
- * {@link com.google.privacy.differentialprivacy.statistical.BoundedSumDpTest}.
+ * <p>Statistical and DP properties of the algorithm are tested in {@link
+ * com.google.privacy.differentialprivacy.statistical.BoundedSumDpTest}.
  */
 @RunWith(JUnit4.class)
 public class BoundedSumTest {
   private static final double TOLERANCE = 1E-3;
   private static final double EPSILON = 0.123;
   private static final double DELTA = 0.123;
-  private static final int NUM_SAMPLES = 100000;
-  private static final double LN_3 = Math.log(3.0);
   private static final double ALPHA = 0.152145599;
 
   @Mock private Noise noise;
@@ -74,10 +70,10 @@ public class BoundedSumTest {
     // tests don't rely on a specific noise type, we arbitrarily return Gaussian.
     when(noise.getMechanismType()).thenReturn(GAUSSIAN);
     when(noise.computeConfidenceInterval(
-        anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble(), anyDouble()))
+            anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble(), anyDouble()))
         .thenReturn(ConfidenceInterval.create(0.0, 0.0));
     when(noise.computeConfidenceInterval(
-        anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+            anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
         .thenReturn(ConfidenceInterval.create(0.0, 0.0));
 
     sum =
@@ -116,10 +112,39 @@ public class BoundedSumTest {
     assertThat(sum.computeResult()).isEqualTo(2.0);
   }
 
-  // An attempt to compute the sum several times should result in an exception.
+  @Test
+  public void addEntry_calledAfterComputeResult_throwsException() {
+    sum.computeResult();
+    assertThrows(IllegalStateException.class, () -> sum.addEntry(0.0));
+  }
+
+  @Test
+  public void addEntry_calledAfterSerialize_throwsException() {
+    sum.getSerializableSummary();
+    assertThrows(IllegalStateException.class, () -> sum.addEntry(0.0));
+  }
+
+  @Test
+  public void addEntries_calledAfterComputeResult_throwsException() {
+    sum.computeResult();
+    assertThrows(IllegalStateException.class, () -> sum.addEntries(Arrays.asList(0.0)));
+  }
+
+  @Test
+  public void addEntries_calledAfterSerialize_throwsException() {
+    sum.getSerializableSummary();
+    assertThrows(IllegalStateException.class, () -> sum.addEntries(Arrays.asList(0.0)));
+  }
+
   @Test
   public void computeResult_multipleCalls_throwsException() {
     sum.computeResult();
+    assertThrows(IllegalStateException.class, () -> sum.computeResult());
+  }
+
+  @Test
+  public void computeResult_calledAfterSerialize_throwsException() {
+    sum.getSerializableSummary();
     assertThrows(IllegalStateException.class, () -> sum.computeResult());
   }
 
@@ -272,15 +297,9 @@ public class BoundedSumTest {
   }
 
   @Test
-  public void getSerializableSummary_twoCalls_throwsException() {
+  public void getSerializableSummary_multipleCalls_throwsException() {
     sum.getSerializableSummary();
     assertThrows(IllegalStateException.class, () -> sum.getSerializableSummary());
-  }
-
-  @Test
-  public void computeResult_calledAfterSerialize_throwsException() {
-    sum.getSerializableSummary();
-    assertThrows(IllegalStateException.class, () -> sum.computeResult());
   }
 
   @Test
@@ -348,7 +367,7 @@ public class BoundedSumTest {
   }
 
   @Test
-  public void merge_basicExample_sumsValues() {
+  public void mergeWith_basicExample_sumsValues() {
     BoundedSum targetSum = getBoundedSumBuilderWithFields().build();
     BoundedSum sourceSum = getBoundedSumBuilderWithFields().build();
 
@@ -361,7 +380,7 @@ public class BoundedSumTest {
   }
 
   @Test
-  public void merge_calledTwice_sumsValues() {
+  public void mergeWith_calledTwice_sumsValues() {
     BoundedSum targetSum = getBoundedSumBuilderWithFields().build();
     BoundedSum sourceSum1 = getBoundedSumBuilderWithFields().build();
     BoundedSum sourceSum2 = getBoundedSumBuilderWithFields().build();
@@ -377,7 +396,16 @@ public class BoundedSumTest {
   }
 
   @Test
-  public void merge_nullDelta_noException() {
+  public void mergeWith_epsilonMismatch_throwsException() {
+    BoundedSum targetSum = getBoundedSumBuilderWithFields().epsilon(EPSILON).build();
+    BoundedSum sourceSum = getBoundedSumBuilderWithFields().epsilon(2 * EPSILON).build();
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> targetSum.mergeWith(sourceSum.getSerializableSummary()));
+  }
+
+  @Test
+  public void mergeWith_nullDelta_mergesWithoutException() {
     BoundedSum targetSum =
         getBoundedSumBuilderWithFields().noise(new LaplaceNoise()).delta(null).build();
     BoundedSum sourceSum =
@@ -387,16 +415,7 @@ public class BoundedSumTest {
   }
 
   @Test
-  public void merge_differentEpsilon_throwsException() {
-    BoundedSum targetSum = getBoundedSumBuilderWithFields().epsilon(EPSILON).build();
-    BoundedSum sourceSum = getBoundedSumBuilderWithFields().epsilon(2 * EPSILON).build();
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> targetSum.mergeWith(sourceSum.getSerializableSummary()));
-  }
-
-  @Test
-  public void merge_differentDelta_throwsException() {
+  public void mergeWith_deltaMismatch_throwsException() {
     BoundedSum targetSum = getBoundedSumBuilderWithFields().delta(DELTA).build();
     BoundedSum sourceSum = getBoundedSumBuilderWithFields().delta(2 * DELTA).build();
     assertThrows(
@@ -405,7 +424,7 @@ public class BoundedSumTest {
   }
 
   @Test
-  public void merge_differentNoise_throwsException() {
+  public void mergeWith_noiseMismatch_throwsException() {
     BoundedSum targetSum =
         getBoundedSumBuilderWithFields().noise(new LaplaceNoise()).delta(null).build();
     BoundedSum sourceSum = getBoundedSumBuilderWithFields().noise(new GaussianNoise()).build();
@@ -415,7 +434,7 @@ public class BoundedSumTest {
   }
 
   @Test
-  public void merge_differentMaxPartitionsContributed_throwsException() {
+  public void mergeWith_maxPartitionsContributedMismatch_throwsException() {
     BoundedSum targetSum = getBoundedSumBuilderWithFields().maxPartitionsContributed(1).build();
     BoundedSum sourceSum = getBoundedSumBuilderWithFields().maxPartitionsContributed(2).build();
     assertThrows(
@@ -424,7 +443,7 @@ public class BoundedSumTest {
   }
 
   @Test
-  public void merge_differentMaxContributionsPerPartition_throwsException() {
+  public void mergeWith_maxContributionsPerPartitionMismatch_throwsException() {
     BoundedSum targetSum = getBoundedSumBuilderWithFields().maxContributionsPerPartition(1).build();
     BoundedSum sourceSum = getBoundedSumBuilderWithFields().maxContributionsPerPartition(2).build();
     assertThrows(
@@ -433,7 +452,7 @@ public class BoundedSumTest {
   }
 
   @Test
-  public void merge_differentLowerBounds_throwsException() {
+  public void mergeWith_lowerBoundsMismatch_throwsException() {
     BoundedSum targetSum = getBoundedSumBuilderWithFields().lower(-1).build();
     BoundedSum sourceSum = getBoundedSumBuilderWithFields().lower(-100).build();
     assertThrows(
@@ -442,7 +461,7 @@ public class BoundedSumTest {
   }
 
   @Test
-  public void merge_differentUpperBounds_throwsException() {
+  public void mergeWith_upperBoundsMismatch_throwsException() {
     BoundedSum targetSum = getBoundedSumBuilderWithFields().upper(1).build();
     BoundedSum sourceSum = getBoundedSumBuilderWithFields().upper(100).build();
     assertThrows(
@@ -451,209 +470,23 @@ public class BoundedSumTest {
   }
 
   @Test
-  public void merge_calledAfterComputeResult_onTargetSum_throwsException() {
+  public void mergeWith_calledAfterComputeResult_throwsException() {
     BoundedSum targetSum = getBoundedSumBuilderWithFields().build();
     BoundedSum sourceSum = getBoundedSumBuilderWithFields().build();
 
     targetSum.computeResult();
-    assertThrows(
-        IllegalStateException.class, () -> targetSum.mergeWith(sourceSum.getSerializableSummary()));
+    byte[] summary = sourceSum.getSerializableSummary();
+    assertThrows(IllegalStateException.class, () -> targetSum.mergeWith(summary));
   }
 
   @Test
-  public void merge_calledAfterComputeResult_onSourceSum_throwsException() {
-    BoundedSum targetSum = getBoundedSumBuilderWithFields().build();
-    BoundedSum sourceSum = getBoundedSumBuilderWithFields().build();
-
-    sourceSum.computeResult();
-    assertThrows(
-        IllegalStateException.class, () -> targetSum.mergeWith(sourceSum.getSerializableSummary()));
-  }
-
-  @Test
-  public void merge_calledAfterSerialization_onTargetSum_throwsException() {
+  public void mergeWith_calledAfterSerialization_throwsException() {
     BoundedSum targetSum = getBoundedSumBuilderWithFields().build();
     BoundedSum sourceSum = getBoundedSumBuilderWithFields().build();
 
     targetSum.getSerializableSummary();
-    assertThrows(
-        IllegalStateException.class, () -> targetSum.mergeWith(sourceSum.getSerializableSummary()));
-  }
-
-  @Test
-  public void addNoise_gaussianNoiseDefaultParametersEmptySum_isUnbiased() {
-    BoundedSum.Params.Builder sumBuilder =
-        BoundedSum.builder()
-            .epsilon(LN_3)
-            .delta(0.00001)
-            .maxPartitionsContributed(1)
-            .lower(0.0)
-            .upper(1.0)
-            .noise(new GaussianNoise());
-
-    testForBias(sumBuilder, /* rawEntry */ 0.0, /* variance */ 11.735977);
-  }
-
-  @Test
-  public void addNoise_gaussianNoiseDifferentEpsilonEmptySum_isUnbiased() {
-    BoundedSum.Params.Builder sumBuilder =
-        BoundedSum.builder()
-            .epsilon(2.0 * LN_3)
-            .delta(0.00001)
-            .maxPartitionsContributed(1)
-            .lower(0.0)
-            .upper(1.0)
-            .noise(new GaussianNoise());
-
-    testForBias(sumBuilder, /* rawEntry */ 0.0, /* variance */ 3.3634987);
-  }
-
-  @Test
-  public void addNoise_gaussianNoiseDifferentDeltaEmptySum_isUnbiased() {
-    BoundedSum.Params.Builder sumBuilder =
-        BoundedSum.builder()
-            .epsilon(LN_3)
-            .delta(0.01)
-            .maxPartitionsContributed(1)
-            .lower(0.0)
-            .upper(1.0)
-            .noise(new GaussianNoise());
-
-    testForBias(sumBuilder, /* rawEntry */ 0.0, /* variance */ 3.0625);
-  }
-
-  @Test
-  public void addNoise_gaussianNoiseDifferentContributionBoundEmptySum_isUnbiased() {
-    BoundedSum.Params.Builder sumBuilder =
-        BoundedSum.builder()
-            .epsilon(LN_3)
-            .delta(0.00001)
-            .maxPartitionsContributed(25)
-            .lower(0.0)
-            .upper(1.0)
-            .noise(new GaussianNoise());
-
-    testForBias(sumBuilder, /* rawEntry */ 0.0, /* variance */ 293.399425);
-  }
-
-  @Test
-  public void addNoise_gaussianNoiseDifferentEntryBoundsEmptySum_isUnbiased() {
-    BoundedSum.Params.Builder sumBuilder =
-        BoundedSum.builder()
-            .epsilon(LN_3)
-            .delta(0.00001)
-            .maxPartitionsContributed(1)
-            .lower(-0.5)
-            .upper(0.0)
-            .noise(new GaussianNoise());
-
-    testForBias(sumBuilder, /* rawEntry */ 0.0, /* variance */ 2.93399425);
-  }
-
-  @Test
-  public void addNoise_gaussianNoiseDefaultParametersPositiveEntry_isUnbiased() {
-    BoundedSum.Params.Builder sumBuilder =
-        BoundedSum.builder()
-            .epsilon(LN_3)
-            .delta(0.00001)
-            .maxPartitionsContributed(1)
-            .lower(0.0)
-            .upper(1.0)
-            .noise(new GaussianNoise());
-
-    testForBias(sumBuilder, /* rawEntry */ 1.0, /* variance */ 11.735977);
-  }
-
-  @Test
-  public void addNoise_gaussianNoiseDefaultParametersNegativeEntry_isUnbiased() {
-    BoundedSum.Params.Builder sumBuilder =
-        BoundedSum.builder()
-            .epsilon(LN_3)
-            .delta(0.00001)
-            .maxPartitionsContributed(1)
-            .lower(-1.0)
-            .upper(0.0)
-            .noise(new GaussianNoise());
-
-    testForBias(sumBuilder, /* rawEntry */ -1.0, /* variance */ 11.735977);
-  }
-
-    @Test
-  public void addNoise_laplaceNoiseDefaultParametersEmptySum_isUnbiased() {
-    BoundedSum.Params.Builder sumBuilder =
-        BoundedSum.builder()
-            .epsilon(LN_3)
-            .maxPartitionsContributed(1)
-            .lower(0.0)
-            .upper(1.0)
-            .noise(new LaplaceNoise());
-
-    testForBias(sumBuilder, /* rawEntry */ 0.0, /* variance */ 2.0 / (LN_3 * LN_3));
-  }
-
-  @Test
-  public void addNoise_laplaceNoiseDifferentEpsilonEmptySum_isUnbiased() {
-    BoundedSum.Params.Builder sumBuilder =
-        BoundedSum.builder()
-            .epsilon(2.0 * LN_3)
-            .maxPartitionsContributed(1)
-            .lower(0.0)
-            .upper(1.0)
-            .noise(new LaplaceNoise());
-
-    testForBias(sumBuilder, /* rawEntry */ 0.0, /* variance */ 2.0 / (4.0 * LN_3 * LN_3));
-  }
-
-  @Test
-  public void addNoise_laplaceNoiseDifferentContributionBoundEmptySum_isUnbiased() {
-    BoundedSum.Params.Builder sumBuilder =
-        BoundedSum.builder()
-            .epsilon(LN_3)
-            .maxPartitionsContributed(25)
-            .lower(0.0)
-            .upper(1.0)
-            .noise(new LaplaceNoise());
-
-    testForBias(sumBuilder, /* rawEntry */ 0.0, /* variance */ 2.0 * 625.0 / (LN_3 * LN_3));
-  }
-
-  @Test
-  public void addNoise_laplaceNoiseDifferentEntryBoundsEmptySum_isUnbiased() {
-    BoundedSum.Params.Builder sumBuilder =
-        BoundedSum.builder()
-            .epsilon(LN_3)
-            .maxPartitionsContributed(1)
-            .lower(-0.5)
-            .upper(0.0)
-            .noise(new LaplaceNoise());
-
-    testForBias(sumBuilder, /* rawEntry */ 0.0, /* variance */ 2.0 / (4.0 * LN_3 * LN_3));
-  }
-
-  @Test
-  public void addNoise_laplaceNoiseDefaultParametersPositiveEntry_isUnbiased() {
-    BoundedSum.Params.Builder sumBuilder =
-        BoundedSum.builder()
-            .epsilon(LN_3)
-            .maxPartitionsContributed(1)
-            .lower(0.0)
-            .upper(1.0)
-            .noise(new LaplaceNoise());
-
-    testForBias(sumBuilder, /* rawEntry */ 1.0, /* variance */ 2.0 / (LN_3 * LN_3));
-  }
-
-  @Test
-  public void addNoise_laplaceNoiseDefaultParametersNegativeEntry_isUnbiased() {
-    BoundedSum.Params.Builder sumBuilder =
-        BoundedSum.builder()
-            .epsilon(LN_3)
-            .maxPartitionsContributed(1)
-            .lower(-1.0)
-            .upper(0.0)
-            .noise(new LaplaceNoise());
-
-    testForBias(sumBuilder, /* rawEntry */ -1.0, /* variance */ 2.0 / (LN_3 * LN_3));
+    byte[] summary = sourceSum.getSerializableSummary();
+    assertThrows(IllegalStateException.class, () -> targetSum.mergeWith(summary));
   }
 
   private BoundedSum.Params.Builder getBoundedSumBuilderWithFields() {
@@ -683,29 +516,11 @@ public class BoundedSumTest {
     }
   }
 
-  private static void testForBias(
-      BoundedSum.Params.Builder sumBuilder, double rawEntry, double variance) {
-    ImmutableList.Builder<Double> samples = ImmutableList.builder();
-    for (int i = 0; i < NUM_SAMPLES; i++) {
-      BoundedSum sum = sumBuilder.build();
-      sum.addEntry(rawEntry);
-      samples.add(sum.computeResult());
-    }
-    Stats stats = Stats.of(samples.build());
-
-    // The tolerance is chosen according to the 99.9995% quantile of the anticipated distributions
-    // of the sample mean. Thus, the test falsely rejects with a probability of 10^-5.
-    double sampleTolerance = 4.41717 * Math.sqrt(variance / NUM_SAMPLES);
-    // The DP count is considered unbiased if the expeted value (approximated by stats.mean()) is
-    // equal to the raw count.
-    assertThat(stats.mean()).isWithin(sampleTolerance).of(rawEntry);
-  }
-
   @Test
   public void computeConfidenceInterval_negativeSumBounds_noClamping() {
     sum = getBoundedSumBuilderWithFields().lower(-8.0).upper(-2.0).build();
     when(noise.computeConfidenceInterval(
-        anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+            anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
         .thenReturn(ConfidenceInterval.create(-5.0, -3.0));
     sum.computeResult();
 
@@ -717,7 +532,7 @@ public class BoundedSumTest {
   public void computeConfidenceInterval_negativeSumBounds_clampsPositiveInterval() {
     sum = getBoundedSumBuilderWithFields().lower(-5.0).upper(-1.0).build();
     when(noise.computeConfidenceInterval(
-        anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+            anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
         .thenReturn(ConfidenceInterval.create(-5.0, 3.0));
     sum.computeResult();
 
@@ -729,55 +544,51 @@ public class BoundedSumTest {
   public void computeConfidenceInterval_negativeSumBounds_clampsInterval() {
     sum = getBoundedSumBuilderWithFields().lower(-5.0).upper(-1.0).build();
     when(noise.computeConfidenceInterval(
-        anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+            anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
         .thenReturn(ConfidenceInterval.create(3.0, 5.0));
     sum.computeResult();
 
-    assertThat(sum.computeConfidenceInterval(ALPHA))
-        .isEqualTo(ConfidenceInterval.create(0.0, 0.0));
+    assertThat(sum.computeConfidenceInterval(ALPHA)).isEqualTo(ConfidenceInterval.create(0.0, 0.0));
   }
 
   @Test
   public void computeConfidenceInterval_positiveSumBounds_noClamping() {
     sum = getBoundedSumBuilderWithFields().lower(1.0).upper(5.0).build();
     when(noise.computeConfidenceInterval(
-        anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+            anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
         .thenReturn(ConfidenceInterval.create(1.0, 3.0));
     sum.computeResult();
 
-    assertThat(sum.computeConfidenceInterval(ALPHA))
-        .isEqualTo(ConfidenceInterval.create(1.0, 3.0));
+    assertThat(sum.computeConfidenceInterval(ALPHA)).isEqualTo(ConfidenceInterval.create(1.0, 3.0));
   }
 
   @Test
   public void computeConfidenceInterval_positiveSumBounds_clampsNegativeInterval() {
     sum = getBoundedSumBuilderWithFields().lower(1.0).upper(5.0).build();
     when(noise.computeConfidenceInterval(
-        anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+            anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
         .thenReturn(ConfidenceInterval.create(-5.0, 3.0));
     sum.computeResult();
 
-    assertThat(sum.computeConfidenceInterval(ALPHA))
-        .isEqualTo(ConfidenceInterval.create(0.0, 3.0));
+    assertThat(sum.computeConfidenceInterval(ALPHA)).isEqualTo(ConfidenceInterval.create(0.0, 3.0));
   }
 
   @Test
   public void computeConfidenceInterval_positiveSumBounds_clampsInterval() {
     sum = getBoundedSumBuilderWithFields().lower(1.0).upper(5.0).build();
     when(noise.computeConfidenceInterval(
-        anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+            anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
         .thenReturn(ConfidenceInterval.create(-3.0, -1.0));
     sum.computeResult();
 
-    assertThat(sum.computeConfidenceInterval(ALPHA))
-        .isEqualTo(ConfidenceInterval.create(0.0, 0.0));
+    assertThat(sum.computeConfidenceInterval(ALPHA)).isEqualTo(ConfidenceInterval.create(0.0, 0.0));
   }
 
   @Test
   public void computeConfidenceInterval_differentSumBoundsSigns_noClamping() {
     sum = getBoundedSumBuilderWithFields().lower(-1.0).upper(5.0).build();
     when(noise.computeConfidenceInterval(
-        anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+            anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
         .thenReturn(ConfidenceInterval.create(-5.0, 3.0));
     sum.computeResult();
 
@@ -789,7 +600,7 @@ public class BoundedSumTest {
   public void computeConfidenceInterval_infiniteSumBounds_clampsNegativeInterval() {
     sum = getBoundedSumBuilderWithFields().lower(1.0).upper(5.0).build();
     when(noise.computeConfidenceInterval(
-        anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+            anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
         .thenReturn(ConfidenceInterval.create(Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY));
     sum.computeResult();
 
@@ -801,7 +612,7 @@ public class BoundedSumTest {
   public void computeConfidenceInterval_forGaussianNoise() {
     // Mock the noise mechanism.
     when(noise.computeConfidenceInterval(
-        anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+            anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
         .thenAnswer(
             invocation ->
                 new GaussianNoise()
@@ -832,7 +643,7 @@ public class BoundedSumTest {
     // Mock the noise mechanism. Since noise is not Laplace, nor Gaussian, delta will be passed
     // as null, in order to pass the checks.
     when(noise.computeConfidenceInterval(
-        anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+            anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
         .thenAnswer(
             invocation ->
                 new LaplaceNoise()
@@ -877,9 +688,9 @@ public class BoundedSumTest {
     sum.computeConfidenceInterval(ALPHA);
     verify(noise)
         .computeConfidenceInterval(
-            eq(/* sum of added entries = */ 0.0d),
+            eq(/* sum of added entries = */ 0.0),
             eq(/* l0Sensitivity = maxPartitionsContributed = */ 1),
-            eq(/* lInfSensitivity = max(|lower|, |upper|) * maxContributionsPerPartition = */1000.0d),
+            eq(/* lInfSensitivity = max{|lower|,|upper|}*maxContributionsPerPartition = */ 1000.0),
             eq(EPSILON),
             eq(DELTA),
             eq(ALPHA));

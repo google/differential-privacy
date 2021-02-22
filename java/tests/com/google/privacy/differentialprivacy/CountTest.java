@@ -28,8 +28,6 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.math.Stats;
 import com.google.differentialprivacy.SummaryOuterClass.CountSummary;
 import com.google.differentialprivacy.SummaryOuterClass.MechanismType;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -48,8 +46,8 @@ import org.mockito.junit.MockitoRule;
  * Tests behavior of {@link Count}. The test mocks a {@link Noise} instance to always generate zero
  * noise.
  *
- * <p>Statistical and DP properties of the algorithm are tested in
- * {@link com.google.privacy.differentialprivacy.statistical.CountDpTest}.
+ * <p>Statistical and DP properties of the algorithm are tested in {@link
+ * com.google.privacy.differentialprivacy.statistical.CountDpTest}.
  */
 @RunWith(JUnit4.class)
 public class CountTest {
@@ -57,8 +55,6 @@ public class CountTest {
   private static final double EPSILON = 0.123;
   private static final double DELTA = 0.123;
   private static final double THRESHOLD_DELTA = 1e-10;
-  private static final int NUM_SAMPLES = 100000;
-  private static final double LN_3 = Math.log(3.0);
   private static final double ALPHA = 0.152145599;
 
   @Mock private Noise noise;
@@ -106,6 +102,18 @@ public class CountTest {
   }
 
   @Test
+  public void increment_calledAfterComputeResult_throwsException() {
+    count.computeResult();
+    assertThrows(IllegalStateException.class, () -> count.increment());
+  }
+
+  @Test
+  public void increment_calledAfterSerialize_throwsException() {
+    count.getSerializableSummary();
+    assertThrows(IllegalStateException.class, () -> count.increment());
+  }
+
+  @Test
   public void incrementBy() {
     count.incrementBy(9);
 
@@ -117,6 +125,18 @@ public class CountTest {
     count.incrementBy(-100);
 
     assertThat(count.computeResult()).isEqualTo(0);
+  }
+
+  @Test
+  public void incrementBy_calledAfterComputeResult_throwsException() {
+    count.computeResult();
+    assertThrows(IllegalStateException.class, () -> count.incrementBy(1));
+  }
+
+  @Test
+  public void incrementBy_calledAfterSerialize_throwsException() {
+    count.getSerializableSummary();
+    assertThrows(IllegalStateException.class, () -> count.incrementBy(1));
   }
 
   @Test
@@ -133,13 +153,18 @@ public class CountTest {
     assertThat(count.computeResult()).isEqualTo(0);
   }
 
-  // An attempt to compute the count several times should result in an exception.
   @Test
   public void computeResult_multipleCalls_throwsException() {
     count.increment();
 
     count.computeResult();
     assertThrows(IllegalStateException.class, count::computeResult);
+  }
+
+  @Test
+  public void computeResult_calledAfterSerialize_throwsException() {
+    count.getSerializableSummary();
+    assertThrows(IllegalStateException.class, () -> count.computeResult());
   }
 
   @Test
@@ -225,15 +250,9 @@ public class CountTest {
   }
 
   @Test
-  public void getSerializableSummary_twoCalls_throwsException() {
+  public void getSerializableSummary_multipleCalls_throwsException() {
     count.getSerializableSummary();
     assertThrows(IllegalStateException.class, () -> count.getSerializableSummary());
-  }
-
-  @Test
-  public void computeResult_calledAfterSerialize_throwsException() {
-    count.getSerializableSummary();
-    assertThrows(IllegalStateException.class, () -> count.computeResult());
   }
 
   @Test
@@ -284,7 +303,7 @@ public class CountTest {
   }
 
   @Test
-  public void merge_basicExample_sumsCounts() {
+  public void mergeWith_basicExample_sumsCounts() {
     Count targetCount = getCountBuilderWithFields().build();
     Count sourceCount = getCountBuilderWithFields().build();
 
@@ -297,7 +316,7 @@ public class CountTest {
   }
 
   @Test
-  public void merge_calledTwice_sumsCounts() {
+  public void mergeWith_calledTwice_sumsCounts() {
     Count targetCount = getCountBuilderWithFields().build();
     Count sourceCount1 = getCountBuilderWithFields().build();
     Count sourceCount2 = getCountBuilderWithFields().build();
@@ -313,15 +332,7 @@ public class CountTest {
   }
 
   @Test
-  public void merge_nullDelta_noException() {
-    Count targetCount = getCountBuilderWithFields().noise(new LaplaceNoise()).delta(null).build();
-    Count sourceCount = getCountBuilderWithFields().noise(new LaplaceNoise()).delta(null).build();
-    // no exception is thrown
-    targetCount.mergeWith(sourceCount.getSerializableSummary());
-  }
-
-  @Test
-  public void merge_differentEpsilon_throwsException() {
+  public void mergeWith_epsilonMismatch_throwsException() {
     Count targetCount = getCountBuilderWithFields().epsilon(EPSILON).build();
     Count sourceCount = getCountBuilderWithFields().epsilon(2 * EPSILON).build();
     assertThrows(
@@ -330,7 +341,15 @@ public class CountTest {
   }
 
   @Test
-  public void merge_differentDelta_throwsException() {
+  public void mergeWith_nullDelta_mergesWithoutException() {
+    Count targetCount = getCountBuilderWithFields().noise(new LaplaceNoise()).delta(null).build();
+    Count sourceCount = getCountBuilderWithFields().noise(new LaplaceNoise()).delta(null).build();
+    // no exception is thrown
+    targetCount.mergeWith(sourceCount.getSerializableSummary());
+  }
+
+  @Test
+  public void mergeWith_deltaMismatch_throwsException() {
     Count targetCount = getCountBuilderWithFields().delta(DELTA).build();
     Count sourceCount = getCountBuilderWithFields().delta(2 * DELTA).build();
     assertThrows(
@@ -339,7 +358,7 @@ public class CountTest {
   }
 
   @Test
-  public void merge_differentNoise_throwsException() {
+  public void mergeWith_noiseMismatch_throwsException() {
     Count targetCount = getCountBuilderWithFields().noise(new LaplaceNoise()).delta(null).build();
     Count sourceCount = getCountBuilderWithFields().noise(new GaussianNoise()).build();
     assertThrows(
@@ -348,7 +367,7 @@ public class CountTest {
   }
 
   @Test
-  public void merge_differentMaxPartitionsContributed_throwsException() {
+  public void mergeWith_maxPartitionsContributedMismatch_throwsException() {
     Count targetCount = getCountBuilderWithFields().maxPartitionsContributed(1).build();
     Count sourceCount = getCountBuilderWithFields().maxPartitionsContributed(2).build();
     assertThrows(
@@ -357,7 +376,7 @@ public class CountTest {
   }
 
   @Test
-  public void merge_differentMaxContributionsPerPartition_throwsException() {
+  public void mergeWith_maxContributionsPerPartitionMismatch_throwsException() {
     Count targetCount = getCountBuilderWithFields().maxContributionsPerPartition(1).build();
     Count sourceCount = getCountBuilderWithFields().maxContributionsPerPartition(2).build();
     assertThrows(
@@ -366,128 +385,23 @@ public class CountTest {
   }
 
   @Test
-  public void merge_calledAfterComputeResult_onTargetCount_throwsException() {
+  public void mergeWith_calledAfterComputeResult_throwsException() {
     Count targetCount = getCountBuilderWithFields().build();
     Count sourceCount = getCountBuilderWithFields().build();
 
     targetCount.computeResult();
-    assertThrows(
-        IllegalStateException.class,
-        () -> targetCount.mergeWith(sourceCount.getSerializableSummary()));
+    byte[] summary = sourceCount.getSerializableSummary();
+    assertThrows(IllegalStateException.class, () -> targetCount.mergeWith(summary));
   }
 
   @Test
-  public void merge_calledAfterComputeResult_onSourceCount_throwsException() {
-    Count targetCount = getCountBuilderWithFields().build();
-    Count sourceCount = getCountBuilderWithFields().build();
-
-    sourceCount.computeResult();
-    assertThrows(
-        IllegalStateException.class,
-        () -> targetCount.mergeWith(sourceCount.getSerializableSummary()));
-  }
-
-  @Test
-  public void merge_calledAfterSerialization_onTargetCount_throwsException() {
+  public void mergeWith_calledAfterSerialization_throwsException() {
     Count targetCount = getCountBuilderWithFields().build();
     Count sourceCount = getCountBuilderWithFields().build();
 
     targetCount.getSerializableSummary();
-    assertThrows(
-        IllegalStateException.class,
-        () -> targetCount.mergeWith(sourceCount.getSerializableSummary()));
-  }
-
-  @Test
-  public void addNoise_gaussianNoiseDefaultParametersEmptyCount_isUnbiased() {
-    Count.Params.Builder countBuilder =
-        Count.builder()
-            .epsilon(LN_3)
-            .delta(0.00001)
-            .maxPartitionsContributed(1)
-            .noise(new GaussianNoise());
-
-    testForBias(countBuilder, /* rawCount */ 0, /* (over) approximation of variance */ 11.9);
-  }
-
-  @Test
-  public void addNoise_gaussianNoiseDifferentEpsilonEmptyCount_isUnbiased() {
-    Count.Params.Builder countBuilder =
-        Count.builder()
-            .epsilon(2.0 * LN_3)
-            .delta(0.00001)
-            .maxPartitionsContributed(1)
-            .noise(new GaussianNoise());
-
-    testForBias(countBuilder, /* rawCount */ 0, /* (over) approximation of variance */ 3.5);
-  }
-
-  @Test
-  public void addNoise_gaussianNoiseDifferentDeltaEmptyCount_isUnbiased() {
-    Count.Params.Builder countBuilder =
-        Count.builder()
-            .epsilon(LN_3)
-            .delta(0.01)
-            .maxPartitionsContributed(1)
-            .noise(new GaussianNoise());
-
-    testForBias(countBuilder, /* rawCount */ 0, /* (over) approximation of variance */ 3.2);
-  }
-
-  @Test
-  public void addNoise_gaussianNoiseDifferentContributionBoundEmptyCount_isUnbiased() {
-    Count.Params.Builder countBuilder =
-        Count.builder()
-            .epsilon(LN_3)
-            .delta(0.00001)
-            .maxPartitionsContributed(25)
-            .noise(new GaussianNoise());
-
-    testForBias(countBuilder, /* rawCount */ 0, /* (over) approximation of variance */ 295.0);
-  }
-
-  @Test
-  public void addNoise_gaussianNoiseDefaultParameters_isUnbiased() {
-    Count.Params.Builder countBuilder =
-        Count.builder()
-            .epsilon(LN_3)
-            .delta(0.00001)
-            .maxPartitionsContributed(1)
-            .noise(new GaussianNoise());
-
-    testForBias(countBuilder, /* rawCount */ 3380636, /* (over) approximation of variance */ 11.9);
-  }
-
-  @Test
-  public void addNoise_laplaceNoiseDefaultParametersEmptyCount_isUnbiased() {
-    Count.Params.Builder countBuilder =
-        Count.builder().epsilon(LN_3).maxPartitionsContributed(1).noise(new LaplaceNoise());
-
-    testForBias(countBuilder, /* rawCount */ 0, /* (over) approximation of variance */ 1.8);
-  }
-
-  @Test
-  public void addNoise_laplaceNoiseDifferentEpsilonEmptyCount_isUnbiased() {
-    Count.Params.Builder countBuilder =
-        Count.builder().epsilon(2.0 * LN_3).maxPartitionsContributed(1).noise(new LaplaceNoise());
-
-    testForBias(countBuilder, /* rawCount */ 0, /* (over) approximation of variance */ 0.5);
-  }
-
-  @Test
-  public void addNoise_laplaceNoiseDifferentContributionBoundEmptyCount_isUnbiased() {
-    Count.Params.Builder countBuilder =
-        Count.builder().epsilon(LN_3).maxPartitionsContributed(25).noise(new LaplaceNoise());
-
-    testForBias(countBuilder, /* rawCount */ 0, /* (over) approximation of variance */ 1035.0);
-  }
-
-  @Test
-  public void addNoise_laplaceNoiseDefaultParameters_isUnbiased() {
-    Count.Params.Builder countBuilder =
-        Count.builder().epsilon(LN_3).maxPartitionsContributed(1).noise(new LaplaceNoise());
-
-    testForBias(countBuilder, /* rawCount */ 3380636, /* (over) approximation of variance */ 1.8);
+    byte[] summary = sourceCount.getSerializableSummary();
+    assertThrows(IllegalStateException.class, () -> targetCount.mergeWith(summary));
   }
 
   @Test
@@ -499,18 +413,14 @@ public class CountTest {
             () -> {
               count.computeThresholdedResult(THRESHOLD_DELTA);
             });
-    assertThat(exception).hasMessageThat().contains("DP result was already computed");
+    assertThat(exception).hasMessageThat().contains("DP count cannot be computed.");
   }
 
   @Test
   public void computeThresholdedResult_negativeThresholdDelta_throwsException() {
     IllegalArgumentException exception =
-        assertThrows(
-            IllegalArgumentException.class,
-            () -> count.computeThresholdedResult(-2.0));
-    assertThat(exception)
-        .hasMessageThat()
-        .startsWith("delta must be > 0 and < 1.");
+        assertThrows(IllegalArgumentException.class, () -> count.computeThresholdedResult(-2.0));
+    assertThat(exception).hasMessageThat().startsWith("delta must be > 0 and < 1.");
   }
 
   @Test
@@ -524,34 +434,22 @@ public class CountTest {
   @Test
   public void computeThresholdedResult_thresholdDeltaZero_throwsException() {
     IllegalArgumentException exception =
-        assertThrows(
-            IllegalArgumentException.class,
-            () -> count.computeThresholdedResult(0.0));
-    assertThat(exception)
-        .hasMessageThat()
-        .startsWith("delta must be");
+        assertThrows(IllegalArgumentException.class, () -> count.computeThresholdedResult(0.0));
+    assertThat(exception).hasMessageThat().startsWith("delta must be");
   }
 
   @Test
   public void computeThresholdedResult_thresholdDeltaOne_throwsException() {
     IllegalArgumentException exception =
-        assertThrows(
-            IllegalArgumentException.class,
-            () -> count.computeThresholdedResult(1.0));
-    assertThat(exception)
-        .hasMessageThat()
-        .startsWith("delta must be");
+        assertThrows(IllegalArgumentException.class, () -> count.computeThresholdedResult(1.0));
+    assertThat(exception).hasMessageThat().startsWith("delta must be");
   }
 
   @Test
   public void computeThresholdedResult_thresholdDeltaGreaterThanOne_throwsException() {
     IllegalArgumentException exception =
-        assertThrows(
-            IllegalArgumentException.class,
-            () -> count.computeThresholdedResult(2.0));
-    assertThat(exception)
-        .hasMessageThat()
-        .startsWith("delta must be");
+        assertThrows(IllegalArgumentException.class, () -> count.computeThresholdedResult(2.0));
+    assertThat(exception).hasMessageThat().startsWith("delta must be");
   }
 
   @Test
@@ -560,11 +458,8 @@ public class CountTest {
 
     IllegalStateException exception =
         assertThrows(
-            IllegalStateException.class,
-            () -> count.computeThresholdedResult(THRESHOLD_DELTA));
-    assertThat(exception)
-        .hasMessageThat()
-        .contains("unknown mechanism type");
+            IllegalStateException.class, () -> count.computeThresholdedResult(THRESHOLD_DELTA));
+    assertThat(exception).hasMessageThat().contains("unknown mechanism type");
   }
 
   @Test
@@ -574,7 +469,7 @@ public class CountTest {
     verify(noise)
         .computeQuantile(
             eq(THRESHOLD_DELTA), // rank = thresholdDelta / lInfSensitivity = THRESHOLD_DELTA / 1
-            eq(/* x = mean = */0.0),
+            eq(/* x = mean = */ 0.0),
             eq(/* l0Sensitivity = maxPartitionsContributed = */ 1),
             eq(/* lInfSensitivity = maxContributionsPerPartition = */ 1.0),
             eq(EPSILON),
@@ -592,7 +487,7 @@ public class CountTest {
             eq(
                 THRESHOLD_DELTA
                     / 10.0), // rank = thresholdDelta / lInfSensitivity = THRESHOLD_DELTA / 10
-            eq(/* x = mean = */0.0),
+            eq(/* x = mean = */ 0.0),
             eq(/* l0Sensitivity = maxPartitionsContributed = */ 1),
             eq(/* lInfSensitivity = maxContributionsPerPartition = */ 10.0),
             eq(EPSILON),
@@ -603,13 +498,8 @@ public class CountTest {
   public void computeThresholdedResult_countBelowThreshold_returnsEmptyResult() {
     double quantile = -10.0;
     when(noise.computeQuantile(
-        anyDouble(),
-        anyDouble(),
-        anyInt(),
-        anyDouble(),
-        anyDouble(),
-        anyDouble())
-    ).thenReturn(quantile);
+            anyDouble(), anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble()))
+        .thenReturn(quantile);
 
     // threshold is equal to -1 * quantile + maxContributionsPerPartition = 11;
     // the result count is equal to 1 which doesn't pass the
@@ -786,28 +676,10 @@ public class CountTest {
     }
   }
 
-  private static void testForBias(
-      Count.Params.Builder countBuilder, int rawCount, double variance) {
-    ImmutableList.Builder<Double> samples = ImmutableList.builder();
-    for (int i = 0; i < NUM_SAMPLES; i++) {
-      Count count = countBuilder.build();
-      count.incrementBy(rawCount);
-      samples.add((double) count.computeResult());
-    }
-    Stats stats = Stats.of(samples.build());
-
-    // The tolerance is chosen according to the 99.9995% quantile of the anticipated distributions
-    // of the sample mean. Thus, the test falsely rejects with a probability of 10^-5.
-    double sampleTolerance = 4.41717 * Math.sqrt(variance / NUM_SAMPLES);
-    // The DP count is considered unbiased if the expeted value (approximated by stats.mean()) is
-    // equal to the raw count.
-    assertThat(stats.mean()).isWithin(sampleTolerance).of(rawCount);
-  }
-
   @Test
   public void computeConfidenceInterval_negativeBounds_clampsToZero() {
     when(noise.computeConfidenceInterval(
-        anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble(), anyDouble()))
+            anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble(), anyDouble()))
         .thenReturn(ConfidenceInterval.create(-5.0, -3.0));
     count.computeResult();
 
@@ -818,7 +690,7 @@ public class CountTest {
   @Test
   public void computeConfidenceInterval_positiveBounds_returnsBounds() {
     when(noise.computeConfidenceInterval(
-        anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble(), anyDouble()))
+            anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble(), anyDouble()))
         .thenReturn(ConfidenceInterval.create(5.0, 3.0));
     count.computeResult();
 
@@ -829,7 +701,7 @@ public class CountTest {
   @Test
   public void computeConfidenceInterval_negativeLowerBound_clampsToZero() {
     when(noise.computeConfidenceInterval(
-        anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble(), anyDouble()))
+            anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble(), anyDouble()))
         .thenReturn(ConfidenceInterval.create(-5.0, 8.0));
     count.computeResult();
 
@@ -840,7 +712,7 @@ public class CountTest {
   @Test
   public void computeConfidenceInterval_clampsNegativeInfinityToZero() {
     when(noise.computeConfidenceInterval(
-        anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble(), anyDouble()))
+            anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble(), anyDouble()))
         .thenReturn(ConfidenceInterval.create(Double.NEGATIVE_INFINITY, 10.0));
     count.computeResult();
 
@@ -851,7 +723,7 @@ public class CountTest {
   @Test
   public void computeConfidenceInterval_infiniteUpperBound_clampsToMaxLong() {
     when(noise.computeConfidenceInterval(
-        anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble(), anyDouble()))
+            anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble(), anyDouble()))
         .thenReturn(ConfidenceInterval.create(1.0, Double.POSITIVE_INFINITY));
     count.computeResult();
 

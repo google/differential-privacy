@@ -34,68 +34,181 @@
 
 namespace differential_privacy {
 
-// Incrementally provides a differentially private sum, clamped between upper
-// and lower values. Bounds can be manually set or privately inferred.
-template <typename T, std::enable_if_t<std::is_arithmetic<T>::value>* = nullptr>
+template <typename T>
 class BoundedSum : public Algorithm<T> {
+  static_assert(std::is_arithmetic<T>::value,
+                "BoundedSum can only be used for arithmetic types");
+
  public:
-  // Builder for BoundedSum algorithm.
-  class Builder : public BoundedAlgorithmBuilder<T, BoundedSum<T>, Builder> {
-    using AlgorithmBuilder =
-        differential_privacy::AlgorithmBuilder<T, BoundedSum<T>, Builder>;
-    using BoundedBuilder = BoundedAlgorithmBuilder<T, BoundedSum<T>, Builder>;
+  // Builder class that should be used to construct BoundedSum algorithms.
+  class Builder;
 
-   public:
-    // Check that bounds are appropriate.
-    static absl::Status CheckLowerBound(T lower) {
-      if (lower < -1 * std::numeric_limits<T>::max()) {
-        return absl::InvalidArgumentError(
-            "Lower bound cannot be higher in magnitude than the max "
-            "numeric limit. If manually bounding, please increase it by "
-            "at least 1.");
-      }
-      return absl::OkStatus();
+  BoundedSum(double epsilon, double delta) : Algorithm<T>(epsilon, delta) {}
+
+  virtual ~BoundedSum() = default;
+
+  // Returns the lower bound when it has been set.
+  virtual std::optional<T> lower() const = 0;
+
+  // Returns the upper bound when it has been set.
+  virtual std::optional<T> upper() const = 0;
+
+ protected:
+  // Check that bounds are appropriate.
+  static absl::Status CheckLowerBound(T lower) {
+    if (lower < -1 * std::numeric_limits<T>::max()) {
+      return absl::InvalidArgumentError(
+          "Lower bound cannot be higher in magnitude than the max "
+          "numeric limit. If manually bounding, please increase it by "
+          "at least 1.");
+    }
+    return absl::OkStatus();
+  }
+
+  // Build a numerical mechanism that will return adequate noise for the raw
+  // sum to make the result DP.
+  static base::StatusOr<std::unique_ptr<NumericalMechanism>> BuildMechanism(
+      std::unique_ptr<NumericalMechanismBuilder> mechanism_builder,
+      const double epsilon, const double l0_sensitivity,
+      const double max_contributions_per_partition, const T lower,
+      const T upper) {
+    return mechanism_builder->SetEpsilon(epsilon)
+        .SetL0Sensitivity(l0_sensitivity)
+        .SetLInfSensitivity(max_contributions_per_partition *
+                            std::max(std::abs(lower), std::abs(upper)))
+        .Build();
+  }
+};
+
+// Bounded sum implementation that uses fixed bounds.
+template <typename T>
+class BoundedSumWithFixedBounds : public BoundedSum<T> {
+ public:
+  BoundedSumWithFixedBounds(const double epsilon, const double delta,
+                            const T lower, const T upper,
+                            std::unique_ptr<NumericalMechanism> mechanism)
+      : BoundedSum<T>(epsilon, delta),
+        lower_(lower),
+        upper_(upper),
+        mechanism_(std::move(mechanism)) {}
+
+  void AddEntry(const T& t) override {
+    if (std::isnan(static_cast<double>(t))) {
+      return;
+    }
+    partial_sum_ += Clamp<T>(lower_, upper_, t);
+  }
+
+  Summary Serialize() const override {
+    BoundedSumSummary sum_summary;
+    // TODO: Use the partial_sum field of the proto.
+    SetValue(sum_summary.add_pos_sum(), partial_sum_);
+
+    Summary result;
+    result.mutable_data()->PackFrom(sum_summary);
+    return result;
+  }
+
+  absl::Status Merge(const Summary& summary) override {
+    if (!summary.has_data()) {
+      return absl::InternalError("Cannot merge summary with no data.");
     }
 
-   private:
-    base::StatusOr<std::unique_ptr<BoundedSum<T>>> BuildBoundedAlgorithm()
-        override {
-      // We have to check epsilon now, otherwise the split during ApproxBounds
-      // construction might make the error message confusing.
-      RETURN_IF_ERROR(ValidateIsFiniteAndPositive(
-          AlgorithmBuilder::GetEpsilon(), "Epsilon"));
-
-      // Ensure that either bounds are manually set or ApproxBounds is made.
-      RETURN_IF_ERROR(BoundedBuilder::BoundsSetup());
-
-      // If manual bounding, construct mechanism so we can fail on build if
-      // sensitivity is inappropriate.
-      std::unique_ptr<NumericalMechanism> mechanism = nullptr;
-      if (BoundedBuilder::BoundsAreSet()) {
-        RETURN_IF_ERROR(CheckLowerBound(BoundedBuilder::GetLower().value()));
-        ASSIGN_OR_RETURN(
-            mechanism,
-            BuildMechanism(
-                AlgorithmBuilder::GetMechanismBuilderClone(),
-                BoundedBuilder::GetRemainingEpsilon().value(),
-                AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1),
-                AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(1),
-                BoundedBuilder::GetLower().value(),
-                BoundedBuilder::GetUpper().value()));
-      }
-
-      // Construct BoundedSum.
-      auto mech_builder = AlgorithmBuilder::GetMechanismBuilderClone();
-      return absl::WrapUnique(new BoundedSum(
-          BoundedBuilder::GetRemainingEpsilon().value(),
-          BoundedBuilder::GetLower().value_or(0),
-          BoundedBuilder::GetUpper().value_or(0),
-          AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1),
-          AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(1),
-          std::move(mech_builder), std::move(mechanism),
-          std::move(BoundedBuilder::MoveApproxBoundsPointer())));
+    // Unpack sum summary
+    BoundedSumSummary sum_summary;
+    if (!summary.data().UnpackTo(&sum_summary)) {
+      return absl::InternalError("Bounded sum summary unable to be unpacked.");
     }
-  };
+
+    // Get required partial sum
+    // TODO: Use the partial_sum field of the proto.
+    if (sum_summary.pos_sum_size() != 1) {
+      return absl::InternalError(absl::StrCat(
+          "Bounded sum summary must have exactly one pos_sum but got ",
+          sum_summary.pos_sum_size()));
+    }
+    partial_sum_ += GetValue<T>(sum_summary.pos_sum(0));
+
+    return absl::Status();
+  }
+
+  int64_t MemoryUsed() override {
+    return sizeof(BoundedSumWithFixedBounds) + mechanism_->MemoryUsed();
+  }
+
+  std::optional<T> upper() const override { return upper_; }
+
+  std::optional<T> lower() const override { return lower_; }
+
+  base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
+      double confidence_level, double privacy_budget = 1) override {
+    return mechanism_->NoiseConfidenceInterval(confidence_level,
+                                               privacy_budget);
+  }
+
+ protected:
+  base::StatusOr<Output> GenerateResult(double privacy_budget,
+                                        double noise_interval_level) override {
+    RETURN_IF_ERROR(ValidateIsPositive(privacy_budget, "Privacy budget",
+                                       absl::StatusCode::kFailedPrecondition));
+
+    Output output;
+
+    // Add noise to the sum.
+    double noisy_sum = mechanism_->AddNoise(partial_sum_, privacy_budget);
+    if (std::is_integral<T>::value) {
+      SafeCastResult<T> cast_result =
+          SafeCastFromDouble<T>(std::round(noisy_sum));
+      AddToOutput<T>(&output, cast_result.value);
+    } else {
+      AddToOutput<T>(&output, noisy_sum);
+    }
+
+    // Add noise confidence interval.
+    base::StatusOr<ConfidenceInterval> interval =
+        NoiseConfidenceInterval(noise_interval_level, privacy_budget);
+    if (interval.ok()) {
+      output.mutable_error_report()->set_allocated_noise_confidence_interval(
+          new ConfidenceInterval(*interval));
+    }
+
+    return output;
+  }
+
+  void ResetState() override { partial_sum_ = 0; }
+
+ private:
+  // Bounds
+  const T lower_;
+  const T upper_;
+
+  // (Partially) aggregated sum
+  T partial_sum_ = 0;
+
+  // Mechanism to add noise.
+  std::unique_ptr<NumericalMechanism> mechanism_;
+};
+
+// Bounded sum implementation using privately inferred bounds as a single-pass
+// algorithm using ApproxBounds.
+template <typename T>
+class BoundedSumWithApproxBounds : public BoundedSum<T> {
+ public:
+  BoundedSumWithApproxBounds(
+      const double epsilon, const double delta, const double l0_sensitivity,
+      const double max_contributions_per_partition,
+      std::unique_ptr<NumericalMechanismBuilder> mechanism_builder,
+      std::unique_ptr<ApproxBounds<T>> approx_bounds)
+      : BoundedSum<T>(epsilon, delta),
+        mechanism_builder_(std::move(mechanism_builder)),
+        l0_sensitivity_(l0_sensitivity),
+        max_contributions_per_partition_(max_contributions_per_partition),
+        approx_bounds_(std::move(approx_bounds)) {
+    // We use partial values for each bin of the ApproxBounds logarithmic
+    // histogram.
+    pos_sum_.resize(approx_bounds_->NumPositiveBins(), 0);
+    neg_sum_.resize(approx_bounds_->NumPositiveBins(), 0);
+  }
 
   void AddEntry(const T& t) override {
     // REF:
@@ -104,38 +217,29 @@ class BoundedSum : public Algorithm<T> {
       return;
     }
 
-    // If manual bounds are set, clamp immediately and store sum. Otherwise,
-    // feed inputs into ApproxBounds and store temporary partial sums.
-    if (!approx_bounds_) {
-      pos_sum_[0] += Clamp<T>(lower_, upper_, t);
-    } else {
-      approx_bounds_->AddEntry(t);
+    approx_bounds_->AddEntry(t);
 
-      // Find partial sums.
-      if (t >= 0) {
-        approx_bounds_->template AddToPartialSums<T>(&pos_sum_, t);
-      } else {
-        approx_bounds_->template AddToPartialSums<T>(&neg_sum_, t);
-      }
+    // Find partial sums.
+    if (t >= 0) {
+      approx_bounds_->template AddToPartialSums<T>(&pos_sum_, t);
+    } else {
+      approx_bounds_->template AddToPartialSums<T>(&neg_sum_, t);
     }
   }
 
-  // Only return noise confidence interval for manually set bounds, since it is
-  // dynamic upon result generation for auto-bounds.
+  // Noise confidence interval is not known before finalizing the algorithm as
+  // we are using approx bounds.
   base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
       double confidence_level, double privacy_budget = 1) override {
-    if (approx_bounds_) {
-      return absl::InvalidArgumentError(
-          "NoiseConfidenceInterval changes per result generation for "
-          "automatically-determined sensitivity.");
-    }
-    return NoiseConfidenceIntervalImpl(confidence_level, privacy_budget);
+    return absl::InvalidArgumentError(
+        "NoiseConfidenceInterval changes per result generation for "
+        "automatically-determined sensitivity.");
   }
 
-  T lower() { return lower_; }
-  T upper() { return upper_; }
+  std::optional<T> lower() const override { return std::nullopt; }
+  std::optional<T> upper() const override { return std::nullopt; }
 
-  Summary Serialize() override {
+  Summary Serialize() const override {
     // Create BoundedSumSummary.
     BoundedSumSummary bs_summary;
     for (T x : pos_sum_) {
@@ -144,11 +248,8 @@ class BoundedSum : public Algorithm<T> {
     for (T x : neg_sum_) {
       SetValue(bs_summary.add_neg_sum(), x);
     }
-    if (approx_bounds_) {
-      Summary approx_bounds_summary = approx_bounds_->Serialize();
-      approx_bounds_summary.data().UnpackTo(
-          bs_summary.mutable_bounds_summary());
-    }
+    Summary approx_bounds_summary = approx_bounds_->Serialize();
+    approx_bounds_summary.data().UnpackTo(bs_summary.mutable_bounds_summary());
 
     // Create Summary.
     Summary summary;
@@ -179,200 +280,169 @@ class BoundedSum : public Algorithm<T> {
     for (int i = 0; i < neg_sum_.size(); ++i) {
       neg_sum_[i] += GetValue<T>(bs_summary.neg_sum(i));
     }
-    if (approx_bounds_) {
-      Summary approx_bounds_summary;
-      approx_bounds_summary.mutable_data()->PackFrom(
-          bs_summary.bounds_summary());
-      RETURN_IF_ERROR(approx_bounds_->Merge(approx_bounds_summary));
-    }
+
+    // Merge approx bounds summary.
+    Summary approx_bounds_summary;
+    approx_bounds_summary.mutable_data()->PackFrom(bs_summary.bounds_summary());
+    RETURN_IF_ERROR(approx_bounds_->Merge(approx_bounds_summary));
+
     return absl::OkStatus();
   }
 
+  // Returns the total epsilon used by this single-pass algorithm that uses
+  // approx bounds internally.
   double GetEpsilon() const override {
-    if (approx_bounds_) {
-      return approx_bounds_->GetEpsilon() + Algorithm<T>::GetEpsilon();
-    }
-    return Algorithm<T>::GetEpsilon();
+    return approx_bounds_->GetEpsilon() + Algorithm<T>::GetEpsilon();
   }
 
-  // Returns the epsilon used to calculate approximate bounds. If approximate
-  // bounds are not used, returns 0.
-  double GetBoundingEpsilon() const {
-    if (approx_bounds_) {
-      return approx_bounds_->GetEpsilon();
-    }
-    return 0;
-  }
+  // Returns the epsilon used to calculate approximate bounds.
+  double GetBoundingEpsilon() const { return approx_bounds_->GetEpsilon(); }
 
-  // Returns the epsilon used to calculate the noisy mean. If bounds are
-  // specified explicitly, this will be the total epsilon used by the algorithm.
+  // Returns the epsilon used to calculate the noisy sum.  The overall algorithm
+  // also uses epsilon for privately inferred bounds using approx bounds.
   double GetAggregationEpsilon() const { return Algorithm<T>::GetEpsilon(); }
 
   int64_t MemoryUsed() override {
-    int64_t memory = sizeof(BoundedSum<T>) +
-                   sizeof(T) * (pos_sum_.capacity() + neg_sum_.capacity());
-    if (approx_bounds_) {
-      memory += approx_bounds_->MemoryUsed();
-    }
-    if (mechanism_) {
-      memory += mechanism_->MemoryUsed();
-    }
-    if (mechanism_builder_) {
-      memory += sizeof(*mechanism_builder_);
-    }
+    int64_t memory = sizeof(BoundedSum<T>);
+    memory += sizeof(T) * (pos_sum_.capacity() + neg_sum_.capacity());
+    memory += approx_bounds_->MemoryUsed();
+    memory += sizeof(*mechanism_builder_);
     return memory;
   }
 
  protected:
-  // Protected constructor to allow for testing.
-  BoundedSum(double epsilon, T lower, T upper, const double l0_sensitivity,
-             const double max_contributions_per_partition,
-             std::unique_ptr<NumericalMechanismBuilder> mechanism_builder,
-             std::unique_ptr<NumericalMechanism> mechanism,
-             std::unique_ptr<ApproxBounds<T>> approx_bounds = nullptr)
-      : Algorithm<T>(epsilon),
-        lower_(lower),
-        upper_(upper),
-        mechanism_builder_(std::move(mechanism_builder)),
-        l0_sensitivity_(l0_sensitivity),
-        max_contributions_per_partition_(max_contributions_per_partition),
-        mechanism_(std::move(mechanism)),
-        approx_bounds_(std::move(approx_bounds)) {
-    // If automatically determining bounds, we need partial values for each bin
-    // of the ApproxBounds logarithmic histogram. Otherwise, we only need to
-    // store one already-clamped value.
-    if (approx_bounds_) {
-      pos_sum_.resize(approx_bounds_->NumPositiveBins(), 0);
-      neg_sum_.resize(approx_bounds_->NumPositiveBins(), 0);
-    } else {
-      pos_sum_.push_back(0);
-    }
-  }
-
   base::StatusOr<Output> GenerateResult(double privacy_budget,
                                         double noise_interval_level) override {
     RETURN_IF_ERROR(ValidateIsPositive(privacy_budget, "Privacy budget",
                                        absl::StatusCode::kFailedPrecondition));
-
     Output output;
-    double sum = 0;
-    double remaining_budget = privacy_budget;
 
-    if (approx_bounds_) {
-      // Use a fraction of the privacy budget to find the approximate bounds.
-      double bounds_budget = privacy_budget / 2;
-      remaining_budget -= bounds_budget;
-      ASSIGN_OR_RETURN(Output bounds, approx_bounds_->PartialResult(
-                                          bounds_budget, noise_interval_level));
-      T lower = GetValue<T>(bounds.elements(0).value());
-      T upper = GetValue<T>(bounds.elements(1).value());
-      RETURN_IF_ERROR(Builder::CheckLowerBound(lower));
+    // Use a fraction of the privacy budget to find the approximate bounds.
+    const double bounds_budget = privacy_budget / 2;
+    const double remaining_budget = privacy_budget - bounds_budget;
 
-      // Since sensitivity is determined only by the larger-magnitude bound,
-      // set the smaller-magnitude bound to be the negative of the larger. This
-      // minimizes clamping and so maximizes accuracy.
-      lower_ = std::min(lower, -1 * upper);
-      upper_ = std::max(upper, -1 * lower);
+    // Get results of approximate bounds.
+    ASSIGN_OR_RETURN(Output bounds, approx_bounds_->PartialResult(
+                                        bounds_budget, noise_interval_level));
+    const T approx_bounds_lower = GetValue<T>(bounds.elements(0).value());
+    const T approx_bounds_upper = GetValue<T>(bounds.elements(1).value());
+    RETURN_IF_ERROR(BoundedSum<T>::CheckLowerBound(approx_bounds_lower));
 
-      // To find the sum, pass the identity function as the transform. We pass
-      // count = 0 because the count should never be used.
-      ASSIGN_OR_RETURN(sum, approx_bounds_->template ComputeFromPartials<T>(
-                                pos_sum_, neg_sum_, [](T x) { return x; },
-                                lower_, upper_, 0));
+    // Since sensitivity is determined only by the larger-magnitude bound,
+    // set the smaller-magnitude bound to be the negative of the larger. This
+    // minimizes clamping and so maximizes accuracy.
+    const T lower = std::min(approx_bounds_lower, -1 * approx_bounds_upper);
+    const T upper = std::max(approx_bounds_upper, -1 * approx_bounds_lower);
 
-      // Populate the bounding report with ApproxBounds information.
-      *(output.mutable_error_report()->mutable_bounding_report()) =
-          approx_bounds_->GetBoundingReport(lower_, upper_);
+    // Populate the bounding report with ApproxBounds information.
+    output.mutable_error_report()->set_allocated_bounding_report(
+        new BoundingReport(approx_bounds_->GetBoundingReport(lower, upper)));
 
-      // Clear the mechanism. The sensitivity might have changed.
-      mechanism_.reset();
+    // Construct NumericalMechanism.
+    ASSIGN_OR_RETURN(
+        std::unique_ptr<NumericalMechanism> mechanism,
+        BoundedSum<T>::BuildMechanism(
+            mechanism_builder_->Clone(), Algorithm<T>::GetEpsilon(),
+            l0_sensitivity_, max_contributions_per_partition_, lower, upper));
+
+    // To find the sum, pass the identity function as the transform. We pass
+    // count = 0 because the count should never be used.
+    ASSIGN_OR_RETURN(
+        double sum,
+        approx_bounds_->template ComputeFromPartials<T>(
+            pos_sum_, neg_sum_, [](T x) { return x; }, lower, upper, 0));
+
+    // Add noise to sum. Use the remaining privacy budget.
+    double noisy_sum = mechanism->AddNoise(sum, remaining_budget);
+    if (std::is_integral<T>::value) {
+      SafeCastResult<T> cast_result =
+          SafeCastFromDouble<T>(std::round(noisy_sum));
+      AddToOutput<T>(&output, cast_result.value);
     } else {
-      // Manual bounds were set and clamping was done upon adding entries.
-      sum = pos_sum_[0];
-    }
-
-    // Construct mechanism if needed. Mechanism is already constructed if
-    // NoiseConfidenceInterval() was called with manual bounds.
-    if (!mechanism_) {
-      ASSIGN_OR_RETURN(
-          mechanism_,
-          BuildMechanism(mechanism_builder_->Clone(),
-                         Algorithm<T>::GetEpsilon(), l0_sensitivity_,
-                         max_contributions_per_partition_, lower_, upper_));
+      AddToOutput<T>(&output, noisy_sum);
     }
 
     // Add noise confidence interval to the error report.
     base::StatusOr<ConfidenceInterval> interval =
-        NoiseConfidenceIntervalImpl(noise_interval_level, remaining_budget);
+        mechanism->NoiseConfidenceInterval(noise_interval_level,
+                                           remaining_budget);
     if (interval.ok()) {
-      *(output.mutable_error_report()->mutable_noise_confidence_interval()) =
-          interval.value();
+      output.mutable_error_report()->set_allocated_noise_confidence_interval(
+          new ConfidenceInterval(*interval));
     }
 
-    // Add noise to sum. Use the remaining privacy budget.
-    double noisy_sum = mechanism_->AddNoise(sum, remaining_budget);
-    if (std::is_integral<T>::value) {
-      T value;
-      SafeCastFromDouble<T>(std::round(noisy_sum), value);
-      AddToOutput<T>(&output, value);
-    } else {
-      AddToOutput<T>(&output, noisy_sum);
-    }
     return output;
   }
 
   void ResetState() override {
     std::fill(pos_sum_.begin(), pos_sum_.end(), 0);
     std::fill(neg_sum_.begin(), neg_sum_.end(), 0);
-    if (approx_bounds_) {
-      approx_bounds_->Reset();
-      mechanism_ = nullptr;
-    }
+    approx_bounds_->Reset();
   }
 
  private:
-  base::StatusOr<ConfidenceInterval> NoiseConfidenceIntervalImpl(
-      double confidence_level, double privacy_budget = 1) {
-    if (!mechanism_) {
-      return absl::InvalidArgumentError(
-          "Mechanism not yet constructed. Try getting noise confidence "
-          "interval after generating result.");
-    }
-    return mechanism_->NoiseConfidenceInterval(confidence_level,
-                                               privacy_budget);
-  }
-
-  static base::StatusOr<std::unique_ptr<NumericalMechanism>> BuildMechanism(
-      std::unique_ptr<NumericalMechanismBuilder> mechanism_builder,
-      const double epsilon, const double l0_sensitivity,
-      const double max_contributions_per_partition, const T lower,
-      const T upper) {
-    return mechanism_builder->SetEpsilon(epsilon)
-        .SetL0Sensitivity(l0_sensitivity)
-        .SetLInfSensitivity(max_contributions_per_partition *
-                            std::max(std::abs(lower), std::abs(upper)))
-        .Build();
-  }
-
   // Vectors of partial values stored for automatic clamping.
   std::vector<T> pos_sum_, neg_sum_;
 
-  // If manually set, these values are determined upon construction. Otherwise,
-  // they are found in GenerateResult().
-  T lower_, upper_;
-
-  // Used to construct mechanism once bounds are obtained for auto-bounding.
+  // Used to construct the numerical mechanism once bounds are obtained.
   std::unique_ptr<NumericalMechanismBuilder> mechanism_builder_;
   const double l0_sensitivity_;
   const int max_contributions_per_partition_;
 
-  // Will be available upon BoundedSum for manual bounding, and constructed upon
-  // GenerateResult for auto-bounding.
-  std::unique_ptr<NumericalMechanism> mechanism_;
-
-  // If this is not nullptr, we are automatically determining bounds. Otherwise,
-  // lower and upper contain the manually set bounds.
+  // Algorithm to privately infer bounds.
   std::unique_ptr<ApproxBounds<T>> approx_bounds_;
+};
+
+template <typename T>
+class BoundedSum<T>::Builder
+    : public BoundedAlgorithmBuilder<T, BoundedSum<T>, BoundedSum<T>::Builder> {
+ private:
+  using AlgorithmBuilder =
+      differential_privacy::AlgorithmBuilder<T, BoundedSum<T>,
+                                             BoundedSum<T>::Builder>;
+  using BoundedBuilder =
+      BoundedAlgorithmBuilder<T, BoundedSum<T>, BoundedSum<T>::Builder>;
+  base::StatusOr<std::unique_ptr<BoundedSum<T>>> BuildBoundedAlgorithm()
+      override {
+    // We have to check epsilon now, otherwise the split during ApproxBounds
+    // construction might make the error message confusing.
+    RETURN_IF_ERROR(
+        ValidateIsFiniteAndPositive(AlgorithmBuilder::GetEpsilon(), "Epsilon"));
+
+    // Ensure that either bounds are manually set or ApproxBounds is made.
+    RETURN_IF_ERROR(BoundedBuilder::BoundsSetup());
+
+    if (BoundedBuilder::BoundsAreSet()) {
+      // Construct mechanism directly so we can fail on build if sensitivity is
+      // inappropriate.
+      RETURN_IF_ERROR(CheckLowerBound(BoundedBuilder::GetLower().value()));
+      ASSIGN_OR_RETURN(
+          std::unique_ptr<NumericalMechanism> mechanism,
+          BuildMechanism(
+              AlgorithmBuilder::GetMechanismBuilderClone(),
+              BoundedBuilder::GetRemainingEpsilon().value(),
+              AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1),
+              AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(1),
+              BoundedBuilder::GetLower().value(),
+              BoundedBuilder::GetUpper().value()));
+
+      // Construct BoundedSum with fixed bounds.
+      return std::unique_ptr<BoundedSum<T>>(new BoundedSumWithFixedBounds<T>(
+          BoundedBuilder::GetEpsilon().value(),
+          BoundedBuilder::GetDelta().value_or(0),
+          BoundedBuilder::GetLower().value(),
+          BoundedBuilder::GetUpper().value(), std::move(mechanism)));
+    }
+
+    // Construct BoundedSum with approx bounds
+    return std::unique_ptr<BoundedSum<T>>(new BoundedSumWithApproxBounds<T>(
+        BoundedBuilder::GetRemainingEpsilon().value(),
+        BoundedBuilder::GetDelta().value_or(0),
+        AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1),
+        AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(1),
+        AlgorithmBuilder::GetMechanismBuilderClone(),
+        BoundedBuilder::MoveApproxBoundsPointer()));
+  }
 };
 
 }  // namespace differential_privacy

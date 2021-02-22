@@ -39,8 +39,11 @@ namespace differential_privacy {
 // to doing noisy sum / noisy count). This algorithm is taken from section 2.5.5
 // of the following book (algorithm 2.4):
 // https://books.google.com/books?id=WFttDQAAQBAJ&pg=PA24#v=onepage&q&f=false
-template <typename T, std::enable_if_t<std::is_arithmetic<T>::value>* = nullptr>
+template <typename T>
 class BoundedMean : public Algorithm<T> {
+  static_assert(std::is_arithmetic<T>::value,
+                "BoundedMean can only be used for arithmetic types");
+
  public:
   // Builder for BoundedMean algorithm.
   class Builder : public BoundedAlgorithmBuilder<T, BoundedMean<T>, Builder> {
@@ -125,7 +128,7 @@ class BoundedMean : public Algorithm<T> {
 
   void AddEntry(const T& input) override { AddMultipleEntries(input, 1); }
 
-  Summary Serialize() override {
+  Summary Serialize() const override {
     // Create BoundedMeanSummary.
     BoundedMeanSummary bm_summary;
     bm_summary.set_count(raw_count_);

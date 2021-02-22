@@ -366,6 +366,7 @@ cc_library(
         "//base:status",
         "//base:statusor",
         "@com_google_differential_privacy//proto:confidence_interval_cc_proto",
+        "@com_google_differential_privacy//proto:numerical_mechanism_cc_proto",
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/memory",
         "@com_google_absl//absl/status",

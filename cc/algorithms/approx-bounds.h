@@ -77,6 +77,9 @@ namespace differential_privacy {
 // approx min of 0.
 template <typename T>
 class ApproxBounds : public Algorithm<T> {
+  static_assert(std::is_arithmetic<T>::value,
+                "ApproxBounds can only be used for arithmetic types");
+
  public:
   class Builder : public AlgorithmBuilder<T, ApproxBounds<T>, Builder> {
     using AlgorithmBuilder =
@@ -185,7 +188,7 @@ class ApproxBounds : public Algorithm<T> {
   void AddEntry(const T& input) override { AddMultipleEntries(input, 1); }
 
   // Serialize the positive and negative bin counts.
-  Summary Serialize() override {
+  Summary Serialize() const override {
     ApproxBoundsSummary am_summary;
     *am_summary.mutable_pos_bin_count() = {pos_bins_.begin(), pos_bins_.end()};
     *am_summary.mutable_neg_bin_count() = {neg_bins_.begin(), neg_bins_.end()};
@@ -571,10 +574,12 @@ class ApproxBounds : public Algorithm<T> {
   const std::vector<T> AddNoise(double privacy_budget,
                                 const std::vector<int64_t>& bins) {
     std::vector<T> noisy_bins(bins.size());
+    SafeCastResult<T> cast_result;
     for (int i = 0; i < bins.size(); ++i) {
       double noised_dbl =
           mechanism_->AddNoise(static_cast<double>(bins[i]), privacy_budget);
-      SafeCastFromDouble<T>(noised_dbl, noisy_bins[i]);
+      cast_result = SafeCastFromDouble<T>(noised_dbl);
+      noisy_bins[i] = cast_result.value;
     }
     return noisy_bins;
   }
@@ -659,9 +664,9 @@ class ApproxBounds : public Algorithm<T> {
   friend class ApproxBoundsTestPeer;
 
   // Needed for classes that rely on ApproxBounds::AddMultipleEntries()
-  template <typename T2, std::enable_if_t<std::is_arithmetic<T2>::value>*>
+  template <typename T2>
   friend class BoundedMean;
-  template <typename T2, std::enable_if_t<std::is_arithmetic<T2>::value>*>
+  template <typename T2>
   friend class BoundedVariance;
 
  private:
