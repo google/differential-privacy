@@ -975,6 +975,37 @@ TYPED_TEST(ApproxBoundsTest, ComputeSumFromPartials) {
   EXPECT_EQ(result.value(), 5);
 }
 
+TEST(ApproxBoundsTest, OverflowNoiseFromTypeCast) {
+  // Overflowing should result in the sum + noise eventually wrapping around and
+  // become negative.
+  absl::Status partial_result_status;
+  int i = 0;
+  do {
+    base::StatusOr<std::unique_ptr<ApproxBounds<int64_t>>> bounds =
+        ApproxBounds<int64_t>::Builder()
+            .SetNumBins(2)
+            .SetBase(2)
+            .SetScale(1)
+            .SetThreshold(2)
+            .SetEpsilon(1)
+            .SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
+            .Build();
+    ASSERT_OK(bounds);
+    ApproxBoundsTestPeer::AddMultipleEntries<int64_t>(
+        1, std::numeric_limits<int64_t>::max(), (*bounds).get());
+    base::StatusOr<Output> result = (*bounds)->PartialResult();
+    partial_result_status.Update(result.status());
+    ++i;
+  } while (i < 100 && partial_result_status.ok());
+  // An overflow should have been caused by a negative bin count and all bins
+  // to be below the threshold, resulting in an error when there are no bins to
+  // return.
+  EXPECT_THAT(partial_result_status,
+              StatusIs(absl::StatusCode::kFailedPrecondition,
+                       HasSubstr("Bin count threshold was too large to find "
+                                 "approximate bounds.")));
+}
+
 TYPED_TEST(ApproxBoundsTest, OverflowComputeFromPartials) {
   int64_t int64lowest = std::numeric_limits<int64_t>::lowest();
   int64_t int64max = std::numeric_limits<int64_t>::max();

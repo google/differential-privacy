@@ -17,6 +17,7 @@
 #include "algorithms/util.h"
 
 #include <limits>
+#include <vector>
 
 #include "base/testing/status_matchers.h"
 #include "gmock/gmock.h"

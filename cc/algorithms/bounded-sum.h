@@ -348,19 +348,12 @@ class BoundedSumWithApproxBounds : public BoundedSum<T> {
     // To find the sum, pass the identity function as the transform. We pass
     // count = 0 because the count should never be used.
     ASSIGN_OR_RETURN(
-        double sum,
-        approx_bounds_->template ComputeFromPartials<T>(
-            pos_sum_, neg_sum_, [](T x) { return x; }, lower, upper, 0));
+        T sum, approx_bounds_->template ComputeFromPartials<T>(
+                   pos_sum_, neg_sum_, [](T x) { return x; }, lower, upper, 0));
 
     // Add noise to sum. Use the remaining privacy budget.
-    double noisy_sum = mechanism->AddNoise(sum, remaining_budget);
-    if (std::is_integral<T>::value) {
-      SafeCastResult<T> cast_result =
-          SafeCastFromDouble<T>(std::round(noisy_sum));
-      AddToOutput<T>(&output, cast_result.value);
-    } else {
-      AddToOutput<T>(&output, noisy_sum);
-    }
+    T noisy_sum = mechanism->AddNoise(sum, remaining_budget);
+    AddToOutput<T>(&output, noisy_sum);
 
     // Add noise confidence interval to the error report.
     base::StatusOr<ConfidenceInterval> interval =

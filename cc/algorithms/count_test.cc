@@ -144,7 +144,7 @@ TEST(CountTest, ConfidenceIntervalTest) {
               EqualsProto(wantConfidenceInterval));
 }
 
-TEST(CountTest, OverflowTest) {
+TEST(CountTest, BasicOverflowTest) {
   base::StatusOr<std::unique_ptr<Count<int64_t>>> count =
       typename Count<int64_t>::Builder()
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
@@ -158,6 +158,29 @@ TEST(CountTest, OverflowTest) {
   ASSERT_OK(result);
 
   EXPECT_EQ(GetValue<int64_t>(*result), std::numeric_limits<int64_t>::lowest());
+}
+
+TEST(CountTest, OverflowFromAddNoseTypeCastTest) {
+  int i;
+  for (i = 0; i < 100; ++i) {
+    base::StatusOr<std::unique_ptr<Count<int64_t>>> count =
+        typename Count<int64_t>::Builder()
+            .SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
+            .Build();
+
+    CountTestPeer::AddMultipleEntries<int64_t>(
+        1, std::numeric_limits<int64_t>::max(), &**count);
+
+    auto result = (*count)->PartialResult();
+    ASSERT_OK(result);
+    // The added noise should eventually cause the count to overflow, resulting
+    // in a negative count.
+    if (GetValue<int64_t>(*result) < 0) {
+      // An overflow has happened, so return to end the test as a success.
+      return;
+    }
+  }
+  FAIL() << "No overflow occurred after " << i << " iterations.";
 }
 
 TEST(CountTest, SerializeTest) {

@@ -22,9 +22,9 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 http_archive(
     name = "com_google_zetasql",
-    url = "https://github.com/google/zetasql/archive/647d0e11a7b2ec0bb44533371418683985c890f5.tar.gz",
-    sha256 = "dca4a4b97909d6cbd85ea785739fbc2c539de10f041a163c35e3c3841f8510f8",
-    strip_prefix = "zetasql-647d0e11a7b2ec0bb44533371418683985c890f5",
+    sha256 = "fe5b64074a6c438b82c4055153bd7d686e6381face07e945d34c5c5cea96a825",
+    strip_prefix = "zetasql-697da738be2af3b6b9492c73c55616d8b9fed0b6",
+    url = "https://github.com/google/zetasql/archive/697da738be2af3b6b9492c73c55616d8b9fed0b6.tar.gz",
 )
 
 load("@com_google_zetasql//bazel:zetasql_deps_step_1.bzl", "zetasql_deps_step_1")

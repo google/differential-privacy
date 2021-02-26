@@ -46,103 +46,193 @@ class BoundedMean : public Algorithm<T> {
 
  public:
   // Builder for BoundedMean algorithm.
-  class Builder : public BoundedAlgorithmBuilder<T, BoundedMean<T>, Builder> {
-    using AlgorithmBuilder =
-        differential_privacy::AlgorithmBuilder<T, BoundedMean<T>, Builder>;
-    using BoundedBuilder = BoundedAlgorithmBuilder<T, BoundedMean<T>, Builder>;
+  class Builder;
 
-   public:
-    // For integral type, check for no overflow in the subtraction.
-    template <typename T2 = T,
-              std::enable_if_t<std::is_integral<T2>::value>* = nullptr>
-    static absl::Status CheckBounds(T lower, T upper) {
-      T subtract_result;
-      if (!SafeSubtract(upper, lower, &subtract_result)) {
-        return absl::InvalidArgumentError(
-            "Upper - lower caused integer overflow.");
-      }
-      return absl::OkStatus();
+  BoundedMean(const double epsilon) : Algorithm<T>(epsilon) {}
+
+  virtual ~BoundedMean() = default;
+
+  // For integral type, check for no overflow in the subtraction.
+  template <typename T2 = T,
+            std::enable_if_t<std::is_integral<T2>::value>* = nullptr>
+  static absl::Status CheckBounds(T lower, T upper) {
+    T subtract_result;
+    if (!SafeSubtract(upper, lower, &subtract_result)) {
+      return absl::InvalidArgumentError(
+          "Upper - lower caused integer overflow.");
+    }
+    return absl::OkStatus();
+  }
+
+  // No checks for floating point type.
+  template <typename T2 = T,
+            std::enable_if_t<std::is_floating_point<T2>::value>* = nullptr>
+  static absl::Status CheckBounds(T lower, T upper) {
+    return absl::OkStatus();
+  }
+
+  // Numerical mechanism to add noise to the normalized sum.  Not to be confused
+  // with the sum mechanism we are using in BoundedSum that is not normalized.
+  static base::StatusOr<std::unique_ptr<NumericalMechanism>>
+  BuildMechanismForNormalizedSum(
+      std::unique_ptr<NumericalMechanismBuilder> mechanism_builder,
+      const double epsilon, const double l0_sensitivity,
+      const double max_contributions_per_partition, const T lower,
+      const T upper) {
+    return mechanism_builder->SetEpsilon(epsilon)
+        .SetL0Sensitivity(l0_sensitivity)
+        .SetLInfSensitivity(max_contributions_per_partition *
+                            (std::abs(upper - lower) / 2))
+        .Build();
+  }
+
+ protected:
+  virtual void AddMultipleEntries(const T& input, int64_t num_of_entries) = 0;
+
+  // Friend class for testing only.
+  friend class BoundedMeanTestPeer;
+};
+
+template <typename T>
+class BoundedMeanWithFixedBounds : public BoundedMean<T> {
+ public:
+  BoundedMeanWithFixedBounds(
+      const double epsilon, const T lower, const T upper,
+      std::unique_ptr<NumericalMechanism> sum_mechanism,
+      std::unique_ptr<NumericalMechanism> count_mechanism)
+      : BoundedMean<T>(epsilon),
+        lower_(lower),
+        upper_(upper),
+        sum_mechanism_(std::move(sum_mechanism)),
+        count_mechanism_(std::move(count_mechanism)) {}
+
+  void AddEntry(const T& input) override { AddMultipleEntries(input, 1); }
+
+  Summary Serialize() const override {
+    BoundedMeanSummary mean_summary;
+    mean_summary.set_count(partial_count_);
+    SetValue(mean_summary.add_pos_sum(), partial_sum_);
+
+    Summary summary;
+    summary.mutable_data()->PackFrom(mean_summary);
+    return summary;
+  }
+
+  absl::Status Merge(const Summary& summary) override {
+    if (!summary.has_data()) {
+      return absl::InternalError(
+          "Cannot merge summary with no bounded mean data.");
     }
 
-    // No checks for floating point type.
-    template <typename T2 = T,
-              std::enable_if_t<std::is_floating_point<T2>::value>* = nullptr>
-    static absl::Status CheckBounds(T lower, T upper) {
-      return absl::OkStatus();
+    // Add counts and bounded sums.
+    BoundedMeanSummary mean_summary;
+    if (!summary.data().UnpackTo(&mean_summary)) {
+      return absl::InternalError("Bounded mean summary unable to be unpacked.");
+    }
+    if (mean_summary.pos_sum_size() != 1) {
+      return absl::InternalError(absl::StrCat(
+          "Bounded mean summary must have exactly one pos_sum but got ",
+          mean_summary.pos_sum_size()));
     }
 
-   private:
-    base::StatusOr<std::unique_ptr<BoundedMean<T>>> BuildBoundedAlgorithm()
-        override {
-      // We have to check epsilon now, otherwise the split during ApproxBounds
-      // construction might make the error message confusing.
-      RETURN_IF_ERROR(ValidateIsFiniteAndPositive(
-          AlgorithmBuilder::GetEpsilon(), "Epsilon"));
-      // Ensure that either bounds are manually set or ApproxBounds is made.
-      RETURN_IF_ERROR(BoundedBuilder::BoundsSetup());
+    partial_sum_ += GetValue<T>(mean_summary.pos_sum(0));
+    partial_count_ += mean_summary.count();
 
-      // If manual bounding, check bounds and construct mechanism so we can fail
-      // on build if sensitivity is inappropriate.
-      std::unique_ptr<NumericalMechanism> sum_mechanism = nullptr;
-      if (BoundedBuilder::BoundsAreSet()) {
-        RETURN_IF_ERROR(CheckBounds(BoundedBuilder::GetLower().value(),
-                                    BoundedBuilder::GetUpper().value()));
-        ASSIGN_OR_RETURN(
-            sum_mechanism,
-            BuildSumMechanism(
-                AlgorithmBuilder::GetMechanismBuilderClone(),
-                BoundedBuilder::GetRemainingEpsilon().value(),
-                AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1),
-                AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(1),
-                BoundedBuilder::GetUpper().value(),
-                BoundedBuilder::GetLower().value()));
-      }
+    return absl::OkStatus();
+  }
 
-      // The count noising doesn't depend on the bounds, so we can always
-      // construct the mechanism we use for it here.
-      std::unique_ptr<NumericalMechanism> count_mechanism;
-      ASSIGN_OR_RETURN(
-          count_mechanism,
-          AlgorithmBuilder::GetMechanismBuilderClone()
-              ->SetEpsilon(BoundedBuilder::GetRemainingEpsilon().value())
-              .SetL0Sensitivity(
-                  AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1))
-              .SetLInfSensitivity(
-                  AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(
-                      1))
-              .Build());
+  int64_t MemoryUsed() override {
+    return sizeof(BoundedMeanWithFixedBounds) + sum_mechanism_->MemoryUsed() +
+           count_mechanism_->MemoryUsed();
+  }
 
-      // Construct BoundedMean.
-      auto mech_builder = AlgorithmBuilder::GetMechanismBuilderClone();
-      return absl::WrapUnique(new BoundedMean(
-          BoundedBuilder::GetRemainingEpsilon().value(),
-          BoundedBuilder::GetLower().value_or(0),
-          BoundedBuilder::GetUpper().value_or(0),
-          AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1),
-          AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(1),
-          std::move(mech_builder), std::move(sum_mechanism),
-          std::move(count_mechanism),
-          std::move(BoundedBuilder::MoveApproxBoundsPointer())));
+ protected:
+  base::StatusOr<Output> GenerateResult(double privacy_budget,
+                                        double noise_interval_level) override {
+    RETURN_IF_ERROR(ValidateIsPositive(privacy_budget, "Privacy budget",
+                                       absl::StatusCode::kFailedPrecondition));
+    const double midpoint = lower_ + ((upper_ - lower_) / 2);
+
+    // Split privacy budget for sum and count mechanisms.
+    const double sum_budget = privacy_budget / 2;
+    const double count_budget = privacy_budget - sum_budget;
+
+    const double noised_count =
+        std::max(1.0, static_cast<double>(count_mechanism_->AddNoise(
+                          partial_count_, count_budget)));
+    const double noised_normalized_sum = sum_mechanism_->AddNoise(
+        partial_sum_ - (partial_count_ * midpoint), sum_budget);
+    const double mean = (noised_normalized_sum / noised_count) + midpoint;
+
+    Output output;
+    AddToOutput<double>(&output, Clamp<double>(lower_, upper_, mean));
+    return output;
+  }
+
+  void ResetState() override {
+    partial_sum_ = 0;
+    partial_count_ = 0;
+  }
+
+  void AddMultipleEntries(const T& input, int64_t num_of_entries) override {
+    absl::Status status =
+        ValidateIsPositive(num_of_entries, "Number of entries");
+    if (std::isnan(static_cast<double>(input)) || !status.ok()) {
+      return;
     }
-  };
+    partial_sum_ += Clamp<T>(lower_, upper_, input) * num_of_entries;
+    partial_count_ += num_of_entries;
+  }
+
+ private:
+  const T lower_;
+  const T upper_;
+
+  // Mechanisms to add noise to sum and count.
+  std::unique_ptr<NumericalMechanism> sum_mechanism_;
+  std::unique_ptr<NumericalMechanism> count_mechanism_;
+
+  T partial_sum_ = 0;
+  int64_t partial_count_ = 0;
+};
+
+template <typename T>
+class BoundedMeanWithApproxBounds : public BoundedMean<T> {
+ public:
+  BoundedMeanWithApproxBounds(
+      const double epsilon, const double l0_sensitivity,
+      const double max_contributions_per_partition,
+      std::unique_ptr<NumericalMechanismBuilder> mechanism_builder,
+      std::unique_ptr<NumericalMechanism> count_mechanism,
+      std::unique_ptr<ApproxBounds<T>> approx_bounds)
+      : BoundedMean<T>(epsilon),
+        count_mechanism_(std::move(count_mechanism)),
+        mechanism_builder_(std::move(mechanism_builder)),
+        l0_sensitivity_(l0_sensitivity),
+        max_contributions_per_partition_(max_contributions_per_partition),
+        approx_bounds_(std::move(approx_bounds)) {
+    // For automatically determining bounds, we need partial sums for each bin
+    // of the ApproxBounds logarithmic histogram.
+    pos_sum_.resize(approx_bounds_->NumPositiveBins(), 0);
+    neg_sum_.resize(approx_bounds_->NumPositiveBins(), 0);
+  }
 
   void AddEntry(const T& input) override { AddMultipleEntries(input, 1); }
 
   Summary Serialize() const override {
     // Create BoundedMeanSummary.
     BoundedMeanSummary bm_summary;
-    bm_summary.set_count(raw_count_);
+    bm_summary.set_count(partial_count_);
     for (T x : pos_sum_) {
       SetValue(bm_summary.add_pos_sum(), x);
     }
     for (T x : neg_sum_) {
       SetValue(bm_summary.add_neg_sum(), x);
     }
-    if (approx_bounds_) {
-      Summary approx_bounds_summary = approx_bounds_->Serialize();
-      approx_bounds_summary.data().UnpackTo(
-          bm_summary.mutable_bounds_summary());
-    }
+
+    // Add approx bounds summary
+    Summary approx_bounds_summary = approx_bounds_->Serialize();
+    approx_bounds_summary.data().UnpackTo(bm_summary.mutable_bounds_summary());
 
     // Create Summary.
     Summary summary;
@@ -156,167 +246,114 @@ class BoundedMean : public Algorithm<T> {
           "Cannot merge summary with no bounded mean data.");
     }
 
-    // Add counts and bounded sums.
+    // Check bounded mean summary.
     BoundedMeanSummary bm_summary;
     if (!summary.data().UnpackTo(&bm_summary)) {
       return absl::InternalError("Bounded mean summary unable to be unpacked.");
     }
-    raw_count_ += bm_summary.count();
     if (pos_sum_.size() != bm_summary.pos_sum_size() ||
         neg_sum_.size() != bm_summary.neg_sum_size()) {
       return absl::InternalError(
           "Merged BoundedMeans must have equal number of partial sums.");
     }
+
+    // Check and merge approx bounds summary.  This is the first operation that
+    // modifies the internal state.
+    Summary approx_bounds_summary;
+    approx_bounds_summary.mutable_data()->PackFrom(bm_summary.bounds_summary());
+    RETURN_IF_ERROR(approx_bounds_->Merge(approx_bounds_summary));
+
+    // Merge partial counts and sum buckets.
+    partial_count_ += bm_summary.count();
     for (int i = 0; i < pos_sum_.size(); ++i) {
       pos_sum_[i] += GetValue<T>(bm_summary.pos_sum(i));
     }
     for (int i = 0; i < neg_sum_.size(); ++i) {
       neg_sum_[i] += GetValue<T>(bm_summary.neg_sum(i));
     }
-    if (approx_bounds_) {
-      Summary approx_bounds_summary;
-      approx_bounds_summary.mutable_data()->PackFrom(
-          bm_summary.bounds_summary());
-      RETURN_IF_ERROR(approx_bounds_->Merge(approx_bounds_summary));
-    }
 
     return absl::OkStatus();
   }
 
   int64_t MemoryUsed() override {
-    int64_t memory = sizeof(BoundedMean<T>) +
-                   sizeof(T) * (pos_sum_.capacity() + neg_sum_.capacity());
-    if (approx_bounds_) {
-      memory += approx_bounds_->MemoryUsed();
-    }
-    if (sum_mechanism_) {
-      memory += sum_mechanism_->MemoryUsed();
-    }
-    if (mechanism_builder_) {
-      memory += sizeof(*mechanism_builder_);
-    }
+    int64_t memory = sizeof(BoundedMean<T>);
+    memory += sizeof(T) * (pos_sum_.capacity() + neg_sum_.capacity());
+    memory += approx_bounds_->MemoryUsed();
+    memory += sizeof(*mechanism_builder_);
     return memory;
   }
 
   double GetEpsilon() const override {
-    if (approx_bounds_) {
-      return approx_bounds_->GetEpsilon() + Algorithm<T>::GetEpsilon();
-    }
-    return Algorithm<T>::GetEpsilon();
+    return approx_bounds_->GetEpsilon() + Algorithm<T>::GetEpsilon();
   }
 
-  // Returns the epsilon used to calculate approximate bounds. If approximate
-  // bounds are not used, returns 0.
-  double GetBoundingEpsilon() const {
-    if (approx_bounds_) {
-      return approx_bounds_->GetEpsilon();
-    }
-    return 0;
-  }
+  // Returns the epsilon used to calculate approximate bounds.
+  double GetBoundingEpsilon() const { return approx_bounds_->GetEpsilon(); }
 
-  // Returns the epsilon used to calculate the noisy mean. If bounds are
-  // specified explicitly, this will be the total epsilon used by the algorithm.
+  // Returns the epsilon used to calculate the noisy mean.
   double GetAggregationEpsilon() const { return Algorithm<T>::GetEpsilon(); }
 
  protected:
-  BoundedMean(const double epsilon, T lower, T upper,
-              const double l0_sensitivity,
-              const double max_contributions_per_partition,
-              std::unique_ptr<NumericalMechanismBuilder> mechanism_builder,
-              std::unique_ptr<NumericalMechanism> sum_mechanism,
-              std::unique_ptr<NumericalMechanism> count_mechanism,
-              std::unique_ptr<ApproxBounds<T>> approx_bounds = nullptr)
-      : Algorithm<T>(epsilon),
-        raw_count_(0),
-        lower_(lower),
-        upper_(upper),
-        midpoint_(lower + (upper - lower) / 2),
-        mechanism_builder_(std::move(mechanism_builder)),
-        l0_sensitivity_(l0_sensitivity),
-        max_contributions_per_partition_(max_contributions_per_partition),
-        sum_mechanism_(std::move(sum_mechanism)),
-        count_mechanism_(std::move(count_mechanism)),
-        approx_bounds_(std::move(approx_bounds)) {
-    // If automatically determining bounds, we need partial sums for each bin
-    // of the ApproxBounds logarithmic histogram. Otherwise, we only need to
-    // store one already-clamped sum.
-    if (approx_bounds_) {
-      pos_sum_.resize(approx_bounds_->NumPositiveBins(), 0);
-      neg_sum_.resize(approx_bounds_->NumPositiveBins(), 0);
-    } else {
-      pos_sum_.push_back(0);
-    }
-  }
-
   base::StatusOr<Output> GenerateResult(double privacy_budget,
                                         double noise_interval_level) override {
     RETURN_IF_ERROR(ValidateIsPositive(privacy_budget, "Privacy budget",
                                        absl::StatusCode::kFailedPrecondition));
 
-    double sum = 0;
-    double remaining_budget = privacy_budget;
+    // Split privacy budget.  We use 1/2 for approx bounds, 1/4 for count and
+    // 1/4 for sum.
+    const double bounds_budget = privacy_budget / 2;
+    const double sum_budget = (privacy_budget - bounds_budget) / 2;
+    const double count_budget = privacy_budget - bounds_budget - sum_budget;
+
     Output output;
 
-    // Find bounds and sum.
-    if (approx_bounds_) {
-      // Use a fraction of the privacy budget to find the approximate bounds.
-      double bounds_budget = privacy_budget / 2;
-      remaining_budget -= bounds_budget;
-      ASSIGN_OR_RETURN(Output bounds, approx_bounds_->PartialResult(
-                                          bounds_budget, noise_interval_level));
-      lower_ = GetValue<T>(bounds.elements(0).value());
-      upper_ = GetValue<T>(bounds.elements(1).value());
-      RETURN_IF_ERROR(Builder::CheckBounds(lower_, upper_));
-      midpoint_ = lower_ + (upper_ - lower_) / 2;
+    // Use a fraction of the privacy budget to find the approximate bounds.
+    ASSIGN_OR_RETURN(Output bounds, approx_bounds_->PartialResult(
+                                        bounds_budget, noise_interval_level));
+    const T lower = GetValue<T>(bounds.elements(0).value());
+    const T upper = GetValue<T>(bounds.elements(1).value());
+    RETURN_IF_ERROR(BoundedMean<T>::CheckBounds(lower, upper));
 
-      // To find the sum, pass the identity function as the transform.
-      ASSIGN_OR_RETURN(sum, approx_bounds_->template ComputeFromPartials<T>(
-                                pos_sum_, neg_sum_, [](T x) { return x; },
-                                lower_, upper_, raw_count_));
+    // To find the sum, pass the identity function as the transform.
+    ASSIGN_OR_RETURN(const T sum,
+                     approx_bounds_->template ComputeFromPartials<T>(
+                         pos_sum_, neg_sum_, [](T x) { return x; }, lower,
+                         upper, partial_count_));
 
-      // Populate the bounding report with ApproxBounds information.
-      *(output.mutable_error_report()->mutable_bounding_report()) =
-          approx_bounds_->GetBoundingReport(lower_, upper_);
+    // Populate the bounding report with ApproxBounds information.
+    *(output.mutable_error_report()->mutable_bounding_report()) =
+        approx_bounds_->GetBoundingReport(lower, upper);
 
-      // Clear the mechanism. The sensitivity might have changed.
-      sum_mechanism_.reset();
-    } else {
-      // Manual bounds were set and clamping was done upon adding entries.
-      sum = pos_sum_[0];
-    }
+    // Construct the sum mechanism mechanism with the obtained bounds.
+    ASSIGN_OR_RETURN(
+        std::unique_ptr<NumericalMechanism> sum_mechanism,
+        BoundedMean<T>::BuildMechanismForNormalizedSum(
+            mechanism_builder_->Clone(), Algorithm<T>::GetEpsilon(),
+            l0_sensitivity_, max_contributions_per_partition_, lower, upper));
 
-    // Construct mechanism if needed.
-    if (!sum_mechanism_) {
-      ASSIGN_OR_RETURN(
-          sum_mechanism_,
-          BuildSumMechanism(mechanism_builder_->Clone(),
-                            Algorithm<T>::GetEpsilon(), l0_sensitivity_,
-                            max_contributions_per_partition_, lower_, upper_));
-    }
+    // We use the midpoint to normalize the sum.
+    const double midpoint = lower + (upper - lower) / 2;
 
-    double count_budget = remaining_budget / 2;
-    remaining_budget -= count_budget;
-    double noised_count =
-        std::max(1.0, count_mechanism_->AddNoise(raw_count_, count_budget));
-    double normalized_sum = sum_mechanism_->AddNoise(
-        sum - raw_count_ * midpoint_, remaining_budget);
-    double average = normalized_sum / noised_count + midpoint_;
-    AddToOutput<double>(&output, Clamp<double>(lower_, upper_, average));
+    const double noised_count =
+        std::max(1.0, static_cast<double>(count_mechanism_->AddNoise(
+                          partial_count_, count_budget)));
+    const double normalized_sum =
+        sum_mechanism->AddNoise(sum - partial_count_ * midpoint, sum_budget);
+    const double mean = normalized_sum / noised_count + midpoint;
+
+    // Add mean to output and return the result.
+    AddToOutput<double>(&output, Clamp<double>(lower, upper, mean));
     return output;
   }
 
   void ResetState() override {
     std::fill(pos_sum_.begin(), pos_sum_.end(), 0);
     std::fill(neg_sum_.begin(), neg_sum_.end(), 0);
-    raw_count_ = 0;
-    if (approx_bounds_) {
-      approx_bounds_->Reset();
-      sum_mechanism_ = nullptr;
-    }
+    partial_count_ = 0;
+    approx_bounds_->Reset();
   }
 
- private:
-  void AddMultipleEntries(const T& input, int64_t num_of_entries) {
+  void AddMultipleEntries(const T& input, int64_t num_of_entries) override {
     // REF:
     // https://stackoverflow.com/questions/61646166/how-to-resolve-fpclassify-ambiguous-call-to-overloaded-function
     absl::Status status =
@@ -325,64 +362,101 @@ class BoundedMean : public Algorithm<T> {
       return;
     }
 
-    if (!approx_bounds_) {
-      pos_sum_[0] += Clamp<T>(lower_, upper_, input) * num_of_entries;
+    approx_bounds_->AddMultipleEntries(input, num_of_entries);
+
+    // Find partial sums.
+    if (input >= 0) {
+      approx_bounds_->template AddMultipleEntriesToPartialSums<T>(
+          &pos_sum_, input, num_of_entries);
     } else {
-      approx_bounds_->AddMultipleEntries(input, num_of_entries);
-
-      // Find partial sums.
-      if (input >= 0) {
-        approx_bounds_->template AddMultipleEntriesToPartialSums<T>(
-            &pos_sum_, input, num_of_entries);
-      } else {
-        approx_bounds_->template AddMultipleEntriesToPartialSums<T>(
-            &neg_sum_, input, num_of_entries);
-      }
+      approx_bounds_->template AddMultipleEntriesToPartialSums<T>(
+          &neg_sum_, input, num_of_entries);
     }
-    raw_count_ += num_of_entries;
+    partial_count_ += num_of_entries;
   }
 
-  static base::StatusOr<std::unique_ptr<NumericalMechanism>> BuildSumMechanism(
-      std::unique_ptr<NumericalMechanismBuilder> mechanism_builder,
-      const double epsilon, const double l0_sensitivity,
-      const double max_contributions_per_partition, const T lower,
-      const T upper) {
-    return mechanism_builder->SetEpsilon(epsilon)
-        .SetL0Sensitivity(l0_sensitivity)
-        .SetLInfSensitivity(max_contributions_per_partition *
-                            (std::abs(upper - lower) / 2))
-        .Build();
-  }
-
-  // Friend class for testing only.
-  friend class BoundedMeanTestPeer;
-
+ private:
   // Vectors of partial values stored for automatic clamping.
   std::vector<T> pos_sum_, neg_sum_;
 
   // Raw count of the number of entries added.
-  int64_t raw_count_;
+  int64_t partial_count_ = 0;
 
-  // Lower and upper bounds on added entries. If not provided,
-  // approx_bounds_ is used instead to determine bounds.
-  T lower_, upper_;
-
-  // Midpoint between the lower and upper bounds
-  double midpoint_;
-
-  // Used to construct mechanism once bounds are obtained for auto-bounding.
-  std::unique_ptr<NumericalMechanismBuilder> mechanism_builder_;
-  const double l0_sensitivity_;
-  const int max_contributions_per_partition_;
-
-  // The count and the sum will have different sensitivites, so we need
-  // different mechanisms to noise them.
-  std::unique_ptr<NumericalMechanism> sum_mechanism_;
+  // The count mechanism does not depend on bounds and will be constructed in
+  // the builder.  The sum mechanism depends on the bounds and will be
+  // constructed when bounds are known (during finalization of the result).
   std::unique_ptr<NumericalMechanism> count_mechanism_;
 
-  // If this is not nullptr, we are automatically determining bounds. Otherwise,
-  // lower and upper contain the manually set bounds.
+  // Used to construct the sum mechanism once bounds are obtained for
+  // auto-bounding.
+  std::unique_ptr<NumericalMechanismBuilder> mechanism_builder_;
+  const double l0_sensitivity_;
+  const double max_contributions_per_partition_;
+
+  // Approx bounds instance to automatically determining bounds.
   std::unique_ptr<ApproxBounds<T>> approx_bounds_;
+};
+
+template <typename T>
+class BoundedMean<T>::Builder
+    : public BoundedAlgorithmBuilder<T, BoundedMean<T>, Builder> {
+  using AlgorithmBuilder =
+      differential_privacy::AlgorithmBuilder<T, BoundedMean<T>, Builder>;
+  using BoundedBuilder = BoundedAlgorithmBuilder<T, BoundedMean<T>, Builder>;
+
+ private:
+  base::StatusOr<std::unique_ptr<BoundedMean<T>>> BuildBoundedAlgorithm()
+      override {
+    // We have to check epsilon now, otherwise the split during ApproxBounds
+    // construction might make the error message confusing.
+    RETURN_IF_ERROR(
+        ValidateIsFiniteAndPositive(AlgorithmBuilder::GetEpsilon(), "Epsilon"));
+    // Ensure that either bounds are manually set or ApproxBounds is made.
+    RETURN_IF_ERROR(BoundedBuilder::BoundsSetup());
+
+    // The count noising doesn't depend on the bounds, so we can always
+    // construct the mechanism we use for it here.
+    std::unique_ptr<NumericalMechanism> count_mechanism;
+    ASSIGN_OR_RETURN(
+        count_mechanism,
+        AlgorithmBuilder::GetMechanismBuilderClone()
+            ->SetEpsilon(BoundedBuilder::GetRemainingEpsilon().value())
+            .SetL0Sensitivity(
+                AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1))
+            .SetLInfSensitivity(
+                AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(1))
+            .Build());
+
+    if (BoundedBuilder::BoundsAreSet()) {
+      RETURN_IF_ERROR(CheckBounds(BoundedBuilder::GetLower().value(),
+                                  BoundedBuilder::GetUpper().value()));
+      ASSIGN_OR_RETURN(
+          std::unique_ptr<NumericalMechanism> sum_mechanism,
+          BoundedMean<T>::BuildMechanismForNormalizedSum(
+              AlgorithmBuilder::GetMechanismBuilderClone(),
+              BoundedBuilder::GetRemainingEpsilon().value(),
+              AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1),
+              AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(1),
+              BoundedBuilder::GetLower().value(),
+              BoundedBuilder::GetUpper().value()));
+
+      // Construct BoundedSum with fixed bounds.
+      return std::unique_ptr<BoundedMean<T>>(new BoundedMeanWithFixedBounds<T>(
+          BoundedBuilder::GetEpsilon().value(),
+          BoundedBuilder::GetLower().value(),
+          BoundedBuilder::GetUpper().value(), std::move(sum_mechanism),
+          std::move(count_mechanism)));
+    }
+
+    // Construct BoundedMean.
+    auto mech_builder = AlgorithmBuilder::GetMechanismBuilderClone();
+    return std::unique_ptr<BoundedMean<T>>(new BoundedMeanWithApproxBounds<T>(
+        BoundedBuilder::GetRemainingEpsilon().value(),
+        AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1),
+        AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(1),
+        std::move(mech_builder), std::move(count_mechanism),
+        std::move(BoundedBuilder::MoveApproxBoundsPointer())));
+  }
 };
 
 }  // namespace differential_privacy

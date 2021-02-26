@@ -344,6 +344,36 @@ TEST(NumericalMechanismsTest, LaplaceNoisedValueAboveThreshold) {
   }
 }
 
+TEST(NumericalMechanismsTest, LaplaceMechanismAddNoiseOverflowFromTypeCast) {
+  LaplaceMechanism mechanism(1);
+
+  // The noise should eventually be positive, which, when added to the numeric
+  // limit, will cause an overflow and returning a negative result.
+  int i;
+  for (i = 0; i < 100; ++i) {
+    if (mechanism.AddNoise(std::numeric_limits<int64_t>::max()) < 0) {
+      // An overflow has happened, so return to end the test as a success.
+      return;
+    }
+  }
+  FAIL() << "No overflow occurred after " << i << " iterations.";
+}
+
+TEST(NumericalMechanismsTest, LaplaceMechanismAddNoiseUnderflowFromTypeCast) {
+  LaplaceMechanism mechanism(1);
+
+  // The noise should eventually be negative, which, when added to the numeric
+  // limit, will cause an underflow and returning a positive result.
+  int i;
+  for (i = 0; i < 100; ++i) {
+    if (mechanism.AddNoise(std::numeric_limits<int64_t>::lowest()) > 0) {
+      // An underflow has happened, so return to end the test as a success.
+      return;
+    }
+  }
+  FAIL() << "No overflow occurred after " << i << " iterations.";
+}
+
 TEST(NumericalMechanismsTest, LaplaceDiversityCorrect) {
   LaplaceMechanism mechanism(1.0, 1.0);
   EXPECT_EQ(mechanism.GetDiversity(), 1.0);
@@ -425,7 +455,7 @@ TEST(NumericalMechanismsTest, LaplaceRoundsToGranularity_Double) {
 TEST(NumericalMechanismsTest, LaplaceRoundsToGranularity_Int) {
   // These choices of epsilon and sensitivities should result in a granularity
   // of 2^1. Granularity ~= sensitivity / epsilon / 2^40 ~= 1 / 2^-41 / 2^40
-  // = 2^41 / 2^40.
+  // = 2^41 / 2^40 = 2.
   std::unique_ptr<NumericalMechanism> med_granularity_mech =
       LaplaceMechanism::Builder()
           .SetEpsilon(4.6e-13)
@@ -436,7 +466,7 @@ TEST(NumericalMechanismsTest, LaplaceRoundsToGranularity_Int) {
 
   // These choices of epsilon and sensitivities should result in a granularity
   // of 2^10. Granularity ~= sensitivity / epsilon / 2^40 ~= 1 / 2^-50 / 2^40
-  // = 2^50 / 2^40.
+  // = 2^50 / 2^40 = 2^10 = 1024.
   std::unique_ptr<NumericalMechanism> large_granularity_mech =
       LaplaceMechanism::Builder()
           .SetEpsilon(8.9e-16)
@@ -450,7 +480,6 @@ TEST(NumericalMechanismsTest, LaplaceRoundsToGranularity_Int) {
     // to a value between -1*10^6 and 10^6 at random should covere a broad range
     // of congruence classes.
     int64_t input = UniformDouble() * 2e6 - 1e6;
-
     EXPECT_EQ(std::fmod(med_granularity_mech->AddNoise(input), 2), 0);
     EXPECT_EQ(std::fmod(large_granularity_mech->AddNoise(input), 1024), 0);
   }
@@ -780,7 +809,7 @@ TEST(NumericalMechanismsTest, GaussianRoundsToGranularity_Double) {
           .value();
 
   // These choices of epsilon and sensitivities should result in a granularity
-  // of 2^0.
+  // of 2^0 = 1.
   std::unique_ptr<NumericalMechanism> med_granularity_mech =
       GaussianMechanism::Builder()
           .SetEpsilon(1.0e-15)
@@ -791,7 +820,7 @@ TEST(NumericalMechanismsTest, GaussianRoundsToGranularity_Double) {
           .value();
 
   // These choices of epsilon and sensitivities should result in a granularity
-  // of 2^10.
+  // of 2^10 = 1024.
   std::unique_ptr<NumericalMechanism> large_granularity_mech =
       GaussianMechanism::Builder()
           .SetEpsilon(1.0e-15)
@@ -816,7 +845,7 @@ TEST(NumericalMechanismsTest, GaussianRoundsToGranularity_Double) {
 
 TEST(NumericalMechanismsTest, GaussianRoundsToGranularity_Int) {
   // These choices of epsilon and sensitivities should result in a granularity
-  // of 2^1.
+  // of 2^1 = 2.
   std::unique_ptr<NumericalMechanism> med_granularity_mech =
       GaussianMechanism::Builder()
           .SetEpsilon(1.0e-15)
@@ -827,7 +856,7 @@ TEST(NumericalMechanismsTest, GaussianRoundsToGranularity_Int) {
           .value();
 
   // These choices of epsilon and sensitivities should result in a granularity
-  // of 2^10.
+  // of 2^10 = 1024.
   std::unique_ptr<NumericalMechanism> large_granularity_mech =
       GaussianMechanism::Builder()
           .SetEpsilon(1.0e-15)
@@ -881,6 +910,26 @@ TEST(NumericalMechanismsTest, GaussianMechanismNoisedValueAboveThreshold) {
     EXPECT_NEAR(num_above_thresold / kNumSamples, ts.expected_probability,
                 0.0025);
   }
+}
+
+TEST(NumericalMechanismsTest, GaussianMechanismAddNoiseOverflowFromTypeCast) {
+  auto mechanism = GaussianMechanism::Builder()
+                       .SetL2Sensitivity(1)
+                       .SetEpsilon(1)
+                       .SetDelta(0.5)
+                       .Build();
+  ASSERT_OK(mechanism);
+
+  // The noise should eventually be positive, which, when added to the numeric
+  // limit, will cause an overflow and returning a negative result.
+  int i;
+  for (i = 0; i < 100; ++i) {
+    if ((*mechanism)->AddNoise(std::numeric_limits<int64_t>::max()) < 0) {
+      // An overflow has happened, so return to end the test as a success.
+      return;
+    }
+  }
+  FAIL() << "No overflow occurred after " << i << " iterations.";
 }
 
 TEST(NumericalMechanismsTest, GaussianBuilderClone) {

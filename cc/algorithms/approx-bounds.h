@@ -574,12 +574,8 @@ class ApproxBounds : public Algorithm<T> {
   const std::vector<T> AddNoise(double privacy_budget,
                                 const std::vector<int64_t>& bins) {
     std::vector<T> noisy_bins(bins.size());
-    SafeCastResult<T> cast_result;
     for (int i = 0; i < bins.size(); ++i) {
-      double noised_dbl =
-          mechanism_->AddNoise(static_cast<double>(bins[i]), privacy_budget);
-      cast_result = SafeCastFromDouble<T>(noised_dbl);
-      noisy_bins[i] = cast_result.value;
+      noisy_bins[i] = mechanism_->AddNoise(bins[i], privacy_budget);
     }
     return noisy_bins;
   }
@@ -665,9 +661,9 @@ class ApproxBounds : public Algorithm<T> {
 
   // Needed for classes that rely on ApproxBounds::AddMultipleEntries()
   template <typename T2>
-  friend class BoundedMean;
+  friend class BoundedMeanWithApproxBounds;
   template <typename T2>
-  friend class BoundedVariance;
+  friend class BoundedVarianceWithApproxBounds;
 
  private:
   // Count the values in each logarithmic bin for positives and negatives.

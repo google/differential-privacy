@@ -320,9 +320,39 @@ TEST(BoundedMeanTest, OverflowRawCountTest) {
 
   base::StatusOr<Output> result = (*bm)->PartialResult();
   ASSERT_OK(result);
-  // If the int64_t raw_count_ overflows, it should wrap around to 2, resulting in
-  // a mean of (1+1+1+1) / 2 = 2, instead of the correct mean of nearly 0.
+  // If the int64_t partial_count_ overflows, it should wrap around to 2,
+  // resulting in a mean of (1+1+1+1) / 2 = 2, instead of the correct mean of
+  // nearly 0.
   EXPECT_DOUBLE_EQ(GetValue<double>(result.value()), 2.0);
+}
+
+TEST(BoundedMeanTest, OverflowCountFromAddNoiseTypeCast) {
+  const double kBound = std::numeric_limits<int64_t>::max() / 2;
+  int i;
+  for (i = 0; i < 100; ++i) {
+    typename BoundedMean<double>::Builder builder;
+
+    base::StatusOr<std::unique_ptr<BoundedMean<double>>> bm =
+        builder
+            .SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
+            .SetLower(-kBound)
+            .SetUpper(kBound)
+            .Build();
+    ASSERT_OK(bm);
+    BoundedMeanTestPeer::AddMultipleEntries<double>(
+        1, std::numeric_limits<int64_t>::max(), (*bm).get());
+
+    base::StatusOr<Output> result = (*bm)->PartialResult();
+    ASSERT_OK(result);
+    // The noise applied to the count should eventually cause an overflow,
+    // resulting in a noised_count = 1, and thus a mean of around
+    // (1 * INT64_MAX) / 1 = INT64_MAX, clamped to the upper limit.
+    if (GetValue<double>(result.value()) >= kBound) {
+      // An overflow has happened, so return to end the test as a success.
+      return;
+    }
+  }
+  FAIL() << "No overflow occurred after " << i << " iterations.";
 }
 
 TEST(BoundedMeanTest, OverflowAddMultipleEntriesManualBoundsTest) {
@@ -417,8 +447,9 @@ TEST(BoundedMeanTest, OverflowRawCountMergeManualBoundsTest) {
 
   base::StatusOr<Output> result = (*bm2)->PartialResult();
   ASSERT_OK(result);
-  // If the int64_t raw_count_ overflows, it should wrap around to 2, resulting in
-  // a mean of (1+1+1+1) / 2 = 2, instead of the correct mean of nearly 0.
+  // If the int64_t partial_count_ overflows, it should wrap around to 2,
+  // resulting in a mean of (1+1+1+1) / 2 = 2, instead of the correct mean of
+  // nearly 0.
   EXPECT_DOUBLE_EQ(GetValue<double>(result.value()), 2);
 
   // Test post-overflow serialize & merge
@@ -830,16 +861,17 @@ TYPED_TEST(BoundedMeanTest, MemoryUsed) {
 
 TYPED_TEST(BoundedMeanTest, SplitsEpsilonWithAutomaticBounds) {
   double epsilon = 1.0;
-  auto bm =
+  base::StatusOr<std::unique_ptr<BoundedMean<TypeParam>>> bm =
       typename BoundedMean<TypeParam>::Builder().SetEpsilon(epsilon).Build();
-  EXPECT_NEAR((*bm)->GetEpsilon(), epsilon, 1e-10);
-  EXPECT_NEAR((*bm)->GetEpsilon(),
-              (*bm)->GetBoundingEpsilon() + (*bm)->GetAggregationEpsilon(),
-              1e-10);
-  EXPECT_GT((*bm)->GetBoundingEpsilon(), 0);
-  EXPECT_LT((*bm)->GetBoundingEpsilon(), epsilon);
-  EXPECT_GT((*bm)->GetAggregationEpsilon(), 0);
-  EXPECT_LT((*bm)->GetAggregationEpsilon(), epsilon);
+  ASSERT_OK(bm);
+  auto* bmi = dynamic_cast<BoundedMeanWithApproxBounds<TypeParam>*>(bm->get());
+  EXPECT_NEAR(bmi->GetEpsilon(), epsilon, 1e-10);
+  EXPECT_NEAR(bmi->GetEpsilon(),
+              bmi->GetBoundingEpsilon() + bmi->GetAggregationEpsilon(), 1e-10);
+  EXPECT_GT(bmi->GetBoundingEpsilon(), 0);
+  EXPECT_LT(bmi->GetBoundingEpsilon(), epsilon);
+  EXPECT_GT(bmi->GetAggregationEpsilon(), 0);
+  EXPECT_LT(bmi->GetAggregationEpsilon(), epsilon);
 }
 
 }  //  namespace

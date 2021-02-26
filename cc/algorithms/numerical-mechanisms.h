@@ -17,6 +17,7 @@
 #ifndef DIFFERENTIAL_PRIVACY_ALGORITHMS_NUMERICAL_MECHANISMS_H_
 #define DIFFERENTIAL_PRIVACY_ALGORITHMS_NUMERICAL_MECHANISMS_H_
 
+#include <limits>
 #include <memory>
 
 #include "absl/base/attributes.h"
@@ -59,9 +60,21 @@ class NumericalMechanism {
 
   virtual ~NumericalMechanism() = default;
 
-  virtual double AddNoise(double result, double privacy_budget) = 0;
+  template <typename T, std::enable_if_t<std::is_integral<T>::value>* = nullptr>
+  T AddNoise(T result, double privacy_budget) {
+    return AddInt64Noise(result, privacy_budget);
+  }
 
-  double AddNoise(double result) { return AddNoise(result, 1.0); }
+  template <typename T,
+            std::enable_if_t<std::is_floating_point<T>::value>* = nullptr>
+  T AddNoise(T result, double privacy_budget) {
+    return AddDoubleNoise(result, privacy_budget);
+  }
+
+  template <typename T>
+  T AddNoise(T result) {
+    return AddNoise(result, 1.0);
+  }
 
   // Quickly determines if result with added noise is greater than threshold.
   // This method allows for quicker thresholding decisions by using a uniform
@@ -85,13 +98,17 @@ class NumericalMechanism {
   double GetEpsilon() const { return epsilon_; }
 
  protected:
-  absl::Status CheckConfidenceLevel(double confidence_level) {
+  virtual double AddDoubleNoise(double result, double privacy_budget) = 0;
+
+  virtual int64_t AddInt64Noise(int64_t result, double privacy_budget) = 0;
+
+  static absl::Status CheckConfidenceLevel(const double confidence_level) {
     RETURN_IF_ERROR(ValidateIsInExclusiveInterval(confidence_level, 0, 1,
                                                   "Confidence level"));
     return absl::OkStatus();
   }
 
-  absl::Status CheckPrivacyBudget(double privacy_budget) {
+  static absl::Status CheckPrivacyBudget(const double privacy_budget) {
     RETURN_IF_ERROR(ValidateIsInInterval(privacy_budget, 0, 1, false, true,
                                          "Privacy budget"));
     return absl::OkStatus();
@@ -100,8 +117,8 @@ class NumericalMechanism {
   // Checks and clamps the budget so that it is in the interval (0,1].  Should
   // only be used in methods where we no longer can return an absl::Status, as
   // it tries some recovery from invalid states.
-  double CheckAndClampBudget(double privacy_budget) {
-    absl::Status status = CheckPrivacyBudget(privacy_budget);
+  static double CheckAndClampBudget(const double privacy_budget) {
+    const absl::Status status = CheckPrivacyBudget(privacy_budget);
     LOG_IF(ERROR, !status.ok()) << status.message();
     if (std::isnan(privacy_budget)) {
       // Recover from this invalid state by returning the minimal possible
@@ -112,7 +129,7 @@ class NumericalMechanism {
   }
 
  private:
-  double epsilon_;
+  const double epsilon_;
 };
 
 // Provides a common abstraction for Builders for NumericalMechanism.
@@ -297,18 +314,6 @@ class LaplaceMechanism : public NumericalMechanism {
 
   using NumericalMechanism::AddNoise;
 
-  // Adds differentially private noise to a provided value. The privacy_budget
-  // is multiplied with epsilon for this particular result. Privacy budget
-  // should be in (0, 1], and is a way to divide an epsilon between multiple
-  // values. For instance, if a user wanted to add noise to two different values
-  // with a given epsilon then they could add noise to each value with a privacy
-  // budget of 0.5 (or 0.4 and 0.6, etc).
-  double AddNoise(double result, double privacy_budget) override {
-    privacy_budget = CheckAndClampBudget(privacy_budget);
-    double sample = distro_->Sample(1.0 / privacy_budget);
-    return RoundToNearestMultiple(result, distro_->GetGranularity()) + sample;
-  }
-
   // Quickly determines if result is greater than threshold.
   bool NoisedValueAboveThreshold(double result, double threshold) override {
     return UniformDouble() >
@@ -365,9 +370,53 @@ class LaplaceMechanism : public NumericalMechanism {
     return internal::LaplaceDistribution::GetMinEpsilon();
   }
 
+ protected:
+  // Adds differentially private noise to a provided value. The privacy_budget
+  // is multiplied with epsilon for this particular result. Privacy budget
+  // should be in (0, 1], and is a way to divide an epsilon between multiple
+  // values. For instance, if a user wanted to add noise to two different values
+  // with a given epsilon then they could add noise to each value with a privacy
+  // budget of 0.5 (or 0.4 and 0.6, etc).
+  double AddDoubleNoise(double result, double privacy_budget) override {
+    privacy_budget = CheckAndClampBudget(privacy_budget);
+    double sample = distro_->Sample(1.0 / privacy_budget);
+    return RoundToNearestMultiple(result, distro_->GetGranularity()) + sample;
+  }
+
+  // Adds noise to an integral value (that could overflow). Calling AddNoise on
+  // 0.0 avoids casting result to a double value, which could cause a SIGILL
+  // error and is not secure privacy-wise, as it can have unforeseen effects on
+  // the sensitivity of x. Rounding and adding the noise to result is a
+  // privacy-safe operation (for noise of moderate magnitude, i.e. < 2^53).
+  int64_t AddInt64Noise(int64_t result, double privacy_budget) override {
+    privacy_budget = CheckAndClampBudget(privacy_budget);
+
+    double sample = distro_->Sample(1.0 / privacy_budget);
+    SafeCastResult<int64_t> noise_cast_result =
+        SafeCastFromDouble<int64_t>(std::round(sample));
+
+    // Granularity should be a power of 2, and thus can be cast without losing
+    // any meaningful fraction. If granularity is <1 (i.e., 2^x, where x<0),
+    // then flooring the granularity we use here to 1 should be fine for this
+    // function. If granularity is greater than an int64_t can represent, then
+    // it's so high that the return value likely won't be terribly meaningful,
+    // so just cap the granularity at the largest number int64_t can represent.
+    int64_t granularity;
+    SafeCastResult<int64_t> granularity_cast_result =
+        SafeCastFromDouble<int64_t>(std::max(distro_->GetGranularity(), 1.0));
+    if (granularity_cast_result.no_overflow) {
+      granularity = granularity_cast_result.value;
+    } else {
+      granularity = std::numeric_limits<int64_t>::max();
+    }
+
+    return RoundToNearestInt64Multiple(result, granularity) +
+           noise_cast_result.value;
+  }
+
  private:
-  double sensitivity_;
-  double diversity_;
+  const double sensitivity_;
+  const double diversity_;
   std::unique_ptr<internal::LaplaceDistribution> distro_;
 };
 
@@ -436,7 +485,7 @@ class GaussianMechanism : public NumericalMechanism {
         return l2;
       }
       return absl::InvalidArgumentError(
-          "Gaussian Mechanism requires either L2 sensitivity or both, L0 "
+          "Gaussian Mechanism requires either L2 sensitivity or both L0 "
           "and LInf sensitivity to be set.");
     }
   };
@@ -481,24 +530,6 @@ class GaussianMechanism : public NumericalMechanism {
   virtual ~GaussianMechanism() = default;
 
   using NumericalMechanism::AddNoise;
-
-  // Adds differentially private noise to a provided value. The privacy_budget
-  // is multiplied with epsilon and delta for this particular result. Privacy
-  // budget should be in (0, 1], and is a way to divide an epsilon between
-  // multiple values. For instance, if a user wanted to add noise to two
-  // different values with a given epsilon and delta then they could add noise
-  // to each value with a privacy budget of 0.5 (or 0.4 and 0.6, etc).
-  double AddNoise(double result, double privacy_budget) override {
-    privacy_budget = CheckAndClampBudget(privacy_budget);
-
-    double local_epsilon = privacy_budget * GetEpsilon();
-    double local_delta = privacy_budget * delta_;
-    double stddev = CalculateStddev(local_epsilon, local_delta);
-    double sample = distro_->Sample(stddev);
-
-    return RoundToNearestMultiple(result, distro_->GetGranularity(stddev)) +
-           sample;
-  }
 
   // Quickly determines if result is greater than threshold.
   bool NoisedValueAboveThreshold(double result, double threshold) override {
@@ -595,9 +626,58 @@ class GaussianMechanism : public NumericalMechanism {
 
   double GetL2Sensitivity() const { return l2_sensitivity_; }
 
+ protected:
+  // Adds differentially private noise to a provided value. The privacy_budget
+  // is multiplied with epsilon and delta for this particular result. Privacy
+  // budget should be in (0, 1], and is a way to divide an epsilon between
+  // multiple values. For instance, if a user wanted to add noise to two
+  // different values with a given epsilon and delta then they could add noise
+  // to each value with a privacy budget of 0.5 (or 0.4 and 0.6, etc).
+  double AddDoubleNoise(double result, double privacy_budget) override {
+    privacy_budget = CheckAndClampBudget(privacy_budget);
+
+    double local_epsilon = privacy_budget * GetEpsilon();
+    double local_delta = privacy_budget * delta_;
+    double stddev = CalculateStddev(local_epsilon, local_delta);
+    double sample = distro_->Sample(stddev);
+
+    return RoundToNearestMultiple(result, distro_->GetGranularity(stddev)) +
+           sample;
+  }
+
+  int64_t AddInt64Noise(int64_t result, double privacy_budget) override {
+    privacy_budget = CheckAndClampBudget(privacy_budget);
+
+    double local_epsilon = privacy_budget * GetEpsilon();
+    double local_delta = privacy_budget * delta_;
+    double stddev = CalculateStddev(local_epsilon, local_delta);
+    double sample = distro_->Sample(stddev);
+
+    SafeCastResult<int64_t> noise_cast_result =
+        SafeCastFromDouble<int64_t>(std::round(sample));
+
+    // Granularity should be a power of 2, and thus can be cast without losing
+    // any meaningful fraction. If granularity is <1 (i.e., 2^x, where x<0),
+    // then flooring the granularity we use here to 1 should be fine for this
+    // function. If granularity is greater than an int64_t can represent, then
+    // it's so high that the return value likely won't be terribly meaningful,
+    // so just cap the granularity at the largest number int64_t can represent.
+    int64_t granularity;
+    SafeCastResult<int64_t> granularity_cast_result = SafeCastFromDouble<int64_t>(
+        std::max(distro_->GetGranularity(stddev), 1.0));
+    if (granularity_cast_result.no_overflow) {
+      granularity = granularity_cast_result.value;
+    } else {
+      granularity = std::numeric_limits<int64_t>::max();
+    }
+
+    return RoundToNearestInt64Multiple(result, granularity) +
+           noise_cast_result.value;
+  }
+
  private:
-  double delta_;
-  double l2_sensitivity_;
+  const double delta_;
+  const double l2_sensitivity_;
   std::unique_ptr<internal::GaussianDistribution> distro_;
 
   double StandardNormalDistributionCDF(double x) {

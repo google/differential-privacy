@@ -52,7 +52,11 @@ class ZeroNoiseMechanism : public LaplaceMechanism {
   ZeroNoiseMechanism(double epsilon, double sensitivity)
       : LaplaceMechanism(epsilon, sensitivity) {}
 
-  double AddNoise(double result, double privacy_budget) override {
+  double AddDoubleNoise(double result, double privacy_budget) override {
+    return result;
+  }
+
+  int64_t AddInt64Noise(int64_t result, double privacy_budget) override {
     return result;
   }
 
@@ -174,7 +178,9 @@ class MockLaplaceMechanism : public LaplaceMechanism {
   // Builder for MockLaplaceMechanism.
   class Builder : public LaplaceMechanism::Builder {
    public:
-    Builder() : mock_(absl::make_unique<MockLaplaceMechanism>()) {}
+    Builder()
+        : LaplaceMechanism::Builder(),
+          mock_(absl::make_unique<MockLaplaceMechanism>()) {}
 
     // Can only be called once.
     base::StatusOr<std::unique_ptr<NumericalMechanism>> Build() override {
@@ -195,11 +201,13 @@ class MockLaplaceMechanism : public LaplaceMechanism {
   MockLaplaceMechanism() : LaplaceMechanism(1, 1) {}
   MockLaplaceMechanism(double epsilon, double sensitivity)
       : LaplaceMechanism(epsilon, sensitivity) {}
-  MOCK_METHOD2_T(AddNoise, double(double result, double privacy_budget));
-  MOCK_METHOD2_T(NoiseConfidenceInterval,
-                 base::StatusOr<ConfidenceInterval>(double confidence_level,
-                                                    double privacy_budget));
-  MOCK_METHOD0_T(MemoryUsed, int64_t());
+  MOCK_METHOD(double, AddDoubleNoise, (double result, double privacy_budget),
+              (override));
+  MOCK_METHOD(int64_t, AddInt64Noise, (int64_t result, double privacy_budget),
+              (override));
+  MOCK_METHOD(base::StatusOr<ConfidenceInterval>, NoiseConfidenceInterval,
+              (double confidence_level, double privacy_budget), (override));
+  MOCK_METHOD(int64_t, MemoryUsed, (), (override));
 };
 
 }  // namespace test_utils

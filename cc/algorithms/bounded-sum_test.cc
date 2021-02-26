@@ -359,6 +359,30 @@ TYPED_TEST(BoundedSumTest, SerializeMergePartialSumsTest) {
   EXPECT_EQ(GetValue<TypeParam>(*output1), GetValue<TypeParam>(*output2));
 }
 
+TEST(BoundedSumTest, OverflowFromAddNoiseTypeCast) {
+  // Overflowing should result in the sum + noise eventually wrapping around and
+  // become negative.
+  int i;
+  for (i = 0; i < 100; ++i) {
+    auto bs =
+        typename BoundedSum<int64_t>::Builder()
+            .SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
+            .SetEpsilon(10.0)  // Large epsilon avoids noise > INT64_MAX
+            .SetLower(1)
+            .SetUpper(std::numeric_limits<int64_t>::max())
+            .Build();
+    ASSERT_OK(bs);
+    (*bs)->AddEntry(std::numeric_limits<int64_t>::max());
+    auto result = (*bs)->PartialResult();
+    ASSERT_OK(result);
+    if (GetValue<int64_t>(result.value()) < 0) {
+      // An overflow has happened, so return to end the test as a success.
+      return;
+    }
+  }
+  FAIL() << "No overflow occurred after " << i << " iterations.";
+}
+
 TEST(BoundedSumTest, OverflowAddEntryManualBounds) {
   typename BoundedSum<int64_t>::Builder builder;
 

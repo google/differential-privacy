@@ -86,9 +86,8 @@ class Count : public Algorithm<T> {
                                        absl::StatusCode::kFailedPrecondition));
 
     Output output;
-    SafeCastResult<int64_t> cast_result = SafeCastFromDouble<int64_t>(
-        std::round(mechanism_->AddNoise(count_, privacy_budget)));
-    AddToOutput<int64_t>(&output, cast_result.value);
+    int64_t countWithNoise = mechanism_->AddNoise(count_, privacy_budget);
+    AddToOutput<int64_t>(&output, countWithNoise);
 
     base::StatusOr<ConfidenceInterval> interval =
         NoiseConfidenceInterval(noise_interval_level, privacy_budget);

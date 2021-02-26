@@ -447,7 +447,7 @@ TEST(BoundedVarianceTest, OverflowRawCountTest) {
 
   auto result = bv->PartialResult();
   EXPECT_OK(result.status());
-  // A raw_count_ overflow should result in a variance of 1.0.
+  // A partial_count_ overflow should result in a variance of 1.0.
   EXPECT_DOUBLE_EQ(GetValue<double>(result.value()), 1.0);
 }
 
@@ -546,10 +546,10 @@ TEST(BoundedVarianceTest, OverflowMergeManualBoundsTest) {
   BoundedVarianceTestPeer::AddMultipleEntries<int32_t>(
       1, std::numeric_limits<int32_t>::max(), bv2.get());
 
-  EXPECT_OK(bv2->Merge(summary));
+  ASSERT_OK(bv2->Merge(summary));
 
   auto result = bv2->PartialResult();
-  EXPECT_OK(result.status());
+  ASSERT_OK(result.status());
   // Overflow should result in a variance of 1.0
   EXPECT_DOUBLE_EQ(GetValue<double>(result.value()), 1.0);
 }
@@ -854,15 +854,16 @@ TYPED_TEST(BoundedVarianceTest, SplitsEpsilonWithAutomaticBounds) {
           .SetEpsilon(epsilon)
           .Build();
   ASSERT_OK(bv);
+  auto* bvi =
+      dynamic_cast<BoundedVarianceWithApproxBounds<TypeParam>*>(bv->get());
 
   EXPECT_NEAR((*bv)->GetEpsilon(), epsilon, 1e-10);
   EXPECT_NEAR((*bv)->GetEpsilon(),
-              (*bv)->GetBoundingEpsilon() + (*bv)->GetAggregationEpsilon(),
-              1e-10);
-  EXPECT_GT((*bv)->GetBoundingEpsilon(), 0);
-  EXPECT_LT((*bv)->GetBoundingEpsilon(), epsilon);
-  EXPECT_GT((*bv)->GetAggregationEpsilon(), 0);
-  EXPECT_LT((*bv)->GetAggregationEpsilon(), epsilon);
+              bvi->GetBoundingEpsilon() + bvi->GetAggregationEpsilon(), 1e-10);
+  EXPECT_GT(bvi->GetBoundingEpsilon(), 0);
+  EXPECT_LT(bvi->GetBoundingEpsilon(), epsilon);
+  EXPECT_GT(bvi->GetAggregationEpsilon(), 0);
+  EXPECT_LT(bvi->GetAggregationEpsilon(), epsilon);
 }
 
 }  //  namespace
