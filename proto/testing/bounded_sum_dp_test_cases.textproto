@@ -49,12 +49,14 @@ bounded_sum_dp_test_case {
     lower_bound: 0.0
     upper_bound: 1.0
     epsilon: 1.09861228866810969140  # = log(3)
-    # No raw_entry fields because the sum is empty. The number of extra entries
-    # contained in the neighbouring data set equals the maximum number of
-    # partitions a single privacy unit can contribute to. The entries are set to
-    # a value that significantly exceeds the bound of larger magnitude. This is
-    # to ensure correct bounding.
-    neighbour_raw_entry: 1000.0
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [1000.0]
   }
 }
 
@@ -73,36 +75,18 @@ bounded_sum_dp_test_case {
     lower_bound: 0.0
     upper_bound: 1.0
     epsilon: 1.09861228866810969140  # = log(3)
-    # No raw_entry fields because the sum is empty. The number of extra entries
-    # contained in the neighbouring data set equals the maximum number of
-    # partitions a single privacy unit can contribute to. The entries are set to
-    # a value that significantly exceeds the bound of larger magnitude. This is
-    # to ensure correct bounding.
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries in the second data set accounts for the number
+    # of partitions a single privacy unit can contribute to. The extra entries
+    # are chosen in a way that maximizes the distance between the two data sets.
+    # The values of the entries significantly exceed the specified bounds to
+    # check that bounding is applied correctly.
+    neighbour_raw_entry: [
+      1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0,
+      1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0,
+      1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0
+    ]
   }
 }
 
@@ -121,12 +105,14 @@ bounded_sum_dp_test_case {
     lower_bound: -50.0
     upper_bound: 49.9
     epsilon: 1.09861228866810969140  # = log(3)
-    # No raw_entry fields because the sum is empty. The number of extra entries
-    # contained in the neighbouring data set equals the maximum number of
-    # partitions a single privacy unit can contribute to. The entries are set to
-    # a value that significantly exceeds the bound of larger magnitude. This is
-    # to ensure correct bounding.
-    neighbour_raw_entry: -50000.0
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [-50000.0]
   }
 }
 
@@ -145,12 +131,14 @@ bounded_sum_dp_test_case {
     lower_bound: 0.0
     upper_bound: 1.0
     epsilon: 0.1
-    # No raw_entry fields because the sum is empty. The number of extra entries
-    # contained in the neighbouring data set equals the maximum number of
-    # partitions a single privacy unit can contribute to. The entries are set to
-    # a value that significantly exceeds the bound of larger magnitude. This is
-    # to ensure correct bounding.
-    neighbour_raw_entry: 1000.0
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [1000.0]
   }
 }
 
@@ -169,12 +157,14 @@ bounded_sum_dp_test_case {
     lower_bound: 0.0
     upper_bound: 1.0
     epsilon: 2.19722457733621938279  # = 2log(3)
-    # No raw_entry fields because the sum is empty. The number of extra entries
-    # contained in the neighbouring data set equals the maximum number of
-    # partitions a single privacy unit can contribute to. The entries are set to
-    # a value that significantly exceeds the bound of larger magnitude. This is
-    # to ensure correct bounding.
-    neighbour_raw_entry: 1000.0
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [1000.0]
   }
 }
 
@@ -193,21 +183,14 @@ dp_test_parameters {
     lower_bound: 0.0
     upper_bound: 1.0
     epsilon: 1.09861228866810969140  # = log(3)
-    raw_entry: 0.64872
-    raw_entry: 0.12707
-    raw_entry: 0.00128
-    raw_entry: 0.14684
-    raw_entry: 0.86507
-    neighbour_raw_entry: 0.64872
-    neighbour_raw_entry: 0.12707
-    neighbour_raw_entry: 0.00128
-    neighbour_raw_entry: 0.14684
-    neighbour_raw_entry: 0.86507
-    # The number of extra entries contained in the neighbouring data set equals
-    # the maximum number of partitions a single privacy unit can contribute to.
-    # The entries are set to a value that significantly exceeds the bound of
-    # larger magnitude. This is to ensure correct bounding.
-    neighbour_raw_entry: 1000.0
+    raw_entry: [0.64872,  0.12707, 0.00128, 0.14684, 0.86507]
+    neighbour_raw_entry: [0.64872,  0.12707, 0.00128, 0.14684, 0.86507]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [1000.0]
   }
 }
 
@@ -226,45 +209,18 @@ bounded_sum_dp_test_case {
     lower_bound: 0.0
     upper_bound: 1.0
     epsilon: 1.09861228866810969140  # = log(3)
-    raw_entry: 0.64872
-    raw_entry: 0.12707
-    raw_entry: 0.00128
-    raw_entry: 0.14684
-    raw_entry: 0.86507
-    neighbour_raw_entry: 0.64872
-    neighbour_raw_entry: 0.12707
-    neighbour_raw_entry: 0.00128
-    neighbour_raw_entry: 0.14684
-    neighbour_raw_entry: 0.86507
-    # The number of extra entries contained in the neighbouring data set equals
-    # the maximum number of partitions a single privacy unit can contribute to.
-    # The entries are set to a value that significantly exceeds the bound of
-    # larger magnitude. This is to ensure correct bounding.
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
+    raw_entry: [0.64872,  0.12707, 0.00128, 0.14684, 0.86507]
+    neighbour_raw_entry: [0.64872,  0.12707, 0.00128, 0.14684, 0.86507]
+    # The number of extra entries in the second data set accounts for the number
+    # of partitions a single privacy unit can contribute to. The extra entries
+    # are chosen in a way that maximizes the distance between the two data sets.
+    # The values of the entries significantly exceed the specified bounds to
+    # check that bounding is applied correctly.
+    neighbour_raw_entry: [
+      1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0,
+      1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0,
+      1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0
+    ]
   }
 }
 
@@ -283,21 +239,14 @@ bounded_sum_dp_test_case {
     lower_bound: 0.0
     upper_bound: 1.0
     epsilon: 0.1
-    raw_entry: 0.64872
-    raw_entry: 0.12707
-    raw_entry: 0.00128
-    raw_entry: 0.14684
-    raw_entry: 0.86507
-    neighbour_raw_entry: 0.64872
-    neighbour_raw_entry: 0.12707
-    neighbour_raw_entry: 0.00128
-    neighbour_raw_entry: 0.14684
-    neighbour_raw_entry: 0.86507
-    # The number of extra entries contained in the neighbouring data set equals
-    # the maximum number of partitions a single privacy unit can contribute to.
-    # The entries are set to a value that significantly exceeds the bound of
-    # larger magnitude. This is to ensure correct bounding.
-    neighbour_raw_entry: 1000.0
+    raw_entry: [0.64872,  0.12707, 0.00128, 0.14684, 0.86507]
+    neighbour_raw_entry: [0.64872,  0.12707, 0.00128, 0.14684, 0.86507]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [1000.0]
   }
 }
 
@@ -316,21 +265,14 @@ bounded_sum_dp_test_case {
     lower_bound: 0.0
     upper_bound: 1.0
     epsilon: 2.19722457733621938279  # = 2log(3)
-    raw_entry: 0.64872
-    raw_entry: 0.12707
-    raw_entry: 0.00128
-    raw_entry: 0.14684
-    raw_entry: 0.86507
-    neighbour_raw_entry: 0.64872
-    neighbour_raw_entry: 0.12707
-    neighbour_raw_entry: 0.00128
-    neighbour_raw_entry: 0.14684
-    neighbour_raw_entry: 0.86507
-    # The number of extra entries contained in the neighbouring data set equals
-    # the maximum number of partitions a single privacy unit can contribute to.
-    # The entries are set to a value that significantly exceeds the bound of
-    # larger magnitude. This is to ensure correct bounding.
-    neighbour_raw_entry: 1000.0
+    raw_entry: [0.64872,  0.12707, 0.00128, 0.14684, 0.86507]
+    neighbour_raw_entry: [0.64872,  0.12707, 0.00128, 0.14684, 0.86507]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [1000.0]
   }
 }
 
@@ -349,21 +291,14 @@ bounded_sum_dp_test_case {
     lower_bound: 0.0
     upper_bound: 50.0
     epsilon: 1.09861228866810969140  # = log(3)
-    raw_entry: 32.43606
-    raw_entry: 35.35006
-    raw_entry: 40.73424
-    raw_entry: 32.53939
-    raw_entry: 7.081785
-    neighbour_raw_entry: 32.43606
-    neighbour_raw_entry: 35.35006
-    neighbour_raw_entry: 40.73424
-    neighbour_raw_entry: 32.53939
-    neighbour_raw_entry: 7.081785
-    # The number of extra entries contained in the neighbouring data set equals
-    # the maximum number of partitions a single privacy unit can contribute to.
-    # The entries are set to a value that significantly exceeds the bound of
-    # larger magnitude. This is to ensure correct bounding.
-    neighbour_raw_entry: 50000.0
+    raw_entry: [32.43606, 35.35006, 40.73424, 32.53939, 7.081785]
+    neighbour_raw_entry: [32.43606, 35.35006, 40.73424, 32.53939, 7.081785]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [50000.0]
   }
 }
 
@@ -382,45 +317,19 @@ bounded_sum_dp_test_case {
     lower_bound: 0.0
     upper_bound: 50.0
     epsilon: 1.09861228866810969140  # = log(3)
-    raw_entry: 32.43606
-    raw_entry: 35.35006
-    raw_entry: 40.73424
-    raw_entry: 32.53939
-    raw_entry: 7.081785
-    neighbour_raw_entry: 32.43606
-    neighbour_raw_entry: 35.35006
-    neighbour_raw_entry: 40.73424
-    neighbour_raw_entry: 32.53939
-    neighbour_raw_entry: 7.081785
-    # The number of extra entries contained in the neighbouring data set equals
-    # the maximum number of partitions a single privacy unit can contribute to.
-    # The entries are set to a value that significantly exceeds the bound of
-    # larger magnitude. This is to ensure correct bounding.
-    neighbour_raw_entry: 50000.0
-    neighbour_raw_entry: 50000.0
-    neighbour_raw_entry: 50000.0
-    neighbour_raw_entry: 50000.0
-    neighbour_raw_entry: 50000.0
-    neighbour_raw_entry: 50000.0
-    neighbour_raw_entry: 50000.0
-    neighbour_raw_entry: 50000.0
-    neighbour_raw_entry: 50000.0
-    neighbour_raw_entry: 50000.0
-    neighbour_raw_entry: 50000.0
-    neighbour_raw_entry: 50000.0
-    neighbour_raw_entry: 50000.0
-    neighbour_raw_entry: 50000.0
-    neighbour_raw_entry: 50000.0
-    neighbour_raw_entry: 50000.0
-    neighbour_raw_entry: 50000.0
-    neighbour_raw_entry: 50000.0
-    neighbour_raw_entry: 50000.0
-    neighbour_raw_entry: 50000.0
-    neighbour_raw_entry: 50000.0
-    neighbour_raw_entry: 50000.0
-    neighbour_raw_entry: 50000.0
-    neighbour_raw_entry: 50000.0
-    neighbour_raw_entry: 50000.0
+    raw_entry: [32.43606, 35.35006, 40.73424, 32.53939, 7.081785]
+    neighbour_raw_entry: [32.43606, 35.35006, 40.73424, 32.53939, 7.081785]
+    # The number of extra entries in the second data set accounts for the number
+    # of partitions a single privacy unit can contribute to. The extra entries
+    # are chosen in a way that maximizes the distance between the two data sets.
+    # The values of the entries significantly exceed the specified bounds to
+    # check that bounding is applied correctly.
+    neighbour_raw_entry: [
+      50000.0, 50000.0, 50000.0, 50000.0, 50000.0, 50000.0, 50000.0, 50000.0,
+      50000.0, 50000.0, 50000.0, 50000.0, 50000.0, 50000.0, 50000.0, 50000.0,
+      50000.0, 50000.0, 50000.0, 50000.0, 50000.0, 50000.0, 50000.0, 50000.0,
+      50000.0
+    ]
   }
 }
 
@@ -439,21 +348,14 @@ bounded_sum_dp_test_case {
     lower_bound: 0.0
     upper_bound: 50.0
     epsilon: 0.1
-    raw_entry: 32.43606
-    raw_entry: 35.35006
-    raw_entry: 40.73424
-    raw_entry: 32.53939
-    raw_entry: 7.081785
-    neighbour_raw_entry: 32.43606
-    neighbour_raw_entry: 35.35006
-    neighbour_raw_entry: 40.73424
-    neighbour_raw_entry: 32.53939
-    neighbour_raw_entry: 7.081785
-    # The number of extra entries contained in the neighbouring data set equals
-    # the maximum number of partitions a single privacy unit can contribute to.
-    # The entries are set to a value that significantly exceeds the bound of
-    # larger magnitude. This is to ensure correct bounding.
-    neighbour_raw_entry: 50000.0
+    raw_entry: [32.43606, 35.35006, 40.73424, 32.53939, 7.081785]
+    neighbour_raw_entry: [32.43606, 35.35006, 40.73424, 32.53939, 7.081785]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [50000.0]
   }
 }
 
@@ -472,21 +374,14 @@ bounded_sum_dp_test_case {
     lower_bound: 0.0
     upper_bound: 50.0
     epsilon: 2.19722457733621938279  # = 2log(3)
-    raw_entry: 32.43606
-    raw_entry: 35.35006
-    raw_entry: 40.73424
-    raw_entry: 32.53939
-    raw_entry: 7.081785
-    neighbour_raw_entry: 32.43606
-    neighbour_raw_entry: 35.35006
-    neighbour_raw_entry: 40.73424
-    neighbour_raw_entry: 32.53939
-    neighbour_raw_entry: 7.081785
-    # The number of extra entries contained in the neighbouring data set equals
-    # the maximum number of partitions a single privacy unit can contribute to.
-    # The entries are set to a value that significantly exceeds the bound of
-    # larger magnitude. This is to ensure correct bounding.
-    neighbour_raw_entry: 50000.0
+    raw_entry: [32.43606, 35.35006, 40.73424, 32.53939, 7.081785]
+    neighbour_raw_entry: [32.43606, 35.35006, 40.73424, 32.53939, 7.081785]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [50000.0]
   }
 }
 
@@ -505,21 +400,14 @@ bounded_sum_dp_test_case {
     lower_bound: -50.0
     upper_bound: 49.9
     epsilon: 1.09861228866810969140  # = log(3)
-    raw_entry: -32.43606
-    raw_entry: 35.35006
-    raw_entry: -40.73424
-    raw_entry: -32.53939
-    raw_entry: 7.081785
-    neighbour_raw_entry: -32.43606
-    neighbour_raw_entry: 35.35006
-    neighbour_raw_entry: -40.73424
-    neighbour_raw_entry: -32.53939
-    neighbour_raw_entry: 7.081785
-    # The number of extra entries contained in the neighbouring data set equals
-    # the maximum number of partitions a single privacy unit can contribute to.
-    # The entries are set to a value that significantly exceeds the bound of
-    # larger magnitude. This is to ensure correct bounding.
-    neighbour_raw_entry: -50000.0
+    raw_entry: [-32.43606, 35.35006, -40.73424, -32.53939, 7.081785]
+    neighbour_raw_entry: [-32.43606, 35.35006, -40.73424, -32.53939, 7.081785]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [-50000.0]
   }
 }
 
@@ -538,45 +426,19 @@ bounded_sum_dp_test_case {
     lower_bound: -50.0
     upper_bound: 49.9
     epsilon: 1.09861228866810969140  # = log(3)
-    raw_entry: -32.43606
-    raw_entry: 35.35006
-    raw_entry: -40.73424
-    raw_entry: -32.53939
-    raw_entry: 7.081785
-    neighbour_raw_entry: -32.43606
-    neighbour_raw_entry: 35.35006
-    neighbour_raw_entry: -40.73424
-    neighbour_raw_entry: -32.53939
-    neighbour_raw_entry: 7.081785
-    # The number of extra entries contained in the neighbouring data set equals
-    # the maximum number of partitions a single privacy unit can contribute to.
-    # The entries are set to a value that significantly exceeds the bound of
-    # larger magnitude. This is to ensure correct bounding.
-    neighbour_raw_entry: -50000.0
-    neighbour_raw_entry: -50000.0
-    neighbour_raw_entry: -50000.0
-    neighbour_raw_entry: -50000.0
-    neighbour_raw_entry: -50000.0
-    neighbour_raw_entry: -50000.0
-    neighbour_raw_entry: -50000.0
-    neighbour_raw_entry: -50000.0
-    neighbour_raw_entry: -50000.0
-    neighbour_raw_entry: -50000.0
-    neighbour_raw_entry: -50000.0
-    neighbour_raw_entry: -50000.0
-    neighbour_raw_entry: -50000.0
-    neighbour_raw_entry: -50000.0
-    neighbour_raw_entry: -50000.0
-    neighbour_raw_entry: -50000.0
-    neighbour_raw_entry: -50000.0
-    neighbour_raw_entry: -50000.0
-    neighbour_raw_entry: -50000.0
-    neighbour_raw_entry: -50000.0
-    neighbour_raw_entry: -50000.0
-    neighbour_raw_entry: -50000.0
-    neighbour_raw_entry: -50000.0
-    neighbour_raw_entry: -50000.0
-    neighbour_raw_entry: -50000.0
+    raw_entry: [-32.43606, 35.35006, -40.73424, -32.53939, 7.081785]
+    neighbour_raw_entry: [-32.43606, 35.35006, -40.73424, -32.53939, 7.081785]
+    # The number of extra entries in the second data set accounts for the number
+    # of partitions a single privacy unit can contribute to. The extra entries
+    # are chosen in a way that maximizes the distance between the two data sets.
+    # The values of the entries significantly exceed the specified bounds to
+    # check that bounding is applied correctly.
+    neighbour_raw_entry: [
+      -50000.0, -50000.0, -50000.0, -50000.0, -50000.0, -50000.0, -50000.0,
+      -50000.0, -50000.0, -50000.0, -50000.0, -50000.0, -50000.0, -50000.0,
+      -50000.0, -50000.0, -50000.0, -50000.0, -50000.0, -50000.0, -50000.0,
+      -50000.0, -50000.0, -50000.0, -50000.0
+    ]
   }
 }
 
@@ -595,21 +457,14 @@ bounded_sum_dp_test_case {
     lower_bound: -50.0
     upper_bound: 49.9
     epsilon: 0.1
-    raw_entry: -32.43606
-    raw_entry: 35.35006
-    raw_entry: -40.73424
-    raw_entry: -32.53939
-    raw_entry: 7.081785
-    neighbour_raw_entry: -32.43606
-    neighbour_raw_entry: 35.35006
-    neighbour_raw_entry: -40.73424
-    neighbour_raw_entry: -32.53939
-    neighbour_raw_entry: 7.081785
-    # The number of extra entries contained in the neighbouring data set equals
-    # the maximum number of partitions a single privacy unit can contribute to.
-    # The entries are set to a value that significantly exceeds the bound of
-    # larger magnitude. This is to ensure correct bounding.
-    neighbour_raw_entry: -50000.0
+    raw_entry: [-32.43606, 35.35006, -40.73424, -32.53939, 7.081785]
+    neighbour_raw_entry: [-32.43606, 35.35006, -40.73424, -32.53939, 7.081785]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [-50000.0]
   }
 }
 
@@ -628,21 +483,14 @@ bounded_sum_dp_test_case {
     lower_bound: -50.0
     upper_bound: 49.9
     epsilon: 2.19722457733621938279  # = 2log(3)
-    raw_entry: -32.43606
-    raw_entry: 35.35006
-    raw_entry: -40.73424
-    raw_entry: -32.53939
-    raw_entry: 7.081785
-    neighbour_raw_entry: -32.43606
-    neighbour_raw_entry: 35.35006
-    neighbour_raw_entry: -40.73424
-    neighbour_raw_entry: -32.53939
-    neighbour_raw_entry: 7.081785
-    # The number of extra entries contained in the neighbouring data set equals
-    # the maximum number of partitions a single privacy unit can contribute to.
-    # The entries are set to a value that significantly exceeds the bound of
-    # larger magnitude. This is to ensure correct bounding.
-    neighbour_raw_entry: -50000.0
+    raw_entry: [-32.43606, 35.35006, -40.73424, -32.53939, 7.081785]
+    neighbour_raw_entry: [-32.43606, 35.35006, -40.73424, -32.53939, 7.081785]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [-50000.0]
   }
 }
 
@@ -662,12 +510,14 @@ bounded_sum_dp_test_case {
     upper_bound: 1.0
     epsilon: 1.09861228866810969140  # = log(3)
     delta: 0.00001
-    # No raw_entry fields because the sum is empty. The number of extra entries
-    # contained in the neighbouring data set equals the square root of the
-    # maximum number of partitions a single privacy unit can contribute to. The
-    # entries are set to a value that significantly exceeds the bound of larger
-    # magnitude. This is to ensure correct bounding.
-    neighbour_raw_entry: 1000.0
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [1000.0]
   }
 }
 
@@ -687,16 +537,14 @@ bounded_sum_dp_test_case {
     upper_bound: 1.0
     epsilon: 1.09861228866810969140  # = log(3)
     delta: 0.00001
-    # No raw_entry fields because the sum is empty. The number of extra entries
-    # contained in the neighbouring data set equals the square root of the
-    # maximum number of partitions a single privacy unit can contribute to. The
-    # entries are set to a value that significantly exceeds the bound of larger
-    # magnitude. This is to ensure correct bounding.
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries in the second data set accounts for the number
+    # of partitions a single privacy unit can contribute to. The extra entries
+    # are chosen in a way that maximizes the distance between the two data sets.
+    # The values of the entries significantly exceed the specified bounds to
+    # check that bounding is applied correctly.
+    neighbour_raw_entry: [1000.0, 1000.0, 1000.0, 1000.0, 1000.0]
   }
 }
 
@@ -716,12 +564,14 @@ bounded_sum_dp_test_case {
     upper_bound: 49.9
     epsilon: 1.09861228866810969140  # = log(3)
     delta: 0.00001
-    # No raw_entry fields because the sum is empty. The number of extra entries
-    # contained in the neighbouring data set equals the square root of the
-    # maximum number of partitions a single privacy unit can contribute to. The
-    # entries are set to a value that significantly exceeds the bound of larger
-    # magnitude. This is to ensure correct bounding.
-    neighbour_raw_entry: -50000.0
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [-50000.0]
   }
 }
 
@@ -741,12 +591,14 @@ bounded_sum_dp_test_case {
     upper_bound: 1.0
     epsilon: 0.25
     delta: 0.00001
-    # No raw_entry fields because the sum is empty. The number of extra entries
-    # contained in the neighbouring data set equals the square root of the
-    # maximum number of partitions a single privacy unit can contribute to. The
-    # entries are set to a value that significantly exceeds the bound of larger
-    # magnitude. This is to ensure correct bounding.
-    neighbour_raw_entry: 1000.0
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [1000.0]
   }
 }
 
@@ -766,12 +618,14 @@ bounded_sum_dp_test_case {
     upper_bound: 1.0
     epsilon: 2.19722457733621938279  # = 2log(3)
     delta: 0.00001
-    # No raw_entry fields because the sum is empty. The number of extra entries
-    # contained in the neighbouring data set equals the square root of the
-    # maximum number of partitions a single privacy unit can contribute to. The
-    # entries are set to a value that significantly exceeds the bound of larger
-    # magnitude. This is to ensure correct bounding.
-    neighbour_raw_entry: 1000.0
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [1000.0]
   }
 }
 
@@ -791,12 +645,14 @@ bounded_sum_dp_test_case {
     upper_bound: 1.0
     epsilon: 1.09861228866810969140  # = log(3)
     delta: 0.0000001
-    # No raw_entry fields because the sum is empty. The number of extra entries
-    # contained in the neighbouring data set equals the square root of the
-    # maximum number of partitions a single privacy unit can contribute to. The
-    # entries are set to a value that significantly exceeds the bound of larger
-    # magnitude. This is to ensure correct bounding.
-    neighbour_raw_entry: 1000.0
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [1000.0]
   }
 }
 
@@ -816,21 +672,14 @@ bounded_sum_dp_test_case {
     upper_bound: 1.0
     epsilon: 1.09861228866810969140  # = log(3)
     delta: 0.00001
-    raw_entry: 0.64872
-    raw_entry: 0.12707
-    raw_entry: 0.00128
-    raw_entry: 0.14684
-    raw_entry: 0.86507
-    neighbour_raw_entry: 0.64872
-    neighbour_raw_entry: 0.12707
-    neighbour_raw_entry: 0.00128
-    neighbour_raw_entry: 0.14684
-    neighbour_raw_entry: 0.86507
-    # The number of extra entries contained in the neighbouring data set equals
-    # the square root of the maximum number of partitions a single privacy unit
-    # can contribute to. The entries are set to a value that significantly
-    # exceeds the bound of larger magnitude. This is to ensure correct bounding.
-    neighbour_raw_entry: 1000.0
+    raw_entry: [0.64872, 0.12707, 0.00128, 0.14684, 0.86507]
+    neighbour_raw_entry:[0.64872, 0.12707, 0.00128, 0.14684, 0.86507]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [1000.0]
   }
 }
 
@@ -850,25 +699,14 @@ bounded_sum_dp_test_case {
     upper_bound: 1.0
     epsilon: 1.09861228866810969140  # = log(3)
     delta: 0.00001
-    raw_entry: 0.64872
-    raw_entry: 0.12707
-    raw_entry: 0.00128
-    raw_entry: 0.14684
-    raw_entry: 0.86507
-    neighbour_raw_entry: 0.64872
-    neighbour_raw_entry: 0.12707
-    neighbour_raw_entry: 0.00128
-    neighbour_raw_entry: 0.14684
-    neighbour_raw_entry: 0.86507
-    # The number of extra entries contained in the neighbouring data set equals
-    # the square root of the maximum number of partitions a single privacy unit
-    # can contribute to. The entries are set to a value that significantly
-    # exceeds the bound of larger magnitude. This is to ensure correct bounding.
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
-    neighbour_raw_entry: 1000.0
+    raw_entry: [0.64872, 0.12707, 0.00128, 0.14684, 0.86507]
+    neighbour_raw_entry: [0.64872, 0.12707, 0.00128, 0.14684, 0.86507]
+    # The number of extra entries in the second data set accounts for the number
+    # of partitions a single privacy unit can contribute to. The extra entries
+    # are chosen in a way that maximizes the distance between the two data sets.
+    # The values of the entries significantly exceed the specified bounds to
+    # check that bounding is applied correctly.
+    neighbour_raw_entry: [1000.0, 1000.0, 1000.0, 1000.0, 1000.0]
   }
 }
 
@@ -888,21 +726,14 @@ bounded_sum_dp_test_case {
     upper_bound: 1.0
     epsilon: 0.25
     delta: 0.00001
-    raw_entry: 0.64872
-    raw_entry: 0.12707
-    raw_entry: 0.00128
-    raw_entry: 0.14684
-    raw_entry: 0.86507
-    neighbour_raw_entry: 0.64872
-    neighbour_raw_entry: 0.12707
-    neighbour_raw_entry: 0.00128
-    neighbour_raw_entry: 0.14684
-    neighbour_raw_entry: 0.86507
-    # The number of extra entries contained in the neighbouring data set equals
-    # the square root of the maximum number of partitions a single privacy unit
-    # can contribute to. The entries are set to a value that significantly
-    # exceeds the bound of larger magnitude. This is to ensure correct bounding.
-    neighbour_raw_entry: 1000.0
+    raw_entry: [0.64872, 0.12707, 0.00128, 0.14684, 0.86507]
+    neighbour_raw_entry: [0.64872, 0.12707, 0.00128, 0.14684, 0.86507]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [1000.0]
   }
 }
 
@@ -922,21 +753,14 @@ bounded_sum_dp_test_case {
     upper_bound: 1.0
     epsilon: 2.19722457733621938279  # = 2log(3)
     delta: 0.00001
-    raw_entry: 0.64872
-    raw_entry: 0.12707
-    raw_entry: 0.00128
-    raw_entry: 0.14684
-    raw_entry: 0.86507
-    neighbour_raw_entry: 0.64872
-    neighbour_raw_entry: 0.12707
-    neighbour_raw_entry: 0.00128
-    neighbour_raw_entry: 0.14684
-    neighbour_raw_entry: 0.86507
-    # The number of extra entries contained in the neighbouring data set equals
-    # the square root of the maximum number of partitions a single privacy unit
-    # can contribute to. The entries are set to a value that significantly
-    # exceeds the bound of larger magnitude. This is to ensure correct bounding.
-    neighbour_raw_entry: 1000.0
+    raw_entry: [0.64872, 0.12707, 0.00128, 0.14684, 0.86507]
+    neighbour_raw_entry: [0.64872, 0.12707, 0.00128, 0.14684, 0.86507]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [1000.0]
   }
 }
 
@@ -956,21 +780,14 @@ bounded_sum_dp_test_case {
     upper_bound: 1.0
     epsilon: 1.09861228866810969140  # = log(3)
     delta: 0.0000001
-    raw_entry: 0.64872
-    raw_entry: 0.12707
-    raw_entry: 0.00128
-    raw_entry: 0.14684
-    raw_entry: 0.86507
-    neighbour_raw_entry: 0.64872
-    neighbour_raw_entry: 0.12707
-    neighbour_raw_entry: 0.00128
-    neighbour_raw_entry: 0.14684
-    neighbour_raw_entry: 0.86507
-    # The number of extra entries contained in the neighbouring data set equals
-    # the square root of the maximum number of partitions a single privacy unit
-    # can contribute to. The entries are set to a value that significantly
-    # exceeds the bound of larger magnitude. This is to ensure correct bounding.
-    neighbour_raw_entry: 1000.0
+    raw_entry: [0.64872, 0.12707, 0.00128, 0.14684, 0.86507]
+    neighbour_raw_entry: [0.64872, 0.12707, 0.00128, 0.14684, 0.86507]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [1000.0]
   }
 }
 
@@ -990,21 +807,14 @@ bounded_sum_dp_test_case {
     upper_bound: 50.0
     epsilon: 1.09861228866810969140  # = log(3)
     delta: 0.00001
-    raw_entry: 32.43606
-    raw_entry: 35.35006
-    raw_entry: 40.73424
-    raw_entry: 32.53939
-    raw_entry: 7.081785
-    neighbour_raw_entry: 32.43606
-    neighbour_raw_entry: 35.35006
-    neighbour_raw_entry: 40.73424
-    neighbour_raw_entry: 32.53939
-    neighbour_raw_entry: 7.081785
-    # The number of extra entries contained in the neighbouring data set equals
-    # the square root of the maximum number of partitions a single privacy unit
-    # can contribute to. The entries are set to a value that significantly
-    # exceeds the bound of larger magnitude. This is to ensure correct bounding.
-    neighbour_raw_entry: 50000.0
+    raw_entry: [32.43606, 35.35006, 40.73424, 32.53939, 7.081785]
+    neighbour_raw_entry: [32.43606, 35.35006, 40.73424, 32.53939, 7.081785]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [50000.0]
   }
 }
 
@@ -1024,25 +834,14 @@ bounded_sum_dp_test_case {
     upper_bound: 50.0
     epsilon: 1.09861228866810969140  # = log(3)
     delta: 0.00001
-    raw_entry: 32.43606
-    raw_entry: 35.35006
-    raw_entry: 40.73424
-    raw_entry: 32.53939
-    raw_entry: 7.081785
-    neighbour_raw_entry: 32.43606
-    neighbour_raw_entry: 35.35006
-    neighbour_raw_entry: 40.73424
-    neighbour_raw_entry: 32.53939
-    neighbour_raw_entry: 7.081785
-    # The number of extra entries contained in the neighbouring data set equals
-    # the square root of the maximum number of partitions a single privacy unit
-    # can contribute to. The entries are set to a value that significantly
-    # exceeds the bound of larger magnitude. This is to ensure correct bounding.
-    neighbour_raw_entry: 50000.0
-    neighbour_raw_entry: 50000.0
-    neighbour_raw_entry: 50000.0
-    neighbour_raw_entry: 50000.0
-    neighbour_raw_entry: 50000.0
+    raw_entry: [32.43606, 35.35006, 40.73424, 32.53939, 7.081785]
+    neighbour_raw_entry: [32.43606, 35.35006, 40.73424, 32.53939, 7.081785]
+    # The number of extra entries in the second data set accounts for the number
+    # of partitions a single privacy unit can contribute to. The extra entries
+    # are chosen in a way that maximizes the distance between the two data sets.
+    # The values of the entries significantly exceed the specified bounds to
+    # check that bounding is applied correctly.
+    neighbour_raw_entry: [50000.0, 50000.0, 50000.0, 50000.0, 50000.0]
   }
 }
 
@@ -1062,21 +861,14 @@ bounded_sum_dp_test_case {
     upper_bound: 50.0
     epsilon: 0.25
     delta: 0.00001
-    raw_entry: 32.43606
-    raw_entry: 35.35006
-    raw_entry: 40.73424
-    raw_entry: 32.53939
-    raw_entry: 7.081785
-    neighbour_raw_entry: 32.43606
-    neighbour_raw_entry: 35.35006
-    neighbour_raw_entry: 40.73424
-    neighbour_raw_entry: 32.53939
-    neighbour_raw_entry: 7.081785
-    # The number of extra entries contained in the neighbouring data set equals
-    # the square root of the maximum number of partitions a single privacy unit
-    # can contribute to. The entries are set to a value that significantly
-    # exceeds the bound of larger magnitude. This is to ensure correct bounding.
-    neighbour_raw_entry: 50000.0
+    raw_entry: [32.43606, 35.35006, 40.73424, 32.53939, 7.081785]
+    neighbour_raw_entry: [32.43606, 35.35006, 40.73424, 32.53939, 7.081785]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [50000.0]
   }
 }
 
@@ -1096,21 +888,14 @@ bounded_sum_dp_test_case {
     upper_bound: 50.0
     epsilon: 2.19722457733621938279  # = 2log(3)
     delta: 0.00001
-    raw_entry: 32.43606
-    raw_entry: 35.35006
-    raw_entry: 40.73424
-    raw_entry: 32.53939
-    raw_entry: 7.081785
-    neighbour_raw_entry: 32.43606
-    neighbour_raw_entry: 35.35006
-    neighbour_raw_entry: 40.73424
-    neighbour_raw_entry: 32.53939
-    neighbour_raw_entry: 7.081785
-    # The number of extra entries contained in the neighbouring data set equals
-    # the square root of the maximum number of partitions a single privacy unit
-    # can contribute to. The entries are set to a value that significantly
-    # exceeds the bound of larger magnitude. This is to ensure correct bounding.
-    neighbour_raw_entry: 50000.0
+    raw_entry: [32.43606, 35.35006, 40.73424, 32.53939, 7.081785]
+    neighbour_raw_entry: [32.43606, 35.35006, 40.73424, 32.53939, 7.081785]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [50000.0]
   }
 }
 
@@ -1130,21 +915,14 @@ bounded_sum_dp_test_case {
     upper_bound: 50.0
     epsilon: 1.09861228866810969140  # = log(3)
     delta: 0.000001
-    raw_entry: 32.43606
-    raw_entry: 35.35006
-    raw_entry: 40.73424
-    raw_entry: 32.53939
-    raw_entry: 7.081785
-    neighbour_raw_entry: 32.43606
-    neighbour_raw_entry: 35.35006
-    neighbour_raw_entry: 40.73424
-    neighbour_raw_entry: 32.53939
-    neighbour_raw_entry: 7.081785
-    # The number of extra entries contained in the neighbouring data set equals
-    # the square root of the maximum number of partitions a single privacy unit
-    # can contribute to. The entries are set to a value that significantly
-    # exceeds the bound of larger magnitude. This is to ensure correct bounding.
-    neighbour_raw_entry: 50000.0
+    raw_entry: [32.43606, 35.35006, 40.73424, 32.53939, 7.081785]
+    neighbour_raw_entry: [32.43606, 35.35006, 40.73424, 32.53939, 7.081785]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [50000.0]
   }
 }
 
@@ -1164,21 +942,14 @@ bounded_sum_dp_test_case {
     upper_bound: 49.9
     epsilon: 1.09861228866810969140  # = log(3)
     delta: 0.00001
-    raw_entry: -32.43606
-    raw_entry: 35.35006
-    raw_entry: -40.73424
-    raw_entry: -32.53939
-    raw_entry: 7.081785
-    neighbour_raw_entry: -32.43606
-    neighbour_raw_entry: 35.35006
-    neighbour_raw_entry: -40.73424
-    neighbour_raw_entry: -32.53939
-    neighbour_raw_entry: 7.081785
-    # The number of extra entries contained in the neighbouring data set equals
-    # the square root of the maximum number of partitions a single privacy unit
-    # can contribute to. The entries are set to a value that significantly
-    # exceeds the bound of larger magnitude. This is to ensure correct bounding.
-    neighbour_raw_entry: -50000.0
+    raw_entry: [-32.43606, 35.35006, -40.73424, -32.53939, 7.081785]
+    neighbour_raw_entry: [-32.43606, 35.35006, -40.73424, -32.53939, 7.081785]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [-50000.0]
   }
 }
 
@@ -1198,25 +969,14 @@ bounded_sum_dp_test_case {
     upper_bound: 49.9
     epsilon: 1.09861228866810969140  # = log(3)
     delta: 0.00001
-    raw_entry: -32.43606
-    raw_entry: 35.35006
-    raw_entry: -40.73424
-    raw_entry: -32.53939
-    raw_entry: 7.081785
-    neighbour_raw_entry: -32.43606
-    neighbour_raw_entry: 35.35006
-    neighbour_raw_entry: -40.73424
-    neighbour_raw_entry: -32.53939
-    neighbour_raw_entry: 7.081785
-    # The number of extra entries contained in the neighbouring data set equals
-    # the square root of the maximum number of partitions a single privacy unit
-    # can contribute to. The entries are set to a value that significantly
-    # exceeds the bound of larger magnitude. This is to ensure correct bounding.
-    neighbour_raw_entry: -50000.0
-    neighbour_raw_entry: -50000.0
-    neighbour_raw_entry: -50000.0
-    neighbour_raw_entry: -50000.0
-    neighbour_raw_entry: -50000.0
+    raw_entry: [-32.43606, 35.35006, -40.73424, -32.53939, 7.081785]
+    neighbour_raw_entry: [-32.43606, 35.35006, -40.73424, -32.53939, 7.081785]
+    # The number of extra entries in the second data set accounts for the number
+    # of partitions a single privacy unit can contribute to. The extra entries
+    # are chosen in a way that maximizes the distance between the two data sets.
+    # The values of the entries significantly exceed the specified bounds to
+    # check that bounding is applied correctly.
+    neighbour_raw_entry: [-50000.0, -50000.0, -50000.0, -50000.0, -50000.0]
   }
 }
 
@@ -1236,21 +996,14 @@ bounded_sum_dp_test_case {
     upper_bound: 49.9
     epsilon: 0.25
     delta: 0.00001
-    raw_entry: -32.43606
-    raw_entry: 35.35006
-    raw_entry: -40.73424
-    raw_entry: -32.53939
-    raw_entry: 7.081785
-    neighbour_raw_entry: -32.43606
-    neighbour_raw_entry: 35.35006
-    neighbour_raw_entry: -40.73424
-    neighbour_raw_entry: -32.53939
-    neighbour_raw_entry: 7.081785
-    # The number of extra entries contained in the neighbouring data set equals
-    # the square root of the maximum number of partitions a single privacy unit
-    # can contribute to. The entries are set to a value that significantly
-    # exceeds the bound of larger magnitude. This is to ensure correct bounding.
-    neighbour_raw_entry: -50000.0
+    raw_entry: [-32.43606, 35.35006, -40.73424, -32.53939, 7.081785]
+    neighbour_raw_entry: [-32.43606, 35.35006, -40.73424, -32.53939, 7.081785]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [-50000.0]
   }
 }
 
@@ -1270,21 +1023,14 @@ bounded_sum_dp_test_case {
     upper_bound: 49.9
     epsilon: 2.19722457733621938279  # = 2log(3)
     delta: 0.00001
-    raw_entry: -32.43606
-    raw_entry: 35.35006
-    raw_entry: -40.73424
-    raw_entry: -32.53939
-    raw_entry: 7.081785
-    neighbour_raw_entry: -32.43606
-    neighbour_raw_entry: 35.35006
-    neighbour_raw_entry: -40.73424
-    neighbour_raw_entry: -32.53939
-    neighbour_raw_entry: 7.081785
-    # The number of extra entries contained in the neighbouring data set equals
-    # the square root of the maximum number of partitions a single privacy unit
-    # can contribute to. The entries are set to a value that significantly
-    # exceeds the bound of larger magnitude. This is to ensure correct bounding.
-    neighbour_raw_entry: -50000.0
+    raw_entry: [-32.43606, 35.35006, -40.73424, -32.53939, 7.081785]
+    neighbour_raw_entry: [-32.43606, 35.35006, -40.73424, -32.53939, 7.081785]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [-50000.0]
   }
 }
 
@@ -1304,20 +1050,13 @@ bounded_sum_dp_test_case {
     upper_bound: 49.9
     epsilon: 1.09861228866810969140  # = log(3)
     delta: 0.000001
-    raw_entry: -32.43606
-    raw_entry: 35.35006
-    raw_entry: -40.73424
-    raw_entry: -32.53939
-    raw_entry: 7.081785
-    neighbour_raw_entry: -32.43606
-    neighbour_raw_entry: 35.35006
-    neighbour_raw_entry: -40.73424
-    neighbour_raw_entry: -32.53939
-    neighbour_raw_entry: 7.081785
-    # The number of extra entries contained in the neighbouring data set equals
-    # the square root of the maximum number of partitions a single privacy unit
-    # can contribute to. The entries are set to a value that significantly
-    # exceeds the bound of larger magnitude. This is to ensure correct bounding.
-    neighbour_raw_entry: -50000.0
+    raw_entry: [-32.43606, 35.35006, -40.73424, -32.53939, 7.081785]
+    neighbour_raw_entry: [-32.43606, 35.35006, -40.73424, -32.53939, 7.081785]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [-50000.0]
   }
 }

@@ -148,7 +148,7 @@ public final class BoundedMeanDpTest {
       int numberOfSamples,
       double epsilon,
       double delta,
-      double l2Tolerance,
+      double deltaTolerance,
       double granularity) {
     Double[] samplesA = new Double[numberOfSamples];
     Double[] samplesB = new Double[numberOfSamples];
@@ -157,6 +157,6 @@ public final class BoundedMeanDpTest {
       samplesB[i] = StatisticalTestsUtil.discretize(sampleGeneratorB.get(), granularity);
     }
     return StatisticalTestsUtil.verifyApproximateDp(
-        samplesA, samplesB, epsilon, delta, l2Tolerance);
+        samplesA, samplesB, epsilon, delta, deltaTolerance);
   }
 }

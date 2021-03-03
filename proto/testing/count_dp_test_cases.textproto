@@ -45,10 +45,12 @@ count_dp_test_case {
     noise_type: LAPLACE
     max_partitions_contributed: 1
     epsilon: 1.09861228866810969140  # = log(3)
-    # No raw_increment_by fields because the count is empty. The extra
-    # increments of the neighbouring data set equal the l1 sensitivity of the
-    # test case.
-    neighbour_raw_increment_by: 1
+    raw_increment_by: []
+    neighbour_raw_increment_by: []
+    # The number of extra increments matches the number of contributions a
+    # single privacy unit can make. The extra increments are chosen in a way
+    # that maximizes the distance between the two data sets.
+    neighbour_raw_increment_by: [1]
   }
 }
 
@@ -64,10 +66,13 @@ count_dp_test_case {
     noise_type: LAPLACE
     max_partitions_contributed: 2
     epsilon: 1.09861228866810969140  # = log(3)
-    # No raw_increment_by fields because the count is empty. The extra
-    # increments of the neighbouring data set equal the l1 sensitivity of the
-    # test case.
-    neighbour_raw_increment_by: 2
+    raw_increment_by: []
+    neighbour_raw_increment_by: []
+    # The number of extra increments in the second data set accounts for the
+    # number of partitions a single privacy unit can contribute to. The extra
+    # increments are chosen in a way that maximizes the distance between the two
+    # data sets.
+    neighbour_raw_increment_by: [2]
   }
 }
 
@@ -83,10 +88,13 @@ count_dp_test_case {
     noise_type: LAPLACE
     max_partitions_contributed: 250
     epsilon: 1.09861228866810969140  # = log(3)
-    # No raw_increment_by fields because the count is empty. The extra
-    # increments of the neighbouring data set equal the l1 sensitivity of the
-    # test case.
-    neighbour_raw_increment_by: 250
+    raw_increment_by: []
+    neighbour_raw_increment_by: []
+    # The number of extra increments in the second data set accounts for the
+    # number of partitions a single privacy unit can contribute to. The extra
+    # increments are chosen in a way that maximizes the distance between the two
+    # data sets.
+    neighbour_raw_increment_by: [250]
   }
 }
 
@@ -102,10 +110,12 @@ count_dp_test_case {
     noise_type: LAPLACE
     max_partitions_contributed: 1
     epsilon: 0.01
-    # No raw_increment_by fields because the count is empty. The extra
-    # increments of the neighbouring data set equal the l1 sensitivity of the
-    # test case.
-    neighbour_raw_increment_by: 1
+    raw_increment_by: []
+    neighbour_raw_increment_by: []
+    # The number of extra increments matches the number of contributions a
+    # single privacy unit can make. The extra increments are chosen in a way
+    # that maximizes the distance between the two data sets.
+    neighbour_raw_increment_by: [1]
   }
 }
 
@@ -121,10 +131,12 @@ count_dp_test_case {
     noise_type: LAPLACE
     max_partitions_contributed: 1
     epsilon: 2.19722457733621938279  # = 2log(3)
-    # No raw_increment_by fields because the count is empty. The extra
-    # increments of the neighbouring data set equal the l1 sensitivity of the
-    # test case.
-    neighbour_raw_increment_by: 1
+    raw_increment_by: []
+    neighbour_raw_increment_by: []
+    # The number of extra increments matches the number of contributions a
+    # single privacy unit can make. The extra increments are chosen in a way
+    # that maximizes the distance between the two data sets.
+    neighbour_raw_increment_by: [1]
   }
 }
 
@@ -140,17 +152,12 @@ count_dp_test_case {
     noise_type: LAPLACE
     max_partitions_contributed: 1
     epsilon: 1.09861228866810969140  # = log(3)
-    raw_increment_by: 7
-    raw_increment_by: 1
-    raw_increment_by: 8
-    raw_increment_by: 12
-    neighbour_raw_increment_by: 7
-    neighbour_raw_increment_by: 1
-    neighbour_raw_increment_by: 8
-    neighbour_raw_increment_by: 12
-    # The extra increments of the neighbouring data set equal the l1 sensitivity
-    # of the test case.
-    neighbour_raw_increment_by: 1
+    raw_increment_by: [7, 1, 8, 12]
+    neighbour_raw_increment_by: [7, 1, 8, 12]
+    # The number of extra increments matches the number of contributions a
+    # single privacy unit can make. The extra increments are chosen in a way
+    # that maximizes the distance between the two data sets.
+    neighbour_raw_increment_by: [1]
   }
 }
 
@@ -166,17 +173,13 @@ count_dp_test_case {
     noise_type: LAPLACE
     max_partitions_contributed: 2
     epsilon: 1.09861228866810969140  # = log(3)
-    raw_increment_by: 7
-    raw_increment_by: 1
-    raw_increment_by: 8
-    raw_increment_by: 12
-    neighbour_raw_increment_by: 7
-    neighbour_raw_increment_by: 1
-    neighbour_raw_increment_by: 8
-    neighbour_raw_increment_by: 12
-    # The extra increments of the neighbouring data set equal the l1 sensitivity
-    # of the test case.
-    neighbour_raw_increment_by: 2
+    raw_increment_by: [7, 1, 8, 12]
+    neighbour_raw_increment_by: [7, 1, 8, 12]
+    # The number of extra increments in the second data set accounts for the
+    # number of partitions a single privacy unit can contribute to. The extra
+    # increments are chosen in a way that maximizes the distance between the two
+    # data sets.
+    neighbour_raw_increment_by: [2]
   }
 }
 
@@ -192,17 +195,13 @@ count_dp_test_case {
     noise_type: LAPLACE
     max_partitions_contributed: 250
     epsilon: 1.09861228866810969140  # = log(3)
-    raw_increment_by: 7
-    raw_increment_by: 1
-    raw_increment_by: 8
-    raw_increment_by: 12
-    neighbour_raw_increment_by: 7
-    neighbour_raw_increment_by: 1
-    neighbour_raw_increment_by: 8
-    neighbour_raw_increment_by: 12
-    # The extra increments of the neighbouring data set equal the l1 sensitivity
-    # of the test case.
-    neighbour_raw_increment_by: 250
+    raw_increment_by: [7, 1, 8, 12]
+    neighbour_raw_increment_by: [7, 1, 8, 12]
+    # The number of extra increments in the second data set accounts for the
+    # number of partitions a single privacy unit can contribute to. The extra
+    # increments are chosen in a way that maximizes the distance between the two
+    # data sets.
+    neighbour_raw_increment_by: [250]
   }
 }
 
@@ -218,17 +217,12 @@ count_dp_test_case {
     noise_type: LAPLACE
     max_partitions_contributed: 1
     epsilon: 0.01
-    raw_increment_by: 7
-    raw_increment_by: 1
-    raw_increment_by: 8
-    raw_increment_by: 12
-    neighbour_raw_increment_by: 7
-    neighbour_raw_increment_by: 1
-    neighbour_raw_increment_by: 8
-    neighbour_raw_increment_by: 12
-    # The extra increments of the neighbouring data set equal the l1 sensitivity
-    # of the test case.
-    neighbour_raw_increment_by: 1
+    raw_increment_by: [7, 1, 8, 12]
+    neighbour_raw_increment_by: [7, 1, 8, 12]
+    # The number of extra increments matches the number of contributions a
+    # single privacy unit can make. The extra increments are chosen in a way
+    # that maximizes the distance between the two data sets.
+    neighbour_raw_increment_by: [1]
   }
 }
 
@@ -244,17 +238,12 @@ count_dp_test_case {
     noise_type: LAPLACE
     max_partitions_contributed: 1
     epsilon: 2.19722457733621938279  # = 2log(3)
-    raw_increment_by: 7
-    raw_increment_by: 1
-    raw_increment_by: 8
-    raw_increment_by: 12
-    neighbour_raw_increment_by: 7
-    neighbour_raw_increment_by: 1
-    neighbour_raw_increment_by: 8
-    neighbour_raw_increment_by: 12
-    # The extra increments of the neighbouring data set equal the l1 sensitivity
-    # of the test case.
-    neighbour_raw_increment_by: 1
+    raw_increment_by: [7, 1, 8, 12]
+    neighbour_raw_increment_by: [7, 1, 8, 12]
+    # The number of extra increments matches the number of contributions a
+    # single privacy unit can make. The extra increments are chosen in a way
+    # that maximizes the distance between the two data sets.
+    neighbour_raw_increment_by: [1]
   }
 }
 
@@ -270,19 +259,16 @@ count_dp_test_case {
     noise_type: LAPLACE
     max_partitions_contributed: 1
     epsilon: 1.09861228866810969140  # = log(3)
-    raw_increment_by: 2147483647
-    raw_increment_by: 2146736422
-    raw_increment_by: 1383713414
-    raw_increment_by: 2146374624
-    raw_increment_by: 1989764249
-    neighbour_raw_increment_by: 2147483647
-    neighbour_raw_increment_by: 2146736422
-    neighbour_raw_increment_by: 1383713414
-    neighbour_raw_increment_by: 2146374624
-    neighbour_raw_increment_by: 1989764249
-    # The extra increments of the neighbouring data set equal the l1 sensitivity
-    # of the test case.
-    neighbour_raw_increment_by: 1
+    raw_increment_by: [
+      2147483647, 2146736422, 1383713414, 2146374624, 1989764249
+    ]
+    neighbour_raw_increment_by: [
+      2147483647, 2146736422, 1383713414, 2146374624, 1989764249
+    ]
+    # The number of extra increments matches the number of contributions a
+    # single privacy unit can make. The extra increments are chosen in a way
+    # that maximizes the distance between the two data sets.
+    neighbour_raw_increment_by: [1]
   }
 }
 
@@ -298,19 +284,17 @@ count_dp_test_case {
     noise_type: LAPLACE
     max_partitions_contributed: 2
     epsilon: 1.09861228866810969140  # = log(3)
-    raw_increment_by: 2147483647
-    raw_increment_by: 2146736422
-    raw_increment_by: 1383713414
-    raw_increment_by: 2146374624
-    raw_increment_by: 1989764249
-    neighbour_raw_increment_by: 2147483647
-    neighbour_raw_increment_by: 2146736422
-    neighbour_raw_increment_by: 1383713414
-    neighbour_raw_increment_by: 2146374624
-    neighbour_raw_increment_by: 1989764249
-    # The extra increments of the neighbouring data set equal the l1 sensitivity
-    # of the test case.
-    neighbour_raw_increment_by: 2
+    raw_increment_by: [
+      2147483647, 2146736422, 1383713414, 2146374624, 1989764249
+    ]
+    neighbour_raw_increment_by: [
+      2147483647, 2146736422, 1383713414, 2146374624, 1989764249
+    ]
+    # The number of extra increments in the second data set accounts for the
+    # number of partitions a single privacy unit can contribute to. The extra
+    # increments are chosen in a way that maximizes the distance between the two
+    # data sets.
+    neighbour_raw_increment_by: [2]
   }
 }
 
@@ -326,19 +310,17 @@ count_dp_test_case {
     noise_type: LAPLACE
     max_partitions_contributed: 250
     epsilon: 1.09861228866810969140  # = log(3)
-    raw_increment_by: 2147483647
-    raw_increment_by: 2146736422
-    raw_increment_by: 1383713414
-    raw_increment_by: 2146374624
-    raw_increment_by: 1989764249
-    neighbour_raw_increment_by: 2147483647
-    neighbour_raw_increment_by: 2146736422
-    neighbour_raw_increment_by: 1383713414
-    neighbour_raw_increment_by: 2146374624
-    neighbour_raw_increment_by: 1989764249
-    # The extra increments of the neighbouring data set equal the l1 sensitivity
-    # of the test case.
-    neighbour_raw_increment_by: 250
+    raw_increment_by: [
+      2147483647, 2146736422, 1383713414, 2146374624, 1989764249
+    ]
+    neighbour_raw_increment_by: [
+      2147483647, 2146736422, 1383713414, 2146374624, 1989764249
+    ]
+    # The number of extra increments in the second data set accounts for the
+    # number of partitions a single privacy unit can contribute to. The extra
+    # increments are chosen in a way that maximizes the distance between the two
+    # data sets.
+    neighbour_raw_increment_by: [250]
   }
 }
 
@@ -354,19 +336,16 @@ count_dp_test_case {
     noise_type: LAPLACE
     max_partitions_contributed: 1
     epsilon: 0.01
-    raw_increment_by: 2147483647
-    raw_increment_by: 2146736422
-    raw_increment_by: 1383713414
-    raw_increment_by: 2146374624
-    raw_increment_by: 1989764249
-    neighbour_raw_increment_by: 2147483647
-    neighbour_raw_increment_by: 2146736422
-    neighbour_raw_increment_by: 1383713414
-    neighbour_raw_increment_by: 2146374624
-    neighbour_raw_increment_by: 1989764249
-    # The extra increments of the neighbouring data set equal the l1 sensitivity
-    # of the test case.
-    neighbour_raw_increment_by: 1
+    raw_increment_by: [
+      2147483647, 2146736422, 1383713414, 2146374624, 1989764249
+    ]
+    neighbour_raw_increment_by: [
+      2147483647, 2146736422, 1383713414, 2146374624, 1989764249
+    ]
+    # The number of extra increments matches the number of contributions a
+    # single privacy unit can make. The extra increments are chosen in a way
+    # that maximizes the distance between the two data sets.
+    neighbour_raw_increment_by: [1]
   }
 }
 
@@ -382,19 +361,16 @@ count_dp_test_case {
     noise_type: LAPLACE
     max_partitions_contributed: 1
     epsilon: 2.19722457733621938279  # = 2log(3)
-    raw_increment_by: 2147483647
-    raw_increment_by: 2146736422
-    raw_increment_by: 1383713414
-    raw_increment_by: 2146374624
-    raw_increment_by: 1989764249
-    neighbour_raw_increment_by: 2147483647
-    neighbour_raw_increment_by: 2146736422
-    neighbour_raw_increment_by: 1383713414
-    neighbour_raw_increment_by: 2146374624
-    neighbour_raw_increment_by: 1989764249
-    # The extra increments of the neighbouring data set equal the l1 sensitivity
-    # of the test case.
-    neighbour_raw_increment_by: 1
+    raw_increment_by: [
+      2147483647, 2146736422, 1383713414, 2146374624, 1989764249
+    ]
+    neighbour_raw_increment_by: [
+      2147483647, 2146736422, 1383713414, 2146374624, 1989764249
+    ]
+    # The number of extra increments matches the number of contributions a
+    # single privacy unit can make. The extra increments are chosen in a way
+    # that maximizes the distance between the two data sets.
+    neighbour_raw_increment_by: [1]
   }
 }
 
@@ -411,10 +387,12 @@ count_dp_test_case {
     max_partitions_contributed: 1
     epsilon: 1.09861228866810969140  # = log(3)
     delta: 0.00001
-    # No raw_increment_by fields because the count is empty. The extra
-    # increments of the neighbouring data set equal the floor of the l2
-    # sensitivity of the test case.
-    neighbour_raw_increment_by: 1
+    raw_increment_by: []
+    neighbour_raw_increment_by: []
+    # The number of extra increments matches the number of contributions a
+    # single privacy unit can make. The extra increments are chosen in a way
+    # that maximizes the distance between the two data sets.
+    neighbour_raw_increment_by: [1]
   }
 }
 
@@ -431,10 +409,13 @@ count_dp_test_case {
     max_partitions_contributed: 2
     epsilon: 1.09861228866810969140  # = log(3)
     delta: 0.00001
-    # No raw_increment_by fields because the count is empty. The extra
-    # increments of the neighbouring data set equal the floor of the l2
-    # sensitivity of the test case.
-    neighbour_raw_increment_by: 1  # = floor(sqrt(2))
+    raw_increment_by: []
+    neighbour_raw_increment_by: []
+    # The number of extra increments in the second data set accounts for the
+    # number of partitions a single privacy unit can contribute to. The extra
+    # increments are chosen in a way that maximizes the distance between the two
+    # data sets.
+    neighbour_raw_increment_by: [1]  # = floor(sqrt(2))
   }
 }
 
@@ -451,10 +432,13 @@ count_dp_test_case {
     max_partitions_contributed: 250
     epsilon: 1.09861228866810969140  # = log(3)
     delta: 0.00001
-    # No raw_increment_by fields because the count is empty. The extra
-    # increments of the neighbouring data set equal the floor of the l2
-    # sensitivity of the test case.
-    neighbour_raw_increment_by: 15  # = floor(sqrt(250))
+    raw_increment_by: []
+    neighbour_raw_increment_by: []
+    # The number of extra increments in the second data set accounts for the
+    # number of partitions a single privacy unit can contribute to. The extra
+    # increments are chosen in a way that maximizes the distance between the two
+    # data sets.
+    neighbour_raw_increment_by: [15]  # = floor(sqrt(250))
   }
 }
 
@@ -471,10 +455,12 @@ count_dp_test_case {
     max_partitions_contributed: 1
     epsilon: 0.1
     delta: 0.00001
-    # No raw_increment_by fields because the count is empty. The extra
-    # increments of the neighbouring data set equal the floor of the l2
-    # sensitivity of the test case.
-    neighbour_raw_increment_by: 1
+    raw_increment_by: []
+    neighbour_raw_increment_by: []
+    # The number of extra increments matches the number of contributions a
+    # single privacy unit can make. The extra increments are chosen in a way
+    # that maximizes the distance between the two data sets.
+    neighbour_raw_increment_by: [1]
   }
 }
 
@@ -491,10 +477,12 @@ count_dp_test_case {
     max_partitions_contributed: 1
     epsilon: 2.19722457733621938279  # = 2log(3)
     delta: 0.00001
-    # No raw_increment_by fields because the count is empty. The extra
-    # increments of the neighbouring data set equal the floor of the l2
-    # sensitivity of the test case.
-    neighbour_raw_increment_by: 1
+    raw_increment_by: []
+    neighbour_raw_increment_by: []
+    # The number of extra increments matches the number of contributions a
+    # single privacy unit can make. The extra increments are chosen in a way
+    # that maximizes the distance between the two data sets.
+    neighbour_raw_increment_by: [1]
   }
 }
 
@@ -511,10 +499,12 @@ count_dp_test_case {
     max_partitions_contributed: 1
     epsilon: 1.09861228866810969140  # = log(3)
     delta: 0.000001
-    # No raw_increment_by fields because the count is empty. The extra
-    # increments of the neighbouring data set equal the floor of the l2
-    # sensitivity of the test case.
-    neighbour_raw_increment_by: 1
+    raw_increment_by: []
+    neighbour_raw_increment_by: []
+    # The number of extra increments matches the number of contributions a
+    # single privacy unit can make. The extra increments are chosen in a way
+    # that maximizes the distance between the two data sets.
+    neighbour_raw_increment_by: [1]
   }
 }
 
@@ -531,10 +521,12 @@ count_dp_test_case {
     max_partitions_contributed: 1
     epsilon: 1.09861228866810969140  # = log(3)
     delta: 0.0001
-    # No raw_increment_by fields because the count is empty. The extra
-    # increments of the neighbouring data set equal the floor of the l2
-    # sensitivity of the test case.
-    neighbour_raw_increment_by: 1
+    raw_increment_by: []
+    neighbour_raw_increment_by: []
+    # The number of extra increments matches the number of contributions a
+    # single privacy unit can make. The extra increments are chosen in a way
+    # that maximizes the distance between the two data sets.
+    neighbour_raw_increment_by: [1]
   }
 }
 
@@ -551,17 +543,12 @@ count_dp_test_case {
     max_partitions_contributed: 1
     epsilon: 1.09861228866810969140  # = log(3)
     delta: 0.00001
-    raw_increment_by: 7
-    raw_increment_by: 1
-    raw_increment_by: 8
-    raw_increment_by: 12
-    neighbour_raw_increment_by: 7
-    neighbour_raw_increment_by: 1
-    neighbour_raw_increment_by: 8
-    neighbour_raw_increment_by: 12
-    # The extra increments of the neighbouring data set equal the floor of the
-    # l2 sensitivity of the test case.
-    neighbour_raw_increment_by: 1
+    raw_increment_by: [7, 1, 8, 12]
+    neighbour_raw_increment_by: [7, 1, 8, 12]
+    # The number of extra increments matches the number of contributions a
+    # single privacy unit can make. The extra increments are chosen in a way
+    # that maximizes the distance between the two data sets.
+    neighbour_raw_increment_by: [1]
   }
 }
 
@@ -578,17 +565,13 @@ count_dp_test_case {
     max_partitions_contributed: 2
     epsilon: 1.09861228866810969140  # = log(3)
     delta: 0.00001
-    raw_increment_by: 7
-    raw_increment_by: 1
-    raw_increment_by: 8
-    raw_increment_by: 12
-    neighbour_raw_increment_by: 7
-    neighbour_raw_increment_by: 1
-    neighbour_raw_increment_by: 8
-    neighbour_raw_increment_by: 12
-    # The extra increments of the neighbouring data set equal the floor of the
-    # l2 sensitivity of the test case.
-    neighbour_raw_increment_by: 1  # = floor(sqrt(2))
+    raw_increment_by: [7, 1, 8, 12]
+    neighbour_raw_increment_by: [7, 1, 8, 12]
+    # The number of extra increments in the second data set accounts for the
+    # number of partitions a single privacy unit can contribute to. The extra
+    # increments are chosen in a way that maximizes the distance between the two
+    # data sets.
+    neighbour_raw_increment_by: [1]  # = floor(sqrt(2))
   }
 }
 
@@ -605,17 +588,13 @@ count_dp_test_case {
     max_partitions_contributed: 250
     epsilon: 1.09861228866810969140  # = log(3)
     delta: 0.00001
-    raw_increment_by: 7
-    raw_increment_by: 1
-    raw_increment_by: 8
-    raw_increment_by: 12
-    neighbour_raw_increment_by: 7
-    neighbour_raw_increment_by: 1
-    neighbour_raw_increment_by: 8
-    neighbour_raw_increment_by: 12
-    # The extra increments of the neighbouring data set equal the floor of the
-    # l2 sensitivity of the test case.
-    neighbour_raw_increment_by: 15  # = floor(sqrt(250))
+    raw_increment_by: [7, 1, 8, 12]
+    neighbour_raw_increment_by: [7, 1, 8, 12]
+    # The number of extra increments in the second data set accounts for the
+    # number of partitions a single privacy unit can contribute to. The extra
+    # increments are chosen in a way that maximizes the distance between the two
+    # data sets.
+    neighbour_raw_increment_by: [15]  # = floor(sqrt(250))
   }
 }
 
@@ -632,17 +611,12 @@ count_dp_test_case {
     max_partitions_contributed: 1
     epsilon: 0.1
     delta: 0.00001
-    raw_increment_by: 7
-    raw_increment_by: 1
-    raw_increment_by: 8
-    raw_increment_by: 12
-    neighbour_raw_increment_by: 7
-    neighbour_raw_increment_by: 1
-    neighbour_raw_increment_by: 8
-    neighbour_raw_increment_by: 12
-    # The extra increments of the neighbouring data set equal the floor of the
-    # l2 sensitivity of the test case.
-    neighbour_raw_increment_by: 1
+    raw_increment_by: [7, 1, 8, 12]
+    neighbour_raw_increment_by: [7, 1, 8, 12]
+    # The number of extra increments matches the number of contributions a
+    # single privacy unit can make. The extra increments are chosen in a way
+    # that maximizes the distance between the two data sets.
+    neighbour_raw_increment_by: [1]
   }
 }
 
@@ -659,17 +633,12 @@ count_dp_test_case {
     max_partitions_contributed: 1
     epsilon: 2.19722457733621938279  # = 2log(3)
     delta: 0.00001
-    raw_increment_by: 7
-    raw_increment_by: 1
-    raw_increment_by: 8
-    raw_increment_by: 12
-    neighbour_raw_increment_by: 7
-    neighbour_raw_increment_by: 1
-    neighbour_raw_increment_by: 8
-    neighbour_raw_increment_by: 12
-    # The extra increments of the neighbouring data set equal the floor of the
-    # l2 sensitivity of the test case.
-    neighbour_raw_increment_by: 1
+    raw_increment_by: [7, 1, 8, 12]
+    neighbour_raw_increment_by: [7, 1, 8, 12]
+    # The number of extra increments matches the number of contributions a
+    # single privacy unit can make. The extra increments are chosen in a way
+    # that maximizes the distance between the two data sets.
+    neighbour_raw_increment_by: [1]
   }
 }
 
@@ -686,17 +655,12 @@ count_dp_test_case {
     max_partitions_contributed: 1
     epsilon: 1.09861228866810969140  # = log(3)
     delta: 0.000001
-    raw_increment_by: 7
-    raw_increment_by: 1
-    raw_increment_by: 8
-    raw_increment_by: 12
-    neighbour_raw_increment_by: 7
-    neighbour_raw_increment_by: 1
-    neighbour_raw_increment_by: 8
-    neighbour_raw_increment_by: 12
-    # The extra increments of the neighbouring data set equal the floor of the
-    # l2 sensitivity of the test case.
-    neighbour_raw_increment_by: 1
+    raw_increment_by: [7, 1, 8, 12]
+    neighbour_raw_increment_by: [7, 1, 8, 12]
+    # The number of extra increments matches the number of contributions a
+    # single privacy unit can make. The extra increments are chosen in a way
+    # that maximizes the distance between the two data sets.
+    neighbour_raw_increment_by: [1]
   }
 }
 
@@ -713,17 +677,12 @@ count_dp_test_case {
     max_partitions_contributed: 1
     epsilon: 1.09861228866810969140  # = log(3)
     delta: 0.0001
-    raw_increment_by: 7
-    raw_increment_by: 1
-    raw_increment_by: 8
-    raw_increment_by: 12
-    neighbour_raw_increment_by: 7
-    neighbour_raw_increment_by: 1
-    neighbour_raw_increment_by: 8
-    neighbour_raw_increment_by: 12
-    # The extra increments of the neighbouring data set equal the floor of the
-    # l2 sensitivity of the test case.
-    neighbour_raw_increment_by: 1
+    raw_increment_by: [7, 1, 8, 12]
+    neighbour_raw_increment_by: [7, 1, 8, 12]
+    # The number of extra increments matches the number of contributions a
+    # single privacy unit can make. The extra increments are chosen in a way
+    # that maximizes the distance between the two data sets.
+    neighbour_raw_increment_by: [1]
   }
 }
 
@@ -740,19 +699,16 @@ count_dp_test_case {
     max_partitions_contributed: 1
     epsilon: 1.09861228866810969140  # = log(3)
     delta: 0.00001
-    raw_increment_by: 2147483647
-    raw_increment_by: 2146736422
-    raw_increment_by: 1383713414
-    raw_increment_by: 2146374624
-    raw_increment_by: 1989764249
-    neighbour_raw_increment_by: 2147483647
-    neighbour_raw_increment_by: 2146736422
-    neighbour_raw_increment_by: 1383713414
-    neighbour_raw_increment_by: 2146374624
-    neighbour_raw_increment_by: 1989764249
-    # The extra increments of the neighbouring data set equal the floor of the
-    # l2 sensitivity of the test case.
-    neighbour_raw_increment_by: 1
+    raw_increment_by: [
+      2147483647, 2146736422, 1383713414, 2146374624, 1989764249
+    ]
+    neighbour_raw_increment_by: [
+      2147483647, 2146736422, 1383713414, 2146374624, 1989764249
+    ]
+    # The number of extra increments matches the number of contributions a
+    # single privacy unit can make. The extra increments are chosen in a way
+    # that maximizes the distance between the two data sets.
+    neighbour_raw_increment_by: [1]
   }
 }
 
@@ -769,19 +725,17 @@ count_dp_test_case {
     max_partitions_contributed: 2
     epsilon: 1.09861228866810969140  # = log(3)
     delta: 0.00001
-    raw_increment_by: 2147483647
-    raw_increment_by: 2146736422
-    raw_increment_by: 1383713414
-    raw_increment_by: 2146374624
-    raw_increment_by: 1989764249
-    neighbour_raw_increment_by: 2147483647
-    neighbour_raw_increment_by: 2146736422
-    neighbour_raw_increment_by: 1383713414
-    neighbour_raw_increment_by: 2146374624
-    neighbour_raw_increment_by: 1989764249
-    # The extra increments of the neighbouring data set equal the floor of the
-    # l2 sensitivity of the test case.
-    neighbour_raw_increment_by: 1  # = floor(sqrt(2))
+    raw_increment_by: [
+      2147483647, 2146736422, 1383713414, 2146374624, 1989764249
+    ]
+    neighbour_raw_increment_by: [
+      2147483647, 2146736422, 1383713414, 2146374624, 1989764249
+    ]
+    # The number of extra increments in the second data set accounts for the
+    # number of partitions a single privacy unit can contribute to. The extra
+    # increments are chosen in a way that maximizes the distance between the two
+    # data sets.
+    neighbour_raw_increment_by: [1]  # = floor(sqrt(2))
   }
 }
 
@@ -798,19 +752,17 @@ count_dp_test_case {
     max_partitions_contributed: 250
     epsilon: 1.09861228866810969140  # = log(3)
     delta: 0.00001
-    raw_increment_by: 2147483647
-    raw_increment_by: 2146736422
-    raw_increment_by: 1383713414
-    raw_increment_by: 2146374624
-    raw_increment_by: 1989764249
-    neighbour_raw_increment_by: 2147483647
-    neighbour_raw_increment_by: 2146736422
-    neighbour_raw_increment_by: 1383713414
-    neighbour_raw_increment_by: 2146374624
-    neighbour_raw_increment_by: 1989764249
-    # The extra increments of the neighbouring data set equal the floor of the
-    # l2 sensitivity of the test case.
-    neighbour_raw_increment_by: 15  # = floor(sqrt(250))
+    raw_increment_by: [
+      2147483647, 2146736422, 1383713414, 2146374624, 1989764249
+    ]
+    neighbour_raw_increment_by: [
+      2147483647, 2146736422, 1383713414, 2146374624, 1989764249
+    ]
+    # The number of extra increments in the second data set accounts for the
+    # number of partitions a single privacy unit can contribute to. The extra
+    # increments are chosen in a way that maximizes the distance between the two
+    # data sets.
+    neighbour_raw_increment_by: [15]  # = floor(sqrt(250))
   }
 }
 
@@ -827,19 +779,16 @@ count_dp_test_case {
     max_partitions_contributed: 1
     epsilon: 0.1
     delta: 0.00001
-    raw_increment_by: 2147483647
-    raw_increment_by: 2146736422
-    raw_increment_by: 1383713414
-    raw_increment_by: 2146374624
-    raw_increment_by: 1989764249
-    neighbour_raw_increment_by: 2147483647
-    neighbour_raw_increment_by: 2146736422
-    neighbour_raw_increment_by: 1383713414
-    neighbour_raw_increment_by: 2146374624
-    neighbour_raw_increment_by: 1989764249
-    # The extra increments of the neighbouring data set equal the floor of the
-    # l2 sensitivity of the test case.
-    neighbour_raw_increment_by: 1
+    raw_increment_by: [
+      2147483647, 2146736422, 1383713414, 2146374624, 1989764249
+    ]
+    neighbour_raw_increment_by: [
+      2147483647, 2146736422, 1383713414, 2146374624, 1989764249
+    ]
+    # The number of extra increments matches the number of contributions a
+    # single privacy unit can make. The extra increments are chosen in a way
+    # that maximizes the distance between the two data sets.
+    neighbour_raw_increment_by: [1]
   }
 }
 
@@ -856,19 +805,16 @@ count_dp_test_case {
     max_partitions_contributed: 1
     epsilon: 2.19722457733621938279  # = 2log(3)
     delta: 0.00001
-    raw_increment_by: 2147483647
-    raw_increment_by: 2146736422
-    raw_increment_by: 1383713414
-    raw_increment_by: 2146374624
-    raw_increment_by: 1989764249
-    neighbour_raw_increment_by: 2147483647
-    neighbour_raw_increment_by: 2146736422
-    neighbour_raw_increment_by: 1383713414
-    neighbour_raw_increment_by: 2146374624
-    neighbour_raw_increment_by: 1989764249
-    # The extra increments of the neighbouring data set equal the floor of the
-    # l2 sensitivity of the test case.
-    neighbour_raw_increment_by: 1
+    raw_increment_by: [
+      2147483647, 2146736422, 1383713414, 2146374624, 1989764249
+    ]
+    neighbour_raw_increment_by: [
+      2147483647, 2146736422, 1383713414, 2146374624, 1989764249
+    ]
+    # The number of extra increments matches the number of contributions a
+    # single privacy unit can make. The extra increments are chosen in a way
+    # that maximizes the distance between the two data sets.
+    neighbour_raw_increment_by: [1]
   }
 }
 
@@ -885,19 +831,16 @@ count_dp_test_case {
     max_partitions_contributed: 1
     epsilon: 1.09861228866810969140  # = log(3)
     delta: 0.000001
-    raw_increment_by: 2147483647
-    raw_increment_by: 2146736422
-    raw_increment_by: 1383713414
-    raw_increment_by: 2146374624
-    raw_increment_by: 1989764249
-    neighbour_raw_increment_by: 2147483647
-    neighbour_raw_increment_by: 2146736422
-    neighbour_raw_increment_by: 1383713414
-    neighbour_raw_increment_by: 2146374624
-    neighbour_raw_increment_by: 1989764249
-    # The extra increments of the neighbouring data set equal the floor of the
-    # l2 sensitivity of the test case.
-    neighbour_raw_increment_by: 1
+    raw_increment_by: [
+      2147483647, 2146736422, 1383713414, 2146374624, 1989764249
+    ]
+    neighbour_raw_increment_by: [
+      2147483647, 2146736422, 1383713414, 2146374624, 1989764249
+    ]
+    # The number of extra increments matches the number of contributions a
+    # single privacy unit can make. The extra increments are chosen in a way
+    # that maximizes the distance between the two data sets.
+    neighbour_raw_increment_by: [1]
   }
 }
 
@@ -914,18 +857,15 @@ count_dp_test_case {
     max_partitions_contributed: 1
     epsilon: 1.09861228866810969140  # = log(3)
     delta: 0.0001
-    raw_increment_by: 2147483647
-    raw_increment_by: 2146736422
-    raw_increment_by: 1383713414
-    raw_increment_by: 2146374624
-    raw_increment_by: 1989764249
-    neighbour_raw_increment_by: 2147483647
-    neighbour_raw_increment_by: 2146736422
-    neighbour_raw_increment_by: 1383713414
-    neighbour_raw_increment_by: 2146374624
-    neighbour_raw_increment_by: 1989764249
-    # The extra increments of the neighbouring data set equal the floor of the
-    # l2 sensitivity of the test case.
-    neighbour_raw_increment_by: 1
+    raw_increment_by: [
+      2147483647, 2146736422, 1383713414, 2146374624, 1989764249
+    ]
+    neighbour_raw_increment_by: [
+      2147483647, 2146736422, 1383713414, 2146374624, 1989764249
+    ]
+    # The number of extra increments matches the number of contributions a
+    # single privacy unit can make. The extra increments are chosen in a way
+    # that maximizes the distance between the two data sets.
+    neighbour_raw_increment_by: [1]
   }
 }

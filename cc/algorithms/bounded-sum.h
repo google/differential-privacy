@@ -157,7 +157,7 @@ class BoundedSumWithFixedBounds : public BoundedSum<T> {
     // Add noise to the sum.
     double noisy_sum = mechanism_->AddNoise(partial_sum_, privacy_budget);
     if (std::is_integral<T>::value) {
-      SafeCastResult<T> cast_result =
+      SafeOpResult<T> cast_result =
           SafeCastFromDouble<T>(std::round(noisy_sum));
       AddToOutput<T>(&output, cast_result.value);
     } else {

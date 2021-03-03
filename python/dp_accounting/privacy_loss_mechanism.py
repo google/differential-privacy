@@ -537,7 +537,7 @@ class DiscreteLaplacePrivacyLoss(AdditiveNoisePrivacyLoss):
   def __init__(self,
                parameter: float,
                sensitivity: int = 1) -> None:
-    """Initializes the privacy loss of the Laplace mechanism.
+    """Initializes the privacy loss of the discrete Laplace mechanism.
 
     Args:
       parameter: the parameter of the discrete Laplace distribution.
@@ -593,7 +593,7 @@ class DiscreteLaplacePrivacyLoss(AdditiveNoisePrivacyLoss):
     return (abs(x - self.sensitivity) - abs(x)) * self._parameter
 
   def inverse_privacy_loss(self, privacy_loss: float) -> float:
-    """Computes the inverse of a given privacy loss for the Laplace mechanism.
+    """Computes the inverse of a given privacy loss for the discrete Laplace mechanism.
 
     Args:
       privacy_loss: the privacy loss value.

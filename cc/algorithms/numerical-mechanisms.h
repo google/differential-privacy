@@ -392,7 +392,7 @@ class LaplaceMechanism : public NumericalMechanism {
     privacy_budget = CheckAndClampBudget(privacy_budget);
 
     double sample = distro_->Sample(1.0 / privacy_budget);
-    SafeCastResult<int64_t> noise_cast_result =
+    SafeOpResult<int64_t> noise_cast_result =
         SafeCastFromDouble<int64_t>(std::round(sample));
 
     // Granularity should be a power of 2, and thus can be cast without losing
@@ -402,12 +402,12 @@ class LaplaceMechanism : public NumericalMechanism {
     // it's so high that the return value likely won't be terribly meaningful,
     // so just cap the granularity at the largest number int64_t can represent.
     int64_t granularity;
-    SafeCastResult<int64_t> granularity_cast_result =
+    SafeOpResult<int64_t> granularity_cast_result =
         SafeCastFromDouble<int64_t>(std::max(distro_->GetGranularity(), 1.0));
-    if (granularity_cast_result.no_overflow) {
-      granularity = granularity_cast_result.value;
-    } else {
+    if (granularity_cast_result.overflow) {
       granularity = std::numeric_limits<int64_t>::max();
+    } else {
+      granularity = granularity_cast_result.value;
     }
 
     return RoundToNearestInt64Multiple(result, granularity) +
@@ -557,7 +557,6 @@ class GaussianMechanism : public NumericalMechanism {
   // noise that AddNoise() would add with the specified privacy budget.
   // If the returned value is <x,y>, then the noise added has a confidence_level
   // chance of being in the domain [x,y].
-
   base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
       double confidence_level, double privacy_budget) override {
     return NoiseConfidenceInterval(confidence_level, privacy_budget, 0);
@@ -653,7 +652,7 @@ class GaussianMechanism : public NumericalMechanism {
     double stddev = CalculateStddev(local_epsilon, local_delta);
     double sample = distro_->Sample(stddev);
 
-    SafeCastResult<int64_t> noise_cast_result =
+    SafeOpResult<int64_t> noise_cast_result =
         SafeCastFromDouble<int64_t>(std::round(sample));
 
     // Granularity should be a power of 2, and thus can be cast without losing
@@ -663,12 +662,12 @@ class GaussianMechanism : public NumericalMechanism {
     // it's so high that the return value likely won't be terribly meaningful,
     // so just cap the granularity at the largest number int64_t can represent.
     int64_t granularity;
-    SafeCastResult<int64_t> granularity_cast_result = SafeCastFromDouble<int64_t>(
+    SafeOpResult<int64_t> granularity_cast_result = SafeCastFromDouble<int64_t>(
         std::max(distro_->GetGranularity(stddev), 1.0));
-    if (granularity_cast_result.no_overflow) {
-      granularity = granularity_cast_result.value;
-    } else {
+    if (granularity_cast_result.overflow) {
       granularity = std::numeric_limits<int64_t>::max();
+    } else {
+      granularity = granularity_cast_result.value;
     }
 
     return RoundToNearestInt64Multiple(result, granularity) +
@@ -690,7 +689,6 @@ class GaussianMechanism : public NumericalMechanism {
   // based on Theorem 8 of Balle and Wang's "Improving the Gaussian Mechanism
   // for Differential Privacy: Analytical Calibration and Optimal Denoising",
   // available <a href="https://arxiv.org/abs/1805.06530v2">here</a>.
-
   double CalculateDelta(double sigma, double epsilon) {
     // Denoting by CDF the CDF function of the standard Gaussian distribution
     // (mean 0, variance 1), and s the L2 sensitivity, the tight choice of delta

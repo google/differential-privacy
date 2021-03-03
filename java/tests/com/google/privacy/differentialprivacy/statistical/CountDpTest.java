@@ -140,7 +140,7 @@ public final class CountDpTest {
       int numberOfSamples,
       double epsilon,
       double delta,
-      double l2Tolerance) {
+      double deltaTolerance) {
     Long[] samplesA = new Long[numberOfSamples];
     Long[] samplesB = new Long[numberOfSamples];
     for (int i = 0; i < numberOfSamples; i++) {
@@ -148,6 +148,6 @@ public final class CountDpTest {
       samplesB[i] = sampleGeneratorB.get();
     }
     return StatisticalTestsUtil.verifyApproximateDp(
-        samplesA, samplesB, epsilon, delta, l2Tolerance);
+        samplesA, samplesB, epsilon, delta, deltaTolerance);
   }
 }

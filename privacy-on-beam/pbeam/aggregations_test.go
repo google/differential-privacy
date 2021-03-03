@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/google/differential-privacy/go/noise"
+	"github.com/google/differential-privacy/privacy-on-beam/pbeam/testutils"
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
 	"github.com/google/go-cmp/cmp"
@@ -138,7 +139,7 @@ func TestBoundedSumInt64FnAddInput(t *testing.T) {
 	fn.AddInput(accum, 2)
 
 	got := fn.ExtractOutput(accum)
-	want := int64Ptr(4)
+	want := testutils.Int64Ptr(4)
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("unexpected output (-want +got):\n%s", diff)
 	}
@@ -161,7 +162,7 @@ func TestBoundedSumInt64FnMergeAccumulators(t *testing.T) {
 	fn.MergeAccumulators(accum1, accum2)
 
 	got := fn.ExtractOutput(accum1)
-	want := int64Ptr(3)
+	want := testutils.Int64Ptr(3)
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("unexpected output (-want +got):\n%s", diff)
 	}
@@ -229,8 +230,8 @@ func TestBoundedSumFloat64FnAddInput(t *testing.T) {
 	fn.AddInput(accum, 2)
 
 	got := fn.ExtractOutput(accum)
-	want := float64Ptr(4)
-	if diff := cmp.Diff(want, got, cmpopts.EquateApprox(0, laplaceTolerance(23, 2, 1e100))); diff != "" {
+	want := testutils.Float64Ptr(4)
+	if diff := cmp.Diff(want, got, cmpopts.EquateApprox(0, testutils.LaplaceTolerance(23, 2, 1e100))); diff != "" {
 		t.Errorf("unexpected output (-want +got):\n%s", diff)
 	}
 }
@@ -251,8 +252,8 @@ func TestBoundedSumFloat64FnMergeAccumulators(t *testing.T) {
 	fn.MergeAccumulators(accum1, accum2)
 
 	got := fn.ExtractOutput(accum1)
-	want := float64Ptr(3)
-	if diff := cmp.Diff(want, got, cmpopts.EquateApprox(0, laplaceTolerance(23, 2, 1e100))); diff != "" {
+	want := testutils.Float64Ptr(3)
+	if diff := cmp.Diff(want, got, cmpopts.EquateApprox(0, testutils.LaplaceTolerance(23, 2, 1e100))); diff != "" {
 		t.Errorf("unexpected output (-want +got):\n%s", diff)
 	}
 }
@@ -310,24 +311,24 @@ func TestBoundedSumFloat64FnExtractOutputWithPublicPartitionsDoesNotThreshold(t 
 // Checks that elements with non-public partitions are dropped.
 // This function is used for count and distinct_id.
 func TestDropNonPublicPartitionsVFn(t *testing.T) {
-	pairs := concatenatePairs(
-		makePairsWithFixedV(7, 0),
-		makePairsWithFixedV(52, 1),
-		makePairsWithFixedV(99, 2),
-		makePairsWithFixedV(10, 3),
+	pairs := testutils.ConcatenatePairs(
+		testutils.MakePairsWithFixedV(7, 0),
+		testutils.MakePairsWithFixedV(52, 1),
+		testutils.MakePairsWithFixedV(99, 2),
+		testutils.MakePairsWithFixedV(10, 3),
 	)
 
 	// Keep partitions 0, 2;
 	// drop partitions 1, 3.
-	result := concatenatePairs(
-		makePairsWithFixedV(7, 0),
-		makePairsWithFixedV(99, 2),
-		makePairsWithFixedV(99, 2),
+	result := testutils.ConcatenatePairs(
+		testutils.MakePairsWithFixedV(7, 0),
+		testutils.MakePairsWithFixedV(99, 2),
+		testutils.MakePairsWithFixedV(99, 2),
 	)
 
 	_, s, col, want := ptest.CreateList2(pairs, result)
-	want = beam.ParDo(s, pairToKV, want)
-	col = beam.ParDo(s, pairToKV, col)
+	want = beam.ParDo(s, testutils.PairToKV, want)
+	col = beam.ParDo(s, testutils.PairToKV, col)
 	partitions := []int{0, 2}
 
 	partitionsCol := beam.CreateList(s, partitions)
@@ -336,7 +337,7 @@ func TestDropNonPublicPartitionsVFn(t *testing.T) {
 	_, partitionT := beam.ValidateKVType(pcol.col)
 	partitionEncodedType := beam.EncodedType{partitionT.Type()}
 	got := dropNonPublicPartitionsVFn(s, partitionsCol, pcol, partitionEncodedType)
-	if err := equalsKVInt(s, got, want); err != nil {
+	if err := testutils.EqualsKVInt(s, got, want); err != nil {
 		t.Fatalf("dropNonPublicPartitionsVFn: for %v got: %v, want %v", col, got, want)
 	}
 }
@@ -344,17 +345,17 @@ func TestDropNonPublicPartitionsVFn(t *testing.T) {
 // TestDropNonPublicPartitionsKVFn checks that int elements with non-public partitions
 // are dropped (tests function used for sum and mean).
 func TestDropNonPublicPartitionsKVFn(t *testing.T) {
-	triples := concatenateTriplesWithIntValue(
-		makeDummyTripleWithIntValue(7, 0),
-		makeDummyTripleWithIntValue(58, 1),
-		makeDummyTripleWithIntValue(99, 2),
-		makeDummyTripleWithIntValue(45, 100),
-		makeDummyTripleWithIntValue(20, 33))
+	triples := testutils.ConcatenateTriplesWithIntValue(
+		testutils.MakeDummyTripleWithIntValue(7, 0),
+		testutils.MakeDummyTripleWithIntValue(58, 1),
+		testutils.MakeDummyTripleWithIntValue(99, 2),
+		testutils.MakeDummyTripleWithIntValue(45, 100),
+		testutils.MakeDummyTripleWithIntValue(20, 33))
 	// Keep partitions 0, 2.
 	// Drop partitions 1, 33, 100.
-	result := concatenateTriplesWithIntValue(
-		makeDummyTripleWithIntValue(7, 0),
-		makeDummyTripleWithIntValue(99, 2))
+	result := testutils.ConcatenateTriplesWithIntValue(
+		testutils.MakeDummyTripleWithIntValue(7, 0),
+		testutils.MakeDummyTripleWithIntValue(99, 2))
 
 	_, s, col, col2 := ptest.CreateList2(triples, result)
 	// Doesn't matter that the values 3, 4, 5, 6, 9, 10
@@ -362,21 +363,21 @@ func TestDropNonPublicPartitionsKVFn(t *testing.T) {
 	// just dropping the values that are in our original PCollection
 	// that are not in public partitions.
 	partitionsCol := beam.CreateList(s, []int{0, 2, 3, 4, 5, 6, 9, 10})
-	col = beam.ParDo(s, extractIDFromTripleWithIntValue, col)
-	col2 = beam.ParDo(s, extractIDFromTripleWithIntValue, col2)
+	col = beam.ParDo(s, testutils.ExtractIDFromTripleWithIntValue, col)
+	col2 = beam.ParDo(s, testutils.ExtractIDFromTripleWithIntValue, col2)
 	epsilon, delta := 50.0, 1e-200
 
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
-	pcol = ParDo(s, tripleWithIntValueToKV, pcol)
+	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 	got := dropNonPublicPartitionsKVFn(s, partitionsCol, pcol, pcol.codec.KType)
 	got = beam.SwapKV(s, got)
 
 	pcol2 := MakePrivate(s, col2, NewPrivacySpec(epsilon, delta))
-	pcol2 = ParDo(s, tripleWithIntValueToKV, pcol2)
+	pcol2 = ParDo(s, testutils.TripleWithIntValueToKV, pcol2)
 	want := pcol2.col
 	want = beam.SwapKV(s, want)
 
-	if err := equalsKVInt(s, got, want); err != nil {
+	if err := testutils.EqualsKVInt(s, got, want); err != nil {
 		t.Fatalf("dropPublicPartitionsKVFn: for %v got: %v, want %v", col, got, want)
 	}
 }
@@ -387,15 +388,15 @@ func TestDropNonPublicPartitionsFloat(t *testing.T) {
 	// In this test, we check  that non-public partitions
 	// are dropped. This function is used for sum and mean.
 	// Used example values from the mean test.
-	triples := concatenateTriplesWithFloatValue(
-		makeTripleWithFloatValue(7, 0, 2.0),
-		makeTripleWithFloatValueStartingFromKey(7, 100, 1, 1.3),
-		makeTripleWithFloatValueStartingFromKey(107, 150, 1, 2.5),
+	triples := testutils.ConcatenateTriplesWithFloatValue(
+		testutils.MakeTripleWithFloatValue(7, 0, 2.0),
+		testutils.MakeTripleWithFloatValueStartingFromKey(7, 100, 1, 1.3),
+		testutils.MakeTripleWithFloatValueStartingFromKey(107, 150, 1, 2.5),
 	)
 	// Keep partition 0.
 	// drop partition 1.
-	result := concatenateTriplesWithFloatValue(
-		makeTripleWithFloatValue(7, 0, 2.0))
+	result := testutils.ConcatenateTriplesWithFloatValue(
+		testutils.MakeTripleWithFloatValue(7, 0, 2.0))
 
 	_, s, col, col2 := ptest.CreateList2(triples, result)
 
@@ -403,21 +404,21 @@ func TestDropNonPublicPartitionsFloat(t *testing.T) {
 	// We are just dropping the values that are in our original PCollection that are not in
 	// public partitions.
 	partitionsCol := beam.CreateList(s, []int{0, 2, 3, 4, 5, 6, 7})
-	col = beam.ParDo(s, extractIDFromTripleWithFloatValue, col)
-	col2 = beam.ParDo(s, extractIDFromTripleWithFloatValue, col2)
+	col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
+	col2 = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col2)
 	epsilon, delta := 50.0, 1e-200
 
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
-	pcol = ParDo(s, tripleWithFloatValueToKV, pcol)
+	pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
 	got := dropNonPublicPartitionsKVFn(s, partitionsCol, pcol, pcol.codec.KType)
 	got = beam.SwapKV(s, got)
 
 	pcol2 := MakePrivate(s, col2, NewPrivacySpec(epsilon, delta))
-	pcol2 = ParDo(s, tripleWithFloatValueToKV, pcol2)
+	pcol2 = ParDo(s, testutils.TripleWithFloatValueToKV, pcol2)
 	want := pcol2.col
 	want = beam.SwapKV(s, want)
 
-	if err := equalsKVInt(s, got, want); err != nil {
+	if err := testutils.EqualsKVInt(s, got, want); err != nil {
 		t.Fatalf("DropNonPublicPartitionsFloat: for %v got: %v, want %v", col, got, want)
 	}
 }

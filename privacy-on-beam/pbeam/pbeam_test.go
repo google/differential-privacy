@@ -16,8 +16,10 @@
 package pbeam
 
 import (
+	"reflect"
 	"testing"
 
+	"github.com/google/differential-privacy/privacy-on-beam/pbeam/testutils"
 	testpb "github.com/google/differential-privacy/privacy-on-beam/testdata"
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
@@ -26,17 +28,31 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+func init() {
+	beam.RegisterType(reflect.TypeOf((*testpb.TestAnon)(nil)))
+	beam.RegisterType(reflect.TypeOf(protoPair{}))
+}
+
+type protoPair struct {
+	key string
+	pb  *testpb.TestAnon
+}
+
+func kvToProtoPair(key string, pb *testpb.TestAnon) protoPair {
+	return protoPair{key, pb}
+}
+
 func TestMakePrivate(t *testing.T) {
-	values := []pairII{
+	values := []testutils.PairII{
 		{17, 42},
 		{99, 0},
 	}
 	p, s, col := ptest.CreateList(values)
-	colKV := beam.ParDo(s, pairToKV, col)
+	colKV := beam.ParDo(s, testutils.PairToKV, col)
 
 	// pcol should contain 17→42 and 99→0.
 	pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
-	got := beam.ParDo(s, kvToPair, pcol.col)
+	got := beam.ParDo(s, testutils.KVToPair, pcol.col)
 	passert.Equals(s, got, col)
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("MakePrivate(%v) = %v, expected %v: %v", col, got, col, err)
@@ -341,12 +357,12 @@ func TestGetPartialBudget(t *testing.T) {
 
 // Tests that we can consume all the budget at once.
 func TestBudgetFullyConsumed(t *testing.T) {
-	values := []pairII{
+	values := []testutils.PairII{
 		{1, 1},
 		{2, 2},
 	}
 	p, s, col := ptest.CreateList(values)
-	colKV := beam.ParDo(s, pairToKV, col)
+	colKV := beam.ParDo(s, testutils.PairToKV, col)
 	spec := NewPrivacySpec(1, 1e-30)
 	pcol := MakePrivate(s, colKV, spec)
 	got := Count(s, pcol, CountParams{MaxValue: 1, MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}})
@@ -362,12 +378,12 @@ func TestBudgetFullyConsumed(t *testing.T) {
 
 // Tests that two distinct budgets can be independently consumed.
 func TestTwoDistinctBudgets(t *testing.T) {
-	values := []pairII{
+	values := []testutils.PairII{
 		{1, 1},
 		{2, 2},
 	}
 	p, s, col := ptest.CreateList(values)
-	colKV := beam.ParDo(s, pairToKV, col)
+	colKV := beam.ParDo(s, testutils.PairToKV, col)
 	spec1 := NewPrivacySpec(1, 1e-30)
 	spec2 := NewPrivacySpec(1, 1e-30)
 	pcol1 := MakePrivate(s, colKV, spec1)
@@ -393,12 +409,12 @@ func TestTwoDistinctBudgets(t *testing.T) {
 // any errors.
 func TestBudgetRounding(t *testing.T) {
 	for numAggregations := 1; numAggregations <= 10; numAggregations++ {
-		values := []pairII{
+		values := []testutils.PairII{
 			{1, 1},
 			{2, 2},
 		}
 		p, s, col := ptest.CreateList(values)
-		colKV := beam.ParDo(s, pairToKV, col)
+		colKV := beam.ParDo(s, testutils.PairToKV, col)
 		spec := NewPrivacySpec(1, 1e-30)
 		pcol := MakePrivate(s, colKV, spec)
 		epsPerAggregation := 1. / float64(numAggregations)

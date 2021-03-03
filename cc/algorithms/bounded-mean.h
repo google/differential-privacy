@@ -56,8 +56,8 @@ class BoundedMean : public Algorithm<T> {
   template <typename T2 = T,
             std::enable_if_t<std::is_integral<T2>::value>* = nullptr>
   static absl::Status CheckBounds(T lower, T upper) {
-    T subtract_result;
-    if (!SafeSubtract(upper, lower, &subtract_result)) {
+    SafeOpResult<T> subtract_result = SafeSubtract(upper, lower);
+    if (subtract_result.overflow) {
       return absl::InvalidArgumentError(
           "Upper - lower caused integer overflow.");
     }

@@ -27,6 +27,7 @@ import (
 
 	"github.com/google/differential-privacy/privacy-on-beam/internal/generated"
 	"github.com/google/differential-privacy/privacy-on-beam/internal/kv"
+	"github.com/google/differential-privacy/privacy-on-beam/pbeam/testutils"
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/direct"
@@ -42,12 +43,12 @@ func execute(ctx context.Context, p *beam.Pipeline) error {
 // Reusable between ParDo tests
 var codec = kv.NewCodec(reflect.TypeOf(1), reflect.TypeOf(1))
 
-var values = []pairII{
+var values = []testutils.PairII{
 	{17, 42},
 	{99, 0},
 }
 
-var goodResult = []pairII{
+var goodResult = []testutils.PairII{
 	{17, 26},
 	{99, 5},
 }
@@ -55,32 +56,32 @@ var goodResult = []pairII{
 // Expected result for a cancelled context. The direct runner has a bug: when a
 // doFn returns an error, the output is still collected (and contains the
 // default value for the type).
-var zeroResult = []pairII{
+var zeroResult = []testutils.PairII{
 	{17, 0},
 	{99, 0},
 }
 
-var goodResult2x1 = []pairII{
+var goodResult2x1 = []testutils.PairII{
 	{17, 106},
 	{99, 1},
 }
 
-var goodResult2x2 []pairICodedKV
-var valuesCodedKV []pairICodedKV
-var zeroValuedCodedKV []pairICodedKV
+var goodResult2x2 []testutils.PairICodedKV
+var valuesCodedKV []testutils.PairICodedKV
+var zeroValuedCodedKV []testutils.PairICodedKV
 
 func init() {
 	// We call the Setup method to supply the encoders and decoders inside codec at runtime.
 	codec.Setup()
-	valuesCodedKV = []pairICodedKV{
+	valuesCodedKV = []testutils.PairICodedKV{
 		{17, codec.Encode(84, 22)},
 		{99, codec.Encode(0, 1)},
 	}
-	zeroValuedCodedKV = []pairICodedKV{
+	zeroValuedCodedKV = []testutils.PairICodedKV{
 		{17, codec.Encode(0, 0)},
 		{99, codec.Encode(0, 0)},
 	}
-	goodResult2x2 = []pairICodedKV{
+	goodResult2x2 = []testutils.PairICodedKV{
 		{17, codec.Encode(106, 62)},
 		{99, codec.Encode(1, -1)},
 	}
@@ -109,13 +110,13 @@ func compareTypeDefs(typeDef1, typeDef2 beam.TypeDefinition) bool {
 func TestParDo1x1(t *testing.T) {
 	doFn := func(v int) int { return v/2 + 5 }
 	p, s, col, wantCol := ptest.CreateList2(values, goodResult)
-	colKV := beam.ParDo(s, pairToKV, col)
+	colKV := beam.ParDo(s, testutils.PairToKV, col)
 
 	// pcol should contain 17→42 and 99→0.
 	pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
 	// We change that to 17→26 and 99→5 in the PrivatePCollection
 	pcol = ParDo(s, doFn, pcol)
-	gotCol := beam.ParDo(s, kvToPair, pcol.col)
+	gotCol := beam.ParDo(s, testutils.KVToPair, pcol.col)
 	passert.Equals(s, gotCol, wantCol)
 	if err := execute(context.Background(), p); err != nil {
 		t.Errorf("DoFn(%v) = %v, expected %v: %v", col, gotCol, wantCol, err)
@@ -127,13 +128,13 @@ func TestParDo1x2(t *testing.T) {
 
 	p, s, col, wantCol := ptest.CreateList2(values, valuesCodedKV)
 	wantCodec := kv.NewCodec(reflect.TypeOf(int(0)), reflect.TypeOf(int(0)))
-	colKV := beam.ParDo(s, pairToKV, col)
+	colKV := beam.ParDo(s, testutils.PairToKV, col)
 
 	// pcol should contain 17→42 and 99→0.
 	pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
 	// We change that to 17→<kv.Pair{84, 22}> and 99→<kv.Pair{0, 1}> in the PrivatePCollection
 	pcol = ParDo(s, doFn, pcol)
-	gotCol := beam.ParDo(s, kvToPairICodedKV, pcol.col)
+	gotCol := beam.ParDo(s, testutils.KVToPairICodedKV, pcol.col)
 	passert.Equals(s, gotCol, wantCol)
 	if err := execute(context.Background(), p); err != nil {
 		t.Errorf("DoFn(%v) = %v, expected %v: %v", col, gotCol, wantCol, err)
@@ -147,7 +148,7 @@ func TestParDoCtx1x2(t *testing.T) {
 	for _, tc := range []struct {
 		desc string
 		m    func(context.Context) context.Context // function that modifies a context
-		want []pairICodedKV
+		want []testutils.PairICodedKV
 	}{
 		// good context
 		{"unchanged context", unchangedContext, valuesCodedKV},
@@ -165,13 +166,13 @@ func TestParDoCtx1x2(t *testing.T) {
 
 		p, s, col, wantCol := ptest.CreateList2(values, tc.want)
 		wantCodec := kv.NewCodec(reflect.TypeOf(int(0)), reflect.TypeOf(int(0)))
-		colKV := beam.ParDo(s, pairToKV, col)
+		colKV := beam.ParDo(s, testutils.PairToKV, col)
 
 		// pcol should contain 17→42 and 99→0.
 		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
 		// We change that to 17→<kv.Pair{84, 22}> and 99→<kv.Pair{0, 1}> in the PrivatePCollection
 		pcol = ParDo(s, doFn, pcol)
-		gotCol := beam.ParDo(s, kvToPairICodedKV, pcol.col)
+		gotCol := beam.ParDo(s, testutils.KVToPairICodedKV, pcol.col)
 		passert.Equals(s, gotCol, wantCol)
 		if err := execute(tc.m(context.Background()), p); err != nil {
 			t.Errorf("With %s, DoFn(%v) = %v, expected %v: %v", tc.desc, col, gotCol, wantCol, err)
@@ -193,20 +194,20 @@ func TestParDo1x2Err(t *testing.T) {
 		desc       string
 		doFn       func(v int) (int, int, error)
 		returnsErr bool
-		want       []pairICodedKV
+		want       []testutils.PairICodedKV
 	}{
 		{"doFn that does not return an error", noErr, false, valuesCodedKV},
 		{"doFn that returns an error", hasErr, true, zeroValuedCodedKV},
 	} {
 		p, s, col, wantCol := ptest.CreateList2(values, tc.want)
 		wantCodec := kv.NewCodec(reflect.TypeOf(int(0)), reflect.TypeOf(int(0)))
-		colKV := beam.ParDo(s, pairToKV, col)
+		colKV := beam.ParDo(s, testutils.PairToKV, col)
 
 		// pcol should contain 17→42 and 99→0.
 		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
 		// We change that to 17→<kv.Pair{84, 22}> and 99→<kv.Pair{0, 1}> in the PrivatePCollection
 		pcol = ParDo(s, tc.doFn, pcol)
-		gotCol := beam.ParDo(s, kvToPairICodedKV, pcol.col)
+		gotCol := beam.ParDo(s, testutils.KVToPairICodedKV, pcol.col)
 		passert.Equals(s, gotCol, wantCol)
 		if tc.returnsErr {
 			if err := execute(context.Background(), p); err == nil {
@@ -238,7 +239,7 @@ func TestParDoCtx1x2Err(t *testing.T) {
 		m          func(context.Context) context.Context // function that modifies a context
 		doFn       func(context.Context, int) (int, int, error)
 		returnsErr bool
-		want       []pairICodedKV
+		want       []testutils.PairICodedKV
 	}{
 		// good context
 		{"unchanged context and no error", unchangedContext, noErr, false, valuesCodedKV},
@@ -250,13 +251,13 @@ func TestParDoCtx1x2Err(t *testing.T) {
 	} {
 		p, s, col, wantCol := ptest.CreateList2(values, tc.want)
 		wantCodec := kv.NewCodec(reflect.TypeOf(int(0)), reflect.TypeOf(int(0)))
-		colKV := beam.ParDo(s, pairToKV, col)
+		colKV := beam.ParDo(s, testutils.PairToKV, col)
 
 		// pcol should contain 17→42 and 99→0.
 		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
 		// We change that to 17→<kv.Pair{84, 22}> and 99→<kv.Pair{0, 1}> in the PrivatePCollection
 		pcol = ParDo(s, tc.doFn, pcol)
-		gotCol := beam.ParDo(s, kvToPairICodedKV, pcol.col)
+		gotCol := beam.ParDo(s, testutils.KVToPairICodedKV, pcol.col)
 		passert.Equals(s, gotCol, wantCol)
 		if tc.returnsErr {
 			if err := execute(tc.m(context.Background()), p); err == nil {
@@ -277,13 +278,13 @@ func TestParDo2x1(t *testing.T) {
 	doFn := func(k int, v int) int { return k + v }
 
 	p, s, col, wantCol := ptest.CreateList2(valuesCodedKV, goodResult2x1)
-	colKV := beam.ParDo(s, pairICodedKVToKV, col)
+	colKV := beam.ParDo(s, testutils.PairICodedKVToKV, col)
 
 	// pcol should contain 17→<kv.Pair{84, 22}> and 99→<kv.Pair{0, 1}>.
 	pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
 	// We change that to 17→106 and 99→1 in the PrivatePCollection
 	pcol = ParDo(s, doFn, pcol)
-	gotCol := beam.ParDo(s, kvToPair, pcol.col)
+	gotCol := beam.ParDo(s, testutils.KVToPair, pcol.col)
 	passert.Equals(s, gotCol, wantCol)
 	if err := execute(context.Background(), p); err != nil {
 		t.Errorf("DoFn(%v) = %v, expected %v: %v", col, gotCol, wantCol, err)
@@ -295,7 +296,7 @@ func TestParDoCtx2x1(t *testing.T) {
 		desc string
 		// m is a function that modifies a context
 		m    func(context.Context) context.Context
-		want []pairII
+		want []testutils.PairII
 	}{
 		// good context
 		{"unchanged context", unchangedContext, goodResult2x1},
@@ -312,13 +313,13 @@ func TestParDoCtx2x1(t *testing.T) {
 		}
 
 		p, s, col, wantCol := ptest.CreateList2(valuesCodedKV, tc.want)
-		colKV := beam.ParDo(s, pairICodedKVToKV, col)
+		colKV := beam.ParDo(s, testutils.PairICodedKVToKV, col)
 
 		// pcol should contain 17→<codedKV{84, 22}> and 99→<codedKV{0, 1}>.
 		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
 		// We change that to 17→106 and 99→1 in the PrivatePCollection
 		pcol = ParDo(s, doFn, pcol)
-		gotCol := beam.ParDo(s, kvToPair, pcol.col)
+		gotCol := beam.ParDo(s, testutils.KVToPair, pcol.col)
 		passert.Equals(s, gotCol, wantCol)
 		if err := execute(tc.m(context.Background()), p); err != nil {
 			t.Errorf("With %s, DoFn(%v) = %v, expected %v: %v", tc.desc, col, gotCol, wantCol, err)
@@ -337,19 +338,19 @@ func TestParDo2x1Err(t *testing.T) {
 		desc       string
 		doFn       func(int, int) (int, error)
 		returnsErr bool
-		want       []pairII
+		want       []testutils.PairII
 	}{
 		{"doFn that does not return an error", noErr, false, goodResult2x1},
 		{"doFn that returns an error", hasErr, true, zeroResult},
 	} {
 		p, s, col, wantCol := ptest.CreateList2(valuesCodedKV, tc.want)
-		colKV := beam.ParDo(s, pairICodedKVToKV, col)
+		colKV := beam.ParDo(s, testutils.PairICodedKVToKV, col)
 
 		// pcol should contain 17→<codedKV{84, 22}> and 99→<codedKV{0, 1}>.
 		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
 		// We change that to 17→106 and 99→1 in the PrivatePCollection
 		pcol = ParDo(s, tc.doFn, pcol)
-		gotCol := beam.ParDo(s, kvToPair, pcol.col)
+		gotCol := beam.ParDo(s, testutils.KVToPair, pcol.col)
 		passert.Equals(s, gotCol, wantCol)
 		if tc.returnsErr {
 			if err := execute(context.Background(), p); err == nil {
@@ -378,7 +379,7 @@ func TestParDoCtx2x1Err(t *testing.T) {
 		m          func(context.Context) context.Context // function that modifies a context
 		doFn       func(context.Context, int, int) (int, error)
 		returnsErr bool
-		want       []pairII
+		want       []testutils.PairII
 	}{
 		// good context
 		{"unchanged context and no error", unchangedContext, noErr, false, goodResult2x1},
@@ -389,13 +390,13 @@ func TestParDoCtx2x1Err(t *testing.T) {
 		{"instantTimeout and error", instantTimeout, hasErr, true, zeroResult},
 	} {
 		p, s, col, wantCol := ptest.CreateList2(valuesCodedKV, tc.want)
-		colKV := beam.ParDo(s, pairICodedKVToKV, col)
+		colKV := beam.ParDo(s, testutils.PairICodedKVToKV, col)
 
 		// pcol should contain 17→<codedKV{84, 22}> and 99→<codedKV{0, 1}>.
 		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
 		// We change that to 17→106 and 99→1 in the PrivatePCollection
 		pcol = ParDo(s, tc.doFn, pcol)
-		gotCol := beam.ParDo(s, kvToPair, pcol.col)
+		gotCol := beam.ParDo(s, testutils.KVToPair, pcol.col)
 		passert.Equals(s, gotCol, wantCol)
 		if tc.returnsErr {
 			if err := execute(tc.m(context.Background()), p); err == nil {
@@ -414,13 +415,13 @@ func TestParDo2x2(t *testing.T) {
 
 	p, s, col, wantCol := ptest.CreateList2(valuesCodedKV, goodResult2x2)
 	wantCodec := kv.NewCodec(reflect.TypeOf(int(0)), reflect.TypeOf(int(0)))
-	colKV := beam.ParDo(s, pairICodedKVToKV, col)
+	colKV := beam.ParDo(s, testutils.PairICodedKVToKV, col)
 
 	// pcol should contain 17→<kv.Pair{84, 22}> and 99→<kv.Pair{0, 1}>.
 	pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
 	// We change that to 17→<kv.Pair{106, 62}> and 99→<kv.Pair{1, -1}> in the PrivatePCollection
 	pcol = ParDo(s, doFn, pcol)
-	gotCol := beam.ParDo(s, kvToPairICodedKV, pcol.col)
+	gotCol := beam.ParDo(s, testutils.KVToPairICodedKV, pcol.col)
 	passert.Equals(s, gotCol, wantCol)
 	if err := execute(context.Background(), p); err != nil {
 		t.Errorf("DoFn(%v) = %v, expected %v: %v", col, gotCol, wantCol, err)
@@ -434,7 +435,7 @@ func TestParDoCtx2x2(t *testing.T) {
 	for _, tc := range []struct {
 		desc string
 		m    func(context.Context) context.Context // function that modifies a context
-		want []pairICodedKV
+		want []testutils.PairICodedKV
 	}{
 		// good context
 		{"unchanged context", unchangedContext, goodResult2x2},
@@ -452,13 +453,13 @@ func TestParDoCtx2x2(t *testing.T) {
 
 		p, s, col, wantCol := ptest.CreateList2(valuesCodedKV, tc.want)
 		wantCodec := kv.NewCodec(reflect.TypeOf(int(0)), reflect.TypeOf(int(0)))
-		colKV := beam.ParDo(s, pairICodedKVToKV, col)
+		colKV := beam.ParDo(s, testutils.PairICodedKVToKV, col)
 
 		// pcol should contain 17→<kv.Pair{84, 22}> and 99→<kv.Pair{0, 1}>.
 		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
 		// We change that to 17→<kv.Pair{106, 62}> and 99→<kv.Pair{1, -1}> in the PrivatePCollection
 		pcol = ParDo(s, doFn, pcol)
-		gotCol := beam.ParDo(s, kvToPairICodedKV, pcol.col)
+		gotCol := beam.ParDo(s, testutils.KVToPairICodedKV, pcol.col)
 		passert.Equals(s, gotCol, wantCol)
 		if err := execute(tc.m(context.Background()), p); err != nil {
 			t.Errorf("With %s, DoFn(%v) = %v, expected %v: %v", tc.desc, col, gotCol, wantCol, err)
@@ -480,20 +481,20 @@ func TestParDo2x2Err(t *testing.T) {
 		desc       string
 		doFn       func(int, int) (int, int, error)
 		returnsErr bool
-		want       []pairICodedKV
+		want       []testutils.PairICodedKV
 	}{
 		{"doFn that does not return an error", noErr, false, goodResult2x2},
 		{"doFn that returns an error", hasErr, true, zeroValuedCodedKV},
 	} {
 		p, s, col, wantCol := ptest.CreateList2(valuesCodedKV, tc.want)
 		wantCodec := kv.NewCodec(reflect.TypeOf(int(0)), reflect.TypeOf(int(0)))
-		colKV := beam.ParDo(s, pairICodedKVToKV, col)
+		colKV := beam.ParDo(s, testutils.PairICodedKVToKV, col)
 
 		// pcol should contain 17→<kv.Pair{84, 22}> and 99→<kv.Pair{0, 1}>.
 		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
 		// We change that to 17→<kv.Pair{106, 62}> and 99→<kv.Pair{1, -1}> in the PrivatePCollection
 		pcol = ParDo(s, tc.doFn, pcol)
-		gotCol := beam.ParDo(s, kvToPairICodedKV, pcol.col)
+		gotCol := beam.ParDo(s, testutils.KVToPairICodedKV, pcol.col)
 		passert.Equals(s, gotCol, wantCol)
 		if tc.returnsErr {
 			if err := execute(context.Background(), p); err == nil {
@@ -525,7 +526,7 @@ func TestParDoCtx2x2Err(t *testing.T) {
 		m          func(context.Context) context.Context // function that modifies a context
 		doFn       func(context.Context, int, int) (int, int, error)
 		returnsErr bool
-		want       []pairICodedKV
+		want       []testutils.PairICodedKV
 	}{
 		// good context
 		{"unchanged context and no error", unchangedContext, noErr, false, goodResult2x2},
@@ -537,13 +538,13 @@ func TestParDoCtx2x2Err(t *testing.T) {
 	} {
 		p, s, col, wantCol := ptest.CreateList2(valuesCodedKV, tc.want)
 		wantCodec := kv.NewCodec(reflect.TypeOf(int(0)), reflect.TypeOf(int(0)))
-		colKV := beam.ParDo(s, pairICodedKVToKV, col)
+		colKV := beam.ParDo(s, testutils.PairICodedKVToKV, col)
 
 		// pcol should contain 17→<kv.Pair{84, 22}> and 99→<kv.Pair{0, 1}>.
 		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
 		// We change that to 17→<kv.Pair{106, 62}> and 99→<kv.Pair{1, -1}> in the PrivatePCollection
 		pcol = ParDo(s, tc.doFn, pcol)
-		gotCol := beam.ParDo(s, kvToPairICodedKV, pcol.col)
+		gotCol := beam.ParDo(s, testutils.KVToPairICodedKV, pcol.col)
 		passert.Equals(s, gotCol, wantCol)
 		if tc.returnsErr {
 			if err := execute(tc.m(context.Background()), p); err == nil {
@@ -598,7 +599,7 @@ func TestParDoCtx1x1(t *testing.T) {
 	for _, tc := range []struct {
 		// m is a function that modifies a context
 		m    func(context.Context) context.Context
-		want []pairII
+		want []testutils.PairII
 	}{
 		// good context
 		{unchangedContext, goodResult},
@@ -608,14 +609,14 @@ func TestParDoCtx1x1(t *testing.T) {
 		{instantTimeout, zeroResult},
 	} {
 		p, s, col, wantCol := ptest.CreateList2(values, tc.want)
-		colKV := beam.ParDo(s, pairToKV, col)
+		colKV := beam.ParDo(s, testutils.PairToKV, col)
 
 		// pcol should contain 17→42 and 99→0.
 		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
 		// If the context was cancelled, we change that to 17→0 and 99→0 in the PrivatePCollection,
 		// Otherwise, we change that to 17→26 and 99→5
 		pcol = ParDo(s, doFnWithContext, pcol)
-		gotCol := beam.ParDo(s, kvToPair, pcol.col)
+		gotCol := beam.ParDo(s, testutils.KVToPair, pcol.col)
 		passert.Equals(s, gotCol, wantCol)
 		// Run the beam pipeline with the modified context
 		if err := execute(tc.m(context.Background()), p); err != nil {
@@ -629,11 +630,11 @@ func TestParDo1x1Err(t *testing.T) {
 		return v/2 + 5, nil
 	}
 	p, s, col, wantCol := ptest.CreateList2(values, goodResult)
-	colKV := beam.ParDo(s, pairToKV, col)
+	colKV := beam.ParDo(s, testutils.PairToKV, col)
 
 	pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
 	pcol = ParDo(s, doFn, pcol)
-	gotCol := beam.ParDo(s, kvToPair, pcol.col)
+	gotCol := beam.ParDo(s, testutils.KVToPair, pcol.col)
 	passert.Equals(s, gotCol, wantCol)
 	if err := execute(context.Background(), p); err != nil {
 		t.Errorf("DoFn(%v) = %v, expected %v: %v", col, gotCol, wantCol, err)
@@ -645,11 +646,11 @@ func TestParDo1x1ErrReturnsError(t *testing.T) {
 		return 0, errors.New("this function always returns an error")
 	}
 	p, s, col, wantCol := ptest.CreateList2(values, zeroResult)
-	colKV := beam.ParDo(s, pairToKV, col)
+	colKV := beam.ParDo(s, testutils.PairToKV, col)
 
 	pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
 	pcol = ParDo(s, doFn, pcol)
-	gotCol := beam.ParDo(s, kvToPair, pcol.col)
+	gotCol := beam.ParDo(s, testutils.KVToPair, pcol.col)
 	passert.Equals(s, gotCol, wantCol)
 	if err := execute(context.Background(), p); err == nil {
 		t.Errorf("Expected runner to return an error, but didn't get one")
@@ -663,7 +664,7 @@ func TestParDoCtx1x1Err(t *testing.T) {
 	for _, tc := range []struct {
 		// m is a function that modifies a context
 		m    func(context.Context) context.Context
-		want []pairII
+		want []testutils.PairII
 	}{
 		// good context
 		{unchangedContext, goodResult},
@@ -673,14 +674,14 @@ func TestParDoCtx1x1Err(t *testing.T) {
 		{instantTimeout, zeroResult},
 	} {
 		p, s, col, wantCol := ptest.CreateList2(values, tc.want)
-		colKV := beam.ParDo(s, pairToKV, col)
+		colKV := beam.ParDo(s, testutils.PairToKV, col)
 
 		// pcol should contain 17→42 and 99→0.
 		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
 		// If the context was cancelled, we change that to 17→0 and 99→0 in the PrivatePCollection,
 		// Otherwise, we change that to 17→26 and 99→5
 		pcol = ParDo(s, doFn, pcol)
-		gotCol := beam.ParDo(s, kvToPair, pcol.col)
+		gotCol := beam.ParDo(s, testutils.KVToPair, pcol.col)
 		passert.Equals(s, gotCol, wantCol)
 		// Run the beam pipeline with the modified context
 		if err := execute(tc.m(context.Background()), p); err != nil {
@@ -698,7 +699,7 @@ func doFnPairWithCtx(_ context.Context, b int, emit func(int)) {
 }
 
 func TestParDo1x1Emit(t *testing.T) {
-	values := []pairII{
+	values := []testutils.PairII{
 		{17, 42},
 		{19, 10},
 		{80, 99},
@@ -706,11 +707,11 @@ func TestParDo1x1Emit(t *testing.T) {
 	}
 
 	p, s, col := ptest.CreateList(values)
-	colKV := beam.ParDo(s, pairToKV, col)
+	colKV := beam.ParDo(s, testutils.PairToKV, col)
 
 	pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
 	pcol = ParDo(s, doFnPair, pcol)
-	gotCol := beam.ParDo(s, kvToPair, pcol.col)
+	gotCol := beam.ParDo(s, testutils.KVToPair, pcol.col)
 	passert.Equals(s, gotCol, col)
 	if err := execute(context.Background(), p); err != nil {
 		t.Errorf("ParDo_Emit(%v) = %v, expected %v: %v", col, gotCol, pcol, err)
@@ -719,7 +720,7 @@ func TestParDo1x1Emit(t *testing.T) {
 	// Check for values with ctx passed in doFn
 	pcol = MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
 	pcol = ParDo(s, doFnPairWithCtx, pcol)
-	gotCol = beam.ParDo(s, kvToPair, pcol.col)
+	gotCol = beam.ParDo(s, testutils.KVToPair, pcol.col)
 	passert.Equals(s, gotCol, col)
 	if err := execute(context.Background(), p); err != nil {
 		t.Errorf("ParDo_Emit(ctx, %v) = %v, expected %v: %v", col, gotCol, pcol, err)
@@ -739,19 +740,19 @@ func TestParDo1x1ErrEmit(t *testing.T) {
 		desc       string
 		doFn       func(int, func(int)) error
 		returnsErr bool
-		want       []pairII
+		want       []testutils.PairII
 	}{
 		{"doFn that does not return an error", noErr, false, goodResult},
 		{"doFn that returns an error", hasErr, true, zeroResult},
 	} {
 		p, s, col, wantCol := ptest.CreateList2(values, tc.want)
-		colKV := beam.ParDo(s, pairToKV, col)
+		colKV := beam.ParDo(s, testutils.PairToKV, col)
 
 		// pcol should contain 17→42 and 99→0.
 		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
 		// We change that to 17→26 and 99→5 in the PrivatePCollection
 		pcol = ParDo(s, tc.doFn, pcol)
-		gotCol := beam.ParDo(s, kvToPair, pcol.col)
+		gotCol := beam.ParDo(s, testutils.KVToPair, pcol.col)
 		passert.Equals(s, gotCol, wantCol)
 		if tc.returnsErr {
 			if err := execute(context.Background(), p); err == nil {
@@ -782,7 +783,7 @@ func TestParDoCtx1x1ErrEmit(t *testing.T) {
 		m          func(context.Context) context.Context // function that modifies a context
 		doFn       func(context.Context, int, func(int)) error
 		returnsErr bool
-		want       []pairII
+		want       []testutils.PairII
 	}{
 		// good context
 		{"unchanged context and no error", unchangedContext, noErr, false, goodResult},
@@ -793,13 +794,13 @@ func TestParDoCtx1x1ErrEmit(t *testing.T) {
 		{"instantTimeout and error", instantTimeout, hasErr, true, zeroResult},
 	} {
 		p, s, col, wantCol := ptest.CreateList2(values, tc.want)
-		colKV := beam.ParDo(s, pairToKV, col)
+		colKV := beam.ParDo(s, testutils.PairToKV, col)
 
 		// pcol should contain 17→42 and 99→0.
 		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
 		// We change that to 17→26 and 99→5 in the PrivatePCollection
 		pcol = ParDo(s, tc.doFn, pcol)
-		gotCol := beam.ParDo(s, kvToPair, pcol.col)
+		gotCol := beam.ParDo(s, testutils.KVToPair, pcol.col)
 		passert.Equals(s, gotCol, wantCol)
 		if tc.returnsErr {
 			if err := execute(tc.m(context.Background()), p); err == nil {
@@ -817,7 +818,7 @@ func TestParDo1x2Emit(t *testing.T) {
 	for _, tc := range []struct {
 		desc string
 		doFn interface{}
-		want []pairICodedKV
+		want []testutils.PairICodedKV
 	}{
 		{"doFn that emits only non-zero inputs",
 			func(v int, emit func(int, int)) {
@@ -825,7 +826,7 @@ func TestParDo1x2Emit(t *testing.T) {
 					emit(v*2, v/2+1)
 				}
 			},
-			[]pairICodedKV{
+			[]testutils.PairICodedKV{
 				{17, codec.Encode(84, 22)},
 			}},
 		{"doFn that emits each input once",
@@ -841,7 +842,7 @@ func TestParDo1x2Emit(t *testing.T) {
 					emit(v*2, v/2+1)
 				}
 			},
-			[]pairICodedKV{
+			[]testutils.PairICodedKV{
 				{17, codec.Encode(84, 22)},
 				{17, codec.Encode(42, 11)},
 				{99, codec.Encode(0, 1)},
@@ -849,13 +850,13 @@ func TestParDo1x2Emit(t *testing.T) {
 	} {
 		p, s, col, wantCol := ptest.CreateList2(values, tc.want)
 		wantCodec := kv.NewCodec(reflect.TypeOf(int(0)), reflect.TypeOf(int(0)))
-		colKV := beam.ParDo(s, pairToKV, col)
+		colKV := beam.ParDo(s, testutils.PairToKV, col)
 
 		// pcol should contain 17→42 and 99→0.
 		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
 		// We change that to 17→<kv.Pair{84, 22}> and 99→<kv.Pair{0, 1}> in the PrivatePCollection
 		pcol = ParDo(s, tc.doFn, pcol)
-		gotCol := beam.ParDo(s, kvToPairICodedKV, pcol.col)
+		gotCol := beam.ParDo(s, testutils.KVToPairICodedKV, pcol.col)
 		passert.Equals(s, gotCol, wantCol)
 		if err := execute(context.Background(), p); err != nil {
 			t.Errorf("With %s, DoFn(%v) = %v, expected %v: %v", tc.desc, col, gotCol, wantCol, err)
@@ -870,7 +871,7 @@ func TestParDoCtx1x2Emit(t *testing.T) {
 	for _, tc := range []struct {
 		desc string
 		m    func(context.Context) context.Context // function that modifies a context
-		want []pairICodedKV
+		want []testutils.PairICodedKV
 	}{
 		// good context
 		{"unchanged context", unchangedContext, valuesCodedKV},
@@ -888,13 +889,13 @@ func TestParDoCtx1x2Emit(t *testing.T) {
 		}
 		p, s, col, wantCol := ptest.CreateList2(values, tc.want)
 		wantCodec := kv.NewCodec(reflect.TypeOf(int(0)), reflect.TypeOf(int(0)))
-		colKV := beam.ParDo(s, pairToKV, col)
+		colKV := beam.ParDo(s, testutils.PairToKV, col)
 
 		// pcol should contain 17→42 and 99→0.
 		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
 		// We change that to 17→<kv.Pair{84, 22}> and 99→<kv.Pair{0, 1}> in the PrivatePCollection
 		pcol = ParDo(s, doFn, pcol)
-		gotCol := beam.ParDo(s, kvToPairICodedKV, pcol.col)
+		gotCol := beam.ParDo(s, testutils.KVToPairICodedKV, pcol.col)
 		passert.Equals(s, gotCol, wantCol)
 		if err := execute(tc.m(context.Background()), p); err != nil {
 			t.Errorf("DoFn(%v) = %v, expected %v: %v", col, gotCol, wantCol, err)
@@ -917,20 +918,20 @@ func TestParDo1x2ErrEmit(t *testing.T) {
 		desc       string
 		doFn       func(int, func(int, int)) error
 		returnsErr bool
-		want       []pairICodedKV
+		want       []testutils.PairICodedKV
 	}{
 		{"doFn that does not return an error", noErr, false, valuesCodedKV},
 		{"doFn that returns an error", hasErr, true, zeroValuedCodedKV},
 	} {
 		p, s, col, wantCol := ptest.CreateList2(values, tc.want)
 		wantCodec := kv.NewCodec(reflect.TypeOf(int(0)), reflect.TypeOf(int(0)))
-		colKV := beam.ParDo(s, pairToKV, col)
+		colKV := beam.ParDo(s, testutils.PairToKV, col)
 
 		// pcol should contain 17→42 and 99→0.
 		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
 		// We change that to 17→<kv.Pair{84, 22}> and 99→<kv.Pair{0, 1}> in the PrivatePCollection
 		pcol = ParDo(s, tc.doFn, pcol)
-		gotCol := beam.ParDo(s, kvToPairICodedKV, pcol.col)
+		gotCol := beam.ParDo(s, testutils.KVToPairICodedKV, pcol.col)
 		passert.Equals(s, gotCol, wantCol)
 		if tc.returnsErr {
 			if err := execute(context.Background(), p); err == nil {
@@ -964,7 +965,7 @@ func TestParDoCtx1x2ErrEmit(t *testing.T) {
 		m          func(context.Context) context.Context // function that modifies a context
 		doFn       func(context.Context, int, func(int, int)) error
 		returnsErr bool
-		want       []pairICodedKV
+		want       []testutils.PairICodedKV
 	}{
 		// good context
 		{"unchanged context and no error", unchangedContext, noErr, false, valuesCodedKV},
@@ -976,13 +977,13 @@ func TestParDoCtx1x2ErrEmit(t *testing.T) {
 	} {
 		p, s, col, wantCol := ptest.CreateList2(values, tc.want)
 		wantCodec := kv.NewCodec(reflect.TypeOf(int(0)), reflect.TypeOf(int(0)))
-		colKV := beam.ParDo(s, pairToKV, col)
+		colKV := beam.ParDo(s, testutils.PairToKV, col)
 
 		// pcol should contain 17→42 and 99→0.
 		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
 		// We change that to 17→<kv.Pair{84, 22}> and 99→<kv.Pair{0, 1}> in the PrivatePCollection
 		pcol = ParDo(s, tc.doFn, pcol)
-		gotCol := beam.ParDo(s, kvToPairICodedKV, pcol.col)
+		gotCol := beam.ParDo(s, testutils.KVToPairICodedKV, pcol.col)
 		passert.Equals(s, gotCol, wantCol)
 		if tc.returnsErr {
 			if err := execute(tc.m(context.Background()), p); err == nil {
@@ -1003,7 +1004,7 @@ func TestParDo2x1Emit(t *testing.T) {
 	for _, tc := range []struct {
 		desc string
 		doFn interface{}
-		want []pairII
+		want []testutils.PairII
 	}{
 		{"doFn that emits only non-zero input k",
 			func(k, v int, emit func(int)) {
@@ -1011,7 +1012,7 @@ func TestParDo2x1Emit(t *testing.T) {
 					emit(k + v)
 				}
 			},
-			[]pairII{
+			[]testutils.PairII{
 				{17, 106},
 			}},
 		{"doFn that emits each input once",
@@ -1028,20 +1029,20 @@ func TestParDo2x1Emit(t *testing.T) {
 					emit(k + v)
 				}
 			},
-			[]pairII{
+			[]testutils.PairII{
 				{17, 106},
 				{17, 53},
 				{99, 1},
 			}},
 	} {
 		p, s, col, wantCol := ptest.CreateList2(valuesCodedKV, tc.want)
-		colKV := beam.ParDo(s, pairICodedKVToKV, col)
+		colKV := beam.ParDo(s, testutils.PairICodedKVToKV, col)
 
 		// pcol should contain 17→<kv.Pair{84, 22}> and 99→<kv.Pair{0, 1}>.
 		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
 		// We change that to 17→106 and 99→1 in the PrivatePCollection
 		pcol = ParDo(s, tc.doFn, pcol)
-		gotCol := beam.ParDo(s, kvToPair, pcol.col)
+		gotCol := beam.ParDo(s, testutils.KVToPair, pcol.col)
 		passert.Equals(s, gotCol, wantCol)
 		if err := execute(context.Background(), p); err != nil {
 			t.Errorf("DoFn(%v) = %v, expected %v: %v", col, gotCol, wantCol, err)
@@ -1053,7 +1054,7 @@ func TestParDoCtx2x1Emit(t *testing.T) {
 	for _, tc := range []struct {
 		desc string
 		m    func(context.Context) context.Context // function that modifies a context
-		want []pairII
+		want []testutils.PairII
 	}{
 		// good context
 		{"unchanged context", unchangedContext, goodResult2x1},
@@ -1070,13 +1071,13 @@ func TestParDoCtx2x1Emit(t *testing.T) {
 			}
 		}
 		p, s, col, wantCol := ptest.CreateList2(valuesCodedKV, tc.want)
-		colKV := beam.ParDo(s, pairICodedKVToKV, col)
+		colKV := beam.ParDo(s, testutils.PairICodedKVToKV, col)
 
 		// pcol should contain 17→<kv.Pair{84, 22}> and 99→<kv.Pair{0, 1}>.
 		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
 		// We change that to 17→106 and 99→1 in the PrivatePCollection
 		pcol = ParDo(s, doFn, pcol)
-		gotCol := beam.ParDo(s, kvToPair, pcol.col)
+		gotCol := beam.ParDo(s, testutils.KVToPair, pcol.col)
 		passert.Equals(s, gotCol, wantCol)
 		if err := execute(tc.m(context.Background()), p); err != nil {
 			t.Errorf("DoFn(%v) = %v, expected %v: %v", col, gotCol, wantCol, err)
@@ -1096,19 +1097,19 @@ func TestParDo2x1ErrEmit(t *testing.T) {
 		desc       string
 		doFn       func(int, int, func(int)) error
 		returnsErr bool
-		want       []pairII
+		want       []testutils.PairII
 	}{
 		{"doFn that does not return an error", noErr, false, goodResult2x1},
 		{"doFn that returns an error", hasErr, true, zeroResult},
 	} {
 		p, s, col, wantCol := ptest.CreateList2(valuesCodedKV, tc.want)
-		colKV := beam.ParDo(s, pairICodedKVToKV, col)
+		colKV := beam.ParDo(s, testutils.PairICodedKVToKV, col)
 
 		// pcol should contain 17→<codedKV{84, 22}> and 99→<codedKV{0, 1}>.
 		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
 		// We change that to 17→106 and 99→1 in the PrivatePCollection
 		pcol = ParDo(s, tc.doFn, pcol)
-		gotCol := beam.ParDo(s, kvToPair, pcol.col)
+		gotCol := beam.ParDo(s, testutils.KVToPair, pcol.col)
 		passert.Equals(s, gotCol, wantCol)
 		if tc.returnsErr {
 			if err := execute(context.Background(), p); err == nil {
@@ -1139,7 +1140,7 @@ func TestParDoCtx2x1ErrEmit(t *testing.T) {
 		m          func(context.Context) context.Context // function that modifies a context
 		doFn       func(context.Context, int, int, func(int)) error
 		returnsErr bool
-		want       []pairII
+		want       []testutils.PairII
 	}{
 		// good context
 		{"unchanged context and no error", unchangedContext, noErr, false, goodResult2x1},
@@ -1150,13 +1151,13 @@ func TestParDoCtx2x1ErrEmit(t *testing.T) {
 		{"instantTimeout and error", instantTimeout, hasErr, true, zeroResult},
 	} {
 		p, s, col, wantCol := ptest.CreateList2(valuesCodedKV, tc.want)
-		colKV := beam.ParDo(s, pairICodedKVToKV, col)
+		colKV := beam.ParDo(s, testutils.PairICodedKVToKV, col)
 
 		// pcol should contain 17→<codedKV{84, 22}> and 99→<codedKV{0, 1}>.
 		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
 		// We change that to 17→106 and 99→1 in the PrivatePCollection
 		pcol = ParDo(s, tc.doFn, pcol)
-		gotCol := beam.ParDo(s, kvToPair, pcol.col)
+		gotCol := beam.ParDo(s, testutils.KVToPair, pcol.col)
 		passert.Equals(s, gotCol, wantCol)
 		if tc.returnsErr {
 			if err := execute(tc.m(context.Background()), p); err == nil {
@@ -1174,7 +1175,7 @@ func TestParDo2x2Emit(t *testing.T) {
 	for _, tc := range []struct {
 		desc string
 		doFn interface{}
-		want []pairICodedKV
+		want []testutils.PairICodedKV
 	}{
 		{"doFn that emits only non-zero input k",
 			func(k, v int, emit func(int, int)) {
@@ -1182,7 +1183,7 @@ func TestParDo2x2Emit(t *testing.T) {
 					emit(k+v, k-v)
 				}
 			},
-			[]pairICodedKV{
+			[]testutils.PairICodedKV{
 				{17, codec.Encode(106, 62)},
 			}},
 		{"doFn that emits each input once",
@@ -1199,7 +1200,7 @@ func TestParDo2x2Emit(t *testing.T) {
 					emit(k+v, k-v)
 				}
 			},
-			[]pairICodedKV{
+			[]testutils.PairICodedKV{
 				{17, codec.Encode(106, 62)},
 				{17, codec.Encode(53, 31)},
 				{99, codec.Encode(1, -1)},
@@ -1207,13 +1208,13 @@ func TestParDo2x2Emit(t *testing.T) {
 	} {
 		p, s, col, wantCol := ptest.CreateList2(valuesCodedKV, tc.want)
 		wantCodec := kv.NewCodec(reflect.TypeOf(int(0)), reflect.TypeOf(int(0)))
-		colKV := beam.ParDo(s, pairICodedKVToKV, col)
+		colKV := beam.ParDo(s, testutils.PairICodedKVToKV, col)
 
 		// pcol should contain 17→<kv.Pair{84, 22}> and 99→<kv.Pair{0, 1}>.
 		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
 		// We change that to 17→<kv.Pair{106, 62}> and 99→<kv.Pair{1, -1}> in the PrivatePCollection
 		pcol = ParDo(s, tc.doFn, pcol)
-		gotCol := beam.ParDo(s, kvToPairICodedKV, pcol.col)
+		gotCol := beam.ParDo(s, testutils.KVToPairICodedKV, pcol.col)
 		passert.Equals(s, gotCol, wantCol)
 		if err := execute(context.Background(), p); err != nil {
 			t.Errorf("DoFn(%v) = %v, expected %v: %v", col, gotCol, wantCol, err)
@@ -1228,7 +1229,7 @@ func TestParDoCtx2x2Emit(t *testing.T) {
 	for _, tc := range []struct {
 		desc string
 		m    func(context.Context) context.Context // function that modifies a context
-		want []pairICodedKV
+		want []testutils.PairICodedKV
 	}{
 		// good context
 		{"unchanged context", unchangedContext, goodResult2x2},
@@ -1246,13 +1247,13 @@ func TestParDoCtx2x2Emit(t *testing.T) {
 		}
 		p, s, col, wantCol := ptest.CreateList2(valuesCodedKV, tc.want)
 		wantCodec := kv.NewCodec(reflect.TypeOf(int(0)), reflect.TypeOf(int(0)))
-		colKV := beam.ParDo(s, pairICodedKVToKV, col)
+		colKV := beam.ParDo(s, testutils.PairICodedKVToKV, col)
 
 		// pcol should contain 17→<kv.Pair{84, 22}> and 99→<kv.Pair{0, 1}>.
 		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
 		// We change that to 17→<kv.Pair{106, 62}> and 99→<kv.Pair{1, -1}> in the PrivatePCollection
 		pcol = ParDo(s, doFn, pcol)
-		gotCol := beam.ParDo(s, kvToPairICodedKV, pcol.col)
+		gotCol := beam.ParDo(s, testutils.KVToPairICodedKV, pcol.col)
 		passert.Equals(s, gotCol, wantCol)
 		if err := execute(tc.m(context.Background()), p); err != nil {
 			t.Errorf("DoFn(%v) = %v, expected %v: %v", col, gotCol, wantCol, err)
@@ -1275,20 +1276,20 @@ func TestParDo2x2ErrEmit(t *testing.T) {
 		desc       string
 		doFn       func(int, int, func(int, int)) error
 		returnsErr bool
-		want       []pairICodedKV
+		want       []testutils.PairICodedKV
 	}{
 		{"doFn that does not return an error", noErr, false, goodResult2x2},
 		{"doFn that returns an error", hasErr, true, zeroValuedCodedKV},
 	} {
 		p, s, col, wantCol := ptest.CreateList2(valuesCodedKV, tc.want)
 		wantCodec := kv.NewCodec(reflect.TypeOf(int(0)), reflect.TypeOf(int(0)))
-		colKV := beam.ParDo(s, pairICodedKVToKV, col)
+		colKV := beam.ParDo(s, testutils.PairICodedKVToKV, col)
 
 		// pcol should contain 17→<kv.Pair{84, 22}> and 99→<kv.Pair{0, 1}>.
 		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
 		// We change that to 17→<kv.Pair{106, 62}> and 99→<kv.Pair{1, -1}> in the PrivatePCollection
 		pcol = ParDo(s, tc.doFn, pcol)
-		gotCol := beam.ParDo(s, kvToPairICodedKV, pcol.col)
+		gotCol := beam.ParDo(s, testutils.KVToPairICodedKV, pcol.col)
 		passert.Equals(s, gotCol, wantCol)
 		if tc.returnsErr {
 			if err := execute(context.Background(), p); err == nil {
@@ -1322,7 +1323,7 @@ func TestParDoCtx2x2ErrEmit(t *testing.T) {
 		m          func(context.Context) context.Context // function that modifies a context
 		doFn       func(context.Context, int, int, func(int, int)) error
 		returnsErr bool
-		want       []pairICodedKV
+		want       []testutils.PairICodedKV
 	}{
 		// good context
 		{"unchanged context and no error", unchangedContext, noErr, false, goodResult2x2},
@@ -1334,13 +1335,13 @@ func TestParDoCtx2x2ErrEmit(t *testing.T) {
 	} {
 		p, s, col, wantCol := ptest.CreateList2(valuesCodedKV, tc.want)
 		wantCodec := kv.NewCodec(reflect.TypeOf(int(0)), reflect.TypeOf(int(0)))
-		colKV := beam.ParDo(s, pairICodedKVToKV, col)
+		colKV := beam.ParDo(s, testutils.PairICodedKVToKV, col)
 
 		// pcol should contain 17→<kv.Pair{84, 22}> and 99→<kv.Pair{0, 1}>.
 		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
 		// We change that to 17→<kv.Pair{106, 62}> and 99→<kv.Pair{1, -1}> in the PrivatePCollection
 		pcol = ParDo(s, tc.doFn, pcol)
-		gotCol := beam.ParDo(s, kvToPairICodedKV, pcol.col)
+		gotCol := beam.ParDo(s, testutils.KVToPairICodedKV, pcol.col)
 		passert.Equals(s, gotCol, wantCol)
 		if tc.returnsErr {
 			if err := execute(tc.m(context.Background()), p); err == nil {

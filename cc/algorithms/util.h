@@ -102,18 +102,27 @@ inline const T& Clamp(const T& low, const T& high, const T& value) {
   return value;
 }
 
-// When T is an integral type, return true and assign the addition result if the
-// addition will not overflow. Otherwise, assign the numeric limit to result and
-// return false.
+// Return value for the SafeCastFromDouble functions below, including the cast
+// value and whether or not the cast caused an overflow.
+template <typename T>
+struct SafeOpResult {
+  T value;
+  bool overflow = false;
+};
+
+// When T is an integral type, return the addition result if and whether or not
+// there would have been an overflow. Otherwise, assign the numeric limit to
+// result and signal that there would have been an overflow.
+// Note that this should NOT be used to gracefully handle overflows in
+// computations on data. See (broken link)
 template <typename T, std::enable_if_t<std::is_integral<T>::value>* = nullptr>
-inline bool SafeAdd(T lhs, T rhs, T* result) {
+inline SafeOpResult<T> SafeAdd(T lhs, T rhs) {
   if (lhs > 0) {
     // For negative rhs, we will never overflow.
     if (rhs > 0) {
       T safe_distance = std::numeric_limits<T>::max() - lhs;
       if (safe_distance < rhs) {
-        *result = std::numeric_limits<T>::max();
-        return false;
+        return SafeOpResult<T>{std::numeric_limits<T>::max(), true};
       }
     }
   } else if (lhs < 0) {
@@ -121,29 +130,30 @@ inline bool SafeAdd(T lhs, T rhs, T* result) {
     if (rhs < 0) {
       T safe_distance = std::numeric_limits<T>::lowest() - lhs;
       if (safe_distance > rhs) {
-        *result = std::numeric_limits<T>::lowest();
-        return false;
+        return SafeOpResult<T>{std::numeric_limits<T>::lowest(), true};
       }
     }
   }
-  *result = lhs + rhs;
-  return true;
+  return SafeOpResult<T>{lhs + rhs, false};
 }
 
 // When T is a floating-point type, perform a simple addition, since
 // floating-point types don't have the same overflow issues as integral types.
+// Note that this should NOT be used to gracefully handle overflows in
+// computations on data. See (broken link)
 template <typename T,
           std::enable_if_t<std::is_floating_point<T>::value>* = nullptr>
-inline bool SafeAdd(T lhs, T rhs, T* result) {
-  *result = lhs + rhs;
-  return true;
+inline SafeOpResult<T> SafeAdd(T lhs, T rhs) {
+  return SafeOpResult<T>{lhs + rhs, false};
 }
 
-// When T is an integral type, return true and assign the subtraction result if
-// the subtraction will not overflow. Otherwise, assign the numeric limit to
-// result and return false.
+// When T is an integral type, assign the subtraction result and whether or not
+// there was an overflow. Otherwise, assign the numeric limit to result and
+// that there would have been an overflow.
+// Note that this should NOT be used to gracefully handle overflows in
+// computations on data. See (broken link)
 template <typename T, std::enable_if_t<std::is_integral<T>::value>* = nullptr>
-inline bool SafeSubtract(T lhs, T rhs, T* result) {
+inline SafeOpResult<T> SafeSubtract(T lhs, T rhs) {
   // For integral values, the min numeric limit is larger in magnitude than the
   // max numeric limit, so we cannot negate it. For unsigned types, the lowest
   // numeric limit is 0. For signed types, it is negative.
@@ -151,55 +161,54 @@ inline bool SafeSubtract(T lhs, T rhs, T* result) {
     if (lhs >= 0) {
       // We use std::numeric_limits<T>::max() here, since we assume that
       // std::numeric_limits<T>::max() <= -(-std::numeric_limits<T>::lowest()).
-      *result = std::numeric_limits<T>::max();
-      return false;
+      return SafeOpResult<T>{std::numeric_limits<T>::max(), true};
     } else {
-      *result = lhs - rhs;
-      return true;
+      return SafeOpResult<T>{lhs - rhs, false};
     }
   }
 
   // For all other values of rhs, add the negation.
-  return SafeAdd(lhs, -rhs, result);
+  return SafeAdd(lhs, -rhs);
 }
 
 // When T is a floating-point type, perform a simple subtraction, since
 // floating-point types don't have the same overflow issues as integral types.
+// Note that this should NOT be used to gracefully handle overflows in
+// computations on data. See (broken link)
 template <typename T,
           std::enable_if_t<std::is_floating_point<T>::value>* = nullptr>
-inline bool SafeSubtract(T lhs, T rhs, T* result) {
-  *result = lhs - rhs;
-  return true;
+inline SafeOpResult<T> SafeSubtract(T lhs, T rhs) {
+  return SafeOpResult<T>{lhs - rhs, false};
 }
 
 // Return true and assign the square result if squaring will not overflow.
+// Note that this should NOT be used to gracefully handle overflows in
+// computations on data. See (broken link)
 template <typename T, std::enable_if_t<std::is_integral<T>::value>* = nullptr>
-inline bool SafeSquare(T num, T* result) {
+inline SafeOpResult<T> SafeSquare(T num) {
+  SafeOpResult<T> safe_op_result;
   double max_root = std::pow(std::numeric_limits<T>::max(), 0.5);
-  if (num > 0 && num > static_cast<T>(max_root)) return false;
-  if (num < 0 && num < -1 * static_cast<T>(max_root)) return false;
-  *result = num * num;
-  return true;
+  if ((num > 0 && num > static_cast<T>(max_root)) ||
+      (num < 0 && num < -1 * static_cast<T>(max_root))) {
+    safe_op_result.overflow = true;
+    safe_op_result.value = 0;
+  } else {
+    safe_op_result.overflow = false;
+    safe_op_result.value = num * num;
+  }
+  return safe_op_result;
 }
-
-// Return value for the SafeCastFromDouble functions below, including the cast
-// value and whether the cast occured without an overflow.
-template <typename T>
-struct SafeCastResult {
-  T value;
-  bool no_overflow;
-};
 
 // Tries to convert a double value to an integral value, manually overflowing
 // if necessary to avoid a SIGILL error from a static_cast outside the numeric
 // limits of T. Returns a pair containing the the cast (and possibly
 // overflowed) value and a boolean indicating whether or not the cast would have
-// been successful (i.e., true if the cast would not have overflowed).
+// been successful (i.e., true if the cast would have overflowed).
 template <typename T, std::enable_if_t<std::is_integral<T>::value>* = nullptr>
-inline SafeCastResult<T> SafeCastFromDouble(const double in) {
+inline SafeOpResult<T> SafeCastFromDouble(const double in) {
   if (std::isnan(in) || !std::isfinite(in)) {
     // Integral types do not support NaN or infinite values.
-    return SafeCastResult<T>{std::numeric_limits<T>::quiet_NaN(), false};
+    return SafeOpResult<T>{std::numeric_limits<T>::quiet_NaN(), true};
   }
   static const int64_t kTMax = std::numeric_limits<T>::max();
   static const int64_t kTLowest = std::numeric_limits<T>::lowest();
@@ -292,15 +301,15 @@ inline SafeCastResult<T> SafeCastFromDouble(const double in) {
     out = static_cast<T>(d_out_floor);
   }
 
-  return SafeCastResult<T>{out, !overflow};
+  return SafeOpResult<T>{out, overflow};
 }
 
 // Converts double to other floating points. This should be mostly a no-op since
 // we are typically only using doubles.
 template <typename T,
           std::enable_if_t<std::is_floating_point<T>::value>* = nullptr>
-inline SafeCastResult<T> SafeCastFromDouble(const double in) {
-  return SafeCastResult<T>{static_cast<T>(in), true};
+inline SafeOpResult<T> SafeCastFromDouble(const double in) {
+  return SafeOpResult<T>{static_cast<T>(in), false};
 }
 
 template <typename T>

@@ -143,7 +143,7 @@ func DistinctPrivacyID(s beam.Scope, pcol PrivatePCollection, params DistinctPri
 	noisedCounts := beam.CombinePerKey(s,
 		newCountFn(epsilon, delta, maxPartitionsContributed, noiseKind, false),
 		dummyCounts)
-	// Finally, drop thresholded partitions and return the result
+	// Finally, drop thresholded partitions and return the result.
 	return beam.ParDo(s, dropThresholdedPartitionsInt64Fn, noisedCounts)
 }
 
@@ -235,10 +235,12 @@ func (fn *countFn) CreateAccumulator() countAccum {
 	}), PublicPartitions: fn.PublicPartitions}
 }
 
-// AddInput adds one to the count of observed values. It ignores the actual
-// contents of value.
-func (fn *countFn) AddInput(a countAccum, value beam.X) countAccum {
-	a.C.Increment()
+// AddInput increments the count by one for each contribution. Does nothing when the
+// the value is 0, which is the case only for dummy public partitions.
+func (fn *countFn) AddInput(a countAccum, value int64) countAccum {
+	if value != 0 {
+		a.C.Increment()
+	}
 	return a
 }
 

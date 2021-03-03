@@ -348,7 +348,7 @@ TEST(NumericalMechanismsTest, LaplaceMechanismAddNoiseOverflowFromTypeCast) {
   LaplaceMechanism mechanism(1);
 
   // The noise should eventually be positive, which, when added to the numeric
-  // limit, will cause an overflow and returning a negative result.
+  // limit, will cause an overflow and return a negative result.
   int i;
   for (i = 0; i < 100; ++i) {
     if (mechanism.AddNoise(std::numeric_limits<int64_t>::max()) < 0) {
@@ -363,7 +363,7 @@ TEST(NumericalMechanismsTest, LaplaceMechanismAddNoiseUnderflowFromTypeCast) {
   LaplaceMechanism mechanism(1);
 
   // The noise should eventually be negative, which, when added to the numeric
-  // limit, will cause an underflow and returning a positive result.
+  // limit, will cause an underflow and return a positive result.
   int i;
   for (i = 0; i < 100; ++i) {
     if (mechanism.AddNoise(std::numeric_limits<int64_t>::lowest()) > 0) {
@@ -921,7 +921,7 @@ TEST(NumericalMechanismsTest, GaussianMechanismAddNoiseOverflowFromTypeCast) {
   ASSERT_OK(mechanism);
 
   // The noise should eventually be positive, which, when added to the numeric
-  // limit, will cause an overflow and returning a negative result.
+  // limit, will cause an overflow and return a negative result.
   int i;
   for (i = 0; i < 100; ++i) {
     if ((*mechanism)->AddNoise(std::numeric_limits<int64_t>::max()) < 0) {

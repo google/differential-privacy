@@ -241,97 +241,147 @@ TEST(ClampTest, DefaultTest) {
 }
 
 TEST(SafeOperationsTest, SafeAddInt) {
-  int64_t int_result;
-  EXPECT_TRUE(SafeAdd<int64_t>(10, 20, &int_result));
-  EXPECT_EQ(int_result, 30);
-  EXPECT_TRUE(SafeAdd<int64_t>(std::numeric_limits<int64_t>::max(),
-                             std::numeric_limits<int64_t>::lowest(),
-                             &int_result));
-  EXPECT_EQ(int_result, -1);
-  EXPECT_FALSE(
-      SafeAdd<int64_t>(std::numeric_limits<int64_t>::max(), 1, &int_result));
-  EXPECT_EQ(int_result, std::numeric_limits<int64_t>::max());
-  EXPECT_FALSE(
-      SafeAdd<int64_t>(std::numeric_limits<int64_t>::lowest(), -1, &int_result));
-  EXPECT_EQ(int_result, std::numeric_limits<int64_t>::lowest());
-  EXPECT_TRUE(
-      SafeAdd<int64_t>(std::numeric_limits<int64_t>::lowest(), 0, &int_result));
-  EXPECT_EQ(int_result, std::numeric_limits<int64_t>::lowest());
+  SafeOpResult<int64_t> safe_add_result;
+
+  safe_add_result = SafeAdd<int64_t>(10, 20);
+  EXPECT_FALSE(safe_add_result.overflow);
+  EXPECT_EQ(safe_add_result.value, 30);
+
+  safe_add_result = SafeAdd<int64_t>(std::numeric_limits<int64_t>::max(),
+                                   std::numeric_limits<int64_t>::lowest());
+  EXPECT_FALSE(safe_add_result.overflow);
+  EXPECT_EQ(safe_add_result.value, -1);
+
+  safe_add_result = SafeAdd<int64_t>(std::numeric_limits<int64_t>::max(), 1);
+  EXPECT_TRUE(safe_add_result.overflow);
+  EXPECT_EQ(safe_add_result.value, std::numeric_limits<int64_t>::max());
+
+  safe_add_result = SafeAdd<int64_t>(std::numeric_limits<int64_t>::lowest(), -1);
+  EXPECT_TRUE(safe_add_result.overflow);
+  EXPECT_EQ(safe_add_result.value, std::numeric_limits<int64_t>::lowest());
+
+  safe_add_result = SafeAdd<int64_t>(std::numeric_limits<int64_t>::lowest(), 0);
+  EXPECT_FALSE(safe_add_result.overflow);
+  EXPECT_EQ(safe_add_result.value, std::numeric_limits<int64_t>::lowest());
 }
 
 TEST(SafeOperationsTest, SafeAddDouble) {
-  double double_result;
-  EXPECT_TRUE(SafeAdd<double>(10, 20, &double_result));
-  EXPECT_EQ(double_result, 30);
-  EXPECT_TRUE(SafeAdd<double>(std::numeric_limits<double>::max(),
-                              std::numeric_limits<double>::lowest(),
-                              &double_result));
-  EXPECT_FLOAT_EQ(double_result, 0);
-  EXPECT_TRUE(
-      SafeAdd<double>(std::numeric_limits<double>::max(), 1.0, &double_result));
-  EXPECT_FLOAT_EQ(double_result, std::numeric_limits<double>::infinity());
-  EXPECT_TRUE(SafeAdd<double>(std::numeric_limits<double>::lowest(), -1.0,
-                              &double_result));
-  EXPECT_FLOAT_EQ(double_result, -std::numeric_limits<double>::infinity());
-  EXPECT_TRUE(SafeAdd<double>(std::numeric_limits<double>::lowest(), 0.0,
-                              &double_result));
-  EXPECT_EQ(double_result, std::numeric_limits<double>::lowest());
+  SafeOpResult<double> safe_add_result;
+
+  safe_add_result = SafeAdd<double>(10, 20);
+  EXPECT_FALSE(safe_add_result.overflow);
+  EXPECT_EQ(safe_add_result.value, 30);
+
+  safe_add_result = SafeAdd<double>(std::numeric_limits<double>::max(),
+                                    std::numeric_limits<double>::lowest());
+  EXPECT_FALSE(safe_add_result.overflow);
+  EXPECT_DOUBLE_EQ(safe_add_result.value, 0);
+
+  safe_add_result = SafeAdd<double>(std::numeric_limits<double>::max(), 1.0);
+  EXPECT_FALSE(safe_add_result.overflow);
+  EXPECT_DOUBLE_EQ(safe_add_result.value,
+                   std::numeric_limits<double>::infinity());
+
+  safe_add_result =
+      SafeAdd<double>(std::numeric_limits<double>::lowest(), -1.0);
+  EXPECT_FALSE(safe_add_result.overflow);
+  EXPECT_DOUBLE_EQ(safe_add_result.value,
+                   -std::numeric_limits<double>::infinity());
+
+  safe_add_result = SafeAdd<double>(std::numeric_limits<double>::lowest(), 0.0);
+  EXPECT_FALSE(safe_add_result.overflow);
+  EXPECT_DOUBLE_EQ(safe_add_result.value,
+                   std::numeric_limits<double>::lowest());
 }
 
 TEST(SafeOperationsTest, SafeSubtractInt) {
-  int64_t int_result;
-  EXPECT_TRUE(SafeSubtract<int64_t>(10, 20, &int_result));
-  EXPECT_EQ(int_result, -10);
-  EXPECT_FALSE(SafeSubtract<int64_t>(0, std::numeric_limits<int64_t>::lowest(),
-                                   &int_result));
-  EXPECT_EQ(int_result, std::numeric_limits<int64_t>::max());
-  EXPECT_FALSE(SafeSubtract<int64_t>(1, std::numeric_limits<int64_t>::lowest(),
-                                   &int_result));
-  EXPECT_EQ(int_result, std::numeric_limits<int64_t>::max());
-  EXPECT_TRUE(SafeSubtract<int64_t>(-1, std::numeric_limits<int64_t>::lowest(),
-                                  &int_result));
-  EXPECT_EQ(int_result, std::numeric_limits<int64_t>::max());
-  EXPECT_TRUE(SafeSubtract<int64_t>(std::numeric_limits<int64_t>::lowest(),
-                                  std::numeric_limits<int64_t>::lowest(),
-                                  &int_result));
-  EXPECT_EQ(int_result, 0);
+  SafeOpResult<int64_t> safe_subtract_int64_result;
 
-  uint64_t uint_result;
-  EXPECT_TRUE(SafeSubtract<uint64_t>(1, std::numeric_limits<uint64_t>::lowest(),
-                                   &uint_result));
-  EXPECT_EQ(uint_result, 1);
+  safe_subtract_int64_result = SafeSubtract<int64_t>(10, 20);
+  EXPECT_FALSE(safe_subtract_int64_result.overflow);
+  EXPECT_EQ(safe_subtract_int64_result.value, -10);
+
+  safe_subtract_int64_result =
+      SafeSubtract<int64_t>(0, std::numeric_limits<int64_t>::lowest());
+  EXPECT_TRUE(safe_subtract_int64_result.overflow);
+  EXPECT_EQ(safe_subtract_int64_result.value,
+            std::numeric_limits<int64_t>::max());
+
+  safe_subtract_int64_result =
+      SafeSubtract<int64_t>(1, std::numeric_limits<int64_t>::lowest());
+  EXPECT_TRUE(safe_subtract_int64_result.overflow);
+  EXPECT_EQ(safe_subtract_int64_result.value,
+            std::numeric_limits<int64_t>::max());
+
+  safe_subtract_int64_result =
+      SafeSubtract<int64_t>(-1, std::numeric_limits<int64_t>::lowest());
+  EXPECT_FALSE(safe_subtract_int64_result.overflow);
+  EXPECT_EQ(safe_subtract_int64_result.value,
+            std::numeric_limits<int64_t>::max());
+
+  safe_subtract_int64_result =
+      SafeSubtract<int64_t>(std::numeric_limits<int64_t>::lowest(),
+                          std::numeric_limits<int64_t>::lowest());
+  EXPECT_FALSE(safe_subtract_int64_result.overflow);
+  EXPECT_EQ(safe_subtract_int64_result.value, 0);
+
+  SafeOpResult<uint64_t> safe_subtract_uint64_result =
+      SafeSubtract<uint64_t>(1, std::numeric_limits<uint64_t>::lowest());
+  EXPECT_FALSE(safe_subtract_uint64_result.overflow);
+  EXPECT_EQ(safe_subtract_uint64_result.value, 1);
 }
 
 TEST(SafeOperationsTest, SafeSubtractDouble) {
-  double double_result;
-  EXPECT_TRUE(SafeSubtract<double>(10.0, 20.0, &double_result));
-  EXPECT_DOUBLE_EQ(double_result, -10.0);
-  EXPECT_TRUE(SafeSubtract<double>(1.0, std::numeric_limits<double>::lowest(),
-                                   &double_result));
-  EXPECT_DOUBLE_EQ(double_result, std::numeric_limits<double>::infinity());
-  EXPECT_TRUE(SafeSubtract<double>(-1.0, std::numeric_limits<double>::lowest(),
-                                   &double_result));
-  EXPECT_DOUBLE_EQ(double_result, std::numeric_limits<double>::infinity());
-  EXPECT_TRUE(SafeSubtract<double>(std::numeric_limits<double>::lowest(),
-                                   std::numeric_limits<double>::lowest(),
-                                   &double_result));
-  EXPECT_EQ(double_result, 0);
+  SafeOpResult<double> safe_subtract_result;
+
+  safe_subtract_result = SafeSubtract<double>(10.0, 20.0);
+  EXPECT_FALSE(safe_subtract_result.overflow);
+  EXPECT_DOUBLE_EQ(safe_subtract_result.value, -10.0);
+
+  safe_subtract_result =
+      SafeSubtract<double>(1.0, std::numeric_limits<double>::lowest());
+  EXPECT_FALSE(safe_subtract_result.overflow);
+  EXPECT_DOUBLE_EQ(safe_subtract_result.value,
+                   std::numeric_limits<double>::infinity());
+
+  safe_subtract_result =
+      SafeSubtract<double>(-1.0, std::numeric_limits<double>::lowest());
+  EXPECT_FALSE(safe_subtract_result.overflow);
+  EXPECT_DOUBLE_EQ(safe_subtract_result.value,
+                   std::numeric_limits<double>::infinity());
+
+  safe_subtract_result =
+      SafeSubtract<double>(std::numeric_limits<double>::lowest(),
+                           std::numeric_limits<double>::lowest());
+  EXPECT_FALSE(safe_subtract_result.overflow);
+  EXPECT_DOUBLE_EQ(safe_subtract_result.value, 0);
 }
 
 TEST(SafeOperationsTest, SafeSquare) {
-  int64_t int_result;
-  EXPECT_TRUE(SafeSquare<int64_t>(-9, &int_result));
-  EXPECT_EQ(int_result, 81);
-  EXPECT_FALSE(
-      SafeSquare<int64_t>(std::numeric_limits<int64_t>::max() - 1, &int_result));
-  EXPECT_FALSE(
-      SafeSquare<int64_t>(std::numeric_limits<int64_t>::lowest() + 1, &int_result));
-  EXPECT_FALSE(
-      SafeSquare<int64_t>(std::numeric_limits<int64_t>::lowest(), &int_result));
+  SafeOpResult<int64_t> safe_square_int64_result;
 
-  uint64_t uint_result;
-  EXPECT_TRUE(
-      SafeSquare<uint64_t>(std::numeric_limits<uint64_t>::lowest(), &uint_result));
+  safe_square_int64_result = SafeSquare<int64_t>(-9);
+  EXPECT_FALSE(safe_square_int64_result.overflow);
+  EXPECT_EQ(safe_square_int64_result.value, 81);
+
+  safe_square_int64_result =
+      SafeSquare<int64_t>(std::numeric_limits<int64_t>::max() - 1);
+  EXPECT_TRUE(safe_square_int64_result.overflow);
+  EXPECT_EQ(safe_square_int64_result.value, 0);
+
+  safe_square_int64_result =
+      SafeSquare<int64_t>(std::numeric_limits<int64_t>::lowest() + 1);
+  EXPECT_TRUE(safe_square_int64_result.overflow);
+  EXPECT_EQ(safe_square_int64_result.value, 0);
+
+  safe_square_int64_result =
+      SafeSquare<int64_t>(std::numeric_limits<int64_t>::lowest());
+  EXPECT_TRUE(safe_square_int64_result.overflow);
+  EXPECT_EQ(safe_square_int64_result.value, 0);
+
+  SafeOpResult<uint64_t> safe_square_uint64_result =
+      SafeSquare<uint64_t>(std::numeric_limits<uint64_t>::lowest());
+  EXPECT_FALSE(safe_square_uint64_result.overflow);
 }
 
 TEST(StatisticsTest, VectorStatistics) {
@@ -357,34 +407,34 @@ TEST(VectorUtilTest, VectorToString) {
 }
 
 TEST(SafeCastFromDoubleTest, Converts20ToIntegral) {
-  SafeCastResult<int64_t> cast_result = SafeCastFromDouble<int64_t>(20.0);
+  SafeOpResult<int64_t> cast_result = SafeCastFromDouble<int64_t>(20.0);
   EXPECT_EQ(cast_result.value, 20);
-  EXPECT_TRUE(cast_result.no_overflow);
+  EXPECT_FALSE(cast_result.overflow);
 }
 
 TEST(SafeCastFromDoubleTest, ConvertsMaxValueToMaxIntegral) {
-  SafeCastResult<int64_t> cast_result =
+  SafeOpResult<int64_t> cast_result =
       SafeCastFromDouble<int64_t>(std::numeric_limits<int64_t>::max());
   EXPECT_EQ(cast_result.value, std::numeric_limits<int64_t>::max());
-  EXPECT_TRUE(cast_result.no_overflow);
+  EXPECT_FALSE(cast_result.overflow);
 }
 
 TEST(SafeCastFromDoubleTest, ConvertsMinDoubleValuesToZero) {
-  SafeCastResult<int64_t> cast_result =
+  SafeOpResult<int64_t> cast_result =
       SafeCastFromDouble<int64_t>(std::numeric_limits<double>::min());
   EXPECT_EQ(cast_result.value, 0);
-  EXPECT_TRUE(cast_result.no_overflow);
+  EXPECT_FALSE(cast_result.overflow);
 
   cast_result = SafeCastFromDouble<int64_t>(-std::numeric_limits<double>::min());
   EXPECT_EQ(cast_result.value, 0);
-  EXPECT_TRUE(cast_result.no_overflow);
+  EXPECT_FALSE(cast_result.overflow);
 }
 
 TEST(SafeCastFromDoubleTest, ConvertsLowestValueToLowestIntegral) {
-  SafeCastResult<int64_t> cast_result =
+  SafeOpResult<int64_t> cast_result =
       SafeCastFromDouble<int64_t>(std::numeric_limits<int64_t>::lowest());
   EXPECT_EQ(cast_result.value, std::numeric_limits<int64_t>::lowest());
-  EXPECT_TRUE(cast_result.no_overflow);
+  EXPECT_FALSE(cast_result.overflow);
 }
 
 TEST(SafeCastFromDoubleTest, ConvertsOverLimitValueToOverflowedIntegral) {
@@ -399,13 +449,13 @@ TEST(SafeCastFromDoubleTest, ConvertsOverLimitValueToOverflowedIntegral) {
       static_cast<double>(std::numeric_limits<int16_t>::max() - 2),
       static_cast<double>(std::numeric_limits<int16_t>::max() - 1),
       static_cast<double>(std::numeric_limits<int16_t>::max())};
-  SafeCastResult<int16_t> cast_result;
+  SafeOpResult<int16_t> cast_result;
   for (double overflow : overflow_values) {
     cast_result = SafeCastFromDouble<int16_t>(
         static_cast<double>(std::numeric_limits<int16_t>::max()) + overflow);
     EXPECT_EQ(cast_result.value,
               std::numeric_limits<int16_t>::lowest() - 1 + overflow);
-    EXPECT_FALSE(cast_result.no_overflow);
+    EXPECT_TRUE(cast_result.overflow);
   }
 }
 
@@ -421,53 +471,53 @@ TEST(SafeCastFromDoubleTest, ConvertsUnderLimitValueToUnderflowedIntegral) {
       static_cast<double>(std::numeric_limits<int16_t>::max() - 2),
       static_cast<double>(std::numeric_limits<int16_t>::max() - 1),
       static_cast<double>(std::numeric_limits<int16_t>::max())};
-  SafeCastResult<int16_t> cast_result;
+  SafeOpResult<int16_t> cast_result;
   for (double overflow : overflow_values) {
     cast_result = SafeCastFromDouble<int16_t>(
         static_cast<double>(std::numeric_limits<int16_t>::lowest()) - overflow);
     EXPECT_EQ(cast_result.value,
               std::numeric_limits<int16_t>::max() + 1 - overflow);
-    EXPECT_FALSE(cast_result.no_overflow);
+    EXPECT_TRUE(cast_result.overflow);
   }
 }
 
 TEST(SafeCastFromDoubleTest, ConvertsHighValueToOverflowedIntegral) {
-  SafeCastResult<int64_t> cast_result = SafeCastFromDouble<int64_t>(1.0e200);
+  SafeOpResult<int64_t> cast_result = SafeCastFromDouble<int64_t>(1.0e200);
   EXPECT_LE(cast_result.value, std::numeric_limits<int64_t>::max());
-  EXPECT_FALSE(cast_result.no_overflow);
+  EXPECT_TRUE(cast_result.overflow);
 }
 
 TEST(SafeCastFromDoubleTest, ConvertsLowValueToUnderflowedIntegral) {
-  SafeCastResult<int64_t> cast_result = SafeCastFromDouble<int64_t>(-1.0e200);
+  SafeOpResult<int64_t> cast_result = SafeCastFromDouble<int64_t>(-1.0e200);
   EXPECT_GE(cast_result.value, std::numeric_limits<int64_t>::lowest());
-  EXPECT_FALSE(cast_result.no_overflow);
+  EXPECT_TRUE(cast_result.overflow);
 }
 
 TEST(SafeCastFromDoubleTest, ReturnsFalseOnNanForIntegrals) {
-  SafeCastResult<int64_t> cast_result = SafeCastFromDouble<int64_t>(NAN);
+  SafeOpResult<int64_t> cast_result = SafeCastFromDouble<int64_t>(NAN);
   EXPECT_EQ(cast_result.value, std::numeric_limits<int64_t>::quiet_NaN());
-  EXPECT_FALSE(cast_result.no_overflow);
+  EXPECT_TRUE(cast_result.overflow);
 }
 
 // Combine all tests for float outputs.  Should be nothing unexpected here since
 // this is just a cast from double to float.
 TEST(SafeCastFromDoubleTest, ForFloat) {
-  SafeCastResult<float> cast_result;
+  SafeOpResult<float> cast_result;
 
   // Normal case.
   cast_result = SafeCastFromDouble<float>(0.5);
   EXPECT_EQ(cast_result.value, 0.5);
-  EXPECT_TRUE(cast_result.no_overflow);
+  EXPECT_FALSE(cast_result.overflow);
 
   // NaN double should convert into NaN float.
   cast_result = SafeCastFromDouble<float>(NAN);
   EXPECT_TRUE(std::isnan(cast_result.value));
-  EXPECT_TRUE(cast_result.no_overflow);
+  EXPECT_FALSE(cast_result.overflow);
 
   // High double should convert into infinite float.
   cast_result = SafeCastFromDouble<float>(1.0e200);
   EXPECT_TRUE(std::isinf(cast_result.value));
-  EXPECT_TRUE(cast_result.no_overflow);
+  EXPECT_FALSE(cast_result.overflow);
 }
 
 TEST(ValidateTest, IsSet) {

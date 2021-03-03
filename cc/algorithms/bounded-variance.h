@@ -68,16 +68,16 @@ class BoundedVariance : public Algorithm<T> {
  protected:
   virtual void AddMultipleEntries(const T& input, int64_t num_of_entries) = 0;
 
-  // For integral type, check for no overflow in subtraction squared.
+  // For integral type, check for overflow in subtraction squared.
   template <typename T2 = T,
             std::enable_if_t<std::is_integral<T2>::value>* = nullptr>
   static absl::Status CheckBounds(T lower, T upper) {
     if (lower > upper) {
       return absl::InvalidArgumentError("Lower cannot be greater than upper.");
     }
-    T subtract_result, square_result;
-    if (!SafeSubtract(upper, lower, &subtract_result) ||
-        !SafeSquare(subtract_result, &square_result)) {
+    SafeOpResult<T> subtract_result = SafeSubtract(upper, lower);
+    SafeOpResult<T> safe_square_result = SafeSquare(subtract_result.value);
+    if (subtract_result.overflow || safe_square_result.overflow) {
       return absl::InvalidArgumentError(
           "Sensitivity calculation caused integer overflow.");
     }

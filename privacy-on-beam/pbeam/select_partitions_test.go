@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/google/differential-privacy/go/dpagg"
+	"github.com/google/differential-privacy/privacy-on-beam/pbeam/testutils"
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
@@ -53,20 +54,20 @@ func TestSelectPartitionsIsNonDeterministicV(t *testing.T) {
 			// each of the tc.numPartitions partitions:
 			//    {0,0}, {1,1}, ..., {numPartitions-1,numPartitions-1}
 			var (
-				pairs []pairII
+				pairs []testutils.PairII
 			)
 			for i := 0; i < tc.numPartitions; i++ {
-				pairs = append(pairs, pairII{i, i})
+				pairs = append(pairs, testutils.PairII{i, i})
 			}
 			p, s, col := ptest.CreateList(pairs)
-			col = beam.ParDo(s, pairToKV, col)
+			col = beam.ParDo(s, testutils.PairToKV, col)
 
 			// Run SelectPartitions on pairs
 			pcol := MakePrivate(s, col, NewPrivacySpec(tc.epsilon, tc.delta))
 			got := SelectPartitions(s, pcol, SelectPartitionsParams{MaxPartitionsContributed: 1})
 
 			// Validate that partitions are selected randomly (i.e., some emitted and some dropped).
-			checkSomePartitionsAreDropped(s, got, tc.numPartitions)
+			testutils.CheckSomePartitionsAreDropped(s, got, tc.numPartitions)
 			if err := ptest.Run(p); err != nil {
 				t.Errorf("%v", err)
 			}
@@ -103,21 +104,21 @@ func TestSelectPartitionsIsNonDeterministicKV(t *testing.T) {
 			// each of the tc.numPartitions partitions:
 			//    {0,0,0}, {1,1,0}, ..., {numPartitions-1,numPartitions-1,0}
 			var (
-				triples []tripleWithIntValue
+				triples []testutils.TripleWithIntValue
 			)
 			for i := 0; i < tc.numPartitions; i++ {
-				triples = append(triples, tripleWithIntValue{i, i, 0})
+				triples = append(triples, testutils.TripleWithIntValue{i, i, 0})
 			}
 			p, s, col := ptest.CreateList(triples)
-			col = beam.ParDo(s, extractIDFromTripleWithIntValue, col)
+			col = beam.ParDo(s, testutils.ExtractIDFromTripleWithIntValue, col)
 
 			// Run SelectPartitions on triples
 			pcol := MakePrivate(s, col, NewPrivacySpec(tc.epsilon, tc.delta))
-			pcol = ParDo(s, tripleWithIntValueToKV, pcol)
+			pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 			got := SelectPartitions(s, pcol, SelectPartitionsParams{MaxPartitionsContributed: 1})
 
 			// Validate that partitions are selected randomly (i.e., some emitted and some dropped).
-			checkSomePartitionsAreDropped(s, got, tc.numPartitions)
+			testutils.CheckSomePartitionsAreDropped(s, got, tc.numPartitions)
 			if err := ptest.Run(p); err != nil {
 				t.Errorf("%v", err)
 			}
@@ -129,12 +130,12 @@ func TestSelectPartitionsIsNonDeterministicKV(t *testing.T) {
 // for PrivatePCollection<V> inputs.
 func TestSelectPartitionsBoundsCrossPartitionContributionsV(t *testing.T) {
 	// Create 10 partitions with a single privacy ID contributing to each.
-	var pairs []pairII
+	var pairs []testutils.PairII
 	for i := 0; i < 10; i++ {
-		pairs = append(pairs, makePairsWithFixedV(1, i)...)
+		pairs = append(pairs, testutils.MakePairsWithFixedV(1, i)...)
 	}
 	p, s, col := ptest.CreateList(pairs)
-	col = beam.ParDo(s, pairToKV, col)
+	col = beam.ParDo(s, testutils.PairToKV, col)
 
 	// ε=50, δ=~1 and l1Sensitivity=1 gives a threshold of 2.
 	epsilon, delta, l1Sensitivity := 50.0, dpagg.LargestRepresentableDelta, 1
@@ -151,17 +152,17 @@ func TestSelectPartitionsBoundsCrossPartitionContributionsV(t *testing.T) {
 // for PrivatePCollection<K,V> inputs.
 func TestSelectPartitionsBoundsCrossPartitionContributionsKV(t *testing.T) {
 	// Create 10 partitions with a single privacy ID contributing to each.
-	var triples []tripleWithIntValue
+	var triples []testutils.TripleWithIntValue
 	for i := 0; i < 10; i++ {
-		triples = append(triples, makeTripleWithIntValue(1, i, 0)...)
+		triples = append(triples, testutils.MakeTripleWithIntValue(1, i, 0)...)
 	}
 	p, s, col := ptest.CreateList(triples)
-	col = beam.ParDo(s, extractIDFromTripleWithIntValue, col)
+	col = beam.ParDo(s, testutils.ExtractIDFromTripleWithIntValue, col)
 
 	// ε=50, δ=~1 and l1Sensitivity=1 gives a threshold of 2.
 	epsilon, delta, l1Sensitivity := 50.0, dpagg.LargestRepresentableDelta, 1
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
-	pcol = ParDo(s, tripleWithIntValueToKV, pcol)
+	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 	got := SelectPartitions(s, pcol, SelectPartitionsParams{MaxPartitionsContributed: int64(l1Sensitivity)})
 	// With a max contribution of 1, only 1 partition should be outputted.
 	checkNumPartitions(s, got, 1)
@@ -171,7 +172,7 @@ func TestSelectPartitionsBoundsCrossPartitionContributionsKV(t *testing.T) {
 }
 
 func checkNumPartitions(s beam.Scope, col beam.PCollection, expected int) {
-	ones := beam.ParDo(s, oneFn, col)
+	ones := beam.ParDo(s, testutils.OneFn, col)
 	numPartitions := stats.Sum(s, ones)
 	beam.ParDo0(s, &gotExpectedNumPartitionsFn{Expected: expected}, numPartitions)
 }

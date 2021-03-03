@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/google/differential-privacy/go/dpagg"
+	"github.com/google/differential-privacy/privacy-on-beam/pbeam/testutils"
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
@@ -35,20 +36,20 @@ func TestCountNoNoise(t *testing.T) {
 	// - value 2 is associated with 99 privacy units appearing 3 times each, but the
 	//   l1Sensitivity is 2, so each should only be counted twice.
 	// Each privacy unit contributes to at most 1 partition.
-	pairs := concatenatePairs(
-		makePairsWithFixedVStartingFromKey(0, 7, 0),
-		makePairsWithFixedVStartingFromKey(7, 52, 1),
-		makePairsWithFixedVStartingFromKey(7, 52, 1),
-		makePairsWithFixedVStartingFromKey(7+52, 99, 2),
-		makePairsWithFixedVStartingFromKey(7+52, 99, 2),
-		makePairsWithFixedVStartingFromKey(7+52, 99, 2),
+	pairs := testutils.ConcatenatePairs(
+		testutils.MakePairsWithFixedVStartingFromKey(0, 7, 0),
+		testutils.MakePairsWithFixedVStartingFromKey(7, 52, 1),
+		testutils.MakePairsWithFixedVStartingFromKey(7, 52, 1),
+		testutils.MakePairsWithFixedVStartingFromKey(7+52, 99, 2),
+		testutils.MakePairsWithFixedVStartingFromKey(7+52, 99, 2),
+		testutils.MakePairsWithFixedVStartingFromKey(7+52, 99, 2),
 	)
-	result := []testInt64Metric{
+	result := []testutils.TestInt64Metric{
 		{1, 104}, // 52*2
 		{2, 198}, // 99*2
 	}
 	p, s, col, want := ptest.CreateList2(pairs, result)
-	col = beam.ParDo(s, pairToKV, col)
+	col = beam.ParDo(s, testutils.PairToKV, col)
 
 	// ε=50, δ=10⁻²⁰⁰ and l1Sensitivity=2 gives a threshold of ≈38.
 	// We have 3 partitions. So, to get an overall flakiness of 10⁻²³,
@@ -58,8 +59,8 @@ func TestCountNoNoise(t *testing.T) {
 	epsilon, delta, k, l1Sensitivity := 50.0, 1e-200, 25.0, 2.0
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 	got := Count(s, pcol, CountParams{MaxValue: 2, MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}})
-	want = beam.ParDo(s, int64MetricToKV, want)
-	if err := approxEqualsKVInt64(s, got, want, laplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
+	want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 		t.Fatalf("TestCountNoNoise: %v", err)
 	}
 	if err := ptest.Run(p); err != nil {
@@ -69,18 +70,18 @@ func TestCountNoNoise(t *testing.T) {
 
 // Checks that Count with partitions returns a correct answer.
 func TestCountWithPartitionsNoNoise(t *testing.T) {
-	var pairs []pairII
+	var pairs []testutils.PairII
 	for i := 0; i < 10; i++ {
-		pairs = append(pairs, pairII{i, 1})
+		pairs = append(pairs, testutils.PairII{i, 1})
 	}
 	// Only keep partitions 9 and 10.
-	result := []testInt64Metric{
+	result := []testutils.TestInt64Metric{
 		{9, 1},
 		{10, 1},
 	}
 
 	p, s, col, want := ptest.CreateList2(pairs, result)
-	col = beam.ParDo(s, pairToKV, col)
+	col = beam.ParDo(s, testutils.PairToKV, col)
 	partitions := []int{9, 10}
 	publicPartitions := beam.CreateList(s, partitions)
 	// We use ε=50, δ=0 and l1Sensitivity=2.
@@ -89,8 +90,8 @@ func TestCountWithPartitionsNoNoise(t *testing.T) {
 	epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 25.0, 2.0
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 	got := Count(s, pcol, CountParams{MaxValue: 2, MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions})
-	want = beam.ParDo(s, int64MetricToKV, want)
-	if err := approxEqualsKVInt64(s, got, want, laplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
+	want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 		t.Fatalf("TestCountWithPartitionsNoNoise: %v", err)
 	}
 	if err := ptest.Run(p); err != nil {
@@ -151,24 +152,24 @@ func TestCountPartitionSelectionNonDeterministic(t *testing.T) {
 			//    …
 			//    {countPerValue*(numPartitions-1),numPartitions-1}, …, {countPerValue*numPartitions-1, numPartitions-1}
 			var (
-				pairs   []pairII
+				pairs   []testutils.PairII
 				kOffset = 0
 			)
 			for i := 0; i < tc.numPartitions; i++ {
 				for j := 0; j < tc.countPerValue; j++ {
-					pairs = append(pairs, pairII{kOffset + j, i})
+					pairs = append(pairs, testutils.PairII{kOffset + j, i})
 				}
 			}
 			p, s, col := ptest.CreateList(pairs)
-			col = beam.ParDo(s, pairToKV, col)
+			col = beam.ParDo(s, testutils.PairToKV, col)
 
 			// Run Count on pairs
 			pcol := MakePrivate(s, col, NewPrivacySpec(tc.epsilon, tc.delta))
 			got := Count(s, pcol, CountParams{MaxValue: 1, MaxPartitionsContributed: 1, NoiseKind: tc.noiseKind})
-			got = beam.ParDo(s, kvToInt64Metric, got)
+			got = beam.ParDo(s, testutils.KVToInt64Metric, got)
 
 			// Validate that partitions are selected randomly (i.e., some emitted and some dropped).
-			checkSomePartitionsAreDropped(s, got, tc.numPartitions)
+			testutils.CheckSomePartitionsAreDropped(s, got, tc.numPartitions)
 			if err := ptest.Run(p); err != nil {
 				t.Errorf("%v", err)
 			}
@@ -230,14 +231,14 @@ func TestCountAddsNoise(t *testing.T) {
 		numIDs := sp.GetHardThreshold()
 
 		// pairs contains {1,0}, {2,0}, …, {numIDs,0}.
-		pairs := makePairsWithFixedV(numIDs, 0)
+		pairs := testutils.MakePairsWithFixedV(numIDs, 0)
 		p, s, col := ptest.CreateList(pairs)
-		col = beam.ParDo(s, pairToKV, col)
+		col = beam.ParDo(s, testutils.PairToKV, col)
 
 		pcol := MakePrivate(s, col, NewPrivacySpec(tc.epsilon, tc.delta))
 		got := Count(s, pcol, CountParams{MaxPartitionsContributed: l0Sensitivity, MaxValue: lInfSensitivity, NoiseKind: tc.noiseKind})
-		got = beam.ParDo(s, kvToInt64Metric, got)
-		checkInt64MetricsAreNoisy(s, got, numIDs, tolerance)
+		got = beam.ParDo(s, testutils.KVToInt64Metric, got)
+		testutils.CheckInt64MetricsAreNoisy(s, got, numIDs, tolerance)
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("CountPerKey didn't add any %s noise: %v", tc.name, err)
 		}
@@ -285,14 +286,14 @@ func TestCountAddsNoiseWithPartitions(t *testing.T) {
 		numIDs := 10
 
 		// pairs contains {1,0}, {2,0}, …, {10,0}.
-		pairs := makePairsWithFixedV(numIDs, 0)
+		pairs := testutils.MakePairsWithFixedV(numIDs, 0)
 		p, s, col := ptest.CreateList(pairs)
-		col = beam.ParDo(s, pairToKV, col)
+		col = beam.ParDo(s, testutils.PairToKV, col)
 		publicPartitions := beam.CreateList(s, []int{0})
 		pcol := MakePrivate(s, col, NewPrivacySpec(tc.epsilon, tc.delta))
 		got := Count(s, pcol, CountParams{MaxPartitionsContributed: l0Sensitivity, MaxValue: lInfSensitivity, NoiseKind: tc.noiseKind, PublicPartitions: publicPartitions})
-		got = beam.ParDo(s, kvToInt64Metric, got)
-		checkInt64MetricsAreNoisy(s, got, 10, tolerance)
+		got = beam.ParDo(s, testutils.KVToInt64Metric, got)
+		testutils.CheckInt64MetricsAreNoisy(s, got, 10, tolerance)
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("CountPerKey with partitions didn't add any %s noise: %v", tc.name, err)
 		}
@@ -302,15 +303,15 @@ func TestCountAddsNoiseWithPartitions(t *testing.T) {
 // Checks that Count bounds cross-partition contributions correctly.
 func TestCountCrossPartitionContributionBounding(t *testing.T) {
 	// pairs contains {1,0}, {2,0}, …, {50,0}, {1,1}, …, {50,1}, {1,2}, …, {50,9}.
-	var pairs []pairII
+	var pairs []testutils.PairII
 	for i := 0; i < 10; i++ {
-		pairs = append(pairs, makePairsWithFixedV(50, i)...)
+		pairs = append(pairs, testutils.MakePairsWithFixedV(50, i)...)
 	}
-	result := []testInt64Metric{
+	result := []testutils.TestInt64Metric{
 		{0, 150},
 	}
 	p, s, col, want := ptest.CreateList2(pairs, result)
-	col = beam.ParDo(s, pairToKV, col)
+	col = beam.ParDo(s, testutils.PairToKV, col)
 
 	// ε=50, δ=0.01 and l1Sensitivity=3 gives a threshold of 3.
 	// We have 10 partitions. So, to get an overall flakiness of 10⁻²³,
@@ -323,8 +324,8 @@ func TestCountCrossPartitionContributionBounding(t *testing.T) {
 	counts := beam.DropKey(s, got)
 	sumOverPartitions := stats.Sum(s, counts)
 	got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
-	want = beam.ParDo(s, int64MetricToKV, want)
-	if err := approxEqualsKVInt64(s, got, want, laplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
+	want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 		t.Fatalf("TestCountCrossPartitionContributionBounding: %v", err)
 	}
 	if err := ptest.Run(p); err != nil {
@@ -335,15 +336,15 @@ func TestCountCrossPartitionContributionBounding(t *testing.T) {
 // Checks that Count with partitions bounds per-user contributions correctly.
 func TestCountWithPartitionsCrossPartitionContributionBounding(t *testing.T) {
 	// pairs contains {1,0}, {2,0}, …, {50,0}, {1,1}, …, {50,1}, {1,2}, …, {50,9}.
-	var pairs []pairII
+	var pairs []testutils.PairII
 	for i := 0; i < 10; i++ {
-		pairs = append(pairs, makePairsWithFixedV(50, i)...)
+		pairs = append(pairs, testutils.MakePairsWithFixedV(50, i)...)
 	}
-	result := []testInt64Metric{
+	result := []testutils.TestInt64Metric{
 		{0, 150},
 	}
 	p, s, col, want := ptest.CreateList2(pairs, result)
-	col = beam.ParDo(s, pairToKV, col)
+	col = beam.ParDo(s, testutils.PairToKV, col)
 
 	partitions := []int{0, 1, 2, 3, 4}
 	publicPartitions := beam.CreateList(s, partitions)
@@ -358,8 +359,8 @@ func TestCountWithPartitionsCrossPartitionContributionBounding(t *testing.T) {
 	counts := beam.DropKey(s, got)
 	sumOverPartitions := stats.Sum(s, counts)
 	got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
-	want = beam.ParDo(s, int64MetricToKV, want)
-	if err := approxEqualsKVInt64(s, got, want, laplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
+	want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 		t.Fatalf("TestCountWithPartitionsCrossPartitionContributionBounding: %v", err)
 	}
 	if err := ptest.Run(p); err != nil {
@@ -369,12 +370,12 @@ func TestCountWithPartitionsCrossPartitionContributionBounding(t *testing.T) {
 
 // Check that no negative values are returned from Count.
 func TestCountReturnsNonNegative(t *testing.T) {
-	var pairs []pairII
+	var pairs []testutils.PairII
 	for i := 0; i < 100; i++ {
-		pairs = append(pairs, pairII{i, i})
+		pairs = append(pairs, testutils.PairII{i, i})
 	}
 	p, s, col := ptest.CreateList(pairs)
-	col = beam.ParDo(s, pairToKV, col)
+	col = beam.ParDo(s, testutils.PairToKV, col)
 	// Using a low epsilon and high maxValue adds a lot of noise and using
 	// a high delta keeps many partitions.
 	epsilon, delta, maxValue := 0.001, 0.999, int64(1e8)
@@ -382,7 +383,7 @@ func TestCountReturnsNonNegative(t *testing.T) {
 	counts := Count(s, pcol, CountParams{MaxValue: maxValue, MaxPartitionsContributed: 1, NoiseKind: GaussianNoise{}})
 	values := beam.DropKey(s, counts)
 	// Check if we have negative elements.
-	beam.ParDo0(s, checkNoNegativeValuesInt64Fn, values)
+	beam.ParDo0(s, testutils.CheckNoNegativeValuesInt64Fn, values)
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestCountReturnsNonNegative returned errors: %v", err)
 	}
@@ -390,16 +391,16 @@ func TestCountReturnsNonNegative(t *testing.T) {
 
 // Check that no negative values are returned from Count with partitions.
 func TestCountWithPartitionsReturnsNonNegative(t *testing.T) {
-	var pairs []pairII
+	var pairs []testutils.PairII
 	var partitions []int
 	for i := 0; i < 100; i++ {
-		pairs = append(pairs, pairII{i, i})
+		pairs = append(pairs, testutils.PairII{i, i})
 	}
 	for i := 0; i < 200; i++ {
 		partitions = append(partitions, i)
 	}
 	p, s, col := ptest.CreateList(pairs)
-	col = beam.ParDo(s, pairToKV, col)
+	col = beam.ParDo(s, testutils.PairToKV, col)
 	publicPartitions := beam.CreateList(s, partitions)
 	// Using a low epsilon and high maxValue adds a lot of noise and using
 	// a high delta keeps many partitions.
@@ -408,7 +409,7 @@ func TestCountWithPartitionsReturnsNonNegative(t *testing.T) {
 	counts := Count(s, pcol, CountParams{MaxValue: maxValue, MaxPartitionsContributed: 1, NoiseKind: GaussianNoise{}, PublicPartitions: publicPartitions})
 	values := beam.DropKey(s, counts)
 	// Check if we have negative elements.
-	beam.ParDo0(s, checkNoNegativeValuesInt64Fn, values)
+	beam.ParDo0(s, testutils.CheckNoNegativeValuesInt64Fn, values)
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestCountWithPartitionsReturnsNonNegative returned errors: %v", err)
 	}

@@ -14,7 +14,7 @@
 // limitations under the License.
 //
 
-package pbeam
+package testutils
 
 import (
 	"testing"
@@ -27,42 +27,46 @@ import (
 
 // Tests for the test helpers.
 
+func TestMain(m *testing.M) {
+	ptest.Main(m)
+}
+
 func TestApproxEqualsKVInt64(t *testing.T) {
 	tolerance := 1.0
 	for _, tc := range []struct {
 		desc    string
-		values1 []pairII64
-		values2 []pairII64
+		values1 []PairII64
+		values2 []PairII64
 		wantErr bool
 	}{
 		{"same values",
-			[]pairII64{
+			[]PairII64{
 				{35, 0},
 				{99, 1},
 			},
-			[]pairII64{
+			[]PairII64{
 				{35, 0},
 				{99, 1},
 			},
 			false,
 		},
 		{"approximately equal values",
-			[]pairII64{
+			[]PairII64{
 				{35, 0}, // Equal to -1 within a tolerance of 1.0
 				{99, 1}, // Equal to 2 within a tolerance of 1.0
 			},
-			[]pairII64{
+			[]PairII64{
 				{35, -1},
 				{99, 2},
 			},
 			false,
 		},
 		{"sufficiently different values",
-			[]pairII64{
+			[]PairII64{
 				{35, 0},
 				{99, 1},
 			},
-			[]pairII64{
+			[]PairII64{
 				{35, 10},
 				{99, 7},
 			},
@@ -70,9 +74,9 @@ func TestApproxEqualsKVInt64(t *testing.T) {
 		},
 	} {
 		p, s, col1, col2 := ptest.CreateList2(tc.values1, tc.values2)
-		col1KV := beam.ParDo(s, pairII64ToKV, col1)
-		col2KV := beam.ParDo(s, pairII64ToKV, col2)
-		if err := approxEqualsKVInt64(s, col1KV, col2KV, tolerance); err != nil {
+		col1KV := beam.ParDo(s, PairII64ToKV, col1)
+		col2KV := beam.ParDo(s, PairII64ToKV, col2)
+		if err := ApproxEqualsKVInt64(s, col1KV, col2KV, tolerance); err != nil {
 			t.Fatalf("TestApproxEqualsKVInt64: %v", err)
 		}
 		if err := ptest.Run(p); (err != nil) != tc.wantErr {
@@ -85,38 +89,38 @@ func TestApproxEqualsKVFloat64(t *testing.T) {
 	tolerance := 0.1
 	for _, tc := range []struct {
 		desc    string
-		values1 []pairIF64
-		values2 []pairIF64
+		values1 []PairIF64
+		values2 []PairIF64
 		wantErr bool
 	}{
 		{"same values",
-			[]pairIF64{
+			[]PairIF64{
 				{35, 0.1},
 				{99, 1.0},
 			},
-			[]pairIF64{
+			[]PairIF64{
 				{35, 0.1},
 				{99, 1.00},
 			},
 			false,
 		},
 		{"approximately equal values",
-			[]pairIF64{
+			[]PairIF64{
 				{35, 0.1}, // Equal to 0.2 within a tolerance of 0.1
 				{99, 1.0}, // Equal to 1.05 within a tolerance of 0.1
 			},
-			[]pairIF64{
+			[]PairIF64{
 				{35, 0.2},
 				{99, 1.05},
 			},
 			false,
 		},
 		{"sufficiently different values",
-			[]pairIF64{
+			[]PairIF64{
 				{35, 0.1},
 				{99, 1.0},
 			},
-			[]pairIF64{
+			[]PairIF64{
 				{35, 10.3},
 				{99, 7.6},
 			},
@@ -124,9 +128,9 @@ func TestApproxEqualsKVFloat64(t *testing.T) {
 		},
 	} {
 		p, s, col1, col2 := ptest.CreateList2(tc.values1, tc.values2)
-		col1KV := beam.ParDo(s, pairIFToKV, col1)
-		col2KV := beam.ParDo(s, pairIFToKV, col2)
-		if err := approxEqualsKVFloat64(s, col1KV, col2KV, tolerance); err != nil {
+		col1KV := beam.ParDo(s, PairIFToKV, col1)
+		col2KV := beam.ParDo(s, PairIFToKV, col2)
+		if err := ApproxEqualsKVFloat64(s, col1KV, col2KV, tolerance); err != nil {
 			t.Fatalf("TestApproxEqualsKVFloat64: %v", err)
 		}
 		if err := ptest.Run(p); (err != nil) != tc.wantErr {
