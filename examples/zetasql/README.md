@@ -99,8 +99,6 @@ the [codelab](codelab.md).
    [issues](https://github.com/google/differential-privacy/issues/71) with
    ZetaSQL on Mac. We're working on a solution, but if you are interested in
    trying this now, using Bazelisk and Homebrew could work.
-1. There is an issue with date time parsing in Macs. As a workaround, you can
-   change the date time format to avoid "%I" and "%p".
 1. Windows is currently not a supported configuration.
 
 We will continue to publish updates and improvements to the library. Please

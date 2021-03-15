@@ -324,7 +324,7 @@ func TestNewBoundedSumInt64(t *testing.T) {
 	} {
 		got := NewBoundedSumInt64(tc.opt)
 		if !reflect.DeepEqual(got, tc.want) {
-			t.Errorf("NewBoundedSumInt64: when %s got %v, want %v", tc.desc, got, tc.want)
+			t.Errorf("NewBoundedSumInt64: when %s got %+v, want %+v", tc.desc, got, tc.want)
 		}
 	}
 }
@@ -399,7 +399,7 @@ func TestNewBoundedSumFloat64(t *testing.T) {
 	} {
 		got := NewBoundedSumFloat64(tc.opt)
 		if !reflect.DeepEqual(got, tc.want) {
-			t.Errorf("NewBoundedSumFloat64: when %s got %v, want %v", tc.desc, got, tc.want)
+			t.Errorf("NewBoundedSumFloat64: when %s got %+v, want %+v", tc.desc, got, tc.want)
 		}
 	}
 }
@@ -618,7 +618,7 @@ func TestCheckMergeBoundedSumInt64Compatibility(t *testing.T) {
 		bs2 := NewBoundedSumInt64(tc.opt2)
 
 		if err := checkMergeBoundedSumInt64(bs1, bs2); (err != nil) != tc.wantErr {
-			t.Errorf("CheckMerge: when %v for err got got %v, wantErr %t", tc.desc, err, tc.wantErr)
+			t.Errorf("CheckMerge: when %s for err got got %v, wantErr %t", tc.desc, err, tc.wantErr)
 		}
 	}
 }
@@ -789,7 +789,7 @@ func TestCheckMergeBoundedSumFloat64Compatibility(t *testing.T) {
 		bs2 := NewBoundedSumFloat64(tc.opt2)
 
 		if err := checkMergeBoundedSumFloat64(bs1, bs2); (err != nil) != tc.wantErr {
-			t.Errorf("CheckMerge: when %v for err got %v, wantErr %t", tc.desc, err, tc.wantErr)
+			t.Errorf("CheckMerge: when %s for err got %v, wantErr %t", tc.desc, err, tc.wantErr)
 		}
 	}
 }
@@ -1510,7 +1510,7 @@ func TestBSEquallyInitializedInt64(t *testing.T) {
 		},
 	} {
 		if bsEquallyInitializedint64(tc.bs1, tc.bs2) != tc.equal {
-			t.Errorf("bsEquallyInitializedint64: when %v got %t, want %t", tc.desc, !tc.equal, tc.equal)
+			t.Errorf("bsEquallyInitializedInt64: when %s got %t, want %t", tc.desc, !tc.equal, tc.equal)
 		}
 	}
 }
@@ -1716,7 +1716,7 @@ func TestBSEquallyInitializedFloat64(t *testing.T) {
 		},
 	} {
 		if bsEquallyInitializedFloat64(tc.bs1, tc.bs2) != tc.equal {
-			t.Errorf("bsEquallyInitializedFloat64: when %v got %t, want %t", tc.desc, !tc.equal, tc.equal)
+			t.Errorf("bsEquallyInitializedFloat64: when %s got %t, want %t", tc.desc, !tc.equal, tc.equal)
 		}
 	}
 }
@@ -1876,7 +1876,6 @@ func TestBoundedSumInt64IsUnbiased(t *testing.T) {
 func TestBoundedSumFloat64IsUnbiased(t *testing.T) {
 	const numberOfSamples = 100000
 	for _, tc := range []struct {
-		desc     string
 		opt      *BoundedSumFloat64Options
 		rawEntry float64
 		variance float64

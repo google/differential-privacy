@@ -1,0 +1,1167 @@
+#
+# Copyright 2021 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# This collection of test cases is intended to statistically evaluate the DP
+# properties of the bounded quantiles aggregation provided by the DP
+# library.
+
+# The test cases and validation parameters are calibrated such that:
+# - An approximate DP test accepts with a probability of at least 0.9 if the
+#   two data sets are protected with epsilon-DP.
+# - An approximate DP test rejects with a probability of at least 0.9 if the
+#   two data sets are not protected with (epsilon * 1.05)-DP or if the
+#   catastrophic failure rate is at least the delta tolerance times 1.25.
+
+# Taking the majority vote over 9 repeated runs of a particular test case
+# increases the accept and reject probabilities to 0.99911 or more.
+voting_parameters {
+  number_of_votes: 9
+}
+
+validity_parameters {
+  epsilon_specificity: 1.05
+  failure_specificity: 1.25
+}
+
+bounded_quantiles_dp_test_case {
+  name: "Laplace noise, empty distribution, default parameters"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta_tolerance: 0.0036
+    num_of_buckets: 32
+  }
+  bounded_quantiles_sampling_parameters {
+    number_of_samples: 250000
+    noise_type: LAPLACE
+    rank: [0.0, 0.01, 0.05, 0.45, 0.49, 0.5, 0.51, 0.55, 0.95, 0.99, 1.0]
+    max_contributions_per_partition: 1
+    max_partitions_contributed: 1
+    lower_bound: 0.0
+    upper_bound: 1.0
+    tree_height: 2
+    branching_factor: 5
+    epsilon: 1.09861228866810969140  # = log(3)
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries contained in the neighbouring data set equals
+    # the number of contributions a single privacy unit can make.
+    neighbour_raw_entry: [0.5]
+  }
+}
+
+bounded_quantiles_dp_test_case {
+  name: "Laplace noise, empty distribution, many partitions contributed"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta_tolerance: 0.0036
+    num_of_buckets: 32
+  }
+  bounded_quantiles_sampling_parameters {
+    number_of_samples: 250000
+    noise_type: LAPLACE
+    rank: [0.0, 0.01, 0.05, 0.45, 0.49, 0.5, 0.51, 0.55, 0.95, 0.99, 1.0]
+    max_contributions_per_partition: 1
+    max_partitions_contributed: 9
+    lower_bound: 0.0
+    upper_bound: 1.0
+    tree_height: 2
+    branching_factor: 5
+    epsilon: 1.09861228866810969140  # = log(3)
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries contained in the neighbouring data set
+    # accounts for the number of partitions a single privacy unit can contribute
+    # to.
+    neighbour_raw_entry: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
+  }
+}
+
+bounded_quantiles_dp_test_case {
+  name: "Laplace noise, empty distribution, many contributions per partition"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta_tolerance: 0.0036
+    num_of_buckets: 32
+  }
+  bounded_quantiles_sampling_parameters {
+    number_of_samples: 250000
+    noise_type: LAPLACE
+    rank: [0.0, 0.01, 0.05, 0.45, 0.49, 0.5, 0.51, 0.55, 0.95, 0.99, 1.0]
+    max_contributions_per_partition: 5
+    max_partitions_contributed: 1
+    lower_bound: 0.0
+    upper_bound: 1.0
+    tree_height: 2
+    branching_factor: 5
+    epsilon: 1.09861228866810969140  # = log(3)
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries contained in the neighbouring data set equals
+    # the number of contributions a single privacy unit can make.
+    neighbour_raw_entry: [0.5, 0.5, 0.5, 0.5, 0.5]
+  }
+}
+
+bounded_quantiles_dp_test_case {
+  name: "Laplace noise, empty distribution, small epsilon"
+  dp_test_parameters {
+    epsilon: 0.1
+    delta_tolerance: 0.0012
+    num_of_buckets: 32
+  }
+  bounded_quantiles_sampling_parameters {
+    number_of_samples: 250000
+    noise_type: LAPLACE
+    rank: [0.0, 0.01, 0.05, 0.45, 0.49, 0.5, 0.51, 0.55, 0.95, 0.99, 1.0]
+    max_contributions_per_partition: 1
+    max_partitions_contributed: 1
+    lower_bound: 0.0
+    upper_bound: 1.0
+    tree_height: 2
+    branching_factor: 5
+    epsilon: 0.1
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries contained in the neighbouring data set equals
+    # the number of contributions a single privacy unit can make.
+    neighbour_raw_entry: [0.5]
+  }
+}
+
+bounded_quantiles_dp_test_case {
+  name: "Laplace noise, empty distribution, large epsilon"
+  dp_test_parameters {
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta_tolerance: 0.0055
+    num_of_buckets: 32
+  }
+  bounded_quantiles_sampling_parameters {
+    number_of_samples: 250000
+    noise_type: LAPLACE
+    rank: [0.0, 0.01, 0.05, 0.45, 0.49, 0.5, 0.51, 0.55, 0.95, 0.99, 1.0]
+    max_contributions_per_partition: 1
+    max_partitions_contributed: 1
+    lower_bound: 0.0
+    upper_bound: 1.0
+    tree_height: 2
+    branching_factor: 5
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries contained in the neighbouring data set equals
+    # the number of contributions a single privacy unit can make.
+    neighbour_raw_entry: [0.5]
+  }
+}
+
+bounded_quantiles_dp_test_case {
+  name: "Laplace noise, empty distribution, different tree parameters"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta_tolerance: 0.0036
+    num_of_buckets: 32
+  }
+  bounded_quantiles_sampling_parameters {
+    number_of_samples: 250000
+    noise_type: LAPLACE
+    rank: [0.0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1.0]
+    max_contributions_per_partition: 1
+    max_partitions_contributed: 1
+    lower_bound: 0.0
+    upper_bound: 1.0
+    tree_height: 3
+    branching_factor: 3
+    epsilon: 1.09861228866810969140  # = log(3)
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries contained in the neighbouring data set equals
+    # the number of contributions a single privacy unit can make.
+    neighbour_raw_entry: [0.5]
+  }
+}
+
+bounded_quantiles_dp_test_case {
+  name: "Laplace noise, binary distribution, default parameters"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta_tolerance: 0.0036
+    num_of_buckets: 32
+  }
+  bounded_quantiles_sampling_parameters {
+    number_of_samples: 250000
+    noise_type: LAPLACE
+    rank: [0.0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1.0]
+    max_contributions_per_partition: 1
+    max_partitions_contributed: 1
+    lower_bound: 0.0
+    upper_bound: 1.0
+    tree_height: 2
+    branching_factor: 5
+    epsilon: 1.09861228866810969140  # = log(3)
+    # The entry values are intended to maximize the difference between two
+    # neighbouring data sets. All entry values significantly exceed the
+    # specified lower and upper bounds to check that bounding is applied
+    # correctly.
+    raw_entry: [-1000.0]
+    neighbour_raw_entry: [-1000.0]
+    # The number of extra entries in the second data set equals the number of
+    # contributions a single privacy unit can make.
+    neighbour_raw_entry: [1000.0]
+  }
+}
+
+bounded_quantiles_dp_test_case {
+  name: "Laplace noise, binary distribution, many partitions contributed"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta_tolerance: 0.0036
+    num_of_buckets: 32
+  }
+  bounded_quantiles_sampling_parameters {
+    number_of_samples: 250000
+    noise_type: LAPLACE
+    rank: [0.0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1.0]
+    max_contributions_per_partition: 1
+    max_partitions_contributed: 9
+    lower_bound: 0.0
+    upper_bound: 1.0
+    tree_height: 2
+    branching_factor: 5
+    epsilon: 1.09861228866810969140  # = log(3)
+    # The entry values are intended to maximize the difference between two
+    # neighbouring data sets. All entry values significantly exceed the
+    # specified lower and upper bounds to check that bounding is applied
+    # correctly.
+    raw_entry: [
+      -1000.0, -1000.0, -1000.0, -1000.0, -1000.0, -1000.0, -1000.0, -1000.0,
+      -1000.0
+    ]
+    neighbour_raw_entry: [
+      -1000.0, -1000.0, -1000.0, -1000.0, -1000.0, -1000.0, -1000.0, -1000.0,
+      -1000.0
+    ]
+    # The number of extra entries in the second data set accounts for the number
+    # of partitions a single privacy unit can contribute to.
+    neighbour_raw_entry: [
+      1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0
+    ]
+  }
+}
+
+bounded_quantiles_dp_test_case {
+  name: "Laplace noise, binary distribution, many contributions per partition"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta_tolerance: 0.0036
+    num_of_buckets: 32
+  }
+  bounded_quantiles_sampling_parameters {
+    number_of_samples: 250000
+    noise_type: LAPLACE
+    rank: [0.0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1.0]
+    max_contributions_per_partition: 5
+    max_partitions_contributed: 1
+    lower_bound: 0.0
+    upper_bound: 1.0
+    tree_height: 2
+    branching_factor: 5
+    epsilon: 1.09861228866810969140  # = log(3)
+    # The entry values are intended to maximize the difference between two
+    # neighbouring data sets. All entry values significantly exceed the
+    # specified lower and upper bounds to check that bounding is applied
+    # correctly.
+    raw_entry: [-1000.0, -1000.0, -1000.0, -1000.0, -1000.0]
+    neighbour_raw_entry: [-1000.0, -1000.0, -1000.0, -1000.0, -1000.0]
+    # The number of extra entries in the second data set equals the number of
+    # contributions a single privacy unit can make.
+    neighbour_raw_entry: [1000.0, 1000.0, 1000.0, 1000.0, 1000.0]
+  }
+}
+
+bounded_quantiles_dp_test_case {
+  name: "Laplace noise, binary distribution, small epsilon"
+  dp_test_parameters {
+    epsilon: 0.1
+    delta_tolerance: 0.0012
+    num_of_buckets: 32
+  }
+  bounded_quantiles_sampling_parameters {
+    number_of_samples: 250000
+    noise_type: LAPLACE
+    rank: [0.0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1.0]
+    max_contributions_per_partition: 1
+    max_partitions_contributed: 1
+    lower_bound: 0.0
+    upper_bound: 1.0
+    tree_height: 2
+    branching_factor: 5
+    epsilon: 0.1
+    # The entry values are intended to maximize the difference between two
+    # neighbouring data sets. All entry values significantly exceed the
+    # specified lower and upper bounds to check that bounding is applied
+    # correctly.
+    raw_entry: [-1000.0]
+    neighbour_raw_entry: [-1000.0]
+    # The number of extra entries in the second data set equals the number of
+    # contributions a single privacy unit can make.
+    neighbour_raw_entry: [1000.0]
+  }
+}
+
+bounded_quantiles_dp_test_case {
+  name: "Laplace noise, binary distribution, large epsilon"
+  dp_test_parameters {
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta_tolerance: 0.0055
+    num_of_buckets: 32
+  }
+  bounded_quantiles_sampling_parameters {
+    number_of_samples: 250000
+    noise_type: LAPLACE
+    rank: [0.0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1.0]
+    max_contributions_per_partition: 1
+    max_partitions_contributed: 1
+    lower_bound: 0.0
+    upper_bound: 1.0
+    tree_height: 2
+    branching_factor: 5
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    # The entry values are intended to maximize the difference between two
+    # neighbouring data sets. All entry values significantly exceed the
+    # specified lower and upper bounds to check that bounding is applied
+    # correctly.
+    raw_entry: [-1000.0]
+    neighbour_raw_entry: [-1000.0]
+    # The number of extra entries in the second data set equals the number of
+    # contributions a single privacy unit can make.
+    neighbour_raw_entry: [1000.0]
+  }
+}
+
+bounded_quantiles_dp_test_case {
+  name: "Laplace noise, binary distribution, different tree parameters"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta_tolerance: 0.0036
+    num_of_buckets: 32
+  }
+  bounded_quantiles_sampling_parameters {
+    number_of_samples: 250000
+    noise_type: LAPLACE
+    rank: [0.0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1.0]
+    max_contributions_per_partition: 1
+    max_partitions_contributed: 1
+    lower_bound: 0.0
+    upper_bound: 1.0
+    tree_height: 3
+    branching_factor: 3
+    epsilon: 1.09861228866810969140  # = log(3)
+    # The entry values are intended to maximize the difference between two
+    # neighbouring data sets. All entry values significantly exceed the
+    # specified lower and upper bounds to check that bounding is applied
+    # correctly.
+    raw_entry: [-1000.0]
+    neighbour_raw_entry: [-1000.0]
+    # The number of extra entries in the second data set equals the number of
+    # contributions a single privacy unit can make.
+    neighbour_raw_entry: [1000.0]
+  }
+}
+
+bounded_quantiles_dp_test_case {
+  name: "Laplace noise, linear distribution, default parameters"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta_tolerance: 0.0036
+    num_of_buckets: 32
+  }
+  bounded_quantiles_sampling_parameters {
+    number_of_samples: 250000
+    noise_type: LAPLACE
+    rank: [0.0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1.0]
+    max_contributions_per_partition: 1
+    max_partitions_contributed: 1
+    lower_bound: -1.0
+    upper_bound: 2.0
+    tree_height: 2
+    branching_factor: 5
+    epsilon: 1.09861228866810969140  # = log(3)
+    # An arbitrary distribution where entries are spread out.
+    raw_entry: [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    neighbour_raw_entry: [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    # The number of extra entries contained in the neighbouring data set equals
+    # the number of contributions a single privacy unit can make.
+    neighbour_raw_entry: [0.0]
+  }
+}
+
+bounded_quantiles_dp_test_case {
+  name: "Laplace noise, linear distribution, many partitions contributed"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta_tolerance: 0.0036
+    num_of_buckets: 32
+  }
+  bounded_quantiles_sampling_parameters {
+    number_of_samples: 250000
+    noise_type: LAPLACE
+    rank: [0.0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1.0]
+    max_contributions_per_partition: 1
+    max_partitions_contributed: 9
+    lower_bound: -1.0
+    upper_bound: 2.0
+    tree_height: 2
+    branching_factor: 5
+    epsilon: 1.09861228866810969140  # = log(3)
+    # An arbitrary distribution where entries are spread out.
+    raw_entry: [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    neighbour_raw_entry: [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    # The number of extra entries in the second data set accounts for the number
+    # of partitions a single privacy unit can contribute to.
+    neighbour_raw_entry: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+  }
+}
+
+bounded_quantiles_dp_test_case {
+  name: "Laplace noise, linear distribution, many contributions per partition"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta_tolerance: 0.0036
+    num_of_buckets: 32
+  }
+  bounded_quantiles_sampling_parameters {
+    number_of_samples: 250000
+    noise_type: LAPLACE
+    rank: [0.0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1.0]
+    max_contributions_per_partition: 5
+    max_partitions_contributed: 1
+    lower_bound: -1.0
+    upper_bound: 2.0
+    tree_height: 2
+    branching_factor: 5
+    epsilon: 1.09861228866810969140  # = log(3)
+    # An arbitrary distribution where entries are spread out.
+    raw_entry: [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    neighbour_raw_entry: [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    # The number of extra entries contained in the neighbouring data set equals
+    # the number of contributions a single privacy unit can make.
+    neighbour_raw_entry: [0.0, 0.0, 0.0, 0.0, 0.0]
+  }
+}
+
+bounded_quantiles_dp_test_case {
+  name: "Laplace noise, linear distribution, small epsilon"
+  dp_test_parameters {
+    epsilon: 0.1
+    delta_tolerance: 0.0012
+    num_of_buckets: 32
+  }
+  bounded_quantiles_sampling_parameters {
+    number_of_samples: 250000
+    noise_type: LAPLACE
+    rank: [0.0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1.0]
+    max_contributions_per_partition: 1
+    max_partitions_contributed: 1
+    lower_bound: -1.0
+    upper_bound: 2.0
+    tree_height: 2
+    branching_factor: 5
+    epsilon: 0.1
+    # An arbitrary distribution where entries are spread out.
+    raw_entry: [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    neighbour_raw_entry: [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    # The number of extra entries contained in the neighbouring data set equals
+    # the number of contributions a single privacy unit can make.
+    neighbour_raw_entry: [0.0]
+  }
+}
+
+bounded_quantiles_dp_test_case {
+  name: "Laplace noise, linear distribution, large epsilon"
+  dp_test_parameters {
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta_tolerance: 0.0055
+    num_of_buckets: 32
+  }
+  bounded_quantiles_sampling_parameters {
+    number_of_samples: 250000
+    noise_type: LAPLACE
+    rank: [0.0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1.0]
+    max_contributions_per_partition: 1
+    max_partitions_contributed: 1
+    lower_bound: -1.0
+    upper_bound: 2.0
+    tree_height: 2
+    branching_factor: 5
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    # An arbitrary distribution where entries are spread out.
+    raw_entry: [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    neighbour_raw_entry: [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    # The number of extra entries contained in the neighbouring data set equals
+    # the number of contributions a single privacy unit can make.
+    neighbour_raw_entry: [0.0]
+  }
+}
+
+bounded_quantiles_dp_test_case {
+  name: "Laplace noise, linear distribution, different tree parameters"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta_tolerance: 0.0036
+    num_of_buckets: 32
+  }
+  bounded_quantiles_sampling_parameters {
+    number_of_samples: 250000
+    noise_type: LAPLACE
+    rank: [0.0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1.0]
+    max_contributions_per_partition: 1
+    max_partitions_contributed: 1
+    lower_bound: -1.0
+    upper_bound: 2.0
+    tree_height: 3
+    branching_factor: 3
+    epsilon: 1.09861228866810969140  # = log(3)
+    # An arbitrary distribution where entries are spread out.
+    raw_entry: [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    neighbour_raw_entry: [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    # The number of extra entries contained in the neighbouring data set equals
+    # the number of contributions a single privacy unit can make.
+    neighbour_raw_entry: [0.0]
+  }
+}
+
+bounded_quantiles_dp_test_case {
+  name: "Gaussian noise, empty distribution, default parameters"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.0036
+    num_of_buckets: 32
+  }
+  bounded_quantiles_sampling_parameters {
+    number_of_samples: 250000
+    noise_type: GAUSSIAN
+    rank: [0.0, 0.01, 0.05, 0.45, 0.49, 0.5, 0.51, 0.55, 0.95, 0.99, 1.0]
+    max_contributions_per_partition: 1
+    max_partitions_contributed: 1
+    lower_bound: 0.0
+    upper_bound: 1.0
+    tree_height: 2
+    branching_factor: 5
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries contained in the neighbouring data set equals
+    # the number of contributions a single privacy unit can make.
+    neighbour_raw_entry: [0.5]
+  }
+}
+
+bounded_quantiles_dp_test_case {
+  name: "Gaussian noise, empty distribution, many partitions contributed"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.0036
+    num_of_buckets: 32
+  }
+  bounded_quantiles_sampling_parameters {
+    number_of_samples: 250000
+    noise_type: GAUSSIAN
+    rank: [0.0, 0.01, 0.05, 0.45, 0.49, 0.5, 0.51, 0.55, 0.95, 0.99, 1.0]
+    max_contributions_per_partition: 1
+    max_partitions_contributed: 9
+    lower_bound: 0.0
+    upper_bound: 1.0
+    tree_height: 2
+    branching_factor: 5
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries contained in the neighbouring data set
+    # accounts for the number of partitions a single privacy unit can contribute
+    # to.
+    neighbour_raw_entry: [0.5, 0.5, 0.5]
+  }
+}
+
+bounded_quantiles_dp_test_case {
+  name: "Gaussian noise, empty distribution, many contributions per partition"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.0036
+    num_of_buckets: 32
+  }
+  bounded_quantiles_sampling_parameters {
+    number_of_samples: 250000
+    noise_type: GAUSSIAN
+    rank: [0.0, 0.01, 0.05, 0.45, 0.49, 0.5, 0.51, 0.55, 0.95, 0.99, 1.0]
+    max_contributions_per_partition: 5
+    max_partitions_contributed: 1
+    lower_bound: 0.0
+    upper_bound: 1.0
+    tree_height: 2
+    branching_factor: 5
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries contained in the neighbouring data set equals
+    # the number of contributions a single privacy unit can make.
+    neighbour_raw_entry: [0.5, 0.5, 0.5, 0.5, 0.5]
+  }
+}
+
+bounded_quantiles_dp_test_case {
+  name: "Gaussian noise, empty distribution, small epsilon"
+  dp_test_parameters {
+    epsilon: 0.1
+    delta: 0.00001
+    delta_tolerance: 0.0012
+    num_of_buckets: 32
+  }
+  bounded_quantiles_sampling_parameters {
+    number_of_samples: 250000
+    noise_type: GAUSSIAN
+    rank: [0.0, 0.01, 0.05, 0.45, 0.49, 0.5, 0.51, 0.55, 0.95, 0.99, 1.0]
+    max_contributions_per_partition: 1
+    max_partitions_contributed: 1
+    lower_bound: 0.0
+    upper_bound: 1.0
+    tree_height: 2
+    branching_factor: 5
+    epsilon: 0.1
+    delta: 0.00001
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries contained in the neighbouring data set equals
+    # the number of contributions a single privacy unit can make.
+    neighbour_raw_entry: [0.5]
+  }
+}
+
+bounded_quantiles_dp_test_case {
+  name: "Gaussian noise, empty distribution, large epsilon"
+  dp_test_parameters {
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta: 0.00001
+    delta_tolerance: 0.0055
+    num_of_buckets: 32
+  }
+  bounded_quantiles_sampling_parameters {
+    number_of_samples: 250000
+    noise_type: GAUSSIAN
+    rank: [0.0, 0.01, 0.05, 0.45, 0.49, 0.5, 0.51, 0.55, 0.95, 0.99, 1.0]
+    max_contributions_per_partition: 1
+    max_partitions_contributed: 1
+    lower_bound: 0.0
+    upper_bound: 1.0
+    tree_height: 2
+    branching_factor: 5
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta: 0.00001
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries contained in the neighbouring data set equals
+    # the number of contributions a single privacy unit can make.
+    neighbour_raw_entry: [0.5]
+  }
+}
+
+bounded_quantiles_dp_test_case {
+  name: "Gaussian noise, empty distribution, small delta"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.000001
+    delta_tolerance: 0.0036
+    num_of_buckets: 32
+  }
+  bounded_quantiles_sampling_parameters {
+    number_of_samples: 250000
+    noise_type: GAUSSIAN
+    rank: [0.0, 0.01, 0.05, 0.45, 0.49, 0.5, 0.51, 0.55, 0.95, 0.99, 1.0]
+    max_contributions_per_partition: 5
+    max_partitions_contributed: 1
+    lower_bound: 0.0
+    upper_bound: 1.0
+    tree_height: 2
+    branching_factor: 5
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.000001
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries contained in the neighbouring data set equals
+    # the number of contributions a single privacy unit can make.
+    neighbour_raw_entry: [0.5]
+  }
+}
+
+bounded_quantiles_dp_test_case {
+  name: "Gaussian noise, empty distribution, different tree parameters"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.0036
+    num_of_buckets: 32
+  }
+  bounded_quantiles_sampling_parameters {
+    number_of_samples: 250000
+    noise_type: GAUSSIAN
+    rank: [0.0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1.0]
+    max_contributions_per_partition: 1
+    max_partitions_contributed: 1
+    lower_bound: 0.0
+    upper_bound: 1.0
+    tree_height: 3
+    branching_factor: 3
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries contained in the neighbouring data set equals
+    # the number of contributions a single privacy unit can make.
+    neighbour_raw_entry: [0.5]
+  }
+}
+
+bounded_quantiles_dp_test_case {
+  name: "Gaussian noise, binary distribution, default parameters"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.0036
+    num_of_buckets: 32
+  }
+  bounded_quantiles_sampling_parameters {
+    number_of_samples: 250000
+    noise_type: GAUSSIAN
+    rank: [0.0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1.0]
+    max_contributions_per_partition: 1
+    max_partitions_contributed: 1
+    lower_bound: 0.0
+    upper_bound: 1.0
+    tree_height: 2
+    branching_factor: 5
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    # The entry values are intended to maximize the difference between two
+    # neighbouring data sets. All entry values significantly exceed the
+    # specified lower and upper bounds to check that bounding is applied
+    # correctly.
+    raw_entry: [-1000.0]
+    neighbour_raw_entry: [-1000.0]
+    # The number of extra entries in the second data set equals the number of
+    # contributions a single privacy unit can make.
+    neighbour_raw_entry: [1000.0]
+  }
+}
+
+bounded_quantiles_dp_test_case {
+  name: "Gaussian noise, binary distribution, many partitions contributed"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.0036
+    num_of_buckets: 32
+  }
+  bounded_quantiles_sampling_parameters {
+    number_of_samples: 250000
+    noise_type: GAUSSIAN
+    rank: [0.0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1.0]
+    max_contributions_per_partition: 1
+    max_partitions_contributed: 9
+    lower_bound: 0.0
+    upper_bound: 1.0
+    tree_height: 2
+    branching_factor: 5
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    # The entry values are intended to maximize the difference between two
+    # neighbouring data sets. All entry values significantly exceed the
+    # specified lower and upper bounds to check that bounding is applied
+    # correctly.
+    raw_entry: [-1000.0, -1000.0, -1000.0]
+    neighbour_raw_entry: [-1000.0, -1000.0, -1000.0]
+    # The number of extra entries in the second data set accounts for the number
+    # of partitions a single privacy unit can contribute to.
+    neighbour_raw_entry: [1000.0, 1000.0, 1000.0]
+  }
+}
+
+bounded_quantiles_dp_test_case {
+  name: "Gaussian noise, binary distribution, many contributions per partition"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.0036
+    num_of_buckets: 32
+  }
+  bounded_quantiles_sampling_parameters {
+    number_of_samples: 250000
+    noise_type: GAUSSIAN
+    rank: [0.0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1.0]
+    max_contributions_per_partition: 5
+    max_partitions_contributed: 1
+    lower_bound: 0.0
+    upper_bound: 1.0
+    tree_height: 2
+    branching_factor: 5
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    # The entry values are intended to maximize the difference between two
+    # neighbouring data sets. All entry values significantly exceed the
+    # specified lower and upper bounds to check that bounding is applied
+    # correctly.
+    raw_entry: [-1000.0, -1000.0, -1000.0, -1000.0, -1000.0]
+    neighbour_raw_entry: [-1000.0, -1000.0, -1000.0, -1000.0, -1000.0]
+    # The number of extra entries in the second data set equals the number of
+    # contributions a single privacy unit can make.
+    neighbour_raw_entry: [1000.0, 1000.0, 1000.0, 1000.0, 1000.0]
+  }
+}
+
+bounded_quantiles_dp_test_case {
+  name: "Gaussian noise, binary distribution, small epsilon"
+  dp_test_parameters {
+    epsilon: 0.1
+    delta: 0.00001
+    delta_tolerance: 0.0012
+    num_of_buckets: 32
+  }
+  bounded_quantiles_sampling_parameters {
+    number_of_samples: 250000
+    noise_type: GAUSSIAN
+    rank: [0.0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1.0]
+    max_contributions_per_partition: 1
+    max_partitions_contributed: 1
+    lower_bound: 0.0
+    upper_bound: 1.0
+    tree_height: 2
+    branching_factor: 5
+    epsilon: 0.1
+    delta: 0.00001
+    # The entry values are intended to maximize the difference between two
+    # neighbouring data sets. All entry values significantly exceed the
+    # specified lower and upper bounds to check that bounding is applied
+    # correctly.
+    raw_entry: [-1000.0]
+    neighbour_raw_entry: [-1000.0]
+    # The number of extra entries in the second data set equals the number of
+    # contributions a single privacy unit can make.
+    neighbour_raw_entry: [1000.0]
+  }
+}
+
+bounded_quantiles_dp_test_case {
+  name: "Gaussian noise, binary distribution, large epsilon"
+  dp_test_parameters {
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta: 0.00001
+    delta_tolerance: 0.0055
+    num_of_buckets: 32
+  }
+  bounded_quantiles_sampling_parameters {
+    number_of_samples: 250000
+    noise_type: GAUSSIAN
+    rank: [0.0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1.0]
+    max_contributions_per_partition: 1
+    max_partitions_contributed: 1
+    lower_bound: 0.0
+    upper_bound: 1.0
+    tree_height: 2
+    branching_factor: 5
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta: 0.00001
+    # The entry values are intended to maximize the difference between two
+    # neighbouring data sets. All entry values significantly exceed the
+    # specified lower and upper bounds to check that bounding is applied
+    # correctly.
+    raw_entry: [-1000.0]
+    neighbour_raw_entry: [-1000.0]
+    # The number of extra entries in the second data set equals the number of
+    # contributions a single privacy unit can make.
+    neighbour_raw_entry: [1000.0]
+  }
+}
+
+bounded_quantiles_dp_test_case {
+  name: "Gaussian noise, binary distribution, small delta"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.000001
+    delta_tolerance: 0.0036
+    num_of_buckets: 32
+  }
+  bounded_quantiles_sampling_parameters {
+    number_of_samples: 250000
+    noise_type: GAUSSIAN
+    rank: [0.0, 0.01, 0.05, 0.45, 0.49, 0.5, 0.51, 0.55, 0.95, 0.99, 1.0]
+    max_contributions_per_partition: 5
+    max_partitions_contributed: 1
+    lower_bound: 0.0
+    upper_bound: 1.0
+    tree_height: 2
+    branching_factor: 5
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.000001
+    # The entry values are intended to maximize the difference between two
+    # neighbouring data sets. All entry values significantly exceed the
+    # specified lower and upper bounds to check that bounding is applied
+    # correctly.
+    raw_entry: [-1000.0]
+    neighbour_raw_entry: [-1000.0]
+    # The number of extra entries in the second data set equals the number of
+    # contributions a single privacy unit can make.
+    neighbour_raw_entry: [1000.0]
+  }
+}
+
+bounded_quantiles_dp_test_case {
+  name: "Gaussian noise, binary distribution, different tree parameters"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.0036
+    num_of_buckets: 32
+  }
+  bounded_quantiles_sampling_parameters {
+    number_of_samples: 250000
+    noise_type: GAUSSIAN
+    rank: [0.0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1.0]
+    max_contributions_per_partition: 1
+    max_partitions_contributed: 1
+    lower_bound: 0.0
+    upper_bound: 1.0
+    tree_height: 3
+    branching_factor: 3
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    # The entry values are intended to maximize the difference between two
+    # neighbouring data sets. All entry values significantly exceed the
+    # specified lower and upper bounds to check that bounding is applied
+    # correctly.
+    raw_entry: [-1000.0]
+    neighbour_raw_entry: [-1000.0]
+    # The number of extra entries in the second data set equals the number of
+    # contributions a single privacy unit can make.
+    neighbour_raw_entry: [1000.0]
+  }
+}
+
+bounded_quantiles_dp_test_case {
+  name: "Gaussian noise, linear distribution, default parameters"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.0036
+    num_of_buckets: 32
+  }
+  bounded_quantiles_sampling_parameters {
+    number_of_samples: 250000
+    noise_type: GAUSSIAN
+    rank: [0.0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1.0]
+    max_contributions_per_partition: 1
+    max_partitions_contributed: 1
+    lower_bound: -1.0
+    upper_bound: 2.0
+    tree_height: 2
+    branching_factor: 5
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    # An arbitrary distribution where entries are spread out.
+    raw_entry: [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    neighbour_raw_entry: [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    # The number of extra entries contained in the neighbouring data set equals
+    # the number of contributions a single privacy unit can make.
+    neighbour_raw_entry: [0.0]
+  }
+}
+
+bounded_quantiles_dp_test_case {
+  name: "Gaussian noise, linear distribution, many partitions contributed"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.0036
+    num_of_buckets: 32
+  }
+  bounded_quantiles_sampling_parameters {
+    number_of_samples: 250000
+    noise_type: GAUSSIAN
+    rank: [0.0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1.0]
+    max_contributions_per_partition: 1
+    max_partitions_contributed: 9
+    lower_bound: -1.0
+    upper_bound: 2.0
+    tree_height: 2
+    branching_factor: 5
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    # An arbitrary distribution where entries are spread out.
+    raw_entry: [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    neighbour_raw_entry: [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    # The number of extra entries in the second data set accounts for the number
+    # of partitions a single privacy unit can contribute to.
+    neighbour_raw_entry: [0.0, 0.0, 0.0]
+  }
+}
+
+bounded_quantiles_dp_test_case {
+  name: "Gaussian noise, linear distribution, many contributions per partition"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.0036
+    num_of_buckets: 32
+  }
+  bounded_quantiles_sampling_parameters {
+    number_of_samples: 250000
+    noise_type: GAUSSIAN
+    rank: [0.0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1.0]
+    max_contributions_per_partition: 5
+    max_partitions_contributed: 1
+    lower_bound: -1.0
+    upper_bound: 2.0
+    tree_height: 2
+    branching_factor: 5
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    # An arbitrary distribution where entries are spread out.
+    raw_entry: [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    neighbour_raw_entry: [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    # The number of extra entries contained in the neighbouring data set equals
+    # the number of contributions a single privacy unit can make.
+    neighbour_raw_entry: [0.0, 0.0, 0.0, 0.0, 0.0]
+  }
+}
+
+bounded_quantiles_dp_test_case {
+  name: "Gaussian noise, linear distribution, small epsilon"
+  dp_test_parameters {
+    epsilon: 0.1
+    delta: 0.00001
+    delta_tolerance: 0.0012
+    num_of_buckets: 32
+  }
+  bounded_quantiles_sampling_parameters {
+    number_of_samples: 250000
+    noise_type: GAUSSIAN
+    rank: [0.0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1.0]
+    max_contributions_per_partition: 1
+    max_partitions_contributed: 1
+    lower_bound: -1.0
+    upper_bound: 2.0
+    tree_height: 2
+    branching_factor: 5
+    epsilon: 0.1
+    delta: 0.00001
+    # An arbitrary distribution where entries are spread out.
+    raw_entry: [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    neighbour_raw_entry: [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    # The number of extra entries contained in the neighbouring data set equals
+    # the number of contributions a single privacy unit can make.
+    neighbour_raw_entry: [0.0]
+  }
+}
+
+bounded_quantiles_dp_test_case {
+  name: "Gaussian noise, linear distribution, large epsilon"
+  dp_test_parameters {
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta: 0.00001
+    delta_tolerance: 0.0055
+    num_of_buckets: 32
+  }
+  bounded_quantiles_sampling_parameters {
+    number_of_samples: 250000
+    noise_type: GAUSSIAN
+    rank: [0.0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1.0]
+    max_contributions_per_partition: 1
+    max_partitions_contributed: 1
+    lower_bound: -1.0
+    upper_bound: 2.0
+    tree_height: 2
+    branching_factor: 5
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta: 0.00001
+    # An arbitrary distribution where entries are spread out.
+    raw_entry: [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    neighbour_raw_entry: [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    # The number of extra entries contained in the neighbouring data set equals
+    # the number of contributions a single privacy unit can make.
+    neighbour_raw_entry: [0.0]
+  }
+}
+
+bounded_quantiles_dp_test_case {
+  name: "Gaussian noise, linear distribution, small delta"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.000001
+    delta_tolerance: 0.0036
+    num_of_buckets: 32
+  }
+  bounded_quantiles_sampling_parameters {
+    number_of_samples: 250000
+    noise_type: GAUSSIAN
+    rank: [0.0, 0.01, 0.05, 0.45, 0.49, 0.5, 0.51, 0.55, 0.95, 0.99, 1.0]
+    max_contributions_per_partition: 5
+    max_partitions_contributed: 1
+    lower_bound: -1.0
+    upper_bound: 2.0
+    tree_height: 2
+    branching_factor: 5
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.000001
+    # An arbitrary distribution where entries are spread out.
+    raw_entry: [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    neighbour_raw_entry: [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    # The number of extra entries contained in the neighbouring data set equals
+    # the number of contributions a single privacy unit can make.
+    neighbour_raw_entry: [0.0]
+  }
+}
+
+bounded_quantiles_dp_test_case {
+  name: "Gaussian noise, linear distribution, different tree parameters"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.0036
+    num_of_buckets: 32
+  }
+  bounded_quantiles_sampling_parameters {
+    number_of_samples: 250000
+    noise_type: GAUSSIAN
+    rank: [0.0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1.0]
+    max_contributions_per_partition: 1
+    max_partitions_contributed: 1
+    lower_bound: -1.0
+    upper_bound: 2.0
+    tree_height: 3
+    branching_factor: 3
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    # An arbitrary distribution where entries are spread out.
+    raw_entry: [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    neighbour_raw_entry: [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    # The number of extra entries contained in the neighbouring data set equals
+    # the number of contributions a single privacy unit can make.
+    neighbour_raw_entry: [0.0]
+  }
+}

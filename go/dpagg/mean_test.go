@@ -107,7 +107,7 @@ func TestNewBoundedMeanFloat64(t *testing.T) {
 	} {
 		got := NewBoundedMeanFloat64(tc.opt)
 		if !reflect.DeepEqual(got, tc.want) {
-			t.Errorf("NewBoundedMeanFloat64: when %s got %v, want %v", tc.desc, got, tc.want)
+			t.Errorf("NewBoundedMeanFloat64: when %s got %+v, want %+v", tc.desc, got, tc.want)
 		}
 	}
 }
@@ -500,7 +500,7 @@ func TestCheckMergeBoundedMeanFloat64Compatibility(t *testing.T) {
 		bm2 := NewBoundedMeanFloat64(tc.opt2)
 
 		if err := checkMergeBoundedMeanFloat64(bm1, bm2); (err != nil) != tc.wantErr {
-			t.Errorf("CheckMerge: when %v for err got %v, wantErr %t", tc.desc, err, tc.wantErr)
+			t.Errorf("CheckMerge: when %s for err got %v, wantErr %t", tc.desc, err, tc.wantErr)
 		}
 	}
 }
@@ -649,7 +649,7 @@ func TestBMEquallyInitializedFloat64(t *testing.T) {
 		},
 	} {
 		if bmEquallyInitializedFloat64(tc.bm1, tc.bm2) != tc.equal {
-			t.Errorf("bmEquallyInitializedFloat64: when %v got %t, want %t", tc.desc, !tc.equal, tc.equal)
+			t.Errorf("bmEquallyInitializedFloat64: when %s got %t, want %t", tc.desc, !tc.equal, tc.equal)
 		}
 	}
 }

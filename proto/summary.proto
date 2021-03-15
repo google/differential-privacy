@@ -45,6 +45,22 @@ message CountSummary {
   optional int32 max_contributions_per_partition = 7;
 }
 
+message BoundedQuantilesSummary {
+  // Distribution of the data subset, stored in the form of a quantile tree
+  map<int32, int64> quantile_tree = 1;
+
+  // Quantiles parameters:
+  optional double epsilon = 2;
+  optional double delta = 3;
+  optional MechanismType mechanism_type = 4;
+  optional double lower = 5;
+  optional double upper = 6;
+  optional int32 max_partitions_contributed = 7;
+  optional int32 max_contributions_per_partition = 8;
+  optional int32 tree_height = 9;
+  optional int32 branching_factor = 10;
+}
+
 message BoundedSumSummary {
   // Partial sum data for the dataset. For automatically set bounds, partial
   // sum values are stored corresponding to each ApproxBounds bin.

@@ -28,7 +28,7 @@ Currently, the DP building block libraries support the following algorithms:
 | Mean               | Supported     | Supported |Supported |
 | Variance           | Supported     | Planned   |Planned   |
 | Standard deviation | Supported     | Planned   |Planned   |
-| Order statistics (incl. min, max, and median) | Supported   | Planned | Planned |
+| Order statistics (incl. min, max, and median) | Supported   | Planned | Supported |
 | Automatic bounds approximation | Supported   | Planned | Planned |
 
 They also contain [safe implementations](common_docs/Secure_Noise_Generation.pdf)

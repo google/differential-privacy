@@ -204,7 +204,7 @@ TYPED_TEST(BoundedVarianceTest, InsufficientPrivacyBudgetTest) {
 }
 
 TYPED_TEST(BoundedVarianceTest, ClampInputTest) {
-  std::vector<TypeParam> a = {0, 0, 10, 10};
+  std::vector<TypeParam> a = {0, 0, 1, 1};
   base::StatusOr<std::unique_ptr<BoundedVariance<TypeParam>>> bv =
       typename BoundedVariance<TypeParam>::Builder()
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
@@ -215,7 +215,8 @@ TYPED_TEST(BoundedVarianceTest, ClampInputTest) {
   ASSERT_OK(bv);
   base::StatusOr<Output> result = (*bv)->Result(a.begin(), a.end());
   ASSERT_OK(result);
-  EXPECT_DOUBLE_EQ(GetValue<double>(*result), 1.0);
+  // The input will be clamped to {1, 1, 1, 1} returning variance 0.
+  EXPECT_DOUBLE_EQ(GetValue<double>(*result), 0.0);
 }
 
 TYPED_TEST(BoundedVarianceTest, ClampOutputLowerTest) {
@@ -468,7 +469,7 @@ TEST(BoundedVarianceTest, OverflowAddEntryManualBounds) {
       1, std::numeric_limits<int32_t>::max(), bv.get());
 
   auto result = bv->PartialResult();
-  EXPECT_OK(result.status());
+  ASSERT_OK(result.status());
   // Overflow should result in a variance of 1.0.
   EXPECT_DOUBLE_EQ(GetValue<double>(result.value()), 1.0);
 }

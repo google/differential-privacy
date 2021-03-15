@@ -67,11 +67,11 @@ def inverse_monotone_function(
     increasing: Whether the function is monotonically increasing.
 
   Returns:
-    x such that f(x) is no more than value, when such x exists. It is guaranteed
-    that the returned x is within search_parameters.tolerance of the smallest
-    (for monotonically decreasing f) or the largest (for monotonically
-    increasing f) such x. When no such x exists within the given range, returns
-    None.
+    x such that func(x) is no more than value, when such x exists. It is
+    guaranteed that the returned x is within search_parameters.tolerance of the
+    smallest (for monotonically decreasing func) or the largest (for
+    monotonically increasing func) such x. When no such x exists within the
+    given range, returns None.
   """
   lower_x = search_parameters.lower_bound
   upper_x = search_parameters.upper_bound

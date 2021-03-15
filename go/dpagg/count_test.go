@@ -85,7 +85,7 @@ func TestNewCount(t *testing.T) {
 	} {
 		got := NewCount(tc.opt)
 		if !reflect.DeepEqual(got, tc.want) {
-			t.Errorf("NewCount: when %s got %v, want %v", tc.desc, got, tc.want)
+			t.Errorf("NewCount: when %s got %+v, want %+v", tc.desc, got, tc.want)
 		}
 	}
 }
@@ -296,7 +296,7 @@ func TestCountCheckMergeCompatibility(t *testing.T) {
 		c2 := NewCount(tc.opt2)
 
 		if err := checkMergeCount(c1, c2); (err != nil) != tc.wantErr {
-			t.Errorf("CheckMerge: when %v for err got %v, wantErr %t", tc.desc, err, tc.wantErr)
+			t.Errorf("CheckMerge: when %s for err got %v, wantErr %t", tc.desc, err, tc.wantErr)
 		}
 	}
 }
@@ -696,7 +696,7 @@ func TestCountEquallyInitialized(t *testing.T) {
 		},
 	} {
 		if countEquallyInitialized(tc.count1, tc.count2) != tc.equal {
-			t.Errorf("countEquallyInitialized: when %v got %t, want %t", tc.desc, !tc.equal, tc.equal)
+			t.Errorf("countEquallyInitialized: when %s got %t, want %t", tc.desc, !tc.equal, tc.equal)
 		}
 	}
 }

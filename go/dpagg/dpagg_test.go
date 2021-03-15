@@ -33,6 +33,10 @@ var (
 	alphaLevel = 0.05
 )
 
+func ApproxEqual(x, y float64) bool {
+	return cmp.Equal(x, y, cmpopts.EquateApprox(0, tenten))
+}
+
 // noNoise is a Noise instance that doesn't add noise to the data, and has a
 // threshold of 5.
 type noNoise struct {
@@ -45,10 +49,6 @@ func (noNoise) AddNoiseInt64(x, _, _ int64, _, _ float64) int64 {
 
 func (noNoise) AddNoiseFloat64(x float64, _ int64, _, _, _ float64) float64 {
 	return x
-}
-
-func ApproxEqual(x, y float64) bool {
-	return cmp.Equal(x, y, cmpopts.EquateApprox(0, tenten))
 }
 
 func (noNoise) Threshold(_ int64, _, _, _, _ float64) float64 {

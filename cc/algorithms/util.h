@@ -102,8 +102,9 @@ inline const T& Clamp(const T& low, const T& high, const T& value) {
   return value;
 }
 
-// Return value for the SafeCastFromDouble functions below, including the cast
-// value and whether or not the cast caused an overflow.
+// Return value for the Safe* operation functions below, including the cast
+// resulting value of the operation and whether or not the operation caused an
+// overflow.
 template <typename T>
 struct SafeOpResult {
   T value;

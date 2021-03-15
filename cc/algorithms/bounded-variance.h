@@ -286,8 +286,9 @@ class BoundedVarianceWithFixedBounds : public BoundedVariance<T> {
       return;
     }
     partial_count_ += num_of_entries;
-    partial_sum_ += input * num_of_entries;
-    partial_sum_of_squares_ += input * input * num_of_entries;
+    const T clamped_input = Clamp<T>(lower_, upper_, input);
+    partial_sum_ += clamped_input * num_of_entries;
+    partial_sum_of_squares_ += std::pow(clamped_input, 2) * num_of_entries;
   }
 
  private:
