@@ -257,5 +257,87 @@ class DiscreteLaplacePrivacyLossDistributionTest(parameterized.TestCase):
     self.assertAlmostEqual(expected_delta, pl.get_delta_for_epsilon(epsilon))
 
 
+class DiscreteGaussianPrivacyLossTest(parameterized.TestCase):
+
+  @parameterized.parameters((1, 1, 5, -4.5), (1, 1, -3, 3.5), (1, 2, 3, -4),
+                            (4, 4, 20, -4.5), (5, 5, -15, 3.5), (7, 14, 21, -4),
+                            (1, 1, -12, math.inf))
+  def test_discrete_gaussian_privacy_loss(self, sigma, sensitivity,
+                                          x, expected_privacy_loss):
+    pl = privacy_loss_mechanism.DiscreteGaussianPrivacyLoss(
+        sigma, sensitivity=sensitivity)
+    self.assertAlmostEqual(expected_privacy_loss, pl.privacy_loss(x))
+
+  @parameterized.parameters((1, 1, -4.5, 5), (1, 1, 3.5, -3), (1, 2, -4, 3),
+                            (4, 4, -4.51, 20), (5, 5, 3.49, -15),
+                            (7, 14, -4, 21))
+  def test_discrete_gaussian_inverse_privacy_loss(self, sigma, sensitivity,
+                                                  privacy_loss, expected_x):
+    pl = privacy_loss_mechanism.DiscreteGaussianPrivacyLoss(
+        sigma, sensitivity=sensitivity)
+    self.assertAlmostEqual(expected_x, pl.inverse_privacy_loss(privacy_loss))
+
+  @parameterized.parameters((1, 1, 2, -1, 2, {
+      math.inf: 0.05448868
+  }), (1, 2, 2, 0, 2, {
+      math.inf: 0.29869003
+  }))
+  def test_discrete_gaussian_privacy_loss_tail(
+      self, sigma, sensitivity, truncation_bound, expected_lower_x_truncation,
+      expected_upper_x_truncation, expected_tail_probability_mass_function):
+    pl = privacy_loss_mechanism.DiscreteGaussianPrivacyLoss(
+        sigma, sensitivity=sensitivity, truncation_bound=truncation_bound)
+    tail_pld = pl.privacy_loss_tail()
+    self.assertAlmostEqual(expected_lower_x_truncation,
+                           tail_pld.lower_x_truncation)
+    self.assertAlmostEqual(expected_upper_x_truncation,
+                           tail_pld.upper_x_truncation)
+    test_util.dictionary_almost_equal(self,
+                                      expected_tail_probability_mass_function,
+                                      tail_pld.tail_probability_mass_function)
+
+  @parameterized.parameters((1, 1, 1, {
+      -1.5: 0,
+      -1: 0.27406862,
+      0: 0.7259314,
+      1: 1,
+      1.5: 1
+  }), (3, 2, 2, {
+      -2.1: 0,
+      -2: 0.17820326,
+      -1: 0.38872553,
+      0: 0.61127447,
+      1: 0.82179674,
+      2: 1,
+      2.7: 1
+  }))
+  def test_discrete_gaussian_noise_cdf(self, sigma, sensitivity,
+                                       truncation_bound, x_to_cdf_value):
+    pl = privacy_loss_mechanism.DiscreteGaussianPrivacyLoss(
+        sigma, sensitivity=sensitivity, truncation_bound=truncation_bound)
+    for x, cdf_value in x_to_cdf_value.items():
+      self.assertAlmostEqual(cdf_value, pl.noise_cdf(x))
+
+  @parameterized.parameters((1, 1, 1, 0.7403629), (3, 2, 2, 1.3589226))
+  def test_discrete_gaussian_std(self, sigma, sensitivity, truncation_bound,
+                                 expected_std):
+    pl = privacy_loss_mechanism.DiscreteGaussianPrivacyLoss(
+        sigma, sensitivity=sensitivity, truncation_bound=truncation_bound)
+    self.assertAlmostEqual(expected_std, pl.standard_deviation())
+
+  @parameterized.parameters(
+      (1, 1, 0.12693674, 1.041), (2, 1, 0.12693674, 1.972),
+      (3, 1, 0.78760074, 0.993), (6, 1, 0.78760074, 2.014),
+      (1, 2, 0.02092364, 1.038), (5, 2, 0.02092364, 5.008),
+      (1, 16, 1e-5, 0.306), (2, 16, 1e-5, 0.703))
+  def test_discrete_gaussian_from_privacy_parameters(self, sensitivity, epsilon,
+                                                     delta, expected_sigma):
+    pl = (
+        privacy_loss_mechanism.DiscreteGaussianPrivacyLoss
+        .from_privacy_guarantee(
+            common.DifferentialPrivacyParameters(epsilon, delta), sensitivity))
+    self.assertAlmostEqual(expected_sigma, pl._sigma, 3)
+
+
 if __name__ == '__main__':
   unittest.main()

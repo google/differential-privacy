@@ -464,7 +464,7 @@ class GaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
   ) -> 'GaussianPrivacyLoss':
     """Creates the privacy loss for Gaussian mechanism with desired privacy.
 
-    Use binary search to find the smallest possible standard deviation of the
+    Uses binary search to find the smallest possible standard deviation of the
     Gaussian noise for which the protocol is (epsilon, delta)-differentially
     private.
 
@@ -481,7 +481,7 @@ class GaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
       guarantee.
     """
     # The initial standard deviation is set to
-    # sqrt(2 * ln(1.5/delta) * sensitivity / epsilon. It is known that, when
+    # sqrt(2 * ln(1.5/delta)) * sensitivity / epsilon. It is known that, when
     # epsilon is no more than one, the Gaussian mechanism with this standard
     # deviation is (epsilon, delta)-DP. See e.g. Appendix A in Dwork and Roth
     # book, "The Algorithmic Foundations of Differential Privacy".
@@ -656,3 +656,191 @@ class DiscreteLaplacePrivacyLoss(AdditiveNoisePrivacyLoss):
   def parameter(self) -> float:
     """The parameter of the corresponding Discrete Laplace noise."""
     return self._parameter
+
+
+class DiscreteGaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
+  """Privacy loss of the discrete Gaussian mechanism.
+
+  The discrete Gaussian mechanism for computing a scalar-valued function f
+  simply outputs the sum of the true value of the function and a noise drawn
+  from the discrete Gaussian distribution. Recall that the (centered) discrete
+  Gaussian distribution with parameter sigma has probability mass function
+  proportional to exp(-0.5 x^2/sigma^2) at x for any integer x. Since its
+  normalization factor and cumulative density function do not have a closed
+  form, we will instead consider the truncated version where the noise x is
+  restricted to only be in [-truncated_bound, truncated_bound].
+
+  The privacy loss distribution of the discrete Gaussian mechanism is equivalent
+  to the privacy loss distribution between the discrete Gaussian distribution
+  and the same distribution but shifted by the sensitivity of f. Specifically,
+  the privacy loss distribution of the discrete Gaussian mechanism is generated
+  as follows: first pick x according to the discrete Gaussian noise. Then, let
+  the privacy loss be ln(PMF(x) / PMF(x - sensitivity)) which is equal to
+  0.5 * sensitivity * (sensitivity - 2 * x) / sigma^2. Note that since we
+  consider the truncated version of the noise, we set the privacy loss to
+  infinity when x < -truncation_bound + sensitivity.
+
+  Reference:
+  Canonne, Kamath, Steinke. "The Discrete Gaussian for Differential Privacy".
+  In NeurIPS 2020.
+  """
+
+  def __init__(self,
+               sigma: float,
+               sensitivity: int = 1,
+               truncation_bound: int = None) -> None:
+    """Initializes the privacy loss of the Gaussian mechanism.
+
+    Args:
+      sigma: the parameter of the discrete Gaussian distribution. Note that
+        unlike the (continuous) Gaussian distribution this is not equal to the
+        standard deviation of the noise.
+      sensitivity: the sensitivity of function f. (i.e. the maximum absolute
+        change in f when an input to a single user changes.)
+      truncation_bound: bound for truncating the noise, i.e. the noise will only
+        have a support in [-truncation_bound, truncation_bound]. When not
+        specified, truncation_bound will be chosen in such a way that the mass
+        of the noise outside of this range is at most 1e-30.
+    """
+    if sigma <= 0:
+      raise ValueError(f'Sigma is not a positive real number: {sigma}')
+
+    self._sigma = sigma
+    if truncation_bound is None:
+      # Tail bound from Canonne et al. ensures that the mass that gets truncated
+      # is at most 1e-30. (See Proposition 1 in the supplementary material.)
+      self._truncation_bound = math.ceil(11.6 * sigma)
+    else:
+      self._truncation_bound = truncation_bound
+
+    # Create the PMF and CDF.
+    self._pmf = {}
+    self._cdf = {}
+    for x in range(-1 * self._truncation_bound, self._truncation_bound + 1):
+      self._pmf[x] = math.exp(-0.5 * x**2/sigma**2)
+      self._cdf[x] = self._cdf.get(x - 1, 0) + self._pmf[x]
+    for x in range(-1 * self._truncation_bound, self._truncation_bound + 1):
+      self._pmf[x] /= self._cdf[self._truncation_bound]
+      self._cdf[x] /= self._cdf[self._truncation_bound]
+
+    super(DiscreteGaussianPrivacyLoss, self).__init__(sensitivity, True)
+
+  def privacy_loss_tail(self) -> TailPrivacyLossDistribution:
+    """Computes the privacy loss at the tail of the discrete Gaussian distribution.
+
+    When x < -truncation_bound + sensitivity, the privacy loss is infinity.
+    Due to truncation, x > truncation_bound never occurs.
+
+    Returns:
+      A TailPrivacyLossDistribution instance representing the tail of the
+      privacy loss distribution.
+    """
+    return TailPrivacyLossDistribution(
+        self.sensitivity - self._truncation_bound, self._truncation_bound,
+        {math.inf: self._cdf[self.sensitivity - self._truncation_bound - 1]})
+
+  def privacy_loss(self, x: float) -> float:
+    """Computes the privacy loss of the discrete Gaussian mechanism at a given point.
+
+    Args:
+      x: the point at which the privacy loss is computed.
+
+    Returns:
+      The privacy loss of the discrete Gaussian mechanism at point x. If x is an
+      integer in the range [-truncation_bound + sensitivity, truncation_bound],
+      it is equal to 0.5 * sensitivity * (sensitivity - 2 * x) / sigma^2. If x
+      is an integer in the range [-truncation_bound,
+      truncation_bound + sensitivity), then it is equal to infinity. Otherwise,
+      the privacy loss is undefined
+    """
+    if (not isinstance(x, int)
+        or x > self._truncation_bound or x < -1 * self._truncation_bound):
+      raise ValueError(f'Privacy loss at x is undefined for x = {x}')
+
+    if x >= self.sensitivity - self._truncation_bound:
+      return (0.5 * self.sensitivity * (self.sensitivity - 2 * x) /
+              (self._sigma**2))
+    return math.inf
+
+  def inverse_privacy_loss(self, privacy_loss: float) -> float:
+    """Computes the inverse of a given privacy loss for the discrete Gaussian mechanism.
+
+    Args:
+      privacy_loss: the privacy loss value.
+
+    Returns:
+      The largest int x such that the privacy loss at x is at least
+      privacy_loss. This is equal to
+      floor(0.5 * sensitivity - privacy_loss * sigma^2 / sensitivity).
+    """
+    return math.floor(0.5 * self.sensitivity - privacy_loss *
+                      (self._sigma**2) / self.sensitivity)
+
+  def noise_cdf(self, x: float) -> float:
+    """Computes the cumulative density function of the discrete Gaussian distribution.
+
+    Args:
+      x: the point at which the cumulative density function is to be calculated.
+
+    Returns:
+      The cumulative density function of the discrete Gaussian noise at x, i.e.,
+      the probability that the discrete Gaussian noise is less than or equal to
+      x.
+    """
+    if x >= self._truncation_bound + 1:
+      return 1
+    if x < -1 * self._truncation_bound:
+      return 0
+    return self._cdf[math.floor(x)]
+
+  @classmethod
+  def from_privacy_guarantee(
+      cls,
+      privacy_parameters: common.DifferentialPrivacyParameters,
+      sensitivity: float = 1,
+  ) -> 'DiscreteGaussianPrivacyLoss':
+    """Creates the privacy loss for discrete Gaussian mechanism with desired privacy.
+
+    Uses binary search to find the smallest possible standard deviation of the
+    discrete Gaussian noise for which the protocol is (epsilon, delta)-DP.
+
+    Args:
+      privacy_parameters: the desired privacy guarantee of the mechanism.
+      sensitivity: the sensitivity of function f. (i.e. the maximum absolute
+        change in f when an input to a single user changes.)
+
+    Returns:
+      The privacy loss of the discrete Gaussian mechanism with the given privacy
+      guarantee.
+    """
+    rounded_sensitivity = math.floor(sensitivity)
+
+    # The initial standard deviation is set to
+    # sqrt(2 * ln(1.5/delta)) * sensitivity / epsilon. It is known that, when
+    # epsilon is no more than one, the (continuous) Gaussian mechanism with this
+    # standard deviation is (epsilon, delta)-DP. See e.g. Appendix A in Dwork
+    # and Roth book, "The Algorithmic Foundations of Differential Privacy".
+    search_parameters = common.BinarySearchParameters(
+        0,
+        math.inf,
+        initial_guess=math.sqrt(2 * math.log(1.5 / privacy_parameters.delta)) *
+        rounded_sensitivity / privacy_parameters.epsilon)
+
+    def _get_delta_for_sigma(current_sigma):
+      return DiscreteGaussianPrivacyLoss(
+          current_sigma,
+          sensitivity=rounded_sensitivity).get_delta_for_epsilon(
+              privacy_parameters.epsilon)
+
+    sigma = common.inverse_monotone_function(
+        _get_delta_for_sigma, privacy_parameters.delta, search_parameters)
+
+    return DiscreteGaussianPrivacyLoss(sigma, sensitivity=rounded_sensitivity)
+
+  def standard_deviation(self) -> float:
+    """The standard deviation of the corresponding discrete Gaussian noise."""
+    return math.sqrt(
+        sum([
+            (x**2) * probability_mass
+            for x, probability_mass in self._pmf.items()
+        ]))

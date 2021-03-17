@@ -1,6 +1,6 @@
 module github.com/google/differential-privacy/privacy-on-beam
 
-go 1.14
+go 1.16
 
 require (
 	github.com/apache/beam v2.22.0+incompatible
