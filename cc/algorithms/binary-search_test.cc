@@ -44,7 +44,7 @@ class TestPercentileSearch : public BinarySearch<T> {
       : BinarySearch<T>(
             epsilon, lower, upper, percentile,
             absl::WrapUnique<LaplaceMechanism>(dynamic_cast<LaplaceMechanism*>(
-                builder->Build().ValueOrDie().release())),
+                builder->Build().value().release())),
             absl::make_unique<base::Percentile<T>>()
         ) {}
 };
@@ -58,7 +58,7 @@ TEST(BinarySearchTest, MedianTest) {
   for (double i = 0; i < kDataSize; ++i) {
     search.AddEntry(std::round(200 * i / kDataSize));
   }
-  EXPECT_EQ(GetValue<int64_t>(search.PartialResult(1.0).ValueOrDie()), 100);
+  EXPECT_EQ(GetValue<int64_t>(search.PartialResult(1.0).value()), 100);
 }
 
 TEST(BinarySearchTest, PercentileTest) {
@@ -70,7 +70,7 @@ TEST(BinarySearchTest, PercentileTest) {
   for (double i = 0; i < kDataSize; ++i) {
     search.AddEntry(std::round(200 * i / kDataSize));
   }
-  EXPECT_EQ(GetValue<int64_t>(search.PartialResult(1.0).ValueOrDie()), 120);
+  EXPECT_EQ(GetValue<int64_t>(search.PartialResult(1.0).value()), 120);
 }
 
 TEST(BinarySearchTest, RepeatedResultTest) {
@@ -82,8 +82,8 @@ TEST(BinarySearchTest, RepeatedResultTest) {
   for (int64_t i = 0; i < kDataSize; ++i) {
     search.AddEntry(std::round(200 * i / kDataSize));
   }
-  EXPECT_EQ(GetValue<int64_t>(search.PartialResult(0.5).ValueOrDie()),
-            GetValue<int64_t>(search.PartialResult(0.5).ValueOrDie()));
+  EXPECT_EQ(GetValue<int64_t>(search.PartialResult(0.5).value()),
+            GetValue<int64_t>(search.PartialResult(0.5).value()));
 }
 
 TEST(BinarySearchTest, MinTest) {
@@ -95,7 +95,7 @@ TEST(BinarySearchTest, MinTest) {
   for (double i = 0; i < kDataSize; ++i) {
     search.AddEntry(std::round(200 * i / kDataSize));
   }
-  EXPECT_NEAR(GetValue<int64_t>(search.PartialResult(1.0).ValueOrDie()), 0, 10);
+  EXPECT_NEAR(GetValue<int64_t>(search.PartialResult(1.0).value()), 0, 10);
 }
 
 TEST(BinarySearchTest, MaxTest) {
@@ -107,7 +107,7 @@ TEST(BinarySearchTest, MaxTest) {
   for (double i = 0; i < kDataSize; ++i) {
     search.AddEntry(std::round(200 * i / kDataSize));
   }
-  EXPECT_NEAR(GetValue<int64_t>(search.PartialResult(1.0).ValueOrDie()), 200, 10);
+  EXPECT_NEAR(GetValue<int64_t>(search.PartialResult(1.0).value()), 200, 10);
 }
 
 TEST(BinarySearchTest, SerializeMergeTest) {
@@ -136,7 +136,7 @@ TEST(BinarySearchTest, SerializeMergeTest) {
   }
 
   EXPECT_OK(search_2.Merge(summary));
-  EXPECT_EQ(GetValue<int64_t>(search_2.PartialResult(1.0).ValueOrDie()), 200);
+  EXPECT_EQ(GetValue<int64_t>(search_2.PartialResult(1.0).value()), 200);
 }
 
 TEST(BinarySearchTest, DropNanEntries) {
@@ -149,8 +149,7 @@ TEST(BinarySearchTest, DropNanEntries) {
     search.AddEntry(std::round(200 * i / kDataSize));
     search.AddEntry(NAN);
   }
-  EXPECT_NEAR(GetValue<double>(search.PartialResult(1.0).ValueOrDie()), 100,
-              .001);
+  EXPECT_NEAR(GetValue<double>(search.PartialResult(1.0).value()), 100, .001);
 }
 
 // Binary search for the minimum with extreme bounds is extremely inaccurate.
@@ -164,7 +163,7 @@ TEST(BinarySearchTest, ExtremeBoundsMedianSearch) {
   for (double i = 0; i < kDataSize; ++i) {
     search.AddEntry(std::round(200 * i / kDataSize));
   }
-  EXPECT_EQ(GetValue<int64_t>(search.PartialResult(1.0).ValueOrDie()), 100);
+  EXPECT_EQ(GetValue<int64_t>(search.PartialResult(1.0).value()), 100);
 }
 
 TEST(BinarySearchTest, ErrorConfidenceInterval) {
@@ -176,7 +175,7 @@ TEST(BinarySearchTest, ErrorConfidenceInterval) {
   for (int64_t i = 0; i < kDataSize; ++i) {
     search.AddEntry(100);
   }
-  Output output = search.PartialResult().ValueOrDie();
+  Output output = search.PartialResult().value();
   ConfidenceInterval interval =
       output.error_report().noise_confidence_interval();
   EXPECT_EQ(interval.confidence_level(), kDefaultConfidenceLevel);
@@ -195,7 +194,7 @@ TEST(BinarySearchTest, LowerEqualsUpper) {
   TestPercentileSearch<int64_t> search(
       .5, std::log(3), 1, 1,
       absl::make_unique<test_utils::ZeroNoiseMechanism::Builder>());
-  Output output = search.PartialResult(1).ValueOrDie();
+  Output output = search.PartialResult(1).value();
   EXPECT_EQ(GetValue<int64_t>(output), 1);
   EXPECT_EQ(output.error_report().noise_confidence_interval().lower_bound(), 1);
   EXPECT_EQ(output.error_report().noise_confidence_interval().upper_bound(), 1);

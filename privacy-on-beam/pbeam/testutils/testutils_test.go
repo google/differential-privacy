@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Google LLC
+// Copyright 2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -144,5 +144,33 @@ func assertFloat64PtrHasApproxValue(t *testing.T, got *float64, wantValue, toler
 		t.Errorf("got <nil>, want: %g", wantValue)
 	} else if diff := cmp.Diff(*got, wantValue, cmpopts.EquateApprox(0, tolerance)); diff != "" {
 		t.Errorf("got %g, want %g", *got, wantValue)
+	}
+}
+
+func TestCheckNumPartitionsFn(t *testing.T) {
+	for _, tc := range []struct {
+		desc           string
+		numPartitions  int
+		wantPartitions int
+		wantErr        bool
+	}{
+		{"same number of partitions",
+			5,
+			5,
+			false,
+		},
+		{"different number of partitions",
+			5,
+			6,
+			true,
+		},
+	} {
+		partitions := make([]int, tc.numPartitions)
+		p, s, col := ptest.CreateList(partitions)
+
+		CheckNumPartitions(s, col, tc.wantPartitions)
+		if err := ptest.Run(p); (err != nil) != tc.wantErr {
+			t.Errorf("With %s, got error=%v, wantErr=%t", tc.desc, err, tc.wantErr)
+		}
 	}
 }

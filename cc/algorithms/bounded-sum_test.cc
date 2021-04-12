@@ -17,6 +17,7 @@
 #include "algorithms/bounded-sum.h"
 
 #include <limits>
+#include <memory>
 
 #include "base/testing/proto_matchers.h"
 #include "base/testing/status_matchers.h"
@@ -67,6 +68,48 @@ TYPED_TEST(BoundedSumTest, BasicIO) {
   auto output = (*bs)->Result(a.begin(), a.end());
   ASSERT_OK(output);
   EXPECT_THAT(GetValue<TypeParam>(*output), Eq(static_cast<TypeParam>(10)));
+}
+
+TYPED_TEST(BoundedSumTest, BasicIOWithLaplaceReturnsOk) {
+  std::vector<TypeParam> a = {1, 2, 3, 4};
+  auto bs =
+      typename BoundedSum<TypeParam>::Builder()
+          .SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
+          .SetEpsilon(1.0)
+          .SetLower(0)
+          .SetUpper(10)
+          .Build();
+  ASSERT_OK(bs);
+  auto output = (*bs)->Result(a.begin(), a.end());
+  EXPECT_OK(output);
+}
+
+TYPED_TEST(BoundedSumTest, BasicIOWithGaussianReturnsOk) {
+  std::vector<TypeParam> a = {1, 2, 3, 4};
+  auto bs =
+      typename BoundedSum<TypeParam>::Builder()
+          .SetLaplaceMechanism(absl::make_unique<GaussianMechanism::Builder>())
+          .SetEpsilon(1.0)
+          .SetDelta(0.0001)
+          .SetLower(0)
+          .SetUpper(10)
+          .Build();
+  ASSERT_OK(bs);
+  auto output = (*bs)->Result(a.begin(), a.end());
+  EXPECT_OK(output);
+}
+
+TYPED_TEST(BoundedSumTest, GaussianWithoutDeltaFails) {
+  std::vector<TypeParam> a = {1, 2, 3, 4};
+  auto bs =
+      typename BoundedSum<TypeParam>::Builder()
+          .SetLaplaceMechanism(absl::make_unique<GaussianMechanism::Builder>())
+          .SetEpsilon(1.0)
+          .SetLower(0)
+          .SetUpper(10)
+          .Build();
+  ASSERT_THAT(bs,
+              StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("Delta")));
 }
 
 TYPED_TEST(BoundedSumTest, BasicIOWithoutIterator) {
@@ -156,17 +199,19 @@ TYPED_TEST(BoundedSumTest, ClampTest) {
   EXPECT_THAT(GetValue<TypeParam>(*output), Eq(static_cast<TypeParam>(6)));
 }
 
-TEST(BoundedSumTest, ConfidenceIntervalTest) {
+TEST(BoundedSumTest, ConfidenceIntervalWithLaplaceTest) {
   double epsilon = 0.5;
   double upperBound = 2;
   double lowerBound = 1;
   double level = .95;
   double budget = .4;
-  auto bs = BoundedSum<int>::Builder()
-                .SetEpsilon(epsilon)
-                .SetLower(lowerBound)
-                .SetUpper(upperBound)
-                .Build();
+  auto bs =
+      BoundedSum<int>::Builder()
+          .SetEpsilon(epsilon)
+          .SetLaplaceMechanism(std::make_unique<LaplaceMechanism::Builder>())
+          .SetLower(lowerBound)
+          .SetUpper(upperBound)
+          .Build();
   ASSERT_OK(bs);
   ConfidenceInterval wantConfidenceInterval;
   double interval_bound = upperBound * log(1 - level) / epsilon / budget;
@@ -413,7 +458,7 @@ TEST(BoundedSumTest, UnderflowAddEntryManualBounds) {
           .SetLower(std::numeric_limits<int64_t>::lowest() + 1)
           .SetUpper(0)
           .Build()
-          .ValueOrDie();
+          .value();
   (*bs)->AddEntry(std::numeric_limits<int64_t>::lowest() + 1);
   (*bs)->AddEntry(-1);
   (*bs)->AddEntry(-1);
@@ -469,7 +514,7 @@ TEST(BoundedSumTest, UnderflowMergeManualBoundsTest) {
           .SetLower(std::numeric_limits<int64_t>::lowest() + 1)
           .SetUpper(0)
           .Build()
-          .ValueOrDie();
+          .value();
   (*bs)->AddEntry(std::numeric_limits<int64_t>::lowest() + 1);
   Summary summary = (*bs)->Serialize();
 

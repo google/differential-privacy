@@ -17,20 +17,34 @@
 #ifndef DIFFERENTIAL_PRIVACY_ALGORITHMS_BOUNDED_SUM_H_
 #define DIFFERENTIAL_PRIVACY_ALGORITHMS_BOUNDED_SUM_H_
 
-#include <limits>
-#include <type_traits>
+#include <stdlib.h>
 
+#include <algorithm>
+#include <cmath>
+#include <limits>
+#include <memory>
+#include <optional>
+#include <string>
+#include <type_traits>
+#include <utility>
+#include <vector>
+
+#include <cstdint>
 #include "google/protobuf/any.pb.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "base/statusor.h"
+#include "absl/strings/str_cat.h"
 #include "algorithms/algorithm.h"
 #include "algorithms/approx-bounds.h"
 #include "algorithms/bounded-algorithm.h"
 #include "algorithms/numerical-mechanisms.h"
 #include "algorithms/util.h"
+#include "proto/util.h"
+#include "proto/confidence-interval.pb.h"
+#include "proto/data.pb.h"
 #include "proto/summary.pb.h"
-#include "base/canonical_errors.h"
+#include "base/status_macros.h"
 
 namespace differential_privacy {
 
@@ -69,10 +83,11 @@ class BoundedSum : public Algorithm<T> {
   // sum to make the result DP.
   static base::StatusOr<std::unique_ptr<NumericalMechanism>> BuildMechanism(
       std::unique_ptr<NumericalMechanismBuilder> mechanism_builder,
-      const double epsilon, const double l0_sensitivity,
+      const double epsilon, const double delta, const double l0_sensitivity,
       const double max_contributions_per_partition, const T lower,
       const T upper) {
     return mechanism_builder->SetEpsilon(epsilon)
+        .SetDelta(delta)
         .SetL0Sensitivity(l0_sensitivity)
         .SetLInfSensitivity(max_contributions_per_partition *
                             std::max(std::abs(lower), std::abs(upper)))
@@ -343,7 +358,8 @@ class BoundedSumWithApproxBounds : public BoundedSum<T> {
         std::unique_ptr<NumericalMechanism> mechanism,
         BoundedSum<T>::BuildMechanism(
             mechanism_builder_->Clone(), Algorithm<T>::GetEpsilon(),
-            l0_sensitivity_, max_contributions_per_partition_, lower, upper));
+            Algorithm<T>::GetDelta(), l0_sensitivity_,
+            max_contributions_per_partition_, lower, upper));
 
     // To find the sum, pass the identity function as the transform. We pass
     // count = 0 because the count should never be used.
@@ -409,22 +425,25 @@ class BoundedSum<T>::Builder
       // Construct mechanism directly so we can fail on build if sensitivity is
       // inappropriate.
       RETURN_IF_ERROR(CheckLowerBound(BoundedBuilder::GetLower().value()));
+
+      const double epsilon = BoundedBuilder::GetEpsilon().value();
+      const double delta = BoundedBuilder::GetDelta().value_or(0);
+      const int max_partitions_contributed =
+          AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1);
+      const int max_contributions_per_partition =
+          AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(1);
+      const T lower = BoundedBuilder::GetLower().value();
+      const T upper = BoundedBuilder::GetUpper().value();
+
       ASSIGN_OR_RETURN(
           std::unique_ptr<NumericalMechanism> mechanism,
-          BuildMechanism(
-              AlgorithmBuilder::GetMechanismBuilderClone(),
-              BoundedBuilder::GetRemainingEpsilon().value(),
-              AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1),
-              AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(1),
-              BoundedBuilder::GetLower().value(),
-              BoundedBuilder::GetUpper().value()));
+          BuildMechanism(AlgorithmBuilder::GetMechanismBuilderClone(), epsilon,
+                         delta, max_partitions_contributed,
+                         max_contributions_per_partition, lower, upper));
 
       // Construct BoundedSum with fixed bounds.
       return std::unique_ptr<BoundedSum<T>>(new BoundedSumWithFixedBounds<T>(
-          BoundedBuilder::GetEpsilon().value(),
-          BoundedBuilder::GetDelta().value_or(0),
-          BoundedBuilder::GetLower().value(),
-          BoundedBuilder::GetUpper().value(), std::move(mechanism)));
+          epsilon, delta, lower, upper, std::move(mechanism)));
     }
 
     // Construct BoundedSum with approx bounds

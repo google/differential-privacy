@@ -191,7 +191,7 @@ public final class BoundedQuantilesDpTest {
       }
     }
 
-    // Only cast a an accept vote if all quantiles pass the test.
+    // Only cast an accept vote if all quantiles pass the test.
     for (int j = 0; j < numberOfRanks; j++) {
       if (!StatisticalTestsUtil.verifyApproximateDp(
           samplesA.get(j), samplesB.get(j), epsilon, delta, deltaTolerance)) {

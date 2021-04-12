@@ -18,4 +18,5 @@
 
 exports_files([
     "cc_differential_privacy_deps.bzl",
+    "cc_accounting_deps.bzl",
 ])

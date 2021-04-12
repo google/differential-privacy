@@ -48,8 +48,7 @@ TEST(OrderStatisticsTest, Max) {
   for (int64_t i = 0; i < kDataSize; ++i) {
     (*max)->AddEntry(std::round(static_cast<double>(200) * i / kDataSize));
   }
-  EXPECT_NEAR(GetValue<int64_t>((*max)->PartialResult(1.0).ValueOrDie()), 200,
-              10);
+  EXPECT_NEAR(GetValue<int64_t>((*max)->PartialResult(1.0).value()), 200, 10);
 }
 
 TEST(OrderStatisticsTest, Min) {

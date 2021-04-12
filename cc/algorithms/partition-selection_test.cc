@@ -190,7 +190,7 @@ TEST(PartitionSelectionTest, PreaggPartitionSelectionOneUser) {
           .SetDelta(0.02)
           .SetMaxPartitionsContributed(1)
           .Build()
-          .ValueOrDie();
+          .value();
   double num_kept = 0.0;
   for (int i = 0; i < kSmallNumSamples; i++) {
     if (build->ShouldKeep(1)) num_kept++;
@@ -207,7 +207,7 @@ TEST(PartitionSelectionTest, PreaggPartitionSelectionNoUsers) {
           .SetDelta(0.02)
           .SetMaxPartitionsContributed(1)
           .Build()
-          .ValueOrDie();
+          .value();
   for (int i = 0; i < 1000; i++) {
     EXPECT_FALSE(build->ShouldKeep(0));
   }
@@ -220,7 +220,7 @@ TEST(PartitionSelectionTest, PreaggPartitionSelectionFirstCrossover) {
           .SetDelta(0.02)
           .SetMaxPartitionsContributed(1)
           .Build()
-          .ValueOrDie();
+          .value();
   PreaggPartitionSelection* magic =
       dynamic_cast<PreaggPartitionSelection*>(build.get());
   EXPECT_THAT(magic->GetFirstCrossover(), DoubleEq(6));
@@ -233,7 +233,7 @@ TEST(PartitionSelectionTest, PreaggPartitionSelectionSecondCrossover) {
           .SetDelta(0.02)
           .SetMaxPartitionsContributed(1)
           .Build()
-          .ValueOrDie();
+          .value();
   PreaggPartitionSelection* magic =
       dynamic_cast<PreaggPartitionSelection*>(build.get());
   EXPECT_THAT(magic->GetSecondCrossover(), DoubleEq(11));
@@ -247,7 +247,7 @@ TEST(PartitionSelectionTest, PreaggPartitionSelectionNumUsersEqFirstCrossover) {
           .SetDelta(0.02)
           .SetMaxPartitionsContributed(1)
           .Build()
-          .ValueOrDie();
+          .value();
   double num_kept = 0.0;
   for (int i = 0; i < kNumSamples; i++) {
     if (build->ShouldKeep(6)) num_kept++;
@@ -263,7 +263,7 @@ TEST(PartitionSelectionTest, PreaggPartitionSelectionNumUsersBtwnCrossovers) {
           .SetDelta(0.02)
           .SetMaxPartitionsContributed(1)
           .Build()
-          .ValueOrDie();
+          .value();
   double num_kept = 0.0;
   for (int i = 0; i < kNumSamples; i++) {
     if (build->ShouldKeep(8)) num_kept++;
@@ -281,7 +281,7 @@ TEST(PartitionSelectionTest,
           .SetDelta(0.02)
           .SetMaxPartitionsContributed(1)
           .Build()
-          .ValueOrDie();
+          .value();
   for (int i = 0; i < 1000; i++) {
     EXPECT_TRUE(build->ShouldKeep(15));
   }
@@ -295,7 +295,7 @@ TEST(PartitionSelectionTest, PreaggPartitionSelectionTinyEpsilon) {
           .SetDelta(0.02)
           .SetMaxPartitionsContributed(1)
           .Build()
-          .ValueOrDie();
+          .value();
   double num_kept = 0.0;
   for (int i = 0; i < kNumSamples; i++) {
     if (build->ShouldKeep(6)) num_kept++;
@@ -310,7 +310,7 @@ TEST(PartitionSelectionTest, PreaggPartitionSelectionTinyEpsilonLargeDelta) {
           .SetDelta(0.15)
           .SetMaxPartitionsContributed(1)
           .Build()
-          .ValueOrDie();
+          .value();
   double num_kept = 0.0;
   for (int i = 0; i < kNumSamples; i++) {
     if (build->ShouldKeep(3)) num_kept++;
@@ -327,7 +327,7 @@ TEST(PartitionSelectionTest,
           .SetDelta(0.02)
           .SetMaxPartitionsContributed(1)
           .Build()
-          .ValueOrDie();
+          .value();
   double num_kept = 0.0;
   for (int i = 0; i < kNumSamples; i++) {
     if (build->ShouldKeep(40)) num_kept++;
@@ -490,7 +490,7 @@ TEST(PartitionSelectionTest, LaplacePartitionSelectionOneUser) {
           .SetDelta(0.02)
           .SetMaxPartitionsContributed(1)
           .Build()
-          .ValueOrDie();
+          .value();
   double num_kept = 0.0;
   for (int i = 0; i < kSmallNumSamples; i++) {
     if (build->ShouldKeep(1)) num_kept++;
@@ -510,7 +510,7 @@ TEST(PartitionSelectionTest, LaplacePartitionSelectionAtThreshold) {
           .SetDelta(0.06766764161)
           .SetMaxPartitionsContributed(1)
           .Build()
-          .ValueOrDie();
+          .value();
   double num_kept = 0.0;
   for (int i = 0; i < kSmallNumSamples; i++) {
     if (build->ShouldKeep(5)) num_kept++;
@@ -527,7 +527,7 @@ TEST(PartitionSelectionTest, LaplacePartitionSelectionThreshold) {
           .SetDelta(0.02)
           .SetMaxPartitionsContributed(1)
           .Build()
-          .ValueOrDie();
+          .value();
   LaplacePartitionSelection* laplace =
       dynamic_cast<LaplacePartitionSelection*>(build.get());
   EXPECT_THAT(laplace->GetThreshold(), DoubleNear(7.43775164974, 0.001));
@@ -540,7 +540,7 @@ TEST(PartitionSelectionTest, LaplacePartitionSelectionUnsetBuilderThreshold) {
           .SetDelta(0.02)
           .SetMaxPartitionsContributed(1)
           .Build()
-          .ValueOrDie();
+          .value();
   LaplacePartitionSelection* laplace =
       dynamic_cast<LaplacePartitionSelection*>(build.get());
   EXPECT_THAT(laplace->GetThreshold(), DoubleNear(7.43775164974, 0.001));
@@ -556,10 +556,10 @@ TEST(PartitionSelectionTest,
   for (double i = 0.1; i < 5; i += 0.1) {
     delta_1_minus_i = LaplacePartitionSelection::CalculateDelta(
                           epsilon, 1 - i, max_partitions_contributed)
-                          .ValueOrDie();
+                          .value();
     delta_1_plus_i = LaplacePartitionSelection::CalculateDelta(
                          epsilon, 1 + i, max_partitions_contributed)
-                         .ValueOrDie();
+                         .value();
     EXPECT_THAT(delta_1_minus_i, DoubleNear(1 - delta_1_plus_i, 0.0001));
   }
 }

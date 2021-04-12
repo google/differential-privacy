@@ -55,7 +55,7 @@ func compareBoundedSumInt64(bs1, bs2 *BoundedSumInt64) bool {
 		bs1.lInfSensitivity == bs2.lInfSensitivity &&
 		bs1.lower == bs2.lower &&
 		bs1.upper == bs2.upper &&
-		bs1.noise == bs2.noise &&
+		bs1.Noise == bs2.Noise &&
 		bs1.noiseKind == bs2.noiseKind &&
 		bs1.sum == bs2.sum &&
 		bs1.state == bs2.state
@@ -128,7 +128,7 @@ func compareBoundedSumFloat64(bs1, bs2 *BoundedSumFloat64) bool {
 		bs1.lInfSensitivity == bs2.lInfSensitivity &&
 		bs1.lower == bs2.lower &&
 		bs1.upper == bs2.upper &&
-		bs1.noise == bs2.noise &&
+		bs1.Noise == bs2.Noise &&
 		bs1.noiseKind == bs2.noiseKind &&
 		bs1.sum == bs2.sum &&
 		bs1.state == bs2.state
@@ -276,7 +276,8 @@ func TestNewBoundedSumInt64(t *testing.T) {
 				lInfSensitivity: 10,
 				lower:           -1,
 				upper:           5,
-				noise:           noNoise{},
+				Noise:           noNoise{},
+				noiseKind:       noise.Unrecognised,
 				sum:             0,
 				state:           defaultState,
 			}},
@@ -296,7 +297,8 @@ func TestNewBoundedSumInt64(t *testing.T) {
 				lInfSensitivity: 5,
 				lower:           -1,
 				upper:           5,
-				noise:           noNoise{},
+				Noise:           noNoise{},
+				noiseKind:       noise.Unrecognised,
 				sum:             0,
 				state:           defaultState,
 			}},
@@ -316,7 +318,7 @@ func TestNewBoundedSumInt64(t *testing.T) {
 				lInfSensitivity: 10,
 				lower:           -1,
 				upper:           5,
-				noise:           noise.Laplace(),
+				Noise:           noise.Laplace(),
 				noiseKind:       noise.LaplaceNoise,
 				sum:             0,
 				state:           defaultState,
@@ -351,7 +353,8 @@ func TestNewBoundedSumFloat64(t *testing.T) {
 				lInfSensitivity: 10,
 				lower:           -1,
 				upper:           5,
-				noise:           noNoise{},
+				Noise:           noNoise{},
+				noiseKind:       noise.Unrecognised,
 				sum:             0,
 				state:           defaultState,
 			}},
@@ -371,7 +374,8 @@ func TestNewBoundedSumFloat64(t *testing.T) {
 				lInfSensitivity: 5,
 				lower:           -1,
 				upper:           5,
-				noise:           noNoise{},
+				Noise:           noNoise{},
+				noiseKind:       noise.Unrecognised,
 				sum:             0,
 				state:           defaultState,
 			}},
@@ -391,7 +395,7 @@ func TestNewBoundedSumFloat64(t *testing.T) {
 				lInfSensitivity: 10,
 				lower:           -1,
 				upper:           5,
-				noise:           noise.Laplace(),
+				Noise:           noise.Laplace(),
 				noiseKind:       noise.LaplaceNoise,
 				sum:             0,
 				state:           defaultState,
@@ -945,7 +949,7 @@ func TestSumComputeConfidenceIntervalForInt64PostProcessing(t *testing.T) {
 	} {
 		bs := NewBoundedSumInt64(tc.opt)
 		// This makes Noise interface return the raw confidence interval when ComputeConfidenceIntervalInt64 is called.
-		bs.noise = getMockConfInt(tc.confInt)
+		bs.Noise = getMockConfInt(tc.confInt)
 
 		bs.Result()
 		got, _ := bs.ComputeConfidenceInterval(0.1) // alpha is ignored in mockConfInt.
@@ -999,7 +1003,7 @@ func TestSumComputeConfidenceIntervalForFloat64PostProcessing(t *testing.T) {
 	} {
 		bs := NewBoundedSumFloat64(tc.opt)
 		// This makes Noise interface return the raw confidence interval when ComputeConfidenceIntervalFloat64 is called.
-		bs.noise = getMockConfInt(tc.confInt)
+		bs.Noise = getMockConfInt(tc.confInt)
 
 		bs.Result()
 		got, _ := bs.ComputeConfidenceInterval(0.1) // alpha is ignored in mockConfInt.

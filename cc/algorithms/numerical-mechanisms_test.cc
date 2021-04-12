@@ -315,7 +315,7 @@ TEST(NumericalMechanismsTest, LaplaceAddsNoise) {
 TEST(NumericalMechanismsTest, LaplaceNoisedValueAboveThreshold) {
   LaplaceMechanism::Builder builder;
   std::unique_ptr<NumericalMechanism> mechanism =
-      builder.SetL1Sensitivity(1).SetEpsilon(1).Build().ValueOrDie();
+      builder.SetL1Sensitivity(1).SetEpsilon(1).Build().value();
 
   struct TestScenario {
     double input;
@@ -794,6 +794,18 @@ TEST(NumericalMechanismsTest,
   EXPECT_TRUE(std::isfinite(noised_value));
 }
 
+TEST(NumericalMechanismsTest, GaussianMechanismAddsNoiseForLowDelta) {
+  auto test_mechanism = GaussianMechanism::Builder()
+                            .SetL2Sensitivity(1.0)
+                            .SetDelta(6.486452831e-47)
+                            .SetEpsilon(1.0)
+                            .Build();
+  ASSERT_TRUE(test_mechanism.ok());
+  EXPECT_NEAR(dynamic_cast<GaussianMechanism *>(test_mechanism->get())
+                  ->CalculateStddev(1, 6.486452831e-47),
+              14.0, 0.0001);
+}
+
 TEST(NumericalMechanismsTest, GaussianRoundsToGranularity_Double) {
   // These choices of epsilon and sensitivities should result in a granularity
   // of 2^-10. Granularity ~= 2 * sigma / 2^57. We pick a sigma that yields a
@@ -832,7 +844,7 @@ TEST(NumericalMechanismsTest, GaussianRoundsToGranularity_Double) {
 
   for (int i = 0; i < kSmallNumSamples; ++i) {
     // The rounding process should be independent of the value of x. Setting x
-    // to a value between -1*10^6 and 10^6 at random should covere a broad range
+    // to a value between -1*10^6 and 10^6 at random should cover a broad range
     // of congruence classes.
     double input = UniformDouble() * 2000000.0 - 1000000.0;
 
@@ -879,11 +891,8 @@ TEST(NumericalMechanismsTest, GaussianRoundsToGranularity_Int) {
 
 TEST(NumericalMechanismsTest, GaussianMechanismNoisedValueAboveThreshold) {
   GaussianMechanism::Builder builder;
-  std::unique_ptr<NumericalMechanism> mechanism = builder.SetL2Sensitivity(1)
-                                                      .SetEpsilon(1)
-                                                      .SetDelta(0.5)
-                                                      .Build()
-                                                      .ValueOrDie();
+  std::unique_ptr<NumericalMechanism> mechanism =
+      builder.SetL2Sensitivity(1).SetEpsilon(1).SetDelta(0.5).Build().value();
 
   struct TestScenario {
     double input;

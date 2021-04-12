@@ -532,3 +532,53 @@ func TestCheckAlpha(t *testing.T) {
 		}
 	}
 }
+
+func TestCheckBoundsNotEqual(t *testing.T) {
+	for _, tc := range []struct {
+		desc    string
+		lower   float64
+		upper   float64
+		wantErr bool
+	}{
+		{"equal int bounds", -2, -2, true},
+		{"unequal int bounds", 10, 15, false},
+		{"equal float bounds", -2.0, -2.0, true},
+		{"unequal float bounds", 10.0, 10.01, false},
+	} {
+		if err := CheckBoundsNotEqual("test", tc.lower, tc.upper); (err != nil) != tc.wantErr {
+			t.Errorf("CheckBoundsNotEqual: when %s for err got %v, want %t", tc.desc, err, tc.wantErr)
+		}
+	}
+}
+
+func TestCheckTreeHeight(t *testing.T) {
+	for _, tc := range []struct {
+		desc       string
+		treeHeight int
+		wantErr    bool
+	}{
+		{"treeHeight < 1", 0, true},
+		{"treeHeight = 1", 1, false},
+		{"treeHeight > 1", 2, false},
+	} {
+		if err := CheckTreeHeight("test", tc.treeHeight); (err != nil) != tc.wantErr {
+			t.Errorf("CheckTreeHeight: when %s for err got %v, want %t", tc.desc, err, tc.wantErr)
+		}
+	}
+}
+
+func TestCheckBranchingFactor(t *testing.T) {
+	for _, tc := range []struct {
+		desc            string
+		branchingFactor int
+		wantErr         bool
+	}{
+		{"branchingFactor < 2", 1, true},
+		{"branchingFactor = 2", 2, false},
+		{"branchingFactor > 2", 3, false},
+	} {
+		if err := CheckBranchingFactor("test", tc.branchingFactor); (err != nil) != tc.wantErr {
+			t.Errorf("CheckBranchingFactor: when %s for err got %v, want %t", tc.desc, err, tc.wantErr)
+		}
+	}
+}

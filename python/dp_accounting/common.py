@@ -11,13 +11,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Common classes and functions for the accounting library."""
 
 import math
 import typing
+
 import dataclasses
 import numpy
+from scipy import fft
 from scipy import signal
 
 
@@ -31,6 +32,12 @@ class DifferentialPrivacyParameters(object):
   """
   epsilon: float
   delta: float = 0
+
+  def __post_init__(self):
+    if self.epsilon < 0:
+      raise ValueError(f'epsilon should be positive: {self.epsilon}')
+    if self.delta < 0 or self.delta > 1:
+      raise ValueError(f'delta should be between 0 and 1: {self.delta}')
 
 
 @dataclasses.dataclass
@@ -135,21 +142,41 @@ def dictionary_to_list(
   return (offset, result_list)
 
 
-def list_to_dictionary(input_list: typing.List[float],
-                       offset: int) -> typing.Mapping[int, float]:
+def list_to_dictionary(
+    input_list: typing.List[float],
+    offset: int,
+    tail_mass_truncation: float = 0) -> typing.Mapping[int, float]:
   """Converts a list into an integer-keyed dictionary, with a specified offset.
 
   Args:
     input_list: An input list.
     offset: The offset in the key of the output dictionary
+    tail_mass_truncation: an upper bound on the tails of the input list that
+      might be truncated.
 
   Returns:
     A dictionary whose value at key is equal to input_list[key - offset]. If
     input_list[key - offset] is less than or equal to zero, it is not included
     in the dictionary.
   """
+  lower_truncation_index = 0
+  lower_truncation_mass = 0
+  while lower_truncation_index < len(input_list):
+    lower_truncation_mass += input_list[lower_truncation_index]
+    if lower_truncation_mass > tail_mass_truncation / 2:
+      break
+    lower_truncation_index += 1
+
+  upper_truncation_index = len(input_list) - 1
+  upper_truncation_mass = 0
+  while upper_truncation_index >= 0:
+    upper_truncation_mass += input_list[upper_truncation_index]
+    if upper_truncation_mass > tail_mass_truncation / 2:
+      break
+    upper_truncation_index -= 1
+
   result_dictionary = {}
-  for i in range(len(input_list)):
+  for i in range(lower_truncation_index, upper_truncation_index + 1):
     if input_list[i] > 0:
       result_dictionary[i + offset] = input_list[i]
   return result_dictionary
@@ -157,12 +184,15 @@ def list_to_dictionary(input_list: typing.List[float],
 
 def convolve_dictionary(
     dictionary1: typing.Mapping[int, float],
-    dictionary2: typing.Mapping[int, float]) -> typing.Mapping[int, float]:
+    dictionary2: typing.Mapping[int, float],
+    tail_mass_truncation: float = 0) -> typing.Mapping[int, float]:
   """Computes a convolution of two dictionaries.
 
   Args:
     dictionary1: The first dictionary whose keys are integers.
     dictionary2: The second dictionary whose keys are integers.
+    tail_mass_truncation: an upper bound on the tails of the output that might
+      be truncated.
 
   Returns:
     The dictionary where for each key its corresponding value is the sum, over
@@ -178,7 +208,8 @@ def convolve_dictionary(
   result_list = signal.fftconvolve(list1, list2)
 
   # Convert the list back to a dictionary and return
-  return list_to_dictionary(result_list, min1 + min2)
+  return list_to_dictionary(
+      result_list, min1 + min2, tail_mass_truncation=tail_mass_truncation)
 
 
 def self_convolve(input_list: typing.List[float],
@@ -195,8 +226,10 @@ def self_convolve(input_list: typing.List[float],
     of input_list[i_1] * input_list[i_2] * ... * input_list[i_num_times].
   """
   # Use FFT to compute the convolution
-  return numpy.real(numpy.fft.ifft(
-      numpy.fft.fft(input_list, num_times * len(input_list) - 1)**num_times))
+  output_len = num_times * len(input_list) - 1
+  fast_len = fft.next_fast_len(output_len)
+  return numpy.real(fft.ifft(fft.fft(input_list,
+                                             fast_len)**num_times))[:output_len]
 
 
 def self_convolve_dictionary(input_dictionary: typing.Mapping[int, float],
@@ -217,4 +250,3 @@ def self_convolve_dictionary(input_dictionary: typing.Mapping[int, float],
   min_val, input_list = dictionary_to_list(input_dictionary)
   return list_to_dictionary(
       self_convolve(input_list, num_times), min_val * num_times)
-

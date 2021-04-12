@@ -68,7 +68,7 @@ TYPED_TEST(StochasticDifferentialPrivacyTest, AllBoundedDpAlgorithms) {
                        .SetLower(sequence->RangeMin())
                        .SetUpper(sequence->RangeMax())
                        .Build()
-                       .ValueOrDie();
+                       .value();
   StochasticTester<double> tester(std::move(algorithm), std::move(sequence),
                                   kSmallNumDatasetsToTest,
                                   kNumSamplesPerHistogram);
@@ -89,7 +89,7 @@ TEST(StochasticDifferentialPrivacyTest, Max) {
                        .SetLower(lower)
                        .SetUpper(upper)
                        .Build()
-                       .ValueOrDie();
+                       .value();
   StochasticTester<double> tester(std::move(algorithm), std::move(sequence),
                                   kSmallNumDatasetsToTest,
                                   kNumSamplesPerHistogram);
@@ -110,7 +110,7 @@ TEST(StochasticDifferentialPrivacyTest, Min) {
                        .SetLower(lower)
                        .SetUpper(upper)
                        .Build()
-                       .ValueOrDie();
+                       .value();
   StochasticTester<double> tester(std::move(algorithm), std::move(sequence),
                                   kSmallNumDatasetsToTest, kNumDatasetsToTest);
   EXPECT_TRUE(tester.Run());
@@ -130,7 +130,7 @@ TEST(StochasticDifferentialPrivacyTest, Median) {
                        .SetLower(lower)
                        .SetUpper(upper)
                        .Build()
-                       .ValueOrDie();
+                       .value();
   StochasticTester<double> tester(std::move(algorithm), std::move(sequence),
                                   kSmallNumDatasetsToTest, kNumDatasetsToTest);
   EXPECT_TRUE(tester.Run());
@@ -152,7 +152,7 @@ TEST(StochasticDifferentialPrivacyTest, Percentile) {
                        .SetLower(lower)
                        .SetUpper(upper)
                        .Build()
-                       .ValueOrDie();
+                       .value();
   StochasticTester<double> tester(std::move(algorithm), std::move(sequence),
                                   kSmallNumDatasetsToTest,
                                   kNumSamplesPerHistogram);
@@ -175,7 +175,7 @@ TEST(StochasticDifferentialPrivacyTest, CountNonBranchingSearch) {
               absl::make_unique<SeededLaplaceMechanism::Builder>())
           .SetEpsilon(std::log(3))
           .Build()
-          .ValueOrDie();
+          .value();
   StochasticTester<int64_t> tester(std::move(algorithm), std::move(sequence),
                                  /*num_datasets=*/1, kNumSamplesPerHistogram,
                                  /*disable_search_branching=*/true);
@@ -196,7 +196,7 @@ TEST(StochasticDifferentialPrivacyTest, ApproxBoundsMinimum) {
                        .SetScale(.2)
                        .SetSuccessProbability(.9)
                        .Build()
-                       .ValueOrDie();
+                       .value();
   StochasticTester<double> tester(std::move(algorithm), std::move(sequence),
                                   kNumDatasetsToTest, kNumSamplesPerHistogram);
   EXPECT_TRUE(tester.Run());
@@ -217,7 +217,7 @@ TYPED_TEST(StochasticDifferentialPrivacyTest, AllApproxBoundedDpAlgorithms) {
           .SetNumBins(1)
           .SetSuccessProbability(.90)
           .Build()
-          .ValueOrDie();
+          .value();
 
   // The sum mechanism is remade for every run of the algorithm. Thus, we need
   // to ensure an outside generator is passed into the mechanism builder.
@@ -231,7 +231,7 @@ TYPED_TEST(StochasticDifferentialPrivacyTest, AllApproxBoundedDpAlgorithms) {
           .SetEpsilon(std::log(3))
           .SetApproxBounds(std::move(bounds))
           .Build()
-          .ValueOrDie();
+          .value();
   StochasticTester<double> tester(std::move(algorithm), std::move(sequence),
                                   kNumDatasetsToTest, kNumSamplesPerHistogram);
   EXPECT_TRUE(tester.Run());

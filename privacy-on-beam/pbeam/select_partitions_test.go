@@ -17,20 +17,13 @@
 package pbeam
 
 import (
-	"fmt"
-	"reflect"
 	"testing"
 
 	"github.com/google/differential-privacy/go/dpagg"
 	"github.com/google/differential-privacy/privacy-on-beam/pbeam/testutils"
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
-	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
 )
-
-func init() {
-	beam.RegisterType(reflect.TypeOf((*gotExpectedNumPartitionsFn)(nil)))
-}
 
 // Checks that SelectPartitions is performing a random partition selection
 // for PrivatePCollection<V> inputs.
@@ -142,7 +135,7 @@ func TestSelectPartitionsBoundsCrossPartitionContributionsV(t *testing.T) {
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 	got := SelectPartitions(s, pcol, SelectPartitionsParams{MaxPartitionsContributed: int64(l1Sensitivity)})
 	// With a max contribution of 1, only 1 partition should be outputted.
-	checkNumPartitions(s, got, 1)
+	testutils.CheckNumPartitions(s, got, 1)
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("Did not bound cross partition contributions correctly for PrivatePCollection<V> inputs: %v", err)
 	}
@@ -165,25 +158,8 @@ func TestSelectPartitionsBoundsCrossPartitionContributionsKV(t *testing.T) {
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 	got := SelectPartitions(s, pcol, SelectPartitionsParams{MaxPartitionsContributed: int64(l1Sensitivity)})
 	// With a max contribution of 1, only 1 partition should be outputted.
-	checkNumPartitions(s, got, 1)
+	testutils.CheckNumPartitions(s, got, 1)
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("Did not bound cross partition contributions correctly for PrivatePCollection<K,V> inputs: %v", err)
 	}
-}
-
-func checkNumPartitions(s beam.Scope, col beam.PCollection, expected int) {
-	ones := beam.ParDo(s, testutils.OneFn, col)
-	numPartitions := stats.Sum(s, ones)
-	beam.ParDo0(s, &gotExpectedNumPartitionsFn{Expected: expected}, numPartitions)
-}
-
-type gotExpectedNumPartitionsFn struct {
-	Expected int
-}
-
-func (fn *gotExpectedNumPartitionsFn) ProcessElement(i int) error {
-	if i != fn.Expected {
-		return fmt.Errorf("got %d emitted partitions, want %d", i, fn.Expected)
-	}
-	return nil
 }

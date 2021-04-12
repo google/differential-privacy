@@ -48,7 +48,7 @@ type Count struct {
 	delta           float64
 	l0Sensitivity   int64
 	lInfSensitivity int64
-	noise           noise.Noise
+	Noise           noise.Noise
 	noiseKind       noise.Kind // necessary for serializing noise.Noise information
 
 	// State variables
@@ -108,7 +108,7 @@ func NewCount(opt *CountOptions) *Count {
 		delta:           del,
 		l0Sensitivity:   l0,
 		lInfSensitivity: lInf,
-		noise:           n,
+		Noise:           n,
 		noiseKind:       noise.ToKind(n),
 		count:           0,
 		state:           defaultState,
@@ -169,7 +169,7 @@ func (c *Count) Result() int64 {
 		log.Fatalf("Count's noised result cannot be computed. Reason: " + c.state.errorMessage())
 	}
 	c.state = resultReturned
-	c.noisedCount = c.noise.AddNoiseInt64(c.count, c.l0Sensitivity, c.lInfSensitivity, c.epsilon, c.delta)
+	c.noisedCount = c.Noise.AddNoiseInt64(c.count, c.l0Sensitivity, c.lInfSensitivity, c.epsilon, c.delta)
 	return c.noisedCount
 }
 
@@ -177,7 +177,7 @@ func (c *Count) Result() int64 {
 // result. So, if the result is less than the threshold specified by the noise
 // mechanism, it returns nil. Otherwise, it returns the result.
 func (c *Count) ThresholdedResult(thresholdDelta float64) *int64 {
-	threshold := c.noise.Threshold(c.l0Sensitivity, float64(c.lInfSensitivity), c.epsilon, c.delta, thresholdDelta)
+	threshold := c.Noise.Threshold(c.l0Sensitivity, float64(c.lInfSensitivity), c.epsilon, c.delta, thresholdDelta)
 	result := c.Result()
 	if result < int64(threshold) {
 		return nil
@@ -198,7 +198,7 @@ func (c *Count) ComputeConfidenceInterval(alpha float64) (noise.ConfidenceInterv
 	if c.state != resultReturned {
 		return noise.ConfidenceInterval{}, fmt.Errorf("Result() must be called before calling ComputeConfidenceInterval()")
 	}
-	confInt, err := c.noise.ComputeConfidenceIntervalInt64(c.noisedCount, c.l0Sensitivity, c.lInfSensitivity, c.epsilon, c.delta, alpha)
+	confInt, err := c.Noise.ComputeConfidenceIntervalInt64(c.noisedCount, c.l0Sensitivity, c.lInfSensitivity, c.epsilon, c.delta, alpha)
 	if err != nil {
 		return noise.ConfidenceInterval{}, err
 	}
@@ -227,7 +227,7 @@ func (c *Count) GobEncode() ([]byte, error) {
 		Delta:           c.delta,
 		L0Sensitivity:   c.l0Sensitivity,
 		LInfSensitivity: c.lInfSensitivity,
-		NoiseKind:       noise.ToKind(c.noise),
+		NoiseKind:       noise.ToKind(c.Noise),
 		Count:           c.count,
 	}
 	c.state = serialized
@@ -248,7 +248,7 @@ func (c *Count) GobDecode(data []byte) error {
 		l0Sensitivity:   enc.L0Sensitivity,
 		lInfSensitivity: enc.LInfSensitivity,
 		noiseKind:       enc.NoiseKind,
-		noise:           noise.ToNoise(enc.NoiseKind),
+		Noise:           noise.ToNoise(enc.NoiseKind),
 		count:           enc.Count,
 		state:           defaultState,
 	}

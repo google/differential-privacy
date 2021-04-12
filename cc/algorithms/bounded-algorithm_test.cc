@@ -92,7 +92,7 @@ TYPED_TEST(BoundedAlgorithmTest, ManualBoundsTest) {
 TYPED_TEST(BoundedAlgorithmTest, ApproxBoundsClearsManualBounds) {
   typename BoundedAlgorithm<TypeParam>::Builder builder;
   builder.SetLower(1).SetUpper(2).SetApproxBounds(
-      typename ApproxBounds<TypeParam>::Builder().Build().ValueOrDie());
+      typename ApproxBounds<TypeParam>::Builder().Build().value());
   EXPECT_OK(builder.Build());
   EXPECT_FALSE(builder.HasLower());
   EXPECT_FALSE(builder.HasUpper());

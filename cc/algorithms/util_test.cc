@@ -229,8 +229,7 @@ TEST(QnormTest, Accuracy) {
       1.6448536269514729,   3.090232306167813,    4.264890793922602,
       5.199337582187471};
   for (int i = 0; i < p.size(); ++i) {
-    EXPECT_LE(std::abs(exact[i] - Qnorm(p[i]).ValueOrDie()),
-              theoretical_accuracy);
+    EXPECT_LE(std::abs(exact[i] - Qnorm(p[i]).value()), theoretical_accuracy);
   }
 }
 

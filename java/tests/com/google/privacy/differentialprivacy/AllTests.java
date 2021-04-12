@@ -24,18 +24,24 @@ import org.junit.runners.Suite.SuiteClasses;
 @RunWith(Suite.class)
 @SuiteClasses({
   BoundedMeanBuilderTest.class,
+  BoundedMeanConfidenceIntervalTest.class,
   BoundedMeanTest.class,
   BoundedQuantilesTest.class,
   BoundedQuantilesBuilderTest.class,
-  LaplaceNoiseConfidenceIntervalTest.class,
-  GaussianNoiseConfidenceIntervalTest.class,
-  LaplaceNoiseQuantileTest.class,
-  GaussianNoiseQuantileTest.class,
+  BoundedSumBiasTest.class,
   BoundedSumBuilderTest.class,
+  BoundedSumConfidenceIntervalTest.class,
   BoundedSumTest.class,
+  CountBiasTest.class,
   CountBuilderTest.class,
+  CountConfidenceIntervalTest.class,
   CountTest.class,
+  GaussianNoiseConfidenceIntervalTest.class,
+  GaussianNoiseQuantileTest.class,
   GaussianNoiseTest.class,
+  LaplaceNoiseConfidenceIntervalTest.class,
+  LaplaceNoiseQuantileTest.class,
   LaplaceNoiseTest.class,
+  SecureNoiseMathTest.class,
 })
 public class AllTests {}

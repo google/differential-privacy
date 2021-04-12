@@ -117,6 +117,7 @@ import (
 	log "github.com/golang/glog"
 	"github.com/google/differential-privacy/go/noise"
 	"github.com/google/differential-privacy/privacy-on-beam/internal/kv"
+	"github.com/google/differential-privacy/privacy-on-beam/internal/testoption"
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"google.golang.org/protobuf/proto"
@@ -145,7 +146,8 @@ type PrivacySpec struct {
 	epsilon           float64 // ε budget available for this PrivatePCollection.
 	delta             float64 // δ budget available for this PrivatePCollection.
 	partiallyConsumed bool    // Whether some privacy budget has already been consumed from this PrivacySpec.
-	mux sync.Mutex
+	testMode testMode // Used for test pipelines, disabled by default.
+	mux      sync.Mutex
 }
 
 // getBudget computes the differential privacy budget (ε,δ) to consume
@@ -225,8 +227,15 @@ func budgetSlightlyTooLarge(remaining, requested float64) bool {
 // PrivacySpecOption is used for customizing PrivacySpecs. In the typical use
 // case, PrivacySpecOptions are passed into the NewPrivacySpec constructor to
 // create a further customized PrivacySpec.
-type PrivacySpecOption interface {
-	updatePrivacySpec(ps *PrivacySpec)
+type PrivacySpecOption interface{}
+
+func evaluatePrivacySpecOption(opt PrivacySpecOption, spec *PrivacySpec) {
+	switch opt {
+	case testoption.EnableNoNoiseWithContributionBounding{}:
+		spec.testMode = noNoiseWithContributionBounding
+	case testoption.EnableNoNoiseWithoutContributionBounding{}:
+		spec.testMode = noNoiseWithoutContributionBounding
+	}
 }
 
 // getMaxPartitionsContributed returns a maxPartitionsContributed parameter
@@ -281,7 +290,7 @@ func NewPrivacySpec(epsilon, delta float64, options ...PrivacySpecOption) *Priva
 		delta:   delta,
 	}
 	for _, opt := range options {
-		opt.updatePrivacySpec(ps)
+		evaluatePrivacySpecOption(opt, ps)
 	}
 	return ps
 }

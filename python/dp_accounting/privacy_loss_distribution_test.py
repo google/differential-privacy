@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Tests for privacy_loss_distribution.py."""
 import math
 import unittest
@@ -94,10 +93,10 @@ class PrivacyLossDistributionTest(parameterized.TestCase):
 
     # Here 4 appears as an outcome of only mu_upper and hence should be included
     # in the infinity_mass variable.
-    self.assertAlmostEqual(
-        privacy_loss_distribution_pessimistic.infinity_mass, 0.1)
-    self.assertAlmostEqual(
-        privacy_loss_distribution_optimistic.infinity_mass, 0.1)
+    self.assertAlmostEqual(privacy_loss_distribution_pessimistic.infinity_mass,
+                           0.1)
+    self.assertAlmostEqual(privacy_loss_distribution_optimistic.infinity_mass,
+                           0.1)
 
     # The true 0-hockey stick divergence is 0.6
     # When using pessimistic estimate, the output should be in [0.6, 0.6+1e-4]
@@ -127,21 +126,39 @@ class PrivacyLossDistributionTest(parameterized.TestCase):
     # When using optimistic estimate, the output should lie in
     # [0.3405 - 1e-4, 0.3405]
     self.assertGreaterEqual(
-        0.3405,
-        privacy_loss_distribution_optimistic.get_delta_for_epsilon(0.5))
+        0.3405, privacy_loss_distribution_optimistic.get_delta_for_epsilon(0.5))
     self.assertLessEqual(
         0.3405 - 1e-4,
         privacy_loss_distribution_optimistic.get_delta_for_epsilon(0.5))
 
   @parameterized.parameters(
-      ({4: 0.2, 2: 0.7}, 0.5, 0.1, 0.5, 0.56358432),
-      ({4: 0.2, 2: 0.7}, 0.5, 0.1, 0.2, 1.30685282),
-      ({1: 0.2, -1: 0.7}, 1, 0.1, 0.4, 0),
-      ({1: 0.6}, 1, 0.5, 0.4, math.inf),
-      ({-1: 0.1}, 1, 0, 0, 0),
+      ({
+          4: 0.2,
+          2: 0.7
+      }, 0.5, 0.1, 0.5, 0.56358432),
+      ({
+          4: 0.2,
+          2: 0.7
+      }, 0.5, 0.1, 0.2, 1.30685282),
+      ({
+          1: 0.2,
+          -1: 0.7
+      }, 1, 0.1, 0.4, 0),
+      ({
+          1: 0.6
+      }, 1, 0.5, 0.4, math.inf),
+      ({
+          -1: 0.1
+      }, 1, 0, 0, 0),
       # Test resilience against overflow
-      ({5000: 1}, 1, 0, 0.1, 5000),
-      ({5000: 0.2, 4000: 0.1, 3000: 0.7}, 1, 0.1, 0.4, 4000))
+      ({
+          5000: 1
+      }, 1, 0, 0.1, 5000),
+      ({
+          5000: 0.2,
+          4000: 0.1,
+          3000: 0.7
+      }, 1, 0.1, 0.4, 4000))
   def test_get_epsilon_for_delta(self, rounded_probability_mass_function,
                                  value_discretization_interval, infinity_mass,
                                  delta, expected_epsilon):
@@ -176,12 +193,12 @@ class PrivacyLossDistributionTest(parameterized.TestCase):
     # For the outcomes 2 and 3, the probability mass in mu_upper are below the
     # threshold. Hence, they should be discarded, resulting in the total
     # infinity_mass of 0.05 in the pessimistic case
-    self.assertAlmostEqual(
-        privacy_loss_distribution_pessimistic.infinity_mass, 0.05)
+    self.assertAlmostEqual(privacy_loss_distribution_pessimistic.infinity_mass,
+                           0.05)
 
     # In the optimistic case, the infinity_mass should be zero.
-    self.assertAlmostEqual(
-        privacy_loss_distribution_optimistic.infinity_mass, 0)
+    self.assertAlmostEqual(privacy_loss_distribution_optimistic.infinity_mass,
+                           0)
 
     # The 10-hockey stick should be zero, but due to the mass truncation, the
     # output will be 0.05 in the pessimistic case.
@@ -242,14 +259,46 @@ class PrivacyLossDistributionTest(parameterized.TestCase):
     # directly because the rounding might cause off-by-one error in index.
     self.assertAlmostEqual(expected_result.value_discretization_interval,
                            result.value_discretization_interval)
-    self.assertAlmostEqual(expected_result.infinity_mass,
-                           result.infinity_mass)
+    self.assertAlmostEqual(expected_result.infinity_mass, result.infinity_mass)
     self.assertAlmostEqual(
         expected_result.get_delta_for_epsilon(0),
         result.get_delta_for_epsilon(0))
     self.assertAlmostEqual(
         expected_result.get_delta_for_epsilon(0.5),
         result.get_delta_for_epsilon(0.5))
+
+  def test_composition_with_truncation(self):
+    pld1 = privacy_loss_distribution.PrivacyLossDistribution(
+        {
+            0: 0.1,
+            1: 0.7,
+            2: 0.1
+        }, 1, 0.1)
+    pld2 = privacy_loss_distribution.PrivacyLossDistribution(
+        {
+            0: 0.1,
+            1: 0.6,
+            2: 0.2
+        }, 1, 0.1)
+    pld_composed = pld1.compose(pld2, tail_mass_truncation=0.021)
+    self.assertAlmostEqual(pld_composed.infinity_mass, 0.211)
+    test_util.dictionary_almost_equal(
+        self, {
+            1: 0.13,
+            2: 0.45,
+            3: 0.20,
+            4: 0.02,
+        }, pld_composed.rounded_probability_mass_function)
+
+  def test_composition_different_estimate_types(self):
+    with self.assertRaises(ValueError):
+      pld1 = (
+          privacy_loss_distribution.PrivacyLossDistribution
+          .from_laplace_mechanism(1, pessimistic_estimate=True))
+      pld2 = (
+          privacy_loss_distribution.PrivacyLossDistribution
+          .from_laplace_mechanism(1, pessimistic_estimate=False))
+      pld1.compose(pld2)
 
   def test_self_composition(self):
     # Test for self composition of privacy loss distribution
@@ -282,8 +331,7 @@ class PrivacyLossDistributionTest(parameterized.TestCase):
 
     self.assertAlmostEqual(expected_result.value_discretization_interval,
                            result.value_discretization_interval)
-    self.assertAlmostEqual(expected_result.infinity_mass,
-                           result.infinity_mass)
+    self.assertAlmostEqual(expected_result.infinity_mass, result.infinity_mass)
     self.assertAlmostEqual(
         expected_result.get_delta_for_epsilon(0),
         result.get_delta_for_epsilon(0))
@@ -291,11 +339,19 @@ class PrivacyLossDistributionTest(parameterized.TestCase):
         expected_result.get_delta_for_epsilon(0.5),
         result.get_delta_for_epsilon(0.5))
 
-  @parameterized.parameters(
-      (1, 0, 1, {1: 0.73105858, -1: 0.26894142}, 0),
-      (1, 0, 0.3, {4: 0.73105858, -3: 0.26894142}, 0),
-      (0.5, 0.2, 0.5, {1: 0.49796746, -1: 0.30203254}, 0.2),
-      (0.5, 0.2, 0.07, {8: 0.49796746, -7: 0.30203254}, 0.2))
+  @parameterized.parameters((1, 0, 1, {
+      1: 0.73105858,
+      -1: 0.26894142
+  }, 0), (1, 0, 0.3, {
+      4: 0.73105858,
+      -3: 0.26894142
+  }, 0), (0.5, 0.2, 0.5, {
+      1: 0.49796746,
+      -1: 0.30203254
+  }, 0.2), (0.5, 0.2, 0.07, {
+      8: 0.49796746,
+      -7: 0.30203254
+  }, 0.2))
   def test_from_privacy_parameters(self, epsilon, delta,
                                    value_discretization_interval,
                                    expected_rounded_probability_mass_function,
@@ -311,40 +367,70 @@ class PrivacyLossDistributionTest(parameterized.TestCase):
 
 class LaplacePrivacyLossDistributionTest(parameterized.TestCase):
 
-  @parameterized.parameters(
-      (1, 1, {1: 0.69673467, 0: 0.11932561, -1: 0.18393972}),
-      (3, 3, {1: 0.69673467, 0: 0.11932561, -1: 0.18393972}),
-      (1, 2, {2: 0.69673467, 1: 0.11932561, 0: 0.07237464, -1: 0.04389744,
-              -2: 0.06766764}),
-      (2, 4, {2: 0.69673467, 1: 0.11932561, 0: 0.07237464, -1: 0.04389744,
-              -2: 0.06766764}))
+  @parameterized.parameters((1, 1, {
+      1: 0.69673467,
+      0: 0.11932561,
+      -1: 0.18393972
+  }), (3, 3, {
+      1: 0.69673467,
+      0: 0.11932561,
+      -1: 0.18393972
+  }), (1, 2, {
+      2: 0.69673467,
+      1: 0.11932561,
+      0: 0.07237464,
+      -1: 0.04389744,
+      -2: 0.06766764
+  }), (2, 4, {
+      2: 0.69673467,
+      1: 0.11932561,
+      0: 0.07237464,
+      -1: 0.04389744,
+      -2: 0.06766764
+  }))
   def test_laplace_varying_parameter_and_sensitivity(
       self, parameter, sensitivity, expected_rounded_probability_mass_function):
     pld = privacy_loss_distribution.PrivacyLossDistribution.from_laplace_mechanism(
         parameter, sensitivity=sensitivity, value_discretization_interval=1)
     test_util.dictionary_almost_equal(
-        self,
-        expected_rounded_probability_mass_function,
+        self, expected_rounded_probability_mass_function,
         pld.rounded_probability_mass_function)
 
-  @parameterized.parameters(
-      (0.5, {2: 0.61059961, 1: 0.08613506, 0: 0.06708205, -1: 0.05224356,
-             -2: 0.18393972}),
-      (0.3, {4: 0.52438529, 3: 0.06624934, 2: 0.05702133, 1: 0.04907872,
-             0: 0.04224244, -1: 0.03635841, -2: 0.03129397, -3: 0.19337051}))
+  @parameterized.parameters((0.5, {
+      2: 0.61059961,
+      1: 0.08613506,
+      0: 0.06708205,
+      -1: 0.05224356,
+      -2: 0.18393972
+  }), (0.3, {
+      4: 0.52438529,
+      3: 0.06624934,
+      2: 0.05702133,
+      1: 0.04907872,
+      0: 0.04224244,
+      -1: 0.03635841,
+      -2: 0.03129397,
+      -3: 0.19337051
+  }))
   def test_laplace_discretization(self, value_discretization_interval,
                                   expected_rounded_probability_mass_function):
     pld = privacy_loss_distribution.PrivacyLossDistribution.from_laplace_mechanism(
         1, value_discretization_interval=value_discretization_interval)
     test_util.dictionary_almost_equal(
-        self,
-        expected_rounded_probability_mass_function,
+        self, expected_rounded_probability_mass_function,
         pld.rounded_probability_mass_function)
 
-  @parameterized.parameters(
-      (1, {1: 0.5, 0: 0.19673467, -1: 0.30326533}),
-      (2, {2: 0.5, 1: 0.19673467, 0: 0.11932561, -1: 0.07237464,
-           -2: 0.11156508}))
+  @parameterized.parameters((1, {
+      1: 0.5,
+      0: 0.19673467,
+      -1: 0.30326533
+  }), (2, {
+      2: 0.5,
+      1: 0.19673467,
+      0: 0.11932561,
+      -1: 0.07237464,
+      -2: 0.11156508
+  }))
   def test_laplace_optimistic(self, sensitivity,
                               expected_rounded_probability_mass_function):
     pld = privacy_loss_distribution.PrivacyLossDistribution.from_laplace_mechanism(
@@ -353,8 +439,7 @@ class LaplacePrivacyLossDistributionTest(parameterized.TestCase):
         pessimistic_estimate=False,
         value_discretization_interval=1)
     test_util.dictionary_almost_equal(
-        self,
-        expected_rounded_probability_mass_function,
+        self, expected_rounded_probability_mass_function,
         pld.rounded_probability_mass_function)
 
 
@@ -443,26 +528,106 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
 
 class DiscreteLaplacePrivacyLossDistributionTest(parameterized.TestCase):
 
-  @parameterized.parameters(
-      (1.0, 1, {1: 0.73105858, -1: 0.26894142}),
-      (1.0, 2, {2: 0.73105858, 0: 0.17000340, -2: 0.09893802}),
-      (0.8, 2, {2: 0.68997448, 0: 0.17072207, -1: 0.13930345}),
-      (0.8, 3, {3: 0.68997448, 1: 0.17072207, 0: 0.07671037, -2: 0.06259307}))
+  @parameterized.parameters((1.0, 1, {
+      1: 0.73105858,
+      -1: 0.26894142
+  }), (1.0, 2, {
+      2: 0.73105858,
+      0: 0.17000340,
+      -2: 0.09893802
+  }), (0.8, 2, {
+      2: 0.68997448,
+      0: 0.17072207,
+      -1: 0.13930345
+  }), (0.8, 3, {
+      3: 0.68997448,
+      1: 0.17072207,
+      0: 0.07671037,
+      -2: 0.06259307
+  }))
   def test_discrete_laplace_varying_parameter_and_sensitivity(
       self, parameter, sensitivity, expected_rounded_probability_mass_function):
     pld = privacy_loss_distribution.PrivacyLossDistribution.from_discrete_laplace_mechanism(
         parameter, sensitivity=sensitivity, value_discretization_interval=1)
     test_util.dictionary_almost_equal(
-        self,
-        expected_rounded_probability_mass_function,
+        self, expected_rounded_probability_mass_function,
+        pld.rounded_probability_mass_function)
+
+  @parameterized.parameters((0.1, {
+      10: 0.73105858,
+      -10: 0.26894142
+  }), (0.03, {
+      34: 0.73105858,
+      -33: 0.26894142
+  }))
+  def test_discrete_laplace_discretization(
+      self, value_discretization_interval,
+      expected_rounded_probability_mass_function):
+    pld = privacy_loss_distribution.PrivacyLossDistribution.from_discrete_laplace_mechanism(
+        1, value_discretization_interval=value_discretization_interval)
+    test_util.dictionary_almost_equal(
+        self, expected_rounded_probability_mass_function,
+        pld.rounded_probability_mass_function)
+
+
+class DiscreteGaussianPrivacyLossDistributionTest(parameterized.TestCase):
+
+  @parameterized.parameters((1, 1, {
+      5000: 0.45186276,
+      -5000: 0.27406862
+  }, 0.27406862), (1, 2, {
+      0: 0.27406862
+  }, 0.72593138), (3, 1, {
+      556: 0.34579116,
+      -555: 0.32710442
+  }, 0.32710442))
+  def test_discrete_gaussian_varying_sigma_and_sensitivity(
+      self, sigma, sensitivity, expected_rounded_probability_mass_function,
+      expected_infinity_mass):
+    pld = (
+        privacy_loss_distribution.PrivacyLossDistribution
+        .from_discrete_gaussian_mechanism(
+            sigma, sensitivity=sensitivity, truncation_bound=1))
+    self.assertAlmostEqual(pld.infinity_mass, expected_infinity_mass)
+    test_util.dictionary_almost_equal(
+        self, expected_rounded_probability_mass_function,
+        pld.rounded_probability_mass_function)
+
+  @parameterized.parameters((2, {
+      15000: 0.24420134,
+      5000: 0.40261995,
+      -5000: 0.24420134,
+      -15000: 0.05448868
+  }, 0.05448868), (3, {
+      25000: 0.05400558,
+      15000: 0.24203622,
+      5000: 0.39905027,
+      -5000: 0.24203623,
+      -15000: 0.05400558,
+      -25000: 0.00443305
+  }, 0.00443305))
+  def test_discrete_gaussian_truncation(
+      self, truncation_bound, expected_rounded_probability_mass_function,
+      expected_infinity_mass):
+    pld = (
+        privacy_loss_distribution.PrivacyLossDistribution
+        .from_discrete_gaussian_mechanism(1, truncation_bound=truncation_bound))
+    self.assertAlmostEqual(pld.infinity_mass, expected_infinity_mass)
+    test_util.dictionary_almost_equal(
+        self, expected_rounded_probability_mass_function,
         pld.rounded_probability_mass_function)
 
 
 class RandomizedResponsePrivacyLossDistributionTest(parameterized.TestCase):
 
-  @parameterized.parameters(
-      (0.5, 2, {2: 0.75, -1: 0.25}),
-      (0.2, 4, {3: 0.85, -2: 0.05, 0: 0.1}))
+  @parameterized.parameters((0.5, 2, {
+      2: 0.75,
+      -1: 0.25
+  }), (0.2, 4, {
+      3: 0.85,
+      -2: 0.05,
+      0: 0.1
+  }))
   def test_randomized_response_basic(
       self, noise_parameter, num_buckets,
       expected_rounded_probability_mass_function):
@@ -472,13 +637,18 @@ class RandomizedResponsePrivacyLossDistributionTest(parameterized.TestCase):
         .from_randomized_response(
             noise_parameter, num_buckets, value_discretization_interval=1))
     test_util.dictionary_almost_equal(
-        self,
-        expected_rounded_probability_mass_function,
+        self, expected_rounded_probability_mass_function,
         pld.rounded_probability_mass_function)
 
-  @parameterized.parameters(
-      (0.7, {5: 0.85, -4: 0.05, 0: 0.1}),
-      (2, {2: 0.85, -1: 0.05, 0: 0.1}))
+  @parameterized.parameters((0.7, {
+      5: 0.85,
+      -4: 0.05,
+      0: 0.1
+  }), (2, {
+      2: 0.85,
+      -1: 0.05,
+      0: 0.1
+  }))
   def test_randomized_response_discretization(
       self, value_discretization_interval,
       expected_rounded_probability_mass_function):
@@ -491,13 +661,17 @@ class RandomizedResponsePrivacyLossDistributionTest(parameterized.TestCase):
             0.2, 4,
             value_discretization_interval=value_discretization_interval))
     test_util.dictionary_almost_equal(
-        self,
-        expected_rounded_probability_mass_function,
+        self, expected_rounded_probability_mass_function,
         pld.rounded_probability_mass_function)
 
-  @parameterized.parameters(
-      (0.5, 2, {1: 0.75, -2: 0.25}),
-      (0.2, 4, {2: 0.85, -3: 0.05, 0: 0.1}))
+  @parameterized.parameters((0.5, 2, {
+      1: 0.75,
+      -2: 0.25
+  }), (0.2, 4, {
+      2: 0.85,
+      -3: 0.05,
+      0: 0.1
+  }))
   def test_randomized_response_optimistic(
       self, noise_parameter, num_buckets,
       expected_rounded_probability_mass_function):
@@ -508,8 +682,7 @@ class RandomizedResponsePrivacyLossDistributionTest(parameterized.TestCase):
         pessimistic_estimate=False,
         value_discretization_interval=1)
     test_util.dictionary_almost_equal(
-        self,
-        expected_rounded_probability_mass_function,
+        self, expected_rounded_probability_mass_function,
         pld.rounded_probability_mass_function)
 
   @parameterized.parameters((0.0, 10), (1.1, 4), (0.5, 1))
@@ -523,15 +696,21 @@ class IdentityPrivacyLossDistributionTest(parameterized.TestCase):
 
   def test_identity(self):
     pld = privacy_loss_distribution.PrivacyLossDistribution.identity()
-    test_util.dictionary_almost_equal(
-        self, pld.rounded_probability_mass_function, {0: 1})
+    test_util.dictionary_almost_equal(self,
+                                      pld.rounded_probability_mass_function,
+                                      {0: 1})
     self.assertAlmostEqual(pld.infinity_mass, 0)
 
     pld = pld.compose(
-        privacy_loss_distribution.PrivacyLossDistribution(
-            {1: 0.5, -1: 0.5}, 1e-4, 0))
-    test_util.dictionary_almost_equal(
-        self, pld.rounded_probability_mass_function, {1: 0.5, -1: 0.5})
+        privacy_loss_distribution.PrivacyLossDistribution({
+            1: 0.5,
+            -1: 0.5
+        }, 1e-4, 0))
+    test_util.dictionary_almost_equal(self,
+                                      pld.rounded_probability_mass_function, {
+                                          1: 0.5,
+                                          -1: 0.5
+                                      })
     self.assertAlmostEqual(pld.infinity_mass, 0)
 
 

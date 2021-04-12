@@ -17,11 +17,13 @@
 #ifndef DIFFERENTIAL_PRIVACY_ALGORITHMS_ALGORITHM_H_
 #define DIFFERENTIAL_PRIVACY_ALGORITHMS_ALGORITHM_H_
 
-#include <cstddef>
-#include <iterator>
+#include <limits>
 #include <memory>
-#include <string>
+#include <optional>
+#include <utility>
 
+#include <cstdint>
+#include "base/logging.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "base/statusor.h"
@@ -31,7 +33,7 @@
 #include "proto/confidence-interval.pb.h"
 #include "proto/data.pb.h"
 #include "proto/summary.pb.h"
-#include "base/canonical_errors.h"
+#include "base/status_macros.h"
 
 namespace differential_privacy {
 

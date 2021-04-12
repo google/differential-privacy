@@ -37,11 +37,13 @@ java_library(
 
 java_test(
     name = "AllTests",
+    timeout = "moderate",
     srcs = glob(
         [
             "*.java",
         ],
     ),
+    shard_count = 16,
     test_class = "com.google.privacy.differentialprivacy.AllTests",
     deps = [
         ":autovalue",

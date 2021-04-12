@@ -18,13 +18,13 @@
 #define DIFFERENTIAL_PRIVACY_ALGORITHMS_BOUNDED_ALGORITHM_H_
 
 #include <memory>
-#include <type_traits>
+#include <optional>
 
 #include "absl/status/status.h"
 #include "base/statusor.h"
 #include "algorithms/algorithm.h"
 #include "algorithms/approx-bounds.h"
-#include "base/canonical_errors.h"
+#include "base/status_macros.h"
 
 namespace differential_privacy {
 

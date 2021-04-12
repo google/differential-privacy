@@ -105,7 +105,7 @@ TEST(LaplaceDistributionTest, ParameterValidation) {
 TEST(LaplaceDistributionTest, CheckStatisticsForGeoUnitValues) {
   LaplaceDistribution::Builder builder;
   std::unique_ptr<LaplaceDistribution> dist =
-      builder.SetEpsilon(1.0).SetSensitivity(1.0).Build().ValueOrDie();
+      builder.SetEpsilon(1.0).SetSensitivity(1.0).Build().value();
   std::vector<double> samples(kNumGeometricSamples);
   std::generate(samples.begin(), samples.end(),
                 [dist = std::move(dist)]() { return dist->Sample(1.0); });
@@ -121,7 +121,7 @@ TEST(LaplaceDistributionTest, CheckStatisticsForGeoSpecificDistribution) {
   double sensitivity = kOneOverLog2;
   LaplaceDistribution::Builder builder;
   std::unique_ptr<LaplaceDistribution> dist =
-      builder.SetEpsilon(1.0).SetSensitivity(sensitivity).Build().ValueOrDie();
+      builder.SetEpsilon(1.0).SetSensitivity(sensitivity).Build().value();
   std::vector<double> samples(kNumGeometricSamples);
   std::generate(samples.begin(), samples.end(),
                 [dist = std::move(dist)]() { return dist->Sample(1.0); });
@@ -139,7 +139,7 @@ TEST(LaplaceDistributionTest, CheckStatisticsForGeoSpecificScaledDistribution) {
   double scale = 3.0;
   LaplaceDistribution::Builder builder;
   std::unique_ptr<LaplaceDistribution> dist =
-      builder.SetEpsilon(1.0).SetSensitivity(sensitivity).Build().ValueOrDie();
+      builder.SetEpsilon(1.0).SetSensitivity(sensitivity).Build().value();
   std::vector<double> samples(kNumGeometricSamples);
   std::generate(
       samples.begin(), samples.end(),
@@ -214,7 +214,7 @@ TEST(GaussDistributionTest, ParameterValidation) {
 TEST(GaussDistributionTest, CheckStatisticsForUnitValues) {
   GaussianDistribution::Builder builder;
   std::unique_ptr<GaussianDistribution> dist =
-      builder.SetStddev(1.0).Build().ValueOrDie();
+      builder.SetStddev(1.0).Build().value();
   std::vector<double> samples(kGaussianSamples);
   std::generate(samples.begin(), samples.end(),
                 [&dist]() { return dist->Sample(); });
@@ -226,7 +226,7 @@ TEST(GaussDistributionTest, CheckStatisticsForSpecificDistribution) {
   double stddev = kOneOverLog2;
   GaussianDistribution::Builder builder;
   std::unique_ptr<GaussianDistribution> dist =
-      builder.SetStddev(stddev).Build().ValueOrDie();
+      builder.SetStddev(stddev).Build().value();
   std::vector<double> samples(kGaussianSamples);
   std::generate(samples.begin(), samples.end(),
                 [&dist]() { return dist->Sample(); });
@@ -239,7 +239,7 @@ TEST(GaussDistributionTest, CheckStatisticsForSpecificScaledDistribution) {
   double scale = 3.0;
   GaussianDistribution::Builder builder;
   std::unique_ptr<GaussianDistribution> dist =
-      builder.SetStddev(stddev).Build().ValueOrDie();
+      builder.SetStddev(stddev).Build().value();
   std::vector<double> samples(kGaussianSamples);
   std::generate(samples.begin(), samples.end(),
                 [&dist, scale]() { return dist->Sample(scale); });
@@ -251,7 +251,7 @@ TEST(GaussDistributionTest, StandardDeviationGetter) {
   double stddev = kOneOverLog2;
   GaussianDistribution::Builder builder;
   std::unique_ptr<GaussianDistribution> dist =
-      builder.SetStddev(stddev).Build().ValueOrDie();
+      builder.SetStddev(stddev).Build().value();
 
   EXPECT_EQ(dist->Stddev(), stddev);
 }
@@ -260,6 +260,8 @@ TEST(GaussDistributionTest, Cdf) {
   EXPECT_NEAR(GaussianDistribution::cdf(1, 0), 0.5, 0.000001);
   EXPECT_NEAR(GaussianDistribution::cdf(5, 0), 0.5, 0.000001);
   EXPECT_NEAR(GaussianDistribution::cdf(1, -1), 0.15865525, 0.000001);
+  EXPECT_NEAR(GaussianDistribution::cdf(1, -5), 2.8665157e-7, 1e-13);
+  EXPECT_NEAR(GaussianDistribution::cdf(1, -9), 1.1285884e-19, 1e-25);
   EXPECT_NEAR(GaussianDistribution::cdf(5, -1), 0.42074029, 0.000001);
   EXPECT_NEAR(GaussianDistribution::cdf(1, 1), 0.84134475, 0.000001);
   EXPECT_NEAR(GaussianDistribution::cdf(5, 1), 0.57925971, 0.000001);
@@ -288,7 +290,7 @@ TEST(GeometricDistributionTest, ParameterValidation) {
 TEST(GeometricDistributionTest, SmallProbabilityStats) {
   GeometricDistribution::Builder builder;
   std::unique_ptr<GeometricDistribution> dist =
-      builder.SetLambda(-1.0 * std::log(1.0 - 1e-6)).Build().ValueOrDie();
+      builder.SetLambda(-1.0 * std::log(1.0 - 1e-6)).Build().value();
 
   std::vector<int64_t> samples(kNumGeometricSamples);
   std::generate(samples.begin(), samples.end(),
@@ -300,7 +302,7 @@ TEST(GeometricDistributionTest, SmallProbabilityStats) {
 TEST(GeometricDistributionTest, LargeProbabilityStats) {
   GeometricDistribution::Builder builder;
   std::unique_ptr<GeometricDistribution> dist =
-      builder.SetLambda(-1.0 * std::log(1.0 - 0.5)).Build().ValueOrDie();
+      builder.SetLambda(-1.0 * std::log(1.0 - 0.5)).Build().value();
   std::vector<int64_t> samples(kNumGeometricSamples);
   std::generate(samples.begin(), samples.end(),
                 [dist = std::move(dist)]() { return dist->Sample() + 1; });
@@ -312,7 +314,7 @@ TEST(GeometricDistributionTest, Ratios) {
   double p = 1e-2;
   GeometricDistribution::Builder builder;
   std::unique_ptr<GeometricDistribution> dist =
-      builder.SetLambda(-1.0 * std::log(1.0 - p)).Build().ValueOrDie();
+      builder.SetLambda(-1.0 * std::log(1.0 - p)).Build().value();
   std::vector<int64_t> counts(51, 0);
   for (int i = 0; i < kNumGeometricSamples; ++i) {
     int64_t sample = dist->Sample();
@@ -380,7 +382,7 @@ TEST_P(GeometricDistributionTest, Distribution) {
 
   GeometricDistribution::Builder builder;
   std::unique_ptr<GeometricDistribution> distribution =
-      builder.SetLambda(lambda).Build().ValueOrDie();
+      builder.SetLambda(lambda).Build().value();
 
   // Choose bucket sizes so that the expected count in the first bucket is
   // 150.
@@ -467,7 +469,7 @@ TEST(GeometricDistribution, ImpossibleDoubles) {
   // can't generate large odd values.
   GeometricDistribution::Builder builder;
   std::unique_ptr<GeometricDistribution> distribution =
-      builder.SetLambda(1e-15).Build().ValueOrDie();
+      builder.SetLambda(1e-15).Build().value();
 
   double count = 0;
   constexpr int kIter = 1000000;

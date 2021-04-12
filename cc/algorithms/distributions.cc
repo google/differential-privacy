@@ -23,6 +23,7 @@
 #include "algorithms/rand.h"
 #include "algorithms/util.h"
 #include "base/canonical_errors.h"
+#include "base/status_macros.h"
 
 namespace differential_privacy {
 namespace internal {
@@ -98,7 +99,7 @@ double GaussianDistribution::GetGranularity(double scale) const {
 
 double GaussianDistribution::cdf(double stddev, double x) {
   DCHECK_GT(stddev, 0);
-  return (1 + std::erf(x / (stddev * sqrt(2)))) / 2;
+  return (std::erfc(-x / (stddev * sqrt(2)))) / 2;
 }
 
 GeometricDistribution::Builder& GeometricDistribution::Builder::SetLambda(

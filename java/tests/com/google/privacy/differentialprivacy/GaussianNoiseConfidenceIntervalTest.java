@@ -745,8 +745,8 @@ public class GaussianNoiseConfidenceIntervalTest {
   }
 
   private static boolean approxEqual(double a, double b) {
-    double mxMagnitude = max(Math.abs(a), Math.abs(b));
-    return Math.abs(a - b) <= TOLERANCE * mxMagnitude;
+    double maxMagnitude = max(Math.abs(a), Math.abs(b));
+    return Math.abs(a - b) <= TOLERANCE * maxMagnitude;
   }
 
   private static void verifyApproxEqual(ConfidenceInterval actual, ConfidenceInterval expected) {

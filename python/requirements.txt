@@ -1,4 +1,4 @@
 numpy
-scipy
+scipy>=1.5.0
 absl-py
 dataclasses

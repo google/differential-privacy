@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Implementing Privacy Loss Distribution.
 
 This file implements the privacy loss distribution (PLD) and its basic
@@ -69,15 +68,20 @@ class PrivacyLossDistribution(object):
     infinity_mass: The probability mass of mu_upper over all the outcomes that
       can occur only in mu_upper but not in mu_lower.(These outcomes result in
       privacy loss ln(mu_upper(o) / mu_lower(o)) of infinity.)
+    pessimistic_estimate: whether the rounding is done in such a way that the
+      resulting epsilon-hockey stick divergence computation gives an upper
+      estimate to the real value.
   """
 
   def __init__(self,
                rounded_probability_mass_function: typing.Mapping[int, float],
                value_discretization_interval: float,
-               infinity_mass: float):
+               infinity_mass: float,
+               pessimistic_estimate: bool = True):
     self.rounded_probability_mass_function = rounded_probability_mass_function
     self.value_discretization_interval = value_discretization_interval
     self.infinity_mass = infinity_mass
+    self.pessimistic_estimate = pessimistic_estimate
 
   @classmethod
   def identity(
@@ -173,12 +177,15 @@ class PrivacyLossDistribution(object):
     rounded_probability_mass_function = collections.defaultdict(lambda: 0)
     round_fn = math.ceil if pessimistic_estimate else math.floor
     for val in probability_mass_function:
-      rounded_probability_mass_function[
-          round_fn(val / value_discretization_interval)
-          ] += probability_mass_function[val]
+      rounded_probability_mass_function[round_fn(
+          val /
+          value_discretization_interval)] += probability_mass_function[val]
 
-    return cls(rounded_probability_mass_function, value_discretization_interval,
-               infinity_mass)
+    return cls(
+        rounded_probability_mass_function,
+        value_discretization_interval,
+        infinity_mass,
+        pessimistic_estimate=pessimistic_estimate)
 
   @classmethod
   def create_from_additive_noise(
@@ -220,39 +227,55 @@ class PrivacyLossDistribution(object):
         )] += tail_pld.tail_probability_mass_function[privacy_loss]
 
     if additive_noise_privacy_loss.discrete_noise:
-      for x in range(
-          math.ceil(tail_pld.lower_x_truncation),
-          math.floor(tail_pld.upper_x_truncation) + 1):
+      xs = list(
+          range(
+              math.ceil(tail_pld.lower_x_truncation) - 1,
+              math.floor(tail_pld.upper_x_truncation) + 1))
+
+      # Compute PMF for the x's. Note that a vectorized call to noise_cdf can be
+      # much faster than many scalar calls.
+      cdf_values = additive_noise_privacy_loss.noise_cdf(xs)
+      probability_mass = cdf_values[1:] - cdf_values[:-1]
+
+      for x, prob in zip(xs[1:], probability_mass):
         rounded_probability_mass_function[round_fn(
-            additive_noise_privacy_loss.privacy_loss(x))] += (
-                additive_noise_privacy_loss.noise_cdf(x) -
-                additive_noise_privacy_loss.noise_cdf(x - 1))
+            additive_noise_privacy_loss.privacy_loss(x) /
+            value_discretization_interval)] += prob
     else:
       lower_x = tail_pld.lower_x_truncation
       rounded_down_value = math.floor(
           additive_noise_privacy_loss.privacy_loss(lower_x) /
           value_discretization_interval)
-      while lower_x < tail_pld.upper_x_truncation:
-        upper_x = min(
+
+      # Compute discretization intervals for PLD approximation.
+      xs, rounded_values = [lower_x], []
+      x = lower_x
+      while x < tail_pld.upper_x_truncation:
+        x = min(
             tail_pld.upper_x_truncation,
             additive_noise_privacy_loss.inverse_privacy_loss(
                 value_discretization_interval * rounded_down_value))
 
-        # Each x in [lower_x, upper_x] results in privacy loss that lies in
-        # [value_discretization_interval * rounded_down_value,
-        #  value_discretization_interval * (rounded_down_value + 1)]
-        probability_mass = additive_noise_privacy_loss.noise_cdf(
-            upper_x) - additive_noise_privacy_loss.noise_cdf(lower_x)
-        rounded_value = round_fn(rounded_down_value + 0.5)
-        rounded_probability_mass_function[rounded_value] += probability_mass
-
-        lower_x = upper_x
+        xs.append(x)
+        rounded_values.append(round_fn(rounded_down_value + 0.5))
         rounded_down_value -= 1
+
+      # Compute PLD for discretization intervals. Note that a vectorized call to
+      # noise_cdf is much faster than many scalar calls.
+      cdf_values = additive_noise_privacy_loss.noise_cdf(xs)
+      probability_mass = cdf_values[1:] - cdf_values[:-1]
+
+      # Each x in [lower_x, upper_x] results in privacy loss that lies in
+      # [value_discretization_interval * rounded_down_value,
+      #  value_discretization_interval * (rounded_down_value + 1)]
+      for rounded_value, prob in zip(rounded_values, probability_mass):
+        rounded_probability_mass_function[rounded_value] += prob
 
     return cls(
         dict(rounded_probability_mass_function),
         value_discretization_interval,
-        infinity_mass)
+        infinity_mass,
+        pessimistic_estimate=pessimistic_estimate)
 
   @classmethod
   def from_randomized_response(
@@ -339,8 +362,11 @@ class PrivacyLossDistribution(object):
     rounded_probability_mass_function[0] += (
         probability_output_not_input * (num_buckets - 2))
 
-    return cls(rounded_probability_mass_function, value_discretization_interval,
-               0)
+    return cls(
+        rounded_probability_mass_function,
+        value_discretization_interval,
+        0,
+        pessimistic_estimate=pessimistic_estimate)
 
   @classmethod
   def from_laplace_mechanism(
@@ -368,8 +394,7 @@ class PrivacyLossDistribution(object):
     """
     return PrivacyLossDistribution.create_from_additive_noise(
         privacy_loss_mechanism.LaplacePrivacyLoss(
-            parameter,
-            sensitivity=sensitivity),
+            parameter, sensitivity=sensitivity),
         pessimistic_estimate=pessimistic_estimate,
         value_discretization_interval=value_discretization_interval)
 
@@ -436,8 +461,44 @@ class PrivacyLossDistribution(object):
     """
     return PrivacyLossDistribution.create_from_additive_noise(
         privacy_loss_mechanism.DiscreteLaplacePrivacyLoss(
-            parameter,
-            sensitivity=sensitivity),
+            parameter, sensitivity=sensitivity),
+        pessimistic_estimate=pessimistic_estimate,
+        value_discretization_interval=value_discretization_interval)
+
+  @classmethod
+  def from_discrete_gaussian_mechanism(
+      cls,
+      sigma: float,
+      sensitivity: int = 1,
+      truncation_bound: int = None,
+      pessimistic_estimate: bool = True,
+      value_discretization_interval: float = 1e-4) -> 'PrivacyLossDistribution':
+    """Creates the privacy loss distribution of the discrete Gaussian mechanism.
+
+    Args:
+      sigma: the parameter of the discrete Gaussian distribution. Note that
+        unlike the (continuous) Gaussian distribution this is not equal to the
+        standard deviation of the noise.
+      sensitivity: the sensitivity of function f. (i.e. the maximum absolute
+        change in f when an input to a single user changes.)
+      truncation_bound: bound for truncating the noise, i.e. the noise will only
+        have a support in [-truncation_bound, truncation_bound]. When not
+        specified, truncation_bound will be chosen in such a way that the mass
+        of the noise outside of this range is at most 1e-30.
+      pessimistic_estimate: a value indicating whether the rounding is done in
+        such a way that the resulting epsilon-hockey stick divergence
+        computation gives an upper estimate to the real value.
+      value_discretization_interval: the length of the dicretization interval
+        for the privacy loss distribution. The values will be rounded up/down to
+        be integer multiples of this number.
+
+    Returns:
+      The privacy loss distribution corresponding to the discrete Gaussian
+      mechanism with given parameters.
+    """
+    return PrivacyLossDistribution.create_from_additive_noise(
+        privacy_loss_mechanism.DiscreteGaussianPrivacyLoss(
+            sigma, sensitivity=sensitivity, truncation_bound=truncation_bound),
         pessimistic_estimate=pessimistic_estimate,
         value_discretization_interval=value_discretization_interval)
 
@@ -537,8 +598,8 @@ class PrivacyLossDistribution(object):
         self.rounded_probability_mass_function.keys(), reverse=True):
       val = i * self.value_discretization_interval
 
-      if (mass_upper > delta and mass_lower > 0 and
-          math.log((mass_upper - delta) / mass_lower) >= val):
+      if (mass_upper > delta and mass_lower > 0 and math.log(
+          (mass_upper - delta) / mass_lower) >= val):
         # Epsilon is greater than or equal to val.
         break
 
@@ -556,7 +617,9 @@ class PrivacyLossDistribution(object):
       return math.log((mass_upper - delta) / mass_lower)
 
   def compose(
-      self, privacy_loss_distribution: 'PrivacyLossDistribution'
+      self,
+      privacy_loss_distribution: 'PrivacyLossDistribution',
+      tail_mass_truncation: float = 1e-15,
   ) -> 'PrivacyLossDistribution':
     """Computes a privacy loss distribution resulting from composing two PLDs.
 
@@ -564,6 +627,8 @@ class PrivacyLossDistribution(object):
       privacy_loss_distribution: the privacy loss distribution to be composed
         with the current privacy loss distribution. The two must have the same
         value_discretization_interval.
+      tail_mass_truncation: an upper bound on the tails of the probability mass
+        of the PLD that might be truncated.
 
     Returns:
       A privacy loss distribution which is the result of composing the two.
@@ -578,19 +643,33 @@ class PrivacyLossDistribution(object):
           f'{self.value_discretization_interval}'
           f'{privacy_loss_distribution.value_discretization_interval}')
 
+    if (self.pessimistic_estimate !=
+        privacy_loss_distribution.pessimistic_estimate):
+      raise ValueError(f'Estimation types are different: '
+                       f'{self.pessimistic_estimate}'
+                       f'{privacy_loss_distribution.pessimistic_estimate}')
+
     # The probability mass function of the resulting distribution is simply the
     # convolutaion of the two input probability mass functions.
     new_rounded_probability_mass_function = common.convolve_dictionary(
         self.rounded_probability_mass_function,
-        privacy_loss_distribution.rounded_probability_mass_function)
+        privacy_loss_distribution.rounded_probability_mass_function,
+        tail_mass_truncation=tail_mass_truncation)
 
     new_infinity_mass = (
         self.infinity_mass + privacy_loss_distribution.infinity_mass -
         (self.infinity_mass * privacy_loss_distribution.infinity_mass))
 
+    if self.pessimistic_estimate:
+      # In the pessimistic case, the truncated probability mass needs to be
+      # treated as if it were infinity.
+      new_infinity_mass += tail_mass_truncation
+
     return PrivacyLossDistribution(
         new_rounded_probability_mass_function,
-        self.value_discretization_interval, new_infinity_mass)
+        self.value_discretization_interval,
+        new_infinity_mass,
+        pessimistic_estimate=self.pessimistic_estimate)
 
   def self_compose(self, num_times: int) -> 'PrivacyLossDistribution':
     """Computes PLD resulting from repeated composing the PLD with itself.
@@ -607,6 +686,8 @@ class PrivacyLossDistribution(object):
 
     new_infinity_mass = (1 - ((1 - self.infinity_mass)**num_times))
 
-    return PrivacyLossDistribution(new_rounded_probability_mass_function,
-                                   self.value_discretization_interval,
-                                   new_infinity_mass)
+    return PrivacyLossDistribution(
+        new_rounded_probability_mass_function,
+        self.value_discretization_interval,
+        new_infinity_mass,
+        pessimistic_estimate=self.pessimistic_estimate)

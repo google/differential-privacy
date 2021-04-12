@@ -19,6 +19,7 @@ package pbeam
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"math/rand"
 	"reflect"
 
@@ -196,17 +197,17 @@ func (fn *decodePairFloat64Fn) ProcessElement(pair pairFloat64) (beam.X, float64
 	return x, pair.M
 }
 
-func newBoundedSumFn(epsilon, delta float64, maxPartitionsContributed int64, lower, upper float64, noiseKind noise.Kind, vKind reflect.Kind, publicPartitions bool) interface{} {
+func newBoundedSumFn(epsilon, delta float64, maxPartitionsContributed int64, lower, upper float64, noiseKind noise.Kind, vKind reflect.Kind, publicPartitions bool, testMode testMode) interface{} {
 	var err error
 	var bsFn interface{}
 
 	switch vKind {
 	case reflect.Int64:
 		err = checks.CheckBoundsFloat64AsInt64("pbeam.newBoundedSumFn", lower, upper)
-		bsFn = newBoundedSumInt64Fn(epsilon, delta, maxPartitionsContributed, int64(lower), int64(upper), noiseKind, publicPartitions)
+		bsFn = newBoundedSumInt64Fn(epsilon, delta, maxPartitionsContributed, int64(lower), int64(upper), noiseKind, publicPartitions, testMode)
 	case reflect.Float64:
 		err = checks.CheckBoundsFloat64("pbeam.newBoundedSumFn", lower, upper)
-		bsFn = newBoundedSumFloat64Fn(epsilon, delta, maxPartitionsContributed, lower, upper, noiseKind, publicPartitions)
+		bsFn = newBoundedSumFloat64Fn(epsilon, delta, maxPartitionsContributed, lower, upper, noiseKind, publicPartitions, testMode)
 	default:
 		log.Exitf("pbeam.newBoundedSumFn: vKind(%v) should be int64 or float64", vKind)
 	}
@@ -237,16 +238,18 @@ type boundedSumInt64Fn struct {
 	NoiseKind                 noise.Kind
 	noise                     noise.Noise // Set during Setup phase according to NoiseKind.
 	PublicPartitions          bool
+	TestMode                  testMode
 }
 
 // newBoundedSumInt64Fn returns a boundedSumInt64Fn with the given budget and parameters.
-func newBoundedSumInt64Fn(epsilon, delta float64, maxPartitionsContributed, lower, upper int64, noiseKind noise.Kind, publicPartitions bool) *boundedSumInt64Fn {
+func newBoundedSumInt64Fn(epsilon, delta float64, maxPartitionsContributed, lower, upper int64, noiseKind noise.Kind, publicPartitions bool, testMode testMode) *boundedSumInt64Fn {
 	fn := &boundedSumInt64Fn{
 		MaxPartitionsContributed: maxPartitionsContributed,
 		Lower:                    lower,
 		Upper:                    upper,
 		NoiseKind:                noiseKind,
 		PublicPartitions:         publicPartitions,
+		TestMode:                 testMode,
 	}
 	if fn.PublicPartitions {
 		fn.NoiseEpsilon = epsilon
@@ -269,9 +272,16 @@ func newBoundedSumInt64Fn(epsilon, delta float64, maxPartitionsContributed, lowe
 
 func (fn *boundedSumInt64Fn) Setup() {
 	fn.noise = noise.ToNoise(fn.NoiseKind)
+	if fn.TestMode.isEnabled() {
+		fn.noise = noNoise{}
+	}
 }
 
 func (fn *boundedSumInt64Fn) CreateAccumulator() boundedSumAccumInt64 {
+	if fn.TestMode == noNoiseWithoutContributionBounding {
+		fn.Lower = math.MinInt64
+		fn.Upper = math.MaxInt64
+	}
 	accum := boundedSumAccumInt64{
 		BS: dpagg.NewBoundedSumInt64(&dpagg.BoundedSumInt64Options{
 			Epsilon:                  fn.NoiseEpsilon,
@@ -308,7 +318,10 @@ func (fn *boundedSumInt64Fn) MergeAccumulators(a, b boundedSumAccumInt64) bounde
 }
 
 func (fn *boundedSumInt64Fn) ExtractOutput(a boundedSumAccumInt64) *int64 {
-	if a.PublicPartitions || a.SP.ShouldKeepPartition() {
+	if fn.TestMode.isEnabled() {
+		a.BS.Noise = noNoise{}
+	}
+	if fn.TestMode.isEnabled() || a.PublicPartitions || a.SP.ShouldKeepPartition() {
 		result := a.BS.Result()
 		return &result
 	}
@@ -340,16 +353,18 @@ type boundedSumFloat64Fn struct {
 	// Noise, set during Setup phase according to NoiseKind.
 	noise            noise.Noise
 	PublicPartitions bool
+	TestMode         testMode
 }
 
 // newBoundedSumFloat64Fn returns a boundedSumFloat64Fn with the given budget and parameters.
-func newBoundedSumFloat64Fn(epsilon, delta float64, maxPartitionsContributed int64, lower, upper float64, noiseKind noise.Kind, publicPartitions bool) *boundedSumFloat64Fn {
+func newBoundedSumFloat64Fn(epsilon, delta float64, maxPartitionsContributed int64, lower, upper float64, noiseKind noise.Kind, publicPartitions bool, testMode testMode) *boundedSumFloat64Fn {
 	fn := &boundedSumFloat64Fn{
 		MaxPartitionsContributed: maxPartitionsContributed,
 		Lower:                    lower,
 		Upper:                    upper,
 		NoiseKind:                noiseKind,
 		PublicPartitions:         publicPartitions,
+		TestMode:                 testMode,
 	}
 	if fn.PublicPartitions {
 		fn.NoiseEpsilon = epsilon
@@ -372,9 +387,16 @@ func newBoundedSumFloat64Fn(epsilon, delta float64, maxPartitionsContributed int
 
 func (fn *boundedSumFloat64Fn) Setup() {
 	fn.noise = noise.ToNoise(fn.NoiseKind)
+	if fn.TestMode.isEnabled() {
+		fn.noise = noNoise{}
+	}
 }
 
 func (fn *boundedSumFloat64Fn) CreateAccumulator() boundedSumAccumFloat64 {
+	if fn.TestMode == noNoiseWithoutContributionBounding {
+		fn.Lower = math.Inf(-1)
+		fn.Upper = math.Inf(1)
+	}
 	accum := boundedSumAccumFloat64{
 		BS: dpagg.NewBoundedSumFloat64(&dpagg.BoundedSumFloat64Options{
 			Epsilon:                  fn.NoiseEpsilon,
@@ -411,7 +433,10 @@ func (fn *boundedSumFloat64Fn) MergeAccumulators(a, b boundedSumAccumFloat64) bo
 }
 
 func (fn *boundedSumFloat64Fn) ExtractOutput(a boundedSumAccumFloat64) *float64 {
-	if a.PublicPartitions || a.SP.ShouldKeepPartition() {
+	if fn.TestMode.isEnabled() {
+		a.BS.Noise = noNoise{}
+	}
+	if fn.TestMode.isEnabled() || a.PublicPartitions || a.SP.ShouldKeepPartition() {
 		result := a.BS.Result()
 		return &result
 	}

@@ -56,9 +56,8 @@ TYPED_TEST(BoundedStandardDeviationTest, BasicTest) {
           .SetLower(0)
           .SetUpper(15)
           .Build()
-          .ValueOrDie();
-  EXPECT_EQ(GetValue<double>(bsd->Result(a.begin(), a.end()).ValueOrDie()),
-            4.0);
+          .value();
+  EXPECT_EQ(GetValue<double>(bsd->Result(a.begin(), a.end()).value()), 4.0);
 }
 
 TYPED_TEST(BoundedStandardDeviationTest, RepeatedResultTest) {
@@ -70,11 +69,11 @@ TYPED_TEST(BoundedStandardDeviationTest, RepeatedResultTest) {
           .SetLower(0)
           .SetUpper(15)
           .Build()
-          .ValueOrDie();
+          .value();
   bsd->AddEntries(a.begin(), a.end());
 
-  EXPECT_EQ(GetValue<double>(bsd->PartialResult(0.5).ValueOrDie()),
-            GetValue<double>(bsd->PartialResult(0.5).ValueOrDie()));
+  EXPECT_EQ(GetValue<double>(bsd->PartialResult(0.5).value()),
+            GetValue<double>(bsd->PartialResult(0.5).value()));
 }
 
 TYPED_TEST(BoundedStandardDeviationTest, InsufficientPrivacyBudgetTest) {
@@ -86,7 +85,7 @@ TYPED_TEST(BoundedStandardDeviationTest, InsufficientPrivacyBudgetTest) {
           .SetLower(0)
           .SetUpper(15)
           .Build()
-          .ValueOrDie();
+          .value();
   bsd->AddEntries(a.begin(), a.end());
 
   ASSERT_OK(bsd->PartialResult());
@@ -104,9 +103,8 @@ TYPED_TEST(BoundedStandardDeviationTest, ClampInputTest) {
           .SetLower(1)
           .SetUpper(3)
           .Build()
-          .ValueOrDie();
-  EXPECT_EQ(GetValue<double>(bsd->Result(a.begin(), a.end()).ValueOrDie()),
-            1.0);
+          .value();
+  EXPECT_EQ(GetValue<double>(bsd->Result(a.begin(), a.end()).value()), 1.0);
 }
 
 TYPED_TEST(BoundedStandardDeviationTest, ClampOutputMinStdDevTest) {
@@ -130,9 +128,8 @@ TYPED_TEST(BoundedStandardDeviationTest, ClampOutputMinStdDevTest) {
               .SetLower(lower)
               .SetUpper(upper)
               .Build()
-              .ValueOrDie();
-      double result =
-          GetValue<double>(bsd->Result(a.begin(), a.end()).ValueOrDie());
+              .value();
+      double result = GetValue<double>(bsd->Result(a.begin(), a.end()).value());
       EXPECT_GE(result, 0.0);
     }
   }
@@ -160,9 +157,9 @@ TYPED_TEST(BoundedStandardDeviationTest, ClampOutputMaxStdDevTest) {
               .SetLower(lower)
               .SetUpper(upper)
               .Build()
-              .ValueOrDie();
+              .value();
       TypeParam result =
-          GetValue<TypeParam>(bsd->Result(a.begin(), a.end()).ValueOrDie());
+          GetValue<TypeParam>(bsd->Result(a.begin(), a.end()).value());
       EXPECT_LE(result, upper - lower);
     }
   }
@@ -192,12 +189,11 @@ TYPED_TEST(BoundedStandardDeviationTest, RandGaussianTest) {
             .SetLower(mean - range / 2)
             .SetUpper(mean + range / 2)
             .Build()
-            .ValueOrDie();
+            .value();
     for (int i = 0; i < samples; i++) {
       bsd->AddEntry(mean + absl::Gaussian<double>(rand_gen));
     }
-    EXPECT_NEAR(GetValue<double>(bsd->PartialResult().ValueOrDie()), stddev,
-                error);
+    EXPECT_NEAR(GetValue<double>(bsd->PartialResult().value()), stddev, error);
   }
 }
 
@@ -210,18 +206,18 @@ TYPED_TEST(BoundedStandardDeviationTest, SerializeAndMergeTest) {
           .SetUpper(3)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build()
-          .ValueOrDie();
+          .value();
   bsd->AddEntry(1);
   Summary summary = bsd->Serialize();
   bsd->AddEntry(2);
 
   std::unique_ptr<BoundedStandardDeviation<TypeParam>> bsd2 =
-      builder.Build().ValueOrDie();
+      builder.Build().value();
   EXPECT_OK(bsd2->Merge(summary));
   bsd2->AddEntry(2);
 
-  EXPECT_EQ(GetValue<double>(bsd->PartialResult().ValueOrDie()),
-            GetValue<double>(bsd2->PartialResult().ValueOrDie()));
+  EXPECT_EQ(GetValue<double>(bsd->PartialResult().value()),
+            GetValue<double>(bsd2->PartialResult().value()));
 }
 
 TYPED_TEST(BoundedStandardDeviationTest, TwoAlgorithmsOneBuilder) {
@@ -230,12 +226,12 @@ TYPED_TEST(BoundedStandardDeviationTest, TwoAlgorithmsOneBuilder) {
   builder.SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>());
 
   // First algorithm doesn't clamp anything in a.
-  auto alg1 = builder.SetLower(-5).SetUpper(5).Build().ValueOrDie();
-  EXPECT_EQ(GetValue<double>(alg1->Result(a.begin(), a.end()).ValueOrDie()), 2);
+  auto alg1 = builder.SetLower(-5).SetUpper(5).Build().value();
+  EXPECT_EQ(GetValue<double>(alg1->Result(a.begin(), a.end()).value()), 2);
 
   // Second algorithm clamps to [-1, 1].
-  auto alg2 = builder.SetLower(-1).SetUpper(1).Build().ValueOrDie();
-  EXPECT_EQ(GetValue<double>(alg2->Result(a.begin(), a.end()).ValueOrDie()), 1);
+  auto alg2 = builder.SetLower(-1).SetUpper(1).Build().value();
+  EXPECT_EQ(GetValue<double>(alg2->Result(a.begin(), a.end()).value()), 1);
 }
 
 TYPED_TEST(BoundedStandardDeviationTest, AutomaticBounds) {
@@ -249,14 +245,14 @@ TYPED_TEST(BoundedStandardDeviationTest, AutomaticBounds) {
           .SetThreshold(2)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build()
-          .ValueOrDie();
+          .value();
   std::unique_ptr<BoundedStandardDeviation<TypeParam>> bsd =
       typename BoundedStandardDeviation<TypeParam>::Builder()
           .SetEpsilon(1)
           .SetApproxBounds(std::move(bounds))
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build()
-          .ValueOrDie();
+          .value();
   bsd->AddEntries(a.begin(), a.end());
 
   Output expected_output;
@@ -268,7 +264,7 @@ TYPED_TEST(BoundedStandardDeviationTest, AutomaticBounds) {
   report->set_num_inputs(a.size());
   report->set_num_outside(2);
 
-  EXPECT_THAT(bsd->PartialResult().ValueOrDie(), EqualsProto(expected_output));
+  EXPECT_THAT(bsd->PartialResult().value(), EqualsProto(expected_output));
 }
 
 // Test not providing ApproxBounds and instead using the default.
@@ -278,15 +274,15 @@ TYPED_TEST(BoundedStandardDeviationTest, AutomaticBoundsDefault) {
           .SetEpsilon(1)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build()
-          .ValueOrDie();
+          .value();
   std::vector<TypeParam> big(1000, 10);
   std::vector<TypeParam> small(1000, -10);
   bsd->AddEntries(big.begin(), big.end());
   bsd->AddEntries(small.begin(), small.end());
 
   EXPECT_NEAR(
-      GetValue<double>(bsd->PartialResult().ValueOrDie().elements(0).value()),
-      10, std::pow(10, -10));
+      GetValue<double>(bsd->PartialResult().value().elements(0).value()), 10,
+      std::pow(10, -10));
 }
 
 TYPED_TEST(BoundedStandardDeviationTest, PropagateApproxBoundsError) {
@@ -294,7 +290,7 @@ TYPED_TEST(BoundedStandardDeviationTest, PropagateApproxBoundsError) {
       typename BoundedStandardDeviation<TypeParam>::Builder()
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build()
-          .ValueOrDie();
+          .value();
 
   // Automatic bounds are needed but there is no input, so the count-threshhold
   // should exceed any bin count.
@@ -303,9 +299,7 @@ TYPED_TEST(BoundedStandardDeviationTest, PropagateApproxBoundsError) {
 
 TYPED_TEST(BoundedStandardDeviationTest, MemoryUsed) {
   std::unique_ptr<BoundedStandardDeviation<TypeParam>> bsd =
-      typename BoundedStandardDeviation<TypeParam>::Builder()
-          .Build()
-          .ValueOrDie();
+      typename BoundedStandardDeviation<TypeParam>::Builder().Build().value();
   EXPECT_GT(bsd->MemoryUsed(), 0);
 }
 
@@ -315,7 +309,7 @@ TYPED_TEST(BoundedStandardDeviationTest, SplitsEpsilonWithAutomaticBounds) {
       typename BoundedStandardDeviation<TypeParam>::Builder()
           .SetEpsilon(epsilon)
           .Build()
-          .ValueOrDie();
+          .value();
   EXPECT_NEAR(bsd->GetEpsilon(), epsilon, 1e-10);
   EXPECT_NEAR(bsd->GetEpsilon(),
               bsd->GetBoundingEpsilon() + bsd->GetAggregationEpsilon(), 1e-10);

@@ -49,7 +49,7 @@ public class BoundedQuantiles {
   // Fraction a node needs to contribute to the total count of itself and its siblings to be
   // considered during the search for a particular quantile. The idea of alpha is to filter out
   // noisy empty nodes. This is a post processing parameter with no privacy implications.
-  private static final double ALPHA = 0.005;
+  private static final double ALPHA = 0.0075;
 
   private final Params params;
 
@@ -197,11 +197,7 @@ public class BoundedQuantiles {
 
       double totalCount = 0.0;
       for (int i = leftmostChildIndex; i <= rightmostChildIndex; i++) {
-        totalCount += getNoisedCount(i);
-      }
-      if (totalCount <= 0.0) {
-        // All child nodes appear to be empty. There is no need to proceed further down the tree.
-        break;
+        totalCount += max(0.0, getNoisedCount(i));
       }
 
       double correctedTotalCount = 0.0;
@@ -211,10 +207,10 @@ public class BoundedQuantiles {
         correctedTotalCount += getNoisedCount(i) >= totalCount * ALPHA ? getNoisedCount(i) : 0.0;
       }
       if (correctedTotalCount == 0.0) {
-        // No child node contributes more than an alpha fraction to the total count (this can only
-        // happen when alpha > 1 / branching factor, which is not the case for the default branching
-        // factor). This means that all child nodes are considered empty and there is no need to
-        // proceed further down the tree.
+        // Either all counts are 0.0 or no child node contributes more than an alpha fraction to the
+        // total count (the latter can only happen when alpha > 1 / branching factor, which is not
+        // the case for the default branching factor). This means that all child nodes are
+        // considered empty and there is no need to proceed further down the tree.
         break;
       }
 

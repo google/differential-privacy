@@ -69,7 +69,10 @@ func SelectPartitions(s beam.Scope, pcol PrivatePCollection, params SelectPartit
 	}
 	spec := pcol.privacySpec
 	maxPartitionsContributed := getMaxPartitionsContributed(spec, params.MaxPartitionsContributed)
-	checkSelectPartitionsParams(epsilon, delta, maxPartitionsContributed)
+	err = checkSelectPartitionsParams(epsilon, delta, maxPartitionsContributed)
+	if err != nil {
+		log.Exit(err)
+	}
 
 	// First, we drop the values if we have (privacyKey, partitionKey, value) tuples.
 	// Afterwards, we will have (privacyKey, partitionKey) pairs.
@@ -89,12 +92,14 @@ func SelectPartitions(s beam.Scope, pcol PrivatePCollection, params SelectPartit
 	decodeFn := kv.NewDecodeFn(idT, partitionT)
 	partitions = beam.ParDo(s, decodeFn, coded, beam.TypeDefinition{Var: beam.TType, T: idT.Type()}, beam.TypeDefinition{Var: beam.VType, T: partitionT.Type()})
 
-	// Third, do cross-partition contribution bounding for partition selection.
-	partitions = boundContributions(s, partitions, maxPartitionsContributed)
+	// Third, do cross-partition contribution bounding if not in test mode without contribution bounding.
+	if spec.testMode != noNoiseWithoutContributionBounding {
+		partitions = boundContributions(s, partitions, maxPartitionsContributed)
+	}
 
 	// Finally, we swap the privacy and partition key and perform partition selection.
 	partitions = beam.SwapKV(s, partitions) // PCollection<K, ID>
-	partitions = beam.CombinePerKey(s, newPartitionSelectionFn(epsilon, delta, maxPartitionsContributed), partitions)
+	partitions = beam.CombinePerKey(s, newPartitionSelectionFn(epsilon, delta, maxPartitionsContributed, spec.testMode), partitions)
 	return beam.ParDo(s, dropThresholdedPartitionsBoolFn, partitions)
 }
 
@@ -118,10 +123,11 @@ type partitionSelectionFn struct {
 	Epsilon                  float64
 	Delta                    float64
 	MaxPartitionsContributed int64
+	TestMode                 testMode
 }
 
-func newPartitionSelectionFn(epsilon, delta float64, maxPartitionsContributed int64) *partitionSelectionFn {
-	return &partitionSelectionFn{Epsilon: epsilon, Delta: delta, MaxPartitionsContributed: maxPartitionsContributed}
+func newPartitionSelectionFn(epsilon, delta float64, maxPartitionsContributed int64, testMode testMode) *partitionSelectionFn {
+	return &partitionSelectionFn{Epsilon: epsilon, Delta: delta, MaxPartitionsContributed: maxPartitionsContributed, TestMode: testMode}
 }
 
 func (fn *partitionSelectionFn) CreateAccumulator() partitionSelectionAccum {
@@ -142,6 +148,9 @@ func (fn *partitionSelectionFn) MergeAccumulators(a, b partitionSelectionAccum) 
 }
 
 func (fn *partitionSelectionFn) ExtractOutput(a partitionSelectionAccum) bool {
+	if fn.TestMode.isEnabled() {
+		return true
+	}
 	return a.SP.ShouldKeepPartition()
 }
 

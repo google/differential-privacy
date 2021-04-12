@@ -1,4 +1,5 @@
-// Copyright 2020 Google LLC
+//
+// Copyright 2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,10 +38,11 @@ func init() {
 	beam.RegisterType(reflect.TypeOf(PairII64{}))
 	beam.RegisterType(reflect.TypeOf(PairIF64{}))
 	beam.RegisterType(reflect.TypeOf(PairICodedKV{}))
+	beam.RegisterType(reflect.TypeOf(TestInt64Metric{}))
+	beam.RegisterType(reflect.TypeOf(TestFloat64Metric{}))
 
 	beam.RegisterType(reflect.TypeOf((*diffInt64Fn)(nil)))
 	beam.RegisterType(reflect.TypeOf((*diffFloat64Fn)(nil)))
-	beam.RegisterType(reflect.TypeOf((*checkSomePartitionsAreDroppedFn)(nil)))
 
 	beam.RegisterFunction(CheckNoNegativeValuesInt64Fn)
 	beam.RegisterFunction(CheckNoNegativeValuesFloat64Fn)
@@ -48,8 +50,9 @@ func init() {
 
 	beam.RegisterType(reflect.TypeOf((*checkFloat64MetricsAreNoisyFn)(nil)))
 	beam.RegisterType(reflect.TypeOf((*checkInt64MetricsAreNoisyFn)(nil)))
-	beam.RegisterType(reflect.TypeOf(TestInt64Metric{}))
-	beam.RegisterType(reflect.TypeOf(TestFloat64Metric{}))
+
+	beam.RegisterType(reflect.TypeOf((*checkSomePartitionsAreDroppedFn)(nil)))
+	beam.RegisterFunction(gotExpectedNumPartitionsFn)
 }
 
 // PairII, pairII64, pairIF64, PairICodedKV and the related functions are helpers
@@ -294,6 +297,36 @@ func Float64MetricToInt64Metric(tm TestFloat64Metric) TestInt64Metric {
 	return TestInt64Metric{tm.Value, int64(tm.Metric)}
 }
 
+// EqualsKVInt checks that two PCollections col1 and col2 of type
+// <K,int> are exactly equal.
+func EqualsKVInt(s beam.Scope, col1, col2 beam.PCollection) error {
+	wantV := reflect.TypeOf(int(0))
+	if err := checkValueType(col1, wantV); err != nil {
+		return fmt.Errorf("unexpected value type for col1: %v", err)
+	}
+	if err := checkValueType(col2, wantV); err != nil {
+		return fmt.Errorf("unexpected value type for col2: %v", err)
+	}
+
+	coGroupToValue := beam.CoGroupByKey(s, col1, col2)
+	diffs := beam.ParDo(s, diffIntFn, coGroupToValue)
+	combinedDiff := beam.Combine(s, combineDiffs, diffs)
+	beam.ParDo0(s, reportDiffs, combinedDiff)
+	return nil
+}
+
+// EqualsKVInt64 checks that two PCollections col1 and col2 of type
+// <K,int64> are exactly equal. Each key can only hold a single value.
+func EqualsKVInt64(s beam.Scope, col1, col2 beam.PCollection) error {
+	return ApproxEqualsKVInt64(s, col1, col2, 0.0)
+}
+
+// EqualsKVFloat64 checks that two PCollections col1 and col2 of type
+// <K,float64> are exactly equal. Each key can only hold a single value.
+func EqualsKVFloat64(s beam.Scope, col1, col2 beam.PCollection) error {
+	return ApproxEqualsKVFloat64(s, col1, col2, 0.0)
+}
+
 // ApproxEqualsKVInt64 checks that two PCollections col1 and col2 of type
 // <K,int64> are approximately equal, where "approximately equal" means
 // "the keys are the same in both col1 and col2, and the value associated with
@@ -310,24 +343,6 @@ func ApproxEqualsKVInt64(s beam.Scope, col1, col2 beam.PCollection, tolerance fl
 
 	coGroupToValue := beam.CoGroupByKey(s, col1, col2)
 	diffs := beam.ParDo(s, &diffInt64Fn{Tolerance: tolerance}, coGroupToValue)
-	combinedDiff := beam.Combine(s, combineDiffs, diffs)
-	beam.ParDo0(s, reportDiffs, combinedDiff)
-	return nil
-}
-
-// EqualsKVInt checks that two PCollections col1 and col2 of type
-// <K,int> are equal.
-func EqualsKVInt(s beam.Scope, col1, col2 beam.PCollection) error {
-	wantV := reflect.TypeOf(int(0))
-	if err := checkValueType(col1, wantV); err != nil {
-		return fmt.Errorf("unexpected value type for col1: %v", err)
-	}
-	if err := checkValueType(col2, wantV); err != nil {
-		return fmt.Errorf("unexpected value type for col2: %v", err)
-	}
-
-	coGroupToValue := beam.CoGroupByKey(s, col1, col2)
-	diffs := beam.ParDo(s, diffIntFn, coGroupToValue)
 	combinedDiff := beam.Combine(s, combineDiffs, diffs)
 	beam.ParDo0(s, reportDiffs, combinedDiff)
 	return nil
@@ -787,4 +802,33 @@ func CheckAllValuesNegativeFloat64Fn(v float64) error {
 // a tolerance of 1e-10.
 func ApproxEquals(x, y float64) bool {
 	return cmp.Equal(x, y, cmpopts.EquateApprox(0, 1e-10))
+}
+
+// CheckNumPartitions checks that col has expected number of partitions.
+func CheckNumPartitions(s beam.Scope, col beam.PCollection, expected int) {
+	ones := beam.ParDo(s, OneFn, col)
+	numPartitions := stats.Sum(s, ones)
+	numPartitions = beam.AddFixedKey(s, numPartitions)
+
+	want := beam.Create(s, expected)
+	want = beam.AddFixedKey(s, want)
+	coGroupToValue := beam.CoGroupByKey(s, numPartitions, want)
+	beam.ParDo0(s, gotExpectedNumPartitionsFn, coGroupToValue)
+}
+
+func gotExpectedNumPartitionsFn(_ int, v1Iter, v2Iter func(*int) bool) error {
+	got := getNumPartitions(v1Iter)
+	want := getNumPartitions(v2Iter)
+	if got != want {
+		return fmt.Errorf("got %d emitted partitions, want %d", got, want)
+	}
+	return nil
+}
+
+func getNumPartitions(vIter func(*int) bool) (v int) {
+	ok := vIter(&v)
+	if !ok {
+		return 0
+	}
+	return v
 }

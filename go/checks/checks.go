@@ -114,6 +114,18 @@ func CheckBoundsInt64(label string, lower, upper int64) error {
 	return nil
 }
 
+// CheckBoundsInt64IgnoreOverflows returns an error if lower is larger than upper but ignores sensitivity overflows.
+// This is used when noise is unrecognised.
+func CheckBoundsInt64IgnoreOverflows(label string, lower, upper int64) error {
+	if lower > upper {
+		return fmt.Errorf("%s: Upper (%d) should be larger than Lower (%d)", label, upper, lower)
+	}
+	if lower == upper {
+		log.Warningf("Lower bound is equal to upper bound: all added elements will be clamped to %d", upper)
+	}
+	return nil
+}
+
 // CheckBoundsFloat64 returns an error if lower is larger than upper, or if either parameter is ±∞.
 func CheckBoundsFloat64(label string, lower, upper float64) error {
 	if math.IsNaN(lower) {
@@ -127,6 +139,23 @@ func CheckBoundsFloat64(label string, lower, upper float64) error {
 	}
 	if math.IsInf(upper, 0) {
 		return fmt.Errorf("%s: upper can't be infinity", label)
+	}
+	if lower > upper {
+		return fmt.Errorf("%s: Upper (%f) should be larger than Lower (%f)", label, upper, lower)
+	}
+	if lower == upper {
+		log.Warningf("Lower bound is equal to upper bound: all added elements will be clamped to %f", upper)
+	}
+	return nil
+}
+
+// CheckBoundsFloat64IgnoreOverflows returns an error if lower is larger than upper but accepts either parameter being ±∞.
+func CheckBoundsFloat64IgnoreOverflows(label string, lower, upper float64) error {
+	if math.IsNaN(lower) {
+		return fmt.Errorf("%s: lower can't be NaN", label)
+	}
+	if math.IsNaN(upper) {
+		return fmt.Errorf("%s: upper can't be NaN", label)
 	}
 	if lower > upper {
 		return fmt.Errorf("%s: Upper (%f) should be larger than Lower (%f)", label, upper, lower)
@@ -176,6 +205,30 @@ func CheckConfidenceLevel(label string, confidenceLevel float64) error {
 func CheckAlpha(label string, alpha float64) error {
 	if alpha <= 0 || alpha >= 1 || math.IsNaN(alpha) || math.IsInf(alpha, 0) {
 		return fmt.Errorf("%s: alpha is %f, should be strictly between 0 and 1 (and cannot be NaN or Infinity)", label, alpha)
+	}
+	return nil
+}
+
+// CheckBoundsNotEqual returns an error if lower and upper bounds are equal.
+func CheckBoundsNotEqual(label string, lower, upper float64) error {
+	if lower == upper {
+		return fmt.Errorf("%s: lower and upper are both %f, they should not be equal", label, lower)
+	}
+	return nil
+}
+
+// CheckTreeHeight returns an error if treeHeight is less than 1.
+func CheckTreeHeight(label string, treeHeight int) error {
+	if treeHeight < 1 {
+		return fmt.Errorf("%s: treeHeight is %d, should be at least 1", label, treeHeight)
+	}
+	return nil
+}
+
+// CheckBranchingFactor returns an error if branchingFactor is less than 2.
+func CheckBranchingFactor(label string, branchingFactor int) error {
+	if branchingFactor < 2 {
+		return fmt.Errorf("%s: branchingFactor is %d, should be at least 2", label, branchingFactor)
 	}
 	return nil
 }

@@ -129,8 +129,10 @@ func Count(s beam.Scope, pcol PrivatePCollection, params CountParams) beam.PColl
 	kvCounts := stats.Count(s, coded)
 	counts64 := beam.ParDo(s, vToInt64Fn, kvCounts)
 	rekeyed := beam.ParDo(s, rekeyInt64Fn, counts64)
-	// Second, do cross-partition contribution bounding.
-	rekeyed = boundContributions(s, rekeyed, maxPartitionsContributed)
+	// Second, do cross-partition contribution bounding if not in test mode without contribution bounding.
+	if spec.testMode != noNoiseWithoutContributionBounding {
+		rekeyed = boundContributions(s, rekeyed, maxPartitionsContributed)
+	}
 	// Third, now that contribution bounding is done, remove the privacy keys,
 	// decode the value, and sum all the counts bounded by maxCountContrib.
 	countPairs := beam.DropKey(s, rekeyed)
@@ -141,10 +143,10 @@ func Count(s beam.Scope, pcol PrivatePCollection, params CountParams) beam.PColl
 		beam.TypeDefinition{Var: beam.XType, T: partitionT.Type()})
 	// Add public partitions and return the aggregation output, if public partitions are specified.
 	if (params.PublicPartitions).IsValid() {
-		return addPublicPartitionsForCount(s, epsilon, delta, maxPartitionsContributed, params, noiseKind, countsKV)
+		return addPublicPartitionsForCount(s, epsilon, delta, maxPartitionsContributed, params, noiseKind, countsKV, spec.testMode)
 	}
 	sums := beam.CombinePerKey(s,
-		newBoundedSumInt64Fn(epsilon, delta, maxPartitionsContributed, 0, params.MaxValue, noiseKind, false),
+		newBoundedSumInt64Fn(epsilon, delta, maxPartitionsContributed, 0, params.MaxValue, noiseKind, false, spec.testMode),
 		countsKV)
 	// Drop thresholded partitions.
 	counts := beam.ParDo(s, dropThresholdedPartitionsInt64Fn, sums)
@@ -175,14 +177,14 @@ func checkCountParams(params CountParams, epsilon, delta float64, noiseKind nois
 	return nil
 }
 
-func addPublicPartitionsForCount(s beam.Scope, epsilon, delta float64, maxPartitionsContributed int64, params CountParams, noiseKind noise.Kind, countsKV beam.PCollection) beam.PCollection {
+func addPublicPartitionsForCount(s beam.Scope, epsilon, delta float64, maxPartitionsContributed int64, params CountParams, noiseKind noise.Kind, countsKV beam.PCollection, testMode testMode) beam.PCollection {
 	// Turn PublicPartitions from PCollection<K> into PCollection<K, int64> by adding
 	// the value zero to each K.
 	dummyCounts := beam.ParDo(s, addDummyValuesToPublicPartitionsInt64Fn, params.PublicPartitions)
 	// Merge countsKV and dummyCounts.
 	allPartitions := beam.Flatten(s, dummyCounts, countsKV)
 	// Sum and add noise.
-	sums := beam.CombinePerKey(s, newBoundedSumInt64Fn(epsilon, delta, maxPartitionsContributed, 0, params.MaxValue, noiseKind, true), allPartitions)
+	sums := beam.CombinePerKey(s, newBoundedSumInt64Fn(epsilon, delta, maxPartitionsContributed, 0, params.MaxValue, noiseKind, true, testMode), allPartitions)
 	finalPartitions := beam.ParDo(s, dereferenceValueToInt64, sums)
 	// Clamp negative counts to zero and return.
 	return beam.ParDo(s, clampNegativePartitionsInt64Fn, finalPartitions)

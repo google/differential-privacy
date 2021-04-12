@@ -17,6 +17,8 @@
 #ifndef DIFFERENTIAL_PRIVACY_ALGORITHMS_DISTRIBUTIONS_H_
 #define DIFFERENTIAL_PRIVACY_ALGORITHMS_DISTRIBUTIONS_H_
 
+#include <memory>
+
 #include <cstdint>
 #include "absl/status/status.h"
 #include "base/statusor.h"

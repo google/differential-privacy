@@ -41,3 +41,6 @@ dp_java_deps_prework()
 load("@com_google_java_differential_privacy//:dp_java_deps.bzl", "dp_java_deps")
 dp_java_deps()
 
+# Complete pinning after defining dependencies.
+load("@maven//:defs.bzl", "pinned_maven_install")
+pinned_maven_install()

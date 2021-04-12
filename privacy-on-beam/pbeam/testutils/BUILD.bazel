@@ -25,7 +25,7 @@ go_library(
     testonly = 1,
     srcs = ["testutils.go"],
     importpath = "github.com/google/differential-privacy/privacy-on-beam/pbeam/testutils",
-    visibility = ["//visibility:public"],
+    visibility = ["//:__subpackages__"],
     deps = [
         "//internal/kv:go_default_library",
         "@com_github_apache_beam//sdks/go/pkg/beam:go_default_library",

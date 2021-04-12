@@ -23,6 +23,7 @@
 #include "absl/status/status.h"
 #include "base/statusor.h"
 #include "base/canonical_errors.h"
+#include "base/status_macros.h"
 
 namespace differential_privacy {
 

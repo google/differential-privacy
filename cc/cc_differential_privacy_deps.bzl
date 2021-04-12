@@ -27,50 +27,51 @@ def cc_differential_privacy_deps():
     # Abseil
     http_archive(
         name = "com_google_absl",
-        url = "https://github.com/abseil/abseil-cpp/archive/20200923.1.tar.gz",
-        sha256 = "808350c4d7238315717749bab0067a1acd208023d41eaf0c7360f29cc8bc8f21",
-        strip_prefix = "abseil-cpp-20200923.1",
+        url = "https://github.com/abseil/abseil-cpp/archive/20200923.3.tar.gz",
+        sha256 = "ebe2ad1480d27383e4bf4211e2ca2ef312d5e6a09eba869fd2e8a5c5d553ded2",
+        strip_prefix = "abseil-cpp-20200923.3",
     )
 
     # Common bazel rules
     http_archive(
         name = "bazel_skylib",
-        url = "https://github.com/bazelbuild/bazel-skylib/releases/download/0.8.0/bazel-skylib.0.8.0.tar.gz",
-        sha256 = "2ef429f5d7ce7111263289644d233707dba35e39696377ebab8b0bc701f7818e",
+        url = "https://github.com/bazelbuild/bazel-skylib/releases/download/1.0.3/bazel-skylib-1.0.3.tar.gz",
+        sha256 = "1c531376ac7e5a180e0237938a2536de0c54d93f5c278634818e0efc952dd56c",
     )
 
     # GoogleTest/GoogleMock framework. Used by most unit-tests.
     http_archive(
         name = "com_google_googletest",
-        url = "https://github.com/google/googletest/archive/a53e931dcd00c2556ee181d832e699c9f3c29036.tar.gz",
-        sha256 = "7850caaf8149a6aded637f472415f84e4246a21d979d3866d71b1e56242f8de2",
-        strip_prefix = "googletest-a53e931dcd00c2556ee181d832e699c9f3c29036",
+        # Commit date: 2021-01-27
+        urls = ["https://github.com/google/googletest/archive/df7fee587d442b372ef43bd66c6a2f5c9af8c5eb.tar.gz"],
+        strip_prefix = "googletest-df7fee587d442b372ef43bd66c6a2f5c9af8c5eb",
+        sha256 = "4a6673769eefb799bc0db0d7cf48ad9cf22dc5e55106f54bf9f4e43a40f425ac",
     )
 
     # Benchmarks for testing.
     http_archive(
         name = "com_google_benchmark",
-        url = "https://github.com/google/benchmark/archive/v1.5.0.tar.gz",
-        sha256 = "3c6a165b6ecc948967a1ead710d4a181d7b0fbcaa183ef7ea84604994966221a",
-        strip_prefix = "benchmark-1.5.0",
+        url = "https://github.com/google/benchmark/archive/refs/tags/v1.5.2.tar.gz",
+        sha256 = "dccbdab796baa1043f04982147e67bb6e118fe610da2c65f88912d73987e700c",
+        strip_prefix = "benchmark-1.5.2",
     )
 
     # BoringSSL for cryptographic PRNG
     git_repository(
         name = "boringssl",
-        # 2019-07-10
-        commit = "776d803ffbb857b3a67c4ec14b671ff2b3ee65d2",
+        # Commit date: 2021-03-23
+        # Note for updating: we need to use a commit from the main-with-bazel branch.
+        commit = "5fdd307fbec7c98e159f02ed3b5a6c41ba01abd6",
         remote = "https://boringssl.googlesource.com/boringssl",
-        shallow_since = "1562793714 +0000",
+        shallow_since = "1616521207 +0000",
     )
 
     # Supports `./configure && make` style packages to become dependencies.
     http_archive(
         name = "rules_foreign_cc",
-        strip_prefix = "rules_foreign_cc-c29236959744be4d5ca47ac0b8fc4c454a04b852",
-        # 2020-05-04
-        url = "https://github.com/bazelbuild/rules_foreign_cc/archive/c29236959744be4d5ca47ac0b8fc4c454a04b852.tar.gz",
-        sha256 = "c694abd387911f9750e7eddeff09baf10191e25193d93b8d77e35e554157615a",
+        strip_prefix = "rules_foreign_cc-0.2.0",
+        url = "https://github.com/bazelbuild/rules_foreign_cc/archive/0.2.0.zip",
+        sha256 = "e60cfd0a8426fa4f5fd2156e768493ca62b87d125cb35e94c44e79a3f0d8635f",
     )
 
     # Postgres depends on rules_foreign_cc. Use postgres 11.

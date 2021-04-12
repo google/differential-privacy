@@ -58,8 +58,8 @@ type BoundedMeanFloat64 struct {
 	upper float64
 
 	// State variables
-	normalizedSum BoundedSumFloat64
-	count         Count
+	NormalizedSum BoundedSumFloat64
+	Count         Count
 	// The midpoint between lower and upper bounds. It cannot be set by the user;
 	// it will be calculated based on the lower and upper values.
 	midPoint float64
@@ -70,8 +70,8 @@ func bmEquallyInitializedFloat64(bm1, bm2 *BoundedMeanFloat64) bool {
 	return bm1.lower == bm2.lower &&
 		bm1.upper == bm2.upper &&
 		bm1.state == bm2.state &&
-		countEquallyInitialized(&bm1.count, &bm2.count) &&
-		bsEquallyInitializedFloat64(&bm1.normalizedSum, &bm2.normalizedSum)
+		countEquallyInitialized(&bm1.Count, &bm2.Count) &&
+		bsEquallyInitializedFloat64(&bm1.NormalizedSum, &bm2.NormalizedSum)
 }
 
 // BoundedMeanFloat64Options contains the options necessary to initialize a BoundedMeanFloat64.
@@ -113,12 +113,24 @@ func NewBoundedMeanFloat64(opt *BoundedMeanFloat64Options) *BoundedMeanFloat64 {
 		// TODO: do not exit the program from within library code
 		log.Fatalf("NewBoundedMeanFloat64 requires a non-default value for Lower or Upper (automatic bounds determination is not implemented yet)")
 	}
-	if err := checks.CheckBoundsFloat64("NewBoundedMeanFloat64", lower, upper); err != nil {
+	var err error
+	switch noise.ToKind(opt.Noise) {
+	case noise.Unrecognised:
+		err = checks.CheckBoundsFloat64IgnoreOverflows("NewBoundedMeanFloat64", lower, upper)
+	default:
+		err = checks.CheckBoundsFloat64("NewBoundedMeanFloat64", lower, upper)
+	}
+	if err != nil {
 		// TODO: do not exit the program from within library code
 		log.Fatalf("CheckBoundsFloat64(lower %f, upper %f) failed with %v", lower, upper, err)
 	}
-	// (lower + upper) / 2 may cause an overflow if lower and upper are large values.
-	midPoint := lower + (upper-lower)/2.0
+	// In case lower or upper bound is infinity, midPoint is set to 0.0 to prevent getting
+	// a NaN midPoint or maxDistFromMidPoint.
+	midPoint := 0.0
+	if !math.IsInf(lower, 0) && !math.IsInf(upper, 0) {
+		// (lower + upper) / 2 may cause an overflow if lower and upper are large values.
+		midPoint = lower + (upper-lower)/2.0
+	}
 	maxDistFromMidpoint := math.Abs(upper - midPoint)
 
 	eps, del := opt.Epsilon, opt.Delta
@@ -166,8 +178,8 @@ func NewBoundedMeanFloat64(opt *BoundedMeanFloat64Options) *BoundedMeanFloat64 {
 		lower:         lower,
 		upper:         upper,
 		midPoint:      midPoint,
-		count:         *count,
-		normalizedSum: *normalizedSum,
+		Count:         *count,
+		NormalizedSum: *normalizedSum,
 		state:         defaultState,
 	}
 }
@@ -189,8 +201,8 @@ func (bm *BoundedMeanFloat64) Add(e float64) {
 		}
 
 		x := clamped - bm.midPoint
-		bm.normalizedSum.Add(x)
-		bm.count.Increment()
+		bm.NormalizedSum.Add(x)
+		bm.Count.Increment()
 	}
 }
 
@@ -204,8 +216,8 @@ func (bm *BoundedMeanFloat64) Result() float64 {
 		log.Fatalf("Mean's noised result cannot be computed. Reason: " + bm.state.errorMessage())
 	}
 	bm.state = resultReturned
-	noisedCount := math.Max(1.0, float64(bm.count.Result()))
-	noisedSum := bm.normalizedSum.Result()
+	noisedCount := math.Max(1.0, float64(bm.Count.Result()))
+	noisedSum := bm.NormalizedSum.Result()
 	clamped, err := ClampFloat64(noisedSum/noisedCount+bm.midPoint, bm.lower, bm.upper)
 	if err != nil {
 		// TODO: do not exit the program from within library code
@@ -252,11 +264,11 @@ func (bm *BoundedMeanFloat64) ComputeConfidenceInterval(alpha float64) (noise.Co
 // Result() needs to be called before ComputeConfidenceInterval, otherwise this will return an error.
 func (bm *BoundedMeanFloat64) computeConfidenceIntervalForExplicitAlphaNum(alpha, alphaNum float64) (noise.ConfidenceInterval, error) {
 	alphaDen := (alpha - alphaNum) / (1 - alphaNum) // setting alphaDen such that (1 - alpha) = (1 - alphaNum) * (1 - alphaDen)
-	confIntNum, err := bm.normalizedSum.ComputeConfidenceInterval(alphaDen)
+	confIntNum, err := bm.NormalizedSum.ComputeConfidenceInterval(alphaDen)
 	if err != nil {
 		return noise.ConfidenceInterval{}, err
 	}
-	confIntDen, err := bm.count.ComputeConfidenceInterval(alphaNum)
+	confIntDen, err := bm.Count.ComputeConfidenceInterval(alphaNum)
 	if err != nil {
 		return noise.ConfidenceInterval{}, err
 	}
@@ -298,8 +310,8 @@ func (bm *BoundedMeanFloat64) Merge(bm2 *BoundedMeanFloat64) {
 		// TODO: do not exit the program from within library code
 		log.Exit(err)
 	}
-	bm.normalizedSum.sum += bm2.normalizedSum.sum
-	bm.count.count += bm2.count.count
+	bm.NormalizedSum.sum += bm2.NormalizedSum.sum
+	bm.Count.count += bm2.Count.count
 	bm2.state = merged
 }
 
@@ -326,8 +338,8 @@ func (bm *BoundedMeanFloat64) GobEncode() ([]byte, error) {
 	enc := encodableBoundedMeanFloat64{
 		Lower:                  bm.lower,
 		Upper:                  bm.upper,
-		EncodableCount:         &bm.count,
-		EncodableNormalizedSum: &bm.normalizedSum,
+		EncodableCount:         &bm.Count,
+		EncodableNormalizedSum: &bm.NormalizedSum,
 		MidPoint:               bm.midPoint,
 	}
 	bm.state = serialized
@@ -345,8 +357,8 @@ func (bm *BoundedMeanFloat64) GobDecode(data []byte) error {
 	*bm = BoundedMeanFloat64{
 		lower:         enc.Lower,
 		upper:         enc.Upper,
-		count:         *enc.EncodableCount,
-		normalizedSum: *enc.EncodableNormalizedSum,
+		Count:         *enc.EncodableCount,
+		NormalizedSum: *enc.EncodableNormalizedSum,
 		midPoint:      enc.MidPoint,
 		state:         defaultState,
 	}

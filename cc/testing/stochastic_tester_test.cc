@@ -93,12 +93,12 @@ template <typename T,
 class BoundedSumWithInsufficientNoise : public BoundedSumWithFixedBounds<T> {
  public:
   BoundedSumWithInsufficientNoise(
-      const double epsilon, const T lower, const T upper,
+      const double epsilon, const double delta, const T lower, const T upper,
       std::unique_ptr<NumericalMechanismBuilder> mechanism_builder)
       : BoundedSumWithFixedBounds<T>(
             epsilon, 0, lower, upper,
             BoundedSum<T>::BuildMechanism(std::move(mechanism_builder), epsilon,
-                                          1, 1, lower, upper)
+                                          delta, 1, 1, lower, upper)
                 .value()) {}
   double GetEpsilon() const override { return Algorithm<T>::GetEpsilon() / 2; }
 };
@@ -116,7 +116,7 @@ class BoundedSumWithError : public BoundedSumWithFixedBounds<T> {
       : BoundedSumWithFixedBounds<T>(
             epsilon, delta, lower, upper,
             BoundedSum<T>::BuildMechanism(mechanism_builder->Clone(), epsilon,
-                                          1, 1, lower, upper)
+                                          delta, 1, 1, lower, upper)
                 .value()) {}
 
   base::StatusOr<Output> GenerateResult(double privacy_budget,
@@ -284,7 +284,7 @@ TEST(StochasticTesterTest, MultipleDatasetBoundedSumWithInsufficientNoiseTest) {
   auto mechanism_builder =
       std::make_unique<test_utils::SeededLaplaceMechanism::Builder>();
   auto algorithm = std::make_unique<BoundedSumWithInsufficientNoise<double>>(
-      std::log(3), sequence->RangeMin(), sequence->RangeMax(),
+      std::log(3), 0, sequence->RangeMin(), sequence->RangeMax(),
       std::move(mechanism_builder));
   StochasticTester<double> tester(std::move(algorithm), std::move(sequence));
   EXPECT_FALSE(tester.Run());

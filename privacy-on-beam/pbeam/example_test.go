@@ -19,8 +19,6 @@ package pbeam_test
 import (
 	"context"
 	"fmt"
-	"strconv"
-	"strings"
 
 	"github.com/google/differential-privacy/privacy-on-beam/pbeam"
 	"github.com/apache/beam/sdks/go/pkg/beam"
@@ -52,21 +50,22 @@ func Example() {
 	// Load the data and parse each visit, ignoring parsing errors.
 	icol := textio.Read(s, "week_data.csv")
 	icol = beam.ParDo(s, func(s string, emit func(visit)) {
-		data := strings.Split(s, ",")
-		euros, err := strconv.Atoi(data[3])
+		var visitorID string
+		var euros, weekday int
+		_, err := fmt.Sscanf(s, "%s, %d, %d", &visitorID, &euros, &weekday)
 		if err != nil {
 			return
 		}
-		weekday, err := strconv.Atoi(data[4])
-		if err != nil {
-			return
-		}
-		emit(visit{data[0], euros, weekday})
+		emit(visit{visitorID, euros, weekday})
 	}, icol)
 
 	// Transform the input PCollection into a PrivatePCollection.
-	epsilon, delta := 1.0, 1e-3
-	privacySpec := pbeam.NewPrivacySpec(epsilon, delta)
+
+	// ε and δ are the differential privacy parameters that quantify the privacy
+	// provided by the pipeline.
+	const ε, δ = 1, 1e-3
+
+	privacySpec := pbeam.NewPrivacySpec(ε, δ)
 	pcol := pbeam.MakePrivateFromStruct(s, icol, privacySpec, "visitorID")
 	// pcol is now a PrivatePCollection<visit>.
 
@@ -82,14 +81,19 @@ func Example() {
 		// δ=10⁻³). If multiple aggregations are present, we would need to
 		// manually specify the privacy budget used by each.
 
-		// If a visitor of the restaurant is present in more
-		// than 4 weekdays, some of these contributions will be randomly dropped.
-		// This is necessary to achieve differential privacy.
+		// If a visitor of the restaurant is present in more than 4 weekdays,
+		// some of these contributions will be randomly dropped.
+		// Larger values lets you keep more contributions (more of the raw data)
+		// but lead to more noise in the output because the noise will be scaled
+		// by the value. See the relevant section in the codelab for details:
+		// https://codelabs.developers.google.com/codelabs/privacy-on-beam/#8
 		MaxPartitionsContributed: 4,
 
 		// If a visitor of the restaurant spends more than 50 euros, or less
-		// than 0 euros, their contribution will be clamped. This is necessary
-		// to achieve differential privacy.
+		// than 0 euros, their contribution will be clamped.
+		// Similar to MaxPartitionsContributed, a larger interval lets you keep more
+		// of the raw data but lead to more noise in the output because the noise
+		// will be scaled by max(|MinValue|,|MaxValue|).
 		MinValue: 0,
 		MaxValue: 50,
 	}

@@ -437,7 +437,7 @@ TEST(BoundedVarianceTest, OverflowRawCountTest) {
           .SetLower(-1)
           .SetUpper(1)
           .Build()
-          .ValueOrDie();
+          .value();
   BoundedVarianceTestPeer::AddMultipleEntries<double>(
       -0.5, std::numeric_limits<int64_t>::max(), bv.get());
   BoundedVarianceTestPeer::AddMultipleEntries<double>(-0.5, 1, bv.get());
@@ -461,7 +461,7 @@ TEST(BoundedVarianceTest, OverflowAddEntryManualBounds) {
           .SetLower(-1)
           .SetUpper(1)
           .Build()
-          .ValueOrDie();
+          .value();
 
   BoundedVarianceTestPeer::AddMultipleEntries<int32_t>(
       1, std::numeric_limits<int32_t>::max(), bv.get());
@@ -483,7 +483,7 @@ TEST(BoundedVarianceTest, UnderflowAddEntryManualBounds) {
           .SetLower(-1)
           .SetUpper(1)
           .Build()
-          .ValueOrDie();
+          .value();
   BoundedVarianceTestPeer::AddMultipleEntries<int32_t>(
       -1, std::numeric_limits<int32_t>::max(), bv.get());
   BoundedVarianceTestPeer::AddMultipleEntries<int32_t>(
@@ -504,13 +504,13 @@ TEST(BoundedVarianceTest, OverflowRawCountMergeManualBoundsTest) {
           .SetLower(0)
           .SetUpper(10)
           .Build()
-          .ValueOrDie();
+          .value();
   BoundedVarianceTestPeer::AddMultipleEntries<double>(
       10, std::numeric_limits<int64_t>::max(), bv.get());
 
   Summary summary = bv->Serialize();
 
-  std::unique_ptr<BoundedVariance<double>> bv2 = builder.Build().ValueOrDie();
+  std::unique_ptr<BoundedVariance<double>> bv2 = builder.Build().value();
   BoundedVarianceTestPeer::AddMultipleEntries<double>(
       10, std::numeric_limits<int64_t>::max(), bv.get());
 
@@ -538,12 +538,12 @@ TEST(BoundedVarianceTest, OverflowMergeManualBoundsTest) {
           .SetLower(-1)
           .SetUpper(1)
           .Build()
-          .ValueOrDie();
+          .value();
   BoundedVarianceTestPeer::AddMultipleEntries<int32_t>(
       1, std::numeric_limits<int32_t>::max(), bv.get());
   Summary summary = bv->Serialize();
 
-  std::unique_ptr<BoundedVariance<int32_t>> bv2 = builder.Build().ValueOrDie();
+  std::unique_ptr<BoundedVariance<int32_t>> bv2 = builder.Build().value();
   BoundedVarianceTestPeer::AddMultipleEntries<int32_t>(
       1, std::numeric_limits<int32_t>::max(), bv2.get());
 
@@ -564,12 +564,12 @@ TEST(BoundedVarianceTest, UnderflowMergeManualBoundsTest) {
           .SetLower(-1)
           .SetUpper(1)
           .Build()
-          .ValueOrDie();
+          .value();
   BoundedVarianceTestPeer::AddMultipleEntries<int32_t>(
       -1, std::numeric_limits<int32_t>::max(), bv.get());
   Summary summary = bv->Serialize();
 
-  std::unique_ptr<BoundedVariance<int32_t>> bv2 = builder.Build().ValueOrDie();
+  std::unique_ptr<BoundedVariance<int32_t>> bv2 = builder.Build().value();
   BoundedVarianceTestPeer::AddMultipleEntries<int32_t>(
       -1, std::numeric_limits<int32_t>::max(), bv2.get());
 

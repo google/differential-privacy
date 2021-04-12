@@ -55,7 +55,6 @@ public class CountTest {
   private static final double EPSILON = 0.123;
   private static final double DELTA = 0.123;
   private static final double THRESHOLD_DELTA = 1e-10;
-  private static final double ALPHA = 0.152145599;
 
   @Mock private Noise noise;
   @Mock private Collection<Double> hugeCollection;
@@ -73,12 +72,6 @@ public class CountTest {
     // Tests that use serialization need to access to the type of the noise they use. Because the
     // tests don't rely on a specific noise type, we arbitrarily return Gaussian.
     when(noise.getMechanismType()).thenReturn(GAUSSIAN);
-    when(noise.computeConfidenceInterval(
-            anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble(), anyDouble()))
-        .thenReturn(ConfidenceInterval.create(0.0, 0.0));
-    when(noise.computeConfidenceInterval(
-            anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
-        .thenReturn(ConfidenceInterval.create(0.0, 0.0));
 
     count =
         Count.builder()
@@ -674,132 +667,5 @@ public class CountTest {
     } catch (InvalidProtocolBufferException pbe) {
       throw new IllegalArgumentException(pbe);
     }
-  }
-
-  @Test
-  public void computeConfidenceInterval_negativeBounds_clampsToZero() {
-    when(noise.computeConfidenceInterval(
-            anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble(), anyDouble()))
-        .thenReturn(ConfidenceInterval.create(-5.0, -3.0));
-    count.computeResult();
-
-    assertThat(count.computeConfidenceInterval(ALPHA))
-        .isEqualTo(ConfidenceInterval.create(0.0, 0.0));
-  }
-
-  @Test
-  public void computeConfidenceInterval_positiveBounds_returnsBounds() {
-    when(noise.computeConfidenceInterval(
-            anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble(), anyDouble()))
-        .thenReturn(ConfidenceInterval.create(5.0, 3.0));
-    count.computeResult();
-
-    assertThat(count.computeConfidenceInterval(ALPHA))
-        .isEqualTo(ConfidenceInterval.create(5.0, 3.0));
-  }
-
-  @Test
-  public void computeConfidenceInterval_negativeLowerBound_clampsToZero() {
-    when(noise.computeConfidenceInterval(
-            anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble(), anyDouble()))
-        .thenReturn(ConfidenceInterval.create(-5.0, 8.0));
-    count.computeResult();
-
-    assertThat(count.computeConfidenceInterval(ALPHA))
-        .isEqualTo(ConfidenceInterval.create(0.0, 8.0));
-  }
-
-  @Test
-  public void computeConfidenceInterval_clampsNegativeInfinityToZero() {
-    when(noise.computeConfidenceInterval(
-            anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble(), anyDouble()))
-        .thenReturn(ConfidenceInterval.create(Double.NEGATIVE_INFINITY, 10.0));
-    count.computeResult();
-
-    assertThat(count.computeConfidenceInterval(ALPHA))
-        .isEqualTo(ConfidenceInterval.create(0.0, 10.0));
-  }
-
-  @Test
-  public void computeConfidenceInterval_infiniteUpperBound_clampsToMaxLong() {
-    when(noise.computeConfidenceInterval(
-            anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble(), anyDouble()))
-        .thenReturn(ConfidenceInterval.create(1.0, Double.POSITIVE_INFINITY));
-    count.computeResult();
-
-    assertThat(count.computeConfidenceInterval(ALPHA))
-        .isEqualTo(ConfidenceInterval.create(1.0, Double.POSITIVE_INFINITY));
-  }
-
-  @Test
-  public void computeConfidenceInterval_forGaussianNoise() {
-    // Mock the noise mechanism.
-    when(noise.computeConfidenceInterval(
-            anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble(), anyDouble()))
-        .thenAnswer(
-            invocation ->
-                new GaussianNoise()
-                    .computeConfidenceInterval(
-                        (Long) invocation.getArguments()[0],
-                        (Integer) invocation.getArguments()[1],
-                        (Long) invocation.getArguments()[2],
-                        (Double) invocation.getArguments()[3],
-                        (Double) invocation.getArguments()[4],
-                        (Double) invocation.getArguments()[5]));
-    count.increment();
-    count.computeResult();
-
-    assertThat(count.computeConfidenceInterval(ALPHA))
-        .isEqualTo(ConfidenceInterval.create(0.0, 4.0));
-  }
-
-  @Test
-  public void computeConfidenceInterval_forLaplaceNoise() {
-    // Mock the noise mechanism. Since noise is not Laplace, nor Gaussian, delta will be
-    // passed as null, in order to pass the checks.
-    when(noise.computeConfidenceInterval(
-            anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble(), anyDouble()))
-        .thenAnswer(
-            invocation ->
-                new LaplaceNoise()
-                    .computeConfidenceInterval(
-                        (Long) invocation.getArguments()[0],
-                        (Integer) invocation.getArguments()[1],
-                        (Long) invocation.getArguments()[2],
-                        (Double) invocation.getArguments()[3],
-                        null,
-                        (Double) invocation.getArguments()[5]));
-    count.increment();
-    count.computeResult();
-
-    assertThat(count.computeConfidenceInterval(ALPHA))
-        .isEqualTo(ConfidenceInterval.create(0.0, 16.0));
-  }
-
-  @Test
-  public void computeConfidenceInterval_computeResultWasNotCalled_throwsException() {
-    assertThrows(IllegalStateException.class, () -> count.computeConfidenceInterval(ALPHA));
-  }
-
-  @Test
-  public void computeConfidenceInterval_afterSerialization_throwsException() {
-    count.getSerializableSummary();
-    assertThrows(IllegalStateException.class, () -> count.computeConfidenceInterval(ALPHA));
-  }
-
-  @Test
-  public void computeConfidenceIntervals_defaultParameters_callsNoiseCorrectly() {
-    count.increment();
-    count.computeResult();
-    count.computeConfidenceInterval(ALPHA);
-
-    verify(noise)
-        .computeConfidenceInterval(
-            eq(1L), // count of added entries = 1L
-            eq(/* l0Sensitivity = maxPartitionsContributed = 1 */ 1),
-            eq(/* lInfSensitivity = maxContributionsPerPartition = 1L */ 1L),
-            eq(EPSILON),
-            eq(DELTA),
-            eq(ALPHA));
   }
 }

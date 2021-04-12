@@ -19,9 +19,8 @@
 
 #include <cstdint>
 #include <limits>
-#include <memory>
 
-#include <cstdint>
+#include "absl/base/thread_annotations.h"
 #include "absl/synchronization/mutex.h"
 
 namespace differential_privacy {

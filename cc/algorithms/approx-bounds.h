@@ -17,15 +17,26 @@
 #ifndef DIFFERENTIAL_PRIVACY_ALGORITHMS_APPROX_BOUNDS_H_
 #define DIFFERENTIAL_PRIVACY_ALGORITHMS_APPROX_BOUNDS_H_
 
+#include <stdlib.h>
+
+#include <algorithm>
+#include <cmath>
+#include <functional>
+#include <limits>
+#include <memory>
+#include <type_traits>
+#include <utility>
+#include <vector>
+
+#include <cstdint>
 #include "google/protobuf/any.pb.h"
+#include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "base/statusor.h"
-#include "absl/strings/str_cat.h"
 #include "algorithms/algorithm.h"
 #include "algorithms/numerical-mechanisms.h"
 #include "algorithms/util.h"
 #include "proto/util.h"
-#include "base/canonical_errors.h"
 #include "base/status_macros.h"
 
 namespace differential_privacy {

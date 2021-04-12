@@ -44,7 +44,8 @@ func TestNewCount(t *testing.T) {
 				delta:           tenten,
 				l0Sensitivity:   1,
 				lInfSensitivity: 2,
-				noise:           noNoise{},
+				Noise:           noNoise{},
+				noiseKind:       noise.Unrecognised,
 				count:           0,
 				state:           defaultState,
 			}},
@@ -60,7 +61,7 @@ func TestNewCount(t *testing.T) {
 				delta:           0,
 				l0Sensitivity:   1,
 				lInfSensitivity: 1,
-				noise:           noise.Laplace(),
+				Noise:           noise.Laplace(),
 				noiseKind:       noise.LaplaceNoise,
 				count:           0,
 				state:           defaultState,
@@ -77,7 +78,7 @@ func TestNewCount(t *testing.T) {
 				delta:           0,
 				l0Sensitivity:   1,
 				lInfSensitivity: 2,
-				noise:           noise.Laplace(),
+				Noise:           noise.Laplace(),
 				noiseKind:       noise.LaplaceNoise,
 				count:           0,
 				state:           defaultState,
@@ -95,7 +96,7 @@ func compareCount(c1, c2 *Count) bool {
 		c1.delta == c2.delta &&
 		c1.l0Sensitivity == c2.l0Sensitivity &&
 		c1.lInfSensitivity == c2.lInfSensitivity &&
-		c1.noise == c2.noise &&
+		c1.Noise == c2.Noise &&
 		c1.noiseKind == c2.noiseKind &&
 		c1.count == c2.count &&
 		c1.state == c2.state
@@ -384,7 +385,7 @@ func TestCountComputeConfidenceIntervalPostProcessing(t *testing.T) {
 	} {
 		c := getNoiselessCount()
 		// This makes Noise interface return the raw confidence interval when ComputeConfidenceIntervalInt64 is called.
-		c.noise = getMockConfInt(tc.confInt)
+		c.Noise = getMockConfInt(tc.confInt)
 
 		c.Result()
 		got, _ := c.ComputeConfidenceInterval(0.1) // alpha is ignored in mockConfInt.

@@ -369,7 +369,7 @@ func TestDistinctPrivacyIDCrossPartitionContributionBounding(t *testing.T) {
 	epsilon, delta, k, l1Sensitivity := 50.0, 0.01, 25.0, 3.0
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 	got := DistinctPrivacyID(s, pcol, DistinctPrivacyIDParams{MaxPartitionsContributed: 3, NoiseKind: LaplaceNoise{}})
-	// With a max contribution of 3, 70% of the data should have be
+	// With a max contribution of 3, 70% of the data should be
 	// dropped. The sum of all elements must then be 150.
 	counts := beam.DropKey(s, got)
 	sumOverPartitions := stats.Sum(s, counts)
@@ -396,7 +396,7 @@ func TestDistinctPrivacyIDWithPartitionsCrossPartitionContributionBounding(t *te
 	}
 	p, s, col, want := ptest.CreateList2(pairs, result)
 	col = beam.ParDo(s, testutils.PairToKV, col)
-	publicPartitions := beam.CreateList(s, []int{0, 1, 2})
+	publicPartitions := beam.CreateList(s, []int{0, 1, 2, 3, 4})
 
 	// We have ε=50, δ=0 and l1Sensitivity=3.
 	// We have 5 partitions. So, to get an overall flakiness of 10⁻²³,
@@ -479,7 +479,7 @@ func TestNewCountFn(t *testing.T) {
 				NoiseKind:                noise.GaussianNoise,
 			}},
 	} {
-		got := newCountFn(1, 1e-5, 17, tc.noiseKind, false)
+		got := newCountFn(1, 1e-5, 17, tc.noiseKind, false, disabled)
 		if diff := cmp.Diff(tc.want, got, cmpopts.IgnoreUnexported(countFn{})); diff != "" {
 			t.Errorf("newCountFn mismatch for '%s' (-want +got):\n%s", tc.desc, diff)
 		}
@@ -494,7 +494,7 @@ func TestCountFnSetup(t *testing.T) {
 	}{
 		{"Laplace noise kind", noise.LaplaceNoise, noise.Laplace()},
 		{"Gaussian noise kind", noise.GaussianNoise, noise.Gaussian()}} {
-		got := newCountFn(1, 1e-5, 17, tc.noiseKind, false)
+		got := newCountFn(1, 1e-5, 17, tc.noiseKind, false, disabled)
 		got.Setup()
 		if !cmp.Equal(tc.wantNoise, got.noise) {
 			t.Errorf("Setup: for %s got %v, want %v", tc.desc, got.noise, tc.wantNoise)

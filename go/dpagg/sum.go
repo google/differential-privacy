@@ -52,7 +52,7 @@ type BoundedSumInt64 struct {
 	lInfSensitivity int64
 	lower           int64
 	upper           int64
-	noise           noise.Noise
+	Noise           noise.Noise
 	noiseKind       noise.Kind // necessary for serializing noise.Noise information
 
 	// State variables
@@ -112,14 +112,26 @@ func NewBoundedSumInt64(opt *BoundedSumInt64Options) *BoundedSumInt64 {
 		// TODO: do not exit the program from within library code
 		log.Fatalf("NewBoundedSumInt64 requires a non-default value for Lower or Upper (automatic bounds determination is not implemented yet)")
 	}
-	if err := checks.CheckBoundsInt64("NewBoundedSumInt64", lower, upper); err != nil {
+	var err error
+	switch noise.ToKind(opt.Noise) {
+	case noise.Unrecognised:
+		err = checks.CheckBoundsInt64IgnoreOverflows("NewBoundedSumInt64", lower, upper)
+	default:
+		err = checks.CheckBoundsInt64("NewBoundedSumInt64", lower, upper)
+	}
+	if err != nil {
 		// TODO: do not exit the program from within library code
 		log.Fatalf("CheckBoundsInt64(lower %d, upper %d) failed with %v", lower, upper, err)
 	}
 	lInf, err := getLInfInt(lower, upper, maxContributionsPerPartition)
 	if err != nil {
-		// TODO: do not exit the program from within library code
-		log.Fatalf("getLInfInt(lower %d, upper %d, maxContributionsPerPartition %d) failed with %v", lower, upper, maxContributionsPerPartition, err)
+		if noise.ToKind(opt.Noise) == noise.Unrecognised {
+			// Ignore sensitivity overflows if noise is not recognised.
+			log.Warningf("getLInfInt(lower %d, upper %d, maxContributionsPerPartition %d) failed with %v, using largest representable integer as lInf_sensitivity", lower, upper, maxContributionsPerPartition, err)
+		} else {
+			// TODO: do not exit the program from within library code
+			log.Fatalf("getLInfInt(lower %d, upper %d, maxContributionsPerPartition %d) failed with %v", lower, upper, maxContributionsPerPartition, err)
+		}
 	}
 	// Check that the parameters are compatible with the noise chosen by calling
 	// the noise on some dummy value.
@@ -133,7 +145,7 @@ func NewBoundedSumInt64(opt *BoundedSumInt64Options) *BoundedSumInt64 {
 		lInfSensitivity: lInf,
 		lower:           lower,
 		upper:           upper,
-		noise:           n,
+		Noise:           n,
 		noiseKind:       noise.ToKind(n),
 		sum:             0,
 		state:           defaultState,
@@ -154,7 +166,7 @@ func lInfIntOverflows(bound, maxContributionsPerPartition int64) bool {
 func getLInfInt(lower, upper, maxContributionsPerPartition int64) (int64, error) {
 	// If lower or upper is math.MinInt64, the sensitivity will overflow.
 	if lower == math.MinInt64 || upper == math.MinInt64 {
-		return 0, fmt.Errorf("lower = %d and upper = %d must be strictly larger than math.MinInt64 to avoid sensitivity overflow", lower, upper)
+		return math.MaxInt64, fmt.Errorf("lower = %d and upper = %d must be strictly larger than math.MinInt64 to avoid sensitivity overflow", lower, upper)
 	}
 	if lower < 0 {
 		lower = -lower
@@ -163,12 +175,12 @@ func getLInfInt(lower, upper, maxContributionsPerPartition int64) (int64, error)
 		upper = -upper
 	}
 	if lInfIntOverflows(lower, maxContributionsPerPartition) {
-		return 0, fmt.Errorf(
+		return math.MaxInt64, fmt.Errorf(
 			"lower = %d and maxContributionsPerPartition = %d are too high - the lInf sensitivity may overflow",
 			lower, maxContributionsPerPartition)
 	}
 	if lInfIntOverflows(upper, maxContributionsPerPartition) {
-		return 0, fmt.Errorf(
+		return math.MaxInt64, fmt.Errorf(
 			"upper = %dr and maxContributionsPerPartition = %d are too high - the lInf sensitivity may overflow",
 			upper, maxContributionsPerPartition)
 	}
@@ -234,7 +246,7 @@ func (bs *BoundedSumInt64) Result() int64 {
 		log.Fatalf("Sum's noised result cannot be computed. Reason: " + bs.state.errorMessage())
 	}
 	bs.state = resultReturned
-	bs.noisedSum = bs.noise.AddNoiseInt64(bs.sum, bs.l0Sensitivity, bs.lInfSensitivity, bs.epsilon, bs.delta)
+	bs.noisedSum = bs.Noise.AddNoiseInt64(bs.sum, bs.l0Sensitivity, bs.lInfSensitivity, bs.epsilon, bs.delta)
 	return bs.noisedSum
 }
 
@@ -242,7 +254,7 @@ func (bs *BoundedSumInt64) Result() int64 {
 // result. So, if the result is less than the threshold specified by the noise
 // mechanism, it returns nil. Otherwise, it returns the result.
 func (bs *BoundedSumInt64) ThresholdedResult(thresholdDelta float64) *int64 {
-	threshold := bs.noise.Threshold(bs.l0Sensitivity, float64(bs.lInfSensitivity), bs.epsilon, bs.delta, thresholdDelta)
+	threshold := bs.Noise.Threshold(bs.l0Sensitivity, float64(bs.lInfSensitivity), bs.epsilon, bs.delta, thresholdDelta)
 	result := bs.Result()
 	// To make sure floating-point rounding doesn't break DP guarantees, we err on
 	// the side of dropping the result if it is exactly equal to the threshold.
@@ -265,7 +277,7 @@ func (bs *BoundedSumInt64) ComputeConfidenceInterval(alpha float64) (noise.Confi
 	if bs.state != resultReturned {
 		return noise.ConfidenceInterval{}, fmt.Errorf("Result() must be called before calling ComputeConfidenceInterval()")
 	}
-	confInt, err := bs.noise.ComputeConfidenceIntervalInt64(bs.noisedSum, bs.l0Sensitivity, bs.lInfSensitivity, bs.epsilon, bs.delta, alpha)
+	confInt, err := bs.Noise.ComputeConfidenceIntervalInt64(bs.noisedSum, bs.l0Sensitivity, bs.lInfSensitivity, bs.epsilon, bs.delta, alpha)
 	if err != nil {
 		return noise.ConfidenceInterval{}, err
 	}
@@ -304,7 +316,7 @@ func (bs *BoundedSumInt64) GobEncode() ([]byte, error) {
 		LInfSensitivity: bs.lInfSensitivity,
 		Lower:           bs.lower,
 		Upper:           bs.upper,
-		NoiseKind:       noise.ToKind(bs.noise),
+		NoiseKind:       noise.ToKind(bs.Noise),
 		Sum:             bs.sum,
 	}
 	bs.state = serialized
@@ -327,7 +339,7 @@ func (bs *BoundedSumInt64) GobDecode(data []byte) error {
 		lower:           enc.Lower,
 		upper:           enc.Upper,
 		noiseKind:       enc.NoiseKind,
-		noise:           noise.ToNoise(enc.NoiseKind),
+		Noise:           noise.ToNoise(enc.NoiseKind),
 		sum:             enc.Sum,
 		state:           defaultState,
 	}
@@ -357,7 +369,7 @@ type BoundedSumFloat64 struct {
 	lInfSensitivity float64
 	lower           float64
 	upper           float64
-	noise           noise.Noise
+	Noise           noise.Noise
 	noiseKind       noise.Kind // necessary for serializing noise.Noise information
 
 	// State variables
@@ -417,14 +429,26 @@ func NewBoundedSumFloat64(opt *BoundedSumFloat64Options) *BoundedSumFloat64 {
 		// TODO: do not exit the program from within library code
 		log.Fatalf("NewBoundedSumFloat64 requires a non-default value for Lower or Upper (automatic bounds determination is not implemented yet)")
 	}
-	if err := checks.CheckBoundsFloat64("NewBoundedSumFloat64", lower, upper); err != nil {
+	var err error
+	switch noise.ToKind(opt.Noise) {
+	case noise.Unrecognised:
+		err = checks.CheckBoundsFloat64IgnoreOverflows("NewBoundedSumFloat64", lower, upper)
+	default:
+		err = checks.CheckBoundsFloat64("NewBoundedSumFloat64", lower, upper)
+	}
+	if err != nil {
 		// TODO: do not exit the program from within library code
 		log.Fatalf("CheckBoundsFloat64(lower %f, upper %f) failed with %v", lower, upper, err)
 	}
 	lInf, err := getLInfFloat(lower, upper, maxContributionsPerPartition)
 	if err != nil {
-		// TODO: do not exit the program from within library code
-		log.Fatalf("getLInfFloat(lower %f, upper %f, maxContributionsPerPartition %d) failed with %v", lower, upper, maxContributionsPerPartition, err)
+		if noise.ToKind(opt.Noise) == noise.Unrecognised {
+			// Ignore sensitivity overflows if noise is not recognised.
+			log.Warningf("getLInfFloat(lower %f, upper %f, maxContributionsPerPartition %d) failed with %v, using largest representable integer as lInf_sensitivity", lower, upper, maxContributionsPerPartition, err)
+		} else {
+			// TODO: do not exit the program from within library code
+			log.Fatalf("getLInfFloat(lower %f, upper %f, maxContributionsPerPartition %d) failed with %v", lower, upper, maxContributionsPerPartition, err)
+		}
 	}
 	// Check that the parameters are compatible with the noise chosen by calling
 	// the noise on some dummy value.
@@ -438,7 +462,7 @@ func NewBoundedSumFloat64(opt *BoundedSumFloat64Options) *BoundedSumFloat64 {
 		lInfSensitivity: lInf,
 		lower:           lower,
 		upper:           upper,
-		noise:           n,
+		Noise:           n,
 		noiseKind:       noise.ToKind(n),
 		sum:             0,
 		state:           defaultState,
@@ -460,12 +484,12 @@ func getLInfFloat(lower, upper float64, maxContributionsPerPartition int64) (flo
 		upper = -upper
 	}
 	if lInfFloatOverflows(lower, maxContributionsPerPartition) {
-		return 0, fmt.Errorf(
+		return math.Inf(1), fmt.Errorf(
 			"lower = %f and maxContributionsPerPartition =%d are too high - the lInf sensitivity may overflow",
 			lower, maxContributionsPerPartition)
 	}
 	if lInfFloatOverflows(upper, maxContributionsPerPartition) {
-		return 0, fmt.Errorf(
+		return math.Inf(1), fmt.Errorf(
 			"upper = %f and maxContributionsPerPartition = %d are too high - the lInf sensitivity may overflow",
 			upper, maxContributionsPerPartition)
 	}
@@ -536,7 +560,7 @@ func (bs *BoundedSumFloat64) Result() float64 {
 		log.Fatalf("Sum's noised result cannot be computed. Reason: " + bs.state.errorMessage())
 	}
 	bs.state = resultReturned
-	bs.noisedSum = bs.noise.AddNoiseFloat64(bs.sum, bs.l0Sensitivity, bs.lInfSensitivity, bs.epsilon, bs.delta)
+	bs.noisedSum = bs.Noise.AddNoiseFloat64(bs.sum, bs.l0Sensitivity, bs.lInfSensitivity, bs.epsilon, bs.delta)
 	return bs.noisedSum
 }
 
@@ -544,7 +568,7 @@ func (bs *BoundedSumFloat64) Result() float64 {
 // result. So, if the result is less than the threshold specified by the noise,
 // mechanism, it returns nil. Otherwise, it returns the result.
 func (bs *BoundedSumFloat64) ThresholdedResult(thresholdDela float64) *float64 {
-	threshold := bs.noise.Threshold(bs.l0Sensitivity, bs.lInfSensitivity, bs.epsilon, bs.delta, thresholdDela)
+	threshold := bs.Noise.Threshold(bs.l0Sensitivity, bs.lInfSensitivity, bs.epsilon, bs.delta, thresholdDela)
 	result := bs.Result()
 	if result < threshold {
 		return nil
@@ -565,7 +589,7 @@ func (bs *BoundedSumFloat64) ComputeConfidenceInterval(alpha float64) (noise.Con
 	if bs.state != resultReturned {
 		return noise.ConfidenceInterval{}, fmt.Errorf("Result() must be called before calling ComputeConfidenceInterval()")
 	}
-	confInt, err := bs.noise.ComputeConfidenceIntervalFloat64(bs.noisedSum, bs.l0Sensitivity, bs.lInfSensitivity, bs.epsilon, bs.delta, alpha)
+	confInt, err := bs.Noise.ComputeConfidenceIntervalFloat64(bs.noisedSum, bs.l0Sensitivity, bs.lInfSensitivity, bs.epsilon, bs.delta, alpha)
 	if err != nil {
 		return noise.ConfidenceInterval{}, err
 	}
@@ -604,7 +628,7 @@ func (bs *BoundedSumFloat64) GobEncode() ([]byte, error) {
 		LInfSensitivity: bs.lInfSensitivity,
 		Lower:           bs.lower,
 		Upper:           bs.upper,
-		NoiseKind:       noise.ToKind(bs.noise),
+		NoiseKind:       noise.ToKind(bs.Noise),
 		Sum:             bs.sum,
 	}
 	bs.state = serialized
@@ -627,7 +651,7 @@ func (bs *BoundedSumFloat64) GobDecode(data []byte) error {
 		lower:           enc.Lower,
 		upper:           enc.Upper,
 		noiseKind:       enc.NoiseKind,
-		noise:           noise.ToNoise(enc.NoiseKind),
+		Noise:           noise.ToNoise(enc.NoiseKind),
 		sum:             enc.Sum,
 		state:           defaultState,
 	}

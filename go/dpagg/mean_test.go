@@ -46,23 +46,25 @@ func TestNewBoundedMeanFloat64(t *testing.T) {
 				upper:    5,
 				state:    defaultState,
 				midPoint: 2,
-				count: Count{
+				Count: Count{
 					epsilon:         ln3 * 0.5,
 					delta:           tenten * 0.5,
 					l0Sensitivity:   1,
 					lInfSensitivity: 2,
-					noise:           noNoise{},
+					Noise:           noNoise{},
+					noiseKind:       noise.Unrecognised,
 					count:           0,
 					state:           defaultState,
 				},
-				normalizedSum: BoundedSumFloat64{
+				NormalizedSum: BoundedSumFloat64{
 					epsilon:         ln3 * 0.5,
 					delta:           tenten * 0.5,
 					l0Sensitivity:   1,
 					lInfSensitivity: 6,
 					lower:           -3,
 					upper:           3,
-					noise:           noNoise{},
+					Noise:           noNoise{},
+					noiseKind:       noise.Unrecognised,
 					sum:             0,
 					state:           defaultState,
 				},
@@ -81,17 +83,17 @@ func TestNewBoundedMeanFloat64(t *testing.T) {
 				upper:    5,
 				state:    defaultState,
 				midPoint: 2,
-				count: Count{
+				Count: Count{
 					epsilon:         ln3 * 0.5,
 					delta:           0,
 					l0Sensitivity:   1,
 					lInfSensitivity: 2,
 					noiseKind:       noise.LaplaceNoise,
-					noise:           noise.Laplace(),
+					Noise:           noise.Laplace(),
 					count:           0,
 					state:           defaultState,
 				},
-				normalizedSum: BoundedSumFloat64{
+				NormalizedSum: BoundedSumFloat64{
 					epsilon:         ln3 * 0.5,
 					delta:           0,
 					l0Sensitivity:   1,
@@ -99,7 +101,7 @@ func TestNewBoundedMeanFloat64(t *testing.T) {
 					lower:           -3,
 					upper:           3,
 					noiseKind:       noise.LaplaceNoise,
-					noise:           noise.Laplace(),
+					Noise:           noise.Laplace(),
 					sum:             0,
 					state:           defaultState,
 				},
@@ -545,15 +547,15 @@ func TestBMEquallyInitializedFloat64(t *testing.T) {
 				lower:         0,
 				upper:         2,
 				midPoint:      1,
-				normalizedSum: BoundedSumFloat64{},
-				count:         Count{},
+				NormalizedSum: BoundedSumFloat64{},
+				Count:         Count{},
 				state:         defaultState},
 			&BoundedMeanFloat64{
 				lower:         0,
 				upper:         2,
 				midPoint:      1,
-				normalizedSum: BoundedSumFloat64{},
-				count:         Count{},
+				NormalizedSum: BoundedSumFloat64{},
+				Count:         Count{},
 				state:         defaultState},
 			true,
 		},
@@ -563,15 +565,15 @@ func TestBMEquallyInitializedFloat64(t *testing.T) {
 				lower:         -1,
 				upper:         2,
 				midPoint:      1,
-				normalizedSum: BoundedSumFloat64{},
-				count:         Count{},
+				NormalizedSum: BoundedSumFloat64{},
+				Count:         Count{},
 				state:         defaultState},
 			&BoundedMeanFloat64{
 				lower:         0,
 				upper:         2,
 				midPoint:      1,
-				normalizedSum: BoundedSumFloat64{},
-				count:         Count{},
+				NormalizedSum: BoundedSumFloat64{},
+				Count:         Count{},
 				state:         defaultState},
 			false,
 		},
@@ -581,15 +583,15 @@ func TestBMEquallyInitializedFloat64(t *testing.T) {
 				lower:         0,
 				upper:         2,
 				midPoint:      1,
-				normalizedSum: BoundedSumFloat64{},
-				count:         Count{},
+				NormalizedSum: BoundedSumFloat64{},
+				Count:         Count{},
 				state:         defaultState},
 			&BoundedMeanFloat64{
 				lower:         0,
 				upper:         3,
 				midPoint:      1,
-				normalizedSum: BoundedSumFloat64{},
-				count:         Count{},
+				NormalizedSum: BoundedSumFloat64{},
+				Count:         Count{},
 				state:         defaultState},
 			false,
 		},
@@ -599,15 +601,15 @@ func TestBMEquallyInitializedFloat64(t *testing.T) {
 				lower:         0,
 				upper:         2,
 				midPoint:      1,
-				normalizedSum: BoundedSumFloat64{},
-				count:         Count{epsilon: ln3},
+				NormalizedSum: BoundedSumFloat64{},
+				Count:         Count{epsilon: ln3},
 				state:         defaultState},
 			&BoundedMeanFloat64{
 				lower:         0,
 				upper:         2,
 				midPoint:      1,
-				normalizedSum: BoundedSumFloat64{},
-				count:         Count{epsilon: 1},
+				NormalizedSum: BoundedSumFloat64{},
+				Count:         Count{epsilon: 1},
 				state:         defaultState},
 			false,
 		},
@@ -617,15 +619,15 @@ func TestBMEquallyInitializedFloat64(t *testing.T) {
 				lower:         0,
 				upper:         2,
 				midPoint:      1,
-				normalizedSum: BoundedSumFloat64{epsilon: ln3},
-				count:         Count{},
+				NormalizedSum: BoundedSumFloat64{epsilon: ln3},
+				Count:         Count{},
 				state:         defaultState},
 			&BoundedMeanFloat64{
 				lower:         0,
 				upper:         2,
 				midPoint:      1,
-				normalizedSum: BoundedSumFloat64{epsilon: 1},
-				count:         Count{},
+				NormalizedSum: BoundedSumFloat64{epsilon: 1},
+				Count:         Count{},
 				state:         defaultState},
 			false,
 		},
@@ -635,15 +637,15 @@ func TestBMEquallyInitializedFloat64(t *testing.T) {
 				lower:         0,
 				upper:         2,
 				midPoint:      1,
-				normalizedSum: BoundedSumFloat64{},
-				count:         Count{},
+				NormalizedSum: BoundedSumFloat64{},
+				Count:         Count{},
 				state:         defaultState},
 			&BoundedMeanFloat64{
 				lower:         0,
 				upper:         2,
 				midPoint:      1,
-				normalizedSum: BoundedSumFloat64{},
-				count:         Count{},
+				NormalizedSum: BoundedSumFloat64{},
+				Count:         Count{},
 				state:         merged},
 			false,
 		},
@@ -657,8 +659,8 @@ func TestBMEquallyInitializedFloat64(t *testing.T) {
 func compareBoundedMeanFloat64(bm1, bm2 *BoundedMeanFloat64) bool {
 	return bm1.lower == bm2.lower &&
 		bm1.upper == bm2.upper &&
-		compareCount(&bm1.count, &bm2.count) &&
-		compareBoundedSumFloat64(&bm1.normalizedSum, &bm2.normalizedSum) &&
+		compareCount(&bm1.Count, &bm2.Count) &&
+		compareBoundedSumFloat64(&bm1.NormalizedSum, &bm2.NormalizedSum) &&
 		bm1.midPoint == bm2.midPoint &&
 		bm1.state == bm2.state
 }
@@ -792,8 +794,8 @@ func TestMeanComputeConfidenceIntervalForExplicitAlphaNumFractionsItIntoCorrectM
 		},
 	} {
 		mean := NewBoundedMeanFloat64(tc.meanOpt)
-		mean.normalizedSum.noise = getMockConfInt(tc.sumConfInt)
-		mean.count.noise = getMockConfInt(tc.countConfInt)
+		mean.NormalizedSum.Noise = getMockConfInt(tc.sumConfInt)
+		mean.Count.Noise = getMockConfInt(tc.countConfInt)
 		mean.Result()
 		got, _ := mean.computeConfidenceIntervalForExplicitAlphaNum(0.1, 0.05) // Parameters are ignored.
 		if !ApproxEqual(got.LowerBound, tc.want.LowerBound) {
@@ -910,8 +912,8 @@ func TestBoundedMeanFloat64ComputeConfidenceIntervalStateChecks(t *testing.T) {
 		// Count and sum have to be also set to the same state
 		// to allow ComputeConfidenceInterval calls.
 		bm.state = tc.state
-		bm.count.state = tc.state
-		bm.normalizedSum.state = tc.state
+		bm.Count.state = tc.state
+		bm.NormalizedSum.state = tc.state
 
 		if _, err := bm.ComputeConfidenceInterval(0.1); (err != nil) != tc.wantErr {
 			t.Errorf("ComputeConfidenceInterval: when state %v for err got %v, wantErr %t", tc.state, err, tc.wantErr)

@@ -31,6 +31,7 @@ type Kind int
 const (
 	GaussianNoise Kind = iota
 	LaplaceNoise
+	Unrecognised
 )
 
 // ToNoise converts a Kind into a Noise instance.
@@ -40,8 +41,10 @@ func ToNoise(k Kind) Noise {
 		return Gaussian()
 	case LaplaceNoise:
 		return Laplace()
+	case Unrecognised:
+		log.Warningf("ToNoise: Unrecognised noise specified, returning nil")
 	default:
-		log.Warningf("ToNoise: unknown kind (%v) specified", k)
+		log.Warningf("ToNoise: unknown kind (%v) specified, returning nil", k)
 	}
 	return nil
 }
@@ -53,10 +56,12 @@ func ToKind(n Noise) Kind {
 		return GaussianNoise
 	case Laplace():
 		return LaplaceNoise
+	case nil:
+		log.Warningf("ToKind: nil noise specified, returning Unresognised")
 	default:
-		log.Warningf("ToKind: unknown Noise (%v) specified", n)
+		log.Warningf("ToKind: unknown Noise (%v) specified, returning Unresognised", n)
 	}
-	return GaussianNoise
+	return Unrecognised
 }
 
 // ConfidenceInterval holds lower and upper bounds as float64 for the confidence interval.

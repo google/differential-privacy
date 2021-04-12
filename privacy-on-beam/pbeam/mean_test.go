@@ -66,7 +66,7 @@ func TestNewBoundedMeanFloat64Fn(t *testing.T) {
 				NoiseKind:                    noise.GaussianNoise,
 			}},
 	} {
-		got := newBoundedMeanFloat64Fn(1, 1e-5, 17, 5, 0, 10, tc.noiseKind, false)
+		got := newBoundedMeanFloat64Fn(1, 1e-5, 17, 5, 0, 10, tc.noiseKind, false, disabled, false)
 		if diff := cmp.Diff(tc.want, got, opts...); diff != "" {
 			t.Errorf("newBoundedMeanFn: for %q (-want +got):\n%s", tc.desc, diff)
 		}
@@ -81,7 +81,7 @@ func TestBoundedMeanFloat64FnSetup(t *testing.T) {
 	}{
 		{"Laplace noise kind", noise.LaplaceNoise, noise.Laplace()},
 		{"Gaussian noise kind", noise.GaussianNoise, noise.Gaussian()}} {
-		got := newBoundedMeanFloat64Fn(1, 1e-5, 17, 5, 0, 10, tc.noiseKind, false)
+		got := newBoundedMeanFloat64Fn(1, 1e-5, 17, 5, 0, 10, tc.noiseKind, false, disabled, false)
 		got.Setup()
 		if !cmp.Equal(tc.wantNoise, got.noise) {
 			t.Errorf("Setup: for %s got %v, want %v", tc.desc, got.noise, tc.wantNoise)
@@ -99,7 +99,7 @@ func TestBoundedMeanFloat64FnAddInput(t *testing.T) {
 	lower := 0.0
 	upper := 5.0
 	// ε is split by 2 for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
-	fn := newBoundedMeanFloat64Fn(2*epsilon, delta, maxPartitionsContributed, maxContributionsPerPartition, lower, upper, noise.LaplaceNoise, false)
+	fn := newBoundedMeanFloat64Fn(2*epsilon, delta, maxPartitionsContributed, maxContributionsPerPartition, lower, upper, noise.LaplaceNoise, false, disabled, false)
 	fn.Setup()
 
 	accum := fn.CreateAccumulator()
@@ -130,7 +130,7 @@ func TestBoundedMeanFloat64FnMergeAccumulators(t *testing.T) {
 	lower := 0.0
 	upper := 5.0
 	// ε is split by 2 for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
-	fn := newBoundedMeanFloat64Fn(2*epsilon, delta, maxPartitionsContributed, maxContributionsPerPartition, lower, upper, noise.LaplaceNoise, false)
+	fn := newBoundedMeanFloat64Fn(2*epsilon, delta, maxPartitionsContributed, maxContributionsPerPartition, lower, upper, noise.LaplaceNoise, false, disabled, false)
 	fn.Setup()
 
 	accum1 := fn.CreateAccumulator()
@@ -168,7 +168,7 @@ func TestBoundedMeanFloat64FnExtractOutputReturnsNilForSmallPartitions(t *testin
 
 		// The choice of ε=1e100, δ=10⁻²³, and l0Sensitivity=1 gives a threshold of =2.
 		// ε is split by 2 for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
-		fn := newBoundedMeanFloat64Fn(2*1e100, 1e-23, 1, 1, 0, 10, noise.LaplaceNoise, false)
+		fn := newBoundedMeanFloat64Fn(2*1e100, 1e-23, 1, 1, 0, 10, noise.LaplaceNoise, false, disabled, false)
 		fn.Setup()
 		accum := fn.CreateAccumulator()
 		for i := 0; i < tc.inputSize; i++ {
@@ -198,7 +198,7 @@ func TestBoundedMeanFloat64FnWithPartitionsExtractOutputDoesNotReturnNilForSmall
 		{"Input with 1 user with 1 contribution", 1, 1},
 	} {
 
-		fn := newBoundedMeanFloat64Fn(1e100, 0, 1, 1, 0, 10, noise.LaplaceNoise, true)
+		fn := newBoundedMeanFloat64Fn(1e100, 0, 1, 1, 0, 10, noise.LaplaceNoise, true, disabled, false)
 		fn.Setup()
 		accum := fn.CreateAccumulator()
 		for i := 0; i < tc.inputSize; i++ {
@@ -805,7 +805,7 @@ func TestMeanPerKeyCrossPartitionContributionBounding(t *testing.T) {
 		t.Fatalf("ApproxEqualsKVFloat64: got error %v", err)
 	}
 	if err := ptest.Run(p); err != nil {
-		t.Errorf("TestMeanPerKeyPerPartitionContributionBounding: MeanPerKey(%v) = %v, want %v, error %v", col, got, want, err)
+		t.Errorf("TestMeanPerKeyCrossPartitionContributionBounding: MeanPerKey(%v) = %v, want %v, error %v", col, got, want, err)
 	}
 }
 

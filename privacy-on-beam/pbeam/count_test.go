@@ -72,12 +72,11 @@ func TestCountNoNoise(t *testing.T) {
 func TestCountWithPartitionsNoNoise(t *testing.T) {
 	var pairs []testutils.PairII
 	for i := 0; i < 10; i++ {
-		pairs = append(pairs, testutils.PairII{i, 1})
+		pairs = append(pairs, testutils.PairII{1, i})
 	}
-	// Only keep partitions 9 and 10.
 	result := []testutils.TestInt64Metric{
-		{9, 1},
-		{10, 1},
+		{9, 1},  // Keep partition 9.
+		{10, 0}, // Add partition 10.
 	}
 
 	p, s, col, want := ptest.CreateList2(pairs, result)

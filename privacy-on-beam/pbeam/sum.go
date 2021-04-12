@@ -161,8 +161,10 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCo
 	}
 	converted := beam.ParDo(s, convertFn, summed)
 	rekeyed := beam.ParDo(s, findRekeyFn(vKind), converted)
-	// Third, do per-privacy unit contribution bounding.
-	rekeyed = boundContributions(s, rekeyed, maxPartitionsContributed)
+	// Second, do cross-partition contribution bounding if not in test mode without contribution bounding.
+	if spec.testMode != noNoiseWithoutContributionBounding {
+		rekeyed = boundContributions(s, rekeyed, maxPartitionsContributed)
+	}
 	// Fourth, now that contribution bounding is done, remove the privacy keys,
 	// decode the value, and do a DP sum with all the partial sums.
 	partialSumPairs := beam.DropKey(s, rekeyed)
@@ -174,10 +176,10 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCo
 	// Add public partitions and return the aggregation output, if public partitions are specified.
 	if (params.PublicPartitions).IsValid() {
 		return addPublicPartitionsForSum(s, epsilon, delta, maxPartitionsContributed,
-			params, noiseKind, vKind, partialSumKV)
+			params, noiseKind, vKind, partialSumKV, spec.testMode)
 	}
 	sums := beam.CombinePerKey(s,
-		newBoundedSumFn(epsilon, delta, maxPartitionsContributed, params.MinValue, params.MaxValue, noiseKind, vKind, false),
+		newBoundedSumFn(epsilon, delta, maxPartitionsContributed, params.MinValue, params.MaxValue, noiseKind, vKind, false, spec.testMode),
 		partialSumKV)
 	// Drop thresholded partitions.
 	sums = beam.ParDo(s, findDropThresholdedPartitionsFn(vKind), sums)
@@ -188,10 +190,10 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCo
 	return sums
 }
 
-func addPublicPartitionsForSum(s beam.Scope, epsilon, delta float64, maxPartitionsContributed int64, params SumParams, noiseKind noise.Kind, vKind reflect.Kind, partialSumKV beam.PCollection) beam.PCollection {
+func addPublicPartitionsForSum(s beam.Scope, epsilon, delta float64, maxPartitionsContributed int64, params SumParams, noiseKind noise.Kind, vKind reflect.Kind, partialSumKV beam.PCollection, testMode testMode) beam.PCollection {
 	// Calculate sums with non-public partitions dropped. Result is PCollection<partition, int64> or PCollection<partition, float64>.
 	sums := beam.CombinePerKey(s,
-		newBoundedSumFn(epsilon, delta, maxPartitionsContributed, params.MinValue, params.MaxValue, noiseKind, vKind, true),
+		newBoundedSumFn(epsilon, delta, maxPartitionsContributed, params.MinValue, params.MaxValue, noiseKind, vKind, true, testMode),
 		partialSumKV)
 	partitionT, _ := beam.ValidateKVType(sums)
 	sumsPartitions := beam.DropValue(s, sums)
@@ -204,7 +206,7 @@ func addPublicPartitionsForSum(s beam.Scope, epsilon, delta float64, maxPartitio
 	emptyPublicPartitions := beam.ParDo(s, newEmitPartitionsNotInTheDataFn(partitionT), publicPartitionsWithValues, beam.SideInput{Input: partitionMap})
 	// Add noise to the empty public partitions.
 	emptySums := beam.ParDo(s,
-		newAddNoiseToEmptyPublicPartitionsFn(epsilon, delta, maxPartitionsContributed, params.MinValue, params.MaxValue, noiseKind, vKind),
+		newAddNoiseToEmptyPublicPartitionsFn(epsilon, delta, maxPartitionsContributed, params.MinValue, params.MaxValue, noiseKind, vKind, testMode),
 		emptyPublicPartitions)
 	sums = beam.ParDo(s, findDereferenceValueFn(vKind), sums)
 	// Merge sums from data with sums from the empty public partitions.
@@ -344,17 +346,17 @@ func getKind(fn interface{}) (reflect.Kind, error) {
 	return reflect.TypeOf(fn).Out(1).Kind(), nil
 }
 
-func newAddNoiseToEmptyPublicPartitionsFn(epsilon, delta float64, maxPartitionsContributed int64, lower, upper float64, noiseKind noise.Kind, vKind reflect.Kind) interface{} {
+func newAddNoiseToEmptyPublicPartitionsFn(epsilon, delta float64, maxPartitionsContributed int64, lower, upper float64, noiseKind noise.Kind, vKind reflect.Kind, testMode testMode) interface{} {
 	var err error
 	var bsFn interface{}
 
 	switch vKind {
 	case reflect.Int64:
 		err = checks.CheckBoundsFloat64AsInt64("pbeam.newAddNoiseToEmptyPublicPartitionsFn", lower, upper)
-		bsFn = newAddNoiseToEmptyPublicPartitionsInt64Fn(epsilon, delta, maxPartitionsContributed, int64(lower), int64(upper), noiseKind)
+		bsFn = newAddNoiseToEmptyPublicPartitionsInt64Fn(epsilon, delta, maxPartitionsContributed, int64(lower), int64(upper), noiseKind, testMode)
 	case reflect.Float64:
 		err = checks.CheckBoundsFloat64("pbeam.newAddNoiseToEmptyPublicPartitionsFn", lower, upper)
-		bsFn = newAddNoiseToEmptyPublicPartitionsFloat64Fn(epsilon, delta, maxPartitionsContributed, lower, upper, noiseKind)
+		bsFn = newAddNoiseToEmptyPublicPartitionsFloat64Fn(epsilon, delta, maxPartitionsContributed, lower, upper, noiseKind, testMode)
 	default:
 		log.Exitf("pbeam.newAddNoiseToEmptyPublicPartitionsFn: vKind(%v) should be int64 or float64", vKind)
 	}
@@ -375,10 +377,11 @@ type addNoiseToEmptyPublicPartitionsInt64Fn struct {
 	Upper                    int64
 	NoiseKind                noise.Kind
 	noise                    noise.Noise // Set during Setup phase according to NoiseKind.
+	TestMode                 testMode
 }
 
 // newAddNoiseToEmptyPublicPartitionsInt64Fn returns a addNoiseToEmptyPublicPartitionsInt64Fn with the given budget and parameters.
-func newAddNoiseToEmptyPublicPartitionsInt64Fn(epsilon, delta float64, maxPartitionsContributed, lower, upper int64, noiseKind noise.Kind) *addNoiseToEmptyPublicPartitionsInt64Fn {
+func newAddNoiseToEmptyPublicPartitionsInt64Fn(epsilon, delta float64, maxPartitionsContributed, lower, upper int64, noiseKind noise.Kind, testMode testMode) *addNoiseToEmptyPublicPartitionsInt64Fn {
 	return &addNoiseToEmptyPublicPartitionsInt64Fn{
 		NoiseEpsilon:             epsilon,
 		NoiseDelta:               delta,
@@ -386,11 +389,15 @@ func newAddNoiseToEmptyPublicPartitionsInt64Fn(epsilon, delta float64, maxPartit
 		Lower:                    lower,
 		Upper:                    upper,
 		NoiseKind:                noiseKind,
+		TestMode:                 testMode,
 	}
 }
 
 func (fn *addNoiseToEmptyPublicPartitionsInt64Fn) Setup() {
 	fn.noise = noise.ToNoise(fn.NoiseKind)
+	if fn.TestMode.isEnabled() {
+		fn.noise = noNoise{}
+	}
 }
 
 func (fn *addNoiseToEmptyPublicPartitionsInt64Fn) ProcessElement(partitionKey beam.X, _ int64) (beam.X, int64) {
@@ -415,10 +422,11 @@ type addNoiseToEmptyPublicPartitionsFloat64Fn struct {
 	Upper                    float64
 	NoiseKind                noise.Kind
 	noise                    noise.Noise // Set during Setup phase according to NoiseKind.
+	TestMode                 testMode
 }
 
 // newAddNoiseToEmptyPublicPartitionsFloat64Fn returns a addNoiseToEmptyPublicPartitionsFloat64Fn with the given budget and parameters.
-func newAddNoiseToEmptyPublicPartitionsFloat64Fn(epsilon, delta float64, maxPartitionsContributed int64, lower, upper float64, noiseKind noise.Kind) *addNoiseToEmptyPublicPartitionsFloat64Fn {
+func newAddNoiseToEmptyPublicPartitionsFloat64Fn(epsilon, delta float64, maxPartitionsContributed int64, lower, upper float64, noiseKind noise.Kind, testMode testMode) *addNoiseToEmptyPublicPartitionsFloat64Fn {
 	return &addNoiseToEmptyPublicPartitionsFloat64Fn{
 		NoiseEpsilon:             epsilon,
 		NoiseDelta:               delta,
@@ -426,11 +434,15 @@ func newAddNoiseToEmptyPublicPartitionsFloat64Fn(epsilon, delta float64, maxPart
 		Lower:                    lower,
 		Upper:                    upper,
 		NoiseKind:                noiseKind,
+		TestMode:                 testMode,
 	}
 }
 
 func (fn *addNoiseToEmptyPublicPartitionsFloat64Fn) Setup() {
 	fn.noise = noise.ToNoise(fn.NoiseKind)
+	if fn.TestMode.isEnabled() {
+		fn.noise = noNoise{}
+	}
 }
 
 func (fn *addNoiseToEmptyPublicPartitionsFloat64Fn) ProcessElement(partitionKey beam.X, _ float64) (beam.X, float64) {

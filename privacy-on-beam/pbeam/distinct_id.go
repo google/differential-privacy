@@ -130,30 +130,32 @@ func DistinctPrivacyID(s beam.Scope, pcol PrivatePCollection, params DistinctPri
 		distinct,
 		beam.TypeDefinition{Var: beam.TType, T: idT.Type()},
 		beam.TypeDefinition{Var: beam.VType, T: partitionT.Type()})
-	// Second, do contribution bounding.
-	decoded = boundContributions(s, decoded, maxPartitionsContributed)
+	// Second, do cross-partition contribution bounding if not in test mode without contribution bounding.
+	if spec.testMode != noNoiseWithoutContributionBounding {
+		decoded = boundContributions(s, decoded, maxPartitionsContributed)
+	}
 	// Third, now that KV pairs are deduplicated and contribution bounding is
 	// done, remove the keys and count how many times each value appears.
 	values := beam.DropKey(s, decoded)
 	dummyCounts := beam.ParDo(s, addOneValueFn, values)
 	// Add public partitions and return the aggregation output, if public partitions are specified.
 	if (params.PublicPartitions).IsValid() {
-		return addPublicPartitionsForDistinctID(s, params, epsilon, delta, maxPartitionsContributed, noiseKind, dummyCounts)
+		return addPublicPartitionsForDistinctID(s, params, epsilon, delta, maxPartitionsContributed, noiseKind, dummyCounts, spec.testMode)
 	}
 	noisedCounts := beam.CombinePerKey(s,
-		newCountFn(epsilon, delta, maxPartitionsContributed, noiseKind, false),
+		newCountFn(epsilon, delta, maxPartitionsContributed, noiseKind, false, spec.testMode),
 		dummyCounts)
 	// Finally, drop thresholded partitions and return the result.
 	return beam.ParDo(s, dropThresholdedPartitionsInt64Fn, noisedCounts)
 }
 
 func addPublicPartitionsForDistinctID(s beam.Scope, params DistinctPrivacyIDParams, epsilon, delta float64,
-	maxPartitionsContributed int64, noiseKind noise.Kind, countsKV beam.PCollection) beam.PCollection {
+	maxPartitionsContributed int64, noiseKind noise.Kind, countsKV beam.PCollection, testMode testMode) beam.PCollection {
 	prepareAddPublicPartitions := beam.ParDo(s, addDummyValuesToPublicPartitionsInt64Fn, params.PublicPartitions)
 	// Merge countsKV and prepareAddPublicPartitions.
 	allAddPartitions := beam.Flatten(s, countsKV, prepareAddPublicPartitions)
 	noisedCounts := beam.CombinePerKey(s,
-		newCountFn(epsilon, delta, maxPartitionsContributed, noiseKind, true),
+		newCountFn(epsilon, delta, maxPartitionsContributed, noiseKind, true, testMode),
 		allAddPartitions)
 	return beam.ParDo(s, dereferenceValueToInt64, noisedCounts)
 }
@@ -191,14 +193,16 @@ type countFn struct {
 	NoiseKind                noise.Kind
 	noise                    noise.Noise // Set during Setup phase according to NoiseKind.
 	PublicPartitions         bool
+	TestMode                 testMode
 }
 
 // newCountFn returns a newCountFn with the given budget and parameters.
-func newCountFn(epsilon, delta float64, maxPartitionsContributed int64, noiseKind noise.Kind, publicPartitions bool) *countFn {
+func newCountFn(epsilon, delta float64, maxPartitionsContributed int64, noiseKind noise.Kind, publicPartitions bool, testMode testMode) *countFn {
 	fn := &countFn{
 		MaxPartitionsContributed: maxPartitionsContributed,
 		NoiseKind:                noiseKind,
 		PublicPartitions:         publicPartitions,
+		TestMode:                 testMode,
 	}
 	fn.Epsilon = epsilon
 	if fn.PublicPartitions {
@@ -219,6 +223,9 @@ func newCountFn(epsilon, delta float64, maxPartitionsContributed int64, noiseKin
 
 func (fn *countFn) Setup() {
 	fn.noise = noise.ToNoise(fn.NoiseKind)
+	if fn.TestMode.isEnabled() {
+		fn.noise = noNoise{}
+	}
 }
 
 type countAccum struct {
@@ -250,6 +257,9 @@ func (fn *countFn) MergeAccumulators(a, b countAccum) countAccum {
 }
 
 func (fn *countFn) ExtractOutput(a countAccum) *int64 {
+	if fn.TestMode.isEnabled() {
+		a.C.Noise = noNoise{}
+	}
 	if a.PublicPartitions {
 		result := a.C.Result()
 		return &result

@@ -23,7 +23,9 @@ Please refer to the supplementary material below for more details:
 import abc
 import math
 import typing
+from typing import Union, Iterable
 import dataclasses
+import numpy as np
 from scipy import stats
 
 from dp_accounting import common
@@ -154,11 +156,13 @@ class AdditiveNoisePrivacyLoss(metaclass=abc.ABCMeta):
     raise NotImplementedError
 
   @abc.abstractmethod
-  def noise_cdf(self, x: float) -> float:
+  def noise_cdf(self, x: Union[float,
+                               Iterable[float]]) -> Union[float, np.ndarray]:
     """Computes the cumulative density function of the noise distribution.
 
     Args:
-      x: the point at which the cumulative density function is to be calculated.
+      x: the point or points at which the cumulative density function is to be
+        calculated.
 
     Returns:
       The cumulative density function of that noise at x, i.e., the probability
@@ -283,11 +287,13 @@ class LaplacePrivacyLoss(AdditiveNoisePrivacyLoss):
       return math.inf
     return 0.5 * (self.sensitivity - privacy_loss * self._parameter)
 
-  def noise_cdf(self, x: float) -> float:
+  def noise_cdf(self, x: Union[float,
+                               Iterable[float]]) -> Union[float, np.ndarray]:
     """Computes the cumulative density function of the Laplace distribution.
 
     Args:
-      x: the point at which the cumulative density function is to be calculated.
+      x: the point or points at which the cumulative density function is to be
+        calculated.
 
     Returns:
       The cumulative density function of the Laplace noise at x, i.e., the
@@ -443,11 +449,13 @@ class GaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
     return (0.5 * self.sensitivity - privacy_loss *
             (self._standard_deviation**2) / self.sensitivity)
 
-  def noise_cdf(self, x: float) -> float:
+  def noise_cdf(self, x: Union[float,
+                               Iterable[float]]) -> Union[float, np.ndarray]:
     """Computes the cumulative density function of the Gaussian distribution.
 
     Args:
-      x: the point at which the cumulative density function is to be calculated.
+     x: the point or points at which the cumulative density function is to be
+       calculated.
 
     Returns:
       The cumulative density function of the Gaussian noise at x, i.e., the
@@ -614,11 +622,13 @@ class DiscreteLaplacePrivacyLoss(AdditiveNoisePrivacyLoss):
     return math.floor(0.5 *
                       (self.sensitivity - privacy_loss / self._parameter))
 
-  def noise_cdf(self, x: float) -> float:
+  def noise_cdf(self, x: Union[float,
+                               Iterable[float]]) -> Union[float, np.ndarray]:
     """Computes cumulative density function of the discrete Laplace distribution.
 
     Args:
-      x: the point at which the cumulative density function is to be calculated.
+      x: the point or points at which the cumulative density function is to be
+        calculated.
 
     Returns:
       The cumulative density function of the discrete Laplace noise at x, i.e.,
@@ -689,7 +699,7 @@ class DiscreteGaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
                sigma: float,
                sensitivity: int = 1,
                truncation_bound: int = None) -> None:
-    """Initializes the privacy loss of the Gaussian mechanism.
+    """Initializes the privacy loss of the discrete Gaussian mechanism.
 
     Args:
       sigma: the parameter of the discrete Gaussian distribution. Note that
@@ -714,14 +724,14 @@ class DiscreteGaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
       self._truncation_bound = truncation_bound
 
     # Create the PMF and CDF.
-    self._pmf = {}
-    self._cdf = {}
-    for x in range(-1 * self._truncation_bound, self._truncation_bound + 1):
-      self._pmf[x] = math.exp(-0.5 * x**2/sigma**2)
-      self._cdf[x] = self._cdf.get(x - 1, 0) + self._pmf[x]
-    for x in range(-1 * self._truncation_bound, self._truncation_bound + 1):
-      self._pmf[x] /= self._cdf[self._truncation_bound]
-      self._cdf[x] /= self._cdf[self._truncation_bound]
+    self._offset = -1 * self._truncation_bound - 1
+    self._pmf_array = np.array(
+        list(range(-1 * self._truncation_bound, self._truncation_bound + 1)))
+    self._pmf_array = np.exp(-0.5 * (self._pmf_array)**2 / (sigma**2))
+    self._pmf_array = np.insert(self._pmf_array, 0, 0)
+    self._cdf_array = np.add.accumulate(self._pmf_array)
+    self._pmf_array /= self._cdf_array[-1]
+    self._cdf_array /= self._cdf_array[-1]
 
     super(DiscreteGaussianPrivacyLoss, self).__init__(sensitivity, True)
 
@@ -736,8 +746,10 @@ class DiscreteGaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
       privacy loss distribution.
     """
     return TailPrivacyLossDistribution(
-        self.sensitivity - self._truncation_bound, self._truncation_bound,
-        {math.inf: self._cdf[self.sensitivity - self._truncation_bound - 1]})
+        self.sensitivity - self._truncation_bound, self._truncation_bound, {
+            math.inf:
+                self.noise_cdf(self.sensitivity - self._truncation_bound - 1)
+        })
 
   def privacy_loss(self, x: float) -> float:
     """Computes the privacy loss of the discrete Gaussian mechanism at a given point.
@@ -776,22 +788,23 @@ class DiscreteGaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
     return math.floor(0.5 * self.sensitivity - privacy_loss *
                       (self._sigma**2) / self.sensitivity)
 
-  def noise_cdf(self, x: float) -> float:
+  def noise_cdf(self, x: Union[float,
+                               Iterable[float]]) -> Union[float, np.ndarray]:
     """Computes the cumulative density function of the discrete Gaussian distribution.
 
     Args:
-      x: the point at which the cumulative density function is to be calculated.
+      x: the point or points at which the cumulative density function is to be
+        calculated.
 
     Returns:
       The cumulative density function of the discrete Gaussian noise at x, i.e.,
       the probability that the discrete Gaussian noise is less than or equal to
       x.
     """
-    if x >= self._truncation_bound + 1:
-      return 1
-    if x < -1 * self._truncation_bound:
-      return 0
-    return self._cdf[math.floor(x)]
+    clipped_x = np.clip(x, -1 * self._truncation_bound - 1,
+                        self._truncation_bound)
+    indices = np.floor(clipped_x).astype('int') - self._offset
+    return self._cdf_array[indices]
 
   @classmethod
   def from_privacy_guarantee(
@@ -841,6 +854,6 @@ class DiscreteGaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
     """The standard deviation of the corresponding discrete Gaussian noise."""
     return math.sqrt(
         sum([
-            (x**2) * probability_mass
-            for x, probability_mass in self._pmf.items()
+            ((i + self._offset)**2) * probability_mass
+            for i, probability_mass in enumerate(self._pmf_array)
         ]))

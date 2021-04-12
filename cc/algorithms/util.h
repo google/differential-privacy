@@ -21,6 +21,7 @@
 #include <cmath>
 #include <limits>
 #include <numeric>
+#include <optional>
 #include <string>
 #include <type_traits>
 #include <vector>
@@ -32,7 +33,7 @@
 #include "base/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
-#include "base/status_macros.h"
+#include "absl/strings/string_view.h"
 
 namespace differential_privacy {
 
