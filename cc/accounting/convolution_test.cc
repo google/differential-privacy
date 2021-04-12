@@ -1,0 +1,141 @@
+// Copyright 2020 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include "accounting/convolution.h"
+
+#include "gmock/gmock.h"
+#include "gtest/gtest.h"
+
+namespace differential_privacy {
+namespace accounting {
+namespace {
+using ::testing::DoubleNear;
+using ::testing::Each;
+using ::testing::ElementsAre;
+using ::testing::IsEmpty;
+using ::testing::Key;
+using ::testing::Le;
+using ::testing::Pair;
+using ::testing::UnorderedElementsAre;
+
+constexpr double kMaxError = 1e-5;
+
+TEST(Convolution, UnpackProbabilityMassFunction) {
+  ProbabilityMassFunction pmf = {{5, 2.3}, {3, 3.14}, {1, 1.2}};
+
+  UnpackedProbabilityMassFunction result = UnpackProbabilityMassFunction(pmf);
+
+  EXPECT_EQ(result.min_key, 1);
+  EXPECT_THAT(result.items, ElementsAre(1.2, 0, 3.14, 0, 2.3));
+}
+
+TEST(Convolution, UnpackEmptyPmf) {
+  UnpackedProbabilityMassFunction result =
+      UnpackProbabilityMassFunction(ProbabilityMassFunction());
+
+  EXPECT_EQ(result.min_key, 0);
+  EXPECT_TRUE(result.items.empty());
+}
+
+TEST(Convolution, CreateProbabilityMassFunction) {
+  UnpackedProbabilityMassFunction input = {1, {1.2, 0, 3.14, 0, 2.3}};
+
+  ProbabilityMassFunction result = CreateProbabilityMassFunction(input);
+
+  EXPECT_THAT(result,
+              UnorderedElementsAre(Pair(5, 2.3), Pair(3, 3.14), Pair(1, 1.2)));
+}
+
+TEST(Convolution, CreateProbabilityMassFunctionTruncationBothSide) {
+  UnpackedProbabilityMassFunction input = {1, {0.2, 0.5, 0.3}};
+
+  ProbabilityMassFunction result = CreateProbabilityMassFunction(input, 0.601);
+
+  EXPECT_THAT(result, UnorderedElementsAre(Pair(2, 0.5)));
+}
+
+TEST(Convolution, CreateProbabilityMassFunctionTruncationLowerOnly) {
+  UnpackedProbabilityMassFunction input = {1, {0.2, 0.5, 0.3}};
+
+  ProbabilityMassFunction result = CreateProbabilityMassFunction(input, 0.4);
+
+  EXPECT_THAT(result, UnorderedElementsAre(Pair(2, 0.5), Pair(3, 0.3)));
+}
+
+TEST(Convolution, CreateProbabilityMassFunctionTruncationUpperOnly) {
+  UnpackedProbabilityMassFunction input = {1, {0.4, 0.5, 0.1}};
+
+  ProbabilityMassFunction result = CreateProbabilityMassFunction(input, 0.2);
+
+  EXPECT_THAT(result, UnorderedElementsAre(Pair(1, 0.4), Pair(2, 0.5)));
+}
+
+TEST(Convolution, CreateProbabilityMassFunctionTruncationAll) {
+  UnpackedProbabilityMassFunction input = {1, {0.4, 0.5, 0.1}};
+
+  ProbabilityMassFunction result = CreateProbabilityMassFunction(input, 3);
+
+  EXPECT_THAT(result, IsEmpty());
+}
+
+TEST(Convolution, Convolve) {
+  ProbabilityMassFunction pmf_x = {{1, 2}, {3, 4}};
+  ProbabilityMassFunction pmf_y = {{2, 3}, {4, 6}};
+
+  ProbabilityMassFunction result = Convolve(pmf_x, pmf_y);
+
+  EXPECT_THAT(result,
+              UnorderedElementsAre(Pair(3, DoubleNear(6.0, kMaxError)),
+                                   Pair(5, DoubleNear(24.0, kMaxError)),
+                                   Pair(7, DoubleNear(24.0, kMaxError))));
+}
+
+TEST(Convolution, ConvolveTruncation) {
+  ProbabilityMassFunction pmf_x = {{1, 0.4}, {2, 0.6}};
+  ProbabilityMassFunction pmf_y = {{1, 0.7}, {3, 0.3}};
+
+  ProbabilityMassFunction result = Convolve(pmf_x, pmf_y, 0.57);
+
+  EXPECT_THAT(result,
+              UnorderedElementsAre(Pair(3, DoubleNear(0.42, kMaxError)),
+                                   Pair(4, DoubleNear(0.12, kMaxError))));
+}
+
+TEST(Convolution, ConvolveOutputResize) {
+  ProbabilityMassFunction pmf_x = {{1, 2}, {4001, 4}};
+  ProbabilityMassFunction pmf_y = {{1, 3}, {3050, 6}};
+  EXPECT_THAT(Convolve(pmf_x, pmf_y), Each(Key(Le(7051))));
+}
+
+TEST(Convolution, ConvolveMultiple) {
+  ProbabilityMassFunction pmf = {{1, 2}, {3, 5}, {4, 6}};
+  EXPECT_THAT(Convolve(pmf, 3),
+              UnorderedElementsAre(Pair(3, DoubleNear(8.0, kMaxError)),
+                                   Pair(5, DoubleNear(60.0, kMaxError)),
+                                   Pair(6, DoubleNear(72.0, kMaxError)),
+                                   Pair(7, DoubleNear(150.0, kMaxError)),
+                                   Pair(8, DoubleNear(360.0, kMaxError)),
+                                   Pair(9, DoubleNear(341.0, kMaxError)),
+                                   Pair(10, DoubleNear(450.0, kMaxError)),
+                                   Pair(11, DoubleNear(540.0, kMaxError)),
+                                   Pair(12, DoubleNear(216.0, kMaxError))));
+}
+
+TEST(Convolution, ConvolveMultipleOutputResize) {
+  ProbabilityMassFunction pmf = {{1, 2}, {1673, 5}};
+  EXPECT_THAT(Convolve(pmf, 2), Each(Key(Le(3346))));
+}
+}  // namespace
+}  // namespace accounting
+}  // namespace differential_privacy

@@ -38,3 +38,10 @@ protobuf_deps()
 # Allows us to take source-dependencies on non-bazelified packages.
 load("@rules_foreign_cc//foreign_cc:repositories.bzl", "rules_foreign_cc_dependencies")
 rules_foreign_cc_dependencies()
+
+# Accounting dependencies.
+load(":cc_accounting_deps.bzl", "cc_accounting_deps")
+cc_accounting_deps()
+
+load("@com_github_nelhage_rules_boost//:boost/boost.bzl", "boost_deps")
+boost_deps()
