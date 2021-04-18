@@ -30,6 +30,7 @@ import (
 
 func init() {
 	beam.RegisterType(reflect.TypeOf((*partitionSelectionFn)(nil)))
+	beam.RegisterFunction(dropThresholdedPartitionsBoolFn)
 }
 
 // SelectPartitionsParams specifies the parameters associated with a

@@ -17,7 +17,6 @@
 package pbeam
 
 import (
-	"bytes"
 	"fmt"
 	"math"
 	"reflect"
@@ -28,14 +27,10 @@ import (
 	"github.com/google/differential-privacy/go/noise"
 	"github.com/google/differential-privacy/privacy-on-beam/internal/kv"
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 )
 
 func init() {
 	beam.RegisterType(reflect.TypeOf((*boundedMeanFloat64Fn)(nil)))
-	beam.RegisterType(reflect.TypeOf((*prepareMeanFn)(nil)))
-	beam.RegisterType(reflect.TypeOf((*expandValuesCombineFn)(nil)))
-	beam.RegisterType(reflect.TypeOf((*decodePairArrayFloat64Fn)(nil)))
 }
 
 // MeanParams specifies the parameters associated with a Mean aggregation.
@@ -149,9 +144,9 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 
 	// First, group together the privacy ID and the partition ID and do per-partition contribution bounding.
 	// Result is PCollection<kv.Pair{ID,K},V>
-	prepareMeanFn := newPrepareMeanFn(idT, pcol.codec)
+	encodeIDKFn := newEncodeIDKFn(idT, pcol.codec)
 	decoded := beam.ParDo(s,
-		prepareMeanFn,
+		encodeIDKFn,
 		pcol.col,
 		beam.TypeDefinition{Var: beam.VType, T: pcol.codec.VType.T})
 
@@ -216,7 +211,7 @@ func addPublicPartitionsForMean(s beam.Scope, epsilon, delta float64, maxPartiti
 	partitionMap := beam.Combine(s, newPartitionsMapFn(beam.EncodedType{partitionT.Type()}), meansPartitions)
 	partitionsCol := params.PublicPartitions
 	// Add value of empty array to each partition key in PublicPartitions.
-	publicPartitionsWithValues := beam.ParDo(s, addDummyValuesForMeanToPublicPartitionsFloat64Fn, partitionsCol)
+	publicPartitionsWithValues := beam.ParDo(s, addDummyValuesToPublicPartitionsFloat64SliceFn, partitionsCol)
 	// emptyPublicPartitions are the partitions that are public but not found in the data.
 	emptyPublicPartitions := beam.ParDo(s, newEmitPartitionsNotInTheDataFn(partitionT), publicPartitionsWithValues, beam.SideInput{Input: partitionMap})
 	// Add noise to the empty public partitions.
@@ -250,158 +245,6 @@ func checkMeanPerKeyParams(params MeanParams, epsilon, delta float64, noiseKind 
 	return checks.CheckMaxPartitionsContributed("pbeam.MeanPerKey", params.MaxPartitionsContributed)
 }
 
-// decodePairArrayFloat64Fn transforms a PCollection<pairArrayFloat64<codedX,[]float64>> into a
-// PCollection<X,[]float64>.
-type decodePairArrayFloat64Fn struct {
-	XType beam.EncodedType
-	xDec  beam.ElementDecoder
-}
-
-func newDecodePairArrayFloat64Fn(t reflect.Type) *decodePairArrayFloat64Fn {
-	return &decodePairArrayFloat64Fn{XType: beam.EncodedType{t}}
-}
-
-func (fn *decodePairArrayFloat64Fn) Setup() {
-	fn.xDec = beam.NewElementDecoder(fn.XType.T)
-}
-
-func (fn *decodePairArrayFloat64Fn) ProcessElement(pair pairArrayFloat64) (beam.X, []float64) {
-	x, err := fn.xDec.Decode(bytes.NewBuffer(pair.X))
-	if err != nil {
-		log.Exitf("pbeam.decodePairArrayFloat64Fn.ProcessElement: couldn't decode pair %v: %v", pair, err)
-	}
-	return x, pair.M
-}
-
-// findConvertFn gets the correct conversion to int64 or float64 function.
-func findConvertToFloat64Fn(t typex.FullType) (interface{}, error) {
-	switch t.Type().String() {
-	case "int":
-		return convertIntToFloat64Fn, nil
-	case "int8":
-		return convertInt8ToFloat64Fn, nil
-	case "int16":
-		return convertInt16ToFloat64Fn, nil
-	case "int32":
-		return convertInt32ToFloat64Fn, nil
-	case "int64":
-		return convertInt64ToFloat64Fn, nil
-	case "uint":
-		return convertUintToFloat64Fn, nil
-	case "uint8":
-		return convertUint8ToFloat64Fn, nil
-	case "uint16":
-		return convertUint16ToFloat64Fn, nil
-	case "uint32":
-		return convertUint32ToFloat64Fn, nil
-	case "uint64":
-		return convertUint64ToFloat64Fn, nil
-	case "float32":
-		return convertFloat32ToFloat64Fn, nil
-	case "float64":
-		return convertFloat64ToFloat64Fn, nil
-	default:
-		return nil, fmt.Errorf("pbeam.findConvertFn: unexpected value type %v", t)
-	}
-}
-
-func convertIntToFloat64Fn(z beam.Z, i int) (beam.Z, float64) {
-	return z, float64(i)
-}
-func convertInt8ToFloat64Fn(z beam.Z, i int8) (beam.Z, float64) {
-	return z, float64(i)
-}
-func convertInt16ToFloat64Fn(z beam.Z, i int16) (beam.Z, float64) {
-	return z, float64(i)
-}
-func convertInt32ToFloat64Fn(z beam.Z, i int32) (beam.Z, float64) {
-	return z, float64(i)
-}
-func convertInt64ToFloat64Fn(z beam.Z, i int64) (beam.Z, float64) {
-	return z, float64(i)
-}
-func convertUintToFloat64Fn(z beam.Z, i uint) (beam.Z, float64) {
-	return z, float64(i)
-}
-func convertUint8ToFloat64Fn(z beam.Z, i uint8) (beam.Z, float64) {
-	return z, float64(i)
-}
-func convertUint16ToFloat64Fn(z beam.Z, i uint16) (beam.Z, float64) {
-	return z, float64(i)
-}
-func convertUint32ToFloat64Fn(z beam.Z, i uint32) (beam.Z, float64) {
-	return z, float64(i)
-}
-func convertUint64ToFloat64Fn(z beam.Z, i uint64) (beam.Z, float64) {
-	return z, float64(i)
-}
-
-type expandValuesAccum struct {
-	Values []float64
-}
-
-type expandValuesCombineFn struct{}
-
-func (fn *expandValuesCombineFn) CreateAccumulator() expandValuesAccum {
-	return expandValuesAccum{Values: make([]float64, 0)}
-}
-
-func (fn *expandValuesCombineFn) AddInput(a expandValuesAccum, value float64) expandValuesAccum {
-	a.Values = append(a.Values, value)
-	return a
-}
-
-func (fn *expandValuesCombineFn) MergeAccumulators(a, b expandValuesAccum) expandValuesAccum {
-	a.Values = append(a.Values, b.Values...)
-	return a
-}
-
-func (fn *expandValuesCombineFn) ExtractOutput(a expandValuesAccum) []float64 {
-	return a.Values
-}
-
-// prepareMeanFn takes a PCollection<ID,kv.Pair{K,V}> as input, and returns a
-// PCollection<kv.Pair{ID,K},V>; where ID has been coded, and V has been
-// decoded.
-type prepareMeanFn struct {
-	IDType         beam.EncodedType
-	idEnc          beam.ElementEncoder
-	InputPairCodec *kv.Codec
-}
-
-func newPrepareMeanFn(idType typex.FullType, kvCodec *kv.Codec) *prepareMeanFn {
-	return &prepareMeanFn{
-		IDType:         beam.EncodedType{idType.Type()},
-		InputPairCodec: kvCodec,
-	}
-}
-
-func (fn *prepareMeanFn) Setup() error {
-	fn.idEnc = beam.NewElementEncoder(fn.IDType.T)
-	return fn.InputPairCodec.Setup()
-}
-
-func (fn *prepareMeanFn) ProcessElement(id beam.W, pair kv.Pair) (kv.Pair, beam.V) {
-	var idBuf bytes.Buffer
-	if err := fn.idEnc.Encode(id, &idBuf); err != nil {
-		log.Exitf("pbeam.prepareMeanFn.ProcessElement: couldn't encode ID %v: %v", id, err)
-	}
-	_, v := fn.InputPairCodec.Decode(pair)
-	return kv.Pair{idBuf.Bytes(), pair.K}, v
-}
-
-// pairArrayFloat64 contains an encoded value and a slice of float64 metrics.
-type pairArrayFloat64 struct {
-	X []byte
-	M []float64
-}
-
-// rekeyArrayFloat64Fn transforms a PCollection<kv.Pair<codedK,codedV>,[]float64> into a
-// PCollection<codedK,pairArrayFloat64<codedV,[]float64>>.
-func rekeyArrayFloat64Fn(kv kv.Pair, m []float64) ([]byte, pairArrayFloat64) {
-	return kv.K, pairArrayFloat64{kv.V, m}
-}
-
 type boundedMeanAccumFloat64 struct {
 	BM               *dpagg.BoundedMeanFloat64
 	SP               *dpagg.PreAggSelectPartition
@@ -427,7 +270,7 @@ type boundedMeanFloat64Fn struct {
 	EmptyPartitions              bool // Set to true if this combineFn is for adding noise to empty public partitions.
 }
 
-// newBoundedMeanFloat6464Fn returns a boundedMeanFloat64Fn with the given budget and parameters.
+// newBoundedMeanFloat64Fn returns a boundedMeanFloat64Fn with the given budget and parameters.
 func newBoundedMeanFloat64Fn(epsilon, delta float64, maxPartitionsContributed, maxContributionsPerPartition int64, lower, upper float64, noiseKind noise.Kind, publicPartitions bool, testMode testMode, emptyPartitions bool) *boundedMeanFloat64Fn {
 	fn := &boundedMeanFloat64Fn{
 		MaxPartitionsContributed:     maxPartitionsContributed,

@@ -33,16 +33,31 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/top"
 )
 
+type pMap map[string]bool
+
 // This file contains methods & ParDos used by multiple DP aggregations.
 func init() {
 	beam.RegisterType(reflect.TypeOf((*boundedSumInt64Fn)(nil)))
 	beam.RegisterType(reflect.TypeOf((*boundedSumFloat64Fn)(nil)))
 	beam.RegisterType(reflect.TypeOf((*decodePairInt64Fn)(nil)))
 	beam.RegisterType(reflect.TypeOf((*decodePairFloat64Fn)(nil)))
+	beam.RegisterType(reflect.TypeOf((*dropValuesFn)(nil)))
+	beam.RegisterType(reflect.TypeOf((*encodeIDKFn)(nil)))
+	beam.RegisterType(reflect.TypeOf((*expandValuesCombineFn)(nil)))
+	beam.RegisterType(reflect.TypeOf((*decodePairArrayFloat64Fn)(nil)))
+	beam.RegisterType(reflect.TypeOf((*partitionsMapFn)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*prunePartitionsVFn)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*pMap)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*emitPartitionsNotInTheDataFn)(nil)).Elem())
+
 	beam.RegisterFunction(randBool)
 	beam.RegisterFunction(clampNegativePartitionsInt64Fn)
 	beam.RegisterFunction(clampNegativePartitionsFloat64Fn)
-	beam.RegisterType(reflect.TypeOf((*dropValuesFn)(nil)))
+	beam.RegisterFunction(addDummyValuesToPublicPartitionsInt64Fn)
+	beam.RegisterFunction(addDummyValuesToPublicPartitionsFloat64Fn)
+	beam.RegisterFunction(addDummyValuesToPublicPartitionsFloat64SliceFn)
+	beam.RegisterFunction(dropThresholdedPartitionsInt64Fn)
+	beam.RegisterFunction(dropThresholdedPartitionsFloat64Fn)
 	// TODO: add tests to make sure we don't forget anything here
 }
 
@@ -554,7 +569,7 @@ func addDummyValuesToPublicPartitionsFloat64Fn(partition beam.X) (k beam.X, v fl
 	return partition, 0
 }
 
-func addDummyValuesForMeanToPublicPartitionsFloat64Fn(partition beam.X) (k beam.X, v []float64) {
+func addDummyValuesToPublicPartitionsFloat64SliceFn(partition beam.X) (k beam.X, v []float64) {
 	return partition, []float64{}
 }
 
@@ -576,28 +591,28 @@ type mapAccum struct {
 	PartitionMap pMap
 }
 
-// PartitionsMapFn makes a map consisting of public partitions.
-type PartitionsMapFn struct {
+// partitionsMapFn makes a map consisting of public partitions.
+type partitionsMapFn struct {
 	PartitionType beam.EncodedType
 	partitionEnc  beam.ElementEncoder
 }
 
-func newPartitionsMapFn(partitionType beam.EncodedType) *PartitionsMapFn {
-	return &PartitionsMapFn{PartitionType: partitionType}
+func newPartitionsMapFn(partitionType beam.EncodedType) *partitionsMapFn {
+	return &partitionsMapFn{PartitionType: partitionType}
 }
 
 // Setup is our "constructor"
-func (fn *PartitionsMapFn) Setup() {
+func (fn *partitionsMapFn) Setup() {
 	fn.partitionEnc = beam.NewElementEncoder(fn.PartitionType.T)
 }
 
 // CreateAccumulator creates a new accumulator for the appropriate data type
-func (fn *PartitionsMapFn) CreateAccumulator() mapAccum {
+func (fn *partitionsMapFn) CreateAccumulator() mapAccum {
 	return mapAccum{PartitionMap: make(pMap)}
 }
 
 // AddInput adds the public partition key to the map
-func (fn *PartitionsMapFn) AddInput(m mapAccum, partitionKey beam.X) mapAccum {
+func (fn *partitionsMapFn) AddInput(m mapAccum, partitionKey beam.X) mapAccum {
 	var partitionBuf bytes.Buffer
 	if err := fn.partitionEnc.Encode(partitionKey, &partitionBuf); err != nil {
 		log.Exitf("pbeam.PartitionsMapFn.AddInput: couldn't encode partition key %v: %v", partitionKey, err)
@@ -607,7 +622,7 @@ func (fn *PartitionsMapFn) AddInput(m mapAccum, partitionKey beam.X) mapAccum {
 }
 
 // MergeAccumulators adds the keys from a to b
-func (fn *PartitionsMapFn) MergeAccumulators(a, b mapAccum) mapAccum {
+func (fn *partitionsMapFn) MergeAccumulators(a, b mapAccum) mapAccum {
 	for k := range a.PartitionMap {
 		b.PartitionMap[k] = true
 	}
@@ -615,7 +630,7 @@ func (fn *PartitionsMapFn) MergeAccumulators(a, b mapAccum) mapAccum {
 }
 
 // ExtractOutput returns the completed partition map
-func (fn *PartitionsMapFn) ExtractOutput(m mapAccum) pMap {
+func (fn *partitionsMapFn) ExtractOutput(m mapAccum) pMap {
 	return m.PartitionMap
 }
 
@@ -710,4 +725,168 @@ func (fn *dropValuesFn) Setup() {
 func (fn *dropValuesFn) ProcessElement(id beam.Z, kv kv.Pair) (beam.Z, beam.W) {
 	k, _ := fn.Codec.Decode(kv)
 	return id, k
+}
+
+// encodeIDKFn takes a PCollection<ID,kv.Pair{K,V}> as input, and returns a
+// PCollection<kv.Pair{ID,K},V>; where ID and K have been coded, and V has been
+// decoded.
+type encodeIDKFn struct {
+	IDType         beam.EncodedType    // Type information of the privacy ID
+	idEnc          beam.ElementEncoder // Encoder for privacy ID, set during Setup() according to IDType
+	InputPairCodec *kv.Codec           // Codec for the input kv.Pair{K,V}
+}
+
+func newEncodeIDKFn(idType typex.FullType, kvCodec *kv.Codec) *encodeIDKFn {
+	return &encodeIDKFn{
+		IDType:         beam.EncodedType{idType.Type()},
+		InputPairCodec: kvCodec,
+	}
+}
+
+func (fn *encodeIDKFn) Setup() error {
+	fn.idEnc = beam.NewElementEncoder(fn.IDType.T)
+	return fn.InputPairCodec.Setup()
+}
+
+func (fn *encodeIDKFn) ProcessElement(id beam.W, pair kv.Pair) (kv.Pair, beam.V) {
+	var idBuf bytes.Buffer
+	if err := fn.idEnc.Encode(id, &idBuf); err != nil {
+		log.Exitf("pbeam.encodeIDKFn.ProcessElement: couldn't encode ID %v: %v", id, err)
+	}
+	_, v := fn.InputPairCodec.Decode(pair)
+	return kv.Pair{idBuf.Bytes(), pair.K}, v
+}
+
+// decodePairArrayFloat64Fn transforms a PCollection<pairArrayFloat64<codedX,[]float64>> into a
+// PCollection<X,[]float64>.
+type decodePairArrayFloat64Fn struct {
+	XType beam.EncodedType
+	xDec  beam.ElementDecoder
+}
+
+func newDecodePairArrayFloat64Fn(t reflect.Type) *decodePairArrayFloat64Fn {
+	return &decodePairArrayFloat64Fn{XType: beam.EncodedType{t}}
+}
+
+func (fn *decodePairArrayFloat64Fn) Setup() {
+	fn.xDec = beam.NewElementDecoder(fn.XType.T)
+}
+
+func (fn *decodePairArrayFloat64Fn) ProcessElement(pair pairArrayFloat64) (beam.X, []float64) {
+	x, err := fn.xDec.Decode(bytes.NewBuffer(pair.X))
+	if err != nil {
+		log.Exitf("pbeam.decodePairArrayFloat64Fn.ProcessElement: couldn't decode pair %v: %v", pair, err)
+	}
+	return x, pair.M
+}
+
+// findConvertFn gets the correct conversion to float64 function.
+func findConvertToFloat64Fn(t typex.FullType) (interface{}, error) {
+	switch t.Type().String() {
+	case "int":
+		return convertIntToFloat64Fn, nil
+	case "int8":
+		return convertInt8ToFloat64Fn, nil
+	case "int16":
+		return convertInt16ToFloat64Fn, nil
+	case "int32":
+		return convertInt32ToFloat64Fn, nil
+	case "int64":
+		return convertInt64ToFloat64Fn, nil
+	case "uint":
+		return convertUintToFloat64Fn, nil
+	case "uint8":
+		return convertUint8ToFloat64Fn, nil
+	case "uint16":
+		return convertUint16ToFloat64Fn, nil
+	case "uint32":
+		return convertUint32ToFloat64Fn, nil
+	case "uint64":
+		return convertUint64ToFloat64Fn, nil
+	case "float32":
+		return convertFloat32ToFloat64Fn, nil
+	case "float64":
+		return convertFloat64ToFloat64Fn, nil
+	default:
+		return nil, fmt.Errorf("pbeam.findConvertFn: unexpected value type %v", t)
+	}
+}
+
+func convertIntToFloat64Fn(z beam.Z, i int) (beam.Z, float64) {
+	return z, float64(i)
+}
+
+func convertInt8ToFloat64Fn(z beam.Z, i int8) (beam.Z, float64) {
+	return z, float64(i)
+}
+
+func convertInt16ToFloat64Fn(z beam.Z, i int16) (beam.Z, float64) {
+	return z, float64(i)
+}
+
+func convertInt32ToFloat64Fn(z beam.Z, i int32) (beam.Z, float64) {
+	return z, float64(i)
+}
+
+func convertInt64ToFloat64Fn(z beam.Z, i int64) (beam.Z, float64) {
+	return z, float64(i)
+}
+
+func convertUintToFloat64Fn(z beam.Z, i uint) (beam.Z, float64) {
+	return z, float64(i)
+}
+
+func convertUint8ToFloat64Fn(z beam.Z, i uint8) (beam.Z, float64) {
+	return z, float64(i)
+}
+
+func convertUint16ToFloat64Fn(z beam.Z, i uint16) (beam.Z, float64) {
+	return z, float64(i)
+}
+
+func convertUint32ToFloat64Fn(z beam.Z, i uint32) (beam.Z, float64) {
+	return z, float64(i)
+}
+
+func convertUint64ToFloat64Fn(z beam.Z, i uint64) (beam.Z, float64) {
+	return z, float64(i)
+}
+
+type expandValuesAccum struct {
+	Values []float64
+}
+
+// expandValuesCombineFn converts a PCollection<K,float64> to PCollection<K,[]float64>
+// where each value corresponding to the same key are collected in a slice. Resulting
+// PCollection has a single slice for each key.
+type expandValuesCombineFn struct{}
+
+func (fn *expandValuesCombineFn) CreateAccumulator() expandValuesAccum {
+	return expandValuesAccum{Values: make([]float64, 0)}
+}
+
+func (fn *expandValuesCombineFn) AddInput(a expandValuesAccum, value float64) expandValuesAccum {
+	a.Values = append(a.Values, value)
+	return a
+}
+
+func (fn *expandValuesCombineFn) MergeAccumulators(a, b expandValuesAccum) expandValuesAccum {
+	a.Values = append(a.Values, b.Values...)
+	return a
+}
+
+func (fn *expandValuesCombineFn) ExtractOutput(a expandValuesAccum) []float64 {
+	return a.Values
+}
+
+// pairArrayFloat64 contains an encoded value and a slice of float64 metrics.
+type pairArrayFloat64 struct {
+	X []byte
+	M []float64
+}
+
+// rekeyArrayFloat64Fn transforms a PCollection<kv.Pair<codedK,codedV>,[]float64> into a
+// PCollection<codedK,pairArrayFloat64<codedV,[]float64>>.
+func rekeyArrayFloat64Fn(kv kv.Pair, m []float64) ([]byte, pairArrayFloat64) {
+	return kv.K, pairArrayFloat64{kv.V, m}
 }

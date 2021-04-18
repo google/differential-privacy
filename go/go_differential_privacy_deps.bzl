@@ -55,8 +55,8 @@ def go_differential_privacy_deps():
     go_repository(
         name = "com_github_google_go_cmp",
         importpath = "github.com/google/go-cmp",
-        sum = "h1:DUoICFE8khaC0A+LKwHMPBdiqXkiQJF3F4TKWtu0/5w=",
-        version = "v0.4.2-0.20200609072101-23a2b5646fe0",
+        sum = "h1:Khx7svrCpmxxtHBq5j2mp/xVjsi8hQMfNLvJFAlrGgU=",
+        version = "v0.5.5",
     )
 
     go_repository(
@@ -111,8 +111,8 @@ def go_differential_privacy_deps():
     go_repository(
         name = "org_gonum_v1_gonum",
         importpath = "gonum.org/v1/gonum",
-        sum = "h1:Hdks0L0hgznZLG9nzXb8vZ0rRvqNvAcgAp84y7Mwkgw=",
-        version = "v0.7.0",
+        sum = "h1:CCXrcPKiGGotvnN6jfUsKk4rRqm7q09/YbKb5xCEvtM=",
+        version = "v0.8.2",
     )
 
     go_repository(

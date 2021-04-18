@@ -23,6 +23,7 @@ import (
 	"github.com/google/differential-privacy/go/noise"
 	"github.com/google/differential-privacy/privacy-on-beam/pbeam/testutils"
 	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -420,5 +421,36 @@ func TestDropNonPublicPartitionsFloat(t *testing.T) {
 
 	if err := testutils.EqualsKVInt(s, got, want); err != nil {
 		t.Fatalf("DropNonPublicPartitionsFloat: for %v got: %v, want %v", col, got, want)
+	}
+}
+
+func TestFindConvertToFloat64Fn(t *testing.T) {
+	for _, tc := range []struct {
+		desc          string
+		fullType      typex.FullType
+		wantConvertFn interface{}
+		wantErr       bool
+	}{
+		{"int", typex.New(reflect.TypeOf(int(0))), convertIntToFloat64Fn, false},
+		{"int8", typex.New(reflect.TypeOf(int8(0))), convertInt8ToFloat64Fn, false},
+		{"int16", typex.New(reflect.TypeOf(int16(0))), convertInt16ToFloat64Fn, false},
+		{"int32", typex.New(reflect.TypeOf(int32(0))), convertInt32ToFloat64Fn, false},
+		{"int64", typex.New(reflect.TypeOf(int64(0))), convertInt64ToFloat64Fn, false},
+		{"uint", typex.New(reflect.TypeOf(uint(0))), convertUintToFloat64Fn, false},
+		{"uint8", typex.New(reflect.TypeOf(uint8(0))), convertUint8ToFloat64Fn, false},
+		{"uint16", typex.New(reflect.TypeOf(uint16(0))), convertUint16ToFloat64Fn, false},
+		{"uint32", typex.New(reflect.TypeOf(uint32(0))), convertUint32ToFloat64Fn, false},
+		{"uint64", typex.New(reflect.TypeOf(uint64(0))), convertUint64ToFloat64Fn, false},
+		{"float32", typex.New(reflect.TypeOf(float32(0))), convertFloat32ToFloat64Fn, false},
+		{"float64", typex.New(reflect.TypeOf(float64(0))), convertFloat64ToFloat64Fn, false},
+		{"string", typex.New(reflect.TypeOf("")), nil, true},
+	} {
+		convertFn, err := findConvertToFloat64Fn(tc.fullType)
+		if (err != nil) != tc.wantErr {
+			t.Errorf("findConvertToFloat64Fn: when %s for err got got %v, want %t", tc.desc, err, tc.wantErr)
+		}
+		if !reflect.DeepEqual(reflect.TypeOf(convertFn), reflect.TypeOf(tc.wantConvertFn)) {
+			t.Errorf("findConvertToFloat64Fn: when %s got %v, want %v", tc.desc, convertFn, tc.wantConvertFn)
+		}
 	}
 }

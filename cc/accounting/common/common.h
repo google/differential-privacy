@@ -35,11 +35,11 @@ struct EpsilonDelta {
   absl::Status Validate() const {
     if (epsilon < 0) {
       return absl::InvalidArgumentError(
-          absl::StrFormat("epsilon should be positive: %f.", epsilon));
+          absl::StrFormat("epsilon should be positive: %lf.", epsilon));
     }
     if (delta < 0 || delta > 1) {
       return absl::InvalidArgumentError(
-          absl::StrFormat("delta should be between 0 and 1: %f.", delta));
+          absl::StrFormat("delta should be between 0 and 1: %lf.", delta));
     }
     return absl::OkStatus();
   }

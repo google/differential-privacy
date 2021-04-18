@@ -39,8 +39,8 @@ base::StatusOr<double> InverseMonotoneFunction(
   }
   if (min_value > value) {
     return absl::NotFoundError(absl::StrFormat(
-        "Cannot find x in range (%f, %f) whose value is at most %f.", lower_x,
-        upper_x, value));
+        "Cannot find x in range (%lf, %lf) whose value is at most %lf.",
+        lower_x, upper_x, value));
   }
 
   std::function<bool(const double)> solution_above_current_x;

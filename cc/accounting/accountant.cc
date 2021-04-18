@@ -71,9 +71,10 @@ base::StatusOr<double> AdvancedComposition(
     }
   }
 
-  return absl::NotFoundError(absl::StrFormat(
-      "Total delta %f is too small for %d queries each with delta equal to %f.",
-      total_delta, k, delta));
+  return absl::NotFoundError(
+      absl::StrFormat("Total delta %lf is too small for %d queries each with "
+                      "delta equal to %lf.",
+                      total_delta, k, delta));
 }
 }  // namespace accounting
 }  // namespace differential_privacy

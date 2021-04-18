@@ -52,18 +52,18 @@ TEST(LaplacePrivacyLoss, PrivacyLoss) {
   base::StatusOr<std::unique_ptr<LaplacePrivacyLoss>> mechanism =
       LaplacePrivacyLoss::Create(/*parameter=*/1, /*sensitivity=*/1);
   ASSERT_OK(mechanism);
-  EXPECT_FLOAT_EQ(mechanism.value()->PrivacyLoss(-0.1), 1);
+  EXPECT_DOUBLE_EQ(mechanism.value()->PrivacyLoss(-0.1), 1);
 
   mechanism = LaplacePrivacyLoss::Create(7, 7);
   ASSERT_OK(mechanism);
-  EXPECT_FLOAT_EQ(mechanism.value()->PrivacyLoss(2.1), 0.4);
+  EXPECT_DOUBLE_EQ(mechanism.value()->PrivacyLoss(2.1), 0.4);
 }
 
 TEST(LaplacePrivacyLoss, InversePrivacyLoss) {
   base::StatusOr<std::unique_ptr<LaplacePrivacyLoss>> mechanism =
       LaplacePrivacyLoss::Create(/*parameter=*/1, /*sensitivity=*/1);
   ASSERT_OK(mechanism);
-  EXPECT_FLOAT_EQ(mechanism.value()->InversePrivacyLoss(1), 0);
+  EXPECT_DOUBLE_EQ(mechanism.value()->InversePrivacyLoss(1), 0);
 }
 
 TEST(LaplacePrivacyLoss, PrivacyLossTail) {
@@ -71,8 +71,8 @@ TEST(LaplacePrivacyLoss, PrivacyLossTail) {
       LaplacePrivacyLoss::Create(/*parameter=*/1, /*sensitivity=*/2);
   ASSERT_OK(mechanism);
   PrivacyLossTail result = mechanism.value()->PrivacyLossDistributionTail();
-  EXPECT_FLOAT_EQ(result.lower_x_truncation, 0);
-  EXPECT_FLOAT_EQ(result.upper_x_truncation, 2);
+  EXPECT_DOUBLE_EQ(result.lower_x_truncation, 0);
+  EXPECT_DOUBLE_EQ(result.upper_x_truncation, 2);
   EXPECT_THAT(
       result.probability_mass_function,
       UnorderedElementsAre(
@@ -84,21 +84,22 @@ TEST(LaplacePrivacyLoss, GetDeltaForEpsilon) {
   base::StatusOr<std::unique_ptr<LaplacePrivacyLoss>> mechanism =
       LaplacePrivacyLoss::Create(/*parameter=*/2, /*sensitivity=*/4);
   ASSERT_OK(mechanism);
-  EXPECT_FLOAT_EQ(mechanism.value()->GetDeltaForEpsilon(0.5), 0.52763345);
+  EXPECT_THAT(mechanism.value()->GetDeltaForEpsilon(0.5),
+              DoubleNear(0.52763345, kMaxError));
 }
 
 TEST(GaussianPrivacyLoss, PrivacyLoss) {
   base::StatusOr<std::unique_ptr<GaussianPrivacyLoss>> mechanism =
       GaussianPrivacyLoss::Create(7, 14);
   ASSERT_OK(mechanism);
-  EXPECT_FLOAT_EQ(mechanism.value()->PrivacyLoss(21), -4);
+  EXPECT_DOUBLE_EQ(mechanism.value()->PrivacyLoss(21), -4);
 }
 
 TEST(GaussianPrivacyLoss, InversePrivacyLoss) {
   base::StatusOr<std::unique_ptr<GaussianPrivacyLoss>> mechanism =
       GaussianPrivacyLoss::Create(7, 14);
   ASSERT_OK(mechanism);
-  EXPECT_FLOAT_EQ(mechanism.value()->InversePrivacyLoss(-4), 21);
+  EXPECT_DOUBLE_EQ(mechanism.value()->InversePrivacyLoss(-4), 21);
 }
 
 TEST(GaussianPrivacyLoss, PrivacyLossTailPessimistic) {
@@ -110,8 +111,8 @@ TEST(GaussianPrivacyLoss, PrivacyLossTailPessimistic) {
           /*mass_truncation_bound=*/-1.147874464449318);
   ASSERT_OK(mechanism);
   PrivacyLossTail result = mechanism.value()->PrivacyLossDistributionTail();
-  EXPECT_FLOAT_EQ(result.lower_x_truncation, -4);
-  EXPECT_FLOAT_EQ(result.upper_x_truncation, 4);
+  EXPECT_DOUBLE_EQ(result.lower_x_truncation, -4);
+  EXPECT_DOUBLE_EQ(result.upper_x_truncation, 4);
   EXPECT_THAT(result.probability_mass_function,
               UnorderedElementsAre(Pair(std::numeric_limits<double>::infinity(),
                                         DoubleNear(0.15865525, kMaxError)),
@@ -128,8 +129,8 @@ TEST(GaussianPrivacyLoss, PrivacyLossTailOptimistic) {
           /*mass_truncation_bound=*/-1.147874464449318);
   ASSERT_OK(mechanism);
   PrivacyLossTail result = mechanism.value()->PrivacyLossDistributionTail();
-  EXPECT_FLOAT_EQ(result.lower_x_truncation, -4);
-  EXPECT_FLOAT_EQ(result.upper_x_truncation, 4);
+  EXPECT_DOUBLE_EQ(result.lower_x_truncation, -4);
+  EXPECT_DOUBLE_EQ(result.upper_x_truncation, 4);
   EXPECT_THAT(result.probability_mass_function,
               UnorderedElementsAre(Pair(DoubleNear(4, kMaxError),
                                         DoubleNear(0.15865525, kMaxError))));
@@ -317,8 +318,8 @@ TEST(DiscreteLaplacePrivacyLoss, PrivacyLossTail) {
           /*sensitivity=*/2);
   ASSERT_OK(mechanism);
   PrivacyLossTail result = mechanism.value()->PrivacyLossDistributionTail();
-  EXPECT_FLOAT_EQ(result.lower_x_truncation, 1);
-  EXPECT_FLOAT_EQ(result.upper_x_truncation, 1);
+  EXPECT_DOUBLE_EQ(result.lower_x_truncation, 1);
+  EXPECT_DOUBLE_EQ(result.upper_x_truncation, 1);
   EXPECT_THAT(result.probability_mass_function,
               UnorderedElementsAre(Pair(DoubleNear(0.6, kMaxError),
                                         DoubleNear(0.57444252, kMaxError)),
@@ -507,8 +508,8 @@ TEST(DiscreteGaussianPrivacyLossTest, PrivacyLossTail) {
           /*truncation_bound=*/2);
   ASSERT_OK(mechanism);
   PrivacyLossTail result = mechanism.value()->PrivacyLossDistributionTail();
-  EXPECT_FLOAT_EQ(result.lower_x_truncation, 0);
-  EXPECT_FLOAT_EQ(result.upper_x_truncation, 2);
+  EXPECT_DOUBLE_EQ(result.lower_x_truncation, 0);
+  EXPECT_DOUBLE_EQ(result.upper_x_truncation, 2);
   EXPECT_THAT(
       result.probability_mass_function,
       UnorderedElementsAre(

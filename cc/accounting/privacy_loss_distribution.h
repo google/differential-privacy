@@ -158,6 +158,8 @@ class PrivacyLossDistribution {
 
   double DiscretizationInterval() const { return discretization_interval_; }
 
+  EstimateType GetEstimateType() const { return estimate_type_; }
+
   //  The probability mass of mu_upper over all the outcomes that
   //  can occur only in mu_upper but not in mu_lower. (These outcomes result in
   //  privacy loss ln(mu_upper(o) / mu_lower(o)) of infinity.)

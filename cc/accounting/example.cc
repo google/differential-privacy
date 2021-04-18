@@ -47,7 +47,7 @@ int main(int argc, char **argv) {
 
   PrintF(
       "An algorithm that executes the Laplace Mechansim with parameter"
-      " %.0f for a total of %d times is (%.0f, %.8f)-DP.\n",
+      " %.0lf for a total of %d times is (%.0lf, %.8lf)-DP.\n",
       parameter_laplace, num_laplace, epsilon, delta);
 
   // PLDs for different mechanisms can also be composed. Below is an example in
@@ -69,8 +69,8 @@ int main(int argc, char **argv) {
 
   PrintF(
       "An algorithm that executes the Laplace Mechansim with parameter"
-      " %.0f for a total of %d times and in addition executes once the"
-      " Gaussian Mechanism with STD %.0f is (%.0f, %.8f)-DP.\n",
+      " %.0lf for a total of %d times and in addition executes once the"
+      " Gaussian Mechanism with STD %.0lf is (%.0lf, %.8lf)-DP.\n",
       parameter_laplace, num_laplace, standard_deviation, epsilon, delta);
 
   return EXIT_SUCCESS;

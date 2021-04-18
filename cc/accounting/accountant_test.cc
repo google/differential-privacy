@@ -27,7 +27,7 @@ namespace accounting {
 
 namespace {
 
-constexpr double kMaxError = 1e-1f;
+constexpr double kMaxError = 1e-1;
 using ::testing::Values;
 using ::differential_privacy::base::testing::StatusIs;
 

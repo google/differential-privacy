@@ -27,14 +27,14 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/direct"
 )
 
-// ExampleTestPipelines demonstrates how to write test pipelines for pbeam using
-// package pbeamtest where pbeam does not add any noise, disables partition selection
+// This example demonstrates how to write test pipelines for pbeam using package
+// pbeamtest where pbeam does not add any noise, disables partition selection
 // and might disable or enable contribution bounding depending on the particular
 // test mode used.
 //
 // This mirrors the default example with two differences:
-// 	1. pbeamtest is used to create a PrivacySpec instead of pbeam.
-//  2. Code comments are different.
+// 1. pbeamtest is used to create a PrivacySpec instead of pbeam.
+// 2. Code comments are different.
 //
 // Package pbeamtest does not provide any privacy guarantees and is only meant
 // to be used in test code. DO NOT use this for production code.

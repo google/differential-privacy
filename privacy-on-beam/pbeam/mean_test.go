@@ -17,14 +17,12 @@
 package pbeam
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/google/differential-privacy/go/dpagg"
 	"github.com/google/differential-privacy/go/noise"
 	"github.com/google/differential-privacy/privacy-on-beam/pbeam/testutils"
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
 	"github.com/google/go-cmp/cmp"
@@ -165,7 +163,6 @@ func TestBoundedMeanFloat64FnExtractOutputReturnsNilForSmallPartitions(t *testin
 		{"Empty input", 0, 0},
 		{"Input with 1 privacy unit with 1 contribution", 1, 1},
 	} {
-
 		// The choice of ε=1e100, δ=10⁻²³, and l0Sensitivity=1 gives a threshold of =2.
 		// ε is split by 2 for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
 		fn := newBoundedMeanFloat64Fn(2*1e100, 1e-23, 1, 1, 0, 10, noise.LaplaceNoise, false, disabled, false)
@@ -197,7 +194,6 @@ func TestBoundedMeanFloat64FnWithPartitionsExtractOutputDoesNotReturnNilForSmall
 		{"Empty input", 0, 0},
 		{"Input with 1 user with 1 contribution", 1, 1},
 	} {
-
 		fn := newBoundedMeanFloat64Fn(1e100, 0, 1, 1, 0, 10, noise.LaplaceNoise, true, disabled, false)
 		fn.Setup()
 		accum := fn.CreateAccumulator()
@@ -287,15 +283,15 @@ func TestMeanPerKeyAddsNoiseFloat(t *testing.T) {
 		got := MeanPerKey(s, pcol, MeanParams{
 			MaxPartitionsContributed:     1,
 			MaxContributionsPerPartition: 1,
-			MinValue:                     0.0,
-			MaxValue:                     2.0,
+			MinValue:                     lower,
+			MaxValue:                     upper,
 			NoiseKind:                    tc.noiseKind,
 		})
 		got = beam.ParDo(s, testutils.KVToFloat64Metric, got)
 
 		testutils.CheckFloat64MetricsAreNoisy(s, got, 1.0, tolerance)
 		if err := ptest.Run(p); err != nil {
-			t.Errorf("MeanPerKey with partitions didn't add any noise with float inputs and %s Noise: %v", tc.name, err)
+			t.Errorf("MeanPerKey didn't add any noise with float inputs and %s Noise: %v", tc.name, err)
 		}
 	}
 }
@@ -978,37 +974,6 @@ func TestMeanPerKeyNoClampingForNegativeMinValueFloat64(t *testing.T) {
 	beam.ParDo0(s, testutils.CheckAllValuesNegativeFloat64Fn, mValue)
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestMeanPerKeyNoClampingForNegativeMinValueFloat64 returned errors: %v", err)
-	}
-}
-
-func TestFindConvertToFloat64Fn(t *testing.T) {
-	for _, tc := range []struct {
-		desc          string
-		fullType      typex.FullType
-		wantConvertFn interface{}
-		wantErr       bool
-	}{
-		{"int", typex.New(reflect.TypeOf(int(0))), convertIntToFloat64Fn, false},
-		{"int8", typex.New(reflect.TypeOf(int8(0))), convertInt8ToFloat64Fn, false},
-		{"int16", typex.New(reflect.TypeOf(int16(0))), convertInt16ToFloat64Fn, false},
-		{"int32", typex.New(reflect.TypeOf(int32(0))), convertInt32ToFloat64Fn, false},
-		{"int64", typex.New(reflect.TypeOf(int64(0))), convertInt64ToFloat64Fn, false},
-		{"uint", typex.New(reflect.TypeOf(uint(0))), convertUintToFloat64Fn, false},
-		{"uint8", typex.New(reflect.TypeOf(uint8(0))), convertUint8ToFloat64Fn, false},
-		{"uint16", typex.New(reflect.TypeOf(uint16(0))), convertUint16ToFloat64Fn, false},
-		{"uint32", typex.New(reflect.TypeOf(uint32(0))), convertUint32ToFloat64Fn, false},
-		{"uint64", typex.New(reflect.TypeOf(uint64(0))), convertUint64ToFloat64Fn, false},
-		{"float32", typex.New(reflect.TypeOf(float32(0))), convertFloat32ToFloat64Fn, false},
-		{"float64", typex.New(reflect.TypeOf(float64(0))), convertFloat64ToFloat64Fn, false},
-		{"string", typex.New(reflect.TypeOf("")), nil, true},
-	} {
-		convertFn, err := findConvertToFloat64Fn(tc.fullType)
-		if (err != nil) != tc.wantErr {
-			t.Errorf("findConvertToFloat64Fn: when %s for err got got %v, want %t", tc.desc, err, tc.wantErr)
-		}
-		if !reflect.DeepEqual(reflect.TypeOf(convertFn), reflect.TypeOf(tc.wantConvertFn)) {
-			t.Errorf("findConvertToFloat64Fn: when %s got %v, want %v", tc.desc, convertFn, tc.wantConvertFn)
-		}
 	}
 }
 

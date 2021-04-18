@@ -291,14 +291,35 @@ class PrivacyLossDistributionTest(parameterized.TestCase):
         }, pld_composed.rounded_probability_mass_function)
 
   def test_composition_different_estimate_types(self):
+    pld1 = (
+        privacy_loss_distribution.PrivacyLossDistribution
+        .from_laplace_mechanism(1, pessimistic_estimate=True))
+    pld2 = (
+        privacy_loss_distribution.PrivacyLossDistribution
+        .from_laplace_mechanism(1, pessimistic_estimate=False))
     with self.assertRaises(ValueError):
-      pld1 = (
-          privacy_loss_distribution.PrivacyLossDistribution
-          .from_laplace_mechanism(1, pessimistic_estimate=True))
-      pld2 = (
-          privacy_loss_distribution.PrivacyLossDistribution
-          .from_laplace_mechanism(1, pessimistic_estimate=False))
+      pld1.validate_composable(pld2)
+    with self.assertRaises(ValueError):
       pld1.compose(pld2)
+    with self.assertRaises(ValueError):
+      pld1.get_delta_for_epsilon_for_composed_pld(pld2, 0.1)
+
+  def test_compose_and_get_epsilon_for_delta(self):
+    pld1 = privacy_loss_distribution.PrivacyLossDistribution(
+        {
+            0: 0.1,
+            1: 0.7,
+            2: 0.1
+        }, 0.4, 0.1)
+    pld2 = privacy_loss_distribution.PrivacyLossDistribution(
+        {
+            1: 0.1,
+            2: 0.6,
+            3: 0.25
+        }, 0.4, 0.05)
+    self.assertAlmostEqual(
+        0.29560003,
+        pld1.get_delta_for_epsilon_for_composed_pld(pld2, 1.1))
 
   def test_self_composition(self):
     # Test for self composition of privacy loss distribution

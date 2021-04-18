@@ -33,7 +33,7 @@ const (
 	// Fraction a node needs to contribute to the total count of itself and its siblings to be
 	// considered during the search for a particular quantile. The idea of alpha is to filter out
 	// noisy empty nodes. This is a post processing parameter with no privacy implications.
-	alpha = 0.005
+	alpha = 0.0075
 )
 
 // BoundedQuantiles calculates a differentially private quantiles of a collection
@@ -234,11 +234,7 @@ func (bq *BoundedQuantiles) Result(rank float64) float64 {
 
 		totalCount := 0.0
 		for i := leftmostChildIndex; i <= rightmostChildIndex; i++ {
-			totalCount += bq.getNoisedCount(i)
-		}
-		if totalCount <= 0.0 {
-			// All child nodes appear to be empty. There is no need to proceed further down the tree.
-			break
+			totalCount += math.Max(0.0, bq.getNoisedCount(i))
 		}
 
 		correctedTotalCount := 0.0
@@ -250,10 +246,10 @@ func (bq *BoundedQuantiles) Result(rank float64) float64 {
 			}
 		}
 		if correctedTotalCount == 0.0 {
-			// No child node contributes more than an alpha fraction to the total count (this can only
-			// happen when alpha > 1 / branching factor, which is not the case for the default branching
-			// factor). This means that all child nodes are considered empty and there is no need to
-			// proceed further down the tree.
+			// Either all counts are 0.0 or no child node contributes more than an alpha fraction to the
+			// total count (the latter can only happen when alpha > 1 / branching factor, which is not
+			// the case for the default branching factor). This means that all child nodes are
+			// considered empty and there is no need to proceed further down the tree.
 			break
 		}
 

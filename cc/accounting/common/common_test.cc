@@ -27,7 +27,7 @@ namespace {
 using ::testing::Values;
 using ::differential_privacy::base::testing::StatusIs;
 
-constexpr double kMaxError = 1e-4f;
+constexpr double kMaxError = 1e-4;
 
 struct EpsilonDeltaParam {
   double epsilon;

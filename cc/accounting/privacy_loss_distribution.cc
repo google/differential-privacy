@@ -147,7 +147,7 @@ PrivacyLossDistribution::CreateForRandomizedResponse(
     double discretization_interval) {
   if (noise_parameter <= 0 || noise_parameter >= 1) {
     return absl::InvalidArgumentError(absl::StrFormat(
-        "Noise parameter %f should be strictly between 0 and 1.",
+        "Noise parameter %lf should be strictly between 0 and 1.",
         noise_parameter));
   }
   if (num_buckets <= 1) {
@@ -211,8 +211,13 @@ absl::Status PrivacyLossDistribution::Compose(
   if (other_pld.DiscretizationInterval() != discretization_interval_) {
     return absl::InvalidArgumentError(absl::StrFormat(
         "Cannot compose, discretization intervals are different "
-        "- %f vs %f",
+        "- %lf vs %lf",
         other_pld.DiscretizationInterval(), discretization_interval_));
+  }
+
+  if (other_pld.GetEstimateType() != estimate_type_) {
+    return absl::InvalidArgumentError(
+        "Cannot compose, estimate types are different");
   }
 
   double new_infinity_mass = infinity_mass_ + other_pld.InfinityMass() -

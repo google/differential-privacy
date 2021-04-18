@@ -13,27 +13,34 @@ private statistics over datasets. It contains the following tools.
   make the differential privacy property no longer hold.
 * A [differential privacy accounting library](python/dp_accounting), used for
   tracking privacy budget.
-* A [command line interface](examples/zetasql) for running DP queries with
-  [ZetaSQL](https://github.com/google/zetasql).
+* A [command line interface](examples/zetasql) for running differentially
+  private SQL queries with [ZetaSQL](https://github.com/google/zetasql).
 
 To get started on generating differentially private data, we recomend you follow
 the [Privacy on Beam codelab](https://codelabs.developers.google.com/codelabs/privacy-on-beam/).
 
 Currently, the DP building block libraries support the following algorithms:
 
-| Algorithm          | C++           | Go        |Java      |
-| -------------      |:-------------:|:---------:|:--------:|
-| Count              | Supported     | Supported |Supported |
-| Sum                | Supported     | Supported |Supported |
-| Mean               | Supported     | Supported |Supported |
-| Variance           | Supported     | Planned   |Planned   |
-| Standard deviation | Supported     | Planned   |Planned   |
-| Order statistics (incl. min, max, and median) | Supported   | Planned | Supported |
-| Automatic bounds approximation | Supported   | Planned | Planned |
+| Algorithm                        | C++       | Go        | Java      |
+| :------------------------------- | :-------: | :-------: | :-------: |
+| Laplace mechanism                | Supported | Supported | Supported |
+| Gaussian mechanism               | Supported | Supported | Supported |
+| Count                            | Supported | Supported | Supported |
+| Sum                              | Supported | Supported | Supported |
+| Mean                             | Supported | Supported | Supported |
+| Variance                         | Supported | Planned   | Planned   |
+| Standard deviation               | Supported | Planned   | Planned   |
+| Quantiles                        | Supported | Supported | Supported |
+| Automatic bounds approximation   | Supported | Planned   | Planned   |
+| Truncated geometric thresholding | Supported | Supported | Supported |
+| Laplace thresholding             | Supported | Supported | Supported |
+| Gaussian thresholding            | Planned   | Supported | Supported |
 
-They also contain [safe implementations](common_docs/Secure_Noise_Generation.pdf)
-of Laplace and Gaussian mechanisms, which can be used to perform computations
-that aren't covered by the algorithms implemented in our libraries.
+Implementations of the Laplace mechanism and the Gaussian mechanism use [secure
+noise generation].  These mechanisms can be used to perform computations that
+aren't covered by the algorithms implemented in our libraries.
+
+[secure noise generation]: ./common_docs/Secure_Noise_Generation.pdf
 
 The DP building block libraries are suitable for research, experimental or
 production use cases, while the other tools are currently experimental, and
@@ -135,3 +142,11 @@ it helps you to solve.  We have two communication channels:
 Please refrain from sending any personal identifiable information. If you wish
 to delete a message you've previously sent, please contact us.
 
+## Related projects
+
+- [PyDP](https://github.com/OpenMined/PyDP), a Python wrapper of our C++ DP
+  building block library.
+- [OpenDP](https://opendp.org) tools for statistical analysis of sensitive
+  private data.
+- [TensorFlow Privacy](https://github.com/tensorflow/privacy), a library to
+  train machine learning models with differential privacy.

@@ -26,15 +26,14 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/direct"
 )
 
+// This example computes the "Sum-up revenue per day of the week" example
+// from the Go Differential Privacy Library documentation, available at
+// https://github.com/google/differential-privacy/go/README.md.
+//
+// It assumes that the input file, "week_data.csv", has the same format as
+// the data used in the above example:
+// https://github.com/google/differential-privacy/go/examples/data/week_data.csv
 func Example() {
-	// This example computes the "Sum-up revenue per day of the week" example
-	// from the Go Differential Privacy Library documentation, available at
-	// https://github.com/google/differential-privacy/go/README.md.
-	//
-	// It assumes that the input file, "week_data.csv", has the same format as
-	// the data used in the above example:
-	// https://github.com/google/differential-privacy/go/examples/data/week_data.csv
-
 	// visit contains the data corresponding to a single restaurant visit.
 	type visit struct {
 		visitorID  string

@@ -29,9 +29,11 @@ class PrivacyLossDistributionTestPeer {
  public:
   static std::unique_ptr<PrivacyLossDistribution> Create(
       const ProbabilityMassFunction& probability_mass_function,
-      double infinity_mass = 0, double discretization_interval = 1e-4f) {
-    return absl::WrapUnique(new PrivacyLossDistribution(
-        discretization_interval, infinity_mass, probability_mass_function));
+      double infinity_mass = 0, double discretization_interval = 1e-4,
+      EstimateType estimate_type = EstimateType::kPessimistic) {
+    return absl::WrapUnique(
+        new PrivacyLossDistribution(discretization_interval, infinity_mass,
+                                    probability_mass_function, estimate_type));
   }
 };
 
@@ -198,7 +200,8 @@ TEST(PrivacyLossDistributionTest, ComposeNumTimes) {
                               FieldsAre(Eq(4), DoubleNear(0.16, kMaxError))));
 }
 
-TEST(PrivacyLossDistributionTest, ComposeError) {
+TEST(PrivacyLossDistributionTest,
+     ComposeErrorDifferentDiscretizationIntervals) {
   ProbabilityMassFunction pmf = {};
   std::unique_ptr<PrivacyLossDistribution> pld =
       PrivacyLossDistributionTestPeer::Create(pmf, 0.3, 1e-4);
@@ -210,6 +213,23 @@ TEST(PrivacyLossDistributionTest, ComposeError) {
               StatusIs(absl::InvalidArgumentError("").code(),
                        HasSubstr("Cannot compose, discretization intervals "
                                  "are different - 0.000200 vs 0.000100")));
+}
+
+TEST(PrivacyLossDistributionTest, ComposeErrorDifferentEstimateTypes) {
+  ProbabilityMassFunction pmf;
+  std::unique_ptr<PrivacyLossDistribution> pld =
+      PrivacyLossDistributionTestPeer::Create(
+          pmf, /*infinity_mass=*/0.3, /*discretization_interval=*/1e-4,
+          /*estimate_type=*/EstimateType::kPessimistic);
+
+  std::unique_ptr<PrivacyLossDistribution> pld_other =
+      PrivacyLossDistributionTestPeer::Create(
+          pmf, /*infinity_mass=*/0.3, /*discretization_interval=*/1e-4,
+          /*estimate_type=*/EstimateType::kOptimistic);
+
+  EXPECT_THAT(pld->Compose(*pld_other),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       Eq("Cannot compose, estimate types are different")));
 }
 
 struct GetEpsilonFromDeltaParam {

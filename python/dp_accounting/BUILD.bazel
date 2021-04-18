@@ -79,6 +79,7 @@ py_library(
     deps = [
         ":common",
         ":privacy_loss_mechanism",
+        requirement("numpy"),
     ],
 )
 

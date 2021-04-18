@@ -24,6 +24,8 @@ import collections
 import math
 import typing
 
+import numpy as np
+
 from dp_accounting import common
 from dp_accounting import privacy_loss_mechanism
 
@@ -559,14 +561,16 @@ class PrivacyLossDistribution(object):
     # is  equal to (the sum over all the values in the privacy loss distribution
     # of the probability mass at value times max(0, 1 - e^{epsilon - value}) )
     # plus the infinity_mass.
-    divergence = self.infinity_mass
+    shifted_privacy_losses = []
+    probability_masses = []
     for i in self.rounded_probability_mass_function:
       val = i * self.value_discretization_interval
       if val > epsilon and self.rounded_probability_mass_function[i] > 0:
-        divergence += ((1 - math.exp(epsilon - val)) *
-                       self.rounded_probability_mass_function[i])
+        shifted_privacy_losses.append(epsilon - val)
+        probability_masses.append(self.rounded_probability_mass_function[i])
 
-    return divergence
+    return self.infinity_mass + np.dot(
+        (1 - np.exp(shifted_privacy_losses)), probability_masses)
 
   def get_epsilon_for_delta(self, delta: float) -> float:
     """Computes epsilon for which hockey stick divergence is at most delta.
@@ -616,6 +620,34 @@ class PrivacyLossDistribution(object):
     else:
       return math.log((mass_upper - delta) / mass_lower)
 
+  def validate_composable(self,
+                          privacy_loss_distribution: 'PrivacyLossDistribution'):
+    """Verifies that a given PLD can be composed with this PLD.
+
+    The two privacy loss distributions must have the same discretization
+    interval and estimate type for the composition to be allowed.
+
+    Args:
+      privacy_loss_distribution: the privacy loss distribution to be composed
+        with the current privacy loss distribution.
+
+    Raises:
+      ValueError if the value_discretization_interval or estimate_type of the
+      two PLDs are different.
+    """
+    if (self.value_discretization_interval !=
+        privacy_loss_distribution.value_discretization_interval):
+      raise ValueError(
+          f'Discretization intervals are different: '
+          f'{self.value_discretization_interval}'
+          f'{privacy_loss_distribution.value_discretization_interval}')
+
+    if (self.pessimistic_estimate !=
+        privacy_loss_distribution.pessimistic_estimate):
+      raise ValueError(f'Estimation types are different: '
+                       f'{self.pessimistic_estimate}'
+                       f'{privacy_loss_distribution.pessimistic_estimate}')
+
   def compose(
       self,
       privacy_loss_distribution: 'PrivacyLossDistribution',
@@ -633,21 +665,7 @@ class PrivacyLossDistribution(object):
     Returns:
       A privacy loss distribution which is the result of composing the two.
     """
-
-    # The two privacy loss distributions must have the same discretization
-    # interval for the composition to go through.
-    if (self.value_discretization_interval !=
-        privacy_loss_distribution.value_discretization_interval):
-      raise ValueError(
-          f'Discretization intervals are different: '
-          f'{self.value_discretization_interval}'
-          f'{privacy_loss_distribution.value_discretization_interval}')
-
-    if (self.pessimistic_estimate !=
-        privacy_loss_distribution.pessimistic_estimate):
-      raise ValueError(f'Estimation types are different: '
-                       f'{self.pessimistic_estimate}'
-                       f'{privacy_loss_distribution.pessimistic_estimate}')
+    self.validate_composable(privacy_loss_distribution)
 
     # The probability mass function of the resulting distribution is simply the
     # convolutaion of the two input probability mass functions.
@@ -670,6 +688,71 @@ class PrivacyLossDistribution(object):
         self.value_discretization_interval,
         new_infinity_mass,
         pessimistic_estimate=self.pessimistic_estimate)
+
+  def get_delta_for_epsilon_for_composed_pld(
+      self, privacy_loss_distribution: 'PrivacyLossDistribution',
+      epsilon: float) -> float:
+    """Computes delta for given epsilon for the result of composing this PLD and a given PLD.
+
+    The output of this function should be the same as first composing this PLD
+    and privacy_loss_distribution, and then call get_delta_for_epsilon on the
+    resulting PLD. The main advantage is that this function is faster.
+
+    Args:
+      privacy_loss_distribution: the privacy loss distribution to be composed
+        with the current privacy loss distribution. The two must have the same
+        value_discretization_interval.
+      epsilon: the epsilon in epsilon-hockey stick divergence.
+
+    Returns:
+      A non-negative real number which is the epsilon-hockey stick divergence
+      of the privacy loss distribution which is the result of composing this PLD
+      with privacy_loss_distribution.
+    """
+    self.validate_composable(privacy_loss_distribution)
+
+    this_offset, this_probability_mass_function = common.dictionary_to_list(
+        self.rounded_probability_mass_function)
+    this_exponentiated_privacy_loss_values = np.exp(
+        self.value_discretization_interval * np.arange(
+            this_offset, this_offset + len(this_probability_mass_function)))
+
+    other_offset, other_probability_mass_function = common.dictionary_to_list(
+        privacy_loss_distribution.rounded_probability_mass_function)
+    other_exponentiated_privacy_loss_values = np.exp(
+        privacy_loss_distribution.value_discretization_interval * np.arange(
+            other_offset, other_offset + len(other_probability_mass_function)))
+
+    exp_epsilon = math.exp(epsilon)
+
+    # Compute the hockey stick divergence using equation (2) in the
+    # supplementary material. other_cumulative_upper_mass below represents the
+    # summation in equation (3) and other_cumulative_lower_mass represents the
+    # summation in equation (4).
+
+    other_cumulative_upper_mass = 0
+    other_cumulative_lower_mass = 0
+    current_index = len(other_probability_mass_function) - 1
+    divergence = 0
+    for this_exponentiated_privacy_loss, this_probability_mass in zip(
+        this_exponentiated_privacy_loss_values, this_probability_mass_function):
+      cutoff = exp_epsilon / this_exponentiated_privacy_loss
+      while current_index >= 0 and other_exponentiated_privacy_loss_values[
+          current_index] > cutoff:
+        other_cumulative_upper_mass += other_probability_mass_function[
+            current_index]
+        other_cumulative_lower_mass += (
+            other_probability_mass_function[current_index] /
+            other_exponentiated_privacy_loss_values[current_index])
+        current_index -= 1
+      divergence += this_probability_mass * (
+          other_cumulative_upper_mass - cutoff * other_cumulative_lower_mass)
+
+    # The probability that the composed privacy loss is infinite
+    composed_infinity_mass = 1 - (1 - self.infinity_mass) * (
+        1 - privacy_loss_distribution.infinity_mass)
+
+    return divergence + composed_infinity_mass
 
   def self_compose(self, num_times: int) -> 'PrivacyLossDistribution':
     """Computes PLD resulting from repeated composing the PLD with itself.
