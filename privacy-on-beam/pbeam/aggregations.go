@@ -58,6 +58,7 @@ func init() {
 	beam.RegisterFunction(addDummyValuesToPublicPartitionsFloat64SliceFn)
 	beam.RegisterFunction(dropThresholdedPartitionsInt64Fn)
 	beam.RegisterFunction(dropThresholdedPartitionsFloat64Fn)
+	beam.RegisterFunction(dropThresholdedPartitionsFloat64SliceFn)
 	// TODO: add tests to make sure we don't forget anything here
 }
 
@@ -508,6 +509,14 @@ func dropThresholdedPartitionsInt64Fn(v beam.V, r *int64, emit func(beam.V, int6
 func dropThresholdedPartitionsFloat64Fn(v beam.V, r *float64, emit func(beam.V, float64)) {
 	if r != nil {
 		emit(v, *r)
+	}
+}
+
+// dropThresholdedPartitionsFloat64SliceFn drops thresholded []float64 partitions, i.e.
+// those that have nil r, by emitting only non-thresholded partitions.
+func dropThresholdedPartitionsFloat64SliceFn(v beam.V, r []float64, emit func(beam.V, []float64)) {
+	if r != nil {
+		emit(v, r)
 	}
 }
 

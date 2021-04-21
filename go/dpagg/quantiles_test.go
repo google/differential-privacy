@@ -52,7 +52,7 @@ func TestNewBoundedQuantiles(t *testing.T) {
 				upper:             5,
 				l0Sensitivity:     4, // Uses default MaxPartitionsContributed of 1.
 				lInfSensitivity:   2,
-				noise:             noNoise{},
+				Noise:             noNoise{},
 				noiseKind:         noise.Unrecognised,
 				treeHeight:        4,
 				branchingFactor:   16,
@@ -81,7 +81,7 @@ func TestNewBoundedQuantiles(t *testing.T) {
 				l0Sensitivity:     8,
 				lInfSensitivity:   2,
 				noiseKind:         noise.LaplaceNoise,
-				noise:             noise.Laplace(),
+				Noise:             noise.Laplace(),
 				treeHeight:        4,
 				branchingFactor:   16,
 				numLeaves:         65536,
@@ -107,7 +107,7 @@ func TestNewBoundedQuantiles(t *testing.T) {
 				upper:             5,
 				l0Sensitivity:     4,
 				lInfSensitivity:   2,
-				noise:             noNoise{},
+				Noise:             noNoise{},
 				noiseKind:         noise.Unrecognised,
 				treeHeight:        4,  // Uses default treeHeight of 4.
 				branchingFactor:   16, // Uses default branchingFactor of 16.
@@ -134,7 +134,7 @@ func TestBQNoiseIsCorrectlyCalled(t *testing.T) {
 func TestBQNoInput(t *testing.T) {
 	bq := getNoiselessBQ()
 	got := bq.Result(0.5)
-	want := 0.0 // When there are no inputs, we linearly extrapolate.
+	want := 0.0 // When there are no inputs, we linearly interpolate.
 	if !ApproxEqual(got, want) {
 		t.Errorf("Result: when there is no input data got=%f, want=%f", got, want)
 	}
@@ -272,7 +272,7 @@ func TestBQInvariantToPreClamping(t *testing.T) {
 // Tests that Result(rank) increases monotonically with rank even with noise.
 func TestBQIncreasesMonotonically(t *testing.T) {
 	bq := getNoiselessBQ()
-	bq.noise = noise.Gaussian() // This property should hold even if noise is added.
+	bq.Noise = noise.Gaussian() // This property should hold even if noise is added.
 
 	for _, i := range createEntries() {
 		bq.Add(i)
@@ -669,7 +669,7 @@ func TestBQEquallyInitialized(t *testing.T) {
 				l0Sensitivity:     8,
 				lInfSensitivity:   2,
 				noiseKind:         noise.LaplaceNoise,
-				noise:             noise.Laplace(),
+				Noise:             noise.Laplace(),
 				treeHeight:        4,
 				branchingFactor:   16,
 				numLeaves:         65536,
@@ -685,7 +685,7 @@ func TestBQEquallyInitialized(t *testing.T) {
 				l0Sensitivity:     8,
 				lInfSensitivity:   2,
 				noiseKind:         noise.LaplaceNoise,
-				noise:             noise.Laplace(),
+				Noise:             noise.Laplace(),
 				treeHeight:        4,
 				branchingFactor:   16,
 				numLeaves:         65536,
@@ -705,7 +705,7 @@ func TestBQEquallyInitialized(t *testing.T) {
 				l0Sensitivity:     8,
 				lInfSensitivity:   2,
 				noiseKind:         noise.LaplaceNoise,
-				noise:             noise.Laplace(),
+				Noise:             noise.Laplace(),
 				treeHeight:        4,
 				branchingFactor:   16,
 				numLeaves:         65536,
@@ -721,7 +721,7 @@ func TestBQEquallyInitialized(t *testing.T) {
 				l0Sensitivity:     8,
 				lInfSensitivity:   2,
 				noiseKind:         noise.LaplaceNoise,
-				noise:             noise.Laplace(),
+				Noise:             noise.Laplace(),
 				treeHeight:        4,
 				branchingFactor:   16,
 				numLeaves:         65536,
@@ -741,7 +741,7 @@ func TestBQEquallyInitialized(t *testing.T) {
 				l0Sensitivity:     8,
 				lInfSensitivity:   2,
 				noiseKind:         noise.LaplaceNoise,
-				noise:             noise.Laplace(),
+				Noise:             noise.Laplace(),
 				treeHeight:        4,
 				branchingFactor:   16,
 				numLeaves:         65536,
@@ -757,7 +757,7 @@ func TestBQEquallyInitialized(t *testing.T) {
 				l0Sensitivity:     8,
 				lInfSensitivity:   2,
 				noiseKind:         noise.LaplaceNoise,
-				noise:             noise.Laplace(),
+				Noise:             noise.Laplace(),
 				treeHeight:        4,
 				branchingFactor:   16,
 				numLeaves:         65536,
@@ -777,7 +777,7 @@ func TestBQEquallyInitialized(t *testing.T) {
 				l0Sensitivity:     6,
 				lInfSensitivity:   2,
 				noiseKind:         noise.LaplaceNoise,
-				noise:             noise.Laplace(),
+				Noise:             noise.Laplace(),
 				treeHeight:        3,
 				branchingFactor:   16,
 				numLeaves:         4096,
@@ -793,7 +793,7 @@ func TestBQEquallyInitialized(t *testing.T) {
 				l0Sensitivity:     8,
 				lInfSensitivity:   2,
 				noiseKind:         noise.LaplaceNoise,
-				noise:             noise.Laplace(),
+				Noise:             noise.Laplace(),
 				treeHeight:        4,
 				branchingFactor:   16,
 				numLeaves:         65536,
@@ -813,7 +813,7 @@ func TestBQEquallyInitialized(t *testing.T) {
 				l0Sensitivity:     8,
 				lInfSensitivity:   2,
 				noiseKind:         noise.LaplaceNoise,
-				noise:             noise.Laplace(),
+				Noise:             noise.Laplace(),
 				treeHeight:        4,
 				branchingFactor:   8,
 				numLeaves:         4096,
@@ -829,7 +829,7 @@ func TestBQEquallyInitialized(t *testing.T) {
 				l0Sensitivity:     8,
 				lInfSensitivity:   2,
 				noiseKind:         noise.LaplaceNoise,
-				noise:             noise.Laplace(),
+				Noise:             noise.Laplace(),
 				treeHeight:        4,
 				branchingFactor:   16,
 				numLeaves:         65536,
@@ -849,7 +849,7 @@ func TestBQEquallyInitialized(t *testing.T) {
 				l0Sensitivity:     8,
 				lInfSensitivity:   2,
 				noiseKind:         noise.LaplaceNoise,
-				noise:             noise.Laplace(),
+				Noise:             noise.Laplace(),
 				treeHeight:        4,
 				branchingFactor:   16,
 				numLeaves:         65536,
@@ -865,7 +865,7 @@ func TestBQEquallyInitialized(t *testing.T) {
 				l0Sensitivity:     8,
 				lInfSensitivity:   2,
 				noiseKind:         noise.LaplaceNoise,
-				noise:             noise.Laplace(),
+				Noise:             noise.Laplace(),
 				treeHeight:        4,
 				branchingFactor:   16,
 				numLeaves:         65536,
@@ -960,7 +960,7 @@ func compareBoundedQuantiles(bq1, bq2 *BoundedQuantiles) bool {
 		bq1.branchingFactor == bq2.branchingFactor &&
 		bq1.numLeaves == bq2.numLeaves &&
 		bq1.leftmostLeafIndex == bq2.leftmostLeafIndex &&
-		bq1.noise == bq2.noise &&
+		bq1.Noise == bq2.Noise &&
 		bq1.noiseKind == bq2.noiseKind &&
 		reflect.DeepEqual(bq1.tree, bq2.tree) &&
 		reflect.DeepEqual(bq1.noisedTree, bq2.noisedTree) &&

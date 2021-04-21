@@ -748,7 +748,7 @@ func TestSumPerKeyPerPartitionContributionBoundingFloat(t *testing.T) {
 	}
 }
 
-var sumPartitionSelectionNonDeterministicTestCases = []struct {
+var sumPartitionSelectionTestCases = []struct {
 	name                string
 	noiseKind           NoiseKind
 	epsilon             float64
@@ -787,9 +787,9 @@ var sumPartitionSelectionNonDeterministicTestCases = []struct {
 	},
 }
 
-// Checks that SumPerKey is performing a random partition selection.
-func TestSumPartitionSelectionNonDeterministicInt(t *testing.T) {
-	for _, tc := range sumPartitionSelectionNonDeterministicTestCases {
+// Checks that SumPerKey applies partition selection for int input values.
+func TestSumPartitionSelectionInt(t *testing.T) {
+	for _, tc := range sumPartitionSelectionTestCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Sanity check that the entriesPerPartition is sensical.
 			if tc.entriesPerPartition <= 0 {
@@ -821,7 +821,7 @@ func TestSumPartitionSelectionNonDeterministicInt(t *testing.T) {
 			got := SumPerKey(s, pcol, SumParams{MinValue: 0, MaxValue: 1, NoiseKind: tc.noiseKind, MaxPartitionsContributed: 1})
 			got = beam.ParDo(s, testutils.KVToInt64Metric, got)
 
-			// Validate that partitions are selected randomly (i.e., some emitted and some dropped).
+			// Validate that partition selection is applied (i.e., some emitted and some dropped).
 			testutils.CheckSomePartitionsAreDropped(s, got, tc.numPartitions)
 			if err := ptest.Run(p); err != nil {
 				t.Errorf("%v", err)
@@ -830,9 +830,9 @@ func TestSumPartitionSelectionNonDeterministicInt(t *testing.T) {
 	}
 }
 
-// Checks that SumPerKey is performing a random partition selection.
-func TestSumPartitionSelectionNonDeterministicFloat(t *testing.T) {
-	for _, tc := range sumPartitionSelectionNonDeterministicTestCases {
+// Checks that SumPerKey applies partition selection for float input values.
+func TestSumPartitionSelectionFloat(t *testing.T) {
+	for _, tc := range sumPartitionSelectionTestCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Sanity check that the entriesPerPartition is sensical.
 			if tc.entriesPerPartition <= 0 {
@@ -864,7 +864,7 @@ func TestSumPartitionSelectionNonDeterministicFloat(t *testing.T) {
 			got := SumPerKey(s, pcol, SumParams{MinValue: 0.0, MaxValue: 1.0, MaxPartitionsContributed: 1, NoiseKind: tc.noiseKind})
 			got = beam.ParDo(s, testutils.KVToFloat64Metric, got)
 
-			// Validate that partitions are selected randomly (i.e., some emitted and some dropped).
+			// Validate that partition selection is applied (i.e., some emitted and some dropped).
 			testutils.CheckSomePartitionsAreDropped(s, got, tc.numPartitions)
 			if err := ptest.Run(p); err != nil {
 				t.Errorf("%v", err)

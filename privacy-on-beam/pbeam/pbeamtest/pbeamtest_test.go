@@ -24,6 +24,8 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 func TestMain(m *testing.M) {
@@ -788,8 +790,9 @@ func TestMeanPerKeyTestModeCrossPartitionContributionBounding(t *testing.T) {
 			privacySpec:              NewPrivacySpecNoNoiseWithoutContributionBounding(tinyEpsilon, tinyDelta),
 			maxPartitionsContributed: 3,
 			// The same privacy ID contributes "1.0" to 10 partitions, which implies that mean of each
-			// partition is 1.0. Contribution bounding is disabled. The sum of all means must then be 10.0.
-			// This also ensures that no partitions (each with a single privacy id) gets thresholded.
+			// partition is 1.0. Cross-partition contribution bounding is disabled. The sum of all means
+			// must then be 10.0. This also ensures that no partitions (each with a single privacy id)
+			// gets thresholded.
 			want: 10.0,
 		},
 	} {
@@ -844,7 +847,7 @@ func TestMeanPerKeyTestModePerPartitionContributionBounding(t *testing.T) {
 			maxValue:                    50.0,
 			// MaxContributionsPerPartition = 1, but id = 0 contributes 3 times to partition 0.
 			// There will be a per-partition contribution bounding stage.
-			// In this stage the algorithm will randomly chose one of these 3 contributions.
+			// In this stage the algorithm will arbitrarily chose one of these 3 contributions.
 			// The mean should be equal to 50/50 = 1.0 (not 150/52 ≈ 2.88, if no per-partition contribution bounding is done).
 			want: 1.0,
 		},
@@ -882,7 +885,7 @@ func TestMeanPerKeyTestModePerPartitionContributionBounding(t *testing.T) {
 		want = beam.ParDo(s, testutils.Float64MetricToKV, want)
 		tolerance := 1e-10 // Using a small tolerance to make up for the rounding errors due to summation & division.
 		if err := testutils.ApproxEqualsKVFloat64(s, got, want, tolerance); err != nil {
-			t.Fatalf("EqualsKVFloat64: %v", err)
+			t.Fatalf("ApproxEqualsKVFloat64: %v", err)
 		}
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("MeanPerKey: %s did not do per-partition contribution bounding correctly: %v", tc.desc, err)
@@ -913,8 +916,8 @@ func TestMeanPerKeyWithPartitionsTestModeCrossPartitionContributionBounding(t *t
 			privacySpec:              NewPrivacySpecNoNoiseWithoutContributionBounding(tinyEpsilon, zeroDelta),
 			maxPartitionsContributed: 3,
 			// The same privacy ID contributes "1.0" to 10 partitions, which implies that mean of each
-			// partition is 1.0. Contribution bounding is disabled and 5 out of 10 partitions are specified
-			// as public partitions. The sum of all means must then be 5.0.
+			// partition is 1.0. Cross-partition contribution bounding is disabled and 5 out of 10 partitions
+			// are specified as public partitions. The sum of all means must then be 5.0.
 			want: 5.0,
 		},
 	} {
@@ -973,7 +976,7 @@ func TestMeanPerKeyWithPartitionsTestModePerPartitionContributionBoundingAddsEmp
 			maxValue:                    50.0,
 			// MaxContributionsPerPartition = 1, but id = 0 contributes 3 times to partition 0.
 			// There will be a per-partition contribution bounding stage.
-			// In this stage the algorithm will randomly chose one of these 3 contributions.
+			// In this stage the algorithm will arbitrarily chose one of these 3 contributions.
 			// The mean should be equal to 50/50 = 1.0 (not 150/52 ≈ 2.88, if no per-partition contribution bounding is done).
 			want: 1.0,
 		},
@@ -1024,6 +1027,388 @@ func TestMeanPerKeyWithPartitionsTestModePerPartitionContributionBoundingAddsEmp
 	}
 }
 
+// Tests that QuantilesPerKey bounds cross-partitions contributions correctly, adds no
+// noise and keeps all partitions in test mode.
+func TestQuantilesPerKeyTestModeCrossPartitionContributionBounding(t *testing.T) {
+	for _, tc := range []struct {
+		desc                         string
+		privacySpec                  *pbeam.PrivacySpec
+		maxContributionsPerPartition int64
+		maxPartitionsContributed     int64
+		minValue                     float64
+		maxValue                     float64
+		want                         float64
+	}{
+		{
+			desc:                         "test mode with contribution bounding",
+			privacySpec:                  NewPrivacySpecNoNoiseWithContributionBounding(tinyEpsilon, tinyDelta),
+			maxContributionsPerPartition: 20,
+			maxPartitionsContributed:     1,
+			minValue:                     0.0,
+			maxValue:                     1.0,
+			// 10 distinct privacy IDs contribute 0.0 to partition 0 and another 10 distinct
+			// privacy IDs contribute 0.0 to partition 1. A single privacy ID (different from
+			// these 20 privacy IDs) then contributes 20 "1.0"s to both partition 0 and partition 1.
+			// MaxPartitionsContributed is 1, so contributions to only one of these partitions will
+			// be kept. The median (rank=0.50) of one of these partitions must then be 0.0 and the other
+			// 1.0. The sum of these medians must then equal 1.0 (as opposed to 2.0 if no contribution
+			// bounding takes place). This also ensures that no partitions get thresholded.
+			want: 1.0,
+		},
+		{
+			desc:                         "test mode without contribution bounding",
+			privacySpec:                  NewPrivacySpecNoNoiseWithoutContributionBounding(tinyEpsilon, tinyDelta),
+			maxContributionsPerPartition: 20,
+			maxPartitionsContributed:     1,
+			minValue:                     0.0,
+			maxValue:                     1.0,
+			// 10 distinct privacy IDs contribute 0.0 to partition 0 and another 10 distinct
+			// privacy IDs contribute 0.0 to partition 1. A single privacy ID (different from
+			// these 20 privacy IDs) then contributes 20 "1.0"s to both partition 0 and partition 1.
+			// Cross-partition contribution bounding is disabled, so the median (rank=0.50) of both of
+			// these partitions must then be 1.0. The sum of these medians must then equal 2.0.
+			want: 2.0,
+		},
+	} {
+		triples := testutils.ConcatenateTriplesWithFloatValue(
+			testutils.MakeTripleWithFloatValue(10, 0, 0.0),
+			testutils.MakeTripleWithFloatValueStartingFromKey(10, 10, 1, 0.0))
+		for i := 0; i < 20; i++ {
+			triples = append(triples, testutils.TripleWithFloatValue{ID: 20, Partition: 0, Value: 1.0})
+			triples = append(triples, testutils.TripleWithFloatValue{ID: 20, Partition: 1, Value: 1.0})
+		}
+
+		wantMetric := []testutils.TestFloat64Metric{
+			{0, tc.want},
+		}
+
+		p, s, col, want := ptest.CreateList2(triples, wantMetric)
+		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
+
+		pcol := pbeam.MakePrivate(s, col, tc.privacySpec)
+		pcol = pbeam.ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
+		got := pbeam.QuantilesPerKey(s, pcol, pbeam.QuantilesParams{
+			MaxContributionsPerPartition: tc.maxContributionsPerPartition,
+			MaxPartitionsContributed:     tc.maxPartitionsContributed,
+			MinValue:                     tc.minValue,
+			MaxValue:                     tc.maxValue,
+			Ranks:                        []float64{0.50},
+			NoiseKind:                    pbeam.LaplaceNoise{}})
+		got = beam.ParDo(s, testutils.DereferenceFloat64Slice, got)
+		medians := beam.DropKey(s, got)
+		sumOverPartitions := stats.Sum(s, medians)
+		got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
+		want = beam.ParDo(s, testutils.Float64MetricToKV, want)
+		// Tolerance is multiplied by 2 because we sum over 2 partitions.
+		tolerance := QuantilesTolerance(tc.minValue, tc.maxValue) * 2
+		if err := testutils.ApproxEqualsKVFloat64(s, got, want, tolerance); err != nil {
+			t.Fatalf("ApproxEqualsKVFloat64: %v", err)
+		}
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("QuantilesPerKey: %s did not bound cross-partition contributions correctly: %v", tc.desc, err)
+		}
+	}
+}
+
+// Tests that QuantilesPerKey with partitions bounds cross-partitions contributions correctly
+// and adds no noise in test mode.
+func TestQuantilesPerKeyWithPartitionsTestModeCrossPartitionContributionBounding(t *testing.T) {
+	for _, tc := range []struct {
+		desc                         string
+		privacySpec                  *pbeam.PrivacySpec
+		maxContributionsPerPartition int64
+		maxPartitionsContributed     int64
+		minValue                     float64
+		maxValue                     float64
+		want                         float64
+	}{
+		{
+			desc:                         "test mode with contribution bounding",
+			privacySpec:                  NewPrivacySpecNoNoiseWithContributionBounding(tinyEpsilon, zeroDelta),
+			maxContributionsPerPartition: 20,
+			maxPartitionsContributed:     1,
+			minValue:                     0.0,
+			maxValue:                     1.0,
+			// 10 distinct privacy IDs contribute 0.0 to partition 0 and another 10 distinct
+			// privacy IDs contribute 0.0 to partition 1. A single privacy ID (different from
+			// these 20 privacy IDs) then contributes 20 "1.0"s to both partition 0 and partition 1.
+			// MaxPartitionsContributed is 1, so contributions to only one of these partitions will
+			// be kept. The median (rank=0.50) of one of these partitions must then be 0.0 and the other
+			// 1.0. The sum of these medians must then equal 1.0 (as opposed to 2.0 if no contribution
+			// bounding takes place).
+			want: 1.0,
+		},
+		{
+			desc:                         "test mode without contribution bounding",
+			privacySpec:                  NewPrivacySpecNoNoiseWithoutContributionBounding(tinyEpsilon, zeroDelta),
+			maxContributionsPerPartition: 20,
+			maxPartitionsContributed:     1,
+			minValue:                     0.0,
+			maxValue:                     1.0,
+			// 10 distinct privacy IDs contribute 0.0 to partition 0 and another 10 distinct
+			// privacy IDs contribute 0.0 to partition 1. A single privacy ID (different from
+			// these 20 privacy IDs) then contributes 20 "1.0"s to both partition 0 and partition 1.
+			// Cross-partition contribution bounding is disabled, so the median (rank=0.50) of both of
+			// these partitions must then be 1.0. The sum of these medians must then equal 2.0.
+			want: 2.0,
+		},
+	} {
+		triples := testutils.ConcatenateTriplesWithFloatValue(
+			testutils.MakeTripleWithFloatValue(10, 0, 0.0),
+			testutils.MakeTripleWithFloatValueStartingFromKey(10, 10, 1, 0.0))
+		for i := 0; i < 20; i++ {
+			triples = append(triples, testutils.TripleWithFloatValue{ID: 200, Partition: 0, Value: 1.0})
+			triples = append(triples, testutils.TripleWithFloatValue{ID: 200, Partition: 1, Value: 1.0})
+		}
+
+		wantMetric := []testutils.TestFloat64Metric{
+			{0, tc.want},
+		}
+		p, s, col, want := ptest.CreateList2(triples, wantMetric)
+		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
+		partitions := []int{0, 1}
+		publicPartitions := beam.CreateList(s, partitions)
+
+		pcol := pbeam.MakePrivate(s, col, tc.privacySpec)
+		pcol = pbeam.ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
+		got := pbeam.QuantilesPerKey(s, pcol, pbeam.QuantilesParams{
+			MaxContributionsPerPartition: tc.maxContributionsPerPartition,
+			MaxPartitionsContributed:     tc.maxPartitionsContributed,
+			MinValue:                     tc.minValue,
+			MaxValue:                     tc.maxValue,
+			Ranks:                        []float64{0.50},
+			PublicPartitions:             publicPartitions,
+			NoiseKind:                    pbeam.LaplaceNoise{}})
+		got = beam.ParDo(s, testutils.DereferenceFloat64Slice, got)
+		medians := beam.DropKey(s, got)
+		sumOverPartitions := stats.Sum(s, medians)
+		got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
+		want = beam.ParDo(s, testutils.Float64MetricToKV, want)
+		// Tolerance is multiplied by 2 because we sum over 2 partitions.
+		tolerance := QuantilesTolerance(tc.minValue, tc.maxValue) * 2
+		if err := testutils.ApproxEqualsKVFloat64(s, got, want, tolerance); err != nil {
+			t.Fatalf("ApproxEqualsKVFloat64: %v", err)
+		}
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("QuantilesPerKey: %s with partitions did not bound cross-partition contributions correctly: %v", tc.desc, err)
+		}
+	}
+}
+
+// Tests that QuantilesPerKey bounds per-partition contributions correctly, adds no noise
+// and keeps all partitions in test mode.
+func TestQuantilesPerKeyTestModePerPartitionContributionBounding(t *testing.T) {
+	for _, tc := range []struct {
+		desc                        string
+		privacySpec                 *pbeam.PrivacySpec
+		maxContributionPerPartition int64
+		minValue                    float64
+		maxValue                    float64
+		want                        float64
+	}{
+		{
+			desc:                        "test mode with contribution bounding",
+			privacySpec:                 NewPrivacySpecNoNoiseWithContributionBounding(tinyEpsilon, tinyDelta),
+			maxContributionPerPartition: 1,
+			minValue:                    0.0,
+			maxValue:                    1.0,
+			// First 50 privacy IDs contribute "0.0" 3 times to partition 0 and the next 50 privacy IDs
+			// contribute "1.0" to the same partition.
+			// There will be a per-partition contribution bounding stage. MaxContributionsPerPartition=1, so
+			// the algorithm will arbitrarily keep one of these 3 contributions for the first 50 privacy IDs.
+			// There will be equal number of "0.0"s and "1.0", so rank=0.6 should be equal to 1.0 (not 0.0,
+			// if no per-partition contribution bounding is done)
+			want: 1.0,
+		},
+		{
+			desc:                        "test mode without contribution bounding",
+			privacySpec:                 NewPrivacySpecNoNoiseWithoutContributionBounding(tinyEpsilon, tinyDelta),
+			maxContributionPerPartition: 1,
+			minValue:                    0.0,
+			maxValue:                    1.0,
+			// First 50 privacy IDs contribute "0.0" 3 times to partition 0 and the next 50 privacy IDs
+			// contribute "1.0" to the same partition.
+			// There will not be a per-partition contribution bounding stage, meaning that there will be 150
+			// "0.0"s and 50 "1.0"s. rank=0.6 should be equal to 0.0.
+			want: 0.0,
+		},
+	} {
+		var triples []testutils.TripleWithFloatValue
+		// triples{privacy_id, partition_key, value} contains {0,0,0}, {0,0,0}, {0,0,0}, …, {49,0,0}, {49,0,0}, {49,0,0}, {50,0,1}, {51,0,1}, …, {99, 0, 1}.
+		triples = append(triples, testutils.MakeTripleWithFloatValue(50, 0, 0.0)...)
+		triples = append(triples, testutils.MakeTripleWithFloatValue(50, 0, 0.0)...)
+		triples = append(triples, testutils.MakeTripleWithFloatValue(50, 0, 0.0)...)
+		triples = append(triples, testutils.MakeTripleWithFloatValueStartingFromKey(50, 50, 0, 1.0)...)
+		wantMetric := []testutils.TestFloat64Metric{
+			{0, tc.want},
+		}
+		p, s, col, want := ptest.CreateList2(triples, wantMetric)
+		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
+
+		pcol := pbeam.MakePrivate(s, col, tc.privacySpec)
+		pcol = pbeam.ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
+		got := pbeam.QuantilesPerKey(s, pcol, pbeam.QuantilesParams{
+			MaxContributionsPerPartition: tc.maxContributionPerPartition,
+			MaxPartitionsContributed:     1,
+			MinValue:                     tc.minValue,
+			MaxValue:                     tc.maxValue,
+			Ranks:                        []float64{0.6},
+			NoiseKind:                    pbeam.LaplaceNoise{}})
+		got = beam.ParDo(s, testutils.DereferenceFloat64Slice, got)
+
+		want = beam.ParDo(s, testutils.Float64MetricToKV, want)
+		if err := testutils.ApproxEqualsKVFloat64(s, got, want, QuantilesTolerance(tc.minValue, tc.maxValue)); err != nil {
+			t.Fatalf("ApproxEqualsKVFloat64: %v", err)
+		}
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("QuantilesPerKey: %s did not do per-partition contribution bounding correctly: %v", tc.desc, err)
+		}
+	}
+}
+
+// Tests that QuantilesPerKey with partition bounds per-partition contributions correctly,
+// adds no noise and keeps all partitions in test mode.
+func TestQuantilesPerKeyWithPartitionsTestModePerPartitionContributionBounding(t *testing.T) {
+	for _, tc := range []struct {
+		desc                        string
+		privacySpec                 *pbeam.PrivacySpec
+		maxContributionPerPartition int64
+		minValue                    float64
+		maxValue                    float64
+		want                        float64
+	}{
+		{
+			desc:                        "test mode with contribution bounding",
+			privacySpec:                 NewPrivacySpecNoNoiseWithContributionBounding(tinyEpsilon, zeroDelta),
+			maxContributionPerPartition: 1,
+			minValue:                    0.0,
+			maxValue:                    1.0,
+			// First 50 privacy IDs contribute "0.0" 3 times to partition 0 and the next 50 privacy IDs
+			// contribute "1.0" to the same partition.
+			// There will be a per-partition contribution bounding stage. MaxContributionsPerPartition=1, so
+			// the algorithm will arbitrarily keep one of these 3 contributions for the first 50 privacy IDs.
+			// There will be equal number of "0.0"s and "1.0", so rank=0.6 should be equal to 1.0 (not 0.0,
+			// if no per-partition contribution bounding is done)
+			want: 1.0,
+		},
+		{
+			desc:                        "test mode without contribution bounding",
+			privacySpec:                 NewPrivacySpecNoNoiseWithoutContributionBounding(tinyEpsilon, zeroDelta),
+			maxContributionPerPartition: 1,
+			minValue:                    0.0,
+			maxValue:                    1.0,
+			// First 50 privacy IDs contribute "0.0" 3 times to partition 0 and the next 50 privacy IDs
+			// contribute "1.0" to the same partition.
+			// There will not be a per-partition contribution bounding stage, meaning that there will be 150
+			// "0.0"s and 50 "1.0"s. rank=0.6 should be equal to 0.0.
+			want: 0.0,
+		},
+	} {
+		var triples []testutils.TripleWithFloatValue
+		// triples{privacy_id, partition_key, value} contains {0,0,0}, {0,0,0}, {0,0,0}, …, {49,0,0}, {49,0,0}, {49,0,0}, {50,0,1}, {51,0,1}, …, {99, 0, 1}.
+		triples = append(triples, testutils.MakeTripleWithFloatValue(50, 0, 0.0)...)
+		triples = append(triples, testutils.MakeTripleWithFloatValue(50, 0, 0.0)...)
+		triples = append(triples, testutils.MakeTripleWithFloatValue(50, 0, 0.0)...)
+		triples = append(triples, testutils.MakeTripleWithFloatValueStartingFromKey(50, 50, 0, 1.0)...)
+		wantMetric := []testutils.TestFloat64Metric{
+			{0, tc.want},
+		}
+		p, s, col, want := ptest.CreateList2(triples, wantMetric)
+		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
+		publicPartitions := beam.CreateList(s, []int{0})
+
+		pcol := pbeam.MakePrivate(s, col, tc.privacySpec)
+		pcol = pbeam.ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
+		got := pbeam.QuantilesPerKey(s, pcol, pbeam.QuantilesParams{
+			MaxContributionsPerPartition: tc.maxContributionPerPartition,
+			MaxPartitionsContributed:     1,
+			MinValue:                     tc.minValue,
+			MaxValue:                     tc.maxValue,
+			Ranks:                        []float64{0.6},
+			PublicPartitions:             publicPartitions,
+			NoiseKind:                    pbeam.LaplaceNoise{}})
+		got = beam.ParDo(s, testutils.DereferenceFloat64Slice, got)
+
+		want = beam.ParDo(s, testutils.Float64MetricToKV, want)
+		if err := testutils.ApproxEqualsKVFloat64(s, got, want, QuantilesTolerance(tc.minValue, tc.maxValue)); err != nil {
+			t.Fatalf("ApproxEqualsKVFloat64: %v", err)
+		}
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("QuantilesPerKey: %s with partitions did not do per-partition contribution bounding correctly: %v", tc.desc, err)
+		}
+	}
+}
+
+// Checks that QuantilesPerKey with partitions applies public partitions correctly in test mode.
+func TestQuantilesPerKeyWithPartitionsAppliesPublicPartitions(t *testing.T) {
+	for _, tc := range []struct {
+		desc        string
+		privacySpec *pbeam.PrivacySpec
+	}{
+		{
+			desc:        "test mode with contribution bounding",
+			privacySpec: NewPrivacySpecNoNoiseWithContributionBounding(tinyEpsilon, zeroDelta),
+		},
+		{
+			desc:        "test mode without contribution bounding",
+			privacySpec: NewPrivacySpecNoNoiseWithoutContributionBounding(tinyEpsilon, zeroDelta),
+		},
+	} {
+		triples := testutils.ConcatenateTriplesWithFloatValue(
+			testutils.MakeTripleWithFloatValue(100, 0, 1.0),
+			testutils.MakeTripleWithFloatValue(100, 0, 4.0),
+			testutils.MakeTripleWithFloatValueStartingFromKey(100, 100, 1, 1.0))
+
+		wantMetric := []testutils.TestFloat64SliceMetric{
+			{0, []float64{1.0, 1.0, 4.0, 4.0}},
+			// Partition 1 is not in the list of public partitions, so it will be dropped.
+			{2, []float64{0.5, 1.25, 3.75, 4.5}}, // Empty partition is linearly interpolated.
+		}
+		p, s, col, want := ptest.CreateList2(triples, wantMetric)
+		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
+
+		lower := 0.0
+		upper := 5.0
+		ranks := []float64{0.10, 0.25, 0.75, 0.90}
+		publicPartitions := beam.CreateList(s, []int{0, 2})
+
+		pcol := pbeam.MakePrivate(s, col, tc.privacySpec)
+		pcol = pbeam.ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
+		got := pbeam.QuantilesPerKey(s, pcol, pbeam.QuantilesParams{
+			MaxPartitionsContributed:     1,
+			MaxContributionsPerPartition: 2,
+			MinValue:                     lower,
+			MaxValue:                     upper,
+			Ranks:                        ranks,
+			PublicPartitions:             publicPartitions,
+		})
+
+		want = beam.ParDo(s, testutils.Float64SliceMetricToKV, want)
+		if err := testutils.ApproxEqualsKVFloat64Slice(s, got, want, QuantilesTolerance(lower, upper)); err != nil {
+			t.Fatalf("ApproxEqualsKVFloat64Slice: got error %v", err)
+		}
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("QuantilesPerKey did apply public partitions correctly: %v", err)
+		}
+	}
+}
+
+func TestQuantilesTolerance(t *testing.T) {
+	for _, tc := range []struct {
+		minValue      float64
+		maxValue      float64
+		wantTolerance float64
+	}{
+		{-5.0, 5.0, 0.00015258789},
+		{0.0, 1000.0, 0.01525878906},
+	} {
+		got := QuantilesTolerance(tc.minValue, tc.maxValue)
+		if !cmp.Equal(got, tc.wantTolerance, cmpopts.EquateApprox(0, 1e-9)) { // Allow for floating point arithmetic errors.
+			t.Errorf("QuantilesTolerance: with minValue=%f maxValue=%f got tolerance=%f, want=%f", tc.minValue, tc.maxValue, got, tc.wantTolerance)
+		}
+	}
+}
+
 // Tests that SelectPartitions bounds cross-partition contributions correctly and keeps
 // all partitions in test mode with PrivatePCollection<V> inputs.
 func TestSelectPartitionsTestModeCrossPartitionContributionBoundingV(t *testing.T) {
@@ -1044,7 +1429,7 @@ func TestSelectPartitionsTestModeCrossPartitionContributionBoundingV(t *testing.
 			desc:                     "test mode without contribution bounding",
 			privacySpec:              NewPrivacySpecNoNoiseWithoutContributionBounding(tinyEpsilon, tinyDelta),
 			maxPartitionsContributed: 1,
-			// Contribution bounding is disabled, so all 10 partitions should be outputted.
+			// Cross-partition contribution bounding is disabled, so all 10 partitions should be outputted.
 			want: 10,
 		},
 	} {
@@ -1086,7 +1471,7 @@ func TestSelectPartitionsTestModeCrossPartitionContributionBoundingKV(t *testing
 			desc:                     "test mode without contribution bounding",
 			privacySpec:              NewPrivacySpecNoNoiseWithoutContributionBounding(tinyEpsilon, tinyDelta),
 			maxPartitionsContributed: 1,
-			// Contribution bounding is disabled, so all 10 partitions should be outputted.
+			// Cross-partition contribution bounding is disabled, so all 10 partitions should be outputted.
 			want: 10,
 		},
 	} {
@@ -1133,8 +1518,9 @@ func TestDistinctPerKeyTestModeCrossPartitionContributionBounding(t *testing.T) 
 			privacySpec:              NewPrivacySpecNoNoiseWithoutContributionBounding(tinyEpsilon, tinyDelta),
 			maxPartitionsContributed: 3,
 			// The same privacy ID contributes once to 10 partitions, which implies that count of each
-			// partition is 3. Contribution bounding is disabled. The sum of all counts must then be 10.
-			// This also ensures that no partitions (each with a single privacy id) gets thresholded.
+			// partition is 3. Cross-partition contribution bounding is disabled. The sum of all counts
+			// must then be 10. This also ensures that no partitions (each with a single privacy id)
+			// gets thresholded.
 			want: 10,
 		},
 	} {

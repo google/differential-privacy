@@ -234,7 +234,7 @@ func TestDistinctPrivacyKeyPerPartitionContributionBounding(t *testing.T) {
 	}
 }
 
-var distinctPerKeyPartitionSelectionNonDeterministicTestCases = []struct {
+var distinctPerKeyPartitionSelectionTestCases = []struct {
 	name                string
 	noiseKind           NoiseKind
 	epsilon             float64
@@ -273,9 +273,9 @@ var distinctPerKeyPartitionSelectionNonDeterministicTestCases = []struct {
 	},
 }
 
-// Checks that DistinctPerKey is performing a random partition selection.
-func TestDistinctPerKeyPartitionSelectionNonDeterministicInt(t *testing.T) {
-	for _, tc := range distinctPerKeyPartitionSelectionNonDeterministicTestCases {
+// Checks that DistinctPerKey applies partition selection.
+func TestDistinctPerKeyPartitionSelection(t *testing.T) {
+	for _, tc := range distinctPerKeyPartitionSelectionTestCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Sanity check that the entriesPerPartition is sensical.
 			if tc.entriesPerPartition <= 0 {
@@ -307,7 +307,7 @@ func TestDistinctPerKeyPartitionSelectionNonDeterministicInt(t *testing.T) {
 			got := DistinctPerKey(s, pcol, DistinctPerKeyParams{MaxPartitionsContributed: int64(tc.numPartitions), NoiseKind: tc.noiseKind, MaxContributionsPerPartition: 1})
 			got = beam.ParDo(s, testutils.KVToInt64Metric, got)
 
-			// Validate that partitions are selected randomly (i.e., some emitted and some dropped).
+			// Validate that partition selection is applied (i.e., some emitted and some dropped).
 			testutils.CheckSomePartitionsAreDropped(s, got, tc.numPartitions)
 			if err := ptest.Run(p); err != nil {
 				t.Errorf("%v", err)

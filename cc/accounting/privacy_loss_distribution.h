@@ -146,12 +146,26 @@ class PrivacyLossDistribution {
   // Observation 1 in the supplementary material.)
   double GetEpsilonForDelta(double delta) const;
 
-  // Composes other PLD into itself. The discretization intervals should be
-  // the same otherwise failure status is returned. Additional parameter:
+  // Validates that a given PLD can be composed with this PLD. The
+  // discretization intervals and the estimate types should be the same;
+  // otherwise failure status is returned.
+  absl::Status ValidateComposition(
+      const PrivacyLossDistribution& other_pld) const;
+
+  // Composes other PLD into itself. Additional parameter:
   //   tail_mass_truncation: an upper bound on the tails of the probability
   //     mass of the PLD that might be truncated.
   absl::Status Compose(const PrivacyLossDistribution& other_pld,
                        double tail_mass_truncation = 1e-15);
+
+  // Computes delta for given epsilon for the result of composing this PLD and a
+  // given PLD. Note that this function does not modify the current PLD.
+  //
+  // The output of this function should be the same as first composing this PLD
+  // and other_pld, and then call GetEpsilonForDelta on the resulting
+  // PLD. The main advantage is that this function is faster.
+  base::StatusOr<double> GetDeltaForEpsilonForComposedPLD(
+      const PrivacyLossDistribution& other_pld, double epsilon) const;
 
   // Composes PLD into itself num_times.
   void Compose(int num_times);

@@ -98,8 +98,8 @@ func TestCountWithPartitionsNoNoise(t *testing.T) {
 	}
 }
 
-// Checks that Count is performing a random partition selection.
-func TestCountPartitionSelectionNonDeterministic(t *testing.T) {
+// Checks that Count applies partition selection.
+func TestCountPartitionSelection(t *testing.T) {
 	for _, tc := range []struct {
 		name          string
 		noiseKind     NoiseKind
@@ -167,7 +167,7 @@ func TestCountPartitionSelectionNonDeterministic(t *testing.T) {
 			got := Count(s, pcol, CountParams{MaxValue: 1, MaxPartitionsContributed: 1, NoiseKind: tc.noiseKind})
 			got = beam.ParDo(s, testutils.KVToInt64Metric, got)
 
-			// Validate that partitions are selected randomly (i.e., some emitted and some dropped).
+			// Validate that partition selection is applied (i.e., some emitted and some dropped).
 			testutils.CheckSomePartitionsAreDropped(s, got, tc.numPartitions)
 			if err := ptest.Run(p); err != nil {
 				t.Errorf("%v", err)

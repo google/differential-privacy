@@ -600,7 +600,7 @@ func TestMeanPerKeyWithPartitionsNoNoiseFloatValues(t *testing.T) {
 	}
 }
 
-var meanPartitionSelectionNonDeterministicTestCases = []struct {
+var meanPartitionSelectionTestCases = []struct {
 	name                string
 	noiseKind           NoiseKind
 	epsilon             float64
@@ -639,9 +639,9 @@ var meanPartitionSelectionNonDeterministicTestCases = []struct {
 	},
 }
 
-// Checks that MeanPerKey is performing a random partition selection.
-func TestMeanPartitionSelectionNonDeterministic(t *testing.T) {
-	for _, tc := range meanPartitionSelectionNonDeterministicTestCases {
+// Checks that MeanPerKey applies partition selection.
+func TestMeanPartitionSelection(t *testing.T) {
+	for _, tc := range meanPartitionSelectionTestCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Sanity check that the entriesPerPartition is sensical.
 			if tc.entriesPerPartition <= 0 {
@@ -679,7 +679,7 @@ func TestMeanPartitionSelectionNonDeterministic(t *testing.T) {
 			})
 			got = beam.ParDo(s, testutils.KVToFloat64Metric, got)
 
-			// Validate that partitions are selected randomly (i.e., some emitted and some dropped).
+			// Validate that partition selection is applied (i.e., some emitted and some dropped).
 			testutils.CheckSomePartitionsAreDropped(s, got, tc.numPartitions)
 			if err := ptest.Run(p); err != nil {
 				t.Errorf("%v", err)

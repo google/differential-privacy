@@ -21,6 +21,7 @@
 #include "absl/strings/str_format.h"
 #include "accounting/common/common.h"
 #include "accounting/convolution.h"
+#include "base/status_macros.h"
 
 namespace differential_privacy {
 namespace accounting {
@@ -206,8 +207,8 @@ PrivacyLossDistribution::CreateForPrivacyParameters(
       discretization_interval, /*infinity_mass=*/delta, rounded_pmf));
 }
 
-absl::Status PrivacyLossDistribution::Compose(
-    const PrivacyLossDistribution& other_pld, double tail_mass_truncation) {
+absl::Status PrivacyLossDistribution::ValidateComposition(
+    const PrivacyLossDistribution& other_pld) const {
   if (other_pld.DiscretizationInterval() != discretization_interval_) {
     return absl::InvalidArgumentError(absl::StrFormat(
         "Cannot compose, discretization intervals are different "
@@ -219,6 +220,13 @@ absl::Status PrivacyLossDistribution::Compose(
     return absl::InvalidArgumentError(
         "Cannot compose, estimate types are different");
   }
+
+  return absl::OkStatus();
+}
+
+absl::Status PrivacyLossDistribution::Compose(
+    const PrivacyLossDistribution& other_pld, double tail_mass_truncation) {
+  RETURN_IF_ERROR(ValidateComposition(other_pld));
 
   double new_infinity_mass = infinity_mass_ + other_pld.InfinityMass() -
                              infinity_mass_ * other_pld.InfinityMass();
@@ -235,6 +243,51 @@ absl::Status PrivacyLossDistribution::Compose(
   probability_mass_function_ = new_pmf;
   infinity_mass_ = new_infinity_mass;
   return absl::OkStatus();
+}
+
+base::StatusOr<double>
+PrivacyLossDistribution::GetDeltaForEpsilonForComposedPLD(
+    const PrivacyLossDistribution& other_pld, double epsilon) const {
+  RETURN_IF_ERROR(ValidateComposition(other_pld));
+
+  UnpackedProbabilityMassFunction this_pmf =
+      UnpackProbabilityMassFunction(probability_mass_function_);
+  UnpackedProbabilityMassFunction other_pmf =
+      UnpackProbabilityMassFunction(other_pld.probability_mass_function_);
+
+  // Compute the hockey stick divergence using equation (2) in the
+  // supplementary material. other_cumulative_upper_mass below represents the
+  // summation in equation (3) and other_cumulative_lower_mass represents the
+  // summation in equation (4).
+
+  double other_cumulative_upper_mass = 0;
+  double other_cumulative_lower_mass = 0;
+  int current_idx = other_pmf.items.size() - 1;
+  double delta = 0;
+
+  for (int this_idx = 0; this_idx < this_pmf.items.size(); ++this_idx) {
+    double this_privacy_loss =
+        discretization_interval_ * (this_idx + this_pmf.min_key);
+    double this_probability_mass = this_pmf.items[this_idx];
+    while (current_idx >= 0) {
+      double other_privacy_loss = other_pld.discretization_interval_ *
+                                  (current_idx + other_pmf.min_key);
+      if (other_privacy_loss + this_privacy_loss <= epsilon) break;
+      other_cumulative_upper_mass += other_pmf.items[current_idx];
+      other_cumulative_lower_mass +=
+          other_pmf.items[current_idx] / std::exp(other_privacy_loss);
+      --current_idx;
+    }
+    delta += this_probability_mass * (other_cumulative_upper_mass -
+                                      std::exp(epsilon - this_privacy_loss) *
+                                          other_cumulative_lower_mass);
+  }
+
+  // The probability that the composed privacy loss is infinite.
+  double composed_infinity_mass = infinity_mass_ + other_pld.InfinityMass() -
+                                  infinity_mass_ * other_pld.InfinityMass();
+
+  return delta + composed_infinity_mass;
 }
 
 void PrivacyLossDistribution::Compose(int num_times) {

@@ -25,10 +25,11 @@ import (
 	"github.com/google/differential-privacy/go/noise"
 )
 
+// Constants used for QuantileTrees.
 const (
 	numericalTolerance     = 1e-6
-	defaultTreeHeight      = 4
-	defaultBranchingFactor = 16
+	DefaultTreeHeight      = 4
+	DefaultBranchingFactor = 16
 	rootIndex              = 0
 	// Fraction a node needs to contribute to the total count of itself and its siblings to be
 	// considered during the search for a particular quantile. The idea of alpha is to filter out
@@ -61,7 +62,7 @@ type BoundedQuantiles struct {
 	branchingFactor int
 	l0Sensitivity   int64
 	lInfSensitivity float64
-	noise           noise.Noise
+	Noise           noise.Noise
 	noiseKind       noise.Kind // necessary for serializing noise.Noise information
 
 	// State variables
@@ -128,7 +129,7 @@ func NewBoundedQuantiles(opt *BoundedQuantilesOptions) *BoundedQuantiles {
 	// Check tree height and branching factor, set defaults if not specified, and use them to compute numLeaves and leftmostLeafIndex.
 	treeHeight := opt.TreeHeight
 	if treeHeight == 0 {
-		treeHeight = defaultTreeHeight
+		treeHeight = DefaultTreeHeight
 	}
 	if err := checks.CheckTreeHeight("NewBoundedQuantiles", treeHeight); err != nil {
 		// TODO: do not exit the program from within library code
@@ -136,7 +137,7 @@ func NewBoundedQuantiles(opt *BoundedQuantilesOptions) *BoundedQuantiles {
 	}
 	branchingFactor := opt.BranchingFactor
 	if branchingFactor == 0 {
-		branchingFactor = defaultBranchingFactor
+		branchingFactor = DefaultBranchingFactor
 	}
 	if err := checks.CheckBranchingFactor("NewBoundedQuantiles", branchingFactor); err != nil {
 		// TODO: do not exit the program from within library code
@@ -171,7 +172,7 @@ func NewBoundedQuantiles(opt *BoundedQuantilesOptions) *BoundedQuantiles {
 		branchingFactor:   branchingFactor,
 		l0Sensitivity:     l0Sensitivity,
 		lInfSensitivity:   lInfSensitivity,
-		noise:             n,
+		Noise:             n,
 		noiseKind:         noise.ToKind(n),
 		tree:              make(map[int]int64),
 		noisedTree:        make(map[int]float64),
@@ -328,7 +329,7 @@ func (bq *BoundedQuantiles) getNoisedCount(index int) float64 {
 		return noisedCount
 	}
 	rawCount := bq.tree[index]
-	noisedCount := bq.noise.AddNoiseFloat64(float64(rawCount), bq.l0Sensitivity, bq.lInfSensitivity, bq.epsilon, bq.delta)
+	noisedCount := bq.Noise.AddNoiseFloat64(float64(rawCount), bq.l0Sensitivity, bq.lInfSensitivity, bq.epsilon, bq.delta)
 	bq.noisedTree[index] = noisedCount
 	return noisedCount
 }
@@ -359,6 +360,7 @@ func (bq *BoundedQuantiles) Merge(bq2 *BoundedQuantiles) {
 	for index, count := range bq2.tree {
 		bq.tree[index] += count
 	}
+	bq2.state = merged
 }
 
 func checkMergeBoundedQuantiles(bq1, bq2 *BoundedQuantiles) error {
@@ -421,7 +423,7 @@ func (bq *BoundedQuantiles) GobEncode() ([]byte, error) {
 		Upper:             bq.upper,
 		NumLeaves:         bq.numLeaves,
 		LeftmostLeafIndex: bq.leftmostLeafIndex,
-		NoiseKind:         noise.ToKind(bq.noise),
+		NoiseKind:         noise.ToKind(bq.Noise),
 		QuantileTree:      bq.tree,
 	}
 	bq.state = serialized
@@ -446,7 +448,7 @@ func (bq *BoundedQuantiles) GobDecode(data []byte) error {
 		lower:             enc.Lower,
 		upper:             enc.Upper,
 		noiseKind:         enc.NoiseKind,
-		noise:             noise.ToNoise(enc.NoiseKind),
+		Noise:             noise.ToNoise(enc.NoiseKind),
 		numLeaves:         enc.NumLeaves,
 		leftmostLeafIndex: enc.LeftmostLeafIndex,
 		tree:              enc.QuantileTree,

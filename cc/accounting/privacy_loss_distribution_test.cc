@@ -160,6 +160,25 @@ TEST(PrivacyLossDistributionTest, Compose) {
   EXPECT_FALSE(pld->Pmf().empty());
 }
 
+TEST(PrivacyLossDistributionTest, GetDeltaForEpsilonForComposedPLD) {
+  ProbabilityMassFunction pmf = {{0, 0.1}, {1, 0.7}, {2, 0.1}};
+  std::unique_ptr<PrivacyLossDistribution> pld =
+      PrivacyLossDistributionTestPeer::Create(pmf,
+                                              /*infinity_mass=*/0.1,
+                                              /*discretization_interval=*/0.4);
+
+  ProbabilityMassFunction pmf_other = {{1, 0.1}, {2, 0.6}, {3, 0.25}};
+  std::unique_ptr<PrivacyLossDistribution> pld_other =
+      PrivacyLossDistributionTestPeer::Create(pmf_other,
+                                              /*infinity_mass=*/0.05,
+                                              /*discretization_interval=*/0.4);
+
+  base::StatusOr<double> delta =
+      pld->GetDeltaForEpsilonForComposedPLD(*pld_other, /*epsilon=*/1.1);
+  ASSERT_OK(delta);
+  EXPECT_THAT(*delta, DoubleNear(0.2956, kMaxError));
+}
+
 TEST(PrivacyLossDistributionTest, ComposeTruncation) {
   ProbabilityMassFunction pmf = {{0, 0.1}, {1, 0.7}, {2, 0.1}};
   std::unique_ptr<PrivacyLossDistribution> pld =
@@ -209,10 +228,16 @@ TEST(PrivacyLossDistributionTest,
   std::unique_ptr<PrivacyLossDistribution> pld_other =
       PrivacyLossDistributionTestPeer::Create(pmf, 0.3, 2e-4);
 
-  EXPECT_THAT(pld->Compose(*pld_other),
-              StatusIs(absl::InvalidArgumentError("").code(),
-                       HasSubstr("Cannot compose, discretization intervals "
-                                 "are different - 0.000200 vs 0.000100")));
+  std::string error_msg = "discretization interval";
+  EXPECT_THAT(
+      pld->ValidateComposition(*pld_other),
+      StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr(error_msg)));
+  EXPECT_THAT(
+      pld->Compose(*pld_other),
+      StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr(error_msg)));
+  EXPECT_THAT(
+      pld->GetDeltaForEpsilonForComposedPLD(*pld_other, /*epsilon=*/1),
+      StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr(error_msg)));
 }
 
 TEST(PrivacyLossDistributionTest, ComposeErrorDifferentEstimateTypes) {
@@ -227,9 +252,16 @@ TEST(PrivacyLossDistributionTest, ComposeErrorDifferentEstimateTypes) {
           pmf, /*infinity_mass=*/0.3, /*discretization_interval=*/1e-4,
           /*estimate_type=*/EstimateType::kOptimistic);
 
-  EXPECT_THAT(pld->Compose(*pld_other),
-              StatusIs(absl::StatusCode::kInvalidArgument,
-                       Eq("Cannot compose, estimate types are different")));
+  std::string error_msg = "estimate type";
+  EXPECT_THAT(
+      pld->ValidateComposition(*pld_other),
+      StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr(error_msg)));
+  EXPECT_THAT(
+      pld->Compose(*pld_other),
+      StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr(error_msg)));
+  EXPECT_THAT(
+      pld->GetDeltaForEpsilonForComposedPLD(*pld_other, /*epsilon=*/1),
+      StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr(error_msg)));
 }
 
 struct GetEpsilonFromDeltaParam {

@@ -23,21 +23,12 @@
 #include <limits>
 
 #include "base/logging.h"
+#include "absl/numeric/bits.h"
 #include "absl/synchronization/mutex.h"
 #include "openssl/rand.h"
 
 namespace differential_privacy {
 namespace {
-// From absl/base/internal/bits.h.
-int CountLeadingZeros64Slow(uint64_t n) {
-  int zeroes = 60;
-  if (n >> 32) zeroes -= 32, n >>= 32;
-  if (n >> 16) zeroes -= 16, n >>= 16;
-  if (n >> 8) zeroes -= 8, n >>= 8;
-  if (n >> 4) zeroes -= 4, n >>= 4;
-  return "\4\3\2\2\1\1\1\1\0\0\0\0\0\0\0"[n] + zeroes;
-}
-
 // We usually expect DBL_MANT_DIG to be 53.
 static_assert(DBL_MANT_DIG < 64,
               "Double mantissa must have less than 64 bits.");
@@ -59,7 +50,7 @@ double UniformDouble() {
   uint64_t j = uint_64_number >> kMantDigits;
 
   // exponent is the number of leading zeros in the first 11 bits plus one.
-  uint64_t exponent = CountLeadingZeros64Slow(j) - kMantDigits + 1;
+  uint64_t exponent = absl::countl_zero(j) - kMantDigits + 1;
 
   // Extra geometric sampling is needed only when the leading 11 bits are all 0.
   if (j == 0) {
@@ -84,7 +75,7 @@ uint64_t Geometric() {
   uint64_t r = 0;
   while (r == 0 && result < 1023) {
     r = SecureURBG::GetSingleton()();
-    result += CountLeadingZeros64Slow(r);
+    result += absl::countl_zero(r);
   }
   return result;
 }

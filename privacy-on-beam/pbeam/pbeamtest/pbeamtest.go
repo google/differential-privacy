@@ -19,6 +19,9 @@
 package pbeamtest
 
 import (
+	"math"
+
+	"github.com/google/differential-privacy/go/dpagg"
 	"github.com/google/differential-privacy/privacy-on-beam/internal/testoption"
 	"github.com/google/differential-privacy/privacy-on-beam/pbeam"
 )
@@ -53,4 +56,14 @@ func NewPrivacySpecNoNoiseWithContributionBounding(epsilon, delta float64) *pbea
 // test code in order to avoid dealing with random noise.
 func NewPrivacySpecNoNoiseWithoutContributionBounding(epsilon, delta float64) *pbeam.PrivacySpec {
 	return pbeam.NewPrivacySpec(epsilon, delta, testoption.EnableNoNoiseWithoutContributionBounding{})
+}
+
+// QuantilesTolerance returns a tolerance t such that the output of QuantilesPerKey is
+// within t of the exact result for given MinValue and MaxValue parameters of
+// QuantilesParams when pbeamtest is used.
+//
+// Due to the implementation details of Quantiles, it has an inherent (non-DP) noise. So,
+// even when we disable DP noise, the results will be still slightly noisy.
+func QuantilesTolerance(MinValue, MaxValue float64) float64 {
+	return (MaxValue - MinValue) / math.Pow(float64(dpagg.DefaultBranchingFactor), float64(dpagg.DefaultTreeHeight))
 }

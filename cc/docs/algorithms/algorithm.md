@@ -110,7 +110,7 @@ an error.
 
 ```
 Summary Serialize();
-util::Status Merge(const Summary& summary);
+absl::Status Merge(const Summary& summary);
 ```
 
 Serialization and merging can allow these algorithms to be used in a distributed

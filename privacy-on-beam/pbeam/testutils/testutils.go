@@ -40,9 +40,11 @@ func init() {
 	beam.RegisterType(reflect.TypeOf(PairICodedKV{}))
 	beam.RegisterType(reflect.TypeOf(TestInt64Metric{}))
 	beam.RegisterType(reflect.TypeOf(TestFloat64Metric{}))
+	beam.RegisterType(reflect.TypeOf(TestFloat64SliceMetric{}))
 
 	beam.RegisterType(reflect.TypeOf((*diffInt64Fn)(nil)))
 	beam.RegisterType(reflect.TypeOf((*diffFloat64Fn)(nil)))
+	beam.RegisterType(reflect.TypeOf((*diffFloat64SliceFn)(nil)))
 
 	beam.RegisterFunction(CheckNoNegativeValuesInt64Fn)
 	beam.RegisterFunction(CheckNoNegativeValuesFloat64Fn)
@@ -297,6 +299,22 @@ func Float64MetricToInt64Metric(tm TestFloat64Metric) TestInt64Metric {
 	return TestInt64Metric{tm.Value, int64(tm.Metric)}
 }
 
+// TestFloat64SliceMetric holds a Value and an associated []float64 metric (aggregation).
+type TestFloat64SliceMetric struct {
+	Value  int
+	Metric []float64
+}
+
+// Float64SliceMetricToKV transforms a TestFloat64SliceMetric into an (int, []float64) key-value pair.
+func Float64SliceMetricToKV(tm TestFloat64SliceMetric) (int, []float64) {
+	return tm.Value, tm.Metric
+}
+
+// KVToFloat64SliceMetric transforms an (int, []float64) key-value pair into a TestFloat64SliceMetric.
+func KVToFloat64SliceMetric(v int, m []float64) TestFloat64SliceMetric {
+	return TestFloat64SliceMetric{v, m}
+}
+
 // EqualsKVInt checks that two PCollections col1 and col2 of type
 // <K,int> are exactly equal.
 func EqualsKVInt(s beam.Scope, col1, col2 beam.PCollection) error {
@@ -325,6 +343,24 @@ func EqualsKVInt64(s beam.Scope, col1, col2 beam.PCollection) error {
 // <K,float64> are exactly equal. Each key can only hold a single value.
 func EqualsKVFloat64(s beam.Scope, col1, col2 beam.PCollection) error {
 	return ApproxEqualsKVFloat64(s, col1, col2, 0.0)
+}
+
+// NotEqualsFloat64 checks that two PCollections col1 and col2 of type
+// <K,float64> are different. Each key can only hold a single value.
+func NotEqualsFloat64(s beam.Scope, col1, col2 beam.PCollection) error {
+	wantV := reflect.TypeOf(float64(0))
+	if err := checkValueType(col1, wantV); err != nil {
+		return fmt.Errorf("unexpected value type for col1: %v", err)
+	}
+	if err := checkValueType(col2, wantV); err != nil {
+		return fmt.Errorf("unexpected value type for col2: %v", err)
+	}
+
+	coGroupToValue := beam.CoGroupByKey(s, col1, col2)
+	diffs := beam.ParDo(s, &diffFloat64Fn{Tolerance: 0.0}, coGroupToValue)
+	combinedDiff := beam.Combine(s, combineDiffs, diffs)
+	beam.ParDo0(s, reportEquals, combinedDiff)
+	return nil
 }
 
 // ApproxEqualsKVInt64 checks that two PCollections col1 and col2 of type
@@ -369,9 +405,63 @@ func ApproxEqualsKVFloat64(s beam.Scope, col1, col2 beam.PCollection, tolerance 
 	return nil
 }
 
+// LessThanOrEqualToKVFloat64 checks that for PCollections col1 and col2 of type
+// <K,float64>, for each key k, value corresponding to col1 is less than or equal
+// to the value corresponding in col2. Each key can only hold a single value.
+func LessThanOrEqualToKVFloat64(s beam.Scope, col1, col2 beam.PCollection) error {
+	wantV := reflect.TypeOf(float64(0))
+	if err := checkValueType(col1, wantV); err != nil {
+		return fmt.Errorf("unexpected value type for col1: %v", err)
+	}
+	if err := checkValueType(col2, wantV); err != nil {
+		return fmt.Errorf("unexpected value type for col2: %v", err)
+	}
+
+	coGroupToValue := beam.CoGroupByKey(s, col1, col2)
+	diffs := beam.ParDo(s, lessThanOrEqualTo, coGroupToValue)
+	combinedDiff := beam.Combine(s, combineDiffs, diffs)
+	beam.ParDo0(s, reportGreaterThan, combinedDiff)
+	return nil
+}
+
+// ApproxEqualsKVFloat64Slice checks that two PCollections col1 and col2 of type
+// <K,[]float64> are approximately equal, where "approximately equal" means
+// "the keys are the same in both col1 and col2, and each value in the slice
+// associated with key k in col1 is within the specified tolerance of each value
+// in the slice associated with k in col2". Each key can only hold a single slice.
+func ApproxEqualsKVFloat64Slice(s beam.Scope, col1, col2 beam.PCollection, tolerance float64) error {
+	wantV := reflect.TypeOf([]float64{0.0})
+	if err := checkValueType(col1, wantV); err != nil {
+		return fmt.Errorf("unexpected value type for col1: %v", err)
+	}
+	if err := checkValueType(col2, wantV); err != nil {
+		return fmt.Errorf("unexpected value type for col2: %v", err)
+	}
+
+	coGroupToValue := beam.CoGroupByKey(s, col1, col2)
+	diffs := beam.ParDo(s, &diffFloat64SliceFn{Tolerance: tolerance}, coGroupToValue)
+	combinedDiff := beam.Combine(s, combineDiffs, diffs)
+	beam.ParDo0(s, reportDiffs, combinedDiff)
+	return nil
+}
+
+func reportEquals(diffs string) error {
+	if diffs != "" {
+		return nil
+	}
+	return fmt.Errorf("collections are equal")
+}
+
 func reportDiffs(diffs string) error {
 	if diffs != "" {
 		return fmt.Errorf("collections are not approximately equal. Diff (-got, +want):\n%s", diffs)
+	}
+	return nil
+}
+
+func reportGreaterThan(errors string) error {
+	if errors != "" {
+		return fmt.Errorf("col1 is not less than or equal to col2: %s", errors)
 	}
 	return nil
 }
@@ -390,8 +480,8 @@ type diffInt64Fn struct {
 // ProcessElement returns a diff between values associated with a key. It
 // returns an empty string if the values are approximately equal.
 func (fn *diffInt64Fn) ProcessElement(k int, v1Iter, v2Iter func(*int64) bool) string {
-	var v1 = toSliceInt64(v1Iter)
-	var v2 = toSliceInt64(v2Iter)
+	var v1 = int64PtrToSlice(v1Iter)
+	var v2 = int64PtrToSlice(v2Iter)
 	if diff := cmp.Diff(v1, v2, cmpopts.EquateApprox(0, fn.Tolerance)); diff != "" {
 		return fmt.Sprintf("For k=%d: diff=%s", k, diff)
 	}
@@ -401,15 +491,15 @@ func (fn *diffInt64Fn) ProcessElement(k int, v1Iter, v2Iter func(*int64) bool) s
 // ProcessElement returns a diff between values associated with a key. It
 // returns an empty string if the values are approximately equal.
 func diffIntFn(k beam.X, v1Iter, v2Iter func(*int) bool) string {
-	var v1 = toSliceInt(v1Iter)
-	var v2 = toSliceInt(v2Iter)
+	var v1 = intPtrToSlice(v1Iter)
+	var v2 = intPtrToSlice(v2Iter)
 	if diff := cmp.Diff(v1, v2); diff != "" {
 		return fmt.Sprintf("For k=%d: diff=%s", k, diff)
 	}
 	return ""
 }
 
-func toSliceInt64(vIter func(*int64) bool) []float64 {
+func int64PtrToSlice(vIter func(*int64) bool) []float64 {
 	var vSlice []float64
 	var v int64
 	for vIter(&v) {
@@ -418,7 +508,7 @@ func toSliceInt64(vIter func(*int64) bool) []float64 {
 	return vSlice
 }
 
-func toSliceInt(vIter func(*int) bool) []float64 {
+func intPtrToSlice(vIter func(*int) bool) []float64 {
 	var vSlice []float64
 	var v int
 	for vIter(&v) {
@@ -427,14 +517,29 @@ func toSliceInt(vIter func(*int) bool) []float64 {
 	return vSlice
 }
 
+func lessThanOrEqualTo(k int, v1Iter, v2Iter func(*float64) bool) string {
+	var v1 = float64PtrToSlice(v1Iter)
+	var v2 = float64PtrToSlice(v2Iter)
+	if len(v1) != 1 {
+		return fmt.Sprintf("For k=%d, col1 has %d values, it needs to have exactly 1 value", k, len(v1))
+	}
+	if len(v2) != 1 {
+		return fmt.Sprintf("For k=%d, col2 has %d values, it needs to have exactly 1 value", k, len(v2))
+	}
+	if v1[0] > v2[0] {
+		return fmt.Sprintf("For k=%d, v1=%f is greater than v2=%f", k, v1[0], v2[0])
+	}
+
+	return ""
+}
+
 type diffFloat64Fn struct {
 	Tolerance float64
 }
 
 func (fn *diffFloat64Fn) ProcessElement(k int, v1Iter, v2Iter func(*float64) bool) string {
-	var v1 = toSliceFloat64(v1Iter)
-	var v2 = toSliceFloat64(v2Iter)
-
+	var v1 = float64PtrToSlice(v1Iter)
+	var v2 = float64PtrToSlice(v2Iter)
 	if diff := cmp.Diff(v1, v2, cmpopts.EquateApprox(0, fn.Tolerance)); diff != "" {
 		return fmt.Sprintf("For k=%d: diff=%s", k, diff)
 	}
@@ -442,12 +547,32 @@ func (fn *diffFloat64Fn) ProcessElement(k int, v1Iter, v2Iter func(*float64) boo
 	return "" // No diff
 }
 
-func toSliceFloat64(vIter func(*float64) bool) []float64 {
+type diffFloat64SliceFn struct {
+	Tolerance float64
+}
+
+func (fn *diffFloat64SliceFn) ProcessElement(k int, v1Iter, v2Iter func(*[]float64) bool) string {
+	var v1 = float64SlicePtrToSlice(v1Iter)
+	var v2 = float64SlicePtrToSlice(v2Iter)
+	if diff := cmp.Diff(v1, v2, cmpopts.EquateApprox(0, fn.Tolerance)); diff != "" {
+		return fmt.Sprintf("For k=%d: diff=%s", k, diff)
+	}
+
+	return "" // No diff
+}
+
+func float64PtrToSlice(vIter func(*float64) bool) []float64 {
 	var vSlice []float64
 	var v float64
 	for vIter(&v) {
 		vSlice = append(vSlice, v)
 	}
+	return vSlice
+}
+
+func float64SlicePtrToSlice(vIter func(*[]float64) bool) []float64 {
+	var vSlice []float64
+	vIter(&vSlice) // We are expecting a single slice.
 	return vSlice
 }
 
@@ -683,6 +808,20 @@ func ToleranceForMean(lower, upper, exactNormalizedSum, exactCount, exactMean, c
 	return math.Max(distFromMaxNoisyMean, distFromMinNoisyMean), nil
 }
 
+// QuantilesTolerance returns tolerance to be used in approxEquals for tests
+// for quantiles to pass with negligible flakiness.
+//
+// When no noise is added, the quantiles should return a value that differs from the true
+// quantile by no more than the size of the buckets the range is partitioned into, i.e.,
+// (upper - lower) / (branchingFactor^treeHeight - 1).
+//
+// The tests don't disable noise, hence we multiply the tolerance by a reasonably small number,
+// in this case 5, to account for the noise addition.
+// TODO: Implement more accurate tolerance based on confidence intervals.
+func QuantilesTolerance(lower, upper float64) float64 {
+	return 5 * (upper - lower) / (math.Pow(float64(dpagg.DefaultBranchingFactor), float64(dpagg.DefaultTreeHeight)) - 1.0)
+}
+
 func distanceBetween(a, b float64) float64 {
 	return math.Abs(a - b)
 }
@@ -831,4 +970,14 @@ func getNumPartitions(vIter func(*int) bool) (v int) {
 		return 0
 	}
 	return v
+}
+
+// DereferenceFloat64Slice returns the first and only element of the slice for
+// each key in a PCollection<K, []float64>. Returns an error if the slice
+// does not contain exactly 1 element.
+func DereferenceFloat64Slice(v beam.V, r []float64) (beam.V, float64, error) {
+	if len(r) != 1 {
+		return v, 0.0, fmt.Errorf("dereferenceFloat64: r=%v does not contain a single element", r)
+	}
+	return v, r[0], nil
 }

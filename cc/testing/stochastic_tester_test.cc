@@ -51,8 +51,8 @@ class NonDpSum : public Algorithm<T> {
   void ResetState() override { result_ = 0; }
 
   Summary Serialize() const override { return Summary(); }
-  base::Status Merge(const Summary& summary) override {
-    return base::OkStatus();
+  absl::Status Merge(const Summary& summary) override {
+    return absl::OkStatus();
   }
   int64_t MemoryUsed() override { return sizeof(NonDpSum<T>); };
 
@@ -74,8 +74,8 @@ class NonDpCount : public Algorithm<T> {
   void ResetState() override { result_ = 0; }
 
   Summary Serialize() const override { return Summary(); }
-  base::Status Merge(const Summary& summary) override {
-    return base::OkStatus();
+  absl::Status Merge(const Summary& summary) override {
+    return absl::OkStatus();
   }
   int64_t MemoryUsed() override { return sizeof(NonDpCount<T>); };
 
@@ -166,8 +166,8 @@ class AlwaysError : public Algorithm<T> {
   void ResetState() override {}
 
   Summary Serialize() const override { return Summary(); }
-  base::Status Merge(const Summary& summary) override {
-    return base::OkStatus();
+  absl::Status Merge(const Summary& summary) override {
+    return absl::OkStatus();
   }
   int64_t MemoryUsed() override { return sizeof(AlwaysError<T>); };
 

@@ -486,6 +486,7 @@ cc_library(
         "//base:logging",
         "@boringssl//:crypto",
         "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/numeric:bits",
         "@com_google_absl//absl/synchronization",
     ],
 )
