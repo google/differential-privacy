@@ -259,13 +259,13 @@ func (fn *prepareSumFn) Setup() error {
 	return fn.InputPairCodec.Setup()
 }
 
-func (fn *prepareSumFn) ProcessElement(id beam.W, pair kv.Pair) (kv.Pair, beam.V) {
+func (fn *prepareSumFn) ProcessElement(id beam.W, pair kv.Pair) (kv.Pair, beam.V, error) {
 	var idBuf bytes.Buffer
 	if err := fn.idEnc.Encode(id, &idBuf); err != nil {
-		log.Exitf("pbeam.prepareSumFn.ProcessElement: couldn't encode ID %v: %v", id, err)
+		return kv.Pair{}, nil, fmt.Errorf("pbeam.prepareSumFn.ProcessElement: couldn't encode ID %v: %w", id, err)
 	}
 	_, v := fn.InputPairCodec.Decode(pair)
-	return kv.Pair{idBuf.Bytes(), pair.K}, v
+	return kv.Pair{idBuf.Bytes(), pair.K}, v, nil
 }
 
 // findConvertFn gets the correct conversion to int64 or float64 function.
@@ -358,7 +358,7 @@ func newAddNoiseToEmptyPublicPartitionsFn(epsilon, delta float64, maxPartitionsC
 		err = checks.CheckBoundsFloat64("pbeam.newAddNoiseToEmptyPublicPartitionsFn", lower, upper)
 		bsFn = newAddNoiseToEmptyPublicPartitionsFloat64Fn(epsilon, delta, maxPartitionsContributed, lower, upper, noiseKind, testMode)
 	default:
-		log.Exitf("pbeam.newAddNoiseToEmptyPublicPartitionsFn: vKind(%v) should be int64 or float64", vKind)
+		err = fmt.Errorf("pbeam.newAddNoiseToEmptyPublicPartitionsFn: vKind(%v) should be int64 or float64", vKind)
 	}
 
 	if err != nil {

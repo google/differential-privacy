@@ -360,6 +360,32 @@ class PrivacyLossDistributionTest(parameterized.TestCase):
         expected_result.get_delta_for_epsilon(0.5),
         result.get_delta_for_epsilon(0.5))
 
+  def test_self_composition_truncation(self):
+    # Use Gaussian mechanism because it has closed form formula even afer
+    # composition. For the setting of parameter below, the privacy loss after
+    # composition should be the same as privacy loss with standard_deviation =
+    # sensitivity.
+    standard_deviation = 20
+    num_composition = standard_deviation * standard_deviation
+    pld = privacy_loss_distribution.PrivacyLossDistribution.from_gaussian_mechanism(
+        standard_deviation,
+        value_discretization_interval=1e-5)
+    pld = pld.self_compose(num_composition)
+    expected_delta = 0.00153
+    self.assertAlmostEqual(expected_delta, pld.get_delta_for_epsilon(3), 4)
+
+  def test_self_composition_truncation_account_for_truncated_mass(self):
+    num_composition = 2
+    tail_mass_truncation = 0.5
+    epsilon_initial = 1
+    pld = privacy_loss_distribution.PrivacyLossDistribution.from_privacy_parameters(
+        common.DifferentialPrivacyParameters(epsilon_initial, 0))
+    pld = pld.self_compose(
+        num_composition, tail_mass_truncation=tail_mass_truncation)
+    self.assertAlmostEqual(
+        tail_mass_truncation,
+        pld.get_delta_for_epsilon(num_composition * epsilon_initial))
+
   @parameterized.parameters((1, 0, 1, {
       1: 0.73105858,
       -1: 0.26894142

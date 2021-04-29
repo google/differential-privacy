@@ -47,9 +47,17 @@ public class BoundedQuantiles {
 
   private static final int ROOT_INDEX = 0;
   // Fraction a node needs to contribute to the total count of itself and its siblings to be
-  // considered during the search for a particular quantile. The idea of alpha is to filter out
+  // considered during the search for a particular quantile. The idea of gamma is to filter out
   // noisy empty nodes. This is a post processing parameter with no privacy implications.
-  private static final double ALPHA = 0.0075;
+  private static final double GAMMA = 0.0075;
+
+  private enum ConfidenceIntervalBoundType {
+    LOWER,
+    UPPER
+  };
+
+  private static final ConfidenceIntervalBoundType LOWER = ConfidenceIntervalBoundType.LOWER;
+  private static final ConfidenceIntervalBoundType UPPER = ConfidenceIntervalBoundType.UPPER;
 
   private final Params params;
 
@@ -119,7 +127,7 @@ public class BoundedQuantiles {
 
   /**
    * Returns the index of the leaf node associated with the provided value, assuming that the leaf
-   * nodes partition the range betwen lower and upper into intervals of equal size.
+   * nodes partition the range between lower and upper into intervals of equal size.
    */
   private int getIndex(double value) {
     return leftmostLeafIndex
@@ -147,7 +155,7 @@ public class BoundedQuantiles {
 
   /**
    * Returns the greatest value mapped to the subtree of the provided index, assuming that the leaf
-   * nodes partition the range betwen lower and upper into intervals of equal size.
+   * nodes partition the range between lower and upper into intervals of equal size.
    */
   private double getRightValue(int index) {
     // Traverse the tree towards the leaves starting at the provided index always taking the
@@ -190,55 +198,187 @@ public class BoundedQuantiles {
     rank = adjustRank(rank);
 
     int index = ROOT_INDEX;
-    // Search for the index of the leaf node containg the specified quantile, starting at the root.
+    // Search for the index of the node containing the specified quantile, starting at the root.
     while (index < leftmostLeafIndex) {
       int leftmostChildIndex = getLeftmostChild(index);
       int rightmostChildIndex = getRightmostChild(index);
 
-      double totalCount = 0.0;
+      Map<Integer, Double> noisedCounts = new HashMap<>();
       for (int i = leftmostChildIndex; i <= rightmostChildIndex; i++) {
-        totalCount += max(0.0, getNoisedCount(i));
+        noisedCounts.put(i, getNoisedCount(i));
       }
 
-      double correctedTotalCount = 0.0;
-      for (int i = leftmostChildIndex; i <= rightmostChildIndex; i++) {
-        // Treat child nodes contrinbuting less than an alpha fraction to the total count as empty
-        // subtrees.
-        correctedTotalCount += getNoisedCount(i) >= totalCount * ALPHA ? getNoisedCount(i) : 0.0;
-      }
-      if (correctedTotalCount == 0.0) {
-        // Either all counts are 0.0 or no child node contributes more than an alpha fraction to the
-        // total count (the latter can only happen when alpha > 1 / branching factor, which is not
-        // the case for the default branching factor). This means that all child nodes are
-        // considered empty and there is no need to proceed further down the tree.
+      IndexAndRank nextIndexAndRank =
+          getNextIndexAndRank(rank, leftmostChildIndex, rightmostChildIndex, noisedCounts);
+
+      if (nextIndexAndRank == null) {
+        // All child nodes are considred empty. No need to proceed with the search.
         break;
+      } else {
+        index = nextIndexAndRank.index();
+        rank = nextIndexAndRank.rank();
+      }
+    }
+    // Linearly interpolate between the smallest and largest value associated with the node returned
+    // by the search.
+    return (1 - rank) * getLeftValue(index) + rank * getRightValue(index);
+  }
+
+  /**
+   * Computes a confidence interval that contains the quantile of the specified rank with a
+   * probability greater or equal to {@code 1 - alpha}. More precisely, the confidence interval
+   * contains the value the mechanism returns when no noise is added with the specified probability.
+   * Note that this value might be different from the raw quantile as a result of bounding and
+   * internal processing.
+   *
+   * <p>The confidence interval is exclusively based on the noised bounded quantile returned by
+   * {@link #computeResult}. Thus, no privacy budget is consumed by this operation.
+   *
+   * <p>Refer to <a
+   * href="https://github.com/google/differential-privacy/tree/main/common_docs/confidence_intervals.md">this</a> doc for
+   * more information.
+   *
+   * @throws IllegalStateException if this instance of {@link BoundedQuantiles} has not been queried
+   *     yet.
+   */
+  public ConfidenceInterval computeConfidenceInterval(double rank, double alpha) {
+    Preconditions.checkState(
+        state == AggregationState.RESULT_RETURNED, "Confidence interval cannot be computed.");
+
+    checkArgument(
+        rank >= 0.0 && rank <= 1.0, "rank must be >= 0 and <= 1. Provided value: %s", rank);
+
+    rank = adjustRank(rank);
+
+    return ConfidenceInterval.create(
+        computeConfidenceIntervalBound(rank, alpha, LOWER),
+        computeConfidenceIntervalBound(rank, alpha, UPPER));
+  }
+
+  // The following computation of a lower or upper interval bound is based on the same search
+  // algorithm used to compute the respective quantile. The difference is that instead of using the
+  // noised node counts to determine the direction of the search, the algorithm uses the confidence
+  // intervals bounds of the node counts.
+  private double computeConfidenceIntervalBound(
+      double rank, double alpha, ConfidenceIntervalBoundType boundType) {
+    // Let b be the branching factor and h the height of the tree. The search for a quantile queries
+    // at most b * h node counts. Assigning a confidence interval with error probability
+    //    alpha' = 1 - (1 - alpha)^(1 / (b * h))
+    // to each of these counts guarantees that the true counts are contained within these
+    // confidence intervals with error probability
+    //    1 - (1 - alpha')^(b * h) = 1 - (1 - (1 - (1 - alpha)^(1 / (b * h))))^(b * h) = alpha,
+    // which matches the specified error probability.
+    double alphaPerCount =
+        1 - Math.pow(1 - alpha, 1.0 / (params.branchingFactor() * params.treeHeight()));
+
+    // Confidence interval of a node count of 0 with error probability alpha'. All other node count
+    // confidence intervals are computed by shifting this interval, which is faster than calling
+    // computeConfidenceInterval() for each node count individually.
+    ConfidenceInterval zeroConfidenceInterval =
+        params
+            .noise()
+            .computeConfidenceInterval(
+                /* noisedX= */ 0.0,
+                /* l0Sensitivity= */ params.treeHeight() * params.maxPartitionsContributed(),
+                /* lInfSensitivity= */ params.maxContributionsPerPartition(),
+                /* epsilon= */ params.epsilon(),
+                /* delta= */ params.delta(),
+                /* alpha= */ alphaPerCount);
+
+    // Value of the bound that is being computed. The value is set to the tightest bound possible
+    // and loosened successively as needed.
+    double bound = boundType == LOWER ? params.upper() : params.lower();
+
+    int index = ROOT_INDEX;
+    // Search for the index of the leaf node containing the desired bound, starting at the root.
+    while (index < leftmostLeafIndex) {
+      int leftmostChildIndex = getLeftmostChild(index);
+      int rightmostChildIndex = getRightmostChild(index);
+
+      // Index of the node visited next in the search. The value is set to the tightest index
+      // possible and loosened successively as needed.
+      int nextIndex = boundType == LOWER ? Integer.MAX_VALUE : Integer.MIN_VALUE;
+      // Rank used in the next iteration of the search. The value will be set with the first update
+      // of nextIndex.
+      double nextRank = Double.NaN;
+
+      Map<Integer, ConfidenceInterval> childConfidenceIntervals = new HashMap<>();
+      for (int i = leftmostChildIndex; i <= rightmostChildIndex; i++) {
+        childConfidenceIntervals.put(
+            i,
+            ConfidenceInterval.create(
+                getNoisedCount(i) + zeroConfidenceInterval.lowerBound(),
+                getNoisedCount(i) + zeroConfidenceInterval.upperBound()));
       }
 
-      // Determine the child node whose subtree contains the quantile.
-      double partialCount = 0.0;
-      for (int i = leftmostChildIndex; true; i++) {
-        double count = getNoisedCount(i);
-        // Skip child nodes contributing less than alpha to the total count.
-        if (count >= totalCount * ALPHA) {
-          partialCount += count;
-          // Check if the quantile is in the current child's subtree.
-          if (partialCount / correctedTotalCount >= rank - NUMERICAL_TOLERANCE) {
-            rank =
-                (rank - (partialCount - count) / correctedTotalCount)
-                    / (count / correctedTotalCount);
-            // Clamping rank to a value between 0.0 and 1.0. Note that rank can become greater than
-            // 1 because of the numerical tolerance. Values less than 0.0 should not occur. The
-            // respective clamping is set in place to be on the safe side.
-            rank = min(max(0.0, rank), 1.0);
-            index = i;
-            break;
+      // Let [l_i, u_i] denote the confidence interval of child node i. To find a lower bound b for
+      // the quantiles that can be reached via a particular configuration of counts c_i such that
+      // l_i ≤ c_i ≤ u_i, the counts to left of b should be as large as possible while the counts to
+      // the right of b should be as small as possible. Thus, we set
+      //    c_i = u_i if i <= j and c_i = l_i if i > j
+      // for some index j. Similarly, an upper bound can be obtained by setting
+      //    c_i = l_i if i <= j and c_i = u_i if i > j.
+      //
+      // Because we don't know the index j in advance, we go through all possible indices j and pick
+      // whichever yields the smallest lower bound or largest upper bound.
+      for (int j = leftmostChildIndex - 1; j <= rightmostChildIndex; j++) {
+        Map<Integer, Double> countBounds = new HashMap<>();
+        for (int i = leftmostChildIndex; i <= j; i++) {
+          countBounds.put(
+              i,
+              boundType == LOWER
+                  ? childConfidenceIntervals.get(i).upperBound()
+                  : childConfidenceIntervals.get(i).lowerBound());
+        }
+        for (int i = j + 1; i <= rightmostChildIndex; i++) {
+          countBounds.put(
+              i,
+              boundType == LOWER
+                  ? childConfidenceIntervals.get(i).lowerBound()
+                  : childConfidenceIntervals.get(i).upperBound());
+        }
+
+        IndexAndRank nextIndexAndRank =
+            getNextIndexAndRank(rank, leftmostChildIndex, rightmostChildIndex, countBounds);
+
+        if (nextIndexAndRank == null) {
+          // All child nodes are considred empty. Update the bound with a linear interpolation of
+          // the smallest and largest value associated with the current node if the result yields
+          // a looser bound.
+          if (boundType == LOWER) {
+            bound = min(bound, (1 - rank) * getLeftValue(index) + rank * getRightValue(index));
+          } else {
+            bound = max(bound, (1 - rank) * getLeftValue(index) + rank * getRightValue(index));
+          }
+        } else {
+          // Update nextIndex and nextRank if this results in a looser bound.
+          if ((boundType == LOWER && nextIndexAndRank.index() <= nextIndex)
+              || (boundType == UPPER && nextIndexAndRank.index() >= nextIndex)) {
+            if (nextIndexAndRank.index() != nextIndex) {
+              nextIndex = nextIndexAndRank.index();
+              nextRank = nextIndexAndRank.rank();
+            } else if ((boundType == LOWER && nextIndexAndRank.rank() < nextRank)
+                || (boundType == UPPER && nextIndexAndRank.rank() > nextRank)) {
+              nextRank = nextIndexAndRank.rank();
+            }
           }
         }
       }
+
+      // Check if the current node was considered empty for all values of j (this is the case when
+      // nextRank has not been set). If so, the search can be stopped and the bound returned.
+      // Otherwise continue the search in the next node with the respective new rank.
+      if (Double.isNaN(nextRank)) {
+        return bound;
+      }
+      index = nextIndex;
+      rank = nextRank;
     }
-    // Linearly interpolate between the smallest and largest value associated with the node of the
-    // current index.
-    return (1 - rank) * getLeftValue(index) + rank * getRightValue(index);
+    // The search has reached a leaf node. In this case we either return a linear interpolation
+    // between the smallest and the largest value associated with the leaf node, or the bound
+    // computed so far should it be looser.
+    double linearInterpolation = (1 - rank) * getLeftValue(index) + rank * getRightValue(index);
+    return boundType == LOWER ? min(bound, linearInterpolation) : max(bound, linearInterpolation);
   }
 
   private int getLeftmostChild(int index) {
@@ -251,6 +391,57 @@ public class BoundedQuantiles {
 
   private int getParent(int index) {
     return (index - 1) / params.branchingFactor();
+  }
+
+  /*
+   * Retruns a pair of the index of the child node visited next in the quantile search together with
+   * the rank for the next iteration of the search. If all child nodes are considered empty, null is
+   * returned.
+   */
+  private static IndexAndRank getNextIndexAndRank(
+      double rank,
+      int leftmostChildIndex,
+      int rightmostChildIndex,
+      Map<Integer, Double> nodeCounts) {
+
+    double totalCount = 0.0;
+    for (int i = leftmostChildIndex; i <= rightmostChildIndex; i++) {
+      totalCount += max(0.0, nodeCounts.get(i));
+    }
+
+    double correctedTotalCount = 0.0;
+    for (int i = leftmostChildIndex; i <= rightmostChildIndex; i++) {
+      // Treat child nodes contributing less than a gamma fraction to the total count as empty
+      // subtrees.
+      correctedTotalCount += nodeCounts.get(i) >= totalCount * GAMMA ? nodeCounts.get(i) : 0.0;
+    }
+    if (correctedTotalCount == 0.0) {
+      // Either all counts are 0.0 or no child node contributes more than a gamma fraction to
+      // the total count (the latter can only happen when gamma > 1 / branching factor, which is
+      // not the case for the default branching factor). This means that all child nodes are
+      // considered empty.
+      return null;
+    }
+
+    // Determine the child node whose subtree contains the bound.
+    double partialCount = 0.0;
+    for (int i = leftmostChildIndex; true; i++) {
+      double count = nodeCounts.get(i);
+      // Skip child nodes contributing less than gamma to the total count.
+      if (count >= totalCount * GAMMA) {
+        partialCount += count;
+        // Check if the bound is in the current child's subtree.
+        if (partialCount / correctedTotalCount >= rank - NUMERICAL_TOLERANCE) {
+          double nextRank =
+              (rank - (partialCount - count) / correctedTotalCount) / (count / correctedTotalCount);
+          // Clamping rank to a value between 0.0 and 1.0. Note that rank can become greater than
+          // 1 because of the numerical tolerance. Values less than 0.0 should not occur. The
+          // respective clamping is set in place to be on the safe side.
+          nextRank = min(max(0.0, nextRank), 1.0);
+          return new AutoValue_BoundedQuantiles_IndexAndRank(i, nextRank);
+        }
+      }
+    }
   }
 
   /**
@@ -370,7 +561,7 @@ public class BoundedQuantiles {
 
     checkArgument(
         params.treeHeight() == summary.getTreeHeight(),
-        "Failed to merge: unequal values of treeheight. " + "treeHeight1 = %s, treeHeight2 = %s",
+        "Failed to merge: unequal values of tree height. " + "treeHeight1 = %s, treeHeight2 = %s",
         params.treeHeight(),
         summary.getTreeHeight());
     checkArgument(
@@ -379,6 +570,14 @@ public class BoundedQuantiles {
             + "branchingFactor1 = %s, branchingFactor2 = %s",
         params.branchingFactor(),
         summary.getBranchingFactor());
+  }
+
+  @AutoValue
+  abstract static class IndexAndRank {
+
+    abstract int index();
+
+    abstract double rank();
   }
 
   @AutoValue
@@ -410,7 +609,7 @@ public class BoundedQuantiles {
         BoundedQuantiles.Params.Builder builder = new AutoValue_BoundedQuantiles_Params.Builder();
         // Provides LaplaceNoise as a default noise generator.
         builder.noise(new LaplaceNoise());
-        // A default tree height of 4 and branching factor of 16 devides the domain of possible
+        // A default tree height of 4 and branching factor of 16 divides the domain of possible
         // values into 65536 partitions.
         builder.treeHeight(DEFAULT_TREE_HEIGHT);
         builder.branchingFactor(DEFAULT_BRANCHING_FACTOR);
@@ -442,13 +641,13 @@ public class BoundedQuantiles {
       public abstract BoundedQuantiles.Params.Builder noise(Noise value);
 
       /**
-       * Lower bound for the entries added to the distribution. Any entires smaller than this value
+       * Lower bound for the entries added to the distribution. Any entries smaller than this value
        * will be set to this value.
        */
       public abstract BoundedQuantiles.Params.Builder lower(double value);
 
       /**
-       * Upper bound for the entries added to the distribution. Any entires greater than this value
+       * Upper bound for the entries added to the distribution. Any entries greater than this value
        * will be set to this value.
        */
       public abstract BoundedQuantiles.Params.Builder upper(double value);

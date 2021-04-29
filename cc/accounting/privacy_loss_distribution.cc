@@ -290,14 +290,18 @@ PrivacyLossDistribution::GetDeltaForEpsilonForComposedPLD(
   return delta + composed_infinity_mass;
 }
 
-void PrivacyLossDistribution::Compose(int num_times) {
+void PrivacyLossDistribution::Compose(int num_times,
+                                      double tail_mass_truncation) {
   double new_infinity_mass = 1 - pow((1 - infinity_mass_), num_times);
 
-  ProbabilityMassFunction new_pmf =
-      Convolve(probability_mass_function_, num_times);
+  // Currently support truncation only for pessimistic estimates.
+  ProbabilityMassFunction new_pmf = Convolve(
+      probability_mass_function_, num_times,
+      estimate_type_ == EstimateType::kPessimistic ? tail_mass_truncation
+                                                   : 0.0);
 
   probability_mass_function_ = new_pmf;
-  infinity_mass_ = new_infinity_mass;
+  infinity_mass_ = new_infinity_mass + tail_mass_truncation;
 }
 
 double PrivacyLossDistribution::GetDeltaForEpsilon(double epsilon) const {

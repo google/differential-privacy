@@ -28,6 +28,7 @@ import org.junit.runners.Suite.SuiteClasses;
   BoundedMeanTest.class,
   BoundedQuantilesTest.class,
   BoundedQuantilesBuilderTest.class,
+  BoundedQuantilesConfidenceIntervalTest.class,
   BoundedSumBiasTest.class,
   BoundedSumBuilderTest.class,
   BoundedSumConfidenceIntervalTest.class,

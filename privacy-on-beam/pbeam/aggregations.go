@@ -182,12 +182,12 @@ func (fn *decodePairInt64Fn) Setup() {
 	fn.xDec = beam.NewElementDecoder(fn.XType.T)
 }
 
-func (fn *decodePairInt64Fn) ProcessElement(pair pairInt64) (beam.X, int64) {
+func (fn *decodePairInt64Fn) ProcessElement(pair pairInt64) (beam.X, int64, error) {
 	x, err := fn.xDec.Decode(bytes.NewBuffer(pair.X))
 	if err != nil {
-		log.Exitf("pbeam.decodePairInt64Fn.ProcessElement: couldn't decode pair %v: %v", pair, err)
+		return nil, 0, fmt.Errorf("pbeam.decodePairInt64Fn.ProcessElement: couldn't decode pair %v: %w", pair, err)
 	}
-	return x, pair.M
+	return x, pair.M, nil
 }
 
 // decodePairFloat64Fn transforms a PCollection<pairFloat64<codedX,float64>> into a
@@ -205,12 +205,12 @@ func (fn *decodePairFloat64Fn) Setup() {
 	fn.xDec = beam.NewElementDecoder(fn.XType.T)
 }
 
-func (fn *decodePairFloat64Fn) ProcessElement(pair pairFloat64) (beam.X, float64) {
+func (fn *decodePairFloat64Fn) ProcessElement(pair pairFloat64) (beam.X, float64, error) {
 	x, err := fn.xDec.Decode(bytes.NewBuffer(pair.X))
 	if err != nil {
-		log.Exitf("pbeam.decodePairFloat64Fn.ProcessElement: couldn't decode pair %v: %v", pair, err)
+		return nil, 0.0, fmt.Errorf("pbeam.decodePairFloat64Fn.ProcessElement: couldn't decode pair %v: %w", pair, err)
 	}
-	return x, pair.M
+	return x, pair.M, nil
 }
 
 func newBoundedSumFn(epsilon, delta float64, maxPartitionsContributed int64, lower, upper float64, noiseKind noise.Kind, vKind reflect.Kind, publicPartitions bool, testMode testMode) interface{} {
@@ -621,13 +621,13 @@ func (fn *partitionsMapFn) CreateAccumulator() mapAccum {
 }
 
 // AddInput adds the public partition key to the map
-func (fn *partitionsMapFn) AddInput(m mapAccum, partitionKey beam.X) mapAccum {
+func (fn *partitionsMapFn) AddInput(m mapAccum, partitionKey beam.X) (mapAccum, error) {
 	var partitionBuf bytes.Buffer
 	if err := fn.partitionEnc.Encode(partitionKey, &partitionBuf); err != nil {
-		log.Exitf("pbeam.PartitionsMapFn.AddInput: couldn't encode partition key %v: %v", partitionKey, err)
+		return m, fmt.Errorf("pbeam.PartitionsMapFn.AddInput: couldn't encode partition key %v: %w", partitionKey, err)
 	}
 	m.PartitionMap[string(partitionBuf.Bytes())] = true
-	return m
+	return m, nil
 }
 
 // MergeAccumulators adds the keys from a to b
@@ -662,7 +662,7 @@ func (fn *prunePartitionsVFn) Setup() {
 func (fn *prunePartitionsVFn) ProcessElement(id beam.X, partitionKey beam.V, partitionsIter func(*pMap) bool, emit func(beam.X, beam.V)) error {
 	var partitionBuf bytes.Buffer
 	if err := fn.partitionEnc.Encode(partitionKey, &partitionBuf); err != nil {
-		log.Exitf("pbeam.prunePartitionsVFn.ProcessElement: couldn't encode partition %v: %v", partitionKey, err)
+		return fmt.Errorf("pbeam.prunePartitionsVFn.ProcessElement: couldn't encode partition %v: %w", partitionKey, err)
 	}
 	var partitionMap pMap
 	partitionsIter(&partitionMap)
@@ -709,10 +709,10 @@ func (fn *emitPartitionsNotInTheDataFn) Setup() {
 	fn.partitionEnc = beam.NewElementEncoder(fn.PartitionType.T)
 }
 
-func (fn *emitPartitionsNotInTheDataFn) ProcessElement(partitionKey beam.X, value beam.V, partitionsIter func(*pMap) bool, emit func(beam.X, beam.V)) {
+func (fn *emitPartitionsNotInTheDataFn) ProcessElement(partitionKey beam.X, value beam.V, partitionsIter func(*pMap) bool, emit func(beam.X, beam.V)) error {
 	var partitionBuf bytes.Buffer
 	if err := fn.partitionEnc.Encode(partitionKey, &partitionBuf); err != nil {
-		log.Exitf("pbeam.emitPartitionsNotInTheDataFn.ProcessElement: couldn't encode partition %v: %v", partitionKey, err)
+		return fmt.Errorf("pbeam.emitPartitionsNotInTheDataFn.ProcessElement: couldn't encode partition %v: %w", partitionKey, err)
 	}
 	var partitionsInDataMap pMap
 	partitionsIter(&partitionsInDataMap)
@@ -721,6 +721,7 @@ func (fn *emitPartitionsNotInTheDataFn) ProcessElement(partitionKey beam.X, valu
 	if partitionsInDataMap == nil || !partitionsInDataMap[string(partitionBuf.Bytes())] {
 		emit(partitionKey, value)
 	}
+	return nil
 }
 
 type dropValuesFn struct {
@@ -757,13 +758,13 @@ func (fn *encodeIDKFn) Setup() error {
 	return fn.InputPairCodec.Setup()
 }
 
-func (fn *encodeIDKFn) ProcessElement(id beam.W, pair kv.Pair) (kv.Pair, beam.V) {
+func (fn *encodeIDKFn) ProcessElement(id beam.W, pair kv.Pair) (kv.Pair, beam.V, error) {
 	var idBuf bytes.Buffer
 	if err := fn.idEnc.Encode(id, &idBuf); err != nil {
-		log.Exitf("pbeam.encodeIDKFn.ProcessElement: couldn't encode ID %v: %v", id, err)
+		return kv.Pair{}, nil, fmt.Errorf("pbeam.encodeIDKFn.ProcessElement: couldn't encode ID %v: %w", id, err)
 	}
 	_, v := fn.InputPairCodec.Decode(pair)
-	return kv.Pair{idBuf.Bytes(), pair.K}, v
+	return kv.Pair{idBuf.Bytes(), pair.K}, v, nil
 }
 
 // decodePairArrayFloat64Fn transforms a PCollection<pairArrayFloat64<codedX,[]float64>> into a
@@ -781,12 +782,12 @@ func (fn *decodePairArrayFloat64Fn) Setup() {
 	fn.xDec = beam.NewElementDecoder(fn.XType.T)
 }
 
-func (fn *decodePairArrayFloat64Fn) ProcessElement(pair pairArrayFloat64) (beam.X, []float64) {
+func (fn *decodePairArrayFloat64Fn) ProcessElement(pair pairArrayFloat64) (beam.X, []float64, error) {
 	x, err := fn.xDec.Decode(bytes.NewBuffer(pair.X))
 	if err != nil {
-		log.Exitf("pbeam.decodePairArrayFloat64Fn.ProcessElement: couldn't decode pair %v: %v", pair, err)
+		return nil, nil, fmt.Errorf("pbeam.decodePairArrayFloat64Fn.ProcessElement: couldn't decode pair %v: %w", pair, err)
 	}
-	return x, pair.M
+	return x, pair.M, nil
 }
 
 // findConvertFn gets the correct conversion to float64 function.

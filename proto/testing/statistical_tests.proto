@@ -110,6 +110,21 @@ message BoundedMeanSamplingParameters {
   repeated double neighbour_raw_entry = 10;
 }
 
+// Parameters required for drawing samples from the bounded stdv and bounded
+// variance aggregation of the DP library.
+message BoundedStdvSamplingParameters {
+  optional int32 number_of_samples = 1;
+  optional NoiseType noise_type = 2;
+  optional int32 max_contributions_per_partition = 3;
+  optional int32 max_partitions_contributed = 4;
+  optional double lower_bound = 5;
+  optional double upper_bound = 6;
+  optional double epsilon = 7;
+  optional double delta = 8;
+  repeated double raw_entry = 9;
+  repeated double neighbour_raw_entry = 10;
+}
+
 // Parameters required for drawing samples from the bounded quantiles
 // aggregation of the DP library.
 message BoundedQuantilesSamplingParameters {
@@ -208,6 +223,12 @@ message BoundedMeanDpTestCase {
   optional BoundedMeanSamplingParameters bounded_mean_sampling_parameters = 3;
 }
 
+message BoundedStdvDpTestCase {
+  optional string name = 1;
+  optional DpTestParameters dp_test_parameters = 2;
+  optional BoundedStdvSamplingParameters bounded_stdv_sampling_parameters = 3;
+}
+
 message BoundedQuantilesDpTestCase {
   optional string name = 1;
   optional DpTestParameters dp_test_parameters = 2;
@@ -248,6 +269,12 @@ message BoundedSumDpTestCaseCollection {
 
 message BoundedMeanDpTestCaseCollection {
   repeated BoundedMeanDpTestCase bounded_mean_dp_test_case = 1;
+  optional VotingParameters voting_parameters = 2;
+  optional DpTestValidityParameters validity_parameters = 3;
+}
+
+message BoundedStdvDpTestCaseCollection {
+  repeated BoundedStdvDpTestCase bounded_stdv_dp_test_case = 1;
   optional VotingParameters voting_parameters = 2;
   optional DpTestValidityParameters validity_parameters = 3;
 }

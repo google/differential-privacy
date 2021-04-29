@@ -167,8 +167,11 @@ class PrivacyLossDistribution {
   base::StatusOr<double> GetDeltaForEpsilonForComposedPLD(
       const PrivacyLossDistribution& other_pld, double epsilon) const;
 
-  // Composes PLD into itself num_times.
-  void Compose(int num_times);
+  // Composes PLD into itself num_times. Additional parameter:
+  //   tail_mass_truncation: an upper bound on the tails of the probability mass
+  //     of the PLD that might be truncated. Currently only supports for
+  //     pessimistic estimates.
+  void Compose(int num_times, double tail_mass_truncation = 1e-15);
 
   double DiscretizationInterval() const { return discretization_interval_; }
 

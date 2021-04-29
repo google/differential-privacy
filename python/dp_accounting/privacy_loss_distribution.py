@@ -754,20 +754,32 @@ class PrivacyLossDistribution(object):
 
     return divergence + composed_infinity_mass
 
-  def self_compose(self, num_times: int) -> 'PrivacyLossDistribution':
+  def self_compose(
+      self,
+      num_times: int,
+      tail_mass_truncation: float = 1e-15) -> 'PrivacyLossDistribution':
     """Computes PLD resulting from repeated composing the PLD with itself.
 
     Args:
       num_times: the number of times to compose this PLD with itself.
+      tail_mass_truncation: an upper bound on the tails of the probability mass
+        of the PLD that might be truncated. Currently only supports for
+        pessimistic estimates.
 
     Returns:
       A privacy loss distribution which is the result of the composition.
     """
+    if not self.pessimistic_estimate:
+      # Currently support truncation only for pessimistic estimates.
+      tail_mass_truncation = 0
 
     new_rounded_probability_mass_function = common.self_convolve_dictionary(
-        self.rounded_probability_mass_function, num_times)
+        self.rounded_probability_mass_function,
+        num_times,
+        tail_mass_truncation=tail_mass_truncation)
 
     new_infinity_mass = (1 - ((1 - self.infinity_mass)**num_times))
+    new_infinity_mass += tail_mass_truncation
 
     return PrivacyLossDistribution(
         new_rounded_probability_mass_function,

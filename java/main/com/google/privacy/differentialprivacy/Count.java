@@ -104,8 +104,8 @@ public class Count {
    * <p>The returned value may sometimes be negative. This can be corrected by setting negative
    * results to 0. Note that such post processing introduces bias to the result.
    *
-   * @throws IllegalStateException if this this instance of {@link Count} has already been queried
-   *     or serialized.
+   * @throws IllegalStateException if this instance of {@link Count} has already been queried or
+   *     serialized.
    */
   public long computeResult() {
     Preconditions.checkState(state == AggregationState.DEFAULT, "DP count cannot be computed.");
@@ -125,9 +125,9 @@ public class Count {
   }
 
   /**
-   * Computes a {@link ConfidenceInterval} with integer bounds that contains the true {@link Count}
-   * with a probability greater or equal to 1 - alpha using the noised {@link Count} computed by
-   * {@code computeResult()}.
+   * Computes a confidence interval that contains the raw count with a probability greater or equal
+   * to {@code 1 - alpha}. The interval is exclusively based on the noised count returned by {@link
+   * #computeResult}. Thus, no privacy budget is consumed by this operation.
    *
    * <p>Refer to <a
    * href="https://github.com/google/differential-privacy/tree/main/common_docs/confidence_intervals.md">this</a> doc for

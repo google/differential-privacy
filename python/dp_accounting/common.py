@@ -17,7 +17,7 @@ import math
 import typing
 
 import dataclasses
-import numpy
+import numpy as np
 from scipy import fft
 from scipy import signal
 
@@ -212,34 +212,105 @@ def convolve_dictionary(
       result_list, min1 + min2, tail_mass_truncation=tail_mass_truncation)
 
 
-def self_convolve(input_list: typing.List[float],
-                  num_times: int) -> typing.List[float]:
+def compute_self_convolve_bounds(
+    input_list: typing.List[float],
+    num_times: int,
+    tail_mass_truncation: float = 0,
+    orders: typing.Optional[typing.List[float]] = None
+) -> typing.Tuple[int, int]:
+  """Computes truncation bounds for convolution using Chernoff bound.
+
+  Args:
+    input_list: The input list to be convolved.
+    num_times: The number of times the list is to be convolved with itself.
+    tail_mass_truncation: an upper bound on the tails of the output that might
+      be truncated.
+    orders: a list of orders on which the Chernoff bound is applied.
+
+  Returns:
+    A pair of upper and lower bounds for which the mass of the result of
+    convolution outside of this range is at most tail_mass_truncation.
+  """
+  upper_bound = (len(input_list) - 1) * num_times
+  lower_bound = 0
+
+  if tail_mass_truncation == 0:
+    return lower_bound, upper_bound
+
+  if orders is None:
+    # Set orders so whose absolute values are not too large; otherwise, we may
+    # run into numerical issues.
+    orders = (np.concatenate((np.arange(-20, 0), np.arange(1, 21)))
+              / len(input_list))
+
+  # Compute log of the moment generating function at the specified orders.
+  log_mgfs = np.log([
+      np.dot(np.exp(np.arange(len(input_list)) * order), input_list)
+      for order in orders
+  ])
+
+  for order, log_mgf_value in zip(orders, log_mgfs):
+    # Use Chernoff bound to update the upper/lower bound. See equation (5) in
+    # the supplementary material.
+    bound = (num_times * log_mgf_value +
+             math.log(2 / tail_mass_truncation)) / order
+    if order > 0:
+      upper_bound = min(upper_bound, math.ceil(bound))
+    if order < 0:
+      lower_bound = max(lower_bound, math.floor(bound))
+
+  return lower_bound, upper_bound
+
+
+def self_convolve(
+    input_list: typing.List[float],
+    num_times: int,
+    tail_mass_truncation: float = 0) -> typing.Tuple[int, typing.List[float]]:
   """Computes a convolution of the input list with itself num_times times.
 
   Args:
     input_list: The input list to be convolved.
     num_times: The number of times the list is to be convolved with itself.
+    tail_mass_truncation: an upper bound on the tails of the output that might
+      be truncated.
 
   Returns:
-    The list where for each i-th entry its corresponding value is the sum, over
-    all i_1, i_2, ..., i_num_times such that i_1 + i_2 + ... + i_num_times = i,
+    A pair of truncation_lower_bound, output_list, where the i-th entry of
+    output_list is approximately the sum, over all i_1, i_2, ..., i_num_times
+    such that i_1 + i_2 + ... + i_num_times = i + truncation_lower_bound,
     of input_list[i_1] * input_list[i_2] * ... * input_list[i_num_times].
   """
+  truncation_lower_bound, truncation_upper_bound = compute_self_convolve_bounds(
+      input_list, num_times, tail_mass_truncation)
+
   # Use FFT to compute the convolution
-  output_len = num_times * len(input_list) - 1
-  fast_len = fft.next_fast_len(output_len)
-  return numpy.real(fft.ifft(fft.fft(input_list,
-                                             fast_len)**num_times))[:output_len]
+  fast_len = fft.next_fast_len(truncation_upper_bound -
+                                          truncation_lower_bound + 1)
+  truncated_convolution_output = np.real(
+      fft.ifft(fft.fft(input_list, fast_len)**num_times))
+
+  # Discrete Fourier Transform wraps around module fast_len. Extract the output
+  # values in the range of interest.
+  output_list = [
+      truncated_convolution_output[i % fast_len]
+      for i in range(truncation_lower_bound, truncation_upper_bound + 1)
+  ]
+
+  return truncation_lower_bound, output_list
 
 
-def self_convolve_dictionary(input_dictionary: typing.Mapping[int, float],
-                             num_times: int) -> typing.Mapping[int, float]:
+def self_convolve_dictionary(
+    input_dictionary: typing.Mapping[int, float],
+    num_times: int,
+    tail_mass_truncation: float = 0) -> typing.Mapping[int, float]:
   """Computes a convolution of the input dictionary with itself num_times times.
 
   Args:
     input_dictionary: The input dictionary whose keys are integers.
     num_times: The number of times the dictionary is to be convolved with
       itself.
+    tail_mass_truncation: an upper bound on the tails of the output that might
+      be truncated.
 
   Returns:
     The dictionary where for each key its corresponding value is the sum, over
@@ -248,5 +319,7 @@ def self_convolve_dictionary(input_dictionary: typing.Mapping[int, float],
     ... * input_dictionary[key_num_times]
   """
   min_val, input_list = dictionary_to_list(input_dictionary)
-  return list_to_dictionary(
-      self_convolve(input_list, num_times), min_val * num_times)
+  min_val_convolution, output_list = self_convolve(
+      input_list, num_times, tail_mass_truncation=tail_mass_truncation)
+  return list_to_dictionary(output_list,
+                            min_val * num_times + min_val_convolution)

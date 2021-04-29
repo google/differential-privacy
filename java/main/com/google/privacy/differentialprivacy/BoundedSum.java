@@ -117,8 +117,8 @@ public class BoundedSum {
    * result to the closest value representing a bounded sum that is possible. Note that such post
    * processing introduces bias to the result.
    *
-   * @throws IllegalStateException if this this instance of {@link BoundedSum} has already been
-   *     queried or serialized.
+   * @throws IllegalStateException if this instance of {@link BoundedSum} has already been queried
+   *     or serialized.
    */
   public double computeResult() {
     Preconditions.checkState(state == AggregationState.DEFAULT, "DP sum cannot be computed.");
@@ -135,9 +135,9 @@ public class BoundedSum {
   }
 
   /**
-   * Computes a confidence interval that contains the true {@link BoundedSum} with a probability
-   * greater or equal to 1 - alpha using the noised {@link BoundedSum} computed by {@code
-   * computeResult()}.
+   * Computes a confidence interval that contains the raw bounded sum with a probability greater or
+   * equal to {@code 1 - alpha}. The interval is exclusively based on the noised bounded sum
+   * returned by {@link #computeResult}. Thus, no privacy budget is consumed by this operation.
    *
    * <p>Refer to <a
    * href="https://github.com/google/differential-privacy/tree/main/common_docs/confidence_intervals.md">this</a> doc for

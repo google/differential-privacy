@@ -168,7 +168,7 @@ class DictListConversionTest(parameterized.TestCase):
     test_util.dictionary_almost_equal(self, expected_result, result)
 
 
-class ConvolveTest(unittest.TestCase):
+class ConvolveTest(parameterized.TestCase):
 
   def test_convolve_dictionary(self):
     dictionary1 = {1: 2, 3: 4}
@@ -200,13 +200,35 @@ class ConvolveTest(unittest.TestCase):
     result = common.self_convolve_dictionary(inp_dictionary, 3)
     test_util.dictionary_almost_equal(self, expected_result, result)
 
-  def test_self_convolve(self):
-    input_list = [3, 5, 7]
-    expected_result = [9, 30, 67, 70, 49]
-    result = common.self_convolve(input_list, 2)
-    self.assertEqual(len(expected_result), len(result))
-    for expected_value, value in zip(expected_result, result):
-      self.assertAlmostEqual(expected_value, value)
+  @parameterized.parameters(([3, 5, 7], 2, [9, 30, 67, 70, 49]),
+                            ([1, 3, 4], 3, [1, 9, 39, 99, 156, 144, 64]))
+  def test_self_convolve_basic(self, input_list, num_times, expected_result):
+    min_val, result_list = common.self_convolve(input_list, num_times)
+    self.assertEqual(0, min_val)
+    self.assertSequenceAlmostEqual(expected_result, result_list)
+
+  @parameterized.parameters(([0.1, 0.4, 0.5], 3, [-1], 0.5, 2, 6),
+                            ([0.2, 0.6, 0.2], 3, [1], 0.7, 0, 5))
+  def test_compute_self_convolve_bounds(self, input_list, num_times, orders,
+                                        tail_mass_truncation,
+                                        expected_lower_bound,
+                                        expected_upper_bound):
+    lower_bound, upper_bound = common.compute_self_convolve_bounds(
+        input_list, num_times, tail_mass_truncation, orders=orders)
+    self.assertEqual(expected_lower_bound, lower_bound)
+    self.assertEqual(expected_upper_bound, upper_bound)
+
+  @parameterized.parameters(
+      ([0.1, 0.4, 0.5], 3, 0.5, 2, [0.063, 0.184, 0.315, 0.301, 0.137]),
+      ([0.2, 0.6, 0.2], 3, 0.7, 1, [0.08, 0.24, 0.36, 0.24, 0.08]))
+  def test_compute_self_convolve_with_truncation(self, input_list, num_times,
+                                                 tail_mass_truncation,
+                                                 expected_min_val,
+                                                 expected_result_list):
+    min_val, result_list = common.self_convolve(
+        input_list, num_times, tail_mass_truncation=tail_mass_truncation)
+    self.assertEqual(min_val, expected_min_val)
+    self.assertSequenceAlmostEqual(expected_result_list, result_list)
 
 
 if __name__ == '__main__':

@@ -44,6 +44,7 @@ go_library(
 
 go_test(
     name = "go_default_test",
+    size = "medium",
     srcs = [
         "count_test.go",
         "dpagg_test.go",

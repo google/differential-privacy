@@ -167,15 +167,15 @@ public class BoundedMean {
    *
    * <p>Note that the returned value is not an unbiased estimate of the raw bounded mean.
    *
-   * @throws IllegalStateException if this this instance of {@link BoundedMean} has already been
-   *     queried or serialized.
+   * @throws IllegalStateException if this instance of {@link BoundedMean} has already been queried
+   *     or serialized.
    */
   public double computeResult() {
     Preconditions.checkState(state == AggregationState.DEFAULT, "DP mean cannot be computed.");
 
     state = AggregationState.RESULT_RETURNED;
 
-    long noisedCount = Math.max(1, count.computeResult());
+    long noisedCount = max(1, count.computeResult());
     double normalizedNoisedSum = normalizedSum.computeResult();
 
     // Clamp the average before returning it to ensure it does not exceed the lower and upper
@@ -184,9 +184,9 @@ public class BoundedMean {
   }
 
   /**
-   * Computes a confidence interval that contains the true mean with a probability greater or equal
-   * to {@code 1 - alpha}. The computation is based exclusively on the noised data and the privacy
-   * parameters. Thus no privacy budget is consumed by this operation.
+   * Computes a confidence interval that contains the raw bounded mean with a probability greater or
+   * equal to {@code 1 - alpha}. The interval is exclusively based on the noised bounded mean
+   * returned by {@link #computeResult}. Thus, no privacy budget is consumed by this operation.
    *
    * <p>Refer to <a
    * href="https://github.com/google/differential-privacy/tree/main/common_docs/confidence_intervals.md">this</a> doc for
@@ -234,8 +234,7 @@ public class BoundedMean {
     // computeResult() processes the denominator.
     confIntDen =
         ConfidenceInterval.create(
-            Math.max(1.0, confIntDen.lowerBound()), Math.max(1.0, confIntDen.upperBound()));
-
+            max(1.0, confIntDen.lowerBound()), max(1.0, confIntDen.upperBound()));
     double meanLowerBound;
     double meanUpperBound;
     if (confIntNum.lowerBound() >= 0.0) {
@@ -265,8 +264,8 @@ public class BoundedMean {
    * computeResult()} has been called. Moreover, after this instance of {@link BoundedMean} has been
    * serialized once, no further modification, queries or serialization is possible anymore.
    *
-   * @throws IllegalStateException if this instance of {@link BoundedMean} has already been
-   *     queried or serialized.
+   * @throws IllegalStateException if this instance of {@link BoundedMean} has already been queried
+   *     or serialized.
    */
   public byte[] getSerializableSummary() {
     Preconditions.checkState(state == AggregationState.DEFAULT, "Mean cannot be serialized.");

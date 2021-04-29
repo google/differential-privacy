@@ -62,8 +62,7 @@ cc_library(
     deps = [
         ":kiss_fft_wrapper",
         "//accounting/common",
-        "@com_google_absl//absl/algorithm:container",
-        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/types:optional",
     ],
 )
 
@@ -90,7 +89,6 @@ cc_test(
     ],
     deps = [
         ":convolution",
-        "//base/testing:status_matchers",
         "@com_google_googletest//:gtest_main",
         "@com_google_absl//absl/container:flat_hash_map",
     ],

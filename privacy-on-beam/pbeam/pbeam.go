@@ -464,7 +464,7 @@ type extractProtoFieldFn struct {
 	desc        protoreflect.MessageDescriptor
 }
 
-func (ext *extractProtoFieldFn) ProcessElement(v beam.V) (string, beam.V) {
+func (ext *extractProtoFieldFn) ProcessElement(v beam.V) (string, beam.V, error) {
 	pb := v.(proto.Message)
 	reflectPb := pb.ProtoReflect()
 	// If ext.desc hasn't been initialized, initialize it now.
@@ -473,10 +473,10 @@ func (ext *extractProtoFieldFn) ProcessElement(v beam.V) (string, beam.V) {
 	}
 	idField, err := ext.extractField(reflectPb)
 	if err != nil {
-		log.Exitf("couldn't extract field %s from proto: %v", ext.IDFieldPath, err)
+		return "", nil, fmt.Errorf("couldn't extract field %s from proto: %w", ext.IDFieldPath, err)
 	}
 	out := reflectPb.Interface()
-	return fmt.Sprint(idField), out
+	return fmt.Sprint(idField), out, nil
 }
 
 // extractProtoField retrieves the value of a protoreflect.Message field based on

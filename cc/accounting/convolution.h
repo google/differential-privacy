@@ -17,6 +17,7 @@
 
 #include <vector>
 
+#include "absl/types/optional.h"
 #include "accounting/common/common.h"
 
 namespace differential_privacy {
@@ -39,23 +40,44 @@ UnpackedProbabilityMassFunction UnpackProbabilityMassFunction(
 
 // Creates probability mass function from its unpacked form and an additional
 // parameter:
-//   tail_mass_truncation: an upper bound on the tails of the probability mass
-//     that might be truncated.
+//   |tail_mass_truncation|: an upper bound on the tails of the output
+//     probability mass that might be truncated.
 ProbabilityMassFunction CreateProbabilityMassFunction(
     const UnpackedProbabilityMassFunction& input,
     double tail_mass_truncation = 0);
 
 // Returns probability mass function produced by convolution of two
 // others. Additional parameter:
-//   tail_mass_truncation: an upper bound on the tails of the output probability
-//     mass that might be truncated.
+//   |tail_mass_truncation|: an upper bound on the tails of the output
+//     probability mass that might be truncated.
 ProbabilityMassFunction Convolve(const ProbabilityMassFunction& x,
                                  const ProbabilityMassFunction& y,
                                  double tail_mass_truncation = 0);
 
+// Representation of bounds for truncation in convolution.
+struct ConvolutionTruncationBounds {
+  int64_t lower_bound;
+  int64_t upper_bound;
+};
+
+// Returns bounds such that, when convolving the probability mass function with
+// itself num_times, the resulting probability mass outside of the range is at
+// most |tail_mass_truncation|. Additional parameter:
+//   |orders|: the order for moment generating function used to calculate the
+//      bounds. If not given, a default value based on only the size of the
+//      vector representing the probability mass function is used.
+ConvolutionTruncationBounds ComputeConvolutionTruncationBounds(
+    const UnpackedProbabilityMassFunction& x, int num_times,
+    double tail_mass_truncation = 0,
+    absl::optional<std::vector<double>> orders = {});
+
 // Returns convolution of probability mass function with itself num_times.
+// Additional parameter:
+//   |tail_mass_truncation|: an upper bound on the tails of the output
+//     probability mass that might be truncated.
 ProbabilityMassFunction Convolve(const ProbabilityMassFunction& x,
-                                 int num_times);
+                                 int num_times,
+                                 double tail_mass_truncation = 0);
 }  // namespace accounting
 }  // namespace differential_privacy
 

@@ -219,6 +219,40 @@ TEST(PrivacyLossDistributionTest, ComposeNumTimes) {
                               FieldsAre(Eq(4), DoubleNear(0.16, kMaxError))));
 }
 
+TEST(PrivacyLossDistributionTest, ComposeNumTimesTruncation) {
+  // Use Gaussian mechanism because it has closed form formula even afer
+  // composition. For the setting of parameter below, the privacy loss after
+  // composition should be the same as privacy loss with standard_deviation =
+  // sensitivity.
+  int standard_deviation = 20;
+  int num_composition = standard_deviation * standard_deviation;
+  base::StatusOr<std::unique_ptr<AdditiveNoisePrivacyLoss>> noise_privacy_loss =
+      GaussianPrivacyLoss::Create(standard_deviation, /*sensitivity=*/1);
+  ASSERT_OK(noise_privacy_loss);
+
+  std::unique_ptr<PrivacyLossDistribution> pld =
+      PrivacyLossDistribution::CreateForAdditiveNoise(
+          *noise_privacy_loss.value(), EstimateType::kPessimistic,
+          /*discretization_interval=*/1e-5);
+
+  pld->Compose(num_composition, /*tail_mass_truncation=*/1e-7);
+  EXPECT_NEAR(0.00153, pld->GetDeltaForEpsilon(3), kMaxError);
+}
+
+TEST(PrivacyLossDistributionTest,
+     ComposeNumTimesTruncationAccountForTruncatedMass) {
+  int num_composition = 2;
+  double epsilon_initial = 1;
+  EpsilonDelta epsilon_delta = {/*epsilon=*/epsilon_initial, /*delta=*/0};
+
+  std::unique_ptr<PrivacyLossDistribution> pld =
+      PrivacyLossDistribution::CreateForPrivacyParameters(epsilon_delta);
+
+  pld->Compose(num_composition, /*tail_mass_truncation=*/0.5);
+  EXPECT_NEAR(0.5, pld->GetDeltaForEpsilon(num_composition * epsilon_initial),
+              kMaxError);
+}
+
 TEST(PrivacyLossDistributionTest,
      ComposeErrorDifferentDiscretizationIntervals) {
   ProbabilityMassFunction pmf = {};

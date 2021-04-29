@@ -23,11 +23,14 @@ namespace {
 using ::testing::DoubleNear;
 using ::testing::Each;
 using ::testing::ElementsAre;
+using ::testing::Eq;
 using ::testing::IsEmpty;
 using ::testing::Key;
 using ::testing::Le;
 using ::testing::Pair;
 using ::testing::UnorderedElementsAre;
+using ::testing::UnorderedPointwise;
+using ::testing::Values;
 
 constexpr double kMaxError = 1e-5;
 
@@ -134,7 +137,50 @@ TEST(Convolution, ConvolveMultiple) {
 
 TEST(Convolution, ConvolveMultipleOutputResize) {
   ProbabilityMassFunction pmf = {{1, 2}, {1673, 5}};
-  EXPECT_THAT(Convolve(pmf, 2), Each(Key(Le(3346))));
+  EXPECT_THAT(Convolve(pmf, /*num_times=*/2, /*tail_mass_truncation=*/0),
+              Each(Key(Le(3346))));
+}
+
+struct ComputeConvolutionTruncationBoundsParam {
+  std::vector<double> pmf;
+  int num_times;
+  double order;
+  double tail_mass_truncation;
+  int expected_lower_bound;
+  int expected_upper_bound;
+};
+
+class ComputeConvolutionTruncationBoundsTest
+    : public testing::TestWithParam<ComputeConvolutionTruncationBoundsParam> {};
+
+INSTANTIATE_TEST_SUITE_P(
+    ComputeConvolutionTruncationBoundsSuite,
+    ComputeConvolutionTruncationBoundsTest,
+    Values(
+        // Test lower bound computation.
+        ComputeConvolutionTruncationBoundsParam{.pmf = {0.1, 0.4, 0.5},
+                                                .num_times = 3,
+                                                .order = -1,
+                                                .tail_mass_truncation = 0.5,
+                                                .expected_lower_bound = 2,
+                                                .expected_upper_bound = 6},
+        // Test upper bound computation.
+        ComputeConvolutionTruncationBoundsParam{.pmf = {0.2, 0.6, 0.2},
+                                                .num_times = 3,
+                                                .order = 1,
+                                                .tail_mass_truncation = 0.7,
+                                                .expected_lower_bound = 0,
+                                                .expected_upper_bound = 5}));
+
+TEST_P(ComputeConvolutionTruncationBoundsTest,
+       ComputeConvolutionTruncationBoundsBasic) {
+  ComputeConvolutionTruncationBoundsParam param = GetParam();
+  UnpackedProbabilityMassFunction x;
+  x.items = param.pmf;
+  ConvolutionTruncationBounds result = ComputeConvolutionTruncationBounds(
+      x, param.num_times, param.tail_mass_truncation, {{param.order}});
+  EXPECT_EQ(param.expected_lower_bound, result.lower_bound);
+  EXPECT_EQ(param.expected_upper_bound, result.upper_bound);
 }
 }  // namespace
 }  // namespace accounting

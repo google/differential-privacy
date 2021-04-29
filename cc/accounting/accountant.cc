@@ -42,7 +42,8 @@ base::StatusOr<double> GetSmallestParameter(EpsilonDelta epsilon_delta,
         PrivacyLossDistribution::CreateForAdditiveNoise(
             *noise_function(parameter, sensitivity), EstimateType::kPessimistic,
             5e-5);
-    pld->Compose(num_queries);
+    pld->Compose(num_queries,
+                 /*tail_mass_truncation=*/0.01 * epsilon_delta.delta);
     return pld->GetDeltaForEpsilon(epsilon_delta.epsilon);
   };
 

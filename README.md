@@ -145,8 +145,9 @@ to delete a message you've previously sent, please contact us.
 ## Related projects
 
 - [PyDP](https://github.com/OpenMined/PyDP), a Python wrapper of our C++ DP
-  building block library.
-- [OpenDP](https://opendp.org) tools for statistical analysis of sensitive
-  private data.
+  building block library, driven by the [OpenMined](https://www.openmined.org/)
+  open-source community.
+- [OpenDP](https://opendp.org), a community effort around tools for statistical
+  analysis of sensitive private data.
 - [TensorFlow Privacy](https://github.com/tensorflow/privacy), a library to
   train machine learning models with differential privacy.
