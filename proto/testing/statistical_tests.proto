@@ -17,7 +17,7 @@ syntax = "proto2";
 
 package testing;
 
-option java_package = "com.google.differentialprivacy.testing";
+option java_package = "com.google.privacy.differentialprivacy.proto.testing";
 
 // The following protos are intended to store the parameters required to asses
 // the DP library based on the statistical tests.

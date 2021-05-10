@@ -17,16 +17,16 @@
 package com.google.privacy.differentialprivacy.testing;
 
 import static com.google.common.truth.Truth.assertThat;
-import static com.google.differentialprivacy.testing.StatisticalTests.NoiseType.GAUSSIAN;
-import static com.google.differentialprivacy.testing.StatisticalTests.NoiseType.LAPLACE;
+import static com.google.privacy.differentialprivacy.proto.testing.StatisticalTests.NoiseType.GAUSSIAN;
+import static com.google.privacy.differentialprivacy.proto.testing.StatisticalTests.NoiseType.LAPLACE;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.base.Supplier;
-import com.google.differentialprivacy.testing.StatisticalTests.CountDpTestCase;
-import com.google.differentialprivacy.testing.StatisticalTests.CountDpTestCaseCollection;
-import com.google.differentialprivacy.testing.StatisticalTests.CountSamplingParameters;
-import com.google.differentialprivacy.testing.StatisticalTests.DpTestParameters;
-import com.google.differentialprivacy.testing.StatisticalTests.NoiseType;
+import com.google.privacy.differentialprivacy.proto.testing.StatisticalTests.CountDpTestCase;
+import com.google.privacy.differentialprivacy.proto.testing.StatisticalTests.CountDpTestCaseCollection;
+import com.google.privacy.differentialprivacy.proto.testing.StatisticalTests.CountSamplingParameters;
+import com.google.privacy.differentialprivacy.proto.testing.StatisticalTests.DpTestParameters;
+import com.google.privacy.differentialprivacy.proto.testing.StatisticalTests.NoiseType;
 import com.google.protobuf.TextFormat;
 import java.io.IOException;
 import java.io.InputStreamReader;

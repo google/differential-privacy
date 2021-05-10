@@ -23,7 +23,7 @@ package differential_privacy;
 
 import "proto/confidence-interval.proto";
 
-option java_package = "com.google.differentialprivacy";
+option java_package = "com.google.privacy.differentialprivacy.proto";
 
 // Defining our own value type to restrict the acceptable data types.
 // It would change as per the future extensions.

@@ -17,7 +17,7 @@
 package com.google.privacy.differentialprivacy;
 
 import static com.google.common.truth.Truth.assertThat;
-import static com.google.differentialprivacy.SummaryOuterClass.MechanismType.LAPLACE;
+import static com.google.privacy.differentialprivacy.proto.SummaryOuterClass.MechanismType.LAPLACE;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;

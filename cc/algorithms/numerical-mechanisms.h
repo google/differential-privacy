@@ -575,7 +575,8 @@ class GaussianMechanism : public NumericalMechanism {
 
     double local_epsilon = privacy_budget * GetEpsilon();
     double local_delta = privacy_budget * delta_;
-    double stddev = CalculateStddev(local_epsilon, local_delta);
+    double stddev =
+        CalculateStddev(local_epsilon, local_delta, l2_sensitivity_);
 
     ConfidenceInterval confidence;
     // calculated using the symmetric properties of the Gaussian distribution
@@ -597,16 +598,17 @@ class GaussianMechanism : public NumericalMechanism {
   //
   // This implementation uses a binary search. Its runtime is roughly
   // log(kGaussianSigmaAccuracy)
-  // + log(max{sigma_tight / l2_sensitivity_, l2_sensitivity_ / sigma_tight}).
-  double CalculateStddev(double epsilon, double delta) const {
-    // l2_sensitivity_ is used as a starting guess for the upper bound, since
+  // + log(max{sigma_tight / l2_sensitivity, l2_sensitivity / sigma_tight}).
+  static double CalculateStddev(double epsilon, double delta,
+                                double l2_sensitivity) {
+    // l2_sensitivity is used as a starting guess for the upper bound, since
     // the required noise grows linearly with sensitivity.
-    double upper_bound = l2_sensitivity_;
+    double upper_bound = l2_sensitivity;
     double lower_bound = std::numeric_limits<double>::min();
 
     // Increase lower_bound and upper_bound until upper_bound is actually an
     // upper bound of sigma_tight, using exponential search.
-    while (CalculateDelta(upper_bound, epsilon) > delta) {
+    while (CalculateDelta(upper_bound, epsilon, l2_sensitivity) > delta) {
       lower_bound = upper_bound;
       upper_bound = upper_bound * 2;
     }
@@ -615,7 +617,7 @@ class GaussianMechanism : public NumericalMechanism {
     // approximation of sigma_tight.
     while (upper_bound - lower_bound > kGaussianSigmaAccuracy * lower_bound) {
       double middle = lower_bound * 0.5 + upper_bound * 0.5;
-      if (CalculateDelta(middle, epsilon) > delta) {
+      if (CalculateDelta(middle, epsilon, l2_sensitivity) > delta) {
         lower_bound = middle;
       } else {
         upper_bound = middle;
@@ -630,6 +632,36 @@ class GaussianMechanism : public NumericalMechanism {
 
   double GetL2Sensitivity() const { return l2_sensitivity_; }
 
+  // Returns the smallest delta such that the Gaussian mechanism with standard
+  // deviation sigma obtains (epsilon, delta)-differential
+  // privacy with respect to the provided L_2 sensitivity. The calculation is
+  // based on Theorem 8 of Balle and Wang's "Improving the Gaussian Mechanism
+  // for Differential Privacy: Analytical Calibration and Optimal Denoising",
+  // available <a href="https://arxiv.org/abs/1805.06530v2">here</a>.
+  static double CalculateDelta(double sigma, double epsilon,
+                               double l2_sensitivity) {
+    // Denoting by CDF the CDF function of the standard Gaussian distribution
+    // (mean 0, variance 1), and s the L2 sensitivity, the tight choice of delta
+    // is:
+    //    CDF(s/(2*sigma) - epsilon*sigma/s) - exp(epsilon)*CDF(-s/(2*sigma) -
+    //    epsilon*sigma/s)
+    // To simplify the reasoning floating-point underflow/overflows, we rewrite
+    // this formula into:
+    //    CDF(a - b) - c * CDF(-a - b)
+    // where a = s / (2 * sigma), b = epsilon * sigma / s, and c = exp(epsilon).
+    double a = l2_sensitivity / (2 * sigma);
+    double b = epsilon * sigma / l2_sensitivity;
+    double c = std::exp(epsilon);
+
+    if (std::isinf(b)) {
+      // If either l2_sensitivity goes to 0 or e^epsilon goes to infinity,
+      // delta goes to 0.
+      return 0;
+    }
+    return StandardNormalDistributionCDF(a - b) -
+           c * StandardNormalDistributionCDF(-a - b);
+  }
+
  protected:
   // Adds differentially private noise to a provided value. The privacy_budget
   // is multiplied with epsilon and delta for this particular result. Privacy
@@ -642,7 +674,8 @@ class GaussianMechanism : public NumericalMechanism {
 
     double local_epsilon = privacy_budget * GetEpsilon();
     double local_delta = privacy_budget * delta_;
-    double stddev = CalculateStddev(local_epsilon, local_delta);
+    double stddev =
+        CalculateStddev(local_epsilon, local_delta, l2_sensitivity_);
     double sample = distro_->Sample(stddev);
 
     return RoundToNearestMultiple(result, distro_->GetGranularity(stddev)) +
@@ -654,7 +687,8 @@ class GaussianMechanism : public NumericalMechanism {
 
     double local_epsilon = privacy_budget * GetEpsilon();
     double local_delta = privacy_budget * delta_;
-    double stddev = CalculateStddev(local_epsilon, local_delta);
+    double stddev =
+        CalculateStddev(local_epsilon, local_delta, l2_sensitivity_);
     double sample = distro_->Sample(stddev);
 
     SafeOpResult<int64_t> noise_cast_result =
@@ -684,37 +718,8 @@ class GaussianMechanism : public NumericalMechanism {
   const double l2_sensitivity_;
   std::unique_ptr<internal::GaussianDistribution> distro_;
 
-  double StandardNormalDistributionCDF(double x) const {
+  static double StandardNormalDistributionCDF(double x) {
     return internal::GaussianDistribution::cdf(1, x);
-  }
-
-  // Returns the smallest delta such that the Gaussian mechanism with standard
-  // deviation sigma obtains (epsilon, delta)-differential
-  // privacy with respect to the provided L_2 sensitivity. The calculation is
-  // based on Theorem 8 of Balle and Wang's "Improving the Gaussian Mechanism
-  // for Differential Privacy: Analytical Calibration and Optimal Denoising",
-  // available <a href="https://arxiv.org/abs/1805.06530v2">here</a>.
-  double CalculateDelta(double sigma, double epsilon) const {
-    // Denoting by CDF the CDF function of the standard Gaussian distribution
-    // (mean 0, variance 1), and s the L2 sensitivity, the tight choice of delta
-    // is:
-    //    CDF(s/(2*sigma) - epsilon*sigma/s) - exp(epsilon)*CDF(-s/(2*sigma) -
-    //    epsilon*sigma/s)
-    // To simplify the reasoning floating-point underflow/overflows, we rewrite
-    // this formula into:
-    //    CDF(a - b) - c * CDF(-a - b)
-    // where a = s / (2 * sigma), b = epsilon * sigma / s, and c = exp(epsilon).
-    double a = l2_sensitivity_ / (2 * sigma);
-    double b = epsilon * sigma / l2_sensitivity_;
-    double c = std::exp(epsilon);
-
-    if (std::isinf(b)) {
-      // If either l2_sensitivity_ goes to 0 or e^epsilon goes to infinity,
-      // delta goes to 0.
-      return 0;
-    }
-    return StandardNormalDistributionCDF(a - b) -
-           c * StandardNormalDistributionCDF(-a - b);
   }
 };
 

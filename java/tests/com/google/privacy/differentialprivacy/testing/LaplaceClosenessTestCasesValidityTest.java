@@ -20,9 +20,9 @@ import static com.google.common.truth.Truth.assertThat;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.base.Supplier;
-import com.google.differentialprivacy.testing.StatisticalTests.ClosenessTestParameters;
-import com.google.differentialprivacy.testing.StatisticalTests.DistributionClosenessTestCase;
-import com.google.differentialprivacy.testing.StatisticalTests.DistributionClosenessTestCaseCollection;
+import com.google.privacy.differentialprivacy.proto.testing.StatisticalTests.ClosenessTestParameters;
+import com.google.privacy.differentialprivacy.proto.testing.StatisticalTests.DistributionClosenessTestCase;
+import com.google.privacy.differentialprivacy.proto.testing.StatisticalTests.DistributionClosenessTestCaseCollection;
 import com.google.protobuf.TextFormat;
 import java.io.IOException;
 import java.io.InputStreamReader;

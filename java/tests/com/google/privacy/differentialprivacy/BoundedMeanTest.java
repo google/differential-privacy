@@ -30,7 +30,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.common.collect.Range;
-import com.google.differentialprivacy.SummaryOuterClass.MechanismType;
+import com.google.privacy.differentialprivacy.proto.SummaryOuterClass.MechanismType;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;

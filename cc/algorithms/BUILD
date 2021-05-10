@@ -354,7 +354,6 @@ cc_test(
         ":distributions",
         ":numerical-mechanisms-testing",
         ":util",
-        "//base:status",
         "//base/testing:status_matchers",
         "@com_google_googletest//:gtest_main",
         "@com_google_absl//absl/memory",
@@ -516,12 +515,12 @@ cc_library(
     name = "partition-selection",
     hdrs = ["partition-selection.h"],
     deps = [
+        ":distributions",
         ":numerical-mechanisms",
         ":rand",
         ":util",
         "//base:status",
         "//base:statusor",
-        "@com_google_absl//absl/status",
     ],
 )
 

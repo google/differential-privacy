@@ -39,6 +39,7 @@ const (
 
 // BoundedQuantiles calculates a differentially private quantiles of a collection
 // of float64 values using a quantile tree mechanism.
+// See https://github.com/google/differential-privacy/blob/main/common_docs/Differentially_Private_Quantile_Trees.pdf.
 //
 // It supports privacy units that contribute to multiple partitions (via the
 // MaxPartitionsContributed parameter) as well as contribute to the same partition

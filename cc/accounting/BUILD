@@ -41,6 +41,7 @@ cc_library(
         "//base:status",
         "//base:statusor",
         "//accounting/common",
+        "@com_google_differential_privacy//proto/accounting:privacy_loss_distribution_cc_proto",
         "@boost//:lexical_cast",
         "@boost//:math",
         "@boost//:multiprecision",
@@ -78,6 +79,7 @@ cc_test(
         "//base/testing:status_matchers",
         "@com_google_googletest//:gtest_main",
         "//accounting/common",
+        "@com_google_differential_privacy//proto/accounting:privacy_loss_distribution_cc_proto",
         "@com_google_absl//absl/status",
     ],
 )

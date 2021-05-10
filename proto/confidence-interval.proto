@@ -18,6 +18,8 @@ syntax = "proto3";
 
 package differential_privacy;
 
+option java_package = "com.google.privacy.differentialprivacy.proto";
+
 message ConfidenceInterval {
   double upper_bound = 1;
   double lower_bound = 2;

@@ -65,6 +65,10 @@ class GaussianDistribution {
   // at point x.
   static double cdf(double stddev, double x);
 
+  // Returns the quantile (inverse cdf) of the Gaussian distribution with
+  // standard deviation stddev at point x.
+  static double Quantile(double stddev, double x);
+
  private:
   // Constructor for Gaussian with specified stddev.
   explicit GaussianDistribution(double stddev);

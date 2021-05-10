@@ -17,7 +17,7 @@
 package com.google.privacy.differentialprivacy;
 
 import static com.google.common.truth.Truth.assertThat;
-import static com.google.differentialprivacy.SummaryOuterClass.MechanismType.GAUSSIAN;
+import static com.google.privacy.differentialprivacy.proto.SummaryOuterClass.MechanismType.GAUSSIAN;
 import static java.lang.Double.NaN;
 import static org.junit.Assert.assertThrows;
 

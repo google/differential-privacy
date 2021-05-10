@@ -19,14 +19,17 @@
 
 #include <math.h>
 
+#include <cmath>
 #include <cstddef>
 #include <iostream>
 #include <string>
 #include <utility>
 
 #include "base/statusor.h"
+#include "algorithms/distributions.h"
 #include "algorithms/numerical-mechanisms.h"
 #include "algorithms/rand.h"
+#include "algorithms/util.h"
 #include "base/canonical_errors.h"
 #include "base/status_macros.h"
 
@@ -84,9 +87,10 @@ class PartitionSelectionStrategy {
       return max_partitions_contributed_;
     }
 
+    absl::optional<double> delta_;
+
    private:
     absl::optional<double> epsilon_;
-    absl::optional<double> delta_;
     absl::optional<int64_t> max_partitions_contributed_;
   };
 
@@ -395,6 +399,162 @@ class LaplacePartitionSelection : public PartitionSelectionStrategy {
  private:
   int64_t l1_sensitivity_;
   double diversity_;
+  double threshold_;
+  std::unique_ptr<NumericalMechanism> mechanism_;
+};
+
+// GaussianPartitionSelection calculates a threshold based on the CDF of the
+// Gaussian distribution, delta, epsilon, and the max number of partitions a
+// single user can contribute to. If the number of users in a partition
+// + Gaussian noise is greater than this threshold, the partition should be
+// kept.
+class GaussianPartitionSelection : public PartitionSelectionStrategy {
+ public:
+  // Builder for GaussianPartitionSelection
+  class Builder : public PartitionSelectionStrategy::Builder {
+   public:
+    Builder& SetGaussianMechanism(
+        std::unique_ptr<GaussianMechanism::Builder> gaussian_builder) {
+      gaussian_builder_ = std::move(gaussian_builder);
+      return *this;
+    }
+
+    base::StatusOr<std::unique_ptr<PartitionSelectionStrategy>> Build()
+        override {
+      RETURN_IF_ERROR(EpsilonIsSetAndValid());
+      RETURN_IF_ERROR(DeltaIsSetAndValid());
+      RETURN_IF_ERROR(MaxPartitionsContributedIsSetAndValid());
+      if (gaussian_builder_ == nullptr) {
+        gaussian_builder_ = absl::make_unique<GaussianMechanism::Builder>();
+      }
+
+      double epsilon = GetEpsilon().value();
+      double delta = GetDelta().value();
+      int64_t max_partitions_contributed = GetMaxPartitionsContributed().value();
+      double threshold_delta = delta / 2.;
+      double noise_delta = delta - threshold_delta;
+
+      std::unique_ptr<NumericalMechanism> mechanism_;
+      ASSIGN_OR_RETURN(mechanism_,
+                       gaussian_builder_->SetEpsilon(epsilon)
+                           .SetL0Sensitivity(max_partitions_contributed)
+                           .SetLInfSensitivity(1)
+                           .SetDelta(noise_delta)
+                           .Build());
+
+      ASSIGN_OR_RETURN(double threshold,
+                       CalculateThreshold(epsilon, noise_delta, threshold_delta,
+                                          max_partitions_contributed));
+
+      ASSIGN_OR_RETURN(
+          double adjusted_threshold_delta,
+          CalculateAdjustedDelta(threshold_delta, max_partitions_contributed));
+
+      std::unique_ptr<PartitionSelectionStrategy> gaussian =
+          absl::WrapUnique(new GaussianPartitionSelection(
+              epsilon, delta, threshold_delta, noise_delta,
+              max_partitions_contributed, adjusted_threshold_delta, threshold,
+              std::move(mechanism_)));
+
+      return gaussian;
+    }
+
+   private:
+    std::unique_ptr<GaussianMechanism::Builder> gaussian_builder_;
+  };
+
+  virtual ~GaussianPartitionSelection() = default;
+
+  double GetThresholdDelta() const { return threshold_delta_; }
+
+  double GetNoiseDelta() const { return noise_delta_; }
+
+  bool ShouldKeep(int num_users) override {
+    return mechanism_->NoisedValueAboveThreshold(num_users, threshold_);
+  }
+
+  // CalculateThresholdDelta returns the threshold_delta for a threshold k. This
+  // is the inverse of CalculateThreshold.
+  static base::StatusOr<double> CalculateThresholdDelta(
+      double epsilon, double noise_delta, double threshold,
+      int64_t max_partitions_contributed) {
+    RETURN_IF_ERROR(PartitionSelectionStrategy::EpsilonIsSetAndValid(epsilon));
+    RETURN_IF_ERROR(DeltaIsSetAndValid(noise_delta));
+    RETURN_IF_ERROR(
+        PartitionSelectionStrategy::MaxPartitionsContributedIsSetAndValid(
+            max_partitions_contributed));
+
+    double sigma = GaussianMechanism::CalculateStddev(
+        epsilon, noise_delta, max_partitions_contributed);
+
+    const double max_contribution = 1;
+    const double adjusted_threshold_delta =
+        1 - internal::GaussianDistribution::cdf(sigma,
+                                                threshold - max_contribution);
+
+    return CalculateUnadjustedDelta(adjusted_threshold_delta,
+                                    max_partitions_contributed);
+  }
+
+  // CalculateThreshold returns the smallest threshold k to use in a
+  // differentially private histogram with added Gaussian noise.
+  //
+  // See
+  // https://github.com/google/differential-privacy/blob/main/common_docs/Delta_For_Thresholding.pdf
+  // for details on the math underlying this.
+  static base::StatusOr<double> CalculateThreshold(
+      double epsilon, double noise_delta, double threshold_delta,
+      int64_t max_partitions_contributed) {
+    RETURN_IF_ERROR(PartitionSelectionStrategy::EpsilonIsSetAndValid(epsilon));
+    RETURN_IF_ERROR(DeltaIsSetAndValid(noise_delta));
+    RETURN_IF_ERROR(DeltaIsSetAndValid(threshold_delta));
+    RETURN_IF_ERROR(
+        PartitionSelectionStrategy::MaxPartitionsContributedIsSetAndValid(
+            max_partitions_contributed));
+
+    double sigma = GaussianMechanism::CalculateStddev(
+        epsilon, noise_delta, max_partitions_contributed);
+
+    ASSIGN_OR_RETURN(
+        double adjusted_threshold_delta,
+        CalculateAdjustedDelta(threshold_delta, max_partitions_contributed));
+
+    const double max_contribution = 1;
+
+    return max_contribution + internal::GaussianDistribution::Quantile(
+                                  sigma, 1 - adjusted_threshold_delta);
+  }
+
+  double GetThreshold() const { return threshold_; }
+
+ protected:
+  GaussianPartitionSelection(double epsilon, double delta,
+                             double threshold_delta, double noise_delta,
+                             int64_t max_partitions_contributed,
+                             double adjusted_delta, double threshold,
+                             std::unique_ptr<NumericalMechanism> gaussian)
+      : PartitionSelectionStrategy(epsilon, delta, max_partitions_contributed,
+                                   adjusted_delta),
+        threshold_delta_(threshold_delta),
+        noise_delta_(noise_delta),
+        threshold_(threshold),
+        mechanism_(std::move(gaussian)) {}
+
+  // CalculateDelta computes the smallest δ such that the Gaussian mechanism
+  // with fixed standard deviation σ is (ε,δ)-differentially private. The
+  // calculation is based on Theorem 8 of Balle and Wang's "Improving the
+  // Gaussian Mechanism for Differential Privacy: Analytical Calibration and
+  // Optimal Denoising" (https://arxiv.org/abs/1805.06530v2).
+  static double CalculateDelta(double sigma, double epsilon,
+                               int64_t max_partitions_contributed) {
+    const double l2_sensitivity = std::sqrt(max_partitions_contributed);
+
+    return GaussianMechanism::CalculateDelta(sigma, epsilon, l2_sensitivity);
+  }
+
+ private:
+  double threshold_delta_;
+  double noise_delta_;
   double threshold_;
   std::unique_ptr<NumericalMechanism> mechanism_;
 };

@@ -17,16 +17,17 @@
 package com.google.privacy.differentialprivacy.testing;
 
 import static com.google.common.truth.Truth.assertThat;
-import static com.google.differentialprivacy.testing.StatisticalTests.NoiseType.GAUSSIAN;
-import static com.google.differentialprivacy.testing.StatisticalTests.NoiseType.LAPLACE;
+import static com.google.privacy.differentialprivacy.proto.testing.StatisticalTests.NoiseType.GAUSSIAN;
+import static com.google.privacy.differentialprivacy.proto.testing.StatisticalTests.NoiseType.LAPLACE;
+import static java.lang.Math.max;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.base.Supplier;
-import com.google.differentialprivacy.testing.StatisticalTests.BoundedMeanDpTestCase;
-import com.google.differentialprivacy.testing.StatisticalTests.BoundedMeanDpTestCaseCollection;
-import com.google.differentialprivacy.testing.StatisticalTests.BoundedMeanSamplingParameters;
-import com.google.differentialprivacy.testing.StatisticalTests.DpTestParameters;
-import com.google.differentialprivacy.testing.StatisticalTests.NoiseType;
+import com.google.privacy.differentialprivacy.proto.testing.StatisticalTests.BoundedMeanDpTestCase;
+import com.google.privacy.differentialprivacy.proto.testing.StatisticalTests.BoundedMeanDpTestCaseCollection;
+import com.google.privacy.differentialprivacy.proto.testing.StatisticalTests.BoundedMeanSamplingParameters;
+import com.google.privacy.differentialprivacy.proto.testing.StatisticalTests.DpTestParameters;
+import com.google.privacy.differentialprivacy.proto.testing.StatisticalTests.NoiseType;
 import com.google.protobuf.TextFormat;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -93,29 +94,27 @@ public final class BoundedMeanDpTestCasesValidityTest {
         getCountSensitivity(maxPartitionsContributed, maxContributionsPerPartition, noiseType);
     double normalizedBound = distanceBetweenBounds * 0.5;
 
-    // Let x / n and (x + y) / (n + m) be two means that only differ by the contributions of a
-    // single unit of privacy, i.e., m entries summing up to a value of y. To check whether a DP
-    // test accepts the extra contributions if they are within the specified sensitivity, i.e.,
-    // m <= sensitivity, we need to establish an upper bound on the difference between the two
-    // means.
-    //
-    // To maximize |(x / n) - (x + y) / (n + m)| we set n = 1 and x = n * b, where b is the
-    // normalized lower bound. Moreover we set m = sensitivity and y = m * -b.
+    // To check that a DP test reliably accepts DP samples drawn from two neighbouring datasets
+    // according to the specified privacy parameters, we construct the datasets in a way that
+    // maximizes the difference in their mean. For this purpose, we assume that both datasets
+    // contain 1 entry of value l where l is the normalized lower bound. Moreover, we assume that
+    // the second dataset contains n entries of value u where n ≤ sensitivity and u is the
+    // normalized upper bound.
     Supplier<Double> sampleGenerator =
         () ->
             (normalizedBound + sampleReferenceNoise(sumVariance, noiseType))
-                / Math.max(1 + sampleReferenceNoise(countVariance, noiseType), 1.0);
-    Supplier<Double> shiftedSampleGenerator =
+                / max(1 + sampleReferenceNoise(countVariance, noiseType), 1.0);
+    Supplier<Double> neighbouringSampleGenerator =
         () ->
             ((1 - sensitivity) * normalizedBound + sampleReferenceNoise(sumVariance, noiseType))
-                / Math.max(1 + sensitivity + sampleReferenceNoise(countVariance, noiseType), 1.0);
+                / max(1 + sensitivity + sampleReferenceNoise(countVariance, noiseType), 1.0);
 
     assertThat(
             VotingUtil.runBallot(
                 () ->
                     generateVote(
                         sampleGenerator,
-                        shiftedSampleGenerator,
+                        neighbouringSampleGenerator,
                         samplingParameters.getNumberOfSamples(),
                         dpTestParameters.getEpsilon(),
                         dpTestParameters.getDelta(),
@@ -157,31 +156,28 @@ public final class BoundedMeanDpTestCasesValidityTest {
             * distanceSpecificity;
     double normalizedBound = distanceBetweenBounds * 0.5;
 
-    // Let x / n and (x + y) / (n + m) be two means that only differ by the contributions of a
-    // single unit of privacy, i.e., m entries summing up to a value of y. To check whether a DP
-    // test rejects extra contributions that clearly exceed the specified sensitivity by more than
-    // the distanceSpecificity, i.e., m >= sensitivity * distanceSpecificity, we need to establish
-    // an upper bound on the difference between the two means.
-    //
-    // To maximize |(x / n) - (x + y) / (n + m)| we set n = 1 and x = n * b, where b is the
-    // normalized lower bound. Moreover we set m = sensitivity and y = m * -b.
+    // To check that a DP test rejects samples drawn from two neighbouring datasets that violate the
+    // specified sensitivity, we construct the datasets in a way that maximizes the difference in
+    // standard deviation for the given sensitivity violation. For this purpose, we assume that both
+    // datasets contain 1 entry of value l where l is the normalized lower bound. Moreover, we
+    // assume that the second dataset contains n entries of value u where n ≥
+    // sensitivity * distanceSpecificity and u is the normalized upper bound.
     Supplier<Double> sampleGenerator =
         () ->
             (normalizedBound + sampleReferenceNoise(sumVariance, noiseType))
-                / Math.max(1 + sampleReferenceNoise(countVariance, noiseType), 1.0);
-    Supplier<Double> shiftedSampleGenerator =
+                / max(1 + sampleReferenceNoise(countVariance, noiseType), 1.0);
+    Supplier<Double> neighbouringSampleGenerator =
         () ->
             ((1 - scaledSensitivity) * normalizedBound
                     + sampleReferenceNoise(sumVariance, noiseType))
-                / Math.max(
-                    1 + scaledSensitivity + sampleReferenceNoise(countVariance, noiseType), 1.0);
+                / max(1 + scaledSensitivity + sampleReferenceNoise(countVariance, noiseType), 1.0);
 
     assertThat(
             VotingUtil.runBallot(
                 () ->
                     generateVote(
                         sampleGenerator,
-                        shiftedSampleGenerator,
+                        neighbouringSampleGenerator,
                         samplingParameters.getNumberOfSamples(),
                         dpTestParameters.getEpsilon(),
                         dpTestParameters.getDelta(),
@@ -192,7 +188,7 @@ public final class BoundedMeanDpTestCasesValidityTest {
   }
 
   @Test
-  public void boundedMEanDpTest_rejectsCriticallyFailingMeans() {
+  public void boundedMeanDpTest_rejectsCriticallyFailingMeans() {
     BoundedMeanSamplingParameters samplingParameters = testCase.getBoundedMeanSamplingParameters();
     DpTestParameters dpTestParameters = testCase.getDpTestParameters();
     SecureRandom random = new SecureRandom();
@@ -219,10 +215,11 @@ public final class BoundedMeanDpTestCasesValidityTest {
             maxContributionsPerPartition,
             distanceBetweenBounds,
             noiseType);
+    // Assume an empty set of entries.
     Supplier<Double> sampleGenerator =
         () ->
             sampleReferenceNoise(sumVariance, noiseType)
-                / Math.max(sampleReferenceNoise(countVariance, noiseType), 1.0);
+                / max(sampleReferenceNoise(countVariance, noiseType), 1.0);
     Supplier<Double> criticallyFailingSampleGenerator =
         () ->
             random.nextDouble() > dpTestParameters.getDeltaTolerance() * failureSpecificity

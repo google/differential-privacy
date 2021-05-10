@@ -21,6 +21,7 @@
 #include "absl/strings/str_format.h"
 #include "accounting/common/common.h"
 #include "accounting/convolution.h"
+#include "proto/accounting/privacy-loss-distribution.pb.h"
 #include "base/status_macros.h"
 
 namespace differential_privacy {
@@ -350,6 +351,42 @@ double PrivacyLossDistribution::GetEpsilonForDelta(double delta) const {
   if (mass_upper <= mass_lower + delta) return 0;
 
   return std::log((mass_upper - delta) / mass_lower);
+}
+
+base::StatusOr<serialization::PrivacyLossDistribution>
+PrivacyLossDistribution::Serialize() const {
+  if (estimate_type_ == EstimateType::kOptimistic) {
+    return absl::InvalidArgumentError(
+        "Serialization not supported for optimistic estimates.");
+  }
+  serialization::PrivacyLossDistribution output;
+  serialization::ProbabilityMassFunction* serialized_pmf =
+      output.mutable_pessimistic_pmf();
+  UnpackedProbabilityMassFunction unpacked_pmf =
+      UnpackProbabilityMassFunction(probability_mass_function_);
+  serialized_pmf->set_infinity_mass(infinity_mass_);
+  serialized_pmf->set_discretization_interval(discretization_interval_);
+  serialized_pmf->set_min_key(unpacked_pmf.min_key);
+  *serialized_pmf->mutable_values() = {unpacked_pmf.items.begin(),
+                                       unpacked_pmf.items.end()};
+  return output;
+}
+
+base::StatusOr<std::unique_ptr<PrivacyLossDistribution>>
+PrivacyLossDistribution::Deserialize(
+    const serialization::PrivacyLossDistribution& proto) {
+  if (!proto.has_pessimistic_pmf()) {
+    return absl::InvalidArgumentError("PMF must be set.");
+  }
+  serialization::ProbabilityMassFunction pmf = proto.pessimistic_pmf();
+  UnpackedProbabilityMassFunction unpacked_pmf;
+  unpacked_pmf.min_key = pmf.min_key();
+  unpacked_pmf.items =
+      std::vector<double>(pmf.values().begin(), pmf.values().end());
+  return absl::WrapUnique(new PrivacyLossDistribution(
+      pmf.discretization_interval(), pmf.infinity_mass(),
+      /*probability_mass_function=*/
+      CreateProbabilityMassFunction(unpacked_pmf)));
 }
 }  // namespace accounting
 }  // namespace differential_privacy

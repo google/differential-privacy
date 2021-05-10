@@ -23,7 +23,7 @@ package differential_privacy;
 import "google/protobuf/any.proto";
 import "proto/data.proto";
 
-option java_package = "com.google.differentialprivacy";
+option java_package = "com.google.privacy.differentialprivacy.proto";
 
 // Serialized summary data of a subset of the input data, to be merged at a
 // later time.

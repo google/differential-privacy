@@ -24,6 +24,7 @@
 #include "base/statusor.h"
 #include "accounting/common/common.h"
 #include "accounting/privacy_loss_mechanism.h"
+#include "proto/accounting/privacy-loss-distribution.pb.h"
 
 namespace differential_privacy {
 namespace accounting {
@@ -184,6 +185,14 @@ class PrivacyLossDistribution {
   const ProbabilityMassFunction& Pmf() const {
     return probability_mass_function_;
   }
+
+  // Serializes the privacy loss distribution. Currently only supports
+  // pessimistic estimates.
+  base::StatusOr<serialization::PrivacyLossDistribution> Serialize() const;
+
+  // Deserializes the privacy loss distribution.
+  static base::StatusOr<std::unique_ptr<PrivacyLossDistribution>> Deserialize(
+      const serialization::PrivacyLossDistribution& proto);
 
  private:
   PrivacyLossDistribution(

@@ -19,7 +19,7 @@ package com.google.privacy.differentialprivacy;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.differentialprivacy.SummaryOuterClass.MechanismType;
+import com.google.privacy.differentialprivacy.proto.SummaryOuterClass.MechanismType;
 import java.security.SecureRandom;
 import javax.annotation.Nullable;
 import org.apache.commons.math3.distribution.NormalDistribution;

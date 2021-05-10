@@ -102,6 +102,11 @@ double GaussianDistribution::cdf(double stddev, double x) {
   return (std::erfc(-x / (stddev * sqrt(2)))) / 2;
 }
 
+double GaussianDistribution::Quantile(double stddev, double x) {
+  DCHECK_GT(stddev, 0);
+  return stddev * std::sqrt(2) * InverseErrorFunction(2 * x - 1);
+}
+
 GeometricDistribution::Builder& GeometricDistribution::Builder::SetLambda(
     double lambda) {
   lambda_ = lambda;

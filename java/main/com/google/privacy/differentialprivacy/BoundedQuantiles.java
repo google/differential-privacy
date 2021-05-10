@@ -23,7 +23,7 @@ import static java.lang.Math.min;
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import com.google.differentialprivacy.SummaryOuterClass.BoundedQuantilesSummary;
+import com.google.privacy.differentialprivacy.proto.SummaryOuterClass.BoundedQuantilesSummary;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.Collection;
 import java.util.HashMap;
@@ -33,6 +33,8 @@ import javax.annotation.Nullable;
 /**
  * Calculates differentially private quantiles for a collection of values using a quantile tree
  * mechanism.
+ *
+ * <p>See https://github.com/google/differential-privacy/blob/main/common_docs/Differentially_Private_Quantile_Trees.pdf.
  *
  * <p>Note: the class is not thread-safe.
  *

@@ -20,10 +20,10 @@ import static com.google.common.truth.Truth.assertThat;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.base.Supplier;
-import com.google.differentialprivacy.testing.StatisticalTests.BoundedQuantilesDpTestCase;
-import com.google.differentialprivacy.testing.StatisticalTests.BoundedQuantilesDpTestCaseCollection;
-import com.google.differentialprivacy.testing.StatisticalTests.BoundedQuantilesSamplingParameters;
-import com.google.differentialprivacy.testing.StatisticalTests.DpTestParameters;
+import com.google.privacy.differentialprivacy.proto.testing.StatisticalTests.BoundedQuantilesDpTestCase;
+import com.google.privacy.differentialprivacy.proto.testing.StatisticalTests.BoundedQuantilesDpTestCaseCollection;
+import com.google.privacy.differentialprivacy.proto.testing.StatisticalTests.BoundedQuantilesSamplingParameters;
+import com.google.privacy.differentialprivacy.proto.testing.StatisticalTests.DpTestParameters;
 import com.google.protobuf.TextFormat;
 import java.io.IOException;
 import java.io.InputStreamReader;

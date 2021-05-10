@@ -1067,5 +1067,588 @@ TEST(PartitionSelectionTest, RoundTripDeltaTests) {
   }
 }
 
+// GaussianPartitionSelection Tests
+// Due to the inheritance, SetGaussianMechanism must be
+// called before SetDelta, SetEpsilon, etc.
+
+TEST(PartitionSelectionTest,
+     GaussianPartitionSelectionUnsetMaxPartitionsContributed) {
+  GaussianPartitionSelection::Builder test_builder;
+  auto failed_build =
+      test_builder
+          .SetGaussianMechanism(absl::make_unique<GaussianMechanism::Builder>())
+          .SetDelta(0.1)
+          .SetEpsilon(2)
+          .Build();
+  EXPECT_THAT(failed_build.status().code(),
+              Eq(absl::StatusCode::kInvalidArgument));
+  std::string message(std::string(failed_build.status().message()));
+  EXPECT_THAT(message, MatchesRegex("^Max number of partitions a user can"
+                                    " contribute to must be set.*"));
+}
+
+TEST(PartitionSelectionTest,
+     GaussianPartitionSelectionNegativeMaxPartitionsContributed) {
+  GaussianPartitionSelection::Builder test_builder;
+  auto failed_build =
+      test_builder
+          .SetGaussianMechanism(absl::make_unique<GaussianMechanism::Builder>())
+          .SetDelta(0.1)
+          .SetEpsilon(2)
+          .SetMaxPartitionsContributed(-3)
+          .Build();
+  EXPECT_THAT(failed_build.status().code(),
+              Eq(absl::StatusCode::kInvalidArgument));
+  std::string message(std::string(failed_build.status().message()));
+  EXPECT_THAT(message, MatchesRegex("^Max number of partitions a user can"
+                                    " contribute to must be positive.*"));
+}
+
+TEST(PartitionSelectionTest,
+     GaussianPartitionSelectionZeroMaxPartitionsContributed) {
+  GaussianPartitionSelection::Builder test_builder;
+  auto failed_build =
+      test_builder
+          .SetGaussianMechanism(absl::make_unique<GaussianMechanism::Builder>())
+          .SetDelta(0.1)
+          .SetEpsilon(2)
+          .SetMaxPartitionsContributed(0)
+          .Build();
+  EXPECT_THAT(failed_build.status().code(),
+              Eq(absl::StatusCode::kInvalidArgument));
+  std::string message(std::string(failed_build.status().message()));
+  EXPECT_THAT(message, MatchesRegex("^Max number of partitions a user can"
+                                    " contribute to must be positive.*"));
+}
+
+TEST(PartitionSelectionTest, GaussianPartitionSelectionUnsetEpsilon) {
+  GaussianPartitionSelection::Builder test_builder;
+  auto failed_build =
+      test_builder
+          .SetGaussianMechanism(absl::make_unique<GaussianMechanism::Builder>())
+          .SetDelta(0.1)
+          .SetMaxPartitionsContributed(2)
+          .Build();
+  EXPECT_THAT(failed_build.status().code(),
+              Eq(absl::StatusCode::kInvalidArgument));
+  std::string message(std::string(failed_build.status().message()));
+  EXPECT_THAT(message, MatchesRegex("^Epsilon must be set.*"));
+}
+
+TEST(PartitionSelectionTest, GaussianPartitionSelectionUnsetDelta) {
+  GaussianPartitionSelection::Builder test_builder;
+  auto failed_build =
+      test_builder
+          .SetGaussianMechanism(absl::make_unique<GaussianMechanism::Builder>())
+          .SetEpsilon(0.1)
+          .SetMaxPartitionsContributed(2)
+          .Build();
+  EXPECT_THAT(failed_build.status().code(),
+              Eq(absl::StatusCode::kInvalidArgument));
+  std::string message(std::string(failed_build.status().message()));
+  EXPECT_THAT(message, MatchesRegex("^Delta must be set.*"));
+}
+
+TEST(PartitionSelectionTest, GaussianPartitionSelectionNanDelta) {
+  GaussianPartitionSelection::Builder test_builder;
+  auto failed_build =
+      test_builder
+          .SetGaussianMechanism(absl::make_unique<GaussianMechanism::Builder>())
+          .SetEpsilon(0.1)
+          .SetDelta(NAN)
+          .SetMaxPartitionsContributed(2)
+          .Build();
+  EXPECT_THAT(failed_build.status().code(),
+              Eq(absl::StatusCode::kInvalidArgument));
+  std::string message(std::string(failed_build.status().message()));
+  EXPECT_THAT(message, MatchesRegex("^Delta must be a valid numeric value.*"));
+}
+
+TEST(PartitionSelectionTest, GaussianPartitionSelectionNotFiniteDelta) {
+  GaussianPartitionSelection::Builder test_builder;
+  auto failed_build =
+      test_builder
+          .SetGaussianMechanism(absl::make_unique<GaussianMechanism::Builder>())
+          .SetEpsilon(0.1)
+          .SetDelta(std::numeric_limits<double>::infinity())
+          .SetMaxPartitionsContributed(2)
+          .Build();
+  EXPECT_THAT(failed_build.status().code(),
+              Eq(absl::StatusCode::kInvalidArgument));
+  std::string message(std::string(failed_build.status().message()));
+  EXPECT_THAT(message,
+              MatchesRegex("^Delta must be in the inclusive interval.*"));
+}
+
+TEST(PartitionSelectionTest, GaussianPartitionSelectionInvalidPositiveDelta) {
+  GaussianPartitionSelection::Builder test_builder;
+  auto failed_build =
+      test_builder
+          .SetGaussianMechanism(absl::make_unique<GaussianMechanism::Builder>())
+          .SetEpsilon(0.1)
+          .SetDelta(5.2)
+          .SetMaxPartitionsContributed(2)
+          .Build();
+  EXPECT_THAT(failed_build.status().code(),
+              Eq(absl::StatusCode::kInvalidArgument));
+  std::string message(std::string(failed_build.status().message()));
+  EXPECT_THAT(message,
+              MatchesRegex("^Delta must be in the inclusive interval.*"));
+}
+
+TEST(PartitionSelectionTest, GaussianPartitionSelectionInvalidNegativeDelta) {
+  GaussianPartitionSelection::Builder test_builder;
+  auto failed_build =
+      test_builder
+          .SetGaussianMechanism(absl::make_unique<GaussianMechanism::Builder>())
+          .SetEpsilon(0.1)
+          .SetDelta(-0.1)
+          .SetMaxPartitionsContributed(2)
+          .Build();
+  EXPECT_THAT(failed_build.status().code(),
+              Eq(absl::StatusCode::kInvalidArgument));
+  std::string message(std::string(failed_build.status().message()));
+  EXPECT_THAT(message,
+              MatchesRegex("^Delta must be in the inclusive interval.*"));
+}
+
+TEST(PartitionSelectionTest, CalculateGaussianThresholdTests) {
+  std::vector<CalculateThresholdTest> threshold_test_cases = {
+    // In all tests, "max_pc" is shorthand for "max_partitions_contributed".
+    //
+    // Fix epsilon = ln(3) & max_pc = 1, and vary delta.
+    //
+    //                                              expected  test
+    //             epsilon          delta  max_pc  threshold  tolerance
+    //            --------  -------------  ------  ---------  ---------
+    ThresholdTest(log(3.0),           0.0,      1,   kPosInf),
+    ThresholdTest(log(3.0), kDoubleMinPos,      1,   kPosInf),
+    ThresholdTest(log(3.0),        1e-308,      1,   kPosInf),
+    ThresholdTest(log(3.0),        1e-256,      1,   kPosInf),
+    ThresholdTest(log(3.0),        1e-128,      1,   kPosInf),
+    ThresholdTest(log(3.0),         1e-64,      1,   kPosInf),
+    ThresholdTest(log(3.0),         1e-32,      1,   kPosInf),
+    ThresholdTest(log(3.0),         1e-16,      1,   kPosInf),
+    ThresholdTest(log(3.0),          1e-8,      1,   28.3774),
+    ThresholdTest(log(3.0),          1e-4,      1,   13.0061),
+    ThresholdTest(log(3.0),          1e-2,      1,   6.02085),
+    ThresholdTest(log(3.0),           0.1,      1,   3.06731),
+    ThresholdTest(log(3.0),           0.3,      1,   1.93016),
+    ThresholdTest(log(3.0),           0.5,      1,   1.49072),
+    ThresholdTest(log(3.0),           0.7,      1,   1.23706),
+    ThresholdTest(log(3.0),           0.9,      1,   1.06663),
+    ThresholdTest(log(3.0),           1.0,      1,   1),
+    ThresholdTest(log(3.0),           2.0,      1,   kNegInf),
+
+    // Fix epsilon = 10^9 & max_pc = 1, and vary delta
+    //
+    //                                               expected   test
+    //               epsilon          delta  max_pc  threshold  tolerance
+    //            ----------  -------------  ------  ---------  ---------
+    ThresholdTest(1000000000,           0.0,      1, kPosInf),
+    ThresholdTest(1000000000, kDoubleMinPos,      1, kPosInf),
+    ThresholdTest(1000000000,        1e-308,      1, kPosInf),
+    ThresholdTest(1000000000,        1e-200,      1, kPosInf),
+    ThresholdTest(1000000000,        1e-100,      1, kPosInf),
+    ThresholdTest(1000000000,         1e-50,      1, kPosInf),
+    ThresholdTest(1000000000,          1e-8,      1, 1),
+    ThresholdTest(1000000000,           0.1,      1, 1),
+    ThresholdTest(1000000000,           0.5,      1, 1),
+    ThresholdTest(1000000000,           0.8,      1, 1),
+    ThresholdTest(1000000000,           1.0,      1, 1),
+    ThresholdTest(1000000000,           2.0,      1, kNegInf),
+
+    // Fix delta = 2.0894334e-24 & max_pc = 1, and vary epsilon.
+    //
+    //                                                    expected  test
+    //                  epsilon          delta  max_pc   threshold  tolerance
+    //            -------------  -------------  ------  ----------  -----------
+    ThresholdTest(kDoubleMinPos, 2.0894334e-14,      1,    2.82558e+14, 1e+09),
+    ThresholdTest(       1e-308, 2.0894334e-14,      1,    2.82558e+14, 1e+09),
+    ThresholdTest(       1e-100, 2.0894334e-14,      1,    2.82558e+14, 1e+09),
+    ThresholdTest(        1e-50, 2.0894334e-14,      1,    2.82558e+14, 1e+09),
+    ThresholdTest(        1e-20, 2.0894334e-14,      1,    2.83579e+14, 1e+09),
+    ThresholdTest(        1e-10, 2.0894334e-14,      1,    2.26706e+11, 1e+05),
+    ThresholdTest(         1e-5, 2.0894334e-14,      1,    4.01647e+06, 10),
+    ThresholdTest(         1e-2, 2.0894334e-14,      1,    4818.48),
+    ThresholdTest(         1e-1, 2.0894334e-14,      1,    507.077),
+    ThresholdTest(          0.5, 2.0894334e-14,      1,    105.872),
+    ThresholdTest(          1.0, 2.0894334e-14,      1,    54.3645),
+    ThresholdTest(     log(3.0), 2.0894334e-14,      1,    49.7216),
+    ThresholdTest(          1.5, 2.0894334e-14,      1,    37.0116),
+    ThresholdTest(          2.0, 2.0894334e-14,      1,    28.2626),
+    ThresholdTest(          5.0, 2.0894334e-14,      1,    12.3534),
+    ThresholdTest(          1e1, 2.0894334e-14,      1,    6.95236),
+    ThresholdTest(          1e2, 2.0894334e-14,      1,    1.87689),
+    ThresholdTest(          1e5, 2.0894334e-14,      1,    1.00054),
+    ThresholdTest(         1e10, 2.0894334e-14,      1,    1.0000),
+    ThresholdTest(         1e20, 2.0894334e-14,      1,    1.0000),
+    ThresholdTest(         1e50, 2.0894334e-14,      1,    1.0000),
+    ThresholdTest(        1e100, 2.0894334e-14,      1,    1.0000),
+    ThresholdTest(        1e308, 2.0894334e-14,      1,    1.0000),
+    ThresholdTest(   kDoubleMax, 2.0894334e-14,      1,    1.0000),
+
+    // Fix epsilon & delta and vary max_pc.
+    //                                                  expected  test
+    //             epsilon          delta     max_pc   threshold  tolerance
+    //            --------  -------------  ---------  ----------  ---------
+    ThresholdTest(log(3.0), 2.0894334e-14,         1,    49.7216),
+    ThresholdTest(log(3.0), 2.0894334e-14,         2,    98.8924),
+    ThresholdTest(log(3.0), 2.0894334e-14,         3,    148.135),
+    ThresholdTest(log(3.0), 2.0894334e-14,         4,    197.364),
+    ThresholdTest(log(3.0), 2.0894334e-14,         5,    246.615),
+    ThresholdTest(log(3.0), 2.0894334e-14,        10,    492.543),
+    ThresholdTest(log(3.0), 2.0894334e-14,       100,   4851),
+    ThresholdTest(log(3.0), 2.0894334e-14,      1000,  kPosInf),
+    ThresholdTest(log(3.0), 2.0894334e-14,     10000,  kPosInf),
+    ThresholdTest(log(3.0), 2.0894334e-14,    100000,  kPosInf),
+    ThresholdTest(log(3.0), 2.0894334e-14,   1000000,  kPosInf),
+    ThresholdTest(log(3.0), 2.0894334e-14, kInt64Max,  kPosInf),
+
+    // Error cases.
+    //
+    // Epsilon must be finite and greater than 0.
+    //
+    //                    epsilon          delta  max_pc
+    //                 ----------  -------------  ------
+    ThresholdErrorTest(kDoubleMin, 2.0894334e-24,      1),
+    ThresholdErrorTest(      -1.0, 2.0894334e-24,      1),
+    ThresholdErrorTest(       0.0, 2.0894334e-24,      1),
+    ThresholdErrorTest(   kPosInf, 2.0894334e-24,      1),
+    ThresholdErrorTest(   kNegInf, 2.0894334e-24,      1),
+    ThresholdErrorTest(      kNaN, 2.0894334e-24,      1),
+
+    // Max_pc must be greater than 0.
+    //
+    //                   epsilon         delta  max_pc
+    //                 --------- -------------  ------
+    ThresholdErrorTest(log(3.0), 2.0894334e-24, kInt64Min),
+    ThresholdErrorTest(log(3.0), 2.0894334e-24, -1),
+    ThresholdErrorTest(log(3.0), 2.0894334e-24, 0),
+
+    // Delta must be in range [0, 2].
+    //
+    //                  epsilon              delta  max_pc
+    //                 --------  -----------------  ------
+    ThresholdErrorTest(log(3.0),           kNegInf,      1),
+    ThresholdErrorTest(log(3.0),           kNegInf,      1),
+    ThresholdErrorTest(log(3.0),                -1,      1),
+    ThresholdErrorTest(log(3.0),                -1,      1),
+    ThresholdErrorTest(log(3.0), 0 - kDoubleMinPos,      1),
+    ThresholdErrorTest(log(3.0), 0 - kDoubleMinPos,      1),
+    ThresholdErrorTest(log(3.0),   2.0000000000001,      1),
+    ThresholdErrorTest(log(3.0),   2.0000000000001,      1),
+    ThresholdErrorTest(log(3.0),                 3,      1),
+    ThresholdErrorTest(log(3.0),                 3,      1),
+    ThresholdErrorTest(log(3.0),           kPosInf,      1),
+    ThresholdErrorTest(log(3.0),           kPosInf,      1),
+  };
+
+  for (const CalculateThresholdTest& test_case : threshold_test_cases) {
+    const double epsilon = test_case.epsilon;
+    const double delta = test_case.delta;
+    const int64_t max_partitions_contributed =
+        test_case.max_partitions_contributed;
+
+    const std::string test_case_string = absl::StrCat(
+        "epsilon: ", epsilon, ", delta: ", delta,
+        ", max_partitions_contributed: ", max_partitions_contributed);
+
+    const double noise_delta = delta / 2;
+    const double threshold_delta = delta - noise_delta;
+    base::StatusOr<double> status_or_threshold =
+        GaussianPartitionSelection::CalculateThreshold(
+            epsilon, noise_delta, threshold_delta, max_partitions_contributed);
+
+    if (test_case.expected_threshold.has_value()) {
+      // We expect the test to succeed, and a threshold to be computed.
+      ASSERT_TRUE(status_or_threshold.ok())
+          << status_or_threshold.status() << "\n"
+          << test_case_string;
+      const double threshold = status_or_threshold.value();
+      EXPECT_THAT(threshold, DoubleNear(test_case.expected_threshold.value(),
+                                        test_case.tolerance))
+          << test_case_string;
+    } else {
+      EXPECT_FALSE(status_or_threshold.ok())
+          << test_case_string
+          << "\nunexpected successfully computed threshold value: "
+          << status_or_threshold.value();
+    }
+  }
+}
+
+TEST(PartitionSelectionTest, CalculateGaussianDeltaTests) {
+  std::vector<CalculateDeltaTest> delta_test_cases = {
+    // In all tests, "max_pc" is shorthand for "max_partitions_contributed".
+    //
+    // Fix epsilon = ln(3) & max_pc = 1, and vary threshold.
+    //
+    //                                      expected       test
+    //         epsilon   threshold  max_pc  delta          tolerance
+    //        --------  ----------  ------  -------------  ---------
+    DeltaTest(log(3.0),          1,      1, 0.5),
+    DeltaTest(log(3.0),          2,      1, 0.0216028),
+    DeltaTest(log(3.0),          3,      1, 2.63368e-05,   1e-05),
+    DeltaTest(log(3.0),          4,      1, 6.5914e-10,    1e-05),
+    DeltaTest(log(3.0),          5,      1, 3.33067e-16,   1e-06),
+    DeltaTest(log(3.0),         10,      1, 0.0,           1e-100),
+    DeltaTest(log(3.0),         20,      1, 0.0,           1e-100),
+    DeltaTest(log(3.0),         50,      1, 0.0,           1e-100),
+    DeltaTest(log(3.0),         75,      1, 0.0,           1e-100),
+    DeltaTest(log(3.0),         87,      1, 0.0,           6e-100),
+    DeltaTest(log(3.0),         93,      1, 0.0,           1e-100),
+    DeltaTest(log(3.0),         94,      1, 0.0,           1e-100),
+    DeltaTest(log(3.0),         95,      1, 0.0,           1e-100),
+    DeltaTest(log(3.0),         96,      1, 0.0,           1e-100),
+    DeltaTest(log(3.0),        100,      1, 0.0,           1e-100),
+    DeltaTest(log(3.0),       1000,      1, 0.0,           1e-100),
+    DeltaTest(log(3.0),      10000,      1, 0.0,           1e-100),
+    DeltaTest(log(3.0),     100000,      1, 0.0,           1e-100),
+    DeltaTest(log(3.0),    1000000,      1, 0.0,           1e-100),
+    DeltaTest(log(3.0), kDoubleMax,      1, 0.0,           1e-100),
+    DeltaTest(log(3.0),    kPosInf,      1, 0.0,           1e-100),
+
+    // Fix threshold = 2 & max_pc = 1, and vary epsilon.
+    //
+    //                                          expected       test
+    //              epsilon  threshold  max_pc  delta          tolerance
+    //        -------------  ---------  ------  -------------  ---------
+    DeltaTest(kDoubleMinPos,        2,      1, 0.0887881),
+    DeltaTest(       1e-308,        2,      1, 0.0887881),
+    DeltaTest(       1e-100,        2,      1, 0.0887881),
+    DeltaTest(        1e-50,        2,      1, 0.0887881),
+    DeltaTest(        1e-20,        2,      1, 0.0887881),
+    DeltaTest(        1e-10,        2,      1, 0.0887881),
+    DeltaTest(         1e-5,        2,      1, 0.0887881),
+    DeltaTest(         1e-2,        2,      1, 0.0875032),
+    DeltaTest(         1e-1,        2,      1, 0.0771943),
+    DeltaTest(          0.5,        2,      1, 0.0454027),
+    DeltaTest(          1.0,        2,      1, 0.0243547),
+    DeltaTest(     log(3.0),        2,      1, 0.0216028),
+    DeltaTest(          1.5,        2,      1, 0.0134125),
+    DeltaTest(          2.0,        2,      1, 0.00750155),
+    DeltaTest(          5.0,        2,      1, 0.000273579),
+    DeltaTest(          1e1,        2,      1, 1.38959e-06),
+    DeltaTest(          1e2,        2,      1, 0.0,           1e-100),
+    DeltaTest(          1e5,        2,      1, 0.0,           1e-100),
+    DeltaTest(         1e10,        2,      1, 0.0,           1e-100),
+    DeltaTest(         1e20,        2,      1, 0.0,           1e-100),
+    DeltaTest(         1e50,        2,      1, 0.0,           1e-100),
+    DeltaTest(        1e100,        2,      1, 0.0,           1e-100),
+    DeltaTest(        1e308,        2,      1, 0.0,           1e-100),
+    DeltaTest(   kDoubleMax,        2,      1, 0.0,           1e-100),
+
+    // Fix epsilon & threshold and vary max_pc.
+    //                                        expected       test
+    //         epsilon  threshold     max_pc  delta          tolerance
+    //        --------  ---------  ---------  -------------  ---------
+    DeltaTest(log(3.0),        2,         1, 0.0216028),
+    DeltaTest(log(3.0),        2,         2, 0.287735),
+    DeltaTest(log(3.0),        2,         3, 0.578438),
+    DeltaTest(log(3.0),        2,         4, 0.768866),
+    DeltaTest(log(3.0),        2,         5, 0.877569),
+    DeltaTest(log(3.0),        2,        10, 0.995684),
+    DeltaTest(log(3.0),        2,       100, 1.0),
+    DeltaTest(log(3.0),        2,      1000, 1.0),
+    DeltaTest(log(3.0),        2,     10000, 1.0),
+    DeltaTest(log(3.0),        2,    100000, 1.0),
+    DeltaTest(log(3.0),        2,   1000000, 1.0),
+    DeltaTest(log(3.0),        2, kInt64Max, 1.0),
+
+    // Error cases.
+    //
+    // Epsilon must be finite and greater than 0.
+    //
+    //                epsilon  threshold  max_pc
+    //             ----------  ---------  ------
+    DeltaErrorTest(kDoubleMin,        2, 1),
+    DeltaErrorTest(      -1.0,        2, 1),
+    DeltaErrorTest(       0.0,        2, 1),
+    DeltaErrorTest(   kPosInf,        2, 1),
+    DeltaErrorTest(   kNegInf,        2, 1),
+    DeltaErrorTest(      kNaN,        2, 1),
+
+    // Threshold must be finite.
+    //
+    //              epsilon  threshold  max_pc
+    //             --------  ---------  ------
+    DeltaErrorTest(log(3.0),      kNaN, 1),
+
+    // Max_partitions_contributed (max_pc) must be greater than 0.
+    //
+    //              epsilon  threshold  max_pc
+    //             --------  ---------  ---------
+    DeltaErrorTest(log(3.0),        2, kInt64Min),
+    DeltaErrorTest(log(3.0),        2, -1),
+    DeltaErrorTest(log(3.0),        2, 0),
+  };
+
+  for (const CalculateDeltaTest& test_case : delta_test_cases) {
+    const double epsilon = test_case.epsilon;
+    const double threshold = test_case.threshold;
+    const double noise_delta = 0.5;
+    const int64_t max_partitions_contributed =
+        test_case.max_partitions_contributed;
+
+    const std::string test_case_string = absl::StrCat(
+        "epsilon: ", epsilon, ", threshold: ", threshold,
+        ", max_partitions_contributed: ", max_partitions_contributed);
+
+    base::StatusOr<double> status_or_delta =
+        GaussianPartitionSelection::CalculateThresholdDelta(
+            epsilon, noise_delta, threshold, max_partitions_contributed);
+
+    if (test_case.expected_delta.has_value()) {
+      // We expect the test to succeed, and a delta to be computed.
+      ASSERT_TRUE(status_or_delta.ok()) << status_or_delta.status() << "\n"
+                                        << test_case_string;
+      const double delta = status_or_delta.value();
+      EXPECT_THAT(delta, DoubleNear(test_case.expected_delta.value(),
+                                    test_case.tolerance))
+          << test_case_string;
+    } else {
+      EXPECT_FALSE(status_or_delta.ok())
+          << test_case_string
+          << "\nunexpected successfully computed delta value: "
+          << status_or_delta.value();
+    }
+  }
+}
+
+TEST(PartitionSelectionTest, GaussianRoundTripThresholdTests) {
+  // Vary threshold from 1 to 1000, and max_partitions_contributed from 1 to 5.
+  // Calculate delta for each each tuple (epsilon, threshold,
+  // max_partitions_contributed), and then re-compute threshold to ensure it is
+  // the same. Note that once the threshold gets high enough so that the
+  // computed delta is 0, round-tripping back to the original threshold longer
+  // works so we stop early in that case.
+  const double epsilon = log(3);
+  const double noise_delta = 0.5;
+  for (int64_t max_partitions_contributed = 1; max_partitions_contributed < 5;
+       ++max_partitions_contributed) {
+    bool computed_delta_of_zero = false;
+    for (int64_t threshold = 0; threshold < 1000; threshold += 10) {
+      std::string test_case_string = absl::StrCat(
+          "threshold: ", threshold,
+          ", max_partitions_contributed: ", max_partitions_contributed);
+      base::StatusOr<double> status_or_delta =
+          GaussianPartitionSelection::CalculateThresholdDelta(
+              epsilon, noise_delta, threshold, max_partitions_contributed);
+      ASSERT_TRUE(status_or_delta.ok()) << status_or_delta.status() << "\n"
+                                        << test_case_string;
+      const double delta = status_or_delta.value();
+      absl::StrAppend(&test_case_string, ", computed delta: ", delta);
+
+      // If the computed delta is 0, then computing threshold from this will
+      // result in the maximum value. Therefore round tripping will not work.
+      // Note that all remaining input threshold values are higher that this one
+      // within this loop, which implies that all remaining computed deltas will
+      // be 0 as well.
+      if (computed_delta_of_zero) {
+        EXPECT_EQ(delta, 0);
+        continue;
+      }
+      if (delta == 0) {
+        computed_delta_of_zero = true;
+        continue;
+      }
+
+      base::StatusOr<double> status_or_threshold =
+          GaussianPartitionSelection::CalculateThreshold(
+              epsilon, noise_delta, delta, max_partitions_contributed);
+      ASSERT_TRUE(status_or_threshold.ok())
+          << status_or_threshold.status() << "\n"
+          << test_case_string;
+
+      // We normally expect that the original threshold and the round tripped
+      // threshold are the same. However, because of the loss of precision
+      // due to floating point calculations, there may be some variance.
+      const double computed_threshold = status_or_threshold.value();
+
+      EXPECT_THAT(computed_threshold, DoubleNear(threshold, 0.001))
+          << test_case_string;
+    }
+  }
+}
+
+TEST(PartitionSelectionTest, GaussianRoundTripDeltaTests) {
+  // Ideally, vary max_partitions_contributed from 1 to 5, and threshold delta
+  // from 0 to 0.5 (exclusively). Calculate threshold for each triple (epsilon,
+  // delta, max_partitions_contributed), and then re-compute the delta.
+  //
+  // We can't check the recomputed delta for equality against the original
+  // delta because there are many deltas that map to the same threshold.
+  // We also cannot check that the recomputed delta is closer to the
+  // original delta than to computed deltas for threshold +/-1, and we
+  // cannot check that the original delta is closer to the recomputed delta
+  // than to the computed deltas for threshold +/1. This is because the
+  // curve is not linear, and, for example, the original delta can be closer
+  // to the computed delta for threshold-1 than to the recomputed delta.
+  //
+  // So we just test here that the original delta is between the recomputed
+  // delta and either the computed delta for threshold+1 or threshold-1.
+  const double epsilon = log(3);
+  const double noise_delta = 0.5;
+  for (int64_t max_partitions_contributed = 1; max_partitions_contributed < 5;
+       ++max_partitions_contributed) {
+    for (double delta = 0.00001; delta < 0.5; delta *= 10) {
+      std::string test_case_string = absl::StrCat(
+          "delta: ", delta,
+          ", max_partitions_contributed: ", max_partitions_contributed);
+
+      base::StatusOr<double> status_or_threshold =
+          GaussianPartitionSelection::CalculateThreshold(
+              epsilon, noise_delta, delta, max_partitions_contributed);
+      ASSERT_TRUE(status_or_threshold.ok())
+          << status_or_threshold.status() << "\n"
+          << test_case_string;
+      const double threshold = status_or_threshold.value();
+
+      absl::StrAppend(&test_case_string, ", computed threshold: ", threshold);
+
+      const base::StatusOr<double> computed_delta =
+          GaussianPartitionSelection::CalculateThresholdDelta(
+              epsilon, noise_delta, threshold, max_partitions_contributed);
+
+      const base::StatusOr<double> computed_delta_plus_one =
+          GaussianPartitionSelection::CalculateThresholdDelta(
+              epsilon, noise_delta, threshold + 1, max_partitions_contributed);
+
+      const base::StatusOr<double> computed_delta_minus_one =
+          GaussianPartitionSelection::CalculateThresholdDelta(
+              epsilon, noise_delta, threshold - 1, max_partitions_contributed);
+
+      // Expect that the original delta is closer to the computed delta than
+      // to the computed delta for threshold+1 or threshold-1.
+      ASSERT_TRUE(computed_delta.ok());
+      ASSERT_TRUE(computed_delta_plus_one.ok());
+      ASSERT_TRUE(computed_delta_minus_one.ok());
+
+      absl::StrAppend(&test_case_string,
+                      ", computed delta: ", computed_delta.value());
+      absl::StrAppend(&test_case_string, ", computed delta (k plus_one): ",
+                      computed_delta_plus_one.value());
+      absl::StrAppend(&test_case_string, ", computed delta (k minus one): ",
+                      computed_delta_minus_one.value());
+
+      // The original delta and recomputed delta for threshold is greater
+      // than the computed delta for threshold+1.
+      // The original delta and recomputed delta for threshold is less than
+      // the computed delta for threshold-1.
+      EXPECT_GT(delta, computed_delta_plus_one.value());
+      EXPECT_LT(delta, computed_delta_minus_one.value());
+
+      EXPECT_GT(computed_delta.value(), computed_delta_plus_one.value());
+      EXPECT_LT(computed_delta.value(), computed_delta_minus_one.value());
+
+      EXPECT_TRUE((delta >= computed_delta.value() &&
+                   delta <= computed_delta_minus_one.value()) ||
+                  (delta <= computed_delta.value() &&
+                   delta >= computed_delta_plus_one.value()));
+    }
+  }
+}
+
 }  // namespace
 }  // namespace differential_privacy

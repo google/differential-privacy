@@ -20,8 +20,8 @@ import static java.lang.Math.max;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Preconditions;
-import com.google.differentialprivacy.SummaryOuterClass.CountSummary;
-import com.google.differentialprivacy.SummaryOuterClass.MechanismType;
+import com.google.privacy.differentialprivacy.proto.SummaryOuterClass.CountSummary;
+import com.google.privacy.differentialprivacy.proto.SummaryOuterClass.MechanismType;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.Optional;
 import javax.annotation.Nullable;

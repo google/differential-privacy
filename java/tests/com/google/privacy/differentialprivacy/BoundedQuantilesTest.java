@@ -17,8 +17,8 @@
 package com.google.privacy.differentialprivacy;
 
 import static com.google.common.truth.Truth.assertThat;
-import static com.google.differentialprivacy.SummaryOuterClass.MechanismType.GAUSSIAN;
-import static com.google.differentialprivacy.SummaryOuterClass.MechanismType.LAPLACE;
+import static com.google.privacy.differentialprivacy.proto.SummaryOuterClass.MechanismType.GAUSSIAN;
+import static com.google.privacy.differentialprivacy.proto.SummaryOuterClass.MechanismType.LAPLACE;
 import static java.lang.Math.abs;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
@@ -30,7 +30,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.google.differentialprivacy.SummaryOuterClass.BoundedQuantilesSummary;
+import com.google.privacy.differentialprivacy.proto.SummaryOuterClass.BoundedQuantilesSummary;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.lang.reflect.Method;
 import java.security.SecureRandom;

@@ -18,6 +18,7 @@
 #include "gtest/gtest.h"
 #include "base/statusor.h"
 #include "accounting/common/common.h"
+#include "proto/accounting/privacy-loss-distribution.pb.h"
 #include "base/testing/status_matchers.h"
 
 namespace differential_privacy {
@@ -430,6 +431,49 @@ TEST(PrivacyLossDistributionTest, AccurateComposition) {
   double delta = pld->GetDeltaForEpsilon(epsilon);
 
   EXPECT_NEAR(delta, 3.33762759e-9, 1e-10);
+}
+
+TEST(PrivacyLossDistributionTest, Serialization) {
+  ProbabilityMassFunction pmf = {{1, 0.6}, {5, 0.3}};
+  double infinity_mass = 0.1;
+  double discretization_interval = 1e-3;
+  EstimateType estimate_type = EstimateType::kPessimistic;
+  std::unique_ptr<PrivacyLossDistribution> pld =
+      PrivacyLossDistributionTestPeer::Create(
+          pmf, infinity_mass, discretization_interval, estimate_type);
+
+  base::StatusOr<serialization::PrivacyLossDistribution> serialized_result =
+      pld->Serialize();
+  ASSERT_OK(serialized_result);
+
+  base::StatusOr<std::unique_ptr<PrivacyLossDistribution>> deserialized_result =
+      PrivacyLossDistribution::Deserialize(*serialized_result);
+  ASSERT_OK(deserialized_result);
+
+  EXPECT_THAT(
+      (*deserialized_result)->Pmf(),
+      UnorderedElementsAre(FieldsAre(Eq(1), DoubleNear(0.6, kMaxError)),
+                           FieldsAre(Eq(5), DoubleNear(0.3, kMaxError))));
+  EXPECT_NEAR((*deserialized_result)->InfinityMass(), infinity_mass, kMaxError);
+  EXPECT_NEAR((*deserialized_result)->DiscretizationInterval(),
+              discretization_interval, kMaxError);
+}
+
+TEST(PrivacyLossDistributionTest, SerializationOptimisticError) {
+  std::unique_ptr<PrivacyLossDistribution> pld =
+      PrivacyLossDistributionTestPeer::Create(
+          /*probability_mass_function=*/{}, /*infinity_mass=*/0,
+          /*discretization_interval=*/1e-4,
+          /*estimate_type=*/EstimateType::kOptimistic);
+
+  EXPECT_THAT(pld->Serialize(), StatusIs(absl::StatusCode::kInvalidArgument,
+                                         HasSubstr("optimistic")));
+}
+
+TEST(PrivacyLossDistributionTest, DeserializationNoPMFError) {
+  serialization::PrivacyLossDistribution serialized_pld;
+  EXPECT_THAT(PrivacyLossDistribution::Deserialize(serialized_pld),
+              StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("PMF")));
 }
 }  // namespace
 }  // namespace accounting

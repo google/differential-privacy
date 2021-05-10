@@ -269,6 +269,20 @@ TEST(GaussDistributionTest, Cdf) {
   EXPECT_DEATH(GaussianDistribution::cdf(-1, 1), "");
 }
 
+TEST(GaussDistributionTest, Quantile) {
+  EXPECT_NEAR(GaussianDistribution::Quantile(1, 0.5), 0, 0.000001);
+  EXPECT_NEAR(GaussianDistribution::Quantile(5, 0.5), 0, 0.000001);
+  EXPECT_NEAR(GaussianDistribution::Quantile(1, 0.15865525), -1, 0.000001);
+  EXPECT_NEAR(GaussianDistribution::Quantile(1, 2.8665157e-7), -5, 0.000001);
+  // No test for 1.1285884e-19 as the precision is too low, and it evaluates to
+  // +inf.
+  EXPECT_NEAR(GaussianDistribution::Quantile(5, 0.42074029), -1, 0.000001);
+  EXPECT_NEAR(GaussianDistribution::Quantile(1, 0.84134475), 1, 0.000001);
+  EXPECT_NEAR(GaussianDistribution::Quantile(5, 0.57925971), 1, 0.000001);
+  EXPECT_DEATH(GaussianDistribution::Quantile(0, 1), "");
+  EXPECT_DEATH(GaussianDistribution::Quantile(-1, 1), "");
+}
+
 TEST(GeometricDistributionTest, ParameterValidation) {
   GeometricDistribution::Builder builder;
 

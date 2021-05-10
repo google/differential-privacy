@@ -802,7 +802,7 @@ TEST(NumericalMechanismsTest, GaussianMechanismAddsNoiseForLowDelta) {
                             .Build();
   ASSERT_TRUE(test_mechanism.ok());
   EXPECT_NEAR(dynamic_cast<GaussianMechanism *>(test_mechanism->get())
-                  ->CalculateStddev(1, 6.486452831e-47),
+                  ->CalculateStddev(1, 6.486452831e-47, 1),
               14.0, 0.0001);
 }
 
@@ -959,7 +959,7 @@ TEST(NumericalMechanismsTest, GaussianBuilderClone) {
 TEST(NumericalMechanismsTest, Stddev) {
   GaussianMechanism mechanism(log(3), 0.00001, 1.0);
 
-  EXPECT_DOUBLE_EQ(mechanism.CalculateStddev(log(3), 0.00001), 3.42578125);
+  EXPECT_DOUBLE_EQ(mechanism.CalculateStddev(log(3), 0.00001, 1), 3.42578125);
 }
 
 TEST(NumericalMechanismsTest, LaplaceMechanismSerialization) {

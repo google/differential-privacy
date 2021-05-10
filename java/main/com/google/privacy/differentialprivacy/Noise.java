@@ -16,7 +16,7 @@
 
 package com.google.privacy.differentialprivacy;
 
-import com.google.differentialprivacy.SummaryOuterClass.MechanismType;
+import com.google.privacy.differentialprivacy.proto.SummaryOuterClass.MechanismType;
 import javax.annotation.Nullable;
 
 /**

@@ -17,8 +17,8 @@
 package com.google.privacy.differentialprivacy;
 
 import static com.google.common.truth.Truth.assertThat;
-import static com.google.differentialprivacy.SummaryOuterClass.MechanismType.GAUSSIAN;
-import static com.google.differentialprivacy.SummaryOuterClass.MechanismType.LAPLACE;
+import static com.google.privacy.differentialprivacy.proto.SummaryOuterClass.MechanismType.GAUSSIAN;
+import static com.google.privacy.differentialprivacy.proto.SummaryOuterClass.MechanismType.LAPLACE;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -28,8 +28,8 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.google.differentialprivacy.SummaryOuterClass.CountSummary;
-import com.google.differentialprivacy.SummaryOuterClass.MechanismType;
+import com.google.privacy.differentialprivacy.proto.SummaryOuterClass.CountSummary;
+import com.google.privacy.differentialprivacy.proto.SummaryOuterClass.MechanismType;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.Collection;
 import java.util.Optional;

@@ -23,7 +23,7 @@ import static java.lang.Double.POSITIVE_INFINITY;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.when;
 
-import com.google.differentialprivacy.SummaryOuterClass.MechanismType;
+import com.google.privacy.differentialprivacy.proto.SummaryOuterClass.MechanismType;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;

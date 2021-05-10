@@ -20,7 +20,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.Double.isFinite;
 
-import com.google.differentialprivacy.SummaryOuterClass.MechanismType;
+import com.google.privacy.differentialprivacy.proto.SummaryOuterClass.MechanismType;
 import java.util.Objects;
 import javax.annotation.Nullable;
 

@@ -19,11 +19,11 @@ package com.google.privacy.differentialprivacy.statistical;
 import static com.google.common.truth.Truth.assertThat;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import com.google.differentialprivacy.testing.StatisticalTests.ClosenessTestParameters;
-import com.google.differentialprivacy.testing.StatisticalTests.DistributionClosenessTestCase;
-import com.google.differentialprivacy.testing.StatisticalTests.DistributionClosenessTestCaseCollection;
-import com.google.differentialprivacy.testing.StatisticalTests.NoiseSamplingParameters;
 import com.google.privacy.differentialprivacy.LaplaceNoise;
+import com.google.privacy.differentialprivacy.proto.testing.StatisticalTests.ClosenessTestParameters;
+import com.google.privacy.differentialprivacy.proto.testing.StatisticalTests.DistributionClosenessTestCase;
+import com.google.privacy.differentialprivacy.proto.testing.StatisticalTests.DistributionClosenessTestCaseCollection;
+import com.google.privacy.differentialprivacy.proto.testing.StatisticalTests.NoiseSamplingParameters;
 import com.google.privacy.differentialprivacy.testing.ReferenceNoiseUtil;
 import com.google.privacy.differentialprivacy.testing.StatisticalTestsUtil;
 import com.google.privacy.differentialprivacy.testing.VotingUtil;

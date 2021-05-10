@@ -21,7 +21,7 @@ import static java.lang.Math.max;
 import static java.lang.Math.min;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.differentialprivacy.SummaryOuterClass.MechanismType;
+import com.google.privacy.differentialprivacy.proto.SummaryOuterClass.MechanismType;
 import java.security.SecureRandom;
 import javax.annotation.Nullable;
 
