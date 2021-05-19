@@ -30,6 +30,7 @@ cc_binary(
         "@com_google_absl//absl/strings",
         "@com_google_cc_differential_privacy//base:logging",
         "@com_google_cc_differential_privacy//base:status",
+        "@com_google_cc_differential_privacy//base:statusor",
         "@com_google_protobuf//:protobuf",
         "@com_google_zetasql//zetasql/public:analyzer_options",
         "@com_google_zetasql//zetasql/public:catalog",
@@ -37,7 +38,9 @@ cc_binary(
         "@com_google_zetasql//zetasql/public:options_cc_proto",
         "@com_google_zetasql//zetasql/public:simple_catalog",
         "@com_google_zetasql//zetasql/public:type_cc_proto",
+        "@com_google_zetasql//zetasql/public:value",
         "@com_google_zetasql//zetasql/resolved_ast",
+        "@com_google_zetasql//zetasql/resolved_ast:resolved_node_kind_cc_proto",
         "@com_google_zetasql//zetasql/tools/execute_query:execute_query_tool",
     ],
 )

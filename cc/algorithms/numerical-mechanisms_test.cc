@@ -385,6 +385,26 @@ TEST(NumericalMechanismsTest, LaplaceDiversityCorrect) {
   EXPECT_EQ(mechanism3.GetDiversity(), 1.5);
 }
 
+TEST(NumericalMechanismsTest, LaplaceVarianceCorrect) {
+  const double epsilon = 2.123;
+  const double l0 = 3.456;
+  const double linf = 5.789;
+
+  // Calculate diversity and variance directly from above parameters.
+  const double diversity = (l0 * linf) / epsilon;
+  const double variance = 2.0 * std::pow(diversity, 2);
+
+  base::StatusOr<std::unique_ptr<NumericalMechanism>> mechanism =
+      LaplaceMechanism::Builder()
+          .SetEpsilon(epsilon)
+          .SetL0Sensitivity(l0)
+          .SetLInfSensitivity(linf)
+          .Build();
+
+  ASSERT_OK(mechanism.status());
+  EXPECT_NEAR(mechanism->get()->GetVariance(), variance, 1e-6);
+}
+
 TEST(NumericalMechanismsTest, LaplaceBudgetCorrect) {
   auto distro = absl::make_unique<MockLaplaceDistribution>();
   EXPECT_CALL(*distro, Sample(1.0)).Times(1);
@@ -960,6 +980,21 @@ TEST(NumericalMechanismsTest, Stddev) {
   GaussianMechanism mechanism(log(3), 0.00001, 1.0);
 
   EXPECT_DOUBLE_EQ(mechanism.CalculateStddev(log(3), 0.00001, 1), 3.42578125);
+}
+
+TEST(NumericalMechanismsTest, GaussianVarianceReturnsWallysResult) {
+  base::StatusOr<std::unique_ptr<NumericalMechanism>> mechanism =
+      GaussianMechanism::Builder()
+          .SetEpsilon(1)
+          .SetDelta(1e-6)
+          .SetL0Sensitivity(2)
+          .SetLInfSensitivity(3)
+          .Build();
+  ASSERT_OK(mechanism.status());
+
+  // Ensure the returned variance roughly matches what (broken link) returns.
+  // Currently Wally returns a stddev of 17.922 for these values.
+  EXPECT_NEAR(mechanism->get()->GetVariance(), std::pow(17.922, 2), 0.5);
 }
 
 TEST(NumericalMechanismsTest, LaplaceMechanismSerialization) {

@@ -155,6 +155,14 @@ TEST(LaplaceDistributionTest, Cdf) {
   EXPECT_EQ(LaplaceDistribution::cdf(1, 1), 1 - .5 * exp(-1));
 }
 
+TEST(LaplaceDistributionTest, GetVarianceReturnsExpectedValue) {
+  // Use epsilon = 1 and l1 sensitivity = 2 => 2 * 2^2 = 8
+  base::StatusOr<std::unique_ptr<LaplaceDistribution>> laplace_distribution =
+      LaplaceDistribution::Builder().SetEpsilon(1).SetSensitivity(2).Build();
+  ASSERT_OK(laplace_distribution);
+  EXPECT_NEAR(laplace_distribution->get()->GetVariance(), 8, 1e-6);
+}
+
 TEST(LaplaceCalculateGranularityTest, InvalidParameters) {
   const double valid_param = kOneOverLog2;
   std::vector<double> invalid_params = {0, -0.1, -1, -10, kInfinity};

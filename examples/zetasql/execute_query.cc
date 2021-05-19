@@ -16,6 +16,14 @@
 
 // Tool for running a query with ZetaSQL. Supports reading from a csv file.
 
+#include <math.h>
+
+#include <iostream>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "base/logging.h"
 #include "google/protobuf/descriptor.h"
 #include "zetasql/public/analyzer_options.h"
@@ -24,15 +32,25 @@
 #include "zetasql/public/options.pb.h"
 #include "zetasql/public/simple_catalog.h"
 #include "zetasql/public/type.pb.h"
+#include "zetasql/public/value.h"
+#include "zetasql/resolved_ast/resolved_ast.h"
 #include "zetasql/resolved_ast/resolved_ast_visitor.h"
+#include "zetasql/resolved_ast/resolved_node.h"
+#include "zetasql/resolved_ast/resolved_node_kind.pb.h"
 #include "zetasql/tools/execute_query/execute_query_tool.h"
 #include "absl/flags/flag.h"
-#include "absl/flags/parse.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
+#include "base/statusor.h"
+#include "absl/strings/ascii.h"
+#include "absl/strings/match.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/str_split.h"
+#include "absl/strings/string_view.h"
+#include "absl/strings/strip.h"
 #include "base/status_macros.h"
+#include "absl/flags/parse.h"
 
 ABSL_FLAG(std::string, data_set, "",
           "A CSV file containing the data to be queried, whose std::string-typed "
@@ -44,8 +62,6 @@ ABSL_FLAG(
     std::string, userid_col, "",
     "A std::string matching the name of the column in the  containing the user IDs, "
     "to be used in anonoymization queries.");
-
-using zetasql_base::StringCaseEqual;
 
 // Verifies anonymization parameters to be within valid bounds
 class VerifyAnonymizationParametersVisitor
@@ -104,11 +120,11 @@ class VerifyAnonymizationParametersVisitor
             anon_option_double, "."));
       }
 
-      if (StringCaseEqual(name, "epsilon")) {
+      if (absl::EqualsIgnoreCase(name, "epsilon")) {
         epsilon_provided = true;
       }
 
-      if (StringCaseEqual(name, "delta")) {
+      if (absl::EqualsIgnoreCase(name, "delta")) {
         delta_provided = true;
         // Return an error if delta is provided and is larger than 1.
         if (anon_option_double > 1) {
@@ -119,7 +135,7 @@ class VerifyAnonymizationParametersVisitor
         }
       }
 
-      if (StringCaseEqual(name, "kappa")) {
+      if (absl::EqualsIgnoreCase(name, "kappa")) {
         kappa_provided = true;
         // Return an error if kappa is specified but is not integer,
         // in case the SQL interpreter did not catch it first.
@@ -133,7 +149,7 @@ class VerifyAnonymizationParametersVisitor
       }
 
       // Return an error k_threshold is specified. Delta should be used instead.
-      if (StringCaseEqual(name, "k_threshold")) {
+      if (absl::EqualsIgnoreCase(name, "k_threshold")) {
         return absl::InvalidArgumentError(
             "Please use DELTA instead of K_THRESHOLD. DELTA can be"
             " calculated using Theorem 2 of Wilson et al.'s paper on"
@@ -206,13 +222,22 @@ int main(int argc, char* argv[]) {
   remaining_args.end(), " ");
   zetasql::ExecuteQueryConfig config;
   absl::Status status = InitializeExecuteQueryConfig(config);
-  if (status.ok()) {
-    status = ExecuteQuery(sql, config);
-  }
-  if (status.ok()) {
-    return 0;
-  } else {
+  if (!status.ok()) {
     std::cout << "ERROR: " << status << std::endl;
     return 1;
   }
+
+  auto writer = zetasql::MakeWriterFromFlags(config, std::cout);
+  if (!writer.status().ok()) {
+    std::cout << "ERROR: " << writer.status() << std::endl;
+    return 1;
+  }
+
+  status = ExecuteQuery(sql, config, *writer.value());
+  if (!status.ok()) {
+    std::cout << "ERROR: " << status << std::endl;
+    return 1;
+  }
+
+  return 0;
 }

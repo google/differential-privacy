@@ -54,7 +54,7 @@ class GaussianDistribution {
   virtual double Sample(double scale);
 
   // Returns the standard deviation of this distribution.
-  double Stddev();
+  double Stddev() const;
 
   // Returns the granularity that is also used when calculating Sample(). Be
   // careful when using GetGranularity() together with Sample() and make sure to
@@ -157,8 +157,10 @@ class LaplaceDistribution {
 
   virtual double GetGranularity();
 
+  virtual double GetVariance() const;
+
   // Returns the parameter defining this distribution, often labeled b.
-  double GetDiversity();
+  double GetDiversity() const;
 
   // Returns the smallest possible valid epsilon.
   static double GetMinEpsilon();

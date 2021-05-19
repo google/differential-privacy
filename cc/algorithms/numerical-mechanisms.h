@@ -102,6 +102,10 @@ class NumericalMechanism {
 
   double GetEpsilon() const { return epsilon_; }
 
+  // Returns the variance of the noise that will be added by the underlying
+  // distribution.
+  virtual double GetVariance() const { return 0; }
+
  protected:
   virtual double AddDoubleNoise(double result, double privacy_budget) = 0;
 
@@ -375,6 +379,8 @@ class LaplaceMechanism : public NumericalMechanism {
     return internal::LaplaceDistribution::GetMinEpsilon();
   }
 
+  double GetVariance() const override { return distro_->GetVariance(); }
+
  protected:
   // Adds differentially private noise to a provided value. The privacy_budget
   // is multiplied with epsilon for this particular result. Privacy budget
@@ -631,6 +637,11 @@ class GaussianMechanism : public NumericalMechanism {
   double GetDelta() const { return delta_; }
 
   double GetL2Sensitivity() const { return l2_sensitivity_; }
+
+  double GetVariance() const override {
+    return std::pow(CalculateStddev(GetEpsilon(), GetDelta(), l2_sensitivity_),
+                    2);
+  }
 
   // Returns the smallest delta such that the Gaussian mechanism with standard
   // deviation sigma obtains (epsilon, delta)-differential

@@ -90,7 +90,7 @@ double GaussianDistribution::Sample(double scale) {
 
 double GaussianDistribution::Sample() { return Sample(1.0); }
 
-double GaussianDistribution::Stddev() { return stddev_; }
+double GaussianDistribution::Stddev() const { return stddev_; }
 
 double GaussianDistribution::GetGranularity(double scale) const {
   double sigma = scale * stddev_;
@@ -290,7 +290,13 @@ double LaplaceDistribution::Sample(double scale) {
 
 double LaplaceDistribution::GetGranularity() { return granularity_; }
 
-double LaplaceDistribution::GetDiversity() { return sensitivity_ / epsilon_; }
+double LaplaceDistribution::GetVariance() const {
+  return 2.0 * std::pow(GetDiversity(), 2);
+}
+
+double LaplaceDistribution::GetDiversity() const {
+  return sensitivity_ / epsilon_;
+}
 
 double LaplaceDistribution::GetMinEpsilon() { return kMinEpsilon; }
 

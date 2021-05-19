@@ -38,8 +38,6 @@ cc_library(
     ],
     deps = [
         ":convolution",
-        "//base:status",
-        "//base:statusor",
         "//accounting/common",
         "@com_google_differential_privacy//proto/accounting:privacy_loss_distribution_cc_proto",
         "@boost//:lexical_cast",
@@ -49,6 +47,8 @@ cc_library(
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings:str_format",
+        "@com_google_cc_differential_privacy//base:status",
+        "@com_google_cc_differential_privacy//base:statusor",
     ],
 )
 
@@ -75,12 +75,12 @@ cc_test(
     ],
     deps = [
         ":pld",
-        "//base:statusor",
         "//base/testing:status_matchers",
         "@com_google_googletest//:gtest_main",
         "//accounting/common",
         "@com_google_differential_privacy//proto/accounting:privacy_loss_distribution_cc_proto",
         "@com_google_absl//absl/status",
+        "@com_google_cc_differential_privacy//base:statusor",
     ],
 )
 
@@ -101,8 +101,8 @@ cc_binary(
     srcs = ["example.cc"],
     deps = [
         ":pld",
-        "//base:statusor",
         "@com_google_absl//absl/strings:str_format",
+        "@com_google_cc_differential_privacy//base:statusor",
     ],
 )
 
@@ -131,13 +131,13 @@ cc_library(
     hdrs = ["accountant.h"],
     deps = [
         ":pld",
-        "//base:statusor",
         "//accounting/common",
         "@boost//:lexical_cast",
         "@boost//:math",
         "@boost//:multiprecision",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings:str_format",
+        "@com_google_cc_differential_privacy//base:statusor",
     ],
 )
 
@@ -147,10 +147,10 @@ cc_test(
     deps = [
         ":accountant",
         ":pld",
-        "//base:statusor",
         "//base/testing:status_matchers",
         "@com_google_googletest//:gtest_main",
         "//accounting/common",
         "@com_google_absl//absl/status",
+        "@com_google_cc_differential_privacy//base:statusor",
     ],
 )

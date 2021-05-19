@@ -46,13 +46,13 @@ cc_library(
         ":density_estimation",
         ":sequence",
         "//base:logging",
-        "//base:statusor",
         "//algorithms:algorithm",
         "//algorithms:util",
         "//proto:util-lib",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/hash",
         "@com_google_absl//absl/strings",
+        "@com_google_cc_differential_privacy//base:statusor",
     ],
 )
 
@@ -60,11 +60,11 @@ cc_library(
     name = "density_estimation",
     hdrs = ["density_estimation.h"],
     deps = [
-        "//base:status",
-        "//base:statusor",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/strings:str_format",
+        "@com_google_cc_differential_privacy//base:status",
+        "@com_google_cc_differential_privacy//base:statusor",
     ],
 )
 
@@ -77,7 +77,6 @@ cc_test(
     deps = [
         ":sequence",
         ":stochastic_tester",
-        "//base:statusor",
         "@com_google_googletest//:gtest_main",
         "//algorithms:algorithm",
         "//algorithms:bounded-sum",
@@ -86,6 +85,7 @@ cc_test(
         "//algorithms:numerical-mechanisms-testing",
         "//algorithms:util",
         "@com_google_absl//absl/random:distributions",
+        "@com_google_cc_differential_privacy//base:statusor",
     ],
 )
 
@@ -94,8 +94,8 @@ cc_test(
     srcs = ["density_estimation_test.cc"],
     deps = [
         ":density_estimation",
-        "//base:status",
         "//base/testing:status_matchers",
         "@com_google_googletest//:gtest_main",
+        "@com_google_cc_differential_privacy//base:status",
     ],
 )

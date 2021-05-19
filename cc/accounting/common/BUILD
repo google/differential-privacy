@@ -20,12 +20,12 @@ cc_library(
     srcs = ["common.cc"],
     hdrs = ["common.h"],
     deps = [
-        "//base:status",
-        "//base:statusor",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/functional:function_ref",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings:str_format",
+        "@com_google_cc_differential_privacy//base:status",
+        "@com_google_cc_differential_privacy//base:statusor",
     ],
 )
 
@@ -34,9 +34,9 @@ cc_test(
     srcs = ["common_test.cc"],
     deps = [
         ":common",
-        "//base:statusor",
         "//base/testing:status_matchers",
         "@com_google_googletest//:gtest_main",
         "@com_google_absl//absl/status",
+        "@com_google_cc_differential_privacy//base:statusor",
     ],
 )
