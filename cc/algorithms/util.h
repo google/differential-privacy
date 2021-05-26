@@ -37,12 +37,6 @@
 
 namespace differential_privacy {
 
-// XORs two strings together character by character. If one std::string is shorter
-// than the other it will be repeated until it is the same length as the longer
-// std::string before being XORed. If either std::string is empty, the other will be
-// returned.
-std::string XorStrings(const std::string& longer, const std::string& shorter);
-
 // Arbitrary default value for epsilon. The algorithm interface falls back on
 // this value whenever one is not provided. This value should only be used for
 // testing convenience. For any production use case, please set your own epsilon

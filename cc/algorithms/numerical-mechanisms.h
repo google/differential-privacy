@@ -734,6 +734,74 @@ class GaussianMechanism : public NumericalMechanism {
   }
 };
 
+// Mechanism builder that returns the mechanism with minimum variance for given
+// parameters.  Chooses between Gaussian and Laplace mechanism.
+class MinVarianceMechanismBuilder : public NumericalMechanismBuilder {
+ public:
+  // Returns the numerical mechanism with the lower variance.  If only one
+  // mechanism can be build, this method returns that mechanism.  If no
+  // mechanism can be build, this method returns an error.
+  base::StatusOr<std::unique_ptr<NumericalMechanism>> Build() override {
+    LaplaceMechanism::Builder laplace_builder;
+    base::StatusOr<std::unique_ptr<NumericalMechanism>> laplace =
+        GetMechanismFromBuilder(laplace_builder);
+
+    GaussianMechanism::Builder gaussian_builder;
+    base::StatusOr<std::unique_ptr<NumericalMechanism>> gaussian =
+        GetMechanismFromBuilder(gaussian_builder);
+
+    if (laplace.ok() && gaussian.ok()) {
+      if (laplace.value()->GetVariance() < gaussian.value()->GetVariance()) {
+        return laplace;
+      } else {
+        return gaussian;
+      }
+    }
+
+    if (laplace.ok()) {
+      return laplace;
+    }
+
+    if (gaussian.ok()) {
+      return gaussian;
+    }
+
+    // Both builders returned errors, so we are also returning an error.
+    if (laplace.status() == gaussian.status()) {
+      return laplace.status();
+    } else {
+      return absl::Status(
+          laplace.status().code(),
+          absl::StrCat("Laplace and Gaussian returned different errors during "
+                       "build. Laplace: ",
+                       laplace.status().message(),
+                       "; Gaussian: ", gaussian.status().message()));
+    }
+  }
+
+  std::unique_ptr<NumericalMechanismBuilder> Clone() const override {
+    return absl::make_unique<MinVarianceMechanismBuilder>(*this);
+  }
+
+ private:
+  base::StatusOr<std::unique_ptr<NumericalMechanism>> GetMechanismFromBuilder(
+      NumericalMechanismBuilder& builder) {
+    if (GetEpsilon()) {
+      builder.SetEpsilon(GetEpsilon().value());
+    }
+    if (GetDelta().has_value()) {
+      builder.SetDelta(GetDelta().value());
+    }
+    if (GetL0Sensitivity().has_value()) {
+      builder.SetL0Sensitivity(GetL0Sensitivity().value());
+    }
+    if (GetLInfSensitivity().has_value()) {
+      builder.SetLInfSensitivity(GetLInfSensitivity().value());
+    }
+    return builder.Build();
+  }
+};
+
 }  // namespace differential_privacy
 
 #endif  // DIFFERENTIAL_PRIVACY_ALGORITHMS_NUMERICAL_MECHANISMS_H_

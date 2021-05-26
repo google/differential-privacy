@@ -93,7 +93,7 @@ func TestBoundedSumInt64Serialization(t *testing.T) {
 		}
 		// Check that encoding -> decoding is the identity function.
 		if !cmp.Equal(bsUnchanged, bsUnmarshalled, cmp.Comparer(compareBoundedSumInt64)) {
-			t.Errorf("decode(encode(_)): when %s got %v, want %v", tc.desc, bsUnmarshalled, bs)
+			t.Errorf("decode(encode(_)): when %s got %+v, want %+v", tc.desc, bsUnmarshalled, bsUnchanged)
 		}
 		if bs.state != serialized {
 			t.Errorf("BoundedSumInt64 should have its state set to Serialized, got %v, want Serialized", bs.state)
@@ -166,7 +166,7 @@ func TestBoundedSumFloat64Serialization(t *testing.T) {
 		}
 		// Check that encoding -> decoding is the identity function.
 		if !cmp.Equal(bsUnchanged, bsUnmarshalled, cmp.Comparer(compareBoundedSumFloat64)) {
-			t.Errorf("decode(encode(_)): when %s got %v, want %v", tc.desc, bsUnmarshalled, bs)
+			t.Errorf("decode(encode(_)): when %s got %+v, want %+v", tc.desc, bsUnmarshalled, bsUnchanged)
 		}
 		if bs.state != serialized {
 			t.Errorf("BoundedSumFloat64 should have its state set to Serialized, got %v, want Serialized", bs.state)

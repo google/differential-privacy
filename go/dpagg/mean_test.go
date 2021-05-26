@@ -149,18 +149,6 @@ func TestBMAddFloat64IgnoresNaN(t *testing.T) {
 	}
 }
 
-func TestBMReturnsMidPointForEmptyInputFloat64(t *testing.T) {
-	bmf := getNoiselessBMF()
-	// lower = -1, upper = 5
-	// normalized sum inside BM has bounds: lower = -3, upper = 3
-	// midPoint = 2
-	got := bmf.Result()
-	want := 2.0 // midPoint
-	if !ApproxEqual(got, want) {
-		t.Errorf("BoundedMean: when dataset is empty got %f, want %f", got, want)
-	}
-}
-
 func TestBMReturnsEntryIfSingleEntryIsAddedFloat64(t *testing.T) {
 	bmf := getNoiselessBMF()
 	// lower = -1, upper = 5
@@ -275,7 +263,7 @@ func (mn mockBMNoise) AddNoiseFloat64(x float64, l0 int64, lInf, eps, del float6
 		mn.t.Errorf("AddNoiseFloat64: for parameter l0Sensitivity got %d, want %d", l0, 1)
 	}
 	if !ApproxEqual(lInf, 3.0) && !ApproxEqual(lInf, 1.0) {
-		// AddNoiseFloat64 is initially called with a dummy value of 1, so we don't want to fail when that happens
+		// AddNoiseFloat64 is initially called with an lInf of 1, so we don't want to fail when that happens
 		mn.t.Errorf("AddNoiseFloat64: for parameter lInfSensitivity got %f, want %f", lInf, 3.0)
 	}
 	if !ApproxEqual(eps, ln3*0.5) {
@@ -699,7 +687,7 @@ func TestBMFloat64Serialization(t *testing.T) {
 		}
 		// Check that encoding -> decoding is the identity function.
 		if !cmp.Equal(bmUnchanged, bmUnmarshalled, cmp.Comparer(compareBoundedMeanFloat64)) {
-			t.Errorf("decode(encode(_)): when %s got %v, want %v", tc.desc, bmUnmarshalled, bm)
+			t.Errorf("decode(encode(_)): when %s got %+v, want %+v", tc.desc, bmUnmarshalled, bmUnchanged)
 		}
 		if bm.state != serialized {
 			t.Errorf("BoundedMean should have its state set to Serialized, got %v , want Serialized", bm.state)

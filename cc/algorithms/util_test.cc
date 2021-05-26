@@ -36,46 +36,6 @@ const char kSeedString[] = "ABCDEFGHIJKLMNOP";
 constexpr int64_t kStatsSize = 50000;
 constexpr double kTolerance = 1e-5;
 
-TEST(XorStringsTest, XorsSameLength) {
-  std::string first = "foo";
-  std::string second = "bar";
-
-  std::string result = XorStrings(first, second);
-
-  EXPECT_EQ('f' ^ 'b', result[0]);
-  EXPECT_EQ('o' ^ 'a', result[1]);
-  EXPECT_EQ('o' ^ 'r', result[2]);
-}
-
-TEST(XorStringsTest, ShorterStringRepeated) {
-  std::string first = "foobar";
-  std::string second = "baz";
-
-  std::string result = XorStrings(first, second);
-
-  EXPECT_EQ('b' ^ 'b', result[3]);
-  EXPECT_EQ('a' ^ 'a', result[4]);
-  EXPECT_EQ('z' ^ 'r', result[5]);
-}
-
-TEST(XorStringsTest, EmptyStringReturnsUnchanged) {
-  std::string first = "foo";
-  std::string second = "";
-
-  std::string result = XorStrings(first, second);
-
-  EXPECT_EQ(result, "foo");
-}
-
-TEST(XorStringsTest, DoubleEmptyString) {
-  std::string first = "";
-  std::string second = "";
-
-  std::string result = XorStrings(first, second);
-
-  EXPECT_EQ(result, "");
-}
-
 TEST(EpsilonRiskValuesTest, DefaultEpsilon) {
   EXPECT_EQ(DefaultEpsilon(), std::log(3));
 }

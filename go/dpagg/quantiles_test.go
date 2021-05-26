@@ -923,7 +923,7 @@ func TestBQSerialization(t *testing.T) {
 		}
 		// Check that encoding -> decoding is the identity function.
 		if !cmp.Equal(bqUnchanged, bqUnmarshalled, cmp.Comparer(compareBoundedQuantiles)) {
-			t.Errorf("decode(encode(_)): when %s got %v, want %v", tc.desc, bqUnmarshalled, bq)
+			t.Errorf("decode(encode(_)): when %s got %+v, want %+v", tc.desc, bqUnmarshalled, bq)
 		}
 		if bq.state != serialized {
 			t.Errorf("BoundedQuantiles should have its state set to Serialized, got %v , want Serialized", bq.state)

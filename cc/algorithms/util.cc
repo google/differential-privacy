@@ -27,23 +27,6 @@
 
 namespace differential_privacy {
 
-std::string XorStrings(const std::string& longer, const std::string& shorter) {
-  if (shorter.size() > longer.size()) {
-    return XorStrings(shorter, longer);
-  }
-  if (shorter.empty()) {
-    return longer;
-  }
-  std::string to_return = longer;
-  std::string repeated_shorter = shorter;
-  while (repeated_shorter.size() < to_return.size()) {
-    repeated_shorter.append(shorter);
-  }
-  std::transform(longer.begin(), longer.end(), repeated_shorter.begin(),
-                 to_return.begin(), std::bit_xor<char>());
-  return to_return;
-}
-
 double DefaultEpsilon() { return std::log(3); }
 
 double GetNextPowerOfTwo(double n) { return std::pow(2.0, ceil(log2(n))); }

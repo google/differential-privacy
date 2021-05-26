@@ -116,7 +116,7 @@ func NewBoundedQuantiles(opt *BoundedQuantilesOptions) *BoundedQuantiles {
 	lower, upper := opt.Lower, opt.Upper
 	if lower == 0 && upper == 0 {
 		// TODO: do not exit the program from within library code
-		log.Fatalf("NewBoundedQuantiles requires a non-default value for Lower or Upper (automatic bounds determination is not implemented yet)")
+		log.Fatalf("NewBoundedQuantiles requires a non-default value for Lower or Upper (automatic bounds determination is not implemented yet). Lower and Upper cannot be both 0")
 	}
 	if err := checks.CheckBoundsFloat64("NewBoundedQuantiles", lower, upper); err != nil {
 		// TODO: do not exit the program from within library code

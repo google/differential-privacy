@@ -48,8 +48,8 @@ import (
 // For general details and key definitions, see
 // https://github.com/google/differential-privacy/blob/main/differential_privacy.md#key-definitions.
 //
-// Note: Do not use when your results may cause overflows for int64 or float64
-// values. This aggregation is not hardened for such applications yet.
+// Note: Do not use when your results may cause overflows for float64 values. This
+// aggregation is not hardened for such applications yet.
 //
 // Not thread-safe.
 type BoundedMeanFloat64 struct {
@@ -69,6 +69,7 @@ type BoundedMeanFloat64 struct {
 func bmEquallyInitializedFloat64(bm1, bm2 *BoundedMeanFloat64) bool {
 	return bm1.lower == bm2.lower &&
 		bm1.upper == bm2.upper &&
+		bm1.midPoint == bm2.midPoint &&
 		bm1.state == bm2.state &&
 		countEquallyInitialized(&bm1.Count, &bm2.Count) &&
 		bsEquallyInitializedFloat64(&bm1.NormalizedSum, &bm2.NormalizedSum)
@@ -111,7 +112,7 @@ func NewBoundedMeanFloat64(opt *BoundedMeanFloat64Options) *BoundedMeanFloat64 {
 	lower, upper := opt.Lower, opt.Upper
 	if lower == 0 && upper == 0 {
 		// TODO: do not exit the program from within library code
-		log.Fatalf("NewBoundedMeanFloat64 requires a non-default value for Lower or Upper (automatic bounds determination is not implemented yet)")
+		log.Fatalf("NewBoundedMeanFloat64 requires a non-default value for Lower or Upper (automatic bounds determination is not implemented yet). Lower and Upper cannot be both 0")
 	}
 	var err error
 	switch noise.ToKind(opt.Noise) {
@@ -124,6 +125,10 @@ func NewBoundedMeanFloat64(opt *BoundedMeanFloat64Options) *BoundedMeanFloat64 {
 		// TODO: do not exit the program from within library code
 		log.Fatalf("CheckBoundsFloat64(lower %f, upper %f) failed with %v", lower, upper, err)
 	}
+	if err := checks.CheckBoundsNotEqual("NewBoundedMeanFloat64", lower, upper); err != nil {
+		// TODO: do not exit the program from within library code
+		log.Fatalf("CheckBoundsNotEqual(lower %f, upper %f) failed with %v", lower, upper, err)
+	}
 	// In case lower or upper bound is infinity, midPoint is set to 0.0 to prevent getting
 	// a NaN midPoint or maxDistFromMidPoint.
 	midPoint := 0.0
@@ -131,10 +136,10 @@ func NewBoundedMeanFloat64(opt *BoundedMeanFloat64Options) *BoundedMeanFloat64 {
 		// (lower + upper) / 2 may cause an overflow if lower and upper are large values.
 		midPoint = lower + (upper-lower)/2.0
 	}
-	maxDistFromMidpoint := math.Abs(upper - midPoint)
+	maxDistFromMidpoint := upper - midPoint
 
 	eps, del := opt.Epsilon, opt.Delta
-	// We split the budget in half to calculate the count and the noised normalized sum
+	// We split the budget in half to calculate the count and the normalized sum
 	// TODO: this can be optimized for the Gaussian noise
 	halfEpsilon := eps / 2
 	halfDelta := del / 2
@@ -143,10 +148,10 @@ func NewBoundedMeanFloat64(opt *BoundedMeanFloat64Options) *BoundedMeanFloat64 {
 	// the noise on some dummy value.
 	n.AddNoiseFloat64(0, 1, 1, halfEpsilon, halfDelta)
 
-	// normalizedSum yields a differentially private sum of the position of the entries e_i relative
-	// to the midpoint m = (lower + upper) / 2 of the range of the bounded mean, i.e., Σ_i (e_i - m)
-	//
 	// count yields a differentially private count of the entries.
+	//
+	// normalizedSum yields a differentially private sum of the position of the entries e_i relative
+	// to the midpoint m = (lower + upper) / 2 of the range of the bounded mean, i.e., Σ_i (e_i - m).
 	//
 	// Given a normalized sum s and count c (both without noise), the true mean can be computed
 	// as: mean =
@@ -310,8 +315,8 @@ func (bm *BoundedMeanFloat64) Merge(bm2 *BoundedMeanFloat64) {
 		// TODO: do not exit the program from within library code
 		log.Exit(err)
 	}
-	bm.NormalizedSum.sum += bm2.NormalizedSum.sum
-	bm.Count.count += bm2.Count.count
+	bm.NormalizedSum.Merge(&bm2.NormalizedSum)
+	bm.Count.Merge(&bm2.Count)
 	bm2.state = merged
 }
 

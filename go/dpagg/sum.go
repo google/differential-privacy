@@ -110,7 +110,7 @@ func NewBoundedSumInt64(opt *BoundedSumInt64Options) *BoundedSumInt64 {
 	lower, upper := opt.Lower, opt.Upper
 	if lower == 0 && upper == 0 {
 		// TODO: do not exit the program from within library code
-		log.Fatalf("NewBoundedSumInt64 requires a non-default value for Lower or Upper (automatic bounds determination is not implemented yet)")
+		log.Fatalf("NewBoundedSumInt64 requires a non-default value for Lower or Upper (automatic bounds determination is not implemented yet). Lower and Upper cannot be both 0")
 	}
 	var err error
 	switch noise.ToKind(opt.Noise) {
@@ -122,6 +122,10 @@ func NewBoundedSumInt64(opt *BoundedSumInt64Options) *BoundedSumInt64 {
 	if err != nil {
 		// TODO: do not exit the program from within library code
 		log.Fatalf("CheckBoundsInt64(lower %d, upper %d) failed with %v", lower, upper, err)
+	}
+	if err := checks.CheckBoundsNotEqual("NewBoundedSumInt64", float64(lower), float64(upper)); err != nil {
+		// TODO: do not exit the program from within library code
+		log.Fatalf("CheckBoundsNotEqual(lower %f, upper %f) failed with %v", lower, upper, err)
 	}
 	lInf, err := getLInfInt(lower, upper, maxContributionsPerPartition)
 	if err != nil {
@@ -427,7 +431,7 @@ func NewBoundedSumFloat64(opt *BoundedSumFloat64Options) *BoundedSumFloat64 {
 	lower, upper := opt.Lower, opt.Upper
 	if lower == 0 && upper == 0 {
 		// TODO: do not exit the program from within library code
-		log.Fatalf("NewBoundedSumFloat64 requires a non-default value for Lower or Upper (automatic bounds determination is not implemented yet)")
+		log.Fatalf("NewBoundedSumFloat64 requires a non-default value for Lower or Upper (automatic bounds determination is not implemented yet). Lower and Upper cannot be both 0")
 	}
 	var err error
 	switch noise.ToKind(opt.Noise) {
@@ -439,6 +443,10 @@ func NewBoundedSumFloat64(opt *BoundedSumFloat64Options) *BoundedSumFloat64 {
 	if err != nil {
 		// TODO: do not exit the program from within library code
 		log.Fatalf("CheckBoundsFloat64(lower %f, upper %f) failed with %v", lower, upper, err)
+	}
+	if err := checks.CheckBoundsNotEqual("NewBoundedSumFloat64", lower, upper); err != nil {
+		// TODO: do not exit the program from within library code
+		log.Fatalf("CheckBoundsNotEqual(lower %f, upper %f) failed with %v", lower, upper, err)
 	}
 	lInf, err := getLInfFloat(lower, upper, maxContributionsPerPartition)
 	if err != nil {

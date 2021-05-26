@@ -144,7 +144,9 @@ class Algorithm {
   // algorithm used. The summary proto cannot be empty.
   virtual absl::Status Merge(const Summary& summary) = 0;
 
-  // Returns the memory currently used by the algorithm in bytes.
+  // Returns an estimate for the currrent memory consumption of the algorithm in
+  // bytes. Intended to be used for distribution frameworks to prevent
+  // out-of-memory errors.
   virtual int64_t MemoryUsed() = 0;
 
   // Returns the confidence_level confidence interval of noise added within the

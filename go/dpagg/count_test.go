@@ -130,7 +130,7 @@ func TestCountSerialization(t *testing.T) {
 		}
 		// Check that encoding -> decoding is the identity function.
 		if !cmp.Equal(cUnchanged, cUnmarshalled, cmp.Comparer(compareCount)) {
-			t.Errorf("decode(encode(_)): when %s got %v, want %v", tc.desc, cUnmarshalled, c)
+			t.Errorf("decode(encode(_)): when %s got %+v, want %+v", tc.desc, cUnmarshalled, cUnchanged)
 		}
 		if c.state != serialized {
 			t.Errorf("Count should have its state set to Serialized, got %v, want Serialized", c.state)

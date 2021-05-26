@@ -93,7 +93,11 @@ SecureURBG::result_type SecureURBG::operator()() {
 }
 
 void SecureURBG::RefreshBuffer() {
-  RAND_bytes(buffer_, kBufferSize);
+  const int one_on_success = RAND_bytes(buffer_, kBufferSize);
+  CHECK(one_on_success == 1)
+      << "Error during buffer refresh: OpenSSL's RAND_byte is expected to "
+         "return 1 on success, but returned "
+      << one_on_success;
   current_index_ = 0;
 }
 }  // namespace differential_privacy

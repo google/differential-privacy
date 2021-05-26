@@ -30,7 +30,9 @@ using ::testing::DoubleNear;
 using ::testing::Eq;
 using ::testing::Ge;
 using ::testing::HasSubstr;
+using ::testing::IsNull;
 using ::testing::MatchesRegex;
+using ::testing::Not;
 using ::testing::Return;
 using ::differential_privacy::base::testing::StatusIs;
 
@@ -1053,6 +1055,80 @@ TEST(NumericalMechanismsTest, GaussianMechanismSerialization) {
   EXPECT_EQ(deserialized_gaussian->GetDelta(), delta);
   EXPECT_EQ(deserialized_gaussian->GetL2Sensitivity(),
             gaussian_mechanism->GetL2Sensitivity());
+}
+
+TEST(NumericalMechanismTest,
+     MinVarianceMechanismBuilderWithLowSensitivityReturnsLaplace) {
+  base::StatusOr<std::unique_ptr<NumericalMechanism>> must_be_laplace =
+      MinVarianceMechanismBuilder()
+          .SetEpsilon(1)
+          .SetDelta(1e-5)
+          .SetL0Sensitivity(1)
+          .SetLInfSensitivity(2)
+          .Build();
+  ASSERT_OK(must_be_laplace);
+
+  // dynamic_cast will return null when it cannot cast to the specified type.
+  LaplaceMechanism *laplace =
+      dynamic_cast<LaplaceMechanism *>(must_be_laplace->get());
+  EXPECT_THAT(laplace, Not(IsNull()));
+
+  GaussianMechanism *will_be_null =
+      dynamic_cast<GaussianMechanism *>(must_be_laplace->get());
+  EXPECT_THAT(will_be_null, IsNull());
+}
+
+TEST(NumericalMechanismTest,
+     MinVarianceMechanismBuilderWithHighSensitivityReturnsGaussian) {
+  base::StatusOr<std::unique_ptr<NumericalMechanism>> must_be_gaussian =
+      MinVarianceMechanismBuilder()
+          .SetEpsilon(1)
+          .SetDelta(1e-5)
+          .SetL0Sensitivity(10)
+          .SetLInfSensitivity(20)
+          .Build();
+  ASSERT_OK(must_be_gaussian);
+
+  // dynamic_cast will return null when it cannot cast to the specified type.
+  GaussianMechanism *gaussian =
+      dynamic_cast<GaussianMechanism *>(must_be_gaussian->get());
+  EXPECT_THAT(gaussian, Not(IsNull()));
+
+  LaplaceMechanism *will_be_null =
+      dynamic_cast<LaplaceMechanism *>(must_be_gaussian->get());
+  EXPECT_THAT(will_be_null, IsNull());
+}
+
+TEST(NumericalMechanismTest,
+     MinVarianceMechanismBuilderWithoutDeltaReturnsLaplace) {
+  base::StatusOr<std::unique_ptr<NumericalMechanism>> must_be_laplace =
+      MinVarianceMechanismBuilder()
+          .SetEpsilon(1)
+          .SetL0Sensitivity(10)
+          .SetLInfSensitivity(20)
+          .Build();
+  ASSERT_OK(must_be_laplace);
+
+  // dynamic_cast will return null when it cannot cast to the specified type.
+  LaplaceMechanism *laplace =
+      dynamic_cast<LaplaceMechanism *>(must_be_laplace->get());
+  EXPECT_THAT(laplace, Not(IsNull()));
+
+  GaussianMechanism *will_be_null =
+      dynamic_cast<GaussianMechanism *>(must_be_laplace->get());
+  EXPECT_THAT(will_be_null, IsNull());
+}
+
+TEST(NumericalMechanismTest, MinVarianceMechanismBuilderFailsWithoutEpsilon) {
+  base::StatusOr<std::unique_ptr<NumericalMechanism>> fails =
+      MinVarianceMechanismBuilder()
+          .SetDelta(1e-5)
+          .SetL0Sensitivity(1)
+          .SetLInfSensitivity(2)
+          .Build();
+
+  EXPECT_THAT(fails.status().code(), Eq(absl::StatusCode::kInvalidArgument));
+  EXPECT_THAT(fails.status().message(), HasSubstr("Epsilon must be set"));
 }
 
 }  // namespace

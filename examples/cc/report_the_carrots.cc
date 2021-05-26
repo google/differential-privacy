@@ -14,10 +14,13 @@
 // limitations under the License.
 //
 
+#include <string>
+
 #include "absl/flags/flag.h"
+#include "absl/status/status.h"
 #include "base/statusor.h"
 #include "absl/strings/str_format.h"
-#include "algorithms/util.h"
+#include "absl/strings/string_view.h"
 #include "proto/util.h"
 #include "animals_and_carrots.h"
 #include "proto/confidence-interval.pb.h"
@@ -26,7 +29,6 @@
 using absl::PrintF;
 using differential_privacy::BoundingReport;
 using differential_privacy::ConfidenceInterval;
-using differential_privacy::DefaultEpsilon;
 using differential_privacy::GetValue;
 using differential_privacy::Output;
 using differential_privacy::example::CarrotReporter;
@@ -44,7 +46,7 @@ int main(int argc, char **argv) {
 
   // Load the carrot data into the CarrotReporter. We use a higher epsilon to
   // obtain a higher accuracy since our dataset is very small.
-  const double epsilon = 4 * DefaultEpsilon();
+  const double epsilon = 4;
   CarrotReporter reporter(absl::GetFlag(FLAGS_CarrotsDataFile), epsilon);
 
   // Query for the total number of carrots. Notice that we explicitly use 25% of
