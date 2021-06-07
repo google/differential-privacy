@@ -210,7 +210,18 @@ func QuantilesPerKey(s beam.Scope, pcol PrivatePCollection, params QuantilesPara
 	}
 	// Compute the quantiles for each partition. Result is PCollection<partition, []float64>.
 	quantiles := beam.CombinePerKey(s,
-		newBoundedQuantilesFn(epsilon, delta, maxPartitionsContributed, params.MaxContributionsPerPartition, params.MinValue, params.MaxValue, noiseKind, params.Ranks, false, spec.testMode, false),
+		newBoundedQuantilesFn(boundedQuantilesFnParams{
+			epsilon:                      epsilon,
+			delta:                        delta,
+			maxPartitionsContributed:     maxPartitionsContributed,
+			maxContributionsPerPartition: params.MaxContributionsPerPartition,
+			minValue:                     params.MinValue,
+			maxValue:                     params.MaxValue,
+			noiseKind:                    noiseKind,
+			ranks:                        params.Ranks,
+			publicPartitions:             false,
+			testMode:                     spec.testMode,
+			emptyPartitions:              false}),
 		partialKV)
 	// Finally, drop thresholded partitions.
 	return beam.ParDo(s, dropThresholdedPartitionsFloat64SliceFn, quantiles)
@@ -219,7 +230,18 @@ func QuantilesPerKey(s beam.Scope, pcol PrivatePCollection, params QuantilesPara
 func addPublicPartitionsForQuantiles(s beam.Scope, epsilon, delta float64, maxPartitionsContributed int64, params QuantilesParams, noiseKind noise.Kind, partialKV beam.PCollection, testMode testMode) beam.PCollection {
 	// Compute the quantiles for each partition with non-public partitions dropped. Result is PCollection<partition, map[float64]float64>.
 	quantiles := beam.CombinePerKey(s,
-		newBoundedQuantilesFn(epsilon, delta, maxPartitionsContributed, params.MaxContributionsPerPartition, params.MinValue, params.MaxValue, noiseKind, params.Ranks, true, testMode, false),
+		newBoundedQuantilesFn(boundedQuantilesFnParams{
+			epsilon:                      epsilon,
+			delta:                        delta,
+			maxPartitionsContributed:     maxPartitionsContributed,
+			maxContributionsPerPartition: params.MaxContributionsPerPartition,
+			minValue:                     params.MinValue,
+			maxValue:                     params.MaxValue,
+			noiseKind:                    noiseKind,
+			ranks:                        params.Ranks,
+			publicPartitions:             true,
+			testMode:                     testMode,
+			emptyPartitions:              false}),
 		partialKV)
 	partitionT, _ := beam.ValidateKVType(quantiles)
 	quantilesPartitions := beam.DropValue(s, quantiles)
@@ -232,7 +254,18 @@ func addPublicPartitionsForQuantiles(s beam.Scope, epsilon, delta float64, maxPa
 	emptyPublicPartitions := beam.ParDo(s, newEmitPartitionsNotInTheDataFn(partitionT), publicPartitionsWithValues, beam.SideInput{Input: partitionMap})
 	// Compute DP quantiles for empty public partitions.
 	emptyQuantiles := beam.CombinePerKey(s,
-		newBoundedQuantilesFn(epsilon, delta, maxPartitionsContributed, params.MaxContributionsPerPartition, params.MinValue, params.MaxValue, noiseKind, params.Ranks, true, testMode, true),
+		newBoundedQuantilesFn(boundedQuantilesFnParams{
+			epsilon:                      epsilon,
+			delta:                        delta,
+			maxPartitionsContributed:     maxPartitionsContributed,
+			maxContributionsPerPartition: params.MaxContributionsPerPartition,
+			minValue:                     params.MinValue,
+			maxValue:                     params.MaxValue,
+			noiseKind:                    noiseKind,
+			ranks:                        params.Ranks,
+			publicPartitions:             true,
+			testMode:                     testMode,
+			emptyPartitions:              true}),
 		emptyPublicPartitions)
 	// Merge quantiles from data with quantiles from the empty public partitions.
 	allQuantiles := beam.Flatten(s, quantiles, emptyQuantiles)
@@ -292,41 +325,56 @@ type boundedQuantilesFn struct {
 	NoiseKind                    noise.Kind
 	noise                        noise.Noise // Set during Setup phase according to NoiseKind.
 	Ranks                        []float64
-	PublicPartitions             bool
+	PublicPartitions             bool // Set to true if public partitions are used.
 	TestMode                     testMode
 	EmptyPartitions              bool // Set to true if this combineFn is for adding noise to empty public partitions.
 }
 
+// boundedQuantilesFnParams contains the parameters for creating a new boundedQuantilesFn.
+type boundedQuantilesFnParams struct {
+	epsilon                      float64
+	delta                        float64
+	maxPartitionsContributed     int64
+	maxContributionsPerPartition int64
+	minValue                     float64
+	maxValue                     float64
+	noiseKind                    noise.Kind
+	ranks                        []float64
+	publicPartitions             bool // Set to true if public partitions are used.
+	testMode                     testMode
+	emptyPartitions              bool // Set to true if the boundedQuantilesFn is for adding noise to empty public partitions.
+}
+
 // newBoundedQuantilesFn returns a boundedQuantilesFn with the given budget and parameters.
-func newBoundedQuantilesFn(epsilon, delta float64, maxPartitionsContributed, maxContributionsPerPartition int64, lower, upper float64, noiseKind noise.Kind, ranks []float64, publicPartitions bool, testMode testMode, emptyPartitions bool) *boundedQuantilesFn {
+func newBoundedQuantilesFn(params boundedQuantilesFnParams) *boundedQuantilesFn {
 	fn := &boundedQuantilesFn{
-		MaxPartitionsContributed:     maxPartitionsContributed,
-		MaxContributionsPerPartition: maxContributionsPerPartition,
-		Lower:                        lower,
-		Upper:                        upper,
-		NoiseKind:                    noiseKind,
-		Ranks:                        ranks,
-		PublicPartitions:             publicPartitions,
-		TestMode:                     testMode,
-		EmptyPartitions:              emptyPartitions,
+		MaxPartitionsContributed:     params.maxPartitionsContributed,
+		MaxContributionsPerPartition: params.maxContributionsPerPartition,
+		Lower:                        params.minValue,
+		Upper:                        params.maxValue,
+		NoiseKind:                    params.noiseKind,
+		Ranks:                        params.ranks,
+		PublicPartitions:             params.publicPartitions,
+		TestMode:                     params.testMode,
+		EmptyPartitions:              params.emptyPartitions,
 	}
 	if fn.PublicPartitions {
-		fn.NoiseEpsilon = epsilon
-		fn.NoiseDelta = delta
+		fn.NoiseEpsilon = params.epsilon
+		fn.NoiseDelta = params.delta
 		return fn
 	}
-	fn.NoiseEpsilon = epsilon / 2
-	fn.PartitionSelectionEpsilon = epsilon - fn.NoiseEpsilon
-	switch noiseKind {
+	fn.NoiseEpsilon = params.epsilon / 2
+	fn.PartitionSelectionEpsilon = params.epsilon - fn.NoiseEpsilon
+	switch params.noiseKind {
 	case noise.GaussianNoise:
-		fn.NoiseDelta = delta / 2
+		fn.NoiseDelta = params.delta / 2
 	case noise.LaplaceNoise:
 		fn.NoiseDelta = 0
 	default:
 		// TODO: return error instead
-		log.Exitf("newBoundedQuantilesFn: unknown noise.Kind (%v) is specified. Please specify a valid noise.", noiseKind)
+		log.Exitf("newBoundedQuantilesFn: unknown noise.Kind (%v) is specified. Please specify a valid noise.", params.noiseKind)
 	}
-	fn.PartitionSelectionDelta = delta - fn.NoiseDelta
+	fn.PartitionSelectionDelta = params.delta - fn.NoiseDelta
 	return fn
 }
 

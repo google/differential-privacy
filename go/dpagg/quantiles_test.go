@@ -132,7 +132,8 @@ func TestBQNoiseIsCorrectlyCalled(t *testing.T) {
 }
 
 func TestBQNoInput(t *testing.T) {
-	bq := getNoiselessBQ()
+	lower, upper := -5.0, 5.0
+	bq := getNoiselessBQ(lower, upper)
 	got := bq.Result(0.5)
 	want := 0.0 // When there are no inputs, we linearly interpolate.
 	if !ApproxEqual(got, want) {
@@ -141,7 +142,8 @@ func TestBQNoInput(t *testing.T) {
 }
 
 func TestBQAdd(t *testing.T) {
-	bq := getNoiselessBQ()
+	lower, upper := -5.0, 5.0
+	bq := getNoiselessBQ(lower, upper)
 	entries := createEntries()
 	for _, i := range entries {
 		bq.Add(i)
@@ -161,7 +163,8 @@ func TestBQAdd(t *testing.T) {
 }
 
 func TestBQAddIgnoresNaN(t *testing.T) {
-	bq := getNoiselessBQ()
+	lower, upper := -5.0, 5.0
+	bq := getNoiselessBQ(lower, upper)
 	entries := createEntries()
 	for _, i := range entries {
 		bq.Add(i)
@@ -183,7 +186,8 @@ func TestBQAddIgnoresNaN(t *testing.T) {
 }
 
 func TestBQClamp(t *testing.T) {
-	bq := getNoiselessBQ()
+	lower, upper := -5.0, 5.0
+	bq := getNoiselessBQ(lower, upper)
 	for i := 0; i < 500; i++ {
 		bq.Add(-100.0) // Clamped to -5.
 		bq.Add(100.)   // Clamped to 5.
@@ -210,7 +214,8 @@ func TestBQClamp(t *testing.T) {
 
 // Tests that multiple calls for the same rank returns the same result.
 func TestBQMultipleCallsForTheSameRank(t *testing.T) {
-	bq := getNoiselessBQ()
+	lower, upper := -5.0, 5.0
+	bq := getNoiselessBQ(lower, upper)
 	for _, i := range createEntries() {
 		bq.Add(i)
 	}
@@ -225,8 +230,9 @@ func TestBQMultipleCallsForTheSameRank(t *testing.T) {
 
 // Tests that Result() is invariant to entry order.
 func TestBQInvariantToEntryOrder(t *testing.T) {
-	bq1 := getNoiselessBQ()
-	bq2 := getNoiselessBQ()
+	lower, upper := -5.0, 5.0
+	bq1 := getNoiselessBQ(lower, upper)
+	bq2 := getNoiselessBQ(lower, upper)
 	entries := createEntries()
 	// The list of entries contains 1001 elements. However, we only add the first 997. The reason
 	// is that 997 is a prime number, which allows us to shuffle the entires easily using modular
@@ -249,12 +255,9 @@ func TestBQInvariantToEntryOrder(t *testing.T) {
 // Tests that pre-clamping before Add and not clamping and having the library do the clamping yields
 // the same result.
 func TestBQInvariantToPreClamping(t *testing.T) {
-	bq1 := getNoiselessBQ()
-	bq1.lower = -1.0
-	bq1.upper = 1.0
-	bq2 := getNoiselessBQ()
-	bq2.lower = -1.0
-	bq2.upper = 1.0
+	lower, upper := -1.0, 1.0
+	bq1 := getNoiselessBQ(lower, upper)
+	bq2 := getNoiselessBQ(lower, upper)
 
 	for _, i := range createEntries() {
 		bq1.Add(i)
@@ -271,7 +274,8 @@ func TestBQInvariantToPreClamping(t *testing.T) {
 
 // Tests that Result(rank) increases monotonically with rank even with noise.
 func TestBQIncreasesMonotonically(t *testing.T) {
-	bq := getNoiselessBQ()
+	lower, upper := -5.0, 5.0
+	bq := getNoiselessBQ(lower, upper)
 	bq.Noise = noise.Gaussian() // This property should hold even if noise is added.
 
 	for _, i := range createEntries() {
@@ -288,7 +292,8 @@ func TestBQIncreasesMonotonically(t *testing.T) {
 }
 
 func TestBoundedQuantilesResultSetsStateCorrectly(t *testing.T) {
-	bq := getNoiselessBQ()
+	lower, upper := -5.0, 5.0
+	bq := getNoiselessBQ(lower, upper)
 	bq.Result(0.5)
 
 	if bq.state != resultReturned {
@@ -314,14 +319,14 @@ func createEntries() []float64 {
 	return entries
 }
 
-func getNoiselessBQ() *BoundedQuantiles {
+func getNoiselessBQ(lower, upper float64) *BoundedQuantiles {
 	return NewBoundedQuantiles(&BoundedQuantilesOptions{
 		Epsilon:                      ln3,
 		Delta:                        tenten,
 		MaxPartitionsContributed:     1,
 		MaxContributionsPerPartition: 1,
-		Lower:                        -5,
-		Upper:                        5,
+		Lower:                        lower,
+		Upper:                        upper,
 		TreeHeight:                   4,
 		BranchingFactor:              10,
 		Noise:                        noNoise{},
@@ -640,8 +645,9 @@ func TestCheckMergeBoundedQuantilesStateChecks(t *testing.T) {
 		{defaultState, merged, true},
 		{merged, defaultState, true},
 	} {
-		bq1 := getNoiselessBQ()
-		bq2 := getNoiselessBQ()
+		lower, upper := -5.0, 5.0
+		bq1 := getNoiselessBQ(lower, upper)
+		bq2 := getNoiselessBQ(lower, upper)
 
 		bq1.state = tc.state1
 		bq2.state = tc.state2
@@ -942,7 +948,8 @@ func TestBQSerializationStateChecks(t *testing.T) {
 		{serialized, true},
 		{resultReturned, true},
 	} {
-		bq := getNoiselessBQ()
+		lower, upper := -5.0, 5.0
+		bq := getNoiselessBQ(lower, upper)
 		bq.state = tc.state
 
 		if _, err := bq.GobEncode(); (err != nil) != tc.wantErr {

@@ -194,7 +194,17 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 	}
 	// Compute the mean for each partition. Result is PCollection<partition, float64>.
 	means := beam.CombinePerKey(s,
-		newBoundedMeanFloat64Fn(epsilon, delta, maxPartitionsContributed, params.MaxContributionsPerPartition, params.MinValue, params.MaxValue, noiseKind, false, spec.testMode, false),
+		newBoundedMeanFloat64Fn(boundedMeanFloat64FnParams{
+			epsilon:                      epsilon,
+			delta:                        delta,
+			maxPartitionsContributed:     maxPartitionsContributed,
+			maxContributionsPerPartition: params.MaxContributionsPerPartition,
+			minValue:                     params.MinValue,
+			maxValue:                     params.MaxValue,
+			noiseKind:                    noiseKind,
+			publicPartitions:             false,
+			testMode:                     spec.testMode,
+			emptyPartitions:              false}),
 		partialKV)
 	// Finally, drop thresholded partitions.
 	return beam.ParDo(s, dropThresholdedPartitionsFloat64Fn, means)
@@ -203,7 +213,17 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 func addPublicPartitionsForMean(s beam.Scope, epsilon, delta float64, maxPartitionsContributed int64, params MeanParams, noiseKind noise.Kind, partialKV beam.PCollection, testMode testMode) beam.PCollection {
 	// Compute the mean for each partition with non-public partitions dropped. Result is PCollection<partition, float64>.
 	means := beam.CombinePerKey(s,
-		newBoundedMeanFloat64Fn(epsilon, delta, maxPartitionsContributed, params.MaxContributionsPerPartition, params.MinValue, params.MaxValue, noiseKind, true, testMode, false),
+		newBoundedMeanFloat64Fn(boundedMeanFloat64FnParams{
+			epsilon:                      epsilon,
+			delta:                        delta,
+			maxPartitionsContributed:     maxPartitionsContributed,
+			maxContributionsPerPartition: params.MaxContributionsPerPartition,
+			minValue:                     params.MinValue,
+			maxValue:                     params.MaxValue,
+			noiseKind:                    noiseKind,
+			publicPartitions:             true,
+			testMode:                     testMode,
+			emptyPartitions:              false}),
 		partialKV)
 	partitionT, _ := beam.ValidateKVType(means)
 	meansPartitions := beam.DropValue(s, means)
@@ -216,7 +236,17 @@ func addPublicPartitionsForMean(s beam.Scope, epsilon, delta float64, maxPartiti
 	emptyPublicPartitions := beam.ParDo(s, newEmitPartitionsNotInTheDataFn(partitionT), publicPartitionsWithValues, beam.SideInput{Input: partitionMap})
 	// Add noise to the empty public partitions.
 	emptyMeans := beam.CombinePerKey(s,
-		newBoundedMeanFloat64Fn(epsilon, delta, maxPartitionsContributed, params.MaxContributionsPerPartition, params.MinValue, params.MaxValue, noiseKind, true, testMode, true),
+		newBoundedMeanFloat64Fn(boundedMeanFloat64FnParams{
+			epsilon:                      epsilon,
+			delta:                        delta,
+			maxPartitionsContributed:     maxPartitionsContributed,
+			maxContributionsPerPartition: params.MaxContributionsPerPartition,
+			minValue:                     params.MinValue,
+			maxValue:                     params.MaxValue,
+			noiseKind:                    noiseKind,
+			publicPartitions:             true,
+			testMode:                     testMode,
+			emptyPartitions:              true}),
 		emptyPublicPartitions)
 	means = beam.ParDo(s, dereferenceValueToFloat64, means)
 	emptyMeans = beam.ParDo(s, dereferenceValueToFloat64, emptyMeans)
@@ -265,40 +295,54 @@ type boundedMeanFloat64Fn struct {
 	Upper                        float64
 	NoiseKind                    noise.Kind
 	noise                        noise.Noise // Set during Setup phase according to NoiseKind.
-	PublicPartitions             bool
+	PublicPartitions             bool        // Set to true if public partitions are used.
 	TestMode                     testMode
 	EmptyPartitions              bool // Set to true if this combineFn is for adding noise to empty public partitions.
 }
 
+// boundedMeanFloat64FnParams contains the parameters for creating a new boundedMeanFloat64Fn.
+type boundedMeanFloat64FnParams struct {
+	epsilon                      float64
+	delta                        float64
+	maxPartitionsContributed     int64
+	maxContributionsPerPartition int64
+	minValue                     float64
+	maxValue                     float64
+	noiseKind                    noise.Kind
+	publicPartitions             bool // True if public partitions are used.
+	testMode                     testMode
+	emptyPartitions              bool // Set to true if the boundedMeanFloat64Fn is for adding noise to empty public partitions.
+}
+
 // newBoundedMeanFloat64Fn returns a boundedMeanFloat64Fn with the given budget and parameters.
-func newBoundedMeanFloat64Fn(epsilon, delta float64, maxPartitionsContributed, maxContributionsPerPartition int64, lower, upper float64, noiseKind noise.Kind, publicPartitions bool, testMode testMode, emptyPartitions bool) *boundedMeanFloat64Fn {
+func newBoundedMeanFloat64Fn(params boundedMeanFloat64FnParams) *boundedMeanFloat64Fn {
 	fn := &boundedMeanFloat64Fn{
-		MaxPartitionsContributed:     maxPartitionsContributed,
-		MaxContributionsPerPartition: maxContributionsPerPartition,
-		Lower:                        lower,
-		Upper:                        upper,
-		NoiseKind:                    noiseKind,
-		PublicPartitions:             publicPartitions,
-		TestMode:                     testMode,
-		EmptyPartitions:              emptyPartitions,
+		MaxPartitionsContributed:     params.maxPartitionsContributed,
+		MaxContributionsPerPartition: params.maxContributionsPerPartition,
+		Lower:                        params.minValue,
+		Upper:                        params.maxValue,
+		NoiseKind:                    params.noiseKind,
+		PublicPartitions:             params.publicPartitions,
+		TestMode:                     params.testMode,
+		EmptyPartitions:              params.emptyPartitions,
 	}
 	if fn.PublicPartitions {
-		fn.NoiseEpsilon = epsilon
-		fn.NoiseDelta = delta
+		fn.NoiseEpsilon = params.epsilon
+		fn.NoiseDelta = params.delta
 		return fn
 	}
-	fn.NoiseEpsilon = epsilon / 2
-	fn.PartitionSelectionEpsilon = epsilon - fn.NoiseEpsilon
-	switch noiseKind {
+	fn.NoiseEpsilon = params.epsilon / 2
+	fn.PartitionSelectionEpsilon = params.epsilon - fn.NoiseEpsilon
+	switch params.noiseKind {
 	case noise.GaussianNoise:
-		fn.NoiseDelta = delta / 2
+		fn.NoiseDelta = params.delta / 2
 	case noise.LaplaceNoise:
 		fn.NoiseDelta = 0
 	default:
 		// TODO: return error instead
-		log.Exitf("newBoundedMeanFloat64Fn: unknown noise.Kind (%v) is specified. Please specify a valid noise.", noiseKind)
+		log.Exitf("newBoundedMeanFloat64Fn: unknown noise.Kind (%v) is specified. Please specify a valid noise.", params.noiseKind)
 	}
-	fn.PartitionSelectionDelta = delta - fn.NoiseDelta
+	fn.PartitionSelectionDelta = params.delta - fn.NoiseDelta
 	return fn
 }
 

@@ -332,7 +332,8 @@ double PrivacyLossDistribution::GetEpsilonForDelta(double delta) const {
   for (int outcome : outcomes) {
     auto val = outcome * discretization_interval_;
 
-    if (mass_upper - std::exp(val) * mass_lower >= delta) {
+    if (mass_upper > delta && mass_lower > 0 &&
+        mass_upper - std::exp(val) * mass_lower >= delta) {
       // Epsilon is greater than or equal to val.
       break;
     }

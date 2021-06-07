@@ -64,7 +64,17 @@ func TestNewBoundedMeanFloat64Fn(t *testing.T) {
 				NoiseKind:                    noise.GaussianNoise,
 			}},
 	} {
-		got := newBoundedMeanFloat64Fn(1, 1e-5, 17, 5, 0, 10, tc.noiseKind, false, disabled, false)
+		got := newBoundedMeanFloat64Fn(boundedMeanFloat64FnParams{
+			epsilon:                      1,
+			delta:                        1e-5,
+			maxPartitionsContributed:     17,
+			maxContributionsPerPartition: 5,
+			minValue:                     0,
+			maxValue:                     10,
+			noiseKind:                    tc.noiseKind,
+			publicPartitions:             false,
+			testMode:                     disabled,
+			emptyPartitions:              false})
 		if diff := cmp.Diff(tc.want, got, opts...); diff != "" {
 			t.Errorf("newBoundedMeanFn: for %q (-want +got):\n%s", tc.desc, diff)
 		}
@@ -79,7 +89,17 @@ func TestBoundedMeanFloat64FnSetup(t *testing.T) {
 	}{
 		{"Laplace noise kind", noise.LaplaceNoise, noise.Laplace()},
 		{"Gaussian noise kind", noise.GaussianNoise, noise.Gaussian()}} {
-		got := newBoundedMeanFloat64Fn(1, 1e-5, 17, 5, 0, 10, tc.noiseKind, false, disabled, false)
+		got := newBoundedMeanFloat64Fn(boundedMeanFloat64FnParams{
+			epsilon:                      1,
+			delta:                        1e-5,
+			maxPartitionsContributed:     17,
+			maxContributionsPerPartition: 5,
+			minValue:                     0,
+			maxValue:                     10,
+			noiseKind:                    tc.noiseKind,
+			publicPartitions:             false,
+			testMode:                     disabled,
+			emptyPartitions:              false})
 		got.Setup()
 		if !cmp.Equal(tc.wantNoise, got.noise) {
 			t.Errorf("Setup: for %s got %v, want %v", tc.desc, got.noise, tc.wantNoise)
@@ -97,7 +117,17 @@ func TestBoundedMeanFloat64FnAddInput(t *testing.T) {
 	lower := 0.0
 	upper := 5.0
 	// ε is split by 2 for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
-	fn := newBoundedMeanFloat64Fn(2*epsilon, delta, maxPartitionsContributed, maxContributionsPerPartition, lower, upper, noise.LaplaceNoise, false, disabled, false)
+	fn := newBoundedMeanFloat64Fn(boundedMeanFloat64FnParams{
+		epsilon:                      2 * epsilon,
+		delta:                        delta,
+		maxPartitionsContributed:     maxPartitionsContributed,
+		maxContributionsPerPartition: maxContributionsPerPartition,
+		minValue:                     lower,
+		maxValue:                     upper,
+		noiseKind:                    noise.LaplaceNoise,
+		publicPartitions:             false,
+		testMode:                     disabled,
+		emptyPartitions:              false})
 	fn.Setup()
 
 	accum := fn.CreateAccumulator()
@@ -128,7 +158,17 @@ func TestBoundedMeanFloat64FnMergeAccumulators(t *testing.T) {
 	lower := 0.0
 	upper := 5.0
 	// ε is split by 2 for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
-	fn := newBoundedMeanFloat64Fn(2*epsilon, delta, maxPartitionsContributed, maxContributionsPerPartition, lower, upper, noise.LaplaceNoise, false, disabled, false)
+	fn := newBoundedMeanFloat64Fn(boundedMeanFloat64FnParams{
+		epsilon:                      2 * epsilon,
+		delta:                        delta,
+		maxPartitionsContributed:     maxPartitionsContributed,
+		maxContributionsPerPartition: maxContributionsPerPartition,
+		minValue:                     lower,
+		maxValue:                     upper,
+		noiseKind:                    noise.LaplaceNoise,
+		publicPartitions:             false,
+		testMode:                     disabled,
+		emptyPartitions:              false})
 	fn.Setup()
 
 	accum1 := fn.CreateAccumulator()
@@ -165,7 +205,17 @@ func TestBoundedMeanFloat64FnExtractOutputReturnsNilForSmallPartitions(t *testin
 	} {
 		// The choice of ε=1e100, δ=10⁻²³, and l0Sensitivity=1 gives a threshold of =2.
 		// ε is split by 2 for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
-		fn := newBoundedMeanFloat64Fn(2*1e100, 1e-23, 1, 1, 0, 10, noise.LaplaceNoise, false, disabled, false)
+		fn := newBoundedMeanFloat64Fn(boundedMeanFloat64FnParams{
+			epsilon:                      2 * 1e100,
+			delta:                        1e-23,
+			maxPartitionsContributed:     1,
+			maxContributionsPerPartition: 1,
+			minValue:                     0,
+			maxValue:                     10,
+			noiseKind:                    noise.LaplaceNoise,
+			publicPartitions:             false,
+			testMode:                     disabled,
+			emptyPartitions:              false})
 		fn.Setup()
 		accum := fn.CreateAccumulator()
 		for i := 0; i < tc.inputSize; i++ {
@@ -194,7 +244,17 @@ func TestBoundedMeanFloat64FnWithPartitionsExtractOutputDoesNotReturnNilForSmall
 		{"Empty input", 0, 0},
 		{"Input with 1 user with 1 contribution", 1, 1},
 	} {
-		fn := newBoundedMeanFloat64Fn(1e100, 0, 1, 1, 0, 10, noise.LaplaceNoise, true, disabled, false)
+		fn := newBoundedMeanFloat64Fn(boundedMeanFloat64FnParams{
+			epsilon:                      1e100,
+			delta:                        0,
+			maxPartitionsContributed:     1,
+			maxContributionsPerPartition: 1,
+			minValue:                     0,
+			maxValue:                     10,
+			noiseKind:                    noise.LaplaceNoise,
+			publicPartitions:             true,
+			testMode:                     disabled,
+			emptyPartitions:              false})
 		fn.Setup()
 		accum := fn.CreateAccumulator()
 		for i := 0; i < tc.inputSize; i++ {

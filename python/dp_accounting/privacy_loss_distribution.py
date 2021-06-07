@@ -472,7 +472,7 @@ class PrivacyLossDistribution(object):
       cls,
       sigma: float,
       sensitivity: int = 1,
-      truncation_bound: int = None,
+      truncation_bound: typing.Optional[int] = None,
       pessimistic_estimate: bool = True,
       value_discretization_interval: float = 1e-4) -> 'PrivacyLossDistribution':
     """Creates the privacy loss distribution of the discrete Gaussian mechanism.

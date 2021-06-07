@@ -125,7 +125,7 @@ func NewBoundedSumInt64(opt *BoundedSumInt64Options) *BoundedSumInt64 {
 	}
 	if err := checks.CheckBoundsNotEqual("NewBoundedSumInt64", float64(lower), float64(upper)); err != nil {
 		// TODO: do not exit the program from within library code
-		log.Fatalf("CheckBoundsNotEqual(lower %f, upper %f) failed with %v", lower, upper, err)
+		log.Fatalf("CheckBoundsNotEqual(lower %d, upper %d) failed with %v", lower, upper, err)
 	}
 	lInf, err := getLInfInt(lower, upper, maxContributionsPerPartition)
 	if err != nil {

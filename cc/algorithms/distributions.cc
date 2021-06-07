@@ -45,10 +45,12 @@ static constexpr double kBinomialBound = (double)(1LL << 57);
 // generation documentation available in
 // https://github.com/google/differential-privacy/blob/main/common_docs/Secure_Noise_Generation.pdf
 double ApproximateBinomialProbability(double sqrt_n, int64_t m) {
-  if (abs(m) > sqrt_n * sqrt(log(sqrt_n) / 2)) return 0;
-
-  return sqrt(2 / kPi) / sqrt_n * exp(-2.0 * m * m / (sqrt_n * sqrt_n)) *
-         (1 - 0.4 * (2 * pow(log(sqrt_n), 1.5)) / sqrt_n);
+  const double n = sqrt_n * sqrt_n;
+  if (std::abs(m) > sqrt_n * std::sqrt(std::log(n)) / 2) {
+    return 0;
+  }
+  return std::sqrt(2 / kPi) / sqrt_n * std::exp(-2.0 * m * m / n) *
+         (1 - (0.4 * std::pow(std::log(n), 1.5) / sqrt_n));
 }
 
 }  // namespace

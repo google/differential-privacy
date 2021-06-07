@@ -361,14 +361,16 @@ public class GaussianNoise implements Noise {
    * distribution of n Bernoulli trials that have a success probability of 1 / 2 each. The
    * approximation is taken from Lemma 7 of the noise generation documentation, available <a
    * href="https://github.com/google/differential-privacy/blob/main/common_docs/Secure_Noise_Generation.pdf">here</a>.
+   *
+   * Note that m might be very large and m * m might not be representable as long.
    */
   private static double approximateBinomialProbability(double sqrtN, long m) {
     if (Math.abs(m) > sqrtN * Math.sqrt(Math.log(sqrtN) / 2)) {
       return 0.0;
     } else {
       return (Math.sqrt(2.0 / Math.PI) / sqrtN)
-          * Math.exp((-2.0 * m * m) / (sqrtN * sqrtN))
-          * (1 - 0.4 * Math.pow(2.0, 1.5) * Math.pow(Math.log(sqrtN), 1.5) / sqrtN);
+          * Math.exp(-2.0 * Math.pow(m / sqrtN, 2))
+          * (1 - (0.4 * Math.pow(2.0 * Math.log(sqrtN), 1.5) / sqrtN));
     }
   }
 }

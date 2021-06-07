@@ -23,7 +23,7 @@ Please refer to the supplementary material below for more details:
 import abc
 import math
 import typing
-from typing import Union, Iterable
+from typing import Iterable, Optional, Union
 import dataclasses
 import numpy as np
 from scipy import stats
@@ -698,7 +698,7 @@ class DiscreteGaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
   def __init__(self,
                sigma: float,
                sensitivity: int = 1,
-               truncation_bound: int = None) -> None:
+               truncation_bound: Optional[int] = None) -> None:
     """Initializes the privacy loss of the discrete Gaussian mechanism.
 
     Args:

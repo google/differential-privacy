@@ -332,6 +332,12 @@ INSTANTIATE_TEST_SUITE_P(
                                     .pmf = {{-1, 0.1}},
                                     .delta = 0,
                                     .expected_epsilon = 0},
+           // Test for the case delta = infinity_mass
+           GetEpsilonFromDeltaParam{.discretization_interval = 1,
+                                    .infinity_mass = 0.1,
+                                    .pmf = {{2, 0.1}},
+                                    .delta = 0.1,
+                                    .expected_epsilon = 2},
            // Test resilience against overflow
            GetEpsilonFromDeltaParam{.discretization_interval = 1,
                                     .infinity_mass = 0,
