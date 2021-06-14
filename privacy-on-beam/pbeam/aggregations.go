@@ -23,7 +23,6 @@ import (
 	"math/rand"
 	"reflect"
 
-	log "github.com/golang/glog"
 	"github.com/google/differential-privacy/go/checks"
 	"github.com/google/differential-privacy/go/dpagg"
 	"github.com/google/differential-privacy/go/noise"
@@ -119,16 +118,15 @@ func vToInt64Fn(k beam.T, v int) (beam.T, int64) {
 	return k, int64(v)
 }
 
-func findRekeyFn(kind reflect.Kind) interface{} {
+func findRekeyFn(kind reflect.Kind) (interface{}, error) {
 	switch kind {
 	case reflect.Int64:
-		return rekeyInt64Fn
+		return rekeyInt64Fn, nil
 	case reflect.Float64:
-		return rekeyFloat64Fn
+		return rekeyFloat64Fn, nil
 	default:
-		log.Exitf("pbeam.findRekeyFn: kind(%v) should be int64 or float64", kind)
+		return nil, fmt.Errorf("kind(%v) should be int64 or float64", kind)
 	}
-	return nil
 }
 
 // pairInt64 contains an encoded value and an int64 metric.
@@ -155,16 +153,15 @@ func rekeyFloat64Fn(kv kv.Pair, m float64) ([]byte, pairFloat64) {
 	return kv.K, pairFloat64{kv.V, m}
 }
 
-func newDecodePairFn(t reflect.Type, kind reflect.Kind) interface{} {
+func newDecodePairFn(t reflect.Type, kind reflect.Kind) (interface{}, error) {
 	switch kind {
 	case reflect.Int64:
-		return newDecodePairInt64Fn(t)
+		return newDecodePairInt64Fn(t), nil
 	case reflect.Float64:
-		return newDecodePairFloat64Fn(t)
+		return newDecodePairFloat64Fn(t), nil
 	default:
-		log.Exitf("pbeam.newDecodePairFn: kind(%v) should be int64 or float64", kind)
+		return nil, fmt.Errorf("pbeam.newDecodePairFn: kind(%v) should be int64 or float64", kind)
 	}
-	return nil
 }
 
 // decodePairInt64Fn transforms a PCollection<pairInt64<codedX,int64>> into a
@@ -213,25 +210,28 @@ func (fn *decodePairFloat64Fn) ProcessElement(pair pairFloat64) (beam.X, float64
 	return x, pair.M, nil
 }
 
-func newBoundedSumFn(epsilon, delta float64, maxPartitionsContributed int64, lower, upper float64, noiseKind noise.Kind, vKind reflect.Kind, publicPartitions bool, testMode testMode) interface{} {
-	var err error
+func newBoundedSumFn(epsilon, delta float64, maxPartitionsContributed int64, lower, upper float64, noiseKind noise.Kind, vKind reflect.Kind, publicPartitions bool, testMode testMode) (interface{}, error) {
+	var err, checkErr error
 	var bsFn interface{}
 
 	switch vKind {
 	case reflect.Int64:
-		err = checks.CheckBoundsFloat64AsInt64("pbeam.newBoundedSumFn", lower, upper)
-		bsFn = newBoundedSumInt64Fn(epsilon, delta, maxPartitionsContributed, int64(lower), int64(upper), noiseKind, publicPartitions, testMode)
+		checkErr = checks.CheckBoundsFloat64AsInt64("pbeam.newBoundedSumFn", lower, upper)
+		if checkErr != nil {
+			return nil, fmt.Errorf("Couldn't create a new boundedSumFn: %w", checkErr)
+		}
+		bsFn, err = newBoundedSumInt64Fn(epsilon, delta, maxPartitionsContributed, int64(lower), int64(upper), noiseKind, publicPartitions, testMode)
 	case reflect.Float64:
-		err = checks.CheckBoundsFloat64("pbeam.newBoundedSumFn", lower, upper)
-		bsFn = newBoundedSumFloat64Fn(epsilon, delta, maxPartitionsContributed, lower, upper, noiseKind, publicPartitions, testMode)
+		checkErr = checks.CheckBoundsFloat64("pbeam.newBoundedSumFn", lower, upper)
+		if checkErr != nil {
+			return nil, fmt.Errorf("Couldn't create a new boundedSumFn: %w", checkErr)
+		}
+		bsFn, err = newBoundedSumFloat64Fn(epsilon, delta, maxPartitionsContributed, lower, upper, noiseKind, publicPartitions, testMode)
 	default:
-		log.Exitf("pbeam.newBoundedSumFn: vKind(%v) should be int64 or float64", vKind)
+		err = fmt.Errorf("vKind(%v) should be int64 or float64", vKind)
 	}
 
-	if err != nil {
-		log.Exit(err)
-	}
-	return bsFn
+	return bsFn, err
 }
 
 type boundedSumAccumInt64 struct {
@@ -258,7 +258,7 @@ type boundedSumInt64Fn struct {
 }
 
 // newBoundedSumInt64Fn returns a boundedSumInt64Fn with the given budget and parameters.
-func newBoundedSumInt64Fn(epsilon, delta float64, maxPartitionsContributed, lower, upper int64, noiseKind noise.Kind, publicPartitions bool, testMode testMode) *boundedSumInt64Fn {
+func newBoundedSumInt64Fn(epsilon, delta float64, maxPartitionsContributed, lower, upper int64, noiseKind noise.Kind, publicPartitions bool, testMode testMode) (*boundedSumInt64Fn, error) {
 	fn := &boundedSumInt64Fn{
 		MaxPartitionsContributed: maxPartitionsContributed,
 		Lower:                    lower,
@@ -270,7 +270,7 @@ func newBoundedSumInt64Fn(epsilon, delta float64, maxPartitionsContributed, lowe
 	if fn.PublicPartitions {
 		fn.NoiseEpsilon = epsilon
 		fn.NoiseDelta = delta
-		return fn
+		return fn, nil
 	}
 	fn.NoiseEpsilon = epsilon / 2
 	fn.PartitionSelectionEpsilon = epsilon - fn.NoiseEpsilon
@@ -280,10 +280,10 @@ func newBoundedSumInt64Fn(epsilon, delta float64, maxPartitionsContributed, lowe
 	case noise.LaplaceNoise:
 		fn.NoiseDelta = 0
 	default:
-		log.Exitf("newBoundedSumInt64Fn: unknown noise.Kind (%v) is specified. Please specify a valid noise.", noiseKind)
+		return nil, fmt.Errorf("unknown noise.Kind (%v) is specified. Please specify a valid noise", noiseKind)
 	}
 	fn.PartitionSelectionDelta = delta - fn.NoiseDelta
-	return fn
+	return fn, nil
 }
 
 func (fn *boundedSumInt64Fn) Setup() {
@@ -373,7 +373,7 @@ type boundedSumFloat64Fn struct {
 }
 
 // newBoundedSumFloat64Fn returns a boundedSumFloat64Fn with the given budget and parameters.
-func newBoundedSumFloat64Fn(epsilon, delta float64, maxPartitionsContributed int64, lower, upper float64, noiseKind noise.Kind, publicPartitions bool, testMode testMode) *boundedSumFloat64Fn {
+func newBoundedSumFloat64Fn(epsilon, delta float64, maxPartitionsContributed int64, lower, upper float64, noiseKind noise.Kind, publicPartitions bool, testMode testMode) (*boundedSumFloat64Fn, error) {
 	fn := &boundedSumFloat64Fn{
 		MaxPartitionsContributed: maxPartitionsContributed,
 		Lower:                    lower,
@@ -385,7 +385,7 @@ func newBoundedSumFloat64Fn(epsilon, delta float64, maxPartitionsContributed int
 	if fn.PublicPartitions {
 		fn.NoiseEpsilon = epsilon
 		fn.NoiseDelta = delta
-		return fn
+		return fn, nil
 	}
 	fn.NoiseEpsilon = epsilon / 2
 	fn.PartitionSelectionEpsilon = epsilon - fn.NoiseEpsilon
@@ -395,10 +395,10 @@ func newBoundedSumFloat64Fn(epsilon, delta float64, maxPartitionsContributed int
 	case noise.LaplaceNoise:
 		fn.NoiseDelta = 0
 	default:
-		log.Exitf("newBoundedSumFloat64Fn: unknown noise.Kind (%v) is specified. Please specify a valid noise.", noiseKind)
+		return nil, fmt.Errorf("unknown noise.Kind (%v) is specified. Please specify a valid noise", noiseKind)
 	}
 	fn.PartitionSelectionDelta = delta - fn.NoiseDelta
-	return fn
+	return fn, nil
 }
 
 func (fn *boundedSumFloat64Fn) Setup() {
@@ -460,16 +460,15 @@ func (fn *boundedSumFloat64Fn) ExtractOutput(a boundedSumAccumFloat64) *float64 
 }
 
 // findDereferenceValueFn dereferences a *int64 to int64 or *float64 to float64.
-func findDereferenceValueFn(kind reflect.Kind) interface{} {
+func findDereferenceValueFn(kind reflect.Kind) (interface{}, error) {
 	switch kind {
 	case reflect.Int64:
-		return dereferenceValueToInt64
+		return dereferenceValueToInt64, nil
 	case reflect.Float64:
-		return dereferenceValueToFloat64
+		return dereferenceValueToFloat64, nil
 	default:
-		log.Exitf("pbeam.findDereferenceValueFn: kind(%v) should be int64 or float64", kind)
+		return nil, fmt.Errorf("kind(%v) should be int64 or float64", kind)
 	}
-	return nil
 }
 
 func dereferenceValueToInt64(key beam.X, value *int64) (k beam.X, v int64) {
@@ -484,16 +483,15 @@ func (fn *boundedSumFloat64Fn) String() string {
 	return fmt.Sprintf("%#v", fn)
 }
 
-func findDropThresholdedPartitionsFn(kind reflect.Kind) interface{} {
+func findDropThresholdedPartitionsFn(kind reflect.Kind) (interface{}, error) {
 	switch kind {
 	case reflect.Int64:
-		return dropThresholdedPartitionsInt64Fn
+		return dropThresholdedPartitionsInt64Fn, nil
 	case reflect.Float64:
-		return dropThresholdedPartitionsFloat64Fn
+		return dropThresholdedPartitionsFloat64Fn, nil
 	default:
-		log.Exitf("pbeam.findDropThresholdedPartitionsFn: kind(%v) should be int64 or float64", kind)
+		return nil, fmt.Errorf("kind(%v) should be int64 or float64", kind)
 	}
-	return nil
 }
 
 // dropThresholdedPartitionsInt64Fn drops thresholded int partitions, i.e. those
@@ -520,16 +518,15 @@ func dropThresholdedPartitionsFloat64SliceFn(v beam.V, r []float64, emit func(be
 	}
 }
 
-func findClampNegativePartitionsFn(kind reflect.Kind) interface{} {
+func findClampNegativePartitionsFn(kind reflect.Kind) (interface{}, error) {
 	switch kind {
 	case reflect.Int64:
-		return clampNegativePartitionsInt64Fn
+		return clampNegativePartitionsInt64Fn, nil
 	case reflect.Float64:
-		return clampNegativePartitionsFloat64Fn
+		return clampNegativePartitionsFloat64Fn, nil
 	default:
-		log.Exitf("pbeam.findClampNegativePartitionsFn: kind(%v) should be int64 or float64", kind)
+		return nil, fmt.Errorf("kind(%v) should be int64 or float64", kind)
 	}
-	return nil
 }
 
 // Clamp negative partitions to zero for int64 partitions, e.g., as a post aggregation step for Count.
@@ -557,17 +554,15 @@ func convertFloat64ToFloat64Fn(z beam.Z, f float64) (beam.Z, float64) {
 }
 
 // newAddDummyValuesToPublicPartitionsFn turns a PCollection<V> into PCollection<V,0>.
-func newAddDummyValuesToPublicPartitionsFn(vKind reflect.Kind) interface{} {
-	var fn interface{}
+func newAddDummyValuesToPublicPartitionsFn(vKind reflect.Kind) (interface{}, error) {
 	switch vKind {
 	case reflect.Int64:
-		fn = addDummyValuesToPublicPartitionsInt64Fn
+		return addDummyValuesToPublicPartitionsInt64Fn, nil
 	case reflect.Float64:
-		fn = addDummyValuesToPublicPartitionsFloat64Fn
+		return addDummyValuesToPublicPartitionsFloat64Fn, nil
 	default:
-		log.Exitf("pbeam.newAddDummyValuesToPublicPartitionsFn: vKind(%v) should be int64 or float64", vKind)
+		return nil, fmt.Errorf("pbeam.newAddDummyValuesToPublicPartitionsFn: vKind(%v) should be int64 or float64", vKind)
 	}
-	return fn
 }
 
 func addDummyValuesToPublicPartitionsInt64Fn(partition beam.X) (k beam.X, v int64) {
@@ -732,9 +727,9 @@ func (fn *dropValuesFn) Setup() {
 	fn.Codec.Setup()
 }
 
-func (fn *dropValuesFn) ProcessElement(id beam.Z, kv kv.Pair) (beam.Z, beam.W) {
-	k, _ := fn.Codec.Decode(kv)
-	return id, k
+func (fn *dropValuesFn) ProcessElement(id beam.Z, kv kv.Pair) (beam.Z, beam.W, error) {
+	k, _, err := fn.Codec.Decode(kv)
+	return id, k, err
 }
 
 // encodeIDKFn takes a PCollection<ID,kv.Pair{K,V}> as input, and returns a
@@ -763,8 +758,8 @@ func (fn *encodeIDKFn) ProcessElement(id beam.W, pair kv.Pair) (kv.Pair, beam.V,
 	if err := fn.idEnc.Encode(id, &idBuf); err != nil {
 		return kv.Pair{}, nil, fmt.Errorf("pbeam.encodeIDKFn.ProcessElement: couldn't encode ID %v: %w", id, err)
 	}
-	_, v := fn.InputPairCodec.Decode(pair)
-	return kv.Pair{idBuf.Bytes(), pair.K}, v, nil
+	_, v, err := fn.InputPairCodec.Decode(pair)
+	return kv.Pair{idBuf.Bytes(), pair.K}, v, err
 }
 
 // decodePairArrayFloat64Fn transforms a PCollection<pairArrayFloat64<codedX,[]float64>> into a

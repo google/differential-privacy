@@ -66,13 +66,16 @@ func SelectPartitions(s beam.Scope, pcol PrivatePCollection, params SelectPartit
 
 	epsilon, delta, err := pcol.privacySpec.consumeBudget(params.Epsilon, params.Delta)
 	if err != nil {
-		log.Exitf("Couldn't consume budget for SelectPartition: %v", err)
+		log.Fatalf("Couldn't consume budget for SelectPartition: %v", err)
 	}
 	spec := pcol.privacySpec
-	maxPartitionsContributed := getMaxPartitionsContributed(spec, params.MaxPartitionsContributed)
+	maxPartitionsContributed, err := getMaxPartitionsContributed(spec, params.MaxPartitionsContributed)
+	if err != nil {
+		log.Fatalf("Couldn't get maxPartitionsContributed for SelectPartitions: %v", err)
+	}
 	err = checkSelectPartitionsParams(epsilon, delta, maxPartitionsContributed)
 	if err != nil {
-		log.Exit(err)
+		log.Fatal(err)
 	}
 
 	// First, we drop the values if we have (privacyKey, partitionKey, value) tuples.
@@ -81,7 +84,7 @@ func SelectPartitions(s beam.Scope, pcol PrivatePCollection, params SelectPartit
 	partitions := pcol.col
 	if pT.Type() == reflect.TypeOf(kv.Pair{}) {
 		if pcol.codec == nil {
-			log.Exitf("SelectPartitions: no codec found for the input PrivatePCollection.")
+			log.Fatalf("SelectPartitions: no codec found for the input PrivatePCollection.")
 		}
 		partitions = beam.ParDo(s, &dropValuesFn{pcol.codec}, pcol.col, beam.TypeDefinition{Var: beam.WType, T: pcol.codec.VType.T})
 	}

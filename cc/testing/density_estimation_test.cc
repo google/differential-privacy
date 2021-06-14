@@ -36,7 +36,7 @@ TYPED_TEST_SUITE(HistogramTest, NumericTypes);
 TYPED_TEST(HistogramTest, EmptyHistogram) {
   Histogram<TypeParam> hist(-2, .5, 8);
   for (int i = 0; i < hist.NumBins(); ++i) {
-    EXPECT_EQ(0, hist.BinCount(i).ValueOrDie());
+    EXPECT_EQ(0, hist.BinCountOrDie(i));
   }
   EXPECT_EQ(hist.Total(), 0);
   EXPECT_EQ(hist.MaxBinCount(), 0);
@@ -69,9 +69,9 @@ TYPED_TEST(HistogramTest, SmallInputSet) {
   EXPECT_OK(hist.Add(0));
   EXPECT_OK(hist.Add(0));
   EXPECT_OK(hist.Add(100));
-  EXPECT_EQ(hist.BinCount(0).ValueOrDie(), 1);
-  EXPECT_EQ(hist.BinCount(1).ValueOrDie(), 2);
-  EXPECT_EQ(hist.BinCount(2).ValueOrDie(), 1);
+  EXPECT_EQ(hist.BinCountOrDie(0), 1);
+  EXPECT_EQ(hist.BinCountOrDie(1), 2);
+  EXPECT_EQ(hist.BinCountOrDie(2), 1);
   EXPECT_EQ(hist.Total(), 4);
   EXPECT_EQ(hist.MaxBinCount(), 2);
 }

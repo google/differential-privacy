@@ -60,7 +60,6 @@ cc_library(
         "//algorithms:bounded-variance",
         "//algorithms:count",
         "//algorithms:order-statistics",
-        "//algorithms:util",
     ],
 )
 

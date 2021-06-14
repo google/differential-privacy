@@ -16,6 +16,9 @@
 
 #include "algorithms/partition-selection.h"
 
+#include <cmath>
+#include <cstdlib>
+
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "base/statusor.h"
@@ -550,7 +553,7 @@ TEST(PartitionSelectionTest, LaplacePartitionSelectionUnsetBuilderThreshold) {
 
 TEST(PartitionSelectionTest,
      LaplacePartitionSelectionCalculateDeltaThresholdSymmetryAround1) {
-  double epsilon = log(3);
+  double epsilon = std::log(3);
   int64_t max_partitions_contributed = 1;
   double delta_1_minus_i, delta_1_plus_i;
   for (double i = 0.1; i < 5; i += 0.1) {
@@ -607,27 +610,27 @@ TEST(PartitionSelectionTest, CalculateDeltaTests) {
     //                                      expected       test
     //         epsilon   threshold  max_pc  delta          tolerance
     //        --------  ----------  ------  -------------  ---------
-    DeltaTest(log(3.0),          1,      1, 0.5),
-    DeltaTest(log(3.0),          2,      1, 0.16666667),
-    DeltaTest(log(3.0),          3,      1, 0.05555555556, 1e-05),
-    DeltaTest(log(3.0),          4,      1, 0.01851851852, 1e-05),
-    DeltaTest(log(3.0),          5,      1, 0.00617283960, 1e-06),
-    DeltaTest(log(3.0),         10,      1, 2.5402631e-05, 1e-08),
-    DeltaTest(log(3.0),         20,      1, 4.3019580e-10, 1e-13),
-    DeltaTest(log(3.0),         50,      1, 2.0894334e-24, 1e-27),
-    DeltaTest(log(3.0),         75,      1, 2.4660232e-36, 1e-39),
-    DeltaTest(log(3.0),         87,      1, 4.6402600e-42, 6e-46),
-    DeltaTest(log(3.0),         93,      1, 6.3652400e-45, 1e-48),
-    DeltaTest(log(3.0),         94,      1, 2.1217500e-45, 1e-48),
-    DeltaTest(log(3.0),         95,      1, 7.0724900e-46, 1e-49),
-    DeltaTest(log(3.0),         96,      1, 2.3575000e-46, 1e-49),
-    DeltaTest(log(3.0),        100,      1, 2.9104900e-48, 1e-51),
-    DeltaTest(log(3.0),       1000,      1, 0.0,           1e-100),
-    DeltaTest(log(3.0),      10000,      1, 0.0,           1e-100),
-    DeltaTest(log(3.0),     100000,      1, 0.0,           1e-100),
-    DeltaTest(log(3.0),    1000000,      1, 0.0,           1e-100),
-    DeltaTest(log(3.0), kDoubleMax,      1, 0.0,           1e-100),
-    DeltaTest(log(3.0),    kPosInf,      1, 0.0,           1e-100),
+    DeltaTest(std::log(3.0),          1,      1, 0.5),
+    DeltaTest(std::log(3.0),          2,      1, 0.16666667),
+    DeltaTest(std::log(3.0),          3,      1, 0.05555555556, 1e-05),
+    DeltaTest(std::log(3.0),          4,      1, 0.01851851852, 1e-05),
+    DeltaTest(std::log(3.0),          5,      1, 0.00617283960, 1e-06),
+    DeltaTest(std::log(3.0),         10,      1, 2.5402631e-05, 1e-08),
+    DeltaTest(std::log(3.0),         20,      1, 4.3019580e-10, 1e-13),
+    DeltaTest(std::log(3.0),         50,      1, 2.0894334e-24, 1e-27),
+    DeltaTest(std::log(3.0),         75,      1, 2.4660232e-36, 1e-39),
+    DeltaTest(std::log(3.0),         87,      1, 4.6402600e-42, 6e-46),
+    DeltaTest(std::log(3.0),         93,      1, 6.3652400e-45, 1e-48),
+    DeltaTest(std::log(3.0),         94,      1, 2.1217500e-45, 1e-48),
+    DeltaTest(std::log(3.0),         95,      1, 7.0724900e-46, 1e-49),
+    DeltaTest(std::log(3.0),         96,      1, 2.3575000e-46, 1e-49),
+    DeltaTest(std::log(3.0),        100,      1, 2.9104900e-48, 1e-51),
+    DeltaTest(std::log(3.0),       1000,      1, 0.0,           1e-100),
+    DeltaTest(std::log(3.0),      10000,      1, 0.0,           1e-100),
+    DeltaTest(std::log(3.0),     100000,      1, 0.0,           1e-100),
+    DeltaTest(std::log(3.0),    1000000,      1, 0.0,           1e-100),
+    DeltaTest(std::log(3.0), kDoubleMax,      1, 0.0,           1e-100),
+    DeltaTest(std::log(3.0),    kPosInf,      1, 0.0,           1e-100),
 
     // Fix threshold = 50 & max_pc = 1, and vary epsilon.
     //
@@ -645,7 +648,7 @@ TEST(PartitionSelectionTest, CalculateDeltaTests) {
     DeltaTest(         1e-1,        50,      1, 0.0037232914,  1e-06),
     DeltaTest(          0.5,        50,      1, 1.1448674e-11, 1e-14),
     DeltaTest(          1.0,        50,      1, 2.6214428e-22, 1e-25),
-    DeltaTest(     log(3.0),        50,      1, 2.0894334e-24, 1e-27),
+    DeltaTest(std::log(3.0),        50,      1, 2.0894334e-24, 1e-27),
     DeltaTest(          1.5,        50,      1, 6.0024092e-33, 1e-36),
     DeltaTest(          2.0,        50,      1, 1.3732725e-43, 1.2e-46),
     DeltaTest(          5.0,        50,      1, 0.0,           1e-100),
@@ -663,18 +666,18 @@ TEST(PartitionSelectionTest, CalculateDeltaTests) {
     //                                        expected       test
     //         epsilon  threshold     max_pc  delta          tolerance
     //        --------  ---------  ---------  -------------  ---------
-    DeltaTest(log(3.0),        50,         1, 2.0894334e-24, 1e-27),
-    DeltaTest(log(3.0),        50,         2, 2.0442300e-12, 1e-15),
-    DeltaTest(log(3.0),        50,         3, 2.4160800e-08, 1e-11),
-    DeltaTest(log(3.0),        50,         4, 2.8595300e-06, 1e-09),
-    DeltaTest(log(3.0),        50,         5, 5.2740300e-05, 1e-08),
-    DeltaTest(log(3.0),        50,        10, 0.0227296,     1e-05),
-    DeltaTest(log(3.0),        50,       100, 1.0),
-    DeltaTest(log(3.0),        50,      1000, 1.0),
-    DeltaTest(log(3.0),        50,     10000, 1.0),
-    DeltaTest(log(3.0),        50,    100000, 1.0),
-    DeltaTest(log(3.0),        50,   1000000, 1.0),
-    DeltaTest(log(3.0),        50, kInt64Max, 1.0),
+    DeltaTest(std::log(3.0),        50,         1, 2.0894334e-24, 1e-27),
+    DeltaTest(std::log(3.0),        50,         2, 2.0442300e-12, 1e-15),
+    DeltaTest(std::log(3.0),        50,         3, 2.4160800e-08, 1e-11),
+    DeltaTest(std::log(3.0),        50,         4, 2.8595300e-06, 1e-09),
+    DeltaTest(std::log(3.0),        50,         5, 5.2740300e-05, 1e-08),
+    DeltaTest(std::log(3.0),        50,        10, 0.0227296,     1e-05),
+    DeltaTest(std::log(3.0),        50,       100, 1.0),
+    DeltaTest(std::log(3.0),        50,      1000, 1.0),
+    DeltaTest(std::log(3.0),        50,     10000, 1.0),
+    DeltaTest(std::log(3.0),        50,    100000, 1.0),
+    DeltaTest(std::log(3.0),        50,   1000000, 1.0),
+    DeltaTest(std::log(3.0),        50, kInt64Max, 1.0),
 
     // Error cases.
     //
@@ -693,15 +696,15 @@ TEST(PartitionSelectionTest, CalculateDeltaTests) {
     //
     //              epsilon  threshold  max_pc
     //             --------  ---------  ------
-    DeltaErrorTest(log(3.0),      kNaN, 1),
+    DeltaErrorTest(std::log(3.0),      kNaN, 1),
 
     // Max_partitions_contributed (max_pc) must be greater than 0.
     //
     //              epsilon  threshold  max_pc
     //             --------  ---------  ---------
-    DeltaErrorTest(log(3.0),        50, kInt64Min),
-    DeltaErrorTest(log(3.0),        50, -1),
-    DeltaErrorTest(log(3.0),        50, 0),
+    DeltaErrorTest(std::log(3.0),        50, kInt64Min),
+    DeltaErrorTest(std::log(3.0),        50, -1),
+    DeltaErrorTest(std::log(3.0),        50, 0),
   };
 
   for (const CalculateDeltaTest& test_case : delta_test_cases) {
@@ -778,24 +781,24 @@ TEST(PartitionSelectionTest, CalculateThresholdTests) {
     //                                              expected  test
     //             epsilon          delta  max_pc  threshold  tolerance
     //            --------  -------------  ------  ---------  ---------
-    ThresholdTest(log(3.0),           0.0,      1,   kPosInf),
-    ThresholdTest(log(3.0), kDoubleMinPos,      1, 645.17900),
-    ThresholdTest(log(3.0),        1e-308,      1, 645.90700),
-    ThresholdTest(log(3.0),        1e-256,      1, 536.92000),
-    ThresholdTest(log(3.0),        1e-128,      1, 268.64500),
-    ThresholdTest(log(3.0),         1e-64,      1, 134.50700),
-    ThresholdTest(log(3.0),         1e-32,      1,  67.43800),
-    ThresholdTest(log(3.0), 2.0894334e-24,      1,  50.00000),
-    ThresholdTest(log(3.0),         1e-16,      1,  33.90350),
-    ThresholdTest(log(3.0),          1e-8,      1,  17.13630),
-    ThresholdTest(log(3.0),          1e-4,      1,   8.75268),
-    ThresholdTest(log(3.0),          1e-2,      1,   4.56088),
-    ThresholdTest(log(3.0),           0.1,      1,   2.46497),
-    ThresholdTest(log(3.0),           0.3,      1,   1.46497),
-    ThresholdTest(log(3.0),           0.5,      1,   1.00000),
-    ThresholdTest(log(3.0),           0.7,      1,   0.53503),
-    ThresholdTest(log(3.0),           0.9,      1,  -0.46497),
-    ThresholdTest(log(3.0),           1.0,      1,   kNegInf,  1e-46),
+    ThresholdTest(std::log(3.0),           0.0,      1,   kPosInf),
+    ThresholdTest(std::log(3.0), kDoubleMinPos,      1, 645.17900),
+    ThresholdTest(std::log(3.0),        1e-308,      1, 645.90700),
+    ThresholdTest(std::log(3.0),        1e-256,      1, 536.92000),
+    ThresholdTest(std::log(3.0),        1e-128,      1, 268.64500),
+    ThresholdTest(std::log(3.0),         1e-64,      1, 134.50700),
+    ThresholdTest(std::log(3.0),         1e-32,      1,  67.43800),
+    ThresholdTest(std::log(3.0), 2.0894334e-24,      1,  50.00000),
+    ThresholdTest(std::log(3.0),         1e-16,      1,  33.90350),
+    ThresholdTest(std::log(3.0),          1e-8,      1,  17.13630),
+    ThresholdTest(std::log(3.0),          1e-4,      1,   8.75268),
+    ThresholdTest(std::log(3.0),          1e-2,      1,   4.56088),
+    ThresholdTest(std::log(3.0),           0.1,      1,   2.46497),
+    ThresholdTest(std::log(3.0),           0.3,      1,   1.46497),
+    ThresholdTest(std::log(3.0),           0.5,      1,   1.00000),
+    ThresholdTest(std::log(3.0),           0.7,      1,   0.53503),
+    ThresholdTest(std::log(3.0),           0.9,      1,  -0.46497),
+    ThresholdTest(std::log(3.0),           1.0,      1,   kNegInf,  1e-46),
 
     // Fix epsilon = 10^9 & max_pc = 1, and vary delta
     //
@@ -830,7 +833,7 @@ TEST(PartitionSelectionTest, CalculateThresholdTests) {
     ThresholdTest(         1e-1, 2.0894334e-24,      1,   539.3200),
     ThresholdTest(          0.5, 2.0894334e-24,      1,   108.6640),
     ThresholdTest(          1.0, 2.0894334e-24,      1,    54.8320),
-    ThresholdTest(     log(3.0), 2.0894334e-24,      1,    50.0000),
+    ThresholdTest(std::log(3.0), 2.0894334e-24,      1,    50.0000),
     ThresholdTest(          1.5, 2.0894334e-24,      1,    36.8880),
     ThresholdTest(          2.0, 2.0894334e-24,      1,    27.9160),
     ThresholdTest(          5.0, 2.0894334e-24,      1,    11.7664),
@@ -848,18 +851,18 @@ TEST(PartitionSelectionTest, CalculateThresholdTests) {
     //                                                  expected  test
     //             epsilon          delta     max_pc   threshold  tolerance
     //            --------  -------------  ---------  ----------  ---------
-    ThresholdTest(log(3.0), 2.0894334e-24,         1,     50.000),
-    ThresholdTest(log(3.0), 2.0894334e-24,         2,    100.262),
-    ThresholdTest(log(3.0), 2.0894334e-24,         3,    151.000),
-    ThresholdTest(log(3.0), 2.0894334e-24,         4,    202.047),
-    ThresholdTest(log(3.0), 2.0894334e-24,         5,    253.325),
-    ThresholdTest(log(3.0), 2.0894334e-24,        10,    511.959),
-    ThresholdTest(log(3.0), 2.0894334e-24,       100,   5320.180),
-    ThresholdTest(log(3.0), 2.0894334e-24,      1000,  55288.700),
-    ThresholdTest(log(3.0), 2.0894334e-24,     10000, 573837.000, 0.131),
-    ThresholdTest(log(3.0), 2.0894334e-24,    100000,  5.94795e6, 2.640),
-    ThresholdTest(log(3.0), 2.0894334e-24,   1000000,  6.15754e7, 20.63),
-    ThresholdTest(log(3.0), 2.0894334e-24, kInt64Max, 8.18561e20, 1.19938e14),
+    ThresholdTest(std::log(3.0), 2.0894334e-24,         1,     50.000),
+    ThresholdTest(std::log(3.0), 2.0894334e-24,         2,    100.262),
+    ThresholdTest(std::log(3.0), 2.0894334e-24,         3,    151.000),
+    ThresholdTest(std::log(3.0), 2.0894334e-24,         4,    202.047),
+    ThresholdTest(std::log(3.0), 2.0894334e-24,         5,    253.325),
+    ThresholdTest(std::log(3.0), 2.0894334e-24,        10,    511.959),
+    ThresholdTest(std::log(3.0), 2.0894334e-24,       100,   5320.180),
+    ThresholdTest(std::log(3.0), 2.0894334e-24,      1000,  55288.700),
+    ThresholdTest(std::log(3.0), 2.0894334e-24,     10000, 573837.000, 0.131),
+    ThresholdTest(std::log(3.0), 2.0894334e-24,    100000,  5.94795e6, 2.640),
+    ThresholdTest(std::log(3.0), 2.0894334e-24,   1000000,  6.15754e7, 20.63),
+    ThresholdTest(std::log(3.0), 2.0894334e-24, kInt64Max, 8.18561e20, 1.19938e14),
 
     // Test that we can legitimately compute a negative threshold.
     ThresholdTest(0.001, 0.99999999999, 1, -24634.3),
@@ -881,26 +884,26 @@ TEST(PartitionSelectionTest, CalculateThresholdTests) {
     //
     //                   epsilon         delta  max_pc
     //                 --------- -------------  ------
-    ThresholdErrorTest(log(3.0), 2.0894334e-24, kInt64Min),
-    ThresholdErrorTest(log(3.0), 2.0894334e-24, -1),
-    ThresholdErrorTest(log(3.0), 2.0894334e-24, 0),
+    ThresholdErrorTest(std::log(3.0), 2.0894334e-24, kInt64Min),
+    ThresholdErrorTest(std::log(3.0), 2.0894334e-24, -1),
+    ThresholdErrorTest(std::log(3.0), 2.0894334e-24, 0),
 
     // Delta must be in range [0, 1].
     //
     //                  epsilon              delta  max_pc
     //                 --------  -----------------  ------
-    ThresholdErrorTest(log(3.0),           kNegInf,      1),
-    ThresholdErrorTest(log(3.0),           kNegInf,      1),
-    ThresholdErrorTest(log(3.0),                -1,      1),
-    ThresholdErrorTest(log(3.0),                -1,      1),
-    ThresholdErrorTest(log(3.0), 0 - kDoubleMinPos,      1),
-    ThresholdErrorTest(log(3.0), 0 - kDoubleMinPos,      1),
-    ThresholdErrorTest(log(3.0),   1.0000000000001,      1),
-    ThresholdErrorTest(log(3.0),   1.0000000000001,      1),
-    ThresholdErrorTest(log(3.0),                 2,      1),
-    ThresholdErrorTest(log(3.0),                 2,      1),
-    ThresholdErrorTest(log(3.0),           kPosInf,      1),
-    ThresholdErrorTest(log(3.0),           kPosInf,      1),
+    ThresholdErrorTest(std::log(3.0),           kNegInf,      1),
+    ThresholdErrorTest(std::log(3.0),           kNegInf,      1),
+    ThresholdErrorTest(std::log(3.0),                -1,      1),
+    ThresholdErrorTest(std::log(3.0),                -1,      1),
+    ThresholdErrorTest(std::log(3.0), 0 - kDoubleMinPos,      1),
+    ThresholdErrorTest(std::log(3.0), 0 - kDoubleMinPos,      1),
+    ThresholdErrorTest(std::log(3.0),   1.0000000000001,      1),
+    ThresholdErrorTest(std::log(3.0),   1.0000000000001,      1),
+    ThresholdErrorTest(std::log(3.0),                 2,      1),
+    ThresholdErrorTest(std::log(3.0),                 2,      1),
+    ThresholdErrorTest(std::log(3.0),           kPosInf,      1),
+    ThresholdErrorTest(std::log(3.0),           kPosInf,      1),
   };
 
   for (const CalculateThresholdTest& test_case : threshold_test_cases) {
@@ -942,7 +945,7 @@ TEST(PartitionSelectionTest, RoundTripThresholdTests) {
   // the same. Note that once the threshold gets high enough so that the
   // computed delta is 0, round-tripping back to the original threshold longer
   // works so we stop early in that case.
-  const double epsilon = log(3);
+  const double epsilon = std::log(3);
   for (int64_t max_partitions_contributed = 1; max_partitions_contributed < 5;
        ++max_partitions_contributed) {
     bool computed_delta_of_zero = false;
@@ -1006,7 +1009,7 @@ TEST(PartitionSelectionTest, RoundTripDeltaTests) {
   //
   // So we just test here that the original delta is between the recomputed
   // delta and either the computed delta for threshold+1 or threshold-1.
-  const double epsilon = log(3);
+  const double epsilon = std::log(3);
   for (int64_t max_partitions_contributed = 1; max_partitions_contributed < 5;
        ++max_partitions_contributed) {
     for (double delta = 1e-308; delta < 1.0; delta *= 10) {
@@ -1221,24 +1224,24 @@ TEST(PartitionSelectionTest, CalculateGaussianThresholdTests) {
     //                                              expected  test
     //             epsilon          delta  max_pc  threshold  tolerance
     //            --------  -------------  ------  ---------  ---------
-    ThresholdTest(log(3.0),           0.0,      1,   kPosInf),
-    ThresholdTest(log(3.0), kDoubleMinPos,      1,   kPosInf),
-    ThresholdTest(log(3.0),        1e-308,      1,   kPosInf),
-    ThresholdTest(log(3.0),        1e-256,      1,   kPosInf),
-    ThresholdTest(log(3.0),        1e-128,      1,   kPosInf),
-    ThresholdTest(log(3.0),         1e-64,      1,   kPosInf),
-    ThresholdTest(log(3.0),         1e-32,      1,   kPosInf),
-    ThresholdTest(log(3.0),         1e-16,      1,   kPosInf),
-    ThresholdTest(log(3.0),          1e-8,      1,   28.3774),
-    ThresholdTest(log(3.0),          1e-4,      1,   13.0061),
-    ThresholdTest(log(3.0),          1e-2,      1,   6.02085),
-    ThresholdTest(log(3.0),           0.1,      1,   3.06731),
-    ThresholdTest(log(3.0),           0.3,      1,   1.93016),
-    ThresholdTest(log(3.0),           0.5,      1,   1.49072),
-    ThresholdTest(log(3.0),           0.7,      1,   1.23706),
-    ThresholdTest(log(3.0),           0.9,      1,   1.06663),
-    ThresholdTest(log(3.0),           1.0,      1,   1),
-    ThresholdTest(log(3.0),           2.0,      1,   kNegInf),
+    ThresholdTest(std::log(3.0),           0.0,      1,   kPosInf),
+    ThresholdTest(std::log(3.0), kDoubleMinPos,      1,   kPosInf),
+    ThresholdTest(std::log(3.0),        1e-308,      1,   kPosInf),
+    ThresholdTest(std::log(3.0),        1e-256,      1,   kPosInf),
+    ThresholdTest(std::log(3.0),        1e-128,      1,   kPosInf),
+    ThresholdTest(std::log(3.0),         1e-64,      1,   kPosInf),
+    ThresholdTest(std::log(3.0),         1e-32,      1,   kPosInf),
+    ThresholdTest(std::log(3.0),         1e-16,      1,   kPosInf),
+    ThresholdTest(std::log(3.0),          1e-8,      1,   28.3774),
+    ThresholdTest(std::log(3.0),          1e-4,      1,   13.0061),
+    ThresholdTest(std::log(3.0),          1e-2,      1,   6.02085),
+    ThresholdTest(std::log(3.0),           0.1,      1,   3.06731),
+    ThresholdTest(std::log(3.0),           0.3,      1,   1.93016),
+    ThresholdTest(std::log(3.0),           0.5,      1,   1.49072),
+    ThresholdTest(std::log(3.0),           0.7,      1,   1.23706),
+    ThresholdTest(std::log(3.0),           0.9,      1,   1.06663),
+    ThresholdTest(std::log(3.0),           1.0,      1,   1),
+    ThresholdTest(std::log(3.0),           2.0,      1,   kNegInf),
 
     // Fix epsilon = 10^9 & max_pc = 1, and vary delta
     //
@@ -1274,7 +1277,7 @@ TEST(PartitionSelectionTest, CalculateGaussianThresholdTests) {
     ThresholdTest(         1e-1, 2.0894334e-14,      1,    507.077),
     ThresholdTest(          0.5, 2.0894334e-14,      1,    105.872),
     ThresholdTest(          1.0, 2.0894334e-14,      1,    54.3645),
-    ThresholdTest(     log(3.0), 2.0894334e-14,      1,    49.7216),
+    ThresholdTest(std::log(3.0), 2.0894334e-14,      1,    49.7216),
     ThresholdTest(          1.5, 2.0894334e-14,      1,    37.0116),
     ThresholdTest(          2.0, 2.0894334e-14,      1,    28.2626),
     ThresholdTest(          5.0, 2.0894334e-14,      1,    12.3534),
@@ -1292,18 +1295,18 @@ TEST(PartitionSelectionTest, CalculateGaussianThresholdTests) {
     //                                                  expected  test
     //             epsilon          delta     max_pc   threshold  tolerance
     //            --------  -------------  ---------  ----------  ---------
-    ThresholdTest(log(3.0), 2.0894334e-14,         1,    49.7216),
-    ThresholdTest(log(3.0), 2.0894334e-14,         2,    98.8924),
-    ThresholdTest(log(3.0), 2.0894334e-14,         3,    148.135),
-    ThresholdTest(log(3.0), 2.0894334e-14,         4,    197.364),
-    ThresholdTest(log(3.0), 2.0894334e-14,         5,    246.615),
-    ThresholdTest(log(3.0), 2.0894334e-14,        10,    492.543),
-    ThresholdTest(log(3.0), 2.0894334e-14,       100,   4851),
-    ThresholdTest(log(3.0), 2.0894334e-14,      1000,  kPosInf),
-    ThresholdTest(log(3.0), 2.0894334e-14,     10000,  kPosInf),
-    ThresholdTest(log(3.0), 2.0894334e-14,    100000,  kPosInf),
-    ThresholdTest(log(3.0), 2.0894334e-14,   1000000,  kPosInf),
-    ThresholdTest(log(3.0), 2.0894334e-14, kInt64Max,  kPosInf),
+    ThresholdTest(std::log(3.0), 2.0894334e-14,         1,    49.7216),
+    ThresholdTest(std::log(3.0), 2.0894334e-14,         2,    98.8924),
+    ThresholdTest(std::log(3.0), 2.0894334e-14,         3,    148.135),
+    ThresholdTest(std::log(3.0), 2.0894334e-14,         4,    197.364),
+    ThresholdTest(std::log(3.0), 2.0894334e-14,         5,    246.615),
+    ThresholdTest(std::log(3.0), 2.0894334e-14,        10,    492.543),
+    ThresholdTest(std::log(3.0), 2.0894334e-14,       100,   4851),
+    ThresholdTest(std::log(3.0), 2.0894334e-14,      1000,  kPosInf),
+    ThresholdTest(std::log(3.0), 2.0894334e-14,     10000,  kPosInf),
+    ThresholdTest(std::log(3.0), 2.0894334e-14,    100000,  kPosInf),
+    ThresholdTest(std::log(3.0), 2.0894334e-14,   1000000,  kPosInf),
+    ThresholdTest(std::log(3.0), 2.0894334e-14, kInt64Max,  kPosInf),
 
     // Error cases.
     //
@@ -1322,26 +1325,26 @@ TEST(PartitionSelectionTest, CalculateGaussianThresholdTests) {
     //
     //                   epsilon         delta  max_pc
     //                 --------- -------------  ------
-    ThresholdErrorTest(log(3.0), 2.0894334e-24, kInt64Min),
-    ThresholdErrorTest(log(3.0), 2.0894334e-24, -1),
-    ThresholdErrorTest(log(3.0), 2.0894334e-24, 0),
+    ThresholdErrorTest(std::log(3.0), 2.0894334e-24, kInt64Min),
+    ThresholdErrorTest(std::log(3.0), 2.0894334e-24, -1),
+    ThresholdErrorTest(std::log(3.0), 2.0894334e-24, 0),
 
     // Delta must be in range [0, 2].
     //
     //                  epsilon              delta  max_pc
     //                 --------  -----------------  ------
-    ThresholdErrorTest(log(3.0),           kNegInf,      1),
-    ThresholdErrorTest(log(3.0),           kNegInf,      1),
-    ThresholdErrorTest(log(3.0),                -1,      1),
-    ThresholdErrorTest(log(3.0),                -1,      1),
-    ThresholdErrorTest(log(3.0), 0 - kDoubleMinPos,      1),
-    ThresholdErrorTest(log(3.0), 0 - kDoubleMinPos,      1),
-    ThresholdErrorTest(log(3.0),   2.0000000000001,      1),
-    ThresholdErrorTest(log(3.0),   2.0000000000001,      1),
-    ThresholdErrorTest(log(3.0),                 3,      1),
-    ThresholdErrorTest(log(3.0),                 3,      1),
-    ThresholdErrorTest(log(3.0),           kPosInf,      1),
-    ThresholdErrorTest(log(3.0),           kPosInf,      1),
+    ThresholdErrorTest(std::log(3.0),           kNegInf,      1),
+    ThresholdErrorTest(std::log(3.0),           kNegInf,      1),
+    ThresholdErrorTest(std::log(3.0),                -1,      1),
+    ThresholdErrorTest(std::log(3.0),                -1,      1),
+    ThresholdErrorTest(std::log(3.0), 0 - kDoubleMinPos,      1),
+    ThresholdErrorTest(std::log(3.0), 0 - kDoubleMinPos,      1),
+    ThresholdErrorTest(std::log(3.0),   2.0000000000001,      1),
+    ThresholdErrorTest(std::log(3.0),   2.0000000000001,      1),
+    ThresholdErrorTest(std::log(3.0),                 3,      1),
+    ThresholdErrorTest(std::log(3.0),                 3,      1),
+    ThresholdErrorTest(std::log(3.0),           kPosInf,      1),
+    ThresholdErrorTest(std::log(3.0),           kPosInf,      1),
   };
 
   for (const CalculateThresholdTest& test_case : threshold_test_cases) {
@@ -1387,27 +1390,27 @@ TEST(PartitionSelectionTest, CalculateGaussianDeltaTests) {
     //                                      expected       test
     //         epsilon   threshold  max_pc  delta          tolerance
     //        --------  ----------  ------  -------------  ---------
-    DeltaTest(log(3.0),          1,      1, 0.5),
-    DeltaTest(log(3.0),          2,      1, 0.0216028),
-    DeltaTest(log(3.0),          3,      1, 2.63368e-05,   1e-05),
-    DeltaTest(log(3.0),          4,      1, 6.5914e-10,    1e-05),
-    DeltaTest(log(3.0),          5,      1, 3.33067e-16,   1e-06),
-    DeltaTest(log(3.0),         10,      1, 0.0,           1e-100),
-    DeltaTest(log(3.0),         20,      1, 0.0,           1e-100),
-    DeltaTest(log(3.0),         50,      1, 0.0,           1e-100),
-    DeltaTest(log(3.0),         75,      1, 0.0,           1e-100),
-    DeltaTest(log(3.0),         87,      1, 0.0,           6e-100),
-    DeltaTest(log(3.0),         93,      1, 0.0,           1e-100),
-    DeltaTest(log(3.0),         94,      1, 0.0,           1e-100),
-    DeltaTest(log(3.0),         95,      1, 0.0,           1e-100),
-    DeltaTest(log(3.0),         96,      1, 0.0,           1e-100),
-    DeltaTest(log(3.0),        100,      1, 0.0,           1e-100),
-    DeltaTest(log(3.0),       1000,      1, 0.0,           1e-100),
-    DeltaTest(log(3.0),      10000,      1, 0.0,           1e-100),
-    DeltaTest(log(3.0),     100000,      1, 0.0,           1e-100),
-    DeltaTest(log(3.0),    1000000,      1, 0.0,           1e-100),
-    DeltaTest(log(3.0), kDoubleMax,      1, 0.0,           1e-100),
-    DeltaTest(log(3.0),    kPosInf,      1, 0.0,           1e-100),
+    DeltaTest(std::log(3.0),          1,      1, 0.5),
+    DeltaTest(std::log(3.0),          2,      1, 0.0216028),
+    DeltaTest(std::log(3.0),          3,      1, 2.63368e-05,   1e-05),
+    DeltaTest(std::log(3.0),          4,      1, 6.5914e-10,    1e-05),
+    DeltaTest(std::log(3.0),          5,      1, 3.33067e-16,   1e-06),
+    DeltaTest(std::log(3.0),         10,      1, 0.0,           1e-100),
+    DeltaTest(std::log(3.0),         20,      1, 0.0,           1e-100),
+    DeltaTest(std::log(3.0),         50,      1, 0.0,           1e-100),
+    DeltaTest(std::log(3.0),         75,      1, 0.0,           1e-100),
+    DeltaTest(std::log(3.0),         87,      1, 0.0,           6e-100),
+    DeltaTest(std::log(3.0),         93,      1, 0.0,           1e-100),
+    DeltaTest(std::log(3.0),         94,      1, 0.0,           1e-100),
+    DeltaTest(std::log(3.0),         95,      1, 0.0,           1e-100),
+    DeltaTest(std::log(3.0),         96,      1, 0.0,           1e-100),
+    DeltaTest(std::log(3.0),        100,      1, 0.0,           1e-100),
+    DeltaTest(std::log(3.0),       1000,      1, 0.0,           1e-100),
+    DeltaTest(std::log(3.0),      10000,      1, 0.0,           1e-100),
+    DeltaTest(std::log(3.0),     100000,      1, 0.0,           1e-100),
+    DeltaTest(std::log(3.0),    1000000,      1, 0.0,           1e-100),
+    DeltaTest(std::log(3.0), kDoubleMax,      1, 0.0,           1e-100),
+    DeltaTest(std::log(3.0),    kPosInf,      1, 0.0,           1e-100),
 
     // Fix threshold = 2 & max_pc = 1, and vary epsilon.
     //
@@ -1425,7 +1428,7 @@ TEST(PartitionSelectionTest, CalculateGaussianDeltaTests) {
     DeltaTest(         1e-1,        2,      1, 0.0771943),
     DeltaTest(          0.5,        2,      1, 0.0454027),
     DeltaTest(          1.0,        2,      1, 0.0243547),
-    DeltaTest(     log(3.0),        2,      1, 0.0216028),
+    DeltaTest(std::log(3.0),        2,      1, 0.0216028),
     DeltaTest(          1.5,        2,      1, 0.0134125),
     DeltaTest(          2.0,        2,      1, 0.00750155),
     DeltaTest(          5.0,        2,      1, 0.000273579),
@@ -1443,18 +1446,18 @@ TEST(PartitionSelectionTest, CalculateGaussianDeltaTests) {
     //                                        expected       test
     //         epsilon  threshold     max_pc  delta          tolerance
     //        --------  ---------  ---------  -------------  ---------
-    DeltaTest(log(3.0),        2,         1, 0.0216028),
-    DeltaTest(log(3.0),        2,         2, 0.287735),
-    DeltaTest(log(3.0),        2,         3, 0.578438),
-    DeltaTest(log(3.0),        2,         4, 0.768866),
-    DeltaTest(log(3.0),        2,         5, 0.877569),
-    DeltaTest(log(3.0),        2,        10, 0.995684),
-    DeltaTest(log(3.0),        2,       100, 1.0),
-    DeltaTest(log(3.0),        2,      1000, 1.0),
-    DeltaTest(log(3.0),        2,     10000, 1.0),
-    DeltaTest(log(3.0),        2,    100000, 1.0),
-    DeltaTest(log(3.0),        2,   1000000, 1.0),
-    DeltaTest(log(3.0),        2, kInt64Max, 1.0),
+    DeltaTest(std::log(3.0),        2,         1, 0.0216028),
+    DeltaTest(std::log(3.0),        2,         2, 0.287735),
+    DeltaTest(std::log(3.0),        2,         3, 0.578438),
+    DeltaTest(std::log(3.0),        2,         4, 0.768866),
+    DeltaTest(std::log(3.0),        2,         5, 0.877569),
+    DeltaTest(std::log(3.0),        2,        10, 0.995684),
+    DeltaTest(std::log(3.0),        2,       100, 1.0),
+    DeltaTest(std::log(3.0),        2,      1000, 1.0),
+    DeltaTest(std::log(3.0),        2,     10000, 1.0),
+    DeltaTest(std::log(3.0),        2,    100000, 1.0),
+    DeltaTest(std::log(3.0),        2,   1000000, 1.0),
+    DeltaTest(std::log(3.0),        2, kInt64Max, 1.0),
 
     // Error cases.
     //
@@ -1473,15 +1476,15 @@ TEST(PartitionSelectionTest, CalculateGaussianDeltaTests) {
     //
     //              epsilon  threshold  max_pc
     //             --------  ---------  ------
-    DeltaErrorTest(log(3.0),      kNaN, 1),
+    DeltaErrorTest(std::log(3.0),      kNaN, 1),
 
     // Max_partitions_contributed (max_pc) must be greater than 0.
     //
     //              epsilon  threshold  max_pc
     //             --------  ---------  ---------
-    DeltaErrorTest(log(3.0),        2, kInt64Min),
-    DeltaErrorTest(log(3.0),        2, -1),
-    DeltaErrorTest(log(3.0),        2, 0),
+    DeltaErrorTest(std::log(3.0),        2, kInt64Min),
+    DeltaErrorTest(std::log(3.0),        2, -1),
+    DeltaErrorTest(std::log(3.0),        2, 0),
   };
 
   for (const CalculateDeltaTest& test_case : delta_test_cases) {
@@ -1523,7 +1526,7 @@ TEST(PartitionSelectionTest, GaussianRoundTripThresholdTests) {
   // the same. Note that once the threshold gets high enough so that the
   // computed delta is 0, round-tripping back to the original threshold longer
   // works so we stop early in that case.
-  const double epsilon = log(3);
+  const double epsilon = std::log(3);
   const double noise_delta = 0.5;
   for (int64_t max_partitions_contributed = 1; max_partitions_contributed < 5;
        ++max_partitions_contributed) {
@@ -1588,7 +1591,7 @@ TEST(PartitionSelectionTest, GaussianRoundTripDeltaTests) {
   //
   // So we just test here that the original delta is between the recomputed
   // delta and either the computed delta for threshold+1 or threshold-1.
-  const double epsilon = log(3);
+  const double epsilon = std::log(3);
   const double noise_delta = 0.5;
   for (int64_t max_partitions_contributed = 1; max_partitions_contributed < 5;
        ++max_partitions_contributed) {

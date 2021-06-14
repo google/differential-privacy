@@ -17,10 +17,9 @@
 #ifndef DIFFERENTIAL_PRIVACY_CPP_ALGORITHMS_PARTITION_SELECTION_H_
 #define DIFFERENTIAL_PRIVACY_CPP_ALGORITHMS_PARTITION_SELECTION_H_
 
-#include <math.h>
-
 #include <cmath>
 #include <cstddef>
+#include <cstdlib>
 #include <iostream>
 #include <string>
 #include <utility>
@@ -341,14 +340,15 @@ class LaplacePartitionSelection : public PartitionSelectionStrategy {
 
     if (threshold < 1) {
       return CalculateUnadjustedDelta(
-          1 - (exp((threshold - 1) /
+          1 - (std::exp(
+                   (threshold - 1) /
                    CalculateDiversity(epsilon, max_partitions_contributed)) /
                2),
           max_partitions_contributed);
     } else {
       return CalculateUnadjustedDelta(
-          (exp((1 - threshold) /
-               CalculateDiversity(epsilon, max_partitions_contributed))) /
+          (std::exp((1 - threshold) /
+                    CalculateDiversity(epsilon, max_partitions_contributed))) /
               2,
           max_partitions_contributed);
     }
@@ -367,10 +367,10 @@ class LaplacePartitionSelection : public PartitionSelectionStrategy {
 
     if (delta > 0.5) {
       return 1 + CalculateDiversity(epsilon, max_partitions_contributed) *
-                     log(2 * (1 - adjusted_delta));
+                     std::log(2 * (1 - adjusted_delta));
     } else {
       return 1 - CalculateDiversity(epsilon, max_partitions_contributed) *
-                     (log(2 * adjusted_delta));
+                     (std::log(2 * adjusted_delta));
     }
   }
 

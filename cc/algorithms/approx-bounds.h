@@ -21,6 +21,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <functional>
 #include <limits>
 #include <memory>
@@ -175,8 +176,8 @@ class ApproxBounds : public Algorithm<T> {
         // high, the threshold will be too high for any bin to be chosen; then
         // we return an error in the output. This is calculated assuming
         // Laplacian noise is added.
-        k_ = -log(2 - 2 * std::pow(success_probability_,
-                                   1.0 / (2 * num_bins_ - 1))) /
+        k_ = -std::log(2 - 2 * std::pow(success_probability_,
+                                        1.0 / (2 * num_bins_ - 1))) /
              AlgorithmBuilder::GetEpsilon().value();
       }
 

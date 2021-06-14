@@ -25,6 +25,7 @@ import (
 	"testing"
 	"time"
 
+	log "github.com/golang/glog"
 	"github.com/google/differential-privacy/privacy-on-beam/internal/generated"
 	"github.com/google/differential-privacy/privacy-on-beam/internal/kv"
 	"github.com/google/differential-privacy/privacy-on-beam/pbeam/testutils"
@@ -66,24 +67,56 @@ var goodResult2x1 = []testutils.PairII{
 	{99, 1},
 }
 
+// testutils.PairICodedKVs and kv.Pairs shared among different tests.
+// Initialized in init().
 var goodResult2x2 []testutils.PairICodedKV
 var valuesCodedKV []testutils.PairICodedKV
 var zeroValuedCodedKV []testutils.PairICodedKV
+var pairK84V22, pairK0V1, pairK0V0, pairK106V62, pairK1VMinus1, pairK42V11, pairK53V31 kv.Pair
 
 func init() {
 	// We call the Setup method to supply the encoders and decoders inside codec at runtime.
 	codec.Setup()
+	var err error
+	pairK84V22, err = codec.Encode(84, 22)
+	if err != nil {
+		log.Exit(err)
+	}
+	pairK0V1, err = codec.Encode(0, 1)
+	if err != nil {
+		log.Exit(err)
+	}
+	pairK0V0, err = codec.Encode(0, 0)
+	if err != nil {
+		log.Exit(err)
+	}
+	pairK106V62, err = codec.Encode(106, 62)
+	if err != nil {
+		log.Exit(err)
+	}
+	pairK1VMinus1, err = codec.Encode(1, -1)
+	if err != nil {
+		log.Exit(err)
+	}
+	pairK42V11, err = codec.Encode(42, 11)
+	if err != nil {
+		log.Exit(err)
+	}
+	pairK53V31, err = codec.Encode(53, 31)
+	if err != nil {
+		log.Exit(err)
+	}
 	valuesCodedKV = []testutils.PairICodedKV{
-		{17, codec.Encode(84, 22)},
-		{99, codec.Encode(0, 1)},
+		{17, pairK84V22},
+		{99, pairK0V1},
 	}
 	zeroValuedCodedKV = []testutils.PairICodedKV{
-		{17, codec.Encode(0, 0)},
-		{99, codec.Encode(0, 0)},
+		{17, pairK0V0},
+		{99, pairK0V0},
 	}
 	goodResult2x2 = []testutils.PairICodedKV{
-		{17, codec.Encode(106, 62)},
-		{99, codec.Encode(1, -1)},
+		{17, pairK106V62},
+		{99, pairK1VMinus1},
 	}
 }
 
@@ -119,7 +152,7 @@ func TestParDo1x1(t *testing.T) {
 	gotCol := beam.ParDo(s, testutils.KVToPair, pcol.col)
 	passert.Equals(s, gotCol, wantCol)
 	if err := execute(context.Background(), p); err != nil {
-		t.Errorf("DoFn(%v) = %v, expected %v: %v", col, gotCol, wantCol, err)
+		t.Errorf("Got an error: %v", err)
 	}
 }
 
@@ -137,10 +170,10 @@ func TestParDo1x2(t *testing.T) {
 	gotCol := beam.ParDo(s, testutils.KVToPairICodedKV, pcol.col)
 	passert.Equals(s, gotCol, wantCol)
 	if err := execute(context.Background(), p); err != nil {
-		t.Errorf("DoFn(%v) = %v, expected %v: %v", col, gotCol, wantCol, err)
+		t.Errorf("Got an error: %v", err)
 	}
 	if diff := cmp.Diff(pcol.codec, wantCodec, cmp.Comparer(compareCodecs)); diff != "" {
-		t.Errorf("DoFn(%v) returned a PrivatePCollection with unexpected codec, diff=%s", col, diff)
+		t.Errorf("DoFn returned a PrivatePCollection with wrong codec, diff=%s", diff)
 	}
 }
 
@@ -175,10 +208,10 @@ func TestParDoCtx1x2(t *testing.T) {
 		gotCol := beam.ParDo(s, testutils.KVToPairICodedKV, pcol.col)
 		passert.Equals(s, gotCol, wantCol)
 		if err := execute(tc.m(context.Background()), p); err != nil {
-			t.Errorf("With %s, DoFn(%v) = %v, expected %v: %v", tc.desc, col, gotCol, wantCol, err)
+			t.Errorf("With %s, got an error: %v", tc.desc, err)
 		}
 		if diff := cmp.Diff(pcol.codec, wantCodec, cmp.Comparer(compareCodecs)); diff != "" {
-			t.Errorf("With %s, DoFn(%v) returned a PrivatePCollection with wrong codec, diff=%s", tc.desc, col, diff)
+			t.Errorf("With %s, DoFn returned a PrivatePCollection with wrong codec, diff=%s", tc.desc, diff)
 		}
 	}
 }
@@ -216,10 +249,10 @@ func TestParDo1x2Err(t *testing.T) {
 			continue
 		}
 		if err := execute(context.Background(), p); err != nil {
-			t.Errorf("With %s, DoFn(%v) = %v, expected %v: %v", tc.desc, col, gotCol, wantCol, err)
+			t.Errorf("With %s, did not expect an error, but got one: %v", tc.desc, err)
 		}
 		if diff := cmp.Diff(pcol.codec, wantCodec, cmp.Comparer(compareCodecs)); diff != "" {
-			t.Errorf("With %s, DoFn(%v) returned a PrivatePCollection with wrong codec, diff=%s", tc.desc, col, diff)
+			t.Errorf("With %s, DoFn returned a PrivatePCollection with wrong codec, diff=%s", tc.desc, diff)
 		}
 	}
 }
@@ -266,10 +299,10 @@ func TestParDoCtx1x2Err(t *testing.T) {
 			continue
 		}
 		if err := execute(tc.m(context.Background()), p); err != nil {
-			t.Errorf("With %s, DoFn(%v) = %v, expected %v: %v", tc.desc, col, gotCol, wantCol, err)
+			t.Errorf("With %s, did not expect an error, but got one: %v", tc.desc, err)
 		}
 		if diff := cmp.Diff(pcol.codec, wantCodec, cmp.Comparer(compareCodecs)); diff != "" {
-			t.Errorf("With %s, DoFn(%v) returned a PrivatePCollection with wrong codec, diff=%s", tc.desc, col, diff)
+			t.Errorf("With %s, DoFn returned a PrivatePCollection with wrong codec, diff=%s", tc.desc, diff)
 		}
 	}
 }
@@ -287,7 +320,7 @@ func TestParDo2x1(t *testing.T) {
 	gotCol := beam.ParDo(s, testutils.KVToPair, pcol.col)
 	passert.Equals(s, gotCol, wantCol)
 	if err := execute(context.Background(), p); err != nil {
-		t.Errorf("DoFn(%v) = %v, expected %v: %v", col, gotCol, wantCol, err)
+		t.Errorf("Got an error: %v", err)
 	}
 }
 
@@ -322,7 +355,7 @@ func TestParDoCtx2x1(t *testing.T) {
 		gotCol := beam.ParDo(s, testutils.KVToPair, pcol.col)
 		passert.Equals(s, gotCol, wantCol)
 		if err := execute(tc.m(context.Background()), p); err != nil {
-			t.Errorf("With %s, DoFn(%v) = %v, expected %v: %v", tc.desc, col, gotCol, wantCol, err)
+			t.Errorf("With %s, got an error: %v", tc.desc, err)
 		}
 	}
 }
@@ -359,7 +392,7 @@ func TestParDo2x1Err(t *testing.T) {
 			continue
 		}
 		if err := execute(context.Background(), p); err != nil {
-			t.Errorf("With %s, DoFn(%v) = %v, expected %v: %v", tc.desc, col, gotCol, wantCol, err)
+			t.Errorf("With %s, did not expect an error, but got one: %v", tc.desc, err)
 		}
 	}
 }
@@ -405,7 +438,7 @@ func TestParDoCtx2x1Err(t *testing.T) {
 			continue
 		}
 		if err := execute(tc.m(context.Background()), p); err != nil {
-			t.Errorf("With %s, DoFn(%v) = %v, expected %v: %v", tc.desc, col, gotCol, wantCol, err)
+			t.Errorf("With %s, did not expect an error, but got one: %v", tc.desc, err)
 		}
 	}
 }
@@ -424,10 +457,10 @@ func TestParDo2x2(t *testing.T) {
 	gotCol := beam.ParDo(s, testutils.KVToPairICodedKV, pcol.col)
 	passert.Equals(s, gotCol, wantCol)
 	if err := execute(context.Background(), p); err != nil {
-		t.Errorf("DoFn(%v) = %v, expected %v: %v", col, gotCol, wantCol, err)
+		t.Errorf("Got an error: %v", err)
 	}
 	if diff := cmp.Diff(pcol.codec, wantCodec, cmp.Comparer(compareCodecs)); diff != "" {
-		t.Errorf("DoFn(%v) returned a PrivatePCollection with wrong codec, diff=%s", col, diff)
+		t.Errorf("DoFn returned a PrivatePCollection with wrong codec, diff=%s", diff)
 	}
 }
 
@@ -462,10 +495,10 @@ func TestParDoCtx2x2(t *testing.T) {
 		gotCol := beam.ParDo(s, testutils.KVToPairICodedKV, pcol.col)
 		passert.Equals(s, gotCol, wantCol)
 		if err := execute(tc.m(context.Background()), p); err != nil {
-			t.Errorf("With %s, DoFn(%v) = %v, expected %v: %v", tc.desc, col, gotCol, wantCol, err)
+			t.Errorf("With %s, got an error: %v", tc.desc, err)
 		}
 		if diff := cmp.Diff(pcol.codec, wantCodec, cmp.Comparer(compareCodecs)); diff != "" {
-			t.Errorf("With %s, DoFn(%v) returned a PrivatePCollection with wrong codec, diff=%s", tc.desc, col, diff)
+			t.Errorf("With %s, DoFn returned a PrivatePCollection with wrong codec, diff=%s", tc.desc, diff)
 		}
 	}
 }
@@ -503,10 +536,10 @@ func TestParDo2x2Err(t *testing.T) {
 			continue
 		}
 		if err := execute(context.Background(), p); err != nil {
-			t.Errorf("With %s, DoFn(%v) = %v, expected %v: %v", tc.desc, col, gotCol, wantCol, err)
+			t.Errorf("With %s, did not expect an error, but got one: %v", tc.desc, err)
 		}
 		if diff := cmp.Diff(pcol.codec, wantCodec, cmp.Comparer(compareCodecs)); diff != "" {
-			t.Errorf("With %s, DoFn(%v) returned a PrivatePCollection with wrong codec, diff=%s", tc.desc, col, diff)
+			t.Errorf("With %s, DoFn returned a PrivatePCollection with wrong codec, diff=%s", tc.desc, diff)
 		}
 	}
 }
@@ -553,10 +586,10 @@ func TestParDoCtx2x2Err(t *testing.T) {
 			continue
 		}
 		if err := execute(tc.m(context.Background()), p); err != nil {
-			t.Errorf("With %s, DoFn(%v) = %v, expected %v: %v", tc.desc, col, gotCol, wantCol, err)
+			t.Errorf("With %s, did not expect an error, but got one: %v", tc.desc, err)
 		}
 		if diff := cmp.Diff(pcol.codec, wantCodec, cmp.Comparer(compareCodecs)); diff != "" {
-			t.Errorf("With %s, DoFn(%v) returned a PrivatePCollection with wrong codec, diff=%s", tc.desc, col, diff)
+			t.Errorf("With %s, DoFn returned a PrivatePCollection with wrong codec, diff=%s", tc.desc, diff)
 		}
 	}
 }
@@ -620,7 +653,7 @@ func TestParDoCtx1x1(t *testing.T) {
 		passert.Equals(s, gotCol, wantCol)
 		// Run the beam pipeline with the modified context
 		if err := execute(tc.m(context.Background()), p); err != nil {
-			t.Errorf("DoFn(%v) = %v, expected %v: %v", col, gotCol, wantCol, err)
+			t.Errorf("Got an error: %v", err)
 		}
 	}
 }
@@ -637,7 +670,7 @@ func TestParDo1x1Err(t *testing.T) {
 	gotCol := beam.ParDo(s, testutils.KVToPair, pcol.col)
 	passert.Equals(s, gotCol, wantCol)
 	if err := execute(context.Background(), p); err != nil {
-		t.Errorf("DoFn(%v) = %v, expected %v: %v", col, gotCol, wantCol, err)
+		t.Errorf("Got an error: %v", err)
 	}
 }
 
@@ -685,7 +718,7 @@ func TestParDoCtx1x1Err(t *testing.T) {
 		passert.Equals(s, gotCol, wantCol)
 		// Run the beam pipeline with the modified context
 		if err := execute(tc.m(context.Background()), p); err != nil {
-			t.Errorf("DoFn(%v) = %v, expected %v: %v", col, gotCol, wantCol, err)
+			t.Errorf("Got an error: %v", err)
 		}
 	}
 }
@@ -714,7 +747,7 @@ func TestParDo1x1Emit(t *testing.T) {
 	gotCol := beam.ParDo(s, testutils.KVToPair, pcol.col)
 	passert.Equals(s, gotCol, col)
 	if err := execute(context.Background(), p); err != nil {
-		t.Errorf("ParDo_Emit(%v) = %v, expected %v: %v", col, gotCol, pcol, err)
+		t.Errorf("Without context, got an error: %v", err)
 	}
 
 	// Check for values with ctx passed in doFn
@@ -723,7 +756,7 @@ func TestParDo1x1Emit(t *testing.T) {
 	gotCol = beam.ParDo(s, testutils.KVToPair, pcol.col)
 	passert.Equals(s, gotCol, col)
 	if err := execute(context.Background(), p); err != nil {
-		t.Errorf("ParDo_Emit(ctx, %v) = %v, expected %v: %v", col, gotCol, pcol, err)
+		t.Errorf("With context, got an error: %v", err)
 	}
 }
 
@@ -761,7 +794,7 @@ func TestParDo1x1ErrEmit(t *testing.T) {
 			continue
 		}
 		if err := execute(context.Background(), p); err != nil {
-			t.Errorf("With %s, DoFn(%v) = %v, expected %v: %v", tc.desc, col, gotCol, wantCol, err)
+			t.Errorf("With %s, did not expect an error, but got one: %v", tc.desc, err)
 		}
 	}
 }
@@ -809,7 +842,7 @@ func TestParDoCtx1x1ErrEmit(t *testing.T) {
 			continue
 		}
 		if err := execute(tc.m(context.Background()), p); err != nil {
-			t.Errorf("With %s, DoFn(%v) = %v, expected %v: %v", tc.desc, col, gotCol, wantCol, err)
+			t.Errorf("With %s, did not expect an error, but got one: %v", tc.desc, err)
 		}
 	}
 }
@@ -827,7 +860,7 @@ func TestParDo1x2Emit(t *testing.T) {
 				}
 			},
 			[]testutils.PairICodedKV{
-				{17, codec.Encode(84, 22)},
+				{17, pairK84V22},
 			}},
 		{"doFn that emits each input once",
 			func(v int, emit func(int, int)) {
@@ -843,9 +876,9 @@ func TestParDo1x2Emit(t *testing.T) {
 				}
 			},
 			[]testutils.PairICodedKV{
-				{17, codec.Encode(84, 22)},
-				{17, codec.Encode(42, 11)},
-				{99, codec.Encode(0, 1)},
+				{17, pairK84V22},
+				{17, pairK42V11},
+				{99, pairK0V1},
 			}},
 	} {
 		p, s, col, wantCol := ptest.CreateList2(values, tc.want)
@@ -859,10 +892,10 @@ func TestParDo1x2Emit(t *testing.T) {
 		gotCol := beam.ParDo(s, testutils.KVToPairICodedKV, pcol.col)
 		passert.Equals(s, gotCol, wantCol)
 		if err := execute(context.Background(), p); err != nil {
-			t.Errorf("With %s, DoFn(%v) = %v, expected %v: %v", tc.desc, col, gotCol, wantCol, err)
+			t.Errorf("With %s, got an error: %v", tc.desc, err)
 		}
 		if diff := cmp.Diff(pcol.codec, wantCodec, cmp.Comparer(compareCodecs)); diff != "" {
-			t.Errorf("With %s, DoFn(%v) returned a PrivatePCollection with wrong codec, diff=%s", tc.desc, col, diff)
+			t.Errorf("With %s, DoFn returned a PrivatePCollection with wrong codec, diff=%s", tc.desc, diff)
 		}
 	}
 }
@@ -898,10 +931,10 @@ func TestParDoCtx1x2Emit(t *testing.T) {
 		gotCol := beam.ParDo(s, testutils.KVToPairICodedKV, pcol.col)
 		passert.Equals(s, gotCol, wantCol)
 		if err := execute(tc.m(context.Background()), p); err != nil {
-			t.Errorf("DoFn(%v) = %v, expected %v: %v", col, gotCol, wantCol, err)
+			t.Errorf("With %s, got an error: %v", tc.desc, err)
 		}
 		if diff := cmp.Diff(pcol.codec, wantCodec, cmp.Comparer(compareCodecs)); diff != "" {
-			t.Errorf("With %s, DoFn(%v) returned a PrivatePCollection with wrong codec, diff=%s", tc.desc, col, diff)
+			t.Errorf("With %s, DoFn returned a PrivatePCollection with wrong codec, diff=%s", tc.desc, diff)
 		}
 	}
 }
@@ -940,10 +973,10 @@ func TestParDo1x2ErrEmit(t *testing.T) {
 			continue
 		}
 		if err := execute(context.Background(), p); err != nil {
-			t.Errorf("With %s, DoFn(%v) = %v, expected %v: %v", tc.desc, col, gotCol, wantCol, err)
+			t.Errorf("With %s, did not expect an error, but got one: %v", tc.desc, err)
 		}
 		if diff := cmp.Diff(pcol.codec, wantCodec, cmp.Comparer(compareCodecs)); diff != "" {
-			t.Errorf("With %s, DoFn(%v) returned a PrivatePCollection with wrong codec, diff=%s", tc.desc, col, diff)
+			t.Errorf("With %s, DoFn returned a PrivatePCollection with wrong codec, diff=%s", tc.desc, diff)
 		}
 	}
 }
@@ -992,10 +1025,10 @@ func TestParDoCtx1x2ErrEmit(t *testing.T) {
 			continue
 		}
 		if err := execute(tc.m(context.Background()), p); err != nil {
-			t.Errorf("With %s, DoFn(%v) = %v, expected %v: %v", tc.desc, col, gotCol, wantCol, err)
+			t.Errorf("With %s, got an error: %v", tc.desc, err)
 		}
 		if diff := cmp.Diff(pcol.codec, wantCodec, cmp.Comparer(compareCodecs)); diff != "" {
-			t.Errorf("With %s, DoFn(%v) returned a PrivatePCollection with wrong codec, diff=%s", tc.desc, col, diff)
+			t.Errorf("With %s, DoFn returned a PrivatePCollection with wrong codec, diff=%s", tc.desc, diff)
 		}
 	}
 }
@@ -1045,7 +1078,7 @@ func TestParDo2x1Emit(t *testing.T) {
 		gotCol := beam.ParDo(s, testutils.KVToPair, pcol.col)
 		passert.Equals(s, gotCol, wantCol)
 		if err := execute(context.Background(), p); err != nil {
-			t.Errorf("DoFn(%v) = %v, expected %v: %v", col, gotCol, wantCol, err)
+			t.Errorf("With %s, got an error: %v", tc.desc, err)
 		}
 	}
 }
@@ -1080,7 +1113,7 @@ func TestParDoCtx2x1Emit(t *testing.T) {
 		gotCol := beam.ParDo(s, testutils.KVToPair, pcol.col)
 		passert.Equals(s, gotCol, wantCol)
 		if err := execute(tc.m(context.Background()), p); err != nil {
-			t.Errorf("DoFn(%v) = %v, expected %v: %v", col, gotCol, wantCol, err)
+			t.Errorf("With %s, got an error: %v", tc.desc, err)
 		}
 	}
 }
@@ -1118,7 +1151,7 @@ func TestParDo2x1ErrEmit(t *testing.T) {
 			continue
 		}
 		if err := execute(context.Background(), p); err != nil {
-			t.Errorf("With %s, DoFn(%v) = %v, expected %v: %v", tc.desc, col, gotCol, wantCol, err)
+			t.Errorf("With %s, did not expect an error, but got on: %v", tc.desc, err)
 		}
 	}
 }
@@ -1166,7 +1199,7 @@ func TestParDoCtx2x1ErrEmit(t *testing.T) {
 			continue
 		}
 		if err := execute(tc.m(context.Background()), p); err != nil {
-			t.Errorf("With %s, DoFn(%v) = %v, expected %v: %v", tc.desc, col, gotCol, wantCol, err)
+			t.Errorf("With %s, did not expect an error, but got on: %v", tc.desc, err)
 		}
 	}
 }
@@ -1184,7 +1217,7 @@ func TestParDo2x2Emit(t *testing.T) {
 				}
 			},
 			[]testutils.PairICodedKV{
-				{17, codec.Encode(106, 62)},
+				{17, pairK106V62},
 			}},
 		{"doFn that emits each input once",
 			func(k, v int, emit func(int, int)) {
@@ -1201,9 +1234,9 @@ func TestParDo2x2Emit(t *testing.T) {
 				}
 			},
 			[]testutils.PairICodedKV{
-				{17, codec.Encode(106, 62)},
-				{17, codec.Encode(53, 31)},
-				{99, codec.Encode(1, -1)},
+				{17, pairK106V62},
+				{17, pairK53V31},
+				{99, pairK1VMinus1},
 			}},
 	} {
 		p, s, col, wantCol := ptest.CreateList2(valuesCodedKV, tc.want)
@@ -1217,10 +1250,10 @@ func TestParDo2x2Emit(t *testing.T) {
 		gotCol := beam.ParDo(s, testutils.KVToPairICodedKV, pcol.col)
 		passert.Equals(s, gotCol, wantCol)
 		if err := execute(context.Background(), p); err != nil {
-			t.Errorf("DoFn(%v) = %v, expected %v: %v", col, gotCol, wantCol, err)
+			t.Errorf("With %s, got an error: %v", tc.desc, err)
 		}
 		if diff := cmp.Diff(pcol.codec, wantCodec, cmp.Comparer(compareCodecs)); diff != "" {
-			t.Errorf("With %s, DoFn(%v) returned a PrivatePCollection with wrong codec, diff=%s", tc.desc, col, diff)
+			t.Errorf("With %s, DoFn returned a PrivatePCollection with wrong codec, diff=%s", tc.desc, diff)
 		}
 	}
 }
@@ -1256,10 +1289,10 @@ func TestParDoCtx2x2Emit(t *testing.T) {
 		gotCol := beam.ParDo(s, testutils.KVToPairICodedKV, pcol.col)
 		passert.Equals(s, gotCol, wantCol)
 		if err := execute(tc.m(context.Background()), p); err != nil {
-			t.Errorf("DoFn(%v) = %v, expected %v: %v", col, gotCol, wantCol, err)
+			t.Errorf("With %s, got an error: %v", tc.desc, err)
 		}
 		if diff := cmp.Diff(pcol.codec, wantCodec, cmp.Comparer(compareCodecs)); diff != "" {
-			t.Errorf("With %s, DoFn(%v) returned a PrivatePCollection with wrong codec, diff=%s", tc.desc, col, diff)
+			t.Errorf("With %s, DoFn returned a PrivatePCollection with wrong codec, diff=%s", tc.desc, diff)
 		}
 	}
 }
@@ -1298,10 +1331,10 @@ func TestParDo2x2ErrEmit(t *testing.T) {
 			continue
 		}
 		if err := execute(context.Background(), p); err != nil {
-			t.Errorf("With %s, DoFn(%v) = %v, expected %v: %v", tc.desc, col, gotCol, wantCol, err)
+			t.Errorf("With %s, got an error: %v", tc.desc, err)
 		}
 		if diff := cmp.Diff(pcol.codec, wantCodec, cmp.Comparer(compareCodecs)); diff != "" {
-			t.Errorf("With %s, DoFn(%v) returned a PrivatePCollection with wrong codec, diff=%s", tc.desc, col, diff)
+			t.Errorf("With %s, DoFn returned a PrivatePCollection with wrong codec, diff=%s", tc.desc, diff)
 		}
 	}
 }
@@ -1350,10 +1383,10 @@ func TestParDoCtx2x2ErrEmit(t *testing.T) {
 			continue
 		}
 		if err := execute(tc.m(context.Background()), p); err != nil {
-			t.Errorf("With %s, DoFn(%v) = %v, expected %v: %v", tc.desc, col, gotCol, wantCol, err)
+			t.Errorf("With %s, got an error: %v", tc.desc, err)
 		}
 		if diff := cmp.Diff(pcol.codec, wantCodec, cmp.Comparer(compareCodecs)); diff != "" {
-			t.Errorf("With %s, DoFn(%v) returned a PrivatePCollection with wrong codec, diff=%s", tc.desc, col, diff)
+			t.Errorf("With %s, DoFn returned a PrivatePCollection with wrong codec, diff=%s", tc.desc, diff)
 		}
 	}
 }

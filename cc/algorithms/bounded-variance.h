@@ -17,6 +17,9 @@
 #ifndef DIFFERENTIAL_PRIVACY_ALGORITHMS_BOUNDED_VARIANCE_H_
 #define DIFFERENTIAL_PRIVACY_ALGORITHMS_BOUNDED_VARIANCE_H_
 
+#include <cmath>
+#include <cstdlib>
+
 #include "google/protobuf/any.pb.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
@@ -81,8 +84,8 @@ class BoundedVariance : public Algorithm<T> {
       return absl::InvalidArgumentError(
           "Sensitivity calculation caused integer overflow.");
     }
-    if (upper > sqrt(std::numeric_limits<T>::max()) ||
-        lower < -1 * sqrt(std::numeric_limits<T>::max())) {
+    if (upper > std::sqrt(std::numeric_limits<T>::max()) ||
+        lower < -1 * std::sqrt(std::numeric_limits<T>::max())) {
       return absl::InvalidArgumentError("Squaring the bounds caused overflow.");
     }
     return absl::OkStatus();

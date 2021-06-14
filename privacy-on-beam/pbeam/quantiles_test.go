@@ -65,7 +65,7 @@ func TestNewBoundedQuantilesFn(t *testing.T) {
 				NoiseKind:                    noise.GaussianNoise,
 			}},
 	} {
-		got := newBoundedQuantilesFn(boundedQuantilesFnParams{
+		got, err := newBoundedQuantilesFn(boundedQuantilesFnParams{
 			epsilon:                      1,
 			delta:                        1e-5,
 			maxPartitionsContributed:     17,
@@ -77,6 +77,9 @@ func TestNewBoundedQuantilesFn(t *testing.T) {
 			publicPartitions:             false,
 			testMode:                     disabled,
 			emptyPartitions:              false})
+		if err != nil {
+			t.Fatalf("Couldn't get newBoundedQuantilesFn: %v", err)
+		}
 		if diff := cmp.Diff(tc.want, got, opts...); diff != "" {
 			t.Errorf("newBoundedQuantilesFn: for %q (-want +got):\n%s", tc.desc, diff)
 		}
@@ -91,7 +94,7 @@ func TestBoundedQuantilesFnSetup(t *testing.T) {
 	}{
 		{"Laplace noise kind", noise.LaplaceNoise, noise.Laplace()},
 		{"Gaussian noise kind", noise.GaussianNoise, noise.Gaussian()}} {
-		got := newBoundedQuantilesFn(boundedQuantilesFnParams{
+		got, err := newBoundedQuantilesFn(boundedQuantilesFnParams{
 			epsilon:                      1,
 			delta:                        1e-5,
 			maxPartitionsContributed:     17,
@@ -103,6 +106,9 @@ func TestBoundedQuantilesFnSetup(t *testing.T) {
 			publicPartitions:             false,
 			testMode:                     disabled,
 			emptyPartitions:              false})
+		if err != nil {
+			t.Fatalf("Couldn't get newBoundedQuantilesFn: %v", err)
+		}
 		got.Setup()
 		if !cmp.Equal(tc.wantNoise, got.noise) {
 			t.Errorf("Setup: for %s got %v, want %v", tc.desc, got.noise, tc.wantNoise)
@@ -121,7 +127,7 @@ func TestBoundedQuantilesFnAddInput(t *testing.T) {
 	upper := 5.0
 	ranks := []float64{0.25, 0.75}
 	// ε is split in two for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
-	fn := newBoundedQuantilesFn(boundedQuantilesFnParams{
+	fn, err := newBoundedQuantilesFn(boundedQuantilesFnParams{
 		epsilon:                      2 * epsilon,
 		delta:                        delta,
 		maxPartitionsContributed:     maxPartitionsContributed,
@@ -133,6 +139,9 @@ func TestBoundedQuantilesFnAddInput(t *testing.T) {
 		publicPartitions:             false,
 		testMode:                     disabled,
 		emptyPartitions:              false})
+	if err != nil {
+		t.Fatalf("Couldn't get newBoundedQuantilesFn: %v", err)
+	}
 	fn.Setup()
 
 	accum := fn.CreateAccumulator()
@@ -162,7 +171,7 @@ func TestBoundedQuantilesFnMergeAccumulators(t *testing.T) {
 	upper := 5.0
 	ranks := []float64{0.25, 0.75}
 	// ε is split in two for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
-	fn := newBoundedQuantilesFn(boundedQuantilesFnParams{
+	fn, err := newBoundedQuantilesFn(boundedQuantilesFnParams{
 		epsilon:                      2 * epsilon,
 		delta:                        delta,
 		maxPartitionsContributed:     maxPartitionsContributed,
@@ -174,6 +183,9 @@ func TestBoundedQuantilesFnMergeAccumulators(t *testing.T) {
 		publicPartitions:             false,
 		testMode:                     disabled,
 		emptyPartitions:              false})
+	if err != nil {
+		t.Fatalf("Couldn't get newBoundedQuantilesFn: %v", err)
+	}
 	fn.Setup()
 
 	accum1 := fn.CreateAccumulator()
@@ -206,7 +218,7 @@ func TestBoundedQuantilesFnExtractOutputReturnsNilForSmallPartitions(t *testing.
 	} {
 		// The choice of ε=1e100, δ=10⁻²³, and l0Sensitivity=1 gives a threshold of =2.
 		// ε is split in two for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
-		fn := newBoundedQuantilesFn(boundedQuantilesFnParams{
+		fn, err := newBoundedQuantilesFn(boundedQuantilesFnParams{
 			epsilon:                      2 * 1e100,
 			delta:                        1e-23,
 			maxPartitionsContributed:     1,
@@ -218,6 +230,9 @@ func TestBoundedQuantilesFnExtractOutputReturnsNilForSmallPartitions(t *testing.
 			publicPartitions:             false,
 			testMode:                     disabled,
 			emptyPartitions:              false})
+		if err != nil {
+			t.Fatalf("Couldn't get newBoundedQuantilesFn: %v", err)
+		}
 		fn.Setup()
 		accum := fn.CreateAccumulator()
 		for i := 0; i < tc.inputSize; i++ {
@@ -246,7 +261,7 @@ func TestBoundedQuantilesFnWithPartitionsExtractOutputDoesNotReturnNilForSmallPa
 		{"Empty input", 0, 0},
 		{"Input with 1 privacy unit with 1 contribution", 1, 1},
 	} {
-		fn := newBoundedQuantilesFn(boundedQuantilesFnParams{
+		fn, err := newBoundedQuantilesFn(boundedQuantilesFnParams{
 			epsilon:                      1e100,
 			delta:                        0,
 			maxPartitionsContributed:     1,
@@ -258,6 +273,9 @@ func TestBoundedQuantilesFnWithPartitionsExtractOutputDoesNotReturnNilForSmallPa
 			publicPartitions:             true,
 			testMode:                     disabled,
 			emptyPartitions:              false})
+		if err != nil {
+			t.Fatalf("Couldn't get newBoundedQuantilesFn: %v", err)
+		}
 		fn.Setup()
 		accum := fn.CreateAccumulator()
 		for i := 0; i < tc.inputSize; i++ {

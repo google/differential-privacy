@@ -44,8 +44,8 @@ constexpr char kNewLine[] = "\n";
 //   Histogram<int> hist(0, 1, 3);
 //   hist.Add(1);
 //   hist.Add(3);
-//   hist.BinCount(1).ValueOrDie() == 1 // true
-//   hist.BinCount(2).ValueOrDie() == 1 // true
+//   hist.BinCount(1).value() == 1 // true
+//   hist.BinCount(2).value() == 1 // true
 template <typename T>
 class Histogram {
  public:
@@ -74,6 +74,12 @@ class Histogram {
       return base::InvalidArgumentError("Index is out of bounds.");
     }
     return bin_counts_[index];
+  }
+
+  int BinCountOrDie(int index) const {
+    base::StatusOr<int> count = BinCount(index);
+    CHECK(count.ok()) << count.status();
+    return *count;
   }
 
   // Number of fixed width bins, including the one to +inf.
@@ -157,7 +163,7 @@ class Histogram {
 
   // Get the ith bin count as a std::string with the right format.
   std::string BinCountToString(int i, int max_count_len) const {
-    const std::string raw = absl::StrCat(BinCount(i).ValueOrDie());
+    const std::string raw = absl::StrCat(BinCountOrDie(i));
     if (raw.size() < max_count_len) {
       return absl::StrCat(std::string(max_count_len - raw.size(), ' '), raw);
     }

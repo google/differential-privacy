@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <limits>
 #include <memory>
 #include <string>
@@ -346,7 +347,7 @@ class LaplaceMechanism : public NumericalMechanism {
     RETURN_IF_ERROR(CheckConfidenceLevel(confidence_level));
     RETURN_IF_ERROR(CheckPrivacyBudget(privacy_budget));
 
-    double bound = diversity_ * log(1 - confidence_level) / privacy_budget;
+    double bound = diversity_ * std::log(1 - confidence_level) / privacy_budget;
 
     ConfidenceInterval confidence;
     confidence.set_lower_bound(noised_result + bound);

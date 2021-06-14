@@ -104,18 +104,21 @@ func DistinctPrivacyID(s beam.Scope, pcol PrivatePCollection, params DistinctPri
 	spec := pcol.privacySpec
 	epsilon, delta, err := spec.consumeBudget(params.Epsilon, params.Delta)
 	if err != nil {
-		log.Exitf("Couldn't consume budget for DistinctPrivacyID: %v", err)
+		log.Fatalf("Couldn't consume budget for DistinctPrivacyID: %v", err)
 	}
 	err = checkDistinctPrivacyIDParams(params, epsilon, delta, noiseKind)
 	if err != nil {
-		log.Exit(err)
+		log.Fatal(err)
 	}
 
-	maxPartitionsContributed := getMaxPartitionsContributed(spec, params.MaxPartitionsContributed)
+	maxPartitionsContributed, err := getMaxPartitionsContributed(spec, params.MaxPartitionsContributed)
+	if err != nil {
+		log.Fatalf("Couldn't get maxPartitionsContributed for DistinctPrivacyID: %v", err)
+	}
 	// Drop non-public partitions, if public partitions are specified.
 	if (params.PublicPartitions).IsValid() {
 		if partitionT.Type() != (params.PublicPartitions).Type().Type() {
-			log.Exitf("Public partitions must be of type %v. Got type %v instead.",
+			log.Fatalf("Public partitions must be of type %v. Got type %v instead.",
 				partitionT.Type(), (params.PublicPartitions).Type().Type())
 		}
 		partitionEncodedType := beam.EncodedType{partitionT.Type()}
@@ -215,7 +218,7 @@ func newCountFn(epsilon, delta float64, maxPartitionsContributed int64, noiseKin
 	case noise.LaplaceNoise:
 		fn.NoiseDelta = 0
 	default:
-		log.Exitf("newCountFn: unknown NoiseKind (%v) is specified. Please specify a valid noise.", noiseKind)
+		log.Fatalf("newCountFn: unknown NoiseKind (%v) is specified. Please specify a valid noise.", noiseKind)
 	}
 	fn.ThresholdDelta = delta - fn.NoiseDelta
 	return fn

@@ -234,22 +234,20 @@ func evaluatePrivacySpecOption(opt PrivacySpecOption, spec *PrivacySpec) {
 
 // getMaxPartitionsContributed returns a maxPartitionsContributed parameter
 // if it greater than zero, otherwise it fails.
-func getMaxPartitionsContributed(spec *PrivacySpec, maxPartitionsContributed int64) int64 {
+func getMaxPartitionsContributed(spec *PrivacySpec, maxPartitionsContributed int64) (int64, error) {
 	if maxPartitionsContributed <= 0 {
-		// TODO: return error instead
-		log.Exitf("MaxPartitionsContributed must be set to a positive value.")
+		return 0, fmt.Errorf("MaxPartitionsContributed must be set to a positive value, was %d instead.", maxPartitionsContributed)
 	}
-	return maxPartitionsContributed
+	return maxPartitionsContributed, nil
 }
 
 // getMaxContributionsPerPartition returns a maxContributionsPerPartition parameter
 // if it greater than zero, otherwise it fails.
-func getMaxContributionsPerPartition(maxContributionsPerPartition int64) int64 {
+func getMaxContributionsPerPartition(maxContributionsPerPartition int64) (int64, error) {
 	if maxContributionsPerPartition <= 0 {
-		// TODO: return error instead
-		log.Exitf("MaxContributionsPerPartition must be set to a positive value.")
+		return 0, fmt.Errorf("MaxContributionsPerPartition must be set to a positive value, was %d instead", maxContributionsPerPartition)
 	}
-	return maxContributionsPerPartition
+	return maxContributionsPerPartition, nil
 }
 
 // NoiseKind represents the kind of noise to be used in an aggregations.
@@ -320,7 +318,7 @@ type PrivatePCollection struct {
 // where <K> is the privacy unit.
 func MakePrivate(_ beam.Scope, col beam.PCollection, spec *PrivacySpec) PrivatePCollection {
 	if !typex.IsKV(col.Type()) {
-		log.Exitf("MakePrivate: PCollection must be of KV type: %v", col)
+		log.Fatalf("MakePrivate: PCollection col=%v  must be of KV type", col)
 	}
 	return PrivatePCollection{
 		col:         col,
@@ -360,11 +358,11 @@ func MakePrivateFromStruct(s beam.Scope, col beam.PCollection, spec *PrivacySpec
 	s = s.Scope("pbeam.MakePrivateFromStruct")
 	msgTypex := col.Type()
 	if typex.IsKV(msgTypex) {
-		log.Exitf("MakePrivateFromStruct: PCollection cannot be of KV type: %v", col)
+		log.Fatalf("MakePrivateFromStruct: PCollection col=%v cannot be of KV type", col)
 	}
 	msgType := msgTypex.Type()
 	if msgType.Kind() != reflect.Struct {
-		log.Exitf("MakePrivateFromStruct: PCollection must be composed of structs", col)
+		log.Fatalf("MakePrivateFromStruct: PCollection col=%v must be composed of structs", col)
 	}
 	extractFn := &extractStructFieldFn{IDFieldPath: idFieldPath}
 	return PrivatePCollection{
@@ -441,12 +439,12 @@ func MakePrivateFromProto(s beam.Scope, col beam.PCollection, spec *PrivacySpec,
 	s = s.Scope("pbeam.MakePrivateFromProto")
 	msgTypex := col.Type()
 	if typex.IsKV(msgTypex) {
-		log.Exitf("MakePrivateFromProto: PCollection cannot be of KV type: %v", col)
+		log.Fatalf("MakePrivateFromProto: PCollection col=%v  cannot be of KV type", col)
 	}
 	msgType := msgTypex.Type()
 	var dummyMessage proto.Message
 	if !msgType.Implements(reflect.TypeOf(&dummyMessage).Elem()) {
-		log.Exitf("MakePrivateFromProto: PCollection must be composed of proto messages", col)
+		log.Fatalf("MakePrivateFromProto: PCollection col=%v  must be composed of proto messages", col)
 	}
 	extractFn := &extractProtoFieldFn{
 		IDFieldPath: idFieldPath,

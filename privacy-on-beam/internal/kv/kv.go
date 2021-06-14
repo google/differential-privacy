@@ -82,31 +82,31 @@ type Pair struct {
 }
 
 // Encode transforms a <K,V> pair into a Pair.
-func (codec *Codec) Encode(k, v interface{}) Pair {
+func (codec *Codec) Encode(k, v interface{}) (Pair, error) {
 	var bufK, bufV bytes.Buffer
 	if err := codec.kEnc.Encode(k, &bufK); err != nil {
-		log.Exitf("kv.Codec.Encode: couldn't Encode key %v: %v", k, err)
+		return Pair{}, fmt.Errorf("kv.Codec.Encode: couldn't Encode key %v: %v", k, err)
 	}
 	if err := codec.vEnc.Encode(v, &bufV); err != nil {
-		log.Exitf("kv.Codec.Encode: couldn't Encode value %v: %v", v, err)
+		return Pair{}, fmt.Errorf("kv.Codec.Encode: couldn't Encode value %v: %v", v, err)
 	}
 	return Pair{
 		K: bufK.Bytes(),
 		V: bufV.Bytes(),
-	}
+	}, nil
 }
 
 // Decode transforms a Pair into a <K,V> pair.
-func (codec *Codec) Decode(p Pair) (k, v interface{}) {
-	k, err := codec.kDec.Decode(bytes.NewBuffer(p.K))
+func (codec *Codec) Decode(p Pair) (k, v interface{}, err error) {
+	k, err = codec.kDec.Decode(bytes.NewBuffer(p.K))
 	if err != nil {
-		log.Exitf("kv.Codec.Decode: couldn't Decode key %v: %v", k, err)
+		return k, v, fmt.Errorf("kv.Codec.Decode: couldn't Decode key %v: %v", k, err)
 	}
 	v, err = codec.vDec.Decode(bytes.NewBuffer(p.V))
 	if err != nil {
-		log.Exitf("kv.Codec.Decode: couldn't Decode value %v: %v", v, err)
+		return k, v, fmt.Errorf("kv.Codec.Decode: couldn't Decode value %v: %v", v, err)
 	}
-	return k, v
+	return k, v, nil
 }
 
 // EncodeFn transforms a PCollection<K,V> into a PCollection<Pair>.

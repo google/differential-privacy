@@ -16,6 +16,9 @@
 
 #include "algorithms/numerical-mechanisms.h"
 
+#include <cmath>
+#include <cstdlib>
+
 #include "base/testing/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -517,9 +520,9 @@ TEST(NumericalMechanismsTest, LaplaceConfidenceInterval) {
       mechanism.NoiseConfidenceInterval(level, budget);
   ASSERT_OK(confidence_interval);
   EXPECT_EQ(confidence_interval->lower_bound(),
-            log(1 - level) / epsilon / budget);
+            std::log(1 - level) / epsilon / budget);
   EXPECT_EQ(confidence_interval->upper_bound(),
-            -log(1 - level) / epsilon / budget);
+            -std::log(1 - level) / epsilon / budget);
   EXPECT_EQ(confidence_interval->confidence_level(), level);
 
   double result = 19.3;
@@ -527,9 +530,9 @@ TEST(NumericalMechanismsTest, LaplaceConfidenceInterval) {
       mechanism.NoiseConfidenceInterval(level, budget, result);
   ASSERT_OK(confidence_interval_with_result);
   EXPECT_EQ(confidence_interval_with_result->lower_bound(),
-            result + (log(1 - level) / epsilon / budget));
+            result + (std::log(1 - level) / epsilon / budget));
   EXPECT_EQ(confidence_interval_with_result->upper_bound(),
-            result - (log(1 - level) / epsilon / budget));
+            result - (std::log(1 - level) / epsilon / budget));
   EXPECT_EQ(confidence_interval_with_result->confidence_level(), level);
 }
 
@@ -979,9 +982,10 @@ TEST(NumericalMechanismsTest, GaussianBuilderClone) {
 }
 
 TEST(NumericalMechanismsTest, Stddev) {
-  GaussianMechanism mechanism(log(3), 0.00001, 1.0);
+  GaussianMechanism mechanism(std::log(3), 0.00001, 1.0);
 
-  EXPECT_DOUBLE_EQ(mechanism.CalculateStddev(log(3), 0.00001, 1), 3.42578125);
+  EXPECT_DOUBLE_EQ(mechanism.CalculateStddev(std::log(3), 0.00001, 1),
+                   3.42578125);
 }
 
 TEST(NumericalMechanismsTest, GaussianVarianceReturnsWallysResult) {

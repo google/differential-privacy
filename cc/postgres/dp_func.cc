@@ -23,15 +23,12 @@
 #include "algorithms/bounded-variance.h"
 #include "algorithms/count.h"
 #include "algorithms/order-statistics.h"
-#include "algorithms/util.h"
-
 using differential_privacy::Algorithm;
 using differential_privacy::BoundedMean;
 using differential_privacy::BoundedStandardDeviation;
 using differential_privacy::BoundedSum;
 using differential_privacy::BoundedVariance;
 using differential_privacy::Count;
-using differential_privacy::DefaultEpsilon;
 using differential_privacy::GetValue;
 using differential_privacy::continuous::Percentile;
 
@@ -40,7 +37,7 @@ template <typename Alg>
 Alg* BoundedAlgorithm(std::string* err, bool default_epsilon, double epsilon,
                       bool auto_bounds, double lower, double upper) {
   if (default_epsilon) {
-    epsilon = DefaultEpsilon();
+    epsilon = std::log(3);
   }
   typename Alg::Builder builder;
   if (!auto_bounds) {
@@ -93,7 +90,7 @@ double AlgorithmResult(Algorithm<double>* alg, std::string* err) {
 // DP count.
 DpCount::DpCount(std::string* err, bool default_epsilon, double epsilon) {
   if (default_epsilon) {
-    epsilon = DefaultEpsilon();
+    epsilon = std::log(3);
   }
   auto count_statusor = Count<double>::Builder().SetEpsilon(epsilon).Build();
   if (count_statusor.ok()) {
@@ -169,7 +166,7 @@ double DpStandardDeviation::Result(std::string* err) {
 DpNtile::DpNtile(std::string* err, double percentile, double lower,
                  double upper, bool default_epsilon, double epsilon) {
   if (default_epsilon) {
-    epsilon = DefaultEpsilon();
+    epsilon = std::log(3);
   }
   auto build_statusor = Percentile<double>::Builder()
                             .SetPercentile(percentile)

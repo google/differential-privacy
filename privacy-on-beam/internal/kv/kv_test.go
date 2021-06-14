@@ -63,8 +63,14 @@ func TestCodec_Encode_Decode(t *testing.T) {
 	c := NewCodec(reflect.TypeOf(int(0)), reflect.TypeOf("str"))
 	c.Setup()
 	inputK, inputV := 3, "x"
-	pair := c.Encode(inputK, inputV)
-	outputK, outputV := c.Decode(pair)
+	pair, err := c.Encode(inputK, inputV)
+	if err != nil {
+		t.Fatal(err)
+	}
+	outputK, outputV, err := c.Decode(pair)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if inputK != outputK || inputV != outputV {
 		t.Errorf("Expected (%v, %v) but got (%v, %v) instead.", inputK, inputV, outputK, outputV)
 	}

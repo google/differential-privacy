@@ -22,7 +22,7 @@ gazelle(name = "gazelle")
 
 go_library(
     name = "go_default_library",
-    srcs = ["genfunctions.go"],
+    srcs = ["generated_functions.go"],
     importpath = "github.com/google/differential-privacy/privacy-on-beam/internal/generated",
     visibility = ["//:__subpackages__"],
     deps = [

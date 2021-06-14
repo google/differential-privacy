@@ -15,6 +15,9 @@
 //
 #include "algorithms/distributions.h"
 
+#include <cmath>
+#include <cstdlib>
+
 #include "absl/memory/memory.h"
 #include "absl/random/random.h"
 #include "absl/status/status.h"
@@ -101,7 +104,7 @@ double GaussianDistribution::GetGranularity(double scale) const {
 
 double GaussianDistribution::cdf(double stddev, double x) {
   DCHECK_GT(stddev, 0);
-  return (std::erfc(-x / (stddev * sqrt(2)))) / 2;
+  return (std::erfc(-x / (stddev * std::sqrt(2)))) / 2;
 }
 
 double GaussianDistribution::Quantile(double stddev, double x) {
@@ -142,7 +145,8 @@ double GaussianDistribution::SampleGeometric() {
 // of n must be at least 10^6. This is to ensure an accurate approximation of a
 // Gaussian distribution.
 double GaussianDistribution::SampleBinomial(double sqrt_n) {
-  long long step_size = static_cast<long long>(round(sqrt(2.0) * sqrt_n + 1));
+  long long step_size =
+      static_cast<long long>(std::round(std::sqrt(2.0) * sqrt_n + 1));
 
   SecureURBG& random = SecureURBG::GetSingleton();
   while (true) {
@@ -156,7 +160,8 @@ double GaussianDistribution::SampleBinomial(double sqrt_n) {
     double reject_prob = UniformDouble();
 
     if (result_prob > 0 && reject_prob > 0 &&
-        reject_prob < result_prob * step_size * pow(2.0, geom_sample - 2)) {
+        reject_prob <
+            result_prob * step_size * std::pow(2.0, geom_sample - 2)) {
       return result;
     }
   }
@@ -185,9 +190,9 @@ int64_t GeometricDistribution::Sample(double scale) {
   int64_t hi = std::numeric_limits<int64_t>::max();
   while (hi - lo > 1) {
     int64_t mid =
-        lo -
-        static_cast<int64_t>(std::floor(
-            (std::log(0.5) + std::log1p(exp(lambda * (lo - hi)))) / lambda));
+        lo - static_cast<int64_t>(std::floor(
+                 (std::log(0.5) + std::log1p(std::exp(lambda * (lo - hi)))) /
+                 lambda));
     mid = std::min(std::max(mid, lo + 1), hi - 1);
 
     double q = std::expm1(lambda * (lo - mid)) / expm1(lambda * (lo - hi));
@@ -304,9 +309,9 @@ double LaplaceDistribution::GetMinEpsilon() { return kMinEpsilon; }
 
 double LaplaceDistribution::cdf(double b, double x) {
   if (x > 0) {
-    return 1 - .5 * exp(-x / b);
+    return 1 - .5 * std::exp(-x / b);
   }
-  return .5 * exp(x / b);
+  return .5 * std::exp(x / b);
 }
 
 int64_t LaplaceDistribution::MemoryUsed() {

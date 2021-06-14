@@ -16,6 +16,8 @@
 
 #include "algorithms/distributions.h"
 
+#include <cmath>
+#include <cstdlib>
 #include <limits>
 #include <memory>
 #include <unordered_map>
@@ -151,8 +153,8 @@ TEST(LaplaceDistributionTest, CheckStatisticsForGeoSpecificScaledDistribution) {
 
 TEST(LaplaceDistributionTest, Cdf) {
   EXPECT_EQ(LaplaceDistribution::cdf(5, 0), .5);
-  EXPECT_EQ(LaplaceDistribution::cdf(1, -1), .5 * exp(-1));
-  EXPECT_EQ(LaplaceDistribution::cdf(1, 1), 1 - .5 * exp(-1));
+  EXPECT_EQ(LaplaceDistribution::cdf(1, -1), .5 * std::exp(-1));
+  EXPECT_EQ(LaplaceDistribution::cdf(1, 1), 1 - .5 * std::exp(-1));
 }
 
 TEST(LaplaceDistributionTest, GetVarianceReturnsExpectedValue) {
@@ -378,7 +380,7 @@ std::string FirstN(const std::vector<T>& counts) {
 //
 // PMF(x) = (1-p)^x * p
 //
-double PMF(const double p, const int x) { return p * pow(1.0 - p, x); }
+double PMF(const double p, const int x) { return p * std::pow(1.0 - p, x); }
 
 // Returns a list of the expected number of times a geometric distribution
 // with parameter lambda will return each integer. Only returns integers

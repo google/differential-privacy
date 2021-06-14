@@ -76,13 +76,16 @@ func DistinctPerKey(s beam.Scope, pcol PrivatePCollection, params DistinctPerKey
 	// Obtain type information from the underlying PCollection<K,V>.
 	_, kvT := beam.ValidateKVType(pcol.col)
 	if kvT.Type() != reflect.TypeOf(kv.Pair{}) {
-		log.Exitf("DistinctPerKey must be used on a PrivatePCollection of type <K,V>, got type %v instead", kvT)
+		log.Fatalf("DistinctPerKey must be used on a PrivatePCollection of type <K,V>, got type %v instead", kvT)
 	}
 	if pcol.codec == nil {
-		log.Exitf("DistinctPerKey: no codec found for the input PrivatePCollection.")
+		log.Fatalf("DistinctPerKey: no codec found for the input PrivatePCollection.")
 	}
 	spec := pcol.privacySpec
-	maxPartitionsContributed := getMaxPartitionsContributed(spec, params.MaxPartitionsContributed)
+	maxPartitionsContributed, err := getMaxPartitionsContributed(spec, params.MaxPartitionsContributed)
+	if err != nil {
+		log.Fatalf("Couldn't get maxPartitionsContributed for DistinctPerKey: %v", err)
+	}
 
 	var noiseKind noise.Kind
 	if params.NoiseKind == nil {
@@ -96,11 +99,11 @@ func DistinctPerKey(s beam.Scope, pcol PrivatePCollection, params DistinctPerKey
 	// consume it separately in partition selection and Count with consumeBudget.
 	epsilon, delta, err := spec.getBudget(params.Epsilon, params.Delta)
 	if err != nil {
-		log.Exitf("Couldn't consume budget for DistinctPerKey: %v", err)
+		log.Fatalf("Couldn't consume budget for DistinctPerKey: %v", err)
 	}
 	err = checkDistinctPerKeyParams(params, epsilon, delta, maxPartitionsContributed)
 	if err != nil {
-		log.Exit(err)
+		log.Fatal(err)
 	}
 
 	// Perform partition selection
@@ -141,7 +144,7 @@ func splitBudget(epsilon, delta float64, noiseKind noise.Kind) (noiseEpsilon flo
 		noiseDelta = 0
 		partitionSelectionDelta = delta
 	default:
-		log.Exitf("splitBudget: unknown noise.Kind (%v) is specified. Please specify a valid noise.", noiseKind)
+		log.Fatalf("splitBudget: unknown noise.Kind (%v) is specified. Please specify a valid noise.", noiseKind)
 	}
 	return noiseEpsilon, partitionSelectionEpsilon, noiseDelta, partitionSelectionDelta
 }

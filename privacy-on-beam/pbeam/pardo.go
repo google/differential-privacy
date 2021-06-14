@@ -77,7 +77,7 @@ func ParDo(s beam.Scope, doFn interface{}, pcol PrivatePCollection) PrivatePColl
 	// Convert the doFn into a anonDoFn.
 	anonDoFn, err := buildDoFn(doFn)
 	if err != nil {
-		log.Exitf("couldn't initialize doFn in pbeam.ParDo: %v", err)
+		log.Fatalf("Couldn't initialize doFn in pbeam.ParDo: %v", err)
 	}
 	emptyDef := beam.TypeDefinition{}
 	if anonDoFn.typeDef != emptyDef {
@@ -349,9 +349,9 @@ func buildEmitDoFn(doFn reflectx.Func, t transform) (*anonDoFn, error) {
 	// value, so we will use the return type of the function.
 	case transform{true, false, false, false, false}:
 		return &anonDoFn{
-			fn: &generated.TransformFn1x1Emit{EmitFnType: beam.EncodedType{
-				T: emitFn},
-				Transform: encodedDoFn},
+			fn: &generated.TransformFn1x1Emit{
+				EmitFnType: beam.EncodedType{T: emitFn},
+				Transform:  encodedDoFn},
 			typeDef: emitTypeDef,
 		}, nil
 	case transform{true, false, false, false, true}:

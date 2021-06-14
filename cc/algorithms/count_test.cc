@@ -16,6 +16,9 @@
 
 #include "algorithms/count.h"
 
+#include <cmath>
+#include <cstdlib>
+
 #include "google/protobuf/any.pb.h"
 #include "base/testing/proto_matchers.h"
 #include "base/testing/status_matchers.h"
@@ -128,8 +131,8 @@ TEST(CountTest, ConfidenceIntervalTest) {
   ASSERT_OK(count);
 
   ConfidenceInterval wantConfidenceInterval;
-  wantConfidenceInterval.set_lower_bound(log(1 - level) / epsilon);
-  wantConfidenceInterval.set_upper_bound(-log(1 - level) / epsilon);
+  wantConfidenceInterval.set_lower_bound(std::log(1 - level) / epsilon);
+  wantConfidenceInterval.set_upper_bound(-std::log(1 - level) / epsilon);
   wantConfidenceInterval.set_confidence_level(level);
 
   base::StatusOr<ConfidenceInterval> confidenceInterval =

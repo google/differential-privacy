@@ -16,6 +16,9 @@
 
 #include "algorithms/bounded-variance.h"
 
+#include <cmath>
+#include <cstdlib>
+
 #include "base/testing/proto_matchers.h"
 #include "base/testing/status_matchers.h"
 #include "gmock/gmock.h"
@@ -51,7 +54,7 @@ constexpr double kSmallEpsilon = 0.00000001;
 constexpr int64_t kNumSamples = 10000;
 // Max upper bound (and negative lower bound) BoundedVariance will accept
 // Used in overflow-related tests
-const int64_t kSqrtInt64Max = sqrt(std::numeric_limits<int64_t>::max());
+const int64_t kSqrtInt64Max = std::sqrt(std::numeric_limits<int64_t>::max());
 
 template <typename T>
 class BoundedVarianceTest : public testing::Test {
@@ -259,7 +262,7 @@ TYPED_TEST(BoundedVarianceTest, EmptyInputsBoundsTest) {
   // See header comment in BoundedVariance that states "The output will also be
   // clamped between 0 and (upper - lower)^2."
   double result_lower = 0;
-  double result_upper = pow(upper - lower, 2);
+  double result_upper = std::pow(upper - lower, 2);
   int num_of_trials = 100;  // Chosen abitrarily
   for (int i = 0; i < num_of_trials; ++i) {
     base::StatusOr<std::unique_ptr<BoundedVariance<TypeParam>>> bv =

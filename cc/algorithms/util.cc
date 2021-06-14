@@ -72,7 +72,7 @@ base::StatusOr<double> Qnorm(double p, double mu, double sigma) {
     return absl::InvalidArgumentError(
         "Probability must be between 0 and 1, exclusive.");
   }
-  double t = std::sqrt(-2.0 * log(std::min(p, 1.0 - p)));
+  double t = std::sqrt(-2.0 * std::log(std::min(p, 1.0 - p)));
   std::vector<double> c = {2.515517, 0.802853, 0.010328};
   std::vector<double> d = {1.432788, 0.189269, 0.001308};
   double normalized = t - ((c[2] * t + c[1]) * t + c[0]) /
@@ -86,10 +86,10 @@ base::StatusOr<double> Qnorm(double p, double mu, double sigma) {
 double RoundToNearestDoubleMultiple(double n, double base) {
   if (base == 0.0) return n;
   double remainder = fmod(n, base);
-  if (fabs(remainder) > base / 2) {
+  if (std::abs(remainder) > base / 2) {
     return n - remainder + sign(remainder) * base;
   }
-  if (fabs(remainder) == base / 2) {
+  if (std::abs(remainder) == base / 2) {
     return n + base / 2;
   }
   return n - remainder;

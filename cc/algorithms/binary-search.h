@@ -17,6 +17,9 @@
 #ifndef DIFFERENTIAL_PRIVACY_ALGORITHMS_BINARY_SEARCH_H_
 #define DIFFERENTIAL_PRIVACY_ALGORITHMS_BINARY_SEARCH_H_
 
+#include <cmath>
+#include <cstdlib>
+
 #include "base/percentile.h"
 #include "google/protobuf/any.pb.h"
 #include "absl/status/status.h"
@@ -285,37 +288,37 @@ class BinarySearch : public Algorithm<T> {
     // Removable singularity at p=1/2.
     if (std::abs(p - .5) < kSingularityTolerance) {
       if (L < U) {
-        return -.25 * exp(b * (L - U)) * (-2 + b * (L - U));
+        return -.25 * std::exp(b * (L - U)) * (-2 + b * (L - U));
       }
       // L >= U.
-      return 1 + exp(b * (U - L)) * (-.5 + .25 * b * (U - L));
+      return 1 + std::exp(b * (U - L)) * (-.5 + .25 * b * (U - L));
     }
 
     // Singularities at p = 0 and p = 1. We use a simplified method.
     if (std::abs(p) < kSingularityTolerance) {
       if (L <= 0) {
-        return exp(b * L) / 2;
+        return std::exp(b * L) / 2;
       } else {
-        return 1 - exp(-b * L) / 2;
+        return 1 - std::exp(-b * L) / 2;
       }
     }
     if (std::abs(p - 1) < kSingularityTolerance) {
       if (U <= 0) {
-        return 1 - exp(b * U) / 2;
+        return 1 - std::exp(b * U) / 2;
       } else {
-        return exp(-b * U) / 2;
+        return std::exp(-b * U) / 2;
       }
     }
 
     if (L < p * (L + U)) {
-      double num1 = exp(b * (L + p * U / (p - 1)));
-      double num2 = exp(b * (L * (1 / p - 1) - U));
+      double num1 = std::exp(b * (L + p * U / (p - 1)));
+      double num2 = std::exp(b * (L * (1 / p - 1) - U));
       double denom = 2 * (-1 + 2 * p);
       return (-1 * num1 + 2 * num1 * p - num1 * p * p + num2 * p * p) / denom;
     }
     // L >= p(L+U).
-    double num1 = exp(-b * (L + p * U / (p - 1)));
-    double num2 = exp(b * (L - L / p + U));
+    double num1 = std::exp(-b * (L + p * U / (p - 1)));
+    double num2 = std::exp(b * (L - L / p + U));
     double denom = 2 * (-1 + 2 * p);
     return (-2 + num1 * std::pow(-1 + p, 2) + 4 * p - num2 * p * p) / denom;
   }

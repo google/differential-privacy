@@ -16,6 +16,8 @@
 
 #include "algorithms/bounded-sum.h"
 
+#include <cmath>
+#include <cstdlib>
 #include <limits>
 #include <memory>
 
@@ -214,7 +216,7 @@ TEST(BoundedSumTest, ConfidenceIntervalWithLaplaceTest) {
           .Build();
   ASSERT_OK(bs);
   ConfidenceInterval wantConfidenceInterval;
-  double interval_bound = upperBound * log(1 - level) / epsilon / budget;
+  double interval_bound = upperBound * std::log(1 - level) / epsilon / budget;
   wantConfidenceInterval.set_lower_bound(interval_bound);
   wantConfidenceInterval.set_upper_bound(-interval_bound);
   wantConfidenceInterval.set_confidence_level(level);

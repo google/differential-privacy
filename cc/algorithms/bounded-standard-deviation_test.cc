@@ -16,6 +16,9 @@
 
 #include "algorithms/bounded-standard-deviation.h"
 
+#include <cmath>
+#include <cstdlib>
+
 #include "base/testing/proto_matchers.h"
 #include "base/testing/status_matchers.h"
 #include "gmock/gmock.h"
@@ -179,7 +182,7 @@ TYPED_TEST(BoundedStandardDeviationTest, RandGaussianTest) {
   // of the time. Larger than the theoretical error because square roots don't
   // play nice with additions, but a good enough estimation for the test.
   const double error =
-      range * (std::sqrt(-log(0.0001) / epsilon / samples + 1) + 1);
+      range * (std::sqrt(-std::log(0.0001) / epsilon / samples + 1) + 1);
 
   for (int i = 0; i < num_trials; i++) {
     std::mt19937 rand_gen;
