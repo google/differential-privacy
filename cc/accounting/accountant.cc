@@ -13,6 +13,8 @@
 // limitations under the License.
 #include "accounting/accountant.h"
 
+#include <cmath>
+
 #include "absl/status/status.h"
 #include "base/statusor.h"
 #include "absl/strings/str_format.h"

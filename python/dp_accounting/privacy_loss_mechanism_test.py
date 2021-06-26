@@ -72,6 +72,12 @@ class LaplacePrivacyLossTest(parameterized.TestCase):
                                       expected_tail_probability_mass_function,
                                       tail_pld.tail_probability_mass_function)
 
+  @parameterized.parameters((-3.0, 1), (0, 1), (1, 0), (2.0, -1.0))
+  def test_laplace_value_errors(self, parameter, sensitivity):
+    with self.assertRaises(ValueError):
+      privacy_loss_mechanism.LaplacePrivacyLoss(
+          parameter, sensitivity=sensitivity)
+
   @parameterized.parameters((1, 1, 0, 1), (1, 1, 0.1, 1), (2, 1, 0.01, 2),
                             (1, 3, 0.01, 0.33333333))
   def test_laplace_from_privacy_parameters(self, sensitivity, epsilon, delta,
@@ -151,11 +157,22 @@ class GaussianPrivacyLossTest(parameterized.TestCase):
                                       expected_tail_probability_mass_function,
                                       tail_pld.tail_probability_mass_function)
 
-  @parameterized.parameters((0, 1), (-10, 2), (4, 0), (2, -1))
-  def test_gaussian_value_errors(self, standard_deviation, sensitivity):
+  @parameterized.parameters((0, 1), (-10, 2), (4, 0), (2, -1), (1, 1, 1))
+  def test_gaussian_value_errors(self, standard_deviation, sensitivity,
+                                 log_mass_truncation_bound=-50):
     with self.assertRaises(ValueError):
       privacy_loss_mechanism.GaussianPrivacyLoss(
-          standard_deviation, sensitivity=sensitivity)
+          standard_deviation,
+          sensitivity=sensitivity,
+          log_mass_truncation_bound=log_mass_truncation_bound)
+
+  @parameterized.parameters((1, 1, 0), (1, 1, 1.1), (1, 1, -0.1))
+  def test_gaussian_from_privacy_parameters_value_errors(
+      self, sensitivity, epsilon, delta):
+    with self.assertRaises(ValueError):
+      privacy_loss_mechanism.GaussianPrivacyLoss.from_privacy_guarantee(
+          common.DifferentialPrivacyParameters(epsilon, delta),
+          sensitivity)
 
   @parameterized.parameters((1, 1, 0.12693674, 1), (2, 1, 0.12693674, 2),
                             (3, 1, 0.78760074, 1), (6, 1, 0.78760074, 2),
@@ -229,12 +246,21 @@ class DiscreteLaplacePrivacyLossDistributionTest(parameterized.TestCase):
                                       expected_tail_probability_mass_function,
                                       tail_pld.tail_probability_mass_function)
 
-  @parameterized.parameters((-3, 1), (2, 0.5), (2.0, -1))
+  @parameterized.parameters((-3, 1), (0, 1), (2, 0.5), (2.0, -1), (1.0, 0))
   def test_discrete_laplace_value_errors(self, parameter, sensitivity):
     with self.assertRaises(ValueError):
       privacy_loss_mechanism.DiscreteLaplacePrivacyLoss(
           parameter,
           sensitivity=sensitivity)
+
+  @parameterized.parameters((-1, 1, 0.1), (0.5, 1, 0.1), (0, 1, 0.2),
+                            (1, 1, -0.1), (1, 1, 1.1))
+  def test_discrete_laplace_from_privacy_parameters_value_errors(
+      self, sensitivity, epsilon, delta):
+    with self.assertRaises(ValueError):
+      privacy_loss_mechanism.DiscreteLaplacePrivacyLoss.from_privacy_guarantee(
+          common.DifferentialPrivacyParameters(epsilon, delta),
+          sensitivity)
 
   @parameterized.parameters((1, 1, 0, 1), (1, 1, 0.1, 1), (2, 1, 0.01, 0.5),
                             (1, 3, 0.01, 3))
@@ -268,6 +294,14 @@ class DiscreteGaussianPrivacyLossTest(parameterized.TestCase):
         sigma, sensitivity=sensitivity)
     self.assertAlmostEqual(expected_privacy_loss, pl.privacy_loss(x))
 
+  @parameterized.parameters((1, 1, 0.4), (2, 7, -1.1))
+  def test_discrete_gaussian_privacy_loss_value_errors(
+      self, sigma, sensitivity, x):
+    pl = privacy_loss_mechanism.DiscreteGaussianPrivacyLoss(
+        sigma, sensitivity=sensitivity)
+    with self.assertRaises(ValueError):
+      pl.privacy_loss(x)
+
   @parameterized.parameters((1, 1, -4.5, 5), (1, 1, 3.5, -3), (1, 2, -4, 3),
                             (4, 4, -4.51, 20), (5, 5, 3.49, -15),
                             (7, 14, -4, 21))
@@ -295,6 +329,16 @@ class DiscreteGaussianPrivacyLossTest(parameterized.TestCase):
     test_util.dictionary_almost_equal(self,
                                       expected_tail_probability_mass_function,
                                       tail_pld.tail_probability_mass_function)
+
+  @parameterized.parameters((-3, 1), (0, 1), (2, 0.5), (1.0, 0), (2.0, -1),
+                            (2.0, 4, 1))
+  def test_discrete_gaussian_value_errors(self,
+                                          sigma,
+                                          sensitivity,
+                                          truncation_bound=None):
+    with self.assertRaises(ValueError):
+      privacy_loss_mechanism.DiscreteGaussianPrivacyLoss(
+          sigma, sensitivity=sensitivity, truncation_bound=truncation_bound)
 
   @parameterized.parameters((1, 1, 1, {
       -1.5: 0,
@@ -324,6 +368,15 @@ class DiscreteGaussianPrivacyLossTest(parameterized.TestCase):
     pl = privacy_loss_mechanism.DiscreteGaussianPrivacyLoss(
         sigma, sensitivity=sensitivity, truncation_bound=truncation_bound)
     self.assertAlmostEqual(expected_std, pl.standard_deviation())
+
+  @parameterized.parameters((-1, 1, 0.1), (0.5, 1, 0.1), (0, 1, 0.2), (1, 1, 0),
+                            (1, 1, 1.1), (1, 1, -0.1))
+  def test_discrete_gaussian_from_privacy_parameters_value_errors(
+      self, sensitivity, epsilon, delta):
+    with self.assertRaises(ValueError):
+      privacy_loss_mechanism.DiscreteGaussianPrivacyLoss.from_privacy_guarantee(
+          common.DifferentialPrivacyParameters(epsilon, delta),
+          sensitivity)
 
   @parameterized.parameters(
       (1, 1, 0.12693674, 1.041), (2, 1, 0.12693674, 1.972),

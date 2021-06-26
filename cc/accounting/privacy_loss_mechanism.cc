@@ -13,6 +13,8 @@
 // limitations under the License.
 #include "accounting/privacy_loss_mechanism.h"
 
+#include <cmath>
+
 #include "base/status_macros.h"
 
 namespace differential_privacy {
@@ -49,7 +51,7 @@ double LaplacePrivacyLoss::NoiseCdf(double x) const {
 }
 
 double LaplacePrivacyLoss::PrivacyLoss(double x) const {
-  return (abs(x - sensitivity_) - abs(x)) / parameter_;
+  return (std::abs(x - sensitivity_) - std::abs(x)) / parameter_;
 }
 
 PrivacyLossTail LaplacePrivacyLoss::PrivacyLossDistributionTail() const {
@@ -95,7 +97,7 @@ GaussianPrivacyLoss::Create(const EpsilonDelta& epsilon_delta,
   // deviation is (epsilon, delta)-DP. See e.g. Appendix A in Dwork and Roth
   // book, "The Algorithmic Foundations of Differential Privacy".
   double initial_standard_deviation =
-      sqrt(2 * std::log(1.5 / epsilon_delta.delta)) * sensitivity /
+      std::sqrt(2 * std::log(1.5 / epsilon_delta.delta)) * sensitivity /
       epsilon_delta.epsilon;
 
   BinarySearchParameters search_parameters = {
@@ -124,13 +126,13 @@ GaussianPrivacyLoss::Compose(int num_times) {
   // GaussianPrivacyLoss with sensitivity scaled up by a factor of square root
   // of num_times.
   return GaussianPrivacyLoss::Create(standard_deviation_,
-                                     sensitivity_ * sqrt(num_times),
+                                     sensitivity_ * std::sqrt(num_times),
                                      estimate_type_, mass_truncation_bound_);
 }
 
 double GaussianPrivacyLoss::InversePrivacyLoss(double privacy_loss) const {
   return 0.5 * sensitivity_ -
-         privacy_loss * (pow(standard_deviation_, 2) / sensitivity_);
+         privacy_loss * (std::pow(standard_deviation_, 2) / sensitivity_);
 }
 
 double GaussianPrivacyLoss::NoiseCdf(double x) const {
@@ -139,7 +141,7 @@ double GaussianPrivacyLoss::NoiseCdf(double x) const {
 
 double GaussianPrivacyLoss::PrivacyLoss(double x) const {
   return 0.5 * sensitivity_ * (sensitivity_ - 2 * x) /
-         pow(standard_deviation_, 2);
+         std::pow(standard_deviation_, 2);
 }
 
 PrivacyLossTail GaussianPrivacyLoss::PrivacyLossDistributionTail() const {
@@ -164,7 +166,7 @@ DiscreteLaplacePrivacyLoss::Create(double parameter, double sensitivity) {
   if (parameter <= 0) {
     return absl::InvalidArgumentError("parameter should be positive.");
   }
-  if (sensitivity != ceil(sensitivity)) {
+  if (sensitivity != std::ceil(sensitivity)) {
     return absl::InvalidArgumentError(
         "sensitivity for discrete Laplace mechanism should be an integer.");
   }
@@ -176,7 +178,7 @@ base::StatusOr<std::unique_ptr<DiscreteLaplacePrivacyLoss>>
 DiscreteLaplacePrivacyLoss::Create(const EpsilonDelta& epsilon_delta,
                                    const double sensitivity) {
   RETURN_IF_ERROR(epsilon_delta.Validate());
-  if (sensitivity != ceil(sensitivity) || sensitivity <= 0) {
+  if (sensitivity != std::ceil(sensitivity) || sensitivity <= 0) {
     return absl::InvalidArgumentError(
         "sensitivity for discrete Laplace mechanism should be a positive "
         "integer.");
@@ -193,20 +195,20 @@ double DiscreteLaplacePrivacyLoss::InversePrivacyLoss(
   if (privacy_loss <= -sensitivity_ * parameter_) {
     return std::numeric_limits<double>::infinity();
   }
-  return floor(0.5 * (sensitivity_ - privacy_loss / parameter_));
+  return std::floor(0.5 * (sensitivity_ - privacy_loss / parameter_));
 }
 
 double DiscreteLaplacePrivacyLoss::NoiseCdf(double x) const {
-  double floor_x = floor(x);
+  double floor_x = std::floor(x);
   if (floor_x < 0) {
-    return exp(parameter_ * (floor_x + 1)) / (exp(parameter_) + 1);
+    return std::exp(parameter_ * (floor_x + 1)) / (std::exp(parameter_) + 1);
   } else {
-    return 1 - exp(-parameter_ * floor_x) / (exp(parameter_) + 1);
+    return 1 - std::exp(-parameter_ * floor_x) / (std::exp(parameter_) + 1);
   }
 }
 
 double DiscreteLaplacePrivacyLoss::PrivacyLoss(double x) const {
-  return (abs(x - sensitivity_) - abs(x)) * parameter_;
+  return (std::abs(x - sensitivity_) - std::abs(x)) * parameter_;
 }
 
 PrivacyLossTail DiscreteLaplacePrivacyLoss::PrivacyLossDistributionTail()
@@ -234,13 +236,13 @@ DiscreteGaussianPrivacyLoss::Create(double sigma, int sensitivity,
     // Tail bound from Canonne et al. ensures that the mass that gets
     // truncated is at most 1e-30. (See Proposition 1 in the supplementary
     // material.)
-    truncation_bound = ceil(11.6 * sigma);
+    truncation_bound = std::ceil(11.6 * sigma);
   }
   ProbabilityMassFunction noise_pmf;
   CumulativeDensityFunction noise_cdf;
 
   for (int x = -truncation_bound; x <= truncation_bound; ++x) {
-    noise_pmf[x] = exp(-0.5 * pow(x, 2) / pow(sigma, 2));
+    noise_pmf[x] = std::exp(-0.5 * std::pow(x, 2) / std::pow(sigma, 2));
     noise_cdf[x] = noise_cdf[x - 1] + noise_pmf[x];
   }
   for (int x = -truncation_bound; x <= truncation_bound; ++x) {
@@ -263,7 +265,7 @@ DiscreteGaussianPrivacyLoss::Create(const EpsilonDelta& epsilon_delta,
   // epsilon is no more than one, the continuous Gaussian mechanism with this
   // sigma is (epsilon, delta)-DP. See e.g. Appendix A in Dwork and Roth
   // book, "The Algorithmic Foundations of Differential Privacy".
-  double initial_sigma = sqrt(2 * std::log(1.5 / epsilon_delta.delta)) *
+  double initial_sigma = std::sqrt(2 * std::log(1.5 / epsilon_delta.delta)) *
                          sensitivity / epsilon_delta.epsilon;
 
   BinarySearchParameters search_parameters = {
@@ -289,19 +291,19 @@ DiscreteGaussianPrivacyLoss::Create(const EpsilonDelta& epsilon_delta,
 
 double DiscreteGaussianPrivacyLoss::InversePrivacyLoss(
     double privacy_loss) const {
-  return floor(0.5 * sensitivity_ -
-               privacy_loss * (pow(sigma_, 2) / sensitivity_));
+  return std::floor(0.5 * sensitivity_ -
+                    privacy_loss * (std::pow(sigma_, 2) / sensitivity_));
 }
 
 double DiscreteGaussianPrivacyLoss::NoiseCdf(double x) const {
   if (x >= truncation_bound_) return 1;
   if (x < -truncation_bound_) return 0;
-  return noise_cdf_.at(floor(x));
+  return noise_cdf_.at(std::floor(x));
 }
 
 double DiscreteGaussianPrivacyLoss::PrivacyLoss(double x) const {
   if (x >= sensitivity_ - truncation_bound_)
-    return 0.5 * sensitivity_ * (sensitivity_ - 2 * x) / pow(sigma_, 2);
+    return 0.5 * sensitivity_ * (sensitivity_ - 2 * x) / std::pow(sigma_, 2);
   return std::numeric_limits<double>::infinity();
 }
 
@@ -317,8 +319,8 @@ PrivacyLossTail DiscreteGaussianPrivacyLoss::PrivacyLossDistributionTail()
 
 double DiscreteGaussianPrivacyLoss::StandardDeviation() const {
   double variance = 0;
-  for (auto [x, p] : noise_pmf_) variance += (p * pow(x, 2));
-  return sqrt(variance);
+  for (auto [x, p] : noise_pmf_) variance += (p * std::pow(x, 2));
+  return std::sqrt(variance);
 }
 
 }  // namespace accounting

@@ -372,6 +372,9 @@ class GaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
     if standard_deviation <= 0:
       raise ValueError(f'Standard deviation is not a positive real number: '
                        f'{standard_deviation}')
+    if log_mass_truncation_bound > 0:
+      raise ValueError(f'Log mass truncation bound is not a non-positive real '
+                       f'number: {log_mass_truncation_bound}')
 
     self._standard_deviation = standard_deviation
     self._gaussian_random_variable = stats.norm(scale=standard_deviation)
@@ -488,6 +491,9 @@ class GaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
       The privacy loss of the Gaussian mechanism with the given privacy
       guarantee.
     """
+    if privacy_parameters.delta == 0:
+      raise ValueError('delta=0 is not allowed for the Gaussian mechanism')
+
     # The initial standard deviation is set to
     # sqrt(2 * ln(1.5/delta)) * sensitivity / epsilon. It is known that, when
     # epsilon is no more than one, the Gaussian mechanism with this standard
@@ -502,8 +508,7 @@ class GaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
     def _get_delta_for_standard_deviation(current_standard_deviation):
       return GaussianPrivacyLoss(
           current_standard_deviation,
-          sensitivity=sensitivity,
-          log_mass_truncation_bound=0).get_delta_for_epsilon(
+          sensitivity=sensitivity).get_delta_for_epsilon(
               privacy_parameters.epsilon)
 
     standard_deviation = common.inverse_monotone_function(
@@ -556,9 +561,7 @@ class DiscreteLaplacePrivacyLoss(AdditiveNoisePrivacyLoss):
       raise ValueError(f'Parameter is not a positive real number: {parameter}')
 
     if not isinstance(sensitivity, int):
-      raise ValueError(
-          f'Sensitivity of the discrete Laplace mechanism must be an integer '
-          f': {sensitivity}')
+      raise ValueError(f'Sensitivity is not an integer : {sensitivity}')
 
     self.sensitivity = sensitivity
     self._parameter = parameter
@@ -641,7 +644,7 @@ class DiscreteLaplacePrivacyLoss(AdditiveNoisePrivacyLoss):
   def from_privacy_guarantee(
       cls,
       privacy_parameters: common.DifferentialPrivacyParameters,
-      sensitivity: float = 1
+      sensitivity: int = 1
   ) -> 'DiscreteLaplacePrivacyLoss':
     """Creates privacy loss for discrete Laplace mechanism with desired privacy.
 
@@ -657,10 +660,15 @@ class DiscreteLaplacePrivacyLoss(AdditiveNoisePrivacyLoss):
       The privacy loss of the discrete Laplace mechanism with the given privacy
       guarantee.
     """
+    if not isinstance(sensitivity, int):
+      raise ValueError(f'Sensitivity is not an integer : {sensitivity}')
+    if sensitivity <= 0:
+      raise ValueError(
+          f'Sensitivity is not a positive real number: {sensitivity}')
 
     return DiscreteLaplacePrivacyLoss(
         privacy_parameters.epsilon / sensitivity,
-        sensitivity=math.ceil(sensitivity))
+        sensitivity=sensitivity)
 
   @property
   def parameter(self) -> float:
@@ -714,6 +722,8 @@ class DiscreteGaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
     """
     if sigma <= 0:
       raise ValueError(f'Sigma is not a positive real number: {sigma}')
+    if not isinstance(sensitivity, int):
+      raise ValueError(f'Sensitivity is not an integer : {sensitivity}')
 
     self._sigma = sigma
     if truncation_bound is None:
@@ -722,6 +732,10 @@ class DiscreteGaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
       self._truncation_bound = math.ceil(11.6 * sigma)
     else:
       self._truncation_bound = truncation_bound
+
+    if 2 * self._truncation_bound < sensitivity:
+      raise ValueError(f'Truncation bound ({truncation_bound}) is smaller '
+                       f'than 0.5 * sensitivity (0.5 * {sensitivity})')
 
     # Create the PMF and CDF.
     self._offset = -1 * self._truncation_bound - 1
@@ -810,7 +824,7 @@ class DiscreteGaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
   def from_privacy_guarantee(
       cls,
       privacy_parameters: common.DifferentialPrivacyParameters,
-      sensitivity: float = 1,
+      sensitivity: int = 1,
   ) -> 'DiscreteGaussianPrivacyLoss':
     """Creates the privacy loss for discrete Gaussian mechanism with desired privacy.
 
@@ -826,7 +840,10 @@ class DiscreteGaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
       The privacy loss of the discrete Gaussian mechanism with the given privacy
       guarantee.
     """
-    rounded_sensitivity = math.floor(sensitivity)
+    if not isinstance(sensitivity, int):
+      raise ValueError(f'Sensitivity is not an integer : {sensitivity}')
+    if privacy_parameters.delta == 0:
+      raise ValueError('delta=0 is not allowed for discrete Gaussian mechanism')
 
     # The initial standard deviation is set to
     # sqrt(2 * ln(1.5/delta)) * sensitivity / epsilon. It is known that, when
@@ -837,18 +854,18 @@ class DiscreteGaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
         0,
         math.inf,
         initial_guess=math.sqrt(2 * math.log(1.5 / privacy_parameters.delta)) *
-        rounded_sensitivity / privacy_parameters.epsilon)
+        sensitivity / privacy_parameters.epsilon)
 
     def _get_delta_for_sigma(current_sigma):
       return DiscreteGaussianPrivacyLoss(
           current_sigma,
-          sensitivity=rounded_sensitivity).get_delta_for_epsilon(
+          sensitivity=sensitivity).get_delta_for_epsilon(
               privacy_parameters.epsilon)
 
     sigma = common.inverse_monotone_function(
         _get_delta_for_sigma, privacy_parameters.delta, search_parameters)
 
-    return DiscreteGaussianPrivacyLoss(sigma, sensitivity=rounded_sensitivity)
+    return DiscreteGaussianPrivacyLoss(sigma, sensitivity=sensitivity)
 
   def standard_deviation(self) -> float:
     """The standard deviation of the corresponding discrete Gaussian noise."""

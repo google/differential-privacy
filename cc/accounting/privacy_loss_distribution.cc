@@ -14,6 +14,7 @@
 #include "accounting/privacy_loss_distribution.h"
 
 #include <algorithm>
+#include <cmath>
 #include <vector>
 
 #include "absl/status/status.h"
@@ -92,7 +93,8 @@ PrivacyLossDistribution::CreateForAdditiveNoise(
   ProbabilityMassFunction pmf;
 
   auto round = [estimate_type](double x) {
-    return estimate_type == EstimateType::kPessimistic ? ceil(x) : floor(x);
+    return estimate_type == EstimateType::kPessimistic ? std::ceil(x)
+                                                       : std::floor(x);
   };
 
   PrivacyLossTail tail = mechanism_privacy_loss.PrivacyLossDistributionTail();
@@ -108,8 +110,8 @@ PrivacyLossDistribution::CreateForAdditiveNoise(
   }
 
   if (mechanism_privacy_loss.Discrete() == NoiseType::kDiscrete) {
-    for (int x = ceil(tail.lower_x_truncation);
-         x <= floor(tail.upper_x_truncation); x++) {
+    for (int x = std::ceil(tail.lower_x_truncation);
+         x <= std::floor(tail.upper_x_truncation); x++) {
       double rounded_value = round(mechanism_privacy_loss.PrivacyLoss(x) /
                                    discretization_interval);
       double probability_mass = mechanism_privacy_loss.NoiseCdf(x) -
@@ -119,7 +121,7 @@ PrivacyLossDistribution::CreateForAdditiveNoise(
   } else {
     double lower_x = tail.lower_x_truncation;
     double upper_x;
-    double rounded_down_value = floor(
+    double rounded_down_value = std::floor(
         mechanism_privacy_loss.PrivacyLoss(lower_x) / discretization_interval);
     while (lower_x < tail.upper_x_truncation) {
       upper_x = std::min(tail.upper_x_truncation,
@@ -161,7 +163,8 @@ PrivacyLossDistribution::CreateForRandomizedResponse(
   ProbabilityMassFunction rounded_pmf;
 
   auto round = [estimate_type](double x) {
-    return estimate_type == EstimateType::kPessimistic ? ceil(x) : floor(x);
+    return estimate_type == EstimateType::kPessimistic ? std::ceil(x)
+                                                       : std::floor(x);
   };
 
   // Probability that the output is equal to the input, i.e., Pr[R(x) = x]
@@ -198,9 +201,9 @@ PrivacyLossDistribution::CreateForPrivacyParameters(
   double epsilon = epsilon_delta.epsilon;
   double delta = epsilon_delta.delta;
   ProbabilityMassFunction rounded_pmf = {
-      {ceil(epsilon / discretization_interval),
+      {std::ceil(epsilon / discretization_interval),
        (1 - delta) / (1 + std::exp(-epsilon))},
-      {ceil(-epsilon / discretization_interval),
+      {std::ceil(-epsilon / discretization_interval),
        (1 - delta) / (1 + std::exp(epsilon))},
   };
 
@@ -293,7 +296,7 @@ PrivacyLossDistribution::GetDeltaForEpsilonForComposedPLD(
 
 void PrivacyLossDistribution::Compose(int num_times,
                                       double tail_mass_truncation) {
-  double new_infinity_mass = 1 - pow((1 - infinity_mass_), num_times);
+  double new_infinity_mass = 1 - std::pow((1 - infinity_mass_), num_times);
 
   // Currently support truncation only for pessimistic estimates.
   ProbabilityMassFunction new_pmf = Convolve(
