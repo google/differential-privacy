@@ -299,13 +299,13 @@ void PrivacyLossDistribution::Compose(int num_times,
   double new_infinity_mass = 1 - std::pow((1 - infinity_mass_), num_times);
 
   // Currently support truncation only for pessimistic estimates.
+  double effective_tail_mass_truncation =
+      estimate_type_ == EstimateType::kPessimistic ? tail_mass_truncation : 0.0;
   ProbabilityMassFunction new_pmf = Convolve(
-      probability_mass_function_, num_times,
-      estimate_type_ == EstimateType::kPessimistic ? tail_mass_truncation
-                                                   : 0.0);
+      probability_mass_function_, num_times, effective_tail_mass_truncation);
 
   probability_mass_function_ = new_pmf;
-  infinity_mass_ = new_infinity_mass + tail_mass_truncation;
+  infinity_mass_ = new_infinity_mass + effective_tail_mass_truncation;
 }
 
 double PrivacyLossDistribution::GetDeltaForEpsilon(double epsilon) const {

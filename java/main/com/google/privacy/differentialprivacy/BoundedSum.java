@@ -179,8 +179,8 @@ public class BoundedSum {
    * computeResult()} has been called. Moreover, after this instance of {@link BoundedSum} has been
    * serialized once, no further modification, queries or serialization is possible anymore.
    *
-   * @throws IllegalStateException if this this instance of {@link BoundedSum} has already been
-   *     queried or serialized.
+   * @throws IllegalStateException if this instance of {@link BoundedSum} has already been queried
+   *     or serialized.
    */
   public byte[] getSerializableSummary() {
     Preconditions.checkState(state == AggregationState.DEFAULT, "Sum cannot be serialized.");
@@ -210,8 +210,8 @@ public class BoundedSum {
    *
    * @throws IllegalArgumentException if the parameters of the two instances (epsilon, delta,
    *     contribution bounds, etc.) do not match or if the passed serialized summary is invalid.
-   * @throws IllegalStateException if this this instance of {@link BoundedSum} has already been
-   *     queried or serialized.
+   * @throws IllegalStateException if this instance of {@link BoundedSum} has already been queried
+   *     or serialized.
    */
   public void mergeWith(byte[] otherBoundedSumSummary) {
     Preconditions.checkState(state == AggregationState.DEFAULT, "Sums cannot be merged.");

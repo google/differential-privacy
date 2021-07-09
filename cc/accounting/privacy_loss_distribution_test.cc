@@ -244,13 +244,29 @@ TEST(PrivacyLossDistributionTest,
      ComposeNumTimesTruncationAccountForTruncatedMass) {
   int num_composition = 2;
   double epsilon_initial = 1;
-  EpsilonDelta epsilon_delta = {/*epsilon=*/epsilon_initial, /*delta=*/0};
 
   std::unique_ptr<PrivacyLossDistribution> pld =
-      PrivacyLossDistribution::CreateForPrivacyParameters(epsilon_delta);
+      PrivacyLossDistributionTestPeer::Create(
+          {{epsilon_initial, 0.7}, {-epsilon_initial, 0.3}});
 
   pld->Compose(num_composition, /*tail_mass_truncation=*/0.5);
   EXPECT_NEAR(0.5, pld->GetDeltaForEpsilon(num_composition * epsilon_initial),
+              kMaxError);
+}
+
+TEST(PrivacyLossDistributionTest, ComposeNumTimesNoTruncationOptimistic) {
+  int num_composition = 2;
+  double epsilon_initial = 1;
+
+  std::unique_ptr<PrivacyLossDistribution> pld =
+      PrivacyLossDistributionTestPeer::Create(
+          {{epsilon_initial, 0.7}, {-epsilon_initial, 0.3}},
+          /*infinity_mass=*/0,
+          /*discretization_interval=*/epsilon_initial,
+          /*estimate_type=*/EstimateType::kOptimistic);
+
+  pld->Compose(num_composition, /*tail_mass_truncation=*/0.5);
+  EXPECT_NEAR(0, pld->GetDeltaForEpsilon(num_composition * epsilon_initial),
               kMaxError);
 }
 
