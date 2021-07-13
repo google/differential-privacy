@@ -54,7 +54,7 @@ func ComputeCountMeanSum(s beam.Scope, col beam.PCollection) (visitsPerHour, mea
 		PublicPartitions:             hours, // Visitors only visit during work hours
 	})
 
-	hourToMoneySpent := pbeam.ParDo(s, extractVisitHourAndTimeSpentFn, pCol)
+	hourToMoneySpent := pbeam.ParDo(s, extractVisitHourAndMoneySpent, pCol)
 	revenues = pbeam.SumPerKey(s, hourToMoneySpent, pbeam.SumParams{
 		Epsilon:                  epsilon / 3,
 		Delta:                    0,
