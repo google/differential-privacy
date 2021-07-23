@@ -14,27 +14,27 @@
 # limitations under the License.
 #
 
-load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("@io_bazel_rules_go//go:def.bzl", "go_binary")
 load("@bazel_gazelle//:def.bzl", "gazelle")
 
-# gazelle:prefix github.com/google/differential-privacy/privacy-on-beam/codelab
+# gazelle:prefix github.com/google/differential-privacy/examples/go/main
 gazelle(name = "gazelle")
 
-go_library(
-    name = "go_default_library",
+# keep
+go_binary(
+    name = "examples",
     srcs = [
-        "count.go",
-        "mean.go",
-        "multiple.go",
-        "public_partitions.go",
-        "sum.go",
-        "visit.go",
+        "main.go",
     ],
-    importpath = "github.com/google/differential-privacy/privacy-on-beam/codelab",
+    data = [
+        "//data:day_data.csv",
+        "//data:outliers_week_data.csv",
+        "//data:week_data.csv",
+    ],
+    importpath = "github.com/google/differential-privacy/examples/go/main",
     visibility = ["//visibility:public"],
     deps = [
-        "//pbeam:go_default_library",
-        "@com_github_apache_beam//sdks/go/pkg/beam:go_default_library",
-        "@com_github_apache_beam//sdks/go/pkg/beam/transforms/stats:go_default_library",
+        "//:go_default_library",
+        "@com_github_golang_glog//:go_default_library",
     ],
 )

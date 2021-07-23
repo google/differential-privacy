@@ -140,9 +140,8 @@ PrivacyLossDistribution::CreateForAdditiveNoise(
     }
   }
 
-  return absl::WrapUnique(
-      new PrivacyLossDistribution(discretization_interval, infinity_mass, pmf,
-                                  mechanism_privacy_loss, estimate_type));
+  return absl::WrapUnique(new PrivacyLossDistribution(
+      discretization_interval, infinity_mass, pmf, estimate_type));
 }
 
 base::StatusOr<std::unique_ptr<PrivacyLossDistribution>>
@@ -193,6 +192,16 @@ PrivacyLossDistribution::CreateForRandomizedResponse(
   return absl::WrapUnique(new PrivacyLossDistribution(
       discretization_interval,
       /*infinity_mass=*/0, rounded_pmf, estimate_type));
+}
+
+base::StatusOr<std::unique_ptr<PrivacyLossDistribution>>
+PrivacyLossDistribution::CreateForLaplaceMechanism(
+    double parameter, double sensitivity, EstimateType estimate_type,
+    double discretization_interval) {
+  ASSIGN_OR_RETURN(std::unique_ptr<LaplacePrivacyLoss> privacy_loss,
+                   LaplacePrivacyLoss::Create(parameter, sensitivity));
+  return CreateForAdditiveNoise(*privacy_loss, estimate_type,
+                                discretization_interval);
 }
 
 std::unique_ptr<PrivacyLossDistribution>

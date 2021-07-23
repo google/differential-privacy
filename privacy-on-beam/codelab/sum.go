@@ -23,7 +23,7 @@ import (
 )
 
 func init() {
-	beam.RegisterFunction(extractVisitHourAndMoneySpent)
+	beam.RegisterFunction(extractVisitHourAndMoneySpentFn)
 }
 
 // RevenuePerHour calculates and returns the total money spent by visitors
@@ -31,12 +31,12 @@ func init() {
 // Use PrivateRevenuePerHour for computing this in an anonymized way.
 func RevenuePerHour(s beam.Scope, col beam.PCollection) beam.PCollection {
 	s = s.Scope("RevenuePerHour")
-	hourToMoneySpent := beam.ParDo(s, extractVisitHourAndMoneySpent, col)
+	hourToMoneySpent := beam.ParDo(s, extractVisitHourAndMoneySpentFn, col)
 	revenues := stats.SumPerKey(s, hourToMoneySpent)
 	return revenues
 }
 
-func extractVisitHourAndMoneySpent(v Visit) (int, int) {
+func extractVisitHourAndMoneySpentFn(v Visit) (int, int) {
 	return v.TimeEntered.Hour(), v.MoneySpent
 }
 
@@ -51,7 +51,7 @@ func PrivateRevenuePerHour(s beam.Scope, col beam.PCollection) beam.PCollection 
 	// Create a PCollection of output partitions, i.e. restaurant's work hours (from 9 am till 9pm (exclusive)).
 	hours := beam.CreateList(s, [12]int{9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20})
 
-	hourToMoneySpent := pbeam.ParDo(s, extractVisitHourAndMoneySpent, pCol)
+	hourToMoneySpent := pbeam.ParDo(s, extractVisitHourAndMoneySpentFn, pCol)
 	revenues := pbeam.SumPerKey(s, hourToMoneySpent, pbeam.SumParams{
 		MaxPartitionsContributed: 1,     // Visitors can visit the restaurant once (one hour) a day
 		MinValue:                 0,     // Minimum money spent per user (in euros)

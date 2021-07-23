@@ -165,6 +165,10 @@ func checkArgsGaussian(label string, l0Sensitivity int64, lInfSensitivity, epsil
 	return checks.CheckDeltaStrict(label, delta)
 }
 
+func (gaussian) String() string {
+	return "Gaussian Noise"
+}
+
 // checkArgsConfidenceIntervalGaussian checks the parameters for gaussian confidence interval, as well as the provided confidence level.
 func checkArgsConfidenceIntervalGaussian(label string, l0Sensitivity int64, lInfSensitivity, epsilon, delta, alpha float64) error {
 	if err := checks.CheckAlpha(label, alpha); err != nil {

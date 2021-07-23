@@ -31,7 +31,7 @@ var epsilon = math.Log(3)
 const delta = 1e-5
 
 func init() {
-	beam.RegisterFunction(extractVisitHour)
+	beam.RegisterFunction(extractVisitHourFn)
 }
 
 // CountVisitsPerHour counts and returns the number of visits to a restaurant for each hour.
@@ -39,12 +39,12 @@ func init() {
 // for computing this in an anonymized way.
 func CountVisitsPerHour(s beam.Scope, col beam.PCollection) beam.PCollection {
 	s = s.Scope("CountVisitsPerHour")
-	visitHours := beam.ParDo(s, extractVisitHour, col)
+	visitHours := beam.ParDo(s, extractVisitHourFn, col)
 	visitsPerHour := stats.Count(s, visitHours)
 	return visitsPerHour
 }
 
-func extractVisitHour(v Visit) int {
+func extractVisitHourFn(v Visit) int {
 	return v.TimeEntered.Hour()
 }
 
@@ -56,7 +56,7 @@ func PrivateCountVisitsPerHour(s beam.Scope, col beam.PCollection) beam.PCollect
 	spec := pbeam.NewPrivacySpec(epsilon, delta)
 	pCol := pbeam.MakePrivateFromStruct(s, col, spec, "VisitorID")
 
-	visitHours := pbeam.ParDo(s, extractVisitHour, pCol)
+	visitHours := pbeam.ParDo(s, extractVisitHourFn, pCol)
 	visitsPerHour := pbeam.Count(s, visitHours, pbeam.CountParams{
 		MaxPartitionsContributed: 1, // Visitors can visit the restaurant once (one hour) a day
 		MaxValue:                 1, // Visitors can visit the restaurant once within an hour

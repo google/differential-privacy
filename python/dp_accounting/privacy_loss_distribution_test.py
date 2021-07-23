@@ -378,13 +378,32 @@ class PrivacyLossDistributionTest(parameterized.TestCase):
     num_composition = 2
     tail_mass_truncation = 0.5
     epsilon_initial = 1
-    pld = privacy_loss_distribution.PrivacyLossDistribution.from_privacy_parameters(
-        common.DifferentialPrivacyParameters(epsilon_initial, 0))
+    pld = privacy_loss_distribution.PrivacyLossDistribution(
+        {
+            1: 0.7,
+            -1: 0.3
+        }, epsilon_initial, 0)
+    pld = pld.self_compose(
+        num_composition, tail_mass_truncation=tail_mass_truncation)
+    self.assertGreater(
+        pld.get_delta_for_epsilon(num_composition * epsilon_initial), 0)
+
+  def test_self_composition_no_truncation_optimistic(self):
+    num_composition = 2
+    tail_mass_truncation = 0.5
+    epsilon_initial = 1
+    pld = privacy_loss_distribution.PrivacyLossDistribution(
+        {
+            1: 0.7,
+            -1: 0.3
+        },
+        epsilon_initial,
+        0,
+        pessimistic_estimate=False)
     pld = pld.self_compose(
         num_composition, tail_mass_truncation=tail_mass_truncation)
     self.assertAlmostEqual(
-        tail_mass_truncation,
-        pld.get_delta_for_epsilon(num_composition * epsilon_initial))
+        0, pld.get_delta_for_epsilon(num_composition * epsilon_initial))
 
   @parameterized.parameters((1, 0, 1, {
       1: 0.73105858,

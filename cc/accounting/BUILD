@@ -78,6 +78,7 @@ cc_test(
         "//base/testing:status_matchers",
         "@com_google_googletest//:gtest_main",
         "//accounting/common",
+        "//accounting/common:test_util",
         "@com_google_differential_privacy//proto/accounting:privacy_loss_distribution_cc_proto",
         "@com_google_absl//absl/status",
         "@com_google_cc_differential_privacy//base:statusor",
@@ -92,6 +93,7 @@ cc_test(
     deps = [
         ":convolution",
         "@com_google_googletest//:gtest_main",
+        "//accounting/common:test_util",
         "@com_google_absl//absl/container:flat_hash_map",
     ],
 )

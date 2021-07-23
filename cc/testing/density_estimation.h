@@ -58,7 +58,7 @@ class Histogram {
   absl::Status Add(T element) {
     double index = (element - lowest_) / width_;
     if (index < 0) {
-      return base::InvalidArgumentError("The element is out of bounds.");
+      return absl::InvalidArgumentError("The element is out of bounds.");
     }
     if (index >= NumBins() - 1) {
       ++bin_counts_[NumBins() - 1];
@@ -71,7 +71,7 @@ class Histogram {
   // Number of elements in bin index.
   base::StatusOr<int> BinCount(int index) const {
     if (index < 0 || index >= NumBins()) {
-      return base::InvalidArgumentError("Index is out of bounds.");
+      return absl::InvalidArgumentError("Index is out of bounds.");
     }
     return bin_counts_[index];
   }

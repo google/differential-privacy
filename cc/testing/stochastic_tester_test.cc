@@ -122,7 +122,7 @@ class BoundedSumWithError : public BoundedSumWithFixedBounds<T> {
   base::StatusOr<Output> GenerateResult(double privacy_budget,
                                         double noise_interval_level) override {
     if (UniformDouble() < 0.25) {
-      return base::InvalidArgumentError("BoundedSumWithError returns error.");
+      return absl::InvalidArgumentError("BoundedSumWithError returns error.");
     }
     return BoundedSumWithFixedBounds<T>::GenerateResult(privacy_budget,
                                                         noise_interval_level);
@@ -140,7 +140,7 @@ class CountNoDpError : public Count<T> {
   base::StatusOr<Output> GenerateResult(double privacy_budget,
                                         double noise_interval_level) override {
     if (Count<T>::GetCount() == 0) {
-      return base::InvalidArgumentError("CountNoDpError returns error.");
+      return absl::InvalidArgumentError("CountNoDpError returns error.");
     }
     return Count<T>::GenerateResult(privacy_budget, noise_interval_level);
   }
@@ -158,7 +158,7 @@ class AlwaysError : public Algorithm<T> {
 
   base::StatusOr<Output> GenerateResult(
       double /*privacy_budget*/, double /*noise_interval_level*/) override {
-    return base::InvalidArgumentError("AlwaysError returns error.");
+    return absl::InvalidArgumentError("AlwaysError returns error.");
   }
   void ResetState() override {}
 

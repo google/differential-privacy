@@ -12,8 +12,34 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
+
+# Update the following version for packaging of a new release.
+_DP_LIB_VERSION = "1.0.0"
 
 exports_files([
     "dp_java_deps.bzl",
     "dp_java_deps_preload.bzl",
 ])
+
+load("@bazel_common//tools/maven:pom_file.bzl", "pom_file")
+
+pom_file(
+    name = "differentialprivacy_pom",
+    substitutions = {"DP_LIB_VERSION": _DP_LIB_VERSION},
+    targets = [
+        "//main/com/google/privacy/differentialprivacy",
+    ],
+    template_file = "pom.template",
+)
+
+load("@rules_jvm_external//:defs.bzl", "java_export")
+
+java_export(
+    name = "differentialprivacy-export",
+    maven_coordinates = "com.google.privacy.differentialprivacy:differentialprivacy:%s" % _DP_LIB_VERSION,
+    pom_template = ":differentialprivacy_pom",
+    runtime_deps = [
+        "//main/com/google/privacy/differentialprivacy",
+    ],
+)

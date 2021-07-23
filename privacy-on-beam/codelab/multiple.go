@@ -34,7 +34,7 @@ func ComputeCountMeanSum(s beam.Scope, col beam.PCollection) (visitsPerHour, mea
 	// Create a PCollection of output partitions, i.e. restaurant's work hours (from 9 am till 9pm (exclusive)).
 	hours := beam.CreateList(s, [12]int{9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20})
 
-	visitHours := pbeam.ParDo(s, extractVisitHour, pCol)
+	visitHours := pbeam.ParDo(s, extractVisitHourFn, pCol)
 	visitsPerHour = pbeam.Count(s, visitHours, pbeam.CountParams{
 		Epsilon:                  epsilon / 3,
 		Delta:                    0,
@@ -54,7 +54,7 @@ func ComputeCountMeanSum(s beam.Scope, col beam.PCollection) (visitsPerHour, mea
 		PublicPartitions:             hours, // Visitors only visit during work hours
 	})
 
-	hourToMoneySpent := pbeam.ParDo(s, extractVisitHourAndMoneySpent, pCol)
+	hourToMoneySpent := pbeam.ParDo(s, extractVisitHourAndMoneySpentFn, pCol)
 	revenues = pbeam.SumPerKey(s, hourToMoneySpent, pbeam.SumParams{
 		Epsilon:                  epsilon / 3,
 		Delta:                    0,

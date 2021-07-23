@@ -16,6 +16,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "accounting/common/test_util.h"
 
 namespace differential_privacy {
 namespace accounting {
@@ -23,16 +24,20 @@ namespace {
 using ::testing::DoubleNear;
 using ::testing::Each;
 using ::testing::ElementsAre;
-using ::testing::Eq;
 using ::testing::IsEmpty;
 using ::testing::Key;
 using ::testing::Le;
+using ::testing::Matcher;
 using ::testing::Pair;
 using ::testing::UnorderedElementsAre;
-using ::testing::UnorderedPointwise;
 using ::testing::Values;
 
 constexpr double kMaxError = 1e-5;
+
+Matcher<ProbabilityMassFunction> PMFIsNear(
+    const ProbabilityMassFunction& expected) {
+  return differential_privacy::accounting::PMFIsNear(expected, kMaxError);
+}
 
 TEST(Convolution, UnpackProbabilityMassFunction) {
   ProbabilityMassFunction pmf = {{5, 2.3}, {3, 3.14}, {1, 1.2}};
@@ -181,6 +186,40 @@ TEST_P(ComputeConvolutionTruncationBoundsTest,
       x, param.num_times, param.tail_mass_truncation, {{param.order}});
   EXPECT_EQ(param.expected_lower_bound, result.lower_bound);
   EXPECT_EQ(param.expected_upper_bound, result.upper_bound);
+}
+
+struct ConvolveMultipleTruncationParam {
+  ProbabilityMassFunction input_pmf;
+  int num_times;
+  double tail_mass_truncation;
+  ProbabilityMassFunction expected_output_pmf;
+};
+
+class ConvolveMultipleTruncationTest
+    : public testing::TestWithParam<ConvolveMultipleTruncationParam> {};
+INSTANTIATE_TEST_SUITE_P(
+    ConvolveMultipleTruncationSuite, ConvolveMultipleTruncationTest,
+    Values(
+        // Test lower bound computation.
+        ConvolveMultipleTruncationParam{
+            .input_pmf = {{0, 0.1}, {1, 0.4}, {2, 0.5}},
+            .num_times = 3,
+            .tail_mass_truncation = 0.5,
+            .expected_output_pmf = ProbabilityMassFunction(
+                {{2, 0.063}, {3, 0.184}, {4, 0.315}, {5, 0.300}, {6, 0.126}})},
+        // Test upper bound computation.
+        ConvolveMultipleTruncationParam{
+            .input_pmf = {{0, 0.2}, {1, 0.6}, {2, 0.2}},
+            .num_times = 3,
+            .tail_mass_truncation = 0.7,
+            .expected_output_pmf = ProbabilityMassFunction(
+                {{1, 0.072}, {2, 0.24}, {3, 0.36}, {4, 0.24}, {5, 0.072}})}));
+
+TEST_P(ConvolveMultipleTruncationTest, ConvolveMultipleTruncationBasic) {
+  ConvolveMultipleTruncationParam param = GetParam();
+  ProbabilityMassFunction result =
+      Convolve(param.input_pmf, param.num_times, param.tail_mass_truncation);
+  EXPECT_THAT(result, PMFIsNear(param.expected_output_pmf));
 }
 }  // namespace
 }  // namespace accounting

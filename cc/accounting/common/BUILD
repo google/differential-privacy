@@ -40,3 +40,26 @@ cc_test(
         "@com_google_cc_differential_privacy//base:statusor",
     ],
 )
+
+cc_library(
+    name = "test_util",
+    testonly = 1,
+    srcs = ["test_util.cc"],
+    hdrs = ["test_util.h"],
+    deps = [
+        ":common",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "test_util_test",
+    srcs = [
+        "test_util_test.cc",
+    ],
+    deps = [
+        ":common",
+        ":test_util",
+        "@com_google_googletest//:gtest_main",
+    ],
+)

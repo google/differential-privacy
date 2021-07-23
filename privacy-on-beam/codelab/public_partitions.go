@@ -33,7 +33,7 @@ func PrivateCountVisitsPerHourWithPublicPartitions(s beam.Scope, col beam.PColle
 	// Create a PCollection of output partitions, i.e. restaurant's work hours (from 9 am till 9pm (exclusive)).
 	hours := beam.CreateList(s, [12]int{9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20})
 
-	visitHours := pbeam.ParDo(s, extractVisitHour, pCol)
+	visitHours := pbeam.ParDo(s, extractVisitHourFn, pCol)
 	visitsPerHour := pbeam.Count(s, visitHours, pbeam.CountParams{
 		MaxPartitionsContributed: 1,     // Visitors can visit the restaurant once (one hour) a day
 		MaxValue:                 1,     // Visitors can visit the restaurant once within an hour

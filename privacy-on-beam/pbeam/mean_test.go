@@ -321,7 +321,7 @@ func TestMeanPerKeyAddsNoiseFloat(t *testing.T) {
 		// we need to have each partition pass with 1-10⁻²³ probability (k=23).
 		noiseEpsilon, noiseDelta := tc.epsilon/2, 0.0
 		k := 23.0
-		l0Sensitivity, lInfSensitivity := 1.0, 2.0
+		maxPartitionsContributed, maxContributionsPerPartition := int64(1), int64(1)
 		partitionSelectionEpsilon, partitionSelectionDelta := tc.epsilon/2, tc.delta
 		if tc.noiseKind == gaussianNoise {
 			noiseDelta = tc.delta / 2
@@ -340,12 +340,12 @@ func TestMeanPerKeyAddsNoiseFloat(t *testing.T) {
 		var tolerance float64
 		var err error
 		if tc.noiseKind == gaussianNoise {
-			tolerance, err = testutils.ComplementaryGaussianToleranceForMean(k, lower, upper, int64(lInfSensitivity), int64(l0Sensitivity), noiseEpsilon, noiseDelta, -0.5*float64(numIDs), float64(numIDs), 1.0)
+			tolerance, err = testutils.ComplementaryGaussianToleranceForMean(k, lower, upper, maxContributionsPerPartition, maxPartitionsContributed, noiseEpsilon, noiseDelta, -0.5*float64(numIDs), float64(numIDs), 1.0)
 			if err != nil {
 				t.Fatalf("complementaryGaussianToleranceForMean: got error %v", err)
 			}
 		} else {
-			tolerance, err = testutils.ComplementaryLaplaceToleranceForMean(k, lower, upper, int64(lInfSensitivity), int64(l0Sensitivity), noiseEpsilon, -0.5*float64(numIDs), float64(numIDs), 1.0)
+			tolerance, err = testutils.ComplementaryLaplaceToleranceForMean(k, lower, upper, maxContributionsPerPartition, maxPartitionsContributed, noiseEpsilon, -0.5*float64(numIDs), float64(numIDs), 1.0)
 			if err != nil {
 				t.Fatalf("complementaryLaplaceToleranceForMean: got error %v", err)
 			}
@@ -359,8 +359,8 @@ func TestMeanPerKeyAddsNoiseFloat(t *testing.T) {
 		pcol := MakePrivate(s, col, NewPrivacySpec(tc.epsilon, tc.delta))
 		pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
 		got := MeanPerKey(s, pcol, MeanParams{
-			MaxPartitionsContributed:     1,
-			MaxContributionsPerPartition: 1,
+			MaxPartitionsContributed:     maxPartitionsContributed,
+			MaxContributionsPerPartition: maxContributionsPerPartition,
 			MinValue:                     lower,
 			MaxValue:                     upper,
 			NoiseKind:                    tc.noiseKind,
@@ -404,19 +404,19 @@ func TestMeanPerKeyWithPartitionsAddsNoiseFloat(t *testing.T) {
 		// we need to have each partition pass with 1-10⁻²³ probability (k=23).
 		epsilonNoise, deltaNoise := tc.epsilon, tc.delta
 		k := 23.0
-		l0Sensitivity, lInfSensitivity := 1.0, 3.0
+		maxPartitionsContributed, maxContributionsPerPartition := int64(1), int64(1)
 
 		numIDs := 10
 
 		var tolerance float64
 		var err error
 		if tc.noiseKind == gaussianNoise {
-			tolerance, err = testutils.ComplementaryGaussianToleranceForMean(k, lower, upper, int64(lInfSensitivity), int64(l0Sensitivity), epsilonNoise, deltaNoise, -0.5*float64(numIDs), float64(numIDs), 1.0)
+			tolerance, err = testutils.ComplementaryGaussianToleranceForMean(k, lower, upper, maxContributionsPerPartition, maxPartitionsContributed, epsilonNoise, deltaNoise, -0.5*float64(numIDs), float64(numIDs), 1.0)
 			if err != nil {
 				t.Fatalf("ComplementaryGaussianToleranceForMean: got error %v", err)
 			}
 		} else {
-			tolerance, err = testutils.ComplementaryLaplaceToleranceForMean(k, lower, upper, int64(lInfSensitivity), int64(l0Sensitivity), epsilonNoise, -0.5*float64(numIDs), float64(numIDs), 1.0)
+			tolerance, err = testutils.ComplementaryLaplaceToleranceForMean(k, lower, upper, maxContributionsPerPartition, maxPartitionsContributed, epsilonNoise, -0.5*float64(numIDs), float64(numIDs), 1.0)
 			if err != nil {
 				t.Fatalf("ComplementaryLaplaceToleranceForMean: got error %v", err)
 			}
@@ -431,8 +431,8 @@ func TestMeanPerKeyWithPartitionsAddsNoiseFloat(t *testing.T) {
 		pcol := MakePrivate(s, col, NewPrivacySpec(tc.epsilon, tc.delta))
 		pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
 		got := MeanPerKey(s, pcol, MeanParams{
-			MaxPartitionsContributed:     1,
-			MaxContributionsPerPartition: 1,
+			MaxPartitionsContributed:     maxPartitionsContributed,
+			MaxContributionsPerPartition: maxContributionsPerPartition,
 			MinValue:                     lower,
 			MaxValue:                     upper,
 			NoiseKind:                    tc.noiseKind,

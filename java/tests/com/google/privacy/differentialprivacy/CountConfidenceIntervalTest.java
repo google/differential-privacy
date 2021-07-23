@@ -218,8 +218,8 @@ public class CountConfidenceIntervalTest {
         hits++;
       }
     }
-    // Assuming that the true alpha of the confidence interval mechanism is 0.1, i.e., the raw value
-    // is within the confidence interval with probability of at least 0.9, then the hits count will
+    // Assuming that the true alpha of the confidence interval mechanism is 0.9, i.e., the raw value
+    // is within the confidence interval with probability of at least 0.1, then the hits count will
     // be at least 9552 with probability greater than 1 - 10^-6.
     assertThat(hits).isAtLeast(9552);
   }
@@ -240,8 +240,8 @@ public class CountConfidenceIntervalTest {
         hits++;
       }
     }
-    // Assuming that the true alpha of the confidence interval mechanism is 0.1, i.e., the raw value
-    // is within the confidence interval with probability of at least 0.9, then the hits count will
+    // Assuming that the true alpha of the confidence interval mechanism is 0.9, i.e., the raw value
+    // is within the confidence interval with probability of at least 0.1, then the hits count will
     // be at least 9552 with probability greater than 1 - 10^-6.
     assertThat(hits).isAtLeast(9552);
   }

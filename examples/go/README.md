@@ -29,13 +29,13 @@ Navigate to `examples/go` folder, build the codelab code and run it with the
 Linux
 ```shell
 $ cd examples/go
-$ bazel run examples_main -- --scenario=CountVisitsPerHour --input_file=$(pwd)/data/day_data.csv --non_private_output_file=$(pwd)/non_private.csv --private_output_file=$(pwd)/private.csv
+$ bazel run main/examples -- --scenario=CountVisitsPerHour --input_file=$(pwd)/data/day_data.csv --non_private_output_file=$(pwd)/non_private.csv --private_output_file=$(pwd)/private.csv
 ```
 
 Windows
 ```shell
 $ cd examples/go
-$ bazel run examples_main -- --scenario=CountVisitsPerHour --input_file=%CD%/data/day_data.csv --non_private_output_file=%CD%/non_private.csv --private_output_file=%CD%/private.csv
+$ bazel run main/examples -- --scenario=CountVisitsPerHour --input_file=%CD%/data/day_data.csv --non_private_output_file=%CD%/non_private.csv --private_output_file=%CD%/private.csv
 ```
 
 This triggers the logic of `CountVisitsPerHourScenario`. It reads the
@@ -118,13 +118,13 @@ Navigate to `examples/go` folder, build the codelab code and run it with the
 Linux
 ```shell
 $ cd examples/go
-$ bazel run examples_main -- --scenario=CountVisitsPerDay --input_file=$(pwd)/data/week_data.csv --non_private_output_file=$(pwd)/non_private.csv --private_output_file=$(pwd)/private.csv
+$ bazel run main/examples -- --scenario=CountVisitsPerDay --input_file=$(pwd)/data/week_data.csv --non_private_output_file=$(pwd)/non_private.csv --private_output_file=$(pwd)/private.csv
 ```
 
 Windows
 ```shell
 $ cd examples/go
-$ bazel run examples_main -- --scenario=CountVisitsPerDay --input_file=%CD%/data/week_data.csv --non_private_output_file=%CD%/non_private.csv --private_output_file=%CD%/private.csv
+$ bazel run main/examples -- --scenario=CountVisitsPerDay --input_file=%CD%/data/week_data.csv --non_private_output_file=%CD%/non_private.csv --private_output_file=%CD%/private.csv
 ```
 
 This triggers the logic of `CountVisitsPerDayScenario`. It calculates
@@ -229,13 +229,13 @@ Navigate to `examples/go` folder, build the codelab code and run it with the
 Linux
 ```shell
 $ cd examples/go
-$ bazel run examples_main -- --scenario=SumRevenuePerDayScenario --input_file=$(pwd)/data/week_data.csv --non_private_output_file=$(pwd)/non_private.csv --private_output_file=$(pwd)/private.csv
+$ bazel run main/examples -- --scenario=SumRevenuePerDayScenario --input_file=$(pwd)/data/week_data.csv --non_private_output_file=$(pwd)/non_private.csv --private_output_file=$(pwd)/private.csv
 ```
 
 Windows
 ```shell
 $ cd examples/go
-$ bazel run examples_main -- --scenario=SumRevenuePerDayScenario --input_file=%CD%/data/week_data.csv --non_private_output_file=%CD%/non_private.csv --private_output_file=%CD%/private.csv
+$ bazel run main/examples -- --scenario=SumRevenuePerDayScenario --input_file=%CD%/data/week_data.csv --non_private_output_file=%CD%/non_private.csv --private_output_file=%CD%/private.csv
 ```
 
 This triggers the logic of SumRevenuePerDayScenario. It sums the amount of money
@@ -347,13 +347,13 @@ Navigate to `examples/go` folder, build the codelab code and run it with the
 Linux
 ```shell
 $ cd examples/go
-$ bazel run examples_main -- --scenario=CountVisitsPerDuration --input_file=$(pwd)/data/outliers_week_data.csv --non_private_output_file=$(pwd)/non_private.csv --private_output_file=$(pwd)/private.csv
+$ bazel run main/examples -- --scenario=CountVisitsPerDuration --input_file=$(pwd)/data/outliers_week_data.csv --non_private_output_file=$(pwd)/non_private.csv --private_output_file=$(pwd)/private.csv
 ```
 
 Windows
 ```shell
 $ cd examples/go
-$ bazel run examples_main -- --scenario=CountVisitsPerDuration --input_file=%CD%/data/outliers_week_data.csv --non_private_output_file=%CD%/non_private.csv --private_output_file=%CD%/private.csv
+$ bazel run main/examples -- --scenario=CountVisitsPerDuration --input_file=%CD%/data/outliers_week_data.csv --non_private_output_file=%CD%/non_private.csv --private_output_file=%CD%/private.csv
 ```
 
 This triggers the logic of `CountVisitsPerCertainDurationScenario`. It

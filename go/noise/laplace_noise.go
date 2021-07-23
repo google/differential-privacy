@@ -196,6 +196,10 @@ func (laplace) ComputeConfidenceIntervalFloat64(noisedX float64, l0Sensitivity i
 	return computeConfidenceIntervalLaplace(noisedX, lambda, alpha), nil
 }
 
+func (laplace) String() string {
+	return "Laplace Noise"
+}
+
 func checkArgsLaplace(label string, l0Sensitivity int64, lInfSensitivity, epsilon, delta float64) error {
 	if err := checks.CheckL0Sensitivity(label, l0Sensitivity); err != nil {
 		return err

@@ -77,7 +77,7 @@ double CarrotReporter::PrivacyBudget() { return privacy_budget_; }
 
 base::StatusOr<Output> CarrotReporter::PrivateSum(double privacy_budget) {
   if (privacy_budget_ < privacy_budget) {
-    return base::InvalidArgumentError("Not enough privacy budget.");
+    return absl::InvalidArgumentError("Not enough privacy budget.");
   }
   privacy_budget_ -= privacy_budget;
   ASSIGN_OR_RETURN(std::unique_ptr<BoundedSum<int>> sum_algorithm,
@@ -94,7 +94,7 @@ base::StatusOr<Output> CarrotReporter::PrivateSum(double privacy_budget) {
 
 base::StatusOr<Output> CarrotReporter::PrivateMean(double privacy_budget) {
   if (privacy_budget_ < privacy_budget) {
-    return base::InvalidArgumentError("Not enough privacy budget.");
+    return absl::InvalidArgumentError("Not enough privacy budget.");
   }
   privacy_budget_ -= privacy_budget;
   ASSIGN_OR_RETURN(std::unique_ptr<BoundedMean<int>> mean_algorithm,
@@ -108,7 +108,7 @@ base::StatusOr<Output> CarrotReporter::PrivateMean(double privacy_budget) {
 base::StatusOr<Output> CarrotReporter::PrivateCountAbove(double privacy_budget,
                                                          int limit) {
   if (privacy_budget_ < privacy_budget) {
-    return base::InvalidArgumentError("Not enough privacy budget.");
+    return absl::InvalidArgumentError("Not enough privacy budget.");
   }
   privacy_budget_ -= privacy_budget;
   ASSIGN_OR_RETURN(std::unique_ptr<Count<std::string>> count_algorithm,
@@ -124,7 +124,7 @@ base::StatusOr<Output> CarrotReporter::PrivateCountAbove(double privacy_budget,
 
 base::StatusOr<Output> CarrotReporter::PrivateMax(double privacy_budget) {
   if (privacy_budget_ < privacy_budget) {
-    return base::InvalidArgumentError("Not enough privacy budget.");
+    return absl::InvalidArgumentError("Not enough privacy budget.");
   }
   privacy_budget_ -= privacy_budget;
   ASSIGN_OR_RETURN(std::unique_ptr<continuous::Max<int>> max_algorithm,

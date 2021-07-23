@@ -16,8 +16,17 @@
 
 // This is a command line utility which helps to run different examples of how dp library can be used.
 // Usage example:
-// Linux: bazel run examples_main -- --scenario=CountVisitsPerHour --input_file=$(pwd)/data/day_data.csv --non_private_output_file=$(pwd)/out1.csv --private_output_file=$(pwd)/out2.csv
-// Windows: bazel run examples_main -- --scenario=CountVisitsPerHour --input_file=%CD%/data/day_data.csv --non_private_output_file=%CD%/out1.csv --private_output_file=%CD%/out2.csv
+// (From the examples/go/ directory)
+// Linux: bazel run main/examples -- --scenario=CountVisitsPerHour --input_file=$(pwd)/data/day_data.csv --non_private_output_file=$(pwd)/out1.csv --private_output_file=$(pwd)/out2.csv
+// Windows: bazel run main/examples -- --scenario=CountVisitsPerHour --input_file=%CD%/data/day_data.csv --non_private_output_file=%CD%/out1.csv --private_output_file=%CD%/out2.csv
+// (Or alternatively, from the examples/go/main/ directory)
+// Linux: bazel run examples -- --scenario=CountVisitsPerHour --input_file=$(pwd)/../data/day_data.csv --non_private_output_file=$(pwd)/out1.csv --private_output_file=$(pwd)/out2.csv
+// Windows: bazel run examples -- --scenario=CountVisitsPerHour --input_file=%CD%/../data/day_data.csv --non_private_output_file=%CD%/out1.csv --private_output_file=%CD%/out2.csv
+// If instead you'd like to build and run with native "go" command, you can run the following:
+// (From the examples/go/ directory)
+// go run --mod=mod ./main --scenario=CountVisitsPerHour --input_file=data/day_data.csv --non_private_output_file=out1.csv --private_output_file=out2.csv
+// (Or alternatively, from the examples/go/main/ directory)
+// go run --mod=mod . --scenario=CountVisitsPerHour --input_file=../data/day_data.csv --non_private_output_file=out1.csv --private_output_file=out2.csv
 package main
 
 import (
@@ -48,7 +57,7 @@ const (
 func main() {
 	flag.Parse()
 
-	log.Infof("The example was run with arguments: scenario = %d,"+
+	log.Infof("The example was run with arguments: scenario = %q,"+
 		" inputFile = %q, nonPrivateResultsOutputFile = %q, privateResultsOutputFile = %q",
 		*scenario,
 		*inputFile,

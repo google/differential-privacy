@@ -27,10 +27,19 @@ import (
 // This file contains structs, functions, and values used to test DP aggregations.
 
 var (
-	ln3        = math.Log(3)
-	tenten     = math.Pow10(-10)
-	tenfive    = math.Pow10(-5)
-	alphaLevel = 0.05
+	ln3     = math.Log(3)
+	tenten  = math.Pow10(-10)
+	tenfive = math.Pow10(-5)
+	// Used for confidence interval tests
+	arbitraryEpsilon                      = 0.5
+	arbitraryDelta                        = 1e-5
+	arbitraryMaxPartitionsContributed     = int64(1)
+	arbitraryMaxContributionsPerPartition = int64(1)
+	arbitraryLower                        = -2.68545
+	arbitraryUpper                        = 2.68545
+	arbitraryLowerInt64                   = int64(-2)
+	arbitraryUpperInt64                   = int64(2)
+	arbitraryAlpha                        = 0.23645
 )
 
 func ApproxEqual(x, y float64) bool {

@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
 load("@bazel_gazelle//:def.bzl", "gazelle")
 
 # gazelle:prefix github.com/google/differential-privacy/examples/go
@@ -32,24 +32,5 @@ go_library(
     deps = [
         "@com_google_go_differential_privacy//dpagg:go_default_library",
         "@com_google_go_differential_privacy//noise:go_default_library",
-    ],
-)
-
-# keep
-go_binary(
-    name = "examples_main",
-    srcs = [
-        "main.go",
-    ],
-    data = [
-        "//:data/day_data.csv",
-        "//:data/outliers_week_data.csv",
-        "//:data/week_data.csv",
-    ],
-    importpath = "github.com/google/differential-privacy/examples/go/examples_main",
-    visibility = ["//visibility:public"],
-    deps = [
-        "//:go_default_library",
-        "@com_github_golang_glog//:go_default_library",
     ],
 )

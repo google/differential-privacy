@@ -105,12 +105,26 @@ class PrivacyLossDistribution {
   //   completely random bucket.
   // num_buckets: the total number of possible input values (which is equal to
   //   the total number of possible output values).
-  // estimate_type: kPessimistic denoting that the rounding is done in
-  //     such a way that the resulting epsilon-hockey stick divergence
-  //     computation gives an upper estimate to the real value.
+  // estimate_type: kPessimistic denoting that the rounding is done in such a
+  //   way that the resulting epsilon-hockey stick divergence computation gives
+  //   an upper estimate to the real value.
   static base::StatusOr<std::unique_ptr<PrivacyLossDistribution>>
   CreateForRandomizedResponse(
       double noise_parameter, int num_buckets,
+      EstimateType estimate_type = EstimateType::kPessimistic,
+      double discretization_interval = 1e-4);
+
+  // Creates {@link PrivacyLossDistribution} for the Laplace mechanism.
+  //
+  // parameter: the parameter of the Laplace distribution.
+  // sensitivity: the sensitivity of function f. (i.e. the maximum absolute
+  //   change in f when an input to a single user changes.)
+  // estimate_type: kPessimistic denoting that the rounding is done in such a
+  //   way that the resulting epsilon-hockey stick divergence computation gives
+  //   an upper estimate to the real value.
+  static base::StatusOr<std::unique_ptr<PrivacyLossDistribution>>
+  CreateForLaplaceMechanism(
+      double parameter, double sensitivity = 1,
       EstimateType estimate_type = EstimateType::kPessimistic,
       double discretization_interval = 1e-4);
 
@@ -198,16 +212,6 @@ class PrivacyLossDistribution {
   PrivacyLossDistribution(
       double discretization_interval, double infinity_mass,
       const ProbabilityMassFunction& probability_mass_function,
-      EstimateType estimate_type = EstimateType::kPessimistic)
-      : discretization_interval_(discretization_interval),
-        infinity_mass_(infinity_mass),
-        probability_mass_function_(probability_mass_function),
-        estimate_type_(estimate_type) {}
-
-  PrivacyLossDistribution(
-      double discretization_interval, double infinity_mass,
-      const ProbabilityMassFunction probability_mass_function,
-      const AdditiveNoisePrivacyLoss& noise_privacy_loss,
       EstimateType estimate_type = EstimateType::kPessimistic)
       : discretization_interval_(discretization_interval),
         infinity_mass_(infinity_mass),
