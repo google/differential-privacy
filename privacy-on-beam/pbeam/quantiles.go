@@ -188,7 +188,7 @@ func QuantilesPerKey(s beam.Scope, pcol PrivatePCollection, params QuantilesPara
 	// Combine all values for <id, partition> into a slice.
 	// Result is PCollection<kv.Pair{ID,K},[]float64>.
 	combined := beam.CombinePerKey(s,
-		&expandValuesCombineFn{},
+		&expandFloat64ValuesCombineFn{},
 		converted)
 
 	// Result is PCollection<ID, pairArrayFloat64>.

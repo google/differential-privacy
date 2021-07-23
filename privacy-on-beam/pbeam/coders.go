@@ -33,6 +33,7 @@ func init() {
 	beam.RegisterCoder(reflect.TypeOf(boundedMeanAccumFloat64{}), encodeBoundedMeanAccumFloat64, decodeBoundedMeanAccumFloat64)
 	beam.RegisterCoder(reflect.TypeOf(boundedQuantilesAccum{}), encodeBoundedQuantilesAccum, decodeBoundedQuantilesAccum)
 	beam.RegisterCoder(reflect.TypeOf(expandValuesAccum{}), encodeExpandValuesAccum, decodeExpandValuesAccum)
+	beam.RegisterCoder(reflect.TypeOf(expandFloat64ValuesAccum{}), encodeExpandFloat64ValuesAccum, decodeExpandFloat64ValuesAccum)
 	beam.RegisterCoder(reflect.TypeOf(partitionSelectionAccum{}), encodePartitionSelectionAccum, decodePartitionSelectionAccum)
 }
 
@@ -92,6 +93,16 @@ func encodeExpandValuesAccum(v expandValuesAccum) ([]byte, error) {
 
 func decodeExpandValuesAccum(data []byte) (expandValuesAccum, error) {
 	var ret expandValuesAccum
+	err := decode(&ret, data)
+	return ret, err
+}
+
+func encodeExpandFloat64ValuesAccum(v expandFloat64ValuesAccum) ([]byte, error) {
+	return encode(v)
+}
+
+func decodeExpandFloat64ValuesAccum(data []byte) (expandFloat64ValuesAccum, error) {
+	var ret expandFloat64ValuesAccum
 	err := decode(&ret, data)
 	return ret, err
 }
