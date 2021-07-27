@@ -74,7 +74,7 @@ type DistinctPerKeyParams struct {
 func DistinctPerKey(s beam.Scope, pcol PrivatePCollection, params DistinctPerKeyParams) beam.PCollection {
 	s = s.Scope("pbeam.DistinctPerKey")
 	// Obtain type information from the underlying PCollection<K,V>.
-	_, kvT := beam.ValidateKVType(pcol.col)
+	idT, kvT := beam.ValidateKVType(pcol.col)
 	if kvT.Type() != reflect.TypeOf(kv.Pair{}) {
 		log.Exitf("DistinctPerKey must be used on a PrivatePCollection of type <K,V>, got type %v instead", kvT)
 	}
@@ -103,14 +103,62 @@ func DistinctPerKey(s beam.Scope, pcol PrivatePCollection, params DistinctPerKey
 		log.Exit(err)
 	}
 
-	// Perform partition selection
+	// Do initial per- and cross-partition contribution bounding and swap kv.Pair<K,V> and ID.
+	// This is not great in terms of utility, since dropping contributions randomly might
+	// mean that we keep duplicates instead of distinct values. However, this is necessary
+	// for the current algorithm to be DP.
+	if spec.testMode != noNoiseWithoutContributionBounding {
+		// First, rekey by kv.Pair{ID,K} and do per-partition contribution bounding.
+		rekeyed := beam.ParDo(
+			s,
+			newEncodeIDKFn(idT, pcol.codec),
+			pcol.col,
+			beam.TypeDefinition{Var: beam.VType, T: pcol.codec.VType.T}) // PCollection<kv.Pair{ID,K}, V>.
+		// Keep only maxContributionsPerPartition values per (privacyKey, partitionKey) pair.
+		sampled := boundContributions(s, rekeyed, params.MaxContributionsPerPartition)
+
+		// Collect all values per kv.Pair{ID,K} in a slice.
+		combined := beam.CombinePerKey(s,
+			newExpandValuesCombineFn(pcol.codec.VType),
+			sampled) // PCollection<kv.Pair{ID,K}, []codedV}>, where codedV=[]byte
+
+		_, codedVSliceType := beam.ValidateKVType(combined)
+
+		decoded := beam.ParDo(
+			s,
+			newDecodeIDKFn(codedVSliceType, kv.NewCodec(idT.Type(), pcol.codec.KType.T)),
+			combined,
+			beam.TypeDefinition{Var: beam.WType, T: idT.Type()}) // PCollection<ID, kv.Pair{K,[]codedV}>, where codedV=[]byte
+
+		// Second, do cross-partition contribution bounding.
+		decoded = boundContributions(s, decoded, params.MaxPartitionsContributed)
+
+		rekeyed = beam.ParDo(
+			s,
+			newEncodeIDKFn(idT, kv.NewCodec(pcol.codec.KType.T, codedVSliceType.Type())),
+			decoded,
+			beam.TypeDefinition{Var: beam.VType, T: codedVSliceType.Type()}) // PCollection<kv.Pair{ID,K}, []codedV>, where codedV=[]byte
+
+		flattened := beam.ParDo(s, flattenValuesFn, rekeyed) // PCollection<kv.Pair{ID,K}, codedV>, where codedV=[]byte
+
+		pcol.col = beam.ParDo(
+			s,
+			newEncodeKVFn(kv.NewCodec(idT.Type(), pcol.codec.KType.T)),
+			flattened,
+			beam.TypeDefinition{Var: beam.WType, T: idT.Type()}) // PCollection<ID, kv.Pair{K,V}>
+	}
+
+	// Perform partition selection.
+	// We do partition selection after cross-partition contribution bounding because
+	// we want to keep the same contributions across partitions for partition selection
+	// and Count.
 	noiseEpsilon, partitionSelectionEpsilon, noiseDelta, partitionSelectionDelta := splitBudget(epsilon, delta, noiseKind)
 	partitions := SelectPartitions(s, pcol, SelectPartitionsParams{Epsilon: partitionSelectionEpsilon, Delta: partitionSelectionDelta, MaxPartitionsContributed: params.MaxPartitionsContributed})
 
-	// Deduplicate (partitionKey,value) pairs across users.
-	rekeyed := beam.SwapKV(s, pcol.col) // PCollection<kv.Pair{K,V}, ID>.
-	// Only keep one privacyKey per (partitionKey,value) pair.
-	sampled := boundContributions(s, rekeyed, 1)
+	// Keep only one privacyKey per (partitionKey, value) pair
+	// (i.e. remove duplicate values for each partition).
+	swapped := beam.SwapKV(s, pcol.col) // PCollection<kv.Pair{K,V}, ID>
+	sampled := boundContributions(s, swapped, 1)
 
 	// Drop V's, each <privacyKey, partitionKey> pair now corresponds to a unique V.
 	sampled = beam.SwapKV(s, sampled) // PCollection<ID, kv.Pair{K,V}>.
