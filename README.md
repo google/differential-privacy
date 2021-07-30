@@ -28,8 +28,8 @@ Currently, the DP building block libraries support the following algorithms:
 | Count                            | Supported | Supported | Supported |
 | Sum                              | Supported | Supported | Supported |
 | Mean                             | Supported | Supported | Supported |
-| Variance                         | Supported | Planned   | Planned   |
-| Standard deviation               | Supported | Planned   | Planned   |
+| Variance                         | Supported | Supported | Planned   |
+| Standard deviation               | Supported | Supported | Planned   |
 | Quantiles                        | Supported | Supported | Supported |
 | Automatic bounds approximation   | Supported | Planned   | Planned   |
 | Truncated geometric thresholding | Supported | Supported | Supported |

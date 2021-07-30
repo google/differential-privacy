@@ -93,7 +93,7 @@ func main() {
 	case countVisitsPerCertainDuration:
 		sc = &examples.CountVisitsPerCertainDurationScenario{}
 	default:
-		log.Exitf("There is no scenario with id = %d", id)
+		log.Exitf("There is no scenario with id = %s", id)
 	}
 
 	err = examples.RunScenario(sc, *inputFile, *nonPrivateResultsOutputFile, *privateResultsOutputFile)

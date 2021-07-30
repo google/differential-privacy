@@ -18,6 +18,7 @@
 #include "base/logging.h"
 #include "absl/status/status.h"
 #include "base/statusor.h"
+#include "absl/types/optional.h"
 #include "boost/math/distributions/laplace.hpp"
 #include "boost/math/distributions/normal.hpp"
 #include "accounting/common/common.h"
@@ -306,17 +307,18 @@ class DiscreteGaussianPrivacyLoss : public AdditiveNoisePrivacyLoss {
   // sensitivity: the sensitivity of function f. (i.e. the maximum absolute
   //   change in f when an input to a single user changes.)
   // truncation_bound: bound for truncating the noise, i.e. the noise will only
-  //   have a support in [-truncation_bound, truncation_bound]. When set to
-  //   -1, truncation_bound will be chosen in such a way that the mass
-  //   of the noise outside of this range is at most 1e-30.
+  //   have a support in [-truncation_bound, truncation_bound]. When not set,
+  //   truncation_bound will be chosen in such a way that the mass of the noise
+  //   outside of this range is at most 1e-30.
   static base::StatusOr<std::unique_ptr<DiscreteGaussianPrivacyLoss>> Create(
-      double sigma, int sensitivity, int truncation_bound = -1);
+      double sigma, int sensitivity,
+      absl::optional<int> truncation_bound = absl::nullopt);
 
   NoiseType Discrete() const override { return NoiseType::kDiscrete; }
 
   static base::StatusOr<std::unique_ptr<DiscreteGaussianPrivacyLoss>> Create(
       const EpsilonDelta& epsilon_delta, int sensitivity,
-      int truncation_bound = -1);
+      absl::optional<int> truncation_bound);
 
   double InversePrivacyLoss(double privacy_loss) const override;
 

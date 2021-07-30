@@ -1,6 +1,9 @@
 
 # Order Statistics
 
+WARNING: These algorithms are deprecated and may be removed soon. Please use
+[Quantiles](quantiles.md) (which is more accurate) instead.
+
 We have a set of algorithms for calculating
 [order statistics](https://github.com/google/differential-privacy/blob/main/cc/algorithms/order-statistics.h)
 (aka quantiles, percentiles). The following are supported:

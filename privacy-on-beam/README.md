@@ -61,19 +61,19 @@ you can omit `-mod=mod`.
 ## Using with Bazel
 
 In order to include Privacy on Beam in your Bazel project, you need to add the
-following to your `WORKSPACE` file (use the latest commit id or the id of the
-commit you want to depend on):
+following to your `WORKSPACE` file (change `dp_lib_version` to the version you
+want to depend on, or alternatively you can depend on a specific commit; but
+keep in mind that you have to update `dp_lib_tar_sha256` as well):
 
 ```
-load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 http_archive(
     name = "io_bazel_rules_go",
-    sha256 = "6f111c57fd50baf5b8ee9d63024874dd2a014b069426156c55adbf6d3d22cb7b",
+    sha256 = "7c10271940c6bce577d51a075ae77728964db285dac0a46614a7934dc34303e6",
     urls = [
-        "https://mirror.bazel.build/github.com/bazelbuild/rules_go/releases/download/v0.25.0/rules_go-v0.25.0.tar.gz",
-        "https://github.com/bazelbuild/rules_go/releases/download/v0.25.0/rules_go-v0.25.0.tar.gz",
+        "https://mirror.bazel.build/github.com/bazelbuild/rules_go/releases/download/v0.26.0/rules_go-v0.26.0.tar.gz",
+        "https://github.com/bazelbuild/rules_go/releases/download/v0.26.0/rules_go-v0.26.0.tar.gz",
     ],
 )
 
@@ -81,14 +81,14 @@ load("@io_bazel_rules_go//go:deps.bzl", "go_register_toolchains", "go_rules_depe
 
 go_rules_dependencies()
 
-go_register_toolchains(version = "1.15.5")
+go_register_toolchains(version = "1.16")
 
 http_archive(
     name = "bazel_gazelle",
-    sha256 = "b85f48fa105c4403326e9525ad2b2cc437babaa6e15a3fc0b1dbab0ab064bc7c",
+    sha256 = "62ca106be173579c0a167deb23358fdfe71ffa1e4cfdddf5582af26520f1c66f",
     urls = [
-        "https://mirror.bazel.build/github.com/bazelbuild/bazel-gazelle/releases/download/v0.22.2/bazel-gazelle-v0.22.2.tar.gz",
-        "https://github.com/bazelbuild/bazel-gazelle/releases/download/v0.22.2/bazel-gazelle-v0.22.2.tar.gz",
+        "https://mirror.bazel.build/github.com/bazelbuild/bazel-gazelle/releases/download/v0.23.0/bazel-gazelle-v0.23.0.tar.gz",
+        "https://github.com/bazelbuild/bazel-gazelle/releases/download/v0.23.0/bazel-gazelle-v0.23.0.tar.gz",
     ],
 )
 
@@ -96,10 +96,17 @@ load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies", "go_repository")
 
 gazelle_dependencies()
 
-git_repository(
+dp_lib_version = "1.0.1" # Change to the version you want to use.
+dp_lib_tar_sha256 = "c72422dc29b7307334f12b0ff95866002503e2c1d209d16cae0a6f849ebf07f4" # Change to the sha256 of the .tar.gz of the version you want to use.
+dp_lib_url = "https://github.com/google/differential-privacy/archive/refs/tags/v" + dp_lib_version + ".tar.gz"
+
+http_archive(
     name = "com_github_google_differential_privacy",
-    remote = "https://github.com/google/differential-privacy.git",
-    commit = "de8460c9791de4c89a9dbb906b11a8f62e045f7b",
+    sha256 = dp_lib_tar_sha256,
+    urls = [
+        dp_lib_url,
+    ],
+    strip_prefix = "differential-privacy-" + dp_lib_version,
 )
 
 # Load dependencies for Google DP Library base workspace.
@@ -110,22 +117,25 @@ differential_privacy_deps()
 load("@com_google_protobuf//:protobuf_deps.bzl", "protobuf_deps")
 protobuf_deps()
 
-git_repository(
+http_archive(
     name = "com_google_go_differential_privacy",
-    remote = "https://github.com/google/differential-privacy.git",
-    # Workaround from https://github.com/bazelbuild/bazel/issues/10062#issuecomment-642144553
-    patch_cmds = ["mv (broken link) ."],
-    commit = "de8460c9791de4c89a9dbb906b11a8f62e045f7b",
+    sha256 = dp_lib_tar_sha256,
+    urls = [
+        dp_lib_url,
+    ],
+    strip_prefix = "differential-privacy-" + dp_lib_version + "/go",
 )
 
 load("@com_google_go_differential_privacy//:go_differential_privacy_deps.bzl", "go_differential_privacy_deps")
 go_differential_privacy_deps()
 
-git_repository(
+http_archive(
     name = "com_google_privacy_on_beam",
-    remote = "https://github.com/google/differential-privacy.git",
-    strip_prefix = "privacy-on-beam/",
-    commit = "de8460c9791de4c89a9dbb906b11a8f62e045f7b",
+    sha256 = dp_lib_tar_sha256,
+    urls = [
+        dp_lib_url,
+    ],
+    strip_prefix = "differential-privacy-" + dp_lib_version + "/privacy-on-beam",
 )
 
 load("@com_google_privacy_on_beam//:privacy_on_beam_deps.bzl", "privacy_on_beam_deps")

@@ -107,6 +107,7 @@ cc_library(
         ":bounded-algorithm",
         ":numerical-mechanisms",
         "//base:percentile",
+        "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/status",
         "@com_google_cc_differential_privacy//base:status",
         "@com_google_cc_differential_privacy//base:statusor",
@@ -526,5 +527,59 @@ cc_test(
         ":partition-selection",
         "@com_google_googletest//:gtest_main",
         "@com_google_cc_differential_privacy//base:statusor",
+    ],
+)
+
+cc_library(
+    name = "quantile-tree",
+    hdrs = ["quantile-tree.h"],
+    deps = [
+        ":algorithm",
+        ":bounded-algorithm",
+        ":numerical-mechanisms",
+        "//algorithms/internal:count-tree",
+        "//proto:util-lib",
+        "@com_google_differential_privacy//proto:summary_cc_proto",
+        "@com_google_absl//absl/status",
+        "@com_google_cc_differential_privacy//base:status",
+        "@com_google_cc_differential_privacy//base:statusor",
+    ],
+)
+
+cc_test(
+    name = "quantile-tree_test",
+    srcs = ["quantile-tree_test.cc"],
+    deps = [
+        ":numerical-mechanisms-testing",
+        ":quantile-tree",
+        "//base/testing:proto_matchers",
+        "//base/testing:status_matchers",
+        "@com_google_googletest//:gtest_main",
+        "@com_google_absl//absl/random",
+    ],
+)
+
+cc_library(
+    name = "quantiles",
+    hdrs = ["quantiles.h"],
+    deps = [
+        ":algorithm",
+        ":bounded-algorithm",
+        ":quantile-tree",
+        "@com_google_absl//absl/status",
+        "@com_google_cc_differential_privacy//base:statusor",
+    ],
+)
+
+cc_test(
+    name = "quantiles_test",
+    srcs = ["quantiles_test.cc"],
+    deps = [
+        ":numerical-mechanisms-testing",
+        ":quantiles",
+        "//base/testing:proto_matchers",
+        "//base/testing:status_matchers",
+        "@com_google_googletest//:gtest_main",
+        "@com_google_absl//absl/random",
     ],
 )

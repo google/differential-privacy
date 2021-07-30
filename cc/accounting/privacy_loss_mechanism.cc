@@ -228,34 +228,34 @@ PrivacyLossTail DiscreteLaplacePrivacyLoss::PrivacyLossDistributionTail()
 }
 base::StatusOr<std::unique_ptr<DiscreteGaussianPrivacyLoss>>
 DiscreteGaussianPrivacyLoss::Create(double sigma, int sensitivity,
-                                    int truncation_bound) {
+                                    absl::optional<int> truncation_bound) {
   if (sigma <= 0) {
     return absl::InvalidArgumentError("sigma should be positive.");
   }
-  if (truncation_bound < 0) {
-    // Tail bound from Canonne et al. ensures that the mass that gets
-    // truncated is at most 1e-30. (See Proposition 1 in the supplementary
-    // material.)
-    truncation_bound = std::ceil(11.6 * sigma);
-  }
+  // Tail bound from Canonne et al. ensures that the mass that gets truncated at
+  // is ceil(11.6 * sigma) at most 1e-30. (See Proposition 1 in the
+  // supplementary material.)
+  int truncation_bound_value =
+      truncation_bound.value_or(std::ceil(11.6 * sigma));
   ProbabilityMassFunction noise_pmf;
   CumulativeDensityFunction noise_cdf;
 
-  for (int x = -truncation_bound; x <= truncation_bound; ++x) {
+  for (int x = -truncation_bound_value; x <= truncation_bound_value; ++x) {
     noise_pmf[x] = std::exp(-0.5 * std::pow(x, 2) / std::pow(sigma, 2));
     noise_cdf[x] = noise_cdf[x - 1] + noise_pmf[x];
   }
-  for (int x = -truncation_bound; x <= truncation_bound; ++x) {
-    noise_pmf[x] /= noise_cdf[truncation_bound];
-    noise_cdf[x] /= noise_cdf[truncation_bound];
+  for (int x = -truncation_bound_value; x <= truncation_bound_value; ++x) {
+    noise_pmf[x] /= noise_cdf[truncation_bound_value];
+    noise_cdf[x] /= noise_cdf[truncation_bound_value];
   }
   return absl::WrapUnique(new DiscreteGaussianPrivacyLoss(
-      sigma, sensitivity, truncation_bound, noise_pmf, noise_cdf));
+      sigma, sensitivity, truncation_bound_value, noise_pmf, noise_cdf));
 }
 
 base::StatusOr<std::unique_ptr<DiscreteGaussianPrivacyLoss>>
 DiscreteGaussianPrivacyLoss::Create(const EpsilonDelta& epsilon_delta,
-                                    int sensitivity, int truncation_bound) {
+                                    int sensitivity,
+                                    absl::optional<int> truncation_bound) {
   // Use binary search to find the smallest possible sigma of the Discrete
   // Gaussian noise for which the protocol is (epsilon, delta)-differentially
   // private.

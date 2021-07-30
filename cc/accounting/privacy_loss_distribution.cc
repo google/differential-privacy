@@ -22,6 +22,7 @@
 #include "absl/strings/str_format.h"
 #include "accounting/common/common.h"
 #include "accounting/convolution.h"
+#include "accounting/privacy_loss_mechanism.h"
 #include "proto/accounting/privacy-loss-distribution.pb.h"
 #include "base/status_macros.h"
 
@@ -200,6 +201,39 @@ PrivacyLossDistribution::CreateForLaplaceMechanism(
     double discretization_interval) {
   ASSIGN_OR_RETURN(std::unique_ptr<LaplacePrivacyLoss> privacy_loss,
                    LaplacePrivacyLoss::Create(parameter, sensitivity));
+  return CreateForAdditiveNoise(*privacy_loss, estimate_type,
+                                discretization_interval);
+}
+
+base::StatusOr<std::unique_ptr<PrivacyLossDistribution>>
+PrivacyLossDistribution::CreateForDiscreteLaplaceMechanism(
+    double parameter, int sensitivity, EstimateType estimate_type,
+    double discretization_interval) {
+  ASSIGN_OR_RETURN(std::unique_ptr<DiscreteLaplacePrivacyLoss> privacy_loss,
+                   DiscreteLaplacePrivacyLoss::Create(parameter, sensitivity));
+  return CreateForAdditiveNoise(*privacy_loss, estimate_type,
+                                discretization_interval);
+}
+
+base::StatusOr<std::unique_ptr<PrivacyLossDistribution>>
+PrivacyLossDistribution::CreateForGaussianMechanism(
+    double standard_deviation, double sensitivity, EstimateType estimate_type,
+    double discretization_interval, double mass_truncation_bound) {
+  ASSIGN_OR_RETURN(
+      std::unique_ptr<GaussianPrivacyLoss> privacy_loss,
+      GaussianPrivacyLoss::Create(standard_deviation, sensitivity,
+                                  estimate_type, mass_truncation_bound));
+  return CreateForAdditiveNoise(*privacy_loss, estimate_type,
+                                discretization_interval);
+}
+
+base::StatusOr<std::unique_ptr<PrivacyLossDistribution>>
+PrivacyLossDistribution::CreateForDiscreteGaussianMechanism(
+    double sigma, int sensitivity, EstimateType estimate_type,
+    double discretization_interval, absl::optional<int> truncation_bound) {
+  ASSIGN_OR_RETURN(std::unique_ptr<DiscreteGaussianPrivacyLoss> privacy_loss,
+                   DiscreteGaussianPrivacyLoss::Create(sigma, sensitivity,
+                                                       truncation_bound));
   return CreateForAdditiveNoise(*privacy_loss, estimate_type,
                                 discretization_interval);
 }

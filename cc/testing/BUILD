@@ -99,3 +99,53 @@ cc_test(
         "@com_google_cc_differential_privacy//base:status",
     ],
 )
+
+cc_library(
+    name = "statistical_tests_utils",
+    testonly = 1,
+    srcs = ["statistical_tests_utils.cc"],
+    hdrs = ["statistical_tests_utils.h"],
+    deps = [
+        "//algorithms:rand",
+        "//algorithms:util",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/random:distributions",
+        "@com_google_absl//absl/strings",
+        "@com_google_protobuf//:protobuf",
+    ],
+)
+
+cc_test(
+    name = "statistical_tests_utils_test",
+    srcs = [
+        "statistical_tests_utils_test.cc",
+    ],
+    deps = [
+        ":statistical_tests_utils",
+        "//base/testing:proto_matchers",
+        "@com_google_googletest//:gtest_main",
+        "//algorithms:util",
+        "@com_google_differential_privacy//proto/testing:statistical_tests_cc_proto",
+        "@com_google_protobuf//:protobuf",
+    ],
+)
+
+cc_test(
+    name = "quantile_tree_dp_tests",
+    size = "enormous",
+    srcs = [
+        "quantile_tree_dp_test.cc",
+    ],
+    data = [
+        "@com_google_differential_privacy//proto/testing:bounded_quantiles_dp_test_cases.textproto",
+    ],
+    # The shard count must match the number of test cases defined in bounded_quantiles_dp_test_cases.textproto
+    shard_count = 39,
+    deps = [
+        ":statistical_tests_utils",
+        "@com_google_googletest//:gtest_main",
+        "//algorithms:numerical-mechanisms",
+        "//algorithms:quantile-tree",
+        "@com_google_differential_privacy//proto/testing:statistical_tests_cc_proto",
+    ],
+)

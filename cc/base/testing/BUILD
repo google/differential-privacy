@@ -29,6 +29,7 @@ cc_library(
     hdrs = ["proto_matchers.h"],
     deps = [
         "@com_google_googletest//:gtest_main",
+        "//base:logging",
         "@com_google_absl//absl/strings",
         "@com_google_protobuf//:protobuf",
     ],

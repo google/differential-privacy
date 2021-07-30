@@ -26,9 +26,9 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
 )
 
-// Checks that DistinctPrivacyKey returns a correct answer, in particular that values
+// Checks that DistinctPerKey returns a correct answer, in particular that values
 // are correctly counted (without duplicates).
-func TestDistinctPrivacyKeyNoNoise(t *testing.T) {
+func TestDistinctPerKeyNoNoise(t *testing.T) {
 	var triples []testutils.TripleWithIntValue
 	for i := 0; i < 100; i++ { // Add 200 distinct values to Partition 0.
 		triples = append(triples, testutils.TripleWithIntValue{ID: i, Partition: 0, Value: i})
@@ -77,8 +77,8 @@ func TestDistinctPrivacyKeyNoNoise(t *testing.T) {
 	}
 }
 
-// Checks that DistinctPrivacyKey adds noise to its output. The logic mirrors TestDistinctPrivacyIDAddsNoise.
-func TestDistinctPrivacyKeyAddsNoise(t *testing.T) {
+// Checks that DistinctPerKey adds noise to its output. The logic mirrors TestDistinctPrivacyIDAddsNoise.
+func TestDistinctPerKeyAddsNoise(t *testing.T) {
 	for _, tc := range []struct {
 		name      string
 		noiseKind NoiseKind
@@ -187,7 +187,7 @@ func TestDistinctPerKeyPerKeyCrossPartitionContributionBounding(t *testing.T) {
 	}
 }
 
-// Checks that DistinctPrivacyKey bounds cross-partition contributions before doing deduplication of
+// Checks that DistinctPerKey bounds cross-partition contributions before doing deduplication of
 // values. This is to ensure we don't run into a contribution bounding-related privacy bug in some
 // rare cases.
 func TestDistinctPerKeyPerKeyCrossPartitionContributionBounding_IsAppliedBeforeDeduplication(t *testing.T) {
@@ -230,8 +230,8 @@ func TestDistinctPerKeyPerKeyCrossPartitionContributionBounding_IsAppliedBeforeD
 	}
 }
 
-// Checks that DistinctPrivacyKey bounds per-partition contributions correctly.
-func TestDistinctPrivacyKeyPerPartitionContributionBounding(t *testing.T) {
+// Checks that DistinctPerKey bounds per-partition contributions correctly.
+func TestDistinctPerKeyPerPartitionContributionBounding(t *testing.T) {
 	var triples []testutils.TripleWithIntValue
 	for i := 0; i < 100; i++ { // Add 500 distinct values to Partition 0.
 		// MaxContributionsPerPartition is set to 2, so 3 of these 5 contributions will be dropped for each user.
@@ -272,17 +272,17 @@ func TestDistinctPrivacyKeyPerPartitionContributionBounding(t *testing.T) {
 	got := DistinctPerKey(s, pcol, DistinctPerKeyParams{MaxPartitionsContributed: 3, NoiseKind: LaplaceNoise{}, MaxContributionsPerPartition: 2})
 	want = beam.ParDo(s, testutils.Int64MetricToKV, want)
 	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-		t.Fatalf("TestDistinctPrivacyKeyPerPartitionContributionBounding: %v", err)
+		t.Fatalf("TestDistinctPerKeyPerPartitionContributionBounding: %v", err)
 	}
 	if err := ptest.Run(p); err != nil {
-		t.Errorf("TestDistinctPrivacyKeyPerPartitionContributionBounding: DistinctPerKey(%v) = %v, expected %v: %v", col, got, want, err)
+		t.Errorf("TestDistinctPerKeyPerPartitionContributionBounding: DistinctPerKey(%v) = %v, expected %v: %v", col, got, want, err)
 	}
 }
 
-// Checks that DistinctPrivacyKey bounds per-partition contributions before doing deduplication of
+// Checks that DistinctPerKey bounds per-partition contributions before doing deduplication of
 // values. This is to ensure we don't run into a contribution bounding-related privacy bug in some
 // rare cases.
-func TestDistinctPrivacyKeyPerPartitionContributionBounding_IsAppliedBeforeDeduplication(t *testing.T) {
+func TestDistinctPerKeyPerPartitionContributionBounding_IsAppliedBeforeDeduplication(t *testing.T) {
 	var triples []testutils.TripleWithIntValue
 	for i := 0; i < 100; i++ { // Add 100 distinct values to Partition 0.
 		triples = append(triples, testutils.TripleWithIntValue{ID: i, Partition: 0, Value: i})
@@ -312,10 +312,10 @@ func TestDistinctPrivacyKeyPerPartitionContributionBounding_IsAppliedBeforeDedup
 	got := DistinctPerKey(s, pcol, DistinctPerKeyParams{MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}, MaxContributionsPerPartition: 1})
 	want = beam.ParDo(s, testutils.Int64MetricToKV, want)
 	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-		t.Fatalf("TestDistinctPrivacyKeyPerPartitionContributionBounding_IsAppliedBeforeDeduplication: %v", err)
+		t.Fatalf("TestDistinctPerKeyPerPartitionContributionBounding_IsAppliedBeforeDeduplication: %v", err)
 	}
 	if err := ptest.Run(p); err != nil {
-		t.Errorf("TestDistinctPrivacyKeyPerPartitionContributionBounding_IsAppliedBeforeDeduplication: DistinctPerKey(%v) = %v, expected %v: %v", col, got, want, err)
+		t.Errorf("TestDistinctPerKeyPerPartitionContributionBounding_IsAppliedBeforeDeduplication: DistinctPerKey(%v) = %v, expected %v: %v", col, got, want, err)
 	}
 }
 
@@ -401,7 +401,7 @@ func TestDistinctPerKeyPartitionSelection(t *testing.T) {
 	}
 }
 
-// Checks that DistinctPrivacyKey performs thresholding/partition selection
+// Checks that DistinctPerKey performs thresholding/partition selection
 // on the number of privacy IDs in a partition and not the number of distinct
 // values.
 func TestDistinctPerKeyThresholdsOnPrivacyIDs(t *testing.T) {

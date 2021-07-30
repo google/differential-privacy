@@ -18,6 +18,7 @@
 #define DIFFERENTIAL_PRIVACY_ALGORITHMS_ORDER_STATISTICS_H_
 
 #include "base/percentile.h"
+#include "absl/base/attributes.h"
 #include "absl/status/status.h"
 #include "base/statusor.h"
 #include "algorithms/algorithm.h"
@@ -25,6 +26,10 @@
 #include "algorithms/bounded-algorithm.h"
 #include "algorithms/numerical-mechanisms.h"
 #include "base/canonical_errors.h"
+
+// Old classes for calculating order statistics (aka quantiles, aka
+// percentiles). Deprecated, you should use Quantiles instead as it's more
+// accurate.
 
 namespace differential_privacy {
 namespace continuous {
@@ -77,9 +82,10 @@ class OrderStatisticsBuilder
 };
 
 template <typename T>
-class Max : public BinarySearch<T> {
+class ABSL_DEPRECATED("Use Quantiles instead.") Max : public BinarySearch<T> {
  public:
-  class Builder : public OrderStatisticsBuilder<T, Max<T>, Builder> {
+  class ABSL_DEPRECATED("Use Quantiles instead.") Builder
+      : public OrderStatisticsBuilder<T, Max<T>, Builder> {
     using AlgorithmBuilder =
         differential_privacy::AlgorithmBuilder<T, Max<T>, Builder>;
     using BoundedBuilder = BoundedAlgorithmBuilder<T, Max<T>, Builder>;
@@ -105,9 +111,10 @@ class Max : public BinarySearch<T> {
 };
 
 template <typename T>
-class Min : public BinarySearch<T> {
+class ABSL_DEPRECATED("Use Quantiles instead.") Min : public BinarySearch<T> {
  public:
-  class Builder : public OrderStatisticsBuilder<T, Min<T>, Builder> {
+  class ABSL_DEPRECATED("Use Quantiles instead.") Builder
+      : public OrderStatisticsBuilder<T, Min<T>, Builder> {
     using AlgorithmBuilder =
         differential_privacy::AlgorithmBuilder<T, Min<T>, Builder>;
     using BoundedBuilder = BoundedAlgorithmBuilder<T, Min<T>, Builder>;
@@ -133,9 +140,11 @@ class Min : public BinarySearch<T> {
 };
 
 template <typename T>
-class Median : public BinarySearch<T> {
+class ABSL_DEPRECATED("Use Quantiles instead.") Median
+    : public BinarySearch<T> {
  public:
-  class Builder : public OrderStatisticsBuilder<T, Median<T>, Builder> {
+  class ABSL_DEPRECATED("Use Quantiles instead.") Builder
+      : public OrderStatisticsBuilder<T, Median<T>, Builder> {
     using AlgorithmBuilder =
         differential_privacy::AlgorithmBuilder<T, Median<T>, Builder>;
     using BoundedBuilder = BoundedAlgorithmBuilder<T, Median<T>, Builder>;
@@ -162,9 +171,11 @@ class Median : public BinarySearch<T> {
 };
 
 template <typename T>
-class Percentile : public BinarySearch<T> {
+class ABSL_DEPRECATED("Use Quantiles instead.") Percentile
+    : public BinarySearch<T> {
  public:
-  class Builder : public OrderStatisticsBuilder<T, Percentile<T>, Builder> {
+  class ABSL_DEPRECATED("Use Quantiles instead.") Builder
+      : public OrderStatisticsBuilder<T, Percentile<T>, Builder> {
     using AlgorithmBuilder =
         differential_privacy::AlgorithmBuilder<T, Percentile<T>, Builder>;
     using BoundedBuilder = BoundedAlgorithmBuilder<T, Percentile<T>, Builder>;

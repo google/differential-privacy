@@ -18,6 +18,7 @@
 #include "gtest/gtest.h"
 #include "absl/status/status.h"
 #include "base/statusor.h"
+#include "absl/types/optional.h"
 #include "base/testing/status_matchers.h"
 
 namespace differential_privacy {
@@ -551,7 +552,7 @@ struct DiscreteGaussianFromEpsilonDeltaParam {
   double epsilon;
   double delta;
   double expected_sigma;
-  int truncation_bound = -1;
+  absl::optional<int> truncation_bound = absl::nullopt;
 };
 
 class DiscreteGaussianFromEpsilonDeltaTest
@@ -579,10 +580,10 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST_P(DiscreteGaussianFromEpsilonDeltaTest, CreateFromEpsilonDelta) {
   DiscreteGaussianFromEpsilonDeltaParam param = GetParam();
-  base::StatusOr<std::unique_ptr<DiscreteGaussianPrivacyLoss>> mechanism =
-      DiscreteGaussianPrivacyLoss::Create(
-          EpsilonDelta{param.epsilon, param.delta}, param.sensitivity,
-          param.truncation_bound);
+  base::StatusOr<std::unique_ptr<DiscreteGaussianPrivacyLoss>> mechanism;
+  mechanism = DiscreteGaussianPrivacyLoss::Create(
+      EpsilonDelta{param.epsilon, param.delta}, param.sensitivity,
+      param.truncation_bound);
 
   ASSERT_OK(mechanism);
   double sigma = (*mechanism)->Sigma();

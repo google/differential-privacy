@@ -568,8 +568,11 @@ TEST_P(CreateForPrivacyParameters, Create) {
 }
 
 struct DiscreteLaplacePrivacyLossDistributionParam {
+  std::string test_name;
   double parameter;
   double sensitivity;
+  EstimateType estimate_type;
+  double discretization_interval;
   ProbabilityMassFunction expected_pmf;
 };
 
@@ -577,50 +580,80 @@ class DiscreteLaplacePrivacyLossDistribution
     : public testing::TestWithParam<
           DiscreteLaplacePrivacyLossDistributionParam> {};
 
-INSTANTIATE_TEST_SUITE_P(DiscreteLaplacePrivacyLossDistributionParam,
-                         DiscreteLaplacePrivacyLossDistribution,
-                         Values(
-                             DiscreteLaplacePrivacyLossDistributionParam{
-                                 .parameter = 1.0,
-                                 .sensitivity = 1,
-                                 .expected_pmf = {{1, 0.73105858},
-                                                  {-1, 0.26894142}}},
-                             DiscreteLaplacePrivacyLossDistributionParam{
-                                 .parameter = 1.0,
-                                 .sensitivity = 2,
-                                 .expected_pmf = {{2, 0.73105858},
-                                                  {0, 0.17000340},
-                                                  {-2, 0.09893802}}},
-                             DiscreteLaplacePrivacyLossDistributionParam{
-                                 .parameter = 0.8,
-                                 .sensitivity = 2,
-                                 .expected_pmf = {{2, 0.68997448},
-                                                  {0, 0.17072207},
-                                                  {-1, 0.13930345}}},
-                             DiscreteLaplacePrivacyLossDistributionParam{
-                                 .parameter = 0.8,
-                                 .sensitivity = 3,
-                                 .expected_pmf = {{3, 0.68997448},
-                                                  {1, 0.17072207},
-                                                  {0, 0.07671037},
-                                                  {-2, 0.06259307}}}));
+INSTANTIATE_TEST_SUITE_P(
+    DiscreteLaplacePrivacyLossDistributionParam,
+    DiscreteLaplacePrivacyLossDistribution,
+    Values(
+        DiscreteLaplacePrivacyLossDistributionParam{
+            .test_name = "basic",
+            .parameter = 1.0,
+            .sensitivity = 1,
+            .estimate_type = EstimateType::kPessimistic,
+            .discretization_interval = 1,
+            .expected_pmf = {{1, 0.73105858}, {-1, 0.26894142}}},
+        DiscreteLaplacePrivacyLossDistributionParam{
+            .test_name = "varying_sensitivity",
+            .parameter = 1.0,
+            .sensitivity = 2,
+            .estimate_type = EstimateType::kPessimistic,
+            .discretization_interval = 1,
+            .expected_pmf = {{2, 0.73105858},
+                             {0, 0.17000340},
+                             {-2, 0.09893802}}},
+        DiscreteLaplacePrivacyLossDistributionParam{
+            .test_name = "varying_sensitivity_and_parameter",
+            .parameter = 0.8,
+            .sensitivity = 2,
+            .estimate_type = EstimateType::kPessimistic,
+            .discretization_interval = 1,
+            .expected_pmf = {{2, 0.68997448},
+                             {0, 0.17072207},
+                             {-1, 0.13930345}}},
+        DiscreteLaplacePrivacyLossDistributionParam{
+            .test_name = "varying_sensitivity_and_parameter_2",
+            .parameter = 0.8,
+            .sensitivity = 3,
+            .estimate_type = EstimateType::kPessimistic,
+            .discretization_interval = 1,
+            .expected_pmf = {{3, 0.68997448},
+                             {1, 0.17072207},
+                             {0, 0.07671037},
+                             {-2, 0.06259307}}},
+        DiscreteLaplacePrivacyLossDistributionParam{
+            .test_name = "varying_discretization_interval",
+            .parameter = 1,
+            .sensitivity = 1,
+            .estimate_type = EstimateType::kPessimistic,
+            .discretization_interval = 0.03,
+            .expected_pmf = {{34, 0.73105858}, {-33, 0.26894142}}},
+        DiscreteLaplacePrivacyLossDistributionParam{
+            .test_name = "optimistic",
+            .parameter = 1,
+            .sensitivity = 1,
+            .estimate_type = EstimateType::kOptimistic,
+            .discretization_interval = 0.03,
+            .expected_pmf = {{33, 0.73105858}, {-34, 0.26894142}}}),
+    [](const ::testing::TestParamInfo<
+        DiscreteLaplacePrivacyLossDistribution::ParamType>& info) {
+      return info.param.test_name;
+    });
 
 TEST_P(DiscreteLaplacePrivacyLossDistribution, Create) {
   DiscreteLaplacePrivacyLossDistributionParam param = GetParam();
 
-  base::StatusOr<std::unique_ptr<DiscreteLaplacePrivacyLoss>>
-      noise_privacy_loss = DiscreteLaplacePrivacyLoss::Create(
-          /*parameter=*/param.parameter,
-          /*sensitivity=*/param.sensitivity);
-  ASSERT_OK(noise_privacy_loss);
+  base::StatusOr<std::unique_ptr<PrivacyLossDistribution>> pld =
+      PrivacyLossDistribution::CreateForDiscreteLaplaceMechanism(
+          /*parameter=*/param.parameter, /*sensitivity=*/param.sensitivity,
+          /*estimate_type=*/param.estimate_type,
+          /*discretization_interval=*/param.discretization_interval);
 
-  std::unique_ptr<PrivacyLossDistribution> pld =
-      PrivacyLossDistribution::CreateForAdditiveNoise(
-          *noise_privacy_loss.value(), EstimateType::kPessimistic,
-          /*discretization_interval=*/1);
+  ASSERT_OK(pld);
 
-  EXPECT_THAT(pld->Pmf(), PMFIsNear(param.expected_pmf));
-  EXPECT_NEAR(pld->InfinityMass(), 0, kMaxError);
+  EXPECT_DOUBLE_EQ((*pld)->InfinityMass(), 0);
+  EXPECT_DOUBLE_EQ((*pld)->DiscretizationInterval(),
+                   param.discretization_interval);
+  EXPECT_EQ((*pld)->GetEstimateType(), param.estimate_type);
+  EXPECT_THAT((*pld)->Pmf(), PMFIsNear(param.expected_pmf));
 }
 
 struct LaplacePrivacyLossDistributionParam {
@@ -700,6 +733,199 @@ TEST_P(LaplacePrivacyLossDistribution, CreatePLD) {
   ASSERT_OK(pld);
 
   EXPECT_DOUBLE_EQ((*pld)->InfinityMass(), 0);
+  EXPECT_DOUBLE_EQ((*pld)->DiscretizationInterval(),
+                   param.discretization_interval);
+  EXPECT_EQ((*pld)->GetEstimateType(), param.estimate_type);
+  EXPECT_THAT((*pld)->Pmf(), PMFIsNear(param.expected_pmf));
+}
+
+struct GaussianPrivacyLossDistributionParam {
+  std::string test_name;
+  double standard_deviation;
+  double sensitivity;
+  EstimateType estimate_type;
+  double discretization_interval;
+  ProbabilityMassFunction expected_pmf;
+  double expected_infinity_mass;
+};
+
+class GaussianPrivacyLossDistribution
+    : public testing::TestWithParam<GaussianPrivacyLossDistributionParam> {};
+
+INSTANTIATE_TEST_SUITE_P(
+    GaussianPrivacyLossDistributionParam, GaussianPrivacyLossDistribution,
+    Values(
+        GaussianPrivacyLossDistributionParam{
+            .test_name = "basic",
+            .standard_deviation = 1,
+            .sensitivity = 1,
+            .estimate_type = EstimateType::kPessimistic,
+            .discretization_interval = 1,
+            .expected_pmf = {{2, 0.12447741}, {1, 0.38292492}, {0, 0.30853754}},
+            .expected_infinity_mass = 0.18406013,  // = CDF_normal(-0.9)
+        },
+        GaussianPrivacyLossDistributionParam{
+            .test_name = "varying_standard_deviation_and_sensitivity",
+            .standard_deviation = 3,
+            .sensitivity = 6,
+            .estimate_type = EstimateType::kPessimistic,
+            .discretization_interval = 1,
+            .expected_pmf = {{4, 0.12447741},
+                             {3, 0.19146246},
+                             {2, 0.19146246},
+                             {1, 0.30853754}},
+            .expected_infinity_mass = 0.18406013,  // = CDF_normal(-0.9)
+        },
+        GaussianPrivacyLossDistributionParam{
+            .test_name = "varying_discretization_interval",
+            .standard_deviation = 1,
+            .sensitivity = 1,
+            .estimate_type = EstimateType::kPessimistic,
+            .discretization_interval = 0.3,
+            .expected_pmf = {{5, 0.05790353},
+                             {4, 0.10261461},
+                             {3, 0.11559390},
+                             {2, 0.11908755},
+                             {1, 0.11220275},
+                             {0, 0.09668214},
+                             {-1, 0.21185540}},
+            .expected_infinity_mass = 0.18406013,  // = CDF_normal(-0.9)
+        },
+        GaussianPrivacyLossDistributionParam{
+            .test_name = "optimistic_estimate",
+            .standard_deviation = 1,
+            .sensitivity = 1,
+            .estimate_type = EstimateType::kOptimistic,
+            .discretization_interval = 1,
+            .expected_pmf = {{1, 0.30853754},
+                             {0, 0.38292492},
+                             {-1, 0.12447741}},
+            .expected_infinity_mass = 0}),
+    [](const ::testing::TestParamInfo<
+        GaussianPrivacyLossDistribution::ParamType>& info) {
+      return info.param.test_name;
+    });
+
+TEST_P(GaussianPrivacyLossDistribution, CreatePLD) {
+  GaussianPrivacyLossDistributionParam param = GetParam();
+  // mass_truncation_bound = ln(2) + log(CDF_normal(-0.9)).
+  double mass_truncation_bound = -0.999345626001393;
+
+  base::StatusOr<std::unique_ptr<PrivacyLossDistribution>> pld =
+      PrivacyLossDistribution::CreateForGaussianMechanism(
+          /*standard_deviation=*/param.standard_deviation,
+          /*sensitivity=*/param.sensitivity,
+          /*estimate_type=*/param.estimate_type,
+          /*discretization_interval=*/param.discretization_interval,
+          /*mass_truncation_bound=*/mass_truncation_bound);
+
+  ASSERT_OK(pld);
+
+  EXPECT_NEAR((*pld)->InfinityMass(), param.expected_infinity_mass, kMaxError);
+  EXPECT_DOUBLE_EQ((*pld)->DiscretizationInterval(),
+                   param.discretization_interval);
+  EXPECT_EQ((*pld)->GetEstimateType(), param.estimate_type);
+  EXPECT_THAT((*pld)->Pmf(), PMFIsNear(param.expected_pmf));
+}
+
+struct DiscreteGaussianPrivacyLossDistributionParam {
+  std::string test_name;
+  double sigma;
+  double sensitivity;
+  EstimateType estimate_type;
+  double discretization_interval;
+  ProbabilityMassFunction expected_pmf;
+  double expected_infinity_mass;
+  absl::optional<int> truncation_bound = absl::nullopt;
+};
+
+class DiscreteGaussianPrivacyLossDistribution
+    : public testing::TestWithParam<
+          DiscreteGaussianPrivacyLossDistributionParam> {};
+
+INSTANTIATE_TEST_SUITE_P(
+    DiscreteGaussianPrivacyLossDistributionParam,
+    DiscreteGaussianPrivacyLossDistribution,
+    Values(
+        DiscreteGaussianPrivacyLossDistributionParam{
+            .test_name = "basic",
+            .sigma = 1,
+            .sensitivity = 1,
+            .estimate_type = EstimateType::kPessimistic,
+            .discretization_interval = 1e-2,
+            .expected_pmf = {{50, 0.45186276}, {-50, 0.27406862}},
+            .expected_infinity_mass = 0.27406862,
+            .truncation_bound = 1,
+        },
+        DiscreteGaussianPrivacyLossDistributionParam{
+            .test_name = "varying_sensitivity",
+            .sigma = 1,
+            .sensitivity = 2,
+            .estimate_type = EstimateType::kPessimistic,
+            .discretization_interval = 1e-2,
+            .expected_pmf = {{0, 0.27406862}},
+            .expected_infinity_mass = 0.72593138,
+            .truncation_bound = 1,
+        },
+        DiscreteGaussianPrivacyLossDistributionParam{
+            .test_name = "varying_sigma",
+            .sigma = 3,
+            .sensitivity = 1,
+            .estimate_type = EstimateType::kPessimistic,
+            .discretization_interval = 1e-2,
+            .expected_pmf = {{6, 0.34579116}, {-5, 0.32710442}},
+            .expected_infinity_mass = 0.32710442,
+            .truncation_bound = 1,
+        },
+        DiscreteGaussianPrivacyLossDistributionParam{
+            .test_name = "varying_discretization_interval",
+            .sigma = 3,
+            .sensitivity = 1,
+            .estimate_type = EstimateType::kPessimistic,
+            .discretization_interval = 1e-3,
+            .expected_pmf = {{56, 0.34579116}, {-55, 0.32710442}},
+            .expected_infinity_mass = 0.32710442,
+            .truncation_bound = 1,
+        },
+        DiscreteGaussianPrivacyLossDistributionParam{
+            .test_name = "optimistic",
+            .sigma = 3,
+            .sensitivity = 1,
+            .estimate_type = EstimateType::kOptimistic,
+            .discretization_interval = 1e-4,
+            .expected_pmf = {{555, 0.34579116}, {-556, 0.32710442}},
+            .expected_infinity_mass = 0.32710442,
+            .truncation_bound = 1,
+        },
+        DiscreteGaussianPrivacyLossDistributionParam{
+            .test_name = "default_truncation",
+            .sigma = 3,
+            .sensitivity = 1,
+            .estimate_type = EstimateType::kOptimistic,
+            .discretization_interval = 1,
+            .expected_pmf =
+                {{1, 0.00221}, {0, 0.56428}, {-1, 0.43278}, {-2, 0.00073}},
+            .expected_infinity_mass = 0,
+        }),
+    [](const ::testing::TestParamInfo<
+        DiscreteGaussianPrivacyLossDistribution::ParamType>& info) {
+      return info.param.test_name;
+    });
+
+TEST_P(DiscreteGaussianPrivacyLossDistribution, CreatePLD) {
+  DiscreteGaussianPrivacyLossDistributionParam param = GetParam();
+
+  base::StatusOr<std::unique_ptr<PrivacyLossDistribution>> pld =
+      PrivacyLossDistribution::CreateForDiscreteGaussianMechanism(
+          /*sigma=*/param.sigma,
+          /*sensitivity=*/param.sensitivity,
+          /*estimate_type=*/param.estimate_type,
+          /*discretization_interval=*/param.discretization_interval,
+          /*truncation_bound=*/param.truncation_bound);
+
+  ASSERT_OK(pld);
+
+  EXPECT_NEAR((*pld)->InfinityMass(), param.expected_infinity_mass, kMaxError);
   EXPECT_DOUBLE_EQ((*pld)->DiscretizationInterval(),
                    param.discretization_interval);
   EXPECT_EQ((*pld)->GetEstimateType(), param.estimate_type);

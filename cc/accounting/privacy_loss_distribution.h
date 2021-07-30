@@ -22,6 +22,7 @@
 
 #include "absl/container/flat_hash_map.h"
 #include "base/statusor.h"
+#include "absl/types/optional.h"
 #include "accounting/common/common.h"
 #include "accounting/privacy_loss_mechanism.h"
 #include "proto/accounting/privacy-loss-distribution.pb.h"
@@ -122,11 +123,79 @@ class PrivacyLossDistribution {
   // estimate_type: kPessimistic denoting that the rounding is done in such a
   //   way that the resulting epsilon-hockey stick divergence computation gives
   //   an upper estimate to the real value.
+  // discretization_interval: the length of the dicretization interval for the
+  //   privacy loss distribution. The values will be rounded up/down to be
+  //   integer multiples of this number.
   static base::StatusOr<std::unique_ptr<PrivacyLossDistribution>>
   CreateForLaplaceMechanism(
       double parameter, double sensitivity = 1,
       EstimateType estimate_type = EstimateType::kPessimistic,
       double discretization_interval = 1e-4);
+
+  // Creates {@link PrivacyLossDistribution} for the Discrete Laplace mechanism.
+  //
+  // parameter: the parameter of the Discrete Laplace distribution.
+  // sensitivity: the sensitivity of function f. (i.e. the maximum absolute
+  //   change in f when an input to a single user changes.)
+  // estimate_type: kPessimistic denoting that the rounding is done in such a
+  //   way that the resulting epsilon-hockey stick divergence computation gives
+  //   an upper estimate to the real value.
+  // discretization_interval: the length of the dicretization interval for the
+  //   privacy loss distribution. The values will be rounded up/down to be
+  //   integer multiples of this number.
+  static base::StatusOr<std::unique_ptr<PrivacyLossDistribution>>
+  CreateForDiscreteLaplaceMechanism(
+      double parameter, int sensitivity = 1,
+      EstimateType estimate_type = EstimateType::kPessimistic,
+      double discretization_interval = 1e-4);
+
+  // Creates {@link PrivacyLossDistribution} for the Gaussian mechanism.
+  //
+  // standard_deviation: the standard_deviation of the Gaussian distribution.
+  // sensitivity: the sensitivity of function f. (i.e. the maximum absolute
+  //   change in f when an input to a single user changes.)
+  // estimate_type: kPessimistic denoting that the rounding is done in such a
+  //   way that the resulting epsilon-hockey stick divergence computation gives
+  //   an upper estimate to the real value.
+  // discretization_interval: the length of the dicretization interval for the
+  //   privacy loss distribution. The values will be rounded up/down to be
+  //   integer multiples of this number.
+  // mass_truncation_bound: the natural log of the probability mass that might
+  //   be discarded from the noise distribution. The larger this number, the
+  //   more error it may introduce in divergence calculations.
+  static base::StatusOr<std::unique_ptr<PrivacyLossDistribution>>
+  CreateForGaussianMechanism(
+      double standard_deviation, double sensitivity = 1,
+      EstimateType estimate_type = EstimateType::kPessimistic,
+      double discretization_interval = 1e-4,
+      double mass_truncation_bound = -50);
+
+  // Creates {@link PrivacyLossDistribution} for the Gaussian mechanism.
+  //
+  // sigma: he parameter of the discrete Gaussian distribution. Note that unlike
+  //   the (continuous) Gaussian distribution this is not equal to the standard
+  //   deviation of the noise.
+  // sensitivity: the sensitivity of function f. (i.e. the maximum absolute
+  //   change in f when an input to a single user changes.)
+  // estimate_type: kPessimistic denoting that the rounding is done in such a
+  //   way that the resulting epsilon-hockey stick divergence computation gives
+  //   an upper estimate to the real value.
+  // discretization_interval: the length of the dicretization interval for the
+  //   privacy loss distribution. The values will be rounded up/down to be
+  //   integer multiples of this number.
+  // mass_truncation_bound: the natural log of the probability mass that might
+  //   be discarded from the noise distribution. The larger this number, the
+  //   more error it may introduce in divergence calculations.
+  // truncation_bound: bound for truncating the noise, i.e. the noise will only
+  //   have a support in [-truncation_bound, truncation_bound]. When not set,
+  //   truncation_bound will be chosen in such a way that the mass of the noise
+  //   outside of this range is at most 1e-30.
+  static base::StatusOr<std::unique_ptr<PrivacyLossDistribution>>
+  CreateForDiscreteGaussianMechanism(
+      double sigma, int sensitivity = 1,
+      EstimateType estimate_type = EstimateType::kPessimistic,
+      double discretization_interval = 1e-4,
+      absl::optional<int> truncation_bound = absl::nullopt);
 
   // Creates {@link PrivacyLossDistribution} from epsilon and delta parameters.
   //

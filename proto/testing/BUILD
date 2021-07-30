@@ -34,3 +34,11 @@ exports_files([
     "laplace_closeness_test_cases.textproto",
     "laplace_dp_test_cases.textproto",
 ])
+
+cc_proto_library(
+    name = "statistical_tests_cc_proto",
+    visibility = [
+        "//visibility:public",
+    ],
+    deps = [":statistical_tests_proto"],
+)
