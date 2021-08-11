@@ -178,20 +178,20 @@ class GaussianPrivacyLoss : public AdditiveNoisePrivacyLoss {
   // estimate_type: kPessimistic denoting that the rounding is done in
   //     such a way that the resulting epsilon-hockey stick divergence
   //     computation gives an upper estimate to the real value.
-  // mass_truncation_bound: the ln of the probability mass that might be
+  // log_mass_truncation_bound: the ln of the probability mass that might be
   //   discarded from the noise distribution. The larger this number,
   //   the more error it may introduce in divergence calculations.
   static base::StatusOr<std::unique_ptr<GaussianPrivacyLoss>> Create(
       double standard_deviation, double sensitivity,
       EstimateType estimate_type = EstimateType::kPessimistic,
-      double mass_truncation_bound = -50);
+      double log_mass_truncation_bound = -50);
 
   NoiseType Discrete() const override { return NoiseType::kContinuous; }
 
   static base::StatusOr<std::unique_ptr<GaussianPrivacyLoss>> Create(
       const EpsilonDelta& epsilon_delta,
       EstimateType estimate_type = EstimateType::kPessimistic,
-      double mass_truncation_bound = -50);
+      double log_mass_truncation_bound = -50);
 
   // Composes with itself num_times.
   // The composition with itself num_times is the same as the
@@ -211,17 +211,18 @@ class GaussianPrivacyLoss : public AdditiveNoisePrivacyLoss {
 
  private:
   GaussianPrivacyLoss(double standard_deviation, double sensitivity,
-                      EstimateType estimate_type, double mass_truncation_bound)
+                      EstimateType estimate_type,
+                      double log_mass_truncation_bound)
       : AdditiveNoisePrivacyLoss(sensitivity),
         standard_deviation_(standard_deviation),
         estimate_type_(estimate_type),
-        mass_truncation_bound_(mass_truncation_bound) {
+        log_mass_truncation_bound_(log_mass_truncation_bound) {
     distribution_ =
         boost::math::normal_distribution<double>(0, standard_deviation);
   }
   const double standard_deviation_;
   const EstimateType estimate_type_;
-  const double mass_truncation_bound_;
+  const double log_mass_truncation_bound_;
   boost::math::normal_distribution<double> distribution_;
 };
 
@@ -247,11 +248,11 @@ class DiscreteLaplacePrivacyLoss : public AdditiveNoisePrivacyLoss {
   // sensitivity: the sensitivity of function f. (i.e. the maximum absolute
   //   change in f when an input to a single user changes.)
   static base::StatusOr<std::unique_ptr<DiscreteLaplacePrivacyLoss>> Create(
-      double parameter, double sensitivity);
+      double parameter, int sensitivity);
 
   // Creates DiscreteLaplacePrivacyLoss from epsilon, delta and sensitivity.
   static base::StatusOr<std::unique_ptr<DiscreteLaplacePrivacyLoss>> Create(
-      const EpsilonDelta& epsilon_delta, const double sensitivity);
+      const EpsilonDelta& epsilon_delta, const int sensitivity);
 
   NoiseType Discrete() const override { return NoiseType::kDiscrete; }
 
@@ -267,7 +268,7 @@ class DiscreteLaplacePrivacyLoss : public AdditiveNoisePrivacyLoss {
   double Parameter() const { return parameter_; }
 
  private:
-  DiscreteLaplacePrivacyLoss(double parameter, double sensitivity)
+  DiscreteLaplacePrivacyLoss(double parameter, int sensitivity)
       : AdditiveNoisePrivacyLoss(sensitivity), parameter_(parameter) {}
 
   const double parameter_;
@@ -317,8 +318,7 @@ class DiscreteGaussianPrivacyLoss : public AdditiveNoisePrivacyLoss {
   NoiseType Discrete() const override { return NoiseType::kDiscrete; }
 
   static base::StatusOr<std::unique_ptr<DiscreteGaussianPrivacyLoss>> Create(
-      const EpsilonDelta& epsilon_delta, int sensitivity,
-      absl::optional<int> truncation_bound);
+      const EpsilonDelta& epsilon_delta, int sensitivity);
 
   double InversePrivacyLoss(double privacy_loss) const override;
 

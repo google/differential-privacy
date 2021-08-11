@@ -33,12 +33,20 @@ using ::differential_privacy::base::testing::StatusIs;
 
 constexpr double kMaxError = 1e-4;
 
-TEST(LaplacePrivacyLoss, InvalidArg) {
+TEST(LaplacePrivacyLoss, InvalidParameter) {
   base::StatusOr<std::unique_ptr<LaplacePrivacyLoss>> mechanism =
       LaplacePrivacyLoss::Create(/*parameter=*/-1, /*sensitivity=*/1);
 
   EXPECT_THAT(mechanism, StatusIs(absl::InvalidArgumentError("").code(),
                                   HasSubstr("parameter should be positive")));
+}
+
+TEST(LaplacePrivacyLoss, InvalidSensitivity) {
+  base::StatusOr<std::unique_ptr<LaplacePrivacyLoss>> mechanism =
+      LaplacePrivacyLoss::Create(/*parameter=*/1, /*sensitivity=*/-1);
+
+  EXPECT_THAT(mechanism, StatusIs(absl::InvalidArgumentError("").code(),
+                                  HasSubstr("sensitivity should be positive")));
 }
 
 TEST(LaplacePrivacyLoss, CreateFromEpsilonDelta) {
@@ -89,6 +97,36 @@ TEST(LaplacePrivacyLoss, GetDeltaForEpsilon) {
               DoubleNear(0.52763345, kMaxError));
 }
 
+TEST(GaussianPrivacyLoss, InvalidStdDeviation) {
+  base::StatusOr<std::unique_ptr<GaussianPrivacyLoss>> mechanism =
+      GaussianPrivacyLoss::Create(/*standard_deviation=*/-1, /*sensitivity=*/1);
+
+  EXPECT_THAT(mechanism,
+              StatusIs(absl::InvalidArgumentError("").code(),
+                       HasSubstr("standard_deviation should be positive")));
+}
+
+TEST(GaussianPrivacyLoss, InvalidSensitivity) {
+  base::StatusOr<std::unique_ptr<GaussianPrivacyLoss>> mechanism =
+      GaussianPrivacyLoss::Create(/*standard_deviation=*/1, /*sensitivity=*/-1);
+
+  EXPECT_THAT(mechanism, StatusIs(absl::InvalidArgumentError("").code(),
+                                  HasSubstr("sensitivity should be positive")));
+}
+
+TEST(GaussianPrivacyLoss, InvalidMassTruncation) {
+  base::StatusOr<std::unique_ptr<GaussianPrivacyLoss>> mechanism =
+      GaussianPrivacyLoss::Create(
+          /*standard_deviation=*/1,
+          /*sensitivity=*/1,
+          /*estimate_type=*/EstimateType::kPessimistic,
+          /*log_mass_truncation_bound=*/1);
+
+  EXPECT_THAT(mechanism, StatusIs(absl::InvalidArgumentError("").code(),
+                                  HasSubstr("log_mass_truncation_bound cannot "
+                                            "be positive")));
+}
+
 TEST(GaussianPrivacyLoss, PrivacyLoss) {
   base::StatusOr<std::unique_ptr<GaussianPrivacyLoss>> mechanism =
       GaussianPrivacyLoss::Create(7, 14);
@@ -109,7 +147,7 @@ TEST(GaussianPrivacyLoss, PrivacyLossTailPessimistic) {
           /*standard_deviation=*/4,
           /*sensitivity=*/8,
           /*estimate_type=*/EstimateType::kPessimistic,
-          /*mass_truncation_bound=*/-1.147874464449318);
+          /*log_mass_truncation_bound=*/-1.147874464449318);
   ASSERT_OK(mechanism);
   PrivacyLossTail result = mechanism.value()->PrivacyLossDistributionTail();
   EXPECT_DOUBLE_EQ(result.lower_x_truncation, -4);
@@ -127,7 +165,7 @@ TEST(GaussianPrivacyLoss, PrivacyLossTailOptimistic) {
           /*standard_deviation=*/4,
           /*sensitivity=*/8,
           /*estimate_type=*/EstimateType::kOptimistic,
-          /*mass_truncation_bound=*/-1.147874464449318);
+          /*log_mass_truncation_bound=*/-1.147874464449318);
   ASSERT_OK(mechanism);
   PrivacyLossTail result = mechanism.value()->PrivacyLossDistributionTail();
   EXPECT_DOUBLE_EQ(result.lower_x_truncation, -4);
@@ -184,6 +222,16 @@ TEST_P(GaussianGetDeltaForEpsilonTest, GetDeltaForEpsilon) {
               DoubleNear(param.expected_delta, kMaxError));
 }
 
+TEST(GaussianPrivacyLoss, InvalidDelta) {
+  EpsilonDelta epsilon_delta = {/*epsilon=*/1, /*delta=*/0};
+  base::StatusOr<std::unique_ptr<GaussianPrivacyLoss>> mechanism =
+      GaussianPrivacyLoss::Create(epsilon_delta);
+  EXPECT_THAT(mechanism,
+              StatusIs(absl::InvalidArgumentError("").code(),
+                       HasSubstr("delta should be positive for the Gaussian "
+                                 "mechanism.")));
+}
+
 struct GaussianFromEpsilonDeltaParam {
   double epsilon;
   double delta;
@@ -211,6 +259,22 @@ TEST_P(GaussianFromEpsilonDeltaTest, FromEpsilonDelta) {
   ASSERT_OK(mechanism);
   ASSERT_NEAR(mechanism.value()->StandardDeviation(),
               param.expected_standard_deviation, kMaxError);
+}
+
+TEST(DiscreteLaplacePrivacyLoss, InvalidParameter) {
+  base::StatusOr<std::unique_ptr<DiscreteLaplacePrivacyLoss>> mechanism =
+      DiscreteLaplacePrivacyLoss::Create(/*parameter=*/-1, /*sensitivity=*/1);
+
+  EXPECT_THAT(mechanism, StatusIs(absl::InvalidArgumentError("").code(),
+                                  HasSubstr("parameter should be positive")));
+}
+
+TEST(DiscreteLaplacePrivacyLoss, InvalidSensitivity) {
+  base::StatusOr<std::unique_ptr<DiscreteLaplacePrivacyLoss>> mechanism =
+      DiscreteLaplacePrivacyLoss::Create(/*parameter=*/1, /*sensitivity=*/-1);
+
+  EXPECT_THAT(mechanism, StatusIs(absl::InvalidArgumentError("").code(),
+                                  HasSubstr("sensitivity should be positive")));
 }
 
 struct DiscreteLaplacePrivacyLossParam {
@@ -328,15 +392,6 @@ TEST(DiscreteLaplacePrivacyLoss, PrivacyLossTail) {
                                         DoubleNear(0.31526074, kMaxError))));
 }
 
-TEST(DiscreteLaplacePrivacyLoss, NonIntegerSensitivityInvalidArg) {
-  base::StatusOr<std::unique_ptr<DiscreteLaplacePrivacyLoss>> mechanism =
-      DiscreteLaplacePrivacyLoss::Create(
-          /*parameter=*/2,
-          /*sensitivity=*/0.5);
-  absl::Status status = mechanism.status();
-  EXPECT_THAT(status, StatusIs(absl::StatusCode::kInvalidArgument));
-}
-
 TEST(DiscreteLaplacePrivacyLoss, CreateFromEpsilonDelta) {
   EpsilonDelta epsilon_delta = {3, 0.01};
   base::StatusOr<std::unique_ptr<DiscreteLaplacePrivacyLoss>> mechanism =
@@ -391,6 +446,22 @@ TEST_P(DiscreteLaplaceGetDeltaForEpsilonTest, GetDeltaForEpsilon) {
   ASSERT_OK(mechanism);
   EXPECT_THAT(mechanism.value()->GetDeltaForEpsilon(param.epsilon),
               DoubleNear(param.expected_delta, kMaxError));
+}
+
+TEST(DiscreteGaussianPrivacyLoss, InvalidSigma) {
+  base::StatusOr<std::unique_ptr<DiscreteGaussianPrivacyLoss>> mechanism =
+      DiscreteGaussianPrivacyLoss::Create(/*sigma=*/-1, /*sensitivity=*/1);
+
+  EXPECT_THAT(mechanism, StatusIs(absl::InvalidArgumentError("").code(),
+                                  HasSubstr("sigma should be positive")));
+}
+
+TEST(DiscreteGaussianPrivacyLoss, InvalidSensitivity) {
+  base::StatusOr<std::unique_ptr<DiscreteGaussianPrivacyLoss>> mechanism =
+      DiscreteGaussianPrivacyLoss::Create(/*sigma=*/1, /*sensitivity=*/-1);
+
+  EXPECT_THAT(mechanism, StatusIs(absl::InvalidArgumentError("").code(),
+                                  HasSubstr("sensitivity should be positive")));
 }
 
 struct DiscreteGaussianPrivacyLossParam {
@@ -547,12 +618,22 @@ TEST(DiscreteGaussianPrivacyLossTest, StandardDeviation) {
   EXPECT_THAT(std, DoubleNear(1.3589226, kMaxError));
 }
 
+TEST(DiscreteGaussianPrivacyLoss, InvalidDelta) {
+  EpsilonDelta epsilon_delta = {/*epsilon=*/1, /*delta=*/0};
+  base::StatusOr<std::unique_ptr<DiscreteGaussianPrivacyLoss>> mechanism =
+      DiscreteGaussianPrivacyLoss::Create(epsilon_delta,
+                                          /*sensitivity=*/1);
+  EXPECT_THAT(mechanism,
+              StatusIs(absl::InvalidArgumentError("").code(),
+                       HasSubstr("delta should be positive for the discrete "
+                                 "Gaussian mechanism.")));
+}
+
 struct DiscreteGaussianFromEpsilonDeltaParam {
   int sensitivity;
   double epsilon;
   double delta;
   double expected_sigma;
-  absl::optional<int> truncation_bound = absl::nullopt;
 };
 
 class DiscreteGaussianFromEpsilonDeltaTest
@@ -571,19 +652,13 @@ INSTANTIATE_TEST_SUITE_P(
            DiscreteGaussianFromEpsilonDeltaParam{.sensitivity = 3,
                                                  .epsilon = 1,
                                                  .delta = 0.78760074,
-                                                 .expected_sigma = 0.9928},
-           DiscreteGaussianFromEpsilonDeltaParam{.sensitivity = 1,
-                                                 .epsilon = 1,
-                                                 .delta = 0.12693674,
-                                                 .expected_sigma = 1.0420,
-                                                 .truncation_bound = 3}));
+                                                 .expected_sigma = 0.9928}));
 
 TEST_P(DiscreteGaussianFromEpsilonDeltaTest, CreateFromEpsilonDelta) {
   DiscreteGaussianFromEpsilonDeltaParam param = GetParam();
   base::StatusOr<std::unique_ptr<DiscreteGaussianPrivacyLoss>> mechanism;
   mechanism = DiscreteGaussianPrivacyLoss::Create(
-      EpsilonDelta{param.epsilon, param.delta}, param.sensitivity,
-      param.truncation_bound);
+      EpsilonDelta{param.epsilon, param.delta}, param.sensitivity);
 
   ASSERT_OK(mechanism);
   double sigma = (*mechanism)->Sigma();

@@ -25,6 +25,9 @@ base::StatusOr<std::unique_ptr<LaplacePrivacyLoss>> LaplacePrivacyLoss::Create(
   if (parameter <= 0) {
     return absl::InvalidArgumentError("parameter should be positive.");
   }
+  if (sensitivity <= 0) {
+    return absl::InvalidArgumentError("sensitivity should be positive.");
+  }
   return absl::WrapUnique(new LaplacePrivacyLoss(parameter, sensitivity));
 }
 
@@ -73,19 +76,33 @@ PrivacyLossTail LaplacePrivacyLoss::PrivacyLossDistributionTail() const {
 base::StatusOr<std::unique_ptr<GaussianPrivacyLoss>>
 GaussianPrivacyLoss::Create(double standard_deviation, double sensitivity,
                             EstimateType estimate_type,
-                            double mass_truncation_bound) {
+                            double log_mass_truncation_bound) {
   if (standard_deviation <= 0) {
     return absl::InvalidArgumentError("standard_deviation should be positive.");
   }
-  return absl::WrapUnique(new GaussianPrivacyLoss(
-      standard_deviation, sensitivity, estimate_type, mass_truncation_bound));
+  if (sensitivity <= 0) {
+    return absl::InvalidArgumentError("sensitivity should be positive.");
+  }
+  if (log_mass_truncation_bound > 0) {
+    return absl::InvalidArgumentError(
+        "log_mass_truncation_bound cannot be "
+        "positive.");
+  }
+  return absl::WrapUnique(new GaussianPrivacyLoss(standard_deviation,
+                                                  sensitivity, estimate_type,
+                                                  log_mass_truncation_bound));
 }
 
 base::StatusOr<std::unique_ptr<GaussianPrivacyLoss>>
 GaussianPrivacyLoss::Create(const EpsilonDelta& epsilon_delta,
                             EstimateType estimate_type,
-                            double mass_truncation_bound) {
+                            double log_mass_truncation_bound) {
   RETURN_IF_ERROR(epsilon_delta.Validate());
+  if (epsilon_delta.delta == 0) {
+    return absl::InvalidArgumentError(
+        "delta should be positive for the "
+        "Gaussian mechanism.");
+  }
   constexpr double sensitivity = 1;
   // Use binary search to find the smallest possible standard deviation of the
   // Gaussian noise for which the protocol is (epsilon, delta)-differentially
@@ -109,7 +126,7 @@ GaussianPrivacyLoss::Create(const EpsilonDelta& epsilon_delta,
                         epsilon_delta](double standard_deviation) {
     auto privacy_loss = GaussianPrivacyLoss::Create(
         standard_deviation, sensitivity, estimate_type,
-        /*mass_truncation_bound=*/0);
+        /*log_mass_truncation_bound=*/0);
     return privacy_loss.value()->GetDeltaForEpsilon(epsilon_delta.epsilon);
   };
 
@@ -117,7 +134,7 @@ GaussianPrivacyLoss::Create(const EpsilonDelta& epsilon_delta,
       compute_delta, epsilon_delta.delta, search_parameters);
 
   return GaussianPrivacyLoss::Create(inverse_result.value(), sensitivity,
-                                     estimate_type, mass_truncation_bound);
+                                     estimate_type, log_mass_truncation_bound);
 }
 
 base::StatusOr<std::unique_ptr<GaussianPrivacyLoss>>
@@ -125,9 +142,9 @@ GaussianPrivacyLoss::Compose(int num_times) {
   // The composition with itself num_times is the same as the
   // GaussianPrivacyLoss with sensitivity scaled up by a factor of square root
   // of num_times.
-  return GaussianPrivacyLoss::Create(standard_deviation_,
-                                     sensitivity_ * std::sqrt(num_times),
-                                     estimate_type_, mass_truncation_bound_);
+  return GaussianPrivacyLoss::Create(
+      standard_deviation_, sensitivity_ * std::sqrt(num_times), estimate_type_,
+      log_mass_truncation_bound_);
 }
 
 double GaussianPrivacyLoss::InversePrivacyLoss(double privacy_loss) const {
@@ -148,7 +165,7 @@ PrivacyLossTail GaussianPrivacyLoss::PrivacyLossDistributionTail() const {
   // We set lower_x_truncation so that CDF(lower_x_truncation) =
   // 0.5 * exp(log_mass_truncation_bound), and then set upper_x_truncation
   // to be -lower_x_truncation.
-  const double p = 0.5 * std::exp(mass_truncation_bound_);
+  const double p = 0.5 * std::exp(log_mass_truncation_bound_);
   const double lower_x_truncation = boost::math::quantile(distribution_, p);
   const double upper_x_truncation = -lower_x_truncation;
   ProbabilityMassFunctionOf<double> pmf;
@@ -162,13 +179,12 @@ PrivacyLossTail GaussianPrivacyLoss::PrivacyLossDistributionTail() const {
 }
 
 base::StatusOr<std::unique_ptr<DiscreteLaplacePrivacyLoss>>
-DiscreteLaplacePrivacyLoss::Create(double parameter, double sensitivity) {
+DiscreteLaplacePrivacyLoss::Create(double parameter, int sensitivity) {
   if (parameter <= 0) {
     return absl::InvalidArgumentError("parameter should be positive.");
   }
-  if (sensitivity != std::ceil(sensitivity)) {
-    return absl::InvalidArgumentError(
-        "sensitivity for discrete Laplace mechanism should be an integer.");
+  if (sensitivity <= 0) {
+    return absl::InvalidArgumentError("sensitivity should be positive.");
   }
   return absl::WrapUnique(
       new DiscreteLaplacePrivacyLoss(parameter, sensitivity));
@@ -176,9 +192,9 @@ DiscreteLaplacePrivacyLoss::Create(double parameter, double sensitivity) {
 
 base::StatusOr<std::unique_ptr<DiscreteLaplacePrivacyLoss>>
 DiscreteLaplacePrivacyLoss::Create(const EpsilonDelta& epsilon_delta,
-                                   const double sensitivity) {
+                                   const int sensitivity) {
   RETURN_IF_ERROR(epsilon_delta.Validate());
-  if (sensitivity != std::ceil(sensitivity) || sensitivity <= 0) {
+  if (sensitivity <= 0) {
     return absl::InvalidArgumentError(
         "sensitivity for discrete Laplace mechanism should be a positive "
         "integer.");
@@ -232,11 +248,18 @@ DiscreteGaussianPrivacyLoss::Create(double sigma, int sensitivity,
   if (sigma <= 0) {
     return absl::InvalidArgumentError("sigma should be positive.");
   }
-  // Tail bound from Canonne et al. ensures that the mass that gets truncated at
-  // is ceil(11.6 * sigma) at most 1e-30. (See Proposition 1 in the
-  // supplementary material.)
+  if (sensitivity <= 0) {
+    return absl::InvalidArgumentError("sensitivity should be positive.");
+  }
+  // Tail bound from Canonne et al. ensures that the mass that gets
+  // truncated is at most 1e-30. (See Proposition 1 in the supplementary
+  // material.)
   int truncation_bound_value =
       truncation_bound.value_or(std::ceil(11.6 * sigma));
+  if (truncation_bound_value * 2 < sensitivity) {
+    return absl::InvalidArgumentError(
+        "Truncation bound should be at least half of sensitivity");
+  }
   ProbabilityMassFunction noise_pmf;
   CumulativeDensityFunction noise_cdf;
 
@@ -254,8 +277,7 @@ DiscreteGaussianPrivacyLoss::Create(double sigma, int sensitivity,
 
 base::StatusOr<std::unique_ptr<DiscreteGaussianPrivacyLoss>>
 DiscreteGaussianPrivacyLoss::Create(const EpsilonDelta& epsilon_delta,
-                                    int sensitivity,
-                                    absl::optional<int> truncation_bound) {
+                                    int sensitivity) {
   // Use binary search to find the smallest possible sigma of the Discrete
   // Gaussian noise for which the protocol is (epsilon, delta)-differentially
   // private.
@@ -265,6 +287,15 @@ DiscreteGaussianPrivacyLoss::Create(const EpsilonDelta& epsilon_delta,
   // epsilon is no more than one, the continuous Gaussian mechanism with this
   // sigma is (epsilon, delta)-DP. See e.g. Appendix A in Dwork and Roth
   // book, "The Algorithmic Foundations of Differential Privacy".
+  RETURN_IF_ERROR(epsilon_delta.Validate());
+  if (epsilon_delta.delta == 0) {
+    return absl::InvalidArgumentError(
+        "delta should be positive for the "
+        "discrete Gaussian mechanism.");
+  }
+  if (sensitivity <= 0) {
+    return absl::InvalidArgumentError("sensitivity should be positive.");
+  }
   double initial_sigma = std::sqrt(2 * std::log(1.5 / epsilon_delta.delta)) *
                          sensitivity / epsilon_delta.epsilon;
 
@@ -273,11 +304,10 @@ DiscreteGaussianPrivacyLoss::Create(const EpsilonDelta& epsilon_delta,
       .upper_bound = std::numeric_limits<double>::infinity(),
       .initial_guess = initial_sigma};
 
-  auto compute_delta = [sensitivity, epsilon_delta, truncation_bound](
-                           double sigma) -> base::StatusOr<double> {
+  auto compute_delta = [sensitivity,
+                        epsilon_delta](double sigma) -> base::StatusOr<double> {
     ASSIGN_OR_RETURN(std::unique_ptr<DiscreteGaussianPrivacyLoss> privacy_loss,
-                     DiscreteGaussianPrivacyLoss::Create(sigma, sensitivity,
-                                                         truncation_bound));
+                     DiscreteGaussianPrivacyLoss::Create(sigma, sensitivity));
     return privacy_loss->GetDeltaForEpsilon(epsilon_delta.epsilon);
   };
 
@@ -285,8 +315,7 @@ DiscreteGaussianPrivacyLoss::Create(const EpsilonDelta& epsilon_delta,
                    InverseMonotoneFunction(compute_delta, epsilon_delta.delta,
                                            search_parameters));
 
-  return DiscreteGaussianPrivacyLoss::Create(sigma, sensitivity,
-                                             truncation_bound);
+  return DiscreteGaussianPrivacyLoss::Create(sigma, sensitivity);
 }
 
 double DiscreteGaussianPrivacyLoss::InversePrivacyLoss(

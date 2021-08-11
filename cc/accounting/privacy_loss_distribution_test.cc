@@ -421,7 +421,7 @@ TEST_P(DiscretizationTest, Gaussian) {
           /*standard_deviation=*/1,
           /*sensitivity=*/1,
           /*estimate_type=*/EstimateType::kPessimistic,
-          /*mass_truncation_bound=*/-0.999345626001393);
+          /*log_mass_truncation_bound=*/-0.999345626001393);
   ASSERT_OK(noise_privacy_loss);
 
   std::unique_ptr<PrivacyLossDistribution> pld =
@@ -463,7 +463,7 @@ TEST(PrivacyLossDistributionTest, GaussianOptimistic) {
           /*standard_deviation=*/1,
           /*sensitivity=*/2,
           /*estimate_type=*/EstimateType::kOptimistic,
-          /*mass_truncation_bound=*/-0.999345);
+          /*log_mass_truncation_bound=*/-0.999345);
   ASSERT_OK(noise_privacy_loss);
 
   std::unique_ptr<PrivacyLossDistribution> pld =

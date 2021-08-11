@@ -96,8 +96,8 @@ load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies", "go_repository")
 
 gazelle_dependencies()
 
-dp_lib_version = "1.0.1" # Change to the version you want to use.
-dp_lib_tar_sha256 = "c72422dc29b7307334f12b0ff95866002503e2c1d209d16cae0a6f849ebf07f4" # Change to the sha256 of the .tar.gz of the version you want to use.
+dp_lib_version = "1.1.0" # Change to the version you want to use.
+dp_lib_tar_sha256 = "90795b388f42f4c137a812ddf03d548a8ebc399b9af2da96d1b8867e814700b0" # Change to the sha256 of the .tar.gz of the version you want to use.
 dp_lib_url = "https://github.com/google/differential-privacy/archive/refs/tags/v" + dp_lib_version + ".tar.gz"
 
 http_archive(

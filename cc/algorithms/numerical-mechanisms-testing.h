@@ -96,8 +96,7 @@ class SeededLaplaceDistribution : public internal::LaplaceDistribution {
     if (rand_gen) {
       rand_gen_ = rand_gen;
     } else {
-      n_calls_++;
-      std::seed_seq seed({n_calls_});
+      std::seed_seq seed({GetNumInstances()});
       owned_rand_gen_ = std::mt19937(seed);
       rand_gen_ = &owned_rand_gen_;
     }
@@ -117,11 +116,13 @@ class SeededLaplaceDistribution : public internal::LaplaceDistribution {
 
  private:
   // Used to ensure that different SeededLaplaceDistribution objects have
-  // different seeds.
-  static int n_calls_;
+  // different seeds. This is *not* thread safe.
+  static int GetNumInstances() {
+    static int num_calls = 0;
+    num_calls++;
+    return num_calls;
+  }
 };
-
-int SeededLaplaceDistribution::n_calls_ = 0;
 
 // A numerical mechanism using a distribution that generates consistent noise
 // from a pre-seeded RNG, intended to make statistical tests completely
