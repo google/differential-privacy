@@ -945,7 +945,7 @@ func TestBQSerializationStateChecks(t *testing.T) {
 	}{
 		{defaultState, false},
 		{merged, true},
-		{serialized, true},
+		{serialized, false},
 		{resultReturned, true},
 	} {
 		lower, upper := -5.0, 5.0

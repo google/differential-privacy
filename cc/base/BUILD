@@ -95,8 +95,8 @@ cc_test(
     srcs = ["percentile_test.cc"],
     deps = [
         ":percentile",
-        "@com_google_googletest//:gtest_main",
         "@com_google_differential_privacy//proto:summary_cc_proto",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -106,11 +106,11 @@ cc_test(
     deps = [
         ":canonical_errors",
         ":statusor",
-        "@com_google_googletest//:gtest_main",
-        "@com_google_googletest//:gtest",
         "//base/testing:status_matchers",
         "@com_google_absl//absl/memory",
         "@com_google_absl//absl/strings",
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -120,8 +120,8 @@ cc_test(
     deps = [
         ":status",
         ":statusor",
-        "@com_google_googletest//:gtest_main",
         "@com_google_absl//absl/memory",
         "@com_google_absl//absl/strings",
+        "@com_google_googletest//:gtest_main",
     ],
 )

@@ -703,7 +703,7 @@ func TestBoundedMeanFloat64SerializationStateChecks(t *testing.T) {
 	}{
 		{defaultState, false},
 		{merged, true},
-		{serialized, true},
+		{serialized, false},
 		{resultReturned, true},
 	} {
 		bm := getNoiselessBMF()

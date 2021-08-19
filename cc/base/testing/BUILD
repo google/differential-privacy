@@ -28,9 +28,9 @@ cc_library(
     testonly = 1,
     hdrs = ["proto_matchers.h"],
     deps = [
-        "@com_google_googletest//:gtest_main",
         "//base:logging",
         "@com_google_absl//absl/strings",
+        "@com_google_googletest//:gtest_main",
         "@com_google_protobuf//:protobuf",
     ],
 )
@@ -41,10 +41,10 @@ cc_library(
     srcs = ["status_matchers.cc"],
     hdrs = ["status_matchers.h"],
     deps = [
-        "@com_google_googletest//:gtest",
         "//base:status",
         "//base:statusor",
         "@com_google_absl//absl/strings",
+        "@com_google_googletest//:gtest",
     ],
 )
 
@@ -54,9 +54,9 @@ cc_test(
     srcs = ["status_matchers_test.cc"],
     deps = [
         ":status_matchers",
-        "@com_google_googletest//:gtest_main",
-        "@com_google_googletest//:gtest",
         "//base:status",
         "//base:statusor",
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
     ],
 )

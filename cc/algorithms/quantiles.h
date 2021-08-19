@@ -72,6 +72,8 @@ class Quantiles : public Algorithm<T> {
            sizeof(double) * quantiles_.capacity();
   }
 
+  std::vector<double> GetQuantiles() const { return quantiles_; }
+
  protected:
   base::StatusOr<Output> GenerateResult(double privacy_budget,
                                         double noise_interval_level) override {

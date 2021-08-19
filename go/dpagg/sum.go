@@ -310,7 +310,7 @@ type encodableBoundedSumInt64 struct {
 
 // GobEncode encodes BoundedSumInt64.
 func (bs *BoundedSumInt64) GobEncode() ([]byte, error) {
-	if bs.state != defaultState {
+	if bs.state != defaultState && bs.state != serialized {
 		return nil, fmt.Errorf("Sum object cannot be serialized. Reason: " + bs.state.errorMessage())
 	}
 	enc := encodableBoundedSumInt64{
@@ -626,7 +626,7 @@ type encodableBoundedSumFloat64 struct {
 
 // GobEncode encodes BoundedSumInt64.
 func (bs *BoundedSumFloat64) GobEncode() ([]byte, error) {
-	if bs.state != defaultState {
+	if bs.state != defaultState && bs.state != serialized {
 		return nil, fmt.Errorf("Sum object cannot be serialized. Reason: " + bs.state.errorMessage())
 	}
 	enc := encodableBoundedSumFloat64{

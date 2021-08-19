@@ -93,7 +93,8 @@ TEST(IncrementalAlgorithmTest, PartialResultConsumesPartialBudget) {
 TEST(IncrementalAlgorithmTest, PartialResultConsumesPartialBudgetMultiRound) {
   TestAlgorithm<double> alg;
   ASSERT_OK(alg.PartialResult(0.5));
-  alg.ConsumePrivacyBudget(0.5);
+  base::StatusOr<double> result = alg.ConsumePrivacyBudget(0.5);
+  ASSERT_TRUE(result.ok());
   EXPECT_THAT(alg.RemainingPrivacyBudget(), DoubleNear(0.0, kTestPrecision));
 }
 
@@ -110,7 +111,8 @@ TEST(IncrementalAlgorithmTest, PartialResultPassesConfidenceLevel) {
 TEST(IncrementalAlgorithmTest, Reset) {
   TestAlgorithm<double> alg;
   ASSERT_OK(alg.PartialResult(0.5));
-  alg.ConsumePrivacyBudget(0.5);
+  base::StatusOr<double> result = alg.ConsumePrivacyBudget(0.5);
+  ASSERT_TRUE(result.ok());
   alg.Reset();
   EXPECT_THAT(alg.RemainingPrivacyBudget(), DoubleNear(1.0, kTestPrecision));
 }
@@ -125,13 +127,15 @@ TEST(IncrementalAlgorithmTest, MergedPartialResultConsumesBudget) {
   EXPECT_THAT(alg_2.RemainingPrivacyBudget(), DoubleNear(0.0, kTestPrecision));
 }
 
-TEST(IncrementalAlgorithmDeathTest, BudgetTooHigh) {
+TEST(IncrementalAlgorithmTest, BudgetTooHigh) {
   TestAlgorithm<double> alg;
   ASSERT_OK(alg.PartialResult(0.5));
-  EXPECT_DEATH(alg.ConsumePrivacyBudget(0.6), "Requested budget.*");
+  base::StatusOr<double> result = alg.ConsumePrivacyBudget(0.6);
+  ASSERT_FALSE(result.ok());
+  EXPECT_THAT(result.status().message(), HasSubstr("Requested budget"));
 }
 
-TEST(IncrementalAlgorithmDeathTest, InvalidEpsilon) {
+TEST(IncrementalAlgorithmTest, InvalidEpsilon) {
   EXPECT_DEATH(TestAlgorithm<double> alg(-1.0), "Check failed: epsilon > 0.0");
   EXPECT_DEATH(
       TestAlgorithm<double> alg(std::numeric_limits<double>::quiet_NaN()),

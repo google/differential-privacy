@@ -19,7 +19,6 @@ package dpagg
 import (
 	"fmt"
 	"math"
-	"reflect"
 
 	log "github.com/golang/glog"
 	"github.com/google/differential-privacy/go/checks"
@@ -94,13 +93,14 @@ type PreAggSelectPartition struct {
 	// State variables
 	// idCount is the count of unique privacy IDs in the partition.
 	idCount int64
-	// whether a result has already been returned / consumed for this PreAggSelectPartition
-	resultReturned bool
+	state   aggregationState
 }
 
-func (s *PreAggSelectPartition) String() string {
-	return fmt.Sprintf("&PreAggSelectPartition(epsilon %f, delta %e, l0Sensitivity %d, resultReturned %t)",
-		s.epsilon, s.delta, s.l0Sensitivity, s.resultReturned)
+func preAggSelectPartitionEquallyInitialized(s1, s2 *PreAggSelectPartition) bool {
+	return s1.epsilon == s2.epsilon &&
+		s1.delta == s2.delta &&
+		s1.l0Sensitivity == s2.l0Sensitivity &&
+		s1.state == s2.state
 }
 
 // PreAggSelectPartitionOptions is used to set the privacy parameters when
@@ -145,8 +145,8 @@ func NewPreAggSelectPartition(opt *PreAggSelectPartitionOptions) *PreAggSelectPa
 // Increment increments the ids count by one.
 // The caller must ensure this methods called at most once per privacy ID.
 func (s *PreAggSelectPartition) Increment() {
-	if s.resultReturned {
-		log.Exitf("This PreAggSelectPartition has already returned a ShouldKeepPartition. It can only be used once.")
+	if s.state != defaultState {
+		log.Fatalf("PreAggSelectPartition cannot be amended. Reason: %v", s.state.errorMessage())
 	}
 	s.idCount++
 }
@@ -158,36 +158,35 @@ func (s *PreAggSelectPartition) Increment() {
 // Preconditions: s and s2 must have the same privacy parameters. In addition,
 // ShouldKeepPartition() may not be called yet for either s or s2.
 func (s *PreAggSelectPartition) Merge(s2 *PreAggSelectPartition) {
-	if err := checkMergePreAggSelectPartition(*s, *s2); err != nil {
+	if err := checkMergePreAggSelectPartition(s, s2); err != nil {
 		log.Exit(err)
 	}
 
 	s.idCount += s2.idCount
-	s2.resultReturned = true
+	s2.state = merged
 }
 
-func checkMergePreAggSelectPartition(s PreAggSelectPartition, s2 PreAggSelectPartition) error {
-	resultReturnedMsg := "checkMerge: %s already returned the result, cannot be merged with another PreAggSelectPartition instance"
-	if s.resultReturned {
-		return fmt.Errorf(resultReturnedMsg, "s")
+func checkMergePreAggSelectPartition(s1, s2 *PreAggSelectPartition) error {
+	if s1.state != defaultState {
+		return fmt.Errorf("checkMergePreAggSelectPartition: s1 cannot be merged with another PreAggSelectPartition instance. Reason: %v", s1.state.errorMessage())
 	}
-	if s2.resultReturned {
-		return fmt.Errorf(resultReturnedMsg, "s2")
+	if s2.state != defaultState {
+		return fmt.Errorf("checkMergePreAggSelectPartition: s2 cannot be merged with another PreAggSelectPartition instance. Reason: %v", s2.state.errorMessage())
 	}
 
-	s.idCount, s2.idCount = 0, 0
-	if !reflect.DeepEqual(s, s2) {
-		return fmt.Errorf("s and s2 are not compatible")
+	if !preAggSelectPartitionEquallyInitialized(s1, s2) {
+		return fmt.Errorf("checkMergePreAggSelectPartition: s1 and s2 are not compatible")
 	}
+
 	return nil
 }
 
 // ShouldKeepPartition returns whether the partition should be materialized.
 func (s *PreAggSelectPartition) ShouldKeepPartition() bool {
-	if s.resultReturned {
-		log.Exitf("This PreAggSelectPartition has already returned a ShouldKeepPartition. It can only be used once.")
+	if s.state != defaultState {
+		log.Fatalf("PreAggSelectPartition's ShouldKeepPartition cannot be computed. Reason: %v", s.state.errorMessage())
 	}
-	s.resultReturned = true
+	s.state = resultReturned
 	if s.l0Sensitivity > 3 { // Gaussian thresholding outperforms in this case.
 		c := NewCount(&CountOptions{
 			Epsilon:                  s.epsilon,
@@ -310,23 +309,26 @@ func (s *PreAggSelectPartition) GetHardThreshold() int {
 
 // encodablePreAggSelectPartition can be encoded by the gob package.
 type encodablePreAggSelectPartition struct {
-	Epsilon        float64
-	Delta          float64
-	L0Sensitivity  int64
-	IDCount        int64
-	ResultReturned bool
+	Epsilon       float64
+	Delta         float64
+	L0Sensitivity int64
+	IDCount       int64
+	State         aggregationState
 }
 
 // GobEncode encodes PreAggSelectPartition.
 func (s *PreAggSelectPartition) GobEncode() ([]byte, error) {
-	enc := encodablePreAggSelectPartition{
-		Epsilon:        s.epsilon,
-		Delta:          s.delta,
-		L0Sensitivity:  s.l0Sensitivity,
-		IDCount:        s.idCount,
-		ResultReturned: s.resultReturned,
+	if s.state != defaultState && s.state != serialized {
+		return nil, fmt.Errorf("PreAggSelectPartition object cannot be serialized. Reason: " + s.state.errorMessage())
 	}
-	s.resultReturned = true
+	enc := encodablePreAggSelectPartition{
+		Epsilon:       s.epsilon,
+		Delta:         s.delta,
+		L0Sensitivity: s.l0Sensitivity,
+		IDCount:       s.idCount,
+		State:         s.state,
+	}
+	s.state = serialized
 	return encode(enc)
 }
 
@@ -335,11 +337,11 @@ func (s *PreAggSelectPartition) GobDecode(data []byte) error {
 	var enc encodablePreAggSelectPartition
 	err := decode(&enc, data)
 	*s = PreAggSelectPartition{
-		epsilon:        enc.Epsilon,
-		delta:          enc.Delta,
-		l0Sensitivity:  enc.L0Sensitivity,
-		idCount:        enc.IDCount,
-		resultReturned: enc.ResultReturned,
+		epsilon:       enc.Epsilon,
+		delta:         enc.Delta,
+		l0Sensitivity: enc.L0Sensitivity,
+		idCount:       enc.IDCount,
+		state:         enc.State,
 	}
 	return err
 }

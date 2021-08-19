@@ -281,7 +281,7 @@ func checkMergeBoundedVariance(bv1, bv2 *BoundedVariance) error {
 
 // GobEncode encodes BoundedVariance.
 func (bv *BoundedVariance) GobEncode() ([]byte, error) {
-	if bv.state != defaultState {
+	if bv.state != defaultState && bv.state != serialized {
 		return nil, fmt.Errorf("Variance object cannot be serialized. Reason: " + bv.state.errorMessage())
 	}
 	enc := encodableBoundedVariance{

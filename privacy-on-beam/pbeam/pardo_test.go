@@ -38,7 +38,8 @@ import (
 )
 
 func execute(ctx context.Context, p *beam.Pipeline) error {
-	return direct.Execute(ctx, p)
+	_, err := direct.Execute(ctx, p)
+	return err
 }
 
 // Reusable between ParDo tests

@@ -111,7 +111,7 @@ func main() {
 	writeOutput(s, dpOutput, outputStatsFileDP)
 
 	// Execute pipeline.
-	err := direct.Execute(context.Background(), p)
+	_, err := direct.Execute(context.Background(), p)
 	if err != nil {
 		log.Exitf("Execution of pipeline failed: %v", err)
 	}

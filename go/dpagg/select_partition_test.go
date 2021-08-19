@@ -19,8 +19,6 @@ package dpagg
 import (
 	"math"
 	"reflect"
-	"strconv"
-	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -39,7 +37,7 @@ func comparePreAggSelectPartitionSelection(s1, s2 *PreAggSelectPartition) bool {
 		s1.delta == s2.delta &&
 		s1.l0Sensitivity == s2.l0Sensitivity &&
 		s1.idCount == s2.idCount &&
-		s1.resultReturned == s2.resultReturned
+		s1.state == s2.state
 }
 
 // Tests that serialization for PreAggSelectPartition works as expected.
@@ -71,9 +69,29 @@ func TestPreAggSelectPartitionSerialization(t *testing.T) {
 		if diff := cmp.Diff(sUnchanged, sUnmarshalled, cmp.Comparer(comparePreAggSelectPartitionSelection)); diff != "" {
 			t.Errorf("With %s, aggregation changed after encode()->decode(). Diff: %s", tc.desc, diff)
 		}
-		// Check that the original PreAggSelectPartition has its resultReturned set to true after serialization.
-		if !s.resultReturned {
-			t.Errorf("PreAggSelectPartition %v should have its resultReturned set to true after being serialized", s)
+		// Check that the original PreAggSelectPartition has its state set to serialized after serialization.
+		if s.state != serialized {
+			t.Errorf("PreAggSelectPartition %v should have its state set to serialized after being serialized", s)
+		}
+	}
+}
+
+// Tests that GobEncode() returns errors correctly with different PreAggSelectPartition aggregation states.
+func TestPreAggSelectPartitionSerializationStateChecks(t *testing.T) {
+	for _, tc := range []struct {
+		state   aggregationState
+		wantErr bool
+	}{
+		{defaultState, false},
+		{merged, true},
+		{serialized, false},
+		{resultReturned, true},
+	} {
+		s := NewPreAggSelectPartition(&PreAggSelectPartitionOptions{Epsilon: 1, Delta: 0.1})
+		s.state = tc.state
+
+		if _, err := s.GobEncode(); (err != nil) != tc.wantErr {
+			t.Errorf("GobEncode: when state %v for err got %v, wantErr %t", tc.state, err, tc.wantErr)
 		}
 	}
 }
@@ -359,11 +377,11 @@ func TestPreAggSelectPartition(t *testing.T) {
 
 func TestMergePreAggSelectPartition(t *testing.T) {
 	wantFinalS1 := &PreAggSelectPartition{
-		epsilon:        0.1,
-		delta:          0.2,
-		l0Sensitivity:  1,
-		idCount:        8,
-		resultReturned: false,
+		epsilon:       0.1,
+		delta:         0.2,
+		l0Sensitivity: 1,
+		idCount:       8,
+		state:         defaultState,
 	}
 
 	s1 := NewPreAggSelectPartition(&PreAggSelectPartitionOptions{Epsilon: 0.1, Delta: 0.2})
@@ -379,69 +397,81 @@ func TestMergePreAggSelectPartition(t *testing.T) {
 	if !reflect.DeepEqual(wantFinalS1, s1) {
 		t.Errorf("s1: want %v, got %v", wantFinalS1, s1)
 	}
-	if !s2.resultReturned {
-		t.Errorf("want s2.resultReturned = true, got false")
+	if s2.state != merged {
+		t.Errorf("want s2.state = merged, got %v", s2.state)
 	}
 }
 
 func TestCheckMergePreAggSelectPartition(t *testing.T) {
 	for _, tc := range []struct {
-		name               string
-		left               PreAggSelectPartition
-		right              PreAggSelectPartition
-		wantErrorSubstring string
+		desc    string
+		s1      *PreAggSelectPartition
+		s2      *PreAggSelectPartition
+		wantErr bool
 	}{
 		{
-			name:  "Compatible PreAggSelectPartitions",
-			left:  PreAggSelectPartition{epsilon: 0.1, delta: 0.2, l0Sensitivity: 1, idCount: 1},
-			right: PreAggSelectPartition{epsilon: 0.1, delta: 0.2, l0Sensitivity: 1, idCount: 2},
+			desc:    "Compatible PreAggSelectPartitions",
+			s1:      &PreAggSelectPartition{epsilon: 0.1, delta: 0.2, l0Sensitivity: 1, idCount: 1},
+			s2:      &PreAggSelectPartition{epsilon: 0.1, delta: 0.2, l0Sensitivity: 1, idCount: 2},
+			wantErr: false,
 		},
 		{
-			name:               "s returned result.",
-			left:               PreAggSelectPartition{epsilon: 0.1, delta: 0.2, l0Sensitivity: 1, idCount: 1, resultReturned: true},
-			right:              PreAggSelectPartition{epsilon: 0.1, delta: 0.2, l0Sensitivity: 1, idCount: 2},
-			wantErrorSubstring: "s already returned the result",
+			desc:    "Parameter disagreement: ε",
+			s1:      &PreAggSelectPartition{epsilon: 0.2, delta: 0.2, l0Sensitivity: 1, idCount: 1},
+			s2:      &PreAggSelectPartition{epsilon: 0.1, delta: 0.2, l0Sensitivity: 1, idCount: 2},
+			wantErr: true,
 		},
 		{
-			name:               "s2 returned result.",
-			left:               PreAggSelectPartition{epsilon: 0.1, delta: 0.2, l0Sensitivity: 1, idCount: 1},
-			right:              PreAggSelectPartition{epsilon: 0.1, delta: 0.2, l0Sensitivity: 1, idCount: 2, resultReturned: true},
-			wantErrorSubstring: "s2 already returned the result",
+			desc:    "Parameter disagreement: δ",
+			s1:      &PreAggSelectPartition{epsilon: 0.1, delta: 0.3, l0Sensitivity: 1},
+			s2:      &PreAggSelectPartition{epsilon: 0.1, delta: 0.2, l0Sensitivity: 1},
+			wantErr: true,
 		},
 		{
-			name:               "Both returned result.",
-			left:               PreAggSelectPartition{epsilon: 0.1, delta: 0.2, l0Sensitivity: 1, idCount: 1, resultReturned: true},
-			right:              PreAggSelectPartition{epsilon: 0.1, delta: 0.2, l0Sensitivity: 1, idCount: 2, resultReturned: true},
-			wantErrorSubstring: "already returned the result",
-		},
-		{
-			name:               "Parameter disagreement: ε",
-			left:               PreAggSelectPartition{epsilon: 0.2, delta: 0.2, l0Sensitivity: 1, idCount: 1},
-			right:              PreAggSelectPartition{epsilon: 0.1, delta: 0.2, l0Sensitivity: 1, idCount: 2},
-			wantErrorSubstring: "s and s2 are not compatible",
-		},
-		{
-			name:               "Parameter disagreement: δ",
-			left:               PreAggSelectPartition{epsilon: 0.1, delta: 0.3, l0Sensitivity: 1},
-			right:              PreAggSelectPartition{epsilon: 0.1, delta: 0.2, l0Sensitivity: 1},
-			wantErrorSubstring: "s and s2 are not compatible",
-		},
-		{
-			name:               "Parameter disagreement: l0Sensitivity",
-			left:               PreAggSelectPartition{epsilon: 0.1, delta: 0.2, l0Sensitivity: 1, idCount: 1},
-			right:              PreAggSelectPartition{epsilon: 0.1, delta: 0.2, l0Sensitivity: 2, idCount: 2},
-			wantErrorSubstring: "s and s2 are not compatible",
+			desc:    "Parameter disagreement: l0Sensitivity",
+			s1:      &PreAggSelectPartition{epsilon: 0.1, delta: 0.2, l0Sensitivity: 1, idCount: 1},
+			s2:      &PreAggSelectPartition{epsilon: 0.1, delta: 0.2, l0Sensitivity: 2, idCount: 2},
+			wantErr: true,
 		},
 	} {
-		t.Run(tc.name, func(t *testing.T) {
-			err := checkMergePreAggSelectPartition(tc.left, tc.right)
-			if tc.wantErrorSubstring == "" && err != nil {
-				t.Errorf("Got unexpected error: %v", err)
-			}
-			if tc.wantErrorSubstring != "" && (err == nil || !strings.Contains(err.Error(), tc.wantErrorSubstring)) {
-				t.Errorf("Want error with substring %s, got %v", strconv.Quote(tc.wantErrorSubstring), err)
+		if err := checkMergePreAggSelectPartition(tc.s1, tc.s2); (err != nil) != tc.wantErr {
+			t.Errorf("CheckMerge: when %s for err got %v, wantErr %t", tc.desc, err, tc.wantErr)
+		}
+	}
+}
 
-			}
-		})
+// Tests that checkMergePreAggSelectPartition() returns errors correctly with different PreAggSelectPartition aggregation states.
+func TestPreAggSelectPartitionCheckMergeStateChecks(t *testing.T) {
+	for _, tc := range []struct {
+		state1  aggregationState
+		state2  aggregationState
+		wantErr bool
+	}{
+		{defaultState, defaultState, false},
+		{resultReturned, defaultState, true},
+		{defaultState, resultReturned, true},
+		{serialized, defaultState, true},
+		{defaultState, serialized, true},
+		{defaultState, merged, true},
+		{merged, defaultState, true},
+	} {
+		s1 := NewPreAggSelectPartition(&PreAggSelectPartitionOptions{Epsilon: 1, Delta: 0.1})
+		s2 := NewPreAggSelectPartition(&PreAggSelectPartitionOptions{Epsilon: 1, Delta: 0.1})
+
+		s1.state = tc.state1
+		s2.state = tc.state2
+
+		if err := checkMergePreAggSelectPartition(s1, s2); (err != nil) != tc.wantErr {
+			t.Errorf("CheckMerge: when states [%v, %v] for err got %v, wantErr %t", tc.state1, tc.state2, err, tc.wantErr)
+		}
+	}
+}
+
+func TestPreAggSelectPartitionResultSetsStateCorrectly(t *testing.T) {
+	s := NewPreAggSelectPartition(&PreAggSelectPartitionOptions{Epsilon: 1, Delta: 0.1})
+	s.ShouldKeepPartition()
+
+	if s.state != resultReturned {
+		t.Errorf("PreAggSelectPartition should have its state set to ResultReturned, got %v, want ResultReturned", s.state)
 	}
 }

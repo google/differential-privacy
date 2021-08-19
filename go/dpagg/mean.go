@@ -337,7 +337,7 @@ func checkMergeBoundedMeanFloat64(bm1, bm2 *BoundedMeanFloat64) error {
 
 // GobEncode encodes Count.
 func (bm *BoundedMeanFloat64) GobEncode() ([]byte, error) {
-	if bm.state != defaultState {
+	if bm.state != defaultState && bm.state != serialized {
 		return nil, fmt.Errorf("Mean object cannot be serialized. Reason: " + bm.state.errorMessage())
 	}
 	enc := encodableBoundedMeanFloat64{

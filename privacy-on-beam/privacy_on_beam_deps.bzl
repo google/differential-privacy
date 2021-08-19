@@ -39,9 +39,10 @@ def privacy_on_beam_deps():
     )
     go_repository(
         name = "com_github_apache_beam",
+        build_file_proto_mode = "disable_global",  # See https://github.com/bazelbuild/rules_go/issues/2186#issuecomment-523028281
         importpath = "github.com/apache/beam",
-        sum = "h1:Y8Q9pZ9V8IKM8EDNOE314D6cJE0neJooK+MxBvCcs1M=",
-        version = "v2.25.0+incompatible",
+        sum = "h1:7C2/JDa+fiRJs8kAcfCHxVTf0xxwKsCFQYDMoRdr/dk=",
+        version = "v2.31.0+incompatible",
     )
     go_repository(
         name = "com_github_boombuler_barcode",
@@ -155,6 +156,12 @@ def privacy_on_beam_deps():
         sum = "h1:Khx7svrCpmxxtHBq5j2mp/xVjsi8hQMfNLvJFAlrGgU=",
         version = "v0.5.5",
     )
+    go_repository(
+        name = "com_github_google_uuid",
+        importpath = "github.com/google/uuid",
+        sum = "h1:t6JiXgmwXMjEs8VusXIJk2BXHsn+wx8BZdTaoZ5fu7I=",
+        version = "v1.3.0",
+    )
 
     go_repository(
         name = "com_github_jung_kurt_gofpdf",
@@ -242,6 +249,7 @@ def privacy_on_beam_deps():
 
     go_repository(
         name = "org_golang_google_grpc",
+        build_file_proto_mode = "disable_global",  # See https://github.com/bazelbuild/rules_go/issues/2186#issuecomment-523028281
         importpath = "google.golang.org/grpc",
         sum = "h1:rRYRFMVgRv6E0D70Skyfsr28tDXIuuPZyWGMPdMcnXg=",
         version = "v1.27.0",

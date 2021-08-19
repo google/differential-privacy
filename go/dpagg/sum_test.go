@@ -109,7 +109,7 @@ func TestBoundedSumInt64SerializationStateChecks(t *testing.T) {
 	}{
 		{defaultState, false},
 		{merged, true},
-		{serialized, true},
+		{serialized, false},
 		{resultReturned, true},
 	} {
 		bs := getNoiselessBSI()
@@ -182,7 +182,7 @@ func TestBoundedSumFloat64SerializationStateChecks(t *testing.T) {
 	}{
 		{defaultState, false},
 		{merged, true},
-		{serialized, true},
+		{serialized, false},
 		{resultReturned, true},
 	} {
 		bs := getNoiselessBSF()

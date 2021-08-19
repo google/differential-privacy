@@ -164,6 +164,16 @@ func TestCheckNumPartitionsFn(t *testing.T) {
 			6,
 			true,
 		},
+		{"got and want zero number of partitions",
+			0,
+			0,
+			false,
+		},
+		{"got zero number of partitions want non-zero number of partitions",
+			0,
+			5,
+			true,
+		},
 	} {
 		partitions := make([]int, tc.numPartitions)
 		p, s, col := ptest.CreateList(partitions)

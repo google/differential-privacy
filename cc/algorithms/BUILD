@@ -25,13 +25,13 @@ cc_library(
         ":util",
         "//base:logging",
         "//proto:util-lib",
-        "@com_google_differential_privacy//proto:confidence_interval_cc_proto",
-        "@com_google_differential_privacy//proto:data_cc_proto",
-        "@com_google_differential_privacy//proto:summary_cc_proto",
         "@com_google_absl//absl/memory",
         "@com_google_absl//absl/status",
         "@com_google_cc_differential_privacy//base:status",
         "@com_google_cc_differential_privacy//base:statusor",
+        "@com_google_differential_privacy//proto:confidence_interval_cc_proto",
+        "@com_google_differential_privacy//proto:data_cc_proto",
+        "@com_google_differential_privacy//proto:summary_cc_proto",
     ],
 )
 
@@ -42,8 +42,8 @@ cc_test(
     deps = [
         ":algorithm",
         "//base/testing:status_matchers",
-        "@com_google_googletest//:gtest_main",
         "@com_google_cc_differential_privacy//base:statusor",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -62,9 +62,9 @@ cc_test(
         ":numerical-mechanisms-testing",
         ":order-statistics",
         ":util",
-        "@com_google_googletest//:gtest_main",
         "//testing:sequence",
         "//testing:stochastic_tester",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -93,8 +93,8 @@ cc_test(
         ":numerical-mechanisms-testing",
         ":util",
         "//base/testing:status_matchers",
-        "@com_google_googletest//:gtest_main",
         "@com_google_absl//absl/random:distributions",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -123,8 +123,8 @@ cc_test(
         ":order-statistics",
         ":util",
         "//base/testing:status_matchers",
-        "@com_google_googletest//:gtest_main",
         "@com_google_absl//absl/random:distributions",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -139,14 +139,14 @@ cc_library(
         ":util",
         "//base:logging",
         "//proto:util-lib",
-        "@com_google_differential_privacy//proto:confidence_interval_cc_proto",
-        "@com_google_differential_privacy//proto:data_cc_proto",
-        "@com_google_differential_privacy//proto:summary_cc_proto",
         "@com_google_absl//absl/memory",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
         "@com_google_cc_differential_privacy//base:status",
         "@com_google_cc_differential_privacy//base:statusor",
+        "@com_google_differential_privacy//proto:confidence_interval_cc_proto",
+        "@com_google_differential_privacy//proto:data_cc_proto",
+        "@com_google_differential_privacy//proto:summary_cc_proto",
     ],
 )
 
@@ -162,9 +162,9 @@ cc_test(
         ":numerical-mechanisms-testing",
         "//base/testing:proto_matchers",
         "//base/testing:status_matchers",
-        "@com_google_googletest//:gtest_main",
         "//proto:util-lib",
         "@com_google_absl//absl/memory",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -177,11 +177,11 @@ cc_library(
         ":bounded-algorithm",
         ":numerical-mechanisms",
         ":util",
-        "@com_google_differential_privacy//proto:summary_cc_proto",
         "@com_google_absl//absl/random:distributions",
         "@com_google_absl//absl/status",
         "@com_google_cc_differential_privacy//base:status",
         "@com_google_cc_differential_privacy//base:statusor",
+        "@com_google_differential_privacy//proto:summary_cc_proto",
     ],
 )
 
@@ -195,8 +195,8 @@ cc_test(
         ":numerical-mechanisms-testing",
         "//base/testing:proto_matchers",
         "//base/testing:status_matchers",
-        "@com_google_googletest//:gtest_main",
         "@com_google_absl//absl/status",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -226,9 +226,9 @@ cc_test(
         ":numerical-mechanisms-testing",
         "//base/testing:proto_matchers",
         "//base/testing:status_matchers",
-        "@com_google_googletest//:gtest_main",
         "@com_google_absl//absl/random:distributions",
         "@com_google_absl//absl/status",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -257,9 +257,9 @@ cc_test(
         ":numerical-mechanisms-testing",
         "//base/testing:proto_matchers",
         "//base/testing:status_matchers",
-        "@com_google_googletest//:gtest_main",
         "@com_google_absl//absl/memory",
         "@com_google_absl//absl/random:distributions",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -270,10 +270,10 @@ cc_library(
         ":algorithm",
         ":numerical-mechanisms",
         ":util",
-        "@com_google_differential_privacy//proto:summary_cc_proto",
         "@com_google_absl//absl/status",
         "@com_google_cc_differential_privacy//base:status",
         "@com_google_cc_differential_privacy//base:statusor",
+        "@com_google_differential_privacy//proto:summary_cc_proto",
     ],
 )
 
@@ -286,11 +286,11 @@ cc_test(
         ":numerical-mechanisms-testing",
         "//base/testing:proto_matchers",
         "//base/testing:status_matchers",
-        "@com_google_googletest//:gtest_main",
-        "@com_google_differential_privacy//proto:data_cc_proto",
-        "@com_google_differential_privacy//proto:summary_cc_proto",
         "@com_google_absl//absl/status",
         "@com_google_cc_differential_privacy//base:statusor",
+        "@com_google_differential_privacy//proto:data_cc_proto",
+        "@com_google_differential_privacy//proto:summary_cc_proto",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -317,8 +317,8 @@ cc_test(
         ":numerical-mechanisms-testing",
         ":util",
         "//base/testing:status_matchers",
-        "@com_google_googletest//:gtest_main",
         "@com_google_absl//absl/status",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -350,9 +350,9 @@ cc_test(
         ":numerical-mechanisms-testing",
         ":util",
         "//base/testing:status_matchers",
-        "@com_google_googletest//:gtest_main",
         "@com_google_absl//absl/memory",
         "@com_google_absl//absl/strings",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -364,8 +364,6 @@ cc_library(
         ":rand",
         ":util",
         "//base:logging",
-        "@com_google_differential_privacy//proto:confidence_interval_cc_proto",
-        "@com_google_differential_privacy//proto:numerical_mechanism_cc_proto",
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/memory",
         "@com_google_absl//absl/status",
@@ -373,6 +371,8 @@ cc_library(
         "@com_google_absl//absl/types:optional",
         "@com_google_cc_differential_privacy//base:status",
         "@com_google_cc_differential_privacy//base:statusor",
+        "@com_google_differential_privacy//proto:confidence_interval_cc_proto",
+        "@com_google_differential_privacy//proto:numerical_mechanism_cc_proto",
     ],
 )
 
@@ -384,8 +384,8 @@ cc_test(
         ":distributions",
         ":numerical-mechanisms",
         "//base/testing:status_matchers",
-        "@com_google_googletest//:gtest_main",
         "@com_google_cc_differential_privacy//base:statusor",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -396,10 +396,10 @@ cc_library(
     deps = [
         ":distributions",
         ":numerical-mechanisms",
-        "@com_google_googletest//:gtest",
-        "@com_google_differential_privacy//proto:confidence_interval_cc_proto",
         "@com_google_absl//absl/random",
         "@com_google_cc_differential_privacy//base:statusor",
+        "@com_google_differential_privacy//proto:confidence_interval_cc_proto",
+        "@com_google_googletest//:gtest",
     ],
 )
 
@@ -438,10 +438,10 @@ cc_test(
         ":numerical-mechanisms-testing",
         "//base/testing:proto_matchers",
         "//base/testing:status_matchers",
-        "@com_google_googletest//:gtest_main",
         "@com_google_absl//absl/memory",
         "@com_google_absl//absl/status",
         "@com_google_cc_differential_privacy//base:statusor",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -466,8 +466,8 @@ cc_test(
         ":approx-bounds",
         ":bounded-algorithm",
         "//base/testing:status_matchers",
-        "@com_google_googletest//:gtest_main",
         "@com_google_cc_differential_privacy//base:statusor",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -500,8 +500,8 @@ cc_test(
     srcs = ["distributions_benchmark_test.cc"],
     deps = [
         ":distributions",
-        "@com_google_benchmark//:benchmark_main",
         "@com_google_absl//absl/strings:str_format",
+        "@com_google_benchmark//:benchmark_main",
     ],
 )
 
@@ -525,8 +525,8 @@ cc_test(
     deps = [
         ":numerical-mechanisms-testing",
         ":partition-selection",
-        "@com_google_googletest//:gtest_main",
         "@com_google_cc_differential_privacy//base:statusor",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -539,10 +539,10 @@ cc_library(
         ":numerical-mechanisms",
         "//algorithms/internal:count-tree",
         "//proto:util-lib",
-        "@com_google_differential_privacy//proto:summary_cc_proto",
         "@com_google_absl//absl/status",
         "@com_google_cc_differential_privacy//base:status",
         "@com_google_cc_differential_privacy//base:statusor",
+        "@com_google_differential_privacy//proto:summary_cc_proto",
     ],
 )
 
@@ -554,8 +554,8 @@ cc_test(
         ":quantile-tree",
         "//base/testing:proto_matchers",
         "//base/testing:status_matchers",
-        "@com_google_googletest//:gtest_main",
         "@com_google_absl//absl/random",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -579,7 +579,7 @@ cc_test(
         ":quantiles",
         "//base/testing:proto_matchers",
         "//base/testing:status_matchers",
-        "@com_google_googletest//:gtest_main",
         "@com_google_absl//absl/random",
+        "@com_google_googletest//:gtest_main",
     ],
 )

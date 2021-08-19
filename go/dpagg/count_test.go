@@ -146,7 +146,7 @@ func TestCountSerializationStateChecks(t *testing.T) {
 	}{
 		{defaultState, false},
 		{merged, true},
-		{serialized, true},
+		{serialized, false},
 		{resultReturned, true},
 	} {
 		c := getNoiselessCount()

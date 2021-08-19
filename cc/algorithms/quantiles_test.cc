@@ -397,5 +397,19 @@ TYPED_TEST(QuantilesTest, Reset) {
   EXPECT_THAT(results1, ::differential_privacy::base::testing::EqualsProto(results2));
 }
 
+TYPED_TEST(QuantilesTest, GetQuantiles) {
+  std::vector<double> quantiles = {0.3, 0.5, 0.9};
+  std::unique_ptr<Quantiles<TypeParam>> test_quantiles =
+      typename Quantiles<TypeParam>::Builder()
+          .SetUpper(50)
+          .SetLower(-50)
+          .SetQuantiles(quantiles)
+          .Build()
+          .value();
+
+  EXPECT_THAT(test_quantiles->GetQuantiles(),
+              testing::UnorderedElementsAre(0.3, 0.5, 0.9));
+}
+
 }  // namespace
 }  // namespace differential_privacy

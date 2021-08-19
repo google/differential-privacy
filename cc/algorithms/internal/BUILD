@@ -26,10 +26,10 @@ cc_library(
         "//algorithms:bounded-algorithm",
         "//algorithms:numerical-mechanisms",
         "//proto:util-lib",
-        "@com_google_differential_privacy//proto:summary_cc_proto",
         "@com_google_absl//absl/status",
         "@com_google_cc_differential_privacy//base:status",
         "@com_google_cc_differential_privacy//base:statusor",
+        "@com_google_differential_privacy//proto:summary_cc_proto",
     ],
 )
 

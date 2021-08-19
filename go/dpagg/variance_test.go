@@ -765,7 +765,7 @@ func TestBoundedVarianceSerializationStateChecks(t *testing.T) {
 	}{
 		{defaultState, false},
 		{merged, true},
-		{serialized, true},
+		{serialized, false},
 		{resultReturned, true},
 	} {
 		lower, upper := 0.0, 5.0

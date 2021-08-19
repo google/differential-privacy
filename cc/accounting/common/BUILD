@@ -35,9 +35,9 @@ cc_test(
     deps = [
         ":common",
         "//base/testing:status_matchers",
-        "@com_google_googletest//:gtest_main",
         "@com_google_absl//absl/status",
         "@com_google_cc_differential_privacy//base:statusor",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 

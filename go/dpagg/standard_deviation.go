@@ -136,7 +136,7 @@ func checkMergeBoundedStandardDeviation(bstdv1, bstdv2 *BoundedStandardDeviation
 
 // GobEncode encodes BoundedStandardDeviation.
 func (bstdv *BoundedStandardDeviation) GobEncode() ([]byte, error) {
-	if bstdv.state != defaultState {
+	if bstdv.state != defaultState && bstdv.state != serialized {
 		return nil, fmt.Errorf("StandardDeviation object cannot be serialized. Reason: " + bstdv.state.errorMessage())
 	}
 	enc := encodableBoundedStandardDeviation{

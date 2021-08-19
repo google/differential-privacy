@@ -50,6 +50,11 @@ constexpr double kDefaultConfidenceLevel = .95;
 //   allow 90% to be used at some later point.
 //
 // Generic call to Result consumes 100% of the privacy budget by default.
+//
+// Algorithm instances are typically *not* thread safe.  Entries must be added
+// from a single thread only.  In case you want to use multiple threads, you can
+// use per-thread instances of the Algorithm child class, serialize them, and
+// then merge them together in a single thread.
 template <typename T>
 class Algorithm {
  public:
@@ -57,7 +62,9 @@ class Algorithm {
   // Epsilon, delta are standard parameters of differentially private
   // algorithms. See "The Algorithmic Foundations of Differential Privacy" p17.
   explicit Algorithm(double epsilon, double delta)
-      : epsilon_(epsilon), delta_(delta), privacy_budget_(kFullPrivacyBudget) {
+      : epsilon_(epsilon),
+        delta_(delta),
+        remaining_privacy_budget_fraction_(kFullPrivacyBudget) {
     DCHECK_NE(epsilon, std::numeric_limits<double>::infinity());
     DCHECK_GT(epsilon, 0.0);
   }
@@ -97,39 +104,49 @@ class Algorithm {
   // Privacy budget, defined on [0,1], represents the fraction of the total
   // budget to consume.
   base::StatusOr<Output> PartialResult(double privacy_budget) {
-    return GenerateResult(ConsumePrivacyBudget(privacy_budget),
-                          kDefaultConfidenceLevel);
+    ASSIGN_OR_RETURN(double consumed_budget_fraction,
+                     ConsumePrivacyBudget(privacy_budget));
+    return GenerateResult(consumed_budget_fraction, kDefaultConfidenceLevel);
   }
 
   // Same as above, but provides the confidence level of the noise confidence
   // interval, which may be included in the algorithm output.
   base::StatusOr<Output> PartialResult(double privacy_budget,
                                        double noise_interval_level) {
-    return GenerateResult(ConsumePrivacyBudget(privacy_budget),
-                          noise_interval_level);
+    ASSIGN_OR_RETURN(double consumed_budget_fraction,
+                     ConsumePrivacyBudget(privacy_budget));
+    return GenerateResult(consumed_budget_fraction, noise_interval_level);
   }
 
-  double RemainingPrivacyBudget() { return privacy_budget_; }
+  double RemainingPrivacyBudget() { return remaining_privacy_budget_fraction_; }
 
-  // Strictly reduces privacy budget, so is safe to make public.
-  double ConsumePrivacyBudget(double privacy_budget_fraction) {
-    DCHECK_GE(privacy_budget_fraction, 0.0)
-        << "Requested budget " << privacy_budget_fraction
-        << " should be positive.";
-    DCHECK_LE(privacy_budget_fraction, privacy_budget_)
-        << "Requested budget " << privacy_budget_fraction
-        << " exceeds remaining budget of " << privacy_budget_;
-    privacy_budget_fraction = Clamp(0.0, 1.0, privacy_budget_fraction);
-    double budget = privacy_budget_;
-    privacy_budget_ = std::max(0.0, privacy_budget_ - privacy_budget_fraction);
-    return budget - privacy_budget_;
+  // Strictly reduces the remaining privacy budget fraction.  Returns the
+  // privacy budget fraction that is safe to use or an error in case of invalid
+  // arguments or overconsumption.
+  base::StatusOr<double> ConsumePrivacyBudget(double privacy_budget_fraction) {
+    if (privacy_budget_fraction < 0) {
+      return absl::InvalidArgumentError(absl::StrCat(
+          "Budget fraction must be positive but is ", privacy_budget_fraction));
+    }
+    if (remaining_privacy_budget_fraction_ < privacy_budget_fraction) {
+      return absl::InvalidArgumentError(
+          absl::StrCat("Requested budget fraction ", privacy_budget_fraction,
+                       " exceeds remaining budget fraction of ",
+                       remaining_privacy_budget_fraction_));
+    }
+    const double old_budget_fraction = remaining_privacy_budget_fraction_;
+    remaining_privacy_budget_fraction_ = std::max(
+        0.0, remaining_privacy_budget_fraction_ - privacy_budget_fraction);
+    // Return the difference between the old budget fraction and the current
+    // budget fraction.
+    return old_budget_fraction - remaining_privacy_budget_fraction_;
   }
 
   // Resets the algorithm to a state in which it has received no input. After
   // Reset is called, the algorithm should only consider input added after the
   // last Reset call when providing output.
   void Reset() {
-    privacy_budget_ = kFullPrivacyBudget;
+    remaining_privacy_budget_fraction_ = kFullPrivacyBudget;
     ResetState();
   }
 
@@ -188,7 +205,7 @@ class Algorithm {
 
   const double epsilon_;
   const double delta_;
-  double privacy_budget_;
+  double remaining_privacy_budget_fraction_;
 };
 
 template <typename T, class Algorithm, class Builder>

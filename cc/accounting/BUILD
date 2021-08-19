@@ -39,7 +39,6 @@ cc_library(
     deps = [
         ":convolution",
         "//accounting/common",
-        "@com_google_differential_privacy//proto/accounting:privacy_loss_distribution_cc_proto",
         "@boost//:lexical_cast",
         "@boost//:math",
         "@boost//:multiprecision",
@@ -50,6 +49,7 @@ cc_library(
         "@com_google_absl//absl/types:optional",
         "@com_google_cc_differential_privacy//base:status",
         "@com_google_cc_differential_privacy//base:statusor",
+        "@com_google_differential_privacy//proto/accounting:privacy_loss_distribution_cc_proto",
     ],
 )
 
@@ -76,14 +76,14 @@ cc_test(
     ],
     deps = [
         ":pld",
-        "//base/testing:status_matchers",
-        "@com_google_googletest//:gtest_main",
         "//accounting/common",
         "//accounting/common:test_util",
-        "@com_google_differential_privacy//proto/accounting:privacy_loss_distribution_cc_proto",
+        "//base/testing:status_matchers",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/types:optional",
         "@com_google_cc_differential_privacy//base:statusor",
+        "@com_google_differential_privacy//proto/accounting:privacy_loss_distribution_cc_proto",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -94,9 +94,9 @@ cc_test(
     ],
     deps = [
         ":convolution",
-        "@com_google_googletest//:gtest_main",
         "//accounting/common:test_util",
         "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -124,8 +124,8 @@ cc_test(
     srcs = ["kiss_fft_wrapper_test.cc"],
     deps = [
         ":kiss_fft_wrapper",
-        "@com_google_googletest//:gtest_main",
         "@com_google_absl//absl/algorithm:container",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -151,10 +151,10 @@ cc_test(
     deps = [
         ":accountant",
         ":pld",
-        "//base/testing:status_matchers",
-        "@com_google_googletest//:gtest_main",
         "//accounting/common",
+        "//base/testing:status_matchers",
         "@com_google_absl//absl/status",
         "@com_google_cc_differential_privacy//base:statusor",
+        "@com_google_googletest//:gtest_main",
     ],
 )

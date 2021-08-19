@@ -34,8 +34,8 @@ func init() {
 }
 
 type protoPair struct {
-	key string
-	pb  *testpb.TestAnon
+	Key string
+	Pb  *testpb.TestAnon
 }
 
 func kvToProtoPair(key string, pb *testpb.TestAnon) protoPair {
@@ -200,7 +200,7 @@ func TestMakePrivateFromProto(t *testing.T) {
 	}
 	result := []protoPair{
 		{"42", &testpb.TestAnon{Foo: proto.Int64(42), Bar: proto.String("fourty-two")}},
-		{"17", &testpb.TestAnon{Foo: proto.Int64(17), Bar: proto.String("seventeeen")}},
+		{"17", &testpb.TestAnon{Foo: proto.Int64(17), Bar: proto.String("seventeen")}},
 		{"0", &testpb.TestAnon{Bar: proto.String("zero")}},
 	}
 	p, s, col, want := ptest.CreateList2(values, result)
