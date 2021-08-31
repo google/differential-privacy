@@ -27,7 +27,6 @@
 #include "algorithms/algorithm.h"
 #include "algorithms/numerical-mechanisms.h"
 #include "proto/util.h"
-#include "base/canonical_errors.h"
 #include "base/status_macros.h"
 
 // Differentially private binary search.

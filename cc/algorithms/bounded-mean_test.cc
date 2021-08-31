@@ -67,6 +67,39 @@ TYPED_TEST(BoundedMeanTest, BasicTest) {
   EXPECT_LE(GetValue<double>(*result), 9);
 }
 
+TYPED_TEST(BoundedMeanTest, BasicTestWithExplicitLaplace) {
+  std::vector<TypeParam> a = {2, 4, 6, 8};
+  auto mean =
+      typename BoundedMean<TypeParam>::Builder()
+          .SetEpsilon(1.0)
+          .SetLower(1)
+          .SetUpper(9)
+          .SetLaplaceMechanism(std::make_unique<LaplaceMechanism::Builder>())
+          .Build();
+  ASSERT_OK(mean);
+  auto result = (*mean)->Result(a.begin(), a.end());
+  ASSERT_OK(result);
+  EXPECT_GE(GetValue<double>(*result), 1);
+  EXPECT_LE(GetValue<double>(*result), 9);
+}
+
+TYPED_TEST(BoundedMeanTest, BasicTestWithExplicitGaussian) {
+  std::vector<TypeParam> a = {2, 4, 6, 8};
+  auto mean =
+      typename BoundedMean<TypeParam>::Builder()
+          .SetEpsilon(1.0)
+          .SetDelta(1e-7)
+          .SetLower(1)
+          .SetUpper(9)
+          .SetLaplaceMechanism(std::make_unique<GaussianMechanism::Builder>())
+          .Build();
+  ASSERT_OK(mean);
+  auto result = (*mean)->Result(a.begin(), a.end());
+  ASSERT_OK(result);
+  EXPECT_GE(GetValue<double>(*result), 1);
+  EXPECT_LE(GetValue<double>(*result), 9);
+}
+
 TYPED_TEST(BoundedMeanTest, RepeatedResultTest) {
   std::vector<TypeParam> a = {2, 4, 6, 8};
 

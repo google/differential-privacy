@@ -109,7 +109,6 @@ cc_library(
         "//base:percentile",
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/status",
-        "@com_google_cc_differential_privacy//base:status",
         "@com_google_cc_differential_privacy//base:statusor",
     ],
 )

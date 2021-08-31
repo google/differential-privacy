@@ -27,7 +27,6 @@
 #include "algorithms/numerical-mechanisms.h"
 #include "proto/util.h"
 #include "proto/summary.pb.h"
-#include "base/canonical_errors.h"
 #include "base/status_macros.h"
 
 namespace differential_privacy {
@@ -309,7 +308,7 @@ class QuantileTree<T>::Builder {
     }
     if (lower_.value() >= upper_.value()) {
       return absl::InvalidArgumentError(
-          absl::StrCat("Lower bound must be less than upper bound but lower: ",
+          absl::StrCat("Lower bound must be less than upper bound, but lower: ",
                        lower_.value(), " >= upper: ", upper_.value()));
     }
 

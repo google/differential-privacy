@@ -24,7 +24,6 @@
 #include "base/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
-#include "base/canonical_errors.h"
 #include "base/status.h"
 
 namespace differential_privacy {

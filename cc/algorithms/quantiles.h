@@ -168,8 +168,9 @@ class Quantiles<T>::Builder
     }
     for (double quantile : quantiles_) {
       if (quantile < 0 || quantile > 1) {
-        return absl::InvalidArgumentError(
-            "All quantiles to calculate must be in [0, 1].");
+        return absl::InvalidArgumentError(absl::StrCat(
+            "All quantiles to calculate must be in [0, 1], but one was: ",
+            quantile));
       }
     }
 

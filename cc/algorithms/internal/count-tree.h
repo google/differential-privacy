@@ -26,7 +26,6 @@
 #include "algorithms/numerical-mechanisms.h"
 #include "proto/util.h"
 #include "proto/summary.pb.h"
-#include "base/canonical_errors.h"
 #include "base/status_macros.h"
 
 namespace differential_privacy {

@@ -25,7 +25,6 @@
 #include "absl/strings/string_view.h"
 #include "algorithms/rand.h"
 #include "algorithms/util.h"
-#include "base/canonical_errors.h"
 #include "base/status_macros.h"
 
 namespace differential_privacy {

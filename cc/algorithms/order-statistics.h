@@ -25,7 +25,6 @@
 #include "algorithms/binary-search.h"
 #include "algorithms/bounded-algorithm.h"
 #include "algorithms/numerical-mechanisms.h"
-#include "base/canonical_errors.h"
 
 // Old classes for calculating order statistics (aka quantiles, aka
 // percentiles). Deprecated, you should use Quantiles instead as it's more

@@ -442,14 +442,14 @@ class GaussianMechanism : public NumericalMechanism {
     }
 
     base::StatusOr<std::unique_ptr<NumericalMechanism>> Build() override {
+      internal::GaussianDistribution::Builder builder;
+      ASSIGN_OR_RETURN(std::unique_ptr<internal::GaussianDistribution> distro,
+                       builder.SetStddev(1).Build());
+
       absl::optional<double> epsilon = GetEpsilon();
       RETURN_IF_ERROR(ValidateIsFiniteAndPositive(epsilon, "Epsilon"));
       RETURN_IF_ERROR(DeltaIsSetAndValid());
       ASSIGN_OR_RETURN(double l2, CalculateL2Sensitivity());
-
-      internal::GaussianDistribution::Builder builder;
-      ASSIGN_OR_RETURN(std::unique_ptr<internal::GaussianDistribution> distro,
-                       builder.SetStddev(1).Build());
 
       std::unique_ptr<NumericalMechanism> result =
           absl::make_unique<GaussianMechanism>(
@@ -686,8 +686,8 @@ class GaussianMechanism : public NumericalMechanism {
 
     double local_epsilon = privacy_budget * GetEpsilon();
     double local_delta = privacy_budget * delta_;
-    double stddev =
-        CalculateStddev(local_epsilon, local_delta, l2_sensitivity_);
+    double stddev = CalculateStddev(local_epsilon, local_delta,
+    l2_sensitivity_);
     double sample = distro_->Sample(stddev);
 
     return RoundToNearestMultiple(result, distro_->GetGranularity(stddev)) +
@@ -699,8 +699,8 @@ class GaussianMechanism : public NumericalMechanism {
 
     double local_epsilon = privacy_budget * GetEpsilon();
     double local_delta = privacy_budget * delta_;
-    double stddev =
-        CalculateStddev(local_epsilon, local_delta, l2_sensitivity_);
+    double stddev = CalculateStddev(local_epsilon, local_delta,
+    l2_sensitivity_);
     double sample = distro_->Sample(stddev);
 
     SafeOpResult<int64_t> noise_cast_result =

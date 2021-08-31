@@ -27,7 +27,6 @@
 #include "algorithms/numerical-mechanisms.h"
 #include "algorithms/util.h"
 #include "proto/summary.pb.h"
-#include "base/canonical_errors.h"
 #include "base/status_macros.h"
 
 namespace differential_privacy {
@@ -48,7 +47,7 @@ class BoundedMean : public Algorithm<T> {
   // Builder for BoundedMean algorithm.
   class Builder;
 
-  BoundedMean(const double epsilon) : Algorithm<T>(epsilon) {}
+  BoundedMean(double epsilon, double delta) : Algorithm<T>(epsilon, delta) {}
 
   virtual ~BoundedMean() = default;
 
@@ -76,10 +75,11 @@ class BoundedMean : public Algorithm<T> {
   static base::StatusOr<std::unique_ptr<NumericalMechanism>>
   BuildMechanismForNormalizedSum(
       std::unique_ptr<NumericalMechanismBuilder> mechanism_builder,
-      const double epsilon, const double l0_sensitivity,
+      const double epsilon, const double delta, const double l0_sensitivity,
       const double max_contributions_per_partition, const T lower,
       const T upper) {
     return mechanism_builder->SetEpsilon(epsilon)
+        .SetDelta(delta)
         .SetL0Sensitivity(l0_sensitivity)
         .SetLInfSensitivity(max_contributions_per_partition *
                             (std::abs(upper - lower) / 2))
@@ -97,10 +97,10 @@ template <typename T>
 class BoundedMeanWithFixedBounds : public BoundedMean<T> {
  public:
   BoundedMeanWithFixedBounds(
-      const double epsilon, const T lower, const T upper,
+      const double epsilon, const double delta, const T lower, const T upper,
       std::unique_ptr<NumericalMechanism> sum_mechanism,
       std::unique_ptr<NumericalMechanism> count_mechanism)
-      : BoundedMean<T>(epsilon),
+      : BoundedMean<T>(epsilon, delta),
         lower_(lower),
         upper_(upper),
         sum_mechanism_(std::move(sum_mechanism)),
@@ -200,12 +200,12 @@ template <typename T>
 class BoundedMeanWithApproxBounds : public BoundedMean<T> {
  public:
   BoundedMeanWithApproxBounds(
-      const double epsilon, const double l0_sensitivity,
+      const double epsilon, const double delta, const double l0_sensitivity,
       const double max_contributions_per_partition,
       std::unique_ptr<NumericalMechanismBuilder> mechanism_builder,
       std::unique_ptr<NumericalMechanism> count_mechanism,
       std::unique_ptr<ApproxBounds<T>> approx_bounds)
-      : BoundedMean<T>(epsilon),
+      : BoundedMean<T>(epsilon, delta),
         count_mechanism_(std::move(count_mechanism)),
         mechanism_builder_(std::move(mechanism_builder)),
         l0_sensitivity_(l0_sensitivity),
@@ -329,7 +329,8 @@ class BoundedMeanWithApproxBounds : public BoundedMean<T> {
         std::unique_ptr<NumericalMechanism> sum_mechanism,
         BoundedMean<T>::BuildMechanismForNormalizedSum(
             mechanism_builder_->Clone(), Algorithm<T>::GetEpsilon(),
-            l0_sensitivity_, max_contributions_per_partition_, lower, upper));
+            Algorithm<T>::GetDelta() / 2, l0_sensitivity_,
+            max_contributions_per_partition_, lower, upper));
 
     // We use the midpoint to normalize the sum.
     const double midpoint = lower + (upper - lower) / 2;
@@ -421,6 +422,7 @@ class BoundedMean<T>::Builder
         count_mechanism,
         AlgorithmBuilder::GetMechanismBuilderClone()
             ->SetEpsilon(BoundedBuilder::GetRemainingEpsilon().value())
+            .SetDelta(BoundedBuilder::GetDelta().value_or(0.0) / 2)
             .SetL0Sensitivity(
                 AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1))
             .SetLInfSensitivity(
@@ -435,6 +437,7 @@ class BoundedMean<T>::Builder
           BoundedMean<T>::BuildMechanismForNormalizedSum(
               AlgorithmBuilder::GetMechanismBuilderClone(),
               BoundedBuilder::GetRemainingEpsilon().value(),
+              BoundedBuilder::GetDelta().value_or(0.0) / 2,
               AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1),
               AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(1),
               BoundedBuilder::GetLower().value(),
@@ -443,6 +446,7 @@ class BoundedMean<T>::Builder
       // Construct BoundedSum with fixed bounds.
       return std::unique_ptr<BoundedMean<T>>(new BoundedMeanWithFixedBounds<T>(
           BoundedBuilder::GetEpsilon().value(),
+          BoundedBuilder::GetDelta().value_or(0),
           BoundedBuilder::GetLower().value(),
           BoundedBuilder::GetUpper().value(), std::move(sum_mechanism),
           std::move(count_mechanism)));
@@ -452,6 +456,7 @@ class BoundedMean<T>::Builder
     auto mech_builder = AlgorithmBuilder::GetMechanismBuilderClone();
     return std::unique_ptr<BoundedMean<T>>(new BoundedMeanWithApproxBounds<T>(
         BoundedBuilder::GetRemainingEpsilon().value(),
+        BoundedBuilder::GetDelta().value_or(0),
         AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1),
         AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(1),
         std::move(mech_builder), std::move(count_mechanism),
