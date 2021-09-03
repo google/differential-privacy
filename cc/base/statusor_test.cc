@@ -30,7 +30,6 @@
 #include "gtest/gtest.h"
 #include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
-#include "base/canonical_errors.h"
 #include "base/testing/status_matchers.h"
 
 namespace differential_privacy {

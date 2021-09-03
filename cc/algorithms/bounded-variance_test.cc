@@ -17,16 +17,32 @@
 #include "algorithms/bounded-variance.h"
 
 #include <cmath>
-#include <cstdlib>
+#include <functional>
+#include <limits>
+#include <memory>
+#include <numeric>
+#include <random>
+#include <string>
+#include <type_traits>
+#include <utility>
+#include <vector>
 
+#include <cstdint>
+#include "base/logging.h"
 #include "base/testing/proto_matchers.h"
 #include "base/testing/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/memory/memory.h"
 #include "absl/random/distributions.h"
 #include "absl/status/status.h"
+#include "base/statusor.h"
 #include "algorithms/approx-bounds.h"
 #include "algorithms/numerical-mechanisms-testing.h"
+#include "algorithms/numerical-mechanisms.h"
+#include "proto/util.h"
+#include "proto/data.pb.h"
+#include "proto/summary.pb.h"
 
 namespace differential_privacy {
 
@@ -45,6 +61,8 @@ class BoundedVarianceTestPeer {
 namespace {
 
 using test_utils::ZeroNoiseMechanism;
+using ::testing::_;
+using ::testing::DoubleEq;
 using ::testing::DoubleNear;
 using ::differential_privacy::base::testing::EqualsProto;
 using ::testing::HasSubstr;
@@ -868,6 +886,41 @@ TYPED_TEST(BoundedVarianceTest, SplitsEpsilonWithAutomaticBounds) {
   EXPECT_LT(bvi->GetBoundingEpsilon(), epsilon);
   EXPECT_GT(bvi->GetAggregationEpsilon(), 0);
   EXPECT_LT(bvi->GetAggregationEpsilon(), epsilon);
+}
+
+TEST(BoundedVarianceWithFixedBoundsTest,
+     ConsumesAllBudgetOfNumericalMechanisms) {
+  std::unique_ptr<test_utils::MockLaplaceMechanism> mock_count_mechanism =
+      std::make_unique<test_utils::MockLaplaceMechanism>();
+  std::unique_ptr<test_utils::MockLaplaceMechanism> mock_sum_mechanism =
+      std::make_unique<test_utils::MockLaplaceMechanism>();
+  std::unique_ptr<test_utils::MockLaplaceMechanism>
+      mock_sum_of_squares_mechanism =
+          std::make_unique<test_utils::MockLaplaceMechanism>();
+
+  test_utils::MockLaplaceMechanism* mock_count_ptr = mock_count_mechanism.get();
+  test_utils::MockLaplaceMechanism* mock_sum_ptr = mock_sum_mechanism.get();
+  test_utils::MockLaplaceMechanism* mock_sum_of_squares_ptr =
+      mock_sum_of_squares_mechanism.get();
+
+  // For a double bounded variance, we add int noise to the count and double
+  // noise to the sum and the sum of squares.
+  EXPECT_CALL(*mock_count_ptr, AddInt64Noise(_, DoubleEq(1))).Times(1);
+  EXPECT_CALL(*mock_sum_ptr, AddDoubleNoise(_, DoubleEq(1))).Times(1);
+  EXPECT_CALL(*mock_sum_of_squares_ptr, AddDoubleNoise(_, DoubleEq(1)))
+      .Times(1);
+
+  BoundedVarianceWithFixedBounds<double> bv(
+      /*epsilon=*/1.0,
+      /*lower=*/-1,
+      /*upper=*/1, std::move(mock_count_mechanism),
+      std::move(mock_sum_mechanism), std::move(mock_sum_of_squares_mechanism));
+
+  for (int i = 0; i < 10; ++i) {
+    bv.AddEntry(1.0);
+  }
+
+  EXPECT_OK(bv.PartialResult());
 }
 
 }  //  namespace

@@ -16,13 +16,31 @@
 
 #include "algorithms/bounded-mean.h"
 
+#include <limits.h>
+
+#include <cmath>
+#include <functional>
+#include <limits>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include <cstdint>
+#include "base/logging.h"
 #include "base/testing/proto_matchers.h"
 #include "base/testing/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/memory/memory.h"
 #include "absl/status/status.h"
+#include "base/statusor.h"
 #include "algorithms/approx-bounds.h"
 #include "algorithms/numerical-mechanisms-testing.h"
+#include "algorithms/numerical-mechanisms.h"
+#include "proto/util.h"
+#include "proto/data.pb.h"
+#include "proto/summary.pb.h"
 
 namespace differential_privacy {
 
@@ -40,6 +58,8 @@ class BoundedMeanTestPeer {
 namespace {
 
 using ::differential_privacy::test_utils::ZeroNoiseMechanism;
+using ::testing::_;
+using ::testing::DoubleEq;
 using ::differential_privacy::base::testing::EqualsProto;
 using ::testing::HasSubstr;
 using ::differential_privacy::base::testing::StatusIs;
@@ -905,6 +925,34 @@ TYPED_TEST(BoundedMeanTest, SplitsEpsilonWithAutomaticBounds) {
   EXPECT_LT(bmi->GetBoundingEpsilon(), epsilon);
   EXPECT_GT(bmi->GetAggregationEpsilon(), 0);
   EXPECT_LT(bmi->GetAggregationEpsilon(), epsilon);
+}
+
+TEST(BoundedMeanWithApproxBoundsTest, ConsumesAllBudgetOfNumericalMechanisms) {
+  std::unique_ptr<test_utils::MockLaplaceMechanism> mock_count_mechanism =
+      std::make_unique<test_utils::MockLaplaceMechanism>();
+  std::unique_ptr<test_utils::MockLaplaceMechanism> mock_sum_mechanism =
+      std::make_unique<test_utils::MockLaplaceMechanism>();
+
+  test_utils::MockLaplaceMechanism* mock_count_ptr = mock_count_mechanism.get();
+  test_utils::MockLaplaceMechanism* mock_sum_ptr = mock_sum_mechanism.get();
+
+  // For a double bounded mean, we add int noise to the count and double noise
+  // to the sum.
+  EXPECT_CALL(*mock_count_ptr, AddInt64Noise(_, DoubleEq(1))).Times(1);
+  EXPECT_CALL(*mock_sum_ptr, AddDoubleNoise(_, DoubleEq(1))).Times(1);
+
+  BoundedMeanWithFixedBounds<double> bm(
+      /*epsilon=*/1.0,
+      /*delta=*/0,
+      /*lower=*/-1,
+      /*upper=*/1, std::move(mock_sum_mechanism),
+      std::move(mock_count_mechanism));
+
+  for (int i = 0; i < 10; ++i) {
+    bm.AddEntry(1.0);
+  }
+
+  EXPECT_OK(bm.PartialResult());
 }
 
 }  //  namespace

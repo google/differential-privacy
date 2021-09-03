@@ -17,10 +17,21 @@
 #ifndef DIFFERENTIAL_PRIVACY_ALGORITHMS_BOUNDED_MEAN_H_
 #define DIFFERENTIAL_PRIVACY_ALGORITHMS_BOUNDED_MEAN_H_
 
+#include <stdlib.h>
+
+#include <algorithm>
+#include <cmath>
+#include <memory>
+#include <string>
+#include <type_traits>
+#include <utility>
+#include <vector>
+
+#include <cstdint>
 #include "google/protobuf/any.pb.h"
-#include "absl/random/distributions.h"
 #include "absl/status/status.h"
 #include "base/statusor.h"
+#include "absl/strings/str_cat.h"
 #include "algorithms/algorithm.h"
 #include "algorithms/approx-bounds.h"
 #include "algorithms/bounded-algorithm.h"
@@ -147,21 +158,18 @@ class BoundedMeanWithFixedBounds : public BoundedMean<T> {
   }
 
  protected:
-  base::StatusOr<Output> GenerateResult(double privacy_budget,
+  base::StatusOr<Output> GenerateResult(double privacy_budget_fraction,
                                         double noise_interval_level) override {
-    RETURN_IF_ERROR(ValidateIsPositive(privacy_budget, "Privacy budget",
+    RETURN_IF_ERROR(ValidateIsPositive(privacy_budget_fraction,
+                                       "Privacy budget",
                                        absl::StatusCode::kFailedPrecondition));
     const double midpoint = lower_ + ((upper_ - lower_) / 2);
 
-    // Split privacy budget for sum and count mechanisms.
-    const double sum_budget = privacy_budget / 2;
-    const double count_budget = privacy_budget - sum_budget;
-
     const double noised_count =
         std::max(1.0, static_cast<double>(count_mechanism_->AddNoise(
-                          partial_count_, count_budget)));
+                          partial_count_, privacy_budget_fraction)));
     const double noised_normalized_sum = sum_mechanism_->AddNoise(
-        partial_sum_ - (partial_count_ * midpoint), sum_budget);
+        partial_sum_ - (partial_count_ * midpoint), privacy_budget_fraction);
     const double mean = (noised_normalized_sum / noised_count) + midpoint;
 
     Output output;
@@ -415,28 +423,27 @@ class BoundedMean<T>::Builder
     // Ensure that either bounds are manually set or ApproxBounds is made.
     RETURN_IF_ERROR(BoundedBuilder::BoundsSetup());
 
-    // The count noising doesn't depend on the bounds, so we can always
-    // construct the mechanism we use for it here.
-    std::unique_ptr<NumericalMechanism> count_mechanism;
-    ASSIGN_OR_RETURN(
-        count_mechanism,
-        AlgorithmBuilder::GetMechanismBuilderClone()
-            ->SetEpsilon(BoundedBuilder::GetRemainingEpsilon().value())
-            .SetDelta(BoundedBuilder::GetDelta().value_or(0.0) / 2)
-            .SetL0Sensitivity(
-                AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1))
-            .SetLInfSensitivity(
-                AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(1))
-            .Build());
-
     if (BoundedBuilder::BoundsAreSet()) {
       RETURN_IF_ERROR(CheckBounds(BoundedBuilder::GetLower().value(),
                                   BoundedBuilder::GetUpper().value()));
+
+      ASSIGN_OR_RETURN(
+          std::unique_ptr<NumericalMechanism> count_mechanism,
+          AlgorithmBuilder::GetMechanismBuilderClone()
+              ->SetEpsilon(BoundedBuilder::GetEpsilon().value() / 2)
+              .SetDelta(BoundedBuilder::GetDelta().value_or(0.0) / 2)
+              .SetL0Sensitivity(
+                  AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1))
+              .SetLInfSensitivity(
+                  AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(
+                      1))
+              .Build());
+
       ASSIGN_OR_RETURN(
           std::unique_ptr<NumericalMechanism> sum_mechanism,
           BoundedMean<T>::BuildMechanismForNormalizedSum(
               AlgorithmBuilder::GetMechanismBuilderClone(),
-              BoundedBuilder::GetRemainingEpsilon().value(),
+              BoundedBuilder::GetEpsilon().value() / 2,
               BoundedBuilder::GetDelta().value_or(0.0) / 2,
               AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1),
               AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(1),
@@ -450,17 +457,31 @@ class BoundedMean<T>::Builder
           BoundedBuilder::GetLower().value(),
           BoundedBuilder::GetUpper().value(), std::move(sum_mechanism),
           std::move(count_mechanism)));
-    }
+    } else {
+      // The count mechanism does not depend on the bounds, so we can create it
+      // here to have early parameter verification.
+      ASSIGN_OR_RETURN(
+          std::unique_ptr<NumericalMechanism> count_mechanism,
+          AlgorithmBuilder::GetMechanismBuilderClone()
+              ->SetEpsilon(BoundedBuilder::GetRemainingEpsilon().value() / 2)
+              .SetDelta(BoundedBuilder::GetDelta().value_or(0.0) / 2)
+              .SetL0Sensitivity(
+                  AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1))
+              .SetLInfSensitivity(
+                  AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(
+                      1))
+              .Build());
 
-    // Construct BoundedMean.
-    auto mech_builder = AlgorithmBuilder::GetMechanismBuilderClone();
-    return std::unique_ptr<BoundedMean<T>>(new BoundedMeanWithApproxBounds<T>(
-        BoundedBuilder::GetRemainingEpsilon().value(),
-        BoundedBuilder::GetDelta().value_or(0),
-        AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1),
-        AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(1),
-        std::move(mech_builder), std::move(count_mechanism),
-        std::move(BoundedBuilder::MoveApproxBoundsPointer())));
+      // Construct BoundedMean.
+      auto mech_builder = AlgorithmBuilder::GetMechanismBuilderClone();
+      return std::unique_ptr<BoundedMean<T>>(new BoundedMeanWithApproxBounds<T>(
+          BoundedBuilder::GetRemainingEpsilon().value(),
+          BoundedBuilder::GetDelta().value_or(0),
+          AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1),
+          AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(1),
+          std::move(mech_builder), std::move(count_mechanism),
+          std::move(BoundedBuilder::MoveApproxBoundsPointer())));
+    }
   }
 };
 

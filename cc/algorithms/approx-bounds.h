@@ -17,11 +17,11 @@
 #ifndef DIFFERENTIAL_PRIVACY_ALGORITHMS_APPROX_BOUNDS_H_
 #define DIFFERENTIAL_PRIVACY_ALGORITHMS_APPROX_BOUNDS_H_
 
+#include <stdint.h>
 #include <stdlib.h>
 
 #include <algorithm>
 #include <cmath>
-#include <cstdlib>
 #include <functional>
 #include <limits>
 #include <memory>

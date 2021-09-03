@@ -17,9 +17,11 @@
 #ifndef DIFFERENTIAL_PRIVACY_ALGORITHMS_ALGORITHM_H_
 #define DIFFERENTIAL_PRIVACY_ALGORITHMS_ALGORITHM_H_
 
+#include <algorithm>
 #include <limits>
 #include <memory>
 #include <optional>
+#include <string>
 #include <utility>
 
 #include <cstdint>
@@ -27,6 +29,7 @@
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "base/statusor.h"
+#include "absl/strings/str_cat.h"
 #include "algorithms/numerical-mechanisms.h"
 #include "algorithms/util.h"
 #include "proto/util.h"

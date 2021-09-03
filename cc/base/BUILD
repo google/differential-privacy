@@ -70,19 +70,10 @@ cc_library(
 )
 
 cc_library(
-    name = "canonical_errors",
-    hdrs = ["canonical_errors.h"],
-    deps = [
-        ":status",
-    ],
-)
-
-cc_library(
     name = "statusor",
     srcs = ["statusor.cc"],
     hdrs = ["statusor.h"],
     deps = [
-        ":canonical_errors",
         ":logging",
         ":status",
         ":statusor_internals",
@@ -104,7 +95,6 @@ cc_test(
     name = "statusor_test",
     srcs = ["statusor_test.cc"],
     deps = [
-        ":canonical_errors",
         ":statusor",
         "//base/testing:status_matchers",
         "@com_google_absl//absl/memory",

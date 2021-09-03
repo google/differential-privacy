@@ -19,7 +19,7 @@
 
 #include <ostream>
 
-#include "base/canonical_errors.h"
+#include "base/status.h"
 
 namespace differential_privacy {
 namespace base {
