@@ -286,9 +286,19 @@ public class BoundedSumTest {
   }
 
   @Test
-  public void getSerializableSummary_multipleCalls_throwsException() {
-    sum.getSerializableSummary();
-    assertThrows(IllegalStateException.class, () -> sum.getSerializableSummary());
+  public void getSerializableSummary_multipleCalls_returnsSameSummary() {
+    sum =
+        BoundedSum.builder()
+            .epsilon(EPSILON)
+            .noise(new LaplaceNoise())
+            .maxPartitionsContributed(1)
+            .lower(0.0)
+            .upper(1.0)
+            .build();
+    sum.addEntry(0.5);
+    byte[] summary1 = sum.getSerializableSummary();
+    byte[] summary2 = sum.getSerializableSummary();
+    assertThat(summary1).isEqualTo(summary2);
   }
 
   @Test

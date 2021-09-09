@@ -107,8 +107,7 @@ Beam for this operation.
 For more detail about our approach to building scalable end-to-end differential
 privacy frameworks, we recommend reading:
 
-1. [Differential privacy computations in data pipelines reference doc]
-(https://github.com/google/differential-privacy/blob/main/common_docs/Differential_Privacy_Computations_In_Data_Pipelines.pdf),
+1. [Differential privacy computations in data pipelines reference doc](https://github.com/google/differential-privacy/blob/main/common_docs/Differential_Privacy_Computations_In_Data_Pipelines.pdf),
 which describes how to build such a system using any data pipeline framework
 (e.g. Apache Beam).
 2. Our

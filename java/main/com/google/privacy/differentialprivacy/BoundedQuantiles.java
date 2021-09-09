@@ -92,11 +92,11 @@ public class BoundedQuantiles {
   /**
    * Clamps the input value and adds it to the distribution.
    *
-   * @throws IllegalStateException if this this instance of {@link BoundedQuantiles} has already
-   *     been queried or serialized.
+   * @throws IllegalStateException if this instance of {@link BoundedQuantiles} has already been
+   *     queried or serialized.
    */
   public void addEntry(double e) {
-    Preconditions.checkState(state == AggregationState.DEFAULT, "Entry cannot be added.");
+    Preconditions.checkState(state.equals(AggregationState.DEFAULT), "Entry cannot be added.");
 
     // NaN is ignored because we cannot aggregate NaNs.
     if (Double.isNaN(e)) {
@@ -116,8 +116,8 @@ public class BoundedQuantiles {
   /**
    * Clamps the input values and adds them to the distribution.
    *
-   * @throws IllegalStateException if this this instance of {@link BoundedQuantiles} has already
-   *     been queried or serialized.
+   * @throws IllegalStateException if this instance of {@link BoundedQuantiles} has already been
+   *     queried or serialized.
    */
   public void addEntries(Collection<Double> e) {
     e.forEach(this::addEntry);
@@ -189,7 +189,7 @@ public class BoundedQuantiles {
    */
   public double computeResult(double rank) {
     Preconditions.checkState(
-        state == AggregationState.DEFAULT || state == AggregationState.RESULT_RETURNED,
+        state.equals(AggregationState.DEFAULT) || state.equals(AggregationState.RESULT_RETURNED),
         "DP quantile cannot be computed.");
 
     state = AggregationState.RESULT_RETURNED;
@@ -245,7 +245,7 @@ public class BoundedQuantiles {
    */
   public ConfidenceInterval computeConfidenceInterval(double rank, double alpha) {
     Preconditions.checkState(
-        state == AggregationState.RESULT_RETURNED, "Confidence interval cannot be computed.");
+        state.equals(AggregationState.RESULT_RETURNED), "Confidence interval cannot be computed.");
 
     checkArgument(
         rank >= 0.0 && rank <= 1.0, "rank must be >= 0 and <= 1. Provided value: %s", rank);
@@ -492,15 +492,15 @@ public class BoundedQuantiles {
    *
    * <p>This method cannot be invoked if a quantile has already been queried, i.e., {@link
    * computeResult(double)} has been called. Moreover, after this instance of {@link
-   * BoundedQuantiles} has been serialized once, no further modification, queries or serialization
-   * is possible anymore.
+   * BoundedQuantiles} has been serialized once, further modification and queries are not possible
+   * anymore.
    *
-   * @throws IllegalStateException if this this instance of {@link BoundedQuantiles} has already
-   *     been queried or serialized.
+   * @throws IllegalStateException if this instance of {@link BoundedQuantiles} has already been
+   *     queried.
    */
   public byte[] getSerializableSummary() {
     Preconditions.checkState(
-        state == AggregationState.DEFAULT, "Distribution cannot be serialized.");
+        state != AggregationState.RESULT_RETURNED, "Distribution cannot be serialized.");
 
     state = AggregationState.SERIALIZED;
 
@@ -529,11 +529,12 @@ public class BoundedQuantiles {
    *
    * @throws IllegalArgumentException if the parameters of the two instances (epsilon, delta,
    *     contribution bounds, etc.) do not match or if the passed serialized summary is invalid.
-   * @throws IllegalStateException if this this instance of {@link BoundedQuantiles} has already
-   *     been queried or serialized.
+   * @throws IllegalStateException if this instance of {@link BoundedQuantiles} has already been
+   *     queried or serialized.
    */
   public void mergeWith(byte[] otherBoundedQuantilesSummary) {
-    Preconditions.checkState(state == AggregationState.DEFAULT, "Distributions cannot be merged.");
+    Preconditions.checkState(
+        state.equals(AggregationState.DEFAULT), "Distributions cannot be merged.");
 
     BoundedQuantilesSummary otherSummaryParsed;
     try {

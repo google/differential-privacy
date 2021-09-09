@@ -243,9 +243,18 @@ public class CountTest {
   }
 
   @Test
-  public void getSerializableSummary_multipleCalls_throwsException() {
-    count.getSerializableSummary();
-    assertThrows(IllegalStateException.class, () -> count.getSerializableSummary());
+  public void getSerializableSummary_multipleCalls_returnsSameSummary() {
+    count =
+        Count.builder()
+            .epsilon(EPSILON)
+            .noise(new LaplaceNoise())
+            .maxPartitionsContributed(1)
+            .maxContributionsPerPartition(1)
+            .build();
+    count.increment();
+    byte[] summary1 = count.getSerializableSummary();
+    byte[] summary2 = count.getSerializableSummary();
+    assertThat(summary1).isEqualTo(summary2);
   }
 
   @Test

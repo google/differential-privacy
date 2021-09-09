@@ -35,8 +35,8 @@ func init() {
 
 // Codec provides functions for encoding a <K,V> pair into a Pair and
 // decoding a Pair into a <K,V> pair. It can be used for performing <K,V>
-// transforms. Whenever they are used inside a structural doFn, they should be
-// an exported field in order for them to be serialized to JSON.
+// transforms. Whenever a Codec is used inside a structural doFn, it should
+// be an exported field in order to be serialized.
 //
 // After initialization, Setup function should be called before any calls are
 // made to Encode/Decode.

@@ -395,9 +395,20 @@ public class BoundedMeanTest {
   }
 
   @Test
-  public void getSerializableSummary_multipleCalls_throwsException() {
-    mean.getSerializableSummary();
-    assertThrows(IllegalStateException.class, () -> mean.getSerializableSummary());
+  public void getSerializableSummary_multipleCalls_returnsSameSummary() {
+    mean =
+        BoundedMean.builder()
+            .epsilon(EPSILON)
+            .noise(new LaplaceNoise())
+            .maxPartitionsContributed(1)
+            .maxContributionsPerPartition(1)
+            .lower(0.0)
+            .upper(1.0)
+            .build();
+    mean.addEntry(0.5);
+    byte[] summary1 = mean.getSerializableSummary();
+    byte[] summary2 = mean.getSerializableSummary();
+    assertThat(summary1).isEqualTo(summary2);
   }
 
   @Test

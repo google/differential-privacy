@@ -74,11 +74,11 @@ public class BoundedSum {
   /**
    * Clamps the input value and adds it to the sum.
    *
-   * @throws IllegalStateException if this this instance of {@link BoundedSum} has already been
-   *     queried or serialized.
+   * @throws IllegalStateException if this instance of {@link BoundedSum} has already been queried
+   *     or serialized.
    */
   public void addEntry(double e) {
-    Preconditions.checkState(state == AggregationState.DEFAULT, "Entry cannot be added.");
+    Preconditions.checkState(state.equals(AggregationState.DEFAULT), "Entry cannot be added.");
 
     // NaN is ignored because introducing even a single NaN entry will result in a NaN sum
     // regardless of other entries, which would break the indistinguishability property required
@@ -93,8 +93,8 @@ public class BoundedSum {
   /**
    * Clamps the input values and adds them to the sum.
    *
-   * @throws IllegalStateException if this this instance of {@link BoundedSum} has already been
-   *     queried or serialized.
+   * @throws IllegalStateException if this instance of {@link BoundedSum} has already been queried
+   *     or serialized.
    */
   public void addEntries(Collection<Double> e) {
     e.forEach(this::addEntry);
@@ -121,7 +121,7 @@ public class BoundedSum {
    *     or serialized.
    */
   public double computeResult() {
-    Preconditions.checkState(state == AggregationState.DEFAULT, "DP sum cannot be computed.");
+    Preconditions.checkState(state.equals(AggregationState.DEFAULT), "DP sum cannot be computed.");
 
     state = AggregationState.RESULT_RETURNED;
 
@@ -143,12 +143,11 @@ public class BoundedSum {
    * href="https://github.com/google/differential-privacy/tree/main/common_docs/confidence_intervals.md">this</a> doc for
    * more information.
    *
-   * @throws IllegalStateException if this this instance of {@link BoundedSum} has not been queried
-   *     yet.
+   * @throws IllegalStateException if this instance of {@link BoundedSum} has not been queried yet.
    */
   public ConfidenceInterval computeConfidenceInterval(double alpha) {
     Preconditions.checkState(
-        state == AggregationState.RESULT_RETURNED, "Confidence interval cannot be computed.");
+        state.equals(AggregationState.RESULT_RETURNED), "Confidence interval cannot be computed.");
 
     ConfidenceInterval confInt =
         params
@@ -177,13 +176,13 @@ public class BoundedSum {
    *
    * <p>This method cannot be invoked if the sum has already been queried, i.e., {@link
    * computeResult()} has been called. Moreover, after this instance of {@link BoundedSum} has been
-   * serialized once, no further modification, queries or serialization is possible anymore.
+   * serialized once, further modification and queries are not possible anymore.
    *
-   * @throws IllegalStateException if this instance of {@link BoundedSum} has already been queried
-   *     or serialized.
+   * @throws IllegalStateException if this instance of {@link BoundedSum} has already been queried.
    */
   public byte[] getSerializableSummary() {
-    Preconditions.checkState(state == AggregationState.DEFAULT, "Sum cannot be serialized.");
+    Preconditions.checkState(
+        !state.equals(AggregationState.RESULT_RETURNED), "Sum cannot be serialized.");
 
     state = AggregationState.SERIALIZED;
 
@@ -214,7 +213,7 @@ public class BoundedSum {
    *     or serialized.
    */
   public void mergeWith(byte[] otherBoundedSumSummary) {
-    Preconditions.checkState(state == AggregationState.DEFAULT, "Sums cannot be merged.");
+    Preconditions.checkState(state.equals(AggregationState.DEFAULT), "Sums cannot be merged.");
 
     BoundedSumSummary otherSummaryParsed;
     try {

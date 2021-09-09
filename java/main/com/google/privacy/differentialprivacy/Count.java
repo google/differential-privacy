@@ -71,8 +71,8 @@ public class Count {
   /**
    * Increments count by one.
    *
-   * @throws IllegalStateException if this this instance of {@link Count} has already been queried
-   *     or serialized.
+   * @throws IllegalStateException if this instance of {@link Count} has already been queried or
+   *     serialized.
    */
   public void increment() {
     incrementBy(1);
@@ -82,11 +82,12 @@ public class Count {
    * Increments count by the given value. Note, that this shouldn't be used to count multiple
    * contributions to a partition from the same user.
    *
-   * @throws IllegalStateException if this this instance of {@link Count} has already been queried
-   *     or serialized.
+   * @throws IllegalStateException if this instance of {@link Count} has already been queried or
+   *     serialized.
    */
   public void incrementBy(long count) {
-    Preconditions.checkState(state == AggregationState.DEFAULT, "Count cannot be incremented.");
+    Preconditions.checkState(
+        state.equals(AggregationState.DEFAULT), "Count cannot be incremented.");
 
     // Non-positive values are ignored because they don't make sense.
     if (count > 0) {
@@ -108,7 +109,8 @@ public class Count {
    *     serialized.
    */
   public long computeResult() {
-    Preconditions.checkState(state == AggregationState.DEFAULT, "DP count cannot be computed.");
+    Preconditions.checkState(
+        state.equals(AggregationState.DEFAULT), "DP count cannot be computed.");
 
     state = AggregationState.RESULT_RETURNED;
 
@@ -133,11 +135,11 @@ public class Count {
    * href="https://github.com/google/differential-privacy/tree/main/common_docs/confidence_intervals.md">this</a> doc for
    * more information.
    *
-   * @throws IllegalStateException if this this instance of {@link Count} has not been queried yet.
+   * @throws IllegalStateException if this instance of {@link Count} has not been queried yet.
    */
   public ConfidenceInterval computeConfidenceInterval(double alpha) {
     Preconditions.checkState(
-        state == AggregationState.RESULT_RETURNED, "Confidence interval cannot be computed.");
+        state.equals(AggregationState.RESULT_RETURNED), "Confidence interval cannot be computed.");
 
     ConfidenceInterval confInt =
         params
@@ -219,13 +221,13 @@ public class Count {
    *
    * <p>This method cannot be invoked if the count has already been queried, i.e., {@link
    * computeResult()} has been called. Moreover, after this instance of {@link Count} has been
-   * serialized once, no further modification, queries or serialization is possible anymore.
+   * serialized once, further modification and queries are not possible anymore.
    *
-   * @throws IllegalStateException if this this instance of {@link Count} has already been queried
-   *     or serialized.
+   * @throws IllegalStateException if this instance of {@link Count} has already been queried.
    */
   public byte[] getSerializableSummary() {
-    Preconditions.checkState(state == AggregationState.DEFAULT, "Count cannot be serialized.");
+    Preconditions.checkState(
+        state != AggregationState.RESULT_RETURNED, "Count cannot be serialized.");
 
     state = AggregationState.SERIALIZED;
 
@@ -249,11 +251,11 @@ public class Count {
    *
    * @throws IllegalArgumentException if the parameters of the two instances (epsilon, delta,
    *     contribution bounds, etc.) do not match or if the passed serialized summary is invalid.
-   * @throws IllegalStateException if this this instance of {@link Count} has already been queried
-   *     or serialized.
+   * @throws IllegalStateException if this instance of {@link Count} has already been queried or
+   *     serialized.
    */
   public void mergeWith(byte[] otherCountSummary) {
-    Preconditions.checkState(state == AggregationState.DEFAULT, "Counts cannot be merged.");
+    Preconditions.checkState(state.equals(AggregationState.DEFAULT), "Counts cannot be merged.");
 
     CountSummary otherSummaryParsed;
     try {

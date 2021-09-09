@@ -448,10 +448,20 @@ public class BoundedQuantilesTest {
   }
 
   @Test
-  public void getSerializableSummary_multipleCalls_throwsException() {
-    BoundedQuantiles quantiles = builder.build();
-    quantiles.getSerializableSummary();
-    assertThrows(IllegalStateException.class, quantiles::getSerializableSummary);
+  public void getSerializableSummary_multipleCalls_returnsSameSummary() {
+    BoundedQuantiles quantiles =
+        BoundedQuantiles.builder()
+            .epsilon(1.0)
+            .noise(new LaplaceNoise())
+            .maxPartitionsContributed(1)
+            .maxContributionsPerPartition(1)
+            .lower(0.0)
+            .upper(1.0)
+            .build();
+    quantiles.addEntry(0.5);
+    byte[] summary1 = quantiles.getSerializableSummary();
+    byte[] summary2 = quantiles.getSerializableSummary();
+    assertThat(summary1).isEqualTo(summary2);
   }
 
   @Test

@@ -131,7 +131,7 @@ public class BoundedMean {
    *     queried or serialized.
    */
   public void addEntry(double e) {
-    Preconditions.checkState(state == AggregationState.DEFAULT, "Entry cannot be added.");
+    Preconditions.checkState(state.equals(AggregationState.DEFAULT), "Entry cannot be added.");
 
     // NaN is ignored because introducing even a single NaN entry will result in a NaN mean
     // regardless of other entries, which would break the indistinguishability
@@ -171,7 +171,7 @@ public class BoundedMean {
    *     or serialized.
    */
   public double computeResult() {
-    Preconditions.checkState(state == AggregationState.DEFAULT, "DP mean cannot be computed.");
+    Preconditions.checkState(state.equals(AggregationState.DEFAULT), "DP mean cannot be computed.");
 
     state = AggregationState.RESULT_RETURNED;
 
@@ -197,7 +197,7 @@ public class BoundedMean {
    */
   public ConfidenceInterval computeConfidenceInterval(double alpha) {
     Preconditions.checkState(
-        state == AggregationState.RESULT_RETURNED, "Confidence interval cannot be computed.");
+        state.equals(AggregationState.RESULT_RETURNED), "Confidence interval cannot be computed.");
 
     // The confidence interval of bounded mean is derived from confidence intervals of the mean's
     // numerator and denominator. The respective confidence levels 1 - alphaNum and 1 - alphaDen can
@@ -262,13 +262,13 @@ public class BoundedMean {
    *
    * <p>This method cannot be invoked if the mean has already been queried, i.e., {@link
    * computeResult()} has been called. Moreover, after this instance of {@link BoundedMean} has been
-   * serialized once, no further modification, queries or serialization is possible anymore.
+   * serialized once, further modification and queries are not possible anymore.
    *
-   * @throws IllegalStateException if this instance of {@link BoundedMean} has already been queried
-   *     or serialized.
+   * @throws IllegalStateException if this instance of {@link BoundedMean} has already been queried.
    */
   public byte[] getSerializableSummary() {
-    Preconditions.checkState(state == AggregationState.DEFAULT, "Mean cannot be serialized.");
+    Preconditions.checkState(
+        state != AggregationState.RESULT_RETURNED, "Mean cannot be serialized.");
 
     state = AggregationState.SERIALIZED;
 
@@ -301,7 +301,7 @@ public class BoundedMean {
    *     queried or serialized.
    */
   public void mergeWith(byte[] otherBoundedMeanSummary) {
-    Preconditions.checkState(state == AggregationState.DEFAULT, "Means cannot be merged.");
+    Preconditions.checkState(state.equals(AggregationState.DEFAULT), "Means cannot be merged.");
 
     BoundedMeanSummary otherSummaryParsed;
     try {
