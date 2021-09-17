@@ -245,7 +245,7 @@ TYPED_TEST(BoundedStandardDeviationTest, AutomaticBounds) {
           .SetNumBins(4)
           .SetBase(2)
           .SetScale(1)
-          .SetThreshold(2)
+          .SetThresholdForTest(2)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build()
           .value();

@@ -617,7 +617,7 @@ TYPED_TEST(BoundedMeanTest, SerializeMergePartialSumsTest) {
 
   // Automatic bounding, so entries will be split and stored as partial sums.
   auto bounds =
-      bounds_builder.SetThreshold(1)
+      bounds_builder.SetThresholdForTest(1)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
@@ -655,7 +655,7 @@ TYPED_TEST(BoundedMeanTest, AutomaticBoundsNegative) {
           .SetNumBins(5)
           .SetBase(2)
           .SetScale(1)
-          .SetThreshold(2)
+          .SetThresholdForTest(2)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
@@ -691,7 +691,7 @@ TYPED_TEST(BoundedMeanTest, AutomaticBoundsPositive) {
           .SetNumBins(5)
           .SetBase(2)
           .SetScale(1)
-          .SetThreshold(2)
+          .SetThresholdForTest(2)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
@@ -748,7 +748,7 @@ TEST(BoundedMeanTest, SensitivityOverflowApproxBounds) {
   auto bounds =
       ApproxBounds<int>::Builder()
           .SetEpsilon(1)
-          .SetThreshold(1)
+          .SetThresholdForTest(1)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
@@ -782,7 +782,7 @@ TYPED_TEST(BoundedMeanTest, AutomaticBoundsContainZero) {
           .SetNumBins(4)
           .SetBase(2)
           .SetScale(1)
-          .SetThreshold(2)
+          .SetThresholdForTest(2)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
@@ -847,7 +847,7 @@ TYPED_TEST(BoundedMeanTest, AutomaticBoundsZero) {
           .SetNumBins(4)
           .SetBase(2)
           .SetScale(1)
-          .SetThreshold(2)
+          .SetThresholdForTest(2)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
@@ -884,7 +884,7 @@ TYPED_TEST(BoundedMeanTest, Reset) {
           .SetBase(10)
           .SetScale(1)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
-          .SetThreshold(1)
+          .SetThresholdForTest(1)
           .Build();
   ASSERT_OK(bounds);
   auto bm =

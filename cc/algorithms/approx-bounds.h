@@ -138,8 +138,18 @@ class ApproxBounds : public Algorithm<T> {
       return *static_cast<Builder*>(this);
     }
 
-    // Set exactly one of success_probability or k threshold.
-    Builder& SetThreshold(double k) {
+    // Set exactly one of success_probability or k threshold. Not recommended
+    // for use in non-test code: if you know enough about your sample
+    // distribution to choose a value for this parameter, then you probably know
+    // enough to choose sensible bounds for your sample.
+    ABSL_DEPRECATED("Use SetThresholdForTest instead")
+    Builder& SetThreshold(double k) { return SetThresholdForTest(k); }
+
+    // Set exactly one of success_probability or k threshold. Not recommended
+    // for use in non-test code: if you know enough about your sample
+    // distribution to choose a value for this parameter, then you probably know
+    // enough to choose sensible bounds for your sample.
+    Builder& SetThresholdForTest(double k) {
       k_ = k;
       has_k_ = true;
       return *static_cast<Builder*>(this);

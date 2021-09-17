@@ -30,6 +30,7 @@
 #include <vector>
 
 #include <cstdint>
+#include "base/logging.h"
 #include "google/protobuf/any.pb.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
@@ -403,57 +404,118 @@ class BoundedSumWithApproxBounds : public BoundedSum<T> {
 };
 
 template <typename T>
-class BoundedSum<T>::Builder
-    : public BoundedAlgorithmBuilder<T, BoundedSum<T>, BoundedSum<T>::Builder> {
- private:
-  using AlgorithmBuilder =
-      differential_privacy::AlgorithmBuilder<T, BoundedSum<T>,
-                                             BoundedSum<T>::Builder>;
-  using BoundedBuilder =
-      BoundedAlgorithmBuilder<T, BoundedSum<T>, BoundedSum<T>::Builder>;
-  base::StatusOr<std::unique_ptr<BoundedSum<T>>> BuildBoundedAlgorithm()
-      override {
-    // We have to check epsilon now, otherwise the split during ApproxBounds
-    // construction might make the error message confusing.
-    RETURN_IF_ERROR(
-        ValidateIsFiniteAndPositive(AlgorithmBuilder::GetEpsilon(), "Epsilon"));
+class BoundedSum<T>::Builder {
+ public:
+  BoundedSum<T>::Builder& SetEpsilon(double epsilon) {
+    epsilon_ = epsilon;
+    return *this;
+  }
 
-    // Ensure that either bounds are manually set or ApproxBounds is made.
-    RETURN_IF_ERROR(BoundedBuilder::BoundsSetup());
+  BoundedSum<T>::Builder& SetDelta(double delta) {
+    delta_ = delta;
+    return *this;
+  }
 
-    if (BoundedBuilder::BoundsAreSet()) {
-      // Construct mechanism directly so we can fail on build if sensitivity is
-      // inappropriate.
-      RETURN_IF_ERROR(CheckLowerBound(BoundedBuilder::GetLower().value()));
+  BoundedSum<T>::Builder& SetMaxPartitionsContributed(
+      int max_partitions_contributed) {
+    max_contributions_per_partition_ = max_partitions_contributed;
+    return *this;
+  }
 
-      const double epsilon = BoundedBuilder::GetEpsilon().value();
-      const double delta = BoundedBuilder::GetDelta().value_or(0);
-      const int max_partitions_contributed =
-          AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1);
-      const int max_contributions_per_partition =
-          AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(1);
-      const T lower = BoundedBuilder::GetLower().value();
-      const T upper = BoundedBuilder::GetUpper().value();
+  BoundedSum<T>::Builder& SetMaxContributionsPerPartition(
+      int max_contributions_per_partition) {
+    max_contributions_per_partition_ = max_contributions_per_partition;
+    return *this;
+  }
 
-      ASSIGN_OR_RETURN(
-          std::unique_ptr<NumericalMechanism> mechanism,
-          BuildMechanism(AlgorithmBuilder::GetMechanismBuilderClone(), epsilon,
-                         delta, max_partitions_contributed,
-                         max_contributions_per_partition, lower, upper));
+  BoundedSum<T>::Builder& SetUpper(T upper) {
+    upper_ = upper;
+    return *this;
+  }
 
-      // Construct BoundedSum with fixed bounds.
-      return std::unique_ptr<BoundedSum<T>>(new BoundedSumWithFixedBounds<T>(
-          epsilon, delta, lower, upper, std::move(mechanism)));
+  BoundedSum<T>::Builder& SetLower(T lower) {
+    lower_ = lower;
+    return *this;
+  }
+
+  BoundedSum<T>::Builder& SetApproxBounds(
+      std::unique_ptr<ApproxBounds<T>> approx_bounds) {
+    approx_bounds_ = std::move(approx_bounds);
+    return *this;
+  }
+
+  BoundedSum<T>::Builder& SetLaplaceMechanism(
+      std::unique_ptr<NumericalMechanismBuilder> builder) {
+    mechanism_builder_ = std::move(builder);
+    return *this;
+  }
+
+  base::StatusOr<std::unique_ptr<BoundedSum<T>>> Build() {
+    if (!epsilon_.has_value()) {
+      epsilon_ = DefaultEpsilon();
+      LOG(WARNING) << "Default epsilon of " << epsilon_.value()
+                   << " is being used. Consider setting your own epsilon based "
+                      "on privacy considerations.";
     }
+    RETURN_IF_ERROR(ValidateEpsilon(epsilon_));
+    RETURN_IF_ERROR(ValidateDelta(delta_));
+    RETURN_IF_ERROR(ValidateBounds(lower_, upper_));
+    if (lower_.has_value()) {
+      RETURN_IF_ERROR(CheckLowerBound(lower_.value()));
+    }
+    RETURN_IF_ERROR(
+        ValidateMaxPartitionsContributed(max_partitions_contributed_));
+    RETURN_IF_ERROR(
+        ValidateMaxContributionsPerPartition(max_contributions_per_partition_));
+    if (upper_.has_value() && lower_.has_value()) {
+      return BuildSumWithFixedBounds();
+    }
+    return BuildSumWithApproxBounds();
+  }
 
-    // Construct BoundedSum with approx bounds
-    return std::unique_ptr<BoundedSum<T>>(new BoundedSumWithApproxBounds<T>(
-        BoundedBuilder::GetRemainingEpsilon().value(),
-        BoundedBuilder::GetDelta().value_or(0),
-        AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1),
-        AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(1),
-        AlgorithmBuilder::GetMechanismBuilderClone(),
-        BoundedBuilder::MoveApproxBoundsPointer()));
+ private:
+  absl::optional<double> epsilon_;
+  double delta_ = 0;
+  absl::optional<T> upper_;
+  absl::optional<T> lower_;
+  int max_partitions_contributed_ = 1;
+  int max_contributions_per_partition_ = 1;
+  std::unique_ptr<NumericalMechanismBuilder> mechanism_builder_ =
+      absl::make_unique<LaplaceMechanism::Builder>();
+  std::unique_ptr<ApproxBounds<T>> approx_bounds_;
+
+  base::StatusOr<std::unique_ptr<BoundedSum<T>>> BuildSumWithFixedBounds() {
+    ASSIGN_OR_RETURN(
+        std::unique_ptr<NumericalMechanism> mechanism,
+        BuildMechanism(mechanism_builder_->Clone(), epsilon_.value(), delta_,
+                       max_partitions_contributed_,
+                       max_contributions_per_partition_, lower_.value(),
+                       upper_.value()));
+    std::unique_ptr<BoundedSum<T>> result =
+        absl::make_unique<BoundedSumWithFixedBounds<T>>(
+            epsilon_.value(), delta_, lower_.value(), upper_.value(),
+            std::move(mechanism));
+    return result;
+  }
+
+  base::StatusOr<std::unique_ptr<BoundedSum<T>>> BuildSumWithApproxBounds() {
+    // TODO: This resembles the original behavior that we want to
+    // change soon.
+    double remaining_epsilon = epsilon_.value();
+    if (!approx_bounds_) {
+      ASSIGN_OR_RETURN(approx_bounds_,
+                       typename ApproxBounds<T>::Builder()
+                           .SetEpsilon(epsilon_.value() / 2)
+                           .SetLaplaceMechanism(mechanism_builder_->Clone())
+                           .Build());
+      remaining_epsilon = epsilon_.value() - approx_bounds_->GetEpsilon();
+    }
+    std::unique_ptr<BoundedSum<T>> result =
+        absl::make_unique<BoundedSumWithApproxBounds<T>>(
+            remaining_epsilon, delta_, max_partitions_contributed_,
+            max_contributions_per_partition_, mechanism_builder_->Clone(),
+            std::move(approx_bounds_));
+    return result;
   }
 };
 

@@ -303,4 +303,25 @@ absl::Status ValidateIsInInterval(absl::optional<double> opt,
   return absl::OkStatus();
 }
 
+absl::Status ValidateEpsilon(absl::optional<double> epsilon) {
+  return ValidateIsFiniteAndPositive(epsilon, "Epsilon");
+}
+
+absl::Status ValidateDelta(absl::optional<double> delta) {
+  return ValidateIsInInclusiveInterval(delta, 0, 1, "Delta");
+}
+
+absl::Status ValidateMaxPartitionsContributed(
+    absl::optional<double> max_partitions_contributed) {
+  return ValidateIsPositive(max_partitions_contributed,
+                            "Maximum number of partitoins that can be "
+                            "contributed to (i.e., L0 sensitivity)");
+}
+
+absl::Status ValidateMaxContributionsPerPartition(
+    absl::optional<double> max_contributions_per_partition) {
+  return ValidateIsPositive(max_contributions_per_partition,
+                            "Maximum number of contributions per partition");
+}
+
 }  // namespace differential_privacy

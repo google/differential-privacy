@@ -18,7 +18,7 @@ implementations of the mechanism in
 and
 [Go](https://github.com/google/differential-privacy/blob/main/go/dpagg/select_partition.go#L87).
 A simple Python implementation and visualization is also provided in this
-[Google Colab notebook](https://colab.research.google.com/github/differential-privacy/blob/main/common_docs/partition_selection_playground.ipynb).
+[Google Colab notebook](https://colab.research.google.com/github/google/differential-privacy/blob/main/common_docs/partition_selection_playground.ipynb).
 
 In addition to the raw algorithm,
 [Privacy-On-Beam](https://github.com/google/differential-privacy/tree/main/privacy-on-beam)

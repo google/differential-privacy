@@ -990,5 +990,113 @@ TEST(ValidateTest, IsInIntervalBadBehaviour) {
   }
 }
 
+TEST(ValidateTest, ValidateEpsilonFailsForNegativeAndNan) {
+  EXPECT_THAT(ValidateEpsilon(-1), StatusIs(absl::StatusCode::kInvalidArgument,
+                                            HasSubstr("positive")));
+  EXPECT_THAT(ValidateEpsilon(0), StatusIs(absl::StatusCode::kInvalidArgument,
+                                           HasSubstr("positive")));
+  EXPECT_THAT(
+      ValidateEpsilon(std::numeric_limits<double>::infinity()),
+      StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("finite")));
+  EXPECT_THAT(ValidateEpsilon(std::numeric_limits<double>::quiet_NaN()),
+              StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("valid")));
+  EXPECT_THAT(ValidateEpsilon(std::numeric_limits<double>::signaling_NaN()),
+              StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("valid")));
+}
+
+TEST(ValidateTest, ValidateEpsilonReturnsOkForPositive) {
+  EXPECT_THAT(ValidateEpsilon(0.1), StatusIs(absl::StatusCode::kOk));
+  EXPECT_THAT(ValidateEpsilon(1.1), StatusIs(absl::StatusCode::kOk));
+  EXPECT_THAT(ValidateEpsilon(std::log(3) / 2),
+              StatusIs(absl::StatusCode::kOk));
+  EXPECT_THAT(ValidateEpsilon(std::log(3)), StatusIs(absl::StatusCode::kOk));
+  EXPECT_THAT(ValidateEpsilon(100), StatusIs(absl::StatusCode::kOk));
+}
+
+TEST(ValidateTest, ValidateDeltaFailsForOutOfRangeValues) {
+  EXPECT_THAT(ValidateDelta(-1), StatusIs(absl::StatusCode::kInvalidArgument,
+                                          HasSubstr("inclusive interval")));
+  EXPECT_THAT(ValidateDelta(1.1), StatusIs(absl::StatusCode::kInvalidArgument,
+                                           HasSubstr("inclusive interval")));
+  EXPECT_THAT(
+      ValidateDelta(std::numeric_limits<double>::quiet_NaN()),
+      StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("valid numeric")));
+}
+
+TEST(ValidateTest, ValidateDeltaReturnsOkForInRange) {
+  EXPECT_THAT(ValidateDelta(0), StatusIs(absl::StatusCode::kOk));
+  EXPECT_THAT(ValidateDelta(1e-50), StatusIs(absl::StatusCode::kOk));
+  EXPECT_THAT(ValidateDelta(1e-8), StatusIs(absl::StatusCode::kOk));
+  EXPECT_THAT(ValidateDelta(0.2), StatusIs(absl::StatusCode::kOk));
+  EXPECT_THAT(ValidateDelta(1), StatusIs(absl::StatusCode::kOk));
+}
+
+TEST(ValidateTest, ValidateMaxPartitionsContributedFailsForNonPositive) {
+  EXPECT_THAT(
+      ValidateMaxPartitionsContributed(-1),
+      StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("positive")));
+  EXPECT_THAT(
+      ValidateMaxPartitionsContributed(0),
+      StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("positive")));
+}
+
+TEST(ValidateTest, ValidateMaxPartitionsContributedReturnsOkForPositive) {
+  EXPECT_THAT(ValidateMaxPartitionsContributed(1),
+              StatusIs(absl::StatusCode::kOk));
+  EXPECT_THAT(ValidateMaxPartitionsContributed(10),
+              StatusIs(absl::StatusCode::kOk));
+  EXPECT_THAT(ValidateMaxPartitionsContributed(100),
+              StatusIs(absl::StatusCode::kOk));
+}
+
+TEST(ValidateTest, ValidateMaxContributionsPerPartitionFailsForNonPositive) {
+  EXPECT_THAT(
+      ValidateMaxContributionsPerPartition(-1),
+      StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("positive")));
+  EXPECT_THAT(
+      ValidateMaxContributionsPerPartition(0),
+      StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("positive")));
+}
+
+TEST(ValidateTest, ValidateMaxContributionsPerPartitionReturnsOkForPositive) {
+  EXPECT_THAT(ValidateMaxContributionsPerPartition(1),
+              StatusIs(absl::StatusCode::kOk));
+  EXPECT_THAT(ValidateMaxContributionsPerPartition(10),
+              StatusIs(absl::StatusCode::kOk));
+  EXPECT_THAT(ValidateMaxContributionsPerPartition(100),
+              StatusIs(absl::StatusCode::kOk));
+}
+
+TEST(ValidateTest, ValidateBoundsChecksOrder) {
+  EXPECT_THAT(ValidateBounds<double>(1, 2), StatusIs(absl::StatusCode::kOk));
+  EXPECT_THAT(ValidateBounds<double>(-2, 2), StatusIs(absl::StatusCode::kOk));
+  EXPECT_THAT(ValidateBounds<double>(-2, -1), StatusIs(absl::StatusCode::kOk));
+
+  EXPECT_THAT(ValidateBounds<double>(2, 1),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("bound cannot be greater")));
+  EXPECT_THAT(ValidateBounds<double>(2, -1),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("bound cannot be greater")));
+}
+
+TEST(ValidateTest, ValidateBoundsChecksBothSetOrUnset) {
+  EXPECT_THAT(ValidateBounds<double>(1, absl::nullopt),
+              StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("both")));
+  EXPECT_THAT(ValidateBounds<double>(absl::nullopt, 1),
+              StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("both")));
+  EXPECT_THAT(ValidateBounds<double>(absl::nullopt, absl::nullopt),
+              StatusIs(absl::StatusCode::kOk));
+}
+
+TEST(ValidateTest, ValidateBoundsFailsForNanBounds) {
+  EXPECT_THAT(
+      ValidateBounds<double>(1, std::numeric_limits<double>::infinity()),
+      StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("finite")));
+  EXPECT_THAT(
+      ValidateBounds<double>(-std::numeric_limits<double>::infinity(), 1),
+      StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("finite")));
+}
+
 }  // namespace
 }  // namespace differential_privacy

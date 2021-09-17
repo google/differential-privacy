@@ -269,7 +269,7 @@ TYPED_TEST(BoundedSumTest, SensitivityTooHighApproxBounds) {
   auto bounds =
       ApproxBounds<double>::Builder()
           .SetEpsilon(1)
-          .SetThreshold(1)
+          .SetThresholdForTest(1)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
@@ -287,12 +287,12 @@ TYPED_TEST(BoundedSumTest, SensitivityTooHighApproxBounds) {
 }
 
 TYPED_TEST(BoundedSumTest, LowerBoundMagnitudeOverflows) {
-  EXPECT_FALSE(typename BoundedSum<TypeParam>::Builder()
-                   .SetEpsilon(1.0)
-                   .SetLower(std::numeric_limits<TypeParam>::lowest())
-                   .SetUpper(std::numeric_limits<TypeParam>::lowest() + 1)
-                   .Build()
-                   .ok());
+  EXPECT_THAT(typename BoundedSum<TypeParam>::Builder()
+                  .SetEpsilon(1.0)
+                  .SetLower(std::numeric_limits<TypeParam>::lowest())
+                  .SetUpper(std::numeric_limits<TypeParam>::lowest() + 1)
+                  .Build(),
+              StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
 TYPED_TEST(BoundedSumTest, MaxContributionsVarianceTest) {
@@ -375,7 +375,7 @@ TYPED_TEST(BoundedSumTest, SerializeMergePartialSumsTest) {
   // BoundedSums have automatic bounding, so entries will be split and stored as
   // partial sums.
   auto bounds1 =
-      bounds_builder.SetThreshold(1)
+      bounds_builder.SetThresholdForTest(1)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds1);
@@ -563,7 +563,7 @@ TEST(BoundedSumTest, DropNanEntriesApproxBounds) {
           .SetNumBins(4)
           .SetBase(2)
           .SetScale(1)
-          .SetThreshold(1)
+          .SetThresholdForTest(1)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
@@ -606,7 +606,7 @@ TYPED_TEST(BoundedSumTest, AutomaticBoundsContainZero) {
           .SetNumBins(5)
           .SetBase(2)
           .SetScale(1)
-          .SetThreshold(2)
+          .SetThresholdForTest(2)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
@@ -640,7 +640,7 @@ TYPED_TEST(BoundedSumTest, AutomaticBoundsNegative) {
           .SetNumBins(5)
           .SetBase(2)
           .SetScale(1)
-          .SetThreshold(2)
+          .SetThresholdForTest(2)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
@@ -675,7 +675,7 @@ TYPED_TEST(BoundedSumTest, AutomaticBoundsPositive) {
           .SetNumBins(5)
           .SetBase(2)
           .SetScale(1)
-          .SetThreshold(2)
+          .SetThresholdForTest(2)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
@@ -739,7 +739,7 @@ TYPED_TEST(BoundedSumTest, Reset) {
           .SetBase(10)
           .SetScale(1)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
-          .SetThreshold(1)
+          .SetThresholdForTest(1)
           .Build();
   ASSERT_OK(bounds);
   auto bs =

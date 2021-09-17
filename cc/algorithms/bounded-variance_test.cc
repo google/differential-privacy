@@ -416,7 +416,7 @@ TYPED_TEST(BoundedVarianceTest, SerializeMergePartialValuesTest) {
 
   // Automatic bounding, so entries will be split and stored as partials.
   base::StatusOr<std::unique_ptr<ApproxBounds<TypeParam>>> bounds1 =
-      bounds_builder.SetThreshold(1)
+      bounds_builder.SetThresholdForTest(1)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds1);
@@ -663,7 +663,7 @@ TYPED_TEST(BoundedVarianceTest, AutomaticBoundsContainZero) {
           .SetNumBins(4)
           .SetBase(2)
           .SetScale(1)
-          .SetThreshold(1)
+          .SetThresholdForTest(1)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
@@ -698,7 +698,7 @@ TEST(BoundedVarianceTest, AutomaticBoundsNegative) {
           .SetNumBins(5)
           .SetBase(2)
           .SetScale(1)
-          .SetThreshold(2)
+          .SetThresholdForTest(2)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
@@ -740,7 +740,7 @@ TEST(BoundedVarianceTest, AutomaticBoundsPositive) {
           .SetNumBins(5)
           .SetBase(2)
           .SetScale(1)
-          .SetThreshold(2)
+          .SetThresholdForTest(2)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
@@ -810,7 +810,7 @@ TYPED_TEST(BoundedVarianceTest, AutomaticBoundsZero) {
           .SetNumBins(4)
           .SetBase(2)
           .SetScale(1)
-          .SetThreshold(2)
+          .SetThresholdForTest(2)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
@@ -837,7 +837,7 @@ TYPED_TEST(BoundedVarianceTest, Reset) {
           .SetBase(10)
           .SetScale(1)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
-          .SetThreshold(3)
+          .SetThresholdForTest(3)
           .Build();
   ASSERT_OK(bounds);
   base::StatusOr<std::unique_ptr<BoundedVariance<TypeParam>>> bv =

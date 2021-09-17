@@ -34,6 +34,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
+#include "base/status_macros.h"
 
 namespace differential_privacy {
 
@@ -508,6 +509,32 @@ absl::Status ValidateIsInInterval(
     absl::optional<double> opt, double lower_bound, double upper_bound,
     bool include_lower, bool include_upper, absl::string_view name,
     absl::StatusCode error_code = absl::StatusCode::kInvalidArgument);
+
+// Methods for semantical and consistent validation of common parameters.
+absl::Status ValidateEpsilon(absl::optional<double> epsilon);
+absl::Status ValidateDelta(absl::optional<double> delta);
+absl::Status ValidateMaxPartitionsContributed(
+    absl::optional<double> max_partitions_contributed);
+absl::Status ValidateMaxContributionsPerPartition(
+    absl::optional<double> max_contributions_per_partition);
+
+template <typename T>
+absl::Status ValidateBounds(absl::optional<T> lower, absl::optional<T> upper) {
+  if (!lower.has_value() && !upper.has_value()) {
+    return absl::OkStatus();
+  }
+  if (lower.has_value() != upper.has_value()) {
+    return absl::InvalidArgumentError(
+        "Lower and upper bounds must either both be set or both be unset.");
+  }
+  RETURN_IF_ERROR(ValidateIsFinite(lower.value(), "Lower bound"));
+  RETURN_IF_ERROR(ValidateIsFinite(upper.value(), "Upper bound"));
+  if (lower.value() > upper.value()) {
+    return absl::InvalidArgumentError(
+        "Lower bound cannot be greater than upper bound.");
+  }
+  return absl::OkStatus();
+}
 
 }  // namespace differential_privacy
 
