@@ -17,12 +17,21 @@
 #ifndef DIFFERENTIAL_PRIVACY_ALGORITHMS_COUNT_H_
 #define DIFFERENTIAL_PRIVACY_ALGORITHMS_COUNT_H_
 
+#include <memory>
+#include <optional>
+#include <utility>
+
+#include <cstdint>
 #include "google/protobuf/any.pb.h"
+#include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "base/statusor.h"
 #include "algorithms/algorithm.h"
 #include "algorithms/numerical-mechanisms.h"
 #include "algorithms/util.h"
+#include "proto/util.h"
+#include "proto/confidence-interval.pb.h"
+#include "proto/data.pb.h"
 #include "proto/summary.pb.h"
 #include "base/status_macros.h"
 
@@ -129,19 +138,65 @@ class Count : public Algorithm<T> {
 };
 
 template <typename T>
-class Count<T>::Builder
-    : public AlgorithmBuilder<T, Count<T>, Count<T>::Builder> {
+class Count<T>::Builder {
+ public:
+  Count<T>::Builder& SetEpsilon(double epsilon) {
+    epsilon_ = epsilon;
+    return *this;
+  }
+
+  Count<T>::Builder& SetDelta(double delta) {
+    delta_ = delta;
+    return *this;
+  }
+
+  Count<T>::Builder& SetMaxPartitionsContributed(
+      int max_partitions_contributed) {
+    max_partitions_contributed_ = max_partitions_contributed;
+    return *this;
+  }
+
+  Count<T>::Builder& SetMaxContributionsPerPartition(
+      int max_contributions_per_partition) {
+    max_contributions_per_partition_ = max_contributions_per_partition;
+    return *this;
+  }
+
+  Count<T>::Builder& SetLaplaceMechanism(
+      std::unique_ptr<NumericalMechanismBuilder> mechanism_builder) {
+    mechanism_builder_ = std::move(mechanism_builder);
+    return *this;
+  }
+
+  base::StatusOr<std::unique_ptr<Count<T>>> Build() {
+    RETURN_IF_ERROR(ValidateEpsilon(epsilon_));
+    RETURN_IF_ERROR(ValidateDelta(delta_));
+    RETURN_IF_ERROR(
+        ValidateMaxPartitionsContributed(max_partitions_contributed_));
+    RETURN_IF_ERROR(
+        ValidateMaxContributionsPerPartition(max_contributions_per_partition_));
+
+    ASSIGN_OR_RETURN(std::unique_ptr<NumericalMechanism> count_mechanism,
+                     BuildCountMechanism());
+    return absl::WrapUnique(
+        new Count<T>(epsilon_.value(), delta_, std::move(count_mechanism)));
+  }
+
  private:
-  using AlgorithmBuilder =
-      differential_privacy::AlgorithmBuilder<T, Count<T>, Count<T>::Builder>;
+  absl::optional<double> epsilon_;
+  double delta_ = 0;
+  int max_partitions_contributed_ = 1;
+  int max_contributions_per_partition_ = 1;
+  std::unique_ptr<NumericalMechanismBuilder> mechanism_builder_ =
+      std::make_unique<LaplaceMechanism::Builder>();
 
-  base::StatusOr<std::unique_ptr<Count<T>>> BuildAlgorithm() override {
-    std::unique_ptr<NumericalMechanism> mechanism;
-    ASSIGN_OR_RETURN(mechanism, AlgorithmBuilder::UpdateAndBuildMechanism());
-
-    return absl::WrapUnique(new Count<T>(
-        AlgorithmBuilder::GetEpsilon().value(),
-        AlgorithmBuilder::GetDelta().value_or(0), std::move(mechanism)));
+  base::StatusOr<std::unique_ptr<NumericalMechanism>> BuildCountMechanism() {
+    return mechanism_builder_->Clone()
+        ->SetEpsilon(epsilon_.value())
+        .SetDelta(delta_)
+        .SetL0Sensitivity(max_partitions_contributed_)
+        .SetLInfSensitivity(max_contributions_per_partition_)
+        .Build();
   }
 };
 

@@ -106,6 +106,15 @@ class NumericalMechanism {
   // distribution.
   virtual double GetVariance() const { return 0; }
 
+  // Returns the value of the cumulative density function, i.e. the probability
+  // that the noise added is no greater than x.
+  virtual double Cdf(double x) const = 0;
+
+  // Returns the value of the quantile function (inverse cumulative density),
+  // i.e. the value x such that with probability p the noise added is no greater
+  // than x.
+  virtual double Quantile(double p) const = 0;
+
  protected:
   virtual double AddDoubleNoise(double result, double privacy_budget) = 0;
 
@@ -296,7 +305,8 @@ class LaplaceMechanism : public NumericalMechanism {
                                .SetEpsilon(GetEpsilon())
                                .SetSensitivity(sensitivity)
                                .Build();
-    DCHECK(status_or_distro.status().ok());
+    DCHECK(status_or_distro.status().ok())
+        << status_or_distro.status().message();
     distro_ = std::move(status_or_distro.value());
   }
 
@@ -380,6 +390,14 @@ class LaplaceMechanism : public NumericalMechanism {
   }
 
   double GetVariance() const override { return distro_->GetVariance(); }
+
+  double Cdf(double x) const override {
+    return internal::LaplaceDistribution::cdf(diversity_, x);
+  }
+
+  double Quantile(double p) const override {
+    return internal::LaplaceDistribution::Quantile(diversity_, p);
+  }
 
  protected:
   // Adds differentially private noise to a provided value. The privacy_budget
@@ -513,13 +531,14 @@ class GaussianMechanism : public NumericalMechanism {
         status_or_distro =
             internal::GaussianDistribution::Builder().SetStddev(1).Build();
     DCHECK(status_or_distro.status().ok());
-    distro_ = std::move(status_or_distro.value());
+    standard_gaussian_ = std::move(status_or_distro.value());
   }
 
-  GaussianMechanism(double epsilon, double delta, double l2_sensitivity,
-                    std::unique_ptr<internal::GaussianDistribution> distro)
+  GaussianMechanism(
+      double epsilon, double delta, double l2_sensitivity,
+      std::unique_ptr<internal::GaussianDistribution> standard_gaussian)
       : GaussianMechanism(epsilon, delta, l2_sensitivity) {
-    distro_ = std::move(distro);
+    standard_gaussian_ = std::move(standard_gaussian);
   }
 
   // Deserialize the GaussianMechanism from a proto.
@@ -544,8 +563,9 @@ class GaussianMechanism : public NumericalMechanism {
 
   // Quickly determines if result is greater than threshold.
   bool NoisedValueAboveThreshold(double result, double threshold) override {
-    return UniformDouble() > internal::GaussianDistribution::cdf(
-                                 distro_->Stddev(), threshold - result);
+    double stddev = CalculateStddev();
+    return UniformDouble() >
+           internal::GaussianDistribution::cdf(stddev, threshold - result);
   }
 
   serialization::GaussianMechanism Serialize() const {
@@ -558,7 +578,7 @@ class GaussianMechanism : public NumericalMechanism {
 
   virtual int64_t MemoryUsed() {
     int64_t memory = sizeof(GaussianMechanism);
-    if (distro_) {
+    if (standard_gaussian_) {
       memory += sizeof(internal::GaussianDistribution);
     }
     return memory;
@@ -634,6 +654,11 @@ class GaussianMechanism : public NumericalMechanism {
     return upper_bound;
   }
 
+  double CalculateStddev() const {
+
+    return CalculateStddev(GetEpsilon(), delta_, l2_sensitivity_);
+  }
+
   double GetDelta() const { return delta_; }
 
   double GetL2Sensitivity() const { return l2_sensitivity_; }
@@ -641,6 +666,14 @@ class GaussianMechanism : public NumericalMechanism {
   double GetVariance() const override {
     return std::pow(CalculateStddev(GetEpsilon(), GetDelta(), l2_sensitivity_),
                     2);
+  }
+
+  double Cdf(double x) const override {
+    return internal::GaussianDistribution::cdf(CalculateStddev(), x);
+  }
+
+  double Quantile(double p) const override {
+    return internal::GaussianDistribution::Quantile(CalculateStddev(), p);
   }
 
   // Returns the smallest delta such that the Gaussian mechanism with standard
@@ -687,9 +720,10 @@ class GaussianMechanism : public NumericalMechanism {
     double local_delta = privacy_budget * delta_;
     double stddev = CalculateStddev(local_epsilon, local_delta,
     l2_sensitivity_);
-    double sample = distro_->Sample(stddev);
+    double sample = standard_gaussian_->Sample(stddev);
 
-    return RoundToNearestMultiple(result, distro_->GetGranularity(stddev)) +
+    return RoundToNearestMultiple(result,
+                                  standard_gaussian_->GetGranularity(stddev)) +
            sample;
   }
 
@@ -700,7 +734,7 @@ class GaussianMechanism : public NumericalMechanism {
     double local_delta = privacy_budget * delta_;
     double stddev = CalculateStddev(local_epsilon, local_delta,
     l2_sensitivity_);
-    double sample = distro_->Sample(stddev);
+    double sample = standard_gaussian_->Sample(stddev);
 
     SafeOpResult<int64_t> noise_cast_result =
         SafeCastFromDouble<int64_t>(std::round(sample));
@@ -713,7 +747,7 @@ class GaussianMechanism : public NumericalMechanism {
     // so just cap the granularity at the largest number int64_t can represent.
     int64_t granularity;
     SafeOpResult<int64_t> granularity_cast_result = SafeCastFromDouble<int64_t>(
-        std::max(distro_->GetGranularity(stddev), 1.0));
+        std::max(standard_gaussian_->GetGranularity(stddev), 1.0));
     if (granularity_cast_result.overflow) {
       granularity = std::numeric_limits<int64_t>::max();
     } else {
@@ -727,7 +761,7 @@ class GaussianMechanism : public NumericalMechanism {
  private:
   const double delta_;
   const double l2_sensitivity_;
-  std::unique_ptr<internal::GaussianDistribution> distro_;
+  std::unique_ptr<internal::GaussianDistribution> standard_gaussian_;
 
   static double StandardNormalDistributionCDF(double x) {
     return internal::GaussianDistribution::cdf(1, x);

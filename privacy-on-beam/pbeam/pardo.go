@@ -72,6 +72,8 @@ import (
 //		- func(W, X, emit) error, where emit has type func(Y, Z)
 //		- func(context.Context error, W, X, emit), where emit has type func(Y, Z)
 //
+// Note that Beam universal types (e.g., beam.V, beam.T, etc.) are not supported:
+// each of the X, Y, Z, W above needs to be a concrete type.
 func ParDo(s beam.Scope, doFn interface{}, pcol PrivatePCollection) PrivatePCollection {
 	s = s.Scope("pbeam.ParDo")
 	// Convert the doFn into a anonDoFn.

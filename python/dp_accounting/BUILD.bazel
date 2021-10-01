@@ -25,11 +25,11 @@ package(default_visibility = [
 
 licenses(["notice"])
 
-# For specifying python version. When running with python version > 3.6, should
-# specify via this flag, e.g. --//dp_accounting:python_version=3.7
+# For specifying python version. When running with python version <= 3.6, should
+# specify via this flag, e.g. --//dp_accounting:python_version=3.6
 string_flag(
     name = "python_version",
-    build_setting_default = "3.6",
+    build_setting_default = "3.7",
 )
 
 config_setting(

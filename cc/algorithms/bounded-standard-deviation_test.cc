@@ -241,11 +241,11 @@ TYPED_TEST(BoundedStandardDeviationTest, AutomaticBounds) {
   std::vector<TypeParam> a = {0, 0, 4, 4, -2, 7};
   std::unique_ptr<ApproxBounds<TypeParam>> bounds =
       typename ApproxBounds<TypeParam>::Builder()
-          .SetEpsilon(1)
+          .SetEpsilon(0.5)
           .SetNumBins(4)
           .SetBase(2)
           .SetScale(1)
-          .SetThresholdForTest(2)
+          .SetThresholdForTest(1.5)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build()
           .value();
@@ -267,7 +267,9 @@ TYPED_TEST(BoundedStandardDeviationTest, AutomaticBounds) {
   report->set_num_inputs(a.size());
   report->set_num_outside(2);
 
-  EXPECT_THAT(bsd->PartialResult().value(), EqualsProto(expected_output));
+  base::StatusOr<Output> actual_output = bsd->PartialResult();
+  ASSERT_OK(actual_output);
+  EXPECT_THAT(*actual_output, EqualsProto(expected_output));
 }
 
 // Test not providing ApproxBounds and instead using the default.

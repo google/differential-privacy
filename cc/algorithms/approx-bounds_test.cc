@@ -98,7 +98,7 @@ TEST(ApproxBoundsTest, BasicMultipleEntriesTest) {
           .SetNumBins(10)
           .SetScale(1)
           .SetBase(2)
-          .SetThresholdForTest(3)
+          .SetThresholdForTest(2.5)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
@@ -121,7 +121,7 @@ TEST(ApproxBoundsTest, AddMultipleEntriesInvalidInputTest) {
           .SetNumBins(10)
           .SetScale(1)
           .SetBase(2)
-          .SetThresholdForTest(3)
+          .SetThresholdForTest(2.5)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
@@ -152,7 +152,7 @@ TEST(ApproxBoundsTest, AddMultipleEntriesInvalidNumberOfEntriesTest) {
           .SetNumBins(10)
           .SetScale(1)
           .SetBase(2)
-          .SetThresholdForTest(3)
+          .SetThresholdForTest(2.5)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
@@ -1102,6 +1102,24 @@ TYPED_TEST(ApproxBoundsTest, GetBoundingReport) {
   EXPECT_EQ((*bounds)->GetBoundingReport(-8, -2).num_outside(), 9);  // [-8, -2)
   EXPECT_EQ((*bounds)->GetBoundingReport(0, 1).num_outside(), 10);   // [0, 1]
   EXPECT_EQ((*bounds)->GetBoundingReport(-1, 0).num_outside(), 11);  // [-1, 0)
+}
+
+TYPED_TEST(ApproxBoundsTest, SetThresholdForTestIgnoresPrivacyBudgetFraction) {
+  base::StatusOr<std::unique_ptr<ApproxBounds<TypeParam>>> bounds =
+      typename ApproxBounds<TypeParam>::Builder()
+          .SetNumBins(5)
+          .SetBase(2)
+          .SetScale(1)
+          .SetThresholdForTest(0.9)
+          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .Build();
+  ASSERT_OK(bounds);
+
+  (*bounds)->AddEntry(0);
+
+  // If we use half the budget and manually set a threshold, the threshold
+  // should *not* be doubled.
+  EXPECT_OK((*bounds)->PartialResult(0.5));
 }
 
 TYPED_TEST(ApproxBoundsTest, Memory) {

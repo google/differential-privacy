@@ -10,8 +10,9 @@ supports Laplace mechanisms, Gaussian mechanisms and randomized response. More
 detailed definitions and references can be found
 [in our supplementary pdf document](https://github.com/google/differential-privacy/tree/main/common_docs/Privacy_Loss_Distributions.pdf).
 
-We test this library on Linux with Python version 3.6.1. If you experience any
-issues, please file a bug report, also for other platforms or Python versions.
+We test this library on Linux with Python version 3.7. If you experience any
+problems, please file an issue on GitHub, also for other platforms or Python
+versions.
 
 ## Examples
 
@@ -19,7 +20,7 @@ We provide basic examples on how to use the library in
 privacy_loss_distribution_basic_example.py. There are two ways to run this,
 either via Bazel or after installing the library using setup.py.
 
-### Run via Bazel
+### Run with Bazel
 
 For running the example using Bazel, you need to have
 [Bazel installed](https://docs.bazel.build/versions/master/install.html).
@@ -29,12 +30,12 @@ bazel build dp_accounting:all
 bazel run dp_accounting:privacy_loss_distribution_basic_example
 ```
 
-If you are using python other than 3.6, you may need to add the flag
+If you are using python other than 3.7, you may need to add the flag
 --//dp_accounting:python_version=x.x to make Bazel build works. For example,
-if your python version is 3.7.1, you may need to run
+if your python version is 3.6, you may need to run
 ```
-bazel build dp_accounting:all --//dp_accounting:python_version=3.7
-bazel run dp_accounting:privacy_loss_distribution_basic_example --//dp_accounting:python_version=3.7
+bazel build dp_accounting:all --//dp_accounting:python_version=3.6
+bazel run dp_accounting:privacy_loss_distribution_basic_example --//dp_accounting:python_version=3.6
 ```
 
 ### Run via setup.py

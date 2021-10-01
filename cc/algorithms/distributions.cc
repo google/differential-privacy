@@ -313,6 +313,13 @@ double LaplaceDistribution::cdf(double b, double x) {
   return .5 * std::exp(x / b);
 }
 
+double LaplaceDistribution::Quantile(double b, double p) {
+  if (p > 0.5) {
+    return -b * std::log(2 - 2 * p);
+  }
+  return b * std::log(2 * p);
+}
+
 int64_t LaplaceDistribution::MemoryUsed() {
   int64_t memory = sizeof(LaplaceDistribution);
   if (geometric_distro_ != nullptr) {

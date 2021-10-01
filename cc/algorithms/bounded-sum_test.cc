@@ -43,6 +43,7 @@ using ::differential_privacy::base::testing::IsOkAndHolds;
 using ::differential_privacy::base::testing::StatusIs;
 
 constexpr double kNumSamples = 10000;
+constexpr double kDefaultEpsilon = 1.1;
 
 template <typename T>
 class BoundedSumTest : public ::testing::Test {
@@ -186,6 +187,23 @@ TYPED_TEST(BoundedSumTest, InsufficientPrivacyBudgetTest) {
   EXPECT_EQ(GetValue<TypeParam>(*output1), GetValue<TypeParam>(*output2));
 }
 
+TYPED_TEST(BoundedSumTest, BuildWithMoreApproxBoundsEpsilonThanApsilonFails) {
+  auto bounds = typename ApproxBounds<TypeParam>::Builder()
+                    .SetEpsilon(kDefaultEpsilon)
+                    .Build();
+  ASSERT_OK(bounds);
+  auto bs = typename BoundedSum<TypeParam>::Builder()
+                .SetEpsilon(kDefaultEpsilon)
+                .SetApproxBounds(std::move(bounds.value()))
+                .Build();
+  EXPECT_THAT(
+      bs.status(),
+      StatusIs(
+          absl::StatusCode::kInvalidArgument,
+          HasSubstr(
+              "Approx Bounds consumes more epsilon budget than available")));
+}
+
 TYPED_TEST(BoundedSumTest, ClampTest) {
   std::vector<TypeParam> a = {0, 0, 10, 10};
   auto bs =
@@ -268,13 +286,13 @@ TYPED_TEST(BoundedSumTest, SensitivityTooHigh) {
 TYPED_TEST(BoundedSumTest, SensitivityTooHighApproxBounds) {
   auto bounds =
       ApproxBounds<double>::Builder()
-          .SetEpsilon(1)
+          .SetEpsilon(kDefaultEpsilon / 2)
           .SetThresholdForTest(1)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
   auto bs = BoundedSum<double>::Builder()
-                .SetEpsilon(1)
+                .SetEpsilon(kDefaultEpsilon)
                 .SetApproxBounds(std::move(*bounds))
                 .Build();
   ASSERT_OK(bs);
@@ -375,12 +393,14 @@ TYPED_TEST(BoundedSumTest, SerializeMergePartialSumsTest) {
   // BoundedSums have automatic bounding, so entries will be split and stored as
   // partial sums.
   auto bounds1 =
-      bounds_builder.SetThresholdForTest(1)
+      bounds_builder.SetThresholdForTest(0.5)
+          .SetEpsilon(kDefaultEpsilon / 2)
+          .SetNumBins(50)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds1);
   auto bs1 =
-      builder
+      builder.SetEpsilon(kDefaultEpsilon)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .SetApproxBounds(std::move(*bounds1))
           .Build();
@@ -560,15 +580,17 @@ TEST(BoundedSumTest, DropNanEntriesApproxBounds) {
   std::vector<double> a = {NAN, 1};
   auto bounds =
       ApproxBounds<double>::Builder()
+          .SetEpsilon(kDefaultEpsilon / 2)
           .SetNumBins(4)
           .SetBase(2)
           .SetScale(1)
-          .SetThresholdForTest(1)
+          .SetThresholdForTest(0.5)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
   auto bs =
       BoundedSum<double>::Builder()
+          .SetEpsilon(kDefaultEpsilon)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .SetApproxBounds(std::move(*bounds))
           .Build();
@@ -602,17 +624,17 @@ TYPED_TEST(BoundedSumTest, AutomaticBoundsContainZero) {
                               std::numeric_limits<TypeParam>::max()};
   auto bounds =
       typename ApproxBounds<TypeParam>::Builder()
-          .SetEpsilon(1)
+          .SetEpsilon(kDefaultEpsilon / 2)
           .SetNumBins(5)
           .SetBase(2)
           .SetScale(1)
-          .SetThresholdForTest(2)
+          .SetThresholdForTest(1.5)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
   auto bs =
       typename BoundedSum<TypeParam>::Builder()
-          .SetEpsilon(1)
+          .SetEpsilon(kDefaultEpsilon)
           .SetApproxBounds(std::move(*bounds))
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
@@ -636,7 +658,7 @@ TYPED_TEST(BoundedSumTest, AutomaticBoundsNegative) {
   std::vector<TypeParam> a = {9, -2, -2, -4, -6, -6};
   auto bounds =
       typename ApproxBounds<TypeParam>::Builder()
-          .SetEpsilon(1)
+          .SetEpsilon(kDefaultEpsilon / 2)
           .SetNumBins(5)
           .SetBase(2)
           .SetScale(1)
@@ -646,7 +668,7 @@ TYPED_TEST(BoundedSumTest, AutomaticBoundsNegative) {
   ASSERT_OK(bounds);
   auto bs =
       typename BoundedSum<TypeParam>::Builder()
-          .SetEpsilon(1)
+          .SetEpsilon(kDefaultEpsilon)
           .SetApproxBounds(std::move(*bounds))
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
@@ -671,17 +693,17 @@ TYPED_TEST(BoundedSumTest, AutomaticBoundsPositive) {
   std::vector<TypeParam> a = {-9, 2, 2, 4, 6, 6};
   auto bounds =
       typename ApproxBounds<TypeParam>::Builder()
-          .SetEpsilon(1)
+          .SetEpsilon(kDefaultEpsilon / 2)
           .SetNumBins(5)
           .SetBase(2)
           .SetScale(1)
-          .SetThresholdForTest(2)
+          .SetThresholdForTest(1.5)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
   auto bs =
       typename BoundedSum<TypeParam>::Builder()
-          .SetEpsilon(1)
+          .SetEpsilon(kDefaultEpsilon)
           .SetApproxBounds(std::move(*bounds))
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
@@ -735,16 +757,17 @@ TYPED_TEST(BoundedSumTest, Reset) {
   // Construct bounded sum with approximate bounding.
   auto bounds =
       typename ApproxBounds<TypeParam>::Builder()
+          .SetEpsilon(kDefaultEpsilon / 2)
           .SetNumBins(3)
           .SetBase(10)
           .SetScale(1)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
-          .SetThresholdForTest(1)
+          .SetThresholdForTest(0.5)
           .Build();
   ASSERT_OK(bounds);
   auto bs =
       typename BoundedSum<TypeParam>::Builder()
-          .SetEpsilon(1)
+          .SetEpsilon(kDefaultEpsilon)
           .SetApproxBounds(std::move(*bounds))
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
@@ -764,18 +787,24 @@ TYPED_TEST(BoundedSumTest, Reset) {
 }
 
 TYPED_TEST(BoundedSumTest, Memory) {
-  auto bounds_small =
-      typename ApproxBounds<TypeParam>::Builder().SetNumBins(1).Build();
+  auto bounds_small = typename ApproxBounds<TypeParam>::Builder()
+                          .SetEpsilon(kDefaultEpsilon / 2)
+                          .SetNumBins(1)
+                          .Build();
   ASSERT_OK(bounds_small);
-  auto bounds_big =
-      typename ApproxBounds<TypeParam>::Builder().SetNumBins(1).Build();
+  auto bounds_big = typename ApproxBounds<TypeParam>::Builder()
+                        .SetEpsilon(kDefaultEpsilon / 2)
+                        .SetNumBins(1)
+                        .Build();
   ASSERT_OK(bounds_big);
 
   auto bs_small = typename BoundedSum<TypeParam>::Builder()
+                      .SetEpsilon(kDefaultEpsilon)
                       .SetApproxBounds(std::move(*bounds_small))
                       .Build();
   ASSERT_OK(bs_small);
   auto bs_big = typename BoundedSum<TypeParam>::Builder()
+                    .SetEpsilon(kDefaultEpsilon)
                     .SetApproxBounds(std::move(*bounds_big))
                     .Build();
   ASSERT_OK(bs_big);

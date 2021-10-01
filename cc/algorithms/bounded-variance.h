@@ -22,6 +22,7 @@
 #include <cstdlib>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -40,6 +41,8 @@
 #include "algorithms/numerical-mechanisms.h"
 #include "algorithms/util.h"
 #include "proto/util.h"
+#include "proto/data.pb.h"
+#include "proto/summary.pb.h"
 #include "base/status_macros.h"
 
 namespace differential_privacy {
@@ -317,12 +320,15 @@ template <typename T>
 class BoundedVarianceWithApproxBounds : public BoundedVariance<T> {
  public:
   BoundedVarianceWithApproxBounds(
-      const double epsilon, const double l0_sensitivity,
+      const double epsilon, const double epsilon_for_sum,
+      const double epsilon_for_squares, const double l0_sensitivity,
       const int max_contributions_per_partition,
       std::unique_ptr<NumericalMechanismBuilder> mechanism_builder,
       std::unique_ptr<NumericalMechanism> count_mechanism,
       std::unique_ptr<ApproxBounds<T>> approx_bounds)
       : BoundedVariance<T>(epsilon),
+        epsilon_for_sum_(epsilon_for_sum),
+        epsilon_for_squares_(epsilon_for_squares),
         mechanism_builder_(std::move(mechanism_builder)),
         l0_sensitivity_(l0_sensitivity),
         max_contributions_per_partition_(max_contributions_per_partition),
@@ -419,10 +425,6 @@ class BoundedVarianceWithApproxBounds : public BoundedVariance<T> {
     return memory;
   }
 
-  double GetEpsilon() const override {
-    return approx_bounds_->GetEpsilon() + Algorithm<T>::GetEpsilon();
-  }
-
   // Returns the epsilon used to calculate approximate bounds.
   double GetBoundingEpsilon() const override {
     return approx_bounds_->GetEpsilon();
@@ -430,27 +432,19 @@ class BoundedVarianceWithApproxBounds : public BoundedVariance<T> {
 
   // Returns the epsilon used to calculate the noisy mean.
   double GetAggregationEpsilon() const override {
-    return Algorithm<T>::GetEpsilon();
+    return Algorithm<T>::GetEpsilon() - GetBoundingEpsilon();
   }
 
  private:
-  base::StatusOr<Output> GenerateResult(double privacy_budget,
+  base::StatusOr<Output> GenerateResult(double privacy_budget_fraction,
                                         double noise_interval_level) override {
-    RETURN_IF_ERROR(ValidateIsPositive(privacy_budget, "Privacy budget",
+    RETURN_IF_ERROR(ValidateIsPositive(privacy_budget_fraction,
+                                       "Privacy budget",
                                        absl::StatusCode::kFailedPrecondition));
-
-    // Use half of the budget for approx bounds and split the rest for (1)
-    // count, (2) sum, (3) sum of squares.
-    const double approx_bounds_budget = privacy_budget / 2;
-    const double count_budget = privacy_budget / 6;
-    const double sum_budget = privacy_budget / 6;
-    const double sum_of_squares_budget =
-        privacy_budget - approx_bounds_budget - count_budget - sum_budget;
-
     Output output;
 
     ASSIGN_OR_RETURN(Output bounds,
-                     approx_bounds_->PartialResult(approx_bounds_budget,
+                     approx_bounds_->PartialResult(privacy_budget_fraction,
                                                    noise_interval_level));
     const T lower = GetValue<T>(bounds.elements(0).value());
     const T upper = GetValue<T>(bounds.elements(1).value());
@@ -474,17 +468,17 @@ class BoundedVarianceWithApproxBounds : public BoundedVariance<T> {
         approx_bounds_->GetBoundingReport(lower, upper);
 
     const double noised_count =
-        count_mechanism_->AddNoise(partial_count_, count_budget);
+        count_mechanism_->AddNoise(partial_count_, privacy_budget_fraction);
 
     // Calculate noised normalized sum
     const T sum_midpoint = lower + ((upper - lower) / 2);
     ASSIGN_OR_RETURN(
         std::unique_ptr<NumericalMechanism> sum_mechanism,
         BoundedVariance<T>::BuildSumMechanism(
-            mechanism_builder_->Clone(), Algorithm<T>::GetEpsilon(),
-            l0_sensitivity_, max_contributions_per_partition_, lower, upper));
+            mechanism_builder_->Clone(), epsilon_for_sum_, l0_sensitivity_,
+            max_contributions_per_partition_, lower, upper));
     const double noised_normalized_sum = sum_mechanism->AddNoise(
-        sum - (partial_count_ * sum_midpoint), sum_budget);
+        sum - (partial_count_ * sum_midpoint), privacy_budget_fraction);
 
     // Calculate noised normalized sum of squares.
     const double sum_of_squares_midpoint =
@@ -492,12 +486,12 @@ class BoundedVarianceWithApproxBounds : public BoundedVariance<T> {
     ASSIGN_OR_RETURN(
         std::unique_ptr<NumericalMechanism> sum_of_squares_mechanism,
         BoundedVariance<T>::BuildSumOfSquaresMechanism(
-            mechanism_builder_->Clone(), Algorithm<T>::GetEpsilon(),
-            l0_sensitivity_, max_contributions_per_partition_, lower, upper));
+            mechanism_builder_->Clone(), epsilon_for_squares_, l0_sensitivity_,
+            max_contributions_per_partition_, lower, upper));
     const double noised_normalized_sum_of_squares =
         sum_of_squares_mechanism->AddNoise(
             sum_of_squares - (partial_count_ * sum_of_squares_midpoint),
-            sum_of_squares_budget);
+            privacy_budget_fraction);
 
     // Calculate the result from the noised values.  From this point everything
     // should be post-processing.
@@ -570,6 +564,8 @@ class BoundedVarianceWithApproxBounds : public BoundedVariance<T> {
   int64_t partial_count_ = 0;
 
   // Used to construct mechanism once bounds are obtained.
+  const double epsilon_for_sum_;
+  const double epsilon_for_squares_;
   std::unique_ptr<NumericalMechanismBuilder> mechanism_builder_;
   const double l0_sensitivity_;
   const int max_contributions_per_partition_;
@@ -582,88 +578,155 @@ class BoundedVarianceWithApproxBounds : public BoundedVariance<T> {
 };
 
 template <typename T>
-class BoundedVariance<T>::Builder
-    : public BoundedAlgorithmBuilder<T, BoundedVariance<T>, Builder> {
-  using AlgorithmBuilder =
-      differential_privacy::AlgorithmBuilder<T, BoundedVariance<T>, Builder>;
-  using BoundedBuilder =
-      BoundedAlgorithmBuilder<T, BoundedVariance<T>, Builder>;
+class BoundedVariance<T>::Builder {
+ public:
+  BoundedVariance<T>::Builder& SetEpsilon(double epsilon) {
+    epsilon_ = epsilon;
+    return *this;
+  }
+
+  BoundedVariance<T>::Builder& SetDelta(double delta) {
+    delta_ = delta;
+    return *this;
+  }
+
+  BoundedVariance<T>::Builder& SetMaxPartitionsContributed(
+      int max_partitions_contributed) {
+    max_contributions_per_partition_ = max_partitions_contributed;
+    return *this;
+  }
+
+  BoundedVariance<T>::Builder& SetMaxContributionsPerPartition(
+      int max_contributions_per_partition) {
+    max_contributions_per_partition_ = max_contributions_per_partition;
+    return *this;
+  }
+
+  BoundedVariance<T>::Builder& SetUpper(T upper) {
+    upper_ = upper;
+    return *this;
+  }
+
+  BoundedVariance<T>::Builder& SetLower(T lower) {
+    lower_ = lower;
+    return *this;
+  }
+
+  BoundedVariance<T>::Builder& SetApproxBounds(
+      std::unique_ptr<ApproxBounds<T>> approx_bounds) {
+    approx_bounds_ = std::move(approx_bounds);
+    return *this;
+  }
+
+  BoundedVariance<T>::Builder& SetLaplaceMechanism(
+      std::unique_ptr<NumericalMechanismBuilder> builder) {
+    mechanism_builder_ = std::move(builder);
+    return *this;
+  }
+
+  base::StatusOr<std::unique_ptr<BoundedVariance<T>>> Build() {
+    if (!epsilon_.has_value()) {
+      epsilon_ = DefaultEpsilon();
+      LOG(WARNING) << "Default epsilon of " << epsilon_.value()
+                   << " is being used. Consider setting your own epsilon based "
+                      "on privacy considerations.";
+    }
+    RETURN_IF_ERROR(ValidateEpsilon(epsilon_));
+    RETURN_IF_ERROR(ValidateDelta(delta_));
+    RETURN_IF_ERROR(ValidateBounds(lower_, upper_));
+    RETURN_IF_ERROR(
+        ValidateMaxPartitionsContributed(max_partitions_contributed_));
+    RETURN_IF_ERROR(
+        ValidateMaxContributionsPerPartition(max_contributions_per_partition_));
+    if (upper_.has_value() && lower_.has_value()) {
+      return BuildVarianceWithFixedBounds();
+    }
+    return BuildVarianceWithApproxBounds();
+  }
 
  private:
-  base::StatusOr<std::unique_ptr<BoundedVariance<T>>> BuildBoundedAlgorithm()
-      override {
-    // We have to check epsilon now, otherwise the split during ApproxBounds
-    // construction might make the error message confusing.
-    RETURN_IF_ERROR(
-        ValidateIsFiniteAndPositive(AlgorithmBuilder::GetEpsilon(), "Epsilon"));
+  absl::optional<double> epsilon_;
+  double delta_ = 0;
+  absl::optional<T> upper_;
+  absl::optional<T> lower_;
+  int max_partitions_contributed_ = 1;
+  int max_contributions_per_partition_ = 1;
+  std::unique_ptr<NumericalMechanismBuilder> mechanism_builder_ =
+      absl::make_unique<LaplaceMechanism::Builder>();
+  std::unique_ptr<ApproxBounds<T>> approx_bounds_;
 
-    // Ensure that either bounds are manually set or ApproxBounds is made.
-    RETURN_IF_ERROR(BoundedBuilder::BoundsSetup());
+  base::StatusOr<std::unique_ptr<BoundedVariance<T>>>
+  BuildVarianceWithFixedBounds() {
+    RETURN_IF_ERROR(CheckBounds(lower_.value(), upper_.value()));
 
-    // If manual bounding, check bounds and construct mechanism so we can fail
-    // on build if sensitivity is inappropriate.
-    if (BoundedBuilder::BoundsAreSet()) {
-      RETURN_IF_ERROR(CheckBounds(BoundedBuilder::GetLower().value(),
-                                  BoundedBuilder::GetUpper().value()));
-      ASSIGN_OR_RETURN(
-          std::unique_ptr<NumericalMechanism> count_mechanism,
-          AlgorithmBuilder::GetMechanismBuilderClone()
-              ->SetEpsilon(BoundedBuilder::GetEpsilon().value() / 3)
-              .SetL0Sensitivity(
-                  AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1))
-              .SetLInfSensitivity(
-                  AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(
-                      1))
-              .Build());
-      ASSIGN_OR_RETURN(
-          std::unique_ptr<NumericalMechanism> sum_mechanism,
-          BoundedVariance<T>::BuildSumMechanism(
-              AlgorithmBuilder::GetMechanismBuilderClone(),
-              BoundedBuilder::GetEpsilon().value() / 3,
-              AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1),
-              AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(1),
-              BoundedBuilder::GetLower().value(),
-              BoundedBuilder::GetUpper().value()));
-      ASSIGN_OR_RETURN(
-          std::unique_ptr<NumericalMechanism> sos_mechanism,
-          BoundedVariance<T>::BuildSumOfSquaresMechanism(
-              AlgorithmBuilder::GetMechanismBuilderClone(),
-              BoundedBuilder::GetEpsilon().value() / 3,
-              AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1),
-              AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(1),
-              BoundedBuilder::GetLower().value(),
-              BoundedBuilder::GetUpper().value()));
+    ASSIGN_OR_RETURN(std::unique_ptr<NumericalMechanism> count_mechanism,
+                     mechanism_builder_->Clone()
+                         ->SetEpsilon(epsilon_.value() / 3)
+                         .SetL0Sensitivity(max_partitions_contributed_)
+                         .SetLInfSensitivity(max_contributions_per_partition_)
+                         .Build());
+    ASSIGN_OR_RETURN(
+        std::unique_ptr<NumericalMechanism> sum_mechanism,
+        BoundedVariance<T>::BuildSumMechanism(
+            mechanism_builder_->Clone(), epsilon_.value() / 3,
+            max_partitions_contributed_, max_contributions_per_partition_,
+            lower_.value(), upper_.value()));
+    ASSIGN_OR_RETURN(
+        std::unique_ptr<NumericalMechanism> sos_mechanism,
+        BoundedVariance<T>::BuildSumOfSquaresMechanism(
+            mechanism_builder_->Clone(), epsilon_.value() / 3,
+            max_partitions_contributed_, max_contributions_per_partition_,
+            lower_.value(), upper_.value()));
 
-      return std::unique_ptr<BoundedVariance<T>>(
-          new BoundedVarianceWithFixedBounds<T>(
-              BoundedBuilder::GetEpsilon().value(),
-              BoundedBuilder::GetLower().value(),
-              BoundedBuilder::GetUpper().value(), std::move(count_mechanism),
-              std::move(sum_mechanism), std::move(sos_mechanism)));
-    } else {
-      ASSIGN_OR_RETURN(
-          std::unique_ptr<NumericalMechanism> count_mechanism,
-          AlgorithmBuilder::GetMechanismBuilderClone()
-              // TODO: Split absolute epsilon in the line below
-              // once we fix the budget fraction logic.
-              ->SetEpsilon(BoundedBuilder::GetRemainingEpsilon().value())
-              .SetL0Sensitivity(
-                  AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1))
-              .SetLInfSensitivity(
-                  AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(
-                      1))
-              .Build());
+    std::unique_ptr<BoundedVariance<T>> result =
+        absl::make_unique<BoundedVarianceWithFixedBounds<T>>(
+            epsilon_.value(), lower_.value(), upper_.value(),
+            std::move(count_mechanism), std::move(sum_mechanism),
+            std::move(sos_mechanism));
+    return result;
+  }
 
-      // Construct bounded variance.
-      return std::unique_ptr<BoundedVariance<T>>(
-          new BoundedVarianceWithApproxBounds<T>(
-              BoundedBuilder::GetRemainingEpsilon().value(),
-              AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1),
-              AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(1),
-              AlgorithmBuilder::GetMechanismBuilderClone(),
-              std::move(count_mechanism),
-              BoundedBuilder::MoveApproxBoundsPointer()));
+  base::StatusOr<std::unique_ptr<BoundedVariance<T>>>
+  BuildVarianceWithApproxBounds() {
+    if (!approx_bounds_) {
+      ASSIGN_OR_RETURN(approx_bounds_,
+                       typename ApproxBounds<T>::Builder()
+                           .SetEpsilon(epsilon_.value() / 2)
+                           .SetLaplaceMechanism(mechanism_builder_->Clone())
+                           .Build());
     }
+
+    if (epsilon_.value() <= approx_bounds_->GetEpsilon()) {
+      return absl::InvalidArgumentError(absl::StrCat(
+          "Approx Bounds consumes more epsilon budget than available. Total "
+          "Epsilon: ",
+          epsilon_.value(),
+          " Approx Bounds Epsilon: ", approx_bounds_->GetEpsilon()));
+    }
+
+    // Budget calculation.
+    const double remaining_epsilon =
+        epsilon_.value() - approx_bounds_->GetEpsilon();
+
+    const double epsilon_for_count = remaining_epsilon / 3;
+    const double epsilon_for_sum = remaining_epsilon / 3;
+    const double epsilon_for_squares =
+        remaining_epsilon - epsilon_for_count - epsilon_for_sum;
+
+    ASSIGN_OR_RETURN(std::unique_ptr<NumericalMechanism> count_mechanism,
+                     mechanism_builder_->Clone()
+                         ->SetEpsilon(epsilon_for_count)
+                         .SetL0Sensitivity(max_partitions_contributed_)
+                         .SetLInfSensitivity(max_contributions_per_partition_)
+                         .Build());
+
+    std::unique_ptr<BoundedVariance<T>> result =
+        absl::make_unique<BoundedVarianceWithApproxBounds<T>>(
+            epsilon_.value(), epsilon_for_sum, epsilon_for_squares,
+            max_partitions_contributed_, max_contributions_per_partition_,
+            mechanism_builder_->Clone(), std::move(count_mechanism),
+            std::move(approx_bounds_));
+    return result;
   }
 };
 

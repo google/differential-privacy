@@ -555,6 +555,38 @@ TEST(NumericalMechanismsTest,
                HasSubstr("Confidence level must be a valid numeric value")));
 }
 
+TEST(NumericalMechanismsTest, LaplaceCdfPositive) {
+  auto mechanism =
+      LaplaceMechanism::Builder().SetL1Sensitivity(3).SetEpsilon(2).Build();
+  ASSERT_OK(mechanism);
+
+  EXPECT_DOUBLE_EQ((*mechanism)->Cdf(0.5), 0.641734344713105374787);
+}
+
+TEST(NumericalMechanismsTest, LaplaceCdfNegative) {
+  auto mechanism =
+      LaplaceMechanism::Builder().SetL1Sensitivity(3).SetEpsilon(2).Build();
+  ASSERT_OK(mechanism);
+
+  EXPECT_DOUBLE_EQ((*mechanism)->Cdf(-0.7), 0.313544542636528);
+}
+
+TEST(NumericalMechanismsTest, LaplaceQuantilePositive) {
+  auto mechanism =
+      LaplaceMechanism::Builder().SetL1Sensitivity(3).SetEpsilon(2).Build();
+  ASSERT_OK(mechanism);
+
+  EXPECT_DOUBLE_EQ((*mechanism)->Quantile(0.641734344713105374787), 0.5);
+}
+
+TEST(NumericalMechanismsTest, LaplaceQuantileNegative) {
+  auto mechanism =
+      LaplaceMechanism::Builder().SetL1Sensitivity(3).SetEpsilon(2).Build();
+  ASSERT_OK(mechanism);
+
+  EXPECT_DOUBLE_EQ((*mechanism)->Quantile(0.313544542636528), -0.7);
+}
+
 TYPED_TEST(NumericalMechanismsTest, LaplaceBuilderClone) {
   LaplaceMechanism::Builder test_builder;
   std::unique_ptr<NumericalMechanismBuilder> clone =
@@ -914,10 +946,37 @@ TEST(NumericalMechanismsTest, GaussianRoundsToGranularity_Int) {
   }
 }
 
+TEST(NumericalMechanismsTest, GaussianMechanismCdf) {
+  auto mechanism = GaussianMechanism::Builder()
+                       .SetL2Sensitivity(1)
+                       .SetEpsilon(1)
+                       .SetDelta(0.5)
+                       .Build()
+                       .value();
+  EXPECT_NEAR(mechanism->GetVariance(), 0.257378, 1e-6);
+
+  EXPECT_THAT(mechanism->Cdf(0.5), DoubleNear(0.837826, 1e-6));
+}
+
+TEST(NumericalMechanismsTest, GaussianMechanismQuantile) {
+  auto mechanism = GaussianMechanism::Builder()
+                       .SetL2Sensitivity(1)
+                       .SetEpsilon(1)
+                       .SetDelta(0.5)
+                       .Build()
+                       .value();
+  EXPECT_NEAR(mechanism->GetVariance(), 0.257378, 1e-6);
+
+  EXPECT_THAT(mechanism->Quantile(0.837826), DoubleNear(0.5, 1e-6));
+}
+
 TEST(NumericalMechanismsTest, GaussianMechanismNoisedValueAboveThreshold) {
   GaussianMechanism::Builder builder;
   std::unique_ptr<NumericalMechanism> mechanism =
       builder.SetL2Sensitivity(1).SetEpsilon(1).SetDelta(0.5).Build().value();
+  // If the computed variance changes, then we need to update the probabilities
+  // in test_scenarios below.
+  EXPECT_NEAR(mechanism->GetVariance(), 0.257378, 1e-6);
 
   struct TestScenario {
     double input;
@@ -929,9 +988,9 @@ TEST(NumericalMechanismsTest, GaussianMechanismNoisedValueAboveThreshold) {
   // the test successful if a sufficient expected number of trials provide the
   // expected result.
   std::vector<TestScenario> test_scenarios = {
-      {-0.5, -0.5, 0.5000}, {0.0, -0.5, 0.6915}, {0.5, -0.5, 0.8410},
-      {-0.5,  0.0, 0.3085}, {0.0,  0.0, 0.5000}, {0.5,  0.0, 0.6915},
-      {-0.5,  0.5, 0.1585}, {0.0,  0.5, 0.3085}, {0.5,  0.5, 0.5000},
+      {-0.5, -0.5, 0.5000}, {0.0, -0.5, 0.8378}, {0.5, -0.5, 0.9756},
+      {-0.5,  0.0, 0.1622}, {0.0,  0.0, 0.5000}, {0.5,  0.0, 0.8378},
+      {-0.5,  0.5, 0.0244}, {0.0,  0.5, 0.1622}, {0.5,  0.5, 0.5000},
   };
 
   double num_above_thresold;

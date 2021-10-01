@@ -44,6 +44,9 @@ constexpr int kNumDatasetsToTest = 500;
 constexpr int kSmallNumDatasetsToTest = 100;
 constexpr int kNumSamplesPerHistogram = 20000;
 
+const double kDefaultOverallEpsilon = std::log(3);
+const double kDefaultBoundsEpsilon = std::log(3) / 2;
+
 template <typename T>
 class StochasticDifferentialPrivacyTest : public ::testing::Test {
  protected:
@@ -207,33 +210,35 @@ TYPED_TEST(StochasticDifferentialPrivacyTest, AllApproxBoundedDpAlgorithms) {
       testing::DefaultDatasetSize(), true, testing::DefaultDataScale(),
       testing::DefaultDataOffset());
 
-  std::unique_ptr<ApproxBounds<double>> bounds =
+  base::StatusOr<std::unique_ptr<ApproxBounds<double>>> bounds =
       ApproxBounds<double>::Builder()
           .SetLaplaceMechanism(
               absl::make_unique<SeededLaplaceMechanism::Builder>())
-          .SetEpsilon(std::log(3))
+          .SetEpsilon(kDefaultBoundsEpsilon)
           .SetScale(.2)
           .SetBase(2)
           .SetNumBins(1)
           .SetSuccessProbability(.90)
-          .Build()
-          .value();
+          .Build();
+  ASSERT_TRUE(bounds.ok()) << bounds.status().message();
 
   // The sum mechanism is remade for every run of the algorithm. Thus, we need
   // to ensure an outside generator is passed into the mechanism builder.
   std::seed_seq seed({1, 1, 1, 1, 1});
   std::mt19937 rand_gen(seed);
   auto mech_builder = SeededLaplaceMechanism::Builder().rand_gen(&rand_gen);
-  auto algorithm =
+  base::StatusOr<std::unique_ptr<TypeParam>> algorithm =
       typename TypeParam::Builder()
           .SetLaplaceMechanism(
               absl::make_unique<SeededLaplaceMechanism::Builder>(mech_builder))
-          .SetEpsilon(std::log(3))
-          .SetApproxBounds(std::move(bounds))
-          .Build()
-          .value();
-  StochasticTester<double> tester(std::move(algorithm), std::move(sequence),
-                                  kNumDatasetsToTest, kNumSamplesPerHistogram);
+          .SetEpsilon(kDefaultOverallEpsilon)
+          .SetApproxBounds(std::move(bounds).value())
+          .Build();
+  ASSERT_TRUE(algorithm.ok()) << algorithm.status().message();
+
+  StochasticTester<double> tester(std::move(algorithm).value(),
+                                  std::move(sequence), kNumDatasetsToTest,
+                                  kNumSamplesPerHistogram);
   EXPECT_TRUE(tester.Run());
 }
 

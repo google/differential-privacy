@@ -64,17 +64,18 @@ namespace differential_privacy {
 //
 // To generate the output, first noise is added to each bin count. Then, the
 // success_probability is used to determine a threshold count. The success
-// probability is the probability that we select a bin that wasn't empty before
-// noise addition. Therefore, increasing success_probability will increase the
-// threshold. Alternatively, the threshold can be passed as a parameter
-// directly.
+// probability is the probability that, given our dataset is empty, all bins
+// have noised counts that are less than the threshold count. Therefore,
+// increasing success_probability will increase the threshold and the
+// probability that bounds are too tight. Alternatively, the threshold can be
+// passed as a parameter directly.
 //
-// We chose the bin that succeeds the threshold count and return its greater
-// boundary as the approx max. Similarly the leftmost bin that succeeds the
-// threshold count is chosen and its smaller boundary is returned as the approx
-// min. If the success_probability is too high it is possible that no bin is
-// greater than the threshold. In this case we return an error status in the
-// output.
+// For the approx upper bound, we choose the rightmost bin that succeeds the
+// threshold count and return its upper boundary. Similarly, for the approx
+// lower bound we choose the leftmost bin that succeeds the threshold count and
+// return its lower boundary. If the success_probability is too high it is
+// possible that no bin is greater than the threshold. In this case we return an
+// error status in the output.
 //
 // For example, if
 //   scale = 2, base = 1, num_bins = 4, inputs = {0, 0, 0, 0, 1, 3, 7, 8, 8, 8}
@@ -134,7 +135,7 @@ class ApproxBounds : public Algorithm<T> {
     // Set exactly one of success_probability or k threshold.
     Builder& SetSuccessProbability(double success_probability) {
       success_probability_ = success_probability;
-      has_k_ = false;
+      has_user_set_threshold_ = false;
       return *static_cast<Builder*>(this);
     }
 
@@ -143,15 +144,17 @@ class ApproxBounds : public Algorithm<T> {
     // distribution to choose a value for this parameter, then you probably know
     // enough to choose sensible bounds for your sample.
     ABSL_DEPRECATED("Use SetThresholdForTest instead")
-    Builder& SetThreshold(double k) { return SetThresholdForTest(k); }
+    Builder& SetThreshold(double threshold) {
+      return SetThresholdForTest(threshold);
+    }
 
     // Set exactly one of success_probability or k threshold. Not recommended
     // for use in non-test code: if you know enough about your sample
     // distribution to choose a value for this parameter, then you probably know
     // enough to choose sensible bounds for your sample.
-    Builder& SetThresholdForTest(double k) {
-      k_ = k;
-      has_k_ = true;
+    Builder& SetThresholdForTest(double threshold) {
+      threshold_ = threshold;
+      has_user_set_threshold_ = true;
       return *static_cast<Builder*>(this);
     }
 
@@ -171,36 +174,31 @@ class ApproxBounds : public Algorithm<T> {
       // TODO: Handle case where scale * base^num_bins >
       // std::numeric_limits<T>::max, even though the ApproxBounds constructor
       // addresses this
-      if (has_k_) {
-        RETURN_IF_ERROR(ValidateIsFinite(k_, "k threshold"));
-        RETURN_IF_ERROR(ValidateIsNonNegative(k_, "k threshold"));
+      if (has_user_set_threshold_) {
+        RETURN_IF_ERROR(ValidateIsFinite(threshold_, "k threshold"));
+        RETURN_IF_ERROR(ValidateIsNonNegative(threshold_, "k threshold"));
       } else {
         RETURN_IF_ERROR(ValidateIsInExclusiveInterval(
             success_probability_, 0, 1, "Success probability"));
       }
 
-      if (!has_k_) {
-        // Calculate minimum bin count threshold given success probability.
-        // Given the success probability, find the threshold count needed for a
-        // given bin in order for it to be chosen. Note if probability is too
-        // high, the threshold will be too high for any bin to be chosen; then
-        // we return an error in the output. This is calculated assuming
-        // Laplacian noise is added.
-        k_ = -std::log(2 - 2 * std::pow(success_probability_,
-                                        1.0 / (2 * num_bins_ - 1))) /
-             AlgorithmBuilder::GetEpsilon().value();
+      if (has_user_set_threshold_) {
+        // If the user specified a threshold rather than a success probability,
+        // then calculate the success probability that corresponds to the
+        // threshold in the case where they spend all of their privacy budget on
+        // the computation.
+        success_probability_ =
+            std::pow(mechanism->Cdf(threshold_), 2 * num_bins_);
       }
 
       // Create ApproxBounds.
-      return absl::WrapUnique(
-          new ApproxBounds(AlgorithmBuilder::GetEpsilon().value(), num_bins_,
-                           scale_, base_, k_, has_k_, std::move(mechanism)));
+      return absl::WrapUnique(new ApproxBounds(
+          AlgorithmBuilder::GetEpsilon().value(), num_bins_, scale_, base_,
+          success_probability_, has_user_set_threshold_, std::move(mechanism)));
     }
 
-    // Stores whether threshold k is set.
-    bool has_k_ = false;
-
-    double k_;
+    bool has_user_set_threshold_ = false;
+    double threshold_;
     double scale_;
     double base_;
     int64_t num_bins_;
@@ -400,7 +398,7 @@ class ApproxBounds : public Algorithm<T> {
 
  protected:
   ApproxBounds(double epsilon, int64_t num_bins, double scale, double base,
-               double k, bool preset_k,
+               double success_probability, bool has_user_set_threshold,
                std::unique_ptr<NumericalMechanism> mechanism)
       : Algorithm<T>(epsilon),
         pos_bins_(num_bins, 0),
@@ -408,8 +406,8 @@ class ApproxBounds : public Algorithm<T> {
         bin_boundaries_(num_bins, 0),
         scale_(scale),
         base_(base),
-        k_(k),
-        preset_k_(preset_k),
+        success_probability_(success_probability),
+        has_user_set_threshold_(has_user_set_threshold),
         mechanism_(std::move(mechanism)) {
     // Cache the bin boundary magnitudes for performance. Note that casting
     // numeric limits lead to inconsistencies.
@@ -427,21 +425,23 @@ class ApproxBounds : public Algorithm<T> {
   // Returns an output containing approximate min as the first element and
   // approximate max as the second element. If not enough inputs exist to pass
   // the threshold, populate the output with an error status.
-  base::StatusOr<Output> GenerateResult(double privacy_budget,
+  base::StatusOr<Output> GenerateResult(double privacy_budget_fraction,
                                         double noise_interval_level) override {
-    RETURN_IF_ERROR(ValidateIsPositive(privacy_budget, "Privacy budget",
+    RETURN_IF_ERROR(ValidateIsPositive(privacy_budget_fraction,
+                                       "Privacy budget",
                                        absl::StatusCode::kFailedPrecondition));
 
-    // If k was not user set, scale it by the privacy_budget to ensure the
-    // correct probability of success.
-    double threshold = k_;
-    if (!preset_k_) {
-      threshold /= privacy_budget;
+    double threshold = mechanism_->Quantile(
+        std::pow(success_probability_, 1.0 / (2 * pos_bins_.size())));
+    if (!has_user_set_threshold_) {
+      // If the threshold was not user set, scale it by the privacy budget to
+      // ensure the correct probability of success.
+      threshold /= privacy_budget_fraction;
     }
 
     // Populate noisy versions of the histogram bins.
-    noisy_pos_bins_ = AddNoise(privacy_budget, pos_bins_);
-    noisy_neg_bins_ = AddNoise(privacy_budget, neg_bins_);
+    noisy_pos_bins_ = AddNoise(privacy_budget_fraction, pos_bins_);
+    noisy_neg_bins_ = AddNoise(privacy_budget_fraction, neg_bins_);
 
     Output output;
 
@@ -706,11 +706,13 @@ class ApproxBounds : public Algorithm<T> {
   // Base of the logarithm.
   double base_;
 
-  // The bin count threshold for choosing a minimum / maximum.
-  double k_;
+  // The desired probability that no bin counts are above the threshold for
+  // determing whether a bin is empty when the dataset is empty
+  double success_probability_;
 
-  // Whether k was user-set. If true, then do not scale by privacy budget.
-  bool preset_k_;
+  // Whether the user chose a specific threshold for determining whether a bin
+  // is empty, rather than using a value computed from success_probability_.
+  bool has_user_set_threshold_;
 
   // Mechanism for adding noise to buckets.
   std::unique_ptr<NumericalMechanism> mechanism_;

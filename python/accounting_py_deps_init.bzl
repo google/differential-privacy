@@ -16,13 +16,10 @@
 
 """Initialization of dependencies of Python Privacy Loss Distribution."""
 
-load("@rules_python//python:repositories.bzl", "py_repositories")
-load("@rules_python//python:pip.bzl", "pip3_import", "pip_repositories")
+load("@rules_python//python:pip.bzl", "pip_install")
 
 def accounting_py_deps_init(workspace_name):
-    py_repositories()
-    pip_repositories()
-    pip3_import(
+    pip_install(
         name = "accounting_py_pip_deps",
         requirements = "@" + workspace_name + "//:requirements.txt",
     )

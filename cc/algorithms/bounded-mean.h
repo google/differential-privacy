@@ -22,13 +22,16 @@
 #include <algorithm>
 #include <cmath>
 #include <memory>
+#include <optional>
 #include <string>
 #include <type_traits>
 #include <utility>
 #include <vector>
 
 #include <cstdint>
+#include "base/logging.h"
 #include "google/protobuf/any.pb.h"
+#include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "base/statusor.h"
 #include "absl/strings/str_cat.h"
@@ -37,6 +40,8 @@
 #include "algorithms/bounded-algorithm.h"
 #include "algorithms/numerical-mechanisms.h"
 #include "algorithms/util.h"
+#include "proto/util.h"
+#include "proto/data.pb.h"
 #include "proto/summary.pb.h"
 #include "base/status_macros.h"
 
@@ -208,12 +213,15 @@ template <typename T>
 class BoundedMeanWithApproxBounds : public BoundedMean<T> {
  public:
   BoundedMeanWithApproxBounds(
-      const double epsilon, const double delta, const double l0_sensitivity,
+      const double epsilon, const double delta, const double epsilon_for_sum,
+      const double delta_for_sum, const double l0_sensitivity,
       const double max_contributions_per_partition,
       std::unique_ptr<NumericalMechanismBuilder> mechanism_builder,
       std::unique_ptr<NumericalMechanism> count_mechanism,
       std::unique_ptr<ApproxBounds<T>> approx_bounds)
       : BoundedMean<T>(epsilon, delta),
+        epsilon_for_sum_(epsilon_for_sum),
+        delta_for_sum_(delta_for_sum),
         count_mechanism_(std::move(count_mechanism)),
         mechanism_builder_(std::move(mechanism_builder)),
         l0_sensitivity_(l0_sensitivity),
@@ -291,33 +299,26 @@ class BoundedMeanWithApproxBounds : public BoundedMean<T> {
     return memory;
   }
 
-  double GetEpsilon() const override {
-    return approx_bounds_->GetEpsilon() + Algorithm<T>::GetEpsilon();
-  }
-
   // Returns the epsilon used to calculate approximate bounds.
   double GetBoundingEpsilon() const { return approx_bounds_->GetEpsilon(); }
 
   // Returns the epsilon used to calculate the noisy mean.
-  double GetAggregationEpsilon() const { return Algorithm<T>::GetEpsilon(); }
+  double GetAggregationEpsilon() const {
+    return Algorithm<T>::GetEpsilon() - GetBoundingEpsilon();
+  }
 
  protected:
-  base::StatusOr<Output> GenerateResult(double privacy_budget,
+  base::StatusOr<Output> GenerateResult(double privacy_budget_fraction,
                                         double noise_interval_level) override {
-    RETURN_IF_ERROR(ValidateIsPositive(privacy_budget, "Privacy budget",
+    RETURN_IF_ERROR(ValidateIsPositive(privacy_budget_fraction,
+                                       "Privacy budget",
                                        absl::StatusCode::kFailedPrecondition));
-
-    // Split privacy budget.  We use 1/2 for approx bounds, 1/4 for count and
-    // 1/4 for sum.
-    const double bounds_budget = privacy_budget / 2;
-    const double sum_budget = (privacy_budget - bounds_budget) / 2;
-    const double count_budget = privacy_budget - bounds_budget - sum_budget;
-
     Output output;
 
     // Use a fraction of the privacy budget to find the approximate bounds.
-    ASSIGN_OR_RETURN(Output bounds, approx_bounds_->PartialResult(
-                                        bounds_budget, noise_interval_level));
+    ASSIGN_OR_RETURN(Output bounds,
+                     approx_bounds_->PartialResult(privacy_budget_fraction,
+                                                   noise_interval_level));
     const T lower = GetValue<T>(bounds.elements(0).value());
     const T upper = GetValue<T>(bounds.elements(1).value());
     RETURN_IF_ERROR(BoundedMean<T>::CheckBounds(lower, upper));
@@ -336,18 +337,17 @@ class BoundedMeanWithApproxBounds : public BoundedMean<T> {
     ASSIGN_OR_RETURN(
         std::unique_ptr<NumericalMechanism> sum_mechanism,
         BoundedMean<T>::BuildMechanismForNormalizedSum(
-            mechanism_builder_->Clone(), Algorithm<T>::GetEpsilon(),
-            Algorithm<T>::GetDelta() / 2, l0_sensitivity_,
-            max_contributions_per_partition_, lower, upper));
+            mechanism_builder_->Clone(), epsilon_for_sum_, delta_for_sum_,
+            l0_sensitivity_, max_contributions_per_partition_, lower, upper));
 
     // We use the midpoint to normalize the sum.
     const double midpoint = lower + (upper - lower) / 2;
 
     const double noised_count =
         std::max(1.0, static_cast<double>(count_mechanism_->AddNoise(
-                          partial_count_, count_budget)));
-    const double normalized_sum =
-        sum_mechanism->AddNoise(sum - partial_count_ * midpoint, sum_budget);
+                          partial_count_, privacy_budget_fraction)));
+    const double normalized_sum = sum_mechanism->AddNoise(
+        sum - partial_count_ * midpoint, privacy_budget_fraction);
     const double mean = normalized_sum / noised_count + midpoint;
 
     // Add mean to output and return the result.
@@ -398,6 +398,8 @@ class BoundedMeanWithApproxBounds : public BoundedMean<T> {
 
   // Used to construct the sum mechanism once bounds are obtained for
   // auto-bounding.
+  const double epsilon_for_sum_;
+  const double delta_for_sum_;
   std::unique_ptr<NumericalMechanismBuilder> mechanism_builder_;
   const double l0_sensitivity_;
   const double max_contributions_per_partition_;
@@ -407,81 +409,148 @@ class BoundedMeanWithApproxBounds : public BoundedMean<T> {
 };
 
 template <typename T>
-class BoundedMean<T>::Builder
-    : public BoundedAlgorithmBuilder<T, BoundedMean<T>, Builder> {
-  using AlgorithmBuilder =
-      differential_privacy::AlgorithmBuilder<T, BoundedMean<T>, Builder>;
-  using BoundedBuilder = BoundedAlgorithmBuilder<T, BoundedMean<T>, Builder>;
+class BoundedMean<T>::Builder {
+ public:
+  BoundedMean<T>::Builder& SetEpsilon(double epsilon) {
+    epsilon_ = epsilon;
+    return *this;
+  }
+
+  BoundedMean<T>::Builder& SetDelta(double delta) {
+    delta_ = delta;
+    return *this;
+  }
+
+  BoundedMean<T>::Builder& SetMaxPartitionsContributed(
+      int max_partitions_contributed) {
+    max_contributions_per_partition_ = max_partitions_contributed;
+    return *this;
+  }
+
+  BoundedMean<T>::Builder& SetMaxContributionsPerPartition(
+      int max_contributions_per_partition) {
+    max_contributions_per_partition_ = max_contributions_per_partition;
+    return *this;
+  }
+
+  BoundedMean<T>::Builder& SetUpper(T upper) {
+    upper_ = upper;
+    return *this;
+  }
+
+  BoundedMean<T>::Builder& SetLower(T lower) {
+    lower_ = lower;
+    return *this;
+  }
+
+  BoundedMean<T>::Builder& SetApproxBounds(
+      std::unique_ptr<ApproxBounds<T>> approx_bounds) {
+    approx_bounds_ = std::move(approx_bounds);
+    return *this;
+  }
+
+  BoundedMean<T>::Builder& SetLaplaceMechanism(
+      std::unique_ptr<NumericalMechanismBuilder> builder) {
+    mechanism_builder_ = std::move(builder);
+    return *this;
+  }
+
+  base::StatusOr<std::unique_ptr<BoundedMean<T>>> Build() {
+    if (!epsilon_.has_value()) {
+      epsilon_ = DefaultEpsilon();
+      LOG(WARNING) << "Default epsilon of " << epsilon_.value()
+                   << " is being used. Consider setting your own epsilon based "
+                      "on privacy considerations.";
+    }
+    RETURN_IF_ERROR(ValidateEpsilon(epsilon_));
+    RETURN_IF_ERROR(ValidateDelta(delta_));
+    RETURN_IF_ERROR(ValidateBounds(lower_, upper_));
+    RETURN_IF_ERROR(
+        ValidateMaxPartitionsContributed(max_partitions_contributed_));
+    RETURN_IF_ERROR(
+        ValidateMaxContributionsPerPartition(max_contributions_per_partition_));
+    if (upper_.has_value() && lower_.has_value()) {
+      return BuildMeanWithFixedBounds();
+    }
+    return BuildMeanWithApproxBounds();
+  }
 
  private:
-  base::StatusOr<std::unique_ptr<BoundedMean<T>>> BuildBoundedAlgorithm()
-      override {
-    // We have to check epsilon now, otherwise the split during ApproxBounds
-    // construction might make the error message confusing.
+  absl::optional<double> epsilon_;
+  double delta_ = 0;
+  absl::optional<T> upper_;
+  absl::optional<T> lower_;
+  int max_partitions_contributed_ = 1;
+  int max_contributions_per_partition_ = 1;
+  std::unique_ptr<NumericalMechanismBuilder> mechanism_builder_ =
+      absl::make_unique<LaplaceMechanism::Builder>();
+  std::unique_ptr<ApproxBounds<T>> approx_bounds_;
+
+  base::StatusOr<std::unique_ptr<BoundedMean<T>>> BuildMeanWithFixedBounds() {
     RETURN_IF_ERROR(
-        ValidateIsFiniteAndPositive(AlgorithmBuilder::GetEpsilon(), "Epsilon"));
-    // Ensure that either bounds are manually set or ApproxBounds is made.
-    RETURN_IF_ERROR(BoundedBuilder::BoundsSetup());
+        BoundedMean<T>::CheckBounds(lower_.value(), upper_.value()));
+    ASSIGN_OR_RETURN(std::unique_ptr<NumericalMechanism> count_mechanism,
+                     mechanism_builder_->Clone()
+                         ->SetEpsilon(epsilon_.value() / 2)
+                         .SetDelta(delta_ / 2)
+                         .SetL0Sensitivity(max_partitions_contributed_)
+                         .SetLInfSensitivity(max_contributions_per_partition_)
+                         .Build());
+    ASSIGN_OR_RETURN(
+        std::unique_ptr<NumericalMechanism> sum_mechanism,
+        BuildMechanismForNormalizedSum(
+            mechanism_builder_->Clone(), epsilon_.value() / 2, delta_ / 2,
+            /*l0_sensitivity=*/max_partitions_contributed_,
+            max_contributions_per_partition_, lower_.value(), upper_.value()));
 
-    if (BoundedBuilder::BoundsAreSet()) {
-      RETURN_IF_ERROR(CheckBounds(BoundedBuilder::GetLower().value(),
-                                  BoundedBuilder::GetUpper().value()));
+    std::unique_ptr<BoundedMean<T>> result =
+        absl::make_unique<BoundedMeanWithFixedBounds<T>>(
+            epsilon_.value(), delta_, lower_.value(), upper_.value(),
+            std::move(sum_mechanism), std::move(count_mechanism));
+    return result;
+  }
 
-      ASSIGN_OR_RETURN(
-          std::unique_ptr<NumericalMechanism> count_mechanism,
-          AlgorithmBuilder::GetMechanismBuilderClone()
-              ->SetEpsilon(BoundedBuilder::GetEpsilon().value() / 2)
-              .SetDelta(BoundedBuilder::GetDelta().value_or(0.0) / 2)
-              .SetL0Sensitivity(
-                  AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1))
-              .SetLInfSensitivity(
-                  AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(
-                      1))
-              .Build());
-
-      ASSIGN_OR_RETURN(
-          std::unique_ptr<NumericalMechanism> sum_mechanism,
-          BoundedMean<T>::BuildMechanismForNormalizedSum(
-              AlgorithmBuilder::GetMechanismBuilderClone(),
-              BoundedBuilder::GetEpsilon().value() / 2,
-              BoundedBuilder::GetDelta().value_or(0.0) / 2,
-              AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1),
-              AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(1),
-              BoundedBuilder::GetLower().value(),
-              BoundedBuilder::GetUpper().value()));
-
-      // Construct BoundedSum with fixed bounds.
-      return std::unique_ptr<BoundedMean<T>>(new BoundedMeanWithFixedBounds<T>(
-          BoundedBuilder::GetEpsilon().value(),
-          BoundedBuilder::GetDelta().value_or(0),
-          BoundedBuilder::GetLower().value(),
-          BoundedBuilder::GetUpper().value(), std::move(sum_mechanism),
-          std::move(count_mechanism)));
-    } else {
-      // The count mechanism does not depend on the bounds, so we can create it
-      // here to have early parameter verification.
-      ASSIGN_OR_RETURN(
-          std::unique_ptr<NumericalMechanism> count_mechanism,
-          AlgorithmBuilder::GetMechanismBuilderClone()
-              ->SetEpsilon(BoundedBuilder::GetRemainingEpsilon().value() / 2)
-              .SetDelta(BoundedBuilder::GetDelta().value_or(0.0) / 2)
-              .SetL0Sensitivity(
-                  AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1))
-              .SetLInfSensitivity(
-                  AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(
-                      1))
-              .Build());
-
-      // Construct BoundedMean.
-      auto mech_builder = AlgorithmBuilder::GetMechanismBuilderClone();
-      return std::unique_ptr<BoundedMean<T>>(new BoundedMeanWithApproxBounds<T>(
-          BoundedBuilder::GetRemainingEpsilon().value(),
-          BoundedBuilder::GetDelta().value_or(0),
-          AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1),
-          AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(1),
-          std::move(mech_builder), std::move(count_mechanism),
-          std::move(BoundedBuilder::MoveApproxBoundsPointer())));
+  base::StatusOr<std::unique_ptr<BoundedMean<T>>> BuildMeanWithApproxBounds() {
+    if (!approx_bounds_) {
+      ASSIGN_OR_RETURN(approx_bounds_,
+                       typename ApproxBounds<T>::Builder()
+                           .SetEpsilon(epsilon_.value() / 2)
+                           .SetLaplaceMechanism(mechanism_builder_->Clone())
+                           .Build());
     }
+
+    if (epsilon_.value() <= approx_bounds_->GetEpsilon()) {
+      return absl::InvalidArgumentError(absl::StrCat(
+          "Approx Bounds consumes more epsilon budget than available. Total "
+          "Epsilon: ",
+          epsilon_.value(),
+          " Approx Bounds Epsilon: ", approx_bounds_->GetEpsilon()));
+    }
+
+    // Budget calculation.
+    const double epsilon_for_count =
+        (epsilon_.value() - approx_bounds_->GetEpsilon()) / 2;
+    const double epsilon_for_sum =
+        epsilon_.value() - approx_bounds_->GetEpsilon() - epsilon_for_count;
+
+    const double delta_for_count = delta_ / 2;
+    const double delta_for_sum = delta_ - delta_for_count;
+
+    ASSIGN_OR_RETURN(std::unique_ptr<NumericalMechanism> count_mechanism,
+                     mechanism_builder_->Clone()
+                         ->SetEpsilon(epsilon_for_count)
+                         .SetDelta(delta_for_count)
+                         .SetL0Sensitivity(max_partitions_contributed_)
+                         .SetLInfSensitivity(max_contributions_per_partition_)
+                         .Build());
+
+    std::unique_ptr<BoundedMean<T>> result =
+        absl::make_unique<BoundedMeanWithApproxBounds<T>>(
+            epsilon_.value(), delta_, epsilon_for_sum, delta_for_sum,
+            max_partitions_contributed_, max_contributions_per_partition_,
+            mechanism_builder_->Clone(), std::move(count_mechanism),
+            std::move(approx_bounds_));
+    return result;
   }
 };
 

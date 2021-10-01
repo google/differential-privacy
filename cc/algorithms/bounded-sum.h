@@ -305,18 +305,14 @@ class BoundedSumWithApproxBounds : public BoundedSum<T> {
     return absl::OkStatus();
   }
 
-  // Returns the total epsilon used by this single-pass algorithm that uses
-  // approx bounds internally.
-  double GetEpsilon() const override {
-    return approx_bounds_->GetEpsilon() + Algorithm<T>::GetEpsilon();
-  }
-
   // Returns the epsilon used to calculate approximate bounds.
   double GetBoundingEpsilon() const { return approx_bounds_->GetEpsilon(); }
 
   // Returns the epsilon used to calculate the noisy sum.  The overall algorithm
   // also uses epsilon for privately inferred bounds using approx bounds.
-  double GetAggregationEpsilon() const { return Algorithm<T>::GetEpsilon(); }
+  double GetAggregationEpsilon() const {
+    return Algorithm<T>::GetEpsilon() - approx_bounds_->GetEpsilon();
+  }
 
   int64_t MemoryUsed() override {
     int64_t memory = sizeof(BoundedSum<T>);
@@ -327,19 +323,17 @@ class BoundedSumWithApproxBounds : public BoundedSum<T> {
   }
 
  protected:
-  base::StatusOr<Output> GenerateResult(double privacy_budget,
+  base::StatusOr<Output> GenerateResult(double privacy_budget_fraction,
                                         double noise_interval_level) override {
-    RETURN_IF_ERROR(ValidateIsPositive(privacy_budget, "Privacy budget",
+    RETURN_IF_ERROR(ValidateIsPositive(privacy_budget_fraction,
+                                       "Privacy budget",
                                        absl::StatusCode::kFailedPrecondition));
     Output output;
 
-    // Use a fraction of the privacy budget to find the approximate bounds.
-    const double bounds_budget = privacy_budget / 2;
-    const double remaining_budget = privacy_budget - bounds_budget;
-
     // Get results of approximate bounds.
-    ASSIGN_OR_RETURN(Output bounds, approx_bounds_->PartialResult(
-                                        bounds_budget, noise_interval_level));
+    ASSIGN_OR_RETURN(Output bounds,
+                     approx_bounds_->PartialResult(privacy_budget_fraction,
+                                                   noise_interval_level));
     const T approx_bounds_lower = GetValue<T>(bounds.elements(0).value());
     const T approx_bounds_upper = GetValue<T>(bounds.elements(1).value());
     RETURN_IF_ERROR(BoundedSum<T>::CheckLowerBound(approx_bounds_lower));
@@ -355,12 +349,11 @@ class BoundedSumWithApproxBounds : public BoundedSum<T> {
         new BoundingReport(approx_bounds_->GetBoundingReport(lower, upper)));
 
     // Construct NumericalMechanism.
-    ASSIGN_OR_RETURN(
-        std::unique_ptr<NumericalMechanism> mechanism,
-        BoundedSum<T>::BuildMechanism(
-            mechanism_builder_->Clone(), Algorithm<T>::GetEpsilon(),
-            Algorithm<T>::GetDelta(), l0_sensitivity_,
-            max_contributions_per_partition_, lower, upper));
+    ASSIGN_OR_RETURN(std::unique_ptr<NumericalMechanism> mechanism,
+                     BoundedSum<T>::BuildMechanism(
+                         mechanism_builder_->Clone(), GetAggregationEpsilon(),
+                         Algorithm<T>::GetDelta(), l0_sensitivity_,
+                         max_contributions_per_partition_, lower, upper));
 
     // To find the sum, pass the identity function as the transform. We pass
     // count = 0 because the count should never be used.
@@ -369,13 +362,13 @@ class BoundedSumWithApproxBounds : public BoundedSum<T> {
                    pos_sum_, neg_sum_, [](T x) { return x; }, lower, upper, 0));
 
     // Add noise to sum. Use the remaining privacy budget.
-    T noisy_sum = mechanism->AddNoise(sum, remaining_budget);
+    T noisy_sum = mechanism->AddNoise(sum, privacy_budget_fraction);
     AddToOutput<T>(&output, noisy_sum);
 
     // Add noise confidence interval to the error report.
     base::StatusOr<ConfidenceInterval> interval =
         mechanism->NoiseConfidenceInterval(noise_interval_level,
-                                           remaining_budget);
+                                           privacy_budget_fraction);
     if (interval.ok()) {
       output.mutable_error_report()->set_allocated_noise_confidence_interval(
           new ConfidenceInterval(*interval));
@@ -499,20 +492,23 @@ class BoundedSum<T>::Builder {
   }
 
   base::StatusOr<std::unique_ptr<BoundedSum<T>>> BuildSumWithApproxBounds() {
-    // TODO: This resembles the original behavior that we want to
-    // change soon.
-    double remaining_epsilon = epsilon_.value();
     if (!approx_bounds_) {
       ASSIGN_OR_RETURN(approx_bounds_,
                        typename ApproxBounds<T>::Builder()
                            .SetEpsilon(epsilon_.value() / 2)
                            .SetLaplaceMechanism(mechanism_builder_->Clone())
                            .Build());
-      remaining_epsilon = epsilon_.value() - approx_bounds_->GetEpsilon();
+    }
+    if (epsilon_.value() <= approx_bounds_->GetEpsilon()) {
+      return absl::InvalidArgumentError(absl::StrCat(
+          "Approx Bounds consumes more epsilon budget than available. Total "
+          "Epsilon: ",
+          epsilon_.value(),
+          " Approx Bounds Epsilon: ", approx_bounds_->GetEpsilon()));
     }
     std::unique_ptr<BoundedSum<T>> result =
         absl::make_unique<BoundedSumWithApproxBounds<T>>(
-            remaining_epsilon, delta_, max_partitions_contributed_,
+            epsilon_.value(), delta_, max_partitions_contributed_,
             max_contributions_per_partition_, mechanism_builder_->Clone(),
             std::move(approx_bounds_));
     return result;

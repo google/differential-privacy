@@ -168,6 +168,10 @@ class LaplaceDistribution {
   // Returns the cdf of the Laplace distribution with scale b at point x.
   static double cdf(double b, double x);
 
+  // Returns the quantile (inverse cdf) of the Laplace distribution with
+  // scale b at the point p.
+  static double Quantile(double b, double p);
+
   // Calculates 'r' from the secure noise paper (see
   // ../../common_docs/Secure_Noise_Generation.pdf)
   static base::StatusOr<double> CalculateGranularity(double epsilon,

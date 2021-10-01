@@ -17,15 +17,25 @@
 #ifndef DIFFERENTIAL_PRIVACY_ALGORITHMS_BOUNDED_STANDARD_DEVIATION_H_
 #define DIFFERENTIAL_PRIVACY_ALGORITHMS_BOUNDED_STANDARD_DEVIATION_H_
 
+#include <cmath>
+#include <memory>
 #include <type_traits>
+#include <utility>
 
+#include <cstdint>
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "base/statusor.h"
 #include "algorithms/algorithm.h"
+#include "algorithms/approx-bounds.h"
 #include "algorithms/bounded-algorithm.h"
 #include "algorithms/bounded-variance.h"
 #include "algorithms/numerical-mechanisms.h"
+#include "algorithms/util.h"
+#include "proto/util.h"
+#include "proto/data.pb.h"
+#include "proto/summary.pb.h"
+#include "base/status_macros.h"
 
 namespace differential_privacy {
 
@@ -46,44 +56,7 @@ class BoundedStandardDeviation : public Algorithm<T> {
 
  public:
   // Builder for BoundedStandardDeviation algorithm.
-  class Builder : public BoundedAlgorithmBuilder<T, BoundedStandardDeviation<T>,
-                                                 Builder> {
-    using AlgorithmBuilder =
-        differential_privacy::AlgorithmBuilder<T, BoundedStandardDeviation<T>,
-                                               Builder>;
-    using BoundedBuilder =
-        BoundedAlgorithmBuilder<T, BoundedStandardDeviation<T>, Builder>;
-
-   private:
-    base::StatusOr<std::unique_ptr<BoundedStandardDeviation<T>>>
-    BuildBoundedAlgorithm() override {
-      // Set bounding info if appropriate.
-      if (BoundedBuilder::GetLower().has_value()) {
-        variance_builder_.SetLower(BoundedBuilder::GetLower().value());
-      }
-      if (BoundedBuilder::GetUpper().has_value()) {
-        variance_builder_.SetUpper(BoundedBuilder::GetUpper().value());
-      }
-      if (BoundedBuilder::GetApproxBounds()) {
-        variance_builder_.SetApproxBounds(
-            std::move(BoundedBuilder::MoveApproxBoundsPointer()));
-      }
-
-      // Construct bounded variance.
-      std::unique_ptr<BoundedVariance<T>> variance;
-      auto mech_builder = AlgorithmBuilder::GetMechanismBuilderClone();
-      ASSIGN_OR_RETURN(
-          variance,
-          variance_builder_.SetEpsilon(AlgorithmBuilder::GetEpsilon().value())
-              .SetLaplaceMechanism(std::move(mech_builder))
-              .Build());
-
-      return absl::WrapUnique(new BoundedStandardDeviation(
-          AlgorithmBuilder::GetEpsilon().value(), std::move(variance)));
-    }
-
-    typename BoundedVariance<T>::Builder variance_builder_;
-  };
+  class Builder;
 
   void AddEntry(const T& t) override { variance_->AddEntry(t); }
 
@@ -136,6 +109,66 @@ class BoundedStandardDeviation : public Algorithm<T> {
 
   void ResetState() override { variance_->Reset(); }
   std::unique_ptr<BoundedVariance<T>> variance_;
+};
+
+template <typename T>
+class BoundedStandardDeviation<T>::Builder {
+ public:
+  BoundedStandardDeviation<T>::Builder& SetEpsilon(double epsilon) {
+    variance_builder_.SetEpsilon(epsilon);
+    return *this;
+  }
+
+  BoundedStandardDeviation<T>::Builder& SetDelta(double delta) {
+    variance_builder_.SetDelta(delta);
+    return *this;
+  }
+
+  BoundedStandardDeviation<T>::Builder& SetMaxPartitionsContributed(
+      int max_partitions_contributed) {
+    variance_builder_.SetMaxPartitionsContributed(max_partitions_contributed);
+    return *this;
+  }
+
+  BoundedStandardDeviation<T>::Builder& SetMaxContributionsPerPartition(
+      int max_contributions_per_partition) {
+    variance_builder_.SetMaxContributionsPerPartition(
+        max_contributions_per_partition);
+    return *this;
+  }
+
+  BoundedStandardDeviation<T>::Builder& SetUpper(T upper) {
+    variance_builder_.SetUpper(upper);
+    return *this;
+  }
+
+  BoundedStandardDeviation<T>::Builder& SetLower(T lower) {
+    variance_builder_.SetLower(lower);
+    return *this;
+  }
+
+  BoundedStandardDeviation<T>::Builder& SetApproxBounds(
+      std::unique_ptr<ApproxBounds<T>> approx_bounds) {
+    variance_builder_.SetApproxBounds(std::move(approx_bounds));
+    return *this;
+  }
+
+  BoundedStandardDeviation<T>::Builder& SetLaplaceMechanism(
+      std::unique_ptr<NumericalMechanismBuilder> builder) {
+    variance_builder_.SetLaplaceMechanism(std::move(builder));
+    return *this;
+  }
+
+  base::StatusOr<std::unique_ptr<BoundedStandardDeviation<T>>> Build() {
+    ASSIGN_OR_RETURN(std::unique_ptr<BoundedVariance<T>> variance,
+                     variance_builder_.Build());
+    const double epsilon = variance->GetEpsilon();
+    return absl::WrapUnique(
+        new BoundedStandardDeviation(epsilon, std::move(variance)));
+  }
+
+ private:
+  typename BoundedVariance<T>::Builder variance_builder_;
 };
 
 }  // namespace differential_privacy

@@ -23,12 +23,10 @@ def accounting_py_deps():
     """
 
     if not native.existing_rule("rules_python"):
-        # Commit from 2020-03-05
         http_archive(
             name = "rules_python",
-            strip_prefix = "rules_python-748aa53d7701e71101dfd15d800e100f6ff8e5d1",
-            url = "https://github.com/bazelbuild/rules_python/archive/748aa53d7701e71101dfd15d800e100f6ff8e5d1.zip",
-            sha256 = "d3e40ca3b7e00b72d2b1585e0b3396bcce50f0fc692e2b7c91d8b0dc471e3eaf",
+            url = "https://github.com/bazelbuild/rules_python/releases/download/0.4.0/rules_python-0.4.0.tar.gz",
+            sha256 = "954aa89b491be4a083304a2cb838019c8b8c3720a7abb9c4cb81ac7a24230cea",
         )
 
     http_archive(

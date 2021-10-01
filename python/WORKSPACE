@@ -21,6 +21,3 @@ accounting_py_deps()
 
 load("@accounting_py//:accounting_py_deps_init.bzl", "accounting_py_deps_init")
 accounting_py_deps_init("accounting_py")
-
-load("@accounting_py_pip_deps//:requirements.bzl", "pip_install")
-pip_install()
