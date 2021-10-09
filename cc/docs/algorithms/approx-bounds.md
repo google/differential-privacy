@@ -1,4 +1,3 @@
-
 # Approx Bounds
 
 [`ApproxBounds`](https://github.com/google/differential-privacy/blob/main/cc/algorithms/approx-bounds.h)
@@ -46,17 +45,24 @@ the width of the smallest bin. There are `num_bins` bins for positive numbers,
 and `num_bins` bins for negative numbers.
 
 Inputs are partitioned into the histogram bins. When fetching the result, a
-noisy count of inputs inside each bin is checked to see whether it exceeds the
-`threshold`. Out of bins that exceed the `threshold`, the bin representing the
+noisy count of inputs inside each bin is checked to see whether it exceeds a
+threshold. Out of bins that exceed the threshold, the bin representing the
 interval containing the largest values maps to the maximum; the one for the
-smallest values maps to the minimum. Each `threshold` can be used to calculate a
-`success_probability`, which is the probability that a bin that passes the
-threshold had at least one input in it. We only need to specify either
-`threshold` or `success_probability`, since each maps to a specific value of the
-other.
+smallest values maps to the minimum. The threshold is configured bia a
+`success_probability`, which is the probability that we will (correctly) return
+no bounds for an empty dataset. Therefore the threshold is set high enough that
+there is a less than `1 - success_probability` chance that noise added to any of
+the bins will exceed the threshold. If no bin passes the threshold, we will
+automatically relax the `success_probobility` slightly, until we either find
+bounds, or reach a minimum `success_probability.` We find that this improves
+performance on small datasets without substantially increasing the probability
+of returning spurious bounds.
 
-Without a complete understanding, it is best to use the default
-values for all of these additional parameters.
+It is best to use the default value for `success_probability`.
+
+It is also possible to set the `threshold` directly, though we only recommend
+doing so for tests, as it is difficult to predict the results of setting a
+particular threshold on real data.
 
 ## Use
 

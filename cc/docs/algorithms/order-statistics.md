@@ -1,4 +1,3 @@
-
 # Order Statistics
 
 WARNING: These algorithms are deprecated and may be removed soon. Please use

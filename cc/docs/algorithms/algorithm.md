@@ -51,7 +51,7 @@ base::StatusOr<std::unique_ptr<Algorithm>> algorithm =
 Several of the parameters refer to the concept of a partition. We define a
 partition as a portion of the data for which a single statistic will be
 released. This is best explained through examples: if you're counting the number
-of people is each of a set of age buckets, partitions would correspond to age
+of people in each of a set of age buckets, partitions would correspond to age
 buckets. Or if you want to count the number of cars broken down by color, each
 color would be a partition.
 
@@ -67,8 +67,7 @@ single `Algorithm` and produce a single output.
 
 These functions add data to the `Algorithm`'s internal pool. For most
 algorithms, this doesn't consume additional space; the space consumed is
-typically constant. The exception is the order
-statistics algorithms: the space consumed is linear on the number of inputs.
+typically constant.
 
 ```
 void AddEntry(const T& t);

@@ -430,6 +430,50 @@ class PrivacyLossDistributionTest(parameterized.TestCase):
         self, expected_rounded_probability_mass_function,
         pld.rounded_probability_mass_function)
 
+  @parameterized.parameters((stats.norm.cdf, True, 1, 1e-2, {
+      1: 0.34134474,
+      2: 0.13590512,
+      3: 0.02140023,
+      0: 0.34134474,
+      -1: 0.13590512,
+      -2: 0.02140023
+  }, 1e-2), (stats.norm.cdf, False, 1, 1e-2, {
+      0: 0.34134474,
+      1: 0.13590512,
+      2: 0.02140023,
+      -1: 0.34134474,
+      -2: 0.13590512,
+      -3: 0.02140023
+  }, 0), (lambda x: stats.norm.cdf(x, scale=2), True, 2, 1e-2, {
+      1: 0.34134474,
+      2: 0.13590512,
+      3: 0.02140023,
+      0: 0.34134474,
+      -1: 0.13590512,
+      -2: 0.02140023
+  }, 1e-2), (stats.norm.cdf, True, 2, 1e-4, {
+      1: 0.47724986,
+      2: 0.02271846,
+      0: 0.47724986,
+      -1: 0.02271846
+  }, 1e-4))
+  def test_create_from_cdf(self, cdf, pessimistic_estimate,
+                           value_discretization_interval, tail_mass_truncation,
+                           expected_rounded_probability_mass_function,
+                           expected_infinity_mass):
+    pld = privacy_loss_distribution.PrivacyLossDistribution.create_from_cdf(
+        cdf,
+        pessimistic_estimate=pessimistic_estimate,
+        value_discretization_interval=value_discretization_interval,
+        tail_mass_truncation=tail_mass_truncation)
+    self.assertEqual(pld.pessimistic_estimate, pessimistic_estimate)
+    self.assertAlmostEqual(pld.value_discretization_interval,
+                           value_discretization_interval)
+    self.assertAlmostEqual(pld.infinity_mass, expected_infinity_mass)
+    test_util.dictionary_almost_equal(
+        self, pld.rounded_probability_mass_function,
+        expected_rounded_probability_mass_function)
+
 
 class LaplacePrivacyLossDistributionTest(parameterized.TestCase):
 

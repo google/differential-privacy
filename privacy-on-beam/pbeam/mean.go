@@ -266,8 +266,8 @@ func addPublicPartitionsForMean(s beam.Scope, epsilon, delta float64, maxPartiti
 	emptyMeans := beam.CombinePerKey(s,
 		boundedMeanFloat64Fn,
 		emptyPublicPartitions)
-	means = beam.ParDo(s, dereferenceValueToFloat64, means)
-	emptyMeans = beam.ParDo(s, dereferenceValueToFloat64, emptyMeans)
+	means = beam.ParDo(s, dereferenceValueToFloat64Fn, means)
+	emptyMeans = beam.ParDo(s, dereferenceValueToFloat64Fn, emptyMeans)
 	// Merge means from data with means from the empty public partitions.
 	allMeans := beam.Flatten(s, means, emptyMeans)
 	return allMeans

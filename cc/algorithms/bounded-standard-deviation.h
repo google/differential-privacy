@@ -37,6 +37,9 @@
 #include "proto/summary.pb.h"
 #include "base/status_macros.h"
 
+// Bounded Stddev is deprecated in favor of using variance and taking the sqrt
+// of the result.
+
 namespace differential_privacy {
 
 // Incrementally provides a differentially private standard deviation for values
@@ -49,14 +52,17 @@ namespace differential_privacy {
 // relies on the fact that the bounded variance algorithm guarantees that the
 // output is non-negative.
 template <typename T>
-class BoundedStandardDeviation : public Algorithm<T> {
+class ABSL_DEPRECATED(
+    "Use BoundedVariance instead and take the sqrt of the result")
+    BoundedStandardDeviation : public Algorithm<T> {
   static_assert(
       std::is_arithmetic<T>::value,
       "BoundedStandardDeviation can only be used for arithmetic types");
 
  public:
   // Builder for BoundedStandardDeviation algorithm.
-  class Builder;
+  class ABSL_DEPRECATED(
+      "Use BoundedVariance instead and take the sqrt of the result") Builder;
 
   void AddEntry(const T& t) override { variance_->AddEntry(t); }
 

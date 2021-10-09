@@ -67,13 +67,14 @@ TEST(QuantilesTest, InvalidParametersTest) {
                   .Build(),
               StatusIs(absl::StatusCode::kInvalidArgument,
                        HasSubstr("quantiles to calculate must be in [0, 1]")));
-  EXPECT_THAT(Quantiles<double>::Builder()
-                  .SetLower(2)
-                  .SetUpper(1)
-                  .SetQuantiles({0.5})
-                  .Build(),
-              StatusIs(absl::StatusCode::kInvalidArgument,
-                       HasSubstr("Lower bound must be less than upper")));
+  EXPECT_THAT(
+      Quantiles<double>::Builder()
+          .SetLower(2)
+          .SetUpper(1)
+          .SetQuantiles({0.5})
+          .Build(),
+      StatusIs(absl::StatusCode::kInvalidArgument,
+               HasSubstr("Lower bound cannot be greater than upper bound")));
   EXPECT_THAT(Quantiles<double>::Builder().SetQuantiles({0.5}).Build(),
               StatusIs(absl::StatusCode::kInvalidArgument,
                        HasSubstr("Lower and upper bounds must both be set")));

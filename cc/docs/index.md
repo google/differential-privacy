@@ -1,4 +1,3 @@
-
 # Differential Privacy
 
 For a general introduction to differential privacy, check the

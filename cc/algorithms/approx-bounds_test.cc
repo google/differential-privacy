@@ -17,6 +17,7 @@
 #include "algorithms/approx-bounds.h"
 
 #include <limits>
+#include <memory>
 #include <vector>
 
 #include "base/testing/proto_matchers.h"
@@ -27,6 +28,7 @@
 #include "absl/status/status.h"
 #include "base/statusor.h"
 #include "algorithms/numerical-mechanisms-testing.h"
+#include "algorithms/numerical-mechanisms.h"
 
 namespace differential_privacy {
 
@@ -190,8 +192,57 @@ TYPED_TEST(ApproxBoundsTest, EmptyHistogramTest) {
   ASSERT_OK(bounds);
   EXPECT_THAT((*bounds)->PartialResult(),
               StatusIs(absl::StatusCode::kFailedPrecondition,
-                       HasSubstr("run over a larger dataset or decrease "
-                                 "success_probability")));
+                       HasSubstr("Bin count threshold was too large")));
+}
+
+TEST(ApproxBoundsTest, RetriesBoundingTest) {
+  int64_t num_bins = 4;
+  double threshold = 1.001;
+  // We choose a large epsilon to ensure that the success probability
+  // corresponding to the threshold is larger than kMinSuccessProbability
+  double epsilon = 18;
+  auto mechanism = ZeroNoiseMechanism::Builder().SetEpsilon(epsilon).Build();
+  // if we set an explicit threshold, then we won't retry bounding, so instead
+  // we set a success probability that corresponds to the desired threshold.
+  double success_probability =
+      std::pow((*mechanism)->Cdf(threshold), 2 * num_bins);
+  base::StatusOr<std::unique_ptr<ApproxBounds<double>>> bounds =
+      typename ApproxBounds<double>::Builder()
+          .SetNumBins(num_bins)
+          .SetBase(2)
+          .SetScale(1)
+          .SetEpsilon(epsilon)
+          .SetSuccessProbability(success_probability)
+          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .Build();
+  ASSERT_OK(bounds);
+  (*bounds)->AddEntry(3);
+
+  base::StatusOr<Output> result = (*bounds)->PartialResult();
+  ASSERT_OK(result);
+
+  EXPECT_FLOAT_EQ(result->elements(0).value().float_value(), 2);
+  EXPECT_FLOAT_EQ(result->elements(1).value().float_value(), 4);
+}
+
+TYPED_TEST(ApproxBoundsTest, ExplicitThresholdNotRelaxed) {
+  int64_t num_bins = 4;
+  double threshold = 1.0001;
+  base::StatusOr<std::unique_ptr<ApproxBounds<TypeParam>>> bounds =
+      typename ApproxBounds<TypeParam>::Builder()
+          .SetNumBins(num_bins)
+          .SetBase(2)
+          .SetScale(1)
+          .SetThresholdForTest(threshold)
+          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .Build();
+  ASSERT_OK(bounds);
+  (*bounds)->AddEntry(3);
+
+  base::StatusOr<Output> result = (*bounds)->PartialResult();
+
+  EXPECT_THAT(result, StatusIs(absl::StatusCode::kFailedPrecondition,
+                               HasSubstr("Bin count threshold was too large")));
 }
 
 TEST(ApproxBoundsTest, InsufficientPrivacyBudgetTest) {

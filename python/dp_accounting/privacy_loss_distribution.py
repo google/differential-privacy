@@ -280,6 +280,55 @@ class PrivacyLossDistribution(object):
         pessimistic_estimate=pessimistic_estimate)
 
   @classmethod
+  def create_from_cdf(
+      cls,
+      cdf: typing.Callable[[float], float],
+      pessimistic_estimate: bool = True,
+      value_discretization_interval: float = 1e-4,
+      tail_mass_truncation: float = 1e-15) -> 'PrivacyLossDistribution':
+    """Constructs the privacy loss distribution from its cumulative density function.
+
+    Args:
+      cdf: the cumulative density function of the privacy loss distribution.
+      pessimistic_estimate: a value indicating whether the rounding is done in
+        such a way that the resulting epsilon-hockey stick divergence
+        computation gives an upper estimate to the real value.
+      value_discretization_interval: the length of the dicretization interval
+        for the privacy loss distribution. The values will be rounded up/down to
+        be integer multiples of this number.
+      tail_mass_truncation: an upper bound on the tails of the probability mass
+        of the PLD that might be truncated.
+
+    Returns:
+      The privacy loss distribution constructed as specified.
+    """
+    rounded_probability_mass_function = {}
+
+    # Construct the distribution for value greater than or equal to zero.
+    rounded_value = 1 if pessimistic_estimate else 0
+    value = 0
+    while cdf(value) < 1 - tail_mass_truncation / 2:
+      rounded_probability_mass_function[rounded_value] = (
+          cdf(value + value_discretization_interval) - cdf(value))
+      rounded_value += 1
+      value += value_discretization_interval
+
+    # Construct the distribution for value less than zero.
+    rounded_value = 0 if pessimistic_estimate else -1
+    value = 0
+    while cdf(value) > tail_mass_truncation / 2:
+      rounded_probability_mass_function[rounded_value] = (
+          cdf(value) - cdf(value - value_discretization_interval))
+      rounded_value -= 1
+      value -= value_discretization_interval
+
+    return cls(
+        rounded_probability_mass_function,
+        value_discretization_interval,
+        tail_mass_truncation if pessimistic_estimate else 0,
+        pessimistic_estimate=pessimistic_estimate)
+
+  @classmethod
   def from_randomized_response(
       cls,
       noise_parameter: float,

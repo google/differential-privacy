@@ -36,9 +36,11 @@ namespace differential_privacy {
 namespace {
 
 using ::differential_privacy::test_utils::ZeroNoiseMechanism;
+using ::testing::DoubleEq;
 using ::testing::Eq;
 using ::differential_privacy::base::testing::EqualsProto;
 using ::testing::HasSubstr;
+using ::testing::NotNull;
 using ::differential_privacy::base::testing::IsOkAndHolds;
 using ::differential_privacy::base::testing::StatusIs;
 
@@ -831,6 +833,41 @@ TYPED_TEST(BoundedSumTest, SplitsEpsilonWithAutomaticBounds) {
   EXPECT_LT(sum_with_approx_bounds->GetBoundingEpsilon(), epsilon);
   EXPECT_GT(sum_with_approx_bounds->GetAggregationEpsilon(), 0);
   EXPECT_LT(sum_with_approx_bounds->GetAggregationEpsilon(), epsilon);
+}
+
+TEST(BoundedSumTest, ApproxBoundsSumHasExpectedMaxPartitionsContributed) {
+  const int max_contributions_per_partition = 1234;
+  base::StatusOr<std::unique_ptr<BoundedSum<double>>> bs =
+      BoundedSum<double>::Builder()
+          .SetEpsilon(kDefaultEpsilon)
+          .SetMaxContributionsPerPartition(max_contributions_per_partition)
+          .Build();
+  ASSERT_OK(bs);
+
+  auto* bs_with_approx_bounds =
+      static_cast<BoundedSumWithApproxBounds<double>*>(bs.value().get());
+  ASSERT_THAT(bs_with_approx_bounds, NotNull());
+
+  EXPECT_THAT(
+      bs_with_approx_bounds->GetMaxContributionsPerPartitionForTesting(),
+      Eq(max_contributions_per_partition));
+}
+
+TEST(BoundedSumTest, ApproxBoundsSumHasExpectedL0Sensitivity) {
+  const int max_partitions_contributed = 1234;
+  base::StatusOr<std::unique_ptr<BoundedSum<double>>> bs =
+      BoundedSum<double>::Builder()
+          .SetEpsilon(kDefaultEpsilon)
+          .SetMaxPartitionsContributed(max_partitions_contributed)
+          .Build();
+  ASSERT_OK(bs);
+
+  auto* bs_with_approx_bounds =
+      static_cast<BoundedSumWithApproxBounds<double>*>(bs.value().get());
+  ASSERT_THAT(bs_with_approx_bounds, NotNull());
+
+  EXPECT_THAT(bs_with_approx_bounds->GetL0SensitivityForTesting(),
+              DoubleEq(max_partitions_contributed));
 }
 
 }  //  namespace

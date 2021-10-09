@@ -25,6 +25,7 @@
 #include <functional>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -74,8 +75,12 @@ namespace differential_privacy {
 // threshold count and return its upper boundary. Similarly, for the approx
 // lower bound we choose the leftmost bin that succeeds the threshold count and
 // return its lower boundary. If the success_probability is too high it is
-// possible that no bin is greater than the threshold. In this case we return an
-// error status in the output.
+// possible that no bin is greater than the threshold. In this case, we reduce
+// the success probability (and thereby the threshold) and see whether any bins
+// exceed the new threshold. We repeat this until a bin exceeds the threshold or
+// the success probability becomes small enough that the bounds we would find
+// are likely to be due to noise. If we still have not found bounds, we return
+// an error status in the output.
 //
 // For example, if
 //   scale = 2, base = 1, num_bins = 4, inputs = {0, 0, 0, 0, 1, 3, 7, 8, 8, 8}
@@ -431,60 +436,68 @@ class ApproxBounds : public Algorithm<T> {
                                        "Privacy budget",
                                        absl::StatusCode::kFailedPrecondition));
 
-    double threshold = mechanism_->Quantile(
-        std::pow(success_probability_, 1.0 / (2 * pos_bins_.size())));
-    if (!has_user_set_threshold_) {
-      // If the threshold was not user set, scale it by the privacy budget to
-      // ensure the correct probability of success.
-      threshold /= privacy_budget_fraction;
-    }
-
     // Populate noisy versions of the histogram bins.
     noisy_pos_bins_ = AddNoise(privacy_budget_fraction, pos_bins_);
     noisy_neg_bins_ = AddNoise(privacy_budget_fraction, neg_bins_);
 
-    Output output;
+    double success_probability = success_probability_;
 
-    // Find first bin above threshold for minimum.
-    for (int i = neg_bins_.size() - 1; i >= 0; --i) {
-      if (noisy_neg_bins_[i] >= threshold) {
-        AddToOutput<T>(&output, NegRightBinBoundary(i));
+    std::optional<Output> output;
+    int bounding_attempts = 0;
+    int max_bounding_attempts = 30;
+    do {
+      double threshold = mechanism_->Quantile(
+          std::pow(success_probability, 1.0 / (2 * pos_bins_.size())));
+      if (!has_user_set_threshold_) {
+        // If the threshold was not user set, scale it by the privacy budget to
+        // ensure the correct probability of success.
+        threshold /= privacy_budget_fraction;
+      }
+
+      output = findBounds(threshold);
+
+      if (has_user_set_threshold_) {
+        // The user asked for a specific threshold, so don't try again with a
+        // looser threshold.
         break;
       }
-    }
-    if (output.elements_size() == 0) {
-      for (int i = 0; i < pos_bins_.size(); ++i) {
-        if (noisy_pos_bins_[i] >= threshold) {
-          AddToOutput<T>(&output, PosLeftBinBoundary(i));
-          break;
-        }
-      }
-    }
 
-    // Find first bin above threshold for maximum.
-    for (int i = pos_bins_.size() - 1; i >= 0; --i) {
-      if (noisy_pos_bins_[i] >= threshold) {
-        AddToOutput<T>(&output, PosRightBinBoundary(i));
-        break;
-      }
-    }
-    if (output.elements_size() < 2) {
-      for (int i = 0; i < neg_bins_.size(); ++i) {
-        if (noisy_neg_bins_[i] >= threshold) {
-          AddToOutput<T>(&output, NegLeftBinBoundary(i));
-          break;
-        }
-      }
-    }
+      double failure_probability = 1 - success_probability;
+      success_probability = 1 - 10 * failure_probability;
+      bounding_attempts++;
+    } while (!output.has_value() &&
+             success_probability > kMinSuccessProbability &&
+             bounding_attempts < max_bounding_attempts);
 
     // Record error status if approx min or max was not found.
-    if (output.elements_size() < 2) {
+    if (!output.has_value() || output->elements_size() < 2) {
       return absl::FailedPreconditionError(
           "Bin count threshold was too large to find approximate "
           "bounds. Either run over a larger dataset or decrease "
           "success_probability and try again.");
     }
 
+    return *output;
+  }
+
+  // Finds approximate bounds by comparing noised bin counts to a threshold.
+  // This method does not add any noise (it assumes that noisy_pos_bins_ and
+  // noisy_neg_bins_ have been initialised) so calling this method multiple
+  // times with different thresholds is DP: the noised histogram is itself DP.
+  std::optional<Output> findBounds(double threshold) {
+    std::optional<T> lowerBound = findLowerBound(threshold);
+    if (!lowerBound.has_value()) {
+      return std::nullopt;
+    }
+
+    std::optional<T> upperBound = findUpperBound(threshold);
+    if (!upperBound.has_value()) {
+      return std::nullopt;
+    }
+
+    Output output;
+    AddToOutput(&output, *lowerBound);
+    AddToOutput(&output, *upperBound);
     return output;
   }
 
@@ -688,6 +701,38 @@ class ApproxBounds : public Algorithm<T> {
   friend class BoundedVarianceWithApproxBounds;
 
  private:
+  std::optional<T> findLowerBound(double threshold) {
+    // Find first bin above threshold for minimum.
+    for (int i = neg_bins_.size() - 1; i >= 0; --i) {
+      if (noisy_neg_bins_[i] >= threshold) {
+        return NegRightBinBoundary(i);
+      }
+    }
+    for (int i = 0; i < pos_bins_.size(); ++i) {
+      if (noisy_pos_bins_[i] >= threshold) {
+        return PosLeftBinBoundary(i);
+      }
+    }
+    return std::nullopt;
+  }
+
+  std::optional<T> findUpperBound(double threshold) {
+    // Find first bin above threshold for maximum.
+    for (int i = pos_bins_.size() - 1; i >= 0; --i) {
+      if (noisy_pos_bins_[i] >= threshold) {
+        return PosRightBinBoundary(i);
+      }
+    }
+
+    for (int i = 0; i < neg_bins_.size(); ++i) {
+      if (noisy_neg_bins_[i] >= threshold) {
+        return NegLeftBinBoundary(i);
+      }
+    }
+
+    return std::nullopt;
+  }
+
   // Count the values in each logarithmic bin for positives and negatives.
   std::vector<int64_t> pos_bins_;
   std::vector<int64_t> neg_bins_;
@@ -706,9 +751,18 @@ class ApproxBounds : public Algorithm<T> {
   // Base of the logarithm.
   double base_;
 
-  // The desired probability that no bin counts are above the threshold for
-  // determing whether a bin is empty when the dataset is empty
+  // The desired probability that, when the dataset is empty, no bin counts are
+  // above the threshold for determing whether a bin is empty.
   double success_probability_;
+
+  // The minimum allowed success probability when relaxing the success
+  // probability. If approx bounds fails to find bounds, it will reduce the
+  // success probability and, if the reduced success probability is still
+  // greater than kMinSuccessProbability, attempt to find bounds with the
+  // reduced success probability. Having a minimum success probability ensures
+  // we fail rather than returning bounds that are just due to noised empty
+  // bins.
+  static constexpr double kMinSuccessProbability = 1 - 1e-3;
 
   // Whether the user chose a specific threshold for determining whether a bin
   // is empty, rather than using a value computed from success_probability_.

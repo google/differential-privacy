@@ -1,4 +1,3 @@
-
 # Bounded Sum
 
 [`BoundedSum`](https://github.com/google/differential-privacy/blob/main/cc/algorithms/bounded-sum.h)

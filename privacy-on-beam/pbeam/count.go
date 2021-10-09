@@ -196,7 +196,7 @@ func addPublicPartitionsForCount(s beam.Scope, epsilon, delta float64, maxPartit
 		log.Fatalf("Couldn't get boundedSumInt64Fn for Count: %v", err)
 	}
 	sums := beam.CombinePerKey(s, boundedSumInt64Fn, allPartitions)
-	finalPartitions := beam.ParDo(s, dereferenceValueToInt64, sums)
+	finalPartitions := beam.ParDo(s, dereferenceValueToInt64Fn, sums)
 	// Clamp negative counts to zero and return.
 	return beam.ParDo(s, clampNegativePartitionsInt64Fn, finalPartitions)
 }

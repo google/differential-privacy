@@ -418,6 +418,53 @@ func TestDistinctPrivacyIDWithPartitionsCrossPartitionContributionBounding(t *te
 	}
 }
 
+// Check that no negative values are returned from DistinctPrivacyID.
+func TestDistinctPrivacyIDReturnsNonNegative(t *testing.T) {
+	var pairs []testutils.PairII
+	for i := 0; i < 100; i++ {
+		pairs = append(pairs, testutils.PairII{i, i})
+	}
+	p, s, col := ptest.CreateList(pairs)
+	col = beam.ParDo(s, testutils.PairToKV, col)
+	// Using a low epsilon adds a lot of noise and using a high delta keeps
+	// many partitions.
+	epsilon, delta := 0.001, 0.999
+	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+	counts := DistinctPrivacyID(s, pcol, DistinctPrivacyIDParams{MaxPartitionsContributed: 1, NoiseKind: GaussianNoise{}})
+	values := beam.DropKey(s, counts)
+	// Check if we have negative elements.
+	beam.ParDo0(s, testutils.CheckNoNegativeValuesInt64Fn, values)
+	if err := ptest.Run(p); err != nil {
+		t.Errorf("TestCountReturnsNonNegative returned errors: %v", err)
+	}
+}
+
+// Check that no negative values are returned from DistinctPrivacyID with partitions.
+func TestDistinctPrivacyIDWithPartitionsReturnsNonNegative(t *testing.T) {
+	var pairs []testutils.PairII
+	var partitions []int
+	for i := 0; i < 100; i++ {
+		pairs = append(pairs, testutils.PairII{i, i})
+	}
+	for i := 0; i < 200; i++ {
+		partitions = append(partitions, i)
+	}
+	p, s, col := ptest.CreateList(pairs)
+	col = beam.ParDo(s, testutils.PairToKV, col)
+	publicPartitions := beam.CreateList(s, partitions)
+	// Using a low epsilon adds a lot of noise and using a high delta keeps
+	// many partitions.
+	epsilon, delta := 0.001, 0.999
+	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+	counts := DistinctPrivacyID(s, pcol, DistinctPrivacyIDParams{MaxPartitionsContributed: 1, NoiseKind: GaussianNoise{}, PublicPartitions: publicPartitions})
+	values := beam.DropKey(s, counts)
+	// Check if we have negative elements.
+	beam.ParDo0(s, testutils.CheckNoNegativeValuesInt64Fn, values)
+	if err := ptest.Run(p); err != nil {
+		t.Errorf("TestCountWithPartitionsReturnsNonNegative returned errors: %v", err)
+	}
+}
+
 // Checks that DistinctPrivacyID deduplicates KV pairs *before* bounding
 // contribution. To test that, we set the contribution to exactly the number of
 // distinct values per key, and we duplicate many values: if contribution

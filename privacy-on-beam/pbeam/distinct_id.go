@@ -148,8 +148,10 @@ func DistinctPrivacyID(s beam.Scope, pcol PrivatePCollection, params DistinctPri
 	noisedCounts := beam.CombinePerKey(s,
 		newCountFn(epsilon, delta, maxPartitionsContributed, noiseKind, false, spec.testMode),
 		dummyCounts)
-	// Finally, drop thresholded partitions and return the result.
-	return beam.ParDo(s, dropThresholdedPartitionsInt64Fn, noisedCounts)
+	// Drop thresholded partitions.
+	counts := beam.ParDo(s, dropThresholdedPartitionsInt64Fn, noisedCounts)
+	// Clamp negative counts to zero and return.
+	return beam.ParDo(s, clampNegativePartitionsInt64Fn, counts)
 }
 
 func addPublicPartitionsForDistinctID(s beam.Scope, params DistinctPrivacyIDParams, epsilon, delta float64,
@@ -160,7 +162,9 @@ func addPublicPartitionsForDistinctID(s beam.Scope, params DistinctPrivacyIDPara
 	noisedCounts := beam.CombinePerKey(s,
 		newCountFn(epsilon, delta, maxPartitionsContributed, noiseKind, true, testMode),
 		allAddPartitions)
-	return beam.ParDo(s, dereferenceValueToInt64, noisedCounts)
+	finalPartitions := beam.ParDo(s, dereferenceValueToInt64Fn, noisedCounts)
+	// Clamp negative counts to zero and return.
+	return beam.ParDo(s, clampNegativePartitionsInt64Fn, finalPartitions)
 }
 
 func checkDistinctPrivacyIDParams(params DistinctPrivacyIDParams, epsilon, delta float64, noiseKind noise.Kind) error {

@@ -477,6 +477,7 @@ cc_test(
     srcs = ["approx-bounds_test.cc"],
     deps = [
         ":approx-bounds",
+        ":numerical-mechanisms",
         ":numerical-mechanisms-testing",
         "//base/testing:proto_matchers",
         "//base/testing:status_matchers",

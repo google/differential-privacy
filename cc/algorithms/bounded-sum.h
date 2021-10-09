@@ -322,6 +322,13 @@ class BoundedSumWithApproxBounds : public BoundedSum<T> {
     return memory;
   }
 
+  // Use the following methods only for testing.
+  int GetMaxContributionsPerPartitionForTesting() {
+    return max_contributions_per_partition_;
+  }
+
+  double GetL0SensitivityForTesting() { return l0_sensitivity_; }
+
  protected:
   base::StatusOr<Output> GenerateResult(double privacy_budget_fraction,
                                         double noise_interval_level) override {
@@ -411,7 +418,7 @@ class BoundedSum<T>::Builder {
 
   BoundedSum<T>::Builder& SetMaxPartitionsContributed(
       int max_partitions_contributed) {
-    max_contributions_per_partition_ = max_partitions_contributed;
+    max_partitions_contributed_ = max_partitions_contributed;
     return *this;
   }
 

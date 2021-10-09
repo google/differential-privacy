@@ -61,6 +61,9 @@ func init() {
 	beam.RegisterFunction(dropThresholdedPartitionsInt64Fn)
 	beam.RegisterFunction(dropThresholdedPartitionsFloat64Fn)
 	beam.RegisterFunction(dropThresholdedPartitionsFloat64SliceFn)
+	beam.RegisterFunction(dereferenceValueToInt64Fn)
+	beam.RegisterFunction(dereferenceValueToFloat64Fn)
+	beam.RegisterFunction(prunePartitionsKVFn)
 	// TODO: add tests to make sure we don't forget anything here
 }
 
@@ -466,19 +469,19 @@ func (fn *boundedSumFloat64Fn) ExtractOutput(a boundedSumAccumFloat64) *float64 
 func findDereferenceValueFn(kind reflect.Kind) (interface{}, error) {
 	switch kind {
 	case reflect.Int64:
-		return dereferenceValueToInt64, nil
+		return dereferenceValueToInt64Fn, nil
 	case reflect.Float64:
-		return dereferenceValueToFloat64, nil
+		return dereferenceValueToFloat64Fn, nil
 	default:
 		return nil, fmt.Errorf("kind(%v) should be int64 or float64", kind)
 	}
 }
 
-func dereferenceValueToInt64(key beam.X, value *int64) (k beam.X, v int64) {
+func dereferenceValueToInt64Fn(key beam.X, value *int64) (k beam.X, v int64) {
 	return key, *value
 }
 
-func dereferenceValueToFloat64(key beam.X, value *float64) (k beam.X, v float64) {
+func dereferenceValueToFloat64Fn(key beam.X, value *float64) (k beam.X, v float64) {
 	return key, *value
 }
 

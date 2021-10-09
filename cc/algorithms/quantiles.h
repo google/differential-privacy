@@ -39,7 +39,7 @@ namespace differential_privacy {
 template <typename T>
 class Quantiles : public Algorithm<T> {
   static_assert(std::is_arithmetic<T>::value,
-                "BoundedSum can only be used for arithmetic types");
+                "Quantiles can only be used for arithmetic types");
 
  public:
   class Builder;
@@ -124,19 +124,43 @@ class Quantiles : public Algorithm<T> {
 };
 
 template <typename T>
-class Quantiles<T>::Builder
-    : public AlgorithmBuilder<T, Quantiles<T>, Quantiles<T>::Builder> {
-  using AlgorithmBuilder =
-      differential_privacy::AlgorithmBuilder<T, Quantiles<T>,
-                                             Quantiles<T>::Builder>;
-
+class Quantiles<T>::Builder {
  public:
+  Quantiles<T>::Builder& SetEpsilon(double epsilon) {
+    epsilon_ = epsilon;
+    return *this;
+  }
+
+  Quantiles<T>::Builder& SetDelta(double delta) {
+    delta_ = delta;
+    return *this;
+  }
+
+  Quantiles<T>::Builder& SetMaxPartitionsContributed(
+      int max_partitions_contributed) {
+    max_partitions_contributed_ = max_partitions_contributed;
+    return *this;
+  }
+
+  Quantiles<T>::Builder& SetMaxContributionsPerPartition(
+      int max_contributions_per_partition) {
+    max_contributions_per_partition_ = max_contributions_per_partition;
+    return *this;
+  }
+
   Quantiles<T>::Builder& SetLower(T lower) {
     lower_ = lower;
     return *this;
   }
+
   Quantiles<T>::Builder& SetUpper(T upper) {
     upper_ = upper;
+    return *this;
+  }
+
+  Quantiles<T>::Builder& SetLaplaceMechanism(
+      std::unique_ptr<NumericalMechanismBuilder> builder) {
+    mechanism_builder_ = std::move(builder);
     return *this;
   }
 
@@ -149,62 +173,76 @@ class Quantiles<T>::Builder
     return *this;
   }
 
- protected:
-  base::StatusOr<std::unique_ptr<Quantiles<T>>> BuildAlgorithm() override {
-    typename QuantileTree<T>::Builder tree_builder;
+  base::StatusOr<std::unique_ptr<Quantiles<T>>> Build() {
+    if (!epsilon_.has_value()) {
+      epsilon_ = DefaultEpsilon();
+      LOG(WARNING) << "Default epsilon of " << epsilon_.value()
+                   << " is being used. Consider setting your own epsilon based "
+                      "on privacy considerations.";
+    }
+    RETURN_IF_ERROR(ValidateEpsilon(epsilon_));
+    RETURN_IF_ERROR(ValidateDelta(delta_));
+    RETURN_IF_ERROR(ValidateBounds(lower_, upper_));
+    RETURN_IF_ERROR(
+        ValidateMaxPartitionsContributed(max_partitions_contributed_));
+    RETURN_IF_ERROR(
+        ValidateMaxContributionsPerPartition(max_contributions_per_partition_));
+    RETURN_IF_ERROR(ValidateQuantiles(quantiles_));
 
+    // Try building a numerical mechanism so we can return an error now if any
+    // parameters are invalid. Otherwise, the error wouldn't be returned until
+    // we call MakePrivate in GenerateResult.
+    RETURN_IF_ERROR(mechanism_builder_->Clone()
+                        ->SetEpsilon(epsilon_.value())
+                        .SetDelta(delta_)
+                        .SetL0Sensitivity(max_partitions_contributed_)
+                        .SetLInfSensitivity(max_contributions_per_partition_)
+                        .Build()
+                        .status());
+
+    // All validation passed; construct quantiles algorithm below.
+
+    typename QuantileTree<T>::Builder tree_builder;
     if (lower_.has_value()) {
       tree_builder.SetLower(lower_.value());
     }
     if (upper_.has_value()) {
       tree_builder.SetUpper(upper_.value());
     }
-    std::unique_ptr<QuantileTree<T>> tree;
-    ASSIGN_OR_RETURN(tree, tree_builder.Build());
+    ASSIGN_OR_RETURN(std::unique_ptr<QuantileTree<T>> tree,
+                     tree_builder.Build());
 
-    if (quantiles_.empty()) {
+    return absl::WrapUnique(new Quantiles<T>(
+        std::move(tree), quantiles_, epsilon_.value(), delta_,
+        max_contributions_per_partition_, max_partitions_contributed_,
+        mechanism_builder_->Clone()));
+  }
+
+ private:
+  absl::optional<double> epsilon_;
+  double delta_ = 0;
+  absl::optional<T> upper_;
+  absl::optional<T> lower_;
+  int max_partitions_contributed_ = 1;
+  int max_contributions_per_partition_ = 1;
+  std::unique_ptr<NumericalMechanismBuilder> mechanism_builder_ =
+      absl::make_unique<LaplaceMechanism::Builder>();
+  std::vector<double> quantiles_;
+
+  static absl::Status ValidateQuantiles(std::vector<double>& quantiles) {
+    if (quantiles.empty()) {
       return absl::InvalidArgumentError(
           "You must specify at least one quantile to calculate.");
     }
-    for (double quantile : quantiles_) {
+    for (double quantile : quantiles) {
       if (quantile < 0 || quantile > 1) {
         return absl::InvalidArgumentError(absl::StrCat(
             "All quantiles to calculate must be in [0, 1], but one was: ",
             quantile));
       }
     }
-
-    // Try building a numerical mechanism so we can return an error now if any
-    // parameters are invalid. Otherwise, the error wouldn't be returned until
-    // we call MakePrivate in GenerateResult.
-    std::unique_ptr<NumericalMechanismBuilder> mech_builder_clone =
-        AlgorithmBuilder::GetMechanismBuilderClone();
-    if (AlgorithmBuilder::GetEpsilon().has_value()) {
-      mech_builder_clone->SetEpsilon(AlgorithmBuilder::GetEpsilon().value());
-    }
-    if (AlgorithmBuilder::GetDelta().has_value()) {
-      mech_builder_clone->SetDelta(AlgorithmBuilder::GetDelta().value());
-    }
-    mech_builder_clone
-        ->SetLInfSensitivity(
-            AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(1))
-        .SetL0Sensitivity(
-            AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1) *
-            tree->GetHeight());
-    RETURN_IF_ERROR(mech_builder_clone->Build().status());
-
-    return std::unique_ptr<Quantiles>(new Quantiles(
-        std::move(tree), quantiles_, AlgorithmBuilder::GetEpsilon().value(),
-        AlgorithmBuilder::GetDelta().value_or(0),
-        AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(1),
-        AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1),
-        AlgorithmBuilder::GetMechanismBuilderClone()));
+    return absl::OkStatus();
   }
-
- private:
-  absl::optional<T> lower_;
-  absl::optional<T> upper_;
-  std::vector<double> quantiles_;
 };
 
 }  // namespace differential_privacy
