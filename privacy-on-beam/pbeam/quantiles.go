@@ -168,7 +168,7 @@ func QuantilesPerKey(s beam.Scope, pcol PrivatePCollection, params QuantilesPara
 
 	maxContributionsPerPartition, err := getMaxContributionsPerPartition(params.MaxContributionsPerPartition)
 	if err != nil {
-		log.Fatalf("Couldn't get maxContributionsPerPartition for QuantilesPerKey: %v", err)
+		log.Fatalf("Couldn't get MaxContributionsPerPartition for QuantilesPerKey: %v", err)
 	}
 
 	// Don't do per-partition contribution bounding if in test mode without contribution bounding.
@@ -194,7 +194,7 @@ func QuantilesPerKey(s beam.Scope, pcol PrivatePCollection, params QuantilesPara
 	// Result is PCollection<ID, pairArrayFloat64>.
 	maxPartitionsContributed, err := getMaxPartitionsContributed(spec, params.MaxPartitionsContributed)
 	if err != nil {
-		log.Fatalf("Couldn't get maxPartitionsContributed for QuantilesPerKey: %v", err)
+		log.Fatalf("Couldn't get MaxPartitionsContributed for QuantilesPerKey: %v", err)
 	}
 	rekeyed := beam.ParDo(s, rekeyArrayFloat64Fn, combined)
 	// Second, do cross-partition contribution bounding if not in test mode without contribution bounding.

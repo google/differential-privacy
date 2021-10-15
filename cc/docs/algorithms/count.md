@@ -1,4 +1,3 @@
-
 # Count
 
 [`Count`](https://github.com/google/differential-privacy/blob/main/cc/algorithms/count.h)

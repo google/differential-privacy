@@ -99,116 +99,8 @@ class ApproxBounds : public Algorithm<T> {
                 "ApproxBounds can only be used for arithmetic types");
 
  public:
-  class Builder : public AlgorithmBuilder<T, ApproxBounds<T>, Builder> {
-    using AlgorithmBuilder =
-        differential_privacy::AlgorithmBuilder<T, ApproxBounds<T>, Builder>;
-
-   public:
-    // Constructor sets default values depending on the input type. Bins are
-    // created to cover entire range of type T.
-    Builder()
-        : AlgorithmBuilder(),
-          base_(2),
-          success_probability_(1 - std::pow(10, -9)) {
-      if (std::is_integral<T>::value) {
-        scale_ = 1.0;
-      } else {
-        scale_ = std::numeric_limits<T>::min();
-      }
-      // Take the subtraction of two logarithms to prevent overflow.
-      num_bins_ = std::ceil((std::log(std::numeric_limits<T>::max()) -
-                             std::log(scale_)) /
-                            std::log(base_)) +
-                  1;
-    }
-
-    Builder& SetNumBins(int64_t num_bins) {
-      num_bins_ = num_bins;
-      return *static_cast<Builder*>(this);
-    }
-
-    Builder& SetScale(double scale) {
-      scale_ = scale;
-      return *static_cast<Builder*>(this);
-    }
-
-    Builder& SetBase(double base) {
-      base_ = base;
-      return *static_cast<Builder*>(this);
-    }
-
-    // Set exactly one of success_probability or k threshold.
-    Builder& SetSuccessProbability(double success_probability) {
-      success_probability_ = success_probability;
-      has_user_set_threshold_ = false;
-      return *static_cast<Builder*>(this);
-    }
-
-    // Set exactly one of success_probability or k threshold. Not recommended
-    // for use in non-test code: if you know enough about your sample
-    // distribution to choose a value for this parameter, then you probably know
-    // enough to choose sensible bounds for your sample.
-    ABSL_DEPRECATED("Use SetThresholdForTest instead")
-    Builder& SetThreshold(double threshold) {
-      return SetThresholdForTest(threshold);
-    }
-
-    // Set exactly one of success_probability or k threshold. Not recommended
-    // for use in non-test code: if you know enough about your sample
-    // distribution to choose a value for this parameter, then you probably know
-    // enough to choose sensible bounds for your sample.
-    Builder& SetThresholdForTest(double threshold) {
-      threshold_ = threshold;
-      has_user_set_threshold_ = true;
-      return *static_cast<Builder*>(this);
-    }
-
-   private:
-    base::StatusOr<std::unique_ptr<ApproxBounds<T>>> BuildAlgorithm() override {
-      std::unique_ptr<NumericalMechanism> mechanism;
-      ASSIGN_OR_RETURN(mechanism, AlgorithmBuilder::UpdateAndBuildMechanism());
-
-      // Check the validity of the histogram parameters. num_bin and
-      // success_probability restrictions prevent undefined threshold
-      // calculation.
-      RETURN_IF_ERROR(ValidateIsPositive(num_bins_, "Number of bins"));
-      RETURN_IF_ERROR(ValidateIsFiniteAndPositive(scale_, "Scale"));
-      RETURN_IF_ERROR(ValidateIsFinite(base_, "Base"));
-      RETURN_IF_ERROR(ValidateIsGreaterThanOrEqualTo(base_, 1, "Base"));
-
-      // TODO: Handle case where scale * base^num_bins >
-      // std::numeric_limits<T>::max, even though the ApproxBounds constructor
-      // addresses this
-      if (has_user_set_threshold_) {
-        RETURN_IF_ERROR(ValidateIsFinite(threshold_, "k threshold"));
-        RETURN_IF_ERROR(ValidateIsNonNegative(threshold_, "k threshold"));
-      } else {
-        RETURN_IF_ERROR(ValidateIsInExclusiveInterval(
-            success_probability_, 0, 1, "Success probability"));
-      }
-
-      if (has_user_set_threshold_) {
-        // If the user specified a threshold rather than a success probability,
-        // then calculate the success probability that corresponds to the
-        // threshold in the case where they spend all of their privacy budget on
-        // the computation.
-        success_probability_ =
-            std::pow(mechanism->Cdf(threshold_), 2 * num_bins_);
-      }
-
-      // Create ApproxBounds.
-      return absl::WrapUnique(new ApproxBounds(
-          AlgorithmBuilder::GetEpsilon().value(), num_bins_, scale_, base_,
-          success_probability_, has_user_set_threshold_, std::move(mechanism)));
-    }
-
-    bool has_user_set_threshold_ = false;
-    double threshold_;
-    double scale_;
-    double base_;
-    int64_t num_bins_;
-    double success_probability_;
-  };
+  // Builder to construct ApproxBounds objects.
+  class Builder;
 
   void AddEntry(const T& input) override { AddMultipleEntries(input, 1); }
 
@@ -770,6 +662,158 @@ class ApproxBounds : public Algorithm<T> {
 
   // Mechanism for adding noise to buckets.
   std::unique_ptr<NumericalMechanism> mechanism_;
+};
+
+template <typename T>
+class ApproxBounds<T>::Builder {
+ public:
+  ApproxBounds<T>::Builder& SetEpsilon(double epsilon) {
+    epsilon_ = epsilon;
+    return *this;
+  }
+
+  // This is just a stub  that will be implemented once we have support for
+  // Gaussian.
+  ApproxBounds<T>::Builder& SetDelta(double delta) { return *this; }
+
+  ApproxBounds<T>::Builder& SetMaxPartitionsContributed(
+      int max_partitions_contributed) {
+    max_partitions_contributed_ = max_partitions_contributed;
+    return *this;
+  }
+
+  ApproxBounds<T>::Builder& SetMaxContributionsPerPartition(
+      int max_contributions_per_partition) {
+    max_contributions_per_partition_ = max_contributions_per_partition;
+    return *this;
+  }
+
+  ApproxBounds<T>::Builder& SetLaplaceMechanism(
+      std::unique_ptr<NumericalMechanismBuilder> builder) {
+    mechanism_builder_ = std::move(builder);
+    return *this;
+  }
+
+  ApproxBounds<T>::Builder& SetNumBins(int64_t num_bins) {
+    num_bins_ = num_bins;
+    return *this;
+  }
+
+  ApproxBounds<T>::Builder& SetScale(double scale) {
+    scale_ = scale;
+    return *this;
+  }
+
+  ApproxBounds<T>::Builder& SetBase(double base) {
+    base_ = base;
+    return *this;
+  }
+
+  // Set exactly one of success_probability or k threshold.
+  ApproxBounds<T>::Builder& SetSuccessProbability(double success_probability) {
+    success_probability_ = success_probability;
+    threshold_.reset();
+    return *this;
+  }
+
+  // Set exactly one of success_probability or k threshold. Not recommended
+  // for use in non-test code: if you know enough about your sample
+  // distribution to choose a value for this parameter, then you probably know
+  // enough to choose sensible bounds for your sample.
+  ABSL_DEPRECATED("Use SetThresholdForTest instead")
+  ApproxBounds<T>::Builder& SetThreshold(double threshold) {
+    return SetThresholdForTest(threshold);
+  }
+
+  // Set exactly one of success_probability or k threshold. Not recommended
+  // for use in non-test code: if you know enough about your sample
+  // distribution to choose a value for this parameter, then you probably know
+  // enough to choose sensible bounds for your sample.
+  ApproxBounds<T>::Builder& SetThresholdForTest(double threshold) {
+    threshold_ = threshold;
+    return *this;
+  }
+
+  base::StatusOr<std::unique_ptr<ApproxBounds<T>>> Build() {
+    if (!epsilon_.has_value()) {
+      epsilon_ = DefaultEpsilon();
+      LOG(WARNING) << "Default epsilon of " << epsilon_.value()
+                   << " is being used. Consider setting your own epsilon based "
+                      "on privacy considerations.";
+    }
+
+    RETURN_IF_ERROR(ValidateEpsilon(epsilon_));
+    RETURN_IF_ERROR(
+        ValidateMaxPartitionsContributed(max_partitions_contributed_));
+    RETURN_IF_ERROR(
+        ValidateMaxContributionsPerPartition(max_contributions_per_partition_));
+
+    // Check the validity of the histogram parameters. num_bin and
+    // success_probability restrictions prevent undefined threshold
+    // calculation.
+    RETURN_IF_ERROR(ValidateIsPositive(num_bins_, "Number of bins"));
+    RETURN_IF_ERROR(ValidateIsFiniteAndPositive(scale_, "Scale"));
+    RETURN_IF_ERROR(ValidateIsFinite(base_, "Base"));
+    RETURN_IF_ERROR(ValidateIsGreaterThanOrEqualTo(base_, 1, "Base"));
+
+    // TODO: Handle case where scale * base^num_bins >
+    // std::numeric_limits<T>::max, even though the ApproxBounds constructor
+    // addresses this.
+    if (threshold_.has_value()) {
+      RETURN_IF_ERROR(ValidateIsFinite(threshold_.value(), "k threshold"));
+      RETURN_IF_ERROR(ValidateIsNonNegative(threshold_.value(), "k threshold"));
+    } else {
+      RETURN_IF_ERROR(ValidateIsInExclusiveInterval(success_probability_, 0, 1,
+                                                    "Success probability"));
+    }
+
+    ASSIGN_OR_RETURN(std::unique_ptr<NumericalMechanism> mechanism,
+                     mechanism_builder_->SetEpsilon(epsilon_.value())
+                         .SetL0Sensitivity(max_partitions_contributed_)
+                         .SetLInfSensitivity(max_contributions_per_partition_)
+                         .Build());
+
+    if (threshold_.has_value()) {
+      // If the user specified a threshold rather than a success probability,
+      // then calculate the success probability that corresponds to the
+      // threshold in the case where they spend all of their privacy budget on
+      // the computation.
+      success_probability_ =
+          std::pow(mechanism->Cdf(threshold_.value()), 2 * num_bins_);
+    }
+
+    // Create ApproxBounds.
+    return absl::WrapUnique(new ApproxBounds(
+        epsilon_.value(), num_bins_, scale_, base_, success_probability_,
+        threshold_.has_value(), std::move(mechanism)));
+  }
+
+ private:
+  // Default scale depends on the input type T.
+  static double DefaultScaleForT() {
+    if (std::is_integral<T>::value) {
+      return 1.0;
+    } else {
+      return std::numeric_limits<T>::min();
+    }
+  }
+
+  absl::optional<double> epsilon_;
+  int max_partitions_contributed_ = 1;
+  int max_contributions_per_partition_ = 1;
+  std::unique_ptr<NumericalMechanismBuilder> mechanism_builder_ =
+      absl::make_unique<LaplaceMechanism::Builder>();
+
+  absl::optional<double> threshold_;
+  double scale_ = DefaultScaleForT();
+  double base_ = 2.0;
+  double success_probability_ = 1 - std::pow(10, -9);
+
+  // Take the subtraction of two logarithms to prevent overflows.
+  int64_t num_bins_ =
+      std::ceil((std::log(std::numeric_limits<T>::max()) - std::log(scale_)) /
+                std::log(base_)) +
+      1;
 };
 
 }  // namespace differential_privacy

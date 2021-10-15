@@ -16,15 +16,26 @@
 
 #include "animals_and_carrots.h"
 
+#include <algorithm>
 #include <fstream>
+#include <map>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
 
+#include "base/logging.h"
+#include "absl/status/status.h"
 #include "base/statusor.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_split.h"
 #include "algorithms/bounded-mean.h"
 #include "algorithms/bounded-sum.h"
 #include "algorithms/count.h"
-#include "algorithms/order-statistics.h"
+#include "algorithms/quantiles.h"
+#include "algorithms/util.h"
+#include "proto/data.pb.h"
+#include "base/status_macros.h"
 
 namespace differential_privacy {
 namespace example {
@@ -127,11 +138,12 @@ base::StatusOr<Output> CarrotReporter::PrivateMax(double privacy_budget) {
     return absl::InvalidArgumentError("Not enough privacy budget.");
   }
   privacy_budget_ -= privacy_budget;
-  ASSIGN_OR_RETURN(std::unique_ptr<continuous::Max<int>> max_algorithm,
-                   continuous::Max<int>::Builder()
+  ASSIGN_OR_RETURN(std::unique_ptr<Quantiles<int>> max_algorithm,
+                   Quantiles<int>::Builder()
                        .SetEpsilon(epsilon_)
                        .SetLower(0)
                        .SetUpper(150)
+                       .SetQuantiles({1})
                        .Build());
   for (const auto& pair : carrots_per_animal_) {
     max_algorithm->AddEntry(pair.second);

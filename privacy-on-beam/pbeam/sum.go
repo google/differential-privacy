@@ -134,7 +134,7 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCo
 
 	maxPartitionsContributed, err := getMaxPartitionsContributed(spec, params.MaxPartitionsContributed)
 	if err != nil {
-		log.Fatalf("Couldn't get maxPartitionsContributed for SumPerKey: %v", err)
+		log.Fatalf("Couldn't get MaxPartitionsContributed for SumPerKey: %v", err)
 	}
 	// Drop non-public partitions, if public partitions are specified.
 	if (params.PublicPartitions).IsValid() {

@@ -113,7 +113,7 @@ func DistinctPrivacyID(s beam.Scope, pcol PrivatePCollection, params DistinctPri
 
 	maxPartitionsContributed, err := getMaxPartitionsContributed(spec, params.MaxPartitionsContributed)
 	if err != nil {
-		log.Fatalf("Couldn't get maxPartitionsContributed for DistinctPrivacyID: %v", err)
+		log.Fatalf("Couldn't get MaxPartitionsContributed for DistinctPrivacyID: %v", err)
 	}
 	// Drop non-public partitions, if public partitions are specified.
 	if (params.PublicPartitions).IsValid() {

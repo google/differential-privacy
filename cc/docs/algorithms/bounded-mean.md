@@ -1,4 +1,3 @@
-
 # Bounded Mean
 
 [`BoundedMean`](https://github.com/google/differential-privacy/blob/main/cc/algorithms/bounded-mean.h)

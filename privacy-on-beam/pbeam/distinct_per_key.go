@@ -84,7 +84,7 @@ func DistinctPerKey(s beam.Scope, pcol PrivatePCollection, params DistinctPerKey
 	spec := pcol.privacySpec
 	maxPartitionsContributed, err := getMaxPartitionsContributed(spec, params.MaxPartitionsContributed)
 	if err != nil {
-		log.Fatalf("Couldn't get maxPartitionsContributed for DistinctPerKey: %v", err)
+		log.Fatalf("Couldn't get MaxPartitionsContributed for DistinctPerKey: %v", err)
 	}
 
 	var noiseKind noise.Kind

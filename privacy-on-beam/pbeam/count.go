@@ -115,7 +115,7 @@ func Count(s beam.Scope, pcol PrivatePCollection, params CountParams) beam.PColl
 
 	maxPartitionsContributed, err := getMaxPartitionsContributed(spec, params.MaxPartitionsContributed)
 	if err != nil {
-		log.Fatalf("Couldn't get maxPartitionsContributed for Count: %v", err)
+		log.Fatalf("Couldn't get MaxPartitionsContributed for Count: %v", err)
 	}
 	// Drop non-public partitions, if public partitions are specified.
 	if (params.PublicPartitions).IsValid() {

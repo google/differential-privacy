@@ -152,7 +152,7 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 
 	maxContributionsPerPartition, err := getMaxContributionsPerPartition(params.MaxContributionsPerPartition)
 	if err != nil {
-		log.Fatalf("Couldn't get maxContributionsPerPartition for MeanPerKey: %v", err)
+		log.Fatalf("Couldn't get MaxContributionsPerPartition for MeanPerKey: %v", err)
 	}
 	// Don't do per-partition contribution bounding if in test mode without contribution bounding.
 	if spec.testMode != noNoiseWithoutContributionBounding {
@@ -177,7 +177,7 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 	// Result is PCollection<ID, pairArrayFloat64>.
 	maxPartitionsContributed, err := getMaxPartitionsContributed(spec, params.MaxPartitionsContributed)
 	if err != nil {
-		log.Fatalf("Couldn't get maxPartitionsContributed for MeanPerKey: %v", err)
+		log.Fatalf("Couldn't get MaxPartitionsContributed for MeanPerKey: %v", err)
 	}
 	rekeyed := beam.ParDo(s, rekeyArrayFloat64Fn, combined)
 	// Second, do cross-partition contribution bounding if not in test mode without contribution bounding.

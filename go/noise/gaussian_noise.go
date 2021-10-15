@@ -119,7 +119,7 @@ func (gaussian) DeltaForThreshold(l0Sensitivity int64, lInfSensitivity, epsilon,
 //
 // See https://github.com/google/differential-privacy/tree/main/common_docs/confidence_intervals.md.
 func (gaussian) ComputeConfidenceIntervalInt64(noisedX, l0Sensitivity, lInfSensitivity int64, epsilon, delta, alpha float64) (ConfidenceInterval, error) {
-	err := checkArgsConfidenceIntervalGaussian("computeConfidenceIntervalInt64 (gaussian)", l0Sensitivity, float64(lInfSensitivity), epsilon, delta, alpha)
+	err := checkArgsConfidenceIntervalGaussian("ComputeConfidenceIntervalInt64 (gaussian)", l0Sensitivity, float64(lInfSensitivity), epsilon, delta, alpha)
 	if err != nil {
 		err := fmt.Errorf("ComputeConfidenceIntervalInt64(l0sensitivity %d, lInfSensitivity %d, epsilon %f, delta %e, alpha %f) checks failed with %v",
 			l0Sensitivity, lInfSensitivity, epsilon, delta, alpha, err)

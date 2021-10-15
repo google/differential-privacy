@@ -71,7 +71,7 @@ func SelectPartitions(s beam.Scope, pcol PrivatePCollection, params SelectPartit
 	spec := pcol.privacySpec
 	maxPartitionsContributed, err := getMaxPartitionsContributed(spec, params.MaxPartitionsContributed)
 	if err != nil {
-		log.Fatalf("Couldn't get maxPartitionsContributed for SelectPartitions: %v", err)
+		log.Fatalf("Couldn't get MaxPartitionsContributed for SelectPartitions: %v", err)
 	}
 	err = checkSelectPartitionsParams(epsilon, delta, maxPartitionsContributed)
 	if err != nil {
