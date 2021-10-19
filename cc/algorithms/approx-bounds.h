@@ -293,6 +293,9 @@ class ApproxBounds : public Algorithm<T> {
     return report;
   }
 
+  // Return the number of positive bins for testing.
+  int64_t GetNumPosBinsForTesting() { return pos_bins_.size(); }
+
  protected:
   ApproxBounds(double epsilon, int64_t num_bins, double scale, double base,
                double success_probability, bool has_user_set_threshold,

@@ -1185,5 +1185,12 @@ TYPED_TEST(ApproxBoundsTest, Memory) {
   EXPECT_GE((*bounds_big)->MemoryUsed(), (*bounds_small)->MemoryUsed());
 }
 
+TEST(ApproxBoundsTest, DefaultNumBinsForInt64Is64) {
+  base::StatusOr<std::unique_ptr<ApproxBounds<int64_t>>> bounds =
+      ApproxBounds<int64_t>::Builder().SetEpsilon(1.1).SetScale(1.0).Build();
+  ASSERT_OK(bounds);
+  EXPECT_EQ(bounds.value()->GetNumPosBinsForTesting(), 64);
+}
+
 }  //  namespace
 }  // namespace differential_privacy

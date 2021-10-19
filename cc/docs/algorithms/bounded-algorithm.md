@@ -6,7 +6,7 @@ as parameters. There is no `BoundedAlgorithm` interface as a subclass of
 builder interface. Some Bounded algorithms are constructed using a
 [`BoundedAlgorithmBuilder`](https://github.com/google/differential-privacy/blob/main/cc/algorithms/bounded-algorithm.h),
 which is a subclass of [`AlgorithmBuilder`](https://github.com/google/differential-privacy/blob/main/cc/algorithms/algorithm.h).
-Others have buildings which do not inerit from `BoundedAlgorithmBuilder`, but
+Others have builders which do not inerit from `BoundedAlgorithmBuilder`, but
 share the same interface.
 
 ## Construction
