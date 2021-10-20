@@ -44,7 +44,6 @@ cc_library(
         "@com_google_cc_differential_privacy//algorithms:bounded-sum",
         "@com_google_cc_differential_privacy//algorithms:count",
         "@com_google_cc_differential_privacy//algorithms:quantiles",
-        "@com_google_cc_differential_privacy//algorithms:util",
         "@com_google_cc_differential_privacy//base:statusor",
         "@com_google_differential_privacy//proto:data_cc_proto",
     ],

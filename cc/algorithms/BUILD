@@ -14,12 +14,15 @@
 # limitations under the License.
 
 package(
-    default_visibility = ["//visibility:public"],
+    default_visibility = [
+        "//algorithms:__subpackages__",
+    ],
 )
 
 cc_library(
     name = "algorithm",
     hdrs = ["algorithm.h"],
+    visibility = ["//visibility:public"],
     deps = [
         ":numerical-mechanisms",
         ":util",
@@ -102,6 +105,7 @@ cc_test(
 cc_library(
     name = "order-statistics",
     hdrs = ["order-statistics.h"],
+    visibility = ["//visibility:public"],
     deps = [
         ":algorithm",
         ":binary-search",
@@ -131,6 +135,7 @@ cc_test(
 cc_library(
     name = "bounded-sum",
     hdrs = ["bounded-sum.h"],
+    visibility = ["//visibility:public"],
     deps = [
         ":algorithm",
         ":approx-bounds",
@@ -171,6 +176,7 @@ cc_test(
 cc_library(
     name = "bounded-mean",
     hdrs = ["bounded-mean.h"],
+    visibility = ["//visibility:public"],
     deps = [
         ":algorithm",
         ":approx-bounds",
@@ -214,6 +220,7 @@ cc_test(
 cc_library(
     name = "bounded-variance",
     hdrs = ["bounded-variance.h"],
+    visibility = ["//visibility:public"],
     deps = [
         ":algorithm",
         ":approx-bounds",
@@ -258,6 +265,7 @@ cc_test(
 cc_library(
     name = "bounded-standard-deviation",
     hdrs = ["bounded-standard-deviation.h"],
+    visibility = ["//visibility:public"],
     deps = [
         ":algorithm",
         ":approx-bounds",
@@ -296,6 +304,7 @@ cc_test(
 cc_library(
     name = "count",
     hdrs = ["count.h"],
+    visibility = ["//visibility:public"],
     deps = [
         ":algorithm",
         ":numerical-mechanisms",
@@ -338,6 +347,9 @@ cc_library(
     name = "util",
     srcs = ["util.cc"],
     hdrs = ["util.h"],
+    visibility = [
+        "//testing:__pkg__",
+    ],
     deps = [
         "//base:logging",
         "@com_google_absl//absl/base:core_headers",
@@ -399,6 +411,7 @@ cc_test(
 cc_library(
     name = "numerical-mechanisms",
     hdrs = ["numerical-mechanisms.h"],
+    visibility = ["//visibility:public"],
     deps = [
         ":distributions",
         ":rand",
@@ -433,6 +446,7 @@ cc_library(
     name = "numerical-mechanisms-testing",
     testonly = 1,
     hdrs = ["numerical-mechanisms-testing.h"],
+    visibility = ["//visibility:public"],
     deps = [
         ":distributions",
         ":numerical-mechanisms",
@@ -458,6 +472,7 @@ cc_test(
 cc_library(
     name = "approx-bounds",
     hdrs = ["approx-bounds.h"],
+    visibility = ["//visibility:public"],
     deps = [
         ":algorithm",
         ":numerical-mechanisms",
@@ -518,6 +533,9 @@ cc_library(
     name = "rand",
     srcs = ["rand.cc"],
     hdrs = ["rand.h"],
+    visibility = [
+        "//testing:__pkg__",
+    ],
     deps = [
         "//base:logging",
         "@boringssl//:crypto",
@@ -551,6 +569,7 @@ cc_test(
 cc_library(
     name = "partition-selection",
     hdrs = ["partition-selection.h"],
+    visibility = ["//visibility:public"],
     deps = [
         ":distributions",
         ":numerical-mechanisms",
@@ -576,6 +595,7 @@ cc_test(
 cc_library(
     name = "quantile-tree",
     hdrs = ["quantile-tree.h"],
+    visibility = ["//visibility:public"],
     deps = [
         ":algorithm",
         ":bounded-algorithm",
@@ -605,6 +625,7 @@ cc_test(
 cc_library(
     name = "quantiles",
     hdrs = ["quantiles.h"],
+    visibility = ["//visibility:public"],
     deps = [
         ":algorithm",
         ":bounded-algorithm",

@@ -33,7 +33,6 @@
 #include "algorithms/bounded-sum.h"
 #include "algorithms/count.h"
 #include "algorithms/quantiles.h"
-#include "algorithms/util.h"
 #include "proto/data.pb.h"
 #include "base/status_macros.h"
 
