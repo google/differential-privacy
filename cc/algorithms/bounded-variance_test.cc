@@ -66,6 +66,7 @@ using ::testing::DoubleEq;
 using ::testing::DoubleNear;
 using ::differential_privacy::base::testing::EqualsProto;
 using ::testing::HasSubstr;
+using ::testing::NotNull;
 using ::differential_privacy::base::testing::StatusIs;
 
 constexpr double kSmallEpsilon = 0.00000001;
@@ -958,6 +959,37 @@ TEST(BoundedVarianceWithFixedBoundsTest,
   }
 
   EXPECT_OK(bv.PartialResult());
+}
+
+TEST(BoundedVarianceTest, ApproxBoundsMechanismHasExpectedVariance) {
+  const int max_partitions_contributed = 2;
+  const int max_contributions_per_partition = 3;
+
+  base::StatusOr<std::unique_ptr<BoundedVariance<double>>> bv =
+      BoundedVariance<double>::Builder()
+          .SetEpsilon(kDefaultEpsilon)
+          .SetMaxPartitionsContributed(max_partitions_contributed)
+          .SetMaxContributionsPerPartition(max_contributions_per_partition)
+          .Build();
+  ASSERT_OK(bv);
+
+  auto* bv_with_approx_bounds =
+      static_cast<BoundedVarianceWithApproxBounds<double>*>(bv.value().get());
+  ASSERT_THAT(bv_with_approx_bounds, NotNull());
+
+  const double expected_variance =
+      LaplaceMechanism::Builder()
+          .SetEpsilon(kDefaultEpsilon / 2)
+          .SetL0Sensitivity(max_partitions_contributed)
+          .SetLInfSensitivity(max_contributions_per_partition)
+          .Build()
+          .value()
+          ->GetVariance();
+
+  ASSERT_THAT(bv_with_approx_bounds->GetApproxBoundsForTesting()
+                  ->GetMechanismForTesting()
+                  ->GetVariance(),
+              DoubleEq(expected_variance));
 }
 
 }  //  namespace

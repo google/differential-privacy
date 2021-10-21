@@ -67,15 +67,6 @@ class BoundedAlgorithmBuilder : public AlgorithmBuilder<T, Algorithm, Builder> {
   Builder& ClearBounds() {
     lower_.reset();
     upper_.reset();
-    approx_bounds_ = nullptr;
-    return *static_cast<Builder*>(this);
-  }
-
-  // Setting ApproxBounds removes manually set bounds. If automatic bounds are
-  // desired, this field is optional.
-  Builder& SetApproxBounds(std::unique_ptr<ApproxBounds<T>> approx_bounds) {
-    ClearBounds();
-    approx_bounds_ = std::move(approx_bounds);
     return *static_cast<Builder*>(this);
   }
 
@@ -87,24 +78,6 @@ class BoundedAlgorithmBuilder : public AlgorithmBuilder<T, Algorithm, Builder> {
   // Returns whether bounds have been set for this builder.
   inline bool BoundsAreSet() {
     return lower_.has_value() && upper_.has_value();
-  }
-
-  absl::Status BoundsSetup() {
-    // If either bound is not set and we do not have an ApproxBounds,
-    // construct the default one.
-    if (!BoundsAreSet() && !approx_bounds_) {
-      double bounds_epsilon =
-          AlgorithmBuilder::GetEpsilon().value() * kDefaultBoundsBudgetFraction;
-      remaining_epsilon_ =
-          AlgorithmBuilder::GetEpsilon().value() - bounds_epsilon;
-      auto mech_builder = AlgorithmBuilder::GetMechanismBuilderClone();
-      ASSIGN_OR_RETURN(approx_bounds_,
-                       typename ApproxBounds<T>::Builder()
-                           .SetEpsilon(bounds_epsilon)
-                           .SetLaplaceMechanism(std::move(mech_builder))
-                           .Build());
-    }
-    return absl::OkStatus();
   }
 
   // Returns the epsilon allotted for calculating the aggregation. If bounds
@@ -120,13 +93,8 @@ class BoundedAlgorithmBuilder : public AlgorithmBuilder<T, Algorithm, Builder> {
     return AlgorithmBuilder::GetEpsilon();
   }
 
-  std::unique_ptr<ApproxBounds<T>> MoveApproxBoundsPointer() {
-    return std::move(approx_bounds_);
-  }
-
   absl::optional<T> GetLower() const { return lower_; }
   absl::optional<T> GetUpper() const { return upper_; }
-  ApproxBounds<T>* GetApproxBounds() const { return approx_bounds_.get(); }
 
  private:
   // Bounds are optional and do not need to be set.  If they are not set,
@@ -136,10 +104,6 @@ class BoundedAlgorithmBuilder : public AlgorithmBuilder<T, Algorithm, Builder> {
 
   // Epsilon left over after creating an ApproxBounds.
   absl::optional<double> remaining_epsilon_;
-
-  // Used to automatically determine approximate mimimum and maximum to become
-  // lower and upper bounds, respectively.
-  std::unique_ptr<ApproxBounds<T>> approx_bounds_;
 
   // Common initialization and checks for building bounded algorithms.
   base::StatusOr<std::unique_ptr<Algorithm>> BuildAlgorithm() final {

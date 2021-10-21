@@ -307,6 +307,10 @@ class BoundedMeanWithApproxBounds : public BoundedMean<T> {
     return Algorithm<T>::GetEpsilon() - GetBoundingEpsilon();
   }
 
+  // Returns a pointer to the ApproxBounds object.  Does not transfer
+  // ownsership.  Only use for testing.
+  ApproxBounds<T>* GetApproxBoundsForTesting() { return approx_bounds_.get(); }
+
  protected:
   base::StatusOr<Output> GenerateResult(double privacy_budget_fraction,
                                         double noise_interval_level) override {
@@ -423,7 +427,7 @@ class BoundedMean<T>::Builder {
 
   BoundedMean<T>::Builder& SetMaxPartitionsContributed(
       int max_partitions_contributed) {
-    max_contributions_per_partition_ = max_partitions_contributed;
+    max_partitions_contributed_ = max_partitions_contributed;
     return *this;
   }
 
@@ -512,11 +516,14 @@ class BoundedMean<T>::Builder {
 
   base::StatusOr<std::unique_ptr<BoundedMean<T>>> BuildMeanWithApproxBounds() {
     if (!approx_bounds_) {
-      ASSIGN_OR_RETURN(approx_bounds_,
-                       typename ApproxBounds<T>::Builder()
-                           .SetEpsilon(epsilon_.value() / 2)
-                           .SetLaplaceMechanism(mechanism_builder_->Clone())
-                           .Build());
+      ASSIGN_OR_RETURN(
+          approx_bounds_,
+          typename ApproxBounds<T>::Builder()
+              .SetEpsilon(epsilon_.value() / 2)
+              .SetLaplaceMechanism(mechanism_builder_->Clone())
+              .SetMaxContributionsPerPartition(max_contributions_per_partition_)
+              .SetMaxPartitionsContributed(max_partitions_contributed_)
+              .Build());
     }
 
     if (epsilon_.value() <= approx_bounds_->GetEpsilon()) {

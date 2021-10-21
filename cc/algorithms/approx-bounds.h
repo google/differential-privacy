@@ -296,6 +296,10 @@ class ApproxBounds : public Algorithm<T> {
   // Return the number of positive bins for testing.
   int64_t GetNumPosBinsForTesting() { return pos_bins_.size(); }
 
+  // Returns a pointer to the mechanism for testing.  Does not transfer
+  // ownership.
+  NumericalMechanism* GetMechanismForTesting() { return mechanism_.get(); }
+
  protected:
   ApproxBounds(double epsilon, int64_t num_bins, double scale, double base,
                double success_probability, bool has_user_set_threshold,

@@ -329,6 +329,8 @@ class BoundedSumWithApproxBounds : public BoundedSum<T> {
 
   double GetL0SensitivityForTesting() { return l0_sensitivity_; }
 
+  ApproxBounds<T>* GetApproxBoundsForTesting() { return approx_bounds_.get(); }
+
  protected:
   base::StatusOr<Output> GenerateResult(double privacy_budget_fraction,
                                         double noise_interval_level) override {
@@ -500,11 +502,14 @@ class BoundedSum<T>::Builder {
 
   base::StatusOr<std::unique_ptr<BoundedSum<T>>> BuildSumWithApproxBounds() {
     if (!approx_bounds_) {
-      ASSIGN_OR_RETURN(approx_bounds_,
-                       typename ApproxBounds<T>::Builder()
-                           .SetEpsilon(epsilon_.value() / 2)
-                           .SetLaplaceMechanism(mechanism_builder_->Clone())
-                           .Build());
+      ASSIGN_OR_RETURN(
+          approx_bounds_,
+          typename ApproxBounds<T>::Builder()
+              .SetEpsilon(epsilon_.value() / 2)
+              .SetLaplaceMechanism(mechanism_builder_->Clone())
+              .SetMaxContributionsPerPartition(max_contributions_per_partition_)
+              .SetMaxPartitionsContributed(max_partitions_contributed_)
+              .Build());
     }
     if (epsilon_.value() <= approx_bounds_->GetEpsilon()) {
       return absl::InvalidArgumentError(absl::StrCat(

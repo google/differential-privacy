@@ -49,14 +49,10 @@ class BoundedAlgorithm : public Algorithm<T> {
     T Upper() { return BoundedBuilder::GetUpper().value(); }
     bool HasLower() { return BoundedBuilder::GetLower().has_value(); }
     bool HasUpper() { return BoundedBuilder::GetUpper().has_value(); }
-    ApproxBounds<T>* GetApproxBounds() {
-      return BoundedBuilder::GetApproxBounds();
-    }
 
    private:
     base::StatusOr<std::unique_ptr<BoundedAlgorithm<T>>> BuildBoundedAlgorithm()
         override {
-      RETURN_IF_ERROR(BoundedBuilder::BoundsSetup());
       return absl::WrapUnique(new BoundedAlgorithm());
     }
   };
@@ -86,25 +82,6 @@ TYPED_TEST(BoundedAlgorithmTest, ManualBoundsTest) {
   EXPECT_EQ(builder.Upper(), 2);
   EXPECT_TRUE(builder.HasLower());
   EXPECT_TRUE(builder.HasUpper());
-  EXPECT_FALSE(builder.GetApproxBounds());
-}
-
-TYPED_TEST(BoundedAlgorithmTest, ApproxBoundsClearsManualBounds) {
-  typename BoundedAlgorithm<TypeParam>::Builder builder;
-  builder.SetLower(1).SetUpper(2).SetApproxBounds(
-      typename ApproxBounds<TypeParam>::Builder().Build().value());
-  EXPECT_OK(builder.Build());
-  EXPECT_FALSE(builder.HasLower());
-  EXPECT_FALSE(builder.HasUpper());
-  EXPECT_TRUE(builder.GetApproxBounds());
-}
-
-TYPED_TEST(BoundedAlgorithmTest, AutomaticApproxBounds) {
-  typename BoundedAlgorithm<TypeParam>::Builder builder;
-  EXPECT_OK(builder.Build());
-  EXPECT_FALSE(builder.HasLower());
-  EXPECT_FALSE(builder.HasUpper());
-  EXPECT_TRUE(builder.GetApproxBounds());
 }
 
 TEST(BoundedAlgorithmTest, InvalidParameters) {
