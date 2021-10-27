@@ -325,6 +325,9 @@ class BoundedSumWithApproxBounds : public BoundedSum<T> {
     return memory;
   }
 
+  // Returns the ApproxBounds for testing.  Does not transfer ownership.
+  ApproxBounds<T>* GetApproxBoundsForTesting() { return approx_bounds_.get(); }
+
  protected:
   base::StatusOr<Output> GenerateResult(double privacy_budget,
                                         double noise_interval_level) override {

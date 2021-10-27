@@ -388,6 +388,10 @@ class ApproxBounds : public Algorithm<T> {
     return report;
   }
 
+  // Returns a pointer to the mechanism for testing.  Does not transfer
+  // ownership.
+  NumericalMechanism* GetMechanismForTesting() { return mechanism_.get(); }
+
  protected:
   ApproxBounds(double epsilon, int64_t num_bins, double scale, double base,
                double k, bool preset_k,
