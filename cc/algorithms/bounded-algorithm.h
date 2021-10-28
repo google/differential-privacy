@@ -97,10 +97,18 @@ class BoundedAlgorithmBuilder : public AlgorithmBuilder<T, Algorithm, Builder> {
       remaining_epsilon_ =
           AlgorithmBuilder::GetEpsilon().value() - bounds_epsilon;
       auto mech_builder = AlgorithmBuilder::GetMechanismBuilderClone();
+      const int max_partitions_contributed =
+          AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1);
+      const int max_contributions_per_partition =
+          AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(1);
       ASSIGN_OR_RETURN(approx_bounds_,
                        typename ApproxBounds<T>::Builder()
                            .SetEpsilon(bounds_epsilon)
                            .SetLaplaceMechanism(std::move(mech_builder))
+                           .SetMaxPartitionsContributed(
+                               max_partitions_contributed)
+                           .SetMaxContributionsPerPartition(
+                               max_contributions_per_partition)
                            .Build());
     }
     return absl::OkStatus();

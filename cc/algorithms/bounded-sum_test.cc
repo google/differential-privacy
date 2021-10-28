@@ -36,7 +36,9 @@ namespace differential_privacy {
 namespace {
 
 using ::differential_privacy::test_utils::ZeroNoiseMechanism;
+using ::testing::DoubleEq;
 using ::testing::Eq;
+using ::testing::NotNull;
 using ::differential_privacy::base::testing::EqualsProto;
 using ::testing::HasSubstr;
 using ::differential_privacy::base::testing::IsOkAndHolds;
@@ -802,6 +804,38 @@ TYPED_TEST(BoundedSumTest, SplitsEpsilonWithAutomaticBounds) {
   EXPECT_LT(sum_with_approx_bounds->GetBoundingEpsilon(), epsilon);
   EXPECT_GT(sum_with_approx_bounds->GetAggregationEpsilon(), 0);
   EXPECT_LT(sum_with_approx_bounds->GetAggregationEpsilon(), epsilon);
+}
+
+TEST(BoundedSumTest, ApproxBoundsMechanismHasExpectedVariance) {
+  const double epsilon = 1.0;
+  const int max_partitions_contributed = 2;
+  const int max_contributions_per_partition = 3;
+
+  base::StatusOr<std::unique_ptr<BoundedSum<double>>> bs =
+      BoundedSum<double>::Builder()
+        .SetEpsilon(epsilon)
+        .SetMaxPartitionsContributed(max_partitions_contributed)
+        .SetMaxContributionsPerPartition(max_contributions_per_partition)
+        .Build();
+  ASSERT_OK(bs);
+
+  auto *bs_with_approx_bounds =
+      static_cast<BoundedSumWithApproxBounds<double>*>(bs.value().get());
+  ASSERT_THAT(bs_with_approx_bounds, NotNull());
+
+  const double expected_variance =
+      LaplaceMechanism::Builder()
+        .SetEpsilon(epsilon)
+        .SetL0Sensitivity(max_partitions_contributed)
+        .SetLInfSensitivity(max_contributions_per_partition)
+        .Build()
+        .value()
+        ->GetVariance();
+
+  EXPECT_THAT(bs_with_approx_bounds->GetApproxBoundsForTesting()
+                ->GetMechanismForTesting()
+                ->GetVariance(),
+              DoubleEq(expected_variance));
 }
 
 }  //  namespace
