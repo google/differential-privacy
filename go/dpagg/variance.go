@@ -28,7 +28,7 @@ import (
 // BoundedVariance calculates a differentially private variance of a collection of
 // float64 values.
 //
-// The output will be clamped between 0 and (upper - lower)². Since the result is
+// The output will be clamped between 0 and (upper - lower)² / 4. Since the result is
 // guaranteed to be positive, this algorithm can be used to compute a differentially
 // private standard deviation.
 //
@@ -178,7 +178,7 @@ func NewBoundedVariance(opt *BoundedVarianceOptions) *BoundedVariance {
 		Delta:                    sumOfSquaresDelta,
 		MaxPartitionsContributed: maxPartitionsContributed,
 		// TODO: Do a second round of normalization for halving the lInf by two.
-		Lower:                        -math.Pow(sumMaxDistFromMidpoint, 2),
+		Lower:                        0,
 		Upper:                        math.Pow(sumMaxDistFromMidpoint, 2),
 		Noise:                        n,
 		maxContributionsPerPartition: maxContributionsPerPartition,

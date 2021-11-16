@@ -50,8 +50,8 @@ namespace differential_privacy {
 // Incrementally provides a differentially private variance for values in the
 // range [lower..upper]. Values outside of this range will be clamped so they
 // lie in the range. The output will also be clamped between 0 and (upper -
-// lower)^2. Since the result is guaranteed to be positive, this algorithm can
-// be used to compute a differentially private standard deviation.
+// lower)^2 / 4. Since the result is guaranteed to be positive, this algorithm
+// can be used to compute a differentially private standard deviation.
 //
 // The algorithm uses O(1) memory and runs in O(n) time where n is the size of
 // the dataset, making it a fast and efficient. The amount of noise added grows

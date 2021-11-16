@@ -46,7 +46,7 @@ int main(int argc, char **argv) {
   double delta = pld->GetDeltaForEpsilon(epsilon);
 
   PrintF(
-      "An algorithm that executes the Laplace Mechansim with parameter"
+      "An algorithm that executes the Laplace Mechanism with parameter"
       " %.0lf for a total of %d times is (%.0lf, %.8lf)-DP.\n",
       parameter_laplace, num_laplace, epsilon, delta);
 
@@ -68,7 +68,7 @@ int main(int argc, char **argv) {
   delta = pld->GetDeltaForEpsilon(epsilon);
 
   PrintF(
-      "An algorithm that executes the Laplace Mechansim with parameter"
+      "An algorithm that executes the Laplace Mechanism with parameter"
       " %.0lf for a total of %d times and in addition executes once the"
       " Gaussian Mechanism with STD %.0lf is (%.0lf, %.8lf)-DP.\n",
       parameter_laplace, num_laplace, standard_deviation, epsilon, delta);

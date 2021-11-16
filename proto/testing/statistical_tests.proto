@@ -23,9 +23,26 @@ option java_package = "com.google.privacy.differentialprivacy.proto.testing";
 // the DP library based on the statistical tests.
 
 enum NoiseType {
-  UNDEFINED = 0;
+  UNDEFINED_NOISE = 0;
   LAPLACE = 1;
   GAUSSIAN = 2;
+}
+
+enum AggregationType {
+  UNDEFINED_AGGREGATION = 0;
+  COUNT = 1;
+  SUM = 2;
+  MEAN = 3;
+  STDV = 5;
+  VARIANCE = 6;
+  QUANTILE = 7;
+}
+
+message DataRecord {
+  optional int32 user = 1;
+  optional int32 partition = 2;
+  optional double double_value = 3;
+  optional int64 long_value = 4;
 }
 
 // Parameters required for running a closeness test
@@ -44,21 +61,25 @@ message ClosenessTestParameters {
 
 // Parameters required for running an approximate DP test
 message DpTestParameters {
-  // epsilon value that is being tested for
+  // parameter defining the epsilon the statistical DP test tries to verify
+  // (this epsilon should not be used for drawing samples; the epsilon for
+  // drawing samples is defined in the respective sampling proto messages)
   optional double epsilon = 1;
-  // delta value that is being tested for
+  // parameter defining the delta the statistical DP test tries to verify (this
+  // delta should not be used for drawing samples; the delta for drawing samples
+  // is defined in the respective sampling proto messages)
   optional double delta = 2;
-  // deviation from the delta value deemed acceptable
+  // parameter specifying the acceptable deviation from delta
   optional double delta_tolerance = 3;
   // parameter quantifying the amount of discretization that is applied to
   // samples before testing
   optional double granularity = 4;
-  // parameter quantifying the number of buckets to which the samples are maped
-  // before testing
+  // parameter defining the number of buckets to which samples are mapped before
+  // testing
   optional int32 num_of_buckets = 5;
 }
 
-// Parameters required for drawing samples from the addNoise method of the DP
+// Parameters required for drawing samples from the add noise method of the DP
 // library.
 message NoiseSamplingParameters {
   optional int32 number_of_samples = 1;
@@ -159,6 +180,21 @@ message ApproximateBoundsSamplingParameters {
   repeated double neighbour_raw_entry = 11;
 }
 
+// General parameters for drawing samples, intended for testing various
+// functionality of higher level tools.
+message GeneralSamplingParameters {
+  optional int32 number_of_samples = 1;
+  repeated AggregationType aggregation_type = 2;
+  optional int32 max_partitions_contributed = 3;
+  optional int32 max_contributions_per_partition = 4;
+  optional double lower_bound = 5;
+  optional double upper_bound = 6;
+  optional double epsilon = 7;
+  optional double delta = 8;
+  repeated DataRecord record = 9;
+  repeated DataRecord neighbour_record = 10;
+}
+
 // Parameters specifying a voting mechanism for evaluating multiple runs of a
 // particular statistical test. This is intended to reduce the probability of
 // error compared to evaluating just a single run of the respective test.
@@ -187,10 +223,15 @@ message DpTestValidityParameters {
   // tolerance of the DP test that should be rejected.
   optional double failure_specificity = 2;
   // The minimum ratio between an epsilon that should be accepted and an epsilon
-  // that should be rejected, i.e., if epsilon is the smallest privacy parameter
-  // for which we expect the test to accept, the test should reject for a
-  // privacy parameter of epsilon / epsilon_specificity.
+  // that should be rejected, i.e., if epsilon is the smallest test parameter
+  // for which we expect the test to accept, a test paramter of
+  // epsilon / epsilon_specificity should be rejected.
   optional double epsilon_specificity = 3;
+  // The minimum ratio between a delta that should be accepted and a delta that
+  // should be rejected, i.e., if delta is the test privacy parameter for which
+  // which we expect the test to accept, a test paramter of
+  // delta / delta_specificity should be rejected.
+  optional double delta_specificity = 4;
 }
 
 message DistributionClosenessTestCase {
@@ -243,6 +284,12 @@ message ApproximateBoundsDpTestCase {
       approximate_bounds_sampling_parameters = 3;
 }
 
+message PartitionSelectionDpTestCase {
+  optional string name = 1;
+  optional DpTestParameters dp_test_parameters = 2;
+  optional GeneralSamplingParameters sampling_parameters = 3;
+}
+
 message DistributionClosenessTestCaseCollection {
   repeated DistributionClosenessTestCase distribution_closeness_test_case = 1;
   optional VotingParameters voting_parameters = 2;
@@ -287,6 +334,12 @@ message BoundedQuantilesDpTestCaseCollection {
 
 message ApproximateBoundsDpTestCaseCollection {
   repeated ApproximateBoundsDpTestCase approximate_bounds_dp_test_case = 1;
+  optional VotingParameters voting_parameters = 2;
+  optional DpTestValidityParameters validity_parameters = 3;
+}
+
+message PartitionSelectionDpTestCaseCollection {
+  repeated PartitionSelectionDpTestCase partition_selection_dp_test_case = 1;
   optional VotingParameters voting_parameters = 2;
   optional DpTestValidityParameters validity_parameters = 3;
 }

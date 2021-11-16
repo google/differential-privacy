@@ -18,6 +18,7 @@ def dp_java_deps():
             "org.mockito:mockito-core:3.8.0",
             "junit:junit:4.13.2",
             "com.google.truth:truth:1.1.2",
+            "com.google.truth.extensions:truth-java8-extension:1.1.3",
         ],
         repositories = [
             "https://jcenter.bintray.com/",

@@ -17,13 +17,16 @@
 package pbeam
 
 import (
+	"bytes"
 	"fmt"
+	"reflect"
 
 	log "github.com/golang/glog"
 	"github.com/google/differential-privacy/go/checks"
 	"github.com/google/differential-privacy/go/noise"
 	"github.com/google/differential-privacy/privacy-on-beam/internal/kv"
 	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
 )
 
@@ -53,7 +56,7 @@ type CountParams struct {
 	// privacy identifier is associated with the same value in 15 records, Count
 	// ignores 5 of these records and only adds 10 to the count for this value.
 	// There is an inherent trade-off when choosing MaxValue: a larger
-	// parameter means that less records are lost, but a larger noise.
+	// parameter means that fewer records are lost, but a larger noise is added.
 	//
 	// Required.
 	MaxValue int64
@@ -68,14 +71,18 @@ type CountParams struct {
 	// 	aggregating a metric by hour, you could provide a list of all possible
 	// 	hourly period.
 	// 	2. You use a differentially private operation to come up with the list of
-	// 	partitions. For example, you could use the keys of a DistinctPrivacyID
-	// 	operation as the list of public partitions.
+	// 	partitions. For example, you could use the output of a SelectPartitions
+	//  operation or the keys of a DistinctPrivacyID operation as the list of
+	//  public partitions.
 	//
-	// Note that current implementation limitations only allow up to millions of
-	// public partitions.
+	// PublicPartitions needs to be a beam.PCollection, slice or array and the
+	// underlying type needs to match the partition type of the PrivatePCollection.
+	//
+	// Prefer slice or arrays if the list of public partitions are small and
+	// can fit in memory (e.g., up to a million) and beam.PCollection otherwise.
 	//
 	// Optional.
-	PublicPartitions beam.PCollection
+	PublicPartitions interface{}
 }
 
 // Count counts the number of times a value appears in a PrivatePCollection,
@@ -108,7 +115,7 @@ func Count(s beam.Scope, pcol PrivatePCollection, params CountParams) beam.PColl
 	} else {
 		noiseKind = params.NoiseKind.toNoiseKind()
 	}
-	err = checkCountParams(params, epsilon, delta, noiseKind)
+	err = checkCountParams(params, epsilon, delta, noiseKind, partitionT.Type())
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -117,15 +124,13 @@ func Count(s beam.Scope, pcol PrivatePCollection, params CountParams) beam.PColl
 	if err != nil {
 		log.Fatalf("Couldn't get MaxPartitionsContributed for Count: %v", err)
 	}
+
 	// Drop non-public partitions, if public partitions are specified.
-	if (params.PublicPartitions).IsValid() {
-		if partitionT.Type() != params.PublicPartitions.Type().Type() {
-			log.Fatalf("Public partitions must be of type %v. Got type %v instead.",
-				partitionT.Type(), params.PublicPartitions.Type().Type())
-		}
-		partitionEncodedType := beam.EncodedType{partitionT.Type()}
-		pcol.col = dropNonPublicPartitionsVFn(s, params.PublicPartitions, pcol, partitionEncodedType)
+	pcol.col, err = dropNonPublicPartitionsForCount(s, pcol, params, partitionT)
+	if err != nil {
+		log.Fatalf("Couldn't drop non-public partitions for Count: %v", err)
 	}
+
 	// First, encode KV pairs, count how many times each one appears,
 	// and re-key by the original privacy key.
 	coded := beam.ParDo(s, kv.NewEncodeFn(idT, partitionT), pcol.col)
@@ -145,7 +150,7 @@ func Count(s beam.Scope, pcol PrivatePCollection, params CountParams) beam.PColl
 		countPairs,
 		beam.TypeDefinition{Var: beam.XType, T: partitionT.Type()})
 	// Add public partitions and return the aggregation output, if public partitions are specified.
-	if (params.PublicPartitions).IsValid() {
+	if params.PublicPartitions != nil {
 		return addPublicPartitionsForCount(s, epsilon, delta, maxPartitionsContributed, params, noiseKind, countsKV, spec.testMode)
 	}
 	boundedSumInt64Fn, err := newBoundedSumInt64Fn(epsilon, delta, maxPartitionsContributed, 0, params.MaxValue, noiseKind, false, spec.testMode)
@@ -161,12 +166,26 @@ func Count(s beam.Scope, pcol PrivatePCollection, params CountParams) beam.PColl
 	return beam.ParDo(s, clampNegativePartitionsInt64Fn, counts)
 }
 
-func checkCountParams(params CountParams, epsilon, delta float64, noiseKind noise.Kind) error {
+func checkCountParams(params CountParams, epsilon, delta float64, noiseKind noise.Kind, partitionType reflect.Type) error {
+	if params.PublicPartitions != nil {
+		if reflect.TypeOf(params.PublicPartitions) != reflect.TypeOf(beam.PCollection{}) &&
+			reflect.ValueOf(params.PublicPartitions).Kind() != reflect.Slice &&
+			reflect.ValueOf(params.PublicPartitions).Kind() != reflect.Array {
+			return fmt.Errorf("pbeam.Count: PublicPartitions=%+v needs to be a beam.PCollection, slice or array", reflect.TypeOf(params.PublicPartitions))
+		}
+		publicPartitionsCol, isPCollection := params.PublicPartitions.(beam.PCollection)
+		if isPCollection && (!publicPartitionsCol.IsValid() || partitionType != publicPartitionsCol.Type().Type()) {
+			return fmt.Errorf("pbeam.Count: PublicPartitions=%+v needs to be a valid beam.PCollection with the same type as the partition key (+%v)", params.PublicPartitions, partitionType)
+		}
+		if !isPCollection && reflect.TypeOf(params.PublicPartitions).Elem() != partitionType {
+			return fmt.Errorf("pbeam.Count: PublicPartitions=%+v needs to be a slice or an array whose elements are the same type as the partition key (%+v)", params.PublicPartitions, partitionType)
+		}
+	}
 	err := checks.CheckEpsilon("pbeam.Count", epsilon)
 	if err != nil {
 		return err
 	}
-	if (params.PublicPartitions).IsValid() && noiseKind == noise.LaplaceNoise {
+	if params.PublicPartitions != nil && noiseKind == noise.LaplaceNoise {
 		err = checks.CheckNoDelta("pbeam.Count", delta)
 	} else {
 		err = checks.CheckDeltaStrict("pbeam.Count", delta)
@@ -184,10 +203,44 @@ func checkCountParams(params CountParams, epsilon, delta float64, noiseKind nois
 	return nil
 }
 
+// dropNonPublicPartitionsForCount returns the PCollection with the non-public partitions dropped if public partitions are
+// specified. Returns the input PCollection otherwise.
+func dropNonPublicPartitionsForCount(s beam.Scope, pcol PrivatePCollection, params CountParams, partitionT typex.FullType) (beam.PCollection, error) {
+	// If PublicPartitions is not specified, return the input collection.
+	if params.PublicPartitions == nil {
+		return pcol.col, nil
+	}
+
+	// Drop non-public partitions, if public partitions are specified as a PCollection.
+	if publicPartitionscCol, ok := params.PublicPartitions.(beam.PCollection); ok {
+		partitionEncodedType := beam.EncodedType{partitionT.Type()}
+		return dropNonPublicPartitionsVFn(s, publicPartitionscCol, pcol, partitionEncodedType), nil
+	}
+
+	// Drop non-public partitions, public partitions are specified as slice/array (i.e., in-memory).
+	// Convert PublicPartitions to map[byte]bool for quick lookup
+	partitionEnc := beam.NewElementEncoder(partitionT.Type())
+	partitionMap := map[string]bool{}
+	for i := 0; i < reflect.ValueOf(params.PublicPartitions).Len(); i++ {
+		partitionKey := reflect.ValueOf(params.PublicPartitions).Index(i).Interface()
+		var partitionBuf bytes.Buffer
+		if err := partitionEnc.Encode(partitionKey, &partitionBuf); err != nil {
+			return pcol.col, fmt.Errorf("Couldn't encode partition %v: %v", partitionKey, err)
+		}
+		partitionMap[string(partitionBuf.Bytes())] = true
+	}
+	partitionEncodedType := beam.EncodedType{partitionT.Type()}
+	return beam.ParDo(s, newPrunePartitionsInMemoryVFn(partitionEncodedType, partitionMap), pcol.col), nil
+}
+
 func addPublicPartitionsForCount(s beam.Scope, epsilon, delta float64, maxPartitionsContributed int64, params CountParams, noiseKind noise.Kind, countsKV beam.PCollection, testMode testMode) beam.PCollection {
 	// Turn PublicPartitions from PCollection<K> into PCollection<K, int64> by adding
 	// the value zero to each K.
-	dummyCounts := beam.ParDo(s, addDummyValuesToPublicPartitionsInt64Fn, params.PublicPartitions)
+	publicPartitions, isPCollection := params.PublicPartitions.(beam.PCollection)
+	if !isPCollection {
+		publicPartitions = beam.Reshuffle(s, beam.CreateList(s, params.PublicPartitions))
+	}
+	dummyCounts := beam.ParDo(s, addDummyValuesToPublicPartitionsInt64Fn, publicPartitions)
 	// Merge countsKV and dummyCounts.
 	allPartitions := beam.Flatten(s, dummyCounts, countsKV)
 	// Sum and add noise.

@@ -180,33 +180,60 @@ public class Count {
         "Unable to calculate the threshold for an unknown mechanism type %s",
         params.noise().getMechanismType());
 
-    double thresholdDeltaPerPartition = thresholdDelta / params.maxContributionsPerPartition();
+    // Let C_1,...,C_n be the noised counts to which a given privacy unit u contributed and to which
+    // no other privacy unit contributed. The privacy parameter thresholdDelta is the worst case
+    // probability with which at least one C_i exceeds the threshold k (because that would be a
+    // distinguishing outcome from a dataset without u). More formally, we have
+    //    thresholdDelta ≥ P[C_1 ≥ k ∨ ... ∨ C_n ≥ k]
+    // The probability on the right is maximized (and thus equal to thresholdDelta) when u
+    // contributes to the maximum number of counts, i.e., when n = maxPartitionsContributed, and
+    // when u contributes the maximum amount to each count, i.e., maxContributionsPerPartition. In
+    // this case, all probabilities P[C_i ≥ k] become the same and we refer to them as
+    // thresholdDeltaPerPartition.
+    //
+    // Based on this worst case analysis, thresholdDelta can be expressed as
+    //    thresholdDelta = P[C_1 ≥ k ∨ ... ∨ C_n ≥ k]
+    //                   = 1 - P[C_1 < k ∧ ... ∧ C_n < k]
+    //                   = 1 - (P[C_1 < k] * ... * P[C_n < k])
+    //                   = 1 - ((1 - P[C_1 ≥ k]) * ... * (1 - P[C_n ≥ k]))
+    //                   = 1 - (1 - thresholdDeltaPerPartition)^n,
+    // Solving for thresholdDeltaPerPartition yields
+    //    thresholdDeltaPerPartition = 1 - (1 - thresholdDelta)^(1 / n)
+    //
+    // Computing thresholdDeltaPerPartition this way is numerically inaccurate for small values of
+    // thresholdDelta (which is the input we usually expect). The reason is that 1 - thresholdDelta
+    // is close to 1 and thus its floating point representation loses precision. To bypass this
+    // issue we compute thresholdDeltaPerPartition as
+    //    thresholdDeltaPerPartition = -expm1(log1p(-thresholdDelta) / n)
+    // instead, which is mathematically equivalent because
+    //    -expm1(log1p(-thresholdDelta) / n) = -expm1(log(1 - thresholdDelta) / n)
+    //                                       = -expm1(log((1 - thresholdDelta)^(1 / n)))
+    //                                       = 1 - exp(log((1 - thresholdDelta)^(1 / n)))
+    //                                       = 1 - (1 - thresholdDelta)^(1 / n).
+    double thresholdDeltaPerPartition =
+        -1.0 * Math.expm1(Math.log1p(-thresholdDelta) / params.maxPartitionsContributed());
 
-    /*
-    The threshold is set s.t. the noised count of a single privacy ID will not exceed it with a
-    probability greater than thresholdDeltaPerPartition. This is equivalent to calculating the
-    rank = (1-thresholdDeltaPerPartition) quantile of the noise added to
-    x = maxContributionsPerPartition, i.e., the max contribution of a single privacy ID.
-
-    The call below is equivalent to calling noise.computeQuantile(1-thresholdDeltaPerPartition,
-    maxContributionsPerPartition, ...). But because thresholdDeltaPerPartition is typically very
-    small, 1-thresholdDelta might be rounded to 1 as a result of the limited resolution of double
-    values around 1. To mitigate inaccuracy, we calculate the rank = thresholdDeltaPerPartition
-    quantile for x = 0.0, negate the result and shift it by maxContributionsPerPartition. This works
-    because the noise is symmetrical and invariant to translation.
-    */
+    // Computing the threshold k for which P[C_i ≥ k] = thresholdDeltaPerPartition is equivalent to
+    // computing the quantile q_r of the distribution of C_i for rank
+    // r = (1 - thresholdDeltaPerPartition).
+    //
+    // Since r is close to 1 for small values of thresholdDeltaPerPartition this approach may cause
+    // numerical issues. Instead, we look directly at the noise
+    // nu_i = C_i - maxContributionsPerPartition that is added to the count C_i and compute the
+    // quantile q'_r' for rank r' = thresholdDeltaPerPartition. Because the distribution of nu_i is
+    // symmetric around 0.0 it holds that
+    //   k = q_r = maxContributionsPerPartition - q'_r'.
     double threshold =
-        -1.0
-                * params
-                    .noise()
-                    .computeQuantile(
-                        /* rank= */ thresholdDeltaPerPartition,
-                        /* x= */ 0.0,
-                        params.maxPartitionsContributed(),
-                        params.maxContributionsPerPartition(),
-                        params.epsilon(),
-                        params.delta())
-            + params.maxContributionsPerPartition();
+        params.maxContributionsPerPartition()
+            - params
+                .noise()
+                .computeQuantile(
+                    /* rank= */ thresholdDeltaPerPartition,
+                    /* x= */ 0.0,
+                    params.maxPartitionsContributed(),
+                    params.maxContributionsPerPartition(),
+                    params.epsilon(),
+                    params.delta());
     if (Double.compare((double) noisyCount, threshold) >= 0) {
       return Optional.of(noisyCount);
     } else {

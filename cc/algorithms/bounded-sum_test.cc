@@ -901,5 +901,25 @@ TEST(BoundedSumTest, ApproxBoundsMechanismHasExpectedVariance) {
               DoubleEq(expected_variance));
 }
 
+TEST(BoundedSumTest, ApproxBoundsOnInt64LowestUsesFullRangeBounds) {
+  base::StatusOr<std::unique_ptr<BoundedSum<int64_t>>> bs =
+      BoundedSum<int64_t>::Builder().SetEpsilon(kDefaultEpsilon).Build();
+  ASSERT_OK(bs);
+
+  for (int i = 0; i < 1000; ++i) {
+    bs.value()->AddEntry(std::numeric_limits<int64_t>::lowest());
+  }
+
+  base::StatusOr<Output> result = bs.value()->PartialResult();
+  ASSERT_OK(result);
+
+  EXPECT_EQ(
+      GetValue<int64_t>(result->error_report().bounding_report().lower_bound()),
+      std::numeric_limits<int64_t>::lowest());
+  EXPECT_EQ(
+      GetValue<int64_t>(result->error_report().bounding_report().upper_bound()),
+      std::numeric_limits<int64_t>::max());
+}
+
 }  //  namespace
 }  // namespace differential_privacy

@@ -17,9 +17,11 @@
 package pbeam
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/google/differential-privacy/go/dpagg"
+	"github.com/google/differential-privacy/go/noise"
 	"github.com/google/differential-privacy/privacy-on-beam/pbeam/testutils"
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
@@ -79,23 +81,39 @@ func TestCountWithPartitionsNoNoise(t *testing.T) {
 		{10, 0}, // Add partition 10.
 	}
 
-	p, s, col, want := ptest.CreateList2(pairs, result)
-	col = beam.ParDo(s, testutils.PairToKV, col)
-	partitions := []int{9, 10}
-	publicPartitions := beam.CreateList(s, partitions)
-	// We use ε=50, δ=0 and l1Sensitivity=2.
-	// We have 2 partitions. So, to get an overall flakiness of 10⁻²³,
-	// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
-	epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 25.0, 2.0
-	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
-	got := Count(s, pcol, CountParams{MaxValue: 2, MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions})
-	want = beam.ParDo(s, testutils.Int64MetricToKV, want)
-	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-		t.Fatalf("TestCountWithPartitionsNoNoise: %v", err)
+	// We have two test cases, one for public partitions as a PCollection and one for public partitions as a slice (i.e., in-memory).
+	for _, tc := range []struct {
+		inMemory bool
+	}{
+		{true},
+		{false},
+	} {
+		p, s, col, want := ptest.CreateList2(pairs, result)
+		col = beam.ParDo(s, testutils.PairToKV, col)
+		publicPartitionsSlice := []int{9, 10}
+
+		// We use ε=50, δ=0 and l1Sensitivity=2.
+		// We have 2 partitions. So, to get an overall flakiness of 10⁻²³,
+		// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
+		epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 25.0, 2.0
+		pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+		countParams := CountParams{MaxValue: 2, MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}}
+		if tc.inMemory {
+			countParams.PublicPartitions = publicPartitionsSlice
+		} else {
+			countParams.PublicPartitions = beam.CreateList(s, publicPartitionsSlice)
+		}
+
+		got := Count(s, pcol, countParams)
+		want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+		if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
+			t.Fatalf("TestCountWithPartitionsNoNoise w/ inMemory=%t: %v", tc.inMemory, err)
+		}
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("TestCountWithPartitionsNoNoise w/ inMemory=%t: Count(%v) = %v, expected %v: %v", tc.inMemory, col, got, want, err)
+		}
 	}
-	if err := ptest.Run(p); err != nil {
-		t.Errorf("TestCountWithPartitionsNoNoise: Count(%v) = %v, expected %v: %v", col, got, want, err)
-	}
+
 }
 
 // Checks that Count applies partition selection.
@@ -246,55 +264,78 @@ func TestCountAddsNoise(t *testing.T) {
 
 // Checks that Count with partitions adds noise to its output.
 func TestCountAddsNoiseWithPartitions(t *testing.T) {
+	// Because this is an integer aggregation, we can't use the regular complementary
+	// tolerance computations. Instead, we do the following:
+	//
+	// If generated noise is between -0.5 and 0.5, it will be rounded to 0 and the
+	// test will fail. For Laplace, this will happen with probability
+	//   P ~= Laplace_CDF(0.5) - Laplace_CDF(-0.5).
+	// Given that Laplace scale = l1_sensitivity / ε = 10¹⁵, P ~= 5e-16.
+	// For Gaussian, this will happen with probability
+	//	 P ~= Gaussian_CDF(0.5) - Gaussian_CDF(-0.5).
+	// For given ε=1e-15, δ=1e-15 => sigma = 261134011596800, P ~= 1e-15.
+	//
+	// Since no partitions selection / thresholding happens, numIDs doesn't depend
+	// on ε & δ. We can use arbitrarily small ε & δ.
+	tolerance := 0.0
+	l0Sensitivity, lInfSensitivity := int64(1), int64(1)
+	numIDs := 10
+
+	// pairs contains {1,0}, {2,0}, …, {10,0}.
+	pairs := testutils.MakePairsWithFixedV(numIDs, 0)
 	for _, tc := range []struct {
-		name      string
+		desc      string
 		noiseKind NoiseKind
 		// Differential privacy params used.
-		epsilon float64
-		delta   float64
+		epsilon  float64
+		delta    float64
+		inMemory bool
 	}{
 		// ε & δ are not split because partitions are public. All of them are used for the noise.
 		{
-			name:      "Gaussian",
+			desc:      "as PCollection w/ Gaussian",
 			noiseKind: GaussianNoise{},
 			epsilon:   1e-15,
 			delta:     1e-15,
+			inMemory:  false,
 		},
 		{
-			name:      "Laplace",
+			desc:      "as slice w/ Gaussian",
+			noiseKind: GaussianNoise{},
+			epsilon:   1e-15,
+			delta:     1e-15,
+			inMemory:  true,
+		},
+		{
+			desc:      "as PCollection w/ Laplace",
 			noiseKind: LaplaceNoise{},
 			epsilon:   1e-15,
 			delta:     0, // It is 0 because partitions are public and we are using Laplace noise.
+			inMemory:  false,
+		},
+		{
+			desc:      "as slice w/ Laplace",
+			noiseKind: LaplaceNoise{},
+			epsilon:   1e-15,
+			delta:     0, // It is 0 because partitions are public and we are using Laplace noise.
+			inMemory:  true,
 		},
 	} {
-		// Because this is an integer aggregation, we can't use the regular complementary
-		// tolerance computations. Instead, we do the following:
-		//
-		// If generated noise is between -0.5 and 0.5, it will be rounded to 0 and the
-		// test will fail. For Laplace, this will happen with probability
-		//   P ~= Laplace_CDF(0.5) - Laplace_CDF(-0.5).
-		// Given that Laplace scale = l1_sensitivity / ε = 10¹⁵, P ~= 5e-16.
-		// For Gaussian, this will happen with probability
-		//	 P ~= Gaussian_CDF(0.5) - Gaussian_CDF(-0.5).
-		// For given ε=1e-15, δ=1e-15 => sigma = 261134011596800, P ~= 1e-15.
-		//
-		// Since no partitions selection / thresholding happens, numIDs doesn't depend
-		// on ε & δ. We can use arbitrarily small ε & δ.
-		tolerance := 0.0
-		l0Sensitivity, lInfSensitivity := int64(1), int64(1)
-		numIDs := 10
-
-		// pairs contains {1,0}, {2,0}, …, {10,0}.
-		pairs := testutils.MakePairsWithFixedV(numIDs, 0)
 		p, s, col := ptest.CreateList(pairs)
 		col = beam.ParDo(s, testutils.PairToKV, col)
-		publicPartitions := beam.CreateList(s, []int{0})
+		publicPartitionsSlice := []int{0}
 		pcol := MakePrivate(s, col, NewPrivacySpec(tc.epsilon, tc.delta))
-		got := Count(s, pcol, CountParams{MaxPartitionsContributed: l0Sensitivity, MaxValue: lInfSensitivity, NoiseKind: tc.noiseKind, PublicPartitions: publicPartitions})
+		countParams := CountParams{MaxPartitionsContributed: l0Sensitivity, MaxValue: lInfSensitivity, NoiseKind: tc.noiseKind}
+		if tc.inMemory {
+			countParams.PublicPartitions = publicPartitionsSlice
+		} else {
+			countParams.PublicPartitions = beam.CreateList(s, publicPartitionsSlice)
+		}
+		got := Count(s, pcol, countParams)
 		got = beam.ParDo(s, testutils.KVToInt64Metric, got)
 		testutils.CheckInt64MetricsAreNoisy(s, got, 10, tolerance)
 		if err := ptest.Run(p); err != nil {
-			t.Errorf("CountPerKey with partitions didn't add any %s noise: %v", tc.name, err)
+			t.Errorf("CountPerKey with public partitions %s didn't add any noise: %v", tc.desc, err)
 		}
 	}
 }
@@ -342,28 +383,42 @@ func TestCountWithPartitionsCrossPartitionContributionBounding(t *testing.T) {
 	result := []testutils.TestInt64Metric{
 		{0, 150},
 	}
-	p, s, col, want := ptest.CreateList2(pairs, result)
-	col = beam.ParDo(s, testutils.PairToKV, col)
 
-	partitions := []int{0, 1, 2, 3, 4}
-	publicPartitions := beam.CreateList(s, partitions)
+	// We have two test cases, one for public partitions as a PCollection and one for public partitions as a slice (i.e., in-memory).
+	for _, tc := range []struct {
+		inMemory bool
+	}{
+		{true},
+		{false},
+	} {
+		p, s, col, want := ptest.CreateList2(pairs, result)
+		col = beam.ParDo(s, testutils.PairToKV, col)
 
-	// We have 5 partitions. So, to get an overall flakiness of 10⁻²³,
-	// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
-	epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 25.0, 3.0
-	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
-	got := Count(s, pcol, CountParams{MaxPartitionsContributed: 3, MaxValue: 1, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions})
-	// With a max contribution of 3, 40% of the data from the public partitions should be dropped.
-	// The sum of all elements must then be 150.
-	counts := beam.DropKey(s, got)
-	sumOverPartitions := stats.Sum(s, counts)
-	got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
-	want = beam.ParDo(s, testutils.Int64MetricToKV, want)
-	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-		t.Fatalf("TestCountWithPartitionsCrossPartitionContributionBounding: %v", err)
-	}
-	if err := ptest.Run(p); err != nil {
-		t.Errorf("TestCountWithPartitionsCrossPartitionContributionBounding: Metric(%v) = %v, expected elements to sum to 150: %v", col, got, err)
+		publicPartitionsSlice := []int{0, 1, 2, 3, 4}
+
+		// We have 5 partitions. So, to get an overall flakiness of 10⁻²³,
+		// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
+		epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 25.0, 3.0
+		pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+		countParams := CountParams{MaxPartitionsContributed: 3, MaxValue: 1, NoiseKind: LaplaceNoise{}}
+		if tc.inMemory {
+			countParams.PublicPartitions = publicPartitionsSlice
+		} else {
+			countParams.PublicPartitions = beam.CreateList(s, publicPartitionsSlice)
+		}
+		got := Count(s, pcol, countParams)
+		// With a max contribution of 3, 40% of the data from the public partitions should be dropped.
+		// The sum of all elements must then be 150.
+		counts := beam.DropKey(s, got)
+		sumOverPartitions := stats.Sum(s, counts)
+		got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
+		want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+		if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
+			t.Fatalf("TestCountWithPartitionsCrossPartitionContributionBounding in-memory=%t: %v", tc.inMemory, err)
+		}
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("TestCountWithPartitionsCrossPartitionContributionBounding in-memory=%t: Metric(%v) = %v, expected elements to sum to 150: %v", tc.inMemory, col, got, err)
+		}
 	}
 }
 
@@ -391,25 +446,156 @@ func TestCountReturnsNonNegative(t *testing.T) {
 // Check that no negative values are returned from Count with partitions.
 func TestCountWithPartitionsReturnsNonNegative(t *testing.T) {
 	var pairs []testutils.PairII
-	var partitions []int
+	var publicPartitionsSlice []int
 	for i := 0; i < 100; i++ {
 		pairs = append(pairs, testutils.PairII{i, i})
 	}
 	for i := 0; i < 200; i++ {
-		partitions = append(partitions, i)
+		publicPartitionsSlice = append(publicPartitionsSlice, i)
 	}
-	p, s, col := ptest.CreateList(pairs)
-	col = beam.ParDo(s, testutils.PairToKV, col)
-	publicPartitions := beam.CreateList(s, partitions)
-	// Using a low epsilon and high maxValue adds a lot of noise and using
-	// a high delta keeps many partitions.
-	epsilon, delta, maxValue := 0.001, 0.999, int64(1e8)
-	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
-	counts := Count(s, pcol, CountParams{MaxValue: maxValue, MaxPartitionsContributed: 1, NoiseKind: GaussianNoise{}, PublicPartitions: publicPartitions})
-	values := beam.DropKey(s, counts)
-	// Check if we have negative elements.
-	beam.ParDo0(s, testutils.CheckNoNegativeValuesInt64Fn, values)
-	if err := ptest.Run(p); err != nil {
-		t.Errorf("TestCountWithPartitionsReturnsNonNegative returned errors: %v", err)
+
+	// We have two test cases, one for public partitions as a PCollection and one for public partitions as a slice (i.e., in-memory).
+	for _, tc := range []struct {
+		inMemory bool
+	}{
+		{true},
+		{false},
+	} {
+		p, s, col := ptest.CreateList(pairs)
+		col = beam.ParDo(s, testutils.PairToKV, col)
+		// Using a low epsilon and high maxValue adds a lot of noise and using
+		// a high delta keeps many partitions.
+		epsilon, delta, maxValue := 0.001, 0.999, int64(1e8)
+		pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+		countParams := CountParams{MaxValue: maxValue, MaxPartitionsContributed: 1, NoiseKind: GaussianNoise{}}
+		if tc.inMemory {
+			countParams.PublicPartitions = publicPartitionsSlice
+		} else {
+			countParams.PublicPartitions = beam.CreateList(s, publicPartitionsSlice)
+		}
+		counts := Count(s, pcol, countParams)
+		values := beam.DropKey(s, counts)
+		// Check if we have negative elements.
+		beam.ParDo0(s, testutils.CheckNoNegativeValuesInt64Fn, values)
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("TestCountWithPartitionsReturnsNonNegative in-memory=%t returned errors: %v", tc.inMemory, err)
+		}
+	}
+}
+
+func TestCheckCountParams(t *testing.T) {
+	_, _, partitions := ptest.CreateList([]int{0})
+	for _, tc := range []struct {
+		desc          string
+		params        CountParams
+		epsilon       float64
+		delta         float64
+		noiseKind     noise.Kind
+		partitionType reflect.Type
+		wantErr       bool
+	}{
+		{
+			desc:          "valid parameters w/o public partitions",
+			params:        CountParams{MaxPartitionsContributed: 1, MaxValue: 1},
+			epsilon:       1,
+			delta:         1e-10,
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: nil,
+			wantErr:       false,
+		},
+		{
+			desc:          "valid parameters w/ public partitions",
+			params:        CountParams{MaxPartitionsContributed: 1, MaxValue: 1, PublicPartitions: []int{0}},
+			epsilon:       1,
+			delta:         0,
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: reflect.TypeOf(0),
+			wantErr:       false,
+		},
+		{
+			desc:          "negative epsilon",
+			params:        CountParams{MaxPartitionsContributed: 1, MaxValue: 1},
+			epsilon:       -1,
+			delta:         1e-10,
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: nil,
+			wantErr:       true,
+		},
+		{
+			desc:          "zero delta w/o public partitions",
+			params:        CountParams{MaxPartitionsContributed: 1, MaxValue: 1},
+			epsilon:       1,
+			delta:         0,
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: nil,
+			wantErr:       true,
+		},
+		{
+			desc:          "non-zero delta w/ public partitions & laplace noise",
+			params:        CountParams{MaxPartitionsContributed: 1, MaxValue: 1, PublicPartitions: []int{}},
+			epsilon:       1,
+			delta:         1e-10,
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: reflect.TypeOf(0),
+			wantErr:       true,
+		},
+		{
+			desc:          "wrong partition type w/ public partitions as beam.PCollection",
+			params:        CountParams{MaxPartitionsContributed: 1, MaxValue: 1, PublicPartitions: partitions},
+			epsilon:       1,
+			delta:         0,
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: reflect.TypeOf(""),
+			wantErr:       true,
+		},
+		{
+			desc:          "wrong partition type w/ public partitions as slice",
+			params:        CountParams{MaxPartitionsContributed: 1, MaxValue: 1, PublicPartitions: []int{0}},
+			epsilon:       1,
+			delta:         0,
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: reflect.TypeOf(""),
+			wantErr:       true,
+		},
+		{
+			desc:          "wrong partition type w/ public partitions as array",
+			params:        CountParams{MaxPartitionsContributed: 1, MaxValue: 1, PublicPartitions: [1]int{0}},
+			epsilon:       1,
+			delta:         0,
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: reflect.TypeOf(""),
+			wantErr:       true,
+		},
+		{
+			desc:          "public partitions as something other than beam.PCollection, slice or array",
+			params:        CountParams{MaxPartitionsContributed: 1, MaxValue: 1, PublicPartitions: ""},
+			epsilon:       1,
+			delta:         0,
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: reflect.TypeOf(""),
+			wantErr:       true,
+		},
+		{
+			desc:          "negative max value",
+			params:        CountParams{MaxPartitionsContributed: 1, MaxValue: -1},
+			epsilon:       1,
+			delta:         1e-10,
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: nil,
+			wantErr:       true,
+		},
+		{
+			desc:          "negative max partitions contributed",
+			params:        CountParams{MaxPartitionsContributed: -1, MaxValue: 1},
+			epsilon:       1,
+			delta:         1e-10,
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: nil,
+			wantErr:       true,
+		},
+	} {
+		if err := checkCountParams(tc.params, tc.epsilon, tc.delta, tc.noiseKind, tc.partitionType); (err != nil) != tc.wantErr {
+			t.Errorf("With %s, got=%v error, wantErr=%t", tc.desc, err, tc.wantErr)
+		}
 	}
 }

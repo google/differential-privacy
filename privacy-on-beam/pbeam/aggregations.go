@@ -49,6 +49,7 @@ func init() {
 	beam.RegisterType(reflect.TypeOf((*decodePairArrayFloat64Fn)(nil)))
 	beam.RegisterType(reflect.TypeOf((*partitionsMapFn)(nil)).Elem())
 	beam.RegisterType(reflect.TypeOf((*prunePartitionsVFn)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*prunePartitionsInMemoryVFn)(nil)).Elem())
 	beam.RegisterType(reflect.TypeOf((*pMap)(nil)).Elem())
 	beam.RegisterType(reflect.TypeOf((*emitPartitionsNotInTheDataFn)(nil)).Elem())
 
@@ -642,6 +643,32 @@ func (fn *partitionsMapFn) MergeAccumulators(a, b mapAccum) mapAccum {
 // ExtractOutput returns the completed partition map
 func (fn *partitionsMapFn) ExtractOutput(m mapAccum) pMap {
 	return m.PartitionMap
+}
+
+type prunePartitionsInMemoryVFn struct {
+	PartitionType beam.EncodedType
+	partitionEnc  beam.ElementEncoder
+	PartitionMap  map[string]bool
+}
+
+func newPrunePartitionsInMemoryVFn(partitionType beam.EncodedType, partitionMap map[string]bool) *prunePartitionsInMemoryVFn {
+	return &prunePartitionsInMemoryVFn{PartitionType: partitionType, PartitionMap: partitionMap}
+}
+
+func (fn *prunePartitionsInMemoryVFn) Setup() {
+	fn.partitionEnc = beam.NewElementEncoder(fn.PartitionType.T)
+}
+
+func (fn *prunePartitionsInMemoryVFn) ProcessElement(id beam.X, partitionKey beam.V, emit func(beam.X, beam.V)) error {
+	var partitionBuf bytes.Buffer
+	if err := fn.partitionEnc.Encode(partitionKey, &partitionBuf); err != nil {
+		return fmt.Errorf("pbeam.prunePartitionsInMemoryVFn.ProcessElement: couldn't encode partition %v: %w", partitionKey, err)
+	}
+
+	if fn.PartitionMap[string(partitionBuf.Bytes())] {
+		emit(id, partitionKey)
+	}
+	return nil
 }
 
 // prunePartitionsVFn takes a PCollection<K, V> as input, and returns a

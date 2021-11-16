@@ -323,6 +323,27 @@ func TestNewBoundedSumInt64(t *testing.T) {
 				sum:             0,
 				state:           defaultState,
 			}},
+		{"lower==upper", // TODO: Move to a separate test function
+			&BoundedSumInt64Options{
+				Epsilon:                  ln3,
+				Delta:                    0,
+				MaxPartitionsContributed: 1,
+				Lower:                    5,
+				Upper:                    5,
+				Noise:                    noNoise{},
+			},
+			&BoundedSumInt64{
+				epsilon:         ln3,
+				delta:           0,
+				l0Sensitivity:   1,
+				lInfSensitivity: 5,
+				lower:           5,
+				upper:           5,
+				Noise:           noNoise{},
+				noiseKind:       noise.Unrecognised,
+				sum:             0,
+				state:           defaultState,
+			}},
 	} {
 		got := NewBoundedSumInt64(tc.opt)
 		if !reflect.DeepEqual(got, tc.want) {
@@ -397,6 +418,27 @@ func TestNewBoundedSumFloat64(t *testing.T) {
 				upper:           5,
 				Noise:           noise.Laplace(),
 				noiseKind:       noise.LaplaceNoise,
+				sum:             0,
+				state:           defaultState,
+			}},
+		{"lower==upper", // TODO: Move to a separate test function
+			&BoundedSumFloat64Options{
+				Epsilon:                  ln3,
+				Delta:                    0,
+				MaxPartitionsContributed: 1,
+				Lower:                    5,
+				Upper:                    5,
+				Noise:                    noNoise{},
+			},
+			&BoundedSumFloat64{
+				epsilon:         ln3,
+				delta:           0,
+				l0Sensitivity:   1,
+				lInfSensitivity: 5,
+				lower:           5,
+				upper:           5,
+				Noise:           noNoise{},
+				noiseKind:       noise.Unrecognised,
 				sum:             0,
 				state:           defaultState,
 			}},

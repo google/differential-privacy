@@ -17,12 +17,14 @@
 package com.google.privacy.differentialprivacy;
 
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth8.assertThat;
 import static com.google.privacy.differentialprivacy.proto.SummaryOuterClass.MechanismType.GAUSSIAN;
 import static com.google.privacy.differentialprivacy.proto.SummaryOuterClass.MechanismType.LAPLACE;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.doubleThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
@@ -465,35 +467,30 @@ public class CountTest {
   }
 
   @Test
-  public void computeThresholdedResult_defaultParams_callsNoiseCorrectly() {
-    count.computeThresholdedResult(THRESHOLD_DELTA);
+  public void computeThresholdedResult_usesAccurateThresholdDeltaPerPartitionValue() {
+    // The computation of thresholdDeltaPerPartition can be vulnerable to numerical imprecisions for
+    // very small values of thresholdDelta if done naively. To check the accuracy of
+    // thresholdDeltaPerPartition, we look at the rank argument used in the internal quantile
+    // computation (because thresholdDeltaPerPartition is used as the rank argument).
 
+    // The choice of maxContributionsPerPartition and thresholdDelta is arbitrary. It is also
+    // extreme in the sense that it would result in numerical inaccuracies if
+    // thresholdDeltaPerPartition is computed naively.
+    count = getCountBuilderWithFields().maxPartitionsContributed(12345).build();
+    count.computeThresholdedResult(/*thresholdDelta=*/ 5.4321e-60);
+
+    // The anticipated value of thresholdDeltaPerPartition is
+    // thresholdDeltaPerPartition = 1 - (1 - thresholdDelta)^(1 / maxPartitionsContributed)
+    //                            = 1 - (1 - 5.4321e-60)^(1 / 12345)
+    //                            ≈ 4.4002430134e-64
     verify(noise)
         .computeQuantile(
-            eq(THRESHOLD_DELTA), // rank = thresholdDelta / lInfSensitivity = THRESHOLD_DELTA / 1
-            eq(/* x = mean = */ 0.0),
-            eq(/* l0Sensitivity = maxPartitionsContributed = */ 1),
-            eq(/* lInfSensitivity = maxContributionsPerPartition = */ 1.0),
-            eq(EPSILON),
-            eq(DELTA));
-  }
-
-  @Test
-  public void computeThresholdedResult_scaledLinfSensitivity_callsNoiseCorrectly() {
-    count = getCountBuilderWithFields().maxContributionsPerPartition(10).build();
-
-    count.computeThresholdedResult(THRESHOLD_DELTA);
-
-    verify(noise)
-        .computeQuantile(
-            eq(
-                THRESHOLD_DELTA
-                    / 10.0), // rank = thresholdDelta / lInfSensitivity = THRESHOLD_DELTA / 10
-            eq(/* x = mean = */ 0.0),
-            eq(/* l0Sensitivity = maxPartitionsContributed = */ 1),
-            eq(/* lInfSensitivity = maxContributionsPerPartition = */ 10.0),
-            eq(EPSILON),
-            eq(DELTA));
+            doubleThat(d -> d > 4.4002430133e-64 && d < 4.4002430135e-64),
+            anyDouble(),
+            anyInt(),
+            anyDouble(),
+            anyDouble(),
+            anyDouble());
   }
 
   @Test
@@ -503,31 +500,30 @@ public class CountTest {
             anyDouble(), anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble()))
         .thenReturn(quantile);
 
-    // threshold is equal to -1 * quantile + maxContributionsPerPartition = 11;
-    // the result count is equal to 1 which doesn't pass the
-    // threshold of 11 and therefore the empty result should be returned.
-    count.increment();
+    // threshold is equal to -1 * quantile + maxContributionsPerPartition = 11. Moreover, the (zero-
+    // noise) count is equal to 10, which doesn't pass the threshold and therefore the empty result
+    // should be returned.
+    count.incrementBy(10);
     Optional<Long> actualResult = count.computeThresholdedResult(THRESHOLD_DELTA);
     assertThat(actualResult.isPresent()).isFalse();
   }
 
   @Test
-  public void computeThresholdedResult_countGreaterThanThreshold_returnsComputedResult() {
+  public void computeThresholdedResult_countGreaterThanThreshold_returnsCount() {
     double quantile = -10.0;
     when(noise.computeQuantile(
             anyDouble(), anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble()))
         .thenReturn(quantile);
 
-    // threshold is equal to -1 * quantile + maxContributionsPerPartition = 11;
-    // the result count is equal to 15 which passes the
-    // threshold of 11 and therefore the computed result should be returned.
-    count.incrementBy(15);
+    // threshold is equal to -1 * quantile + maxContributionsPerPartition = 11. Moreover, the (zero-
+    // noise) count is equal to 12, which passes the threshold and therefore 12 should be returned.
+    count.incrementBy(12);
     Optional<Long> actualResult = count.computeThresholdedResult(THRESHOLD_DELTA);
-    assertThat(actualResult.get()).isEqualTo(15);
+    assertThat(actualResult).hasValue(12);
   }
 
   @Test
-  public void computeThresholdedResult_forLaplace_rawCountAsFloorThreshold_returnsEmptyResult() {
+  public void computeThresholdedResult_forLaplace_appliesCorrectThreshold() {
     when(noise.getMechanismType()).thenReturn(LAPLACE);
     when(noise.computeQuantile(
             anyDouble(), anyDouble(), anyInt(), anyDouble(), anyDouble(), isNull()))
@@ -542,53 +538,36 @@ public class CountTest {
                         (double) invocation.getArguments()[4],
                         null));
 
-    Count count =
+    Count.Params.Builder builder =
         Count.builder()
             .epsilon(Math.log(3))
-            .maxContributionsPerPartition(1)
-            .maxPartitionsContributed(1)
-            .noise(noise)
-            .build();
+            .maxContributionsPerPartition(3)
+            .maxPartitionsContributed(11)
+            .noise(noise);
 
-    count.incrementBy((long) Math.floor(21.33));
-    // threshold is equal to 21.33
-    Optional<Long> actualResult = count.computeThresholdedResult(1e-10);
-    assertThat(actualResult.isPresent()).isFalse();
+    // For the given parameters and a thresholdDelta of 0.1, the threshold should be
+    //    k = mu - lambda * log(2 * thresholdDeltaPerPartition) ≈ 121.94708
+    // where
+    //    mu = maxContributionsPerPartition
+    //    lambda = (maxContributionsPerPartition * maxPartitionsContributed) / epsilon
+    //    thresholdDeltaPerPartition = 1 - (1 - thresholdDelta)^(1 / maxPartitionsContributed).
+    //
+    // Using the floor and the ceil of this threshold as input to a zero-noise count, we expect
+    // the floor to be thresholded but the ceil to pass.
+    Count count = builder.build();
+    count.incrementBy(121);
+    Optional<Long> flooredThreshold = count.computeThresholdedResult(0.1);
+    count = builder.build();
+    count.incrementBy(122);
+    Optional<Long> ceiledThreshold = count.computeThresholdedResult(0.1);
+
+    assertThat(flooredThreshold).isEmpty();
+    assertThat(ceiledThreshold).hasValue(122);
   }
 
   @Test
-  public void computeThresholdedResult_forLaplace_rawCountAsCeilThreshold_returnsComputedResult() {
-    when(noise.getMechanismType()).thenReturn(LAPLACE);
-    when(noise.computeQuantile(
-            anyDouble(), anyDouble(), anyInt(), anyDouble(), anyDouble(), isNull()))
-        .thenAnswer(
-            invocation ->
-                new LaplaceNoise()
-                    .computeQuantile(
-                        (double) invocation.getArguments()[0],
-                        (double) invocation.getArguments()[1],
-                        (int) invocation.getArguments()[2],
-                        (double) invocation.getArguments()[3],
-                        (double) invocation.getArguments()[4],
-                        null));
-
-    Count count =
-        Count.builder()
-            .epsilon(Math.log(3))
-            .maxContributionsPerPartition(1)
-            .maxPartitionsContributed(1)
-            .noise(noise)
-            .build();
-
-    long rawCount = (long) Math.ceil(21.33);
-    count.incrementBy(rawCount);
-    // threshold is equal to 21.33
-    Optional<Long> actualResult = count.computeThresholdedResult(1e-10);
-    assertThat(actualResult.get()).isEqualTo(rawCount);
-  }
-
-  @Test
-  public void computeThresholdedResult_forGaussian_rawCountAsFloorThreshold_returnsEmptyResult() {
+  public void computeThresholdedResult_forGaussian_appliesCorrectThreshold() {
+    when(noise.getMechanismType()).thenReturn(GAUSSIAN);
     when(noise.computeQuantile(
             anyDouble(), anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble()))
         .thenAnswer(
@@ -602,51 +581,28 @@ public class CountTest {
                         (double) invocation.getArguments()[4],
                         (double) invocation.getArguments()[5]));
 
-    Count count =
+    Count.Params.Builder builder =
         Count.builder()
             .epsilon(Math.log(3))
-            .delta(0.26546844106038714)
-            .maxContributionsPerPartition(1)
-            .maxPartitionsContributed(2)
-            .noise(noise)
-            .build();
+            .delta(0.0001)
+            .maxContributionsPerPartition(3)
+            .maxPartitionsContributed(11)
+            .noise(noise);
 
-    long rawCount = (long) Math.floor(2.9997099087500634);
-    count.incrementBy(rawCount);
-    // threshold is equal to 2.9997099087500634
-    Optional<Long> actualResult = count.computeThresholdedResult(0.022828893856);
-    assertThat(actualResult.isPresent()).isFalse();
-  }
+    // For the given parameters and a thresholdDelta of 0.1, the threshold should be
+    //    k ≈ 71.42627.
+    //
+    // Using the floor and the ceil of this threshold as input to a zero-noise count, we expect
+    // the floor to be thresholded but the ceil to pass.
+    Count count = builder.build();
+    count.incrementBy(71);
+    Optional<Long> flooredThreshold = count.computeThresholdedResult(0.1);
+    count = builder.build();
+    count.incrementBy(72);
+    Optional<Long> ceiledThreshold = count.computeThresholdedResult(0.1);
 
-  @Test
-  public void computeThresholdedResult_forGaussian_rawCountAsCeilThreshold_returnsComputedResult() {
-    when(noise.computeQuantile(
-            anyDouble(), anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble()))
-        .thenAnswer(
-            invocation ->
-                new GaussianNoise()
-                    .computeQuantile(
-                        (double) invocation.getArguments()[0],
-                        (double) invocation.getArguments()[1],
-                        (int) invocation.getArguments()[2],
-                        (double) invocation.getArguments()[3],
-                        (double) invocation.getArguments()[4],
-                        (double) invocation.getArguments()[5]));
-
-    Count count =
-        Count.builder()
-            .epsilon(Math.log(3))
-            .delta(0.26546844106038714)
-            .maxContributionsPerPartition(1)
-            .maxPartitionsContributed(2)
-            .noise(noise)
-            .build();
-
-    long rawCount = (long) Math.ceil(2.9997099087500634);
-    count.incrementBy(rawCount);
-    // threshold is equal to 2.9997099087500634
-    Optional<Long> actualResult = count.computeThresholdedResult(0.022828893856);
-    assertThat(actualResult.get()).isEqualTo(rawCount);
+    assertThat(flooredThreshold).isEmpty();
+    assertThat(ceiledThreshold).hasValue(72);
   }
 
   private Count.Params.Builder getCountBuilderWithFields() {

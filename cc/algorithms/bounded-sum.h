@@ -53,6 +53,8 @@ template <typename T>
 class BoundedSum : public Algorithm<T> {
   static_assert(std::is_arithmetic<T>::value,
                 "BoundedSum can only be used for arithmetic types");
+  static_assert(std::numeric_limits<T>::lowest() < 0,
+                "BoundedSum can only be used for signed types");
 
  public:
   // Builder class that should be used to construct BoundedSum algorithms.
@@ -91,7 +93,8 @@ class BoundedSum : public Algorithm<T> {
         .SetDelta(delta)
         .SetL0Sensitivity(l0_sensitivity)
         .SetLInfSensitivity(max_contributions_per_partition *
-                            std::max(std::abs(lower), std::abs(upper)))
+                            std::max(std::abs(static_cast<double>(lower)),
+                                     std::abs(static_cast<double>(upper))))
         .Build();
   }
 };
@@ -345,13 +348,19 @@ class BoundedSumWithApproxBounds : public BoundedSum<T> {
                                                    noise_interval_level));
     const T approx_bounds_lower = GetValue<T>(bounds.elements(0).value());
     const T approx_bounds_upper = GetValue<T>(bounds.elements(1).value());
-    RETURN_IF_ERROR(BoundedSum<T>::CheckLowerBound(approx_bounds_lower));
 
     // Since sensitivity is determined only by the larger-magnitude bound,
     // set the smaller-magnitude bound to be the negative of the larger. This
-    // minimizes clamping and so maximizes accuracy.
-    const T lower = std::min(approx_bounds_lower, -1 * approx_bounds_upper);
-    const T upper = std::max(approx_bounds_upper, -1 * approx_bounds_lower);
+    // minimizes clamping and so maximizes accuracy. We need to be careful with
+    // the numerical limits since -max == lowest + 1 for integers.
+    T lower = approx_bounds_lower;
+    T upper = approx_bounds_upper;
+    if (approx_bounds_lower == std::numeric_limits<T>::lowest()) {
+      upper = std::numeric_limits<T>::max();
+    } else {
+      lower = std::min(approx_bounds_lower, -1 * approx_bounds_upper);
+      upper = std::max(approx_bounds_upper, -1 * approx_bounds_lower);
+    }
 
     // Populate the bounding report with ApproxBounds information.
     output.mutable_error_report()->set_allocated_bounding_report(
