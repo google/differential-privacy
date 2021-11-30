@@ -125,19 +125,29 @@ TYPED_TEST(BoundedMeanTest, BasicTestWithExplicitGaussian) {
 TYPED_TEST(BoundedMeanTest, RepeatedResultTest) {
   std::vector<TypeParam> a = {2, 4, 6, 8};
 
-  auto mean =
+  auto mean1 =
       typename BoundedMean<TypeParam>::Builder()
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .SetEpsilon(1.0)
           .SetLower(1)
           .SetUpper(9)
           .Build();
-  ASSERT_OK(mean);
-  (*mean)->AddEntries(a.begin(), a.end());
+  ASSERT_OK(mean1);
 
-  auto result1 = (*mean)->PartialResult(0.5);
+  auto mean2 =
+      typename BoundedMean<TypeParam>::Builder()
+          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetEpsilon(1.0)
+          .SetLower(1)
+          .SetUpper(9)
+          .Build();
+  ASSERT_OK(mean2);
+
+  (*mean2)->AddEntries(a.begin(), a.end());
+
+  auto result1 = (*mean1)->PartialResult();
   ASSERT_OK(result1);
-  auto result2 = (*mean)->PartialResult(0.5);
+  auto result2 = (*mean2)->PartialResult();
   ASSERT_OK(result2);
 
   EXPECT_DOUBLE_EQ(GetValue<double>(*result1), GetValue<double>(*result2));
@@ -253,8 +263,8 @@ TYPED_TEST(BoundedMeanTest, InsufficientPrivacyBudgetTest) {
 
   ASSERT_OK((*mean)->PartialResult());
   EXPECT_THAT((*mean)->PartialResult(),
-              StatusIs(absl::StatusCode::kFailedPrecondition,
-                       HasSubstr("Privacy budget must be positive")));
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("can only produce results once")));
 }
 
 // This test verifies that BoundedMean never returns a value outside of the

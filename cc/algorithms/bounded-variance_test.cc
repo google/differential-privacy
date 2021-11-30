@@ -193,18 +193,23 @@ TYPED_TEST(BoundedVarianceTest, AddMultipleEntriesInvalidNumberOfEntriesTest) {
 
 TYPED_TEST(BoundedVarianceTest, RepeatedResultTest) {
   std::vector<TypeParam> a = {1, 2, 3, 4, 5};
-  base::StatusOr<std::unique_ptr<BoundedVariance<TypeParam>>> bv =
-      typename BoundedVariance<TypeParam>::Builder()
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
-          .SetEpsilon(1.0)
-          .SetLower(0)
-          .SetUpper(6)
-          .Build();
-  ASSERT_OK(bv);
-  (*bv)->AddEntries(a.begin(), a.end());
-  base::StatusOr<Output> result1 = (*bv)->PartialResult(0.5);
+  typename BoundedVariance<TypeParam>::Builder builder;
+  builder.SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+      .SetEpsilon(1.0)
+      .SetLower(0)
+      .SetUpper(6);
+
+  base::StatusOr<std::unique_ptr<BoundedVariance<TypeParam>>> bv1 =
+      builder.Build();
+  base::StatusOr<std::unique_ptr<BoundedVariance<TypeParam>>> bv2 =
+      builder.Build();
+  ASSERT_OK(bv1);
+  ASSERT_OK(bv2);
+  (*bv1)->AddEntries(a.begin(), a.end());
+  (*bv2)->AddEntries(a.begin(), a.end());
+  base::StatusOr<Output> result1 = (*bv1)->PartialResult(0.5);
   ASSERT_OK(result1);
-  base::StatusOr<Output> result2 = (*bv)->PartialResult(0.5);
+  base::StatusOr<Output> result2 = (*bv2)->PartialResult(0.5);
   ASSERT_OK(result2);
   EXPECT_DOUBLE_EQ(GetValue<double>(*result1), GetValue<double>(*result2));
 }
@@ -222,8 +227,8 @@ TYPED_TEST(BoundedVarianceTest, InsufficientPrivacyBudgetTest) {
   (*bv)->AddEntries(a.begin(), a.end());
   ASSERT_OK((*bv)->PartialResult());
   EXPECT_THAT((*bv)->PartialResult(),
-              StatusIs(absl::StatusCode::kFailedPrecondition,
-                       HasSubstr("Privacy budget must be positive")));
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("can only produce results once")));
 }
 
 TYPED_TEST(BoundedVarianceTest, ClampInputTest) {

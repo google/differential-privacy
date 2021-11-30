@@ -62,10 +62,7 @@ func drawPlot(hourToValue, dpHourToValue map[int]float64, example, nonDPOutput, 
 		dpPoints = append(dpPoints, dpHourToValue[k])
 	}
 
-	p, err := plot.New()
-	if err != nil {
-		return fmt.Errorf("could not create plot: %v", err)
-	}
+	p := plot.New()
 
 	p.X.Label.Text = "Hour"
 	switch example {

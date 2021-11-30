@@ -241,15 +241,6 @@ func getMaxPartitionsContributed(spec *PrivacySpec, maxPartitionsContributed int
 	return maxPartitionsContributed, nil
 }
 
-// getMaxContributionsPerPartition returns a maxContributionsPerPartition parameter
-// if it greater than zero, otherwise it fails.
-func getMaxContributionsPerPartition(maxContributionsPerPartition int64) (int64, error) {
-	if maxContributionsPerPartition <= 0 {
-		return 0, fmt.Errorf("MaxContributionsPerPartition must be set to a positive value, was %d instead", maxContributionsPerPartition)
-	}
-	return maxContributionsPerPartition, nil
-}
-
 // NoiseKind represents the kind of noise to be used in an aggregations.
 type NoiseKind interface {
 	toNoiseKind() noise.Kind
@@ -378,7 +369,7 @@ type extractStructFieldFn struct {
 func (ext *extractStructFieldFn) ProcessElement(v beam.V) (string, beam.V, error) {
 	idField, err := ext.getIDField(v)
 	if err != nil {
-		return "", nil, fmt.Errorf("Couldn't retrieve ID field %s: %v", ext.IDFieldPath, err)
+		return "", nil, fmt.Errorf("couldn't retrieve ID field %s: %v", ext.IDFieldPath, err)
 	}
 	// We use %#v to guarantee two different keys map to different strings
 	return fmt.Sprintf("%#v", idField), v, nil
@@ -427,7 +418,7 @@ func (ext *extractStructFieldFn) checkSimpleType(v reflect.Value) error {
 		reflect.Complex64, reflect.Complex128, reflect.String:
 		return nil
 	default:
-		return fmt.Errorf("id field must be a simple type (e.g. int, string), got type %v instead", v.Kind())
+		return fmt.Errorf("ID field must be a simple type (e.g. int, string), got type %v instead", v.Kind())
 	}
 }
 
@@ -442,8 +433,8 @@ func MakePrivateFromProto(s beam.Scope, col beam.PCollection, spec *PrivacySpec,
 		log.Fatalf("MakePrivateFromProto: PCollection col=%v  cannot be of KV type", col)
 	}
 	msgType := msgTypex.Type()
-	var dummyMessage proto.Message
-	if !msgType.Implements(reflect.TypeOf(&dummyMessage).Elem()) {
+	var sampleMessage proto.Message
+	if !msgType.Implements(reflect.TypeOf(&sampleMessage).Elem()) {
 		log.Fatalf("MakePrivateFromProto: PCollection col=%v  must be composed of proto messages", col)
 	}
 	extractFn := &extractProtoFieldFn{

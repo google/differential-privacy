@@ -184,11 +184,11 @@ class StatusOrData {
   };
 
   // data_ is active iff status_.ok()==true
-  struct Dummy {};
+  struct Placeholder {};
   union {
     // When T is const, we need some non-const object we can cast to void* for
-    // the placement new. dummy_ is that object.
-    Dummy dummy_;
+    // the placement new. placeholder_ is that object.
+    Placeholder placeholder_;
     T data_;
   };
 
@@ -208,7 +208,7 @@ class StatusOrData {
   // argument.
   template <typename Arg>
   void MakeValue(Arg&& arg) {
-    statusor_internal::PlacementNew<T>(&dummy_, std::forward<Arg>(arg));
+    statusor_internal::PlacementNew<T>(&placeholder_, std::forward<Arg>(arg));
   }
 
   // Construct the status (ie. status_) through placement new with the passed

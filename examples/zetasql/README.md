@@ -17,9 +17,9 @@ explaining some of the DP concepts and results can be found [here](codelab.md).
 
 In order to run the ZetaSQL DP CLI, you need to install Bazel version 1.0.0, if
 you don't have it already. To install Bazel, follow the
-[instructions for your platform on the Bazel website](https://docs.bazel.build/versions/master/install.html).
+[instructions for your platform on the Bazel website](https://docs.bazel.build/versions/main/install.html).
 If this requires you to manage multiple Bazel versions, consider using
-[Bazelisk](https://docs.bazel.build/versions/master/updating-bazel.html#managing-bazel-versions-with-bazelisk).
+[Bazelisk](https://docs.bazel.build/versions/main/updating-bazel.html#managing-bazel-versions-with-bazelisk).
 
 You also need to install Git, if you don't have it already.
 [Follow the instructions for your platform on the Git website](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git).

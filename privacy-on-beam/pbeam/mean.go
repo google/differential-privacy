@@ -85,25 +85,34 @@ type MeanParams struct {
 	// 	aggregating a metric by hour, you could provide a list of all possible
 	// 	hourly period.
 	// 	2. You use a differentially private operation to come up with the list of
-	// 	partitions. For example, you could use the keys of a DistinctPrivacyID
-	// 	operation as the list of public partitions.
+	// 	partitions. For example, you could use the output of a SelectPartitions
+	//  operation or the keys of a DistinctPrivacyID operation as the list of
+	//  public partitions.
 	//
-	// Note that current implementation limitations only allow up to millions of
-	// public partitions.
+	// PublicPartitions needs to be a beam.PCollection, slice, or array. The
+	// underlying type needs to match the partition type of the PrivatePCollection.
+	//
+	// Prefer slices or arrays if the list of public partitions is small and
+	// can fit into memory (e.g., up to a million). Prefer beam.PCollection
+	// otherwise.
 	//
 	// Optional.
-	PublicPartitions beam.PCollection
+	PublicPartitions interface{}
 }
 
 // MeanPerKey obtains the mean of the values associated with each key in a
 // PrivatePCollection<K,V>, adding differentially private noise to the means and
 // doing pre-aggregation thresholding to remove means with a low number of
-// distinct privacy identifiers. Client can also specify a PCollection of partitions.
+// distinct privacy identifiers.
+//
+// It is also possible to manually specify the list of partitions
+// present in the output, in which case the partition selection/thresholding
+// step is skipped.
+//
+// MeanPerKey transforms a PrivatePCollection<K,V> into a PCollection<K,float64>.
 //
 // Note: Do not use when your results may cause overflows for float64 values.
 // This aggregation is not hardened for such applications yet.
-//
-// MeanPerKey transforms a PrivatePCollection<K,V> into a PCollection<K,float64>.
 func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.PCollection {
 	s = s.Scope("pbeam.MeanPerKey")
 	// Obtain & validate type information from the underlying PCollection<K,V>.
@@ -128,18 +137,15 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 	} else {
 		noiseKind = params.NoiseKind.toNoiseKind()
 	}
-	err = checkMeanPerKeyParams(params, epsilon, delta, noiseKind)
+	err = checkMeanPerKeyParams(params, epsilon, delta, noiseKind, pcol.codec.KType.T)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("pbeam.MeanPerKey: %v", err)
 	}
 
 	// Drop non-public partitions, if public partitions are specified.
-	if (params.PublicPartitions).IsValid() {
-		if pcol.codec.KType.T != (params.PublicPartitions).Type().Type() {
-			log.Fatalf("Public partitions must be of type %v. Got type %v instead.",
-				pcol.codec.KType.T, (params.PublicPartitions).Type().Type())
-		}
-		pcol.col = dropNonPublicPartitionsKVFn(s, params.PublicPartitions, pcol, pcol.codec.KType)
+	pcol.col, err = dropNonPublicPartitions(s, pcol, params.PublicPartitions, pcol.codec.KType.T)
+	if err != nil {
+		log.Fatalf("Couldn't drop non-public partitions for MeanPerKey: %v", err)
 	}
 
 	// First, group together the privacy ID and the partition ID and do per-partition contribution bounding.
@@ -150,13 +156,9 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 		pcol.col,
 		beam.TypeDefinition{Var: beam.VType, T: pcol.codec.VType.T})
 
-	maxContributionsPerPartition, err := getMaxContributionsPerPartition(params.MaxContributionsPerPartition)
-	if err != nil {
-		log.Fatalf("Couldn't get MaxContributionsPerPartition for MeanPerKey: %v", err)
-	}
 	// Don't do per-partition contribution bounding if in test mode without contribution bounding.
 	if spec.testMode != noNoiseWithoutContributionBounding {
-		decoded = boundContributions(s, decoded, maxContributionsPerPartition)
+		decoded = boundContributions(s, decoded, params.MaxContributionsPerPartition)
 	}
 
 	// Convert value to float64.
@@ -194,7 +196,7 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 		partialPairs,
 		beam.TypeDefinition{Var: beam.XType, T: partitionT})
 	// Add public partitions and return the aggregation output, if public partitions are specified.
-	if (params.PublicPartitions).IsValid() {
+	if params.PublicPartitions != nil {
 		return addPublicPartitionsForMean(s, epsilon, delta, maxPartitionsContributed,
 			params, noiseKind, partialKV, spec.testMode)
 	}
@@ -243,9 +245,12 @@ func addPublicPartitionsForMean(s beam.Scope, epsilon, delta float64, maxPartiti
 	meansPartitions := beam.DropValue(s, means)
 	// Create map with partitions in the data as keys.
 	partitionMap := beam.Combine(s, newPartitionsMapFn(beam.EncodedType{partitionT.Type()}), meansPartitions)
-	partitionsCol := params.PublicPartitions
+	publicPartitions, isPCollection := params.PublicPartitions.(beam.PCollection)
+	if !isPCollection {
+		publicPartitions = beam.Reshuffle(s, beam.CreateList(s, params.PublicPartitions))
+	}
 	// Add value of empty array to each partition key in PublicPartitions.
-	publicPartitionsWithValues := beam.ParDo(s, addDummyValuesToPublicPartitionsFloat64SliceFn, partitionsCol)
+	publicPartitionsWithValues := beam.ParDo(s, addEmptySliceToPublicPartitionsFloat64Fn, publicPartitions)
 	// emptyPublicPartitions are the partitions that are public but not found in the data.
 	emptyPublicPartitions := beam.ParDo(s, newEmitPartitionsNotInTheDataFn(partitionT), publicPartitionsWithValues, beam.SideInput{Input: partitionMap})
 	// Add noise to the empty public partitions.
@@ -273,24 +278,28 @@ func addPublicPartitionsForMean(s beam.Scope, epsilon, delta float64, maxPartiti
 	return allMeans
 }
 
-func checkMeanPerKeyParams(params MeanParams, epsilon, delta float64, noiseKind noise.Kind) error {
-	err := checks.CheckEpsilon("pbeam.MeanPerKey", epsilon)
+func checkMeanPerKeyParams(params MeanParams, epsilon, delta float64, noiseKind noise.Kind, partitionType reflect.Type) error {
+	err := checkPublicPartitions(params.PublicPartitions, partitionType)
 	if err != nil {
 		return err
 	}
-	if (params.PublicPartitions).IsValid() && noiseKind == noise.LaplaceNoise {
-		err = checks.CheckNoDelta("pbeam.MeanPerKey", delta)
+	err = checks.CheckEpsilon(epsilon)
+	if err != nil {
+		return err
+	}
+	if params.PublicPartitions != nil && noiseKind == noise.LaplaceNoise {
+		err = checks.CheckNoDelta(delta)
 	} else {
-		err = checks.CheckDeltaStrict("pbeam.MeanPerKey", delta)
+		err = checks.CheckDeltaStrict(delta)
 	}
 	if err != nil {
 		return err
 	}
-	err = checks.CheckBoundsFloat64("pbeam.MeanPerKey", params.MinValue, params.MaxValue)
+	err = checks.CheckBoundsFloat64(params.MinValue, params.MaxValue)
 	if err != nil {
 		return err
 	}
-	return checks.CheckMaxPartitionsContributed("pbeam.MeanPerKey", params.MaxPartitionsContributed)
+	return checks.CheckMaxContributionsPerPartition(params.MaxContributionsPerPartition)
 }
 
 type boundedMeanAccumFloat64 struct {
@@ -370,62 +379,84 @@ func (fn *boundedMeanFloat64Fn) Setup() {
 	}
 }
 
-func (fn *boundedMeanFloat64Fn) CreateAccumulator() boundedMeanAccumFloat64 {
+func (fn *boundedMeanFloat64Fn) CreateAccumulator() (boundedMeanAccumFloat64, error) {
 	if fn.TestMode == noNoiseWithoutContributionBounding && !fn.EmptyPartitions {
 		fn.Lower = math.Inf(-1)
 		fn.Upper = math.Inf(1)
 	}
-	accum := boundedMeanAccumFloat64{
-		BM: dpagg.NewBoundedMeanFloat64(&dpagg.BoundedMeanFloat64Options{
-			Epsilon:                      fn.NoiseEpsilon,
-			Delta:                        fn.NoiseDelta,
-			MaxPartitionsContributed:     fn.MaxPartitionsContributed,
-			MaxContributionsPerPartition: fn.MaxContributionsPerPartition,
-			Lower:                        fn.Lower,
-			Upper:                        fn.Upper,
-			Noise:                        fn.noise,
-		}), PublicPartitions: fn.PublicPartitions}
+	var bm *dpagg.BoundedMeanFloat64
+	var err error
+	bm, err = dpagg.NewBoundedMeanFloat64(&dpagg.BoundedMeanFloat64Options{
+		Epsilon:                      fn.NoiseEpsilon,
+		Delta:                        fn.NoiseDelta,
+		MaxPartitionsContributed:     fn.MaxPartitionsContributed,
+		MaxContributionsPerPartition: fn.MaxContributionsPerPartition,
+		Lower:                        fn.Lower,
+		Upper:                        fn.Upper,
+		Noise:                        fn.noise,
+	})
+	if err != nil {
+		return boundedMeanAccumFloat64{}, err
+	}
+	accum := boundedMeanAccumFloat64{BM: bm, PublicPartitions: fn.PublicPartitions}
 	if !fn.PublicPartitions {
-		accum.SP = dpagg.NewPreAggSelectPartition(&dpagg.PreAggSelectPartitionOptions{
+		accum.SP, err = dpagg.NewPreAggSelectPartition(&dpagg.PreAggSelectPartitionOptions{
 			Epsilon:                  fn.PartitionSelectionEpsilon,
 			Delta:                    fn.PartitionSelectionDelta,
 			MaxPartitionsContributed: fn.MaxPartitionsContributed,
 		})
 	}
-	return accum
+	return accum, err
 }
 
-func (fn *boundedMeanFloat64Fn) AddInput(a boundedMeanAccumFloat64, values []float64) boundedMeanAccumFloat64 {
+func (fn *boundedMeanFloat64Fn) AddInput(a boundedMeanAccumFloat64, values []float64) (boundedMeanAccumFloat64, error) {
+	var err error
 	// We can have multiple values for each (privacy_key, partition_key) pair.
 	// We need to add each value to BoundedMean as input but we need to add a single input
 	// for each privacy_key to SelectPartition.
 	for _, v := range values {
-		a.BM.Add(v)
+		err = a.BM.Add(v)
+		if err != nil {
+			return a, err
+		}
 	}
 	if !fn.PublicPartitions {
-		a.SP.Increment()
+		err = a.SP.Increment()
 	}
-	return a
+	return a, err
 }
 
-func (fn *boundedMeanFloat64Fn) MergeAccumulators(a, b boundedMeanAccumFloat64) boundedMeanAccumFloat64 {
-	a.BM.Merge(b.BM)
+func (fn *boundedMeanFloat64Fn) MergeAccumulators(a, b boundedMeanAccumFloat64) (boundedMeanAccumFloat64, error) {
+	var err error
+	err = a.BM.Merge(b.BM)
+	if err != nil {
+		return a, err
+	}
 	if !fn.PublicPartitions {
-		a.SP.Merge(b.SP)
+		err = a.SP.Merge(b.SP)
 	}
-	return a
+	return a, err
 }
 
-func (fn *boundedMeanFloat64Fn) ExtractOutput(a boundedMeanAccumFloat64) *float64 {
+func (fn *boundedMeanFloat64Fn) ExtractOutput(a boundedMeanAccumFloat64) (*float64, error) {
 	if fn.TestMode.isEnabled() {
 		a.BM.NormalizedSum.Noise = noNoise{}
 		a.BM.Count.Noise = noNoise{}
 	}
-	if fn.TestMode.isEnabled() || a.PublicPartitions || a.SP.ShouldKeepPartition() {
-		result := a.BM.Result()
-		return &result
+	var err error
+	shouldKeepPartition := fn.TestMode.isEnabled() || a.PublicPartitions // If in test mode or public partitions are specified, we always keep the partition.
+	if !shouldKeepPartition {                                            // If not, we need to perform private partition selection.
+		shouldKeepPartition, err = a.SP.ShouldKeepPartition()
+		if err != nil {
+			return nil, err
+		}
 	}
-	return nil
+
+	if shouldKeepPartition {
+		result, err := a.BM.Result()
+		return &result, err
+	}
+	return nil, nil
 }
 
 func (fn *boundedMeanFloat64Fn) String() string {

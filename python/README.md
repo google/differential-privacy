@@ -23,7 +23,7 @@ either via Bazel or after installing the library using setup.py.
 ### Run with Bazel
 
 For running the example using Bazel, you need to have
-[Bazel installed](https://docs.bazel.build/versions/master/install.html).
+[Bazel installed](https://docs.bazel.build/versions/main/install.html).
 Once that is done, run:
 ```
 bazel build dp_accounting:all

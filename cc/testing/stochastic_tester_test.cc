@@ -45,7 +45,7 @@ class NonDpSum : public Algorithm<T> {
   void AddEntry(const T& t) override { result_ += t; }
 
   base::StatusOr<Output> GenerateResult(
-      double /*privacy_budget*/, double /*noise_interval_level*/) override {
+      double /*noise_interval_level*/) override {
     return MakeOutput<T>(result_);
   }
   void ResetState() override { result_ = 0; }
@@ -68,7 +68,7 @@ class NonDpCount : public Algorithm<T> {
   void AddEntry(const T& t) override { ++result_; }
 
   base::StatusOr<Output> GenerateResult(
-      double /*privacy_budget*/, double /*noise_interval_level*/) override {
+      double /*noise_interval_level*/) override {
     return MakeOutput<int64_t>(result_);
   }
   void ResetState() override { result_ = 0; }
@@ -119,13 +119,11 @@ class BoundedSumWithError : public BoundedSumWithFixedBounds<T> {
                                           delta, 1, 1, lower, upper)
                 .value()) {}
 
-  base::StatusOr<Output> GenerateResult(double privacy_budget,
-                                        double noise_interval_level) override {
+  base::StatusOr<Output> GenerateResult(double noise_interval_level) override {
     if (UniformDouble() < 0.25) {
       return absl::InvalidArgumentError("BoundedSumWithError returns error.");
     }
-    return BoundedSumWithFixedBounds<T>::GenerateResult(privacy_budget,
-                                                        noise_interval_level);
+    return BoundedSumWithFixedBounds<T>::GenerateResult(noise_interval_level);
   }
 };
 
@@ -137,12 +135,11 @@ class CountNoDpError : public Count<T> {
                           std::unique_ptr<NumericalMechanism> laplace_mechanism)
       : Count<T>(epsilon, 0, std::move(laplace_mechanism)) {}
 
-  base::StatusOr<Output> GenerateResult(double privacy_budget,
-                                        double noise_interval_level) override {
+  base::StatusOr<Output> GenerateResult(double noise_interval_level) override {
     if (Count<T>::GetCount() == 0) {
       return absl::InvalidArgumentError("CountNoDpError returns error.");
     }
-    return Count<T>::GenerateResult(privacy_budget, noise_interval_level);
+    return Count<T>::GenerateResult(noise_interval_level);
   }
 };
 
@@ -157,7 +154,7 @@ class AlwaysError : public Algorithm<T> {
   void AddEntry(const T& t) override {}
 
   base::StatusOr<Output> GenerateResult(
-      double /*privacy_budget*/, double /*noise_interval_level*/) override {
+      double /*noise_interval_level*/) override {
     return absl::InvalidArgumentError("AlwaysError returns error.");
   }
   void ResetState() override {}
@@ -200,6 +197,22 @@ TEST(StochasticTesterTest, SingleDatasetNonDpSumTest) {
                                   /*num_datasets=*/1,
                                   DefaultNumSamplesPerHistogram());
   EXPECT_FALSE(tester.Run());
+}
+
+TEST(StochasticTesterTest, EmptySamplesCountTest) {
+  std::vector<std::vector<double>> datasets({{1.0}});
+  auto sequence = absl::make_unique<StoredSequence<double>>(datasets);
+  base::StatusOr<std::unique_ptr<Count<double>>> algorithm =
+      Count<double>::Builder()
+          .SetLaplaceMechanism(
+              absl::make_unique<test_utils::SeededLaplaceMechanism::Builder>())
+          .SetEpsilon(std::log(3))
+          .Build();
+  ASSERT_TRUE(algorithm.ok());
+  StochasticTester<double, int64_t> tester(
+      std::move(*algorithm), std::move(sequence),
+      /*num_datasets=*/1, /*num_samples_per_histogram=*/0);
+  EXPECT_TRUE(tester.Run());
 }
 
 TEST(StochasticTesterTest, SingleDatasetCountTest) {

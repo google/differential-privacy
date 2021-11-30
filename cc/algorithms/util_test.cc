@@ -353,6 +353,12 @@ TEST(StatisticsTest, VectorStatistics) {
   EXPECT_EQ(OrderStatistic(1, a), 13);
 }
 
+TEST(StatisticTest, VectorStatistics) {
+  std::vector<double> a;
+  EXPECT_EQ(Mean(a), 0);
+  EXPECT_EQ(Variance(a), 0);
+}
+
 TEST(VectorUtilTest, VectorFilter) {
   std::vector<double> v = {1, 2, 2, 3};
   std::vector<bool> selection = {false, true, true, false};

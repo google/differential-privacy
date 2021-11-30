@@ -160,21 +160,16 @@ class BoundedSumWithFixedBounds : public BoundedSum<T> {
   std::optional<T> lower() const override { return lower_; }
 
   base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
-      double confidence_level, double privacy_budget = 1) override {
-    return mechanism_->NoiseConfidenceInterval(confidence_level,
-                                               privacy_budget);
+      double confidence_level) override {
+    return mechanism_->NoiseConfidenceInterval(confidence_level, 1.0);
   }
 
  protected:
-  base::StatusOr<Output> GenerateResult(double privacy_budget,
-                                        double noise_interval_level) override {
-    RETURN_IF_ERROR(ValidateIsPositive(privacy_budget, "Privacy budget",
-                                       absl::StatusCode::kFailedPrecondition));
-
+  base::StatusOr<Output> GenerateResult(double noise_interval_level) override {
     Output output;
 
     // Add noise to the sum.
-    double noisy_sum = mechanism_->AddNoise(partial_sum_, privacy_budget);
+    double noisy_sum = mechanism_->AddNoise(partial_sum_);
     if (std::is_integral<T>::value) {
       SafeOpResult<T> cast_result =
           SafeCastFromDouble<T>(std::round(noisy_sum));
@@ -185,7 +180,7 @@ class BoundedSumWithFixedBounds : public BoundedSum<T> {
 
     // Add noise confidence interval.
     base::StatusOr<ConfidenceInterval> interval =
-        NoiseConfidenceInterval(noise_interval_level, privacy_budget);
+        NoiseConfidenceInterval(noise_interval_level);
     if (interval.ok()) {
       output.mutable_error_report()->set_allocated_noise_confidence_interval(
           new ConfidenceInterval(*interval));
@@ -249,7 +244,7 @@ class BoundedSumWithApproxBounds : public BoundedSum<T> {
   // Noise confidence interval is not known before finalizing the algorithm as
   // we are using approx bounds.
   base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
-      double confidence_level, double privacy_budget = 1) override {
+      double confidence_level) override {
     return absl::InvalidArgumentError(
         "NoiseConfidenceInterval changes per result generation for "
         "automatically-determined sensitivity.");
@@ -335,17 +330,12 @@ class BoundedSumWithApproxBounds : public BoundedSum<T> {
   ApproxBounds<T>* GetApproxBoundsForTesting() { return approx_bounds_.get(); }
 
  protected:
-  base::StatusOr<Output> GenerateResult(double privacy_budget_fraction,
-                                        double noise_interval_level) override {
-    RETURN_IF_ERROR(ValidateIsPositive(privacy_budget_fraction,
-                                       "Privacy budget",
-                                       absl::StatusCode::kFailedPrecondition));
+  base::StatusOr<Output> GenerateResult(double noise_interval_level) override {
     Output output;
 
     // Get results of approximate bounds.
     ASSIGN_OR_RETURN(Output bounds,
-                     approx_bounds_->PartialResult(privacy_budget_fraction,
-                                                   noise_interval_level));
+                     approx_bounds_->PartialResult(noise_interval_level));
     const T approx_bounds_lower = GetValue<T>(bounds.elements(0).value());
     const T approx_bounds_upper = GetValue<T>(bounds.elements(1).value());
 
@@ -380,13 +370,12 @@ class BoundedSumWithApproxBounds : public BoundedSum<T> {
                    pos_sum_, neg_sum_, [](T x) { return x; }, lower, upper, 0));
 
     // Add noise to sum. Use the remaining privacy budget.
-    T noisy_sum = mechanism->AddNoise(sum, privacy_budget_fraction);
+    T noisy_sum = mechanism->AddNoise(sum);
     AddToOutput<T>(&output, noisy_sum);
 
     // Add noise confidence interval to the error report.
     base::StatusOr<ConfidenceInterval> interval =
-        mechanism->NoiseConfidenceInterval(noise_interval_level,
-                                           privacy_budget_fraction);
+        mechanism->NoiseConfidenceInterval(noise_interval_level, 1.0);
     if (interval.ok()) {
       output.mutable_error_report()->set_allocated_noise_confidence_interval(
           new ConfidenceInterval(*interval));

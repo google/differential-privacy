@@ -81,14 +81,19 @@ type SumParams struct {
 	// 	aggregating a metric by hour, you could provide a list of all possible
 	// 	hourly period.
 	// 	2. You use a differentially private operation to come up with the list of
-	// 	partitions. For example, you could use the keys of a DistinctPrivacyID
-	// 	operation as the list of public partitions.
+	// 	partitions. For example, you could use the output of a SelectPartitions
+	//  operation or the keys of a DistinctPrivacyID operation as the list of
+	//  public partitions.
 	//
-	// Note that current implementation limitations only allow up to millions of
-	// public partitions.
+	// PublicPartitions needs to be a beam.PCollection, slice, or array. The
+	// underlying type needs to match the partition type of the PrivatePCollection.
+	//
+	// Prefer slices or arrays if the list of public partitions is small and
+	// can fit into memory (e.g., up to a million). Prefer beam.PCollection
+	// otherwise.
 	//
 	// Optional.
-	PublicPartitions beam.PCollection
+	PublicPartitions interface{}
 }
 
 // SumPerKey sums the values associated with each key in a
@@ -96,12 +101,16 @@ type SumParams struct {
 // doing pre-aggregation thresholding to remove sums with a low number of
 // distinct privacy identifiers. Client can also specify a PCollection of partitions.
 //
-// Note: Do not use when your results may cause overflows for int64 and float64
-// values. This aggregation is not hardened for such applications yet.
+// It is also possible to manually specify the list of partitions
+// present in the output, in which case the partition selection/thresholding
+// step is skipped.
 //
 // SumPerKey transforms a PrivatePCollection<K,V> either into a
 // PCollection<K,int64> or a PCollection<K,float64>, depending on whether its
 // input is an integer type or a float type.
+//
+// Note: Do not use when your results may cause overflows for int64 and float64
+// values. This aggregation is not hardened for such applications yet.
 func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCollection {
 	s = s.Scope("pbeam.SumPerKey")
 	// Obtain & validate type information from the underlying PCollection<K,V>.
@@ -127,9 +136,9 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCo
 	} else {
 		noiseKind = params.NoiseKind.toNoiseKind()
 	}
-	err = checkSumPerKeyParams(params, epsilon, delta, noiseKind)
+	err = checkSumPerKeyParams(params, epsilon, delta, noiseKind, pcol.codec.KType.T)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("pbeam.SumPerKey: %v", err)
 	}
 
 	maxPartitionsContributed, err := getMaxPartitionsContributed(spec, params.MaxPartitionsContributed)
@@ -137,12 +146,9 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCo
 		log.Fatalf("Couldn't get MaxPartitionsContributed for SumPerKey: %v", err)
 	}
 	// Drop non-public partitions, if public partitions are specified.
-	if (params.PublicPartitions).IsValid() {
-		if pcol.codec.KType.T != (params.PublicPartitions).Type().Type() {
-			log.Fatalf("Public partitions must be of type %v. Got type %v instead.",
-				pcol.codec.KType.T, params.PublicPartitions.Type().Type())
-		}
-		pcol.col = dropNonPublicPartitionsKVFn(s, params.PublicPartitions, pcol, pcol.codec.KType)
+	pcol.col, err = dropNonPublicPartitions(s, pcol, params.PublicPartitions, pcol.codec.KType.T)
+	if err != nil {
+		log.Fatalf("Couldn't drop non-public partitions for SumPerKey: %v", err)
 	}
 	// First, group together the privacy ID and the partition ID, and sum the
 	// values per-privacy unit and per-partition.
@@ -185,7 +191,7 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCo
 		partialSumPairs,
 		beam.TypeDefinition{Var: beam.XType, T: partitionT})
 	// Add public partitions and return the aggregation output, if public partitions are specified.
-	if (params.PublicPartitions).IsValid() {
+	if params.PublicPartitions != nil {
 		return addPublicPartitionsForSum(s, epsilon, delta, maxPartitionsContributed,
 			params, noiseKind, vKind, partialSumKV, spec.testMode)
 	}
@@ -226,13 +232,16 @@ func addPublicPartitionsForSum(s beam.Scope, epsilon, delta float64, maxPartitio
 	sumsPartitions := beam.DropValue(s, sums)
 	// Create map with partitions in the data as keys.
 	partitionMap := beam.Combine(s, newPartitionsMapFn(beam.EncodedType{partitionT.Type()}), sumsPartitions)
-	partitionsCol := params.PublicPartitions
 	// Add value of 0 to each partition key in PublicPartitions.
-	addDummyValuesToPublicPartitions, err := newAddDummyValuesToPublicPartitionsFn(vKind)
+	addZeroValuesToPublicPartitions, err := newAddZeroValuesToPublicPartitionsFn(vKind)
 	if err != nil {
-		log.Fatalf("Couldn't get addDummyValuesToPublicPartitions for SumPerKey: %v", err)
+		log.Fatalf("Couldn't get addZeroValuesToPublicPartitions for SumPerKey: %v", err)
 	}
-	publicPartitionsWithValues := beam.ParDo(s, addDummyValuesToPublicPartitions, partitionsCol)
+	publicPartitions, isPCollection := params.PublicPartitions.(beam.PCollection)
+	if !isPCollection {
+		publicPartitions = beam.Reshuffle(s, beam.CreateList(s, params.PublicPartitions))
+	}
+	publicPartitionsWithValues := beam.ParDo(s, addZeroValuesToPublicPartitions, publicPartitions)
 	// emptyPublicPartitions are the partitions that are public but not found in the data.
 	emptyPublicPartitions := beam.ParDo(s, newEmitPartitionsNotInTheDataFn(partitionT), publicPartitionsWithValues, beam.SideInput{Input: partitionMap})
 	// Add noise to the empty public partitions.
@@ -261,24 +270,24 @@ func addPublicPartitionsForSum(s beam.Scope, epsilon, delta float64, maxPartitio
 	return allSums
 }
 
-func checkSumPerKeyParams(params SumParams, epsilon, delta float64, noiseKind noise.Kind) error {
-	err := checks.CheckEpsilon("pbeam.SumPerKey", epsilon)
+func checkSumPerKeyParams(params SumParams, epsilon, delta float64, noiseKind noise.Kind, partitionType reflect.Type) error {
+	err := checkPublicPartitions(params.PublicPartitions, partitionType)
 	if err != nil {
 		return err
 	}
-	if (params.PublicPartitions).IsValid() && noiseKind == noise.LaplaceNoise {
-		err = checks.CheckNoDelta("pbeam.SumPerKey", delta)
+	err = checks.CheckEpsilon(epsilon)
+	if err != nil {
+		return err
+	}
+	if params.PublicPartitions != nil && noiseKind == noise.LaplaceNoise {
+		err = checks.CheckNoDelta(delta)
 	} else {
-		err = checks.CheckDeltaStrict("pbeam.SumPerKey", delta)
+		err = checks.CheckDeltaStrict(delta)
 	}
 	if err != nil {
 		return err
 	}
-	err = checks.CheckBoundsFloat64("pbeam.SumPerKey", params.MinValue, params.MaxValue)
-	if err != nil {
-		return err
-	}
-	return checks.CheckMaxPartitionsContributed("pbeam.SumPerKey", params.MaxPartitionsContributed)
+	return checks.CheckBoundsFloat64(params.MinValue, params.MaxValue)
 }
 
 // prepareSumFn takes a PCollection<ID,kv.Pair{K,V}> as input, and returns a
@@ -313,7 +322,6 @@ func (fn *prepareSumFn) ProcessElement(id beam.W, pair kv.Pair) (kv.Pair, beam.V
 
 // findConvertFn gets the correct conversion to int64 or float64 function.
 func findConvertFn(t typex.FullType) (interface{}, error) {
-
 	switch t.Type().String() {
 	case "int":
 		return convertIntToInt64Fn, nil
@@ -340,7 +348,7 @@ func findConvertFn(t typex.FullType) (interface{}, error) {
 	case "float64":
 		return convertFloat64ToFloat64Fn, nil
 	default:
-		return nil, fmt.Errorf("pbeam.findConvertFn: unexpected value type %v", t)
+		return nil, fmt.Errorf("unexpected value type of %v", t)
 	}
 }
 
@@ -378,13 +386,13 @@ func convertUint64ToInt64Fn(z beam.Z, i uint64) (beam.Z, int64) {
 // getKind gets the return kind of the convertFn function.
 func getKind(fn interface{}) (reflect.Kind, error) {
 	if fn == nil {
-		return reflect.Invalid, fmt.Errorf("pbeam.getKind: fn is nil, should be a convertFn")
+		return reflect.Invalid, fmt.Errorf("convertFn is nil")
 	}
 	if reflect.TypeOf(fn).Kind() != reflect.Func {
-		return reflect.Invalid, fmt.Errorf("pbeam.getKind: fn is %v, should be a function", reflect.TypeOf(fn).Kind())
+		return reflect.Invalid, fmt.Errorf("convertFn is %v, should be a function", reflect.TypeOf(fn).Kind())
 	}
 	if reflect.TypeOf(fn).NumOut() < 2 {
-		return reflect.Invalid, fmt.Errorf("pbeam.getKind: fn has %v outputs, expected at least 2", reflect.TypeOf(fn).NumOut())
+		return reflect.Invalid, fmt.Errorf("convertFn has %v outputs, expected at least 2", reflect.TypeOf(fn).NumOut())
 	}
 	return reflect.TypeOf(fn).Out(1).Kind(), nil
 }
@@ -395,13 +403,13 @@ func newAddNoiseToEmptyPublicPartitionsFn(epsilon, delta float64, maxPartitionsC
 
 	switch vKind {
 	case reflect.Int64:
-		err = checks.CheckBoundsFloat64AsInt64("pbeam.newAddNoiseToEmptyPublicPartitionsFn", lower, upper)
+		err = checks.CheckBoundsFloat64AsInt64(lower, upper)
 		bsFn = newAddNoiseToEmptyPublicPartitionsInt64Fn(epsilon, delta, maxPartitionsContributed, int64(lower), int64(upper), noiseKind, testMode)
 	case reflect.Float64:
-		err = checks.CheckBoundsFloat64("pbeam.newAddNoiseToEmptyPublicPartitionsFn", lower, upper)
+		err = checks.CheckBoundsFloat64(lower, upper)
 		bsFn = newAddNoiseToEmptyPublicPartitionsFloat64Fn(epsilon, delta, maxPartitionsContributed, lower, upper, noiseKind, testMode)
 	default:
-		err = fmt.Errorf("pbeam.newAddNoiseToEmptyPublicPartitionsFn: vKind(%v) should be int64 or float64", vKind)
+		err = fmt.Errorf("vKind(%v) should be int64 or float64", vKind)
 	}
 
 	return bsFn, err
@@ -440,16 +448,20 @@ func (fn *addNoiseToEmptyPublicPartitionsInt64Fn) Setup() {
 	}
 }
 
-func (fn *addNoiseToEmptyPublicPartitionsInt64Fn) ProcessElement(partitionKey beam.X, _ int64) (beam.X, int64) {
-	noisedValue := dpagg.NewBoundedSumInt64(&dpagg.BoundedSumInt64Options{
+func (fn *addNoiseToEmptyPublicPartitionsInt64Fn) ProcessElement(partitionKey beam.X, _ int64) (beam.X, int64, error) {
+	bs, err := dpagg.NewBoundedSumInt64(&dpagg.BoundedSumInt64Options{
 		Epsilon:                  fn.NoiseEpsilon,
 		Delta:                    fn.NoiseDelta,
 		MaxPartitionsContributed: fn.MaxPartitionsContributed,
 		Lower:                    fn.Lower,
 		Upper:                    fn.Upper,
 		Noise:                    fn.noise,
-	}).Result()
-	return partitionKey, noisedValue
+	})
+	if err != nil {
+		return partitionKey, 0, err
+	}
+	noisedValue, err := bs.Result()
+	return partitionKey, noisedValue, err
 }
 
 // addNoiseToEmptyPublicPartitionsFloat64Fn adds integer noise to empty partitions.
@@ -485,14 +497,18 @@ func (fn *addNoiseToEmptyPublicPartitionsFloat64Fn) Setup() {
 	}
 }
 
-func (fn *addNoiseToEmptyPublicPartitionsFloat64Fn) ProcessElement(partitionKey beam.X, _ float64) (beam.X, float64) {
-	noisedValue := dpagg.NewBoundedSumFloat64(&dpagg.BoundedSumFloat64Options{
+func (fn *addNoiseToEmptyPublicPartitionsFloat64Fn) ProcessElement(partitionKey beam.X, _ float64) (beam.X, float64, error) {
+	bs, err := dpagg.NewBoundedSumFloat64(&dpagg.BoundedSumFloat64Options{
 		Epsilon:                  fn.NoiseEpsilon,
 		Delta:                    fn.NoiseDelta,
 		MaxPartitionsContributed: fn.MaxPartitionsContributed,
 		Lower:                    fn.Lower,
 		Upper:                    fn.Upper,
 		Noise:                    fn.noise,
-	}).Result()
-	return partitionKey, noisedValue
+	})
+	if err != nil {
+		return partitionKey, 0, err
+	}
+	noisedValue, err := bs.Result()
+	return partitionKey, noisedValue, err
 }

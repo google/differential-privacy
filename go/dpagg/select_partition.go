@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"math"
 
-	log "github.com/golang/glog"
 	"github.com/google/differential-privacy/go/checks"
 	"github.com/google/differential-privacy/go/noise"
 	"github.com/google/differential-privacy/go/rand"
@@ -116,7 +115,7 @@ type PreAggSelectPartitionOptions struct {
 }
 
 // NewPreAggSelectPartition constructs a new PreAggSelectPartition from opt.
-func NewPreAggSelectPartition(opt *PreAggSelectPartitionOptions) *PreAggSelectPartition {
+func NewPreAggSelectPartition(opt *PreAggSelectPartitionOptions) (*PreAggSelectPartition, error) {
 	s := PreAggSelectPartition{
 		epsilon:       opt.Epsilon,
 		delta:         opt.Delta,
@@ -128,27 +127,28 @@ func NewPreAggSelectPartition(opt *PreAggSelectPartitionOptions) *PreAggSelectPa
 		s.l0Sensitivity = 1
 	}
 
-	if err := checks.CheckDeltaStrict("dpagg.NewPreAggSelectPartition", s.delta); err != nil {
-		log.Fatalf("CheckDeltaStrict for %+v failed with %v", &s, err)
+	if err := checks.CheckDeltaStrict(s.delta); err != nil {
+		return nil, fmt.Errorf("NewPreAggSelectPartition: %v", err)
 	}
 	// ε=0 is theoretically acceptable, but in practice it's probably an error,
 	// so we do not accept it as argument.
-	if err := checks.CheckEpsilonStrict("dpagg.NewPreAggSelectPartition", s.epsilon); err != nil {
-		log.Fatalf("CheckEpsilonStrict for %+v failed with %v", &s, err)
+	if err := checks.CheckEpsilonStrict(s.epsilon); err != nil {
+		return nil, fmt.Errorf("NewPreAggSelectPartition: %v", err)
 	}
-	if err := checks.CheckL0Sensitivity("dpagg.NewPreAggSelectPartition", s.l0Sensitivity); err != nil {
-		log.Fatalf("CheckL0Sensitivity for %+v failed with %v", &s, err)
+	if err := checks.CheckL0Sensitivity(s.l0Sensitivity); err != nil {
+		return nil, fmt.Errorf("NewPreAggSelectPartition: %v", err)
 	}
-	return &s
+	return &s, nil
 }
 
 // Increment increments the ids count by one.
 // The caller must ensure this methods called at most once per privacy ID.
-func (s *PreAggSelectPartition) Increment() {
+func (s *PreAggSelectPartition) Increment() error {
 	if s.state != defaultState {
-		log.Fatalf("PreAggSelectPartition cannot be amended. Reason: %v", s.state.errorMessage())
+		return fmt.Errorf("PreAggSelectPartition cannot be amended: %v", s.state.errorMessage())
 	}
 	s.idCount++
+	return nil
 }
 
 // Merge merges s2 into s (i.e., add the idCount of s2 to s). This implicitly
@@ -157,21 +157,22 @@ func (s *PreAggSelectPartition) Increment() {
 //
 // Preconditions: s and s2 must have the same privacy parameters. In addition,
 // ShouldKeepPartition() may not be called yet for either s or s2.
-func (s *PreAggSelectPartition) Merge(s2 *PreAggSelectPartition) {
+func (s *PreAggSelectPartition) Merge(s2 *PreAggSelectPartition) error {
 	if err := checkMergePreAggSelectPartition(s, s2); err != nil {
-		log.Exit(err)
+		return err
 	}
 
 	s.idCount += s2.idCount
 	s2.state = merged
+	return nil
 }
 
 func checkMergePreAggSelectPartition(s1, s2 *PreAggSelectPartition) error {
 	if s1.state != defaultState {
-		return fmt.Errorf("checkMergePreAggSelectPartition: s1 cannot be merged with another PreAggSelectPartition instance. Reason: %v", s1.state.errorMessage())
+		return fmt.Errorf("checkMergePreAggSelectPartition: s1 cannot be merged with another PreAggSelectPartition instance: %v", s1.state.errorMessage())
 	}
 	if s2.state != defaultState {
-		return fmt.Errorf("checkMergePreAggSelectPartition: s2 cannot be merged with another PreAggSelectPartition instance. Reason: %v", s2.state.errorMessage())
+		return fmt.Errorf("checkMergePreAggSelectPartition: s2 cannot be merged with another PreAggSelectPartition instance: %v", s2.state.errorMessage())
 	}
 
 	if !preAggSelectPartitionEquallyInitialized(s1, s2) {
@@ -182,21 +183,35 @@ func checkMergePreAggSelectPartition(s1, s2 *PreAggSelectPartition) error {
 }
 
 // ShouldKeepPartition returns whether the partition should be materialized.
-func (s *PreAggSelectPartition) ShouldKeepPartition() bool {
+func (s *PreAggSelectPartition) ShouldKeepPartition() (bool, error) {
 	if s.state != defaultState {
-		log.Fatalf("PreAggSelectPartition's ShouldKeepPartition cannot be computed. Reason: %v", s.state.errorMessage())
+		return false, fmt.Errorf("PreAggSelectPartition's ShouldKeepPartition cannot be computed: %v", s.state.errorMessage())
 	}
 	s.state = resultReturned
 	if s.l0Sensitivity > 3 { // Gaussian thresholding outperforms in this case.
-		c := NewCount(&CountOptions{
+		c, err := NewCount(&CountOptions{
 			Epsilon:                  s.epsilon,
 			Delta:                    s.delta / 2,
 			MaxPartitionsContributed: s.l0Sensitivity,
 			Noise:                    noise.Gaussian()})
-		c.IncrementBy(s.idCount)
-		return c.ThresholdedResult(s.delta/2) != nil
+		if err != nil {
+			return false, fmt.Errorf("couldn't initialize count for PreAggSelectPartition: %v", err)
+		}
+		err = c.IncrementBy(s.idCount)
+		if err != nil {
+			return false, fmt.Errorf("couldn't increment count for PreAggSelectPartition: %v", err)
+		}
+		result, err := c.ThresholdedResult(s.delta / 2)
+		if err != nil {
+			return false, fmt.Errorf("couldn't compute thresholded result for PreAggSelectPartition: %v", err)
+		}
+		return result != nil, nil
 	}
-	return rand.Uniform() < keepPartitionProbability(s.idCount, s.l0Sensitivity, s.epsilon, s.delta)
+	prob, err := keepPartitionProbability(s.idCount, s.l0Sensitivity, s.epsilon, s.delta)
+	if err != nil {
+		return false, fmt.Errorf("couldn't compute keepPartitionProbability for PreAggSelectPartition: %v", err)
+	}
+	return rand.Uniform() < prob, nil
 }
 
 // sumExpPowers returns the evaluation of
@@ -204,12 +219,12 @@ func (s *PreAggSelectPartition) ShouldKeepPartition() bool {
 //
 // sumExpPowers requires ε >= 0. sumExpPowers may return +∞, but does not return
 // NaN.
-func sumExpPowers(epsilon float64, minPower, numPowers int64) float64 {
-	if err := checks.CheckEpsilon("sumExpPowers", epsilon); err != nil {
-		log.Fatalf("CheckEpsilon failed with %v", err)
+func sumExpPowers(epsilon float64, minPower, numPowers int64) (float64, error) {
+	if err := checks.CheckEpsilon(epsilon); err != nil {
+		return 0, fmt.Errorf("sumExpPowers: %v", err)
 	}
 	if numPowers <= 0 {
-		log.Fatalf("numPowers must be > 0. Provided value: %d", numPowers)
+		return 0, fmt.Errorf("sumExpPowers: numPowers (%d) must be > 0", numPowers)
 	}
 
 	// expEpsilonPow returns exp(a * epsilon).
@@ -218,13 +233,13 @@ func sumExpPowers(epsilon float64, minPower, numPowers int64) float64 {
 	}
 
 	if math.IsInf(expEpsilonPow(minPower), 1) {
-		return math.Inf(1)
+		return math.Inf(1), nil
 	}
 	// In the case ε=0, sumExpPowers is simply numPowers. We use exp(-ε) = 1 to
 	// identify this case because our closed form solutions would otherwise
 	// result in division by 0 under finite precision arithmetic.
 	if math.Exp(-epsilon) == 1 {
-		return float64(numPowers)
+		return float64(numPowers), nil
 	}
 
 	// For the general case, we use a closed form solution to a geometric
@@ -253,20 +268,20 @@ func sumExpPowers(epsilon float64, minPower, numPowers int64) float64 {
 	// satisfies 0 < (1-exp(-ε)) <= 1. The result of (2) is never NaN and
 	// only achieves +∞ when necessary overall.
 	if minPower >= 1 {
-		return expEpsilonPow(minPower-1) * (expEpsilonPow(numPowers) - 1) / (1 - expEpsilonPow(-1))
+		return expEpsilonPow(minPower-1) * (expEpsilonPow(numPowers) - 1) / (1 - expEpsilonPow(-1)), nil
 	}
-	return (expEpsilonPow(numPowers+minPower-1) - expEpsilonPow(minPower-1)) / (1 - expEpsilonPow(-1))
+	return (expEpsilonPow(numPowers+minPower-1) - expEpsilonPow(minPower-1)) / (1 - expEpsilonPow(-1)), nil
 }
 
 // keepPartitionProbability calculates the value of keepPartitionProbability
 // from PreAggSelectPartition's godoc comment.
-func keepPartitionProbability(idCount, l0Sensitivity int64, epsilon, delta float64) float64 {
+func keepPartitionProbability(idCount, l0Sensitivity int64, epsilon, delta float64) (float64, error) {
 	// Per-partition (ε,δ) privacy loss.
 	pEpsilon := epsilon / float64(l0Sensitivity)
 	pDelta := delta / float64(l0Sensitivity)
 
 	if idCount == 0 {
-		return 0
+		return 0, nil
 	}
 
 	// In keepPartitionProbability's recurrence formula (see Theorem 1 in the
@@ -280,15 +295,27 @@ func keepPartitionProbability(idCount, l0Sensitivity int64, epsilon, delta float
 
 	if idCount <= nCr {
 		// Closed form solution of keepPartitionProbability(n) on [0, nCr].
-		return pDelta * sumExpPowers(pEpsilon, 0, idCount)
+		sum, err := sumExpPowers(pEpsilon, 0, idCount)
+		if err != nil {
+			return 0, err
+		}
+		return pDelta * sum, nil
 	}
 
-	selectPartitionPrNCr := pDelta * sumExpPowers(pEpsilon, 0, nCr)
+	sum, err := sumExpPowers(pEpsilon, 0, nCr)
+	if err != nil {
+		return 0, err
+	}
+	selectPartitionPrNCr := pDelta * sum
 	// Compute form solution of keepPartitionProbability(n) on the domain (nCr, ∞).
 	m := idCount - nCr
+	sum, err = sumExpPowers(pEpsilon, -m, m)
+	if err != nil {
+		return 0, err
+	}
 	return math.Min(
-		1+math.Exp(-float64(m)*pEpsilon)*(selectPartitionPrNCr-1)+sumExpPowers(pEpsilon, -m, m)*pDelta,
-		1)
+		1+math.Exp(-float64(m)*pEpsilon)*(selectPartitionPrNCr-1)+sum*pDelta,
+		1), nil
 }
 
 // GetHardThreshold returns a threshold k, where if there are at least
@@ -299,10 +326,14 @@ func keepPartitionProbability(idCount, l0Sensitivity int64, epsilon, delta float
 // of not keeping the partition if it has at least k privacy units, whereas
 // with the post-aggregation threshold there is a non-zero probability
 // (however small).
-func (s *PreAggSelectPartition) GetHardThreshold() int {
+func (s *PreAggSelectPartition) GetHardThreshold() (int, error) {
 	for i := int64(1); ; i++ {
-		if keepPartitionProbability(i, s.l0Sensitivity, s.epsilon, s.delta) >= 1 { // keepPartitionProbability converges to 1.
-			return int(i)
+		prob, err := keepPartitionProbability(i, s.l0Sensitivity, s.epsilon, s.delta)
+		if err != nil {
+			return 0, err
+		}
+		if prob >= 1 { // keepPartitionProbability converges to 1.
+			return int(i), nil
 		}
 	}
 }
@@ -319,7 +350,7 @@ type encodablePreAggSelectPartition struct {
 // GobEncode encodes PreAggSelectPartition.
 func (s *PreAggSelectPartition) GobEncode() ([]byte, error) {
 	if s.state != defaultState && s.state != serialized {
-		return nil, fmt.Errorf("PreAggSelectPartition object cannot be serialized. Reason: " + s.state.errorMessage())
+		return nil, fmt.Errorf("PreAggSelectPartition object cannot be serialized: " + s.state.errorMessage())
 	}
 	enc := encodablePreAggSelectPartition{
 		Epsilon:       s.epsilon,
@@ -336,6 +367,9 @@ func (s *PreAggSelectPartition) GobEncode() ([]byte, error) {
 func (s *PreAggSelectPartition) GobDecode(data []byte) error {
 	var enc encodablePreAggSelectPartition
 	err := decode(&enc, data)
+	if err != nil {
+		return fmt.Errorf("couldn't decode PreAggSelectPartition from bytes")
+	}
 	*s = PreAggSelectPartition{
 		epsilon:       enc.Epsilon,
 		delta:         enc.Delta,
@@ -343,5 +377,5 @@ func (s *PreAggSelectPartition) GobDecode(data []byte) error {
 		idCount:       enc.IDCount,
 		state:         enc.State,
 	}
-	return err
+	return nil
 }

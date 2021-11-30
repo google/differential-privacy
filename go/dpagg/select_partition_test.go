@@ -56,7 +56,14 @@ func TestPreAggSelectPartitionSerialization(t *testing.T) {
 			MaxPartitionsContributed: 5,
 		}},
 	} {
-		s, sUnchanged := NewPreAggSelectPartition(tc.opts), NewPreAggSelectPartition(tc.opts)
+		s, err := NewPreAggSelectPartition(tc.opts)
+		if err != nil {
+			t.Errorf("Couldn't initialize s: %v", err)
+		}
+		sUnchanged, err := NewPreAggSelectPartition(tc.opts)
+		if err != nil {
+			t.Errorf("Couldn't initialize sUnchanged: %v", err)
+		}
 		bytes, err := encode(s)
 		if err != nil {
 			t.Fatalf("encode failed: %v", err)
@@ -87,7 +94,10 @@ func TestPreAggSelectPartitionSerializationStateChecks(t *testing.T) {
 		{serialized, false},
 		{resultReturned, true},
 	} {
-		s := NewPreAggSelectPartition(&PreAggSelectPartitionOptions{Epsilon: 1, Delta: 0.1})
+		s, err := NewPreAggSelectPartition(&PreAggSelectPartitionOptions{Epsilon: 1, Delta: 0.1})
+		if err != nil {
+			t.Errorf("Couldn't initialize s: %v", err)
+		}
 		s.state = tc.state
 
 		if _, err := s.GobEncode(); (err != nil) != tc.wantErr {
@@ -191,7 +201,10 @@ func TestPreAggSelectPartitionKeepPartitionProbability(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			for privacyIDCount, wantProbability := range tc.want {
-				gotProbability := keepPartitionProbability(privacyIDCount, tc.l0Sensitivity, tc.epsilon, tc.delta)
+				gotProbability, err := keepPartitionProbability(privacyIDCount, tc.l0Sensitivity, tc.epsilon, tc.delta)
+				if err != nil {
+					t.Errorf("Couldn't compute keepPartitionProbability: %v", err)
+				}
 				if !approxEqual(gotProbability, wantProbability) {
 					t.Errorf("keepPartitionProbability(%d, %d, %e, %e) = %e, want: %e",
 						privacyIDCount, tc.l0Sensitivity, tc.epsilon, tc.delta, gotProbability, wantProbability)
@@ -260,7 +273,10 @@ func TestSumExpPowers(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got := sumExpPowers(tc.epsilon, tc.minPower, tc.numPowers)
+			got, err := sumExpPowers(tc.epsilon, tc.minPower, tc.numPowers)
+			if err != nil {
+				t.Errorf("Couldn't compute sumExpPowers: %v", err)
+			}
 			if !approxEqual(got, tc.want) {
 				t.Errorf("sumExpPowers(%g, %d, %d) = %g, want %g",
 					tc.epsilon, tc.minPower, tc.numPowers, got, tc.want)
@@ -353,11 +369,18 @@ func TestPreAggSelectPartition(t *testing.T) {
 			for testAttempt := 0; testAttempt <= tc.retriesForFlakiness; testAttempt++ {
 				var selections int
 				for trial := 0; trial < tc.numTrials; trial++ {
-					s := NewPreAggSelectPartition(tc.opts)
+					s, err := NewPreAggSelectPartition(tc.opts)
+					if err != nil {
+						t.Errorf("Couldn't initialize s: %v", err)
+					}
 					for i := int64(0); i < tc.privacyIDCount; i++ {
 						s.Increment()
 					}
-					if s.ShouldKeepPartition() {
+					should, err := s.ShouldKeepPartition()
+					if err != nil {
+						t.Errorf("Couldn't compute ShouldKeepPartition: %v", err)
+					}
+					if should {
 						selections++
 					}
 				}
@@ -384,15 +407,24 @@ func TestMergePreAggSelectPartition(t *testing.T) {
 		state:         defaultState,
 	}
 
-	s1 := NewPreAggSelectPartition(&PreAggSelectPartitionOptions{Epsilon: 0.1, Delta: 0.2})
-	s2 := NewPreAggSelectPartition(&PreAggSelectPartitionOptions{Epsilon: 0.1, Delta: 0.2})
+	s1, err := NewPreAggSelectPartition(&PreAggSelectPartitionOptions{Epsilon: 0.1, Delta: 0.2})
+	if err != nil {
+		t.Errorf("Couldn't initialize s1: %v", err)
+	}
+	s2, err := NewPreAggSelectPartition(&PreAggSelectPartitionOptions{Epsilon: 0.1, Delta: 0.2})
+	if err != nil {
+		t.Errorf("Couldn't initialize s2: %v", err)
+	}
 	for i := 0; i < 5; i++ {
 		s1.Increment()
 	}
 	for i := 0; i < 3; i++ {
 		s2.Increment()
 	}
-	s1.Merge(s2)
+	err = s1.Merge(s2)
+	if err != nil {
+		t.Fatalf("Couldn't merge s1 and s2: %v", err)
+	}
 
 	if !reflect.DeepEqual(wantFinalS1, s1) {
 		t.Errorf("s1: want %v, got %v", wantFinalS1, s1)
@@ -455,8 +487,14 @@ func TestPreAggSelectPartitionCheckMergeStateChecks(t *testing.T) {
 		{defaultState, merged, true},
 		{merged, defaultState, true},
 	} {
-		s1 := NewPreAggSelectPartition(&PreAggSelectPartitionOptions{Epsilon: 1, Delta: 0.1})
-		s2 := NewPreAggSelectPartition(&PreAggSelectPartitionOptions{Epsilon: 1, Delta: 0.1})
+		s1, err := NewPreAggSelectPartition(&PreAggSelectPartitionOptions{Epsilon: 1, Delta: 0.1})
+		if err != nil {
+			t.Errorf("Couldn't initialize s1: %v", err)
+		}
+		s2, err := NewPreAggSelectPartition(&PreAggSelectPartitionOptions{Epsilon: 1, Delta: 0.1})
+		if err != nil {
+			t.Errorf("Couldn't initialize s2: %v", err)
+		}
 
 		s1.state = tc.state1
 		s2.state = tc.state2
@@ -468,8 +506,14 @@ func TestPreAggSelectPartitionCheckMergeStateChecks(t *testing.T) {
 }
 
 func TestPreAggSelectPartitionResultSetsStateCorrectly(t *testing.T) {
-	s := NewPreAggSelectPartition(&PreAggSelectPartitionOptions{Epsilon: 1, Delta: 0.1})
-	s.ShouldKeepPartition()
+	s, err := NewPreAggSelectPartition(&PreAggSelectPartitionOptions{Epsilon: 1, Delta: 0.1})
+	if err != nil {
+		t.Errorf("Couldn't initialize s: %v", err)
+	}
+	_, err = s.ShouldKeepPartition()
+	if err != nil {
+		t.Errorf("Couldn't compute ShouldKeepPartition: %v", err)
+	}
 
 	if s.state != resultReturned {
 		t.Errorf("PreAggSelectPartition should have its state set to ResultReturned, got %v, want ResultReturned", s.state)

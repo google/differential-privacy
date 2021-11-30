@@ -242,26 +242,18 @@ class BoundedVarianceWithFixedBounds : public BoundedVariance<T> {
   }
 
  protected:
-  base::StatusOr<Output> GenerateResult(double privacy_budget_fraction,
-                                        double noise_interval_level) override {
-    RETURN_IF_ERROR(ValidateIsPositive(privacy_budget_fraction,
-                                       "Privacy budget",
-                                       absl::StatusCode::kFailedPrecondition));
-
+  base::StatusOr<Output> GenerateResult(double noise_interval_level) override {
     const double sum_midpoint = lower_ + ((upper_ - lower_) / 2);
     const double sum_of_squares_midpoint =
         BoundedVariance<T>::MidpointOfSquares(lower_, upper_);
 
-    const double noised_count =
-        count_mechanism_->AddNoise(partial_count_, privacy_budget_fraction);
-    const double noised_normalized_sum =
-        sum_mechanism_->AddNoise(partial_sum_ - (partial_count_ * sum_midpoint),
-                                 privacy_budget_fraction);
+    const double noised_count = count_mechanism_->AddNoise(partial_count_);
+    const double noised_normalized_sum = sum_mechanism_->AddNoise(
+        partial_sum_ - (partial_count_ * sum_midpoint));
     const double noised_normalized_sum_of_squares =
         sum_of_squares_mechanism_->AddNoise(
             partial_sum_of_squares_ -
-                (partial_count_ * sum_of_squares_midpoint),
-            privacy_budget_fraction);
+            (partial_count_ * sum_of_squares_midpoint));
 
     double mean;
     double mean_of_squares;
@@ -440,16 +432,11 @@ class BoundedVarianceWithApproxBounds : public BoundedVariance<T> {
   ApproxBounds<T>* GetApproxBoundsForTesting() { return approx_bounds_.get(); }
 
  private:
-  base::StatusOr<Output> GenerateResult(double privacy_budget_fraction,
-                                        double noise_interval_level) override {
-    RETURN_IF_ERROR(ValidateIsPositive(privacy_budget_fraction,
-                                       "Privacy budget",
-                                       absl::StatusCode::kFailedPrecondition));
+  base::StatusOr<Output> GenerateResult(double noise_interval_level) override {
     Output output;
 
     ASSIGN_OR_RETURN(Output bounds,
-                     approx_bounds_->PartialResult(privacy_budget_fraction,
-                                                   noise_interval_level));
+                     approx_bounds_->PartialResult(noise_interval_level));
     const T lower = GetValue<T>(bounds.elements(0).value());
     const T upper = GetValue<T>(bounds.elements(1).value());
     RETURN_IF_ERROR(BoundedVariance<T>::CheckBounds(lower, upper));
@@ -471,8 +458,7 @@ class BoundedVarianceWithApproxBounds : public BoundedVariance<T> {
     *(output.mutable_error_report()->mutable_bounding_report()) =
         approx_bounds_->GetBoundingReport(lower, upper);
 
-    const double noised_count =
-        count_mechanism_->AddNoise(partial_count_, privacy_budget_fraction);
+    const double noised_count = count_mechanism_->AddNoise(partial_count_);
 
     // Calculate noised normalized sum
     const T sum_midpoint = lower + ((upper - lower) / 2);
@@ -481,8 +467,8 @@ class BoundedVarianceWithApproxBounds : public BoundedVariance<T> {
         BoundedVariance<T>::BuildSumMechanism(
             mechanism_builder_->Clone(), epsilon_for_sum_, l0_sensitivity_,
             max_contributions_per_partition_, lower, upper));
-    const double noised_normalized_sum = sum_mechanism->AddNoise(
-        sum - (partial_count_ * sum_midpoint), privacy_budget_fraction);
+    const double noised_normalized_sum =
+        sum_mechanism->AddNoise(sum - (partial_count_ * sum_midpoint));
 
     // Calculate noised normalized sum of squares.
     const double sum_of_squares_midpoint =
@@ -494,8 +480,7 @@ class BoundedVarianceWithApproxBounds : public BoundedVariance<T> {
             max_contributions_per_partition_, lower, upper));
     const double noised_normalized_sum_of_squares =
         sum_of_squares_mechanism->AddNoise(
-            sum_of_squares - (partial_count_ * sum_of_squares_midpoint),
-            privacy_budget_fraction);
+            sum_of_squares - (partial_count_ * sum_of_squares_midpoint));
 
     // Calculate the result from the noised values.  From this point everything
     // should be post-processing.

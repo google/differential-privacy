@@ -43,7 +43,7 @@ could violate DP.
 ## Error codes
 
 Our libraries use
-[Abseil error codes](https://github.com/abseil/abseil-cpp/blob/master/absl/status/status.h#L90)
+[Abseil error codes](https://github.com/abseil/abseil-cpp/blob/20210324.0/absl/status/status.h#L91)
 for the following circumstances:
 
 *   `UNIMPLEMENTED` indicates the functionality is not yet supported by the

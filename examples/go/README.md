@@ -154,15 +154,21 @@ single day.
 
 ```go
 const (
-    // TODO: Clarify why we're assuming 3 average visits per week, and why we're calling it a max
-    // An estimate of how many times on average a visitor may enter the restaurant per week
+    // An upper limit of visits per week for a single person. Visits over this
+    // limit will be dropped and ignored in the final statistics.
+    //
+    // Higher values result into less visits being dropped (and therefore less
+    // bias) at the cost of higher noise. A good value should estimate how many
+    // times a typical visitor may enter the restaurant per week. Getting
+    // this right helps adding optimal amount of noise without losing too much
+    // data.
     maxThreeVisitsPerWeek = 3
 )
 
 for _, day := range weekDays {
     // Construct dpagg.Count objects, which will be used to calculate DP counts.
     // One Count is created for every work hour.
-    dayToDpCount[day] = dpagg.NewCount(&dpagg.CountOptions{
+    dayToDpCount[day], err = dpagg.NewCount(&dpagg.CountOptions{
         Epsilon: ln3,
         // The data was pre-processed so that
         // each visitor may visit the restaurant up to maxThreeVisitsPerWeek times per week.
@@ -175,6 +181,9 @@ for _, day := range weekDays {
         MaxPartitionsContributed: maxThreeVisitsPerWeek,
         Noise:                    noise.Laplace(),
     })
+    if err != nil {
+        // Handle errors
+    }
 }
 
 // Pre-process the data set by limiting the number of visits to
@@ -187,7 +196,10 @@ for _, visit := range boundedVisits {
 
 // Run dpagg.Count to calculate a differentially private result
 for day, dpCount := range dayToDpCount {
-    privateCounts[day] = dpCount.Result()
+    privateCounts[day], err = dpCount.Result()
+    if err != nil {
+        // Handle errors
+    }
 }
 ```
 
@@ -261,15 +273,22 @@ const (
     // An estimate of how many times on average a visitor may enter the restaurant per week
     maxFourVisitsPerWeek = 4
     minEurosSpent = 0
-    // TODO: Clarify why we're limiting how much money may be spent.
+
     // Maximum amount of money we expect a visitor to spend on a single visit.
+    // This limit is used to choose the amount of noise required to "mask"
+    // participation of a single user. This is required to ensure that
+    // differential privacy guarantees hold for all the users in the dataset,
+    // including outliers.
+    //
+    // Higher limits result into less values being "cut-off" (and therefore less
+    // bias) at the cost of higher noise.
     maxEurosSpent = 50
 )
 
 for _, day := range weekDays {
     // Construct dpagg.BoundedSumInt64 objects which will be used to calculate DP sums.
     // One dpagg.BoundedSumInt64 is created for every day.
-    dayToBoundedSum[day] = dpagg.NewBoundedSumInt64(&dpagg.BoundedSumInt64Options{
+    dayToBoundedSum[day], err = dpagg.NewBoundedSumInt64(&dpagg.BoundedSumInt64Options{
         Epsilon: ln3,
         // The data was pre-processed so that
         // each visitor may visit the restaurant up to maxFourVisitsPerWeek times per week.
@@ -285,6 +304,9 @@ for _, day := range weekDays {
         Upper: maxEurosSpent,
         Noise: noise.Laplace(),
     })
+    if err != nil {
+        // Handle errors
+    }
     privateSums[day] = 0
 }
 
@@ -297,7 +319,10 @@ for _, visit := range boundedVisits {
 
 // Calculate DP result.
 for day, boundedSum := range dayToBoundedSum {
-    privateSums[day] = boundedSum.Result()
+    privateSums[day], err = boundedSum.Result()
+    if err != nil {
+        // Handle errors
+    }
 }
 ```
 
@@ -422,11 +447,14 @@ for _, visit := range boundedVisits {
     // because we must split epsilon between all the functions that apply
     // differential privacy, which, in this case, is 2 functions:
     // BoundedSumInt64 and PreAggSelectPartition.
-    durationToSelectPartition[duration] = dpagg.NewPreAggSelectPartition(&dpagg.PreAggSelectPartitionOptions{
+    durationToSelectPartition[duration], err = dpagg.NewPreAggSelectPartition(&dpagg.PreAggSelectPartitionOptions{
         Epsilon:                  ln3 / 2,
         Delta:                    0.02,
         MaxPartitionsContributed: maxVisitsPerWeek,
     })
+    if err != nil {
+        // Handle errors
+    }
 
     // Construct dpagg.BoundedSumInt64 objects, which will be used to calculate DP
     // counts with multiple contributions from a single privacy unit (visitor).
@@ -434,13 +462,16 @@ for _, visit := range boundedVisits {
     // We use epsilon = log(3) / 2 in this example,
     // because we must split epslion between all the functions that apply differential privacy,
     // which, in this case, is 2 functions: BoundedSumInt64 and PreAggSelectPartition.
-    durationToBoundedSum[duration] = dpagg.NewBoundedSumInt64(&dpagg.BoundedSumInt64Options{
+    durationToBoundedSum[duration], err = dpagg.NewBoundedSumInt64(&dpagg.BoundedSumInt64Options{
         Epsilon: ln3 / 2,
         MaxPartitionsContributed: maxVisitsPerWeek,
         Lower: 0,
         Upper: maxVisitsPerWeek,
         Noise: noise.Laplace(),
     })
+    if err != nil {
+        // Handle errors
+    }
 }
 
 for _, visits := range visitorIDToDurationToVisitCount {
@@ -458,7 +489,10 @@ for duration, boundedSum := range durationToBoundedSum {
     // then it will appear in the result statistics table.
     // Otherwise, the duration's partition is simply dropped and excluded from the result.
     if durationToSelectPartition[duration].ShouldKeepPartition() {
-        privateSums[duration] = boundedSum.Result()
+        privateSums[duration], err = boundedSum.Result()
+        if err != nil {
+            // Handle errors
+        }
     }
 }
 ```
@@ -501,7 +535,10 @@ for duration, boundedSum := range durationToBoundedSum {
     // Otherwise, the duration's partition is simply dropped and excluded from the result.
     keepPartition := durationToSelectPartition[duration].ShouldKeepPartition()
     if keepPartition {
-        privateSums[duration] = boundedSum.Result()
+        privateSums[duration], err = boundedSum.Result()
+        if err != nil {
+            // Handle errors
+        }
     }
 }
 ```

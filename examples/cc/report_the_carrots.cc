@@ -56,19 +56,18 @@ int main(int argc, char **argv) {
       "eaten. The animals know the true sum but report the "
       "differentially private sum to Farmer Fred. But first, they ensure "
       "that Farmer Fred still has privacy budget left.\n");
-  PrintF("\nPrivacy budget remaining: %.2f\n", reporter.PrivacyBudget());
+  PrintF("\nPrivacy budget remaining: %.2f\n", reporter.RemainingEpsilon());
   PrintF("True sum: %d\n", reporter.Sum());
-  PrintF("DP sum:   %d\n",
-         GetValue<int>(reporter.PrivateSum(.25).ValueOrDie()));
+  PrintF("DP sum:   %d\n", GetValue<int>(reporter.PrivateSum(1).ValueOrDie()));
 
   // Query for the mean with a bounding report.
   PrintF(
       "\nFarmer Fred catches on that the animals are giving him DP results. "
       "He asks for the mean number of carrots eaten, but this time, he wants "
       "some additional accuracy information to build his intuition.\n");
-  PrintF("\nPrivacy budget remaining: %.2f\n", reporter.PrivacyBudget());
+  PrintF("\nPrivacy budget remaining: %.2f\n", reporter.RemainingEpsilon());
   PrintF("True mean: %.2f\n", reporter.Mean());
-  StatusOr<Output> mean_status = reporter.PrivateMean(.25);
+  StatusOr<Output> mean_status = reporter.PrivateMean(1);
   if (!mean_status.ok()) {
     PrintF("Error obtaining mean: %s\n", mean_status.status().message());
     PrintF(
@@ -100,8 +99,8 @@ int main(int argc, char **argv) {
     PrintF(
         "\nFred wonders how many gluttons are in his zoo. How many animals ate "
         "over 90 carrots? And how accurate is the result?\n");
-    PrintF("\nPrivacy budget remaining: %.2f\n", reporter.PrivacyBudget());
-    Output count_output = reporter.PrivateCountAbove(.25, 90).ValueOrDie();
+    PrintF("\nPrivacy budget remaining: %.2f\n", reporter.RemainingEpsilon());
+    Output count_output = reporter.PrivateCountAbove(1, 90).ValueOrDie();
     int count = GetValue<int>(count_output);
     ConfidenceInterval ci =
         count_output.error_report().noise_confidence_interval();
@@ -121,18 +120,17 @@ int main(int argc, char **argv) {
       "\n'And how gluttonous is the biggest glutton of them all?' Fred "
       "exclaims. He asks for the maximum number of carrots any animal has "
       "eaten.\n");
-  PrintF("\nPrivacy budget remaining: %.2f\n", reporter.PrivacyBudget());
+  PrintF("\nPrivacy budget remaining: %.2f\n", reporter.RemainingEpsilon());
   PrintF("True max: %d\n", reporter.Max());
-  PrintF("DP max:   %d\n",
-         GetValue<int>(reporter.PrivateMax(.25).ValueOrDie()));
+  PrintF("DP max:   %d\n", GetValue<int>(reporter.PrivateMax(1).ValueOrDie()));
 
   // Refuse to query for the count of animals who didn't eat carrots.
   PrintF(
       "\nFred also wonders how many animals are not eating any carrots at "
       "all.\n");
-  PrintF("\nPrivacy budget remaining: %.2f\n", reporter.PrivacyBudget());
+  PrintF("\nPrivacy budget remaining: %.2f\n", reporter.RemainingEpsilon());
   PrintF("Error querying for count: %s\n",
-         reporter.PrivateCountAbove(.25, 0).status().message());
+         reporter.PrivateCountAbove(1, 0).status().message());
   PrintF(
       "The animals notice that the privacy budget is depleted. They refuse "
       "to answer any more of Fred's questions for risk of violating "

@@ -22,12 +22,13 @@ import (
 	"github.com/google/differential-privacy/go/noise"
 )
 
-func getBoundedMeanFloat64(n noise.Noise, lower, upper float64) *BoundedMeanFloat64 {
+func getBoundedMeanFloat64(t *testing.T, n noise.Noise, lower, upper float64) *BoundedMeanFloat64 {
+	t.Helper()
 	delta := arbitraryDelta
 	if n == noise.Laplace() {
 		delta = 0.0
 	}
-	return NewBoundedMeanFloat64(&BoundedMeanFloat64Options{
+	bm, err := NewBoundedMeanFloat64(&BoundedMeanFloat64Options{
 		Epsilon:                      arbitraryEpsilon,
 		Delta:                        delta,
 		Noise:                        n,
@@ -35,6 +36,10 @@ func getBoundedMeanFloat64(n noise.Noise, lower, upper float64) *BoundedMeanFloa
 		MaxContributionsPerPartition: arbitraryMaxContributionsPerPartition,
 		Lower:                        lower,
 		Upper:                        upper})
+	if err != nil {
+		t.Fatalf("Couldn't get count with noise=%v, lower=%f, upper=%f: %v", n, lower, upper, err)
+	}
+	return bm
 }
 
 // Tests that BoundedMeanFloat64.ComputeConfidenceInterval() returns valid bounds with empty
@@ -52,8 +57,11 @@ func TestMeanComputeConfidenceInterval_EmptyMeanClampsToBounds(t *testing.T) {
 		for i := 0; i < 1000; i++ {
 			// For empty instances of mean, the confidence interval of the denominator is likely to contain
 			// negative values. This should not cause the mean's confidence interval to exceed the bounds.
-			bm := getBoundedMeanFloat64(noise.Gaussian(), tc.lower, tc.upper)
-			bm.Result()
+			bm := getBoundedMeanFloat64(t, noise.Gaussian(), tc.lower, tc.upper)
+			_, err := bm.Result()
+			if err != nil {
+				t.Fatalf("With %s, couldn't compute dp result: %v", tc.desc, err)
+			}
 
 			// Using a large alpha to get small confidence intervals. This increases the chance of the
 			// denominator's confidence interval to be completely negative.
@@ -95,9 +103,15 @@ func TestMeanComputeConfidenceInterval_RawValueAtBoundsClampsToBounds(t *testing
 		{"raw value at upper bound", arbitraryUpper},
 	} {
 		for i := 0; i < 1000; i++ {
-			bm := getBoundedMeanFloat64(noise.Gaussian(), arbitraryLower, arbitraryUpper)
-			bm.Add(tc.rawValue)
-			bm.Result()
+			bm := getBoundedMeanFloat64(t, noise.Gaussian(), arbitraryLower, arbitraryUpper)
+			err := bm.Add(tc.rawValue)
+			if err != nil {
+				t.Fatalf("With %s, couldn't add to mean: %v", tc.desc, err)
+			}
+			_, err = bm.Result()
+			if err != nil {
+				t.Fatalf("With %s, couldn't compute dp result: %v", tc.desc, err)
+			}
 
 			// Using a large alpha to get small confidence intervals. This increases the chance of the
 			// denominator's confidence interval to be completely negative.
@@ -137,8 +151,11 @@ func TestMeanComputeConfidenceInterval_ReturnsSameResultForSameAlpha(t *testing.
 		{noise.Gaussian()},
 		{noise.Laplace()},
 	} {
-		bm := getBoundedMeanFloat64(tc.n, arbitraryLower, arbitraryUpper)
-		bm.Result()
+		bm := getBoundedMeanFloat64(t, tc.n, arbitraryLower, arbitraryUpper)
+		_, err := bm.Result()
+		if err != nil {
+			t.Fatalf("With %v, couldn't compute dp result: %v", tc.n, err)
+		}
 
 		confInt1, err := bm.ComputeConfidenceInterval(arbitraryAlpha)
 		if err != nil {
@@ -166,12 +183,18 @@ func TestMeanComputeConfidenceInterval_ResultForSmallAlphaContainedInResultForLa
 		{noise.Laplace(), 0}, // Clamping possible
 		{noise.Laplace(), 1000},
 	} {
-		bm := getBoundedMeanFloat64(tc.n, arbitraryLower, arbitraryUpper)
+		bm := getBoundedMeanFloat64(t, tc.n, arbitraryLower, arbitraryUpper)
 		// Adding many entries prevents clamping.
 		for i := 0; i < tc.numEntries; i++ {
-			bm.Add(0.5)
+			err := bm.Add(0.5)
+			if err != nil {
+				t.Fatalf("With %v, couldn't add to mean: %v", tc.n, err)
+			}
 		}
-		bm.Result()
+		_, err := bm.Result()
+		if err != nil {
+			t.Fatalf("With %v, couldn't compute dp result: %v", tc.n, err)
+		}
 
 		smallAlphaConfInt, err := bm.ComputeConfidenceInterval(arbitraryAlpha * 0.5)
 		if err != nil {
@@ -227,15 +250,21 @@ func TestMeanComputeConfidenceInterval_SatisfiesConfidenceLevel(t *testing.T) {
 	} {
 		hits := 0
 		for i := 0; i < 2500; i++ {
-			bm := getBoundedMeanFloat64(tc.n, 1.0, 2.0)
+			bm := getBoundedMeanFloat64(t, tc.n, 1.0, 2.0)
 			for i := 0; i < tc.numInputs; i++ {
-				bm.Add(rawValue)
+				err := bm.Add(rawValue)
+				if err != nil {
+					t.Fatalf("With parameters=%+v, couldn't add to mean: %v", tc, err)
+				}
 			}
-			bm.Result()
+			_, err := bm.Result()
+			if err != nil {
+				t.Fatalf("With parameters=%+v, couldn't compute dp result: %v", tc, err)
+			}
 
 			confInt, err := bm.ComputeConfidenceInterval(tc.alpha)
 			if err != nil {
-				t.Fatalf("With noise=%v alpha=%f, numInputs=%d, couldn't compute confidence interval: %v", tc.n, tc.alpha, tc.numInputs, err)
+				t.Fatalf("With parameters=%+v, couldn't compute confidence interval: %v", tc, err)
 			}
 
 			if confInt.LowerBound <= float64(rawValue) && float64(rawValue) <= confInt.UpperBound {
@@ -243,7 +272,7 @@ func TestMeanComputeConfidenceInterval_SatisfiesConfidenceLevel(t *testing.T) {
 			}
 		}
 		if hits < tc.wantHits {
-			t.Errorf("With noise=%v alpha=%f, numInputs=%d, fot %d hits, i.e. raw output within the confidence interval, wanted at least %d", tc.n, tc.alpha, tc.numInputs, hits, tc.wantHits)
+			t.Errorf("With parameters=%+v, fot %d hits, i.e. raw output within the confidence interval, wanted at least %d", tc, hits, tc.wantHits)
 		}
 	}
 }
@@ -259,7 +288,7 @@ func TestMeanComputeConfidenceInterval_StateChecks(t *testing.T) {
 		{merged, true},
 		{serialized, true},
 	} {
-		bm := getNoiselessBMF()
+		bm := getNoiselessBMF(t)
 		// Count and sum have to be also set to the same state
 		// to allow ComputeConfidenceInterval calls.
 		bm.state = tc.state

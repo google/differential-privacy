@@ -62,8 +62,7 @@ class TestAlgorithm : public Algorithm<T> {
   int64_t MemoryUsed() override { return sizeof(TestAlgorithm<T>); }
 
  protected:
-  base::StatusOr<Output> GenerateResult(double privacy_budget,
-                                        double noise_interval_level) override {
+  base::StatusOr<Output> GenerateResult(double noise_interval_level) override {
     Output output;
     output.mutable_error_report()
         ->mutable_noise_confidence_interval()
@@ -73,69 +72,32 @@ class TestAlgorithm : public Algorithm<T> {
   void ResetState() override {}
 };
 
-TEST(IncrementalAlgorithmTest, StartsWithFullBudget) {
-  TestAlgorithm<double> alg;
-  EXPECT_THAT(alg.RemainingPrivacyBudget(), DoubleNear(1.0, kTestPrecision));
-}
-
-TEST(IncrementalAlgorithmTest, PartialResultConsumesBudget) {
-  TestAlgorithm<double> alg;
-  ASSERT_OK(alg.PartialResult());
-  EXPECT_THAT(alg.RemainingPrivacyBudget(), DoubleNear(0.0, kTestPrecision));
-}
-
-TEST(IncrementalAlgorithmTest, PartialResultConsumesPartialBudget) {
-  TestAlgorithm<double> alg;
-  ASSERT_OK(alg.PartialResult(0.5));
-  EXPECT_THAT(alg.RemainingPrivacyBudget(), DoubleNear(0.5, kTestPrecision));
-}
-
-TEST(IncrementalAlgorithmTest, PartialResultConsumesPartialBudgetMultiRound) {
-  TestAlgorithm<double> alg;
-  ASSERT_OK(alg.PartialResult(0.5));
-  base::StatusOr<double> result = alg.ConsumePrivacyBudget(0.5);
-  ASSERT_TRUE(result.ok());
-  EXPECT_THAT(alg.RemainingPrivacyBudget(), DoubleNear(0.0, kTestPrecision));
-}
-
-TEST(IncrementalAlgorithmTest, PartialResultPassesConfidenceLevel) {
+TEST(AlgorithmTest, PartialResultPassesConfidenceLevel) {
   TestAlgorithm<double> alg;
   const double level = .9;
-  base::StatusOr<Output> result = alg.PartialResult(1, level);
+  base::StatusOr<Output> result = alg.PartialResult(level);
   ASSERT_OK(result);
   EXPECT_EQ(
       result->error_report().noise_confidence_interval().confidence_level(),
       level);
 }
 
-TEST(IncrementalAlgorithmTest, Reset) {
+TEST(AlgorithmTest, RepeatedResultsFail) {
   TestAlgorithm<double> alg;
-  ASSERT_OK(alg.PartialResult(0.5));
-  base::StatusOr<double> result = alg.ConsumePrivacyBudget(0.5);
-  ASSERT_TRUE(result.ok());
+  EXPECT_OK(alg.PartialResult());
+  EXPECT_THAT(alg.PartialResult(),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("can only produce results once")));
+}
+
+TEST(AlgorithmTest, Reset) {
+  TestAlgorithm<double> alg;
+  ASSERT_OK(alg.PartialResult());
   alg.Reset();
-  EXPECT_THAT(alg.RemainingPrivacyBudget(), DoubleNear(1.0, kTestPrecision));
+  EXPECT_OK(alg.PartialResult());
 }
 
-TEST(IncrementalAlgorithmTest, MergedPartialResultConsumesBudget) {
-  // Serialize and merge alg_1 into alg_2.
-  TestAlgorithm<double> alg_1;
-  TestAlgorithm<double> alg_2;
-  Summary summary_1 = alg_1.Serialize();
-  EXPECT_OK(alg_2.Merge(summary_1));
-  ASSERT_OK(alg_2.PartialResult());
-  EXPECT_THAT(alg_2.RemainingPrivacyBudget(), DoubleNear(0.0, kTestPrecision));
-}
-
-TEST(IncrementalAlgorithmTest, BudgetTooHigh) {
-  TestAlgorithm<double> alg;
-  ASSERT_OK(alg.PartialResult(0.5));
-  base::StatusOr<double> result = alg.ConsumePrivacyBudget(0.6);
-  ASSERT_FALSE(result.ok());
-  EXPECT_THAT(result.status().message(), HasSubstr("Requested budget"));
-}
-
-TEST(IncrementalAlgorithmTest, InvalidEpsilon) {
+TEST(AlgorithmTest, InvalidEpsilon) {
   EXPECT_DEATH(TestAlgorithm<double> alg(-1.0), "Check failed: epsilon > 0.0");
   EXPECT_DEATH(
       TestAlgorithm<double> alg(std::numeric_limits<double>::quiet_NaN()),
@@ -145,7 +107,7 @@ TEST(IncrementalAlgorithmTest, InvalidEpsilon) {
       "Check failed: epsilon != std::numeric_limits<double>::infinity.*");
 }
 
-TEST(IncrementalAlgorithmBuilderTest, InvalidEpsilonFailsBuild) {
+TEST(AlgorithmBuilderTest, InvalidEpsilonFailsBuild) {
   TestAlgorithm<double>::Builder builder;
 
   EXPECT_THAT(builder.SetEpsilon(-1).Build(),
@@ -163,7 +125,7 @@ TEST(IncrementalAlgorithmBuilderTest, InvalidEpsilonFailsBuild) {
                HasSubstr("Epsilon must be finite")));
 }
 
-TEST(IncrementalAlgorithmBuilderTest, InvalidDeltaFailsBuild) {
+TEST(AlgorithmBuilderTest, InvalidDeltaFailsBuild) {
   TestAlgorithm<double>::Builder builder;
 
   EXPECT_THAT(
@@ -187,7 +149,7 @@ TEST(IncrementalAlgorithmBuilderTest, InvalidDeltaFailsBuild) {
                HasSubstr("Delta must be in the inclusive interval [0,1]")));
 }
 
-TEST(IncrementalAlgorithmBuilderTest, InvalidL0SensitivityFailsBuild) {
+TEST(AlgorithmBuilderTest, InvalidL0SensitivityFailsBuild) {
   TestAlgorithm<double>::Builder builder;
 
   EXPECT_THAT(
@@ -205,8 +167,7 @@ TEST(IncrementalAlgorithmBuilderTest, InvalidL0SensitivityFailsBuild) {
                     "contributed to (i.e., L0 sensitivity) must be positive")));
 }
 
-TEST(IncrementalAlgorithmBuilderTest,
-     InvalidMaxContributionsPerPartitionFailsBuild) {
+TEST(AlgorithmBuilderTest, InvalidMaxContributionsPerPartitionFailsBuild) {
   TestAlgorithm<double>::Builder builder;
 
   EXPECT_THAT(builder.SetMaxContributionsPerPartition(-1).Build(),

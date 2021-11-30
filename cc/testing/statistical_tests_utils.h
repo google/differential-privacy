@@ -21,6 +21,7 @@
 #include <functional>
 #include <iostream>
 
+#include "base/logging.h"
 #include "google/protobuf/text_format.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/strings/str_cat.h"
@@ -42,6 +43,34 @@ bool GenerateClosenessVote(std::function<double()> sample_generator_a,
                            int number_of_samples, double l2_tolerance,
                            double granularity);
 
+template <typename T>
+double ComputeApproximateDpTestValue(
+    absl::flat_hash_map<T, int64_t> histogram_a,
+    absl::flat_hash_map<T, int64_t> histogram_b, double epsilon,
+    int num_of_samples) {
+  double test_value = 0;
+  for (auto& [result, sample_count] : histogram_a) {
+    auto it_b = histogram_b.find(result);
+    if (it_b != histogram_b.end()) {
+      double sample_count_b = it_b->second;
+      test_value +=
+          std::max(0.0, (sample_count - std::exp(epsilon) * sample_count_b) /
+                            num_of_samples);
+    } else {
+      test_value += sample_count / num_of_samples;
+    }
+  }
+  return test_value;
+}
+
+template <typename T>
+absl::flat_hash_map<T, int64_t> BuildHistogram(const std::vector<T>& samples) {
+  absl::flat_hash_map<T, int64_t> histogram;
+  for (const T& sample : samples) ++histogram[sample];
+
+  return histogram;
+}
+
 // Decides whether two sets of random samples were likely drawn from a pair of
 // discrete distributions that approximately satisfy (ε,δ) differential privacy.
 //
@@ -58,9 +87,29 @@ bool GenerateClosenessVote(std::function<double()> sample_generator_a,
 // is the size of the support of the distributions and n is the expected value
 // of a Poisson distribution from which the number of samples is drawn. See
 // (broken link) for more information.
-bool VerifyApproximateDp(const std::vector<double>& samples_a,
-                         const std::vector<double>& samples_b, double epsilon,
-                         double delta, double delta_tolerance);
+template <typename T>
+bool VerifyApproximateDp(const std::vector<T>& samples_a,
+                         const std::vector<T>& samples_b, double epsilon,
+                         double delta, double delta_tolerance) {
+  DCHECK(samples_a.size() == samples_b.size())
+      << "The sample sets must be of equal size.";
+  DCHECK(!samples_a.empty()) << "The sample sets must not be empty";
+  DCHECK(delta_tolerance > 0) << "The delta tolerance must be positive";
+  DCHECK(delta_tolerance < 1) << "The delta tolerance should be less than 1";
+  DCHECK(epsilon >= 0) << "Epsilon must not be negative";
+  DCHECK(delta >= 0) << "Delta must not be negative";
+  DCHECK(delta < 1) << "Delta should be less than 1";
+
+  absl::flat_hash_map<T, int64_t> histogram_a = BuildHistogram(samples_a);
+  absl::flat_hash_map<T, int64_t> histogram_b = BuildHistogram(samples_b);
+
+  double test_value_a = ComputeApproximateDpTestValue(
+      histogram_a, histogram_b, epsilon, samples_a.size());
+  double test_value_b = ComputeApproximateDpTestValue(
+      histogram_b, histogram_a, epsilon, samples_b.size());
+  return test_value_a < delta + delta_tolerance &&
+         test_value_b < delta + delta_tolerance;
+}
 
 // Generates number_of_samples samples from both sample_generator_a and
 // sample_generator_b generators and decides whether two sets of random samples

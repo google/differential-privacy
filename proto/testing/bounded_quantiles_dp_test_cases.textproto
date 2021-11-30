@@ -23,16 +23,15 @@
 # - An approximate DP test rejects with a probability of at least 0.9 if the
 #   two data sets are not protected with (epsilon * 1.05)-DP or if the
 #   catastrophic failure rate is at least the delta tolerance times 1.25.
+validity_parameters {
+  epsilon_specificity: 1.05
+  failure_specificity: 1.25
+}
 
 # Taking the majority vote over 9 repeated runs of a particular test case
 # increases the accept and reject probabilities to 0.99911 or more.
 voting_parameters {
   number_of_votes: 9
-}
-
-validity_parameters {
-  epsilon_specificity: 1.05
-  failure_specificity: 1.25
 }
 
 bounded_quantiles_dp_test_case {

@@ -34,8 +34,8 @@ class CarrotReporter {
   // Loads all the animals and carrots data from the file specified by
   // data_filename into the map carrots_per_animal_. Epsilon is the differential
   // privacy parameter. Epsilon is shared between all private function calls.
-  // The fraction of epsilon remaining is tracked by privacy_budget_.
-  CarrotReporter(std::string data_filename, double epsilon);
+  // The fraction of epsilon remaining is tracked by remaining_epsilon_.
+  CarrotReporter(std::string data_filename, double total_epsilon);
 
   // True sum of all the carrots eaten.
   int Sum();
@@ -49,21 +49,29 @@ class CarrotReporter {
   // True maximum of the number of carrots eaten by any one animal.
   int Max();
 
-  // Returns the remaining privacy budget. Animals should check this to see if
+  // Returns the remaining epsilon. Animals should check this to see if
   // they should answer any more of Farmer Fred's questions.
-  double PrivacyBudget();
+  double RemainingEpsilon();
 
-  // DP sum of all the carrots eaten.
-  base::StatusOr<Output> PrivateSum(double privacy_budget);
+  // DP sum of all the carrots eaten. Consumes `epsilon` amount of budget.
+  // Returns an error is `epsilon` is more than the total remaining epsilon
+  // assigned to the CarrotReporter.
+  base::StatusOr<Output> PrivateSum(double epsilon);
 
-  // DP mean of all carrots eaten.
-  base::StatusOr<Output> PrivateMean(double privacy_budget);
+  // DP mean of all carrots eaten. Consumes `epsilon` amount of budget. Returns
+  // an error is `epsilon` is more than the total remaining epsilon assigned to
+  // the CarrotReporter.
+  base::StatusOr<Output> PrivateMean(double epsilon);
 
   // DP count of the number of animals who ate more than "limit" carrots.
-  base::StatusOr<Output> PrivateCountAbove(double privacy_budget, int limit);
+  // Consumes `epsilon` amount of budget. Returns an error is `epsilon` is more
+  // than the total remaining epsilon assigned to the CarrotReporter.
+  base::StatusOr<Output> PrivateCountAbove(double epsilon, int limit);
 
-  // DP maximum of the number of carrots eaten by any one animal.
-  base::StatusOr<Output> PrivateMax(double privacy_budget);
+  // DP maximum of the number of carrots eaten by any one animal. Consumes
+  // `epsilon` amount of budget. Returns an error is `epsilon` is more than the
+  // total remaining epsilon assigned to the CarrotReporter.
+  base::StatusOr<Output> PrivateMax(double epsilon);
 
  private:
   // Map from the animal name to the number of carrots eaten by that animal.
@@ -71,12 +79,12 @@ class CarrotReporter {
 
   // Differential privacy parameter epsilon. A larger epsilon corresponds to
   // less privacy and more accuracy.
-  double epsilon_;
+  double total_epsilon_;
 
   // The privacy budget given to Farmer Fred at the beginning of the day. If
   // this budget depletes, Farmer Fred cannot ask anymore questions about the
   // carrot data. Privacy budget is represented as a fraction on [0, 1].
-  double privacy_budget_ = 1;
+  double remaining_epsilon_;
 };
 
 }  // namespace example

@@ -429,8 +429,8 @@ func TestSumPerKeyTestModeInt(t *testing.T) {
 		for i := 0; i < 10; i++ {
 			// The sum total contributions per user per partition is 2. When contribution bounding is
 			// enabled, this will be clamped to 1 since MaxValue is 1.
-			triples = append(triples, testutils.MakeDummyTripleWithIntValue(1, i)...)
-			triples = append(triples, testutils.MakeDummyTripleWithIntValue(1, i)...)
+			triples = append(triples, testutils.MakeSampleTripleWithIntValue(1, i)...)
+			triples = append(triples, testutils.MakeSampleTripleWithIntValue(1, i)...)
 		}
 		wantMetric := []testutils.TestInt64Metric{
 			{0, tc.want},
@@ -498,8 +498,8 @@ func TestSumPerKeyWithPartitionsTestModeInt(t *testing.T) {
 		for i := 0; i < 10; i++ {
 			// The sum total contributions per user per partition is 2. When contribution bounding is
 			// enabled, this will be clamped to 1 since MaxValue is 1.
-			triples = append(triples, testutils.MakeDummyTripleWithIntValue(1, i)...)
-			triples = append(triples, testutils.MakeDummyTripleWithIntValue(1, i)...)
+			triples = append(triples, testutils.MakeSampleTripleWithIntValue(1, i)...)
+			triples = append(triples, testutils.MakeSampleTripleWithIntValue(1, i)...)
 		}
 		wantMetric := []testutils.TestInt64Metric{
 			{0, tc.want},
@@ -549,7 +549,7 @@ func TestSumPerKeyWithPartitionsTestModeAddsEmptyPartitionsInt(t *testing.T) {
 		// triples{privacy_id, partition_key, value} contains {0,0,1}, {0,1,1}, {0,2,1}, …, {0,9,1}.
 		var triples []testutils.TripleWithIntValue
 		for i := 0; i < 10; i++ {
-			triples = append(triples, testutils.MakeDummyTripleWithIntValue(1, i)...)
+			triples = append(triples, testutils.MakeSampleTripleWithIntValue(1, i)...)
 		}
 		wantMetric := []testutils.TestInt64Metric{
 			{9, 1},  // Keep partition 9.
@@ -618,8 +618,8 @@ func TestSumPerKeyTestModeFloat(t *testing.T) {
 		for i := 0; i < 10; i++ {
 			// The sum total contributions per user per partition is 2.0. When contribution bounding is
 			// enabled, this will be clamped to 1.0 since MaxValue is 1.
-			triples = append(triples, testutils.MakeDummyTripleWithFloatValue(1, i)...)
-			triples = append(triples, testutils.MakeDummyTripleWithFloatValue(1, i)...)
+			triples = append(triples, testutils.MakeSampleTripleWithFloatValue(1, i)...)
+			triples = append(triples, testutils.MakeSampleTripleWithFloatValue(1, i)...)
 		}
 		wantMetric := []testutils.TestFloat64Metric{
 			{0, tc.want},
@@ -687,8 +687,8 @@ func TestSumPerKeyWithPartitionsTestModeFloat(t *testing.T) {
 		for i := 0; i < 10; i++ {
 			// The sum total contributions per user per partition is 2.0. When contribution bounding is
 			// enabled, this will be clamped to 1.0 since MaxValue is 1.
-			triples = append(triples, testutils.MakeDummyTripleWithFloatValue(1, i)...)
-			triples = append(triples, testutils.MakeDummyTripleWithFloatValue(1, i)...)
+			triples = append(triples, testutils.MakeSampleTripleWithFloatValue(1, i)...)
+			triples = append(triples, testutils.MakeSampleTripleWithFloatValue(1, i)...)
 		}
 		wantMetric := []testutils.TestFloat64Metric{
 			{0, tc.want},
@@ -738,7 +738,7 @@ func TestSumPerKeyWithPartitionsTestModeAddsEmptyPartitionsFloat(t *testing.T) {
 		// triples{privacy_id, partition_key, value} contains {0,0,1}, {0,1,1}, {0,2,1}, …, {0,9,1}.
 		var triples []testutils.TripleWithFloatValue
 		for i := 0; i < 10; i++ {
-			triples = append(triples, testutils.MakeDummyTripleWithFloatValue(1, i)...)
+			triples = append(triples, testutils.MakeSampleTripleWithFloatValue(1, i)...)
 		}
 		wantMetric := []testutils.TestFloat64Metric{
 			{9, 1.0},  // Keep partition 9.
@@ -799,7 +799,7 @@ func TestMeanPerKeyTestModeCrossPartitionContributionBounding(t *testing.T) {
 		// triples{privacy_id, partition_key, value} contains {0,0,1}, {0,1,1}, {0,2,1}, …, {0,9,1}.
 		var triples []testutils.TripleWithFloatValue
 		for i := 0; i < 10; i++ {
-			triples = append(triples, testutils.MakeDummyTripleWithFloatValue(1, i)...)
+			triples = append(triples, testutils.MakeSampleTripleWithFloatValue(1, i)...)
 		}
 		wantMetric := []testutils.TestFloat64Metric{
 			{0, tc.want},
@@ -924,7 +924,7 @@ func TestMeanPerKeyWithPartitionsTestModeCrossPartitionContributionBounding(t *t
 		// triples{privacy_id, partition_key, value} contains {0,0,1}, {0,1,1}, {0,2,1},…, {0,9,1}.
 		var triples []testutils.TripleWithFloatValue
 		for i := 0; i < 10; i++ {
-			triples = append(triples, testutils.MakeDummyTripleWithFloatValue(1, i)...)
+			triples = append(triples, testutils.MakeSampleTripleWithFloatValue(1, i)...)
 		}
 		wantMetric := []testutils.TestFloat64Metric{
 			{0, tc.want},
@@ -1527,7 +1527,7 @@ func TestDistinctPerKeyTestModeCrossPartitionContributionBounding(t *testing.T) 
 		// triples{privacy_id, partition_key, value} contains {0,0,1}, {0,1,1}, {0,2,1}, …, {0,9,1}.
 		var triples []testutils.TripleWithIntValue
 		for i := 0; i < 10; i++ {
-			triples = append(triples, testutils.MakeDummyTripleWithIntValue(1, i)...)
+			triples = append(triples, testutils.MakeSampleTripleWithIntValue(1, i)...)
 		}
 		wantMetric := []testutils.TestInt64Metric{
 			{0, tc.want},

@@ -37,8 +37,12 @@ var benchResultFloat64 float64
 
 func BenchmarkLaplaceFloat64(b *testing.B) {
 	var r float64
+	var err error
 	for i := 0; i < b.N; i++ {
-		r = lap.AddNoiseFloat64(42, 1, 1, ln3, 0)
+		r, err = lap.AddNoiseFloat64(42, 1, 1, ln3, 0)
+		if err != nil {
+			b.Fatalf("Couldn't add laplace noise: %v", err)
+		}
 	}
 	benchResultFloat64 = r
 }

@@ -329,15 +329,10 @@ class ApproxBounds : public Algorithm<T> {
   // Returns an output containing approximate min as the first element and
   // approximate max as the second element. If not enough inputs exist to pass
   // the threshold, populate the output with an error status.
-  base::StatusOr<Output> GenerateResult(double privacy_budget_fraction,
-                                        double noise_interval_level) override {
-    RETURN_IF_ERROR(ValidateIsPositive(privacy_budget_fraction,
-                                       "Privacy budget",
-                                       absl::StatusCode::kFailedPrecondition));
-
+  base::StatusOr<Output> GenerateResult(double noise_interval_level) override {
     // Populate noisy versions of the histogram bins.
-    noisy_pos_bins_ = AddNoise(privacy_budget_fraction, pos_bins_);
-    noisy_neg_bins_ = AddNoise(privacy_budget_fraction, neg_bins_);
+    noisy_pos_bins_ = AddNoise(pos_bins_);
+    noisy_neg_bins_ = AddNoise(neg_bins_);
 
     double success_probability = success_probability_;
 
@@ -347,11 +342,6 @@ class ApproxBounds : public Algorithm<T> {
     do {
       double threshold = mechanism_->Quantile(
           std::pow(success_probability, 1.0 / (2 * pos_bins_.size())));
-      if (!has_user_set_threshold_) {
-        // If the threshold was not user set, scale it by the privacy budget to
-        // ensure the correct probability of success.
-        threshold /= privacy_budget_fraction;
-      }
 
       output = findBounds(threshold);
 
@@ -505,11 +495,10 @@ class ApproxBounds : public Algorithm<T> {
   }
 
   // Add noise to each member of bins and return noisy vector.
-  const std::vector<T> AddNoise(double privacy_budget,
-                                const std::vector<int64_t>& bins) {
+  const std::vector<T> AddNoise(const std::vector<int64_t>& bins) {
     std::vector<T> noisy_bins(bins.size());
     for (int i = 0; i < bins.size(); ++i) {
-      noisy_bins[i] = mechanism_->AddNoise(bins[i], privacy_budget);
+      noisy_bins[i] = mechanism_->AddNoise(bins[i]);
     }
     return noisy_bins;
   }
@@ -783,8 +772,7 @@ class ApproxBounds<T>::Builder {
     if (threshold_.has_value()) {
       // If the user specified a threshold rather than a success probability,
       // then calculate the success probability that corresponds to the
-      // threshold in the case where they spend all of their privacy budget on
-      // the computation.
+      // threshold.
       success_probability_ =
           std::pow(mechanism->Cdf(threshold_.value()), 2 * num_bins_);
     }

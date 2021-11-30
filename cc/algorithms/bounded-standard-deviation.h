@@ -99,14 +99,9 @@ class ABSL_DEPRECATED(
                            std::unique_ptr<BoundedVariance<T>> variance)
       : Algorithm<T>(epsilon), variance_(std::move(variance)) {}
 
-  base::StatusOr<Output> GenerateResult(double privacy_budget,
-                                        double noise_interval_level) override {
-    RETURN_IF_ERROR(ValidateIsPositive(privacy_budget, "Privacy budget",
-                                       absl::StatusCode::kFailedPrecondition));
-
-    ASSIGN_OR_RETURN(
-        Output variance_output,
-        variance_->PartialResult(privacy_budget, noise_interval_level));
+  base::StatusOr<Output> GenerateResult(double noise_interval_level) override {
+    ASSIGN_OR_RETURN(Output variance_output,
+                     variance_->PartialResult(noise_interval_level));
     double stdev = std::sqrt(GetValue<double>(variance_output));
     SetValue<double>(variance_output.mutable_elements(0)->mutable_value(),
                      stdev);

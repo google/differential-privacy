@@ -75,7 +75,7 @@ func SelectPartitions(s beam.Scope, pcol PrivatePCollection, params SelectPartit
 	}
 	err = checkSelectPartitionsParams(epsilon, delta, maxPartitionsContributed)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("pbeam.SelectPartitions: %v", err)
 	}
 
 	// First, we drop the values if we have (privacyKey, partitionKey, value) tuples.
@@ -108,15 +108,11 @@ func SelectPartitions(s beam.Scope, pcol PrivatePCollection, params SelectPartit
 }
 
 func checkSelectPartitionsParams(epsilon, delta float64, maxPartitionsContributed int64) error {
-	err := checks.CheckEpsilon("pbeam.SelectPartitions", epsilon)
+	err := checks.CheckEpsilon(epsilon)
 	if err != nil {
 		return err
 	}
-	err = checks.CheckDeltaStrict("pbeam.SelectPartitions", delta)
-	if err != nil {
-		return err
-	}
-	return checks.CheckMaxPartitionsContributed("pbeam.SelectPartitions", maxPartitionsContributed)
+	return checks.CheckDeltaStrict(delta)
 }
 
 type partitionSelectionAccum struct {
@@ -134,26 +130,27 @@ func newPartitionSelectionFn(epsilon, delta float64, maxPartitionsContributed in
 	return &partitionSelectionFn{Epsilon: epsilon, Delta: delta, MaxPartitionsContributed: maxPartitionsContributed, TestMode: testMode}
 }
 
-func (fn *partitionSelectionFn) CreateAccumulator() partitionSelectionAccum {
-	return partitionSelectionAccum{SP: dpagg.NewPreAggSelectPartition(&dpagg.PreAggSelectPartitionOptions{
+func (fn *partitionSelectionFn) CreateAccumulator() (partitionSelectionAccum, error) {
+	sp, err := dpagg.NewPreAggSelectPartition(&dpagg.PreAggSelectPartitionOptions{
 		Epsilon:                  fn.Epsilon,
 		Delta:                    fn.Delta,
-		MaxPartitionsContributed: fn.MaxPartitionsContributed})}
+		MaxPartitionsContributed: fn.MaxPartitionsContributed})
+	return partitionSelectionAccum{SP: sp}, err
 }
 
-func (fn *partitionSelectionFn) AddInput(a partitionSelectionAccum, _ beam.W) partitionSelectionAccum {
-	a.SP.Increment()
-	return a
+func (fn *partitionSelectionFn) AddInput(a partitionSelectionAccum, _ beam.W) (partitionSelectionAccum, error) {
+	err := a.SP.Increment()
+	return a, err
 }
 
-func (fn *partitionSelectionFn) MergeAccumulators(a, b partitionSelectionAccum) partitionSelectionAccum {
-	a.SP.Merge(b.SP)
-	return a
+func (fn *partitionSelectionFn) MergeAccumulators(a, b partitionSelectionAccum) (partitionSelectionAccum, error) {
+	err := a.SP.Merge(b.SP)
+	return a, err
 }
 
-func (fn *partitionSelectionFn) ExtractOutput(a partitionSelectionAccum) bool {
+func (fn *partitionSelectionFn) ExtractOutput(a partitionSelectionAccum) (bool, error) {
 	if fn.TestMode.isEnabled() {
-		return true
+		return true, nil
 	}
 	return a.SP.ShouldKeepPartition()
 }

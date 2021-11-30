@@ -55,7 +55,7 @@ func TestCheckEpsilonVeryStrict(t *testing.T) {
 			50,
 			false},
 	} {
-		if err := CheckEpsilonVeryStrict("test", tc.epsilon); (err != nil) != tc.wantErr {
+		if err := CheckEpsilonVeryStrict(tc.epsilon); (err != nil) != tc.wantErr {
 			t.Errorf("CheckEpsilonVeryStrict: when %s for err got %v, want %t", tc.desc, err, tc.wantErr)
 		}
 	}
@@ -89,7 +89,7 @@ func TestCheckEpsilonStrict(t *testing.T) {
 			50,
 			false},
 	} {
-		if err := CheckEpsilonStrict("test", tc.epsilon); (err != nil) != tc.wantErr {
+		if err := CheckEpsilonStrict(tc.epsilon); (err != nil) != tc.wantErr {
 			t.Errorf("CheckEpsilonStrict: when %s for err got %v, want %t", tc.desc, err, tc.wantErr)
 		}
 	}
@@ -123,7 +123,7 @@ func TestCheckEpsilon(t *testing.T) {
 			50,
 			false},
 	} {
-		if err := CheckEpsilon("test", tc.epsilon); (err != nil) != tc.wantErr {
+		if err := CheckEpsilon(tc.epsilon); (err != nil) != tc.wantErr {
 			t.Errorf("CheckEpsilon: when %s for err got %v, want %t", tc.desc, err, tc.wantErr)
 		}
 	}
@@ -163,7 +163,7 @@ func TestCheckDelta(t *testing.T) {
 			math.Inf(0),
 			true},
 	} {
-		if err := CheckDelta("test", tc.delta); (err != nil) != tc.wantErr {
+		if err := CheckDelta(tc.delta); (err != nil) != tc.wantErr {
 			t.Errorf("CheckDelta: when %s for err got %v, want %t", tc.desc, err, tc.wantErr)
 		}
 	}
@@ -203,7 +203,7 @@ func TestCheckDeltaStrict(t *testing.T) {
 			math.Inf(0),
 			true},
 	} {
-		if err := CheckDeltaStrict("test", tc.delta); (err != nil) != tc.wantErr {
+		if err := CheckDeltaStrict(tc.delta); (err != nil) != tc.wantErr {
 			t.Errorf("CheckDeltaStrict: when %s for err got %v, want %t", tc.desc, err, tc.wantErr)
 		}
 	}
@@ -225,7 +225,7 @@ func TestCheckNoDelta(t *testing.T) {
 			0,
 			false},
 	} {
-		if err := CheckNoDelta("test", tc.delta); (err != nil) != tc.wantErr {
+		if err := CheckNoDelta(tc.delta); (err != nil) != tc.wantErr {
 			t.Errorf("CheckNoDelta: when %s for err got %v, want %t", tc.desc, err, tc.wantErr)
 		}
 	}
@@ -247,7 +247,7 @@ func TestCheckL0Sensitivity(t *testing.T) {
 			10,
 			false},
 	} {
-		if err := CheckL0Sensitivity("test", tc.l0Sensitivity); (err != nil) != tc.wantErr {
+		if err := CheckL0Sensitivity(tc.l0Sensitivity); (err != nil) != tc.wantErr {
 			t.Errorf("CheckL0Sensitivity: when %s for err got %v, want %t", tc.desc, err, tc.wantErr)
 		}
 	}
@@ -281,7 +281,7 @@ func TestCheckLInfSensitivity(t *testing.T) {
 			10,
 			false},
 	} {
-		if err := CheckLInfSensitivity("test", tc.lInfSensitivity); (err != nil) != tc.wantErr {
+		if err := CheckLInfSensitivity(tc.lInfSensitivity); (err != nil) != tc.wantErr {
 			t.Errorf("CheckLInfSensitivity: when %s for err got %v, want %t", tc.desc, err, tc.wantErr)
 		}
 	}
@@ -324,7 +324,7 @@ func TestCheckBoundsInt64(t *testing.T) {
 			false,
 		},
 	} {
-		if err := CheckBoundsInt64("test", tc.lower, tc.upper); (err != nil) != tc.wantErr {
+		if err := CheckBoundsInt64(tc.lower, tc.upper); (err != nil) != tc.wantErr {
 			t.Errorf("CheckBoundsInt64: when %s for err got %v, want %t", tc.desc, err, tc.wantErr)
 		}
 	}
@@ -412,7 +412,7 @@ func TestCheckBoundsFloat64(t *testing.T) {
 			false,
 		},
 	} {
-		if err := CheckBoundsFloat64("test", tc.lower, tc.upper); (err != nil) != tc.wantErr {
+		if err := CheckBoundsFloat64(tc.lower, tc.upper); (err != nil) != tc.wantErr {
 			t.Errorf("CheckBoundsFloat64: when %s for err got %v, want %t", tc.desc, err, tc.wantErr)
 		}
 	}
@@ -485,30 +485,8 @@ func TestCheckBoundsFloat64AsInt64(t *testing.T) {
 			false,
 		},
 	} {
-		if err := CheckBoundsFloat64AsInt64("test", tc.lower, tc.upper); (err != nil) != tc.wantErr {
+		if err := CheckBoundsFloat64AsInt64(tc.lower, tc.upper); (err != nil) != tc.wantErr {
 			t.Errorf("CheckBoundsFloat64AsInt64: when %s for err got %v, want %t", tc.desc, err, tc.wantErr)
-		}
-	}
-}
-
-func TestCheckMaxPartitionsContributed(t *testing.T) {
-	for _, tc := range []struct {
-		desc                     string
-		maxPartitionsContributed int64
-		wantErr                  bool
-	}{
-		{"negative partitions contributed",
-			-2,
-			true},
-		{"zero partitions contributed",
-			0,
-			false},
-		{"10 partitions contributed",
-			10,
-			false},
-	} {
-		if err := CheckMaxPartitionsContributed("test", tc.maxPartitionsContributed); (err != nil) != tc.wantErr {
-			t.Errorf("CheckMaxPartitionsContributed: when %s for err got %v, want %t", tc.desc, err, tc.wantErr)
 		}
 	}
 }
@@ -527,7 +505,7 @@ func TestCheckAlpha(t *testing.T) {
 		{"NaN alpha", math.NaN(), true},
 		{"arbitrary alpha", 0.758464984, false},
 	} {
-		if err := CheckAlpha("test", tc.alpha); (err != nil) != tc.wantErr {
+		if err := CheckAlpha(tc.alpha); (err != nil) != tc.wantErr {
 			t.Errorf("CheckAlpha: when %s for err got %v, want %t", tc.desc, err, tc.wantErr)
 		}
 	}
@@ -545,7 +523,7 @@ func TestCheckBoundsNotEqual(t *testing.T) {
 		{"equal float bounds", -2.0, -2.0, true},
 		{"unequal float bounds", 10.0, 10.01, false},
 	} {
-		if err := CheckBoundsNotEqual("test", tc.lower, tc.upper); (err != nil) != tc.wantErr {
+		if err := CheckBoundsNotEqual(tc.lower, tc.upper); (err != nil) != tc.wantErr {
 			t.Errorf("CheckBoundsNotEqual: when %s for err got %v, want %t", tc.desc, err, tc.wantErr)
 		}
 	}
@@ -561,7 +539,7 @@ func TestCheckTreeHeight(t *testing.T) {
 		{"treeHeight = 1", 1, false},
 		{"treeHeight > 1", 2, false},
 	} {
-		if err := CheckTreeHeight("test", tc.treeHeight); (err != nil) != tc.wantErr {
+		if err := CheckTreeHeight(tc.treeHeight); (err != nil) != tc.wantErr {
 			t.Errorf("CheckTreeHeight: when %s for err got %v, want %t", tc.desc, err, tc.wantErr)
 		}
 	}
@@ -577,7 +555,7 @@ func TestCheckBranchingFactor(t *testing.T) {
 		{"branchingFactor = 2", 2, false},
 		{"branchingFactor > 2", 3, false},
 	} {
-		if err := CheckBranchingFactor("test", tc.branchingFactor); (err != nil) != tc.wantErr {
+		if err := CheckBranchingFactor(tc.branchingFactor); (err != nil) != tc.wantErr {
 			t.Errorf("CheckBranchingFactor: when %s for err got %v, want %t", tc.desc, err, tc.wantErr)
 		}
 	}

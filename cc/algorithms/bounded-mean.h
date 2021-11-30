@@ -163,18 +163,13 @@ class BoundedMeanWithFixedBounds : public BoundedMean<T> {
   }
 
  protected:
-  base::StatusOr<Output> GenerateResult(double privacy_budget_fraction,
-                                        double noise_interval_level) override {
-    RETURN_IF_ERROR(ValidateIsPositive(privacy_budget_fraction,
-                                       "Privacy budget",
-                                       absl::StatusCode::kFailedPrecondition));
+  base::StatusOr<Output> GenerateResult(double noise_interval_level) override {
     const double midpoint = lower_ + ((upper_ - lower_) / 2);
 
-    const double noised_count =
-        std::max(1.0, static_cast<double>(count_mechanism_->AddNoise(
-                          partial_count_, privacy_budget_fraction)));
-    const double noised_normalized_sum = sum_mechanism_->AddNoise(
-        partial_sum_ - (partial_count_ * midpoint), privacy_budget_fraction);
+    const double noised_count = std::max(
+        1.0, static_cast<double>(count_mechanism_->AddNoise(partial_count_)));
+    const double noised_normalized_sum =
+        sum_mechanism_->AddNoise(partial_sum_ - (partial_count_ * midpoint));
     const double mean = (noised_normalized_sum / noised_count) + midpoint;
 
     Output output;
@@ -312,17 +307,12 @@ class BoundedMeanWithApproxBounds : public BoundedMean<T> {
   ApproxBounds<T>* GetApproxBoundsForTesting() { return approx_bounds_.get(); }
 
  protected:
-  base::StatusOr<Output> GenerateResult(double privacy_budget_fraction,
-                                        double noise_interval_level) override {
-    RETURN_IF_ERROR(ValidateIsPositive(privacy_budget_fraction,
-                                       "Privacy budget",
-                                       absl::StatusCode::kFailedPrecondition));
+  base::StatusOr<Output> GenerateResult(double noise_interval_level) override {
     Output output;
 
     // Use a fraction of the privacy budget to find the approximate bounds.
     ASSIGN_OR_RETURN(Output bounds,
-                     approx_bounds_->PartialResult(privacy_budget_fraction,
-                                                   noise_interval_level));
+                     approx_bounds_->PartialResult(noise_interval_level));
     const T lower = GetValue<T>(bounds.elements(0).value());
     const T upper = GetValue<T>(bounds.elements(1).value());
     RETURN_IF_ERROR(BoundedMean<T>::CheckBounds(lower, upper));
@@ -347,11 +337,10 @@ class BoundedMeanWithApproxBounds : public BoundedMean<T> {
     // We use the midpoint to normalize the sum.
     const double midpoint = lower + (upper - lower) / 2;
 
-    const double noised_count =
-        std::max(1.0, static_cast<double>(count_mechanism_->AddNoise(
-                          partial_count_, privacy_budget_fraction)));
-    const double normalized_sum = sum_mechanism->AddNoise(
-        sum - partial_count_ * midpoint, privacy_budget_fraction);
+    const double noised_count = std::max(
+        1.0, static_cast<double>(count_mechanism_->AddNoise(partial_count_)));
+    const double normalized_sum =
+        sum_mechanism->AddNoise(sum - partial_count_ * midpoint);
     const double mean = normalized_sum / noised_count + midpoint;
 
     // Add mean to output and return the result.

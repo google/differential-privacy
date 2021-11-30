@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"math"
 
-	log "github.com/golang/glog"
 	"github.com/google/differential-privacy/go/checks"
 	"github.com/google/differential-privacy/go/noise"
 )
@@ -91,15 +90,14 @@ type BoundedQuantilesOptions struct {
 }
 
 // NewBoundedQuantiles returns a new BoundedQuantiles.
-func NewBoundedQuantiles(opt *BoundedQuantilesOptions) *BoundedQuantiles {
+func NewBoundedQuantiles(opt *BoundedQuantilesOptions) (*BoundedQuantiles, error) {
 	if opt == nil {
 		opt = &BoundedQuantilesOptions{}
 	}
 
 	maxContributionsPerPartition := opt.MaxContributionsPerPartition
-	if maxContributionsPerPartition == 0 {
-		// TODO: do not exit the program from within library code
-		log.Fatalf("NewBoundedQuantiles requires a value for MaxContributionsPerPartition")
+	if err := checks.CheckMaxContributionsPerPartition(maxContributionsPerPartition); err != nil {
+		return nil, fmt.Errorf("NewBoundedQuantiles: %w", err)
 	}
 
 	// Set defaults.
@@ -115,16 +113,13 @@ func NewBoundedQuantiles(opt *BoundedQuantilesOptions) *BoundedQuantiles {
 	// Check bounds.
 	lower, upper := opt.Lower, opt.Upper
 	if lower == 0 && upper == 0 {
-		// TODO: do not exit the program from within library code
-		log.Fatalf("NewBoundedQuantiles requires a non-default value for Lower or Upper (automatic bounds determination is not implemented yet). Lower and Upper cannot be both 0")
+		return nil, fmt.Errorf("NewBoundedQuantiles requires a non-default value for Lower and Upper (automatic bounds determination is not implemented yet). Lower and Upper cannot be both 0")
 	}
-	if err := checks.CheckBoundsFloat64("NewBoundedQuantiles", lower, upper); err != nil {
-		// TODO: do not exit the program from within library code
-		log.Fatalf("CheckBoundsFloat64(lower %f, upper %f) failed with %v", lower, upper, err)
+	if err := checks.CheckBoundsFloat64(lower, upper); err != nil {
+		return nil, fmt.Errorf("NewBoundedQuantiles: %w", err)
 	}
-	if err := checks.CheckBoundsNotEqual("NewBoundedQuantiles", lower, upper); err != nil {
-		// TODO: do not exit the program from within library code
-		log.Fatalf("CheckBoundsNotEqual(lower %f, upper %f) failed with %v", lower, upper, err)
+	if err := checks.CheckBoundsNotEqual(lower, upper); err != nil {
+		return nil, fmt.Errorf("NewBoundedQuantiles: %w", err)
 	}
 
 	// Check tree height and branching factor, set defaults if not specified, and use them to compute numLeaves and leftmostLeafIndex.
@@ -132,17 +127,15 @@ func NewBoundedQuantiles(opt *BoundedQuantilesOptions) *BoundedQuantiles {
 	if treeHeight == 0 {
 		treeHeight = DefaultTreeHeight
 	}
-	if err := checks.CheckTreeHeight("NewBoundedQuantiles", treeHeight); err != nil {
-		// TODO: do not exit the program from within library code
-		log.Fatalf("CheckTreeHeight failed with %v", err)
+	if err := checks.CheckTreeHeight(treeHeight); err != nil {
+		return nil, fmt.Errorf("NewBoundedQuantiles: %v", err)
 	}
 	branchingFactor := opt.BranchingFactor
 	if branchingFactor == 0 {
 		branchingFactor = DefaultBranchingFactor
 	}
-	if err := checks.CheckBranchingFactor("NewBoundedQuantiles", branchingFactor); err != nil {
-		// TODO: do not exit the program from within library code
-		log.Fatalf("CheckBranchingFactor failed with %v", err)
+	if err := checks.CheckBranchingFactor(branchingFactor); err != nil {
+		return nil, fmt.Errorf("NewBoundedQuantiles: %v", err)
 	}
 	numNodes := getNumNodes(treeHeight, branchingFactor)
 	numLeaves := getNumLeaves(treeHeight, branchingFactor)
@@ -161,8 +154,11 @@ func NewBoundedQuantiles(opt *BoundedQuantilesOptions) *BoundedQuantiles {
 	lInfSensitivity := float64(maxContributionsPerPartition)
 
 	// Check that the parameters are compatible with the noise chosen by calling
-	// the noise on some dummy value.
-	n.AddNoiseFloat64(0, l0Sensitivity, lInfSensitivity, eps, del)
+	// the noise on some placeholder value.
+	_, err := n.AddNoiseFloat64(0, l0Sensitivity, lInfSensitivity, eps, del)
+	if err != nil {
+		return nil, fmt.Errorf("NewBoundedQuantiles: %w", err)
+	}
 
 	return &BoundedQuantiles{
 		epsilon:           eps,
@@ -180,23 +176,21 @@ func NewBoundedQuantiles(opt *BoundedQuantilesOptions) *BoundedQuantiles {
 		numLeaves:         numLeaves,
 		leftmostLeafIndex: leftmostLeafIndex,
 		state:             defaultState,
-	}
+	}, nil
 }
 
 // Add adds an entry to BoundedQuantiles. It skips (ignores) NaN values because their
 // contribution to the final result is not well defined.
-func (bq *BoundedQuantiles) Add(e float64) {
+func (bq *BoundedQuantiles) Add(e float64) error {
 	if bq.state != defaultState {
-		// TODO: do not exit the program from within library code
-		log.Fatalf("BoundedQuantiles cannot be amended. Reason: %v", bq.state.errorMessage())
+		return fmt.Errorf("BoundedQuantiles cannot be amended: %v", bq.state.errorMessage())
 	}
 	if !math.IsNaN(e) {
 		// Increment all counts on the path from the leaf node where the value is inserted up to the
 		// first level (root not included).
 		clamped, err := ClampFloat64(e, bq.lower, bq.upper)
 		if err != nil {
-			// TODO: do not exit the program from within library code
-			log.Fatalf("Couldn't clamp input value %f, err %v", e, err)
+			return fmt.Errorf("couldn't clamp input value %f, err %w", e, err)
 		}
 		index := bq.getIndex(clamped)
 		for index != rootIndex {
@@ -205,6 +199,7 @@ func (bq *BoundedQuantiles) Add(e float64) {
 			index = bq.getParent(index)
 		}
 	}
+	return nil
 }
 
 // Result calculates and returns a differentially private quantile of the values added.
@@ -216,15 +211,14 @@ func (bq *BoundedQuantiles) Add(e float64) {
 // increasing in the sense that r_1 < r_2 implies that Result(r_1) <= Result(r_2).
 //
 // Note that the returned values is not an unbiased estimate of the raw bounded quantile.
-func (bq *BoundedQuantiles) Result(rank float64) float64 {
+func (bq *BoundedQuantiles) Result(rank float64) (float64, error) {
 	if bq.state != defaultState && bq.state != resultReturned {
-		// TODO: do not exit the program from within library code
-		log.Fatalf("BoundedQuantiles' noised result cannot be computed. Reason: %v", bq.state.errorMessage())
+		return 0, fmt.Errorf("BoundedQuantiles' noised result cannot be computed: %v", bq.state.errorMessage())
 	}
 	bq.state = resultReturned
 
 	if rank < 0.0 || rank > 1.0 {
-		log.Fatalf("rank %f must be >= 0 and <= 1.", rank)
+		return 0, fmt.Errorf("rank %f must be >= 0 and <= 1", rank)
 	}
 	rank = adjustRank(rank)
 
@@ -236,15 +230,23 @@ func (bq *BoundedQuantiles) Result(rank float64) float64 {
 
 		totalCount := 0.0
 		for i := leftmostChildIndex; i <= rightmostChildIndex; i++ {
-			totalCount += math.Max(0.0, bq.getNoisedCount(i))
+			noisedCount, err := bq.getNoisedCount(i)
+			if err != nil {
+				return 0, fmt.Errorf("couldn't get noised count for node %d: %w", i, err)
+			}
+			totalCount += math.Max(0.0, noisedCount)
 		}
 
 		correctedTotalCount := 0.0
 		for i := leftmostChildIndex; i <= rightmostChildIndex; i++ {
 			// Treat child nodes contributing less than an alpha fraction to the total count as empty
 			// subtrees.
-			if bq.getNoisedCount(i) >= totalCount*alpha {
-				correctedTotalCount += bq.getNoisedCount(i)
+			noisedCount, err := bq.getNoisedCount(i)
+			if err != nil {
+				return 0, fmt.Errorf("couldn't get noised count for node %d: %w", i, err)
+			}
+			if noisedCount >= totalCount*alpha {
+				correctedTotalCount += noisedCount
 			}
 		}
 		if correctedTotalCount == 0.0 {
@@ -255,10 +257,13 @@ func (bq *BoundedQuantiles) Result(rank float64) float64 {
 			break
 		}
 
-		// Determine the child noide whose subtree contains the quantile.
+		// Determine the child node whose subtree contains the quantile.
 		partialCount := 0.0
 		for i := leftmostChildIndex; true; i++ {
-			count := bq.getNoisedCount(i)
+			count, err := bq.getNoisedCount(i)
+			if err != nil {
+				return 0, fmt.Errorf("couldn't get noised count for node %d: %w", i, err)
+			}
 			// Skip child nodes contributing less than alpha to the total count.
 			if count >= totalCount*alpha {
 				partialCount += count
@@ -277,7 +282,7 @@ func (bq *BoundedQuantiles) Result(rank float64) float64 {
 	}
 	// Linearly interpolate between the smallest and largest value associated with the node of the
 	// current index.
-	return (1-rank)*bq.getLeftValue(index) + rank*bq.getRightValue(index)
+	return (1-rank)*bq.getLeftValue(index) + rank*bq.getRightValue(index), nil
 }
 
 // getIndex returns the index of the leaf node associated with the provided value, assuming that
@@ -325,14 +330,17 @@ func (bq *BoundedQuantiles) getParent(index int) int {
 	return (index - 1) / bq.branchingFactor
 }
 
-func (bq *BoundedQuantiles) getNoisedCount(index int) float64 {
+func (bq *BoundedQuantiles) getNoisedCount(index int) (float64, error) {
 	if noisedCount, ok := bq.noisedTree[index]; ok {
-		return noisedCount
+		return noisedCount, nil
 	}
 	rawCount := bq.tree[index]
-	noisedCount := bq.Noise.AddNoiseFloat64(float64(rawCount), bq.l0Sensitivity, bq.lInfSensitivity, bq.epsilon, bq.delta)
+	noisedCount, err := bq.Noise.AddNoiseFloat64(float64(rawCount), bq.l0Sensitivity, bq.lInfSensitivity, bq.epsilon, bq.delta)
+	if err != nil {
+		return 0, err
+	}
 	bq.noisedTree[index] = noisedCount
-	return noisedCount
+	return noisedCount, nil
 }
 
 // Clamps the rank to a value between 0.005 and 0.995. The purpose of this adjustment is to mitigate
@@ -352,24 +360,24 @@ func getNumLeaves(treeHeight, branchingFactor int) int {
 // Merge merges bq2 into bq (i.e., adds to bq all entries that were added to
 // bq2). bq2 is consumed by this operation: bq2 may not be used after it is
 // merged into bq.
-func (bq *BoundedQuantiles) Merge(bq2 *BoundedQuantiles) {
+func (bq *BoundedQuantiles) Merge(bq2 *BoundedQuantiles) error {
 	if err := checkMergeBoundedQuantiles(bq, bq2); err != nil {
-		// TODO: do not exit the program from within library code
-		log.Exit(err)
+		return err
 	}
 
 	for index, count := range bq2.tree {
 		bq.tree[index] += count
 	}
 	bq2.state = merged
+	return nil
 }
 
 func checkMergeBoundedQuantiles(bq1, bq2 *BoundedQuantiles) error {
 	if bq1.state != defaultState {
-		return fmt.Errorf("checkMergeBoundedQuantiles: bq1 cannot be merged with another BoundedQuantiles instance. Reason: %v", bq1.state.errorMessage())
+		return fmt.Errorf("checkMergeBoundedQuantiles: bq1 cannot be merged with another BoundedQuantiles instance: %v", bq1.state.errorMessage())
 	}
 	if bq2.state != defaultState {
-		return fmt.Errorf("checkMergeBoundedQuantiles: bq2 cannot be merged with another BoundedQuantiles instance. Reason: %v", bq2.state.errorMessage())
+		return fmt.Errorf("checkMergeBoundedQuantiles: bq2 cannot be merged with another BoundedQuantiles instance: %v", bq2.state.errorMessage())
 	}
 
 	if !bqEquallyInitialized(bq1, bq2) {
@@ -411,7 +419,7 @@ type encodableBoundedQuantiles struct {
 // GobEncode encodes BoundedQuantiles.
 func (bq *BoundedQuantiles) GobEncode() ([]byte, error) {
 	if bq.state != defaultState && bq.state != serialized {
-		return nil, fmt.Errorf("BoundedQuantiles object cannot be serialized. Reason: " + bq.state.errorMessage())
+		return nil, fmt.Errorf("BoundedQuantiles object cannot be serialized: " + bq.state.errorMessage())
 	}
 	enc := encodableBoundedQuantiles{
 		Epsilon:           bq.epsilon,
@@ -436,8 +444,7 @@ func (bq *BoundedQuantiles) GobDecode(data []byte) error {
 	var enc encodableBoundedQuantiles
 	err := decode(&enc, data)
 	if err != nil {
-		log.Fatalf("GobDecode: couldn't decode BoundedQuantiles from bytes")
-		return err
+		return fmt.Errorf("couldn't decode BoundedQuantiles from bytes")
 	}
 	*bq = BoundedQuantiles{
 		epsilon:           enc.Epsilon,

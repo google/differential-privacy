@@ -118,18 +118,6 @@ load("@com_google_protobuf//:protobuf_deps.bzl", "protobuf_deps")
 protobuf_deps()
 
 http_archive(
-    name = "com_google_go_differential_privacy",
-    sha256 = dp_lib_tar_sha256,
-    urls = [
-        dp_lib_url,
-    ],
-    strip_prefix = "differential-privacy-" + dp_lib_version + "/go",
-)
-
-load("@com_google_go_differential_privacy//:go_differential_privacy_deps.bzl", "go_differential_privacy_deps")
-go_differential_privacy_deps()
-
-http_archive(
     name = "com_google_privacy_on_beam",
     sha256 = dp_lib_tar_sha256,
     urls = [
@@ -140,6 +128,18 @@ http_archive(
 
 load("@com_google_privacy_on_beam//:privacy_on_beam_deps.bzl", "privacy_on_beam_deps")
 privacy_on_beam_deps()
+
+http_archive(
+    name = "com_google_go_differential_privacy",
+    sha256 = dp_lib_tar_sha256,
+    urls = [
+        dp_lib_url,
+    ],
+    strip_prefix = "differential-privacy-" + dp_lib_version + "/go",
+)
+
+load("@com_google_go_differential_privacy//:go_differential_privacy_deps.bzl", "go_differential_privacy_deps")
+go_differential_privacy_deps()
 ```
 
 Then, you can depend on `@com_google_privacy_on_beam` in your BUILD files.

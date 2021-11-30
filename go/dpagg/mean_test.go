@@ -107,16 +107,22 @@ func TestNewBoundedMeanFloat64(t *testing.T) {
 				},
 			}},
 	} {
-		got := NewBoundedMeanFloat64(tc.opt)
-		if !reflect.DeepEqual(got, tc.want) {
-			t.Errorf("NewBoundedMeanFloat64: when %s got %+v, want %+v", tc.desc, got, tc.want)
+		bm, err := NewBoundedMeanFloat64(tc.opt)
+		if err != nil {
+			t.Fatalf("Couldn't initialize bm: %v", err)
+		}
+		if !reflect.DeepEqual(bm, tc.want) {
+			t.Errorf("NewBoundedMeanFloat64: when %s got %+v, want %+v", tc.desc, bm, tc.want)
 		}
 	}
 }
 
 func TestBMNoInputFloat64(t *testing.T) {
-	bmf := getNoiselessBMF()
-	got := bmf.Result()
+	bmf := getNoiselessBMF(t)
+	got, err := bmf.Result()
+	if err != nil {
+		t.Fatalf("Couldn't compute dp result: %v", err)
+	}
 	// count = 0 => returns midPoint = 2
 	want := 2.0
 	if !ApproxEqual(got, want) {
@@ -125,12 +131,15 @@ func TestBMNoInputFloat64(t *testing.T) {
 }
 
 func TestBMAddFloat64(t *testing.T) {
-	bmf := getNoiselessBMF()
+	bmf := getNoiselessBMF(t)
 	bmf.Add(1.5)
 	bmf.Add(2.5)
 	bmf.Add(3.5)
 	bmf.Add(4.5)
-	got := bmf.Result()
+	got, err := bmf.Result()
+	if err != nil {
+		t.Fatalf("Couldn't compute dp result: %v", err)
+	}
 	want := 3.0
 	if !ApproxEqual(got, want) {
 		t.Errorf("Add: when dataset with elements inside boundaries got %f, want %f", got, want)
@@ -138,11 +147,14 @@ func TestBMAddFloat64(t *testing.T) {
 }
 
 func TestBMAddFloat64IgnoresNaN(t *testing.T) {
-	bmf := getNoiselessBMF()
+	bmf := getNoiselessBMF(t)
 	bmf.Add(1)
 	bmf.Add(math.NaN())
 	bmf.Add(3)
-	got := bmf.Result()
+	got, err := bmf.Result()
+	if err != nil {
+		t.Fatalf("Couldn't compute dp result: %v", err)
+	}
 	want := 2.0
 	if !ApproxEqual(got, want) {
 		t.Errorf("Add: when dataset contains NaN got %f, want %f", got, want)
@@ -150,13 +162,16 @@ func TestBMAddFloat64IgnoresNaN(t *testing.T) {
 }
 
 func TestBMReturnsEntryIfSingleEntryIsAddedFloat64(t *testing.T) {
-	bmf := getNoiselessBMF()
+	bmf := getNoiselessBMF(t)
 	// lower = -1, upper = 5
 	// normalized sum inside BM has bounds: lower = -3, upper = 3
 	// midPoint = 2
 
 	bmf.Add(1.2345)
-	got := bmf.Result()
+	got, err := bmf.Result()
+	if err != nil {
+		t.Fatalf("Couldn't compute dp result: %v", err)
+	}
 	want := 1.2345 // single entry
 	if !ApproxEqual(got, want) {
 		t.Errorf("BoundedMean: when dataset contains single entry got %f, want %f", got, want)
@@ -164,7 +179,7 @@ func TestBMReturnsEntryIfSingleEntryIsAddedFloat64(t *testing.T) {
 }
 
 func TestBMClampFloat64(t *testing.T) {
-	bmf := getNoiselessBMF()
+	bmf := getNoiselessBMF(t)
 	// lower = -1, upper = 5
 	// normalized sum inside BM has bounds: lower = -3, upper = 3
 	// midPoint = 2
@@ -172,7 +187,10 @@ func TestBMClampFloat64(t *testing.T) {
 	bmf.Add(3.5)  // clamp(3.5) - midPoint = 3.5 - 2 = 1.5 -> to normalizedSum
 	bmf.Add(8.3)  // clamp(8.3) - midPoint = 5 - 2 = 3 -> to normalizedSum
 	bmf.Add(-7.5) // clamp(-7.5) - midPoint = -1 - 2 = -3 -> to normalizedSum
-	got := bmf.Result()
+	got, err := bmf.Result()
+	if err != nil {
+		t.Fatalf("Couldn't compute dp result: %v", err)
+	}
 	want := 2.5
 	if !ApproxEqual(got, want) { // clamp (normalizedSum/count + mid point) = 1.5 / 3 + 2 = 2.5
 		t.Errorf("Add: when dataset with elements outside boundaries got %f, want %f", got, want)
@@ -180,8 +198,11 @@ func TestBMClampFloat64(t *testing.T) {
 }
 
 func TestBoundedMeanFloat64ResultSetsStateCorrectly(t *testing.T) {
-	bm := getNoiselessBMF()
-	bm.Result()
+	bm := getNoiselessBMF(t)
+	_, err := bm.Result()
+	if err != nil {
+		t.Fatalf("Couldn't compute dp result: %v", err)
+	}
 
 	if bm.state != resultReturned {
 		t.Errorf("BoundedMeanFloat64 should have its state set to ResultReturned, got %v, want ResultReturned", bm.state)
@@ -192,7 +213,7 @@ func TestBMNoiseIsCorrectlyCalledFloat64(t *testing.T) {
 	bmf := getMockBMF(t)
 	bmf.Add(1)
 	bmf.Add(2)
-	got := bmf.Result() // will fail if parameters are wrong
+	got, _ := bmf.Result() // will fail if parameters are wrong
 	want := 5.0
 	// clamp((noised normalizedSum / noised count) + mid point) = clamp((-1 + 100) / (2 + 10) + 2) = 5
 	if !ApproxEqual(got, want) {
@@ -204,7 +225,7 @@ func TestBMReturnsResultInsideProvidedBoundariesFloat64(t *testing.T) {
 	lower := rand.Uniform() * 100
 	upper := lower + rand.Uniform()*100
 
-	bmf := NewBoundedMeanFloat64(&BoundedMeanFloat64Options{
+	bmf, err := NewBoundedMeanFloat64(&BoundedMeanFloat64Options{
 		Epsilon:                      ln3,
 		MaxPartitionsContributed:     1,
 		MaxContributionsPerPartition: 1,
@@ -212,12 +233,18 @@ func TestBMReturnsResultInsideProvidedBoundariesFloat64(t *testing.T) {
 		Upper:                        upper,
 		Noise:                        noise.Laplace(),
 	})
+	if err != nil {
+		t.Fatalf("Couldn't initialize mean: %v", err)
+	}
 
 	for i := 0; i <= 1000; i++ {
 		bmf.Add(rand.Uniform() * 300 * rand.Sign())
 	}
 
-	res := bmf.Result()
+	res, err := bmf.Result()
+	if err != nil {
+		t.Fatalf("Couldn't compute dp result: %v", err)
+	}
 	if res < lower {
 		t.Errorf("BoundedMean: result is outside of boundaries, got %f, want to be >= %f", res, lower)
 	}
@@ -233,9 +260,9 @@ type mockBMNoise struct {
 }
 
 // AddNoiseInt64 checks that the parameters passed are the ones we expect.
-func (mn mockBMNoise) AddNoiseInt64(x, l0, lInf int64, eps, del float64) int64 {
+func (mn mockBMNoise) AddNoiseInt64(x, l0, lInf int64, eps, del float64) (int64, error) {
 	if x != 2 && x != 0 {
-		// AddNoiseInt64 is initially called with a dummy value of 0, so we don't want to fail when that happens
+		// AddNoiseInt64 is initially called with a placeholder value of 0, so we don't want to fail when that happens
 		mn.t.Errorf("AddNoiseInt64: for parameter x got %d, want %d", x, 2)
 	}
 	if l0 != 1 {
@@ -250,13 +277,13 @@ func (mn mockBMNoise) AddNoiseInt64(x, l0, lInf int64, eps, del float64) int64 {
 	if !ApproxEqual(del, tenten*0.5) {
 		mn.t.Errorf("AddNoiseInt64: for parameter delta got %f, want %f", del, tenten*0.5)
 	}
-	return x + 10
+	return x + 10, nil
 }
 
 // AddNoiseFloat64 checks that the parameters passed are the ones we expect.
-func (mn mockBMNoise) AddNoiseFloat64(x float64, l0 int64, lInf, eps, del float64) float64 {
+func (mn mockBMNoise) AddNoiseFloat64(x float64, l0 int64, lInf, eps, del float64) (float64, error) {
 	if !ApproxEqual(x, -1.0) && !ApproxEqual(x, 0.0) {
-		// AddNoiseFloat64 is initially called with a dummy value of 0, so we don't want to fail when that happens
+		// AddNoiseFloat64 is initially called with a placeholder value of 0, so we don't want to fail when that happens
 		mn.t.Errorf("AddNoiseFloat64: for parameter x got %f, want %f", x, 0.0)
 	}
 	if l0 != 1 {
@@ -272,11 +299,12 @@ func (mn mockBMNoise) AddNoiseFloat64(x float64, l0 int64, lInf, eps, del float6
 	if !ApproxEqual(del, tenten*0.5) {
 		mn.t.Errorf("AddNoiseFloat64: for parameter delta got %f, want %f", del, tenten*0.5)
 	}
-	return x + 100
+	return x + 100, nil
 }
 
-func getNoiselessBMF() *BoundedMeanFloat64 {
-	return NewBoundedMeanFloat64(&BoundedMeanFloat64Options{
+func getNoiselessBMF(t *testing.T) *BoundedMeanFloat64 {
+	t.Helper()
+	bm, err := NewBoundedMeanFloat64(&BoundedMeanFloat64Options{
 		Epsilon:                      ln3,
 		Delta:                        tenten,
 		MaxPartitionsContributed:     1,
@@ -285,10 +313,15 @@ func getNoiselessBMF() *BoundedMeanFloat64 {
 		Upper:                        5,
 		Noise:                        noNoise{},
 	})
+	if err != nil {
+		t.Fatalf("Couldn't get noiseless BMF")
+	}
+	return bm
 }
 
 func getMockBMF(t *testing.T) *BoundedMeanFloat64 {
-	return NewBoundedMeanFloat64(&BoundedMeanFloat64Options{
+	t.Helper()
+	bm, err := NewBoundedMeanFloat64(&BoundedMeanFloat64Options{
 		Epsilon:                      ln3,
 		Delta:                        tenten,
 		MaxPartitionsContributed:     1,
@@ -297,18 +330,28 @@ func getMockBMF(t *testing.T) *BoundedMeanFloat64 {
 		Upper:                        5,
 		Noise:                        mockBMNoise{t: t},
 	})
+	if err != nil {
+		t.Fatalf("Couldn't get mock BMF")
+	}
+	return bm
 }
 
 func TestMergeBoundedMeanFloat64(t *testing.T) {
-	bm1 := getNoiselessBMF()
-	bm2 := getNoiselessBMF()
+	bm1 := getNoiselessBMF(t)
+	bm2 := getNoiselessBMF(t)
 	bm1.Add(1)
 	bm1.Add(2)
 	bm1.Add(3.5)
 	bm1.Add(4)
 	bm2.Add(4.5)
-	bm1.Merge(bm2)
-	got := bm1.Result()
+	err := bm1.Merge(bm2)
+	if err != nil {
+		t.Fatalf("Couldn't merge bm1 and bm2: %v", err)
+	}
+	got, err := bm1.Result()
+	if err != nil {
+		t.Fatalf("Couldn't compute dp result: %v", err)
+	}
 	want := 3.0
 	if !ApproxEqual(got, want) {
 		t.Errorf("Merge: when merging 2 instances of BoundedMean got %f, want %f", got, want)
@@ -486,8 +529,14 @@ func TestCheckMergeBoundedMeanFloat64Compatibility(t *testing.T) {
 			},
 			true},
 	} {
-		bm1 := NewBoundedMeanFloat64(tc.opt1)
-		bm2 := NewBoundedMeanFloat64(tc.opt2)
+		bm1, err := NewBoundedMeanFloat64(tc.opt1)
+		if err != nil {
+			t.Fatalf("Couldn't initialize bm1: %v", err)
+		}
+		bm2, err := NewBoundedMeanFloat64(tc.opt2)
+		if err != nil {
+			t.Fatalf("Couldn't initialize bm2: %v", err)
+		}
 
 		if err := checkMergeBoundedMeanFloat64(bm1, bm2); (err != nil) != tc.wantErr {
 			t.Errorf("CheckMerge: when %s for err got %v, wantErr %t", tc.desc, err, tc.wantErr)
@@ -510,8 +559,8 @@ func TestCheckMergeBoundedMeanFloat64StateChecks(t *testing.T) {
 		{defaultState, merged, true},
 		{merged, defaultState, true},
 	} {
-		bm1 := getNoiselessBMF()
-		bm2 := getNoiselessBMF()
+		bm1 := getNoiselessBMF(t)
+		bm2 := getNoiselessBMF(t)
 
 		bm1.state = tc.state1
 		bm2.state = tc.state2
@@ -676,7 +725,14 @@ func TestBMFloat64Serialization(t *testing.T) {
 			Noise:                        noise.Gaussian(),
 		}},
 	} {
-		bm, bmUnchanged := NewBoundedMeanFloat64(tc.opts), NewBoundedMeanFloat64(tc.opts)
+		bm, err := NewBoundedMeanFloat64(tc.opts)
+		if err != nil {
+			t.Fatalf("Couldn't initialize bm: %v", err)
+		}
+		bmUnchanged, err := NewBoundedMeanFloat64(tc.opts)
+		if err != nil {
+			t.Fatalf("Couldn't initialize bmUnchanged: %v", err)
+		}
 		bytes, err := encode(bm)
 		if err != nil {
 			t.Fatalf("encode(BoundedMeanFloat64) error: %v", err)
@@ -706,7 +762,7 @@ func TestBoundedMeanFloat64SerializationStateChecks(t *testing.T) {
 		{serialized, false},
 		{resultReturned, true},
 	} {
-		bm := getNoiselessBMF()
+		bm := getNoiselessBMF(t)
 		bm.state = tc.state
 
 		if _, err := bm.GobEncode(); (err != nil) != tc.wantErr {

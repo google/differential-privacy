@@ -87,9 +87,13 @@ func TestGaussianStatistics(t *testing.T) {
 			variance:        11.73597717285,
 		},
 	} {
+		var err error
 		noisedSamples := make(stat.Float64Slice, numberOfSamples)
 		for i := 0; i < numberOfSamples; i++ {
-			noisedSamples[i] = gauss.AddNoiseFloat64(tc.mean, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.delta)
+			noisedSamples[i], err = gauss.AddNoiseFloat64(tc.mean, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.delta)
+			if err != nil {
+				t.Fatalf("Couldn't noise samples: %v", err)
+			}
 		}
 		sampleMean, sampleVariance := stat.Mean(noisedSamples), stat.Variance(noisedSamples)
 		// Assuming that the Gaussian samples have a mean of 0 and the specified variance of tc.variance,
@@ -523,7 +527,10 @@ var thresholdGaussianTestCases = []struct {
 func TestThresholdGaussian(t *testing.T) {
 	for _, tc := range thresholdGaussianTestCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			gotThreshold := gauss.Threshold(tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.noiseDelta, tc.thresholdDelta)
+			gotThreshold, err := gauss.Threshold(tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.noiseDelta, tc.thresholdDelta)
+			if err != nil {
+				t.Fatalf("Couldn't compute threshold: %v", err)
+			}
 			if math.Abs(gotThreshold-tc.threshold) > 1e-10 {
 				t.Errorf("Got threshold: %0.12f, want threshold: %0.12f", gotThreshold, tc.threshold)
 			}
@@ -534,7 +541,10 @@ func TestThresholdGaussian(t *testing.T) {
 func TestDeltaForThresholdGaussian(t *testing.T) {
 	for _, tc := range thresholdGaussianTestCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			gotDelta := gauss.(gaussian).DeltaForThreshold(tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.noiseDelta, tc.threshold)
+			gotDelta, err := gauss.(gaussian).DeltaForThreshold(tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.noiseDelta, tc.threshold)
+			if err != nil {
+				t.Fatalf("Couldn't compute delta for threshold: %v", err)
+			}
 			if math.Abs(gotDelta-tc.thresholdDelta) > 1e-10 {
 				t.Errorf("Got delta: %0.12f, want delta: %0.12f", gotDelta, tc.thresholdDelta)
 			}

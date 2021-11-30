@@ -147,11 +147,17 @@ func TestBoundedSumInt64FnAddInput(t *testing.T) {
 	}
 	fn.Setup()
 
-	accum := fn.CreateAccumulator()
+	accum, err := fn.CreateAccumulator()
+	if err != nil {
+		t.Fatalf("Couldn't create accum: %v", err)
+	}
 	fn.AddInput(accum, 2)
 	fn.AddInput(accum, 2)
 
-	got := fn.ExtractOutput(accum)
+	got, err := fn.ExtractOutput(accum)
+	if err != nil {
+		t.Fatalf("Couldn't extract output: %v", err)
+	}
 	want := testutils.Int64Ptr(4)
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("unexpected output (-want +got):\n%s", diff)
@@ -171,13 +177,22 @@ func TestBoundedSumInt64FnMergeAccumulators(t *testing.T) {
 	}
 	fn.Setup()
 
-	accum1 := fn.CreateAccumulator()
+	accum1, err := fn.CreateAccumulator()
+	if err != nil {
+		t.Fatalf("Couldn't create accum1: %v", err)
+	}
 	fn.AddInput(accum1, 2)
-	accum2 := fn.CreateAccumulator()
+	accum2, err := fn.CreateAccumulator()
+	if err != nil {
+		t.Fatalf("Couldn't create accum2: %v", err)
+	}
 	fn.AddInput(accum2, 1)
 	fn.MergeAccumulators(accum1, accum2)
 
-	got := fn.ExtractOutput(accum1)
+	got, err := fn.ExtractOutput(accum1)
+	if err != nil {
+		t.Fatalf("Couldn't extract output: %v", err)
+	}
 	want := testutils.Int64Ptr(3)
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("unexpected output (-want +got):\n%s", diff)
@@ -199,12 +214,18 @@ func TestBoundedSumInt64FnExtractOutputReturnsNilForSmallPartitions(t *testing.T
 			t.Fatalf("Couldn't get boundedSumInt64Fn: %v", err)
 		}
 		fn.Setup()
-		accum := fn.CreateAccumulator()
+		accum, err := fn.CreateAccumulator()
+		if err != nil {
+			t.Fatalf("Couldn't create accum: %v", err)
+		}
 		for i := 0; i < tc.inputSize; i++ {
 			fn.AddInput(accum, 1)
 		}
 
-		got := fn.ExtractOutput(accum)
+		got, err := fn.ExtractOutput(accum)
+		if err != nil {
+			t.Fatalf("Couldn't extract output: %v", err)
+		}
 
 		// Should return nil output for small partitions.
 		if got != nil {
@@ -228,12 +249,18 @@ func TestBoundedSumInt64FnExtractOutputWithPublicPartitionsDoesNotThreshold(t *t
 			t.Fatalf("Couldn't get boundedSumInt64Fn: %v", err)
 		}
 		fn.Setup()
-		accum := fn.CreateAccumulator()
+		accum, err := fn.CreateAccumulator()
+		if err != nil {
+			t.Fatalf("Couldn't create accum: %v", err)
+		}
 		for i := 0; i < tc.inputSize; i++ {
 			fn.AddInput(accum, 1)
 		}
 
-		got := fn.ExtractOutput(accum)
+		got, err := fn.ExtractOutput(accum)
+		if err != nil {
+			t.Fatalf("Couldn't extract output: %v", err)
+		}
 
 		if got == nil {
 			t.Errorf("ExtractOutput for %s thresholded with public partitions when it shouldn't", tc.desc)
@@ -250,11 +277,17 @@ func TestBoundedSumFloat64FnAddInput(t *testing.T) {
 	}
 	fn.Setup()
 
-	accum := fn.CreateAccumulator()
+	accum, err := fn.CreateAccumulator()
+	if err != nil {
+		t.Fatalf("Couldn't create accum: %v", err)
+	}
 	fn.AddInput(accum, 2)
 	fn.AddInput(accum, 2)
 
-	got := fn.ExtractOutput(accum)
+	got, err := fn.ExtractOutput(accum)
+	if err != nil {
+		t.Fatalf("Couldn't extract output: %v", err)
+	}
 	want := testutils.Float64Ptr(4)
 	if diff := cmp.Diff(want, got, cmpopts.EquateApprox(0, testutils.LaplaceTolerance(23, 2, 1e100))); diff != "" {
 		t.Errorf("unexpected output (-want +got):\n%s", diff)
@@ -273,13 +306,22 @@ func TestBoundedSumFloat64FnMergeAccumulators(t *testing.T) {
 	}
 	fn.Setup()
 
-	accum1 := fn.CreateAccumulator()
+	accum1, err := fn.CreateAccumulator()
+	if err != nil {
+		t.Fatalf("Couldn't create accum1: %v", err)
+	}
 	fn.AddInput(accum1, 2)
-	accum2 := fn.CreateAccumulator()
+	accum2, err := fn.CreateAccumulator()
+	if err != nil {
+		t.Fatalf("Couldn't create accum2: %v", err)
+	}
 	fn.AddInput(accum2, 1)
 	fn.MergeAccumulators(accum1, accum2)
 
-	got := fn.ExtractOutput(accum1)
+	got, err := fn.ExtractOutput(accum1)
+	if err != nil {
+		t.Fatalf("Couldn't extract output: %v", err)
+	}
 	want := testutils.Float64Ptr(3)
 	if diff := cmp.Diff(want, got, cmpopts.EquateApprox(0, testutils.LaplaceTolerance(23, 2, 1e100))); diff != "" {
 		t.Errorf("unexpected output (-want +got):\n%s", diff)
@@ -301,12 +343,18 @@ func TestBoundedSumFloat64FnExtractOutputReturnsNilForSmallPartitions(t *testing
 			t.Fatalf("Couldn't get boundedSumFloat64Fn: %v", err)
 		}
 		fn.Setup()
-		accum := fn.CreateAccumulator()
+		accum, err := fn.CreateAccumulator()
+		if err != nil {
+			t.Fatalf("Couldn't create accum: %v", err)
+		}
 		for i := 0; i < tc.inputSize; i++ {
 			fn.AddInput(accum, 1)
 		}
 
-		got := fn.ExtractOutput(accum)
+		got, err := fn.ExtractOutput(accum)
+		if err != nil {
+			t.Fatalf("Couldn't extract output: %v", err)
+		}
 
 		// Should return nil output for small partitions.
 		if got != nil {
@@ -330,12 +378,18 @@ func TestBoundedSumFloat64FnExtractOutputWithPublicPartitionsDoesNotThreshold(t 
 			t.Fatalf("Couldn't get boundedSumFloat64Fn: %v", err)
 		}
 		fn.Setup()
-		accum := fn.CreateAccumulator()
+		accum, err := fn.CreateAccumulator()
+		if err != nil {
+			t.Fatalf("Couldn't create accum: %v", err)
+		}
 		for i := 0; i < tc.inputSize; i++ {
 			fn.AddInput(accum, 1)
 		}
 
-		got := fn.ExtractOutput(accum)
+		got, err := fn.ExtractOutput(accum)
+		if err != nil {
+			t.Fatalf("Couldn't extract output: %v", err)
+		}
 		if got == nil {
 			t.Errorf("ExtractOutput for %s thresholded with public partitions when it shouldn't", tc.desc)
 		}
@@ -380,16 +434,16 @@ func TestDropNonPublicPartitionsVFn(t *testing.T) {
 // are dropped (tests function used for sum and mean).
 func TestDropNonPublicPartitionsKVFn(t *testing.T) {
 	triples := testutils.ConcatenateTriplesWithIntValue(
-		testutils.MakeDummyTripleWithIntValue(7, 0),
-		testutils.MakeDummyTripleWithIntValue(58, 1),
-		testutils.MakeDummyTripleWithIntValue(99, 2),
-		testutils.MakeDummyTripleWithIntValue(45, 100),
-		testutils.MakeDummyTripleWithIntValue(20, 33))
+		testutils.MakeSampleTripleWithIntValue(7, 0),
+		testutils.MakeSampleTripleWithIntValue(58, 1),
+		testutils.MakeSampleTripleWithIntValue(99, 2),
+		testutils.MakeSampleTripleWithIntValue(45, 100),
+		testutils.MakeSampleTripleWithIntValue(20, 33))
 	// Keep partitions 0, 2.
 	// Drop partitions 1, 33, 100.
 	result := testutils.ConcatenateTriplesWithIntValue(
-		testutils.MakeDummyTripleWithIntValue(7, 0),
-		testutils.MakeDummyTripleWithIntValue(99, 2))
+		testutils.MakeSampleTripleWithIntValue(7, 0),
+		testutils.MakeSampleTripleWithIntValue(99, 2))
 
 	_, s, col, col2 := ptest.CreateList2(triples, result)
 	// Doesn't matter that the values 3, 4, 5, 6, 9, 10

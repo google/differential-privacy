@@ -114,7 +114,7 @@ centered at zero. Finally, the points are clipped to a specified radius.
 #### Run with Bazel
 
 For running the example using Bazel, you need to have
-[Bazel installed](https://docs.bazel.build/versions/master/install.html).
+[Bazel installed](https://docs.bazel.build/versions/main/install.html).
 Once that is done, run the following from the `learning/` directory:
 
 ```bash

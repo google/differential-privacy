@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"math"
 
-	log "github.com/golang/glog"
 	"github.com/google/differential-privacy/go/noise"
 )
 
@@ -64,8 +63,8 @@ type BoundedStandardDeviationOptions struct {
 }
 
 // NewBoundedStandardDeviation returns a new BoundedStandardDeviation.
-func NewBoundedStandardDeviation(opt *BoundedStandardDeviationOptions) *BoundedStandardDeviation {
-	variance := NewBoundedVariance(&BoundedVarianceOptions{
+func NewBoundedStandardDeviation(opt *BoundedStandardDeviationOptions) (*BoundedStandardDeviation, error) {
+	variance, err := NewBoundedVariance(&BoundedVarianceOptions{
 		Epsilon:                      opt.Epsilon,
 		Delta:                        opt.Delta,
 		MaxPartitionsContributed:     opt.MaxPartitionsContributed,
@@ -74,23 +73,25 @@ func NewBoundedStandardDeviation(opt *BoundedStandardDeviationOptions) *BoundedS
 		Noise:                        opt.Noise,
 		MaxContributionsPerPartition: opt.MaxContributionsPerPartition,
 	})
+	if err != nil {
+		return nil, fmt.Errorf("couldn't initialize BoundedVariance for NewBoundedStandardDeviation: %w", err)
+	}
 
 	return &BoundedStandardDeviation{
 		Variance: *variance,
 		state:    defaultState,
-	}
+	}, nil
 }
 
 // Add an entry to a BoundedStandardDeviation. It skips NaN entries and doesn't count
 // them in the final result because introducing even a single NaN entry will result in
 // a NaN standard deviation regardless of other entries, which would break the
 // indistinguishability property required for differential privacy.
-func (bstdv *BoundedStandardDeviation) Add(e float64) {
+func (bstdv *BoundedStandardDeviation) Add(e float64) error {
 	if bstdv.state != defaultState {
-		// TODO: do not exit the program from within library code
-		log.Fatalf("BoundedStandardDeviation cannot be amended. Reason: %v", bstdv.state.errorMessage())
+		return fmt.Errorf("BoundedStandardDeviation cannot be amended: %v", bstdv.state.errorMessage())
 	}
-	bstdv.Variance.Add(e)
+	return bstdv.Variance.Add(e)
 }
 
 // Result returns a differentially private estimate of the standard deviation of bounded
@@ -98,33 +99,36 @@ func (bstdv *BoundedStandardDeviation) Add(e float64) {
 //
 // Note that the returned value is not an unbiased estimate of the raw bounded standard
 // deviation.
-func (bstdv *BoundedStandardDeviation) Result() float64 {
+func (bstdv *BoundedStandardDeviation) Result() (float64, error) {
 	if bstdv.state != defaultState {
-		// TODO: do not exit the program from within library code
-		log.Fatalf("StandardDeviation's noised result cannot be computed. Reason: " + bstdv.state.errorMessage())
+		return 0, fmt.Errorf("BoundedStandardDeviation's noised result cannot be computed: " + bstdv.state.errorMessage())
 	}
 	bstdv.state = resultReturned
-	return math.Sqrt(bstdv.Variance.Result())
+	variance, err := bstdv.Variance.Result()
+	if err != nil {
+		return 0, err
+	}
+	return math.Sqrt(variance), nil
 }
 
 // Merge merges bstdv2 into bstdv (i.e., adds to bstdv all entries that were added to
 // bstdv2). bstdv2 is consumed by this operation: bstdv2 may not be used after it is
 // merged into bstdv.
-func (bstdv *BoundedStandardDeviation) Merge(bstdv2 *BoundedStandardDeviation) {
+func (bstdv *BoundedStandardDeviation) Merge(bstdv2 *BoundedStandardDeviation) error {
 	if err := checkMergeBoundedStandardDeviation(bstdv, bstdv2); err != nil {
-		// TODO: do not exit the program from within library code
-		log.Exit(err)
+		return err
 	}
 	bstdv.Variance.Merge(&bstdv2.Variance)
 	bstdv2.state = merged
+	return nil
 }
 
 func checkMergeBoundedStandardDeviation(bstdv1, bstdv2 *BoundedStandardDeviation) error {
 	if bstdv1.state != defaultState {
-		return fmt.Errorf("checkMergeBoundedStandardDeviation: bv1 cannot be merged with another BoundedStandardDeviation instance. Reason: %v", bstdv1.state.errorMessage())
+		return fmt.Errorf("checkMergeBoundedStandardDeviation: bv1 cannot be merged with another BoundedStandardDeviation instance: %v", bstdv1.state.errorMessage())
 	}
 	if bstdv2.state != defaultState {
-		return fmt.Errorf("checkMergeBoundedStandardDeviation: bv2 cannot be merged with another BoundedStandardDeviation instance. Reason: %v", bstdv2.state.errorMessage())
+		return fmt.Errorf("checkMergeBoundedStandardDeviation: bv2 cannot be merged with another BoundedStandardDeviation instance: %v", bstdv2.state.errorMessage())
 	}
 
 	if !bstdvEquallyInitialized(bstdv1, bstdv2) {
@@ -137,7 +141,7 @@ func checkMergeBoundedStandardDeviation(bstdv1, bstdv2 *BoundedStandardDeviation
 // GobEncode encodes BoundedStandardDeviation.
 func (bstdv *BoundedStandardDeviation) GobEncode() ([]byte, error) {
 	if bstdv.state != defaultState && bstdv.state != serialized {
-		return nil, fmt.Errorf("StandardDeviation object cannot be serialized. Reason: " + bstdv.state.errorMessage())
+		return nil, fmt.Errorf("StandardDeviation object cannot be serialized: " + bstdv.state.errorMessage())
 	}
 	enc := encodableBoundedStandardDeviation{
 		EncodableVariance: &bstdv.Variance,
@@ -151,8 +155,7 @@ func (bstdv *BoundedStandardDeviation) GobDecode(data []byte) error {
 	var enc encodableBoundedStandardDeviation
 	err := decode(&enc, data)
 	if err != nil {
-		log.Fatalf("GobDecode: couldn't decode BoundedStandardDeviation from bytes")
-		return err
+		return fmt.Errorf("couldn't decode BoundedStandardDeviation from bytes")
 	}
 	*bstdv = BoundedStandardDeviation{
 		Variance: *enc.EncodableVariance,

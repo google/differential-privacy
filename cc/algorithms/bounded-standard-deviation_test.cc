@@ -65,18 +65,21 @@ TYPED_TEST(BoundedStandardDeviationTest, BasicTest) {
 
 TYPED_TEST(BoundedStandardDeviationTest, RepeatedResultTest) {
   std::vector<TypeParam> a = {1, 5, 7, 9, 13};
-  std::unique_ptr<BoundedStandardDeviation<TypeParam>> bsd =
-      typename BoundedStandardDeviation<TypeParam>::Builder()
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
-          .SetEpsilon(1)
-          .SetLower(0)
-          .SetUpper(15)
-          .Build()
-          .value();
-  bsd->AddEntries(a.begin(), a.end());
+  typename BoundedStandardDeviation<TypeParam>::Builder builder;
+  builder.SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+      .SetEpsilon(1)
+      .SetLower(0)
+      .SetUpper(15);
+  std::unique_ptr<BoundedStandardDeviation<TypeParam>> bsd1 =
+      builder.Build().value();
+  std::unique_ptr<BoundedStandardDeviation<TypeParam>> bsd2 =
+      builder.Build().value();
 
-  EXPECT_EQ(GetValue<double>(bsd->PartialResult(0.5).value()),
-            GetValue<double>(bsd->PartialResult(0.5).value()));
+  bsd1->AddEntries(a.begin(), a.end());
+  bsd2->AddEntries(a.begin(), a.end());
+
+  EXPECT_EQ(GetValue<double>(bsd1->PartialResult().value()),
+            GetValue<double>(bsd2->PartialResult().value()));
 }
 
 TYPED_TEST(BoundedStandardDeviationTest, InsufficientPrivacyBudgetTest) {
@@ -93,8 +96,8 @@ TYPED_TEST(BoundedStandardDeviationTest, InsufficientPrivacyBudgetTest) {
 
   ASSERT_OK(bsd->PartialResult());
   EXPECT_THAT(bsd->PartialResult(),
-              StatusIs(absl::StatusCode::kFailedPrecondition,
-                       HasSubstr("Privacy budget must be positive")));
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("can only produce results once")));
 }
 
 TYPED_TEST(BoundedStandardDeviationTest, ClampInputTest) {

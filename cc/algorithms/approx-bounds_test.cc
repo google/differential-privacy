@@ -261,8 +261,8 @@ TEST(ApproxBoundsTest, InsufficientPrivacyBudgetTest) {
   base::StatusOr<Output> result = (*bounds)->PartialResult();
   ASSERT_OK(result);
   EXPECT_THAT((*bounds)->PartialResult(),
-              StatusIs(absl::StatusCode::kFailedPrecondition,
-                       HasSubstr("Privacy budget must be positive")));
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("can only produce results once")));
 }
 
 TEST(ApproxBoundsTest, SmallScale) {
@@ -749,30 +749,6 @@ TEST(ApproxBoundsTest, MostSignificantBit) {
   EXPECT_EQ((*bounds)->MostSignificantBit(-8), 3);
 }
 
-TEST(ApproxBoundsTest, ThresholdByPrivacyBudget) {
-  ApproxBounds<int>::Builder builder;
-  std::vector<int> a = {1, 1};
-
-  // Threshold = 1.9 / privacy_budget = 3.8, so no bounds are found.
-  base::StatusOr<std::unique_ptr<ApproxBounds<int>>> bounds1 =
-      builder.SetSuccessProbability(.01)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
-          .Build();
-  ASSERT_OK(bounds1);
-  (*bounds1)->AddEntries(a.begin(), a.end());
-  EXPECT_THAT((*bounds1)->PartialResult(.5),
-              StatusIs(absl::StatusCode::kFailedPrecondition,
-                       HasSubstr("decrease success_probability")));
-
-  // Threshold = 1.9 / privacy_budget = 1.9, so bounds are found.
-  base::StatusOr<std::unique_ptr<ApproxBounds<int>>> bounds2 = builder.Build();
-  ASSERT_OK(bounds2);
-  (*bounds2)->AddEntries(a.begin(), a.end());
-  base::StatusOr<Output> result2 = (*bounds2)->PartialResult();
-  ASSERT_OK(result2);
-  EXPECT_EQ(GetValue<int>(result2->elements(1).value()), 1);
-}
-
 TYPED_TEST(ApproxBoundsTest, AddToPartials) {
   int n_bins = 4;
   base::StatusOr<std::unique_ptr<ApproxBounds<TypeParam>>> bounds =
@@ -1153,24 +1129,6 @@ TYPED_TEST(ApproxBoundsTest, GetBoundingReport) {
   EXPECT_EQ((*bounds)->GetBoundingReport(-8, -2).num_outside(), 9);  // [-8, -2)
   EXPECT_EQ((*bounds)->GetBoundingReport(0, 1).num_outside(), 10);   // [0, 1]
   EXPECT_EQ((*bounds)->GetBoundingReport(-1, 0).num_outside(), 11);  // [-1, 0)
-}
-
-TYPED_TEST(ApproxBoundsTest, SetThresholdForTestIgnoresPrivacyBudgetFraction) {
-  base::StatusOr<std::unique_ptr<ApproxBounds<TypeParam>>> bounds =
-      typename ApproxBounds<TypeParam>::Builder()
-          .SetNumBins(5)
-          .SetBase(2)
-          .SetScale(1)
-          .SetThresholdForTest(0.9)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
-          .Build();
-  ASSERT_OK(bounds);
-
-  (*bounds)->AddEntry(0);
-
-  // If we use half the budget and manually set a threshold, the threshold
-  // should *not* be doubled.
-  EXPECT_OK((*bounds)->PartialResult(0.5));
 }
 
 TYPED_TEST(ApproxBoundsTest, Memory) {

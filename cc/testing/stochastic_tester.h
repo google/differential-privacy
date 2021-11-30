@@ -297,6 +297,10 @@ typename StochasticTester<T, OutputT>::HistogramOptions
 StochasticTester<T, OutputT>::ComputeHistogramOptions(
     const std::vector<OutputT>& sample) {
   HistogramOptions options;
+  if (sample.empty()) {
+    return options;
+  }
+
   double interquartile_range =
       OrderStatistic(.75, sample) - OrderStatistic(.25, sample);
   // The bin width formula for the rule is 2*IQR / cbrt(n).  When this is zero,
@@ -413,6 +417,9 @@ template <typename T, typename OutputT>
 bool StochasticTester<T, OutputT>::CheckDpPredicate(
     const std::vector<base::StatusOr<OutputT>>& dx_samples,
     const std::vector<base::StatusOr<OutputT>>& dy_samples) {
+  if (dx_samples.empty() || dy_samples.empty()) {
+    return true;
+  }
   double epsilon = algorithm_->GetEpsilon();
 
   // Handle error outputs by replacing them with a default error value. We must

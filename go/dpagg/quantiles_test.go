@@ -118,7 +118,10 @@ func TestNewBoundedQuantiles(t *testing.T) {
 				state:             defaultState,
 			}},
 	} {
-		got := NewBoundedQuantiles(tc.opt)
+		got, err := NewBoundedQuantiles(tc.opt)
+		if err != nil {
+			t.Fatalf("Couldn't initialize quantiles: %v", err)
+		}
 		if !reflect.DeepEqual(got, tc.want) {
 			t.Errorf("NewBoundedQuantiles: when %s got %+v, want %+v", tc.desc, got, tc.want)
 		}
@@ -133,8 +136,11 @@ func TestBQNoiseIsCorrectlyCalled(t *testing.T) {
 
 func TestBQNoInput(t *testing.T) {
 	lower, upper := -5.0, 5.0
-	bq := getNoiselessBQ(lower, upper)
-	got := bq.Result(0.5)
+	bq := getNoiselessBQ(t, lower, upper)
+	got, err := bq.Result(0.5)
+	if err != nil {
+		t.Fatalf("Couldn't compute dp result for rank=0.5: %v", err)
+	}
 	want := 0.0 // When there are no inputs, we linearly interpolate.
 	if !ApproxEqual(got, want) {
 		t.Errorf("Result: when there is no input data got=%f, want=%f", got, want)
@@ -143,14 +149,17 @@ func TestBQNoInput(t *testing.T) {
 
 func TestBQAdd(t *testing.T) {
 	lower, upper := -5.0, 5.0
-	bq := getNoiselessBQ(lower, upper)
+	bq := getNoiselessBQ(t, lower, upper)
 	entries := createEntries()
 	for _, i := range entries {
 		bq.Add(i)
 	}
 	sort.Float64s(entries)
 	for _, rank := range getRanks() {
-		got := bq.Result(rank)
+		got, err := bq.Result(rank)
+		if err != nil {
+			t.Fatalf("Couldn't compute dp result for rank=%f: %v", rank, err)
+		}
 		want := entries[int(math.Round(float64((len(entries)-1))*adjustRank(rank)))]
 		// When no noise is added, computeResult should return a value that differs from the true
 		// quantile by no more than the size of the buckets the range is partitioned into, i.e.,
@@ -164,7 +173,7 @@ func TestBQAdd(t *testing.T) {
 
 func TestBQAddIgnoresNaN(t *testing.T) {
 	lower, upper := -5.0, 5.0
-	bq := getNoiselessBQ(lower, upper)
+	bq := getNoiselessBQ(t, lower, upper)
 	entries := createEntries()
 	for _, i := range entries {
 		bq.Add(i)
@@ -174,7 +183,10 @@ func TestBQAddIgnoresNaN(t *testing.T) {
 		bq.Add(math.NaN())
 	}
 	sort.Float64s(entries)
-	got := bq.Result(0.5)
+	got, err := bq.Result(0.5)
+	if err != nil {
+		t.Fatalf("Couldn't compute dp result for rank=0.5: %v", err)
+	}
 	want := entries[500]
 	// When no noise is added, computeResult should return a value that differs from the true
 	// quantile by no more than the size of the buckets the range is partitioned into, i.e.,
@@ -187,7 +199,7 @@ func TestBQAddIgnoresNaN(t *testing.T) {
 
 func TestBQClamp(t *testing.T) {
 	lower, upper := -5.0, 5.0
-	bq := getNoiselessBQ(lower, upper)
+	bq := getNoiselessBQ(t, lower, upper)
 	for i := 0; i < 500; i++ {
 		bq.Add(-100.0) // Clamped to -5.
 		bq.Add(100.)   // Clamped to 5.
@@ -198,14 +210,20 @@ func TestBQClamp(t *testing.T) {
 	tolerance := 0.001 // (upper - lower) / branchingFactor^treeHeight
 
 	rank := 0.25
-	got := bq.Result(rank)
+	got, err := bq.Result(rank)
+	if err != nil {
+		t.Fatalf("Couldn't compute dp result for rank=%f: %v", rank, err)
+	}
 	want := -5.0
 	if !cmp.Equal(got, want, cmpopts.EquateApprox(0, tolerance)) {
 		t.Errorf("Add: Did not clamp to lower bound, rank %f got %f, want %f", rank, got, want)
 	}
 
 	rank = 0.75
-	got = bq.Result(rank)
+	got, err = bq.Result(rank)
+	if err != nil {
+		t.Fatalf("Couldn't compute dp result for rank=%f: %v", rank, err)
+	}
 	want = 5.0
 	if !cmp.Equal(got, want, cmpopts.EquateApprox(0, tolerance)) {
 		t.Errorf("Add: Did not clamp to upper bound, rank %f got %f, want %f", rank, got, want)
@@ -215,13 +233,19 @@ func TestBQClamp(t *testing.T) {
 // Tests that multiple calls for the same rank returns the same result.
 func TestBQMultipleCallsForTheSameRank(t *testing.T) {
 	lower, upper := -5.0, 5.0
-	bq := getNoiselessBQ(lower, upper)
+	bq := getNoiselessBQ(t, lower, upper)
 	for _, i := range createEntries() {
 		bq.Add(i)
 	}
 	for _, rank := range getRanks() {
-		got := bq.Result(rank)
-		want := bq.Result(rank)
+		got, err := bq.Result(rank)
+		if err != nil {
+			t.Fatalf("Couldn't compute dp result for rank=%f: %v", rank, err)
+		}
+		want, err := bq.Result(rank)
+		if err != nil {
+			t.Fatalf("Couldn't compute dp result for rank=%f: %v", rank, err)
+		}
 		if !cmp.Equal(got, want) {
 			t.Errorf("Add: Wanted the same result for multiple calls for rank %f got %f, want %f", rank, got, want)
 		}
@@ -231,8 +255,8 @@ func TestBQMultipleCallsForTheSameRank(t *testing.T) {
 // Tests that Result() is invariant to entry order.
 func TestBQInvariantToEntryOrder(t *testing.T) {
 	lower, upper := -5.0, 5.0
-	bq1 := getNoiselessBQ(lower, upper)
-	bq2 := getNoiselessBQ(lower, upper)
+	bq1 := getNoiselessBQ(t, lower, upper)
+	bq2 := getNoiselessBQ(t, lower, upper)
 	entries := createEntries()
 	// The list of entries contains 1001 elements. However, we only add the first 997. The reason
 	// is that 997 is a prime number, which allows us to shuffle the entires easily using modular
@@ -244,8 +268,14 @@ func TestBQInvariantToEntryOrder(t *testing.T) {
 		bq2.Add(entries[i*643%997])
 	}
 	for _, rank := range getRanks() {
-		got := bq1.Result(rank)
-		want := bq2.Result(rank)
+		got, err := bq1.Result(rank)
+		if err != nil {
+			t.Fatalf("Couldn't compute dp result for rank=%f: %v", rank, err)
+		}
+		want, err := bq2.Result(rank)
+		if err != nil {
+			t.Fatalf("Couldn't compute dp result for rank=%f: %v", rank, err)
+		}
 		if !cmp.Equal(got, want) {
 			t.Errorf("Add: Wanted the same result for same list of entries with a different order for rank %f got %f, want %f", rank, got, want)
 		}
@@ -256,16 +286,22 @@ func TestBQInvariantToEntryOrder(t *testing.T) {
 // the same result.
 func TestBQInvariantToPreClamping(t *testing.T) {
 	lower, upper := -1.0, 1.0
-	bq1 := getNoiselessBQ(lower, upper)
-	bq2 := getNoiselessBQ(lower, upper)
+	bq1 := getNoiselessBQ(t, lower, upper)
+	bq2 := getNoiselessBQ(t, lower, upper)
 
 	for _, i := range createEntries() {
 		bq1.Add(i)
 		bq2.Add(math.Min(math.Max(-1.0, i), 1.0))
 	}
 	for _, rank := range getRanks() {
-		got := bq1.Result(rank)
-		want := bq2.Result(rank)
+		got, err := bq1.Result(rank)
+		if err != nil {
+			t.Fatalf("Couldn't compute dp result for rank=%f: %v", rank, err)
+		}
+		want, err := bq2.Result(rank)
+		if err != nil {
+			t.Fatalf("Couldn't compute dp result for rank=%f: %v", rank, err)
+		}
 		if !cmp.Equal(got, want) {
 			t.Errorf("Add: Wanted the same result for pre-clamped entries and regularly clamped entries for rank %f got %f, want %f", rank, got, want)
 		}
@@ -275,7 +311,7 @@ func TestBQInvariantToPreClamping(t *testing.T) {
 // Tests that Result(rank) increases monotonically with rank even with noise.
 func TestBQIncreasesMonotonically(t *testing.T) {
 	lower, upper := -5.0, 5.0
-	bq := getNoiselessBQ(lower, upper)
+	bq := getNoiselessBQ(t, lower, upper)
 	bq.Noise = noise.Gaussian() // This property should hold even if noise is added.
 
 	for _, i := range createEntries() {
@@ -283,7 +319,10 @@ func TestBQIncreasesMonotonically(t *testing.T) {
 	}
 	lastResult := math.Inf(-1)
 	for _, rank := range getRanks() {
-		got := bq.Result(rank)
+		got, err := bq.Result(rank)
+		if err != nil {
+			t.Fatalf("Couldn't compute dp result for rank=%f: %v", rank, err)
+		}
 		if got < lastResult {
 			t.Errorf("Add: Expected monotonically increasing result for rank %f got %f, lastResult %f", rank, got, lastResult)
 		}
@@ -293,8 +332,11 @@ func TestBQIncreasesMonotonically(t *testing.T) {
 
 func TestBoundedQuantilesResultSetsStateCorrectly(t *testing.T) {
 	lower, upper := -5.0, 5.0
-	bq := getNoiselessBQ(lower, upper)
-	bq.Result(0.5)
+	bq := getNoiselessBQ(t, lower, upper)
+	_, err := bq.Result(0.5)
+	if err != nil {
+		t.Fatalf("Couldn't compute dp result for rank=0.5: %v", err)
+	}
 
 	if bq.state != resultReturned {
 		t.Errorf("BoundedQuantiles should have its state set to ResultReturned, got %v, want ResultReturned", bq.state)
@@ -319,8 +361,9 @@ func createEntries() []float64 {
 	return entries
 }
 
-func getNoiselessBQ(lower, upper float64) *BoundedQuantiles {
-	return NewBoundedQuantiles(&BoundedQuantilesOptions{
+func getNoiselessBQ(t *testing.T, lower, upper float64) *BoundedQuantiles {
+	t.Helper()
+	bq, err := NewBoundedQuantiles(&BoundedQuantilesOptions{
 		Epsilon:                      ln3,
 		Delta:                        tenten,
 		MaxPartitionsContributed:     1,
@@ -331,10 +374,15 @@ func getNoiselessBQ(lower, upper float64) *BoundedQuantiles {
 		BranchingFactor:              10,
 		Noise:                        noNoise{},
 	})
+	if err != nil {
+		t.Fatalf("Couldn't get noiseless BQ with lower=%f upper=%f: %v", lower, upper, err)
+	}
+	return bq
 }
 
 func getMockBQ(t *testing.T) *BoundedQuantiles {
-	return NewBoundedQuantiles(&BoundedQuantilesOptions{
+	t.Helper()
+	bq, err := NewBoundedQuantiles(&BoundedQuantilesOptions{
 		Epsilon:                      ln3,
 		Delta:                        tenten,
 		MaxPartitionsContributed:     2,
@@ -345,6 +393,10 @@ func getMockBQ(t *testing.T) *BoundedQuantiles {
 		BranchingFactor:              10,
 		Noise:                        mockBQNoise{t: t},
 	})
+	if err != nil {
+		t.Fatalf("Couldn't get noiseless BQ: %v", err)
+	}
+	return bq
 }
 
 type mockBQNoise struct {
@@ -353,7 +405,7 @@ type mockBQNoise struct {
 }
 
 // AddNoiseFloat64 checks that the parameters passed are the ones we expect.
-func (mn mockBQNoise) AddNoiseFloat64(x float64, l0 int64, lInf, eps, del float64) float64 {
+func (mn mockBQNoise) AddNoiseFloat64(x float64, l0 int64, lInf, eps, del float64) (float64, error) {
 	if !ApproxEqual(x, 1.0) && !ApproxEqual(x, 0.0) {
 		// We have a single element in the tree, meaning that bucket counts will either be 0 or 1.
 		mn.t.Errorf("AddNoiseFloat64: for parameter x got %f, want 0.0 or 1.0", x)
@@ -370,7 +422,7 @@ func (mn mockBQNoise) AddNoiseFloat64(x float64, l0 int64, lInf, eps, del float6
 	if !ApproxEqual(del, tenten) {
 		mn.t.Errorf("AddNoiseFloat64: for parameter delta got %f, want %f", del, tenten)
 	}
-	return x
+	return x, nil
 }
 
 func TestCheckMergeBoundedQuantilesCompatibility(t *testing.T) {
@@ -621,8 +673,14 @@ func TestCheckMergeBoundedQuantilesCompatibility(t *testing.T) {
 			},
 			true},
 	} {
-		bq1 := NewBoundedQuantiles(tc.opt1)
-		bq2 := NewBoundedQuantiles(tc.opt2)
+		bq1, err := NewBoundedQuantiles(tc.opt1)
+		if err != nil {
+			t.Fatalf("Couldn't initialize bq1: %v", err)
+		}
+		bq2, err := NewBoundedQuantiles(tc.opt2)
+		if err != nil {
+			t.Fatalf("Couldn't initialize bq2: %v", err)
+		}
 
 		if err := checkMergeBoundedQuantiles(bq1, bq2); (err != nil) != tc.wantErr {
 			t.Errorf("CheckMerge: when %s for err got %v, wantErr %t", tc.desc, err, tc.wantErr)
@@ -646,8 +704,8 @@ func TestCheckMergeBoundedQuantilesStateChecks(t *testing.T) {
 		{merged, defaultState, true},
 	} {
 		lower, upper := -5.0, 5.0
-		bq1 := getNoiselessBQ(lower, upper)
-		bq2 := getNoiselessBQ(lower, upper)
+		bq1 := getNoiselessBQ(t, lower, upper)
+		bq2 := getNoiselessBQ(t, lower, upper)
 
 		bq1.state = tc.state1
 		bq2.state = tc.state2
@@ -913,7 +971,14 @@ func TestBQSerialization(t *testing.T) {
 			Noise:                        noise.Gaussian(),
 		}},
 	} {
-		bq, bqUnchanged := NewBoundedQuantiles(tc.opts), NewBoundedQuantiles(tc.opts)
+		bq, err := NewBoundedQuantiles(tc.opts)
+		if err != nil {
+			t.Fatalf("Couldn't initialize bq: %v", err)
+		}
+		bqUnchanged, err := NewBoundedQuantiles(tc.opts)
+		if err != nil {
+			t.Fatalf("Couldn't initialize bqUnchanged: %v", err)
+		}
 		// Insert same elements to both.
 		bq.Add(1.0)
 		bqUnchanged.Add(1.0)
@@ -949,7 +1014,7 @@ func TestBQSerializationStateChecks(t *testing.T) {
 		{resultReturned, true},
 	} {
 		lower, upper := -5.0, 5.0
-		bq := getNoiselessBQ(lower, upper)
+		bq := getNoiselessBQ(t, lower, upper)
 		bq.state = tc.state
 
 		if _, err := bq.GobEncode(); (err != nil) != tc.wantErr {

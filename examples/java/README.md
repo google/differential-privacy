@@ -134,9 +134,15 @@ uses `Count` to calculate the differentially private count of visits for a
 single day.
 
 ```java
-// Number of days a visitor may contribute to is limited to 3. All exceeding
-// visits will be discarded.
+// An upper bound for the number of days a singe visitor may contribute to is
+// set to 3. All exceeding visits will be discarded.
+//
+// Higher values result into less visits being dropped (and therefore less
+// bias) at the cost of higher noise. A good value should estimate an upper
+// bound for a typical user. Getting this right helps adding optimal amount of
+// noise without losing too much data.
 private static final int MAX_CONTRIBUTED_DAYS = 3;
+
 // Default epsilon.
 private static final double LN_3 = Math.log(3);
 

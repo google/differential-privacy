@@ -34,7 +34,9 @@ namespace differential_privacy {
 namespace internal {
 namespace {
 
+using ::testing::Gt;
 using ::testing::HasSubstr;
+using ::testing::Lt;
 using ::differential_privacy::base::testing::StatusIs;
 
 constexpr int64_t kNumSamples = 10000000;
@@ -196,6 +198,24 @@ TEST(LaplaceCalculateGranularityTest, InvalidParameters) {
   EXPECT_THAT(LaplaceDistribution::CalculateGranularity(1.0 / (int64_t{1} << 50),
                                                         valid_param),
               StatusIs(absl::StatusCode::kOk));
+}
+
+TEST(LaplaceDistributionTest, GranularityIsBetweenZeroAndDiversity) {
+  const double epsilon = 1.1;
+  const double sensitivity = 2.0;
+
+  base::StatusOr<std::unique_ptr<LaplaceDistribution>> ld =
+      LaplaceDistribution::Builder()
+          .SetEpsilon(epsilon)
+          .SetSensitivity(sensitivity)
+          .Build();
+  ASSERT_OK(ld);
+
+  const double granularity = ld.value()->GetGranularity();
+  EXPECT_THAT(granularity, Gt(0));
+
+  const double diversity = sensitivity / epsilon;
+  EXPECT_THAT(granularity, Lt(diversity));
 }
 
 TEST(GaussDistributionTest, ParameterValidation) {

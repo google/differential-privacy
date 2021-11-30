@@ -42,7 +42,6 @@ message DataRecord {
   optional int32 user = 1;
   optional int32 partition = 2;
   optional double double_value = 3;
-  optional int64 long_value = 4;
 }
 
 // Parameters required for running a closeness test

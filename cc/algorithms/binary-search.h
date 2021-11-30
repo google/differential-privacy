@@ -144,16 +144,12 @@ class BinarySearch : public Algorithm<T> {
 
   void ResetState() override { quantiles_->Reset(); }
 
-  base::StatusOr<Output> GenerateResult(double privacy_budget,
-                                        double noise_interval_level) override {
-    RETURN_IF_ERROR(ValidateIsPositive(privacy_budget, "Privacy budget",
-                                       absl::StatusCode::kFailedPrecondition));
-    return BayesianSearch(privacy_budget, noise_interval_level);
+  base::StatusOr<Output> GenerateResult(double noise_interval_level) override {
+    return BayesianSearch(noise_interval_level);
   }
 
  private:
-  base::StatusOr<Output> BayesianSearch(double privacy_budget,
-                                        double noise_interval_level) {
+  base::StatusOr<Output> BayesianSearch(double noise_interval_level) {
     // If the bounds are equal, we return the only possible value with total
     // confidence.
     if (lower_ == upper_) {
@@ -167,9 +163,9 @@ class BinarySearch : public Algorithm<T> {
     }
 
     // Start the local_budget at a fraction of the total budget.
-    double local_budget = privacy_budget * kDefaultLocalBudgetFraction;
-    double remaining_budget = privacy_budget;
-    double max_local_budget = privacy_budget * kMaxLocalBudgetFraction;
+    double local_budget = kDefaultLocalBudgetFraction;
+    double remaining_budget = 1.0;
+    double max_local_budget = kMaxLocalBudgetFraction;
 
     // Stores probability that the target value is the subrange. Since the map
     // is sorted, it contains a sequence of key-value pairs (k_i, v_i) for
@@ -279,10 +275,10 @@ class BinarySearch : public Algorithm<T> {
   // local privacy_budget, find the probability that the percentile p element of
   // the set is to the left of the investigated value. The tolerance is the
   // distance from removable singularities to use the value at singularity.
-  virtual double BayesianProbabilityLeft(double privacy_budget, double L,
+  virtual double BayesianProbabilityLeft(double local_budget, double L,
                                          double U) {
     double p = quantile_;
-    double b = privacy_budget / mechanism_->GetDiversity();
+    double b = local_budget / mechanism_->GetDiversity();
 
     // Removable singularity at p=1/2.
     if (std::abs(p - .5) < kSingularityTolerance) {

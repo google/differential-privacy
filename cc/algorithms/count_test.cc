@@ -84,18 +84,25 @@ TYPED_TEST(CountTest, BasicTest) {
 
 TYPED_TEST(CountTest, RepeatedResultTest) {
   std::vector<TypeParam> c = {1, 2, 3, 4, 2, 3};
-  base::StatusOr<std::unique_ptr<Count<TypeParam>>> count =
-      typename Count<TypeParam>::Builder()
-          .SetEpsilon(kDefaultEpsilon)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
-          .Build();
-  ASSERT_OK(count);
+  typename Count<TypeParam>::Builder builder;
+  builder.SetEpsilon(kDefaultEpsilon)
+      .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>());
+  base::StatusOr<std::unique_ptr<Count<TypeParam>>> count1 =
 
-  (*count)->AddEntries(c.begin(), c.end());
+      builder.Build();
+  ASSERT_OK(count1);
 
-  auto result1 = (*count)->PartialResult(0.5);
+  base::StatusOr<std::unique_ptr<Count<TypeParam>>> count2 =
+
+      builder.Build();
+  ASSERT_OK(count2);
+
+  (*count1)->AddEntries(c.begin(), c.end());
+  (*count2)->AddEntries(c.begin(), c.end());
+
+  auto result1 = (*count1)->PartialResult(0.5);
   ASSERT_OK(result1);
-  auto result2 = (*count)->PartialResult(0.5);
+  auto result2 = (*count2)->PartialResult(0.5);
   ASSERT_OK(result2);
 
   EXPECT_EQ(GetValue<int64_t>(*result1), GetValue<int64_t>(*result2));
@@ -136,8 +143,8 @@ TYPED_TEST(CountTest, InsufficientPrivacyBudgetTest) {
 
   ASSERT_OK((*count)->PartialResult());
   EXPECT_THAT((*count)->PartialResult(),
-              StatusIs(absl::StatusCode::kFailedPrecondition,
-                       HasSubstr("Privacy budget must be positive")));
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("can only produce results once")));
 }
 
 TEST(CountTest, ConfidenceIntervalTest) {

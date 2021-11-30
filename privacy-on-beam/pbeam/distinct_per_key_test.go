@@ -122,13 +122,19 @@ func TestDistinctPerKeyAddsNoise(t *testing.T) {
 		}
 
 		// Compute the number of IDs needed to keep the partition.
-		sp := dpagg.NewPreAggSelectPartition(
+		sp, err := dpagg.NewPreAggSelectPartition(
 			&dpagg.PreAggSelectPartitionOptions{
 				Epsilon:                  partitionSelectionEpsilon,
 				Delta:                    partitionSelectionDelta,
 				MaxPartitionsContributed: l0Sensitivity,
 			})
-		numIDs := sp.GetHardThreshold()
+		if err != nil {
+			t.Fatalf("Couldn't initialize PreAggSelectPartition necessary to compute the number of IDs needed: %v", err)
+		}
+		numIDs, err := sp.GetHardThreshold()
+		if err != nil {
+			t.Fatalf("Couldn't compute hard threshold: %v", err)
+		}
 
 		triples := make([]testutils.TripleWithIntValue, numIDs)
 		for i := 0; i < numIDs; i++ { // Add numIDs distinct values to Partition 0.
@@ -362,7 +368,7 @@ var distinctPerKeyPartitionSelectionTestCases = []struct {
 func TestDistinctPerKeyPartitionSelection(t *testing.T) {
 	for _, tc := range distinctPerKeyPartitionSelectionTestCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// Sanity check that the entriesPerPartition is sensical.
+			// Verify that entriesPerPartition is sensical.
 			if tc.entriesPerPartition <= 0 {
 				t.Fatalf("Invalid test case: entriesPerPartition must be positive. Got: %d", tc.entriesPerPartition)
 			}

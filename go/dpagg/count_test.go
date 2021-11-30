@@ -84,9 +84,12 @@ func TestNewCount(t *testing.T) {
 				state:           defaultState,
 			}},
 	} {
-		got := NewCount(tc.opt)
-		if !reflect.DeepEqual(got, tc.want) {
-			t.Errorf("NewCount: when %s got %+v, want %+v", tc.desc, got, tc.want)
+		c, err := NewCount(tc.opt)
+		if err != nil {
+			t.Fatalf("Couldn't initialize c: %v", err)
+		}
+		if !reflect.DeepEqual(c, tc.want) {
+			t.Errorf("NewCount: when %s got %+v, want %+v", tc.desc, c, tc.want)
 		}
 	}
 }
@@ -119,7 +122,14 @@ func TestCountSerialization(t *testing.T) {
 			Noise:                    noise.Gaussian(),
 		}},
 	} {
-		c, cUnchanged := NewCount(tc.opts), NewCount(tc.opts)
+		c, err := NewCount(tc.opts)
+		if err != nil {
+			t.Fatalf("Couldn't initialize c: %v", err)
+		}
+		cUnchanged, err := NewCount(tc.opts)
+		if err != nil {
+			t.Fatalf("Couldn't initialize cUnchanged: %v", err)
+		}
 		bytes, err := encode(c)
 		if err != nil {
 			t.Fatalf("encode(Count) error: %v", err)
@@ -149,7 +159,7 @@ func TestCountSerializationStateChecks(t *testing.T) {
 		{serialized, false},
 		{resultReturned, true},
 	} {
-		c := getNoiselessCount()
+		c := getNoiselessCount(t)
 		c.state = tc.state
 
 		if _, err := c.GobEncode(); (err != nil) != tc.wantErr {
@@ -158,22 +168,30 @@ func TestCountSerializationStateChecks(t *testing.T) {
 	}
 }
 
-func getNoiselessCount() *Count {
-	return NewCount(&CountOptions{
+func getNoiselessCount(t *testing.T) *Count {
+	t.Helper()
+	c, err := NewCount(&CountOptions{
 		Epsilon:                  ln3,
 		Delta:                    tenten,
 		MaxPartitionsContributed: 1,
 		Noise:                    noNoise{},
 	})
+	if err != nil {
+		t.Fatalf("Couldn't get noiseless count: %v", err)
+	}
+	return c
 }
 
 func TestCountIncrement(t *testing.T) {
-	count := getNoiselessCount()
+	count := getNoiselessCount(t)
 	count.Increment()
 	count.Increment()
 	count.Increment()
 	count.Increment()
-	got := count.Result()
+	got, err := count.Result()
+	if err != nil {
+		t.Fatalf("Couldn't compute dp result: %v", err)
+	}
 	const want = 4
 	if got != want {
 		t.Errorf("Increment: after adding %d values got %d, want %d", want, got, want)
@@ -181,9 +199,12 @@ func TestCountIncrement(t *testing.T) {
 }
 
 func TestCountIncrementBy(t *testing.T) {
-	count := getNoiselessCount()
+	count := getNoiselessCount(t)
 	count.IncrementBy(4)
-	got := count.Result()
+	got, err := count.Result()
+	if err != nil {
+		t.Fatalf("Couldn't compute dp result: %v", err)
+	}
 	const want = 4
 	if got != want {
 		t.Errorf("IncrementBy: after adding %d got %d, want %d", want, got, want)
@@ -191,15 +212,21 @@ func TestCountIncrementBy(t *testing.T) {
 }
 
 func TestCountMerge(t *testing.T) {
-	c1 := getNoiselessCount()
-	c2 := getNoiselessCount()
+	c1 := getNoiselessCount(t)
+	c2 := getNoiselessCount(t)
 	c1.Increment()
 	c1.Increment()
 	c1.Increment()
 	c1.Increment()
 	c2.Increment()
-	c1.Merge(c2)
-	got := c1.Result()
+	err := c1.Merge(c2)
+	if err != nil {
+		t.Fatalf("Couldn't merge c1 and c2: %v", err)
+	}
+	got, err := c1.Result()
+	if err != nil {
+		t.Fatalf("Couldn't compute dp result: %v", err)
+	}
 	const want = 5
 	if got != want {
 		t.Errorf("Merge: when merging 2 instances of Count got %d, want %d", got, want)
@@ -293,8 +320,14 @@ func TestCountCheckMergeCompatibility(t *testing.T) {
 			},
 			true},
 	} {
-		c1 := NewCount(tc.opt1)
-		c2 := NewCount(tc.opt2)
+		c1, err := NewCount(tc.opt1)
+		if err != nil {
+			t.Fatalf("Couldn't initialize c1: %v", err)
+		}
+		c2, err := NewCount(tc.opt2)
+		if err != nil {
+			t.Fatalf("Couldn't initialize c2: %v", err)
+		}
 
 		if err := checkMergeCount(c1, c2); (err != nil) != tc.wantErr {
 			t.Errorf("CheckMerge: when %s for err got %v, wantErr %t", tc.desc, err, tc.wantErr)
@@ -317,8 +350,8 @@ func TestCountCheckMergeStateChecks(t *testing.T) {
 		{defaultState, merged, true},
 		{merged, defaultState, true},
 	} {
-		c1 := getNoiselessCount()
-		c2 := getNoiselessCount()
+		c1 := getNoiselessCount(t)
+		c2 := getNoiselessCount(t)
 
 		c1.state = tc.state1
 		c2.state = tc.state2
@@ -330,8 +363,11 @@ func TestCountCheckMergeStateChecks(t *testing.T) {
 }
 
 func TestCountResultSetsStateCorrectly(t *testing.T) {
-	c := getNoiselessCount()
-	c.Result()
+	c := getNoiselessCount(t)
+	_, err := c.Result()
+	if err != nil {
+		t.Fatalf("Couldn't compute dp result: %v", err)
+	}
 
 	if c.state != resultReturned {
 		t.Errorf("Count should have its state set to ResultReturned, got %v, want ResultReturned", c.state)
@@ -340,20 +376,26 @@ func TestCountResultSetsStateCorrectly(t *testing.T) {
 
 func TestCountThresholdedResult(t *testing.T) {
 	// ThresholdedResult outputs the result when it is greater than the threshold (5 using noNoise)
-	c1 := getNoiselessCount()
+	c1 := getNoiselessCount(t)
 	for i := 0; i < 10; i++ {
 		c1.Increment()
 	}
-	got := c1.ThresholdedResult(tenten)
+	got, err := c1.ThresholdedResult(tenten)
+	if err != nil {
+		t.Fatalf("Couldn't compute thresholded dp result: %v", err)
+	}
 	if got == nil || *got != 10 {
 		t.Errorf("ThresholdedResult(%f): when 10 addings got %v, want 10", tenten, got)
 	}
 
 	// ThresholdedResult outputs nil when it is less than the threshold
-	c2 := getNoiselessCount()
+	c2 := getNoiselessCount(t)
 	c2.Increment()
 	c2.Increment()
-	got = c2.ThresholdedResult(tenten)
+	got, err = c2.ThresholdedResult(tenten)
+	if err != nil {
+		t.Fatalf("Couldn't compute thresholded dp result: %v", err)
+	}
 	if got != nil {
 		t.Errorf("ThresholdedResult(%f): when 2 addings got %v, want nil", tenten, got)
 	}
@@ -365,8 +407,8 @@ type mockNoiseCount struct {
 }
 
 // AddNoiseInt64 checks that the parameters passed are the ones we expect.
-func (mn mockNoiseCount) AddNoiseInt64(x, l0, lInf int64, eps, del float64) int64 {
-	if x != 10 && x != 0 { // AddNoiseInt64 is initially called with a dummy value of 0, so we don't want to fail when that happens
+func (mn mockNoiseCount) AddNoiseInt64(x, l0, lInf int64, eps, del float64) (int64, error) {
+	if x != 10 && x != 0 { // AddNoiseInt64 is initially called with a placeholder value of 0, so we don't want to fail when that happens
 		mn.t.Errorf("AddNoiseInt64: for parameter x got %d, want %d", x, 10)
 	}
 	if l0 != 3 {
@@ -381,11 +423,11 @@ func (mn mockNoiseCount) AddNoiseInt64(x, l0, lInf int64, eps, del float64) int6
 	if !ApproxEqual(del, tenten) {
 		mn.t.Errorf("AddNoiseInt64: for parameter delta got %f, want %f", del, tenten)
 	}
-	return 0 // ignored
+	return 0, nil // ignored
 }
 
 // Threshold checks that the parameters passed are the ones we expect.
-func (mn mockNoiseCount) Threshold(l0 int64, lInf, eps, del, thresholdDelta float64) float64 {
+func (mn mockNoiseCount) Threshold(l0 int64, lInf, eps, del, thresholdDelta float64) (float64, error) {
 	if !ApproxEqual(thresholdDelta, 20.0) {
 		mn.t.Errorf("Threshold: for parameter thresholdDelta got %f, want %f", thresholdDelta, 10.0)
 	}
@@ -401,17 +443,22 @@ func (mn mockNoiseCount) Threshold(l0 int64, lInf, eps, del, thresholdDelta floa
 	if !ApproxEqual(del, tenten) {
 		mn.t.Errorf("Threshold: for parameter delta got %f, want %f", del, tenten)
 	}
-	return 0 // ignored
+	return 0, nil // ignored
 }
 
 func getMockCount(t *testing.T) *Count {
-	return NewCount(&CountOptions{
+	t.Helper()
+	c, err := NewCount(&CountOptions{
 		Epsilon:                      ln3,
 		Delta:                        tenten,
 		MaxPartitionsContributed:     3,
 		maxContributionsPerPartition: 2,
 		Noise:                        mockNoiseCount{t: t},
 	})
+	if err != nil {
+		t.Fatalf("Couldn't get mock count: %v", err)
+	}
+	return c
 }
 
 func TestCountNoiseIsCorrectlyCalled(t *testing.T) {
@@ -669,9 +716,15 @@ func TestCountIsUnbiased(t *testing.T) {
 	} {
 		countSamples := make(stat.IntSlice, numberOfSamples)
 		for i := 0; i < numberOfSamples; i++ {
-			count := NewCount(tc.opt)
+			count, err := NewCount(tc.opt)
+			if err != nil {
+				t.Fatalf("Couldn't initialize count: %v", err)
+			}
 			count.IncrementBy(tc.rawCount)
-			countSamples[i] = count.Result()
+			countSamples[i], err = count.Result()
+			if err != nil {
+				t.Fatalf("Couldn't compute dp result: %v", err)
+			}
 		}
 		sampleMean := stat.Mean(countSamples)
 		// Assuming that count is unbiased, each sample should have a mean of tc.rawCount
@@ -683,7 +736,7 @@ func TestCountIsUnbiased(t *testing.T) {
 		tolerance := 4.41717 * math.Sqrt(tc.variance/float64(numberOfSamples))
 
 		if math.Abs(sampleMean-float64(tc.rawCount)) > tolerance {
-			t.Errorf("got mean = %f, want %f (parameters %+v)", sampleMean, float64(tc.rawCount), tc)
+			t.Errorf("Got mean = %f, want %f (parameters %+v)", sampleMean, float64(tc.rawCount), tc)
 		}
 	}
 }

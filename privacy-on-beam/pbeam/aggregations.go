@@ -50,15 +50,16 @@ func init() {
 	beam.RegisterType(reflect.TypeOf((*partitionsMapFn)(nil)).Elem())
 	beam.RegisterType(reflect.TypeOf((*prunePartitionsVFn)(nil)).Elem())
 	beam.RegisterType(reflect.TypeOf((*prunePartitionsInMemoryVFn)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*prunePartitionsInMemoryKVFn)(nil)).Elem())
 	beam.RegisterType(reflect.TypeOf((*pMap)(nil)).Elem())
 	beam.RegisterType(reflect.TypeOf((*emitPartitionsNotInTheDataFn)(nil)).Elem())
 
 	beam.RegisterFunction(randBool)
 	beam.RegisterFunction(clampNegativePartitionsInt64Fn)
 	beam.RegisterFunction(clampNegativePartitionsFloat64Fn)
-	beam.RegisterFunction(addDummyValuesToPublicPartitionsInt64Fn)
-	beam.RegisterFunction(addDummyValuesToPublicPartitionsFloat64Fn)
-	beam.RegisterFunction(addDummyValuesToPublicPartitionsFloat64SliceFn)
+	beam.RegisterFunction(addZeroValuesToPublicPartitionsInt64Fn)
+	beam.RegisterFunction(addZeroValuesToPublicPartitionsFloat64Fn)
+	beam.RegisterFunction(addEmptySliceToPublicPartitionsFloat64Fn)
 	beam.RegisterFunction(dropThresholdedPartitionsInt64Fn)
 	beam.RegisterFunction(dropThresholdedPartitionsFloat64Fn)
 	beam.RegisterFunction(dropThresholdedPartitionsFloat64SliceFn)
@@ -167,7 +168,7 @@ func newDecodePairFn(t reflect.Type, kind reflect.Kind) (interface{}, error) {
 	case reflect.Float64:
 		return newDecodePairFloat64Fn(t), nil
 	default:
-		return nil, fmt.Errorf("pbeam.newDecodePairFn: kind(%v) should be int64 or float64", kind)
+		return nil, fmt.Errorf("kind(%v) should be int64 or float64", kind)
 	}
 }
 
@@ -223,15 +224,15 @@ func newBoundedSumFn(epsilon, delta float64, maxPartitionsContributed int64, low
 
 	switch vKind {
 	case reflect.Int64:
-		checkErr = checks.CheckBoundsFloat64AsInt64("pbeam.newBoundedSumFn", lower, upper)
+		checkErr = checks.CheckBoundsFloat64AsInt64(lower, upper)
 		if checkErr != nil {
-			return nil, fmt.Errorf("Couldn't create a new boundedSumFn: %w", checkErr)
+			return nil, checkErr
 		}
 		bsFn, err = newBoundedSumInt64Fn(epsilon, delta, maxPartitionsContributed, int64(lower), int64(upper), noiseKind, publicPartitions, testMode)
 	case reflect.Float64:
-		checkErr = checks.CheckBoundsFloat64("pbeam.newBoundedSumFn", lower, upper)
+		checkErr = checks.CheckBoundsFloat64(lower, upper)
 		if checkErr != nil {
-			return nil, fmt.Errorf("Couldn't create a new boundedSumFn: %w", checkErr)
+			return nil, checkErr
 		}
 		bsFn, err = newBoundedSumFloat64Fn(epsilon, delta, maxPartitionsContributed, lower, upper, noiseKind, publicPartitions, testMode)
 	default:
@@ -300,55 +301,81 @@ func (fn *boundedSumInt64Fn) Setup() {
 	}
 }
 
-func (fn *boundedSumInt64Fn) CreateAccumulator() boundedSumAccumInt64 {
+func (fn *boundedSumInt64Fn) CreateAccumulator() (boundedSumAccumInt64, error) {
 	if fn.TestMode == noNoiseWithoutContributionBounding {
 		fn.Lower = math.MinInt64
 		fn.Upper = math.MaxInt64
 	}
-	accum := boundedSumAccumInt64{
-		BS: dpagg.NewBoundedSumInt64(&dpagg.BoundedSumInt64Options{
-			Epsilon:                  fn.NoiseEpsilon,
-			Delta:                    fn.NoiseDelta,
-			MaxPartitionsContributed: fn.MaxPartitionsContributed,
-			Lower:                    fn.Lower,
-			Upper:                    fn.Upper,
-			Noise:                    fn.noise,
-		}), PublicPartitions: fn.PublicPartitions}
+	var bs *dpagg.BoundedSumInt64
+	var err error
+	bs, err = dpagg.NewBoundedSumInt64(&dpagg.BoundedSumInt64Options{
+		Epsilon:                  fn.NoiseEpsilon,
+		Delta:                    fn.NoiseDelta,
+		MaxPartitionsContributed: fn.MaxPartitionsContributed,
+		Lower:                    fn.Lower,
+		Upper:                    fn.Upper,
+		Noise:                    fn.noise,
+	})
+	if err != nil {
+		return boundedSumAccumInt64{}, err
+	}
+	accum := boundedSumAccumInt64{BS: bs, PublicPartitions: fn.PublicPartitions}
 	if !fn.PublicPartitions {
-		accum.SP = dpagg.NewPreAggSelectPartition(&dpagg.PreAggSelectPartitionOptions{
+		accum.SP, err = dpagg.NewPreAggSelectPartition(&dpagg.PreAggSelectPartitionOptions{
 			Epsilon:                  fn.PartitionSelectionEpsilon,
 			Delta:                    fn.PartitionSelectionDelta,
 			MaxPartitionsContributed: fn.MaxPartitionsContributed,
 		})
 	}
-	return accum
+	return accum, err
 }
 
-func (fn *boundedSumInt64Fn) AddInput(a boundedSumAccumInt64, value int64) boundedSumAccumInt64 {
-	a.BS.Add(value)
-	if !fn.PublicPartitions {
-		a.SP.Increment()
+func (fn *boundedSumInt64Fn) AddInput(a boundedSumAccumInt64, value int64) (boundedSumAccumInt64, error) {
+	err := a.BS.Add(value)
+	if err != nil {
+		return a, err
 	}
-	return a
-}
-
-func (fn *boundedSumInt64Fn) MergeAccumulators(a, b boundedSumAccumInt64) boundedSumAccumInt64 {
-	a.BS.Merge(b.BS)
 	if !fn.PublicPartitions {
-		a.SP.Merge(b.SP)
+		err := a.SP.Increment()
+		if err != nil {
+			return a, err
+		}
 	}
-	return a
+	return a, nil
 }
 
-func (fn *boundedSumInt64Fn) ExtractOutput(a boundedSumAccumInt64) *int64 {
+func (fn *boundedSumInt64Fn) MergeAccumulators(a, b boundedSumAccumInt64) (boundedSumAccumInt64, error) {
+	err := a.BS.Merge(b.BS)
+	if err != nil {
+		return a, err
+	}
+	if !fn.PublicPartitions {
+		err := a.SP.Merge(b.SP)
+		if err != nil {
+			return a, err
+		}
+	}
+	return a, nil
+}
+
+func (fn *boundedSumInt64Fn) ExtractOutput(a boundedSumAccumInt64) (*int64, error) {
 	if fn.TestMode.isEnabled() {
 		a.BS.Noise = noNoise{}
 	}
-	if fn.TestMode.isEnabled() || a.PublicPartitions || a.SP.ShouldKeepPartition() {
-		result := a.BS.Result()
-		return &result
+	var err error
+	shouldKeepPartition := fn.TestMode.isEnabled() || a.PublicPartitions // If in test mode or public partitions are specified, we always keep the partition.
+	if !shouldKeepPartition {                                            // If not, we need to perform private partition selection.
+		shouldKeepPartition, err = a.SP.ShouldKeepPartition()
+		if err != nil {
+			return nil, err
+		}
 	}
-	return nil
+
+	if shouldKeepPartition {
+		result, err := a.BS.Result()
+		return &result, err
+	}
+	return nil, nil
 }
 
 func (fn *boundedSumInt64Fn) String() string {
@@ -415,55 +442,77 @@ func (fn *boundedSumFloat64Fn) Setup() {
 	}
 }
 
-func (fn *boundedSumFloat64Fn) CreateAccumulator() boundedSumAccumFloat64 {
+func (fn *boundedSumFloat64Fn) CreateAccumulator() (boundedSumAccumFloat64, error) {
 	if fn.TestMode == noNoiseWithoutContributionBounding {
 		fn.Lower = math.Inf(-1)
 		fn.Upper = math.Inf(1)
 	}
-	accum := boundedSumAccumFloat64{
-		BS: dpagg.NewBoundedSumFloat64(&dpagg.BoundedSumFloat64Options{
-			Epsilon:                  fn.NoiseEpsilon,
-			Delta:                    fn.NoiseDelta,
-			MaxPartitionsContributed: fn.MaxPartitionsContributed,
-			Lower:                    fn.Lower,
-			Upper:                    fn.Upper,
-			Noise:                    fn.noise,
-		}), PublicPartitions: fn.PublicPartitions}
+	var bs *dpagg.BoundedSumFloat64
+	var err error
+	bs, err = dpagg.NewBoundedSumFloat64(&dpagg.BoundedSumFloat64Options{
+		Epsilon:                  fn.NoiseEpsilon,
+		Delta:                    fn.NoiseDelta,
+		MaxPartitionsContributed: fn.MaxPartitionsContributed,
+		Lower:                    fn.Lower,
+		Upper:                    fn.Upper,
+		Noise:                    fn.noise,
+	})
+	if err != nil {
+		return boundedSumAccumFloat64{}, err
+	}
+	accum := boundedSumAccumFloat64{BS: bs, PublicPartitions: fn.PublicPartitions}
 	if !fn.PublicPartitions {
-		accum.SP = dpagg.NewPreAggSelectPartition(&dpagg.PreAggSelectPartitionOptions{
+		accum.SP, err = dpagg.NewPreAggSelectPartition(&dpagg.PreAggSelectPartitionOptions{
 			Epsilon:                  fn.PartitionSelectionEpsilon,
 			Delta:                    fn.PartitionSelectionDelta,
 			MaxPartitionsContributed: fn.MaxPartitionsContributed,
 		})
 	}
-	return accum
+	return accum, err
 }
 
-func (fn *boundedSumFloat64Fn) AddInput(a boundedSumAccumFloat64, value float64) boundedSumAccumFloat64 {
-	a.BS.Add(value)
-	if !fn.PublicPartitions {
-		a.SP.Increment()
+func (fn *boundedSumFloat64Fn) AddInput(a boundedSumAccumFloat64, value float64) (boundedSumAccumFloat64, error) {
+	var err error
+	err = a.BS.Add(value)
+	if err != nil {
+		return a, err
 	}
-	return a
-}
-
-func (fn *boundedSumFloat64Fn) MergeAccumulators(a, b boundedSumAccumFloat64) boundedSumAccumFloat64 {
-	a.BS.Merge(b.BS)
 	if !fn.PublicPartitions {
-		a.SP.Merge(b.SP)
+		err = a.SP.Increment()
 	}
-	return a
+	return a, err
 }
 
-func (fn *boundedSumFloat64Fn) ExtractOutput(a boundedSumAccumFloat64) *float64 {
+func (fn *boundedSumFloat64Fn) MergeAccumulators(a, b boundedSumAccumFloat64) (boundedSumAccumFloat64, error) {
+	var err error
+	err = a.BS.Merge(b.BS)
+	if err != nil {
+		return a, err
+	}
+	if !fn.PublicPartitions {
+		err = a.SP.Merge(b.SP)
+	}
+	return a, err
+}
+
+func (fn *boundedSumFloat64Fn) ExtractOutput(a boundedSumAccumFloat64) (*float64, error) {
 	if fn.TestMode.isEnabled() {
 		a.BS.Noise = noNoise{}
 	}
-	if fn.TestMode.isEnabled() || a.PublicPartitions || a.SP.ShouldKeepPartition() {
-		result := a.BS.Result()
-		return &result
+	var err error
+	shouldKeepPartition := fn.TestMode.isEnabled() || a.PublicPartitions // If in test mode or public partitions are specified, we always keep the partition.
+	if !shouldKeepPartition {                                            // If not, we need to perform private partition selection.
+		shouldKeepPartition, err = a.SP.ShouldKeepPartition()
+		if err != nil {
+			return nil, err
+		}
 	}
-	return nil
+
+	if shouldKeepPartition {
+		result, err := a.BS.Result()
+		return &result, err
+	}
+	return nil, nil
 }
 
 // findDereferenceValueFn dereferences a *int64 to int64 or *float64 to float64.
@@ -560,28 +609,68 @@ func convertFloat64ToFloat64Fn(z beam.Z, f float64) (beam.Z, float64) {
 	return z, f
 }
 
-// newAddDummyValuesToPublicPartitionsFn turns a PCollection<V> into PCollection<V,0>.
-func newAddDummyValuesToPublicPartitionsFn(vKind reflect.Kind) (interface{}, error) {
+// newAddZeroValuesToPublicPartitionsFn turns a PCollection<V> into PCollection<V,0>.
+func newAddZeroValuesToPublicPartitionsFn(vKind reflect.Kind) (interface{}, error) {
 	switch vKind {
 	case reflect.Int64:
-		return addDummyValuesToPublicPartitionsInt64Fn, nil
+		return addZeroValuesToPublicPartitionsInt64Fn, nil
 	case reflect.Float64:
-		return addDummyValuesToPublicPartitionsFloat64Fn, nil
+		return addZeroValuesToPublicPartitionsFloat64Fn, nil
 	default:
-		return nil, fmt.Errorf("pbeam.newAddDummyValuesToPublicPartitionsFn: vKind(%v) should be int64 or float64", vKind)
+		return nil, fmt.Errorf("vKind(%v) should be int64 or float64", vKind)
 	}
 }
 
-func addDummyValuesToPublicPartitionsInt64Fn(partition beam.X) (k beam.X, v int64) {
+func addZeroValuesToPublicPartitionsInt64Fn(partition beam.X) (k beam.X, v int64) {
 	return partition, 0
 }
 
-func addDummyValuesToPublicPartitionsFloat64Fn(partition beam.X) (k beam.X, v float64) {
+func addZeroValuesToPublicPartitionsFloat64Fn(partition beam.X) (k beam.X, v float64) {
 	return partition, 0
 }
 
-func addDummyValuesToPublicPartitionsFloat64SliceFn(partition beam.X) (k beam.X, v []float64) {
+func addEmptySliceToPublicPartitionsFloat64Fn(partition beam.X) (k beam.X, v []float64) {
 	return partition, []float64{}
+}
+
+// dropNonPublicPartitions returns the PCollection with the non-public partitions dropped if public partitions are
+// specified. Returns the input PCollection otherwise.
+func dropNonPublicPartitions(s beam.Scope, pcol PrivatePCollection, publicPartitions interface{}, partitionType reflect.Type) (beam.PCollection, error) {
+	// If PublicPartitions is not specified, return the input collection.
+	if publicPartitions == nil {
+		return pcol.col, nil
+	}
+
+	// Drop non-public partitions, if public partitions are specified as a PCollection.
+	if publicPartitionscCol, ok := publicPartitions.(beam.PCollection); ok {
+		partitionEncodedType := beam.EncodedType{partitionType}
+		// Data is <PrivacyKey, PartitionKey, Value>
+		if pcol.codec != nil {
+			return dropNonPublicPartitionsKVFn(s, publicPartitionscCol, pcol, partitionEncodedType), nil
+		}
+		// Data is <PrivacyKey, PartitionKey>
+		return dropNonPublicPartitionsVFn(s, publicPartitionscCol, pcol, partitionEncodedType), nil
+	}
+
+	// Drop non-public partitions, public partitions are specified as slice/array (i.e., in-memory).
+	// Convert PublicPartitions to map[byte]bool for quick lookup.
+	partitionEnc := beam.NewElementEncoder(partitionType)
+	partitionMap := map[string]bool{}
+	for i := 0; i < reflect.ValueOf(publicPartitions).Len(); i++ {
+		partitionKey := reflect.ValueOf(publicPartitions).Index(i).Interface()
+		var partitionBuf bytes.Buffer
+		if err := partitionEnc.Encode(partitionKey, &partitionBuf); err != nil {
+			return pcol.col, fmt.Errorf("couldn't encode partition %v: %v", partitionKey, err)
+		}
+		partitionMap[string(partitionBuf.Bytes())] = true
+	}
+	// Data is <PrivacyKey, PartitionKey, Value>
+	if pcol.codec != nil {
+		return beam.ParDo(s, newPrunePartitionsInMemoryKVFn(partitionMap), pcol.col), nil
+	}
+	// Data is <PrivacyKey, PartitionKey>
+	partitionEncodedType := beam.EncodedType{partitionType}
+	return beam.ParDo(s, newPrunePartitionsInMemoryVFn(partitionEncodedType, partitionMap), pcol.col), nil
 }
 
 // dropNonPublicPartitionsKVFn drops partitions not specified in PublicPartitions from pcol. It can be used for aggregations on <K,V> pairs, e.g. sum and mean.
@@ -669,6 +758,21 @@ func (fn *prunePartitionsInMemoryVFn) ProcessElement(id beam.X, partitionKey bea
 		emit(id, partitionKey)
 	}
 	return nil
+}
+
+type prunePartitionsInMemoryKVFn struct {
+	PartitionMap map[string]bool
+}
+
+func newPrunePartitionsInMemoryKVFn(partitionMap map[string]bool) *prunePartitionsInMemoryKVFn {
+	return &prunePartitionsInMemoryKVFn{PartitionMap: partitionMap}
+}
+
+func (fn *prunePartitionsInMemoryKVFn) ProcessElement(id beam.X, pair kv.Pair, emit func(beam.X, kv.Pair)) {
+	// Parameters in a kv.Pair are already encoded.
+	if fn.PartitionMap[string(pair.K)] {
+		emit(id, pair)
+	}
 }
 
 // prunePartitionsVFn takes a PCollection<K, V> as input, and returns a
@@ -896,7 +1000,7 @@ func findConvertToFloat64Fn(t typex.FullType) (interface{}, error) {
 	case "float64":
 		return convertFloat64ToFloat64Fn, nil
 	default:
-		return nil, fmt.Errorf("pbeam.findConvertFn: unexpected value type %v", t)
+		return nil, fmt.Errorf("unexpected value type of %v", t)
 	}
 }
 
@@ -1019,4 +1123,24 @@ type pairArrayFloat64 struct {
 // PCollection<codedK,pairArrayFloat64<codedV,[]float64>>.
 func rekeyArrayFloat64Fn(kv kv.Pair, m []float64) ([]byte, pairArrayFloat64) {
 	return kv.K, pairArrayFloat64{kv.V, m}
+}
+
+// checkPublicPartitions returns an error if publicPartitions parameter of an aggregation
+// is not valid,
+func checkPublicPartitions(publicPartitions interface{}, partitionType reflect.Type) error {
+	if publicPartitions != nil {
+		if reflect.TypeOf(publicPartitions) != reflect.TypeOf(beam.PCollection{}) &&
+			reflect.ValueOf(publicPartitions).Kind() != reflect.Slice &&
+			reflect.ValueOf(publicPartitions).Kind() != reflect.Array {
+			return fmt.Errorf("PublicPartitions=%+v needs to be a beam.PCollection, slice or array", reflect.TypeOf(publicPartitions))
+		}
+		publicPartitionsCol, isPCollection := publicPartitions.(beam.PCollection)
+		if isPCollection && (!publicPartitionsCol.IsValid() || partitionType != publicPartitionsCol.Type().Type()) {
+			return fmt.Errorf("PublicPartitions=%+v needs to be a valid beam.PCollection with the same type as the partition key (+%v)", publicPartitions, partitionType)
+		}
+		if !isPCollection && reflect.TypeOf(publicPartitions).Elem() != partitionType {
+			return fmt.Errorf("PublicPartitions=%+v needs to be a slice or an array whose elements are the same type as the partition key (%+v)", publicPartitions, partitionType)
+		}
+	}
+	return nil
 }

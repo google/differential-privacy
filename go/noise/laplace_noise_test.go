@@ -73,9 +73,13 @@ func TestLaplaceStatistics(t *testing.T) {
 			variance:        2.0 / (ln3 * ln3),
 		},
 	} {
+		var err error
 		noisedSamples := make(stat.Float64Slice, numberOfSamples)
 		for i := 0; i < numberOfSamples; i++ {
-			noisedSamples[i] = lap.AddNoiseFloat64(tc.mean, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, 0)
+			noisedSamples[i], err = lap.AddNoiseFloat64(tc.mean, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, 0)
+			if err != nil {
+				t.Fatalf("Couldn't noise samples: %v", err)
+			}
 		}
 		sampleMean, sampleVariance := stat.Mean(noisedSamples), stat.Variance(noisedSamples)
 		// Assuming that the Laplace samples have a mean of 0 and the specified variance of tc.variance,
@@ -252,7 +256,10 @@ func TestThresholdLaplace(t *testing.T) {
 		// High precision delta case
 		{1, 1, ln3, 1e-200, 419.55},
 	} {
-		got := lap.Threshold(tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, 0, tc.delta)
+		got, err := lap.Threshold(tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, 0, tc.delta)
+		if err != nil {
+			t.Fatalf("Couldn't compute threshold: %v", err)
+		}
 		if !nearEqual(got, tc.want, 0.01) {
 			t.Errorf("ThresholdForLaplace(%d,%f,%f,%e)=%f, want %f", tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.delta, got, tc.want)
 		}
@@ -288,7 +295,10 @@ func TestDeltaForThresholdLaplace(t *testing.T) {
 		// High precision delta case
 		{1, 1, ln3, 419.55, 1e-200},
 	} {
-		got := lap.(laplace).DeltaForThreshold(tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, 0, tc.k)
+		got, err := lap.(laplace).DeltaForThreshold(tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, 0, tc.k)
+		if err != nil {
+			t.Fatalf("Couldn't compute delta for threshold: %v", err)
+		}
 		if !nearEqual(got, tc.want, 1e-2*tc.want) {
 			t.Errorf("ThresholdForLaplace(%d,%f,%f,%f)=%e, want %e", tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.k, got, tc.want)
 		}

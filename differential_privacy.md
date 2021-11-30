@@ -11,8 +11,9 @@ slowly when more data is released.
 You can find a very high-level, non-technical introduction to differential
 privacy in this
 [blog post](https://desfontain.es/privacy/differential-privacy-awesomeness.html),
-and a more detailed explanation of how it works in this
-[longer article](https://github.com/frankmcsherry/blog/blob/master/posts/2016-02-06.md).
+and a more detailed explanation of how it works in the book,
+[The Algorithmic Foundations of Differential Privacy](https://www.cis.upenn.edu/~aaroth/Papers/privacybook.pdf)
+(linked as a PDF).
 
 This library provides a collection of algorithms for computing differentially
 private statistics over data. The algorithms are designed to require little

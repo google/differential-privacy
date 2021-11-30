@@ -45,16 +45,16 @@ TEST(CarrotReporterTest, TooLittleBudget) {
             absl::StatusCode::kInvalidArgument);
   EXPECT_EQ(reporter.PrivateSum(2).status().code(),
             absl::StatusCode::kInvalidArgument);
-  EXPECT_EQ(reporter.PrivacyBudget(), 1.0);
+  EXPECT_EQ(reporter.RemainingEpsilon(), 1.0);
 }
 
 TEST(CarrotReporterTest, PrivacyBudget) {
   CarrotReporter reporter(kDatafile, 1);
-  EXPECT_EQ(reporter.PrivacyBudget(), 1.0);
+  EXPECT_EQ(reporter.RemainingEpsilon(), 1.0);
   EXPECT_OK(reporter.PrivateMax(.2));
-  EXPECT_EQ(reporter.PrivacyBudget(), .8);
+  EXPECT_EQ(reporter.RemainingEpsilon(), .8);
   EXPECT_OK(reporter.PrivateMax(.8));
-  EXPECT_EQ(reporter.PrivacyBudget(), 0.0);
+  EXPECT_EQ(reporter.RemainingEpsilon(), 0.0);
 }
 
 }  // namespace

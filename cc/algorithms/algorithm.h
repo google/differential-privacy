@@ -45,15 +45,6 @@ constexpr double kDefaultConfidenceLevel = .95;
 
 // Abstract superclass for differentially private algorithms.
 //
-// Includes a notion of privacy budget in addition to epsilon to allow for
-// intermediate calls that still respect the total privacy budget.
-//
-// e.g. a->AddEntry(1.0); a->AddEntry(2.0); if(a->PartialResult(0.1) > 0.0) ...
-//   would allow an intermediate inspection using 10% of the privacy budget and
-//   allow 90% to be used at some later point.
-//
-// Generic call to Result consumes 100% of the privacy budget by default.
-//
 // Algorithm instances are typically *not* thread safe.  Entries must be added
 // from a single thread only.  In case you want to use multiple threads, you can
 // use per-thread instances of the Algorithm child class, serialize them, and
@@ -65,9 +56,7 @@ class Algorithm {
   // Epsilon, delta are standard parameters of differentially private
   // algorithms. See "The Algorithmic Foundations of Differential Privacy" p17.
   explicit Algorithm(double epsilon, double delta)
-      : epsilon_(epsilon),
-        delta_(delta),
-        remaining_privacy_budget_fraction_(kFullPrivacyBudget) {
+      : epsilon_(epsilon), delta_(delta) {
     DCHECK_NE(epsilon, std::numeric_limits<double>::infinity());
     DCHECK_GT(epsilon, 0.0);
   }
@@ -89,8 +78,12 @@ class Algorithm {
     }
   }
 
-  // Runs the algorithm on the input using the epsilon parameter
-  // provided in the constructor and returns output.
+  // Runs the algorithm on (only) the input specified by the iterator,
+  // using the epsilon parameter provided in the constructor. Returns the result
+  // or an error, if any occurred.
+  //
+  // Will ignore any data that has already been accumulated. Don't mix this with
+  // calls to AddEntry/Entries, PartialResult, Serialize or Merge.
   template <typename Iterator>
   base::StatusOr<Output> Result(Iterator begin, Iterator end) {
     Reset();
@@ -98,58 +91,31 @@ class Algorithm {
     return PartialResult();
   }
 
-  // Gets the algorithm result, consuming the remaining privacy budget.
+  // Get the algorithm result on the accumulated data.
   base::StatusOr<Output> PartialResult() {
-    return PartialResult(RemainingPrivacyBudget());
+    return PartialResult(kDefaultConfidenceLevel);
   }
 
-  // Same as above, but consumes only the `privacy_budget` amount of budget.
-  // Privacy budget, defined on [0,1], represents the fraction of the total
-  // budget to consume.
-  base::StatusOr<Output> PartialResult(double privacy_budget) {
-    ASSIGN_OR_RETURN(double consumed_budget_fraction,
-                     ConsumePrivacyBudget(privacy_budget));
-    return GenerateResult(consumed_budget_fraction, kDefaultConfidenceLevel);
-  }
-
-  // Same as above, but provides the confidence level of the noise confidence
-  // interval, which may be included in the algorithm output.
-  base::StatusOr<Output> PartialResult(double privacy_budget,
-                                       double noise_interval_level) {
-    ASSIGN_OR_RETURN(double consumed_budget_fraction,
-                     ConsumePrivacyBudget(privacy_budget));
-    return GenerateResult(consumed_budget_fraction, noise_interval_level);
-  }
-
-  double RemainingPrivacyBudget() { return remaining_privacy_budget_fraction_; }
-
-  // Strictly reduces the remaining privacy budget fraction.  Returns the
-  // privacy budget fraction that is safe to use or an error in case of invalid
-  // arguments or overconsumption.
-  base::StatusOr<double> ConsumePrivacyBudget(double privacy_budget_fraction) {
-    if (privacy_budget_fraction < 0) {
-      return absl::InvalidArgumentError(absl::StrCat(
-          "Budget fraction must be positive but is ", privacy_budget_fraction));
-    }
-    if (remaining_privacy_budget_fraction_ < privacy_budget_fraction) {
+  // Same as above, but allows the user to specify the confidence level that
+  // may be returned as part of the Output. Not all Algorithms support
+  // confidence levels, for unsupported algorithms the confidence level will not
+  // be included. See NoiseConfidenceInterval for more details.
+  base::StatusOr<Output> PartialResult(double noise_interval_level) {
+    if (result_returned_) {
       return absl::InvalidArgumentError(
-          absl::StrCat("Requested budget fraction ", privacy_budget_fraction,
-                       " exceeds remaining budget fraction of ",
-                       remaining_privacy_budget_fraction_));
+          "The algorithm can only produce results once for a given epsilon, "
+          "delta budget.");
     }
-    const double old_budget_fraction = remaining_privacy_budget_fraction_;
-    remaining_privacy_budget_fraction_ = std::max(
-        0.0, remaining_privacy_budget_fraction_ - privacy_budget_fraction);
-    // Return the difference between the old budget fraction and the current
-    // budget fraction.
-    return old_budget_fraction - remaining_privacy_budget_fraction_;
+    result_returned_ = true;
+
+    return GenerateResult(noise_interval_level);
   }
 
   // Resets the algorithm to a state in which it has received no input. After
   // Reset is called, the algorithm should only consider input added after the
   // last Reset call when providing output.
   void Reset() {
-    remaining_privacy_budget_fraction_ = kFullPrivacyBudget;
+    result_returned_ = false;
     ResetState();
   }
 
@@ -170,9 +136,9 @@ class Algorithm {
   virtual int64_t MemoryUsed() = 0;
 
   // Returns the confidence_level confidence interval of noise added within the
-  // algorithm with specified privacy budget, using epsilon and other relevant,
-  // algorithm-specific parameters (e.g. bounds) provided by the constructor.
-  // This metric may be used to gauge the error rate introduced by the noise.
+  // algorithm, using epsilon and other relevant, algorithm-specific parameters
+  // (e.g. bounds) provided by the constructor. This metric may be used to gauge
+  // the error rate introduced by the noise.
   //
   // If the returned value is <x,y>, then the noise added has a confidence_level
   // chance of being in the domain [x,y].
@@ -183,7 +149,7 @@ class Algorithm {
   // Conservatively, we do not release the error rate for algorithms whose
   // confidence intervals rely on input size.
   virtual base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
-      double confidence_level, double privacy_budget) {
+      double confidence_level) {
     return absl::UnimplementedError(
         "NoiseConfidenceInterval() unsupported for this algorithm");
   }
@@ -198,17 +164,15 @@ class Algorithm {
   // Apportioning of privacy budget is handled by calls from PartialResult
   // above.
   virtual base::StatusOr<Output> GenerateResult(
-      double privacy_budget, double noise_interval_level) = 0;
+      double noise_interval_level) = 0;
 
   // Allows child classes to reset their state as part of a global reset.
   virtual void ResetState() = 0;
 
  private:
-  static constexpr double kFullPrivacyBudget = 1.0;
-
+  bool result_returned_ = false;
   const double epsilon_;
   const double delta_;
-  double remaining_privacy_budget_fraction_;
 };
 
 template <typename T, class Algorithm, class Builder>

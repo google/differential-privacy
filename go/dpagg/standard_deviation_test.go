@@ -133,17 +133,23 @@ func TestNewBoundedStandardDeviation(t *testing.T) {
 					},
 				}}},
 	} {
-		got := NewBoundedStandardDeviation(tc.opt)
-		if !reflect.DeepEqual(got, tc.want) {
-			t.Errorf("NewBoundedStandardDeviation: when %s got %+v, want %+v", tc.desc, got, tc.want)
+		bstdv, err := NewBoundedStandardDeviation(tc.opt)
+		if err != nil {
+			t.Fatalf("Couldn't initialize bstdv: %v", err)
+		}
+		if !reflect.DeepEqual(bstdv, tc.want) {
+			t.Errorf("NewBoundedStandardDeviation: when %s got %+v, want %+v", tc.desc, bstdv, tc.want)
 		}
 	}
 }
 
 func TestBSTDVNoInput(t *testing.T) {
 	lower, upper := -1.0, 5.0
-	bstdv := getNoiselessBSTDV(lower, upper)
-	got := bstdv.Result()
+	bstdv := getNoiselessBSTDV(t, lower, upper)
+	got, err := bstdv.Result()
+	if err != nil {
+		t.Fatalf("Couldn't compute dp result: %v", err)
+	}
 	// count = 0 => standard deviation should be 0.0
 	want := 0.0
 	if !ApproxEqual(got, want) {
@@ -153,12 +159,15 @@ func TestBSTDVNoInput(t *testing.T) {
 
 func TestBSTDVAdd(t *testing.T) {
 	lower, upper := -1.0, 5.0
-	bstdv := getNoiselessBSTDV(lower, upper)
+	bstdv := getNoiselessBSTDV(t, lower, upper)
 	bstdv.Add(1)
 	bstdv.Add(1)
 	bstdv.Add(2)
 	bstdv.Add(2)
-	got := bstdv.Result()
+	got, err := bstdv.Result()
+	if err != nil {
+		t.Fatalf("Couldn't compute dp result: %v", err)
+	}
 	want := 0.50
 	if !ApproxEqual(got, want) {
 		t.Errorf("Add: when dataset with elements inside boundaries got %f, want %f", got, want)
@@ -167,11 +176,14 @@ func TestBSTDVAdd(t *testing.T) {
 
 func TestBSTDVAddIgnoresNaN(t *testing.T) {
 	lower, upper := -1.0, 5.0
-	bstdv := getNoiselessBSTDV(lower, upper)
+	bstdv := getNoiselessBSTDV(t, lower, upper)
 	bstdv.Add(1)
 	bstdv.Add(math.NaN())
 	bstdv.Add(3)
-	got := bstdv.Result()
+	got, err := bstdv.Result()
+	if err != nil {
+		t.Fatalf("Couldn't compute dp result: %v", err)
+	}
 	want := 1.0
 	if !ApproxEqual(got, want) {
 		t.Errorf("Add: when dataset contains NaN got %f, want %f", got, want)
@@ -180,10 +192,13 @@ func TestBSTDVAddIgnoresNaN(t *testing.T) {
 
 func TestBSTDVReturns0IfSingleEntryIsAdded(t *testing.T) {
 	lower, upper := -1.0, 5.0
-	bstdv := getNoiselessBSTDV(lower, upper)
+	bstdv := getNoiselessBSTDV(t, lower, upper)
 
 	bstdv.Add(1.2345)
-	got := bstdv.Result()
+	got, err := bstdv.Result()
+	if err != nil {
+		t.Fatalf("Couldn't compute dp result: %v", err)
+	}
 	want := 0.0 // single entry means 0 standard deviation
 	if !ApproxEqual(got, want) {
 		t.Errorf("BoundedStandardDeviation: when dataset contains single entry got %f, want %f", got, want)
@@ -192,13 +207,16 @@ func TestBSTDVReturns0IfSingleEntryIsAdded(t *testing.T) {
 
 func TestBSTDVClamp(t *testing.T) {
 	lower, upper := 2.0, 4.0
-	bstdv := getNoiselessBSTDV(lower, upper)
+	bstdv := getNoiselessBSTDV(t, lower, upper)
 
 	bstdv.Add(0.0) // clamped to 2.0
 	bstdv.Add(1.0) // clamped to 2.0
 	bstdv.Add(4.0)
 	bstdv.Add(7.0) // clamped to 4.0
-	got := bstdv.Result()
+	got, err := bstdv.Result()
+	if err != nil {
+		t.Fatalf("Couldn't compute dp result: %v", err)
+	}
 	want := 1.0
 	if !ApproxEqual(got, want) {
 		t.Errorf("Add: when dataset with elements outside boundaries got %f, want %f", got, want)
@@ -207,8 +225,11 @@ func TestBSTDVClamp(t *testing.T) {
 
 func TestBoundedStandardDeviationResultSetsStateCorrectly(t *testing.T) {
 	lower, upper := -1.0, 5.0
-	bstdv := getNoiselessBSTDV(lower, upper)
-	bstdv.Result()
+	bstdv := getNoiselessBSTDV(t, lower, upper)
+	_, err := bstdv.Result()
+	if err != nil {
+		t.Fatalf("Couldn't compute dp result: %v", err)
+	}
 
 	if bstdv.state != resultReturned {
 		t.Errorf("BoundedStandardDeviation should have its state set to ResultReturned, got %v, want ResultReturned", bstdv.state)
@@ -219,7 +240,10 @@ func TestBVBSTDVNoiseIsCorrectlyCalled(t *testing.T) {
 	bstdv := getMockBSTDV(t)
 	bstdv.Add(1)
 	bstdv.Add(2)
-	got := bstdv.Result() // will fail if parameters are wrong. See mockBVNoise implementation for details.
+	got, err := bstdv.Result() // will fail if parameters are wrong. See mockBVNoise implementation for details.
+	if err != nil {
+		t.Fatalf("Couldn't compute dp result: %v", err)
+	}
 	want := 0.50
 
 	if !ApproxEqual(got, want) {
@@ -228,7 +252,8 @@ func TestBVBSTDVNoiseIsCorrectlyCalled(t *testing.T) {
 }
 
 func getMockBSTDV(t *testing.T) *BoundedStandardDeviation {
-	return NewBoundedStandardDeviation(&BoundedStandardDeviationOptions{
+	t.Helper()
+	bstdv, err := NewBoundedStandardDeviation(&BoundedStandardDeviationOptions{
 		Epsilon:                      ln3,
 		Delta:                        tenten,
 		MaxPartitionsContributed:     1,
@@ -237,10 +262,15 @@ func getMockBSTDV(t *testing.T) *BoundedStandardDeviation {
 		Upper:                        5,
 		Noise:                        mockBVNoise{t: t},
 	})
+	if err != nil {
+		t.Fatalf("Couldn't get mock BSTDV: %v", err)
+	}
+	return bstdv
 }
 
-func getNoiselessBSTDV(lower, upper float64) *BoundedStandardDeviation {
-	return NewBoundedStandardDeviation(&BoundedStandardDeviationOptions{
+func getNoiselessBSTDV(t *testing.T, lower, upper float64) *BoundedStandardDeviation {
+	t.Helper()
+	bstdv, err := NewBoundedStandardDeviation(&BoundedStandardDeviationOptions{
 		Epsilon:                      ln3,
 		Delta:                        tenten,
 		MaxPartitionsContributed:     1,
@@ -249,13 +279,17 @@ func getNoiselessBSTDV(lower, upper float64) *BoundedStandardDeviation {
 		Upper:                        upper,
 		Noise:                        noNoise{},
 	})
+	if err != nil {
+		t.Fatalf("Couldn't get noiseless BSTDV: %v", err)
+	}
+	return bstdv
 }
 
 func TestBSTDVReturnsResultInsidePossibleBoundaries(t *testing.T) {
 	lower := rand.Uniform() * 100
 	upper := lower + rand.Uniform()*100
 
-	bstdv := NewBoundedStandardDeviation(&BoundedStandardDeviationOptions{
+	bstdv, err := NewBoundedStandardDeviation(&BoundedStandardDeviationOptions{
 		Epsilon:                      ln3,
 		MaxPartitionsContributed:     1,
 		MaxContributionsPerPartition: 1,
@@ -263,12 +297,18 @@ func TestBSTDVReturnsResultInsidePossibleBoundaries(t *testing.T) {
 		Upper:                        upper,
 		Noise:                        noise.Laplace(),
 	})
+	if err != nil {
+		t.Fatalf("Couldn't initialize bstdv: %v", err)
+	}
 
 	for i := 0; i <= 1000; i++ {
 		bstdv.Add(rand.Uniform() * 300 * rand.Sign())
 	}
 
-	res := bstdv.Result()
+	res, err := bstdv.Result()
+	if err != nil {
+		t.Fatalf("Couldn't compute dp result: %v", err)
+	}
 	if res < 0 {
 		t.Errorf("BoundedStandardDeviation: stdv can't be smaller than 0, got stdv %f, want to be >= %f", res, 0.0)
 	}
@@ -280,14 +320,20 @@ func TestBSTDVReturnsResultInsidePossibleBoundaries(t *testing.T) {
 
 func TestMergeBoundedStandardDeviation(t *testing.T) {
 	lower, upper := -1.0, 5.0
-	bstdv1 := getNoiselessBSTDV(lower, upper)
-	bstdv2 := getNoiselessBSTDV(lower, upper)
+	bstdv1 := getNoiselessBSTDV(t, lower, upper)
+	bstdv2 := getNoiselessBSTDV(t, lower, upper)
 	bstdv1.Add(1)
 	bstdv1.Add(1)
 	bstdv2.Add(3)
 	bstdv2.Add(3)
-	bstdv1.Merge(bstdv2)
-	got := bstdv1.Result()
+	err := bstdv1.Merge(bstdv2)
+	if err != nil {
+		t.Fatalf("Couldn't merge bstdv1 and bstdv2: %v", err)
+	}
+	got, err := bstdv1.Result()
+	if err != nil {
+		t.Fatalf("Couldn't compute dp result: %v", err)
+	}
 	want := 1.0 // Would be 0.0 if merge didn't work.
 	if !ApproxEqual(got, want) {
 		t.Errorf("Merge: when merging 2 instances of BoundedStandardDeviation got %f, want %f", got, want)
@@ -465,8 +511,14 @@ func TestCheckMergeBoundedStandardDeviationCompatibility(t *testing.T) {
 			},
 			true},
 	} {
-		bstdv1 := NewBoundedStandardDeviation(tc.opt1)
-		bstdv2 := NewBoundedStandardDeviation(tc.opt2)
+		bstdv1, err := NewBoundedStandardDeviation(tc.opt1)
+		if err != nil {
+			t.Fatalf("Couldn't initialize bstdv1: %v", err)
+		}
+		bstdv2, err := NewBoundedStandardDeviation(tc.opt2)
+		if err != nil {
+			t.Fatalf("Couldn't initialize bstdv2: %v", err)
+		}
 
 		if err := checkMergeBoundedStandardDeviation(bstdv1, bstdv2); (err != nil) != tc.wantErr {
 			t.Errorf("CheckMerge: when %s for err got %v, wantErr %t", tc.desc, err, tc.wantErr)
@@ -490,8 +542,8 @@ func TestCheckMergeBoundedStandardDeviationStateChecks(t *testing.T) {
 		{merged, defaultState, true},
 	} {
 		lower, upper := 0.0, 5.0
-		bstdv1 := getNoiselessBSTDV(lower, upper)
-		bstdv2 := getNoiselessBSTDV(lower, upper)
+		bstdv1 := getNoiselessBSTDV(t, lower, upper)
+		bstdv2 := getNoiselessBSTDV(t, lower, upper)
 
 		bstdv1.state = tc.state1
 		bstdv2.state = tc.state2
@@ -574,7 +626,14 @@ func TestBSTDVSerialization(t *testing.T) {
 			Noise:                        noise.Gaussian(),
 		}},
 	} {
-		bstdv, bstdvUnchanged := NewBoundedStandardDeviation(tc.opts), NewBoundedStandardDeviation(tc.opts)
+		bstdv, err := NewBoundedStandardDeviation(tc.opts)
+		if err != nil {
+			t.Fatalf("Couldn't initialize bstdv: %v", err)
+		}
+		bstdvUnchanged, err := NewBoundedStandardDeviation(tc.opts)
+		if err != nil {
+			t.Fatalf("Couldn't initialize bstdvUnchanged: %v", err)
+		}
 		bytes, err := encode(bstdv)
 		if err != nil {
 			t.Fatalf("encode(BoundedStandardDeviation) error: %v", err)
@@ -605,7 +664,7 @@ func TestBoundedStandardDeviationSerializationStateChecks(t *testing.T) {
 		{resultReturned, true},
 	} {
 		lower, upper := 0.0, 5.0
-		bv := getNoiselessBSTDV(lower, upper)
+		bv := getNoiselessBSTDV(t, lower, upper)
 		bv.state = tc.state
 
 		if _, err := bv.GobEncode(); (err != nil) != tc.wantErr {

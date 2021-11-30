@@ -64,13 +64,14 @@ differential_privacy_deps()
 # Protobuf transitive dependencies.
 load("@com_google_protobuf//:protobuf_deps.bzl", "protobuf_deps")
 
+# Load Privacy on Beam dependencies.
+load(":privacy_on_beam_deps.bzl", "privacy_on_beam_deps")
+
+privacy_on_beam_deps()
+
 # Load Go DP library dependencies.
 load("@com_google_go_differential_privacy//:go_differential_privacy_deps.bzl", "go_differential_privacy_deps")
 
 go_differential_privacy_deps()
 
 protobuf_deps()
-
-# Load Privacy on Beam dependencies.
-load(":privacy_on_beam_deps.bzl", "privacy_on_beam_deps")
-privacy_on_beam_deps()

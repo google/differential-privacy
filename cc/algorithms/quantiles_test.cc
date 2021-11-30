@@ -29,6 +29,7 @@ namespace differential_privacy {
 namespace {
 
 using ::differential_privacy::test_utils::ZeroNoiseMechanism;
+using ::differential_privacy::base::testing::EqualsProto;
 using ::testing::HasSubstr;
 using ::differential_privacy::base::testing::StatusIs;
 
@@ -282,6 +283,61 @@ TEST(QuantilesTest, MergeFailsWithBadBounds) {
               StatusIs(absl::StatusCode::kInternal, HasSubstr("Bounds")));
   EXPECT_THAT(wrong_upper->Merge(test_quantiles->Serialize()),
               StatusIs(absl::StatusCode::kInternal, HasSubstr("Bounds")));
+}
+
+TYPED_TEST(QuantilesTest, MergeInDifferentOrderReturnsSameProto) {
+  std::vector<double> quantiles = {0.3, 0.5, 0.9};
+  base::StatusOr<std::unique_ptr<Quantiles<TypeParam>>> q1 =
+      typename Quantiles<TypeParam>::Builder()
+          .SetEpsilon(1.1)
+          .SetUpper(50)
+          .SetLower(-50)
+          .SetQuantiles(quantiles)
+          .Build();
+  ASSERT_OK(q1);
+  for (int i = -10; i < 0; ++i) {
+    q1.value()->AddEntry(i);
+  }
+  Summary summary1 = q1.value()->Serialize();
+
+  base::StatusOr<std::unique_ptr<Quantiles<TypeParam>>> q2 =
+      typename Quantiles<TypeParam>::Builder()
+          .SetEpsilon(1.1)
+          .SetUpper(50)
+          .SetLower(-50)
+          .SetQuantiles(quantiles)
+          .Build();
+  ASSERT_OK(q2);
+  for (int i = 0; i < 10; ++i) {
+    q2.value()->AddEntry(i);
+  }
+  Summary summary2 = q2.value()->Serialize();
+
+  base::StatusOr<std::unique_ptr<Quantiles<TypeParam>>> merger1 =
+      typename Quantiles<TypeParam>::Builder()
+          .SetEpsilon(1.1)
+          .SetUpper(50)
+          .SetLower(-50)
+          .SetQuantiles(quantiles)
+          .Build();
+  ASSERT_OK(merger1);
+  ASSERT_OK(merger1.value()->Merge(summary1));
+  ASSERT_OK(merger1.value()->Merge(summary2));
+
+  base::StatusOr<std::unique_ptr<Quantiles<TypeParam>>> merger2 =
+      typename Quantiles<TypeParam>::Builder()
+          .SetEpsilon(1.1)
+          .SetUpper(50)
+          .SetLower(-50)
+          .SetQuantiles(quantiles)
+          .Build();
+  ASSERT_OK(merger2);
+  // Different order here as above for merger1.
+  ASSERT_OK(merger2.value()->Merge(summary2));
+  ASSERT_OK(merger2.value()->Merge(summary1));
+
+  EXPECT_THAT(merger1.value()->Serialize(),
+              EqualsProto(merger2.value()->Serialize()));
 }
 
 TEST(QuantilesTest, IgnoresNaN) {

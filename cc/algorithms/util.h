@@ -311,11 +311,17 @@ inline SafeOpResult<T> SafeCastFromDouble(const double in) {
 
 template <typename T>
 inline double Mean(const std::vector<T>& v) {
+  if (v.empty()) {
+    return 0.0;
+  }
   return std::accumulate(v.begin(), v.end(), 0.0) / v.size();
 }
 
 template <typename T>
 inline double Variance(const std::vector<T>& v) {
+  if (v.empty()) {
+    return 0.0;
+  }
   double mean = Mean(v);
   double var = 0;
   for (const T& num : v) {

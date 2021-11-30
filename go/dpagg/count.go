@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"math"
 
-	log "github.com/golang/glog"
 	"github.com/google/differential-privacy/go/noise"
 )
 
@@ -79,7 +78,7 @@ type CountOptions struct {
 }
 
 // NewCount returns a new Count, initialized at 0.
-func NewCount(opt *CountOptions) *Count {
+func NewCount(opt *CountOptions) (*Count, error) {
 	if opt == nil {
 		opt = &CountOptions{}
 	}
@@ -99,9 +98,12 @@ func NewCount(opt *CountOptions) *Count {
 		n = noise.Laplace()
 	}
 	// Check that the parameters are compatible with the noise chosen by calling
-	// the noise on some dummy value.
+	// the noise on some placeholder value.
 	eps, del := opt.Epsilon, opt.Delta
-	n.AddNoiseInt64(0, l0, lInf, eps, del)
+	_, err := n.AddNoiseInt64(0, l0, lInf, eps, del)
+	if err != nil {
+		return nil, fmt.Errorf("NewCount: %w", err)
+	}
 
 	return &Count{
 		epsilon:         eps,
@@ -112,41 +114,43 @@ func NewCount(opt *CountOptions) *Count {
 		noiseKind:       noise.ToKind(n),
 		count:           0,
 		state:           defaultState,
-	}
+	}, nil
 }
 
 // Increment increments the count by one.
-func (c *Count) Increment() {
-	c.IncrementBy(1)
+func (c *Count) Increment() error {
+	return c.IncrementBy(1)
 }
 
 // IncrementBy increments the count by the given value.
 // Note that this shouldn't be used to count multiple contributions to a
 // single partition from the same privacy unit.
-func (c *Count) IncrementBy(count int64) {
+func (c *Count) IncrementBy(count int64) error {
 	if c.state != defaultState {
-		log.Fatalf("Count cannot be amended. Reason: %v", c.state.errorMessage())
+		return fmt.Errorf("Count cannot be amended: %v", c.state.errorMessage())
 	}
 	c.count += count
+	return nil
 }
 
 // Merge merges c2 into c (i.e., adds to c all entries that were added to c2).
 // c2 is consumed by this operation: it may not be used after it is merged
 // into c.
-func (c *Count) Merge(c2 *Count) {
+func (c *Count) Merge(c2 *Count) error {
 	if e := checkMergeCount(c, c2); e != nil {
-		log.Exit(e)
+		return e
 	}
 	c.count += c2.count
 	c2.state = merged
+	return nil
 }
 
 func checkMergeCount(c1, c2 *Count) error {
 	if c1.state != defaultState {
-		return fmt.Errorf("checkMergeCount: c1 cannot be merged with another Count instance. Reason: %v", c1.state.errorMessage())
+		return fmt.Errorf("checkMergeCount: c1 cannot be merged with another Count instance: %v", c1.state.errorMessage())
 	}
 	if c2.state != defaultState {
-		return fmt.Errorf("checkMergeCount: c2 cannot be merged with another Count instance. Reason: %v", c2.state.errorMessage())
+		return fmt.Errorf("checkMergeCount: c2 cannot be merged with another Count instance: %v", c2.state.errorMessage())
 	}
 
 	if !countEquallyInitialized(c1, c2) {
@@ -164,25 +168,32 @@ func checkMergeCount(c1, c2 *Count) error {
 // The returned value may sometimes be negative. This can be corrected by setting
 // negative results to 0. Note that such post processing introduces bias to the
 // result.
-func (c *Count) Result() int64 {
+func (c *Count) Result() (int64, error) {
 	if c.state != defaultState {
-		log.Fatalf("Count's noised result cannot be computed. Reason: " + c.state.errorMessage())
+		return 0, fmt.Errorf("Count's noised result cannot be computed: " + c.state.errorMessage())
 	}
 	c.state = resultReturned
-	c.noisedCount = c.Noise.AddNoiseInt64(c.count, c.l0Sensitivity, c.lInfSensitivity, c.epsilon, c.delta)
-	return c.noisedCount
+	var err error
+	c.noisedCount, err = c.Noise.AddNoiseInt64(c.count, c.l0Sensitivity, c.lInfSensitivity, c.epsilon, c.delta)
+	return c.noisedCount, err
 }
 
 // ThresholdedResult is similar to Result() but applies thresholding to the
 // result. So, if the result is less than the threshold specified by the noise
 // mechanism, it returns nil. Otherwise, it returns the result.
-func (c *Count) ThresholdedResult(thresholdDelta float64) *int64 {
-	threshold := c.Noise.Threshold(c.l0Sensitivity, float64(c.lInfSensitivity), c.epsilon, c.delta, thresholdDelta)
-	result := c.Result()
-	if result < int64(threshold) {
-		return nil
+func (c *Count) ThresholdedResult(thresholdDelta float64) (*int64, error) {
+	threshold, err := c.Noise.Threshold(c.l0Sensitivity, float64(c.lInfSensitivity), c.epsilon, c.delta, thresholdDelta)
+	if err != nil {
+		return nil, err
 	}
-	return &result
+	result, err := c.Result()
+	if err != nil {
+		return nil, err
+	}
+	if result < int64(threshold) {
+		return nil, nil
+	}
+	return &result, nil
 }
 
 // ComputeConfidenceInterval computes a confidence interval with integer bounds that
@@ -220,7 +231,7 @@ type encodableCount struct {
 // GobEncode encodes Count.
 func (c *Count) GobEncode() ([]byte, error) {
 	if c.state != defaultState && c.state != serialized {
-		return nil, fmt.Errorf("Count object cannot be serialized. Reason: " + c.state.errorMessage())
+		return nil, fmt.Errorf("Count object cannot be serialized: " + c.state.errorMessage())
 	}
 	enc := encodableCount{
 		Epsilon:         c.epsilon,
@@ -239,8 +250,7 @@ func (c *Count) GobDecode(data []byte) error {
 	var enc encodableCount
 	err := decode(&enc, data)
 	if err != nil {
-		log.Fatalf("GobDecode: couldn't decode Count from bytes")
-		return err
+		return fmt.Errorf("couldn't decode Count from bytes")
 	}
 	*c = Count{
 		epsilon:         enc.Epsilon,

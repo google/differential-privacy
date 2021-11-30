@@ -131,17 +131,23 @@ func TestNewBoundedVariance(t *testing.T) {
 				},
 			}},
 	} {
-		got := NewBoundedVariance(tc.opt)
-		if !reflect.DeepEqual(got, tc.want) {
-			t.Errorf("NewBoundedVariance: when %s got %+v, want %+v", tc.desc, got, tc.want)
+		bv, err := NewBoundedVariance(tc.opt)
+		if err != nil {
+			t.Fatalf("Couldn't initialize bv: %v", err)
+		}
+		if !reflect.DeepEqual(bv, tc.want) {
+			t.Errorf("NewBoundedVariance: when %s got %+v, want %+v", tc.desc, bv, tc.want)
 		}
 	}
 }
 
 func TestBVNoInput(t *testing.T) {
 	lower, upper := -1.0, 5.0
-	bv := getNoiselessBV(lower, upper)
-	got := bv.Result()
+	bv := getNoiselessBV(t, lower, upper)
+	got, err := bv.Result()
+	if err != nil {
+		t.Fatalf("Couldn't compute dp result: %v", err)
+	}
 	// count = 0 => variance should be 0.0
 	want := 0.0
 	if !ApproxEqual(got, want) {
@@ -151,12 +157,15 @@ func TestBVNoInput(t *testing.T) {
 
 func TestBVAdd(t *testing.T) {
 	lower, upper := -1.0, 5.0
-	bv := getNoiselessBV(lower, upper)
+	bv := getNoiselessBV(t, lower, upper)
 	bv.Add(1.5)
 	bv.Add(2.5)
 	bv.Add(3.5)
 	bv.Add(4.5)
-	got := bv.Result()
+	got, err := bv.Result()
+	if err != nil {
+		t.Fatalf("Couldn't compute dp result: %v", err)
+	}
 	want := 1.25
 	if !ApproxEqual(got, want) {
 		t.Errorf("Add: when dataset with elements inside boundaries got %f, want %f", got, want)
@@ -165,11 +174,14 @@ func TestBVAdd(t *testing.T) {
 
 func TestBVAddIgnoresNaN(t *testing.T) {
 	lower, upper := -1.0, 5.0
-	bv := getNoiselessBV(lower, upper)
+	bv := getNoiselessBV(t, lower, upper)
 	bv.Add(1)
 	bv.Add(math.NaN())
 	bv.Add(3)
-	got := bv.Result()
+	got, err := bv.Result()
+	if err != nil {
+		t.Fatalf("Couldn't compute dp result: %v", err)
+	}
 	want := 1.0
 	if !ApproxEqual(got, want) {
 		t.Errorf("Add: when dataset contains NaN got %f, want %f", got, want)
@@ -178,10 +190,13 @@ func TestBVAddIgnoresNaN(t *testing.T) {
 
 func TestBVReturns0IfSingleEntryIsAdded(t *testing.T) {
 	lower, upper := -1.0, 5.0
-	bv := getNoiselessBV(lower, upper)
+	bv := getNoiselessBV(t, lower, upper)
 
 	bv.Add(1.2345)
-	got := bv.Result()
+	got, err := bv.Result()
+	if err != nil {
+		t.Fatalf("Couldn't compute dp result: %v", err)
+	}
 	want := 0.0 // single entry means 0 variance
 	if !ApproxEqual(got, want) {
 		t.Errorf("BoundedVariance: when dataset contains single entry got %f, want %f", got, want)
@@ -190,12 +205,15 @@ func TestBVReturns0IfSingleEntryIsAdded(t *testing.T) {
 
 func TestBVClamp(t *testing.T) {
 	lower, upper := 2.0, 5.0
-	bv := getNoiselessBV(lower, upper)
+	bv := getNoiselessBV(t, lower, upper)
 
 	bv.Add(1.0) // clamped to 2.0
 	bv.Add(3.5)
 	bv.Add(7.5) // clamped to 5.0
-	got := bv.Result()
+	got, err := bv.Result()
+	if err != nil {
+		t.Fatalf("Couldn't compute dp result: %v", err)
+	}
 	want := 1.5
 	if !ApproxEqual(got, want) {
 		t.Errorf("Add: when dataset with elements outside boundaries got %f, want %f", got, want)
@@ -204,8 +222,11 @@ func TestBVClamp(t *testing.T) {
 
 func TestBoundedVarianceResultSetsStateCorrectly(t *testing.T) {
 	lower, upper := -1.0, 5.0
-	bv := getNoiselessBV(lower, upper)
-	bv.Result()
+	bv := getNoiselessBV(t, lower, upper)
+	_, err := bv.Result()
+	if err != nil {
+		t.Fatalf("Couldn't compute dp result: %v", err)
+	}
 
 	if bv.state != resultReturned {
 		t.Errorf("BoundedVariance should have its state set to ResultReturned, got %v, want ResultReturned", bv.state)
@@ -216,7 +237,7 @@ func TestBVNoiseIsCorrectlyCalled(t *testing.T) {
 	bv := getMockBV(t)
 	bv.Add(1)
 	bv.Add(2)
-	got := bv.Result() // will fail if parameters are wrong. See mockBVNoise implementation for details.
+	got, _ := bv.Result() // will fail if parameters are wrong. See mockBVNoise implementation for details.
 	want := 0.25
 
 	if !ApproxEqual(got, want) {
@@ -230,9 +251,9 @@ type mockBVNoise struct {
 }
 
 // AddNoiseInt64 checks that the parameters passed are the ones we expect.
-func (mn mockBVNoise) AddNoiseInt64(x, l0, lInf int64, eps, del float64) int64 {
+func (mn mockBVNoise) AddNoiseInt64(x, l0, lInf int64, eps, del float64) (int64, error) {
 	if x != 2 && x != 0 {
-		// AddNoiseInt64 is initially called with a dummy value of 0, so we don't want to fail when that happens
+		// AddNoiseInt64 is initially called with a placeholder value of 0, so we don't want to fail when that happens
 		mn.t.Errorf("AddNoiseInt64: for parameter x got %d, want %d", x, 2)
 	}
 	if l0 != 1 {
@@ -247,13 +268,13 @@ func (mn mockBVNoise) AddNoiseInt64(x, l0, lInf int64, eps, del float64) int64 {
 	if !ApproxEqual(del, tenten/3) {
 		mn.t.Errorf("AddNoiseInt64: for parameter delta got %f, want %f", del, tenten*0.5)
 	}
-	return x
+	return x, nil
 }
 
 // AddNoiseFloat64 checks that the parameters passed are the ones we expect.
-func (mn mockBVNoise) AddNoiseFloat64(x float64, l0 int64, lInf, eps, del float64) float64 {
+func (mn mockBVNoise) AddNoiseFloat64(x float64, l0 int64, lInf, eps, del float64) (float64, error) {
 	if !ApproxEqual(x, 1.0) && !ApproxEqual(x, -1.0) && !ApproxEqual(x, 0.0) {
-		// AddNoiseFloat64 is initially called with a dummy value of 0, so we don't want to fail when that happens
+		// AddNoiseFloat64 is initially called with a placeholder value of 0, so we don't want to fail when that happens
 		// Then, for normalizedSum it is called with a value of -1.0 (1.0-2.0 + 2.0-2.0 = -1.0)
 		// Finally, for normalizedSumOfSquares it is called with a value of 1.0 ((1.0-2.0)**2 + (2.0-2.0)**2 = 1.0)
 		mn.t.Errorf("AddNoiseFloat64: for parameter x got %f, want one of {%f, %f, %f}", x, 0.0, -1.0, 1.0)
@@ -273,11 +294,12 @@ func (mn mockBVNoise) AddNoiseFloat64(x float64, l0 int64, lInf, eps, del float6
 	if !ApproxEqual(del, tenten/3) {
 		mn.t.Errorf("AddNoiseFloat64: for parameter delta got %f, want %f", del, tenten*0.5)
 	}
-	return x
+	return x, nil
 }
 
 func getMockBV(t *testing.T) *BoundedVariance {
-	return NewBoundedVariance(&BoundedVarianceOptions{
+	t.Helper()
+	bv, err := NewBoundedVariance(&BoundedVarianceOptions{
 		Epsilon:                      ln3,
 		Delta:                        tenten,
 		MaxPartitionsContributed:     1,
@@ -286,10 +308,15 @@ func getMockBV(t *testing.T) *BoundedVariance {
 		Upper:                        5,
 		Noise:                        mockBVNoise{t: t},
 	})
+	if err != nil {
+		t.Fatalf("Couldn't get mock BV: %v", err)
+	}
+	return bv
 }
 
-func getNoiselessBV(lower, upper float64) *BoundedVariance {
-	return NewBoundedVariance(&BoundedVarianceOptions{
+func getNoiselessBV(t *testing.T, lower, upper float64) *BoundedVariance {
+	t.Helper()
+	bv, err := NewBoundedVariance(&BoundedVarianceOptions{
 		Epsilon:                      ln3,
 		Delta:                        tenten,
 		MaxPartitionsContributed:     1,
@@ -298,13 +325,17 @@ func getNoiselessBV(lower, upper float64) *BoundedVariance {
 		Upper:                        upper,
 		Noise:                        noNoise{},
 	})
+	if err != nil {
+		t.Fatalf("Couldn't get noiseless BV: %v", err)
+	}
+	return bv
 }
 
 func TestBVReturnsResultInsidePossibleBoundaries(t *testing.T) {
 	lower := rand.Uniform() * 100
 	upper := lower + rand.Uniform()*100
 
-	bv := NewBoundedVariance(&BoundedVarianceOptions{
+	bv, err := NewBoundedVariance(&BoundedVarianceOptions{
 		Epsilon:                      ln3,
 		MaxPartitionsContributed:     1,
 		MaxContributionsPerPartition: 1,
@@ -312,12 +343,18 @@ func TestBVReturnsResultInsidePossibleBoundaries(t *testing.T) {
 		Upper:                        upper,
 		Noise:                        noise.Laplace(),
 	})
+	if err != nil {
+		t.Fatalf("Couldn't initialize bv: %v", err)
+	}
 
 	for i := 0; i <= 1000; i++ {
 		bv.Add(rand.Uniform() * 300 * rand.Sign())
 	}
 
-	res := bv.Result()
+	res, err := bv.Result()
+	if err != nil {
+		t.Fatalf("Couldn't compute dp result: %v", err)
+	}
 	if res < 0 {
 		t.Errorf("BoundedVariance: variance can't be smaller than 0, got variance %f, want to be >= %f", res, 0.0)
 	}
@@ -329,14 +366,20 @@ func TestBVReturnsResultInsidePossibleBoundaries(t *testing.T) {
 
 func TestMergeBoundedVariance(t *testing.T) {
 	lower, upper := -1.0, 5.0
-	bv1 := getNoiselessBV(lower, upper)
-	bv2 := getNoiselessBV(lower, upper)
+	bv1 := getNoiselessBV(t, lower, upper)
+	bv2 := getNoiselessBV(t, lower, upper)
 	bv1.Add(1)
 	bv1.Add(1)
 	bv2.Add(3)
 	bv2.Add(3)
-	bv1.Merge(bv2)
-	got := bv1.Result()
+	err := bv1.Merge(bv2)
+	if err != nil {
+		t.Fatalf("Couldn't merge bv1 and bv2: %v", err)
+	}
+	got, err := bv1.Result()
+	if err != nil {
+		t.Fatalf("Couldn't compute dp result: %v", err)
+	}
 	want := 1.0 // Would be 0.0 if merge didn't work.
 	if !ApproxEqual(got, want) {
 		t.Errorf("Merge: when merging 2 instances of BoundedVariance got %f, want %f", got, want)
@@ -514,8 +557,14 @@ func TestCheckMergeBoundedVarianceCompatibility(t *testing.T) {
 			},
 			true},
 	} {
-		bv1 := NewBoundedVariance(tc.opt1)
-		bv2 := NewBoundedVariance(tc.opt2)
+		bv1, err := NewBoundedVariance(tc.opt1)
+		if err != nil {
+			t.Fatalf("Couldn't initialize bv1: %v", err)
+		}
+		bv2, err := NewBoundedVariance(tc.opt2)
+		if err != nil {
+			t.Fatalf("Couldn't initialize bv2: %v", err)
+		}
 
 		if err := checkMergeBoundedVariance(bv1, bv2); (err != nil) != tc.wantErr {
 			t.Errorf("CheckMerge: when %s for err got %v, wantErr %t", tc.desc, err, tc.wantErr)
@@ -539,8 +588,8 @@ func TestCheckMergeBoundedVarianceStateChecks(t *testing.T) {
 		{merged, defaultState, true},
 	} {
 		lower, upper := 0.0, 5.0
-		bv1 := getNoiselessBV(lower, upper)
-		bv2 := getNoiselessBV(lower, upper)
+		bv1 := getNoiselessBV(t, lower, upper)
+		bv2 := getNoiselessBV(t, lower, upper)
 
 		bv1.state = tc.state1
 		bv2.state = tc.state2
@@ -738,7 +787,14 @@ func TestBVSerialization(t *testing.T) {
 			Noise:                        noise.Gaussian(),
 		}},
 	} {
-		bv, bvUnchanged := NewBoundedVariance(tc.opts), NewBoundedVariance(tc.opts)
+		bv, err := NewBoundedVariance(tc.opts)
+		if err != nil {
+			t.Fatalf("Couldn't initialize bv: %v", err)
+		}
+		bvUnchanged, err := NewBoundedVariance(tc.opts)
+		if err != nil {
+			t.Fatalf("Couldn't initialize bvUnchanged: %v", err)
+		}
 		bytes, err := encode(bv)
 		if err != nil {
 			t.Fatalf("encode(BoundedVariance) error: %v", err)
@@ -769,7 +825,7 @@ func TestBoundedVarianceSerializationStateChecks(t *testing.T) {
 		{resultReturned, true},
 	} {
 		lower, upper := 0.0, 5.0
-		bv := getNoiselessBV(lower, upper)
+		bv := getNoiselessBV(t, lower, upper)
 		bv.state = tc.state
 
 		if _, err := bv.GobEncode(); (err != nil) != tc.wantErr {

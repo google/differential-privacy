@@ -17,6 +17,7 @@
 package pbeam
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/google/differential-privacy/go/noise"
@@ -144,13 +145,19 @@ func TestBoundedQuantilesFnAddInput(t *testing.T) {
 	}
 	fn.Setup()
 
-	accum := fn.CreateAccumulator()
+	accum, err := fn.CreateAccumulator()
+	if err != nil {
+		t.Fatalf("Couldn't create accum: %v", err)
+	}
 	for i := 0; i < 100; i++ {
 		fn.AddInput(accum, []float64{1.0})
 		fn.AddInput(accum, []float64{4.0})
 	}
 
-	got := fn.ExtractOutput(accum)
+	got, err := fn.ExtractOutput(accum)
+	if err != nil {
+		t.Fatalf("Couldn't extract output: %v", err)
+	}
 	tolerance := testutils.QuantilesTolerance(lower, upper)
 	want := []float64{1.0, 4.0} // Correspoding to ranks 0.25 and 0.75, respectively.
 	for i, rank := range ranks {
@@ -188,15 +195,24 @@ func TestBoundedQuantilesFnMergeAccumulators(t *testing.T) {
 	}
 	fn.Setup()
 
-	accum1 := fn.CreateAccumulator()
-	accum2 := fn.CreateAccumulator()
+	accum1, err := fn.CreateAccumulator()
+	if err != nil {
+		t.Fatalf("Couldn't create accum1: %v", err)
+	}
+	accum2, err := fn.CreateAccumulator()
+	if err != nil {
+		t.Fatalf("Couldn't create accum2: %v", err)
+	}
 	for i := 0; i < 100; i++ {
 		fn.AddInput(accum1, []float64{1.0})
 		fn.AddInput(accum2, []float64{4.0})
 	}
 	fn.MergeAccumulators(accum1, accum2)
 
-	got := fn.ExtractOutput(accum1)
+	got, err := fn.ExtractOutput(accum1)
+	if err != nil {
+		t.Fatalf("Couldn't extract output: %v", err)
+	}
 	tolerance := testutils.QuantilesTolerance(lower, upper)
 	want := []float64{1.0, 4.0} // Correspoding to ranks 0.25 and 0.75, respectively.
 	for i, rank := range ranks {
@@ -234,7 +250,10 @@ func TestBoundedQuantilesFnExtractOutputReturnsNilForSmallPartitions(t *testing.
 			t.Fatalf("Couldn't get newBoundedQuantilesFn: %v", err)
 		}
 		fn.Setup()
-		accum := fn.CreateAccumulator()
+		accum, err := fn.CreateAccumulator()
+		if err != nil {
+			t.Fatalf("Couldn't create accum: %v", err)
+		}
 		for i := 0; i < tc.inputSize; i++ {
 			values := make([]float64, tc.datapointsPerPrivacyUnit)
 			for i := 0; i < tc.datapointsPerPrivacyUnit; i++ {
@@ -243,7 +262,10 @@ func TestBoundedQuantilesFnExtractOutputReturnsNilForSmallPartitions(t *testing.
 			fn.AddInput(accum, values)
 		}
 
-		got := fn.ExtractOutput(accum)
+		got, err := fn.ExtractOutput(accum)
+		if err != nil {
+			t.Fatalf("Couldn't extract output: %v", err)
+		}
 
 		// Should return nil output for small partitions.
 		if got != nil {
@@ -277,7 +299,10 @@ func TestBoundedQuantilesFnWithPartitionsExtractOutputDoesNotReturnNilForSmallPa
 			t.Fatalf("Couldn't get newBoundedQuantilesFn: %v", err)
 		}
 		fn.Setup()
-		accum := fn.CreateAccumulator()
+		accum, err := fn.CreateAccumulator()
+		if err != nil {
+			t.Fatalf("Couldn't create accum: %v", err)
+		}
 		for i := 0; i < tc.inputSize; i++ {
 			values := make([]float64, tc.datapointsPerPrivacyUnit)
 			for i := 0; i < tc.datapointsPerPrivacyUnit; i++ {
@@ -286,7 +311,10 @@ func TestBoundedQuantilesFnWithPartitionsExtractOutputDoesNotReturnNilForSmallPa
 			fn.AddInput(accum, values)
 		}
 
-		got := fn.ExtractOutput(accum)
+		got, err := fn.ExtractOutput(accum)
+		if err != nil {
+			t.Fatalf("Couldn't extract output: %v", err)
+		}
 
 		// Should not return nil output for small partitions in the case of public partitions.
 		if got == nil {
@@ -366,23 +394,39 @@ func TestQuantilesPerKeyAddsNoise(t *testing.T) {
 // Checks that QuantilesPerKey with partitions adds noise to its output.
 func TestQuantilesWithPartitionsPerKeyAddsNoise(t *testing.T) {
 	for _, tc := range []struct {
-		name      string
+		desc      string
 		noiseKind NoiseKind
-		// Differential privacy params used
-		epsilon float64
-		delta   float64
+		epsilon   float64
+		delta     float64
+		inMemory  bool
 	}{
 		{
-			name:      "Gaussian",
+			desc:      "as PCollection w/ Gaussian",
 			noiseKind: GaussianNoise{},
-			epsilon:   0.05, // It is split in two: 0.05 for the noise and 0.05 for the partition selection.
+			epsilon:   0.05,
 			delta:     1e-5,
+			inMemory:  false,
 		},
 		{
-			name:      "Laplace",
+			desc:      "as slice w/ Gaussian",
+			noiseKind: GaussianNoise{},
+			epsilon:   0.05,
+			delta:     1e-5,
+			inMemory:  true,
+		},
+		{
+			desc:      "as PCollection w/ Laplace",
 			noiseKind: LaplaceNoise{},
 			epsilon:   0.05,
 			delta:     0.0, // It is 0 because partitions are public and we are using Laplace noise.
+			inMemory:  false,
+		},
+		{
+			desc:      "as slice w/ Laplace",
+			noiseKind: LaplaceNoise{},
+			epsilon:   0.05,
+			delta:     0.0, // It is 0 because partitions are public and we are using Laplace noise.
+			inMemory:  true,
 		},
 	} {
 		ranks := []float64{0.50}
@@ -391,14 +435,21 @@ func TestQuantilesWithPartitionsPerKeyAddsNoise(t *testing.T) {
 		for i := 0; i < 100; i++ {
 			triples = append(triples, testutils.TripleWithFloatValue{ID: i, Partition: 0, Value: float32(i)})
 		}
+		publicPartitionsSlice := []int{0}
 		p, s, col := ptest.CreateList(triples)
+		var publicPartitions interface{}
+		if tc.inMemory {
+			publicPartitions = publicPartitionsSlice
+		} else {
+			publicPartitions = beam.CreateList(s, publicPartitionsSlice)
+		}
+
 		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
-		publicPartitions := beam.CreateList(s, []int{0})
 
 		// Use twice epsilon & delta because we compute Quantiles twice.
 		pcol := MakePrivate(s, col, NewPrivacySpec(2*tc.epsilon, 2*tc.delta))
 		pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
-		got1 := QuantilesPerKey(s, pcol, QuantilesParams{
+		quantilesParams := QuantilesParams{
 			Epsilon:                      tc.epsilon,
 			Delta:                        tc.delta,
 			MaxPartitionsContributed:     100,
@@ -408,18 +459,9 @@ func TestQuantilesWithPartitionsPerKeyAddsNoise(t *testing.T) {
 			NoiseKind:                    tc.noiseKind,
 			Ranks:                        ranks,
 			PublicPartitions:             publicPartitions,
-		})
-		got2 := QuantilesPerKey(s, pcol, QuantilesParams{
-			Epsilon:                      tc.epsilon,
-			Delta:                        tc.delta,
-			MaxPartitionsContributed:     100,
-			MaxContributionsPerPartition: 100,
-			MinValue:                     0.0,
-			MaxValue:                     100.0,
-			NoiseKind:                    tc.noiseKind,
-			Ranks:                        ranks,
-			PublicPartitions:             publicPartitions,
-		})
+		}
+		got1 := QuantilesPerKey(s, pcol, quantilesParams)
+		got2 := QuantilesPerKey(s, pcol, quantilesParams)
 		got1 = beam.ParDo(s, testutils.DereferenceFloat64Slice, got1)
 		got2 = beam.ParDo(s, testutils.DereferenceFloat64Slice, got2)
 
@@ -427,7 +469,7 @@ func TestQuantilesWithPartitionsPerKeyAddsNoise(t *testing.T) {
 			t.Fatalf("NotEqualsFloat64: got error %v", err)
 		}
 		if err := ptest.Run(p); err != nil {
-			t.Errorf("QuantilesPerKey with partitions didn't add any noise with float inputs and %s Noise: %v", tc.name, err)
+			t.Errorf("QuantilesPerKey with partitions %s didn't add any noise: %v", tc.desc, err)
 		}
 	}
 }
@@ -473,84 +515,115 @@ func TestQuantilesPerKeyNoNoise(t *testing.T) {
 
 // Checks that QuantilesPerKey with partitions returns a correct answer.
 func TestQuantilesPerKeyWithPartitionsNoNoise(t *testing.T) {
-	triples := testutils.ConcatenateTriplesWithFloatValue(
-		testutils.MakeTripleWithFloatValue(100, 0, 1.0),
-		testutils.MakeTripleWithFloatValue(100, 0, 4.0))
+	// We have two test cases, one for public partitions as a PCollection and one for public partitions as a slice (i.e., in-memory).
+	for _, tc := range []struct {
+		inMemory bool
+	}{
+		{true},
+		{false},
+	} {
+		triples := testutils.ConcatenateTriplesWithFloatValue(
+			testutils.MakeTripleWithFloatValue(100, 0, 1.0),
+			testutils.MakeTripleWithFloatValue(100, 0, 4.0))
 
-	wantMetric := []testutils.TestFloat64SliceMetric{
-		{0, []float64{1.0, 1.0, 4.0, 4.0}},
-	}
-	p, s, col, want := ptest.CreateList2(triples, wantMetric)
-	col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
+		wantMetric := []testutils.TestFloat64SliceMetric{
+			{0, []float64{1.0, 1.0, 4.0, 4.0}},
+		}
+		p, s, col, want := ptest.CreateList2(triples, wantMetric)
 
-	epsilon := 900.0
-	delta := 0.0
-	lower := 0.0
-	upper := 5.0
-	ranks := []float64{0.00, 0.25, 0.75, 1.00}
-	publicPartitions := beam.CreateList(s, []int{0})
+		epsilon := 900.0
+		delta := 0.0
+		lower := 0.0
+		upper := 5.0
+		ranks := []float64{0.00, 0.25, 0.75, 1.00}
+		publicPartitionsSlice := []int{0}
+		var publicPartitions interface{}
+		if tc.inMemory {
+			publicPartitions = publicPartitionsSlice
+		} else {
+			publicPartitions = beam.CreateList(s, publicPartitionsSlice)
+		}
 
-	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
-	pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
-	got := QuantilesPerKey(s, pcol, QuantilesParams{
-		MaxPartitionsContributed:     1,
-		MaxContributionsPerPartition: 2,
-		MinValue:                     lower,
-		MaxValue:                     upper,
-		Ranks:                        ranks,
-		PublicPartitions:             publicPartitions,
-	})
+		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
 
-	want = beam.ParDo(s, testutils.Float64SliceMetricToKV, want)
-	if err := testutils.ApproxEqualsKVFloat64Slice(s, got, want, testutils.QuantilesTolerance(lower, upper)); err != nil {
-		t.Fatalf("ApproxEqualsKVFloat64Slice: got error %v", err)
-	}
-	if err := ptest.Run(p); err != nil {
-		t.Errorf("QuantilesPerKey did not return approximate quantile: %v", err)
+		pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+		pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
+		quantilesParams := QuantilesParams{
+			MaxPartitionsContributed:     1,
+			MaxContributionsPerPartition: 2,
+			MinValue:                     lower,
+			MaxValue:                     upper,
+			Ranks:                        ranks,
+			PublicPartitions:             publicPartitions,
+		}
+		got := QuantilesPerKey(s, pcol, quantilesParams)
+
+		want = beam.ParDo(s, testutils.Float64SliceMetricToKV, want)
+		if err := testutils.ApproxEqualsKVFloat64Slice(s, got, want, testutils.QuantilesTolerance(lower, upper)); err != nil {
+			t.Fatalf("ApproxEqualsKVFloat64Slice in-memory=%t: got error %v", tc.inMemory, err)
+		}
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("QuantilesPerKey with partitions in-memory=%t did not return approximate quantile: %v", tc.inMemory, err)
+		}
 	}
 }
 
 // Checks that QuantilesPerKey with partitions adds public partitions not found in
 // the data and drops non-public partitions.
 func TestQuantilesPerKeyWithPartitionsAppliesPublicPartitions(t *testing.T) {
-	triples := testutils.ConcatenateTriplesWithFloatValue(
-		testutils.MakeTripleWithFloatValue(1, 0, 1.0),
-		testutils.MakeTripleWithFloatValueStartingFromKey(1, 1, 1, 1.0),
-		testutils.MakeTripleWithFloatValueStartingFromKey(2, 1, 2, 1.0))
+	// We have two test cases, one for public partitions as a PCollection and one for public partitions as a slice (i.e., in-memory).
+	for _, tc := range []struct {
+		inMemory bool
+	}{
+		{true},
+		{false},
+	} {
+		triples := testutils.ConcatenateTriplesWithFloatValue(
+			testutils.MakeTripleWithFloatValue(1, 0, 1.0),
+			testutils.MakeTripleWithFloatValueStartingFromKey(1, 1, 1, 1.0),
+			testutils.MakeTripleWithFloatValueStartingFromKey(2, 1, 2, 1.0))
+		p, s, col := ptest.CreateList(triples)
 
-	p, s, col := ptest.CreateList(triples)
-	col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
+		epsilon := 900.0
+		delta := 0.0
+		lower := 0.0
+		upper := 5.0
+		ranks := []float64{0.00, 0.25, 0.75, 1.00}
+		publicPartitionsSlice := []int{2, 3, 4, 5}
+		var publicPartitions interface{}
+		if tc.inMemory {
+			publicPartitions = publicPartitionsSlice
+		} else {
+			publicPartitions = beam.CreateList(s, publicPartitionsSlice)
+		}
 
-	epsilon := 900.0
-	delta := 0.0
-	lower := 0.0
-	upper := 5.0
-	ranks := []float64{0.00, 0.25, 0.75, 1.00}
-	publicPartitions := beam.CreateList(s, []int{2, 3, 4, 5})
+		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
 
-	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
-	pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
-	got := QuantilesPerKey(s, pcol, QuantilesParams{
-		MaxPartitionsContributed:     1,
-		MaxContributionsPerPartition: 2,
-		MinValue:                     lower,
-		MaxValue:                     upper,
-		Ranks:                        ranks,
-		PublicPartitions:             publicPartitions,
-	})
-	got = beam.DropKey(s, got) // We are only interested in the number of partitions kept
+		pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+		pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
+		quantilesParams := QuantilesParams{
+			MaxPartitionsContributed:     1,
+			MaxContributionsPerPartition: 2,
+			MinValue:                     lower,
+			MaxValue:                     upper,
+			Ranks:                        ranks,
+			PublicPartitions:             publicPartitions,
+		}
+		got := QuantilesPerKey(s, pcol, quantilesParams)
+		got = beam.DropKey(s, got) // We are only interested in the number of partitions kept
 
-	// There are 4 public partitions, so we expect 4 partitions in the output.
-	// If we didn't drop non-public partitions (partitions "0" and "1"), we would have
-	// 6 (if we still added empty public partitions) or 3 (if we also didn't add empty
-	// public partitions) partitions in the output.
-	// Similarly, if we didn't add empty public partitions (partitions "3", "4", "5"),
-	// we would have 1 (if we still dropped non-public partitions) or 3 (if we also
-	// didn't drop non-public partitions) partitions in the output.
-	wantPartitions := 4
-	testutils.CheckNumPartitions(s, got, wantPartitions)
-	if err := ptest.Run(p); err != nil {
-		t.Errorf("QuantilesPerKey with partitions did not apply public partitions: %v", err)
+		// There are 4 public partitions, so we expect 4 partitions in the output.
+		// If we didn't drop non-public partitions (partitions "0" and "1"), we would have
+		// 6 (if we still added empty public partitions) or 3 (if we also didn't add empty
+		// public partitions) partitions in the output.
+		// Similarly, if we didn't add empty public partitions (partitions "3", "4", "5"),
+		// we would have 1 (if we still dropped non-public partitions) or 3 (if we also
+		// didn't drop non-public partitions) partitions in the output.
+		wantPartitions := 4
+		testutils.CheckNumPartitions(s, got, wantPartitions)
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("QuantilesPerKey with partitions in-memory=%t did not apply public partitions: %v", tc.inMemory, err)
+		}
 	}
 }
 
@@ -597,7 +670,7 @@ var quantilesPartitionSelectionTestCases = []struct {
 func TestQuantilesPartitionSelection(t *testing.T) {
 	for _, tc := range quantilesPartitionSelectionTestCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// Sanity check that the entriesPerPartition is sensical.
+			// Verify that entriesPerPartition is sensical.
 			if tc.entriesPerPartition <= 0 {
 				t.Fatalf("Invalid test case: entriesPerPartition must be positive. Got: %d", tc.entriesPerPartition)
 			}
@@ -699,55 +772,70 @@ func TestQuantilesPerKeyCrossPartitionContributionBounding(t *testing.T) {
 
 // Checks that QuantilePerKey with partitions does cross-partition contribution bounding correctly.
 func TestQuantilesPerKeyWithPartitionsCrossPartitionContributionBounding(t *testing.T) {
-	// 100 distinct privacy IDs contribute 0.0 to partition 0 and another 100 distinct privacy
-	// IDs contribute 0.0 to partition 1. Then, another 100 privacy IDs (different from
-	// these 200 privacy IDs) contributes "1.0"s to both partition 0 and partition 1.
-	// MaxPartitionsContributed is 1, so a total of 100 "1.0" contributions will be kept across
-	// both partitions. Depending on how contributions are kept, rank=0.60 of both partitions is
-	// either both 0.0 or one is 1.0 and the other 0.0. Either way, the sum of rank=0.60 of both
-	// partitions should be less than or equal to 1.0. (as opposed to 2.0 if no contribution bounding
-	// takes place, since rank=0.60 will be 1.0 for both partitions in that case).
-	triples := testutils.ConcatenateTriplesWithFloatValue(
-		testutils.MakeTripleWithFloatValue(100, 0, 0.0),
-		testutils.MakeTripleWithFloatValueStartingFromKey(100, 100, 1, 0.0),
-		testutils.MakeTripleWithFloatValueStartingFromKey(200, 100, 0, 1.0),
-		testutils.MakeTripleWithFloatValueStartingFromKey(200, 100, 1, 1.0),
-	)
-	lower := 0.0
-	upper := 5.0
-	wantMetric := []testutils.TestFloat64Metric{
-		{0, 1.0 + testutils.QuantilesTolerance(lower, upper)}, // To account for noise.
-	}
-	p, s, col, want := ptest.CreateList2(triples, wantMetric)
-	col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
+	// We have two test cases, one for public partitions as a PCollection and one for public partitions as a slice (i.e., in-memory).
+	for _, tc := range []struct {
+		inMemory bool
+	}{
+		{true},
+		{false},
+	} {
+		// 100 distinct privacy IDs contribute 0.0 to partition 0 and another 100 distinct privacy
+		// IDs contribute 0.0 to partition 1. Then, another 100 privacy IDs (different from
+		// these 200 privacy IDs) contributes "1.0"s to both partition 0 and partition 1.
+		// MaxPartitionsContributed is 1, so a total of 100 "1.0" contributions will be kept across
+		// both partitions. Depending on how contributions are kept, rank=0.60 of both partitions is
+		// either both 0.0 or one is 1.0 and the other 0.0. Either way, the sum of rank=0.60 of both
+		// partitions should be less than or equal to 1.0. (as opposed to 2.0 if no contribution bounding
+		// takes place, since rank=0.60 will be 1.0 for both partitions in that case).
+		triples := testutils.ConcatenateTriplesWithFloatValue(
+			testutils.MakeTripleWithFloatValue(100, 0, 0.0),
+			testutils.MakeTripleWithFloatValueStartingFromKey(100, 100, 1, 0.0),
+			testutils.MakeTripleWithFloatValueStartingFromKey(200, 100, 0, 1.0),
+			testutils.MakeTripleWithFloatValueStartingFromKey(200, 100, 1, 1.0),
+		)
+		lower := 0.0
+		upper := 5.0
+		wantMetric := []testutils.TestFloat64Metric{
+			{0, 1.0 + testutils.QuantilesTolerance(lower, upper)}, // To account for noise.
+		}
+		p, s, col, want := ptest.CreateList2(triples, wantMetric)
 
-	epsilon := 900.0
-	delta := 0.0
+		epsilon := 900.0
+		delta := 0.0
+		ranks := []float64{0.60}
+		publicPartitionsSlice := []int{0, 1}
+		var publicPartitions interface{}
+		if tc.inMemory {
+			publicPartitions = publicPartitionsSlice
+		} else {
+			publicPartitions = beam.CreateList(s, publicPartitionsSlice)
+		}
 
-	ranks := []float64{0.60}
-	publicPartitions := beam.CreateList(s, []int{0, 1})
+		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
 
-	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
-	pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
-	got := QuantilesPerKey(s, pcol, QuantilesParams{
-		MaxPartitionsContributed:     1,
-		MaxContributionsPerPartition: 1,
-		MinValue:                     lower,
-		MaxValue:                     upper,
-		Ranks:                        ranks,
-		PublicPartitions:             publicPartitions,
-	})
-	got = beam.ParDo(s, testutils.DereferenceFloat64Slice, got)
-	maxs := beam.DropKey(s, got)
-	maxOverPartitions := stats.Sum(s, maxs)
-	got = beam.AddFixedKey(s, maxOverPartitions) // Adds a fixed key of 0.
+		pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+		pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
+		quantilesParams := QuantilesParams{
+			MaxPartitionsContributed:     1,
+			MaxContributionsPerPartition: 1,
+			MinValue:                     lower,
+			MaxValue:                     upper,
+			Ranks:                        ranks,
+			PublicPartitions:             publicPartitions,
+		}
+		got := QuantilesPerKey(s, pcol, quantilesParams)
+		got = beam.ParDo(s, testutils.DereferenceFloat64Slice, got)
+		maxs := beam.DropKey(s, got)
+		maxOverPartitions := stats.Sum(s, maxs)
+		got = beam.AddFixedKey(s, maxOverPartitions) // Adds a fixed key of 0.
 
-	want = beam.ParDo(s, testutils.Float64MetricToKV, want)
-	if err := testutils.LessThanOrEqualToKVFloat64(s, got, want); err != nil {
-		t.Fatalf("LessThanOrEqualToKVFloat64: got error %v", err)
-	}
-	if err := ptest.Run(p); err != nil {
-		t.Errorf("QuantilesPerKey with partitions did not bound cross-partition contributions correctly: %v", err)
+		want = beam.ParDo(s, testutils.Float64MetricToKV, want)
+		if err := testutils.LessThanOrEqualToKVFloat64(s, got, want); err != nil {
+			t.Fatalf("LessThanOrEqualToKVFloat64 in-memory=%t: got error %v", tc.inMemory, err)
+		}
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("QuantilesPerKey with partitions in-memory=%t did not bound cross-partition contributions correctly: %v", tc.inMemory, err)
+		}
 	}
 }
 
@@ -796,45 +884,61 @@ func TestQuantilesPerKeyPerPartitionContributionBounding(t *testing.T) {
 
 // Checks that QuantilePerKey with partitions does per-partition contribution bounding correctly.
 func TestQuantilesPerKeyWithPartitionsPerPartitionContributionBounding(t *testing.T) {
-	// 100 distinct privacy IDs contribute 0.0 and another 100 distinct privacy IDs
-	// contribute 1.0 twice. MaxPartitionsContributed is 1, so only half of these
-	// contributions will be kept and we expect equal number of 0.0's and 1.0s.
-	triples := testutils.ConcatenateTriplesWithFloatValue(
-		testutils.MakeTripleWithFloatValue(100, 0, 0.0),
-		testutils.MakeTripleWithFloatValueStartingFromKey(100, 100, 0, 1.0),
-		testutils.MakeTripleWithFloatValueStartingFromKey(100, 100, 0, 1.0))
+	// We have two test cases, one for public partitions as a PCollection and one for public partitions as a slice (i.e., in-memory).
+	for _, tc := range []struct {
+		inMemory bool
+	}{
+		{true},
+		{false},
+	} {
+		// 100 distinct privacy IDs contribute 0.0 and another 100 distinct privacy IDs
+		// contribute 1.0 twice. MaxPartitionsContributed is 1, so only half of these
+		// contributions will be kept and we expect equal number of 0.0's and 1.0s.
+		triples := testutils.ConcatenateTriplesWithFloatValue(
+			testutils.MakeTripleWithFloatValue(100, 0, 0.0),
+			testutils.MakeTripleWithFloatValueStartingFromKey(100, 100, 0, 1.0),
+			testutils.MakeTripleWithFloatValueStartingFromKey(100, 100, 0, 1.0))
 
-	wantMetric := []testutils.TestFloat64SliceMetric{
-		{0, []float64{0.0, 1.0}},
-	}
-	p, s, col, want := ptest.CreateList2(triples, wantMetric)
-	col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
+		wantMetric := []testutils.TestFloat64SliceMetric{
+			{0, []float64{0.0, 1.0}},
+		}
+		p, s, col, want := ptest.CreateList2(triples, wantMetric)
 
-	epsilon := 900.0
-	delta := 0.0
-	lower := 0.0
-	upper := 5.0
-	ranks := []float64{0.49, 0.51}
-	publicPartitions := beam.CreateList(s, []int{0})
+		epsilon := 900.0
+		delta := 0.0
+		lower := 0.0
+		upper := 5.0
+		ranks := []float64{0.49, 0.51}
+		publicPartitionsSlice := []int{0}
+		var publicPartitions interface{}
+		if tc.inMemory {
+			publicPartitions = publicPartitionsSlice
+		} else {
+			publicPartitions = beam.CreateList(s, publicPartitionsSlice)
+		}
 
-	// ε is split in two for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
-	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
-	pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
-	got := QuantilesPerKey(s, pcol, QuantilesParams{
-		MaxPartitionsContributed:     1,
-		MaxContributionsPerPartition: 1,
-		MinValue:                     lower,
-		MaxValue:                     upper,
-		Ranks:                        ranks,
-		PublicPartitions:             publicPartitions,
-	})
+		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
 
-	want = beam.ParDo(s, testutils.Float64SliceMetricToKV, want)
-	if err := testutils.ApproxEqualsKVFloat64Slice(s, got, want, testutils.QuantilesTolerance(lower, upper)); err != nil {
-		t.Fatalf("ApproxEqualsKVFloat64Slice: got error %v", err)
-	}
-	if err := ptest.Run(p); err != nil {
-		t.Errorf("QuantilesPerKey did not bound cross-partition contributions correctly: %v", err)
+		// ε is split in two for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
+		pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+		pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
+		quantilesParams := QuantilesParams{
+			MaxPartitionsContributed:     1,
+			MaxContributionsPerPartition: 1,
+			MinValue:                     lower,
+			MaxValue:                     upper,
+			Ranks:                        ranks,
+			PublicPartitions:             publicPartitions,
+		}
+		got := QuantilesPerKey(s, pcol, quantilesParams)
+
+		want = beam.ParDo(s, testutils.Float64SliceMetricToKV, want)
+		if err := testutils.ApproxEqualsKVFloat64Slice(s, got, want, testutils.QuantilesTolerance(lower, upper)); err != nil {
+			t.Fatalf("ApproxEqualsKVFloat64Slice in-memory=%t: got error %v", tc.inMemory, err)
+		}
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("QuantilesPerKey with partitions in-memory=%t did not bound cross-partition contributions correctly: %v", tc.inMemory, err)
+		}
 	}
 }
 
@@ -879,71 +983,191 @@ func TestQuantilesPerKeyAppliesClamping(t *testing.T) {
 
 // Checks that QuantilesPerKey with partitions clamps input values to MinValue and MaxValue.
 func TestQuantilesPerKeyWithPartitionsAppliesClamping(t *testing.T) {
-	triples := testutils.ConcatenateTriplesWithFloatValue(
-		testutils.MakeTripleWithFloatValue(100, 0, -5.0), // Will be clamped to 0.0
-		testutils.MakeTripleWithFloatValue(100, 0, 10.0)) // Will be clamped to 5.0
+	// We have two test cases, one for public partitions as a PCollection and one for public partitions as a slice (i.e., in-memory).
+	for _, tc := range []struct {
+		inMemory bool
+	}{
+		{true},
+		{false},
+	} {
+		triples := testutils.ConcatenateTriplesWithFloatValue(
+			testutils.MakeTripleWithFloatValue(100, 0, -5.0), // Will be clamped to 0.0
+			testutils.MakeTripleWithFloatValue(100, 0, 10.0)) // Will be clamped to 5.0
 
-	wantMetric := []testutils.TestFloat64SliceMetric{
-		{0, []float64{0.0, 0.0, 5.0, 5.0}},
-	}
-	p, s, col, want := ptest.CreateList2(triples, wantMetric)
-	col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
+		wantMetric := []testutils.TestFloat64SliceMetric{
+			{0, []float64{0.0, 0.0, 5.0, 5.0}},
+		}
+		p, s, col, want := ptest.CreateList2(triples, wantMetric)
 
-	epsilon := 900.0
-	delta := 0.0
-	lower := 0.0
-	upper := 5.0
-	ranks := []float64{0.00, 0.25, 0.75, 1.00}
-	publicPartitions := beam.CreateList(s, []int{0})
+		epsilon := 900.0
+		delta := 0.0
+		lower := 0.0
+		upper := 5.0
+		ranks := []float64{0.00, 0.25, 0.75, 1.00}
+		publicPartitionsSlice := []int{0}
+		var publicPartitions interface{}
+		if tc.inMemory {
+			publicPartitions = publicPartitionsSlice
+		} else {
+			publicPartitions = beam.CreateList(s, publicPartitionsSlice)
+		}
 
-	// ε is split in two for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
-	pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
-	pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
-	got := QuantilesPerKey(s, pcol, QuantilesParams{
-		MaxPartitionsContributed:     1,
-		MaxContributionsPerPartition: 2,
-		MinValue:                     lower,
-		MaxValue:                     upper,
-		Ranks:                        ranks,
-		PublicPartitions:             publicPartitions,
-	})
+		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
 
-	want = beam.ParDo(s, testutils.Float64SliceMetricToKV, want)
-	if err := testutils.ApproxEqualsKVFloat64Slice(s, got, want, testutils.QuantilesTolerance(lower, upper)); err != nil {
-		t.Fatalf("ApproxEqualsKVFloat64Slice: got error %v", err)
-	}
-	if err := ptest.Run(p); err != nil {
-		t.Errorf("QuantilesPerKey did not clamp input values: %v", err)
+		// ε is split in two for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
+		pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
+		pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
+		quantilesParams := QuantilesParams{
+			MaxPartitionsContributed:     1,
+			MaxContributionsPerPartition: 2,
+			MinValue:                     lower,
+			MaxValue:                     upper,
+			Ranks:                        ranks,
+			PublicPartitions:             publicPartitions,
+		}
+		got := QuantilesPerKey(s, pcol, quantilesParams)
+
+		want = beam.ParDo(s, testutils.Float64SliceMetricToKV, want)
+		if err := testutils.ApproxEqualsKVFloat64Slice(s, got, want, testutils.QuantilesTolerance(lower, upper)); err != nil {
+			t.Fatalf("ApproxEqualsKVFloat64Slice in-memory=%t: got error %v", tc.inMemory, err)
+		}
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("QuantilesPerKey with partitions in-memory=%t did not clamp input values: %v", tc.inMemory, err)
+		}
 	}
 }
 
 func TestCheckQuantilesPerKeyParams(t *testing.T) {
 	_, _, publicPartitions := ptest.CreateList([]int{0, 1})
 	for _, tc := range []struct {
-		desc      string
-		epsilon   float64
-		delta     float64
-		noiseKind noise.Kind
-		params    QuantilesParams
-		wantErr   bool
+		desc          string
+		epsilon       float64
+		delta         float64
+		noiseKind     noise.Kind
+		params        QuantilesParams
+		partitionType reflect.Type
+		wantErr       bool
 	}{
-		{"valid parameters", 1.0, 1e-5, noise.LaplaceNoise, QuantilesParams{MinValue: -5.0, MaxValue: 5.0, Ranks: []float64{0.5}}, false},
-		{"negative epsilon", -1.0, 1e-5, noise.LaplaceNoise, QuantilesParams{MinValue: -5.0, MaxValue: 5.0, Ranks: []float64{0.5}}, true},
-		{"zero delta", 1.0, 0.0, noise.LaplaceNoise, QuantilesParams{MinValue: -5.0, MaxValue: 5.0, Ranks: []float64{0.5}}, true},
-		{"MaxValue < MinValue", 1.0, 1e-5, noise.LaplaceNoise, QuantilesParams{MinValue: 6.0, MaxValue: 5.0, Ranks: []float64{0.5}}, true},
-		{"MaxValue = MinValue", 1.0, 1e-5, noise.LaplaceNoise, QuantilesParams{MinValue: 5.0, MaxValue: 5.0, Ranks: []float64{0.5}}, true},
-		{"No ranks", 1.0, 1e-5, noise.LaplaceNoise, QuantilesParams{MinValue: -5.0, MaxValue: 5.0}, true},
-		{"Out of bound (<0.0 || >1.0) ranks", 1.0, 1e-5, noise.LaplaceNoise, QuantilesParams{MinValue: -5.0, MaxValue: 5.0, Ranks: []float64{0.3, 1.5}}, true},
-		{"public partitions and non-zero delta with Laplace",
-			1.0,
-			1e-5,
-			noise.LaplaceNoise,
-			QuantilesParams{MinValue: -5.0, MaxValue: 5.0, Ranks: []float64{0.5}, PublicPartitions: publicPartitions},
-			true},
+		{
+			desc:          "valid parameters",
+			epsilon:       1.0,
+			delta:         1e-5,
+			noiseKind:     noise.LaplaceNoise,
+			params:        QuantilesParams{MaxContributionsPerPartition: 1, MinValue: -5.0, MaxValue: 5.0, Ranks: []float64{0.5}},
+			partitionType: nil,
+			wantErr:       false,
+		},
+		{
+			desc:          "negative epsilon",
+			epsilon:       -1.0,
+			delta:         1e-5,
+			noiseKind:     noise.LaplaceNoise,
+			params:        QuantilesParams{MaxContributionsPerPartition: 1, MinValue: -5.0, MaxValue: 5.0, Ranks: []float64{0.5}},
+			partitionType: nil,
+			wantErr:       true,
+		},
+		{
+			desc:          "zero delta w/o public partitions",
+			epsilon:       1.0,
+			delta:         0.0,
+			noiseKind:     noise.LaplaceNoise,
+			params:        QuantilesParams{MaxContributionsPerPartition: 1, MinValue: -5.0, MaxValue: 5.0, Ranks: []float64{0.5}},
+			partitionType: nil,
+			wantErr:       true,
+		},
+		{
+			desc:          "MaxValue < MinValue",
+			epsilon:       1.0,
+			delta:         1e-5,
+			noiseKind:     noise.LaplaceNoise,
+			params:        QuantilesParams{MaxContributionsPerPartition: 1, MinValue: 6.0, MaxValue: 5.0, Ranks: []float64{0.5}},
+			partitionType: nil,
+			wantErr:       true,
+		},
+		{
+			desc:          "MaxValue = MinValue",
+			epsilon:       1.0,
+			delta:         1e-5,
+			noiseKind:     noise.LaplaceNoise,
+			params:        QuantilesParams{MaxContributionsPerPartition: 1, MinValue: 5.0, MaxValue: 5.0, Ranks: []float64{0.5}},
+			partitionType: nil,
+			wantErr:       true,
+		},
+		{
+			desc:          "zero MaxContributionsPerPartition",
+			epsilon:       1.0,
+			delta:         1e-5,
+			noiseKind:     noise.LaplaceNoise,
+			params:        QuantilesParams{MaxContributionsPerPartition: 0, MinValue: -5.0, MaxValue: 5.0, Ranks: []float64{0.5}},
+			partitionType: nil,
+			wantErr:       true,
+		},
+		{
+			desc:          "No ranks",
+			epsilon:       1.0,
+			delta:         1e-5,
+			noiseKind:     noise.LaplaceNoise,
+			params:        QuantilesParams{MaxContributionsPerPartition: 1, MinValue: -5.0, MaxValue: 5.0},
+			partitionType: nil,
+			wantErr:       true,
+		},
+		{
+			desc:          "Out of bound (<0.0 || >1.0) ranks",
+			epsilon:       1.0,
+			delta:         1e-5,
+			noiseKind:     noise.LaplaceNoise,
+			params:        QuantilesParams{MaxContributionsPerPartition: 1, MinValue: -5.0, MaxValue: 5.0, Ranks: []float64{0.3, 1.5}},
+			partitionType: nil,
+			wantErr:       true,
+		},
+		{
+			desc:          "non-zero delta w/ public partitions & Laplace",
+			epsilon:       1.0,
+			delta:         1e-5,
+			noiseKind:     noise.LaplaceNoise,
+			params:        QuantilesParams{MaxContributionsPerPartition: 1, MinValue: -5.0, MaxValue: 5.0, Ranks: []float64{0.5}, PublicPartitions: publicPartitions},
+			partitionType: reflect.TypeOf(0),
+			wantErr:       true,
+		},
+		{
+			desc:          "wrong partition type w/ public partitions as beam.PCollection",
+			epsilon:       1.0,
+			delta:         1e-5,
+			noiseKind:     noise.LaplaceNoise,
+			params:        QuantilesParams{MaxContributionsPerPartition: 1, MinValue: -5.0, MaxValue: 5.0, Ranks: []float64{0.5}, PublicPartitions: publicPartitions},
+			partitionType: reflect.TypeOf(""),
+			wantErr:       true,
+		},
+		{
+			desc:          "wrong partition type w/ public partitions as slice",
+			epsilon:       1.0,
+			delta:         1e-5,
+			noiseKind:     noise.LaplaceNoise,
+			params:        QuantilesParams{MaxContributionsPerPartition: 1, MinValue: -5.0, MaxValue: 5.0, Ranks: []float64{0.5}, PublicPartitions: []int{0}},
+			partitionType: reflect.TypeOf(""),
+			wantErr:       true,
+		},
+		{
+			desc:          "wrong partition type w/ public partitions as array",
+			epsilon:       1.0,
+			delta:         1e-5,
+			noiseKind:     noise.LaplaceNoise,
+			params:        QuantilesParams{MaxContributionsPerPartition: 1, MinValue: -5.0, MaxValue: 5.0, Ranks: []float64{0.5}, PublicPartitions: [1]int{0}},
+			partitionType: reflect.TypeOf(""),
+			wantErr:       true,
+		},
+		{
+			desc:          "public partitions as something other than beam.PCollection, slice or array",
+			epsilon:       1,
+			delta:         0,
+			noiseKind:     noise.LaplaceNoise,
+			params:        QuantilesParams{MaxContributionsPerPartition: 1, MinValue: -5.0, MaxValue: 5.0, Ranks: []float64{0.5}, PublicPartitions: ""},
+			partitionType: reflect.TypeOf(""),
+			wantErr:       true,
+		},
 	} {
-		got := checkQuantilesPerKeyParams(tc.params, tc.epsilon, tc.delta, tc.noiseKind)
-		if (got != nil) != tc.wantErr {
-			t.Errorf("checkQuantilesPerKeyParams: %s got=%v, wantErr=%t", tc.desc, got, tc.wantErr)
+		if err := checkQuantilesPerKeyParams(tc.params, tc.epsilon, tc.delta, tc.noiseKind, tc.partitionType); (err != nil) != tc.wantErr {
+			t.Errorf("With %s, got=%v, wantErr=%t", tc.desc, err, tc.wantErr)
 		}
 	}
 }

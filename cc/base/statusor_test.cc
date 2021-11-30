@@ -115,7 +115,7 @@ TEST(StatusOr, TestMoveOnlyConversion) {
 }
 
 TEST(StatusOr, TestMoveOnlyVector) {
-  // Sanity check that StatusOr<MoveOnly> works in vector.
+  // Verify that StatusOr<MoveOnly> works in vector.
   std::vector<StatusOr<std::unique_ptr<int>>> vec;
   vec.push_back(ReturnUniquePtr());
   vec.resize(2);

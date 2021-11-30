@@ -50,7 +50,7 @@ subject to change.
 
 In order to run the differential privacy library, you need to install Bazel in
 version 4.1.0, if you don't have it already.
-[Follow the instructions for your platform on the Bazel website](https://docs.bazel.build/versions/master/install.html)
+[Follow the instructions for your platform on the Bazel website](https://docs.bazel.build/versions/main/install.html)
 
 You also need to install Git, if you don't have it already.
 [Follow the instructions for your platform on the Git website.](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)

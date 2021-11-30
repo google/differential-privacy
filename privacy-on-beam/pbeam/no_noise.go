@@ -22,16 +22,16 @@ import "github.com/google/differential-privacy/go/noise"
 // threshold of 0. Used as the noise type only when testMode is enabled in PrivacySpec.
 type noNoise struct{}
 
-func (noNoise) AddNoiseInt64(x, _, _ int64, _, _ float64) int64 {
-	return x
+func (noNoise) AddNoiseInt64(x, _, _ int64, _, _ float64) (int64, error) {
+	return x, nil
 }
 
-func (noNoise) AddNoiseFloat64(x float64, _ int64, _, _, _ float64) float64 {
-	return x
+func (noNoise) AddNoiseFloat64(x float64, _ int64, _, _, _ float64) (float64, error) {
+	return x, nil
 }
 
-func (noNoise) Threshold(_ int64, _, _, _, _ float64) float64 {
-	return 0.0
+func (noNoise) Threshold(_ int64, _, _, _, _ float64) (float64, error) {
+	return 0.0, nil
 }
 
 func (noNoise) ComputeConfidenceIntervalInt64(noisedX, _, _ int64, _, _, _ float64) (noise.ConfidenceInterval, error) {

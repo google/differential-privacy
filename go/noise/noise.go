@@ -79,11 +79,11 @@ func (confInt ConfidenceInterval) roundToInt64() ConfidenceInterval {
 type Noise interface {
 	// AddNoiseInt64 noise to the specified int64 x so that the output is ε-differentially
 	// private given the L_0 and L_∞ sensitivities of the database.
-	AddNoiseInt64(x, l0sensitivity, lInfSensitivity int64, epsilon, delta float64) int64
+	AddNoiseInt64(x, l0sensitivity, lInfSensitivity int64, epsilon, delta float64) (int64, error)
 
 	// AddNoiseFloat64 noise to the specified float64 x so that the output is ε-differentially
 	// private given the L_0 and L_∞ sensitivities of the database.
-	AddNoiseFloat64(x float64, l0sensitivity int64, lInfSensitivity, epsilon, delta float64) float64
+	AddNoiseFloat64(x float64, l0sensitivity int64, lInfSensitivity, epsilon, delta float64) (float64, error)
 
 	// Threshold returns the smallest threshold k needed in settings where the Noise instance
 	// is used to achieve differential privacy on histograms where the inclusion of histogram
@@ -117,7 +117,7 @@ type Noise interface {
 	//
 	// satisfies (epsilon,noiseDelta+thresholdDelta)-differential privacy under the
 	// given assumptions of L_0 and L_∞ sensitivities.
-	Threshold(l0Sensitivity int64, lInfSensitivity, epsilon, noiseDelta, thresholdDelta float64) float64
+	Threshold(l0Sensitivity int64, lInfSensitivity, epsilon, noiseDelta, thresholdDelta float64) (float64, error)
 
 	// ComputeConfidenceIntervalInt64 computes a confidence interval that contains the raw integer value x from which int64
 	// noisedX is computed with a probability greater or equal to 1 - alpha based on the specified noise parameters.

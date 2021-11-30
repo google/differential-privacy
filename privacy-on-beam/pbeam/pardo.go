@@ -132,7 +132,7 @@ func buildDoFn(doFn interface{}) (*anonDoFn, error) {
 		return nil, fmt.Errorf("illegal DoFn argument in pbeam.ParDo")
 	}
 	if len(funcxFn.Params(funcx.FnValue)) != 1 && len(funcxFn.Params(funcx.FnValue)) != 2 {
-		return nil, fmt.Errorf("the DoFn parameter in pbeam.ParDo should have one or two value argument")
+		return nil, fmt.Errorf("DoFn should have one or two value argument")
 	}
 	if len(funcxFn.Returns(funcx.RetEventTime)) > 0 {
 		return nil, fmt.Errorf("pbeam.PrivatePCollection don't support streaming mode, so DoFns who return EventTime are forbidden")
@@ -141,7 +141,7 @@ func buildDoFn(doFn interface{}) (*anonDoFn, error) {
 		return nil, fmt.Errorf("illegal DoFn return parameter in pbeam.ParDo")
 	}
 	if len(funcxFn.Params(funcx.FnEmit)) <= 0 && len(funcxFn.Returns(funcx.RetValue)) != 1 && len(funcxFn.Returns(funcx.RetValue)) != 2 {
-		return nil, fmt.Errorf("the DoFn parameter in pbeam.ParDo should have one or two value outputs or has an emit function")
+		return nil, fmt.Errorf("DoFn should have one or two value outputs or has an emit function")
 	}
 	if err := validateArgOrder(funcxFn); err != nil {
 		return nil, err

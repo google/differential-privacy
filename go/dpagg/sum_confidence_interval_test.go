@@ -22,12 +22,13 @@ import (
 	"github.com/google/differential-privacy/go/noise"
 )
 
-func getBoundedSumInt64(n noise.Noise, lower, upper int64) *BoundedSumInt64 {
+func getBoundedSumInt64(t *testing.T, n noise.Noise, lower, upper int64) *BoundedSumInt64 {
+	t.Helper()
 	delta := arbitraryDelta
 	if n == noise.Laplace() {
 		delta = 0.0
 	}
-	return NewBoundedSumInt64(&BoundedSumInt64Options{
+	bs, err := NewBoundedSumInt64(&BoundedSumInt64Options{
 		Epsilon:                      arbitraryEpsilon,
 		Delta:                        delta,
 		Noise:                        n,
@@ -35,14 +36,19 @@ func getBoundedSumInt64(n noise.Noise, lower, upper int64) *BoundedSumInt64 {
 		maxContributionsPerPartition: arbitraryMaxContributionsPerPartition,
 		Lower:                        lower,
 		Upper:                        upper})
+	if err != nil {
+		t.Fatalf("Couldn't get bounded sum with noise=%v lower=%d upper=%d: %v", n, lower, upper, err)
+	}
+	return bs
 }
 
-func getBoundedSumFloat64(n noise.Noise, lower, upper float64) *BoundedSumFloat64 {
+func getBoundedSumFloat64(t *testing.T, n noise.Noise, lower, upper float64) *BoundedSumFloat64 {
+	t.Helper()
 	delta := arbitraryDelta
 	if n == noise.Laplace() {
 		delta = 0.0
 	}
-	return NewBoundedSumFloat64(&BoundedSumFloat64Options{
+	bs, err := NewBoundedSumFloat64(&BoundedSumFloat64Options{
 		Epsilon:                      arbitraryEpsilon,
 		Delta:                        delta,
 		Noise:                        n,
@@ -50,14 +56,21 @@ func getBoundedSumFloat64(n noise.Noise, lower, upper float64) *BoundedSumFloat6
 		maxContributionsPerPartition: arbitraryMaxContributionsPerPartition,
 		Lower:                        lower,
 		Upper:                        upper})
+	if err != nil {
+		t.Fatalf("Couldn't get bounded sum with noise=%v lower=%f upper=%f: %v", n, lower, upper, err)
+	}
+	return bs
 }
 
 // Tests that BoundedSumInt64.ComputeConfidenceInterval() does not return negative intervals when
 // bound are non-negative.
 func TestSumInt64ComputeConfidenceInterval_ClampsNegativeSubinterval(t *testing.T) {
 	for i := 0; i < 1000; i++ {
-		bs := getBoundedSumInt64(noise.Gaussian(), 0, 1)
-		bs.Result()
+		bs := getBoundedSumInt64(t, noise.Gaussian(), 0, 1)
+		_, err := bs.Result()
+		if err != nil {
+			t.Fatalf("Couldn't compute dp result: %v", err)
+		}
 
 		// Using a large alpha to get a small confidence interval. This increases the chance of both
 		// the lower and the upper bound being clamped.
@@ -85,8 +98,11 @@ func TestSumInt64ComputeConfidenceInterval_ClampsNegativeSubinterval(t *testing.
 // bound are non-negative.
 func TestSumFloat64ComputeConfidenceInterval_ClampsNegativeSubinterval(t *testing.T) {
 	for i := 0; i < 1000; i++ {
-		bs := getBoundedSumFloat64(noise.Gaussian(), 0.0, 1.0)
-		bs.Result()
+		bs := getBoundedSumFloat64(t, noise.Gaussian(), 0.0, 1.0)
+		_, err := bs.Result()
+		if err != nil {
+			t.Fatalf("Couldn't compute dp result: %v", err)
+		}
 
 		// Using a large alpha to get a small confidence interval. This increases the chance of both
 		// the lower and the upper bound being clamped.
@@ -114,8 +130,11 @@ func TestSumFloat64ComputeConfidenceInterval_ClampsNegativeSubinterval(t *testin
 // bound are non-positive.
 func TestSumInt64ComputeConfidenceInterval_ClampsPositiveSubinterval(t *testing.T) {
 	for i := 0; i < 1000; i++ {
-		bs := getBoundedSumInt64(noise.Gaussian(), -1, 0)
-		bs.Result()
+		bs := getBoundedSumInt64(t, noise.Gaussian(), -1, 0)
+		_, err := bs.Result()
+		if err != nil {
+			t.Fatalf("Couldn't compute dp result: %v", err)
+		}
 
 		// Using a large alpha to get a small confidence interval. This increases the chance of both
 		// the lower and the upper bound being clamped.
@@ -143,8 +162,11 @@ func TestSumInt64ComputeConfidenceInterval_ClampsPositiveSubinterval(t *testing.
 // bound are non-positive.
 func TestSumFloat64ComputeConfidenceInterval_ClampsPositiveSubinterval(t *testing.T) {
 	for i := 0; i < 1000; i++ {
-		bs := getBoundedSumFloat64(noise.Gaussian(), -1.0, 0.0)
-		bs.Result()
+		bs := getBoundedSumFloat64(t, noise.Gaussian(), -1.0, 0.0)
+		_, err := bs.Result()
+		if err != nil {
+			t.Fatalf("Couldn't compute dp result: %v", err)
+		}
 
 		// Using a large alpha to get a small confidence interval. This increases the chance of both
 		// the lower and the upper bound being clamped.
@@ -177,8 +199,11 @@ func TestSumInt64ComputeConfidenceInterval_ReturnsSameResultForSameAlpha(t *test
 		{noise.Gaussian()},
 		{noise.Laplace()},
 	} {
-		bs := getBoundedSumInt64(tc.n, arbitraryLowerInt64, arbitraryUpperInt64)
-		bs.Result()
+		bs := getBoundedSumInt64(t, tc.n, arbitraryLowerInt64, arbitraryUpperInt64)
+		_, err := bs.Result()
+		if err != nil {
+			t.Fatalf("Couldn't compute dp result: %v", err)
+		}
 
 		confInt1, err := bs.ComputeConfidenceInterval(arbitraryAlpha)
 		if err != nil {
@@ -203,8 +228,11 @@ func TestSumFloat64ComputeConfidenceInterval_ReturnsSameResultForSameAlpha(t *te
 		{noise.Gaussian()},
 		{noise.Laplace()},
 	} {
-		bs := getBoundedSumFloat64(tc.n, arbitraryLower, arbitraryUpper)
-		bs.Result()
+		bs := getBoundedSumFloat64(t, tc.n, arbitraryLower, arbitraryUpper)
+		_, err := bs.Result()
+		if err != nil {
+			t.Fatalf("Couldn't compute dp result: %v", err)
+		}
 
 		confInt1, err := bs.ComputeConfidenceInterval(arbitraryAlpha)
 		if err != nil {
@@ -229,8 +257,11 @@ func TestSumInt64ComputeConfidenceInterval_ResultForSmallAlphaContainedInResultF
 		{noise.Gaussian()},
 		{noise.Laplace()},
 	} {
-		bs := getBoundedSumInt64(tc.n, arbitraryLowerInt64, arbitraryUpperInt64)
-		bs.Result()
+		bs := getBoundedSumInt64(t, tc.n, arbitraryLowerInt64, arbitraryUpperInt64)
+		_, err := bs.Result()
+		if err != nil {
+			t.Fatalf("Couldn't compute dp result: %v", err)
+		}
 
 		smallAlphaConfInt, err := bs.ComputeConfidenceInterval(arbitraryAlpha * 0.5)
 		if err != nil {
@@ -258,8 +289,11 @@ func TestSumFloat64ComputeConfidenceInterval_ResultForSmallAlphaContainedInResul
 		{noise.Gaussian()},
 		{noise.Laplace()},
 	} {
-		bs := getBoundedSumFloat64(tc.n, arbitraryLower, arbitraryUpper)
-		bs.Result()
+		bs := getBoundedSumFloat64(t, tc.n, arbitraryLower, arbitraryUpper)
+		_, err := bs.Result()
+		if err != nil {
+			t.Fatalf("Couldn't compute dp result: %v", err)
+		}
 
 		smallAlphaConfInt, err := bs.ComputeConfidenceInterval(arbitraryAlpha * 0.5)
 		if err != nil {
@@ -289,9 +323,12 @@ func TestSumInt64ComputeConfidenceInterval_MatchesNoiseConfidenceInterval(t *tes
 		{noise.Laplace(), 0.0},
 	} {
 		lInf := arbitraryMaxContributionsPerPartition * 2
-		bs := getBoundedSumInt64(tc.n, -2, 1)
+		bs := getBoundedSumInt64(t, tc.n, -2, 1)
 		// Lower and upper bound have different signs, so no clamping should occur.
-		result := bs.Result()
+		result, err := bs.Result()
+		if err != nil {
+			t.Fatalf("Couldn't compute dp result: %v", err)
+		}
 
 		bsConfInt, err := bs.ComputeConfidenceInterval(arbitraryAlpha)
 		if err != nil {
@@ -318,9 +355,12 @@ func TestSumFloat64ComputeConfidenceInterval_MatchesNoiseConfidenceInterval(t *t
 		{noise.Laplace(), 0.0},
 	} {
 		lInf := float64(arbitraryMaxContributionsPerPartition) * 4.63
-		bs := getBoundedSumFloat64(tc.n, -1.0, 4.63)
+		bs := getBoundedSumFloat64(t, tc.n, -1.0, 4.63)
 		// Lower and upper bound have different signs, so no clamping should occur.
-		result := bs.Result()
+		result, err := bs.Result()
+		if err != nil {
+			t.Fatalf("Couldn't compute dp result: %v", err)
+		}
 
 		bsConfInt, err := bs.ComputeConfidenceInterval(arbitraryAlpha)
 		if err != nil {
@@ -357,9 +397,15 @@ func TestSumInt64ComputeConfidenceInterval_SatisfiesConfidenceLevel(t *testing.T
 	} {
 		hits := 0
 		for i := 0; i < 100000; i++ {
-			bs := getBoundedSumInt64(tc.n, arbitraryLowerInt64, arbitraryUpperInt64)
-			bs.Add(rawValue)
-			bs.Result()
+			bs := getBoundedSumInt64(t, tc.n, arbitraryLowerInt64, arbitraryUpperInt64)
+			err := bs.Add(rawValue)
+			if err != nil {
+				t.Fatalf("Couldn't add to sum: %v", err)
+			}
+			_, err = bs.Result()
+			if err != nil {
+				t.Fatalf("Couldn't compute dp result: %v", err)
+			}
 
 			confInt, err := bs.ComputeConfidenceInterval(tc.alpha)
 			if err != nil {
@@ -397,9 +443,15 @@ func TestSumFloat64ComputeConfidenceInterval_SatisfiesConfidenceLevel(t *testing
 	} {
 		hits := 0
 		for i := 0; i < 100000; i++ {
-			bs := getBoundedSumFloat64(tc.n, arbitraryLower, arbitraryUpper)
-			bs.Add(rawValue)
-			bs.Result()
+			bs := getBoundedSumFloat64(t, tc.n, arbitraryLower, arbitraryUpper)
+			err := bs.Add(rawValue)
+			if err != nil {
+				t.Fatalf("Couldn't add to sum: %v", err)
+			}
+			_, err = bs.Result()
+			if err != nil {
+				t.Fatalf("Couldn't compute dp result: %v", err)
+			}
 
 			confInt, err := bs.ComputeConfidenceInterval(tc.alpha)
 			if err != nil {
@@ -427,7 +479,7 @@ func TestSumInt64ComputeConfidenceInterval_StateChecks(t *testing.T) {
 		{merged, true},
 		{serialized, true},
 	} {
-		bs := getNoiselessBSI()
+		bs := getNoiselessBSI(t)
 		bs.state = tc.state
 
 		if _, err := bs.ComputeConfidenceInterval(0.1); (err != nil) != tc.wantErr {
@@ -447,7 +499,7 @@ func TestSumFloat64ComputeConfidenceInterval_StateChecks(t *testing.T) {
 		{merged, true},
 		{serialized, true},
 	} {
-		bs := getNoiselessBSF()
+		bs := getNoiselessBSF(t)
 		bs.state = tc.state
 
 		if _, err := bs.ComputeConfidenceInterval(0.1); (err != nil) != tc.wantErr {

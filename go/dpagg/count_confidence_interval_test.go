@@ -22,23 +22,31 @@ import (
 	"github.com/google/differential-privacy/go/noise"
 )
 
-func getCount(n noise.Noise) *Count {
+func getCount(t *testing.T, n noise.Noise) *Count {
+	t.Helper()
 	delta := arbitraryDelta
 	if n == noise.Laplace() {
 		delta = 0.0
 	}
-	return NewCount(&CountOptions{
+	c, err := NewCount(&CountOptions{
 		Epsilon:                  arbitraryEpsilon,
 		Delta:                    delta,
 		Noise:                    n,
 		MaxPartitionsContributed: arbitraryMaxPartitionsContributed})
+	if err != nil {
+		t.Fatalf("Couldn't get count with noise=%v: %v", n, err)
+	}
+	return c
 }
 
 // Tests that Count.ComputeConfidenceInterval() does not return negative intervals.
 func TestCountComputeConfidenceInterval_ClampsNegativeSubinterval(t *testing.T) {
 	for i := 0; i < 1000; i++ {
-		count := getCount(noise.Gaussian())
-		count.Result()
+		count := getCount(t, noise.Gaussian())
+		_, err := count.Result()
+		if err != nil {
+			t.Fatalf("Couldn't compute dp result: %v", err)
+		}
 
 		// Using a large alpha to get a small confidence interval. This increases the chance of both
 		// the lower and the upper bound being clamped.
@@ -73,9 +81,12 @@ func TestCountComputeConfidenceInterval_ReturnsSameResultForSameAlpha(t *testing
 		{noise.Laplace(), 0}, // Clamping possible
 		{noise.Laplace(), 100_000_000},
 	} {
-		count := getCount(tc.n)
+		count := getCount(t, tc.n)
 		count.IncrementBy(tc.trueCount)
-		count.Result()
+		_, err := count.Result()
+		if err != nil {
+			t.Fatalf("With %v, couldn't compute dp result: %v", tc.n, err)
+		}
 
 		confInt1, err := count.ComputeConfidenceInterval(arbitraryAlpha)
 		if err != nil {
@@ -103,9 +114,12 @@ func TestCountComputeConfidenceInterval_ResultForSmallAlphaContainedInResultForL
 		{noise.Laplace(), 0}, // Clamping possible
 		{noise.Laplace(), 100_000_000},
 	} {
-		count := getCount(tc.n)
+		count := getCount(t, tc.n)
 		count.IncrementBy(tc.trueCount)
-		count.Result()
+		_, err := count.Result()
+		if err != nil {
+			t.Fatalf("With %v, couldn't compute dp result: %v", tc.n, err)
+		}
 
 		smallAlphaConfInt, err := count.ComputeConfidenceInterval(arbitraryAlpha * 0.5)
 		if err != nil {
@@ -135,9 +149,15 @@ func TestCountComputeConfidenceInterval_MatchesNoiseConfidenceInterval(t *testin
 		{noise.Laplace(), 0.0},
 	} {
 		lInf := int64(1) // Always 1 for Count.
-		count := getCount(tc.n)
-		count.IncrementBy(100_000_000) // incrementing by large number to prevent clamping
-		result := count.Result()
+		count := getCount(t, tc.n)
+		err := count.IncrementBy(100_000_000) // incrementing by large number to prevent clamping
+		if err != nil {
+			t.Fatalf("With %v, couldn't increment count: %v", tc.n, err)
+		}
+		result, err := count.Result()
+		if err != nil {
+			t.Fatalf("With %v, couldn't compute dp result: %v", tc.n, err)
+		}
 
 		countConfInt, err := count.ComputeConfidenceInterval(arbitraryAlpha)
 		if err != nil {
@@ -174,9 +194,15 @@ func TestCountComputeConfidenceInterval_SatisfiesConfidenceLevel(t *testing.T) {
 	} {
 		hits := 0
 		for i := 0; i < 100000; i++ {
-			count := getCount(tc.n)
-			count.IncrementBy(rawCount)
-			count.Result()
+			count := getCount(t, tc.n)
+			err := count.IncrementBy(rawCount)
+			if err != nil {
+				t.Fatalf("With %v, couldn't increment count: %v", tc.n, err)
+			}
+			_, err = count.Result()
+			if err != nil {
+				t.Fatalf("With %v, couldn't compute dp result: %v", tc.n, err)
+			}
 
 			confInt, err := count.ComputeConfidenceInterval(tc.alpha)
 			if err != nil {
@@ -204,7 +230,7 @@ func TestCountComputeConfidenceInterval_StateChecks(t *testing.T) {
 		{merged, true},
 		{serialized, true},
 	} {
-		c := getNoiselessCount()
+		c := getNoiselessCount(t)
 		c.state = tc.state
 
 		if _, err := c.ComputeConfidenceInterval(0.1); (err != nil) != tc.wantErr {

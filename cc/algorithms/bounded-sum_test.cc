@@ -154,7 +154,7 @@ TEST(BoundedSumTest, AddEntryInvalidInputIgnored) {
   EXPECT_FLOAT_EQ(GetValue<float>(*output), 6);
 }
 
-TYPED_TEST(BoundedSumTest, RepeatedResultTest) {
+TYPED_TEST(BoundedSumTest, InsufficientPrivacyBudgetTest) {
   std::vector<TypeParam> a = {0, 0, 10, 10};
   auto bs =
       typename BoundedSum<TypeParam>::Builder()
@@ -167,24 +167,26 @@ TYPED_TEST(BoundedSumTest, RepeatedResultTest) {
   (*bs)->AddEntries(a.begin(), a.end());
   ASSERT_OK((*bs)->PartialResult());
   EXPECT_THAT((*bs)->PartialResult(),
-              StatusIs(absl::StatusCode::kFailedPrecondition,
-                       HasSubstr("Privacy budget must be positive")));
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("can only produce results once")));
 }
 
-TYPED_TEST(BoundedSumTest, InsufficientPrivacyBudgetTest) {
+TYPED_TEST(BoundedSumTest, RepeatedResultsTest) {
   std::vector<TypeParam> a = {1, 2, 3, 4};
-  auto bs =
-      typename BoundedSum<TypeParam>::Builder()
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
-          .SetEpsilon(1.0)
-          .SetLower(1)
-          .SetUpper(2)
-          .Build();
-  ASSERT_OK(bs);
-  (*bs)->AddEntries(a.begin(), a.end());
-  auto output1 = (*bs)->PartialResult(0.5);
+  typename BoundedSum<TypeParam>::Builder builder;
+  builder.SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+      .SetEpsilon(1.0)
+      .SetLower(0)
+      .SetUpper(10);
+  base::StatusOr<std::unique_ptr<BoundedSum<TypeParam>>> bs1 = builder.Build();
+  ASSERT_OK(bs1);
+  base::StatusOr<std::unique_ptr<BoundedSum<TypeParam>>> bs2 = builder.Build();
+  ASSERT_OK(bs2);
+  (*bs1)->AddEntries(a.begin(), a.end());
+  (*bs2)->AddEntries(a.begin(), a.end());
+  auto output1 = (*bs1)->PartialResult();
   ASSERT_OK(output1);
-  auto output2 = (*bs)->PartialResult(0.5);
+  auto output2 = (*bs2)->PartialResult();
   ASSERT_OK(output2);
   EXPECT_EQ(GetValue<TypeParam>(*output1), GetValue<TypeParam>(*output2));
 }
@@ -226,7 +228,6 @@ TEST(BoundedSumTest, ConfidenceIntervalWithLaplaceTest) {
   double upperBound = 2;
   double lowerBound = 1;
   double level = .95;
-  double budget = .4;
   auto bs =
       BoundedSum<int>::Builder()
           .SetEpsilon(epsilon)
@@ -236,13 +237,13 @@ TEST(BoundedSumTest, ConfidenceIntervalWithLaplaceTest) {
           .Build();
   ASSERT_OK(bs);
   ConfidenceInterval wantConfidenceInterval;
-  double interval_bound = upperBound * std::log(1 - level) / epsilon / budget;
+  double interval_bound = upperBound * std::log(1 - level) / epsilon;
   wantConfidenceInterval.set_lower_bound(interval_bound);
   wantConfidenceInterval.set_upper_bound(-interval_bound);
   wantConfidenceInterval.set_confidence_level(level);
-  EXPECT_THAT((*bs)->NoiseConfidenceInterval(level, budget),
+  EXPECT_THAT((*bs)->NoiseConfidenceInterval(level),
               IsOkAndHolds(EqualsProto(wantConfidenceInterval)));
-  auto result = (*bs)->PartialResult(budget);
+  auto result = (*bs)->PartialResult();
   ASSERT_OK(result);
   EXPECT_THAT((*result).error_report().noise_confidence_interval(),
               EqualsProto(wantConfidenceInterval));

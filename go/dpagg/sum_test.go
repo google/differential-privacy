@@ -26,8 +26,9 @@ import (
 	"github.com/grd/stat"
 )
 
-func getNoiselessBSI() *BoundedSumInt64 {
-	return NewBoundedSumInt64(&BoundedSumInt64Options{
+func getNoiselessBSI(t *testing.T) *BoundedSumInt64 {
+	t.Helper()
+	bs, err := NewBoundedSumInt64(&BoundedSumInt64Options{
 		Epsilon:                  ln3,
 		Delta:                    tenten,
 		MaxPartitionsContributed: 1,
@@ -35,10 +36,15 @@ func getNoiselessBSI() *BoundedSumInt64 {
 		Upper:                    5,
 		Noise:                    noNoise{},
 	})
+	if err != nil {
+		t.Fatalf("Couldn't get noiseless BSI: %v", err)
+	}
+	return bs
 }
 
-func getNoiselessBSF() *BoundedSumFloat64 {
-	return NewBoundedSumFloat64(&BoundedSumFloat64Options{
+func getNoiselessBSF(t *testing.T) *BoundedSumFloat64 {
+	t.Helper()
+	bs, err := NewBoundedSumFloat64(&BoundedSumFloat64Options{
 		Epsilon:                  ln3,
 		Delta:                    tenten,
 		MaxPartitionsContributed: 1,
@@ -46,6 +52,10 @@ func getNoiselessBSF() *BoundedSumFloat64 {
 		Upper:                    5,
 		Noise:                    noNoise{},
 	})
+	if err != nil {
+		t.Fatalf("Couldn't get noiseless BSF: %v", err)
+	}
+	return bs
 }
 
 func compareBoundedSumInt64(bs1, bs2 *BoundedSumInt64) bool {
@@ -82,7 +92,14 @@ func TestBoundedSumInt64Serialization(t *testing.T) {
 			Noise:                    noise.Gaussian(),
 		}},
 	} {
-		bs, bsUnchanged := NewBoundedSumInt64(tc.opts), NewBoundedSumInt64(tc.opts)
+		bs, err := NewBoundedSumInt64(tc.opts)
+		if err != nil {
+			t.Fatalf("Couldn't initialize bs: %v", err)
+		}
+		bsUnchanged, err := NewBoundedSumInt64(tc.opts)
+		if err != nil {
+			t.Fatalf("Couldn't initialize bsUnchanged: %v", err)
+		}
 		bytes, err := encode(bs)
 		if err != nil {
 			t.Fatalf("encode(BoundedSumInt64) error: %v", err)
@@ -112,7 +129,7 @@ func TestBoundedSumInt64SerializationStateChecks(t *testing.T) {
 		{serialized, false},
 		{resultReturned, true},
 	} {
-		bs := getNoiselessBSI()
+		bs := getNoiselessBSI(t)
 		bs.state = tc.state
 
 		if _, err := bs.GobEncode(); (err != nil) != tc.wantErr {
@@ -155,7 +172,14 @@ func TestBoundedSumFloat64Serialization(t *testing.T) {
 			Noise:                    noise.Gaussian(),
 		}},
 	} {
-		bs, bsUnchanged := NewBoundedSumFloat64(tc.opts), NewBoundedSumFloat64(tc.opts)
+		bs, err := NewBoundedSumFloat64(tc.opts)
+		if err != nil {
+			t.Fatalf("Couldn't initialize bs: %v", err)
+		}
+		bsUnchanged, err := NewBoundedSumFloat64(tc.opts)
+		if err != nil {
+			t.Fatalf("Couldn't initialize bsUnchanged: %v", err)
+		}
 		bytes, err := encode(bs)
 		if err != nil {
 			t.Fatalf("encode(BoundedSumFloat64) error: %v", err)
@@ -185,7 +209,7 @@ func TestBoundedSumFloat64SerializationStateChecks(t *testing.T) {
 		{serialized, false},
 		{resultReturned, true},
 	} {
-		bs := getNoiselessBSF()
+		bs := getNoiselessBSF(t)
 		bs.state = tc.state
 
 		if _, err := bs.GobEncode(); (err != nil) != tc.wantErr {
@@ -345,9 +369,12 @@ func TestNewBoundedSumInt64(t *testing.T) {
 				state:           defaultState,
 			}},
 	} {
-		got := NewBoundedSumInt64(tc.opt)
-		if !reflect.DeepEqual(got, tc.want) {
-			t.Errorf("NewBoundedSumInt64: when %s got %+v, want %+v", tc.desc, got, tc.want)
+		bs, err := NewBoundedSumInt64(tc.opt)
+		if err != nil {
+			t.Fatalf("Couldn't initialize bs: %v", err)
+		}
+		if !reflect.DeepEqual(bs, tc.want) {
+			t.Errorf("NewBoundedSumInt64: when %s got %+v, want %+v", tc.desc, bs, tc.want)
 		}
 	}
 }
@@ -443,20 +470,26 @@ func TestNewBoundedSumFloat64(t *testing.T) {
 				state:           defaultState,
 			}},
 	} {
-		got := NewBoundedSumFloat64(tc.opt)
-		if !reflect.DeepEqual(got, tc.want) {
-			t.Errorf("NewBoundedSumFloat64: when %s got %+v, want %+v", tc.desc, got, tc.want)
+		bs, err := NewBoundedSumFloat64(tc.opt)
+		if err != nil {
+			t.Fatalf("Couldn't initialize bs: %v", err)
+		}
+		if !reflect.DeepEqual(bs, tc.want) {
+			t.Errorf("NewBoundedSumFloat64: when %s got %+v, want %+v", tc.desc, bs, tc.want)
 		}
 	}
 }
 
 func TestAddInt64(t *testing.T) {
-	bsi := getNoiselessBSI()
+	bsi := getNoiselessBSI(t)
 	bsi.Add(1)
 	bsi.Add(2)
 	bsi.Add(3)
 	bsi.Add(4)
-	got := bsi.Result()
+	got, err := bsi.Result()
+	if err != nil {
+		t.Fatalf("Couldn't compute dp result: %v", err)
+	}
 	const want = 10
 	if got != want {
 		t.Errorf("Add: when 1, 2, 3, 4 were added got %d, want %d", got, want)
@@ -464,12 +497,15 @@ func TestAddInt64(t *testing.T) {
 }
 
 func TestAddFloat64(t *testing.T) {
-	bsf := getNoiselessBSF()
+	bsf := getNoiselessBSF(t)
 	bsf.Add(1.5)
 	bsf.Add(2.5)
 	bsf.Add(3.5)
 	bsf.Add(4.5)
-	got := bsf.Result()
+	got, err := bsf.Result()
+	if err != nil {
+		t.Fatalf("Couldn't compute dp result: %v", err)
+	}
 	want := 12.0
 	if !ApproxEqual(got, want) {
 		t.Errorf("Add: when 1.5, 2.5, 3.5, 4.5 were added got %f, want %f", got, want)
@@ -477,10 +513,13 @@ func TestAddFloat64(t *testing.T) {
 }
 
 func TestAddFloat64IgnoresNaN(t *testing.T) {
-	bsf := getNoiselessBSF()
+	bsf := getNoiselessBSF(t)
 	bsf.Add(1)
 	bsf.Add(math.NaN())
-	got := bsf.Result()
+	got, err := bsf.Result()
+	if err != nil {
+		t.Fatalf("Couldn't compute dp result: %v", err)
+	}
 	want := 1.0
 	if !ApproxEqual(got, want) {
 		t.Errorf("Add: when NaN was added got %f, want %f", got, want)
@@ -488,15 +527,21 @@ func TestAddFloat64IgnoresNaN(t *testing.T) {
 }
 
 func TestMergeBoundedSumInt64(t *testing.T) {
-	bs1 := getNoiselessBSI()
-	bs2 := getNoiselessBSI()
+	bs1 := getNoiselessBSI(t)
+	bs2 := getNoiselessBSI(t)
 	bs1.Add(1)
 	bs1.Add(2)
 	bs1.Add(3)
 	bs1.Add(4)
 	bs2.Add(5)
-	bs1.Merge(bs2)
-	got := bs1.Result()
+	err := bs1.Merge(bs2)
+	if err != nil {
+		t.Fatalf("Couldn't merge bs1 and bs2: %v", err)
+	}
+	got, err := bs1.Result()
+	if err != nil {
+		t.Fatalf("Couldn't compute dp result: %v", err)
+	}
 	const want = 15
 	if got != want {
 		t.Errorf("Merge: when merging 2 instances of Sum got %d, want %d", got, want)
@@ -507,15 +552,21 @@ func TestMergeBoundedSumInt64(t *testing.T) {
 }
 
 func TestMergeBoundedSumFloat64(t *testing.T) {
-	bs1 := getNoiselessBSF()
-	bs2 := getNoiselessBSF()
+	bs1 := getNoiselessBSF(t)
+	bs2 := getNoiselessBSF(t)
 	bs1.Add(1)
 	bs1.Add(2)
 	bs1.Add(3.5)
 	bs1.Add(4)
 	bs2.Add(4.5)
-	bs1.Merge(bs2)
-	got := bs1.Result()
+	err := bs1.Merge(bs2)
+	if err != nil {
+		t.Fatalf("Couldn't merge bs1 and bs2: %v", err)
+	}
+	got, err := bs1.Result()
+	if err != nil {
+		t.Fatalf("Couldn't compute dp result: %v", err)
+	}
 	want := 15.0
 	if !ApproxEqual(got, want) {
 		t.Errorf("Add: when 1, 2, 3.5, 4, 4.5 were added got %f, want %f", got, want)
@@ -660,8 +711,14 @@ func TestCheckMergeBoundedSumInt64Compatibility(t *testing.T) {
 			},
 			true},
 	} {
-		bs1 := NewBoundedSumInt64(tc.opt1)
-		bs2 := NewBoundedSumInt64(tc.opt2)
+		bs1, err := NewBoundedSumInt64(tc.opt1)
+		if err != nil {
+			t.Fatalf("Couldn't initialize bs1: %v", err)
+		}
+		bs2, err := NewBoundedSumInt64(tc.opt2)
+		if err != nil {
+			t.Fatalf("Couldn't initialize bs2: %v", err)
+		}
 
 		if err := checkMergeBoundedSumInt64(bs1, bs2); (err != nil) != tc.wantErr {
 			t.Errorf("CheckMerge: when %s for err got got %v, wantErr %t", tc.desc, err, tc.wantErr)
@@ -684,8 +741,8 @@ func TestCheckMergeBoundedSumInt64StateChecks(t *testing.T) {
 		{defaultState, merged, true},
 		{merged, defaultState, true},
 	} {
-		bs1 := getNoiselessBSI()
-		bs2 := getNoiselessBSI()
+		bs1 := getNoiselessBSI(t)
+		bs2 := getNoiselessBSI(t)
 
 		bs1.state = tc.state1
 		bs2.state = tc.state2
@@ -831,8 +888,14 @@ func TestCheckMergeBoundedSumFloat64Compatibility(t *testing.T) {
 			},
 			true},
 	} {
-		bs1 := NewBoundedSumFloat64(tc.opt1)
-		bs2 := NewBoundedSumFloat64(tc.opt2)
+		bs1, err := NewBoundedSumFloat64(tc.opt1)
+		if err != nil {
+			t.Fatalf("Couldn't initialize bs1: %v", err)
+		}
+		bs2, err := NewBoundedSumFloat64(tc.opt2)
+		if err != nil {
+			t.Fatalf("Couldn't initialize bs2: %v", err)
+		}
 
 		if err := checkMergeBoundedSumFloat64(bs1, bs2); (err != nil) != tc.wantErr {
 			t.Errorf("CheckMerge: when %s for err got %v, wantErr %t", tc.desc, err, tc.wantErr)
@@ -855,8 +918,8 @@ func TestCheckMergeBoundedSumFloat64StateChecks(t *testing.T) {
 		{defaultState, merged, true},
 		{merged, defaultState, true},
 	} {
-		bs1 := getNoiselessBSF()
-		bs2 := getNoiselessBSF()
+		bs1 := getNoiselessBSF(t)
+		bs2 := getNoiselessBSF(t)
 
 		bs1.state = tc.state1
 		bs2.state = tc.state2
@@ -868,11 +931,14 @@ func TestCheckMergeBoundedSumFloat64StateChecks(t *testing.T) {
 }
 
 func TestBSClampInt64(t *testing.T) {
-	bsi := getNoiselessBSI()
+	bsi := getNoiselessBSI(t)
 	bsi.Add(4)  // not clamped
 	bsi.Add(8)  // clamped to 5
 	bsi.Add(-7) // clamped to -1
-	got := bsi.Result()
+	got, err := bsi.Result()
+	if err != nil {
+		t.Fatalf("Couldn't compute dp result: %v", err)
+	}
 	const want = 8
 	if got != want {
 		t.Errorf("Add: when 4, 8, -7 were added got %d, want %d", got, want)
@@ -880,11 +946,14 @@ func TestBSClampInt64(t *testing.T) {
 }
 
 func TestBSClampFloat64(t *testing.T) {
-	bsf := getNoiselessBSF()
+	bsf := getNoiselessBSF(t)
 	bsf.Add(3.5)  // not clamped
 	bsf.Add(8.3)  // clamped to 5
 	bsf.Add(-7.5) // clamped to -1
-	got := bsf.Result()
+	got, err := bsf.Result()
+	if err != nil {
+		t.Fatalf("Couldn't compute dp result: %v", err)
+	}
 	want := 7.5
 	if !ApproxEqual(got, want) {
 		t.Errorf("Add: when 3.5, 8.3, -7.5 were added got %f, want %f", got, want)
@@ -892,8 +961,11 @@ func TestBSClampFloat64(t *testing.T) {
 }
 
 func TestBoundedSumInt64ResultSetsStateCorrectly(t *testing.T) {
-	bs := getNoiselessBSI()
-	bs.Result()
+	bs := getNoiselessBSI(t)
+	_, err := bs.Result()
+	if err != nil {
+		t.Fatalf("Couldn't compute dp result: %v", err)
+	}
 
 	if bs.state != resultReturned {
 		t.Errorf("BoundedSumInt64 should have its state set to ResultReturned, got %v, want ResultReturned", bs.state)
@@ -901,8 +973,11 @@ func TestBoundedSumInt64ResultSetsStateCorrectly(t *testing.T) {
 }
 
 func TestBoundedSumFloat64ResultSetsStateCorrectly(t *testing.T) {
-	bs := getNoiselessBSF()
-	bs.Result()
+	bs := getNoiselessBSF(t)
+	_, err := bs.Result()
+	if err != nil {
+		t.Fatalf("Couldn't compute dp result: %v", err)
+	}
 
 	if bs.state != resultReturned {
 		t.Errorf("BoundedSumFloat64 should have its state set to ResultReturned, got %v, want ResultReturned", bs.state)
@@ -911,21 +986,27 @@ func TestBoundedSumFloat64ResultSetsStateCorrectly(t *testing.T) {
 
 func TestThresholdedResultInt64(t *testing.T) {
 	// ThresholdedResult outputs the result when it is more than the threshold (5 using noNoise)
-	bs1 := getNoiselessBSI()
+	bs1 := getNoiselessBSI(t)
 	bs1.Add(1)
 	bs1.Add(2)
 	bs1.Add(3)
 	bs1.Add(4)
-	got := bs1.ThresholdedResult(5)
+	got, err := bs1.ThresholdedResult(5)
+	if err != nil {
+		t.Fatalf("Couldn't compute thresholded dp result: %v", err)
+	}
 	if got == nil || *got != 10 {
 		t.Errorf("ThresholdedResult(5): when 1, 2, 3, 4 were added got %v, want 10", got)
 	}
 
 	// ThresholdedResult outputs nil when it is less than the threshold
-	bs2 := getNoiselessBSI()
+	bs2 := getNoiselessBSI(t)
 	bs2.Add(1)
 	bs2.Add(2)
-	got = bs2.ThresholdedResult(5) // the parameter here is for the reader's eyes, the actual threshold value (5) is specified in noNoise.Threshold()
+	got, err = bs2.ThresholdedResult(5) // the parameter here is for the reader's eyes, the actual threshold value (5) is specified in noNoise.Threshold()
+	if err != nil {
+		t.Fatalf("Couldn't compute thresholded dp result: %v", err)
+	}
 	if got != nil {
 		t.Errorf("ThresholdedResult(5): when 1,2 were added got %v, want nil", got)
 	}
@@ -933,21 +1014,27 @@ func TestThresholdedResultInt64(t *testing.T) {
 
 func TestThresholdedResultFloat64(t *testing.T) {
 	// ThresholdedResult outputs the result when it is more than the threshold (5 using noNoise)
-	bs1 := getNoiselessBSF()
+	bs1 := getNoiselessBSF(t)
 	bs1.Add(1.5)
 	bs1.Add(2.5)
 	bs1.Add(3.5)
 	bs1.Add(4.5)
-	got := bs1.ThresholdedResult(0.1)
+	got, err := bs1.ThresholdedResult(0.1)
+	if err != nil {
+		t.Fatalf("Couldn't compute thresholded dp result: %v", err)
+	}
 	if got == nil || *got != 12 {
 		t.Errorf("ThresholdedResult(0.1): when 1.5, 2.5, 3.5, 4.5 were added got %v, want 12", got)
 	}
 
 	// ThresholdedResult outputs nil when it is less than the threshold
-	bs2 := getNoiselessBSF()
+	bs2 := getNoiselessBSF(t)
 	bs2.Add(1)
 	bs2.Add(2.5)
-	got = bs2.ThresholdedResult(5) // the parameter here is for the reader's eyes, the actual threshold value (5) is specified in noNoise.Threshold()
+	got, err = bs2.ThresholdedResult(5) // the parameter here is for the reader's eyes, the actual threshold value (5) is specified in noNoise.Threshold()
+	if err != nil {
+		t.Fatalf("Couldn't compute thresholded dp result: %v", err)
+	}
 	if got != nil {
 		t.Errorf("ThresholdedResult(5): when 1, 2.5 were added got %v, want nil", got)
 	}
@@ -959,8 +1046,8 @@ type mockNoise struct {
 }
 
 // AddNoiseInt64 checks that the parameters passed are the ones we expect.
-func (mn mockNoise) AddNoiseInt64(x, l0, lInf int64, eps, del float64) int64 {
-	if x != 10 && x != 0 { // AddNoiseInt64 is initially called with a dummy value of 0, so we don't want to fail when that happens
+func (mn mockNoise) AddNoiseInt64(x, l0, lInf int64, eps, del float64) (int64, error) {
+	if x != 10 && x != 0 { // AddNoiseInt64 is initially called with a placeholder value of 0, so we don't want to fail when that happens
 		mn.t.Errorf("AddNoiseInt64: for parameter x got %d, want %d", x, 10)
 	}
 	if l0 != 1 {
@@ -975,13 +1062,13 @@ func (mn mockNoise) AddNoiseInt64(x, l0, lInf int64, eps, del float64) int64 {
 	if !ApproxEqual(del, tenten) {
 		mn.t.Errorf("AddNoiseInt64: for parameter delta got %f, want %f", del, tenten)
 	}
-	return 0 // ignored
+	return 0, nil // ignored
 }
 
 // AddNoiseFloat64 checks that the parameters passed are the ones we expect.
-func (mn mockNoise) AddNoiseFloat64(x float64, l0 int64, lInf, eps, del float64) float64 {
+func (mn mockNoise) AddNoiseFloat64(x float64, l0 int64, lInf, eps, del float64) (float64, error) {
 	if !ApproxEqual(x, 12.0) && !ApproxEqual(x, 0.0) {
-		// AddNoiseFloat64 is initially called with a dummy value of 0, so we don't want to fail when that happens
+		// AddNoiseFloat64 is initially called with a placeholder value of 0, so we don't want to fail when that happens
 		mn.t.Errorf("AddNoiseFloat64: for parameter x  got %f, want %f", x, 12.0)
 	}
 	if l0 != 1 {
@@ -996,11 +1083,11 @@ func (mn mockNoise) AddNoiseFloat64(x float64, l0 int64, lInf, eps, del float64)
 	if !ApproxEqual(del, tenten) {
 		mn.t.Errorf("AddNoiseFloat64: for parameter delta got %f, want %f", del, tenten)
 	}
-	return 0 // ignored
+	return 0, nil // ignored
 }
 
 // Threshold checks that the parameters passed are the ones we expect.
-func (mn mockNoise) Threshold(l0 int64, lInf, eps, del, thresholdDelta float64) float64 {
+func (mn mockNoise) Threshold(l0 int64, lInf, eps, del, thresholdDelta float64) (float64, error) {
 	if !ApproxEqual(thresholdDelta, 10.0) {
 		mn.t.Errorf("Threshold: for parameter thresholdDelta got %f, want %f", thresholdDelta, 10.0)
 	}
@@ -1016,11 +1103,12 @@ func (mn mockNoise) Threshold(l0 int64, lInf, eps, del, thresholdDelta float64) 
 	if !ApproxEqual(del, tenten) {
 		mn.t.Errorf("Threshold: for parameter delta got %f, want %f", del, tenten)
 	}
-	return 0 // ignored
+	return 0, nil // ignored
 }
 
 func getMockBSI(t *testing.T) *BoundedSumInt64 {
-	return NewBoundedSumInt64(&BoundedSumInt64Options{
+	t.Helper()
+	bs, err := NewBoundedSumInt64(&BoundedSumInt64Options{
 		Epsilon:                  ln3,
 		Delta:                    tenten,
 		MaxPartitionsContributed: 1,
@@ -1028,10 +1116,15 @@ func getMockBSI(t *testing.T) *BoundedSumInt64 {
 		Upper:                    5,
 		Noise:                    mockNoise{t: t},
 	})
+	if err != nil {
+		t.Fatalf("Couldn't get mock BSI: %v", err)
+	}
+	return bs
 }
 
 func getMockBSF(t *testing.T) *BoundedSumFloat64 {
-	return NewBoundedSumFloat64(&BoundedSumFloat64Options{
+	t.Helper()
+	bs, err := NewBoundedSumFloat64(&BoundedSumFloat64Options{
 		Epsilon:                  ln3,
 		Delta:                    tenten,
 		MaxPartitionsContributed: 1,
@@ -1039,6 +1132,10 @@ func getMockBSF(t *testing.T) *BoundedSumFloat64 {
 		Upper:                    5,
 		Noise:                    mockNoise{t: t},
 	})
+	if err != nil {
+		t.Fatalf("Couldn't get mock BSF: %v", err)
+	}
+	return bs
 }
 
 func TestNoiseIsCorrectlyCalledInt64(t *testing.T) {
@@ -1069,12 +1166,12 @@ func TestThresholdsCorrectlyCalledForSumFloat64(t *testing.T) {
 }
 
 func TestThresholdsCorrectlyCalledForSumInt64(t *testing.T) {
-	bsf := getMockBSI(t)
-	bsf.Add(1)
-	bsf.Add(2)
-	bsf.Add(3)
-	bsf.Add(4)
-	bsf.ThresholdedResult(10) // will fail if parameters are wrong
+	bsi := getMockBSI(t)
+	bsi.Add(1)
+	bsi.Add(2)
+	bsi.Add(3)
+	bsi.Add(4)
+	bsi.ThresholdedResult(10) // will fail if parameters are wrong
 }
 
 func TestBSEquallyInitializedInt64(t *testing.T) {
@@ -1622,9 +1719,15 @@ func TestBoundedSumInt64IsUnbiased(t *testing.T) {
 	} {
 		sumSamples := make(stat.IntSlice, numberOfSamples)
 		for i := 0; i < numberOfSamples; i++ {
-			sum := NewBoundedSumInt64(tc.opt)
+			sum, err := NewBoundedSumInt64(tc.opt)
+			if err != nil {
+				t.Fatalf("Couldn't initialize sum: %v", err)
+			}
 			sum.Add(tc.rawEntry)
-			sumSamples[i] = sum.Result()
+			sumSamples[i], err = sum.Result()
+			if err != nil {
+				t.Fatalf("Couldn't compute dp result: %v", err)
+			}
 		}
 		sampleMean := stat.Mean(sumSamples)
 		// Assuming that sum is unbiased, each sample should have a mean of tc.rawEntry
@@ -1795,9 +1898,15 @@ func TestBoundedSumFloat64IsUnbiased(t *testing.T) {
 	} {
 		sumSamples := make(stat.Float64Slice, numberOfSamples)
 		for i := 0; i < numberOfSamples; i++ {
-			sum := NewBoundedSumFloat64(tc.opt)
+			sum, err := NewBoundedSumFloat64(tc.opt)
+			if err != nil {
+				t.Fatalf("Couldn't initialize sum: %v", err)
+			}
 			sum.Add(tc.rawEntry)
-			sumSamples[i] = sum.Result()
+			sumSamples[i], err = sum.Result()
+			if err != nil {
+				t.Fatalf("Couldn't compute dp result: %v", err)
+			}
 		}
 		sampleMean := stat.Mean(sumSamples)
 		// Assuming that sum is unbiased, each sample should have a mean of tc.rawEntry

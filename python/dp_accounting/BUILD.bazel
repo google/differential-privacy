@@ -170,3 +170,49 @@ py_binary(
         requirement("absl-py"),
     ],
 )
+
+py_library(
+    name = "dp_event",
+    srcs = ["dp_event.py"],
+    deps = [
+        requirement("attrs"),
+    ],
+)
+
+py_library(
+    name = "dp_event_builder",
+    srcs = ["dp_event_builder.py"],
+    deps = [
+        ":dp_event",
+    ],
+)
+
+py_test(
+    name = "dp_event_builder_test",
+    srcs = ["dp_event_builder_test.py"],
+    python_version = "PY3",
+    deps = [
+        ":dp_event",
+        ":dp_event_builder",
+        requirement("absl-py"),
+    ],
+)
+
+py_library(
+    name = "privacy_accountant",
+    srcs = ["privacy_accountant.py"],
+    deps = [
+        ":dp_event",
+        ":dp_event_builder",
+    ],
+)
+
+py_test(
+    name = "privacy_accountant_test",
+    srcs = ["privacy_accountant_test.py"],
+    deps = [
+        ":dp_event",
+        ":privacy_accountant",
+        requirement("absl-py"),
+    ],
+)

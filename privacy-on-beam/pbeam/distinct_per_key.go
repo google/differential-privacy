@@ -17,7 +17,6 @@
 package pbeam
 
 import (
-	"fmt"
 	"reflect"
 
 	log "github.com/golang/glog"
@@ -103,7 +102,7 @@ func DistinctPerKey(s beam.Scope, pcol PrivatePCollection, params DistinctPerKey
 	}
 	err = checkDistinctPerKeyParams(params, epsilon, delta, maxPartitionsContributed)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("pbeam.DistinctPerKey: %v", err)
 	}
 
 	// Do initial per- and cross-partition contribution bounding and swap kv.Pair<K,V> and ID.
@@ -198,16 +197,13 @@ func splitBudget(epsilon, delta float64, noiseKind noise.Kind) (noiseEpsilon flo
 }
 
 func checkDistinctPerKeyParams(params DistinctPerKeyParams, epsilon, delta float64, maxPartitionsContributed int64) error {
-	err := checks.CheckEpsilon("pbeam.DistinctPerKey", epsilon)
+	err := checks.CheckEpsilon(epsilon)
 	if err != nil {
 		return err
 	}
-	err = checks.CheckDeltaStrict("pbeam.DistinctPerKey", delta)
+	err = checks.CheckDeltaStrict(delta)
 	if err != nil {
 		return err
 	}
-	if params.MaxContributionsPerPartition <= 0 {
-		return fmt.Errorf("pbeam.DistinctPerKey: MaxContributionsPerPartition should be strictly positive, got %d", params.MaxContributionsPerPartition)
-	}
-	return checks.CheckMaxPartitionsContributed("pbeam.DistinctPerKey", maxPartitionsContributed)
+	return checks.CheckMaxContributionsPerPartition(params.MaxContributionsPerPartition)
 }

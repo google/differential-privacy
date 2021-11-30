@@ -178,6 +178,12 @@ class LaplaceDistribution {
                                                      double sensitivity);
 
  protected:
+  explicit LaplaceDistribution(
+      double epsilon, double sensitivity, double granularity,
+      std::unique_ptr<GeometricDistribution> geometric_distro);
+
+  // Constructor that might fail during initialization of granularity or the
+  // GeometricDistribution.
   explicit LaplaceDistribution(double epsilon, double sensitivity);
 
  private:

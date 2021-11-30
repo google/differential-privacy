@@ -214,7 +214,7 @@ double GeometricDistribution::Lambda() { return lambda_; }
 // overflow during noise sampling. The probability of such an event will be well
 // below 2^-1000, if the granularity parameter is set to a value of 2^40 or less
 // and the epsilon passed to addNoise is at least 2^-50.
-const double GRANULARITY_PARAM = static_cast<double>(int64_t{1} << 40);
+constexpr double kLaplaceGranularityParam = static_cast<double>(int64_t{1} << 40);
 
 absl::Status LaplaceDistribution::ValidateEpsilon(double epsilon) {
   RETURN_IF_ERROR(ValidateIsFiniteAndPositive(epsilon, "Epsilon"));
@@ -225,12 +225,17 @@ absl::Status LaplaceDistribution::ValidateEpsilon(double epsilon) {
   return absl::OkStatus();
 }
 
+// Calculates 'r' from the secure noise paper (see
+// ../../common_docs/Secure_Noise_Generation.pdf)
+double CalculateGranularityForLaplace(double diversity) {
+  return GetNextPowerOfTwo(diversity / kLaplaceGranularityParam);
+}
+
 base::StatusOr<double> LaplaceDistribution::CalculateGranularity(
     double epsilon, double sensitivity) {
   RETURN_IF_ERROR(ValidateEpsilon(epsilon));
   RETURN_IF_ERROR(ValidateIsFiniteAndPositive(sensitivity, "Sensitivity"));
-  double gran = GetNextPowerOfTwo((sensitivity / epsilon) / GRANULARITY_PARAM);
-  return gran;
+  return CalculateGranularityForLaplace(sensitivity / epsilon);
 }
 
 LaplaceDistribution::Builder& LaplaceDistribution::Builder::SetEpsilon(
@@ -249,14 +254,27 @@ base::StatusOr<std::unique_ptr<LaplaceDistribution>>
 LaplaceDistribution::Builder::Build() {
   RETURN_IF_ERROR(ValidateEpsilon(epsilon_));
   RETURN_IF_ERROR(ValidateIsFiniteAndPositive(sensitivity_, "Sensitivity"));
-  return absl::WrapUnique<LaplaceDistribution>(
-      new LaplaceDistribution(epsilon_, sensitivity_));
+  const double diversity = sensitivity_ / epsilon_;
+  const double granularity = CalculateGranularityForLaplace(diversity);
+  ASSIGN_OR_RETURN(
+      std::unique_ptr<GeometricDistribution> geometric_distro,
+      GeometricDistribution::Builder()
+          .SetLambda(granularity * epsilon_ / (sensitivity_ + granularity))
+          .Build());
+  return absl::WrapUnique<LaplaceDistribution>(new LaplaceDistribution(
+      epsilon_, sensitivity_, granularity, std::move(geometric_distro)));
 }
 
-LaplaceDistribution::LaplaceDistribution(double epsilon, double sensitivity) {
-  epsilon_ = epsilon;
-  sensitivity_ = sensitivity;
+LaplaceDistribution::LaplaceDistribution(
+    double epsilon, double sensitivity, double granularity,
+    std::unique_ptr<GeometricDistribution> geometric_distro)
+    : epsilon_(epsilon),
+      sensitivity_(sensitivity),
+      granularity_(granularity),
+      geometric_distro_(std::move(geometric_distro)) {}
 
+LaplaceDistribution::LaplaceDistribution(double epsilon, double sensitivity)
+    : epsilon_(epsilon), sensitivity_(sensitivity) {
   base::StatusOr<double> granularity =
       CalculateGranularity(epsilon_, sensitivity_);
   CHECK(granularity.ok()) << granularity.status();

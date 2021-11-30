@@ -48,7 +48,7 @@ TEST(OrderStatisticsTest, Max) {
   for (int64_t i = 0; i < kDataSize; ++i) {
     (*max)->AddEntry(std::round(static_cast<double>(200) * i / kDataSize));
   }
-  EXPECT_NEAR(GetValue<int64_t>((*max)->PartialResult(1.0).value()), 200, 10);
+  EXPECT_NEAR(GetValue<int64_t>((*max)->PartialResult().value()), 200, 10);
 }
 
 TEST(OrderStatisticsTest, Min) {
@@ -64,7 +64,7 @@ TEST(OrderStatisticsTest, Min) {
   for (int64_t i = 0; i < kDataSize; ++i) {
     (*min)->AddEntry(std::round(static_cast<double>(200) * i / kDataSize));
   }
-  base::StatusOr<Output> result = (*min)->PartialResult(1.0);
+  base::StatusOr<Output> result = (*min)->PartialResult();
   ASSERT_OK(result);
   EXPECT_NEAR(GetValue<int64_t>(*result), 0, 10);
 }
@@ -83,7 +83,7 @@ TEST(OrderStatisticsTest, Median) {
   for (int64_t i = 0; i < kDataSize; ++i) {
     (*median)->AddEntry(std::round(static_cast<double>(200) * i / kDataSize));
   }
-  base::StatusOr<Output> result = (*median)->PartialResult(1.0);
+  base::StatusOr<Output> result = (*median)->PartialResult();
   ASSERT_OK(result);
   EXPECT_EQ(GetValue<int64_t>(*result), 100);
 }
@@ -134,7 +134,7 @@ TEST(OrderStatisticsTest, Percentile) {
     (*percentile)
         ->AddEntry(std::round(static_cast<double>(200) * i / kDataSize));
   }
-  base::StatusOr<Output> result = (*percentile)->PartialResult(1.0);
+  base::StatusOr<Output> result = (*percentile)->PartialResult();
   ASSERT_OK(result);
   EXPECT_EQ(GetValue<int64_t>(*result), 90);
 }
@@ -183,7 +183,7 @@ TEST(OrderStatisticsTest, Median_DefaultBounds) {
   for (int64_t i = 0; i < kDataSize; ++i) {
     (*median)->AddEntry(std::round(static_cast<double>(200) * i / kDataSize));
   }
-  base::StatusOr<Output> result = (*median)->PartialResult(1.0);
+  base::StatusOr<Output> result = (*median)->PartialResult();
   ASSERT_OK(result);
   EXPECT_EQ(GetValue<int64_t>(*result), 100);
 }

@@ -18,6 +18,7 @@
 package examples
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
 	"time"
@@ -50,7 +51,7 @@ var (
 // Scenario is an interface for codelab scenarios.
 type Scenario interface {
 	getNonPrivateResults(visits []Visit) map[int64]int64
-	getPrivateResults(visits []Visit) map[int64]int64
+	getPrivateResults(visits []Visit) (map[int64]int64, error)
 }
 
 // RunScenario runs scenario sc on the input file and writes private and non-private results to the output files.
@@ -61,7 +62,10 @@ func RunScenario(sc Scenario, inputFile, nonPrivateResultsOutputFile, privateRes
 	}
 
 	nonPrResults := sc.getNonPrivateResults(visits)
-	prResults := sc.getPrivateResults(visits)
+	prResults, err := sc.getPrivateResults(visits)
+	if err != nil {
+		return err
+	}
 
 	err = writeResultsToCSV(nonPrResults, nonPrivateResultsOutputFile)
 	if err != nil {
@@ -91,17 +95,21 @@ func (sc *CountVisitsPerHourScenario) getNonPrivateResults(dayVisits []Visit) ma
 // Calculates the anonymized (i.e., "private") counts of the given visits per hour of day.
 // Returns the map that maps an hour to an anonymized count of visits for the hours between
 // OpeningHour and ClosingHour.
-func (sc *CountVisitsPerHourScenario) getPrivateResults(dayVisits []Visit) map[int64]int64 {
+func (sc *CountVisitsPerHourScenario) getPrivateResults(dayVisits []Visit) (map[int64]int64, error) {
 	hourToDpCount := make(map[int64]*dpagg.Count)
 
+	var err error
 	for h := int64(openingHour); h <= closingHour; h++ {
 		// Construct dpagg.Count objects which will be used to calculate DP counts.
 		// One dpagg.Count is created for every work hour.
-		hourToDpCount[h] = dpagg.NewCount(&dpagg.CountOptions{
+		hourToDpCount[h], err = dpagg.NewCount(&dpagg.CountOptions{
 			Epsilon:                  ln3,
 			MaxPartitionsContributed: 1,
 			Noise:                    noise.Laplace(),
 		})
+		if err != nil {
+			return nil, fmt.Errorf("couldn't initialize count for hour %d: %w", h, err)
+		}
 	}
 
 	for _, visit := range dayVisits {
@@ -111,10 +119,13 @@ func (sc *CountVisitsPerHourScenario) getPrivateResults(dayVisits []Visit) map[i
 
 	privateCounts := make(map[int64]int64)
 	for h, dpCount := range hourToDpCount {
-		privateCounts[h] = dpCount.Result()
+		privateCounts[h], err = dpCount.Result()
+		if err != nil {
+			return nil, fmt.Errorf("couldn't compute dp count: %w", err)
+		}
 	}
 
-	return privateCounts
+	return privateCounts, nil
 }
 
 // CountVisitsPerDayScenario loads the input file, calculates non-anonymized and
@@ -137,12 +148,14 @@ func (sc *CountVisitsPerDayScenario) getNonPrivateResults(weekVisits []Visit) ma
 
 // Calculates the anonymized (i.e., "private") count of the given visits per day.
 // Returns the map that maps a day to an anonymized count of visits in this day.
-func (sc *CountVisitsPerDayScenario) getPrivateResults(weekVisits []Visit) map[int64]int64 {
+func (sc *CountVisitsPerDayScenario) getPrivateResults(weekVisits []Visit) (map[int64]int64, error) {
 	dayToDpCount := make(map[int64]*dpagg.Count)
+
+	var err error
 	for _, day := range weekDays {
 		// Construct dpagg.Count objects which will be used to calculate the DP counts.
 		// One dpagg.Count is created for every work hour.
-		dayToDpCount[day] = dpagg.NewCount(&dpagg.CountOptions{
+		dayToDpCount[day], err = dpagg.NewCount(&dpagg.CountOptions{
 			Epsilon: ln3,
 			// The data was pre-processed so that
 			// each visitor may visit the restaurant up to maxThreeVisitsPerWeek times per week.
@@ -155,6 +168,9 @@ func (sc *CountVisitsPerDayScenario) getPrivateResults(weekVisits []Visit) map[i
 			MaxPartitionsContributed: maxThreeVisitsPerWeek,
 			Noise:                    noise.Laplace(),
 		})
+		if err != nil {
+			return nil, fmt.Errorf("couldn't initialize count for day %d: %w", day, err)
+		}
 	}
 
 	// Pre-process the data set by limiting the number of visits to maxThreeVisitsPerWeek
@@ -166,10 +182,13 @@ func (sc *CountVisitsPerDayScenario) getPrivateResults(weekVisits []Visit) map[i
 
 	privateCounts := make(map[int64]int64)
 	for day, dpCount := range dayToDpCount {
-		privateCounts[day] = dpCount.Result()
+		privateCounts[day], err = dpCount.Result()
+		if err != nil {
+			return nil, fmt.Errorf("couldn't compute dp count: %w", err)
+		}
 	}
 
-	return privateCounts
+	return privateCounts, nil
 }
 
 // SumRevenuePerDayScenario loads the input file, calculates non-anonymized and
@@ -194,13 +213,14 @@ func (sc *SumRevenuePerDayScenario) getNonPrivateResults(visits []Visit) map[int
 
 // Calculates the  anonymized revenue for each day of the week.
 // Returns the map that maps a day to an anonymized revenue for this day.
-func (sc *SumRevenuePerDayScenario) getPrivateResults(visits []Visit) map[int64]int64 {
+func (sc *SumRevenuePerDayScenario) getPrivateResults(visits []Visit) (map[int64]int64, error) {
 	dayToBoundedSum := make(map[int64]*dpagg.BoundedSumInt64)
 
+	var err error
 	for _, day := range weekDays {
 		// Construct dpagg.BoundedSumInt64 objects that will be used to calculate DP sums.
 		// One dpagg.BoundedSumInt64 is created for every day.
-		dayToBoundedSum[day] = dpagg.NewBoundedSumInt64(&dpagg.BoundedSumInt64Options{
+		dayToBoundedSum[day], err = dpagg.NewBoundedSumInt64(&dpagg.BoundedSumInt64Options{
 			Epsilon: ln3,
 			// The data was pre-processed so that
 			// each visitor may visit the restaurant up to maxFourVisitsPerWeek times per week.
@@ -216,6 +236,9 @@ func (sc *SumRevenuePerDayScenario) getPrivateResults(visits []Visit) map[int64]
 			Upper: maxEurosSpent,
 			Noise: noise.Laplace(),
 		})
+		if err != nil {
+			return nil, fmt.Errorf("couldn't initialize sum for day %d: %w", day, err)
+		}
 	}
 
 	// Pre-process the data set by limiting the number of visits to maxFourVisitsPerWeek
@@ -232,10 +255,13 @@ func (sc *SumRevenuePerDayScenario) getPrivateResults(visits []Visit) map[int64]
 
 	privateSums := make(map[int64]int64)
 	for day, boundedSum := range dayToBoundedSum {
-		privateSums[day] = boundedSum.Result()
+		privateSums[day], err = boundedSum.Result()
+		if err != nil {
+			return nil, fmt.Errorf("couldn't compute dp sum: %w", err)
+		}
 	}
 
-	return privateSums
+	return privateSums, nil
 }
 
 // CountVisitsPerCertainDurationScenario loads the input file and calculates the non-anonymized
@@ -260,7 +286,7 @@ func (sc *CountVisitsPerCertainDurationScenario) getNonPrivateResults(weekVisits
 // Calculates the total anonymized count of visits for each existing visit duration during the week and
 // eliminate the durations of time whereby too few visitors spent time at the restaurant.
 // Returns the map that maps a duration to an anonymized count of visits for this duration.
-func (sc *CountVisitsPerCertainDurationScenario) getPrivateResults(weekVisits []Visit) map[int64]int64 {
+func (sc *CountVisitsPerCertainDurationScenario) getPrivateResults(weekVisits []Visit) (map[int64]int64, error) {
 	// Pre-process the data set by limiting the number of visits to maxThreeVisitsPerWeek
 	// per VisitorID.
 	boundedVisits := boundVisits(weekVisits, maxThreeVisitsPerWeek)
@@ -280,6 +306,7 @@ func (sc *CountVisitsPerCertainDurationScenario) getPrivateResults(weekVisits []
 		duration := roundMinutes(visit.MinutesSpent, 10)
 		durationToVisitCount[duration]++
 
+		var err error
 		_, ok = durationToSelectPartition[duration]
 		if !ok {
 			// Recall that each possible visit duration may be represented by a
@@ -292,11 +319,14 @@ func (sc *CountVisitsPerCertainDurationScenario) getPrivateResults(weekVisits []
 			// We use epsilon = log(3) / 2 in this example,
 			// because we must split epsilon between all the functions that apply differential privacy,
 			// which, in this case, is 2 functions: BoundedSumInt64 and PreAggSelectPartition.
-			durationToSelectPartition[duration] = dpagg.NewPreAggSelectPartition(&dpagg.PreAggSelectPartitionOptions{
+			durationToSelectPartition[duration], err = dpagg.NewPreAggSelectPartition(&dpagg.PreAggSelectPartitionOptions{
 				Epsilon:                  ln3 / 2,
 				Delta:                    0.02,
 				MaxPartitionsContributed: maxThreeVisitsPerWeek,
 			})
+			if err != nil {
+				return nil, fmt.Errorf("couldn't initialize PreAggSelectPartition for duration %d: %w", duration, err)
+			}
 
 			// Construct dpagg.BoundedSumInt64 objects which will be used to calculate DP
 			// counts with multiple contributions from a single privacy unit (visitor).
@@ -304,13 +334,16 @@ func (sc *CountVisitsPerCertainDurationScenario) getPrivateResults(weekVisits []
 			// We use epsilon = log(3) / 2 in this example,
 			// because we must split epsilon between all the functions that apply differential privacy,
 			// which, in this case, is 2 functions: BoundedSumInt64 and PreAggSelectPartition.
-			durationToBoundedSum[duration] = dpagg.NewBoundedSumInt64(&dpagg.BoundedSumInt64Options{
+			durationToBoundedSum[duration], err = dpagg.NewBoundedSumInt64(&dpagg.BoundedSumInt64Options{
 				Epsilon:                  ln3 / 2,
 				MaxPartitionsContributed: maxThreeVisitsPerWeek,
 				Lower:                    0,
 				Upper:                    maxThreeVisitsPerWeek,
 				Noise:                    noise.Laplace(),
 			})
+			if err != nil {
+				return nil, fmt.Errorf("couldn't initialize sum for duration %d: %w", duration, err)
+			}
 		}
 	}
 
@@ -328,12 +361,19 @@ func (sc *CountVisitsPerCertainDurationScenario) getPrivateResults(weekVisits []
 		// If there are enough visitors within this duration,
 		// then it will appear in the result statistics table.
 		// Otherwise, the duration's partition is simply dropped and excluded from the result.
-		if durationToSelectPartition[duration].ShouldKeepPartition() {
-			privateSums[duration] = boundedSum.Result()
+		shouldKeepPartition, err := durationToSelectPartition[duration].ShouldKeepPartition()
+		if err != nil {
+			return nil, fmt.Errorf("couldn't compute shouldKeepPartition: %w", err)
+		}
+		if shouldKeepPartition {
+			privateSums[duration], err = boundedSum.Result()
+			if err != nil {
+				return nil, fmt.Errorf("couldn't compute dp sum: %w", err)
+			}
 		}
 	}
 
-	return privateSums
+	return privateSums, nil
 }
 
 // Round up to the next 10-minute mark based on a divider

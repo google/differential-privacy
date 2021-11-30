@@ -431,7 +431,7 @@ cc_library(
 
 cc_test(
     name = "numerical-mechanisms_test",
-    size = "small",
+    size = "medium",
     srcs = ["numerical-mechanisms_test.cc"],
     deps = [
         ":distributions",

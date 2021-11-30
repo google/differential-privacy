@@ -17,10 +17,8 @@
 package noise
 
 import (
-	"fmt"
 	"math"
 
-	log "github.com/golang/glog"
 	"github.com/google/differential-privacy/go/checks"
 	"github.com/google/differential-privacy/go/rand"
 	"gonum.org/v1/gonum/stat/distuv"
@@ -60,58 +58,54 @@ func Gaussian() Noise {
 
 // AddNoiseFloat64 adds Gaussian noise to the specified float64, so that its
 // output is (ε,δ)-differentially private.
-func (gaussian) AddNoiseFloat64(x float64, l0Sensitivity int64, lInfSensitivity, epsilon, delta float64) float64 {
-	if err := checkArgsGaussian("AddGaussianFloat64", l0Sensitivity, lInfSensitivity, epsilon, delta); err != nil {
-		log.Fatalf("gaussian.AddNoiseFloat64(l0sensitivity %d, lInfSensitivity %f, epsilon %f, delta %e) checks failed with %v",
-			l0Sensitivity, lInfSensitivity, epsilon, delta, err)
+func (gaussian) AddNoiseFloat64(x float64, l0Sensitivity int64, lInfSensitivity, epsilon, delta float64) (float64, error) {
+	if err := checkArgsGaussian(l0Sensitivity, lInfSensitivity, epsilon, delta); err != nil {
+		return 0, err
 	}
 
 	sigma := SigmaForGaussian(l0Sensitivity, lInfSensitivity, epsilon, delta)
-	return addGaussianFloat64(x, sigma)
+	return addGaussianFloat64(x, sigma), nil
 }
 
 // AddNoiseInt64 adds Gaussian noise to the specified int64, so that the
 // output is (ε,δ)-differentially private.
-func (gaussian) AddNoiseInt64(x, l0Sensitivity, lInfSensitivity int64, epsilon, delta float64) int64 {
-	if err := checkArgsGaussian("AddGaussianInt64", l0Sensitivity, float64(lInfSensitivity), epsilon, delta); err != nil {
-		log.Fatalf("gaussian.AddNoiseInt64(l0sensitivity %d, lInfSensitivity %d, epsilon %f, delta %e) checks failed with %v",
-			l0Sensitivity, lInfSensitivity, epsilon, delta, err)
+func (gaussian) AddNoiseInt64(x, l0Sensitivity, lInfSensitivity int64, epsilon, delta float64) (int64, error) {
+	if err := checkArgsGaussian(l0Sensitivity, float64(lInfSensitivity), epsilon, delta); err != nil {
+		return 0, err
 	}
 
 	sigma := SigmaForGaussian(l0Sensitivity, float64(lInfSensitivity), epsilon, delta)
-	return addGaussianInt64(x, sigma)
+	return addGaussianInt64(x, sigma), nil
 }
 
 // Threshold returns the smallest threshold k to use in a differentially private
 // histogram with added Gaussian noise.
 //
 // See https://github.com/google/differential-privacy/blob/main/common_docs/Delta_For_Thresholding.pdf for details on the math underlying this.
-func (gaussian) Threshold(l0Sensitivity int64, lInfSensitivity, epsilon, noiseDelta, thresholdDelta float64) float64 {
-	if err := checkArgsGaussian("Threshold (gaussian)", l0Sensitivity, lInfSensitivity, epsilon, noiseDelta); err != nil {
-		log.Fatalf("gaussian.Threshold(l0sensitivity %d, lInfSensitivity %f, epsilon %f, noiseDelta %e, thresholdDelta %e) checks failed with %v",
-			l0Sensitivity, lInfSensitivity, epsilon, noiseDelta, thresholdDelta, err)
+func (gaussian) Threshold(l0Sensitivity int64, lInfSensitivity, epsilon, noiseDelta, thresholdDelta float64) (float64, error) {
+	if err := checkArgsGaussian(l0Sensitivity, lInfSensitivity, epsilon, noiseDelta); err != nil {
+		return 0, err
 	}
-	if err := checks.CheckDeltaStrict("Threshold (gaussian, noiseDelta)", thresholdDelta); err != nil {
-		log.Fatalf("CheckDelta failed with %v", err)
+	if err := checks.CheckDeltaStrict(thresholdDelta); err != nil {
+		return 0, err
 	}
 
 	sigma := SigmaForGaussian(l0Sensitivity, lInfSensitivity, epsilon, noiseDelta)
 	noiseDist := distuv.Normal{Mu: 0, Sigma: sigma}
-	return lInfSensitivity + noiseDist.Quantile(math.Pow(1-thresholdDelta, 1.0/float64(l0Sensitivity)))
+	return lInfSensitivity + noiseDist.Quantile(math.Pow(1-thresholdDelta, 1.0/float64(l0Sensitivity))), nil
 }
 
 // DeltaForThreshold is the inverse operation of Threshold. Specifically, given
 // the parameters and a threshold, it returns the delta induced by thresholding.
 //
 // See https://github.com/google/differential-privacy/blob/main/common_docs/Delta_For_Thresholding.pdf for details on the math underlying this.
-func (gaussian) DeltaForThreshold(l0Sensitivity int64, lInfSensitivity, epsilon, delta, threshold float64) float64 {
-	if err := checkArgsGaussian("DeltaForThreshold (gaussian)", l0Sensitivity, lInfSensitivity, epsilon, delta); err != nil {
-		log.Fatalf("gaussian.DeltaForThreshold(l0sensitivity %d, lInfSensitivity %f, epsilon %f, delta %e, threshold %f) checks failed with %v",
-			l0Sensitivity, lInfSensitivity, epsilon, delta, threshold, err)
+func (gaussian) DeltaForThreshold(l0Sensitivity int64, lInfSensitivity, epsilon, delta, threshold float64) (float64, error) {
+	if err := checkArgsGaussian(l0Sensitivity, lInfSensitivity, epsilon, delta); err != nil {
+		return 0, err
 	}
 	sigma := SigmaForGaussian(l0Sensitivity, lInfSensitivity, epsilon, delta)
 	noiseDist := distuv.Normal{Mu: 0, Sigma: sigma}
-	return 1 - math.Pow(noiseDist.CDF(threshold-lInfSensitivity), float64(l0Sensitivity))
+	return 1 - math.Pow(noiseDist.CDF(threshold-lInfSensitivity), float64(l0Sensitivity)), nil
 }
 
 // ComputeConfidenceIntervalInt64 computes a confidence interval that contains the raw integer value x from which int64 noisedX
@@ -119,10 +113,8 @@ func (gaussian) DeltaForThreshold(l0Sensitivity int64, lInfSensitivity, epsilon,
 //
 // See https://github.com/google/differential-privacy/tree/main/common_docs/confidence_intervals.md.
 func (gaussian) ComputeConfidenceIntervalInt64(noisedX, l0Sensitivity, lInfSensitivity int64, epsilon, delta, alpha float64) (ConfidenceInterval, error) {
-	err := checkArgsConfidenceIntervalGaussian("ComputeConfidenceIntervalInt64 (gaussian)", l0Sensitivity, float64(lInfSensitivity), epsilon, delta, alpha)
+	err := checkArgsConfidenceIntervalGaussian(l0Sensitivity, float64(lInfSensitivity), epsilon, delta, alpha)
 	if err != nil {
-		err := fmt.Errorf("ComputeConfidenceIntervalInt64(l0sensitivity %d, lInfSensitivity %d, epsilon %f, delta %e, alpha %f) checks failed with %v",
-			l0Sensitivity, lInfSensitivity, epsilon, delta, alpha, err)
 		return ConfidenceInterval{}, err
 	}
 	sigma := SigmaForGaussian(l0Sensitivity, float64(lInfSensitivity), epsilon, delta)
@@ -142,27 +134,25 @@ func (gaussian) ComputeConfidenceIntervalInt64(noisedX, l0Sensitivity, lInfSensi
 //
 // See https://github.com/google/differential-privacy/tree/main/common_docs/confidence_intervals.md.
 func (gaussian) ComputeConfidenceIntervalFloat64(noisedX float64, l0Sensitivity int64, lInfSensitivity, epsilon, delta, alpha float64) (ConfidenceInterval, error) {
-	err := checkArgsConfidenceIntervalGaussian("ComputeConfidenceIntervalFloat64 (gaussian)", l0Sensitivity, lInfSensitivity, epsilon, delta, alpha)
+	err := checkArgsConfidenceIntervalGaussian(l0Sensitivity, lInfSensitivity, epsilon, delta, alpha)
 	if err != nil {
-		err = fmt.Errorf("ComputeConfidenceIntervalFloat64(l0sensitivity %d, lInfSensitivity %f, epsilon %f, delta %e, alpha %f) checks failed with %v",
-			l0Sensitivity, lInfSensitivity, epsilon, delta, alpha, err)
 		return ConfidenceInterval{}, err
 	}
 	sigma := SigmaForGaussian(l0Sensitivity, lInfSensitivity, epsilon, delta)
 	return computeConfidenceIntervalGaussian(noisedX, sigma, alpha), nil
 }
 
-func checkArgsGaussian(label string, l0Sensitivity int64, lInfSensitivity, epsilon, delta float64) error {
-	if err := checks.CheckL0Sensitivity(label, l0Sensitivity); err != nil {
+func checkArgsGaussian(l0Sensitivity int64, lInfSensitivity, epsilon, delta float64) error {
+	if err := checks.CheckL0Sensitivity(l0Sensitivity); err != nil {
 		return err
 	}
-	if err := checks.CheckLInfSensitivity(label, lInfSensitivity); err != nil {
+	if err := checks.CheckLInfSensitivity(lInfSensitivity); err != nil {
 		return err
 	}
-	if err := checks.CheckEpsilon(label, epsilon); err != nil {
+	if err := checks.CheckEpsilon(epsilon); err != nil {
 		return err
 	}
-	return checks.CheckDeltaStrict(label, delta)
+	return checks.CheckDeltaStrict(delta)
 }
 
 func (gaussian) String() string {
@@ -170,11 +160,11 @@ func (gaussian) String() string {
 }
 
 // checkArgsConfidenceIntervalGaussian checks the parameters for gaussian confidence interval, as well as the provided confidence level.
-func checkArgsConfidenceIntervalGaussian(label string, l0Sensitivity int64, lInfSensitivity, epsilon, delta, alpha float64) error {
-	if err := checks.CheckAlpha(label, alpha); err != nil {
+func checkArgsConfidenceIntervalGaussian(l0Sensitivity int64, lInfSensitivity, epsilon, delta, alpha float64) error {
+	if err := checks.CheckAlpha(alpha); err != nil {
 		return err
 	}
-	return checkArgsGaussian(label, l0Sensitivity, lInfSensitivity, epsilon, delta)
+	return checkArgsGaussian(l0Sensitivity, lInfSensitivity, epsilon, delta)
 }
 
 // addGaussianFloat64 adds Gaussian noise of scale σ to the specified float64.

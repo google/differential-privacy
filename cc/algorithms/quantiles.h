@@ -75,11 +75,10 @@ class Quantiles : public Algorithm<T> {
   std::vector<double> GetQuantiles() const { return quantiles_; }
 
  protected:
-  base::StatusOr<Output> GenerateResult(double privacy_budget,
-                                        double noise_interval_level) override {
+  base::StatusOr<Output> GenerateResult(double noise_interval_level) override {
     typename QuantileTree<T>::DPParams dp_params;
-    dp_params.epsilon = Algorithm<T>::GetEpsilon() * privacy_budget;
-    dp_params.delta = Algorithm<T>::GetDelta() * privacy_budget;
+    dp_params.epsilon = Algorithm<T>::GetEpsilon();
+    dp_params.delta = Algorithm<T>::GetDelta();
     dp_params.max_contributions_per_partition =
         max_contributions_per_partition_;
     dp_params.max_partitions_contributed_to = max_partitions_contributed_to_;

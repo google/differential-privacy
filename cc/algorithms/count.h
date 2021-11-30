@@ -46,9 +46,8 @@ class Count : public Algorithm<T> {
   void AddEntry(const T& v) override { AddMultipleEntries(v, 1); }
 
   base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
-      double confidence_level, double privacy_budget = 1) override {
-    return mechanism_->NoiseConfidenceInterval(confidence_level,
-                                               privacy_budget);
+      double confidence_level) override {
+    return mechanism_->NoiseConfidenceInterval(confidence_level, 1.0);
   }
 
   // Create and return summary containing the count.
@@ -88,17 +87,13 @@ class Count : public Algorithm<T> {
   }
 
  protected:
-  base::StatusOr<Output> GenerateResult(double privacy_budget,
-                                        double noise_interval_level) override {
-    RETURN_IF_ERROR(ValidateIsPositive(privacy_budget, "Privacy budget",
-                                       absl::StatusCode::kFailedPrecondition));
-
+  base::StatusOr<Output> GenerateResult(double noise_interval_level) override {
     Output output;
-    int64_t countWithNoise = mechanism_->AddNoise(count_, privacy_budget);
+    int64_t countWithNoise = mechanism_->AddNoise(count_);
     AddToOutput<int64_t>(&output, countWithNoise);
 
     base::StatusOr<ConfidenceInterval> interval =
-        NoiseConfidenceInterval(noise_interval_level, privacy_budget);
+        NoiseConfidenceInterval(noise_interval_level);
     if (interval.ok()) {
       *(output.mutable_error_report()->mutable_noise_confidence_interval()) =
           interval.value();

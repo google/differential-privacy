@@ -114,7 +114,7 @@ func KVToPairICodedKV(a int, b kv.Pair) PairICodedKV {
 	return PairICodedKV{a, b}
 }
 
-// MakePairsWithFixedV returns dummy data where the same value is associated with
+// MakePairsWithFixedV returns sample data where the same value is associated with
 // multiple privacy keys: it returns a slice of pairs {0, v}, {1, v}, ..., {numKeys-1, v}.
 func MakePairsWithFixedV(numKeys, v int) []PairII {
 	s := make([]PairII, numKeys)
@@ -124,7 +124,7 @@ func MakePairsWithFixedV(numKeys, v int) []PairII {
 	return s
 }
 
-// MakePairsWithFixedVStartingFromKey returns dummy data where the same value is associated with
+// MakePairsWithFixedVStartingFromKey returns sample data where the same value is associated with
 // multiple privacy keys: it returns a slice of pairs {0, v}, {1, v}, ..., {numKeys-1, v}.
 // Privacy keys start from kOffset.
 func MakePairsWithFixedVStartingFromKey(kOffset, numKeys, v int) []PairII {
@@ -142,10 +142,10 @@ type TripleWithIntValue struct {
 	Value     int
 }
 
-// MakeDummyTripleWithIntValue returns dummy int data where the same partition ID is
+// MakeSampleTripleWithIntValue returns sample int data where the same partition ID is
 // associated with multiple privacy keys, every time with the value 1: it returns
 // a slice of tripleInts {0,p,1}, {1,p,1}, ..., {numKeys-1,p,1}.
-func MakeDummyTripleWithIntValue(numKeys, p int) []TripleWithIntValue {
+func MakeSampleTripleWithIntValue(numKeys, p int) []TripleWithIntValue {
 	return MakeTripleWithIntValue(numKeys, p, 1)
 }
 
@@ -201,10 +201,10 @@ type TripleWithFloatValue struct {
 	Value     float32
 }
 
-// MakeDummyTripleWithFloatValue returns dummy float data where the same partition ID is
+// MakeSampleTripleWithFloatValue returns sample float data where the same partition ID is
 // associated with multiple privacy keys, every time with the value 1.0: it returns
 // a slice of tripleFloats {0,p,1}, {1,p,1}, ..., {numKeys-1,p,1}.
-func MakeDummyTripleWithFloatValue(numKeys, p int) []TripleWithFloatValue {
+func MakeSampleTripleWithFloatValue(numKeys, p int) []TripleWithFloatValue {
 	return MakeTripleWithFloatValue(numKeys, p, 1.0)
 }
 

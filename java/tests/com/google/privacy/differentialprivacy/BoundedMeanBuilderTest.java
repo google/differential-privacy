@@ -195,7 +195,7 @@ public class BoundedMeanBuilderTest {
             .epsilon(DEFAULT_EPSILON)
             .delta(DEFAULT_DELTA)
             .noise(new GaussianNoise())
-            .maxPartitionsContributed(DEFAULT_MAX_CONTRIBUTIONS_PER_PARTITION)
+            .maxPartitionsContributed(DEFAULT_MAX_PARTITIONS_CONTRIBUTED)
             .lower(DEFAULT_LOWER)
             .upper(DEFAULT_UPPER);
     assertThrows(IllegalStateException.class, builder::build);
@@ -321,7 +321,7 @@ public class BoundedMeanBuilderTest {
   }
 
   @Test
-  public void paramtersResultInL1SensitivityOverflow_throwsException() {
+  public void parametersResultInL1SensitivityOverflow_throwsException() {
     BoundedMean.Params.Builder builder =
         BoundedMean.builder()
             .epsilon(DEFAULT_EPSILON)
@@ -338,7 +338,7 @@ public class BoundedMeanBuilderTest {
   }
 
   @Test
-  public void paramtersResultInL2SensitivityOverflow_throwsException() {
+  public void parametersResultInL2SensitivityOverflow_throwsException() {
     BoundedMean.Params.Builder builder =
         BoundedMean.builder()
             .epsilon(DEFAULT_EPSILON)

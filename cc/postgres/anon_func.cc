@@ -194,7 +194,7 @@ Datum anon_count_accum(PG_FUNCTION_ARGS) {
     arg0 = reinterpret_cast<DpCount*>(PG_GETARG_POINTER(0));
   }
 
-  // Add a dummy entry for each element counted.
+  // Add a placeholder entry for each element counted.
   if (!arg0->AddEntry(1)) {
     ereport(ERROR,
             (errcode(ERRCODE_INVALID_PARAMETER_VALUE),

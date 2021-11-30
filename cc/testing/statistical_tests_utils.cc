@@ -35,15 +35,6 @@ double SampleReferenceLaplacian(double mean, double variance,
 
 namespace {
 
-using Histogram = absl::flat_hash_map<double, int64_t>;
-
-Histogram BuildHistogram(const std::vector<double>& samples) {
-  Histogram histogram;
-  for (double sample : samples) ++histogram[sample];
-
-  return histogram;
-}
-
 // Decides whether two sets of random samples were likely drawn from similar
 // discrete distributions up to tolerance l2_tolerance.
 //
@@ -95,50 +86,8 @@ bool VerifyCloseness(const std::vector<double>& samples_a,
   return test_value < threshold;
 }
 
-double ComputeAproximateDpTestValue(
-    absl::flat_hash_map<double, int64_t> histogram_a,
-    absl::flat_hash_map<double, int64_t> histogram_b, double epsilon,
-    int num_of_samples) {
-  double test_value = 0;
-  for (auto it_a = histogram_a.begin(); it_a != histogram_a.end(); ++it_a) {
-    double sample_count_a = it_a->second;
-    auto it_b = histogram_b.find(it_a->first);
-    if (it_b != histogram_b.end()) {
-      double sample_count_b = it_b->second;
-      test_value +=
-          std::max(0.0, (sample_count_a - std::exp(epsilon) * sample_count_b) /
-                            num_of_samples);
-    } else {
-      test_value += sample_count_a / num_of_samples;
-    }
-  }
-  return test_value;
-}
-
 }  // namespace
 
-bool VerifyApproximateDp(const std::vector<double>& samples_a,
-                         const std::vector<double>& samples_b, double epsilon,
-                         double delta, double delta_tolerance) {
-  DCHECK(samples_a.size() == samples_b.size())
-      << "The sample sets must be of equal size.";
-  DCHECK(!samples_a.empty()) << "The sample sets must not be empty";
-  DCHECK(delta_tolerance > 0) << "The delta tolerance must be positive";
-  DCHECK(delta_tolerance < 1) << "The delta tolerance should be less than 1";
-  DCHECK(epsilon >= 0) << "Epsilon must not be negative";
-  DCHECK(delta >= 0) << "Delta must not be negative";
-  DCHECK(delta < 1) << "Delta should be less than 1";
-
-  absl::flat_hash_map<double, int64_t> histogram_a = BuildHistogram(samples_a);
-  absl::flat_hash_map<double, int64_t> histogram_b = BuildHistogram(samples_b);
-
-  double test_value_a = ComputeAproximateDpTestValue(histogram_a, histogram_b,
-                                                     epsilon, samples_a.size());
-  double test_value_b = ComputeAproximateDpTestValue(histogram_b, histogram_a,
-                                                     epsilon, samples_b.size());
-  return test_value_a < delta + delta_tolerance &&
-         test_value_b < delta + delta_tolerance;
-}
 
 bool RunBallot(std::function<bool()> vote_generator, int number_of_votes) {
   DCHECK(number_of_votes > 0) << "The number of votes must be positive";

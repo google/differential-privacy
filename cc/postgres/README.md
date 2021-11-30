@@ -307,7 +307,7 @@ In our simple count example, we used a query containing a single anonymous
 function. For a query with N anonymous function calls, and with a desired
 total privacy parameter of ε, we need to use ε/(N+1) as the privacy parameter
 for each aggregation. This is for the N requested calls plus the additional
-anonymous unique-user count. For instance, consider the following dummy query:
+anonymous unique-user count. For instance, consider the following sample query:
 
 ```
 SELECT COUNT(col1), SUM(col2)

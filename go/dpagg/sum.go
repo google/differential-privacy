@@ -77,7 +77,7 @@ type BoundedSumInt64Options struct {
 	Epsilon                  float64 // Privacy parameter ε. Required.
 	Delta                    float64 // Privacy parameter δ. Required with Gaussian noise, must be 0 with Laplace noise.
 	MaxPartitionsContributed int64   // How many distinct partitions may a single privacy unit contribute to? Defaults to 1.
-	// Lower and Upper bounds for clamping. Default to 0; must be such that Lower < Upper.
+	// Lower and Upper bounds for clamping. Default to 0; must be such that Lower <= Upper.
 	Lower, Upper int64
 	Noise        noise.Noise // Type of noise used in BoundedSum. Defaults to Laplace noise.
 	// How many times may a single privacy unit contribute to a single partition?
@@ -87,7 +87,7 @@ type BoundedSumInt64Options struct {
 }
 
 // NewBoundedSumInt64 returns a new BoundedSumInt64, whose sum is initialized at 0.
-func NewBoundedSumInt64(opt *BoundedSumInt64Options) *BoundedSumInt64 {
+func NewBoundedSumInt64(opt *BoundedSumInt64Options) (*BoundedSumInt64, error) {
 	if opt == nil {
 		opt = &BoundedSumInt64Options{}
 	}
@@ -109,34 +109,34 @@ func NewBoundedSumInt64(opt *BoundedSumInt64Options) *BoundedSumInt64 {
 	// Check bounds & use them to compute L_∞ sensitivity
 	lower, upper := opt.Lower, opt.Upper
 	if lower == 0 && upper == 0 {
-		// TODO: do not exit the program from within library code
-		log.Fatalf("NewBoundedSumInt64 requires a non-default value for Lower or Upper (automatic bounds determination is not implemented yet). Lower and Upper cannot be both 0")
+		return nil, fmt.Errorf("NewBoundedSumInt64 requires a non-default value for Lower and Upper (automatic bounds determination is not implemented yet). Lower and Upper cannot be both 0")
 	}
 	var err error
 	switch noise.ToKind(opt.Noise) {
 	case noise.Unrecognised:
-		err = checks.CheckBoundsInt64IgnoreOverflows("NewBoundedSumInt64", lower, upper)
+		err = checks.CheckBoundsInt64IgnoreOverflows(lower, upper)
 	default:
-		err = checks.CheckBoundsInt64("NewBoundedSumInt64", lower, upper)
+		err = checks.CheckBoundsInt64(lower, upper)
 	}
 	if err != nil {
-		// TODO: do not exit the program from within library code
-		log.Fatalf("CheckBoundsInt64(lower %d, upper %d) failed with %v", lower, upper, err)
+		return nil, fmt.Errorf("NewBoundedSumInt64: %w", err)
 	}
 	lInf, err := getLInfInt(lower, upper, maxContributionsPerPartition)
 	if err != nil {
 		if noise.ToKind(opt.Noise) == noise.Unrecognised {
 			// Ignore sensitivity overflows if noise is not recognised.
-			log.Warningf("getLInfInt(lower %d, upper %d, maxContributionsPerPartition %d) failed with %v, using largest representable integer as lInf_sensitivity", lower, upper, maxContributionsPerPartition, err)
+			log.Warningf("NewBoundedSumInt64: getLInfInt failed with %q, using largest representable integer as lInf_sensitivity", err.Error())
 		} else {
-			// TODO: do not exit the program from within library code
-			log.Fatalf("getLInfInt(lower %d, upper %d, maxContributionsPerPartition %d) failed with %v", lower, upper, maxContributionsPerPartition, err)
+			return nil, fmt.Errorf("NewBoundedSumInt64: %w", err)
 		}
 	}
 	// Check that the parameters are compatible with the noise chosen by calling
-	// the noise on some dummy value.
+	// the noise on some placeholder value.
 	eps, del := opt.Epsilon, opt.Delta
-	n.AddNoiseInt64(0, l0, lInf, eps, del)
+	_, err = n.AddNoiseInt64(0, l0, lInf, eps, del)
+	if err != nil {
+		return nil, fmt.Errorf("NewBoundedSumInt64: %w", err)
+	}
 
 	return &BoundedSumInt64{
 		epsilon:         eps,
@@ -149,7 +149,7 @@ func NewBoundedSumInt64(opt *BoundedSumInt64Options) *BoundedSumInt64 {
 		noiseKind:       noise.ToKind(n),
 		sum:             0,
 		state:           defaultState,
-	}
+	}, nil
 }
 
 // lInfIntOverflows checks if multiplication of the given number overflows int64.
@@ -191,36 +191,36 @@ func getLInfInt(lower, upper, maxContributionsPerPartition int64) (int64, error)
 }
 
 // Add adds a new summand to the BoundedSumInt64.
-func (bs *BoundedSumInt64) Add(e int64) {
+func (bs *BoundedSumInt64) Add(e int64) error {
 	if bs.state != defaultState {
-		// TODO: do not exit the program from within library code
-		log.Fatalf("Sum cannot be amended. Reason: %v", bs.state.errorMessage())
+		return fmt.Errorf("BoundedSumInt64 cannot be amended: %v", bs.state.errorMessage())
 	}
 	clamped, err := ClampInt64(e, bs.lower, bs.upper)
 	if err != nil {
-		// TODO: do not exit the program from within library code
-		log.Fatalf("Couldn't clamp input value %v, err %v", e, err)
+		return fmt.Errorf("couldn't clamp input value %v, err %v", e, err)
 	}
 	bs.sum += clamped
+	return nil
 }
 
 // Merge merges bs2 into bs (i.e., adds to bs all entries that were added to
 // bs2). bs2 is consumed by this operation: bs2 may not be used after it is
 // merged into bs.
-func (bs *BoundedSumInt64) Merge(bs2 *BoundedSumInt64) {
-	if e := checkMergeBoundedSumInt64(bs, bs2); e != nil {
-		log.Exit(e)
+func (bs *BoundedSumInt64) Merge(bs2 *BoundedSumInt64) error {
+	if err := checkMergeBoundedSumInt64(bs, bs2); err != nil {
+		return err
 	}
 	bs.sum += bs2.sum
 	bs2.state = merged
+	return nil
 }
 
 func checkMergeBoundedSumInt64(bs1, bs2 *BoundedSumInt64) error {
 	if bs1.state != defaultState {
-		return fmt.Errorf("checkMergeBoundedSumInt64: bs1 cannot be merged with another BoundedSum instance. Reason: %v", bs1.state.errorMessage())
+		return fmt.Errorf("checkMergeBoundedSumInt64: bs1 cannot be merged with another BoundedSum instance: %v", bs1.state.errorMessage())
 	}
 	if bs2.state != defaultState {
-		return fmt.Errorf("checkMergeBoundedSumInt64: bs2 cannot be merged with another BoundedSum instance. Reason: %v", bs2.state.errorMessage())
+		return fmt.Errorf("checkMergeBoundedSumInt64: bs2 cannot be merged with another BoundedSum instance: %v", bs2.state.errorMessage())
 	}
 
 	if !bsEquallyInitializedint64(bs1, bs2) {
@@ -240,28 +240,34 @@ func checkMergeBoundedSumInt64(bs1, bs2 *BoundedSumInt64) error {
 // by the caller of this method, e.g., by snapping the result to the closest
 // value representing a bounded sum that is possible. Note that such post
 // processing introduces bias to the result.
-func (bs *BoundedSumInt64) Result() int64 {
+func (bs *BoundedSumInt64) Result() (int64, error) {
 	if bs.state != defaultState {
-		// TODO: do not exit the program from within library code
-		log.Fatalf("Sum's noised result cannot be computed. Reason: " + bs.state.errorMessage())
+		return 0, fmt.Errorf("BoundedSumInt64's noised result cannot be computed: " + bs.state.errorMessage())
 	}
 	bs.state = resultReturned
-	bs.noisedSum = bs.Noise.AddNoiseInt64(bs.sum, bs.l0Sensitivity, bs.lInfSensitivity, bs.epsilon, bs.delta)
-	return bs.noisedSum
+	var err error
+	bs.noisedSum, err = bs.Noise.AddNoiseInt64(bs.sum, bs.l0Sensitivity, bs.lInfSensitivity, bs.epsilon, bs.delta)
+	return bs.noisedSum, err
 }
 
 // ThresholdedResult is similar to Result() but applies thresholding to the
 // result. So, if the result is less than the threshold specified by the noise
 // mechanism, it returns nil. Otherwise, it returns the result.
-func (bs *BoundedSumInt64) ThresholdedResult(thresholdDelta float64) *int64 {
-	threshold := bs.Noise.Threshold(bs.l0Sensitivity, float64(bs.lInfSensitivity), bs.epsilon, bs.delta, thresholdDelta)
-	result := bs.Result()
+func (bs *BoundedSumInt64) ThresholdedResult(thresholdDelta float64) (*int64, error) {
+	threshold, err := bs.Noise.Threshold(bs.l0Sensitivity, float64(bs.lInfSensitivity), bs.epsilon, bs.delta, thresholdDelta)
+	if err != nil {
+		return nil, err
+	}
+	result, err := bs.Result()
+	if err != nil {
+		return nil, err
+	}
 	// To make sure floating-point rounding doesn't break DP guarantees, we err on
 	// the side of dropping the result if it is exactly equal to the threshold.
 	if float64(result) <= threshold {
-		return nil
+		return nil, nil
 	}
-	return &result
+	return &result, nil
 }
 
 // ComputeConfidenceInterval computes a confidence interval with integer bounds that
@@ -307,7 +313,7 @@ type encodableBoundedSumInt64 struct {
 // GobEncode encodes BoundedSumInt64.
 func (bs *BoundedSumInt64) GobEncode() ([]byte, error) {
 	if bs.state != defaultState && bs.state != serialized {
-		return nil, fmt.Errorf("Sum object cannot be serialized. Reason: " + bs.state.errorMessage())
+		return nil, fmt.Errorf("BoundedSumInt64 object cannot be serialized: " + bs.state.errorMessage())
 	}
 	enc := encodableBoundedSumInt64{
 		Epsilon:         bs.epsilon,
@@ -328,8 +334,7 @@ func (bs *BoundedSumInt64) GobDecode(data []byte) error {
 	var enc encodableBoundedSumInt64
 	err := decode(&enc, data)
 	if err != nil {
-		log.Fatalf("GobDecode: couldn't decode BoundedSumInt64 from bytes")
-		return err
+		return fmt.Errorf("couldn't decode BoundedSumInt64 from bytes")
 	}
 	*bs = BoundedSumInt64{
 		epsilon:         enc.Epsilon,
@@ -394,7 +399,7 @@ type BoundedSumFloat64Options struct {
 	Epsilon                  float64 // Privacy parameter ε. Required.
 	Delta                    float64 // Privacy parameter δ. Required with Gaussian noise, must be 0 with Laplace noise.
 	MaxPartitionsContributed int64   // How many distinct partitions may a single privacy unit contribute to? Defaults to 1.
-	// Lower and Upper bounds for clamping. Default to 0; must be such that Lower < Upper.
+	// Lower and Upper bounds for clamping. Default to 0; must be such that Lower <= Upper.
 	Lower, Upper float64
 	Noise        noise.Noise // Type of noise used in BoundedSum. Defaults to Laplace noise.
 	// How many times may a single privacy unit contribute to a single partition?
@@ -404,7 +409,7 @@ type BoundedSumFloat64Options struct {
 }
 
 // NewBoundedSumFloat64 returns a new BoundedSumFloat64, whose sum is initialized at 0.
-func NewBoundedSumFloat64(opt *BoundedSumFloat64Options) *BoundedSumFloat64 {
+func NewBoundedSumFloat64(opt *BoundedSumFloat64Options) (*BoundedSumFloat64, error) {
 	if opt == nil {
 		opt = &BoundedSumFloat64Options{}
 	}
@@ -426,34 +431,34 @@ func NewBoundedSumFloat64(opt *BoundedSumFloat64Options) *BoundedSumFloat64 {
 	// Check bounds & use them to compute L_∞ sensitivity
 	lower, upper := opt.Lower, opt.Upper
 	if lower == 0 && upper == 0 {
-		// TODO: do not exit the program from within library code
-		log.Fatalf("NewBoundedSumFloat64 requires a non-default value for Lower or Upper (automatic bounds determination is not implemented yet). Lower and Upper cannot be both 0")
+		return nil, fmt.Errorf("NewBoundedSumFloat64 requires a non-default value for Lower and Upper (automatic bounds determination is not implemented yet). Lower and Upper cannot be both 0")
 	}
 	var err error
 	switch noise.ToKind(opt.Noise) {
 	case noise.Unrecognised:
-		err = checks.CheckBoundsFloat64IgnoreOverflows("NewBoundedSumFloat64", lower, upper)
+		err = checks.CheckBoundsFloat64IgnoreOverflows(lower, upper)
 	default:
-		err = checks.CheckBoundsFloat64("NewBoundedSumFloat64", lower, upper)
+		err = checks.CheckBoundsFloat64(lower, upper)
 	}
 	if err != nil {
-		// TODO: do not exit the program from within library code
-		log.Fatalf("CheckBoundsFloat64(lower %f, upper %f) failed with %v", lower, upper, err)
+		return nil, fmt.Errorf("NewBoundedSumFloat64: %w", err)
 	}
 	lInf, err := getLInfFloat(lower, upper, maxContributionsPerPartition)
 	if err != nil {
 		if noise.ToKind(opt.Noise) == noise.Unrecognised {
 			// Ignore sensitivity overflows if noise is not recognised.
-			log.Warningf("getLInfFloat(lower %f, upper %f, maxContributionsPerPartition %d) failed with %v, using largest representable integer as lInf_sensitivity", lower, upper, maxContributionsPerPartition, err)
+			log.Warningf("NewBoundedSumFloat64: getLInfFloat failed with %q, using largest representable integer as lInf_sensitivity", err.Error())
 		} else {
-			// TODO: do not exit the program from within library code
-			log.Fatalf("getLInfFloat(lower %f, upper %f, maxContributionsPerPartition %d) failed with %v", lower, upper, maxContributionsPerPartition, err)
+			return nil, fmt.Errorf("NewBoundedSumFloat64: %w", err)
 		}
 	}
 	// Check that the parameters are compatible with the noise chosen by calling
-	// the noise on some dummy value.
+	// the noise on some placeholder value.
 	eps, del := opt.Epsilon, opt.Delta
-	n.AddNoiseFloat64(0, l0, lInf, eps, del)
+	_, err = n.AddNoiseFloat64(0, l0, lInf, eps, del)
+	if err != nil {
+		return nil, fmt.Errorf("NewBoundedSumFloat64: %w", err)
+	}
 
 	return &BoundedSumFloat64{
 		epsilon:         eps,
@@ -466,7 +471,7 @@ func NewBoundedSumFloat64(opt *BoundedSumFloat64Options) *BoundedSumFloat64 {
 		noiseKind:       noise.ToKind(n),
 		sum:             0,
 		state:           defaultState,
-	}
+	}, nil
 }
 
 func lInfFloatOverflows(bound float64, maxContributionsPerPartition int64) bool {
@@ -503,38 +508,38 @@ func getLInfFloat(lower, upper float64, maxContributionsPerPartition int64) (flo
 // because introducing even a single NaN summand will result in a NaN sum
 // regardless of other summands, which would break the indistinguishability
 // property required for differential privacy.
-func (bs *BoundedSumFloat64) Add(e float64) {
+func (bs *BoundedSumFloat64) Add(e float64) error {
 	if bs.state != defaultState {
-		// TODO: do not exit the program from within library code
-		log.Fatalf("Sum cannot be amended. Reason: %v", bs.state.errorMessage())
+		return fmt.Errorf("BoundedSumFloat64 cannot be amended: %v", bs.state.errorMessage())
 	}
 	if !math.IsNaN(e) {
 		clamped, err := ClampFloat64(e, bs.lower, bs.upper)
 		if err != nil {
-			// TODO: do not exit the program from within library code
-			log.Fatalf("Couldn't clamp input value %v, err %v", e, err)
+			return fmt.Errorf("couldn't clamp input value %v, err %w", e, err)
 		}
 		bs.sum += clamped
 	}
+	return nil
 }
 
 // Merge merges bs2 into bs (i.e., adds to bs all entries that were added to
 // bs2). bs2 is consumed by this operation: bs2 may not be used after it is
 // merged into bs.
-func (bs *BoundedSumFloat64) Merge(bs2 *BoundedSumFloat64) {
-	if e := checkMergeBoundedSumFloat64(bs, bs2); e != nil {
-		log.Exit(e)
+func (bs *BoundedSumFloat64) Merge(bs2 *BoundedSumFloat64) error {
+	if err := checkMergeBoundedSumFloat64(bs, bs2); err != nil {
+		return err
 	}
 	bs.sum += bs2.sum
 	bs2.state = merged
+	return nil
 }
 
 func checkMergeBoundedSumFloat64(bs1, bs2 *BoundedSumFloat64) error {
 	if bs1.state != defaultState {
-		return fmt.Errorf("checkMergeBoundedSumFloat64: bs1 cannot be merged with another BoundedSum instance. Reason: %v", bs1.state.errorMessage())
+		return fmt.Errorf("checkMergeBoundedSumFloat64: bs1 cannot be merged with another BoundedSum instance: %v", bs1.state.errorMessage())
 	}
 	if bs2.state != defaultState {
-		return fmt.Errorf("checkMergeBoundedSumFloat64: bs2 cannot be merged with another BoundedSum instance. Reason: %v", bs2.state.errorMessage())
+		return fmt.Errorf("checkMergeBoundedSumFloat64: bs2 cannot be merged with another BoundedSum instance: %v", bs2.state.errorMessage())
 	}
 
 	if !bsEquallyInitializedFloat64(bs1, bs2) {
@@ -554,26 +559,32 @@ func checkMergeBoundedSumFloat64(bs1, bs2 *BoundedSumFloat64) error {
 // by the caller of this method, e.g., by snapping the result to the closest
 // value representing a bounded sum that is possible. Note that such post
 // processing introduces bias to the result.
-func (bs *BoundedSumFloat64) Result() float64 {
+func (bs *BoundedSumFloat64) Result() (float64, error) {
 	if bs.state != defaultState {
-		// TODO: do not exit the program from within library code
-		log.Fatalf("Sum's noised result cannot be computed. Reason: " + bs.state.errorMessage())
+		return 0, fmt.Errorf("BoundedSumFloat64's noised result cannot be computed: " + bs.state.errorMessage())
 	}
 	bs.state = resultReturned
-	bs.noisedSum = bs.Noise.AddNoiseFloat64(bs.sum, bs.l0Sensitivity, bs.lInfSensitivity, bs.epsilon, bs.delta)
-	return bs.noisedSum
+	var err error
+	bs.noisedSum, err = bs.Noise.AddNoiseFloat64(bs.sum, bs.l0Sensitivity, bs.lInfSensitivity, bs.epsilon, bs.delta)
+	return bs.noisedSum, err
 }
 
 // ThresholdedResult is similar to Result() but applies thresholding to the
 // result. So, if the result is less than the threshold specified by the noise,
 // mechanism, it returns nil. Otherwise, it returns the result.
-func (bs *BoundedSumFloat64) ThresholdedResult(thresholdDela float64) *float64 {
-	threshold := bs.Noise.Threshold(bs.l0Sensitivity, bs.lInfSensitivity, bs.epsilon, bs.delta, thresholdDela)
-	result := bs.Result()
-	if result < threshold {
-		return nil
+func (bs *BoundedSumFloat64) ThresholdedResult(thresholdDelta float64) (*float64, error) {
+	threshold, err := bs.Noise.Threshold(bs.l0Sensitivity, bs.lInfSensitivity, bs.epsilon, bs.delta, thresholdDelta)
+	if err != nil {
+		return nil, err
 	}
-	return &result
+	result, err := bs.Result()
+	if err != nil {
+		return nil, err
+	}
+	if result < threshold {
+		return nil, nil
+	}
+	return &result, nil
 }
 
 // ComputeConfidenceInterval computes a confidence interval that contains the true sum
@@ -619,7 +630,7 @@ type encodableBoundedSumFloat64 struct {
 // GobEncode encodes BoundedSumInt64.
 func (bs *BoundedSumFloat64) GobEncode() ([]byte, error) {
 	if bs.state != defaultState && bs.state != serialized {
-		return nil, fmt.Errorf("Sum object cannot be serialized. Reason: " + bs.state.errorMessage())
+		return nil, fmt.Errorf("BoundedSumFloat64 object cannot be serialized: " + bs.state.errorMessage())
 	}
 	enc := encodableBoundedSumFloat64{
 		Epsilon:         bs.epsilon,
@@ -640,8 +651,7 @@ func (bs *BoundedSumFloat64) GobDecode(data []byte) error {
 	var enc encodableBoundedSumFloat64
 	err := decode(&enc, data)
 	if err != nil {
-		log.Fatalf("GobDecode: couldn't decode BoundedSumFloat64 from bytes")
-		return err
+		return fmt.Errorf("couldn't decode BoundedSumFloat64 from bytes")
 	}
 	*bs = BoundedSumFloat64{
 		epsilon:         enc.Epsilon,

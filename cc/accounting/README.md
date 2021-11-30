@@ -17,7 +17,7 @@ We provide basic examples on how to use the library in example.cc.
 ### Run via Bazel
 
 For running the example using Bazel, you need to have
-[Bazel installed](https://docs.bazel.build/versions/master/install.html).
+[Bazel installed](https://docs.bazel.build/versions/main/install.html).
 Once that is done, run:
 ```
 bazel build :all
