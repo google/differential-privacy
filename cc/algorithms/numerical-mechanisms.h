@@ -335,7 +335,7 @@ class LaplaceMechanism : public NumericalMechanism {
 
   // Quickly determines if result is greater than threshold.
   bool NoisedValueAboveThreshold(double result, double threshold) override {
-    return UniformDouble() >
+    return GetUniformDouble() >
            internal::LaplaceDistribution::cdf(diversity_, threshold - result);
   }
 
