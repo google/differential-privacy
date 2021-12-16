@@ -19,7 +19,7 @@ package(default_visibility = [
 
 java_test(
     name = "laplace_closeness_tests",
-    size = "enormous",
+    size = "large",
     srcs = ["LaplaceClosenessTest.java"],
     resources = [
         "@com_google_differential_privacy//proto/testing:laplace_closeness_test_cases.textproto",
@@ -27,6 +27,28 @@ java_test(
     # The shard count must match the number of test cases defined in laplace_closeness_test_cases.textproto
     shard_count = 19,
     test_class = "com.google.privacy.differentialprivacy.statistical.LaplaceClosenessTest",
+    deps = [
+        "//main/com/google/privacy/differentialprivacy",
+        "//main/com/google/privacy/differentialprivacy/testing:reference_noise",
+        "//main/com/google/privacy/differentialprivacy/testing:statistical_utils",
+        "@com_google_differential_privacy//proto/testing:statistical_tests_java_proto",
+        "@com_google_protobuf//:protobuf_java",
+        "@maven//:com_google_guava_guava",
+        "@maven//:com_google_truth_truth",
+        "@maven//:junit_junit",
+    ],
+)
+
+java_test(
+    name = "gaussian_closeness_tests",
+    size = "large",
+    srcs = ["GaussianClosenessTest.java"],
+    resources = [
+        "@com_google_differential_privacy//proto/testing:gaussian_closeness_test_cases.textproto",
+    ],
+    # The shard count must match the number of test cases defined in gaussian_closeness_test_cases.textproto
+    shard_count = 23,
+    test_class = "com.google.privacy.differentialprivacy.statistical.GaussianClosenessTest",
     deps = [
         "//main/com/google/privacy/differentialprivacy",
         "//main/com/google/privacy/differentialprivacy/testing:reference_noise",

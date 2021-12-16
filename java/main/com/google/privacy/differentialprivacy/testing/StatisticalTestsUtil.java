@@ -143,11 +143,12 @@ public final class StatisticalTestsUtil {
     double scaledSample = sample / granularity;
     if (Math.abs(scaledSample) >= 1L << 54) {
       // Rounding scaledSample to a long value may result in an overflow. However, since its
-      // absolute value exceeds 2^53, it does not contain any fractional places. Thus there is no
-      // need to round in the first place.
+      // absolute value is greater or equal to 2^54, no rounding is required in the first place.
+      // This is because the mantissa of double values only has 52 bits of precision, which in turn
+      // implies that a double greater or equal to 2^54 has no fractional digits.
       return scaledSample * granularity;
     } else {
-      // The absolute value of scaledSample is less than 2^63 and therefore it can be rounded to a
+      // The absolute value of scaledSample is less than 2^54 and therefore it can be rounded to a
       // long value without risking an overflow.
       return Math.round(scaledSample) * granularity;
     }

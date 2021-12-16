@@ -65,10 +65,9 @@ class LshTreeNode():
       raise NotImplementedError(
           f"Currently unsupported privacy model: {privacy_param.privacy_model}")
     self.private_average = central_privacy_utils.get_private_average(
-        self.nonprivate_points,
-        self.private_count,
-        self.clustering_param,
-        self.sim_hash.dim)
+        self.nonprivate_points, self.private_count,
+        central_privacy_utils.AveragePrivacyParam.from_clustering_param(
+            self.clustering_param), self.sim_hash.dim)
     return self.private_average
 
   def get_private_count(self) -> int:
@@ -82,7 +81,7 @@ class LshTreeNode():
           f"Currently unsupported privacy model: {privacy_param.privacy_model}")
     self.private_count = central_privacy_utils.get_private_count(
         len(self.nonprivate_points),
-        central_privacy_utils.PrivateCountParam.from_clustering_param(
+        central_privacy_utils.CountPrivacyParam.from_clustering_param(
             self.clustering_param))
     return self.private_count
 

@@ -131,6 +131,12 @@ message BoundedVarianceSummary {
 
   // ApproxBounds data if available.
   optional ApproxBoundsSummary bounds_summary = 6;
+
+  // These three fields are only used by the Java library (not C++), similarly
+  // to pos_sum_of_squares, pos_sum and count.
+  optional BoundedSumSummary sum_of_squares_summary = 7;
+  optional BoundedSumSummary sum_summary = 8;
+  optional CountSummary count_summary = 9;
 }
 
 message Elements {

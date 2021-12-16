@@ -71,6 +71,27 @@ java_test(
 )
 
 java_test(
+    name = "gaussian_closeness_test_cases_validity_tests",
+    size = "enormous",
+    srcs = ["GaussianClosenessTestCasesValidityTest.java"],
+    resources = [
+        "@com_google_differential_privacy//proto/testing:gaussian_closeness_test_cases.textproto",
+    ],
+    # The shard count must match the number of test cases defined in gaussian_closeness_test_cases.textproto
+    shard_count = 23,
+    test_class = "com.google.privacy.differentialprivacy.testing.GaussianClosenessTestCasesValidityTest",
+    deps = [
+        "//main/com/google/privacy/differentialprivacy/testing:reference_noise",
+        "//main/com/google/privacy/differentialprivacy/testing:statistical_utils",
+        "@com_google_differential_privacy//proto/testing:statistical_tests_java_proto",
+        "@maven//:com_google_guava_guava",
+        "@maven//:com_google_protobuf_protobuf_java",
+        "@maven//:com_google_truth_truth",
+        "@maven//:junit_junit",
+    ],
+)
+
+java_test(
     name = "count_dp_test_cases_validity_tests",
     size = "enormous",
     srcs = ["CountDpTestCasesValidityTest.java"],

@@ -31,10 +31,10 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 @RunWith(Parameterized.class)
-public final class LaplaceClosenessTestCasesValidityTest {
+public final class GaussianClosenessTestCasesValidityTest {
   private static final String TEST_CASES_FILE_PATH =
 
-  "external/com_google_differential_privacy/proto/testing/laplace_closeness_test_cases.textproto";
+  "external/com_google_differential_privacy/proto/testing/gaussian_closeness_test_cases.textproto";
   private final int numberOfVotes =
       getTestCaseCollectionFromFile().getVotingParameters().getNumberOfVotes();
   private final double shiftSpecificity =
@@ -43,7 +43,7 @@ public final class LaplaceClosenessTestCasesValidityTest {
       getTestCaseCollectionFromFile().getValidityParameters().getScaleSpecificity();
   private final DistributionClosenessTestCase testCase;
 
-  public LaplaceClosenessTestCasesValidityTest(DistributionClosenessTestCase testCase) {
+  public GaussianClosenessTestCasesValidityTest(DistributionClosenessTestCase testCase) {
     this.testCase = testCase;
   }
 
@@ -53,20 +53,20 @@ public final class LaplaceClosenessTestCasesValidityTest {
   }
 
   @Test
-  public void closenessTest_acceptsIdenticalLaplaceDistributions() {
+  public void closenessTest_acceptsIdenticalGaussianDistributions() {
     ClosenessTestParameters closenessTestParameters = testCase.getClosenessTestParameters();
     double mean = closenessTestParameters.getMean();
     double variance = closenessTestParameters.getVariance();
 
-    Supplier<Double> laplaceSampleGenerator =
-        () -> ReferenceNoiseUtil.sampleLaplace(mean, variance);
+    Supplier<Double> gaussianSampleGenerator =
+        () -> ReferenceNoiseUtil.sampleGaussian(mean, variance);
 
     assertThat(
             VotingUtil.runBallot(
                 () ->
                     generateVote(
-                        laplaceSampleGenerator,
-                        laplaceSampleGenerator,
+                        gaussianSampleGenerator,
+                        gaussianSampleGenerator,
                         testCase.getNoiseSamplingParameters().getNumberOfSamples(),
                         closenessTestParameters.getL2Tolerance(),
                         closenessTestParameters.getGranularity()),
@@ -75,24 +75,24 @@ public final class LaplaceClosenessTestCasesValidityTest {
   }
 
   @Test
-  public void closenessTest_rejectsShiftedLaplaceDistributions() {
+  public void closenessTest_rejectsShiftedGaussianDistributions() {
     ClosenessTestParameters closenessTestParameters = testCase.getClosenessTestParameters();
     double mean = closenessTestParameters.getMean();
     double variance = closenessTestParameters.getVariance();
 
-    Supplier<Double> laplaceSampleGenerator =
-        () -> ReferenceNoiseUtil.sampleLaplace(mean, variance);
-    Supplier<Double> shiftedLaplaceSampleGenerator =
+    Supplier<Double> gaussianSampleGenerator =
+        () -> ReferenceNoiseUtil.sampleGaussian(mean, variance);
+    Supplier<Double> shiftedGaussianSampleGenerator =
         () ->
-            ReferenceNoiseUtil.sampleLaplace(
+            ReferenceNoiseUtil.sampleGaussian(
                 mean + Math.sqrt(variance) * shiftSpecificity, variance);
 
     assertThat(
             VotingUtil.runBallot(
                 () ->
                     generateVote(
-                        laplaceSampleGenerator,
-                        shiftedLaplaceSampleGenerator,
+                        gaussianSampleGenerator,
+                        shiftedGaussianSampleGenerator,
                         testCase.getNoiseSamplingParameters().getNumberOfSamples(),
                         closenessTestParameters.getL2Tolerance(),
                         closenessTestParameters.getGranularity()),
@@ -101,22 +101,22 @@ public final class LaplaceClosenessTestCasesValidityTest {
   }
 
   @Test
-  public void closenessTest_rejectsScaledLaplaceDistributions() {
+  public void closenessTest_rejectsScaledGaussianDistributions() {
     ClosenessTestParameters closenessTestParameters = testCase.getClosenessTestParameters();
     double mean = closenessTestParameters.getMean();
     double variance = closenessTestParameters.getVariance();
 
-    Supplier<Double> laplaceSampleGenerator =
-        () -> ReferenceNoiseUtil.sampleLaplace(mean, variance);
-    Supplier<Double> scaledLaplaceSampleGenerator =
-        () -> ReferenceNoiseUtil.sampleLaplace(mean, variance * scaleSpecificity);
+    Supplier<Double> gaussianSampleGenerator =
+        () -> ReferenceNoiseUtil.sampleGaussian(mean, variance);
+    Supplier<Double> scaledGaussianSampleGenerator =
+        () -> ReferenceNoiseUtil.sampleGaussian(mean, variance * scaleSpecificity);
 
     assertThat(
             VotingUtil.runBallot(
                 () ->
                     generateVote(
-                        laplaceSampleGenerator,
-                        scaledLaplaceSampleGenerator,
+                        gaussianSampleGenerator,
+                        scaledGaussianSampleGenerator,
                         testCase.getNoiseSamplingParameters().getNumberOfSamples(),
                         closenessTestParameters.getL2Tolerance(),
                         closenessTestParameters.getGranularity()),
@@ -130,17 +130,17 @@ public final class LaplaceClosenessTestCasesValidityTest {
     double mean = closenessTestParameters.getMean();
     double variance = closenessTestParameters.getVariance();
 
-    Supplier<Double> laplaceSampleGenerator =
-        () -> ReferenceNoiseUtil.sampleLaplace(mean, variance);
     Supplier<Double> gaussianSampleGenerator =
         () -> ReferenceNoiseUtil.sampleGaussian(mean, variance);
+    Supplier<Double> laplaceSampleGenerator =
+        () -> ReferenceNoiseUtil.sampleLaplace(mean, variance);
 
     assertThat(
             VotingUtil.runBallot(
                 () ->
                     generateVote(
-                        laplaceSampleGenerator,
                         gaussianSampleGenerator,
+                        laplaceSampleGenerator,
                         testCase.getNoiseSamplingParameters().getNumberOfSamples(),
                         closenessTestParameters.getL2Tolerance(),
                         closenessTestParameters.getGranularity()),
@@ -154,7 +154,7 @@ public final class LaplaceClosenessTestCasesValidityTest {
     try {
       TextFormat.merge(
           new InputStreamReader(
-              LaplaceClosenessTestCasesValidityTest.class
+              GaussianClosenessTestCasesValidityTest.class
                   .getClassLoader()
                   .getResourceAsStream(TEST_CASES_FILE_PATH),
               UTF_8),

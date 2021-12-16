@@ -650,7 +650,7 @@ class ApproxBounds : public Algorithm<T> {
   // reduced success probability. Having a minimum success probability ensures
   // we fail rather than returning bounds that are just due to noised empty
   // bins.
-  static constexpr double kMinSuccessProbability = 1 - 1e-3;
+  static constexpr double kMinSuccessProbability = 1 - 1e-6;
 
   // Whether the user chose a specific threshold for determining whether a bin
   // is empty, rather than using a value computed from success_probability_.

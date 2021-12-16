@@ -59,7 +59,7 @@ public final class BoundedMeanDpTestCasesValidityTest {
   }
 
   @Parameterized.Parameters
-  public static Iterable<? extends Object> testCases() {
+  public static Iterable<?> testCases() {
     return getTestCaseCollectionFromFile().getBoundedMeanDpTestCaseList();
   }
 

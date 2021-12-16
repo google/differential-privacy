@@ -59,8 +59,8 @@ def default_tree_param(
 
   private_count = central_privacy_utils.get_private_count(
       data.num_points,
-      central_privacy_utils.PrivateCountParam(privacy_param,
-                                              privacy_budget_split, max_depth))
+      central_privacy_utils.CountPrivacyParam.compute_group_count_privacy_param(
+          privacy_param, privacy_budget_split, max_depth))
 
   # We can consider the noise as distributed amongst the points that are being
   # summed. The noise has l2-norm roughly sqrt(dimension) * sum_sigma * radius,

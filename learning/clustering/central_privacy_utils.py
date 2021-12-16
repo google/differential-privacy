@@ -23,8 +23,25 @@ from dp_accounting import accountant
 from dp_accounting import common
 
 
+@dataclasses.dataclass
+class AveragePrivacyParam(clustering_params.DifferentialPrivacyParam):
+  """Privacy parameters for calling get_private_average()."""
+  sensitivity: float = 1.0
+
+  @classmethod
+  def from_clustering_param(
+      cls, clustering_param: clustering_params.ClusteringParam):
+    split_epsilon = (
+        clustering_param.privacy_budget_split.frac_sum *
+        clustering_param.privacy_param.epsilon)
+    return cls(
+        epsilon=split_epsilon,
+        delta=clustering_param.privacy_param.delta,
+        sensitivity=clustering_param.radius)
+
+
 def get_private_average(nonprivate_points: np.ndarray, private_count: int,
-                        clustering_param: clustering_params.ClusteringParam,
+                        average_privacy_param: AveragePrivacyParam,
                         dim: int) -> np.ndarray:
   """Returns a differentially private average of the given data points.
 
@@ -33,7 +50,7 @@ def get_private_average(nonprivate_points: np.ndarray, private_count: int,
     private_count: differentially private count of the number of data points.
       This is provided to save privacy budget since, in our applications, it is
       often already computed elsewhere. Required to be >= 1.
-    clustering_param: parameters of the clustering algorithm.
+    average_privacy_param: privacy parameters for the private average.
     dim: dimension of the data points.
 
   Returns:
@@ -44,45 +61,45 @@ def get_private_average(nonprivate_points: np.ndarray, private_count: int,
         f"get_private_average() called with private_count={private_count}")
 
   sum_points = np.sum(nonprivate_points, axis=0)
-  epsilon_sum = (
-      clustering_param.privacy_budget_split.frac_sum *
-      clustering_param.privacy_param.epsilon)
 
-  if epsilon_sum == np.inf:
+  if average_privacy_param.epsilon == np.inf:
     return sum_points / private_count
 
   gaussian_standard_deviation = accountant.get_smallest_gaussian_noise(
-      common.DifferentialPrivacyParameters(
-          epsilon_sum, clustering_param.privacy_param.delta),
+      common.DifferentialPrivacyParameters(average_privacy_param.epsilon,
+                                           average_privacy_param.delta),
       num_queries=1,
-      sensitivity=clustering_param.radius)
+      sensitivity=average_privacy_param.sensitivity)
   sum_points += np.random.normal(scale=gaussian_standard_deviation, size=dim)
   return sum_points / private_count
 
 
 @dataclasses.dataclass
-class PrivateCountParam():
-  """Parameters for calling get_private_count().
+class CountPrivacyParam(clustering_params.DifferentialPrivacyParam):
+  """Privacy parameters for calling get_private_count()."""
 
-  Attributes:
-    privacy_param: privacy parameters for the algorithm
-    privacy_budget_split: budget split between different computations
-    max_tree_depth: maximum depth for the tree
-  """
-  privacy_param: clustering_params.DifferentialPrivacyParam
-  privacy_budget_split: clustering_params.PrivacyBudgetSplit
-  max_tree_depth: int
+  @classmethod
+  def compute_group_count_privacy_param(
+      cls, clustering_privacy_param: clustering_params.DifferentialPrivacyParam,
+      budget_split: clustering_params.PrivacyBudgetSplit, depth: int):
+    # Split epsilon between each level of the tree starting with level 0. Depth
+    # is based on the number of edges in the path, so add one to the depth to
+    # get the number of levels.
+    split_epsilon = (budget_split.frac_group_count *
+                     clustering_privacy_param.epsilon) / (
+                         depth + 1.0)
+    return cls(epsilon=split_epsilon, delta=clustering_privacy_param.delta)
 
   @classmethod
   def from_clustering_param(
       cls, clustering_param: clustering_params.ClusteringParam):
-    return cls(clustering_param.privacy_param,
-               clustering_param.privacy_budget_split,
-               clustering_param.tree_param.max_depth)
+    return cls.compute_group_count_privacy_param(
+        clustering_param.privacy_param, clustering_param.privacy_budget_split,
+        clustering_param.tree_param.max_depth)
 
 
 def get_private_count(nonprivate_count: int,
-                      private_count_param: PrivateCountParam) -> int:
+                      count_privacy_param: CountPrivacyParam) -> int:
   """Computes differentially private count.
 
   Assume that the privacy budget for group count (specified in
@@ -91,19 +108,12 @@ def get_private_count(nonprivate_count: int,
   Args:
     nonprivate_count: the (unnoised) count of the number of data points in a
       group.
-    private_count_param: parameters for calculating the private count.
+    count_privacy_param: privacy parameters for calculating the private count.
 
   Returns:
     The differentially private count where a Discrete Laplace noise with
     appropriate parameter is added to the non-private count.
   """
-  # Split epsilon between each level of the tree starting with level 0. Depth
-  # is based on the number of edges in the path, so add one to the depth to get
-  # the number of levels.
-  epsilon_per_level = (
-      private_count_param.privacy_budget_split.frac_group_count *
-      private_count_param.privacy_param.epsilon /
-      (private_count_param.max_tree_depth + 1))
-  if epsilon_per_level == np.inf:
+  if count_privacy_param.epsilon == np.inf:
     return nonprivate_count
-  return nonprivate_count + stats.dlaplace.rvs(epsilon_per_level)
+  return nonprivate_count + stats.dlaplace.rvs(count_privacy_param.epsilon)

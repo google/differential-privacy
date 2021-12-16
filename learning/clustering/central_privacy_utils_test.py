@@ -23,10 +23,20 @@ from scipy import stats
 from clustering import central_privacy_utils
 from clustering import clustering_params
 from clustering import test_utils
-from clustering.central_privacy_utils import PrivateCountParam as CentralPrivateCountParam
+from clustering.central_privacy_utils import AveragePrivacyParam
+from clustering.central_privacy_utils import CountPrivacyParam
 
 
 class CentralPrivacyUtilsTest(parameterized.TestCase):
+
+  def test_average_privacy_param(self):
+    clustering_param = test_utils.get_test_clustering_param(
+        epsilon=10, delta=1e-2, frac_sum=0.7, frac_group_count=0.3, radius=4.3)
+    average_privacy_param = AveragePrivacyParam.from_clustering_param(
+        clustering_param)
+    self.assertEqual(average_privacy_param.epsilon, 7.0)
+    self.assertEqual(average_privacy_param.delta, 1e-2)
+    self.assertEqual(average_privacy_param.sensitivity, 4.3)
 
   @parameterized.named_parameters(
       ('basic', [[1, 2, 1], [0.4, 0.2, 0.8], [3, 0, 3]], [3.1, 5.55, 0.2]),
@@ -36,11 +46,11 @@ class CentralPrivacyUtilsTest(parameterized.TestCase):
   def test_get_private_average(self, nonprivate_points, expected_center,
                                mock_normal_fn):
     private_count = 4
-    clustering_param = test_utils.get_test_clustering_param(
-        epsilon=10, delta=1e-2, frac_sum=0.7, frac_group_count=0.3, radius=4.3)
+    average_privacy_param = AveragePrivacyParam(
+        epsilon=7, delta=1e-2, sensitivity=4.3)
 
     result = central_privacy_utils.get_private_average(
-        nonprivate_points, private_count, clustering_param, dim=3)
+        nonprivate_points, private_count, average_privacy_param, dim=3)
     self.assertSequenceAlmostEqual(result, expected_center)
     mock_normal_fn.assert_called_once()
     self.assertEqual(mock_normal_fn.call_args[1]['size'], 3)
@@ -49,55 +59,45 @@ class CentralPrivacyUtilsTest(parameterized.TestCase):
 
   def test_get_private_average_error(self):
     nonprivate_points = [[1, 2, 1], [0.4, 0.2, 0.8], [3, 0, 3]]
-    clustering_param = test_utils.get_test_clustering_param(
-        epsilon=10, delta=1e-2, frac_sum=0.7, frac_group_count=0.3, radius=4.3)
+    average_privacy_param = AveragePrivacyParam(
+        epsilon=7, delta=1e-2, sensitivity=4.3)
 
     with self.assertRaises(ValueError):
       central_privacy_utils.get_private_average(
-          nonprivate_points, 0, clustering_param, dim=3)
+          nonprivate_points, 0, average_privacy_param, dim=3)
     with self.assertRaises(ValueError):
       central_privacy_utils.get_private_average(
-          nonprivate_points, -2, clustering_param, dim=3)
+          nonprivate_points, -2, average_privacy_param, dim=3)
 
   def test_get_private_average_infinite_eps(self):
     nonprivate_points = [[1, 2, 1], [0.2, 0.1, 0.8], [3, 0, 3]]
     private_count = 3
     expected_center = [1.4, 0.7, 1.6]
-    clustering_param = test_utils.get_test_clustering_param(
-        epsilon=np.inf,
-        delta=1e-2,
-        frac_sum=0.7,
-        frac_group_count=0.3,
-        radius=4.3)
+    average_privacy_param = AveragePrivacyParam(
+        epsilon=np.inf, delta=1e-2, sensitivity=4.3)
     self.assertSequenceAlmostEqual(
         central_privacy_utils.get_private_average(
-            nonprivate_points, private_count, clustering_param, dim=3),
+            nonprivate_points, private_count, average_privacy_param, dim=3),
         expected_center)
 
   def test_private_count_param(self):
     privacy_param = clustering_params.DifferentialPrivacyParam(
-        epsilon=2.0, delta=1e-3)
+        epsilon=10, delta=1e-2)
     privacy_budget_split = clustering_params.PrivacyBudgetSplit(
-        frac_sum=0.7, frac_group_count=0.3)
-    max_tree_depth = 10
-    private_count_param = CentralPrivateCountParam(privacy_param,
-                                                   privacy_budget_split,
-                                                   max_tree_depth)
-    self.assertEqual(private_count_param.privacy_param, privacy_param)
-    self.assertEqual(private_count_param.privacy_budget_split,
-                     privacy_budget_split)
-    self.assertEqual(private_count_param.max_tree_depth, max_tree_depth)
+        frac_sum=0.2, frac_group_count=0.8)
+    max_tree_depth = 3
+    count_privacy_param = CountPrivacyParam.compute_group_count_privacy_param(
+        privacy_param, privacy_budget_split, max_tree_depth)
+    self.assertEqual(count_privacy_param.epsilon, 2.0)
+    self.assertEqual(count_privacy_param.delta, 1e-2)
 
   def test_private_count_param_from_clustering_param(self):
-    clustering_param = test_utils.get_test_clustering_param()
-    private_count_param = CentralPrivateCountParam.from_clustering_param(
+    clustering_param = test_utils.get_test_clustering_param(
+        epsilon=10, delta=1e-2, frac_sum=0.2, frac_group_count=0.8, max_depth=3)
+    count_privacy_param = CountPrivacyParam.from_clustering_param(
         clustering_param)
-    self.assertEqual(private_count_param.privacy_param,
-                     clustering_param.privacy_param)
-    self.assertEqual(private_count_param.privacy_budget_split,
-                     clustering_param.privacy_budget_split)
-    self.assertEqual(private_count_param.max_tree_depth,
-                     clustering_param.tree_param.max_depth)
+    self.assertEqual(count_privacy_param.epsilon, 2.0)
+    self.assertEqual(count_privacy_param.delta, 1e-2)
 
   @parameterized.named_parameters(('basic', 10, 70), ('not_clip', -80, -20))
   @mock.patch.object(stats.dlaplace, 'rvs', autospec=True)
@@ -106,27 +106,19 @@ class CentralPrivacyUtilsTest(parameterized.TestCase):
     mock_dlaplace_fn.return_value = dlaplace_noise
 
     nonprivate_count = 60
-    clustering_param = test_utils.get_test_clustering_param(
-        epsilon=10, delta=1e-2, frac_sum=0.2, frac_group_count=0.8, max_depth=3)
+    count_privacy_param = CountPrivacyParam(epsilon=2.0, delta=1e-2)
 
-    result = central_privacy_utils.get_private_count(
-        nonprivate_count,
-        CentralPrivateCountParam.from_clustering_param(clustering_param))
+    result = central_privacy_utils.get_private_count(nonprivate_count,
+                                                     count_privacy_param)
     self.assertEqual(result, expected_private_count)
     mock_dlaplace_fn.assert_called_once_with(2)
 
   def test_get_private_count_infinite_eps(self):
     nonprivate_count = 60
-    clustering_param = test_utils.get_test_clustering_param(
-        epsilon=np.inf,
-        delta=1e-2,
-        frac_sum=0.2,
-        frac_group_count=0.8,
-        max_depth=4)
+    count_privacy_param = CountPrivacyParam(epsilon=np.inf, delta=1e-2)
     self.assertEqual(
-        central_privacy_utils.get_private_count(
-            nonprivate_count,
-            CentralPrivateCountParam.from_clustering_param(clustering_param)),
+        central_privacy_utils.get_private_count(nonprivate_count,
+                                                count_privacy_param),
         nonprivate_count)
 
 

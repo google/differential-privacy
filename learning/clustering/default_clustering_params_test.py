@@ -34,15 +34,9 @@ class ClusteringParamTest(parameterized.TestCase):
       ('min_num_points_min', 1000, 900, 100, 1.0, 12, 4, 20),
       ('negative_private_count', 100000, -100, 10, 85, 3, 1, 20),
   )
+  @mock.patch.object(central_privacy_utils, 'get_private_count', autospec=True)
   @mock.patch.object(
-      central_privacy_utils,
-      'get_private_count',
-      autospec=True)
-  @mock.patch.object(
-      accountant,
-      'get_smallest_gaussian_noise',
-      return_value=6,
-      autospec=True)
+      accountant, 'get_smallest_gaussian_noise', return_value=6, autospec=True)
   def test_default_tree_param(self, points, returned_private_count, k, epsilon,
                               expected_min_num_points_in_branching_node,
                               expected_min_num_points_in_node,
@@ -66,10 +60,8 @@ class ClusteringParamTest(parameterized.TestCase):
           common.DifferentialPrivacyParameters(0.8 * epsilon, 1e-2), 1, 1.0)
     mock_private_count.assert_called_once_with(
         nonprivate_count=points,
-        private_count_param=central_privacy_utils.PrivateCountParam(
-            privacy_param=privacy_param,
-            privacy_budget_split=budget_split,
-            max_tree_depth=expected_max_depth))
+        count_privacy_param=central_privacy_utils.CountPrivacyParam(
+            epsilon=0.2 * epsilon / (tree_param.max_depth + 1), delta=1e-2))
     self.assertEqual(private_count, returned_private_count)
     self.assertEqual(tree_param.min_num_points_in_node,
                      expected_min_num_points_in_node)
