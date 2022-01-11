@@ -84,6 +84,24 @@ func CheckNoDelta(delta float64) error {
 	return nil
 }
 
+// CheckThresholdDelta returns an error if δ_threshold is nonpositive or greater than or
+// equal to 1 or δ_threshold+δ_noise is greater than or equal to 1.
+func CheckThresholdDelta(thresholdDelta, noiseDelta float64) error {
+	if math.IsNaN(thresholdDelta) {
+		return fmt.Errorf("ThresholdDelta is %e, cannot be NaN", thresholdDelta)
+	}
+	if thresholdDelta <= 0 {
+		return fmt.Errorf("ThresholdDelta is %e, must be strictly positive", thresholdDelta)
+	}
+	if thresholdDelta >= 1 {
+		return fmt.Errorf("ThresholdDelta is %e, must be strictly less than 1", thresholdDelta)
+	}
+	if thresholdDelta+noiseDelta >= 1 {
+		return fmt.Errorf("ThresholdDelta+NoiseDelta is %e, must be strictly less than 1", thresholdDelta+noiseDelta)
+	}
+	return nil
+}
+
 // CheckL0Sensitivity returns an error if l0Sensitivity is nonpositive.
 func CheckL0Sensitivity(l0Sensitivity int64) error {
 	if l0Sensitivity <= 0 {

@@ -81,6 +81,9 @@ func (laplace) Threshold(l0Sensitivity int64, lInfSensitivity, epsilon, noiseDel
 	if err := checkArgsLaplace(l0Sensitivity, lInfSensitivity, epsilon, noiseDelta); err != nil {
 		return 0, err
 	}
+	if err := checks.CheckThresholdDelta(thresholdDelta, noiseDelta); err != nil {
+		return 0, err
+	}
 	// λ is the scale of the Laplace noise that needs to be added to each sum
 	// to get pure ε-differential privacy if all keys are the same.
 	lambda := laplaceLambda(l0Sensitivity, lInfSensitivity, epsilon)

@@ -86,7 +86,7 @@ func (gaussian) Threshold(l0Sensitivity int64, lInfSensitivity, epsilon, noiseDe
 	if err := checkArgsGaussian(l0Sensitivity, lInfSensitivity, epsilon, noiseDelta); err != nil {
 		return 0, err
 	}
-	if err := checks.CheckDeltaStrict(thresholdDelta); err != nil {
+	if err := checks.CheckThresholdDelta(thresholdDelta, noiseDelta); err != nil {
 		return 0, err
 	}
 

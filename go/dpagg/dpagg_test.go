@@ -61,7 +61,7 @@ func (noNoise) AddNoiseFloat64(x float64, _ int64, _, _, _ float64) (float64, er
 }
 
 func (noNoise) Threshold(_ int64, _, _, _, _ float64) (float64, error) {
-	return 5, nil
+	return 5.00001, nil
 }
 
 // If noNoise is not initialized with a noise distribution, confidence interval functions will return a default confidence interval, i.e [0,0].

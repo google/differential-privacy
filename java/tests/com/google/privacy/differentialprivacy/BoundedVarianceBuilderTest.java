@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Google LLC
+// Copyright 2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,15 +21,21 @@ import static java.lang.Double.NEGATIVE_INFINITY;
 import static java.lang.Double.NaN;
 import static java.lang.Double.POSITIVE_INFINITY;
 import static org.junit.Assert.assertThrows;
+import static org.mockito.Mockito.when;
 
+import com.google.privacy.differentialprivacy.proto.SummaryOuterClass.MechanismType;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
-/** Tests validations done by {@link BoundedMean#builder()}. */
+/** Tests validations done by {@link BoundedVariance#builder()}. */
 @RunWith(JUnit4.class)
-public class BoundedMeanBuilderTest {
+public class BoundedVarianceBuilderTest {
   private static final double DEFAULT_EPSILON = 0.5;
   private static final double DEFAULT_DELTA = 0.00001;
   private static final int DEFAULT_MAX_CONTRIBUTIONS_PER_PARTITION = 1;
@@ -37,12 +43,16 @@ public class BoundedMeanBuilderTest {
   private static final double DEFAULT_LOWER = 0.0;
   private static final double DEFAULT_UPPER = 1.0;
 
-  private BoundedMean.Params.Builder builder;
+  @Mock private Noise unrecognizedNoise;
+
+  @Rule public final MockitoRule mocks = MockitoJUnit.rule();
+
+  private BoundedVariance.Params.Builder builder;
 
   @Before
   public void setup() {
     builder =
-        BoundedMean.builder()
+        BoundedVariance.builder()
             .epsilon(DEFAULT_EPSILON)
             .delta(DEFAULT_DELTA)
             .noise(new GaussianNoise())
@@ -50,6 +60,8 @@ public class BoundedMeanBuilderTest {
             .maxPartitionsContributed(DEFAULT_MAX_PARTITIONS_CONTRIBUTED)
             .lower(DEFAULT_LOWER)
             .upper(DEFAULT_UPPER);
+
+    when(unrecognizedNoise.getMechanismType()).thenReturn(MechanismType.EMPTY);
   }
 
   @Test
@@ -83,8 +95,8 @@ public class BoundedMeanBuilderTest {
 
   @Test
   public void epsilon_notProvided_throwsException() {
-    BoundedMean.Params.Builder builder =
-        BoundedMean.builder()
+    BoundedVariance.Params.Builder builder =
+        BoundedVariance.builder()
             .delta(DEFAULT_DELTA)
             .noise(new GaussianNoise())
             .maxContributionsPerPartition(DEFAULT_MAX_CONTRIBUTIONS_PER_PARTITION)
@@ -106,6 +118,13 @@ public class BoundedMeanBuilderTest {
     builder.delta(0.0);
     builder.noise(new GaussianNoise());
     assertThrows(IllegalArgumentException.class, builder::build);
+  }
+
+  @Test
+  public void deltaGaussian_betweenZeroAndOne_buildsInstance() {
+    builder.delta(0.5);
+    builder.noise(new GaussianNoise());
+    assertThat(builder.build()).isNotNull();
   }
 
   @Test
@@ -138,8 +157,8 @@ public class BoundedMeanBuilderTest {
 
   @Test
   public void deltaGaussian_notProvided_throwsException() {
-    BoundedMean.Params.Builder builder =
-        BoundedMean.builder()
+    BoundedVariance.Params.Builder builder =
+        BoundedVariance.builder()
             .epsilon(DEFAULT_EPSILON)
             .noise(new GaussianNoise())
             .maxContributionsPerPartition(DEFAULT_MAX_CONTRIBUTIONS_PER_PARTITION)
@@ -165,10 +184,72 @@ public class BoundedMeanBuilderTest {
 
   @Test
   public void deltaLaplace_notProvided_buildsInstance() {
-    BoundedMean.Params.Builder builder =
-        BoundedMean.builder()
+    BoundedVariance.Params.Builder builder =
+        BoundedVariance.builder()
             .epsilon(DEFAULT_EPSILON)
             .noise(new LaplaceNoise())
+            .maxContributionsPerPartition(DEFAULT_MAX_CONTRIBUTIONS_PER_PARTITION)
+            .maxPartitionsContributed(DEFAULT_MAX_PARTITIONS_CONTRIBUTED)
+            .lower(DEFAULT_LOWER)
+            .upper(DEFAULT_UPPER);
+    assertThat(builder.build()).isNotNull();
+  }
+
+  @Test
+  public void deltaUnrecognizedNoise_lessThanZero_throwsException() {
+    builder.delta(-1.0);
+    builder.noise(unrecognizedNoise);
+    assertThrows(IllegalArgumentException.class, builder::build);
+  }
+
+  @Test
+  public void deltaUnrecognizedNoise_zero_buildsInstance() {
+    builder.delta(0.0);
+    builder.noise(unrecognizedNoise);
+    assertThat(builder.build()).isNotNull();
+  }
+
+  @Test
+  public void deltaUnrecognizedNoise_betweenZeroAndOne_buildsInstance() {
+    builder.delta(0.5);
+    builder.noise(unrecognizedNoise);
+    assertThat(builder.build()).isNotNull();
+  }
+
+  @Test
+  public void deltaUnrecognizedNoise_one_throwsException() {
+    builder.delta(1.0);
+    builder.noise(unrecognizedNoise);
+    assertThrows(IllegalArgumentException.class, builder::build);
+  }
+
+  @Test
+  public void deltaUnrecognizedNoise_greaterThanOne_throwsException() {
+    builder.delta(2.0);
+    builder.noise(unrecognizedNoise);
+    assertThrows(IllegalArgumentException.class, builder::build);
+  }
+
+  @Test
+  public void deltaUnrecognizedNoise_nan_throwsException() {
+    builder.delta(NaN);
+    builder.noise(unrecognizedNoise);
+    assertThrows(IllegalArgumentException.class, builder::build);
+  }
+
+  @Test
+  public void deltaUnrecognizedNoise_null_buildsInstance() {
+    builder.delta(null);
+    builder.noise(unrecognizedNoise);
+    assertThat(builder.build()).isNotNull();
+  }
+
+  @Test
+  public void deltaUnrecognizedNoise_notProvided_buildsInstance() {
+    BoundedSum.Params.Builder builder =
+        BoundedSum.builder()
+            .epsilon(DEFAULT_EPSILON)
+            .noise(unrecognizedNoise)
             .maxContributionsPerPartition(DEFAULT_MAX_CONTRIBUTIONS_PER_PARTITION)
             .maxPartitionsContributed(DEFAULT_MAX_PARTITIONS_CONTRIBUTED)
             .lower(DEFAULT_LOWER)
@@ -189,9 +270,15 @@ public class BoundedMeanBuilderTest {
   }
 
   @Test
+  public void maxContributionsPerPartition_greaterThanZero_buildsInstance() {
+    builder.maxContributionsPerPartition(1);
+    assertThat(builder.build()).isNotNull();
+  }
+
+  @Test
   public void maxContributionsPerPartition_notProvided_throwsException() {
-    BoundedMean.Params.Builder builder =
-        BoundedMean.builder()
+    BoundedVariance.Params.Builder builder =
+        BoundedVariance.builder()
             .epsilon(DEFAULT_EPSILON)
             .delta(DEFAULT_DELTA)
             .noise(new GaussianNoise())
@@ -214,9 +301,15 @@ public class BoundedMeanBuilderTest {
   }
 
   @Test
+  public void maxPartitionsContributed_greaterThanZero_buildsInstance() {
+    builder.maxPartitionsContributed(1);
+    assertThat(builder.build()).isNotNull();
+  }
+
+  @Test
   public void maxPartitionsContributed_notProvided_throwsException() {
-    BoundedMean.Params.Builder builder =
-        BoundedMean.builder()
+    BoundedVariance.Params.Builder builder =
+        BoundedVariance.builder()
             .epsilon(DEFAULT_EPSILON)
             .delta(DEFAULT_DELTA)
             .noise(new GaussianNoise())
@@ -246,8 +339,8 @@ public class BoundedMeanBuilderTest {
 
   @Test
   public void lower_notProvided_throwsException() {
-    BoundedMean.Params.Builder builder =
-        BoundedMean.builder()
+    BoundedVariance.Params.Builder builder =
+        BoundedVariance.builder()
             .epsilon(DEFAULT_EPSILON)
             .delta(DEFAULT_DELTA)
             .noise(new GaussianNoise())
@@ -277,8 +370,8 @@ public class BoundedMeanBuilderTest {
 
   @Test
   public void upper_notProvided_throwsException() {
-    BoundedMean.Params.Builder builder =
-        BoundedMean.builder()
+    BoundedVariance.Params.Builder builder =
+        BoundedVariance.builder()
             .epsilon(DEFAULT_EPSILON)
             .delta(DEFAULT_DELTA)
             .noise(new GaussianNoise())
@@ -310,8 +403,8 @@ public class BoundedMeanBuilderTest {
   @Test
   public void noise_notProvided_delta_notProvided_buildsInstance() {
     // No exception is thrown because the noise parameter will be set to a default instance.
-    BoundedMean.Params.Builder builder =
-        BoundedMean.builder()
+    BoundedVariance.Params.Builder builder =
+        BoundedVariance.builder()
             .epsilon(DEFAULT_EPSILON)
             .maxContributionsPerPartition(DEFAULT_MAX_CONTRIBUTIONS_PER_PARTITION)
             .maxPartitionsContributed(DEFAULT_MAX_PARTITIONS_CONTRIBUTED)

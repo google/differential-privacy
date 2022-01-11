@@ -387,6 +387,7 @@ public class BoundedMean {
         DpPreconditions.checkMaxPartitionsContributed(params.maxPartitionsContributed());
         DpPreconditions.checkMaxContributionsPerPartition(params.maxContributionsPerPartition());
         DpPreconditions.checkBounds(params.lower(), params.upper());
+        DpPreconditions.checkBoundsNotEqual(params.lower(), params.upper());
 
         return new BoundedMean(params);
       }

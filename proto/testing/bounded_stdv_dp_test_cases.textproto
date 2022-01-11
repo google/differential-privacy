@@ -1,0 +1,1178 @@
+#
+# Copyright 2021 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# This collection of test cases is intended to statistically evaluate the DP
+# properties of the bounded stdv and variance aggregation provided by the DP
+# library.
+
+# The test cases and validation parameters are calibrated such that:
+# - An approximate DP test accepts with a probability of at least 0.9 if the
+#   distance between the two raw stdv values is within the sensitivity.
+# - An approximate DP test rejects with a probability of at least 0.9 if the
+#   distances between the two data sets is at least 2.0 times the sensitivity
+#   (in the count, sum and sum of squares of the elements) or if the
+#   catastrophic failure rate is at least the delta tolerance times 1.75.
+validity_parameters {
+  distance_specificity: 2.0
+  failure_specificity: 1.75
+}
+
+# Taking the majority vote over 9 repeated runs of a particular test case
+# increases the accept and reject probabilities to 0.99911 or more.
+voting_parameters {
+  number_of_votes: 9
+}
+
+bounded_stdv_dp_test_case {
+  name: "Laplace noise, empty stdv, default parameters"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.00125
+    granularity: 0.0009765625
+  }
+  bounded_stdv_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 2.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The values of the entries significantly exceed the
+    # specified bounds to check that bounding is applied correctly.
+    neighbour_raw_entry: [1000.0]
+  }
+}
+
+bounded_stdv_dp_test_case {
+  name: "Laplace noise, empty stdv, many partitions contributed"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.0005
+    granularity: 0.03125
+  }
+  bounded_stdv_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 25
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 2.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries in the second data set accounts for the number
+    # of partitions a single privacy unit can contribute to. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [
+      1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0,
+      1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0,
+      1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0
+    ]
+  }
+}
+
+bounded_stdv_dp_test_case {
+  name: "Laplace noise, empty stdv, many contributions per partition"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.0003
+    granularity: 0.03125
+  }
+  bounded_stdv_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 10
+    lower_bound: 0.0
+    upper_bound: 2.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [
+      1000.0, 1000.0, 1000.0, 1000.0, 1000.0, -1000.0, -1000.0, -1000.0,
+      -1000.0, -1000.0
+    ]
+  }
+}
+
+bounded_stdv_dp_test_case {
+  name: "Laplace noise, empty stdv, large bounds"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.002
+    granularity: 0.03125
+  }
+  bounded_stdv_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: -50.0
+    upper_bound: 50.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The values of the entries significantly exceed the
+    # specified bounds to check that bounding is applied correctly.
+    neighbour_raw_entry: [-50000.0]
+  }
+}
+
+bounded_stdv_dp_test_case {
+  name: "Laplace noise, empty stdv, small epsilon"
+  dp_test_parameters {
+    epsilon: 0.1
+    delta: 0.0
+    delta_tolerance: 0.0045
+    granularity: 0.015625
+  }
+  bounded_stdv_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 2.0
+    epsilon: 0.1
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The values of the entries significantly exceed the
+    # specified bounds to check that bounding is applied correctly.
+    neighbour_raw_entry: [1000.0]
+  }
+}
+
+bounded_stdv_dp_test_case {
+  name: "Laplace noise, empty stdv, large epsilon"
+  dp_test_parameters {
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta: 0.0
+    delta_tolerance: 0.0001
+    granularity: 0.0078125
+  }
+  bounded_stdv_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 2.0
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The values of the entries significantly exceed the
+    # specified bounds to check that bounding is applied correctly.
+    neighbour_raw_entry: [1000.0]
+  }
+}
+
+bounded_stdv_dp_test_case {
+  name: "Laplace noise, one entry, default parameters"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.00125
+    granularity: 0.0009765625
+  }
+  bounded_stdv_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 2.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    raw_entry: [-1000.0]
+    neighbour_raw_entry: [-1000.0]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [1000.0]
+  }
+}
+
+bounded_stdv_dp_test_case {
+  name: "Laplace noise, one entry, many partitions contributed"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.0005
+    granularity: 0.03125
+  }
+  bounded_stdv_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 25
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 2.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    raw_entry: [-1000.0]
+    neighbour_raw_entry: [-1000.0]
+    # The number of extra entries in the second data set accounts for the number
+    # of partitions a single privacy unit can contribute to. The extra entries
+    # are chosen in a way that maximizes the distance between the two data sets.
+    # The values of the entries significantly exceed the specified bounds to
+    # check that bounding is applied correctly.
+    neighbour_raw_entry: [
+      1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0,
+      1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0,
+      1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0
+    ]
+  }
+}
+
+bounded_stdv_dp_test_case {
+  name: "Laplace noise, one entry, many contributions per partition"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.0003
+    granularity: 0.03125
+  }
+  bounded_stdv_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 10
+    lower_bound: 0.0
+    upper_bound: 2.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    raw_entry: [-1000.0]
+    neighbour_raw_entry: [-1000.0]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [
+      1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0,
+      1000.0
+    ]
+  }
+}
+
+bounded_stdv_dp_test_case {
+  name: "Laplace noise, one entry, large bounds"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.002
+    granularity: 0.03125
+  }
+  bounded_stdv_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: -50.0
+    upper_bound: 50.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    raw_entry: [50000.0]
+    neighbour_raw_entry: [50000.0]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [-50000.0]
+  }
+}
+
+bounded_stdv_dp_test_case {
+  name: "Laplace noise, one entry, small epsilon"
+  dp_test_parameters {
+    epsilon: 0.1
+    delta: 0.0
+    delta_tolerance: 0.0045
+    granularity: 0.015625
+  }
+  bounded_stdv_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 2.0
+    epsilon: 0.1
+    raw_entry: [-1000.0]
+    neighbour_raw_entry: [-1000.0]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [1000.0]
+  }
+}
+
+bounded_stdv_dp_test_case {
+  name: "Laplace noise, one entry, large epsilon"
+  dp_test_parameters {
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta: 0.0
+    delta_tolerance: 0.0001
+    granularity: 0.0078125
+  }
+  bounded_stdv_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 2.0
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    raw_entry: [-1000.0]
+    neighbour_raw_entry: [-1000.0]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [1000.0]
+  }
+}
+
+bounded_stdv_dp_test_case {
+  name: "Laplace noise, multiple entries, default parameters"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.00125
+    granularity: 0.0009765625
+  }
+  bounded_stdv_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 2.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    raw_entry: [0.0, 0.0, 0.0, 0.01, 0.01, 0.02, 0.03, 0.05, 0.1, 0.1]
+    neighbour_raw_entry: [0.0, 0.0, 0.0, 0.01, 0.01, 0.02, 0.03, 0.05, 0.1, 0.1]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets.
+    neighbour_raw_entry: [2.0]
+  }
+}
+
+bounded_stdv_dp_test_case {
+  name: "Laplace noise, multiple entries, many partitions contributed"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.0005
+    granularity: 0.03125
+  }
+  bounded_stdv_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 25
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 2.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    raw_entry: [0.0, 0.0, 0.0, 0.01, 0.01, 0.02, 0.03, 0.05, 0.1, 0.1]
+    neighbour_raw_entry: [0.0, 0.0, 0.0, 0.01, 0.01, 0.02, 0.03, 0.05, 0.1, 0.1]
+    # The number of extra entries in the second data set accounts for the number
+    # of partitions a single privacy unit can contribute to. The extra entries
+    # are chosen in a way that maximizes the distance between the two data sets.
+    neighbour_raw_entry: [
+      2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0,
+      2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0
+    ]
+  }
+}
+
+bounded_stdv_dp_test_case {
+  name: "Laplace noise, multiple entries, many contributions per partition"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.0003
+    granularity: 0.03125
+  }
+  bounded_stdv_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 10
+    lower_bound: 0.0
+    upper_bound: 2.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    raw_entry: [0.0, 0.0, 0.0, 0.01, 0.01, 0.02, 0.03, 0.05, 0.1, 0.1]
+    neighbour_raw_entry: [0.0, 0.0, 0.0, 0.01, 0.01, 0.02, 0.03, 0.05, 0.1, 0.1]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets.
+    neighbour_raw_entry: [2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]
+  }
+}
+
+bounded_stdv_dp_test_case {
+  name: "Laplace noise, multiple entries, large bounds"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.002
+    granularity: 0.03125
+  }
+  bounded_stdv_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: -50.0
+    upper_bound: 50.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    raw_entry: [47.2, 47.2, 47.9, 48.5, 49.1, 49.2, 49.2, 49.8, 49.8, 50.0]
+    neighbour_raw_entry: [
+      47.2, 47.2, 47.9, 48.5, 49.1, 49.2, 49.2, 49.8, 49.8, 50.0
+    ]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets.
+    neighbour_raw_entry: [-50.0]
+  }
+}
+
+bounded_stdv_dp_test_case {
+  name: "Laplace noise, multiple entries, small epsilon"
+  dp_test_parameters {
+    epsilon: 0.1
+    delta: 0.0
+    delta_tolerance: 0.0045
+    granularity: 0.015625
+  }
+  bounded_stdv_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 2.0
+    epsilon: 0.1
+    raw_entry: [0.0, 0.0, 0.0, 0.01, 0.01, 0.02, 0.03, 0.05, 0.1, 0.1]
+    neighbour_raw_entry: [0.0, 0.0, 0.0, 0.01, 0.01, 0.02, 0.03, 0.05, 0.1, 0.1]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets.
+    neighbour_raw_entry: [2.0]
+  }
+}
+
+bounded_stdv_dp_test_case {
+  name: "Laplace noise, multiple entries, large epsilon"
+  dp_test_parameters {
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta: 0.0
+    delta_tolerance: 0.0001
+    granularity: 0.0078125
+  }
+  bounded_stdv_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 2.0
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    raw_entry: [0.0, 0.0, 0.0, 0.01, 0.01, 0.02, 0.03, 0.05, 0.1, 0.1]
+    neighbour_raw_entry: [0.0, 0.0, 0.0, 0.01, 0.01, 0.02, 0.03, 0.05, 0.1, 0.1]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets.
+    neighbour_raw_entry: [2.0]
+  }
+}
+
+bounded_stdv_dp_test_case {
+  name: "Gaussian noise, empty stdv, default parameters"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.00017
+    granularity: 0.00390625
+  }
+  bounded_stdv_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 2.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The values of the entries significantly exceed the
+    # specified bounds to check that bounding is applied correctly.
+    neighbour_raw_entry: [1000.0]
+  }
+}
+
+bounded_stdv_dp_test_case {
+  name: "Gaussian noise, empty stdv, many partitions contributed"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.000048
+    granularity: 0.03125
+  }
+  bounded_stdv_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 25
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 2.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries in the second data set accounts for the number
+    # of partitions a single privacy unit can contribute to. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [
+      1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0,
+      1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0,
+      1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0
+    ]
+  }
+}
+
+bounded_stdv_dp_test_case {
+  name: "Gaussian noise, empty stdv, many contributions per partition"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.000074
+    granularity: 0.03125
+  }
+  bounded_stdv_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 10
+    lower_bound: 0.0
+    upper_bound: 2.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [
+      1000.0, 1000.0, 1000.0, 1000.0, 1000.0, -1000.0, -1000.0, -1000.0,
+      -1000.0, -1000.0
+    ]
+  }
+}
+
+bounded_stdv_dp_test_case {
+  name: "Gaussian noise, empty stdv, large bounds"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.00029
+    granularity: 0.125
+  }
+  bounded_stdv_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: -50.0
+    upper_bound: 50.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The values of the entries significantly exceed the
+    # specified bounds to check that bounding is applied correctly.
+    neighbour_raw_entry: [-50000.0]
+  }
+}
+
+bounded_stdv_dp_test_case {
+  name: "Gaussian noise, empty stdv, small epsilon"
+  dp_test_parameters {
+    epsilon: 0.75
+    delta: 0.00001
+    delta_tolerance: 0.000075
+    granularity: 0.015625
+  }
+  bounded_stdv_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 2.0
+    epsilon: 0.75
+    delta: 0.00001
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The values of the entries significantly exceed the
+    # specified bounds to check that bounding is applied correctly.
+    neighbour_raw_entry: [1000.0]
+  }
+}
+
+bounded_stdv_dp_test_case {
+  name: "Gaussian noise, empty stdv, large epsilon"
+  dp_test_parameters {
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta: 0.00001
+    delta_tolerance: 0.0001
+    granularity: 0.0078125
+  }
+  bounded_stdv_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 2.0
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta: 0.00001
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The values of the entries significantly exceed the
+    # specified bounds to check that bounding is applied correctly.
+    neighbour_raw_entry: [1000.0]
+  }
+}
+
+bounded_stdv_dp_test_case {
+  name: "Gaussian noise, empty stdv, small delta"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.000001
+    delta_tolerance: 0.000029
+    granularity: 0.03125
+  }
+  bounded_stdv_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 2.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.000001
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The values of the entries significantly exceed the
+    # specified bounds to check that bounding is applied correctly.
+    neighbour_raw_entry: [1000.0]
+  }
+}
+
+bounded_stdv_dp_test_case {
+  name: "Gaussian noise, empty stdv, large delta"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0005
+    delta_tolerance: 0.0005
+    granularity: 0.0009765625
+  }
+  bounded_stdv_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 2.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0005
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The values of the entries significantly exceed the
+    # specified bounds to check that bounding is applied correctly.
+    neighbour_raw_entry: [1000.0]
+  }
+}
+
+bounded_stdv_dp_test_case {
+  name: "Gaussian noise, one entry, default parameters"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.00017
+    granularity: 0.00390625
+  }
+  bounded_stdv_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 2.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    raw_entry: [-1000.0]
+    neighbour_raw_entry: [-1000.0]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [1000.0]
+  }
+}
+
+bounded_stdv_dp_test_case {
+  name: "Gaussian noise, one entry, many partitions contributed"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.000048
+    granularity:  0.03125
+  }
+  bounded_stdv_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 25
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 2.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    raw_entry: [-1000.0]
+    neighbour_raw_entry: [-1000.0]
+    # The number of extra entries in the second data set accounts for the number
+    # of partitions a single privacy unit can contribute to. The extra entries
+    # are chosen in a way that maximizes the distance between the two data sets.
+    # The values of the entries significantly exceed the specified bounds to
+    # check that bounding is applied correctly.
+    neighbour_raw_entry: [
+      1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0,
+      1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0,
+      1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0
+    ]
+  }
+}
+
+bounded_stdv_dp_test_case {
+  name: "Gaussian noise, one entry, many contributions per partition"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.000074
+    granularity: 0.03125
+  }
+  bounded_stdv_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 10
+    lower_bound: 0.0
+    upper_bound: 2.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    raw_entry: [-1000.0]
+    neighbour_raw_entry: [-1000.0]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [
+      1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0,
+      1000.0
+    ]
+  }
+}
+
+bounded_stdv_dp_test_case {
+  name: "Gaussian noise, one entry, large bounds"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.00029
+    granularity: 0.125
+  }
+  bounded_stdv_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: -50.0
+    upper_bound: 50.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    raw_entry: [50000.0]
+    neighbour_raw_entry: [50000.0]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [-50000.0]
+  }
+}
+
+bounded_stdv_dp_test_case {
+  name: "Gaussian noise, one entry, small epsilon"
+  dp_test_parameters {
+    epsilon: 0.75
+    delta: 0.00001
+    delta_tolerance: 0.000075
+    granularity: 0.015625
+  }
+  bounded_stdv_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 2.0
+    epsilon: 0.75
+    delta: 0.00001
+    raw_entry: [-1000.0]
+    neighbour_raw_entry: [-1000.0]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [1000.0]
+  }
+}
+
+bounded_stdv_dp_test_case {
+  name: "Gaussian noise, one entry, large epsilon"
+  dp_test_parameters {
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta: 0.00001
+    delta_tolerance: 0.0001
+    granularity: 0.0078125
+  }
+  bounded_stdv_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 2.0
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta: 0.00001
+    raw_entry: [-1000.0]
+    neighbour_raw_entry: [-1000.0]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [1000.0]
+  }
+}
+
+bounded_stdv_dp_test_case {
+  name: "Gaussian noise, one entry, small delta"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.000001
+    delta_tolerance: 0.000029
+    granularity: 0.03125
+  }
+  bounded_stdv_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 2.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.000001
+    raw_entry: [-1000.0]
+    neighbour_raw_entry: [-1000.0]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The values of the entries significantly exceed the
+    # specified bounds to check that bounding is applied correctly.
+    neighbour_raw_entry: [1000.0]
+  }
+}
+
+bounded_stdv_dp_test_case {
+  name: "Gaussian noise, one entry, large delta"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0005
+    delta_tolerance: 0.0005
+    granularity: 0.0009765625
+  }
+  bounded_stdv_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 2.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0005
+    raw_entry: [-1000.0]
+    neighbour_raw_entry: [-1000.0]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The values of the entries significantly exceed the
+    # specified bounds to check that bounding is applied correctly.
+    neighbour_raw_entry: [1000.0]
+  }
+}
+
+bounded_stdv_dp_test_case {
+  name: "Gaussian noise, multiple entries, default parameters"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.00017
+    granularity: 0.00390625
+  }
+  bounded_stdv_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 2.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    raw_entry: [0.0, 0.0, 0.0, 0.01, 0.01, 0.02, 0.03, 0.05, 0.1, 0.1]
+    neighbour_raw_entry: [0.0, 0.0, 0.0, 0.01, 0.01, 0.02, 0.03, 0.05, 0.1, 0.1]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets.
+    neighbour_raw_entry: [2.0]
+  }
+}
+
+bounded_stdv_dp_test_case {
+  name: "Gaussian noise, multiple entries, many partitions contributed"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.000048
+    granularity:  0.03125
+  }
+  bounded_stdv_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 25
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 2.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    raw_entry: [0.0, 0.0, 0.0, 0.01, 0.01, 0.02, 0.03, 0.05, 0.1, 0.1]
+    neighbour_raw_entry: [0.0, 0.0, 0.0, 0.01, 0.01, 0.02, 0.03, 0.05, 0.1, 0.1]
+    # The number of extra entries in the second data set accounts for the number
+    # of partitions a single privacy unit can contribute to. The extra entries
+    # are chosen in a way that maximizes the distance between the two data sets.
+    neighbour_raw_entry: [
+      2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0,
+      2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0
+    ]
+  }
+}
+
+bounded_stdv_dp_test_case {
+  name: "Gaussian noise, multiple entries, many contributions per partition"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.000074
+    granularity: 0.03125
+  }
+  bounded_stdv_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 10
+    lower_bound: 0.0
+    upper_bound: 2.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    raw_entry: [0.0, 0.0, 0.0, 0.01, 0.01, 0.02, 0.03, 0.05, 0.1, 0.1]
+    neighbour_raw_entry: [0.0, 0.0, 0.0, 0.01, 0.01, 0.02, 0.03, 0.05, 0.1, 0.1]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets.
+    neighbour_raw_entry: [2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]
+  }
+}
+
+bounded_stdv_dp_test_case {
+  name: "Gaussian noise, multiple entries, large bounds"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.00029
+    granularity: 0.125
+  }
+  bounded_stdv_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: -50.0
+    upper_bound: 50.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    raw_entry: [47.2, 47.2, 47.9, 48.5, 49.1, 49.2, 49.2, 49.8, 49.8, 50.0]
+    neighbour_raw_entry: [
+      47.2, 47.2, 47.9, 48.5, 49.1, 49.2, 49.2, 49.8, 49.8, 50.0
+    ]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets.
+    neighbour_raw_entry: [-50.0]
+  }
+}
+
+bounded_stdv_dp_test_case {
+  name: "Gaussian noise, multiple entries, small epsilon"
+  dp_test_parameters {
+    epsilon: 0.75
+    delta: 0.00001
+    delta_tolerance: 0.000075
+    granularity: 0.015625
+  }
+  bounded_stdv_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 2.0
+    epsilon: 0.75
+    delta: 0.00001
+    raw_entry: [0.0, 0.0, 0.0, 0.01, 0.01, 0.02, 0.03, 0.05, 0.1, 0.1]
+    neighbour_raw_entry: [0.0, 0.0, 0.0, 0.01, 0.01, 0.02, 0.03, 0.05, 0.1, 0.1]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets.
+    neighbour_raw_entry: [2.0]
+  }
+}
+
+bounded_stdv_dp_test_case {
+  name: "Gaussian noise, multiple entries, large epsilon"
+  dp_test_parameters {
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta: 0.00001
+    delta_tolerance: 0.0001
+    granularity: 0.0078125
+  }
+  bounded_stdv_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 2.0
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta: 0.00001
+    raw_entry: [0.0, 0.0, 0.0, 0.01, 0.01, 0.02, 0.03, 0.05, 0.1, 0.1]
+    neighbour_raw_entry: [0.0, 0.0, 0.0, 0.01, 0.01, 0.02, 0.03, 0.05, 0.1, 0.1]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets.
+    neighbour_raw_entry: [2.0]
+  }
+}
+
+bounded_stdv_dp_test_case {
+  name: "Gaussian noise, multiple entries, small delta"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.000001
+    delta_tolerance: 0.000029
+    granularity: 0.03125
+  }
+  bounded_stdv_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 2.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.000001
+    raw_entry: [0.0, 0.0, 0.0, 0.01, 0.01, 0.02, 0.03, 0.05, 0.1, 0.1]
+    neighbour_raw_entry: [0.0, 0.0, 0.0, 0.01, 0.01, 0.02, 0.03, 0.05, 0.1, 0.1]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The values of the entries significantly exceed the
+    # specified bounds to check that bounding is applied correctly.
+    neighbour_raw_entry: [2.0]
+  }
+}
+
+bounded_stdv_dp_test_case {
+  name: "Gaussian noise, multiple entries, large delta"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0005
+    delta_tolerance: 0.0005
+    granularity: 0.0009765625
+  }
+  bounded_stdv_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    max_contributions_per_partition: 1
+    lower_bound: 0.0
+    upper_bound: 2.0
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0005
+    raw_entry: [0.0, 0.0, 0.0, 0.01, 0.01, 0.02, 0.03, 0.05, 0.1, 0.1]
+    neighbour_raw_entry: [0.0, 0.0, 0.0, 0.01, 0.01, 0.02, 0.03, 0.05, 0.1, 0.1]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The values of the entries significantly exceed the
+    # specified bounds to check that bounding is applied correctly.
+    neighbour_raw_entry: [2.0]
+  }
+}

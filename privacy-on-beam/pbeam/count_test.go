@@ -28,41 +28,44 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
 )
 
-// Checks that Count returns a correct answer: duplicated pairs must be
-// counted multiple times, but not too many times.
+// Checks that Count returns a correct answer by verifying:
+// - partition selection is applied
+// - per-partition contribution bounding is applied
+// - duplicate user contributions within per-partition contribution bound aren't dropped
 func TestCountNoNoise(t *testing.T) {
 	// In this test, we set the per-partition l1Sensitivity to 2, and:
 	// - value 0 is associated with 7 privacy units, so it should be thresholded;
-	// - value 1 is associated with 52 privacy units appearing twice each, so each of
+	// - value 1 is associated with 30 privacy units appearing twice each, so each of
 	//   them should be counted twice;
-	// - value 2 is associated with 99 privacy units appearing 3 times each, but the
+	// - value 2 is associated with 50 privacy units appearing 3 times each, but the
 	//   l1Sensitivity is 2, so each should only be counted twice.
 	// Each privacy unit contributes to at most 1 partition.
 	pairs := testutils.ConcatenatePairs(
 		testutils.MakePairsWithFixedVStartingFromKey(0, 7, 0),
-		testutils.MakePairsWithFixedVStartingFromKey(7, 52, 1),
-		testutils.MakePairsWithFixedVStartingFromKey(7, 52, 1),
-		testutils.MakePairsWithFixedVStartingFromKey(7+52, 99, 2),
-		testutils.MakePairsWithFixedVStartingFromKey(7+52, 99, 2),
-		testutils.MakePairsWithFixedVStartingFromKey(7+52, 99, 2),
+		testutils.MakePairsWithFixedVStartingFromKey(7, 30, 1),
+		testutils.MakePairsWithFixedVStartingFromKey(7, 30, 1),
+		testutils.MakePairsWithFixedVStartingFromKey(7+30, 50, 2),
+		testutils.MakePairsWithFixedVStartingFromKey(7+30, 50, 2),
+		testutils.MakePairsWithFixedVStartingFromKey(7+30, 50, 2),
 	)
 	result := []testutils.TestInt64Metric{
-		{1, 104}, // 52*2
-		{2, 198}, // 99*2
+		{1, 60},  // 30*2
+		{2, 100}, // 50*2
 	}
 	p, s, col, want := ptest.CreateList2(pairs, result)
 	col = beam.ParDo(s, testutils.PairToKV, col)
 
-	// ε=50, δ=10⁻²⁰⁰ and l1Sensitivity=2 gives a threshold of ≈38.
+	// ε=25, δ=10⁻²⁰⁰ and l0Sensitivity=1 gives a threshold of ≈21.
 	// We have 3 partitions. So, to get an overall flakiness of 10⁻²³,
 	// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
 	// To see the logic and the math behind flakiness and tolerance calculation,
 	// See https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf.
-	epsilon, delta, k, l1Sensitivity := 50.0, 1e-200, 25.0, 2.0
-	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+	epsilon, delta, k, l1Sensitivity := 25.0, 1e-200, 25.0, 2.0
+	// ε is split by 2 for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
+	pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
 	got := Count(s, pcol, CountParams{MaxValue: 2, MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}})
 	want = beam.ParDo(s, testutils.Int64MetricToKV, want)
-	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
+	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 		t.Fatalf("TestCountNoNoise: %v", err)
 	}
 	if err := ptest.Run(p); err != nil {
@@ -107,7 +110,7 @@ func TestCountWithPartitionsNoNoise(t *testing.T) {
 
 		got := Count(s, pcol, countParams)
 		want = beam.ParDo(s, testutils.Int64MetricToKV, want)
-		if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
+		if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 			t.Fatalf("TestCountWithPartitionsNoNoise in-memory=%t: %v", tc.inMemory, err)
 		}
 		if err := ptest.Run(p); err != nil {
@@ -363,11 +366,12 @@ func TestCountCrossPartitionContributionBounding(t *testing.T) {
 	p, s, col, want := ptest.CreateList2(pairs, result)
 	col = beam.ParDo(s, testutils.PairToKV, col)
 
-	// ε=50, δ=0.01 and l1Sensitivity=3 gives a threshold of 3.
+	// ε=50, δ=0.01 and l0Sensitivity=3 gives a threshold of 3.
 	// We have 10 partitions. So, to get an overall flakiness of 10⁻²³,
 	// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
 	epsilon, delta, k, l1Sensitivity := 50.0, 0.01, 25.0, 3.0
-	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+	// ε is split by 2 for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
+	pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
 	got := Count(s, pcol, CountParams{MaxPartitionsContributed: 3, MaxValue: 1, NoiseKind: LaplaceNoise{}})
 	// With a max contribution of 3, 70% of the data should be
 	// dropped. The sum of all elements must then be 150.
@@ -375,7 +379,7 @@ func TestCountCrossPartitionContributionBounding(t *testing.T) {
 	sumOverPartitions := stats.Sum(s, counts)
 	got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
 	want = beam.ParDo(s, testutils.Int64MetricToKV, want)
-	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
+	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 		t.Fatalf("TestCountCrossPartitionContributionBounding: %v", err)
 	}
 	if err := ptest.Run(p); err != nil {
@@ -424,7 +428,7 @@ func TestCountWithPartitionsCrossPartitionContributionBounding(t *testing.T) {
 		sumOverPartitions := stats.Sum(s, counts)
 		got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
 		want = beam.ParDo(s, testutils.Int64MetricToKV, want)
-		if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
+		if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 			t.Fatalf("TestCountWithPartitionsCrossPartitionContributionBounding in-memory=%t: %v", tc.inMemory, err)
 		}
 		if err := ptest.Run(p); err != nil {

@@ -24,6 +24,10 @@ class NeighboringRelation(enum.Enum):
   ADD_OR_REMOVE_ONE = 1
   REPLACE_ONE = 2
 
+  # A record is replaced with a special record, such as the "zero record". See
+  # https://arxiv.org/pdf/2103.00039.pdf, Definition 1.1.
+  REPLACE_SPECIAL = 3
+
 
 class UnsupportedEventError(Exception):
   """Exception to raise if _compose is called on unsupported event type."""

@@ -375,7 +375,7 @@ func TestCountResultSetsStateCorrectly(t *testing.T) {
 }
 
 func TestCountThresholdedResult(t *testing.T) {
-	// ThresholdedResult outputs the result when it is greater than the threshold (5 using noNoise)
+	// ThresholdedResult outputs the result when it is greater than the threshold (5.00001 using noNoise)
 	c1 := getNoiselessCount(t)
 	for i := 0; i < 10; i++ {
 		c1.Increment()
@@ -385,7 +385,7 @@ func TestCountThresholdedResult(t *testing.T) {
 		t.Fatalf("Couldn't compute thresholded dp result: %v", err)
 	}
 	if got == nil || *got != 10 {
-		t.Errorf("ThresholdedResult(%f): when 10 addings got %v, want 10", tenten, got)
+		t.Errorf("ThresholdedResult(%f): after 10 entries got %v, want 10", tenten, got)
 	}
 
 	// ThresholdedResult outputs nil when it is less than the threshold
@@ -397,7 +397,20 @@ func TestCountThresholdedResult(t *testing.T) {
 		t.Fatalf("Couldn't compute thresholded dp result: %v", err)
 	}
 	if got != nil {
-		t.Errorf("ThresholdedResult(%f): when 2 addings got %v, want nil", tenten, got)
+		t.Errorf("ThresholdedResult(%f): after 2 entries got %v, want nil", tenten, got)
+	}
+
+	// Edge case when noisy result is 5 and threshold is 5.00001, ThresholdedResult outputs nil.
+	c3 := getNoiselessCount(t)
+	for i := 0; i < 5; i++ {
+		c3.Increment()
+	}
+	got, err = c3.ThresholdedResult(tenten)
+	if err != nil {
+		t.Fatalf("Couldn't compute thresholded dp result: %v", err)
+	}
+	if got != nil {
+		t.Errorf("ThresholdedResult(%f): after 5 entries got %v, want nil", tenten, got)
 	}
 }
 

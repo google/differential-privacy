@@ -130,10 +130,10 @@ func TestSelectPartitionsBoundsCrossPartitionContributionsV(t *testing.T) {
 	p, s, col := ptest.CreateList(pairs)
 	col = beam.ParDo(s, testutils.PairToKV, col)
 
-	// ε=50, δ=~1 and l1Sensitivity=1 gives a threshold of 2.
-	epsilon, delta, l1Sensitivity := 50.0, dpagg.LargestRepresentableDelta, 1
+	// ε=50, δ=~1 and l0Sensitivity=1 gives a threshold of 2.
+	epsilon, delta, l0Sensitivity := 50.0, dpagg.LargestRepresentableDelta, 1
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
-	got := SelectPartitions(s, pcol, SelectPartitionsParams{MaxPartitionsContributed: int64(l1Sensitivity)})
+	got := SelectPartitions(s, pcol, SelectPartitionsParams{MaxPartitionsContributed: int64(l0Sensitivity)})
 	// With a max contribution of 1, only 1 partition should be outputted.
 	testutils.CheckNumPartitions(s, got, 1)
 	if err := ptest.Run(p); err != nil {
@@ -152,11 +152,11 @@ func TestSelectPartitionsBoundsCrossPartitionContributionsKV(t *testing.T) {
 	p, s, col := ptest.CreateList(triples)
 	col = beam.ParDo(s, testutils.ExtractIDFromTripleWithIntValue, col)
 
-	// ε=50, δ=~1 and l1Sensitivity=1 gives a threshold of 2.
-	epsilon, delta, l1Sensitivity := 50.0, dpagg.LargestRepresentableDelta, 1
+	// ε=50, δ=~1 and l0Sensitivity=1 gives a threshold of 2.
+	epsilon, delta, l0Sensitivity := 50.0, dpagg.LargestRepresentableDelta, 1
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
-	got := SelectPartitions(s, pcol, SelectPartitionsParams{MaxPartitionsContributed: int64(l1Sensitivity)})
+	got := SelectPartitions(s, pcol, SelectPartitionsParams{MaxPartitionsContributed: int64(l0Sensitivity)})
 	// With a max contribution of 1, only 1 partition should be outputted.
 	testutils.CheckNumPartitions(s, got, 1)
 	if err := ptest.Run(p); err != nil {

@@ -58,7 +58,7 @@ func TestDistinctPerKeyNoNoise(t *testing.T) {
 	p, s, col, want := ptest.CreateList2(triples, result)
 	col = beam.ParDo(s, testutils.ExtractIDFromTripleWithIntValue, col)
 
-	// ε=50, δ=10⁻¹⁰⁰ and l1Sensitivity=6 gives a threshold of ≈33.
+	// ε=50, δ=10⁻¹⁰⁰ and l0Sensitivity=3 gives a threshold of ≈17.
 	// We have 3 partitions. So, to get an overall flakiness of 10⁻²³,
 	// we can have each partition fail with 1-10⁻²⁵ probability (k=25).
 	// To see the logic and the math behind flakiness and tolerance calculation,
@@ -69,7 +69,7 @@ func TestDistinctPerKeyNoNoise(t *testing.T) {
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 	got := DistinctPerKey(s, pcol, DistinctPerKeyParams{MaxPartitionsContributed: 3, NoiseKind: LaplaceNoise{}, MaxContributionsPerPartition: 2})
 	want = beam.ParDo(s, testutils.Int64MetricToKV, want)
-	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
+	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 		t.Fatalf("TestDistinctPerKeyNoNoise: %v", err)
 	}
 	if err := ptest.Run(p); err != nil {
@@ -171,7 +171,7 @@ func TestDistinctPerKeyPerKeyCrossPartitionContributionBounding(t *testing.T) {
 	p, s, col, want := ptest.CreateList2(triples, result)
 	col = beam.ParDo(s, testutils.ExtractIDFromTripleWithIntValue, col)
 
-	// ε=50, δ=0.01 and l1Sensitivity=3 gives a threshold of 3.
+	// ε=50, δ=0.01 and l0Sensitivity=3 gives a threshold of 3.
 	// We have 10 partitions. So, to get an overall flakiness of 10⁻²³,
 	// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
 	epsilon, delta, k, l1Sensitivity := 50.0, 0.01, 25.0, 3.0
@@ -185,7 +185,7 @@ func TestDistinctPerKeyPerKeyCrossPartitionContributionBounding(t *testing.T) {
 	sumOverPartitions := stats.Sum(s, counts)
 	got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
 	want = beam.ParDo(s, testutils.Int64MetricToKV, want)
-	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
+	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 		t.Fatalf("TestDistinctPerKeyCrossPartitionContributionBounding: %v", err)
 	}
 	if err := ptest.Run(p); err != nil {
@@ -217,7 +217,7 @@ func TestDistinctPerKeyPerKeyCrossPartitionContributionBounding_IsAppliedBeforeD
 	p, s, col, want := ptest.CreateList2(triples, result)
 	col = beam.ParDo(s, testutils.ExtractIDFromTripleWithIntValue, col)
 
-	// ε=50, δ=1-10⁻¹⁵ and l1Sensitivity=1 gives a threshold of ≈2.
+	// ε=50, δ=1-10⁻¹⁵ and l0Sensitivity=1 gives a threshold of ≈2.
 	// However, since δ is very large, a partition with a single user
 	// is kept with a probability almost 1.
 	// We have 100 partitions. So, to get an overall flakiness of 10⁻²³,
@@ -228,7 +228,7 @@ func TestDistinctPerKeyPerKeyCrossPartitionContributionBounding_IsAppliedBeforeD
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 	got := DistinctPerKey(s, pcol, DistinctPerKeyParams{MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}, MaxContributionsPerPartition: 1})
 	want = beam.ParDo(s, testutils.Int64MetricToKV, want)
-	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
+	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 		t.Fatalf("TestDistinctPerKeyPerKeyCrossPartitionContributionBounding_IsAppliedBeforeDeduplication: %v", err)
 	}
 	if err := ptest.Run(p); err != nil {
@@ -268,7 +268,7 @@ func TestDistinctPerKeyPerPartitionContributionBounding(t *testing.T) {
 	p, s, col, want := ptest.CreateList2(triples, result)
 	col = beam.ParDo(s, testutils.ExtractIDFromTripleWithIntValue, col)
 
-	// ε=50, δ=10⁻¹⁰⁰ and l1Sensitivity=6 gives a threshold of ≈33.
+	// ε=50, δ=10⁻¹⁰⁰ and l0Sensitivity=3 gives a threshold of ≈17.
 	// We have 3 partitions. So, to get an overall flakiness of 10⁻²³,
 	// we can have each partition fail with 1-10⁻²⁵ probability (k=25).
 	epsilon, delta, k, l1Sensitivity := 50.0, 1e-100, 25.0, 6.0
@@ -277,7 +277,7 @@ func TestDistinctPerKeyPerPartitionContributionBounding(t *testing.T) {
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 	got := DistinctPerKey(s, pcol, DistinctPerKeyParams{MaxPartitionsContributed: 3, NoiseKind: LaplaceNoise{}, MaxContributionsPerPartition: 2})
 	want = beam.ParDo(s, testutils.Int64MetricToKV, want)
-	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
+	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 		t.Fatalf("TestDistinctPerKeyPerPartitionContributionBounding: %v", err)
 	}
 	if err := ptest.Run(p); err != nil {
@@ -308,7 +308,7 @@ func TestDistinctPerKeyPerPartitionContributionBounding_IsAppliedBeforeDeduplica
 	p, s, col, want := ptest.CreateList2(triples, result)
 	col = beam.ParDo(s, testutils.ExtractIDFromTripleWithIntValue, col)
 
-	// ε=50, δ=10⁻¹⁰⁰ and l1Sensitivity=1 gives a threshold of ≈6.
+	// ε=50, δ=10⁻¹⁰⁰ and l0Sensitivity=1 gives a threshold of ≈6.
 	// We have 1 partition. So, to get an overall flakiness of 10⁻²³,
 	// we need to have each partition pass with 1-10⁻²³ probability (k=23).
 	epsilon, delta, k, l1Sensitivity := 50.0, 1e-100, 23.0, 1.0
@@ -317,7 +317,7 @@ func TestDistinctPerKeyPerPartitionContributionBounding_IsAppliedBeforeDeduplica
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 	got := DistinctPerKey(s, pcol, DistinctPerKeyParams{MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}, MaxContributionsPerPartition: 1})
 	want = beam.ParDo(s, testutils.Int64MetricToKV, want)
-	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
+	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 		t.Fatalf("TestDistinctPerKeyPerPartitionContributionBounding_IsAppliedBeforeDeduplication: %v", err)
 	}
 	if err := ptest.Run(p); err != nil {
@@ -421,7 +421,7 @@ func TestDistinctPerKeyThresholdsOnPrivacyIDs(t *testing.T) {
 	p, s, col, want := ptest.CreateList2(triples, result)
 	col = beam.ParDo(s, testutils.ExtractIDFromTripleWithIntValue, col)
 
-	// ε=50, δ=10⁻¹⁰⁰ and l1Sensitivity=1 gives a threshold of ≈6.
+	// ε=50, δ=10⁻¹⁰⁰ and l0Sensitivity=1 gives a threshold of ≈6.
 	// We have 1 partition. So, to get an overall flakiness of 10⁻²³,
 	// we need to have each partition pass with 1-10⁻²³ probability (k=23).
 	epsilon, delta, k, l1Sensitivity := 50.0, 1e-100, 23.0, 1.0
@@ -430,7 +430,7 @@ func TestDistinctPerKeyThresholdsOnPrivacyIDs(t *testing.T) {
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 	got := DistinctPerKey(s, pcol, DistinctPerKeyParams{MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}, MaxContributionsPerPartition: 1})
 	want = beam.ParDo(s, testutils.Int64MetricToKV, want)
-	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
+	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 		t.Fatalf("TestDistinctPerKeyNoNoise: %v", err)
 	}
 	if err := ptest.Run(p); err != nil {

@@ -250,9 +250,13 @@ func (bs *BoundedSumInt64) Result() (int64, error) {
 	return bs.noisedSum, err
 }
 
-// ThresholdedResult is similar to Result() but applies thresholding to the
-// result. So, if the result is less than the threshold specified by the noise
-// mechanism, it returns nil. Otherwise, it returns the result.
+// ThresholdedResult is similar to Result() but applies thresholding to the result.
+// So, if the result is less than the threshold specified by the parameters of
+// BoundedSumInt64 as well as thresholdDelta, it returns nil. Otherwise, it returns
+// the result.
+//
+// Note that the nil results should not be published when the existence of a
+// partition in the output depends on private data.
 func (bs *BoundedSumInt64) ThresholdedResult(thresholdDelta float64) (*int64, error) {
 	threshold, err := bs.Noise.Threshold(bs.l0Sensitivity, float64(bs.lInfSensitivity), bs.epsilon, bs.delta, thresholdDelta)
 	if err != nil {
@@ -262,9 +266,9 @@ func (bs *BoundedSumInt64) ThresholdedResult(thresholdDelta float64) (*int64, er
 	if err != nil {
 		return nil, err
 	}
-	// To make sure floating-point rounding doesn't break DP guarantees, we err on
-	// the side of dropping the result if it is exactly equal to the threshold.
-	if float64(result) <= threshold {
+	// Rounding up the threshold when converting it to int64 to ensure that no DP guarantees
+	// are violated due to a result being returned that is less than the fractional threshold.
+	if result < int64(math.Ceil(threshold)) {
 		return nil, nil
 	}
 	return &result, nil

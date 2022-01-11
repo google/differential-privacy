@@ -207,7 +207,7 @@ py_library(
     ],
 )
 
-py_test(
+py_library(
     name = "privacy_accountant_test",
     srcs = ["privacy_accountant_test.py"],
     deps = [

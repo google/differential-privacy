@@ -39,27 +39,28 @@ func init() {
 func TestSumPerKeyNoNoiseInt(t *testing.T) {
 	triples := testutils.ConcatenateTriplesWithIntValue(
 		testutils.MakeSampleTripleWithIntValue(7, 0),
-		testutils.MakeSampleTripleWithIntValue(58, 1),
+		testutils.MakeSampleTripleWithIntValue(31, 1),
 		testutils.MakeSampleTripleWithIntValue(99, 2))
 	result := []testutils.TestInt64Metric{
 		// The sum for value 0 is 7: should be thresholded.
-		{1, 58},
+		{1, 31},
 		{2, 99},
 	}
 	p, s, col, want := ptest.CreateList2(triples, result)
 	col = beam.ParDo(s, testutils.ExtractIDFromTripleWithIntValue, col)
 
-	// ε=50, δ=10⁻²⁰⁰ and l1Sensitivity=3 gives a threshold of ≈58.
+	// ε=50, δ=10⁻²⁰⁰ and l0Sensitivity=3 gives a threshold of ≈31.
 	// We have 3 partitions. So, to get an overall flakiness of 10⁻²³,
 	// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
 	// To see the logic and the math behind flakiness and tolerance calculation,
 	// See https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf.
 	epsilon, delta, k, l1Sensitivity := 50.0, 1e-200, 25.0, 3.0
-	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+	// ε is split by 2 for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
+	pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 	got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 3, MinValue: 0.0, MaxValue: 1, NoiseKind: LaplaceNoise{}})
 	want = beam.ParDo(s, testutils.Int64MetricToKV, want)
-	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
+	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 		t.Fatalf("TestSumPerKeyNoNoiseInt: %v", err)
 	}
 	if err := ptest.Run(p); err != nil {
@@ -154,7 +155,7 @@ func TestSumPerKeyWithPartitionsNoNoiseInt(t *testing.T) {
 		sumParams := SumParams{MaxPartitionsContributed: 3, MinValue: tc.minValue, MaxValue: tc.maxValue, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions}
 		got := SumPerKey(s, pcol, sumParams)
 		want = beam.ParDo(s, testutils.Int64MetricToKV, want)
-		if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
+		if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 			t.Fatalf("TestSumPerKeyWithPartitionsNoNoiseInt test case=+%v: %v", tc, err)
 		}
 		if err := ptest.Run(p); err != nil {
@@ -166,26 +167,25 @@ func TestSumPerKeyWithPartitionsNoNoiseInt(t *testing.T) {
 // Checks that SumPerKey works correctly for negative bounds and negative values with int values.
 func TestSumPerKeyNegativeBoundsInt(t *testing.T) {
 	triples := testutils.ConcatenateTriplesWithIntValue(
-		testutils.MakeTripleWithIntValue(58, 1, -1), // should be clamped down to -2
-		testutils.MakeTripleWithIntValue(99, 2, -4)) // should be clamped up to -3
+		testutils.MakeTripleWithIntValue(21, 1, -1), // should be clamped down to -2
+		testutils.MakeTripleWithIntValue(50, 2, -4)) // should be clamped up to -3
 	result := []testutils.TestInt64Metric{
-		{1, -116},
-		{2, -297},
+		{1, -42},
+		{2, -150},
 	}
 	p, s, col, want := ptest.CreateList2(triples, result)
 	col = beam.ParDo(s, testutils.ExtractIDFromTripleWithIntValue, col)
 
-	// ε=50, δ=10⁻²⁰⁰ and l1Sensitivity=3 gives a threshold of ≈58.
-	// We have 3 partitions. So, to get an overall flakiness of 10⁻²³,
+	// ε=50, δ=10⁻²⁰⁰ and l0Sensitivity=2 gives a threshold of ≈21.
+	// We have 2 partitions. So, to get an overall flakiness of 10⁻²³,
 	// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
-	// To see the logic and the math behind flakiness and tolerance calculation,
-	// See https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf.
-	epsilon, delta, k, l1Sensitivity := 50.0, 1e-200, 25.0, 3.0
-	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+	epsilon, delta, k, l1Sensitivity := 50.0, 1e-200, 25.0, 6.0
+	// ε is split by 2 for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
+	pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
-	got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 3, MinValue: -3, MaxValue: -2, NoiseKind: LaplaceNoise{}})
+	got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 2, MinValue: -3, MaxValue: -2, NoiseKind: LaplaceNoise{}})
 	want = beam.ParDo(s, testutils.Int64MetricToKV, want)
-	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
+	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 		t.Fatalf("TestSumPerKeyNegativeBoundsInt: %v", err)
 	}
 	if err := ptest.Run(p); err != nil {
@@ -203,11 +203,11 @@ func TestSumPerKeyWithPartitionsNegativeBoundsInt(t *testing.T) {
 		{false},
 	} {
 		triples := testutils.ConcatenateTriplesWithIntValue(
-			testutils.MakeTripleWithIntValue(58, 1, -1), // should be clamped down to -2
-			testutils.MakeTripleWithIntValue(99, 2, -4)) // should be clamped up to -3
+			testutils.MakeTripleWithIntValue(21, 1, -1), // should be clamped down to -2
+			testutils.MakeTripleWithIntValue(50, 2, -4)) // should be clamped up to -3
 		result := []testutils.TestInt64Metric{
-			{1, -116},
-			{2, -297},
+			{1, -42},
+			{2, -150},
 		}
 
 		p, s, col, want := ptest.CreateList2(triples, result)
@@ -220,16 +220,16 @@ func TestSumPerKeyWithPartitionsNegativeBoundsInt(t *testing.T) {
 		} else {
 			publicPartitions = beam.CreateList(s, publicPartitionsSlice)
 		}
-		// We have ε=50, δ=0 and l1Sensitivity=3.
+		// We have ε=50, δ=0 and l1Sensitivity=6.
 		// We have 2 partitions. So, to get an overall flakiness of 10⁻²³,
 		// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
-		epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 25.0, 3.0
+		epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 25.0, 6.0
 		pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 		pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
-		sumParams := SumParams{MaxPartitionsContributed: 3, MinValue: -3, MaxValue: -2, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions}
+		sumParams := SumParams{MaxPartitionsContributed: 2, MinValue: -3, MaxValue: -2, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions}
 		got := SumPerKey(s, pcol, sumParams)
 		want = beam.ParDo(s, testutils.Int64MetricToKV, want)
-		if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
+		if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 			t.Fatalf("TestSumPerKeyWithPartitionsNegativeBoundsInt in-memory=%t: %v", tc.inMemory, err)
 		}
 		if err := ptest.Run(p); err != nil {
@@ -243,21 +243,22 @@ func TestSumPerKeyWithPartitionsNegativeBoundsInt(t *testing.T) {
 func TestSumPerKeyNoNoiseFloat(t *testing.T) {
 	triples := testutils.ConcatenateTriplesWithFloatValue(
 		testutils.MakeSampleTripleWithFloatValue(7, 0),
-		testutils.MakeSampleTripleWithFloatValue(58, 1),
+		testutils.MakeSampleTripleWithFloatValue(31, 1),
 		testutils.MakeSampleTripleWithFloatValue(99, 2))
 	result := []testutils.TestFloat64Metric{
 		// Only 7 privacy units are associated with value 0: should be thresholded.
-		{1, 58},
+		{1, 31},
 		{2, 99},
 	}
 	p, s, col, want := ptest.CreateList2(triples, result)
 	col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
 
-	// ε=50, δ=10⁻²⁰⁰ and l1Sensitivity=3 gives a threshold of ≈58.
+	// ε=50, δ=10⁻²⁰⁰ and l0Sensitivity=3 gives a threshold of ≈31.
 	// We have 3 partitions. So, to get an overall flakiness of 10⁻²³,
 	// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
 	epsilon, delta, k, l1Sensitivity := 50.0, 1e-200, 25.0, 3.0
-	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+	// ε is split by 2 for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
+	pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
 	pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
 	got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 3, MinValue: 0.0, MaxValue: 1.0, NoiseKind: LaplaceNoise{}})
 	want = beam.ParDo(s, testutils.Float64MetricToKV, want)
@@ -361,22 +362,23 @@ func TestSumPerKeyWithPartitionsNoNoiseFloat(t *testing.T) {
 // Checks that SumPerKey works correctly for negative bounds and negative values with float values.
 func TestSumPerKeyNegativeBoundsFloat(t *testing.T) {
 	triples := testutils.ConcatenateTriplesWithFloatValue(
-		testutils.MakeTripleWithFloatValue(58, 1, -1.0), // should be clamped down to -2.0
-		testutils.MakeTripleWithFloatValue(99, 2, -4.0)) // should be clamped up to -3.0
+		testutils.MakeTripleWithFloatValue(21, 1, -1.0), // should be clamped down to -2.0
+		testutils.MakeTripleWithFloatValue(50, 2, -4.0)) // should be clamped up to -3.0
 	result := []testutils.TestFloat64Metric{
-		{1, -116.0},
-		{2, -297.0},
+		{1, -42.0},
+		{2, -150.0},
 	}
 	p, s, col, want := ptest.CreateList2(triples, result)
 	col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
 
-	// ε=50, δ=10⁻²⁰⁰ and l1Sensitivity=3 gives a threshold of ≈58.
-	// We have 3 partitions. So, to get an overall flakiness of 10⁻²³,
+	// ε=50, δ=10⁻²⁰⁰ and l0Sensitivity=2 gives a threshold of ≈21.
+	// We have 2 partitions. So, to get an overall flakiness of 10⁻²³,
 	// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
-	epsilon, delta, k, l1Sensitivity := 50.0, 1e-200, 25.0, 3.0
-	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+	epsilon, delta, k, l1Sensitivity := 50.0, 1e-200, 25.0, 6.0
+	// ε is split by 2 for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
+	pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
 	pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
-	got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 3, MinValue: -3.0, MaxValue: -2.0, NoiseKind: LaplaceNoise{}})
+	got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 2, MinValue: -3.0, MaxValue: -2.0, NoiseKind: LaplaceNoise{}})
 	want = beam.ParDo(s, testutils.Float64MetricToKV, want)
 	if err := testutils.ApproxEqualsKVFloat64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 		t.Fatalf("TestSumPerKeyNegativeBoundsFloat: %v", err)
@@ -396,11 +398,11 @@ func TestSumPerKeyWithPartitionsNegativeBoundsFloat(t *testing.T) {
 		{false},
 	} {
 		triples := testutils.ConcatenateTriplesWithFloatValue(
-			testutils.MakeTripleWithFloatValue(58, 1, -1.0), // should be clamped down to -2.0
-			testutils.MakeTripleWithFloatValue(99, 2, -4.0)) // should be clamped up to -3.0
+			testutils.MakeTripleWithFloatValue(21, 1, -1.0), // should be clamped down to -2.0
+			testutils.MakeTripleWithFloatValue(50, 2, -4.0)) // should be clamped up to -3.0
 		result := []testutils.TestFloat64Metric{
-			{1, -116.0},
-			{2, -297.0},
+			{1, -42.0},
+			{2, -150.0},
 		}
 
 		p, s, col, want := ptest.CreateList2(triples, result)
@@ -414,13 +416,13 @@ func TestSumPerKeyWithPartitionsNegativeBoundsFloat(t *testing.T) {
 			publicPartitions = beam.CreateList(s, publicPartitionsSlice)
 		}
 
-		// We have ε=50, δ=0 and l1Sensitivity=3.
+		// We have ε=50, δ=0 and l1Sensitivity=6.
 		// We have 2 partitions. So, to get an overall flakiness of 10⁻²³,
 		// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
-		epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 25.0, 3.0
+		epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 25.0, 6.0
 		pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 		pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
-		sumParams := SumParams{MaxPartitionsContributed: 3, MinValue: -3.0, MaxValue: -2.0, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions}
+		sumParams := SumParams{MaxPartitionsContributed: 2, MinValue: -3.0, MaxValue: -2.0, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions}
 		got := SumPerKey(s, pcol, sumParams)
 		want = beam.ParDo(s, testutils.Float64MetricToKV, want)
 		if err := testutils.ApproxEqualsKVFloat64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
@@ -676,11 +678,12 @@ func TestSumPerKeyCrossPartitionContributionBoundingInt(t *testing.T) {
 	p, s, col, want := ptest.CreateList2(triples, result)
 	col = beam.ParDo(s, testutils.ExtractIDFromTripleWithIntValue, col)
 
-	// ε=50, δ=0.01 and l1Sensitivity=3 gives a threshold of 3.
+	// ε=50, δ=0.01 and l0Sensitivity=3 gives a threshold of 3.
 	// We have 10 partitions. So, to get an overall flakiness of 10⁻²³,
 	// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
 	epsilon, delta, k, l1Sensitivity := 50.0, 0.01, 25.0, 3.0
-	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+	// ε is split by 2 for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
+	pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 	got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 3, MinValue: 0, MaxValue: 1, NoiseKind: LaplaceNoise{}})
 	// With a max contribution of 3, 70% of the data should have be
@@ -689,7 +692,7 @@ func TestSumPerKeyCrossPartitionContributionBoundingInt(t *testing.T) {
 	sumOverPartitions := stats.Sum(s, counts)
 	got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
 	want = beam.ParDo(s, testutils.Int64MetricToKV, want)
-	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
+	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 		t.Fatalf("TestSumPerKeyCrossPartitionContributionBoundingInt: %v", err)
 	}
 	if err := ptest.Run(p); err != nil {
@@ -740,7 +743,7 @@ func TestSumPerKeyWithPartitionsCrossPartitionContributionBoundingInt(t *testing
 		sumOverPartitions := stats.Sum(s, counts)
 		got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
 		want = beam.ParDo(s, testutils.Int64MetricToKV, want)
-		if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
+		if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 			t.Fatalf("TestSumPerKeyWithPartitionsCrossPartitionContributionBoundingInt in-memory=%t: %v", tc.inMemory, err)
 		}
 		if err := ptest.Run(p); err != nil {
@@ -763,7 +766,7 @@ func TestSumPerKeyCrossPartitionContributionBoundingFloat(t *testing.T) {
 	p, s, col, want := ptest.CreateList2(triples, result)
 	col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
 
-	// ε=50, δ=0.01 and l1Sensitivity=3 gives a threshold of 3.
+	// ε=50, δ=0.01 and l0Sensitivity=3 gives a threshold of 3.
 	// We have 10 partitions. So, to get an overall flakiness of 10⁻²³,
 	// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
 	epsilon, delta, k, l1Sensitivity := 50.0, 0.01, 25.0, 3.0
@@ -854,15 +857,16 @@ func TestSumPerKeyPerPartitionContributionBoundingInt(t *testing.T) {
 	p, s, col, want := ptest.CreateList2(triples, result)
 	col = beam.ParDo(s, testutils.ExtractIDFromTripleWithIntValue, col)
 
-	// ε=60, δ=0.01 and l1Sensitivity=6 gives a threshold of ≈2.
+	// ε=60, δ=0.01 and l0Sensitivity=2 gives a threshold of ≈2.
 	// We have 3 partitions. So, to get an overall flakiness of 10⁻²³,
 	// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
 	epsilon, delta, k, l1Sensitivity := 60.0, 0.01, 25.0, 6.0
-	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+	// ε is split by 2 for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
+	pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 	got := SumPerKey(s, pcol, SumParams{MinValue: 2, MaxValue: 3, MaxPartitionsContributed: 2, NoiseKind: LaplaceNoise{}})
 	want = beam.ParDo(s, testutils.Int64MetricToKV, want)
-	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
+	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 		t.Fatalf("TestSumPerKeyPerPartitionContributionBoundingInt: %v", err)
 	}
 	if err := ptest.Run(p); err != nil {
@@ -887,11 +891,12 @@ func TestSumPerKeyPerPartitionContributionBoundingFloat(t *testing.T) {
 	p, s, col, want := ptest.CreateList2(triples, result)
 	col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
 
-	// ε=60, δ=0.01 and l1Sensitivity=6 gives a threshold of ≈2.
+	// ε=60, δ=0.01 and l0Sensitivity=2 gives a threshold of ≈2.
 	// We have 3 partitions. So, to get an overall flakiness of 10⁻²³,
 	// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
 	epsilon, delta, k, l1Sensitivity := 60.0, 0.01, 25.0, 6.0
-	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+	// ε is split by 2 for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
+	pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
 	pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
 	got := SumPerKey(s, pcol, SumParams{MinValue: 2.0, MaxValue: 3.0, MaxPartitionsContributed: 2, NoiseKind: LaplaceNoise{}})
 	want = beam.ParDo(s, testutils.Float64MetricToKV, want)

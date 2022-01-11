@@ -985,35 +985,47 @@ func TestBoundedSumFloat64ResultSetsStateCorrectly(t *testing.T) {
 }
 
 func TestThresholdedResultInt64(t *testing.T) {
-	// ThresholdedResult outputs the result when it is more than the threshold (5 using noNoise)
+	// ThresholdedResult outputs the result when it is more than the threshold (5.00001 using noNoise)
 	bs1 := getNoiselessBSI(t)
 	bs1.Add(1)
 	bs1.Add(2)
 	bs1.Add(3)
 	bs1.Add(4)
-	got, err := bs1.ThresholdedResult(5)
+	got, err := bs1.ThresholdedResult(0.1)
 	if err != nil {
 		t.Fatalf("Couldn't compute thresholded dp result: %v", err)
 	}
 	if got == nil || *got != 10 {
-		t.Errorf("ThresholdedResult(5): when 1, 2, 3, 4 were added got %v, want 10", got)
+		t.Errorf("ThresholdedResult(0.1): when 1, 2, 3, 4 were added got %v, want 10", got)
 	}
 
 	// ThresholdedResult outputs nil when it is less than the threshold
 	bs2 := getNoiselessBSI(t)
 	bs2.Add(1)
 	bs2.Add(2)
-	got, err = bs2.ThresholdedResult(5) // the parameter here is for the reader's eyes, the actual threshold value (5) is specified in noNoise.Threshold()
+	got, err = bs2.ThresholdedResult(0.1)
 	if err != nil {
 		t.Fatalf("Couldn't compute thresholded dp result: %v", err)
 	}
 	if got != nil {
-		t.Errorf("ThresholdedResult(5): when 1,2 were added got %v, want nil", got)
+		t.Errorf("ThresholdedResult(0.1): when 1,2 were added got %v, want nil", got)
+	}
+
+	// Edge case when noisy result is 5 and threshold is 5.00001, ThresholdedResult outputs nil.
+	bs3 := getNoiselessBSI(t)
+	bs3.Add(2)
+	bs3.Add(3)
+	got, err = bs3.ThresholdedResult(0.1)
+	if err != nil {
+		t.Fatalf("Couldn't compute thresholded dp result: %v", err)
+	}
+	if got != nil {
+		t.Errorf("ThresholdedResult(0.1): when 2,3 were added got %v, want nil", got)
 	}
 }
 
 func TestThresholdedResultFloat64(t *testing.T) {
-	// ThresholdedResult outputs the result when it is more than the threshold (5 using noNoise)
+	// ThresholdedResult outputs the result when it is more than the threshold (5.5 using noNoise)
 	bs1 := getNoiselessBSF(t)
 	bs1.Add(1.5)
 	bs1.Add(2.5)
@@ -1031,12 +1043,12 @@ func TestThresholdedResultFloat64(t *testing.T) {
 	bs2 := getNoiselessBSF(t)
 	bs2.Add(1)
 	bs2.Add(2.5)
-	got, err = bs2.ThresholdedResult(5) // the parameter here is for the reader's eyes, the actual threshold value (5) is specified in noNoise.Threshold()
+	got, err = bs2.ThresholdedResult(0.1)
 	if err != nil {
 		t.Fatalf("Couldn't compute thresholded dp result: %v", err)
 	}
 	if got != nil {
-		t.Errorf("ThresholdedResult(5): when 1, 2.5 were added got %v, want nil", got)
+		t.Errorf("ThresholdedResult(0.1): when 1, 2.5 were added got %v, want nil", got)
 	}
 }
 

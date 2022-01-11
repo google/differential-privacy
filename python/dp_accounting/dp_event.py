@@ -59,7 +59,7 @@ incorrect results, the following should be enforced:
    is `False` when processing unknown mechanisms.
 """
 
-from typing import List
+from typing import List, Union
 
 import attr
 
@@ -177,3 +177,24 @@ class SampledWithoutReplacementDpEvent(DpEvent):
   sample_size: int
   event: DpEvent
 
+
+@attr.s(frozen=True, slots=True, auto_attribs=True)
+class SingleEpochTreeAggregationDpEvent(DpEvent):
+  """Represents aggregation for a single epoch using one or more trees.
+
+  Multiple tree-aggregation steps can occur, but it is required that each
+  record occurs at most once *across all trees*. See appendix D of
+  "Practical and Private (Deep) Learning without Sampling or Shuffling"
+  https://arxiv.org/abs/2103.00039.
+
+  To represent the common case where the same record can occur in multiple
+  trees (but still at most once per tree), wrap this with `SelfComposedDpEvent`
+  or `ComposedDpEvent` and use a scalar for `step_counts`.
+
+  Attributes:
+    noise_multiplier: The ratio of the noise per node to the sensitivity.
+    step_counts: The number of steps in each tree. May be a scalar for a single
+      tree.
+  """
+  noise_multiplier: float
+  step_counts: Union[int, List[int]]

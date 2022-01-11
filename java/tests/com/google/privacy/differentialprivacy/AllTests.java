@@ -33,6 +33,8 @@ import org.junit.runners.Suite.SuiteClasses;
   BoundedSumBuilderTest.class,
   BoundedSumConfidenceIntervalTest.class,
   BoundedSumTest.class,
+  BoundedVarianceBuilderTest.class,
+  BoundedVarianceTest.class,
   CountBiasTest.class,
   CountBuilderTest.class,
   CountConfidenceIntervalTest.class,

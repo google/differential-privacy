@@ -53,7 +53,6 @@ public class DpPreconditions {
       checkArgument(
           delta >= 0 && delta < 1, "delta must be >= 0 and < 1. Provided value: %s", delta);
     }
-
   }
 
   static void checkDelta(double delta) {
@@ -100,8 +99,17 @@ public class DpPreconditions {
             + "lower = %s upper = %s",
         lower,
         upper);
-    checkArgument(isFinite(lower) && isFinite(upper),
-        "Lower and upper bounds should be finite. Provided values: "
+    checkArgument(
+        isFinite(lower) && isFinite(upper),
+        "Lower and upper bounds should be finite. Provided values: " + "lower = %s upper = %s",
+        lower,
+        upper);
+  }
+
+  static void checkBoundsNotEqual(double lower, double upper) {
+    checkArgument(
+        upper != lower,
+        "Lower and upper bounds cannot be equal to each other. Provided values: "
             + "lower = %s upper = %s",
         lower,
         upper);
@@ -109,51 +117,67 @@ public class DpPreconditions {
 
   static void checkMergeDeltaAreEqual(@Nullable Double delta1, double delta2) {
     if (delta1 != null) {
-      checkArgument(Double.compare(delta1, delta2) == 0,
-          "Failed to merge: unequal values of delta. "
-              + "delta1 = %s, delta2 = %s", delta1, delta2);
+      checkArgument(
+          Double.compare(delta1, delta2) == 0,
+          "Failed to merge: unequal values of delta. " + "delta1 = %s, delta2 = %s",
+          delta1,
+          delta2);
     } else {
-      checkArgument(Double.compare(delta2, 0.0) == 0,
-          "Failed to merge: unequal values of delta. "
-              + "delta1 = %s, delta2 = %s", delta1, delta2);
+      checkArgument(
+          Double.compare(delta2, 0.0) == 0,
+          "Failed to merge: unequal values of delta. " + "delta1 = %s, delta2 = %s",
+          delta1,
+          delta2);
     }
   }
 
   static void checkMergeEpsilonAreEqual(double epsilon1, double epsilon2) {
-    checkArgument(Double.compare(epsilon1, epsilon2) == 0,
-        "Failed to merge: unequal values of epsilon. "
-            + "epsilon1 = %s, epsilon2 = %s", epsilon1, epsilon2);
+    checkArgument(
+        Double.compare(epsilon1, epsilon2) == 0,
+        "Failed to merge: unequal values of epsilon. " + "epsilon1 = %s, epsilon2 = %s",
+        epsilon1,
+        epsilon2);
   }
 
-  static void checkMergeBoundsAreEqual(
-      double lower1, double lower2, double upper1, double upper2) {
-    checkArgument(Double.compare(lower1, lower2) == 0,
-        "Failed to merge: unequal lower bounds. "
-            + "lower1 = %s, lower2 = %s", lower1, lower2);
-    checkArgument(Double.compare(upper1, upper2) == 0,
-        "Failed to merge: unequal upper bounds. "
-            + "upper1 = %s, upper2 = %s", upper1, upper2);
+  static void checkMergeBoundsAreEqual(double lower1, double lower2, double upper1, double upper2) {
+    checkArgument(
+        Double.compare(lower1, lower2) == 0,
+        "Failed to merge: unequal lower bounds. " + "lower1 = %s, lower2 = %s",
+        lower1,
+        lower2);
+    checkArgument(
+        Double.compare(upper1, upper2) == 0,
+        "Failed to merge: unequal upper bounds. " + "upper1 = %s, upper2 = %s",
+        upper1,
+        upper2);
   }
 
   static void checkMergeMaxContributionsPerPartitionAreEqual(
       int maxContributionsPerPartition1, int maxContributionsPerPartition2) {
-    checkArgument(maxContributionsPerPartition1 == maxContributionsPerPartition2,
+    checkArgument(
+        maxContributionsPerPartition1 == maxContributionsPerPartition2,
         "Failed to merge: unequal values of maxContributionsPerPartition. "
             + "maxContributionsPerPartition1 = %s, maxContributionsPerPartition2 = %s",
-        maxContributionsPerPartition1, maxContributionsPerPartition2);
+        maxContributionsPerPartition1,
+        maxContributionsPerPartition2);
   }
 
   static void checkMergeMaxPartitionsContributedAreEqual(
       int maxPartitionsContributed1, int maxPartitionsContributed2) {
-    checkArgument(maxPartitionsContributed1 == maxPartitionsContributed2,
+    checkArgument(
+        maxPartitionsContributed1 == maxPartitionsContributed2,
         "Failed to merge: unequal values of maxPartitionsContributed. "
             + "maxPartitionsContributed1 = %s, maxPartitionsContributed2 = %s",
-        maxPartitionsContributed1, maxPartitionsContributed2);
+        maxPartitionsContributed1,
+        maxPartitionsContributed2);
   }
 
   static void checkMergeMechanismTypesAreEqual(MechanismType type1, MechanismType type2) {
-    checkArgument(Objects.equals(type1, type2),
-        "Failed to merge: unequal mechanism types. type1 = %s, type2 = %s", type1, type2);
+    checkArgument(
+        Objects.equals(type1, type2),
+        "Failed to merge: unequal mechanism types. type1 = %s, type2 = %s",
+        type1,
+        type2);
   }
 
   static void checkAlpha(double alpha) {

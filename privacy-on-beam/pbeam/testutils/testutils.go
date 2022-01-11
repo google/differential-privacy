@@ -617,7 +617,7 @@ func ComplementaryLaplaceTolerance(flakinessK, l1Sensitivity, epsilon float64) f
 }
 
 // OneSidedLaplaceTolerance is only supposed be to used in cases where a one sided
-// confidence internal is enough to calculate the tolerance, for example for
+// confidence interval is enough to calculate the tolerance, for example for
 // finding minimum and maximum noisy counts and sums when calculating the tolerance
 // for mean.
 //
@@ -628,7 +628,7 @@ func OneSidedLaplaceTolerance(flakinessK, l1Sensitivity, epsilon float64) float6
 }
 
 // OneSidedComplementaryLaplaceTolerance is only supposed be to used in cases where a one sided
-// complementary confidence internal is enough to calculate the tolerance, for example for
+// complementary confidence interval is enough to calculate the tolerance, for example for
 // finding minimum and maximum noisy counts and sums when calculating the tolerance
 // for mean.
 //
@@ -646,14 +646,13 @@ func OneSidedComplementaryLaplaceTolerance(flakinessK, l1Sensitivity, epsilon fl
 	return -l1Sensitivity * log / epsilon
 }
 
-// RoundedLaplaceTolerance rounds laplace tolerance value up to the nearest
-// integer, in order to work with both integer and float aggregation tests and
-// be on the safe side.
+// RoundedLaplaceTolerance rounds laplace tolerance value to the nearest integer,
+// in order to work with tests for integer-valued aggregations.
 //
 // To see the logic and the math behind flakiness and tolerance calculation,
 // See https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf
 func RoundedLaplaceTolerance(flakinessK, l1Sensitivity, epsilon float64) float64 {
-	return math.Ceil(LaplaceTolerance(flakinessK, l1Sensitivity, epsilon))
+	return math.Round(LaplaceTolerance(flakinessK, l1Sensitivity, epsilon))
 }
 
 // GaussianTolerance returns tolerance to be used in approxEquals or in threshold
@@ -688,7 +687,7 @@ func ComplementaryGaussianTolerance(flakinessK, l0Sensitivity, lInfSensitivity, 
 }
 
 // OneSidedComplementaryGaussianTolerance is only supposed be to used in cases where a one sided
-// complementary confidence internal is enough to calculate the tolerance, for example for
+// complementary confidence interval is enough to calculate the tolerance, for example for
 // finding minimum and maximum noisy counts and sums when calculating the tolerance
 // for mean.
 //
@@ -776,7 +775,7 @@ func ComplementaryGaussianToleranceForMean(flakinessK, lower, upper float64, max
 }
 
 // ToleranceForMean returns tolerance to be used in approxEquals or checkMetricsAreNoisy for tests
-// for mean to pass with 10⁻ᵏ flakiness. Set isComplementary to true in order to calculate the tolerance for checkMetricsAreNoisy.
+// for mean to pass with 10⁻ᵏ flakiness.
 //
 // flakinessK is the parameter used to specify k in the flakiness.
 // distanceFromMidPoint = upper - midPoint, where midPoint = (lower + upper)/2.

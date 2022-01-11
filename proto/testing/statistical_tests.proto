@@ -36,6 +36,7 @@ enum AggregationType {
   STDV = 5;
   VARIANCE = 6;
   QUANTILE = 7;
+  SELECT_PARTITIONS = 9;
 }
 
 message DataRecord {
@@ -283,12 +284,6 @@ message ApproximateBoundsDpTestCase {
       approximate_bounds_sampling_parameters = 3;
 }
 
-message PartitionSelectionDpTestCase {
-  optional string name = 1;
-  optional DpTestParameters dp_test_parameters = 2;
-  optional GeneralSamplingParameters sampling_parameters = 3;
-}
-
 message DistributionClosenessTestCaseCollection {
   repeated DistributionClosenessTestCase distribution_closeness_test_case = 1;
   optional VotingParameters voting_parameters = 2;
@@ -333,12 +328,6 @@ message BoundedQuantilesDpTestCaseCollection {
 
 message ApproximateBoundsDpTestCaseCollection {
   repeated ApproximateBoundsDpTestCase approximate_bounds_dp_test_case = 1;
-  optional VotingParameters voting_parameters = 2;
-  optional DpTestValidityParameters validity_parameters = 3;
-}
-
-message PartitionSelectionDpTestCaseCollection {
-  repeated PartitionSelectionDpTestCase partition_selection_dp_test_case = 1;
   optional VotingParameters voting_parameters = 2;
   optional DpTestValidityParameters validity_parameters = 3;
 }

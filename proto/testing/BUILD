@@ -29,6 +29,7 @@ java_proto_library(
 exports_files([
     "bounded_mean_dp_test_cases.textproto",
     "bounded_quantiles_dp_test_cases.textproto",
+    "bounded_stdv_dp_test_cases.textproto",
     "bounded_sum_dp_test_cases.textproto",
     "count_dp_test_cases.textproto",
     "gaussian_closeness_test_cases.textproto",

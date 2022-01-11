@@ -683,10 +683,6 @@ public class BoundedQuantiles {
             branchingFactor);
       }
 
-      private static void checkBoundsNotEqual(double lower, double upper) {
-        checkArgument(lower != upper, "Lower and upper bounds must not be equal");
-      }
-
       abstract BoundedQuantiles.Params autoBuild();
 
       public BoundedQuantiles build() {
@@ -697,7 +693,7 @@ public class BoundedQuantiles {
         DpPreconditions.checkMaxPartitionsContributed(params.maxPartitionsContributed());
         DpPreconditions.checkMaxContributionsPerPartition(params.maxContributionsPerPartition());
         DpPreconditions.checkBounds(params.lower(), params.upper());
-        checkBoundsNotEqual(params.lower(), params.upper());
+        DpPreconditions.checkBoundsNotEqual(params.lower(), params.upper());
         checkTreeHeight(params.treeHeight());
         checkBranchingFactor(params.branchingFactor());
 
