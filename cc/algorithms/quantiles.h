@@ -34,8 +34,8 @@ namespace differential_privacy {
 // quantiles, in the same order as they were requested when building the
 // algorithm.
 //
-// When constructing a MultiQuantile, upper and lower bounds on the input
-// must be explicitly specified. MultiQuantile does not support ApproxBounds.
+// When constructing a Quantiles object, upper and lower bounds on the input
+// must be explicitly specified. Quantiles do not support ApproxBounds.
 template <typename T>
 class Quantiles : public Algorithm<T> {
   static_assert(std::is_arithmetic<T>::value,

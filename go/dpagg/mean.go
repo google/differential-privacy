@@ -274,11 +274,11 @@ func (bm *BoundedMeanFloat64) ComputeConfidenceInterval(alpha float64) (noise.Co
 // Result() needs to be called before ComputeConfidenceInterval, otherwise this will return an error.
 func (bm *BoundedMeanFloat64) computeConfidenceIntervalForExplicitAlphaNum(alpha, alphaNum float64) (noise.ConfidenceInterval, error) {
 	alphaDen := (alpha - alphaNum) / (1 - alphaNum) // setting alphaDen such that (1 - alpha) = (1 - alphaNum) * (1 - alphaDen)
-	confIntNum, err := bm.NormalizedSum.ComputeConfidenceInterval(alphaNum)
+	confIntNum, err := bm.NormalizedSum.ComputeConfidenceInterval(alphaDen)
 	if err != nil {
 		return noise.ConfidenceInterval{}, err
 	}
-	confIntDen, err := bm.Count.ComputeConfidenceInterval(alphaDen)
+	confIntDen, err := bm.Count.ComputeConfidenceInterval(alphaNum)
 	if err != nil {
 		return noise.ConfidenceInterval{}, err
 	}

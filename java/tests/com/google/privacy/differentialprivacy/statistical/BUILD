@@ -29,6 +29,7 @@ java_test(
     test_class = "com.google.privacy.differentialprivacy.statistical.LaplaceClosenessTest",
     deps = [
         "//main/com/google/privacy/differentialprivacy",
+        "//main/com/google/privacy/differentialprivacy:test_noise_factory",
         "//main/com/google/privacy/differentialprivacy/testing:reference_noise",
         "//main/com/google/privacy/differentialprivacy/testing:statistical_utils",
         "@com_google_differential_privacy//proto/testing:statistical_tests_java_proto",
@@ -51,6 +52,7 @@ java_test(
     test_class = "com.google.privacy.differentialprivacy.statistical.GaussianClosenessTest",
     deps = [
         "//main/com/google/privacy/differentialprivacy",
+        "//main/com/google/privacy/differentialprivacy:test_noise_factory",
         "//main/com/google/privacy/differentialprivacy/testing:reference_noise",
         "//main/com/google/privacy/differentialprivacy/testing:statistical_utils",
         "@com_google_differential_privacy//proto/testing:statistical_tests_java_proto",
@@ -63,7 +65,7 @@ java_test(
 
 java_test(
     name = "count_dp_tests",
-    size = "enormous",
+    size = "large",
     srcs = ["CountDpTest.java"],
     resources = [
         "@com_google_differential_privacy//proto/testing:count_dp_test_cases.textproto",
@@ -73,6 +75,7 @@ java_test(
     test_class = "com.google.privacy.differentialprivacy.statistical.CountDpTest",
     deps = [
         "//main/com/google/privacy/differentialprivacy",
+        "//main/com/google/privacy/differentialprivacy:test_noise_factory",
         "//main/com/google/privacy/differentialprivacy/testing:reference_noise",
         "//main/com/google/privacy/differentialprivacy/testing:statistical_utils",
         "@com_google_differential_privacy//proto/testing:statistical_tests_java_proto",
@@ -85,7 +88,7 @@ java_test(
 
 java_test(
     name = "bounded_mean_dp_tests",
-    size = "enormous",
+    size = "large",
     srcs = ["BoundedMeanDpTest.java"],
     resources = [
         "@com_google_differential_privacy//proto/testing:bounded_mean_dp_test_cases.textproto",
@@ -95,6 +98,7 @@ java_test(
     test_class = "com.google.privacy.differentialprivacy.statistical.BoundedMeanDpTest",
     deps = [
         "//main/com/google/privacy/differentialprivacy",
+        "//main/com/google/privacy/differentialprivacy:test_noise_factory",
         "//main/com/google/privacy/differentialprivacy/testing:reference_noise",
         "//main/com/google/privacy/differentialprivacy/testing:statistical_utils",
         "@com_google_differential_privacy//proto/testing:statistical_tests_java_proto",
@@ -107,7 +111,7 @@ java_test(
 
 java_test(
     name = "bounded_sum_dp_tests",
-    size = "enormous",
+    size = "large",
     srcs = ["BoundedSumDpTest.java"],
     resources = [
         "@com_google_differential_privacy//proto/testing:bounded_sum_dp_test_cases.textproto",
@@ -117,6 +121,7 @@ java_test(
     test_class = "com.google.privacy.differentialprivacy.statistical.BoundedSumDpTest",
     deps = [
         "//main/com/google/privacy/differentialprivacy",
+        "//main/com/google/privacy/differentialprivacy:test_noise_factory",
         "//main/com/google/privacy/differentialprivacy/testing:reference_noise",
         "//main/com/google/privacy/differentialprivacy/testing:statistical_utils",
         "@com_google_differential_privacy//proto/testing:statistical_tests_java_proto",
@@ -129,7 +134,7 @@ java_test(
 
 java_test(
     name = "bounded_variance_dp_tests",
-    size = "enormous",
+    size = "large",
     srcs = ["BoundedVarianceDpTest.java"],
     resources = [
         "@com_google_differential_privacy//proto/testing:bounded_stdv_dp_test_cases.textproto",
@@ -139,6 +144,7 @@ java_test(
     test_class = "com.google.privacy.differentialprivacy.statistical.BoundedVarianceDpTest",
     deps = [
         "//main/com/google/privacy/differentialprivacy",
+        "//main/com/google/privacy/differentialprivacy:test_noise_factory",
         "//main/com/google/privacy/differentialprivacy/testing:reference_noise",
         "//main/com/google/privacy/differentialprivacy/testing:statistical_utils",
         "@com_google_differential_privacy//proto/testing:statistical_tests_java_proto",

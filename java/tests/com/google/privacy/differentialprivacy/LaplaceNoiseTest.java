@@ -22,12 +22,13 @@ import static org.junit.Assert.assertThrows;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.math.Stats;
+import com.google.testing.junit.testparameterinjector.TestParameterInjector;
+import com.google.testing.junit.testparameterinjector.TestParameters;
 import java.security.SecureRandom;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
-@RunWith(JUnit4.class)
+@RunWith(TestParameterInjector.class)
 public final class LaplaceNoiseTest {
   private static final LaplaceNoise NOISE = new LaplaceNoise();
   private static final int NUM_SAMPLES = 100000;
@@ -431,5 +432,53 @@ public final class LaplaceNoiseTest {
   @Test
   public void getMechanismType_returnsGaussian() {
     assertThat(NOISE.getMechanismType()).isEqualTo(LAPLACE);
+  }
+
+  @Test
+  // quantile < mean
+  @TestParameters("{quantile: 0.6, mean: 1.0, l1Sensitivity: 4.9, epsilon: 2.7}")
+  // quantile > mean
+  @TestParameters("{quantile: 4.2, mean: 1.8, l1Sensitivity: 3.6, epsilon: 8.0}")
+  public void computeQuantile_inverseToCumulativeDensity(
+      double quantile, double mean, double l1Sensitivity, double epsilon) {
+    double actualQuantile =
+        LaplaceNoise.computeQuantile(
+            LaplaceNoise.cumulativeDensity(quantile, mean, l1Sensitivity, epsilon),
+            mean,
+            l1Sensitivity,
+            epsilon);
+
+    assertThat(actualQuantile).isWithin(1e-10).of(quantile);
+  }
+
+  @Test
+  // rank < 0.5
+  @TestParameters("{rank: 0.2, mean: 7.7, l1Sensitivity: 1.3, epsilon: 0.8}")
+  // rank > 0.5
+  @TestParameters("{rank: 0.9, mean: 9.2, l1Sensitivity: 6.6, epsilon: 2.7}")
+  public void cumulativeDensity_inverseToQuantile(
+      double rank, double mean, double l1Sensitivity, double epsilon) {
+    double actualRank =
+        LaplaceNoise.cumulativeDensity(
+            LaplaceNoise.computeQuantile(rank, mean, l1Sensitivity, epsilon),
+            mean,
+            l1Sensitivity,
+            epsilon);
+
+    assertThat(actualRank).isWithin(1e-10).of(rank);
+  }
+
+  @Test
+  // z < mean
+  @TestParameters("{z: -0.1, mean: 0.6, l1Sensitivity: 0.8, epsilon: 1.1, expectedP: 0.1909684}")
+  // z == mean
+  @TestParameters("{z: 4.2, mean: 4.2, l1Sensitivity: 6.1, epsilon: 1.5, expectedP: 0.5}")
+  // z > mean
+  @TestParameters("{z: 2.1, mean: 0.3, l1Sensitivity: 7.7, epsilon: 2.7, expectedP: 0.7340152}")
+  public void cumulativeDensity_sampleValues_computesCorrectly(
+      double z, double mean, double l1Sensitivity, double epsilon, double expectedP) {
+    double actualP = LaplaceNoise.cumulativeDensity(z, mean, l1Sensitivity, epsilon);
+
+    assertThat(actualP).isWithin(1e-6).of(expectedP);
   }
 }

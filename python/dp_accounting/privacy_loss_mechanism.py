@@ -870,7 +870,5 @@ class DiscreteGaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
   def standard_deviation(self) -> float:
     """The standard deviation of the corresponding discrete Gaussian noise."""
     return math.sqrt(
-        sum([
-            ((i + self._offset)**2) * probability_mass
-            for i, probability_mass in enumerate(self._pmf_array)
-        ]))
+        sum(((i + self._offset)**2) * probability_mass
+            for i, probability_mass in enumerate(self._pmf_array)))

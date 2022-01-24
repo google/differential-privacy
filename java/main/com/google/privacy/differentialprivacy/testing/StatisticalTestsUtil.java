@@ -20,8 +20,11 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 
 /** Utility class providing tests for evaluating statistical properties of anonymization tools. */
 public final class StatisticalTestsUtil {
@@ -170,6 +173,40 @@ public final class StatisticalTestsUtil {
     return min(
         numberOfBuckets - 1,
         (int) Math.floor(((sample - lower) / (upper - lower)) * numberOfBuckets));
+  }
+
+  /**
+   * Run {@code sampleGenerator} {@code numberOfSamples} times using {@code numThreads} threads and
+   * return the results in a list.
+   */
+  public static <T> List<T> generateSamplesParallel(
+      Supplier<T> sampleGenerator, int numberOfSamples, int numThreads)
+      throws InterruptedException {
+    List<T> samples = new ArrayList<T>(numberOfSamples);
+
+    List<Thread> threads = new ArrayList<>();
+    for (int i = 0; i < numThreads; i++) {
+      threads.add(
+          new Thread(
+              () -> {
+                while (true) {
+                  T sample = sampleGenerator.get();
+                  synchronized (samples) {
+                    if (samples.size() >= numberOfSamples) {
+                      break;
+                    }
+                    samples.add(sample);
+                  }
+                }
+              }));
+    }
+    for (Thread thread : threads) {
+      thread.start();
+    }
+    for (Thread thread : threads) {
+      thread.join();
+    }
+    return samples;
   }
 
   private static <T> double computeAproximateDpTestValue(

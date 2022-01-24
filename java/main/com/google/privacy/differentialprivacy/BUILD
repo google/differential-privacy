@@ -37,7 +37,10 @@ java_library(
 
 java_library(
     name = "differentialprivacy",
-    srcs = glob(["*.java"]),
+    srcs = glob(
+        ["*.java"],
+        exclude = ["TestNoiseFactory.java"],
+    ),
     deps = [
         ":autovalue",
         "@com_google_differential_privacy//proto:data_java_proto",
@@ -49,5 +52,14 @@ java_library(
         "@maven//:com_google_guava_guava",
         "@maven//:com_google_protobuf_protobuf_java",
         "@maven//:org_apache_commons_commons_math3",
+    ],
+)
+
+java_library(
+    name = "test_noise_factory",
+    testonly = 1,
+    srcs = ["TestNoiseFactory.java"],
+    deps = [
+        ":differentialprivacy",
     ],
 )

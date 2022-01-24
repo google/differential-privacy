@@ -95,7 +95,7 @@ class PrivacyAccountant(metaclass=abc.ABCMeta):
       raise TypeError(f'`event` must be `DpEvent`. Found {type(event)}.')
 
     if not self.supports(event):
-      raise UnsupportedEventError('Unsupported event: {event}.')
+      raise UnsupportedEventError(f'Unsupported event: {event}.')
 
     self._ledger.compose(event, count)
     self._compose(event, count)

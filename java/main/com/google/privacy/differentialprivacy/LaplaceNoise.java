@@ -17,12 +17,14 @@
 package com.google.privacy.differentialprivacy;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static java.lang.Math.exp;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.privacy.differentialprivacy.proto.SummaryOuterClass.MechanismType;
 import java.security.SecureRandom;
+import java.util.Random;
 import javax.annotation.Nullable;
 
 /**
@@ -49,11 +51,25 @@ public class LaplaceNoise implements Noise {
    */
   private static final double GRANULARITY_PARAM = (double) (1L << 40);
 
-  private final SecureRandom random;
+  private final Random random;
 
   /** Returns a Noise instance initialized with a secure randomness source. */
   public LaplaceNoise() {
-    random = new SecureRandom();
+    this(new SecureRandom());
+  }
+
+  private LaplaceNoise(Random random) {
+    this.random = random;
+  }
+
+  /**
+   * Returns a Noise instance initialized with a specified randomness source. This should only be
+   * used for testing and may only be called via the static methods in {@link TestNoiseFactory}.
+   *
+   * <p>This method is package-private for use by the factory.
+   */
+  static LaplaceNoise createForTesting(Random random) {
+    return new LaplaceNoise(random);
   }
 
   /**
@@ -191,8 +207,30 @@ public class LaplaceNoise implements Noise {
   }
 
   /**
+   * Computes the cumulative density function, i.e. Pr[Y <= z] for a Laplace random variable Y whose
+   * distribution is given by applying the Laplace mechanism to the raw value {@code x} using the
+   * specified privacy parameters {@code epsilon}, {@code delta}, and {@code l1Sensitivity}.
+   *
+   * <p>This is inverse to {@link #computeQuantile(double, double, double, double)} with the same
+   * parameters.
+   */
+  public static double cumulativeDensity(double z, double x, double l1Sensitivity, double epsilon) {
+    DpPreconditions.checkL1Sensitivity(l1Sensitivity);
+    DpPreconditions.checkEpsilon(epsilon);
+
+    double scale = l1Sensitivity / epsilon;
+    double y = z - x;
+    if (y > 0) {
+      return 1 - 0.5 * exp(-y / scale);
+    }
+    return 0.5 * exp(y / scale);
+  }
+
+  /**
    * Computes the quantile z satisfying Pr[Y <= z] = {@code rank} for a Laplace random variable Y
-   * with mean {@code x} and variance according to the specified privacy parameters.
+   * whose distribution is given by applying the Laplace mechanism to the raw value {@code x} using
+   * the specified privacy parameters {@code epsilon}, {@code delta}, {@code l0Sensitivity}, and
+   * {@code lInfSensitivity}.
    */
   @Override
   public double computeQuantile(
@@ -204,8 +242,24 @@ public class LaplaceNoise implements Noise {
       @Nullable Double delta) {
     DpPreconditions.checkNoiseComputeQuantileArguments(
         this, rank, l0Sensitivity, lInfSensitivity, epsilon, delta);
+    double l1Sensitivity = Noise.getL1Sensitivity(l0Sensitivity, lInfSensitivity);
+    return computeQuantile(rank, x, l1Sensitivity, epsilon);
+  }
 
-    double lambda = Noise.getL1Sensitivity(l0Sensitivity, lInfSensitivity) / epsilon;
+  /**
+   * Computes the quantile z satisfying Pr[Y <= z] = {@code rank} for a Laplace random variable Y
+   * whose distribution is given by applying the Laplace mechanism to the raw value {@code x} using
+   * the specified privacy parameters {@code epsilon}, {@code delta}, and {@code l1Sensitivity}.
+   *
+   * <p>This is inverse to {@link #cumulativeDensity} with the same parameters.
+   */
+  public static double computeQuantile(
+      double rank, double x, double l1Sensitivity, double epsilon) {
+    DpPreconditions.checkL1Sensitivity(l1Sensitivity);
+    DpPreconditions.checkEpsilon(epsilon);
+    checkArgument(rank > 0 && rank < 1, "rank must be > 0 and < 1. Provided value: %s", rank);
+
+    double lambda = l1Sensitivity / epsilon;
     if (rank < 0.5) {
       return x + lambda * Math.log(2 * rank);
     }

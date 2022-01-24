@@ -19,6 +19,7 @@ def dp_java_deps():
             "junit:junit:4.13.2",
             "com.google.truth:truth:1.1.2",
             "com.google.truth.extensions:truth-java8-extension:1.1.3",
+            "com.google.testparameterinjector:test-parameter-injector:1.7",
         ],
         repositories = [
             "https://jcenter.bintray.com/",

@@ -19,11 +19,11 @@ package com.google.privacy.differentialprivacy.statistical;
 import static com.google.common.truth.Truth.assertThat;
 import static java.lang.Math.sqrt;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.junit.Assert.fail;
 
 import com.google.privacy.differentialprivacy.BoundedVariance;
-import com.google.privacy.differentialprivacy.GaussianNoise;
-import com.google.privacy.differentialprivacy.LaplaceNoise;
 import com.google.privacy.differentialprivacy.Noise;
+import com.google.privacy.differentialprivacy.TestNoiseFactory;
 import com.google.privacy.differentialprivacy.proto.testing.StatisticalTests.BoundedStdvDpTestCase;
 import com.google.privacy.differentialprivacy.proto.testing.StatisticalTests.BoundedStdvDpTestCaseCollection;
 import com.google.privacy.differentialprivacy.proto.testing.StatisticalTests.BoundedStdvSamplingParameters;
@@ -33,6 +33,8 @@ import com.google.privacy.differentialprivacy.testing.VotingUtil;
 import com.google.protobuf.TextFormat;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Supplier;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -44,55 +46,54 @@ import org.junit.runners.Parameterized;
  */
 @RunWith(Parameterized.class)
 public final class BoundedVarianceDpTest {
+  private static final int NUM_SAMPLE_GENERATION_THREADS = 4;
   private static final String TEST_CASES_FILE_PATH =
 
   "external/com_google_differential_privacy/proto/testing/bounded_stdv_dp_test_cases.textproto";
-
   private final BoundedStdvDpTestCase testCase;
-
   public BoundedVarianceDpTest(BoundedStdvDpTestCase testCase) {
     this.testCase = testCase;
   }
-
   @Parameterized.Parameters
   public static Iterable<?> testCases() {
     return getTestCaseCollectionFromFile().getBoundedStdvDpTestCaseList();
   }
-
-  @Test
-  public void boundedVarianceDpTest() {
-    BoundedStdvSamplingParameters samplingParameters = testCase.getBoundedStdvSamplingParameters();
-    DpTestParameters dpTestParameters = testCase.getDpTestParameters();
-
+  /* Gets a new BoundedQuantiles with a thread-local source of randomness */
+  private static BoundedVariance getBoundedVariance(
+      BoundedStdvSamplingParameters samplingParameters) {
     Noise noise;
     Double delta;
     switch (samplingParameters.getNoiseType()) {
       case LAPLACE:
-        noise = new LaplaceNoise();
+        noise = TestNoiseFactory.createLaplaceNoise(ThreadLocalRandom.current());
         delta = null;
         break;
       case GAUSSIAN:
-        noise = new GaussianNoise();
+        noise = TestNoiseFactory.createGaussianNoise(ThreadLocalRandom.current());
         delta = samplingParameters.getDelta();
         break;
       default:
         throw new IllegalArgumentException(
             "Noise type " + samplingParameters.getNoiseType() + " is not supported");
     }
+    return BoundedVariance.builder()
+        .epsilon(samplingParameters.getEpsilon())
+        .delta(delta)
+        .maxPartitionsContributed(samplingParameters.getMaxPartitionsContributed())
+        .maxContributionsPerPartition(samplingParameters.getMaxContributionsPerPartition())
+        .lower(samplingParameters.getLowerBound())
+        .upper(samplingParameters.getUpperBound())
+        .noise(noise)
+        .build();
+  }
 
-    BoundedVariance.Params.Builder boundedVarianceBuilder =
-        BoundedVariance.builder()
-            .epsilon(samplingParameters.getEpsilon())
-            .delta(delta)
-            .maxPartitionsContributed(samplingParameters.getMaxPartitionsContributed())
-            .maxContributionsPerPartition(samplingParameters.getMaxContributionsPerPartition())
-            .lower(samplingParameters.getLowerBound())
-            .upper(samplingParameters.getUpperBound())
-            .noise(noise);
-
+  @Test
+  public void boundedVarianceDpTest() {
+    BoundedStdvSamplingParameters samplingParameters = testCase.getBoundedStdvSamplingParameters();
+    DpTestParameters dpTestParameters = testCase.getDpTestParameters();
     Supplier<Double> boundedStdvGenerator =
         () -> {
-          BoundedVariance boundedVariance = boundedVarianceBuilder.build();
+          BoundedVariance boundedVariance = getBoundedVariance(samplingParameters);
           for (double entry : samplingParameters.getRawEntryList()) {
             boundedVariance.addEntry(entry);
           }
@@ -102,7 +103,7 @@ public final class BoundedVarianceDpTest {
         };
     Supplier<Double> neighbourBoundedStdvGenerator =
         () -> {
-          BoundedVariance boundedVariance = boundedVarianceBuilder.build();
+          BoundedVariance boundedVariance = getBoundedVariance(samplingParameters);
           for (double entry : samplingParameters.getNeighbourRawEntryList()) {
             boundedVariance.addEntry(entry);
           }
@@ -110,7 +111,6 @@ public final class BoundedVarianceDpTest {
           // standard deviation.
           return sqrt(boundedVariance.computeResult());
         };
-
     assertThat(
             VotingUtil.runBallot(
                 () ->
@@ -125,11 +125,9 @@ public final class BoundedVarianceDpTest {
                 getNumberOfVotesFromFile()))
         .isTrue();
   }
-
   private static int getNumberOfVotesFromFile() {
     return getTestCaseCollectionFromFile().getVotingParameters().getNumberOfVotes();
   }
-
   private static BoundedStdvDpTestCaseCollection getTestCaseCollectionFromFile() {
     BoundedStdvDpTestCaseCollection.Builder testCaseCollectionBuilder =
         BoundedStdvDpTestCaseCollection.newBuilder();
@@ -148,7 +146,6 @@ public final class BoundedVarianceDpTest {
     }
     return testCaseCollectionBuilder.build();
   }
-
   private static boolean generateVote(
       Supplier<Double> sampleGeneratorA,
       Supplier<Double> sampleGeneratorB,
@@ -157,13 +154,22 @@ public final class BoundedVarianceDpTest {
       double delta,
       double deltaTolerance,
       double granularity) {
-    Double[] samplesA = new Double[numberOfSamples];
-    Double[] samplesB = new Double[numberOfSamples];
-    for (int i = 0; i < numberOfSamples; i++) {
-      samplesA[i] = StatisticalTestsUtil.discretize(sampleGeneratorA.get(), granularity);
-      samplesB[i] = StatisticalTestsUtil.discretize(sampleGeneratorB.get(), granularity);
+    try {
+      List<Double> samplesA =
+          StatisticalTestsUtil.generateSamplesParallel(
+              () -> StatisticalTestsUtil.discretize(sampleGeneratorA.get(), granularity),
+              numberOfSamples,
+              NUM_SAMPLE_GENERATION_THREADS);
+      List<Double> samplesB =
+          StatisticalTestsUtil.generateSamplesParallel(
+              () -> StatisticalTestsUtil.discretize(sampleGeneratorB.get(), granularity),
+              numberOfSamples,
+              NUM_SAMPLE_GENERATION_THREADS);
+      return StatisticalTestsUtil.verifyApproximateDp(
+          samplesA.toArray(), samplesB.toArray(), epsilon, delta, deltaTolerance);
+    } catch (InterruptedException e) {
+      fail(e.getMessage());
+      return false;
     }
-    return StatisticalTestsUtil.verifyApproximateDp(
-        samplesA, samplesB, epsilon, delta, deltaTolerance);
   }
 }
