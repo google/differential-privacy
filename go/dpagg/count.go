@@ -173,13 +173,18 @@ func (c *Count) Result() int64 {
 	return c.noisedCount
 }
 
-// ThresholdedResult is similar to Result() but applies thresholding to the
-// result. So, if the result is less than the threshold specified by the noise
-// mechanism, it returns nil. Otherwise, it returns the result.
+// ThresholdedResult is similar to Result() but applies thresholding to the result.
+// So, if the result is less than the threshold specified by the parameters of Count
+// as well as thresholdDelta, it returns nil. Otherwise, it returns the result.
+//
+// Note that the nil results should not be published when the existence of a
+// partition in the output depends on private data.
 func (c *Count) ThresholdedResult(thresholdDelta float64) *int64 {
 	threshold := c.Noise.Threshold(c.l0Sensitivity, float64(c.lInfSensitivity), c.epsilon, c.delta, thresholdDelta)
 	result := c.Result()
-	if result < int64(threshold) {
+	// Rounding up the threshold when converting it to int64 to ensure that no DP guarantees
+	// are violated due to a result being returned that is less than the fractional threshold.
+	if result < int64(math.Ceil(threshold)) {
 		return nil
 	}
 	return &result
