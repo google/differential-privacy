@@ -26,70 +26,46 @@ class PrivacyLossDistributionTest(parameterized.TestCase):
 
   def test_hockey_stick_basic(self):
     # Basic hockey stick divergence computation test
-    probability_mass_function_lower = {1: math.log(0.5), 2: math.log(0.5)}
-    probability_mass_function_upper = {1: math.log(0.6), 2: math.log(0.4)}
+    log_pmf_lower = {1: math.log(0.5), 2: math.log(0.5)}
+    log_pmf_upper = {1: math.log(0.6), 2: math.log(0.4)}
     privacy_loss_distribution_pessimistic = privacy_loss_distribution.PrivacyLossDistribution.from_two_probability_mass_functions(
-        probability_mass_function_lower, probability_mass_function_upper)
+        log_pmf_lower, log_pmf_upper, pessimistic_estimate=True)
     privacy_loss_distribution_optimistic = privacy_loss_distribution.PrivacyLossDistribution.from_two_probability_mass_functions(
-        probability_mass_function_lower,
-        probability_mass_function_upper,
-        pessimistic_estimate=False)
+        log_pmf_lower, log_pmf_upper, pessimistic_estimate=False)
 
     # The true 0-hockey stick divergence is 0.1
     # When using pessimistic estimate, the output should be in [0.1, 0.1+1e-4]
-    self.assertLessEqual(
-        0.1, privacy_loss_distribution_pessimistic.get_delta_for_epsilon(0.0))
-    self.assertGreaterEqual(
-        0.1 + 1e-4,
-        privacy_loss_distribution_pessimistic.get_delta_for_epsilon(0.0))
-
+    self.assertTrue(0.1 <= privacy_loss_distribution_pessimistic
+                    .get_delta_for_epsilon(0.0) <= 0.1 + 1e-4)
     # When using optimistic estimate, the output should be in [0.1 - 1e-4, 0.1]
-    self.assertGreaterEqual(
-        0.1, privacy_loss_distribution_optimistic.get_delta_for_epsilon(0.0))
-    self.assertLessEqual(
-        0.1 - 1e-4,
-        privacy_loss_distribution_optimistic.get_delta_for_epsilon(0.0))
+    self.assertTrue(0.1 - 1e-4 <= privacy_loss_distribution_optimistic
+                    .get_delta_for_epsilon(0.0) <= 0.1)
 
     # The true math.log(1.1)-hockey stick divergence is 0.05
     # When using pessimistic estimate, the output should be in [0.05, 0.05+1e-4]
-    self.assertLessEqual(
-        0.05,
-        privacy_loss_distribution_pessimistic.get_delta_for_epsilon(
-            math.log(1.1)))
-    self.assertGreaterEqual(
-        0.05 + 1e-4,
-        privacy_loss_distribution_pessimistic.get_delta_for_epsilon(
-            math.log(1.1)))
-
+    self.assertTrue(0.05 <= privacy_loss_distribution_pessimistic
+                    .get_delta_for_epsilon(math.log(1.1)) <= 0.05 + 1e-4)
     # When using optimistic estimate, the output should be in [0.05-1e-4, 0.05]
-    self.assertGreaterEqual(
-        0.05,
-        privacy_loss_distribution_optimistic.get_delta_for_epsilon(
-            math.log(1.1)))
-    self.assertLessEqual(
-        0.05 - 1e-4,
-        privacy_loss_distribution_pessimistic.get_delta_for_epsilon(
-            math.log(1.1)))
+    self.assertTrue(0.05 - 1e-4 <= privacy_loss_distribution_optimistic
+                    .get_delta_for_epsilon(math.log(1.1)) <= 0.05)
+
+    # The true math.log(0.9)-hockey stick divergence is 0.15
+    # When using pessimistic estimate, the output should be in [0.15, 0.15+1e-4]
+    self.assertTrue(0.15 <= privacy_loss_distribution_pessimistic
+                    .get_delta_for_epsilon(math.log(0.9)) <= 0.15 + 1e-4)
+    # When using optimistic estimate, the output should be in [0.2-1e-4, 0.2]
+    self.assertTrue(0.15 - 1e-4 <= privacy_loss_distribution_optimistic
+                    .get_delta_for_epsilon(math.log(0.9)) <= 0.15)
 
   def test_hockey_stick_unequal_support(self):
     # Hockey stick divergence computation test when the two distributions have
     # differenet supports
-    probability_mass_function_lower = {
-        1: math.log(0.2),
-        2: math.log(0.2),
-        3: math.log(0.6)
-    }
-    probability_mass_function_upper = {
-        1: math.log(0.5),
-        2: math.log(0.4),
-        4: math.log(0.1)
-    }
+    log_pmf_lower = {1: math.log(0.2), 2: math.log(0.2), 3: math.log(0.6)}
+    log_pmf_upper = {1: math.log(0.5), 2: math.log(0.4), 4: math.log(0.1)}
     privacy_loss_distribution_pessimistic = privacy_loss_distribution.PrivacyLossDistribution.from_two_probability_mass_functions(
-        probability_mass_function_lower, probability_mass_function_upper)
+        log_pmf_lower, log_pmf_upper, pessimistic_estimate=True)
     privacy_loss_distribution_optimistic = privacy_loss_distribution.PrivacyLossDistribution.from_two_probability_mass_functions(
-        probability_mass_function_lower,
-        probability_mass_function_upper,
-        pessimistic_estimate=False)
+        log_pmf_lower, log_pmf_upper, pessimistic_estimate=False)
 
     # Here 4 appears as an outcome of only mu_upper and hence should be included
     # in the infinity_mass variable.
@@ -100,36 +76,31 @@ class PrivacyLossDistributionTest(parameterized.TestCase):
 
     # The true 0-hockey stick divergence is 0.6
     # When using pessimistic estimate, the output should be in [0.6, 0.6+1e-4]
-    self.assertLessEqual(
-        0.6, privacy_loss_distribution_pessimistic.get_delta_for_epsilon(0.0))
-    self.assertGreaterEqual(
-        0.6 + 1e-4,
-        privacy_loss_distribution_pessimistic.get_delta_for_epsilon(0.0))
-
+    self.assertTrue(0.6 <= privacy_loss_distribution_pessimistic
+                    .get_delta_for_epsilon(0.0) <= 0.6 + 1e-4)
     # When using optimistic estimate, the output should lie in [0.6 - 1e-4, 0.6]
-    self.assertGreaterEqual(
-        0.6, privacy_loss_distribution_optimistic.get_delta_for_epsilon(0.0))
-    self.assertLessEqual(
-        0.6 - 1e-4,
-        privacy_loss_distribution_optimistic.get_delta_for_epsilon(0.0))
+    self.assertTrue(0.6 - 1e-4 <= privacy_loss_distribution_optimistic
+                    .get_delta_for_epsilon(0.0) <= 0.6)
 
-    # The true 0.5-hockey stick divergence is 0.34051149172
+    # The true math.log(1.1)-hockey stick divergence is 0.56
     # When using pessimistic estimate, the output should be in
-    # [0.3405, 0.3405 + 1e-4]
-    self.assertLessEqual(
-        0.3405,
-        privacy_loss_distribution_pessimistic.get_delta_for_epsilon(0.5))
-    self.assertGreaterEqual(
-        0.3405 + 1e-4,
-        privacy_loss_distribution_pessimistic.get_delta_for_epsilon(0.5))
-
+    # [0.56, 0.56 + 1e-4]
+    self.assertTrue(0.56 <= privacy_loss_distribution_pessimistic
+                    .get_delta_for_epsilon(math.log(1.1)) <= 0.56 + 1e-4)
     # When using optimistic estimate, the output should lie in
-    # [0.3405 - 1e-4, 0.3405]
-    self.assertGreaterEqual(
-        0.3405, privacy_loss_distribution_optimistic.get_delta_for_epsilon(0.5))
-    self.assertLessEqual(
-        0.3405 - 1e-4,
-        privacy_loss_distribution_optimistic.get_delta_for_epsilon(0.5))
+    # [0.56 - 1e-4, 0.56]
+    self.assertTrue(0.56 - 1e-4 <= privacy_loss_distribution_optimistic
+                    .get_delta_for_epsilon(math.log(1.1)) <= 0.56)
+
+    # The true math.log(0.9)-hockey stick divergence is 0.64.
+    # When using pessimistic estimate, the output should be in
+    # [0.64, 0.64 + 1e-4]
+    self.assertTrue(0.64 <= privacy_loss_distribution_pessimistic
+                    .get_delta_for_epsilon(math.log(0.9)) <= 0.64 + 1e-4)
+    # When using optimistic estimate, the output should lie in
+    # [0.64 - 1e-4, 0.64]
+    self.assertTrue(0.64 - 1e-4 <= privacy_loss_distribution_optimistic
+                    .get_delta_for_epsilon(math.log(0.9)) <= 0.64)
 
   @parameterized.parameters(
       ({
@@ -169,24 +140,16 @@ class PrivacyLossDistributionTest(parameterized.TestCase):
 
   def test_truncation(self):
     # Test for truncation
-    probability_mass_function_lower = {
-        1: math.log(0.2),
-        2: math.log(0.2),
-        3: math.log(0.6)
-    }
-    probability_mass_function_upper = {
-        1: math.log(0.55),
-        2: math.log(0.02),
-        3: math.log(0.03)
-    }
+    log_pmf_lower = {1: math.log(0.2), 2: math.log(0.2), 3: math.log(0.6)}
+    log_pmf_upper = {1: math.log(0.55), 2: math.log(0.02), 3: math.log(0.03)}
     # Set the truncation threshold to be 0.1
     privacy_loss_distribution_pessimistic = privacy_loss_distribution.PrivacyLossDistribution.from_two_probability_mass_functions(
-        probability_mass_function_lower,
-        probability_mass_function_upper,
+        log_pmf_lower,
+        log_pmf_upper,
         log_mass_truncation_bound=math.log(0.1))
     privacy_loss_distribution_optimistic = privacy_loss_distribution.PrivacyLossDistribution.from_two_probability_mass_functions(
-        probability_mass_function_lower,
-        probability_mass_function_upper,
+        log_pmf_lower,
+        log_pmf_upper,
         log_mass_truncation_bound=math.log(0.1),
         pessimistic_estimate=False)
 
@@ -209,31 +172,20 @@ class PrivacyLossDistributionTest(parameterized.TestCase):
 
   def test_composition(self):
     # Test for composition of privacy loss distribution
-    probability_mass_function_lower1 = {
-        1: math.log(0.2),
-        2: math.log(0.2),
-        3: math.log(0.6)
-    }
-    probability_mass_function_upper1 = {
-        1: math.log(0.5),
-        2: math.log(0.2),
-        4: math.log(0.3)
-    }
+    log_pmf_lower1 = {1: math.log(0.2), 2: math.log(0.2), 3: math.log(0.6)}
+    log_pmf_upper1 = {1: math.log(0.5), 2: math.log(0.2), 4: math.log(0.3)}
     privacy_loss_distribution1 = privacy_loss_distribution.PrivacyLossDistribution.from_two_probability_mass_functions(
-        probability_mass_function_lower1, probability_mass_function_upper1)
-    probability_mass_function_lower2 = {
-        1: math.log(0.4),
-        2: math.log(0.6),
-    }
-    probability_mass_function_upper2 = {2: math.log(0.7), 3: math.log(0.3)}
+        log_pmf_lower1, log_pmf_upper1)
+    log_pmf_lower2 = {1: math.log(0.4), 2: math.log(0.6)}
+    log_pmf_upper2 = {2: math.log(0.7), 3: math.log(0.3)}
     privacy_loss_distribution2 = privacy_loss_distribution.PrivacyLossDistribution.from_two_probability_mass_functions(
-        probability_mass_function_lower2, probability_mass_function_upper2)
+        log_pmf_lower2, log_pmf_upper2)
 
     # Result from composing the above two privacy loss distributions
     result = privacy_loss_distribution1.compose(privacy_loss_distribution2)
 
     # The correct result
-    probability_mass_function_lower_composed = {
+    log_pmf_lower_composed = {
         (1, 1): math.log(0.08),
         (1, 2): math.log(0.12),
         (2, 1): math.log(0.08),
@@ -241,7 +193,7 @@ class PrivacyLossDistributionTest(parameterized.TestCase):
         (3, 1): math.log(0.24),
         (3, 2): math.log(0.36)
     }
-    probability_mass_function_upper_composed = {
+    log_pmf_upper_composed = {
         (1, 2): math.log(0.35),
         (1, 3): math.log(0.15),
         (2, 2): math.log(0.14),
@@ -250,8 +202,7 @@ class PrivacyLossDistributionTest(parameterized.TestCase):
         (4, 3): math.log(0.09)
     }
     expected_result = privacy_loss_distribution.PrivacyLossDistribution.from_two_probability_mass_functions(
-        probability_mass_function_lower_composed,
-        probability_mass_function_upper_composed)
+        log_pmf_lower_composed, log_pmf_upper_composed)
 
     # Check that the result is as expected. Note that we cannot check that the
     # rounded_down_probability_mass_function and
@@ -304,6 +255,19 @@ class PrivacyLossDistributionTest(parameterized.TestCase):
     with self.assertRaises(ValueError):
       pld1.get_delta_for_epsilon_for_composed_pld(pld2, 0.1)
 
+  def test_composition_different_discretization(self):
+    pld1 = privacy_loss_distribution.PrivacyLossDistribution(
+        {1: 0.5, -1: 0.5}, 1, 0, True)
+    pld2 = privacy_loss_distribution.PrivacyLossDistribution(
+        {2: 0.5, -2: 0.5}, 0.5, 0, True)
+
+    with self.assertRaises(ValueError):
+      pld1.validate_composable(pld2)
+    with self.assertRaises(ValueError):
+      pld1.compose(pld2)
+    with self.assertRaises(ValueError):
+      pld1.get_delta_for_epsilon_for_composed_pld(pld2, 0.1)
+
   def test_compose_and_get_epsilon_for_delta(self):
     pld1 = privacy_loss_distribution.PrivacyLossDistribution(
         {
@@ -323,32 +287,32 @@ class PrivacyLossDistributionTest(parameterized.TestCase):
 
   def test_self_composition(self):
     # Test for self composition of privacy loss distribution
-    probability_mass_function_lower = {
+    log_pmf_lower = {
         1: math.log(0.2),
         2: math.log(0.2),
         3: math.log(0.6)
     }
-    probability_mass_function_upper = {
+    log_pmf_upper = {
         1: math.log(0.5),
         2: math.log(0.2),
         4: math.log(0.3)
     }
     pld = privacy_loss_distribution.PrivacyLossDistribution.from_two_probability_mass_functions(
-        probability_mass_function_lower, probability_mass_function_upper)
+        log_pmf_lower, log_pmf_upper)
     result = pld.self_compose(3)
 
-    expected_probability_mass_lower = {}
-    for i, vi in probability_mass_function_lower.items():
-      for j, vj in probability_mass_function_lower.items():
-        for k, vk in probability_mass_function_lower.items():
-          expected_probability_mass_lower[(i, j, k)] = vi + vj + vk
-    expected_probability_mass_upper = {}
-    for i, vi in probability_mass_function_upper.items():
-      for j, vj in probability_mass_function_upper.items():
-        for k, vk in probability_mass_function_upper.items():
-          expected_probability_mass_upper[(i, j, k)] = vi + vj + vk
+    expected_log_pmf_lower = {}
+    for i, vi in log_pmf_lower.items():
+      for j, vj in log_pmf_lower.items():
+        for k, vk in log_pmf_lower.items():
+          expected_log_pmf_lower[(i, j, k)] = vi + vj + vk
+    expected_log_pmf_upper = {}
+    for i, vi in log_pmf_upper.items():
+      for j, vj in log_pmf_upper.items():
+        for k, vk in log_pmf_upper.items():
+          expected_log_pmf_upper[(i, j, k)] = vi + vj + vk
     expected_result = privacy_loss_distribution.PrivacyLossDistribution.from_two_probability_mass_functions(
-        expected_probability_mass_lower, expected_probability_mass_upper)
+        expected_log_pmf_lower, expected_log_pmf_upper)
 
     self.assertAlmostEqual(expected_result.value_discretization_interval,
                            result.value_discretization_interval)
@@ -359,6 +323,9 @@ class PrivacyLossDistributionTest(parameterized.TestCase):
     self.assertAlmostEqual(
         expected_result.get_delta_for_epsilon(0.5),
         result.get_delta_for_epsilon(0.5))
+    self.assertAlmostEqual(
+        expected_result.get_delta_for_epsilon(-0.2),
+        result.get_delta_for_epsilon(-0.2))
 
   def test_self_composition_truncation(self):
     # Use Gaussian mechanism because it has closed form formula even afer
