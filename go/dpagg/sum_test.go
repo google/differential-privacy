@@ -883,7 +883,7 @@ func TestThresholdedResultInt64(t *testing.T) {
 	bs2 := getNoiselessBSI()
 	bs2.Add(1)
 	bs2.Add(2)
-	got = bs2.ThresholdedResult(0.1) // the parameter here is for the reader's eyes, the actual threshold value (5) is specified in noNoise.Threshold()
+	got = bs2.ThresholdedResult(0.1)
 	if got != nil {
 		t.Errorf("ThresholdedResult(0.1): when 1,2 were added got %v, want nil", got)
 	}
