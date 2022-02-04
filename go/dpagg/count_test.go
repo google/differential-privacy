@@ -346,7 +346,7 @@ func TestCountThresholdedResult(t *testing.T) {
 	}
 	got := c1.ThresholdedResult(tenten)
 	if got == nil || *got != 10 {
-		t.Errorf("ThresholdedResult(%f): after 2 entries got %v, want nil", tenten, got)
+		t.Errorf("ThresholdedResult(%f): after 10 entries got %v, want 10", tenten, got)
 	}
 
 	// ThresholdedResult outputs nil when it is less than the threshold
@@ -355,7 +355,7 @@ func TestCountThresholdedResult(t *testing.T) {
 	c2.Increment()
 	got = c2.ThresholdedResult(tenten)
 	if got != nil {
-		t.Errorf("ThresholdedResult(%f): when 2 addings got %v, want nil", tenten, got)
+		t.Errorf("ThresholdedResult(%f): after 2 entries got %v, want nil", tenten, got)
 	}
 
 	// Edge case when noisy result is 5 and threshold is 5.00001, ThresholdedResult outputs nil.
