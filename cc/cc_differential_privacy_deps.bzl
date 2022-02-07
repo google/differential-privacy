@@ -74,11 +74,11 @@ def cc_differential_privacy_deps():
         sha256 = "e60cfd0a8426fa4f5fd2156e768493ca62b87d125cb35e94c44e79a3f0d8635f",
     )
 
-    # Postgres depends on rules_foreign_cc. Use postgres 11.
+    # Postgres depends on rules_foreign_cc. Use postgres 12.
     http_archive(
         name = "postgres",
-        url = "https://github.com/postgres/postgres/archive/REL_11_7.tar.gz",
+        url = "https://github.com/postgres/postgres/archive/REL_12_9.tar.gz",
         build_file = "@com_google_differential_privacy//cc/postgres:postgres.BUILD",
-        strip_prefix = "postgres-REL_11_7",
-        sha256 = "8c427e10a5f8b6be76353e83c7cf0171ac0e85308d352b8c129612002bb342eb",
+        strip_prefix = "postgres-REL_12_9",
+        sha256 = "64f6da47aab9ac65d07b31abd40445b4a0413d4265d25b82ed738abad8a98349",
     )
