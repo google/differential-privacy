@@ -3,9 +3,9 @@
 This subdirectory contains a PostgreSQL extension providing several epsilon-DP
 aggregate functions. We will refer to them as the anonymous functions.
 
-## Setup
+## Setup 
 
-* Install Postgres 11 using the source code.
+* Install Postgres 12 using the source code.
   *  Source: https://www.postgresql.org/ftp/source/
   *  Instructions: https://www.postgresql.org/docs/9.3/install-short.html
 
@@ -25,6 +25,10 @@ aggregate functions. We will refer to them as the anonymous functions.
     ```
     CREATE EXTENSION anon_func;
     ```
+
+## Setup Docker deployment
+
+please refere to [README](./docker/README.md) in docker folder
 
 ### Common Issues
 

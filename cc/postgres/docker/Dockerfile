@@ -33,7 +33,9 @@ RUN apt-get update \
 ##Download differential privacy module
 
 
-RUN git clone https://github.com/fbalicchia/differential-privacy.git -b image-df-postgresql --single-branch /tmp/differential-privacy \
+RUN git clone https://github.com/google/differential-privacy.git --single-branch /tmp/differential-privacy \
+    && cd /tmp/differential-privacy \
+    && git checkout fc4f2abda5052f654539fc128 \
     && cd /tmp/differential-privacy/cc \
     && bazel build postgres/anon_func.so 
 
