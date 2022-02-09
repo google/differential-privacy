@@ -118,12 +118,10 @@ manner. This could be useful for very large input sets, for example.
 ### Getting Results
 
 ```
-Output PartialResult(double privacy_budget = RemainingPrivacyBudget());
+Output PartialResult();
 ```
 
-Get a result based on the current state of the `Algorithm`. The `privacy_budget`
-is the amount of your remaining privacy budget to consume. You must have at
-least that much budget remaining. If unspecified, consumes all remaining budget.
+Get a result based on the current state of the `Algorithm`.
 
 ```
 template <typename Iterator>

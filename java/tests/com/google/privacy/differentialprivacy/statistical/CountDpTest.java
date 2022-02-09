@@ -20,9 +20,8 @@ import static com.google.common.truth.Truth.assertThat;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.privacy.differentialprivacy.Count;
-import com.google.privacy.differentialprivacy.GaussianNoise;
-import com.google.privacy.differentialprivacy.LaplaceNoise;
 import com.google.privacy.differentialprivacy.Noise;
+import com.google.privacy.differentialprivacy.TestNoiseFactory;
 import com.google.privacy.differentialprivacy.proto.testing.StatisticalTests.CountDpTestCase;
 import com.google.privacy.differentialprivacy.proto.testing.StatisticalTests.CountDpTestCaseCollection;
 import com.google.privacy.differentialprivacy.proto.testing.StatisticalTests.CountSamplingParameters;
@@ -32,6 +31,7 @@ import com.google.privacy.differentialprivacy.testing.VotingUtil;
 import com.google.protobuf.TextFormat;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.Random;
 import java.util.function.Supplier;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -64,11 +64,11 @@ public final class CountDpTest {
     Double delta;
     switch (samplingParameters.getNoiseType()) {
       case LAPLACE:
-        noise = new LaplaceNoise();
+        noise = TestNoiseFactory.createLaplaceNoise(new Random());
         delta = null;
         break;
       case GAUSSIAN:
-        noise = new GaussianNoise();
+        noise = TestNoiseFactory.createGaussianNoise(new Random());
         delta = samplingParameters.getDelta();
         break;
       default:

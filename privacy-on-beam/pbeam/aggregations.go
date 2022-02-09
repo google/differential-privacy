@@ -1126,7 +1126,7 @@ func rekeyArrayFloat64Fn(kv kv.Pair, m []float64) ([]byte, pairArrayFloat64) {
 }
 
 // checkPublicPartitions returns an error if publicPartitions parameter of an aggregation
-// is not valid,
+// is not valid.
 func checkPublicPartitions(publicPartitions interface{}, partitionType reflect.Type) error {
 	if publicPartitions != nil {
 		if reflect.TypeOf(publicPartitions) != reflect.TypeOf(beam.PCollection{}) &&
@@ -1141,6 +1141,21 @@ func checkPublicPartitions(publicPartitions interface{}, partitionType reflect.T
 		if !isPCollection && reflect.TypeOf(publicPartitions).Elem() != partitionType {
 			return fmt.Errorf("PublicPartitions=%+v needs to be a slice or an array whose elements are the same type as the partition key (%+v)", publicPartitions, partitionType)
 		}
+	}
+	return nil
+}
+
+// checkDelta returns an error if delta parameter of an aggregation is not valid. Delta
+// is valid in the following cases:
+//     delta == 0; when laplace noise with public partitions are used
+//     0 < delta < 1; otherwise
+func checkDelta(delta float64, noiseKind noise.Kind, publicPartitions interface{}) error {
+	if publicPartitions != nil && noiseKind == noise.LaplaceNoise {
+		if delta != 0 {
+			return fmt.Errorf("Delta is %e, using Laplace Noise with Public Partitions requires setting delta to 0", delta)
+		}
+	} else {
+		return checks.CheckDeltaStrict(delta)
 	}
 	return nil
 }

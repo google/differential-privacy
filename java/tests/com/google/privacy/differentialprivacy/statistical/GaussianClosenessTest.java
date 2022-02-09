@@ -20,6 +20,7 @@ import static com.google.common.truth.Truth.assertThat;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.privacy.differentialprivacy.GaussianNoise;
+import com.google.privacy.differentialprivacy.TestNoiseFactory;
 import com.google.privacy.differentialprivacy.proto.testing.StatisticalTests.ClosenessTestParameters;
 import com.google.privacy.differentialprivacy.proto.testing.StatisticalTests.DistributionClosenessTestCase;
 import com.google.privacy.differentialprivacy.proto.testing.StatisticalTests.DistributionClosenessTestCaseCollection;
@@ -30,6 +31,7 @@ import com.google.privacy.differentialprivacy.testing.VotingUtil;
 import com.google.protobuf.TextFormat;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.Random;
 import java.util.function.Supplier;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -58,7 +60,7 @@ public final class GaussianClosenessTest {
 
   @Test
   public void gaussianClosenessTest() {
-    GaussianNoise noise = new GaussianNoise();
+    GaussianNoise noise = TestNoiseFactory.createGaussianNoise(new Random());
     NoiseSamplingParameters samplingParameters = testCase.getNoiseSamplingParameters();
     ClosenessTestParameters closenessTestParameters = testCase.getClosenessTestParameters();
     Supplier<Double> gaussianSampleGenerator =

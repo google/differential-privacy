@@ -18,11 +18,11 @@ package com.google.privacy.differentialprivacy.statistical;
 
 import static com.google.common.truth.Truth.assertThat;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.junit.Assert.fail;
 
 import com.google.privacy.differentialprivacy.BoundedQuantiles;
-import com.google.privacy.differentialprivacy.GaussianNoise;
-import com.google.privacy.differentialprivacy.LaplaceNoise;
 import com.google.privacy.differentialprivacy.Noise;
+import com.google.privacy.differentialprivacy.TestNoiseFactory;
 import com.google.privacy.differentialprivacy.proto.testing.StatisticalTests.BoundedQuantilesDpTestCase;
 import com.google.privacy.differentialprivacy.proto.testing.StatisticalTests.BoundedQuantilesDpTestCaseCollection;
 import com.google.privacy.differentialprivacy.proto.testing.StatisticalTests.BoundedQuantilesSamplingParameters;
@@ -34,6 +34,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Supplier;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -45,6 +46,8 @@ import org.junit.runners.Parameterized;
  */
 @RunWith(Parameterized.class)
 public final class BoundedQuantilesDpTest {
+  private static final int NUM_SAMPLE_GENERATION_THREADS = 4;
+
   private static final String TEST_CASES_FILE_PATH =
 
   "external/com_google_differential_privacy/proto/testing/bounded_quantiles_dp_test_cases.textproto";
@@ -60,6 +63,37 @@ public final class BoundedQuantilesDpTest {
     return getTestCaseCollectionFromFile().getBoundedQuantilesDpTestCaseList();
   }
 
+  /* Gets a new BoundedQuantiles with a thread-local source of randomness */
+  private static BoundedQuantiles getBoundedQuantiles(
+      BoundedQuantilesSamplingParameters samplingParameters) {
+    Noise noise;
+    Double delta;
+    switch (samplingParameters.getNoiseType()) {
+      case LAPLACE:
+        noise = TestNoiseFactory.createLaplaceNoise(ThreadLocalRandom.current());
+        delta = null;
+        break;
+      case GAUSSIAN:
+        noise = TestNoiseFactory.createGaussianNoise(ThreadLocalRandom.current());
+        delta = samplingParameters.getDelta();
+        break;
+      default:
+        throw new IllegalArgumentException(
+            "Noise type " + samplingParameters.getNoiseType() + " is not supported");
+    }
+    return BoundedQuantiles.builder()
+        .epsilon(samplingParameters.getEpsilon())
+        .delta(delta)
+        .maxContributionsPerPartition(samplingParameters.getMaxContributionsPerPartition())
+        .maxPartitionsContributed(samplingParameters.getMaxPartitionsContributed())
+        .lower(samplingParameters.getLowerBound())
+        .upper(samplingParameters.getUpperBound())
+        .noise(noise)
+        .treeHeight(samplingParameters.getTreeHeight())
+        .branchingFactor(samplingParameters.getBranchingFactor())
+        .build();
+  }
+
   @Test
   public void boundedQuantilesDpTest() {
 
@@ -67,37 +101,9 @@ public final class BoundedQuantilesDpTest {
         testCase.getBoundedQuantilesSamplingParameters();
     DpTestParameters dpTestParameters = testCase.getDpTestParameters();
 
-    Noise noise;
-    Double delta;
-    switch (samplingParameters.getNoiseType()) {
-      case LAPLACE:
-        noise = new LaplaceNoise();
-        delta = null;
-        break;
-      case GAUSSIAN:
-        noise = new GaussianNoise();
-        delta = samplingParameters.getDelta();
-        break;
-      default:
-        throw new IllegalArgumentException(
-            "Noise type " + samplingParameters.getNoiseType() + " is not supported");
-    }
-
-    BoundedQuantiles.Params.Builder boundedQuantilesBuilder =
-        BoundedQuantiles.builder()
-            .epsilon(samplingParameters.getEpsilon())
-            .delta(delta)
-            .maxContributionsPerPartition(samplingParameters.getMaxContributionsPerPartition())
-            .maxPartitionsContributed(samplingParameters.getMaxPartitionsContributed())
-            .lower(samplingParameters.getLowerBound())
-            .upper(samplingParameters.getUpperBound())
-            .noise(noise)
-            .treeHeight(samplingParameters.getTreeHeight())
-            .branchingFactor(samplingParameters.getBranchingFactor());
-
     Supplier<List<Double>> boundedQuantilesGenerator =
         () -> {
-          BoundedQuantiles boundedQuantiles = boundedQuantilesBuilder.build();
+          BoundedQuantiles boundedQuantiles = getBoundedQuantiles(samplingParameters);
           for (double entry : samplingParameters.getRawEntryList()) {
             boundedQuantiles.addEntry(entry);
           }
@@ -109,7 +115,7 @@ public final class BoundedQuantilesDpTest {
         };
     Supplier<List<Double>> neighbourBoundedQuantilesGenerator =
         () -> {
-          BoundedQuantiles boundedQuantiles = boundedQuantilesBuilder.build();
+          BoundedQuantiles boundedQuantiles = getBoundedQuantiles(samplingParameters);
           for (double entry : samplingParameters.getNeighbourRawEntryList()) {
             boundedQuantiles.addEntry(entry);
           }
@@ -173,28 +179,42 @@ public final class BoundedQuantilesDpTest {
       double deltaTolerance,
       int numberOfBuckets) {
 
+    List<List<Double>> generatedSamplesA;
+    List<List<Double>> generatedSamplesB;
+    try {
+      generatedSamplesA =
+          StatisticalTestsUtil.generateSamplesParallel(
+              sampleGeneratorA, numberOfSamples, NUM_SAMPLE_GENERATION_THREADS);
+      generatedSamplesB =
+          StatisticalTestsUtil.generateSamplesParallel(
+              sampleGeneratorB, numberOfSamples, NUM_SAMPLE_GENERATION_THREADS);
+    } catch (InterruptedException e) {
+      fail(e.getMessage());
+      return false;
+    }
+
     // Each sample consists of a vector of quantiles, one for each rank.
-    List<Integer[]> samplesA = new ArrayList<>(numberOfRanks);
-    List<Integer[]> samplesB = new ArrayList<>(numberOfRanks);
+    List<Integer[]> samplesByRankA = new ArrayList<>(numberOfRanks);
+    List<Integer[]> samplesByRankB = new ArrayList<>(numberOfRanks);
     for (int j = 0; j < numberOfRanks; j++) {
-      samplesA.add(new Integer[numberOfSamples]);
-      samplesB.add(new Integer[numberOfSamples]);
+      samplesByRankA.add(new Integer[numberOfSamples]);
+      samplesByRankB.add(new Integer[numberOfSamples]);
     }
     for (int i = 0; i < numberOfSamples; i++) {
-      List<Double> sampleA = sampleGeneratorA.get();
-      List<Double> sampleB = sampleGeneratorB.get();
       for (int j = 0; j < numberOfRanks; j++) {
-        samplesA.get(j)[i] =
-            StatisticalTestsUtil.bucketize(sampleA.get(j), lower, upper, numberOfBuckets);
-        samplesB.get(j)[i] =
-            StatisticalTestsUtil.bucketize(sampleB.get(j), lower, upper, numberOfBuckets);
+        samplesByRankA.get(j)[i] =
+            StatisticalTestsUtil.bucketize(
+                generatedSamplesA.get(i).get(j), lower, upper, numberOfBuckets);
+        samplesByRankB.get(j)[i] =
+            StatisticalTestsUtil.bucketize(
+                generatedSamplesB.get(i).get(j), lower, upper, numberOfBuckets);
       }
     }
 
     // Only cast an accept vote if all quantiles pass the test.
     for (int j = 0; j < numberOfRanks; j++) {
       if (!StatisticalTestsUtil.verifyApproximateDp(
-          samplesA.get(j), samplesB.get(j), epsilon, delta, deltaTolerance)) {
+          samplesByRankA.get(j), samplesByRankB.get(j), epsilon, delta, deltaTolerance)) {
         return false;
       }
     }

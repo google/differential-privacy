@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.privacy.differentialprivacy.proto.SummaryOuterClass.MechanismType;
 import java.security.SecureRandom;
+import java.util.Random;
 import javax.annotation.Nullable;
 import org.apache.commons.math3.distribution.NormalDistribution;
 import org.apache.commons.math3.special.Erf;
@@ -67,11 +68,25 @@ public class GaussianNoise implements Noise {
    */
   private static final double GAUSSIAN_SIGMA_ACCURACY = 1e-3;
 
-  private final SecureRandom random;
+  private final Random random;
 
   /** Returns a Noise instance initialized with a secure randomness source. */
   public GaussianNoise() {
-    random = new SecureRandom();
+    this(new SecureRandom());
+  }
+
+  private GaussianNoise(Random random) {
+    this.random = random;
+  }
+
+  /**
+   * Returns a Noise instance initialized with a specified randomness source. This should only be
+   * used for testing and may only be called via the static methods in {@link TestNoiseFactory}.
+   *
+   * <p>This method is package-private for use by the factory.
+   */
+  static GaussianNoise createForTesting(Random random) {
+    return new GaussianNoise(random);
   }
 
   /**
@@ -189,7 +204,9 @@ public class GaussianNoise implements Noise {
 
   /**
    * Computes the quantile z satisfying Pr[Y <= z] = {@code rank} for a Gaussian random variable Y
-   * with mean {@code x} and variance according to the specified privacy parameters.
+   * whose distribution is given by applying the Gaussian mechanism to the raw value {@code x} using
+   * the specified privacy parameters {@code epsilon}, {@code delta}, {@code l0Sensitivity}, and
+   * {@code lInfSensitivity}.
    */
   @Override
   public double computeQuantile(
@@ -362,7 +379,7 @@ public class GaussianNoise implements Noise {
    * approximation is taken from Lemma 7 of the noise generation documentation, available <a
    * href="https://github.com/google/differential-privacy/blob/main/common_docs/Secure_Noise_Generation.pdf">here</a>.
    *
-   * Note that m might be very large and m * m might not be representable as long.
+   * <p>Note that m might be very large and m * m might not be representable as long.
    */
   private static double approximateBinomialProbability(double sqrtN, long m) {
     if (Math.abs(m) > sqrtN * Math.sqrt(Math.log(sqrtN) / 2)) {

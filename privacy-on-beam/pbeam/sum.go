@@ -279,11 +279,7 @@ func checkSumPerKeyParams(params SumParams, epsilon, delta float64, noiseKind no
 	if err != nil {
 		return err
 	}
-	if params.PublicPartitions != nil && noiseKind == noise.LaplaceNoise {
-		err = checks.CheckNoDelta(delta)
-	} else {
-		err = checks.CheckDeltaStrict(delta)
-	}
+	err = checkDelta(delta, noiseKind, params.PublicPartitions)
 	if err != nil {
 		return err
 	}
