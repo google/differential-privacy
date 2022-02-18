@@ -21,9 +21,9 @@ import (
 	"fmt"
 
 	"github.com/google/differential-privacy/privacy-on-beam/pbeam"
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
-	"github.com/apache/beam/sdks/go/pkg/beam/runners/direct"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/direct"
 )
 
 // This example computes the "Sum-up revenue per day of the week" example

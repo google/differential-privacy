@@ -169,15 +169,14 @@ message BoundedQuantilesSamplingParameters {
 message ApproximateBoundsSamplingParameters {
   optional int32 number_of_samples = 1;
   optional NoiseType noise_type = 2;
-  optional int32 max_partitions_contributed = 3;
+  optional int32 max_contributions = 3;
   optional int32 number_of_bins = 4;
   optional double scale = 5;
   optional double base = 6;
-  optional double threshold_probability = 7;
-  optional double epsilon = 8;
-  optional double delta = 9;
-  repeated double raw_entry = 10;
-  repeated double neighbour_raw_entry = 11;
+  optional double epsilon = 7;
+  optional double delta = 8;
+  repeated double raw_entry = 9;
+  repeated double neighbour_raw_entry = 10;
 }
 
 // General parameters for drawing samples, intended for testing various

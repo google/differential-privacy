@@ -28,8 +28,8 @@ go_library(
     visibility = ["//:__subpackages__"],
     deps = [
         "//internal/kv:go_default_library",
-        "@com_github_apache_beam//sdks/go/pkg/beam:go_default_library",
-        "@com_github_apache_beam//sdks/go/pkg/beam/transforms/stats:go_default_library",
+        "@com_github_apache_beam_sdks_v2//go/pkg/beam:go_default_library",
+        "@com_github_apache_beam_sdks_v2//go/pkg/beam/transforms/stats:go_default_library",
         "@com_github_google_go_cmp//cmp:go_default_library",
         "@com_github_google_go_cmp//cmp/cmpopts:go_default_library",
         "@com_google_go_differential_privacy//dpagg:go_default_library",
@@ -43,8 +43,8 @@ go_test(
     srcs = ["testutils_test.go"],
     embed = [":go_default_library"],
     deps = [
-        "@com_github_apache_beam//sdks/go/pkg/beam:go_default_library",
-        "@com_github_apache_beam//sdks/go/pkg/beam/testing/ptest:go_default_library",
+        "@com_github_apache_beam_sdks_v2//go/pkg/beam:go_default_library",
+        "@com_github_apache_beam_sdks_v2//go/pkg/beam/testing/ptest:go_default_library",
         "@com_github_google_go_cmp//cmp:go_default_library",
         "@com_github_google_go_cmp//cmp/cmpopts:go_default_library",
     ],

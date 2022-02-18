@@ -21,7 +21,7 @@ import (
 	"encoding/gob"
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 )
 
 // Coders for serializing DP Aggregation Accumulators.
@@ -30,7 +30,7 @@ func init() {
 	beam.RegisterCoder(reflect.TypeOf(countAccum{}), encodeCountAccum, decodeCountAccum)
 	beam.RegisterCoder(reflect.TypeOf(boundedSumAccumInt64{}), encodeBoundedSumAccumInt64, decodeBoundedSumAccumInt64)
 	beam.RegisterCoder(reflect.TypeOf(boundedSumAccumFloat64{}), encodeBoundedSumAccumFloat64, decodeBoundedSumAccumFloat64)
-	beam.RegisterCoder(reflect.TypeOf(boundedMeanAccumFloat64{}), encodeBoundedMeanAccumFloat64, decodeBoundedMeanAccumFloat64)
+	beam.RegisterCoder(reflect.TypeOf(boundedMeanAccum{}), encodeBoundedMeanAccum, decodeBoundedMeanAccum)
 	beam.RegisterCoder(reflect.TypeOf(boundedQuantilesAccum{}), encodeBoundedQuantilesAccum, decodeBoundedQuantilesAccum)
 	beam.RegisterCoder(reflect.TypeOf(expandValuesAccum{}), encodeExpandValuesAccum, decodeExpandValuesAccum)
 	beam.RegisterCoder(reflect.TypeOf(expandFloat64ValuesAccum{}), encodeExpandFloat64ValuesAccum, decodeExpandFloat64ValuesAccum)
@@ -67,12 +67,12 @@ func decodeBoundedSumAccumFloat64(data []byte) (boundedSumAccumFloat64, error) {
 	return ret, err
 }
 
-func encodeBoundedMeanAccumFloat64(v boundedMeanAccumFloat64) ([]byte, error) {
+func encodeBoundedMeanAccum(v boundedMeanAccum) ([]byte, error) {
 	return encode(v)
 }
 
-func decodeBoundedMeanAccumFloat64(data []byte) (boundedMeanAccumFloat64, error) {
-	var ret boundedMeanAccumFloat64
+func decodeBoundedMeanAccum(data []byte) (boundedMeanAccum, error) {
+	var ret boundedMeanAccum
 	err := decode(&ret, data)
 	return ret, err
 }

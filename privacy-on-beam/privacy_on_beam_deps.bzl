@@ -45,11 +45,11 @@ def privacy_on_beam_deps():
     )
 
     go_repository(
-        name = "com_github_apache_beam",
+        name = "com_github_apache_beam_sdks_v2",
         build_file_proto_mode = "disable_global",  # See https://github.com/bazelbuild/rules_go/issues/2186#issuecomment-523028281
-        importpath = "github.com/apache/beam",
-        sum = "h1:7C2/JDa+fiRJs8kAcfCHxVTf0xxwKsCFQYDMoRdr/dk=",
-        version = "v2.31.0+incompatible",
+        importpath = "github.com/apache/beam/sdks/v2",
+        sum = "h1:KyOndZIUUE0wKuXZoXf+WXXM2FiT77crvm+R6RBpf+M=",
+        version = "v2.36.0",
     )
     go_repository(
         name = "com_github_boombuler_barcode",

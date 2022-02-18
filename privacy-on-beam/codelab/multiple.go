@@ -18,7 +18,7 @@ package codelab
 
 import (
 	"github.com/google/differential-privacy/privacy-on-beam/pbeam"
-	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 )
 
 // ComputeCountMeanSum computes the three aggregations (count, mean and sum) we

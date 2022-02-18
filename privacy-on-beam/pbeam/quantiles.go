@@ -25,7 +25,7 @@ import (
 	"github.com/google/differential-privacy/go/dpagg"
 	"github.com/google/differential-privacy/go/noise"
 	"github.com/google/differential-privacy/privacy-on-beam/internal/kv"
-	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 )
 
 func init() {
@@ -60,16 +60,16 @@ type QuantilesParams struct {
 	//
 	// Required.
 	MaxContributionsPerPartition int64
-	// The total contribution of a given privacy identifier to partition can be
+	// A single contribution of a given privacy identifier to partition can be
 	// at at least MinValue, and at most MaxValue; otherwise it will be clamped
-	// to these bounds. For example, if a privacy identifier is associated with
-	// the key-value pairs [("a", -5), ("a", 2), ("b", 7), ("c", 3)] and the
-	// (MinValue, MaxValue) bounds are (0, 5), the contribution for "a" will be
-	// clamped up to 0, the contribution for "b" will be clamped down to 5, and
-	// the contribution for "c" will be untouched. There is an inherent
-	// trade-off when choosing MinValue and MaxValue: a small MinValue and a
-	// large MaxValue means that less records will be clamped, but that more
-	// noise will be added.
+	// to these bounds. There is an inherent trade-off when choosing MinValue and
+	// MaxValue: a small MinValue and a large MaxValue means that less records
+	// will be clamped, but that more noise will be added.
+	// For example, if a privacy identifier is associated with the key-value
+	// pairs [("a", -5), ("a", 2), ("b", 7), ("c", 3)] and the (MinValue, MaxValue)
+	// bounds are (0, 5), the contribution for "a" will be clamped up to 0,
+	// the contribution for "b" will be clamped down to 5, and the contribution
+	// for "c" will be untouched.
 	//
 	// Required.
 	MinValue, MaxValue float64

@@ -21,9 +21,9 @@ import (
 
 	"github.com/google/differential-privacy/go/dpagg"
 	"github.com/google/differential-privacy/privacy-on-beam/pbeam/testutils"
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
-	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 )
 
 // Checks that DistinctPerKey returns a correct answer, in particular that values

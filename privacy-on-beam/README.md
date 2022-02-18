@@ -15,10 +15,6 @@ implementation mistakes.
 
 Privacy on Beam is only available in Go at the moment.
 
-Note that this work is still experimental, as well as the
-[Go SDK for Beam](https://beam.apache.org/documentation/sdks/go/), and is
-subject to change.
-
 ## How to Use
 
 Our [codelab](https://codelabs.developers.google.com/codelabs/privacy-on-beam/)
