@@ -10,7 +10,6 @@ and run
 docker run -e POSTGRES_PASSWORD=password -p 5432:5432 google/differential-privacy-postgres
 ```
 
-
 ## Load extension
 
 ```
@@ -76,3 +75,7 @@ WHERE result.number_eaters > 50;
 ```
 
 please for more infos or more accurate description please use [README](https://github.com/google/differential-privacy/blob/main/cc/README.md)
+
+## Troubleshooting
+
+If during startup stumble permission problem on file `docker-entrypoint-initdb.d` and `postgresql.conf.sample` please run on both files `chmod 755` command

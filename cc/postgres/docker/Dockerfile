@@ -63,6 +63,9 @@ COPY --from=build /tmp/differential-privacy/cc/postgres/shirts.csv  /
 # Copy the custom configuration which will be passed down to the server (using a .sample file is the preferred way of doing it by
 # the base Docker image)
 COPY postgresql.conf.sample /usr/share/postgresql/postgresql.conf.sample
+RUN chmod 755 /usr/share/postgresql/postgresql.conf.sample
 
 # Copy the script which will initialize the replication permissions
 COPY /docker-entrypoint-initdb.d /docker-entrypoint-initdb.d
+RUN chmod 755 /docker-entrypoint-initdb.d
+
