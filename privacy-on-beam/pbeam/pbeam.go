@@ -16,7 +16,7 @@
 
 // Package pbeam provides an API for building differentially private data
 // processing pipelines using Apache Beam (https://beam.apache.org) with its
-// Go SDK (https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam).
+// Go SDK (https://godoc.org/github.com/apache/beam/sdks/v2/go/pkg/beam).
 //
 // It introduces the concept of a PrivatePCollection, an interface mirroring
 // Apache Beam's PCollection concept. PrivatePCollection implements additional
@@ -118,8 +118,8 @@ import (
 	"github.com/google/differential-privacy/go/noise"
 	"github.com/google/differential-privacy/privacy-on-beam/internal/kv"
 	"github.com/google/differential-privacy/privacy-on-beam/internal/testoption"
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )

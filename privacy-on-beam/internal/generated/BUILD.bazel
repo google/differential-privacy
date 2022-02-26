@@ -27,7 +27,7 @@ go_library(
     visibility = ["//:__subpackages__"],
     deps = [
         "//internal/kv:go_default_library",
-        "@com_github_apache_beam//sdks/go/pkg/beam:go_default_library",
-        "@com_github_apache_beam//sdks/go/pkg/beam/core/util/reflectx:go_default_library",
+        "@com_github_apache_beam_sdks_v2//go/pkg/beam:go_default_library",
+        "@com_github_apache_beam_sdks_v2//go/pkg/beam/core/util/reflectx:go_default_library",
     ],
 )

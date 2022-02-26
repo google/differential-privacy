@@ -579,12 +579,14 @@ class PrivacyLossDistribution(object):
     delta = privacy_parameters.delta
     epsilon = privacy_parameters.epsilon
 
-    rounded_probability_mass_function = {
-        math.ceil(epsilon / value_discretization_interval):
-            (1 - delta) / (1 + math.exp(-epsilon)),
-        math.ceil(-epsilon / value_discretization_interval):
-            (1 - delta) / (1 + math.exp(epsilon))
-    }
+    rounded_probability_mass_function = collections.defaultdict(lambda: 0)
+
+    rounded_probability_mass_function[math.ceil(
+        epsilon /
+        value_discretization_interval)] = (1 - delta) / (1 + math.exp(-epsilon))
+    rounded_probability_mass_function[math.ceil(
+        -epsilon /
+        value_discretization_interval)] += (1 - delta) / (1 + math.exp(epsilon))
 
     return cls(rounded_probability_mass_function, value_discretization_interval,
                privacy_parameters.delta)

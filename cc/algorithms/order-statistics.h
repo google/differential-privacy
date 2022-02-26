@@ -93,20 +93,28 @@ class ABSL_DEPRECATED("Use Quantiles instead.") Max : public BinarySearch<T> {
    private:
     base::StatusOr<std::unique_ptr<Max<T>>> BuildBoundedAlgorithm() override {
       RETURN_IF_ERROR(OrderBuilder::ConstructDependencies());
-      return absl::WrapUnique(new Max(AlgorithmBuilder::GetEpsilon().value(),
-                                      BoundedBuilder::GetLower().value(),
-                                      BoundedBuilder::GetUpper().value(),
-                                      std::move(OrderBuilder::mechanism_),
-                                      std::move(OrderBuilder::quantiles_)));
+      std::unique_ptr<LaplaceMechanism::Builder> laplace_builder =
+          absl::WrapUnique<LaplaceMechanism::Builder>(
+              dynamic_cast<LaplaceMechanism::Builder*>(
+                  AlgorithmBuilder::GetMechanismBuilderClone().release()));
+      return absl::WrapUnique(new Max(
+          AlgorithmBuilder::GetEpsilon().value(),
+          BoundedBuilder::GetLower().value(),
+          BoundedBuilder::GetUpper().value(),
+          AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1),
+          AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(1),
+          std::move(laplace_builder), std::move(OrderBuilder::quantiles_)));
     }
   };
 
  private:
-  Max(double epsilon, T lower, T upper,
-      std::unique_ptr<LaplaceMechanism> mechanism,
+  Max(double epsilon, T lower, T upper, int64_t max_partitions_contributed,
+      int64_t max_contributions_per_partition,
+      std::unique_ptr<LaplaceMechanism::Builder> mechanism_builder,
       std::unique_ptr<base::Percentile<T>> quantiles)
-      : BinarySearch<T>(epsilon, lower, upper, /*quantile=*/1,
-                        std::move(mechanism), std::move(quantiles)) {}
+      : BinarySearch<T>(epsilon, lower, upper, max_partitions_contributed,
+                        max_contributions_per_partition, /*quantile=*/1,
+                        std::move(mechanism_builder), std::move(quantiles)) {}
 };
 
 template <typename T>
@@ -122,20 +130,28 @@ class ABSL_DEPRECATED("Use Quantiles instead.") Min : public BinarySearch<T> {
    private:
     base::StatusOr<std::unique_ptr<Min<T>>> BuildBoundedAlgorithm() override {
       RETURN_IF_ERROR(OrderBuilder::ConstructDependencies());
-      return absl::WrapUnique(new Min(AlgorithmBuilder::GetEpsilon().value(),
-                                      BoundedBuilder::GetLower().value(),
-                                      BoundedBuilder::GetUpper().value(),
-                                      std::move(OrderBuilder::mechanism_),
-                                      std::move(OrderBuilder::quantiles_)));
+      std::unique_ptr<LaplaceMechanism::Builder> laplace_builder =
+          absl::WrapUnique<LaplaceMechanism::Builder>(
+              dynamic_cast<LaplaceMechanism::Builder*>(
+                  AlgorithmBuilder::GetMechanismBuilderClone().release()));
+      return absl::WrapUnique(new Min(
+          AlgorithmBuilder::GetEpsilon().value(),
+          BoundedBuilder::GetLower().value(),
+          BoundedBuilder::GetUpper().value(),
+          AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1),
+          AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(1),
+          std::move(laplace_builder), std::move(OrderBuilder::quantiles_)));
     }
   };
 
  private:
-  Min(double epsilon, T lower, T upper,
-      std::unique_ptr<LaplaceMechanism> mechanism,
+  Min(double epsilon, T lower, T upper, int64_t max_partitions_contributed,
+      int64_t max_contributions_per_partition,
+      std::unique_ptr<LaplaceMechanism::Builder> mechanism_builder,
       std::unique_ptr<base::Percentile<T>> quantiles)
-      : BinarySearch<T>(epsilon, lower, upper, /*quantile=*/0,
-                        std::move(mechanism), std::move(quantiles)) {}
+      : BinarySearch<T>(epsilon, lower, upper, max_partitions_contributed,
+                        max_contributions_per_partition, /*quantile=*/0,
+                        std::move(mechanism_builder), std::move(quantiles)) {}
 };
 
 template <typename T>
@@ -153,20 +169,28 @@ class ABSL_DEPRECATED("Use Quantiles instead.") Median
     base::StatusOr<std::unique_ptr<Median<T>>> BuildBoundedAlgorithm()
         override {
       RETURN_IF_ERROR(OrderBuilder::ConstructDependencies());
-      return absl::WrapUnique(new Median(AlgorithmBuilder::GetEpsilon().value(),
-                                         BoundedBuilder::GetLower().value(),
-                                         BoundedBuilder::GetUpper().value(),
-                                         std::move(OrderBuilder::mechanism_),
-                                         std::move(OrderBuilder::quantiles_)));
+      std::unique_ptr<LaplaceMechanism::Builder> laplace_builder =
+          absl::WrapUnique<LaplaceMechanism::Builder>(
+              dynamic_cast<LaplaceMechanism::Builder*>(
+                  AlgorithmBuilder::GetMechanismBuilderClone().release()));
+      return absl::WrapUnique(new Median(
+          AlgorithmBuilder::GetEpsilon().value(),
+          BoundedBuilder::GetLower().value(),
+          BoundedBuilder::GetUpper().value(),
+          AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1),
+          AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(1),
+          std::move(laplace_builder), std::move(OrderBuilder::quantiles_)));
     }
   };
 
  private:
-  Median(double epsilon, T lower, T upper,
-         std::unique_ptr<LaplaceMechanism> mechanism,
+  Median(double epsilon, T lower, T upper, int64_t max_partitions_contributed,
+         int64_t max_contributions_per_partition,
+         std::unique_ptr<LaplaceMechanism::Builder> mechanism_builder,
          std::unique_ptr<base::Percentile<T>> quantiles)
-      : BinarySearch<T>(epsilon, lower, upper, /*quantile=*/0.5,
-                        std::move(mechanism), std::move(quantiles)) {}
+      : BinarySearch<T>(epsilon, lower, upper, max_partitions_contributed,
+                        max_contributions_per_partition, /*quantile=*/0.5,
+                        std::move(mechanism_builder), std::move(quantiles)) {}
 };
 
 template <typename T>
@@ -192,12 +216,17 @@ class ABSL_DEPRECATED("Use Quantiles instead.") Percentile
       RETURN_IF_ERROR(OrderBuilder::ConstructDependencies());
       RETURN_IF_ERROR(
           ValidateIsInInclusiveInterval(percentile_, 0, 1, "Percentile"));
-      return absl::WrapUnique(
-          new Percentile(percentile_, AlgorithmBuilder::GetEpsilon().value(),
-                         BoundedBuilder::GetLower().value(),
-                         BoundedBuilder::GetUpper().value(),
-                         std::move(OrderBuilder::mechanism_),
-                         std::move(OrderBuilder::quantiles_)));
+      std::unique_ptr<LaplaceMechanism::Builder> laplace_builder =
+          absl::WrapUnique<LaplaceMechanism::Builder>(
+              dynamic_cast<LaplaceMechanism::Builder*>(
+                  AlgorithmBuilder::GetMechanismBuilderClone().release()));
+      return absl::WrapUnique(new Percentile(
+          percentile_, AlgorithmBuilder::GetEpsilon().value(),
+          BoundedBuilder::GetLower().value(),
+          BoundedBuilder::GetUpper().value(),
+          AlgorithmBuilder::GetMaxPartitionsContributed().value_or(1),
+          AlgorithmBuilder::GetMaxContributionsPerPartition().value_or(1),
+          std::move(laplace_builder), std::move(OrderBuilder::quantiles_)));
     }
 
     double percentile_;
@@ -207,10 +236,13 @@ class ABSL_DEPRECATED("Use Quantiles instead.") Percentile
 
  private:
   Percentile(double percentile, double epsilon, T lower, T upper,
-             std::unique_ptr<LaplaceMechanism> mechanism,
+             int64_t max_partitions_contributed,
+             int64_t max_contributions_per_partition,
+             std::unique_ptr<LaplaceMechanism::Builder> mechanism_builder,
              std::unique_ptr<base::Percentile<T>> quantiles)
-      : BinarySearch<T>(epsilon, lower, upper, percentile, std::move(mechanism),
-                        std::move(quantiles)),
+      : BinarySearch<T>(epsilon, lower, upper, max_partitions_contributed,
+                        max_contributions_per_partition, percentile,
+                        std::move(mechanism_builder), std::move(quantiles)),
         percentile_(percentile) {}
 
   const double percentile_;

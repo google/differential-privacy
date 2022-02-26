@@ -18,10 +18,7 @@ package com.google.privacy.differentialprivacy;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.Math.exp;
-import static java.lang.Math.max;
-import static java.lang.Math.min;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.privacy.differentialprivacy.proto.SummaryOuterClass.MechanismType;
 import java.security.SecureRandom;
 import java.util.Random;
@@ -98,7 +95,8 @@ public class LaplaceNoise implements Noise {
 
     double granularity = getGranularity(l1Sensitivity, epsilon);
     long twoSidedGeomericSample =
-        sampleTwoSidedGeometric(granularity * epsilon / (l1Sensitivity + granularity));
+        SamplingUtil.sampleTwoSidedGeometric(
+            random, granularity * epsilon / (l1Sensitivity + granularity));
     return SecureNoiseMath.roundToMultipleOfPowerOfTwo(x, granularity)
         + twoSidedGeomericSample * granularity;
   }
@@ -130,7 +128,8 @@ public class LaplaceNoise implements Noise {
 
     double granularity = getGranularity(l1Sensitivity, epsilon);
     long twoSidedGeomericSample =
-        sampleTwoSidedGeometric(granularity * epsilon / (l1Sensitivity + granularity));
+        SamplingUtil.sampleTwoSidedGeometric(
+            random, granularity * epsilon / (l1Sensitivity + granularity));
     if (granularity <= 1.0) {
       return x + Math.round(twoSidedGeomericSample * granularity);
     } else {
@@ -289,74 +288,5 @@ public class LaplaceNoise implements Noise {
    */
   private static double getGranularity(double l1Sensitivity, double epsilon) {
     return SecureNoiseMath.ceilPowerOfTwo((l1Sensitivity / epsilon) / GRANULARITY_PARAM);
-  }
-
-  /**
-   * Returns a sample drawn from the geometric distribution of parameter {@code p = 1 - e^-lambda},
-   * i.e., the number of Bernoulli trials until the first success where the success probability is
-   * {@code 1 - e^-lambda}. The returned sample is truncated to the max long value. To ensure that a
-   * truncation happens with probability less than 10^-6, {@code lambda} must be greater than 2^-59.
-   */
-  @VisibleForTesting
-  long sampleGeometric(double lambda) {
-    checkArgument(
-        lambda > 1.0 / (1L << 59),
-        "The parameter lambda must be at least 2^-59. Provided value: %s",
-        lambda);
-
-    // Return truncated sample in the case that the sample exceeds the max long value.
-    if (random.nextDouble() > -1.0 * Math.expm1(-1.0 * lambda * Long.MAX_VALUE)) {
-      return Long.MAX_VALUE;
-    }
-
-    // Perform a binary search for the sample in the interval from 1 to max long. Each iteration
-    // splits the interval in two and randomly keeps either the left or the right subinterval
-    // depending on the respective probability of the sample being contained in them. The search
-    // ends once the interval only contains a single sample.
-    long left = 0; // exclusive bound
-    long right = Long.MAX_VALUE; // inclusive bound
-
-    while (left + 1 < right) {
-      // Compute a midpoint that divides the probability mass of the current interval approximately
-      // evenly between the left and right subinterval. The resulting midpoint will be less or equal
-      // to the arithmetic mean of the interval. This reduces the expected number of iterations of
-      // the binary search compared to a search that uses the arithmetic mean as a midpoint. The
-      // speed up is more pronounced, the higher the success probability p is.
-      long mid =
-          (long)
-              Math.ceil(
-                  (left
-                      - (Math.log(0.5) + Math.log1p(Math.exp(lambda * (left - right)))) / lambda));
-      // Ensure that mid is contained in the search interval. This is a safeguard to account for
-      // potential mathematical inaccuracies due to finite precision arithmetic.
-      mid = min(max(mid, left + 1), right - 1);
-
-      // Probability that the sample is at most mid, i.e., q = Pr[X ≤ mid | left < X ≤ right] where
-      // X denotes the sample. The value of q should be approximately one half.
-      double q = Math.expm1(lambda * (left - mid)) / Math.expm1(lambda * (left - right));
-      if (random.nextDouble() <= q) {
-        right = mid;
-      } else {
-        left = mid;
-      }
-    }
-    return right;
-  }
-
-  /**
-   * Returns a sample drawn from a geometric distribution that is mirrored at 0. The non-negative
-   * part of the distribution's PDF matches the PDF of a geometric distribution of parameter {@code
-   * p = 1 - e^-lambda} that is shifted to the left by 1 and scaled accordingly.
-   */
-  private long sampleTwoSidedGeometric(double lambda) {
-    long geometricSample = 0;
-    boolean sign = false;
-    // Keep a sample of 0 only if the sign is positive. Otherwise, the probability of 0 would be
-    // twice as high as it should be.
-    while (geometricSample == 0 && !sign) {
-      geometricSample = sampleGeometric(lambda) - 1;
-      sign = random.nextBoolean();
-    }
-    return sign ? geometricSample : -geometricSample;
   }
 }

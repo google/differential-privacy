@@ -22,13 +22,13 @@ import (
 	"github.com/google/differential-privacy/go/noise"
 )
 
-func getBoundedMeanFloat64(t *testing.T, n noise.Noise, lower, upper float64) *BoundedMeanFloat64 {
+func getBoundedMeanFloat64(t *testing.T, n noise.Noise, lower, upper float64) *BoundedMean {
 	t.Helper()
 	delta := arbitraryDelta
 	if n == noise.Laplace() {
 		delta = 0.0
 	}
-	bm, err := NewBoundedMeanFloat64(&BoundedMeanFloat64Options{
+	bm, err := NewBoundedMean(&BoundedMeanOptions{
 		Epsilon:                      arbitraryEpsilon,
 		Delta:                        delta,
 		Noise:                        n,
@@ -42,7 +42,7 @@ func getBoundedMeanFloat64(t *testing.T, n noise.Noise, lower, upper float64) *B
 	return bm
 }
 
-// Tests that BoundedMeanFloat64.ComputeConfidenceInterval() returns valid bounds with empty
+// Tests that BoundedMean.ComputeConfidenceInterval() returns valid bounds with empty
 // inputs.
 func TestMeanComputeConfidenceInterval_EmptyMeanClampsToBounds(t *testing.T) {
 	for _, tc := range []struct {
@@ -92,7 +92,7 @@ func TestMeanComputeConfidenceInterval_EmptyMeanClampsToBounds(t *testing.T) {
 	}
 }
 
-// Tests that BoundedMeanFloat64.ComputeConfidenceInterval() returns valid bounds with raw
+// Tests that BoundedMean.ComputeConfidenceInterval() returns valid bounds with raw
 // value at bounds.
 func TestMeanComputeConfidenceInterval_RawValueAtBoundsClampsToBounds(t *testing.T) {
 	for _, tc := range []struct {
@@ -142,7 +142,7 @@ func TestMeanComputeConfidenceInterval_RawValueAtBoundsClampsToBounds(t *testing
 	}
 }
 
-// Tests that BoundedMeanFloat64.ComputeConfidenceInterval() returns the same interval when called for
+// Tests that BoundedMean.ComputeConfidenceInterval() returns the same interval when called for
 // the same alpha twice.
 func TestMeanComputeConfidenceInterval_ReturnsSameResultForSameAlpha(t *testing.T) {
 	for _, tc := range []struct {
@@ -171,7 +171,7 @@ func TestMeanComputeConfidenceInterval_ReturnsSameResultForSameAlpha(t *testing.
 	}
 }
 
-// Tests that BoundedMeanFloat64.ComputeConfidenceInterval()'s result for small alpha is contained in
+// Tests that BoundedMean.ComputeConfidenceInterval()'s result for small alpha is contained in
 // the result for large alpha.
 func TestMeanComputeConfidenceInterval_ResultForSmallAlphaContainedInResultForLargeAlpha(t *testing.T) {
 	for _, tc := range []struct {
@@ -213,7 +213,7 @@ func TestMeanComputeConfidenceInterval_ResultForSmallAlphaContainedInResultForLa
 	}
 }
 
-// Tests that BoundedMeanFloat64.ComputeConfidenceInterval() satisfies the confidence level for a given alpha.
+// Tests that BoundedMean.ComputeConfidenceInterval() satisfies the confidence level for a given alpha.
 func TestMeanComputeConfidenceInterval_SatisfiesConfidenceLevel(t *testing.T) {
 	emptyInput := 0
 	oneInput := 1
@@ -277,7 +277,7 @@ func TestMeanComputeConfidenceInterval_SatisfiesConfidenceLevel(t *testing.T) {
 	}
 }
 
-// Tests that BoundedMeanFloat64.ComputeConfidenceInterval() returns errors correctly with different aggregation states.
+// Tests that BoundedMean.ComputeConfidenceInterval() returns errors correctly with different aggregation states.
 func TestMeanComputeConfidenceInterval_StateChecks(t *testing.T) {
 	for _, tc := range []struct {
 		state   aggregationState
@@ -288,7 +288,7 @@ func TestMeanComputeConfidenceInterval_StateChecks(t *testing.T) {
 		{merged, true},
 		{serialized, true},
 	} {
-		bm := getNoiselessBMF(t)
+		bm := getNoiselessBM(t)
 		// Count and sum have to be also set to the same state
 		// to allow ComputeConfidenceInterval calls.
 		bm.state = tc.state

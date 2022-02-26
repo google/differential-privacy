@@ -23,9 +23,9 @@ import (
 	log "github.com/golang/glog"
 	"github.com/google/differential-privacy/privacy-on-beam/internal/generated"
 	"github.com/google/differential-privacy/privacy-on-beam/internal/kv"
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/funcx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
 // ParDo applies the given function to all records, propagating privacy

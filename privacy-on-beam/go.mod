@@ -3,7 +3,7 @@ module github.com/google/differential-privacy/privacy-on-beam
 go 1.16
 
 require (
-	github.com/apache/beam v2.31.0+incompatible
+	github.com/apache/beam/sdks/v2 v2.36.0
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/google/differential-privacy/go v0.0.0-local // a nonexistent version number
 	github.com/google/go-cmp v0.5.5

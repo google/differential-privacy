@@ -24,7 +24,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 )
 
 func init() {

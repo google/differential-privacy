@@ -112,9 +112,9 @@ TEST(OrderStatisticsTest, MedianLinfIncreasesVariance) {
         return sum / (kNumSamples - 1);
       };
 
-  // We expect the sample variance with max contribution 3 to be
+  // We expect the sample variance with max contribution 10 to be
   // bigger than with max contribution 1.
-  EXPECT_GT(sample_variance_for_max_contributions(3),
+  EXPECT_GT(sample_variance_for_max_contributions(10),
             1.1 * sample_variance_for_max_contributions(1));
 }
 

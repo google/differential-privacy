@@ -384,7 +384,9 @@ class PrivacyLossDistributionTest(parameterized.TestCase):
   }, 0.2), (0.5, 0.2, 0.07, {
       8: 0.49796746,
       -7: 0.30203254
-  }, 0.2))
+  }, 0.2), (0, 0.1, 1, {
+      0: 0.9
+  }, 0.1))
   def test_from_privacy_parameters(self, epsilon, delta,
                                    value_discretization_interval,
                                    expected_rounded_probability_mass_function,

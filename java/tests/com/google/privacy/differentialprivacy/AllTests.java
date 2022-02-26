@@ -45,6 +45,7 @@ import org.junit.runners.Suite.SuiteClasses;
   LaplaceNoiseConfidenceIntervalTest.class,
   LaplaceNoiseQuantileTest.class,
   LaplaceNoiseTest.class,
+  SamplingUtilTest.class,
   SecureNoiseMathTest.class,
 })
 public class AllTests {}

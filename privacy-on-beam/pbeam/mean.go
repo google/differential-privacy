@@ -26,11 +26,11 @@ import (
 	"github.com/google/differential-privacy/go/dpagg"
 	"github.com/google/differential-privacy/go/noise"
 	"github.com/google/differential-privacy/privacy-on-beam/internal/kv"
-	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 )
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*boundedMeanFloat64Fn)(nil)))
+	beam.RegisterType(reflect.TypeOf((*boundedMeanFn)(nil)))
 }
 
 // MeanParams specifies the parameters associated with a Mean aggregation.
@@ -61,16 +61,17 @@ type MeanParams struct {
 	//
 	// Required.
 	MaxContributionsPerPartition int64
-	// The total contribution of a given privacy identifier to partition can be
-	// at at least MinValue, and at most MaxValue; otherwise it will be clamped
-	// to these bounds. For example, if a privacy identifier is associated with
-	// the key-value pairs [("a", -5), ("a", 2), ("b", 7), ("c", 3)] and the
-	// (MinValue, MaxValue) bounds are (0, 5), the contribution for "a" will be
-	// clamped up to 0, the contribution for "b" will be clamped down to 5, and
-	// the contribution for "c" will be untouched. There is an inherent
-	// trade-off when choosing MinValue and MaxValue: a small MinValue and a
-	// large MaxValue means that less records will be clamped, but that more
-	// noise will be added.
+	// A single contribution of a given privacy identifier to the numerator of
+	// the mean of a partition can be at least MinValue, and at most MaxValue;
+	// otherwise it will be clamped to these bounds. There is an inherent trade-off
+	// when choosing MinValue and MaxValue: a small MinValue and a large MaxValue
+	// means that less records will be clamped, but that more noise will be added.
+	// For example, if a privacy identifier is associated with the key-value
+	// pairs [("a", -5), ("a", 2), ("b", 7), ("c", 3)] and the (MinValue, MaxValue)
+	// bounds are (0, 5), the first contribution for "a" (-5) will be clamped up
+	// to 0, the second contribution for "a" (2) will be untouched, the
+	// contribution for "b" will be clamped down to 5, and the contribution for
+	// "c" will be untouched.
 	//
 	// Required.
 	MinValue, MaxValue float64
@@ -201,7 +202,7 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 			params, noiseKind, partialKV, spec.testMode)
 	}
 	// Compute the mean for each partition. Result is PCollection<partition, float64>.
-	boundedMeanFloat64Fn, err := newBoundedMeanFloat64Fn(boundedMeanFloat64FnParams{
+	boundedMeanFloat64Fn, err := newBoundedMeanFn(boundedMeanFnParams{
 		epsilon:                      epsilon,
 		delta:                        delta,
 		maxPartitionsContributed:     maxPartitionsContributed,
@@ -213,7 +214,7 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 		testMode:                     spec.testMode,
 		emptyPartitions:              false})
 	if err != nil {
-		log.Fatalf("Couldn't get boundedMeanFloat64Fn for MeanPerKey: %v", err)
+		log.Fatalf("Couldn't get boundedMeanFn for MeanPerKey: %v", err)
 	}
 	means := beam.CombinePerKey(s,
 		boundedMeanFloat64Fn,
@@ -224,7 +225,7 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 
 func addPublicPartitionsForMean(s beam.Scope, epsilon, delta float64, maxPartitionsContributed int64, params MeanParams, noiseKind noise.Kind, partialKV beam.PCollection, testMode testMode) beam.PCollection {
 	// Compute the mean for each partition with non-public partitions dropped. Result is PCollection<partition, float64>.
-	boundedMeanFloat64Fn, err := newBoundedMeanFloat64Fn(boundedMeanFloat64FnParams{
+	boundedMeanFloat64Fn, err := newBoundedMeanFn(boundedMeanFnParams{
 		epsilon:                      epsilon,
 		delta:                        delta,
 		maxPartitionsContributed:     maxPartitionsContributed,
@@ -236,7 +237,7 @@ func addPublicPartitionsForMean(s beam.Scope, epsilon, delta float64, maxPartiti
 		testMode:                     testMode,
 		emptyPartitions:              false})
 	if err != nil {
-		log.Fatalf("Couldn't get boundedMeanFloat64Fn for MeanPerKey: %v", err)
+		log.Fatalf("Couldn't get boundedMeanFn for MeanPerKey: %v", err)
 	}
 	means := beam.CombinePerKey(s,
 		boundedMeanFloat64Fn,
@@ -254,7 +255,7 @@ func addPublicPartitionsForMean(s beam.Scope, epsilon, delta float64, maxPartiti
 	// emptyPublicPartitions are the partitions that are public but not found in the data.
 	emptyPublicPartitions := beam.ParDo(s, newEmitPartitionsNotInTheDataFn(partitionT), publicPartitionsWithValues, beam.SideInput{Input: partitionMap})
 	// Add noise to the empty public partitions.
-	boundedMeanFloat64Fn, err = newBoundedMeanFloat64Fn(boundedMeanFloat64FnParams{
+	boundedMeanFloat64Fn, err = newBoundedMeanFn(boundedMeanFnParams{
 		epsilon:                      epsilon,
 		delta:                        delta,
 		maxPartitionsContributed:     maxPartitionsContributed,
@@ -266,7 +267,7 @@ func addPublicPartitionsForMean(s beam.Scope, epsilon, delta float64, maxPartiti
 		testMode:                     testMode,
 		emptyPartitions:              true})
 	if err != nil {
-		log.Fatalf("Couldn't get boundedMeanFloat64Fn for MeanPerKey: %v", err)
+		log.Fatalf("Couldn't get boundedMeanFn for MeanPerKey: %v", err)
 	}
 	emptyMeans := beam.CombinePerKey(s,
 		boundedMeanFloat64Fn,
@@ -298,15 +299,15 @@ func checkMeanPerKeyParams(params MeanParams, epsilon, delta float64, noiseKind 
 	return checks.CheckMaxContributionsPerPartition(params.MaxContributionsPerPartition)
 }
 
-type boundedMeanAccumFloat64 struct {
-	BM               *dpagg.BoundedMeanFloat64
+type boundedMeanAccum struct {
+	BM               *dpagg.BoundedMean
 	SP               *dpagg.PreAggSelectPartition
 	PublicPartitions bool
 }
 
-// boundedMeanFloat64Fn is a differentially private combineFn for obtaining mean of values. Do not
-// initialize it yourself, use newBoundedMeanFloat64Fn to create a boundedMeanFloat64Fn instance.
-type boundedMeanFloat64Fn struct {
+// boundedMeanFn is a differentially private combineFn for obtaining mean of values. Do not
+// initialize it yourself, use newBoundedMeanFn to create a boundedMeanFn instance.
+type boundedMeanFn struct {
 	// Privacy spec parameters (set during initial construction).
 	NoiseEpsilon                 float64
 	PartitionSelectionEpsilon    float64
@@ -323,8 +324,8 @@ type boundedMeanFloat64Fn struct {
 	EmptyPartitions              bool // Set to true if this combineFn is for adding noise to empty public partitions.
 }
 
-// boundedMeanFloat64FnParams contains the parameters for creating a new boundedMeanFloat64Fn.
-type boundedMeanFloat64FnParams struct {
+// boundedMeanFnParams contains the parameters for creating a new boundedMeanFn.
+type boundedMeanFnParams struct {
 	epsilon                      float64
 	delta                        float64
 	maxPartitionsContributed     int64
@@ -334,12 +335,12 @@ type boundedMeanFloat64FnParams struct {
 	noiseKind                    noise.Kind
 	publicPartitions             bool // True if public partitions are used.
 	testMode                     testMode
-	emptyPartitions              bool // Set to true if the boundedMeanFloat64Fn is for adding noise to empty public partitions.
+	emptyPartitions              bool // Set to true if the boundedMeanFn is for adding noise to empty public partitions.
 }
 
-// newBoundedMeanFloat64Fn returns a boundedMeanFloat64Fn with the given budget and parameters.
-func newBoundedMeanFloat64Fn(params boundedMeanFloat64FnParams) (*boundedMeanFloat64Fn, error) {
-	fn := &boundedMeanFloat64Fn{
+// newBoundedMeanFn returns a boundedMeanFn with the given budget and parameters.
+func newBoundedMeanFn(params boundedMeanFnParams) (*boundedMeanFn, error) {
+	fn := &boundedMeanFn{
 		MaxPartitionsContributed:     params.maxPartitionsContributed,
 		MaxContributionsPerPartition: params.maxContributionsPerPartition,
 		Lower:                        params.minValue,
@@ -368,21 +369,21 @@ func newBoundedMeanFloat64Fn(params boundedMeanFloat64FnParams) (*boundedMeanFlo
 	return fn, nil
 }
 
-func (fn *boundedMeanFloat64Fn) Setup() {
+func (fn *boundedMeanFn) Setup() {
 	fn.noise = noise.ToNoise(fn.NoiseKind)
 	if fn.TestMode.isEnabled() {
 		fn.noise = noNoise{}
 	}
 }
 
-func (fn *boundedMeanFloat64Fn) CreateAccumulator() (boundedMeanAccumFloat64, error) {
+func (fn *boundedMeanFn) CreateAccumulator() (boundedMeanAccum, error) {
 	if fn.TestMode == noNoiseWithoutContributionBounding && !fn.EmptyPartitions {
 		fn.Lower = math.Inf(-1)
 		fn.Upper = math.Inf(1)
 	}
-	var bm *dpagg.BoundedMeanFloat64
+	var bm *dpagg.BoundedMean
 	var err error
-	bm, err = dpagg.NewBoundedMeanFloat64(&dpagg.BoundedMeanFloat64Options{
+	bm, err = dpagg.NewBoundedMean(&dpagg.BoundedMeanOptions{
 		Epsilon:                      fn.NoiseEpsilon,
 		Delta:                        fn.NoiseDelta,
 		MaxPartitionsContributed:     fn.MaxPartitionsContributed,
@@ -392,9 +393,9 @@ func (fn *boundedMeanFloat64Fn) CreateAccumulator() (boundedMeanAccumFloat64, er
 		Noise:                        fn.noise,
 	})
 	if err != nil {
-		return boundedMeanAccumFloat64{}, err
+		return boundedMeanAccum{}, err
 	}
-	accum := boundedMeanAccumFloat64{BM: bm, PublicPartitions: fn.PublicPartitions}
+	accum := boundedMeanAccum{BM: bm, PublicPartitions: fn.PublicPartitions}
 	if !fn.PublicPartitions {
 		accum.SP, err = dpagg.NewPreAggSelectPartition(&dpagg.PreAggSelectPartitionOptions{
 			Epsilon:                  fn.PartitionSelectionEpsilon,
@@ -405,7 +406,7 @@ func (fn *boundedMeanFloat64Fn) CreateAccumulator() (boundedMeanAccumFloat64, er
 	return accum, err
 }
 
-func (fn *boundedMeanFloat64Fn) AddInput(a boundedMeanAccumFloat64, values []float64) (boundedMeanAccumFloat64, error) {
+func (fn *boundedMeanFn) AddInput(a boundedMeanAccum, values []float64) (boundedMeanAccum, error) {
 	var err error
 	// We can have multiple values for each (privacy_key, partition_key) pair.
 	// We need to add each value to BoundedMean as input but we need to add a single input
@@ -422,7 +423,7 @@ func (fn *boundedMeanFloat64Fn) AddInput(a boundedMeanAccumFloat64, values []flo
 	return a, err
 }
 
-func (fn *boundedMeanFloat64Fn) MergeAccumulators(a, b boundedMeanAccumFloat64) (boundedMeanAccumFloat64, error) {
+func (fn *boundedMeanFn) MergeAccumulators(a, b boundedMeanAccum) (boundedMeanAccum, error) {
 	var err error
 	err = a.BM.Merge(b.BM)
 	if err != nil {
@@ -434,7 +435,7 @@ func (fn *boundedMeanFloat64Fn) MergeAccumulators(a, b boundedMeanAccumFloat64) 
 	return a, err
 }
 
-func (fn *boundedMeanFloat64Fn) ExtractOutput(a boundedMeanAccumFloat64) (*float64, error) {
+func (fn *boundedMeanFn) ExtractOutput(a boundedMeanAccum) (*float64, error) {
 	if fn.TestMode.isEnabled() {
 		a.BM.NormalizedSum.Noise = noNoise{}
 		a.BM.Count.Noise = noNoise{}
@@ -455,6 +456,6 @@ func (fn *boundedMeanFloat64Fn) ExtractOutput(a boundedMeanAccumFloat64) (*float
 	return nil, nil
 }
 
-func (fn *boundedMeanFloat64Fn) String() string {
+func (fn *boundedMeanFn) String() string {
 	return fmt.Sprintf("%#v", fn)
 }

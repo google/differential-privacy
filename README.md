@@ -81,6 +81,12 @@ cd java
 bazel build ...
 ```
 
+To build Privacy on Beam, run:
+```shell
+cd privacy-on-beam
+bazel build ...
+```
+
 You may need to install additional dependencies when building the PostgreSQL
 extension, for example on Ubuntu you will need these packages:
 
@@ -152,6 +158,10 @@ to delete a message you've previously sent, please contact us.
 - [PyDP](https://github.com/OpenMined/PyDP), a Python wrapper of our C++ DP
   building block library, driven by the [OpenMined](https://www.openmined.org/)
   open-source community.
+- [PipelineDP](https://github.com/OpenMined/PipelineDP), an end-to-end
+  differential privacy framework (similar to [Privacy on Beam](privacy-on-beam))
+  that works with Apache Beam & Apache Spark in Python, co-developed by Google
+  and [OpenMined](https://www.openmined.org/).
 - [OpenDP](https://opendp.org), a community effort around tools for statistical
   analysis of sensitive private data.
 - [TensorFlow Privacy](https://github.com/tensorflow/privacy), a library to
