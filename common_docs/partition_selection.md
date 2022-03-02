@@ -14,9 +14,9 @@ optimal mechanism can be closely approximated by adding noise drawn from a
 truncated geometric distribution to the raw count of unique users in a
 partition, and then thresholding the noisy count. This library includes
 implementations of the mechanism in
-[C++](https://github.com/google/differential-privacy/blob/main/cc/algorithms/partition-selection.h#L192)
+[C++](https://github.com/google/differential-privacy/blob/main/cc/algorithms/partition-selection.h)
 and
-[Go](https://github.com/google/differential-privacy/blob/main/go/dpagg/select_partition.go#L87).
+[Go](https://github.com/google/differential-privacy/blob/main/go/dpagg/select_partition.go).
 A simple Python implementation and visualization is also provided in this
 [Google Colab notebook](https://colab.research.google.com/github/google/differential-privacy/blob/main/common_docs/partition_selection_playground.ipynb).
 

@@ -1,9 +1,0 @@
-# LOGGING
-# log_min_error_statement = fatal
-# log_min_messages = DEBUG1
-
-# CONNECTION
-listen_addresses = '*'
-
-# MODULES
-shared_preload_libraries = 'anon_func'

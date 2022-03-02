@@ -87,6 +87,8 @@ func TestCountWithPartitionsNoNoise(t *testing.T) {
 			pairs = append(pairs, testutils.PairII{1, i})
 		}
 		result := []testutils.TestInt64Metric{
+			// Drop partitions 0 to 8 as they are not in public
+			// partitions.
 			{9, 1},  // Keep partition 9.
 			{10, 0}, // Add partition 10.
 		}

@@ -14,6 +14,8 @@
 // limitations under the License.
 //
 
+// This file contains methods & ParDos used by multiple DP aggregations.
+
 package pbeam
 
 import (
@@ -34,7 +36,6 @@ import (
 
 type pMap map[string]bool
 
-// This file contains methods & ParDos used by multiple DP aggregations.
 func init() {
 	beam.RegisterType(reflect.TypeOf((*boundedSumInt64Fn)(nil)))
 	beam.RegisterType(reflect.TypeOf((*boundedSumFloat64Fn)(nil)))
@@ -48,7 +49,6 @@ func init() {
 	beam.RegisterType(reflect.TypeOf((*expandFloat64ValuesCombineFn)(nil)))
 	beam.RegisterType(reflect.TypeOf((*decodePairArrayFloat64Fn)(nil)))
 	beam.RegisterType(reflect.TypeOf((*partitionsMapFn)(nil)).Elem())
-	beam.RegisterType(reflect.TypeOf((*prunePartitionsVFn)(nil)).Elem())
 	beam.RegisterType(reflect.TypeOf((*prunePartitionsInMemoryVFn)(nil)).Elem())
 	beam.RegisterType(reflect.TypeOf((*prunePartitionsInMemoryKVFn)(nil)).Elem())
 	beam.RegisterType(reflect.TypeOf((*pMap)(nil)).Elem())
@@ -66,6 +66,7 @@ func init() {
 	beam.RegisterFunction(dereferenceValueToInt64Fn)
 	beam.RegisterFunction(dereferenceValueToFloat64Fn)
 	beam.RegisterFunction(prunePartitionsKVFn)
+	beam.RegisterFunction(mergePublicValuesFn)
 	// TODO: add tests to make sure we don't forget anything here
 }
 
@@ -75,7 +76,7 @@ func init() {
 // the permutation depends on the exact sorting algorithm used by Beam and the
 // order in which the input values are processed within the pipeline.
 //
-// The fact that the resulting permutation is not nesessarily uniformly random is
+// The fact that the resulting permutation is not necessarily uniformly random is
 // not a problem, since all we require from this function to satisfy DP properties
 // is that it doesn't depend on the data. More specifically, in order to satisfy DP
 // properties, a privacy unit's data should not influence another privacy unit's
@@ -679,10 +680,37 @@ func dropNonPublicPartitionsKVFn(s beam.Scope, publicPartitions beam.PCollection
 	return beam.ParDo(s, prunePartitionsKVFn, pcol.col, beam.SideInput{Input: partitionMap})
 }
 
-// dropNonPublicPartitionsVFn drops partitions not specified in PublicPartitions from pcol. It can be used for aggregations on V values, e.g. count and distinctid.
+// mergePublicValuesFn merges the public partitions with the values for Count
+// and DistinctPrivacyId after a CoGroupByKey. Only outputs a <privacyKey,
+// value> pair if the value is in the public partitions, i.e., the PCollection
+// that is passed to the CoGroupByKey first.
+func mergePublicValuesFn(value beam.X, isKnown func(*int64) bool, privacyKeys func(*beam.W) bool, emit func(beam.W, beam.X)) {
+	var ignoredZero int64
+	if isKnown(&ignoredZero) {
+		var privacyKey beam.W
+		for privacyKeys(&privacyKey) {
+			emit(privacyKey, value)
+		}
+	}
+}
+
+// dropNonPublicPartitionsVFn drops partitions not specified in
+// PublicPartitions from pcol. It can be used for aggregations on V values,
+// e.g. count and distinctid.
+//
+// We drop values that are not in the publicPartitions PCollection as follows:
+//   1. Transform publicPartitions from <V> to <V, int64(0)> (0 is a dummy value)
+//   2. Swap pcol.col from <PrivacyKey, V> to <V, PrivacyKey>
+//   3. Do a CoGroupByKey on the output of 1 and 2.
+//   4. From the output of 3, only output <PrivacyKey, V> if there is an input
+//      from 1 using the mergePublicValuesFn.
+//
+// Returns a PCollection<PrivacyKey, Value> only for values present in
+// publicPartitions.
 func dropNonPublicPartitionsVFn(s beam.Scope, publicPartitions beam.PCollection, pcol PrivatePCollection, partitionEncodedType beam.EncodedType) beam.PCollection {
-	partitionMap := beam.Combine(s, newPartitionsMapFn(partitionEncodedType), publicPartitions)
-	return beam.ParDo(s, newPrunePartitionsVFn(partitionEncodedType), pcol.col, beam.SideInput{Input: partitionMap})
+	publicPartitionsWithZeros := beam.ParDo(s, addZeroValuesToPublicPartitionsInt64Fn, publicPartitions)
+	groupedByValue := beam.CoGroupByKey(s, publicPartitionsWithZeros, beam.SwapKV(s, pcol.col))
+	return beam.ParDo(s, mergePublicValuesFn, groupedByValue)
 }
 
 type mapAccum struct {
@@ -773,39 +801,6 @@ func (fn *prunePartitionsInMemoryKVFn) ProcessElement(id beam.X, pair kv.Pair, e
 	if fn.PartitionMap[string(pair.K)] {
 		emit(id, pair)
 	}
-}
-
-// prunePartitionsVFn takes a PCollection<K, V> as input, and returns a
-// PCollection<K, V>, where non-public partitions have been dropped.
-// Used for count and distinct_id.
-type prunePartitionsVFn struct {
-	PartitionType beam.EncodedType
-	partitionEnc  beam.ElementEncoder
-}
-
-func newPrunePartitionsVFn(partitionType beam.EncodedType) *prunePartitionsVFn {
-	return &prunePartitionsVFn{PartitionType: partitionType}
-}
-
-func (fn *prunePartitionsVFn) Setup() {
-	fn.partitionEnc = beam.NewElementEncoder(fn.PartitionType.T)
-}
-
-func (fn *prunePartitionsVFn) ProcessElement(id beam.X, partitionKey beam.V, partitionsIter func(*pMap) bool, emit func(beam.X, beam.V)) error {
-	var partitionBuf bytes.Buffer
-	if err := fn.partitionEnc.Encode(partitionKey, &partitionBuf); err != nil {
-		return fmt.Errorf("pbeam.prunePartitionsVFn.ProcessElement: couldn't encode partition %v: %w", partitionKey, err)
-	}
-	var partitionMap pMap
-	partitionsIter(&partitionMap)
-	var err error
-	if partitionMap == nil {
-		return err
-	}
-	if partitionMap[string(partitionBuf.Bytes())] {
-		emit(id, partitionKey)
-	}
-	return nil
 }
 
 // prunePartitionsFn takes a PCollection<ID, kv.Pair{K,V}> as input, and returns a

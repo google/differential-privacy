@@ -157,6 +157,18 @@ py_library(
         "test_util.py",
     ],
     srcs_version = "PY3",
+    deps = [requirement("numpy")],
+)
+
+py_test(
+    name = "test_util_test",
+    size = "small",
+    srcs = ["test_util_test.py"],
+    python_version = "PY3",
+    deps = [
+        ":test_util",
+        requirement("absl-py"),
+    ],
 )
 
 py_binary(

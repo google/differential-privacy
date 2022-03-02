@@ -42,14 +42,14 @@ aren't covered by the algorithms implemented in our libraries.
 
 [secure noise generation]: ./common_docs/Secure_Noise_Generation.pdf
 
-The DP building block libraries are suitable for research, experimental or
-production use cases, while the other tools are currently experimental, and
-subject to change.
+The DP building block libraries and Privacy on Beam are suitable for research,
+experimental, or production use cases, while the other tools are currently
+experimental and subject to change.
 
 ## How to Build
 
 In order to run the differential privacy library, you need to install Bazel in
-version 4.1.0, if you don't have it already.
+version 5.0.0, if you don't have it already.
 [Follow the instructions for your platform on the Bazel website](https://docs.bazel.build/versions/main/install.html)
 
 You also need to install Git, if you don't have it already.

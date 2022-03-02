@@ -1,0 +1,46 @@
+#
+# Copyright 2022 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# Accountant using Privacy Loss Distributions (PLD).
+
+load("@accounting_py_pip_deps//:requirements.bzl", "requirement")
+
+package(default_visibility = [
+    "//visibility:public",
+])
+
+licenses(["notice"])
+
+py_library(
+    name = "pld_privacy_accountant",
+    srcs = ["pld_privacy_accountant.py"],
+    deps = [
+        "//dp_accounting:dp_event",
+        "//dp_accounting:privacy_accountant",
+        "//dp_accounting:privacy_loss_distribution",
+    ],
+)
+
+py_test(
+    name = "pld_privacy_accountant_test",
+    srcs = ["pld_privacy_accountant_test.py"],
+    deps = [
+        ":pld_privacy_accountant",
+        "//dp_accounting:dp_event",
+        "//dp_accounting:privacy_accountant_test",
+        requirement("absl-py"),
+    ],
+)

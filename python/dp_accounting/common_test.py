@@ -165,7 +165,7 @@ class DictListConversionTest(parameterized.TestCase):
                                    tail_mass_truncation, expected_result):
     result = common.list_to_dictionary(
         input_list, offset, tail_mass_truncation=tail_mass_truncation)
-    test_util.dictionary_almost_equal(self, expected_result, result)
+    test_util.assert_dictionary_almost_equal(self, expected_result, result)
 
 
 class ConvolveTest(parameterized.TestCase):
@@ -175,14 +175,14 @@ class ConvolveTest(parameterized.TestCase):
     dictionary2 = {2: 3, 4: 6}
     expected_result = {3: 6, 5: 24, 7: 24}
     result = common.convolve_dictionary(dictionary1, dictionary2)
-    test_util.dictionary_almost_equal(self, expected_result, result)
+    test_util.assert_dictionary_almost_equal(self, expected_result, result)
 
   def test_convolve_dictionary_with_truncation(self):
     dictionary1 = {1: 0.4, 2: 0.6}
     dictionary2 = {1: 0.7, 3: 0.3}
     expected_result = {3: 0.42, 4: 0.12}
     result = common.convolve_dictionary(dictionary1, dictionary2, 0.57)
-    test_util.dictionary_almost_equal(self, expected_result, result)
+    test_util.assert_dictionary_almost_equal(self, expected_result, result)
 
   def test_self_convolve_dictionary(self):
     inp_dictionary = {1: 2, 3: 5, 4: 6}
@@ -198,7 +198,7 @@ class ConvolveTest(parameterized.TestCase):
         12: 216
     }
     result = common.self_convolve_dictionary(inp_dictionary, 3)
-    test_util.dictionary_almost_equal(self, expected_result, result)
+    test_util.assert_dictionary_almost_equal(self, expected_result, result)
 
   @parameterized.parameters(([3, 5, 7], 2, [9, 30, 67, 70, 49]),
                             ([1, 3, 4], 3, [1, 9, 39, 99, 156, 144, 64]))

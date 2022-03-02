@@ -3,7 +3,7 @@
 This subdirectory contains a PostgreSQL extension providing several epsilon-DP
 aggregate functions. We will refer to them as the anonymous functions.
 
-## Setup 
+## Setup
 
 * Install Postgres 12 using the source code.
   *  Source: https://www.postgresql.org/ftp/source/
