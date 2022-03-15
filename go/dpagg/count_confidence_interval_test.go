@@ -19,7 +19,7 @@ package dpagg
 import (
 	"testing"
 
-	"github.com/google/differential-privacy/go/noise"
+	"github.com/google/differential-privacy/go/v2/noise"
 )
 
 func getCount(t *testing.T, n noise.Noise) *Count {

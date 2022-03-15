@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/google/differential-privacy/go/noise"
+	"github.com/google/differential-privacy/go/v2/noise"
 )
 
 // Count calculates a differentially private count of a collection of values

@@ -94,6 +94,7 @@ enum MechanismType {
   EMPTY = 0;
   LAPLACE = 1;
   GAUSSIAN = 2;
+  DISCRETE_LAPLACE = 3;
 }
 
 message BoundedMeanSummary {

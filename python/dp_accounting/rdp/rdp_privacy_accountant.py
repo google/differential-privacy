@@ -19,7 +19,6 @@ from typing import Collection, Optional, Union
 
 import numpy as np
 from scipy import special
-import six
 
 from dp_accounting import dp_event
 from dp_accounting import privacy_accountant
@@ -75,7 +74,7 @@ def _log_comb(n, k):
 
 def _compute_log_a_int(q, sigma, alpha):
   """Computes log(A_alpha) for integer alpha, 0 < q < 1."""
-  assert isinstance(alpha, six.integer_types)
+  assert isinstance(alpha, int)
 
   # Initialize with 0 in the log space.
   log_a = -np.inf
@@ -431,7 +430,7 @@ def _compute_rdp_sample_wor_gaussian_int(q, sigma, alpha):
   """
 
   max_alpha = 256
-  assert isinstance(alpha, six.integer_types)
+  assert isinstance(alpha, int)
 
   if np.isinf(alpha):
     return np.inf
@@ -522,7 +521,7 @@ def _effective_gaussian_noise_multiplier(event: dp_event.DpEvent):
 
 def _compute_rdp_single_epoch_tree_aggregation(
     noise_multiplier: float, step_counts: Union[int, Collection[int]],
-    orders: Collection[float]) -> Collection[float]:
+    orders: Collection[float]) -> Union[float, np.ndarray]:
   """Computes RDP of the Tree Aggregation Protocol for Gaussian Mechanism.
 
   This function implements the accounting when the tree is periodically
@@ -571,7 +570,7 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
       orders: Optional[Collection[float]] = None,
       neighboring_relation: NeighborRel = NeighborRel.ADD_OR_REMOVE_ONE,
   ):
-    super(RdpAccountant, self).__init__(neighboring_relation)
+    super().__init__(neighboring_relation)
     if orders is None:
       # Default orders chosen to give good coverage for Gaussian mechanism in
       # the privacy regime of interest. In the future, more orders might be

@@ -104,7 +104,7 @@ class PartitionSelectionStrategy {
 
   // ShouldKeep returns true when a partition with a given number of users
   // should be kept and false otherwise.
-  virtual bool ShouldKeep(int num_users) = 0;
+  virtual bool ShouldKeep(double num_users) = 0;
 
  protected:
   PartitionSelectionStrategy(double epsilon, double delta,
@@ -221,7 +221,7 @@ class PreaggPartitionSelection : public PartitionSelectionStrategy {
 
   double GetSecondCrossover() const { return crossover_2_; }
 
-  bool ShouldKeep(int num_users) override {
+  bool ShouldKeep(double num_users) override {
     // generate a random number between 0 and 1
     double rand_num = UniformDouble();
     // only keep partition if random number < expected probability of keep
@@ -326,7 +326,7 @@ class LaplacePartitionSelection : public PartitionSelectionStrategy {
 
   virtual ~LaplacePartitionSelection() = default;
 
-  bool ShouldKeep(int num_users) override {
+  bool ShouldKeep(double num_users) override {
     return mechanism_->NoisedValueAboveThreshold(num_users, threshold_);
   }
 
@@ -468,7 +468,7 @@ class GaussianPartitionSelection : public PartitionSelectionStrategy {
 
   double GetNoiseDelta() const { return noise_delta_; }
 
-  bool ShouldKeep(int num_users) override {
+  bool ShouldKeep(double num_users) override {
     return mechanism_->NoisedValueAboveThreshold(num_users, threshold_);
   }
 

@@ -39,7 +39,7 @@ import (
 
 	"flag"
 	log "github.com/golang/glog"
-	"github.com/google/differential-privacy/privacy-on-beam/codelab"
+	"github.com/google/differential-privacy/privacy-on-beam/v2/codelab"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 
 	// The following import is required for accessing local files.

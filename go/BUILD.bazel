@@ -16,5 +16,5 @@
 
 load("@bazel_gazelle//:def.bzl", "gazelle")
 
-# gazelle:prefix github.com/google/differential-privacy/go
+# gazelle:prefix github.com/google/differential-privacy/go/v2
 gazelle(name = "gazelle")

@@ -13,10 +13,10 @@
 # limitations under the License.
 """Common classes and functions for the accounting library."""
 
+import dataclasses
 import math
 import typing
 
-import dataclasses
 import numpy as np
 from scipy import fft
 from scipy import signal
@@ -289,7 +289,7 @@ def self_convolve(
   truncated_convolution_output = np.real(
       fft.ifft(fft.fft(input_list, fast_len)**num_times))
 
-  # Discrete Fourier Transform wraps around module fast_len. Extract the output
+  # Discrete Fourier Transform wraps around modulo fast_len. Extract the output
   # values in the range of interest.
   output_list = [
       truncated_convolution_output[i % fast_len]

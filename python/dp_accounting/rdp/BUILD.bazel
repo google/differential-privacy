@@ -29,11 +29,9 @@ py_library(
     srcs = ["rdp_privacy_accountant.py"],
     deps = [
         "//dp_accounting:dp_event",
-        "//dp_accounting:dp_event_builder",
         "//dp_accounting:privacy_accountant",
         requirement("numpy"),
         requirement("scipy"),
-        requirement("six"),
     ],
 )
 

@@ -22,9 +22,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/google/differential-privacy/go/noise"
-	"github.com/google/differential-privacy/privacy-on-beam/pbeam/testutils"
-	testpb "github.com/google/differential-privacy/privacy-on-beam/testdata"
+	"github.com/google/differential-privacy/go/v2/noise"
+	"github.com/google/differential-privacy/privacy-on-beam/v2/pbeam/testutils"
+	testpb "github.com/google/differential-privacy/privacy-on-beam/v2/testdata"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"

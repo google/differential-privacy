@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-workspace(name = "com_google_go_differential_privacy")
+workspace(name = "com_github_google_differential_privacy_go_v2")
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 

@@ -21,9 +21,9 @@ package pbeamtest
 import (
 	"math"
 
-	"github.com/google/differential-privacy/go/dpagg"
-	"github.com/google/differential-privacy/privacy-on-beam/internal/testoption"
-	"github.com/google/differential-privacy/privacy-on-beam/pbeam"
+	"github.com/google/differential-privacy/go/v2/dpagg"
+	"github.com/google/differential-privacy/privacy-on-beam/v2/internal/testoption"
+	"github.com/google/differential-privacy/privacy-on-beam/v2/pbeam"
 )
 
 // NewPrivacySpecNoNoiseWithContributionBounding creates a new PrivacySpec with

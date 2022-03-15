@@ -16,7 +16,7 @@
 
 package pbeam
 
-import "github.com/google/differential-privacy/go/noise"
+import "github.com/google/differential-privacy/go/v2/noise"
 
 // noNoise is a Noise instance that doesn't add noise to the data, and has a
 // threshold of 0. Used as the noise type only when testMode is enabled in PrivacySpec.

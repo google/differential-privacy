@@ -17,7 +17,7 @@
 package codelab
 
 import (
-	"github.com/google/differential-privacy/privacy-on-beam/pbeam"
+	"github.com/google/differential-privacy/privacy-on-beam/v2/pbeam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 )

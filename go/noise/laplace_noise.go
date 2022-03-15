@@ -19,8 +19,8 @@ package noise
 import (
 	"math"
 
-	"github.com/google/differential-privacy/go/checks"
-	"github.com/google/differential-privacy/go/rand"
+	"github.com/google/differential-privacy/go/v2/checks"
+	"github.com/google/differential-privacy/go/v2/rand"
 )
 
 var (

@@ -23,7 +23,7 @@ demonstrates how to use the library. Source code for the codelab is available in
 the [codelab/](codelab)
 directory.
 
-Full documentation of the API is available as [godoc](https://godoc.org/github.com/google/differential-privacy/privacy-on-beam/pbeam).
+Full documentation of the API is available as [godoc](https://godoc.org/github.com/google/differential-privacy/privacy-on-beam/v2/pbeam).
 
 ## Using with the "go" Command
 

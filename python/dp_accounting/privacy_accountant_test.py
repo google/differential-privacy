@@ -26,6 +26,7 @@ from dp_accounting import dp_event
 from dp_accounting import privacy_accountant
 
 
+@absltest.skipThisClass('only intended to be run by subclasses')
 class PrivacyAccountantTest(absltest.TestCase):
 
   def _make_test_accountants(

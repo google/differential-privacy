@@ -20,8 +20,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/google/differential-privacy/go/noise"
-	"github.com/google/differential-privacy/privacy-on-beam/pbeam/testutils"
+	"github.com/google/differential-privacy/go/v2/noise"
+	"github.com/google/differential-privacy/privacy-on-beam/v2/pbeam/testutils"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"

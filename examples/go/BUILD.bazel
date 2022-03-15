@@ -30,7 +30,7 @@ go_library(
     importpath = "github.com/google/differential-privacy/examples/go",
     visibility = ["//visibility:public"],
     deps = [
-        "@com_google_go_differential_privacy//dpagg:go_default_library",
-        "@com_google_go_differential_privacy//noise:go_default_library",
+        "@com_github_google_differential_privacy_go_v2//dpagg:go_default_library",
+        "@com_github_google_differential_privacy_go_v2//noise:go_default_library",
     ],
 )

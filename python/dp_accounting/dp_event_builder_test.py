@@ -18,6 +18,7 @@ from dp_accounting import dp_event
 from dp_accounting import dp_event_builder
 
 _gaussian_event = dp_event.GaussianDpEvent(1.0)
+_laplace_event = dp_event.LaplaceDpEvent(1.0)
 _poisson_event = dp_event.PoissonSampledDpEvent(_gaussian_event, 0.1)
 _self_composed_event = dp_event.SelfComposedDpEvent(_gaussian_event, 3)
 
@@ -28,10 +29,15 @@ class DpEventBuilderTest(absltest.TestCase):
     builder = dp_event_builder.DpEventBuilder()
     self.assertEqual(dp_event.NoOpDpEvent(), builder.build())
 
-  def test_single(self):
+  def test_single_gaussian(self):
     builder = dp_event_builder.DpEventBuilder()
     builder.compose(_gaussian_event)
     self.assertEqual(_gaussian_event, builder.build())
+
+  def test_single_laplace(self):
+    builder = dp_event_builder.DpEventBuilder()
+    builder.compose(_laplace_event)
+    self.assertEqual(_laplace_event, builder.build())
 
   def test_compose_no_op(self):
     builder = dp_event_builder.DpEventBuilder()
@@ -68,7 +74,8 @@ class DpEventBuilderTest(absltest.TestCase):
     expected_event = dp_event.ComposedDpEvent([
         _gaussian_event,
         dp_event.SelfComposedDpEvent(composed_event, 3),
-        dp_event.SelfComposedDpEvent(_poisson_event, 2)])
+        dp_event.SelfComposedDpEvent(_poisson_event, 2)
+    ])
     self.assertEqual(expected_event, builder.build())
 
 

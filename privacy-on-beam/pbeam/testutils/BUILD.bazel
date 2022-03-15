@@ -17,23 +17,23 @@
 load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 load("@bazel_gazelle//:def.bzl", "gazelle")
 
-# gazelle:prefix github.com/google/differential-privacy/privacy-on-beam/pbeam/testutils
+# gazelle:prefix github.com/google/differential-privacy/privacy-on-beam/v2/pbeam/testutils
 gazelle(name = "gazelle")
 
 go_library(
     name = "go_default_library",
     testonly = 1,
     srcs = ["testutils.go"],
-    importpath = "github.com/google/differential-privacy/privacy-on-beam/pbeam/testutils",
+    importpath = "github.com/google/differential-privacy/privacy-on-beam/v2/pbeam/testutils",
     visibility = ["//:__subpackages__"],
     deps = [
         "//internal/kv:go_default_library",
         "@com_github_apache_beam_sdks_v2//go/pkg/beam:go_default_library",
         "@com_github_apache_beam_sdks_v2//go/pkg/beam/transforms/stats:go_default_library",
+        "@com_github_google_differential_privacy_go_v2//dpagg:go_default_library",
+        "@com_github_google_differential_privacy_go_v2//noise:go_default_library",
         "@com_github_google_go_cmp//cmp:go_default_library",
         "@com_github_google_go_cmp//cmp/cmpopts:go_default_library",
-        "@com_google_go_differential_privacy//dpagg:go_default_library",
-        "@com_google_go_differential_privacy//noise:go_default_library",
     ],
 )
 

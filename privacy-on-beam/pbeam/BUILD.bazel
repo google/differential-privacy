@@ -17,7 +17,7 @@
 load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 load("@bazel_gazelle//:def.bzl", "gazelle")
 
-# gazelle:prefix github.com/google/differential-privacy/privacy-on-beam/pbeam
+# gazelle:prefix github.com/google/differential-privacy/privacy-on-beam/v2/pbeam
 gazelle(name = "gazelle")
 
 go_library(
@@ -36,7 +36,7 @@ go_library(
         "select_partitions.go",
         "sum.go",
     ],
-    importpath = "github.com/google/differential-privacy/privacy-on-beam/pbeam",
+    importpath = "github.com/google/differential-privacy/privacy-on-beam/v2/pbeam",
     visibility = ["//visibility:public"],
     deps = [
         "//internal/generated:go_default_library",
@@ -50,9 +50,9 @@ go_library(
         "@com_github_apache_beam_sdks_v2//go/pkg/beam/transforms/stats:go_default_library",
         "@com_github_apache_beam_sdks_v2//go/pkg/beam/transforms/top:go_default_library",
         "@com_github_golang_glog//:go_default_library",
-        "@com_google_go_differential_privacy//checks:go_default_library",
-        "@com_google_go_differential_privacy//dpagg:go_default_library",
-        "@com_google_go_differential_privacy//noise:go_default_library",
+        "@com_github_google_differential_privacy_go_v2//checks:go_default_library",
+        "@com_github_google_differential_privacy_go_v2//dpagg:go_default_library",
+        "@com_github_google_differential_privacy_go_v2//noise:go_default_library",
         "@org_golang_google_protobuf//proto:go_default_library",
         "@org_golang_google_protobuf//reflect/protoreflect:go_default_library",
     ],
@@ -91,10 +91,10 @@ go_test(
         "@com_github_apache_beam_sdks_v2//go/pkg/beam/testing/passert:go_default_library",
         "@com_github_apache_beam_sdks_v2//go/pkg/beam/testing/ptest:go_default_library",
         "@com_github_apache_beam_sdks_v2//go/pkg/beam/transforms/stats:go_default_library",
+        "@com_github_google_differential_privacy_go_v2//dpagg:go_default_library",
+        "@com_github_google_differential_privacy_go_v2//noise:go_default_library",
         "@com_github_google_go_cmp//cmp:go_default_library",
         "@com_github_google_go_cmp//cmp/cmpopts:go_default_library",
-        "@com_google_go_differential_privacy//dpagg:go_default_library",
-        "@com_google_go_differential_privacy//noise:go_default_library",
         "@org_golang_google_protobuf//proto:go_default_library",
     ],
 )

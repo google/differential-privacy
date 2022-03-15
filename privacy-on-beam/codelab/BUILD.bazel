@@ -17,7 +17,7 @@
 load("@io_bazel_rules_go//go:def.bzl", "go_library")
 load("@bazel_gazelle//:def.bzl", "gazelle")
 
-# gazelle:prefix github.com/google/differential-privacy/privacy-on-beam/codelab
+# gazelle:prefix github.com/google/differential-privacy/privacy-on-beam/v2/codelab
 gazelle(name = "gazelle")
 
 go_library(
@@ -30,7 +30,7 @@ go_library(
         "sum.go",
         "visit.go",
     ],
-    importpath = "github.com/google/differential-privacy/privacy-on-beam/codelab",
+    importpath = "github.com/google/differential-privacy/privacy-on-beam/v2/codelab",
     visibility = ["//visibility:public"],
     deps = [
         "//pbeam:go_default_library",

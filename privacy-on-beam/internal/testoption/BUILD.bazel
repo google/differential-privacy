@@ -17,12 +17,12 @@
 load("@io_bazel_rules_go//go:def.bzl", "go_library")
 load("@bazel_gazelle//:def.bzl", "gazelle")
 
-# gazelle:prefix github.com/google/differential-privacy/privacy-on-beam/internal/testoption
+# gazelle:prefix github.com/google/differential-privacy/privacy-on-beam/v2/internal/testoption
 gazelle(name = "gazelle")
 
 go_library(
     name = "go_default_library",
     srcs = ["testoption.go"],
-    importpath = "github.com/google/differential-privacy/privacy-on-beam/internal/testoption",
+    importpath = "github.com/google/differential-privacy/privacy-on-beam/v2/internal/testoption",
     visibility = ["//:__subpackages__"],
 )

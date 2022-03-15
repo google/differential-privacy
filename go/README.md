@@ -9,7 +9,7 @@ This document describes Go-specific aspects.
 Usage of the Go Differential Privacy library is demonstrated in the
 [codelab](../examples/go/).
 
-Full documentation of the API is available as [godoc](https://godoc.org/github.com/google/differential-privacy/go/dpagg).
+Full documentation of the API is available as [godoc](https://godoc.org/github.com/google/differential-privacy/go/v2/dpagg).
 
 ## Using with the "go" Command
 

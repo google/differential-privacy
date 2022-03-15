@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/google/differential-privacy/go/checks"
-	"github.com/google/differential-privacy/go/noise"
+	"github.com/google/differential-privacy/go/v2/checks"
+	"github.com/google/differential-privacy/go/v2/noise"
 )
 
 // Constants used for QuantileTrees.

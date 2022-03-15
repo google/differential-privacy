@@ -116,6 +116,20 @@ class GaussianDpEvent(DpEvent):
 
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
+class LaplaceDpEvent(DpEvent):
+  """Represents an application of the Laplace mechanism.
+
+  For values v_i and noise z sampled coordinate-wise from the Laplace
+  distribution L(0, s), this mechanism returns sum_i v_i + z.
+  The probability density function of the Laplace distribution L(0, s) with
+  parameter s is given as exp(-|x|/s) * (0.5/s) at x for any real value x.
+  If the L_1 norm of the values are bounded ||v_i||_1 <= C, the noise_multiplier
+  is defined as s / C.
+  """
+  noise_multiplier: float
+
+
+@attr.s(frozen=True, slots=True, auto_attribs=True)
 class SelfComposedDpEvent(DpEvent):
   """Represents repeated application of a mechanism.
 

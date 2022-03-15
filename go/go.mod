@@ -1,4 +1,4 @@
-module github.com/google/differential-privacy/go
+module github.com/google/differential-privacy/go/v2
 
 go 1.16
 

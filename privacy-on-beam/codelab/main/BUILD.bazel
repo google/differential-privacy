@@ -17,7 +17,7 @@
 load("@io_bazel_rules_go//go:def.bzl", "go_binary")
 load("@bazel_gazelle//:def.bzl", "gazelle")
 
-# gazelle:prefix github.com/google/differential-privacy/privacy-on-beam/codelab/main
+# gazelle:prefix github.com/google/differential-privacy/privacy-on-beam/v2/codelab/main
 gazelle(name = "gazelle")
 
 # keep
@@ -30,7 +30,7 @@ go_binary(
     data = [
         "//codelab/main:day_data.csv",
     ],
-    importpath = "github.com/google/differential-privacy/privacy-on-beam/codelab/main",
+    importpath = "github.com/google/differential-privacy/privacy-on-beam/v2/codelab/main",
     visibility = ["//visibility:public"],
     deps = [
         "//codelab:go_default_library",
