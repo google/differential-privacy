@@ -42,6 +42,7 @@ using ::differential_privacy::testing::StoredSequence;
 
 constexpr int kNumDatasetsToTest = 500;
 constexpr int kSmallNumDatasetsToTest = 100;
+constexpr int kVerySmallNumDatasetsToTest = 5;
 constexpr int kNumSamplesPerHistogram = 20000;
 
 const double kDefaultOverallEpsilon = std::log(3);
@@ -94,7 +95,7 @@ TEST(StochasticDifferentialPrivacyTest, Max) {
                        .Build()
                        .value();
   StochasticTester<double> tester(std::move(algorithm), std::move(sequence),
-                                  kSmallNumDatasetsToTest,
+                                  kVerySmallNumDatasetsToTest,
                                   kNumSamplesPerHistogram);
   EXPECT_TRUE(tester.Run());
 }
@@ -115,7 +116,8 @@ TEST(StochasticDifferentialPrivacyTest, Min) {
                        .Build()
                        .value();
   StochasticTester<double> tester(std::move(algorithm), std::move(sequence),
-                                  kSmallNumDatasetsToTest, kNumDatasetsToTest);
+                                  kVerySmallNumDatasetsToTest,
+                                  kNumSamplesPerHistogram);
   EXPECT_TRUE(tester.Run());
 }
 
@@ -135,7 +137,8 @@ TEST(StochasticDifferentialPrivacyTest, Median) {
                        .Build()
                        .value();
   StochasticTester<double> tester(std::move(algorithm), std::move(sequence),
-                                  kSmallNumDatasetsToTest, kNumDatasetsToTest);
+                                  kVerySmallNumDatasetsToTest,
+                                  kNumSamplesPerHistogram);
   EXPECT_TRUE(tester.Run());
 }
 
@@ -157,7 +160,7 @@ TEST(StochasticDifferentialPrivacyTest, Percentile) {
                        .Build()
                        .value();
   StochasticTester<double> tester(std::move(algorithm), std::move(sequence),
-                                  kSmallNumDatasetsToTest,
+                                  kVerySmallNumDatasetsToTest,
                                   kNumSamplesPerHistogram);
   EXPECT_TRUE(tester.Run());
 }
