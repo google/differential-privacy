@@ -11,7 +11,7 @@ RUN apt-get update \
         pkg-config \
         git \
         curl \
-        libreadline-dev \ 
+        libreadline-dev \
         bison \
         flex \
         postgresql-server-dev-$PG_MAJOR \
@@ -37,7 +37,7 @@ RUN git clone https://github.com/google/differential-privacy.git --single-branch
     && cd /tmp/differential-privacy \
     && git checkout fc4f2abda5052f654539fc128 \
     && cd /tmp/differential-privacy/cc \
-    && bazel build postgres/anon_func.so 
+    && bazel build postgres/anon_func.so
 
 
 
@@ -56,7 +56,7 @@ COPY --from=build /tmp/differential-privacy/cc/bazel-bin/postgres/anon_func.so  
 COPY --from=build /tmp/differential-privacy/cc/postgres/anon_func.control /usr/share/postgresql/$PG_MAJOR/extension/
 COPY --from=build /tmp/differential-privacy/cc/postgres/anon_func--1.0.0.sql /usr/share/postgresql/$PG_MAJOR/extension/
 
-#Copy Dataset sample 
+#Copy Dataset sample
 COPY --from=build /tmp/differential-privacy/cc/postgres/fruiteaten.csv  /
 COPY --from=build /tmp/differential-privacy/cc/postgres/shirts.csv  /
 
@@ -68,4 +68,3 @@ RUN chmod 755 /usr/share/postgresql/postgresql.conf.sample
 # Copy the script which will initialize the replication permissions
 COPY /docker-entrypoint-initdb.d /docker-entrypoint-initdb.d
 RUN chmod 755 /docker-entrypoint-initdb.d
-

@@ -102,8 +102,7 @@ int main(int argc, char **argv) {
     PrintF("\nPrivacy budget remaining: %.2f\n", reporter.RemainingEpsilon());
     Output count_output = reporter.PrivateCountAbove(1, 90).ValueOrDie();
     int count = GetValue<int>(count_output);
-    ConfidenceInterval ci =
-        count_output.error_report().noise_confidence_interval();
+    ConfidenceInterval ci = GetNoiseConfidenceInterval(count_output);
     double confidence_level = ci.confidence_level();
     double lower_bound = ci.lower_bound();
     double upper_bound = ci.upper_bound();

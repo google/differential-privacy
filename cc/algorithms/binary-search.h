@@ -156,12 +156,11 @@ class BinarySearch : public Algorithm<T> {
     // If the bounds are equal, we return the only possible value with total
     // confidence.
     if (lower_ == upper_) {
-      Output output = MakeOutput<T>(lower_);
-      ConfidenceInterval* ci =
-          output.mutable_error_report()->mutable_noise_confidence_interval();
-      ci->set_lower_bound(lower_);
-      ci->set_upper_bound(lower_);
-      ci->set_confidence_level(noise_interval_level);
+      ConfidenceInterval ci;
+      ci.set_lower_bound(lower_);
+      ci.set_upper_bound(lower_);
+      ci.set_confidence_level(noise_interval_level);
+      Output output = MakeOutput<T>(lower_, ci);
       return output;
     }
 
@@ -272,9 +271,8 @@ class BinarySearch : public Algorithm<T> {
     }
 
     // Return 95% confidence interval of the error.
-    Output output = MakeOutput<T>(m);
-    *(output.mutable_error_report()->mutable_noise_confidence_interval()) =
-        ErrorConfidenceInterval(noise_interval_level, weight, m);
+    Output output = MakeOutput<T>(
+        m, ErrorConfidenceInterval(noise_interval_level, weight, m));
 
     return output;
   }

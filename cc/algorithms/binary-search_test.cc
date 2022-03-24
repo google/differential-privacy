@@ -27,6 +27,7 @@
 #include "algorithms/numerical-mechanisms-testing.h"
 #include "algorithms/numerical-mechanisms.h"
 #include "algorithms/util.h"
+#include "proto/util.h"
 
 namespace differential_privacy {
 namespace {
@@ -182,8 +183,17 @@ TEST(BinarySearchTest, ErrorConfidenceInterval) {
     search.AddEntry(100);
   }
   Output output = search.PartialResult().value();
-  ConfidenceInterval interval =
-      output.error_report().noise_confidence_interval();
+  ConfidenceInterval interval = GetNoiseConfidenceInterval(output);
+  EXPECT_EQ(interval.confidence_level(), kDefaultConfidenceLevel);
+  EXPECT_NEAR(interval.upper_bound(), 0, std::pow(10, -6));
+  EXPECT_NEAR(interval.lower_bound(), 0, std::pow(10, -6));
+
+  // Although the ErrorReport.noise_confidence_interval is deprecated, we still
+  // keep it updated for a more seamless transition for existing clients. After
+  // some time, we should no longer use ErrorReport.noise_confidence_interval.
+  // But for now, we expect ErrorReport.noise_confidence_interval to also be
+  // set and correct.
+  interval = output.error_report().noise_confidence_interval();
   EXPECT_EQ(interval.confidence_level(), kDefaultConfidenceLevel);
   EXPECT_NEAR(interval.upper_bound(), 0, std::pow(10, -6));
   EXPECT_NEAR(interval.lower_bound(), 0, std::pow(10, -6));
@@ -201,9 +211,19 @@ TEST(BinarySearchTest, LowerEqualsUpper) {
       .5, std::log(3), 1, 1, 1, 1,
       absl::make_unique<test_utils::ZeroNoiseMechanism::Builder>());
   Output output = search.PartialResult().value();
+  ConfidenceInterval interval = GetNoiseConfidenceInterval(output);
   EXPECT_EQ(GetValue<int64_t>(output), 1);
-  EXPECT_EQ(output.error_report().noise_confidence_interval().lower_bound(), 1);
-  EXPECT_EQ(output.error_report().noise_confidence_interval().upper_bound(), 1);
+  EXPECT_EQ(interval.lower_bound(), 1);
+  EXPECT_EQ(interval.upper_bound(), 1);
+
+  // Although the ErrorReport.noise_confidence_interval is deprecated, we still
+  // keep it updated for a more seamless transition for existing clients. After
+  // some time, we should no longer use ErrorReport.noise_confidence_interval.
+  // But for now, we expect ErrorReport.noise_confidence_interval to also be
+  // set and correct.
+  interval = output.error_report().noise_confidence_interval();
+  EXPECT_EQ(interval.lower_bound(), 1);
+  EXPECT_EQ(interval.upper_bound(), 1);
 }
 
 }  // namespace

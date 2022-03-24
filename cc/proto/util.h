@@ -19,6 +19,7 @@
 
 #include <limits>
 
+#include "proto/confidence-interval.pb.h"
 #include "proto/data.pb.h"
 
 namespace differential_privacy {
@@ -78,63 +79,99 @@ ValueType MakeValueType(T value) {
 }
 
 template <typename T,
+          typename std::enable_if<is_string<T>::value>::type* = nullptr>
+T GetValue(const Output& output, int64_t index = 0) {
+  return output.elements(index).value().string_value();
+}
+
+template <typename T,
           typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
-T GetValue(const Output& output) {
-  return output.elements(0).value().int_value();
+T GetValue(const Output& output, int64_t index = 0) {
+  return output.elements(index).value().int_value();
 }
 
 template <typename T, typename std::enable_if<
                           std::is_floating_point<T>::value>::type* = nullptr>
-T GetValue(const Output& output) {
-  return output.elements(0).value().float_value();
+T GetValue(const Output& output, int64_t index = 0) {
+  return output.elements(index).value().float_value();
+}
+
+inline ConfidenceInterval GetNoiseConfidenceInterval(const Output& output,
+                                                     int64_t index = 0) {
+  return output.elements(index).noise_confidence_interval();
+}
+
+template <typename T,
+          typename std::enable_if<is_string<T>::value ||
+                                  std::is_floating_point<T>::value ||
+                                  std::is_integral<T>::value>::type* = nullptr>
+Output MakeOutput(T value) {
+  Output i;
+  AddToOutput(&i, value);
+  return i;
+}
+
+template <typename T,
+          typename std::enable_if<is_string<T>::value ||
+                                  std::is_floating_point<T>::value ||
+                                  std::is_integral<T>::value>::type* = nullptr>
+Output MakeOutput(T value, ConfidenceInterval noise_confidence_interval) {
+  Output i;
+  AddToOutput(&i, value, noise_confidence_interval);
+  // Although the ErrorReport.noise_confidence_interval is deprecated, we still
+  // keep it updated for a more seamless transition for existing clients. After
+  // some time, we should no longer use ErrorReport.noise_confidence_interval.
+  *(i.mutable_error_report()->mutable_noise_confidence_interval()) =
+      noise_confidence_interval;
+  return i;
 }
 
 template <typename T,
           typename std::enable_if<is_string<T>::value>::type* = nullptr>
-Output MakeOutput(T value) {
-  Output i;
-  auto element = i.add_elements();
+void AddToOutput(Output* output, T value) {
+  auto* element = output->add_elements();
   element->mutable_value()->set_string_value(value);
-  return i;
 }
 
 template <typename T,
           typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
-Output MakeOutput(T value) {
-  Output i;
-  auto element = i.add_elements();
+void AddToOutput(Output* output, T value) {
+  auto* element = output->add_elements();
   element->mutable_value()->set_int_value(value);
-  return i;
 }
 
 template <typename T, typename std::enable_if<
                           std::is_floating_point<T>::value>::type* = nullptr>
-Output MakeOutput(T value) {
-  Output i;
-  auto element = i.add_elements();
+void AddToOutput(Output* output, T value) {
+  auto* element = output->add_elements();
   element->mutable_value()->set_float_value(value);
-  return i;
 }
 
 template <typename T,
           typename std::enable_if<is_string<T>::value>::type* = nullptr>
-void AddToOutput(Output* output, T value) {
+void AddToOutput(Output* output, T value,
+                 ConfidenceInterval noise_confidence_interval) {
   auto* element = output->add_elements();
   element->mutable_value()->set_string_value(value);
+  *(element->mutable_noise_confidence_interval()) = noise_confidence_interval;
 }
 
 template <typename T,
           typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
-void AddToOutput(Output* output, T value) {
+void AddToOutput(Output* output, T value,
+                 ConfidenceInterval noise_confidence_interval) {
   auto* element = output->add_elements();
   element->mutable_value()->set_int_value(value);
+  *(element->mutable_noise_confidence_interval()) = noise_confidence_interval;
 }
 
 template <typename T, typename std::enable_if<
                           std::is_floating_point<T>::value>::type* = nullptr>
-void AddToOutput(Output* output, T value) {
+void AddToOutput(Output* output, T value,
+                 ConfidenceInterval noise_confidence_interval) {
   auto* element = output->add_elements();
   element->mutable_value()->set_float_value(value);
+  *(element->mutable_noise_confidence_interval()) = noise_confidence_interval;
 }
 
 }  // namespace differential_privacy

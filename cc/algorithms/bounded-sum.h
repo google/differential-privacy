@@ -170,20 +170,24 @@ class BoundedSumWithFixedBounds : public BoundedSum<T> {
 
     // Add noise to the sum.
     double noisy_sum = mechanism_->AddNoise(partial_sum_);
-    if (std::is_integral<T>::value) {
-      SafeOpResult<T> cast_result =
-          SafeCastFromDouble<T>(std::round(noisy_sum));
-      AddToOutput<T>(&output, cast_result.value);
-    } else {
-      AddToOutput<T>(&output, noisy_sum);
-    }
-
     // Add noise confidence interval.
     base::StatusOr<ConfidenceInterval> interval =
         NoiseConfidenceInterval(noise_interval_level);
-    if (interval.ok()) {
-      output.mutable_error_report()->set_allocated_noise_confidence_interval(
-          new ConfidenceInterval(*interval));
+
+    if (std::is_integral<T>::value) {
+      SafeOpResult<T> cast_result =
+          SafeCastFromDouble<T>(std::round(noisy_sum));
+      if (interval.ok()) {
+        output = MakeOutput<T>(cast_result.value, interval.value());
+      } else {
+        output = MakeOutput<T>(cast_result.value);
+      }
+    } else {
+      if (interval.ok()) {
+        output = MakeOutput<T>(noisy_sum, interval.value());
+      } else {
+        output = MakeOutput<T>(noisy_sum);
+      }
     }
 
     return output;
@@ -331,8 +335,6 @@ class BoundedSumWithApproxBounds : public BoundedSum<T> {
 
  protected:
   base::StatusOr<Output> GenerateResult(double noise_interval_level) override {
-    Output output;
-
     // Get results of approximate bounds.
     ASSIGN_OR_RETURN(Output bounds,
                      approx_bounds_->PartialResult(noise_interval_level));
@@ -352,10 +354,6 @@ class BoundedSumWithApproxBounds : public BoundedSum<T> {
       upper = std::max(approx_bounds_upper, -1 * approx_bounds_lower);
     }
 
-    // Populate the bounding report with ApproxBounds information.
-    output.mutable_error_report()->set_allocated_bounding_report(
-        new BoundingReport(approx_bounds_->GetBoundingReport(lower, upper)));
-
     // Construct NumericalMechanism.
     ASSIGN_OR_RETURN(std::unique_ptr<NumericalMechanism> mechanism,
                      BoundedSum<T>::BuildMechanism(
@@ -369,17 +367,23 @@ class BoundedSumWithApproxBounds : public BoundedSum<T> {
         T sum, approx_bounds_->template ComputeFromPartials<T>(
                    pos_sum_, neg_sum_, [](T x) { return x; }, lower, upper, 0));
 
-    // Add noise to sum. Use the remaining privacy budget.
+    // Add noise and confidence interval to the sum output. Use the remaining
+    // privacy budget.
     T noisy_sum = mechanism->AddNoise(sum);
-    AddToOutput<T>(&output, noisy_sum);
-
-    // Add noise confidence interval to the error report.
     base::StatusOr<ConfidenceInterval> interval =
         mechanism->NoiseConfidenceInterval(noise_interval_level, 1.0);
+
+    Output output;
+
     if (interval.ok()) {
-      output.mutable_error_report()->set_allocated_noise_confidence_interval(
-          new ConfidenceInterval(*interval));
+      output = MakeOutput<T>(noisy_sum, interval.value());
+    } else {
+      output = MakeOutput<T>(noisy_sum);
     }
+
+    // Populate the bounding report with ApproxBounds information.
+    output.mutable_error_report()->set_allocated_bounding_report(
+        new BoundingReport(approx_bounds_->GetBoundingReport(lower, upper)));
 
     return output;
   }

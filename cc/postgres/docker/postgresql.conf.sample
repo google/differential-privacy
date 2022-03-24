@@ -6,4 +6,4 @@
 listen_addresses = '*'
 
 # MODULES
-shared_preload_libraries = 'anon_func'
+shared_preload_libraries = 'anon_func' 

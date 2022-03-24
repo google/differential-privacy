@@ -97,6 +97,7 @@ cc_test(
         ":numerical-mechanisms-testing",
         ":util",
         "//base/testing:status_matchers",
+        "//proto:util-lib",
         "@com_google_absl//absl/random:distributions",
         "@com_google_googletest//:gtest_main",
     ],

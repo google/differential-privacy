@@ -64,10 +64,9 @@ class TestAlgorithm : public Algorithm<T> {
  protected:
   base::StatusOr<Output> GenerateResult(double noise_interval_level) override {
     Output output;
-    output.mutable_error_report()
-        ->mutable_noise_confidence_interval()
-        ->set_confidence_level(noise_interval_level);
-    return output;
+    ConfidenceInterval ci;
+    ci.set_confidence_level(noise_interval_level);
+    return MakeOutput("Data", ci);
   }
   void ResetState() override {}
 };
@@ -77,6 +76,13 @@ TEST(AlgorithmTest, PartialResultPassesConfidenceLevel) {
   const double level = .9;
   base::StatusOr<Output> result = alg.PartialResult(level);
   ASSERT_OK(result);
+  EXPECT_EQ(GetNoiseConfidenceInterval(*result).confidence_level(), level);
+
+  // Although the ErrorReport.noise_confidence_interval is deprecated, we still
+  // keep it updated for a more seamless transition for existing clients. After
+  // some time, we should no longer use ErrorReport.noise_confidence_interval.
+  // But for now, test to make sure ErrorReport.noise_confidence_interval is
+  // being set.
   EXPECT_EQ(
       result->error_report().noise_confidence_interval().confidence_level(),
       level);

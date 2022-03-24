@@ -21,7 +21,10 @@ package(default_visibility = ["//visibility:public"])
 cc_library(
     name = "util-lib",
     hdrs = ["util.h"],
-    deps = ["@com_google_differential_privacy//proto:data_cc_proto"],
+    deps = [
+        "@com_google_differential_privacy//proto:confidence_interval_cc_proto",
+        "@com_google_differential_privacy//proto:data_cc_proto",
+    ],
 )
 
 cc_test(

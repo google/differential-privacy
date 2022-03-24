@@ -166,6 +166,14 @@ TEST(CountTest, ConfidenceIntervalTest) {
   auto actual_result = (*count)->PartialResult();
   ASSERT_OK(actual_result);
 
+  EXPECT_THAT(GetNoiseConfidenceInterval(*actual_result),
+              EqualsProto(wantConfidenceInterval));
+
+  // Although the ErrorReport.noise_confidence_interval is deprecated, we still
+  // keep it updated for a more seamless transition for existing clients. After
+  // some time, we should no longer use ErrorReport.noise_confidence_interval.
+  // But for now, we expect ErrorReport.noise_confidence_interval to also be
+  // set and correct.
   EXPECT_THAT(actual_result->error_report().noise_confidence_interval(),
               EqualsProto(wantConfidenceInterval));
 }

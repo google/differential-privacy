@@ -90,13 +90,13 @@ class Count : public Algorithm<T> {
   base::StatusOr<Output> GenerateResult(double noise_interval_level) override {
     Output output;
     int64_t countWithNoise = mechanism_->AddNoise(count_);
-    AddToOutput<int64_t>(&output, countWithNoise);
-
     base::StatusOr<ConfidenceInterval> interval =
         NoiseConfidenceInterval(noise_interval_level);
+
     if (interval.ok()) {
-      *(output.mutable_error_report()->mutable_noise_confidence_interval()) =
-          interval.value();
+      output = MakeOutput<int64_t>(countWithNoise, interval.value());
+    } else {
+      output = MakeOutput<int64_t>(countWithNoise);
     }
     return output;
   }
