@@ -75,7 +75,8 @@ class Quantiles : public Algorithm<T> {
   std::vector<double> GetQuantiles() const { return quantiles_; }
 
  protected:
-  base::StatusOr<Output> GenerateResult(double noise_interval_level) override {
+  base::StatusOr<Output> GenerateResult(
+      double confidence_interval_level) override {
     typename QuantileTree<T>::DPParams dp_params;
     dp_params.epsilon = Algorithm<T>::GetEpsilon();
     dp_params.delta = Algorithm<T>::GetDelta();
@@ -95,8 +96,18 @@ class Quantiles : public Algorithm<T> {
     for (double quantile : quantiles_) {
       double result;
       ASSIGN_OR_RETURN(result, privatized_tree.GetQuantile(quantile));
-      AddToOutput<double>(&output, result);
+      // Add noise confidence interval.
+      base::StatusOr<ConfidenceInterval> interval =
+          privatized_tree.ComputeNoiseConfidenceInterval(
+              quantile, confidence_interval_level);
+
+      if (interval.ok()) {
+        AddToOutput(&output, result, interval.value());
+      } else {
+        AddToOutput<double>(&output, result);
+      }
     }
+
     return output;
   }
 

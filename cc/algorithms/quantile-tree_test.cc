@@ -22,6 +22,7 @@
 #include "gtest/gtest.h"
 #include "absl/random/random.h"
 #include "algorithms/numerical-mechanisms-testing.h"
+#include "proto/confidence-interval.pb.h"
 
 namespace differential_privacy {
 
@@ -48,12 +49,91 @@ const int kDefaultMaxContributionsPerPartition = 5;
 const int kDefaultMaxPartitionsContributed = 12;
 const int kDefaultDatasetSize = 1001;
 const int kNumRanksToTest = 10;
+const std::vector<double> kQuantilesToTest{0.0,  0.005, 0.01, 0.05,  0.25, 0.5,
+                                           0.75, 0.95,  0.99, 0.995, 1.0};
+const std::vector<double> kConfidenceLevelsToTest{
+    0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 0.999, 0.9999};
 
 template <typename T>
 class QuantileTreeTest : public ::testing::Test {
  protected:
   void SetUp() override {}
   void TearDown() override {}
+
+  void StatisticallyAssertConfidenceLevel(
+      const std::vector<T> entries,
+      typename QuantileTree<T>::Builder tree_builder,
+      std::unique_ptr<NumericalMechanismBuilder> mech_builder) {
+    // Prepare a hit counter that counts the number of times a confidence
+    // interval contains the raw value keyed by quantile and confidence level.
+    std::unordered_map<double, std::unordered_map<double, int>> hit_counter;
+
+    std::unique_ptr<QuantileTree<T>> quantile_tree =
+        tree_builder.Build().value();
+    for (const T& entry : entries) {
+      quantile_tree->AddEntry(entry);
+    }
+
+    typename QuantileTree<T>::DPParams dp_params;
+    dp_params.epsilon = kTestDefaultEpsilon;
+    dp_params.delta = kDefaultDelta;
+    dp_params.max_contributions_per_partition =
+        kDefaultMaxContributionsPerPartition;
+    dp_params.max_partitions_contributed_to = kDefaultMaxPartitionsContributed;
+    dp_params.mechanism_builder =
+        absl::make_unique<ZeroNoiseMechanism::Builder>();
+
+    typename QuantileTree<T>::Privatized zero_noise_results =
+        quantile_tree->MakePrivate(dp_params).value();
+
+    // Approximate the raw quantile values by querying a zero noise instance of
+    // the quantiles mechanism.
+    std::unordered_map<double, double> zero_noise_quantiles;
+    for (double quantile : kQuantilesToTest) {
+      zero_noise_quantiles[quantile] =
+          zero_noise_results.GetQuantile(quantile).value();
+    }
+
+    dp_params.mechanism_builder = std::move(mech_builder);
+
+    // Sample the hit frequencies.
+    for (int i = 0; i < kNumberOfSamples_; i++) {
+      typename QuantileTree<T>::Privatized noised_results =
+          quantile_tree->MakePrivate(dp_params).value();
+
+      // Check whether the confidence intervals contain the respective raw value
+      // for all quantiles and confidence levels.
+      for (double quantile : kQuantilesToTest) {
+        for (double level : kConfidenceLevelsToTest) {
+          base::StatusOr<ConfidenceInterval> noised_ci_or_status =
+              noised_results.ComputeNoiseConfidenceInterval(quantile, level);
+          EXPECT_OK(noised_ci_or_status);
+          ConfidenceInterval noised_ci = noised_ci_or_status.value();
+          if (noised_ci.lower_bound() <= zero_noise_quantiles[quantile] &&
+              zero_noise_quantiles[quantile] <= noised_ci.upper_bound()) {
+            ++hit_counter[quantile][level];
+          }
+        }
+      }
+    }
+
+    // Expect that the hit frequency was sufficiently large for all quantiles
+    // and confidence levels.
+    for (double quantile : kQuantilesToTest) {
+      for (double level : kConfidenceLevelsToTest) {
+        EXPECT_GE(hit_counter[quantile][level], kAcceptableThresholds_[level]);
+      }
+    }
+  }
+
+  const int kNumberOfSamples_ = 2500;
+  // Minimum number of times the raw value needs to be contained in the
+  // confidence interval for a given alpha so that the statistical test accepts.
+  // The failure probability is less than 10^-6.
+  std::unordered_map<double, int> kAcceptableThresholds_ = {
+      {0.9999, 2494}, {0.999, 2486}, {0.99, 2447}, {0.95, 2319},
+      {0.9, 2175},    {0.75, 1769},  {0.5, 1130},  {0.25, 523},
+      {0.1, 181},     {0.05, 76},    {0.01, 4}};
 };
 
 typedef ::testing::Types<int64_t, double> NumericTypes;
@@ -754,6 +834,515 @@ TYPED_TEST(QuantileTreeTest, PrivatizedConstantWithExtraInput) {
   }
 
   EXPECT_NEAR(results.GetQuantile(0.5).value(), -25, tolerance);
+}
+
+TYPED_TEST(QuantileTreeTest, ZeroNoiseConfidenceIntervalsMatchQuantile) {
+  std::unique_ptr<QuantileTree<TypeParam>> test_quantiles =
+      typename QuantileTree<TypeParam>::Builder()
+          .SetUpper(50)
+          .SetLower(-50)
+          .SetTreeHeight(4)
+          .SetBranchingFactor(10)
+          .Build()
+          .value();
+
+  std::vector<TypeParam> inputs;
+  for (int i = 0; i < kDefaultDatasetSize; ++i) {
+    inputs.push_back(absl::Uniform(absl::BitGen(), -25, 25));
+  }
+
+  for (const TypeParam& input : inputs) {
+    test_quantiles->AddEntry(input);
+  }
+
+  typename QuantileTree<TypeParam>::DPParams dp_params;
+  dp_params.epsilon = kTestDefaultEpsilon;
+  dp_params.delta = kDefaultDelta;
+  dp_params.max_contributions_per_partition =
+      kDefaultMaxContributionsPerPartition;
+  dp_params.max_partitions_contributed_to = kDefaultMaxPartitionsContributed;
+  dp_params.mechanism_builder = absl::make_unique<ZeroNoiseMechanism::Builder>();
+
+  typename QuantileTree<TypeParam>::Privatized results =
+      test_quantiles->MakePrivate(dp_params).value();
+
+  double tolerance = 0.01;  // > upper - lower / branchingFactor ^ treeHeight
+  std::sort(inputs.begin(), inputs.end());
+
+  double confidence_level = 0.95;
+  for (int i = 0; i < kNumRanksToTest; ++i) {
+    double quantile = static_cast<double>(i) / kNumRanksToTest;
+    double quantile_result = results.GetQuantile(quantile).value();
+    base::StatusOr<ConfidenceInterval> ci_or_status =
+        results.ComputeNoiseConfidenceInterval(quantile, confidence_level);
+
+    EXPECT_OK(ci_or_status);
+    EXPECT_NEAR(quantile_result, ci_or_status.value().lower_bound(), tolerance);
+    EXPECT_NEAR(quantile_result, ci_or_status.value().upper_bound(), tolerance);
+    EXPECT_NEAR(confidence_level, ci_or_status.value().confidence_level(),
+                tolerance);
+  }
+}
+
+TYPED_TEST(QuantileTreeTest,
+           ConfidenceIntervalsLowerBoundLessThanOrEqualsUpperBoundWithNoInput) {
+  for (int i = 0; i < 1000; i++) {
+    std::unique_ptr<QuantileTree<TypeParam>> quantile_tree =
+        typename QuantileTree<TypeParam>::Builder()
+            .SetUpper(50)
+            .SetLower(-50)
+            .SetTreeHeight(4)
+            .SetBranchingFactor(10)
+            .Build()
+            .value();
+
+    typename QuantileTree<TypeParam>::DPParams dp_params;
+    dp_params.epsilon = kTestDefaultEpsilon;
+    dp_params.delta = kDefaultDelta;
+    dp_params.max_contributions_per_partition =
+        kDefaultMaxContributionsPerPartition;
+    dp_params.max_partitions_contributed_to = kDefaultMaxPartitionsContributed;
+    dp_params.mechanism_builder = absl::make_unique<LaplaceMechanism::Builder>();
+
+    typename QuantileTree<TypeParam>::Privatized results =
+        quantile_tree->MakePrivate(dp_params).value();
+
+    // Use a small confidence level to increase the chance of a violation.
+    double confidence_level = 0.01;
+    for (double quantile : kQuantilesToTest) {
+      base::StatusOr<ConfidenceInterval> ci_or_status =
+          results.ComputeNoiseConfidenceInterval(quantile, confidence_level);
+      EXPECT_OK(ci_or_status);
+      EXPECT_LE(ci_or_status.value().lower_bound(),
+                ci_or_status.value().upper_bound());
+    }
+  }
+}
+
+TYPED_TEST(QuantileTreeTest,
+           ConfidenceIntervalsLowerBoundLessThanOrEqualsUpperBoundWithInput) {
+  for (int i = 0; i < 1000; i++) {
+    std::unique_ptr<QuantileTree<TypeParam>> quantile_tree =
+        typename QuantileTree<TypeParam>::Builder()
+            .SetUpper(50)
+            .SetLower(-50)
+            .SetTreeHeight(4)
+            .SetBranchingFactor(10)
+            .Build()
+            .value();
+
+    std::vector<TypeParam> inputs;
+    for (int i = 0; i < kDefaultDatasetSize; ++i) {
+      inputs.push_back(absl::Uniform(absl::BitGen(), -25, 25));
+    }
+
+    for (TypeParam input : inputs) {
+      quantile_tree->AddEntry(input);
+    }
+
+    typename QuantileTree<TypeParam>::DPParams dp_params;
+    dp_params.epsilon = kTestDefaultEpsilon;
+    dp_params.delta = kDefaultDelta;
+    dp_params.max_contributions_per_partition =
+        kDefaultMaxContributionsPerPartition;
+    dp_params.max_partitions_contributed_to = kDefaultMaxPartitionsContributed;
+    dp_params.mechanism_builder = absl::make_unique<LaplaceMechanism::Builder>();
+
+    typename QuantileTree<TypeParam>::Privatized results =
+        quantile_tree->MakePrivate(dp_params).value();
+
+    // Use a small confidence level to increase the chance of a violation.
+    double confidence_level = 0.01;
+    for (double quantile : kQuantilesToTest) {
+      base::StatusOr<ConfidenceInterval> ci_or_status =
+          results.ComputeNoiseConfidenceInterval(quantile, confidence_level);
+      EXPECT_OK(ci_or_status);
+      EXPECT_LE(ci_or_status.value().lower_bound(),
+                ci_or_status.value().upper_bound());
+    }
+  }
+}
+
+TYPED_TEST(QuantileTreeTest, ConfidenceIntervalWithinBounds) {
+  const TypeParam lower_bound = 1;
+  const TypeParam upper_bound = 2;
+
+  std::unique_ptr<QuantileTree<TypeParam>> quantile_tree =
+      typename QuantileTree<TypeParam>::Builder()
+          .SetUpper(upper_bound)
+          .SetLower(lower_bound)
+          .SetTreeHeight(4)
+          .SetBranchingFactor(10)
+          .Build()
+          .value();
+
+  for (int i = 0; i < 10; ++i) {
+    quantile_tree->AddEntry(lower_bound);
+    quantile_tree->AddEntry(upper_bound);
+  }
+
+  typename QuantileTree<TypeParam>::DPParams dp_params;
+  dp_params.epsilon = kTestDefaultEpsilon;
+  dp_params.delta = kDefaultDelta;
+  dp_params.max_contributions_per_partition =
+      kDefaultMaxContributionsPerPartition;
+  dp_params.max_partitions_contributed_to = kDefaultMaxPartitionsContributed;
+  dp_params.mechanism_builder = absl::make_unique<LaplaceMechanism::Builder>();
+
+  typename QuantileTree<TypeParam>::Privatized results =
+      quantile_tree->MakePrivate(dp_params).value();
+
+  // To increase the chance of a violation, we use a high confidence level and
+  // test the confidence intervals of the min and max quantiles, which match the
+  // bounds of the input range.
+  base::StatusOr<ConfidenceInterval> ci_or_status =
+      results.ComputeNoiseConfidenceInterval(0.0, 0.99);
+  EXPECT_OK(ci_or_status);
+  EXPECT_GE(ci_or_status.value().lower_bound(), lower_bound);
+
+  ci_or_status = results.ComputeNoiseConfidenceInterval(1.0, 0.99);
+  EXPECT_OK(ci_or_status);
+  EXPECT_LE(ci_or_status.value().upper_bound(), upper_bound);
+}
+
+TYPED_TEST(QuantileTreeTest,
+           ConfidenceIntervalWithGaussianNoiseReturnsSameResults) {
+  std::unique_ptr<QuantileTree<TypeParam>> quantile_tree =
+      typename QuantileTree<TypeParam>::Builder()
+          .SetUpper(50)
+          .SetLower(-50)
+          .SetTreeHeight(4)
+          .SetBranchingFactor(10)
+          .Build()
+          .value();
+
+  std::vector<TypeParam> inputs;
+  for (int i = 0; i < kDefaultDatasetSize; ++i) {
+    inputs.push_back(absl::Uniform(absl::BitGen(), -25, 25));
+  }
+
+  for (TypeParam input : inputs) {
+    quantile_tree->AddEntry(input);
+  }
+
+  typename QuantileTree<TypeParam>::DPParams dp_params;
+  dp_params.epsilon = kTestDefaultEpsilon;
+  dp_params.delta = kDefaultDelta;
+  dp_params.max_contributions_per_partition =
+      kDefaultMaxContributionsPerPartition;
+  dp_params.max_partitions_contributed_to = kDefaultMaxPartitionsContributed;
+  dp_params.mechanism_builder = absl::make_unique<GaussianMechanism::Builder>();
+
+  typename QuantileTree<TypeParam>::Privatized results =
+      quantile_tree->MakePrivate(dp_params).value();
+
+  double confidence_level = 0.95;
+  for (double quantile : kQuantilesToTest) {
+    base::StatusOr<ConfidenceInterval> ci_or_status_1 =
+        results.ComputeNoiseConfidenceInterval(quantile, confidence_level);
+    base::StatusOr<ConfidenceInterval> ci_or_status_2 =
+        results.ComputeNoiseConfidenceInterval(quantile, confidence_level);
+    EXPECT_OK(ci_or_status_1);
+    EXPECT_OK(ci_or_status_2);
+    EXPECT_EQ(ci_or_status_1.value().lower_bound(),
+              ci_or_status_2.value().lower_bound());
+    EXPECT_EQ(ci_or_status_1.value().upper_bound(),
+              ci_or_status_2.value().upper_bound());
+  }
+}
+
+TYPED_TEST(QuantileTreeTest,
+           ConfidenceIntervalWithLaplaceNoiseReturnsSameResults) {
+  std::unique_ptr<QuantileTree<TypeParam>> quantile_tree =
+      typename QuantileTree<TypeParam>::Builder()
+          .SetUpper(50)
+          .SetLower(-50)
+          .SetTreeHeight(4)
+          .SetBranchingFactor(10)
+          .Build()
+          .value();
+
+  std::vector<TypeParam> inputs;
+  for (int i = 0; i < kDefaultDatasetSize; ++i) {
+    inputs.push_back(absl::Uniform(absl::BitGen(), -25, 25));
+  }
+
+  for (TypeParam input : inputs) {
+    quantile_tree->AddEntry(input);
+  }
+
+  typename QuantileTree<TypeParam>::DPParams dp_params;
+  dp_params.epsilon = kTestDefaultEpsilon;
+  dp_params.delta = kDefaultDelta;
+  dp_params.max_contributions_per_partition =
+      kDefaultMaxContributionsPerPartition;
+  dp_params.max_partitions_contributed_to = kDefaultMaxPartitionsContributed;
+  dp_params.mechanism_builder = absl::make_unique<LaplaceMechanism::Builder>();
+
+  typename QuantileTree<TypeParam>::Privatized results =
+      quantile_tree->MakePrivate(dp_params).value();
+
+  double confidence_level = 0.95;
+  for (double quantile : kQuantilesToTest) {
+    base::StatusOr<ConfidenceInterval> ci_or_status_1 =
+        results.ComputeNoiseConfidenceInterval(quantile, confidence_level);
+    base::StatusOr<ConfidenceInterval> ci_or_status_2 =
+        results.ComputeNoiseConfidenceInterval(quantile, confidence_level);
+    EXPECT_OK(ci_or_status_1);
+    EXPECT_OK(ci_or_status_2);
+    EXPECT_EQ(ci_or_status_1.value().lower_bound(),
+              ci_or_status_2.value().lower_bound());
+    EXPECT_EQ(ci_or_status_1.value().upper_bound(),
+              ci_or_status_2.value().upper_bound());
+  }
+}
+
+TYPED_TEST(
+    QuantileTreeTest,
+    ConfidenceIntervalWithGaussianNoiseReturnsLowerLevelIntervalsWithinHigherLevelIntervals) {
+  std::unique_ptr<QuantileTree<TypeParam>> quantile_tree =
+      typename QuantileTree<TypeParam>::Builder()
+          .SetUpper(50)
+          .SetLower(-50)
+          .SetTreeHeight(4)
+          .SetBranchingFactor(10)
+          .Build()
+          .value();
+
+  std::vector<TypeParam> inputs;
+  for (int i = 0; i < kDefaultDatasetSize; ++i) {
+    inputs.push_back(absl::Uniform(absl::BitGen(), -25, 25));
+  }
+
+  for (TypeParam input : inputs) {
+    quantile_tree->AddEntry(input);
+  }
+
+  typename QuantileTree<TypeParam>::DPParams dp_params;
+  dp_params.epsilon = kTestDefaultEpsilon;
+  dp_params.delta = kDefaultDelta;
+  dp_params.max_contributions_per_partition =
+      kDefaultMaxContributionsPerPartition;
+  dp_params.max_partitions_contributed_to = kDefaultMaxPartitionsContributed;
+  dp_params.mechanism_builder = absl::make_unique<GaussianMechanism::Builder>();
+
+  typename QuantileTree<TypeParam>::Privatized results =
+      quantile_tree->MakePrivate(dp_params).value();
+
+  for (double quantile : kQuantilesToTest) {
+    base::StatusOr<ConfidenceInterval> ci_or_status_1 =
+        results.ComputeNoiseConfidenceInterval(quantile, 0.9);
+    base::StatusOr<ConfidenceInterval> ci_or_status_2 =
+        results.ComputeNoiseConfidenceInterval(quantile, 0.99);
+    EXPECT_OK(ci_or_status_1);
+    EXPECT_OK(ci_or_status_2);
+    EXPECT_LE(ci_or_status_1.value().lower_bound(),
+              ci_or_status_2.value().lower_bound());
+    EXPECT_GE(ci_or_status_1.value().upper_bound(),
+              ci_or_status_2.value().upper_bound());
+  }
+}
+
+TYPED_TEST(
+    QuantileTreeTest,
+    ConfidenceIntervalWithLaplaceNoiseReturnsLowerLevelIntervalsWithinHigherLevelIntervals) {
+  std::unique_ptr<QuantileTree<TypeParam>> quantile_tree =
+      typename QuantileTree<TypeParam>::Builder()
+          .SetUpper(50)
+          .SetLower(-50)
+          .SetTreeHeight(4)
+          .SetBranchingFactor(10)
+          .Build()
+          .value();
+
+  std::vector<TypeParam> inputs;
+  for (int i = 0; i < kDefaultDatasetSize; ++i) {
+    inputs.push_back(absl::Uniform(absl::BitGen(), -25, 25));
+  }
+
+  for (TypeParam input : inputs) {
+    quantile_tree->AddEntry(input);
+  }
+
+  typename QuantileTree<TypeParam>::DPParams dp_params;
+  dp_params.epsilon = kTestDefaultEpsilon;
+  dp_params.delta = kDefaultDelta;
+  dp_params.max_contributions_per_partition =
+      kDefaultMaxContributionsPerPartition;
+  dp_params.max_partitions_contributed_to = kDefaultMaxPartitionsContributed;
+  dp_params.mechanism_builder = absl::make_unique<LaplaceMechanism::Builder>();
+
+  typename QuantileTree<TypeParam>::Privatized results =
+      quantile_tree->MakePrivate(dp_params).value();
+
+  // Test that all higher levels' confidence intervals are within lower levels'
+  // confidence intervals.
+  for (double quantile : kQuantilesToTest) {
+    for (int i = 0; i < kConfidenceLevelsToTest.size(); ++i) {
+      for (int j = i + 1; j < kConfidenceLevelsToTest.size(); ++j) {
+        base::StatusOr<ConfidenceInterval> ci_or_status_1 =
+            results.ComputeNoiseConfidenceInterval(quantile,
+                                                   kConfidenceLevelsToTest[i]);
+        base::StatusOr<ConfidenceInterval> ci_or_status_2 =
+            results.ComputeNoiseConfidenceInterval(quantile,
+                                                   kConfidenceLevelsToTest[j]);
+        EXPECT_OK(ci_or_status_1);
+        EXPECT_OK(ci_or_status_2);
+        EXPECT_LE(ci_or_status_1.value().lower_bound(),
+                  ci_or_status_2.value().lower_bound());
+        EXPECT_GE(ci_or_status_1.value().upper_bound(),
+                  ci_or_status_2.value().upper_bound());
+      }
+    }
+  }
+}
+
+TYPED_TEST(
+    QuantileTreeTest,
+    ConfidenceIntervalWithGaussianNoiseSatisfiesConfidenceLevelWithOneEntry) {
+  typename QuantileTree<TypeParam>::Builder builder =
+      typename QuantileTree<TypeParam>::Builder()
+          .SetUpper(50)
+          .SetLower(-50)
+          .SetTreeHeight(4)
+          .SetBranchingFactor(10);
+
+  std::vector<TypeParam> entries = {0};
+
+  this->StatisticallyAssertConfidenceLevel(
+      entries, builder, absl::make_unique<GaussianMechanism::Builder>());
+}
+
+TYPED_TEST(
+    QuantileTreeTest,
+    ConfidenceIntervalWithLaplaceNoiseSatisfiesConfidenceLevelWithOneEntry) {
+  typename QuantileTree<TypeParam>::Builder builder =
+      typename QuantileTree<TypeParam>::Builder()
+          .SetUpper(50)
+          .SetLower(-50)
+          .SetTreeHeight(4)
+          .SetBranchingFactor(10);
+
+  std::vector<TypeParam> entries = {0};
+
+  this->StatisticallyAssertConfidenceLevel(
+      entries, builder, absl::make_unique<LaplaceMechanism::Builder>());
+}
+
+TYPED_TEST(
+    QuantileTreeTest,
+    ConfidenceIntervalWithGaussianNoiseSatisfiesConfidenceLevelWithUniformEntries) {
+  typename QuantileTree<TypeParam>::Builder builder =
+      typename QuantileTree<TypeParam>::Builder()
+          .SetUpper(250)
+          .SetLower(-250)
+          .SetTreeHeight(4)
+          .SetBranchingFactor(10);
+
+  std::vector<TypeParam> entries;
+  for (int i = -250; i <= 250; ++i) {
+    entries.push_back(i);
+  }
+
+  this->StatisticallyAssertConfidenceLevel(
+      entries, builder, absl::make_unique<GaussianMechanism::Builder>());
+}
+
+TYPED_TEST(
+    QuantileTreeTest,
+    ConfidenceIntervalWithLaplaceNoiseSatisfiesConfidenceLevelWithUniformEntries) {
+  typename QuantileTree<TypeParam>::Builder builder =
+      typename QuantileTree<TypeParam>::Builder()
+          .SetUpper(250)
+          .SetLower(-250)
+          .SetTreeHeight(4)
+          .SetBranchingFactor(10);
+
+  std::vector<TypeParam> entries;
+  for (int i = -250; i <= 250; ++i) {
+    entries.push_back(i);
+  }
+
+  this->StatisticallyAssertConfidenceLevel(
+      entries, builder, absl::make_unique<LaplaceMechanism::Builder>());
+}
+
+TYPED_TEST(
+    QuantileTreeTest,
+    ConfidenceIntervalWithGaussianNoiseSatisfiesConfidenceLevelWithConstantEntries) {
+  typename QuantileTree<TypeParam>::Builder builder =
+      typename QuantileTree<TypeParam>::Builder()
+          .SetUpper(50)
+          .SetLower(-50)
+          .SetTreeHeight(4)
+          .SetBranchingFactor(10);
+
+  std::vector<TypeParam> entries;
+  for (int i = 0; i <= 20; ++i) {
+    entries.push_back(3);
+  }
+
+  this->StatisticallyAssertConfidenceLevel(
+      entries, builder, absl::make_unique<GaussianMechanism::Builder>());
+}
+
+TYPED_TEST(
+    QuantileTreeTest,
+    ConfidenceIntervalWithLaplaceNoiseSatisfiesConfidenceLevelWithConstantEntries) {
+  typename QuantileTree<TypeParam>::Builder builder =
+      typename QuantileTree<TypeParam>::Builder()
+          .SetUpper(50)
+          .SetLower(-50)
+          .SetTreeHeight(4)
+          .SetBranchingFactor(10);
+
+  std::vector<TypeParam> entries;
+  for (int i = 0; i <= 20; ++i) {
+    entries.push_back(3);
+  }
+
+  this->StatisticallyAssertConfidenceLevel(
+      entries, builder, absl::make_unique<LaplaceMechanism::Builder>());
+}
+
+TYPED_TEST(
+    QuantileTreeTest,
+    ConfidenceIntervalWithGaussianNoiseSatisfiesConfidenceLevelWithBernoulliEntries) {
+  typename QuantileTree<TypeParam>::Builder builder =
+      typename QuantileTree<TypeParam>::Builder()
+          .SetUpper(50)
+          .SetLower(-50)
+          .SetTreeHeight(4)
+          .SetBranchingFactor(10);
+
+  std::vector<TypeParam> entries;
+  for (int i = 0; i <= 100; ++i) {
+    entries.push_back(1);
+    entries.push_back(-1);
+  }
+
+  this->StatisticallyAssertConfidenceLevel(
+      entries, builder, absl::make_unique<GaussianMechanism::Builder>());
+}
+
+TYPED_TEST(
+    QuantileTreeTest,
+    ConfidenceIntervalWithLaplaceNoiseSatisfiesConfidenceLevelWithBernoulliEntries) {
+  typename QuantileTree<TypeParam>::Builder builder =
+      typename QuantileTree<TypeParam>::Builder()
+          .SetUpper(50)
+          .SetLower(-50)
+          .SetTreeHeight(4)
+          .SetBranchingFactor(10);
+
+  std::vector<TypeParam> entries;
+  for (int i = 0; i <= 100; ++i) {
+    entries.push_back(1);
+    entries.push_back(-1);
+  }
+
+  this->StatisticallyAssertConfidenceLevel(
+      entries, builder, absl::make_unique<LaplaceMechanism::Builder>());
 }
 
 TYPED_TEST(QuantileTreeTest, MemoryUsed) {

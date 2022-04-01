@@ -606,19 +606,23 @@ cc_library(
         "@com_google_absl//absl/status",
         "@com_google_cc_differential_privacy//base:status",
         "@com_google_cc_differential_privacy//base:statusor",
+        "@com_google_differential_privacy//proto:confidence_interval_cc_proto",
         "@com_google_differential_privacy//proto:summary_cc_proto",
     ],
 )
 
 cc_test(
     name = "quantile-tree_test",
+    timeout = "eternal",
     srcs = ["quantile-tree_test.cc"],
+    shard_count = 16,
     deps = [
         ":numerical-mechanisms-testing",
         ":quantile-tree",
         "//base/testing:proto_matchers",
         "//base/testing:status_matchers",
         "@com_google_absl//absl/random",
+        "@com_google_differential_privacy//proto:confidence_interval_cc_proto",
         "@com_google_googletest//:gtest_main",
     ],
 )

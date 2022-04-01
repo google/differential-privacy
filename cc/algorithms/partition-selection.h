@@ -183,15 +183,19 @@ class PartitionSelectionStrategy {
   double adjusted_delta_;
 };
 
-// PreAggPartitionSelection implements magic partition selection - instead of
-// calculating a specific threshold to determine whether or not a partition
-// should be kept, magic partition selection uses a formula derived from the
-// original probablistic definition of differential privacy to generate the
-// probability with which a partition should be kept. The math is shown in
-// https://arxiv.org/pdf/2006.03684.pdf.
-class PreaggPartitionSelection : public PartitionSelectionStrategy {
+// NearTruncatedGeometricPartitionSelection implements magic partition selection
+// - instead of calculating a specific threshold to determine whether or not a
+// partition should be kept, magic partition selection uses a formula derived
+// from the original probablistic definition of differential privacy to generate
+// the probability with which a partition should be kept. The math is shown in
+// https://arxiv.org/pdf/2006.03684.pdf. We use the term "near truncated
+// geometric" because the selection algorithm's output distribution is close to
+// that of a thresholding approach based on truncated geometric noise (Theorem 5
+// in the aforementioned paper).
+class NearTruncatedGeometricPartitionSelection
+    : public PartitionSelectionStrategy {
  public:
-  // Builder for PreaggPartitionSelection
+  // Builder for NearTruncatedGeometricPartitionSelection
   class Builder : public PartitionSelectionStrategy::Builder {
    public:
     base::StatusOr<std::unique_ptr<PartitionSelectionStrategy>> Build()
@@ -206,14 +210,14 @@ class PreaggPartitionSelection : public PartitionSelectionStrategy {
                                  GetMaxPartitionsContributed().value()));
 
       std::unique_ptr<PartitionSelectionStrategy> magic_selection =
-          absl::WrapUnique(new PreaggPartitionSelection(
+          absl::WrapUnique(new NearTruncatedGeometricPartitionSelection(
               GetEpsilon().value(), GetDelta().value(),
               GetMaxPartitionsContributed().value(), adjusted_delta));
       return magic_selection;
     }
   };
 
-  virtual ~PreaggPartitionSelection() = default;
+  virtual ~NearTruncatedGeometricPartitionSelection() = default;
 
   double GetAdjustedEpsilon() const { return adjusted_epsilon_; }
 
@@ -229,8 +233,9 @@ class PreaggPartitionSelection : public PartitionSelectionStrategy {
   }
 
  protected:
-  PreaggPartitionSelection(double epsilon, double delta, int max_partitions,
-                           double adjusted_delta)
+  NearTruncatedGeometricPartitionSelection(double epsilon, double delta,
+                                           int max_partitions,
+                                           double adjusted_delta)
       : PartitionSelectionStrategy(epsilon, delta, max_partitions,
                                    adjusted_delta),
         adjusted_epsilon_(epsilon / static_cast<double>(max_partitions)) {
@@ -269,6 +274,10 @@ class PreaggPartitionSelection : public PartitionSelectionStrategy {
     }
   }
 };
+
+// PreaggPartitionSelection is the deprecated name for
+// NearTruncatedGeometricPartitionSelection.
+using PreaggPartitionSelection = NearTruncatedGeometricPartitionSelection;
 
 // LaplacePartitionSelection calculates a threshold based on the CDF of the
 // Laplace distribution, delta, epsilon, and the max number of partitions a

@@ -47,10 +47,11 @@ constexpr double kDoubleMax = std::numeric_limits<double>::max();
 constexpr double kCalcDeltaTestDefaultTolerance = 0.001;
 constexpr double kCalcThresholdTestDefaultTolerance = 0.05;
 
-// PreaggregationPartitionSelection Tests
+// NearTruncatedGeometricregationPartitionSelection Tests
 
-TEST(PartitionSelectionTest, PreaggPartitionSelectionUnsetEpsilon) {
-  PreaggPartitionSelection::Builder test_builder;
+TEST(PartitionSelectionTest,
+     NearTruncatedGeometricPartitionSelectionUnsetEpsilon) {
+  NearTruncatedGeometricPartitionSelection::Builder test_builder;
   auto failed_build =
       test_builder.SetDelta(0.1).SetMaxPartitionsContributed(2).Build();
   EXPECT_THAT(failed_build.status().code(),
@@ -59,8 +60,9 @@ TEST(PartitionSelectionTest, PreaggPartitionSelectionUnsetEpsilon) {
   EXPECT_THAT(message, MatchesRegex("^Epsilon must be set.*"));
 }
 
-TEST(PartitionSelectionTest, PreaggPartitionSelectionNanEpsilon) {
-  PreaggPartitionSelection::Builder test_builder;
+TEST(PartitionSelectionTest,
+     NearTruncatedGeometricPartitionSelectionNanEpsilon) {
+  NearTruncatedGeometricPartitionSelection::Builder test_builder;
   auto failed_build = test_builder.SetEpsilon(NAN)
                           .SetDelta(0.3)
                           .SetMaxPartitionsContributed(4)
@@ -72,8 +74,9 @@ TEST(PartitionSelectionTest, PreaggPartitionSelectionNanEpsilon) {
               MatchesRegex("^Epsilon must be a valid numeric value.*"));
 }
 
-TEST(PartitionSelectionTest, PreaggPartitionSelectionNotFiniteEpsilon) {
-  PreaggPartitionSelection::Builder test_builder;
+TEST(PartitionSelectionTest,
+     NearTruncatedGeometricPartitionSelectionNotFiniteEpsilon) {
+  NearTruncatedGeometricPartitionSelection::Builder test_builder;
   auto failed_build =
       test_builder.SetEpsilon(std::numeric_limits<double>::infinity())
           .SetDelta(0.3)
@@ -85,8 +88,9 @@ TEST(PartitionSelectionTest, PreaggPartitionSelectionNotFiniteEpsilon) {
   EXPECT_THAT(message, MatchesRegex("^Epsilon must be finite.*"));
 }
 
-TEST(PartitionSelectionTest, PreaggPartitionSelectionNegativeEpsilon) {
-  PreaggPartitionSelection::Builder test_builder;
+TEST(PartitionSelectionTest,
+     NearTruncatedGeometricPartitionSelectionNegativeEpsilon) {
+  NearTruncatedGeometricPartitionSelection::Builder test_builder;
   auto failed_build = test_builder.SetEpsilon(-5.0)
                           .SetDelta(0.6)
                           .SetMaxPartitionsContributed(7)
@@ -97,8 +101,9 @@ TEST(PartitionSelectionTest, PreaggPartitionSelectionNegativeEpsilon) {
   EXPECT_THAT(message, MatchesRegex("^Epsilon must be finite and positive.*"));
 }
 
-TEST(PartitionSelectionTest, PreaggPartitionSelectionUnsetDelta) {
-  PreaggPartitionSelection::Builder test_builder;
+TEST(PartitionSelectionTest,
+     NearTruncatedGeometricPartitionSelectionUnsetDelta) {
+  NearTruncatedGeometricPartitionSelection::Builder test_builder;
   auto failed_build =
       test_builder.SetEpsilon(8.0).SetMaxPartitionsContributed(9).Build();
   EXPECT_THAT(failed_build.status().code(),
@@ -107,8 +112,8 @@ TEST(PartitionSelectionTest, PreaggPartitionSelectionUnsetDelta) {
   EXPECT_THAT(message, MatchesRegex("^Delta must be set.*"));
 }
 
-TEST(PartitionSelectionTest, PreaggPartitionSelectionNanDelta) {
-  PreaggPartitionSelection::Builder test_builder;
+TEST(PartitionSelectionTest, NearTruncatedGeometricPartitionSelectionNanDelta) {
+  NearTruncatedGeometricPartitionSelection::Builder test_builder;
   auto failed_build = test_builder.SetEpsilon(1.2)
                           .SetDelta(NAN)
                           .SetMaxPartitionsContributed(3)
@@ -119,8 +124,9 @@ TEST(PartitionSelectionTest, PreaggPartitionSelectionNanDelta) {
   EXPECT_THAT(message, MatchesRegex("^Delta must be a valid numeric value.*"));
 }
 
-TEST(PartitionSelectionTest, PreaggPartitionSelectionNotFiniteDelta) {
-  PreaggPartitionSelection::Builder test_builder;
+TEST(PartitionSelectionTest,
+     NearTruncatedGeometricPartitionSelectionNotFiniteDelta) {
+  NearTruncatedGeometricPartitionSelection::Builder test_builder;
   auto failed_build = test_builder.SetEpsilon(1.2)
                           .SetDelta(std::numeric_limits<double>::infinity())
                           .SetMaxPartitionsContributed(3)
@@ -132,8 +138,9 @@ TEST(PartitionSelectionTest, PreaggPartitionSelectionNotFiniteDelta) {
               MatchesRegex("^Delta must be in the inclusive interval.*"));
 }
 
-TEST(PartitionSelectionTest, PreaggPartitionSelectionInvalidDelta) {
-  PreaggPartitionSelection::Builder test_builder;
+TEST(PartitionSelectionTest,
+     NearTruncatedGeometricPartitionSelectionInvalidDelta) {
+  NearTruncatedGeometricPartitionSelection::Builder test_builder;
   auto failed_build = test_builder.SetEpsilon(4.5)
                           .SetDelta(6.0)
                           .SetMaxPartitionsContributed(7)
@@ -146,8 +153,8 @@ TEST(PartitionSelectionTest, PreaggPartitionSelectionInvalidDelta) {
 }
 
 TEST(PartitionSelectionTest,
-     PreaggPartitionSelectionUnsetMaxPartitionsContributed) {
-  PreaggPartitionSelection::Builder test_builder;
+     NearTruncatedGeometricPartitionSelectionUnsetMaxPartitionsContributed) {
+  NearTruncatedGeometricPartitionSelection::Builder test_builder;
   auto failed_build = test_builder.SetEpsilon(0.8).SetDelta(0.9).Build();
   EXPECT_THAT(failed_build.status().code(),
               Eq(absl::StatusCode::kInvalidArgument));
@@ -157,8 +164,8 @@ TEST(PartitionSelectionTest,
 }
 
 TEST(PartitionSelectionTest,
-     PreaggPartitionSelectionNegativeMaxPartitionsContributed) {
-  PreaggPartitionSelection::Builder test_builder;
+     NearTruncatedGeometricPartitionSelectionNegativeMaxPartitionsContributed) {
+  NearTruncatedGeometricPartitionSelection::Builder test_builder;
   auto failed_build = test_builder.SetEpsilon(0.1)
                           .SetDelta(0.2)
                           .SetMaxPartitionsContributed(-3)
@@ -171,8 +178,8 @@ TEST(PartitionSelectionTest,
 }
 
 TEST(PartitionSelectionTest,
-     PreaggPartitionSelectionZeroMaxPartitionsContributed) {
-  PreaggPartitionSelection::Builder test_builder;
+     NearTruncatedGeometricPartitionSelectionZeroMaxPartitionsContributed) {
+  NearTruncatedGeometricPartitionSelection::Builder test_builder;
   auto failed_build = test_builder.SetEpsilon(0.1)
                           .SetDelta(0.2)
                           .SetMaxPartitionsContributed(0)
@@ -186,8 +193,8 @@ TEST(PartitionSelectionTest,
 
 // We expect the probability of keeping a partition with one user
 // will be approximately delta
-TEST(PartitionSelectionTest, PreaggPartitionSelectionOneUser) {
-  PreaggPartitionSelection::Builder test_builder;
+TEST(PartitionSelectionTest, NearTruncatedGeometricPartitionSelectionOneUser) {
+  NearTruncatedGeometricPartitionSelection::Builder test_builder;
   std::unique_ptr<PartitionSelectionStrategy> build =
       test_builder.SetEpsilon(0.5)
           .SetDelta(0.02)
@@ -203,8 +210,8 @@ TEST(PartitionSelectionTest, PreaggPartitionSelectionOneUser) {
 }
 
 // We expect the probability of keeping a partition with no users will be zero
-TEST(PartitionSelectionTest, PreaggPartitionSelectionNoUsers) {
-  PreaggPartitionSelection::Builder test_builder;
+TEST(PartitionSelectionTest, NearTruncatedGeometricPartitionSelectionNoUsers) {
+  NearTruncatedGeometricPartitionSelection::Builder test_builder;
   std::unique_ptr<PartitionSelectionStrategy> build =
       test_builder.SetEpsilon(0.5)
           .SetDelta(0.02)
@@ -216,35 +223,38 @@ TEST(PartitionSelectionTest, PreaggPartitionSelectionNoUsers) {
   }
 }
 
-TEST(PartitionSelectionTest, PreaggPartitionSelectionFirstCrossover) {
-  PreaggPartitionSelection::Builder test_builder;
+TEST(PartitionSelectionTest,
+     NearTruncatedGeometricPartitionSelectionFirstCrossover) {
+  NearTruncatedGeometricPartitionSelection::Builder test_builder;
   std::unique_ptr<PartitionSelectionStrategy> build =
       test_builder.SetEpsilon(0.5)
           .SetDelta(0.02)
           .SetMaxPartitionsContributed(1)
           .Build()
           .value();
-  PreaggPartitionSelection* magic =
-      dynamic_cast<PreaggPartitionSelection*>(build.get());
+  NearTruncatedGeometricPartitionSelection* magic =
+      dynamic_cast<NearTruncatedGeometricPartitionSelection*>(build.get());
   EXPECT_THAT(magic->GetFirstCrossover(), DoubleEq(6));
 }
 
-TEST(PartitionSelectionTest, PreaggPartitionSelectionSecondCrossover) {
-  PreaggPartitionSelection::Builder test_builder;
+TEST(PartitionSelectionTest,
+     NearTruncatedGeometricPartitionSelectionSecondCrossover) {
+  NearTruncatedGeometricPartitionSelection::Builder test_builder;
   std::unique_ptr<PartitionSelectionStrategy> build =
       test_builder.SetEpsilon(0.5)
           .SetDelta(0.02)
           .SetMaxPartitionsContributed(1)
           .Build()
           .value();
-  PreaggPartitionSelection* magic =
-      dynamic_cast<PreaggPartitionSelection*>(build.get());
+  NearTruncatedGeometricPartitionSelection* magic =
+      dynamic_cast<NearTruncatedGeometricPartitionSelection*>(build.get());
   EXPECT_THAT(magic->GetSecondCrossover(), DoubleEq(11));
 }
 
 // Values calculated with formula
-TEST(PartitionSelectionTest, PreaggPartitionSelectionNumUsersEqFirstCrossover) {
-  PreaggPartitionSelection::Builder test_builder;
+TEST(PartitionSelectionTest,
+     NearTruncatedGeometricPartitionSelectionNumUsersEqFirstCrossover) {
+  NearTruncatedGeometricPartitionSelection::Builder test_builder;
   std::unique_ptr<PartitionSelectionStrategy> build =
       test_builder.SetEpsilon(0.5)
           .SetDelta(0.02)
@@ -259,8 +269,9 @@ TEST(PartitionSelectionTest, PreaggPartitionSelectionNumUsersEqFirstCrossover) {
 }
 
 // Values calculated with formula
-TEST(PartitionSelectionTest, PreaggPartitionSelectionNumUsersBtwnCrossovers) {
-  PreaggPartitionSelection::Builder test_builder;
+TEST(PartitionSelectionTest,
+     NearTruncatedGeometricPartitionSelectionNumUsersBtwnCrossovers) {
+  NearTruncatedGeometricPartitionSelection::Builder test_builder;
   std::unique_ptr<PartitionSelectionStrategy> build =
       test_builder.SetEpsilon(0.5)
           .SetDelta(0.02)
@@ -277,8 +288,8 @@ TEST(PartitionSelectionTest, PreaggPartitionSelectionNumUsersBtwnCrossovers) {
 // Values calculated with formula - 15 should be so large that this partition is
 // always kept.
 TEST(PartitionSelectionTest,
-     PreaggPartitionSelectionNumUsersGreaterThanCrossovers) {
-  PreaggPartitionSelection::Builder test_builder;
+     NearTruncatedGeometricPartitionSelectionNumUsersGreaterThanCrossovers) {
+  NearTruncatedGeometricPartitionSelection::Builder test_builder;
   std::unique_ptr<PartitionSelectionStrategy> build =
       test_builder.SetEpsilon(0.5)
           .SetDelta(0.02)
@@ -291,8 +302,9 @@ TEST(PartitionSelectionTest,
 }
 
 // For tiny epsilon probability of keeping is basically n * delta.
-TEST(PartitionSelectionTest, PreaggPartitionSelectionTinyEpsilon) {
-  PreaggPartitionSelection::Builder test_builder;
+TEST(PartitionSelectionTest,
+     NearTruncatedGeometricPartitionSelectionTinyEpsilon) {
+  NearTruncatedGeometricPartitionSelection::Builder test_builder;
   std::unique_ptr<PartitionSelectionStrategy> build =
       test_builder.SetEpsilon(1e-20)
           .SetDelta(0.02)
@@ -306,8 +318,9 @@ TEST(PartitionSelectionTest, PreaggPartitionSelectionTinyEpsilon) {
   EXPECT_THAT(num_kept / kNumSamples, DoubleNear(0.12, 0.001));
 }
 
-TEST(PartitionSelectionTest, PreaggPartitionSelectionTinyEpsilonLargeDelta) {
-  PreaggPartitionSelection::Builder test_builder;
+TEST(PartitionSelectionTest,
+     NearTruncatedGeometricPartitionSelectionTinyEpsilonLargeDelta) {
+  NearTruncatedGeometricPartitionSelection::Builder test_builder;
   std::unique_ptr<PartitionSelectionStrategy> build =
       test_builder.SetEpsilon(1e-20)
           .SetDelta(0.15)
@@ -323,8 +336,8 @@ TEST(PartitionSelectionTest, PreaggPartitionSelectionTinyEpsilonLargeDelta) {
 
 // For tiny epsilon probability of keeping is basically n * delta.
 TEST(PartitionSelectionTest,
-     PreaggPartitionSelectionTinyEpsilonBtwnCrossovers) {
-  PreaggPartitionSelection::Builder test_builder;
+     NearTruncatedGeometricPartitionSelectionTinyEpsilonBtwnCrossovers) {
+  NearTruncatedGeometricPartitionSelection::Builder test_builder;
   std::unique_ptr<PartitionSelectionStrategy> build =
       test_builder.SetEpsilon(1e-20)
           .SetDelta(0.02)
