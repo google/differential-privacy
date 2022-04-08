@@ -15,7 +15,7 @@
 
 import dataclasses
 import math
-import typing
+from typing import Callable, List, Mapping, Optional, Tuple
 
 import numpy as np
 from scipy import fft
@@ -55,16 +55,16 @@ class BinarySearchParameters(object):
   """
   lower_bound: float
   upper_bound: float
-  initial_guess: typing.Optional[float] = None
+  initial_guess: Optional[float] = None
   tolerance: float = 1e-7
   discrete: bool = False
 
 
 def inverse_monotone_function(
-    func: typing.Callable[[float], float],
+    func: Callable[[float], float],
     value: float,
     search_parameters: BinarySearchParameters,
-    increasing: bool = False) -> typing.Optional[float]:
+    increasing: bool = False) -> Optional[float]:
   """Inverse a monotone function.
 
   Args:
@@ -122,8 +122,7 @@ def inverse_monotone_function(
 
 
 def dictionary_to_list(
-    input_dictionary: typing.Mapping[int, float]
-) -> typing.Tuple[int, typing.List[float]]:
+    input_dictionary: Mapping[int, float]) -> Tuple[int, List[float]]:
   """Converts an integer-keyed dictionary into an list.
 
   Args:
@@ -143,9 +142,9 @@ def dictionary_to_list(
 
 
 def list_to_dictionary(
-    input_list: typing.List[float],
+    input_list: List[float],
     offset: int,
-    tail_mass_truncation: float = 0) -> typing.Mapping[int, float]:
+    tail_mass_truncation: float = 0) -> Mapping[int, float]:
   """Converts a list into an integer-keyed dictionary, with a specified offset.
 
   Args:
@@ -183,9 +182,9 @@ def list_to_dictionary(
 
 
 def convolve_dictionary(
-    dictionary1: typing.Mapping[int, float],
-    dictionary2: typing.Mapping[int, float],
-    tail_mass_truncation: float = 0) -> typing.Mapping[int, float]:
+    dictionary1: Mapping[int, float],
+    dictionary2: Mapping[int, float],
+    tail_mass_truncation: float = 0) -> Mapping[int, float]:
   """Computes a convolution of two dictionaries.
 
   Args:
@@ -213,11 +212,10 @@ def convolve_dictionary(
 
 
 def compute_self_convolve_bounds(
-    input_list: typing.List[float],
+    input_list: List[float],
     num_times: int,
     tail_mass_truncation: float = 0,
-    orders: typing.Optional[typing.List[float]] = None
-) -> typing.Tuple[int, int]:
+    orders: Optional[List[float]] = None) -> Tuple[int, int]:
   """Computes truncation bounds for convolution using Chernoff bound.
 
   Args:
@@ -263,9 +261,9 @@ def compute_self_convolve_bounds(
 
 
 def self_convolve(
-    input_list: typing.List[float],
+    input_list: List[float],
     num_times: int,
-    tail_mass_truncation: float = 0) -> typing.Tuple[int, typing.List[float]]:
+    tail_mass_truncation: float = 0) -> Tuple[int, List[float]]:
   """Computes a convolution of the input list with itself num_times times.
 
   Args:
@@ -300,9 +298,9 @@ def self_convolve(
 
 
 def self_convolve_dictionary(
-    input_dictionary: typing.Mapping[int, float],
+    input_dictionary: Mapping[int, float],
     num_times: int,
-    tail_mass_truncation: float = 0) -> typing.Mapping[int, float]:
+    tail_mass_truncation: float = 0) -> Mapping[int, float]:
   """Computes a convolution of the input dictionary with itself num_times times.
 
   Args:

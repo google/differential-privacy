@@ -23,7 +23,7 @@
 # - An approximate DP test rejects with a probability of at least 0.9 if the
 #   distances between the two data sets is at least 2.0 times the sensitivity
 #   (in the count, sum and sum of squares of the elements) or if the
-#   catastrophic failure rate is at least the delta tolerance times 1.75.
+#   failure rate is at least the delta tolerance times 1.75.
 validity_parameters {
   distance_specificity: 2.0
   failure_specificity: 1.75

@@ -31,14 +31,12 @@ java_library(
 
 java_library(
     name = "statistical_utils",
+    testonly = 1,
     srcs = [
         "StatisticalTestsUtil.java",
         "VotingUtil.java",
     ],
     deps = [
-        "@com_google_differential_privacy//proto/testing:statistical_tests_java_proto",
         "@maven//:com_google_guava_guava",
-        "@maven//:com_google_protobuf_protobuf_java",
-        "@maven//:org_apache_commons_commons_math3",
     ],
 )

@@ -63,7 +63,10 @@ message ClosenessTestParameters {
 message DpTestParameters {
   // parameter defining the epsilon the statistical DP test tries to verify
   // (this epsilon should not be used for drawing samples; the epsilon for
-  // drawing samples is defined in the respective sampling proto messages)
+  // drawing samples is defined in the respective sampling proto messages.
+  // However, since we normally try to verify the value of epsilon that was used
+  // while sampling, it is common for these two epsilons to be set to the same
+  // value.)
   optional double epsilon = 1;
   // parameter defining the delta the statistical DP test tries to verify (this
   // delta should not be used for drawing samples; the delta for drawing samples
@@ -214,22 +217,29 @@ message ClosenessTestValidityParameters {
 
 // Parameters quantifying notions of specificity that a particular approximate
 // DP test should satisfy.
+//
+// These parameters control the behaviour of the validity tests: they specify
+// which inputs we expect the statistical tests to reject. Setting the
+// parameters too low will cause the validity tests to fail (because our
+// statistical tests aren't sensitive enough to notice the difference) and
+// setting them too high will cause the validity tests to pass even if our
+// statistical tests can't spot when the algorithm is not DP.
 message DpTestValidityParameters {
   // The minimum distance between two sets of samples relative to their
   // anticipated distance that should be rejected.
   optional double distance_specificity = 1;
-  // The minimum rate of catastrophic privacy failures relative to the delta
-  // tolerance of the DP test that should be rejected.
+  // The minimum rate of privacy failures relative to the delta tolerance of the
+  // DP test that should be rejected.
   optional double failure_specificity = 2;
-  // The minimum ratio between an epsilon that should be accepted and an epsilon
-  // that should be rejected, i.e., if epsilon is the smallest test parameter
-  // for which we expect the test to accept, a test paramter of
-  // epsilon / epsilon_specificity should be rejected.
+  // The minimum ratio between an epsilon that should be rejected and an epsilon
+  // that should be accepted, i.e., if epsilon is the smallest test parameter
+  // for which we expect the test to accept, then a test parameter of
+  // epsilon * epsilon_specificity should be rejected.
   optional double epsilon_specificity = 3;
-  // The minimum ratio between a delta that should be accepted and a delta that
-  // should be rejected, i.e., if delta is the test privacy parameter for which
-  // which we expect the test to accept, a test paramter of
-  // delta / delta_specificity should be rejected.
+  // The minimum ratio between a delta that should be rejected and a delta that
+  // should be accepted, i.e., if delta is the test privacy parameter for which
+  // which we expect the test to accept, a test parameter of
+  // delta * delta_specificity should be rejected.
   optional double delta_specificity = 4;
 }
 

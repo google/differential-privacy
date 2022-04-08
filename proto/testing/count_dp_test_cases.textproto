@@ -21,7 +21,7 @@
 #   distance between the two raw counts is within the sensitivity.
 # - An approximate DP test rejects with a probability of at least 0.9 if the
 #   distance between the two raw counts is at least the sensitivity times 1.175
-#   or if the catastrophic failure rate at least the delta tolerance times 1.25.
+#   or if the failure rate is at least the delta tolerance times 1.25.
 validity_parameters {
   distance_specificity: 1.175
   failure_specificity: 1.25

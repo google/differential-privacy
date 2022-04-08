@@ -100,6 +100,11 @@ class NumericalMechanism {
   virtual base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
       double confidence_level, double privacy_budget) = 0;
 
+  virtual base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
+      double confidence_level) {
+    return NoiseConfidenceInterval(confidence_level, 1.0);
+  }
+
   double GetEpsilon() const { return epsilon_; }
 
   // Returns the variance of the noise that will be added by the underlying

@@ -22,7 +22,7 @@
 #   two data sets are protected with epsilon-DP.
 # - An approximate DP test rejects with a probability of at least 0.9 if the
 #   two data sets are not protected with (epsilon * 1.05)-DP or if the
-#   catastrophic failure rate is at least the delta tolerance times 1.25.
+#   failure rate is at least the delta tolerance times 1.25.
 validity_parameters {
   epsilon_specificity: 1.05
   failure_specificity: 1.25

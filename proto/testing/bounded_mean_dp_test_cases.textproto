@@ -21,8 +21,8 @@
 #   distance between the two raw mean values is within the sensitivity.
 # - An approximate DP test rejects with a probability of at least 0.9 if the
 #   distances between the two data sets is at least 1.375 times the sensitivity
-#   (both in the sum and the count of the elements) or if the catastrophic
-#   failure rate is at least the delta tolerance times 1.25.
+#   (both in the sum and the count of the elements) or if the failure rate is at
+#   least the delta tolerance times 1.25.
 validity_parameters {
   distance_specificity: 1.375
   failure_specificity: 1.25
