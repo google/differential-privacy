@@ -144,8 +144,8 @@ def _log_erfc(x: float) -> float:
 
 
 def _compute_delta(orders: Sequence[float], rdp: Sequence[float],
-                   epsilon: float) -> float:
-  """Compute delta given a list of RDP values and target epsilon.
+                   epsilon: float) -> Tuple[float, int]:
+  """Computes delta given a list of RDP values and target epsilon.
 
   Args:
     orders: An array of orders.
@@ -190,12 +190,13 @@ def _compute_delta(orders: Sequence[float], rdp: Sequence[float],
 
     logdeltas.append(logdelta)
 
-  return min(math.exp(np.min(logdeltas)), 1.)
+  optimal_index = np.argmin(logdeltas)
+  return min(math.exp(logdeltas[optimal_index]), 1.), orders[optimal_index]
 
 
 def _compute_epsilon(orders: Sequence[float], rdp: Sequence[float],
-                     delta: float) -> float:
-  """Compute epsilon given a list of RDP values and target delta.
+                     delta: float) -> Tuple[float, int]:
+  """Computes epsilon given a list of RDP values and target delta.
 
   Args:
     orders: An array of orders.
@@ -214,9 +215,9 @@ def _compute_epsilon(orders: Sequence[float], rdp: Sequence[float],
 
   if delta == 0:
     if all(r == 0 for r in rdp):
-      return 0
+      return 0, 0
     else:
-      return np.inf
+      return np.inf, 0
 
   if len(orders) != len(rdp):
     raise ValueError('Input lists must have the same length.')
@@ -247,7 +248,8 @@ def _compute_epsilon(orders: Sequence[float], rdp: Sequence[float],
       epsilon = np.inf
     eps.append(epsilon)
 
-  return max(0, np.min(eps))
+  optimal_index = np.argmin(eps)
+  return max(0, eps[optimal_index]), orders[optimal_index]
 
 
 def _stable_inplace_diff_in_log(vec: np.ndarray,
@@ -390,7 +392,7 @@ def _compute_rdp_sample_wor_gaussian(
 
 def _compute_rdp_sample_wor_gaussian_scalar(q: float, sigma: float,
                                             alpha: Union[float, int]) -> float:
-  """Compute RDP of the Sampled Gaussian mechanism at order alpha.
+  """Computes RDP of the Sampled Gaussian mechanism at order alpha.
 
   Args:
     q: The sampling proportion =  m / n.  Assume m is an integer <= n.
@@ -429,7 +431,7 @@ def _compute_rdp_sample_wor_gaussian_scalar(q: float, sigma: float,
 
 def _compute_rdp_sample_wor_gaussian_int(q: float, sigma: float,
                                          alpha: int) -> float:
-  """Compute log(A_alpha) for integer alpha, subsampling without replacement.
+  """Computes log(A_alpha) for integer alpha, subsampling without replacement.
 
   When alpha is smaller than max_alpha, compute the bound Theorem 27 exactly,
     otherwise compute the bound with Stirling approximation.
@@ -671,8 +673,16 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
       # Unsupported event (including `UnsupportedDpEvent`).
       return False
 
-  def get_epsilon(self, target_delta: float) -> float:
+  def get_epsilon_and_optimal_order(self,
+                                    target_delta: float) -> Tuple[float, int]:
     return _compute_epsilon(self._orders, self._rdp, target_delta)
 
-  def get_delta(self, target_epsilon: float) -> float:
+  def get_epsilon(self, target_delta: float) -> float:
+    return _compute_epsilon(self._orders, self._rdp, target_delta)[0]
+
+  def get_delta_and_optimal_order(self,
+                                  target_epsilon: float) -> Tuple[float, int]:
     return _compute_delta(self._orders, self._rdp, target_epsilon)
+
+  def get_delta(self, target_epsilon: float) -> float:
+    return _compute_delta(self._orders, self._rdp, target_epsilon)[0]

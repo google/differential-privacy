@@ -110,21 +110,20 @@ type PreAggSelectPartitionOptions struct {
 	Epsilon float64
 	Delta   float64
 	// MaxPartitionsContributed is the number of distinct partitions a single
-	// privacy unit can contribute to. Defaults to 1.
+	// privacy unit can contribute to. Required.
 	MaxPartitionsContributed int64
 }
 
 // NewPreAggSelectPartition constructs a new PreAggSelectPartition from opt.
 func NewPreAggSelectPartition(opt *PreAggSelectPartitionOptions) (*PreAggSelectPartition, error) {
+	if opt == nil {
+		opt = &PreAggSelectPartitionOptions{} // Prevents panicking due to a nil pointer dereference.
+	}
+
 	s := PreAggSelectPartition{
 		epsilon:       opt.Epsilon,
 		delta:         opt.Delta,
 		l0Sensitivity: opt.MaxPartitionsContributed,
-	}
-	// Override the 0-default, but do not override any explicitly set (i.e., negative) values
-	// for l0Sensitivity.
-	if s.l0Sensitivity == 0 {
-		s.l0Sensitivity = 1
 	}
 
 	if err := checks.CheckDeltaStrict(s.delta); err != nil {

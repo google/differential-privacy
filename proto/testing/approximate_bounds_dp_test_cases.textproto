@@ -1,0 +1,534 @@
+#
+# Copyright 2020 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# This collection of test cases is intended to statistically evaluate the DP
+# properties of the approximate bounds calculator provided by the DP library.
+
+# The validity parameters are chosen so that, when combined with the
+# delta_tolerance in the test, the tests reject with probability ~0.9 if the
+# implemented algorithm's epsilon differs sufficiently from the expected
+# epsilon, or if the failure rate is sufficiently high. In practice, this is
+# determined by the "small epsilon" and "large epsilon" tests, since they have
+# the most extreme acceptance rates. Increasing delta_tolerance increases the
+# acceptance rate, and increasing X_specificity lowers the acceptance rate.
+validity_parameters {
+  epsilon_specificity: 1.01
+  failure_specificity: 1.1
+}
+
+voting_parameters {
+  number_of_votes: 9
+}
+
+approximate_bounds_dp_test_case {
+  name: "basic (bounding failure)"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.0025
+  }
+  approximate_bounds_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_contributions: 1
+    number_of_bins: 5
+    scale: 1.0
+    base: 2.0
+    epsilon: 1.09861228866810969140  # = log(3);
+    # The number of entries is chosen so that approximately 75% of bounding
+    # attempts fail in the original dataset and 35% in the neighbouring dataset.
+    # This maximises the difference in probability of bounds failure between the
+    # neighbouring datasets. We want to maximise the difference in probability
+    # because this makes it more likely to spot cases where the mechanism is not
+    # DP: if the mechanism always failed or never failed, then adding or
+    # removing a privacy unit won't make a noticable difference to the result of
+    # the test.
+    raw_entry:           [9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9]
+    neighbour_raw_entry: [9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9]
+  }
+}
+
+approximate_bounds_dp_test_case {
+  name: "basic (change in lower bound)"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.0025
+  }
+  approximate_bounds_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_contributions: 1
+    number_of_bins: 5
+    scale: 1.0
+    base: 2.0
+    epsilon: 1.09861228866810969140  # = log(3);
+    # The number of entries is chosen so that for the original dataset:
+    #
+    #  - 40% of bounds are the bin containing 3
+    #  - 40% of bounds are the bin containing 9
+    #  - 20% of bounds span both of these bins.
+    #
+    # and for the neighbouring dataset:
+    #
+    #  - 70% of bounds are the bin containing 3
+    #  - 20% of bounds are the bin containing 9
+    #  - 10% of bounds span both of these bins.
+    #
+    # This maximises the difference in distribution of bounds between the two
+    # datasets.
+    raw_entry:           [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+                          9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9]
+    neighbour_raw_entry: [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+                          9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9]
+    # additional entry
+    neighbour_raw_entry: [3]
+  }
+}
+
+approximate_bounds_dp_test_case {
+  name: "basic (change in upper bound)"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.0025
+  }
+  approximate_bounds_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_contributions: 1
+    number_of_bins: 5
+    scale: 1.0
+    base: 2.0
+    epsilon: 1.09861228866810969140  # = log(3);
+    # The number of entries is chosen so that for the original dataset:
+    #
+    #  - 40% of bounds are the bin containing 3
+    #  - 40% of bounds are the bin containing 9
+    #  - 20% of bounds span both of these bins.
+    #
+    # and for the neighbouring dataset:
+    #
+    #  - 70% of bounds are the bin containing 3
+    #  - 20% of bounds are the bin containing 9
+    #  - 10% of bounds span both of these bins.
+    #
+    # This maximises the difference in distribution of bounds between the two
+    # datasets.
+    raw_entry:           [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+                          9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9]
+    neighbour_raw_entry: [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+                          9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9]
+    # additional entry
+    neighbour_raw_entry: [9]
+  }
+}
+
+approximate_bounds_dp_test_case {
+  name: "small epsilon (bounding failure)"
+  dp_test_parameters {
+    epsilon: 0.5
+    delta: 0.0
+    delta_tolerance: 0.0015
+  }
+  approximate_bounds_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_contributions: 1
+    number_of_bins: 5
+    scale: 1.0
+    base: 2.0
+    epsilon: 0.5
+    # The number of entries is chosen to maximise the difference in probability
+    # of a bounding failure between the two datasets. The difference in
+    # probability is approximately 20%.
+    raw_entry:           [9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+                          9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9]
+    neighbour_raw_entry: [9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+                          9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9] 
+    # additional entry
+    neighbour_raw_entry: [9]
+  }
+}
+
+approximate_bounds_dp_test_case {
+  name: "small epsilon (change in lower bound)"
+  dp_test_parameters {
+    epsilon: 0.5
+    delta: 0.0
+    delta_tolerance: 0.0015
+  }
+  approximate_bounds_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_contributions: 1
+    number_of_bins: 5
+    scale: 1.0
+    base: 2.0
+    epsilon: 0.5
+    # The number of entries is chosen so that for the original dataset:
+    #
+    #  - 60% of bounds are the bin containing 9
+    #  - 35% of bounds span both the bin containing 3 and the bin containing 9
+    #
+    # and for the neighbouring dataset:
+    #
+    #  - 40% of bounds are the bin containing 9
+    #  - 55% of bounds span both the bin containing 3 and the bin containing 9.
+    #
+    # This maximises the difference in distribution of bounds between the two
+    # datasets.
+    raw_entry:           [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+                          3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+                          3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+                          9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+                          9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+                          9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9]
+    neighbour_raw_entry: [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+                          3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+                          3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+                          9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+                          9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+                          9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9]
+    # additional entry
+    neighbour_raw_entry: [3]
+  }
+}
+
+approximate_bounds_dp_test_case {
+  name: "small epsilon (change in upper bound)"
+  dp_test_parameters {
+    epsilon: 0.5
+    delta: 0.0
+    delta_tolerance: 0.0015
+  }
+  approximate_bounds_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_contributions: 1
+    number_of_bins: 5
+    scale: 1.0
+    base: 2.0
+    epsilon: 0.5
+    # The number of entries is chosen so that for the original dataset:
+    #
+    #  - 60% of bounds are the bin containing 3
+    #  - 35% of bounds span both the bin containing 3 and the bin containing 9
+    #
+    # and for the neighbouring dataset:
+    #
+    #  - 40% of bounds are the bin containing 3
+    #  - 55% of bounds span both the bin containing 3 and the bin containing 9.
+    #
+    # This maximises the difference in distribution of bounds between the two
+    # datasets.
+    raw_entry:           [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+                          3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+                          3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+                          9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+                          9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+                          9, 9, 9, 9, 9, 9, 9, 9, 9, 9]
+    neighbour_raw_entry: [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+                          3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+                          3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+                          9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+                          9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+                          9, 9, 9, 9, 9, 9, 9, 9, 9, 9]
+    # additional entry  
+    neighbour_raw_entry: [9]
+  }
+}
+
+approximate_bounds_dp_test_case {
+  name: "large epsilon (bounding failure)"
+  dp_test_parameters {
+    epsilon: 3
+    delta: 0.0
+    delta_tolerance: 0.011
+  }
+  approximate_bounds_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_contributions: 1
+    number_of_bins: 5
+    scale: 1.0
+    base: 2.0
+    epsilon: 3
+    # The number of entries is chosen to maximise the difference in probability
+    # of a bounding failure between the two datasets. The difference in
+    # probability is approximately 75%.
+    raw_entry:           [-5, -5, -5, -5, -5]
+    neighbour_raw_entry: [-5, -5, -5, -5, -5, -5]
+  }
+}
+
+approximate_bounds_dp_test_case {
+  name: "large epsilon (change in lower bound)"
+  dp_test_parameters {
+    epsilon: 3
+    delta: 0.0
+    delta_tolerance: 0.011
+  }
+  approximate_bounds_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_contributions: 1
+    number_of_bins: 5
+    scale: 1.0
+    base: 2.0
+    epsilon: 3
+    # The number of entries is chosen so that for the original dataset:
+    #
+    #  - 5% of bounds are the bin containing -5
+    #  - 90% of bounds are the bin containing 13
+    #  - 5% of bounds span both the bin containing -5 and the bin containing 13
+    #
+    # and for the neighbouring dataset:
+    #
+    #  - 40% of bounds are the bin containing -5
+    #  - 40% of bounds are the bin containing 13
+    #  - 20% of bounds span both the bin containing -5 and the bin containing 13
+    #
+    # This maximises the difference in distribution of bounds between the two
+    # datasets.
+    raw_entry:           [-5, -5, -5, -5, -5, -5,
+                          13, 13, 13, 13, 13, 13, 13]
+    neighbour_raw_entry: [-5, -5, -5, -5, -5, -5, -5,
+                          13, 13, 13, 13, 13, 13, 13]
+  }
+}
+
+approximate_bounds_dp_test_case {
+  name: "large epsilon (change in upper bound)"
+  dp_test_parameters {
+    epsilon: 3
+    delta: 0.0
+    delta_tolerance: 0.011
+  }
+  approximate_bounds_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_contributions: 1
+    number_of_bins: 5
+    scale: 1.0
+    base: 2.0
+    epsilon: 3
+    # The number of entries is chosen so that for the original dataset:
+    #
+    #  - 90% of bounds are the bin containing -5
+    #  - 5% of bounds are the bin containing 13
+    #  - 5% of bounds span both the bin containing -5 and the bin containing 13
+    #
+    # and for the neighbouring dataset:
+    #
+    #  - 40% of bounds are the bin containing -5
+    #  - 40% of bounds are the bin containing 13
+    #  - 20% of bounds span both the bin containing -5 and the bin containing 13
+    #
+    # This maximises the difference in distribution of bounds between the two
+    # datasets.
+    raw_entry:           [-5, -5, -5, -5, -5, -5, -5,
+                          13, 13, 13, 13, 13, 13]
+    neighbour_raw_entry: [-5, -5, -5, -5, -5, -5, -5,
+                          13, 13, 13, 13, 13, 13, 13]
+  }
+}
+
+approximate_bounds_dp_test_case {
+  name: "multiple contributions per individual (bounding failure)"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.0028
+  }
+  approximate_bounds_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_contributions: 4
+    number_of_bins: 5
+    scale: 1.0
+    base: 2.0
+    epsilon: 1.09861228866810969140  # = log(3);
+    # The number of entries is chosen so that for the original dataset:
+    #
+    #  - 25% of bounds are the bin containing -1
+    #  - 75% of bounds are empty
+    #
+    # and for the neighbouring dataset:
+    #
+    #  - 65% of bounds are the bin -1
+    #  - 35% of bounds are empty
+    #
+    # This maximises the difference in distribution of bounds between the two
+    # datasets.
+    raw_entry:           [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+                          -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+                          -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+                          -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+                          -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1]
+    neighbour_raw_entry: [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+                          -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+                          -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+                          -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+                          -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1]
+    # We add the maximum number of contributions to a single bin:
+    neighbour_raw_entry: [-1, -1, -1, -1]
+  }
+}
+
+approximate_bounds_dp_test_case {
+  name: "multiple contributions per individual (change in upper bound)"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.0028
+  }
+  approximate_bounds_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_contributions: 4
+    number_of_bins: 5
+    scale: 1.0
+    base: 2.0
+    epsilon: 1.09861228866810969140  # = log(3);
+    # The number of entries is chosen so that for the original dataset:
+    #
+    #  - 40% of bounds are the bin containing 1
+    #  - 40% of bounds are the bin containing 5
+    #  - 20% of bounds span both of these bins
+    #
+    # and for the neighbouring dataset:
+    #
+    #  - 20% of bounds are the bin containing 1
+    #  - 70% of bounds are the bin containing 5
+    #  - 10% of bounds span both of these bins
+    #
+    # This maximises the difference in distribution of bounds between the two
+    # datasets.
+    raw_entry:           [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                          5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+                          5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+                          5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+                          5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5]
+    neighbour_raw_entry: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                          5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+                          5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+                          5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+                          5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5]
+    # We add the maximum number of contributions to a single bin:
+    neighbour_raw_entry: [5, 5, 5, 5]
+  }
+}
+
+approximate_bounds_dp_test_case {
+  name: "multiple contributions per individual (change in lower bound)"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.0028
+  }
+  approximate_bounds_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_contributions: 4
+    number_of_bins: 5
+    scale: 1.0
+    base: 2.0
+    epsilon: 1.09861228866810969140  # = log(3);
+    # The number of entries is chosen so that for the original dataset:
+    #
+    #  - 40% of bounds are the bin containing 1
+    #  - 40% of bounds are the bin containing 5
+    #  - 20% of bounds span both of these bins
+    #
+    # and for the neighbouring dataset:
+    #
+    #  - 70% of bounds are the bin containing 1
+    #  - 20% of bounds are the bin containing 5
+    #  - 10% of bounds span both of these bins
+    #
+    # This maximises the difference in distribution of bounds between the two
+    # datasets.
+    raw_entry:           [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                          5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+                          5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+                          5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+                          5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5]
+    neighbour_raw_entry: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                          5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+                          5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+                          5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+                          5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5]
+    # We add the maximum number of contributions to a single bin:
+    neighbour_raw_entry: [1, 1, 1, 1]
+  }
+}
+
+approximate_bounds_dp_test_case {
+  name: "empty dataset"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.003
+  }
+  approximate_bounds_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_contributions: 1
+    number_of_bins: 5
+    scale: 1.0
+    base: 2.0
+    epsilon: 1.09861228866810969140  # = log(3);
+    raw_entry: []
+    neighbour_raw_entry: [-4]
+  }
+}
+
+approximate_bounds_dp_test_case {
+  name: "clamped contributions"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.003
+  }
+  approximate_bounds_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_contributions: 1
+    number_of_bins: 5
+    scale: 1.0
+    base: 2.0
+    epsilon: 1.09861228866810969140  # = log(3);
+    # The number of entries is chosen to maximise the difference in probability
+    # of a bounding failure between the two datasets. The difference in
+    # probability is approximately 40%.
+    raw_entry:           [16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16]
+    neighbour_raw_entry: [16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16]
+    # additional entry
+    neighbour_raw_entry: [1000]
+  }
+}

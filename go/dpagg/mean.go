@@ -78,9 +78,9 @@ func bmEquallyInitialized(bm1, bm2 *BoundedMean) bool {
 type BoundedMeanOptions struct {
 	Epsilon                      float64 // Privacy parameter ε. Required.
 	Delta                        float64 // Privacy parameter δ. Required with Gaussian noise, must be 0 with Laplace noise.
-	MaxPartitionsContributed     int64   // How many distinct partitions may a single user contribute to? Defaults to 1.
+	MaxPartitionsContributed     int64   // How many distinct partitions may a single user contribute to? Required.
 	MaxContributionsPerPartition int64   // How many times may a single user contribute to a single partition? Required.
-	// Lower and Upper bounds for clamping. Default to 0; must be such that Lower < Upper.
+	// Lower and Upper bounds for clamping. Required; must be such that Lower < Upper.
 	Lower, Upper float64
 	Noise        noise.Noise // Type of noise used in BoundedMean. Defaults to Laplace noise.
 }
@@ -88,7 +88,7 @@ type BoundedMeanOptions struct {
 // NewBoundedMean returns a new BoundedMean.
 func NewBoundedMean(opt *BoundedMeanOptions) (*BoundedMean, error) {
 	if opt == nil {
-		opt = &BoundedMeanOptions{}
+		opt = &BoundedMeanOptions{} // Prevents panicking due to a nil pointer dereference.
 	}
 
 	maxContributionsPerPartition := opt.MaxContributionsPerPartition
@@ -97,10 +97,9 @@ func NewBoundedMean(opt *BoundedMeanOptions) (*BoundedMean, error) {
 		return nil, fmt.Errorf("NewBoundedMean: %w", err)
 	}
 
-	// Set defaults.
 	maxPartitionsContributed := opt.MaxPartitionsContributed
 	if maxPartitionsContributed == 0 {
-		maxPartitionsContributed = 1
+		return nil, fmt.Errorf("NewBoundedMean: MaxPartitionsContributed must be set")
 	}
 
 	n := opt.Noise
@@ -110,7 +109,7 @@ func NewBoundedMean(opt *BoundedMeanOptions) (*BoundedMean, error) {
 	// Check bounds & use them to compute L_∞ sensitivity.
 	lower, upper := opt.Lower, opt.Upper
 	if lower == 0 && upper == 0 {
-		return nil, fmt.Errorf("NewBoundedMean requires a non-default value for Lower and Upper (automatic bounds determination is not implemented yet). Lower and Upper cannot be both 0")
+		return nil, fmt.Errorf("NewBoundedMean: Lower and Upper must be set (automatic bounds determination is not implemented yet). Lower and Upper cannot be both 0")
 	}
 	switch noise.ToKind(opt.Noise) {
 	case noise.Unrecognised:

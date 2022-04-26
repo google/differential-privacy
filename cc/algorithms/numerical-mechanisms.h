@@ -58,7 +58,7 @@ static const double kMaxOverflowProbability = std::pow(2.0, -64);
 static const double kGaussianSigmaAccuracy = 1e-3;
 
 // Provides a common abstraction for NumericalMechanism.  Numerical mechanisms
-// can add noise to data and track the remaining privacy budget.
+// can add noise to data.
 class NumericalMechanism {
  public:
   NumericalMechanism(double epsilon) : epsilon_(epsilon) {}
@@ -66,19 +66,14 @@ class NumericalMechanism {
   virtual ~NumericalMechanism() = default;
 
   template <typename T, std::enable_if_t<std::is_integral<T>::value>* = nullptr>
-  T AddNoise(T result, double privacy_budget) {
-    return AddInt64Noise(result, privacy_budget);
+  T AddNoise(T result) {
+    return AddInt64Noise(result, 1.0);
   }
 
   template <typename T,
             std::enable_if_t<std::is_floating_point<T>::value>* = nullptr>
-  T AddNoise(T result, double privacy_budget) {
-    return AddDoubleNoise(result, privacy_budget);
-  }
-
-  template <typename T>
   T AddNoise(T result) {
-    return AddNoise(result, 1.0);
+    return AddDoubleNoise(result, 1.0);
   }
 
   // Quickly determines if result with added noise is greater than threshold.
@@ -95,15 +90,10 @@ class NumericalMechanism {
   virtual int64_t MemoryUsed() = 0;
 
   virtual base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
-      double confidence_level, double privacy_budget, double noised_result) = 0;
+      double confidence_level, double noised_result) = 0;
 
   virtual base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
-      double confidence_level, double privacy_budget) = 0;
-
-  virtual base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
-      double confidence_level) {
-    return NoiseConfidenceInterval(confidence_level, 1.0);
-  }
+      double confidence_level) = 0;
 
   double GetEpsilon() const { return epsilon_; }
 
@@ -121,34 +111,22 @@ class NumericalMechanism {
   virtual double Quantile(double p) const = 0;
 
  protected:
-  virtual double AddDoubleNoise(double result, double privacy_budget) = 0;
+  // Shim to let us update mocks and subclasses one at a time.
+  virtual double AddDoubleNoise(double result, double privacy_budget) {
+    return AddDoubleNoise(result);
+  }
+  virtual double AddDoubleNoise(double result) = 0;
 
-  virtual int64_t AddInt64Noise(int64_t result, double privacy_budget) = 0;
+  // Shim to let us update mocks and subclasses one at a time.
+  virtual int64_t AddInt64Noise(int64_t result, double privacy_budget) {
+    return AddInt64Noise(result);
+  }
+  virtual int64_t AddInt64Noise(int64_t result) = 0;
 
   static absl::Status CheckConfidenceLevel(const double confidence_level) {
     RETURN_IF_ERROR(ValidateIsInExclusiveInterval(confidence_level, 0, 1,
                                                   "Confidence level"));
     return absl::OkStatus();
-  }
-
-  static absl::Status CheckPrivacyBudget(const double privacy_budget) {
-    RETURN_IF_ERROR(ValidateIsInInterval(privacy_budget, 0, 1, false, true,
-                                         "Privacy budget"));
-    return absl::OkStatus();
-  }
-
-  // Checks and clamps the budget so that it is in the interval (0,1].  Should
-  // only be used in methods where we no longer can return an absl::Status, as
-  // it tries some recovery from invalid states.
-  static double CheckAndClampBudget(const double privacy_budget) {
-    const absl::Status status = CheckPrivacyBudget(privacy_budget);
-    LOG_IF(ERROR, !status.ok()) << status.message();
-    if (std::isnan(privacy_budget)) {
-      // Recover from this invalid state by returning the minimal possible
-      // privacy budget.
-      return std::numeric_limits<double>::min();
-    }
-    return Clamp<double>(std::numeric_limits<double>::min(), 1, privacy_budget);
   }
 
  private:
@@ -347,21 +325,19 @@ class LaplaceMechanism : public NumericalMechanism {
   virtual double GetUniformDouble() { return distro_->GetUniformDouble(); }
 
   // Returns the confidence interval of the specified confidence level of the
-  // noise that AddNoise() would add with the specified privacy budget.
+  // noise that AddNoise() would add.
   // If the returned value is <x,y>, then the noise added has a confidence_level
   // chance of being in the domain [x,y].
   base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
-      double confidence_level, double privacy_budget) override {
-    return NoiseConfidenceInterval(confidence_level, privacy_budget, 0);
+      double confidence_level) override {
+    return NoiseConfidenceInterval(confidence_level, 0);
   }
 
   base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
-      double confidence_level, double privacy_budget,
-      double noised_result) override {
+      double confidence_level, double noised_result) override {
     RETURN_IF_ERROR(CheckConfidenceLevel(confidence_level));
-    RETURN_IF_ERROR(CheckPrivacyBudget(privacy_budget));
 
-    double bound = diversity_ * std::log(1 - confidence_level) / privacy_budget;
+    double bound = diversity_ * std::log(1 - confidence_level);
 
     ConfidenceInterval confidence;
     confidence.set_lower_bound(noised_result + bound);
@@ -405,15 +381,9 @@ class LaplaceMechanism : public NumericalMechanism {
   }
 
  protected:
-  // Adds differentially private noise to a provided value. The privacy_budget
-  // is multiplied with epsilon for this particular result. Privacy budget
-  // should be in (0, 1], and is a way to divide an epsilon between multiple
-  // values. For instance, if a user wanted to add noise to two different values
-  // with a given epsilon then they could add noise to each value with a privacy
-  // budget of 0.5 (or 0.4 and 0.6, etc).
-  double AddDoubleNoise(double result, double privacy_budget) override {
-    privacy_budget = CheckAndClampBudget(privacy_budget);
-    double sample = distro_->Sample(1.0 / privacy_budget);
+  // Adds differentially private noise to a provided value.
+  double AddDoubleNoise(double result) override {
+    double sample = distro_->Sample();
     return RoundToNearestMultiple(result, distro_->GetGranularity()) + sample;
   }
 
@@ -422,10 +392,8 @@ class LaplaceMechanism : public NumericalMechanism {
   // error and is not secure privacy-wise, as it can have unforeseen effects on
   // the sensitivity of x. Rounding and adding the noise to result is a
   // privacy-safe operation (for noise of moderate magnitude, i.e. < 2^53).
-  int64_t AddInt64Noise(int64_t result, double privacy_budget) override {
-    privacy_budget = CheckAndClampBudget(privacy_budget);
-
-    double sample = distro_->Sample(1.0 / privacy_budget);
+  int64_t AddInt64Noise(int64_t result) override {
+    double sample = distro_->Sample(1.0);
     SafeOpResult<int64_t> noise_cast_result =
         SafeCastFromDouble<int64_t>(std::round(sample));
 
@@ -590,24 +558,19 @@ class GaussianMechanism : public NumericalMechanism {
   }
 
   // Returns the confidence interval of the specified confidence level of the
-  // noise that AddNoise() would add with the specified privacy budget.
+  // noise that AddNoise() would add.
   // If the returned value is <x,y>, then the noise added has a confidence_level
   // chance of being in the domain [x,y].
   base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
-      double confidence_level, double privacy_budget) override {
-    return NoiseConfidenceInterval(confidence_level, privacy_budget, 0);
+      double confidence_level) override {
+    return NoiseConfidenceInterval(confidence_level, 0);
   }
 
   base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
-      double confidence_level, double privacy_budget,
-      double noised_result) override {
+      double confidence_level, double noised_result) override {
     RETURN_IF_ERROR(CheckConfidenceLevel(confidence_level));
-    RETURN_IF_ERROR(CheckPrivacyBudget(privacy_budget));
 
-    double local_epsilon = privacy_budget * GetEpsilon();
-    double local_delta = privacy_budget * delta_;
-    double stddev =
-        CalculateStddev(local_epsilon, local_delta, l2_sensitivity_);
+    double stddev = CalculateStddev(GetEpsilon(), delta_, l2_sensitivity_);
 
     ConfidenceInterval confidence;
     // calculated using the symmetric properties of the Gaussian distribution
@@ -712,19 +675,9 @@ class GaussianMechanism : public NumericalMechanism {
   }
 
  protected:
-  // Adds differentially private noise to a provided value. The privacy_budget
-  // is multiplied with epsilon and delta for this particular result. Privacy
-  // budget should be in (0, 1], and is a way to divide an epsilon between
-  // multiple values. For instance, if a user wanted to add noise to two
-  // different values with a given epsilon and delta then they could add noise
-  // to each value with a privacy budget of 0.5 (or 0.4 and 0.6, etc).
-  double AddDoubleNoise(double result, double privacy_budget) override {
-    privacy_budget = CheckAndClampBudget(privacy_budget);
-
-    double local_epsilon = privacy_budget * GetEpsilon();
-    double local_delta = privacy_budget * delta_;
-    double stddev = CalculateStddev(local_epsilon, local_delta,
-    l2_sensitivity_);
+  // Adds differentially private noise to a provided value.
+  double AddDoubleNoise(double result) override {
+    double stddev = CalculateStddev(GetEpsilon(), delta_, l2_sensitivity_);
     double sample = standard_gaussian_->Sample(stddev);
 
     return RoundToNearestMultiple(result,
@@ -732,13 +685,8 @@ class GaussianMechanism : public NumericalMechanism {
            sample;
   }
 
-  int64_t AddInt64Noise(int64_t result, double privacy_budget) override {
-    privacy_budget = CheckAndClampBudget(privacy_budget);
-
-    double local_epsilon = privacy_budget * GetEpsilon();
-    double local_delta = privacy_budget * delta_;
-    double stddev = CalculateStddev(local_epsilon, local_delta,
-    l2_sensitivity_);
+  int64_t AddInt64Noise(int64_t result) override {
+    double stddev = CalculateStddev(GetEpsilon(), delta_, l2_sensitivity_);
     double sample = standard_gaussian_->Sample(stddev);
 
     SafeOpResult<int64_t> noise_cast_result =

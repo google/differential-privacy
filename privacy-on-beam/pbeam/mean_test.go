@@ -1481,7 +1481,7 @@ func TestCheckMeanPerKeyParams(t *testing.T) {
 			noiseKind:     noise.LaplaceNoise,
 			params:        MeanParams{MaxContributionsPerPartition: 1, MinValue: 5.0, MaxValue: 5.0},
 			partitionType: nil,
-			wantErr:       false,
+			wantErr:       true,
 		},
 		{
 			desc:          "zero MaxContributionsPerPartition",

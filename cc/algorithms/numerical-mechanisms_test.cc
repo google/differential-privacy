@@ -410,18 +410,6 @@ TEST(NumericalMechanismsTest, LaplaceVarianceCorrect) {
   EXPECT_NEAR(mechanism->get()->GetVariance(), variance, 1e-6);
 }
 
-TEST(NumericalMechanismsTest, LaplaceBudgetCorrect) {
-  auto distro = absl::make_unique<MockLaplaceDistribution>();
-  EXPECT_CALL(*distro, Sample(1.0)).Times(1);
-  EXPECT_CALL(*distro, Sample(2.0)).Times(1);
-  EXPECT_CALL(*distro, Sample(4.0)).Times(1);
-  LaplaceMechanism mechanism(1.0, 1.0, std::move(distro));
-
-  mechanism.AddNoise(0.0, 1.0);
-  mechanism.AddNoise(0.0, 0.5);
-  mechanism.AddNoise(0.0, 0.25);
-}
-
 TEST(NumericalMechanismsTest, LaplaceWorksForIntegers) {
   auto distro = absl::make_unique<MockLaplaceDistribution>();
   ON_CALL(*distro, Sample(_)).WillByDefault(Return(10.0));
@@ -514,41 +502,29 @@ TEST(NumericalMechanismsTest, LaplaceConfidenceInterval) {
   double epsilon = 0.5;
   double sensitivity = 1.0;
   double level = .95;
-  double budget = .5;
   LaplaceMechanism mechanism(epsilon, sensitivity);
   base::StatusOr<ConfidenceInterval> confidence_interval =
-      mechanism.NoiseConfidenceInterval(level, budget);
+      mechanism.NoiseConfidenceInterval(level);
   ASSERT_OK(confidence_interval);
-  EXPECT_EQ(confidence_interval->lower_bound(),
-            std::log(1 - level) / epsilon / budget);
-  EXPECT_EQ(confidence_interval->upper_bound(),
-            -std::log(1 - level) / epsilon / budget);
+  EXPECT_EQ(confidence_interval->lower_bound(), std::log(1 - level) / epsilon);
+  EXPECT_EQ(confidence_interval->upper_bound(), -std::log(1 - level) / epsilon);
   EXPECT_EQ(confidence_interval->confidence_level(), level);
 
   double result = 19.3;
   base::StatusOr<ConfidenceInterval> confidence_interval_with_result =
-      mechanism.NoiseConfidenceInterval(level, budget, result);
+      mechanism.NoiseConfidenceInterval(level, result);
   ASSERT_OK(confidence_interval_with_result);
   EXPECT_EQ(confidence_interval_with_result->lower_bound(),
-            result + (std::log(1 - level) / epsilon / budget));
+            result + (std::log(1 - level) / epsilon));
   EXPECT_EQ(confidence_interval_with_result->upper_bound(),
-            result - (std::log(1 - level) / epsilon / budget));
+            result - (std::log(1 - level) / epsilon));
   EXPECT_EQ(confidence_interval_with_result->confidence_level(), level);
-}
-
-TEST(NumericalMechanismsTest, LaplaceConfidenceIntervalFailsForBudgetNan) {
-  LaplaceMechanism mechanism(1.0, 1.0);
-  auto failed_confidence_interval = mechanism.NoiseConfidenceInterval(0.5, NAN);
-  EXPECT_THAT(
-      failed_confidence_interval,
-      StatusIs(absl::StatusCode::kInvalidArgument,
-               HasSubstr("Privacy budget must be a valid numeric value")));
 }
 
 TEST(NumericalMechanismsTest,
      LaplaceConfidenceIntervalFailsForConfidenceLevelNan) {
   LaplaceMechanism mechanism(1.0, 1.0);
-  auto failed_confidence_interval = mechanism.NoiseConfidenceInterval(NAN, 1.0);
+  auto failed_confidence_interval = mechanism.NoiseConfidenceInterval(NAN);
   EXPECT_THAT(
       failed_confidence_interval,
       StatusIs(absl::StatusCode::kInvalidArgument,
@@ -608,36 +584,32 @@ struct conf_int_params {
   double delta;
   double sensitivity;
   double level;
-  double budget;
   double result;
   double true_bound;
 };
 
 // True bounds calculated using standard deviations of
-// 3.4855, 3.60742, 0.367936, respectively.
+// 0.644043, 0.507324, 0.213379, respectively.
 struct conf_int_params gauss_params1 = {/*epsilon =*/1.2,
                                         /*delta =*/0.3,
                                         /*sensitivity =*/1.0,
                                         /*level =*/.9,
-                                        /*budget =*/.5,
                                         /*result =*/0,
-                                        /*true_bound =*/-1.9613};
+                                        /*true_bound =*/-1.05936};
 
 struct conf_int_params gauss_params2 = {/*epsilon =*/1.0,
                                         /*delta =*/0.5,
                                         /*sensitivity =*/1.0,
                                         /*level =*/.95,
-                                        /*budget =*/.5,
                                         /*result =*/1.3,
-                                        /*true_bound =*/-1.9054};
+                                        /*true_bound =*/-0.994337};
 
 struct conf_int_params gauss_params3 = {/*epsilon =*/10.0,
                                         /*delta =*/0.5,
                                         /*sensitivity =*/1.0,
                                         /*level =*/.95,
-                                        /*budget =*/.75,
                                         /*result =*/2.7,
-                                        /*true_bound =*/-0.5154};
+                                        /*true_bound =*/-0.418215};
 
 INSTANTIATE_TEST_SUITE_P(TestSuite, NoiseIntervalMultipleParametersTests,
                          testing::Values(gauss_params1, gauss_params2,
@@ -653,15 +625,15 @@ TEST_P(NoiseIntervalMultipleParametersTests, GaussNoiseConfidenceInterval) {
   double epsilon = params.epsilon;
   double delta = params.delta;
   double sensitivity = params.sensitivity;
-  double budget = params.budget;
   double conf_level = params.level;
   double result = params.result;
   double true_lower_bound = params.result + params.true_bound;
   double true_upper_bound = params.result - params.true_bound;
 
   GaussianMechanism mechanism(epsilon, delta, sensitivity);
+  LOG(INFO) << mechanism.CalculateStddev();
   base::StatusOr<ConfidenceInterval> confidence_interval =
-      mechanism.NoiseConfidenceInterval(conf_level, budget, result);
+      mechanism.NoiseConfidenceInterval(conf_level, result);
 
   ASSERT_OK(confidence_interval);
   EXPECT_NEAR(confidence_interval->lower_bound(), true_lower_bound, 0.001);
@@ -686,9 +658,9 @@ TEST(NumericalMechanismsTest, AddNoise) {
   LaplaceMechanism mechanism(1.0, 1.0, std::move(distro));
 
   double remainder =
-      std::fmod(mechanism.AddNoise(0.1 * granularity, 1.0), granularity);
+      std::fmod(mechanism.AddNoise(0.1 * granularity), granularity);
   EXPECT_EQ(remainder, 0);
-  EXPECT_THAT(mechanism.AddNoise(0.1 * granularity, 1.0),
+  EXPECT_THAT(mechanism.AddNoise(0.1 * granularity),
               DoubleNear(10.0, 0.000001));
 }
 
@@ -832,9 +804,6 @@ TEST(NumericalMechanismsTest, GaussianMechanismAddsNoise) {
 
   EXPECT_TRUE(mechanism.AddNoise(1.0) != 1.0);
   EXPECT_TRUE(mechanism.AddNoise(1.1) != 1.1);
-
-  // Test values that should be clamped.
-  EXPECT_FALSE(std::isnan(mechanism.AddNoise(1.1, 2.0)));
 }
 
 TEST(NumericalMechanismsTest,

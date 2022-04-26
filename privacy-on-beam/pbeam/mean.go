@@ -296,6 +296,10 @@ func checkMeanPerKeyParams(params MeanParams, epsilon, delta float64, noiseKind 
 	if err != nil {
 		return err
 	}
+	err = checks.CheckBoundsNotEqual(params.MinValue, params.MaxValue)
+	if err != nil {
+		return err
+	}
 	return checks.CheckMaxContributionsPerPartition(params.MaxContributionsPerPartition)
 }
 

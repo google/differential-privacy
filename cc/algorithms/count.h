@@ -47,7 +47,7 @@ class Count : public Algorithm<T> {
 
   base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
       double confidence_level) override {
-    return mechanism_->NoiseConfidenceInterval(confidence_level, 1.0);
+    return mechanism_->NoiseConfidenceInterval(confidence_level);
   }
 
   // Create and return summary containing the count.

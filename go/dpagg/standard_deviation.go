@@ -55,9 +55,9 @@ func bstdvEquallyInitialized(bstdv1, bstdv2 *BoundedStandardDeviation) bool {
 type BoundedStandardDeviationOptions struct {
 	Epsilon                      float64 // Privacy parameter ε. Required.
 	Delta                        float64 // Privacy parameter δ. Required with Gaussian noise, must be 0 with Laplace noise.
-	MaxPartitionsContributed     int64   // How many distinct partitions may a single user contribute to? Defaults to 1.
+	MaxPartitionsContributed     int64   // How many distinct partitions may a single user contribute to? Required.
 	MaxContributionsPerPartition int64   // How many times may a single user contribute to a single partition? Required.
-	// Lower and Upper bounds for clamping. Default to 0; must be such that Lower < Upper.
+	// Lower and Upper bounds for clamping. Required; must be such that Lower < Upper.
 	Lower, Upper float64
 	Noise        noise.Noise // Type of noise used in BoundedStandardDeviation. Defaults to Laplace noise.
 }

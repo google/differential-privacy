@@ -28,9 +28,10 @@ import (
 
 func TestNewBoundedMean(t *testing.T) {
 	for _, tc := range []struct {
-		desc string
-		opt  *BoundedMeanOptions
-		want *BoundedMean
+		desc    string
+		opt     *BoundedMeanOptions
+		want    *BoundedMean
+		wantErr bool
 	}{
 		{"MaxPartitionsContributed is not set",
 			&BoundedMeanOptions{
@@ -41,34 +42,19 @@ func TestNewBoundedMean(t *testing.T) {
 				Noise:                        noNoise{},
 				MaxContributionsPerPartition: 2,
 			},
-			&BoundedMean{
-				lower:    -1,
-				upper:    5,
-				state:    defaultState,
-				midPoint: 2,
-				Count: Count{
-					epsilon:         ln3 * 0.5,
-					delta:           tenten * 0.5,
-					l0Sensitivity:   1,
-					lInfSensitivity: 2,
-					Noise:           noNoise{},
-					noiseKind:       noise.Unrecognised,
-					count:           0,
-					state:           defaultState,
-				},
-				NormalizedSum: BoundedSumFloat64{
-					epsilon:         ln3 * 0.5,
-					delta:           tenten * 0.5,
-					l0Sensitivity:   1,
-					lInfSensitivity: 6,
-					lower:           -3,
-					upper:           3,
-					Noise:           noNoise{},
-					noiseKind:       noise.Unrecognised,
-					sum:             0,
-					state:           defaultState,
-				},
-			}},
+			nil,
+			true},
+		{"MaxContributionsPerPartition is not set",
+			&BoundedMeanOptions{
+				Epsilon:                  ln3,
+				Delta:                    tenten,
+				Lower:                    -1,
+				Upper:                    5,
+				Noise:                    noNoise{},
+				MaxPartitionsContributed: 2,
+			},
+			nil,
+			true},
 		{"Noise is not set",
 			&BoundedMeanOptions{
 				Epsilon:                      ln3,
@@ -105,11 +91,82 @@ func TestNewBoundedMean(t *testing.T) {
 					sum:             0,
 					state:           defaultState,
 				},
-			}},
+			},
+			false},
+		{"Epsilon is not set",
+			&BoundedMeanOptions{
+				Delta:                        tenten,
+				Lower:                        -1,
+				Upper:                        5,
+				Noise:                        noise.Laplace(),
+				MaxContributionsPerPartition: 2,
+				MaxPartitionsContributed:     1,
+			},
+			nil,
+			true},
+		{"Negative Epsilon",
+			&BoundedMeanOptions{
+				Epsilon:                      -1,
+				Delta:                        tenten,
+				Lower:                        -1,
+				Upper:                        5,
+				Noise:                        noise.Laplace(),
+				MaxContributionsPerPartition: 2,
+				MaxPartitionsContributed:     1,
+			},
+			nil,
+			true},
+		{"Delta is not set with Gaussian noise",
+			&BoundedMeanOptions{
+				Epsilon:                      ln3,
+				Lower:                        -1,
+				Upper:                        5,
+				Noise:                        noise.Gaussian(),
+				MaxContributionsPerPartition: 2,
+				MaxPartitionsContributed:     1,
+			},
+			nil,
+			true},
+		{"Negative Delta",
+			&BoundedMeanOptions{
+				Epsilon:                      ln3,
+				Delta:                        -1,
+				Lower:                        -1,
+				Upper:                        5,
+				Noise:                        noise.Laplace(),
+				MaxContributionsPerPartition: 2,
+				MaxPartitionsContributed:     1,
+			},
+			nil,
+			true},
+		{"Upper==Lower",
+			&BoundedMeanOptions{
+				Epsilon:                      ln3,
+				Delta:                        tenten,
+				Lower:                        5,
+				Upper:                        5,
+				Noise:                        noise.Laplace(),
+				MaxContributionsPerPartition: 2,
+				MaxPartitionsContributed:     1,
+			},
+			nil,
+			true},
+		{"Upper<Lower",
+			&BoundedMeanOptions{
+				Epsilon:                      ln3,
+				Delta:                        tenten,
+				Lower:                        6,
+				Upper:                        5,
+				Noise:                        noise.Laplace(),
+				MaxContributionsPerPartition: 2,
+				MaxPartitionsContributed:     1,
+			},
+			nil,
+			true},
 	} {
 		bm, err := NewBoundedMean(tc.opt)
-		if err != nil {
-			t.Fatalf("Couldn't initialize bm: %v", err)
+		if (err != nil) != tc.wantErr {
+			t.Errorf("With %s, got=%v error, wantErr: %t", tc.desc, err, tc.wantErr)
 		}
 		if !reflect.DeepEqual(bm, tc.want) {
 			t.Errorf("NewBoundedMean: when %s got %+v, want %+v", tc.desc, bm, tc.want)
@@ -714,6 +771,7 @@ func TestBMSerialization(t *testing.T) {
 			Upper:                        1,
 			Delta:                        0,
 			MaxContributionsPerPartition: 1,
+			MaxPartitionsContributed:     1,
 		}},
 		{"non-default options", &BoundedMeanOptions{
 			Lower:                        -100,

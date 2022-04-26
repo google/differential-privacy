@@ -28,9 +28,10 @@ import (
 
 func TestNewCount(t *testing.T) {
 	for _, tc := range []struct {
-		desc string
-		opt  *CountOptions
-		want *Count
+		desc    string
+		opt     *CountOptions
+		want    *Count
+		wantErr bool
 	}{
 		{"MaxPartitionsContributed is not set",
 			&CountOptions{
@@ -39,16 +40,8 @@ func TestNewCount(t *testing.T) {
 				Noise:                        noNoise{},
 				maxContributionsPerPartition: 2,
 			},
-			&Count{
-				epsilon:         ln3,
-				delta:           tenten,
-				l0Sensitivity:   1,
-				lInfSensitivity: 2,
-				Noise:           noNoise{},
-				noiseKind:       noise.Unrecognised,
-				count:           0,
-				state:           defaultState,
-			}},
+			nil,
+			true},
 		{"maxContributionsPerPartition is not set",
 			&CountOptions{
 				Epsilon:                  ln3,
@@ -65,7 +58,8 @@ func TestNewCount(t *testing.T) {
 				noiseKind:       noise.LaplaceNoise,
 				count:           0,
 				state:           defaultState,
-			}},
+			},
+			false},
 		{"Noise is not set",
 			&CountOptions{
 				Epsilon:                      ln3,
@@ -82,11 +76,50 @@ func TestNewCount(t *testing.T) {
 				noiseKind:       noise.LaplaceNoise,
 				count:           0,
 				state:           defaultState,
-			}},
+			},
+			false},
+		{"Epsilon is not set",
+			&CountOptions{
+				Delta:                        0,
+				MaxPartitionsContributed:     1,
+				maxContributionsPerPartition: 1,
+				Noise:                        noise.Laplace(),
+			},
+			nil,
+			true},
+		{"Negative Epsilon",
+			&CountOptions{
+				Epsilon:                      -1,
+				Delta:                        0,
+				MaxPartitionsContributed:     1,
+				maxContributionsPerPartition: 1,
+				Noise:                        noise.Laplace(),
+			},
+			nil,
+			true},
+		{"Delta is not set with Gaussian noise",
+			&CountOptions{
+				Epsilon:                      ln3,
+				MaxPartitionsContributed:     1,
+				maxContributionsPerPartition: 1,
+				Noise:                        noise.Gaussian(),
+			},
+			nil,
+			true},
+		{"Negative delta",
+			&CountOptions{
+				Epsilon:                      ln3,
+				Delta:                        -1,
+				MaxPartitionsContributed:     1,
+				maxContributionsPerPartition: 1,
+				Noise:                        noise.Laplace(),
+			},
+			nil,
+			true},
 	} {
 		c, err := NewCount(tc.opt)
-		if err != nil {
-			t.Fatalf("Couldn't initialize c: %v", err)
+		if (err != nil) != tc.wantErr {
+			t.Errorf("With %s, got=%v error, wantErr: %t", tc.desc, err, tc.wantErr)
 		}
 		if !reflect.DeepEqual(c, tc.want) {
 			t.Errorf("NewCount: when %s got %+v, want %+v", tc.desc, c, tc.want)
@@ -112,8 +145,9 @@ func TestCountSerialization(t *testing.T) {
 		opts *CountOptions
 	}{
 		{"default options", &CountOptions{
-			Epsilon: ln3,
-			Delta:   0,
+			Epsilon:                  ln3,
+			Delta:                    0,
+			MaxPartitionsContributed: 1,
 		}},
 		{"non-default options", &CountOptions{
 			Epsilon:                  ln3,
@@ -262,30 +296,36 @@ func TestCountCheckMergeCompatibility(t *testing.T) {
 			false},
 		{"same options, only required fields filled",
 			&CountOptions{
-				Epsilon: ln3,
+				Epsilon:                  ln3,
+				MaxPartitionsContributed: 1,
 			},
 			&CountOptions{
-				Epsilon: ln3,
+				Epsilon:                  ln3,
+				MaxPartitionsContributed: 1,
 			},
 			false},
 		{"different epsilon",
 			&CountOptions{
-				Epsilon: ln3,
+				Epsilon:                  ln3,
+				MaxPartitionsContributed: 1,
 			},
 			&CountOptions{
-				Epsilon: 2,
+				Epsilon:                  2,
+				MaxPartitionsContributed: 1,
 			},
 			true},
 		{"different delta",
 			&CountOptions{
-				Epsilon: ln3,
-				Delta:   tenten,
-				Noise:   noise.Gaussian(),
+				Epsilon:                  ln3,
+				Delta:                    tenten,
+				Noise:                    noise.Gaussian(),
+				MaxPartitionsContributed: 1,
 			},
 			&CountOptions{
-				Epsilon: ln3,
-				Delta:   tenfive,
-				Noise:   noise.Gaussian(),
+				Epsilon:                  ln3,
+				Delta:                    tenfive,
+				Noise:                    noise.Gaussian(),
+				MaxPartitionsContributed: 1,
 			},
 			true},
 		{"different MaxPartitionsContributed",
@@ -302,21 +342,25 @@ func TestCountCheckMergeCompatibility(t *testing.T) {
 			&CountOptions{
 				Epsilon:                      ln3,
 				maxContributionsPerPartition: 2,
+				MaxPartitionsContributed:     1,
 			},
 			&CountOptions{
 				Epsilon:                      ln3,
 				maxContributionsPerPartition: 5,
+				MaxPartitionsContributed:     1,
 			},
 			true},
 		{"different noise",
 			&CountOptions{
-				Epsilon: ln3,
-				Delta:   tenten,
-				Noise:   noise.Gaussian(),
+				Epsilon:                  ln3,
+				Delta:                    tenten,
+				Noise:                    noise.Gaussian(),
+				MaxPartitionsContributed: 1,
 			},
 			&CountOptions{
-				Epsilon: ln3,
-				Noise:   noise.Laplace(),
+				Epsilon:                  ln3,
+				Noise:                    noise.Laplace(),
+				MaxPartitionsContributed: 1,
 			},
 			true},
 	} {

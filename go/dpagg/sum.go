@@ -76,8 +76,8 @@ func bsEquallyInitializedint64(s1, s2 *BoundedSumInt64) bool {
 type BoundedSumInt64Options struct {
 	Epsilon                  float64 // Privacy parameter ε. Required.
 	Delta                    float64 // Privacy parameter δ. Required with Gaussian noise, must be 0 with Laplace noise.
-	MaxPartitionsContributed int64   // How many distinct partitions may a single privacy unit contribute to? Defaults to 1.
-	// Lower and Upper bounds for clamping. Default to 0; must be such that Lower <= Upper.
+	MaxPartitionsContributed int64   // How many distinct partitions may a single privacy unit contribute to? Required.
+	// Lower and Upper bounds for clamping. Required; must be such that Lower <= Upper.
 	Lower, Upper int64
 	Noise        noise.Noise // Type of noise used in BoundedSum. Defaults to Laplace noise.
 	// How many times may a single privacy unit contribute to a single partition?
@@ -89,12 +89,12 @@ type BoundedSumInt64Options struct {
 // NewBoundedSumInt64 returns a new BoundedSumInt64, whose sum is initialized at 0.
 func NewBoundedSumInt64(opt *BoundedSumInt64Options) (*BoundedSumInt64, error) {
 	if opt == nil {
-		opt = &BoundedSumInt64Options{}
+		opt = &BoundedSumInt64Options{} // Prevents panicking due to a nil pointer dereference.
 	}
-	// Set defaults.
+
 	l0 := opt.MaxPartitionsContributed
 	if l0 == 0 {
-		l0 = 1
+		return nil, fmt.Errorf("NewBoundedSumInt64: MaxPartitionsContributed must be set")
 	}
 
 	maxContributionsPerPartition := opt.maxContributionsPerPartition
@@ -109,7 +109,7 @@ func NewBoundedSumInt64(opt *BoundedSumInt64Options) (*BoundedSumInt64, error) {
 	// Check bounds & use them to compute L_∞ sensitivity
 	lower, upper := opt.Lower, opt.Upper
 	if lower == 0 && upper == 0 {
-		return nil, fmt.Errorf("NewBoundedSumInt64 requires a non-default value for Lower and Upper (automatic bounds determination is not implemented yet). Lower and Upper cannot be both 0")
+		return nil, fmt.Errorf("NewBoundedSumInt64: Lower and Upper must be set (automatic bounds determination is not implemented yet). Lower and Upper cannot be both 0")
 	}
 	var err error
 	switch noise.ToKind(opt.Noise) {
@@ -402,8 +402,8 @@ func bsEquallyInitializedFloat64(s1, s2 *BoundedSumFloat64) bool {
 type BoundedSumFloat64Options struct {
 	Epsilon                  float64 // Privacy parameter ε. Required.
 	Delta                    float64 // Privacy parameter δ. Required with Gaussian noise, must be 0 with Laplace noise.
-	MaxPartitionsContributed int64   // How many distinct partitions may a single privacy unit contribute to? Defaults to 1.
-	// Lower and Upper bounds for clamping. Default to 0; must be such that Lower <= Upper.
+	MaxPartitionsContributed int64   // How many distinct partitions may a single privacy unit contribute to? Required.
+	// Lower and Upper bounds for clamping. Required; must be such that Lower <= Upper.
 	Lower, Upper float64
 	Noise        noise.Noise // Type of noise used in BoundedSum. Defaults to Laplace noise.
 	// How many times may a single privacy unit contribute to a single partition?
@@ -415,12 +415,12 @@ type BoundedSumFloat64Options struct {
 // NewBoundedSumFloat64 returns a new BoundedSumFloat64, whose sum is initialized at 0.
 func NewBoundedSumFloat64(opt *BoundedSumFloat64Options) (*BoundedSumFloat64, error) {
 	if opt == nil {
-		opt = &BoundedSumFloat64Options{}
+		opt = &BoundedSumFloat64Options{} // Prevents panicking due to a nil pointer dereference.
 	}
-	// Set defaults.
+
 	l0 := opt.MaxPartitionsContributed
 	if l0 == 0 {
-		l0 = 1
+		return nil, fmt.Errorf("NewBoundedSumFloat64: MaxPartitionsContributed must be set")
 	}
 
 	maxContributionsPerPartition := opt.maxContributionsPerPartition
@@ -435,7 +435,7 @@ func NewBoundedSumFloat64(opt *BoundedSumFloat64Options) (*BoundedSumFloat64, er
 	// Check bounds & use them to compute L_∞ sensitivity
 	lower, upper := opt.Lower, opt.Upper
 	if lower == 0 && upper == 0 {
-		return nil, fmt.Errorf("NewBoundedSumFloat64 requires a non-default value for Lower and Upper (automatic bounds determination is not implemented yet). Lower and Upper cannot be both 0")
+		return nil, fmt.Errorf("NewBoundedSumFloat64: Lower and Upper must be set (automatic bounds determination is not implemented yet). Lower and Upper cannot be both 0")
 	}
 	var err error
 	switch noise.ToKind(opt.Noise) {

@@ -28,9 +28,10 @@ import (
 
 func TestNewBoundedStandardDeviation(t *testing.T) {
 	for _, tc := range []struct {
-		desc string
-		opt  *BoundedStandardDeviationOptions
-		want *BoundedStandardDeviation
+		desc    string
+		opt     *BoundedStandardDeviationOptions
+		want    *BoundedStandardDeviation
+		wantErr bool
 	}{
 		{"MaxPartitionsContributed is not set",
 			&BoundedStandardDeviationOptions{
@@ -41,47 +42,19 @@ func TestNewBoundedStandardDeviation(t *testing.T) {
 				Noise:                        noNoise{},
 				MaxContributionsPerPartition: 2,
 			},
-			&BoundedStandardDeviation{
-				Variance: BoundedVariance{
-					lower:    -1,
-					upper:    5,
-					state:    defaultState,
-					midPoint: 2,
-					Count: Count{
-						epsilon:         ln3 / 3,
-						delta:           tenten / 3,
-						l0Sensitivity:   1,
-						lInfSensitivity: 2,
-						Noise:           noNoise{},
-						noiseKind:       noise.Unrecognised,
-						count:           0,
-						state:           defaultState,
-					},
-					NormalizedSum: BoundedSumFloat64{
-						epsilon:         ln3 / 3,
-						delta:           tenten / 3,
-						l0Sensitivity:   1,
-						lInfSensitivity: 6,
-						lower:           -3,
-						upper:           3,
-						Noise:           noNoise{},
-						noiseKind:       noise.Unrecognised,
-						sum:             0,
-						state:           defaultState,
-					},
-					NormalizedSumOfSquares: BoundedSumFloat64{
-						epsilon:         ln3 - ln3/3 - ln3/3,
-						delta:           tenten - tenten/3 - tenten/3,
-						l0Sensitivity:   1,
-						lInfSensitivity: 18,
-						lower:           0,
-						upper:           9,
-						Noise:           noNoise{},
-						noiseKind:       noise.Unrecognised,
-						sum:             0,
-						state:           defaultState,
-					},
-				}}},
+			nil,
+			true},
+		{"MaxContributionsPerPartition is not set",
+			&BoundedStandardDeviationOptions{
+				Epsilon:                  ln3,
+				Delta:                    tenten,
+				Lower:                    -1,
+				Upper:                    5,
+				Noise:                    noNoise{},
+				MaxPartitionsContributed: 2,
+			},
+			nil,
+			true},
 		{"Noise is not set",
 			&BoundedStandardDeviationOptions{
 				Epsilon:                      ln3,
@@ -102,8 +75,8 @@ func TestNewBoundedStandardDeviation(t *testing.T) {
 						delta:           0,
 						l0Sensitivity:   1,
 						lInfSensitivity: 2,
-						Noise:           noise.Laplace(),
 						noiseKind:       noise.LaplaceNoise,
+						Noise:           noise.Laplace(),
 						count:           0,
 						state:           defaultState,
 					},
@@ -114,8 +87,8 @@ func TestNewBoundedStandardDeviation(t *testing.T) {
 						lInfSensitivity: 6,
 						lower:           -3,
 						upper:           3,
-						Noise:           noise.Laplace(),
 						noiseKind:       noise.LaplaceNoise,
+						Noise:           noise.Laplace(),
 						sum:             0,
 						state:           defaultState,
 					},
@@ -126,16 +99,87 @@ func TestNewBoundedStandardDeviation(t *testing.T) {
 						lInfSensitivity: 18,
 						lower:           0,
 						upper:           9,
-						Noise:           noise.Laplace(),
 						noiseKind:       noise.LaplaceNoise,
+						Noise:           noise.Laplace(),
 						sum:             0,
 						state:           defaultState,
 					},
-				}}},
+				}},
+			false},
+		{"Epsilon is not set",
+			&BoundedStandardDeviationOptions{
+				Delta:                        tenten,
+				Lower:                        -1,
+				Upper:                        5,
+				Noise:                        noise.Laplace(),
+				MaxContributionsPerPartition: 2,
+				MaxPartitionsContributed:     1,
+			},
+			nil,
+			true},
+		{"Negative Epsilon",
+			&BoundedStandardDeviationOptions{
+				Epsilon:                      -1,
+				Delta:                        tenten,
+				Lower:                        -1,
+				Upper:                        5,
+				Noise:                        noise.Laplace(),
+				MaxContributionsPerPartition: 2,
+				MaxPartitionsContributed:     1,
+			},
+			nil,
+			true},
+		{"Delta is not set with Gaussian noise",
+			&BoundedStandardDeviationOptions{
+				Epsilon:                      ln3,
+				Lower:                        -1,
+				Upper:                        5,
+				Noise:                        noise.Gaussian(),
+				MaxContributionsPerPartition: 2,
+				MaxPartitionsContributed:     1,
+			},
+			nil,
+			true},
+		{"Negative Delta",
+			&BoundedStandardDeviationOptions{
+				Epsilon:                      ln3,
+				Delta:                        -1,
+				Lower:                        -1,
+				Upper:                        5,
+				Noise:                        noise.Laplace(),
+				MaxContributionsPerPartition: 2,
+				MaxPartitionsContributed:     1,
+			},
+			nil,
+			true},
+		{"Upper==Lower",
+			&BoundedStandardDeviationOptions{
+				Epsilon:                      ln3,
+				Delta:                        tenten,
+				Lower:                        5,
+				Upper:                        5,
+				Noise:                        noise.Laplace(),
+				MaxContributionsPerPartition: 2,
+				MaxPartitionsContributed:     1,
+			},
+			nil,
+			true},
+		{"Upper<Lower",
+			&BoundedStandardDeviationOptions{
+				Epsilon:                      ln3,
+				Delta:                        tenten,
+				Lower:                        6,
+				Upper:                        5,
+				Noise:                        noise.Laplace(),
+				MaxContributionsPerPartition: 2,
+				MaxPartitionsContributed:     1,
+			},
+			nil,
+			true},
 	} {
 		bstdv, err := NewBoundedStandardDeviation(tc.opt)
-		if err != nil {
-			t.Fatalf("Couldn't initialize bstdv: %v", err)
+		if (err != nil) != tc.wantErr {
+			t.Errorf("With %s, got=%v error, wantErr: %t", tc.desc, err, tc.wantErr)
 		}
 		if !reflect.DeepEqual(bstdv, tc.want) {
 			t.Errorf("NewBoundedStandardDeviation: when %s got %+v, want %+v", tc.desc, bstdv, tc.want)
@@ -615,6 +659,7 @@ func TestBSTDVSerialization(t *testing.T) {
 			Upper:                        1,
 			Delta:                        0,
 			MaxContributionsPerPartition: 1,
+			MaxPartitionsContributed:     1,
 		}},
 		{"non-default options", &BoundedStandardDeviationOptions{
 			Lower:                        -100,

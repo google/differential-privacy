@@ -199,12 +199,24 @@ public class BoundedMean {
     Preconditions.checkState(
         state.equals(AggregationState.RESULT_RETURNED), "Confidence interval cannot be computed.");
 
-    // The confidence interval of bounded mean is derived from confidence intervals of the mean's
-    // numerator and denominator. The respective confidence levels 1 - alphaNum and 1 - alphaDen can
-    // be chosen arbitrarily as long as
-    //   (1 - alphaNum) * (1 - alphaDen) = 1 - alpha.
-    // The following is a brute force search for alphaNum that minimizes the size of the confidence
-    // interval of bounded mean.
+    // The confidence interval [low, up] of bounded mean is derived from confidence intervals
+    // [lowNum, upNum] and [lowDen, upDen] of the mean's numerator and denominator, such that
+    //    Pr(low < raw < up) >= Pr(lowNum < rawNum < upNum & lowDen < rawDen < upDen).
+    //
+    // See {@link #computeConfidenceInterval(double alpha, double alphaNum)} for details of how to
+    // set [low, up] based on lowNum, upNum, lowDen and upDen.
+    //
+    // Because the confidence intervals of the numerator and denominator are independent, we can
+    // lower bound the confidence level of the mean in terms of alphaNum and alphaDen like this:
+    //    Pr(low < raw < up) >= Pr(lowNum < rawNum < upNum & lowDen < rawDen < upDen)
+    //                        = Pr(lowNum < rawNum < upNum) * Pr(lowDen < rawDen < upDen)
+    //                       >= (1 - alphaNum) * (1 - alphaDen)
+    //
+    // This means that we can choose alphaNum and alphaDen arbitrarily as long as
+    //    (1 - alphaNum) * (1 alphaDen) = 1 - alpha.
+    //
+    // This implementation uses a brute force search for alphaNum that minimizes the size of the
+    // confidence interval of bounded mean.
     double minSize = Double.POSITIVE_INFINITY;
     ConfidenceInterval tightestConfInt = null;
     for (int i = 1; i < 1000; i++) {

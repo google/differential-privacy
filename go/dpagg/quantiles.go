@@ -77,9 +77,9 @@ type BoundedQuantiles struct {
 type BoundedQuantilesOptions struct {
 	Epsilon                      float64 // Privacy parameter ε. Required.
 	Delta                        float64 // Privacy parameter δ. Required with Gaussian noise, must be 0 with Laplace noise.
-	MaxPartitionsContributed     int64   // How many distinct partitions may a single privacy unit contribute to? Defaults to 1.
+	MaxPartitionsContributed     int64   // How many distinct partitions may a single privacy unit contribute to? Required.
 	MaxContributionsPerPartition int64   // How many times may a single user contribute to a single partition? Required.
-	// Lower and Upper bounds for clamping. Default to 0; must be such that Lower < Upper.
+	// Lower and Upper bounds for clamping. Required; must be such that Lower < Upper.
 	Lower, Upper float64
 	Noise        noise.Noise // Type of noise used in BoundedSum. Defaults to Laplace noise.
 	// It is not recommended to set TreeHeight and BranchingFactor since they require
@@ -92,7 +92,7 @@ type BoundedQuantilesOptions struct {
 // NewBoundedQuantiles returns a new BoundedQuantiles.
 func NewBoundedQuantiles(opt *BoundedQuantilesOptions) (*BoundedQuantiles, error) {
 	if opt == nil {
-		opt = &BoundedQuantilesOptions{}
+		opt = &BoundedQuantilesOptions{} // Prevents panicking due to a nil pointer dereference.
 	}
 
 	maxContributionsPerPartition := opt.MaxContributionsPerPartition
@@ -100,10 +100,9 @@ func NewBoundedQuantiles(opt *BoundedQuantilesOptions) (*BoundedQuantiles, error
 		return nil, fmt.Errorf("NewBoundedQuantiles: %w", err)
 	}
 
-	// Set defaults.
 	maxPartitionsContributed := opt.MaxPartitionsContributed
 	if maxPartitionsContributed == 0 {
-		maxPartitionsContributed = 1
+		return nil, fmt.Errorf("NewBoundedQuantiles: MaxPartitionsContributed must be set")
 	}
 
 	n := opt.Noise
@@ -113,7 +112,7 @@ func NewBoundedQuantiles(opt *BoundedQuantilesOptions) (*BoundedQuantiles, error
 	// Check bounds.
 	lower, upper := opt.Lower, opt.Upper
 	if lower == 0 && upper == 0 {
-		return nil, fmt.Errorf("NewBoundedQuantiles requires a non-default value for Lower and Upper (automatic bounds determination is not implemented yet). Lower and Upper cannot be both 0")
+		return nil, fmt.Errorf("NewBoundedQuantiles: Lower and Upper must be set (automatic bounds determination is not implemented yet). Lower and Upper cannot be both 0")
 	}
 	if err := checks.CheckBoundsFloat64(lower, upper); err != nil {
 		return nil, fmt.Errorf("NewBoundedQuantiles: %w", err)

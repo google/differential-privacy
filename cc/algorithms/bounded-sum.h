@@ -161,7 +161,7 @@ class BoundedSumWithFixedBounds : public BoundedSum<T> {
 
   base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
       double confidence_level) override {
-    return mechanism_->NoiseConfidenceInterval(confidence_level, 1.0);
+    return mechanism_->NoiseConfidenceInterval(confidence_level);
   }
 
  protected:
@@ -371,7 +371,7 @@ class BoundedSumWithApproxBounds : public BoundedSum<T> {
     // privacy budget.
     T noisy_sum = mechanism->AddNoise(sum);
     base::StatusOr<ConfidenceInterval> interval =
-        mechanism->NoiseConfidenceInterval(noise_interval_level, 1.0);
+        mechanism->NoiseConfidenceInterval(noise_interval_level);
 
     Output output;
 

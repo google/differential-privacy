@@ -56,16 +56,12 @@ class ZeroNoiseMechanism : public LaplaceMechanism {
   ZeroNoiseMechanism(double epsilon, double sensitivity)
       : LaplaceMechanism(epsilon, sensitivity) {}
 
-  double AddDoubleNoise(double result, double privacy_budget) override {
-    return result;
-  }
+  double AddDoubleNoise(double result) override { return result; }
 
-  int64_t AddInt64Noise(int64_t result, double privacy_budget) override {
-    return result;
-  }
+  int64_t AddInt64Noise(int64_t result) override { return result; }
 
   base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
-      double confidence_level, double privacy_budget) override {
+      double confidence_level) override {
     ConfidenceInterval confidence;
     confidence.set_lower_bound(0);
     confidence.set_upper_bound(0);
@@ -206,12 +202,14 @@ class MockLaplaceMechanism : public LaplaceMechanism {
   MockLaplaceMechanism() : LaplaceMechanism(1, 1) {}
   MockLaplaceMechanism(double epsilon, double sensitivity)
       : LaplaceMechanism(epsilon, sensitivity) {}
+  MOCK_METHOD(double, AddDoubleNoise, (double result), (override));
   MOCK_METHOD(double, AddDoubleNoise, (double result, double privacy_budget),
               (override));
+  MOCK_METHOD(int64_t, AddInt64Noise, (int64_t result), (override));
   MOCK_METHOD(int64_t, AddInt64Noise, (int64_t result, double privacy_budget),
               (override));
   MOCK_METHOD(base::StatusOr<ConfidenceInterval>, NoiseConfidenceInterval,
-              (double confidence_level, double privacy_budget), (override));
+              (double confidence_level), (override));
   MOCK_METHOD(int64_t, MemoryUsed, (), (override));
 };
 

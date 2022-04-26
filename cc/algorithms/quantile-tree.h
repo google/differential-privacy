@@ -349,9 +349,8 @@ class QuantileTree<T>::Privatized {
     // ComputeConfidenceInterval() for each node count individually.
     // privacy_budget is set to the maximum of 1.0 because computing the noise
     // confidence intervals for quantiles does not consume any privacy budget.
-    ASSIGN_OR_RETURN(
-        ConfidenceInterval zero_confidence_interval,
-        mechanism_->NoiseConfidenceInterval(1 - alpha_per_count, 1.0));
+    ASSIGN_OR_RETURN(ConfidenceInterval zero_confidence_interval,
+                     mechanism_->NoiseConfidenceInterval(1 - alpha_per_count));
 
     // Value of the bound that is being computed. The value is set to the
     // tightest bound possible and loosened successively as needed.

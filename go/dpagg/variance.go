@@ -76,9 +76,9 @@ func bvEquallyInitialized(bv1, bv2 *BoundedVariance) bool {
 type BoundedVarianceOptions struct {
 	Epsilon                      float64 // Privacy parameter ε. Required.
 	Delta                        float64 // Privacy parameter δ. Required with Gaussian noise, must be 0 with Laplace noise.
-	MaxPartitionsContributed     int64   // How many distinct partitions may a single user contribute to? Defaults to 1.
+	MaxPartitionsContributed     int64   // How many distinct partitions may a single user contribute to? Required.
 	MaxContributionsPerPartition int64   // How many times may a single user contribute to a single partition? Required.
-	// Lower and Upper bounds for clamping. Default to 0; must be such that Lower < Upper.
+	// Lower and Upper bounds for clamping. Required; must be such that Lower < Upper.
 	Lower, Upper float64
 	Noise        noise.Noise // Type of noise used in BoundedVariance. Defaults to Laplace noise.
 }
@@ -86,7 +86,7 @@ type BoundedVarianceOptions struct {
 // NewBoundedVariance returns a new BoundedVariance.
 func NewBoundedVariance(opt *BoundedVarianceOptions) (*BoundedVariance, error) {
 	if opt == nil {
-		opt = &BoundedVarianceOptions{}
+		opt = &BoundedVarianceOptions{} // Prevents panicking due to a nil pointer dereference.
 	}
 
 	maxContributionsPerPartition := opt.MaxContributionsPerPartition
@@ -94,10 +94,9 @@ func NewBoundedVariance(opt *BoundedVarianceOptions) (*BoundedVariance, error) {
 		return nil, fmt.Errorf("NewBoundedVariance: %w", err)
 	}
 
-	// Set defaults.
 	maxPartitionsContributed := opt.MaxPartitionsContributed
 	if maxPartitionsContributed == 0 {
-		maxPartitionsContributed = 1
+		return nil, fmt.Errorf("NewBoundedVariance: MaxPartitionsContributed must be set")
 	}
 
 	n := opt.Noise
@@ -107,7 +106,7 @@ func NewBoundedVariance(opt *BoundedVarianceOptions) (*BoundedVariance, error) {
 	// Check bounds & use them to compute L_∞ sensitivity.
 	lower, upper := opt.Lower, opt.Upper
 	if lower == 0 && upper == 0 {
-		return nil, fmt.Errorf("NewBoundedVariance requires a non-default value for Lower and  Upper (automatic bounds determination is not implemented yet). Lower and Upper cannot be both 0")
+		return nil, fmt.Errorf("NewBoundedVariance: Lower and  Upper must be set (automatic bounds determination is not implemented yet). Lower and Upper cannot be both 0")
 	}
 	if err := checks.CheckBoundsFloat64(lower, upper); err != nil {
 		return nil, fmt.Errorf("NewBoundedVariance: CheckBoundsFloat64: %w", err)

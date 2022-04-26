@@ -27,6 +27,7 @@ java_proto_library(
 )
 
 exports_files([
+    "approximate_bounds_dp_test_cases.textproto",
     "bounded_mean_dp_test_cases.textproto",
     "bounded_quantiles_dp_test_cases.textproto",
     "bounded_stdv_dp_test_cases.textproto",

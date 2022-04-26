@@ -30,9 +30,10 @@ import (
 
 func TestNewBoundedQuantiles(t *testing.T) {
 	for _, tc := range []struct {
-		desc string
-		opt  *BoundedQuantilesOptions
-		want *BoundedQuantiles
+		desc    string
+		opt     *BoundedQuantilesOptions
+		want    *BoundedQuantiles
+		wantErr bool
 	}{
 		{"MaxPartitionsContributed is not set",
 			&BoundedQuantilesOptions{
@@ -45,23 +46,21 @@ func TestNewBoundedQuantiles(t *testing.T) {
 				TreeHeight:                   4,
 				BranchingFactor:              16,
 			},
-			&BoundedQuantiles{
-				epsilon:           ln3,
-				delta:             tenten,
-				lower:             -1,
-				upper:             5,
-				l0Sensitivity:     4, // Uses default MaxPartitionsContributed of 1.
-				lInfSensitivity:   2,
-				Noise:             noNoise{},
-				noiseKind:         noise.Unrecognised,
-				treeHeight:        4,
-				branchingFactor:   16,
-				numLeaves:         65536,
-				leftmostLeafIndex: 4369,
-				tree:              make(map[int]int64),
-				noisedTree:        make(map[int]float64),
-				state:             defaultState,
-			}},
+			nil,
+			true},
+		{"MaxContributionsPerPartition is not set",
+			&BoundedQuantilesOptions{
+				Epsilon:                  ln3,
+				Delta:                    tenten,
+				Lower:                    -1,
+				Upper:                    5,
+				Noise:                    noNoise{},
+				MaxPartitionsContributed: 2,
+				TreeHeight:               4,
+				BranchingFactor:          16,
+			},
+			nil,
+			true},
 		{"Noise is not set",
 			&BoundedQuantilesOptions{
 				Epsilon:                      ln3,
@@ -89,7 +88,8 @@ func TestNewBoundedQuantiles(t *testing.T) {
 				tree:              make(map[int]int64),
 				noisedTree:        make(map[int]float64),
 				state:             defaultState,
-			}},
+			},
+			false},
 		{"Tree Height and Branching Factor are not set",
 			&BoundedQuantilesOptions{
 				Epsilon:                      ln3,
@@ -116,11 +116,94 @@ func TestNewBoundedQuantiles(t *testing.T) {
 				tree:              make(map[int]int64),
 				noisedTree:        make(map[int]float64),
 				state:             defaultState,
-			}},
+			},
+			false},
+		{"Epsilon is not set",
+			&BoundedQuantilesOptions{
+				Delta:                        tenten,
+				Lower:                        -1,
+				Upper:                        5,
+				Noise:                        noise.Laplace(),
+				MaxContributionsPerPartition: 2,
+				MaxPartitionsContributed:     1,
+				TreeHeight:                   4,
+				BranchingFactor:              16,
+			},
+			nil,
+			true},
+		{"Negative Epsilon",
+			&BoundedQuantilesOptions{
+				Epsilon:                      -1,
+				Delta:                        tenten,
+				Lower:                        -1,
+				Upper:                        5,
+				Noise:                        noise.Laplace(),
+				MaxContributionsPerPartition: 2,
+				MaxPartitionsContributed:     1,
+				TreeHeight:                   4,
+				BranchingFactor:              16,
+			},
+			nil,
+			true},
+		{"Delta is not set with Gaussian noise",
+			&BoundedQuantilesOptions{
+				Epsilon:                      ln3,
+				Lower:                        -1,
+				Upper:                        5,
+				Noise:                        noise.Gaussian(),
+				MaxContributionsPerPartition: 2,
+				MaxPartitionsContributed:     1,
+				TreeHeight:                   4,
+				BranchingFactor:              16,
+			},
+			nil,
+			true},
+		{"Negative Delta",
+			&BoundedQuantilesOptions{
+				Epsilon:                      ln3,
+				Delta:                        -1,
+				Lower:                        -1,
+				Upper:                        5,
+				Noise:                        noise.Gaussian(),
+				MaxContributionsPerPartition: 2,
+				MaxPartitionsContributed:     1,
+				TreeHeight:                   4,
+				BranchingFactor:              16,
+			},
+			nil,
+			true},
+		{"Upper==Lower",
+			&BoundedQuantilesOptions{
+				Epsilon:                      ln3,
+				Delta:                        tenten,
+				Lower:                        5,
+				Upper:                        5,
+				Noise:                        noise.Gaussian(),
+				MaxContributionsPerPartition: 2,
+				MaxPartitionsContributed:     1,
+				TreeHeight:                   4,
+				BranchingFactor:              16,
+			},
+			nil,
+			true},
+		{"Upper<Lower",
+			&BoundedQuantilesOptions{
+				Epsilon:                      ln3,
+				Delta:                        tenten,
+				Lower:                        6,
+				Upper:                        5,
+				Noise:                        noise.Gaussian(),
+				MaxContributionsPerPartition: 2,
+				MaxPartitionsContributed:     1,
+				TreeHeight:                   4,
+				BranchingFactor:              16,
+			},
+			nil,
+			true},
 	} {
 		got, err := NewBoundedQuantiles(tc.opt)
-		if err != nil {
-			t.Fatalf("Couldn't initialize quantiles: %v", err)
+		if (err != nil) != tc.wantErr {
+			t.Errorf("With %s, got=%v error, wantErr: %t", tc.desc, err, tc.wantErr)
 		}
 		if !reflect.DeepEqual(got, tc.want) {
 			t.Errorf("NewBoundedQuantiles: when %s got %+v, want %+v", tc.desc, got, tc.want)
@@ -958,6 +1041,7 @@ func TestBQSerialization(t *testing.T) {
 			Upper:                        1,
 			Delta:                        0,
 			MaxContributionsPerPartition: 1,
+			MaxPartitionsContributed:     1,
 		}},
 		{"non-default options", &BoundedQuantilesOptions{
 			Lower:                        -100,

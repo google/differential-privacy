@@ -69,7 +69,7 @@ func countEquallyInitialized(c1, c2 *Count) bool {
 type CountOptions struct {
 	Epsilon                  float64     // Privacy parameter ε. Required.
 	Delta                    float64     // Privacy parameter δ. Required with Gaussian noise, must be 0 with Laplace noise.
-	MaxPartitionsContributed int64       // How many distinct partitions may a single privacy unit contribute to? Defaults to 1.
+	MaxPartitionsContributed int64       // How many distinct partitions may a single privacy unit contribute to? Required.
 	Noise                    noise.Noise // Type of noise used. Defaults to Laplace noise.
 	// How many times may a single privacy unit contribute to a single partition?
 	// Defaults to 1. This is only needed for other aggregation functions using Count;
@@ -80,12 +80,12 @@ type CountOptions struct {
 // NewCount returns a new Count, initialized at 0.
 func NewCount(opt *CountOptions) (*Count, error) {
 	if opt == nil {
-		opt = &CountOptions{}
+		opt = &CountOptions{} // Prevents panicking due to a nil pointer dereference.
 	}
-	// Set defaults.
+
 	l0 := opt.MaxPartitionsContributed
 	if l0 == 0 {
-		l0 = 1
+		return nil, fmt.Errorf("NewCount: MaxPartitionsContributed must be set")
 	}
 
 	lInf := opt.maxContributionsPerPartition

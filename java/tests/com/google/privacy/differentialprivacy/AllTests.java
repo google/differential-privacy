@@ -23,6 +23,8 @@ import org.junit.runners.Suite.SuiteClasses;
 /** Provides a list of JUnit test classes to Bazel. When creating a new test class, add it here. */
 @RunWith(Suite.class)
 @SuiteClasses({
+  ApproximateBoundsBuilderTest.class,
+  ApproximateBoundsTest.class,
   BoundedMeanBuilderTest.class,
   BoundedMeanConfidenceIntervalTest.class,
   BoundedMeanTest.class,

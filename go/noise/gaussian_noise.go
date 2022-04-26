@@ -149,7 +149,7 @@ func checkArgsGaussian(l0Sensitivity int64, lInfSensitivity, epsilon, delta floa
 	if err := checks.CheckLInfSensitivity(lInfSensitivity); err != nil {
 		return err
 	}
-	if err := checks.CheckEpsilon(epsilon); err != nil {
+	if err := checks.CheckEpsilonVeryStrict(epsilon); err != nil {
 		return err
 	}
 	return checks.CheckDeltaStrict(delta)
