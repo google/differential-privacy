@@ -193,10 +193,117 @@ func TestDistinctPerKeyPerKeyCrossPartitionContributionBounding(t *testing.T) {
 	}
 }
 
+// Checks that DistinctPerKey with partitions bounds cross-partition contributions correctly.
+func TestDistinctPerKeyWithPartitionsCrossPartitionContributionBounding(t *testing.T) {
+	for _, tc := range []struct {
+		inMemory bool
+	}{
+		{true},
+		{false},
+	} {
+		var triples []testutils.TripleWithIntValue
+		for i := 0; i < 10; i++ {
+			for j := 0; j < 10; j++ {
+				triples = append(triples, testutils.TripleWithIntValue{ID: i, Partition: i, Value: j})
+				triples = append(triples, testutils.TripleWithIntValue{ID: i, Partition: j, Value: j})
+			}
+		}
+		result := []testutils.TestInt64Metric{
+			{0, 10},
+		}
+		p, s, col, want := ptest.CreateList2(triples, result)
+		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithIntValue, col)
+		k := 25.0
+		l1Sensitivity := 6.0
+		epsilon := 50.0
+		delta := 0.0
+		publicPartitionsSlice := []int{0, 1, 2, 3, 4}
+		var publicPartitions interface{}
+		if tc.inMemory {
+			publicPartitions = publicPartitionsSlice
+		} else {
+			publicPartitions = beam.CreateList(s, publicPartitionsSlice)
+		}
+
+		pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
+		pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
+		got := DistinctPerKey(s, pcol, DistinctPerKeyParams{MaxPartitionsContributed: 3, NoiseKind: LaplaceNoise{}, MaxContributionsPerPartition: 2, PublicPartitions: publicPartitions})
+		maxs := beam.DropKey(s, got)
+		maxOverPartitions := stats.Sum(s, maxs)
+		got = beam.AddFixedKey(s, maxOverPartitions) // Adds a fixed key of 0.
+
+		want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+		if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
+			t.Fatalf("ApproxEqualsKVInt64 in-memory=%t: got error %v", tc.inMemory, err)
+		}
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("DistinctPerKey with partitions in-memory=%t did not bound cross-partition contributions correctly: %v", tc.inMemory, col, got, err)
+		}
+	}
+
+}
+
+// Checks that DistinctPerKey with partitions does per-partition contribution bounding correctly
+func TestDistinctPerKeyWithPartitionsPerPartitionContributionBounding(t *testing.T) {
+	for _, tc := range []struct {
+		inMemory bool
+	}{
+		{true},
+		{false},
+	} {
+		// We have two test cases, one for public partitions as a PCollection and one for public partitions as a slice (i.e., in-memory).
+		var triples []testutils.TripleWithIntValue
+		for i := 0; i < 100; i++ { // Add 500 distinct values to Partition 0.
+			// MaxContributionsPerPartition is set to 2, so 3 of these 5 contributions will be dropped for each user.
+			triples = append(triples, testutils.TripleWithIntValue{ID: i, Partition: 0, Value: i})
+			triples = append(triples, testutils.TripleWithIntValue{ID: i, Partition: 0, Value: 100 + i})
+			triples = append(triples, testutils.TripleWithIntValue{ID: i, Partition: 0, Value: 200 + i})
+			triples = append(triples, testutils.TripleWithIntValue{ID: i, Partition: 0, Value: 300 + i})
+			triples = append(triples, testutils.TripleWithIntValue{ID: i, Partition: 0, Value: 400 + i})
+		}
+		for i := 0; i < 50; i++ { // Add 200 distinct values to Partition 1.
+			// MaxContributionsPerPartition is set to 2, so 2 of these 4 contributions will be dropped for each user.
+			triples = append(triples, testutils.TripleWithIntValue{ID: i, Partition: 1, Value: i})
+			triples = append(triples, testutils.TripleWithIntValue{ID: i, Partition: 1, Value: 50 + i})
+			triples = append(triples, testutils.TripleWithIntValue{ID: i, Partition: 1, Value: 100 + i})
+			triples = append(triples, testutils.TripleWithIntValue{ID: i, Partition: 1, Value: 150 + i})
+		}
+		for i := 0; i < 50; i++ { // Add 150 distinct values to Partition 2.
+			// MaxContributionsPerPartition is set to 2, so 1 of these 3 contributions will be dropped for each user.
+			triples = append(triples, testutils.TripleWithIntValue{ID: i, Partition: 2, Value: i})
+			triples = append(triples, testutils.TripleWithIntValue{ID: i, Partition: 2, Value: 50 + i})
+			triples = append(triples, testutils.TripleWithIntValue{ID: i, Partition: 2, Value: 100 + i})
+		}
+		result := []testutils.TestInt64Metric{
+			{0, 200}, // 300 distinct values will be dropped due to per-partition contribution bounding.
+			{1, 100}, // 100 distinct values will be dropped due to per-partition contribution bounding.
+			{2, 100}, // 50 distinct values will be dropped due to per-partition contribution bounding.
+		}
+		p, s, col, want := ptest.CreateList2(triples, result)
+		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithIntValue, col)
+
+		// ε=50, δ=10⁻¹⁰⁰ and l0Sensitivity=3 gives a threshold of ≈17.
+		// We have 3 partitions. So, to get an overall flakiness of 10⁻²³,
+		// we can have each partition fail with 1-10⁻²⁵ probability (k=25).
+		epsilon, delta, k, l1Sensitivity := 50.0, 1e-100, 25.0, 6.0
+		// ε is split by 2 for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
+		pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
+		pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
+		got := DistinctPerKey(s, pcol, DistinctPerKeyParams{MaxPartitionsContributed: 3, NoiseKind: LaplaceNoise{}, MaxContributionsPerPartition: 2})
+		want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+		if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
+			t.Fatalf("ApproxEqualsKVInt64Slice in-memory=%t: got error %v", tc.inMemory, err)
+		}
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("DistinctPerKey with partitions in-memory=%t did not bound cross-partition contributions correctly: %v", tc.inMemory, err)
+		}
+	}
+}
+
 // Checks that DistinctPerKey bounds cross-partition contributions before doing deduplication of
 // values. This is to ensure we don't run into a contribution bounding-related privacy bug in some
 // rare cases.
-func TestDistinctPerKeyPerKeyCrossPartitionContributionBounding_IsAppliedBeforeDeduplication(t *testing.T) {
+func TestDistinctPerKeyCrossPartitionContributionBounding_IsAppliedBeforeDeduplication(t *testing.T) {
 	var triples []testutils.TripleWithIntValue
 	for i := 0; i < 100; i++ { // Add value=1 to 100 partitions.
 		triples = append(triples, testutils.TripleWithIntValue{ID: i, Partition: i, Value: 1})
@@ -424,7 +531,7 @@ func TestDistinctPerKeyThresholdsOnPrivacyIDs(t *testing.T) {
 	// ε=50, δ=10⁻¹⁰⁰ and l0Sensitivity=1 gives a threshold of ≈6.
 	// We have 1 partition. So, to get an overall flakiness of 10⁻²³,
 	// we need to have each partition pass with 1-10⁻²³ probability (k=23).
-	epsilon, delta, k, l1Sensitivity := 50.0, 1e-100, 23.0, 1.0
+	epsilon, delta, k, l1Sensitivity := 50.0, 1e-10, 23.0, 1.0
 	// ε is split by 2 for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
 	pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)

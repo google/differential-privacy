@@ -1388,7 +1388,7 @@ func TestQuantilesPerKeyWithPartitionsAppliesPublicPartitions(t *testing.T) {
 			t.Fatalf("ApproxEqualsKVFloat64Slice: got error %v", err)
 		}
 		if err := ptest.Run(p); err != nil {
-			t.Errorf("QuantilesPerKey did apply public partitions correctly: %v", err)
+			t.Errorf("QuantilesPerKey: %s did not apply public partitions correctly: %v", err)
 		}
 	}
 }
@@ -1610,6 +1610,118 @@ func TestDistinctPerKeyTestModePerPartitionContributionBounding(t *testing.T) {
 		}
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("DistinctPerKey: %s did not bound per-partition contributions correctly: %v", tc.desc, err)
+		}
+	}
+}
+
+// Tests that DistinctPerKey with public partitions bounds per-partition and cross-partition contributions correctly,
+// adds no noise and respects public partitions (keeps only public partitions) in test mode.
+func TestDistinctPerKeyWithPartitionsTestModeCrossPartitionContributionBounding(t *testing.T) {
+	for _, tc := range []struct {
+		desc                         string
+		privacySpec                  *pbeam.PrivacySpec
+		maxPartitionsContributed     int64
+		maxContributionsPerPartition int64
+		want                         int64
+	}{
+		{
+			desc:                     "test mode with contribution bounding",
+			privacySpec:              NewPrivacySpecNoNoiseWithContributionBounding(tinyEpsilon, zeroDelta),
+			maxPartitionsContributed: 3,
+			// The same privacy ID contributes "1.0" to 10 partitions, which implies that mean of each
+			// partition is 1.0. With a max contribution of 3, 2 out of 5 public partitions should be
+			// dropped. The sum of all means must then be 3.0.
+			maxContributionsPerPartition: 3,
+			want:                         3,
+		},
+		{
+			desc:                     "test mode without contribution bounding",
+			privacySpec:              NewPrivacySpecNoNoiseWithoutContributionBounding(tinyEpsilon, zeroDelta),
+			maxPartitionsContributed: 3,
+			// The same privacy ID contributes "1.0" to 10 partitions, which implies that mean of each
+			// partition is 1.0. Cross-partition contribution bounding is disabled and 5 out of 10 partitions
+			// are specified as public partitions. The sum of all means must then be 5.0.
+			maxContributionsPerPartition: 3,
+			want:                         5,
+		},
+	} {
+		// triples{privacy_id, partition_key, value} contains {0,0,1}, {0,1,1}, {0,2,1},…, {0,9,1}.
+		var triples []testutils.TripleWithIntValue
+		for i := 0; i < 10; i++ {
+			triples = append(triples, testutils.MakeSampleTripleWithIntValue(1, i)...)
+		}
+		wantMetric := []testutils.TestInt64Metric{
+			{0, tc.want},
+		}
+		p, s, col, want := ptest.CreateList2(triples, wantMetric)
+		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithIntValue, col)
+		partitions := []int{0, 1, 2, 3, 4}
+		publicPartitions := beam.CreateList(s, partitions)
+
+		pcol := pbeam.MakePrivate(s, col, tc.privacySpec)
+		pcol = pbeam.ParDo(s, testutils.TripleWithIntValueToKV, pcol)
+		// Setting MinValue to -1 and MaxValue to 1 so that empty partitions have a mean of 0.
+		got := pbeam.DistinctPerKey(s, pcol, pbeam.DistinctPerKeyParams{
+			MaxContributionsPerPartition: tc.maxContributionsPerPartition,
+			MaxPartitionsContributed:     tc.maxPartitionsContributed,
+			NoiseKind:                    pbeam.LaplaceNoise{},
+			PublicPartitions:             publicPartitions})
+		means := beam.DropKey(s, got)
+		sumOverPartitions := stats.Sum(s, means)
+		got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
+		want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+		if err := testutils.EqualsKVInt64(s, got, want); err != nil {
+			t.Fatalf("EqualsKVInt64: %v", err)
+		}
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("DistinctPerKey: %s with partitions did not bound contribution bounding correctly: %v", tc.desc, err)
+		}
+	}
+}
+
+// Tests that DistinctPerKey with public partitions adds empty partitions not found in the
+// data but are in the list of public partitions in test mode with ints.
+func TestDistinctPerKeyWithPartitionsTestModeEmptyPartitionsInt(t *testing.T) {
+	for _, tc := range []struct {
+		desc        string
+		privacySpec *pbeam.PrivacySpec
+	}{
+		{
+			desc:        "test mode with contribution bounding",
+			privacySpec: NewPrivacySpecNoNoiseWithContributionBounding(tinyEpsilon, zeroDelta),
+		},
+		{
+			desc:        "test mode without contribution bounding",
+			privacySpec: NewPrivacySpecNoNoiseWithoutContributionBounding(tinyEpsilon, zeroDelta),
+		},
+	} {
+		// triples{privacy_id, partition_key, value} contains {0,0,1}, {0,1,1}, {0,2,1}, …, {0,9,1}.
+		var triples []testutils.TripleWithIntValue
+		for i := 0; i < 10; i++ {
+			triples = append(triples, testutils.MakeSampleTripleWithIntValue(1, i)...)
+		}
+		wantMetric := []testutils.TestInt64Metric{
+			{9, 1},  // Keep partition 9.
+			{10, 0}, // Add partition 10.
+		}
+		p, s, col, want := ptest.CreateList2(triples, wantMetric)
+		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithIntValue, col)
+		partitions := []int{9, 10}
+		publicPartitions := beam.CreateList(s, partitions)
+
+		pcol := pbeam.MakePrivate(s, col, tc.privacySpec)
+		pcol = pbeam.ParDo(s, testutils.TripleWithIntValueToKV, pcol)
+		got := pbeam.DistinctPerKey(s, pcol, pbeam.DistinctPerKeyParams{
+			MaxPartitionsContributed:     1,
+			MaxContributionsPerPartition: 1,
+			NoiseKind:                    pbeam.LaplaceNoise{},
+			PublicPartitions:             publicPartitions})
+		want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+		if err := testutils.EqualsKVInt64(s, got, want); err != nil {
+			t.Fatalf("EqualsKVInt64: %v", err)
+		}
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("DistinctPerKey: %s did not apply public partitions correctly", tc.desc, err)
 		}
 	}
 }

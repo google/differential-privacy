@@ -56,6 +56,30 @@ type DistinctPerKeyParams struct {
 	//
 	// Required.
 	MaxContributionsPerPartition int64
+	// You can input the list of partitions present in the output if you know
+	// them in advance. When you specify partitions, partition selection /
+	// thresholding will be disabled and partitions will appear in the output
+	// if and only if they appear in the set of public partitions.
+	//
+	// You should not derive the list of partitions non-privately from private
+	// data. You should only use this in either of the following cases:
+	// 	1. The list of partitions is data-independent. For example, if you are
+	// 	aggregating a metric by hour, you could provide a list of all possible
+	// 	hourly period.
+	// 	2. You use a differentially private operation to come up with the list of
+	// 	partitions. For example, you could use the output of a SelectPartitions
+	//  operation or the keys of a DistinctPrivacyID operation as the list of
+	//  public partitions.
+	//
+	// PublicPartitions needs to be a beam.PCollection, slice, or array. The
+	// underlying type needs to match the partition type of the PrivatePCollection.
+	//
+	// Prefer slices or arrays if the list of public partitions is small and
+	// can fit into memory (e.g., up to a million). Prefer beam.PCollection
+	// otherwise.
+	//
+	// Optional.
+	PublicPartitions interface{}
 }
 
 // DistinctPerKey estimates the number of distinct values associated to
@@ -63,10 +87,9 @@ type DistinctPerKeyParams struct {
 // to the estimates and doing pre-aggregation thresholding to remove
 // estimates with a low number of distinct privacy identifiers.
 //
-// DistinctPerKey does not support public partitions yet.
-//
-// Note: Do not use when your results may cause overflows for Int64 values.
-// This aggregation is not hardened for such applications yet.
+// It is also possible to manually specify the list of partitions
+// present in the output, in which case the partition selection/thresholding
+// step is skipped.
 //
 // DistinctPerKey transforms a PrivatePCollection<K,V> into a
 // PCollection<K,int64>.
@@ -100,9 +123,15 @@ func DistinctPerKey(s beam.Scope, pcol PrivatePCollection, params DistinctPerKey
 	if err != nil {
 		log.Fatalf("Couldn't consume budget for DistinctPerKey: %v", err)
 	}
-	err = checkDistinctPerKeyParams(params, epsilon, delta, maxPartitionsContributed)
+	err = checkDistinctPerKeyParams(params, epsilon, delta, noiseKind, maxPartitionsContributed, pcol.codec.KType.T)
 	if err != nil {
 		log.Fatalf("pbeam.DistinctPerKey: %v", err)
+	}
+
+	// Drop non-public partitions, if public partitions are specified.
+	pcol.col, err = dropNonPublicPartitions(s, pcol, params.PublicPartitions, pcol.codec.KType.T)
+	if err != nil {
+		log.Fatalf("Couldn't drop non-public partitions for DistinctPerKey: %v", err)
 	}
 
 	// Do initial per- and cross-partition contribution bounding and swap kv.Pair<K,V> and ID.
@@ -150,12 +179,20 @@ func DistinctPerKey(s beam.Scope, pcol PrivatePCollection, params DistinctPerKey
 			beam.TypeDefinition{Var: beam.WType, T: idT.Type()}) // PCollection<ID, kv.Pair{K,V}>
 	}
 
-	// Perform partition selection.
+	// Perform partition selection
 	// We do partition selection after cross-partition contribution bounding because
 	// we want to keep the same contributions across partitions for partition selection
 	// and Count.
-	noiseEpsilon, partitionSelectionEpsilon, noiseDelta, partitionSelectionDelta := splitBudget(epsilon, delta, noiseKind)
-	partitions := SelectPartitions(s, pcol, SelectPartitionsParams{Epsilon: partitionSelectionEpsilon, Delta: partitionSelectionDelta, MaxPartitionsContributed: params.MaxPartitionsContributed})
+	var partitions interface{}
+	var noiseEpsilon, partitionSelectionEpsilon, noiseDelta, partitionSelectionDelta float64
+	if params.PublicPartitions != nil {
+		partitions = params.PublicPartitions
+		noiseEpsilon = epsilon
+		noiseDelta = delta
+	} else {
+		noiseEpsilon, partitionSelectionEpsilon, noiseDelta, partitionSelectionDelta = splitBudget(epsilon, delta, noiseKind)
+		partitions = SelectPartitions(s, pcol, SelectPartitionsParams{Epsilon: partitionSelectionEpsilon, Delta: partitionSelectionDelta, MaxPartitionsContributed: params.MaxPartitionsContributed})
+	}
 
 	// Keep only one privacyKey per (partitionKey, value) pair
 	// (i.e. remove duplicate values for each partition).
@@ -196,12 +233,16 @@ func splitBudget(epsilon, delta float64, noiseKind noise.Kind) (noiseEpsilon flo
 	return noiseEpsilon, partitionSelectionEpsilon, noiseDelta, partitionSelectionDelta
 }
 
-func checkDistinctPerKeyParams(params DistinctPerKeyParams, epsilon, delta float64, maxPartitionsContributed int64) error {
-	err := checks.CheckEpsilon(epsilon)
+func checkDistinctPerKeyParams(params DistinctPerKeyParams, epsilon, delta float64, noiseKind noise.Kind, maxPartitionsContributed int64, partitionType reflect.Type) error {
+	err := checkPublicPartitions(params.PublicPartitions, partitionType)
 	if err != nil {
 		return err
 	}
-	err = checks.CheckDeltaStrict(delta)
+	err = checkDelta(delta, noiseKind, params.PublicPartitions)
+	if err != nil {
+		return err
+	}
+	err = checks.CheckEpsilon(epsilon)
 	if err != nil {
 		return err
 	}

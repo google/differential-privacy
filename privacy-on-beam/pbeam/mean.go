@@ -151,9 +151,8 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 
 	// First, group together the privacy ID and the partition ID and do per-partition contribution bounding.
 	// Result is PCollection<kv.Pair{ID,K},V>
-	encodeIDKFn := newEncodeIDKFn(idT, pcol.codec)
 	decoded := beam.ParDo(s,
-		encodeIDKFn,
+		newEncodeIDKFn(idT, pcol.codec),
 		pcol.col,
 		beam.TypeDefinition{Var: beam.VType, T: pcol.codec.VType.T})
 
@@ -196,31 +195,36 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 		newDecodePairArrayFloat64Fn(partitionT),
 		partialPairs,
 		beam.TypeDefinition{Var: beam.XType, T: partitionT})
+
+	var result beam.PCollection
 	// Add public partitions and return the aggregation output, if public partitions are specified.
 	if params.PublicPartitions != nil {
-		return addPublicPartitionsForMean(s, epsilon, delta, maxPartitionsContributed,
+		result = addPublicPartitionsForMean(s, epsilon, delta, maxPartitionsContributed,
 			params, noiseKind, partialKV, spec.testMode)
+	} else {
+		// Compute the mean for each partition. Result is PCollection<partition, float64>.
+		boundedMeanFloat64Fn, err := newBoundedMeanFn(boundedMeanFnParams{
+			epsilon:                      epsilon,
+			delta:                        delta,
+			maxPartitionsContributed:     maxPartitionsContributed,
+			maxContributionsPerPartition: params.MaxContributionsPerPartition,
+			minValue:                     params.MinValue,
+			maxValue:                     params.MaxValue,
+			noiseKind:                    noiseKind,
+			publicPartitions:             false,
+			testMode:                     spec.testMode,
+			emptyPartitions:              false})
+		if err != nil {
+			log.Fatalf("Couldn't get boundedMeanFn for MeanPerKey: %v", err)
+		}
+		means := beam.CombinePerKey(s,
+			boundedMeanFloat64Fn,
+			partialKV)
+		// Finally, drop thresholded partitions.
+		result = beam.ParDo(s, dropThresholdedPartitionsFloat64Fn, means)
 	}
-	// Compute the mean for each partition. Result is PCollection<partition, float64>.
-	boundedMeanFloat64Fn, err := newBoundedMeanFn(boundedMeanFnParams{
-		epsilon:                      epsilon,
-		delta:                        delta,
-		maxPartitionsContributed:     maxPartitionsContributed,
-		maxContributionsPerPartition: params.MaxContributionsPerPartition,
-		minValue:                     params.MinValue,
-		maxValue:                     params.MaxValue,
-		noiseKind:                    noiseKind,
-		publicPartitions:             false,
-		testMode:                     spec.testMode,
-		emptyPartitions:              false})
-	if err != nil {
-		log.Fatalf("Couldn't get boundedMeanFn for MeanPerKey: %v", err)
-	}
-	means := beam.CombinePerKey(s,
-		boundedMeanFloat64Fn,
-		partialKV)
-	// Finally, drop thresholded partitions.
-	return beam.ParDo(s, dropThresholdedPartitionsFloat64Fn, means)
+
+	return result
 }
 
 func addPublicPartitionsForMean(s beam.Scope, epsilon, delta float64, maxPartitionsContributed int64, params MeanParams, noiseKind noise.Kind, partialKV beam.PCollection, testMode testMode) beam.PCollection {
@@ -274,9 +278,8 @@ func addPublicPartitionsForMean(s beam.Scope, epsilon, delta float64, maxPartiti
 		emptyPublicPartitions)
 	means = beam.ParDo(s, dereferenceValueToFloat64Fn, means)
 	emptyMeans = beam.ParDo(s, dereferenceValueToFloat64Fn, emptyMeans)
-	// Merge means from data with means from the empty public partitions.
-	allMeans := beam.Flatten(s, means, emptyMeans)
-	return allMeans
+	// Merge means from data with means from the empty public partitions and return.
+	return beam.Flatten(s, means, emptyMeans)
 }
 
 func checkMeanPerKeyParams(params MeanParams, epsilon, delta float64, noiseKind noise.Kind, partitionType reflect.Type) error {

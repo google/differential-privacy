@@ -145,26 +145,30 @@ func Count(s beam.Scope, pcol PrivatePCollection, params CountParams) beam.PColl
 	// Third, now that contribution bounding is done, remove the privacy keys,
 	// decode the value, and sum all the counts bounded by maxCountContrib.
 	countPairs := beam.DropKey(s, rekeyed)
-	decodePairInt64Fn := newDecodePairInt64Fn(partitionT.Type())
 	countsKV := beam.ParDo(s,
-		decodePairInt64Fn,
+		newDecodePairInt64Fn(partitionT.Type()),
 		countPairs,
 		beam.TypeDefinition{Var: beam.XType, T: partitionT.Type()})
-	// Add public partitions and return the aggregation output, if public partitions are specified.
+
+	var result beam.PCollection
+	// Add public partitions and compute the aggregation output, if public partitions are specified.
 	if params.PublicPartitions != nil {
-		return addPublicPartitionsForCount(s, epsilon, delta, maxPartitionsContributed, params, noiseKind, countsKV, spec.testMode)
+		result = addPublicPartitionsForCount(s, epsilon, delta, maxPartitionsContributed, params, noiseKind, countsKV, spec.testMode)
+	} else {
+		boundedSumInt64Fn, err := newBoundedSumInt64Fn(epsilon, delta, maxPartitionsContributed, 0, params.MaxValue, noiseKind, false, spec.testMode)
+		if err != nil {
+			log.Fatalf("Couldn't get boundedSumInt64Fn for Count: %v", err)
+		}
+		sums := beam.CombinePerKey(s,
+			boundedSumInt64Fn,
+			countsKV)
+		// Drop thresholded partitions.
+		result = beam.ParDo(s, dropThresholdedPartitionsInt64Fn, sums)
 	}
-	boundedSumInt64Fn, err := newBoundedSumInt64Fn(epsilon, delta, maxPartitionsContributed, 0, params.MaxValue, noiseKind, false, spec.testMode)
-	if err != nil {
-		log.Fatalf("Couldn't get boundedSumInt64Fn for Count: %v", err)
-	}
-	sums := beam.CombinePerKey(s,
-		boundedSumInt64Fn,
-		countsKV)
-	// Drop thresholded partitions.
-	counts := beam.ParDo(s, dropThresholdedPartitionsInt64Fn, sums)
+
 	// Clamp negative counts to zero and return.
-	return beam.ParDo(s, clampNegativePartitionsInt64Fn, counts)
+	result = beam.ParDo(s, clampNegativePartitionsInt64Fn, result)
+	return result
 }
 
 func checkCountParams(params CountParams, epsilon, delta float64, noiseKind noise.Kind, partitionType reflect.Type) error {
@@ -202,7 +206,5 @@ func addPublicPartitionsForCount(s beam.Scope, epsilon, delta float64, maxPartit
 		log.Fatalf("Couldn't get boundedSumInt64Fn for Count: %v", err)
 	}
 	sums := beam.CombinePerKey(s, boundedSumInt64Fn, allPartitions)
-	finalPartitions := beam.ParDo(s, dereferenceValueToInt64Fn, sums)
-	// Clamp negative counts to zero and return.
-	return beam.ParDo(s, clampNegativePartitionsInt64Fn, finalPartitions)
+	return beam.ParDo(s, dereferenceValueToInt64Fn, sums)
 }

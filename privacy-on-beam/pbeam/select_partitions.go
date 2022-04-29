@@ -93,8 +93,11 @@ func SelectPartitions(s beam.Scope, pcol PrivatePCollection, params SelectPartit
 	idT, partitionT := beam.ValidateKVType(partitions)
 	coded := beam.ParDo(s, kv.NewEncodeFn(idT, partitionT), partitions)
 	coded = filter.Distinct(s, coded)
-	decodeFn := kv.NewDecodeFn(idT, partitionT)
-	partitions = beam.ParDo(s, decodeFn, coded, beam.TypeDefinition{Var: beam.TType, T: idT.Type()}, beam.TypeDefinition{Var: beam.VType, T: partitionT.Type()})
+	partitions = beam.ParDo(s,
+		kv.NewDecodeFn(idT, partitionT),
+		coded,
+		beam.TypeDefinition{Var: beam.TType, T: idT.Type()},
+		beam.TypeDefinition{Var: beam.VType, T: partitionT.Type()})
 
 	// Third, do cross-partition contribution bounding if not in test mode without contribution bounding.
 	if spec.testMode != noNoiseWithoutContributionBounding {
@@ -104,7 +107,8 @@ func SelectPartitions(s beam.Scope, pcol PrivatePCollection, params SelectPartit
 	// Finally, we swap the privacy and partition key and perform partition selection.
 	partitions = beam.SwapKV(s, partitions) // PCollection<K, ID>
 	partitions = beam.CombinePerKey(s, newPartitionSelectionFn(epsilon, delta, maxPartitionsContributed, spec.testMode), partitions)
-	return beam.ParDo(s, dropThresholdedPartitionsBoolFn, partitions)
+	result := beam.ParDo(s, dropThresholdedPartitionsBoolFn, partitions)
+	return result
 }
 
 func checkSelectPartitionsParams(epsilon, delta float64, maxPartitionsContributed int64) error {

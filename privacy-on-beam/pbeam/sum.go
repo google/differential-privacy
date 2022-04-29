@@ -152,9 +152,8 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCo
 	}
 	// First, group together the privacy ID and the partition ID, and sum the
 	// values per-privacy unit and per-partition.
-	prepareSumFn := newPrepareSumFn(idT, pcol.codec)
 	decoded := beam.ParDo(s,
-		prepareSumFn,
+		newPrepareSumFn(idT, pcol.codec),
 		pcol.col,
 		beam.TypeDefinition{Var: beam.VType, T: pcol.codec.VType.T})
 	summed := stats.SumPerKey(s, decoded)
@@ -190,33 +189,38 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCo
 		decodePairFn,
 		partialSumPairs,
 		beam.TypeDefinition{Var: beam.XType, T: partitionT})
+
+	var result beam.PCollection
 	// Add public partitions and return the aggregation output, if public partitions are specified.
 	if params.PublicPartitions != nil {
-		return addPublicPartitionsForSum(s, epsilon, delta, maxPartitionsContributed,
+		result = addPublicPartitionsForSum(s, epsilon, delta, maxPartitionsContributed,
 			params, noiseKind, vKind, partialSumKV, spec.testMode)
+	} else {
+		boundedSumFn, err := newBoundedSumFn(epsilon, delta, maxPartitionsContributed, params.MinValue, params.MaxValue, noiseKind, vKind, false, spec.testMode)
+		if err != nil {
+			log.Fatalf("Couldn't get boundedSumFn for SumPerKey: %v", err)
+		}
+		sums := beam.CombinePerKey(s,
+			boundedSumFn,
+			partialSumKV)
+		// Drop thresholded partitions.
+		dropThresholdedPartitionsFn, err := findDropThresholdedPartitionsFn(vKind)
+		if err != nil {
+			log.Fatalf("Couldn't get dropThresholdedPartitionsFn for SumPerKey: %v", err)
+		}
+		result = beam.ParDo(s, dropThresholdedPartitionsFn, sums)
 	}
-	boundedSumFn, err := newBoundedSumFn(epsilon, delta, maxPartitionsContributed, params.MinValue, params.MaxValue, noiseKind, vKind, false, spec.testMode)
-	if err != nil {
-		log.Fatalf("Couldn't get boundedSumFn for SumPerKey: %v", err)
-	}
-	sums := beam.CombinePerKey(s,
-		boundedSumFn,
-		partialSumKV)
-	// Drop thresholded partitions.
-	dropThresholdedPartitionsFn, err := findDropThresholdedPartitionsFn(vKind)
-	if err != nil {
-		log.Fatalf("Couldn't get dropThresholdedPartitionsFn for SumPerKey: %v", err)
-	}
-	sums = beam.ParDo(s, dropThresholdedPartitionsFn, sums)
+
 	// Clamp negative counts to zero when MinValue is non-negative.
 	if params.MinValue >= 0 {
 		clampNegativePartitionsFn, err := findClampNegativePartitionsFn(vKind)
 		if err != nil {
 			log.Fatalf("Couldn't get clampNegativePartitionsFn for SumPerKey: %v", err)
 		}
-		sums = beam.ParDo(s, clampNegativePartitionsFn, sums)
+		result = beam.ParDo(s, clampNegativePartitionsFn, result)
 	}
-	return sums
+
+	return result
 }
 
 func addPublicPartitionsForSum(s beam.Scope, epsilon, delta float64, maxPartitionsContributed int64, params SumParams, noiseKind noise.Kind, vKind reflect.Kind, partialSumKV beam.PCollection, testMode testMode) beam.PCollection {
@@ -257,17 +261,8 @@ func addPublicPartitionsForSum(s beam.Scope, epsilon, delta float64, maxPartitio
 		log.Fatalf("Couldn't get dereferenceValueFn for SumPerKey: %v", err)
 	}
 	sums = beam.ParDo(s, dereferenceValueFn, sums)
-	// Merge sums from data with sums from the empty public partitions.
-	allSums := beam.Flatten(s, sums, emptySums)
-	// Clamp negative counts to zero when MinValue is non-negative.
-	if params.MinValue >= 0 {
-		clampNegativePartitionsFn, err := findClampNegativePartitionsFn(vKind)
-		if err != nil {
-			log.Fatalf("Couldn't get clampNegativePartitionsFn for SumPerKey: %v", err)
-		}
-		allSums = beam.ParDo(s, clampNegativePartitionsFn, allSums)
-	}
-	return allSums
+	// Merge sums from data with sums from the empty public partitions and return.
+	return beam.Flatten(s, sums, emptySums)
 }
 
 func checkSumPerKeyParams(params SumParams, epsilon, delta float64, noiseKind noise.Kind, partitionType reflect.Type) error {

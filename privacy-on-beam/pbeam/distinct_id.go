@@ -133,9 +133,8 @@ func DistinctPrivacyID(s beam.Scope, pcol PrivatePCollection, params DistinctPri
 	// First, deduplicate KV pairs by encoding them and calling Distinct.
 	coded := beam.ParDo(s, kv.NewEncodeFn(idT, partitionT), pcol.col)
 	distinct := filter.Distinct(s, coded)
-	decodeFn := kv.NewDecodeFn(idT, partitionT)
 	decoded := beam.ParDo(s,
-		decodeFn,
+		kv.NewDecodeFn(idT, partitionT),
 		distinct,
 		beam.TypeDefinition{Var: beam.TType, T: idT.Type()},
 		beam.TypeDefinition{Var: beam.VType, T: partitionT.Type()})
@@ -147,19 +146,24 @@ func DistinctPrivacyID(s beam.Scope, pcol PrivatePCollection, params DistinctPri
 	// done, remove the keys and count how many times each value appears.
 	values := beam.DropKey(s, decoded)
 	emptyCounts := beam.ParDo(s, addOneValueFn, values)
+
+	var result beam.PCollection
 	// Add public partitions and return the aggregation output, if public partitions are specified.
 	if params.PublicPartitions != nil {
-		return addPublicPartitionsForDistinctID(s, params, epsilon, delta, maxPartitionsContributed, noiseKind, emptyCounts, spec.testMode)
+		result = addPublicPartitionsForDistinctID(s, params, epsilon, delta, maxPartitionsContributed, noiseKind, emptyCounts, spec.testMode)
+	} else {
+		countFn, err := newCountFn(epsilon, delta, maxPartitionsContributed, noiseKind, false, spec.testMode)
+		if err != nil {
+			log.Fatalf("pbeam.DistinctPrivacyID: %v", err)
+		}
+		noisedCounts := beam.CombinePerKey(s, countFn, emptyCounts)
+		// Drop thresholded partitions.
+		result = beam.ParDo(s, dropThresholdedPartitionsInt64Fn, noisedCounts)
 	}
-	countFn, err := newCountFn(epsilon, delta, maxPartitionsContributed, noiseKind, false, spec.testMode)
-	if err != nil {
-		log.Fatalf("pbeam.DistinctPrivacyID: %v", err)
-	}
-	noisedCounts := beam.CombinePerKey(s, countFn, emptyCounts)
-	// Drop thresholded partitions.
-	counts := beam.ParDo(s, dropThresholdedPartitionsInt64Fn, noisedCounts)
+
 	// Clamp negative counts to zero and return.
-	return beam.ParDo(s, clampNegativePartitionsInt64Fn, counts)
+	result = beam.ParDo(s, clampNegativePartitionsInt64Fn, result)
+	return result
 }
 
 func addPublicPartitionsForDistinctID(s beam.Scope, params DistinctPrivacyIDParams, epsilon, delta float64,
