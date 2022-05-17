@@ -63,13 +63,12 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     install_requires=_parse_requirements("requirements.txt"),
     classifiers=[
-        "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Topic :: Software Development :: Libraries :: Python Modules",
     ],
-    python_requires=">=3.6",
+    python_requires=">=3.7",
     license="Apache 2.0",
     keywords="differential-privacy accounting",
 )

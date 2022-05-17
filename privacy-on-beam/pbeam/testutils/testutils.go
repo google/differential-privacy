@@ -616,36 +616,6 @@ func ComplementaryLaplaceTolerance(flakinessK, l1Sensitivity, epsilon float64) f
 	return -l1Sensitivity * log / epsilon
 }
 
-// OneSidedLaplaceTolerance is only supposed be to used in cases where a one sided
-// confidence interval is enough to calculate the tolerance, for example for
-// finding minimum and maximum noisy counts and sums when calculating the tolerance
-// for mean.
-//
-// To see the logic and the math behind flakiness and tolerance calculation,
-// See https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf.
-func OneSidedLaplaceTolerance(flakinessK, l1Sensitivity, epsilon float64) float64 {
-	return l1Sensitivity * (flakinessK*math.Log(10) - math.Log(2)) / epsilon
-}
-
-// OneSidedComplementaryLaplaceTolerance is only supposed be to used in cases where a one sided
-// complementary confidence interval is enough to calculate the tolerance, for example for
-// finding minimum and maximum noisy counts and sums when calculating the tolerance
-// for mean.
-//
-// To see the logic and the math behind flakiness and tolerance calculation,
-// See https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf.
-func OneSidedComplementaryLaplaceTolerance(flakinessK, l1Sensitivity, epsilon float64) float64 {
-	// We need arbitrary precision arithmetics here because ln(1-2.10⁻ᵏ) evaluates to
-	// 0 with float64, making the output 0.
-	sum := big.NewFloat(math.Pow(10, -flakinessK)).SetMode(big.AwayFromZero) // 10⁻ᵏ
-	sum.Neg(sum)                                                             // -10⁻ᵏ
-	sum.Mul(sum, big.NewFloat(2))                                            // -2.10⁻ᵏ
-	sum.SetMode(big.ToZero).Add(sum, big.NewFloat(1))                        // 1-2.10⁻ᵏ
-	log, _ := sum.Float64()
-	log = math.Log(log) // ln(1-2.10⁻ᵏ)
-	return -l1Sensitivity * log / epsilon
-}
-
 // RoundedLaplaceTolerance rounds laplace tolerance value to the nearest integer,
 // in order to work with tests for integer-valued aggregations.
 //
@@ -686,27 +656,6 @@ func ComplementaryGaussianTolerance(flakinessK, l0Sensitivity, lInfSensitivity, 
 	return math.Erfinv(math.Pow(10, -flakinessK)) * noise.SigmaForGaussian(int64(l0Sensitivity), lInfSensitivity, epsilon, delta) * math.Sqrt(2)
 }
 
-// OneSidedComplementaryGaussianTolerance is only supposed be to used in cases where a one sided
-// complementary confidence interval is enough to calculate the tolerance, for example for
-// finding minimum and maximum noisy counts and sums when calculating the tolerance
-// for mean.
-//
-// To see the logic and the math behind flakiness and tolerance calculation,
-// See https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf
-func OneSidedComplementaryGaussianTolerance(flakinessK, l0Sensitivity, lInfSensitivity, epsilon, delta float64) float64 {
-	return math.Erfinv(2*math.Pow(10, -flakinessK)) * noise.SigmaForGaussian(int64(l0Sensitivity), lInfSensitivity, epsilon, delta) * math.Sqrt(2)
-}
-
-// RoundedComplementaryGaussianTolerance rounds Gaussian tolerance value up to the nearest
-// integer, in order to work with both integer and float aggregation tests and
-// be on the safe side.
-//
-// To see the logic and the math behind flakiness and tolerance calculation,
-// See https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf
-func RoundedComplementaryGaussianTolerance(flakinessK, l0Sensitivity, lInfSensitivity, epsilon, delta float64) float64 {
-	return math.Ceil(ComplementaryGaussianTolerance(flakinessK, l0Sensitivity, lInfSensitivity, epsilon, delta))
-}
-
 // LaplaceToleranceForMean returns tolerance to be used in approxEquals for tests
 // for mean to pass with 10⁻ᵏ flakiness.
 //
@@ -718,59 +667,17 @@ func RoundedComplementaryGaussianTolerance(flakinessK, l0Sensitivity, lInfSensit
 // To see the logic and the math behind flakiness and tolerance calculation,
 // See https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf
 func LaplaceToleranceForMean(flakinessK, lower, upper float64, maxContributionsPerPartition, maxPartitionsContributed int64, epsilon float64, exactNormalizedSum, exactCount, exactMean float64) (float64, error) {
-	halfFlakiness := flakinessK / 2
+	// The term below is equivalent to -log_10(1-sqrt(1-1e-k)).
+	// It is formulated this way to increase precision and to avoid having this term go to infinity.
+	countFlakinessK := -math.Log10(-math.Expm1(0.5 * math.Log1p(-math.Pow(10, -flakinessK))))
+	normalizedSumFlakinessK := countFlakinessK // We use the same flakiness for simplicity.
 	halfEpsilon := epsilon / 2
 
 	_, l1Count, _ := sensitivitiesForCount(maxContributionsPerPartition, maxPartitionsContributed)
 	_, l1NormalizedSum, _ := sensitivitiesForNormalizedSum(lower, upper, maxContributionsPerPartition, maxPartitionsContributed)
 
-	countTolerance := math.Ceil(OneSidedLaplaceTolerance(halfFlakiness, l1Count, halfEpsilon))
-	normalizedSumTolerance := OneSidedLaplaceTolerance(halfFlakiness, l1NormalizedSum, halfEpsilon)
-	return ToleranceForMean(lower, upper, exactNormalizedSum, exactCount, exactMean, countTolerance, normalizedSumTolerance)
-}
-
-// ComplementaryLaplaceToleranceForMean returns tolerance to be used in checkMetricsAreNoisy for tests
-// for mean to pass with 10⁻ᵏ flakiness.
-//
-// flakinessK is the parameter used to specify k in the flakiness.
-// distanceFromMidPoint = upper - midPoint, where midPoint = (lower + upper)/2.
-// exactNormalizedSum is a clamped (with boundaries -distanceFromMidPoint and distanceFromMidPoint) sum of distances of the input entities from the midPoint.
-// exactNormalizedSum is needed for calculating tolerance because the algorithm of the mean aggregation uses noisy normalized sum in its calculations.
-//
-// To see the logic and the math behind flakiness and tolerance calculation,
-// See https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf
-func ComplementaryLaplaceToleranceForMean(flakinessK, lower, upper float64, maxContributionsPerPartition, maxPartitionsContributed int64, epsilon float64, exactNormalizedSum, exactCount, exactMean float64) (float64, error) {
-	halfFlakiness := flakinessK / 2
-	epsilonCount, epsilonSum := epsilon/2, epsilon/2
-
-	_, l1Count, _ := sensitivitiesForCount(maxContributionsPerPartition, maxPartitionsContributed)
-	_, l1NormalizedSum, _ := sensitivitiesForNormalizedSum(lower, upper, maxContributionsPerPartition, maxPartitionsContributed)
-
-	countTolerance := math.Round(OneSidedComplementaryLaplaceTolerance(halfFlakiness, l1Count, epsilonCount))
-	normalizedSumTolerance := OneSidedComplementaryLaplaceTolerance(halfFlakiness, l1NormalizedSum, epsilonSum)
-	return ToleranceForMean(lower, upper, exactNormalizedSum, exactCount, exactMean, countTolerance, normalizedSumTolerance)
-}
-
-// ComplementaryGaussianToleranceForMean returns tolerance to be used in checkMetricsAreNoisy for tests
-// for mean to pass with 10⁻ᵏ flakiness.
-//
-// flakinessK is the parameter used to specify k in the flakiness.
-// distanceFromMidPoint = upper - midPoint, where midPoint = (lower + upper)/2.
-// exactNormalizedSum is a clamped (with boundaries -distanceFromMidPoint and distanceFromMidPoint) sum of distances of the input entities from the midPoint.
-// exactNormalizedSum is needed for calculating tolerance because the algorithm of the mean aggregation uses noisy normalized sum in its calculations.
-//
-// To see the logic and the math behind flakiness and tolerance calculation,
-// See https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf
-func ComplementaryGaussianToleranceForMean(flakinessK, lower, upper float64, maxContributionsPerPartition, maxPartitionsContributed int64, epsilon, delta float64, exactNormalizedSum, exactCount, exactMean float64) (float64, error) {
-	halfFlakiness := flakinessK / 2
-	epsilonCount, epsilonSum := epsilon/2, epsilon/2
-	deltaCount, deltaSum := delta/2, delta/2
-
-	l0Count, _, lInfCount := sensitivitiesForCount(maxContributionsPerPartition, maxPartitionsContributed)
-	l0NormalizedSum, _, lInfNormalizedSum := sensitivitiesForNormalizedSum(lower, upper, maxContributionsPerPartition, maxPartitionsContributed)
-
-	countTolerance := math.Round(OneSidedComplementaryGaussianTolerance(halfFlakiness, l0Count, lInfCount, epsilonCount, deltaCount))
-	normalizedSumTolerance := OneSidedComplementaryGaussianTolerance(halfFlakiness, l0NormalizedSum, lInfNormalizedSum, epsilonSum, deltaSum)
+	countTolerance := math.Ceil(LaplaceTolerance(countFlakinessK, l1Count, halfEpsilon))
+	normalizedSumTolerance := LaplaceTolerance(normalizedSumFlakinessK, l1NormalizedSum, halfEpsilon)
 	return ToleranceForMean(lower, upper, exactNormalizedSum, exactCount, exactMean, countTolerance, normalizedSumTolerance)
 }
 
@@ -793,11 +700,21 @@ func ToleranceForMean(lower, upper, exactNormalizedSum, exactCount, exactMean, c
 	maxNoisyCount := math.Max(1.0, exactCount+countTolerance)
 	minNoisyNormalizedSum := exactNormalizedSum - normalizedSumTolerance
 	maxNoisyNormalizedSum := exactNormalizedSum + normalizedSumTolerance
-	maxNoisyMean, err := dpagg.ClampFloat64(maxNoisyNormalizedSum/minNoisyCount+midPoint, lower, upper)
+	minNoisyMeanCount := maxNoisyCount
+	maxNoisyMeanCount := minNoisyCount
+	// If the numerator (min/max noisy normalized sum) of the mean is negative,
+	// min/max noisy counts should switch places to find min/max noisy mean.
+	if minNoisyNormalizedSum < 0 {
+		minNoisyMeanCount = minNoisyCount
+	}
+	if maxNoisyNormalizedSum < 0 {
+		maxNoisyMeanCount = maxNoisyCount
+	}
+	minNoisyMean, err := dpagg.ClampFloat64(minNoisyNormalizedSum/minNoisyMeanCount+midPoint, lower, upper)
 	if err != nil {
 		return 0, err
 	}
-	minNoisyMean, err := dpagg.ClampFloat64(minNoisyNormalizedSum/maxNoisyCount+midPoint, lower, upper)
+	maxNoisyMean, err := dpagg.ClampFloat64(maxNoisyNormalizedSum/maxNoisyMeanCount+midPoint, lower, upper)
 	if err != nil {
 		return 0, err
 	}

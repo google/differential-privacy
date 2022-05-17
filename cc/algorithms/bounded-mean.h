@@ -21,8 +21,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <memory>
-#include <optional>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -35,17 +35,20 @@
 #include "absl/status/status.h"
 #include "base/statusor.h"
 #include "absl/strings/str_cat.h"
+#include "absl/types/optional.h"
 #include "algorithms/algorithm.h"
 #include "algorithms/approx-bounds.h"
-#include "algorithms/bounded-algorithm.h"
 #include "algorithms/numerical-mechanisms.h"
 #include "algorithms/util.h"
 #include "proto/util.h"
+#include "proto/confidence-interval.pb.h"
 #include "proto/data.pb.h"
 #include "proto/summary.pb.h"
 #include "base/status_macros.h"
 
 namespace differential_privacy {
+
+constexpr int kNumStepsOptMeanConfidenceInterval = 1000;
 
 // Incrementally provides a differentially private average.
 // All input vales are normalized to be their difference from the middle of the
@@ -98,7 +101,7 @@ class BoundedMean : public Algorithm<T> {
         .SetDelta(delta)
         .SetL0Sensitivity(l0_sensitivity)
         .SetLInfSensitivity(max_contributions_per_partition *
-                            (std::abs(upper - lower) / 2))
+                            (std::abs(upper - lower) / 2.0))
         .Build();
   }
 
@@ -162,18 +165,93 @@ class BoundedMeanWithFixedBounds : public BoundedMean<T> {
            count_mechanism_->MemoryUsed();
   }
 
+  base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
+      double confidence_level) override {
+    return NoiseConfidenceInterval(confidence_level, 0, 0);
+  }
+
+  // Returns the confidence interval of the bounded mean algorithm.
+  //
+  // This is currently implemented using the noise confidence intervals of the
+  // numerator, i.e., the sum aggregation, and the denominator, i.e., the count
+  // aggregation, that are used to calculate the anonymized mean.
+  //
+  // The confidence interval [low, up] of bounded mean is derived from
+  // confidence intervals [lowNum, upNum] and [lowDen, upDen] of the mean's
+  // numerator and denominator, such that
+  //   Pr(low < raw < up)
+  //     >= Pr(lowNum < rawNum < upNum & lowDen < rawDen < upDen).
+  //
+  // See the NoiseConfidenceIntervalForFixedNumAndDenom method for details of
+  // how to set [low, up] based on lowNum, upNum, lowDen and upDen.
+  //
+  // Because the confidence intervals of the numerator and denominator are
+  // independent, we can lower bound the confidence level of the mean in terms
+  // of the confidence level of the numerator and the denominator like this:
+  //   Pr(low < raw < up)
+  //     >= Pr(lowNum < rawNum < upNum & lowDen < rawDen < upDen)
+  //      = Pr(lowNum < rawNum < upNum) * Pr(lowDen < rawDen < upDen)
+  //     >= confidenceLevelNum * confidenceLevelDen
+  //
+  // This means that we can choose confidenceLevelNum and alphaDen arbitrarily
+  // as long as
+  //   confidenceLevelNum * confidenceLevelDen = confidenceLevel.
+  //
+  // This implementation uses a brute force search for confidenceLevelNum that
+  // minimizes the size of the confidence interval of bounded mean.
+  base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
+      double confidence_level, double noised_sum, double noised_count) {
+    ConfidenceInterval tightest_ci;
+    double tightest_ci_size = std::numeric_limits<double>::max();
+    for (int i = 1; i < kNumStepsOptMeanConfidenceInterval; ++i) {
+      // Setting the confidence level of the numerator and denominator such that
+      // overall_conf_level = num_conf_level * denom_conf_level
+      // and all confidence levels are between 0 and 1.
+      //
+      // num_conf_level has to be between confidence_level and 1.  We are
+      // dividing this interval into kNumStepsOptMeanConfidenceInterval steps
+      // for the brute force search.
+      const double num_conf_level =
+          confidence_level + (i / (double)kNumStepsOptMeanConfidenceInterval) *
+                                 (1.0 - confidence_level);
+      const double denom_conf_level = confidence_level / num_conf_level;
+      ASSIGN_OR_RETURN(ConfidenceInterval ci,
+                       NoiseConfidenceIntervalForFixedNumAndDenom(
+                           confidence_level, num_conf_level, denom_conf_level,
+                           noised_sum, noised_count));
+      const double ci_size = ci.upper_bound() - ci.lower_bound();
+      if (ci_size < tightest_ci_size) {
+        tightest_ci = ci;
+        tightest_ci_size = ci_size;
+      }
+    }
+    return tightest_ci;
+  }
+
+  // Internal representation of an bounded mean result that also contains the
+  // noised sum and count.
+  struct BoundedMeanResult {
+    double noised_mean;
+    double noised_count;
+    double noised_sum;
+  };
+  BoundedMeanResult GenerateBoundedMeanResult() {
+    const double midpoint = lower_ + ((upper_ - lower_) / 2.0);
+    BoundedMeanResult result;
+    result.noised_count = std::max(
+        1.0, static_cast<double>(count_mechanism_->AddNoise(partial_count_)));
+    result.noised_sum =
+        sum_mechanism_->AddNoise(partial_sum_ - (partial_count_ * midpoint));
+    result.noised_mean = (result.noised_sum / result.noised_count) + midpoint;
+    return result;
+  }
+
  protected:
   base::StatusOr<Output> GenerateResult(double noise_interval_level) override {
-    const double midpoint = lower_ + ((upper_ - lower_) / 2);
-
-    const double noised_count = std::max(
-        1.0, static_cast<double>(count_mechanism_->AddNoise(partial_count_)));
-    const double noised_normalized_sum =
-        sum_mechanism_->AddNoise(partial_sum_ - (partial_count_ * midpoint));
-    const double mean = (noised_normalized_sum / noised_count) + midpoint;
-
+    BoundedMeanResult result = GenerateBoundedMeanResult();
     Output output;
-    AddToOutput<double>(&output, Clamp<double>(lower_, upper_, mean));
+    AddToOutput<double>(&output,
+                        Clamp<double>(lower_, upper_, result.noised_mean));
     return output;
   }
 
@@ -190,6 +268,55 @@ class BoundedMeanWithFixedBounds : public BoundedMean<T> {
     }
     partial_sum_ += Clamp<T>(lower_, upper_, input) * num_of_entries;
     partial_count_ += num_of_entries;
+  }
+
+  // Returns the confidence level for the mean aggregation with confidence level
+  // overall_conf_level, numerator confidence level num_conf_level, and
+  // denominator confidence level denom_conf_level.  This method is called in
+  // NoiseConfidenceInterval for the brute force search for the smallest
+  // confidence level.
+  base::StatusOr<ConfidenceInterval> NoiseConfidenceIntervalForFixedNumAndDenom(
+      double overall_conf_level, double num_conf_level, double denom_conf_level,
+      double noised_sum, double noised_count) const {
+    ASSIGN_OR_RETURN(ConfidenceInterval sum_ci,
+                     sum_mechanism_->NoiseConfidenceInterval(num_conf_level));
+    ASSIGN_OR_RETURN(
+        ConfidenceInterval count_ci,
+        count_mechanism_->NoiseConfidenceInterval(denom_conf_level));
+
+    // Lower and upper CI for count must be at least 1.
+    const double count_lower =
+        std::max<double>(1, noised_count + count_ci.lower_bound());
+    const double count_upper =
+        std::max<double>(1, noised_count + count_ci.upper_bound());
+
+    double mean_lower;
+    const double sum_lower = noised_sum + sum_ci.lower_bound();
+    if (sum_lower >= 0) {
+      mean_lower = sum_lower / count_upper;
+    } else {
+      mean_lower = sum_lower / count_lower;
+    }
+
+    double mean_upper;
+    const double sum_upper = noised_sum + sum_ci.upper_bound();
+    if (sum_upper >= 0) {
+      mean_upper = sum_upper / count_lower;
+    } else {
+      mean_upper = sum_upper / count_upper;
+    }
+
+    ConfidenceInterval mean_ci;
+    mean_ci.set_confidence_level(overall_conf_level);
+
+    // Clamp the output consistently with the GenerateResult method.
+    const double midpoint = lower_ + ((upper_ - lower_) / 2.0);
+    mean_ci.set_lower_bound(
+        Clamp<double>(lower_, upper_, midpoint + mean_lower));
+    mean_ci.set_upper_bound(
+        Clamp<double>(lower_, upper_, midpoint + mean_upper));
+
+    return mean_ci;
   }
 
  private:

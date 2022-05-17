@@ -60,10 +60,10 @@ func TestDistinctPerKeyNoNoise(t *testing.T) {
 
 	// ε=50, δ=10⁻¹⁰⁰ and l0Sensitivity=3 gives a threshold of ≈17.
 	// We have 3 partitions. So, to get an overall flakiness of 10⁻²³,
-	// we can have each partition fail with 1-10⁻²⁵ probability (k=25).
+	// we can have each partition fail with 1-10⁻²⁴ probability (k=24).
 	// To see the logic and the math behind flakiness and tolerance calculation,
 	// See https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf.
-	epsilon, delta, k, l1Sensitivity := 50.0, 1e-100, 25.0, 6.0
+	epsilon, delta, k, l1Sensitivity := 50.0, 1e-100, 24.0, 6.0
 	// ε is split by 2 for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
 	pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
@@ -173,8 +173,8 @@ func TestDistinctPerKeyPerKeyCrossPartitionContributionBounding(t *testing.T) {
 
 	// ε=50, δ=0.01 and l0Sensitivity=3 gives a threshold of 3.
 	// We have 10 partitions. So, to get an overall flakiness of 10⁻²³,
-	// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
-	epsilon, delta, k, l1Sensitivity := 50.0, 0.01, 25.0, 3.0
+	// we need to have each partition pass with 1-10⁻²⁴ probability (k=24).
+	epsilon, delta, k, l1Sensitivity := 50.0, 0.01, 24.0, 3.0
 	// ε is split by 2 for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
 	pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
@@ -237,7 +237,7 @@ func TestDistinctPerKeyWithPartitionsCrossPartitionContributionBounding(t *testi
 			t.Fatalf("ApproxEqualsKVInt64 in-memory=%t: got error %v", tc.inMemory, err)
 		}
 		if err := ptest.Run(p); err != nil {
-			t.Errorf("DistinctPerKey with partitions in-memory=%t did not bound cross-partition contributions correctly: %v", tc.inMemory, col, got, err)
+			t.Errorf("DistinctPerKey with partitions in-memory=%t did not bound cross-partition contributions correctly: %v", tc.inMemory, err)
 		}
 	}
 
@@ -284,8 +284,8 @@ func TestDistinctPerKeyWithPartitionsPerPartitionContributionBounding(t *testing
 
 		// ε=50, δ=10⁻¹⁰⁰ and l0Sensitivity=3 gives a threshold of ≈17.
 		// We have 3 partitions. So, to get an overall flakiness of 10⁻²³,
-		// we can have each partition fail with 1-10⁻²⁵ probability (k=25).
-		epsilon, delta, k, l1Sensitivity := 50.0, 1e-100, 25.0, 6.0
+		// we can have each partition fail with 1-10⁻²⁴ probability (k=24).
+		epsilon, delta, k, l1Sensitivity := 50.0, 1e-100, 24.0, 6.0
 		// ε is split by 2 for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
 		pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
 		pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
@@ -328,8 +328,8 @@ func TestDistinctPerKeyCrossPartitionContributionBounding_IsAppliedBeforeDedupli
 	// However, since δ is very large, a partition with a single user
 	// is kept with a probability almost 1.
 	// We have 100 partitions. So, to get an overall flakiness of 10⁻²³,
-	// we can have each partition fail with 1-10⁻²⁵ probability (k=25).
-	epsilon, delta, k, l1Sensitivity := 50.0, 1-1e-15, 25.0, 1.0
+	// we can have each partition fail with 1-10⁻²⁴ probability (k=24).
+	epsilon, delta, k, l1Sensitivity := 50.0, 1-1e-15, 24.0, 1.0
 	// ε is split by 2 for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
 	pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
@@ -377,8 +377,8 @@ func TestDistinctPerKeyPerPartitionContributionBounding(t *testing.T) {
 
 	// ε=50, δ=10⁻¹⁰⁰ and l0Sensitivity=3 gives a threshold of ≈17.
 	// We have 3 partitions. So, to get an overall flakiness of 10⁻²³,
-	// we can have each partition fail with 1-10⁻²⁵ probability (k=25).
-	epsilon, delta, k, l1Sensitivity := 50.0, 1e-100, 25.0, 6.0
+	// we can have each partition fail with 1-10⁻²⁴ probability (k=24).
+	epsilon, delta, k, l1Sensitivity := 50.0, 1e-100, 24.0, 6.0
 	// ε is split by 2 for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
 	pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)

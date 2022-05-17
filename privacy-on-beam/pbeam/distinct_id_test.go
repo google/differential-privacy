@@ -80,10 +80,10 @@ func TestDistinctPrivacyIDNoNoise(t *testing.T) {
 
 	// ε=50, δ=10⁻²⁰⁰ and l1Sensitivity=4 gives a post-aggregation threshold of 38.
 	// We have 4 partitions. So, to get an overall flakiness of 10⁻²³,
-	// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
+	// we need to have each partition pass with 1-10⁻²⁴ probability (k=24).
 	// To see the logic and the math behind flakiness and tolerance calculation,
 	// See https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf.
-	epsilon, delta, k, l1Sensitivity := 50.0, 1e-200, 25.0, 4.0
+	epsilon, delta, k, l1Sensitivity := 50.0, 1e-200, 24.0, 4.0
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 	got := DistinctPrivacyID(s, pcol, DistinctPrivacyIDParams{MaxPartitionsContributed: 4, NoiseKind: LaplaceNoise{}})
 	want = beam.ParDo(s, testutils.Int64MetricToKV, want)
@@ -134,8 +134,8 @@ func TestDistinctPrivacyIDWithPartitionsNoNoise(t *testing.T) {
 
 		// We have ε=500, δ=0, and l1Sensitivity=4.
 		// We have 4 partitions. So, to get an overall flakiness of 10⁻²³,
-		// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
-		epsilon, delta, k, l1Sensitivity := 500.0, 0.0, 25.0, 4.0
+		// we need to have each partition pass with 1-10⁻²⁴ probability (k=24).
+		epsilon, delta, k, l1Sensitivity := 500.0, 0.0, 24.0, 4.0
 		pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 		distinctPrivacyIDParams := DistinctPrivacyIDParams{MaxPartitionsContributed: 4, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions}
 		got := DistinctPrivacyID(s, pcol, distinctPrivacyIDParams)
@@ -415,8 +415,8 @@ func TestDistinctPrivacyIDCrossPartitionContributionBounding(t *testing.T) {
 
 	// ε=50, δ=0.01 and l0Sensitivity=3 gives a post-aggregation threshold of 2.
 	// We have 10 partitions. So, to get an overall flakiness of 10⁻²³,
-	// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
-	epsilon, delta, k, l1Sensitivity := 50.0, 0.01, 25.0, 3.0
+	// we need to have each partition pass with 1-10⁻²⁴ probability (k=24).
+	epsilon, delta, k, l1Sensitivity := 50.0, 0.01, 24.0, 3.0
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 	got := DistinctPrivacyID(s, pcol, DistinctPrivacyIDParams{MaxPartitionsContributed: 3, NoiseKind: LaplaceNoise{}})
 	// With a max contribution of 3, 70% of the data should be
@@ -464,8 +464,8 @@ func TestDistinctPrivacyIDWithPartitionsCrossPartitionContributionBounding(t *te
 
 		// We have ε=50, δ=0 and l1Sensitivity=3.
 		// We have 5 partitions. So, to get an overall flakiness of 10⁻²³,
-		// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
-		epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 25.0, 3.0
+		// we need to have each partition pass with 1-10⁻²⁴ probability (k=24).
+		epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 24.0, 3.0
 		pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 		distinctPrivacyIDParams := DistinctPrivacyIDParams{MaxPartitionsContributed: 3, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions}
 		got := DistinctPrivacyID(s, pcol, distinctPrivacyIDParams)
@@ -573,8 +573,8 @@ func TestDistinctPrivacyIDOptimizedContrib(t *testing.T) {
 
 	// ε=50, δ=10⁻²⁰⁰ and l1Sensitivity=4 gives a post-aggregation threshold of 38.
 	// We have 4 partitions. So, to get an overall flakiness of 10⁻²³,
-	// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
-	epsilon, delta, k, l1Sensitivity := 50.0, 1e-200, 25.0, 4.0
+	// we need to have each partition pass with 1-10⁻²⁴ probability (k=24).
+	epsilon, delta, k, l1Sensitivity := 50.0, 1e-200, 24.0, 4.0
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 	got := DistinctPrivacyID(s, pcol, DistinctPrivacyIDParams{MaxPartitionsContributed: 4, NoiseKind: LaplaceNoise{}})
 	want = beam.ParDo(s, testutils.Int64MetricToKV, want)

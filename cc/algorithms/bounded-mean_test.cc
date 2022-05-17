@@ -60,8 +60,11 @@ namespace {
 using ::differential_privacy::test_utils::ZeroNoiseMechanism;
 using ::testing::_;
 using ::testing::DoubleEq;
+using ::testing::DoubleNear;
 using ::differential_privacy::base::testing::EqualsProto;
+using ::testing::Gt;
 using ::testing::HasSubstr;
+using ::testing::Lt;
 using ::testing::NotNull;
 using ::differential_privacy::base::testing::StatusIs;
 
@@ -246,6 +249,23 @@ TEST(BoundedMeanTest, InvalidParametersTest) {
   EXPECT_THAT(BoundedMean<double>::Builder().SetEpsilon(0).Build(),
               StatusIs(absl::StatusCode::kInvalidArgument,
                        HasSubstr("Epsilon must be finite and positive")));
+}
+
+TEST(BoundedMeanTest, NormalizedSumHasExpectedSensitivity) {
+  // Checking for rounding issues in the sensitivity calculation when the type
+  // of the bounds is int.
+  base::StatusOr<std::unique_ptr<NumericalMechanism>> m =
+      BoundedMean<int>::BuildMechanismForNormalizedSum(
+          std::make_unique<LaplaceMechanism::Builder>(), kDefaultEpsilon,
+          /*delta=*/0,
+          /*l0_sensitivity=*/1,
+          /*max_contribution_per_partition=*/1, /*lower=*/0, /*upper=*/3);
+  ASSERT_OK(m);
+
+  LaplaceMechanism* lm = dynamic_cast<LaplaceMechanism*>(m->get());
+  ASSERT_THAT(lm, NotNull());
+
+  EXPECT_THAT(lm->GetSensitivity(), DoubleEq(3.0 / 2.0));
 }
 
 TYPED_TEST(BoundedMeanTest, InsufficientPrivacyBudgetTest) {
@@ -1027,6 +1047,141 @@ TEST(BoundedMeanWithFixedBoundsTest, ApproxBoundsMechanismHasExpectedVariance) {
                   ->GetMechanismForTesting()
                   ->GetVariance(),
               DoubleEq(expected_variance));
+}
+
+TEST(BoundedMeanTest, ConfidenceIntervalWithNoisedResultOkWithPosMidpoint) {
+  const double lower = -1;
+  const double upper = 1;
+  const double confidence_level = 0.95;
+  // Use 1000 as noised contribution count and 500 as noised total sum -> CI
+  // midpoint should be close to 0.5.
+  const double noised_count = 1000;
+  const double noised_sum = 500;
+
+  base::StatusOr<std::unique_ptr<BoundedMean<double>>> bm =
+      typename BoundedMean<double>::Builder()
+          .SetEpsilon(kDefaultEpsilon)
+          .SetLower(lower)
+          .SetUpper(upper)
+          .Build();
+  ASSERT_OK(bm);
+
+  BoundedMeanWithFixedBounds<double>* fixed_bm =
+      dynamic_cast<BoundedMeanWithFixedBounds<double>*>(bm->get());
+  ASSERT_THAT(fixed_bm, NotNull());
+
+  base::StatusOr<ConfidenceInterval> ci = fixed_bm->NoiseConfidenceInterval(
+      confidence_level, noised_sum, noised_count);
+  ASSERT_OK(ci);
+  EXPECT_THAT(ci->lower_bound(), Lt(ci->upper_bound()));
+  EXPECT_THAT(ci->confidence_level(), DoubleEq(confidence_level));
+
+  const double ci_midpoint = (ci->upper_bound() + ci->lower_bound()) / 2.0;
+  ASSERT_THAT(ci_midpoint, DoubleNear(0.5, 0.01));
+}
+
+TEST(BoundedMeanTest, ConfidenceIntervalWithNoisedResultOkWithNegMidpoint) {
+  const double lower = -1;
+  const double upper = 1;
+  const double confidence_level = 0.95;
+  // Use 1000 as noised contribution count and -500 as noised total sum -> CI
+  // midpoint should be close to -0.5.
+  const double noised_count = 1000;
+  const double noised_sum = -500;
+
+  base::StatusOr<std::unique_ptr<BoundedMean<double>>> bm =
+      typename BoundedMean<double>::Builder()
+          .SetEpsilon(kDefaultEpsilon)
+          .SetLower(lower)
+          .SetUpper(upper)
+          .Build();
+  ASSERT_OK(bm);
+
+  BoundedMeanWithFixedBounds<double>* fixed_bm =
+      dynamic_cast<BoundedMeanWithFixedBounds<double>*>(bm->get());
+  ASSERT_THAT(fixed_bm, NotNull());
+
+  base::StatusOr<ConfidenceInterval> ci = fixed_bm->NoiseConfidenceInterval(
+      confidence_level, noised_sum, noised_count);
+  ASSERT_OK(ci);
+  EXPECT_THAT(ci->lower_bound(), Lt(ci->upper_bound()));
+  EXPECT_THAT(ci->confidence_level(), DoubleEq(confidence_level));
+
+  const double ci_midpoint = (ci->upper_bound() + ci->lower_bound()) / 2.0;
+  ASSERT_THAT(ci_midpoint, DoubleNear(-0.5, 0.01));
+}
+
+TEST(BoundedMeanTest, ConfidenceIntervalWithLowerLevelGetsTighter) {
+  const double lower = -1;
+  const double upper = 1;
+  const double confidence_level_higher = 0.95;
+  const double confidence_level_lower = 0.8;
+  const double noised_count = 1000;
+  const double noised_sum = -500;
+
+  base::StatusOr<std::unique_ptr<BoundedMean<double>>> bm =
+      typename BoundedMean<double>::Builder()
+          .SetEpsilon(kDefaultEpsilon)
+          .SetLower(lower)
+          .SetUpper(upper)
+          .Build();
+  ASSERT_OK(bm);
+
+  BoundedMeanWithFixedBounds<double>* fixed_bm =
+      dynamic_cast<BoundedMeanWithFixedBounds<double>*>(bm->get());
+  ASSERT_THAT(fixed_bm, NotNull());
+
+  base::StatusOr<ConfidenceInterval> ci_higher =
+      fixed_bm->NoiseConfidenceInterval(confidence_level_higher, noised_sum,
+                                        noised_count);
+  ASSERT_OK(ci_higher);
+  base::StatusOr<ConfidenceInterval> ci_lower =
+      fixed_bm->NoiseConfidenceInterval(confidence_level_lower, noised_sum,
+                                        noised_count);
+  ASSERT_OK(ci_lower);
+
+  // The CI returned with higher confidence level has to be included in the CI
+  // for the lower confidence level.
+  EXPECT_THAT(ci_higher->lower_bound(), Lt(ci_lower->lower_bound()));
+  EXPECT_THAT(ci_higher->upper_bound(), Gt(ci_lower->upper_bound()));
+}
+
+TEST(BoundedMeanTest, ConfidenceIntervalWithMoreDataGetsTighter) {
+  const double lower = -1;
+  const double upper = 1;
+  const double confidence_level = 0.95;
+
+  const double noised_count_many_users = 1000;
+  const double noised_sum_many_users = -500;
+
+  const double noised_count_fewer_users = 100;
+  const double noised_sum_fewer_users = -50;
+
+  base::StatusOr<std::unique_ptr<BoundedMean<double>>> bm =
+      typename BoundedMean<double>::Builder()
+          .SetEpsilon(kDefaultEpsilon)
+          .SetLower(lower)
+          .SetUpper(upper)
+          .Build();
+  ASSERT_OK(bm);
+
+  BoundedMeanWithFixedBounds<double>* fixed_bm =
+      dynamic_cast<BoundedMeanWithFixedBounds<double>*>(bm->get());
+  ASSERT_THAT(fixed_bm, NotNull());
+
+  base::StatusOr<ConfidenceInterval> ci_many_users =
+      fixed_bm->NoiseConfidenceInterval(confidence_level, noised_sum_many_users,
+                                        noised_count_many_users);
+  ASSERT_OK(ci_many_users);
+  base::StatusOr<ConfidenceInterval> ci_fewer_users =
+      fixed_bm->NoiseConfidenceInterval(
+          confidence_level, noised_sum_fewer_users, noised_count_fewer_users);
+  ASSERT_OK(ci_fewer_users);
+
+  // The CI returned with fewer users has to be included in the CI for many
+  // users.
+  EXPECT_THAT(ci_fewer_users->lower_bound(), Lt(ci_many_users->lower_bound()));
+  EXPECT_THAT(ci_fewer_users->upper_bound(), Gt(ci_many_users->upper_bound()));
 }
 
 }  //  namespace

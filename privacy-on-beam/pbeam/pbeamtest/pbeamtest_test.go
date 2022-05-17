@@ -1388,7 +1388,7 @@ func TestQuantilesPerKeyWithPartitionsAppliesPublicPartitions(t *testing.T) {
 			t.Fatalf("ApproxEqualsKVFloat64Slice: got error %v", err)
 		}
 		if err := ptest.Run(p); err != nil {
-			t.Errorf("QuantilesPerKey: %s did not apply public partitions correctly: %v", err)
+			t.Errorf("QuantilesPerKey: %s did not apply public partitions correctly: %v", tc.desc, err)
 		}
 	}
 }
@@ -1721,7 +1721,7 @@ func TestDistinctPerKeyWithPartitionsTestModeEmptyPartitionsInt(t *testing.T) {
 			t.Fatalf("EqualsKVInt64: %v", err)
 		}
 		if err := ptest.Run(p); err != nil {
-			t.Errorf("DistinctPerKey: %s did not apply public partitions correctly", tc.desc, err)
+			t.Errorf("DistinctPerKey: %s did not apply public partitions correctly: %v", tc.desc, err)
 		}
 	}
 }

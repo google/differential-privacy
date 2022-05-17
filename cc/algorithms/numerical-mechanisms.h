@@ -124,9 +124,8 @@ class NumericalMechanism {
   virtual int64_t AddInt64Noise(int64_t result) = 0;
 
   static absl::Status CheckConfidenceLevel(const double confidence_level) {
-    RETURN_IF_ERROR(ValidateIsInExclusiveInterval(confidence_level, 0, 1,
-                                                  "Confidence level"));
-    return absl::OkStatus();
+    return ValidateIsInExclusiveInterval(confidence_level, 0, 1,
+                                         "Confidence level");
   }
 
  private:
@@ -337,9 +336,10 @@ class LaplaceMechanism : public NumericalMechanism {
       double confidence_level, double noised_result) override {
     RETURN_IF_ERROR(CheckConfidenceLevel(confidence_level));
 
-    double bound = diversity_ * std::log(1 - confidence_level);
+    const double bound = diversity_ * std::log(1.0 - confidence_level);
 
     ConfidenceInterval confidence;
+    // bound is negative as log(x) with 0 < x < 1 is negative.
     confidence.set_lower_bound(noised_result + bound);
     confidence.set_upper_bound(noised_result - bound);
     confidence.set_confidence_level(confidence_level);

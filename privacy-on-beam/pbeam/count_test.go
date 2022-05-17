@@ -57,10 +57,10 @@ func TestCountNoNoise(t *testing.T) {
 
 	// ε=25, δ=10⁻²⁰⁰ and l0Sensitivity=1 gives a threshold of ≈21.
 	// We have 3 partitions. So, to get an overall flakiness of 10⁻²³,
-	// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
+	// we need to have each partition pass with 1-10⁻²⁴ probability (k=24).
 	// To see the logic and the math behind flakiness and tolerance calculation,
 	// See https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf.
-	epsilon, delta, k, l1Sensitivity := 25.0, 1e-200, 25.0, 2.0
+	epsilon, delta, k, l1Sensitivity := 25.0, 1e-200, 24.0, 2.0
 	// ε is split by 2 for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
 	pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
 	got := Count(s, pcol, CountParams{MaxValue: 2, MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}})
@@ -105,8 +105,8 @@ func TestCountWithPartitionsNoNoise(t *testing.T) {
 
 		// We use ε=50, δ=0 and l1Sensitivity=2.
 		// We have 2 partitions. So, to get an overall flakiness of 10⁻²³,
-		// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
-		epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 25.0, 2.0
+		// we need to have each partition pass with 1-10⁻²⁴ probability (k=24).
+		epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 24.0, 2.0
 		pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 		countParams := CountParams{MaxValue: 2, MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions}
 
@@ -370,7 +370,7 @@ func TestCountCrossPartitionContributionBounding(t *testing.T) {
 
 	// ε=50, δ=0.01 and l0Sensitivity=3 gives a threshold of 3.
 	// We have 10 partitions. So, to get an overall flakiness of 10⁻²³,
-	// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
+	// we need to have each partition pass with 1-10⁻²⁴ probability (k=24).
 	epsilon, delta, k, l1Sensitivity := 50.0, 0.01, 25.0, 3.0
 	// ε is split by 2 for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
 	pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
@@ -419,8 +419,8 @@ func TestCountWithPartitionsCrossPartitionContributionBounding(t *testing.T) {
 		}
 
 		// We have 5 partitions. So, to get an overall flakiness of 10⁻²³,
-		// we need to have each partition pass with 1-10⁻²⁵ probability (k=25).
-		epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 25.0, 3.0
+		// we need to have each partition pass with 1-10⁻²⁴ probability (k=24).
+		epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 24.0, 3.0
 		pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 		countParams := CountParams{MaxPartitionsContributed: 3, MaxValue: 1, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions}
 		got := Count(s, pcol, countParams)

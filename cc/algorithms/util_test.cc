@@ -662,6 +662,21 @@ TEST(ValidateTest, IsLesserThanError) {
   }
 }
 
+TEST(ValidateTest, IsLesserThanUnsetError) {
+  std::optional<double> test_unset;
+
+  EXPECT_THAT(ValidateIsLesserThan(test_unset, 1, "Test value"),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Test value must be set")));
+}
+
+TEST(ValidateTest, IsLesserThanNaNError) {
+  EXPECT_THAT(ValidateIsLesserThan(std::numeric_limits<double>::quiet_NaN(), 1,
+                                   "Test value"),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Test value must be a valid numeric value")));
+}
+
 TEST(ValidateTest, IsLesserThanOrEqualToOkStatus) {
   struct LesserThanParams {
     double value;
@@ -714,6 +729,21 @@ TEST(ValidateTest, IsLesserThanOrEqualToError) {
   }
 }
 
+TEST(ValidateTest, IsLesserThanOrEqualToUnsetError) {
+  std::optional<double> test_unset;
+
+  EXPECT_THAT(ValidateIsLesserThanOrEqualTo(test_unset, 1, "Test value"),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Test value must be set")));
+}
+
+TEST(ValidateTest, IsLesserThanOrEqualToNaNError) {
+  EXPECT_THAT(ValidateIsLesserThanOrEqualTo(
+                  std::numeric_limits<double>::quiet_NaN(), 1, "Test value"),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Test value must be a valid numeric value")));
+}
+
 TEST(ValidateTest, IsGreaterThanOkStatus) {
   struct GreaterThanParams {
     double value;
@@ -763,6 +793,21 @@ TEST(ValidateTest, IsGreaterThanError) {
   }
 }
 
+TEST(ValidateTest, IsGreaterThanUnsetError) {
+  std::optional<double> test_unset;
+
+  EXPECT_THAT(ValidateIsGreaterThan(test_unset, 1, "Test value"),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Test value must be set")));
+}
+
+TEST(ValidateTest, IsGreaterThanNaNError) {
+  EXPECT_THAT(ValidateIsGreaterThan(std::numeric_limits<double>::quiet_NaN(), 1,
+                                    "Test value"),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Test value must be a valid numeric value")));
+}
+
 TEST(ValidateTest, IsGreaterThanOrEqualToOkStatus) {
   struct GreaterThanParams {
     double value;
@@ -810,6 +855,21 @@ TEST(ValidateTest, IsGreaterThanOrEqualToError) {
         StatusIs(absl::StatusCode::kInvalidArgument,
                  HasSubstr("Test value must be greater than or equal to")));
   }
+}
+
+TEST(ValidateTest, IsGreaterThanOrEqualToUnsetError) {
+  std::optional<double> test_unset;
+
+  EXPECT_THAT(ValidateIsGreaterThanOrEqualTo(test_unset, 1, "Test value"),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Test value must be set")));
+}
+
+TEST(ValidateTest, IsGreaterThanOrEqualToNaNError) {
+  EXPECT_THAT(ValidateIsGreaterThanOrEqualTo(
+                  std::numeric_limits<double>::quiet_NaN(), 1, "Test value"),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Test value must be a valid numeric value")));
 }
 
 TEST(ValidateTest, IsInIntervalOkStatus) {

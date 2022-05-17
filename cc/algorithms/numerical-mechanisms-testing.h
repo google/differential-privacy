@@ -199,9 +199,31 @@ class MockLaplaceMechanism : public LaplaceMechanism {
     std::unique_ptr<MockLaplaceMechanism> mock_;
   };
 
-  MockLaplaceMechanism() : LaplaceMechanism(1, 1) {}
+  MockLaplaceMechanism() : LaplaceMechanism(1, 1) {
+    // TODO: Remove this (and the two-argument Add*Noise methods)
+    // once dependencies are migrated.
+    ON_CALL(*this, AddDoubleNoise(::testing::_, ::testing::_))
+        .WillByDefault([this](double value, double privacy_budget) {
+          return this->AddDoubleNoise(value);
+        });
+    ON_CALL(*this, AddInt64Noise(::testing::_, ::testing::_))
+        .WillByDefault([this](double value, double privacy_budget) {
+          return this->AddInt64Noise(value);
+        });
+  }
   MockLaplaceMechanism(double epsilon, double sensitivity)
-      : LaplaceMechanism(epsilon, sensitivity) {}
+      : LaplaceMechanism(epsilon, sensitivity) {
+    // TODO: Remove this (and the two-argument Add*Noise methods)
+    // once dependencies are migrated.
+    ON_CALL(*this, AddDoubleNoise(::testing::_, ::testing::_))
+        .WillByDefault([this](double value, double privacy_budget) {
+          return this->AddDoubleNoise(value);
+        });
+    ON_CALL(*this, AddInt64Noise(::testing::_, ::testing::_))
+        .WillByDefault([this](double value, double privacy_budget) {
+          return this->AddInt64Noise(value);
+        });
+  }
   MOCK_METHOD(double, AddDoubleNoise, (double result), (override));
   MOCK_METHOD(double, AddDoubleNoise, (double result, double privacy_budget),
               (override));

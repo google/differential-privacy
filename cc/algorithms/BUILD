@@ -189,8 +189,10 @@ cc_library(
         "@com_google_absl//absl/memory",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:optional",
         "@com_google_cc_differential_privacy//base:status",
         "@com_google_cc_differential_privacy//base:statusor",
+        "@com_google_differential_privacy//proto:confidence_interval_cc_proto",
         "@com_google_differential_privacy//proto:data_cc_proto",
         "@com_google_differential_privacy//proto:summary_cc_proto",
     ],
@@ -214,6 +216,20 @@ cc_test(
         "@com_google_cc_differential_privacy//base:statusor",
         "@com_google_differential_privacy//proto:data_cc_proto",
         "@com_google_differential_privacy//proto:summary_cc_proto",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "bounded-mean-ci-statistical_test",
+    size = "medium",
+    timeout = "long",
+    srcs = ["bounded-mean-ci-statistical_test.cc"],
+    deps = [
+        ":bounded-mean",
+        "//base/testing:status_matchers",
+        "@com_google_cc_differential_privacy//base:statusor",
+        "@com_google_differential_privacy//proto:confidence_interval_cc_proto",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -356,6 +372,7 @@ cc_library(
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:optional",
         "@com_google_cc_differential_privacy//base:status",
         "@com_google_cc_differential_privacy//base:statusor",
     ],
@@ -511,6 +528,7 @@ cc_library(
         ":algorithm",
         ":approx-bounds",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/types:optional",
         "@com_google_cc_differential_privacy//base:status",
         "@com_google_cc_differential_privacy//base:statusor",
     ],

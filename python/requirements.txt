@@ -1,6 +1,5 @@
-numpy
-scipy>=1.5.0,<1.8.0
-absl-py
-dataclasses
-attrs
-mpmath
+numpy==1.21.0
+scipy==1.7.1
+absl-py==0.13.0
+attrs==21.4.0
+mpmath==1.2.1

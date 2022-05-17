@@ -506,6 +506,8 @@ TEST(NumericalMechanismsTest, LaplaceConfidenceInterval) {
   base::StatusOr<ConfidenceInterval> confidence_interval =
       mechanism.NoiseConfidenceInterval(level);
   ASSERT_OK(confidence_interval);
+  EXPECT_LT(confidence_interval->lower_bound(),
+            confidence_interval->upper_bound());
   EXPECT_EQ(confidence_interval->lower_bound(), std::log(1 - level) / epsilon);
   EXPECT_EQ(confidence_interval->upper_bound(), -std::log(1 - level) / epsilon);
   EXPECT_EQ(confidence_interval->confidence_level(), level);

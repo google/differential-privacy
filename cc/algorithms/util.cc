@@ -205,67 +205,51 @@ absl::Status ValidateIsInExclusiveInterval(absl::optional<double> opt,
 absl::Status ValidateIsLesserThan(absl::optional<double> opt,
                                   double upper_bound, absl::string_view name,
                                   absl::StatusCode error_code) {
-  double lower_bound = -std::numeric_limits<double>::infinity();
-  bool include_lower = lower_bound != upper_bound;
-
-  absl::Status result = ValidateIsInInterval(
-      opt, lower_bound, upper_bound, include_lower, false, name, error_code);
-  if (result.ok()) {
+  RETURN_IF_ERROR(ValidateIsSet(opt, name, error_code));
+  if (opt.value() < upper_bound) {
     return absl::OkStatus();
-  } else {
-    return absl::Status(error_code,
-                        absl::StrCat(name, " must be lesser than ", upper_bound,
-                                     ", but is ", opt.value(), "."));
   }
+  return absl::Status(error_code,
+                      absl::StrCat(name, " must be lesser than ", upper_bound,
+                                   ", but is ", opt.value(), "."));
 }
 
 absl::Status ValidateIsLesserThanOrEqualTo(absl::optional<double> opt,
                                            double upper_bound,
                                            absl::string_view name,
                                            absl::StatusCode error_code) {
-  absl::Status result =
-      ValidateIsInInterval(opt, -std::numeric_limits<double>::infinity(),
-                           upper_bound, true, true, name, error_code);
-  if (result.ok()) {
+  RETURN_IF_ERROR(ValidateIsSet(opt, name, error_code));
+  if (opt.value() <= upper_bound) {
     return absl::OkStatus();
-  } else {
-    return absl::Status(
-        error_code, absl::StrCat(name, " must be lesser than or equal to ",
-                                 upper_bound, ", but is ", opt.value(), "."));
   }
+  return absl::Status(error_code,
+                      absl::StrCat(name, " must be lesser than or equal to ",
+                                   upper_bound, ", but is ", opt.value(), "."));
 }
 
 absl::Status ValidateIsGreaterThan(absl::optional<double> opt,
                                    double lower_bound, absl::string_view name,
                                    absl::StatusCode error_code) {
-  double upper_bound = std::numeric_limits<double>::infinity();
-  bool include_upper = lower_bound != upper_bound;
-
-  absl::Status result = ValidateIsInInterval(
-      opt, lower_bound, upper_bound, false, include_upper, name, error_code);
-  if (result.ok()) {
+  RETURN_IF_ERROR(ValidateIsSet(opt, name, error_code));
+  if (opt.value() > lower_bound) {
     return absl::OkStatus();
-  } else {
-    return absl::Status(
-        error_code, absl::StrCat(name, " must be greater than ", lower_bound,
-                                 ", but is ", opt.value(), "."));
   }
+  return absl::Status(error_code,
+                      absl::StrCat(name, " must be greater than ", lower_bound,
+                                   ", but is ", opt.value(), "."));
 }
 
 absl::Status ValidateIsGreaterThanOrEqualTo(absl::optional<double> opt,
                                             double lower_bound,
                                             absl::string_view name,
                                             absl::StatusCode error_code) {
-  absl::Status result = ValidateIsInInterval(
-      opt, lower_bound, std::numeric_limits<double>::infinity(), true, true,
-      name, error_code);
-  if (result.ok()) {
+  RETURN_IF_ERROR(ValidateIsSet(opt, name, error_code));
+  if (opt.value() >= lower_bound) {
     return absl::OkStatus();
-  } else {
-    return absl::Status(
-        error_code, absl::StrCat(name, " must be greater than or equal to ",
-                                 lower_bound, ", but is ", opt.value(), "."));
   }
+  return absl::Status(error_code,
+                      absl::StrCat(name, " must be greater than or equal to ",
+                                   lower_bound, ", but is ", opt.value(), "."));
 }
 
 absl::Status ValidateIsInInterval(absl::optional<double> opt,
