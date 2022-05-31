@@ -47,6 +47,14 @@ class AccountantTest(parameterized.TestCase):
           'delta': 0.0001,
           'num_queries': 20,
           'expected_parameter': 6.8,
+      },
+      {
+          'testcase_name': 'large_num_composition',
+          'sensitivity': 1,
+          'epsilon': 1,
+          'delta': 0.0001,
+          'num_queries': 500,
+          'expected_parameter': 71.2,
       },)
   def test_get_smallest_laplace_noise(self, epsilon, delta, num_queries,
                                       sensitivity, expected_parameter):

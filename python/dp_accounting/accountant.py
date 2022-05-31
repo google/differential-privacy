@@ -77,14 +77,16 @@ def get_smallest_laplace_noise(
   """
 
   def privacy_loss_distribution_constructor(parameter):
-    # Setting value_discretization_interval equal to 0.001 * epsilon ensures
-    # that the resulting parameter is not (epsilon', delta)-DP for epsilon' less
-    # than  0.999 * epsilon. This is a heuristic for getting a reasonable
-    # pessimistic estimate for the noise parameter.
+    # Setting value_discretization_interval equal to
+    # 0.01 * epsilon / num_queries ensures that the resulting parameter is not
+    # (epsilon', delta)-DP for epsilon' less than  0.99 * epsilon / num_queries.
+    # This is a heuristic for getting a reasonable pessimistic estimate for the
+    # noise parameter.
     return privacy_loss_distribution.from_laplace_mechanism(
         parameter,
         sensitivity=sensitivity,
-        value_discretization_interval=0.001 * privacy_parameters.epsilon)
+        value_discretization_interval=0.01 * privacy_parameters.epsilon /
+        num_queries)
 
   # Laplace mechanism with parameter sensitivity * num_queries / epsilon is
   # epsilon-DP (for num_queries queries).

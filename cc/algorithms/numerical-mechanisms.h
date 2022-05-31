@@ -95,6 +95,20 @@ class NumericalMechanism {
   virtual base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
       double confidence_level) = 0;
 
+  struct NoiseConfidenceIntervalResult {
+    double upper;
+    double lower;
+  };
+
+  // An optimized but unchecked method for NoiseConfidenceInterval.  End-users
+  // should use NoiseConfidenceInterval instead.
+  //
+  // If confidence_level is in the open interval (0,1), this method returns the
+  // noise confidence interval for the noised result.  If confidence_level is
+  // outside of (0,1), the behavior is unspecified.
+  virtual NoiseConfidenceIntervalResult UncheckedNoiseConfidenceInterval(
+      double confidence_level, double noised_result) const = 0;
+
   double GetEpsilon() const { return epsilon_; }
 
   // Returns the variance of the noise that will be added by the underlying
@@ -332,18 +346,26 @@ class LaplaceMechanism : public NumericalMechanism {
     return NoiseConfidenceInterval(confidence_level, 0);
   }
 
+  NoiseConfidenceIntervalResult UncheckedNoiseConfidenceInterval(
+      double confidence_level, double noised_result) const override {
+    const double bound = diversity_ * std::log(1.0 - confidence_level);
+    NoiseConfidenceIntervalResult ci;
+    // bound is negative as log(x) with 0 < x < 1 is negative.
+    ci.lower = noised_result + bound;
+    ci.upper = noised_result - bound;
+    return ci;
+  }
+
   base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
       double confidence_level, double noised_result) override {
     RETURN_IF_ERROR(CheckConfidenceLevel(confidence_level));
-
-    const double bound = diversity_ * std::log(1.0 - confidence_level);
-
-    ConfidenceInterval confidence;
-    // bound is negative as log(x) with 0 < x < 1 is negative.
-    confidence.set_lower_bound(noised_result + bound);
-    confidence.set_upper_bound(noised_result - bound);
-    confidence.set_confidence_level(confidence_level);
-    return confidence;
+    NoiseConfidenceIntervalResult ci =
+        UncheckedNoiseConfidenceInterval(confidence_level, noised_result);
+    ConfidenceInterval result;
+    result.set_lower_bound(ci.lower);
+    result.set_upper_bound(ci.upper);
+    result.set_confidence_level(confidence_level);
+    return result;
   }
 
   serialization::LaplaceMechanism Serialize() const {
@@ -566,22 +588,31 @@ class GaussianMechanism : public NumericalMechanism {
     return NoiseConfidenceInterval(confidence_level, 0);
   }
 
+  NoiseConfidenceIntervalResult UncheckedNoiseConfidenceInterval(
+      double confidence_level, double noised_result) const override {
+    const double stddev =
+        CalculateStddev(GetEpsilon(), delta_, l2_sensitivity_);
+    // calculated using the symmetric properties of the Gaussian distribution
+    // and the cumulative distribution function for the distribution
+    double bound =
+        InverseErrorFunction(-1 * confidence_level) * stddev * std::sqrt(2.0);
+    NoiseConfidenceIntervalResult ci;
+    // bound is negative.
+    ci.lower = noised_result + bound;
+    ci.upper = noised_result - bound;
+    return ci;
+  }
+
   base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
       double confidence_level, double noised_result) override {
     RETURN_IF_ERROR(CheckConfidenceLevel(confidence_level));
-
-    double stddev = CalculateStddev(GetEpsilon(), delta_, l2_sensitivity_);
-
-    ConfidenceInterval confidence;
-    // calculated using the symmetric properties of the Gaussian distribution
-    // and the cumulative distribution function for the distribution
-    float bound =
-        InverseErrorFunction(-1 * confidence_level) * stddev * std::sqrt(2);
-    confidence.set_lower_bound(noised_result + bound);
-    confidence.set_upper_bound(noised_result - bound);
-    confidence.set_confidence_level(confidence_level);
-
-    return confidence;
+    NoiseConfidenceIntervalResult ci =
+        UncheckedNoiseConfidenceInterval(confidence_level, noised_result);
+    ConfidenceInterval result;
+    result.set_lower_bound(ci.lower);
+    result.set_upper_bound(ci.upper);
+    result.set_confidence_level(confidence_level);
+    return result;
   }
 
   // Returns the standard deviation of the Gaussian noise necessary to obtain

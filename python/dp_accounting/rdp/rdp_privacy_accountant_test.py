@@ -259,13 +259,13 @@ class RdpPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
     orders = range(2, 33)
     rdp = [1.1 for o in orders]  # Constant corresponds to pure DP.
 
-    epsilon, optimal_order = rdp_privacy_accountant._compute_epsilon(
+    epsilon, optimal_order = rdp_privacy_accountant.compute_epsilon(
         orders, rdp, delta=1e-5)
     # Compare with epsilon computed by hand.
     self.assertAlmostEqual(epsilon, 1.32783806176)
     self.assertEqual(optimal_order, 32)
 
-    delta, optimal_order = rdp_privacy_accountant._compute_delta(
+    delta, optimal_order = rdp_privacy_accountant.compute_delta(
         orders, rdp, epsilon=1.32783806176)
     self.assertAlmostEqual(delta, 1e-5)
     self.assertEqual(optimal_order, 32)
@@ -277,10 +277,10 @@ class RdpPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
     rdp = rdp_privacy_accountant._compute_rdp_poisson_subsampled_gaussian(
         1, 4.530877117, orders)
 
-    eps = rdp_privacy_accountant._compute_epsilon(orders, rdp, delta=1e-6)[0]
+    eps = rdp_privacy_accountant.compute_epsilon(orders, rdp, delta=1e-6)[0]
     self.assertAlmostEqual(eps, 1)
 
-    delta = rdp_privacy_accountant._compute_delta(orders, rdp, epsilon=1)[0]
+    delta = rdp_privacy_accountant.compute_delta(orders, rdp, epsilon=1)[0]
     self.assertAlmostEqual(delta, 1e-6)
 
   params = ({
@@ -342,7 +342,7 @@ class RdpPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
     rdp = rdp_privacy_accountant._compute_rdp_poisson_subsampled_gaussian(
         1, 1, orders)
     for eps in eps_vec:
-      delta = rdp_privacy_accountant._compute_delta(orders, rdp, epsilon=eps)[0]
+      delta = rdp_privacy_accountant.compute_delta(orders, rdp, epsilon=eps)[0]
       # For comparison, we compute the optimal guarantee for Gaussian
       # using https://arxiv.org/abs/1805.06530 Theorem 8 (in v2).
       delta0 = math.erfc((eps - .5) / math.sqrt(2)) / 2

@@ -67,6 +67,7 @@ py_test(
         ":common",
         ":test_util",
         requirement("absl-py"),
+        requirement("numpy"),
     ],
 )
 

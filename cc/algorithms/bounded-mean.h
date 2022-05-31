@@ -201,7 +201,7 @@ class BoundedMeanWithFixedBounds : public BoundedMean<T> {
   // minimizes the size of the confidence interval of bounded mean.
   base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
       double confidence_level, double noised_sum, double noised_count) {
-    ConfidenceInterval tightest_ci;
+    NumericalMechanism::NoiseConfidenceIntervalResult tightest_ci;
     double tightest_ci_size = std::numeric_limits<double>::max();
     for (int i = 1; i < kNumStepsOptMeanConfidenceInterval; ++i) {
       // Setting the confidence level of the numerator and denominator such that
@@ -215,17 +215,21 @@ class BoundedMeanWithFixedBounds : public BoundedMean<T> {
           confidence_level + (i / (double)kNumStepsOptMeanConfidenceInterval) *
                                  (1.0 - confidence_level);
       const double denom_conf_level = confidence_level / num_conf_level;
-      ASSIGN_OR_RETURN(ConfidenceInterval ci,
-                       NoiseConfidenceIntervalForFixedNumAndDenom(
-                           confidence_level, num_conf_level, denom_conf_level,
-                           noised_sum, noised_count));
-      const double ci_size = ci.upper_bound() - ci.lower_bound();
+      NumericalMechanism::NoiseConfidenceIntervalResult ci =
+          NoiseConfidenceIntervalForFixedNumAndDenom(
+              num_conf_level, denom_conf_level, noised_sum, noised_count);
+      const double ci_size = ci.upper - ci.lower;
       if (ci_size < tightest_ci_size) {
         tightest_ci = ci;
         tightest_ci_size = ci_size;
       }
     }
-    return tightest_ci;
+
+    ConfidenceInterval ci;
+    ci.set_lower_bound(tightest_ci.lower);
+    ci.set_upper_bound(tightest_ci.upper);
+    ci.set_confidence_level(confidence_level);
+    return ci;
   }
 
   // Internal representation of an bounded mean result that also contains the
@@ -275,48 +279,42 @@ class BoundedMeanWithFixedBounds : public BoundedMean<T> {
   // denominator confidence level denom_conf_level.  This method is called in
   // NoiseConfidenceInterval for the brute force search for the smallest
   // confidence level.
-  base::StatusOr<ConfidenceInterval> NoiseConfidenceIntervalForFixedNumAndDenom(
-      double overall_conf_level, double num_conf_level, double denom_conf_level,
-      double noised_sum, double noised_count) const {
-    ASSIGN_OR_RETURN(ConfidenceInterval sum_ci,
-                     sum_mechanism_->NoiseConfidenceInterval(num_conf_level));
-    ASSIGN_OR_RETURN(
-        ConfidenceInterval count_ci,
-        count_mechanism_->NoiseConfidenceInterval(denom_conf_level));
+  NumericalMechanism::NoiseConfidenceIntervalResult
+  NoiseConfidenceIntervalForFixedNumAndDenom(double num_conf_level,
+                                             double denom_conf_level,
+                                             double noised_sum,
+                                             double noised_count) const {
+    const NumericalMechanism::NoiseConfidenceIntervalResult sum_ci =
+        sum_mechanism_->UncheckedNoiseConfidenceInterval(num_conf_level,
+                                                         noised_sum);
+    NumericalMechanism::NoiseConfidenceIntervalResult count_ci =
+        count_mechanism_->UncheckedNoiseConfidenceInterval(denom_conf_level,
+                                                           noised_count);
 
     // Lower and upper CI for count must be at least 1.
-    const double count_lower =
-        std::max<double>(1, noised_count + count_ci.lower_bound());
-    const double count_upper =
-        std::max<double>(1, noised_count + count_ci.upper_bound());
+    count_ci.lower = std::max<double>(1, count_ci.lower);
+    count_ci.upper = std::max<double>(1, count_ci.upper);
 
     double mean_lower;
-    const double sum_lower = noised_sum + sum_ci.lower_bound();
-    if (sum_lower >= 0) {
-      mean_lower = sum_lower / count_upper;
+    if (sum_ci.lower >= 0) {
+      mean_lower = sum_ci.lower / count_ci.upper;
+      ;
     } else {
-      mean_lower = sum_lower / count_lower;
+      mean_lower = sum_ci.lower / count_ci.lower;
     }
 
     double mean_upper;
-    const double sum_upper = noised_sum + sum_ci.upper_bound();
-    if (sum_upper >= 0) {
-      mean_upper = sum_upper / count_lower;
+    if (sum_ci.upper >= 0) {
+      mean_upper = sum_ci.upper / count_ci.lower;
     } else {
-      mean_upper = sum_upper / count_upper;
+      mean_upper = sum_ci.upper / count_ci.upper;
     }
 
-    ConfidenceInterval mean_ci;
-    mean_ci.set_confidence_level(overall_conf_level);
-
-    // Clamp the output consistently with the GenerateResult method.
+    NumericalMechanism::NoiseConfidenceIntervalResult result;
     const double midpoint = lower_ + ((upper_ - lower_) / 2.0);
-    mean_ci.set_lower_bound(
-        Clamp<double>(lower_, upper_, midpoint + mean_lower));
-    mean_ci.set_upper_bound(
-        Clamp<double>(lower_, upper_, midpoint + mean_upper));
-
-    return mean_ci;
+    result.lower = Clamp<double>(lower_, upper_, midpoint + mean_lower);
+    result.upper = Clamp<double>(lower_, upper_, midpoint + mean_upper);
+    return result;
   }
 
  private:

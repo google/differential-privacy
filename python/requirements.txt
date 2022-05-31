@@ -3,3 +3,4 @@ scipy==1.7.1
 absl-py==0.13.0
 attrs==21.4.0
 mpmath==1.2.1
+dataclasses

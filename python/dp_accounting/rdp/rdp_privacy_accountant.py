@@ -143,8 +143,8 @@ def _log_erfc(x: float) -> float:
       return math.log(r)
 
 
-def _compute_delta(orders: Sequence[float], rdp: Sequence[float],
-                   epsilon: float) -> Tuple[float, int]:
+def compute_delta(orders: Sequence[float], rdp: Sequence[float],
+                  epsilon: float) -> Tuple[float, int]:
   """Computes delta given a list of RDP values and target epsilon.
 
   Args:
@@ -153,7 +153,7 @@ def _compute_delta(orders: Sequence[float], rdp: Sequence[float],
     epsilon: The target epsilon.
 
   Returns:
-    Optimal delta.
+    2-tuple containing optimal delta and the optimal order.
 
   Raises:
     ValueError: If input is malformed.
@@ -194,8 +194,8 @@ def _compute_delta(orders: Sequence[float], rdp: Sequence[float],
   return min(math.exp(logdeltas[optimal_index]), 1.), orders[optimal_index]
 
 
-def _compute_epsilon(orders: Sequence[float], rdp: Sequence[float],
-                     delta: float) -> Tuple[float, int]:
+def compute_epsilon(orders: Sequence[float], rdp: Sequence[float],
+                    delta: float) -> Tuple[float, int]:
   """Computes epsilon given a list of RDP values and target delta.
 
   Args:
@@ -204,7 +204,7 @@ def _compute_epsilon(orders: Sequence[float], rdp: Sequence[float],
     delta: The target delta. Must be >= 0.
 
   Returns:
-    Optimal epsilon.
+    2-tuple containing optimal epsilon and the optimal order.
 
   Raises:
     ValueError: If input is malformed.
@@ -675,14 +675,14 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
 
   def get_epsilon_and_optimal_order(self,
                                     target_delta: float) -> Tuple[float, int]:
-    return _compute_epsilon(self._orders, self._rdp, target_delta)
+    return compute_epsilon(self._orders, self._rdp, target_delta)
 
   def get_epsilon(self, target_delta: float) -> float:
-    return _compute_epsilon(self._orders, self._rdp, target_delta)[0]
+    return compute_epsilon(self._orders, self._rdp, target_delta)[0]
 
   def get_delta_and_optimal_order(self,
                                   target_epsilon: float) -> Tuple[float, int]:
-    return _compute_delta(self._orders, self._rdp, target_epsilon)
+    return compute_delta(self._orders, self._rdp, target_epsilon)
 
   def get_delta(self, target_epsilon: float) -> float:
-    return _compute_delta(self._orders, self._rdp, target_epsilon)[0]
+    return compute_delta(self._orders, self._rdp, target_epsilon)[0]
