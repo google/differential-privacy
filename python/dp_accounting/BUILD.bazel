@@ -126,6 +126,35 @@ py_test(
 )
 
 py_library(
+    name = "mechanism_calibration",
+    srcs = [
+        "mechanism_calibration.py",
+    ],
+    srcs_version = "PY3",
+    deps = [
+        ":dp_event",
+        ":privacy_accountant",
+        requirement("attrs"),
+        requirement("scipy"),
+    ],
+)
+
+py_test(
+    name = "mechanism_calibration_test",
+    size = "small",
+    srcs = ["mechanism_calibration_test.py"],
+    python_version = "PY3",
+    deps = [
+        ":dp_event",
+        ":mechanism_calibration",
+        ":privacy_accountant",
+        requirement("absl-py"),
+        requirement("attrs"),
+        requirement("numpy"),
+    ],
+)
+
+py_library(
     name = "accountant",
     srcs = [
         "accountant.py",

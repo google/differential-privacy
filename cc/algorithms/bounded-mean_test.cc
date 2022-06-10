@@ -61,6 +61,7 @@ using ::differential_privacy::test_utils::ZeroNoiseMechanism;
 using ::testing::_;
 using ::testing::DoubleEq;
 using ::testing::DoubleNear;
+using ::testing::Eq;
 using ::differential_privacy::base::testing::EqualsProto;
 using ::testing::Gt;
 using ::testing::HasSubstr;
@@ -713,20 +714,22 @@ TYPED_TEST(BoundedMeanTest, AutomaticBoundsNegative) {
   ASSERT_OK(bm);
   (*bm)->AddEntries(a.begin(), a.end());
 
+  base::StatusOr<Output> output = (*bm)->PartialResult();
+  ASSERT_OK(output);
+
   // 9 gets clamped to -1.
-  Output expected_output;
-  AddToOutput<double>(&expected_output, -3);
-  BoundingReport* report =
-      expected_output.mutable_error_report()->mutable_bounding_report();
-  SetValue<TypeParam>(report->mutable_lower_bound(), -8);
-  SetValue<TypeParam>(report->mutable_upper_bound(), -1);
-  report->set_num_inputs(a.size());
-  report->set_num_outside(2);
-
-  auto actual_output = (*bm)->PartialResult();
-  ASSERT_OK(actual_output);
-
-  EXPECT_THAT(*actual_output, EqualsProto(expected_output));
+  EXPECT_THAT(output->elements_size(), Eq(1));
+  EXPECT_THAT(GetValue<double>(output->elements(0).value()), DoubleEq(-3.0));
+  EXPECT_THAT(GetValue<TypeParam>(
+                  output->error_report().bounding_report().lower_bound()),
+              Eq(-8));
+  EXPECT_THAT(GetValue<TypeParam>(
+                  output->error_report().bounding_report().upper_bound()),
+              Eq(-1));
+  EXPECT_THAT(output->error_report().bounding_report().num_inputs(),
+              DoubleEq(a.size()));
+  EXPECT_THAT(output->error_report().bounding_report().num_outside(),
+              DoubleEq(2.0));
 }
 
 TYPED_TEST(BoundedMeanTest, AutomaticBoundsPositive) {
@@ -750,20 +753,22 @@ TYPED_TEST(BoundedMeanTest, AutomaticBoundsPositive) {
   ASSERT_OK(bm);
   (*bm)->AddEntries(a.begin(), a.end());
 
+  base::StatusOr<Output> output = (*bm)->PartialResult();
+  ASSERT_OK(output);
+
   // -9 gets clamped to 1.
-  Output expected_output;
-  AddToOutput<double>(&expected_output, 3);
-  BoundingReport* report =
-      expected_output.mutable_error_report()->mutable_bounding_report();
-  SetValue<TypeParam>(report->mutable_lower_bound(), 1);
-  SetValue<TypeParam>(report->mutable_upper_bound(), 8);
-  report->set_num_inputs(a.size());
-  report->set_num_outside(2);
-
-  auto actual_output = (*bm)->PartialResult();
-  ASSERT_OK(actual_output);
-
-  EXPECT_THAT(*actual_output, EqualsProto(expected_output));
+  EXPECT_THAT(output->elements_size(), Eq(1));
+  EXPECT_THAT(GetValue<double>(output->elements(0).value()), DoubleEq(3.0));
+  EXPECT_THAT(GetValue<TypeParam>(
+                  output->error_report().bounding_report().lower_bound()),
+              Eq(1));
+  EXPECT_THAT(GetValue<TypeParam>(
+                  output->error_report().bounding_report().upper_bound()),
+              Eq(8));
+  EXPECT_THAT(output->error_report().bounding_report().num_inputs(),
+              DoubleEq(a.size()));
+  EXPECT_THAT(output->error_report().bounding_report().num_outside(),
+              DoubleEq(2.0));
 }
 
 TEST(BoundedMeanTest, DropNanEntries) {
@@ -842,19 +847,21 @@ TYPED_TEST(BoundedMeanTest, AutomaticBoundsContainZero) {
   ASSERT_OK(bm);
   (*bm)->AddEntries(a.begin(), a.end());
 
-  Output expected_output;
-  AddToOutput<double>(&expected_output, 1.5);
-  BoundingReport* report =
-      expected_output.mutable_error_report()->mutable_bounding_report();
-  SetValue<TypeParam>(report->mutable_lower_bound(), -1);
-  SetValue<TypeParam>(report->mutable_upper_bound(), 4);
-  report->set_num_inputs(a.size());
-  report->set_num_outside(2);
+  base::StatusOr<Output> output = (*bm)->PartialResult();
+  ASSERT_OK(output);
 
-  auto actual_output = (*bm)->PartialResult();
-  ASSERT_OK(actual_output);
-
-  EXPECT_THAT(*actual_output, EqualsProto(expected_output));
+  EXPECT_THAT(output->elements_size(), Eq(1));
+  EXPECT_THAT(GetValue<double>(output->elements(0).value()), DoubleEq(1.5));
+  EXPECT_THAT(GetValue<TypeParam>(
+                  output->error_report().bounding_report().lower_bound()),
+              Eq(-1));
+  EXPECT_THAT(GetValue<TypeParam>(
+                  output->error_report().bounding_report().upper_bound()),
+              Eq(4));
+  EXPECT_THAT(output->error_report().bounding_report().num_inputs(),
+              DoubleEq(a.size()));
+  EXPECT_THAT(output->error_report().bounding_report().num_outside(),
+              DoubleEq(2.0));
 }
 
 // Test not providing ApproxBounds and instead using the default.
@@ -921,20 +928,22 @@ TYPED_TEST(BoundedMeanTest, AutomaticBoundsZero) {
   ASSERT_OK(bm);
   (*bm)->AddEntries(a.begin(), a.end());
 
+  base::StatusOr<Output> output = (*bm)->PartialResult();
+  ASSERT_OK(output);
+
   // -2 gets clamped to 0. 7 gets clamped to 4.
-  Output expected_output;
-  AddToOutput<double>(&expected_output, 2);
-  BoundingReport* report =
-      expected_output.mutable_error_report()->mutable_bounding_report();
-  SetValue<TypeParam>(report->mutable_lower_bound(), 0);
-  SetValue<TypeParam>(report->mutable_upper_bound(), 4);
-  report->set_num_inputs(a.size());
-  report->set_num_outside(2);
-
-  auto actual_output = (*bm)->PartialResult();
-  ASSERT_OK(actual_output);
-
-  EXPECT_THAT(*actual_output, EqualsProto(expected_output));
+  EXPECT_THAT(output->elements_size(), Eq(1));
+  EXPECT_THAT(GetValue<double>(output->elements(0).value()), DoubleEq(2.0));
+  EXPECT_THAT(GetValue<TypeParam>(
+                  output->error_report().bounding_report().lower_bound()),
+              Eq(0));
+  EXPECT_THAT(GetValue<TypeParam>(
+                  output->error_report().bounding_report().upper_bound()),
+              Eq(4));
+  EXPECT_THAT(output->error_report().bounding_report().num_inputs(),
+              DoubleEq(a.size()));
+  EXPECT_THAT(output->error_report().bounding_report().num_outside(),
+              DoubleEq(2.0));
 }
 
 TYPED_TEST(BoundedMeanTest, Reset) {
@@ -1182,6 +1191,56 @@ TEST(BoundedMeanTest, ConfidenceIntervalWithMoreDataGetsTighter) {
   // users.
   EXPECT_THAT(ci_fewer_users->lower_bound(), Lt(ci_many_users->lower_bound()));
   EXPECT_THAT(ci_fewer_users->upper_bound(), Gt(ci_many_users->upper_bound()));
+}
+
+TEST(BoundedMeanTest, EmptyFixedBoundsMeanOutputHasConfidenceInterval) {
+  const double confidence_level = 0.987654;
+
+  base::StatusOr<std::unique_ptr<BoundedMean<double>>> bm =
+      BoundedMean<double>::Builder()
+          .SetEpsilon(kDefaultEpsilon)
+          .SetLower(0.0)
+          .SetUpper(1.0)
+          .Build();
+  ASSERT_OK(bm);
+
+  base::StatusOr<Output> output = bm->get()->PartialResult(confidence_level);
+  ASSERT_OK(output);
+
+  EXPECT_TRUE(output->elements(0).has_noise_confidence_interval());
+  EXPECT_THAT(
+      output->elements(0).noise_confidence_interval().confidence_level(),
+      DoubleEq(confidence_level));
+}
+
+TEST(BoundedMeanTest, FixedBoundsMeanOutputHasConfidenceIntervalWithinBounds) {
+  const double confidence_level = 0.987654;
+  const double lower = -0.01;
+  const double upper = 1.01;
+  const int num_contributions = 1000;
+  const double input = (lower + upper) / 2.0;
+
+  base::StatusOr<std::unique_ptr<BoundedMean<double>>> bm =
+      BoundedMean<double>::Builder()
+          .SetEpsilon(kDefaultEpsilon)
+          .SetLower(lower)
+          .SetUpper(upper)
+          .Build();
+  ASSERT_OK(bm);
+
+  for (int i = 0; i < num_contributions; ++i) {
+    bm->get()->AddEntry(input);
+  }
+  base::StatusOr<Output> output = bm->get()->PartialResult(confidence_level);
+  ASSERT_OK(output);
+
+  EXPECT_THAT(
+      output->elements(0).noise_confidence_interval().confidence_level(),
+      DoubleEq(confidence_level));
+  EXPECT_THAT(output->elements(0).noise_confidence_interval().lower_bound(),
+              Gt(lower));
+  EXPECT_THAT(output->elements(0).noise_confidence_interval().upper_bound(),
+              Lt(upper));
 }
 
 }  //  namespace

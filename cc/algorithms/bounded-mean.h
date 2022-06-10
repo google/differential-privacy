@@ -38,6 +38,7 @@
 #include "absl/types/optional.h"
 #include "algorithms/algorithm.h"
 #include "algorithms/approx-bounds.h"
+#include "algorithms/internal/bounded-mean-ci.h"
 #include "algorithms/numerical-mechanisms.h"
 #include "algorithms/util.h"
 #include "proto/util.h"
@@ -170,66 +171,17 @@ class BoundedMeanWithFixedBounds : public BoundedMean<T> {
     return NoiseConfidenceInterval(confidence_level, 0, 0);
   }
 
-  // Returns the confidence interval of the bounded mean algorithm.
-  //
-  // This is currently implemented using the noise confidence intervals of the
-  // numerator, i.e., the sum aggregation, and the denominator, i.e., the count
-  // aggregation, that are used to calculate the anonymized mean.
-  //
-  // The confidence interval [low, up] of bounded mean is derived from
-  // confidence intervals [lowNum, upNum] and [lowDen, upDen] of the mean's
-  // numerator and denominator, such that
-  //   Pr(low < raw < up)
-  //     >= Pr(lowNum < rawNum < upNum & lowDen < rawDen < upDen).
-  //
-  // See the NoiseConfidenceIntervalForFixedNumAndDenom method for details of
-  // how to set [low, up] based on lowNum, upNum, lowDen and upDen.
-  //
-  // Because the confidence intervals of the numerator and denominator are
-  // independent, we can lower bound the confidence level of the mean in terms
-  // of the confidence level of the numerator and the denominator like this:
-  //   Pr(low < raw < up)
-  //     >= Pr(lowNum < rawNum < upNum & lowDen < rawDen < upDen)
-  //      = Pr(lowNum < rawNum < upNum) * Pr(lowDen < rawDen < upDen)
-  //     >= confidenceLevelNum * confidenceLevelDen
-  //
-  // This means that we can choose confidenceLevelNum and alphaDen arbitrarily
-  // as long as
-  //   confidenceLevelNum * confidenceLevelDen = confidenceLevel.
-  //
-  // This implementation uses a brute force search for confidenceLevelNum that
-  // minimizes the size of the confidence interval of bounded mean.
   base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
       double confidence_level, double noised_sum, double noised_count) {
-    NumericalMechanism::NoiseConfidenceIntervalResult tightest_ci;
-    double tightest_ci_size = std::numeric_limits<double>::max();
-    for (int i = 1; i < kNumStepsOptMeanConfidenceInterval; ++i) {
-      // Setting the confidence level of the numerator and denominator such that
-      // overall_conf_level = num_conf_level * denom_conf_level
-      // and all confidence levels are between 0 and 1.
-      //
-      // num_conf_level has to be between confidence_level and 1.  We are
-      // dividing this interval into kNumStepsOptMeanConfidenceInterval steps
-      // for the brute force search.
-      const double num_conf_level =
-          confidence_level + (i / (double)kNumStepsOptMeanConfidenceInterval) *
-                                 (1.0 - confidence_level);
-      const double denom_conf_level = confidence_level / num_conf_level;
-      NumericalMechanism::NoiseConfidenceIntervalResult ci =
-          NoiseConfidenceIntervalForFixedNumAndDenom(
-              num_conf_level, denom_conf_level, noised_sum, noised_count);
-      const double ci_size = ci.upper - ci.lower;
-      if (ci_size < tightest_ci_size) {
-        tightest_ci = ci;
-        tightest_ci_size = ci_size;
-      }
-    }
-
-    ConfidenceInterval ci;
-    ci.set_lower_bound(tightest_ci.lower);
-    ci.set_upper_bound(tightest_ci.upper);
-    ci.set_confidence_level(confidence_level);
-    return ci;
+    internal::BoundedMeanConfidenceIntervalParams params;
+    params.confidence_level = confidence_level;
+    params.lower_bound = lower_;
+    params.upper_bound = upper_;
+    params.noised_sum = noised_sum;
+    params.noised_count = noised_count;
+    params.count_mechanism = count_mechanism_.get();
+    params.sum_mechanism = sum_mechanism_.get();
+    return internal::BoundedMeanConfidenceInterval(params);
   }
 
   // Internal representation of an bounded mean result that also contains the
@@ -240,22 +192,34 @@ class BoundedMeanWithFixedBounds : public BoundedMean<T> {
     double noised_sum;
   };
   BoundedMeanResult GenerateBoundedMeanResult() {
-    const double midpoint = lower_ + ((upper_ - lower_) / 2.0);
     BoundedMeanResult result;
     result.noised_count = std::max(
         1.0, static_cast<double>(count_mechanism_->AddNoise(partial_count_)));
-    result.noised_sum =
-        sum_mechanism_->AddNoise(partial_sum_ - (partial_count_ * midpoint));
-    result.noised_mean = (result.noised_sum / result.noised_count) + midpoint;
+    result.noised_sum = sum_mechanism_->AddNoise(partial_sum_);
+    if constexpr (!std::is_floating_point<T>::value) {
+      // Normalize the sum for integers. In floating point case, the sum is
+      // normalized, since each entry is normalized on addition.
+      result.noised_sum -= partial_count_ * GetMidPoint();
+    }
+    result.noised_mean =
+        (result.noised_sum / result.noised_count) + GetMidPoint();
     return result;
   }
 
  protected:
   base::StatusOr<Output> GenerateResult(double noise_interval_level) override {
-    BoundedMeanResult result = GenerateBoundedMeanResult();
+    const BoundedMeanResult result = GenerateBoundedMeanResult();
+    const base::StatusOr<ConfidenceInterval> ci = NoiseConfidenceInterval(
+        noise_interval_level, result.noised_sum, result.noised_count);
+    const double clamped_result =
+        Clamp<double>(lower_, upper_, result.noised_mean);
+
     Output output;
-    AddToOutput<double>(&output,
-                        Clamp<double>(lower_, upper_, result.noised_mean));
+    if (ci.ok()) {
+      AddToOutput(&output, clamped_result, ci.value());
+    } else {
+      AddToOutput(&output, clamped_result);
+    }
     return output;
   }
 
@@ -270,54 +234,18 @@ class BoundedMeanWithFixedBounds : public BoundedMean<T> {
     if (std::isnan(static_cast<double>(input)) || !status.ok()) {
       return;
     }
-    partial_sum_ += Clamp<T>(lower_, upper_, input) * num_of_entries;
+    T processed_input = Clamp<T>(lower_, upper_, input);
+    if constexpr (std::is_floating_point<T>::value) {
+      // Normalize floating point input for for increasing numerical stability.
+      processed_input -= GetMidPoint();
+    }
+    partial_sum_ += processed_input * num_of_entries;
     partial_count_ += num_of_entries;
   }
 
-  // Returns the confidence level for the mean aggregation with confidence level
-  // overall_conf_level, numerator confidence level num_conf_level, and
-  // denominator confidence level denom_conf_level.  This method is called in
-  // NoiseConfidenceInterval for the brute force search for the smallest
-  // confidence level.
-  NumericalMechanism::NoiseConfidenceIntervalResult
-  NoiseConfidenceIntervalForFixedNumAndDenom(double num_conf_level,
-                                             double denom_conf_level,
-                                             double noised_sum,
-                                             double noised_count) const {
-    const NumericalMechanism::NoiseConfidenceIntervalResult sum_ci =
-        sum_mechanism_->UncheckedNoiseConfidenceInterval(num_conf_level,
-                                                         noised_sum);
-    NumericalMechanism::NoiseConfidenceIntervalResult count_ci =
-        count_mechanism_->UncheckedNoiseConfidenceInterval(denom_conf_level,
-                                                           noised_count);
-
-    // Lower and upper CI for count must be at least 1.
-    count_ci.lower = std::max<double>(1, count_ci.lower);
-    count_ci.upper = std::max<double>(1, count_ci.upper);
-
-    double mean_lower;
-    if (sum_ci.lower >= 0) {
-      mean_lower = sum_ci.lower / count_ci.upper;
-      ;
-    } else {
-      mean_lower = sum_ci.lower / count_ci.lower;
-    }
-
-    double mean_upper;
-    if (sum_ci.upper >= 0) {
-      mean_upper = sum_ci.upper / count_ci.lower;
-    } else {
-      mean_upper = sum_ci.upper / count_ci.upper;
-    }
-
-    NumericalMechanism::NoiseConfidenceIntervalResult result;
-    const double midpoint = lower_ + ((upper_ - lower_) / 2.0);
-    result.lower = Clamp<double>(lower_, upper_, midpoint + mean_lower);
-    result.upper = Clamp<double>(lower_, upper_, midpoint + mean_upper);
-    return result;
-  }
-
  private:
+  double GetMidPoint() const { return lower_ + ((upper_ - lower_) / 2.0); }
+
   const T lower_;
   const T upper_;
 

@@ -43,3 +43,28 @@ cc_test(
         "@com_google_googletest//:gtest_main",
     ],
 )
+
+cc_library(
+    name = "bounded-mean-ci",
+    srcs = ["bounded-mean-ci.cc"],
+    hdrs = ["bounded-mean-ci.h"],
+    deps = [
+        "//algorithms:numerical-mechanisms",
+        "//algorithms:util",
+        "@com_google_differential_privacy//proto:confidence_interval_cc_proto",
+    ],
+)
+
+cc_test(
+    name = "bounded-mean-ci_test",
+    srcs = ["bounded-mean-ci_test.cc"],
+    deps = [
+        ":bounded-mean-ci",
+        "//algorithms:numerical-mechanisms",
+        "//base:logging",
+        "@com_google_absl//absl/status",
+        "@com_google_cc_differential_privacy//base:statusor",
+        "@com_google_differential_privacy//proto:confidence_interval_cc_proto",
+        "@com_google_googletest//:gtest_main",
+    ],
+)

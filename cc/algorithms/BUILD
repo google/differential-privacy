@@ -184,6 +184,7 @@ cc_library(
         ":bounded-algorithm",
         ":numerical-mechanisms",
         ":util",
+        "//algorithms/internal:bounded-mean-ci",
         "//base:logging",
         "//proto:util-lib",
         "@com_google_absl//absl/memory",
@@ -365,6 +366,7 @@ cc_library(
     srcs = ["util.cc"],
     hdrs = ["util.h"],
     visibility = [
+        "//algorithms/internal:__pkg__",
         "//testing:__pkg__",
     ],
     deps = [
