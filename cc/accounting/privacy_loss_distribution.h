@@ -21,7 +21,7 @@
 // ../../common_docs Privacy_Loss_Distributions.pdf
 
 #include "absl/container/flat_hash_map.h"
-#include "base/statusor.h"
+#include "absl/status/statusor.h"
 #include "absl/types/optional.h"
 #include "accounting/common/common.h"
 #include "accounting/privacy_loss_mechanism.h"
@@ -109,7 +109,7 @@ class PrivacyLossDistribution {
   // estimate_type: kPessimistic denoting that the rounding is done in such a
   //   way that the resulting epsilon-hockey stick divergence computation gives
   //   an upper estimate to the real value.
-  static base::StatusOr<std::unique_ptr<PrivacyLossDistribution>>
+  static absl::StatusOr<std::unique_ptr<PrivacyLossDistribution>>
   CreateForRandomizedResponse(
       double noise_parameter, int num_buckets,
       EstimateType estimate_type = EstimateType::kPessimistic,
@@ -126,7 +126,7 @@ class PrivacyLossDistribution {
   // discretization_interval: the length of the dicretization interval for the
   //   privacy loss distribution. The values will be rounded up/down to be
   //   integer multiples of this number.
-  static base::StatusOr<std::unique_ptr<PrivacyLossDistribution>>
+  static absl::StatusOr<std::unique_ptr<PrivacyLossDistribution>>
   CreateForLaplaceMechanism(
       double parameter, double sensitivity = 1,
       EstimateType estimate_type = EstimateType::kPessimistic,
@@ -143,7 +143,7 @@ class PrivacyLossDistribution {
   // discretization_interval: the length of the dicretization interval for the
   //   privacy loss distribution. The values will be rounded up/down to be
   //   integer multiples of this number.
-  static base::StatusOr<std::unique_ptr<PrivacyLossDistribution>>
+  static absl::StatusOr<std::unique_ptr<PrivacyLossDistribution>>
   CreateForDiscreteLaplaceMechanism(
       double parameter, int sensitivity = 1,
       EstimateType estimate_type = EstimateType::kPessimistic,
@@ -163,7 +163,7 @@ class PrivacyLossDistribution {
   // mass_truncation_bound: the natural log of the probability mass that might
   //   be discarded from the noise distribution. The larger this number, the
   //   more error it may introduce in divergence calculations.
-  static base::StatusOr<std::unique_ptr<PrivacyLossDistribution>>
+  static absl::StatusOr<std::unique_ptr<PrivacyLossDistribution>>
   CreateForGaussianMechanism(
       double standard_deviation, double sensitivity = 1,
       EstimateType estimate_type = EstimateType::kPessimistic,
@@ -190,7 +190,7 @@ class PrivacyLossDistribution {
   //   have a support in [-truncation_bound, truncation_bound]. When not set,
   //   truncation_bound will be chosen in such a way that the mass of the noise
   //   outside of this range is at most 1e-30.
-  static base::StatusOr<std::unique_ptr<PrivacyLossDistribution>>
+  static absl::StatusOr<std::unique_ptr<PrivacyLossDistribution>>
   CreateForDiscreteGaussianMechanism(
       double sigma, int sensitivity = 1,
       EstimateType estimate_type = EstimateType::kPessimistic,
@@ -248,7 +248,7 @@ class PrivacyLossDistribution {
   // The output of this function should be the same as first composing this PLD
   // and other_pld, and then call GetEpsilonForDelta on the resulting
   // PLD. The main advantage is that this function is faster.
-  base::StatusOr<double> GetDeltaForEpsilonForComposedPLD(
+  absl::StatusOr<double> GetDeltaForEpsilonForComposedPLD(
       const PrivacyLossDistribution& other_pld, double epsilon) const;
 
   // Composes PLD into itself num_times. Additional parameter:
@@ -271,10 +271,10 @@ class PrivacyLossDistribution {
 
   // Serializes the privacy loss distribution. Currently only supports
   // pessimistic estimates.
-  base::StatusOr<serialization::PrivacyLossDistribution> Serialize() const;
+  absl::StatusOr<serialization::PrivacyLossDistribution> Serialize() const;
 
   // Deserializes the privacy loss distribution.
-  static base::StatusOr<std::unique_ptr<PrivacyLossDistribution>> Deserialize(
+  static absl::StatusOr<std::unique_ptr<PrivacyLossDistribution>> Deserialize(
       const serialization::PrivacyLossDistribution& proto);
 
  private:

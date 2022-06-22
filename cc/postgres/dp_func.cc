@@ -45,7 +45,7 @@ Alg* BoundedAlgorithm(std::string* err, bool default_epsilon, double epsilon,
   }
   auto build_statusor = builder.SetEpsilon(epsilon).Build();
   if (build_statusor.ok()) {
-    return build_statusor.ValueOrDie().release();
+    return build_statusor.value().release();
   }
   *err = std::string(build_statusor.status().message());
   return nullptr;
@@ -79,8 +79,7 @@ double AlgorithmResult(Algorithm<double>* alg, std::string* err) {
   }
   auto result_statusor = alg->PartialResult();
   if (result_statusor.ok()) {
-    return static_cast<double>(
-        GetValue<return_type>(result_statusor.ValueOrDie()));
+    return static_cast<double>(GetValue<return_type>(result_statusor.value()));
   } else {
     *err = std::string(result_statusor.status().message());
   }
@@ -94,7 +93,7 @@ DpCount::DpCount(std::string* err, bool default_epsilon, double epsilon) {
   }
   auto count_statusor = Count<double>::Builder().SetEpsilon(epsilon).Build();
   if (count_statusor.ok()) {
-    count_ = count_statusor.ValueOrDie().release();
+    count_ = count_statusor.value().release();
   } else {
     *err = std::string(count_statusor.status().message());
   }
@@ -175,7 +174,7 @@ DpNtile::DpNtile(std::string* err, double percentile, double lower,
                             .SetUpper(upper)
                             .Build();
   if (build_statusor.ok()) {
-    perc_ = build_statusor.ValueOrDie().release();
+    perc_ = build_statusor.value().release();
   } else {
     *err = std::string(build_statusor.status().message());
   }

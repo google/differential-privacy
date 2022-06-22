@@ -21,7 +21,7 @@
 #include "absl/memory/memory.h"
 #include "absl/random/random.h"
 #include "absl/status/status.h"
-#include "base/statusor.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "algorithms/rand.h"
 #include "algorithms/util.h"
@@ -63,7 +63,7 @@ GaussianDistribution::Builder& GaussianDistribution::Builder::SetStddev(
   return *this;
 }
 
-base::StatusOr<std::unique_ptr<GaussianDistribution>>
+absl::StatusOr<std::unique_ptr<GaussianDistribution>>
 GaussianDistribution::Builder::Build() {
   RETURN_IF_ERROR(
       ValidateIsFiniteAndNonNegative(stddev_, "Standard deviation"));
@@ -117,7 +117,7 @@ GeometricDistribution::Builder& GeometricDistribution::Builder::SetLambda(
   return *this;
 }
 
-base::StatusOr<std::unique_ptr<GeometricDistribution>>
+absl::StatusOr<std::unique_ptr<GeometricDistribution>>
 GeometricDistribution::Builder::Build() {
   RETURN_IF_ERROR(ValidateIsFiniteAndNonNegative(lambda_, "Lambda"));
 
@@ -231,7 +231,7 @@ double CalculateGranularityForLaplace(double diversity) {
   return GetNextPowerOfTwo(diversity / kLaplaceGranularityParam);
 }
 
-base::StatusOr<double> LaplaceDistribution::CalculateGranularity(
+absl::StatusOr<double> LaplaceDistribution::CalculateGranularity(
     double epsilon, double sensitivity) {
   RETURN_IF_ERROR(ValidateEpsilon(epsilon));
   RETURN_IF_ERROR(ValidateIsFiniteAndPositive(sensitivity, "Sensitivity"));
@@ -250,7 +250,7 @@ LaplaceDistribution::Builder& LaplaceDistribution::Builder::SetSensitivity(
   return *this;
 }
 
-base::StatusOr<std::unique_ptr<LaplaceDistribution>>
+absl::StatusOr<std::unique_ptr<LaplaceDistribution>>
 LaplaceDistribution::Builder::Build() {
   RETURN_IF_ERROR(ValidateEpsilon(epsilon_));
   RETURN_IF_ERROR(ValidateIsFiniteAndPositive(sensitivity_, "Sensitivity"));
@@ -275,7 +275,7 @@ LaplaceDistribution::LaplaceDistribution(
 
 LaplaceDistribution::LaplaceDistribution(double epsilon, double sensitivity)
     : epsilon_(epsilon), sensitivity_(sensitivity) {
-  base::StatusOr<double> granularity =
+  absl::StatusOr<double> granularity =
       CalculateGranularity(epsilon_, sensitivity_);
   CHECK(granularity.ok()) << granularity.status();
   granularity_ = granularity.value();

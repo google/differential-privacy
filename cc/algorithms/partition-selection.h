@@ -24,7 +24,7 @@
 #include <string>
 #include <utility>
 
-#include "base/statusor.h"
+#include "absl/status/statusor.h"
 #include "algorithms/distributions.h"
 #include "algorithms/numerical-mechanisms.h"
 #include "algorithms/rand.h"
@@ -61,7 +61,7 @@ class PartitionSelectionStrategy {
       return *this;
     }
 
-    virtual base::StatusOr<std::unique_ptr<PartitionSelectionStrategy>>
+    virtual absl::StatusOr<std::unique_ptr<PartitionSelectionStrategy>>
     Build() = 0;
 
    protected:
@@ -144,7 +144,7 @@ class PartitionSelectionStrategy {
   // we drop a partition with a single user is 1 - adjusted_delta_, and raising
   // this expression to the power of the max number of partitions one user can
   // contribute to will get us delta, we can solve to get the following formula.
-  static base::StatusOr<double> CalculateAdjustedDelta(
+  static absl::StatusOr<double> CalculateAdjustedDelta(
       double delta, int64_t max_partitions_contributed) {
     RETURN_IF_ERROR(PartitionSelectionStrategy::DeltaIsSetAndValid(delta));
     RETURN_IF_ERROR(
@@ -160,7 +160,7 @@ class PartitionSelectionStrategy {
   }
 
   // Inverse of CalculateAdjustedDelta()
-  static base::StatusOr<double> CalculateUnadjustedDelta(
+  static absl::StatusOr<double> CalculateUnadjustedDelta(
       double adjusted_delta, int64_t max_partitions_contributed) {
     RETURN_IF_ERROR(
         PartitionSelectionStrategy::DeltaIsSetAndValid(adjusted_delta));
@@ -198,7 +198,7 @@ class NearTruncatedGeometricPartitionSelection
   // Builder for NearTruncatedGeometricPartitionSelection
   class Builder : public PartitionSelectionStrategy::Builder {
    public:
-    base::StatusOr<std::unique_ptr<PartitionSelectionStrategy>> Build()
+    absl::StatusOr<std::unique_ptr<PartitionSelectionStrategy>> Build()
         override {
       RETURN_IF_ERROR(EpsilonIsSetAndValid());
       RETURN_IF_ERROR(DeltaIsSetAndValid());
@@ -294,7 +294,7 @@ class LaplacePartitionSelection : public PartitionSelectionStrategy {
       return *this;
     }
 
-    base::StatusOr<std::unique_ptr<PartitionSelectionStrategy>> Build()
+    absl::StatusOr<std::unique_ptr<PartitionSelectionStrategy>> Build()
         override {
       RETURN_IF_ERROR(EpsilonIsSetAndValid());
       RETURN_IF_ERROR(DeltaIsSetAndValid());
@@ -339,7 +339,7 @@ class LaplacePartitionSelection : public PartitionSelectionStrategy {
     return mechanism_->NoisedValueAboveThreshold(num_users, threshold_);
   }
 
-  static base::StatusOr<double> CalculateDelta(
+  static absl::StatusOr<double> CalculateDelta(
       double epsilon, double threshold, int64_t max_partitions_contributed) {
     RETURN_IF_ERROR(PartitionSelectionStrategy::EpsilonIsSetAndValid(epsilon));
     RETURN_IF_ERROR(
@@ -362,7 +362,7 @@ class LaplacePartitionSelection : public PartitionSelectionStrategy {
     }
   }
 
-  static base::StatusOr<double> CalculateThreshold(
+  static absl::StatusOr<double> CalculateThreshold(
       double epsilon, double delta, int64_t max_partitions_contributed) {
     RETURN_IF_ERROR(PartitionSelectionStrategy::EpsilonIsSetAndValid(epsilon));
     RETURN_IF_ERROR(PartitionSelectionStrategy::DeltaIsSetAndValid(delta));
@@ -427,7 +427,7 @@ class GaussianPartitionSelection : public PartitionSelectionStrategy {
       return *this;
     }
 
-    base::StatusOr<std::unique_ptr<PartitionSelectionStrategy>> Build()
+    absl::StatusOr<std::unique_ptr<PartitionSelectionStrategy>> Build()
         override {
       RETURN_IF_ERROR(EpsilonIsSetAndValid());
       RETURN_IF_ERROR(DeltaIsSetAndValid());
@@ -483,7 +483,7 @@ class GaussianPartitionSelection : public PartitionSelectionStrategy {
 
   // CalculateThresholdDelta returns the threshold_delta for a threshold k. This
   // is the inverse of CalculateThreshold.
-  static base::StatusOr<double> CalculateThresholdDelta(
+  static absl::StatusOr<double> CalculateThresholdDelta(
       double epsilon, double noise_delta, double threshold,
       int64_t max_partitions_contributed) {
     RETURN_IF_ERROR(PartitionSelectionStrategy::EpsilonIsSetAndValid(epsilon));
@@ -510,7 +510,7 @@ class GaussianPartitionSelection : public PartitionSelectionStrategy {
   // See
   // https://github.com/google/differential-privacy/blob/main/common_docs/Delta_For_Thresholding.pdf
   // for details on the math underlying this.
-  static base::StatusOr<double> CalculateThreshold(
+  static absl::StatusOr<double> CalculateThreshold(
       double epsilon, double noise_delta, double threshold_delta,
       int64_t max_partitions_contributed) {
     RETURN_IF_ERROR(PartitionSelectionStrategy::EpsilonIsSetAndValid(epsilon));

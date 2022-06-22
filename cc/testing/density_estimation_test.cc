@@ -18,6 +18,7 @@
 
 #include <limits>
 
+#include "base/logging.h"
 #include "base/testing/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"

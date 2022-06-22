@@ -22,7 +22,7 @@
 #include "base/testing/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "base/statusor.h"
+#include "absl/status/statusor.h"
 #include "algorithms/distributions.h"
 
 namespace differential_privacy {
@@ -302,7 +302,7 @@ TEST(NumericalMechanismsTest, LaplaceBuilderFailsSmallL0LargeLInfSensitivity) {
 
 TYPED_TEST(NumericalMechanismsTest, LaplaceBuilderSensitivityTooHigh) {
   LaplaceMechanism::Builder test_builder;
-  base::StatusOr<std::unique_ptr<NumericalMechanism>> test_mechanism =
+  absl::StatusOr<std::unique_ptr<NumericalMechanism>> test_mechanism =
       test_builder.SetL1Sensitivity(std::numeric_limits<double>::max())
           .SetEpsilon(1)
           .Build();
@@ -399,7 +399,7 @@ TEST(NumericalMechanismsTest, LaplaceVarianceCorrect) {
   const double diversity = (l0 * linf) / epsilon;
   const double variance = 2.0 * std::pow(diversity, 2);
 
-  base::StatusOr<std::unique_ptr<NumericalMechanism>> mechanism =
+  absl::StatusOr<std::unique_ptr<NumericalMechanism>> mechanism =
       LaplaceMechanism::Builder()
           .SetEpsilon(epsilon)
           .SetL0Sensitivity(l0)
@@ -503,7 +503,7 @@ TEST(NumericalMechanismsTest, LaplaceConfidenceInterval) {
   double sensitivity = 1.0;
   double level = .95;
   LaplaceMechanism mechanism(epsilon, sensitivity);
-  base::StatusOr<ConfidenceInterval> confidence_interval =
+  absl::StatusOr<ConfidenceInterval> confidence_interval =
       mechanism.NoiseConfidenceInterval(level);
   ASSERT_OK(confidence_interval);
   EXPECT_LT(confidence_interval->lower_bound(),
@@ -513,7 +513,7 @@ TEST(NumericalMechanismsTest, LaplaceConfidenceInterval) {
   EXPECT_EQ(confidence_interval->confidence_level(), level);
 
   double result = 19.3;
-  base::StatusOr<ConfidenceInterval> confidence_interval_with_result =
+  absl::StatusOr<ConfidenceInterval> confidence_interval_with_result =
       mechanism.NoiseConfidenceInterval(level, result);
   ASSERT_OK(confidence_interval_with_result);
   EXPECT_EQ(confidence_interval_with_result->lower_bound(),
@@ -634,7 +634,7 @@ TEST_P(NoiseIntervalMultipleParametersTests, GaussNoiseConfidenceInterval) {
 
   GaussianMechanism mechanism(epsilon, delta, sensitivity);
   LOG(INFO) << mechanism.CalculateStddev();
-  base::StatusOr<ConfidenceInterval> confidence_interval =
+  absl::StatusOr<ConfidenceInterval> confidence_interval =
       mechanism.NoiseConfidenceInterval(conf_level, result);
 
   ASSERT_OK(confidence_interval);
@@ -668,7 +668,7 @@ TEST(NumericalMechanismsTest, AddNoise) {
 
 TEST(NumericalMechanismsTest, LambdaTooSmall) {
   LaplaceMechanism::Builder test_builder;
-  base::StatusOr<std::unique_ptr<NumericalMechanism>> test_mechanism_or =
+  absl::StatusOr<std::unique_ptr<NumericalMechanism>> test_mechanism_or =
       test_builder.SetL1Sensitivity(3)
           .SetEpsilon(1.0 / std::pow(10, 100))
           .Build();
@@ -1019,7 +1019,7 @@ TEST(NumericalMechanismsTest, Stddev) {
 }
 
 TEST(NumericalMechanismsTest, GaussianVarianceReturnsWallysResult) {
-  base::StatusOr<std::unique_ptr<NumericalMechanism>> mechanism =
+  absl::StatusOr<std::unique_ptr<NumericalMechanism>> mechanism =
       GaussianMechanism::Builder()
           .SetEpsilon(1)
           .SetDelta(1e-6)
@@ -1037,7 +1037,7 @@ TEST(NumericalMechanismsTest, LaplaceMechanismSerialization) {
   const double epsilon = std::log(3);
   const double l0 = 2;
   const double linf = 3;
-  base::StatusOr<std::unique_ptr<NumericalMechanism>> test_mechanism =
+  absl::StatusOr<std::unique_ptr<NumericalMechanism>> test_mechanism =
       LaplaceMechanism::Builder()
           .SetEpsilon(epsilon)
           .SetL0Sensitivity(l0)
@@ -1050,7 +1050,7 @@ TEST(NumericalMechanismsTest, LaplaceMechanismSerialization) {
   serialization::LaplaceMechanism serialized_data =
       laplace_mechanism->Serialize();
 
-  base::StatusOr<std::unique_ptr<NumericalMechanism>> deserialized =
+  absl::StatusOr<std::unique_ptr<NumericalMechanism>> deserialized =
       LaplaceMechanism::Deserialize(serialized_data);
   ASSERT_OK(deserialized);
 
@@ -1065,7 +1065,7 @@ TEST(NumericalMechanismsTest, GaussianMechanismSerialization) {
   const double delta = 10e-8;
   const double l0 = 2;
   const double linf = 3;
-  base::StatusOr<std::unique_ptr<NumericalMechanism>> test_mechanism =
+  absl::StatusOr<std::unique_ptr<NumericalMechanism>> test_mechanism =
       GaussianMechanism::Builder()
           .SetEpsilon(epsilon)
           .SetDelta(delta)
@@ -1079,7 +1079,7 @@ TEST(NumericalMechanismsTest, GaussianMechanismSerialization) {
   serialization::GaussianMechanism serialized_data =
       gaussian_mechanism->Serialize();
 
-  base::StatusOr<std::unique_ptr<NumericalMechanism>> deserialized =
+  absl::StatusOr<std::unique_ptr<NumericalMechanism>> deserialized =
       GaussianMechanism::Deserialize(serialized_data);
   ASSERT_OK(deserialized);
 
@@ -1093,7 +1093,7 @@ TEST(NumericalMechanismsTest, GaussianMechanismSerialization) {
 
 TEST(NumericalMechanismTest,
      MinVarianceMechanismBuilderWithLowSensitivityReturnsLaplace) {
-  base::StatusOr<std::unique_ptr<NumericalMechanism>> must_be_laplace =
+  absl::StatusOr<std::unique_ptr<NumericalMechanism>> must_be_laplace =
       MinVarianceMechanismBuilder()
           .SetEpsilon(1)
           .SetDelta(1e-5)
@@ -1114,7 +1114,7 @@ TEST(NumericalMechanismTest,
 
 TEST(NumericalMechanismTest,
      MinVarianceMechanismBuilderWithHighSensitivityReturnsGaussian) {
-  base::StatusOr<std::unique_ptr<NumericalMechanism>> must_be_gaussian =
+  absl::StatusOr<std::unique_ptr<NumericalMechanism>> must_be_gaussian =
       MinVarianceMechanismBuilder()
           .SetEpsilon(1)
           .SetDelta(1e-5)
@@ -1135,7 +1135,7 @@ TEST(NumericalMechanismTest,
 
 TEST(NumericalMechanismTest,
      MinVarianceMechanismBuilderWithoutDeltaReturnsLaplace) {
-  base::StatusOr<std::unique_ptr<NumericalMechanism>> must_be_laplace =
+  absl::StatusOr<std::unique_ptr<NumericalMechanism>> must_be_laplace =
       MinVarianceMechanismBuilder()
           .SetEpsilon(1)
           .SetL0Sensitivity(10)
@@ -1154,7 +1154,7 @@ TEST(NumericalMechanismTest,
 }
 
 TEST(NumericalMechanismTest, MinVarianceMechanismBuilderFailsWithoutEpsilon) {
-  base::StatusOr<std::unique_ptr<NumericalMechanism>> fails =
+  absl::StatusOr<std::unique_ptr<NumericalMechanism>> fails =
       MinVarianceMechanismBuilder()
           .SetDelta(1e-5)
           .SetL0Sensitivity(1)

@@ -18,7 +18,7 @@
 #include <vector>
 
 #include "absl/status/status.h"
-#include "base/statusor.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/str_format.h"
 #include "accounting/common/common.h"
 #include "accounting/convolution.h"
@@ -145,7 +145,7 @@ PrivacyLossDistribution::CreateForAdditiveNoise(
       discretization_interval, infinity_mass, pmf, estimate_type));
 }
 
-base::StatusOr<std::unique_ptr<PrivacyLossDistribution>>
+absl::StatusOr<std::unique_ptr<PrivacyLossDistribution>>
 PrivacyLossDistribution::CreateForRandomizedResponse(
     double noise_parameter, int num_buckets, EstimateType estimate_type,
     double discretization_interval) {
@@ -195,7 +195,7 @@ PrivacyLossDistribution::CreateForRandomizedResponse(
       /*infinity_mass=*/0, rounded_pmf, estimate_type));
 }
 
-base::StatusOr<std::unique_ptr<PrivacyLossDistribution>>
+absl::StatusOr<std::unique_ptr<PrivacyLossDistribution>>
 PrivacyLossDistribution::CreateForLaplaceMechanism(
     double parameter, double sensitivity, EstimateType estimate_type,
     double discretization_interval) {
@@ -205,7 +205,7 @@ PrivacyLossDistribution::CreateForLaplaceMechanism(
                                 discretization_interval);
 }
 
-base::StatusOr<std::unique_ptr<PrivacyLossDistribution>>
+absl::StatusOr<std::unique_ptr<PrivacyLossDistribution>>
 PrivacyLossDistribution::CreateForDiscreteLaplaceMechanism(
     double parameter, int sensitivity, EstimateType estimate_type,
     double discretization_interval) {
@@ -215,7 +215,7 @@ PrivacyLossDistribution::CreateForDiscreteLaplaceMechanism(
                                 discretization_interval);
 }
 
-base::StatusOr<std::unique_ptr<PrivacyLossDistribution>>
+absl::StatusOr<std::unique_ptr<PrivacyLossDistribution>>
 PrivacyLossDistribution::CreateForGaussianMechanism(
     double standard_deviation, double sensitivity, EstimateType estimate_type,
     double discretization_interval, double mass_truncation_bound) {
@@ -227,7 +227,7 @@ PrivacyLossDistribution::CreateForGaussianMechanism(
                                 discretization_interval);
 }
 
-base::StatusOr<std::unique_ptr<PrivacyLossDistribution>>
+absl::StatusOr<std::unique_ptr<PrivacyLossDistribution>>
 PrivacyLossDistribution::CreateForDiscreteGaussianMechanism(
     double sigma, int sensitivity, EstimateType estimate_type,
     double discretization_interval, absl::optional<int> truncation_bound) {
@@ -292,7 +292,7 @@ absl::Status PrivacyLossDistribution::Compose(
   return absl::OkStatus();
 }
 
-base::StatusOr<double>
+absl::StatusOr<double>
 PrivacyLossDistribution::GetDeltaForEpsilonForComposedPLD(
     const PrivacyLossDistribution& other_pld, double epsilon) const {
   RETURN_IF_ERROR(ValidateComposition(other_pld));
@@ -400,7 +400,7 @@ double PrivacyLossDistribution::GetEpsilonForDelta(double delta) const {
   return std::log((mass_upper - delta) / mass_lower);
 }
 
-base::StatusOr<serialization::PrivacyLossDistribution>
+absl::StatusOr<serialization::PrivacyLossDistribution>
 PrivacyLossDistribution::Serialize() const {
   if (estimate_type_ == EstimateType::kOptimistic) {
     return absl::InvalidArgumentError(
@@ -419,7 +419,7 @@ PrivacyLossDistribution::Serialize() const {
   return output;
 }
 
-base::StatusOr<std::unique_ptr<PrivacyLossDistribution>>
+absl::StatusOr<std::unique_ptr<PrivacyLossDistribution>>
 PrivacyLossDistribution::Deserialize(
     const serialization::PrivacyLossDistribution& proto) {
   if (!proto.has_pessimistic_pmf()) {

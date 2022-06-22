@@ -21,7 +21,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/random/distributions.h"
-#include "base/statusor.h"
+#include "absl/status/statusor.h"
 #include "algorithms/algorithm.h"
 #include "algorithms/bounded-sum.h"
 #include "algorithms/count.h"
@@ -44,7 +44,7 @@ class NonDpSum : public Algorithm<T> {
   NonDpSum() : Algorithm<T>(1), result_(0) {}
   void AddEntry(const T& t) override { result_ += t; }
 
-  base::StatusOr<Output> GenerateResult(
+  absl::StatusOr<Output> GenerateResult(
       double /*noise_interval_level*/) override {
     return MakeOutput<T>(result_);
   }
@@ -67,7 +67,7 @@ class NonDpCount : public Algorithm<T> {
   NonDpCount() : Algorithm<T>(1), result_(0) {}
   void AddEntry(const T& t) override { ++result_; }
 
-  base::StatusOr<Output> GenerateResult(
+  absl::StatusOr<Output> GenerateResult(
       double /*noise_interval_level*/) override {
     return MakeOutput<int64_t>(result_);
   }
@@ -119,7 +119,7 @@ class BoundedSumWithError : public BoundedSumWithFixedBounds<T> {
                                           delta, 1, 1, lower, upper)
                 .value()) {}
 
-  base::StatusOr<Output> GenerateResult(double noise_interval_level) override {
+  absl::StatusOr<Output> GenerateResult(double noise_interval_level) override {
     if (UniformDouble() < 0.25) {
       return absl::InvalidArgumentError("BoundedSumWithError returns error.");
     }
@@ -135,7 +135,7 @@ class CountNoDpError : public Count<T> {
                           std::unique_ptr<NumericalMechanism> laplace_mechanism)
       : Count<T>(epsilon, 0, std::move(laplace_mechanism)) {}
 
-  base::StatusOr<Output> GenerateResult(double noise_interval_level) override {
+  absl::StatusOr<Output> GenerateResult(double noise_interval_level) override {
     if (Count<T>::GetCount() == 0) {
       return absl::InvalidArgumentError("CountNoDpError returns error.");
     }
@@ -153,7 +153,7 @@ class AlwaysError : public Algorithm<T> {
   AlwaysError() : Algorithm<T>(1), result_(0) {}
   void AddEntry(const T& t) override {}
 
-  base::StatusOr<Output> GenerateResult(
+  absl::StatusOr<Output> GenerateResult(
       double /*noise_interval_level*/) override {
     return absl::InvalidArgumentError("AlwaysError returns error.");
   }
@@ -173,7 +173,7 @@ TEST(StochasticTesterTest, SingleDatasetBoundedSumTest) {
   auto sequence = absl::make_unique<HaltonSequence<double>>(
       DefaultDatasetSize(), true /* sorted_only */, DefaultDataScale(),
       DefaultDataOffset());
-  base::StatusOr<std::unique_ptr<BoundedSum<double>>> algorithm =
+  absl::StatusOr<std::unique_ptr<BoundedSum<double>>> algorithm =
       BoundedSum<double>::Builder()
           .SetLaplaceMechanism(
               absl::make_unique<test_utils::SeededLaplaceMechanism::Builder>())
@@ -202,7 +202,7 @@ TEST(StochasticTesterTest, SingleDatasetNonDpSumTest) {
 TEST(StochasticTesterTest, EmptySamplesCountTest) {
   std::vector<std::vector<double>> datasets({{1.0}});
   auto sequence = absl::make_unique<StoredSequence<double>>(datasets);
-  base::StatusOr<std::unique_ptr<Count<double>>> algorithm =
+  absl::StatusOr<std::unique_ptr<Count<double>>> algorithm =
       Count<double>::Builder()
           .SetLaplaceMechanism(
               absl::make_unique<test_utils::SeededLaplaceMechanism::Builder>())
@@ -218,7 +218,7 @@ TEST(StochasticTesterTest, EmptySamplesCountTest) {
 TEST(StochasticTesterTest, SingleDatasetCountTest) {
   std::vector<std::vector<double>> datasets({{1.0, 2.0, 3.0}});
   auto sequence = absl::make_unique<StoredSequence<double>>(datasets);
-  base::StatusOr<std::unique_ptr<Count<double>>> algorithm =
+  absl::StatusOr<std::unique_ptr<Count<double>>> algorithm =
       Count<double>::Builder()
           .SetLaplaceMechanism(
               absl::make_unique<test_utils::SeededLaplaceMechanism::Builder>())
@@ -244,7 +244,7 @@ TEST(StochasticTesterTest, SingleDatasetNonDpCountTest) {
 TEST(StochasticTesterTest, SingleDatasetCountNoBranchingTest) {
   std::vector<std::vector<double>> datasets({{1.0, 2.0, 3.0}});
   auto sequence = absl::make_unique<StoredSequence<double>>(datasets);
-  base::StatusOr<std::unique_ptr<Count<double>>> algorithm =
+  absl::StatusOr<std::unique_ptr<Count<double>>> algorithm =
       Count<double>::Builder()
           .SetLaplaceMechanism(
               absl::make_unique<test_utils::SeededLaplaceMechanism::Builder>())
@@ -273,7 +273,7 @@ TEST(StochasticTesterTest, MultipleDatasetBoundedSumTest) {
   auto sequence = absl::make_unique<HaltonSequence<double>>(
       DefaultDatasetSize(), /*sorted_only=*/true, DefaultDataScale(),
       DefaultDataOffset());
-  base::StatusOr<std::unique_ptr<BoundedSum<double>>> algorithm =
+  absl::StatusOr<std::unique_ptr<BoundedSum<double>>> algorithm =
       BoundedSum<double>::Builder()
           .SetLaplaceMechanism(
               absl::make_unique<test_utils::SeededLaplaceMechanism::Builder>())

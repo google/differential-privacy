@@ -50,7 +50,7 @@ overwrite the set of quantiles from the previous call.
 Here is the minimal set of arguments for constructing a Quantiles:
 
 ```
-base::StatusOr<std::unique_ptr<Quantiles<T>>> quantile =
+absl::StatusOr<std::unique_ptr<Quantiles<T>>> quantile =
    Quantiles<T>::Builder()
        .SetLower(upper)
        .SetUpper(lower)
@@ -84,7 +84,7 @@ A `QuantileTree` is constructed via a `QuantileTree<T>::Builder`. The builder
 supports the following methods:
 
 ```
-base::StatusOr<std::unique_ptr<QuantileTree<T>>> quantile_tree =
+absl::StatusOr<std::unique_ptr<QuantileTree<T>>> quantile_tree =
   QuantileTree<T>::Builder()
       .SetLower(lower)
       .SetUpper(upper)
@@ -116,7 +116,7 @@ struct that contains all of the privacy parameters (these are the same ones used
 when constructing an [`Algorithm`](algorithm.md)):
 
 ```
-base::StatusOr<QuantileTree<T>::Privatized> results =
+absl::StatusOr<QuantileTree<T>::Privatized> results =
   quantile_tree.MakePrivate({
       .epsilon = epsilon,
       .delta = delta,

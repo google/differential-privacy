@@ -27,7 +27,7 @@
 #include "base/logging.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/hash/hash.h"
-#include "base/statusor.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "algorithms/algorithm.h"
 #include "algorithms/util.h"
@@ -164,8 +164,8 @@ class StochasticTester<T, OutputT> {
   // We allow for some amount of error that arises from the histogram
   // approximation, thus this still returns true in cases where the predicate
   // is violated within error bounds.
-  bool CheckDpPredicate(const std::vector<base::StatusOr<OutputT>>& dx_samples,
-                        const std::vector<base::StatusOr<OutputT>>& dy_samples);
+  bool CheckDpPredicate(const std::vector<absl::StatusOr<OutputT>>& dx_samples,
+                        const std::vector<absl::StatusOr<OutputT>>& dy_samples);
 
   // We need to check that all combinations of the input dataset of size 1 to N
   // obey the differential privacy predicate with all datasets that are a
@@ -192,11 +192,11 @@ class StochasticTester<T, OutputT> {
   // based on itertools iterators which do not necessarily have size functions,
   // so we provide that interface here.
   template <typename Container>
-  std::vector<base::StatusOr<OutputT>> GenerateSamples(Container* c,
+  std::vector<absl::StatusOr<OutputT>> GenerateSamples(Container* c,
                                                        size_t size) {
-    std::vector<base::StatusOr<OutputT>> samples(num_samples_per_histogram_);
+    std::vector<absl::StatusOr<OutputT>> samples(num_samples_per_histogram_);
     for (int i = 0; i < num_samples_per_histogram_; ++i) {
-      base::StatusOr<Output> output = algorithm_->Result(c->begin(), c->end());
+      absl::StatusOr<Output> output = algorithm_->Result(c->begin(), c->end());
 
       // Algorithms such as ApproxBounds may return an error status rather than
       // a value for some datasets on some occasions. In this case we wish to
@@ -257,8 +257,8 @@ class StochasticTester<T, OutputT> {
   // Replace all samples that were output error to this error value. Populate
   // the value_samples vectors with replaced values.
   void ReplaceErrorWithValue(
-      const std::vector<base::StatusOr<OutputT>>& dx_samples,
-      const std::vector<base::StatusOr<OutputT>>& dy_samples,
+      const std::vector<absl::StatusOr<OutputT>>& dx_samples,
+      const std::vector<absl::StatusOr<OutputT>>& dy_samples,
       std::vector<OutputT>* dx_value_samples,
       std::vector<OutputT>* dy_value_samples);
 
@@ -368,8 +368,8 @@ StochasticTester<T, OutputT>::ComputeCombinedHistogramOptions(
 
 template <typename T, typename OutputT>
 void StochasticTester<T, OutputT>::ReplaceErrorWithValue(
-    const std::vector<base::StatusOr<OutputT>>& dx_samples,
-    const std::vector<base::StatusOr<OutputT>>& dy_samples,
+    const std::vector<absl::StatusOr<OutputT>>& dx_samples,
+    const std::vector<absl::StatusOr<OutputT>>& dy_samples,
     std::vector<OutputT>* dx_value_samples,
     std::vector<OutputT>* dy_value_samples) {
   // Find the minimum and bin width without error outputs to heuristically chose
@@ -377,12 +377,12 @@ void StochasticTester<T, OutputT>::ReplaceErrorWithValue(
   // cannot obtain the stats so default the error value to 0.
   std::vector<OutputT> dx_samples_no_error;
   std::vector<OutputT> dy_samples_no_error;
-  for (const base::StatusOr<OutputT>& e : dx_samples) {
+  for (const absl::StatusOr<OutputT>& e : dx_samples) {
     if (e.ok()) {
       dx_samples_no_error.push_back(e.value());
     }
   }
-  for (const base::StatusOr<OutputT>& e : dy_samples) {
+  for (const absl::StatusOr<OutputT>& e : dy_samples) {
     if (e.ok()) {
       dy_samples_no_error.push_back(e.value());
     }
@@ -415,8 +415,8 @@ void StochasticTester<T, OutputT>::ReplaceErrorWithValue(
 
 template <typename T, typename OutputT>
 bool StochasticTester<T, OutputT>::CheckDpPredicate(
-    const std::vector<base::StatusOr<OutputT>>& dx_samples,
-    const std::vector<base::StatusOr<OutputT>>& dy_samples) {
+    const std::vector<absl::StatusOr<OutputT>>& dx_samples,
+    const std::vector<absl::StatusOr<OutputT>>& dy_samples) {
   if (dx_samples.empty() || dy_samples.empty()) {
     return true;
   }
@@ -469,7 +469,7 @@ bool StochasticTester<T, OutputT>::CheckDpPredicate(
   // therefore compute an interval for each.
   double dx_size = static_cast<double>(dx_samples.size());
   double dy_size = static_cast<double>(dy_samples.size());
-  base::StatusOr<double> critical_value =
+  absl::StatusOr<double> critical_value =
       Qnorm(1 - (kHistogramPaddingAlpha / 2 / actual_num_buckets), /*mu=*/0.0,
             /*sigma=*/1.0);
   CHECK(critical_value.ok()) << critical_value.status();
@@ -570,7 +570,7 @@ template <typename T, typename OutputT>
 void StochasticTester<T, OutputT>::CheckDifferentiallyPrivateOnDataset(
     const std::vector<T>& dataset) {
   absl::flat_hash_map<SelectionVector,
-                      AlgorithmResultSamples<base::StatusOr<OutputT>>,
+                      AlgorithmResultSamples<absl::StatusOr<OutputT>>,
                       SelectionVectorHash>
       sample_cache;
   SelectionVector full_set_selector(dataset.size(), true);

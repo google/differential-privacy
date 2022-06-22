@@ -26,7 +26,7 @@
 
 #include "base/logging.h"
 #include "absl/status/status.h"
-#include "base/statusor.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_split.h"
 #include "algorithms/bounded-mean.h"
@@ -85,7 +85,7 @@ int CarrotReporter::Max() {
 
 double CarrotReporter::RemainingEpsilon() { return remaining_epsilon_; }
 
-base::StatusOr<Output> CarrotReporter::PrivateSum(double epsilon) {
+absl::StatusOr<Output> CarrotReporter::PrivateSum(double epsilon) {
   if (remaining_epsilon_ < epsilon) {
     return absl::InvalidArgumentError("Not enough privacy budget.");
   }
@@ -102,7 +102,7 @@ base::StatusOr<Output> CarrotReporter::PrivateSum(double epsilon) {
   return sum_algorithm->PartialResult();
 }
 
-base::StatusOr<Output> CarrotReporter::PrivateMean(double epsilon) {
+absl::StatusOr<Output> CarrotReporter::PrivateMean(double epsilon) {
   if (remaining_epsilon_ < epsilon) {
     return absl::InvalidArgumentError("Not enough privacy budget.");
   }
@@ -115,7 +115,7 @@ base::StatusOr<Output> CarrotReporter::PrivateMean(double epsilon) {
   return mean_algorithm->PartialResult();
 }
 
-base::StatusOr<Output> CarrotReporter::PrivateCountAbove(double epsilon,
+absl::StatusOr<Output> CarrotReporter::PrivateCountAbove(double epsilon,
                                                          int limit) {
   if (remaining_epsilon_ < epsilon) {
     return absl::InvalidArgumentError("Not enough privacy budget.");
@@ -132,7 +132,7 @@ base::StatusOr<Output> CarrotReporter::PrivateCountAbove(double epsilon,
   return count_algorithm->PartialResult();
 }
 
-base::StatusOr<Output> CarrotReporter::PrivateMax(double epsilon) {
+absl::StatusOr<Output> CarrotReporter::PrivateMax(double epsilon) {
   if (remaining_epsilon_ < epsilon) {
     return absl::InvalidArgumentError("Not enough privacy budget.");
   }

@@ -25,7 +25,7 @@
 #include <cstdint>
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
-#include "base/statusor.h"
+#include "absl/status/statusor.h"
 #include "algorithms/algorithm.h"
 #include "algorithms/approx-bounds.h"
 #include "algorithms/bounded-algorithm.h"
@@ -99,7 +99,7 @@ class ABSL_DEPRECATED(
                            std::unique_ptr<BoundedVariance<T>> variance)
       : Algorithm<T>(epsilon), variance_(std::move(variance)) {}
 
-  base::StatusOr<Output> GenerateResult(double noise_interval_level) override {
+  absl::StatusOr<Output> GenerateResult(double noise_interval_level) override {
     ASSIGN_OR_RETURN(Output variance_output,
                      variance_->PartialResult(noise_interval_level));
     double stdev = std::sqrt(GetValue<double>(variance_output));
@@ -160,7 +160,7 @@ class BoundedStandardDeviation<T>::Builder {
     return *this;
   }
 
-  base::StatusOr<std::unique_ptr<BoundedStandardDeviation<T>>> Build() {
+  absl::StatusOr<std::unique_ptr<BoundedStandardDeviation<T>>> Build() {
     ASSIGN_OR_RETURN(std::unique_ptr<BoundedVariance<T>> variance,
                      variance_builder_.Build());
     const double epsilon = variance->GetEpsilon();

@@ -23,7 +23,7 @@
 #include "base/percentile.h"
 #include "google/protobuf/any.pb.h"
 #include "absl/status/status.h"
-#include "base/statusor.h"
+#include "absl/status/statusor.h"
 #include "algorithms/algorithm.h"
 #include "algorithms/numerical-mechanisms.h"
 #include "proto/util.h"
@@ -147,12 +147,12 @@ class BinarySearch : public Algorithm<T> {
 
   void ResetState() override { quantiles_->Reset(); }
 
-  base::StatusOr<Output> GenerateResult(double noise_interval_level) override {
+  absl::StatusOr<Output> GenerateResult(double noise_interval_level) override {
     return BayesianSearch(noise_interval_level);
   }
 
  private:
-  base::StatusOr<Output> BayesianSearch(double noise_interval_level) {
+  absl::StatusOr<Output> BayesianSearch(double noise_interval_level) {
     // If the bounds are equal, we return the only possible value with total
     // confidence.
     if (lower_ == upper_) {
@@ -369,7 +369,7 @@ class BinarySearch : public Algorithm<T> {
     }
   }
 
-  base::StatusOr<double> Percentile(double m) {
+  absl::StatusOr<double> Percentile(double m) {
     // If there are no inputs, getting the relative rank will return an error.
     // Arbitrarilty say the percentile is 1/2.
     if (quantiles_->num_values() == 0) {

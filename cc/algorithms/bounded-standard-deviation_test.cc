@@ -270,7 +270,7 @@ TYPED_TEST(BoundedStandardDeviationTest, AutomaticBounds) {
   report->set_num_inputs(a.size());
   report->set_num_outside(2);
 
-  base::StatusOr<Output> actual_output = bsd->PartialResult();
+  absl::StatusOr<Output> actual_output = bsd->PartialResult();
   ASSERT_OK(actual_output);
   EXPECT_THAT(*actual_output, EqualsProto(expected_output));
 }

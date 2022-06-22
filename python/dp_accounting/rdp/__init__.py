@@ -14,4 +14,5 @@
 
 """RDP Accounting package."""
 
+from dp_accounting.rdp.rdp_privacy_accountant import compute_epsilon
 from dp_accounting.rdp.rdp_privacy_accountant import RdpAccountant

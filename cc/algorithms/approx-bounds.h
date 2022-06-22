@@ -34,7 +34,7 @@
 #include "google/protobuf/any.pb.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
-#include "base/statusor.h"
+#include "absl/status/statusor.h"
 #include "algorithms/algorithm.h"
 #include "algorithms/numerical-mechanisms.h"
 #include "algorithms/util.h"
@@ -101,6 +101,8 @@ class ApproxBounds : public Algorithm<T> {
  public:
   // Builder to construct ApproxBounds objects.
   class Builder;
+
+  virtual ~ApproxBounds() {}
 
   void AddEntry(const T& input) override { AddMultipleEntries(input, 1); }
 
@@ -229,7 +231,7 @@ class ApproxBounds : public Algorithm<T> {
   // The value_transform and count parameters are used to calculate the
   // contribution of values clamped below lower or above upper, if applicable.
   template <typename T2>
-  base::StatusOr<T2> ComputeFromPartials(const std::vector<T2>& pos_partials,
+  absl::StatusOr<T2> ComputeFromPartials(const std::vector<T2>& pos_partials,
                                          const std::vector<T2>& neg_partials,
                                          std::function<T2(T)> value_transform,
                                          T lower, T upper, int64_t count) {
@@ -282,8 +284,8 @@ class ApproxBounds : public Algorithm<T> {
     BoundingReport report;
     SetValue<T>(report.mutable_lower_bound(), lower);
     SetValue<T>(report.mutable_upper_bound(), upper);
-    base::StatusOr<double> count = NumInputs();
-    base::StatusOr<double> count_outside = NumInputsOutside(lower, upper);
+    absl::StatusOr<double> count = NumInputs();
+    absl::StatusOr<double> count_outside = NumInputsOutside(lower, upper);
     if (count.ok()) {
       report.set_num_inputs(count.value());
     }
@@ -329,7 +331,7 @@ class ApproxBounds : public Algorithm<T> {
   // Returns an output containing approximate min as the first element and
   // approximate max as the second element. If not enough inputs exist to pass
   // the threshold, populate the output with an error status.
-  base::StatusOr<Output> GenerateResult(double noise_interval_level) override {
+  absl::StatusOr<Output> GenerateResult(double noise_interval_level) override {
     // Populate noisy versions of the histogram bins.
     noisy_pos_bins_ = AddNoise(pos_bins_);
     noisy_neg_bins_ = AddNoise(neg_bins_);
@@ -522,7 +524,7 @@ class ApproxBounds : public Algorithm<T> {
   // most recent result generation. Inputs equal to either bound may or may not
   // be part of the count. Input lower and upper are rounded to the nearest
   // larger-magnitude bin boundary.
-  base::StatusOr<double> NumInputsOutside(T lower, T upper) {
+  absl::StatusOr<double> NumInputsOutside(T lower, T upper) {
     // Check that noisy bins have been populated.
     if (noisy_pos_bins_.empty()) {
       return absl::InvalidArgumentError(
@@ -574,7 +576,7 @@ class ApproxBounds : public Algorithm<T> {
   }
 
   // Get the noisy number of total inputs by summing all noisy histogram bins.
-  base::StatusOr<double> NumInputs() {
+  absl::StatusOr<double> NumInputs() {
     // Number of inputs outside of the empty set.
     return NumInputsOutside(0, 0);
   }
@@ -730,7 +732,7 @@ class ApproxBounds<T>::Builder {
     return *this;
   }
 
-  base::StatusOr<std::unique_ptr<ApproxBounds<T>>> Build() {
+  absl::StatusOr<std::unique_ptr<ApproxBounds<T>>> Build() {
     if (!epsilon_.has_value()) {
       epsilon_ = DefaultEpsilon();
       LOG(WARNING) << "Default epsilon of " << epsilon_.value()

@@ -16,7 +16,7 @@
 
 #include <functional>
 
-#include "base/statusor.h"
+#include "absl/status/statusor.h"
 #include "accounting/common/common.h"
 #include "accounting/privacy_loss_mechanism.h"
 namespace differential_privacy {
@@ -31,7 +31,7 @@ using NoiseFunction = std::function<std::unique_ptr<AdditiveNoisePrivacyLoss>(
 // Computes the smallest required noise parameter for the given privacy
 // parameters, privacy loss of additive noise mechanisms (Laplace or Gaussian)
 // and also the number of queries.
-base::StatusOr<double> GetSmallestParameter(EpsilonDelta epsilon_delta,
+absl::StatusOr<double> GetSmallestParameter(EpsilonDelta epsilon_delta,
                                             int num_queries, double sensitivity,
                                             NoiseFunction noise_function,
                                             absl::optional<double> upper_bound,
@@ -56,7 +56,7 @@ base::StatusOr<double> GetSmallestParameter(EpsilonDelta epsilon_delta,
 //   num_queries: Number of times the algorithm is invoked.
 //   total_delta: The target value of total delta of the privacy parameters for
 //     the multiple runs of the algorithm.
-base::StatusOr<double> AdvancedComposition(EpsilonDelta privacy_parameters,
+absl::StatusOr<double> AdvancedComposition(EpsilonDelta privacy_parameters,
                                            int num_queries, double total_delta);
 
 }  // namespace accounting

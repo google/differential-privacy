@@ -25,7 +25,7 @@ additional parameters.
 minimal construction example.
 
 ```
-base::StatusOr<std::unique_ptr<Count<int64>>> count =
+absl::StatusOr<std::unique_ptr<Count<int64>>> count =
               Count<int64>::Builder.SetEpsilon(1)
                                    .Build();
 ```

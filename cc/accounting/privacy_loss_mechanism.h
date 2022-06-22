@@ -17,7 +17,7 @@
 
 #include "base/logging.h"
 #include "absl/status/status.h"
-#include "base/statusor.h"
+#include "absl/status/statusor.h"
 #include "absl/types/optional.h"
 #include "boost/math/distributions/laplace.hpp"
 #include "boost/math/distributions/normal.hpp"
@@ -124,11 +124,11 @@ class LaplacePrivacyLoss : public AdditiveNoisePrivacyLoss {
   // parameter: the parameter of the Laplace distribution.
   // sensitivity: the sensitivity of function f. (i.e. the maximum absolute
   //   change in f when an input to a single user changes.)
-  static base::StatusOr<std::unique_ptr<LaplacePrivacyLoss>> Create(
+  static absl::StatusOr<std::unique_ptr<LaplacePrivacyLoss>> Create(
       double parameter, double sensitivity);
 
   // Creates LaplacePrivacyLoss from epsilon and delta.
-  static base::StatusOr<std::unique_ptr<LaplacePrivacyLoss>> Create(
+  static absl::StatusOr<std::unique_ptr<LaplacePrivacyLoss>> Create(
       const EpsilonDelta& epsilon_delta);
 
   NoiseType Discrete() const override { return NoiseType::kContinuous; }
@@ -181,14 +181,14 @@ class GaussianPrivacyLoss : public AdditiveNoisePrivacyLoss {
   // log_mass_truncation_bound: the ln of the probability mass that might be
   //   discarded from the noise distribution. The larger this number,
   //   the more error it may introduce in divergence calculations.
-  static base::StatusOr<std::unique_ptr<GaussianPrivacyLoss>> Create(
+  static absl::StatusOr<std::unique_ptr<GaussianPrivacyLoss>> Create(
       double standard_deviation, double sensitivity,
       EstimateType estimate_type = EstimateType::kPessimistic,
       double log_mass_truncation_bound = -50);
 
   NoiseType Discrete() const override { return NoiseType::kContinuous; }
 
-  static base::StatusOr<std::unique_ptr<GaussianPrivacyLoss>> Create(
+  static absl::StatusOr<std::unique_ptr<GaussianPrivacyLoss>> Create(
       const EpsilonDelta& epsilon_delta,
       EstimateType estimate_type = EstimateType::kPessimistic,
       double log_mass_truncation_bound = -50);
@@ -197,7 +197,7 @@ class GaussianPrivacyLoss : public AdditiveNoisePrivacyLoss {
   // The composition with itself num_times is the same as the
   // GaussianPrivacyLoss with sensitivity scaled up by a factor of square root
   // of num_times.
-  base::StatusOr<std::unique_ptr<GaussianPrivacyLoss>> Compose(int num_times);
+  absl::StatusOr<std::unique_ptr<GaussianPrivacyLoss>> Compose(int num_times);
 
   double InversePrivacyLoss(double privacy_loss) const override;
 
@@ -247,11 +247,11 @@ class DiscreteLaplacePrivacyLoss : public AdditiveNoisePrivacyLoss {
   // parameter: the parameter of the discrete Laplace distribution.
   // sensitivity: the sensitivity of function f. (i.e. the maximum absolute
   //   change in f when an input to a single user changes.)
-  static base::StatusOr<std::unique_ptr<DiscreteLaplacePrivacyLoss>> Create(
+  static absl::StatusOr<std::unique_ptr<DiscreteLaplacePrivacyLoss>> Create(
       double parameter, int sensitivity);
 
   // Creates DiscreteLaplacePrivacyLoss from epsilon, delta and sensitivity.
-  static base::StatusOr<std::unique_ptr<DiscreteLaplacePrivacyLoss>> Create(
+  static absl::StatusOr<std::unique_ptr<DiscreteLaplacePrivacyLoss>> Create(
       const EpsilonDelta& epsilon_delta, const int sensitivity);
 
   NoiseType Discrete() const override { return NoiseType::kDiscrete; }
@@ -311,13 +311,13 @@ class DiscreteGaussianPrivacyLoss : public AdditiveNoisePrivacyLoss {
   //   have a support in [-truncation_bound, truncation_bound]. When not set,
   //   truncation_bound will be chosen in such a way that the mass of the noise
   //   outside of this range is at most 1e-30.
-  static base::StatusOr<std::unique_ptr<DiscreteGaussianPrivacyLoss>> Create(
+  static absl::StatusOr<std::unique_ptr<DiscreteGaussianPrivacyLoss>> Create(
       double sigma, int sensitivity,
       absl::optional<int> truncation_bound = absl::nullopt);
 
   NoiseType Discrete() const override { return NoiseType::kDiscrete; }
 
-  static base::StatusOr<std::unique_ptr<DiscreteGaussianPrivacyLoss>> Create(
+  static absl::StatusOr<std::unique_ptr<DiscreteGaussianPrivacyLoss>> Create(
       const EpsilonDelta& epsilon_delta, int sensitivity);
 
   double InversePrivacyLoss(double privacy_loss) const override;

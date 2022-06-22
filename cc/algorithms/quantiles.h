@@ -18,7 +18,7 @@
 #define DIFFERENTIAL_PRIVACY_CPP_ALGORITHMS_QUANTILES_H_
 
 #include "absl/status/status.h"
-#include "base/statusor.h"
+#include "absl/status/statusor.h"
 #include "algorithms/algorithm.h"
 #include "algorithms/bounded-algorithm.h"
 #include "algorithms/quantile-tree.h"
@@ -75,7 +75,7 @@ class Quantiles : public Algorithm<T> {
   std::vector<double> GetQuantiles() const { return quantiles_; }
 
  protected:
-  base::StatusOr<Output> GenerateResult(
+  absl::StatusOr<Output> GenerateResult(
       double confidence_interval_level) override {
     typename QuantileTree<T>::DPParams dp_params;
     dp_params.epsilon = Algorithm<T>::GetEpsilon();
@@ -84,7 +84,7 @@ class Quantiles : public Algorithm<T> {
         max_contributions_per_partition_;
     dp_params.max_partitions_contributed_to = max_partitions_contributed_to_;
     dp_params.mechanism_builder = mechanism_builder_->Clone();
-    base::StatusOr<typename QuantileTree<T>::Privatized> result =
+    absl::StatusOr<typename QuantileTree<T>::Privatized> result =
         tree_->MakePrivate(dp_params);
     if (!result.ok()) {
       return result.status();
@@ -97,7 +97,7 @@ class Quantiles : public Algorithm<T> {
       double result;
       ASSIGN_OR_RETURN(result, privatized_tree.GetQuantile(quantile));
       // Add noise confidence interval.
-      base::StatusOr<ConfidenceInterval> interval =
+      absl::StatusOr<ConfidenceInterval> interval =
           privatized_tree.ComputeNoiseConfidenceInterval(
               quantile, confidence_interval_level);
 
@@ -183,7 +183,7 @@ class Quantiles<T>::Builder {
     return *this;
   }
 
-  base::StatusOr<std::unique_ptr<Quantiles<T>>> Build() {
+  absl::StatusOr<std::unique_ptr<Quantiles<T>>> Build() {
     if (!epsilon_.has_value()) {
       epsilon_ = DefaultEpsilon();
       LOG(WARNING) << "Default epsilon of " << epsilon_.value()

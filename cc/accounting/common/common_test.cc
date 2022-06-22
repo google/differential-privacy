@@ -17,7 +17,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status.h"
-#include "base/statusor.h"
+#include "absl/status/statusor.h"
 #include "base/testing/status_matchers.h"
 
 namespace differential_privacy {
@@ -128,7 +128,7 @@ TEST_P(InverseMonotoneFunctionTest, InverseMonotoneFunctionBasic) {
       .tolerance = 1e-7,
       .discrete = param.discrete};
 
-  base::StatusOr<double> x = InverseMonotoneFunction(
+  absl::StatusOr<double> x = InverseMonotoneFunction(
       param.func, param.value, search_parameters, param.increasing);
 
   EXPECT_OK(x);
@@ -140,7 +140,7 @@ TEST(InverseMonotoneFunctionTest, InverseMonotoneFunctionNotFoundTooLarge) {
                                               .upper_bound = 4};
 
   auto decreasing_func = [](double x) { return -x; };
-  base::StatusOr<double> x =
+  absl::StatusOr<double> x =
       InverseMonotoneFunction(decreasing_func, -5, search_parameters);
   EXPECT_THAT(x, StatusIs(absl::StatusCode::kNotFound));
 }
@@ -151,7 +151,7 @@ TEST(InverseMonotoneFunctionTest, InverseMonotoneFunctionNotFoundTooSmall) {
 
   // inverse is too small for increasing function
   auto increasing_func = [](double x) { return x; };
-  base::StatusOr<double> x =
+  absl::StatusOr<double> x =
       InverseMonotoneFunction(increasing_func, -6, search_parameters,
                               /*increasing=*/true);
   EXPECT_THAT(x, StatusIs(absl::StatusCode::kNotFound));
@@ -169,7 +169,7 @@ TEST(InverseMonotoneFunctionTest, InverseMonotoneFunctionNotEvaluateInfinity) {
     else
       return 1000.0;
   };
-  base::StatusOr<double> x =
+  absl::StatusOr<double> x =
       InverseMonotoneFunction(decreasing_func, -5, search_parameters);
   EXPECT_OK(x);
   EXPECT_NEAR(x.value(), 5, kMaxError);
@@ -188,7 +188,7 @@ TEST(InverseMonotoneFunctionTest,
     else
       return 1000.0;
   };
-  base::StatusOr<double> x =
+  absl::StatusOr<double> x =
       InverseMonotoneFunction(increasing_func, 5, search_parameters,
                               /*increasing=*/true);
   EXPECT_OK(x);
@@ -200,13 +200,13 @@ TEST(InverseMonotoneFunctionTest,
   BinarySearchParameters search_parameters = {
       .lower_bound = -1, .upper_bound = 7, .initial_guess = 2};
 
-  auto increasing_func = [](double x) -> base::StatusOr<double> {
+  auto increasing_func = [](double x) -> absl::StatusOr<double> {
     if (x != 7)
       return -x;
     else
       return absl::InvalidArgumentError("Error: upper bound");
   };
-  base::StatusOr<double> x =
+  absl::StatusOr<double> x =
       InverseMonotoneFunction(increasing_func, -5, search_parameters);
   EXPECT_THAT(x, StatusIs(absl::StatusCode::kInvalidArgument));
 }
@@ -216,13 +216,13 @@ TEST(InverseMonotoneFunctionTest,
   BinarySearchParameters search_parameters = {
       .lower_bound = -1, .upper_bound = 7, .initial_guess = 2};
 
-  auto increasing_func = [](double x) -> base::StatusOr<double> {
+  auto increasing_func = [](double x) -> absl::StatusOr<double> {
     if (x != -1)
       return x;
     else
       return absl::InvalidArgumentError("Error: lower bound");
   };
-  base::StatusOr<double> x = InverseMonotoneFunction(
+  absl::StatusOr<double> x = InverseMonotoneFunction(
       increasing_func, 5, search_parameters, /*increasing=*/true);
   EXPECT_THAT(x, StatusIs(absl::StatusCode::kInvalidArgument));
 }
@@ -231,13 +231,13 @@ TEST(InverseMonotoneFunctionTest, InverseMonotoneFunctionPropagageStatus) {
   BinarySearchParameters search_parameters = {
       .lower_bound = -1, .upper_bound = 7, .initial_guess = 2};
 
-  auto increasing_func = [](double x) -> base::StatusOr<double> {
+  auto increasing_func = [](double x) -> absl::StatusOr<double> {
     if (x != 4)
       return x;
     else
       return absl::InvalidArgumentError("Error");
   };
-  base::StatusOr<double> x = InverseMonotoneFunction(
+  absl::StatusOr<double> x = InverseMonotoneFunction(
       increasing_func, 5, search_parameters, /*increasing=*/true);
   EXPECT_THAT(x, StatusIs(absl::StatusCode::kInvalidArgument));
 }

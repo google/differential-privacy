@@ -37,7 +37,7 @@ static constexpr double kNumSamples = 10000;
 TEST(OrderStatisticsTest, Max) {
   double epsilon = std::log(3);
   int64_t lower = 0, upper = 2048;
-  base::StatusOr<std::unique_ptr<Max<int64_t>>> max =
+  absl::StatusOr<std::unique_ptr<Max<int64_t>>> max =
       Max<int64_t>::Builder()
           .SetEpsilon(epsilon)
           .SetLower(lower)
@@ -54,7 +54,7 @@ TEST(OrderStatisticsTest, Max) {
 TEST(OrderStatisticsTest, Min) {
   double epsilon = std::log(3);
   int64_t lower = 0, upper = 2048;
-  base::StatusOr<std::unique_ptr<Min<int64_t>>> min =
+  absl::StatusOr<std::unique_ptr<Min<int64_t>>> min =
       Min<int64_t>::Builder()
           .SetEpsilon(epsilon)
           .SetLower(lower)
@@ -64,7 +64,7 @@ TEST(OrderStatisticsTest, Min) {
   for (int64_t i = 0; i < kDataSize; ++i) {
     (*min)->AddEntry(std::round(static_cast<double>(200) * i / kDataSize));
   }
-  base::StatusOr<Output> result = (*min)->PartialResult();
+  absl::StatusOr<Output> result = (*min)->PartialResult();
   ASSERT_OK(result);
   EXPECT_NEAR(GetValue<int64_t>(*result), 0, 10);
 }
@@ -72,7 +72,7 @@ TEST(OrderStatisticsTest, Min) {
 TEST(OrderStatisticsTest, Median) {
   double epsilon = std::log(3);
   int64_t lower = 0, upper = 2048;
-  base::StatusOr<std::unique_ptr<Median<int64_t>>> median =
+  absl::StatusOr<std::unique_ptr<Median<int64_t>>> median =
       Median<int64_t>::Builder()
           .SetEpsilon(epsilon)
           .SetLower(lower)
@@ -83,7 +83,7 @@ TEST(OrderStatisticsTest, Median) {
   for (int64_t i = 0; i < kDataSize; ++i) {
     (*median)->AddEntry(std::round(static_cast<double>(200) * i / kDataSize));
   }
-  base::StatusOr<Output> result = (*median)->PartialResult();
+  absl::StatusOr<Output> result = (*median)->PartialResult();
   ASSERT_OK(result);
   EXPECT_EQ(GetValue<int64_t>(*result), 100);
 }
@@ -96,7 +96,7 @@ TEST(OrderStatisticsTest, MedianLinfIncreasesVariance) {
       [&input](int max_contributions) {
         double sum = 0;
         for (int i = 0; i < kNumSamples; ++i) {
-          base::StatusOr<std::unique_ptr<Median<double>>> median =
+          absl::StatusOr<std::unique_ptr<Median<double>>> median =
               Median<double>::Builder()
                   .SetMaxContributionsPerPartition(max_contributions)
                   .SetEpsilon(1)
@@ -104,7 +104,7 @@ TEST(OrderStatisticsTest, MedianLinfIncreasesVariance) {
                   .SetUpper(1)
                   .Build();
           CHECK_EQ(median.status(), absl::OkStatus());
-          base::StatusOr<Output> out =
+          absl::StatusOr<Output> out =
               (*median)->Result(input.begin(), input.end());
           CHECK_EQ(out.status(), absl::OkStatus());
           sum += std::pow(GetValue<double>(*out), 2);
@@ -121,7 +121,7 @@ TEST(OrderStatisticsTest, MedianLinfIncreasesVariance) {
 TEST(OrderStatisticsTest, Percentile) {
   double epsilon = std::log(3);
   int64_t lower = 0, upper = 2048;
-  base::StatusOr<std::unique_ptr<Percentile<int64_t>>> percentile =
+  absl::StatusOr<std::unique_ptr<Percentile<int64_t>>> percentile =
       Percentile<int64_t>::Builder()
           .SetPercentile(.45)
           .SetEpsilon(epsilon)
@@ -134,7 +134,7 @@ TEST(OrderStatisticsTest, Percentile) {
     (*percentile)
         ->AddEntry(std::round(static_cast<double>(200) * i / kDataSize));
   }
-  base::StatusOr<Output> result = (*percentile)->PartialResult();
+  absl::StatusOr<Output> result = (*percentile)->PartialResult();
   ASSERT_OK(result);
   EXPECT_EQ(GetValue<int64_t>(*result), 90);
 }
@@ -142,7 +142,7 @@ TEST(OrderStatisticsTest, Percentile) {
 TEST(OrderStatisticsTest, PercentileGetter) {
   double epsilon = std::log(3), expectedPercentile = 0.9;
   int64_t lower = 0, upper = 2048;
-  base::StatusOr<std::unique_ptr<Percentile<int64_t>>> percentile =
+  absl::StatusOr<std::unique_ptr<Percentile<int64_t>>> percentile =
       Percentile<int64_t>::Builder()
           .SetPercentile(expectedPercentile)
           .SetEpsilon(epsilon)
@@ -174,7 +174,7 @@ TEST(OrderStatisticsTest, InvalidParameters) {
 
 TEST(OrderStatisticsTest, Median_DefaultBounds) {
   double epsilon = std::log(3);
-  base::StatusOr<std::unique_ptr<Median<int64_t>>> median =
+  absl::StatusOr<std::unique_ptr<Median<int64_t>>> median =
       Median<int64_t>::Builder()
           .SetEpsilon(epsilon)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
@@ -183,7 +183,7 @@ TEST(OrderStatisticsTest, Median_DefaultBounds) {
   for (int64_t i = 0; i < kDataSize; ++i) {
     (*median)->AddEntry(std::round(static_cast<double>(200) * i / kDataSize));
   }
-  base::StatusOr<Output> result = (*median)->PartialResult();
+  absl::StatusOr<Output> result = (*median)->PartialResult();
   ASSERT_OK(result);
   EXPECT_EQ(GetValue<int64_t>(*result), 100);
 }

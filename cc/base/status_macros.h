@@ -81,7 +81,7 @@
   if (ABSL_PREDICT_FALSE(!statusor.ok())) {                        \
     return statusor.status();                                      \
   }                                                                \
-  lhs = std::move(statusor).ValueOrDie()
+  lhs = std::move(statusor).value()
 
 // Internal helper for concatenating macro values.
 #define STATUS_MACROS_IMPL_CONCAT_INNER_(x, y) x##y

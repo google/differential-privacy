@@ -24,7 +24,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status.h"
-#include "base/statusor.h"
+#include "absl/status/statusor.h"
 #include "algorithms/numerical-mechanisms.h"
 #include "proto/confidence-interval.pb.h"
 
@@ -99,7 +99,7 @@ TEST(BoundedMeanCiTest, BoundedMeanConfidenceIntervalHasBasicProperties) {
 // mean to make sure propertis for the overall aggregation hold as well.
 std::unique_ptr<NumericalMechanism> LaplaceSumForParams(
     const BoundedMeanConfidenceIntervalParams &params) {
-  base::StatusOr<std::unique_ptr<NumericalMechanism>> m =
+  absl::StatusOr<std::unique_ptr<NumericalMechanism>> m =
       LaplaceMechanism::Builder()
           .SetEpsilon(kDefaultEpsilon / 2.0)
           .SetL0Sensitivity(1)
@@ -114,7 +114,7 @@ std::unique_ptr<NumericalMechanism> LaplaceSumForParams(
 // mean aggregation.
 std::unique_ptr<NumericalMechanism> LaplaceCountForParams(
     const BoundedMeanConfidenceIntervalParams &params) {
-  base::StatusOr<std::unique_ptr<NumericalMechanism>> m =
+  absl::StatusOr<std::unique_ptr<NumericalMechanism>> m =
       LaplaceMechanism::Builder()
           .SetEpsilon(kDefaultEpsilon / 2.0)
           .SetL0Sensitivity(1)

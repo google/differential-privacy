@@ -21,7 +21,7 @@
 #include <vector>
 
 #include "absl/status/status.h"
-#include "base/statusor.h"
+#include "absl/status/statusor.h"
 #include "base/status_macros.h"
 
 namespace differential_privacy {
@@ -66,7 +66,7 @@ double InverseErrorFunction(double x) {
   return ans * x;
 }
 
-base::StatusOr<double> Qnorm(double p, double mu, double sigma) {
+absl::StatusOr<double> Qnorm(double p, double mu, double sigma) {
   if (p <= 0.0 || p >= 1.0) {
     return absl::InvalidArgumentError(
         "Probability must be between 0 and 1, exclusive.");

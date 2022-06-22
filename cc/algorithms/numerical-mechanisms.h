@@ -30,7 +30,7 @@
 #include "absl/base/attributes.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
-#include "base/statusor.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/types/optional.h"
 #include "algorithms/distributions.h"
@@ -89,10 +89,10 @@ class NumericalMechanism {
 
   virtual int64_t MemoryUsed() = 0;
 
-  virtual base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
+  virtual absl::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
       double confidence_level, double noised_result) = 0;
 
-  virtual base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
+  virtual absl::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
       double confidence_level) = 0;
 
   struct NoiseConfidenceIntervalResult {
@@ -171,7 +171,7 @@ class NumericalMechanismBuilder {
     return *this;
   }
 
-  virtual base::StatusOr<std::unique_ptr<NumericalMechanism>> Build() = 0;
+  virtual absl::StatusOr<std::unique_ptr<NumericalMechanism>> Build() = 0;
 
   virtual std::unique_ptr<NumericalMechanismBuilder> Clone() const = 0;
 
@@ -215,7 +215,7 @@ class LaplaceMechanism : public NumericalMechanism {
       return *this;
     }
 
-    base::StatusOr<std::unique_ptr<NumericalMechanism>> Build() override {
+    absl::StatusOr<std::unique_ptr<NumericalMechanism>> Build() override {
       RETURN_IF_ERROR(ValidateIsFiniteAndPositive(GetEpsilon(), "Epsilon"));
       double epsilon = GetEpsilon().value();
       ASSIGN_OR_RETURN(double L1, CalculateL1Sensitivity());
@@ -229,7 +229,7 @@ class LaplaceMechanism : public NumericalMechanism {
       if (overflow_probability >= kMaxOverflowProbability) {
         return absl::InvalidArgumentError("Sensitivity is too high.");
       }
-      base::StatusOr<double> gran_or_status =
+      absl::StatusOr<double> gran_or_status =
           internal::LaplaceDistribution::CalculateGranularity(epsilon, L1);
       if (!gran_or_status.ok()) return gran_or_status.status();
 
@@ -250,7 +250,7 @@ class LaplaceMechanism : public NumericalMechanism {
 
     // Returns the L1 sensitivity when it has been set or returns an upper bound
     // on the L1 sensitivity calculated from L0 and Linf sensitivities.
-    base::StatusOr<double> CalculateL1Sensitivity() {
+    absl::StatusOr<double> CalculateL1Sensitivity() {
       if (l1_sensitivity_.has_value()) {
         absl::Status status =
             ValidateIsFiniteAndPositive(l1_sensitivity_, "L1 sensitivity");
@@ -296,7 +296,7 @@ class LaplaceMechanism : public NumericalMechanism {
       : NumericalMechanism(epsilon),
         sensitivity_(sensitivity),
         diversity_(sensitivity / epsilon) {
-    base::StatusOr<std::unique_ptr<internal::LaplaceDistribution>>
+    absl::StatusOr<std::unique_ptr<internal::LaplaceDistribution>>
         status_or_distro = internal::LaplaceDistribution::Builder()
                                .SetEpsilon(GetEpsilon())
                                .SetSensitivity(sensitivity)
@@ -307,7 +307,7 @@ class LaplaceMechanism : public NumericalMechanism {
   }
 
   // Deserialize the LaplaceMechanism from a proto.
-  static base::StatusOr<std::unique_ptr<NumericalMechanism>> Deserialize(
+  static absl::StatusOr<std::unique_ptr<NumericalMechanism>> Deserialize(
       const serialization::LaplaceMechanism& proto) {
     Builder builder;
     if (proto.has_epsilon()) {
@@ -341,7 +341,7 @@ class LaplaceMechanism : public NumericalMechanism {
   // noise that AddNoise() would add.
   // If the returned value is <x,y>, then the noise added has a confidence_level
   // chance of being in the domain [x,y].
-  base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
+  absl::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
       double confidence_level) override {
     return NoiseConfidenceInterval(confidence_level, 0);
   }
@@ -356,7 +356,7 @@ class LaplaceMechanism : public NumericalMechanism {
     return ci;
   }
 
-  base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
+  absl::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
       double confidence_level, double noised_result) override {
     RETURN_IF_ERROR(CheckConfidenceLevel(confidence_level));
     NoiseConfidenceIntervalResult ci =
@@ -453,7 +453,7 @@ class GaussianMechanism : public NumericalMechanism {
       return *this;
     }
 
-    base::StatusOr<std::unique_ptr<NumericalMechanism>> Build() override {
+    absl::StatusOr<std::unique_ptr<NumericalMechanism>> Build() override {
       internal::GaussianDistribution::Builder builder;
       ASSIGN_OR_RETURN(std::unique_ptr<internal::GaussianDistribution> distro,
                        builder.SetStddev(1).Build());
@@ -479,7 +479,7 @@ class GaussianMechanism : public NumericalMechanism {
    private:
     // Returns the l2 sensitivity when it has been set or returns an upper bound
     // on the l2 sensitivity calculated from l0 and linf sensitivities.
-    base::StatusOr<double> CalculateL2Sensitivity() {
+    absl::StatusOr<double> CalculateL2Sensitivity() {
       if (l2_sensitivity_.has_value()) {
         absl::Status status =
             ValidateIsFiniteAndPositive(l2_sensitivity_, "L2 sensitivity");
@@ -522,7 +522,7 @@ class GaussianMechanism : public NumericalMechanism {
       : NumericalMechanism(epsilon),
         delta_(delta),
         l2_sensitivity_(l2_sensitivity) {
-    base::StatusOr<std::unique_ptr<internal::GaussianDistribution>>
+    absl::StatusOr<std::unique_ptr<internal::GaussianDistribution>>
         status_or_distro =
             internal::GaussianDistribution::Builder().SetStddev(1).Build();
     DCHECK(status_or_distro.status().ok());
@@ -537,7 +537,7 @@ class GaussianMechanism : public NumericalMechanism {
   }
 
   // Deserialize the GaussianMechanism from a proto.
-  static base::StatusOr<std::unique_ptr<NumericalMechanism>> Deserialize(
+  static absl::StatusOr<std::unique_ptr<NumericalMechanism>> Deserialize(
       const serialization::GaussianMechanism& proto) {
     Builder builder;
     if (proto.has_epsilon()) {
@@ -583,7 +583,7 @@ class GaussianMechanism : public NumericalMechanism {
   // noise that AddNoise() would add.
   // If the returned value is <x,y>, then the noise added has a confidence_level
   // chance of being in the domain [x,y].
-  base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
+  absl::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
       double confidence_level) override {
     return NoiseConfidenceInterval(confidence_level, 0);
   }
@@ -603,7 +603,7 @@ class GaussianMechanism : public NumericalMechanism {
     return ci;
   }
 
-  base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
+  absl::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
       double confidence_level, double noised_result) override {
     RETURN_IF_ERROR(CheckConfidenceLevel(confidence_level));
     NoiseConfidenceIntervalResult ci =
@@ -759,13 +759,13 @@ class MinVarianceMechanismBuilder : public NumericalMechanismBuilder {
   // Returns the numerical mechanism with the lower variance.  If only one
   // mechanism can be build, this method returns that mechanism.  If no
   // mechanism can be build, this method returns an error.
-  base::StatusOr<std::unique_ptr<NumericalMechanism>> Build() override {
+  absl::StatusOr<std::unique_ptr<NumericalMechanism>> Build() override {
     LaplaceMechanism::Builder laplace_builder;
-    base::StatusOr<std::unique_ptr<NumericalMechanism>> laplace =
+    absl::StatusOr<std::unique_ptr<NumericalMechanism>> laplace =
         GetMechanismFromBuilder(laplace_builder);
 
     GaussianMechanism::Builder gaussian_builder;
-    base::StatusOr<std::unique_ptr<NumericalMechanism>> gaussian =
+    absl::StatusOr<std::unique_ptr<NumericalMechanism>> gaussian =
         GetMechanismFromBuilder(gaussian_builder);
 
     if (laplace.ok() && gaussian.ok()) {
@@ -802,7 +802,7 @@ class MinVarianceMechanismBuilder : public NumericalMechanismBuilder {
   }
 
  private:
-  base::StatusOr<std::unique_ptr<NumericalMechanism>> GetMechanismFromBuilder(
+  absl::StatusOr<std::unique_ptr<NumericalMechanism>> GetMechanismFromBuilder(
       NumericalMechanismBuilder& builder) {
     if (GetEpsilon()) {
       builder.SetEpsilon(GetEpsilon().value());

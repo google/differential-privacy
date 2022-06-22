@@ -17,14 +17,14 @@
 #include <utility>
 
 #include "absl/status/status.h"
-#include "base/statusor.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/str_format.h"
 #include "base/status_macros.h"
 
 namespace differential_privacy {
 namespace accounting {
-base::StatusOr<double> InverseMonotoneFunction(
-    const absl::FunctionRef<base::StatusOr<double>(double x)> func,
+absl::StatusOr<double> InverseMonotoneFunction(
+    const absl::FunctionRef<absl::StatusOr<double>(double x)> func,
     const double value, const BinarySearchParameters search_parameters,
     const bool increasing) {
   double lower_x = search_parameters.lower_bound;

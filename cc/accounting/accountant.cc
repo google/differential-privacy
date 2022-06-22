@@ -16,7 +16,7 @@
 #include <cmath>
 
 #include "absl/status/status.h"
-#include "base/statusor.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/str_format.h"
 #include "boost/math/special_functions/binomial.hpp"
 #include "accounting/common/common.h"
@@ -25,7 +25,7 @@
 namespace differential_privacy {
 namespace accounting {
 
-base::StatusOr<double> GetSmallestParameter(EpsilonDelta epsilon_delta,
+absl::StatusOr<double> GetSmallestParameter(EpsilonDelta epsilon_delta,
                                             int num_queries, double sensitivity,
                                             NoiseFunction noise_function,
                                             absl::optional<double> upper_bound,
@@ -53,7 +53,7 @@ base::StatusOr<double> GetSmallestParameter(EpsilonDelta epsilon_delta,
                                  search_parameters);
 }
 
-base::StatusOr<double> AdvancedComposition(
+absl::StatusOr<double> AdvancedComposition(
     const EpsilonDelta privacy_parameters, const int num_queries,
     const double total_delta) {
   double epsilon = privacy_parameters.epsilon;

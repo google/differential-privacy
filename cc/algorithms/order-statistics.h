@@ -20,7 +20,7 @@
 #include "base/percentile.h"
 #include "absl/base/attributes.h"
 #include "absl/status/status.h"
-#include "base/statusor.h"
+#include "absl/status/statusor.h"
 #include "algorithms/algorithm.h"
 #include "algorithms/binary-search.h"
 #include "algorithms/bounded-algorithm.h"
@@ -91,7 +91,7 @@ class ABSL_DEPRECATED("Use Quantiles instead.") Max : public BinarySearch<T> {
     using OrderBuilder = OrderStatisticsBuilder<T, Max<T>, Builder>;
 
    private:
-    base::StatusOr<std::unique_ptr<Max<T>>> BuildBoundedAlgorithm() override {
+    absl::StatusOr<std::unique_ptr<Max<T>>> BuildBoundedAlgorithm() override {
       RETURN_IF_ERROR(OrderBuilder::ConstructDependencies());
       std::unique_ptr<LaplaceMechanism::Builder> laplace_builder =
           absl::WrapUnique<LaplaceMechanism::Builder>(
@@ -128,7 +128,7 @@ class ABSL_DEPRECATED("Use Quantiles instead.") Min : public BinarySearch<T> {
     using OrderBuilder = OrderStatisticsBuilder<T, Min<T>, Builder>;
 
    private:
-    base::StatusOr<std::unique_ptr<Min<T>>> BuildBoundedAlgorithm() override {
+    absl::StatusOr<std::unique_ptr<Min<T>>> BuildBoundedAlgorithm() override {
       RETURN_IF_ERROR(OrderBuilder::ConstructDependencies());
       std::unique_ptr<LaplaceMechanism::Builder> laplace_builder =
           absl::WrapUnique<LaplaceMechanism::Builder>(
@@ -166,7 +166,7 @@ class ABSL_DEPRECATED("Use Quantiles instead.") Median
     using OrderBuilder = OrderStatisticsBuilder<T, Median<T>, Builder>;
 
    private:
-    base::StatusOr<std::unique_ptr<Median<T>>> BuildBoundedAlgorithm()
+    absl::StatusOr<std::unique_ptr<Median<T>>> BuildBoundedAlgorithm()
         override {
       RETURN_IF_ERROR(OrderBuilder::ConstructDependencies());
       std::unique_ptr<LaplaceMechanism::Builder> laplace_builder =
@@ -211,7 +211,7 @@ class ABSL_DEPRECATED("Use Quantiles instead.") Percentile
     }
 
    private:
-    base::StatusOr<std::unique_ptr<Percentile<T>>> BuildBoundedAlgorithm()
+    absl::StatusOr<std::unique_ptr<Percentile<T>>> BuildBoundedAlgorithm()
         override {
       RETURN_IF_ERROR(OrderBuilder::ConstructDependencies());
       RETURN_IF_ERROR(

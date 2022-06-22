@@ -287,7 +287,7 @@ TEST(QuantilesTest, MergeFailsWithBadBounds) {
 
 TYPED_TEST(QuantilesTest, MergeInDifferentOrderReturnsSameProto) {
   std::vector<double> quantiles = {0.3, 0.5, 0.9};
-  base::StatusOr<std::unique_ptr<Quantiles<TypeParam>>> q1 =
+  absl::StatusOr<std::unique_ptr<Quantiles<TypeParam>>> q1 =
       typename Quantiles<TypeParam>::Builder()
           .SetEpsilon(1.1)
           .SetUpper(50)
@@ -300,7 +300,7 @@ TYPED_TEST(QuantilesTest, MergeInDifferentOrderReturnsSameProto) {
   }
   Summary summary1 = q1.value()->Serialize();
 
-  base::StatusOr<std::unique_ptr<Quantiles<TypeParam>>> q2 =
+  absl::StatusOr<std::unique_ptr<Quantiles<TypeParam>>> q2 =
       typename Quantiles<TypeParam>::Builder()
           .SetEpsilon(1.1)
           .SetUpper(50)
@@ -313,7 +313,7 @@ TYPED_TEST(QuantilesTest, MergeInDifferentOrderReturnsSameProto) {
   }
   Summary summary2 = q2.value()->Serialize();
 
-  base::StatusOr<std::unique_ptr<Quantiles<TypeParam>>> merger1 =
+  absl::StatusOr<std::unique_ptr<Quantiles<TypeParam>>> merger1 =
       typename Quantiles<TypeParam>::Builder()
           .SetEpsilon(1.1)
           .SetUpper(50)
@@ -324,7 +324,7 @@ TYPED_TEST(QuantilesTest, MergeInDifferentOrderReturnsSameProto) {
   ASSERT_OK(merger1.value()->Merge(summary1));
   ASSERT_OK(merger1.value()->Merge(summary2));
 
-  base::StatusOr<std::unique_ptr<Quantiles<TypeParam>>> merger2 =
+  absl::StatusOr<std::unique_ptr<Quantiles<TypeParam>>> merger2 =
       typename Quantiles<TypeParam>::Builder()
           .SetEpsilon(1.1)
           .SetUpper(50)

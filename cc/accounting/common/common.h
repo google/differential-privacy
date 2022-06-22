@@ -20,7 +20,7 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/functional/function_ref.h"
 #include "absl/status/status.h"
-#include "base/statusor.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/str_format.h"
 
 namespace differential_privacy {
@@ -66,8 +66,8 @@ struct BinarySearchParameters {
 // within search_parameters.tolerance of the smallest (for monotonically
 // decreasing f) or the largest (for monotonically increasing f) such x. When no
 // such x exists within the given range, returns NotFoundError.
-base::StatusOr<double> InverseMonotoneFunction(
-    absl::FunctionRef<base::StatusOr<double>(double x)> func, double value,
+absl::StatusOr<double> InverseMonotoneFunction(
+    absl::FunctionRef<absl::StatusOr<double>(double x)> func, double value,
     BinarySearchParameters search_parameters, bool increasing = false);
 
 // Each probability mass function (PMF) is hash map with outcome as key and

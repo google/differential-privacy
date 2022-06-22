@@ -31,7 +31,7 @@ parameter `percentile`. For example, when constructing the `Percentile`
 algorithm:
 
 ```
-base::StatusOr<std::unique_ptr<Percentile<T>>> percentile =
+absl::StatusOr<std::unique_ptr<Percentile<T>>> percentile =
    Percentile<T>::Builder.SetPercentile(double percentile)
                          .Build();
 ```

@@ -16,7 +16,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "base/statusor.h"
+#include "absl/status/statusor.h"
 #include "accounting/common/common.h"
 #include "accounting/common/test_util.h"
 #include "proto/accounting/privacy-loss-distribution.pb.h"
@@ -180,7 +180,7 @@ TEST(PrivacyLossDistributionTest, GetDeltaForEpsilonForComposedPLD) {
                                               /*infinity_mass=*/0.05,
                                               /*discretization_interval=*/0.4);
 
-  base::StatusOr<double> delta =
+  absl::StatusOr<double> delta =
       pld->GetDeltaForEpsilonForComposedPLD(*pld_other, /*epsilon=*/1.1);
   ASSERT_OK(delta);
   EXPECT_THAT(*delta, DoubleNear(0.2956, kMaxError));
@@ -233,7 +233,7 @@ TEST(PrivacyLossDistributionTest, ComposeNumTimesTruncation) {
   // sensitivity.
   int standard_deviation = 20;
   int num_composition = standard_deviation * standard_deviation;
-  base::StatusOr<std::unique_ptr<AdditiveNoisePrivacyLoss>> noise_privacy_loss =
+  absl::StatusOr<std::unique_ptr<AdditiveNoisePrivacyLoss>> noise_privacy_loss =
       GaussianPrivacyLoss::Create(standard_deviation, /*sensitivity=*/1);
   ASSERT_OK(noise_privacy_loss);
 
@@ -416,7 +416,7 @@ INSTANTIATE_TEST_SUITE_P(PrivacyLossDistributionSuite, DiscretizationTest,
 
 TEST_P(DiscretizationTest, Gaussian) {
   CreateParam param = GetParam();
-  base::StatusOr<std::unique_ptr<AdditiveNoisePrivacyLoss>> noise_privacy_loss =
+  absl::StatusOr<std::unique_ptr<AdditiveNoisePrivacyLoss>> noise_privacy_loss =
       GaussianPrivacyLoss::Create(
           /*standard_deviation=*/1,
           /*sensitivity=*/1,
@@ -435,7 +435,7 @@ TEST_P(DiscretizationTest, Gaussian) {
 }
 
 TEST(PrivacyLossDistributionTest, DivergenceFromMechansim) {
-  base::StatusOr<std::unique_ptr<GaussianPrivacyLoss>> noise_privacy_loss =
+  absl::StatusOr<std::unique_ptr<GaussianPrivacyLoss>> noise_privacy_loss =
       GaussianPrivacyLoss::Create(
           /*standard_deviation=*/1,
           /*sensitivity=*/1);
@@ -458,7 +458,7 @@ TEST(PrivacyLossDistributionTest, DivergenceFromMechansim) {
 }
 
 TEST(PrivacyLossDistributionTest, GaussianOptimistic) {
-  base::StatusOr<std::unique_ptr<GaussianPrivacyLoss>> noise_privacy_loss =
+  absl::StatusOr<std::unique_ptr<GaussianPrivacyLoss>> noise_privacy_loss =
       GaussianPrivacyLoss::Create(
           /*standard_deviation=*/1,
           /*sensitivity=*/2,
@@ -507,7 +507,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST_P(RandomizedResponse, Create) {
   RandomizedResponseParam param = GetParam();
-  base::StatusOr<std::unique_ptr<PrivacyLossDistribution>> pld =
+  absl::StatusOr<std::unique_ptr<PrivacyLossDistribution>> pld =
       PrivacyLossDistribution::CreateForRandomizedResponse(
           param.noise_parameter, param.num_buckets, param.estimate_type,
           /*discretization_interval=*/1);
@@ -641,7 +641,7 @@ INSTANTIATE_TEST_SUITE_P(
 TEST_P(DiscreteLaplacePrivacyLossDistribution, Create) {
   DiscreteLaplacePrivacyLossDistributionParam param = GetParam();
 
-  base::StatusOr<std::unique_ptr<PrivacyLossDistribution>> pld =
+  absl::StatusOr<std::unique_ptr<PrivacyLossDistribution>> pld =
       PrivacyLossDistribution::CreateForDiscreteLaplaceMechanism(
           /*parameter=*/param.parameter, /*sensitivity=*/param.sensitivity,
           /*estimate_type=*/param.estimate_type,
@@ -724,7 +724,7 @@ INSTANTIATE_TEST_SUITE_P(
 TEST_P(LaplacePrivacyLossDistribution, CreatePLD) {
   LaplacePrivacyLossDistributionParam param = GetParam();
 
-  base::StatusOr<std::unique_ptr<PrivacyLossDistribution>> pld =
+  absl::StatusOr<std::unique_ptr<PrivacyLossDistribution>> pld =
       PrivacyLossDistribution::CreateForLaplaceMechanism(
           /*parameter=*/param.parameter, /*sensitivity=*/param.sensitivity,
           /*estimate_type=*/param.estimate_type,
@@ -811,7 +811,7 @@ TEST_P(GaussianPrivacyLossDistribution, CreatePLD) {
   // mass_truncation_bound = ln(2) + log(CDF_normal(-0.9)).
   double mass_truncation_bound = -0.999345626001393;
 
-  base::StatusOr<std::unique_ptr<PrivacyLossDistribution>> pld =
+  absl::StatusOr<std::unique_ptr<PrivacyLossDistribution>> pld =
       PrivacyLossDistribution::CreateForGaussianMechanism(
           /*standard_deviation=*/param.standard_deviation,
           /*sensitivity=*/param.sensitivity,
@@ -915,7 +915,7 @@ INSTANTIATE_TEST_SUITE_P(
 TEST_P(DiscreteGaussianPrivacyLossDistribution, CreatePLD) {
   DiscreteGaussianPrivacyLossDistributionParam param = GetParam();
 
-  base::StatusOr<std::unique_ptr<PrivacyLossDistribution>> pld =
+  absl::StatusOr<std::unique_ptr<PrivacyLossDistribution>> pld =
       PrivacyLossDistribution::CreateForDiscreteGaussianMechanism(
           /*sigma=*/param.sigma,
           /*sensitivity=*/param.sensitivity,
@@ -933,7 +933,7 @@ TEST_P(DiscreteGaussianPrivacyLossDistribution, CreatePLD) {
 }
 
 TEST(PrivacyLossDistributionTest, AccurateComposition) {
-  base::StatusOr<std::unique_ptr<GaussianPrivacyLoss>> noise_privacy_loss =
+  absl::StatusOr<std::unique_ptr<GaussianPrivacyLoss>> noise_privacy_loss =
       GaussianPrivacyLoss::Create(
           /*standard_deviation=*/4,
           /*sensitivity=*/1);
@@ -962,11 +962,11 @@ TEST(PrivacyLossDistributionTest, Serialization) {
       PrivacyLossDistributionTestPeer::Create(
           pmf, infinity_mass, discretization_interval, estimate_type);
 
-  base::StatusOr<serialization::PrivacyLossDistribution> serialized_result =
+  absl::StatusOr<serialization::PrivacyLossDistribution> serialized_result =
       pld->Serialize();
   ASSERT_OK(serialized_result);
 
-  base::StatusOr<std::unique_ptr<PrivacyLossDistribution>> deserialized_result =
+  absl::StatusOr<std::unique_ptr<PrivacyLossDistribution>> deserialized_result =
       PrivacyLossDistribution::Deserialize(*serialized_result);
   ASSERT_OK(deserialized_result);
 

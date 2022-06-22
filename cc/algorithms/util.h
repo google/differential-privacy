@@ -30,7 +30,7 @@
 #include "base/logging.h"
 #include "absl/base/attributes.h"
 #include "absl/status/status.h"
-#include "base/statusor.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
@@ -87,7 +87,7 @@ double InverseErrorFunction(double x);
 // standard deviation sigma, at probability p. Based on Abramowitz and Stegun
 // formula 26.2.23. The error of the estimation is bounded by 4.5 e-4. This
 // function will fail if higher accuracy is required.
-base::StatusOr<double> Qnorm(double p, double mu = 0.0, double sigma = 1.0);
+absl::StatusOr<double> Qnorm(double p, double mu = 0.0, double sigma = 1.0);
 
 template <typename T>
 inline const T& Clamp(const T& low, const T& high, const T& value) {

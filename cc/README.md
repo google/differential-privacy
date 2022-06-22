@@ -24,7 +24,7 @@ int64_t count(const std::vector<double>& values, double epsilon) {
                                                    .ValueOrDie();
 
   // Compute the count and get the result.
-  base::StatusOr<differential_privacy::Output> result =
+  absl::StatusOr<differential_privacy::Output> result =
      count->Result(values.begin(), values.end());
   if (!result.ok()) {
     return 0;

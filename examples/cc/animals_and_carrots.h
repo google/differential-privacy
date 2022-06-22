@@ -20,7 +20,7 @@
 #include <map>
 #include <string>
 
-#include "base/statusor.h"
+#include "absl/status/statusor.h"
 #include "proto/data.pb.h"
 
 namespace differential_privacy {
@@ -56,22 +56,22 @@ class CarrotReporter {
   // DP sum of all the carrots eaten. Consumes `epsilon` amount of budget.
   // Returns an error is `epsilon` is more than the total remaining epsilon
   // assigned to the CarrotReporter.
-  base::StatusOr<Output> PrivateSum(double epsilon);
+  absl::StatusOr<Output> PrivateSum(double epsilon);
 
   // DP mean of all carrots eaten. Consumes `epsilon` amount of budget. Returns
   // an error is `epsilon` is more than the total remaining epsilon assigned to
   // the CarrotReporter.
-  base::StatusOr<Output> PrivateMean(double epsilon);
+  absl::StatusOr<Output> PrivateMean(double epsilon);
 
   // DP count of the number of animals who ate more than "limit" carrots.
   // Consumes `epsilon` amount of budget. Returns an error is `epsilon` is more
   // than the total remaining epsilon assigned to the CarrotReporter.
-  base::StatusOr<Output> PrivateCountAbove(double epsilon, int limit);
+  absl::StatusOr<Output> PrivateCountAbove(double epsilon, int limit);
 
   // DP maximum of the number of carrots eaten by any one animal. Consumes
   // `epsilon` amount of budget. Returns an error is `epsilon` is more than the
   // total remaining epsilon assigned to the CarrotReporter.
-  base::StatusOr<Output> PrivateMax(double epsilon);
+  absl::StatusOr<Output> PrivateMax(double epsilon);
 
  private:
   // Map from the animal name to the number of carrots eaten by that animal.

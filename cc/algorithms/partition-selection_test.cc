@@ -21,7 +21,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "base/statusor.h"
+#include "absl/status/statusor.h"
 #include "algorithms/numerical-mechanisms-testing.h"
 
 namespace differential_privacy {
@@ -730,7 +730,7 @@ TEST(PartitionSelectionTest, CalculateDeltaTests) {
         "epsilon: ", epsilon, ", threshold: ", threshold,
         ", max_partitions_contributed: ", max_partitions_contributed);
 
-    base::StatusOr<double> status_or_delta =
+    absl::StatusOr<double> status_or_delta =
         LaplacePartitionSelection::CalculateDelta(epsilon, threshold,
                                                   max_partitions_contributed);
 
@@ -929,7 +929,7 @@ TEST(PartitionSelectionTest, CalculateThresholdTests) {
         "epsilon: ", epsilon, ", delta: ", delta,
         ", max_partitions_contributed: ", max_partitions_contributed);
 
-    base::StatusOr<double> status_or_threshold =
+    absl::StatusOr<double> status_or_threshold =
         LaplacePartitionSelection::CalculateThreshold(
             epsilon, delta, max_partitions_contributed);
 
@@ -966,7 +966,7 @@ TEST(PartitionSelectionTest, RoundTripThresholdTests) {
       std::string test_case_string = absl::StrCat(
           "threshold: ", threshold,
           ", max_partitions_contributed: ", max_partitions_contributed);
-      base::StatusOr<double> status_or_delta =
+      absl::StatusOr<double> status_or_delta =
           LaplacePartitionSelection::CalculateDelta(epsilon, threshold,
                                                     max_partitions_contributed);
       ASSERT_TRUE(status_or_delta.ok()) << status_or_delta.status() << "\n"
@@ -988,7 +988,7 @@ TEST(PartitionSelectionTest, RoundTripThresholdTests) {
         continue;
       }
 
-      base::StatusOr<double> status_or_threshold =
+      absl::StatusOr<double> status_or_threshold =
           LaplacePartitionSelection::CalculateThreshold(
               epsilon, delta, max_partitions_contributed);
       ASSERT_TRUE(status_or_threshold.ok())
@@ -1030,7 +1030,7 @@ TEST(PartitionSelectionTest, RoundTripDeltaTests) {
           "delta: ", delta,
           ", max_partitions_contributed: ", max_partitions_contributed);
 
-      base::StatusOr<double> status_or_threshold =
+      absl::StatusOr<double> status_or_threshold =
           LaplacePartitionSelection::CalculateThreshold(
               epsilon, delta, max_partitions_contributed);
       ASSERT_TRUE(status_or_threshold.ok())
@@ -1040,15 +1040,15 @@ TEST(PartitionSelectionTest, RoundTripDeltaTests) {
 
       absl::StrAppend(&test_case_string, ", computed threshold: ", threshold);
 
-      const base::StatusOr<double> computed_delta =
+      const absl::StatusOr<double> computed_delta =
           LaplacePartitionSelection::CalculateDelta(epsilon, threshold,
                                                     max_partitions_contributed);
 
-      const base::StatusOr<double> computed_delta_plus_one =
+      const absl::StatusOr<double> computed_delta_plus_one =
           LaplacePartitionSelection::CalculateDelta(epsilon, threshold + 1,
                                                     max_partitions_contributed);
 
-      const base::StatusOr<double> computed_delta_minus_one =
+      const absl::StatusOr<double> computed_delta_minus_one =
           LaplacePartitionSelection::CalculateDelta(epsilon, threshold - 1,
                                                     max_partitions_contributed);
 
@@ -1372,7 +1372,7 @@ TEST(PartitionSelectionTest, CalculateGaussianThresholdTests) {
 
     const double noise_delta = delta / 2;
     const double threshold_delta = delta - noise_delta;
-    base::StatusOr<double> status_or_threshold =
+    absl::StatusOr<double> status_or_threshold =
         GaussianPartitionSelection::CalculateThreshold(
             epsilon, noise_delta, threshold_delta, max_partitions_contributed);
 
@@ -1511,7 +1511,7 @@ TEST(PartitionSelectionTest, CalculateGaussianDeltaTests) {
         "epsilon: ", epsilon, ", threshold: ", threshold,
         ", max_partitions_contributed: ", max_partitions_contributed);
 
-    base::StatusOr<double> status_or_delta =
+    absl::StatusOr<double> status_or_delta =
         GaussianPartitionSelection::CalculateThresholdDelta(
             epsilon, noise_delta, threshold, max_partitions_contributed);
 
@@ -1548,7 +1548,7 @@ TEST(PartitionSelectionTest, GaussianRoundTripThresholdTests) {
       std::string test_case_string = absl::StrCat(
           "threshold: ", threshold,
           ", max_partitions_contributed: ", max_partitions_contributed);
-      base::StatusOr<double> status_or_delta =
+      absl::StatusOr<double> status_or_delta =
           GaussianPartitionSelection::CalculateThresholdDelta(
               epsilon, noise_delta, threshold, max_partitions_contributed);
       ASSERT_TRUE(status_or_delta.ok()) << status_or_delta.status() << "\n"
@@ -1570,7 +1570,7 @@ TEST(PartitionSelectionTest, GaussianRoundTripThresholdTests) {
         continue;
       }
 
-      base::StatusOr<double> status_or_threshold =
+      absl::StatusOr<double> status_or_threshold =
           GaussianPartitionSelection::CalculateThreshold(
               epsilon, noise_delta, delta, max_partitions_contributed);
       ASSERT_TRUE(status_or_threshold.ok())
@@ -1613,7 +1613,7 @@ TEST(PartitionSelectionTest, GaussianRoundTripDeltaTests) {
           "delta: ", delta,
           ", max_partitions_contributed: ", max_partitions_contributed);
 
-      base::StatusOr<double> status_or_threshold =
+      absl::StatusOr<double> status_or_threshold =
           GaussianPartitionSelection::CalculateThreshold(
               epsilon, noise_delta, delta, max_partitions_contributed);
       ASSERT_TRUE(status_or_threshold.ok())
@@ -1623,15 +1623,15 @@ TEST(PartitionSelectionTest, GaussianRoundTripDeltaTests) {
 
       absl::StrAppend(&test_case_string, ", computed threshold: ", threshold);
 
-      const base::StatusOr<double> computed_delta =
+      const absl::StatusOr<double> computed_delta =
           GaussianPartitionSelection::CalculateThresholdDelta(
               epsilon, noise_delta, threshold, max_partitions_contributed);
 
-      const base::StatusOr<double> computed_delta_plus_one =
+      const absl::StatusOr<double> computed_delta_plus_one =
           GaussianPartitionSelection::CalculateThresholdDelta(
               epsilon, noise_delta, threshold + 1, max_partitions_contributed);
 
-      const base::StatusOr<double> computed_delta_minus_one =
+      const absl::StatusOr<double> computed_delta_minus_one =
           GaussianPartitionSelection::CalculateThresholdDelta(
               epsilon, noise_delta, threshold - 1, max_partitions_contributed);
 

@@ -23,7 +23,7 @@
 #include <unordered_map>
 
 #include "absl/status/status.h"
-#include "base/statusor.h"
+#include "absl/status/statusor.h"
 #include "algorithms/algorithm.h"
 #include "algorithms/bounded-algorithm.h"
 #include "algorithms/internal/count-tree.h"
@@ -87,7 +87,7 @@ class QuantileTree {
   // Returns a private version of the quantile tree, which can be used to get
   // differentially private quantiles. Each call to this method expends the
   // epsilon and delta specified in the params.
-  base::StatusOr<Privatized> MakePrivate(const DPParams& params) {
+  absl::StatusOr<Privatized> MakePrivate(const DPParams& params) {
     ASSIGN_OR_RETURN(
         std::unique_ptr<NumericalMechanism> mech,
         params.mechanism_builder->SetEpsilon(params.epsilon)
@@ -163,7 +163,7 @@ class QuantileTree {
 template <typename T>
 class QuantileTree<T>::Privatized {
  public:
-  base::StatusOr<double> GetQuantile(double quantile) {
+  absl::StatusOr<double> GetQuantile(double quantile) {
     if (quantile < 0 || quantile > 1) {
       return absl::InvalidArgumentError(absl::StrCat(
           "Requested quantile must be in [0, 1] but was ", quantile));
@@ -219,7 +219,7 @@ class QuantileTree<T>::Privatized {
     return to_return;
   }
 
-  base::StatusOr<ConfidenceInterval> ComputeNoiseConfidenceInterval(
+  absl::StatusOr<ConfidenceInterval> ComputeNoiseConfidenceInterval(
       double quantile, double confidence_interval_level) {
     if (quantile < 0 || quantile > 1) {
       return absl::InvalidArgumentError(
@@ -325,7 +325,7 @@ class QuantileTree<T>::Privatized {
   // difference is that instead of using the noised node counts to determine the
   // direction of the search, the algorithm uses the confidence intervals bounds
   // of the node counts.
-  base::StatusOr<double> ComputeNoiseConfidenceIntervalBound(
+  absl::StatusOr<double> ComputeNoiseConfidenceIntervalBound(
       double quantile, double confidence_interval_level,
       const ConfidenceIntervalBoundType& bound_type) {
     // Let b be the branching factor and h the height of the tree. The search
@@ -528,7 +528,7 @@ class QuantileTree<T>::Builder {
     return *static_cast<Builder*>(this);
   }
 
-  base::StatusOr<std::unique_ptr<QuantileTree<T>>> Build() {
+  absl::StatusOr<std::unique_ptr<QuantileTree<T>>> Build() {
     if (!tree_height_.has_value()) {
       tree_height_ = kDefaultTreeHeight;
     }

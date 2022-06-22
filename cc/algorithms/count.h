@@ -25,7 +25,7 @@
 #include "google/protobuf/any.pb.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
-#include "base/statusor.h"
+#include "absl/status/statusor.h"
 #include "algorithms/algorithm.h"
 #include "algorithms/numerical-mechanisms.h"
 #include "algorithms/util.h"
@@ -45,7 +45,7 @@ class Count : public Algorithm<T> {
 
   void AddEntry(const T& v) override { AddMultipleEntries(v, 1); }
 
-  base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
+  absl::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
       double confidence_level) override {
     return mechanism_->NoiseConfidenceInterval(confidence_level);
   }
@@ -87,10 +87,10 @@ class Count : public Algorithm<T> {
   }
 
  protected:
-  base::StatusOr<Output> GenerateResult(double noise_interval_level) override {
+  absl::StatusOr<Output> GenerateResult(double noise_interval_level) override {
     Output output;
     int64_t countWithNoise = mechanism_->AddNoise(count_);
-    base::StatusOr<ConfidenceInterval> interval =
+    absl::StatusOr<ConfidenceInterval> interval =
         NoiseConfidenceInterval(noise_interval_level);
 
     if (interval.ok()) {
@@ -163,7 +163,7 @@ class Count<T>::Builder {
     return *this;
   }
 
-  base::StatusOr<std::unique_ptr<Count<T>>> Build() {
+  absl::StatusOr<std::unique_ptr<Count<T>>> Build() {
     RETURN_IF_ERROR(ValidateEpsilon(epsilon_));
     RETURN_IF_ERROR(ValidateDelta(delta_));
     RETURN_IF_ERROR(
@@ -185,7 +185,7 @@ class Count<T>::Builder {
   std::unique_ptr<NumericalMechanismBuilder> mechanism_builder_ =
       std::make_unique<LaplaceMechanism::Builder>();
 
-  base::StatusOr<std::unique_ptr<NumericalMechanism>> BuildCountMechanism() {
+  absl::StatusOr<std::unique_ptr<NumericalMechanism>> BuildCountMechanism() {
     return mechanism_builder_->Clone()
         ->SetEpsilon(epsilon_.value())
         .SetDelta(delta_)

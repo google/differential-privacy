@@ -25,7 +25,7 @@
 #include "gmock/gmock.h"
 #include "absl/memory/memory.h"
 #include "absl/random/random.h"
-#include "base/statusor.h"
+#include "absl/status/statusor.h"
 #include "algorithms/distributions.h"
 #include "algorithms/numerical-mechanisms.h"
 #include "proto/confidence-interval.pb.h"
@@ -42,8 +42,8 @@ class ZeroNoiseMechanism : public LaplaceMechanism {
    public:
     Builder() : LaplaceMechanism::Builder() {}
 
-    base::StatusOr<std::unique_ptr<NumericalMechanism>> Build() override {
-      return base::StatusOr<std::unique_ptr<LaplaceMechanism>>(
+    absl::StatusOr<std::unique_ptr<NumericalMechanism>> Build() override {
+      return absl::StatusOr<std::unique_ptr<LaplaceMechanism>>(
           absl::make_unique<ZeroNoiseMechanism>(
               GetEpsilon().value_or(1), GetL1Sensitivity().value_or(1)));
     }
@@ -60,7 +60,7 @@ class ZeroNoiseMechanism : public LaplaceMechanism {
 
   int64_t AddInt64Noise(int64_t result) override { return result; }
 
-  base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
+  absl::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
       double confidence_level) override {
     ConfidenceInterval confidence;
     confidence.set_lower_bound(0);
@@ -135,7 +135,7 @@ class SeededLaplaceMechanism : public LaplaceMechanism {
    public:
     Builder() : LaplaceMechanism::Builder() {}
 
-    base::StatusOr<std::unique_ptr<NumericalMechanism>> Build() override {
+    absl::StatusOr<std::unique_ptr<NumericalMechanism>> Build() override {
       double sensitivity;
       if (GetL1Sensitivity().has_value()) {
         sensitivity = *GetL1Sensitivity();
@@ -143,7 +143,7 @@ class SeededLaplaceMechanism : public LaplaceMechanism {
         sensitivity =
             GetL0Sensitivity().value_or(1) * GetLInfSensitivity().value_or(1);
       }
-      return base::StatusOr<std::unique_ptr<LaplaceMechanism>>(
+      return absl::StatusOr<std::unique_ptr<LaplaceMechanism>>(
           absl::make_unique<SeededLaplaceMechanism>(GetEpsilon().value_or(1),
                                                     sensitivity, rand_gen_));
     }
@@ -184,8 +184,8 @@ class MockLaplaceMechanism : public LaplaceMechanism {
           mock_(absl::make_unique<MockLaplaceMechanism>()) {}
 
     // Can only be called once.
-    base::StatusOr<std::unique_ptr<NumericalMechanism>> Build() override {
-      return base::StatusOr<std::unique_ptr<LaplaceMechanism>>(
+    absl::StatusOr<std::unique_ptr<NumericalMechanism>> Build() override {
+      return absl::StatusOr<std::unique_ptr<LaplaceMechanism>>(
           std::unique_ptr<LaplaceMechanism>(mock_.release()));
     }
 
@@ -230,7 +230,7 @@ class MockLaplaceMechanism : public LaplaceMechanism {
   MOCK_METHOD(int64_t, AddInt64Noise, (int64_t result), (override));
   MOCK_METHOD(int64_t, AddInt64Noise, (int64_t result, double privacy_budget),
               (override));
-  MOCK_METHOD(base::StatusOr<ConfidenceInterval>, NoiseConfidenceInterval,
+  MOCK_METHOD(absl::StatusOr<ConfidenceInterval>, NoiseConfidenceInterval,
               (double confidence_level), (override));
   MOCK_METHOD(int64_t, MemoryUsed, (), (override));
 };

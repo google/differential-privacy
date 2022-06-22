@@ -34,7 +34,7 @@
 #include "gtest/gtest.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
-#include "base/statusor.h"
+#include "absl/status/statusor.h"
 #include "algorithms/approx-bounds.h"
 #include "algorithms/numerical-mechanisms-testing.h"
 #include "algorithms/numerical-mechanisms.h"
@@ -63,10 +63,13 @@ using ::testing::DoubleEq;
 using ::testing::DoubleNear;
 using ::testing::Eq;
 using ::differential_privacy::base::testing::EqualsProto;
+using ::testing::Ge;
 using ::testing::Gt;
 using ::testing::HasSubstr;
+using ::testing::Le;
 using ::testing::Lt;
 using ::testing::NotNull;
+using ::testing::Property;
 using ::differential_privacy::base::testing::StatusIs;
 
 constexpr double kSmallEpsilon = 0.00000001;
@@ -255,7 +258,7 @@ TEST(BoundedMeanTest, InvalidParametersTest) {
 TEST(BoundedMeanTest, NormalizedSumHasExpectedSensitivity) {
   // Checking for rounding issues in the sensitivity calculation when the type
   // of the bounds is int.
-  base::StatusOr<std::unique_ptr<NumericalMechanism>> m =
+  absl::StatusOr<std::unique_ptr<NumericalMechanism>> m =
       BoundedMean<int>::BuildMechanismForNormalizedSum(
           std::make_unique<LaplaceMechanism::Builder>(), kDefaultEpsilon,
           /*delta=*/0,
@@ -388,7 +391,7 @@ TYPED_TEST(BoundedMeanTest, MaxContributionsVarianceTest) {
 TEST(BoundedMeanTest, OverflowRawCountTest) {
   typename BoundedMean<double>::Builder builder;
 
-  base::StatusOr<std::unique_ptr<BoundedMean<double>>> bm =
+  absl::StatusOr<std::unique_ptr<BoundedMean<double>>> bm =
       builder
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .SetLower(-10)
@@ -404,7 +407,7 @@ TEST(BoundedMeanTest, OverflowRawCountTest) {
   (*bm)->AddEntry(1);
   (*bm)->AddEntry(1);
 
-  base::StatusOr<Output> result = (*bm)->PartialResult();
+  absl::StatusOr<Output> result = (*bm)->PartialResult();
   ASSERT_OK(result);
   // If the int64_t partial_count_ overflows, it should wrap around to 2,
   // resulting in a mean of (1+1+1+1) / 2 = 2, instead of the correct mean of
@@ -418,7 +421,7 @@ TEST(BoundedMeanTest, OverflowCountFromAddNoiseTypeCast) {
   for (i = 0; i < 100; ++i) {
     typename BoundedMean<double>::Builder builder;
 
-    base::StatusOr<std::unique_ptr<BoundedMean<double>>> bm =
+    absl::StatusOr<std::unique_ptr<BoundedMean<double>>> bm =
         builder
             .SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
             .SetLower(-kBound)
@@ -428,7 +431,7 @@ TEST(BoundedMeanTest, OverflowCountFromAddNoiseTypeCast) {
     BoundedMeanTestPeer::AddMultipleEntries<double>(
         1, std::numeric_limits<int64_t>::max(), (*bm).get());
 
-    base::StatusOr<Output> result = (*bm)->PartialResult();
+    absl::StatusOr<Output> result = (*bm)->PartialResult();
     ASSERT_OK(result);
     // The noise applied to the count should eventually cause an overflow,
     // resulting in a noised_count = 1, and thus a mean of around
@@ -444,7 +447,7 @@ TEST(BoundedMeanTest, OverflowCountFromAddNoiseTypeCast) {
 TEST(BoundedMeanTest, OverflowAddMultipleEntriesManualBoundsTest) {
   typename BoundedMean<int64_t>::Builder builder;
 
-  base::StatusOr<std::unique_ptr<BoundedMean<int64_t>>> bm =
+  absl::StatusOr<std::unique_ptr<BoundedMean<int64_t>>> bm =
       builder
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .SetLower(-std::numeric_limits<int64_t>::max() / 2)
@@ -454,7 +457,7 @@ TEST(BoundedMeanTest, OverflowAddMultipleEntriesManualBoundsTest) {
   BoundedMeanTestPeer::AddMultipleEntries<int64_t>(
       2, std::numeric_limits<int64_t>::max(), (*bm).get());
 
-  base::StatusOr<Output> result = (*bm)->PartialResult();
+  absl::StatusOr<Output> result = (*bm)->PartialResult();
   ASSERT_OK(result);
   // Adding 2 * int64_max should overflow and wrap around to -2, resulting in a
   // mean of -2 / int64_max.
@@ -465,7 +468,7 @@ TEST(BoundedMeanTest, OverflowAddMultipleEntriesManualBoundsTest) {
 TEST(BoundedMeanTest, OverflowAddEntryManualBoundsTest) {
   typename BoundedMean<int64_t>::Builder builder;
 
-  base::StatusOr<std::unique_ptr<BoundedMean<int64_t>>> bm =
+  absl::StatusOr<std::unique_ptr<BoundedMean<int64_t>>> bm =
       builder
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .SetLower(0)
@@ -477,7 +480,7 @@ TEST(BoundedMeanTest, OverflowAddEntryManualBoundsTest) {
   (*bm)->AddEntry(1);
   (*bm)->AddEntry(std::numeric_limits<int64_t>::max());
 
-  base::StatusOr<Output> result = (*bm)->PartialResult();
+  absl::StatusOr<Output> result = (*bm)->PartialResult();
   EXPECT_OK(result);
   // Overflowing should result in the running sum wrapping around to zero.
   EXPECT_DOUBLE_EQ(GetValue<double>(result.value()), 0);
@@ -486,7 +489,7 @@ TEST(BoundedMeanTest, OverflowAddEntryManualBoundsTest) {
 TEST(BoundedMeanTest, UnderflowAddEntryManualBoundsTest) {
   typename BoundedMean<int64_t>::Builder builder;
 
-  base::StatusOr<std::unique_ptr<BoundedMean<int64_t>>> bm =
+  absl::StatusOr<std::unique_ptr<BoundedMean<int64_t>>> bm =
       builder
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .SetLower(std::numeric_limits<int64_t>::lowest() + 1)
@@ -500,7 +503,7 @@ TEST(BoundedMeanTest, UnderflowAddEntryManualBoundsTest) {
   (*bm)->AddEntry(-1);
   (*bm)->AddEntry(std::numeric_limits<int64_t>::lowest() + 1);
 
-  base::StatusOr<Output> result = (*bm)->PartialResult();
+  absl::StatusOr<Output> result = (*bm)->PartialResult();
   EXPECT_OK(result);
   // Underflowing should result in the running sum wrapping around to zero.
   EXPECT_DOUBLE_EQ(GetValue<double>(result.value()), 0);
@@ -509,7 +512,7 @@ TEST(BoundedMeanTest, UnderflowAddEntryManualBoundsTest) {
 TEST(BoundedMeanTest, OverflowRawCountMergeManualBoundsTest) {
   typename BoundedMean<double>::Builder builder;
 
-  base::StatusOr<std::unique_ptr<BoundedMean<double>>> bm =
+  absl::StatusOr<std::unique_ptr<BoundedMean<double>>> bm =
       builder
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .SetLower(-10)
@@ -520,7 +523,7 @@ TEST(BoundedMeanTest, OverflowRawCountMergeManualBoundsTest) {
       0, std::numeric_limits<int64_t>::max(), (*bm).get());
   Summary summary = (*bm)->Serialize();
 
-  base::StatusOr<std::unique_ptr<BoundedMean<double>>> bm2 = builder.Build();
+  absl::StatusOr<std::unique_ptr<BoundedMean<double>>> bm2 = builder.Build();
   ASSERT_OK(bm2);
   BoundedMeanTestPeer::AddMultipleEntries<double>(
       0, std::numeric_limits<int64_t>::max(), (*bm2).get());
@@ -531,7 +534,7 @@ TEST(BoundedMeanTest, OverflowRawCountMergeManualBoundsTest) {
 
   ASSERT_OK((*bm2)->Merge(summary));
 
-  base::StatusOr<Output> result = (*bm2)->PartialResult();
+  absl::StatusOr<Output> result = (*bm2)->PartialResult();
   ASSERT_OK(result);
   // If the int64_t partial_count_ overflows, it should wrap around to 2,
   // resulting in a mean of (1+1+1+1) / 2 = 2, instead of the correct mean of
@@ -550,7 +553,7 @@ TEST(BoundedMeanTest, OverflowRawCountMergeManualBoundsTest) {
 TEST(BoundedMeanTest, OverflowMergeManualBoundsTest) {
   typename BoundedMean<int64_t>::Builder builder;
 
-  base::StatusOr<std::unique_ptr<BoundedMean<int64_t>>> bm =
+  absl::StatusOr<std::unique_ptr<BoundedMean<int64_t>>> bm =
       builder
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .SetLower(0)
@@ -560,14 +563,14 @@ TEST(BoundedMeanTest, OverflowMergeManualBoundsTest) {
   (*bm)->AddEntry(std::numeric_limits<int64_t>::max());
   Summary summary = (*bm)->Serialize();
 
-  base::StatusOr<std::unique_ptr<BoundedMean<int64_t>>> bm2 = builder.Build();
+  absl::StatusOr<std::unique_ptr<BoundedMean<int64_t>>> bm2 = builder.Build();
   (*bm2)->AddEntry(1);
   (*bm2)->AddEntry(1);
   (*bm2)->AddEntry(std::numeric_limits<int64_t>::max());
 
   ASSERT_OK((*bm2)->Merge(summary));
 
-  base::StatusOr<Output> result = (*bm2)->PartialResult();
+  absl::StatusOr<Output> result = (*bm2)->PartialResult();
   EXPECT_OK(result);
   // Overflowing should result in the running sum wrapping around to zero.
   EXPECT_DOUBLE_EQ(GetValue<double>(result.value()), 0.0);
@@ -584,7 +587,7 @@ TEST(BoundedMeanTest, OverflowMergeManualBoundsTest) {
 TEST(BoundedMeanTest, UnderflowMergeManualBoundsTest) {
   typename BoundedMean<int64_t>::Builder builder;
 
-  base::StatusOr<std::unique_ptr<BoundedMean<int64_t>>> bm =
+  absl::StatusOr<std::unique_ptr<BoundedMean<int64_t>>> bm =
       builder
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .SetLower(std::numeric_limits<int64_t>::lowest() + 1)
@@ -595,7 +598,7 @@ TEST(BoundedMeanTest, UnderflowMergeManualBoundsTest) {
   (*bm)->AddEntry(-1);
   Summary summary = (*bm)->Serialize();
 
-  base::StatusOr<std::unique_ptr<BoundedMean<int64_t>>> bm2 = builder.Build();
+  absl::StatusOr<std::unique_ptr<BoundedMean<int64_t>>> bm2 = builder.Build();
   (*bm2)->AddEntry(-1);
   (*bm2)->AddEntry(-1);
   (*bm2)->AddEntry(-1);
@@ -603,7 +606,7 @@ TEST(BoundedMeanTest, UnderflowMergeManualBoundsTest) {
 
   ASSERT_OK((*bm2)->Merge(summary));
 
-  base::StatusOr<Output> result = (*bm2)->PartialResult();
+  absl::StatusOr<Output> result = (*bm2)->PartialResult();
   EXPECT_OK(result);
   // Underflowing should result in the running sum wrapping around to zero.
   EXPECT_DOUBLE_EQ(GetValue<double>(result.value()), 0.0);
@@ -714,7 +717,7 @@ TYPED_TEST(BoundedMeanTest, AutomaticBoundsNegative) {
   ASSERT_OK(bm);
   (*bm)->AddEntries(a.begin(), a.end());
 
-  base::StatusOr<Output> output = (*bm)->PartialResult();
+  absl::StatusOr<Output> output = (*bm)->PartialResult();
   ASSERT_OK(output);
 
   // 9 gets clamped to -1.
@@ -753,7 +756,7 @@ TYPED_TEST(BoundedMeanTest, AutomaticBoundsPositive) {
   ASSERT_OK(bm);
   (*bm)->AddEntries(a.begin(), a.end());
 
-  base::StatusOr<Output> output = (*bm)->PartialResult();
+  absl::StatusOr<Output> output = (*bm)->PartialResult();
   ASSERT_OK(output);
 
   // -9 gets clamped to 1.
@@ -847,7 +850,7 @@ TYPED_TEST(BoundedMeanTest, AutomaticBoundsContainZero) {
   ASSERT_OK(bm);
   (*bm)->AddEntries(a.begin(), a.end());
 
-  base::StatusOr<Output> output = (*bm)->PartialResult();
+  absl::StatusOr<Output> output = (*bm)->PartialResult();
   ASSERT_OK(output);
 
   EXPECT_THAT(output->elements_size(), Eq(1));
@@ -893,10 +896,10 @@ TYPED_TEST(BoundedMeanTest, AutomaticBoundsDefault) {
 }
 
 TEST(BoundedMeanTest, BuilderWithApproxBoundsMoreBudgetThanTotalBudgetFails) {
-  base::StatusOr<std::unique_ptr<ApproxBounds<double>>> bounds =
+  absl::StatusOr<std::unique_ptr<ApproxBounds<double>>> bounds =
       ApproxBounds<double>::Builder().SetEpsilon(1.1).Build();
   ASSERT_OK(bounds);
-  base::StatusOr<std::unique_ptr<BoundedMean<double>>> bm =
+  absl::StatusOr<std::unique_ptr<BoundedMean<double>>> bm =
       BoundedMean<double>::Builder()
           .SetEpsilon(1.09)
           .SetApproxBounds(std::move(bounds).value())
@@ -928,7 +931,7 @@ TYPED_TEST(BoundedMeanTest, AutomaticBoundsZero) {
   ASSERT_OK(bm);
   (*bm)->AddEntries(a.begin(), a.end());
 
-  base::StatusOr<Output> output = (*bm)->PartialResult();
+  absl::StatusOr<Output> output = (*bm)->PartialResult();
   ASSERT_OK(output);
 
   // -2 gets clamped to 0. 7 gets clamped to 4.
@@ -986,7 +989,7 @@ TYPED_TEST(BoundedMeanTest, MemoryUsed) {
 
 TYPED_TEST(BoundedMeanTest, SplitsEpsilonWithAutomaticBounds) {
   double epsilon = 1.0;
-  base::StatusOr<std::unique_ptr<BoundedMean<TypeParam>>> bm =
+  absl::StatusOr<std::unique_ptr<BoundedMean<TypeParam>>> bm =
       typename BoundedMean<TypeParam>::Builder().SetEpsilon(epsilon).Build();
   ASSERT_OK(bm);
   auto* bmi = dynamic_cast<BoundedMeanWithApproxBounds<TypeParam>*>(bm->get());
@@ -1031,7 +1034,7 @@ TEST(BoundedMeanWithFixedBoundsTest, ApproxBoundsMechanismHasExpectedVariance) {
   const int max_partitions_contributed = 2;
   const int max_contributions_per_partition = 3;
 
-  base::StatusOr<std::unique_ptr<BoundedMean<double>>> bm =
+  absl::StatusOr<std::unique_ptr<BoundedMean<double>>> bm =
       BoundedMean<double>::Builder()
           .SetEpsilon(kDefaultEpsilon)
           .SetMaxPartitionsContributed(max_partitions_contributed)
@@ -1067,7 +1070,7 @@ TEST(BoundedMeanTest, ConfidenceIntervalWithNoisedResultOkWithPosMidpoint) {
   const double noised_count = 1000;
   const double noised_sum = 500;
 
-  base::StatusOr<std::unique_ptr<BoundedMean<double>>> bm =
+  absl::StatusOr<std::unique_ptr<BoundedMean<double>>> bm =
       typename BoundedMean<double>::Builder()
           .SetEpsilon(kDefaultEpsilon)
           .SetLower(lower)
@@ -1079,7 +1082,7 @@ TEST(BoundedMeanTest, ConfidenceIntervalWithNoisedResultOkWithPosMidpoint) {
       dynamic_cast<BoundedMeanWithFixedBounds<double>*>(bm->get());
   ASSERT_THAT(fixed_bm, NotNull());
 
-  base::StatusOr<ConfidenceInterval> ci = fixed_bm->NoiseConfidenceInterval(
+  absl::StatusOr<ConfidenceInterval> ci = fixed_bm->NoiseConfidenceInterval(
       confidence_level, noised_sum, noised_count);
   ASSERT_OK(ci);
   EXPECT_THAT(ci->lower_bound(), Lt(ci->upper_bound()));
@@ -1098,7 +1101,7 @@ TEST(BoundedMeanTest, ConfidenceIntervalWithNoisedResultOkWithNegMidpoint) {
   const double noised_count = 1000;
   const double noised_sum = -500;
 
-  base::StatusOr<std::unique_ptr<BoundedMean<double>>> bm =
+  absl::StatusOr<std::unique_ptr<BoundedMean<double>>> bm =
       typename BoundedMean<double>::Builder()
           .SetEpsilon(kDefaultEpsilon)
           .SetLower(lower)
@@ -1110,7 +1113,7 @@ TEST(BoundedMeanTest, ConfidenceIntervalWithNoisedResultOkWithNegMidpoint) {
       dynamic_cast<BoundedMeanWithFixedBounds<double>*>(bm->get());
   ASSERT_THAT(fixed_bm, NotNull());
 
-  base::StatusOr<ConfidenceInterval> ci = fixed_bm->NoiseConfidenceInterval(
+  absl::StatusOr<ConfidenceInterval> ci = fixed_bm->NoiseConfidenceInterval(
       confidence_level, noised_sum, noised_count);
   ASSERT_OK(ci);
   EXPECT_THAT(ci->lower_bound(), Lt(ci->upper_bound()));
@@ -1128,7 +1131,7 @@ TEST(BoundedMeanTest, ConfidenceIntervalWithLowerLevelGetsTighter) {
   const double noised_count = 1000;
   const double noised_sum = -500;
 
-  base::StatusOr<std::unique_ptr<BoundedMean<double>>> bm =
+  absl::StatusOr<std::unique_ptr<BoundedMean<double>>> bm =
       typename BoundedMean<double>::Builder()
           .SetEpsilon(kDefaultEpsilon)
           .SetLower(lower)
@@ -1140,11 +1143,11 @@ TEST(BoundedMeanTest, ConfidenceIntervalWithLowerLevelGetsTighter) {
       dynamic_cast<BoundedMeanWithFixedBounds<double>*>(bm->get());
   ASSERT_THAT(fixed_bm, NotNull());
 
-  base::StatusOr<ConfidenceInterval> ci_higher =
+  absl::StatusOr<ConfidenceInterval> ci_higher =
       fixed_bm->NoiseConfidenceInterval(confidence_level_higher, noised_sum,
                                         noised_count);
   ASSERT_OK(ci_higher);
-  base::StatusOr<ConfidenceInterval> ci_lower =
+  absl::StatusOr<ConfidenceInterval> ci_lower =
       fixed_bm->NoiseConfidenceInterval(confidence_level_lower, noised_sum,
                                         noised_count);
   ASSERT_OK(ci_lower);
@@ -1166,7 +1169,7 @@ TEST(BoundedMeanTest, ConfidenceIntervalWithMoreDataGetsTighter) {
   const double noised_count_fewer_users = 100;
   const double noised_sum_fewer_users = -50;
 
-  base::StatusOr<std::unique_ptr<BoundedMean<double>>> bm =
+  absl::StatusOr<std::unique_ptr<BoundedMean<double>>> bm =
       typename BoundedMean<double>::Builder()
           .SetEpsilon(kDefaultEpsilon)
           .SetLower(lower)
@@ -1178,11 +1181,11 @@ TEST(BoundedMeanTest, ConfidenceIntervalWithMoreDataGetsTighter) {
       dynamic_cast<BoundedMeanWithFixedBounds<double>*>(bm->get());
   ASSERT_THAT(fixed_bm, NotNull());
 
-  base::StatusOr<ConfidenceInterval> ci_many_users =
+  absl::StatusOr<ConfidenceInterval> ci_many_users =
       fixed_bm->NoiseConfidenceInterval(confidence_level, noised_sum_many_users,
                                         noised_count_many_users);
   ASSERT_OK(ci_many_users);
-  base::StatusOr<ConfidenceInterval> ci_fewer_users =
+  absl::StatusOr<ConfidenceInterval> ci_fewer_users =
       fixed_bm->NoiseConfidenceInterval(
           confidence_level, noised_sum_fewer_users, noised_count_fewer_users);
   ASSERT_OK(ci_fewer_users);
@@ -1196,7 +1199,7 @@ TEST(BoundedMeanTest, ConfidenceIntervalWithMoreDataGetsTighter) {
 TEST(BoundedMeanTest, EmptyFixedBoundsMeanOutputHasConfidenceInterval) {
   const double confidence_level = 0.987654;
 
-  base::StatusOr<std::unique_ptr<BoundedMean<double>>> bm =
+  absl::StatusOr<std::unique_ptr<BoundedMean<double>>> bm =
       BoundedMean<double>::Builder()
           .SetEpsilon(kDefaultEpsilon)
           .SetLower(0.0)
@@ -1204,7 +1207,7 @@ TEST(BoundedMeanTest, EmptyFixedBoundsMeanOutputHasConfidenceInterval) {
           .Build();
   ASSERT_OK(bm);
 
-  base::StatusOr<Output> output = bm->get()->PartialResult(confidence_level);
+  absl::StatusOr<Output> output = bm->get()->PartialResult(confidence_level);
   ASSERT_OK(output);
 
   EXPECT_TRUE(output->elements(0).has_noise_confidence_interval());
@@ -1220,7 +1223,7 @@ TEST(BoundedMeanTest, FixedBoundsMeanOutputHasConfidenceIntervalWithinBounds) {
   const int num_contributions = 1000;
   const double input = (lower + upper) / 2.0;
 
-  base::StatusOr<std::unique_ptr<BoundedMean<double>>> bm =
+  absl::StatusOr<std::unique_ptr<BoundedMean<double>>> bm =
       BoundedMean<double>::Builder()
           .SetEpsilon(kDefaultEpsilon)
           .SetLower(lower)
@@ -1231,7 +1234,7 @@ TEST(BoundedMeanTest, FixedBoundsMeanOutputHasConfidenceIntervalWithinBounds) {
   for (int i = 0; i < num_contributions; ++i) {
     bm->get()->AddEntry(input);
   }
-  base::StatusOr<Output> output = bm->get()->PartialResult(confidence_level);
+  absl::StatusOr<Output> output = bm->get()->PartialResult(confidence_level);
   ASSERT_OK(output);
 
   EXPECT_THAT(
@@ -1241,6 +1244,35 @@ TEST(BoundedMeanTest, FixedBoundsMeanOutputHasConfidenceIntervalWithinBounds) {
               Gt(lower));
   EXPECT_THAT(output->elements(0).noise_confidence_interval().upper_bound(),
               Lt(upper));
+}
+
+TEST(BoundedMeanTest, ApproxBoundsMeanOutputHasConfidenceInterval) {
+  const double confidence_level = 0.95432;
+  const int num_contributions = 1000;
+  const double input = 3.2;
+
+  absl::StatusOr<std::unique_ptr<BoundedMean<double>>> bm =
+      BoundedMean<double>::Builder().SetEpsilon(kDefaultEpsilon).Build();
+  ASSERT_OK(bm);
+
+  for (int i = 0; i < num_contributions; ++i) {
+    bm->get()->AddEntry(input);
+  }
+  absl::StatusOr<Output> output = bm->get()->PartialResult(confidence_level);
+  ASSERT_OK(output);
+
+  const double lower_bound =
+      GetValue<double>(output->error_report().bounding_report().lower_bound());
+  const double upper_bound =
+      GetValue<double>(output->error_report().bounding_report().upper_bound());
+  EXPECT_THAT(
+      output->elements(0).noise_confidence_interval(),
+      AllOf(Property("confidence_level", &ConfidenceInterval::confidence_level,
+                     DoubleEq(confidence_level)),
+            Property("lower_bound", &ConfidenceInterval::lower_bound,
+                     Ge(lower_bound)),
+            Property("upper_bound", &ConfidenceInterval::upper_bound,
+                     Le(upper_bound))));
 }
 
 }  //  namespace

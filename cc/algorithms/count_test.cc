@@ -32,7 +32,7 @@
 #include "gtest/gtest.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
-#include "base/statusor.h"
+#include "absl/status/statusor.h"
 #include "algorithms/numerical-mechanisms-testing.h"
 #include "algorithms/numerical-mechanisms.h"
 #include "proto/util.h"
@@ -71,7 +71,7 @@ TYPED_TEST_SUITE(CountTest, NumericTypes);
 
 TYPED_TEST(CountTest, BasicTest) {
   std::vector<TypeParam> c = {1, 2, 3, 4, 2, 3};
-  base::StatusOr<std::unique_ptr<Count<TypeParam>>> count =
+  absl::StatusOr<std::unique_ptr<Count<TypeParam>>> count =
       typename Count<TypeParam>::Builder()
           .SetEpsilon(kDefaultEpsilon)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
@@ -87,12 +87,12 @@ TYPED_TEST(CountTest, RepeatedResultTest) {
   typename Count<TypeParam>::Builder builder;
   builder.SetEpsilon(kDefaultEpsilon)
       .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>());
-  base::StatusOr<std::unique_ptr<Count<TypeParam>>> count1 =
+  absl::StatusOr<std::unique_ptr<Count<TypeParam>>> count1 =
 
       builder.Build();
   ASSERT_OK(count1);
 
-  base::StatusOr<std::unique_ptr<Count<TypeParam>>> count2 =
+  absl::StatusOr<std::unique_ptr<Count<TypeParam>>> count2 =
 
       builder.Build();
   ASSERT_OK(count2);
@@ -109,7 +109,7 @@ TYPED_TEST(CountTest, RepeatedResultTest) {
 }
 
 TYPED_TEST(CountTest, AddMultipleEntriesInvalidNumberOfEntriesTest) {
-  base::StatusOr<std::unique_ptr<Count<TypeParam>>> count =
+  absl::StatusOr<std::unique_ptr<Count<TypeParam>>> count =
       typename Count<TypeParam>::Builder()
           .SetEpsilon(kDefaultEpsilon)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
@@ -132,7 +132,7 @@ TYPED_TEST(CountTest, AddMultipleEntriesInvalidNumberOfEntriesTest) {
 
 TYPED_TEST(CountTest, InsufficientPrivacyBudgetTest) {
   std::vector<TypeParam> c = {1, 2, 3, 4, 2, 3};
-  base::StatusOr<std::unique_ptr<Count<TypeParam>>> count =
+  absl::StatusOr<std::unique_ptr<Count<TypeParam>>> count =
       typename Count<TypeParam>::Builder()
           .SetEpsilon(kDefaultEpsilon)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
@@ -158,7 +158,7 @@ TEST(CountTest, ConfidenceIntervalTest) {
   wantConfidenceInterval.set_upper_bound(-std::log(1 - level) / epsilon);
   wantConfidenceInterval.set_confidence_level(level);
 
-  base::StatusOr<ConfidenceInterval> confidenceInterval =
+  absl::StatusOr<ConfidenceInterval> confidenceInterval =
       (*count)->NoiseConfidenceInterval(level);
   EXPECT_THAT(confidenceInterval,
               IsOkAndHolds(EqualsProto(wantConfidenceInterval)));
@@ -179,7 +179,7 @@ TEST(CountTest, ConfidenceIntervalTest) {
 }
 
 TEST(CountTest, BasicOverflowTest) {
-  base::StatusOr<std::unique_ptr<Count<int64_t>>> count =
+  absl::StatusOr<std::unique_ptr<Count<int64_t>>> count =
       typename Count<int64_t>::Builder()
           .SetEpsilon(kDefaultEpsilon)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
@@ -198,7 +198,7 @@ TEST(CountTest, BasicOverflowTest) {
 TEST(CountTest, OverflowFromAddNoseTypeCastTest) {
   int i;
   for (i = 0; i < 100; ++i) {
-    base::StatusOr<std::unique_ptr<Count<int64_t>>> count =
+    absl::StatusOr<std::unique_ptr<Count<int64_t>>> count =
         typename Count<int64_t>::Builder()
             .SetEpsilon(kDefaultEpsilon)
             .SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
@@ -240,7 +240,7 @@ TEST(CountTest, MergeTest) {
   summary.mutable_data()->PackFrom(count_summary);
 
   // Merge.
-  base::StatusOr<std::unique_ptr<Count<double>>> count =
+  absl::StatusOr<std::unique_ptr<Count<double>>> count =
       Count<double>::Builder()
           .SetEpsilon(kDefaultEpsilon)
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
@@ -259,19 +259,19 @@ TEST(CountTest, MergeTest) {
 TEST(CountTest, SerializeAndMergeOverflowTest) {
   Count<int64_t>::Builder builder;
   builder.SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>());
-  base::StatusOr<std::unique_ptr<Count<int64_t>>> count1 =
+  absl::StatusOr<std::unique_ptr<Count<int64_t>>> count1 =
       builder.SetEpsilon(kDefaultEpsilon).Build();
   ASSERT_OK(count1);
   CountTestPeer::AddMultipleEntries<int64_t>(1, std::numeric_limits<int64_t>::max(),
                                            &**count1);
   Summary summary = (*count1)->Serialize();
 
-  base::StatusOr<std::unique_ptr<Count<int64_t>>> count2 = builder.Build();
+  absl::StatusOr<std::unique_ptr<Count<int64_t>>> count2 = builder.Build();
   ASSERT_OK(count2);
   (*count2)->AddEntry(1);
   EXPECT_OK((*count2)->Merge(summary));
 
-  base::StatusOr<Output> result = (*count2)->PartialResult();
+  absl::StatusOr<Output> result = (*count2)->PartialResult();
   ASSERT_OK(result);
   EXPECT_EQ(GetValue<int64_t>(*result), std::numeric_limits<int64_t>::lowest());
 
@@ -286,14 +286,14 @@ TEST(CountTest, SerializeAndMergeOverflowTest) {
 }
 
 TEST(CountTest, MemoryUsed) {
-  base::StatusOr<std::unique_ptr<Count<double>>> count =
+  absl::StatusOr<std::unique_ptr<Count<double>>> count =
       Count<double>::Builder().SetEpsilon(kDefaultEpsilon).Build();
   ASSERT_OK(count);
   EXPECT_GT((*count)->MemoryUsed(), 0);
 }
 
 TEST(CountTest, DeltaNotSetGaussian) {
-  base::StatusOr<std::unique_ptr<Count<double>>> failed_count =
+  absl::StatusOr<std::unique_ptr<Count<double>>> failed_count =
       Count<double>::Builder()
           .SetEpsilon(0.5)
           .SetLaplaceMechanism(
@@ -306,7 +306,7 @@ TEST(CountTest, DeltaNotSetGaussian) {
 
 TEST(CountTest, BasicGaussian) {
   std::vector<int> c = {1, 2, 3, 4, 2, 3};
-  base::StatusOr<std::unique_ptr<Count<int>>> count =
+  absl::StatusOr<std::unique_ptr<Count<int>>> count =
       typename Count<int>::Builder()
           .SetEpsilon(1e100)
           .SetDelta(0.99)

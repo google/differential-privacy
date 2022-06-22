@@ -33,7 +33,7 @@
 #include "google/protobuf/any.pb.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
-#include "base/statusor.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/types/optional.h"
 #include "algorithms/algorithm.h"
@@ -92,7 +92,7 @@ class BoundedMean : public Algorithm<T> {
 
   // Numerical mechanism to add noise to the normalized sum.  Not to be confused
   // with the sum mechanism we are using in BoundedSum that is not normalized.
-  static base::StatusOr<std::unique_ptr<NumericalMechanism>>
+  static absl::StatusOr<std::unique_ptr<NumericalMechanism>>
   BuildMechanismForNormalizedSum(
       std::unique_ptr<NumericalMechanismBuilder> mechanism_builder,
       const double epsilon, const double delta, const double l0_sensitivity,
@@ -166,12 +166,12 @@ class BoundedMeanWithFixedBounds : public BoundedMean<T> {
            count_mechanism_->MemoryUsed();
   }
 
-  base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
+  absl::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
       double confidence_level) override {
     return NoiseConfidenceInterval(confidence_level, 0, 0);
   }
 
-  base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
+  absl::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
       double confidence_level, double noised_sum, double noised_count) {
     internal::BoundedMeanConfidenceIntervalParams params;
     params.confidence_level = confidence_level;
@@ -207,9 +207,9 @@ class BoundedMeanWithFixedBounds : public BoundedMean<T> {
   }
 
  protected:
-  base::StatusOr<Output> GenerateResult(double noise_interval_level) override {
+  absl::StatusOr<Output> GenerateResult(double noise_interval_level) override {
     const BoundedMeanResult result = GenerateBoundedMeanResult();
-    const base::StatusOr<ConfidenceInterval> ci = NoiseConfidenceInterval(
+    const absl::StatusOr<ConfidenceInterval> ci = NoiseConfidenceInterval(
         noise_interval_level, result.noised_sum, result.noised_count);
     const double clamped_result =
         Clamp<double>(lower_, upper_, result.noised_mean);
@@ -360,9 +360,7 @@ class BoundedMeanWithApproxBounds : public BoundedMean<T> {
   ApproxBounds<T>* GetApproxBoundsForTesting() { return approx_bounds_.get(); }
 
  protected:
-  base::StatusOr<Output> GenerateResult(double noise_interval_level) override {
-    Output output;
-
+  absl::StatusOr<Output> GenerateResult(double noise_interval_level) override {
     // Use a fraction of the privacy budget to find the approximate bounds.
     ASSIGN_OR_RETURN(Output bounds,
                      approx_bounds_->PartialResult(noise_interval_level));
@@ -377,6 +375,7 @@ class BoundedMeanWithApproxBounds : public BoundedMean<T> {
                          upper, partial_count_));
 
     // Populate the bounding report with ApproxBounds information.
+    Output output;
     *(output.mutable_error_report()->mutable_bounding_report()) =
         approx_bounds_->GetBoundingReport(lower, upper);
 
@@ -396,8 +395,22 @@ class BoundedMeanWithApproxBounds : public BoundedMean<T> {
         sum_mechanism->AddNoise(sum - partial_count_ * midpoint);
     const double mean = normalized_sum / noised_count + midpoint;
 
+    // Calculate the confidence interval for the given noise and on the approx
+    // bounds result.  This only takes the noise that is added into account and
+    // *not* the probability for choosing the bounds.
+    internal::BoundedMeanConfidenceIntervalParams ci_params;
+    ci_params.lower_bound = lower;
+    ci_params.upper_bound = upper;
+    ci_params.confidence_level = noise_interval_level;
+    ci_params.noised_sum = normalized_sum;
+    ci_params.noised_count = noised_count;
+    ci_params.sum_mechanism = sum_mechanism.get();
+    ci_params.count_mechanism = count_mechanism_.get();
+    const ConfidenceInterval ci =
+        internal::BoundedMeanConfidenceInterval(ci_params);
+
     // Add mean to output and return the result.
-    AddToOutput<double>(&output, Clamp<double>(lower, upper, mean));
+    AddToOutput<double>(&output, Clamp<double>(lower, upper, mean), ci);
     return output;
   }
 
@@ -501,7 +514,7 @@ class BoundedMean<T>::Builder {
     return *this;
   }
 
-  base::StatusOr<std::unique_ptr<BoundedMean<T>>> Build() {
+  absl::StatusOr<std::unique_ptr<BoundedMean<T>>> Build() {
     if (!epsilon_.has_value()) {
       epsilon_ = DefaultEpsilon();
       LOG(WARNING) << "Default epsilon of " << epsilon_.value()
@@ -532,7 +545,7 @@ class BoundedMean<T>::Builder {
       absl::make_unique<LaplaceMechanism::Builder>();
   std::unique_ptr<ApproxBounds<T>> approx_bounds_;
 
-  base::StatusOr<std::unique_ptr<BoundedMean<T>>> BuildMeanWithFixedBounds() {
+  absl::StatusOr<std::unique_ptr<BoundedMean<T>>> BuildMeanWithFixedBounds() {
     RETURN_IF_ERROR(
         BoundedMean<T>::CheckBounds(lower_.value(), upper_.value()));
     ASSIGN_OR_RETURN(std::unique_ptr<NumericalMechanism> count_mechanism,
@@ -556,7 +569,7 @@ class BoundedMean<T>::Builder {
     return result;
   }
 
-  base::StatusOr<std::unique_ptr<BoundedMean<T>>> BuildMeanWithApproxBounds() {
+  absl::StatusOr<std::unique_ptr<BoundedMean<T>>> BuildMeanWithApproxBounds() {
     if (!approx_bounds_) {
       ASSIGN_OR_RETURN(
           approx_bounds_,

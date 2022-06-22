@@ -28,7 +28,7 @@
 #include "base/logging.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
-#include "base/statusor.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "algorithms/numerical-mechanisms.h"
 #include "algorithms/util.h"
@@ -85,14 +85,14 @@ class Algorithm {
   // Will ignore any data that has already been accumulated. Don't mix this with
   // calls to AddEntry/Entries, PartialResult, Serialize or Merge.
   template <typename Iterator>
-  base::StatusOr<Output> Result(Iterator begin, Iterator end) {
+  absl::StatusOr<Output> Result(Iterator begin, Iterator end) {
     Reset();
     AddEntries(begin, end);
     return PartialResult();
   }
 
   // Get the algorithm result on the accumulated data.
-  base::StatusOr<Output> PartialResult() {
+  absl::StatusOr<Output> PartialResult() {
     return PartialResult(kDefaultConfidenceLevel);
   }
 
@@ -100,7 +100,7 @@ class Algorithm {
   // may be returned as part of the Output. Not all Algorithms support
   // confidence levels, for unsupported algorithms the confidence level will not
   // be included. See NoiseConfidenceInterval for more details.
-  base::StatusOr<Output> PartialResult(double noise_interval_level) {
+  absl::StatusOr<Output> PartialResult(double noise_interval_level) {
     if (result_returned_) {
       return absl::InvalidArgumentError(
           "The algorithm can only produce results once for a given epsilon, "
@@ -148,7 +148,7 @@ class Algorithm {
   // output the relevant value.
   // Conservatively, we do not release the error rate for algorithms whose
   // confidence intervals rely on input size.
-  virtual base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
+  virtual absl::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
       double confidence_level) {
     return absl::UnimplementedError(
         "NoiseConfidenceInterval() unsupported for this algorithm");
@@ -163,7 +163,7 @@ class Algorithm {
   // provided via AddEntr[y|ies] since the last call to Reset.
   // Apportioning of privacy budget is handled by calls from PartialResult
   // above.
-  virtual base::StatusOr<Output> GenerateResult(
+  virtual absl::StatusOr<Output> GenerateResult(
       double noise_interval_level) = 0;
 
   // Allows child classes to reset their state as part of a global reset.
@@ -180,7 +180,7 @@ class AlgorithmBuilder {
  public:
   virtual ~AlgorithmBuilder() = default;
 
-  base::StatusOr<std::unique_ptr<Algorithm>> Build() {
+  absl::StatusOr<std::unique_ptr<Algorithm>> Build() {
     // Default epsilon is used whenever epsilon is not set. This value should
     // only be used for testing convenience. For any production use case, please
     // set your own epsilon based on privacy considerations.
@@ -265,9 +265,9 @@ class AlgorithmBuilder {
     return mechanism_builder_->Clone();
   }
 
-  virtual base::StatusOr<std::unique_ptr<Algorithm>> BuildAlgorithm() = 0;
+  virtual absl::StatusOr<std::unique_ptr<Algorithm>> BuildAlgorithm() = 0;
 
-  base::StatusOr<std::unique_ptr<NumericalMechanism>>
+  absl::StatusOr<std::unique_ptr<NumericalMechanism>>
   UpdateAndBuildMechanism() {
     auto clone = mechanism_builder_->Clone();
     if (epsilon_.has_value()) {

@@ -161,7 +161,7 @@ TEST(LaplaceDistributionTest, Cdf) {
 
 TEST(LaplaceDistributionTest, GetVarianceReturnsExpectedValue) {
   // Use epsilon = 1 and l1 sensitivity = 2 => 2 * 2^2 = 8
-  base::StatusOr<std::unique_ptr<LaplaceDistribution>> laplace_distribution =
+  absl::StatusOr<std::unique_ptr<LaplaceDistribution>> laplace_distribution =
       LaplaceDistribution::Builder().SetEpsilon(1).SetSensitivity(2).Build();
   ASSERT_OK(laplace_distribution);
   EXPECT_NEAR(laplace_distribution->get()->GetVariance(), 8, 1e-6);
@@ -204,7 +204,7 @@ TEST(LaplaceDistributionTest, GranularityIsBetweenZeroAndDiversity) {
   const double epsilon = 1.1;
   const double sensitivity = 2.0;
 
-  base::StatusOr<std::unique_ptr<LaplaceDistribution>> ld =
+  absl::StatusOr<std::unique_ptr<LaplaceDistribution>> ld =
       LaplaceDistribution::Builder()
           .SetEpsilon(epsilon)
           .SetSensitivity(sensitivity)

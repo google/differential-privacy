@@ -26,12 +26,12 @@ ApproxBounds<T>::Builder builder =
                            .SetBase(double base)
 
 // Option 1: Set the success probability for finding reasonable min/max.
-base::StatusOr<std::unique_ptr<ApproxBounds<T>>> approx_bounds =
+absl::StatusOr<std::unique_ptr<ApproxBounds<T>>> approx_bounds =
                     builder.SetSuccessProbability(double success_probability)
                            .Build();
 
 // Option 2: Set the bin threshold to choose a reasonable min/max.
-base::StatusOr<std::unique_ptr<ApproxBounds<T>>> approx_bounds =
+absl::StatusOr<std::unique_ptr<ApproxBounds<T>>> approx_bounds =
                     builder.SetThreshold(double threshold)
                            .Build();
 ```

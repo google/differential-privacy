@@ -47,6 +47,18 @@ DATACLASSES_DEP = select({
 })
 
 py_library(
+    name = "accounting",
+    srcs = ["__init__.py"],
+    deps = [
+        ":dp_event",
+        ":dp_event_builder",
+        ":privacy_accountant",
+        "//dp_accounting/pld",
+        "//dp_accounting/rdp",
+    ],
+)
+
+py_library(
     name = "common",
     srcs = [
         "common.py",

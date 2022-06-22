@@ -23,7 +23,7 @@ Information on how to construct a `BoundedSum` is found in the
 construction example.
 
 ```
-base::StatusOr<std::unique_ptr<BoundedSum<int64>>> bounded_sum =
+absl::StatusOr<std::unique_ptr<BoundedSum<int64>>> bounded_sum =
                  BoundedSum<int64>::Builder.SetEpsilon(1)
                                            .SetLower(-10)
                                            .SetUpper(10)

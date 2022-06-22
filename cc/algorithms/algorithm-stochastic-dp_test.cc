@@ -213,7 +213,7 @@ TYPED_TEST(StochasticDifferentialPrivacyTest, AllApproxBoundedDpAlgorithms) {
       testing::DefaultDatasetSize(), true, testing::DefaultDataScale(),
       testing::DefaultDataOffset());
 
-  base::StatusOr<std::unique_ptr<ApproxBounds<double>>> bounds =
+  absl::StatusOr<std::unique_ptr<ApproxBounds<double>>> bounds =
       ApproxBounds<double>::Builder()
           .SetLaplaceMechanism(
               absl::make_unique<SeededLaplaceMechanism::Builder>())
@@ -230,7 +230,7 @@ TYPED_TEST(StochasticDifferentialPrivacyTest, AllApproxBoundedDpAlgorithms) {
   std::seed_seq seed({1, 1, 1, 1, 1});
   std::mt19937 rand_gen(seed);
   auto mech_builder = SeededLaplaceMechanism::Builder().rand_gen(&rand_gen);
-  base::StatusOr<std::unique_ptr<TypeParam>> algorithm =
+  absl::StatusOr<std::unique_ptr<TypeParam>> algorithm =
       typename TypeParam::Builder()
           .SetLaplaceMechanism(
               absl::make_unique<SeededLaplaceMechanism::Builder>(mech_builder))

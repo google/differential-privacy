@@ -18,7 +18,7 @@
 
 #include "absl/flags/flag.h"
 #include "absl/status/status.h"
-#include "base/statusor.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "proto/util.h"
@@ -32,7 +32,7 @@ using differential_privacy::ConfidenceInterval;
 using differential_privacy::GetValue;
 using differential_privacy::Output;
 using differential_privacy::example::CarrotReporter;
-using differential_privacy::base::StatusOr;
+using ::absl::StatusOr;
 
 ABSL_FLAG(std::string, CarrotsDataFile,
           "animals_and_carrots.csv",
@@ -58,7 +58,7 @@ int main(int argc, char **argv) {
       "that Farmer Fred still has privacy budget left.\n");
   PrintF("\nPrivacy budget remaining: %.2f\n", reporter.RemainingEpsilon());
   PrintF("True sum: %d\n", reporter.Sum());
-  PrintF("DP sum:   %d\n", GetValue<int>(reporter.PrivateSum(1).ValueOrDie()));
+  PrintF("DP sum:   %d\n", GetValue<int>(reporter.PrivateSum(1).value()));
 
   // Query for the mean with a bounding report.
   PrintF(
@@ -75,7 +75,7 @@ int main(int argc, char **argv) {
         "privacy parameters. This is due to the small size of the dataset and "
         "random chance. Please re-run report_the_carrots to try again.\n");
   } else {
-    Output mean_output = mean_status.ValueOrDie();
+    Output mean_output = mean_status.value();
     BoundingReport report = mean_output.error_report().bounding_report();
     double mean = GetValue<double>(mean_output);
     int lower_bound = GetValue<int>(report.lower_bound());
@@ -100,7 +100,7 @@ int main(int argc, char **argv) {
         "\nFred wonders how many gluttons are in his zoo. How many animals ate "
         "over 90 carrots? And how accurate is the result?\n");
     PrintF("\nPrivacy budget remaining: %.2f\n", reporter.RemainingEpsilon());
-    Output count_output = reporter.PrivateCountAbove(1, 90).ValueOrDie();
+    Output count_output = reporter.PrivateCountAbove(1, 90).value();
     int count = GetValue<int>(count_output);
     ConfidenceInterval ci = GetNoiseConfidenceInterval(count_output);
     double confidence_level = ci.confidence_level();
@@ -121,7 +121,7 @@ int main(int argc, char **argv) {
       "eaten.\n");
   PrintF("\nPrivacy budget remaining: %.2f\n", reporter.RemainingEpsilon());
   PrintF("True max: %d\n", reporter.Max());
-  PrintF("DP max:   %d\n", GetValue<int>(reporter.PrivateMax(1).ValueOrDie()));
+  PrintF("DP max:   %d\n", GetValue<int>(reporter.PrivateMax(1).value()));
 
   // Refuse to query for the count of animals who didn't eat carrots.
   PrintF(

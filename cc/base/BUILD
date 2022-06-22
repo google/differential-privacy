@@ -45,16 +45,6 @@ cc_library(
 )
 
 cc_library(
-    name = "statusor_internals",
-    hdrs = ["statusor_internals.h"],
-    deps = [
-        ":status",
-        "@com_google_absl//absl/base:core_headers",
-        "@com_google_absl//absl/meta:type_traits",
-    ],
-)
-
-cc_library(
     name = "status",
     hdrs = [
         "status.h",
@@ -71,13 +61,10 @@ cc_library(
 
 cc_library(
     name = "statusor",
-    srcs = ["statusor.cc"],
     hdrs = ["statusor.h"],
     deps = [
-        ":logging",
-        ":status",
-        ":statusor_internals",
         "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/status:statusor",
     ],
 )
 
@@ -87,19 +74,6 @@ cc_test(
     deps = [
         ":percentile",
         "@com_google_differential_privacy//proto:summary_cc_proto",
-        "@com_google_googletest//:gtest_main",
-    ],
-)
-
-cc_test(
-    name = "statusor_test",
-    srcs = ["statusor_test.cc"],
-    deps = [
-        ":statusor",
-        "//base/testing:status_matchers",
-        "@com_google_absl//absl/memory",
-        "@com_google_absl//absl/strings",
-        "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
     ],
 )

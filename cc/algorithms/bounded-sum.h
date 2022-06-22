@@ -34,7 +34,7 @@
 #include "google/protobuf/any.pb.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
-#include "base/statusor.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "algorithms/algorithm.h"
 #include "algorithms/approx-bounds.h"
@@ -84,7 +84,7 @@ class BoundedSum : public Algorithm<T> {
 
   // Build a numerical mechanism that will return adequate noise for the raw
   // sum to make the result DP.
-  static base::StatusOr<std::unique_ptr<NumericalMechanism>> BuildMechanism(
+  static absl::StatusOr<std::unique_ptr<NumericalMechanism>> BuildMechanism(
       std::unique_ptr<NumericalMechanismBuilder> mechanism_builder,
       const double epsilon, const double delta, const double l0_sensitivity,
       const double max_contributions_per_partition, const T lower,
@@ -159,19 +159,19 @@ class BoundedSumWithFixedBounds : public BoundedSum<T> {
 
   std::optional<T> lower() const override { return lower_; }
 
-  base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
+  absl::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
       double confidence_level) override {
     return mechanism_->NoiseConfidenceInterval(confidence_level);
   }
 
  protected:
-  base::StatusOr<Output> GenerateResult(double noise_interval_level) override {
+  absl::StatusOr<Output> GenerateResult(double noise_interval_level) override {
     Output output;
 
     // Add noise to the sum.
     double noisy_sum = mechanism_->AddNoise(partial_sum_);
     // Add noise confidence interval.
-    base::StatusOr<ConfidenceInterval> interval =
+    absl::StatusOr<ConfidenceInterval> interval =
         NoiseConfidenceInterval(noise_interval_level);
 
     if (std::is_integral<T>::value) {
@@ -247,7 +247,7 @@ class BoundedSumWithApproxBounds : public BoundedSum<T> {
 
   // Noise confidence interval is not known before finalizing the algorithm as
   // we are using approx bounds.
-  base::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
+  absl::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
       double confidence_level) override {
     return absl::InvalidArgumentError(
         "NoiseConfidenceInterval changes per result generation for "
@@ -334,7 +334,7 @@ class BoundedSumWithApproxBounds : public BoundedSum<T> {
   ApproxBounds<T>* GetApproxBoundsForTesting() { return approx_bounds_.get(); }
 
  protected:
-  base::StatusOr<Output> GenerateResult(double noise_interval_level) override {
+  absl::StatusOr<Output> GenerateResult(double noise_interval_level) override {
     // Get results of approximate bounds.
     ASSIGN_OR_RETURN(Output bounds,
                      approx_bounds_->PartialResult(noise_interval_level));
@@ -370,7 +370,7 @@ class BoundedSumWithApproxBounds : public BoundedSum<T> {
     // Add noise and confidence interval to the sum output. Use the remaining
     // privacy budget.
     T noisy_sum = mechanism->AddNoise(sum);
-    base::StatusOr<ConfidenceInterval> interval =
+    absl::StatusOr<ConfidenceInterval> interval =
         mechanism->NoiseConfidenceInterval(noise_interval_level);
 
     Output output;
@@ -454,7 +454,7 @@ class BoundedSum<T>::Builder {
     return *this;
   }
 
-  base::StatusOr<std::unique_ptr<BoundedSum<T>>> Build() {
+  absl::StatusOr<std::unique_ptr<BoundedSum<T>>> Build() {
     if (!epsilon_.has_value()) {
       epsilon_ = DefaultEpsilon();
       LOG(WARNING) << "Default epsilon of " << epsilon_.value()
@@ -488,7 +488,7 @@ class BoundedSum<T>::Builder {
       absl::make_unique<LaplaceMechanism::Builder>();
   std::unique_ptr<ApproxBounds<T>> approx_bounds_;
 
-  base::StatusOr<std::unique_ptr<BoundedSum<T>>> BuildSumWithFixedBounds() {
+  absl::StatusOr<std::unique_ptr<BoundedSum<T>>> BuildSumWithFixedBounds() {
     ASSIGN_OR_RETURN(
         std::unique_ptr<NumericalMechanism> mechanism,
         BuildMechanism(mechanism_builder_->Clone(), epsilon_.value(), delta_,
@@ -502,7 +502,7 @@ class BoundedSum<T>::Builder {
     return result;
   }
 
-  base::StatusOr<std::unique_ptr<BoundedSum<T>>> BuildSumWithApproxBounds() {
+  absl::StatusOr<std::unique_ptr<BoundedSum<T>>> BuildSumWithApproxBounds() {
     if (!approx_bounds_) {
       ASSIGN_OR_RETURN(
           approx_bounds_,

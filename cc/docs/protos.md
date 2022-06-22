@@ -13,7 +13,7 @@ algorithm like below. Note that the template only affects the input type; the
 mean that we return will always be a double.
 
 ```
-base::StatusOr<std::unique_ptr<BoundedMean<int64_t>>> bounded_mean =
+absl::StatusOr<std::unique_ptr<BoundedMean<int64_t>>> bounded_mean =
   BoundedMean<int64>::Builder.SetEpsilon(1)
                              .SetLower(-10)
                              .SetUpper(10)

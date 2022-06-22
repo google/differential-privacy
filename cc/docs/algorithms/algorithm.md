@@ -4,21 +4,14 @@
 [`Algorithm`](https://github.com/google/differential-privacy/blob/main/cc/algorithms/algorithm.h)
 is the base class of all
 differentially private algorithms. Each algorithm can be constructed using the
-builder pattern, which sets its parameters. `Algorithms` are incremental: it's
-possible to insert some data and get a result, then _add more data_ and get a
-new result. (It's also possible to add data in chunks but still only get one
-result). Algorithms are templated on the input type.
-
-## Privacy budget
-
-Every time you extract a result from an `Algorithm`, you use some "privacy
-budget". This can be thought of as a "fraction of your epsilon." Each algorithm
-starts with a privacy budget of `1`, and reading uses up that budget.
+builder pattern, which sets its parameters. `Algorithms` are stateful: first you
+add data (possibly multiple times), and then you get a result. Algorithms are 
+templated on the input type.
 
 ## Construction
 
 ```
-base::StatusOr<std::unique_ptr<Algorithm>> algorithm =
+absl::StatusOr<std::unique_ptr<Algorithm>> algorithm =
  AlgorithmBuilder.SetEpsilon(double epsilon)
                  .SetMaxPartitionsContributedTo(int max_partitions)
                  .SetMaxContributionsPerPartition(int max_contributions)
@@ -37,9 +30,9 @@ base::StatusOr<std::unique_ptr<Algorithm>> algorithm =
 *   `int max_contributions`: The number of pieces of input to this aggregation
     that can belong to a single user. Defaults to 1 if unset. The caller must
     guarantee that this limit is enforced on the input. The library cannot
-    enforce it because it does not now which inputs belong to which users. If
+    enforce it because it does not know which inputs belong to which users. If
     summaries from multiple `Algorithm`s are merged together, the total number
-    of inputs from a single user across all marged `Algorithm`s must not exceed
+    of inputs from a single user across all merged `Algorithm`s must not exceed
     this limit.
 *   `std::unique_ptr<NumericalMechanism::Builder> mechanism_builder`: Used
     to specify the type of numerical mechanism the algorithm will use to add
@@ -94,8 +87,7 @@ Adds multiple inputs to the algorithm.
 void Reset();
 ```
 
-Clears the algorithm's input pool, and sets your remaining privacy budget back
-to `1.0`.
+Clears the algorithm's input pool and allows a new result to be generated.
 
 ### Serialization
 
@@ -128,8 +120,10 @@ template <typename Iterator>
 Output Result(Iterator begin, Iterator end)
 ```
 
-Add the entries from `begin` to `end`, and then get the result with the full
-remaining privacy budget.
+Add the entries from `begin` to `end`, and then get the result.
+
+Note that whichever method of getting a result you use, you can only get a
+single result before your `epsilon` and `delta` are exhausted.
 
 Values are returned from `Result` in an [`Output`](../protos.md) proto. For most
 algorithms, this is a single `int64` or `double` value. Some algorithms contain

@@ -105,7 +105,7 @@ class QuantileTreeTest : public ::testing::Test {
       // for all quantiles and confidence levels.
       for (double quantile : kQuantilesToTest) {
         for (double level : kConfidenceLevelsToTest) {
-          base::StatusOr<ConfidenceInterval> noised_ci_or_status =
+          absl::StatusOr<ConfidenceInterval> noised_ci_or_status =
               noised_results.ComputeNoiseConfidenceInterval(quantile, level);
           EXPECT_OK(noised_ci_or_status);
           ConfidenceInterval noised_ci = noised_ci_or_status.value();
@@ -873,7 +873,7 @@ TYPED_TEST(QuantileTreeTest, ZeroNoiseConfidenceIntervalsMatchQuantile) {
   for (int i = 0; i < kNumRanksToTest; ++i) {
     double quantile = static_cast<double>(i) / kNumRanksToTest;
     double quantile_result = results.GetQuantile(quantile).value();
-    base::StatusOr<ConfidenceInterval> ci_or_status =
+    absl::StatusOr<ConfidenceInterval> ci_or_status =
         results.ComputeNoiseConfidenceInterval(quantile, confidence_level);
 
     EXPECT_OK(ci_or_status);
@@ -910,7 +910,7 @@ TYPED_TEST(QuantileTreeTest,
     // Use a small confidence level to increase the chance of a violation.
     double confidence_level = 0.01;
     for (double quantile : kQuantilesToTest) {
-      base::StatusOr<ConfidenceInterval> ci_or_status =
+      absl::StatusOr<ConfidenceInterval> ci_or_status =
           results.ComputeNoiseConfidenceInterval(quantile, confidence_level);
       EXPECT_OK(ci_or_status);
       EXPECT_LE(ci_or_status.value().lower_bound(),
@@ -954,7 +954,7 @@ TYPED_TEST(QuantileTreeTest,
     // Use a small confidence level to increase the chance of a violation.
     double confidence_level = 0.01;
     for (double quantile : kQuantilesToTest) {
-      base::StatusOr<ConfidenceInterval> ci_or_status =
+      absl::StatusOr<ConfidenceInterval> ci_or_status =
           results.ComputeNoiseConfidenceInterval(quantile, confidence_level);
       EXPECT_OK(ci_or_status);
       EXPECT_LE(ci_or_status.value().lower_bound(),
@@ -995,7 +995,7 @@ TYPED_TEST(QuantileTreeTest, ConfidenceIntervalWithinBounds) {
   // To increase the chance of a violation, we use a high confidence level and
   // test the confidence intervals of the min and max quantiles, which match the
   // bounds of the input range.
-  base::StatusOr<ConfidenceInterval> ci_or_status =
+  absl::StatusOr<ConfidenceInterval> ci_or_status =
       results.ComputeNoiseConfidenceInterval(0.0, 0.99);
   EXPECT_OK(ci_or_status);
   EXPECT_GE(ci_or_status.value().lower_bound(), lower_bound);
@@ -1038,9 +1038,9 @@ TYPED_TEST(QuantileTreeTest,
 
   double confidence_level = 0.95;
   for (double quantile : kQuantilesToTest) {
-    base::StatusOr<ConfidenceInterval> ci_or_status_1 =
+    absl::StatusOr<ConfidenceInterval> ci_or_status_1 =
         results.ComputeNoiseConfidenceInterval(quantile, confidence_level);
-    base::StatusOr<ConfidenceInterval> ci_or_status_2 =
+    absl::StatusOr<ConfidenceInterval> ci_or_status_2 =
         results.ComputeNoiseConfidenceInterval(quantile, confidence_level);
     EXPECT_OK(ci_or_status_1);
     EXPECT_OK(ci_or_status_2);
@@ -1084,9 +1084,9 @@ TYPED_TEST(QuantileTreeTest,
 
   double confidence_level = 0.95;
   for (double quantile : kQuantilesToTest) {
-    base::StatusOr<ConfidenceInterval> ci_or_status_1 =
+    absl::StatusOr<ConfidenceInterval> ci_or_status_1 =
         results.ComputeNoiseConfidenceInterval(quantile, confidence_level);
-    base::StatusOr<ConfidenceInterval> ci_or_status_2 =
+    absl::StatusOr<ConfidenceInterval> ci_or_status_2 =
         results.ComputeNoiseConfidenceInterval(quantile, confidence_level);
     EXPECT_OK(ci_or_status_1);
     EXPECT_OK(ci_or_status_2);
@@ -1130,9 +1130,9 @@ TYPED_TEST(
       quantile_tree->MakePrivate(dp_params).value();
 
   for (double quantile : kQuantilesToTest) {
-    base::StatusOr<ConfidenceInterval> ci_or_status_1 =
+    absl::StatusOr<ConfidenceInterval> ci_or_status_1 =
         results.ComputeNoiseConfidenceInterval(quantile, 0.9);
-    base::StatusOr<ConfidenceInterval> ci_or_status_2 =
+    absl::StatusOr<ConfidenceInterval> ci_or_status_2 =
         results.ComputeNoiseConfidenceInterval(quantile, 0.99);
     EXPECT_OK(ci_or_status_1);
     EXPECT_OK(ci_or_status_2);
@@ -1180,10 +1180,10 @@ TYPED_TEST(
   for (double quantile : kQuantilesToTest) {
     for (int i = 0; i < kConfidenceLevelsToTest.size(); ++i) {
       for (int j = i + 1; j < kConfidenceLevelsToTest.size(); ++j) {
-        base::StatusOr<ConfidenceInterval> ci_or_status_1 =
+        absl::StatusOr<ConfidenceInterval> ci_or_status_1 =
             results.ComputeNoiseConfidenceInterval(quantile,
                                                    kConfidenceLevelsToTest[i]);
-        base::StatusOr<ConfidenceInterval> ci_or_status_2 =
+        absl::StatusOr<ConfidenceInterval> ci_or_status_2 =
             results.ComputeNoiseConfidenceInterval(quantile,
                                                    kConfidenceLevelsToTest[j]);
         EXPECT_OK(ci_or_status_1);

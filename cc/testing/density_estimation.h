@@ -20,8 +20,9 @@
 #include <limits>
 #include <numeric>
 
+#include "base/logging.h"
 #include "absl/status/status.h"
-#include "base/statusor.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "base/status.h"
@@ -68,7 +69,7 @@ class Histogram {
   }
 
   // Number of elements in bin index.
-  base::StatusOr<int> BinCount(int index) const {
+  absl::StatusOr<int> BinCount(int index) const {
     if (index < 0 || index >= NumBins()) {
       return absl::InvalidArgumentError("Index is out of bounds.");
     }
@@ -76,7 +77,7 @@ class Histogram {
   }
 
   int BinCountOrDie(int index) const {
-    base::StatusOr<int> count = BinCount(index);
+    absl::StatusOr<int> count = BinCount(index);
     CHECK(count.ok()) << count.status();
     return *count;
   }

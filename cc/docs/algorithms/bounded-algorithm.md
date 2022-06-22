@@ -27,13 +27,13 @@ BoundedAlgorithmBuilder builder =
   BoundedAlgorithmBuilder().SetEpsilon(double epsilon)
 
 // Option 1: Set bounds directly.
-base::StatusOr<std::unique_ptr<Algorithm<T>>> bounded_algorithm =
+absl::StatusOr<std::unique_ptr<Algorithm<T>>> bounded_algorithm =
                   builder.SetLower(T lower)
                          .SetUpper(T upper)
                          .Build();
 
 // Option 2: Automatically infer bounds.
-base::StatusOr<std::unique_ptr<Algorithm<T>>> bounded_algorithm =
+absl::StatusOr<std::unique_ptr<Algorithm<T>>> bounded_algorithm =
                   builder.Build();
 ```
 

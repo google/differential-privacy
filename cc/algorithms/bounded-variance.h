@@ -33,7 +33,7 @@
 #include "google/protobuf/any.pb.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
-#include "base/statusor.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "algorithms/algorithm.h"
 #include "algorithms/approx-bounds.h"
@@ -123,7 +123,7 @@ class BoundedVariance : public Algorithm<T> {
     return std::abs(upper * upper - lower * lower);
   }
 
-  static base::StatusOr<std::unique_ptr<NumericalMechanism>> BuildSumMechanism(
+  static absl::StatusOr<std::unique_ptr<NumericalMechanism>> BuildSumMechanism(
       std::unique_ptr<NumericalMechanismBuilder> mechanism_builder,
       const double epsilon, const double l0_sensitivity,
       const double max_contributions_per_partition, const T lower,
@@ -135,7 +135,7 @@ class BoundedVariance : public Algorithm<T> {
         .Build();
   }
 
-  static base::StatusOr<std::unique_ptr<NumericalMechanism>>
+  static absl::StatusOr<std::unique_ptr<NumericalMechanism>>
   BuildSumOfSquaresMechanism(
       std::unique_ptr<NumericalMechanismBuilder> mechanism_builder,
       const double epsilon, const double l0_sensitivity,
@@ -242,7 +242,7 @@ class BoundedVarianceWithFixedBounds : public BoundedVariance<T> {
   }
 
  protected:
-  base::StatusOr<Output> GenerateResult(double noise_interval_level) override {
+  absl::StatusOr<Output> GenerateResult(double noise_interval_level) override {
     const double sum_midpoint = lower_ + ((upper_ - lower_) / 2);
     const double sum_of_squares_midpoint =
         BoundedVariance<T>::MidpointOfSquares(lower_, upper_);
@@ -432,7 +432,7 @@ class BoundedVarianceWithApproxBounds : public BoundedVariance<T> {
   ApproxBounds<T>* GetApproxBoundsForTesting() { return approx_bounds_.get(); }
 
  private:
-  base::StatusOr<Output> GenerateResult(double noise_interval_level) override {
+  absl::StatusOr<Output> GenerateResult(double noise_interval_level) override {
     Output output;
 
     ASSIGN_OR_RETURN(Output bounds,
@@ -613,7 +613,7 @@ class BoundedVariance<T>::Builder {
     return *this;
   }
 
-  base::StatusOr<std::unique_ptr<BoundedVariance<T>>> Build() {
+  absl::StatusOr<std::unique_ptr<BoundedVariance<T>>> Build() {
     if (!epsilon_.has_value()) {
       epsilon_ = DefaultEpsilon();
       LOG(WARNING) << "Default epsilon of " << epsilon_.value()
@@ -644,7 +644,7 @@ class BoundedVariance<T>::Builder {
       absl::make_unique<LaplaceMechanism::Builder>();
   std::unique_ptr<ApproxBounds<T>> approx_bounds_;
 
-  base::StatusOr<std::unique_ptr<BoundedVariance<T>>>
+  absl::StatusOr<std::unique_ptr<BoundedVariance<T>>>
   BuildVarianceWithFixedBounds() {
     RETURN_IF_ERROR(CheckBounds(lower_.value(), upper_.value()));
 
@@ -675,7 +675,7 @@ class BoundedVariance<T>::Builder {
     return result;
   }
 
-  base::StatusOr<std::unique_ptr<BoundedVariance<T>>>
+  absl::StatusOr<std::unique_ptr<BoundedVariance<T>>>
   BuildVarianceWithApproxBounds() {
     if (!approx_bounds_) {
       ASSIGN_OR_RETURN(

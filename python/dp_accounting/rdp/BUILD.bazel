@@ -25,6 +25,12 @@ package(default_visibility = [
 licenses(["notice"])
 
 py_library(
+    name = "rdp",
+    srcs = ["__init__.py"],
+    deps = [":rdp_privacy_accountant"],
+)
+
+py_library(
     name = "rdp_privacy_accountant",
     srcs = ["rdp_privacy_accountant.py"],
     deps = [

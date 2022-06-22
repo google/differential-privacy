@@ -150,8 +150,8 @@ template <typename StatusOrType>
 class IsOkAndHoldsMatcherImpl
     : public ::testing::MatcherInterface<StatusOrType> {
  public:
-  typedef typename std::remove_reference<StatusOrType>::type::element_type
-      value_type;
+  typedef
+      typename std::remove_reference<StatusOrType>::type::value_type value_type;
 
   template <typename InnerMatcher>
   explicit IsOkAndHoldsMatcherImpl(InnerMatcher&& inner_matcher)
@@ -177,13 +177,13 @@ class IsOkAndHoldsMatcherImpl
     }
 
     ::testing::StringMatchResultListener inner_listener;
-    const bool matches = inner_matcher_.MatchAndExplain(
-        actual_value.ValueOrDie(), &inner_listener);
+    const bool matches =
+        inner_matcher_.MatchAndExplain(actual_value.value(), &inner_listener);
     const std::string inner_explanation = inner_listener.str();
     if (inner_explanation != "") {
       *result_listener << "which contains value "
-                       << ::testing::PrintToString(actual_value.ValueOrDie())
-                       << ", " << inner_explanation;
+                       << ::testing::PrintToString(actual_value.value()) << ", "
+                       << inner_explanation;
     }
     return matches;
   }

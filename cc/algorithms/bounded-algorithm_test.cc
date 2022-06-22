@@ -19,7 +19,7 @@
 #include "base/testing/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "base/statusor.h"
+#include "absl/status/statusor.h"
 #include "algorithms/algorithm.h"
 #include "algorithms/approx-bounds.h"
 
@@ -51,7 +51,7 @@ class BoundedAlgorithm : public Algorithm<T> {
     bool HasUpper() { return BoundedBuilder::GetUpper().has_value(); }
 
    private:
-    base::StatusOr<std::unique_ptr<BoundedAlgorithm<T>>> BuildBoundedAlgorithm()
+    absl::StatusOr<std::unique_ptr<BoundedAlgorithm<T>>> BuildBoundedAlgorithm()
         override {
       return absl::WrapUnique(new BoundedAlgorithm());
     }
@@ -59,7 +59,7 @@ class BoundedAlgorithm : public Algorithm<T> {
 
   // Trivial implementations of virtual functions.
   void AddEntry(const T& t) override {}
-  base::StatusOr<Output> GenerateResult(
+  absl::StatusOr<Output> GenerateResult(
       double /*noise_interval_level*/) override {
     return Output();
   }

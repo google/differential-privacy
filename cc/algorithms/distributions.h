@@ -21,7 +21,7 @@
 
 #include <cstdint>
 #include "absl/status/status.h"
-#include "base/statusor.h"
+#include "absl/status/statusor.h"
 
 namespace differential_privacy {
 namespace internal {
@@ -40,7 +40,7 @@ class GaussianDistribution {
    public:
     Builder& SetStddev(double stddev);
 
-    base::StatusOr<std::unique_ptr<GaussianDistribution>> Build();
+    absl::StatusOr<std::unique_ptr<GaussianDistribution>> Build();
 
    private:
     double stddev_;
@@ -94,7 +94,7 @@ class GeometricDistribution {
    public:
     Builder& SetLambda(double lambda);
 
-    base::StatusOr<std::unique_ptr<GeometricDistribution>> Build();
+    absl::StatusOr<std::unique_ptr<GeometricDistribution>> Build();
 
    private:
     double lambda_;
@@ -135,7 +135,7 @@ class LaplaceDistribution {
 
     Builder& SetSensitivity(double sensitivity);
 
-    base::StatusOr<std::unique_ptr<LaplaceDistribution>> Build();
+    absl::StatusOr<std::unique_ptr<LaplaceDistribution>> Build();
 
    private:
     double epsilon_;
@@ -174,7 +174,7 @@ class LaplaceDistribution {
 
   // Calculates 'r' from the secure noise paper (see
   // ../../common_docs/Secure_Noise_Generation.pdf)
-  static base::StatusOr<double> CalculateGranularity(double epsilon,
+  static absl::StatusOr<double> CalculateGranularity(double epsilon,
                                                      double sensitivity);
 
  protected:

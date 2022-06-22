@@ -23,7 +23,7 @@
 #include "base/testing/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "base/statusor.h"
+#include "absl/status/statusor.h"
 
 namespace differential_privacy {
 namespace {
@@ -45,7 +45,7 @@ class TestAlgorithm : public Algorithm<T> {
     Builder() : AlgorithmBuilder() {}
 
    private:
-    base::StatusOr<std::unique_ptr<TestAlgorithm<T>>> BuildAlgorithm()
+    absl::StatusOr<std::unique_ptr<TestAlgorithm<T>>> BuildAlgorithm()
         override {
       return absl::WrapUnique(
           new TestAlgorithm(AlgorithmBuilder::GetEpsilon().value()));
@@ -62,7 +62,7 @@ class TestAlgorithm : public Algorithm<T> {
   int64_t MemoryUsed() override { return sizeof(TestAlgorithm<T>); }
 
  protected:
-  base::StatusOr<Output> GenerateResult(double noise_interval_level) override {
+  absl::StatusOr<Output> GenerateResult(double noise_interval_level) override {
     Output output;
     ConfidenceInterval ci;
     ci.set_confidence_level(noise_interval_level);
@@ -74,7 +74,7 @@ class TestAlgorithm : public Algorithm<T> {
 TEST(AlgorithmTest, PartialResultPassesConfidenceLevel) {
   TestAlgorithm<double> alg;
   const double level = .9;
-  base::StatusOr<Output> result = alg.PartialResult(level);
+  absl::StatusOr<Output> result = alg.PartialResult(level);
   ASSERT_OK(result);
   EXPECT_EQ(GetNoiseConfidenceInterval(*result).confidence_level(), level);
 

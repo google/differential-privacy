@@ -1,5 +1,9 @@
 # Bounded Standard Deviation
 
+WARNING: `BoundedStandardDeviation` is deprecated. Please use 
+[`BoundedVariance`](bounded-variance.md) instead and take the square root of the
+result.
+
 [`BoundedStandardDeviation`](https://github.com/google/differential-privacy/blob/main/cc/algorithms/bounded-standard-deviation.h)
 computes the standard deviation of values in a dataset in a differentially
 private manner.
@@ -21,7 +25,7 @@ found in the [bounded algorithm documentation](bounded-algorithm.md). Below is a
 minimal construction example.
 
 ```
-base::StatusOr<std::unique_ptr<BoundedStandardDeviation<int64>>> bounded_stdev =
+absl::StatusOr<std::unique_ptr<BoundedStandardDeviation<int64>>> bounded_stdev =
    BoundedStandardDeviation<int64>::Builder.SetEpsilon(1)
                                            .SetLower(-10)
                                            .SetUpper(10)

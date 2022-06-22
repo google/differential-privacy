@@ -17,7 +17,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status.h"
-#include "base/statusor.h"
+#include "absl/status/statusor.h"
 #include "accounting/common/common.h"
 #include "accounting/privacy_loss_distribution.h"
 #include "base/testing/status_matchers.h"

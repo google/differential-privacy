@@ -22,7 +22,7 @@
 #include <utility>
 
 #include "absl/status/status.h"
-#include "base/statusor.h"
+#include "absl/status/statusor.h"
 #include "algorithms/algorithm.h"
 #include "algorithms/approx-bounds.h"
 #include "base/status_macros.h"
@@ -72,7 +72,7 @@ class BoundedAlgorithmBuilder : public AlgorithmBuilder<T, Algorithm, Builder> {
 
  protected:
   // This method needs to be overwritten by childs to build bounded algorithms.
-  virtual base::StatusOr<std::unique_ptr<Algorithm>>
+  virtual absl::StatusOr<std::unique_ptr<Algorithm>>
   BuildBoundedAlgorithm() = 0;
 
   // Returns whether bounds have been set for this builder.
@@ -106,7 +106,7 @@ class BoundedAlgorithmBuilder : public AlgorithmBuilder<T, Algorithm, Builder> {
   absl::optional<double> remaining_epsilon_;
 
   // Common initialization and checks for building bounded algorithms.
-  base::StatusOr<std::unique_ptr<Algorithm>> BuildAlgorithm() final {
+  absl::StatusOr<std::unique_ptr<Algorithm>> BuildAlgorithm() final {
     if (lower_.has_value() != upper_.has_value()) {
       return absl::InvalidArgumentError(
           "Lower and upper bounds must either both be set or both be unset.");

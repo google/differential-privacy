@@ -178,9 +178,9 @@ TYPED_TEST(BoundedSumTest, RepeatedResultsTest) {
       .SetEpsilon(1.0)
       .SetLower(0)
       .SetUpper(10);
-  base::StatusOr<std::unique_ptr<BoundedSum<TypeParam>>> bs1 = builder.Build();
+  absl::StatusOr<std::unique_ptr<BoundedSum<TypeParam>>> bs1 = builder.Build();
   ASSERT_OK(bs1);
-  base::StatusOr<std::unique_ptr<BoundedSum<TypeParam>>> bs2 = builder.Build();
+  absl::StatusOr<std::unique_ptr<BoundedSum<TypeParam>>> bs2 = builder.Build();
   ASSERT_OK(bs2);
   (*bs1)->AddEntries(a.begin(), a.end());
   (*bs2)->AddEntries(a.begin(), a.end());
@@ -464,7 +464,7 @@ TEST(BoundedSumTest, OverflowFromAddNoiseTypeCast) {
 TEST(BoundedSumTest, OverflowAddEntryManualBounds) {
   typename BoundedSum<int64_t>::Builder builder;
 
-  base::StatusOr<std::unique_ptr<BoundedSum<int64_t>>> bs =
+  absl::StatusOr<std::unique_ptr<BoundedSum<int64_t>>> bs =
       builder
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .SetLower(0)
@@ -476,7 +476,7 @@ TEST(BoundedSumTest, OverflowAddEntryManualBounds) {
   (*bs)->AddEntry(1);
   (*bs)->AddEntry(std::numeric_limits<int64_t>::max());
 
-  base::StatusOr<Output> result = (*bs)->PartialResult();
+  absl::StatusOr<Output> result = (*bs)->PartialResult();
   ASSERT_OK(result);
   // Overflowing should result in the running sum wrapping around to zero.
   EXPECT_EQ(GetValue<int64_t>(result.value()), 0);
@@ -485,7 +485,7 @@ TEST(BoundedSumTest, OverflowAddEntryManualBounds) {
 TEST(BoundedSumTest, UnderflowAddEntryManualBounds) {
   typename BoundedSum<int64_t>::Builder builder;
 
-  base::StatusOr<std::unique_ptr<BoundedSum<int64_t>>> bs =
+  absl::StatusOr<std::unique_ptr<BoundedSum<int64_t>>> bs =
       builder
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .SetLower(std::numeric_limits<int64_t>::lowest() + 1)
@@ -497,7 +497,7 @@ TEST(BoundedSumTest, UnderflowAddEntryManualBounds) {
   (*bs)->AddEntry(-1);
   (*bs)->AddEntry(std::numeric_limits<int64_t>::lowest() + 1);
 
-  base::StatusOr<Output> result = (*bs)->PartialResult();
+  absl::StatusOr<Output> result = (*bs)->PartialResult();
   ASSERT_OK(result);
   // Underflowing should result in the running sum wrapping around to zero.
   EXPECT_EQ(GetValue<int64_t>(result.value()), 0);
@@ -506,7 +506,7 @@ TEST(BoundedSumTest, UnderflowAddEntryManualBounds) {
 TEST(BoundedSumTest, OverflowMergeManualBoundsTest) {
   typename BoundedSum<int64_t>::Builder builder;
 
-  base::StatusOr<std::unique_ptr<BoundedSum<int64_t>>> bs =
+  absl::StatusOr<std::unique_ptr<BoundedSum<int64_t>>> bs =
       builder
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .SetLower(0)
@@ -516,7 +516,7 @@ TEST(BoundedSumTest, OverflowMergeManualBoundsTest) {
   (*bs)->AddEntry(std::numeric_limits<int64_t>::max());
   Summary summary = (*bs)->Serialize();
 
-  base::StatusOr<std::unique_ptr<BoundedSum<int64_t>>> bs2 = builder.Build();
+  absl::StatusOr<std::unique_ptr<BoundedSum<int64_t>>> bs2 = builder.Build();
   ASSERT_OK(bs2);
   (*bs2)->AddEntry(1);
   (*bs2)->AddEntry(1);
@@ -524,7 +524,7 @@ TEST(BoundedSumTest, OverflowMergeManualBoundsTest) {
 
   ASSERT_OK((*bs2)->Merge(summary));
 
-  base::StatusOr<Output> result = (*bs2)->PartialResult();
+  absl::StatusOr<Output> result = (*bs2)->PartialResult();
   EXPECT_OK(result);
   // Overflowing should result in the running sum wrapping around to zero.
   EXPECT_EQ(GetValue<int64_t>(result.value()), 0);
@@ -541,7 +541,7 @@ TEST(BoundedSumTest, OverflowMergeManualBoundsTest) {
 TEST(BoundedSumTest, UnderflowMergeManualBoundsTest) {
   typename BoundedSum<int64_t>::Builder builder;
 
-  base::StatusOr<std::unique_ptr<BoundedSum<int64_t>>> bs =
+  absl::StatusOr<std::unique_ptr<BoundedSum<int64_t>>> bs =
       builder
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .SetLower(std::numeric_limits<int64_t>::lowest() + 1)
@@ -551,7 +551,7 @@ TEST(BoundedSumTest, UnderflowMergeManualBoundsTest) {
   (*bs)->AddEntry(std::numeric_limits<int64_t>::lowest() + 1);
   Summary summary = (*bs)->Serialize();
 
-  base::StatusOr<std::unique_ptr<BoundedSum<int64_t>>> bs2 = builder.Build();
+  absl::StatusOr<std::unique_ptr<BoundedSum<int64_t>>> bs2 = builder.Build();
   ASSERT_OK(bs2);
   (*bs2)->AddEntry(-1);
   (*bs2)->AddEntry(-1);
@@ -559,7 +559,7 @@ TEST(BoundedSumTest, UnderflowMergeManualBoundsTest) {
 
   EXPECT_OK((*bs2)->Merge(summary));
 
-  base::StatusOr<Output> result = (*bs2)->PartialResult();
+  absl::StatusOr<Output> result = (*bs2)->PartialResult();
   EXPECT_OK(result);
   // Underflowing should result in the running sum wrapping around to zero.
   EXPECT_EQ(GetValue<int64_t>(result.value()), 0);
@@ -846,7 +846,7 @@ TYPED_TEST(BoundedSumTest, SplitsEpsilonWithAutomaticBounds) {
 
 TEST(BoundedSumTest, ApproxBoundsSumHasExpectedMaxPartitionsContributed) {
   const int max_contributions_per_partition = 1234;
-  base::StatusOr<std::unique_ptr<BoundedSum<double>>> bs =
+  absl::StatusOr<std::unique_ptr<BoundedSum<double>>> bs =
       BoundedSum<double>::Builder()
           .SetEpsilon(kDefaultEpsilon)
           .SetMaxContributionsPerPartition(max_contributions_per_partition)
@@ -864,7 +864,7 @@ TEST(BoundedSumTest, ApproxBoundsSumHasExpectedMaxPartitionsContributed) {
 
 TEST(BoundedSumTest, ApproxBoundsSumHasExpectedL0Sensitivity) {
   const int max_partitions_contributed = 1234;
-  base::StatusOr<std::unique_ptr<BoundedSum<double>>> bs =
+  absl::StatusOr<std::unique_ptr<BoundedSum<double>>> bs =
       BoundedSum<double>::Builder()
           .SetEpsilon(kDefaultEpsilon)
           .SetMaxPartitionsContributed(max_partitions_contributed)
@@ -883,7 +883,7 @@ TEST(BoundedSumTest, ApproxBoundsMechanismHasExpectedVariance) {
   const int max_partitions_contributed = 2;
   const int max_contributions_per_partition = 3;
 
-  base::StatusOr<std::unique_ptr<BoundedSum<double>>> bs =
+  absl::StatusOr<std::unique_ptr<BoundedSum<double>>> bs =
       BoundedSum<double>::Builder()
           .SetEpsilon(kDefaultEpsilon)
           .SetMaxPartitionsContributed(max_partitions_contributed)
@@ -911,7 +911,7 @@ TEST(BoundedSumTest, ApproxBoundsMechanismHasExpectedVariance) {
 }
 
 TEST(BoundedSumTest, ApproxBoundsOnInt64LowestUsesFullRangeBounds) {
-  base::StatusOr<std::unique_ptr<BoundedSum<int64_t>>> bs =
+  absl::StatusOr<std::unique_ptr<BoundedSum<int64_t>>> bs =
       BoundedSum<int64_t>::Builder().SetEpsilon(kDefaultEpsilon).Build();
   ASSERT_OK(bs);
 
@@ -919,7 +919,7 @@ TEST(BoundedSumTest, ApproxBoundsOnInt64LowestUsesFullRangeBounds) {
     bs.value()->AddEntry(std::numeric_limits<int64_t>::lowest());
   }
 
-  base::StatusOr<Output> result = bs.value()->PartialResult();
+  absl::StatusOr<Output> result = bs.value()->PartialResult();
   ASSERT_OK(result);
 
   EXPECT_EQ(
