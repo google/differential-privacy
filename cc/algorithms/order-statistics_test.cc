@@ -155,6 +155,7 @@ TEST(OrderStatisticsTest, PercentileGetter) {
 
 TEST(OrderStatisticsTest, InvalidParameters) {
   Percentile<int64_t>::Builder builder;
+  builder.SetEpsilon(1.1);
   EXPECT_OK(builder.SetPercentile(.9).SetLower(1).SetUpper(2).Build());
   EXPECT_THAT(
       builder.SetLower(3).Build(),

@@ -106,6 +106,8 @@ class PartitionSelectionStrategy {
   // should be kept and false otherwise.
   virtual bool ShouldKeep(double num_users) = 0;
 
+  virtual double ProbabilityOfKeep(double num_users) const = 0;
+
  protected:
   PartitionSelectionStrategy(double epsilon, double delta,
                              int64_t max_partitions_contributed,
@@ -232,6 +234,28 @@ class NearTruncatedGeometricPartitionSelection
     return (rand_num <= ProbabilityOfKeep(num_users));
   }
 
+  // ProbabilityOfKeep returns the probability with which a partition with
+  // num_users
+  // users should be kept, Thm. 1 of https://arxiv.org/pdf/2006.03684.pdf
+  double ProbabilityOfKeep(double num_users) const override {
+    const double adjusted_delta = GetAdjustedDelta();
+    if (num_users == 0) {
+      return 0;
+    } else if (num_users <= crossover_1_) {
+      return (
+          (expm1(num_users * adjusted_epsilon_) / expm1(adjusted_epsilon_)) *
+          adjusted_delta);
+    } else if (num_users > crossover_1_ && num_users <= crossover_2_) {
+      const double m = num_users - crossover_1_;
+      const double p_crossover = ProbabilityOfKeep(crossover_1_);
+      return p_crossover -
+             (1 - p_crossover + (adjusted_delta / expm1(adjusted_epsilon_))) *
+                 expm1(-m * adjusted_epsilon_);
+    } else {
+      return 1;
+    }
+  }
+
  protected:
   NearTruncatedGeometricPartitionSelection(double epsilon, double delta,
                                            int max_partitions,
@@ -254,25 +278,6 @@ class NearTruncatedGeometricPartitionSelection
   double crossover_1_;
   double crossover_2_;
 
-  // ProbabilityOfKeep returns the probability with which a partition with n
-  // users should be kept, Thm. 1 of https://arxiv.org/pdf/2006.03684.pdf
-  double ProbabilityOfKeep(double n) const {
-    const double adjusted_delta = GetAdjustedDelta();
-    if (n == 0) {
-      return 0;
-    } else if (n <= crossover_1_) {
-      return ((expm1(n * adjusted_epsilon_) / expm1(adjusted_epsilon_)) *
-              adjusted_delta);
-    } else if (n > crossover_1_ && n <= crossover_2_) {
-      const double m = n - crossover_1_;
-      const double p_crossover = ProbabilityOfKeep(crossover_1_);
-      return p_crossover -
-             (1 - p_crossover + (adjusted_delta / expm1(adjusted_epsilon_))) *
-                 expm1(-m * adjusted_epsilon_);
-    } else {
-      return 1;
-    }
-  }
 };
 
 // PreaggPartitionSelection is the deprecated name for
@@ -337,6 +342,16 @@ class LaplacePartitionSelection : public PartitionSelectionStrategy {
 
   bool ShouldKeep(double num_users) override {
     return mechanism_->NoisedValueAboveThreshold(num_users, threshold_);
+  }
+
+  absl::optional<double> NoiseValueIfShouldKeep(double num_users) {
+    double noised_value = mechanism_->AddNoise(num_users);
+    return noised_value > threshold_ ? noised_value : absl::optional<double>();
+  }
+
+  double ProbabilityOfKeep(double num_users) const override {
+    return mechanism_->ProbabilityOfNoisedValueAboveThreshold(num_users,
+                                                              threshold_);
   }
 
   static absl::StatusOr<double> CalculateDelta(
@@ -479,6 +494,16 @@ class GaussianPartitionSelection : public PartitionSelectionStrategy {
 
   bool ShouldKeep(double num_users) override {
     return mechanism_->NoisedValueAboveThreshold(num_users, threshold_);
+  }
+
+  absl::optional<double> NoiseValueIfShouldKeep(double num_users) {
+    double noised_value = mechanism_->AddNoise(num_users);
+    return noised_value > threshold_ ? noised_value : absl::optional<double>();
+  }
+
+  double ProbabilityOfKeep(double num_users) const override {
+    return mechanism_->ProbabilityOfNoisedValueAboveThreshold(num_users,
+                                                              threshold_);
   }
 
   // CalculateThresholdDelta returns the threshold_delta for a threshold k. This

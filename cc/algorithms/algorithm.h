@@ -181,15 +181,6 @@ class AlgorithmBuilder {
   virtual ~AlgorithmBuilder() = default;
 
   absl::StatusOr<std::unique_ptr<Algorithm>> Build() {
-    // Default epsilon is used whenever epsilon is not set. This value should
-    // only be used for testing convenience. For any production use case, please
-    // set your own epsilon based on privacy considerations.
-    if (!epsilon_.has_value()) {
-      epsilon_ = DefaultEpsilon();
-      LOG(WARNING) << "Default epsilon of " << epsilon_.value()
-                   << " is being used. Consider setting your own epsilon based "
-                      "on privacy considerations.";
-    }
     RETURN_IF_ERROR(ValidateIsFiniteAndPositive(epsilon_, "Epsilon"));
 
     if (delta_.has_value()) {

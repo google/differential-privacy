@@ -11,7 +11,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Common classes and functions for the accounting library."""
+"""Common classes and functions for the accounting library.
+
+This file implements work the privacy loss distribution (PLD) probability mass
+functions (PMF)and its basic functionalities. Please refer to the
+supplementary material below for more details:
+../../common_docs/Privacy_Loss_Distributions.pdf
+"""
+
 import abc
 import dataclasses
 import itertools
@@ -23,6 +30,7 @@ from scipy import fft
 from scipy import signal
 
 ArrayLike = Union[np.ndarray, List[float]]
+_MAX_PMF_SPARSE_SIZE = 1000
 
 
 @dataclasses.dataclass
@@ -63,11 +71,10 @@ class BinarySearchParameters(object):
   discrete: bool = False
 
 
-def inverse_monotone_function(
-    func: Callable[[float], float],
-    value: float,
-    search_parameters: BinarySearchParameters,
-    increasing: bool = False) -> Optional[float]:
+def inverse_monotone_function(func: Callable[[float], float],
+                              value: float,
+                              search_parameters: BinarySearchParameters,
+                              increasing: bool = False) -> Optional[float]:
   """Inverse a monotone function.
 
   Args:
@@ -144,10 +151,9 @@ def dictionary_to_list(
   return (offset, result_list)
 
 
-def list_to_dictionary(
-    input_list: List[float],
-    offset: int,
-    tail_mass_truncation: float = 0) -> Mapping[int, float]:
+def list_to_dictionary(input_list: List[float],
+                       offset: int,
+                       tail_mass_truncation: float = 0) -> Mapping[int, float]:
   """Converts a list into an integer-keyed dictionary, with a specified offset.
 
   Args:
@@ -184,10 +190,9 @@ def list_to_dictionary(
   return result_dictionary
 
 
-def convolve_dictionary(
-    dictionary1: Mapping[int, float],
-    dictionary2: Mapping[int, float],
-    tail_mass_truncation: float = 0) -> Mapping[int, float]:
+def convolve_dictionary(dictionary1: Mapping[int, float],
+                        dictionary2: Mapping[int, float],
+                        tail_mass_truncation: float = 0) -> Mapping[int, float]:
   """Computes a convolution of two dictionaries.
 
   Args:
@@ -241,8 +246,8 @@ def compute_self_convolve_bounds(
   if orders is None:
     # Set orders so whose absolute values are not too large; otherwise, we may
     # run into numerical issues.
-    orders = (np.concatenate((np.arange(-20, 0), np.arange(1, 21)))
-              / len(input_list))
+    orders = (
+        np.concatenate((np.arange(-20, 0), np.arange(1, 21))) / len(input_list))
 
   # Compute log of the moment generating function at the specified orders.
   log_mgfs = np.log([
@@ -448,6 +453,11 @@ class PLDPmf(abc.ABC):
     self._discretization = discretization
     self._pessimistic_estimate = pessimistic_estimate
 
+  @property
+  @abc.abstractmethod
+  def size(self) -> int:
+    """Returns number of points in discretization."""
+
   @abc.abstractmethod
   def compose(self,
               other: 'PLDPmf',
@@ -456,7 +466,7 @@ class PLDPmf(abc.ABC):
 
     Args:
       other: the privacy loss distribution PMF to be composed. The two must have
-        the same value_discretization_interval and pessimistic_estimate.
+        the same discretization and pessimistic_estimate.
       tail_mass_truncation: an upper bound on the tails of the probability mass
         of the PMF that might be truncated.
 
@@ -487,7 +497,16 @@ class PLDPmf(abc.ABC):
   def get_epsilon_for_delta(self, delta: float) -> float:
     """Computes epsilon for which hockey stick divergence is at most delta."""
 
-  def _validate_composable(self, other: 'PLDPmf'):
+  @abc.abstractmethod
+  def to_dense_pmf(self) -> 'DensePLDPmf':
+    """Returns the dense PMF with data from 'self'."""
+
+  @abc.abstractmethod
+  def get_delta_for_epsilon_for_composed_pld(self, other: 'PLDPmf',
+                                             epsilon: float) -> float:
+    """Computes delta for 'epsilon' for the composiion of 'self' and 'other'."""
+
+  def validate_composable(self, other: 'PLDPmf'):
     """Checks whether 'self' and 'other' can be composed."""
     if not isinstance(self, type(other)):
       raise ValueError(f'Only PMFs of the same type can be composed:'
@@ -519,11 +538,15 @@ class DensePLDPmf(PLDPmf):
     self._probs = probs
     self._infinity_mass = infinity_mass
 
+  @property
+  def size(self) -> int:
+    return len(self._probs)
+
   def compose(self,
               other: 'DensePLDPmf',
               tail_mass_truncation: float = 0) -> 'DensePLDPmf':
     """Computes a PMF resulting from composing two PMFs. See base class."""
-    self._validate_composable(other)
+    self.validate_composable(other)
 
     # pylint: disable=protected-access
     lower_loss = self._lower_loss + other._lower_loss
@@ -568,6 +591,60 @@ class DensePLDPmf(PLDPmf):
     return _get_epsilon_for_delta(self._infinity_mass, reversed_losses,
                                   np.flip(self._probs), delta)
 
+  def to_dense_pmf(self) -> 'DensePLDPmf':
+    return self
+
+  def get_delta_for_epsilon_for_composed_pld(self, other: PLDPmf,
+                                             epsilon: float) -> float:
+    other = other.to_dense_pmf()
+    self.validate_composable(other)
+    discretization = self._discretization
+    # pylint: disable=protected-access
+    self_loss = lambda index: (index + self._lower_loss) * discretization
+    other_loss = lambda index: (index + other._lower_loss) * discretization
+
+    self_probs, other_probs = self._probs, other._probs
+    len_self, len_other = len(self_probs), len(other_probs)
+    delta = 1 - (1 - self._infinity_mass) * (1 - other._infinity_mass)
+    # pylint: enable=protected-access
+
+    # Compute the hockey stick divergence using equation (2) in the
+    # supplementary material. upper_mass represents summation in equation (3)
+    # and lower_mass represents the summation in equation (4).
+
+    if self_loss(len_self - 1) + other_loss(len_other - 1) <= epsilon:
+      return delta
+
+    i, j = 0, len_other - 1
+    upper_mass = lower_mass = 0
+
+    # This is summation by i,j, such that self_loss(i) + other_loss(j) >=
+    # epsilon, and self_loss(i) + other_loss(j-1)< epsilon, as in the
+    # equation(2).
+
+    # If i is todo small then increase it.
+    while self_loss(i) + other_loss(j) < epsilon:
+      i += 1
+
+    # Else if j is too large then decrease it.
+    while j >= 0 and self_loss(i) + other_loss(j - 1) >= epsilon:
+      upper_mass += other_probs[j]
+      lower_mass += other_probs[j] * np.exp(-other_loss(j))
+      j -= 1
+
+    # Invariant:
+    # self_loss(i) + other_loss(j-1) < epsilon <= self_loss(i) + other_loss(j)
+    # Sum over all i, keeping this invariant.
+    for i in range(i, len_self):
+      if j >= 0:
+        upper_mass += other_probs[j]
+        lower_mass += other_probs[j] * np.exp(-other_loss(j))
+      j -= 1
+      delta += self_probs[i] * (
+          upper_mass - np.exp(epsilon - self_loss(i)) * lower_mass)
+
+    return delta
+
 
 class SparsePLDPmf(PLDPmf):
   """Class for sparse probability mass function.
@@ -590,7 +667,7 @@ class SparsePLDPmf(PLDPmf):
               other: 'SparsePLDPmf',
               tail_mass_truncation: float = 0) -> 'SparsePLDPmf':
     """Computes a PMF resulting from composing two PMFs. See base class."""
-    self._validate_composable(other)
+    self.validate_composable(other)
     # Assumed small number of points, so simple quadratic algorithm is fine.
     convolution = {}
     # pylint: disable=protected-access
@@ -612,12 +689,22 @@ class SparsePLDPmf(PLDPmf):
 
   def self_compose(self,
                    num_times: int,
-                   tail_mass_truncation: float = 0) -> 'SparsePLDPmf':
+                   tail_mass_truncation: float = 0) -> 'PLDPmf':
     """See base class."""
     if num_times <= 0:
       raise ValueError(f'num_times should be >= 1, num_times={num_times}')
     if num_times == 1:
       return self
+
+    # Compute a rough upper bound overestimate, since from some power, the PMF
+    # becomes dense and start growing linearly further. But in this case we
+    # should definitely go to dense.
+    max_result_size = self.size**num_times
+
+    if max_result_size > _MAX_PMF_SPARSE_SIZE:
+      # The size of composed PMF is too large for sparse. Convert to dense.
+      return self.to_dense_pmf().self_compose(num_times, tail_mass_truncation)
+
     result = self
     for i in range(2, num_times + 1):
       # To truncate only on the last composition.
@@ -645,8 +732,74 @@ class SparsePLDPmf(PLDPmf):
     return _get_epsilon_for_delta(self._infinity_mass, reversed_losses,
                                   reversed_probs, delta)
 
+  def get_delta_for_epsilon_for_composed_pld(self, other: PLDPmf,
+                                             epsilon: float) -> float:
+    # If 'self' is sparse, then it is small, so it is not so expensive to
+    # convert to dense. Let us convert it for simplicity for dense.
+    return self.to_dense_pmf().get_delta_for_epsilon_for_composed_pld(
+        other, epsilon)
+
   def to_dense_pmf(self) -> DensePLDPmf:
     """"Converts to dense PMF."""
     lower_loss, probs = dictionary_to_list(self._loss_probs)
     return DensePLDPmf(self._discretization, lower_loss, np.array(probs),
                        self._infinity_mass, self._pessimistic_estimate)
+
+
+def create_pmf(loss_probs: Mapping[int, float], discretization: float,
+               infinity_mass: float, pessimistic_estimate: bool) -> PLDPmf:
+  """Creates PLDPmfs.
+
+  It returns SparsePLDPmf if the size of loss_probs less than
+   MAX_PMF_SPARSE_SIZE, otherwise DensePLDPmf.
+
+  Args:
+    loss_probs: probability mass function of the discretized privacy loss
+      distribution.
+    discretization: the interval length for which the values of the privacy loss
+      distribution are discretized.
+    infinity_mass: infinity_mass for privacy loss distribution.
+    pessimistic_estimate: whether the rounding is done in such a way that the
+      resulting epsilon-hockey stick divergence computation gives an upper
+      estimate to the real value.
+
+  Returns:
+    Created PLDPmf.
+  """
+  if len(loss_probs) <= _MAX_PMF_SPARSE_SIZE:
+    return SparsePLDPmf(loss_probs, discretization, infinity_mass,
+                        pessimistic_estimate)
+
+  lower_loss, probs = dictionary_to_list(loss_probs)
+  probs = np.array(probs)
+  return DensePLDPmf(discretization, lower_loss, probs, infinity_mass,
+                     pessimistic_estimate)
+
+
+def compose_pmfs(pmf1: PLDPmf,
+                 pmf2: PLDPmf,
+                 tail_mass_truncation: float = 0) -> PLDPmf:
+  """Computes a PMF resulting from composing two PMFs.
+
+  It returns SparsePLDPmf only if input PLDPmfs are SparsePLDPmf and the
+  product of input pmfs sizes are less than MAX_PMF_SPARSE_SIZE.
+
+  Args:
+    pmf1: the privacy loss distribution PMF to be composed.
+    pmf2: the privacy loss distribution PMF to be composed. The two must have
+      the same discretization and pessimistic_estimate.
+    tail_mass_truncation: an upper bound on the tails of the probability mass of
+      the PMF that might be truncated.
+
+  Returns:
+    A PMF which is the result of convolving (composing) the two.
+  """
+  max_result_size = pmf1.size * pmf2.size
+  if (isinstance(pmf1, SparsePLDPmf) and
+      isinstance(pmf2, SparsePLDPmf) and
+      max_result_size <= _MAX_PMF_SPARSE_SIZE):
+    return pmf1.compose(pmf2, tail_mass_truncation)
+
+  pmf1 = pmf1.to_dense_pmf()
+  pmf2 = pmf2.to_dense_pmf()
+  return pmf1.compose(pmf2, tail_mass_truncation)

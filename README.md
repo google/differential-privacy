@@ -58,9 +58,11 @@ You also need to install Git, if you don't have it already.
 Once you've installed Bazel and Git, open a Terminal and clone the
 differential privacy directory into a local folder:
 
-```git clone https://github.com/google/differential-privacy.git```
+```shell
+git clone https://github.com/google/differential-privacy.git
+```
 
-Navigate into the ```differential-privacy``` folder you just created,
+Navigate into the `differential-privacy` folder you just created,
 and build the differential privacy library and dependencies using Bazel
 (note: *...* is a part of the command and not a placeholder):
 
@@ -90,7 +92,9 @@ bazel build ...
 You may need to install additional dependencies when building the PostgreSQL
 extension, for example on Ubuntu you will need these packages:
 
-```sudo apt-get install make libreadline-dev bison flex```
+```shell
+sudo apt-get install make libreadline-dev bison flex
+```
 
 ## Caveats of the DP building block libraries
 

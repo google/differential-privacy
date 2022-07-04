@@ -205,6 +205,7 @@ TEST(PartitionSelectionTest, NearTruncatedGeometricPartitionSelectionOneUser) {
   for (int i = 0; i < kSmallNumSamples; i++) {
     if (build->ShouldKeep(1)) num_kept++;
   }
+  EXPECT_NEAR(build->ProbabilityOfKeep(1), build->GetDelta(), 1e-12);
   EXPECT_THAT(num_kept / kSmallNumSamples,
               DoubleNear(build->GetDelta(), 0.001));
 }
@@ -218,6 +219,7 @@ TEST(PartitionSelectionTest, NearTruncatedGeometricPartitionSelectionNoUsers) {
           .SetMaxPartitionsContributed(1)
           .Build()
           .value();
+  EXPECT_EQ(build->ProbabilityOfKeep(0), 0.0);
   for (int i = 0; i < 1000; i++) {
     EXPECT_FALSE(build->ShouldKeep(0));
   }
@@ -262,6 +264,7 @@ TEST(PartitionSelectionTest,
           .Build()
           .value();
   double num_kept = 0.0;
+  EXPECT_NEAR(build->ProbabilityOfKeep(6), 0.58840484458, 1e-10);
   for (int i = 0; i < kNumSamples; i++) {
     if (build->ShouldKeep(6)) num_kept++;
   }
@@ -282,6 +285,7 @@ TEST(PartitionSelectionTest,
   for (int i = 0; i < kNumSamples; i++) {
     if (build->ShouldKeep(8)) num_kept++;
   }
+  EXPECT_NEAR(build->ProbabilityOfKeep(8), 0.86807080625, 1e-10);
   EXPECT_THAT(num_kept / kNumSamples, DoubleNear(0.86807080625, 0.001));
 }
 
@@ -296,6 +300,7 @@ TEST(PartitionSelectionTest,
           .SetMaxPartitionsContributed(1)
           .Build()
           .value();
+  EXPECT_EQ(build->ProbabilityOfKeep(15), 1);
   for (int i = 0; i < 1000; i++) {
     EXPECT_TRUE(build->ShouldKeep(15));
   }
@@ -315,6 +320,7 @@ TEST(PartitionSelectionTest,
   for (int i = 0; i < kNumSamples; i++) {
     if (build->ShouldKeep(6)) num_kept++;
   }
+  EXPECT_NEAR(build->ProbabilityOfKeep(6), 0.12, 1e-10);
   EXPECT_THAT(num_kept / kNumSamples, DoubleNear(0.12, 0.001));
 }
 
@@ -331,6 +337,7 @@ TEST(PartitionSelectionTest,
   for (int i = 0; i < kNumSamples; i++) {
     if (build->ShouldKeep(3)) num_kept++;
   }
+  EXPECT_NEAR(build->ProbabilityOfKeep(3), 0.45, 1e-10);
   EXPECT_THAT(num_kept / kNumSamples, DoubleNear(0.45, 0.001));
 }
 
@@ -348,6 +355,7 @@ TEST(PartitionSelectionTest,
   for (int i = 0; i < kNumSamples; i++) {
     if (build->ShouldKeep(40)) num_kept++;
   }
+  EXPECT_NEAR(build->ProbabilityOfKeep(40), 0.8, 1e-10);
   EXPECT_THAT(num_kept / kNumSamples, DoubleNear(0.8, 0.001));
 }
 // LaplacePartitionSelection Tests
@@ -511,6 +519,7 @@ TEST(PartitionSelectionTest, LaplacePartitionSelectionOneUser) {
   for (int i = 0; i < kSmallNumSamples; i++) {
     if (build->ShouldKeep(1)) num_kept++;
   }
+  EXPECT_NEAR(build->ProbabilityOfKeep(1), build->GetDelta(), 1e-12);
   EXPECT_THAT(num_kept / kSmallNumSamples,
               DoubleNear(build->GetDelta(), 0.0006));
 }
@@ -531,6 +540,7 @@ TEST(PartitionSelectionTest, LaplacePartitionSelectionAtThreshold) {
   for (int i = 0; i < kSmallNumSamples; i++) {
     if (build->ShouldKeep(5)) num_kept++;
   }
+  EXPECT_NEAR(build->ProbabilityOfKeep(5), 0.5, 1e-10);
   EXPECT_THAT(num_kept / kSmallNumSamples, DoubleNear(0.5, 0.0025));
 }
 
@@ -560,6 +570,30 @@ TEST(PartitionSelectionTest, LaplacePartitionSelectionUnsetBuilderThreshold) {
   LaplacePartitionSelection* laplace =
       dynamic_cast<LaplacePartitionSelection*>(build.get());
   EXPECT_THAT(laplace->GetThreshold(), DoubleNear(7.43775164974, 0.001));
+}
+
+TEST(PartitionSelectionTest, LaplacePartitionSelectionNoiseValueIfShouldKeep) {
+  LaplacePartitionSelection::Builder test_builder;
+  std::unique_ptr<PartitionSelectionStrategy> build =
+      test_builder
+          .SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
+          .SetEpsilon(0.5)
+          .SetDelta(0.06766764161)
+          .SetMaxPartitionsContributed(1)
+          .Build()
+          .value();
+  double num_kept = 0.0;
+  auto* laplace_ps = dynamic_cast<LaplacePartitionSelection*>(build.get());
+  const int kTinyNumSamples = 10000;
+  for (int i = 0; i < kTinyNumSamples; ++i) {
+    auto noised_value = laplace_ps->NoiseValueIfShouldKeep(5);
+    if (noised_value.has_value()) {
+      ++num_kept;
+      EXPECT_GE(noised_value.value(), laplace_ps->GetThreshold());
+    }
+  }
+
+  EXPECT_THAT(num_kept / kTinyNumSamples, DoubleNear(0.5, 0.02));
 }
 
 // CalculateDelta and CalculateThreshold structs and tests
@@ -1664,6 +1698,30 @@ TEST(PartitionSelectionTest, GaussianRoundTripDeltaTests) {
                    delta >= computed_delta_plus_one.value()));
     }
   }
+}
+
+TEST(PartitionSelectionTest, GaussianPartitionSelectionNoiseValueIfShouldKeep) {
+  GaussianPartitionSelection::Builder test_builder;
+  std::unique_ptr<PartitionSelectionStrategy> build =
+      test_builder
+          .SetGaussianMechanism(absl::make_unique<GaussianMechanism::Builder>())
+          .SetEpsilon(0.5)
+          .SetDelta(0.01)
+          .SetMaxPartitionsContributed(1)
+          .Build()
+          .value();
+  double num_kept = 0.0;
+  auto* gaussian_ps = dynamic_cast<GaussianPartitionSelection*>(build.get());
+  const int kTinyNumSamples = 10000;
+  for (int i = 0; i < kTinyNumSamples; ++i) {
+    auto noised_value = gaussian_ps->NoiseValueIfShouldKeep(5);
+    if (noised_value.has_value()) {
+      ++num_kept;
+      EXPECT_GE(noised_value.value(), gaussian_ps->GetThreshold());
+    }
+  }
+
+  EXPECT_THAT(num_kept / kTinyNumSamples, DoubleNear(0.07, 0.02));
 }
 
 }  // namespace

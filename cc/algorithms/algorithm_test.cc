@@ -114,59 +114,69 @@ TEST(AlgorithmTest, InvalidEpsilon) {
 }
 
 TEST(AlgorithmBuilderTest, InvalidEpsilonFailsBuild) {
-  TestAlgorithm<double>::Builder builder;
-
-  EXPECT_THAT(builder.SetEpsilon(-1).Build(),
+  EXPECT_THAT(TestAlgorithm<double>::Builder().Build(),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Epsilon must be set")));
+  EXPECT_THAT(TestAlgorithm<double>::Builder().SetEpsilon(-1).Build(),
               StatusIs(absl::StatusCode::kInvalidArgument,
                        HasSubstr("Epsilon must be finite and positive")));
 
-  EXPECT_THAT(
-      builder.SetEpsilon(std::numeric_limits<double>::quiet_NaN()).Build(),
-      StatusIs(absl::StatusCode::kInvalidArgument,
-               HasSubstr("Epsilon must be a valid numeric value")));
+  EXPECT_THAT(TestAlgorithm<double>::Builder()
+                  .SetEpsilon(std::numeric_limits<double>::quiet_NaN())
+                  .Build(),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Epsilon must be a valid numeric value")));
 
-  EXPECT_THAT(
-      builder.SetEpsilon(std::numeric_limits<double>::infinity()).Build(),
-      StatusIs(absl::StatusCode::kInvalidArgument,
-               HasSubstr("Epsilon must be finite")));
+  EXPECT_THAT(TestAlgorithm<double>::Builder()
+                  .SetEpsilon(std::numeric_limits<double>::infinity())
+                  .Build(),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Epsilon must be finite")));
 }
 
 TEST(AlgorithmBuilderTest, InvalidDeltaFailsBuild) {
-  TestAlgorithm<double>::Builder builder;
-
   EXPECT_THAT(
-      builder.SetDelta(-0.1).Build(),
+      TestAlgorithm<double>::Builder().SetEpsilon(1.1).SetDelta(-0.1).Build(),
       StatusIs(absl::StatusCode::kInvalidArgument,
                HasSubstr("Delta must be in the inclusive interval [0,1]")));
 
   EXPECT_THAT(
-      builder.SetDelta(1.1).Build(),
+      TestAlgorithm<double>::Builder().SetEpsilon(1.1).SetDelta(1.1).Build(),
       StatusIs(absl::StatusCode::kInvalidArgument,
                HasSubstr("Delta must be in the inclusive interval [0,1]")));
 
-  EXPECT_THAT(
-      builder.SetDelta(std::numeric_limits<double>::quiet_NaN()).Build(),
-      StatusIs(absl::StatusCode::kInvalidArgument,
-               HasSubstr("Delta must be a valid numeric value")));
+  EXPECT_THAT(TestAlgorithm<double>::Builder()
+                  .SetEpsilon(1.1)
+                  .SetDelta(std::numeric_limits<double>::quiet_NaN())
+                  .Build(),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Delta must be a valid numeric value")));
 
   EXPECT_THAT(
-      builder.SetDelta(std::numeric_limits<double>::infinity()).Build(),
+      TestAlgorithm<double>::Builder()
+          .SetEpsilon(1.1)
+          .SetDelta(std::numeric_limits<double>::infinity())
+          .Build(),
       StatusIs(absl::StatusCode::kInvalidArgument,
                HasSubstr("Delta must be in the inclusive interval [0,1]")));
 }
 
 TEST(AlgorithmBuilderTest, InvalidL0SensitivityFailsBuild) {
-  TestAlgorithm<double>::Builder builder;
-
   EXPECT_THAT(
-      builder.SetMaxPartitionsContributed(-1).Build(),
+      TestAlgorithm<double>::Builder()
+          .SetEpsilon(1.1)
+          .SetMaxPartitionsContributed(-1)
+          .Build(),
       StatusIs(
           absl::StatusCode::kInvalidArgument,
           HasSubstr("Maximum number of partitions that can be "
                     "contributed to (i.e., L0 sensitivity) must be positive")));
 
   EXPECT_THAT(
-      builder.SetMaxPartitionsContributed(0).Build(),
+      TestAlgorithm<double>::Builder()
+          .SetEpsilon(1.1)
+          .SetMaxPartitionsContributed(0)
+          .Build(),
       StatusIs(
           absl::StatusCode::kInvalidArgument,
           HasSubstr("Maximum number of partitions that can be "
@@ -174,14 +184,18 @@ TEST(AlgorithmBuilderTest, InvalidL0SensitivityFailsBuild) {
 }
 
 TEST(AlgorithmBuilderTest, InvalidMaxContributionsPerPartitionFailsBuild) {
-  TestAlgorithm<double>::Builder builder;
-
-  EXPECT_THAT(builder.SetMaxContributionsPerPartition(-1).Build(),
+  EXPECT_THAT(TestAlgorithm<double>::Builder()
+                  .SetEpsilon(1.1)
+                  .SetMaxContributionsPerPartition(-1)
+                  .Build(),
               StatusIs(absl::StatusCode::kInvalidArgument,
                        HasSubstr("Maximum number of contributions per "
                                  "partition must be positive")));
 
-  EXPECT_THAT(builder.SetMaxContributionsPerPartition(0).Build(),
+  EXPECT_THAT(TestAlgorithm<double>::Builder()
+                  .SetEpsilon(1.1)
+                  .SetMaxContributionsPerPartition(0)
+                  .Build(),
               StatusIs(absl::StatusCode::kInvalidArgument,
                        HasSubstr("Maximum number of contributions per "
                                  "partition must be positive")));

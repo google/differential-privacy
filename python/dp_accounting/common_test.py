@@ -265,7 +265,7 @@ class PLDPmfTest(parameterized.TestCase):
                                              sparse_pmf._loss_probs)
 
   @parameterized.parameters(False, True)
-  def test_delta_for_epsilon(self, dense):
+  def test_delta_for_epsilon(self, dense: bool):
     discretization = 0.1
     infinity_mass = 0.1
     lower_loss = -1
@@ -278,6 +278,22 @@ class PLDPmfTest(parameterized.TestCase):
     self.assertAlmostEqual(1, pmf.get_delta_for_epsilon(-20))
     self.assertEqual(infinity_mass, pmf.get_delta_for_epsilon(np.inf))
     self.assertAlmostEqual(1, pmf.get_delta_for_epsilon(-np.inf))
+
+  @parameterized.parameters(False, True)
+  def test_get_delta_for_epsilon_for_composed_pld(self, dense):
+    discretization = 0.1
+    infinity_mass1, lower_loss1, probs1 = 0.1, -1, np.array(
+        [0.2, 0.3, 0, 0.1, 0.3])
+    infinity_mass2, lower_loss2, probs2 = 0.2, -2, np.array([0.1, 0, 0.4, 0.3])
+    pmf1 = self._create_pmf(discretization, dense, infinity_mass1, lower_loss1,
+                            probs1)
+    pmf2 = self._create_pmf(discretization, dense, infinity_mass2, lower_loss2,
+                            probs2)
+    pmf_composed = pmf1.compose(pmf2)
+    for epsilon in np.linspace(-10, 10, num=100):
+      delta1 = pmf1.get_delta_for_epsilon_for_composed_pld(pmf2, epsilon)
+      delta2 = pmf_composed.get_delta_for_epsilon(epsilon)
+      self.assertAlmostEqual(delta1, delta2, msg=f'{epsilon}')
 
   @parameterized.parameters(False, True)
   def test_epsilon_for_delta(self, dense):
@@ -417,9 +433,10 @@ class PLDPmfTest(parameterized.TestCase):
           },
       ),
       dense=(False, True))
-  def test_compose(self, tail_mass_truncation, expected_lower_loss,
-                   expected_probs, expected_truncated_to_inf_mass,
-                   pessimistic_estimate, dense):
+  def test_compose(self, tail_mass_truncation: float, expected_lower_loss: int,
+                   expected_probs: np.ndarray,
+                   expected_truncated_to_inf_mass: float,
+                   pessimistic_estimate: bool, dense: bool):
     discretization = 0.1
     pmf1 = self._create_pmf(
         discretization,
@@ -448,16 +465,19 @@ class PLDPmfTest(parameterized.TestCase):
     self.assertAlmostEqual(expected_inf_mass, pmf._infinity_mass)
 
   @parameterized.parameters(False, True)
-  def test_compose_different_discretization(self, dense):
+  def test_compose_different_discretization(self, dense: bool):
     pmf1 = self._create_pmf(discretization=0.1, dense=dense)
     pmf2 = self._create_pmf(discretization=0.2, dense=dense)
 
     with self.assertRaisesRegex(
         ValueError, 'Discretization intervals are different: 0.1 != 0.2'):
       pmf1.compose(pmf2)
+    with self.assertRaisesRegex(
+        ValueError, 'Discretization intervals are different: 0.1 != 0.2'):
+      pmf1.get_delta_for_epsilon_for_composed_pld(pmf2, 1)
 
   @parameterized.parameters(False, True)
-  def test_compose_different_estimation(self, dense):
+  def test_compose_different_estimation(self, dense: bool):
     pmf1 = self._create_pmf(
         discretization=0.1, pessimistic_estimate=True, dense=dense)
     pmf2 = self._create_pmf(
@@ -465,6 +485,8 @@ class PLDPmfTest(parameterized.TestCase):
 
     with self.assertRaisesRegex(ValueError, 'Estimation types are different'):
       pmf1.compose(pmf2)
+    with self.assertRaisesRegex(ValueError, 'Estimation types are different'):
+      pmf1.get_delta_for_epsilon_for_composed_pld(pmf2, 1)
 
   @parameterized.product(
       (
@@ -553,6 +575,49 @@ class PLDPmfTest(parameterized.TestCase):
     self.assertAlmostEqual(expected_truncated_to_inf_mass,
                            pmf_result._infinity_mass)
     self._check_dense_probs(pmf_result, expected_lower_loss, expected_probs)
+
+  @parameterized.parameters((1, True), (100, True), (1000, True), (1001, False))
+  def test_pmf_creation(self, num_points: int, is_sparse: bool):
+    probs = np.ones(num_points) / num_points
+    lower_loss = -1
+    loss_probs = common.list_to_dictionary(probs, lower_loss)
+    discretization = 0.01
+    infinity_mass = 0
+    pessimistic_estimate = True
+    pmf = common.create_pmf(loss_probs, discretization, infinity_mass,
+                            pessimistic_estimate)
+
+    if is_sparse:
+      self.assertIsInstance(pmf, common.SparsePLDPmf)
+    else:
+      self.assertIsInstance(pmf, common.DensePLDPmf)
+
+    self.assertEqual(num_points, pmf.size)
+
+  @parameterized.parameters((1, 100, True), (10, 100, True), (1, 1001, False),
+                            (10, 101, False), (1001, 1, False),
+                            (1001, 1001, False))
+  def test_compose_pmfs(self, num_points1, num_points2, is_sparse):
+    lower_loss = -1
+    discretization = 0.01
+    infinity_mass = 0
+    pessimistic_estimate = True
+    probs1 = np.ones(num_points1) / num_points1
+    loss_probs1 = common.list_to_dictionary(probs1, lower_loss)
+    pmf1 = common.create_pmf(loss_probs1, discretization, infinity_mass,
+                             pessimistic_estimate)
+
+    probs2 = np.ones(num_points2) / num_points2
+    loss_probs2 = common.list_to_dictionary(probs2, lower_loss)
+    pmf2 = common.create_pmf(loss_probs2, discretization, infinity_mass,
+                             pessimistic_estimate)
+
+    pmf = common.compose_pmfs(pmf1, pmf2)
+
+    if is_sparse:
+      self.assertIsInstance(pmf, common.SparsePLDPmf)
+    else:
+      self.assertIsInstance(pmf, common.DensePLDPmf)
 
 
 if __name__ == '__main__':

@@ -1013,8 +1013,8 @@ TEST(BoundedMeanWithApproxBoundsTest, ConsumesAllBudgetOfNumericalMechanisms) {
 
   // For a double bounded mean, we add int noise to the count and double noise
   // to the sum.
-  EXPECT_CALL(*mock_count_ptr, AddInt64Noise(_, DoubleEq(1))).Times(1);
-  EXPECT_CALL(*mock_sum_ptr, AddDoubleNoise(_, DoubleEq(1))).Times(1);
+  EXPECT_CALL(*mock_count_ptr, AddInt64Noise(_)).Times(1);
+  EXPECT_CALL(*mock_sum_ptr, AddDoubleNoise(_)).Times(1);
 
   BoundedMeanWithFixedBounds<double> bm(
       /*epsilon=*/1.0,

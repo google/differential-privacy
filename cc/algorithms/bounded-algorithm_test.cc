@@ -76,7 +76,7 @@ class BoundedAlgorithm : public Algorithm<T> {
 
 TYPED_TEST(BoundedAlgorithmTest, ManualBoundsTest) {
   typename BoundedAlgorithm<TypeParam>::Builder builder;
-  builder.SetLower(1).SetUpper(2);
+  builder.SetEpsilon(1.1).SetLower(1).SetUpper(2);
   EXPECT_OK(builder.Build());
   EXPECT_EQ(builder.Lower(), 1);
   EXPECT_EQ(builder.Upper(), 2);
@@ -87,6 +87,7 @@ TYPED_TEST(BoundedAlgorithmTest, ManualBoundsTest) {
 TEST(BoundedAlgorithmTest, InvalidParameters) {
   typename BoundedAlgorithm<double>::Builder builder;
 
+  builder.SetEpsilon(1.1);
   builder.SetLower(-std::numeric_limits<double>::infinity());
   builder.SetUpper(0.5);
   EXPECT_THAT(builder.Build(),

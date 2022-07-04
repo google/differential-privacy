@@ -67,13 +67,13 @@ class NumericalMechanism {
 
   template <typename T, std::enable_if_t<std::is_integral<T>::value>* = nullptr>
   T AddNoise(T result) {
-    return AddInt64Noise(result, 1.0);
+    return AddInt64Noise(result);
   }
 
   template <typename T,
             std::enable_if_t<std::is_floating_point<T>::value>* = nullptr>
   T AddNoise(T result) {
-    return AddDoubleNoise(result, 1.0);
+    return AddDoubleNoise(result);
   }
 
   // Quickly determines if result with added noise is greater than threshold.
@@ -86,6 +86,9 @@ class NumericalMechanism {
   // Significant Bits For Differential Privacy by Ilya Mironov:
   // http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.366.5957&rep=rep1&type=pdf).
   virtual bool NoisedValueAboveThreshold(double result, double threshold) = 0;
+
+  virtual double ProbabilityOfNoisedValueAboveThreshold(double result,
+                                                        double threshold) = 0;
 
   virtual int64_t MemoryUsed() = 0;
 
@@ -125,16 +128,8 @@ class NumericalMechanism {
   virtual double Quantile(double p) const = 0;
 
  protected:
-  // Shim to let us update mocks and subclasses one at a time.
-  virtual double AddDoubleNoise(double result, double privacy_budget) {
-    return AddDoubleNoise(result);
-  }
   virtual double AddDoubleNoise(double result) = 0;
 
-  // Shim to let us update mocks and subclasses one at a time.
-  virtual int64_t AddInt64Noise(int64_t result, double privacy_budget) {
-    return AddInt64Noise(result);
-  }
   virtual int64_t AddInt64Noise(int64_t result) = 0;
 
   static absl::Status CheckConfidenceLevel(const double confidence_level) {
@@ -332,6 +327,12 @@ class LaplaceMechanism : public NumericalMechanism {
   // Quickly determines if result is greater than threshold.
   bool NoisedValueAboveThreshold(double result, double threshold) override {
     return GetUniformDouble() >
+           internal::LaplaceDistribution::cdf(diversity_, threshold - result);
+  }
+
+  double ProbabilityOfNoisedValueAboveThreshold(double result,
+                                                double threshold) override {
+    return 1 -
            internal::LaplaceDistribution::cdf(diversity_, threshold - result);
   }
 
@@ -561,6 +562,12 @@ class GaussianMechanism : public NumericalMechanism {
     double stddev = CalculateStddev();
     return UniformDouble() >
            internal::GaussianDistribution::cdf(stddev, threshold - result);
+  }
+
+  double ProbabilityOfNoisedValueAboveThreshold(double result,
+                                                double threshold) override {
+    double stddev = CalculateStddev();
+    return 1 - internal::GaussianDistribution::cdf(stddev, threshold - result);
   }
 
   serialization::GaussianMechanism Serialize() const {
