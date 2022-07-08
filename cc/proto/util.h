@@ -101,21 +101,16 @@ inline ConfidenceInterval GetNoiseConfidenceInterval(const Output& output,
   return output.elements(index).noise_confidence_interval();
 }
 
-template <typename T,
-          typename std::enable_if<is_string<T>::value ||
-                                  std::is_floating_point<T>::value ||
-                                  std::is_integral<T>::value>::type* = nullptr>
-Output MakeOutput(T value) {
+template <typename T>
+Output MakeOutput(const T& value) {
   Output i;
   AddToOutput(&i, value);
   return i;
 }
 
-template <typename T,
-          typename std::enable_if<is_string<T>::value ||
-                                  std::is_floating_point<T>::value ||
-                                  std::is_integral<T>::value>::type* = nullptr>
-Output MakeOutput(T value, ConfidenceInterval noise_confidence_interval) {
+template <typename T>
+Output MakeOutput(const T& value,
+                  const ConfidenceInterval& noise_confidence_interval) {
   Output i;
   AddToOutput(&i, value, noise_confidence_interval);
   // Although the ErrorReport.noise_confidence_interval is deprecated, we still
@@ -126,52 +121,24 @@ Output MakeOutput(T value, ConfidenceInterval noise_confidence_interval) {
   return i;
 }
 
-template <typename T,
-          typename std::enable_if<is_string<T>::value>::type* = nullptr>
-void AddToOutput(Output* output, T value) {
-  auto* element = output->add_elements();
-  element->mutable_value()->set_string_value(value);
+template <typename T>
+void AddToOutput(Output* output, const T& value) {
+  Output_Element* element = output->add_elements();
+  SetValue(element->mutable_value(), value);
 }
 
-template <typename T,
-          typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
-void AddToOutput(Output* output, T value) {
-  auto* element = output->add_elements();
-  element->mutable_value()->set_int_value(value);
-}
-
-template <typename T, typename std::enable_if<
-                          std::is_floating_point<T>::value>::type* = nullptr>
-void AddToOutput(Output* output, T value) {
-  auto* element = output->add_elements();
-  element->mutable_value()->set_float_value(value);
-}
-
-template <typename T,
-          typename std::enable_if<is_string<T>::value>::type* = nullptr>
-void AddToOutput(Output* output, T value,
-                 ConfidenceInterval noise_confidence_interval) {
-  auto* element = output->add_elements();
-  element->mutable_value()->set_string_value(value);
-  *(element->mutable_noise_confidence_interval()) = noise_confidence_interval;
-}
-
-template <typename T,
-          typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
-void AddToOutput(Output* output, T value,
-                 ConfidenceInterval noise_confidence_interval) {
-  auto* element = output->add_elements();
-  element->mutable_value()->set_int_value(value);
-  *(element->mutable_noise_confidence_interval()) = noise_confidence_interval;
-}
-
-template <typename T, typename std::enable_if<
-                          std::is_floating_point<T>::value>::type* = nullptr>
-void AddToOutput(Output* output, T value,
-                 ConfidenceInterval noise_confidence_interval) {
-  auto* element = output->add_elements();
-  element->mutable_value()->set_float_value(value);
-  *(element->mutable_noise_confidence_interval()) = noise_confidence_interval;
+template <typename T>
+void AddToOutput(Output* output, const T& value,
+                 const ConfidenceInterval& noise_confidence_interval) {
+  Output_Element* element = output->add_elements();
+  SetValue(element->mutable_value(), value);
+  // Use the copy constructor here since operator= (or CopyFrom) would use an
+  // uninitialized value, perhaps as ConfidenceInterval is a proto3 message
+  // inside a proto2 message.
+  ConfidenceInterval* ci_copy =
+      new ConfidenceInterval(noise_confidence_interval);
+  // Transfers ownership of ci_copy to element.
+  element->set_allocated_noise_confidence_interval(ci_copy);
 }
 
 }  // namespace differential_privacy
