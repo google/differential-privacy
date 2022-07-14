@@ -3,11 +3,14 @@
 This directory contains tools for tracking differential privacy budgets,
 available as part of the
 [Google differential privacy library](https://github.com/google/differential-privacy).
-Currently, it provides an implementation of Privacy Loss Distributions (PLDs)
-which can help compute an accurate estimate of the total ε, δ across multiple
-executions of differentially private aggregations. Our implementation currently
-supports Laplace mechanisms, Gaussian mechanisms and randomized response. More
-detailed definitions and references can be found
+
+The set of DpEvent classes allow you to describe complex differentially private
+mechanisms such as Laplace and Gaussian, subsampling mechanisms, and their
+compositions. The PrivacyAccountant classes can ingest DpEvents and return the
+ε, δ of the composite mechanism. Privacy Loss Distributions (PLDs) and RDP
+accounting are currently supported.
+
+More detailed definitions and references about PLDs can be found
 [in our supplementary pdf document](https://github.com/google/differential-privacy/tree/main/common_docs/Privacy_Loss_Distributions.pdf).
 
 We test this library on Linux with Python version 3.7. If you experience any

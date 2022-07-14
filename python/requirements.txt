@@ -2,4 +2,4 @@ absl-py~=1.0.0
 attrs~=21.4.0
 mpmath~=1.2.1
 numpy~=1.21.4
-scipy~=1.2.1
+scipy~=1.7.1
