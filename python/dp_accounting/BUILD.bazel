@@ -52,6 +52,7 @@ py_library(
     deps = [
         ":dp_event",
         ":dp_event_builder",
+        ":mechanism_calibration",
         ":privacy_accountant",
         "//dp_accounting/pld",
         "//dp_accounting/rdp",

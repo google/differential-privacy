@@ -578,6 +578,194 @@ def _compute_rdp_single_epoch_tree_aggregation(
   return np.array([a * max_depth / (2 * noise_multiplier**2) for a in orders])
 
 
+def _expm1_over_x(x: float) -> float:
+  """Computes (exp(x)-1)/x in a numerically stable manner.
+
+  Args:
+    x: float
+
+  Returns:
+    (exp(x)-1)/x
+  """
+  if x < -0.1 or x > 0.1:
+    return math.expm1(x) / x
+  # exp(x) = sum_{k>=0} x^k / k!
+  # (exp(x)-1)/x = sum_{k>=1} x^{k-1} / k!
+  terms = []
+  y = 1  # = x^{k-1}/k!
+  for k in range(1, 100):
+    y = y / k
+    terms.append(y)
+    y = y * x
+  return math.fsum(terms)
+  # Dropped terms: sum_{k>=100} x^{k-1} / k!
+  # Since |x|<= 0.1, this sum is < 10^-100.
+  # Note that 0.9 < (exp(x)-1)/x < 1.1, so this is also a small relative error.
+
+
+def _logx_over_xm1(x: float) -> float:
+  """Computes log(x)/(x-1) in a numerically stable manner.
+
+  Here log is the natural logarithm.
+
+  Args:
+    x: float
+
+  Returns:
+    log(x)/(x-1)
+  """
+  if x < 0.9 or x > 1.1:
+    return math.log(x) / (x-1)
+  # Denote y = 1-x. Then we have a Taylor series for the natural logarithm:
+  # log(x) = log(1-y) = - sum_{k>=1} y^k / k
+  # Thus log(x)/(x-1) = -log(1-y)/y = sum_{k>=1} y^{k-1}/k
+  return math.fsum((1-x)**(k - 1) / k for k in range(1, 100))
+  # Dropped terms: sum_{k>=100} y^{k-1}/k.
+  # Since |y|<=0.1, this sum is < 10^-100.
+  # Since 0.9 <= log(x)/(x-1) <= 1.1, this is also a small relative error.
+
+
+def _truncated_negative_binomial_mean(gamma: float, shape: float) -> float:
+  """Computes the mean of the truncated negative binomial Distribution.
+
+  See Definition 1 in https://arxiv.org/pdf/2110.03620v2.pdf#page=5
+
+  Args:
+    gamma: Halting probability parameter of the distribution.
+      Must be >0 and <=1.
+    shape: Shape parameter of the Distribution.
+      Must be >=0.
+
+  Returns:
+    The mean of the distribution.
+  """
+  if shape < 0:
+    raise ValueError(f'shape must be non-negative. Got {shape}')
+  if gamma <= 0 or gamma > 1:
+    raise ValueError(f'gamma must be in (0,1]. Got {gamma}')
+
+  if shape == 1:  # Geometric Distribution
+    return 1 / gamma
+  elif shape == 0:  # Logarithmic distribution
+    # answer = (1 - 1 / gamma) / log(gamma)
+    #        = 1/(gamma*log(gamma)/(gamma-1))
+    return 1 / (gamma * _logx_over_xm1(gamma))
+  else:  # Truncated Negative Binomial
+    # answer = shape * (1 / gamma - 1) / (1 - gamma**shape)
+    #        = 1 / ( (exp(shape*log(gamma))-1)/(shape*log(gamma)) *
+    #                                              log(gamma)/(gamma-1) * gamma)
+    a = _expm1_over_x(shape*math.log(gamma))
+    b = _logx_over_xm1(gamma)
+    return 1 / (gamma * a * b)
+
+
+def _gamma_truncated_negative_binomial(shape: float,
+                                       mean: float,
+                                       tolerance: float = 1e-9) -> float:
+  """Computes gamma parameter of truncated negative binomial from mean.
+
+  Args:
+    shape: shape parameter of truncated negative binomial distribution.
+      Must be >= 0.
+    mean: the expectation of the Distribution
+    tolerance: relative (i.e. multiplicative) accuracy bound for gamma.
+      Default tolerance is 10^-9.
+
+  Returns:
+    The gamma parameter = success probability of the distribution.
+  """
+  if shape < 0:
+    raise ValueError(f'shape must be non-negative. Got {shape}')
+  if mean < 1:
+    raise ValueError(f'mean must be at least 1. Got {mean}')
+
+  if shape == 1: return 1 / mean  # Geometric distribution
+  # Otherwise we invert the _truncated_negative_binomial_mean function.
+  gamma_min = 0  # gamma=0 corresponds to mean=infinity.
+  gamma_max = min(1, 2*(shape+1)/mean)  # gamma=1 corresponds to mean=1.
+  # Also max{shape,1/ln(1/gamma)}*(1/gamma-1) <= mean <= 2*(shape+1)/gamma,
+  # which implies gamma <= 2*(shape+1)/mean
+  while gamma_max > gamma_min * (1+tolerance):
+    gamma = (gamma_min + gamma_max) / 2
+    gamma_mean = _truncated_negative_binomial_mean(gamma, shape)
+    if gamma_mean < mean:
+      gamma_max = gamma
+    else:
+      gamma_min = gamma
+  return gamma_min  # The conservative estimate is returned.
+
+
+def _compute_rdp_repeat_and_select(orders: Sequence[float],
+                                   rdp: Sequence[float], mean: float,
+                                   shape: float) -> Sequence[float]:
+  """Computes RDP of repeating and selecting best run.
+
+  Inputs orders & rdp represent RDP of a single run.
+  Output represents RDP of running multiple times and returning the best run;
+  outputs of other runs are not returned.
+
+  The total number of runs is randomized and drawn from a distribution
+  with the given parameters. Poisson (shape=infinity), Geometric (shape=1),
+  Logarithmic (shape=0), or Tuncated Negative binomial (0<shape<infinity).
+
+  See https://arxiv.org/abs/2110.03620 for details.
+
+  Args:
+    orders: List of Renyi orders considered. Each order should be >= 1.
+    rdp: List of RDPs for a single run of the mechanism.
+    mean: The mean of the distribution of the random number of repetitions.
+    shape: Shape/type of the distribution. Should be >= 0.
+      shape = 0 is logarithmic distribution.
+      shape = 1 is geometric distribution.
+      shape = infinity is Poisson Distribution
+      shape in (0,infinity) is the truncated negative binomial.
+
+  Returns:
+    The RDPs at all orders.
+  """
+  if math.isnan(shape) or shape < 0:
+    raise ValueError(f'Distribution of repetitions must be >=0. Got {shape}.')
+  if math.isnan(mean) or mean < 1:
+    raise ValueError(f'Mean of number of repetitions must be >=1. Got {mean}.')
+  if len(orders) != len(rdp):
+    raise ValueError(
+        f'orders and rdp must be same length, got {len(orders)} & {len(rdp)}.')
+
+  orders = np.asarray(orders)
+  rdp_out = np.zeros_like(orders, dtype=np.float64)  # This will be the output.
+  rdp_out += np.inf  # Initialize to infinity.
+
+  if shape == np.inf:  # Poisson Distribution
+    for i in range(len(orders)):
+      # orders[i]=lambda and rdp[i]=epsilon in the language of
+      # Theorem 6 of https://arxiv.org/pdf/2110.03620v2.pdf#page=7
+      if orders[i] <= 1: continue  # Our formula is not applicable in this case.
+      epshat = math.log1p(1/(orders[i]-1))
+      deltahat, _ = compute_delta(orders, rdp, epshat)
+      rdp_out[i] = rdp[i] + mean * deltahat + math.log(mean)/(orders[i]-1)
+  else:  # Truncated Negative Binomial (includes Logarithmic & Geometric)
+    # First we map mean parameter to gamma parameter of TNB.
+    gamma = _gamma_truncated_negative_binomial(shape, mean)
+
+    # Next we apply the formula.
+    # Theorem 2 of https://arxiv.org/pdf/2110.03620v2.pdf#page=5
+    # orders[i] = lambda, rdp[i] = epsilon,
+    # orders[j] = lambdahat, rdp[j] = epsilonhat
+    # First compute constant term
+    c = (1 + shape) * np.min((1 - 1 / orders) * rdp - math.log(gamma) / orders)
+    for i in range(len(orders)):
+      if orders[i] > 1:  # Otherwise our formula is invalid.
+        rdp_out[i] = rdp[i] + math.log(mean) / (orders[i] - 1) + c
+
+    # Finally we apply monotonicity of Renyi DP
+    # i.e. if orders[i] < orders[j], then rdp[i] < rdp[j].
+    # We can use this to bound rdp for low orders.
+    for i in range(len(orders)):
+      rdp_out[i] = min(
+          rdp_out[j] for j in range(len(orders)) if orders[i] <= orders[j])
+  return rdp_out
+
+
 class RdpAccountant(privacy_accountant.PrivacyAccountant):
   """Privacy accountant that uses Renyi differential privacy."""
 
@@ -669,6 +857,28 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
         self._rdp += count * _compute_rdp_single_epoch_tree_aggregation(
             event.noise_multiplier, event.step_counts, self._orders)
       return True
+    elif isinstance(event, dp_event.LaplaceDpEvent):
+      if do_compose:
+        # Laplace satisfies eps-DP with eps = 1 / event.noise_multiplier
+        # eps-DP implies (alpha, min(eps,alpha*eps^2/2))-RDP for all alpha.
+        eps = 1 / event.noise_multiplier
+        rho = 0.5 * eps * eps
+        self._rdp += count * np.array(
+            [min(eps, rho * order) for order in self._orders])
+      return True
+    elif isinstance(event, dp_event.RepeatAndSelectDpEvent):
+      if do_compose:
+        # Save the RDP values from already composed DPEvents. These will
+        # be added back after we process this RepeatAndSelectDpEvent.
+        # Zero out self._rdp before computing the RDP of the underlying
+        # DP event.
+        save_rdp = self._rdp
+        self._rdp = np.zeros_like(self._orders, dtype=np.float64)
+      can_compose = self._maybe_compose(event.event, 1, do_compose)
+      if can_compose and do_compose:
+        self._rdp = count * _compute_rdp_repeat_and_select(
+            self._orders, self._rdp, event.mean, event.shape) + save_rdp
+      return can_compose
     else:
       # Unsupported event (including `UnsupportedDpEvent`).
       return False

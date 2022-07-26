@@ -463,6 +463,249 @@ class RdpPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
     base_rdp = accountant._rdp
     self.assertTrue(np.allclose(tree_rdp, base_rdp, rtol=1e-12))
 
+  @parameterized.named_parameters(
+      ('small_eps', 0.01, 1),
+      ('medium_eps', 1.0, 1),
+      ('large_eps', 100.0, 1),
+      ('repetition', 1.0, 100)
+  )
+  def test_laplace(self, eps, count):
+    event = dp_event.LaplaceDpEvent(1/eps)
+    if count != 1:
+      event = dp_event.SelfComposedDpEvent(event, count)
+    # Simulate Pure DP by using a large Renyi order.
+    accountant = rdp_privacy_accountant.RdpAccountant(orders=[1.0, 1e10])
+    accountant.compose(event)
+    # Check basic composition by having small delta.
+    self.assertAlmostEqual(accountant.get_epsilon(1e-10), eps * count)
+    # Check KL divergence, a.k.a. expected privacy loss, a.k.a. order=1.
+    self.assertAlmostEqual(accountant._rdp[0], min(eps, eps*eps/2) * count)
+
+  # The function _truncated_negative_binomial_mean computes the mean in
+  # multiple ways to ensure numerical stability.
+  # This test checks that those different ways of computing are consistent.
+  @parameterized.named_parameters(
+      ('gamma_shape0', 0.9, 0, 0.9 - 1e-9, 0),
+      ('gamma_shape2', 0.9, 2, 0.9 - 1e-9, 2),
+      ('gamma_shape_0.5', 0.9, 0.5, 0.9 - 1e-9, 0.5),
+      ('x_shape2', math.exp(-0.05), 2, math.exp(-0.05) - 1e-9,
+       2),  # x = shape * math.log(gamma) = -0.1
+      ('x_shape0.5', math.exp(-0.2), 0.5, math.exp(-0.2) - 1e-9,
+       0.5),  # x = shape * math.log(gamma) = -0.1
+      ('shape_0', 0.6, 0, 0.6, 1e-9),
+      ('shape_1', 0.6, 1, 0.6, 1 + 1e-9))
+  def test_truncated_negative_binomial_mean(self, gamma1, shape1, gamma2,
+                                            shape2):
+    mean1 = rdp_privacy_accountant._truncated_negative_binomial_mean(
+        gamma1, shape1)
+    mean2 = rdp_privacy_accountant._truncated_negative_binomial_mean(
+        gamma2, shape2)
+    self.assertAlmostEqual(mean1, mean2)
+
+  @parameterized.named_parameters(('1e-7', 1e-7), ('.1', 0.1),
+                                  ('0.999999', 1 - 1e-6), ('1', 1))
+  def test_truncated_negative_binomial_mean2(self, gamma):
+    # Test this function by simply applying the non-numerically stable formula.
+    # logarithmic distribution
+    mean = rdp_privacy_accountant._truncated_negative_binomial_mean(gamma, 0)
+    if gamma == 1:
+      ans = 1
+    else:
+      ans = (1-1/gamma)/math.log(gamma)
+    self.assertAlmostEqual(mean, ans)
+
+    # geometric Distribution
+    mean = rdp_privacy_accountant._truncated_negative_binomial_mean(gamma, 1)
+    self.assertAlmostEqual(mean, 1/gamma)
+
+    # general TNB Distribution
+    for shape in [0.01, 0.5, 0.99, 1.01, 2, 10]:
+      mean = rdp_privacy_accountant._truncated_negative_binomial_mean(
+          gamma, shape)
+      if gamma == 1:
+        ans = 1
+      else:
+        ans = shape*(1/gamma-1)/(1-gamma**shape)
+      self.assertAlmostEqual(mean, ans)
+
+  # _gamma_truncated_negative_binomial is meant to be the inverse of
+  # _truncated_negative_binomial_mean, so we test this.
+  @parameterized.named_parameters(
+      ('shape0a', 0.1, 0),
+      ('shape0.5a', 0.1, 0.5),
+      ('shape1a', 0.1, 1),
+      ('shape2a', 0.1, 2),
+      ('shape0b', 0.0001, 0),
+      ('shape0.5b', 0.0001, 0.5),
+      ('shape1b', 0.0001, 1),
+      ('shape2b', 0.0001, 2),
+      ('shape0c', 1, 0),
+      ('shape0.5c', 1, 0.5),
+      ('shape1c', 1, 1),
+      ('shape2c', 1, 2),
+      ('shape0', 0.999, 0),
+      ('shape0.5', 0.999, 0.5),
+      ('shape1', 0.999, 1),
+      ('shape2', 0.999, 2)
+  )
+  def test_gamma_truncated_negative_binomial(self, gamma, shape):
+    mean = rdp_privacy_accountant._truncated_negative_binomial_mean(
+        gamma, shape)
+    g = rdp_privacy_accountant._gamma_truncated_negative_binomial(shape, mean)
+    self.assertAlmostEqual(g, gamma)
+
+  @parameterized.named_parameters(
+      ('logarithmic', 1, 1000, 0),
+      ('geometric', 1, 1000, 1),
+      ('negative binomial 0.5', 1, 1000, 0.5),
+      ('negative binomial 2', 1, 100, 2),
+      ('negative binomial 5', 1, 1000, 5),
+  )
+  def test_repeat_select_pure_negative_binomial(self, eps, mean, shape):
+    # Test the Repeat and Select DP event in the almost-pure DP case.
+    event = dp_event.LaplaceDpEvent(1/eps)
+    event = dp_event.RepeatAndSelectDpEvent(event, mean, shape)
+    # Use single large order to simulate pure DP.
+    accountant = rdp_privacy_accountant.RdpAccountant(orders=[1e10])
+    accountant.compose(event)
+    # Correct answer is given by Corollary 3 https://arxiv.org/abs/2110.03620
+    self.assertAlmostEqual(accountant._rdp[0], eps * (2 + shape))
+    self.assertAlmostEqual(accountant.get_epsilon(1e-10), eps * (2 + shape))
+
+  @parameterized.named_parameters(('shape0', 0, 1), ('shape0.5', 0.5, 10),
+                                  ('shape1', 1, 0.1), ('shape2', 2, 1))
+  def test_repeat_select_trivial(self, shape, sigma):
+    # Test the repeat and select function in the trivial mean=1 case.
+    orders = [1, 1 + 1e-6,  # We include 1, as otherwise this test fails.
+              2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16, 20, 24, 28, 32, 48, 64,
+              128, 256, 512, 1024
+             ]
+    event1 = dp_event.GaussianDpEvent(sigma)
+    accountant1 = rdp_privacy_accountant.RdpAccountant(orders=orders)
+    accountant1.compose(event1)
+    event2 = dp_event.RepeatAndSelectDpEvent(event1, 1, shape)
+    accountant2 = rdp_privacy_accountant.RdpAccountant(orders=orders)
+    accountant2.compose(event2)
+    for i in range(len(accountant1._orders)):
+      if orders[i] > 1:  # Otherwise our formula doesn't work.
+        self.assertAlmostEqual(accountant1._rdp[i], accountant2._rdp[i])
+
+  @parameterized.named_parameters(
+      ('small0', 0.01, 0.01, 0), ('med0', 1, 0.1, 0), ('large0', 10, 0.99, 0),
+      ('small0.5', 0.01, 0.01, 0.5), ('med0.5', 1, 0.1, 0.5),
+      ('large0.5', 10, 0.99, 0.5), ('small1', 0.01, 0.01, 1),
+      ('med1', 1, 0.1, 1), ('large1', 10, 0.99, 1), ('small5', 0.01, 0.01, 5),
+      ('med5', 1, 0.1, 5), ('large5', 10, 0.99, 5))
+  def test_repeat_select_gaussian_negative_binomial(self, rho, gamma, shape):
+    # Test the Repeat and Select DP event in the Gaussian case.
+    # Correct answer is given by Corollary 4 https://arxiv.org/abs/2110.03620
+    mean = rdp_privacy_accountant._truncated_negative_binomial_mean(
+        gamma, shape)
+    rho = min(rho, -math.log(gamma))  # We need rho<=log(1/gamma).
+    self.assertGreater(rho, 0)  # Otherwise we get division by zero.
+    orders = [
+        1, 1.1, 2,
+        math.sqrt(-math.log(gamma) / rho),
+        1 + math.sqrt(math.log(mean) / rho),
+        3, 5, 10, 100, 1000, 10000
+    ]
+    event = dp_event.GaussianDpEvent(math.sqrt(0.5 / rho))
+    event = dp_event.RepeatAndSelectDpEvent(event, mean, shape)
+    accountant = rdp_privacy_accountant.RdpAccountant(orders=orders)
+    accountant.compose(event)
+    for i in range(len(orders)):
+      order = accountant._orders[i]
+      rdp = accountant._rdp[i]
+      if order <= 1 + math.sqrt(math.log(mean) / rho):
+        eps = 2 * math.sqrt(rho * math.log(mean)) + 2 * (1 + shape) * math.sqrt(
+            -rho * math.log(gamma)) - shape * rho
+      else:
+        eps = rho * (order - 1) + math.log(mean) / (order - 1) + 2 * (
+            1 + shape) * math.sqrt(-rho * math.log(gamma)) - shape * rho
+      self.assertAlmostEqual(rdp, eps, msg='order=' + str(order))
+
+  @parameterized.named_parameters(
+      ('mean1', 1, 1),
+      ('mean2', 0.1, 2),
+      ('mean10', 10, 10),
+      ('mean100', 0.001, 100),
+      ('mean10^4', 2, 1000),
+      ('mean10^10', 1, 1e10)
+  )
+  def test_repeat_and_select_pure_poisson(self, eps, mean):
+    event = dp_event.LaplaceDpEvent(1/eps)
+    event = dp_event.RepeatAndSelectDpEvent(event, mean, np.inf)
+    alpha = 1 + 1/math.expm1(eps)
+    orders = [alpha, 1e10, 1e100, 1e1000]
+    accountant = rdp_privacy_accountant.RdpAccountant(orders=orders)
+    accountant.compose(event)
+    ans = min(eps, alpha*eps**2/2) + math.log(mean) * math.expm1(eps)
+    self.assertAlmostEqual(accountant._orders[0], alpha)
+    self.assertAlmostEqual(accountant._rdp[0], ans)
+
+
+@parameterized.named_parameters(
+    ('small_small', 0.001, 1),
+    ('small_med', 0.001, 1000),
+    ('small_large', 0.001, 1e9),
+    ('med_small', 1, 1),
+    ('med_med', 1, 1000),
+    ('med_large', 1, 1e9),
+    ('large_small', 1000, 1),
+    ('large_med', 1000, 1000),
+    ('large_large', 1000, 1e9)
+)
+def test_repeat_and_select_gaussian_poisson(self, sigma, mean):
+  event = dp_event.GaussianDpEvent(sigma)
+  event = dp_event.RepeatAndSelectDpEvent(event, mean, np.inf)
+  accountant = rdp_privacy_accountant.RdpAccountant()
+  accountant.compose(event)
+  orders = accountant._orders
+  rdp = []
+  for order in orders:
+    if order <= 1:   # Avoid division by zero.
+      rdp.append(np.inf)
+      continue
+    eps = math.log1p(1/(order-1))
+    x = (eps * sigma - 0.5/sigma)/math.sqrt(2)
+    y = (eps * sigma + 0.5/sigma)/math.sqrt(2)
+    delta = math.erfc(x)/2-math.exp(eps)*math.erfc(y)/2
+    rdp.append(order*0.5/(sigma**2) + mean*delta + math.log(mean)/(order - 1))
+  for i in range(len(orders)):
+    lb = min(rdp[j] for j in range(len(orders)) if orders[j] >= orders[i])
+    self.assertLessEqual(lb, accountant._rdp[i])
+
+
+@parameterized.named_parameters(
+    ('all_0', 1, 1, 1, 0),  # Compose before and after.
+    ('all_1', 2, 3, 4, 1),
+    ('all_2', 0.1, 0.2, 0.3, 2),
+    ('all_inf', 1.1, 1.2, 2.1, np.inf),
+    ('pre_0', 1, 2, 0, 0),  # Compose before, but not after.
+    ('pre_1', 1, 0.5, 0, 1),
+    ('pre_2', 2, 1, 0, 2),
+    ('pre_inf', 10, 0.1, 0, np.inf),
+    ('post_0', 1, 0, 2, 0),  # Compose after, but not before.
+    ('post_1', 10, 0, 2, 1),
+    ('post_half', 0.1, 0, 12, 0.5),
+    ('post_inf', 6, 0, 0.2, np.inf)
+)
+def test_repeat_and_select_composition(self, sigma, sigma1, sigma2, shape):
+  pre_event = dp_event.GaussianDpEvent(sigma1)
+  post_event = dp_event.GaussianDpEvent(sigma2)
+  event = dp_event.GaussianDpEvent(sigma)
+  event = dp_event.RepeatAndSelectDpEvent(event, 1, shape)
+  accountant = rdp_privacy_accountant.RdpAccountant()
+  rho = 0.5 / (sigma**2)
+  if sigma1 > 0:
+    rho += 0.5 / (sigma1**2)
+    accountant.compose(pre_event)
+  accountant.compose(event)
+  if sigma2 > 0:
+    rho += 0.5 / (sigma2**2)
+    accountant.compose(post_event)
+  for i in range(len(accountant._orders)):
+    self.assertAlmostEqual(accountant._rdp[i], accountant._orders[i] * rho)
 
 if __name__ == '__main__':
   absltest.main()

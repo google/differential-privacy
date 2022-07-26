@@ -126,6 +126,17 @@ which describes such a system. Even though the interface of Privacy on Beam is
 different, it conceptually uses the same framework as the one described in this
 paper.
 
+## Known issues
+
+Our floating-point implementations are subject to the vulnerabilities described
+in [Casacuberta et al. "Widespread Underestimation of
+Sensitivity in Differentially Private Libraries and How to Fix it"](https://arxiv.org/abs/2207.10635)
+(specifically the rounding, repeated rounding, and re-ordering attacks). These
+vulnerabilities are particularly concerning when an attacker can control some of
+the contents of a dataset and/or its order. Our integer implementations are not
+subject to the vulnerabilities described in the paper (though note that Java
+does not have an integer implementation).
+
 ## Support
 
 We will continue to publish updates and improvements to the library. We are

@@ -143,7 +143,7 @@ func Count(s beam.Scope, pcol PrivatePCollection, params CountParams) beam.PColl
 		rekeyed = boundContributions(s, rekeyed, maxPartitionsContributed)
 	}
 	// Third, now that contribution bounding is done, remove the privacy keys,
-	// decode the value, and sum all the counts bounded by maxCountContrib.
+	// decode the value, and sum all the counts bounded by MaxValue.
 	countPairs := beam.DropKey(s, rekeyed)
 	countsKV := beam.ParDo(s,
 		newDecodePairInt64Fn(partitionT.Type()),

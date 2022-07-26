@@ -212,3 +212,25 @@ class SingleEpochTreeAggregationDpEvent(DpEvent):
   """
   noise_multiplier: float
   step_counts: Union[int, List[int]]
+
+
+@attr.s(frozen=True, slots=True, auto_attribs=True)
+class RepeatAndSelectDpEvent(DpEvent):
+  """Represents repeatedly running the mechanism and selecting the best output.
+
+  The total number of runs is randomized and drawn from a distribution
+  with the given parameters: Poisson (shape=infinity), Geometric (shape=1),
+  Logarithmic (shape=0), or Truncated Negative binomial (0<shape<infinity).
+
+  See https://arxiv.org/abs/2110.03620 for details.
+
+  Attributes:
+    event: The DpEvent that is being repeated.
+    mean: The mean number of repetitions.
+    shape: The shape of the distribution of the number of repetitions.
+  """
+  event: DpEvent
+  mean: float
+  shape: float
+
+
