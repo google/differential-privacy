@@ -17,6 +17,7 @@
 #include "algorithms/util.h"
 
 #include <limits>
+#include <optional>
 #include <vector>
 
 #include "base/testing/status_matchers.h"
@@ -1162,6 +1163,53 @@ TEST(ValidateTest, ValidateBoundsFailsForNanBounds) {
   EXPECT_THAT(
       ValidateBounds<double>(-std::numeric_limits<double>::infinity(), 1),
       StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("finite")));
+}
+
+TEST(ValidateTest, ValidateTreeHeightForInvalidNumeric) {
+  EXPECT_THAT(ValidateTreeHeight(-1),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Height must be greater than or equal to 1")));
+  EXPECT_THAT(ValidateTreeHeight(0),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Height must be greater than or equal to 1")));
+}
+
+TEST(ValidateTest, ValidateTreeHeightForEmpty) {
+  EXPECT_THAT(ValidateTreeHeight(absl::nullopt),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Tree Height must be set.")));
+}
+
+TEST(ValidateTest, ValidateTreeHeightForOK) {
+  EXPECT_THAT(ValidateTreeHeight(1), StatusIs(absl::StatusCode::kOk));
+}
+
+TEST(ValidateTest, ValidateBranchingFactorForInvalidNumeric) {
+  EXPECT_THAT(
+      ValidateBranchingFactor(-1),
+      StatusIs(
+          absl::StatusCode::kInvalidArgument,
+          HasSubstr("Branching Factor must be greater than or equal to 2")));
+  EXPECT_THAT(
+      ValidateBranchingFactor(0),
+      StatusIs(
+          absl::StatusCode::kInvalidArgument,
+          HasSubstr("Branching Factor must be greater than or equal to 2")));
+  EXPECT_THAT(
+      ValidateBranchingFactor(1),
+      StatusIs(
+          absl::StatusCode::kInvalidArgument,
+          HasSubstr("Branching Factor must be greater than or equal to 2")));
+}
+
+TEST(ValidateTest, ValidateBranchingFactorForEmpty) {
+  EXPECT_THAT(ValidateBranchingFactor(absl::nullopt),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Branching Factor must be set")));
+}
+
+TEST(ValidateTest, ValidateBranchingFactorForOK) {
+  EXPECT_THAT(ValidateBranchingFactor(2), StatusIs(absl::StatusCode::kOk));
 }
 
 }  // namespace

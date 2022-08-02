@@ -524,6 +524,10 @@ absl::Status ValidateMaxPartitionsContributed(
 absl::Status ValidateMaxContributionsPerPartition(
     absl::optional<double> max_contributions_per_partition);
 
+// Validates common tree parameters.
+absl::Status ValidateTreeHeight(absl::optional<int> tree_height);
+absl::Status ValidateBranchingFactor(absl::optional<int> branching_factor);
+
 template <typename T>
 absl::Status ValidateBounds(absl::optional<T> lower, absl::optional<T> upper) {
   if (!lower.has_value() && !upper.has_value()) {

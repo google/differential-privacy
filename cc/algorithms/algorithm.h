@@ -96,11 +96,13 @@ class Algorithm {
     return PartialResult(kDefaultConfidenceLevel);
   }
 
+  // In most cases, override GenerateResult instead to maintain budget checks.
+  // Override this PartialResult with caution.
   // Same as above, but allows the user to specify the confidence level that
   // may be returned as part of the Output. Not all Algorithms support
   // confidence levels, for unsupported algorithms the confidence level will not
   // be included. See NoiseConfidenceInterval for more details.
-  absl::StatusOr<Output> PartialResult(double noise_interval_level) {
+  virtual absl::StatusOr<Output> PartialResult(double noise_interval_level) {
     if (result_returned_) {
       return absl::InvalidArgumentError(
           "The algorithm can only produce results once for a given epsilon, "

@@ -308,4 +308,14 @@ absl::Status ValidateMaxContributionsPerPartition(
                             "Maximum number of contributions per partition");
 }
 
+absl::Status ValidateTreeHeight(absl::optional<int> tree_height) {
+  return ValidateIsGreaterThanOrEqualTo(tree_height, /*lower_bound=*/1,
+                                        "Tree Height");
+}
+
+absl::Status ValidateBranchingFactor(absl::optional<int> branching_factor) {
+  return ValidateIsGreaterThanOrEqualTo(branching_factor, /*lower_bound=*/2,
+                                        "Branching Factor");
+}
+
 }  // namespace differential_privacy
