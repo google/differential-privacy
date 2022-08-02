@@ -34,7 +34,8 @@ def main(argv):
   # Number of times Laplace Mechanism is run
   num_laplace = 40
   # PLD for num_laplace executions of the Laplace Mechanism.
-  composed_laplace_pld = laplace_pld.self_compose(num_laplace)
+  #composed_laplace_pld = laplace_pld.self_compose(num_laplace)
+  composed_laplace_pld = laplace_pld * num_laplace
 
   epsilon = 10
   delta = composed_laplace_pld.get_delta_for_epsilon(epsilon)
@@ -53,7 +54,8 @@ def main(argv):
 
   # PLD for num_laplace executions of the Laplace Mechanism and one execution of
   # the Gaussian Mechanism.
-  composed_laplace_and_gaussian_pld = composed_laplace_pld.compose(gaussian_pld)
+  #composed_laplace_and_gaussian_pld = composed_laplace_pld.compose(gaussian_pld)
+  composed_laplace_and_gaussian_pld = composed_laplace_pld + gaussian_pld
 
   epsilon = 10
   delta = composed_laplace_and_gaussian_pld.get_delta_for_epsilon(epsilon)

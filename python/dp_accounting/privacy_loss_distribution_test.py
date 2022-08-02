@@ -203,6 +203,61 @@ class AddRemovePrivacyLossDistributionTest(parameterized.TestCase):
         expected_result.get_delta_for_epsilon(-0.5),
         result.get_delta_for_epsilon(-0.5))
 
+  def test_composition_operator(self):
+    # Test for composition of privacy loss distribution using the + operator
+    log_pmf_lower1 = {1: math.log(0.2), 2: math.log(0.2), 3: math.log(0.6)}
+    log_pmf_upper1 = {1: math.log(0.5), 2: math.log(0.2), 4: math.log(0.3)}
+    pld1 = self._create_pld(log_pmf_lower1, log_pmf_upper1, pessimistic=True)
+
+    log_pmf_lower2 = {1: math.log(0.4), 2: math.log(0.6)}
+    log_pmf_upper2 = {2: math.log(0.7), 3: math.log(0.3)}
+    pld2 = self._create_pld(log_pmf_lower2, log_pmf_upper2, pessimistic=True)
+
+    # Result from composing the above two privacy loss distributions
+    result = pld1 + pld2
+
+    # The correct result
+    log_pmf_lower_composed = {
+        (1, 1): math.log(0.08),
+        (1, 2): math.log(0.12),
+        (2, 1): math.log(0.08),
+        (2, 2): math.log(0.12),
+        (3, 1): math.log(0.24),
+        (3, 2): math.log(0.36)
+    }
+    log_pmf_upper_composed = {
+        (1, 2): math.log(0.35),
+        (1, 3): math.log(0.15),
+        (2, 2): math.log(0.14),
+        (2, 3): math.log(0.06),
+        (4, 2): math.log(0.21),
+        (4, 3): math.log(0.09)
+    }
+    expected_result = self._create_pld(log_pmf_lower_composed,
+                                       log_pmf_upper_composed)
+
+    # Check that the result is as expected. Note that we cannot check that the
+    # rounded_down_probability_mass_function and
+    # rounded_up_probability_mass_function of the two distributions are equal
+    # directly because the rounding might cause off-by-one error in index.
+    self.assertAlmostEqual(expected_result._pmf_remove._discretization,
+                           result._pmf_remove._discretization)
+    self.assertAlmostEqual(expected_result._pmf_add._discretization,
+                           result._pmf_add._discretization)
+    self.assertAlmostEqual(expected_result._pmf_remove._infinity_mass,
+                           result._pmf_remove._infinity_mass)
+    self.assertAlmostEqual(expected_result._pmf_add._infinity_mass,
+                           result._pmf_add._infinity_mass)
+    self.assertAlmostEqual(
+        expected_result.get_delta_for_epsilon(0),
+        result.get_delta_for_epsilon(0))
+    self.assertAlmostEqual(
+        expected_result.get_delta_for_epsilon(0.5),
+        result.get_delta_for_epsilon(0.5))
+    self.assertAlmostEqual(
+        expected_result.get_delta_for_epsilon(-0.5),
+        result.get_delta_for_epsilon(-0.5))
+
   def test_composition_asymmetric_with_symmetric(self):
     # Test for composition of privacy loss distribution
     log_pmf_lower1 = {1: math.log(0.2), 2: math.log(0.2), 3: math.log(0.6)}
@@ -260,7 +315,65 @@ class AddRemovePrivacyLossDistributionTest(parameterized.TestCase):
           expected_result.get_delta_for_epsilon(-0.5),
           result.get_delta_for_epsilon(-0.5))
 
+  def test_composition_operator_asymmetric_with_symmetric(self):
+    # Test for composition of privacy loss distribution using the + operator
+    log_pmf_lower1 = {1: math.log(0.2), 2: math.log(0.2), 3: math.log(0.6)}
+    log_pmf_upper1 = {1: math.log(0.5), 2: math.log(0.2), 4: math.log(0.3)}
+    pld1 = self._create_pld(log_pmf_lower1, log_pmf_upper1)
+
+    log_pmf_lower2 = {1: math.log(0.4), 2: math.log(0.6)}
+    log_pmf_upper2 = {2: math.log(0.7), 3: math.log(0.3)}
+    pld2 = self._create_pld(log_pmf_lower2, log_pmf_upper2)
+
+    # Result from composing the above two privacy loss distributions
+    result12 = pld1 + pld2
+    result21 = pld2 + pld1
+
+    # The correct result
+    log_pmf_lower1_lower2_composed = {
+        (1, 1): math.log(0.08),
+        (1, 2): math.log(0.12),
+        (2, 1): math.log(0.08),
+        (2, 2): math.log(0.12),
+        (3, 1): math.log(0.24),
+        (3, 2): math.log(0.36)
+    }
+    log_pmf_upper1_upper2_composed = {
+        (1, 2): math.log(0.35),
+        (1, 3): math.log(0.15),
+        (2, 2): math.log(0.14),
+        (2, 3): math.log(0.06),
+        (4, 2): math.log(0.21),
+        (4, 3): math.log(0.09)
+    }
+
+    expected_result = self._create_pld(log_pmf_lower1_lower2_composed,
+                                       log_pmf_upper1_upper2_composed)
+    # Check that the result is as expected. Note that we cannot check that the
+    # rounded_down_probability_mass_function and
+    # rounded_up_probability_mass_function of the two distributions are equal
+    # directly because the rounding might cause off-by-one error in index.
+    for result in [result12, result21]:
+      self.assertAlmostEqual(expected_result._pmf_remove._discretization,
+                             result._pmf_remove._discretization)
+      self.assertAlmostEqual(expected_result._pmf_add._discretization,
+                             result._pmf_add._discretization)
+      self.assertAlmostEqual(expected_result._pmf_remove._infinity_mass,
+                             result._pmf_remove._infinity_mass)
+      self.assertAlmostEqual(expected_result._pmf_add._infinity_mass,
+                             result._pmf_add._infinity_mass)
+      self.assertAlmostEqual(
+          expected_result.get_delta_for_epsilon(0),
+          result.get_delta_for_epsilon(0))
+      self.assertAlmostEqual(
+          expected_result.get_delta_for_epsilon(0.5),
+          result.get_delta_for_epsilon(0.5))
+      self.assertAlmostEqual(
+          expected_result.get_delta_for_epsilon(-0.5),
+          result.get_delta_for_epsilon(-0.5))
+
   def test_self_composition(self):
+    # Test for self composition
     log_pmf_lower = {1: math.log(0.2), 2: math.log(0.2), 3: math.log(0.6)}
     log_pmf_upper = {1: math.log(0.5), 2: math.log(0.2), 4: math.log(0.3)}
 
@@ -298,6 +411,46 @@ class AddRemovePrivacyLossDistributionTest(parameterized.TestCase):
     self.assertAlmostEqual(
         expected_result.get_delta_for_epsilon(-0.2),
         result.get_delta_for_epsilon(-0.2))
+
+  def test_self_composition_operator(self):
+    # Test for self composition using the * operator
+    log_pmf_lower = {1: math.log(0.2), 2: math.log(0.2), 3: math.log(0.6)}
+    log_pmf_upper = {1: math.log(0.5), 2: math.log(0.2), 4: math.log(0.3)}
+
+    pld = self._create_pld(log_pmf_lower, log_pmf_upper)
+    for result in [pld * 3, 3 * pld]:
+
+      expected_log_pmf_lower = {}
+      for i, vi in log_pmf_lower.items():
+        for j, vj in log_pmf_lower.items():
+          for k, vk in log_pmf_lower.items():
+            expected_log_pmf_lower[(i, j, k)] = vi + vj + vk
+      expected_log_pmf_upper = {}
+      for i, vi in log_pmf_upper.items():
+        for j, vj in log_pmf_upper.items():
+          for k, vk in log_pmf_upper.items():
+            expected_log_pmf_upper[(i, j, k)] = vi + vj + vk
+
+      expected_result = self._create_pld(expected_log_pmf_lower,
+                                         expected_log_pmf_upper)
+
+      self.assertAlmostEqual(expected_result._pmf_remove._discretization,
+                             result._pmf_remove._discretization)
+      self.assertAlmostEqual(expected_result._pmf_remove._infinity_mass,
+                             result._pmf_remove._infinity_mass)
+      self.assertAlmostEqual(expected_result._pmf_add._discretization,
+                             result._pmf_add._discretization)
+      self.assertAlmostEqual(expected_result._pmf_add._infinity_mass,
+                             result._pmf_add._infinity_mass)
+      self.assertAlmostEqual(
+          expected_result.get_delta_for_epsilon(0),
+          result.get_delta_for_epsilon(0))
+      self.assertAlmostEqual(
+          expected_result.get_delta_for_epsilon(0.5),
+          result.get_delta_for_epsilon(0.5))
+      self.assertAlmostEqual(
+          expected_result.get_delta_for_epsilon(-0.2),
+          result.get_delta_for_epsilon(-0.2))
 
 
 class LaplacePrivacyLossDistributionTest(parameterized.TestCase):

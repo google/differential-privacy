@@ -657,6 +657,14 @@ class PrivacyLossDistribution:
     pmf_add = self._pmf_add.self_compose(num_times, tail_mass_truncation)
     return PrivacyLossDistribution(pmf_remove, pmf_add)
 
+  def __add__(self, other: 'PrivacyLossDistribution') -> 'PrivacyLossDistribution':
+    return self.compose(other)
+
+  def __mul__(self, num_times: int) -> 'PrivacyLossDistribution':
+    return self.self_compose(num_times)
+
+  __rmul__ = __mul__
+
 
 def identity(
     value_discretization_interval: float = 1e-4) -> PrivacyLossDistribution:
