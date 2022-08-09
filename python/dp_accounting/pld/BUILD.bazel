@@ -17,12 +17,34 @@
 # Accountant using Privacy Loss Distributions (PLD).
 
 load("@accounting_py_pip_deps//:requirements.bzl", "requirement")
+load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
 
 package(default_visibility = [
     "//visibility:public",
 ])
 
 licenses(["notice"])
+
+# For specifying python version. When running with python version <= 3.6, should
+# specify via this flag, e.g. --//dp_accounting:python_version=3.6
+string_flag(
+    name = "python_version",
+    build_setting_default = "3.7",
+)
+
+config_setting(
+    name = "python_version_3.6",
+    flag_values = {
+        ":python_version": "3.6",
+    },
+)
+
+# For python version 3.7 onwards, dataclasses module is already included as part
+# of the core library.
+DATACLASSES_DEP = select({
+    ":python_version_3.6": [requirement("dataclasses")],
+    "//conditions:default": [],
+})
 
 py_library(
     name = "pld",
@@ -34,9 +56,9 @@ py_library(
     name = "pld_privacy_accountant",
     srcs = ["pld_privacy_accountant.py"],
     deps = [
+        ":privacy_loss_distribution",
         "//dp_accounting:dp_event",
         "//dp_accounting:privacy_accountant",
-        "//dp_accounting:privacy_loss_distribution",
     ],
 )
 
@@ -47,6 +69,172 @@ py_test(
         ":pld_privacy_accountant",
         "//dp_accounting:dp_event",
         "//dp_accounting:privacy_accountant_test",
+        requirement("absl-py"),
+    ],
+)
+
+py_library(
+    name = "common",
+    srcs = [
+        "common.py",
+    ],
+    srcs_version = "PY3",
+    deps = [
+        requirement("numpy"),
+        requirement("scipy"),
+    ] + DATACLASSES_DEP,
+)
+
+py_library(
+    name = "pld_pmf",
+    srcs = [
+        "pld_pmf.py",
+    ],
+    srcs_version = "PY3",
+    deps = [
+        ":common",
+        requirement("numpy"),
+        requirement("scipy"),
+    ] + DATACLASSES_DEP,
+)
+
+py_test(
+    name = "common_test",
+    size = "small",
+    srcs = ["common_test.py"],
+    python_version = "PY3",
+    deps = [
+        ":common",
+        ":test_util",
+        requirement("absl-py"),
+        requirement("numpy"),
+    ],
+)
+
+py_test(
+    name = "pld_pmf_test",
+    size = "small",
+    srcs = ["pld_pmf_test.py"],
+    python_version = "PY3",
+    deps = [
+        ":common",
+        ":pld_pmf",
+        ":test_util",
+        requirement("absl-py"),
+        requirement("numpy"),
+    ],
+)
+
+py_library(
+    name = "privacy_loss_distribution",
+    srcs = [
+        "privacy_loss_distribution.py",
+    ],
+    srcs_version = "PY3",
+    deps = [
+        ":common",
+        ":pld_pmf",
+        ":privacy_loss_mechanism",
+        requirement("numpy"),
+    ],
+)
+
+py_test(
+    name = "privacy_loss_distribution_test",
+    size = "small",
+    srcs = ["privacy_loss_distribution_test.py"],
+    python_version = "PY3",
+    deps = [
+        ":common",
+        ":privacy_loss_distribution",
+        ":test_util",
+        requirement("absl-py"),
+        requirement("scipy"),
+    ],
+)
+
+py_library(
+    name = "privacy_loss_mechanism",
+    srcs = [
+        "privacy_loss_mechanism.py",
+    ],
+    srcs_version = "PY3",
+    deps = [
+        ":common",
+        requirement("numpy"),
+        requirement("scipy"),
+    ] + DATACLASSES_DEP,
+)
+
+py_test(
+    name = "privacy_loss_mechanism_test",
+    size = "small",
+    srcs = ["privacy_loss_mechanism_test.py"],
+    python_version = "PY3",
+    deps = [
+        ":common",
+        ":privacy_loss_mechanism",
+        ":test_util",
+        requirement("absl-py"),
+        requirement("scipy"),
+    ],
+)
+
+py_library(
+    name = "accountant",
+    srcs = [
+        "accountant.py",
+    ],
+    srcs_version = "PY3",
+    deps = [
+        ":common",
+        ":privacy_loss_distribution",
+        ":privacy_loss_mechanism",
+        requirement("scipy"),
+    ] + DATACLASSES_DEP,
+)
+
+py_test(
+    name = "accountant_test",
+    size = "small",
+    srcs = ["accountant_test.py"],
+    python_version = "PY3",
+    deps = [
+        ":accountant",
+        ":common",
+        ":privacy_loss_mechanism",
+        requirement("absl-py"),
+    ],
+)
+
+py_library(
+    name = "test_util",
+    srcs = [
+        "test_util.py",
+    ],
+    srcs_version = "PY3",
+    deps = [requirement("numpy")],
+)
+
+py_test(
+    name = "test_util_test",
+    size = "small",
+    srcs = ["test_util_test.py"],
+    python_version = "PY3",
+    deps = [
+        ":test_util",
+        requirement("absl-py"),
+    ],
+)
+
+py_binary(
+    name = "privacy_loss_distribution_basic_example",
+    srcs = [
+        "privacy_loss_distribution_basic_example.py",
+    ],
+    python_version = "PY3",
+    deps = [
+        ":privacy_loss_distribution",
         requirement("absl-py"),
     ],
 )

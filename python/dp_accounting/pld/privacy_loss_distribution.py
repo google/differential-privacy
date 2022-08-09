@@ -23,10 +23,11 @@ supplementary material below for more details:
 import collections
 import logging
 import math
-from typing import Mapping, Optional, Callable, Any, Tuple
+from typing import Any, Callable, Mapping, Optional, Tuple
 
-from dp_accounting import common
-from dp_accounting import privacy_loss_mechanism
+from dp_accounting.pld import common
+from dp_accounting.pld import pld_pmf
+from dp_accounting.pld import privacy_loss_mechanism
 
 
 def _deprecation_warning(method_name: str):
@@ -92,8 +93,8 @@ class PrivacyLossDistribution:
   """
 
   def __init__(self,
-               pmf_remove: common.PLDPmf,
-               pmf_add: Optional[common.PLDPmf] = None):
+               pmf_remove: pld_pmf.PLDPmf,
+               pmf_add: Optional[pld_pmf.PLDPmf] = None):
     """Initialization method for PrivacyLossDistribution."""
     self._pmf_remove = pmf_remove
     self._symmetric = pmf_add is None
@@ -139,9 +140,9 @@ class PrivacyLossDistribution:
     Returns:
       Privacy Loss Distribution object.
     """
-    pmf_remove = common.create_pmf(rounded_probability_mass_function,
-                                   value_discretization_interval, infinity_mass,
-                                   pessimistic_estimate)
+    pmf_remove = pld_pmf.create_pmf(rounded_probability_mass_function,
+                                    value_discretization_interval,
+                                    infinity_mass, pessimistic_estimate)
     pmf_add = None
     if symmetric:
       if (rounded_probability_mass_function_add is not None or
@@ -154,9 +155,9 @@ class PrivacyLossDistribution:
         raise ValueError('Details about privacy loss distribution with respect'
                          'to ADD adjacency should be specified when not '
                          'symmetric')
-      pmf_add = common.create_pmf(rounded_probability_mass_function_add,
-                                  value_discretization_interval,
-                                  infinity_mass_add, pessimistic_estimate)
+      pmf_add = pld_pmf.create_pmf(rounded_probability_mass_function_add,
+                                   value_discretization_interval,
+                                   infinity_mass_add, pessimistic_estimate)
     return cls(pmf_remove, pmf_add)
 
   @classmethod
@@ -595,14 +596,14 @@ class PrivacyLossDistribution:
       A privacy loss distribution which is the result of composing the two.
     """
     # pylint:disable=protected-access
-    pld_pmf_remove = common.compose_pmfs(self._pmf_remove,
-                                         privacy_loss_distribution._pmf_remove,
-                                         tail_mass_truncation)
+    pld_pmf_remove = pld_pmf.compose_pmfs(self._pmf_remove,
+                                          privacy_loss_distribution._pmf_remove,
+                                          tail_mass_truncation)
     if self._symmetric and privacy_loss_distribution._symmetric:
       return PrivacyLossDistribution(pld_pmf_remove)
-    pld_pmf_add = common.compose_pmfs(self._pmf_add,
-                                      privacy_loss_distribution._pmf_add,
-                                      tail_mass_truncation)
+    pld_pmf_add = pld_pmf.compose_pmfs(self._pmf_add,
+                                       privacy_loss_distribution._pmf_add,
+                                       tail_mass_truncation)
     # pylint:enable=protected-access
     return PrivacyLossDistribution(pld_pmf_remove, pld_pmf_add)
 
@@ -784,7 +785,7 @@ def _create_pld_pmf_from_additive_noise(
     additive_noise_privacy_loss:
     'privacy_loss_mechanism.AdditiveNoisePrivacyLoss',
     pessimistic_estimate: bool = True,
-    value_discretization_interval: float = 1e-4) -> common.PLDPmf:
+    value_discretization_interval: float = 1e-4) -> pld_pmf.PLDPmf:
   """Constructs the privacy loss distribution of an additive noise mechanism.
 
   An additive noise mechanism for computing a scalar-valued function f is a
@@ -868,7 +869,7 @@ def _create_pld_pmf_from_additive_noise(
     for rounded_value, prob in zip(rounded_values, probability_mass):
       rounded_probability_mass_function[rounded_value] += prob
 
-  return common.create_pmf(
+  return pld_pmf.create_pmf(
       dict(rounded_probability_mass_function),
       value_discretization_interval,
       infinity_mass,
@@ -1020,7 +1021,7 @@ def from_randomized_response(
 
 def _pld_for_subsampled_mechanism(
     single_pld_pmf: Callable[[privacy_loss_mechanism.AdjacencyType],
-                             common.PLDPmf],
+                             pld_pmf.PLDPmf],
     sampling_prob: float = 1.0) -> PrivacyLossDistribution:
   """Computes the privacy loss distribution for subsampled mechanisms.
 
@@ -1073,7 +1074,7 @@ def from_laplace_mechanism(
   """
 
   def single_laplace_pld(
-      adjacency_type: privacy_loss_mechanism.AdjacencyType) -> common.PLDPmf:
+      adjacency_type: privacy_loss_mechanism.AdjacencyType) -> pld_pmf.PLDPmf:
     return _create_pld_pmf_from_additive_noise(
         privacy_loss_mechanism.LaplacePrivacyLoss(
             parameter,
@@ -1118,7 +1119,7 @@ def from_gaussian_mechanism(
   """
 
   def single_gaussian_pld(
-      adjacency_type: privacy_loss_mechanism.AdjacencyType) -> common.PLDPmf:
+      adjacency_type: privacy_loss_mechanism.AdjacencyType) -> pld_pmf.PLDPmf:
     return _create_pld_pmf_from_additive_noise(
         privacy_loss_mechanism.GaussianPrivacyLoss(
             standard_deviation,
@@ -1161,7 +1162,7 @@ def from_discrete_laplace_mechanism(
   """
 
   def single_discrete_laplace_pld(
-      adjacency_type: privacy_loss_mechanism.AdjacencyType) -> common.PLDPmf:
+      adjacency_type: privacy_loss_mechanism.AdjacencyType) -> pld_pmf.PLDPmf:
     return _create_pld_pmf_from_additive_noise(
         privacy_loss_mechanism.DiscreteLaplacePrivacyLoss(
             parameter,
@@ -1210,7 +1211,7 @@ def from_discrete_gaussian_mechanism(
   """
 
   def single_discrete_gaussian_pld(
-      adjacency_type: privacy_loss_mechanism.AdjacencyType) -> common.PLDPmf:
+      adjacency_type: privacy_loss_mechanism.AdjacencyType) -> pld_pmf.PLDPmf:
     return _create_pld_pmf_from_additive_noise(
         privacy_loss_mechanism.DiscreteGaussianPrivacyLoss(
             sigma,

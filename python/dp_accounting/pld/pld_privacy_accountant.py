@@ -17,7 +17,7 @@ import math
 
 from dp_accounting import dp_event
 from dp_accounting import privacy_accountant
-from dp_accounting import privacy_loss_distribution
+from dp_accounting.pld import privacy_loss_distribution
 
 NeighborRel = privacy_accountant.NeighboringRelation
 PLD = privacy_loss_distribution

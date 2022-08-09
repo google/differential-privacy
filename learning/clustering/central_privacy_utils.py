@@ -19,8 +19,8 @@ import numpy as np
 from scipy import stats
 
 from clustering import clustering_params
-from dp_accounting import accountant
-from dp_accounting import common
+from dp_accounting.pld import accountant
+from dp_accounting.pld import common
 
 
 @dataclasses.dataclass

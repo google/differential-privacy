@@ -17,8 +17,8 @@
 import unittest
 from absl.testing import parameterized
 
-from dp_accounting import accountant
-from dp_accounting import common
+from dp_accounting.pld import accountant
+from dp_accounting.pld import common
 
 
 class AccountantTest(parameterized.TestCase):

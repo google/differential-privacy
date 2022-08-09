@@ -94,8 +94,8 @@ def _search_for_explicit_bracket_interval(
           'Consider providing an ExplicitBracketInterval.')
 
     gap *= 2  # Loop invariant: gap = initial_gap * (2 ** num_tries).
-    upper = lower + gap
-    upper_value = epsilon_gap(upper)
+    lower, upper = upper, upper + gap
+    lower_value, upper_value = upper_value, epsilon_gap(upper)
 
   return ExplicitBracketInterval(lower, upper)
 

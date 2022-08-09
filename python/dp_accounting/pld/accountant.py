@@ -17,9 +17,9 @@ import math
 import typing
 from scipy import special
 
-from dp_accounting import common
-from dp_accounting import privacy_loss_distribution
-from dp_accounting import privacy_loss_mechanism
+from dp_accounting.pld import common
+from dp_accounting.pld import privacy_loss_distribution
+from dp_accounting.pld import privacy_loss_mechanism
 
 
 def get_smallest_parameter(

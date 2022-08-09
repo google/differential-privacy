@@ -28,7 +28,7 @@ from typing import Iterable, Mapping, Optional, Union
 import numpy as np
 from scipy import stats
 
-from dp_accounting import common
+from dp_accounting.pld import common
 
 
 class AdjacencyType(enum.Enum):

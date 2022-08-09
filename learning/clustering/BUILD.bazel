@@ -58,8 +58,8 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":clustering_params",
-        "@com_google_python_dp_accounting//dp_accounting:accountant",
-        "@com_google_python_dp_accounting//dp_accounting:common",
+        "@com_google_python_dp_accounting//dp_accounting/pld:accountant",
+        "@com_google_python_dp_accounting//dp_accounting/pld:common",
         requirement("numpy"),
         requirement("scipy"),
     ],
@@ -110,8 +110,8 @@ py_library(
     deps = [
         ":central_privacy_utils",
         ":clustering_params",
-        "@com_google_python_dp_accounting//dp_accounting:accountant",
-        "@com_google_python_dp_accounting//dp_accounting:common",
+        "@com_google_python_dp_accounting//dp_accounting/pld:accountant",
+        "@com_google_python_dp_accounting//dp_accounting/pld:common",
         requirement("numpy"),
     ],
 )
@@ -125,8 +125,8 @@ py_test(
         ":central_privacy_utils",
         ":clustering_params",
         ":default_clustering_params",
-        "@com_google_python_dp_accounting//dp_accounting:accountant",
-        "@com_google_python_dp_accounting//dp_accounting:common",
+        "@com_google_python_dp_accounting//dp_accounting/pld:accountant",
+        "@com_google_python_dp_accounting//dp_accounting/pld:common",
         requirement("absl-py"),
         requirement("numpy"),
     ],

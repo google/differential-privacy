@@ -17,7 +17,7 @@
 import unittest
 from absl.testing import parameterized
 
-from dp_accounting import test_util
+from dp_accounting.pld import test_util
 
 
 class TestUtilTest(parameterized.TestCase):

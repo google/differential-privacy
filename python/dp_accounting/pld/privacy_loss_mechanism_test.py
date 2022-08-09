@@ -19,9 +19,9 @@ import unittest
 from absl.testing import parameterized
 from scipy import stats
 
-from dp_accounting import common
-from dp_accounting import privacy_loss_mechanism
-from dp_accounting import test_util
+from dp_accounting.pld import common
+from dp_accounting.pld import privacy_loss_mechanism
+from dp_accounting.pld import test_util
 
 
 ADD = privacy_loss_mechanism.AdjacencyType.ADD
