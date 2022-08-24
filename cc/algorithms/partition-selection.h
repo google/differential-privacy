@@ -158,7 +158,7 @@ class PartitionSelectionStrategy {
     if (delta == 1) {  // Avoid NaN from log1p(-1) -> log(0)
       return 1;
     }
-    return -expm1(log1p(-delta) / max_partitions_contributed);
+    return -std::expm1(log1p(-delta) / max_partitions_contributed);
   }
 
   // Inverse of CalculateAdjustedDelta()
@@ -175,7 +175,7 @@ class PartitionSelectionStrategy {
     if (adjusted_delta == 1) {  // Avoid NaN from log1p(-1) -> log(0)
       return 1;
     }
-    return -expm1(max_partitions_contributed * log1p(-adjusted_delta));
+    return -std::expm1(max_partitions_contributed * log1p(-adjusted_delta));
   }
 
  private:
@@ -242,15 +242,15 @@ class NearTruncatedGeometricPartitionSelection
     if (num_users == 0) {
       return 0;
     } else if (num_users <= crossover_1_) {
-      return (
-          (expm1(num_users * adjusted_epsilon_) / expm1(adjusted_epsilon_)) *
-          adjusted_delta);
+      return ((std::expm1(num_users * adjusted_epsilon_) /
+               std::expm1(adjusted_epsilon_)) *
+              adjusted_delta);
     } else if (num_users > crossover_1_ && num_users <= crossover_2_) {
       const double m = num_users - crossover_1_;
       const double p_crossover = ProbabilityOfKeep(crossover_1_);
-      return p_crossover -
-             (1 - p_crossover + (adjusted_delta / expm1(adjusted_epsilon_))) *
-                 expm1(-m * adjusted_epsilon_);
+      return p_crossover - (1 - p_crossover +
+                            (adjusted_delta / std::expm1(adjusted_epsilon_))) *
+                               std::expm1(-m * adjusted_epsilon_);
     } else {
       return 1;
     }
@@ -268,9 +268,10 @@ class NearTruncatedGeometricPartitionSelection
         floor(log1p(tanh(adjusted_epsilon_ / 2) * (1 / adjusted_delta - 1)) /
               adjusted_epsilon_);
     crossover_2_ =
-        crossover_1_ + floor((1.0 / adjusted_epsilon_) *
-                             log1p((expm1(adjusted_epsilon_) / adjusted_delta) *
-                                   (1 - ProbabilityOfKeep(crossover_1_))));
+        crossover_1_ +
+        floor((1.0 / adjusted_epsilon_) *
+              log1p((std::expm1(adjusted_epsilon_) / adjusted_delta) *
+                    (1 - ProbabilityOfKeep(crossover_1_))));
   }
 
  private:

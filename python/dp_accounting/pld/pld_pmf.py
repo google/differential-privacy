@@ -22,7 +22,8 @@ supplementary material below for more details:
 import abc
 import itertools
 import math
-from typing import Iterable, List, Mapping, Tuple, Union
+import numbers
+from typing import Iterable, List, Mapping, Sequence, Tuple, Union
 import numpy as np
 from scipy import signal
 
@@ -32,26 +33,58 @@ ArrayLike = Union[np.ndarray, List[float]]
 _MAX_PMF_SPARSE_SIZE = 1000
 
 
-def _get_delta_for_epsilon(infinity_mass: float,
-                           reversed_losses: Iterable[float],
-                           probs: Iterable[float], epsilon: float) -> float:
+def _get_delta_for_epsilon_vectorized(infinity_mass: float,
+                                      losses: Sequence[float],
+                                      probs: Sequence[float],
+                                      epsilons: Sequence[float]) -> np.ndarray:
   """Computes the epsilon-hockey stick divergence.
 
   Args:
     infinity_mass: the probability of the infinite loss.
-    reversed_losses: privacy losses, assumed to be sorted in descending order.
+    losses: privacy losses, assumed to be sorted in ascending order.
     probs: probabilities corresponding to losses.
-    epsilon: the epsilon in the epsilon-hockey stick divergence.
+    epsilons: epsilons in the epsilon-hockey stick divergence, assumed to be
+      sorted in ascending order.
 
   Returns:
-    The epsilon-hockey stick divergence.
+    The list of epsilon-hockey stick divergences for epsilons.
   """
-  delta = 0
-  for loss, prob in zip(reversed_losses, probs):
-    if loss <= epsilon:
-      break
-    delta += (1 - np.exp(epsilon - loss)) * prob
-  return delta + infinity_mass
+  are_epsilons_sorted = np.all(np.diff(epsilons) >= 0)
+  if not are_epsilons_sorted:
+    raise ValueError(
+        'Epsilons in get_delta_for_epsilon must be sorted in ascending order')
+
+  # For each epsilon:
+  # delta = sum_{o} [mu_upper(o) - e^{epsilon} * mu_lower(o)]_+ (for more
+  # details look for PLDPmf class docstring below).
+  # It can be rewritten as
+  # delta(epsilon_i) = inf_mass +
+  #           sum((1-exp(eps - loss_j))*prob_j if loss_j >= epsilon_i) =
+  # inf_mass + sum(prob_j-exp(eps)*prob_j/exp(loss_j) if loss_j >= epsilon_i) =
+  # inf_mass + sum(prob_j, loss_j >= epsilon_i) -
+  # exp(eps)*sum(prob_j/exp(loss_j), loss_j >= epsilon_i).
+  #
+  # Denote sums in the last formula as mu_upper_mass, mu_lower_mass. We can
+  # compute them gradually, which makes computation efficiently for multiple
+  # epsilons.
+  deltas = np.zeros_like(epsilons, dtype=np.float64)
+  mu_upper_mass, mu_lower_mass = infinity_mass, 0
+  i = len(probs) - 1
+  j = len(epsilons) - 1
+
+  while j >= 0:
+    if np.isposinf(epsilons[j]):
+      deltas[j] = infinity_mass
+      j -= 1
+    elif i < 0 or losses[i] <= epsilons[j]:
+      deltas[j] = mu_upper_mass - np.exp(epsilons[j]) * mu_lower_mass
+      j -= 1
+    else:
+      mu_upper_mass += probs[i]
+      mu_lower_mass += probs[i] * np.exp(-losses[i])
+      i -= 1
+
+  return deltas
 
 
 def _get_epsilon_for_delta(infinity_mass: float,
@@ -218,7 +251,8 @@ class PLDPmf(abc.ABC):
     """
 
   @abc.abstractmethod
-  def get_delta_for_epsilon(self, epsilon: float) -> float:
+  def get_delta_for_epsilon(
+      self, epsilon: Union[float, Sequence[float]]) -> Union[float, np.ndarray]:
     """Computes the epsilon-hockey stick divergence."""
 
   @abc.abstractmethod
@@ -302,19 +336,27 @@ class DensePLDPmf(PLDPmf):
     return DensePLDPmf(self._discretization, lower_loss + offset, probs,
                        inf_prob + right_tail, self._pessimistic_estimate)
 
-  def get_delta_for_epsilon(self, epsilon: float) -> float:
+  def get_delta_for_epsilon(
+      self, epsilon: Union[float, Sequence[float]]) -> Union[float, np.ndarray]:
     """Computes the epsilon-hockey stick divergence."""
-    upper_loss = (self._lower_loss + len(self._probs) -
-                  1) * self._discretization
-    reversed_losses = itertools.count(upper_loss, -self._discretization)
-    return _get_delta_for_epsilon(self._infinity_mass, reversed_losses,
-                                  np.flip(self._probs), epsilon)
+    losses = (np.arange(self.size) + self._lower_loss) * self._discretization
+
+    is_scalar = isinstance(epsilon, numbers.Number)
+    if is_scalar:
+      epsilon = [epsilon]
+
+    delta = _get_delta_for_epsilon_vectorized(self._infinity_mass, losses,
+                                              self._probs, epsilon)
+    if is_scalar:
+      delta = delta[0]
+    return delta
 
   def get_epsilon_for_delta(self, delta: float) -> float:
     """Computes epsilon for which hockey stick divergence is at most delta."""
     upper_loss = (self._lower_loss + len(self._probs) -
                   1) * self._discretization
     reversed_losses = itertools.count(upper_loss, -self._discretization)
+
     return _get_epsilon_for_delta(self._infinity_mass, reversed_losses,
                                   np.flip(self._probs), delta)
 
@@ -439,24 +481,32 @@ class SparsePLDPmf(PLDPmf):
 
     return result
 
-  def _get_reversed_losses_probs(self) -> Tuple[List[float], List[float]]:
-    """Returns losses, sorted in reverse order and respective probabilities."""
-    reversed_losses = sorted(list(self._loss_probs.keys()), reverse=True)
-    reversed_probs = [self._loss_probs[loss] for loss in reversed_losses]
-    reversed_losses = [loss * self._discretization for loss in reversed_losses]
-    return reversed_losses, reversed_probs
+  def _get_losses_probs(self) -> Tuple[List[float], List[float]]:
+    """Returns losses, sorted ascendingly and respective probabilities."""
+    losses = sorted(list(self._loss_probs.keys()))
+    probs = [self._loss_probs[loss] for loss in losses]
+    losses = [loss * self._discretization for loss in losses]
+    return losses, probs
 
-  def get_delta_for_epsilon(self, epsilon: float) -> float:
+  def get_delta_for_epsilon(
+      self, epsilon: Union[float, Sequence[float]]) -> Union[float, np.ndarray]:
     """Computes the epsilon-hockey stick divergence."""
-    reversed_losses, reversed_probs = self._get_reversed_losses_probs()
-    return _get_delta_for_epsilon(self._infinity_mass, reversed_losses,
-                                  reversed_probs, epsilon)
+    losses, probs = self._get_losses_probs()
+    is_scalar = isinstance(epsilon, numbers.Number)
+    if is_scalar:
+      epsilon = [epsilon]
+
+    delta = _get_delta_for_epsilon_vectorized(self._infinity_mass, losses,
+                                              probs, epsilon)
+    if is_scalar:
+      delta = delta[0]
+    return delta
 
   def get_epsilon_for_delta(self, delta: float) -> float:
     """Computes epsilon for which hockey stick divergence is at most delta."""
-    reversed_losses, reversed_probs = self._get_reversed_losses_probs()
-    return _get_epsilon_for_delta(self._infinity_mass, reversed_losses,
-                                  reversed_probs, delta)
+    losses, probs = self._get_losses_probs()
+    return _get_epsilon_for_delta(self._infinity_mass, losses[::-1],
+                                  probs[::-1], delta)
 
   def get_delta_for_epsilon_for_composed_pld(self, other: PLDPmf,
                                              epsilon: float) -> float:

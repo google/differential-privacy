@@ -667,12 +667,11 @@ class BoundedVariance<T>::Builder {
             max_partitions_contributed_, max_contributions_per_partition_,
             lower_.value(), upper_.value()));
 
-    std::unique_ptr<BoundedVariance<T>> result =
+    return absl::StatusOr<std::unique_ptr<BoundedVariance<T>>>(
         absl::make_unique<BoundedVarianceWithFixedBounds<T>>(
             epsilon_.value(), lower_.value(), upper_.value(),
             std::move(count_mechanism), std::move(sum_mechanism),
-            std::move(sos_mechanism));
-    return result;
+            std::move(sos_mechanism)));
   }
 
   absl::StatusOr<std::unique_ptr<BoundedVariance<T>>>
@@ -712,13 +711,12 @@ class BoundedVariance<T>::Builder {
                          .SetLInfSensitivity(max_contributions_per_partition_)
                          .Build());
 
-    std::unique_ptr<BoundedVariance<T>> result =
+    return absl::StatusOr<std::unique_ptr<BoundedVariance<T>>>(
         absl::make_unique<BoundedVarianceWithApproxBounds<T>>(
             epsilon_.value(), epsilon_for_sum, epsilon_for_squares,
             max_partitions_contributed_, max_contributions_per_partition_,
             mechanism_builder_->Clone(), std::move(count_mechanism),
-            std::move(approx_bounds_));
-    return result;
+            std::move(approx_bounds_)));
   }
 };
 

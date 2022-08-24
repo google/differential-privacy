@@ -148,9 +148,6 @@ class LaplaceDistribution {
 
   virtual double Sample();
 
-  // Samples the Laplace distribution with Lap(scale*b)
-  virtual double Sample(double scale);
-
   virtual int64_t MemoryUsed();
 
   virtual bool GetBoolean();

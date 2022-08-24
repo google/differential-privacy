@@ -562,11 +562,10 @@ class BoundedMean<T>::Builder {
             /*l0_sensitivity=*/max_partitions_contributed_,
             max_contributions_per_partition_, lower_.value(), upper_.value()));
 
-    std::unique_ptr<BoundedMean<T>> result =
+    return absl::StatusOr<std::unique_ptr<BoundedMean<T>>>(
         absl::make_unique<BoundedMeanWithFixedBounds<T>>(
             epsilon_.value(), delta_, lower_.value(), upper_.value(),
-            std::move(sum_mechanism), std::move(count_mechanism));
-    return result;
+            std::move(sum_mechanism), std::move(count_mechanism)));
   }
 
   absl::StatusOr<std::unique_ptr<BoundedMean<T>>> BuildMeanWithApproxBounds() {
@@ -606,13 +605,12 @@ class BoundedMean<T>::Builder {
                          .SetLInfSensitivity(max_contributions_per_partition_)
                          .Build());
 
-    std::unique_ptr<BoundedMean<T>> result =
+    return absl::StatusOr<std::unique_ptr<BoundedMean<T>>>(
         absl::make_unique<BoundedMeanWithApproxBounds<T>>(
             epsilon_.value(), delta_, epsilon_for_sum, delta_for_sum,
             max_partitions_contributed_, max_contributions_per_partition_,
             mechanism_builder_->Clone(), std::move(count_mechanism),
-            std::move(approx_bounds_));
-    return result;
+            std::move(approx_bounds_)));
   }
 };
 

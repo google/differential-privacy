@@ -23,7 +23,8 @@ supplementary material below for more details:
 import collections
 import logging
 import math
-from typing import Any, Callable, Mapping, Optional, Tuple
+from typing import Any, Callable, Mapping, Optional, Sequence, Tuple, Union
+import numpy as np
 
 from dp_accounting.pld import common
 from dp_accounting.pld import pld_pmf
@@ -513,7 +514,8 @@ class PrivacyLossDistribution:
     return from_privacy_parameters(privacy_parameters,
                                    value_discretization_interval)
 
-  def get_delta_for_epsilon(self, epsilon: float) -> float:
+  def get_delta_for_epsilon(
+      self, epsilon: Union[float, Sequence[float]]) -> Union[float, np.ndarray]:
     """Computes the epsilon-hockey stick divergence between mu_upper, mu_lower.
 
     When this privacy loss distribution corresponds to a mechanism, the
@@ -533,7 +535,7 @@ class PrivacyLossDistribution:
     if self._symmetric:
       return delta_remove
     delta_add = self._pmf_add.get_delta_for_epsilon(epsilon)
-    return max(delta_remove, delta_add)
+    return np.maximum(delta_remove, delta_add)
 
   def get_epsilon_for_delta(self, delta: float) -> float:
     """Computes epsilon for which hockey stick divergence is at most delta.

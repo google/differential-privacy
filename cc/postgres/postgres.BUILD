@@ -35,7 +35,7 @@ config_setting(
 configure_make(
     name = "postgres",
     configure_command = "configure",
-    configure_env_vars = select({
+    env = select({
         ":darwin_build": {
             # Neccessary to create a fully static linked library.
             "CXXFLAGS": "-fPIC",
@@ -50,8 +50,8 @@ configure_make(
             "CFLAGS": "-fPIC",
         },
     }),
-    out_headers_only = True,
     lib_source = "@postgres//:all",
+    out_headers_only = True,
 )
 
 cc_library(

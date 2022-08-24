@@ -228,9 +228,8 @@ class LaplaceMechanism : public NumericalMechanism {
           internal::LaplaceDistribution::CalculateGranularity(epsilon, L1);
       if (!gran_or_status.ok()) return gran_or_status.status();
 
-      std::unique_ptr<NumericalMechanism> result =
-          absl::make_unique<LaplaceMechanism>(epsilon, L1);
-      return result;
+      return absl::StatusOr<std::unique_ptr<NumericalMechanism>>(
+          absl::make_unique<LaplaceMechanism>(epsilon, L1));
     }
 
     std::unique_ptr<NumericalMechanismBuilder> Clone() const override {
@@ -416,7 +415,7 @@ class LaplaceMechanism : public NumericalMechanism {
   // the sensitivity of x. Rounding and adding the noise to result is a
   // privacy-safe operation (for noise of moderate magnitude, i.e. < 2^53).
   int64_t AddInt64Noise(int64_t result) override {
-    double sample = distro_->Sample(1.0);
+    double sample = distro_->Sample();
     SafeOpResult<int64_t> noise_cast_result =
         SafeCastFromDouble<int64_t>(std::round(sample));
 
@@ -464,10 +463,9 @@ class GaussianMechanism : public NumericalMechanism {
       RETURN_IF_ERROR(DeltaIsSetAndValid());
       ASSIGN_OR_RETURN(double l2, CalculateL2Sensitivity());
 
-      std::unique_ptr<NumericalMechanism> result =
+      return absl::StatusOr<std::unique_ptr<NumericalMechanism>>(
           absl::make_unique<GaussianMechanism>(
-              epsilon.value(), GetDelta().value(), l2, std::move(distro));
-      return result;
+              epsilon.value(), GetDelta().value(), l2, std::move(distro)));
     }
 
     std::unique_ptr<NumericalMechanismBuilder> Clone() const override {

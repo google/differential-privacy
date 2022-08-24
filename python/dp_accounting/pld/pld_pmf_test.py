@@ -70,6 +70,31 @@ class PLDPmfTest(parameterized.TestCase):
     self.assertAlmostEqual(1, pmf.get_delta_for_epsilon(-np.inf))
 
   @parameterized.parameters(False, True)
+  def test_delta_for_epsilon_vectorized(self, dense: bool):
+    discretization = 0.1
+    infinity_mass = 0.1
+    lower_loss = -1
+    probs = np.array([0.2, 0.3, 0, 0.4])
+    pmf = self._create_pmf(discretization, dense, infinity_mass, lower_loss,
+                           probs)
+    epsilon = [-np.inf, -20, 0.1, np.inf]
+    expected_delta = [
+        1, 1, infinity_mass + 0.4 * (1 - np.exp(-0.1)), infinity_mass
+    ]
+
+    self.assertSequenceAlmostEqual(expected_delta,
+                                   pmf.get_delta_for_epsilon(epsilon))
+
+  def test_delta_for_epsilon_not_sorted(self):
+    pmf = self._create_pmf(discretization=0.1, dense=True, infinity_mass=0)
+    epsilon = [2.0, 3.0, 1.0]  # not sorted
+
+    with self.assertRaisesRegex(
+        ValueError,
+        'Epsilons in get_delta_for_epsilon must be sorted in ascending order'):
+      pmf.get_delta_for_epsilon(epsilon)
+
+  @parameterized.parameters(False, True)
   def test_get_delta_for_epsilon_for_composed_pld(self, dense):
     discretization = 0.1
     infinity_mass1, lower_loss1, probs1 = 0.1, -1, np.array(

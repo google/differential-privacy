@@ -177,7 +177,7 @@ int64_t GeometricDistribution::Sample(double scale) {
   double lambda = lambda_ / scale;
 
   if (GetUniformDouble() >
-      -1.0 * expm1(-1.0 * lambda * std::numeric_limits<int64_t>::max())) {
+      -1.0 * std::expm1(-1.0 * lambda * std::numeric_limits<int64_t>::max())) {
     return std::numeric_limits<int64_t>::max();
   }
 
@@ -194,7 +194,7 @@ int64_t GeometricDistribution::Sample(double scale) {
                  lambda));
     mid = std::min(std::max(mid, lo + 1), hi - 1);
 
-    double q = std::expm1(lambda * (lo - mid)) / expm1(lambda * (lo - hi));
+    double q = std::expm1(lambda * (lo - mid)) / std::expm1(lambda * (lo - hi));
     if (GetUniformDouble() <= q) {
       hi = mid;
     } else {
@@ -297,19 +297,18 @@ double LaplaceDistribution::GetUniformDouble() { return UniformDouble(); }
 bool LaplaceDistribution::GetBoolean() {
   return absl::Bernoulli(SecureURBG::GetSingleton(), 0.5);
 }
-double LaplaceDistribution::Sample() { return Sample(1.0); }
 
-double LaplaceDistribution::Sample(double scale) {
+double LaplaceDistribution::Sample() {
   int64_t sample;
   bool sign;
   do {
-    sample = geometric_distro_->Sample(scale);
+    sample = geometric_distro_->Sample();
     sign = GetBoolean();
     // Keep a sample of 0 only if the sign is positive. Otherwise, the
     // probability of 0 would be twice as high as it should be.
   } while (sample == 0 && !sign);
-  sample = sign ? sample : -sample;
-  return sample * granularity_;
+  const int64_t signed_sample = sign ? sample : -sample;
+  return signed_sample * granularity_;
 }
 
 double LaplaceDistribution::GetGranularity() { return granularity_; }

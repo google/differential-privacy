@@ -495,11 +495,11 @@ class BoundedSum<T>::Builder {
                        max_partitions_contributed_,
                        max_contributions_per_partition_, lower_.value(),
                        upper_.value()));
-    std::unique_ptr<BoundedSum<T>> result =
+
+    return absl::StatusOr<std::unique_ptr<BoundedSum<T>>>(
         absl::make_unique<BoundedSumWithFixedBounds<T>>(
             epsilon_.value(), delta_, lower_.value(), upper_.value(),
-            std::move(mechanism));
-    return result;
+            std::move(mechanism)));
   }
 
   absl::StatusOr<std::unique_ptr<BoundedSum<T>>> BuildSumWithApproxBounds() {
@@ -520,12 +520,12 @@ class BoundedSum<T>::Builder {
           epsilon_.value(),
           " Approx Bounds Epsilon: ", approx_bounds_->GetEpsilon()));
     }
-    std::unique_ptr<BoundedSum<T>> result =
+
+    return absl::StatusOr<std::unique_ptr<BoundedSum<T>>>(
         absl::make_unique<BoundedSumWithApproxBounds<T>>(
             epsilon_.value(), delta_, max_partitions_contributed_,
             max_contributions_per_partition_, mechanism_builder_->Clone(),
-            std::move(approx_bounds_));
-    return result;
+            std::move(approx_bounds_)));
   }
 };
 

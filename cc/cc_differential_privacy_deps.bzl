@@ -27,51 +27,65 @@ def cc_differential_privacy_deps():
     # Abseil
     http_archive(
         name = "com_google_absl",
-        url = "https://github.com/abseil/abseil-cpp/archive/20210324.0.tar.gz",
-        sha256 = "dd7db6815204c2a62a2160e32c55e97113b0a0178b2f090d6bab5ce36111db4b",
-        strip_prefix = "abseil-cpp-20210324.0",
+        url = "https://github.com/abseil/abseil-cpp/archive/20220623.0.tar.gz",
+        sha256 = "4208129b49006089ba1d6710845a45e31c59b0ab6bff9e5788a87f55c5abd602",
+        strip_prefix = "abseil-cpp-20220623.0",
     )
 
-    # Common bazel rules
+    # Common bazel rules.  Also required for Abseil.
     http_archive(
         name = "bazel_skylib",
-        url = "https://github.com/bazelbuild/bazel-skylib/releases/download/1.0.3/bazel-skylib-1.0.3.tar.gz",
-        sha256 = "1c531376ac7e5a180e0237938a2536de0c54d93f5c278634818e0efc952dd56c",
+        urls = [
+            "https://mirror.bazel.build/github.com/bazelbuild/bazel-skylib/releases/download/1.2.1/bazel-skylib-1.2.1.tar.gz",
+            "https://github.com/bazelbuild/bazel-skylib/releases/download/1.2.1/bazel-skylib-1.2.1.tar.gz",
+        ],
+        sha256 = "f7be3474d42aae265405a592bb7da8e171919d74c16f082a5457840f06054728",
     )
 
     # GoogleTest/GoogleMock framework. Used by most unit-tests.
     http_archive(
         name = "com_google_googletest",
-        # Commit date: 2021-01-27
-        urls = ["https://github.com/google/googletest/archive/df7fee587d442b372ef43bd66c6a2f5c9af8c5eb.tar.gz"],
-        strip_prefix = "googletest-df7fee587d442b372ef43bd66c6a2f5c9af8c5eb",
-        sha256 = "4a6673769eefb799bc0db0d7cf48ad9cf22dc5e55106f54bf9f4e43a40f425ac",
+        url = "https://github.com/google/googletest/archive/refs/tags/release-1.12.1.tar.gz",
+        strip_prefix = "googletest-release-1.12.1",
+        sha256 = "81964fe578e9bd7c94dfdb09c8e4d6e6759e19967e397dbea48d1c10e45d0df2",
+    )
+
+    # Re2 is a requirement for GoogleTest
+    #
+    # Note this must use a commit from the `abseil` branch of the RE2 project.
+    # https://github.com/google/re2/tree/abseil
+    http_archive(
+        name = "com_googlesource_code_re2",
+        sha256 = "0a890c2aa0bb05b2ce906a15efb520d0f5ad4c7d37b8db959c43772802991887",
+        strip_prefix = "re2-a427f10b9fb4622dd6d8643032600aa1b50fbd12",
+        # Commit date: 2022-06-09
+        url = "https://github.com/google/re2/archive/a427f10b9fb4622dd6d8643032600aa1b50fbd12.zip",
     )
 
     # Benchmarks for testing.
     http_archive(
         name = "com_google_benchmark",
-        url = "https://github.com/google/benchmark/archive/refs/tags/v1.5.2.tar.gz",
-        sha256 = "dccbdab796baa1043f04982147e67bb6e118fe610da2c65f88912d73987e700c",
-        strip_prefix = "benchmark-1.5.2",
+        url = "https://github.com/google/benchmark/archive/refs/tags/v1.7.0.tar.gz",
+        sha256 = "3aff99169fa8bdee356eaa1f691e835a6e57b1efeadb8a0f9f228531158246ac",
+        strip_prefix = "benchmark-1.7.0",
     )
 
     # BoringSSL for cryptographic PRNG
     git_repository(
         name = "boringssl",
-        # Commit date: 2021-08-30
+        # Commit date: 2022-08-15
         # Note for updating: we need to use a commit from the main-with-bazel branch.
-        commit = "e410957010208f95586d432031397bffef678ba4",
+        commit = "c8a7d97cb5dca9ded93185bd8f09e40b0fc70ef8",
         remote = "https://boringssl.googlesource.com/boringssl",
-        shallow_since = "1630347097 +0000",
+        shallow_since = "1660591603 +0000",
     )
 
     # Supports `./configure && make` style packages to become dependencies.
     http_archive(
         name = "rules_foreign_cc",
-        strip_prefix = "rules_foreign_cc-0.2.0",
-        url = "https://github.com/bazelbuild/rules_foreign_cc/archive/0.2.0.zip",
-        sha256 = "e60cfd0a8426fa4f5fd2156e768493ca62b87d125cb35e94c44e79a3f0d8635f",
+        strip_prefix = "rules_foreign_cc-0.9.0",
+        url = "https://github.com/bazelbuild/rules_foreign_cc/archive/0.9.0.tar.gz",
+        sha256 = "2a4d07cd64b0719b39a7c12218a3e507672b82a97b98c6a89d38565894cf7c51",
     )
 
     # Postgres depends on rules_foreign_cc. Use postgres 12.

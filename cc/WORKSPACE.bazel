@@ -31,6 +31,10 @@ differential_privacy_deps()
 load(":cc_differential_privacy_deps.bzl", "cc_differential_privacy_deps")
 cc_differential_privacy_deps()
 
+# Skylib setup.
+load("@bazel_skylib//:workspace.bzl", "bazel_skylib_workspace")
+bazel_skylib_workspace()
+
 # Protobuf transitive dependencies.
 load("@com_google_protobuf//:protobuf_deps.bzl", "protobuf_deps")
 protobuf_deps()

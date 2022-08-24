@@ -112,7 +112,7 @@ TEST(LaplaceDistributionTest, CheckStatisticsForGeoUnitValues) {
       builder.SetEpsilon(1.0).SetSensitivity(1.0).Build().value();
   std::vector<double> samples(kNumGeometricSamples);
   std::generate(samples.begin(), samples.end(),
-                [dist = std::move(dist)]() { return dist->Sample(1.0); });
+                [dist = std::move(dist)]() { return dist->Sample(); });
   double mean = Mean(samples);
   double var = Variance(samples);
   EXPECT_NEAR(0.0, mean, 0.01);
@@ -128,7 +128,7 @@ TEST(LaplaceDistributionTest, CheckStatisticsForGeoSpecificDistribution) {
       builder.SetEpsilon(1.0).SetSensitivity(sensitivity).Build().value();
   std::vector<double> samples(kNumGeometricSamples);
   std::generate(samples.begin(), samples.end(),
-                [dist = std::move(dist)]() { return dist->Sample(1.0); });
+                [dist = std::move(dist)]() { return dist->Sample(); });
   double mean = Mean(samples);
   double var = Variance(samples);
 
@@ -136,21 +136,6 @@ TEST(LaplaceDistributionTest, CheckStatisticsForGeoSpecificDistribution) {
   EXPECT_NEAR(2.0 * sensitivity * sensitivity, var, 0.1);
   EXPECT_NEAR(0.0, Skew(samples, mean, std::sqrt(var)), 0.1);
   EXPECT_NEAR(3.0, Kurtosis(samples, mean, var), 0.1);
-}
-
-TEST(LaplaceDistributionTest, CheckStatisticsForGeoSpecificScaledDistribution) {
-  double sensitivity = kOneOverLog2;
-  double scale = 3.0;
-  LaplaceDistribution::Builder builder;
-  std::unique_ptr<LaplaceDistribution> dist =
-      builder.SetEpsilon(1.0).SetSensitivity(sensitivity).Build().value();
-  std::vector<double> samples(kNumGeometricSamples);
-  std::generate(
-      samples.begin(), samples.end(),
-      [dist = std::move(dist), scale]() { return dist->Sample(scale); });
-  EXPECT_NEAR(0.0, Mean(samples), 0.01 * scale);
-  EXPECT_NEAR(2.0 * scale * scale * sensitivity * sensitivity,
-              Variance(samples), 0.15 * scale);
 }
 
 TEST(LaplaceDistributionTest, Cdf) {

@@ -1,5 +1,8 @@
+# The version of these dependencies need to be compatible with the versios of
+# the dependenices from `../learning/requirements.txt`.
+
 absl-py~=1.0.0
 attrs~=21.4.0
 mpmath~=1.2.1
-numpy~=1.21.4
+numpy~=1.21
 scipy~=1.7.1
