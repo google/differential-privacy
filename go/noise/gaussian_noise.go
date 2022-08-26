@@ -297,11 +297,18 @@ func deltaForGaussian(sigma float64, l0Sensitivity int64, lInfSensitivity, epsil
 // SigmaForGaussian uses binary search. The result will deviate from the exact value
 // σ_tight by at most gaussianSigmaAccuracy*σ_tight.
 //
-// Runtime: O(log(max(σ_tight/l2Sensitivity, l2Sensitivity/σ_tight)) +
-//            log(gaussianSigmaAccuracy)).
+// Runtime: O(log(max(σ_tight/l2Sensitivity, l2Sensitivity/σ_tight)) + log(gaussianSigmaAccuracy)),
 // where l2Sensitivity := lInfSensitivity * math.Sqrt(l0Sensitivity)
 //
+// The calculation is based on Balle and Wang's ["Improving the Gaussian Mechanism
+// for Differential Privacy: Analytical Calibration and Optimal Denoising"].
+// The paper states that the lower bound on sigma from the original
+// analysis of the Gaussian mechanism (sigma ≥ sqrt(2 * l2_sensitivity^2 * log(1.25/𝛿) / 𝜖^2))
+// is far from tight and binary search can give us a better lower bound.
+//
 // TODO: Memorize the results of this function to avoid recomputing it
+//
+// ["Improving the Gaussian Mechanism for Differential Privacy: Analytical Calibration and Optimal Denoising"]: https://arxiv.org/abs/1805.06530v2
 func SigmaForGaussian(l0Sensitivity int64, lInfSensitivity, epsilon, delta float64) float64 {
 	if delta >= 1 {
 		return 0

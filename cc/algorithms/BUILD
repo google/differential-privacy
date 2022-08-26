@@ -433,6 +433,7 @@ cc_test(
 
 cc_library(
     name = "numerical-mechanisms",
+    srcs = ["numerical-mechanisms.cc"],
     hdrs = ["numerical-mechanisms.h"],
     visibility = ["//visibility:public"],
     deps = [

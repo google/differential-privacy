@@ -249,6 +249,12 @@ public class GaussianNoise implements Noise {
    *
    * <p>This implementation uses a binary search. Its runtime is rougly log(GAUSSIAN_SIGMA_ACCURACY)
    * + log(max{sigma_tight / l2sensitivity, l2sensitivity / sigma_tight}).
+   *
+   * <p>The calculation is based on <a href="https://arxiv.org/abs/1805.06530v2">Balle and Wang's
+   * "Improving the Gaussian Mechanism for Differential Privacy: Analytical Calibration and Optimal
+   * Denoising"</a>. The paper states that the lower bound on sigma from the original analysis of
+   * the Gaussian mechanism (sigma ≥ sqrt(2 * l2_sensitivity^2 * log(1.25/𝛿) / 𝜖^2)) is far from
+   * tight and binary search can give us a better lower bound.
    */
   public static double getSigma(double l2Sensitivity, double epsilon, double delta) {
     // We use l2sensitivity as a starting guess for the upper bound, since the required noise grows

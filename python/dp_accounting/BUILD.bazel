@@ -17,34 +17,12 @@
 # Tools for tracking privacy budget.
 
 load("@accounting_py_pip_deps//:requirements.bzl", "requirement")
-load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
 
 package(default_visibility = [
     "//visibility:public",
 ])
 
 licenses(["notice"])
-
-# For specifying python version. When running with python version <= 3.6, should
-# specify via this flag, e.g. --//dp_accounting:python_version=3.6
-string_flag(
-    name = "python_version",
-    build_setting_default = "3.7",
-)
-
-config_setting(
-    name = "python_version_3.6",
-    flag_values = {
-        ":python_version": "3.6",
-    },
-)
-
-# For python version 3.7 onwards, dataclasses module is already included as part
-# of the core library.
-DATACLASSES_DEP = select({
-    ":python_version_3.6": [requirement("dataclasses")],
-    "//conditions:default": [],
-})
 
 py_library(
     name = "accounting",

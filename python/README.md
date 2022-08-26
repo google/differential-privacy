@@ -13,9 +13,9 @@ accounting are currently supported.
 More detailed definitions and references about PLDs can be found
 [in our supplementary pdf document](https://github.com/google/differential-privacy/tree/main/common_docs/Privacy_Loss_Distributions.pdf).
 
-We test this library on Linux with Python version 3.7. If you experience any
-problems, please file an issue on GitHub, also for other platforms or Python
-versions.
+Our library only support Python version >= 3.9. We test this library on Linux
+with Python version 3.9. If you experience any problems, please file an issue on
+GitHub, also for other platforms or Python versions.
 
 ## Examples
 
@@ -31,14 +31,6 @@ Once that is done, run:
 ```
 bazel build dp_accounting:all
 bazel run dp_accounting:privacy_loss_distribution_basic_example
-```
-
-If you are using python other than 3.7, you may need to add the flag
---//dp_accounting:python_version=x.x to make Bazel build works. For example,
-if your python version is 3.6, you may need to run
-```
-bazel build dp_accounting:all --//dp_accounting:python_version=3.6
-bazel run dp_accounting:privacy_loss_distribution_basic_example --//dp_accounting:python_version=3.6
 ```
 
 ### Run via setup.py
