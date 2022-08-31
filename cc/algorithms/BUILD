@@ -440,6 +440,7 @@ cc_library(
         ":distributions",
         ":rand",
         ":util",
+        "//algorithms/internal:gaussian-stddev-calculator",
         "//base:logging",
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/memory",
@@ -673,6 +674,28 @@ cc_test(
         "//base/testing:proto_matchers",
         "//base/testing:status_matchers",
         "@com_google_absl//absl/random",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "gaussian-dp-calculator",
+    srcs = ["gaussian-dp-calculator.cc"],
+    hdrs = ["gaussian-dp-calculator.h"],
+    visibility = [
+        # This target is not considered to be part of the public API (yet).
+        "//algorithms:__subpackages__",
+    ],
+    deps = [
+        "//algorithms/internal:gaussian-stddev-calculator",
+    ],
+)
+
+cc_test(
+    name = "gaussian-dp-calculator_test",
+    srcs = ["gaussian-dp-calculator_test.cc"],
+    deps = [
+        ":gaussian-dp-calculator",
         "@com_google_googletest//:gtest_main",
     ],
 )

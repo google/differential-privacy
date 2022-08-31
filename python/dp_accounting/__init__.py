@@ -20,6 +20,7 @@ from dp_accounting import rdp
 from dp_accounting.dp_event import ComposedDpEvent
 from dp_accounting.dp_event import DpEvent
 from dp_accounting.dp_event import GaussianDpEvent
+from dp_accounting.dp_event import LaplaceDpEvent
 from dp_accounting.dp_event import NonPrivateDpEvent
 from dp_accounting.dp_event import NoOpDpEvent
 from dp_accounting.dp_event import PoissonSampledDpEvent

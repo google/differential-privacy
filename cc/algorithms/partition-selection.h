@@ -574,18 +574,6 @@ class GaussianPartitionSelection : public PartitionSelectionStrategy {
         threshold_(threshold),
         mechanism_(std::move(gaussian)) {}
 
-  // CalculateDelta computes the smallest δ such that the Gaussian mechanism
-  // with fixed standard deviation σ is (ε,δ)-differentially private. The
-  // calculation is based on Theorem 8 of Balle and Wang's "Improving the
-  // Gaussian Mechanism for Differential Privacy: Analytical Calibration and
-  // Optimal Denoising" (https://arxiv.org/abs/1805.06530v2).
-  static double CalculateDelta(double sigma, double epsilon,
-                               int64_t max_partitions_contributed) {
-    const double l2_sensitivity = std::sqrt(max_partitions_contributed);
-
-    return GaussianMechanism::CalculateDelta(sigma, epsilon, l2_sensitivity);
-  }
-
  private:
   double threshold_delta_;
   double noise_delta_;

@@ -29,6 +29,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/types/optional.h"
+#include "algorithms/internal/gaussian-stddev-calculator.h"
 #include "base/status_macros.h"
 
 namespace differential_privacy {
@@ -332,60 +333,12 @@ absl::StatusOr<ConfidenceInterval> GaussianMechanism::NoiseConfidenceInterval(
 
 double GaussianMechanism::CalculateStddev(double epsilon, double delta,
                                           double l2_sensitivity) {
-  // l2_sensitivity is used as a starting guess for the upper bound, since
-  // the required noise grows linearly with sensitivity.
-  double upper_bound = l2_sensitivity;
-  double lower_bound = std::numeric_limits<double>::min();
-
-  // Increase lower_bound and upper_bound until upper_bound is actually an
-  // upper bound of sigma_tight, using exponential search.
-  while (CalculateDelta(upper_bound, epsilon, l2_sensitivity) > delta) {
-    lower_bound = upper_bound;
-    upper_bound = upper_bound * 2;
-  }
-
-  // Binary search [lower_bound, upper_bound] to find a good enough
-  // approximation of sigma_tight.
-  while (upper_bound - lower_bound > kGaussianSigmaAccuracy * lower_bound) {
-    double middle = lower_bound * 0.5 + upper_bound * 0.5;
-    if (CalculateDelta(middle, epsilon, l2_sensitivity) > delta) {
-      lower_bound = middle;
-    } else {
-      upper_bound = middle;
-    }
-  }
-
-  // Return the over-approximation to err on the safe side.
-  return upper_bound;
+  return internal::CalculateGaussianStddev(epsilon, delta, l2_sensitivity);
 }
 
 double GaussianMechanism::CalculateStddev() const {
 
   return CalculateStddev(GetEpsilon(), delta_, l2_sensitivity_);
-}
-
-double GaussianMechanism::CalculateDelta(double sigma, double epsilon,
-                                         double l2_sensitivity) {
-  // Denoting by CDF the CDF function of the standard Gaussian distribution
-  // (mean 0, variance 1), and s the L2 sensitivity, the tight choice of delta
-  // is:
-  //    CDF(s/(2*sigma) - epsilon*sigma/s) - exp(epsilon)*CDF(-s/(2*sigma) -
-  //    epsilon*sigma/s)
-  // To simplify the reasoning floating-point underflow/overflows, we rewrite
-  // this formula into:
-  //    CDF(a - b) - c * CDF(-a - b)
-  // where a = s / (2 * sigma), b = epsilon * sigma / s, and c = exp(epsilon).
-  double a = l2_sensitivity / (2 * sigma);
-  double b = epsilon * sigma / l2_sensitivity;
-  double c = std::exp(epsilon);
-
-  if (std::isinf(b)) {
-    // If either l2_sensitivity goes to 0 or e^epsilon goes to infinity,
-    // delta goes to 0.
-    return 0;
-  }
-  return StandardNormalDistributionCDF(a - b) -
-         c * StandardNormalDistributionCDF(-a - b);
 }
 
 double GaussianMechanism::AddDoubleNoise(double result) {

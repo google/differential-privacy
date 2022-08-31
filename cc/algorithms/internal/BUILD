@@ -68,3 +68,18 @@ cc_test(
         "@com_google_googletest//:gtest_main",
     ],
 )
+
+cc_library(
+    name = "gaussian-stddev-calculator",
+    srcs = ["gaussian-stddev-calculator.cc"],
+    hdrs = ["gaussian-stddev-calculator.h"],
+)
+
+cc_test(
+    name = "gaussian-stddev-calculator_test",
+    srcs = ["gaussian-stddev-calculator_test.cc"],
+    deps = [
+        ":gaussian-stddev-calculator",
+        "@com_google_googletest//:gtest_main",
+    ],
+)

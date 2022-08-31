@@ -420,15 +420,6 @@ class GaussianMechanism : public NumericalMechanism {
     return internal::GaussianDistribution::Quantile(CalculateStddev(), p);
   }
 
-  // Returns the smallest delta such that the Gaussian mechanism with standard
-  // deviation sigma obtains (epsilon, delta)-differential
-  // privacy with respect to the provided L_2 sensitivity. The calculation is
-  // based on Theorem 8 of Balle and Wang's "Improving the Gaussian Mechanism
-  // for Differential Privacy: Analytical Calibration and Optimal Denoising",
-  // available <a href="https://arxiv.org/abs/1805.06530v2">here</a>.
-  static double CalculateDelta(double sigma, double epsilon,
-                               double l2_sensitivity);
-
  protected:
   // Adds differentially private noise to a provided value.
   double AddDoubleNoise(double result) override;
@@ -439,10 +430,6 @@ class GaussianMechanism : public NumericalMechanism {
   const double delta_;
   const double l2_sensitivity_;
   std::unique_ptr<internal::GaussianDistribution> standard_gaussian_;
-
-  static double StandardNormalDistributionCDF(double x) {
-    return internal::GaussianDistribution::cdf(1, x);
-  }
 };
 
 // Mechanism builder that returns the mechanism with minimum variance for given
