@@ -8,18 +8,18 @@ def dp_java_deps():
         artifacts = [
             # artifacts for building and testing
             "org.apache.commons:commons-math3:3.6.1",
-            "com.google.auto.value:auto-value-annotations:1.7.5",
-            "com.google.auto.value:auto-value:1.7.5",
+            "com.google.auto.value:auto-value-annotations:1.9",
+            "com.google.auto.value:auto-value:1.9",
             "com.google.code.findbugs:jsr305:3.0.2",
-            "com.google.errorprone:error_prone_annotations:2.5.1",
-            "com.google.guava:guava:30.1.1-jre",
-            "com.google.protobuf:protobuf-java:3.15.6",
+            "com.google.errorprone:error_prone_annotations:2.15.0",
+            "com.google.guava:guava:31.1-jre",
+            "com.google.protobuf:protobuf-java:3.21.5",
             # artifacts for testing only
-            "org.mockito:mockito-core:3.8.0",
+            "org.mockito:mockito-core:4.7.0",
             "junit:junit:4.13.2",
-            "com.google.truth:truth:1.1.2",
+            "com.google.truth:truth:1.1.3",
             "com.google.truth.extensions:truth-java8-extension:1.1.3",
-            "com.google.testparameterinjector:test-parameter-injector:1.7",
+            "com.google.testparameterinjector:test-parameter-injector:1.8",
         ],
         repositories = [
             "https://jcenter.bintray.com/",

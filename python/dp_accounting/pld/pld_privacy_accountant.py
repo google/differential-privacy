@@ -77,6 +77,14 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
             value_discretization_interval=self._value_discretization_interval)
         self._pld = self._pld.compose(gaussian_pld)
       return True
+    elif isinstance(event, dp_event.LaplaceDpEvent):
+      if do_compose:
+        laplace_pld = PLD.from_laplace_mechanism(
+            parameter=event.noise_multiplier,
+            value_discretization_interval=self._value_discretization_interval
+        ).self_compose(count)
+        self._pld = self._pld.compose(laplace_pld)
+      return True
     elif isinstance(event, dp_event.PoissonSampledDpEvent):
       if not (self.neighboring_relation == NeighborRel.ADD_OR_REMOVE_ONE and
               isinstance(event.event, dp_event.GaussianDpEvent)):

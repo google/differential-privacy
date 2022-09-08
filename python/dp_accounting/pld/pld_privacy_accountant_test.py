@@ -91,6 +91,20 @@ class PldPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
     self.assertAlmostEqual(
         accountant.get_epsilon(expected_delta), exact_epsilon, delta=1e-3)
 
+  def test_laplace_basic(self):
+    first_laplace_event = dp_event.LaplaceDpEvent(noise_multiplier=1)
+    second_laplace_event = dp_event.LaplaceDpEvent(noise_multiplier=2)
+    accountant = pld_privacy_accountant.PLDAccountant()
+    accountant.compose(first_laplace_event, 3)
+    accountant.compose(second_laplace_event, 2)
+
+    expected_epsilon = 4
+    expected_delta = 0
+    self.assertAlmostEqual(
+        accountant.get_delta(expected_epsilon), expected_delta, delta=1e-6)
+    self.assertAlmostEqual(
+        accountant.get_epsilon(expected_delta), expected_epsilon, delta=1e-6)
+
 
 if __name__ == '__main__':
   absltest.main()
