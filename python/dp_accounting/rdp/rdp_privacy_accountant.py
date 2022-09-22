@@ -615,11 +615,11 @@ def _logx_over_xm1(x: float) -> float:
     log(x)/(x-1)
   """
   if x < 0.9 or x > 1.1:
-    return math.log(x) / (x-1)
+    return math.log(x) / (x - 1)
   # Denote y = 1-x. Then we have a Taylor series for the natural logarithm:
   # log(x) = log(1-y) = - sum_{k>=1} y^k / k
   # Thus log(x)/(x-1) = -log(1-y)/y = sum_{k>=1} y^{k-1}/k
-  return math.fsum((1-x)**(k - 1) / k for k in range(1, 100))
+  return math.fsum((1 - x)**(k - 1) / k for k in range(1, 100))
   # Dropped terms: sum_{k>=100} y^{k-1}/k.
   # Since |y|<=0.1, this sum is < 10^-100.
   # Since 0.9 <= log(x)/(x-1) <= 1.1, this is also a small relative error.
@@ -631,10 +631,9 @@ def _truncated_negative_binomial_mean(gamma: float, shape: float) -> float:
   See Definition 1 in https://arxiv.org/pdf/2110.03620v2.pdf#page=5
 
   Args:
-    gamma: Halting probability parameter of the distribution.
-      Must be >0 and <=1.
-    shape: Shape parameter of the Distribution.
-      Must be >=0.
+    gamma: Halting probability parameter of the distribution. Must be >0 and
+      <=1.
+    shape: Shape parameter of the Distribution. Must be >=0.
 
   Returns:
     The mean of the distribution.
@@ -654,7 +653,7 @@ def _truncated_negative_binomial_mean(gamma: float, shape: float) -> float:
     # answer = shape * (1 / gamma - 1) / (1 - gamma**shape)
     #        = 1 / ( (exp(shape*log(gamma))-1)/(shape*log(gamma)) *
     #                                              log(gamma)/(gamma-1) * gamma)
-    a = _expm1_over_x(shape*math.log(gamma))
+    a = _expm1_over_x(shape * math.log(gamma))
     b = _logx_over_xm1(gamma)
     return 1 / (gamma * a * b)
 
@@ -665,11 +664,11 @@ def _gamma_truncated_negative_binomial(shape: float,
   """Computes gamma parameter of truncated negative binomial from mean.
 
   Args:
-    shape: shape parameter of truncated negative binomial distribution.
-      Must be >= 0.
+    shape: shape parameter of truncated negative binomial distribution. Must be
+      >= 0.
     mean: the expectation of the Distribution
-    tolerance: relative (i.e. multiplicative) accuracy bound for gamma.
-      Default tolerance is 10^-9.
+    tolerance: relative (i.e. multiplicative) accuracy bound for gamma. Default
+      tolerance is 10^-9.
 
   Returns:
     The gamma parameter = success probability of the distribution.
@@ -679,13 +678,14 @@ def _gamma_truncated_negative_binomial(shape: float,
   if mean < 1:
     raise ValueError(f'mean must be at least 1. Got {mean}')
 
-  if shape == 1: return 1 / mean  # Geometric distribution
+  if shape == 1:
+    return 1 / mean  # Geometric distribution
   # Otherwise we invert the _truncated_negative_binomial_mean function.
   gamma_min = 0  # gamma=0 corresponds to mean=infinity.
-  gamma_max = min(1, 2*(shape+1)/mean)  # gamma=1 corresponds to mean=1.
+  gamma_max = min(1, 2 * (shape + 1) / mean)  # gamma=1 corresponds to mean=1.
   # Also max{shape,1/ln(1/gamma)}*(1/gamma-1) <= mean <= 2*(shape+1)/gamma,
   # which implies gamma <= 2*(shape+1)/mean
-  while gamma_max > gamma_min * (1+tolerance):
+  while gamma_max > gamma_min * (1 + tolerance):
     gamma = (gamma_min + gamma_max) / 2
     gamma_mean = _truncated_negative_binomial_mean(gamma, shape)
     if gamma_mean < mean:
@@ -698,6 +698,7 @@ def _gamma_truncated_negative_binomial(shape: float,
 def _compute_rdp_repeat_and_select(orders: Sequence[float],
                                    rdp: Sequence[float], mean: float,
                                    shape: float) -> Sequence[float]:
+  # pyformat: disable
   """Computes RDP of repeating and selecting best run.
 
   Inputs orders & rdp represent RDP of a single run.
@@ -715,14 +716,15 @@ def _compute_rdp_repeat_and_select(orders: Sequence[float],
     rdp: List of RDPs for a single run of the mechanism.
     mean: The mean of the distribution of the random number of repetitions.
     shape: Shape/type of the distribution. Should be >= 0.
-      shape = 0 is logarithmic distribution.
-      shape = 1 is geometric distribution.
-      shape = infinity is Poisson Distribution
-      shape in (0,infinity) is the truncated negative binomial.
+       * shape == 0 is the logarithmic distribution.
+       * shape == 1 is the geometric distribution.
+       * shape == infinity is the Poisson Distribution
+       * shape in (0, infinity) is the truncated negative binomial.
 
   Returns:
     The RDPs at all orders.
   """
+  # pyformat: enable
   if math.isnan(shape) or shape < 0:
     raise ValueError(f'Distribution of repetitions must be >=0. Got {shape}.')
   if math.isnan(mean) or mean < 1:
@@ -739,10 +741,11 @@ def _compute_rdp_repeat_and_select(orders: Sequence[float],
     for i in range(len(orders)):
       # orders[i]=lambda and rdp[i]=epsilon in the language of
       # Theorem 6 of https://arxiv.org/pdf/2110.03620v2.pdf#page=7
-      if orders[i] <= 1: continue  # Our formula is not applicable in this case.
-      epshat = math.log1p(1/(orders[i]-1))
+      if orders[i] <= 1:
+        continue  # Our formula is not applicable in this case.
+      epshat = math.log1p(1 / (orders[i] - 1))
       deltahat, _ = compute_delta(orders, rdp, epshat)
-      rdp_out[i] = rdp[i] + mean * deltahat + math.log(mean)/(orders[i]-1)
+      rdp_out[i] = rdp[i] + mean * deltahat + math.log(mean) / (orders[i] - 1)
   else:  # Truncated Negative Binomial (includes Logarithmic & Geometric)
     # First we map mean parameter to gamma parameter of TNB.
     gamma = _gamma_truncated_negative_binomial(shape, mean)
@@ -766,6 +769,12 @@ def _compute_rdp_repeat_and_select(orders: Sequence[float],
   return rdp_out
 
 
+# Default orders chosen to give good coverage for Gaussian mechanism in
+# the privacy regime of interest.
+DEFAULT_RDP_ORDERS = ([1 + x / 10. for x in range(1, 100)] +
+                      list(range(11, 64)) + [128, 256, 512, 1024])
+
+
 class RdpAccountant(privacy_accountant.PrivacyAccountant):
   """Privacy accountant that uses Renyi differential privacy."""
 
@@ -776,13 +785,7 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
   ):
     super().__init__(neighboring_relation)
     if orders is None:
-      # Default orders chosen to give good coverage for Gaussian mechanism in
-      # the privacy regime of interest. In the future, more orders might be
-      # added, in particular, fractional orders between 1.0 and 10.0 or so.
-      orders = [
-          2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16, 20, 24, 28, 32, 48, 64, 128,
-          256, 512, 1024
-      ]
+      orders = DEFAULT_RDP_ORDERS
     self._orders = np.array(orders)
     self._rdp = np.zeros_like(orders, dtype=np.float64)
 

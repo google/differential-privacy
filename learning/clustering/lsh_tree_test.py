@@ -70,14 +70,14 @@ class TestLshTreeNode(lsh_tree.LshTreeNode):
         TestLshTreeNode(
             self.hash_prefix + '0',
             self.nonprivate_points[:cutoff],
-            self.clustering_param,
+            self.coreset_param,
             self.sim_hash,
             private_count=cutoff + 1,
             frac_zero=self.frac_zero),
         TestLshTreeNode(
             self.hash_prefix + '1',
             self.nonprivate_points[cutoff:],
-            self.clustering_param,
+            self.coreset_param,
             self.sim_hash,
             private_count=len(self.nonprivate_points) - cutoff + 1,
             frac_zero=self.frac_zero)
@@ -98,13 +98,13 @@ class LshTreeTest(absltest.TestCase):
     nonprivate_count = 30
     nonprivate_points = get_test_origin_points(
         nonprivate_count=nonprivate_count)
-    clustering_param = test_utils.get_test_clustering_param(
+    coreset_param = test_utils.get_test_coreset_param(
         epsilon=5, frac_sum=0.2, frac_group_count=0.8, max_depth=9)
     sim_hash = get_test_sim_hash()
     lsh_tree_node = lsh_tree.LshTreeNode(
         hash_prefix='',
         nonprivate_points=nonprivate_points,
-        clustering_param=clustering_param,
+        coreset_param=coreset_param,
         sim_hash=sim_hash)
     self.assertEqual(lsh_tree_node.get_private_count(), 25)
     mock_dlaplace_fn.assert_called_once_with(0.4)
@@ -113,12 +113,12 @@ class LshTreeTest(absltest.TestCase):
     nonprivate_count = 30
     nonprivate_points = get_test_origin_points(
         nonprivate_count=nonprivate_count)
-    clustering_param = test_utils.get_test_clustering_param(epsilon=0.01)
+    coreset_param = test_utils.get_test_coreset_param(epsilon=0.01)
     sim_hash = get_test_sim_hash()
     lsh_tree_node = lsh_tree.LshTreeNode(
         hash_prefix='',
         nonprivate_points=nonprivate_points,
-        clustering_param=clustering_param,
+        coreset_param=coreset_param,
         sim_hash=sim_hash)
 
     first_private_count = lsh_tree_node.get_private_count()
@@ -131,17 +131,16 @@ class LshTreeTest(absltest.TestCase):
                            [-0.5, 0.1, -0.3, -0.4, 0.2]])
     # Returns children regardless of whether the node should branch. The
     # filtering in the algorithm is done after.
-    clustering_param = test_utils.get_test_clustering_param(
-        max_depth=max_hash_len)
+    coreset_param = test_utils.get_test_coreset_param(max_depth=max_hash_len)
     projection_vectors = np.array([[0, 1, 1, -1, 0], [1, 0, -1, 0, 0]])
     sh = lsh.SimHash(dim, max_hash_len, projection_vectors)
-    node = lsh_tree.LshTreeNode(hash_prefix, datapoints, clustering_param, sh)
+    node = lsh_tree.LshTreeNode(hash_prefix, datapoints, coreset_param, sh)
     children = node.children()
 
     self.assertSameElements([child.hash_prefix for child in children],
                             ['00', '01'])
     for child in children:
-      self.assertEqual(child.clustering_param, clustering_param)
+      self.assertEqual(child.coreset_param, coreset_param)
       self.assertEqual(child.sim_hash, sh)
       if child.hash_prefix == '00':
         self.assertTrue((child.nonprivate_points == datapoints[[0, 1]]).all())
@@ -154,17 +153,16 @@ class LshTreeTest(absltest.TestCase):
     datapoints = np.array([[1.5, 0, 1, 0.5, 0], [1, 1, 0, 0.7, 0.1]])
     # Returns children regardless of whether the node should branch. The
     # filtering in the algorithm is done after.
-    clustering_param = test_utils.get_test_clustering_param(
-        max_depth=max_hash_len)
+    coreset_param = test_utils.get_test_coreset_param(max_depth=max_hash_len)
     projection_vectors = np.array([[0, 1, 1, -1, 0], [1, 0, -1, 0, 0]])
     sh = lsh.SimHash(dim, max_hash_len, projection_vectors)
-    node = lsh_tree.LshTreeNode(hash_prefix, datapoints, clustering_param, sh)
+    node = lsh_tree.LshTreeNode(hash_prefix, datapoints, coreset_param, sh)
     children = node.children()
 
     self.assertSameElements([child.hash_prefix for child in children],
                             ['00', '01'])
     for child in children:
-      self.assertEqual(child.clustering_param, clustering_param)
+      self.assertEqual(child.coreset_param, coreset_param)
       self.assertEqual(child.sim_hash, sh)
       if child.hash_prefix == '00':
         self.assertTrue((child.nonprivate_points == datapoints[[0, 1]]).all())
@@ -176,11 +174,10 @@ class LshTreeTest(absltest.TestCase):
     datapoints = np.array([[1.5, 0, 1, 0.5, 0], [1, 1, 0, 0.7, 0.1]])
     # Returns children regardless of whether the node should branch. The
     # filtering in the algorithm is done after.
-    clustering_param = test_utils.get_test_clustering_param(
-        max_depth=max_hash_len)
+    coreset_param = test_utils.get_test_coreset_param(max_depth=max_hash_len)
     projection_vectors = np.array([[0, 1, 1, -1, 0], [1, 0, -1, 0, 0]])
     sh = lsh.SimHash(dim, max_hash_len, projection_vectors)
-    node = lsh_tree.LshTreeNode(hash_prefix, datapoints, clustering_param, sh)
+    node = lsh_tree.LshTreeNode(hash_prefix, datapoints, coreset_param, sh)
 
     with self.assertRaises(ValueError):
       node.children()
@@ -192,7 +189,7 @@ class LshTreeTest(absltest.TestCase):
         lsh_tree.LshTreeNode(
             '0',
             get_test_origin_points(nonprivate_count=15),
-            test_utils.get_test_clustering_param(
+            test_utils.get_test_coreset_param(
                 min_num_points_in_branching_node=10),
             sim_hash,
             private_count=1),
@@ -205,7 +202,7 @@ class LshTreeTest(absltest.TestCase):
         lsh_tree.LshTreeNode(
             '0',
             get_test_origin_points(nonprivate_count=15),
-            test_utils.get_test_clustering_param(
+            test_utils.get_test_coreset_param(
                 min_num_points_in_branching_node=10),
             sim_hash,
             private_count=20),
@@ -218,13 +215,13 @@ class LshTreeTest(absltest.TestCase):
 
   def test_get_next_level(self):
     sim_hash = get_test_sim_hash()
-    clustering_param = test_utils.get_test_clustering_param(
+    coreset_param = test_utils.get_test_coreset_param(
         min_num_points_in_branching_node=10, min_num_points_in_node=5)
     level: lsh_tree.LshTreeLevel = [
         TestLshTreeNode(
             '0',
             get_test_origin_points(nonprivate_count=16),
-            clustering_param,
+            coreset_param,
             sim_hash,
             private_count=20),
     ]
@@ -232,13 +229,13 @@ class LshTreeTest(absltest.TestCase):
         TestLshTreeNode(
             '00',
             get_test_origin_points(nonprivate_count=8),
-            clustering_param,
+            coreset_param,
             sim_hash,
             private_count=9),
         TestLshTreeNode(
             '01',
             get_test_origin_points(nonprivate_count=8),
-            clustering_param,
+            coreset_param,
             sim_hash,
             private_count=9),
     ]
@@ -248,7 +245,7 @@ class LshTreeTest(absltest.TestCase):
 
   def test_get_next_level_filters_children_node(self):
     sim_hash = get_test_sim_hash()
-    clustering_param = test_utils.get_test_clustering_param(
+    coreset_param = test_utils.get_test_coreset_param(
         min_num_points_in_branching_node=10, min_num_points_in_node=9)
     level: lsh_tree.LshTreeLevel = [
         # The children test nodes have a private count of 6, which is less than
@@ -256,7 +253,7 @@ class LshTreeTest(absltest.TestCase):
         TestLshTreeNode(
             '0',
             get_test_origin_points(nonprivate_count=10),
-            clustering_param,
+            coreset_param,
             sim_hash,
             private_count=11),
         # The children test nodes have a private count of 3 and 9, only the node
@@ -264,7 +261,7 @@ class LshTreeTest(absltest.TestCase):
         TestLshTreeNode(
             '1',
             get_test_origin_points(nonprivate_count=10),
-            clustering_param,
+            coreset_param,
             sim_hash,
             private_count=11,
             frac_zero=0.2),
@@ -273,7 +270,7 @@ class LshTreeTest(absltest.TestCase):
         TestLshTreeNode(
             '11',
             get_test_origin_points(nonprivate_count=8),
-            clustering_param,
+            coreset_param,
             sim_hash,
             private_count=9),
     ]
@@ -284,12 +281,11 @@ class LshTreeTest(absltest.TestCase):
   def test_root_node(self):
     nonprivate_points = [[1, 2, 1], [0.4, 0.2, 0.8], [3, 0, 3]]
     data = clustering_params.Data(nonprivate_points, radius=4.3)
-    clustering_param = test_utils.get_test_clustering_param(
-        radius=4.3, max_depth=20)
-    root = lsh_tree.root_node(data, clustering_param)
+    coreset_param = test_utils.get_test_coreset_param(radius=4.3, max_depth=20)
+    root = lsh_tree.root_node(data, coreset_param)
     self.assertEqual(root.hash_prefix, '')
     self.assertSequenceEqual(root.nonprivate_points, nonprivate_points)
-    self.assertEqual(root.clustering_param, clustering_param)
+    self.assertEqual(root.coreset_param, coreset_param)
     self.assertEqual(root.sim_hash.dim, 3)
     self.assertEqual(root.sim_hash.max_hash_len, 20)
     self.assertIsNotNone(root.private_count)
@@ -297,12 +293,11 @@ class LshTreeTest(absltest.TestCase):
   def test_root_node_provide_private_count(self):
     nonprivate_points = [[1, 2, 1], [0.4, 0.2, 0.8], [3, 0, 3]]
     data = clustering_params.Data(nonprivate_points, radius=4.3)
-    clustering_param = test_utils.get_test_clustering_param(
-        radius=4.3, max_depth=20)
-    root = lsh_tree.root_node(data, clustering_param, private_count=10)
+    coreset_param = test_utils.get_test_coreset_param(radius=4.3, max_depth=20)
+    root = lsh_tree.root_node(data, coreset_param, private_count=10)
     self.assertEqual(root.hash_prefix, '')
     self.assertSequenceEqual(root.nonprivate_points, nonprivate_points)
-    self.assertEqual(root.clustering_param, clustering_param)
+    self.assertEqual(root.coreset_param, coreset_param)
     self.assertEqual(root.sim_hash.dim, 3)
     self.assertEqual(root.sim_hash.max_hash_len, 20)
     self.assertEqual(root.private_count, 10)
@@ -311,7 +306,7 @@ class LshTreeTest(absltest.TestCase):
     test_root = lsh_tree.LshTreeNode(
         '0',
         get_test_origin_points(nonprivate_count=15),
-        test_utils.get_test_clustering_param(),
+        test_utils.get_test_coreset_param(),
         get_test_sim_hash(),
         private_count=0)
     with self.assertRaises(ValueError):
@@ -321,7 +316,7 @@ class LshTreeTest(absltest.TestCase):
     test_root = lsh_tree.LshTreeNode(
         '0',
         get_test_origin_points(nonprivate_count=15),
-        test_utils.get_test_clustering_param(),
+        test_utils.get_test_coreset_param(),
         get_test_sim_hash(),
         private_count=-10)
     with self.assertRaises(ValueError):
@@ -341,7 +336,7 @@ class LshTreeTest(absltest.TestCase):
     #                (6+1)  43+1
     nonprivate_count = 64
     sh = get_test_sim_hash()
-    cp = test_utils.get_test_clustering_param(
+    cp = test_utils.get_test_coreset_param(
         min_num_points_in_node=8,
         min_num_points_in_branching_node=9,
         max_depth=3)
@@ -375,7 +370,7 @@ class LshTreeTest(absltest.TestCase):
     # (16+1) (16+1)  (16+1) (16+1)
     nonprivate_count = 64
     sh = get_test_sim_hash()
-    cp = test_utils.get_test_clustering_param(
+    cp = test_utils.get_test_coreset_param(
         min_num_points_in_node=20,
         min_num_points_in_branching_node=30,
         max_depth=5)
@@ -405,7 +400,7 @@ class LshTreeTest(absltest.TestCase):
     #                (6+1)  43+1
     nonprivate_count = 64
     sh = get_test_sim_hash()
-    cp = test_utils.get_test_clustering_param(
+    cp = test_utils.get_test_coreset_param(
         min_num_points_in_node=8,
         min_num_points_in_branching_node=9,
         max_depth=3)
@@ -431,7 +426,7 @@ class LshTreeTest(absltest.TestCase):
     # (16+1) (16+1)  (16+1) (16+1)
     nonprivate_count = 64
     sh = get_test_sim_hash()
-    cp = test_utils.get_test_clustering_param(
+    cp = test_utils.get_test_coreset_param(
         min_num_points_in_node=20,
         min_num_points_in_branching_node=30,
         max_depth=5)

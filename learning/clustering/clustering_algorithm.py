@@ -21,8 +21,10 @@ import numpy as np
 import sklearn.cluster
 
 from clustering import clustering_params
+from clustering import coreset_params
 from clustering import default_clustering_params
 from clustering import lsh_tree
+from clustering import privacy_calculator
 from clustering import private_outputs
 
 
@@ -118,6 +120,7 @@ class ClusteringResult():
   loss: typing.Optional[float] = None
 
   def __post_init__(self):
+
     def closest_center(datapoint: np.ndarray):
       """Returns closest center to data point and the squared distance from it.
 
@@ -170,8 +173,10 @@ class ClusteringResult():
     bin_start = -0.5
     cluster_label_bins = np.arange(bin_start, np.max(self.labels) + 1, 1)
     true_label_bins = np.arange(bin_start, np.max(self.data.labels) + 1, 1)
-    hist, _, _ = np.histogram2d(self.labels, self.data.labels,
-                                bins=(cluster_label_bins, true_label_bins))
+    hist, _, _ = np.histogram2d(
+        self.labels,
+        self.data.labels,
+        bins=(cluster_label_bins, true_label_bins))
     return hist.astype(int)
 
   def get_clustering_metrics(self) -> ClusteringMetrics:
@@ -190,7 +195,7 @@ def private_lsh_clustering(
     privacy_budget_split: typing.Optional[
         clustering_params.PrivacyBudgetSplit] = None,
     tree_param: typing.Optional[clustering_params.TreeParam] = None,
-    short_description: str = "ClusteringParam") -> ClusteringResult:
+    short_description: str = "CoresetParam") -> ClusteringResult:
   """Clusters data into k clusters.
 
   Args:
@@ -209,27 +214,35 @@ def private_lsh_clustering(
     ClusteringResult with differentially private centers. The rest of
     ClusteringResult is nonprivate, and only provided for convenience.
   """
+  # Note that max_depth is used for the private count calculation so it cannot
+  # depend on the count.
+  # Chosen experimentally over multiple datasets.
+  if tree_param is None:
+    max_depth = 20
+  else:
+    max_depth = tree_param.max_depth
+
   # Initialize the parameters.
   if privacy_budget_split is None:
     privacy_budget_split = clustering_params.PrivacyBudgetSplit()
+  pcalc = privacy_calculator.PrivacyCalculator.from_budget_split(
+      privacy_param, privacy_budget_split, data.radius, max_depth)
+
   private_count = None
   if tree_param is None:
     # Saves the private count to re-use for the root node of the tree.
     tree_param, private_count = default_clustering_params.default_tree_param(
-        k, data, privacy_param, privacy_budget_split)
-  clustering_param = clustering_params.ClusteringParam(privacy_param,
-                                                       privacy_budget_split,
-                                                       tree_param,
-                                                       short_description,
-                                                       data.radius)
-  logging.debug("clustering_param: %s", clustering_param)
+        k, data, pcalc, max_depth)
+  coreset_param = coreset_params.CoresetParam(pcalc, tree_param,
+                                              short_description, data.radius)
+  logging.debug("coreset_param: %s", coreset_param)
 
   # To guarantee privacy, enforce the radius provided.
   clipped_data = clustering_params.Data(data.clip_by_radius(), data.radius,
                                         data.labels)
 
   coreset: private_outputs.PrivateWeightedData = get_private_coreset(
-      clipped_data, clustering_param, private_count)
+      clipped_data, coreset_param, private_count)
 
   k = min(k, len(coreset.datapoints))
   logging.debug(
@@ -246,19 +259,19 @@ def private_lsh_clustering(
 
 def get_private_coreset(
     data: clustering_params.Data,
-    clustering_param: clustering_params.ClusteringParam,
+    coreset_param: coreset_params.CoresetParam,
     private_count: typing.Optional[int],
 ) -> private_outputs.PrivateWeightedData:
   """Returns private coreset, when clustered it approximates data clustering.
 
   Args:
     data: Data to approximate with the coreset.
-    clustering_param: Parameters for generating the coreset.
+    coreset_param: Parameters for generating the coreset.
     private_count: Optional private count. If None, the private count will be
       computed.
   """
   logging.debug("Starting process to get private coreset.")
-  root = lsh_tree.root_node(data, clustering_param, private_count)
+  root = lsh_tree.root_node(data, coreset_param, private_count)
 
   # Root node must have private count >= 1.
   root.private_count = max(1, root.private_count)

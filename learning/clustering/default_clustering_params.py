@@ -13,60 +13,43 @@
 # limitations under the License.
 """Default values for the clustering algorithm parameters."""
 
-import typing
+from typing import Tuple
 import numpy as np
 
 from clustering import central_privacy_utils
 from clustering import clustering_params
-from dp_accounting.pld import accountant
-from dp_accounting.pld import common
+from clustering import privacy_calculator
 
 PrivateCount = int
 
 
 def default_tree_param(
     k: int, data: clustering_params.Data,
-    privacy_param: clustering_params.DifferentialPrivacyParam,
-    privacy_budget_split: clustering_params.PrivacyBudgetSplit
-) -> typing.Tuple[clustering_params.TreeParam, PrivateCount]:
+    pcalc: privacy_calculator.PrivacyCalculator,
+    max_depth: int) -> Tuple[clustering_params.TreeParam, PrivateCount]:
   """Heuristic tree param based on the data and number of clusters.
 
   Args:
     k: Number of clusters to divide the data into.
     data: Data to find centers for.
-    privacy_param: privacy parameters for the algorithm.
-    privacy_budget_split: budget split between different computations.
+    pcalc: Privacy parameters.
+    max_depth: Max depth of the tree.
 
   Returns:
     (default TreeParam, private count). The private count is provided so that
     it doesn't need to be re-computed.
   """
-  # Note that max_depth is used for the private count calculation so it cannot
-  # depend on the count.
-  # Chosen experimentally over multiple datasets.
-  max_depth = 20
-
-  # Calculate the standard deviation for the sum noise using a sensitivity of 1.
-  if privacy_param.epsilon == np.inf:
-    sum_sigma = 0
-  else:
-    sum_sigma = accountant.get_smallest_gaussian_noise(
-        common.DifferentialPrivacyParameters(
-            privacy_param.epsilon * privacy_budget_split.frac_sum,
-            privacy_param.delta),
-        num_queries=1,
-        sensitivity=1.0)
-
   private_count = central_privacy_utils.get_private_count(
-      data.num_points,
-      central_privacy_utils.CountPrivacyParam.compute_group_count_privacy_param(
-          privacy_param, privacy_budget_split, max_depth))
+      data.num_points, pcalc.count_privacy_param)
 
   # We can consider the noise as distributed amongst the points that are being
-  # summed. The noise has l2-norm roughly sqrt(dimension) * sum_sigma * radius,
-  # so if we distribute among 10 * sqrt(dimension) * sum_sigma, each point
-  # has noise roughly 0.1 * radius.
-  num_points_in_node_for_low_noise = int(10 * np.sqrt(data.dim) * sum_sigma)
+  # summed. The noise has l2-norm roughly sqrt(dimension) * sum_sigma,
+  # so if we distribute among 10 * sqrt(dimension) * sum_sigma / radius, each
+  # point has noise roughly 0.1 * radius.
+  num_points_in_node_for_low_noise = int(
+      10 * np.sqrt(data.dim) *
+      pcalc.average_privacy_param.gaussian_standard_deviation /
+      pcalc.average_privacy_param.sensitivity)
 
   # We want to at least have the ability to consider a node per cluster, even
   # if the noise might be higher than we'd like.

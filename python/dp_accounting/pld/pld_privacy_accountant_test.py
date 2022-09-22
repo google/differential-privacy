@@ -105,6 +105,20 @@ class PldPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
     self.assertAlmostEqual(
         accountant.get_epsilon(expected_delta), expected_epsilon, delta=1e-6)
 
+  def test_poisson_subsampled_laplace(self):
+    subsampled_laplace_event = dp_event.PoissonSampledDpEvent(
+        0.2, dp_event.LaplaceDpEvent(noise_multiplier=0.5))
+    accountant = pld_privacy_accountant.PLDAccountant()
+    accountant.compose(subsampled_laplace_event, 1)
+    accountant.compose(subsampled_laplace_event, 2)
+
+    exact_epsilon = 2.46964
+    expected_delta = 0
+    self.assertAlmostEqual(
+        accountant.get_delta(exact_epsilon), expected_delta, delta=1e-6)
+    self.assertAlmostEqual(
+        accountant.get_epsilon(expected_delta), exact_epsilon, delta=1e-3)
+
 
 if __name__ == '__main__':
   absltest.main()

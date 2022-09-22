@@ -85,24 +85,6 @@ class TreeParam():
           "to be included in the tree.")
 
 
-@dataclasses.dataclass
-class ClusteringParam():
-  """Parameters that determine the clustering algorithm.
-
-  Attributes:
-    privacy_param: privacy parameters for the algorithm
-    privacy_budget_split: budget split between different computations
-    tree_param: parameters for constructing LSH tree
-    short_description: text description for clustering parameters.
-    radius: Bound on the distance of each point from the origin in datapoints.
-  """
-  privacy_param: DifferentialPrivacyParam
-  privacy_budget_split: PrivacyBudgetSplit
-  tree_param: TreeParam
-  short_description: typing.Optional[str]
-  radius: float
-
-
 # Numpy array where the rows are points.
 Points = np.ndarray
 

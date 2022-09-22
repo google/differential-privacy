@@ -66,26 +66,6 @@ class ClusteringParamTest(absltest.TestCase):
           min_num_points_in_node=20,
           max_depth=5)
 
-  def test_clustering_param(self):
-    privacy_param = clustering_params.DifferentialPrivacyParam()
-    privacy_budget_split = clustering_params.PrivacyBudgetSplit()
-    tree_param = clustering_params.TreeParam(
-        min_num_points_in_branching_node=4,
-        min_num_points_in_node=2,
-        max_depth=5)
-    clustering_param = clustering_params.ClusteringParam(
-        privacy_param=privacy_param,
-        privacy_budget_split=privacy_budget_split,
-        tree_param=tree_param,
-        short_description="TestClusteringParam",
-        radius=20)
-    self.assertEqual(clustering_param.privacy_param, privacy_param)
-    self.assertEqual(clustering_param.privacy_budget_split,
-                     privacy_budget_split)
-    self.assertEqual(clustering_param.tree_param, tree_param)
-    self.assertEqual(clustering_param.short_description, "TestClusteringParam")
-    self.assertEqual(clustering_param.radius, 20)
-
   def test_data(self):
     (points, dim) = (10, 3)
     data = clustering_params.Data(np.ones(shape=(points, dim)), radius=1.0)
@@ -96,7 +76,7 @@ class ClusteringParamTest(absltest.TestCase):
   def test_data_label_unequal_length(self):
     points, dim = 10, 3
     datapoints = np.zeros(shape=(points, dim))
-    labels = np.ones(points-1, dtype=int)
+    labels = np.ones(points - 1, dtype=int)
     with self.assertRaises(ValueError):
       clustering_params.Data(datapoints, radius=1.0, labels=labels)
 

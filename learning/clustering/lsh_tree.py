@@ -21,6 +21,7 @@ import numpy as np
 
 from clustering import central_privacy_utils
 from clustering import clustering_params
+from clustering import coreset_params
 from clustering import lsh
 
 HashPrefix = str
@@ -33,7 +34,7 @@ class LshTreeNode():
   Attributes:
     hash_prefix: Hash prefix represented by this node.
     nonprivate_points: Points that hash to hash_prefix.
-    clustering_param: Clustering params used for constructing this node.
+    coreset_param: Clustering params used for constructing this node.
     sim_hash: LSH used for generating the hashes.
     private_count: Private count of the points in nonprivate_points.
     private_average: Private average of the points in nonprivate_points if
@@ -41,7 +42,7 @@ class LshTreeNode():
   """
   hash_prefix: HashPrefix
   nonprivate_points: np.ndarray
-  clustering_param: clustering_params.ClusteringParam
+  coreset_param: coreset_params.CoresetParam
   sim_hash: lsh.SimHash
   private_count: typing.Optional[int] = None
   private_average: typing.Optional[np.ndarray] = dataclasses.field(
@@ -60,14 +61,9 @@ class LshTreeNode():
     if self.private_average is not None:
       return self.private_average
 
-    privacy_param = self.clustering_param.privacy_param
-    if privacy_param.privacy_model != clustering_params.PrivacyModel.CENTRAL:
-      raise NotImplementedError(
-          f"Currently unsupported privacy model: {privacy_param.privacy_model}")
     self.private_average = central_privacy_utils.get_private_average(
         self.nonprivate_points, self.private_count,
-        central_privacy_utils.AveragePrivacyParam.from_clustering_param(
-            self.clustering_param), self.sim_hash.dim)
+        self.coreset_param.pcalc.average_privacy_param, self.sim_hash.dim)
     return self.private_average
 
   def get_private_count(self) -> int:
@@ -75,14 +71,9 @@ class LshTreeNode():
     if self.private_count is not None:
       return self.private_count
 
-    privacy_param = self.clustering_param.privacy_param
-    if privacy_param.privacy_model != clustering_params.PrivacyModel.CENTRAL:
-      raise NotImplementedError(
-          f"Currently unsupported privacy model: {privacy_param.privacy_model}")
     self.private_count = central_privacy_utils.get_private_count(
         len(self.nonprivate_points),
-        central_privacy_utils.CountPrivacyParam.from_clustering_param(
-            self.clustering_param))
+        self.coreset_param.pcalc.count_privacy_param)
     return self.private_count
 
   def children(self) -> typing.List["LshTreeNode"]:
@@ -90,13 +81,13 @@ class LshTreeNode():
 
     There is a child for every hash_prefix equal to self.hash_prefix with one
     more hash character. Note that children are returned regardless of
-    self.clustering_param.tree_param.
+    self.coreset_param.tree_param.
     """
     next_hash_char_to_points = self.sim_hash.group_by_next_hash(
         self.nonprivate_points, hash_prefix=self.hash_prefix)
     return [
         LshTreeNode(self.hash_prefix + next_hash_char,
-                    nonprivate_points_with_hash_char, self.clustering_param,
+                    nonprivate_points_with_hash_char, self.coreset_param,
                     self.sim_hash) for next_hash_char,
         nonprivate_points_with_hash_char in next_hash_char_to_points.items()
     ]
@@ -117,23 +108,19 @@ NodesToBranch = LshTreeLevel
 
 
 def root_node(data: clustering_params.Data,
-              clustering_param: clustering_params.ClusteringParam,
+              coreset_param: coreset_params.CoresetParam,
               private_count: typing.Optional[int] = None):
   """Returns root node for an LSH prefix tree.
 
   Args:
     data: Data to use for generating the tree.
-    clustering_param: Clustering parameters to use for generating the tree.
+    coreset_param: Clustering parameters to use for generating the tree.
     private_count: Private count for the number of datapoints. If None, the
       private count will be computed.
   """
-  sim_hash = lsh.SimHash(data.dim, clustering_param.tree_param.max_depth)
+  sim_hash = lsh.SimHash(data.dim, coreset_param.tree_param.max_depth)
   return LshTreeNode(
-      "",
-      data.datapoints,
-      clustering_param,
-      sim_hash,
-      private_count=private_count)
+      "", data.datapoints, coreset_param, sim_hash, private_count=private_count)
 
 
 class LshTree():
@@ -154,14 +141,14 @@ class LshTree():
     """
     if root.private_count < 1:
       raise ValueError("Private count of the root must be at least 1.")
-    clustering_param = root.clustering_param
+    coreset_param = root.coreset_param
     logging.debug("Starting tree construction with max_levels %s",
-                  clustering_param.tree_param.max_depth)
+                  coreset_param.tree_param.max_depth)
     level_idx: LevelIndex = 0
     self.tree: typing.Dict[LevelIndex, LshTreeLevel] = dict()
     self.tree[level_idx] = [root]
 
-    while level_idx < clustering_param.tree_param.max_depth:
+    while level_idx < coreset_param.tree_param.max_depth:
       # Branch all the nodes that should be branched
       branching_nodes: NodesToBranch = LshTree.filter_branching_nodes(
           self.tree[level_idx])
@@ -208,7 +195,7 @@ class LshTree():
     """
 
     def enough_points_to_branch(node: LshTreeNode):
-      tree_param = node.clustering_param.tree_param
+      tree_param = node.coreset_param.tree_param
       return node.private_count >= tree_param.min_num_points_in_branching_node
 
     return list(filter(enough_points_to_branch, tree_level))
@@ -225,7 +212,7 @@ class LshTree():
       flatten_children.extend(node.children())
 
     def enough_points(node: LshTreeNode):
-      tree_param = node.clustering_param.tree_param
+      tree_param = node.coreset_param.tree_param
       return node.private_count >= tree_param.min_num_points_in_node
 
     return list(filter(enough_points, flatten_children))

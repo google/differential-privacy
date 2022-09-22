@@ -86,16 +86,26 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
         self._pld = self._pld.compose(laplace_pld)
       return True
     elif isinstance(event, dp_event.PoissonSampledDpEvent):
-      if not (self.neighboring_relation == NeighborRel.ADD_OR_REMOVE_ONE and
-              isinstance(event.event, dp_event.GaussianDpEvent)):
+      if self.neighboring_relation != NeighborRel.ADD_OR_REMOVE_ONE:
         return False
-      if do_compose:
-        subsampled_gaussian_pld = PLD.from_gaussian_mechanism(
-            standard_deviation=event.event.noise_multiplier,
-            value_discretization_interval=self._value_discretization_interval,
-            sampling_prob=event.sampling_probability).self_compose(count)
-        self._pld = self._pld.compose(subsampled_gaussian_pld)
-      return True
+      if isinstance(event.event, dp_event.GaussianDpEvent):
+        if do_compose:
+          subsampled_gaussian_pld = PLD.from_gaussian_mechanism(
+              standard_deviation=event.event.noise_multiplier,
+              value_discretization_interval=self._value_discretization_interval,
+              sampling_prob=event.sampling_probability).self_compose(count)
+          self._pld = self._pld.compose(subsampled_gaussian_pld)
+        return True
+      elif isinstance(event.event, dp_event.LaplaceDpEvent):
+        if do_compose:
+          subsampled_laplace_pld = PLD.from_laplace_mechanism(
+              parameter=event.event.noise_multiplier,
+              value_discretization_interval=self._value_discretization_interval,
+              sampling_prob=event.sampling_probability).self_compose(count)
+          self._pld = self._pld.compose(subsampled_laplace_pld)
+        return True
+      else:
+        return False
     else:
       # Unsupported event (including `UnsupportedDpEvent`).
       return False

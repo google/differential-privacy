@@ -73,11 +73,11 @@ def cc_differential_privacy_deps():
     # BoringSSL for cryptographic PRNG
     git_repository(
         name = "boringssl",
-        # Commit date: 2022-08-15
+        # Commit date: 2022-09-14
         # Note for updating: we need to use a commit from the main-with-bazel branch.
-        commit = "c8a7d97cb5dca9ded93185bd8f09e40b0fc70ef8",
+        commit = "d345d68d5c4b5471290ebe13f090f1fd5b7e8f58",
         remote = "https://boringssl.googlesource.com/boringssl",
-        shallow_since = "1660591603 +0000",
+        shallow_since = "1663197646 +0000",
     )
 
     # Supports `./configure && make` style packages to become dependencies.
