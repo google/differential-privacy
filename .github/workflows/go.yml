@@ -9,9 +9,6 @@ on:
     branches-ignore:
     # Version 1.0 does not work with the "go" tool properly.
     - "1.0"
-  schedule:
-    # Every Thursday at 1PM UTC
-    - cron: "0 13 * * 4"
 
 jobs:
 

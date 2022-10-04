@@ -1,0 +1,96 @@
+name: Bazel Tests
+
+on: [push, pull_request]
+
+jobs:
+  cc-tests:
+    name: C++ Bazel Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v3
+      - name: Mount Cache
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/bazel/
+          key: bazel-cc-cache
+      - name: Ensure bazelisk is installed
+        run: bazelisk --version
+      - name: Build C++ Workspace
+        working-directory: cc
+        run: bazelisk build ...
+      - name: Test C++ Workspace (without eternal tests)
+        working-directory: cc
+        run: bazelisk test --test_timeout_filters=-eternal ...
+      - name: Build C++ Examples
+        working-directory: examples/cc
+        run: bazelisk build ...
+      - name: Test C++ Examples
+        working-directory: examples/cc
+        run: bazelisk test ...
+
+  java-tests:
+    name: Java Bazel Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v3
+      - name: Mount Cache
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/bazel/
+          key: bazel-java-cache
+      - name: Ensure bazelisk is installed
+        run: bazelisk --version
+      - name: Build Java Workspace
+        working-directory: java
+        run: bazelisk build ...
+      - name: Test Java Workspace (without eternal tests)
+        working-directory: java
+        run: bazelisk test --test_timeout_filters=-eternal ...
+      - name: Build Java Examples
+        working-directory: examples/java
+        run: bazelisk build ...
+
+  go-tests:
+    name: Go Bazel Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v3
+      - name: Mount Cache
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/bazel/
+          key: bazel-go-cache
+      - name: Ensure bazelisk is installed
+        run: bazelisk --version
+      - name: Build Go Workspace
+        working-directory: go
+        run: bazelisk build ...
+      - name: Test Go Workspace (without eternal tests)
+        working-directory: go
+        run: bazelisk test --test_timeout_filters=-eternal ...
+      - name: Build Go Examples
+        working-directory: examples/go
+        run: bazelisk build ...
+
+  pob-tests:
+    name: Privacy on Beam Bazel Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v3
+      - name: Mount Cache
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/bazel/
+          key: bazel-pob-cache
+      - name: Ensure bazelisk is installed
+        run: bazelisk --version
+      - name: Build Privacy on Beam Workspace
+        working-directory: privacy-on-beam
+        run: bazelisk build ...
+      - name: Test Privacy on Beam Workspace (without eternal tests)
+        working-directory: privacy-on-beam
+        run: bazelisk test --test_timeout_filters=-eternal ...

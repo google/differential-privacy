@@ -741,6 +741,13 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
                                             pld._pmf_remove._infinity_mass)
       self.assertFalse(pld._symmetric)
 
+  def test_subsampled_gaussian_does_not_overflow(self):
+    """Verifies that creating subsampled Gaussian PLD does not result in overflow."""
+    privacy_loss_distribution.from_gaussian_mechanism(
+        0.02,
+        value_discretization_interval=1,
+        sampling_prob=0.1)
+
 
 class DiscreteLaplacePrivacyLossDistributionTest(parameterized.TestCase):
 

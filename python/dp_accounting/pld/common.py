@@ -319,3 +319,13 @@ def self_convolve_dictionary(
       input_list, num_times, tail_mass_truncation=tail_mass_truncation)
   return list_to_dictionary(output_list,
                             min_val * num_times + min_val_convolution)
+
+
+def log_a_times_exp_b_plus_c(a: float, b: float, c: float) -> float:
+  """Computes log(a * exp(b) + c) for a > 0."""
+  try:
+    return math.log(a * math.exp(b) + c)
+  except OverflowError:
+    # This can occur when b is very large, in which case, the answer can be
+    # estimated by b + log(a).
+    return b + math.log(a)

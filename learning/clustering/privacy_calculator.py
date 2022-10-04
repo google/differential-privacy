@@ -16,8 +16,35 @@
 import dataclasses
 from typing import Type
 
+from absl import logging
+import numpy as np
+
 from clustering import central_privacy_utils
 from clustering import clustering_params
+from dp_accounting import dp_event
+from dp_accounting import dp_event_builder
+from dp_accounting.pld import pld_privacy_accountant
+
+
+def make_clustering_event(sum_std_dev: float, count_laplace_param: float,
+                          sensitivity: float,
+                          max_depth: int) -> dp_event.DpEvent:
+  """Returns a DpEvent for clustering."""
+  builder = dp_event_builder.DpEventBuilder()
+
+  if sum_std_dev == 0:
+    builder.compose(dp_event.NonPrivateDpEvent())
+  else:
+    builder.compose(dp_event.GaussianDpEvent(sum_std_dev / sensitivity))
+
+  # Depth is based on the number of edges in the path, so add one to the depth
+  # to get the number of levels.
+  if count_laplace_param == np.inf:
+    builder.compose(dp_event.NonPrivateDpEvent())
+  else:
+    builder.compose(
+        dp_event.LaplaceDpEvent(1 / count_laplace_param), max_depth + 1)
+  return builder.build()
 
 
 @dataclasses.dataclass
@@ -42,3 +69,29 @@ class PrivacyCalculator():
     count_privacy_param = central_privacy_utils.CountPrivacyParam.from_budget_split(
         privacy_param, privacy_budget_split, max_depth)
     return cls(average_privacy_param, count_privacy_param)
+
+  def validate_accounting(
+      self, privacy_param: clustering_params.DifferentialPrivacyParam,
+      max_depth: int):
+    """Errors if the params exceed the privacy budget."""
+    if privacy_param.epsilon == np.inf or privacy_param.delta >= 1:
+      return
+
+    clustering_event = make_clustering_event(
+        self.average_privacy_param.gaussian_standard_deviation,
+        self.count_privacy_param.laplace_param,
+        self.average_privacy_param.sensitivity, max_depth)
+
+    acct = pld_privacy_accountant.PLDAccountant()
+    acct.compose(clustering_event)
+    calculated_epsilon = acct.get_epsilon(privacy_param.delta)
+    calculated_delta = acct.get_delta(privacy_param.epsilon)
+
+    logging.info('Accounted epsilon: %s', calculated_epsilon)
+    logging.info('Accounted delta: %s', calculated_delta)
+
+    if (calculated_epsilon > privacy_param.epsilon or
+        calculated_delta > privacy_param.delta):
+      raise ValueError('Accounted privacy params greater than allowed: '
+                       f'({calculated_epsilon}, {calculated_delta}) > '
+                       f'({privacy_param.epsilon}, {privacy_param.delta})')

@@ -16,7 +16,7 @@
 # The files in this directory offer an example of how to use the C++
 # Differential Privacy library.
 
-licenses(["notice"])  # Apache v2.0
+licenses(["notice"])
 
 cc_binary(
     name = "report_the_carrots",

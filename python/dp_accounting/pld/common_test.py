@@ -230,6 +230,13 @@ class ConvolveTest(parameterized.TestCase):
     self.assertEqual(min_val, expected_min_val)
     self.assertSequenceAlmostEqual(expected_result_list, result_list)
 
+  @parameterized.parameters(
+      (5, 7, 3, 8.60998489),
+      (0.5, 3, 0.1, 2.31676098),
+      (10, 100000, 5, 100002.30258509))
+  def test_log_a_times_exp_b_plus_c(self, a, b, c, expected_result):
+    self.assertAlmostEqual(
+        common.log_a_times_exp_b_plus_c(a, b, c), expected_result)
 
 if __name__ == '__main__':
   unittest.main()

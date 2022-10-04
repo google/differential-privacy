@@ -214,6 +214,11 @@ py_library(
     deps = [
         ":central_privacy_utils",
         ":clustering_params",
+        "@com_google_python_dp_accounting//dp_accounting:dp_event",
+        "@com_google_python_dp_accounting//dp_accounting:dp_event_builder",
+        "@com_google_python_dp_accounting//dp_accounting/pld:pld_privacy_accountant",
+        requirement("absl-py"),
+        requirement("numpy"),
     ],
 )
 
@@ -226,7 +231,9 @@ py_test(
         ":central_privacy_utils",
         ":clustering_params",
         ":privacy_calculator",
+        "@com_google_python_dp_accounting//dp_accounting:dp_event",
         requirement("absl-py"),
+        requirement("numpy"),
     ],
 )
 

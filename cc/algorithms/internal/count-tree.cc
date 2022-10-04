@@ -19,11 +19,6 @@
 #include <unordered_map>
 
 #include "absl/status/status.h"
-#include "absl/status/statusor.h"
-#include "algorithms/algorithm.h"
-#include "algorithms/bounded-algorithm.h"
-#include "algorithms/numerical-mechanisms.h"
-#include "proto/util.h"
 #include "proto/summary.pb.h"
 #include "base/status_macros.h"
 
@@ -118,15 +113,9 @@ absl::Status CountTree::Merge(const BoundedQuantilesSummary& summary) {
 }
 
 int64_t CountTree::MemoryUsed() {
-  int64_t size = sizeof(CountTree);
-  // Makes some guesses about how unordered_map is likely implemented.
-  for (int i = 0; i < tree_.bucket_count(); ++i) {
-    // Pointer to array.
-    size += sizeof(int64_t*);
-    // Keys and values in an array.
-    size += tree_.bucket_size(i) * (sizeof(int64_t) + sizeof(int));
-  }
-  return size;
+  // https://abseil.io/docs/cpp/guides/container#memory-usage
+  return sizeof(CountTree) +
+         (sizeof(std::pair<int, int64_t>) + 1) * tree_.bucket_count();
 }
 
 }  // namespace internal

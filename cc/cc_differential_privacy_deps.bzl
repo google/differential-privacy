@@ -17,7 +17,6 @@
 """ Declares dependencies of the differential privacy library """
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
-load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 
 def cc_differential_privacy_deps():
     """ Macro to include the differential privacy library's critical dependencies in a WORKSPACE.
@@ -71,13 +70,13 @@ def cc_differential_privacy_deps():
     )
 
     # BoringSSL for cryptographic PRNG
-    git_repository(
+    http_archive(
         name = "boringssl",
-        # Commit date: 2022-09-14
-        # Note for updating: we need to use a commit from the main-with-bazel branch.
-        commit = "d345d68d5c4b5471290ebe13f090f1fd5b7e8f58",
-        remote = "https://boringssl.googlesource.com/boringssl",
-        shallow_since = "1663197646 +0000",
+        # Commit date: 2022-09-23
+        # Note for updating: we need to use a commit from the `master-with-bazel` branch.
+        url = "https://github.com/google/boringssl/archive/3a3d0b5c7fddeea312b5ce032d9b84a2be399b32.tar.gz",
+        sha256 = "be8231e5f3b127d83eb156354dfa28c110e3c616c11ae119067c8184ef7a257f",
+        strip_prefix = "boringssl-3a3d0b5c7fddeea312b5ce032d9b84a2be399b32",
     )
 
     # Supports `./configure && make` style packages to become dependencies.

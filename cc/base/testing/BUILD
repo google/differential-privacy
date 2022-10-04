@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-licenses(["notice"])  # Apache v2.0
+licenses(["notice"])
 
 package(
     default_visibility = [

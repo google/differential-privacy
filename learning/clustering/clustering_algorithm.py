@@ -228,6 +228,9 @@ def private_lsh_clustering(
   pcalc = privacy_calculator.PrivacyCalculator.from_budget_split(
       privacy_param, privacy_budget_split, data.radius, max_depth)
 
+  logging.info("Privacy calculator: %s", pcalc)
+  pcalc.validate_accounting(privacy_param, max_depth)
+
   private_count = None
   if tree_param is None:
     # Saves the private count to re-use for the root node of the tree.

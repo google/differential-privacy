@@ -15,6 +15,7 @@
 
 import abc
 import enum
+from typing import Any
 
 from dp_accounting import dp_event
 from dp_accounting import dp_event_builder
@@ -77,7 +78,7 @@ class PrivacyAccountant(metaclass=abc.ABCMeta):
       count: The number of times to compose the event.
     """
 
-  def compose(self, event: dp_event.DpEvent, count: int = 1):
+  def compose(self, event: dp_event.DpEvent, count: int = 1) -> Any:
     """Updates internal state to account for application of a `DpEvent`.
 
     Calls to `get_epsilon` or `get_delta` after calling `compose` will return
@@ -87,18 +88,22 @@ class PrivacyAccountant(metaclass=abc.ABCMeta):
       event: A `DpEvent` to process.
       count: The number of times to compose the event.
 
+    Returns:
+      Reference to this privacy accountant. This allows one to write, e.g.,
+      `eps = Accountant().compose(event1).compose(event2).get_epsilon(delta)`.
+
     Raises:
       UnsupportedEventError: `event` is not supported by this
       `PrivacyAccountant`.
+
     """
     if not isinstance(event, dp_event.DpEvent):
       raise TypeError(f'`event` must be `DpEvent`. Found {type(event)}.')
-
     if not self.supports(event):
       raise UnsupportedEventError(f'Unsupported event: {event}.')
-
     self._ledger.compose(event, count)
     self._compose(event, count)
+    return self
 
   @property
   def ledger(self) -> dp_event.DpEvent:

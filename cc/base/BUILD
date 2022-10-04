@@ -16,7 +16,7 @@
 
 # Dependencies for C++ Differential Privacy Library OSS
 
-licenses(["notice"])  # Apache v2.0
+licenses(["notice"])
 
 package(
     default_visibility = [

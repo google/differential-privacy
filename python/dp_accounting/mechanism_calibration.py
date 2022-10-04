@@ -187,8 +187,7 @@ def calibrate_dp_mechanism(
     accountant = make_fresh_accountant()
     if not isinstance(accountant.ledger, dp_event.NoOpDpEvent):
       raise NonEmptyAccountantError()
-    accountant.compose(event)
-    return accountant.get_epsilon(target_delta) - target_epsilon
+    return accountant.compose(event).get_epsilon(target_delta) - target_epsilon
 
   if isinstance(bracket_interval, LowerEndpointAndGuess):
     bracket_interval = _search_for_explicit_bracket_interval(

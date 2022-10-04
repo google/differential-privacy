@@ -272,11 +272,19 @@ class AdditiveNoisePrivacyLoss(metaclass=abc.ABCMeta):
     if self.sampling_prob == 1.0:
       return privacy_loss_without_subsampling
     if self.adjacency_type == AdjacencyType.ADD:
-      return -math.log(1 - self.sampling_prob + self.sampling_prob *
-                       math.exp(-privacy_loss_without_subsampling))
+      # Privacy loss is
+      # -log(1 - sampling_prob +
+      #      sampling_prob * exp(-privacy_loss_without_subsampling)).
+      return -common.log_a_times_exp_b_plus_c(self.sampling_prob,
+                                              -privacy_loss_without_subsampling,
+                                              1 - self.sampling_prob)
     else:  # Case: self.adjacency_type == AdjacencyType.REMOVE
-      return math.log(1 - self.sampling_prob + self.sampling_prob *
-                      math.exp(privacy_loss_without_subsampling))
+      # Privacy loss is
+      # log(1 - sampling_prob +
+      #      sampling_prob * exp(privacy_loss_without_subsampling)).
+      return common.log_a_times_exp_b_plus_c(self.sampling_prob,
+                                             privacy_loss_without_subsampling,
+                                             1 - self.sampling_prob)
 
   @abc.abstractmethod
   def privacy_loss_without_subsampling(self, x: float) -> float:
@@ -346,8 +354,12 @@ class AdditiveNoisePrivacyLoss(metaclass=abc.ABCMeta):
         raise ValueError(f'privacy_loss ({privacy_loss}) is larger than '
                          f'-log(1 - sampling_prob) '
                          f'({-math.log(1 - self.sampling_prob)}')
+      # Privacy loss without subsampling is
+      # -log(1 + (exp(-privacy_loss) - 1) / sampling_prob).
+      privacy_loss_without_subsampling = -common.log_a_times_exp_b_plus_c(
+          1 / self.sampling_prob, -privacy_loss, 1 - 1 / self.sampling_prob)
       return self.inverse_privacy_loss_without_subsampling(
-          -math.log(1 + (math.exp(-privacy_loss) - 1) / self.sampling_prob))
+          privacy_loss_without_subsampling)
 
     else:  # Case: self.adjacency_type == AdjacencyType.REMOVE
       if math.isclose(privacy_loss, math.log(1 - self.sampling_prob)):
@@ -356,8 +368,12 @@ class AdditiveNoisePrivacyLoss(metaclass=abc.ABCMeta):
         raise ValueError(f'privacy_loss ({privacy_loss}) is smaller than '
                          f'log(1 - sampling_prob) '
                          f'({math.log(1 - self.sampling_prob)}')
+      # Privacy loss without subsampling is
+      # log(1 + (exp(privacy_loss) - 1) / sampling_prob).
+      privacy_loss_without_subsampling = common.log_a_times_exp_b_plus_c(
+          1 / self.sampling_prob, privacy_loss, 1 - 1 / self.sampling_prob)
       return self.inverse_privacy_loss_without_subsampling(
-          math.log(1 + (math.exp(privacy_loss) - 1) / self.sampling_prob))
+          privacy_loss_without_subsampling)
 
   @abc.abstractmethod
   def inverse_privacy_loss_without_subsampling(self,

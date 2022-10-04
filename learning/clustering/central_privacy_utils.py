@@ -30,6 +30,18 @@ class AveragePrivacyParam():
   gaussian_standard_deviation: float
   sensitivity: float
 
+  def __post_init__(self):
+    # Standard deviation can be 0 to indicate no noise.
+    if self.gaussian_standard_deviation < 0:
+      raise ValueError(
+          f'Gaussian standard deviation was {self.gaussian_standard_deviation}, '
+          'but it must be nonnegative.')
+
+    if self.sensitivity <= 0:
+      raise ValueError(
+          f'Sensitivity for averaging was {self.sensitivity}, but it must be '
+          'positive.')
+
   @classmethod
   def from_budget_split(
       cls: Type['AveragePrivacyParam'],
@@ -81,6 +93,13 @@ def get_private_average(nonprivate_points: np.ndarray, private_count: int,
 class CountPrivacyParam():
   """Privacy parameters for calling get_private_count()."""
   laplace_param: float
+
+  def __post_init__(self):
+    # No noise means laplace_param == inf, not 0. We invert the laplace param
+    # for accounting.
+    if self.laplace_param <= 0:
+      raise ValueError(f'Laplace param was {self.laplace_param}, '
+                       'but it must be positive.')
 
   @classmethod
   def from_budget_split(

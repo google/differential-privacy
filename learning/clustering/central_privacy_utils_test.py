@@ -38,6 +38,25 @@ class CentralPrivacyUtilsTest(parameterized.TestCase):
         average_privacy_param.gaussian_standard_deviation, 1.927768, delta=1e-5)
     self.assertEqual(average_privacy_param.sensitivity, 4.3)
 
+  def test_average_privacy_param_error(self):
+    with self.assertRaises(
+        ValueError,
+        msg='Gaussian standard deviation was -0.1, but it must be nonnegative.'
+    ):
+      AveragePrivacyParam(gaussian_standard_deviation=-0.1, sensitivity=2.0)
+
+    with self.assertRaises(
+        ValueError,
+        msg='Sensitivity was 0, but it must be positive.'
+    ):
+      AveragePrivacyParam(gaussian_standard_deviation=5.0, sensitivity=0.0)
+
+    with self.assertRaises(
+        ValueError,
+        msg='Sensitivity was -0.2, but it must be positive.'
+    ):
+      AveragePrivacyParam(gaussian_standard_deviation=5.0, sensitivity=-0.2)
+
   def test_average_privacy_param_infinite_eps(self):
     average_privacy_param = AveragePrivacyParam.from_budget_split(
         clustering_params.DifferentialPrivacyParam(epsilon=np.inf, delta=1e-2),
@@ -97,6 +116,15 @@ class CentralPrivacyUtilsTest(parameterized.TestCase):
     count_privacy_param = CountPrivacyParam.from_budget_split(
         privacy_param, privacy_budget_split, max_tree_depth)
     self.assertEqual(count_privacy_param.laplace_param, 2.0)
+
+  def test_private_count_param_error(self):
+    with self.assertRaises(
+        ValueError, msg='Laplace param was 0, but it must be positive.'):
+      CountPrivacyParam(laplace_param=0)
+
+    with self.assertRaises(
+        ValueError, msg='Laplace param was -0.2, but it must be positive.'):
+      CountPrivacyParam(laplace_param=-0.2)
 
   def test_private_count_param_infinite_eps(self):
     privacy_param = clustering_params.DifferentialPrivacyParam(

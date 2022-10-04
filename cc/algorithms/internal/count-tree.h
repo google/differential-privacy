@@ -17,14 +17,8 @@
 #ifndef DIFFERENTIAL_PRIVACY_CPP_ALGORITHMS_COUNT_TREE_H_
 #define DIFFERENTIAL_PRIVACY_CPP_ALGORITHMS_COUNT_TREE_H_
 
-#include <unordered_map>
-
+#include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
-#include "absl/status/statusor.h"
-#include "algorithms/algorithm.h"
-#include "algorithms/bounded-algorithm.h"
-#include "algorithms/numerical-mechanisms.h"
-#include "proto/util.h"
 #include "proto/summary.pb.h"
 #include "base/status_macros.h"
 
@@ -106,7 +100,7 @@ class CountTree {
   static const int root_node_ = 0;
   // We store the tree as an unordered map. This gives fast lookups, and means
   // that we don't need space for empty nodes.
-  std::unordered_map<int, int64_t> tree_;
+  absl::flat_hash_map<int, int64_t> tree_;
 };
 
 }  // namespace internal
