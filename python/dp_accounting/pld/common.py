@@ -321,11 +321,33 @@ def self_convolve_dictionary(
                             min_val * num_times + min_val_convolution)
 
 
+def _log_add(a: float, b: float) -> float:
+  """Returns log(exp(a) + exp(b))."""
+  mn, mx = min(a, b), max(a, b)
+  return mx + np.log1p(np.exp(mn - mx))
+
+
+def _log_sub(a: float, b: float) -> float:
+  """Returns log(exp(a) - exp(b))."""
+  if b >= a:
+    raise ValueError(f'a must be greater than b. Got a={a} and b={b}.')
+  return a + np.log1p(-np.exp(b - a))
+
+
 def log_a_times_exp_b_plus_c(a: float, b: float, c: float) -> float:
-  """Computes log(a * exp(b) + c) for a > 0."""
-  try:
-    return math.log(a * math.exp(b) + c)
-  except OverflowError:
-    # This can occur when b is very large, in which case, the answer can be
-    # estimated by b + log(a).
-    return b + math.log(a)
+  """Computes log(a * exp(b) + c)."""
+  if a == 0:
+    return np.log(c)
+  if a < 0:
+    if c <= 0:
+      raise ValueError(f'a exp(b) + c must be positive: {a}, {b}, {c}.')
+    return _log_sub(np.log(c), np.log(-a) + b)
+  if b == 0:
+    return np.log(a + c)
+  d = b + np.log(a)
+  if c == 0:
+    return d
+  elif c < 0:
+    return _log_sub(d, np.log(-c))
+  else:
+    return _log_add(d, np.log(c))
