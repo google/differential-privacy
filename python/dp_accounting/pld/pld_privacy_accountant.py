@@ -14,12 +14,14 @@
 """Privacy accountant that uses Privacy Loss Distributions."""
 
 import math
+from typing import Optional
 
 from dp_accounting import dp_event
 from dp_accounting import privacy_accountant
 from dp_accounting.pld import privacy_loss_distribution
 
 NeighborRel = privacy_accountant.NeighboringRelation
+CompositionErrorDetails = privacy_accountant.PrivacyAccountant.CompositionErrorDetails
 PLD = privacy_loss_distribution
 
 
@@ -37,46 +39,29 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
         value_discretization_interval=value_discretization_interval)
     self._value_discretization_interval = value_discretization_interval
 
-  def supports(self, event: dp_event.DpEvent) -> bool:
-    return self._maybe_compose(event, 0, False)
-
-  def _compose(self, event: dp_event.DpEvent, count: int = 1):
-    self._maybe_compose(event, count, True)
-
   def _maybe_compose(self, event: dp_event.DpEvent, count: int,
-                     do_compose: bool) -> bool:
-    """Traverses `event` and performs composition if `do_compose` is True.
-
-    If `do_compose` is False, can be used to check whether composition is
-    supported.
-
-    Args:
-      event: A `DpEvent` to process.
-      count: The number of times to compose the event.
-      do_compose: Whether to actually perform the composition.
-
-    Returns:
-      True if event is supported, otherwise False.
-    """
-
+                     do_compose: bool) -> Optional[CompositionErrorDetails]:
     if isinstance(event, dp_event.NoOpDpEvent):
-      return True
+      return None
     elif isinstance(event, dp_event.NonPrivateDpEvent):
       if do_compose:
         self._contains_non_dp_event = True
-      return True
+      return None
     elif isinstance(event, dp_event.SelfComposedDpEvent):
       return self._maybe_compose(event.event, event.count * count, do_compose)
     elif isinstance(event, dp_event.ComposedDpEvent):
-      return all(
-          self._maybe_compose(e, count, do_compose) for e in event.events)
+      for e in event.events:
+        result = self._maybe_compose(e, count, do_compose)
+        if result is not None:
+          return result
+      return None
     elif isinstance(event, dp_event.GaussianDpEvent):
       if do_compose:
         gaussian_pld = PLD.from_gaussian_mechanism(
             standard_deviation=event.noise_multiplier / math.sqrt(count),
             value_discretization_interval=self._value_discretization_interval)
         self._pld = self._pld.compose(gaussian_pld)
-      return True
+      return None
     elif isinstance(event, dp_event.LaplaceDpEvent):
       if do_compose:
         laplace_pld = PLD.from_laplace_mechanism(
@@ -84,10 +69,14 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
             value_discretization_interval=self._value_discretization_interval
         ).self_compose(count)
         self._pld = self._pld.compose(laplace_pld)
-      return True
+      return None
     elif isinstance(event, dp_event.PoissonSampledDpEvent):
       if self.neighboring_relation != NeighborRel.ADD_OR_REMOVE_ONE:
-        return False
+        error_msg = (
+            'neighboring_relation must be `ADD_OR_REMOVE_ONE` for '
+            f'`PoissonSampledDpEvent`. Found {self._neighboring_relation}.')
+        return CompositionErrorDetails(
+            invalid_event=event, error_message=error_msg)
       if isinstance(event.event, dp_event.GaussianDpEvent):
         if do_compose:
           subsampled_gaussian_pld = PLD.from_gaussian_mechanism(
@@ -95,7 +84,7 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
               value_discretization_interval=self._value_discretization_interval,
               sampling_prob=event.sampling_probability).self_compose(count)
           self._pld = self._pld.compose(subsampled_gaussian_pld)
-        return True
+        return None
       elif isinstance(event.event, dp_event.LaplaceDpEvent):
         if do_compose:
           subsampled_laplace_pld = PLD.from_laplace_mechanism(
@@ -103,12 +92,17 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
               value_discretization_interval=self._value_discretization_interval,
               sampling_prob=event.sampling_probability).self_compose(count)
           self._pld = self._pld.compose(subsampled_laplace_pld)
-        return True
+        return None
       else:
-        return False
+        return CompositionErrorDetails(
+            invalid_event=event,
+            error_message=(
+                'Subevent of `PoissonSampledEvent` must be either '
+                f'`GaussianDpEvent` or `LaplaceDpEvent`. Found {event.event}.'))
     else:
       # Unsupported event (including `UnsupportedDpEvent`).
-      return False
+      return CompositionErrorDetails(
+          invalid_event=event, error_message='Unsupported event.')
 
   def get_epsilon(self, target_delta: float) -> float:
     if self._contains_non_dp_event:

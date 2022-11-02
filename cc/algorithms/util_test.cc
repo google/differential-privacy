@@ -1116,6 +1116,17 @@ TEST(ValidateTest, ValidateMaxPartitionsContributedReturnsOkForPositive) {
               StatusIs(absl::StatusCode::kOk));
 }
 
+TEST(ValidateTest, ValidateMaxContributions) {
+  EXPECT_THAT(
+      ValidateMaxContributions(-1),
+      StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("positive")));
+  EXPECT_THAT(
+      ValidateMaxContributions(0),
+      StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("positive")));
+  EXPECT_THAT(ValidateMaxPartitionsContributed(10),
+              StatusIs(absl::StatusCode::kOk));
+}
+
 TEST(ValidateTest, ValidateMaxContributionsPerPartitionFailsForNonPositive) {
   EXPECT_THAT(
       ValidateMaxContributionsPerPartition(-1),

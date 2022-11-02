@@ -195,6 +195,8 @@ def private_lsh_clustering(
     privacy_budget_split: typing.Optional[
         clustering_params.PrivacyBudgetSplit] = None,
     tree_param: typing.Optional[clustering_params.TreeParam] = None,
+    multipliers: typing.Optional[
+        clustering_params.PrivacyCalculatorMultiplier] = None,
     short_description: str = "CoresetParam") -> ClusteringResult:
   """Clusters data into k clusters.
 
@@ -207,6 +209,9 @@ def private_lsh_clustering(
       the clustering algorithm for fine-tuning.
     tree_param: Optional tree parameters for generating the LSH net tree for
       fine-tuning.
+    multipliers: Optional multipliers to determine ratio between noise
+      parameters for different operations in the clustering algorithm for
+      fine-tuning. When set, privacy_budget_split is ignored.
     short_description: Optional description to identify this parameter
       configuration.
 
@@ -223,12 +228,16 @@ def private_lsh_clustering(
     max_depth = tree_param.max_depth
 
   # Initialize the parameters.
-  if privacy_budget_split is None:
-    privacy_budget_split = clustering_params.PrivacyBudgetSplit()
-  pcalc = privacy_calculator.PrivacyCalculator.from_budget_split(
-      privacy_param, privacy_budget_split, data.radius, max_depth)
+  if multipliers is not None:
+    pcalc = privacy_calculator.PrivacyCalculator.from_mechanism_calibration(
+        privacy_param, data.radius, max_depth, multipliers)
+  else:
+    if privacy_budget_split is None:
+      privacy_budget_split = clustering_params.PrivacyBudgetSplit()
+    pcalc = privacy_calculator.PrivacyCalculator.from_budget_split(
+        privacy_param, privacy_budget_split, data.radius, max_depth)
 
-  logging.info("Privacy calculator: %s", pcalc)
+  logging.debug("Privacy calculator: %s", pcalc)
   pcalc.validate_accounting(privacy_param, max_depth)
 
   private_count = None

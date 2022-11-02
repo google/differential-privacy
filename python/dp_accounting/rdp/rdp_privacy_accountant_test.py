@@ -218,7 +218,14 @@ class RdpPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
             ])))
     self.assertAlmostEqual(accountant._rdp[0], rdp)
 
-  def test_effective_gaussian_noise_multiplier(self):
+  def test_effective_gaussian_noise_multiplier_basic(self):
+    sigma = 2.71828
+    event = dp_event.GaussianDpEvent(sigma)
+    sigma_out = rdp_privacy_accountant._effective_gaussian_noise_multiplier(
+        event)
+    self.assertEqual(sigma_out, sigma)
+
+  def test_effective_gaussian_noise_multiplier_composed(self):
     np.random.seed(0xBAD5EED)
     sigmas = np.random.uniform(size=(4,))
 
@@ -235,6 +242,17 @@ class RdpPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
     multi_sigmas = list(sigmas) + [sigmas[1]] * 2
     expected = sum(s**-2 for s in multi_sigmas)**-0.5
     self.assertAlmostEqual(sigma, expected)
+
+  _LAPLACE_EVENT = dp_event.LaplaceDpEvent(1.0)
+
+  @parameterized.named_parameters(
+      ('simple', _LAPLACE_EVENT),
+      ('composed', dp_event.ComposedDpEvent([_LAPLACE_EVENT])),
+      ('self_composed', dp_event.SelfComposedDpEvent(_LAPLACE_EVENT, 3)),
+  )
+  def test_effective_gaussian_noise_multiplier_invalid_event(self, event):
+    result = rdp_privacy_accountant._effective_gaussian_noise_multiplier(event)
+    self.assertEqual(result, self._LAPLACE_EVENT)
 
   def test_compute_rdp_poisson_sampled_gaussian(self):
     orders = [1.5, 2.5, 5, 50, 100, np.inf]
@@ -706,6 +724,7 @@ def test_repeat_and_select_composition(self, sigma, sigma1, sigma2, shape):
     accountant.compose(post_event)
   for i in range(len(accountant._orders)):
     self.assertAlmostEqual(accountant._rdp[i], accountant._orders[i] * rho)
+
 
 if __name__ == '__main__':
   absltest.main()

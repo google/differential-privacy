@@ -62,7 +62,7 @@ this differential privacy library.
 * The last argument should be the SQL query to execute on the ```data_set```.
 This query must specify values for the DP parameters ```epsilon```, ```delta```,
 and ```kappa```<sup>[1](#params)</sup> (see the
-[ZetaSQL documentation](https://github.com/google/zetasql/blob/master/docs/anonymization_syntax.md#kappa)
+[ZetaSQL documentation](https://github.com/google/zetasql/blob/master/docs/differential-privacy.md#kappa)
 for more information). In queries that contain a GROUP BY clause, ```kappa```
 is the maximum number of different groups (i.e., partitions) to which each user
 may contribute data. See the [codelab](codelab.md) for additional information

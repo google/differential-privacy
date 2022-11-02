@@ -37,10 +37,8 @@ class MockAccountant(privacy_accountant.PrivacyAccountant):
     self._value = 0.0
     self._value_to_epsilon = value_to_epsilon
 
-  def supports(self, event: dp_event.DpEvent) -> bool:
-    return True
-
-  def _compose(self, event: dp_event.DpEvent, count: int = 1):
+  def _maybe_compose(self, event: dp_event.DpEvent, count: int,
+                     do_compose: bool):
     self._value = event.param
 
   def get_epsilon(self, target_delta: float) -> float:

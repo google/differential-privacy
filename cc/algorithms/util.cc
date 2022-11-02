@@ -298,7 +298,7 @@ absl::Status ValidateDelta(absl::optional<double> delta) {
 absl::Status ValidateMaxPartitionsContributed(
     absl::optional<double> max_partitions_contributed) {
   return ValidateIsPositive(max_partitions_contributed,
-                            "Maximum number of partitoins that can be "
+                            "Maximum number of partitions that can be "
                             "contributed to (i.e., L0 sensitivity)");
 }
 
@@ -306,6 +306,12 @@ absl::Status ValidateMaxContributionsPerPartition(
     absl::optional<double> max_contributions_per_partition) {
   return ValidateIsPositive(max_contributions_per_partition,
                             "Maximum number of contributions per partition");
+}
+
+absl::Status ValidateMaxContributions(absl::optional<int> max_contributions) {
+  return ValidateIsPositive(
+      max_contributions,
+      "Maximum number of contributions (i.e., L1 sensitivity)");
 }
 
 absl::Status ValidateTreeHeight(absl::optional<int> tree_height) {

@@ -16,8 +16,8 @@
 import dataclasses
 import enum
 import typing
-from absl import logging
 
+from absl import logging
 import numpy as np
 
 
@@ -58,6 +58,44 @@ class PrivacyBudgetSplit():
     if total > 1.0:
       raise ValueError(
           f"The provided privacy budget split ({total}) was greater than 1.0.")
+
+
+@dataclasses.dataclass
+class PrivacyCalculatorMultiplier():
+  """Multipliers to be used by mechanism calibration."""
+  gaussian_std_dev_multiplier: float = 1.0
+  laplace_param_multiplier: float = 20.0
+
+  def get_gaussian_std_dev(self, alpha: float, sensitivity: float) -> float:
+    """Returns gaussian standard deviation based on alpha.
+
+    Args:
+      alpha: parameter varied in mechanism calibration.
+      sensitivity: sensitivity of the dataset for the sum operations.
+    """
+    return self.gaussian_std_dev_multiplier * alpha * sensitivity
+
+  def get_alpha(self, gaussian_std_dev: float, sensitivity: float) -> float:
+    """Returns alpha based on gaussian standard deviation and sensitivity.
+
+    This must be the inverse of get_gaussian_std_dev with respect to alpha.
+
+    Args:
+      gaussian_std_dev: standard deviation to calculate alpha for.
+      sensitivity: sensitivity of the dataset for the sum operations.
+    """
+    return gaussian_std_dev / (sensitivity * self.gaussian_std_dev_multiplier)
+
+  def get_laplace_param(self, alpha: float) -> float:
+    """Returns laplace parameter based on alpha.
+
+    Args:
+      alpha: parameter varied in mechanism calibration.
+    """
+    inverse_laplace_param = self.laplace_param_multiplier * alpha
+    # Laplace param increases as noise decreases, so we scale it inversely with
+    # alpha.
+    return 1.0 / inverse_laplace_param
 
 
 @dataclasses.dataclass

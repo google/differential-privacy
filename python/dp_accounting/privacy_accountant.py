@@ -15,7 +15,9 @@
 
 import abc
 import enum
-from typing import Any
+from typing import Any, Optional
+
+import attr
 
 from dp_accounting import dp_event
 from dp_accounting import dp_event_builder
@@ -51,7 +53,6 @@ class PrivacyAccountant(metaclass=abc.ABCMeta):
     """
     return self._neighboring_relation
 
-  @abc.abstractmethod
   def supports(self, event: dp_event.DpEvent) -> bool:
     """Checks whether the `DpEvent` can be processed by this accountant.
 
@@ -65,17 +66,36 @@ class PrivacyAccountant(metaclass=abc.ABCMeta):
     Returns:
       True iff this accountant supports processing `event`.
     """
+    return self._maybe_compose(event, 0, False) is None
+
+  @attr.s(frozen=True, slots=True, auto_attribs=True)
+  class CompositionErrorDetails(object):
+    """Describes offending subevent and error in case composition fails."""
+    invalid_event: Optional[dp_event.DpEvent]
+    error_message: Optional[str]
 
   @abc.abstractmethod
-  def _compose(self, event: dp_event.DpEvent, count: int = 1):
-    """Updates internal state to account for application of a `DpEvent`.
+  def _maybe_compose(self, event: dp_event.DpEvent, count: int,
+                     do_compose: bool) -> Optional[CompositionErrorDetails]:
+    """Traverses `event` and performs composition if `do_compose` is True.
 
-    Calls to `get_epsilon` or `get_delta` after calling `_compose` will return
-    values that account for this `DpEvent`.
+    If `do_compose` is True, updates internal state to account for application
+    of a `DpEvent`. Subsequent calls to `get_epsilon` or `get_delta` will return
+    values that account for composition of this `DpEvent`.
+
+    If `do_compose` is False, traverses structure of event to check whether
+    composition is supported *without updating internal state*. Returns None if
+    composition would succeed, otherwise returns a `CompositionErrorDetails`
+    with information about why the composition would fail.
 
     Args:
       event: A `DpEvent` to process.
       count: The number of times to compose the event.
+      do_compose: Whether to actually perform the composition.
+
+    Returns:
+      None if composition is valid. If composition is not supported, returns
+      `CompositionErrorDetails` describing why the composition fails.
     """
 
   def compose(self, event: dp_event.DpEvent, count: int = 1) -> Any:
@@ -99,10 +119,14 @@ class PrivacyAccountant(metaclass=abc.ABCMeta):
     """
     if not isinstance(event, dp_event.DpEvent):
       raise TypeError(f'`event` must be `DpEvent`. Found {type(event)}.')
-    if not self.supports(event):
-      raise UnsupportedEventError(f'Unsupported event: {event}.')
+    composition_error = self._maybe_compose(event, count, False)
+    if composition_error:
+      raise UnsupportedEventError(
+          f'Unsupported event: {event}. Error: '
+          f'[{composition_error.error_message}] caused by subevent '
+          f'{composition_error.invalid_event}.')
     self._ledger.compose(event, count)
-    self._compose(event, count)
+    self._maybe_compose(event, count, True)
     return self
 
   @property

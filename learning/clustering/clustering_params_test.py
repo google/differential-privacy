@@ -114,6 +114,16 @@ class ClusteringParamTest(absltest.TestCase):
     self.assertSequenceAlmostEqual(
         clipped_datapoints[4], [4.46949207, 4.81329915, 5.15710623, 5.50091331])
 
+  def test_privacy_calculator_multiplier(self):
+    multiplier = clustering_params.PrivacyCalculatorMultiplier(
+        gaussian_std_dev_multiplier=4.2, laplace_param_multiplier=5.1)
+    alpha = 3.0
+    sensitivity = 1.4
+    std_dev = multiplier.get_gaussian_std_dev(alpha, sensitivity)
+    self.assertEqual(std_dev, 17.64)
+    self.assertEqual(multiplier.get_alpha(std_dev, sensitivity), alpha)
+    self.assertEqual(multiplier.get_laplace_param(alpha), 1.0 / 15.3)
+
 
 if __name__ == "__main__":
   absltest.main()

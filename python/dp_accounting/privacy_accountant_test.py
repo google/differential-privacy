@@ -49,12 +49,23 @@ class PrivacyAccountantTest(absltest.TestCase):
       pass
 
     for accountant in self._make_test_accountants():
-      for unsupported in [dp_event.UnsupportedDpEvent(), UnknownDpEvent()]:
-        self.assertFalse(accountant.supports(unsupported))
-        self.assertFalse(
-            accountant.supports(dp_event.SelfComposedDpEvent(unsupported, 10)))
-        self.assertFalse(
-            accountant.supports(dp_event.ComposedDpEvent([unsupported])))
+      for unsupported_event in [
+          dp_event.UnsupportedDpEvent(),
+          UnknownDpEvent()
+      ]:
+        for nested_unsupported_event in [
+            unsupported_event,
+            dp_event.SelfComposedDpEvent(unsupported_event, 10),
+            dp_event.ComposedDpEvent([unsupported_event])
+        ]:
+          composition_error = accountant._maybe_compose(
+              nested_unsupported_event, count=1, do_compose=False)
+          self.assertIsNotNone(composition_error)
+          self.assertEqual(composition_error.invalid_event, unsupported_event)
+          self.assertFalse(accountant.supports(nested_unsupported_event))
+          with self.assertRaisesRegex(privacy_accountant.UnsupportedEventError,
+                                      'caused by subevent'):
+            accountant.compose(nested_unsupported_event)
 
   def test_no_events(self):
     for accountant in self._make_test_accountants():
@@ -73,7 +84,7 @@ class PrivacyAccountantTest(absltest.TestCase):
     for accountant in self._make_test_accountants():
       event = dp_event.NoOpDpEvent()
       self.assertTrue(accountant.supports(event))
-      accountant._compose(event)
+      accountant.compose(event)
       self.assertEqual(accountant.get_epsilon(1e-12), 0)
       self.assertEqual(accountant.get_epsilon(0), 0)
       self.assertEqual(accountant.get_epsilon(1), 0)
@@ -89,7 +100,7 @@ class PrivacyAccountantTest(absltest.TestCase):
     for accountant in self._make_test_accountants():
       event = dp_event.NonPrivateDpEvent()
       self.assertTrue(accountant.supports(event))
-      accountant._compose(event)
+      accountant.compose(event)
       self.assertEqual(accountant.get_epsilon(0.99), float('inf'))
       self.assertEqual(accountant.get_epsilon(0), float('inf'))
       self.assertEqual(accountant.get_epsilon(1), float('inf'))

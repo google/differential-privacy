@@ -52,6 +52,11 @@ calculation can be controlled by passing in a custom
 `clustering_params.PrivacyBudgetSplit`. Note that the private count is also used
 in generating the tree itself.
 
+> **Note:** An option to use
+[mechanism calibration](https://github.com/google/differential-privacy/blob/main/python/dp_accounting/mechanism_calibration.py) is currently
+under experimentation to replace the privacy budget split and can be controlled
+by passing in an `clustering_params.PrivacyCalculatorMultiplier`.
+
 ## Usage
 
 The entry point to our algorithm is `clustering.private_lsh_clustering()`.
@@ -165,6 +170,9 @@ The following options are available:
 
 *   `epsilon_to_try`: list of `epsilon` values to use when experimenting with
     varying `epsilon`.
+
+*   `use_mechanism_calibration`: whether to use the experimental mechanism
+    calibration for noise parameters.
 
 ## Benchmark Comparisons
 

@@ -216,6 +216,9 @@ py_library(
         ":clustering_params",
         "@com_google_python_dp_accounting//dp_accounting:dp_event",
         "@com_google_python_dp_accounting//dp_accounting:dp_event_builder",
+        "@com_google_python_dp_accounting//dp_accounting:mechanism_calibration",
+        "@com_google_python_dp_accounting//dp_accounting/pld:accountant",
+        "@com_google_python_dp_accounting//dp_accounting/pld:common",
         "@com_google_python_dp_accounting//dp_accounting/pld:pld_privacy_accountant",
         requirement("absl-py"),
         requirement("numpy"),
@@ -224,6 +227,7 @@ py_library(
 
 py_test(
     name = "privacy_calculator_test",
+    size = "large",
     srcs = ["privacy_calculator_test.py"],
     python_version = "PY3",
     srcs_version = "PY3",
@@ -232,6 +236,8 @@ py_test(
         ":clustering_params",
         ":privacy_calculator",
         "@com_google_python_dp_accounting//dp_accounting:dp_event",
+        "@com_google_python_dp_accounting//dp_accounting:mechanism_calibration",
+        "@com_google_python_dp_accounting//dp_accounting/pld:accountant",
         requirement("absl-py"),
         requirement("numpy"),
     ],

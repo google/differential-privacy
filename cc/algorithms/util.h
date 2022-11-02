@@ -523,6 +523,7 @@ absl::Status ValidateMaxPartitionsContributed(
     absl::optional<double> max_partitions_contributed);
 absl::Status ValidateMaxContributionsPerPartition(
     absl::optional<double> max_contributions_per_partition);
+absl::Status ValidateMaxContributions(absl::optional<int> max_contributions);
 
 // Validates common tree parameters.
 absl::Status ValidateTreeHeight(absl::optional<int> tree_height);

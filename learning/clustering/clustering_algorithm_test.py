@@ -14,14 +14,14 @@
 """Tests for clustering_algorithm."""
 
 from absl.testing import absltest
-
+from absl.testing import parameterized
 import numpy as np
 
 from clustering import clustering_algorithm
 from clustering import clustering_params
 
 
-class ClusteringTest(absltest.TestCase):
+class ClusteringTest(parameterized.TestCase):
 
   def test_clustering_result_value_errors_unequal_dim(self):
     centers = np.array([[0, 0], [100, 100]])
@@ -79,7 +79,10 @@ class ClusteringTest(absltest.TestCase):
     self.assertListEqual(list(clustering_result.labels), [0, 1, 0])
     self.assertAlmostEqual(clustering_result.loss, 37)
 
-  def test_clipped_data_used_for_clustering_and_not_result_calculation(self):
+  @parameterized.named_parameters(('privacy_budget_split', False),
+                                  ('mechanism_calibration', True))
+  def test_clipped_data_used_for_clustering_and_not_result_calculation(
+      self, use_mechanism_calibration):
     # Clipped datapoints (radius=1): [[0.3, 0.2], [0.6, 0.8], [0.6, 0.8]]
     datapoints = np.array([[0.3, 0.2], [3, 4], [6, 8]])
     # Very small radius means the datapoint will be clipped for the center
@@ -90,7 +93,12 @@ class ClusteringTest(absltest.TestCase):
     # No branching, the coreset will just be the average of the points
     tree_param = clustering_params.TreeParam(1, 1, 0)
     clustering_result = clustering_algorithm.private_lsh_clustering(
-        3, data, privacy_param, tree_param=tree_param)
+        3,
+        data,
+        privacy_param,
+        tree_param=tree_param,
+        multipliers=clustering_params.PrivacyCalculatorMultiplier()
+        if use_mechanism_calibration else None)
 
     # Center should be calculated using the clipped data.
     expected_center = np.array([0.5, 0.6])
@@ -143,7 +151,7 @@ class ClusteringMetricsTest(absltest.TestCase):
     self.assertAlmostEqual(clustering_metrics.false_match_frac, 1 / 9)
 
 
-class ClusteringEdgeCaseTest(absltest.TestCase):
+class ClusteringEdgeCaseTest(parameterized.TestCase):
   baseline_k: int
   baseline_privacy_param: clustering_params.DifferentialPrivacyParam
 
@@ -152,12 +160,18 @@ class ClusteringEdgeCaseTest(absltest.TestCase):
     self.baseline_k = 2
     self.baseline_privacy_param = clustering_params.DifferentialPrivacyParam()
 
-  def test_small_dataset(self):
+  @parameterized.named_parameters(('privacy_budget_split', False),
+                                  ('mechanism_calibration', True))
+  def test_small_dataset(self, use_mechanism_calibration):
     datapoints = np.array([[0.3, 0.2]])
     data = clustering_params.Data(datapoints=datapoints, radius=1)
     self.assertIsNotNone(
         clustering_algorithm.private_lsh_clustering(
-            self.baseline_k, data, self.baseline_privacy_param))
+            self.baseline_k,
+            data,
+            self.baseline_privacy_param,
+            multipliers=clustering_params.PrivacyCalculatorMultiplier()
+            if use_mechanism_calibration else None))
 
 
 if __name__ == '__main__':
