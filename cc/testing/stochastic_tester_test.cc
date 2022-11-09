@@ -170,13 +170,13 @@ class AlwaysError : public Algorithm<T> {
 };
 
 TEST(StochasticTesterTest, SingleDatasetBoundedSumTest) {
-  auto sequence = absl::make_unique<HaltonSequence<double>>(
+  auto sequence = std::make_unique<HaltonSequence<double>>(
       DefaultDatasetSize(), true /* sorted_only */, DefaultDataScale(),
       DefaultDataOffset());
   absl::StatusOr<std::unique_ptr<BoundedSum<double>>> algorithm =
       BoundedSum<double>::Builder()
           .SetLaplaceMechanism(
-              absl::make_unique<test_utils::SeededLaplaceMechanism::Builder>())
+              std::make_unique<test_utils::SeededLaplaceMechanism::Builder>())
           .SetEpsilon(std::log(3))
           .SetLower(sequence->RangeMin())
           .SetUpper(sequence->RangeMax())
@@ -189,10 +189,10 @@ TEST(StochasticTesterTest, SingleDatasetBoundedSumTest) {
 }
 
 TEST(StochasticTesterTest, SingleDatasetNonDpSumTest) {
-  auto sequence = absl::make_unique<HaltonSequence<double>>(
+  auto sequence = std::make_unique<HaltonSequence<double>>(
       DefaultDatasetSize(), true /* sorted_only */, DefaultDataScale(),
       DefaultDataOffset());
-  auto algorithm = absl::make_unique<NonDpSum<double>>();
+  auto algorithm = std::make_unique<NonDpSum<double>>();
   StochasticTester<double> tester(std::move(algorithm), std::move(sequence),
                                   /*num_datasets=*/1,
                                   DefaultNumSamplesPerHistogram());
@@ -201,11 +201,11 @@ TEST(StochasticTesterTest, SingleDatasetNonDpSumTest) {
 
 TEST(StochasticTesterTest, EmptySamplesCountTest) {
   std::vector<std::vector<double>> datasets({{1.0}});
-  auto sequence = absl::make_unique<StoredSequence<double>>(datasets);
+  auto sequence = std::make_unique<StoredSequence<double>>(datasets);
   absl::StatusOr<std::unique_ptr<Count<double>>> algorithm =
       Count<double>::Builder()
           .SetLaplaceMechanism(
-              absl::make_unique<test_utils::SeededLaplaceMechanism::Builder>())
+              std::make_unique<test_utils::SeededLaplaceMechanism::Builder>())
           .SetEpsilon(std::log(3))
           .Build();
   ASSERT_TRUE(algorithm.ok());
@@ -217,11 +217,11 @@ TEST(StochasticTesterTest, EmptySamplesCountTest) {
 
 TEST(StochasticTesterTest, SingleDatasetCountTest) {
   std::vector<std::vector<double>> datasets({{1.0, 2.0, 3.0}});
-  auto sequence = absl::make_unique<StoredSequence<double>>(datasets);
+  auto sequence = std::make_unique<StoredSequence<double>>(datasets);
   absl::StatusOr<std::unique_ptr<Count<double>>> algorithm =
       Count<double>::Builder()
           .SetLaplaceMechanism(
-              absl::make_unique<test_utils::SeededLaplaceMechanism::Builder>())
+              std::make_unique<test_utils::SeededLaplaceMechanism::Builder>())
           .SetEpsilon(std::log(3))
           .Build();
   ASSERT_TRUE(algorithm.ok());
@@ -233,8 +233,8 @@ TEST(StochasticTesterTest, SingleDatasetCountTest) {
 
 TEST(StochasticTesterTest, SingleDatasetNonDpCountTest) {
   std::vector<std::vector<double>> datasets({{1.0, 2.0, 3.0}});
-  auto sequence = absl::make_unique<StoredSequence<double>>(datasets);
-  auto algorithm = absl::make_unique<NonDpCount<double>>();
+  auto sequence = std::make_unique<StoredSequence<double>>(datasets);
+  auto algorithm = std::make_unique<NonDpCount<double>>();
   StochasticTester<double, int64_t> tester(
       std::move(algorithm), std::move(sequence),
       /*num_datasets=*/1, DefaultNumSamplesPerHistogram());
@@ -243,11 +243,11 @@ TEST(StochasticTesterTest, SingleDatasetNonDpCountTest) {
 
 TEST(StochasticTesterTest, SingleDatasetCountNoBranchingTest) {
   std::vector<std::vector<double>> datasets({{1.0, 2.0, 3.0}});
-  auto sequence = absl::make_unique<StoredSequence<double>>(datasets);
+  auto sequence = std::make_unique<StoredSequence<double>>(datasets);
   absl::StatusOr<std::unique_ptr<Count<double>>> algorithm =
       Count<double>::Builder()
           .SetLaplaceMechanism(
-              absl::make_unique<test_utils::SeededLaplaceMechanism::Builder>())
+              std::make_unique<test_utils::SeededLaplaceMechanism::Builder>())
           .SetEpsilon(std::log(3))
           .Build();
   ASSERT_TRUE(algorithm.ok());
@@ -260,8 +260,8 @@ TEST(StochasticTesterTest, SingleDatasetCountNoBranchingTest) {
 
 TEST(StochasticTesterTest, SingleDatasetNonDpCountNoBranchingTest) {
   std::vector<std::vector<double>> datasets({{1.0, 2.0, 3.0}});
-  auto sequence = absl::make_unique<StoredSequence<double>>(datasets);
-  auto algorithm = absl::make_unique<NonDpCount<double>>();
+  auto sequence = std::make_unique<StoredSequence<double>>(datasets);
+  auto algorithm = std::make_unique<NonDpCount<double>>();
   StochasticTester<double, int64_t> tester(
       std::move(algorithm), std::move(sequence),
       /*num_datasets=*/1, DefaultNumSamplesPerHistogram(),
@@ -270,13 +270,13 @@ TEST(StochasticTesterTest, SingleDatasetNonDpCountNoBranchingTest) {
 }
 
 TEST(StochasticTesterTest, MultipleDatasetBoundedSumTest) {
-  auto sequence = absl::make_unique<HaltonSequence<double>>(
+  auto sequence = std::make_unique<HaltonSequence<double>>(
       DefaultDatasetSize(), /*sorted_only=*/true, DefaultDataScale(),
       DefaultDataOffset());
   absl::StatusOr<std::unique_ptr<BoundedSum<double>>> algorithm =
       BoundedSum<double>::Builder()
           .SetLaplaceMechanism(
-              absl::make_unique<test_utils::SeededLaplaceMechanism::Builder>())
+              std::make_unique<test_utils::SeededLaplaceMechanism::Builder>())
           .SetEpsilon(std::log(3))
           .SetLower(sequence->RangeMin())
           .SetUpper(sequence->RangeMax())
@@ -288,7 +288,7 @@ TEST(StochasticTesterTest, MultipleDatasetBoundedSumTest) {
 }
 
 TEST(StochasticTesterTest, MultipleDatasetBoundedSumWithInsufficientNoiseTest) {
-  auto sequence = absl::make_unique<HaltonSequence<double>>(
+  auto sequence = std::make_unique<HaltonSequence<double>>(
       DefaultDatasetSize(), /*sorted_only=*/true, DefaultDataScale(),
       DefaultDataOffset());
   auto mechanism_builder =
@@ -301,7 +301,7 @@ TEST(StochasticTesterTest, MultipleDatasetBoundedSumWithInsufficientNoiseTest) {
 }
 
 TEST(StochasticTesterTest, ReplaceErrorWithValue) {
-  auto sequence = absl::make_unique<HaltonSequence<double>>(
+  auto sequence = std::make_unique<HaltonSequence<double>>(
       DefaultDatasetSize(), /*sorted_only=*/true, DefaultDataScale(),
       DefaultDataOffset());
   auto mechanism_builder =
@@ -316,23 +316,23 @@ TEST(StochasticTesterTest, ReplaceErrorWithValue) {
 // Test an algorithm that throws error deterministically.
 TEST(StochasticTesterTest, ErrorStatusWithoutDP) {
   const double epsilon = std::log(3);
-  auto sequence = absl::make_unique<HaltonSequence<int64_t>>(
+  auto sequence = std::make_unique<HaltonSequence<int64_t>>(
       DefaultDatasetSize(), /*sorted_only=*/true, DefaultDataScale(),
       DefaultDataOffset());
   auto mechanism = LaplaceMechanism::Builder().SetEpsilon(epsilon).Build();
   ASSERT_TRUE(mechanism.ok());
   auto algorithm =
-      absl::make_unique<CountNoDpError<int64_t>>(epsilon, std::move(*mechanism));
+      std::make_unique<CountNoDpError<int64_t>>(epsilon, std::move(*mechanism));
   StochasticTester<int64_t> tester(std::move(algorithm), std::move(sequence));
   EXPECT_FALSE(tester.Run());
 }
 
 // Test a class that always determines error.
 TEST(StochasticTesterTest, AllError) {
-  auto sequence = absl::make_unique<HaltonSequence<double>>(
+  auto sequence = std::make_unique<HaltonSequence<double>>(
       DefaultDatasetSize(), /*sorted_only=*/true, DefaultDataScale(),
       DefaultDataOffset());
-  auto algorithm = absl::make_unique<AlwaysError<double>>();
+  auto algorithm = std::make_unique<AlwaysError<double>>();
   StochasticTester<double> tester(std::move(algorithm), std::move(sequence));
   EXPECT_TRUE(tester.Run());
 }

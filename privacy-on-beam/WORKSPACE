@@ -16,6 +16,16 @@
 
 workspace(name = "com_github_google_differential_privacy_privacy_on_beam_v2")
 
+local_repository(
+    name = "com_google_differential_privacy",
+    path = "../",
+)
+
+local_repository(
+    name = "com_github_google_differential_privacy_go_v2",
+    path = "../go",
+)
+
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 http_archive(
@@ -29,10 +39,10 @@ http_archive(
 
 http_archive(
     name = "bazel_gazelle",
-    sha256 = "efbbba6ac1a4fd342d5122cbdfdb82aeb2cf2862e35022c752eaddffada7c3f3",
+    sha256 = "448e37e0dbf61d6fa8f00aaa12d191745e14f07c31cabfa731f0c8e8a4f41b97",
     urls = [
-        "https://mirror.bazel.build/github.com/bazelbuild/bazel-gazelle/releases/download/v0.27.0/bazel-gazelle-v0.27.0.tar.gz",
-        "https://github.com/bazelbuild/bazel-gazelle/releases/download/v0.27.0/bazel-gazelle-v0.27.0.tar.gz",
+        "https://mirror.bazel.build/github.com/bazelbuild/bazel-gazelle/releases/download/v0.28.0/bazel-gazelle-v0.28.0.tar.gz",
+        "https://github.com/bazelbuild/bazel-gazelle/releases/download/v0.28.0/bazel-gazelle-v0.28.0.tar.gz",
     ],
 )
 
@@ -42,15 +52,10 @@ go_rules_dependencies()
 
 go_register_toolchains(version = "1.18.3")
 
-local_repository(
-    name = "com_google_differential_privacy",
-    path = "../",
-)
+# Load Go DP library dependencies.
+load("@com_github_google_differential_privacy_go_v2//:go_differential_privacy_deps.bzl", "go_differential_privacy_deps")
 
-local_repository(
-    name = "com_github_google_differential_privacy_go_v2",
-    path = "../go",
-)
+go_differential_privacy_deps()
 
 # Load dependencies for the base workspace.
 load("@com_google_differential_privacy//:differential_privacy_deps.bzl", "differential_privacy_deps")
@@ -65,11 +70,6 @@ load(":privacy_on_beam_deps.bzl", "privacy_on_beam_deps")
 
 # gazelle:repository_macro privacy_on_beam_deps.bzl%privacy_on_beam_deps
 privacy_on_beam_deps()
-
-# Load Go DP library dependencies.
-load("@com_github_google_differential_privacy_go_v2//:go_differential_privacy_deps.bzl", "go_differential_privacy_deps")
-
-go_differential_privacy_deps()
 
 protobuf_deps()
 

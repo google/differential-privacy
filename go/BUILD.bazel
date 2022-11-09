@@ -18,3 +18,13 @@ load("@bazel_gazelle//:def.bzl", "gazelle")
 
 # gazelle:prefix github.com/google/differential-privacy/go/v2
 gazelle(name = "gazelle")
+
+gazelle(
+    name = "update-repos",
+    args = [
+        "-from_file=go.mod",
+        "-to_macro=go_differential_privacy_deps.bzl%go_differential_privacy_deps",
+        "-prune",
+    ],
+    command = "update-repos",
+)

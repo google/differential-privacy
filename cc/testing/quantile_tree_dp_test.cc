@@ -14,6 +14,8 @@
 // limitations under the License.
 //
 
+#include <memory>
+
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "algorithms/numerical-mechanisms.h"
@@ -105,12 +107,12 @@ TEST_P(QuantileTreeDpTest, RunTestCasesAndCountVotes) {
   switch (sampling_params.noise_type()) {
     case ::testing::NoiseType::LAPLACE:
       dp_params.mechanism_builder =
-          absl::make_unique<LaplaceMechanism::Builder>();
+          std::make_unique<LaplaceMechanism::Builder>();
       dp_params.delta = 0;
       break;
     case ::testing::NoiseType::GAUSSIAN:
       dp_params.mechanism_builder =
-          absl::make_unique<GaussianMechanism::Builder>();
+          std::make_unique<GaussianMechanism::Builder>();
       dp_params.delta = sampling_params.delta();
       break;
     default:

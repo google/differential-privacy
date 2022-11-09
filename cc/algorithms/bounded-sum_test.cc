@@ -64,7 +64,7 @@ TYPED_TEST(BoundedSumTest, BasicIO) {
   std::vector<TypeParam> a = {1, 2, 3, 4};
   auto bs =
       typename BoundedSum<TypeParam>::Builder()
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetEpsilon(1.0)
           .SetLower(0)
           .SetUpper(10)
@@ -79,7 +79,7 @@ TYPED_TEST(BoundedSumTest, BasicIOWithLaplaceReturnsOk) {
   std::vector<TypeParam> a = {1, 2, 3, 4};
   auto bs =
       typename BoundedSum<TypeParam>::Builder()
-          .SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<LaplaceMechanism::Builder>())
           .SetEpsilon(1.0)
           .SetLower(0)
           .SetUpper(10)
@@ -93,7 +93,7 @@ TYPED_TEST(BoundedSumTest, BasicIOWithGaussianReturnsOk) {
   std::vector<TypeParam> a = {1, 2, 3, 4};
   auto bs =
       typename BoundedSum<TypeParam>::Builder()
-          .SetLaplaceMechanism(absl::make_unique<GaussianMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<GaussianMechanism::Builder>())
           .SetEpsilon(1.0)
           .SetDelta(0.0001)
           .SetLower(0)
@@ -108,7 +108,7 @@ TYPED_TEST(BoundedSumTest, GaussianWithoutDeltaFails) {
   std::vector<TypeParam> a = {1, 2, 3, 4};
   auto bs =
       typename BoundedSum<TypeParam>::Builder()
-          .SetLaplaceMechanism(absl::make_unique<GaussianMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<GaussianMechanism::Builder>())
           .SetEpsilon(1.0)
           .SetLower(0)
           .SetUpper(10)
@@ -121,7 +121,7 @@ TYPED_TEST(BoundedSumTest, BasicIOWithoutIterator) {
   std::vector<TypeParam> a = {0, 0, 10, 10};
   auto bs =
       typename BoundedSum<TypeParam>::Builder()
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetEpsilon(1.0)
           .SetLower(1)
           .SetUpper(2)
@@ -140,7 +140,7 @@ TEST(BoundedSumTest, AddEntryInvalidInputIgnored) {
                           10};
   auto bs =
       typename BoundedSum<float>::Builder()
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetEpsilon(1.0)
           .SetLower(1)
           .SetUpper(2)
@@ -158,7 +158,7 @@ TYPED_TEST(BoundedSumTest, InsufficientPrivacyBudgetTest) {
   std::vector<TypeParam> a = {0, 0, 10, 10};
   auto bs =
       typename BoundedSum<TypeParam>::Builder()
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetEpsilon(1.0)
           .SetLower(0)
           .SetUpper(10)
@@ -174,7 +174,7 @@ TYPED_TEST(BoundedSumTest, InsufficientPrivacyBudgetTest) {
 TYPED_TEST(BoundedSumTest, RepeatedResultsTest) {
   std::vector<TypeParam> a = {1, 2, 3, 4};
   typename BoundedSum<TypeParam>::Builder builder;
-  builder.SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+  builder.SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
       .SetEpsilon(1.0)
       .SetLower(0)
       .SetUpper(10);
@@ -212,7 +212,7 @@ TYPED_TEST(BoundedSumTest, ClampTest) {
   std::vector<TypeParam> a = {0, 0, 10, 10};
   auto bs =
       typename BoundedSum<TypeParam>::Builder()
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetEpsilon(1.0)
           .SetLower(1)
           .SetUpper(2)
@@ -261,7 +261,7 @@ TYPED_TEST(BoundedSumTest, BoundGettersForFixedBounds) {
   int expectedLower = 1, expectedUpper = 2;
   auto bs =
       typename BoundedSum<TypeParam>::Builder()
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetEpsilon(1.0)
           .SetLower(expectedLower)
           .SetUpper(expectedUpper)
@@ -274,7 +274,7 @@ TYPED_TEST(BoundedSumTest, BoundGettersForFixedBounds) {
 TYPED_TEST(BoundedSumTest, BoundGettersForApproxBounds) {
   auto bs =
       typename BoundedSum<TypeParam>::Builder()
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetEpsilon(1.0)
           .Build();
   ASSERT_OK(bs);
@@ -299,7 +299,7 @@ TYPED_TEST(BoundedSumTest, SensitivityTooHighApproxBounds) {
       ApproxBounds<double>::Builder()
           .SetEpsilon(kDefaultEpsilon / 2)
           .SetThresholdForTest(1)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
   auto bs = BoundedSum<double>::Builder()
@@ -359,7 +359,7 @@ TYPED_TEST(BoundedSumTest, SetZeroNoiseMechanismBuilder) {
           .SetEpsilon(1.0)
           .SetLower(0)
           .SetUpper(10)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>(
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>(
               ZeroNoiseMechanism::Builder()))
           .Build();
   ASSERT_OK(bs);
@@ -376,7 +376,7 @@ TYPED_TEST(BoundedSumTest, SerializeMergeTest) {
   auto bs1 =
       builder.SetLower(0)
           .SetUpper(3)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bs1);
   (*bs1)->AddEntry(-2);
@@ -407,12 +407,12 @@ TYPED_TEST(BoundedSumTest, SerializeMergePartialSumsTest) {
       bounds_builder.SetThresholdForTest(0.5)
           .SetEpsilon(kDefaultEpsilon / 2)
           .SetNumBins(50)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds1);
   auto bs1 =
       builder.SetEpsilon(kDefaultEpsilon)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetApproxBounds(std::move(*bounds1))
           .Build();
   ASSERT_OK(bs1);
@@ -444,7 +444,7 @@ TEST(BoundedSumTest, OverflowFromAddNoiseTypeCast) {
   for (i = 0; i < 100; ++i) {
     auto bs =
         typename BoundedSum<int64_t>::Builder()
-            .SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
+            .SetLaplaceMechanism(std::make_unique<LaplaceMechanism::Builder>())
             .SetEpsilon(10.0)  // Large epsilon avoids noise > INT64_MAX
             .SetLower(1)
             .SetUpper(std::numeric_limits<int64_t>::max())
@@ -466,7 +466,7 @@ TEST(BoundedSumTest, OverflowAddEntryManualBounds) {
 
   absl::StatusOr<std::unique_ptr<BoundedSum<int64_t>>> bs =
       builder
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetLower(0)
           .SetUpper(std::numeric_limits<int64_t>::max())
           .Build();
@@ -487,7 +487,7 @@ TEST(BoundedSumTest, UnderflowAddEntryManualBounds) {
 
   absl::StatusOr<std::unique_ptr<BoundedSum<int64_t>>> bs =
       builder
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetLower(std::numeric_limits<int64_t>::lowest() + 1)
           .SetUpper(0)
           .Build()
@@ -508,7 +508,7 @@ TEST(BoundedSumTest, OverflowMergeManualBoundsTest) {
 
   absl::StatusOr<std::unique_ptr<BoundedSum<int64_t>>> bs =
       builder
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetLower(0)
           .SetUpper(std::numeric_limits<int64_t>::max())
           .Build();
@@ -543,7 +543,7 @@ TEST(BoundedSumTest, UnderflowMergeManualBoundsTest) {
 
   absl::StatusOr<std::unique_ptr<BoundedSum<int64_t>>> bs =
       builder
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetLower(std::numeric_limits<int64_t>::lowest() + 1)
           .SetUpper(0)
           .Build()
@@ -579,7 +579,7 @@ TEST(BoundedSumTest, DropNanEntriesManualBounds) {
       BoundedSum<double>::Builder()
           .SetLower(0)
           .SetUpper(10)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bs);
   auto output = (*bs)->Result(a.begin(), a.end());
@@ -596,13 +596,13 @@ TEST(BoundedSumTest, DropNanEntriesApproxBounds) {
           .SetBase(2)
           .SetScale(1)
           .SetThresholdForTest(0.5)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
   auto bs =
       BoundedSum<double>::Builder()
           .SetEpsilon(kDefaultEpsilon)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetApproxBounds(std::move(*bounds))
           .Build();
   ASSERT_OK(bs);
@@ -616,7 +616,7 @@ TEST(BoundedSumTest, DropNanEntriesApproxBounds) {
 TYPED_TEST(BoundedSumTest, PropagateApproxBoundsError) {
   auto bs =
       typename BoundedSum<TypeParam>::Builder()
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bs);
 
@@ -640,14 +640,14 @@ TYPED_TEST(BoundedSumTest, AutomaticBoundsContainZero) {
           .SetBase(2)
           .SetScale(1)
           .SetThresholdForTest(1.5)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
   auto bs =
       typename BoundedSum<TypeParam>::Builder()
           .SetEpsilon(kDefaultEpsilon)
           .SetApproxBounds(std::move(*bounds))
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bs);
   (*bs)->AddEntries(a.begin(), a.end());
@@ -674,14 +674,14 @@ TYPED_TEST(BoundedSumTest, AutomaticBoundsNegative) {
           .SetBase(2)
           .SetScale(1)
           .SetThresholdForTest(2)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
   auto bs =
       typename BoundedSum<TypeParam>::Builder()
           .SetEpsilon(kDefaultEpsilon)
           .SetApproxBounds(std::move(*bounds))
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bs);
   (*bs)->AddEntries(a.begin(), a.end());
@@ -709,14 +709,14 @@ TYPED_TEST(BoundedSumTest, AutomaticBoundsPositive) {
           .SetBase(2)
           .SetScale(1)
           .SetThresholdForTest(1.5)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
   auto bs =
       typename BoundedSum<TypeParam>::Builder()
           .SetEpsilon(kDefaultEpsilon)
           .SetApproxBounds(std::move(*bounds))
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bs);
   (*bs)->AddEntries(a.begin(), a.end());
@@ -740,7 +740,7 @@ TYPED_TEST(BoundedSumTest, AutomaticBoundsDefault) {
   auto bs =
       typename BoundedSum<TypeParam>::Builder()
           .SetEpsilon(1)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bs);
 
@@ -772,7 +772,7 @@ TYPED_TEST(BoundedSumTest, Reset) {
           .SetNumBins(3)
           .SetBase(10)
           .SetScale(1)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetThresholdForTest(0.5)
           .Build();
   ASSERT_OK(bounds);
@@ -780,7 +780,7 @@ TYPED_TEST(BoundedSumTest, Reset) {
       typename BoundedSum<TypeParam>::Builder()
           .SetEpsilon(kDefaultEpsilon)
           .SetApproxBounds(std::move(*bounds))
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bs);
 

@@ -213,7 +213,7 @@ class HaltonSequence : public HypercubeSequence<T> {
     CHECK(HypercubeSequence<T>::dimension_ == bases.size());
     halton_generators_.resize(bases.size());
     std::transform(bases.begin(), bases.end(), halton_generators_.begin(),
-                   [](int b) { return absl::make_unique<Halton>(b); });
+                   [](int b) { return std::make_unique<Halton>(b); });
   }
 };
 
