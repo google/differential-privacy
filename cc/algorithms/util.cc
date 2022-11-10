@@ -18,6 +18,7 @@
 
 #include <cmath>
 #include <cstdlib>
+#include <memory>
 #include <vector>
 
 #include "absl/status/status.h"
@@ -323,5 +324,4 @@ absl::Status ValidateBranchingFactor(absl::optional<int> branching_factor) {
   return ValidateIsGreaterThanOrEqualTo(branching_factor, /*lower_bound=*/2,
                                         "Branching Factor");
 }
-
 }  // namespace differential_privacy

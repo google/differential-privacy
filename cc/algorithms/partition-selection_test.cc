@@ -19,10 +19,12 @@
 #include <cmath>
 #include <cstdlib>
 
+#include "base/testing/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/memory/memory.h"
 #include "absl/status/statusor.h"
-#include "algorithms/numerical-mechanisms-testing.h"
+#include "algorithms/numerical-mechanisms.h"
 
 namespace differential_privacy {
 namespace {
@@ -30,7 +32,8 @@ namespace {
 using ::testing::DoubleEq;
 using ::testing::DoubleNear;
 using ::testing::Eq;
-using ::testing::MatchesRegex;
+using ::testing::HasSubstr;
+using ::differential_privacy::base::testing::StatusIs;
 
 constexpr int kNumSamples = 10000000;
 constexpr int kSmallNumSamples = 1000000;
@@ -52,143 +55,122 @@ constexpr double kCalcThresholdTestDefaultTolerance = 0.05;
 TEST(PartitionSelectionTest,
      NearTruncatedGeometricPartitionSelectionUnsetEpsilon) {
   NearTruncatedGeometricPartitionSelection::Builder test_builder;
-  auto failed_build =
-      test_builder.SetDelta(0.1).SetMaxPartitionsContributed(2).Build();
-  EXPECT_THAT(failed_build.status().code(),
-              Eq(absl::StatusCode::kInvalidArgument));
-  std::string message(std::string(failed_build.status().message()));
-  EXPECT_THAT(message, MatchesRegex("^Epsilon must be set.*"));
+  EXPECT_THAT(test_builder.SetDelta(0.1).SetMaxPartitionsContributed(2).Build(),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Epsilon must be set")));
 }
 
 TEST(PartitionSelectionTest,
      NearTruncatedGeometricPartitionSelectionNanEpsilon) {
   NearTruncatedGeometricPartitionSelection::Builder test_builder;
-  auto failed_build = test_builder.SetEpsilon(NAN)
-                          .SetDelta(0.3)
-                          .SetMaxPartitionsContributed(4)
-                          .Build();
-  EXPECT_THAT(failed_build.status().code(),
-              Eq(absl::StatusCode::kInvalidArgument));
-  std::string message(std::string(failed_build.status().message()));
-  EXPECT_THAT(message,
-              MatchesRegex("^Epsilon must be a valid numeric value.*"));
+  EXPECT_THAT(test_builder.SetEpsilon(NAN)
+                  .SetDelta(0.3)
+                  .SetMaxPartitionsContributed(4)
+                  .Build(),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Epsilon must be a valid numeric value")));
 }
 
 TEST(PartitionSelectionTest,
      NearTruncatedGeometricPartitionSelectionNotFiniteEpsilon) {
   NearTruncatedGeometricPartitionSelection::Builder test_builder;
-  auto failed_build =
-      test_builder.SetEpsilon(std::numeric_limits<double>::infinity())
-          .SetDelta(0.3)
-          .SetMaxPartitionsContributed(4)
-          .Build();
-  EXPECT_THAT(failed_build.status().code(),
-              Eq(absl::StatusCode::kInvalidArgument));
-  std::string message(std::string(failed_build.status().message()));
-  EXPECT_THAT(message, MatchesRegex("^Epsilon must be finite.*"));
+  EXPECT_THAT(test_builder.SetEpsilon(std::numeric_limits<double>::infinity())
+                  .SetDelta(0.3)
+                  .SetMaxPartitionsContributed(4)
+                  .Build(),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Epsilon must be finite")));
 }
 
 TEST(PartitionSelectionTest,
      NearTruncatedGeometricPartitionSelectionNegativeEpsilon) {
   NearTruncatedGeometricPartitionSelection::Builder test_builder;
-  auto failed_build = test_builder.SetEpsilon(-5.0)
-                          .SetDelta(0.6)
-                          .SetMaxPartitionsContributed(7)
-                          .Build();
-  EXPECT_THAT(failed_build.status().code(),
-              Eq(absl::StatusCode::kInvalidArgument));
-  std::string message(std::string(failed_build.status().message()));
-  EXPECT_THAT(message, MatchesRegex("^Epsilon must be finite and positive.*"));
+  EXPECT_THAT(test_builder.SetEpsilon(-5.0)
+                  .SetDelta(0.6)
+                  .SetMaxPartitionsContributed(7)
+                  .Build(),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Epsilon must be finite and positive")));
 }
 
 TEST(PartitionSelectionTest,
      NearTruncatedGeometricPartitionSelectionUnsetDelta) {
   NearTruncatedGeometricPartitionSelection::Builder test_builder;
-  auto failed_build =
-      test_builder.SetEpsilon(8.0).SetMaxPartitionsContributed(9).Build();
-  EXPECT_THAT(failed_build.status().code(),
-              Eq(absl::StatusCode::kInvalidArgument));
-  std::string message(std::string(failed_build.status().message()));
-  EXPECT_THAT(message, MatchesRegex("^Delta must be set.*"));
+  EXPECT_THAT(
+      test_builder.SetEpsilon(8.0).SetMaxPartitionsContributed(9).Build(),
+      StatusIs(absl::StatusCode::kInvalidArgument,
+               HasSubstr("Delta must be set.")));
 }
 
 TEST(PartitionSelectionTest, NearTruncatedGeometricPartitionSelectionNanDelta) {
   NearTruncatedGeometricPartitionSelection::Builder test_builder;
-  auto failed_build = test_builder.SetEpsilon(1.2)
-                          .SetDelta(NAN)
-                          .SetMaxPartitionsContributed(3)
-                          .Build();
-  EXPECT_THAT(failed_build.status().code(),
-              Eq(absl::StatusCode::kInvalidArgument));
-  std::string message(std::string(failed_build.status().message()));
-  EXPECT_THAT(message, MatchesRegex("^Delta must be a valid numeric value.*"));
+  EXPECT_THAT(test_builder.SetEpsilon(1.2)
+                  .SetDelta(NAN)
+                  .SetMaxPartitionsContributed(3)
+                  .Build(),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Delta must be a valid numeric value")));
 }
 
 TEST(PartitionSelectionTest,
      NearTruncatedGeometricPartitionSelectionNotFiniteDelta) {
   NearTruncatedGeometricPartitionSelection::Builder test_builder;
-  auto failed_build = test_builder.SetEpsilon(1.2)
-                          .SetDelta(std::numeric_limits<double>::infinity())
-                          .SetMaxPartitionsContributed(3)
-                          .Build();
-  EXPECT_THAT(failed_build.status().code(),
-              Eq(absl::StatusCode::kInvalidArgument));
-  std::string message(std::string(failed_build.status().message()));
-  EXPECT_THAT(message,
-              MatchesRegex("^Delta must be in the inclusive interval.*"));
+  EXPECT_THAT(test_builder.SetEpsilon(1.2)
+                  .SetDelta(std::numeric_limits<double>::infinity())
+                  .SetMaxPartitionsContributed(3)
+                  .Build(),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Delta must be in the inclusive interval")));
 }
 
 TEST(PartitionSelectionTest,
      NearTruncatedGeometricPartitionSelectionInvalidDelta) {
   NearTruncatedGeometricPartitionSelection::Builder test_builder;
-  auto failed_build = test_builder.SetEpsilon(4.5)
-                          .SetDelta(6.0)
-                          .SetMaxPartitionsContributed(7)
-                          .Build();
-  EXPECT_THAT(failed_build.status().code(),
-              Eq(absl::StatusCode::kInvalidArgument));
-  std::string message(std::string(failed_build.status().message()));
-  EXPECT_THAT(message,
-              MatchesRegex("^Delta must be in the inclusive interval.*"));
+  EXPECT_THAT(test_builder.SetEpsilon(4.5)
+                  .SetDelta(6.0)
+                  .SetMaxPartitionsContributed(7)
+                  .Build(),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Delta must be in the inclusive interval")));
 }
 
 TEST(PartitionSelectionTest,
      NearTruncatedGeometricPartitionSelectionUnsetMaxPartitionsContributed) {
   NearTruncatedGeometricPartitionSelection::Builder test_builder;
-  auto failed_build = test_builder.SetEpsilon(0.8).SetDelta(0.9).Build();
-  EXPECT_THAT(failed_build.status().code(),
-              Eq(absl::StatusCode::kInvalidArgument));
-  std::string message(std::string(failed_build.status().message()));
-  EXPECT_THAT(message, MatchesRegex("^Max number of partitions a user can"
-                                    " contribute to must be set.*"));
+  EXPECT_THAT(
+      test_builder.SetEpsilon(0.8).SetDelta(0.9).Build(),
+      StatusIs(
+          absl::StatusCode::kInvalidArgument,
+          HasSubstr("Maximum number of partitions that can be contributed to "
+                    "(i.e., L0 sensitivity) must be set")));
 }
 
 TEST(PartitionSelectionTest,
      NearTruncatedGeometricPartitionSelectionNegativeMaxPartitionsContributed) {
   NearTruncatedGeometricPartitionSelection::Builder test_builder;
-  auto failed_build = test_builder.SetEpsilon(0.1)
-                          .SetDelta(0.2)
-                          .SetMaxPartitionsContributed(-3)
-                          .Build();
-  EXPECT_THAT(failed_build.status().code(),
-              Eq(absl::StatusCode::kInvalidArgument));
-  std::string message(std::string(failed_build.status().message()));
-  EXPECT_THAT(message, MatchesRegex("^Max number of partitions a user can"
-                                    " contribute to must be positive.*"));
+  EXPECT_THAT(
+      test_builder.SetEpsilon(0.1)
+          .SetDelta(0.2)
+          .SetMaxPartitionsContributed(-3)
+          .Build(),
+      StatusIs(
+          absl::StatusCode::kInvalidArgument,
+          HasSubstr("Maximum number of partitions that can be contributed to "
+                    "(i.e., L0 sensitivity) must be positive, but is -3.")));
 }
 
 TEST(PartitionSelectionTest,
      NearTruncatedGeometricPartitionSelectionZeroMaxPartitionsContributed) {
   NearTruncatedGeometricPartitionSelection::Builder test_builder;
-  auto failed_build = test_builder.SetEpsilon(0.1)
-                          .SetDelta(0.2)
-                          .SetMaxPartitionsContributed(0)
-                          .Build();
-  EXPECT_THAT(failed_build.status().code(),
-              Eq(absl::StatusCode::kInvalidArgument));
-  std::string message(std::string(failed_build.status().message()));
-  EXPECT_THAT(message, MatchesRegex("^Max number of partitions a user can"
-                                    " contribute to must be positive.*"));
+  EXPECT_THAT(
+      test_builder.SetEpsilon(0.1)
+          .SetDelta(0.2)
+          .SetMaxPartitionsContributed(0)
+          .Build(),
+      StatusIs(
+          absl::StatusCode::kInvalidArgument,
+          HasSubstr("Maximum number of partitions that can be contributed to "
+                    "(i.e., L0 sensitivity) must be positive, but is 0.")));
 }
 
 // We expect the probability of keeping a partition with one user
@@ -365,142 +347,124 @@ TEST(PartitionSelectionTest,
 TEST(PartitionSelectionTest,
      LaplacePartitionSelectionUnsetMaxPartitionsContributed) {
   LaplacePartitionSelection::Builder test_builder;
-  auto failed_build =
+  EXPECT_THAT(
       test_builder
           .SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
           .SetDelta(0.1)
           .SetEpsilon(2)
-          .Build();
-  EXPECT_THAT(failed_build.status().code(),
-              Eq(absl::StatusCode::kInvalidArgument));
-  std::string message(std::string(failed_build.status().message()));
-  EXPECT_THAT(message, MatchesRegex("^Max number of partitions a user can"
-                                    " contribute to must be set.*"));
+          .Build(),
+      StatusIs(
+          absl::StatusCode::kInvalidArgument,
+          HasSubstr("Maximum number of partitions that can be contributed to "
+                    "(i.e., L0 sensitivity) must be set")));
 }
 
 TEST(PartitionSelectionTest,
      LaplacePartitionSelectionNegativeMaxPartitionsContributed) {
   LaplacePartitionSelection::Builder test_builder;
-  auto failed_build =
+  EXPECT_THAT(
       test_builder
           .SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
           .SetDelta(0.1)
           .SetEpsilon(2)
           .SetMaxPartitionsContributed(-3)
-          .Build();
-  EXPECT_THAT(failed_build.status().code(),
-              Eq(absl::StatusCode::kInvalidArgument));
-  std::string message(std::string(failed_build.status().message()));
-  EXPECT_THAT(message, MatchesRegex("^Max number of partitions a user can"
-                                    " contribute to must be positive.*"));
+          .Build(),
+      StatusIs(
+          absl::StatusCode::kInvalidArgument,
+          HasSubstr("Maximum number of partitions that can be contributed to "
+                    "(i.e., L0 sensitivity) must be positive, but is -3.")));
 }
 
 TEST(PartitionSelectionTest,
      LaplacePartitionSelectionZeroMaxPartitionsContributed) {
   LaplacePartitionSelection::Builder test_builder;
-  auto failed_build =
+  EXPECT_THAT(
       test_builder
           .SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
           .SetDelta(0.1)
           .SetEpsilon(2)
           .SetMaxPartitionsContributed(0)
-          .Build();
-  EXPECT_THAT(failed_build.status().code(),
-              Eq(absl::StatusCode::kInvalidArgument));
-  std::string message(std::string(failed_build.status().message()));
-  EXPECT_THAT(message, MatchesRegex("^Max number of partitions a user can"
-                                    " contribute to must be positive.*"));
+          .Build(),
+      StatusIs(
+          absl::StatusCode::kInvalidArgument,
+          HasSubstr("Maximum number of partitions that can be contributed to "
+                    "(i.e., L0 sensitivity) must be positive, but is 0.")));
 }
 
 TEST(PartitionSelectionTest, LaplacePartitionSelectionUnsetEpsilon) {
   LaplacePartitionSelection::Builder test_builder;
-  auto failed_build =
+  EXPECT_THAT(
       test_builder
           .SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
           .SetDelta(0.1)
           .SetMaxPartitionsContributed(2)
-          .Build();
-  EXPECT_THAT(failed_build.status().code(),
-              Eq(absl::StatusCode::kInvalidArgument));
-  std::string message(std::string(failed_build.status().message()));
-  EXPECT_THAT(message, MatchesRegex("^Epsilon must be set.*"));
+          .Build(),
+      StatusIs(absl::StatusCode::kInvalidArgument,
+               HasSubstr("Epsilon must be set.")));
 }
 
 TEST(PartitionSelectionTest, LaplacePartitionSelectionUnsetDelta) {
   LaplacePartitionSelection::Builder test_builder;
-  auto failed_build =
+  EXPECT_THAT(
       test_builder
           .SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
           .SetEpsilon(0.1)
           .SetMaxPartitionsContributed(2)
-          .Build();
-  EXPECT_THAT(failed_build.status().code(),
-              Eq(absl::StatusCode::kInvalidArgument));
-  std::string message(std::string(failed_build.status().message()));
-  EXPECT_THAT(message, MatchesRegex("^Delta must be set.*"));
+          .Build(),
+      StatusIs(absl::StatusCode::kInvalidArgument,
+               HasSubstr("Delta must be set")));
 }
 
 TEST(PartitionSelectionTest, LaplacePartitionSelectionNanDelta) {
   LaplacePartitionSelection::Builder test_builder;
-  auto failed_build =
+  EXPECT_THAT(
       test_builder
           .SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
           .SetEpsilon(0.1)
           .SetDelta(NAN)
           .SetMaxPartitionsContributed(2)
-          .Build();
-  EXPECT_THAT(failed_build.status().code(),
-              Eq(absl::StatusCode::kInvalidArgument));
-  std::string message(std::string(failed_build.status().message()));
-  EXPECT_THAT(message, MatchesRegex("^Delta must be a valid numeric value.*"));
+          .Build(),
+      StatusIs(absl::StatusCode::kInvalidArgument,
+               HasSubstr("Delta must be a valid numeric value")));
 }
 
 TEST(PartitionSelectionTest, LaplacePartitionSelectionNotFiniteDelta) {
   LaplacePartitionSelection::Builder test_builder;
-  auto failed_build =
+  EXPECT_THAT(
       test_builder
           .SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
           .SetEpsilon(0.1)
           .SetDelta(std::numeric_limits<double>::infinity())
           .SetMaxPartitionsContributed(2)
-          .Build();
-  EXPECT_THAT(failed_build.status().code(),
-              Eq(absl::StatusCode::kInvalidArgument));
-  std::string message(std::string(failed_build.status().message()));
-  EXPECT_THAT(message,
-              MatchesRegex("^Delta must be in the inclusive interval.*"));
+          .Build(),
+      StatusIs(absl::StatusCode::kInvalidArgument,
+               HasSubstr("Delta must be in the inclusive interval")));
 }
 
 TEST(PartitionSelectionTest, LaplacePartitionSelectionInvalidPositiveDelta) {
   LaplacePartitionSelection::Builder test_builder;
-  auto failed_build =
+  EXPECT_THAT(
       test_builder
           .SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
           .SetEpsilon(0.1)
           .SetDelta(5.2)
           .SetMaxPartitionsContributed(2)
-          .Build();
-  EXPECT_THAT(failed_build.status().code(),
-              Eq(absl::StatusCode::kInvalidArgument));
-  std::string message(std::string(failed_build.status().message()));
-  EXPECT_THAT(message,
-              MatchesRegex("^Delta must be in the inclusive interval.*"));
+          .Build(),
+      StatusIs(absl::StatusCode::kInvalidArgument,
+               HasSubstr("Delta must be in the inclusive interval")));
 }
 
 TEST(PartitionSelectionTest, LaplacePartitionSelectionInvalidNegativeDelta) {
   LaplacePartitionSelection::Builder test_builder;
-  auto failed_build =
+  EXPECT_THAT(
       test_builder
           .SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
           .SetEpsilon(0.1)
           .SetDelta(-0.1)
           .SetMaxPartitionsContributed(2)
-          .Build();
-  EXPECT_THAT(failed_build.status().code(),
-              Eq(absl::StatusCode::kInvalidArgument));
-  std::string message(std::string(failed_build.status().message()));
-  EXPECT_THAT(message,
-              MatchesRegex("^Delta must be in the inclusive interval.*"));
+          .Build(),
+      StatusIs(absl::StatusCode::kInvalidArgument,
+               HasSubstr("Delta must be in the inclusive interval")));
 }
 
 // We expect the probability of keeping a partition with one user
@@ -1124,142 +1088,124 @@ TEST(PartitionSelectionTest, RoundTripDeltaTests) {
 TEST(PartitionSelectionTest,
      GaussianPartitionSelectionUnsetMaxPartitionsContributed) {
   GaussianPartitionSelection::Builder test_builder;
-  auto failed_build =
+  EXPECT_THAT(
       test_builder
           .SetGaussianMechanism(absl::make_unique<GaussianMechanism::Builder>())
           .SetDelta(0.1)
           .SetEpsilon(2)
-          .Build();
-  EXPECT_THAT(failed_build.status().code(),
-              Eq(absl::StatusCode::kInvalidArgument));
-  std::string message(std::string(failed_build.status().message()));
-  EXPECT_THAT(message, MatchesRegex("^Max number of partitions a user can"
-                                    " contribute to must be set.*"));
+          .Build(),
+      StatusIs(
+          absl::StatusCode::kInvalidArgument,
+          HasSubstr("Maximum number of partitions that can be contributed to "
+                    "(i.e., L0 sensitivity) must be set")));
 }
 
 TEST(PartitionSelectionTest,
      GaussianPartitionSelectionNegativeMaxPartitionsContributed) {
   GaussianPartitionSelection::Builder test_builder;
-  auto failed_build =
+  EXPECT_THAT(
       test_builder
           .SetGaussianMechanism(absl::make_unique<GaussianMechanism::Builder>())
           .SetDelta(0.1)
           .SetEpsilon(2)
           .SetMaxPartitionsContributed(-3)
-          .Build();
-  EXPECT_THAT(failed_build.status().code(),
-              Eq(absl::StatusCode::kInvalidArgument));
-  std::string message(std::string(failed_build.status().message()));
-  EXPECT_THAT(message, MatchesRegex("^Max number of partitions a user can"
-                                    " contribute to must be positive.*"));
+          .Build(),
+      StatusIs(
+          absl::StatusCode::kInvalidArgument,
+          HasSubstr("Maximum number of partitions that can be contributed to "
+                    "(i.e., L0 sensitivity) must be positive")));
 }
 
 TEST(PartitionSelectionTest,
      GaussianPartitionSelectionZeroMaxPartitionsContributed) {
   GaussianPartitionSelection::Builder test_builder;
-  auto failed_build =
+  EXPECT_THAT(
       test_builder
           .SetGaussianMechanism(absl::make_unique<GaussianMechanism::Builder>())
           .SetDelta(0.1)
           .SetEpsilon(2)
           .SetMaxPartitionsContributed(0)
-          .Build();
-  EXPECT_THAT(failed_build.status().code(),
-              Eq(absl::StatusCode::kInvalidArgument));
-  std::string message(std::string(failed_build.status().message()));
-  EXPECT_THAT(message, MatchesRegex("^Max number of partitions a user can"
-                                    " contribute to must be positive.*"));
+          .Build(),
+      StatusIs(
+          absl::StatusCode::kInvalidArgument,
+          HasSubstr("Maximum number of partitions that can be contributed to "
+                    "(i.e., L0 sensitivity) must be positive, but is 0.")));
 }
 
 TEST(PartitionSelectionTest, GaussianPartitionSelectionUnsetEpsilon) {
   GaussianPartitionSelection::Builder test_builder;
-  auto failed_build =
+  EXPECT_THAT(
       test_builder
           .SetGaussianMechanism(absl::make_unique<GaussianMechanism::Builder>())
           .SetDelta(0.1)
           .SetMaxPartitionsContributed(2)
-          .Build();
-  EXPECT_THAT(failed_build.status().code(),
-              Eq(absl::StatusCode::kInvalidArgument));
-  std::string message(std::string(failed_build.status().message()));
-  EXPECT_THAT(message, MatchesRegex("^Epsilon must be set.*"));
+          .Build(),
+      StatusIs(absl::StatusCode::kInvalidArgument,
+               HasSubstr("Epsilon must be set.")));
 }
 
 TEST(PartitionSelectionTest, GaussianPartitionSelectionUnsetDelta) {
   GaussianPartitionSelection::Builder test_builder;
-  auto failed_build =
+  EXPECT_THAT(
       test_builder
           .SetGaussianMechanism(absl::make_unique<GaussianMechanism::Builder>())
           .SetEpsilon(0.1)
           .SetMaxPartitionsContributed(2)
-          .Build();
-  EXPECT_THAT(failed_build.status().code(),
-              Eq(absl::StatusCode::kInvalidArgument));
-  std::string message(std::string(failed_build.status().message()));
-  EXPECT_THAT(message, MatchesRegex("^Delta must be set.*"));
+          .Build(),
+      StatusIs(absl::StatusCode::kInvalidArgument,
+               HasSubstr("Delta must be set.")));
 }
 
 TEST(PartitionSelectionTest, GaussianPartitionSelectionNanDelta) {
   GaussianPartitionSelection::Builder test_builder;
-  auto failed_build =
+  EXPECT_THAT(
       test_builder
           .SetGaussianMechanism(absl::make_unique<GaussianMechanism::Builder>())
           .SetEpsilon(0.1)
           .SetDelta(NAN)
           .SetMaxPartitionsContributed(2)
-          .Build();
-  EXPECT_THAT(failed_build.status().code(),
-              Eq(absl::StatusCode::kInvalidArgument));
-  std::string message(std::string(failed_build.status().message()));
-  EXPECT_THAT(message, MatchesRegex("^Delta must be a valid numeric value.*"));
+          .Build(),
+      StatusIs(absl::StatusCode::kInvalidArgument,
+               HasSubstr("Delta must be a valid numeric value")));
 }
 
 TEST(PartitionSelectionTest, GaussianPartitionSelectionNotFiniteDelta) {
   GaussianPartitionSelection::Builder test_builder;
-  auto failed_build =
+  EXPECT_THAT(
       test_builder
           .SetGaussianMechanism(absl::make_unique<GaussianMechanism::Builder>())
           .SetEpsilon(0.1)
           .SetDelta(std::numeric_limits<double>::infinity())
           .SetMaxPartitionsContributed(2)
-          .Build();
-  EXPECT_THAT(failed_build.status().code(),
-              Eq(absl::StatusCode::kInvalidArgument));
-  std::string message(std::string(failed_build.status().message()));
-  EXPECT_THAT(message,
-              MatchesRegex("^Delta must be in the inclusive interval.*"));
+          .Build(),
+      StatusIs(absl::StatusCode::kInvalidArgument,
+               HasSubstr("Delta must be in the inclusive interval")));
 }
 
 TEST(PartitionSelectionTest, GaussianPartitionSelectionInvalidPositiveDelta) {
   GaussianPartitionSelection::Builder test_builder;
-  auto failed_build =
+  EXPECT_THAT(
       test_builder
           .SetGaussianMechanism(absl::make_unique<GaussianMechanism::Builder>())
           .SetEpsilon(0.1)
           .SetDelta(5.2)
           .SetMaxPartitionsContributed(2)
-          .Build();
-  EXPECT_THAT(failed_build.status().code(),
-              Eq(absl::StatusCode::kInvalidArgument));
-  std::string message(std::string(failed_build.status().message()));
-  EXPECT_THAT(message,
-              MatchesRegex("^Delta must be in the inclusive interval.*"));
+          .Build(),
+      StatusIs(absl::StatusCode::kInvalidArgument,
+               HasSubstr("Delta must be in the inclusive interval")));
 }
 
 TEST(PartitionSelectionTest, GaussianPartitionSelectionInvalidNegativeDelta) {
   GaussianPartitionSelection::Builder test_builder;
-  auto failed_build =
+  EXPECT_THAT(
       test_builder
           .SetGaussianMechanism(absl::make_unique<GaussianMechanism::Builder>())
           .SetEpsilon(0.1)
           .SetDelta(-0.1)
           .SetMaxPartitionsContributed(2)
-          .Build();
-  EXPECT_THAT(failed_build.status().code(),
-              Eq(absl::StatusCode::kInvalidArgument));
-  std::string message(std::string(failed_build.status().message()));
-  EXPECT_THAT(message,
-              MatchesRegex("^Delta must be in the inclusive interval.*"));
+          .Build(),
+      StatusIs(absl::StatusCode::kInvalidArgument,
+               HasSubstr("Delta must be in the inclusive interval")));
 }
 
 TEST(PartitionSelectionTest, CalculateGaussianThresholdTests) {

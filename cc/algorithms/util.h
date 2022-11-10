@@ -546,7 +546,6 @@ absl::Status ValidateBounds(absl::optional<T> lower, absl::optional<T> upper) {
   }
   return absl::OkStatus();
 }
-
 }  // namespace differential_privacy
 
 #endif  // DIFFERENTIAL_PRIVACY_ALGORITHMS_UTIL_H_

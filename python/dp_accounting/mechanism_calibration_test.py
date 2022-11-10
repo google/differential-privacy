@@ -167,12 +167,12 @@ class MechanismCalibrationTest(parameterized.TestCase):
           mechanism_calibration.ExplicitBracketInterval(0, 5))
 
   def test_bad_bracket_interval(self):
-    with self.assertRaisesRegex(ValueError, 'Bracket endpoints'):
+    with self.assertRaisesRegex(ValueError, 'did not bracket a solution'):
       mechanism_calibration.calibrate_dp_mechanism(
           lambda: MockAccountant(lambda x: x), MockEvent, 1.0, 0.0,
           mechanism_calibration.ExplicitBracketInterval(2, 5))
 
-    with self.assertRaisesRegex(ValueError, 'Bracket endpoints'):
+    with self.assertRaisesRegex(ValueError, 'did not bracket a solution'):
       mechanism_calibration.calibrate_dp_mechanism(
           lambda: MockAccountant(lambda x: x), MockEvent, 1.0, 0.0,
           mechanism_calibration.ExplicitBracketInterval(-2, 0))

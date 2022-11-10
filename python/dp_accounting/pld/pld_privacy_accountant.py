@@ -57,18 +57,24 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
       return None
     elif isinstance(event, dp_event.GaussianDpEvent):
       if do_compose:
-        gaussian_pld = PLD.from_gaussian_mechanism(
-            standard_deviation=event.noise_multiplier / math.sqrt(count),
-            value_discretization_interval=self._value_discretization_interval)
-        self._pld = self._pld.compose(gaussian_pld)
+        if event.noise_multiplier == 0:
+          self._contains_non_dp_event = True
+        else:
+          gaussian_pld = PLD.from_gaussian_mechanism(
+              standard_deviation=event.noise_multiplier / math.sqrt(count),
+              value_discretization_interval=self._value_discretization_interval)
+          self._pld = self._pld.compose(gaussian_pld)
       return None
     elif isinstance(event, dp_event.LaplaceDpEvent):
       if do_compose:
-        laplace_pld = PLD.from_laplace_mechanism(
-            parameter=event.noise_multiplier,
-            value_discretization_interval=self._value_discretization_interval
-        ).self_compose(count)
-        self._pld = self._pld.compose(laplace_pld)
+        if event.noise_multiplier == 0:
+          self._contains_non_dp_event = True
+        else:
+          laplace_pld = PLD.from_laplace_mechanism(
+              parameter=event.noise_multiplier,
+              value_discretization_interval=self._value_discretization_interval
+          ).self_compose(count)
+          self._pld = self._pld.compose(laplace_pld)
       return None
     elif isinstance(event, dp_event.PoissonSampledDpEvent):
       if self.neighboring_relation != NeighborRel.ADD_OR_REMOVE_ONE:
@@ -79,19 +85,31 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
             invalid_event=event, error_message=error_msg)
       if isinstance(event.event, dp_event.GaussianDpEvent):
         if do_compose:
-          subsampled_gaussian_pld = PLD.from_gaussian_mechanism(
-              standard_deviation=event.event.noise_multiplier,
-              value_discretization_interval=self._value_discretization_interval,
-              sampling_prob=event.sampling_probability).self_compose(count)
-          self._pld = self._pld.compose(subsampled_gaussian_pld)
+          if event.sampling_probability == 0:
+            pass
+          elif event.event.noise_multiplier == 0:
+            self._contains_non_dp_event = True
+          else:
+            subsampled_gaussian_pld = PLD.from_gaussian_mechanism(
+                standard_deviation=event.event.noise_multiplier,
+                value_discretization_interval=self
+                ._value_discretization_interval,
+                sampling_prob=event.sampling_probability).self_compose(count)
+            self._pld = self._pld.compose(subsampled_gaussian_pld)
         return None
       elif isinstance(event.event, dp_event.LaplaceDpEvent):
         if do_compose:
-          subsampled_laplace_pld = PLD.from_laplace_mechanism(
-              parameter=event.event.noise_multiplier,
-              value_discretization_interval=self._value_discretization_interval,
-              sampling_prob=event.sampling_probability).self_compose(count)
-          self._pld = self._pld.compose(subsampled_laplace_pld)
+          if event.sampling_probability == 0:
+            pass
+          elif event.event.noise_multiplier == 0:
+            self._contains_non_dp_event = True
+          else:
+            subsampled_laplace_pld = PLD.from_laplace_mechanism(
+                parameter=event.event.noise_multiplier,
+                value_discretization_interval=self
+                ._value_discretization_interval,
+                sampling_prob=event.sampling_probability).self_compose(count)
+            self._pld = self._pld.compose(subsampled_laplace_pld)
         return None
       else:
         return CompositionErrorDetails(

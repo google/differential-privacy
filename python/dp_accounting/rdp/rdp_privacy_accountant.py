@@ -347,11 +347,11 @@ def _compute_rdp_poisson_subsampled_gaussian(
   """
 
   def compute_one_order(q, alpha):
-    if np.isinf(alpha) or noise_multiplier == 0:
-      return np.inf
-
     if q == 0:
       return 0
+
+    if np.isinf(alpha) or noise_multiplier == 0:
+      return np.inf
 
     if q == 1.:
       return alpha / (2 * noise_multiplier**2)

@@ -106,10 +106,9 @@ def calibrate_dp_mechanism(
                                  Callable[[int], dp_event.DpEvent]],
     target_epsilon: float,
     target_delta: float,
-    bracket_interval: BracketInterval,
+    bracket_interval: Optional[BracketInterval] = None,
     discrete: bool = False,
-    tol: Optional[float] = None
-) -> Union[float, int]:
+    tol: Optional[float] = None) -> Union[float, int]:
   """Searches for optimal mechanism parameter value within privacy budget.
 
   The procedure searches over the space of parameters by creating, for each
@@ -131,7 +130,8 @@ def calibrate_dp_mechanism(
     target_epsilon: The target epsilon value.
     target_delta: The target delta value.
     bracket_interval: A BracketInterval used to determine the upper and lower
-      endpoints of the interval within which Brent's method will search.
+      endpoints of the interval within which Brent's method will search. If
+      None, searches for a non-negative bracket starting from [0, 1].
     discrete: A bool determining whether the parameter is continuous or discrete
       valued. If True, the parameter is assumed to take only integer values.
       Concretely, `discrete=True` has three effects. 1) ints, not floats are
@@ -173,6 +173,9 @@ def calibrate_dp_mechanism(
     raise ValueError(f'target_delta must be in range [0, 1]. Found '
                      f'{target_delta}.')
 
+  if bracket_interval is None:
+    bracket_interval = LowerEndpointAndGuess(0, 1)
+
   if tol is None:
     tol = 0.5 if discrete else 1e-6
   elif discrete:
@@ -196,19 +199,17 @@ def calibrate_dp_mechanism(
     raise TypeError(f'Unrecognized bracket_interval type: '
                     f'{type(bracket_interval)}')
 
-  value_1 = epsilon_gap(bracket_interval.endpoint_1)
-  value_2 = epsilon_gap(bracket_interval.endpoint_2)
-  if value_1 * value_2 > 0:
+  try:
+    root, result = optimize.brentq(
+        epsilon_gap,
+        bracket_interval.endpoint_1,
+        bracket_interval.endpoint_2,
+        xtol=tol,
+        full_output=True)
+  except ValueError as err:
     raise ValueError(
-        f'Bracket endpoints do not bracket target_epsilon={target_epsilon}: '
-        f'endpoint 1 {bracket_interval.endpoint_1} with epsilon='
-        f'{value_1 + target_epsilon}, and endpoint 2 '
-        f'{bracket_interval.endpoint_2} with epsilon={value_2 + target_epsilon}'
-    )
-
-  root, result = optimize.brentq(epsilon_gap, bracket_interval.endpoint_1,
-                                 bracket_interval.endpoint_2, xtol=tol,
-                                 full_output=True)
+        '`brentq` raised ValueError. This often means the supplied bracket '
+        f'interval {bracket_interval} did not bracket a solution.') from err
 
   if not result.converged:
     raise NoOptimumFoundError(

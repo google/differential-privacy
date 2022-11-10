@@ -23,4 +23,3 @@ def dp_java_deps_prework():
         sha256 = BAZEL_COMMON_SHA,
         strip_prefix = "bazel-common-%s" % BAZEL_COMMON_TAG,
     )
-

@@ -51,6 +51,28 @@ class PldPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
     with self.assertRaises(ValueError):
       accountant.compose(event, count)
 
+  @parameterized.parameters(
+      dp_event.GaussianDpEvent(0),
+      dp_event.LaplaceDpEvent(0),
+      dp_event.PoissonSampledDpEvent(0.1, dp_event.GaussianDpEvent(0)),
+      dp_event.PoissonSampledDpEvent(0.1, dp_event.LaplaceDpEvent(0)))
+  def test_additive_noise_mechanisms_with_zero_noise_multiplier(self, event):
+    accountant = pld_privacy_accountant.PLDAccountant()
+    accountant.compose(event)
+    self.assertEqual(accountant.get_delta(1.0), 1)
+    self.assertEqual(accountant.get_epsilon(0.01), math.inf)
+
+  @parameterized.parameters(
+      dp_event.PoissonSampledDpEvent(0, dp_event.GaussianDpEvent(1)),
+      dp_event.PoissonSampledDpEvent(0, dp_event.LaplaceDpEvent(1)),
+      dp_event.PoissonSampledDpEvent(0, dp_event.GaussianDpEvent(0)),
+      dp_event.PoissonSampledDpEvent(0, dp_event.LaplaceDpEvent(0)))
+  def test_poisson_subsampling_with_zero_probability(self, event):
+    accountant = pld_privacy_accountant.PLDAccountant()
+    accountant.compose(event)
+    self.assertEqual(accountant.get_delta(0), 0)
+    self.assertEqual(accountant.get_epsilon(0), 0)
+
   def test_gaussian_basic(self):
     gaussian_event = dp_event.GaussianDpEvent(noise_multiplier=math.sqrt(3))
     accountant = pld_privacy_accountant.PLDAccountant()

@@ -24,6 +24,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "algorithms/distributions.h"
 #include "algorithms/numerical-mechanisms.h"
@@ -33,65 +34,13 @@
 
 namespace differential_privacy {
 
-// Provides a common abstraction for PartitionSelectionStrategy. Each partition
-// selection strategy class has a builder with which it can be instantiated, and
-// calling ShouldKeep will return true if a partition with the given number of
-// users should be kept based on the values the partition selection strategy
-// was instantiated with (while ShouldKeep will return false if the partition
-// should have been dropped).
+// Provides a common abstraction for PartitionSelectionStrategy. Calling
+// ShouldKeep will return true if a partition with the given number of users
+// should be kept based on the values the partition selection strategy was
+// instantiated with (while ShouldKeep will return false if the partition should
+// have been dropped).
 class PartitionSelectionStrategy {
  public:
-  // Builder base class
-  class Builder {
-   public:
-    virtual ~Builder() = default;
-
-    Builder& SetEpsilon(double epsilon) {
-      epsilon_ = epsilon;
-      return *this;
-    }
-
-    Builder& SetDelta(double delta) {
-      delta_ = delta;
-      return *this;
-    }
-
-    Builder& SetMaxPartitionsContributed(int64_t max_partitions_contributed) {
-      max_partitions_contributed_ = max_partitions_contributed;
-      return *this;
-    }
-
-    virtual absl::StatusOr<std::unique_ptr<PartitionSelectionStrategy>>
-    Build() = 0;
-
-   protected:
-    // Convenience methods to check if the Builder variables are set & valid
-    absl::Status EpsilonIsSetAndValid() {
-      return PartitionSelectionStrategy::EpsilonIsSetAndValid(epsilon_);
-    }
-    absl::Status DeltaIsSetAndValid() {
-      return PartitionSelectionStrategy::DeltaIsSetAndValid(delta_);
-    }
-    absl::Status MaxPartitionsContributedIsSetAndValid() {
-      return PartitionSelectionStrategy::MaxPartitionsContributedIsSetAndValid(
-          max_partitions_contributed_);
-    }
-
-    absl::optional<double> GetEpsilon() { return epsilon_; }
-
-    absl::optional<double> GetDelta() { return delta_; }
-
-    absl::optional<int64_t> GetMaxPartitionsContributed() {
-      return max_partitions_contributed_;
-    }
-
-    absl::optional<double> delta_;
-
-   private:
-    absl::optional<double> epsilon_;
-    absl::optional<int64_t> max_partitions_contributed_;
-  };
-
   virtual ~PartitionSelectionStrategy() = default;
 
   double GetEpsilon() const { return epsilon_; }
@@ -101,6 +50,9 @@ class PartitionSelectionStrategy {
   int64_t GetMaxPartitionsContributed() const {
     return max_partitions_contributed_;
   }
+
+  // This is set with the results from `CalculateAdjustedDelta`.
+  double GetAdjustedDelta() const { return adjusted_delta_; }
 
   // ShouldKeep returns true when a partition with a given number of users
   // should be kept and false otherwise.
@@ -117,29 +69,6 @@ class PartitionSelectionStrategy {
         max_partitions_contributed_(max_partitions_contributed),
         adjusted_delta_(adjusted_delta) {}
 
-  // Checks if epsilon is set and valid.
-  static absl::Status EpsilonIsSetAndValid(absl::optional<double> epsilon) {
-    RETURN_IF_ERROR(ValidateIsFiniteAndPositive(epsilon, "Epsilon"));
-    return absl::OkStatus();
-  }
-
-  // Checks if delta is set and valid.
-  static absl::Status DeltaIsSetAndValid(absl::optional<double> delta) {
-    RETURN_IF_ERROR(ValidateIsInInclusiveInterval(delta, 0, 1, "Delta"));
-    return absl::OkStatus();
-  }
-
-  // Checks if the max number of partitions contributed to is set and valid.
-  static absl::Status MaxPartitionsContributedIsSetAndValid(
-      absl::optional<int64_t> max_partitions_contributed) {
-    RETURN_IF_ERROR(ValidateIsPositive(
-        max_partitions_contributed,
-        "Max number of partitions a user can contribute to"));
-    return absl::OkStatus();
-  }
-
-  double GetAdjustedDelta() const { return adjusted_delta_; }
-
   // We must derive an adjusted delta, to be used as the probability of keeping
   // a single partition with one user, from delta, the probability we keep any
   // of the partitions contributed to by a single user.  Since the probability
@@ -148,10 +77,9 @@ class PartitionSelectionStrategy {
   // contribute to will get us delta, we can solve to get the following formula.
   static absl::StatusOr<double> CalculateAdjustedDelta(
       double delta, int64_t max_partitions_contributed) {
-    RETURN_IF_ERROR(PartitionSelectionStrategy::DeltaIsSetAndValid(delta));
+    RETURN_IF_ERROR(ValidateDelta(delta));
     RETURN_IF_ERROR(
-        PartitionSelectionStrategy::MaxPartitionsContributedIsSetAndValid(
-            max_partitions_contributed));
+        ValidateMaxPartitionsContributed(max_partitions_contributed));
 
     // Numerically stable equivalent of
     // 1- pow(1 - delta, 1 / max_partitions_contributed).
@@ -164,11 +92,9 @@ class PartitionSelectionStrategy {
   // Inverse of CalculateAdjustedDelta()
   static absl::StatusOr<double> CalculateUnadjustedDelta(
       double adjusted_delta, int64_t max_partitions_contributed) {
+    RETURN_IF_ERROR(ValidateDelta(adjusted_delta));
     RETURN_IF_ERROR(
-        PartitionSelectionStrategy::DeltaIsSetAndValid(adjusted_delta));
-    RETURN_IF_ERROR(
-        PartitionSelectionStrategy::MaxPartitionsContributedIsSetAndValid(
-            max_partitions_contributed));
+        ValidateMaxPartitionsContributed(max_partitions_contributed));
 
     // Numerically stable equivalent of
     // 1 - pow(1 - adjusted_delta, max_partitions_contributed).
@@ -185,6 +111,46 @@ class PartitionSelectionStrategy {
   double adjusted_delta_;
 };
 
+// Provides a common abstraction for PartitionSelectionStrategy builders. Each
+// partition selection strategy builder inherits from this builder.
+class PartitionSelectionStrategyBuilder {
+ public:
+  virtual ~PartitionSelectionStrategyBuilder() = default;
+
+  PartitionSelectionStrategyBuilder& SetEpsilon(double epsilon) {
+    epsilon_ = epsilon;
+    return *this;
+  }
+
+  PartitionSelectionStrategyBuilder& SetDelta(double delta) {
+    delta_ = delta;
+    return *this;
+  }
+
+  PartitionSelectionStrategyBuilder& SetMaxPartitionsContributed(
+      int64_t max_partitions_contributed) {
+    max_partitions_contributed_ = max_partitions_contributed;
+    return *this;
+  }
+
+  virtual absl::StatusOr<std::unique_ptr<PartitionSelectionStrategy>>
+  Build() = 0;
+
+ protected:
+  std::optional<double> GetEpsilon() { return epsilon_; }
+
+  std::optional<double> GetDelta() { return delta_; }
+
+  std::optional<int64_t> GetMaxPartitionsContributed() {
+    return max_partitions_contributed_;
+  }
+
+ private:
+  std::optional<double> epsilon_;
+  std::optional<double> delta_;
+  std::optional<int64_t> max_partitions_contributed_;
+};
+
 // NearTruncatedGeometricPartitionSelection implements magic partition selection
 // - instead of calculating a specific threshold to determine whether or not a
 // partition should be kept, magic partition selection uses a formula derived
@@ -198,13 +164,14 @@ class NearTruncatedGeometricPartitionSelection
     : public PartitionSelectionStrategy {
  public:
   // Builder for NearTruncatedGeometricPartitionSelection
-  class Builder : public PartitionSelectionStrategy::Builder {
+  class Builder : public PartitionSelectionStrategyBuilder {
    public:
     absl::StatusOr<std::unique_ptr<PartitionSelectionStrategy>> Build()
         override {
-      RETURN_IF_ERROR(EpsilonIsSetAndValid());
-      RETURN_IF_ERROR(DeltaIsSetAndValid());
-      RETURN_IF_ERROR(MaxPartitionsContributedIsSetAndValid());
+      RETURN_IF_ERROR(ValidateEpsilon(GetEpsilon()));
+      RETURN_IF_ERROR(ValidateDelta(GetDelta()));
+      RETURN_IF_ERROR(
+          ValidateMaxPartitionsContributed(GetMaxPartitionsContributed()));
 
       ASSIGN_OR_RETURN(
           double adjusted_delta,
@@ -278,7 +245,6 @@ class NearTruncatedGeometricPartitionSelection
   double adjusted_epsilon_;
   double crossover_1_;
   double crossover_2_;
-
 };
 
 // PreaggPartitionSelection is the deprecated name for
@@ -292,7 +258,7 @@ using PreaggPartitionSelection = NearTruncatedGeometricPartitionSelection;
 class LaplacePartitionSelection : public PartitionSelectionStrategy {
  public:
   // Builder for LaplacePartitionSelection
-  class Builder : public PartitionSelectionStrategy::Builder {
+  class Builder : public PartitionSelectionStrategyBuilder {
    public:
     Builder& SetLaplaceMechanism(
         std::unique_ptr<LaplaceMechanism::Builder> laplace_builder) {
@@ -302,9 +268,11 @@ class LaplacePartitionSelection : public PartitionSelectionStrategy {
 
     absl::StatusOr<std::unique_ptr<PartitionSelectionStrategy>> Build()
         override {
-      RETURN_IF_ERROR(EpsilonIsSetAndValid());
-      RETURN_IF_ERROR(DeltaIsSetAndValid());
-      RETURN_IF_ERROR(MaxPartitionsContributedIsSetAndValid());
+      RETURN_IF_ERROR(ValidateEpsilon(GetEpsilon()));
+      RETURN_IF_ERROR(ValidateDelta(GetDelta()));
+      RETURN_IF_ERROR(
+          ValidateMaxPartitionsContributed(GetMaxPartitionsContributed()));
+
       if (laplace_builder_ == nullptr) {
         laplace_builder_ = absl::make_unique<LaplaceMechanism::Builder>();
       }
@@ -357,10 +325,9 @@ class LaplacePartitionSelection : public PartitionSelectionStrategy {
 
   static absl::StatusOr<double> CalculateDelta(
       double epsilon, double threshold, int64_t max_partitions_contributed) {
-    RETURN_IF_ERROR(PartitionSelectionStrategy::EpsilonIsSetAndValid(epsilon));
+    RETURN_IF_ERROR(ValidateEpsilon(epsilon));
     RETURN_IF_ERROR(
-        PartitionSelectionStrategy::MaxPartitionsContributedIsSetAndValid(
-            max_partitions_contributed));
+        ValidateMaxPartitionsContributed(max_partitions_contributed));
 
     if (threshold < 1) {
       return CalculateUnadjustedDelta(
@@ -380,11 +347,10 @@ class LaplacePartitionSelection : public PartitionSelectionStrategy {
 
   static absl::StatusOr<double> CalculateThreshold(
       double epsilon, double delta, int64_t max_partitions_contributed) {
-    RETURN_IF_ERROR(PartitionSelectionStrategy::EpsilonIsSetAndValid(epsilon));
-    RETURN_IF_ERROR(PartitionSelectionStrategy::DeltaIsSetAndValid(delta));
+    RETURN_IF_ERROR(ValidateEpsilon(epsilon));
+    RETURN_IF_ERROR(ValidateDelta(delta));
     RETURN_IF_ERROR(
-        PartitionSelectionStrategy::MaxPartitionsContributedIsSetAndValid(
-            max_partitions_contributed));
+        ValidateMaxPartitionsContributed(max_partitions_contributed));
 
     ASSIGN_OR_RETURN(double adjusted_delta,
                      CalculateAdjustedDelta(delta, max_partitions_contributed));
@@ -435,7 +401,7 @@ class LaplacePartitionSelection : public PartitionSelectionStrategy {
 class GaussianPartitionSelection : public PartitionSelectionStrategy {
  public:
   // Builder for GaussianPartitionSelection
-  class Builder : public PartitionSelectionStrategy::Builder {
+  class Builder : public PartitionSelectionStrategyBuilder {
    public:
     Builder& SetGaussianMechanism(
         std::unique_ptr<GaussianMechanism::Builder> gaussian_builder) {
@@ -445,9 +411,10 @@ class GaussianPartitionSelection : public PartitionSelectionStrategy {
 
     absl::StatusOr<std::unique_ptr<PartitionSelectionStrategy>> Build()
         override {
-      RETURN_IF_ERROR(EpsilonIsSetAndValid());
-      RETURN_IF_ERROR(DeltaIsSetAndValid());
-      RETURN_IF_ERROR(MaxPartitionsContributedIsSetAndValid());
+      RETURN_IF_ERROR(ValidateEpsilon(GetEpsilon()));
+      RETURN_IF_ERROR(ValidateDelta(GetDelta()));
+      RETURN_IF_ERROR(
+          ValidateMaxPartitionsContributed(GetMaxPartitionsContributed()));
       if (gaussian_builder_ == nullptr) {
         gaussian_builder_ = absl::make_unique<GaussianMechanism::Builder>();
       }
@@ -512,11 +479,10 @@ class GaussianPartitionSelection : public PartitionSelectionStrategy {
   static absl::StatusOr<double> CalculateThresholdDelta(
       double epsilon, double noise_delta, double threshold,
       int64_t max_partitions_contributed) {
-    RETURN_IF_ERROR(PartitionSelectionStrategy::EpsilonIsSetAndValid(epsilon));
-    RETURN_IF_ERROR(DeltaIsSetAndValid(noise_delta));
+    RETURN_IF_ERROR(ValidateEpsilon(epsilon));
+    RETURN_IF_ERROR(ValidateDelta(noise_delta));
     RETURN_IF_ERROR(
-        PartitionSelectionStrategy::MaxPartitionsContributedIsSetAndValid(
-            max_partitions_contributed));
+        ValidateMaxPartitionsContributed(max_partitions_contributed));
 
     double sigma = GaussianMechanism::CalculateStddev(
         epsilon, noise_delta, max_partitions_contributed);
@@ -539,12 +505,11 @@ class GaussianPartitionSelection : public PartitionSelectionStrategy {
   static absl::StatusOr<double> CalculateThreshold(
       double epsilon, double noise_delta, double threshold_delta,
       int64_t max_partitions_contributed) {
-    RETURN_IF_ERROR(PartitionSelectionStrategy::EpsilonIsSetAndValid(epsilon));
-    RETURN_IF_ERROR(DeltaIsSetAndValid(noise_delta));
-    RETURN_IF_ERROR(DeltaIsSetAndValid(threshold_delta));
+    RETURN_IF_ERROR(ValidateEpsilon(epsilon));
+    RETURN_IF_ERROR(ValidateDelta(noise_delta));
+    RETURN_IF_ERROR(ValidateDelta(threshold_delta));
     RETURN_IF_ERROR(
-        PartitionSelectionStrategy::MaxPartitionsContributedIsSetAndValid(
-            max_partitions_contributed));
+        ValidateMaxPartitionsContributed(max_partitions_contributed));
 
     double sigma = GaussianMechanism::CalculateStddev(
         epsilon, noise_delta, max_partitions_contributed);
@@ -580,7 +545,6 @@ class GaussianPartitionSelection : public PartitionSelectionStrategy {
   double threshold_;
   std::unique_ptr<NumericalMechanism> mechanism_;
 };
-
 }  // namespace differential_privacy
 
 #endif  // DIFFERENTIAL_PRIVACY_CPP_ALGORITHMS_PARTITION_SELECTION_H_

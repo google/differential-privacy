@@ -171,10 +171,12 @@ class RdpPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
     self.assertAlmostEqual(rdp_with_heterogeneous_compose,
                            base_rdp + base_rdp_2)
 
-  def test_zero_poisson_sample(self):
+  @parameterized.parameters(
+      dp_event.PoissonSampledDpEvent(0, dp_event.GaussianDpEvent(1.0)),
+      dp_event.PoissonSampledDpEvent(0, dp_event.GaussianDpEvent(0.0)))
+  def test_zero_poisson_sample(self, event):
     accountant = rdp_privacy_accountant.RdpAccountant([3.14159])
-    accountant.compose(
-        dp_event.PoissonSampledDpEvent(0, dp_event.GaussianDpEvent(1.0)))
+    accountant.compose(event)
     self.assertEqual(accountant.get_epsilon(1e-10), 0)
     self.assertEqual(accountant.get_delta(1e-10), 0)
 
