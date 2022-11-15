@@ -302,6 +302,12 @@ def privacy_on_beam_deps():
         version = "v2.4.0",
     )
     go_repository(
+        name = "com_github_grd_stat",
+        importpath = "github.com/grd/stat",
+        sum = "h1:TVY1GBBIAAph4RWO9Y3p1wU+7n6khY1jxPKjDphzznA=",
+        version = "v0.0.0-20130623202159-138af3fd5012",
+    )
+    go_repository(
         name = "com_github_grpc_ecosystem_grpc_gateway",
         importpath = "github.com/grpc-ecosystem/grpc-gateway",
         sum = "h1:gmcG1KaJ57LophUzW0Hy8NmPhnMZb4M0+kPpLofRdBo=",
