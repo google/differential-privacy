@@ -81,7 +81,7 @@ type CountParams struct {
 	// otherwise.
 	//
 	// Optional.
-	PublicPartitions interface{}
+	PublicPartitions any
 }
 
 // Count counts the number of times a value appears in a PrivatePCollection,

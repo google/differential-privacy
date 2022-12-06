@@ -218,7 +218,7 @@ func TestDistinctPerKeyWithPartitionsCrossPartitionContributionBounding(t *testi
 		epsilon := 50.0
 		delta := 0.0
 		publicPartitionsSlice := []int{0, 1, 2, 3, 4}
-		var publicPartitions interface{}
+		var publicPartitions any
 		if tc.inMemory {
 			publicPartitions = publicPartitionsSlice
 		} else {

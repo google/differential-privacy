@@ -82,7 +82,7 @@ type Pair struct {
 }
 
 // Encode transforms a <K,V> pair into a Pair.
-func (codec *Codec) Encode(k, v interface{}) (Pair, error) {
+func (codec *Codec) Encode(k, v any) (Pair, error) {
 	var bufK, bufV bytes.Buffer
 	if err := codec.kEnc.Encode(k, &bufK); err != nil {
 		return Pair{}, fmt.Errorf("kv.Codec.Encode: couldn't Encode key %v: %v", k, err)
@@ -97,7 +97,7 @@ func (codec *Codec) Encode(k, v interface{}) (Pair, error) {
 }
 
 // Decode transforms a Pair into a <K,V> pair.
-func (codec *Codec) Decode(p Pair) (k, v interface{}, err error) {
+func (codec *Codec) Decode(p Pair) (k, v any, err error) {
 	k, err = codec.kDec.Decode(bytes.NewBuffer(p.K))
 	if err != nil {
 		return k, v, fmt.Errorf("kv.Codec.Decode: couldn't Decode key %v: %v", k, err)

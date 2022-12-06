@@ -96,7 +96,7 @@ func TestCountWithPartitionsNoNoise(t *testing.T) {
 		p, s, col, want := ptest.CreateList2(pairs, result)
 		col = beam.ParDo(s, testutils.PairToKV, col)
 		publicPartitionsSlice := []int{9, 10}
-		var publicPartitions interface{}
+		var publicPartitions any
 		if tc.inMemory {
 			publicPartitions = publicPartitionsSlice
 		} else {
@@ -336,7 +336,7 @@ func TestCountAddsNoiseWithPartitions(t *testing.T) {
 		p, s, col := ptest.CreateList(pairs)
 
 		publicPartitionsSlice := []int{0}
-		var publicPartitions interface{}
+		var publicPartitions any
 		if tc.inMemory {
 			publicPartitions = publicPartitionsSlice
 		} else {
@@ -411,7 +411,7 @@ func TestCountWithPartitionsCrossPartitionContributionBounding(t *testing.T) {
 		col = beam.ParDo(s, testutils.PairToKV, col)
 
 		publicPartitionsSlice := []int{0, 1, 2, 3, 4}
-		var publicPartitions interface{}
+		var publicPartitions any
 		if tc.inMemory {
 			publicPartitions = publicPartitionsSlice
 		} else {
@@ -478,7 +478,7 @@ func TestCountWithPartitionsReturnsNonNegative(t *testing.T) {
 			publicPartitionsSlice = append(publicPartitionsSlice, i)
 		}
 		p, s, col := ptest.CreateList(pairs)
-		var publicPartitions interface{}
+		var publicPartitions any
 		if tc.inMemory {
 			publicPartitions = publicPartitionsSlice
 		} else {

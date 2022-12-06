@@ -93,7 +93,7 @@ type SumParams struct {
 	// otherwise.
 	//
 	// Optional.
-	PublicPartitions interface{}
+	PublicPartitions any
 }
 
 // SumPerKey sums the values associated with each key in a
@@ -312,7 +312,7 @@ func (fn *prepareSumFn) ProcessElement(id beam.W, pair kv.Pair) (kv.Pair, beam.V
 }
 
 // findConvertFn gets the correct conversion to int64 or float64 function.
-func findConvertFn(t typex.FullType) (interface{}, error) {
+func findConvertFn(t typex.FullType) (any, error) {
 	switch t.Type().String() {
 	case "int":
 		return convertIntToInt64Fn, nil
@@ -375,7 +375,7 @@ func convertUint64ToInt64Fn(z beam.Z, i uint64) (beam.Z, int64) {
 }
 
 // getKind gets the return kind of the convertFn function.
-func getKind(fn interface{}) (reflect.Kind, error) {
+func getKind(fn any) (reflect.Kind, error) {
 	if fn == nil {
 		return reflect.Invalid, fmt.Errorf("convertFn is nil")
 	}
@@ -388,9 +388,9 @@ func getKind(fn interface{}) (reflect.Kind, error) {
 	return reflect.TypeOf(fn).Out(1).Kind(), nil
 }
 
-func newAddNoiseToEmptyPublicPartitionsFn(epsilon, delta float64, maxPartitionsContributed int64, lower, upper float64, noiseKind noise.Kind, vKind reflect.Kind, testMode testMode) (interface{}, error) {
+func newAddNoiseToEmptyPublicPartitionsFn(epsilon, delta float64, maxPartitionsContributed int64, lower, upper float64, noiseKind noise.Kind, vKind reflect.Kind, testMode testMode) (any, error) {
 	var err error
-	var bsFn interface{}
+	var bsFn any
 
 	switch vKind {
 	case reflect.Int64:

@@ -79,7 +79,7 @@ type DistinctPerKeyParams struct {
 	// otherwise.
 	//
 	// Optional.
-	PublicPartitions interface{}
+	PublicPartitions any
 }
 
 // DistinctPerKey estimates the number of distinct values associated to
@@ -183,7 +183,7 @@ func DistinctPerKey(s beam.Scope, pcol PrivatePCollection, params DistinctPerKey
 	// We do partition selection after cross-partition contribution bounding because
 	// we want to keep the same contributions across partitions for partition selection
 	// and Count.
-	var partitions interface{}
+	var partitions any
 	var noiseEpsilon, partitionSelectionEpsilon, noiseDelta, partitionSelectionDelta float64
 	if params.PublicPartitions != nil {
 		partitions = params.PublicPartitions

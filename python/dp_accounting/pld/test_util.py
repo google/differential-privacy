@@ -38,12 +38,19 @@ def assert_dictionary_contained(testcase: 'unittest.TestCase',
   """
   for i in dict1.keys():
     if not np.isclose(dict1[i], 0):
-      found = False
+      key_found = False
+      value_found = False
       for j in dict2.keys():
-        if np.isclose(i, j) and np.isclose(dict1[i], dict2[j]):
-          found = True
-          break
-      testcase.assertTrue(found, msg=f'Key {i} in {dict1} not found in {dict2}')
+        if np.isclose(i, j):
+          key_found = True
+          if np.isclose(dict1[i], dict2[j]):
+            value_found = True
+            break
+      testcase.assertTrue(key_found,
+                          msg=f'Key {i} in {dict1} not found in {dict2}')
+      testcase.assertTrue(
+          value_found,
+          msg=f'Value for key {i} in {dict1} not matching that in {dict2}')
 
 
 def assert_dictionary_almost_equal(testcase: 'unittest.TestCase',

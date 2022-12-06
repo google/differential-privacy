@@ -38,7 +38,7 @@ func TestNewBoundedMeanFn(t *testing.T) {
 	for _, tc := range []struct {
 		desc      string
 		noiseKind noise.Kind
-		want      interface{}
+		want      any
 	}{
 		{"Laplace noise kind", noise.LaplaceNoise,
 			&boundedMeanFn{
@@ -89,7 +89,7 @@ func TestBoundedMeanFnSetup(t *testing.T) {
 	for _, tc := range []struct {
 		desc      string
 		noiseKind noise.Kind
-		wantNoise interface{}
+		wantNoise any
 	}{
 		{"Laplace noise kind", noise.LaplaceNoise, noise.Laplace()},
 		{"Gaussian noise kind", noise.GaussianNoise, noise.Gaussian()}} {
@@ -441,7 +441,7 @@ func TestMeanPerKeyWithPartitionsAddsNoise(t *testing.T) {
 		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
 
 		publicPartitionsSlice := []int{0}
-		var publicPartitions interface{}
+		var publicPartitions any
 		if tc.inMemory {
 			publicPartitions = publicPartitionsSlice
 		} else {
@@ -623,7 +623,7 @@ func TestMeanPerKeyWithPartitionsNoNoiseFloatValues(t *testing.T) {
 		p, s, col, want := ptest.CreateList2(triples, result)
 		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
 
-		var publicPartitions interface{}
+		var publicPartitions any
 		if tc.inMemory {
 			publicPartitions = publicPartitionsSlice
 		} else {
@@ -733,7 +733,7 @@ func TestMeanPerKeyWithPartitionsNoNoiseIntValues(t *testing.T) {
 		p, s, col, want := ptest.CreateList2(triples, result)
 		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithIntValue, col)
 
-		var publicPartitions interface{}
+		var publicPartitions any
 		if tc.inMemory {
 			publicPartitions = publicPartitionsSlice
 		} else {
@@ -1144,7 +1144,7 @@ func TestMeanPerKeyWithPartitionsReturnsNonNegative(t *testing.T) {
 		for p := 0; p < 200; p++ {
 			publicPartitionsSlice = append(publicPartitionsSlice, p)
 		}
-		var publicPartitions interface{}
+		var publicPartitions any
 		if tc.inMemory {
 			publicPartitions = publicPartitionsSlice
 		} else {
@@ -1244,7 +1244,7 @@ func TestMeanPerKeyWithPartitionsCrossPartitionContributionBounding(t *testing.T
 		p, s, col, want := ptest.CreateList2(triples, result)
 		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
 
-		var publicPartitions interface{}
+		var publicPartitions any
 		if tc.inMemory {
 			publicPartitions = publicPartitionsSlice
 		} else {
@@ -1359,7 +1359,7 @@ func TestMeanPerKeyWithEmptyPartitionsNoNoise(t *testing.T) {
 		p, s, col, want := ptest.CreateList2(triples, result)
 		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithIntValue, col)
 
-		var publicPartitions interface{}
+		var publicPartitions any
 		if tc.inMemory {
 			publicPartitions = publicPartitionsSlice
 		} else {

@@ -78,7 +78,7 @@ type DistinctPrivacyIDParams struct {
 	// otherwise.
 	//
 	// Optional.
-	PublicPartitions interface{}
+	PublicPartitions any
 }
 
 // DistinctPrivacyID counts the number of distinct privacy identifiers

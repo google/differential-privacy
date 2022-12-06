@@ -851,7 +851,7 @@ func TestParDoCtx1x1ErrEmit(t *testing.T) {
 func TestParDo1x2Emit(t *testing.T) {
 	for _, tc := range []struct {
 		desc string
-		doFn interface{}
+		doFn any
 		want []testutils.PairICodedKV
 	}{
 		{"doFn that emits only non-zero inputs",
@@ -1037,7 +1037,7 @@ func TestParDoCtx1x2ErrEmit(t *testing.T) {
 func TestParDo2x1Emit(t *testing.T) {
 	for _, tc := range []struct {
 		desc string
-		doFn interface{}
+		doFn any
 		want []testutils.PairII
 	}{
 		{"doFn that emits only non-zero input k",
@@ -1208,7 +1208,7 @@ func TestParDoCtx2x1ErrEmit(t *testing.T) {
 func TestParDo2x2Emit(t *testing.T) {
 	for _, tc := range []struct {
 		desc string
-		doFn interface{}
+		doFn any
 		want []testutils.PairICodedKV
 	}{
 		{"doFn that emits only non-zero input k",
@@ -1396,7 +1396,7 @@ func TestParDoCtx2x2ErrEmit(t *testing.T) {
 func TestBuildDoFn(t *testing.T) {
 	for _, tc := range []struct {
 		desc        string
-		doFn        interface{}
+		doFn        any
 		wantType    reflect.Type
 		wantTypeDef beam.TypeDefinition
 		wantCodec   *kv.Codec
@@ -1649,7 +1649,7 @@ func (fn *testStructuralDoFn) ProcessElement(x int) int {
 func TestInvalidDoFn(t *testing.T) {
 	for _, tc := range []struct {
 		desc string
-		doFn interface{}
+		doFn any
 	}{
 		{"structural doFn", &testStructuralDoFn{1}},
 		// bad inputs

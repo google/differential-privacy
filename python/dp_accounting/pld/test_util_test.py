@@ -63,6 +63,32 @@ class TestUtilTest(parameterized.TestCase):
         test_util.assert_dictionary_contained(self, dict1, dict2)
 
   @parameterized.parameters(
+      # Key missing
+      ({
+          1: 0.1,
+          2: 0.3
+      }, {
+          1: 0.1,
+          3: 0.3,
+      }, True),
+      # Value not matching
+      ({
+          1: 0.1,
+          2: 0.3
+      }, {
+          1: 0.1,
+          2: 0.2
+      }, False))
+  def test_assert_dictionary_contained_error_messages(
+      self, dict1, dict2, key_missing):
+    with self.assertRaises(AssertionError) as cm:
+      test_util.assert_dictionary_contained(self, dict1, dict2)
+    if key_missing:
+      self.assertStartsWith(str(cm.exception), 'False is not true : Key')
+    else:
+      self.assertStartsWith(str(cm.exception), 'False is not true : Value')
+
+  @parameterized.parameters(
       # Dictionary almost equal
       ({
           1: 0.1,

@@ -141,7 +141,7 @@ func TestSumPerKeyWithPartitionsNoNoiseInt(t *testing.T) {
 		p, s, col, want := ptest.CreateList2(triples, result)
 		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithIntValue, col)
 
-		var publicPartitions interface{}
+		var publicPartitions any
 		if tc.inMemory {
 			publicPartitions = publicPartitionsSlice
 		} else {
@@ -214,7 +214,7 @@ func TestSumPerKeyWithPartitionsNegativeBoundsInt(t *testing.T) {
 		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithIntValue, col)
 
 		publicPartitionsSlice := []int{1, 2}
-		var publicPartitions interface{}
+		var publicPartitions any
 		if tc.inMemory {
 			publicPartitions = publicPartitionsSlice
 		} else {
@@ -334,7 +334,7 @@ func TestSumPerKeyWithPartitionsNoNoiseFloat(t *testing.T) {
 		p, s, col, want := ptest.CreateList2(triples, result)
 		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
 
-		var publicPartitions interface{}
+		var publicPartitions any
 		if tc.inMemory {
 			publicPartitions = publicPartitionsSlice
 		} else {
@@ -409,7 +409,7 @@ func TestSumPerKeyWithPartitionsNegativeBoundsFloat(t *testing.T) {
 		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
 
 		publicPartitionsSlice := []int{1, 2}
-		var publicPartitions interface{}
+		var publicPartitions any
 		if tc.inMemory {
 			publicPartitions = publicPartitionsSlice
 		} else {
@@ -575,7 +575,7 @@ func TestSumPerKeyWithPartitionsAddsNoiseInt(t *testing.T) {
 		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithIntValue, col)
 
 		publicPartitionsSlice := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
-		var publicPartitions interface{}
+		var publicPartitions any
 		if tc.inMemory {
 			publicPartitions = publicPartitionsSlice
 		} else {
@@ -722,7 +722,7 @@ func TestSumPerKeyWithPartitionsCrossPartitionContributionBoundingInt(t *testing
 		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithIntValue, col)
 
 		publicPartitionsSlice := []int{0, 1, 2, 3, 4}
-		var publicPartitions interface{}
+		var publicPartitions any
 		if tc.inMemory {
 			publicPartitions = publicPartitionsSlice
 		} else {
@@ -810,7 +810,7 @@ func TestSumPerKeyWithPartitionsCrossPartitionContributionBoundingFloat(t *testi
 		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
 
 		publicPartitionsSlice := []int{0, 1, 2, 3, 4}
-		var publicPartitions interface{}
+		var publicPartitions any
 		if tc.inMemory {
 			publicPartitions = publicPartitionsSlice
 		} else {
@@ -1037,7 +1037,7 @@ func TestFindConvertFn(t *testing.T) {
 	for _, tc := range []struct {
 		desc          string
 		fullType      typex.FullType
-		wantConvertFn interface{}
+		wantConvertFn any
 		wantErr       bool
 	}{
 		{"int", typex.New(reflect.TypeOf(int(0))), convertIntToInt64Fn, false},
@@ -1067,7 +1067,7 @@ func TestFindConvertFn(t *testing.T) {
 func TestGetKind(t *testing.T) {
 	for _, tc := range []struct {
 		desc      string
-		convertFn interface{}
+		convertFn any
 		wantKind  reflect.Kind
 		wantErr   bool
 	}{
@@ -1138,7 +1138,7 @@ func TestSumPerKeyWithPartitionsReturnsNonNegativeFloat64(t *testing.T) {
 		p, s, col := ptest.CreateList(triples)
 		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
 
-		var publicPartitions interface{}
+		var publicPartitions any
 		if tc.inMemory {
 			publicPartitions = publicPartitionsSlice
 		} else {
@@ -1201,7 +1201,7 @@ func TestSumPerKeyWithPartitionsReturnsNonNegativeInt64(t *testing.T) {
 		p, s, col := ptest.CreateList(triples)
 		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithIntValue, col)
 
-		var publicPartitions interface{}
+		var publicPartitions any
 		if tc.inMemory {
 			publicPartitions = publicPartitionsSlice
 		} else {

@@ -62,7 +62,7 @@ def get_smallest_parameter(
 
 def get_smallest_laplace_noise(
     privacy_parameters: common.DifferentialPrivacyParameters,
-    num_queries: int,
+    num_queries: int = 1,
     sensitivity: float = 1) -> float:
   """Finds smallest Laplace noise for which the mechanism satisfies desired privacy.
 
@@ -103,7 +103,7 @@ def get_smallest_laplace_noise(
 
 def get_smallest_discrete_laplace_noise(
     privacy_parameters: common.DifferentialPrivacyParameters,
-    num_queries: int,
+    num_queries: int = 1,
     sensitivity: int = 1) -> float:
   """Finds smallest discrete Laplace noise for which the mechanism satisfies desired privacy.
 
@@ -152,7 +152,7 @@ def get_smallest_discrete_laplace_noise(
 
 def get_smallest_gaussian_noise(
     privacy_parameters: common.DifferentialPrivacyParameters,
-    num_queries: int,
+    num_queries: int = 1,
     sensitivity: float = 1) -> float:
   """Finds smallest Gaussian noise for which the mechanism satisfies desired privacy.
 

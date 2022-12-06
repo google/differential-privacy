@@ -32,17 +32,17 @@ import (
 // identifiers. For now, it only works if doFn is a function that has one of
 // the following types.
 //
-// 	Transforms a PrivatePCollection<X> into a PrivatePCollection<Y>:
+//	Transforms a PrivatePCollection<X> into a PrivatePCollection<Y>:
 //		- func(X) Y
 //		- func(context.Context, X) Y
-// 		- func(X) (Y, error)
-// 		- func(context.Context, X) (Y, error)
+//		- func(X) (Y, error)
+//		- func(context.Context, X) (Y, error)
 //		- func(X, emit), where emit has type func(Y)
 //		- func(context.Context, X, emit), where emit has type func(Y)
 //		- func(X, emit) error, where emit has type func(Y)
 //		- func(context.Context, X, emit) error, where emit has type func(Y)
 //
-// 	Transforms a PrivatePCollection<X> into a PrivatePCollection<Y,Z>:
+//	Transforms a PrivatePCollection<X> into a PrivatePCollection<Y,Z>:
 //		- func(X) (Y, Z)
 //		- func(context.Context, X) (Y, Z)
 //		- func(X) (Y, Z, error)
@@ -52,7 +52,7 @@ import (
 //		- func(X, emit) error, where emit has type func(Y, Z)
 //		- func(context.Context, X, emit) error, where emit has type func(Y, Z)
 //
-// 	Transforms a PrivatePCollection<W,X> into a PrivatePCollection<Y>:
+//	Transforms a PrivatePCollection<W,X> into a PrivatePCollection<Y>:
 //		- func(W, X) Y
 //		- func(context.Context, W, X) Y
 //		- func(W, X) (Y, error)
@@ -74,7 +74,7 @@ import (
 //
 // Note that Beam universal types (e.g., beam.V, beam.T, etc.) are not supported:
 // each of the X, Y, Z, W above needs to be a concrete type.
-func ParDo(s beam.Scope, doFn interface{}, pcol PrivatePCollection) PrivatePCollection {
+func ParDo(s beam.Scope, doFn any, pcol PrivatePCollection) PrivatePCollection {
 	s = s.Scope("pbeam.ParDo")
 	// Convert the doFn into a anonDoFn.
 	anonDoFn, err := buildDoFn(doFn)
@@ -107,13 +107,13 @@ type transform struct {
 
 // anonDoFn contains the transformed doFn that is passed to Beam, as well as metadata.
 type anonDoFn struct {
-	fn      interface{}         // the transformed doFn passed to Beam
+	fn      any                 // the transformed doFn passed to Beam
 	typeDef beam.TypeDefinition // the type definition necessary for Beam to process fn
 	codec   *kv.Codec           // if fn outputs a KV pair, the codec that can decode this pair
 }
 
 // buildDoFn validates the provided doFn and transforms it into an *anonDoFn.
-func buildDoFn(doFn interface{}) (*anonDoFn, error) {
+func buildDoFn(doFn any) (*anonDoFn, error) {
 	if reflect.ValueOf(doFn).Type().Kind() != reflect.Func {
 		return nil, fmt.Errorf("pbeam.ParDo doesn't support structural DoFns for now: doFn must be a function")
 	}

@@ -157,7 +157,7 @@ func TestGetIDField(t *testing.T) {
 	}
 	for _, tc := range []struct {
 		idFieldPath string
-		want        interface{}
+		want        any
 		wantErr     bool
 	}{
 		{"String", "0", false},

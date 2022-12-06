@@ -31,12 +31,12 @@ namespace {
 
 using ::testing::DoubleEq;
 using ::testing::DoubleNear;
-using ::testing::Eq;
 using ::testing::HasSubstr;
 using ::differential_privacy::base::testing::StatusIs;
 
 constexpr int kNumSamples = 10000000;
 constexpr int kSmallNumSamples = 1000000;
+constexpr int kTinyNumSamples = 10000;
 
 constexpr int64_t kInt64Min = std::numeric_limits<int64_t>::min();
 constexpr int64_t kInt64Max = std::numeric_limits<int64_t>::max();
@@ -177,61 +177,56 @@ TEST(PartitionSelectionTest,
 // will be approximately delta
 TEST(PartitionSelectionTest, NearTruncatedGeometricPartitionSelectionOneUser) {
   NearTruncatedGeometricPartitionSelection::Builder test_builder;
-  std::unique_ptr<PartitionSelectionStrategy> build =
-      test_builder.SetEpsilon(0.5)
-          .SetDelta(0.02)
-          .SetMaxPartitionsContributed(1)
-          .Build()
-          .value();
-  double num_kept = 0.0;
+  test_builder.SetEpsilon(0.5).SetDelta(0.02).SetMaxPartitionsContributed(1);
+  absl::StatusOr<std::unique_ptr<PartitionSelectionStrategy>> strategy =
+      test_builder.Build();
+  ASSERT_OK(strategy);
+  int num_kept = 0;
   for (int i = 0; i < kSmallNumSamples; i++) {
-    if (build->ShouldKeep(1)) num_kept++;
+    if (strategy.value()->ShouldKeep(1)) num_kept++;
   }
-  EXPECT_NEAR(build->ProbabilityOfKeep(1), build->GetDelta(), 1e-12);
-  EXPECT_THAT(num_kept / kSmallNumSamples,
-              DoubleNear(build->GetDelta(), 0.001));
+  EXPECT_NEAR(strategy.value()->ProbabilityOfKeep(1),
+              strategy.value()->GetDelta(), 1e-12);
+  EXPECT_THAT(static_cast<double>(num_kept) / kSmallNumSamples,
+              DoubleNear(strategy.value()->GetDelta(), 0.001));
 }
 
 // We expect the probability of keeping a partition with no users will be zero
 TEST(PartitionSelectionTest, NearTruncatedGeometricPartitionSelectionNoUsers) {
   NearTruncatedGeometricPartitionSelection::Builder test_builder;
-  std::unique_ptr<PartitionSelectionStrategy> build =
-      test_builder.SetEpsilon(0.5)
-          .SetDelta(0.02)
-          .SetMaxPartitionsContributed(1)
-          .Build()
-          .value();
-  EXPECT_EQ(build->ProbabilityOfKeep(0), 0.0);
+  test_builder.SetEpsilon(0.5).SetDelta(0.02).SetMaxPartitionsContributed(1);
+  absl::StatusOr<std::unique_ptr<PartitionSelectionStrategy>> strategy =
+      test_builder.Build();
+  ASSERT_OK(strategy);
+  EXPECT_EQ(strategy.value()->ProbabilityOfKeep(0), 0.0);
   for (int i = 0; i < 1000; i++) {
-    EXPECT_FALSE(build->ShouldKeep(0));
+    EXPECT_FALSE(strategy.value()->ShouldKeep(0));
   }
 }
 
 TEST(PartitionSelectionTest,
      NearTruncatedGeometricPartitionSelectionFirstCrossover) {
   NearTruncatedGeometricPartitionSelection::Builder test_builder;
-  std::unique_ptr<PartitionSelectionStrategy> build =
-      test_builder.SetEpsilon(0.5)
-          .SetDelta(0.02)
-          .SetMaxPartitionsContributed(1)
-          .Build()
-          .value();
+  test_builder.SetEpsilon(0.5).SetDelta(0.02).SetMaxPartitionsContributed(1);
+  absl::StatusOr<std::unique_ptr<PartitionSelectionStrategy>> strategy =
+      test_builder.Build();
+  ASSERT_OK(strategy);
   NearTruncatedGeometricPartitionSelection* magic =
-      dynamic_cast<NearTruncatedGeometricPartitionSelection*>(build.get());
+      dynamic_cast<NearTruncatedGeometricPartitionSelection*>(
+          strategy.value().get());
   EXPECT_THAT(magic->GetFirstCrossover(), DoubleEq(6));
 }
 
 TEST(PartitionSelectionTest,
      NearTruncatedGeometricPartitionSelectionSecondCrossover) {
   NearTruncatedGeometricPartitionSelection::Builder test_builder;
-  std::unique_ptr<PartitionSelectionStrategy> build =
-      test_builder.SetEpsilon(0.5)
-          .SetDelta(0.02)
-          .SetMaxPartitionsContributed(1)
-          .Build()
-          .value();
+  test_builder.SetEpsilon(0.5).SetDelta(0.02).SetMaxPartitionsContributed(1);
+  absl::StatusOr<std::unique_ptr<PartitionSelectionStrategy>> strategy =
+      test_builder.Build();
+  ASSERT_OK(strategy);
   NearTruncatedGeometricPartitionSelection* magic =
-      dynamic_cast<NearTruncatedGeometricPartitionSelection*>(build.get());
+      dynamic_cast<NearTruncatedGeometricPartitionSelection*>(
+          strategy.value().get());
   EXPECT_THAT(magic->GetSecondCrossover(), DoubleEq(11));
 }
 
@@ -239,36 +234,34 @@ TEST(PartitionSelectionTest,
 TEST(PartitionSelectionTest,
      NearTruncatedGeometricPartitionSelectionNumUsersEqFirstCrossover) {
   NearTruncatedGeometricPartitionSelection::Builder test_builder;
-  std::unique_ptr<PartitionSelectionStrategy> build =
-      test_builder.SetEpsilon(0.5)
-          .SetDelta(0.02)
-          .SetMaxPartitionsContributed(1)
-          .Build()
-          .value();
-  double num_kept = 0.0;
-  EXPECT_NEAR(build->ProbabilityOfKeep(6), 0.58840484458, 1e-10);
+  test_builder.SetEpsilon(0.5).SetDelta(0.02).SetMaxPartitionsContributed(1);
+  absl::StatusOr<std::unique_ptr<PartitionSelectionStrategy>> strategy =
+      test_builder.Build();
+  ASSERT_OK(strategy);
+  EXPECT_NEAR(strategy.value()->ProbabilityOfKeep(6), 0.58840484458, 1e-10);
+  int num_kept = 0;
   for (int i = 0; i < kNumSamples; i++) {
-    if (build->ShouldKeep(6)) num_kept++;
+    if (strategy.value()->ShouldKeep(6)) num_kept++;
   }
-  EXPECT_THAT(num_kept / kNumSamples, DoubleNear(0.58840484458, 0.001));
+  EXPECT_THAT(static_cast<double>(num_kept) / kNumSamples,
+              DoubleNear(0.58840484458, 0.001));
 }
 
 // Values calculated with formula
 TEST(PartitionSelectionTest,
      NearTruncatedGeometricPartitionSelectionNumUsersBtwnCrossovers) {
   NearTruncatedGeometricPartitionSelection::Builder test_builder;
-  std::unique_ptr<PartitionSelectionStrategy> build =
-      test_builder.SetEpsilon(0.5)
-          .SetDelta(0.02)
-          .SetMaxPartitionsContributed(1)
-          .Build()
-          .value();
-  double num_kept = 0.0;
+  test_builder.SetEpsilon(0.5).SetDelta(0.02).SetMaxPartitionsContributed(1);
+  absl::StatusOr<std::unique_ptr<PartitionSelectionStrategy>> strategy =
+      test_builder.Build();
+  ASSERT_OK(strategy);
+  int num_kept = 0;
   for (int i = 0; i < kNumSamples; i++) {
-    if (build->ShouldKeep(8)) num_kept++;
+    if (strategy.value()->ShouldKeep(8)) num_kept++;
   }
-  EXPECT_NEAR(build->ProbabilityOfKeep(8), 0.86807080625, 1e-10);
-  EXPECT_THAT(num_kept / kNumSamples, DoubleNear(0.86807080625, 0.001));
+  EXPECT_NEAR(strategy.value()->ProbabilityOfKeep(8), 0.86807080625, 1e-10);
+  EXPECT_THAT(static_cast<double>(num_kept) / kNumSamples,
+              DoubleNear(0.86807080625, 0.001));
 }
 
 // Values calculated with formula - 15 should be so large that this partition is
@@ -276,15 +269,13 @@ TEST(PartitionSelectionTest,
 TEST(PartitionSelectionTest,
      NearTruncatedGeometricPartitionSelectionNumUsersGreaterThanCrossovers) {
   NearTruncatedGeometricPartitionSelection::Builder test_builder;
-  std::unique_ptr<PartitionSelectionStrategy> build =
-      test_builder.SetEpsilon(0.5)
-          .SetDelta(0.02)
-          .SetMaxPartitionsContributed(1)
-          .Build()
-          .value();
-  EXPECT_EQ(build->ProbabilityOfKeep(15), 1);
+  test_builder.SetEpsilon(0.5).SetDelta(0.02).SetMaxPartitionsContributed(1);
+  absl::StatusOr<std::unique_ptr<PartitionSelectionStrategy>> strategy =
+      test_builder.Build();
+  ASSERT_OK(strategy);
+  EXPECT_EQ(strategy.value()->ProbabilityOfKeep(15), 1);
   for (int i = 0; i < 1000; i++) {
-    EXPECT_TRUE(build->ShouldKeep(15));
+    EXPECT_TRUE(strategy.value()->ShouldKeep(15));
   }
 }
 
@@ -292,53 +283,50 @@ TEST(PartitionSelectionTest,
 TEST(PartitionSelectionTest,
      NearTruncatedGeometricPartitionSelectionTinyEpsilon) {
   NearTruncatedGeometricPartitionSelection::Builder test_builder;
-  std::unique_ptr<PartitionSelectionStrategy> build =
-      test_builder.SetEpsilon(1e-20)
-          .SetDelta(0.02)
-          .SetMaxPartitionsContributed(1)
-          .Build()
-          .value();
-  double num_kept = 0.0;
+  test_builder.SetEpsilon(1e-20).SetDelta(0.02).SetMaxPartitionsContributed(1);
+  absl::StatusOr<std::unique_ptr<PartitionSelectionStrategy>> strategy =
+      test_builder.Build();
+  ASSERT_OK(strategy);
+  int num_kept = 0;
   for (int i = 0; i < kNumSamples; i++) {
-    if (build->ShouldKeep(6)) num_kept++;
+    if (strategy.value()->ShouldKeep(6)) num_kept++;
   }
-  EXPECT_NEAR(build->ProbabilityOfKeep(6), 0.12, 1e-10);
-  EXPECT_THAT(num_kept / kNumSamples, DoubleNear(0.12, 0.001));
+  EXPECT_NEAR(strategy.value()->ProbabilityOfKeep(6), 0.12, 1e-10);
+  EXPECT_THAT(static_cast<double>(num_kept) / kNumSamples,
+              DoubleNear(0.12, 0.001));
 }
 
 TEST(PartitionSelectionTest,
      NearTruncatedGeometricPartitionSelectionTinyEpsilonLargeDelta) {
   NearTruncatedGeometricPartitionSelection::Builder test_builder;
-  std::unique_ptr<PartitionSelectionStrategy> build =
-      test_builder.SetEpsilon(1e-20)
-          .SetDelta(0.15)
-          .SetMaxPartitionsContributed(1)
-          .Build()
-          .value();
-  double num_kept = 0.0;
+  test_builder.SetEpsilon(1e-20).SetDelta(0.15).SetMaxPartitionsContributed(1);
+  absl::StatusOr<std::unique_ptr<PartitionSelectionStrategy>> strategy =
+      test_builder.Build();
+  ASSERT_OK(strategy);
+  int num_kept = 0;
   for (int i = 0; i < kNumSamples; i++) {
-    if (build->ShouldKeep(3)) num_kept++;
+    if (strategy.value()->ShouldKeep(3)) num_kept++;
   }
-  EXPECT_NEAR(build->ProbabilityOfKeep(3), 0.45, 1e-10);
-  EXPECT_THAT(num_kept / kNumSamples, DoubleNear(0.45, 0.001));
+  EXPECT_NEAR(strategy.value()->ProbabilityOfKeep(3), 0.45, 1e-10);
+  EXPECT_THAT(static_cast<double>(num_kept) / kNumSamples,
+              DoubleNear(0.45, 0.001));
 }
 
 // For tiny epsilon probability of keeping is basically n * delta.
 TEST(PartitionSelectionTest,
      NearTruncatedGeometricPartitionSelectionTinyEpsilonBtwnCrossovers) {
   NearTruncatedGeometricPartitionSelection::Builder test_builder;
-  std::unique_ptr<PartitionSelectionStrategy> build =
-      test_builder.SetEpsilon(1e-20)
-          .SetDelta(0.02)
-          .SetMaxPartitionsContributed(1)
-          .Build()
-          .value();
-  double num_kept = 0.0;
+  test_builder.SetEpsilon(1e-20).SetDelta(0.02).SetMaxPartitionsContributed(1);
+  absl::StatusOr<std::unique_ptr<PartitionSelectionStrategy>> strategy =
+      test_builder.Build();
+  ASSERT_OK(strategy);
+  int num_kept = 0;
   for (int i = 0; i < kNumSamples; i++) {
-    if (build->ShouldKeep(40)) num_kept++;
+    if (strategy.value()->ShouldKeep(40)) num_kept++;
   }
-  EXPECT_NEAR(build->ProbabilityOfKeep(40), 0.8, 1e-10);
-  EXPECT_THAT(num_kept / kNumSamples, DoubleNear(0.8, 0.001));
+  EXPECT_NEAR(strategy.value()->ProbabilityOfKeep(40), 0.8, 1e-10);
+  EXPECT_THAT(static_cast<double>(num_kept) / kNumSamples,
+              DoubleNear(0.8, 0.001));
 }
 // LaplacePartitionSelection Tests
 // Due to the inheritance, SetLaplaceMechanism must be
@@ -471,84 +459,84 @@ TEST(PartitionSelectionTest, LaplacePartitionSelectionInvalidNegativeDelta) {
 // will be approximately delta
 TEST(PartitionSelectionTest, LaplacePartitionSelectionOneUser) {
   LaplacePartitionSelection::Builder test_builder;
-  std::unique_ptr<PartitionSelectionStrategy> build =
-      test_builder
-          .SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
-          .SetEpsilon(0.5)
-          .SetDelta(0.02)
-          .SetMaxPartitionsContributed(1)
-          .Build()
-          .value();
-  double num_kept = 0.0;
+  test_builder
+      .SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
+      .SetEpsilon(0.5)
+      .SetDelta(0.02)
+      .SetMaxPartitionsContributed(1);
+  absl::StatusOr<std::unique_ptr<PartitionSelectionStrategy>> strategy =
+      test_builder.Build();
+  ASSERT_OK(strategy);
+  int num_kept = 0;
   for (int i = 0; i < kSmallNumSamples; i++) {
-    if (build->ShouldKeep(1)) num_kept++;
+    if (strategy.value()->ShouldKeep(1)) num_kept++;
   }
-  EXPECT_NEAR(build->ProbabilityOfKeep(1), build->GetDelta(), 1e-12);
-  EXPECT_THAT(num_kept / kSmallNumSamples,
-              DoubleNear(build->GetDelta(), 0.0006));
+  EXPECT_NEAR(strategy.value()->ProbabilityOfKeep(1),
+              strategy.value()->GetDelta(), 1e-12);
+  EXPECT_THAT(static_cast<double>(num_kept) / kSmallNumSamples,
+              DoubleNear(strategy.value()->GetDelta(), 0.0006));
 }
 
 // When the number of users is at the threshold, we expect drop/keep is 50/50.
 // These numbers should make the threshold approximately 5.
 TEST(PartitionSelectionTest, LaplacePartitionSelectionAtThreshold) {
   LaplacePartitionSelection::Builder test_builder;
-  std::unique_ptr<PartitionSelectionStrategy> build =
-      test_builder
-          .SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
-          .SetEpsilon(0.5)
-          .SetDelta(0.06766764161)
-          .SetMaxPartitionsContributed(1)
-          .Build()
-          .value();
-  double num_kept = 0.0;
+  test_builder
+      .SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
+      .SetEpsilon(0.5)
+      .SetDelta(0.06766764161)
+      .SetMaxPartitionsContributed(1);
+  absl::StatusOr<std::unique_ptr<PartitionSelectionStrategy>> strategy =
+      test_builder.Build();
+  ASSERT_OK(strategy);
+  int num_kept = 0;
   for (int i = 0; i < kSmallNumSamples; i++) {
-    if (build->ShouldKeep(5)) num_kept++;
+    if (strategy.value()->ShouldKeep(5)) num_kept++;
   }
-  EXPECT_NEAR(build->ProbabilityOfKeep(5), 0.5, 1e-10);
-  EXPECT_THAT(num_kept / kSmallNumSamples, DoubleNear(0.5, 0.0025));
+  EXPECT_NEAR(strategy.value()->ProbabilityOfKeep(5), 0.5, 1e-10);
+  EXPECT_THAT(static_cast<double>(num_kept) / kSmallNumSamples,
+              DoubleNear(0.5, 0.0025));
 }
 
 TEST(PartitionSelectionTest, LaplacePartitionSelectionThreshold) {
   LaplacePartitionSelection::Builder test_builder;
-  std::unique_ptr<PartitionSelectionStrategy> build =
-      test_builder
-          .SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
-          .SetEpsilon(0.5)
-          .SetDelta(0.02)
-          .SetMaxPartitionsContributed(1)
-          .Build()
-          .value();
+  test_builder
+      .SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
+      .SetEpsilon(0.5)
+      .SetDelta(0.02)
+      .SetMaxPartitionsContributed(1);
+  absl::StatusOr<std::unique_ptr<PartitionSelectionStrategy>> strategy =
+      test_builder.Build();
+  ASSERT_OK(strategy);
   LaplacePartitionSelection* laplace =
-      dynamic_cast<LaplacePartitionSelection*>(build.get());
+      dynamic_cast<LaplacePartitionSelection*>(strategy.value().get());
   EXPECT_THAT(laplace->GetThreshold(), DoubleNear(7.43775164974, 0.001));
 }
 
 TEST(PartitionSelectionTest, LaplacePartitionSelectionUnsetBuilderThreshold) {
   LaplacePartitionSelection::Builder test_builder;
-  std::unique_ptr<PartitionSelectionStrategy> build =
-      test_builder.SetEpsilon(0.5)
-          .SetDelta(0.02)
-          .SetMaxPartitionsContributed(1)
-          .Build()
-          .value();
+  test_builder.SetEpsilon(0.5).SetDelta(0.02).SetMaxPartitionsContributed(1);
+  absl::StatusOr<std::unique_ptr<PartitionSelectionStrategy>> strategy =
+      test_builder.Build();
+  ASSERT_OK(strategy);
   LaplacePartitionSelection* laplace =
-      dynamic_cast<LaplacePartitionSelection*>(build.get());
+      dynamic_cast<LaplacePartitionSelection*>(strategy.value().get());
   EXPECT_THAT(laplace->GetThreshold(), DoubleNear(7.43775164974, 0.001));
 }
 
 TEST(PartitionSelectionTest, LaplacePartitionSelectionNoiseValueIfShouldKeep) {
   LaplacePartitionSelection::Builder test_builder;
-  std::unique_ptr<PartitionSelectionStrategy> build =
-      test_builder
-          .SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
-          .SetEpsilon(0.5)
-          .SetDelta(0.06766764161)
-          .SetMaxPartitionsContributed(1)
-          .Build()
-          .value();
-  double num_kept = 0.0;
-  auto* laplace_ps = dynamic_cast<LaplacePartitionSelection*>(build.get());
-  const int kTinyNumSamples = 10000;
+  test_builder
+      .SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
+      .SetEpsilon(0.5)
+      .SetDelta(0.06766764161)
+      .SetMaxPartitionsContributed(1);
+  absl::StatusOr<std::unique_ptr<PartitionSelectionStrategy>> strategy =
+      test_builder.Build();
+  ASSERT_OK(strategy);
+  int num_kept = 0;
+  auto* laplace_ps =
+      dynamic_cast<LaplacePartitionSelection*>(strategy.value().get());
   for (int i = 0; i < kTinyNumSamples; ++i) {
     auto noised_value = laplace_ps->NoiseValueIfShouldKeep(5);
     if (noised_value.has_value()) {
@@ -557,7 +545,8 @@ TEST(PartitionSelectionTest, LaplacePartitionSelectionNoiseValueIfShouldKeep) {
     }
   }
 
-  EXPECT_THAT(num_kept / kTinyNumSamples, DoubleNear(0.5, 0.02));
+  EXPECT_THAT(static_cast<double>(num_kept) / kTinyNumSamples,
+              DoubleNear(0.5, 0.02));
 }
 
 // CalculateDelta and CalculateThreshold structs and tests
@@ -1648,17 +1637,17 @@ TEST(PartitionSelectionTest, GaussianRoundTripDeltaTests) {
 
 TEST(PartitionSelectionTest, GaussianPartitionSelectionNoiseValueIfShouldKeep) {
   GaussianPartitionSelection::Builder test_builder;
-  std::unique_ptr<PartitionSelectionStrategy> build =
-      test_builder
-          .SetGaussianMechanism(absl::make_unique<GaussianMechanism::Builder>())
-          .SetEpsilon(0.5)
-          .SetDelta(0.01)
-          .SetMaxPartitionsContributed(1)
-          .Build()
-          .value();
-  double num_kept = 0.0;
-  auto* gaussian_ps = dynamic_cast<GaussianPartitionSelection*>(build.get());
-  const int kTinyNumSamples = 10000;
+  test_builder
+      .SetGaussianMechanism(absl::make_unique<GaussianMechanism::Builder>())
+      .SetEpsilon(0.5)
+      .SetDelta(0.01)
+      .SetMaxPartitionsContributed(1);
+  absl::StatusOr<std::unique_ptr<PartitionSelectionStrategy>> strategy =
+      test_builder.Build();
+  ASSERT_OK(strategy);
+  int num_kept = 0;
+  auto* gaussian_ps =
+      dynamic_cast<GaussianPartitionSelection*>(strategy.value().get());
   for (int i = 0; i < kTinyNumSamples; ++i) {
     auto noised_value = gaussian_ps->NoiseValueIfShouldKeep(5);
     if (noised_value.has_value()) {
@@ -1667,7 +1656,55 @@ TEST(PartitionSelectionTest, GaussianPartitionSelectionNoiseValueIfShouldKeep) {
     }
   }
 
-  EXPECT_THAT(num_kept / kTinyNumSamples, DoubleNear(0.07, 0.02));
+  EXPECT_THAT(static_cast<double>(num_kept) / kTinyNumSamples,
+              DoubleNear(0.07, 0.02));
+}
+
+TEST(PartitionSelectionTest, GaussianPartitionSelectionShouldKeepNoUsers) {
+  GaussianPartitionSelection::Builder test_builder;
+  test_builder
+      .SetGaussianMechanism(absl::make_unique<GaussianMechanism::Builder>())
+      .SetEpsilon(0.5)
+      .SetDelta(0.01)
+      .SetMaxPartitionsContributed(1);
+  absl::StatusOr<std::unique_ptr<PartitionSelectionStrategy>> strategy =
+      test_builder.Build();
+  ASSERT_OK(strategy);
+  auto* gaussian_ps =
+      dynamic_cast<GaussianPartitionSelection*>(strategy.value().get());
+  int num_kept = 0;
+  for (int i = 0; i < kTinyNumSamples; i++) {
+    if (gaussian_ps->ShouldKeep(0)) {
+      ++num_kept;
+    }
+  }
+  EXPECT_THAT(gaussian_ps->ProbabilityOfKeep(0), DoubleNear(0, 0.02));
+  // With small probability, ShouldKeep evaluates to true.
+  EXPECT_THAT(static_cast<double>(num_kept) / kTinyNumSamples,
+              DoubleNear(0, 0.02));
+}
+
+TEST(PartitionSelectionTest, GaussianPartitionSelectionShouldKeep) {
+  GaussianPartitionSelection::Builder test_builder;
+  test_builder
+      .SetGaussianMechanism(absl::make_unique<GaussianMechanism::Builder>())
+      .SetEpsilon(0.5)
+      .SetDelta(0.01)
+      .SetMaxPartitionsContributed(1);
+  absl::StatusOr<std::unique_ptr<PartitionSelectionStrategy>> strategy =
+      test_builder.Build();
+  ASSERT_OK(strategy);
+  auto* gaussian_ps =
+      dynamic_cast<GaussianPartitionSelection*>(strategy.value().get());
+  int num_kept = 0;
+  for (int i = 0; i < kTinyNumSamples; ++i) {
+    if (gaussian_ps->ShouldKeep(5)) {
+      ++num_kept;
+    }
+  }
+  EXPECT_THAT(gaussian_ps->ProbabilityOfKeep(5), DoubleNear(0.07, 0.02));
+  EXPECT_THAT(static_cast<double>(num_kept) / kTinyNumSamples,
+              DoubleNear(0.07, 0.02));
 }
 
 }  // namespace

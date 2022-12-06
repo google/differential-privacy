@@ -125,7 +125,7 @@ func TestDistinctPrivacyIDWithPartitionsNoNoise(t *testing.T) {
 		col = beam.ParDo(s, testutils.PairToKV, col)
 
 		publicPartitionsSlice := []int{0, 1, 3, 4}
-		var publicPartitions interface{}
+		var publicPartitions any
 		if tc.inMemory {
 			publicPartitions = publicPartitionsSlice
 		} else {
@@ -382,7 +382,7 @@ func TestDistinctPrivacyIDWithPartitionsAddsNoise(t *testing.T) {
 
 		pcol := MakePrivate(s, col, NewPrivacySpec(tc.epsilon, tc.delta))
 		publicPartitionsSlice := []int{0}
-		var publicPartitions interface{}
+		var publicPartitions any
 		if tc.inMemory {
 			publicPartitions = publicPartitionsSlice
 		} else {
@@ -455,7 +455,7 @@ func TestDistinctPrivacyIDWithPartitionsCrossPartitionContributionBounding(t *te
 		col = beam.ParDo(s, testutils.PairToKV, col)
 
 		publicPartitionsSlice := []int{0, 1, 2, 3, 4}
-		var publicPartitions interface{}
+		var publicPartitions any
 		if tc.inMemory {
 			publicPartitions = publicPartitionsSlice
 		} else {
@@ -525,7 +525,7 @@ func TestDistinctPrivacyIDWithPartitionsReturnsNonNegative(t *testing.T) {
 		for i := 0; i < 200; i++ {
 			publicPartitionsSlice = append(publicPartitionsSlice, i)
 		}
-		var publicPartitions interface{}
+		var publicPartitions any
 		if tc.inMemory {
 			publicPartitions = publicPartitionsSlice
 		} else {
@@ -623,7 +623,7 @@ func TestCountFnSetup(t *testing.T) {
 	for _, tc := range []struct {
 		desc      string
 		noiseKind noise.Kind
-		wantNoise interface{}
+		wantNoise any
 	}{
 		{"Laplace noise kind", noise.LaplaceNoise, noise.Laplace()},
 		{"Gaussian noise kind", noise.GaussianNoise, noise.Gaussian()}} {

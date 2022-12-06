@@ -123,12 +123,12 @@ type QuantilesParams struct {
 // Note that due to the implementation details of the internal Quantiles algorithm, using pbeamtest
 // with QuantilesPerKey has two caveats:
 //
-// 	1. Even without DP noise, the output will be slightly noisy. You can use
-//  pbeamtest.QuantilesTolerance() to account for that noise.
+//  1. Even without DP noise, the output will be slightly noisy. You can use
+//     pbeamtest.QuantilesTolerance() to account for that noise.
 //  2. It is not possible to not clamp input values when using
-//  pbeamtest.NewPrivacySpecNoNoiseWithoutContributionBounding(), so clamping to Min/MaxValue will
-//  still be applied. However, MaxContributionsPerPartition and MaxPartitionsContributed contribution
-//  bounding will be disabled.
+//     pbeamtest.NewPrivacySpecNoNoiseWithoutContributionBounding(), so clamping to Min/MaxValue will
+//     still be applied. However, MaxContributionsPerPartition and MaxPartitionsContributed contribution
+//     bounding will be disabled.
 func QuantilesPerKey(s beam.Scope, pcol PrivatePCollection, params QuantilesParams) beam.PCollection {
 	s = s.Scope("pbeam.QuantilesPerKey")
 	// Obtain & validate type information from the underlying PCollection<K,V>.

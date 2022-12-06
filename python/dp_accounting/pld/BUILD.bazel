@@ -124,6 +124,7 @@ py_test(
     python_version = "PY3",
     deps = [
         ":common",
+        ":pld_pmf",
         ":privacy_loss_distribution",
         ":test_util",
         requirement("absl-py"),

@@ -37,7 +37,7 @@ func TestNewBoundedQuantilesFn(t *testing.T) {
 	for _, tc := range []struct {
 		desc      string
 		noiseKind noise.Kind
-		want      interface{}
+		want      any
 	}{
 		{"Laplace noise kind", noise.LaplaceNoise,
 			&boundedQuantilesFn{
@@ -91,7 +91,7 @@ func TestBoundedQuantilesFnSetup(t *testing.T) {
 	for _, tc := range []struct {
 		desc      string
 		noiseKind noise.Kind
-		wantNoise interface{}
+		wantNoise any
 	}{
 		{"Laplace noise kind", noise.LaplaceNoise, noise.Laplace()},
 		{"Gaussian noise kind", noise.GaussianNoise, noise.Gaussian()}} {
@@ -437,7 +437,7 @@ func TestQuantilesWithPartitionsPerKeyAddsNoise(t *testing.T) {
 		}
 		publicPartitionsSlice := []int{0}
 		p, s, col := ptest.CreateList(triples)
-		var publicPartitions interface{}
+		var publicPartitions any
 		if tc.inMemory {
 			publicPartitions = publicPartitionsSlice
 		} else {
@@ -537,7 +537,7 @@ func TestQuantilesPerKeyWithPartitionsNoNoise(t *testing.T) {
 		upper := 5.0
 		ranks := []float64{0.00, 0.25, 0.75, 1.00}
 		publicPartitionsSlice := []int{0}
-		var publicPartitions interface{}
+		var publicPartitions any
 		if tc.inMemory {
 			publicPartitions = publicPartitionsSlice
 		} else {
@@ -590,7 +590,7 @@ func TestQuantilesPerKeyWithPartitionsAppliesPublicPartitions(t *testing.T) {
 		upper := 5.0
 		ranks := []float64{0.00, 0.25, 0.75, 1.00}
 		publicPartitionsSlice := []int{2, 3, 4, 5}
-		var publicPartitions interface{}
+		var publicPartitions any
 		if tc.inMemory {
 			publicPartitions = publicPartitionsSlice
 		} else {
@@ -804,7 +804,7 @@ func TestQuantilesPerKeyWithPartitionsCrossPartitionContributionBounding(t *test
 		delta := 0.0
 		ranks := []float64{0.60}
 		publicPartitionsSlice := []int{0, 1}
-		var publicPartitions interface{}
+		var publicPartitions any
 		if tc.inMemory {
 			publicPartitions = publicPartitionsSlice
 		} else {
@@ -910,7 +910,7 @@ func TestQuantilesPerKeyWithPartitionsPerPartitionContributionBounding(t *testin
 		upper := 5.0
 		ranks := []float64{0.49, 0.51}
 		publicPartitionsSlice := []int{0}
-		var publicPartitions interface{}
+		var publicPartitions any
 		if tc.inMemory {
 			publicPartitions = publicPartitionsSlice
 		} else {
@@ -1005,7 +1005,7 @@ func TestQuantilesPerKeyWithPartitionsAppliesClamping(t *testing.T) {
 		upper := 5.0
 		ranks := []float64{0.00, 0.25, 0.75, 1.00}
 		publicPartitionsSlice := []int{0}
-		var publicPartitions interface{}
+		var publicPartitions any
 		if tc.inMemory {
 			publicPartitions = publicPartitionsSlice
 		} else {

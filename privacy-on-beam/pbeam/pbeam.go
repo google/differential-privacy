@@ -37,31 +37,31 @@
 // To understand the main API contract provided by PrivatePCollection, consider
 // the following example pipeline.
 //
-//  p := beam.NewPipeline()
-//  s := p.Root()
-//  // The input is a series of files in which each line contains the data of a privacy unit (e.g. an individual).
-//  input := textio.Read(s, "/path/to/files/*.txt") // input is a PCollection<string>
-//  // Extracts the privacy ID and the data associated with each line: extractID is a func(string) (userID,data).
-//  icol := beam.ParDo(s, input, extractID) // icol is a PCollection<privacyUnitID,data>
-//  // Transforms the input PCollection into a PrivatePCollection with parameters ε=1 and δ=10⁻¹⁰.
-//  // The privacy ID is "hidden" by the operation: pcol behaves as if it were a PCollection<data>.
-//  pcol := MakePrivate(s, icol, NewPrivacySpec(1, 1e-10)) // pcol is a PrivatePCollection<data>
-//  // Arbitrary transformations can be applied to the data…
-//  pcol = ParDo(s, pcol, someDoFn)
-//  pcol = ParDo(s, pcol, otherDoFn)
-//  // …and to retrieve PCollection outputs, differentially private aggregations must be used.
-//  // For example, assuming pcol is now a PrivatePCollection<field,float64>:
-//  sumParams := SumParams{MaxPartitionsContributed: 10, MaxValue: 5}
-//  ocol := SumPerKey(s, pcol2, sumParams) // ocol is a PCollection<field,float64>
-//  // And it is now possible to output this data.
-//  textio.Write(s, "/path/to/output/file", ocol)
+//	p := beam.NewPipeline()
+//	s := p.Root()
+//	// The input is a series of files in which each line contains the data of a privacy unit (e.g. an individual).
+//	input := textio.Read(s, "/path/to/files/*.txt") // input is a PCollection<string>
+//	// Extracts the privacy ID and the data associated with each line: extractID is a func(string) (userID,data).
+//	icol := beam.ParDo(s, input, extractID) // icol is a PCollection<privacyUnitID,data>
+//	// Transforms the input PCollection into a PrivatePCollection with parameters ε=1 and δ=10⁻¹⁰.
+//	// The privacy ID is "hidden" by the operation: pcol behaves as if it were a PCollection<data>.
+//	pcol := MakePrivate(s, icol, NewPrivacySpec(1, 1e-10)) // pcol is a PrivatePCollection<data>
+//	// Arbitrary transformations can be applied to the data…
+//	pcol = ParDo(s, pcol, someDoFn)
+//	pcol = ParDo(s, pcol, otherDoFn)
+//	// …and to retrieve PCollection outputs, differentially private aggregations must be used.
+//	// For example, assuming pcol is now a PrivatePCollection<field,float64>:
+//	sumParams := SumParams{MaxPartitionsContributed: 10, MaxValue: 5}
+//	ocol := SumPerKey(s, pcol2, sumParams) // ocol is a PCollection<field,float64>
+//	// And it is now possible to output this data.
+//	textio.Write(s, "/path/to/output/file", ocol)
 //
 // The behavior of PrivatePCollection is similar to the behavior of PCollection.
 // In particular, it implements arbitrary per-record transformations via ParDo.
 // However, the contents of a PrivatePCollection cannot be written to disk.
 // For example, there is no equivalent of:
 //
-//  textio.Write(s, "/path/to/output/file", pcol)
+//	textio.Write(s, "/path/to/output/file", pcol)
 //
 // In order to retrieve data encapsulated in a PrivatePCollection, it is
 // necessary to use one of the differentially private aggregations provided with
@@ -78,7 +78,7 @@
 // PCollection obtained by removing all records associated with a given value of
 // K in icol. Then, for any set S of possible outputs:
 //
-//  P[f(icol) ∈ S] ≤ exp(ε) * P[f(icol') ∈ S] + δ.
+//	P[f(icol) ∈ S] ≤ exp(ε) * P[f(icol') ∈ S] + δ.
 //
 // The K, in the example above, is userID, representing a user identifier. This
 // means that the full list of contributions of any given user is protected. However, this does not need
@@ -221,7 +221,7 @@ func budgetSlightlyTooLarge(remaining, requested float64) bool {
 // PrivacySpecOption is used for customizing PrivacySpecs. In the typical use
 // case, PrivacySpecOptions are passed into the NewPrivacySpec constructor to
 // create a further customized PrivacySpec.
-type PrivacySpecOption interface{}
+type PrivacySpecOption any
 
 func evaluatePrivacySpecOption(opt PrivacySpecOption, spec *PrivacySpec) {
 	switch opt {
@@ -322,19 +322,19 @@ func MakePrivate(_ beam.Scope, col beam.PCollection, spec *PrivacySpec) PrivateP
 // use as a privacy key.
 // For example:
 //
-//   type exampleStruct1 struct {
-//     IntField int
-//		 StructField exampleStruct2
-//   }
+//	  type exampleStruct1 struct {
+//	    IntField int
+//			 StructField exampleStruct2
+//	  }
 //
-//   type  exampleStruct2 struct {
-//     StringField string
-//   }
+//	  type  exampleStruct2 struct {
+//	    StringField string
+//	  }
 //
 // If col is a PCollection of exampleStruct1, you could use "IntField" or
 // "StructField.StringField" as idFieldPath.
 //
-// Caution
+// # Caution
 //
 // The privacy key field must be a simple type (e.g. int, string, etc.), or
 // a pointer to a simple type and all its parents must be structs or
@@ -377,7 +377,7 @@ func (ext *extractStructFieldFn) ProcessElement(v beam.V) (string, beam.V, error
 
 // getIDField retrieves the ID field (specified by the IDFieldPath) from
 // struct or pointer to a struct s.
-func (ext *extractStructFieldFn) getIDField(s interface{}) (interface{}, error) {
+func (ext *extractStructFieldFn) getIDField(s any) (any, error) {
 	subFieldNames := strings.Split(ext.IDFieldPath, ".")
 	subField := reflect.ValueOf(s)
 	var subFieldPath bytes.Buffer
@@ -472,7 +472,7 @@ func (ext *extractProtoFieldFn) ProcessElement(v beam.V) (string, beam.V, error)
 // its fully qualified name, and deletes this field from the original message.
 // It fails if the field is a submessage, if it is repeated, or if any of its
 // parents are repeated.
-func (ext *extractProtoFieldFn) extractField(pb protoreflect.Message) (interface{}, error) {
+func (ext *extractProtoFieldFn) extractField(pb protoreflect.Message) (any, error) {
 	parts := strings.Split(ext.IDFieldPath, ".")
 	curPb := pb
 	curDesc := ext.desc

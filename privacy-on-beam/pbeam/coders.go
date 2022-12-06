@@ -117,13 +117,13 @@ func decodePartitionSelectionAccum(data []byte) (partitionSelectionAccum, error)
 	return ret, err
 }
 
-func encode(v interface{}) ([]byte, error) {
+func encode(v any) ([]byte, error) {
 	var buf bytes.Buffer
 	enc := gob.NewEncoder(&buf)
 	err := enc.Encode(v)
 	return buf.Bytes(), err
 }
 
-func decode(v interface{}, data []byte) error {
+func decode(v any, data []byte) error {
 	return gob.NewDecoder(bytes.NewReader(data)).Decode(v)
 }

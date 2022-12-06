@@ -38,7 +38,7 @@ func TestNewBoundedSumFn(t *testing.T) {
 		desc      string
 		noiseKind noise.Kind
 		vKind     reflect.Kind
-		want      interface{}
+		want      any
 	}{
 		{"Laplace Float64", noise.LaplaceNoise, reflect.Float64,
 			&boundedSumFloat64Fn{
@@ -103,7 +103,7 @@ func TestBoundedSumFloat64FnSetup(t *testing.T) {
 	for _, tc := range []struct {
 		desc      string
 		noiseKind noise.Kind
-		wantNoise interface{}
+		wantNoise any
 	}{
 		{"Laplace noise kind", noise.LaplaceNoise, noise.Laplace()},
 		{"Gaussian noise kind", noise.GaussianNoise, noise.Gaussian()}} {
@@ -122,7 +122,7 @@ func TestBoundedSumInt64FnSetup(t *testing.T) {
 	for _, tc := range []struct {
 		desc      string
 		noiseKind noise.Kind
-		wantNoise interface{}
+		wantNoise any
 	}{
 		{"Laplace noise kind", noise.LaplaceNoise, noise.Laplace()},
 		{"Gaussian noise kind", noise.GaussianNoise, noise.Gaussian()}} {
@@ -515,7 +515,7 @@ func TestFindConvertToFloat64Fn(t *testing.T) {
 	for _, tc := range []struct {
 		desc          string
 		fullType      typex.FullType
-		wantConvertFn interface{}
+		wantConvertFn any
 		wantErr       bool
 	}{
 		{"int", typex.New(reflect.TypeOf(int(0))), convertIntToFloat64Fn, false},

@@ -13,13 +13,46 @@
 # limitations under the License.
 """Tests for privacy_loss_distribution.py."""
 import math
-from typing import Any, Mapping
+from typing import Any, Mapping, Optional
 import unittest
 from absl.testing import parameterized
 from scipy import stats
 
+from dp_accounting.pld import common
+from dp_accounting.pld import pld_pmf
 from dp_accounting.pld import privacy_loss_distribution
 from dp_accounting.pld import test_util
+
+
+def _assert_pld_pmf_equal(
+    testcase: unittest.TestCase,
+    pld: privacy_loss_distribution.PrivacyLossDistribution,
+    expected_rounded_pmf_add: Mapping[int, float],
+    expected_infinity_mass_add: float,
+    expected_rounded_pmf_remove: Optional[Mapping[int, float]] = None,
+    expected_infinity_mass_remove: Optional[float] = None):
+  """Asserts equality of PLD with expected values."""
+  def sparse_loss_probs(pmf: pld_pmf.PLDPmf) -> Mapping[int, float]:
+    if isinstance(pmf, pld_pmf.SparsePLDPmf):
+      return pmf._loss_probs
+    elif isinstance(pmf, pld_pmf.DensePLDPmf):
+      return common.list_to_dictionary(pmf._probs, pmf._lower_loss)
+    return {}
+
+  test_util.assert_dictionary_almost_equal(
+      testcase, expected_rounded_pmf_add, sparse_loss_probs(pld._pmf_add))
+  testcase.assertAlmostEqual(expected_infinity_mass_add,
+                             pld._pmf_add._infinity_mass)
+  if expected_rounded_pmf_remove is None:
+    testcase.assertTrue(pld._symmetric)
+  else:
+    test_util.assert_dictionary_almost_equal(
+        testcase,
+        expected_rounded_pmf_remove,
+        sparse_loss_probs(pld._pmf_remove))
+    testcase.assertAlmostEqual(expected_infinity_mass_remove,
+                               pld._pmf_remove._infinity_mass)
+    testcase.assertFalse(pld._symmetric)
 
 
 class AddRemovePrivacyLossDistributionTest(parameterized.TestCase):
@@ -378,17 +411,9 @@ class LaplacePrivacyLossDistributionTest(parameterized.TestCase):
         parameter, sensitivity=sensitivity, value_discretization_interval=1,
         sampling_prob=sampling_prob)
 
-    if expected_rounded_pmf_remove is None:
-      test_util.assert_dictionary_almost_equal(self, expected_rounded_pmf_add,
-                                               pld._pmf_remove._loss_probs)  # pytype: disable=attribute-error
-      self.assertTrue(pld._symmetric)
-    else:
-      test_util.assert_dictionary_almost_equal(self, expected_rounded_pmf_add,
-                                               pld._pmf_add._loss_probs)  # pytype: disable=attribute-error
-      test_util.assert_dictionary_almost_equal(self,
-                                               expected_rounded_pmf_remove,
-                                               pld._pmf_remove._loss_probs)  # pytype: disable=attribute-error
-      self.assertFalse(pld._symmetric)
+    _assert_pld_pmf_equal(self, pld,
+                          expected_rounded_pmf_add, 0.0,
+                          expected_rounded_pmf_remove, 0.0)
 
   @parameterized.parameters((0.5, {
       2: 0.61059961,
@@ -407,13 +432,12 @@ class LaplacePrivacyLossDistributionTest(parameterized.TestCase):
       -3: 0.19337051
   }))
   def test_laplace_discretization(self, value_discretization_interval,
-                                  expected_rounded_probability_mass_function):
+                                  expected_rounded_pmf):
     """Verifies correctness of pessimistic PLD for varying discretization."""
     pld = privacy_loss_distribution.from_laplace_mechanism(
         1, value_discretization_interval=value_discretization_interval)
-    test_util.assert_dictionary_almost_equal(
-        self, expected_rounded_probability_mass_function,
-        pld._pmf_remove._loss_probs)  # pytype: disable=attribute-error
+
+    _assert_pld_pmf_equal(self, pld, expected_rounded_pmf, 0.0)
 
   @parameterized.parameters(
       # Tests with sampling_prob = 1
@@ -473,17 +497,9 @@ class LaplacePrivacyLossDistributionTest(parameterized.TestCase):
         value_discretization_interval=1,
         sampling_prob=sampling_prob)
 
-    if expected_rounded_pmf_remove is None:
-      test_util.assert_dictionary_almost_equal(self, expected_rounded_pmf_add,
-                                               pld._pmf_remove._loss_probs)  # pytype: disable=attribute-error
-      self.assertTrue(pld._symmetric)
-    else:
-      test_util.assert_dictionary_almost_equal(self, expected_rounded_pmf_add,
-                                               pld._pmf_add._loss_probs)  # pytype: disable=attribute-error
-      test_util.assert_dictionary_almost_equal(self,
-                                               expected_rounded_pmf_remove,
-                                               pld._pmf_remove._loss_probs)  # pytype: disable=attribute-error
-      self.assertFalse(pld._symmetric)
+    _assert_pld_pmf_equal(self, pld,
+                          expected_rounded_pmf_add, 0.0,
+                          expected_rounded_pmf_remove, 0.0)
 
 
 class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
@@ -586,17 +602,13 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
         value_discretization_interval=1,
         sampling_prob=sampling_prob)
 
+    test_util.assert_dictionary_almost_equal(self, expected_rounded_pmf_add,
+                                             pld._pmf_add._loss_probs)  # pytype: disable=attribute-error
+    test_util.assert_almost_greater_equal(self, stats.norm.cdf(-0.9),
+                                          pld._pmf_add._infinity_mass)
     if expected_rounded_pmf_remove is None:
-      test_util.assert_dictionary_almost_equal(self, expected_rounded_pmf_add,
-                                               pld._pmf_remove._loss_probs)  # pytype: disable=attribute-error
-      test_util.assert_almost_greater_equal(self, stats.norm.cdf(-0.9),
-                                            pld._pmf_remove._infinity_mass)
       self.assertTrue(pld._symmetric)
     else:
-      test_util.assert_dictionary_almost_equal(self, expected_rounded_pmf_add,
-                                               pld._pmf_add._loss_probs)  # pytype: disable=attribute-error
-      test_util.assert_almost_greater_equal(self, stats.norm.cdf(-0.9),
-                                            pld._pmf_add._infinity_mass)
       test_util.assert_dictionary_almost_equal(self,
                                                expected_rounded_pmf_remove,
                                                pld._pmf_remove._loss_probs)  # pytype: disable=attribute-error
@@ -624,7 +636,7 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
       -4: 0.04456546
   }))
   def test_gaussian_discretization(self, value_discretization_interval,
-                                   expected_rounded_probability_mass_function):
+                                   expected_rounded_pmf):
     """Verifies correctness of pessimistic PLD for varying discretization."""
     pld = privacy_loss_distribution.from_gaussian_mechanism(
         1,
@@ -633,7 +645,7 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
     test_util.assert_almost_greater_equal(self, stats.norm.cdf(-0.9),
                                           pld._pmf_remove._infinity_mass)
     test_util.assert_dictionary_almost_equal(
-        self, expected_rounded_probability_mass_function,
+        self, expected_rounded_pmf,
         pld._pmf_remove._loss_probs)  # pytype: disable=attribute-error
 
   @parameterized.parameters(
@@ -723,17 +735,13 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
         value_discretization_interval=1,
         sampling_prob=sampling_prob)
 
+    test_util.assert_dictionary_almost_equal(self, expected_rounded_pmf_add,
+                                             pld._pmf_add._loss_probs)  # pytype: disable=attribute-error
+    test_util.assert_almost_greater_equal(self, stats.norm.cdf(-0.9),
+                                          pld._pmf_add._infinity_mass)
     if expected_rounded_pmf_remove is None:
-      test_util.assert_dictionary_almost_equal(self, expected_rounded_pmf_add,
-                                               pld._pmf_remove._loss_probs)  # pytype: disable=attribute-error
-      test_util.assert_almost_greater_equal(self, stats.norm.cdf(-0.9),
-                                            pld._pmf_remove._infinity_mass)
       self.assertTrue(pld._symmetric)
     else:
-      test_util.assert_dictionary_almost_equal(self, expected_rounded_pmf_add,
-                                               pld._pmf_add._loss_probs)  # pytype: disable=attribute-error
-      test_util.assert_almost_greater_equal(self, stats.norm.cdf(-0.9),
-                                            pld._pmf_add._infinity_mass)
       test_util.assert_dictionary_almost_equal(self,
                                                expected_rounded_pmf_remove,
                                                pld._pmf_remove._loss_probs)  # pytype: disable=attribute-error
@@ -823,17 +831,10 @@ class DiscreteLaplacePrivacyLossDistributionTest(parameterized.TestCase):
     pld = privacy_loss_distribution.from_discrete_laplace_mechanism(
         parameter, sensitivity=sensitivity, value_discretization_interval=1,
         sampling_prob=sampling_prob)
-    if expected_rounded_pmf_remove is None:
-      test_util.assert_dictionary_almost_equal(self, expected_rounded_pmf_add,
-                                               pld._pmf_remove._loss_probs)  # pytype: disable=attribute-error
-      self.assertTrue(pld._symmetric)
-    else:
-      test_util.assert_dictionary_almost_equal(self, expected_rounded_pmf_add,
-                                               pld._pmf_add._loss_probs)  # pytype: disable=attribute-error
-      test_util.assert_dictionary_almost_equal(self,
-                                               expected_rounded_pmf_remove,
-                                               pld._pmf_remove._loss_probs)  # pytype: disable=attribute-error
-      self.assertFalse(pld._symmetric)
+
+    _assert_pld_pmf_equal(self, pld,
+                          expected_rounded_pmf_add, 0.0,
+                          expected_rounded_pmf_remove, 0.0)
 
   @parameterized.parameters((0.1, {
       10: 0.73105858,
@@ -844,13 +845,12 @@ class DiscreteLaplacePrivacyLossDistributionTest(parameterized.TestCase):
   }))
   def test_discrete_laplace_discretization(
       self, value_discretization_interval,
-      expected_rounded_probability_mass_function):
+      expected_rounded_pmf):
     """Verifies correctness of pessimistic PLD for varying discretization."""
     pld = privacy_loss_distribution.from_discrete_laplace_mechanism(
         1, value_discretization_interval=value_discretization_interval)
-    test_util.assert_dictionary_almost_equal(
-        self, expected_rounded_probability_mass_function,
-        pld._pmf_remove._loss_probs)  # pytype: disable=attribute-error
+
+    _assert_pld_pmf_equal(self, pld, expected_rounded_pmf, 0.0)
 
   @parameterized.parameters(
       # Tests with sampling_prob = 1
@@ -914,17 +914,10 @@ class DiscreteLaplacePrivacyLossDistributionTest(parameterized.TestCase):
         parameter, sensitivity=sensitivity, value_discretization_interval=1,
         pessimistic_estimate=False,
         sampling_prob=sampling_prob)
-    if expected_rounded_pmf_remove is None:
-      test_util.assert_dictionary_almost_equal(self, expected_rounded_pmf_add,
-                                               pld._pmf_remove._loss_probs)  # pytype: disable=attribute-error
-      self.assertTrue(pld._symmetric)
-    else:
-      test_util.assert_dictionary_almost_equal(self, expected_rounded_pmf_add,
-                                               pld._pmf_add._loss_probs)  # pytype: disable=attribute-error
-      test_util.assert_dictionary_almost_equal(self,
-                                               expected_rounded_pmf_remove,
-                                               pld._pmf_remove._loss_probs)  # pytype: disable=attribute-error
-      self.assertFalse(pld._symmetric)
+
+    _assert_pld_pmf_equal(self, pld,
+                          expected_rounded_pmf_add, 0.0,
+                          expected_rounded_pmf_remove, 0.0)
 
 
 class DiscreteGaussianPrivacyLossDistributionTest(parameterized.TestCase):
@@ -986,23 +979,11 @@ class DiscreteGaussianPrivacyLossDistributionTest(parameterized.TestCase):
     pld = privacy_loss_distribution.from_discrete_gaussian_mechanism(
         sigma, sensitivity=sensitivity, truncation_bound=1,
         sampling_prob=sampling_prob)
-    if expected_rounded_pmf_remove is None:
-      self.assertAlmostEqual(pld._pmf_remove._infinity_mass,
-                             expected_infinity_mass_add)
-      test_util.assert_dictionary_almost_equal(self, expected_rounded_pmf_add,
-                                               pld._pmf_remove._loss_probs)  # pytype: disable=attribute-error
-      self.assertTrue(pld._symmetric)
-    else:
-      self.assertAlmostEqual(pld._pmf_add._infinity_mass,
-                             expected_infinity_mass_add)
-      test_util.assert_dictionary_almost_equal(self, expected_rounded_pmf_add,
-                                               pld._pmf_add._loss_probs)  # pytype: disable=attribute-error
-      self.assertAlmostEqual(pld._pmf_remove._infinity_mass,
-                             expected_infinity_mass_remove)
-      test_util.assert_dictionary_almost_equal(self,
-                                               expected_rounded_pmf_remove,
-                                               pld._pmf_remove._loss_probs)  # pytype: disable=attribute-error
-      self.assertFalse(pld._symmetric)
+
+    _assert_pld_pmf_equal(
+        self, pld,
+        expected_rounded_pmf_add, expected_infinity_mass_add,
+        expected_rounded_pmf_remove, expected_infinity_mass_remove)
 
   @parameterized.parameters((2, {
       15000: 0.24420134,
@@ -1018,16 +999,13 @@ class DiscreteGaussianPrivacyLossDistributionTest(parameterized.TestCase):
       -25000: 0.00443305
   }, 0.00443305))
   def test_discrete_gaussian_truncation(
-      self, truncation_bound, expected_rounded_probability_mass_function,
-      expected_infinity_mass):
+      self, truncation_bound, expected_rounded_pmf, expected_infinity_mass):
     """Verifies correctness of pessimistic PLD for varying truncation bound."""
     pld = privacy_loss_distribution.from_discrete_gaussian_mechanism(
         1, truncation_bound=truncation_bound)
-    self.assertAlmostEqual(pld._pmf_remove._infinity_mass,
-                           expected_infinity_mass)
-    test_util.assert_dictionary_almost_equal(
-        self, expected_rounded_probability_mass_function,
-        pld._pmf_remove._loss_probs)  # pytype: disable=attribute-error
+
+    _assert_pld_pmf_equal(
+        self, pld, expected_rounded_pmf, expected_infinity_mass)
 
   @parameterized.parameters(
       # Tests with sampling_prob = 1
@@ -1077,23 +1055,11 @@ class DiscreteGaussianPrivacyLossDistributionTest(parameterized.TestCase):
         sigma, sensitivity=sensitivity, truncation_bound=1,
         pessimistic_estimate=False,
         sampling_prob=sampling_prob)
-    if expected_rounded_pmf_remove is None:
-      self.assertAlmostEqual(pld._pmf_remove._infinity_mass,
-                             expected_infinity_mass_add)
-      test_util.assert_dictionary_almost_equal(self, expected_rounded_pmf_add,
-                                               pld._pmf_remove._loss_probs)  # pytype: disable=attribute-error
-      self.assertTrue(pld._symmetric)
-    else:
-      self.assertAlmostEqual(pld._pmf_add._infinity_mass,
-                             expected_infinity_mass_add)
-      test_util.assert_dictionary_almost_equal(self, expected_rounded_pmf_add,
-                                               pld._pmf_add._loss_probs)  # pytype: disable=attribute-error
-      self.assertAlmostEqual(pld._pmf_remove._infinity_mass,
-                             expected_infinity_mass_remove)
-      test_util.assert_dictionary_almost_equal(self,
-                                               expected_rounded_pmf_remove,
-                                               pld._pmf_remove._loss_probs)  # pytype: disable=attribute-error
-      self.assertFalse(pld._symmetric)
+
+    _assert_pld_pmf_equal(
+        self, pld,
+        expected_rounded_pmf_add, expected_infinity_mass_add,
+        expected_rounded_pmf_remove, expected_infinity_mass_remove)
 
 
 class RandomizedResponsePrivacyLossDistributionTest(parameterized.TestCase):
@@ -1108,13 +1074,11 @@ class RandomizedResponsePrivacyLossDistributionTest(parameterized.TestCase):
   }))
   def test_randomized_response_basic(
       self, noise_parameter, num_buckets,
-      expected_rounded_probability_mass_function):
+      expected_rounded_pmf):
     # Set value_discretization_interval = 1 here.
     pld = privacy_loss_distribution.from_randomized_response(
         noise_parameter, num_buckets, value_discretization_interval=1)
-    test_util.assert_dictionary_almost_equal(
-        self, expected_rounded_probability_mass_function,
-        pld._pmf_remove._loss_probs)  # pytype: disable=attribute-error
+    _assert_pld_pmf_equal(self, pld, expected_rounded_pmf, 0.0)
 
   @parameterized.parameters((0.7, {
       5: 0.85,
@@ -1126,16 +1090,13 @@ class RandomizedResponsePrivacyLossDistributionTest(parameterized.TestCase):
       0: 0.1
   }))
   def test_randomized_response_discretization(
-      self, value_discretization_interval,
-      expected_rounded_probability_mass_function):
+      self, value_discretization_interval, expected_rounded_pmf):
     # Set noise_parameter = 0.2, num_buckets = 4 here.
     # The true (non-discretized) PLD is
     # {2.83321334: 0.85, -2.83321334: 0.05, 0: 0.1}.
     pld = privacy_loss_distribution.from_randomized_response(
         0.2, 4, value_discretization_interval=value_discretization_interval)
-    test_util.assert_dictionary_almost_equal(
-        self, expected_rounded_probability_mass_function,
-        pld._pmf_remove._loss_probs)  # pytype: disable=attribute-error
+    _assert_pld_pmf_equal(self, pld, expected_rounded_pmf, 0.0)
 
   @parameterized.parameters((0.5, 2, {
       1: 0.75,
@@ -1146,17 +1107,14 @@ class RandomizedResponsePrivacyLossDistributionTest(parameterized.TestCase):
       0: 0.1
   }))
   def test_randomized_response_optimistic(
-      self, noise_parameter, num_buckets,
-      expected_rounded_probability_mass_function):
+      self, noise_parameter, num_buckets, expected_rounded_pmf):
     # Set value_discretization_interval = 1 here.
     pld = privacy_loss_distribution.from_randomized_response(
         noise_parameter,
         num_buckets,
         pessimistic_estimate=False,
         value_discretization_interval=1)
-    test_util.assert_dictionary_almost_equal(
-        self, expected_rounded_probability_mass_function,
-        pld._pmf_remove._loss_probs)  # pytype: disable=attribute-error
+    _assert_pld_pmf_equal(self, pld, expected_rounded_pmf, 0.0)
 
   @parameterized.parameters((0.0, 10), (1.1, 4), (0.5, 1))
   def test_randomized_response_value_errors(self, noise_parameter, num_buckets):
@@ -1169,9 +1127,7 @@ class IdentityPrivacyLossDistributionTest(parameterized.TestCase):
 
   def test_identity(self):
     pld = privacy_loss_distribution.identity()
-    test_util.assert_dictionary_almost_equal(self, pld._pmf_remove._loss_probs,
-                                             {0: 1})  # pytype: disable=attribute-error
-    self.assertAlmostEqual(pld._pmf_remove._infinity_mass, 0)
+    _assert_pld_pmf_equal(self, pld, {0: 1}, 0.0)
 
     pld = pld.compose(
         privacy_loss_distribution.PrivacyLossDistribution
@@ -1179,14 +1135,7 @@ class IdentityPrivacyLossDistributionTest(parameterized.TestCase):
             1: 0.5,
             -1: 0.5
         }, 0, 1e-4))
-    test_util.assert_dictionary_almost_equal(
-        self,
-        pld._pmf_remove._loss_probs,  # pytype: disable=attribute-error
-        {
-            1: 0.5,
-            -1: 0.5
-        })
-    self.assertAlmostEqual(pld._pmf_remove._infinity_mass, 0)
+    _assert_pld_pmf_equal(self, pld, {1: 0.5, -1: 0.5}, 0.0)
 
 
 if __name__ == '__main__':
