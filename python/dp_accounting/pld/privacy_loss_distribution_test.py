@@ -344,6 +344,14 @@ class LaplacePrivacyLossDistributionTest(parameterized.TestCase):
           parameter, sensitivity=sensitivity, value_discretization_interval=1,
           sampling_prob=sampling_prob)
 
+  def test_laplace_optimistic_connect_dots_value_error(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        'Current implementation does not support pessimistic_estimate=False '
+        'when use_connect_dots=True.'):
+      privacy_loss_distribution.from_laplace_mechanism(
+          1, pessimistic_estimate=False, use_connect_dots=True)
+
   @parameterized.parameters(
       # Tests with sampling_prob = 1
       (1.0, 1.0, 1.0, {
@@ -409,7 +417,86 @@ class LaplacePrivacyLossDistributionTest(parameterized.TestCase):
     """Verifies correctness of pessimistic PLD for various parameter values."""
     pld = privacy_loss_distribution.from_laplace_mechanism(
         parameter, sensitivity=sensitivity, value_discretization_interval=1,
-        sampling_prob=sampling_prob)
+        sampling_prob=sampling_prob, use_connect_dots=False)
+
+    _assert_pld_pmf_equal(self, pld,
+                          expected_rounded_pmf_add, 0.0,
+                          expected_rounded_pmf_remove, 0.0)
+
+  @parameterized.parameters(
+      # Tests with sampling_prob = 1
+      (1.0, 1.0, 1.0, {
+          1: 0.62245933,
+          0: 0.14855068,
+          -1: 0.22898999
+      }),
+      (3.0, 3.0, 1.0, {
+          1: 0.62245933,
+          0: 0.14855068,
+          -1: 0.22898999
+      }),
+      (1.0, 2.0, 1.0, {
+          2: 0.62245933,
+          1: 0.14855068,
+          0: 0.09010054,
+          -1: 0.05464874,
+          -2: 0.08424071
+      }),
+      (2.0, 4.0, 1.0, {
+          2: 0.62245933,
+          1: 0.14855068,
+          0: 0.09010054,
+          -1: 0.05464874,
+          -2: 0.08424071
+      }),
+      # Tests with sampling_prob < 1
+      (1.0, 1.0, 0.8, {
+          1: 0.49796746,
+          0: 0.31884054,
+          -1: 0.18319199
+      }, {
+          1: 0.49796746,
+          0: 0.31884054,
+          -1: 0.18319199
+      }),
+      (3.0, 3.0, 0.5, {
+          1: 0.31122967,
+          0: 0.57427534,
+          -1: 0.11449500,
+      }, {
+          1: 0.31122967,
+          0: 0.57427534,
+          -1: 0.11449500,
+      }),
+      (1.0, 2.0, 0.7, {
+          1: 0.70000000,
+          0: 0.17131139,
+          -1: 0.08129580,
+          -2: 0.04739281,
+      }, {
+          2: 0.35018810,
+          1: 0.22098490,
+          0: 0.17131139,
+          -1: 0.25751561,
+      }),
+      (2.0, 4.0, 0.3, {
+          1: 0.30000000,
+          0: 0.59763391,
+          -1: 0.09942388,
+          -2: 0.00294221,
+      }, {
+          2: 0.02174013,
+          1: 0.27026212,
+          0: 0.59763391,
+          -1: 0.11036383,
+      }))
+  def test_laplace_varying_parameter_and_sensitivity_connect_dots(
+      self, parameter, sensitivity, sampling_prob,
+      expected_rounded_pmf_add, expected_rounded_pmf_remove=None):
+    """Verifies correctness of connect_dots PLD for various parameter values."""
+    pld = privacy_loss_distribution.from_laplace_mechanism(
+        parameter, sensitivity=sensitivity, value_discretization_interval=1,
+        sampling_prob=sampling_prob, use_connect_dots=True)
 
     _assert_pld_pmf_equal(self, pld,
                           expected_rounded_pmf_add, 0.0,
@@ -435,8 +522,34 @@ class LaplacePrivacyLossDistributionTest(parameterized.TestCase):
                                   expected_rounded_pmf):
     """Verifies correctness of pessimistic PLD for varying discretization."""
     pld = privacy_loss_distribution.from_laplace_mechanism(
-        1, value_discretization_interval=value_discretization_interval)
+        1, value_discretization_interval=value_discretization_interval,
+        use_connect_dots=False)
 
+    _assert_pld_pmf_equal(self, pld, expected_rounded_pmf, 0.0)
+
+  @parameterized.parameters((0.5, {
+      2: 0.56217650,
+      1: 0.09684622,
+      0: 0.07542391,
+      -1: 0.05874020,
+      -2: 0.20681318,
+  }), (0.3, {
+      4: 0.18817131,
+      3: 0.37181835,
+      2: 0.06128993,
+      1: 0.05275273,
+      0: 0.04540470,
+      -1: 0.03908019,
+      -2: 0.03363663,
+      -3: 0.15117006,
+      -4: 0.05667611,
+  }))
+  def test_laplace_discretization_connect_dots(
+      self, value_discretization_interval, expected_rounded_pmf):
+    """Verifies correctness of connect_dots PLD for varying discretization."""
+    pld = privacy_loss_distribution.from_laplace_mechanism(
+        1, value_discretization_interval=value_discretization_interval,
+        use_connect_dots=True)
     _assert_pld_pmf_equal(self, pld, expected_rounded_pmf, 0.0)
 
   @parameterized.parameters(
@@ -491,11 +604,9 @@ class LaplacePrivacyLossDistributionTest(parameterized.TestCase):
       expected_rounded_pmf_add, expected_rounded_pmf_remove=None):
     """Verifies correctness of optimistic PLD for various parameter values."""
     pld = privacy_loss_distribution.from_laplace_mechanism(
-        parameter=parameter,
-        sensitivity=sensitivity,
-        pessimistic_estimate=False,
-        value_discretization_interval=1,
-        sampling_prob=sampling_prob)
+        parameter=parameter, sensitivity=sensitivity,
+        pessimistic_estimate=False, value_discretization_interval=1,
+        sampling_prob=sampling_prob, use_connect_dots=False)
 
     _assert_pld_pmf_equal(self, pld,
                           expected_rounded_pmf_add, 0.0,
@@ -515,6 +626,14 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
           sensitivity=sensitivity,
           value_discretization_interval=1,
           sampling_prob=sampling_prob)
+
+  def test_gaussian_optimistic_connect_dots_value_error(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        'Current implementation does not support pessimistic_estimate=False '
+        'when use_connect_dots=True.'):
+      privacy_loss_distribution.from_gaussian_mechanism(
+          1, pessimistic_estimate=False, use_connect_dots=True)
 
   @parameterized.parameters(
       # Tests with sampling_prob = 1
@@ -600,7 +719,8 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
         sensitivity=sensitivity,
         log_mass_truncation_bound=math.log(2) + stats.norm.logcdf(-0.9),
         value_discretization_interval=1,
-        sampling_prob=sampling_prob)
+        sampling_prob=sampling_prob,
+        use_connect_dots=False)
 
     test_util.assert_dictionary_almost_equal(self, expected_rounded_pmf_add,
                                              pld._pmf_add._loss_probs)  # pytype: disable=attribute-error
@@ -615,6 +735,111 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
       test_util.assert_almost_greater_equal(self, stats.norm.cdf(-0.9),
                                             pld._pmf_remove._infinity_mass)
       self.assertFalse(pld._symmetric)
+
+  @parameterized.parameters(
+      # Tests with sampling_prob = 1
+      (1.0, 1.0, 1.0, {
+          2: 0.167710257,
+          1: 0.343270190,
+          0: 0.319116756,
+          -1: 0.126282046,
+          -2: 0.022697115,
+      }, 0.020923636),
+      (5.0, 5.0, 1.0, {
+          2: 0.167710257,
+          1: 0.343270190,
+          0: 0.319116756,
+          -1: 0.126282046,
+          -2: 0.022697115,
+      }, 0.020923636),
+      (1.0, 2.0, 1.0, {
+          4: 0.156393834,
+          3: 0.176732821,
+          2: 0.195352391,
+          1: 0.169838899,
+          0: 0.116146963,
+          -1: 0.062480239,
+          -2: 0.026438071,
+          -3: 0.008799009,
+          -4: 0.002864453,
+      }, 0.084953319),
+      (3.0, 6.0, 1.0, {
+          4: 0.156393834,
+          3: 0.176732821,
+          2: 0.195352391,
+          1: 0.169838899,
+          0: 0.116146963,
+          -1: 0.062480239,
+          -2: 0.026438071,
+          -3: 0.008799009,
+          -4: 0.002864453,
+      }, 0.084953319),
+      # Tests with sampling_prob < 1
+      (1.0, 1.0, 0.8, {
+          1: 0.448021700,
+          0: 0.398104072,
+          -1: 0.115544309,
+          -2: 0.015193708,
+      }, 0.023136210, {
+          2: 0.112267164,
+          1: 0.314081995,
+          0: 0.398104072,
+          -1: 0.164817973,
+      }, 0.010728796),
+      (5.0, 5.0, 0.6, {
+          1: 0.363466985,
+          0: 0.528456643,
+          -1: 0.099555157,
+          -2: 0.008521215,
+      }, 0.000000000, {
+          2: 0.062963737,
+          1: 0.270618975,
+          0: 0.528456643,
+          -1: 0.133712031,
+      }, 0.004248614),
+      (1.0, 2.0, 0.4, {
+          1: 0.431999550,
+          0: 0.499732772,
+          -1: 0.052519150,
+          -2: 0.012224135,
+          -3: 0.003524394,
+      }, 0.000000000, {
+          3: 0.070789342,
+          2: 0.090324817,
+          1: 0.142761851,
+          0: 0.499732772,
+          -1: 0.158923753,
+      }, 0.037467466),
+      (3.0, 6.0, 0.2, {
+          1: 0.215999775,
+          0: 0.738200118,
+          -1: 0.038917231,
+          -2: 0.005650510,
+          -3: 0.001232367,
+      }, 0.000000000, {
+          3: 0.024752755,
+          2: 0.041751932,
+          1: 0.105788001,
+          0: 0.738200118,
+          -1: 0.079461876,
+      }, 0.010045317))
+  def test_gaussian_varying_standard_deviation_and_sensitivity_connect_dots(
+      self, standard_deviation, sensitivity, sampling_prob,
+      expected_rounded_pmf_add, expected_infinity_mass_add,
+      expected_rounded_pmf_remove=None, expected_infinity_mass_remove=None):
+    """Verifies correctness of connect_dots PLD for various parameter values."""
+    pld = privacy_loss_distribution.from_gaussian_mechanism(
+        standard_deviation,
+        sensitivity=sensitivity,
+        log_mass_truncation_bound=math.log(2) + stats.norm.logcdf(-0.9),
+        value_discretization_interval=1,
+        sampling_prob=sampling_prob,
+        use_connect_dots=True)
+
+    _assert_pld_pmf_equal(
+        self, pld,
+        expected_rounded_pmf_add, expected_infinity_mass_add,
+        expected_rounded_pmf_remove, expected_infinity_mass_remove)
 
   @parameterized.parameters((0.5, {
       3: 0.12447741,
@@ -641,12 +866,46 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
     pld = privacy_loss_distribution.from_gaussian_mechanism(
         1,
         log_mass_truncation_bound=math.log(2) + stats.norm.logcdf(-0.9),
-        value_discretization_interval=value_discretization_interval)
+        value_discretization_interval=value_discretization_interval,
+        use_connect_dots=False)
     test_util.assert_almost_greater_equal(self, stats.norm.cdf(-0.9),
                                           pld._pmf_remove._infinity_mass)
     test_util.assert_dictionary_almost_equal(
         self, expected_rounded_pmf,
         pld._pmf_remove._loss_probs)  # pytype: disable=attribute-error
+
+  @parameterized.parameters((0.5, 0.056696236, {
+      3: 0.178515818,
+      2: 0.175063076,
+      1: 0.195400642,
+      0: 0.171573378,
+      -1: 0.118516480,
+      -2: 0.064402107,
+      -3: 0.039832263,
+  }), (0.3, 0.056696236, {
+      5: 0.143933223,
+      4: 0.093801719,
+      3: 0.110114456,
+      2: 0.118295665,
+      1: 0.116301523,
+      0: 0.104639278,
+      -1: 0.086158287,
+      -2: 0.064922037,
+      -3: 0.044769197,
+      -4: 0.028252535,
+      -5: 0.032115843,
+  }))
+  def test_gaussian_discretization_connect_dots(
+      self, value_discretization_interval, expected_infinity_mass,
+      expected_rounded_pmf):
+    """Verifies correctness of pessimistic PLD for varying discretization."""
+    pld = privacy_loss_distribution.from_gaussian_mechanism(
+        1,
+        log_mass_truncation_bound=math.log(2) + stats.norm.logcdf(-0.9),
+        value_discretization_interval=value_discretization_interval,
+        use_connect_dots=True)
+    _assert_pld_pmf_equal(
+        self, pld, expected_rounded_pmf, expected_infinity_mass)
 
   @parameterized.parameters(
       # Tests with sampling_prob = 1
@@ -733,7 +992,8 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
         pessimistic_estimate=False,
         log_mass_truncation_bound=math.log(2) + stats.norm.logcdf(-0.9),
         value_discretization_interval=1,
-        sampling_prob=sampling_prob)
+        sampling_prob=sampling_prob,
+        use_connect_dots=False)
 
     test_util.assert_dictionary_almost_equal(self, expected_rounded_pmf_add,
                                              pld._pmf_add._loss_probs)  # pytype: disable=attribute-error
@@ -754,7 +1014,8 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
     privacy_loss_distribution.from_gaussian_mechanism(
         0.02,
         value_discretization_interval=1,
-        sampling_prob=0.1)
+        sampling_prob=0.1,
+        use_connect_dots=False)
 
 
 class DiscreteLaplacePrivacyLossDistributionTest(parameterized.TestCase):
@@ -768,6 +1029,14 @@ class DiscreteLaplacePrivacyLossDistributionTest(parameterized.TestCase):
       privacy_loss_distribution.from_discrete_laplace_mechanism(
           parameter, sensitivity=sensitivity, value_discretization_interval=1,
           sampling_prob=sampling_prob)
+
+  def test_discrete_laplace_optimistic_connect_dots_value_error(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        'Current implementation does not support pessimistic_estimate=False '
+        'when use_connect_dots=True.'):
+      privacy_loss_distribution.from_discrete_laplace_mechanism(
+          1, pessimistic_estimate=False, use_connect_dots=True)
 
   @parameterized.parameters(
       # Tests with sampling_prob = 1
@@ -830,7 +1099,87 @@ class DiscreteLaplacePrivacyLossDistributionTest(parameterized.TestCase):
     """Verifies correctness of pessimistic PLD for various parameter values."""
     pld = privacy_loss_distribution.from_discrete_laplace_mechanism(
         parameter, sensitivity=sensitivity, value_discretization_interval=1,
-        sampling_prob=sampling_prob)
+        sampling_prob=sampling_prob, use_connect_dots=False)
+
+    _assert_pld_pmf_equal(self, pld,
+                          expected_rounded_pmf_add, 0.0,
+                          expected_rounded_pmf_remove, 0.0)
+
+  @parameterized.parameters(
+      # Tests with sampling_prob = 1
+      (1.0, 1, 1, {
+          1: 0.731058579,
+          -1: 0.268941421,
+      }),
+      (1.0, 2, 1, {
+          2: 0.731058579,
+          0: 0.170003402,
+          -2: 0.098938020
+      }),
+      (0.8, 2, 1, {
+          2: 0.492482728,
+          1: 0.197491753,
+          0: 0.170722074,
+          -1: 0.072653156,
+          -2: 0.066650289,
+      }),
+      (0.8, 3, 1, {
+          3: 0.359853436,
+          2: 0.330121045,
+          1: 0.148724321,
+          0: 0.043995505,
+          -1: 0.054712620,
+          -2: 0.044677025,
+          -3: 0.017916048,
+      }),
+      # # Tests with sampling_prob < 1
+      (1.0, 1, 0.8, {
+          1: 0.584846863,
+          0: 0.200000000,
+          -1: 0.215153137,
+      }, {
+          1: 0.584846863,
+          0: 0.200000000,
+          -1: 0.215153137,
+      }),
+      (1.0, 2, 0.5, {
+          1: 0.500000000,
+          0: 0.401061980,
+          -1: 0.067667642,
+          -2: 0.031270378,
+      }, {
+          2: 0.231058579,
+          1: 0.183939721,
+          0: 0.401061980,
+          -1: 0.183939721,
+      }),
+      (0.8, 2, 0.3, {
+          1: 0.261344626,
+          0: 0.642512060,
+          -1: 0.096143315,
+      }, {
+          1: 0.261344626,
+          0: 0.642512060,
+          -1: 0.096143315,
+      }),
+      (0.8, 3, 0.2, {
+          1: 0.228245419,
+          0: 0.698218984,
+          -1: 0.069698173,
+          -2: 0.003837424,
+      }, {
+          2: 0.028354943,
+          1: 0.189459276,
+          0: 0.698218984,
+          -1: 0.083966797,
+      }))
+  def test_discrete_laplace_varying_parameter_and_sensitivity_connect_dots(
+      self, parameter, sensitivity, sampling_prob,
+      expected_rounded_pmf_add, expected_rounded_pmf_remove=None):
+    """Verifies correctness of pessimistic PLD for various parameter values."""
+    pld = privacy_loss_distribution.from_discrete_laplace_mechanism(
+        parameter, sensitivity=sensitivity, value_discretization_interval=1,
+        sampling_prob=sampling_prob, use_connect_dots=True)
 
     _assert_pld_pmf_equal(self, pld,
                           expected_rounded_pmf_add, 0.0,
@@ -848,8 +1197,27 @@ class DiscreteLaplacePrivacyLossDistributionTest(parameterized.TestCase):
       expected_rounded_pmf):
     """Verifies correctness of pessimistic PLD for varying discretization."""
     pld = privacy_loss_distribution.from_discrete_laplace_mechanism(
-        1, value_discretization_interval=value_discretization_interval)
+        1, value_discretization_interval=value_discretization_interval,
+        use_connect_dots=False)
 
+    _assert_pld_pmf_equal(self, pld, expected_rounded_pmf, 0.0)
+
+  @parameterized.parameters((0.1, {
+      10: 0.731058579,
+      -10: 0.268941421
+  }), (0.03, {
+      34: 0.246127076,
+      33: 0.484931503,
+      -33: 0.180189243,
+      -34: 0.088752178,
+  }))
+  def test_discrete_laplace_discretization_connect_dots(
+      self, value_discretization_interval,
+      expected_rounded_pmf):
+    """Verifies correctness of pessimistic PLD for varying discretization."""
+    pld = privacy_loss_distribution.from_discrete_laplace_mechanism(
+        1, value_discretization_interval=value_discretization_interval,
+        use_connect_dots=True)
     _assert_pld_pmf_equal(self, pld, expected_rounded_pmf, 0.0)
 
   @parameterized.parameters(
@@ -913,7 +1281,7 @@ class DiscreteLaplacePrivacyLossDistributionTest(parameterized.TestCase):
     pld = privacy_loss_distribution.from_discrete_laplace_mechanism(
         parameter, sensitivity=sensitivity, value_discretization_interval=1,
         pessimistic_estimate=False,
-        sampling_prob=sampling_prob)
+        sampling_prob=sampling_prob, use_connect_dots=False)
 
     _assert_pld_pmf_equal(self, pld,
                           expected_rounded_pmf_add, 0.0,
@@ -931,6 +1299,14 @@ class DiscreteGaussianPrivacyLossDistributionTest(parameterized.TestCase):
       privacy_loss_distribution.from_discrete_gaussian_mechanism(
           sigma, sensitivity=sensitivity, truncation_bound=1,
           sampling_prob=sampling_prob)
+
+  def test_discrete_gaussian_optimistic_connect_dots_value_error(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        'Current implementation does not support pessimistic_estimate=False '
+        'when use_connect_dots=True.'):
+      privacy_loss_distribution.from_discrete_gaussian_mechanism(
+          1, pessimistic_estimate=False, use_connect_dots=True)
 
   @parameterized.parameters(
       # Tests with sampling_prob = 1
@@ -978,7 +1354,76 @@ class DiscreteGaussianPrivacyLossDistributionTest(parameterized.TestCase):
     """Verifies correctness of pessimistic PLD for various parameter values."""
     pld = privacy_loss_distribution.from_discrete_gaussian_mechanism(
         sigma, sensitivity=sensitivity, truncation_bound=1,
-        sampling_prob=sampling_prob)
+        sampling_prob=sampling_prob, use_connect_dots=False)
+
+    _assert_pld_pmf_equal(
+        self, pld,
+        expected_rounded_pmf_add, expected_infinity_mass_add,
+        expected_rounded_pmf_remove, expected_infinity_mass_remove)
+
+  @parameterized.parameters(
+      # Tests with sampling_prob = 1
+      (1.0, 1, 1.0, {
+          -5000: 0.274068619,
+          5000: 0.451862762
+      }, 0.274068619),
+      (1.0, 2, 1.0, {
+          0: 0.27406862
+      }, 0.72593138),
+      (3.0, 1, 1.0, {
+          -556: 0.181720640,
+          -555: 0.145383781,
+          555: 0.153680690,
+          556: 0.192110468,
+      }, 0.327104421),
+      # Tests with sampling_prob < 1
+      (1.0, 1, 0.6, {
+          -3288: 0.141485241,
+          -3287: 0.132583378,
+          2692: 0.025722139,
+          2693: 0.426140623,
+          9162: 0.025399872,
+          9163: 0.248668747,
+      }, 0.0, {
+          3288: 0.196565440,
+          3287: 0.184179664,
+          -2692: 0.019651469,
+          -2693: 0.325534808,
+          -9162: 0.010160871,
+          -9163: 0.099466577,
+      }, 0.164441171),
+      (1.0, 2, 0.3, {
+          0: 0.274068619,
+          3566: 0.181882996,
+          3567: 0.544048385,
+      }, 0.0, {
+          -3567: 0.380824327,
+          -3566: 0.127327639,
+          0: 0.274068619,
+      }, 0.217779414),
+      (3.0, 1, 0.1, {
+          -57: 0.315715606,
+          -56: 0.011388815,
+          54: 0.281098525,
+          55: 0.064692633,
+          1053: 0.129151121,
+          1054: 0.197953300,
+      }, 0.0, {
+          -1054: 0.178150936,
+          -1053: 0.116243043,
+          -55: 0.064337801,
+          -54: 0.279584684,
+          56: 0.011452771,
+          57: 0.317520323,
+      }, 0.032710442))
+  def test_discrete_gaussian_varying_sigma_and_sensitivity_connect_dots(
+      self, sigma, sensitivity, sampling_prob,
+      expected_rounded_pmf_add, expected_infinity_mass_add,
+      expected_rounded_pmf_remove=None, expected_infinity_mass_remove=None):
+    """Verifies correctness of pessimistic PLD for various parameter values."""
+    pld = privacy_loss_distribution.from_discrete_gaussian_mechanism(
+        sigma, sensitivity=sensitivity, truncation_bound=1,
+        sampling_prob=sampling_prob, use_connect_dots=True)
 
     _assert_pld_pmf_equal(
         self, pld,
@@ -1002,7 +1447,7 @@ class DiscreteGaussianPrivacyLossDistributionTest(parameterized.TestCase):
       self, truncation_bound, expected_rounded_pmf, expected_infinity_mass):
     """Verifies correctness of pessimistic PLD for varying truncation bound."""
     pld = privacy_loss_distribution.from_discrete_gaussian_mechanism(
-        1, truncation_bound=truncation_bound)
+        1, truncation_bound=truncation_bound, use_connect_dots=False)
 
     _assert_pld_pmf_equal(
         self, pld, expected_rounded_pmf, expected_infinity_mass)
@@ -1053,8 +1498,8 @@ class DiscreteGaussianPrivacyLossDistributionTest(parameterized.TestCase):
     """Verifies correctness of optimistic PLD for various parameter values."""
     pld = privacy_loss_distribution.from_discrete_gaussian_mechanism(
         sigma, sensitivity=sensitivity, truncation_bound=1,
-        pessimistic_estimate=False,
-        sampling_prob=sampling_prob)
+        pessimistic_estimate=False, sampling_prob=sampling_prob,
+        use_connect_dots=False)
 
     _assert_pld_pmf_equal(
         self, pld,

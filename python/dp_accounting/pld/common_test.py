@@ -15,6 +15,7 @@
 
 import math
 import unittest
+from unittest import mock
 from absl.testing import parameterized
 
 from dp_accounting.pld import common
@@ -229,6 +230,16 @@ class ConvolveTest(parameterized.TestCase):
         input_list, num_times, tail_mass_truncation=tail_mass_truncation)
     self.assertEqual(min_val, expected_min_val)
     self.assertSequenceAlmostEqual(expected_result_list, result_list)
+
+  @mock.patch.object(
+      common, 'compute_self_convolve_bounds', return_value=(6, 6)
+  )
+  def test_compute_self_convolve_with_too_small_truncation(self, _):
+    # When the truncation bounds returned from compute_self_convolve_bounds are
+    # too small, the input should not be truncated.
+    min_val, result_list = common.self_convolve([0, 0, 1], 3)
+    self.assertEqual(min_val, 6)
+    self.assertSequenceAlmostEqual([1], result_list)
 
   @parameterized.parameters(
       (5, 7, 3, 8.60998489),

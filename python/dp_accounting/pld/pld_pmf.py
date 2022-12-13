@@ -25,6 +25,7 @@ import math
 import numbers
 from typing import Iterable, List, Mapping, Sequence, Tuple, Union
 import numpy as np
+import numpy.typing
 from scipy import signal
 
 from dp_accounting.pld import common
@@ -550,6 +551,96 @@ def create_pmf(loss_probs: Mapping[int, float], discretization: float,
   probs = np.array(probs)
   return DensePLDPmf(discretization, lower_loss, probs, infinity_mass,
                      pessimistic_estimate)
+
+
+def create_pmf_pessimistic_connect_dots(
+    discretization: float,
+    rounded_epsilons: numpy.typing.ArrayLike,  # dtype int, shape (n,)
+    deltas: numpy.typing.ArrayLike,  # dtype float, shape (n,)
+    ) -> PLDPmf:
+  """Returns PLD probability mass function using pessimistic Connect-the-Dots.
+
+  This method uses Algorithm 1 (PLD Discretization) from the following paper:
+    Title: Connect the Dots: Tighter Discrete Approximations of Privacy Loss
+           Distributions
+    Authors: V. Doroshenko, B. Ghazi, P. Kamath, R. Kumar, P. Manurangsi
+    Link: https://arxiv.org/abs/2207.04380
+
+  Given a set of (finite) epsilon values that the PLD should be supported on
+  (in addition to +infinity), the probability mass is computed as follows:
+  Suppose desired epsilon values are [eps_1, ... , eps_n].
+  Let eps_0 = -infinity for convenience.
+  Let delta_i = eps_i-hockey stick divergence for the mechanism.
+    (Note: delta_0 = 1)
+
+  The probability mass on eps_i (1 <= i <= n-1) is given as:
+    ((delta_i - delta_{i-1}) / (exp(eps_{i-1} - eps_i) - 1)
+     + (delta_{i+1} - delta_i) / (exp(eps_{i+1} - eps_i) - 1))
+  The probability mass on eps_n is given as:
+    (delta_n - delta_{n-1}) / (exp(eps_{n-1} - eps_n) - 1)
+  The probability mass on +infinity is simply delta_n.
+
+  Args:
+    discretization: The length of the discretization interval, such that all
+      epsilon values in the support of the privacy loss distribution are integer
+      multiples of it.
+    rounded_epsilons: The desired support of the privacy loss distribution
+      specified as a strictly increasing sequence of integer values. The support
+      will be given by these values times discretization.
+    deltas: The delta values corresponding to the epsilon values. These values
+      must be in non-increasing order, due to the nature of hockey stick
+      divergence.
+
+  Returns:
+    The pessimistic Connect-the-Dots privacy loss distribution supported on
+    specified epsilons.
+
+  Raises:
+    ValueError: If any of the following hold:
+      - rounded_epsilons and deltas do not have the same length, or if one of
+        them is empty, or
+      - if rounded_epsilons are not in strictly increasing order, or
+      - if deltas are not in non-increasing order.
+  """
+  rounded_epsilons = np.asarray(rounded_epsilons, dtype=int)
+  deltas = np.asarray(deltas, dtype=float)
+
+  if (rounded_epsilons.size != deltas.size or rounded_epsilons.size == 0):
+    raise ValueError('Length of rounded_epsilons and deltas are either unequal '
+                     f'or zero: {rounded_epsilons=}, {deltas=}.')
+
+  # Notation: epsilons = [eps_1, ... , eps_n]
+  # epsilon_diffs = [eps_2 - eps_1, ... , eps_n - eps_{n-1}]
+  epsilon_diffs = np.diff(rounded_epsilons) * discretization
+  if np.any(epsilon_diffs <= 0):
+    raise ValueError('rounded_epsilons are not in strictly increasing order: '
+                     f'{rounded_epsilons=}.')
+
+  # Notation: deltas = [delta_1, ... , delta_n]
+  # delta_diffs = [delta_2 - delta_1, ... , delta_n - delta_{n-1}]
+  delta_diffs = np.diff(deltas)
+  if np.any(delta_diffs > 0):
+    raise ValueError(f'deltas are not in non-increasing order: {deltas=}.')
+
+  # delta_diffs_scaled_v1 = [y_0, y_1, ..., y_{n-1}]
+  # where y_i = (delta_{i+1} - delta_i) / (exp(eps_i - eps_{i+1}) - 1)
+  # and   y_0 = (1 - delta_1)
+  delta_diffs_scaled_v1 = np.append(1 - deltas[0],
+                                    delta_diffs / np.expm1(- epsilon_diffs))
+
+  # delta_diffs_scaled_v2 = [z_1, z_2, ..., z_{n-1}, z_n]
+  # where z_i = (delta_{i+1} - delta_i) / (exp(eps_{i+1} - eps_i) - 1)
+  # and   z_n = 0
+  delta_diffs_scaled_v2 = np.append(delta_diffs / np.expm1(epsilon_diffs), 0.0)
+
+  # PLD contains eps_i with probability mass y_{i-1} + z_i, and
+  # infinity with probability mass delta_n
+  return create_pmf(
+      loss_probs=dict(zip(rounded_epsilons,
+                          delta_diffs_scaled_v1 + delta_diffs_scaled_v2)),
+      discretization=discretization,
+      infinity_mass=deltas[-1],
+      pessimistic_estimate=True)
 
 
 def compose_pmfs(pmf1: PLDPmf,

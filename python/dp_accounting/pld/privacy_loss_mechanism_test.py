@@ -146,6 +146,36 @@ class LaplacePrivacyLossTest(parameterized.TestCase):
         self, expected_tail_probability_mass_function,
         tail_pld.tail_probability_mass_function)
 
+  @parameterized.parameters(
+      # Tests with sampling_prob = 1 for adjacency_type=ADD
+      (1.0, 1.0, 1.0, ADD, 1.0, -1.0),
+      (1.0, 2.0, 1.0, ADD, 2.0, -2.0),
+      # Tests with sampling_prob < 1 for adjacency_type=ADD
+      (1.0, 1.0, 0.8, ADD, 0.704605471, -0.864839725),
+      (3.0, 3.0, 0.6, ADD, 0.476862836, -0.708513067),
+      (1.0, 2.0, 0.7, ADD, 0.929541390, -1.699706179),
+      # Tests with sampling_prob = 1 for adjacency_type=REMOVE
+      (1.0, 1.0, 1.0, REM, 1.0, -1.0),
+      (1.0, 2.0, 1.0, REM, 2.0, -2.0),
+      # Tests with sampling_prob < 1 for adjacency_type=REMOVE
+      (1.0, 1.0, 0.8, REM, 0.864839725, -0.704605471),
+      (3.0, 3.0, 0.6, REM, 0.708513067, -0.476862836),
+      (1.0, 2.0, 0.7, REM, 1.699706179, -0.929541390))
+  def test_laplace_connect_dots_bounds(self, parameter, sensitivity,
+                                       sampling_prob, adjacency_type,
+                                       expected_epsilon_upper,
+                                       expected_epsilon_lower):
+    pl = privacy_loss_mechanism.LaplacePrivacyLoss(
+        parameter,
+        sensitivity=sensitivity,
+        sampling_prob=sampling_prob,
+        adjacency_type=adjacency_type)
+    connect_dots_bounds = pl.connect_dots_bounds()
+    self.assertAlmostEqual(expected_epsilon_upper,
+                           connect_dots_bounds.epsilon_upper)
+    self.assertAlmostEqual(expected_epsilon_lower,
+                           connect_dots_bounds.epsilon_lower)
+
   @parameterized.parameters((-3.0, 1.0, 1.0, ADD), (0.0, 1.0, 1.0, ADD),
                             (1.0, 0.0, 1.0, REM), (2.0, -1.0, 1.0, REM),
                             (2.0, 1.0, 0.0, ADD), (1.0, 1.0, 1.2, REM),
@@ -227,6 +257,38 @@ class LaplacePrivacyLossTest(parameterized.TestCase):
         sampling_prob=sampling_prob,
         adjacency_type=adjacency_type)
     self.assertAlmostEqual(expected_delta, pl.get_delta_for_epsilon(epsilon))
+
+  @parameterized.parameters(
+      # Tests with sampling_prob = 1 for adjacency_type=ADD
+      (1.0, 1.0, 1.0, ADD, [-2.0, -1.0, 0.0, 1.0],
+       [0.86466472, 0.63212056, 0.39346934, 0.0]),
+      (2.0, 4.0, 1.0, ADD, [-0.5, 0.0, 0.5, 1.0, 2.0],
+       [0.7134952031, 0.6321205588, 0.5276334473, 0.3934693403, 0.0]),
+      # Tests with sampling_prob < 1 for adjacency_type=ADD
+      (1.0, 1.0, 0.2, ADD, [-0.3, -0.2, -0.1, 0.0, 0.1, 0.2, 0.3],
+       [0.2591817793, 0.2008511573, 0.1405456165, 0.07869386806,
+        0.01879989609, 0.0, 0.0]),
+      # Tests with sampling_prob = 1 for adjacency_type=REMOVE
+      (1.0, 1.0, 1.0, REM, [-2.0, -1.0, 0.0, 1.0],
+       [0.86466472, 0.63212056, 0.39346934, 0.0]),
+      (2.0, 4.0, 1.0, REM, [-0.5, 0.0, 0.5, 1.0, 2.0],
+       [0.7134952031, 0.6321205588, 0.5276334473, 0.3934693403, 0.0]),
+      # Tests with sampling_prob < 1 for adjacency_type=REMOVE)
+      (1.0, 1.0, 0.2, REM, [-0.3, -0.2, -0.1, 0.0, 0.1, 0.2, 0.3],
+       [0.2591817793, 0.1812692469, 0.1121734314, 0.07869386806,
+        0.05015600993, 0.02391739939, 0.0]),
+      )
+  def test_laplace_get_delta_for_epsilon_vectorized(
+      self, parameter, sensitivity, sampling_prob, adjacency_type,
+      epsilon_values, expected_delta_values):
+    pl = privacy_loss_mechanism.LaplacePrivacyLoss(
+        parameter,
+        sensitivity=sensitivity,
+        sampling_prob=sampling_prob,
+        adjacency_type=adjacency_type)
+    for expected_delta, delta in zip(expected_delta_values,
+                                     pl.get_delta_for_epsilon(epsilon_values)):
+      self.assertAlmostEqual(expected_delta, delta)
 
 
 class GaussianPrivacyLossTest(parameterized.TestCase):
@@ -438,6 +500,42 @@ class GaussianPrivacyLossTest(parameterized.TestCase):
         self, expected_tail_probability_mass_function,
         tail_pld.tail_probability_mass_function)
 
+  @parameterized.parameters(
+      # Tests with sampling_prob = 1 for adjacency_type=ADD
+      (1.0, 1.0, 1.0, ADD, 1.5, -1.5),
+      (3.0, 3.0, 1.0, ADD, 1.5, -1.5),
+      (1.0, 2.0, 1.0, ADD, 4.0, -4.0),
+      # Tests with sampling_prob < 1 for adjacency_type=ADD
+      (1.0, 1.0, 0.8, ADD, 0.971528300, -1.331138685),
+      (3.0, 3.0, 0.8, ADD, 0.971528300, -1.331138685),
+      (1.0, 2.0, 0.5, ADD, 0.674997253, -3.325002747),
+      (4.0, 8.0, 0.6, ADD, 0.889187896, -3.501310856),
+      # Tests with sampling_prob = 1 for adjacency_type=REMOVE
+      (1.0, 1.0, 1.0, REM, 1.5, -1.5),
+      (3.0, 3.0, 1.0, REM, 1.5, -1.5),
+      (1.0, 2.0, 1.0, REM, 4.0, -4.0),
+      # Tests with sampling_prob < 1 for adjacency_type=REMOVE
+      (1.0, 1.0, 0.8, REM, 1.331138685, -0.971528300),
+      (3.0, 3.0, 0.8, REM, 1.331138685, -0.971528300),
+      (1.0, 2.0, 0.5, REM, 3.325002747, -0.674997253),
+      (4.0, 8.0, 0.6, REM, 3.501310856, -0.889187896))
+  def test_gaussian_connect_dots_bounds(self, standard_deviation, sensitivity,
+                                        sampling_prob, adjacency_type,
+                                        expected_epsilon_upper,
+                                        expected_epsilon_lower):
+    pl = privacy_loss_mechanism.GaussianPrivacyLoss(
+        standard_deviation,
+        sensitivity=sensitivity,
+        pessimistic_estimate=True,
+        log_mass_truncation_bound=math.log(2) + stats.norm.logcdf(-1),
+        sampling_prob=sampling_prob,
+        adjacency_type=adjacency_type)
+    connect_dots_bounds = pl.connect_dots_bounds()
+    self.assertAlmostEqual(expected_epsilon_upper,
+                           connect_dots_bounds.epsilon_upper)
+    self.assertAlmostEqual(expected_epsilon_lower,
+                           connect_dots_bounds.epsilon_lower)
+
   @parameterized.parameters((0.0, 1.0), (-10.0, 2.0), (4.0, 0.0), (2.0, -1.0),
                             (1.0, 1.0, 1.0, ADD, 1), (2.0, 1.0, 0.0, REM),
                             (1.0, 1.0, 1.2, ADD), (2.0, 1.0, -0.1, REM))
@@ -529,6 +627,34 @@ class GaussianPrivacyLossTest(parameterized.TestCase):
         sampling_prob=sampling_prob,
         adjacency_type=adjacency_type)
     self.assertAlmostEqual(expected_delta, pl.get_delta_for_epsilon(epsilon))
+
+  @parameterized.parameters(
+      # Tests with sampling_prob = 1 for adjacency_type=ADD
+      (1.0, 1.0, 1.0, ADD, [-2.0, -1.0, 0.0, 1.0, 2.0],
+       [0.86749642, 0.67881797, 0.38292492, 0.12693674, 0.020923636]),
+      # Tests with sampling_prob < 1 for adjacency_type=ADD
+      (1.0, 1.0, 0.2, ADD, [-0.3, -0.2, -0.1, 0.0, 0.1, 0.2, 0.3],
+       [0.27768558, 0.21052945, 0.14204776, 0.076584985, 0.02337934,
+        0.00020196, 0.0]),
+      # Tests with sampling_prob = 1 for adjacency_type=REMOVE
+      (1.0, 1.0, 1.0, REM, [-2.0, -1.0, 0.0, 1.0, 2.0],
+       [0.86749642, 0.67881797, 0.38292492, 0.12693674, 0.020923636]),
+      # Tests with sampling_prob < 1 for adjacency_type=REMOVE
+      (1.0, 1.0, 0.2, REM, [-0.3, -0.2, -0.1, 0.0, 0.1, 0.2, 0.5, 1.0],
+       [0.25918178, 0.1814346, 0.11631708, 0.076584985, 0.051816131,
+        0.035738492, 0.012494629, 0.00229682]),
+      )
+  def test_gaussian_get_delta_for_epsilon_vectorized(
+      self, standard_deviation, sensitivity, sampling_prob, adjacency_type,
+      epsilon_values, expected_delta_values):
+    pl = privacy_loss_mechanism.GaussianPrivacyLoss(
+        standard_deviation,
+        sensitivity=sensitivity,
+        sampling_prob=sampling_prob,
+        adjacency_type=adjacency_type)
+    for expected_delta, delta in zip(expected_delta_values,
+                                     pl.get_delta_for_epsilon(epsilon_values)):
+      self.assertAlmostEqual(expected_delta, delta)
 
 
 class DiscreteLaplacePrivacyLossDistributionTest(parameterized.TestCase):
@@ -674,6 +800,34 @@ class DiscreteLaplacePrivacyLossDistributionTest(parameterized.TestCase):
         self, expected_tail_probability_mass_function,
         tail_pld.tail_probability_mass_function)
 
+  @parameterized.parameters(
+      # Tests with sampling_prob = 1 for adjacency_type=ADD
+      (1.0, 1, 1.0, ADD, 1.0, -1.0),
+      (0.3, 2, 1.0, ADD, 0.6, -0.6),
+      # Tests with sampling_prob < 1 for adjacency_type=ADD
+      (1.0, 1, 0.8, ADD, 0.704605471, -0.864839725),
+      (0.3, 2, 0.6, ADD, 0.315687960, -0.400969203),
+      # Tests with sampling_prob = 1 for adjacency_type=REMOVE
+      (1.0, 1, 1.0, REM, 1.0, -1.0),
+      (0.3, 2, 1.0, REM, 0.6, -0.6),
+      # Tests with sampling_prob < 1 for adjacency_type=REMOVE
+      (1.0, 1, 0.8, REM, 0.864839725, -0.704605471),
+      (0.3, 2, 0.6, REM, 0.400969203, -0.315687960))
+  def test_discrete_laplace_connect_dots_bounds(self, parameter, sensitivity,
+                                                sampling_prob, adjacency_type,
+                                                expected_epsilon_upper,
+                                                expected_epsilon_lower):
+    pl = privacy_loss_mechanism.DiscreteLaplacePrivacyLoss(
+        parameter,
+        sensitivity=sensitivity,
+        sampling_prob=sampling_prob,
+        adjacency_type=adjacency_type)
+    connect_dots_bounds = pl.connect_dots_bounds()
+    self.assertAlmostEqual(expected_epsilon_upper,
+                           connect_dots_bounds.epsilon_upper)
+    self.assertAlmostEqual(expected_epsilon_lower,
+                           connect_dots_bounds.epsilon_lower)
+
   @parameterized.parameters((-3.0, 1), (0.0, 1), (2.0, 0.5),
                             (2.0, -1), (1.0, 0),
                             (2.0, 1, 0.0, ADD), (1.0, 1, 1.2, REM),
@@ -752,6 +906,35 @@ class DiscreteLaplacePrivacyLossDistributionTest(parameterized.TestCase):
         sampling_prob=sampling_prob,
         adjacency_type=adjacency_type)
     self.assertAlmostEqual(expected_delta, pl.get_delta_for_epsilon(epsilon))
+
+  @parameterized.parameters(
+      # Tests with sampling_prob = 1 for adjacency_type=ADD
+      (0.5, 4, 1.0, ADD, [-2.0, -1.0, -0.5, 0.0, 0.5, 1.0, 2.0],
+       [0.86466472, 0.77686984, 0.7222211, 0.63212056, 0.54202002,
+        0.39346934, 0.0]),
+      # Tests with sampling_prob < 1 for adjacency_type=ADD
+      (0.5, 4, 0.2, ADD, [-0.3, -0.2, -0.1, 0.0, 0.1, 0.2, 0.3],
+       [0.31709255, 0.25960017, 0.19633877, 0.12642411, 0.058632421, 0.0, 0.0]),
+      # Tests with sampling_prob = 1 for adjacency_type=REMOVE
+      (0.5, 4, 1.0, REM, [-2.0, -1.0, -0.5, 0.0, 0.5, 1.0, 2.0],
+       [0.86466472, 0.77686984, 0.7222211, 0.63212056, 0.54202002,
+        0.39346934, 0.0]),
+      # Tests with sampling_prob < 1 for adjacency_type=REMOVE
+      (0.5, 4, 0.2, REM, [-0.3, -0.2, -0.1, 0.0, 0.1, 0.2, 0.3],
+       [0.25918178, 0.18126925, 0.14821539, 0.12642411, 0.11181698,
+        0.095673604, 0.07817137]),
+      )
+  def test_discrete_laplace_get_delta_for_epsilon_vectorized(
+      self, parameter, sensitivity, sampling_prob, adjacency_type,
+      epsilon_values, expected_delta_values):
+    pl = privacy_loss_mechanism.DiscreteLaplacePrivacyLoss(
+        parameter,
+        sensitivity=sensitivity,
+        sampling_prob=sampling_prob,
+        adjacency_type=adjacency_type)
+    for expected_delta, delta in zip(expected_delta_values,
+                                     pl.get_delta_for_epsilon(epsilon_values)):
+      self.assertAlmostEqual(expected_delta, delta)
 
 
 class DiscreteGaussianPrivacyLossTest(parameterized.TestCase):
@@ -901,6 +1084,34 @@ class DiscreteGaussianPrivacyLossTest(parameterized.TestCase):
         self, expected_tail_probability_mass_function,
         tail_pld.tail_probability_mass_function)
 
+  @parameterized.parameters(
+      # Tests with sampling_prob = 1 for adjacency_type=ADD
+      (1.0, 1, 2, 1.0, ADD, 1.5, -1.5),
+      (1.0, 2, 2, 1.0, ADD, 2.0, -2.0),
+      # Tests with sampling_prob < 1 for adjacency_type=ADD
+      (1.0, 1, 2, 0.8, ADD, 1.609437912, -1.331138685),
+      (1.0, 2, 2, 0.7, ADD, 1.203972804, -1.699706179),
+      # Tests with sampling_prob = 1 for adjacency_type=REMOVE
+      (1.0, 1, 2, 1.0, REM, 1.5, -1.5),
+      (1.0, 2, 2, 1.0, REM, 2.0, -2.0),
+      # Tests with sampling_prob < 1 for adjacency_type=REMOVE
+      (1.0, 1, 2, 0.8, REM, 1.331138685, -1.609437912),
+      (1.0, 2, 2, 0.7, REM, 1.699706179, -1.203972804))
+  def test_discrete_gaussian_connect_dots_bounds(
+      self, sigma, sensitivity, truncation_bound, sampling_prob, adjacency_type,
+      expected_epsilon_upper, expected_epsilon_lower):
+    pl = privacy_loss_mechanism.DiscreteGaussianPrivacyLoss(
+        sigma,
+        sensitivity=sensitivity,
+        truncation_bound=truncation_bound,
+        sampling_prob=sampling_prob,
+        adjacency_type=adjacency_type)
+    connect_dots_bounds = pl.connect_dots_bounds()
+    self.assertAlmostEqual(expected_epsilon_upper,
+                           connect_dots_bounds.epsilon_upper)
+    self.assertAlmostEqual(expected_epsilon_lower,
+                           connect_dots_bounds.epsilon_lower)
+
   @parameterized.parameters((-3.0, 1), (0.0, 1), (2.0, 0.5), (1.0, 0),
                             (2.0, -1), (2.0, 4, 1, ADD, 1),
                             (2.0, 1, 0), (1.0, 1, 1.2), (2.0, 1, -0.1))
@@ -986,6 +1197,65 @@ class DiscreteGaussianPrivacyLossTest(parameterized.TestCase):
             adjacency_type=adjacency_type))
     self.assertAlmostEqual(expected_sigma, pl._sigma, 3)
     self.assertEqual(adjacency_type, pl.adjacency_type)
+
+  @parameterized.parameters(
+      # Tests with sampling_prob = 1 for adjacency_type=ADD
+      (1.0, 1, 2, 1.0, ADD, 1.0, 0.150574425),
+      (10.0, 3, 5, 1.0, ADD, 1.0, 0.263672394),
+      # Tests with sampling_prob < 1 for adjacency_type=ADD
+      (1.0, 1, 2, 0.8, ADD, 1.0, 0.024865564),
+      (5.0, 3, 5, 0.4, ADD, 0.1, 0.085584980),
+      # Tests with sampling_prob = 1 for adjacency_type=REMOVE
+      (1.0, 1, 2, 1.0, REM, 1.0, 0.150574425),
+      (10.0, 3, 5, 1.0, REM, 1.0, 0.263672394),
+      # Tests with sampling_prob < 1 for adjacency_type=REMOVE
+      (1.0, 1, 2, 0.8, REM, 1.0, 0.101734157),
+      (5.0, 3, 5, 0.4, REM, 0.1, 0.104486937))
+  def test_discrete_gaussian_get_delta_for_epsilon(
+      self, sigma, sensitivity, truncation_bound, sampling_prob, adjacency_type,
+      epsilon, expected_delta):
+    pl = privacy_loss_mechanism.DiscreteGaussianPrivacyLoss(
+        sigma,
+        sensitivity=sensitivity,
+        truncation_bound=truncation_bound,
+        sampling_prob=sampling_prob,
+        adjacency_type=adjacency_type)
+    self.assertAlmostEqual(expected_delta, pl.get_delta_for_epsilon(epsilon))
+
+  @parameterized.parameters(
+      # Tests with sampling_prob = 1 for adjacency_type=ADD
+      (1.0, 1, 2, 1.0, ADD, [-2.0, -1.0, 0.0, 1.0, 2.0],
+       [0.872038958, 0.687513794, 0.402619947, 0.150574425, 0.054488685]),
+      (10.0, 3, 5, 1.0, ADD, [-2.0, -1.0, 0.0, 1.0, 2.0],
+       [0.900348895, 0.729120212, 0.285480872, 0.263672394, 0.263672394]),
+      # Tests with sampling_prob < 1 for adjacency_type=ADD
+      (1.0, 1, 2, 0.8, ADD, [-2.0, -1.0, 0.0, 1.0, 2.0],
+       [0.870564110, 0.669546464, 0.322095958, 0.024865564, 0.000000000]),
+      (5.0, 3, 5, 0.4, ADD, [-0.2, -0.1, 0.0, 0.1, 0.2],
+       [0.258926845, 0.189706273, 0.129522020, 0.085584980, 0.063350727]),
+      # Tests with sampling_prob = 1 for adjacency_type=REMOVE
+      (1.0, 1, 2, 1.0, REM, [-2.0, -1.0, 0.0, 1.0, 2.0],
+       [0.872038958, 0.687513794, 0.402619947, 0.150574425, 0.054488685]),
+      (10.0, 3, 5, 1.0, REM, [-2.0, -1.0, 0.0, 1.0, 2.0],
+       [0.900348895, 0.729120212, 0.285480872, 0.263672394, 0.263672394]),
+      # Tests with sampling_prob < 1 for adjacency_type=REMOVE
+      (1.0, 1, 2, 0.8, REM, [-2.0, -1.0, 0.0, 1.0, 2.0],
+       [0.864664717, 0.641268089, 0.322095958, 0.101734157, 0.043590948]),
+      (5.0, 3, 5, 0.4, REM, [-0.2, -0.1, 0.0, 0.1, 0.2],
+       [0.233136435, 0.172603074, 0.129522020, 0.104486937, 0.094851204]))
+  def test_discrete_gaussian_get_delta_for_epsilon_vectorized(
+      self, sigma, sensitivity, truncation_bound, sampling_prob, adjacency_type,
+      epsilon_values, expected_delta_values):
+    pl = privacy_loss_mechanism.DiscreteGaussianPrivacyLoss(
+        sigma,
+        sensitivity=sensitivity,
+        truncation_bound=truncation_bound,
+        sampling_prob=sampling_prob,
+        adjacency_type=adjacency_type)
+    for expected_delta, delta in zip(expected_delta_values,
+                                     pl.get_delta_for_epsilon(epsilon_values)):
+      self.assertAlmostEqual(expected_delta, delta)
+
 
 if __name__ == '__main__':
   unittest.main()

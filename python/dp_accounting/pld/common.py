@@ -20,6 +20,7 @@ from typing import Callable, List, Mapping, Optional, Tuple, Union
 import numpy as np
 from scipy import fft
 from scipy import signal
+from scipy import special
 
 ArrayLike = Union[np.ndarray, List[float]]
 
@@ -241,10 +242,10 @@ def compute_self_convolve_bounds(
         np.concatenate((np.arange(-20, 0), np.arange(1, 21))) / len(input_list))
 
   # Compute log of the moment generating function at the specified orders.
-  log_mgfs = np.log([
-      np.dot(np.exp(np.arange(len(input_list)) * order), input_list)
+  log_mgfs = [
+      special.logsumexp(np.arange(len(input_list)) * order, b=input_list)
       for order in orders
-  ])
+  ]
 
   for order, log_mgf_value in zip(orders, log_mgfs):
     # Use Chernoff bound to update the upper/lower bound. See equation (5) in
@@ -280,17 +281,16 @@ def self_convolve(input_list: ArrayLike,
       input_list, num_times, tail_mass_truncation)
 
   # Use FFT to compute the convolution
-  fast_len = fft.next_fast_len(truncation_upper_bound - truncation_lower_bound +
-                               1)
+  output_len = truncation_upper_bound - truncation_lower_bound + 1
+  fast_len = fft.next_fast_len(max(output_len, len(input_list)))
   truncated_convolution_output = np.real(
       fft.ifft(fft.fft(input_list, fast_len)**num_times))
 
   # Discrete Fourier Transform wraps around modulo fast_len. Extract the output
   # values in the range of interest.
-  output_list = [
-      truncated_convolution_output[i % fast_len]
-      for i in range(truncation_lower_bound, truncation_upper_bound + 1)
-  ]
+  output_list = np.roll(
+      truncated_convolution_output, -truncation_lower_bound
+  )[:output_len]
 
   return truncation_lower_bound, output_list
 

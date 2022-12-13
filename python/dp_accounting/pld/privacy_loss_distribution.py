@@ -787,13 +787,19 @@ def _create_pld_pmf_from_additive_noise(
     additive_noise_privacy_loss:
     'privacy_loss_mechanism.AdditiveNoisePrivacyLoss',
     pessimistic_estimate: bool = True,
-    value_discretization_interval: float = 1e-4) -> pld_pmf.PLDPmf:
+    value_discretization_interval: float = 1e-4,
+    use_connect_dots: bool = False) -> pld_pmf.PLDPmf:
   """Constructs the privacy loss distribution of an additive noise mechanism.
 
   An additive noise mechanism for computing a scalar-valued function f is a
   mechanism that outputs the sum of the true value of the function and a noise
   drawn from a certain distribution mu. This function calculates the privacy
   loss distribution for such an additive noise mechanism.
+
+  This method supports two algorithms for constructing the privacy loss
+  distribution. One given by the "Privacy Buckets" algorithm and other given by
+  "Connect the Dots" algorithm. See Sections 2.1 and 2.2 of supplementary
+  material for more details.
 
   Args:
     additive_noise_privacy_loss: the privacy loss representation of the
@@ -806,13 +812,38 @@ def _create_pld_pmf_from_additive_noise(
       integer multiples of this number. Smaller value results in more accurate
       estimates of the privacy loss, at the cost of increased run-time / memory
       usage.
+    use_connect_dots: when False (default), the privacy buckets algorithm will
+      be used to construct the privacy loss distribution. When True, the
+      connect-the-dots algorithm would be used.
 
   Returns:
     The privacy loss distribution constructed as specified.
+
+  Raises:
+    ValueError if use_connect_dots=True and pessimistic_estimate=False.
   """
+  if use_connect_dots:
+    if not pessimistic_estimate:
+      raise ValueError('Current implementation does not support pessimistic'
+                       '_estimate=False when use_connect_dots=True.')
+    connect_dots_bounds = additive_noise_privacy_loss.connect_dots_bounds()
+    rounded_epsilon_upper = math.ceil(connect_dots_bounds.epsilon_upper /
+                                      value_discretization_interval)
+    rounded_epsilon_lower = math.floor(connect_dots_bounds.epsilon_lower /
+                                       value_discretization_interval)
+    rounded_epsilon_values = np.arange(rounded_epsilon_lower,
+                                       rounded_epsilon_upper + 1, dtype=int)
+
+    delta_values = additive_noise_privacy_loss.get_delta_for_epsilon(
+        rounded_epsilon_values * value_discretization_interval)
+
+    return pld_pmf.create_pmf_pessimistic_connect_dots(
+        value_discretization_interval, rounded_epsilon_values, delta_values)
+
   round_fn = math.ceil if pessimistic_estimate else math.floor
 
   tail_pld = additive_noise_privacy_loss.privacy_loss_tail()
+  lower_x, upper_x = tail_pld.lower_x_truncation, tail_pld.upper_x_truncation
 
   rounded_probability_mass_function = collections.defaultdict(lambda: 0)
   infinity_mass = tail_pld.tail_probability_mass_function.get(math.inf, 0)
@@ -823,10 +854,7 @@ def _create_pld_pmf_from_additive_noise(
       )] += tail_pld.tail_probability_mass_function[privacy_loss]
 
   if additive_noise_privacy_loss.discrete_noise:
-    xs = list(
-        range(
-            math.ceil(tail_pld.lower_x_truncation) - 1,
-            math.floor(tail_pld.upper_x_truncation) + 1))
+    xs = list(range(math.ceil(lower_x) - 1, math.floor(upper_x) + 1))
 
     # Compute PMF for the x's. Note that a vectorized call to mu_upper_cdf can
     # be much faster than many scalar calls.
@@ -838,20 +866,18 @@ def _create_pld_pmf_from_additive_noise(
           additive_noise_privacy_loss.privacy_loss(x) /
           value_discretization_interval)] += prob
   else:
-    lower_x = tail_pld.lower_x_truncation
     rounded_down_value = math.floor(
         additive_noise_privacy_loss.privacy_loss(lower_x) /
         value_discretization_interval)
-    upper_x_privacy_loss = additive_noise_privacy_loss.privacy_loss(
-        tail_pld.upper_x_truncation)
+    upper_x_privacy_loss = additive_noise_privacy_loss.privacy_loss(upper_x)
 
     # Compute discretization intervals for PLD approximation.
     xs, rounded_values = [lower_x], []
     x = lower_x
-    while x < tail_pld.upper_x_truncation:
+    while x < upper_x:
       if (value_discretization_interval * rounded_down_value <=
           upper_x_privacy_loss):
-        x = tail_pld.upper_x_truncation
+        x = upper_x
       else:
         x = additive_noise_privacy_loss.inverse_privacy_loss(
             value_discretization_interval * rounded_down_value)
@@ -1053,8 +1079,14 @@ def from_laplace_mechanism(
     sensitivity: float = 1,
     pessimistic_estimate: bool = True,
     value_discretization_interval: float = 1e-4,
-    sampling_prob: float = 1.0) -> PrivacyLossDistribution:
+    sampling_prob: float = 1.0,
+    use_connect_dots: bool = False) -> PrivacyLossDistribution:
   """Computes the privacy loss distribution of the Laplace mechanism.
+
+  This method supports two algorithms for constructing the privacy loss
+  distribution. One given by the "Privacy Buckets" algorithm and other given by
+  "Connect the Dots" algorithm. See Sections 2.1 and 2.2 of supplementary
+  material for more details.
 
   Args:
     parameter: the parameter of the Laplace distribution.
@@ -1069,10 +1101,16 @@ def from_laplace_mechanism(
       estimates of the privacy loss, at the cost of increased run-time / memory
       usage.
     sampling_prob: sub-sampling probability, a value in (0,1].
+    use_connect_dots: when False (default), the privacy buckets algorithm will
+      be used to construct the privacy loss distribution. When True, the
+      connect-the-dots algorithm would be used.
 
   Returns:
     The privacy loss distribution corresponding to the Laplace mechanism with
     given parameters.
+
+  Raises:
+    ValueError if use_connect_dots=True and pessimistic_estimate=False.
   """
 
   def single_laplace_pld(
@@ -1084,7 +1122,8 @@ def from_laplace_mechanism(
             sampling_prob=sampling_prob,
             adjacency_type=adjacency_type),
         pessimistic_estimate=pessimistic_estimate,
-        value_discretization_interval=value_discretization_interval)
+        value_discretization_interval=value_discretization_interval,
+        use_connect_dots=use_connect_dots)
 
   return _pld_for_subsampled_mechanism(single_laplace_pld, sampling_prob)
 
@@ -1095,8 +1134,14 @@ def from_gaussian_mechanism(
     pessimistic_estimate: bool = True,
     value_discretization_interval: float = 1e-4,
     log_mass_truncation_bound: float = -50,
-    sampling_prob: float = 1.0) -> PrivacyLossDistribution:
+    sampling_prob: float = 1.0,
+    use_connect_dots: bool = False) -> PrivacyLossDistribution:
   """Creates the privacy loss distribution of the Gaussian mechanism.
+
+  This method supports two algorithms for constructing the privacy loss
+  distribution. One given by the "Privacy Buckets" algorithm and other given by
+  "Connect the Dots" algorithm. See Sections 2.1 and 2.2 of supplementary
+  material for more details.
 
   Args:
     standard_deviation: the standard_deviation of the Gaussian distribution.
@@ -1114,10 +1159,16 @@ def from_gaussian_mechanism(
       discarded from the noise distribution. The larger this number, the more
       error it may introduce in divergence calculations.
     sampling_prob: sub-sampling probability, a value in (0,1].
+    use_connect_dots: when False (default), the privacy buckets algorithm will
+      be used to construct the privacy loss distribution. When True, the
+      connect-the-dots algorithm would be used.
 
   Returns:
     The privacy loss distribution corresponding to the Gaussian mechanism with
     given parameters.
+
+  Raises:
+    ValueError if use_connect_dots=True and pessimistic_estimate=False.
   """
 
   def single_gaussian_pld(
@@ -1131,7 +1182,8 @@ def from_gaussian_mechanism(
             sampling_prob=sampling_prob,
             adjacency_type=adjacency_type),
         pessimistic_estimate=pessimistic_estimate,
-        value_discretization_interval=value_discretization_interval)
+        value_discretization_interval=value_discretization_interval,
+        use_connect_dots=use_connect_dots)
 
   return _pld_for_subsampled_mechanism(single_gaussian_pld, sampling_prob)
 
@@ -1141,8 +1193,14 @@ def from_discrete_laplace_mechanism(
     sensitivity: int = 1,
     pessimistic_estimate: bool = True,
     value_discretization_interval: float = 1e-4,
-    sampling_prob: float = 1.0) -> PrivacyLossDistribution:
+    sampling_prob: float = 1.0,
+    use_connect_dots: bool = False) -> PrivacyLossDistribution:
   """Computes the privacy loss distribution of the Discrete Laplace mechanism.
+
+  This method supports two algorithms for constructing the privacy loss
+  distribution. One given by the "Privacy Buckets" algorithm and other given by
+  "Connect the Dots" algorithm. See Sections 2.1 and 2.2 of supplementary
+  material for more details.
 
   Args:
     parameter: the parameter of the discrete Laplace distribution.
@@ -1157,10 +1215,16 @@ def from_discrete_laplace_mechanism(
       estimates of the privacy loss, at the cost of increased run-time / memory
       usage.
     sampling_prob: sub-sampling probability, a value in (0,1].
+    use_connect_dots: when False (default), the privacy buckets algorithm will
+      be used to construct the privacy loss distribution. When True, the
+      connect-the-dots algorithm would be used.
 
   Returns:
     The privacy loss distribution corresponding to the Discrete Laplace
     mechanism with given parameters.
+
+  Raises:
+    ValueError if use_connect_dots=True and pessimistic_estimate=False.
   """
 
   def single_discrete_laplace_pld(
@@ -1172,7 +1236,8 @@ def from_discrete_laplace_mechanism(
             sampling_prob=sampling_prob,
             adjacency_type=adjacency_type),
         pessimistic_estimate=pessimistic_estimate,
-        value_discretization_interval=value_discretization_interval)
+        value_discretization_interval=value_discretization_interval,
+        use_connect_dots=use_connect_dots)
 
   return _pld_for_subsampled_mechanism(single_discrete_laplace_pld,
                                        sampling_prob)
@@ -1184,8 +1249,14 @@ def from_discrete_gaussian_mechanism(
     truncation_bound: Optional[int] = None,
     pessimistic_estimate: bool = True,
     value_discretization_interval: float = 1e-4,
-    sampling_prob: float = 1.0) -> PrivacyLossDistribution:
+    sampling_prob: float = 1.0,
+    use_connect_dots: bool = False) -> PrivacyLossDistribution:
   """Creates the privacy loss distribution of the discrete Gaussian mechanism.
+
+  This method supports two algorithms for constructing the privacy loss
+  distribution. One given by the "Privacy Buckets" algorithm and other given by
+  "Connect the Dots" algorithm. See Sections 2.1 and 2.2 of supplementary
+  material for more details.
 
   Args:
     sigma: the parameter of the discrete Gaussian distribution. Note that
@@ -1206,10 +1277,16 @@ def from_discrete_gaussian_mechanism(
       estimates of the privacy loss, at the cost of increased run-time / memory
       usage.
     sampling_prob: sub-sampling probability, a value in (0,1].
+    use_connect_dots: when False (default), the privacy buckets algorithm will
+      be used to construct the privacy loss distribution. When True, the
+      connect-the-dots algorithm would be used.
 
   Returns:
     The privacy loss distribution corresponding to the discrete Gaussian
     mechanism with given parameters.
+
+  Raises:
+    ValueError if use_connect_dots=True and pessimistic_estimate=False.
   """
 
   def single_discrete_gaussian_pld(
@@ -1222,7 +1299,8 @@ def from_discrete_gaussian_mechanism(
             sampling_prob=sampling_prob,
             adjacency_type=adjacency_type),
         pessimistic_estimate=pessimistic_estimate,
-        value_discretization_interval=value_discretization_interval)
+        value_discretization_interval=value_discretization_interval,
+        use_connect_dots=use_connect_dots)
 
   return _pld_for_subsampled_mechanism(single_discrete_gaussian_pld,
                                        sampling_prob)
