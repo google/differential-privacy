@@ -411,6 +411,7 @@ cc_library(
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@com_google_cc_differential_privacy//base:status",
+        "@com_google_differential_privacy//third_party/cephes:inverse_gaussian_cdf",
     ],
 )
 

@@ -99,7 +99,7 @@ class LshTreeTest(absltest.TestCase):
     nonprivate_points = get_test_origin_points(
         nonprivate_count=nonprivate_count)
     coreset_param = test_utils.get_test_coreset_param(
-        epsilon=5, frac_sum=0.2, frac_group_count=0.8, max_depth=9)
+        epsilon=5, max_depth=9)
     sim_hash = get_test_sim_hash()
     lsh_tree_node = lsh_tree.LshTreeNode(
         hash_prefix='',
@@ -107,7 +107,9 @@ class LshTreeTest(absltest.TestCase):
         coreset_param=coreset_param,
         sim_hash=sim_hash)
     self.assertEqual(lsh_tree_node.get_private_count(), 25)
-    mock_dlaplace_fn.assert_called_once_with(0.4)
+    mock_dlaplace_fn.assert_called_once_with(
+        coreset_param.pcalc.count_privacy_param.laplace_param
+    )
 
   def test_get_private_count_cache(self):
     nonprivate_count = 30

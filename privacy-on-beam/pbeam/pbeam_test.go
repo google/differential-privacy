@@ -431,3 +431,78 @@ func TestBudgetRounding(t *testing.T) {
 		}
 	}
 }
+
+func TestDropKey(t *testing.T) {
+	// Input is two contributions: (privacy_id, value) = {(1, 100), (2, 100)}.
+	// We add a test key of 0 and remove it with DropKey(), which should be a no-op.
+	// We then compute a Count() with high epsilon and public partitions, the output should be:
+	// (partition_key, value) = (100, 2)
+	values := []testutils.PairII{
+		{1, 100},
+		{2, 100},
+	}
+	result := []testutils.TestInt64Metric{
+		{100, 2},
+	}
+	p, s, col, want := ptest.CreateList2(values, result)
+	colKV := beam.ParDo(s, testutils.PairToKV, col)
+	spec := NewPrivacySpec(1e10, 0)
+	pcol := MakePrivate(s, colKV, spec)
+	pcol = ParDo(s, func(v int) (int, int) { return 0, v }, pcol)
+	pcol = DropKey(s, pcol)
+
+	// Assert that adding a test key of 0 and removing it is a no-op.
+	if err := testutils.EqualsKVInt(s, pcol.col, colKV); err != nil {
+		t.Fatalf("DropKey() did not work as expected: %v", err)
+	}
+	publicPartitionsSlice := []int{100}
+	publicPartitions := beam.CreateList(s, publicPartitionsSlice)
+	got := Count(s, pcol, CountParams{MaxValue: 1, MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions})
+	want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+
+	if err := testutils.EqualsKVInt64(s, got, want); err != nil {
+		t.Fatalf("Count() is different than expected: %v", err)
+	}
+
+	if err := ptest.Run(p); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestDropValue(t *testing.T) {
+	// Input is two contributions: (privacy_id, value) = {(1, 100), (2, 100)}.
+	// We add a test value of 0 and remove it with DropValue(), which should be a no-op.
+	// If we then compute a Count() with high epsilon and public partitions, the output should be:
+	// (partition_key, value) = (100, 2)
+	values := []testutils.PairII{
+		{1, 100},
+		{2, 100},
+	}
+	result := []testutils.TestInt64Metric{
+		{100, 2},
+	}
+	p, s, col, want := ptest.CreateList2(values, result)
+	colKV := beam.ParDo(s, testutils.PairToKV, col)
+	spec := NewPrivacySpec(1e10, 0)
+	pcol := MakePrivate(s, colKV, spec)
+	pcol = ParDo(s, func(k int) (int, int) { return k, 0 }, pcol)
+	pcol = DropValue(s, pcol)
+
+	// Assert that adding a test value of 0 and removing it is a no-op.
+	if err := testutils.EqualsKVInt(s, pcol.col, colKV); err != nil {
+		t.Fatalf("DropValue() did not work as expected: %v", err)
+	}
+
+	publicPartitionsSlice := []int{100}
+	publicPartitions := beam.CreateList(s, publicPartitionsSlice)
+	got := Count(s, pcol, CountParams{MaxValue: 1, MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions})
+	want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+
+	if err := testutils.EqualsKVInt64(s, got, want); err != nil {
+		t.Fatalf("Count() is different than expected: %v", err)
+	}
+
+	if err := ptest.Run(p); err != nil {
+		t.Error(err)
+	}
+}

@@ -79,10 +79,8 @@ class ClusteringTest(parameterized.TestCase):
     self.assertListEqual(list(clustering_result.labels), [0, 1, 0])
     self.assertAlmostEqual(clustering_result.loss, 37)
 
-  @parameterized.named_parameters(('privacy_budget_split', False),
-                                  ('mechanism_calibration', True))
   def test_clipped_data_used_for_clustering_and_not_result_calculation(
-      self, use_mechanism_calibration):
+      self):
     # Clipped datapoints (radius=1): [[0.3, 0.2], [0.6, 0.8], [0.6, 0.8]]
     datapoints = np.array([[0.3, 0.2], [3, 4], [6, 8]])
     # Very small radius means the datapoint will be clipped for the center
@@ -97,8 +95,7 @@ class ClusteringTest(parameterized.TestCase):
         data,
         privacy_param,
         tree_param=tree_param,
-        multipliers=clustering_params.PrivacyCalculatorMultiplier()
-        if use_mechanism_calibration else None)
+        multipliers=clustering_params.PrivacyCalculatorMultiplier())
 
     # Center should be calculated using the clipped data.
     expected_center = np.array([0.5, 0.6])
@@ -160,9 +157,7 @@ class ClusteringEdgeCaseTest(parameterized.TestCase):
     self.baseline_k = 2
     self.baseline_privacy_param = clustering_params.DifferentialPrivacyParam()
 
-  @parameterized.named_parameters(('privacy_budget_split', False),
-                                  ('mechanism_calibration', True))
-  def test_small_dataset(self, use_mechanism_calibration):
+  def test_small_dataset(self):
     datapoints = np.array([[0.3, 0.2]])
     data = clustering_params.Data(datapoints=datapoints, radius=1)
     self.assertIsNotNone(
@@ -170,8 +165,21 @@ class ClusteringEdgeCaseTest(parameterized.TestCase):
             self.baseline_k,
             data,
             self.baseline_privacy_param,
-            multipliers=clustering_params.PrivacyCalculatorMultiplier()
-            if use_mechanism_calibration else None))
+            multipliers=clustering_params.PrivacyCalculatorMultiplier(),
+        )
+    )
+
+  def test_privacy_budget_split_does_not_error(self):
+    datapoints = np.array([[0.3, 0.2]])
+    data = clustering_params.Data(datapoints=datapoints, radius=1)
+    self.assertIsNotNone(
+        clustering_algorithm.private_lsh_clustering(
+            self.baseline_k,
+            data,
+            self.baseline_privacy_param,
+            privacy_budget_split=clustering_params.PrivacyBudgetSplit(),
+        )
+    )
 
 
 if __name__ == '__main__':

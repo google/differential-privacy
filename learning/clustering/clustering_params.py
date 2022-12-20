@@ -39,9 +39,12 @@ class DifferentialPrivacyParam():
   privacy_model: PrivacyModel = PrivacyModel.CENTRAL
 
 
+# DEPRECATED: Use PrivacyCalculatorMultiplier instead.
 @dataclasses.dataclass
 class PrivacyBudgetSplit():
   """How to split epsilon between the computations.
+
+  DEPRECATED: Use PrivacyCalculatorMultiplier instead.
 
   Attributes:
     epsilon: Differential privacy parameter, epsilon, to be split.
@@ -54,6 +57,10 @@ class PrivacyBudgetSplit():
   frac_group_count: float = 0.2
 
   def __post_init__(self):
+    logging.warn(
+        "PrivacyBudgetSplit is deprecated and has been replaced with"
+        " PrivacyCalculatorMultiplier."
+    )
     total = self.frac_sum + self.frac_group_count
     if total > 1.0:
       raise ValueError(
@@ -62,12 +69,30 @@ class PrivacyBudgetSplit():
 
 @dataclasses.dataclass
 class PrivacyCalculatorMultiplier():
-  """Multipliers to be used by mechanism calibration."""
+  """Multipliers to be used by mechanism calibration.
+
+  Using mechanism calibration [1], these multipliers are used to find the
+  optimal alpha such that our clustering algorithm is within the privacy budget,
+  where:
+    gaussian_std_dev = gaussian_std_dev_multiplier * alpha * sensitivity
+    laplace_param = 1 / (laplace_param_multiplier * alpha)
+  where gaussian_std_dev is used to calculate the sum Gaussian noise when
+  adding points (used when averaging points), and laplace_param is used to
+  calculate the discrete Laplace noise when counting points (used when averaging
+  points and constructing the tree).
+
+  All else fixed, increasing the multiplier corresponding to a given operation
+  roughly shifts more noise towards those operations (and decreases noise for
+  the other operations).
+
+  [1]
+  https://github.com/google/differential-privacy/blob/main/python/dp_accounting/mechanism_calibration.py
+  """
   gaussian_std_dev_multiplier: float = 1.0
   laplace_param_multiplier: float = 20.0
 
   def get_gaussian_std_dev(self, alpha: float, sensitivity: float) -> float:
-    """Returns gaussian standard deviation based on alpha.
+    """Returns Gaussian standard deviation based on alpha.
 
     Args:
       alpha: parameter varied in mechanism calibration.
@@ -76,7 +101,7 @@ class PrivacyCalculatorMultiplier():
     return self.gaussian_std_dev_multiplier * alpha * sensitivity
 
   def get_alpha(self, gaussian_std_dev: float, sensitivity: float) -> float:
-    """Returns alpha based on gaussian standard deviation and sensitivity.
+    """Returns alpha based on Gaussian standard deviation and sensitivity.
 
     This must be the inverse of get_gaussian_std_dev with respect to alpha.
 
@@ -87,7 +112,7 @@ class PrivacyCalculatorMultiplier():
     return gaussian_std_dev / (sensitivity * self.gaussian_std_dev_multiplier)
 
   def get_laplace_param(self, alpha: float) -> float:
-    """Returns laplace parameter based on alpha.
+    """Returns Laplace parameter based on alpha.
 
     Args:
       alpha: parameter varied in mechanism calibration.

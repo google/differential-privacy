@@ -617,6 +617,8 @@ def create_pmf_pessimistic_connect_dots(
                      f'{rounded_epsilons=}.')
 
   # Notation: deltas = [delta_1, ... , delta_n]
+  if np.any(deltas < 0) or np.any(deltas > 1):
+    raise ValueError(f'deltas are not between 0 and 1 : {deltas=}.')
   # delta_diffs = [delta_2 - delta_1, ... , delta_n - delta_{n-1}]
   delta_diffs = np.diff(deltas)
   if np.any(delta_diffs > 0):
@@ -633,11 +635,121 @@ def create_pmf_pessimistic_connect_dots(
   # and   z_n = 0
   delta_diffs_scaled_v2 = np.append(delta_diffs / np.expm1(epsilon_diffs), 0.0)
 
-  # PLD contains eps_i with probability mass y_{i-1} + z_i, and
-  # infinity with probability mass delta_n
+  # PLD contains eps_i with probability mass y_{i-1} + z_i, and infinity with
+  # probability mass delta_n. Enforce that probabilities are non-negative.
+  probs = np.maximum(0, delta_diffs_scaled_v1 + delta_diffs_scaled_v2)
+
   return create_pmf(
-      loss_probs=dict(zip(rounded_epsilons,
-                          delta_diffs_scaled_v1 + delta_diffs_scaled_v2)),
+      loss_probs=dict(zip(rounded_epsilons, probs)),
+      discretization=discretization,
+      infinity_mass=deltas[-1],
+      pessimistic_estimate=True)
+
+
+def create_pmf_pessimistic_connect_dots_fixed_gap(
+    discretization: float,
+    rounded_epsilon_lower: int,
+    rounded_epsilon_upper: int,
+    deltas: numpy.typing.ArrayLike,  # dtype float, shape (n,)
+    ) -> PLDPmf:
+  """Returns pessimistic Connect-the-Dots PLD PMF for epsilons with fixed gaps.
+
+  This method uses Algorithm 1 (PLD Discretization) from the following paper:
+    Title: Connect the Dots: Tighter Discrete Approximations of Privacy Loss
+           Distributions
+    Authors: V. Doroshenko, B. Ghazi, P. Kamath, R. Kumar, P. Manurangsi
+    Link: https://arxiv.org/abs/2207.04380
+
+  Given a set of (finite) epsilon values that the PLD should be supported on
+  (in addition to +infinity), the probability mass is computed as follows:
+  Suppose desired epsilon values are [eps_1, ... , eps_n], where
+    eps_i - eps_{i-1} = discretization, for all i in {2, ... , n}.
+  Let delta_i = eps_i-hockey stick divergence for the mechanism, and
+  let d = discretization (for short).
+
+  Case: n == 1
+    The probability mass on eps_1 is given as (1 - delta_1), and
+    the probability mass on +infinity is simply delta_1.
+
+  Case: n >= 2
+  The probability mass on eps_1 is given as
+    (1 - delta_1) + (delta_2 - delta_1) / (exp(d) - 1)
+  The probability mass on eps_i (2 <= i <= n-1) is given as:
+    ((delta_{i+1} - delta_i) - exp(d) * (delta_i - delta_{i-1})) / (exp(d) - 1)
+  The probability mass on eps_n is given as:
+    (delta_n - delta_{n-1}) / (exp(-d) - 1)
+  The probability mass on +infinity is simply delta_n.
+
+  This method is a more numerically stable special case of
+  create_pmf_pessimistic_connect_dots, where epsilons are contiguous integer
+  multiples of discretization, and hence can be specified by simply the
+  smallest and the largest epsilon values.
+
+  Args:
+    discretization: The length of the discretization interval, such that all
+      epsilon values in the support of the privacy loss distribution are integer
+      multiples of it.
+    rounded_epsilon_lower: The smallest epsilon value divided by discretization.
+    rounded_epsilon_upper: The largest epsilon value divided by discretization.
+    deltas: The delta values corresponding to the epsilon values. These values
+      must be in non-increasing order, due to the nature of hockey stick
+      divergence.
+
+  Returns:
+    The pessimistic Connect-the-Dots privacy loss distribution supported on
+    specified epsilons.
+
+  Raises:
+    ValueError: If any of the following hold:
+      - rounded_epsilon_upper < rounded_epsilon_lower, or
+      - length of deltas does not equal the number of epsilons, or
+      - if deltas are not in non-increasing order.
+  """
+  deltas = np.asarray(deltas, dtype=np.float64)
+
+  if rounded_epsilon_upper < rounded_epsilon_lower:
+    raise ValueError(f'{rounded_epsilon_upper=} is smaller than '
+                     f'{rounded_epsilon_lower=}.')
+  if deltas.size != rounded_epsilon_upper - rounded_epsilon_lower + 1:
+    raise ValueError('Length of deltas is not equal to number of epsilons: '
+                     f'{rounded_epsilon_upper - rounded_epsilon_lower + 1=}, '
+                     f'{deltas.size=}.')
+  if np.any(deltas < 0) or np.any(deltas > 1):
+    raise ValueError(f'deltas are not between 0 and 1 : {deltas=}.')
+
+  # Case of single epsilon in support:
+  if rounded_epsilon_lower == rounded_epsilon_upper:
+    return create_pmf(loss_probs={rounded_epsilon_lower: 1 - deltas[0]},
+                      discretization=discretization,
+                      infinity_mass=deltas[0],
+                      pessimistic_estimate=True)
+
+  # Notation: deltas = [delta_1, ... , delta_n]
+  # delta_diffs = [delta_2 - delta_1, ... , delta_n - delta_{n-1}]
+  delta_diffs = np.diff(deltas)
+  if np.any(delta_diffs > 0):
+    raise ValueError(f'deltas are not in non-increasing order: {deltas=}.')
+
+  # probs = [p_1, p_2, ... , p_n]
+  probs = np.zeros_like(deltas)
+
+  # p_1 = 1 - delta_1 + (delta_2 - delta_1) / (exp(d) - 1),
+  probs[0] = 1 - deltas[0] + delta_diffs[0] / math.expm1(discretization)
+
+  # for all i such that 2 <= i <= n-1 : p_i =
+  # ((delta_{i+1} - delta_i) - exp(d) * (delta_i - delta_{i-1})) / (exp(d) - 1)
+  probs[1:-1] = ((delta_diffs[1:] - delta_diffs[:-1] * math.exp(discretization))
+                 / math.expm1(discretization))
+
+  # p_n = (delta_n - delta_{n-1}) / (exp(-d) - 1)
+  probs[-1] = delta_diffs[-1] / math.expm1(-discretization)
+
+  # Enforce that probabilities are non-negative.
+  probs = np.maximum(0.0, probs)
+
+  return create_pmf(
+      loss_probs=dict(
+          zip(range(rounded_epsilon_lower, rounded_epsilon_upper + 1), probs)),
       discretization=discretization,
       infinity_mass=deltas[-1],
       pessimistic_estimate=True)

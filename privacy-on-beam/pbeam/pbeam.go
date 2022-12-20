@@ -125,6 +125,8 @@ import (
 )
 
 func init() {
+	beam.RegisterType(reflect.TypeOf((*dropKeyFn)(nil)))
+	beam.RegisterType(reflect.TypeOf((*dropValueFn)(nil)))
 	beam.RegisterType(reflect.TypeOf((*extractProtoFieldFn)(nil)))
 	beam.RegisterType(reflect.TypeOf((*extractStructFieldFn)(nil)))
 	// TODO: add tests to make sure we don't forget anything here
@@ -500,4 +502,46 @@ func (ext *extractProtoFieldFn) extractField(pb protoreflect.Message) (any, erro
 		}
 	}
 	return nil, fmt.Errorf("submessage field %s found in the proto message", ext.IDFieldPath)
+}
+
+// DropKey drops the key for an input PrivatePCollection<K,V>. It returns
+// a PrivatePCollection<V>.
+func DropKey(s beam.Scope, pcol PrivatePCollection) PrivatePCollection {
+	pcol.col = beam.ParDo(s, &dropKeyFn{pcol.codec}, pcol.col, beam.TypeDefinition{Var: beam.VType, T: pcol.codec.VType.T})
+	pcol.codec = nil
+	return pcol
+}
+
+type dropKeyFn struct {
+	Codec *kv.Codec
+}
+
+func (fn *dropKeyFn) Setup() {
+	fn.Codec.Setup()
+}
+
+func (fn *dropKeyFn) ProcessElement(id beam.Z, kv kv.Pair) (beam.Z, beam.V, error) {
+	_, v, err := fn.Codec.Decode(kv)
+	return id, v, err
+}
+
+// DropValue drops the value for an input PrivatePCollection<K,V>. It returns
+// a PrivatePCollection<K>.
+func DropValue(s beam.Scope, pcol PrivatePCollection) PrivatePCollection {
+	pcol.col = beam.ParDo(s, &dropValueFn{pcol.codec}, pcol.col, beam.TypeDefinition{Var: beam.WType, T: pcol.codec.KType.T})
+	pcol.codec = nil
+	return pcol
+}
+
+type dropValueFn struct {
+	Codec *kv.Codec
+}
+
+func (fn *dropValueFn) Setup() {
+	fn.Codec.Setup()
+}
+
+func (fn *dropValueFn) ProcessElement(id beam.Z, kv kv.Pair) (beam.Z, beam.W, error) {
+	k, _, err := fn.Codec.Decode(kv)
+	return id, k, err
 }

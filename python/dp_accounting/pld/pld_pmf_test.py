@@ -440,6 +440,16 @@ class PLDPmfTest(parameterized.TestCase):
            rounded_epsilons=np.array([-1, 0, 1]),
            deltas=np.array([0.5, 0, 0.1]),
            error_message='not in non-increasing order'),
+      dict(testcase_name='out_of_range_deltas_1',
+           discretization=0.1,
+           rounded_epsilons=np.array([-1, 0, 1]),
+           deltas=np.array([1.1, 0.5, 0.1]),
+           error_message='deltas are not between 0 and 1'),
+      dict(testcase_name='out_of_range_deltas_2',
+           discretization=0.1,
+           rounded_epsilons=np.array([-1, 0, 1]),
+           deltas=np.array([0.9, 0.5, -0.1]),
+           error_message='deltas are not between 0 and 1'),
       )
   def test_connect_dots_pmf_value_errors(
       self, discretization, rounded_epsilons, deltas, error_message):
@@ -447,6 +457,21 @@ class PLDPmfTest(parameterized.TestCase):
       pld_pmf.create_pmf_pessimistic_connect_dots(discretization,
                                                   rounded_epsilons,
                                                   deltas)
+
+  @parameterized.named_parameters(
+      dict(testcase_name='example1',
+           discretization=0.1,
+           rounded_epsilons=np.array([0, 1]),
+           deltas=np.array([0.4, 0.1])))
+  def test_connect_dots_pmf_non_negative(self, discretization,
+                                         rounded_epsilons, deltas):
+    pmf = pld_pmf.create_pmf_pessimistic_connect_dots(
+        discretization, rounded_epsilons, deltas)
+    for k, v in pmf._loss_probs.items():
+      self.assertGreaterEqual(v, 0, msg=f'Probability for loss={k} is {v} < 0')
+    self.assertGreaterEqual(
+        pmf._infinity_mass, 0,
+        msg=f'Probability for +inf is {pmf._infinity_mass} < 0')
 
   @parameterized.named_parameters(
       dict(testcase_name='trivial',
@@ -497,6 +522,122 @@ class PLDPmfTest(parameterized.TestCase):
     pmf = pld_pmf.create_pmf_pessimistic_connect_dots(discretization,
                                                       rounded_epsilons,
                                                       deltas)
+    self._check_sparse_pld_pmf_equal(pmf,
+                                     discretization,
+                                     expected_infinity_mass,
+                                     expected_loss_probs,
+                                     pessimistic_estimate=True)
+
+  @parameterized.named_parameters(
+      dict(testcase_name='epsilon_empty',
+           discretization=0.1,
+           rounded_epsilon_lower=1,
+           rounded_epsilon_upper=0,
+           deltas=np.array([]),
+           error_message='is smaller than'),
+      dict(testcase_name='unequal_length',
+           discretization=0.1,
+           rounded_epsilon_lower=0,
+           rounded_epsilon_upper=1,
+           deltas=np.array([0.5]),
+           error_message='Length of deltas is not equal to number of epsilons'),
+      dict(testcase_name='non_monotone_deltas',
+           discretization=0.1,
+           rounded_epsilon_lower=-1,
+           rounded_epsilon_upper=1,
+           deltas=np.array([0.5, 0, 0.1]),
+           error_message='not in non-increasing order'),
+      dict(testcase_name='out_of_range_deltas_1',
+           discretization=0.1,
+           rounded_epsilon_lower=-1,
+           rounded_epsilon_upper=1,
+           deltas=np.array([1.1, 0.5, 0.1]),
+           error_message='deltas are not between 0 and 1'),
+      dict(testcase_name='out_of_range_deltas_2',
+           discretization=0.1,
+           rounded_epsilon_lower=-1,
+           rounded_epsilon_upper=1,
+           deltas=np.array([0.9, 0.5, -0.1]),
+           error_message='deltas are not between 0 and 1'),
+      )
+  def test_connect_dots_pmf_fixed_gap_value_errors(
+      self, discretization, rounded_epsilon_lower, rounded_epsilon_upper,
+      deltas, error_message):
+    with self.assertRaisesRegex(ValueError, error_message):
+      pld_pmf.create_pmf_pessimistic_connect_dots_fixed_gap(
+          discretization, rounded_epsilon_lower, rounded_epsilon_upper, deltas)
+
+  @parameterized.named_parameters(
+      dict(testcase_name='example1',
+           discretization=0.1,
+           rounded_epsilon_lower=0,
+           rounded_epsilon_upper=1,
+           deltas=np.array([0.4, 0.1])))
+  def test_connect_dots_pmf_fixed_gap_non_negative(
+      self, discretization, rounded_epsilon_lower, rounded_epsilon_upper,
+      deltas):
+    pmf = pld_pmf.create_pmf_pessimistic_connect_dots_fixed_gap(
+        discretization, rounded_epsilon_lower, rounded_epsilon_upper, deltas)
+    for k, v in pmf._loss_probs.items():
+      self.assertGreaterEqual(v, 0, msg=f'Probability for loss={k} is {v} < 0')
+    self.assertGreaterEqual(
+        pmf._infinity_mass, 0,
+        msg=f'Probability for +inf is {pmf._infinity_mass} < 0')
+
+  @parameterized.named_parameters(
+      dict(testcase_name='trivial',
+           # mu_upper = [1]
+           # mu_lower = [1]
+           discretization=0.1,
+           rounded_epsilon_lower=0,
+           rounded_epsilon_upper=0,
+           deltas=np.array([0.0]),
+           expected_loss_probs={0: 1.0},
+           expected_infinity_mass=0.0),
+      dict(testcase_name='rr_eps=0.1',
+           # mu_upper = [1/(1+e^{-0.1}), 1/(1+e^{0.1})]
+           # mu_lower = [1/(1+e^{0.1}), 1/(1+e^{-0.1})]
+           discretization=0.1,
+           rounded_epsilon_lower=-1,
+           rounded_epsilon_upper=1,
+           deltas=np.array([1 - np.exp(-0.1),
+                            (1 - np.exp(-0.1))/(1 + np.exp(-0.1)),
+                            0.0]),
+           expected_loss_probs={-1: 1/(1 + np.exp(0.1)),
+                                1: 1/(1 + np.exp(-0.1))},
+           expected_infinity_mass=0.0),
+      dict(testcase_name='rr_eps=0.1_abort_w_p_0.5',
+           # mu_upper = [0.5/(1+e^{-0.1}), 0.5, 0.5/(1+e^{0.1})]
+           # mu_lower = [0.5/(1+e^{0.1}), 0.5, 0.5/(1+e^{-0.1})]
+           discretization=0.1,
+           rounded_epsilon_lower=-1,
+           rounded_epsilon_upper=1,
+           deltas=np.array([1 - np.exp(-0.1),
+                            0.5*(np.exp(0.1)-1)/(np.exp(0.1)+1),
+                            0.0]),
+           expected_loss_probs={-1: 0.5/(1 + np.exp(0.1)),
+                                0: 0.5,
+                                1: 0.5/(1 + np.exp(-0.1))},
+           expected_infinity_mass=0.0),
+      dict(testcase_name='rr_eps=0.1_delta=0.5',
+           # mu_upper = [0.5, 0.5/(1+e^{-0.1}), 0.5/(1+e^{0.1}), 0.0]
+           # mu_lower = [0.0, 0.5/(1+e^{0.1}), 0.5/(1+e^{-0.1}), 0.5]
+           discretization=0.1,
+           rounded_epsilon_lower=-1,
+           rounded_epsilon_upper=1,
+           deltas=np.array([1 - 0.5*np.exp(-0.1),
+                            0.5 + 0.5*(np.exp(0.1)-1)/(np.exp(0.1)+1),
+                            0.5]),
+           expected_loss_probs={-1: 0.5/(1 + np.exp(0.1)),
+                                0: 0.0,
+                                1: 0.5/(1 + np.exp(-0.1))},
+           expected_infinity_mass=0.5),
+      )
+  def test_connect_dots_fixed_gap_pmf_creation(
+      self, discretization, rounded_epsilon_lower, rounded_epsilon_upper,
+      deltas, expected_loss_probs, expected_infinity_mass):
+    pmf = pld_pmf.create_pmf_pessimistic_connect_dots_fixed_gap(
+        discretization, rounded_epsilon_lower, rounded_epsilon_upper, deltas)
     self._check_sparse_pld_pmf_equal(pmf,
                                      discretization,
                                      expected_infinity_mass,

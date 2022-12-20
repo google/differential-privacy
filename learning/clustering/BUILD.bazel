@@ -232,9 +232,9 @@ py_test(
     python_version = "PY3",
     srcs_version = "PY3",
     deps = [
-        ":central_privacy_utils",
         ":clustering_params",
         ":privacy_calculator",
+        ":test_utils",
         "@com_google_python_dp_accounting//dp_accounting:dp_event",
         "@com_google_python_dp_accounting//dp_accounting:mechanism_calibration",
         "@com_google_python_dp_accounting//dp_accounting/pld:accountant",

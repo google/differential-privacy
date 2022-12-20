@@ -34,8 +34,9 @@ class AveragePrivacyParam():
     # Standard deviation can be 0 to indicate no noise.
     if self.gaussian_standard_deviation < 0:
       raise ValueError(
-          f'Gaussian standard deviation was {self.gaussian_standard_deviation}, '
-          'but it must be nonnegative.')
+          f'Gaussian standard deviation was {self.gaussian_standard_deviation},'
+          ' but it must be nonnegative.'
+      )
 
     if self.sensitivity <= 0:
       raise ValueError(
@@ -95,10 +96,10 @@ class CountPrivacyParam():
   laplace_param: float
 
   def __post_init__(self):
-    # No noise means laplace_param == inf, not 0. We invert the laplace param
-    # for accounting.
+    # No noise means laplace_param == inf, not 0. We invert the discrete Laplace
+    # param for accounting.
     if self.laplace_param <= 0:
-      raise ValueError(f'Laplace param was {self.laplace_param}, '
+      raise ValueError(f'Discrete Laplace param was {self.laplace_param}, '
                        'but it must be positive.')
 
   @classmethod
@@ -107,7 +108,7 @@ class CountPrivacyParam():
       clustering_privacy_param: clustering_params.DifferentialPrivacyParam,
       budget_split: clustering_params.PrivacyBudgetSplit,
       depth: int) -> 'CountPrivacyParam':
-    """Computes laplace param by splitting the budget."""
+    """Computes discrete Laplace param by splitting the budget."""
     # Split epsilon between each level of the tree starting with level 0. Depth
     # is based on the number of edges in the path, so add one to the depth to
     # get the number of levels.

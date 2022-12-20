@@ -25,6 +25,7 @@
 #include "absl/strings/string_view.h"
 #include "algorithms/rand.h"
 #include "algorithms/util.h"
+#include "third_party/cephes/inverse_gaussian_cdf.h"
 #include "base/status_macros.h"
 
 namespace differential_privacy {
@@ -108,7 +109,7 @@ double GaussianDistribution::cdf(double stddev, double x) {
 
 double GaussianDistribution::Quantile(double stddev, double x) {
   DCHECK_GT(stddev, 0);
-  return stddev * std::sqrt(2) * InverseErrorFunction(2 * x - 1);
+  return stddev * third_party::cephes::InverseCdfStandardGaussian(x);
 }
 
 GeometricDistribution::Builder& GeometricDistribution::Builder::SetLambda(

@@ -831,14 +831,16 @@ def _create_pld_pmf_from_additive_noise(
                                       value_discretization_interval)
     rounded_epsilon_lower = math.floor(connect_dots_bounds.epsilon_lower /
                                        value_discretization_interval)
-    rounded_epsilon_values = np.arange(rounded_epsilon_lower,
-                                       rounded_epsilon_upper + 1, dtype=int)
 
     delta_values = additive_noise_privacy_loss.get_delta_for_epsilon(
-        rounded_epsilon_values * value_discretization_interval)
+        np.arange(rounded_epsilon_lower, rounded_epsilon_upper + 1)
+        * value_discretization_interval)
 
-    return pld_pmf.create_pmf_pessimistic_connect_dots(
-        value_discretization_interval, rounded_epsilon_values, delta_values)
+    return pld_pmf.create_pmf_pessimistic_connect_dots_fixed_gap(
+        value_discretization_interval,
+        rounded_epsilon_lower,
+        rounded_epsilon_upper,
+        delta_values)
 
   round_fn = math.ceil if pessimistic_estimate else math.floor
 

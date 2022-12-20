@@ -21,8 +21,8 @@ from clustering import privacy_calculator
 
 def get_test_coreset_param(epsilon: float = 1.0,
                            delta: float = 1e-2,
-                           frac_sum: float = 0.2,
-                           frac_group_count: float = 0.8,
+                           gaussian_std_dev_multiplier: float = 2.3,
+                           laplace_param_multiplier: float = 32.1,
                            min_num_points_in_branching_node: int = 4,
                            min_num_points_in_node: int = 2,
                            max_depth: int = 4,
@@ -34,20 +34,33 @@ def get_test_coreset_param(epsilon: float = 1.0,
   """
   privacy_param = clustering_params.DifferentialPrivacyParam(
       epsilon=epsilon, delta=delta)
-  privacy_budget_split = clustering_params.PrivacyBudgetSplit(
-      frac_sum=frac_sum, frac_group_count=frac_group_count)
+  multipliers = clustering_params.PrivacyCalculatorMultiplier(
+      gaussian_std_dev_multiplier=gaussian_std_dev_multiplier,
+      laplace_param_multiplier=laplace_param_multiplier,
+  )
   tree_param = clustering_params.TreeParam(
       min_num_points_in_branching_node=min_num_points_in_branching_node,
       min_num_points_in_node=min_num_points_in_node,
       max_depth=max_depth)
-  pcalc = privacy_calculator.PrivacyCalculator.from_budget_split(
-      privacy_param, privacy_budget_split, radius, max_depth)
+  pcalc = privacy_calculator.PrivacyCalculator(
+      privacy_param, radius, max_depth, multipliers
+  )
   coreset_param = coreset_params.CoresetParam(
       pcalc=pcalc,
       tree_param=tree_param,
       short_description='TestCoresetParam',
       radius=radius)
   return coreset_param
+
+
+class TestPrivacyCalculator(privacy_calculator.PrivacyCalculator):
+  def __init__(self, gaussian_std_dev, sensitivity, laplace_param):
+    self.average_privacy_param = central_privacy_utils.AveragePrivacyParam(
+        gaussian_std_dev, sensitivity
+    )
+    self.count_privacy_param = central_privacy_utils.CountPrivacyParam(
+        laplace_param
+    )
 
 
 def get_test_privacy_calculator(
@@ -59,6 +72,4 @@ def get_test_privacy_calculator(
 
   Usage: Explicitly pass in parameters that are relied on in the test.
   """
-  return privacy_calculator.PrivacyCalculator(
-      central_privacy_utils.AveragePrivacyParam(gaussian_std_dev, sensitivity),
-      central_privacy_utils.CountPrivacyParam(laplace_param))
+  return TestPrivacyCalculator(gaussian_std_dev, sensitivity, laplace_param)

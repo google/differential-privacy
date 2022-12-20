@@ -47,15 +47,14 @@ each leaf of the tree:
 *   `coreset_weight`: differentially private count of `nonprivate_points` of the
     leaf
 
-The budget split of the privacy parameter `epsilon` used for each part of the
-calculation can be controlled by passing in a custom
-`clustering_params.PrivacyBudgetSplit`. Note that the private count is also used
-in generating the tree itself.
+The distribution of noise added during different operations in the clustering
+algorithm can be controlled by passing in a custom
+`clustering_params.PrivacyCalculatorMultiplier`. This is used by the algorithm's
+[mechanism calibration](https://github.com/google/differential-privacy/blob/main/python/dp_accounting/mechanism_calibration.py).
+See `clustering_params.PrivacyCalculatorMultiplier` for details.
 
-> **Note:** An option to use
-[mechanism calibration](https://github.com/google/differential-privacy/blob/main/python/dp_accounting/mechanism_calibration.py) is currently
-under experimentation to replace the privacy budget split and can be controlled
-by passing in an `clustering_params.PrivacyCalculatorMultiplier`.
+> **Note:** `clustering_params.PrivacyBudgetSplit` is deprecated. Use
+`clustering_params.PrivacyCalculatorMultiplier` instead.
 
 ## Usage
 

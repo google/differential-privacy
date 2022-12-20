@@ -19,9 +19,9 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
 
-from clustering import central_privacy_utils
 from clustering import clustering_params
 from clustering import privacy_calculator
+from clustering import test_utils
 from dp_accounting import dp_event
 from dp_accounting import mechanism_calibration
 from dp_accounting.pld import accountant
@@ -29,24 +29,6 @@ from dp_accounting.pld import common
 
 
 class PrivacyCalculatorTest(parameterized.TestCase):
-
-  def test_privacy_calculator_from_budget_split(self):
-    privacy_param = clustering_params.DifferentialPrivacyParam(
-        epsilon=10, delta=1e-2)
-    budget_split = clustering_params.PrivacyBudgetSplit(
-        frac_sum=0.7, frac_group_count=0.3)
-    radius = 7.2
-    depth = 3
-    pcalc = privacy_calculator.PrivacyCalculator.from_budget_split(
-        privacy_param, budget_split, radius, depth)
-    self.assertEqual(
-        pcalc.average_privacy_param,
-        central_privacy_utils.AveragePrivacyParam.from_budget_split(
-            privacy_param, budget_split, radius))
-    self.assertEqual(
-        pcalc.count_privacy_param,
-        central_privacy_utils.CountPrivacyParam.from_budget_split(
-            privacy_param, budget_split, depth))
 
   def test_make_clustering_event(self):
     gaussian_std_dev = 5.4
@@ -158,41 +140,46 @@ class PrivacyCalculatorTest(parameterized.TestCase):
   def test_validate_accounting(self, epsilon, delta):
     privacy_param = clustering_params.DifferentialPrivacyParam(
         epsilon=epsilon, delta=delta)
-    budget_split = clustering_params.PrivacyBudgetSplit(
-        frac_sum=0.7, frac_group_count=0.3)
+    multipliers = clustering_params.PrivacyCalculatorMultiplier(3.5, 2.1)
     radius = 7.2
     depth = 3
-    pcalc = privacy_calculator.PrivacyCalculator.from_budget_split(
-        privacy_param, budget_split, radius, depth)
+    pcalc = privacy_calculator.PrivacyCalculator(
+        privacy_param, radius, depth, multipliers
+    )
     pcalc.validate_accounting(privacy_param, depth)
 
-  @parameterized.named_parameters(("basic", 0.4, 4.0),
-                                  ("no_sum_noise", 0, 0.01),
-                                  ("no_count_noise", 0.5, np.inf))
+  @parameterized.named_parameters(
+      ("basic", 0.4, 4.0),
+      ("no_sum_noise", 0, 0.01),
+      ("no_count_noise", 0.5, np.inf),
+  )
   def test_validate_accounting_error(self, sum_std_dev, count_laplace_param):
     privacy_param = clustering_params.DifferentialPrivacyParam(
-        epsilon=10, delta=1e-2)
+        epsilon=10, delta=1e-2
+    )
     depth = 3
-    pcalc = privacy_calculator.PrivacyCalculator(
-        central_privacy_utils.AveragePrivacyParam(sum_std_dev, 10),
-        central_privacy_utils.CountPrivacyParam(count_laplace_param))
+    pcalc = test_utils.TestPrivacyCalculator(
+        sum_std_dev, 10, count_laplace_param
+    )
     with self.assertRaisesRegex(
         ValueError,
         expected_regex="Accounted privacy params greater than allowed: "
-        r".* > \(10, 0\.01\)"):
+        r".* > \(10, 0\.01\)",
+    ):
       pcalc.validate_accounting(privacy_param, depth)
 
   @parameterized.named_parameters(("basic", 10, 1e-2),
                                   ("inf_eps", np.inf, 1e-2),
                                   ("one_delta", 10, 1))
-  def test_from_mechanism_calibration(self, epsilon, delta):
+  def test_creation(self, epsilon, delta):
     privacy_param = clustering_params.DifferentialPrivacyParam(
         epsilon=epsilon, delta=delta)
     radius = 3.2
     max_depth = 12
     multipliers = clustering_params.PrivacyCalculatorMultiplier(3.5, 2.1)
-    pcalc = privacy_calculator.PrivacyCalculator.from_mechanism_calibration(
-        privacy_param, radius, max_depth, multipliers)
+    pcalc = privacy_calculator.PrivacyCalculator(
+        privacy_param, radius, max_depth, multipliers
+    )
     # Result should be within the privacy budget.
     pcalc.validate_accounting(privacy_param, max_depth)
     self.assertEqual(pcalc.average_privacy_param.sensitivity, radius)
@@ -200,24 +187,28 @@ class PrivacyCalculatorTest(parameterized.TestCase):
   @parameterized.named_parameters(("basic", 10, 1e-2),
                                   ("inf_eps", np.inf, 1e-2),
                                   ("one_delta", 10, 1))
-  def test_from_mechanism_calibration_scaled_multipliers(self, epsilon, delta):
+  def test_scaled_multipliers(self, epsilon, delta):
     privacy_param = clustering_params.DifferentialPrivacyParam(
-        epsilon=epsilon, delta=delta)
+        epsilon=epsilon, delta=delta
+    )
     radius = 3.2
     max_depth = 12
     multipliers = clustering_params.PrivacyCalculatorMultiplier(3.5, 2.1)
-    pcalc1 = privacy_calculator.PrivacyCalculator.from_mechanism_calibration(
-        privacy_param, radius, max_depth, multipliers)
+    pcalc1 = privacy_calculator.PrivacyCalculator(
+        privacy_param, radius, max_depth, multipliers
+    )
 
     # When we scale the multipliers by a constant, the result should be the
     # same.
     two_x_multipliers = clustering_params.PrivacyCalculatorMultiplier(7.0, 4.2)
-    pcalc2 = privacy_calculator.PrivacyCalculator.from_mechanism_calibration(
-        privacy_param, radius, max_depth, two_x_multipliers)
+    pcalc2 = privacy_calculator.PrivacyCalculator(
+        privacy_param, radius, max_depth, two_x_multipliers
+    )
     self.assertAlmostEqual(
         pcalc1.average_privacy_param.gaussian_standard_deviation,
         pcalc2.average_privacy_param.gaussian_standard_deviation,
-        delta=1e-4)
+        delta=1e-4,
+    )
     self.assertAlmostEqual(
         pcalc1.count_privacy_param.laplace_param,
         pcalc2.count_privacy_param.laplace_param,

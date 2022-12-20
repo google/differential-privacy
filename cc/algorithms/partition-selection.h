@@ -520,8 +520,11 @@ class GaussianPartitionSelection : public PartitionSelectionStrategy {
 
     const double max_contribution = 1;
 
-    return max_contribution + internal::GaussianDistribution::Quantile(
-                                  sigma, 1 - adjusted_threshold_delta);
+    // Note: Quantile(1-delta) = -Quantile(delta). We chose the second option
+    // here, because for small delta, 1 - delta is approximately 1. This would
+    // thus lead to a numerically unstable algorithm.
+    return max_contribution - internal::GaussianDistribution::Quantile(
+                                  sigma, adjusted_threshold_delta);
   }
 
   double GetThreshold() const { return threshold_; }

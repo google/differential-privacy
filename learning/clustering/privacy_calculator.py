@@ -13,9 +13,7 @@
 # limitations under the License.
 """Calculates average and count privacy params."""
 
-import dataclasses
 import functools
-from typing import Type
 
 from absl import logging
 import numpy as np
@@ -86,8 +84,8 @@ def get_alpha_interval(
     raise ValueError(
         'get_alpha_interval should not be called for nonprivate parameters.')
 
-  # To pick a lower bound, check what the gaussian std dev would be if we
-  # used the entire privacy budget on the gaussian operation.
+  # To pick a lower bound, check what the Gaussian std dev would be if we
+  # used the entire privacy budget on the Gaussian operation.
   all_eps_std_dev = accountant.get_smallest_gaussian_noise(
       privacy_parameters=common.DifferentialPrivacyParameters(
           privacy_param.epsilon, privacy_param.delta),
@@ -98,32 +96,70 @@ def get_alpha_interval(
                                                      2 * lower_bound_alpha)
 
 
-@dataclasses.dataclass
 class PrivacyCalculator():
-  """Calculates and returns privacy parameters."""
+  """Calculates and returns privacy parameters.
+
+  Attributes:
+    average_privacy_param: Privacy parameters for calculating the private
+      average.
+    count_privacy_param: Privacy parameters for calculating private counts.
+  """
   average_privacy_param: central_privacy_utils.AveragePrivacyParam
   count_privacy_param: central_privacy_utils.CountPrivacyParam
 
-  @classmethod
-  def from_budget_split(
-      cls: Type['PrivacyCalculator'],
+  def __init__(
+      self,
       privacy_param: clustering_params.DifferentialPrivacyParam,
-      privacy_budget_split: clustering_params.PrivacyBudgetSplit, radius: float,
-      max_depth: int) -> 'PrivacyCalculator':
-    """Calculates privacy parameters by splitting the privacy budget."""
+      radius: float,
+      max_depth: int,
+      multipliers: clustering_params.PrivacyCalculatorMultiplier,
+  ):
+    """Initializes privacy calculator.
+
+    Uses mechanism calibration to calculate noise parameters.
+
+    Args:
+      privacy_param: Privacy parameter for the clustering algorithm.
+      radius: Radius of the dataset being clustered.
+      max_depth: Maximum depth of the LSH prefix tree.
+      multipliers: Noise multipliers to use for mechanism calibration.
+    """
     if privacy_param.privacy_model != clustering_params.PrivacyModel.CENTRAL:
       raise NotImplementedError(
-          f'Currently unsupported privacy model: {privacy_param.privacy_model}')
+          f'Currently unsupported privacy model: {privacy_param.privacy_model}'
+      )
 
-    average_privacy_param = central_privacy_utils.AveragePrivacyParam.from_budget_split(
-        privacy_param, privacy_budget_split, radius)
-    count_privacy_param = central_privacy_utils.CountPrivacyParam.from_budget_split(
-        privacy_param, privacy_budget_split, max_depth)
-    return cls(average_privacy_param, count_privacy_param)
+    if privacy_param.epsilon == np.inf or privacy_param.delta >= 1:
+      # No noise.
+      self.average_privacy_param = central_privacy_utils.AveragePrivacyParam(
+          0, radius
+      )
+      self.count_privacy_param = central_privacy_utils.CountPrivacyParam(np.inf)
+      return
+
+    interval = get_alpha_interval(privacy_param, radius, multipliers)
+    alpha = mechanism_calibration.calibrate_dp_mechanism(
+        pld_privacy_accountant.PLDAccountant,
+        make_event_from_param=functools.partial(
+            make_clustering_event_from_param, multipliers, radius, max_depth
+        ),
+        target_epsilon=privacy_param.epsilon,
+        target_delta=privacy_param.delta,
+        bracket_interval=interval,
+    )
+
+    self.average_privacy_param = central_privacy_utils.AveragePrivacyParam(
+        multipliers.get_gaussian_std_dev(alpha, radius), radius
+    )
+    self.count_privacy_param = central_privacy_utils.CountPrivacyParam(
+        multipliers.get_laplace_param(alpha)
+    )
 
   def validate_accounting(
-      self, privacy_param: clustering_params.DifferentialPrivacyParam,
-      max_depth: int):
+      self,
+      privacy_param: clustering_params.DifferentialPrivacyParam,
+      max_depth: int,
+  ):
     """Errors if the params exceed the privacy budget."""
     if privacy_param.epsilon == np.inf or privacy_param.delta >= 1:
       return
@@ -131,7 +167,9 @@ class PrivacyCalculator():
     clustering_event = make_clustering_event(
         self.average_privacy_param.gaussian_standard_deviation,
         self.count_privacy_param.laplace_param,
-        self.average_privacy_param.sensitivity, max_depth)
+        self.average_privacy_param.sensitivity,
+        max_depth,
+    )
 
     acct = pld_privacy_accountant.PLDAccountant()
     acct.compose(clustering_event)
@@ -141,40 +179,12 @@ class PrivacyCalculator():
     logging.debug('Accounted epsilon: %s', calculated_epsilon)
     logging.debug('Accounted delta: %s', calculated_delta)
 
-    if (calculated_epsilon > privacy_param.epsilon or
-        calculated_delta > privacy_param.delta):
-      raise ValueError('Accounted privacy params greater than allowed: '
-                       f'({calculated_epsilon}, {calculated_delta}) > '
-                       f'({privacy_param.epsilon}, {privacy_param.delta})')
-
-  @classmethod
-  def from_mechanism_calibration(
-      cls: Type['PrivacyCalculator'],
-      privacy_param: clustering_params.DifferentialPrivacyParam, radius: float,
-      max_depth: int, multipliers: clustering_params.PrivacyCalculatorMultiplier
-  ) -> 'PrivacyCalculator':
-    """Uses mechanism calibration to calculate noise parameters."""
-    if privacy_param.privacy_model != clustering_params.PrivacyModel.CENTRAL:
-      raise NotImplementedError(
-          f'Currently unsupported privacy model: {privacy_param.privacy_model}')
-
-    if privacy_param.epsilon == np.inf or privacy_param.delta >= 1:
-      # No noise.
-      return cls(
-          central_privacy_utils.AveragePrivacyParam(0, radius),
-          central_privacy_utils.CountPrivacyParam(np.inf))
-
-    interval = get_alpha_interval(privacy_param, radius, multipliers)
-    alpha = mechanism_calibration.calibrate_dp_mechanism(
-        pld_privacy_accountant.PLDAccountant,
-        make_event_from_param=functools.partial(
-            make_clustering_event_from_param, multipliers, radius, max_depth),
-        target_epsilon=privacy_param.epsilon,
-        target_delta=privacy_param.delta,
-        bracket_interval=interval)
-
-    return cls(
-        central_privacy_utils.AveragePrivacyParam(
-            multipliers.get_gaussian_std_dev(alpha, radius), radius),
-        central_privacy_utils.CountPrivacyParam(
-            multipliers.get_laplace_param(alpha)))
+    if (
+        calculated_epsilon > privacy_param.epsilon
+        or calculated_delta > privacy_param.delta
+    ):
+      raise ValueError(
+          'Accounted privacy params greater than allowed: '
+          f'({calculated_epsilon}, {calculated_delta}) > '
+          f'({privacy_param.epsilon}, {privacy_param.delta})'
+      )
