@@ -70,15 +70,31 @@ class TailPrivacyLossDistribution:
 
 
 @dataclasses.dataclass(frozen=True)
-class ConnectDotsEpsilonBounds:
-  """Upper and lower bounds on epsilon to use for Connect-the-Dots algorithm.
+class ConnectDotsBounds:
+  """Upper & lower bounds on epsilon or x to use for Connect-the-Dots algorithm.
+
+  For continuous noise mechanisms, connect-the-dots algorithm will use all
+  epsilons that are integer multiples of discretization interval that are
+  between the specified lower and upper bounds on epsilons.
+
+  For discrete noise mechanisms, connect-the-dots algorithm will use all
+  epsilons that are obtained by rounding (both floor and ceiling) of the privacy
+  loss at x values between the specified lower and upper bounds on x.
 
   Attributes:
-    epsilon_upper: largest epsilon value to use in connect-the-dots algorithm.
-    epsilon_lower: smallest epsilon value to use in connect-the-dots algorithm.
+    epsilon_upper: largest epsilon value to use in connect-the-dots algorithm
+      for continuous additive noise mechanisms.
+    epsilon_lower: smallest epsilon value to use in connect-the-dots algorithm
+      for continuous additive noise mechanisms.
+    lower_x: smallest x value to be considered in the connect-the-dots algorithm
+      for discrete additive noise mechanisms.
+    upper_x: largest x value to be considered in the connect-the-dots algorithm
+      for discrete additive noise mechanisms.
   """
-  epsilon_upper: float
-  epsilon_lower: float
+  epsilon_upper: Optional[float] = None
+  epsilon_lower: Optional[float] = None
+  lower_x: Optional[int] = None
+  upper_x: Optional[int] = None
 
 
 class AdditiveNoisePrivacyLoss(metaclass=abc.ABCMeta):
@@ -270,12 +286,14 @@ class AdditiveNoisePrivacyLoss(metaclass=abc.ABCMeta):
     raise NotImplementedError
 
   @abc.abstractmethod
-  def connect_dots_bounds(self) -> ConnectDotsEpsilonBounds:
+  def connect_dots_bounds(self) -> ConnectDotsBounds:
     """Computes the bounds on epsilon values to use in connect-the-dots algorithm.
 
     Returns:
-      A ConnectDotsEpsilonBounds instance containing upper and lower values of
-      epsilon to use in connect-the-dots algorithm.
+      A ConnectDotsBounds instance containing either
+      - upper and lower values of epsilon for continuous noise mechanisms, or
+      - lower and upper values of x for discrete noise mechanisms.
+      These values are to be used in connect-the-dots algorithm.
     """
 
   def privacy_loss(self, x: float) -> float:
@@ -573,7 +591,7 @@ class LaplacePrivacyLoss(AdditiveNoisePrivacyLoss):
                 1 - self.mu_upper_cdf(upper_x_truncation)
         })
 
-  def connect_dots_bounds(self) -> ConnectDotsEpsilonBounds:
+  def connect_dots_bounds(self) -> ConnectDotsBounds:
     """Computes the bounds on epsilon values to use in connect-the-dots algorithm.
 
     With sub-sampling probability of q,
@@ -586,25 +604,26 @@ class LaplacePrivacyLoss(AdditiveNoisePrivacyLoss):
       epsilon_lower = log(1 - q + q * e^{-sensitivity / parameter})
 
     Returns:
-      A ConnectDotsEpsilonBounds instance containing upper and lower values of
+      A ConnectDotsBounds instance containing upper and lower values of
       epsilon to use in connect-the-dots algorithm.
     """
     max_epsilon = self.sensitivity / self._parameter
     if self.sampling_prob == 1.0:
       # For efficiency this case is handled separately.
-      return ConnectDotsEpsilonBounds(max_epsilon, -max_epsilon)
+      return ConnectDotsBounds(epsilon_upper=max_epsilon,
+                               epsilon_lower=-max_epsilon)
     elif self.adjacency_type == AdjacencyType.ADD:
-      return ConnectDotsEpsilonBounds(
-          - math.log(1 - self.sampling_prob +
-                     self.sampling_prob * math.exp(-max_epsilon)),
-          - math.log(1 - self.sampling_prob +
-                     self.sampling_prob * math.exp(max_epsilon)))
+      return ConnectDotsBounds(
+          epsilon_upper=- math.log(1 - self.sampling_prob +
+                                   self.sampling_prob * math.exp(-max_epsilon)),
+          epsilon_lower=- math.log(1 - self.sampling_prob +
+                                   self.sampling_prob * math.exp(max_epsilon)))
     else:  # Case: self.adjacency_type == AdjacencyType.REMOVE
-      return ConnectDotsEpsilonBounds(
-          math.log(1 - self.sampling_prob +
-                   self.sampling_prob * math.exp(max_epsilon)),
-          math.log(1 - self.sampling_prob +
-                   self.sampling_prob * math.exp(-max_epsilon)))
+      return ConnectDotsBounds(
+          epsilon_upper=math.log(1 - self.sampling_prob +
+                                 self.sampling_prob * math.exp(max_epsilon)),
+          epsilon_lower=math.log(1 - self.sampling_prob +
+                                 self.sampling_prob * math.exp(-max_epsilon)))
 
   def privacy_loss_without_subsampling(self, x: float) -> float:
     """Computes the privacy loss of the Laplace mechanism without sub-sampling at a given point.
@@ -859,7 +878,7 @@ class GaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
     return TailPrivacyLossDistribution(lower_x_truncation, upper_x_truncation,
                                        tail_probability_mass_function)
 
-  def connect_dots_bounds(self) -> ConnectDotsEpsilonBounds:
+  def connect_dots_bounds(self) -> ConnectDotsBounds:
     """Computes the bounds on epsilon values to use in connect-the-dots algorithm.
 
     epsilon_upper = privacy_loss(lower_x_truncation)
@@ -869,14 +888,14 @@ class GaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
     values of trunction as given by privacy_loss_tail().
 
     Returns:
-      A ConnectDotsEpsilonBounds instance containing upper and lower values of
+      A ConnectDotsBounds instance containing upper and lower values of
       epsilon to use in connect-the-dots algorithm.
     """
     tail_pld = self.privacy_loss_tail()
 
-    return ConnectDotsEpsilonBounds(
-        self.privacy_loss(tail_pld.lower_x_truncation),
-        self.privacy_loss(tail_pld.upper_x_truncation))
+    return ConnectDotsBounds(
+        epsilon_upper=self.privacy_loss(tail_pld.lower_x_truncation),
+        epsilon_lower=self.privacy_loss(tail_pld.upper_x_truncation))
 
   def privacy_loss_without_subsampling(self, x: float) -> float:
     """Computes the privacy loss of the Gaussian mechanism without sub-sampling at a given point.
@@ -1109,38 +1128,26 @@ class DiscreteLaplacePrivacyLoss(AdditiveNoisePrivacyLoss):
                 1 - self.mu_upper_cdf(upper_x_truncation)
         })
 
-  def connect_dots_bounds(self) -> ConnectDotsEpsilonBounds:
+  def connect_dots_bounds(self) -> ConnectDotsBounds:
     """Computes the bounds on epsilon values to use in connect-the-dots algorithm.
 
     With sub-sampling probability of q,
     For ADD adjacency type:
-      epsilon_upper = - log(1 - q + q * e^{-sensitivity * parameter})
-      epsilon_lower = - log(1 - q + q * e^{sensitivity * parameter})
+      lower_x = 0 and upper_x = sensitivity
 
     For REMOVE adjacency type:
-      epsilon_upper = log(1 - q + q * e^{sensitivity * parameter})
-      epsilon_lower = log(1 - q + q * e^{-sensitivity * parameter})
+      lower_x = -sensitivity and upper_x = 0
 
     Returns:
-      A ConnectDotsEpsilonBounds instance containing upper and lower values of
-      epsilon to use in connect-the-dots algorithm.
+      A ConnectDotsBounds instance containing lower and upper values of x
+      to use in connect-the-dots algorithm.
     """
-    max_epsilon = self.sensitivity * self._parameter
-    if self.sampling_prob == 1.0:
-      # For efficiency this case is handled separately.
-      return ConnectDotsEpsilonBounds(max_epsilon, -max_epsilon)
-    elif self.adjacency_type == AdjacencyType.ADD:
-      return ConnectDotsEpsilonBounds(
-          - math.log(1 - self.sampling_prob +
-                     self.sampling_prob * math.exp(-max_epsilon)),
-          - math.log(1 - self.sampling_prob +
-                     self.sampling_prob * math.exp(max_epsilon)))
+    if self.adjacency_type == AdjacencyType.ADD:
+      lower_x, upper_x = 0, int(self.sensitivity)
     else:  # Case: self.adjacency_type == AdjacencyType.REMOVE
-      return ConnectDotsEpsilonBounds(
-          math.log(1 - self.sampling_prob +
-                   self.sampling_prob * math.exp(max_epsilon)),
-          math.log(1 - self.sampling_prob +
-                   self.sampling_prob * math.exp(-max_epsilon)))
+      lower_x, upper_x = -int(self.sensitivity), 0
+
+    return ConnectDotsBounds(lower_x=lower_x, upper_x=upper_x)
 
   def privacy_loss_without_subsampling(self, x: float) -> float:
     """Computes privacy loss of the discrete Laplace mechanism without sub-sampling at a given point.
@@ -1405,24 +1412,20 @@ class DiscreteGaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
         lower_x_truncation, upper_x_truncation,
         {math.inf: self.mu_upper_cdf(lower_x_truncation - 1)})
 
-  def connect_dots_bounds(self) -> ConnectDotsEpsilonBounds:
+  def connect_dots_bounds(self) -> ConnectDotsBounds:
     """Computes the bounds on epsilon values to use in connect-the-dots algorithm.
 
-    epsilon_upper = privacy_loss(lower_x_truncation)
-    epsilon_lower = privacy_loss(upper_x_truncation)
-
-    where lower_x_truncation and upper_x_truncation are the lower and upper
-    values of trunction as given by privacy_loss_tail().
+    lower_x and upper_x are same as lower_x_truncation and upper_x_truncation
+    as given by privacy_loss_tail().
 
     Returns:
-      A ConnectDotsEpsilonBounds instance containing upper and lower values of
-      epsilon to use in connect-the-dots algorithm.
+      A ConnectDotsBounds instance containing lower and upper values of x
+      to use in connect-the-dots algorithm.
     """
     tail_pld = self.privacy_loss_tail()
 
-    return ConnectDotsEpsilonBounds(
-        self.privacy_loss(tail_pld.lower_x_truncation),
-        self.privacy_loss(tail_pld.upper_x_truncation))
+    return ConnectDotsBounds(lower_x=int(tail_pld.lower_x_truncation),
+                             upper_x=int(tail_pld.upper_x_truncation))
 
   def privacy_loss_without_subsampling(self, x: float) -> float:
     """Computes the privacy loss of the discrete Gaussian mechanism without sub-sampling at a given point.

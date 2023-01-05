@@ -163,10 +163,10 @@ def _truncate_tails(probs: ArrayLike, tail_mass_truncation: float,
   left_idx = _find_prefix_to_truncate(probs, tail_mass_truncation / 2)
   right_idx = len(probs) - _find_prefix_to_truncate(
       np.flip(probs), tail_mass_truncation / 2)
-  # Be sure that left_idx <= right_idx. left_idx > right_idx might be when
+  # Be sure that left_idx < right_idx. left_idx >= right_idx might be when
   # tail_mass_truncation is too large or if probs has too small mass
   # (i.e. if a few truncations were operated on it already).
-  right_idx = max(right_idx, left_idx)
+  right_idx = max(right_idx, left_idx + 1)
 
   left_mass = np.sum(probs[:left_idx])
   right_mass = np.sum(probs[right_idx:])
@@ -313,7 +313,8 @@ class DensePLDPmf(PLDPmf):
     # pylint: disable=protected-access
     lower_loss = self._lower_loss + other._lower_loss
     probs = signal.fftconvolve(self._probs, other._probs)
-    infinity_mass = 1 - (1 - self._infinity_mass) * (1 - other._infinity_mass)
+    infinity_mass = (self._infinity_mass + other._infinity_mass
+                     - self._infinity_mass * other._infinity_mass)
     offset, probs, right_tail = _truncate_tails(probs, tail_mass_truncation,
                                                 self._pessimistic_estimate)
     # pylint: enable=protected-access
@@ -331,11 +332,13 @@ class DensePLDPmf(PLDPmf):
         self._probs, num_times, tail_mass_truncation)
     lower_loss += truncation_lower_bound
     probs = np.array(probs)
-    inf_prob = 1 - (1 - self._infinity_mass)**num_times
-    offset, probs, right_tail = _truncate_tails(probs, tail_mass_truncation,
-                                                self._pessimistic_estimate)
-    return DensePLDPmf(self._discretization, lower_loss + offset, probs,
-                       inf_prob + right_tail, self._pessimistic_estimate)
+    # infinity mass after composition is given as
+    # tail_mass_truncation + 1 - (1 - infinity_mass)**num_times
+    # Below we use a numerically stable approach to compute the second term.
+    inf_prob = (tail_mass_truncation
+                - math.expm1(num_times * math.log1p(- self._infinity_mass)))
+    return DensePLDPmf(self._discretization, lower_loss, probs,
+                       inf_prob, self._pessimistic_estimate)
 
   def get_delta_for_epsilon(
       self, epsilon: Union[float, Sequence[float]]) -> Union[float, np.ndarray]:
@@ -375,7 +378,8 @@ class DensePLDPmf(PLDPmf):
 
     self_probs, other_probs = self._probs, other._probs
     len_self, len_other = len(self_probs), len(other_probs)
-    delta = 1 - (1 - self._infinity_mass) * (1 - other._infinity_mass)
+    delta = (self._infinity_mass + other._infinity_mass
+             - self._infinity_mass * other._infinity_mass)
     # pylint: enable=protected-access
 
     # Compute the hockey stick divergence using equation (2) in the
@@ -444,7 +448,8 @@ class SparsePLDPmf(PLDPmf):
       for key2, value2 in other._loss_probs.items():
         key = key1 + key2
         convolution[key] = convolution.get(key, 0.0) + value1 * value2
-    infinity_mass = 1 - (1 - self._infinity_mass) * (1 - other._infinity_mass)
+    infinity_mass = (self._infinity_mass + other._infinity_mass
+                     - self._infinity_mass * other._infinity_mass)
     # pylint: enable=protected-access
     # Do truncation.
     sorted_losses = sorted(convolution.keys())

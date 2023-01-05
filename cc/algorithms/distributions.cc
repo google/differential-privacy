@@ -132,7 +132,7 @@ GeometricDistribution::GeometricDistribution(double lambda) : lambda_(lambda) {
 
 double GaussianDistribution::SampleGeometric() {
   int geom_sample = 0;
-  while (absl::Bernoulli(SecureURBG::GetSingleton(), 0.5)) ++geom_sample;
+  while (absl::Bernoulli(SecureURBG::GetInstance(), 0.5)) ++geom_sample;
   return geom_sample;
 }
 
@@ -148,7 +148,7 @@ double GaussianDistribution::SampleBinomial(double sqrt_n) {
   long long step_size =
       static_cast<long long>(std::round(std::sqrt(2.0) * sqrt_n + 1));
 
-  SecureURBG& random = SecureURBG::GetSingleton();
+  SecureURBG& random = SecureURBG::GetInstance();
   while (true) {
     int geom_sample = SampleGeometric();
     int two_sided_geom =
@@ -296,7 +296,7 @@ LaplaceDistribution::LaplaceDistribution(double epsilon, double sensitivity)
 double LaplaceDistribution::GetUniformDouble() { return UniformDouble(); }
 
 bool LaplaceDistribution::GetBoolean() {
-  return absl::Bernoulli(SecureURBG::GetSingleton(), 0.5);
+  return absl::Bernoulli(SecureURBG::GetInstance(), 0.5);
 }
 
 double LaplaceDistribution::Sample() {

@@ -222,7 +222,7 @@ TEST(ReferenceLaplaceTest, HasAccurateStatisticalProperties) {
   std::vector<double> samples;
   for (int i = 0; i < kNumSamples; ++i) {
     samples.push_back(
-        SampleReferenceLaplacian(mean, variance, &SecureURBG::GetSingleton()));
+        SampleReferenceLaplacian(mean, variance, &SecureURBG::GetInstance()));
   }
 
   EXPECT_NEAR(Mean(samples), mean, 0.1);

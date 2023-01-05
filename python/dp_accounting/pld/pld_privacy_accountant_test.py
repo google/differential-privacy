@@ -121,7 +121,8 @@ class PldPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
     accountant.compose(second_laplace_event, 2)
 
     expected_epsilon = 4
-    expected_delta = 0
+    expected_delta = 1e-14  # expected delta is not 0 due to truncation in
+                            # self composition
     self.assertAlmostEqual(
         accountant.get_delta(expected_epsilon), expected_delta, delta=1e-6)
     self.assertAlmostEqual(
@@ -135,7 +136,8 @@ class PldPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
     accountant.compose(subsampled_laplace_event, 2)
 
     exact_epsilon = 2.46964
-    expected_delta = 0
+    expected_delta = 1e-14  # expected delta is not 0 due to truncation in
+                            # self composition
     self.assertAlmostEqual(
         accountant.get_delta(exact_epsilon), expected_delta, delta=1e-6)
     self.assertAlmostEqual(

@@ -14,7 +14,7 @@
 """Helper functions for privacy accounting across queries."""
 
 import math
-import typing
+from typing import Callable, Optional
 from scipy import special
 
 from dp_accounting.pld import common
@@ -23,11 +23,12 @@ from dp_accounting.pld import privacy_loss_mechanism
 
 
 def get_smallest_parameter(
-    privacy_parameters: common.DifferentialPrivacyParameters, num_queries: int,
-    privacy_loss_distribution_constructor: typing.Callable[
+    privacy_parameters: common.DifferentialPrivacyParameters,
+    num_queries: int,
+    privacy_loss_distribution_constructor: Callable[
         [float], privacy_loss_distribution.PrivacyLossDistribution],
     search_parameters: common.BinarySearchParameters
-) -> typing.Union[float, None]:
+    ) -> Optional[float]:
   """Finds smallest parameter for which the mechanism satisfies desired privacy.
 
   This function computes the smallest "parameter" for which the corresponding
@@ -154,7 +155,7 @@ def get_smallest_gaussian_noise(
     privacy_parameters: common.DifferentialPrivacyParameters,
     num_queries: int = 1,
     sensitivity: float = 1) -> float:
-  """Finds smallest Gaussian noise for which the mechanism satisfies desired privacy.
+  """Finds smallest noise for desired privacy of Gaussian mechanism.
 
   Args:
     privacy_parameters: The desired privacy guarantee.
@@ -172,9 +173,56 @@ def get_smallest_gaussian_noise(
       sensitivity=sensitivity * math.sqrt(num_queries)).standard_deviation
 
 
+def get_smallest_subsampled_gaussian_noise(
+    privacy_parameters: common.DifferentialPrivacyParameters,
+    num_queries: int = 1,
+    sensitivity: int = 1,
+    sampling_prob: float = 1.0) -> float:
+  """Finds smallest noise for desired privacy of subsampled Gaussian mechanism.
+
+  Args:
+    privacy_parameters: The desired privacy guarantee.
+    num_queries: Number of times the mechanism will be invoked.
+    sensitivity: The l2 sensitivity of each query.
+    sampling_prob: Subsampling probability of the mechanism.
+
+  Returns:
+    Smallest standard deviation for which the Poisson subsampled Gaussian
+    mechanism with this standard deviation with specified sub-sampling
+    probability , when applied the given number of times, satisfies the
+    desired privacy guarantee.
+
+  Raises:
+    RuntimeError if parameter value is not found.
+  """
+
+  def privacy_loss_distribution_constructor(parameter):
+    # Setting value_discretization_interval equal to the smaller of 1e-3 and
+    # 0.01 * epsilon / num_queries ensures that the resulting parameter is not
+    # (epsilon', delta)-DP for epsilon' less than  0.99 * epsilon / num_queries.
+    # This is a heuristic for getting a reasonable pessimistic estimate for the
+    # noise parameter.
+    return privacy_loss_distribution.from_gaussian_mechanism(
+        parameter,
+        sensitivity=sensitivity,
+        value_discretization_interval=min(
+            1e-3, 0.01 * privacy_parameters.epsilon / num_queries),
+        sampling_prob=sampling_prob)
+
+  upper_bound = get_smallest_gaussian_noise(
+      privacy_parameters, num_queries, sensitivity)
+  search_parameters = common.BinarySearchParameters(0, upper_bound)
+  parameter = get_smallest_parameter(privacy_parameters,
+                                     num_queries,
+                                     privacy_loss_distribution_constructor,
+                                     search_parameters)
+  return parameter if parameter is not None else upper_bound
+
+
 def advanced_composition(
     privacy_parameters: common.DifferentialPrivacyParameters,
-    num_queries: int, total_delta: float) -> typing.Optional[float]:
+    num_queries: int,
+    total_delta: float) -> Optional[float]:
   """Computes total DP parameters after applying an algorithm with given privacy parameters multiple times.
 
   Using the optimal advanced composition theorem, Theorem 3.3 from the paper
@@ -220,7 +268,8 @@ def advanced_composition(
 
 def get_smallest_epsilon_from_advanced_composition(
     total_privacy_parameters: common.DifferentialPrivacyParameters,
-    num_queries: int, delta: float = 0) -> typing.Optional[float]:
+    num_queries: int,
+    delta: float = 0) -> Optional[float]:
   """Computes DP parameters that after a certain number of queries remain DP with given parameters.
 
   Using the optimal advanced composition theorem, Theorem 3.3 from the paper

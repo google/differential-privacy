@@ -15,7 +15,9 @@
 """Tests for privacy_loss_mechanism."""
 
 import math
+from typing import Optional
 import unittest
+
 from absl.testing import parameterized
 from scipy import stats
 
@@ -26,6 +28,19 @@ from dp_accounting.pld import test_util
 
 ADD = privacy_loss_mechanism.AdjacencyType.ADD
 REM = privacy_loss_mechanism.AdjacencyType.REMOVE
+
+
+def _assert_connect_bounds_equal(
+    testcase: parameterized.TestCase,
+    connect_dots_bounds: privacy_loss_mechanism.ConnectDotsBounds,
+    epsilon_upper: Optional[float],
+    epsilon_lower: Optional[float],
+    lower_x: Optional[int],
+    upper_x: Optional[int]) -> None:
+  testcase.assertAlmostEqual(connect_dots_bounds.epsilon_upper, epsilon_upper)
+  testcase.assertAlmostEqual(connect_dots_bounds.epsilon_lower, epsilon_lower)
+  testcase.assertEqual(connect_dots_bounds.lower_x, lower_x)
+  testcase.assertEqual(connect_dots_bounds.upper_x, upper_x)
 
 
 class LaplacePrivacyLossTest(parameterized.TestCase):
@@ -170,11 +185,9 @@ class LaplacePrivacyLossTest(parameterized.TestCase):
         sensitivity=sensitivity,
         sampling_prob=sampling_prob,
         adjacency_type=adjacency_type)
-    connect_dots_bounds = pl.connect_dots_bounds()
-    self.assertAlmostEqual(expected_epsilon_upper,
-                           connect_dots_bounds.epsilon_upper)
-    self.assertAlmostEqual(expected_epsilon_lower,
-                           connect_dots_bounds.epsilon_lower)
+    _assert_connect_bounds_equal(self, pl.connect_dots_bounds(),
+                                 expected_epsilon_upper, expected_epsilon_lower,
+                                 None, None)
 
   @parameterized.parameters((-3.0, 1.0, 1.0, ADD), (0.0, 1.0, 1.0, ADD),
                             (1.0, 0.0, 1.0, REM), (2.0, -1.0, 1.0, REM),
@@ -530,11 +543,9 @@ class GaussianPrivacyLossTest(parameterized.TestCase):
         log_mass_truncation_bound=math.log(2) + stats.norm.logcdf(-1),
         sampling_prob=sampling_prob,
         adjacency_type=adjacency_type)
-    connect_dots_bounds = pl.connect_dots_bounds()
-    self.assertAlmostEqual(expected_epsilon_upper,
-                           connect_dots_bounds.epsilon_upper)
-    self.assertAlmostEqual(expected_epsilon_lower,
-                           connect_dots_bounds.epsilon_lower)
+    _assert_connect_bounds_equal(self, pl.connect_dots_bounds(),
+                                 expected_epsilon_upper, expected_epsilon_lower,
+                                 None, None)
 
   @parameterized.parameters((0.0, 1.0), (-10.0, 2.0), (4.0, 0.0), (2.0, -1.0),
                             (1.0, 1.0, 1.0, ADD, 1), (2.0, 1.0, 0.0, REM),
@@ -802,31 +813,29 @@ class DiscreteLaplacePrivacyLossDistributionTest(parameterized.TestCase):
 
   @parameterized.parameters(
       # Tests with sampling_prob = 1 for adjacency_type=ADD
-      (1.0, 1, 1.0, ADD, 1.0, -1.0),
-      (0.3, 2, 1.0, ADD, 0.6, -0.6),
+      (1.0, 1, 1.0, ADD, 0, 1),
+      (0.3, 2, 1.0, ADD, 0, 2),
       # Tests with sampling_prob < 1 for adjacency_type=ADD
-      (1.0, 1, 0.8, ADD, 0.704605471, -0.864839725),
-      (0.3, 2, 0.6, ADD, 0.315687960, -0.400969203),
+      (1.0, 1, 0.8, ADD, 0, 1),
+      (0.3, 2, 0.6, ADD, 0, 2),
       # Tests with sampling_prob = 1 for adjacency_type=REMOVE
-      (1.0, 1, 1.0, REM, 1.0, -1.0),
-      (0.3, 2, 1.0, REM, 0.6, -0.6),
+      (1.0, 1, 1.0, REM, -1, 0),
+      (0.3, 2, 1.0, REM, -2, 0),
       # Tests with sampling_prob < 1 for adjacency_type=REMOVE
-      (1.0, 1, 0.8, REM, 0.864839725, -0.704605471),
-      (0.3, 2, 0.6, REM, 0.400969203, -0.315687960))
+      (1.0, 1, 0.8, REM, -1, 0),
+      (0.3, 2, 0.6, REM, -2, 0))
   def test_discrete_laplace_connect_dots_bounds(self, parameter, sensitivity,
                                                 sampling_prob, adjacency_type,
-                                                expected_epsilon_upper,
-                                                expected_epsilon_lower):
+                                                expected_lower_x,
+                                                expected_upper_x):
     pl = privacy_loss_mechanism.DiscreteLaplacePrivacyLoss(
         parameter,
         sensitivity=sensitivity,
         sampling_prob=sampling_prob,
         adjacency_type=adjacency_type)
-    connect_dots_bounds = pl.connect_dots_bounds()
-    self.assertAlmostEqual(expected_epsilon_upper,
-                           connect_dots_bounds.epsilon_upper)
-    self.assertAlmostEqual(expected_epsilon_lower,
-                           connect_dots_bounds.epsilon_lower)
+    _assert_connect_bounds_equal(self, pl.connect_dots_bounds(),
+                                 None, None,
+                                 expected_lower_x, expected_upper_x)
 
   @parameterized.parameters((-3.0, 1), (0.0, 1), (2.0, 0.5),
                             (2.0, -1), (1.0, 0),
@@ -1086,31 +1095,29 @@ class DiscreteGaussianPrivacyLossTest(parameterized.TestCase):
 
   @parameterized.parameters(
       # Tests with sampling_prob = 1 for adjacency_type=ADD
-      (1.0, 1, 2, 1.0, ADD, 1.5, -1.5),
-      (1.0, 2, 2, 1.0, ADD, 2.0, -2.0),
+      (1.0, 1, 2, 1.0, ADD, -1, 2),
+      (1.0, 2, 2, 1.0, ADD, 0, 2),
       # Tests with sampling_prob < 1 for adjacency_type=ADD
-      (1.0, 1, 2, 0.8, ADD, 1.609437912, -1.331138685),
-      (1.0, 2, 2, 0.7, ADD, 1.203972804, -1.699706179),
+      (1.0, 1, 2, 0.8, ADD, -2, 2),
+      (1.0, 2, 2, 0.7, ADD, -2, 2),
       # Tests with sampling_prob = 1 for adjacency_type=REMOVE
-      (1.0, 1, 2, 1.0, REM, 1.5, -1.5),
-      (1.0, 2, 2, 1.0, REM, 2.0, -2.0),
+      (1.0, 1, 2, 1.0, REM, -2, 1),
+      (1.0, 2, 2, 1.0, REM, -2, 0),
       # Tests with sampling_prob < 1 for adjacency_type=REMOVE
-      (1.0, 1, 2, 0.8, REM, 1.331138685, -1.609437912),
-      (1.0, 2, 2, 0.7, REM, 1.699706179, -1.203972804))
+      (1.0, 1, 2, 0.8, REM, -2, 2),
+      (1.0, 2, 2, 0.7, REM, -2, 2))
   def test_discrete_gaussian_connect_dots_bounds(
       self, sigma, sensitivity, truncation_bound, sampling_prob, adjacency_type,
-      expected_epsilon_upper, expected_epsilon_lower):
+      expected_lower_x, expected_upper_x):
     pl = privacy_loss_mechanism.DiscreteGaussianPrivacyLoss(
         sigma,
         sensitivity=sensitivity,
         truncation_bound=truncation_bound,
         sampling_prob=sampling_prob,
         adjacency_type=adjacency_type)
-    connect_dots_bounds = pl.connect_dots_bounds()
-    self.assertAlmostEqual(expected_epsilon_upper,
-                           connect_dots_bounds.epsilon_upper)
-    self.assertAlmostEqual(expected_epsilon_lower,
-                           connect_dots_bounds.epsilon_lower)
+    _assert_connect_bounds_equal(self, pl.connect_dots_bounds(),
+                                 None, None,
+                                 expected_lower_x, expected_upper_x)
 
   @parameterized.parameters((-3.0, 1), (0.0, 1), (2.0, 0.5), (1.0, 0),
                             (2.0, -1), (2.0, 4, 1, ADD, 1),

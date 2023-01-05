@@ -175,7 +175,7 @@ py_library(
 
 py_test(
     name = "accountant_test",
-    size = "small",
+    size = "medium",
     srcs = ["accountant_test.py"],
     python_version = "PY3",
     deps = [

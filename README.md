@@ -1,5 +1,8 @@
 # Differential Privacy
 
+> **Note**<br>
+> If you are unfamiliar with differential privacy (DP), you might want to go through ["A friendly, non-technical introduction to differential privacy"](https://desfontain.es/privacy/friendly-intro-to-differential-privacy.html)
+
 This repository contains libraries to generate ε- and (ε, δ)-differentially
 private statistics over datasets. It contains the following tools.
 
@@ -16,7 +19,7 @@ private statistics over datasets. It contains the following tools.
 * A [command line interface](examples/zetasql) for running differentially
   private SQL queries with [ZetaSQL](https://github.com/google/zetasql).
 
-To get started on generating differentially private data, we recomend you follow
+To get started on generating differentially private data, we recommend you follow
 the [Privacy on Beam codelab](https://codelabs.developers.google.com/codelabs/privacy-on-beam/).
 
 Currently, the DP building block libraries support the following algorithms:
@@ -37,7 +40,7 @@ Currently, the DP building block libraries support the following algorithms:
 | Gaussian thresholding            | Planned   | Supported | Supported |
 
 Implementations of the Laplace mechanism and the Gaussian mechanism use [secure
-noise generation].  These mechanisms can be used to perform computations that
+noise generation]. These mechanisms can be used to perform computations that
 aren't covered by the algorithms implemented in our libraries.
 
 [secure noise generation]: ./common_docs/Secure_Noise_Generation.pdf
@@ -49,7 +52,7 @@ experimental and subject to change.
 ## How to Build
 
 In order to run the differential privacy library, you need to install Bazel in
-version 5.0.0, if you don't have it already.
+version 5.3.2, if you don't have it already.
 [Follow the instructions for your platform on the Bazel website](https://docs.bazel.build/versions/main/install.html)
 
 You also need to install Git, if you don't have it already.
@@ -156,7 +159,7 @@ This is not an officially supported Google product.
 ## Reach out
 
 We are always keen on learning about how you use this library and what use cases
-it helps you to solve.  We have two communication channels:
+it helps you to solve. We have two communication channels:
 
   * A [public discussion
     group](https://groups.google.com/g/dp-open-source-users) where we will also

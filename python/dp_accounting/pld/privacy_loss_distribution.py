@@ -827,20 +827,51 @@ def _create_pld_pmf_from_additive_noise(
       raise ValueError('Current implementation does not support pessimistic'
                        '_estimate=False when use_connect_dots=True.')
     connect_dots_bounds = additive_noise_privacy_loss.connect_dots_bounds()
-    rounded_epsilon_upper = math.ceil(connect_dots_bounds.epsilon_upper /
-                                      value_discretization_interval)
-    rounded_epsilon_lower = math.floor(connect_dots_bounds.epsilon_lower /
-                                       value_discretization_interval)
 
-    delta_values = additive_noise_privacy_loss.get_delta_for_epsilon(
-        np.arange(rounded_epsilon_lower, rounded_epsilon_upper + 1)
-        * value_discretization_interval)
+    if additive_noise_privacy_loss.discrete_noise:
+      if (connect_dots_bounds.lower_x is None or
+          connect_dots_bounds.upper_x is None):
+        raise ValueError('Connect dots bounds does not contain lower_x and '
+                         'upper_x for discrete additive noise mechanism.')
+      rounded_epsilons = []
+      for x in range(connect_dots_bounds.upper_x,
+                     connect_dots_bounds.lower_x - 1,
+                     -1):
+        scaled_epsilon = (additive_noise_privacy_loss.privacy_loss(x)
+                          / value_discretization_interval)
+        if (not rounded_epsilons or
+            math.floor(scaled_epsilon) > rounded_epsilons[-1]):
+          rounded_epsilons.append(math.floor(scaled_epsilon))
+        if math.ceil(scaled_epsilon) > rounded_epsilons[-1]:
+          rounded_epsilons.append(math.ceil(scaled_epsilon))
+      rounded_epsilons = np.array(rounded_epsilons)
+    else:
+      if (connect_dots_bounds.epsilon_upper is None or
+          connect_dots_bounds.epsilon_lower is None):
+        raise ValueError('Connect dots bounds does not contain epsilon_upper '
+                         'and epsilon_lower for continuous additive noise '
+                         'mechanism.')
+      rounded_epsilon_upper = math.ceil(connect_dots_bounds.epsilon_upper /
+                                        value_discretization_interval)
+      rounded_epsilon_lower = math.floor(connect_dots_bounds.epsilon_lower /
+                                         value_discretization_interval)
+      rounded_epsilons = np.arange(rounded_epsilon_lower,
+                                   rounded_epsilon_upper + 1)
 
+    deltas = additive_noise_privacy_loss.get_delta_for_epsilon(
+        rounded_epsilons * value_discretization_interval)
+
+    if additive_noise_privacy_loss.discrete_noise:
+      return pld_pmf.create_pmf_pessimistic_connect_dots(
+          value_discretization_interval,
+          rounded_epsilons,
+          deltas)
+    # Else use specialized numerically stable approach for continuous noise
     return pld_pmf.create_pmf_pessimistic_connect_dots_fixed_gap(
         value_discretization_interval,
         rounded_epsilon_lower,
         rounded_epsilon_upper,
-        delta_values)
+        deltas)
 
   round_fn = math.ceil if pessimistic_estimate else math.floor
 

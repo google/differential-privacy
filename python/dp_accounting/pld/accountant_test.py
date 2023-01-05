@@ -58,8 +58,7 @@ class AccountantTest(parameterized.TestCase):
       },)
   def test_get_smallest_laplace_noise(self, epsilon, delta, num_queries,
                                       sensitivity, expected_parameter):
-    privacy_parameters = common.DifferentialPrivacyParameters(
-        epsilon, delta)
+    privacy_parameters = common.DifferentialPrivacyParameters(epsilon, delta)
     self.assertAlmostEqual(
         expected_parameter,
         accountant.get_smallest_laplace_noise(
@@ -94,8 +93,7 @@ class AccountantTest(parameterized.TestCase):
   def test_get_smallest_discrete_laplace_noise(self, epsilon, delta,
                                                num_queries, sensitivity,
                                                expected_parameter):
-    privacy_parameters = common.DifferentialPrivacyParameters(
-        epsilon, delta)
+    privacy_parameters = common.DifferentialPrivacyParameters(epsilon, delta)
     self.assertAlmostEqual(
         expected_parameter,
         accountant.get_smallest_discrete_laplace_noise(
@@ -121,12 +119,42 @@ class AccountantTest(parameterized.TestCase):
       })
   def test_get_smallest_gaussian_noise(self, epsilon, delta, num_queries,
                                        sensitivity, expected_std):
-    privacy_parameters = common.DifferentialPrivacyParameters(
-        epsilon, delta)
+    privacy_parameters = common.DifferentialPrivacyParameters(epsilon, delta)
     self.assertAlmostEqual(
         expected_std,
         accountant.get_smallest_gaussian_noise(
             privacy_parameters, num_queries, sensitivity=sensitivity))
+
+  @parameterized.named_parameters(
+      {
+          'testcase_name': 'base',
+          'epsilon': 1,
+          'delta': 1e-5,
+          'num_queries': 1,
+          'sensitivity': 1,
+          'sampling_prob': 0.01,
+          'expected_std': 0.673873497,
+      },
+      {
+          'testcase_name': 'varying_sensitivity_and_num_queries',
+          'epsilon': 1,
+          'delta': 1e-5,
+          'num_queries': 25,
+          'sensitivity': 6,
+          'sampling_prob': 0.001,
+          'expected_std': 3.211932149,
+      })
+  def test_get_smallest_subsampled_gaussian_noise(
+      self, epsilon, delta, num_queries, sensitivity, sampling_prob,
+      expected_std):
+    privacy_parameters = common.DifferentialPrivacyParameters(epsilon, delta)
+    self.assertAlmostEqual(
+        expected_std,
+        accountant.get_smallest_subsampled_gaussian_noise(
+            privacy_parameters,
+            num_queries,
+            sensitivity=sensitivity,
+            sampling_prob=sampling_prob))
 
   @parameterized.named_parameters(
       {
@@ -171,8 +199,7 @@ class AccountantTest(parameterized.TestCase):
       })
   def test_advanced_composition(self, epsilon, delta, num_queries, total_delta,
                                 expected_total_epsilon):
-    privacy_parameters = common.DifferentialPrivacyParameters(
-        epsilon, delta)
+    privacy_parameters = common.DifferentialPrivacyParameters(epsilon, delta)
     total_epsilon = accountant.advanced_composition(privacy_parameters,
                                                     num_queries, total_delta)
     if expected_total_epsilon is None:

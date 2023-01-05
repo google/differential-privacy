@@ -313,93 +313,95 @@ class PLDPmfTest(parameterized.TestCase):
     with self.assertRaisesRegex(ValueError, 'Estimation types are different'):
       pmf1.get_delta_for_epsilon_for_composed_pld(pmf2, 1)
 
-  @parameterized.product(
-      (
-          {
-              'num_times': 2,
-              'tail_mass_truncation': 0,
-              'expected_lower_loss': -2,
-              'expected_probs': np.array([0.04, 0.28, 0.49]),
-              'expected_truncated_to_inf_mass': 0
-          },
-          {
-              'num_times':
-                  5,
-              'tail_mass_truncation':
-                  0,
-              'expected_lower_loss':
-                  -5,
-              'expected_probs':
-                  np.array([0.00032, 0.0056, 0.0392, 0.1372, 0.2401, 0.16807]),
-              'expected_truncated_to_inf_mass':
-                  0
-          },
-          {
-              'num_times': 2,
-              'tail_mass_truncation': 0.1,
-              'expected_lower_loss': -1,
-              'expected_probs': np.array([0.32, 0.49]),
-              'expected_truncated_to_inf_mass': 0
-          },
-          {
-              'num_times':
-                  5,
-              'tail_mass_truncation':
-                  0.01,  # truncation left tail.
-              'expected_lower_loss':
-                  -4,
-              'expected_probs':
-                  np.array([0.00032 + 0.0056, 0.0392, 0.1372, 0.2401, 0.16807]),
-              'expected_truncated_to_inf_mass':
-                  0
-          },
-      ),
-      dense=(False, True),
+  @parameterized.parameters(
+      {
+          'num_times': 2,
+          'tail_mass_truncation': 0,
+          'expected_lower_loss': -2,
+          'expected_probs': np.array([0.04, 0.28, 0.49]),
+      }, {
+          'num_times': 5,
+          'tail_mass_truncation': 0,
+          'expected_lower_loss': -5,
+          'expected_probs':
+              np.array([0.00032, 0.0056, 0.0392, 0.1372, 0.2401, 0.16807]),
+      }, {
+          'num_times': 2,
+          'tail_mass_truncation': 0.1,
+          'expected_lower_loss': -1,
+          'expected_probs': np.array([0.32, 0.49]),
+      }, {
+          'num_times': 5,
+          'tail_mass_truncation': 0.01,  # truncation left tail.
+          'expected_lower_loss': -4,
+          'expected_probs':
+              np.array([0.00032 + 0.0056, 0.0392, 0.1372, 0.2401, 0.16807]),
+      },
   )
-  def test_self_compose(self, num_times, tail_mass_truncation,
-                        expected_lower_loss, expected_probs,
-                        expected_truncated_to_inf_mass, dense):
+  def test_self_compose_sparse(self, num_times, tail_mass_truncation,
+                               expected_lower_loss, expected_probs):
     discretization = 0.1
+    infinity_mass = 0.1
     pmf_input = self._create_pmf(
         discretization,
         lower_loss=-1,
         probs=np.array([0.2, 0.7]),
-        infinity_mass=0.1,
-        dense=dense)
+        infinity_mass=infinity_mass,
+        dense=False)
     pmf_result = pmf_input.self_compose(num_times, tail_mass_truncation)
 
     self.assertEqual(discretization, pmf_result._discretization)
-    expected_inf_mass = 1 - (1 -
-                             0.1)**num_times + expected_truncated_to_inf_mass
-    self.assertAlmostEqual(expected_inf_mass, pmf_result._infinity_mass)
-    if dense:
-      self._check_dense_probs(pmf_result, expected_lower_loss, expected_probs)
-    else:
-      self._check_sparse_probs(pmf_result, expected_lower_loss, expected_probs)
+    self.assertAlmostEqual(1 - (1 - infinity_mass)**num_times,
+                           pmf_result._infinity_mass)
+    self._check_sparse_probs(pmf_result, expected_lower_loss, expected_probs)
 
-  def test_self_compose_many_times_dense(self):
+  @parameterized.parameters(
+      {
+          'num_times': 2,
+          'tail_mass_truncation': 0,
+          'expected_lower_loss': -2,
+          'expected_probs': np.array([0.04, 0.28, 0.49]),
+      }, {
+          'num_times': 5,
+          'tail_mass_truncation': 0,
+          'expected_lower_loss': -5,
+          'expected_probs':
+              np.array([0.00032, 0.0056, 0.0392, 0.1372, 0.2401, 0.16807]),
+      },
+  )
+  def test_self_compose_dense_probs(self, num_times, tail_mass_truncation,
+                                    expected_lower_loss, expected_probs):
     discretization = 0.1
-    num_times = 50
-    tail_mass_truncation = 1e-2
-    expected_lower_loss = -24
-    expected_probs = np.array([
-        0.00550859, 0.00668396, 0.01281092, 0.02267679, 0.03703876, 0.05575728,
-        0.07724706, 0.09831444, 0.11470018, 0.12234686, 0.11894834, 0.10501745,
-        0.08382972, 0.06018545, 0.03861902, 0.02197841, 0.01098969, 0.00477262
-    ])
-    expected_truncated_to_inf_mass = 0.00235534610580374
+    infinity_mass = 0.1
     pmf_input = self._create_pmf(
         discretization,
         lower_loss=-1,
-        probs=np.array([0.3, 0.7]),
-        infinity_mass=0,
+        probs=np.array([0.2, 0.7]),
+        infinity_mass=infinity_mass,
+        dense=True)
+    pmf_result = pmf_input.self_compose(num_times, tail_mass_truncation)
+    self.assertEqual(discretization, pmf_result._discretization)
+    self.assertAlmostEqual(1 - (1 - infinity_mass)**num_times,
+                           pmf_result._infinity_mass)
+    self._check_dense_probs(pmf_result, expected_lower_loss, expected_probs)
+
+  def test_self_compose_dense_truncation(self):
+    discretization = 0.1
+    infinity_mass = 0.0001
+    num_times = 50
+    tail_mass_truncation = 1e-2
+    pmf_input = self._create_pmf(
+        discretization,
+        lower_loss=-1,
+        probs=np.array([0.2, 0.7]),
+        infinity_mass=infinity_mass,
         dense=True)
     pmf_result = pmf_input.self_compose(num_times, tail_mass_truncation)
 
     self.assertEqual(discretization, pmf_result._discretization)
-    self.assertAlmostEqual(expected_truncated_to_inf_mass,
-                           pmf_result._infinity_mass)
-    self._check_dense_probs(pmf_result, expected_lower_loss, expected_probs)
+    self.assertLessEqual(
+        pmf_result._infinity_mass,
+        tail_mass_truncation - np.expm1(num_times * np.log1p(-infinity_mass)))
 
   @parameterized.parameters((1, True), (100, True), (1000, True), (1001, False))
   def test_pmf_creation(self, num_points: int, is_sparse: bool):

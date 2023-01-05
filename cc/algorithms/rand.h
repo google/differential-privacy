@@ -34,14 +34,11 @@ double UniformDouble();
 // parameter 0.5. Will not exceed 1025.
 uint64_t Geometric();
 
-// Exposed for testing
 class SecureURBG {
  public:
-  static SecureURBG& GetSingleton() {
-    static auto* kInstance = new SecureURBG;
-    return *kInstance;
-  }
   using result_type = uint64_t;
+  static SecureURBG& GetInstance();
+
   static constexpr result_type(min)() {
     return (std::numeric_limits<result_type>::min)();
   }

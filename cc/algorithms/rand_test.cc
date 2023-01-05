@@ -27,8 +27,10 @@ const int sample_size = 1000000;
 const double tolerance = 0.01;
 
 // This test asserts the mean and variance of the samples.
-class RandTest : public ::testing::Test {
+class RandTest : public ::testing::Test,
+                 public testing::WithParamInterface<bool> {
  public:
+
   template <typename T>
   static void MeanAndVar(T (*rng)(), double* mean, double* var) {
     std::vector<T> samples(sample_size);
@@ -54,11 +56,13 @@ class RandTest : public ::testing::Test {
   }
 };
 
-TEST_F(RandTest, UniformDouble) {
+INSTANTIATE_TEST_SUITE_P(EnableDefaultDenyDelay, RandTest, testing::Bool());
+
+TEST_P(RandTest, UniformDouble) {
   RunTest(UniformDouble, /*expected_mean=*/0.5, /*expected_var=*/1.0 / 12.0);
 }
 
-TEST_F(RandTest, Geometric) {
+TEST_P(RandTest, Geometric) {
   RunTest(Geometric, /*expected_mean=*/2, /*expected_var=*/2);
 }
 
