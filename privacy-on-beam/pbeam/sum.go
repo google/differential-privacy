@@ -235,7 +235,7 @@ func addPublicPartitionsForSum(s beam.Scope, epsilon, delta float64, maxPartitio
 	partitionT, _ := beam.ValidateKVType(sums)
 	sumsPartitions := beam.DropValue(s, sums)
 	// Create map with partitions in the data as keys.
-	partitionMap := beam.Combine(s, newPartitionsMapFn(beam.EncodedType{partitionT.Type()}), sumsPartitions)
+	partitionMap := beam.Combine(s, newPartitionMapFn(beam.EncodedType{partitionT.Type()}), sumsPartitions)
 	// Add value of 0 to each partition key in PublicPartitions.
 	addZeroValuesToPublicPartitions, err := newAddZeroValuesToPublicPartitionsFn(vKind)
 	if err != nil {

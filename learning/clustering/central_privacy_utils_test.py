@@ -21,21 +21,15 @@ import numpy as np
 from scipy import stats
 
 from clustering import central_privacy_utils
-from clustering import clustering_params
 from clustering.central_privacy_utils import AveragePrivacyParam
 from clustering.central_privacy_utils import CountPrivacyParam
 
 
 class CentralPrivacyUtilsTest(parameterized.TestCase):
 
-  def test_average_privacy_param(self):
-    average_privacy_param = AveragePrivacyParam.from_budget_split(
-        clustering_params.DifferentialPrivacyParam(epsilon=10, delta=1e-2),
-        clustering_params.PrivacyBudgetSplit(
-            frac_sum=0.7, frac_group_count=0.3),
-        radius=4.3)
-    self.assertAlmostEqual(
-        average_privacy_param.gaussian_standard_deviation, 1.927768, delta=1e-5)
+  def test_average_privacy_param_basic(self):
+    average_privacy_param = AveragePrivacyParam(2.0, 4.3)
+    self.assertEqual(average_privacy_param.gaussian_standard_deviation, 2.0)
     self.assertEqual(average_privacy_param.sensitivity, 4.3)
 
   def test_average_privacy_param_error(self):
@@ -57,12 +51,8 @@ class CentralPrivacyUtilsTest(parameterized.TestCase):
     ):
       AveragePrivacyParam(gaussian_standard_deviation=5.0, sensitivity=-0.2)
 
-  def test_average_privacy_param_infinite_eps(self):
-    average_privacy_param = AveragePrivacyParam.from_budget_split(
-        clustering_params.DifferentialPrivacyParam(epsilon=np.inf, delta=1e-2),
-        clustering_params.PrivacyBudgetSplit(
-            frac_sum=0.7, frac_group_count=0.3),
-        radius=4.3)
+  def test_average_privacy_param_infinite(self):
+    average_privacy_param = AveragePrivacyParam(0, 4.3)
     self.assertEqual(average_privacy_param.gaussian_standard_deviation, 0)
     self.assertEqual(average_privacy_param.sensitivity, 4.3)
 
@@ -107,14 +97,8 @@ class CentralPrivacyUtilsTest(parameterized.TestCase):
             nonprivate_points, private_count, average_privacy_param, dim=3),
         expected_center)
 
-  def test_private_count_param(self):
-    privacy_param = clustering_params.DifferentialPrivacyParam(
-        epsilon=10, delta=1e-2)
-    privacy_budget_split = clustering_params.PrivacyBudgetSplit(
-        frac_sum=0.2, frac_group_count=0.8)
-    max_tree_depth = 3
-    count_privacy_param = CountPrivacyParam.from_budget_split(
-        privacy_param, privacy_budget_split, max_tree_depth)
+  def test_private_count_param_basic(self):
+    count_privacy_param = CountPrivacyParam(2.0)
     self.assertEqual(count_privacy_param.laplace_param, 2.0)
 
   def test_private_count_param_error(self):
@@ -126,14 +110,8 @@ class CentralPrivacyUtilsTest(parameterized.TestCase):
         ValueError, msg='Laplace param was -0.2, but it must be positive.'):
       CountPrivacyParam(laplace_param=-0.2)
 
-  def test_private_count_param_infinite_eps(self):
-    privacy_param = clustering_params.DifferentialPrivacyParam(
-        epsilon=np.inf, delta=1e-2)
-    privacy_budget_split = clustering_params.PrivacyBudgetSplit(
-        frac_sum=0.2, frac_group_count=0.8)
-    max_tree_depth = 3
-    count_privacy_param = CountPrivacyParam.from_budget_split(
-        privacy_param, privacy_budget_split, max_tree_depth)
+  def test_private_count_param_infinite(self):
+    count_privacy_param = CountPrivacyParam(np.inf)
     self.assertEqual(count_privacy_param.laplace_param, np.inf)
 
   @parameterized.named_parameters(('basic', 10, 70), ('not_clip', -80, -20))

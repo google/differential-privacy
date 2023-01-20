@@ -31,7 +31,6 @@ import (
 
 func init() {
 	beam.RegisterType(reflect.TypeOf((*countFn)(nil)))
-	// TODO: add tests to make sure we don't forget anything here
 }
 
 // DistinctPrivacyIDParams specifies the parameters associated with a

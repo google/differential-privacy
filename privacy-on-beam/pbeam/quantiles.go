@@ -265,7 +265,7 @@ func addPublicPartitionsForQuantiles(s beam.Scope, epsilon, delta float64, maxPa
 	partitionT, _ := beam.ValidateKVType(quantiles)
 	quantilesPartitions := beam.DropValue(s, quantiles)
 	// Create map with partitions in the data as keys.
-	partitionMap := beam.Combine(s, newPartitionsMapFn(beam.EncodedType{partitionT.Type()}), quantilesPartitions)
+	partitionMap := beam.Combine(s, newPartitionMapFn(beam.EncodedType{partitionT.Type()}), quantilesPartitions)
 	publicPartitions, isPCollection := params.PublicPartitions.(beam.PCollection)
 	if !isPCollection {
 		publicPartitions = beam.Reshuffle(s, beam.CreateList(s, params.PublicPartitions))

@@ -51,10 +51,6 @@ _EPS_TO_TRY = flags.DEFINE_list(
     'epsilon_to_try', '0.1, 0.5, 1.0, 5.0, 10.0, 50.0, 100.0, inf',
     'List of epsilon values to use when experimenting with varying epsilon.')
 
-_USE_MECHANISM_CALIBRATION = flags.DEFINE_bool(
-    'use_mechanism_calibration', False,
-    'Runs demo with mechanism calibration instead of budget split')
-
 
 def main(argv: Sequence[str]) -> None:
   if len(argv) > 1:
@@ -63,7 +59,7 @@ def main(argv: Sequence[str]) -> None:
   data: clustering_params.Data = data_generation.generate_synthetic_dataset(
       _NUM_POINTS.value, _DIM.value, _NUM_CLUSTERS.value, _CLUSTER_RATIO.value,
       _RADIUS.value)
-  print('==== Synthentic Dataset Information ====\n'
+  print('==== Synthetic Dataset Information ====\n'
         f'Number of datapoints: {_NUM_POINTS.value}\n'
         f'Dimensions: {_DIM.value}\n'
         f'Number of clusters: {_NUM_CLUSTERS.value}\n'
@@ -85,9 +81,7 @@ def main(argv: Sequence[str]) -> None:
         clustering_algorithm.private_lsh_clustering(
             k,
             data,
-            privacy_param,
-            multipliers=clustering_params.PrivacyCalculatorMultiplier()
-            if _USE_MECHANISM_CALIBRATION.value else None))
+            privacy_param))
     clustering_metrics: clustering_algorithm.ClusteringMetrics = (
         clustering_result.get_clustering_metrics())
     correct_pred = clustering_metrics.dominant_label_correct_count

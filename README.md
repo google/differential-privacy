@@ -1,7 +1,7 @@
 # Differential Privacy
 
 > **Note**<br>
-> If you are unfamiliar with differential privacy (DP), you might want to go through ["A friendly, non-technical introduction to differential privacy"](https://desfontain.es/privacy/friendly-intro-to-differential-privacy.html)
+> If you are unfamiliar with differential privacy (DP), you might want to go through ["A friendly, non-technical introduction to differential privacy"](https://desfontain.es/privacy/friendly-intro-to-differential-privacy.html).
 
 This repository contains libraries to generate ε- and (ε, δ)-differentially
 private statistics over datasets. It contains the following tools.

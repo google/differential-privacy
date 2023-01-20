@@ -95,8 +95,6 @@ class ClusteringParamTest(absltest.TestCase):
     self.assertSequenceAlmostEqual(
         clipped_datapoints[3], [4.26162351, 4.73513724, 5.20865096, 5.68216469])
     self.assertSequenceAlmostEqual(
-        clipped_datapoints[3], [4.26162351, 4.73513724, 5.20865096, 5.68216469])
-    self.assertSequenceAlmostEqual(
         clipped_datapoints[4], [4.46949207, 4.81329915, 5.15710623, 5.50091331])
 
   def test_clip_by_radius_default_to_self(self):

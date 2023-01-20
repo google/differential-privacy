@@ -54,7 +54,7 @@ class AccountantTest(parameterized.TestCase):
           'epsilon': 1,
           'delta': 0.0001,
           'num_queries': 500,
-          'expected_parameter': 71.2,
+          'expected_parameter': 71.0,
       },)
   def test_get_smallest_laplace_noise(self, epsilon, delta, num_queries,
                                       sensitivity, expected_parameter):
@@ -133,7 +133,7 @@ class AccountantTest(parameterized.TestCase):
           'num_queries': 1,
           'sensitivity': 1,
           'sampling_prob': 0.01,
-          'expected_std': 0.673873497,
+          'expected_std': 0.67379294682,
       },
       {
           'testcase_name': 'varying_sensitivity_and_num_queries',
@@ -142,7 +142,7 @@ class AccountantTest(parameterized.TestCase):
           'num_queries': 25,
           'sensitivity': 6,
           'sampling_prob': 0.001,
-          'expected_std': 3.211932149,
+          'expected_std': 3.20956502598,
       })
   def test_get_smallest_subsampled_gaussian_noise(
       self, epsilon, delta, num_queries, sensitivity, sampling_prob,

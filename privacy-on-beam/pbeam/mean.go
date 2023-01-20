@@ -249,7 +249,7 @@ func addPublicPartitionsForMean(s beam.Scope, epsilon, delta float64, maxPartiti
 	partitionT, _ := beam.ValidateKVType(means)
 	meansPartitions := beam.DropValue(s, means)
 	// Create map with partitions in the data as keys.
-	partitionMap := beam.Combine(s, newPartitionsMapFn(beam.EncodedType{partitionT.Type()}), meansPartitions)
+	partitionMap := beam.Combine(s, newPartitionMapFn(beam.EncodedType{partitionT.Type()}), meansPartitions)
 	publicPartitions, isPCollection := params.PublicPartitions.(beam.PCollection)
 	if !isPCollection {
 		publicPartitions = beam.Reshuffle(s, beam.CreateList(s, params.PublicPartitions))

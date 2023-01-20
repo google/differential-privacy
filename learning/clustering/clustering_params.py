@@ -47,7 +47,6 @@ class PrivacyBudgetSplit():
   DEPRECATED: Use PrivacyCalculatorMultiplier instead.
 
   Attributes:
-    epsilon: Differential privacy parameter, epsilon, to be split.
     frac_sum: The fraction of epsilon to use when computing the sum of points
       for noisy averaging.
     frac_group_count: The fraction of epsilon to use when counting the number of

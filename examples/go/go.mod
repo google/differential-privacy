@@ -8,6 +8,6 @@ require (
 )
 
 require (
-	golang.org/x/exp v0.0.0-20191002040644-a1355ae1e2c3 // indirect
+	golang.org/x/exp v0.0.0-20230118134722-a68e582fa157 // indirect
 	gonum.org/v1/gonum v0.12.0 // indirect
 )

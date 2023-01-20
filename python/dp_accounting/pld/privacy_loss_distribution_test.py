@@ -344,14 +344,6 @@ class LaplacePrivacyLossDistributionTest(parameterized.TestCase):
           parameter, sensitivity=sensitivity, value_discretization_interval=1,
           sampling_prob=sampling_prob)
 
-  def test_laplace_optimistic_connect_dots_value_error(self):
-    with self.assertRaisesRegex(
-        ValueError,
-        'Current implementation does not support pessimistic_estimate=False '
-        'when use_connect_dots=True.'):
-      privacy_loss_distribution.from_laplace_mechanism(
-          1, pessimistic_estimate=False, use_connect_dots=True)
-
   @parameterized.parameters(
       # Tests with sampling_prob = 1
       (1.0, 1.0, 1.0, {
@@ -626,14 +618,6 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
           sensitivity=sensitivity,
           value_discretization_interval=1,
           sampling_prob=sampling_prob)
-
-  def test_gaussian_optimistic_connect_dots_value_error(self):
-    with self.assertRaisesRegex(
-        ValueError,
-        'Current implementation does not support pessimistic_estimate=False '
-        'when use_connect_dots=True.'):
-      privacy_loss_distribution.from_gaussian_mechanism(
-          1, pessimistic_estimate=False, use_connect_dots=True)
 
   @parameterized.parameters(
       # Tests with sampling_prob = 1
@@ -1030,14 +1014,6 @@ class DiscreteLaplacePrivacyLossDistributionTest(parameterized.TestCase):
           parameter, sensitivity=sensitivity, value_discretization_interval=1,
           sampling_prob=sampling_prob)
 
-  def test_discrete_laplace_optimistic_connect_dots_value_error(self):
-    with self.assertRaisesRegex(
-        ValueError,
-        'Current implementation does not support pessimistic_estimate=False '
-        'when use_connect_dots=True.'):
-      privacy_loss_distribution.from_discrete_laplace_mechanism(
-          1, pessimistic_estimate=False, use_connect_dots=True)
-
   @parameterized.parameters(
       # Tests with sampling_prob = 1
       (1.0, 1, 1, {
@@ -1299,14 +1275,6 @@ class DiscreteGaussianPrivacyLossDistributionTest(parameterized.TestCase):
       privacy_loss_distribution.from_discrete_gaussian_mechanism(
           sigma, sensitivity=sensitivity, truncation_bound=1,
           sampling_prob=sampling_prob)
-
-  def test_discrete_gaussian_optimistic_connect_dots_value_error(self):
-    with self.assertRaisesRegex(
-        ValueError,
-        'Current implementation does not support pessimistic_estimate=False '
-        'when use_connect_dots=True.'):
-      privacy_loss_distribution.from_discrete_gaussian_mechanism(
-          1, pessimistic_estimate=False, use_connect_dots=True)
 
   @parameterized.parameters(
       # Tests with sampling_prob = 1

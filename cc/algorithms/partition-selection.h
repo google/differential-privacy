@@ -485,7 +485,7 @@ class GaussianPartitionSelection : public PartitionSelectionStrategy {
         ValidateMaxPartitionsContributed(max_partitions_contributed));
 
     double sigma = GaussianMechanism::CalculateStddev(
-        epsilon, noise_delta, max_partitions_contributed);
+        epsilon, noise_delta, std::sqrt(max_partitions_contributed));
 
     const double max_contribution = 1;
     const double adjusted_threshold_delta =
@@ -512,7 +512,7 @@ class GaussianPartitionSelection : public PartitionSelectionStrategy {
         ValidateMaxPartitionsContributed(max_partitions_contributed));
 
     double sigma = GaussianMechanism::CalculateStddev(
-        epsilon, noise_delta, max_partitions_contributed);
+        epsilon, noise_delta, std::sqrt(max_partitions_contributed));
 
     ASSIGN_OR_RETURN(
         double adjusted_threshold_delta,

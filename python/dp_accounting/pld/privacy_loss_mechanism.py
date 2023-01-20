@@ -270,6 +270,8 @@ class AdditiveNoisePrivacyLoss(metaclass=abc.ABCMeta):
     delta_values[inverse_indices] = (
         self.mu_upper_cdf(x_cutoffs) -
         np.exp(epsilon_values[inverse_indices]) * self.mu_lower_cdf(x_cutoffs))
+    # Clip delta values to lie in [0,1] (to avoid numerical errors)
+    delta_values = np.clip(delta_values, 0, 1)
     return float(delta_values) if is_scalar else delta_values
 
   @abc.abstractmethod

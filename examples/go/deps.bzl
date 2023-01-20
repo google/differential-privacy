@@ -25,20 +25,113 @@ def go_differential_privacy_examples_deps():
     //:update-repos` to update all dependencies based on the `go.mod` file.
     """
     go_repository(
+        name = "com_github_ajstarks_svgo",
+        importpath = "github.com/ajstarks/svgo",
+        sum = "h1:slYM766cy2nI3BwyRiyQj/Ud48djTMtMebDqepE95rw=",
+        version = "v0.0.0-20211024235047-1546f124cd8b",
+    )
+    go_repository(
+        name = "com_github_go_fonts_liberation",
+        importpath = "github.com/go-fonts/liberation",
+        sum = "h1:jAkAWJP4S+OsrPLZM4/eC9iW7CtHy+HBXrEwZXWo5VM=",
+        version = "v0.2.0",
+    )
+    go_repository(
+        name = "com_github_go_latex_latex",
+        importpath = "github.com/go-latex/latex",
+        sum = "h1:6zl3BbBhdnMkpSj2YY30qV3gDcVBGtFgVsV3+/i+mKQ=",
+        version = "v0.0.0-20210823091927-c0d11ff05a81",
+    )
+    go_repository(
+        name = "com_github_go_pdf_fpdf",
+        importpath = "github.com/go-pdf/fpdf",
+        sum = "h1:MlgtGIfsdMEEQJr2le6b/HNr1ZlQwxyWr77r2aj2U/8=",
+        version = "v0.6.0",
+    )
+    go_repository(
+        name = "com_github_golang_freetype",
+        importpath = "github.com/golang/freetype",
+        sum = "h1:DACJavvAHhabrF08vX0COfcOBJRhZ8lUbR+ZWIs0Y5g=",
+        version = "v0.0.0-20170609003504-e2365dfdc4a0",
+    )
+
+    go_repository(
         name = "com_github_golang_glog",
         importpath = "github.com/golang/glog",
         sum = "h1:nfP3RFugxnNRyKgeWd4oI1nYvXpxrx8ck8ZrcizshdQ=",
         version = "v1.0.0",
     )
     go_repository(
+        name = "com_github_google_go_cmp",
+        importpath = "github.com/google/go-cmp",
+        sum = "h1:O2Tfq5qg4qc4AmwVlvv0oLiVAGB7enBSJ2x2DqQFi38=",
+        version = "v0.5.9",
+    )
+    go_repository(
+        name = "com_github_grd_stat",
+        importpath = "github.com/grd/stat",
+        sum = "h1:TVY1GBBIAAph4RWO9Y3p1wU+7n6khY1jxPKjDphzznA=",
+        version = "v0.0.0-20130623202159-138af3fd5012",
+    )
+    go_repository(
+        name = "ht_sr_git_sbinet_gg",
+        importpath = "git.sr.ht/~sbinet/gg",
+        sum = "h1:LNhjNn8DerC8f9DHLz6lS0YYul/b602DUxDgGkd/Aik=",
+        version = "v0.3.1",
+    )
+    go_repository(
+        name = "io_rsc_pdf",
+        importpath = "rsc.io/pdf",
+        sum = "h1:k1MczvYDUvJBe93bYd7wrZLLUEcLZAuF824/I4e5Xr4=",
+        version = "v0.1.1",
+    )
+
+    go_repository(
         name = "org_golang_x_exp",
         importpath = "golang.org/x/exp",
-        sum = "h1:n9HxLrNxWWtEb1cA950nuEEj3QnKbtsCJ6KjcgisNUs=",
-        version = "v0.0.0-20191002040644-a1355ae1e2c3",
+        sum = "h1:fiNkyhJPUvxbRPbCqY/D9qdjmPzfHcpK3P4bM4gioSY=",
+        version = "v0.0.0-20230118134722-a68e582fa157",
     )
+    go_repository(
+        name = "org_golang_x_image",
+        importpath = "golang.org/x/image",
+        sum = "h1:TcHcE0vrmgzNH1v3ppjcMGbhG5+9fMuvOmUYwNEF4q4=",
+        version = "v0.0.0-20220302094943-723b81ca9867",
+    )
+    go_repository(
+        name = "org_golang_x_mod",
+        importpath = "golang.org/x/mod",
+        sum = "h1:b9gGHsz9/HhJ3HF5DHQytPpuwocVTChQJK3AvoLRD5I=",
+        version = "v0.6.0",
+    )
+    go_repository(
+        name = "org_golang_x_sys",
+        importpath = "golang.org/x/sys",
+        sum = "h1:kunALQeHf1/185U1i0GOB/fy1IPRDDpuoOOqRReG57U=",
+        version = "v0.1.0",
+    )
+    go_repository(
+        name = "org_golang_x_text",
+        importpath = "golang.org/x/text",
+        sum = "h1:olpwvP2KacW1ZWvsR7uQhoyTYvKAupfQrRGBFM352Gk=",
+        version = "v0.3.7",
+    )
+    go_repository(
+        name = "org_golang_x_tools",
+        importpath = "golang.org/x/tools",
+        sum = "h1:G6AHpWxTMGY1KyEYoAQ5WTtIekUUvDNjan3ugu60JvE=",
+        version = "v0.2.0",
+    )
+
     go_repository(
         name = "org_gonum_v1_gonum",
         importpath = "gonum.org/v1/gonum",
         sum = "h1:xKuo6hzt+gMav00meVPUlXwSdoEJP46BR+wdxQEFK2o=",
         version = "v0.12.0",
+    )
+    go_repository(
+        name = "org_gonum_v1_plot",
+        importpath = "gonum.org/v1/plot",
+        sum = "h1:dnifSs43YJuNMDzB7v8wV64O4ABBHReuAVAoBxqBqS4=",
+        version = "v0.10.1",
     )

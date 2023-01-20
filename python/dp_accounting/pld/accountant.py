@@ -81,12 +81,14 @@ def get_smallest_laplace_noise(
     # Setting value_discretization_interval equal to
     # 0.01 * epsilon / num_queries ensures that the resulting parameter is not
     # (epsilon', delta)-DP for epsilon' less than  0.99 * epsilon / num_queries.
+    # Below, we use 10x larger discretization, since we are using the tighter
+    # connect-the-dots algorithm for discretizing PLDs.
     # This is a heuristic for getting a reasonable pessimistic estimate for the
     # noise parameter.
     return privacy_loss_distribution.from_laplace_mechanism(
         parameter,
         sensitivity=sensitivity,
-        value_discretization_interval=0.01 * privacy_parameters.epsilon /
+        value_discretization_interval=0.1 * privacy_parameters.epsilon /
         num_queries)
 
   # Laplace mechanism with parameter sensitivity * num_queries / epsilon is
@@ -200,13 +202,15 @@ def get_smallest_subsampled_gaussian_noise(
     # Setting value_discretization_interval equal to the smaller of 1e-3 and
     # 0.01 * epsilon / num_queries ensures that the resulting parameter is not
     # (epsilon', delta)-DP for epsilon' less than  0.99 * epsilon / num_queries.
+    # Below, we use 10x larger discretization, since we are using the tighter
+    # connect-the-dots algorithm for discretizing PLDs.
     # This is a heuristic for getting a reasonable pessimistic estimate for the
     # noise parameter.
     return privacy_loss_distribution.from_gaussian_mechanism(
         parameter,
         sensitivity=sensitivity,
         value_discretization_interval=min(
-            1e-3, 0.01 * privacy_parameters.epsilon / num_queries),
+            1e-3, 0.1 * privacy_parameters.epsilon / num_queries),
         sampling_prob=sampling_prob)
 
   upper_bound = get_smallest_gaussian_noise(
