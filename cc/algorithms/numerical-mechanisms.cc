@@ -204,6 +204,24 @@ GaussianMechanism::Builder::Build() {
   ASSIGN_OR_RETURN(std::unique_ptr<internal::GaussianDistribution> distro,
                    builder.SetStddev(1).Build());
 
+  if (stddev_.has_value()) {
+    if (GetEpsilon().has_value() || GetDelta().has_value() ||
+        GetL0Sensitivity().has_value() || GetLInfSensitivity().has_value() ||
+        l2_sensitivity_.has_value()) {
+      return absl::InvalidArgumentError(
+          "If standard deviation is set directly it must be the only "
+          "parameter.");
+    }
+    if (!std::isfinite(stddev_.value()) || stddev_.value() < 0) {
+      return absl::InvalidArgumentError(
+          "Standard deviation must be finite and positive.");
+    }
+    std::unique_ptr<NumericalMechanism> result =
+        absl::make_unique<GaussianMechanism>(stddev_.value(),
+                                             std::move(distro));
+    return result;
+  }  // Else construct from DP parameters.
+
   absl::optional<double> epsilon = GetEpsilon();
   RETURN_IF_ERROR(ValidateIsFiniteAndPositive(epsilon, "Epsilon"));
   RETURN_IF_ERROR(DeltaIsSetAndValid());
@@ -337,12 +355,15 @@ double GaussianMechanism::CalculateStddev(double epsilon, double delta,
 }
 
 double GaussianMechanism::CalculateStddev() const {
+  if (stddev_.has_value()) {
+    return stddev_.value();
+  }
 
   return CalculateStddev(GetEpsilon(), delta_, l2_sensitivity_);
 }
 
 double GaussianMechanism::AddDoubleNoise(double result) {
-  double stddev = CalculateStddev(GetEpsilon(), delta_, l2_sensitivity_);
+  double stddev = CalculateStddev();
   double sample = standard_gaussian_->Sample(stddev);
 
   return RoundToNearestMultiple(result,
@@ -351,7 +372,7 @@ double GaussianMechanism::AddDoubleNoise(double result) {
 }
 
 int64_t GaussianMechanism::AddInt64Noise(int64_t result) {
-  double stddev = CalculateStddev(GetEpsilon(), delta_, l2_sensitivity_);
+  double stddev = CalculateStddev();
   double sample = standard_gaussian_->Sample(stddev);
 
   SafeOpResult<int64_t> noise_cast_result =

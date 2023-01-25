@@ -318,6 +318,20 @@ class GaussianMechanism : public NumericalMechanism {
       return *this;
     }
 
+    // Allows users to set the noise standard deviation directly, skipping
+    // the calculations based on differential privacy parameters. Only use this
+    // if you know what you're doing - the code will apply the exact amount of
+    // noise you specify, which might not be enough to achieve your desired
+    // privacy guarantee.
+    //
+    // Either this, or the differential privacy parameters (epsilon and delta)
+    // should be specified. In case both are specified, this method will return
+    // an error.
+    Builder& SetStandardDeviation(double stddev) {
+      stddev_ = stddev;
+      return *this;
+    }
+
     absl::StatusOr<std::unique_ptr<NumericalMechanism>> Build() override;
 
     std::unique_ptr<NumericalMechanismBuilder> Clone() const override {
@@ -326,6 +340,7 @@ class GaussianMechanism : public NumericalMechanism {
 
    protected:
     absl::optional<double> l2_sensitivity_;
+    absl::optional<double> stddev_;
 
    private:
     // Returns the l2 sensitivity when it has been set or returns an upper bound
@@ -345,6 +360,16 @@ class GaussianMechanism : public NumericalMechanism {
       double epsilon, double delta, double l2_sensitivity,
       std::unique_ptr<internal::GaussianDistribution> standard_gaussian)
       : GaussianMechanism(epsilon, delta, l2_sensitivity) {
+    standard_gaussian_ = std::move(standard_gaussian);
+  }
+
+  ABSL_DEPRECATED(
+      "Use GaussianMechanism::Builder instead of GaussianMechanism "
+      "constructor.")
+  GaussianMechanism(
+      double stddev,
+      std::unique_ptr<internal::GaussianDistribution> standard_gaussian)
+      : NumericalMechanism(0), delta_(0), l2_sensitivity_(0), stddev_(stddev) {
     standard_gaussian_ = std::move(standard_gaussian);
   }
 
@@ -430,6 +455,7 @@ class GaussianMechanism : public NumericalMechanism {
   const double delta_;
   const double l2_sensitivity_;
   std::unique_ptr<internal::GaussianDistribution> standard_gaussian_;
+  absl::optional<double> stddev_;
 };
 
 // Mechanism builder that returns the mechanism with minimum variance for given

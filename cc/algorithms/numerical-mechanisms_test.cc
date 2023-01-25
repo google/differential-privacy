@@ -801,6 +801,49 @@ TEST(NumericalMechanismsTest, GaussianBuilderFailsCalculatedL2SensitivityZero) {
           "^The calculated L2 sensitivity must be positive and finite.*"));
 }
 
+TEST(NumericalMechanismsTest, GaussianBuilderFailsWithStddevAndOtherParams) {
+  GaussianMechanism::Builder test_builder;
+  auto failed_build =
+      test_builder.SetStandardDeviation(1).SetEpsilon(1).Build();
+  EXPECT_THAT(failed_build.status().code(),
+              Eq(absl::StatusCode::kInvalidArgument));
+  std::string message(failed_build.status().message());
+  EXPECT_THAT(message, MatchesRegex("^If standard deviation is set directly it "
+                                    "must be the only parameter.*"));
+
+  auto failed_build2 =
+      test_builder.SetStandardDeviation(1).SetDelta(0.1).Build();
+  EXPECT_THAT(failed_build2.status().code(),
+              Eq(absl::StatusCode::kInvalidArgument));
+  message = failed_build2.status().message();
+  EXPECT_THAT(message, MatchesRegex("^If standard deviation is set directly it "
+                                    "must be the only parameter.*"));
+
+  auto failed_build3 =
+      test_builder.SetStandardDeviation(1).SetL0Sensitivity(1).Build();
+  EXPECT_THAT(failed_build3.status().code(),
+              Eq(absl::StatusCode::kInvalidArgument));
+  message = failed_build3.status().message();
+  EXPECT_THAT(message, MatchesRegex("^If standard deviation is set directly it "
+                                    "must be the only parameter.*"));
+
+  auto failed_build4 =
+      test_builder.SetStandardDeviation(1).SetLInfSensitivity(1).Build();
+  EXPECT_THAT(failed_build4.status().code(),
+              Eq(absl::StatusCode::kInvalidArgument));
+  message = failed_build4.status().message();
+  EXPECT_THAT(message, MatchesRegex("^If standard deviation is set directly it "
+                                    "must be the only parameter.*"));
+
+  auto failed_build5 =
+      test_builder.SetStandardDeviation(1).SetL2Sensitivity(1).Build();
+  EXPECT_THAT(failed_build5.status().code(),
+              Eq(absl::StatusCode::kInvalidArgument));
+  message = failed_build5.status().message();
+  EXPECT_THAT(message, MatchesRegex("^If standard deviation is set directly it "
+                                    "must be the only parameter.*"));
+}
+
 TEST(NumericalMechanismsTest, GaussianMechanismAddsNoise) {
   GaussianMechanism mechanism(1.0, 0.5, 1.0);
 
@@ -1031,6 +1074,19 @@ TEST(NumericalMechanismsTest, GaussianVarianceReturnsWallysResult) {
   // Ensure the returned variance roughly matches what (broken link) returns.
   // Currently Wally returns a stddev of 17.922 for these values.
   EXPECT_NEAR(mechanism->get()->GetVariance(), std::pow(17.922, 2), 0.5);
+}
+
+TEST(NumericalMechanismsTest, GaussianSetStddev) {
+  absl::StatusOr<std::unique_ptr<NumericalMechanism>> mechanism =
+      GaussianMechanism::Builder().SetStandardDeviation(3.5).Build();
+  ASSERT_OK(mechanism.status());
+
+  std::vector<double> samples;
+  for (int i = 0; i < kNumSamples; ++i) {
+    samples.push_back((*mechanism)->AddNoise(0));
+  }
+
+  EXPECT_NEAR(StandardDev(samples), 3.5, 0.1);
 }
 
 TEST(NumericalMechanismsTest, LaplaceMechanismSerialization) {
