@@ -144,7 +144,7 @@ python setup.py install
 python clustering/demo/clustering_demo.py
 ```
 
-We test this library on Linux with Python version 3.7. If you experience any
+We test this library on Linux with Python version 3.9. If you experience any
 problems, please file an issue on GitHub, also for other platforms or Python
 versions.
 

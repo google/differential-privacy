@@ -691,8 +691,6 @@ func LaplaceToleranceForMean(flakinessK, lower, upper float64, maxContributionsP
 //
 // To see the logic and the math behind flakiness and tolerance calculation,
 // see https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf.
-//
-// TODO: Use confidence intervals from the DP library instead of calculation tolerance here.
 func ToleranceForMean(lower, upper, exactNormalizedSum, exactCount, exactMean, countTolerance, normalizedSumTolerance float64) (float64, error) {
 	midPoint := lower + (upper-lower)/2.0
 

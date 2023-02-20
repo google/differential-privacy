@@ -205,6 +205,9 @@ class ABSL_DEPRECATED("Use Quantiles instead.") Percentile
     using OrderBuilder = OrderStatisticsBuilder<T, Percentile<T>, Builder>;
 
    public:
+    Builder() = default;
+    Builder(Builder&& other) = default;
+    Builder& operator=(Builder&& other) = default;
     Builder& SetPercentile(double percentile) {
       percentile_ = percentile;
       return *static_cast<Builder*>(this);
