@@ -34,10 +34,11 @@ using differential_privacy::Output;
 using differential_privacy::example::CarrotReporter;
 using ::absl::StatusOr;
 
-ABSL_FLAG(std::string, CarrotsDataFile,
-          "animals_and_carrots.csv",
-          "Path to the datafile where the data is stored on the number of "
-          "carrots each animal has eaten.");
+ABSL_FLAG(
+    std::string, CarrotsDataFile,
+    "animals_and_carrots.csv",
+    "Path to the datafile where the data is stored on the number of "
+    "carrots each animal has eaten.");
 
 int main(int argc, char **argv) {
   PrintF(
@@ -121,7 +122,7 @@ int main(int argc, char **argv) {
       "eaten.\n");
   PrintF("\nPrivacy budget remaining: %.2f\n", reporter.RemainingEpsilon());
   PrintF("True max: %d\n", reporter.Max());
-  PrintF("DP max:   %d\n", GetValue<int>(reporter.PrivateMax(1).value()));
+  PrintF("DP max:   %3.0f\n", GetValue<double>(reporter.PrivateMax(1).value()));
 
   // Refuse to query for the count of animals who didn't eat carrots.
   PrintF(

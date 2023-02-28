@@ -148,7 +148,7 @@ func Count(s beam.Scope, pcol PrivatePCollection, params CountParams) beam.PColl
 	countsKV := beam.ParDo(s,
 		newDecodePairInt64Fn(partitionT.Type()),
 		countPairs,
-		beam.TypeDefinition{Var: beam.XType, T: partitionT.Type()})
+		beam.TypeDefinition{Var: beam.WType, T: partitionT.Type()})
 
 	var result beam.PCollection
 	// Add public partitions and compute the aggregation output, if public partitions are specified.

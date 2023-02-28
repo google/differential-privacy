@@ -520,7 +520,7 @@ func (fn *dropKeyFn) Setup() {
 	fn.Codec.Setup()
 }
 
-func (fn *dropKeyFn) ProcessElement(id beam.Z, kv kv.Pair) (beam.Z, beam.V, error) {
+func (fn *dropKeyFn) ProcessElement(id beam.U, kv kv.Pair) (beam.U, beam.V, error) {
 	_, v, err := fn.Codec.Decode(kv)
 	return id, v, err
 }
@@ -541,7 +541,7 @@ func (fn *dropValueFn) Setup() {
 	fn.Codec.Setup()
 }
 
-func (fn *dropValueFn) ProcessElement(id beam.Z, kv kv.Pair) (beam.Z, beam.W, error) {
+func (fn *dropValueFn) ProcessElement(id beam.U, kv kv.Pair) (beam.U, beam.W, error) {
 	k, _, err := fn.Codec.Decode(kv)
 	return id, k, err
 }

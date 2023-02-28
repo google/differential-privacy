@@ -125,9 +125,9 @@ func findRekeyFn(kind reflect.Kind) (any, error) {
 	}
 }
 
-// pairInt64 contains an encoded value and an int64 metric.
+// pairInt64 contains an encoded partition key and an int64 metric.
 type pairInt64 struct {
-	X []byte
+	K []byte
 	M int64
 }
 
@@ -139,7 +139,7 @@ func rekeyInt64Fn(kv kv.Pair, m int64) ([]byte, pairInt64) {
 
 // pairFloat64 contains an encoded value and an float64 metric.
 type pairFloat64 struct {
-	X []byte
+	K []byte
 	M float64
 }
 
@@ -160,50 +160,73 @@ func newDecodePairFn(t reflect.Type, kind reflect.Kind) (any, error) {
 	}
 }
 
-// decodePairInt64Fn transforms a PCollection<pairInt64<codedX,int64>> into a
-// PCollection<X,int64>.
+// decodePairInt64Fn transforms a PCollection<pairInt64<KX,int64>> into a
+// PCollection<K,int64>.
 type decodePairInt64Fn struct {
-	XType beam.EncodedType
-	xDec  beam.ElementDecoder
+	KType beam.EncodedType
+	kDec  beam.ElementDecoder
 }
 
 func newDecodePairInt64Fn(t reflect.Type) *decodePairInt64Fn {
-	return &decodePairInt64Fn{XType: beam.EncodedType{t}}
+	return &decodePairInt64Fn{KType: beam.EncodedType{t}}
 }
 
 func (fn *decodePairInt64Fn) Setup() {
-	fn.xDec = beam.NewElementDecoder(fn.XType.T)
+	fn.kDec = beam.NewElementDecoder(fn.KType.T)
 }
 
-func (fn *decodePairInt64Fn) ProcessElement(pair pairInt64) (beam.X, int64, error) {
-	x, err := fn.xDec.Decode(bytes.NewBuffer(pair.X))
+func (fn *decodePairInt64Fn) ProcessElement(pair pairInt64) (beam.W, int64, error) {
+	k, err := fn.kDec.Decode(bytes.NewBuffer(pair.K))
 	if err != nil {
 		return nil, 0, fmt.Errorf("pbeam.decodePairInt64Fn.ProcessElement: couldn't decode pair %v: %w", pair, err)
 	}
-	return x, pair.M, nil
+	return k, pair.M, nil
 }
 
-// decodePairFloat64Fn transforms a PCollection<pairFloat64<codedX,float64>> into a
-// PCollection<X,float64>.
+// decodePairFloat64Fn transforms a PCollection<pairFloat64<codedK,float64>> into a
+// PCollection<K,float64>.
 type decodePairFloat64Fn struct {
-	XType beam.EncodedType
-	xDec  beam.ElementDecoder
+	KType beam.EncodedType
+	kDec  beam.ElementDecoder
 }
 
 func newDecodePairFloat64Fn(t reflect.Type) *decodePairFloat64Fn {
-	return &decodePairFloat64Fn{XType: beam.EncodedType{t}}
+	return &decodePairFloat64Fn{KType: beam.EncodedType{t}}
 }
 
 func (fn *decodePairFloat64Fn) Setup() {
-	fn.xDec = beam.NewElementDecoder(fn.XType.T)
+	fn.kDec = beam.NewElementDecoder(fn.KType.T)
 }
 
-func (fn *decodePairFloat64Fn) ProcessElement(pair pairFloat64) (beam.X, float64, error) {
-	x, err := fn.xDec.Decode(bytes.NewBuffer(pair.X))
+func (fn *decodePairFloat64Fn) ProcessElement(pair pairFloat64) (beam.W, float64, error) {
+	k, err := fn.kDec.Decode(bytes.NewBuffer(pair.K))
 	if err != nil {
 		return nil, 0.0, fmt.Errorf("pbeam.decodePairFloat64Fn.ProcessElement: couldn't decode pair %v: %w", pair, err)
 	}
-	return x, pair.M, nil
+	return k, pair.M, nil
+}
+
+// decodePairArrayFloat64Fn transforms a PCollection<pairArrayFloat64<codedK,[]float64>> into a
+// PCollection<K,[]float64>.
+type decodePairArrayFloat64Fn struct {
+	KType beam.EncodedType
+	kDec  beam.ElementDecoder
+}
+
+func newDecodePairArrayFloat64Fn(t reflect.Type) *decodePairArrayFloat64Fn {
+	return &decodePairArrayFloat64Fn{KType: beam.EncodedType{t}}
+}
+
+func (fn *decodePairArrayFloat64Fn) Setup() {
+	fn.kDec = beam.NewElementDecoder(fn.KType.T)
+}
+
+func (fn *decodePairArrayFloat64Fn) ProcessElement(pair pairArrayFloat64) (beam.W, []float64, error) {
+	k, err := fn.kDec.Decode(bytes.NewBuffer(pair.K))
+	if err != nil {
+		return nil, nil, fmt.Errorf("pbeam.decodePairArrayFloat64Fn.ProcessElement: couldn't decode pair %v: %w", pair, err)
+	}
+	return k, pair.M, nil
 }
 
 func newBoundedSumFn(epsilon, delta float64, maxPartitionsContributed int64, lower, upper float64, noiseKind noise.Kind, vKind reflect.Kind, publicPartitions bool, testMode testMode) (any, error) {
@@ -515,11 +538,11 @@ func findDereferenceValueFn(kind reflect.Kind) (any, error) {
 	}
 }
 
-func dereferenceValueToInt64Fn(key beam.X, value *int64) (k beam.X, v int64) {
+func dereferenceValueToInt64Fn(key beam.W, value *int64) (k beam.W, v int64) {
 	return key, *value
 }
 
-func dereferenceValueToFloat64Fn(key beam.X, value *float64) (k beam.X, v float64) {
+func dereferenceValueToFloat64Fn(key beam.W, value *float64) (k beam.W, v float64) {
 	return key, *value
 }
 
@@ -589,14 +612,6 @@ func clampNegativePartitionsFloat64Fn(v beam.V, r float64) (beam.V, float64) {
 	return v, r
 }
 
-func convertFloat32ToFloat64Fn(z beam.Z, f float32) (beam.Z, float64) {
-	return z, float64(f)
-}
-
-func convertFloat64ToFloat64Fn(z beam.Z, f float64) (beam.Z, float64) {
-	return z, f
-}
-
 type dropValuesFn struct {
 	Codec *kv.Codec
 }
@@ -605,7 +620,7 @@ func (fn *dropValuesFn) Setup() {
 	fn.Codec.Setup()
 }
 
-func (fn *dropValuesFn) ProcessElement(id beam.Z, kv kv.Pair) (beam.Z, beam.W, error) {
+func (fn *dropValuesFn) ProcessElement(id beam.U, kv kv.Pair) (beam.U, beam.W, error) {
 	k, _, err := fn.Codec.Decode(kv)
 	return id, k, err
 }
@@ -690,29 +705,6 @@ func (fn *decodeIDKFn) ProcessElement(pair kv.Pair, v beam.V) (beam.W, kv.Pair, 
 	return id, kv.Pair{pair.V, vBuf.Bytes()}, err // pair.V is the K in PCollection<kv.Pair{ID,K},V>
 }
 
-// decodePairArrayFloat64Fn transforms a PCollection<pairArrayFloat64<codedX,[]float64>> into a
-// PCollection<X,[]float64>.
-type decodePairArrayFloat64Fn struct {
-	XType beam.EncodedType
-	xDec  beam.ElementDecoder
-}
-
-func newDecodePairArrayFloat64Fn(t reflect.Type) *decodePairArrayFloat64Fn {
-	return &decodePairArrayFloat64Fn{XType: beam.EncodedType{t}}
-}
-
-func (fn *decodePairArrayFloat64Fn) Setup() {
-	fn.xDec = beam.NewElementDecoder(fn.XType.T)
-}
-
-func (fn *decodePairArrayFloat64Fn) ProcessElement(pair pairArrayFloat64) (beam.X, []float64, error) {
-	x, err := fn.xDec.Decode(bytes.NewBuffer(pair.X))
-	if err != nil {
-		return nil, nil, fmt.Errorf("pbeam.decodePairArrayFloat64Fn.ProcessElement: couldn't decode pair %v: %w", pair, err)
-	}
-	return x, pair.M, nil
-}
-
 // findConvertFn gets the correct conversion to float64 function.
 func findConvertToFloat64Fn(t typex.FullType) (any, error) {
 	switch t.Type().String() {
@@ -745,44 +737,52 @@ func findConvertToFloat64Fn(t typex.FullType) (any, error) {
 	}
 }
 
-func convertIntToFloat64Fn(z beam.Z, i int) (beam.Z, float64) {
-	return z, float64(i)
+func convertIntToFloat64Fn(idk kv.Pair, i int) (kv.Pair, float64) {
+	return idk, float64(i)
 }
 
-func convertInt8ToFloat64Fn(z beam.Z, i int8) (beam.Z, float64) {
-	return z, float64(i)
+func convertInt8ToFloat64Fn(idk kv.Pair, i int8) (kv.Pair, float64) {
+	return idk, float64(i)
 }
 
-func convertInt16ToFloat64Fn(z beam.Z, i int16) (beam.Z, float64) {
-	return z, float64(i)
+func convertInt16ToFloat64Fn(idk kv.Pair, i int16) (kv.Pair, float64) {
+	return idk, float64(i)
 }
 
-func convertInt32ToFloat64Fn(z beam.Z, i int32) (beam.Z, float64) {
-	return z, float64(i)
+func convertInt32ToFloat64Fn(idk kv.Pair, i int32) (kv.Pair, float64) {
+	return idk, float64(i)
 }
 
-func convertInt64ToFloat64Fn(z beam.Z, i int64) (beam.Z, float64) {
-	return z, float64(i)
+func convertInt64ToFloat64Fn(idk kv.Pair, i int64) (kv.Pair, float64) {
+	return idk, float64(i)
 }
 
-func convertUintToFloat64Fn(z beam.Z, i uint) (beam.Z, float64) {
-	return z, float64(i)
+func convertUintToFloat64Fn(idk kv.Pair, i uint) (kv.Pair, float64) {
+	return idk, float64(i)
 }
 
-func convertUint8ToFloat64Fn(z beam.Z, i uint8) (beam.Z, float64) {
-	return z, float64(i)
+func convertUint8ToFloat64Fn(idk kv.Pair, i uint8) (kv.Pair, float64) {
+	return idk, float64(i)
 }
 
-func convertUint16ToFloat64Fn(z beam.Z, i uint16) (beam.Z, float64) {
-	return z, float64(i)
+func convertUint16ToFloat64Fn(idk kv.Pair, i uint16) (kv.Pair, float64) {
+	return idk, float64(i)
 }
 
-func convertUint32ToFloat64Fn(z beam.Z, i uint32) (beam.Z, float64) {
-	return z, float64(i)
+func convertUint32ToFloat64Fn(idk kv.Pair, i uint32) (kv.Pair, float64) {
+	return idk, float64(i)
 }
 
-func convertUint64ToFloat64Fn(z beam.Z, i uint64) (beam.Z, float64) {
-	return z, float64(i)
+func convertUint64ToFloat64Fn(idk kv.Pair, i uint64) (kv.Pair, float64) {
+	return idk, float64(i)
+}
+
+func convertFloat32ToFloat64Fn(idk kv.Pair, f float32) (kv.Pair, float64) {
+	return idk, float64(f)
+}
+
+func convertFloat64ToFloat64Fn(idk kv.Pair, f float64) (kv.Pair, float64) {
+	return idk, f
 }
 
 type expandValuesAccum struct {
@@ -854,9 +854,9 @@ func (fn *expandFloat64ValuesCombineFn) ExtractOutput(a expandFloat64ValuesAccum
 	return a.Values
 }
 
-// pairArrayFloat64 contains an encoded value and a slice of float64 metrics.
+// pairArrayFloat64 contains an encoded partition key and a slice of float64 metrics.
 type pairArrayFloat64 struct {
-	X []byte
+	K []byte
 	M []float64
 }
 

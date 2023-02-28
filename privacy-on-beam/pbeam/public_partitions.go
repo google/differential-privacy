@@ -54,15 +54,15 @@ func newAddZeroValuesToPublicPartitionsFn(vKind reflect.Kind) (any, error) {
 	}
 }
 
-func addZeroValuesToPublicPartitionsInt64Fn(partition beam.X) (k beam.X, v int64) {
+func addZeroValuesToPublicPartitionsInt64Fn(partition beam.W) (k beam.W, v int64) {
 	return partition, 0
 }
 
-func addZeroValuesToPublicPartitionsFloat64Fn(partition beam.X) (k beam.X, v float64) {
+func addZeroValuesToPublicPartitionsFloat64Fn(partition beam.W) (k beam.W, v float64) {
 	return partition, 0
 }
 
-func addEmptySliceToPublicPartitionsFloat64Fn(partition beam.X) (k beam.X, v []float64) {
+func addEmptySliceToPublicPartitionsFloat64Fn(partition beam.W) (k beam.W, v []float64) {
 	return partition, []float64{}
 }
 
@@ -121,10 +121,10 @@ func dropNonPublicPartitionsKVFn(s beam.Scope, publicPartitions beam.PCollection
 // and DistinctPrivacyId after a CoGroupByKey. Only outputs a <privacyKey,
 // value> pair if the value is in the public partitions, i.e., the PCollection
 // that is passed to the CoGroupByKey first.
-func mergePublicValuesFn(value beam.X, isKnown func(*int64) bool, privacyKeys func(*beam.W) bool, emit func(beam.W, beam.X)) {
+func mergePublicValuesFn(value beam.V, isKnown func(*int64) bool, privacyKeys func(*beam.U) bool, emit func(beam.U, beam.V)) {
 	var ignoredZero int64
 	if isKnown(&ignoredZero) {
-		var privacyKey beam.W
+		var privacyKey beam.U
 		for privacyKeys(&privacyKey) {
 			emit(privacyKey, value)
 		}
@@ -171,7 +171,7 @@ func (fn *partitionMapFn) CreateAccumulator() pMap {
 }
 
 // AddInput adds the public partition key to the map
-func (fn *partitionMapFn) AddInput(p pMap, partitionKey beam.X) (pMap, error) {
+func (fn *partitionMapFn) AddInput(p pMap, partitionKey beam.W) (pMap, error) {
 	var partitionBuf bytes.Buffer
 	if err := fn.partitionEnc.Encode(partitionKey, &partitionBuf); err != nil {
 		return p, fmt.Errorf("pbeam.PartitionsMapFn.AddInput: couldn't encode partition key %v: %w", partitionKey, err)
@@ -207,7 +207,7 @@ func (fn *prunePartitionsInMemoryVFn) Setup() {
 	fn.partitionEnc = beam.NewElementEncoder(fn.PartitionType.T)
 }
 
-func (fn *prunePartitionsInMemoryVFn) ProcessElement(id beam.X, partitionKey beam.V, emit func(beam.X, beam.V)) error {
+func (fn *prunePartitionsInMemoryVFn) ProcessElement(id beam.U, partitionKey beam.W, emit func(beam.U, beam.W)) error {
 	var partitionBuf bytes.Buffer
 	if err := fn.partitionEnc.Encode(partitionKey, &partitionBuf); err != nil {
 		return fmt.Errorf("pbeam.prunePartitionsInMemoryVFn.ProcessElement: couldn't encode partition %v: %w", partitionKey, err)
@@ -226,7 +226,7 @@ func newPrunePartitionsInMemoryKVFn(partitionMap pMap) *prunePartitionsInMemoryK
 	return &prunePartitionsInMemoryKVFn{PartitionMap: partitionMap}
 }
 
-func (fn *prunePartitionsInMemoryKVFn) ProcessElement(id beam.X, pair kv.Pair, emit func(beam.X, kv.Pair)) {
+func (fn *prunePartitionsInMemoryKVFn) ProcessElement(id beam.U, pair kv.Pair, emit func(beam.U, kv.Pair)) {
 	// Partition Key in a kv.Pair is already encoded, we just convert it to base64 encoding.
 	if fn.PartitionMap[base64.StdEncoding.EncodeToString(pair.K)] {
 		emit(id, pair)
@@ -236,7 +236,7 @@ func (fn *prunePartitionsInMemoryKVFn) ProcessElement(id beam.X, pair kv.Pair, e
 // prunePartitionsFn takes a PCollection<ID, kv.Pair{K,V}> as input, and returns a
 // PCollection<ID, kv.Pair{K,V}>, where non-public partitions have been dropped.
 // Used for sum and mean.
-func prunePartitionsKVFn(id beam.X, pair kv.Pair, partitionsIter func(*pMap) bool, emit func(beam.X, kv.Pair)) error {
+func prunePartitionsKVFn(id beam.U, pair kv.Pair, partitionsIter func(*pMap) bool, emit func(beam.U, kv.Pair)) error {
 	var partitionMap pMap
 	partitionsIter(&partitionMap)
 	var err error
@@ -266,7 +266,7 @@ func (fn *emitPartitionsNotInTheDataFn) Setup() {
 	fn.partitionEnc = beam.NewElementEncoder(fn.PartitionType.T)
 }
 
-func (fn *emitPartitionsNotInTheDataFn) ProcessElement(partitionKey beam.X, value beam.V, partitionsIter func(*pMap) bool, emit func(beam.X, beam.V)) error {
+func (fn *emitPartitionsNotInTheDataFn) ProcessElement(partitionKey beam.W, value beam.V, partitionsIter func(*pMap) bool, emit func(beam.W, beam.V)) error {
 	var partitionBuf bytes.Buffer
 	if err := fn.partitionEnc.Encode(partitionKey, &partitionBuf); err != nil {
 		return fmt.Errorf("pbeam.emitPartitionsNotInTheDataFn.ProcessElement: couldn't encode partition %v: %w", partitionKey, err)

@@ -209,7 +209,7 @@ func QuantilesPerKey(s beam.Scope, pcol PrivatePCollection, params QuantilesPara
 	partialKV := beam.ParDo(s,
 		newDecodePairArrayFloat64Fn(partitionT),
 		partialPairs,
-		beam.TypeDefinition{Var: beam.XType, T: partitionT})
+		beam.TypeDefinition{Var: beam.WType, T: partitionT})
 
 	var result beam.PCollection
 	// Add public partitions and return the aggregation output, if public partitions are specified.

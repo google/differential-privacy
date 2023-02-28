@@ -188,7 +188,7 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCo
 	partialSumKV := beam.ParDo(s,
 		decodePairFn,
 		partialSumPairs,
-		beam.TypeDefinition{Var: beam.XType, T: partitionT})
+		beam.TypeDefinition{Var: beam.WType, T: partitionT})
 
 	var result beam.PCollection
 	// Add public partitions and return the aggregation output, if public partitions are specified.
@@ -343,35 +343,35 @@ func findConvertFn(t typex.FullType) (any, error) {
 	}
 }
 
-func convertIntToInt64Fn(z beam.Z, i int) (beam.Z, int64) {
-	return z, int64(i)
+func convertIntToInt64Fn(idk kv.Pair, i int) (kv.Pair, int64) {
+	return idk, int64(i)
 }
-func convertInt8ToInt64Fn(z beam.Z, i int8) (beam.Z, int64) {
-	return z, int64(i)
+func convertInt8ToInt64Fn(idk kv.Pair, i int8) (kv.Pair, int64) {
+	return idk, int64(i)
 }
-func convertInt16ToInt64Fn(z beam.Z, i int16) (beam.Z, int64) {
-	return z, int64(i)
+func convertInt16ToInt64Fn(idk kv.Pair, i int16) (kv.Pair, int64) {
+	return idk, int64(i)
 }
-func convertInt32ToInt64Fn(z beam.Z, i int32) (beam.Z, int64) {
-	return z, int64(i)
+func convertInt32ToInt64Fn(idk kv.Pair, i int32) (kv.Pair, int64) {
+	return idk, int64(i)
 }
-func convertInt64ToInt64Fn(z beam.Z, i int64) (beam.Z, int64) {
-	return z, i
+func convertInt64ToInt64Fn(idk kv.Pair, i int64) (kv.Pair, int64) {
+	return idk, i
 }
-func convertUintToInt64Fn(z beam.Z, i uint) (beam.Z, int64) {
-	return z, int64(i)
+func convertUintToInt64Fn(idk kv.Pair, i uint) (kv.Pair, int64) {
+	return idk, int64(i)
 }
-func convertUint8ToInt64Fn(z beam.Z, i uint8) (beam.Z, int64) {
-	return z, int64(i)
+func convertUint8ToInt64Fn(idk kv.Pair, i uint8) (kv.Pair, int64) {
+	return idk, int64(i)
 }
-func convertUint16ToInt64Fn(z beam.Z, i uint16) (beam.Z, int64) {
-	return z, int64(i)
+func convertUint16ToInt64Fn(idk kv.Pair, i uint16) (kv.Pair, int64) {
+	return idk, int64(i)
 }
-func convertUint32ToInt64Fn(z beam.Z, i uint32) (beam.Z, int64) {
-	return z, int64(i)
+func convertUint32ToInt64Fn(idk kv.Pair, i uint32) (kv.Pair, int64) {
+	return idk, int64(i)
 }
-func convertUint64ToInt64Fn(z beam.Z, i uint64) (beam.Z, int64) {
-	return z, int64(i)
+func convertUint64ToInt64Fn(idk kv.Pair, i uint64) (kv.Pair, int64) {
+	return idk, int64(i)
 }
 
 // getKind gets the return kind of the convertFn function.
