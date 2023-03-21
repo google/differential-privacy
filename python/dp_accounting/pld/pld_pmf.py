@@ -612,7 +612,8 @@ def create_pmf_pessimistic_connect_dots(
 
   if (rounded_epsilons.size != deltas.size or rounded_epsilons.size == 0):
     raise ValueError('Length of rounded_epsilons and deltas are either unequal '
-                     f'or zero: rounded_epsilons={rounded_epsilons}, deltas={deltas}.')
+                     f'or zero: rounded_epsilons={rounded_epsilons}, '
+                     f'deltas={deltas}.')
 
   # Notation: epsilons = [eps_1, ... , eps_n]
   # epsilon_diffs = [eps_2 - eps_1, ... , eps_n - eps_{n-1}]
@@ -627,7 +628,8 @@ def create_pmf_pessimistic_connect_dots(
   # delta_diffs = [delta_2 - delta_1, ... , delta_n - delta_{n-1}]
   delta_diffs = np.diff(deltas)
   if np.any(delta_diffs > 0):
-    raise ValueError(f'deltas are not in non-increasing order: deltas={deltas}.')
+    raise ValueError(f'deltas are not in non-increasing order: '
+                     f'deltas={deltas}.')
 
   # delta_diffs_scaled_v1 = [y_0, y_1, ..., y_{n-1}]
   # where y_i = (delta_{i+1} - delta_i) / (exp(eps_i - eps_{i+1}) - 1)
@@ -713,12 +715,13 @@ def create_pmf_pessimistic_connect_dots_fixed_gap(
   deltas = np.asarray(deltas, dtype=np.float64)
 
   if rounded_epsilon_upper < rounded_epsilon_lower:
-    raise ValueError(f'rounded_epsilon_upper={rounded_epsilon_upper} is smaller than '
-                     f'rounded_epsilon_lower={rounded_epsilon_lower}.')
+    raise ValueError(f'rounded_epsilon_upper={rounded_epsilon_upper} is smaller'
+                     f' than rounded_epsilon_lower={rounded_epsilon_lower}.')
   if deltas.size != rounded_epsilon_upper - rounded_epsilon_lower + 1:
     raise ValueError('Length of deltas is not equal to number of epsilons: '
-                     f'rounded_epsilon_upper - rounded_epsilon_lower + 1={rounded_epsilon_upper - rounded_epsilon_lower + 1}, '
-                     f'deltas.size={deltas.size}.')
+                     f'number of epsilons = '
+                     f'{rounded_epsilon_upper - rounded_epsilon_lower + 1}, '
+                     f'number of deltas = {deltas.size}.')
   if np.any(deltas < 0) or np.any(deltas > 1):
     raise ValueError(f'deltas are not between 0 and 1 : deltas={deltas}.')
 
@@ -733,7 +736,8 @@ def create_pmf_pessimistic_connect_dots_fixed_gap(
   # delta_diffs = [delta_2 - delta_1, ... , delta_n - delta_{n-1}]
   delta_diffs = np.diff(deltas)
   if np.any(delta_diffs > 0):
-    raise ValueError(f'deltas are not in non-increasing order: deltas={deltas}.')
+    raise ValueError(f'deltas are not in non-increasing order: '
+                     f'deltas={deltas}.')
 
   # probs = [p_1, p_2, ... , p_n]
   probs = np.zeros_like(deltas)
