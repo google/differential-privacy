@@ -48,7 +48,6 @@ using ::testing::Matcher;
 using ::testing::Pair;
 using ::testing::UnorderedElementsAre;
 using ::testing::Values;
-using ::differential_privacy::base::testing::IsOk;
 using ::differential_privacy::base::testing::StatusIs;
 
 constexpr double kMaxError = 1e-4f;

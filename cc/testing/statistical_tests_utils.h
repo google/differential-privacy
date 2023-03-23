@@ -24,6 +24,7 @@
 #include "base/logging.h"
 #include "google/protobuf/text_format.h"
 #include "absl/container/flat_hash_map.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "algorithms/rand.h"
 
@@ -126,6 +127,10 @@ bool GenerateApproximateDpVote(std::function<double()> sample_generator_a,
 // Generates number_of_votes of votes from vote_generator to determine a
 // majority. Stops early as soon as the majority is clear. Returns the majority.
 bool RunBallot(std::function<bool()> vote_generator, int number_of_votes);
+// Same as above but in addition stops early if any vote_generator returns an
+// error and returns that error. If there are no errors work as above overload.
+absl::StatusOr<bool> RunBallot(
+    std::function<absl::StatusOr<bool>()> vote_generator, int number_of_votes);
 
 template <typename T>
 std::optional<T> ReadProto(std::istream* proto_file) {

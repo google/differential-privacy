@@ -26,7 +26,7 @@ def differential_privacy_deps():
     # Protobuf
     http_archive(
         name = "com_google_protobuf",
-        url = "https://github.com/protocolbuffers/protobuf/archive/refs/tags/v21.5.tar.gz",
-        sha256 = "4a7e87e4166c358c63342dddcde6312faee06ea9d5bb4e2fa87d3478076f6639",
-        strip_prefix = "protobuf-21.5",
+        url = "https://github.com/protocolbuffers/protobuf/releases/download/v21.12/protobuf-all-21.12.tar.gz",
+        sha256 = "2c6a36c7b5a55accae063667ef3c55f2642e67476d96d355ff0acb13dbb47f09",
+        strip_prefix = "protobuf-21.12",
     )

@@ -731,7 +731,6 @@ func ToleranceForMean(lower, upper, exactNormalizedSum, exactCount, exactMean, c
 //
 // The tests don't disable noise, hence we multiply the tolerance by a reasonably small number,
 // in this case 5, to account for the noise addition.
-// TODO: Implement more accurate tolerance based on confidence intervals.
 func QuantilesTolerance(lower, upper float64) float64 {
 	return 5 * (upper - lower) / (math.Pow(float64(dpagg.DefaultBranchingFactor), float64(dpagg.DefaultTreeHeight)) - 1.0)
 }

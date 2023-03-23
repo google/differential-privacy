@@ -324,4 +324,10 @@ absl::Status ValidateBranchingFactor(absl::optional<int> branching_factor) {
   return ValidateIsGreaterThanOrEqualTo(branching_factor, /*lower_bound=*/2,
                                         "Branching Factor");
 }
+
+absl::Status ValidatePreThreshold(absl::optional<int64_t> pre_threshold) {
+  return ValidateIsGreaterThan(
+      static_cast<absl::optional<double>>(pre_threshold), /*lower_bound=*/0,
+      "Pre Threshold");
+}
 }  // namespace differential_privacy

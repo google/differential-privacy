@@ -173,6 +173,15 @@ public class DpPreconditions {
         maxPartitionsContributed2);
   }
 
+  static void checkMergePreThresholdAreEqual(int preThreshold1, int preThreshold2) {
+    checkArgument(
+        preThreshold1 == preThreshold2,
+        "Failed to merge: unequal values of preThreshold. "
+            + "preThreshold1 = %s, preThreshold2 = %s",
+        preThreshold1,
+        preThreshold2);
+  }
+
   static void checkMergeMechanismTypesAreEqual(MechanismType type1, MechanismType type2) {
     checkArgument(
         Objects.equals(type1, type2),
@@ -199,5 +208,12 @@ public class DpPreconditions {
     checkEpsilon(epsilon);
     checkNoiseDelta(delta, noise);
     checkArgument(rank > 0 && rank < 1, "rank must be > 0 and < 1. Provided value: %s", rank);
+  }
+
+  static void checkPreThreshold(int preThreshold) {
+    checkArgument(
+        preThreshold >= 1,
+        "preThreshold must be greater than or equal to 1. Provided value: %s",
+        preThreshold);
   }
 }

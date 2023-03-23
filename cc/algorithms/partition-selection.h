@@ -497,6 +497,33 @@ class GaussianPartitionSelection : public PartitionSelectionStrategy {
   }
 
   // CalculateThreshold returns the smallest threshold k to use in a
+  // differentially private histogram with added Gaussian noise of the given
+  // standard deviation.
+  //
+  // See
+  // https://github.com/google/differential-privacy/blob/main/common_docs/Delta_For_Thresholding.pdf
+  // for details on the math underlying this.
+  static absl::StatusOr<double> CalculateThresholdFromStddev(
+      double stddev, double threshold_delta,
+      int64_t max_partitions_contributed) {
+    RETURN_IF_ERROR(ValidateIsFiniteAndPositive(stddev, "Stddev"));
+    RETURN_IF_ERROR(ValidateDelta(threshold_delta));
+    RETURN_IF_ERROR(
+        ValidateMaxPartitionsContributed(max_partitions_contributed));
+    ASSIGN_OR_RETURN(
+        double adjusted_threshold_delta,
+        CalculateAdjustedDelta(threshold_delta, max_partitions_contributed));
+
+    const double max_contribution = 1;
+
+    // Note: Quantile(1-delta) = -Quantile(delta). We chose the second option
+    // here, because for small delta, 1 - delta is approximately 1. This would
+    // thus lead to a numerically unstable algorithm.
+    return max_contribution - internal::GaussianDistribution::Quantile(
+                                  stddev, adjusted_threshold_delta);
+  }
+
+  // Returns the smallest threshold k to use in a
   // differentially private histogram with added Gaussian noise.
   //
   // See
@@ -511,20 +538,11 @@ class GaussianPartitionSelection : public PartitionSelectionStrategy {
     RETURN_IF_ERROR(
         ValidateMaxPartitionsContributed(max_partitions_contributed));
 
-    double sigma = GaussianMechanism::CalculateStddev(
+    const double stddev = GaussianMechanism::CalculateStddev(
         epsilon, noise_delta, std::sqrt(max_partitions_contributed));
 
-    ASSIGN_OR_RETURN(
-        double adjusted_threshold_delta,
-        CalculateAdjustedDelta(threshold_delta, max_partitions_contributed));
-
-    const double max_contribution = 1;
-
-    // Note: Quantile(1-delta) = -Quantile(delta). We chose the second option
-    // here, because for small delta, 1 - delta is approximately 1. This would
-    // thus lead to a numerically unstable algorithm.
-    return max_contribution - internal::GaussianDistribution::Quantile(
-                                  sigma, adjusted_threshold_delta);
+    return CalculateThresholdFromStddev(stddev, threshold_delta,
+                                        max_partitions_contributed);
   }
 
   double GetThreshold() const { return threshold_; }
@@ -547,6 +565,141 @@ class GaussianPartitionSelection : public PartitionSelectionStrategy {
   double noise_delta_;
   double threshold_;
   std::unique_ptr<NumericalMechanism> mechanism_;
+};
+
+// Prethresholds the user count before delegating the partition selection logic
+// to the wrapped partition selection strategy.
+class PartitionSelectionStrategyWithPreThresholding
+    : public PartitionSelectionStrategy {
+ public:
+  enum class PartitionSelectionStrategyType {
+    kNearTruncatedGeometric,
+    kLaplace,
+    kGaussian
+  };
+  // Builder for PartitionSelectionStrategyWithPreThresholding
+  class Builder {
+   public:
+    Builder& SetPreThreshold(int pre_threshold) {
+      pre_threshold_ = pre_threshold;
+      return *this;
+    }
+
+    Builder& SetEpsilon(double epsilon) {
+      epsilon_ = epsilon;
+      return *this;
+    }
+
+    Builder& SetDelta(double delta) {
+      delta_ = delta;
+      return *this;
+    }
+
+    Builder& SetMaxPartitionsContributed(int max_partitions_contributed) {
+      max_partitions_contributed_ = max_partitions_contributed;
+      return *this;
+    }
+
+    Builder& SetPartitionSelectionStrategy(
+        PartitionSelectionStrategyType strategy_type) {
+      switch (strategy_type) {
+        case PartitionSelectionStrategyType::kNearTruncatedGeometric:
+          strategy_builder_ = std::make_unique<
+              NearTruncatedGeometricPartitionSelection::Builder>();
+          break;
+        case PartitionSelectionStrategyType::kLaplace:
+          strategy_builder_ =
+              std::make_unique<LaplacePartitionSelection::Builder>();
+          break;
+        case PartitionSelectionStrategyType::kGaussian:
+          strategy_builder_ =
+              std::make_unique<GaussianPartitionSelection::Builder>();
+          break;
+          // No default. Builder guarantees an error will be thrown if unset.
+      }
+      return *this;
+    }
+
+    // These partition selection strategy setters are used in mocking tests.
+    Builder& SetPartitionSelectionStrategy(
+        std::unique_ptr<NearTruncatedGeometricPartitionSelection::Builder>
+            strategy_builder) {
+      strategy_builder_ = std::move(strategy_builder);
+      return *this;
+    }
+
+    Builder& SetPartitionSelectionStrategy(
+        std::unique_ptr<LaplacePartitionSelection::Builder> strategy_builder) {
+      strategy_builder_ = std::move(strategy_builder);
+      return *this;
+    }
+
+    Builder& SetPartitionSelectionStrategy(
+        std::unique_ptr<GaussianPartitionSelection::Builder> strategy_builder) {
+      strategy_builder_ = std::move(strategy_builder);
+      return *this;
+    }
+
+    absl::StatusOr<std::unique_ptr<PartitionSelectionStrategy>> Build() {
+      RETURN_IF_ERROR(ValidateEpsilon(epsilon_));
+      RETURN_IF_ERROR(ValidateDelta(delta_));
+      RETURN_IF_ERROR(
+          ValidateMaxPartitionsContributed(max_partitions_contributed_));
+      RETURN_IF_ERROR(ValidatePreThreshold(pre_threshold_));
+      RETURN_IF_ERROR(ValidatePartitionStrategy());
+      ASSIGN_OR_RETURN(
+          std::unique_ptr<PartitionSelectionStrategy> wrapped_strategy,
+          strategy_builder_->SetEpsilon(epsilon_.value())
+              .SetDelta(delta_.value())
+              .SetMaxPartitionsContributed(max_partitions_contributed_.value())
+              .Build());
+      return std::unique_ptr<PartitionSelectionStrategyWithPreThresholding>(
+          new PartitionSelectionStrategyWithPreThresholding(
+              pre_threshold_.value(), std::move(wrapped_strategy)));
+    }
+
+   private:
+    std::optional<int> pre_threshold_;
+    std::unique_ptr<PartitionSelectionStrategyBuilder> strategy_builder_;
+    std::optional<double> epsilon_;
+    std::optional<double> delta_;
+    std::optional<int> max_partitions_contributed_;
+
+    absl::Status ValidatePartitionStrategy() {
+      if (strategy_builder_ == nullptr) {
+        return absl::InvalidArgumentError(
+            "Partition Selection Strategy must be set.");
+      }
+      return absl::OkStatus();
+    }
+  };
+
+  double GetPreThreshold() const { return pre_threshold_; }
+
+  bool ShouldKeep(double num_users) override {
+    double thresholded_num_users = num_users - (pre_threshold_ - 1);
+    if (thresholded_num_users <= 0) return false;
+    return wrapped_strategy_->ShouldKeep(thresholded_num_users);
+  }
+
+  double ProbabilityOfKeep(double num_users) const override {
+    double thresholded_num_users = num_users - (pre_threshold_ - 1);
+    if (thresholded_num_users <= 0) return 0;
+    return wrapped_strategy_->ProbabilityOfKeep(thresholded_num_users);
+  }
+
+ protected:
+  PartitionSelectionStrategyWithPreThresholding(
+      int pre_threshold, std::unique_ptr<PartitionSelectionStrategy> strategy)
+      : PartitionSelectionStrategy(strategy->GetEpsilon(), strategy->GetDelta(),
+                                   strategy->GetMaxPartitionsContributed(),
+                                   strategy->GetAdjustedDelta()),
+        pre_threshold_(pre_threshold),
+        wrapped_strategy_(std::move(strategy)) {}
+
+ private:
+  const int pre_threshold_;
+  std::unique_ptr<PartitionSelectionStrategy> wrapped_strategy_;
 };
 }  // namespace differential_privacy
 

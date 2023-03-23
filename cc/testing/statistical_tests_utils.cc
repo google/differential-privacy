@@ -20,8 +20,10 @@
 #include <cstdlib>
 
 #include "absl/random/distributions.h"
+#include "absl/status/statusor.h"
 #include "algorithms/rand.h"
 #include "algorithms/util.h"
+#include "base/status_macros.h"
 
 namespace differential_privacy::testing {
 
@@ -88,14 +90,22 @@ bool VerifyCloseness(const std::vector<double>& samples_a,
 
 }  // namespace
 
-
 bool RunBallot(std::function<bool()> vote_generator, int number_of_votes) {
+  return RunBallot([vote_generator = std::move(vote_generator)]()
+                       -> absl::StatusOr<bool> { return vote_generator(); },
+                   number_of_votes)
+      .value_or(false);
+}
+
+absl::StatusOr<bool> RunBallot(
+    std::function<absl::StatusOr<bool>()> vote_generator, int number_of_votes) {
   DCHECK(number_of_votes > 0) << "The number of votes must be positive";
   int accept_votes = 0;
   int reject_votes = 0;
-  while (std::max(accept_votes, reject_votes) <= number_of_votes / 2)
-    (vote_generator() ? accept_votes : reject_votes)++;
-
+  while (std::max(accept_votes, reject_votes) <= number_of_votes / 2) {
+    ASSIGN_OR_RETURN(const bool result, vote_generator());
+    (result ? accept_votes : reject_votes)++;
+  }
   return accept_votes > reject_votes;
 }
 

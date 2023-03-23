@@ -47,8 +47,8 @@ def cc_accounting_deps():
     # Begin Boost
     git_repository(
         name = "com_github_nelhage_rules_boost",
-        commit = "1e3a69bf2d5cd10c34b74f066054cd335d033d71",
+        commit = "f2494bf3b9de990889ae05a484e5f0fabf1fbdc9",
         remote = "https://github.com/nelhage/rules_boost",
-        shallow_since = "1591047380 -0700",
+        shallow_since = "1679023729 +0000",
     )
     # End boost

@@ -38,6 +38,7 @@ Currently, the DP building block libraries support the following algorithms:
 | Truncated geometric thresholding | Supported | Supported | Supported |
 | Laplace thresholding             | Supported | Supported | Supported |
 | Gaussian thresholding            | Planned   | Supported | Supported |
+| Pre-thresholding                 | Supported | Planned   | Supported |
 
 Implementations of the Laplace mechanism and the Gaussian mechanism use [secure
 noise generation]. These mechanisms can be used to perform computations that

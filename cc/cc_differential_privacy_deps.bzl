@@ -26,27 +26,27 @@ def cc_differential_privacy_deps():
     # Abseil
     http_archive(
         name = "com_google_absl",
-        url = "https://github.com/abseil/abseil-cpp/archive/20220623.0.tar.gz",
-        sha256 = "4208129b49006089ba1d6710845a45e31c59b0ab6bff9e5788a87f55c5abd602",
-        strip_prefix = "abseil-cpp-20220623.0",
+        url = "https://github.com/abseil/abseil-cpp/archive/refs/tags/20230125.1.tar.gz",
+        sha256 = "81311c17599b3712069ded20cca09a62ab0bf2a89dfa16993786c8782b7ed145",
+        strip_prefix = "abseil-cpp-20230125.1",
     )
 
     # Common bazel rules.  Also required for Abseil.
     http_archive(
         name = "bazel_skylib",
+        sha256 = "b8a1527901774180afc798aeb28c4634bdccf19c4d98e7bdd1ce79d1fe9aaad7",
         urls = [
-            "https://mirror.bazel.build/github.com/bazelbuild/bazel-skylib/releases/download/1.2.1/bazel-skylib-1.2.1.tar.gz",
-            "https://github.com/bazelbuild/bazel-skylib/releases/download/1.2.1/bazel-skylib-1.2.1.tar.gz",
+            "https://mirror.bazel.build/github.com/bazelbuild/bazel-skylib/releases/download/1.4.1/bazel-skylib-1.4.1.tar.gz",
+            "https://github.com/bazelbuild/bazel-skylib/releases/download/1.4.1/bazel-skylib-1.4.1.tar.gz",
         ],
-        sha256 = "f7be3474d42aae265405a592bb7da8e171919d74c16f082a5457840f06054728",
     )
 
     # GoogleTest/GoogleMock framework. Used by most unit-tests.
     http_archive(
         name = "com_google_googletest",
-        url = "https://github.com/google/googletest/archive/refs/tags/release-1.12.1.tar.gz",
-        strip_prefix = "googletest-release-1.12.1",
-        sha256 = "81964fe578e9bd7c94dfdb09c8e4d6e6759e19967e397dbea48d1c10e45d0df2",
+        url = "https://github.com/google/googletest/archive/refs/tags/v1.13.0.tar.gz",
+        strip_prefix = "googletest-1.13.0",
+        sha256 = "ad7fdba11ea011c1d925b3289cf4af2c66a352e18d4c7264392fead75e919363",
     )
 
     # Re2 is a requirement for GoogleTest
@@ -64,19 +64,19 @@ def cc_differential_privacy_deps():
     # Benchmarks for testing.
     http_archive(
         name = "com_google_benchmark",
-        url = "https://github.com/google/benchmark/archive/refs/tags/v1.7.0.tar.gz",
-        sha256 = "3aff99169fa8bdee356eaa1f691e835a6e57b1efeadb8a0f9f228531158246ac",
-        strip_prefix = "benchmark-1.7.0",
+        url = "https://github.com/google/benchmark/archive/refs/tags/v1.7.1.tar.gz",
+        sha256 = "6430e4092653380d9dc4ccb45a1e2dc9259d581f4866dc0759713126056bc1d7",
+        strip_prefix = "benchmark-1.7.1",
     )
 
     # BoringSSL for cryptographic PRNG
     http_archive(
         name = "boringssl",
-        # Commit date: 2022-09-23
+        # Commit date: 2023-03-17
         # Note for updating: we need to use a commit from the `master-with-bazel` branch.
-        url = "https://github.com/google/boringssl/archive/3a3d0b5c7fddeea312b5ce032d9b84a2be399b32.tar.gz",
-        sha256 = "be8231e5f3b127d83eb156354dfa28c110e3c616c11ae119067c8184ef7a257f",
-        strip_prefix = "boringssl-3a3d0b5c7fddeea312b5ce032d9b84a2be399b32",
+        url = "https://github.com/google/boringssl/archive/e0648e015f039ef88801ff0cf84dcb5944b8b5ab.tar.gz",
+        sha256 = "b9ba36d3c309cfee56df70da8e8700f9ac65d4c0460f78bf8a4e580300b7f59d",
+        strip_prefix = "boringssl-e0648e015f039ef88801ff0cf84dcb5944b8b5ab",
     )
 
     # Supports `./configure && make` style packages to become dependencies.

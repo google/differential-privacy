@@ -95,7 +95,8 @@ enum MechanismType {
   LAPLACE = 1;
   GAUSSIAN = 2;
   DISCRETE_LAPLACE = 3;
-  NONE = 4;
+  reserved 4;
+  MECHANISM_NONE = 5;
 }
 
 message BoundedMeanSummary {
@@ -159,4 +160,15 @@ message BinarySearchSummary {
 message ApproxBoundsSummary {
   repeated int64 pos_bin_count = 1;
   repeated int64 neg_bin_count = 2;
+}
+
+message PreAggSelectPartitionSummary {
+  // The count of unique privacy units IDs in the partition.
+  optional int64 ids_count = 1;
+
+  // PreAggSelectPartition parameters:
+  optional double epsilon = 2;
+  optional double delta = 3;
+  optional int32 max_partitions_contributed = 4;
+  optional int32 pre_threshold = 5;
 }

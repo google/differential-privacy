@@ -614,11 +614,12 @@ cc_test(
     shard_count = 2,
     deps = [
         ":numerical-mechanisms",
-        ":numerical-mechanisms-testing",
         ":partition-selection",
+        ":partition-selection-testing",
         "//base/testing:status_matchers",
         "@com_google_absl//absl/memory",
         "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings:str_format",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -702,5 +703,19 @@ cc_test(
     deps = [
         ":gaussian-dp-calculator",
         "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "partition-selection-testing",
+    testonly = 1,
+    hdrs = ["partition-selection-testing.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":numerical-mechanisms",
+        ":partition-selection",
+        "//base:logging",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_googletest//:gtest",
     ],
 )

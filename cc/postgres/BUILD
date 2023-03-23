@@ -16,7 +16,7 @@
 # The files in this directory implement a postgres extension adding
 # anonymous aggregate functions.
 
-licenses(["notice"])  # Apache v2.0
+licenses(["notice"])
 
 package(
     default_visibility = ["//visibility:private"],
