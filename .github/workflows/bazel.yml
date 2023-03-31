@@ -1,6 +1,6 @@
 name: Bazel Tests
 
-on: [push, pull_request]
+on: [push, pull_request, workflow_dispatch]
 
 jobs:
   cc-tests:
@@ -94,3 +94,20 @@ jobs:
       - name: Test Privacy on Beam Workspace (without eternal tests)
         working-directory: privacy-on-beam
         run: bazelisk test --test_timeout_filters=-eternal ...
+
+  zetasql-build:
+    name: ZetaSQL Examples Build Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v3
+      - name: Mount Cache
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/bazel/
+          key: bazel-zetasql-examples-cache
+      - name: Ensure bazelisk is installed
+        run: bazelisk --version
+      - name: Build ZetaSQL Examples
+        working-directory: examples/zetasql
+        run: bazelisk build ...

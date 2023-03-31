@@ -215,7 +215,8 @@ double GeometricDistribution::Lambda() { return lambda_; }
 // overflow during noise sampling. The probability of such an event will be well
 // below 2^-1000, if the granularity parameter is set to a value of 2^40 or less
 // and the epsilon passed to addNoise is at least 2^-50.
-constexpr double kLaplaceGranularityParam = static_cast<double>(int64_t{1} << 40);
+constexpr double kLaplaceGranularityParam =
+    static_cast<double>(int64_t{1} << 40);
 
 absl::Status LaplaceDistribution::ValidateEpsilon(double epsilon) {
   RETURN_IF_ERROR(ValidateIsFiniteAndPositive(epsilon, "Epsilon"));

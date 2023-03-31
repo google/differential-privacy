@@ -92,7 +92,7 @@ func comparePreAggSelectPartitionSelection(s1, s2 *PreAggSelectPartition) bool {
 		s1.delta == s2.delta &&
 		s1.l0Sensitivity == s2.l0Sensitivity &&
 		s1.idCount == s2.idCount &&
-		s1.state == s2.state
+	s1.state == s2.state
 }
 
 // Tests that serialization for PreAggSelectPartition works as expected.
@@ -150,7 +150,8 @@ func TestPreAggSelectPartitionSerializationStateChecks(t *testing.T) {
 		{serialized, false},
 		{resultReturned, true},
 	} {
-		s, err := NewPreAggSelectPartition(&PreAggSelectPartitionOptions{Epsilon: 1, Delta: 0.1, MaxPartitionsContributed: 1})
+		options := &PreAggSelectPartitionOptions{Epsilon: 1, Delta: 0.1, MaxPartitionsContributed: 1}
+		s, err := NewPreAggSelectPartition(options)
 		if err != nil {
 			t.Errorf("Couldn't initialize s: %v", err)
 		}
@@ -463,14 +464,14 @@ func TestMergePreAggSelectPartition(t *testing.T) {
 		delta:         0.2,
 		l0Sensitivity: 1,
 		idCount:       8,
-		state:         defaultState,
-	}
-
-	s1, err := NewPreAggSelectPartition(&PreAggSelectPartitionOptions{Epsilon: 0.1, Delta: 0.2, MaxPartitionsContributed: 1})
+		state:         defaultState}
+	options1 := &PreAggSelectPartitionOptions{Epsilon: 0.1, Delta: 0.2, MaxPartitionsContributed: 1}
+	s1, err := NewPreAggSelectPartition(options1)
 	if err != nil {
 		t.Errorf("Couldn't initialize s1: %v", err)
 	}
-	s2, err := NewPreAggSelectPartition(&PreAggSelectPartitionOptions{Epsilon: 0.1, Delta: 0.2, MaxPartitionsContributed: 1})
+	options2 := &PreAggSelectPartitionOptions{Epsilon: 0.1, Delta: 0.2, MaxPartitionsContributed: 1}
+	s2, err := NewPreAggSelectPartition(options2)
 	if err != nil {
 		t.Errorf("Couldn't initialize s2: %v", err)
 	}
@@ -546,11 +547,13 @@ func TestPreAggSelectPartitionCheckMergeStateChecks(t *testing.T) {
 		{defaultState, merged, true},
 		{merged, defaultState, true},
 	} {
-		s1, err := NewPreAggSelectPartition(&PreAggSelectPartitionOptions{Epsilon: 1, Delta: 0.1, MaxPartitionsContributed: 1})
+		options1 := &PreAggSelectPartitionOptions{Epsilon: 1, Delta: 0.1, MaxPartitionsContributed: 1}
+		s1, err := NewPreAggSelectPartition(options1)
 		if err != nil {
 			t.Errorf("Couldn't initialize s1: %v", err)
 		}
-		s2, err := NewPreAggSelectPartition(&PreAggSelectPartitionOptions{Epsilon: 1, Delta: 0.1, MaxPartitionsContributed: 1})
+		options2 := &PreAggSelectPartitionOptions{Epsilon: 1, Delta: 0.1, MaxPartitionsContributed: 1}
+		s2, err := NewPreAggSelectPartition(options2)
 		if err != nil {
 			t.Errorf("Couldn't initialize s2: %v", err)
 		}
@@ -565,7 +568,8 @@ func TestPreAggSelectPartitionCheckMergeStateChecks(t *testing.T) {
 }
 
 func TestPreAggSelectPartitionResultSetsStateCorrectly(t *testing.T) {
-	s, err := NewPreAggSelectPartition(&PreAggSelectPartitionOptions{Epsilon: 1, Delta: 0.1, MaxPartitionsContributed: 1})
+	options := &PreAggSelectPartitionOptions{Epsilon: 1, Delta: 0.1, MaxPartitionsContributed: 1}
+	s, err := NewPreAggSelectPartition(options)
 	if err != nil {
 		t.Errorf("Couldn't initialize s: %v", err)
 	}

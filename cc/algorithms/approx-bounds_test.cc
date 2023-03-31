@@ -167,10 +167,10 @@ TEST(ApproxBoundsTest, AddMultipleEntriesInvalidNumberOfEntriesTest) {
 
   // Expect adding an invalid number of entries to be ignored.
   std::vector<int64_t> invalid_entries{0, -1,
-                                     std::numeric_limits<int64_t>::lowest()};
+                                       std::numeric_limits<int64_t>::lowest()};
   for (int64_t n_entries : invalid_entries) {
     ApproxBoundsTestPeer::AddMultipleEntries<int64_t>(1, n_entries,
-                                                    bounds.value().get());
+                                                      bounds.value().get());
   }
 
   absl::StatusOr<Output> result = (*bounds)->PartialResult();
@@ -456,7 +456,8 @@ TYPED_TEST(ApproxBoundsTest, ComputeFromPartialsCountValidityTest) {
   (*bounds)->template AddToPartials<TypeParam>(&pos_sum, 6, difference);
   (*bounds)->template AddToPartials<TypeParam>(&neg_sum, -3, difference);
 
-  std::vector<int64_t> invalid_entries{-1, std::numeric_limits<int64_t>::lowest()};
+  std::vector<int64_t> invalid_entries{-1,
+                                       std::numeric_limits<int64_t>::lowest()};
   absl::StatusOr<TypeParam> result;
   for (int64_t n_entries : invalid_entries) {
     result = (*bounds)->template ComputeFromPartials<TypeParam>(
@@ -865,7 +866,7 @@ TYPED_TEST(ApproxBoundsTest,
   std::vector<TypeParam> expected(n_bins, 0);
 
   std::vector<int64_t> invalid_entries{0, -1,
-                                     std::numeric_limits<int64_t>::lowest()};
+                                       std::numeric_limits<int64_t>::lowest()};
 
   for (int64_t n_entries : invalid_entries) {
     ApproxBoundsTestPeer::AddMultipleEntriesToPartials<TypeParam, TypeParam>(
@@ -1047,8 +1048,9 @@ TYPED_TEST(ApproxBoundsTest, OverflowComputeFromPartials) {
 
   std::vector<int64_t> neg_sum = {0, -1, -2, int64lowest};
   std::vector<int64_t> pos_sum = {0, 0, 0, 0};
-  absl::StatusOr<int64_t> result = (*bounds)->template ComputeFromPartials<int64_t>(
-      pos_sum, neg_sum, value_transform, int64lowest, int64max, 2);
+  absl::StatusOr<int64_t> result =
+      (*bounds)->template ComputeFromPartials<int64_t>(
+          pos_sum, neg_sum, value_transform, int64lowest, int64max, 2);
   ASSERT_OK(result);
   // The negative sums should overflow to positive
   EXPECT_GT(result.value(), 0);

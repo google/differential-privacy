@@ -64,6 +64,7 @@ func SelectPartitions(s beam.Scope, pcol PrivatePCollection, params SelectPartit
 	// Obtain type information from the underlying PCollection<K,V>.
 	_, pT := beam.ValidateKVType(pcol.col)
 
+	// TODO: Test code paths ln 82, ln 87, ln 93 instead of fatal log.
 	epsilon, delta, err := pcol.privacySpec.consumeBudget(params.Epsilon, params.Delta)
 	if err != nil {
 		log.Fatalf("Couldn't consume budget for SelectPartition: %v", err)
@@ -73,7 +74,8 @@ func SelectPartitions(s beam.Scope, pcol PrivatePCollection, params SelectPartit
 	if err != nil {
 		log.Fatalf("Couldn't get MaxPartitionsContributed for SelectPartitions: %v", err)
 	}
-	err = checkSelectPartitionsParams(epsilon, delta, maxPartitionsContributed)
+
+	err = checkSelectPartitionsParams(epsilon, delta)
 	if err != nil {
 		log.Fatalf("pbeam.SelectPartitions: %v", err)
 	}
@@ -111,7 +113,7 @@ func SelectPartitions(s beam.Scope, pcol PrivatePCollection, params SelectPartit
 	return result
 }
 
-func checkSelectPartitionsParams(epsilon, delta float64, maxPartitionsContributed int64) error {
+func checkSelectPartitionsParams(epsilon, delta float64) error {
 	err := checks.CheckEpsilon(epsilon)
 	if err != nil {
 		return err

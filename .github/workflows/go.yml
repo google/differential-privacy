@@ -9,6 +9,7 @@ on:
     branches-ignore:
     # Version 1.0 does not work with the "go" tool properly.
     - "1.0"
+  workflow_dispatch:
 
 jobs:
 

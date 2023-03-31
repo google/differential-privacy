@@ -17,20 +17,22 @@
 #include "algorithms/bounded-sum.h"
 
 #include <cmath>
-#include <cstdlib>
+#include <cstdint>
 #include <limits>
 #include <memory>
+#include <vector>
 
 #include "base/testing/proto_matchers.h"
 #include "base/testing/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "absl/memory/memory.h"
-#include "algorithms/algorithm.h"
+#include "absl/status/statusor.h"
 #include "algorithms/approx-bounds.h"
 #include "algorithms/numerical-mechanisms-testing.h"
 #include "algorithms/numerical-mechanisms.h"
 #include "proto/util.h"
+#include "proto/confidence-interval.pb.h"
+#include "proto/data.pb.h"
 
 namespace differential_privacy {
 namespace {
@@ -255,6 +257,33 @@ TEST(BoundedSumTest, ConfidenceIntervalWithLaplaceTest) {
   // being set.
   EXPECT_THAT((*result).error_report().noise_confidence_interval(),
               EqualsProto(wantConfidenceInterval));
+}
+
+TYPED_TEST(BoundedSumTest, GetOutputConfidenceInterval) {
+  std::unique_ptr<BoundedSum<TypeParam>> bounded_sum =
+      typename BoundedSum<TypeParam>::Builder()
+          .SetEpsilon(0.3)
+          .SetLaplaceMechanism(std::make_unique<LaplaceMechanism::Builder>())
+          .SetLower(1)
+          .SetUpper(5)
+          .Build()
+          .value();
+  Output output = bounded_sum->PartialResult().value();
+
+  absl::StatusOr<ConfidenceInterval> actualCI =
+      bounded_sum->GetOutputConfidenceInterval(output, 0.95);
+
+  // We're using Laplace noise with scale b = (L1 sensitivity / epsilon), where
+  // L1 sensitivity is max(1, 5). For a value x >= 0, the CDF of the Laplace
+  // noise is F(x) = 1 - 0.5 * exp( -x / b). The radius of the CI with
+  // confidence level 0.95 is equal to the value of x that satisfies F(x) =
+  // 0.975. Solving this equation for x gives us:
+  double interval_radius = 5 * -std::log(1 - 0.95) / 0.3;
+  ConfidenceInterval expectedCI;
+  expectedCI.set_lower_bound(GetValue<TypeParam>(output) - interval_radius);
+  expectedCI.set_upper_bound(GetValue<TypeParam>(output) + interval_radius);
+  expectedCI.set_confidence_level(0.95);
+  EXPECT_THAT(actualCI, IsOkAndHolds(EqualsProto(expectedCI)));
 }
 
 TYPED_TEST(BoundedSumTest, BoundGettersForFixedBounds) {
@@ -928,6 +957,65 @@ TEST(BoundedSumTest, ApproxBoundsOnInt64LowestUsesFullRangeBounds) {
   EXPECT_EQ(
       GetValue<int64_t>(result->error_report().bounding_report().upper_bound()),
       std::numeric_limits<int64_t>::max());
+}
+
+TEST(BoundedSumTest, WithApproxBoundsGetOutputConfidenceInterval) {
+  std::unique_ptr<BoundedSum<double>> bounded_sum =
+      typename BoundedSum<double>::Builder()
+          .SetEpsilon(0.3)
+          .SetLaplaceMechanism(std::make_unique<LaplaceMechanism::Builder>())
+          .Build()
+          .value();
+  for (int i = 0; i < 1000; ++i) {
+    bounded_sum->AddEntry(1.2);
+  }
+  Output output = bounded_sum->PartialResult().value();
+
+  absl::StatusOr<ConfidenceInterval> actualCI =
+      bounded_sum->GetOutputConfidenceInterval(output, 0.95);
+
+  // We're using Laplace noise with scale b = (L1 sensitivity / epsilon), where
+  // L1 sensitivity is max(1, 2) and we only use half of the epsilon for adding
+  // noise. For a value x >= 0, the CDF of the Laplace noise is F(x) = 1 - 0.5 *
+  // exp( -x / b). The radius of the CI with confidence level 0.95 is equal to
+  // the value of x that satisfies F(x) = 0.975. Solving this equation for x
+  // gives us:
+  double interval_radius = 2 * -std::log(1 - 0.95) / 0.15;
+  ConfidenceInterval expectedCI;
+  expectedCI.set_lower_bound(GetValue<double>(output) - interval_radius);
+  expectedCI.set_upper_bound(GetValue<double>(output) + interval_radius);
+  expectedCI.set_confidence_level(0.95);
+  EXPECT_THAT(actualCI, IsOkAndHolds(EqualsProto(expectedCI)));
+}
+
+TEST(BoundedSumTest, WithNoBoundingReportGivesUsefulError) {
+  std::unique_ptr<BoundedSum<double>> bounded_sum_with_approx_bounds =
+      typename BoundedSum<double>::Builder()
+          .SetEpsilon(0.3)
+          .SetLaplaceMechanism(std::make_unique<LaplaceMechanism::Builder>())
+          .Build()
+          .value();
+  Output no_error_report_output;
+  Output no_bounding_report_output;
+  no_bounding_report_output.mutable_error_report();
+
+  absl::StatusOr<ConfidenceInterval> no_error_report_result =
+      bounded_sum_with_approx_bounds->GetOutputConfidenceInterval(
+          no_error_report_output, 0.95);
+  absl::StatusOr<ConfidenceInterval> no_bounding_report_result =
+      bounded_sum_with_approx_bounds->GetOutputConfidenceInterval(
+          no_bounding_report_output, 0.95);
+
+  ASSERT_THAT(
+      no_error_report_result,
+      StatusIs(
+          absl::StatusCode::kInvalidArgument,
+          HasSubstr("Expected Output proto to contain a bounding report")));
+  ASSERT_THAT(
+      no_bounding_report_result,
+      StatusIs(
+          absl::StatusCode::kInvalidArgument,
+          HasSubstr("Expected Output proto to contain a bounding report")));
 }
 
 }  //  namespace

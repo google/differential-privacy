@@ -183,8 +183,8 @@ TEST(StochasticDifferentialPrivacyTest, CountNonBranchingSearch) {
           .Build()
           .value();
   StochasticTester<int64_t> tester(std::move(algorithm), std::move(sequence),
-                                 /*num_datasets=*/1, kNumSamplesPerHistogram,
-                                 /*disable_search_branching=*/true);
+                                   /*num_datasets=*/1, kNumSamplesPerHistogram,
+                                   /*disable_search_branching=*/true);
   EXPECT_TRUE(tester.Run());
 }
 

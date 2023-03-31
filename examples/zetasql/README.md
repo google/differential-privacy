@@ -15,16 +15,12 @@ explaining some of the DP concepts and results can be found [here](codelab.md).
 
 ## How to Build
 
-In order to run the ZetaSQL DP CLI, you need to install Bazel version 1.0.0, if
-you don't have it already. To install Bazel, follow the
-[instructions for your platform on the Bazel website](https://docs.bazel.build/versions/main/install.html).
-If this requires you to manage multiple Bazel versions, consider using
-[Bazelisk](https://docs.bazel.build/versions/main/updating-bazel.html#managing-bazel-versions-with-bazelisk).
+In order to run the ZetaSQL DP CLI, you need to install Bazel. We recommend
+using
+[Bazelisk](https://docs.bazel.build/versions/main/updating-bazel.html#managing-bazel-versions-with-bazelisk)
+to manage different versions of Bazel.
 
-You also need to install Git, if you don't have it already.
-[Follow the instructions for your platform on the Git website](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git).
-
-Once you've installed Bazel and Git, open a Terminal and clone the differential
+Once you've installed Bazelisk and Git, open a Terminal and clone the differential
 privacy directory into a local folder:
 ```git clone https://github.com/google/differential-privacy.git```
 
@@ -33,7 +29,7 @@ Alternatively, you could download the source code via:
 
 Navigate into the ```differential-privacy/examples/zetasql``` folder that was
 just created, and build the ZetaSQL DP CLI and dependencies using Bazel:
-``` bazel build execute_query ```
+``` bazelisk build execute_query ```
 
 Once built, the ZetaSQL DP CLI should be ready to use.
 
@@ -43,7 +39,7 @@ The ZetaSQL DP CLI can be run from the
 ```differential-privacy/examples/zetasql``` folder with the following command:
 
 ```shell
-bazel run execute_query -- --data_set=<path_to_csv_file> --userid_col=<userid_column_name_in_data_set> <sql_statement>
+bazelisk run execute_query -- --data_set=<path_to_csv_file> --userid_col=<userid_column_name_in_data_set> <sql_statement>
 ```
 
 The command requires the following arguments:
@@ -76,7 +72,7 @@ average of how long visitors stayed in the restaurant and the DP sum of how much
 money people spent in the restaurant each hour:
 
 ```shell
-bazel run execute_query -- --data_set=$(pwd)/data/day_data.csv --userid_col=VisitorId \
+bazelisk run execute_query -- --data_set=$(pwd)/data/day_data.csv --userid_col=VisitorId \
 'SELECT WITH ANONYMIZATION OPTIONS(epsilon=1, delta=1e-10, kappa=1)
    TIME_TRUNC(PARSE_TIME("%I:%M%p", `Time entered`), HOUR) AS `Hour entered`,
    ANON_AVG(CAST (`Time spent (mins)` AS INT32) CLAMPED BETWEEN 10 AND 120) AS `DP average time spent (mins)`,

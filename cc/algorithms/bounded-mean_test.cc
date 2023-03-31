@@ -223,7 +223,7 @@ TYPED_TEST(BoundedMeanTest, AddMultipleEntriesInvalidNumberOfEntriesTest) {
   (*mean)->AddEntry(4);
 
   std::vector<int64_t> invalid_entries{0, -1,
-                                     std::numeric_limits<int64_t>::lowest()};
+                                       std::numeric_limits<int64_t>::lowest()};
   for (int64_t n_entries : invalid_entries) {
     BoundedMeanTestPeer::AddMultipleEntries<TypeParam>(1, n_entries,
                                                        mean.value().get());

@@ -283,7 +283,7 @@ TEST(StochasticTesterTest, MultipleDatasetBoundedSumTest) {
           .Build();
   ASSERT_TRUE(algorithm.ok());
   StochasticTester<double, int64_t> tester(std::move(*algorithm),
-                                         std::move(sequence));
+                                           std::move(sequence));
   EXPECT_TRUE(tester.Run());
 }
 

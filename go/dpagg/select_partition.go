@@ -48,17 +48,21 @@ import (
 // differentially private by applying the definition of differential privacy to
 // the count of privacy IDs. Supposing l0Sensitivity bounds the number of partitions
 // a privacy ID may contribute to, we define:
-//     pε := ε/l0Sensitivity
-//     pδ := δ/l0Sensitivity
+//
+//	pε := ε/l0Sensitivity
+//	pδ := δ/l0Sensitivity
+//
 // to be the per-partition differential privacy losses incurred by the partition
 // selection process. Letting n denote the number of privacy IDs in a partition,
 // the probability of selecting a partition is given by the following recurrence
 // relation:
-//   keepPartitionProbability(n) = min(
-//           keepPartitionProbability(n-1) * exp(pε) + pδ,              (1)
-//           1 - exp(-pε) * (1-keepPartitionProbability(n-1)-pδ),       (2)
-//           1                                                   (3)
-//       )
+//
+//	keepPartitionProbability(n) = min(
+//	        keepPartitionProbability(n-1) * exp(pε) + pδ,              (1)
+//	        1 - exp(-pε) * (1-keepPartitionProbability(n-1)-pδ),       (2)
+//	        1                                                   (3)
+//	    )
+//
 // with base case keepPartitionProbability(0) = 0. This formula is optimal in terms of
 // maximizing the likelihood of selecting a partition under (ε,δ)-differential
 // privacy, with the caveat that the input values for pε and pδ are lower bound
@@ -99,7 +103,7 @@ func preAggSelectPartitionEquallyInitialized(s1, s2 *PreAggSelectPartition) bool
 	return s1.epsilon == s2.epsilon &&
 		s1.delta == s2.delta &&
 		s1.l0Sensitivity == s2.l0Sensitivity &&
-		s1.state == s2.state
+	s1.state == s2.state
 }
 
 // PreAggSelectPartitionOptions is used to set the privacy parameters when
@@ -107,8 +111,8 @@ func preAggSelectPartitionEquallyInitialized(s1, s2 *PreAggSelectPartition) bool
 type PreAggSelectPartitionOptions struct {
 	// Epsilon and Delta specify the (ε,δ)-differential privacy budget used for
 	// partition selection. Required.
-	Epsilon float64
-	Delta   float64
+	Epsilon      float64
+	Delta        float64
 	// MaxPartitionsContributed is the number of distinct partitions a single
 	// privacy unit can contribute to. Required.
 	MaxPartitionsContributed int64
@@ -214,7 +218,8 @@ func (s *PreAggSelectPartition) ShouldKeepPartition() (bool, error) {
 }
 
 // sumExpPowers returns the evaluation of
-//   exp(minPower * ε) + exp((minPower+1) * ε) + ... + exp((numPowers+minPower-1) * ε)
+//
+//	exp(minPower * ε) + exp((minPower+1) * ε) + ... + exp((numPowers+minPower-1) * ε)
 //
 // sumExpPowers requires ε >= 0. sumExpPowers may return +∞, but does not return
 // NaN.

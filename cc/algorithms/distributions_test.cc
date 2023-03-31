@@ -176,12 +176,12 @@ TEST(LaplaceCalculateGranularityTest, InvalidParameters) {
                        HasSubstr("Sensitivity must be a valid numeric value")));
 
   // Test epsilon < 2^-50. See (broken link)
-  EXPECT_THAT(LaplaceDistribution::CalculateGranularity(1.0 / (int64_t{1} << 51),
-                                                        valid_param),
+  EXPECT_THAT(LaplaceDistribution::CalculateGranularity(
+                  1.0 / (int64_t{1} << 51), valid_param),
               StatusIs(absl::StatusCode::kInvalidArgument,
                        HasSubstr("Epsilon must be at least 2^-50")));
-  EXPECT_THAT(LaplaceDistribution::CalculateGranularity(1.0 / (int64_t{1} << 50),
-                                                        valid_param),
+  EXPECT_THAT(LaplaceDistribution::CalculateGranularity(
+                  1.0 / (int64_t{1} << 50), valid_param),
               StatusIs(absl::StatusCode::kOk));
 }
 

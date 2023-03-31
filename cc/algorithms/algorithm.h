@@ -145,15 +145,33 @@ class Algorithm {
   // If the returned value is <x,y>, then the noise added has a confidence_level
   // chance of being in the domain [x,y].
   //
-  // By default, NoiseConfidenceInterval() returns an error. Algorithms for
-  // which a confidence interval can feasibly be calculated override this and
-  // output the relevant value.
-  // Conservatively, we do not release the error rate for algorithms whose
-  // confidence intervals rely on input size.
+  // By default, this method returns an error. Algorithms for which a confidence
+  // interval can feasibly be calculated override this method. Conservatively,
+  // we do not release the error rate for algorithms whose confidence intervals
+  // depend on the size of the input.
   virtual absl::StatusOr<ConfidenceInterval> NoiseConfidenceInterval(
       double confidence_level) {
     return absl::UnimplementedError(
         "NoiseConfidenceInterval() unsupported for this algorithm");
+  }
+
+  // Returns a confidence interval with the requested confidence interval around
+  // the aggregation value after contribution bounding but before noise
+  // addition.
+  //
+  // confidence_level must be in the open interval (0, 1).
+  //
+  // By default, this method returns an error. Algorithms for which a confidence
+  // interval can feasibly be calculated override this method. Conservatively,
+  // we do not release the error rate for algorithms whose confidence intervals
+  // depend on the size of the input.
+  //
+  // This method is still experimental and is not yet supported for most
+  // implementations of algorithm.
+  virtual absl::StatusOr<ConfidenceInterval> GetOutputConfidenceInterval(
+      const Output& output, double confidence_level) const {
+    return absl::UnimplementedError(
+        "GetOutputConfidenceInterval() unsupported for this algorithm");
   }
 
   virtual double GetEpsilon() const { return epsilon_; }

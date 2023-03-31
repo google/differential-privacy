@@ -117,7 +117,7 @@ TYPED_TEST(CountTest, AddMultipleEntriesInvalidNumberOfEntriesTest) {
   ASSERT_OK(count);
 
   std::vector<int64_t> invalid_entries{-1, -10,
-                                     std::numeric_limits<int64_t>::lowest()};
+                                       std::numeric_limits<int64_t>::lowest()};
   for (int64_t n_entries : invalid_entries) {
     CountTestPeer::AddMultipleEntries<TypeParam>(1, n_entries,
                                                  count.value().get());
@@ -185,8 +185,8 @@ TEST(CountTest, BasicOverflowTest) {
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
 
-  CountTestPeer::AddMultipleEntries<int64_t>(1, std::numeric_limits<int64_t>::max(),
-                                           &**count);
+  CountTestPeer::AddMultipleEntries<int64_t>(
+      1, std::numeric_limits<int64_t>::max(), &**count);
   (*count)->AddEntry(1);
 
   auto result = (*count)->PartialResult();
@@ -262,8 +262,8 @@ TEST(CountTest, SerializeAndMergeOverflowTest) {
   absl::StatusOr<std::unique_ptr<Count<int64_t>>> count1 =
       builder.SetEpsilon(kDefaultEpsilon).Build();
   ASSERT_OK(count1);
-  CountTestPeer::AddMultipleEntries<int64_t>(1, std::numeric_limits<int64_t>::max(),
-                                           &**count1);
+  CountTestPeer::AddMultipleEntries<int64_t>(
+      1, std::numeric_limits<int64_t>::max(), &**count1);
   Summary summary = (*count1)->Serialize();
 
   absl::StatusOr<std::unique_ptr<Count<int64_t>>> count2 = builder.Build();
