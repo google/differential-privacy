@@ -15,7 +15,7 @@ def dp_java_deps():
             "com.google.guava:guava:31.1-jre",
             "com.google.protobuf:protobuf-java:3.22.2",
             # artifacts for testing only
-            "org.mockito:mockito-core:5.2.0",
+            "org.mockito:mockito-core:4.11.0",
             "junit:junit:4.13.2",
             "com.google.truth:truth:1.1.3",
             "com.google.truth.extensions:truth-java8-extension:1.1.3",
