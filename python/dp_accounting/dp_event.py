@@ -58,12 +58,22 @@ incorrect results, the following should be enforced:
  * `PrivacyAccountant` implementations are expected to return `supports(event)`
    is `False` when processing unknown mechanisms.
 """
-
-from typing import List, Union
+import importlib
+import typing
+from typing import NamedTuple, Protocol, Union
 
 import attr
 
 
+@typing.runtime_checkable
+class DpEventNamedTuple(Protocol):
+  _fields: tuple[str, ...]
+
+  module_name: str
+  class_name: str
+
+
+@attr.s(frozen=True)
 class DpEvent(object):
   """Represents application of a private mechanism.
 
@@ -71,6 +81,104 @@ class DpEvent(object):
   computing the associated privacy losses, both in isolation and in combination
   with other `DpEvent`s.
   """
+
+  def to_named_tuple(self) -> DpEventNamedTuple:
+    """Converts DpEvent to a NamedTuple representation.
+
+    This can be useful for passing around DpEvents in contexts where it is
+    undesirable to take dp_accounting as a dependency, or for serialization.
+
+    Returns:
+      NamedTuple representing the DpEvent.
+
+    Raises:
+      ValueError: This type of DpEvent is not convertable to NamedTuple. This
+        could happen for example if the DpEvent has private fields or has a
+        field with init = False.
+    """
+    cls = type(self)
+    _check_attrs_cls_for_known_errors(cls)
+
+    fields = [('module_name', str), ('class_name', str)]
+    fields.extend([(x.name, x.type) for x in attr.fields(cls)])
+    named_tuple_wrapper_name = f'_{cls.__name__}NamedTupleWrapper'
+    _NamedTupleWrapper = NamedTuple(named_tuple_wrapper_name, fields)  # pylint: disable=invalid-name
+
+    values = {'module_name': cls.__module__, 'class_name': cls.__name__}
+    for key, value in attr.asdict(self, recurse=False).items():
+      if attr.has(type(value)):
+        value = value.to_named_tuple()
+      values[key] = value
+
+    return _NamedTupleWrapper(**values)
+
+  @classmethod
+  def from_named_tuple(cls, obj: DpEventNamedTuple) -> 'DpEvent':
+    """Converts NamedTuple representation to corresponding DpEvent.
+
+    This can be useful for passing around DpEvents in contexts where it is
+    undesirable to take dp_accounting as a dependency, or for serialization.
+
+    Args:
+      obj: The NamedTuple to convert to a DpEvent.
+
+    Returns:
+      The DpEvent corresponding to the NamedTuple.
+
+    Raises:
+      ValueError: This type of DpEvent is not convertable to NamedTuple. This
+        could happen for example if the DpEvent has private fields or has a
+        field with init = False.
+    """
+    module_name = obj.module_name
+    if isinstance(module_name, bytes):
+      module_name = module_name.decode()
+    class_name = obj.class_name
+    if isinstance(class_name, bytes):
+      class_name = class_name.decode()
+    module = importlib.import_module(module_name)
+    subcls = getattr(module, class_name)
+
+    fields = set(obj._fields) - set(['module_name', 'class_name'])
+    values = {}
+    for field in fields:
+      value = getattr(obj, field)
+      if isinstance(value, DpEventNamedTuple):
+        value = subcls.from_named_tuple(value)
+      values[field] = value
+    try:
+      return subcls(**values)
+    except Exception as e:
+      _check_attrs_cls_for_known_errors(subcls)
+      raise e
+
+
+def _check_attrs_cls_for_known_errors(cls: type[DpEvent]) -> None:
+  """Checks properties of attrs that are not compatible with NamedTuple.
+
+  Args:
+    cls: Class type to check.
+
+  Raises:
+    ValueError: cls is incompatible with conversion to NamedTuple.
+  """
+  if not attr.has(cls):
+    raise ValueError(
+        f'Expected `cls` to be an `attrs` decorated class, found `{cls}`.'
+    )
+  for field in attr.fields(cls):
+    if field.name.startswith('_'):
+      raise ValueError(
+          'Expected all fields on the `attrs` decorated class to be public, '
+          f'found `{cls}` has a field `{field.name}` thats starts with `_`, '
+          'making it private.'
+      )
+    if not field.init:
+      raise ValueError(
+          'Expected all fields on the `attrs` decorated class to set `init` to '
+          f'True, found `{cls}` has a field `{field.name}` that set `init` to '
+          'False.'
+      )
 
 
 @attr.s(frozen=True)
@@ -150,7 +258,7 @@ class ComposedDpEvent(DpEvent):
   The composition may be adaptive, where the query producing each event depends
   on the results of prior queries.
   """
-  events: List[DpEvent]
+  events: list[DpEvent]
 
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
@@ -211,7 +319,7 @@ class SingleEpochTreeAggregationDpEvent(DpEvent):
       tree.
   """
   noise_multiplier: float
-  step_counts: Union[int, List[int]]
+  step_counts: Union[int, list[int]]
 
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
@@ -232,5 +340,3 @@ class RepeatAndSelectDpEvent(DpEvent):
   event: DpEvent
   mean: float
   shape: float
-
-

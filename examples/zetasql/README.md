@@ -96,6 +96,9 @@ the [codelab](codelab.md).
    ZetaSQL on Mac. We're working on a solution, but if you are interested in
    trying this now, using Bazelisk and Homebrew could work.
 1. Windows is currently not a supported configuration.
+1. In case we are running out of memory, try using the
+   `--evaluator_max_value_byte_size` and
+   `--evaluator_max_intermediate_byte_size` flags to increase the max memory.
 
 We will continue to publish updates and improvements to the library. Please
 [reach out](https://github.com/google/differential-privacy#reach-out) to us with

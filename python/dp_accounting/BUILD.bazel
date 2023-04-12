@@ -75,6 +75,17 @@ py_library(
     ],
 )
 
+py_test(
+    name = "dp_event_test",
+    srcs = ["dp_event_test.py"],
+    python_version = "PY3",
+    srcs_version = "PY3",
+    deps = [
+        ":dp_event",
+        requirement("absl-py"),
+    ],
+)
+
 py_library(
     name = "dp_event_builder",
     srcs = ["dp_event_builder.py"],
