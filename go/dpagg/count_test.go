@@ -22,8 +22,8 @@ import (
 	"testing"
 
 	"github.com/google/differential-privacy/go/v2/noise"
+	"github.com/google/differential-privacy/go/v2/stattestutils"
 	"github.com/google/go-cmp/cmp"
-	"github.com/grd/stat"
 )
 
 func TestNewCount(t *testing.T) {
@@ -771,19 +771,20 @@ func TestCountIsUnbiased(t *testing.T) {
 			variance: 1.8, // approximated via a simulation
 		},
 	} {
-		countSamples := make(stat.IntSlice, numberOfSamples)
+		countSamples := make([]float64, numberOfSamples)
 		for i := 0; i < numberOfSamples; i++ {
 			count, err := NewCount(tc.opt)
 			if err != nil {
 				t.Fatalf("Couldn't initialize count: %v", err)
 			}
 			count.IncrementBy(tc.rawCount)
-			countSamples[i], err = count.Result()
+			intSample, err := count.Result()
 			if err != nil {
 				t.Fatalf("Couldn't compute dp result: %v", err)
 			}
+			countSamples[i] = float64(intSample)
 		}
-		sampleMean := stat.Mean(countSamples)
+		sampleMean := stattestutils.SampleMean(countSamples)
 		// Assuming that count is unbiased, each sample should have a mean of tc.rawCount
 		// and a variance of tc.variance. The resulting sampleMean is approximately Gaussian
 		// distributed with the same mean and a variance of tc.variance / numberOfSamples.

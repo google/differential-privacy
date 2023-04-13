@@ -22,8 +22,8 @@ import (
 	"testing"
 
 	"github.com/google/differential-privacy/go/v2/noise"
+	"github.com/google/differential-privacy/go/v2/stattestutils"
 	"github.com/google/go-cmp/cmp"
-	"github.com/grd/stat"
 )
 
 func getNoiselessBSI(t *testing.T) *BoundedSumInt64 {
@@ -1861,19 +1861,20 @@ func TestBoundedSumInt64IsUnbiased(t *testing.T) {
 			variance: 1.8, // approximated via a simulation
 		},
 	} {
-		sumSamples := make(stat.IntSlice, numberOfSamples)
+		sumSamples := make([]float64, numberOfSamples)
 		for i := 0; i < numberOfSamples; i++ {
 			sum, err := NewBoundedSumInt64(tc.opt)
 			if err != nil {
 				t.Fatalf("Couldn't initialize sum: %v", err)
 			}
 			sum.Add(tc.rawEntry)
-			sumSamples[i], err = sum.Result()
+			intSample, err := sum.Result()
 			if err != nil {
 				t.Fatalf("Couldn't compute dp result: %v", err)
 			}
+			sumSamples[i] = float64(intSample)
 		}
-		sampleMean := stat.Mean(sumSamples)
+		sampleMean := stattestutils.SampleMean(sumSamples)
 		// Assuming that sum is unbiased, each sample should have a mean of tc.rawEntry
 		// and a variance of tc.variance. The resulting sampleMean is approximately Gaussian
 		// distributed with the same mean and a variance of tc.variance / numberOfSamples.
@@ -2040,7 +2041,7 @@ func TestBoundedSumFloat64IsUnbiased(t *testing.T) {
 			variance: 2.0 / (ln3 * ln3),
 		},
 	} {
-		sumSamples := make(stat.Float64Slice, numberOfSamples)
+		sumSamples := make([]float64, numberOfSamples)
 		for i := 0; i < numberOfSamples; i++ {
 			sum, err := NewBoundedSumFloat64(tc.opt)
 			if err != nil {
@@ -2052,7 +2053,7 @@ func TestBoundedSumFloat64IsUnbiased(t *testing.T) {
 				t.Fatalf("Couldn't compute dp result: %v", err)
 			}
 		}
-		sampleMean := stat.Mean(sumSamples)
+		sampleMean := stattestutils.SampleMean(sumSamples)
 		// Assuming that sum is unbiased, each sample should have a mean of tc.rawEntry
 		// and a variance of tc.variance. The resulting sampleMean is approximately Gaussian
 		// distributed with the same mean and a variance of tc.variance / numberOfSamples.

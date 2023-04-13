@@ -55,21 +55,21 @@ use [Gazelle](https://github.com/bazelbuild/bazel-gazelle):
 
    http_archive(
        name = "io_bazel_rules_go",
-       sha256 = "099a9fb96a376ccbbb7d291ed4ecbdfd42f6bc822ab77ae6f1b5cb9e914e94fa",
+       sha256 = "6b65cb7917b4d1709f9410ffe00ecf3e160edf674b78c54a894471320862184f",
        urls = [
-           "https://mirror.bazel.build/github.com/bazelbuild/rules_go/releases/download/v0.35.0/rules_go-v0.35.0.zip",
-           "https://github.com/bazelbuild/rules_go/releases/download/v0.35.0/rules_go-v0.35.0.zip",
+           "https://mirror.bazel.build/github.com/bazelbuild/rules_go/releases/download/v0.39.0/rules_go-v0.39.0.zip",
+            "https://github.com/bazelbuild/rules_go/releases/download/v0.39.0/rules_go-v0.39.0.zip",
        ],
    )
 
-   http_archive(
-       name = "bazel_gazelle",
-       sha256 = "448e37e0dbf61d6fa8f00aaa12d191745e14f07c31cabfa731f0c8e8a4f41b97",
-       urls = [
-           "https://mirror.bazel.build/github.com/bazelbuild/bazel-gazelle/releases/download/v0.28.0/bazel-gazelle-v0.28.0.tar.gz",
-           "https://github.com/bazelbuild/bazel-gazelle/releases/download/v0.28.0/bazel-gazelle-v0.28.0.tar.gz",
-       ],
-   )
+  http_archive(
+      name = "bazel_gazelle",
+      sha256 = "ecba0f04f96b4960a5b250c8e8eeec42281035970aa8852dda73098274d14a1d",
+      urls = [
+          "https://mirror.bazel.build/github.com/bazelbuild/bazel-gazelle/releases/download/v0.29.0/bazel-gazelle-v0.29.0.tar.gz",
+          "https://github.com/bazelbuild/bazel-gazelle/releases/download/v0.29.0/bazel-gazelle-v0.29.0.tar.gz",
+      ],
+  )
 
    http_archive(
        name = "com_google_protobuf",
@@ -82,7 +82,7 @@ use [Gazelle](https://github.com/bazelbuild/bazel-gazelle):
 
    go_rules_dependencies()
 
-   go_register_toolchains(version = "1.18.3")
+   go_register_toolchains(version = "1.19.5")
 
    # Protobuf transitive dependencies.
    load("@com_google_protobuf//:protobuf_deps.bzl", "protobuf_deps")

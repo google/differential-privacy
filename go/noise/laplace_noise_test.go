@@ -21,7 +21,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/grd/stat"
+	"github.com/google/differential-privacy/go/v2/stattestutils"
 )
 
 func TestLaplaceStatistics(t *testing.T) {
@@ -74,14 +74,14 @@ func TestLaplaceStatistics(t *testing.T) {
 		},
 	} {
 		var err error
-		noisedSamples := make(stat.Float64Slice, numberOfSamples)
+		noisedSamples := make([]float64, numberOfSamples)
 		for i := 0; i < numberOfSamples; i++ {
 			noisedSamples[i], err = lap.AddNoiseFloat64(tc.mean, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, 0)
 			if err != nil {
 				t.Fatalf("Couldn't noise samples: %v", err)
 			}
 		}
-		sampleMean, sampleVariance := stat.Mean(noisedSamples), stat.Variance(noisedSamples)
+		mean, variance := stattestutils.SampleMean(noisedSamples), stattestutils.SampleVariance(noisedSamples)
 		// Assuming that the Laplace samples have a mean of 0 and the specified variance of tc.variance,
 		// sampleMeanFloat64 and sampleMeanInt64 are approximately Gaussian distributed with a mean of 0
 		// and standard deviation of sqrt(tc.variance⁻ / numberOfSamples).
@@ -97,11 +97,11 @@ func TestLaplaceStatistics(t *testing.T) {
 		// the test falsely rejects with a probability of 10⁻⁵.
 		varianceErrorTolerance := 4.41717 * math.Sqrt(5.0) * tc.variance / math.Sqrt(float64(numberOfSamples))
 
-		if !nearEqual(sampleMean, tc.mean, meanErrorTolerance) {
-			t.Errorf("float64 got mean = %f, want %f (parameters %+v)", sampleMean, tc.mean, tc)
+		if !nearEqual(mean, tc.mean, meanErrorTolerance) {
+			t.Errorf("float64 got mean = %f, want %f (parameters %+v)", mean, tc.mean, tc)
 		}
-		if !nearEqual(sampleVariance, tc.variance, varianceErrorTolerance) {
-			t.Errorf("float64 got variance = %f, want %f (parameters %+v)", sampleVariance, tc.variance, tc)
+		if !nearEqual(variance, tc.variance, varianceErrorTolerance) {
+			t.Errorf("float64 got variance = %f, want %f (parameters %+v)", variance, tc.variance, tc)
 		}
 	}
 }
@@ -855,21 +855,21 @@ func TestGeometricStatistics(t *testing.T) {
 			stdDev: 9999999.99999,
 		},
 	} {
-		geometricSamples := make(stat.IntSlice, numberOfSamples)
+		geometricSamples := make([]float64, numberOfSamples)
 		for i := 0; i < numberOfSamples; i++ {
-			geometricSamples[i] = geometric(tc.lambda)
+			geometricSamples[i] = float64(geometric(tc.lambda))
 		}
-		sampleMean := stat.Mean(geometricSamples)
+		mean := stattestutils.SampleMean(geometricSamples)
 		// Assuming that the geometric samples are distributed according to the specified lambda, the
-		// sampleMean is approximately Gaussian distributed with a mean of tc.mean and standard deviation
+		// mean is approximately Gaussian distributed with a mean of tc.mean and standard deviation
 		// of tc.stdDev / sqrt(numberOfSamples).
 		//
 		// The meanErrorTolerance is set to the 99.9995% quantile of the anticipated distribution
-		// of sampleMean. Thus, the test falsely rejects with a probability of 10⁻⁵.
+		// of mean. Thus, the test falsely rejects with a probability of 10⁻⁵.
 		meanErrorTolerance := 4.41717 * tc.stdDev / math.Sqrt(float64(numberOfSamples))
 
-		if !nearEqual(sampleMean, tc.mean, meanErrorTolerance) {
-			t.Errorf("got mean = %f, want %f (parameters %+v)", sampleMean, tc.mean, tc)
+		if !nearEqual(mean, tc.mean, meanErrorTolerance) {
+			t.Errorf("got mean = %f, want %f (parameters %+v)", mean, tc.mean, tc)
 		}
 	}
 }

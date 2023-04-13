@@ -21,7 +21,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/grd/stat"
+	"github.com/google/differential-privacy/go/v2/stattestutils"
 )
 
 func TestGaussianStatistics(t *testing.T) {
@@ -88,14 +88,14 @@ func TestGaussianStatistics(t *testing.T) {
 		},
 	} {
 		var err error
-		noisedSamples := make(stat.Float64Slice, numberOfSamples)
+		noisedSamples := make([]float64, numberOfSamples)
 		for i := 0; i < numberOfSamples; i++ {
 			noisedSamples[i], err = gauss.AddNoiseFloat64(tc.mean, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.delta)
 			if err != nil {
 				t.Fatalf("Couldn't noise samples: %v", err)
 			}
 		}
-		sampleMean, sampleVariance := stat.Mean(noisedSamples), stat.Variance(noisedSamples)
+		mean, variance := stattestutils.SampleMean(noisedSamples), stattestutils.SampleVariance(noisedSamples)
 		// Assuming that the Gaussian samples have a mean of 0 and the specified variance of tc.variance,
 		// sampleMeanFloat64 and sampleMeanInt64 are approximately Gaussian distributed with a mean of 0
 		// and standard deviation of sqrt(tc.variance⁻ / numberOfSamples).
@@ -111,11 +111,11 @@ func TestGaussianStatistics(t *testing.T) {
 		// the test falsely rejects with a probability of 10⁻⁵.
 		varianceErrorTolerance := 4.41717 * math.Sqrt2 * tc.variance / math.Sqrt(float64(numberOfSamples))
 
-		if !nearEqual(sampleMean, tc.mean, meanErrorTolerance) {
-			t.Errorf("float64 got mean = %f, want %f (parameters %+v)", sampleMean, tc.mean, tc)
+		if !nearEqual(mean, tc.mean, meanErrorTolerance) {
+			t.Errorf("float64 got mean = %f, want %f (parameters %+v)", mean, tc.mean, tc)
 		}
-		if !nearEqual(sampleVariance, tc.variance, varianceErrorTolerance) {
-			t.Errorf("float64 got variance = %f, want %f (parameters %+v)", sampleVariance, tc.variance, tc)
+		if !nearEqual(variance, tc.variance, varianceErrorTolerance) {
+			t.Errorf("float64 got variance = %f, want %f (parameters %+v)", variance, tc.variance, tc)
 			sigma := SigmaForGaussian(tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.delta)
 			t.Errorf("btw, true sigma is %f, squares to %f", sigma, sigma*sigma)
 		}
@@ -145,11 +145,11 @@ func TestSymmetricBinomialStatisitcs(t *testing.T) {
 			stdDev: 500000000.0,
 		},
 	} {
-		binomialSamples := make(stat.IntSlice, numberOfSamples)
+		binomialSamples := make([]float64, numberOfSamples)
 		for i := 0; i < numberOfSamples; i++ {
-			binomialSamples[i] = symmetricBinomial(tc.sqrtN)
+			binomialSamples[i] = float64(symmetricBinomial(tc.sqrtN))
 		}
-		sampleMean, sampleVariance := stat.Mean(binomialSamples), stat.Variance(binomialSamples)
+		mean, variance := stattestutils.SampleMean(binomialSamples), stattestutils.SampleVariance(binomialSamples)
 		// Assuming that the binomial samples have a mean of 0 and the specified standard deviation
 		// of tc.stdDev, sampleMean is approximately Gaussian-distributed with a mean of 0
 		// and standard deviation of tc.stdDev / sqrt(numberOfSamples).
@@ -165,11 +165,11 @@ func TestSymmetricBinomialStatisitcs(t *testing.T) {
 		// of sampleVariance. Thus, the test falsely rejects with a probability of 10⁻⁵.
 		varianceErrorTolerance := 4.41717 * math.Sqrt2 * math.Pow(tc.stdDev, 2.0) / math.Sqrt(float64(numberOfSamples))
 
-		if !nearEqual(sampleMean, tc.mean, meanErrorTolerance) {
-			t.Errorf("got mean = %f, want %f (parameters %+v)", sampleMean, tc.mean, tc)
+		if !nearEqual(mean, tc.mean, meanErrorTolerance) {
+			t.Errorf("got mean = %f, want %f (parameters %+v)", mean, tc.mean, tc)
 		}
-		if !nearEqual(sampleVariance, math.Pow(tc.stdDev, 2.0), varianceErrorTolerance) {
-			t.Errorf("got variance = %f, want %f (parameters %+v)", sampleVariance, math.Pow(tc.stdDev, 2.0), tc)
+		if !nearEqual(variance, math.Pow(tc.stdDev, 2.0), varianceErrorTolerance) {
+			t.Errorf("got variance = %f, want %f (parameters %+v)", variance, math.Pow(tc.stdDev, 2.0), tc)
 		}
 	}
 }

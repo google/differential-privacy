@@ -1,5 +1,5 @@
 #
-# Copyright 2020 Google LLC
+# Copyright 2023 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,35 +17,23 @@
 load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 load("@bazel_gazelle//:def.bzl", "gazelle")
 
-# gazelle:prefix github.com/google/differential-privacy/go/v2/noise
+# gazelle:prefix github.com/google/differential-privacy/go/v2/stattestutils
 gazelle(name = "gazelle")
 
 go_library(
     name = "go_default_library",
+    testonly = True,
     srcs = [
-        "gaussian_noise.go",
-        "laplace_noise.go",
-        "noise.go",
-        "secure_noise_math.go",
+        "stattestutils.go",
     ],
-    importpath = "github.com/google/differential-privacy/go/v2/noise",
+    importpath = "github.com/google/differential-privacy/go/v2/stattestutils",
     visibility = ["//visibility:public"],
-    deps = [
-        "//checks:go_default_library",
-        "//rand:go_default_library",
-        "@com_github_golang_glog//:go_default_library",
-        "@org_gonum_v1_gonum//stat/distuv:go_default_library",
-    ],
 )
 
 go_test(
     name = "go_default_test",
     srcs = [
-        "gaussian_noise_test.go",
-        "laplace_noise_test.go",
-        "noise_test.go",
-        "secure_noise_math_test.go",
+        "stattestutils_test.go",
     ],
     embed = [":go_default_library"],
-    deps = ["//stattestutils:go_default_library"],
 )

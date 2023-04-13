@@ -58,8 +58,8 @@ def go_differential_privacy_examples_deps():
     go_repository(
         name = "com_github_golang_glog",
         importpath = "github.com/golang/glog",
-        sum = "h1:nfP3RFugxnNRyKgeWd4oI1nYvXpxrx8ck8ZrcizshdQ=",
-        version = "v1.0.0",
+        sum = "h1:jxpi2eWoU84wbX9iIEyAeeoac3FLuifZpY9tcNUD9kw=",
+        version = "v1.1.1",
     )
     go_repository(
         name = "com_github_google_go_cmp",
@@ -89,8 +89,8 @@ def go_differential_privacy_examples_deps():
     go_repository(
         name = "org_golang_x_exp",
         importpath = "golang.org/x/exp",
-        sum = "h1:fiNkyhJPUvxbRPbCqY/D9qdjmPzfHcpK3P4bM4gioSY=",
-        version = "v0.0.0-20230118134722-a68e582fa157",
+        sum = "h1:ooxPy7fPvB4kwsA2h+iBNHkAbp/4JxTSwCmvdjEYmug=",
+        version = "v0.0.0-20230321023759-10a507213a29",
     )
     go_repository(
         name = "org_golang_x_image",
