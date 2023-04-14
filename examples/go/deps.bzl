@@ -67,12 +67,7 @@ def go_differential_privacy_examples_deps():
         sum = "h1:O2Tfq5qg4qc4AmwVlvv0oLiVAGB7enBSJ2x2DqQFi38=",
         version = "v0.5.9",
     )
-    go_repository(
-        name = "com_github_grd_stat",
-        importpath = "github.com/grd/stat",
-        sum = "h1:TVY1GBBIAAph4RWO9Y3p1wU+7n6khY1jxPKjDphzznA=",
-        version = "v0.0.0-20130623202159-138af3fd5012",
-    )
+
     go_repository(
         name = "ht_sr_git_sbinet_gg",
         importpath = "git.sr.ht/~sbinet/gg",

@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/golang/glog v1.1.1
-	github.com/google/differential-privacy/go/v2 v2.0.0
+	github.com/google/differential-privacy/go/v2 v2.1.0
 )
 
 require (

@@ -1,9 +1,8 @@
 github.com/golang/glog v1.1.1 h1:jxpi2eWoU84wbX9iIEyAeeoac3FLuifZpY9tcNUD9kw=
 github.com/golang/glog v1.1.1/go.mod h1:zR+okUeTbrL6EL3xHUDxZuEtGv04p5shwip1+mL/rLQ=
-github.com/google/differential-privacy/go/v2 v2.0.0 h1:fpeIax4LoJiUmz0p6+Emn5M+Q4dmjEH2tAsC9OEVsD8=
-github.com/google/differential-privacy/go/v2 v2.0.0/go.mod h1:5uMiDdXR2Mf0QT6xhtFIicXU0WQu2oVWjmKogBLrAQY=
+github.com/google/differential-privacy/go/v2 v2.1.0 h1:v3hCOAaUMnY7Fkk+osv3cgMXUAFqaI2l8agICV6IJl4=
+github.com/google/differential-privacy/go/v2 v2.1.0/go.mod h1:KRaNc5O0mzJ6cBC3iJbQNk9OHTzRLdmp1IXMaFlOxt8=
 github.com/google/go-cmp v0.5.9 h1:O2Tfq5qg4qc4AmwVlvv0oLiVAGB7enBSJ2x2DqQFi38=
-github.com/grd/stat v0.0.0-20130623202159-138af3fd5012 h1:TVY1GBBIAAph4RWO9Y3p1wU+7n6khY1jxPKjDphzznA=
 golang.org/x/exp v0.0.0-20230321023759-10a507213a29 h1:ooxPy7fPvB4kwsA2h+iBNHkAbp/4JxTSwCmvdjEYmug=
 golang.org/x/exp v0.0.0-20230321023759-10a507213a29/go.mod h1:CxIveKay+FTh1D0yPZemJVgC/95VzuuOLq5Qi4xnoYc=
 gonum.org/v1/gonum v0.12.0 h1:xKuo6hzt+gMav00meVPUlXwSdoEJP46BR+wdxQEFK2o=

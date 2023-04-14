@@ -412,12 +412,6 @@ def privacy_on_beam_deps():
         sum = "h1:IcsPKeInNvYi7eqSaDjiZqDDKu5rsmunY0Y1YupQSSQ=",
         version = "v2.7.0",
     )
-    go_repository(
-        name = "com_github_grd_stat",
-        importpath = "github.com/grd/stat",
-        sum = "h1:TVY1GBBIAAph4RWO9Y3p1wU+7n6khY1jxPKjDphzznA=",
-        version = "v0.0.0-20130623202159-138af3fd5012",
-    )
 
     go_repository(
         name = "com_github_inconshreveable_mousetrap",
