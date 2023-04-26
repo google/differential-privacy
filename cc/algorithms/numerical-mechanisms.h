@@ -211,10 +211,6 @@ class LaplaceMechanism : public NumericalMechanism {
 
    private:
     absl::optional<double> l1_sensitivity_;
-
-    // Returns the L1 sensitivity when it has been set or returns an upper bound
-    // on the L1 sensitivity calculated from L0 and Linf sensitivities.
-    absl::StatusOr<double> CalculateL1Sensitivity();
   };
 
   ABSL_DEPRECATED(

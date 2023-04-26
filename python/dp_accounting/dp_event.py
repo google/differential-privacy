@@ -58,6 +58,8 @@ incorrect results, the following should be enforced:
  * `PrivacyAccountant` implementations are expected to return `supports(event)`
    is `False` when processing unknown mechanisms.
 """
+
+from collections.abc import Mapping, Sequence
 import importlib
 import typing
 from typing import NamedTuple, Protocol, Union
@@ -104,10 +106,23 @@ class DpEvent(object):
     named_tuple_wrapper_name = f'_{cls.__name__}NamedTupleWrapper'
     _NamedTupleWrapper = NamedTuple(named_tuple_wrapper_name, fields)  # pylint: disable=invalid-name
 
+    def _to_named_tuple(value):
+      if attr.has(type(value)):
+        value = value.to_named_tuple()
+      return value
+
     values = {'module_name': cls.__module__, 'class_name': cls.__name__}
     for key, value in attr.asdict(self, recurse=False).items():
       if attr.has(type(value)):
-        value = value.to_named_tuple()
+        value = _to_named_tuple(value)
+      elif isinstance(value, Mapping):
+        elements = [(k, _to_named_tuple(v)) for k, v in value.items()]
+        mapping_type = type(value)
+        value = mapping_type(elements)
+      elif isinstance(value, Sequence):
+        elements = [_to_named_tuple(x) for x in value]
+        sequence_type = type(value)
+        value = sequence_type(elements)
       values[key] = value
 
     return _NamedTupleWrapper(**values)
@@ -130,6 +145,28 @@ class DpEvent(object):
         could happen for example if the DpEvent has private fields or has a
         field with init = False.
     """
+
+    def _from_named_tuple(value):
+      if isinstance(value, DpEventNamedTuple):
+        value = DpEvent.from_named_tuple(value)
+      return value
+
+    fields = set(obj._fields) - set(['module_name', 'class_name'])
+    values = {}
+    for field in fields:
+      value = getattr(obj, field)
+      if isinstance(value, DpEventNamedTuple):
+        value = _from_named_tuple(value)
+      elif isinstance(value, Mapping):
+        elements = [(k, _from_named_tuple(v)) for k, v in value.items()]
+        mapping_type = type(value)
+        value = mapping_type(elements)
+      elif isinstance(value, Sequence):
+        elements = [_from_named_tuple(x) for x in value]
+        sequence_type = type(value)
+        value = sequence_type(elements)
+      values[field] = value
+
     module_name = obj.module_name
     if isinstance(module_name, bytes):
       module_name = module_name.decode()
@@ -139,13 +176,6 @@ class DpEvent(object):
     module = importlib.import_module(module_name)
     subcls = getattr(module, class_name)
 
-    fields = set(obj._fields) - set(['module_name', 'class_name'])
-    values = {}
-    for field in fields:
-      value = getattr(obj, field)
-      if isinstance(value, DpEventNamedTuple):
-        value = subcls.from_named_tuple(value)
-      values[field] = value
     try:
       return subcls(**values)
     except Exception as e:

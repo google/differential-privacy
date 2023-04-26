@@ -125,6 +125,64 @@ TEST(NumericalMechanismsTest, LaplaceBuilderFailsEpsilonInfinity) {
   EXPECT_THAT(message, MatchesRegex("^Epsilon must be finite.*"));
 }
 
+TEST(NumericalMechanismsTest, LaplaceBuilderFailsNoSensitivities) {
+  LaplaceMechanism::Builder test_builder;
+  auto failed_build = test_builder.SetEpsilon(1).Build();
+  EXPECT_THAT(failed_build.status().code(),
+              Eq(absl::StatusCode::kInvalidArgument));
+  // Convert message to std::string so that the matcher works in the open source
+  // version.
+  std::string message(failed_build.status().message());
+  EXPECT_THAT(message,
+              HasSubstr("LaplaceMechanism requires either L1 or (L0 and LInf) "
+                        "sensitivities to be set, but none were set"));
+}
+
+TEST(NumericalMechanismsTest, LaplaceBuilderFailsOnlyL0Set) {
+  LaplaceMechanism::Builder test_builder;
+  auto failed_build = test_builder.SetL0Sensitivity(1).SetEpsilon(1).Build();
+  EXPECT_THAT(failed_build.status().code(),
+              Eq(absl::StatusCode::kInvalidArgument));
+  // Convert message to std::string so that the matcher works in the open source
+  // version.
+  std::string message(failed_build.status().message());
+  EXPECT_THAT(message,
+              HasSubstr("LaplaceMechanism requires either L1 or (L0 and LInf) "
+                        "sensitivities to be set, but only L0 was set"));
+}
+
+TEST(NumericalMechanismsTest, LaplaceBuilderFailsOnlyLInfSet) {
+  LaplaceMechanism::Builder test_builder;
+  auto failed_build = test_builder.SetLInfSensitivity(1).SetEpsilon(1).Build();
+  EXPECT_THAT(failed_build.status().code(),
+              Eq(absl::StatusCode::kInvalidArgument));
+  // Convert message to std::string so that the matcher works in the open source
+  // version.
+  std::string message(failed_build.status().message());
+  EXPECT_THAT(message,
+              HasSubstr("LaplaceMechanism requires either L1 or (L0 and LInf) "
+                        "sensitivities to be set, but only LInf was set"));
+}
+
+TEST(NumericalMechanismsTest, LaplaceBuilderFailsCalculatedL1NotFinite) {
+  LaplaceMechanism::Builder test_builder;
+  const double high_sensitivity = std::numeric_limits<double>::max() - 1.0;
+  auto failed_build = test_builder.SetL0Sensitivity(high_sensitivity)
+                          .SetLInfSensitivity(high_sensitivity)
+                          .SetEpsilon(1)
+                          .Build();
+  EXPECT_THAT(failed_build.status().code(),
+              Eq(absl::StatusCode::kInvalidArgument));
+  // Convert message to std::string so that the matcher works in the open source
+  // version.
+  std::string message(failed_build.status().message());
+  EXPECT_THAT(
+      message,
+      HasSubstr(
+          "The result of the L1 sensitivity calculation is not finite: inf. "
+          "Please check your contribution and sensitivity settings"));
+}
+
 TEST(NumericalMechanismsTest, LaplaceBuilderFailsL1SensitivityZero) {
   LaplaceMechanism::Builder test_builder;
   auto failed_build = test_builder.SetL1Sensitivity(0).SetEpsilon(1).Build();

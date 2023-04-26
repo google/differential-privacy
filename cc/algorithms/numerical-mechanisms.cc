@@ -28,6 +28,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_format.h"
 #include "absl/types/optional.h"
 #include "algorithms/internal/gaussian-stddev-calculator.h"
 #include "base/status_macros.h"
@@ -43,15 +44,70 @@ const double kMaxOverflowProbability = std::pow(2.0, -64);
 // privacy given the sensitivities.
 constexpr double kGaussianSigmaAccuracy = 1e-3;
 
+// Validates and returns the calculated L1 sensitivity based on the L0 and LInf
+// sensitivities.
+absl::StatusOr<double> CalculateL1SensitivityFromL0AndLInf(
+    double l0_sensitivity, double linf_sensitivity) {
+  RETURN_IF_ERROR(
+      ValidateIsFiniteAndPositive(l0_sensitivity, "L0 sensitivity"));
+  RETURN_IF_ERROR(
+      ValidateIsFiniteAndPositive(linf_sensitivity, "LInf sensitivity"));
+  const double l1_sensitivity = l0_sensitivity * linf_sensitivity;
+  if (!std::isfinite(l1_sensitivity)) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "The result of the L1 sensitivity calculation is not finite: %g. "
+        "Please check your contribution and sensitivity settings.",
+        l1_sensitivity));
+  }
+  if (l1_sensitivity == 0) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "The result of the L1 sensitivity calculation is 0, likely because "
+        "either L0 sensitivity (%g) and/or LInf sensitivity (%g) are too "
+        "small. Please check your contribution and sensitivity settings.",
+        l0_sensitivity, linf_sensitivity));
+  }
+  return l1_sensitivity;
+}
+
+// Validates and returns either (1) the L1 sensitivity directly, or (2) the L1
+// sensitivity calculated from L0 and LInf, depending on which of the parameters
+// are available.
+absl::StatusOr<double> CalculateL1Sensitivity(
+    std::optional<double> l0_sensitivity, std::optional<double> l1_sensitivity,
+    std::optional<double> linf_sensitivity) {
+  if (l1_sensitivity.has_value()) {
+    RETURN_IF_ERROR(
+        ValidateIsFiniteAndPositive(l1_sensitivity, "L1 sensitivity"));
+    return l1_sensitivity.value();
+  }
+  if (l0_sensitivity.has_value() && linf_sensitivity.has_value()) {
+    return CalculateL1SensitivityFromL0AndLInf(l0_sensitivity.value(),
+                                               linf_sensitivity.value());
+  }
+  std::string error_string =
+      "LaplaceMechanism requires either L1 or (L0 and LInf) sensitivities to "
+      "be set";
+  if (l0_sensitivity.has_value()) {
+    error_string.append(", but only L0 was set.");
+  } else if (linf_sensitivity.has_value()) {
+    error_string.append(", but only LInf was set.");
+  } else {
+    error_string.append(", but none were set.");
+  }
+  return absl::InvalidArgumentError(error_string);
+}
+
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<NumericalMechanism>>
 LaplaceMechanism::Builder::Build() {
   RETURN_IF_ERROR(ValidateIsFiniteAndPositive(GetEpsilon(), "Epsilon"));
   double epsilon = GetEpsilon().value();
-  ASSIGN_OR_RETURN(double L1, CalculateL1Sensitivity());
+  ASSIGN_OR_RETURN(
+      double l1, CalculateL1Sensitivity(GetL0Sensitivity(), GetL1Sensitivity(),
+                                        GetLInfSensitivity()));
   // Check that generated noise is not likely to overflow.
-  double diversity = L1 / epsilon;
+  double diversity = l1 / epsilon;
   double overflow_probability =
       (1 - internal::LaplaceDistribution::cdf(
                diversity, std::numeric_limits<double>::max())) +
@@ -61,49 +117,11 @@ LaplaceMechanism::Builder::Build() {
     return absl::InvalidArgumentError("Sensitivity is too high.");
   }
   absl::StatusOr<double> gran_or_status =
-      internal::LaplaceDistribution::CalculateGranularity(epsilon, L1);
+      internal::LaplaceDistribution::CalculateGranularity(epsilon, l1);
   if (!gran_or_status.ok()) return gran_or_status.status();
 
   return absl::StatusOr<std::unique_ptr<NumericalMechanism>>(
-      absl::make_unique<LaplaceMechanism>(epsilon, L1));
-}
-
-absl::StatusOr<double> LaplaceMechanism::Builder::CalculateL1Sensitivity() {
-  if (l1_sensitivity_.has_value()) {
-    absl::Status status =
-        ValidateIsFiniteAndPositive(l1_sensitivity_, "L1 sensitivity");
-    if (status.ok()) {
-      return l1_sensitivity_.value();
-    } else {
-      return status;
-    }
-  }
-  if (GetL0Sensitivity().has_value() && GetLInfSensitivity().has_value()) {
-    RETURN_IF_ERROR(
-        ValidateIsFiniteAndPositive(GetL0Sensitivity(), "L0 sensitivity"));
-    double l0 = GetL0Sensitivity().value();
-    RETURN_IF_ERROR(
-        ValidateIsFiniteAndPositive(GetLInfSensitivity(), "LInf sensitivity"));
-    double linf = GetLInfSensitivity().value();
-    double l1 = l0 * linf;
-    if (!std::isfinite(l1)) {
-      return absl::InvalidArgumentError(absl::StrCat(
-          "The result of the L1 sensitivity calculation is not finite: ", l1,
-          ". Please check your contribution and sensitivity settings."));
-    }
-    if (l1 == 0) {
-      return absl::InvalidArgumentError(absl::StrCat(
-          "The result of the L1 sensitivity calculation is 0, likely "
-          "because either L0 sensitivity (",
-          l0, ") and/or LInf sensitivity (", linf,
-          ") are too small. Please check your contribution and sensitivity "
-          "settings."));
-    }
-    return l1;
-  }
-  // Sensitivity of 1 has been the default previously.  This will only
-  // be set for LaplaceMechanism for backwards compatibility.
-  return 1;
+      absl::make_unique<LaplaceMechanism>(epsilon, l1));
 }
 
 LaplaceMechanism::LaplaceMechanism(double epsilon, double sensitivity)

@@ -33,7 +33,6 @@ import static org.mockito.Mockito.when;
 import com.google.privacy.differentialprivacy.proto.SummaryOuterClass.CountSummary;
 import com.google.privacy.differentialprivacy.proto.SummaryOuterClass.MechanismType;
 import com.google.protobuf.InvalidProtocolBufferException;
-import java.util.Collection;
 import java.util.Optional;
 import org.junit.Before;
 import org.junit.Rule;
@@ -59,7 +58,6 @@ public class CountTest {
   private static final double THRESHOLD_DELTA = 1e-10;
 
   @Mock private Noise noise;
-  @Mock private Collection<Double> hugeCollection;
   @Rule public final MockitoRule mocks = MockitoJUnit.rule();
 
   private Count count;
@@ -82,8 +80,6 @@ public class CountTest {
             .noise(noise)
             .maxPartitionsContributed(1)
             .build();
-
-    when(hugeCollection.size()).thenReturn(Integer.MAX_VALUE);
   }
 
   @Test
@@ -163,7 +159,7 @@ public class CountTest {
   }
 
   @Test
-  public void incrementBy_hugeValues_dontOverflow() {
+  public void incrementBy_hugeIntegerValues_dontOverflow() {
     count.incrementBy(Integer.MAX_VALUE);
     count.incrementBy(Integer.MAX_VALUE);
     count.increment();
@@ -173,6 +169,25 @@ public class CountTest {
     long expected = Integer.MAX_VALUE * 2L + 3L;
     long actualResult = count.computeResult();
     assertThat(actualResult).isEqualTo(expected);
+  }
+
+  @Test
+  public void incrementBy_hugeLongValues_doOverflow() {
+    count.incrementBy(Long.MAX_VALUE);
+    count.increment();
+    count.increment();
+
+    assertThat(count.computeResult()).isEqualTo(Long.MIN_VALUE + 1);
+  }
+
+  @Test
+  public void incrementBy_hugeLongValues_doOverflowByNoise() {
+    // Mock the noise mechanism so that it always generates 1.
+    when(noise.addNoise(anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble()))
+        .thenAnswer(invocation -> (long) invocation.getArguments()[0] + 1);
+    count.incrementBy(Long.MAX_VALUE);
+
+    assertThat(count.computeResult()).isEqualTo(Long.MIN_VALUE);
   }
 
   @Test

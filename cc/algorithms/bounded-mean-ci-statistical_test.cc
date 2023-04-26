@@ -97,7 +97,11 @@ class MockApproxBounds : public ApproxBounds<double> {
             /*success_probability=*/1.0 - 1e-9,
             /*has_user_set_threshold=*/false,
             /*mechanism=*/
-            LaplaceMechanism::Builder().SetEpsilon(0.1).Build().value()) {}
+            LaplaceMechanism::Builder()
+                .SetL1Sensitivity(1)
+                .SetEpsilon(0.1)
+                .Build()
+                .value()) {}
 
   MOCK_METHOD(absl::StatusOr<Output>, GenerateResult,
               (double noise_interval_level), (override));

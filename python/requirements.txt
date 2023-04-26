@@ -3,6 +3,7 @@
 
 absl-py~=1.0.0
 attrs~=21.4.0
+dm-tree~=0.1.8
 mpmath~=1.2.1
 numpy~=1.21
 scipy~=1.7.1

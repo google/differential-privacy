@@ -83,6 +83,8 @@ py_test(
     deps = [
         ":dp_event",
         requirement("absl-py"),
+        requirement("attrs"),
+        requirement("dm-tree"),
     ],
 )
 
