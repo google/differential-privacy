@@ -16,21 +16,19 @@
 
 #include "algorithms/algorithm.h"
 
-#include <cstdint>
-#include <memory>
+#include <forward_list>
+#include <list>
+#include <vector>
 
 #include "base/testing/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "absl/status/status.h"
 #include "absl/status/statusor.h"
-#include "proto/util.h"
-#include "proto/data.pb.h"
-#include "proto/summary.pb.h"
 
 namespace differential_privacy {
 namespace {
 
+using ::testing::DoubleNear;
 using ::testing::HasSubstr;
 using ::differential_privacy::base::testing::StatusIs;
 
@@ -105,7 +103,7 @@ TEST(AlgorithmTest, Reset) {
   EXPECT_OK(alg.PartialResult());
 }
 
-TEST(AlgorithmDeathTest, InvalidEpsilon) {
+TEST(AlgorithmTest, InvalidEpsilon) {
   EXPECT_DEATH(TestAlgorithm<double> alg(-1.0), "Check failed: epsilon > 0.0");
   EXPECT_DEATH(
       TestAlgorithm<double> alg(std::numeric_limits<double>::quiet_NaN()),
@@ -113,18 +111,6 @@ TEST(AlgorithmDeathTest, InvalidEpsilon) {
   EXPECT_DEATH(
       TestAlgorithm<double> alg(std::numeric_limits<double>::infinity()),
       "Check failed: epsilon != std::numeric_limits<double>::infinity.*");
-}
-
-TEST(AlgorithmTest, GetOutputConfidenceIntervalUnimplemented) {
-  TestAlgorithm<double> alg(1.0);
-  Output output;
-
-  EXPECT_THAT(
-      alg.GetOutputConfidenceInterval(output, 0.95),
-      StatusIs(
-          absl::StatusCode::kUnimplemented,
-          HasSubstr(
-              "GetOutputConfidenceInterval() unsupported for this algorithm")));
 }
 
 TEST(AlgorithmBuilderTest, InvalidEpsilonFailsBuild) {

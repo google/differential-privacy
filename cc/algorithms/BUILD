@@ -46,11 +46,7 @@ cc_test(
     deps = [
         ":algorithm",
         "//base/testing:status_matchers",
-        "//proto:util-lib",
-        "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
-        "@com_google_differential_privacy//proto:data_cc_proto",
-        "@com_google_differential_privacy//proto:summary_cc_proto",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -165,6 +161,7 @@ cc_test(
     size = "small",
     srcs = ["bounded-sum_test.cc"],
     deps = [
+        ":algorithm",
         ":approx-bounds",
         ":bounded-sum",
         ":numerical-mechanisms",
@@ -172,9 +169,7 @@ cc_test(
         "//base/testing:proto_matchers",
         "//base/testing:status_matchers",
         "//proto:util-lib",
-        "@com_google_absl//absl/status:statusor",
-        "@com_google_differential_privacy//proto:confidence_interval_cc_proto",
-        "@com_google_differential_privacy//proto:data_cc_proto",
+        "@com_google_absl//absl/memory",
         "@com_google_googletest//:gtest_main",
     ],
 )
