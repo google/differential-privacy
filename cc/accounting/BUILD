@@ -93,6 +93,7 @@ cc_test(
     srcs = [
         "convolution_test.cc",
     ],
+    tags = ["not_run:arm"],
     deps = [
         ":convolution",
         "//accounting/common:test_util",

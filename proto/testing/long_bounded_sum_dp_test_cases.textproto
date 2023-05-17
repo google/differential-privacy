@@ -1,0 +1,1061 @@
+#
+# Copyright 2023 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# This collection of test cases is intended to statistically evaluate the DP
+# properties of the bounded sum aggregation provided by the DP library.
+
+# The test cases and validation parameters are calibrated such that:
+# - An approximate DP test accepts with a probability of at least 0.9 if the
+#   distance between the two raw sums is within the sensitivity.
+# - An approximate DP test rejects with a probability of at least 0.9 if the
+#   distance between the two raw sums is at least the sensitivity times
+#   1.185 or if the failure rate is at least the delta tolerance times 1.25.
+validity_parameters {
+  distance_specificity: 1.185
+  failure_specificity: 1.25
+}
+
+# Taking the majority vote over 9 repeated runs of a particular test case
+# increases the accept and reject probabilities to 0.99911 or more.
+voting_parameters {
+  number_of_votes: 9
+}
+
+long_bounded_sum_dp_test_case {
+  name: "Laplace noise, empty sum, default parameters"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.02
+    granularity: 0.015625
+  }
+  long_bounded_sum_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    lower_bound: 0
+    upper_bound: 1
+    epsilon: 1.09861228866810969140  # = log(3)
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [1000]
+  }
+}
+
+long_bounded_sum_dp_test_case {
+  name: "Laplace noise, empty sum, many partitions contributed"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.04
+    granularity: 0.125
+  }
+  long_bounded_sum_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 25
+    lower_bound: 0
+    upper_bound: 1
+    epsilon: 1.09861228866810969140  # = log(3)
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries in the second data set accounts for the number
+    # of partitions a single privacy unit can contribute to. The extra entries
+    # are chosen in a way that maximizes the distance between the two data sets.
+    # The values of the entries significantly exceed the specified bounds to
+    # check that bounding is applied correctly.
+    neighbour_raw_entry: [
+      1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000,
+      1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000,
+      1000, 1000, 1000, 1000, 1000, 1000, 1000
+    ]
+  }
+}
+
+long_bounded_sum_dp_test_case {
+  name: "Laplace noise, empty sum, large bounds"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.04
+    granularity: 0.25
+  }
+  long_bounded_sum_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    lower_bound: -50
+    upper_bound: 50
+    epsilon: 1.09861228866810969140  # = log(3)
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [-50000]
+  }
+}
+
+long_bounded_sum_dp_test_case {
+  name: "Laplace noise, empty sum, small epsilon"
+  dp_test_parameters {
+    epsilon: 0.1
+    delta: 0.0
+    delta_tolerance: 0.0135
+    granularity: 0.0625
+  }
+  long_bounded_sum_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    lower_bound: 0
+    upper_bound: 1
+    epsilon: 0.1
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [1000]
+  }
+}
+
+long_bounded_sum_dp_test_case {
+  name: "Laplace noise, empty sum, large epsilon"
+  dp_test_parameters {
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta: 0.0
+    delta_tolerance: 0.0135
+    granularity: 0.03125
+  }
+  long_bounded_sum_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    lower_bound: 0
+    upper_bound: 1
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [1000]
+  }
+}
+
+long_bounded_sum_dp_test_case {
+  name: "Laplace noise, small positive sum, default parameters"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.02
+    granularity: 0.015625
+  }
+  long_bounded_sum_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    lower_bound: 0
+    upper_bound: 1
+    epsilon: 1.09861228866810969140  # = log(3)
+    raw_entry: [1, 0, 0, 0, 1]
+    neighbour_raw_entry: [1, 0, 0, 0, 1]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [1000]
+  }
+}
+
+long_bounded_sum_dp_test_case {
+  name: "Laplace noise, small positive sum, many partitions contributed"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.04
+    granularity: 0.125
+  }
+  long_bounded_sum_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 25
+    lower_bound: 0
+    upper_bound: 1
+    epsilon: 1.09861228866810969140  # = log(3)
+    raw_entry: [1, 0, 0, 0, 1]
+    neighbour_raw_entry: [1, 0, 0, 0, 1]
+    # The number of extra entries in the second data set accounts for the number
+    # of partitions a single privacy unit can contribute to. The extra entries
+    # are chosen in a way that maximizes the distance between the two data sets.
+    # The values of the entries significantly exceed the specified bounds to
+    # check that bounding is applied correctly.
+    neighbour_raw_entry: [
+      1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000,
+      1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000,
+      1000, 1000, 1000, 1000, 1000, 1000, 1000
+    ]
+  }
+}
+
+long_bounded_sum_dp_test_case {
+  name: "Laplace noise, small positive sum, small epsilon"
+  dp_test_parameters {
+    epsilon: 0.1
+    delta: 0.0
+    delta_tolerance: 0.0135
+    granularity: 0.0625
+  }
+  long_bounded_sum_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    lower_bound: 0
+    upper_bound: 1
+    epsilon: 0.1
+    raw_entry: [1, 0, 0, 0, 1]
+    neighbour_raw_entry: [1, 0, 0, 0, 1]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [1000]
+  }
+}
+
+long_bounded_sum_dp_test_case {
+  name: "Laplace noise, small positive sum, large epsilon"
+  dp_test_parameters {
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta: 0.0
+    delta_tolerance: 0.0135
+    granularity: 0.0625
+  }
+  long_bounded_sum_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    lower_bound: 0
+    upper_bound: 1
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    raw_entry: [1, 0, 0, 0, 1]
+    neighbour_raw_entry: [1, 0, 0, 0, 1]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [1000]
+  }
+}
+
+long_bounded_sum_dp_test_case {
+  name: "Laplace noise, large positive sum, default parameters"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.04
+    granularity: 0.25
+  }
+  long_bounded_sum_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    lower_bound: 0
+    upper_bound: 50
+    epsilon: 1.09861228866810969140  # = log(3)
+    raw_entry: [32, 35, 41, 33, 7]
+    neighbour_raw_entry: [32, 35, 41, 33, 7]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [50000]
+  }
+}
+
+long_bounded_sum_dp_test_case {
+  name: "Laplace noise, large positive sum, many partitions contributed"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.04
+    granularity: 1.0
+  }
+  long_bounded_sum_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 25
+    lower_bound: 0
+    upper_bound: 50
+    epsilon: 1.09861228866810969140  # = log(3)
+    raw_entry: [32, 35, 41, 33, 7]
+    neighbour_raw_entry: [32, 35, 41, 33, 7]
+    # The number of extra entries in the second data set accounts for the number
+    # of partitions a single privacy unit can contribute to. The extra entries
+    # are chosen in a way that maximizes the distance between the two data sets.
+    # The values of the entries significantly exceed the specified bounds to
+    # check that bounding is applied correctly.
+    neighbour_raw_entry: [
+      50000, 50000, 50000, 50000, 50000, 50000, 50000, 50000,
+      50000, 50000, 50000, 50000, 50000, 50000, 50000, 50000,
+      50000, 50000, 50000, 50000, 50000, 50000, 50000, 50000,
+      50000
+    ]
+  }
+}
+
+long_bounded_sum_dp_test_case {
+  name: "Laplace noise, large positive sum, small epsilon"
+  dp_test_parameters {
+    epsilon: 0.1
+    delta: 0.0
+    delta_tolerance: 0.023
+    granularity: 1.0
+  }
+  long_bounded_sum_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    lower_bound: 0
+    upper_bound: 50
+    epsilon: 0.1
+    raw_entry: [32, 35, 41, 33, 7]
+    neighbour_raw_entry: [32, 35, 41, 33, 7]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [50000]
+  }
+}
+
+long_bounded_sum_dp_test_case {
+  name: "Laplace noise, large positive sum, large epsilon"
+  dp_test_parameters {
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta: 0.0
+    delta_tolerance: 0.023
+    granularity: 0.5
+  }
+  long_bounded_sum_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    lower_bound: 0
+    upper_bound: 50
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    raw_entry: [32, 35, 41, 33, 7]
+    neighbour_raw_entry: [32, 35, 41, 33, 7]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [50000]
+  }
+}
+
+long_bounded_sum_dp_test_case {
+  name: "Laplace noise, large mixed sum, default parameters"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.04
+    granularity: 0.25
+  }
+  long_bounded_sum_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    lower_bound: -50
+    upper_bound: 50
+    epsilon: 1.09861228866810969140  # = log(3)
+    raw_entry: [-32, 35, -41, -33, 7]
+    neighbour_raw_entry: [-32, 35, -41, -33, 7]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [-50000]
+  }
+}
+
+long_bounded_sum_dp_test_case {
+  name: "Laplace noise, large mixed sum, many partitions contributed"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0
+    delta_tolerance: 0.04
+    granularity: 1.0
+  }
+  long_bounded_sum_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 25
+    lower_bound: -50
+    upper_bound: 50
+    epsilon: 1.09861228866810969140  # = log(3)
+    raw_entry: [-32, 35, -41, -33, 7]
+    neighbour_raw_entry: [-32, 35, -41, -33, 7]
+    # The number of extra entries in the second data set accounts for the number
+    # of partitions a single privacy unit can contribute to. The extra entries
+    # are chosen in a way that maximizes the distance between the two data sets.
+    # The values of the entries significantly exceed the specified bounds to
+    # check that bounding is applied correctly.
+    neighbour_raw_entry: [
+      -50000, -50000, -50000, -50000, -50000, -50000, -50000,
+      -50000, -50000, -50000, -50000, -50000, -50000, -50000,
+      -50000, -50000, -50000, -50000, -50000, -50000, -50000,
+      -50000, -50000, -50000, -50000
+    ]
+  }
+}
+
+long_bounded_sum_dp_test_case {
+  name: "Laplace noise, large mixed sum, small epsilon"
+  dp_test_parameters {
+    epsilon: 0.1
+    delta: 0.0
+    delta_tolerance: 0.023
+    granularity: 1.0
+  }
+  long_bounded_sum_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    lower_bound: -50
+    upper_bound: 50
+    epsilon: 0.1
+    raw_entry: [-32, 35, -41, -33, 7]
+    neighbour_raw_entry: [-32, 35, -41, -33, 7]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [-50000]
+  }
+}
+
+long_bounded_sum_dp_test_case {
+  name: "Laplace noise, large mixed sum, large epsilon"
+  dp_test_parameters {
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta: 0.0
+    delta_tolerance: 0.023
+    granularity: 0.5
+  }
+  long_bounded_sum_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: LAPLACE
+    max_partitions_contributed: 1
+    lower_bound: -50
+    upper_bound: 50
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    raw_entry: [-32, 35, -41, -33, 7]
+    neighbour_raw_entry: [-32, 35, -41, -33, 7]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [-50000]
+  }
+}
+
+long_bounded_sum_dp_test_case {
+  name: "Gaussian noise, empty sum, default parameters"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.00117
+    granularity: 0.0078125
+  }
+  long_bounded_sum_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    lower_bound: 0
+    upper_bound: 1
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [1000]
+  }
+}
+
+long_bounded_sum_dp_test_case {
+  name: "Gaussian noise, empty sum, many partitions contributed"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.00242
+    granularity: 0.015625
+  }
+  long_bounded_sum_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 25
+    lower_bound: 0
+    upper_bound: 1
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries in the second data set accounts for the number
+    # of partitions a single privacy unit can contribute to. The extra entries
+    # are chosen in a way that maximizes the distance between the two data sets.
+    # The values of the entries significantly exceed the specified bounds to
+    # check that bounding is applied correctly.
+    neighbour_raw_entry: [1000, 1000, 1000, 1000, 1000]
+  }
+}
+
+long_bounded_sum_dp_test_case {
+  name: "Gaussian noise, empty sum, large bounds"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.00513
+    granularity: 0.0625
+  }
+  long_bounded_sum_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    lower_bound: -50
+    upper_bound: 50
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [-50000]
+  }
+}
+
+long_bounded_sum_dp_test_case {
+  name: "Gaussian noise, empty sum, small epsilon"
+  dp_test_parameters {
+    epsilon: 0.25
+    delta: 0.00001
+    delta_tolerance: 0.0003
+    granularity: 0.5
+  }
+  long_bounded_sum_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    lower_bound: 0
+    upper_bound: 1
+    epsilon: 0.25
+    delta: 0.00001
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [1000]
+  }
+}
+
+long_bounded_sum_dp_test_case {
+  name: "Gaussian noise, empty sum, large epsilon"
+  dp_test_parameters {
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta: 0.00001
+    delta_tolerance: 0.00092
+    granularity: 0.0078125
+  }
+  long_bounded_sum_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    lower_bound: 0
+    upper_bound: 1
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta: 0.00001
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [1000]
+  }
+}
+
+long_bounded_sum_dp_test_case {
+  name: "Gaussian noise, empty sum, small delta"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.000001
+    delta_tolerance: 0.00092
+    granularity: 0.0078125
+  }
+  long_bounded_sum_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    lower_bound: 0
+    upper_bound: 1
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0000001
+    raw_entry: []
+    neighbour_raw_entry: []
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [1000]
+  }
+}
+
+long_bounded_sum_dp_test_case {
+  name: "Gaussian noise, small positive sum, default parameters"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.00117
+    granularity: 0.0078125
+  }
+  long_bounded_sum_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    lower_bound: 0
+    upper_bound: 1
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    raw_entry: [1, 0, 0, 0, 1]
+    neighbour_raw_entry:[1, 0, 0, 0, 1]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [1000]
+  }
+}
+
+long_bounded_sum_dp_test_case {
+  name: "Gaussian noise, small positive sum, many partitions contributed"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.00242
+    granularity: 0.015625
+  }
+  long_bounded_sum_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 25
+    lower_bound: 0
+    upper_bound: 1
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    raw_entry: [1, 0, 0, 0, 1]
+    neighbour_raw_entry: [1, 0, 0, 0, 1]
+    # The number of extra entries in the second data set accounts for the number
+    # of partitions a single privacy unit can contribute to. The extra entries
+    # are chosen in a way that maximizes the distance between the two data sets.
+    # The values of the entries significantly exceed the specified bounds to
+    # check that bounding is applied correctly.
+    neighbour_raw_entry: [1000, 1000, 1000, 1000, 1000]
+  }
+}
+
+long_bounded_sum_dp_test_case {
+  name: "Gaussian noise, small positive sum, small epsilon"
+  dp_test_parameters {
+    epsilon: 0.25
+    delta: 0.00001
+    delta_tolerance: 0.0003
+    granularity: 0.5
+  }
+  long_bounded_sum_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    lower_bound: 0
+    upper_bound: 1
+    epsilon: 0.25
+    delta: 0.00001
+    raw_entry: [1, 0, 0, 0, 1]
+    neighbour_raw_entry: [1, 0, 0, 0, 1]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [1000]
+  }
+}
+
+long_bounded_sum_dp_test_case {
+  name: "Gaussian noise, small positive sum, large epsilon"
+  dp_test_parameters {
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta: 0.00001
+    delta_tolerance: 0.00092
+    granularity: 0.0078125
+  }
+  long_bounded_sum_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    lower_bound: 0
+    upper_bound: 1
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta: 0.00001
+    raw_entry: [1, 0, 0, 0, 1]
+    neighbour_raw_entry: [1, 0, 0, 0, 1]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [1000]
+  }
+}
+
+long_bounded_sum_dp_test_case {
+  name: "Gaussian noise, small positive sum, small delta"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.000001
+    delta_tolerance: 0.00092
+    granularity: 0.0078125
+  }
+  long_bounded_sum_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    lower_bound: 0
+    upper_bound: 1
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.0000001
+    raw_entry: [1, 0, 0, 0, 1]
+    neighbour_raw_entry: [1, 0, 0, 0, 1]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [1000]
+  }
+}
+
+long_bounded_sum_dp_test_case {
+  name: "Gaussian noise, large positive sum, default parameters"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.00513
+    granularity: 0.0625
+  }
+  long_bounded_sum_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    lower_bound: 0
+    upper_bound: 50
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    raw_entry: [32, 35, 41, 33, 7]
+    neighbour_raw_entry: [32, 35, 41, 33, 7]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [50000]
+  }
+}
+
+long_bounded_sum_dp_test_case {
+  name: "Gaussian noise, large positive sum, many contributed partitions"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.006
+    granularity: 0.25
+  }
+  long_bounded_sum_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 25
+    lower_bound: 0
+    upper_bound: 50
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    raw_entry: [32, 35, 41, 33, 7]
+    neighbour_raw_entry: [32, 35, 41, 33, 7]
+    # The number of extra entries in the second data set accounts for the number
+    # of partitions a single privacy unit can contribute to. The extra entries
+    # are chosen in a way that maximizes the distance between the two data sets.
+    # The values of the entries significantly exceed the specified bounds to
+    # check that bounding is applied correctly.
+    neighbour_raw_entry: [50000, 50000, 50000, 50000, 50000]
+  }
+}
+
+long_bounded_sum_dp_test_case {
+  name: "Gaussian noise, large positive sum, small epsilon"
+  dp_test_parameters {
+    epsilon: 0.25
+    delta: 0.00001
+    delta_tolerance: 0.00113
+    granularity: 4.0
+  }
+  long_bounded_sum_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    lower_bound: 0
+    upper_bound: 50
+    epsilon: 0.25
+    delta: 0.00001
+    raw_entry: [32, 35, 41, 33, 7]
+    neighbour_raw_entry: [32, 35, 41, 33, 7]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [50000]
+  }
+}
+
+long_bounded_sum_dp_test_case {
+  name: "Gaussian noise, large positive sum, large epsilon"
+  dp_test_parameters {
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta: 0.00001
+    delta_tolerance: 0.0035
+    granularity: 0.0625
+  }
+  long_bounded_sum_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    lower_bound: 0
+    upper_bound: 50
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta: 0.00001
+    raw_entry: [32, 35, 41, 33, 7]
+    neighbour_raw_entry: [32, 35, 41, 33, 7]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [50000]
+  }
+}
+
+long_bounded_sum_dp_test_case {
+  name: "Gaussian noise, large positive sum, small delta"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.000001
+    delta_tolerance: 0.0048
+    granularity: 0.0625
+  }
+  long_bounded_sum_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    lower_bound: 0
+    upper_bound: 50
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.000001
+    raw_entry: [32, 35, 41, 33, 7]
+    neighbour_raw_entry: [32, 35, 41, 33, 7]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [50000]
+  }
+}
+
+long_bounded_sum_dp_test_case {
+  name: "Gaussian noise, large mixed sum, default parameters"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.00513
+    granularity: 0.0625
+  }
+  long_bounded_sum_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    lower_bound: -50
+    upper_bound: 50
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    raw_entry: [-32, 35, -41, -33, 7]
+    neighbour_raw_entry: [-32, 35, -41, -33, 7]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [-50000]
+  }
+}
+
+long_bounded_sum_dp_test_case {
+  name: "Gaussian noise, large mixed sum, many contributed partitions"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    delta_tolerance: 0.006
+    granularity: 0.25
+  }
+  long_bounded_sum_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 25
+    lower_bound: -50
+    upper_bound: 50
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.00001
+    raw_entry: [-32, 35, -41, -33, 7]
+    neighbour_raw_entry: [-32, 35, -41, -33, 7]
+    # The number of extra entries in the second data set accounts for the number
+    # of partitions a single privacy unit can contribute to. The extra entries
+    # are chosen in a way that maximizes the distance between the two data sets.
+    # The values of the entries significantly exceed the specified bounds to
+    # check that bounding is applied correctly.
+    neighbour_raw_entry: [-50000, -50000, -50000, -50000, -50000]
+  }
+}
+
+long_bounded_sum_dp_test_case {
+  name: "Gaussian noise, large mixed sum, small epsilon"
+  dp_test_parameters {
+    epsilon: 0.25
+    delta: 0.00001
+    delta_tolerance: 0.00113
+    granularity: 4.0
+  }
+  long_bounded_sum_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    lower_bound: -50
+    upper_bound: 50
+    epsilon: 0.25
+    delta: 0.00001
+    raw_entry: [-32, 35, -41, -33, 7]
+    neighbour_raw_entry: [-32, 35, -41, -33, 7]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [-50000]
+  }
+}
+
+long_bounded_sum_dp_test_case {
+  name: "Gaussian noise, large mixed sum, large epsilon"
+  dp_test_parameters {
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta: 0.00001
+    delta_tolerance: 0.0035
+    granularity: 0.0625
+  }
+  long_bounded_sum_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    lower_bound: -50
+    upper_bound: 50
+    epsilon: 2.19722457733621938279  # = 2log(3)
+    delta: 0.00001
+    raw_entry: [-32, 35, -41, -33, 7]
+    neighbour_raw_entry: [-32, 35, -41, -33, 7]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [-50000]
+  }
+}
+
+long_bounded_sum_dp_test_case {
+  name: "Gaussian noise, large mixed sum, small delta"
+  dp_test_parameters {
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.000001
+    delta_tolerance: 0.0048
+    granularity: 0.0625
+  }
+  long_bounded_sum_sampling_parameters {
+    number_of_samples: 1000000
+    noise_type: GAUSSIAN
+    max_partitions_contributed: 1
+    lower_bound: -50
+    upper_bound: 50
+    epsilon: 1.09861228866810969140  # = log(3)
+    delta: 0.000001
+    raw_entry: [-32, 35, -41, -33, 7]
+    neighbour_raw_entry: [-32, 35, -41, -33, 7]
+    # The number of extra entries matches the number of contributions a single
+    # privacy unit can make. The extra entries are chosen in a way that
+    # maximizes the distance between the two data sets. The values of the
+    # entries significantly exceed the specified bounds to check that bounding
+    # is applied correctly.
+    neighbour_raw_entry: [-50000]
+  }
+}

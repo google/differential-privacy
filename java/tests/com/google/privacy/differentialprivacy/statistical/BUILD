@@ -135,6 +135,29 @@ java_test(
 )
 
 java_test(
+    name = "long_bounded_sum_dp_tests",
+    size = "large",
+    srcs = ["LongBoundedSumDpTest.java"],
+    resources = [
+        "@com_google_differential_privacy//proto/testing:long_bounded_sum_dp_test_cases.textproto",
+    ],
+    # The shard count must match the number of test cases defined in long_bounded_sum_dp_test_cases.textproto
+    shard_count = 38,
+    test_class = "com.google.privacy.differentialprivacy.statistical.LongBoundedSumDpTest",
+    deps = [
+        "//main/com/google/privacy/differentialprivacy",
+        "//main/com/google/privacy/differentialprivacy:test_noise_factory",
+        "//main/com/google/privacy/differentialprivacy/testing:reference_noise",
+        "//main/com/google/privacy/differentialprivacy/testing:statistical_utils",
+        "@com_google_differential_privacy//proto/testing:statistical_tests_java_proto",
+        "@com_google_protobuf//:protobuf_java",
+        "@maven//:com_google_guava_guava",
+        "@maven//:com_google_truth_truth",
+        "@maven//:junit_junit",
+    ],
+)
+
+java_test(
     name = "bounded_variance_dp_tests",
     size = "large",
     srcs = ["BoundedVarianceDpTest.java"],

@@ -47,6 +47,10 @@ import org.junit.runners.Suite.SuiteClasses;
   LaplaceNoiseConfidenceIntervalTest.class,
   LaplaceNoiseQuantileTest.class,
   LaplaceNoiseTest.class,
+  LongBoundedSumBuilderTest.class,
+  LongBoundedSumBiasTest.class,
+  LongBoundedSumConfidenceIntervalTest.class,
+  LongBoundedSumTest.class,
   SamplingUtilTest.class,
   SecureNoiseMathTest.class,
 })

@@ -121,7 +121,7 @@ cc_library(
 
 cc_test(
     name = "order-statistics_test",
-    size = "small",
+    size = "medium",
     srcs = ["order-statistics_test.cc"],
     deps = [
         ":numerical-mechanisms-testing",
@@ -202,6 +202,7 @@ cc_library(
 cc_test(
     name = "bounded-mean_test",
     size = "small",
+    timeout = "moderate",
     srcs = ["bounded-mean_test.cc"],
     deps = [
         ":approx-bounds",
@@ -417,7 +418,7 @@ cc_library(
 
 cc_test(
     name = "distributions_test",
-    size = "medium",
+    size = "large",
     srcs = ["distributions_test.cc"],
     shard_count = 4,
     deps = [
@@ -457,7 +458,7 @@ cc_library(
 
 cc_test(
     name = "numerical-mechanisms_test",
-    size = "medium",
+    size = "large",
     srcs = ["numerical-mechanisms_test.cc"],
     deps = [
         ":distributions",
@@ -585,7 +586,7 @@ cc_test(
 
 cc_test(
     name = "distributions_benchmark_test",
-    timeout = "long",
+    timeout = "eternal",
     srcs = ["distributions_benchmark_test.cc"],
     deps = [
         ":distributions",

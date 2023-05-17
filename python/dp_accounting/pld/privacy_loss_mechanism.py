@@ -195,9 +195,9 @@ class AdditiveNoisePrivacyLoss(metaclass=abc.ABCMeta):
       return ((1 - self.sampling_prob) * self.noise_cdf(x) +
               self.sampling_prob * self.noise_cdf(np.add(x, self.sensitivity)))
 
-  def mu_lower_cdf(
+  def mu_lower_log_cdf(
       self, x: Union[float, Iterable[float]]) -> Union[float, np.ndarray]:
-    """Computes the cumulative density function of the mu_lower distribution.
+    """Computes log cumulative density function of the mu_lower distribution.
 
     For ADD adjacency type, with sub-sampling probability q:
       mu_lower(x) := (1-q) * mu(x) + q * mu(x - sensitivity)
@@ -205,22 +205,26 @@ class AdditiveNoisePrivacyLoss(metaclass=abc.ABCMeta):
       mu_lower(x) := mu(x)
 
     Args:
-      x: the point or points at which the cumulative density function is to be
-        calculated.
+      x: the point or points at which the log of the cumulative density function
+        is to be calculated.
 
     Returns:
-      The cumulative density function of the mu_lower distribution at x, i.e.,
-      the probability that mu_lower is less than or equal to x.
+      The log of the cumulative density function of the mu_lower distribution at
+      x, i.e., the log of the probability that mu_lower is less than or equal to
+      x.
     """
     if self.adjacency_type == AdjacencyType.ADD:
       # For performance, the case of sampling_prob=1 is handled separately.
       if self.sampling_prob == 1.0:
-        return self.noise_cdf(np.add(x, -self.sensitivity))
-      return ((1 - self.sampling_prob) * self.noise_cdf(x) +
-              self.sampling_prob * self.noise_cdf(np.add(x, -self.sensitivity)))
+        return self.noise_log_cdf(np.add(x, -self.sensitivity))
+      return np.logaddexp(
+          np.log1p(-self.sampling_prob) + self.noise_log_cdf(x),
+          np.log(self.sampling_prob) +
+          self.noise_log_cdf(np.add(x, -self.sensitivity))
+      )
 
     else:  # Case: self.adjacency_type == AdjacencyType.REMOVE
-      return self.noise_cdf(x)
+      return self.noise_log_cdf(x)
 
   def get_delta_for_epsilon(
       self, epsilon: Union[float, List[float]]) -> Union[float, List[float]]:
@@ -253,26 +257,25 @@ class AdditiveNoisePrivacyLoss(metaclass=abc.ABCMeta):
       the mechanism, or a numpy array if epsilon is list-like.
     """
     is_scalar = isinstance(epsilon, numbers.Number)
-    epsilon_values = np.array([epsilon]) if is_scalar else np.asarray(epsilon)
-    delta_values = np.zeros_like(epsilon_values, dtype=float)
+    epsilons = np.array([epsilon]) if is_scalar else np.asarray(epsilon)
+    deltas = np.zeros_like(epsilons, dtype=float)
     if self.sampling_prob == 1.0:
-      inverse_indices = np.full_like(epsilon_values, True, dtype=bool)
+      inverse_indices = np.full_like(epsilons, True, dtype=bool)
     elif self.adjacency_type == AdjacencyType.ADD:
-      inverse_indices = epsilon_values < -math.log(1 - self.sampling_prob)
+      inverse_indices = epsilons < -math.log1p(-self.sampling_prob)
     else:  # Case: self.adjacency_type == AdjacencyType.REMOVE
-      inverse_indices = epsilon_values > math.log(1 - self.sampling_prob)
+      inverse_indices = epsilons > math.log1p(-self.sampling_prob)
       other_indices = np.logical_not(inverse_indices)
-      delta_values[other_indices] = 1 - np.exp(epsilon_values[other_indices])
+      deltas[other_indices] = -np.expm1(epsilons[other_indices])
     x_cutoffs = np.array([
-        self.inverse_privacy_loss(eps)
-        for eps in epsilon_values[inverse_indices]
+        self.inverse_privacy_loss(eps) for eps in epsilons[inverse_indices]
     ])
-    delta_values[inverse_indices] = (
+    deltas[inverse_indices] = (
         self.mu_upper_cdf(x_cutoffs) -
-        np.exp(epsilon_values[inverse_indices]) * self.mu_lower_cdf(x_cutoffs))
+        np.exp(epsilons[inverse_indices] + self.mu_lower_log_cdf(x_cutoffs)))
     # Clip delta values to lie in [0,1] (to avoid numerical errors)
-    delta_values = np.clip(delta_values, 0, 1)
-    return float(delta_values) if is_scalar else delta_values
+    deltas = np.clip(deltas, 0, 1)
+    return float(deltas) if is_scalar else deltas
 
   @abc.abstractmethod
   def privacy_loss_tail(self) -> TailPrivacyLossDistribution:
@@ -457,6 +460,24 @@ class AdditiveNoisePrivacyLoss(metaclass=abc.ABCMeta):
     Returns:
       The cumulative density function of that noise at x, i.e., the probability
       that mu is less than or equal to x.
+
+    Raises:
+      NotImplementedError: If not implemented by the subclass.
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def noise_log_cdf(
+      self, x: Union[float, Iterable[float]]) -> Union[float, np.ndarray]:
+    """Computes log of cumulative density function of the noise distribution mu.
+
+    Args:
+      x: the point or points at which the log cumulative density function is to
+        be calculated.
+
+    Returns:
+      The log cumulative density function of that noise at x, i.e., the log of
+      the probability that mu is less than or equal to x.
 
     Raises:
       NotImplementedError: If not implemented by the subclass.
@@ -687,6 +708,20 @@ class LaplacePrivacyLoss(AdditiveNoisePrivacyLoss):
       probability that the Laplace noise is less than or equal to x.
     """
     return self._laplace_random_variable.cdf(x)
+
+  def noise_log_cdf(
+      self, x: Union[float, Iterable[float]]) -> Union[float, np.ndarray]:
+    """Computes log of cumulative density function of the Laplace distribution.
+
+    Args:
+      x: the point or points at which the log cumulative density function is to
+        be calculated.
+
+    Returns:
+      The log cumulative density function of the Laplace noise at x, i.e., the
+      log of the probability that the Laplace noise is less than or equal to x.
+    """
+    return self._laplace_random_variable.logcdf(x)
 
   @classmethod
   def from_privacy_guarantee(
@@ -959,6 +994,20 @@ class GaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
     """
     return self._gaussian_random_variable.cdf(x)
 
+  def noise_log_cdf(
+      self, x: Union[float, Iterable[float]]) -> Union[float, np.ndarray]:
+    """Computes log of cumulative density function of the Gaussian distribution.
+
+    Args:
+      x: the point or points at which the log cumulative density function is to
+        be calculated.
+
+    Returns:
+      The log cumulative density function of the Gaussian noise at x, i.e., the
+      log of the probability that the Gaussian noise is less than or equal to x.
+    """
+    return self._gaussian_random_variable.logcdf(x)
+
   @classmethod
   def from_privacy_guarantee(
       cls,
@@ -1216,6 +1265,21 @@ class DiscreteLaplacePrivacyLoss(AdditiveNoisePrivacyLoss):
     """
     return self._discrete_laplace_random_variable.cdf(x)
 
+  def noise_log_cdf(
+      self, x: Union[float, Iterable[float]]) -> Union[float, np.ndarray]:
+    """Computes log of the CDF of the discrete Laplace distribution.
+
+    Args:
+      x: the point or points at which the log cumulative density function is to
+        be calculated.
+
+    Returns:
+      The log cumulative density function of the discrete Laplace noise at x,
+      i.e., the log of the probability that the discrete Laplace noise is less
+      than or equal to x.
+    """
+    return self._discrete_laplace_random_variable.logcdf(x)
+
   @classmethod
   def from_privacy_guarantee(
       cls,
@@ -1364,13 +1428,13 @@ class DiscreteGaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
 
     # Create the PMF and CDF.
     self._offset = -1 * self._truncation_bound - 1
-    self._pmf_array = np.arange(-1 * self._truncation_bound,
-                                self._truncation_bound + 1)
-    self._pmf_array = np.exp(-0.5 * (self._pmf_array)**2 / (sigma**2))
-    self._pmf_array = np.insert(self._pmf_array, 0, 0)
-    self._cdf_array = np.add.accumulate(self._pmf_array)
-    self._pmf_array /= self._cdf_array[-1]
-    self._cdf_array /= self._cdf_array[-1]
+    indices = np.arange(-1 * self._truncation_bound, self._truncation_bound + 1)
+    self._log_pmf_array = np.append(-np.inf, -0.5 * indices**2 / (sigma**2))
+    self._log_cdf_array = np.logaddexp.accumulate(self._log_pmf_array)
+    self._log_pmf_array -= self._log_cdf_array[-1]
+    self._log_cdf_array -= self._log_cdf_array[-1]
+    self._pmf_array = np.exp(self._log_pmf_array)
+    self._cdf_array = np.exp(self._log_cdf_array)
 
     super().__init__(sensitivity, True, sampling_prob, adjacency_type)
 
@@ -1508,7 +1572,7 @@ class DiscreteGaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
 
   def noise_cdf(self, x: Union[float,
                                Iterable[float]]) -> Union[float, np.ndarray]:
-    """Computes the cumulative density function of the discrete Gaussian distribution.
+    """Computes the CDF of the discrete Gaussian distribution.
 
     Args:
       x: the point or points at which the cumulative density function is to be
@@ -1523,6 +1587,24 @@ class DiscreteGaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
                         self._truncation_bound)
     indices = np.floor(clipped_x).astype('int') - self._offset
     return self._cdf_array[indices]
+
+  def noise_log_cdf(
+      self, x: Union[float, Iterable[float]]) -> Union[float, np.ndarray]:
+    """Computes log of the CDF of the discrete Gaussian distribution.
+
+    Args:
+      x: the point or points at which the log cumulative density function is to
+        be calculated.
+
+    Returns:
+      The log cumulative density function of the discrete Gaussian noise at x,
+      i.e., the log of the probability that the discrete Gaussian noise is less
+      than or equal to x.
+    """
+    clipped_x = np.clip(x, -1 * self._truncation_bound - 1,
+                        self._truncation_bound)
+    indices = np.floor(clipped_x).astype('int') - self._offset
+    return self._log_cdf_array[indices]
 
   @classmethod
   def from_privacy_guarantee(

@@ -107,6 +107,15 @@ public class DpPreconditions {
         upper);
   }
 
+  static void checkBounds(long lower, long upper) {
+    checkArgument(
+        upper >= lower,
+        "The upper bound should be greater than the lower bound. Provided values: "
+            + "lower = %s upper = %s",
+        lower,
+        upper);
+  }
+
   static void checkBoundsNotEqual(double lower, double upper) {
     checkArgument(
         upper != lower,
@@ -148,6 +157,19 @@ public class DpPreconditions {
         lower2);
     checkArgument(
         Double.compare(upper1, upper2) == 0,
+        "Failed to merge: unequal upper bounds. upper1 = %s, upper2 = %s",
+        upper1,
+        upper2);
+  }
+
+  static void checkMergeBoundsAreEqual(long lower1, long lower2, long upper1, long upper2) {
+    checkArgument(
+        Long.compare(lower1, lower2) == 0,
+        "Failed to merge: unequal lower bounds. lower1 = %s, lower2 = %s",
+        lower1,
+        lower2);
+    checkArgument(
+        Long.compare(upper1, upper2) == 0,
         "Failed to merge: unequal upper bounds. upper1 = %s, upper2 = %s",
         upper1,
         upper2);

@@ -36,6 +36,7 @@ exports_files([
     "gaussian_closeness_test_cases.textproto",
     "laplace_closeness_test_cases.textproto",
     "laplace_dp_test_cases.textproto",
+    "long_bounded_sum_dp_test_cases.textproto",
 ])
 
 cc_proto_library(

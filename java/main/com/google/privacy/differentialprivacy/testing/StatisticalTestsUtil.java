@@ -158,6 +158,17 @@ public final class StatisticalTestsUtil {
   }
 
   /**
+   * Rounds a numerical {@code sample} to the next multiple of the specified {@code granularity}.
+   * This is intended as a preprocessing step for continous samples before evaluating them based on
+   * a discrete statistical test. Note that {@code granularity} must be a positive value.
+   */
+  public static Long discretize(Long sample, double granularity) {
+    double doubleResult = StatisticalTestsUtil.discretize(sample.doubleValue(), granularity);
+    checkArgument(doubleResult <= Long.MAX_VALUE, "sample does overflow");
+    return Math.round(doubleResult);
+  }
+
+  /**
    * Partitions the interval between {@code lower} and {@code upper} into {@code numberOfBuckets}
    * subintervals of equal size and returns the index (from 0 to {@code numberOfBuckets} - 1) of the
    * subinterval that contains the specified {@code sample}.

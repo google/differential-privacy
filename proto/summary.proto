@@ -90,6 +90,18 @@ message BoundedSumSummary {
   optional int32 max_contributions_per_partition = 11;
 }
 
+message LongBoundedSumSummary {
+  optional ValueType partial_sum = 1;
+
+  optional double epsilon = 2;
+  optional double delta = 3;
+  optional MechanismType mechanism_type = 4;
+  optional int64 lower = 5;
+  optional int64 upper = 6;
+  optional int32 max_partitions_contributed = 7;
+  optional int32 max_contributions_per_partition = 8;
+}
+
 enum MechanismType {
   EMPTY = 0;
   LAPLACE = 1;

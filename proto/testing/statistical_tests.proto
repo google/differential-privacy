@@ -119,6 +119,20 @@ message BoundedSumSamplingParameters {
   repeated double neighbour_raw_entry = 9;
 }
 
+// Parameters required for drawing samples from the long bounded sum aggregation
+// of the DP library.
+message LongBoundedSumSamplingParameters {
+  optional int32 number_of_samples = 1;
+  optional NoiseType noise_type = 2;
+  optional int32 max_partitions_contributed = 3;
+  optional int64 lower_bound = 4;
+  optional int64 upper_bound = 5;
+  optional double epsilon = 6;
+  optional double delta = 7;
+  repeated int64 raw_entry = 8 [packed = true];
+  repeated int64 neighbour_raw_entry = 9 [packed = true];
+}
+
 // Parameters required for drawing samples from the bounded mean aggregation of
 // the DP library.
 message BoundedMeanSamplingParameters {
@@ -267,6 +281,13 @@ message BoundedSumDpTestCase {
   optional BoundedSumSamplingParameters bounded_sum_sampling_parameters = 3;
 }
 
+message LongBoundedSumDpTestCase {
+  optional string name = 1;
+  optional DpTestParameters dp_test_parameters = 2;
+  optional LongBoundedSumSamplingParameters
+      long_bounded_sum_sampling_parameters = 3;
+}
+
 message BoundedMeanDpTestCase {
   optional string name = 1;
   optional DpTestParameters dp_test_parameters = 2;
@@ -313,6 +334,12 @@ message CountDpTestCaseCollection {
 
 message BoundedSumDpTestCaseCollection {
   repeated BoundedSumDpTestCase bounded_sum_dp_test_case = 1;
+  optional VotingParameters voting_parameters = 2;
+  optional DpTestValidityParameters validity_parameters = 3;
+}
+
+message LongBoundedSumDpTestCaseCollection {
+  repeated LongBoundedSumDpTestCase long_bounded_sum_dp_test_case = 1;
   optional VotingParameters voting_parameters = 2;
   optional DpTestValidityParameters validity_parameters = 3;
 }

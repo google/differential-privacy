@@ -39,7 +39,7 @@ java_library(
 
 java_test(
     name = "AllTests",
-    timeout = "moderate",
+    timeout = "long",
     srcs = glob(
         [
             "*.java",

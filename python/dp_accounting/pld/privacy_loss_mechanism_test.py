@@ -47,6 +47,39 @@ class LaplacePrivacyLossTest(parameterized.TestCase):
 
   @parameterized.parameters(
       # Tests with sampling_prob = 1 for adjacency_type=ADD
+      (1.0, 1.0, 1.0, ADD, [0, 1, 2, 30],
+       [-1.69314718, -0.69314718, -0.20326705, -1.27231559e-13]),
+      (2.0, 1.0, 1.0, ADD, [-1, 0, 1, 30],
+       [-1.69314718, -1.19314718, -0.69314718, -2.52173863e-07]),
+      # # Tests with sampling_prob < 1 for adjacency_type=ADD
+      (1.0, 1.0, 0.8, ADD, [0, 1, 2, 30],
+       [-1.39775265, -0.57409907, -0.17516956, -1.11161080e-13]),
+      (2.0, 1.0, 0.2, ADD, [-1, 0, 1, 30],
+       [-1.27511009, -0.77511009, -0.41948127, -1.72795709e-07]),
+      # # Tests with sampling_prob = 1 for adjacency_type=REMOVE
+      (1.0, 1.0, 1.0, REM, [-1, 0, 1, 30],
+       [-1.69314718, -0.69314718, -0.20326705, -4.67403893e-14]),
+      (2.0, 1.0, 1.0, REM, [-2, -1, 0, 30],
+       [-1.69314718, -1.19314718, -0.69314718, -1.52951172e-07]),
+      # # Tests with sampling_prob < 1 for adjacency_type=REMOVE
+      (1.0, 1.0, 0.8, REM, [-1, 0, 1, 30],
+       [-1.69314718, -0.69314718, -0.20326705, -4.67403893e-14]),
+      (2.0, 1.0, 0.2, REM, [-2, -1, 0, 30],
+       [-1.69314718, -1.19314718, -0.69314718, -1.52951172e-07]),
+  )
+  def test_mu_lower_log_cdf(
+      self, parameter, sensitivity, sampling_prob, adjacency_type,
+      x, expected_mu_lower_log_cdf):
+    pl = privacy_loss_mechanism.LaplacePrivacyLoss(
+        parameter,
+        sensitivity=sensitivity,
+        sampling_prob=sampling_prob,
+        adjacency_type=adjacency_type)
+    self.assertSequenceAlmostEqual(pl.mu_lower_log_cdf(x),
+                                   expected_mu_lower_log_cdf)
+
+  @parameterized.parameters(
+      # Tests with sampling_prob = 1 for adjacency_type=ADD
       (1.0, 1.0, 1.0, ADD, -0.1, 1.0), (1.0, 1.0, 1.0, ADD, 2.0, -1.0),
       (1.0, 1.0, 1.0, ADD, 0.3, 0.4), (4.0, 4.0, 1.0, ADD, -0.4, 1.0),
       (5.0, 5.0, 1.0, ADD, 7.0, -1.0), (7.0, 7.0, 1.0, ADD, 2.1, 0.4),
@@ -305,6 +338,39 @@ class LaplacePrivacyLossTest(parameterized.TestCase):
 
 
 class GaussianPrivacyLossTest(parameterized.TestCase):
+
+  @parameterized.parameters(
+      # Tests with sampling_prob = 1 for adjacency_type=ADD
+      (1.0, 1.0, 1.0, ADD, [-10, 0, 1, 10],
+       [-6.38249341e+01, -1.84102165e+00, -6.93147181e-01, -1.12858841e-19]),
+      (2.0, 1.0, 1.0, ADD, [-10, 0, 1, 10],
+       [-1.77793764e+01, -1.17591176e+00, -6.93147181e-01, -3.39767890e-06]),
+      # # Tests with sampling_prob < 1 for adjacency_type=ADD
+      (1.0, 1.0, 0.8, ADD, [-10, 0, 1, 10],
+       [-54.84062277, -1.48313922, -0.56516047, 0.]),
+      (2.0, 1.0, 0.2, ADD, [-10, 0, 1, 10],
+       [-1.52717161e+01, -7.72823689e-01, -4.25917894e-01, -9.08856295e-07]),
+      # # Tests with sampling_prob = 1 for adjacency_type=REMOVE
+      (1.0, 1.0, 1.0, REM, [-10, 0, 1, 10],
+       [-5.32312852e+01, -6.93147181e-01, -0.172753779, -7.61985302e-24]),
+      (2.0, 1.0, 1.0, REM, [-10, 0, 1, 10],
+       [-1.50649984e+01, -6.93147181e-01, -3.68946415e-01, -2.86651613e-07]),
+      # # Tests with sampling_prob < 1 for adjacency_type=REMOVE
+      (1.0, 1.0, 0.8, REM, [-10, 0, 1, 10],
+       [-5.32312852e+01, -6.93147181e-01, -1.72753779e-01, -7.61985302e-24]),
+      (2.0, 1.0, 0.2, REM, [-10, 0, 1, 10],
+       [-1.50649984e+01, -6.93147181e-01, -3.68946415e-01, -2.86651613e-07]),
+  )
+  def test_mu_lower_log_cdf(
+      self, standard_deviation, sensitivity, sampling_prob, adjacency_type,
+      x, expected_mu_lower_log_cdf):
+    pl = privacy_loss_mechanism.GaussianPrivacyLoss(
+        standard_deviation,
+        sensitivity=sensitivity,
+        sampling_prob=sampling_prob,
+        adjacency_type=adjacency_type)
+    self.assertSequenceAlmostEqual(pl.mu_lower_log_cdf(x),
+                                   expected_mu_lower_log_cdf)
 
   @parameterized.parameters(
       # Tests with sampling_prob = 1 for adjacency_type=ADD
@@ -672,6 +738,39 @@ class DiscreteLaplacePrivacyLossDistributionTest(parameterized.TestCase):
 
   @parameterized.parameters(
       # Tests with sampling_prob = 1 for adjacency_type=ADD
+      (1.0, 1, 1.0, ADD, [-30, 0, 1, 30],
+       [-3.13132617e+01, -1.31326169, -3.13261688e-01, -6.83897383e-14]),
+      (2.0, 1, 1.0, ADD, [-30, 0, 1, 30],
+       [-62.12692801, -2.12692801, -0.12692801, 0.]),
+      # # Tests with sampling_prob < 1 for adjacency_type=ADD
+      (1.0, 1, 0.8, ADD, [-30, 0, 1, 30],
+       [-3.10178672e+01, -1.01786716, -2.67801985e-01, -5.97855099e-14]),
+      (2.0, 1, 0.2, ADD, [-30, 0, 1, 30],
+       [-6.03167975e+01, -3.16797514e-01, -3.74386343e-02, 0.0]),
+      # # Tests with sampling_prob = 1 for adjacency_type=REMOVE
+      (1.0, 1, 1.0, REM, [-30, 0, 1, 30],
+       [-3.03132617e+01, -3.13261688e-01, -1.04181233e-01, -2.52020627e-14]),
+      (2.0, 1, 1.0, REM, [-30, 0, 1, 30],
+       [-6.01269280e+01, -1.26928011e-01, -1.62639044e-02, 0.0]),
+      # # Tests with sampling_prob < 1 for adjacency_type=REMOVE
+      (1.0, 1, 0.8, REM, [-30, 0, 1, 30],
+       [-3.03132617e+01, -3.13261688e-01, -1.04181233e-01, -2.52020627e-14]),
+      (2.0, 1, 0.2, REM, [-30, 0, 1, 30],
+       [-6.01269280e+01, -1.26928011e-01, -1.62639044e-02, 0.0]),
+  )
+  def test_mu_lower_log_cdf(
+      self, parameter, sensitivity, sampling_prob, adjacency_type,
+      x, expected_mu_lower_log_cdf):
+    pl = privacy_loss_mechanism.DiscreteLaplacePrivacyLoss(
+        parameter,
+        sensitivity=sensitivity,
+        sampling_prob=sampling_prob,
+        adjacency_type=adjacency_type)
+    self.assertSequenceAlmostEqual(pl.mu_lower_log_cdf(x),
+                                   expected_mu_lower_log_cdf)
+
+  @parameterized.parameters(
+      # Tests with sampling_prob = 1 for adjacency_type=ADD
       (1.0, 1, 1.0, ADD, 0, 1.0),
       (1.0, 1, 1.0, ADD, 1, -1.0),
       (0.3, 2, 1.0, ADD, 0, 0.6),
@@ -947,6 +1046,40 @@ class DiscreteLaplacePrivacyLossDistributionTest(parameterized.TestCase):
 
 
 class DiscreteGaussianPrivacyLossTest(parameterized.TestCase):
+
+  @parameterized.parameters(
+      # Tests with sampling_prob = 1 for adjacency_type=ADD
+      (1.0, 1, 1.0, ADD, [-1, 0, 1, 2],
+       [-math.inf, -1.29437677, -0.32029979, 0.]),
+      (3.0, 1, 1.0, ADD, [-1, 0, 1, 2],
+       [-math.inf, -1.11747583, -0.39616512, 0.]),
+      # # Tests with sampling_prob < 1 for adjacency_type=ADD
+      (1.0, 1, 0.8, ADD, [-1, 0, 1, 2],
+       [-2.90381468, -1.00939014, -0.24750655, 0.]),
+      (2.0, 1, 0.2, ADD, [-1, 0, 1, 2],
+       [-1.36518195e+00, -4.96759453e-01, -6.59619911e-02, 2.22044605e-16]),
+      # # Tests with sampling_prob = 1 for adjacency_type=REMOVE
+      (1.0, 1, 1.0, REM, [-1, 0, 1, 2],
+       [-1.29437677, -0.32029979, 0.0, 0.0]),
+      (3.0, 1, 1.0, REM, [-1, 0, 1, 2],
+       [-1.11747583, -0.39616512, 0., 0.]),
+      # # Tests with sampling_prob < 1 for adjacency_type=REMOVE
+      (1.0, 1, 0.8, REM, [-1, 0, 1, 2],
+       [-1.29437677, -0.32029979, 0., 0.]),
+      (2.0, 1, 0.2, REM, [-1, 0, 1, 2],
+       [-1.14203839, -0.38443936, 0., 0.]),
+  )
+  def test_mu_lower_log_cdf(
+      self, sigma, sensitivity, sampling_prob, adjacency_type,
+      x, expected_mu_lower_log_cdf):
+    pl = privacy_loss_mechanism.DiscreteGaussianPrivacyLoss(
+        sigma,
+        sensitivity=sensitivity,
+        truncation_bound=1,
+        sampling_prob=sampling_prob,
+        adjacency_type=adjacency_type)
+    self.assertSequenceAlmostEqual(pl.mu_lower_log_cdf(x),
+                                   expected_mu_lower_log_cdf)
 
   @parameterized.parameters(
       # Tests with sampling_prob = 1 for adjacency_type=ADD

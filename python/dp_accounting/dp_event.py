@@ -62,7 +62,7 @@ incorrect results, the following should be enforced:
 from collections.abc import Mapping, Sequence
 import importlib
 import typing
-from typing import NamedTuple, Protocol, Union
+from typing import List, NamedTuple, Protocol, Union
 
 import attr
 
@@ -288,7 +288,7 @@ class ComposedDpEvent(DpEvent):
   The composition may be adaptive, where the query producing each event depends
   on the results of prior queries.
   """
-  events: list[DpEvent]
+  events: List[DpEvent]
 
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
@@ -349,7 +349,7 @@ class SingleEpochTreeAggregationDpEvent(DpEvent):
       tree.
   """
   noise_multiplier: float
-  step_counts: Union[int, list[int]]
+  step_counts: Union[int, List[int]]
 
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
