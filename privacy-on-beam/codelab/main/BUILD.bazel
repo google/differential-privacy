@@ -37,6 +37,7 @@ go_binary(
         "@com_github_apache_beam_sdks_v2//go/pkg/beam:go_default_library",
         "@com_github_apache_beam_sdks_v2//go/pkg/beam/io/filesystem/local:go_default_library",
         "@com_github_apache_beam_sdks_v2//go/pkg/beam/io/textio:go_default_library",
+        "@com_github_apache_beam_sdks_v2//go/pkg/beam/register:go_default_library",
         "@com_github_apache_beam_sdks_v2//go/pkg/beam/runners/direct:go_default_library",
         "@com_github_apache_beam_sdks_v2//go/pkg/beam/transforms/stats:go_default_library",
         "@com_github_golang_glog//:go_default_library",

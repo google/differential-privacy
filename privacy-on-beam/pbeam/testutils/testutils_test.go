@@ -128,8 +128,8 @@ func TestApproxEqualsKVFloat64(t *testing.T) {
 		},
 	} {
 		p, s, col1, col2 := ptest.CreateList2(tc.values1, tc.values2)
-		col1KV := beam.ParDo(s, PairIFToKV, col1)
-		col2KV := beam.ParDo(s, PairIFToKV, col2)
+		col1KV := beam.ParDo(s, PairIF64ToKV, col1)
+		col2KV := beam.ParDo(s, PairIF64ToKV, col2)
 		if err := ApproxEqualsKVFloat64(s, col1KV, col2KV, tolerance); err != nil {
 			t.Fatalf("TestApproxEqualsKVFloat64: %v", err)
 		}

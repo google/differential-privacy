@@ -12,6 +12,7 @@ go_library(
     deps = [
         "@com_github_apache_beam_sdks_v2//go/pkg/beam:go_default_library",
         "@com_github_apache_beam_sdks_v2//go/pkg/beam/core/typex:go_default_library",
+        "@com_github_apache_beam_sdks_v2//go/pkg/beam/register:go_default_library",
         "@com_github_golang_glog//:go_default_library",
     ],
 )

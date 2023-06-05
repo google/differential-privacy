@@ -18,18 +18,17 @@ package codelab
 
 import (
 	"fmt"
-	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 )
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*Visit)(nil)))
-	beam.RegisterFunction(CreateVisitsFn)
+	register.Function2x1[string, func(Visit), error](CreateVisitsFn)
+	register.Emitter1[Visit]()
 }
 
 // Visit represents a visit from a user to the restaurant.

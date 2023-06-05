@@ -35,6 +35,7 @@ go_library(
     deps = [
         "//pbeam:go_default_library",
         "@com_github_apache_beam_sdks_v2//go/pkg/beam:go_default_library",
+        "@com_github_apache_beam_sdks_v2//go/pkg/beam/register:go_default_library",
         "@com_github_apache_beam_sdks_v2//go/pkg/beam/transforms/stats:go_default_library",
     ],
 )

@@ -441,7 +441,7 @@ func TestDropKey(t *testing.T) {
 		{1, 100},
 		{2, 100},
 	}
-	result := []testutils.TestInt64Metric{
+	result := []testutils.PairII64{
 		{100, 2},
 	}
 	p, s, col, want := ptest.CreateList2(values, result)
@@ -458,7 +458,7 @@ func TestDropKey(t *testing.T) {
 	publicPartitionsSlice := []int{100}
 	publicPartitions := beam.CreateList(s, publicPartitionsSlice)
 	got := Count(s, pcol, CountParams{MaxValue: 1, MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions})
-	want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+	want = beam.ParDo(s, testutils.PairII64ToKV, want)
 
 	if err := testutils.EqualsKVInt64(s, got, want); err != nil {
 		t.Fatalf("Count() is different than expected: %v", err)
@@ -478,7 +478,7 @@ func TestDropValue(t *testing.T) {
 		{1, 100},
 		{2, 100},
 	}
-	result := []testutils.TestInt64Metric{
+	result := []testutils.PairII64{
 		{100, 2},
 	}
 	p, s, col, want := ptest.CreateList2(values, result)
@@ -496,7 +496,7 @@ func TestDropValue(t *testing.T) {
 	publicPartitionsSlice := []int{100}
 	publicPartitions := beam.CreateList(s, publicPartitionsSlice)
 	got := Count(s, pcol, CountParams{MaxValue: 1, MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions})
-	want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+	want = beam.ParDo(s, testutils.PairII64ToKV, want)
 
 	if err := testutils.EqualsKVInt64(s, got, want); err != nil {
 		t.Fatalf("Count() is different than expected: %v", err)

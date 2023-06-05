@@ -480,7 +480,7 @@ func TestQuantilesPerKeyNoNoise(t *testing.T) {
 		testutils.MakeTripleWithFloatValue(100, 0, 1.0),
 		testutils.MakeTripleWithFloatValue(100, 0, 4.0))
 
-	wantMetric := []testutils.TestFloat64SliceMetric{
+	wantMetric := []testutils.PairIF64Slice{
 		{0, []float64{1.0, 1.0, 4.0, 4.0}},
 	}
 	p, s, col, want := ptest.CreateList2(triples, wantMetric)
@@ -504,7 +504,7 @@ func TestQuantilesPerKeyNoNoise(t *testing.T) {
 		Ranks:                        ranks,
 	})
 
-	want = beam.ParDo(s, testutils.Float64SliceMetricToKV, want)
+	want = beam.ParDo(s, testutils.PairIF64SliceToKV, want)
 	if err := testutils.ApproxEqualsKVFloat64Slice(s, got, want, testutils.QuantilesTolerance(lower, upper)); err != nil {
 		t.Fatalf("ApproxEqualsKVFloat64Slice: got error %v", err)
 	}
@@ -526,7 +526,7 @@ func TestQuantilesPerKeyWithPartitionsNoNoise(t *testing.T) {
 			testutils.MakeTripleWithFloatValue(100, 0, 1.0),
 			testutils.MakeTripleWithFloatValue(100, 0, 4.0))
 
-		wantMetric := []testutils.TestFloat64SliceMetric{
+		wantMetric := []testutils.PairIF64Slice{
 			{0, []float64{1.0, 1.0, 4.0, 4.0}},
 		}
 		p, s, col, want := ptest.CreateList2(triples, wantMetric)
@@ -558,7 +558,7 @@ func TestQuantilesPerKeyWithPartitionsNoNoise(t *testing.T) {
 		}
 		got := QuantilesPerKey(s, pcol, quantilesParams)
 
-		want = beam.ParDo(s, testutils.Float64SliceMetricToKV, want)
+		want = beam.ParDo(s, testutils.PairIF64SliceToKV, want)
 		if err := testutils.ApproxEqualsKVFloat64Slice(s, got, want, testutils.QuantilesTolerance(lower, upper)); err != nil {
 			t.Fatalf("ApproxEqualsKVFloat64Slice in-memory=%t: got error %v", tc.inMemory, err)
 		}
@@ -706,7 +706,7 @@ func TestQuantilesPartitionSelection(t *testing.T) {
 				NoiseKind:                    tc.noiseKind,
 				Ranks:                        ranks,
 			})
-			got = beam.ParDo(s, testutils.KVToFloat64SliceMetric, got)
+			got = beam.ParDo(s, testutils.KVToPairIF64Slice, got)
 
 			// Validate that partition selection is applied (i.e., some emitted and some dropped).
 			testutils.CheckSomePartitionsAreDropped(s, got, tc.numPartitions)
@@ -735,7 +735,7 @@ func TestQuantilesPerKeyCrossPartitionContributionBounding(t *testing.T) {
 	)
 	lower := 0.0
 	upper := 5.0
-	wantMetric := []testutils.TestFloat64Metric{
+	wantMetric := []testutils.PairIF64{
 		{0, 1.0 + testutils.QuantilesTolerance(lower, upper)}, // To account for noise.
 	}
 	p, s, col, want := ptest.CreateList2(triples, wantMetric)
@@ -761,7 +761,7 @@ func TestQuantilesPerKeyCrossPartitionContributionBounding(t *testing.T) {
 	maxOverPartitions := stats.Sum(s, maxs)
 	got = beam.AddFixedKey(s, maxOverPartitions) // Adds a fixed key of 0.
 
-	want = beam.ParDo(s, testutils.Float64MetricToKV, want)
+	want = beam.ParDo(s, testutils.PairIF64ToKV, want)
 	if err := testutils.LessThanOrEqualToKVFloat64(s, got, want); err != nil {
 		t.Fatalf("LessThanOrEqualToKVFloat64: got error %v", err)
 	}
@@ -795,7 +795,7 @@ func TestQuantilesPerKeyWithPartitionsCrossPartitionContributionBounding(t *test
 		)
 		lower := 0.0
 		upper := 5.0
-		wantMetric := []testutils.TestFloat64Metric{
+		wantMetric := []testutils.PairIF64{
 			{0, 1.0 + testutils.QuantilesTolerance(lower, upper)}, // To account for noise.
 		}
 		p, s, col, want := ptest.CreateList2(triples, wantMetric)
@@ -829,7 +829,7 @@ func TestQuantilesPerKeyWithPartitionsCrossPartitionContributionBounding(t *test
 		maxOverPartitions := stats.Sum(s, maxs)
 		got = beam.AddFixedKey(s, maxOverPartitions) // Adds a fixed key of 0.
 
-		want = beam.ParDo(s, testutils.Float64MetricToKV, want)
+		want = beam.ParDo(s, testutils.PairIF64ToKV, want)
 		if err := testutils.LessThanOrEqualToKVFloat64(s, got, want); err != nil {
 			t.Fatalf("LessThanOrEqualToKVFloat64 in-memory=%t: got error %v", tc.inMemory, err)
 		}
@@ -849,7 +849,7 @@ func TestQuantilesPerKeyPerPartitionContributionBounding(t *testing.T) {
 		testutils.MakeTripleWithFloatValueStartingFromKey(100, 100, 0, 1.0),
 		testutils.MakeTripleWithFloatValueStartingFromKey(100, 100, 0, 1.0))
 
-	wantMetric := []testutils.TestFloat64SliceMetric{
+	wantMetric := []testutils.PairIF64Slice{
 		{0, []float64{0.0, 1.0}},
 	}
 	p, s, col, want := ptest.CreateList2(triples, wantMetric)
@@ -873,7 +873,7 @@ func TestQuantilesPerKeyPerPartitionContributionBounding(t *testing.T) {
 		Ranks:                        ranks,
 	})
 
-	want = beam.ParDo(s, testutils.Float64SliceMetricToKV, want)
+	want = beam.ParDo(s, testutils.PairIF64SliceToKV, want)
 	if err := testutils.ApproxEqualsKVFloat64Slice(s, got, want, testutils.QuantilesTolerance(lower, upper)); err != nil {
 		t.Fatalf("ApproxEqualsKVFloat64Slice: got error %v", err)
 	}
@@ -899,7 +899,7 @@ func TestQuantilesPerKeyWithPartitionsPerPartitionContributionBounding(t *testin
 			testutils.MakeTripleWithFloatValueStartingFromKey(100, 100, 0, 1.0),
 			testutils.MakeTripleWithFloatValueStartingFromKey(100, 100, 0, 1.0))
 
-		wantMetric := []testutils.TestFloat64SliceMetric{
+		wantMetric := []testutils.PairIF64Slice{
 			{0, []float64{0.0, 1.0}},
 		}
 		p, s, col, want := ptest.CreateList2(triples, wantMetric)
@@ -932,7 +932,7 @@ func TestQuantilesPerKeyWithPartitionsPerPartitionContributionBounding(t *testin
 		}
 		got := QuantilesPerKey(s, pcol, quantilesParams)
 
-		want = beam.ParDo(s, testutils.Float64SliceMetricToKV, want)
+		want = beam.ParDo(s, testutils.PairIF64SliceToKV, want)
 		if err := testutils.ApproxEqualsKVFloat64Slice(s, got, want, testutils.QuantilesTolerance(lower, upper)); err != nil {
 			t.Fatalf("ApproxEqualsKVFloat64Slice in-memory=%t: got error %v", tc.inMemory, err)
 		}
@@ -948,7 +948,7 @@ func TestQuantilesPerKeyAppliesClamping(t *testing.T) {
 		testutils.MakeTripleWithFloatValue(100, 0, -5.0), // Will be clamped to 0.0
 		testutils.MakeTripleWithFloatValue(100, 0, 10.0)) // Will be clamped to 5.0
 
-	wantMetric := []testutils.TestFloat64SliceMetric{
+	wantMetric := []testutils.PairIF64Slice{
 		{0, []float64{0.0, 0.0, 5.0, 5.0}},
 	}
 	p, s, col, want := ptest.CreateList2(triples, wantMetric)
@@ -972,7 +972,7 @@ func TestQuantilesPerKeyAppliesClamping(t *testing.T) {
 		Ranks:                        ranks,
 	})
 
-	want = beam.ParDo(s, testutils.Float64SliceMetricToKV, want)
+	want = beam.ParDo(s, testutils.PairIF64SliceToKV, want)
 	if err := testutils.ApproxEqualsKVFloat64Slice(s, got, want, testutils.QuantilesTolerance(lower, upper)); err != nil {
 		t.Fatalf("ApproxEqualsKVFloat64Slice: got error %v", err)
 	}
@@ -994,7 +994,7 @@ func TestQuantilesPerKeyWithPartitionsAppliesClamping(t *testing.T) {
 			testutils.MakeTripleWithFloatValue(100, 0, -5.0), // Will be clamped to 0.0
 			testutils.MakeTripleWithFloatValue(100, 0, 10.0)) // Will be clamped to 5.0
 
-		wantMetric := []testutils.TestFloat64SliceMetric{
+		wantMetric := []testutils.PairIF64Slice{
 			{0, []float64{0.0, 0.0, 5.0, 5.0}},
 		}
 		p, s, col, want := ptest.CreateList2(triples, wantMetric)
@@ -1027,7 +1027,7 @@ func TestQuantilesPerKeyWithPartitionsAppliesClamping(t *testing.T) {
 		}
 		got := QuantilesPerKey(s, pcol, quantilesParams)
 
-		want = beam.ParDo(s, testutils.Float64SliceMetricToKV, want)
+		want = beam.ParDo(s, testutils.PairIF64SliceToKV, want)
 		if err := testutils.ApproxEqualsKVFloat64Slice(s, got, want, testutils.QuantilesTolerance(lower, upper)); err != nil {
 			t.Fatalf("ApproxEqualsKVFloat64Slice in-memory=%t: got error %v", tc.inMemory, err)
 		}

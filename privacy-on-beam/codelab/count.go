@@ -22,6 +22,7 @@ import (
 
 	"github.com/google/differential-privacy/privacy-on-beam/v2/pbeam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 )
 
@@ -31,7 +32,7 @@ var epsilon = math.Log(3)
 const delta = 1e-5
 
 func init() {
-	beam.RegisterFunction(extractVisitHourFn)
+	register.Function1x1[Visit, int](extractVisitHourFn)
 }
 
 // CountVisitsPerHour counts and returns the number of visits to a restaurant for each hour.

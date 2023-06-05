@@ -26,9 +26,9 @@ def cc_differential_privacy_deps():
     # Abseil
     http_archive(
         name = "com_google_absl",
-        url = "https://github.com/abseil/abseil-cpp/archive/refs/tags/20230125.1.tar.gz",
-        sha256 = "81311c17599b3712069ded20cca09a62ab0bf2a89dfa16993786c8782b7ed145",
-        strip_prefix = "abseil-cpp-20230125.1",
+        url = "https://github.com/abseil/abseil-cpp/archive/refs/tags/20230125.3.tar.gz",
+        sha256 = "5366d7e7fa7ba0d915014d387b66d0d002c03236448e1ba9ef98122c13b35c36",
+        strip_prefix = "abseil-cpp-20230125.3",
     )
 
     # Common bazel rules.  Also required for Abseil.
@@ -49,16 +49,13 @@ def cc_differential_privacy_deps():
         sha256 = "ad7fdba11ea011c1d925b3289cf4af2c66a352e18d4c7264392fead75e919363",
     )
 
-    # Re2 is a requirement for GoogleTest
-    #
-    # Note this must use a commit from the `abseil` branch of the RE2 project.
-    # https://github.com/google/re2/tree/abseil
+    # RE2 is a requirement for GoogleTest
     http_archive(
         name = "com_googlesource_code_re2",
-        sha256 = "0a890c2aa0bb05b2ce906a15efb520d0f5ad4c7d37b8db959c43772802991887",
-        strip_prefix = "re2-a427f10b9fb4622dd6d8643032600aa1b50fbd12",
-        # Commit date: 2022-06-09
-        url = "https://github.com/google/re2/archive/a427f10b9fb4622dd6d8643032600aa1b50fbd12.zip",
+        sha256 = "1726508efc93a50854c92e3f7ac66eb28f0e57652e413f11d7c1e28f97d997ba",
+        strip_prefix = "re2-03da4fc0857c285e3a26782f6bc8931c4c950df4",
+        # release 2023-06-01
+        url = "https://github.com/google/re2/archive/03da4fc0857c285e3a26782f6bc8931c4c950df4.zip",
     )
 
     # Benchmarks for testing.

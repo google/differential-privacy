@@ -26,10 +26,11 @@ import (
 	"github.com/google/differential-privacy/go/v2/noise"
 	"github.com/google/differential-privacy/privacy-on-beam/v2/internal/kv"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 )
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*boundedQuantilesFn)(nil)))
+	register.Combiner2[boundedQuantilesAccum, []float64](&boundedQuantilesFn{})
 }
 
 // QuantilesParams specifies the parameters associated with a Quantiles aggregation.
@@ -196,7 +197,7 @@ func QuantilesPerKey(s beam.Scope, pcol PrivatePCollection, params QuantilesPara
 	if err != nil {
 		log.Fatalf("Couldn't get MaxPartitionsContributed for QuantilesPerKey: %v", err)
 	}
-	rekeyed := beam.ParDo(s, rekeyArrayFloat64Fn, combined)
+	rekeyed := beam.ParDo(s, rekeyArrayFloat64, combined)
 	// Second, do cross-partition contribution bounding if not in test mode without contribution bounding.
 	if spec.testMode != noNoiseWithoutContributionBounding {
 		rekeyed = boundContributions(s, rekeyed, maxPartitionsContributed)
@@ -237,7 +238,7 @@ func QuantilesPerKey(s beam.Scope, pcol PrivatePCollection, params QuantilesPara
 			boundedQuantilesFn,
 			partialKV)
 		// Finally, drop thresholded partitions.
-		result = beam.ParDo(s, dropThresholdedPartitionsFloat64SliceFn, quantiles)
+		result = beam.ParDo(s, dropThresholdedPartitionsFloat64Slice, quantiles)
 	}
 	return result
 }
@@ -271,7 +272,7 @@ func addPublicPartitionsForQuantiles(s beam.Scope, epsilon, delta float64, maxPa
 		publicPartitions = beam.Reshuffle(s, beam.CreateList(s, params.PublicPartitions))
 	}
 	// Add value of empty array to each partition key in PublicPartitions.
-	publicPartitionsWithValues := beam.ParDo(s, addEmptySliceToPublicPartitionsFloat64Fn, publicPartitions)
+	publicPartitionsWithValues := beam.ParDo(s, addEmptySliceToPublicPartitionsFloat64, publicPartitions)
 	// emptyPublicPartitions are the partitions that are public but not found in the data.
 	emptyPublicPartitions := beam.ParDo(s, newEmitPartitionsNotInTheDataFn(partitionT), publicPartitionsWithValues, beam.SideInput{Input: partitionMap})
 	// Compute DP quantiles for empty public partitions.

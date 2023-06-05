@@ -16,7 +16,9 @@
 
 # Differential Privacy related proto definitions.
 
-package(default_visibility = ["//visibility:public"])
+package(
+    default_visibility = ["//visibility:public"],
+)
 
 proto_library(
     name = "confidence-interval_proto",

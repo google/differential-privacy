@@ -27,42 +27,49 @@ import (
 	"github.com/google/differential-privacy/privacy-on-beam/v2/internal/kv"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 )
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*partitionMapFn)(nil)).Elem())
-	beam.RegisterType(reflect.TypeOf((*prunePartitionsInMemoryVFn)(nil)).Elem())
-	beam.RegisterType(reflect.TypeOf((*prunePartitionsInMemoryKVFn)(nil)).Elem())
-	beam.RegisterType(reflect.TypeOf((*emitPartitionsNotInTheDataFn)(nil)).Elem())
+	register.Combiner2[pMap, beam.W](&partitionMapFn{})
+	register.DoFn3x1[beam.U, beam.W, func(beam.U, beam.W), error](&prunePartitionsInMemoryVFn{})
+	register.Emitter2[beam.U, beam.W]()
+	register.DoFn3x0[beam.U, kv.Pair, func(beam.U, kv.Pair)](&prunePartitionsInMemoryKVFn{})
+	register.Emitter2[beam.U, kv.Pair]()
+	register.DoFn4x1[beam.W, beam.V, func(*pMap) bool, func(beam.W, beam.V), error](&emitPartitionsNotInTheDataFn{})
+	register.Iter1[pMap]()
 
-	beam.RegisterFunction(addZeroValuesToPublicPartitionsInt64Fn)
-	beam.RegisterFunction(addZeroValuesToPublicPartitionsFloat64Fn)
-	beam.RegisterFunction(addEmptySliceToPublicPartitionsFloat64Fn)
-	beam.RegisterFunction(prunePartitionsKVFn)
-	beam.RegisterFunction(mergePublicValuesFn)
+	register.Function1x2[beam.W, beam.W, int64](addZeroValuesToPublicPartitionsInt64)
+	register.Function1x2[beam.W, beam.W, float64](addZeroValuesToPublicPartitionsFloat64)
+	register.Function1x2[beam.W, beam.W, []float64](addEmptySliceToPublicPartitionsFloat64)
+	register.Function4x1[beam.U, kv.Pair, func(*pMap) bool, func(beam.U, kv.Pair), error](prunePartitionsKV)
+	register.Function4x0[beam.V, func(*int64) bool, func(*beam.U) bool, func(beam.U, beam.V)](mergePublicValues)
+	register.Iter1[int64]()
+	register.Iter1[beam.U]()
+	register.Emitter2[beam.U, beam.V]()
 }
 
 // newAddZeroValuesToPublicPartitionsFn turns a PCollection<V> into PCollection<V,0>.
 func newAddZeroValuesToPublicPartitionsFn(vKind reflect.Kind) (any, error) {
 	switch vKind {
 	case reflect.Int64:
-		return addZeroValuesToPublicPartitionsInt64Fn, nil
+		return addZeroValuesToPublicPartitionsInt64, nil
 	case reflect.Float64:
-		return addZeroValuesToPublicPartitionsFloat64Fn, nil
+		return addZeroValuesToPublicPartitionsFloat64, nil
 	default:
 		return nil, fmt.Errorf("vKind(%v) should be int64 or float64", vKind)
 	}
 }
 
-func addZeroValuesToPublicPartitionsInt64Fn(partition beam.W) (k beam.W, v int64) {
+func addZeroValuesToPublicPartitionsInt64(partition beam.W) (k beam.W, v int64) {
 	return partition, 0
 }
 
-func addZeroValuesToPublicPartitionsFloat64Fn(partition beam.W) (k beam.W, v float64) {
+func addZeroValuesToPublicPartitionsFloat64(partition beam.W) (k beam.W, v float64) {
 	return partition, 0
 }
 
-func addEmptySliceToPublicPartitionsFloat64Fn(partition beam.W) (k beam.W, v []float64) {
+func addEmptySliceToPublicPartitionsFloat64(partition beam.W) (k beam.W, v []float64) {
 	return partition, []float64{}
 }
 
@@ -114,14 +121,14 @@ func dropNonPublicPartitions(s beam.Scope, pcol PrivatePCollection, publicPartit
 // dropNonPublicPartitionsKVFn drops partitions not specified in PublicPartitions from pcol. It can be used for aggregations on <K,V> pairs, e.g. sum and mean.
 func dropNonPublicPartitionsKVFn(s beam.Scope, publicPartitions beam.PCollection, pcol PrivatePCollection, partitionEncodedType beam.EncodedType) beam.PCollection {
 	partitionMap := beam.Combine(s, newPartitionMapFn(partitionEncodedType), publicPartitions)
-	return beam.ParDo(s, prunePartitionsKVFn, pcol.col, beam.SideInput{Input: partitionMap})
+	return beam.ParDo(s, prunePartitionsKV, pcol.col, beam.SideInput{Input: partitionMap})
 }
 
-// mergePublicValuesFn merges the public partitions with the values for Count
+// mergePublicValues merges the public partitions with the values for Count
 // and DistinctPrivacyId after a CoGroupByKey. Only outputs a <privacyKey,
 // value> pair if the value is in the public partitions, i.e., the PCollection
 // that is passed to the CoGroupByKey first.
-func mergePublicValuesFn(value beam.V, isKnown func(*int64) bool, privacyKeys func(*beam.U) bool, emit func(beam.U, beam.V)) {
+func mergePublicValues(value beam.V, isKnown func(*int64) bool, privacyKeys func(*beam.U) bool, emit func(beam.U, beam.V)) {
 	var ignoredZero int64
 	if isKnown(&ignoredZero) {
 		var privacyKey beam.U
@@ -140,14 +147,14 @@ func mergePublicValuesFn(value beam.V, isKnown func(*int64) bool, privacyKeys fu
 //  2. Swap pcol.col from <PrivacyKey, V> to <V, PrivacyKey>
 //  3. Do a CoGroupByKey on the output of 1 and 2.
 //  4. From the output of 3, only output <PrivacyKey, V> if there is an input
-//     from 1 using the mergePublicValuesFn.
+//     from 1 using the mergePublicValues.
 //
 // Returns a PCollection<PrivacyKey, Value> only for values present in
 // publicPartitions.
 func dropNonPublicPartitionsVFn(s beam.Scope, publicPartitions beam.PCollection, pcol PrivatePCollection) beam.PCollection {
-	publicPartitionsWithZeros := beam.ParDo(s, addZeroValuesToPublicPartitionsInt64Fn, publicPartitions)
+	publicPartitionsWithZeros := beam.ParDo(s, addZeroValuesToPublicPartitionsInt64, publicPartitions)
 	groupedByValue := beam.CoGroupByKey(s, publicPartitionsWithZeros, beam.SwapKV(s, pcol.col))
-	return beam.ParDo(s, mergePublicValuesFn, groupedByValue)
+	return beam.ParDo(s, mergePublicValues, groupedByValue)
 }
 
 // partitionMapFn makes a map consisting of public partitions.
@@ -186,11 +193,6 @@ func (fn *partitionMapFn) MergeAccumulators(a, b pMap) pMap {
 		b[k] = true
 	}
 	return b
-}
-
-// ExtractOutput returns the completed partition map
-func (fn *partitionMapFn) ExtractOutput(p pMap) pMap {
-	return p
 }
 
 type prunePartitionsInMemoryVFn struct {
@@ -236,7 +238,7 @@ func (fn *prunePartitionsInMemoryKVFn) ProcessElement(id beam.U, pair kv.Pair, e
 // prunePartitionsFn takes a PCollection<ID, kv.Pair{K,V}> as input, and returns a
 // PCollection<ID, kv.Pair{K,V}>, where non-public partitions have been dropped.
 // Used for sum and mean.
-func prunePartitionsKVFn(id beam.U, pair kv.Pair, partitionsIter func(*pMap) bool, emit func(beam.U, kv.Pair)) error {
+func prunePartitionsKV(id beam.U, pair kv.Pair, partitionsIter func(*pMap) bool, emit func(beam.U, kv.Pair)) error {
 	var partitionMap pMap
 	partitionsIter(&partitionMap)
 	var err error

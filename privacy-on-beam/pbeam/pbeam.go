@@ -120,16 +120,16 @@ import (
 	"github.com/google/differential-privacy/privacy-on-beam/v2/internal/testoption"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*dropKeyFn)(nil)))
-	beam.RegisterType(reflect.TypeOf((*dropValueFn)(nil)))
-	beam.RegisterType(reflect.TypeOf((*extractProtoFieldFn)(nil)))
-	beam.RegisterType(reflect.TypeOf((*extractStructFieldFn)(nil)))
-	// TODO: add tests to make sure we don't forget anything here
+	register.DoFn2x3[beam.U, kv.Pair, beam.U, beam.V, error](&dropKeyFn{})
+	register.DoFn2x3[beam.U, kv.Pair, beam.U, beam.W, error](&dropValueFn{})
+	register.DoFn1x3[beam.V, string, beam.V, error](&extractStructFieldFn{})
+	register.DoFn1x3[beam.V, string, beam.V, error](&extractProtoFieldFn{})
 }
 
 // PrivacySpec contains information about the privacy parameters used in

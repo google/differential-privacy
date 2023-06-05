@@ -41,7 +41,7 @@ func TestSumPerKeyNoNoiseInt(t *testing.T) {
 		testutils.MakeSampleTripleWithIntValue(7, 0),
 		testutils.MakeSampleTripleWithIntValue(31, 1),
 		testutils.MakeSampleTripleWithIntValue(99, 2))
-	result := []testutils.TestInt64Metric{
+	result := []testutils.PairII64{
 		// The sum for value 0 is 7: should be thresholded.
 		{1, 31},
 		{2, 99},
@@ -59,7 +59,7 @@ func TestSumPerKeyNoNoiseInt(t *testing.T) {
 	pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 	got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 3, MinValue: 0.0, MaxValue: 1, NoiseKind: LaplaceNoise{}})
-	want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+	want = beam.ParDo(s, testutils.PairII64ToKV, want)
 	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 		t.Fatalf("TestSumPerKeyNoNoiseInt: %v", err)
 	}
@@ -130,7 +130,7 @@ func TestSumPerKeyWithPartitionsNoNoiseInt(t *testing.T) {
 		// Keep partitions 0, 2 and 5.
 		// drop partition 6 to 9.
 		// Add partitions 10 and 11.
-		result := []testutils.TestInt64Metric{
+		result := []testutils.PairII64{
 			{0, 7},
 			{2, 99},
 			{5, 1},
@@ -154,7 +154,7 @@ func TestSumPerKeyWithPartitionsNoNoiseInt(t *testing.T) {
 		pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 		sumParams := SumParams{MaxPartitionsContributed: 3, MinValue: tc.minValue, MaxValue: tc.maxValue, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions}
 		got := SumPerKey(s, pcol, sumParams)
-		want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+		want = beam.ParDo(s, testutils.PairII64ToKV, want)
 		if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 			t.Fatalf("TestSumPerKeyWithPartitionsNoNoiseInt test case=+%v: %v", tc, err)
 		}
@@ -169,7 +169,7 @@ func TestSumPerKeyNegativeBoundsInt(t *testing.T) {
 	triples := testutils.ConcatenateTriplesWithIntValue(
 		testutils.MakeTripleWithIntValue(21, 1, -1), // should be clamped down to -2
 		testutils.MakeTripleWithIntValue(50, 2, -4)) // should be clamped up to -3
-	result := []testutils.TestInt64Metric{
+	result := []testutils.PairII64{
 		{1, -42},
 		{2, -150},
 	}
@@ -184,7 +184,7 @@ func TestSumPerKeyNegativeBoundsInt(t *testing.T) {
 	pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 	got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 2, MinValue: -3, MaxValue: -2, NoiseKind: LaplaceNoise{}})
-	want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+	want = beam.ParDo(s, testutils.PairII64ToKV, want)
 	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 		t.Fatalf("TestSumPerKeyNegativeBoundsInt: %v", err)
 	}
@@ -205,7 +205,7 @@ func TestSumPerKeyWithPartitionsNegativeBoundsInt(t *testing.T) {
 		triples := testutils.ConcatenateTriplesWithIntValue(
 			testutils.MakeTripleWithIntValue(21, 1, -1), // should be clamped down to -2
 			testutils.MakeTripleWithIntValue(50, 2, -4)) // should be clamped up to -3
-		result := []testutils.TestInt64Metric{
+		result := []testutils.PairII64{
 			{1, -42},
 			{2, -150},
 		}
@@ -228,7 +228,7 @@ func TestSumPerKeyWithPartitionsNegativeBoundsInt(t *testing.T) {
 		pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 		sumParams := SumParams{MaxPartitionsContributed: 2, MinValue: -3, MaxValue: -2, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions}
 		got := SumPerKey(s, pcol, sumParams)
-		want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+		want = beam.ParDo(s, testutils.PairII64ToKV, want)
 		if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 			t.Fatalf("TestSumPerKeyWithPartitionsNegativeBoundsInt in-memory=%t: %v", tc.inMemory, err)
 		}
@@ -245,7 +245,7 @@ func TestSumPerKeyNoNoiseFloat(t *testing.T) {
 		testutils.MakeSampleTripleWithFloatValue(7, 0),
 		testutils.MakeSampleTripleWithFloatValue(31, 1),
 		testutils.MakeSampleTripleWithFloatValue(99, 2))
-	result := []testutils.TestFloat64Metric{
+	result := []testutils.PairIF64{
 		// Only 7 privacy units are associated with value 0: should be thresholded.
 		{1, 31},
 		{2, 99},
@@ -261,7 +261,7 @@ func TestSumPerKeyNoNoiseFloat(t *testing.T) {
 	pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
 	pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
 	got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 3, MinValue: 0.0, MaxValue: 1.0, NoiseKind: LaplaceNoise{}})
-	want = beam.ParDo(s, testutils.Float64MetricToKV, want)
+	want = beam.ParDo(s, testutils.PairIF64ToKV, want)
 	if err := testutils.ApproxEqualsKVFloat64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 		t.Fatalf("TestSumPerKeyNoNoiseFloat: %v", err)
 	}
@@ -325,7 +325,7 @@ func TestSumPerKeyWithPartitionsNoNoiseFloat(t *testing.T) {
 		publicPartitionsSlice := []int{0, 3, 5}
 		// Keep partitions 0, 3, and 5.
 		// Drop other partitions up to 10.
-		result := []testutils.TestFloat64Metric{
+		result := []testutils.PairIF64{
 			{0, 7},
 			{3, 0},
 			{5, 1},
@@ -349,7 +349,7 @@ func TestSumPerKeyWithPartitionsNoNoiseFloat(t *testing.T) {
 		pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
 		sumParams := SumParams{MaxPartitionsContributed: 3, MinValue: tc.minValue, MaxValue: tc.maxValue, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions}
 		got := SumPerKey(s, pcol, sumParams)
-		want = beam.ParDo(s, testutils.Float64MetricToKV, want)
+		want = beam.ParDo(s, testutils.PairIF64ToKV, want)
 		if err := testutils.ApproxEqualsKVFloat64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 			t.Fatalf("TestSumPerKeyWithPartitionsNoNoiseFloat test case=%+v: %v", tc, err)
 		}
@@ -364,7 +364,7 @@ func TestSumPerKeyNegativeBoundsFloat(t *testing.T) {
 	triples := testutils.ConcatenateTriplesWithFloatValue(
 		testutils.MakeTripleWithFloatValue(21, 1, -1.0), // should be clamped down to -2.0
 		testutils.MakeTripleWithFloatValue(50, 2, -4.0)) // should be clamped up to -3.0
-	result := []testutils.TestFloat64Metric{
+	result := []testutils.PairIF64{
 		{1, -42.0},
 		{2, -150.0},
 	}
@@ -379,7 +379,7 @@ func TestSumPerKeyNegativeBoundsFloat(t *testing.T) {
 	pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
 	pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
 	got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 2, MinValue: -3.0, MaxValue: -2.0, NoiseKind: LaplaceNoise{}})
-	want = beam.ParDo(s, testutils.Float64MetricToKV, want)
+	want = beam.ParDo(s, testutils.PairIF64ToKV, want)
 	if err := testutils.ApproxEqualsKVFloat64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 		t.Fatalf("TestSumPerKeyNegativeBoundsFloat: %v", err)
 	}
@@ -400,7 +400,7 @@ func TestSumPerKeyWithPartitionsNegativeBoundsFloat(t *testing.T) {
 		triples := testutils.ConcatenateTriplesWithFloatValue(
 			testutils.MakeTripleWithFloatValue(21, 1, -1.0), // should be clamped down to -2.0
 			testutils.MakeTripleWithFloatValue(50, 2, -4.0)) // should be clamped up to -3.0
-		result := []testutils.TestFloat64Metric{
+		result := []testutils.PairIF64{
 			{1, -42.0},
 			{2, -150.0},
 		}
@@ -424,7 +424,7 @@ func TestSumPerKeyWithPartitionsNegativeBoundsFloat(t *testing.T) {
 		pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
 		sumParams := SumParams{MaxPartitionsContributed: 2, MinValue: -3.0, MaxValue: -2.0, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions}
 		got := SumPerKey(s, pcol, sumParams)
-		want = beam.ParDo(s, testutils.Float64MetricToKV, want)
+		want = beam.ParDo(s, testutils.PairIF64ToKV, want)
 		if err := testutils.ApproxEqualsKVFloat64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 			t.Fatalf("TestSumPerKeyWithPartitionsNegativeBoundsFloat in-memory=%t: %v", tc.inMemory, err)
 		}
@@ -502,7 +502,7 @@ func TestSumPerKeyAddsNoiseInt(t *testing.T) {
 		pcol := MakePrivate(s, col, NewPrivacySpec(tc.epsilon, tc.delta))
 		pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 		got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: l0Sensitivity, MinValue: minValue, MaxValue: maxValue, NoiseKind: tc.noiseKind})
-		got = beam.ParDo(s, testutils.KVToInt64Metric, got)
+		got = beam.ParDo(s, testutils.KVToPairII64, got)
 
 		testutils.CheckInt64MetricsAreNoisy(s, got, numIDs, tolerance)
 		if err := ptest.Run(p); err != nil {
@@ -586,7 +586,7 @@ func TestSumPerKeyWithPartitionsAddsNoiseInt(t *testing.T) {
 		pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 		sumParams := SumParams{MaxPartitionsContributed: l0Sensitivity, MinValue: minValue, MaxValue: maxValue, NoiseKind: tc.noiseKind, PublicPartitions: publicPartitions}
 		got := SumPerKey(s, pcol, sumParams)
-		got = beam.ParDo(s, testutils.KVToInt64Metric, got)
+		got = beam.ParDo(s, testutils.KVToPairII64, got)
 
 		testutils.CheckInt64MetricsAreNoisy(s, got, numIDs, tolerance)
 		if err := ptest.Run(p); err != nil {
@@ -655,7 +655,7 @@ func TestSumPerKeyAddsNoiseFloat(t *testing.T) {
 		pcol := MakePrivate(s, col, NewPrivacySpec(tc.epsilon, tc.delta))
 		pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
 		got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 1, MinValue: 0.0, MaxValue: 1.0, NoiseKind: tc.noiseKind})
-		got = beam.ParDo(s, testutils.KVToFloat64Metric, got)
+		got = beam.ParDo(s, testutils.KVToPairIF64, got)
 
 		testutils.CheckFloat64MetricsAreNoisy(s, got, float64(numIDs), tolerance)
 		if err := ptest.Run(p); err != nil {
@@ -672,7 +672,7 @@ func TestSumPerKeyCrossPartitionContributionBoundingInt(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		triples = append(triples, testutils.MakeSampleTripleWithIntValue(50, i)...)
 	}
-	result := []testutils.TestInt64Metric{
+	result := []testutils.PairII64{
 		{0, 150},
 	}
 	p, s, col, want := ptest.CreateList2(triples, result)
@@ -691,7 +691,7 @@ func TestSumPerKeyCrossPartitionContributionBoundingInt(t *testing.T) {
 	counts := beam.DropKey(s, got)
 	sumOverPartitions := stats.Sum(s, counts)
 	got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
-	want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+	want = beam.ParDo(s, testutils.PairII64ToKV, want)
 	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 		t.Fatalf("TestSumPerKeyCrossPartitionContributionBoundingInt: %v", err)
 	}
@@ -714,7 +714,7 @@ func TestSumPerKeyWithPartitionsCrossPartitionContributionBoundingInt(t *testing
 		for i := 0; i < 10; i++ {
 			triples = append(triples, testutils.MakeSampleTripleWithIntValue(50, i)...)
 		}
-		result := []testutils.TestInt64Metric{
+		result := []testutils.PairII64{
 			{0, 150},
 		}
 
@@ -742,7 +742,7 @@ func TestSumPerKeyWithPartitionsCrossPartitionContributionBoundingInt(t *testing
 		counts := beam.DropKey(s, got)
 		sumOverPartitions := stats.Sum(s, counts)
 		got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
-		want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+		want = beam.ParDo(s, testutils.PairII64ToKV, want)
 		if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 			t.Fatalf("TestSumPerKeyWithPartitionsCrossPartitionContributionBoundingInt in-memory=%t: %v", tc.inMemory, err)
 		}
@@ -760,7 +760,7 @@ func TestSumPerKeyCrossPartitionContributionBoundingFloat(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		triples = append(triples, testutils.MakeSampleTripleWithFloatValue(50, i)...)
 	}
-	result := []testutils.TestFloat64Metric{
+	result := []testutils.PairIF64{
 		{0, 150.0},
 	}
 	p, s, col, want := ptest.CreateList2(triples, result)
@@ -778,7 +778,7 @@ func TestSumPerKeyCrossPartitionContributionBoundingFloat(t *testing.T) {
 	counts := beam.DropKey(s, got)
 	sumOverPartitions := stats.Sum(s, counts)
 	got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
-	want = beam.ParDo(s, testutils.Float64MetricToKV, want)
+	want = beam.ParDo(s, testutils.PairIF64ToKV, want)
 	if err := testutils.ApproxEqualsKVFloat64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 		t.Fatalf("TestSumPerKeyCrossPartitionContributionBoundingFloat: %v", err)
 	}
@@ -802,7 +802,7 @@ func TestSumPerKeyWithPartitionsCrossPartitionContributionBoundingFloat(t *testi
 		for i := 0; i < 10; i++ {
 			triples = append(triples, testutils.MakeSampleTripleWithFloatValue(50, i)...)
 		}
-		result := []testutils.TestFloat64Metric{
+		result := []testutils.PairIF64{
 			{0, 150.0},
 		}
 
@@ -830,7 +830,7 @@ func TestSumPerKeyWithPartitionsCrossPartitionContributionBoundingFloat(t *testi
 		counts := beam.DropKey(s, got)
 		sumOverPartitions := stats.Sum(s, counts)
 		got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
-		want = beam.ParDo(s, testutils.Float64MetricToKV, want)
+		want = beam.ParDo(s, testutils.PairIF64ToKV, want)
 		if err := testutils.ApproxEqualsKVFloat64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 			t.Fatalf("TestSumPerKeyWithPartitionsCrossPartitionContributionBoundingFloat in-memory=%t: %v", tc.inMemory, err)
 		}
@@ -850,7 +850,7 @@ func TestSumPerKeyPerPartitionContributionBoundingInt(t *testing.T) {
 		triples = append(triples, testutils.TripleWithIntValue{id, 0, -17}) // should clamp to lower bound
 		triples = append(triples, testutils.TripleWithIntValue{id, 1, 42})  // should clamp to upper bound
 	}
-	result := []testutils.TestInt64Metric{
+	result := []testutils.PairII64{
 		{0, 100}, // each aggregated record in partition 0 must be clamped to 2
 		{1, 150}, // each aggregated record in partition 1 must be clamped to 3
 	}
@@ -865,7 +865,7 @@ func TestSumPerKeyPerPartitionContributionBoundingInt(t *testing.T) {
 	pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 	got := SumPerKey(s, pcol, SumParams{MinValue: 2, MaxValue: 3, MaxPartitionsContributed: 2, NoiseKind: LaplaceNoise{}})
-	want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+	want = beam.ParDo(s, testutils.PairII64ToKV, want)
 	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 		t.Fatalf("TestSumPerKeyPerPartitionContributionBoundingInt: %v", err)
 	}
@@ -884,7 +884,7 @@ func TestSumPerKeyPerPartitionContributionBoundingFloat(t *testing.T) {
 		triples = append(triples, testutils.TripleWithFloatValue{id, 0, -17}) // should clamp to lower bound
 		triples = append(triples, testutils.TripleWithFloatValue{id, 1, 42})  // should clamp to upper bound
 	}
-	result := []testutils.TestFloat64Metric{
+	result := []testutils.PairIF64{
 		{0, 100.0}, // each aggregated record in partition 0 must be clamped to 2.0
 		{1, 150.0}, // each aggregated record in partition 1 must be clamped to 3.0
 	}
@@ -899,7 +899,7 @@ func TestSumPerKeyPerPartitionContributionBoundingFloat(t *testing.T) {
 	pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
 	pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
 	got := SumPerKey(s, pcol, SumParams{MinValue: 2.0, MaxValue: 3.0, MaxPartitionsContributed: 2, NoiseKind: LaplaceNoise{}})
-	want = beam.ParDo(s, testutils.Float64MetricToKV, want)
+	want = beam.ParDo(s, testutils.PairIF64ToKV, want)
 	if err := testutils.ApproxEqualsKVFloat64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 		t.Fatalf("TestSumPerKeyPerPartitionContributionBoundingFloat: %v", err)
 	}
@@ -979,7 +979,7 @@ func TestSumPartitionSelectionInt(t *testing.T) {
 			pcol := MakePrivate(s, col, NewPrivacySpec(tc.epsilon, tc.delta))
 			pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 			got := SumPerKey(s, pcol, SumParams{MinValue: 0, MaxValue: 1, NoiseKind: tc.noiseKind, MaxPartitionsContributed: 1})
-			got = beam.ParDo(s, testutils.KVToInt64Metric, got)
+			got = beam.ParDo(s, testutils.KVToPairII64, got)
 
 			// Validate that partition selection is applied (i.e., some emitted and some dropped).
 			testutils.CheckSomePartitionsAreDropped(s, got, tc.numPartitions)
@@ -1022,7 +1022,7 @@ func TestSumPartitionSelectionFloat(t *testing.T) {
 			pcol := MakePrivate(s, col, NewPrivacySpec(tc.epsilon, tc.delta))
 			pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
 			got := SumPerKey(s, pcol, SumParams{MinValue: 0.0, MaxValue: 1.0, MaxPartitionsContributed: 1, NoiseKind: tc.noiseKind})
-			got = beam.ParDo(s, testutils.KVToFloat64Metric, got)
+			got = beam.ParDo(s, testutils.KVToPairIF64, got)
 
 			// Validate that partition selection is applied (i.e., some emitted and some dropped).
 			testutils.CheckSomePartitionsAreDropped(s, got, tc.numPartitions)
@@ -1040,18 +1040,18 @@ func TestFindConvertFn(t *testing.T) {
 		wantConvertFn any
 		wantErr       bool
 	}{
-		{"int", typex.New(reflect.TypeOf(int(0))), convertIntToInt64Fn, false},
-		{"int8", typex.New(reflect.TypeOf(int8(0))), convertInt8ToInt64Fn, false},
-		{"int16", typex.New(reflect.TypeOf(int16(0))), convertInt16ToInt64Fn, false},
-		{"int32", typex.New(reflect.TypeOf(int32(0))), convertInt32ToInt64Fn, false},
-		{"int64", typex.New(reflect.TypeOf(int64(0))), convertInt64ToInt64Fn, false},
-		{"uint", typex.New(reflect.TypeOf(uint(0))), convertUintToInt64Fn, false},
-		{"uint8", typex.New(reflect.TypeOf(uint8(0))), convertUint8ToInt64Fn, false},
-		{"uint16", typex.New(reflect.TypeOf(uint16(0))), convertUint16ToInt64Fn, false},
-		{"uint32", typex.New(reflect.TypeOf(uint32(0))), convertUint32ToInt64Fn, false},
-		{"uint64", typex.New(reflect.TypeOf(uint64(0))), convertUint64ToInt64Fn, false},
-		{"float32", typex.New(reflect.TypeOf(float32(0))), convertFloat32ToFloat64Fn, false},
-		{"float64", typex.New(reflect.TypeOf(float64(0))), convertFloat64ToFloat64Fn, false},
+		{"int", typex.New(reflect.TypeOf(int(0))), convertIntToInt64, false},
+		{"int8", typex.New(reflect.TypeOf(int8(0))), convertInt8ToInt64, false},
+		{"int16", typex.New(reflect.TypeOf(int16(0))), convertInt16ToInt64, false},
+		{"int32", typex.New(reflect.TypeOf(int32(0))), convertInt32ToInt64, false},
+		{"int64", typex.New(reflect.TypeOf(int64(0))), convertInt64ToInt64, false},
+		{"uint", typex.New(reflect.TypeOf(uint(0))), convertUintToInt64, false},
+		{"uint8", typex.New(reflect.TypeOf(uint8(0))), convertUint8ToInt64, false},
+		{"uint16", typex.New(reflect.TypeOf(uint16(0))), convertUint16ToInt64, false},
+		{"uint32", typex.New(reflect.TypeOf(uint32(0))), convertUint32ToInt64, false},
+		{"uint64", typex.New(reflect.TypeOf(uint64(0))), convertUint64ToInt64, false},
+		{"float32", typex.New(reflect.TypeOf(float32(0))), convertFloat32ToFloat64, false},
+		{"float64", typex.New(reflect.TypeOf(float64(0))), convertFloat64ToFloat64, false},
 		{"string", typex.New(reflect.TypeOf("")), nil, true},
 	} {
 		convertFn, err := findConvertFn(tc.fullType)
@@ -1071,18 +1071,18 @@ func TestGetKind(t *testing.T) {
 		wantKind  reflect.Kind
 		wantErr   bool
 	}{
-		{"convertIntToInt64Fn", convertIntToInt64Fn, reflect.Int64, false},
-		{"convertInt8ToInt64Fn", convertInt8ToInt64Fn, reflect.Int64, false},
-		{"convertInt16ToInt64Fn", convertInt16ToInt64Fn, reflect.Int64, false},
-		{"convertInt32ToInt64Fn", convertInt32ToInt64Fn, reflect.Int64, false},
-		{"convertInt64ToInt64Fn", convertInt64ToInt64Fn, reflect.Int64, false},
-		{"convertUintToInt64Fn", convertUintToInt64Fn, reflect.Int64, false},
-		{"convertUint8ToInt64Fn", convertUint8ToInt64Fn, reflect.Int64, false},
-		{"convertUint16ToInt64Fn", convertUint16ToInt64Fn, reflect.Int64, false},
-		{"convertUint32ToInt64Fn", convertUint32ToInt64Fn, reflect.Int64, false},
-		{"convertUint64ToInt64Fn", convertUint64ToInt64Fn, reflect.Int64, false},
-		{"convertFloat32ToFloat64Fn", convertFloat32ToFloat64Fn, reflect.Float64, false},
-		{"convertFloat64Fn", convertFloat64ToFloat64Fn, reflect.Float64, false},
+		{"convertIntToInt64", convertIntToInt64, reflect.Int64, false},
+		{"convertInt8ToInt64", convertInt8ToInt64, reflect.Int64, false},
+		{"convertInt16ToInt64", convertInt16ToInt64, reflect.Int64, false},
+		{"convertInt32ToInt64", convertInt32ToInt64, reflect.Int64, false},
+		{"convertInt64ToInt64", convertInt64ToInt64, reflect.Int64, false},
+		{"convertUintToInt64", convertUintToInt64, reflect.Int64, false},
+		{"convertUint8ToInt64", convertUint8ToInt64, reflect.Int64, false},
+		{"convertUint16ToInt64", convertUint16ToInt64, reflect.Int64, false},
+		{"convertUint32ToInt64", convertUint32ToInt64, reflect.Int64, false},
+		{"convertUint64ToInt64", convertUint64ToInt64, reflect.Int64, false},
+		{"convertFloat32ToFloat64", convertFloat32ToFloat64, reflect.Float64, false},
+		{"convertFloat64ToFloat64", convertFloat64ToFloat64, reflect.Float64, false},
 		{"nil interface", nil, reflect.Invalid, true},
 		{"function with less than 2 return values", func() int64 { return int64(0) }, reflect.Invalid, true},
 	} {
@@ -1111,7 +1111,7 @@ func TestSumPerKeyReturnsNonNegativeFloat64(t *testing.T) {
 	pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
 	sums := SumPerKey(s, pcol, SumParams{MinValue: 0, MaxValue: maxValue, MaxPartitionsContributed: 1, NoiseKind: GaussianNoise{}})
 	values := beam.DropKey(s, sums)
-	beam.ParDo0(s, testutils.CheckNoNegativeValuesFloat64Fn, values)
+	beam.ParDo0(s, testutils.CheckNoNegativeValuesFloat64, values)
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestSumPerKeyReturnsNonNegativeFloat64 returned errors: %v", err)
 	}
@@ -1152,7 +1152,7 @@ func TestSumPerKeyWithPartitionsReturnsNonNegativeFloat64(t *testing.T) {
 		sumParams := SumParams{MinValue: 0, MaxValue: maxValue, MaxPartitionsContributed: 1, NoiseKind: GaussianNoise{}, PublicPartitions: publicPartitions}
 		sums := SumPerKey(s, pcol, sumParams)
 		values := beam.DropKey(s, sums)
-		beam.ParDo0(s, testutils.CheckNoNegativeValuesFloat64Fn, values)
+		beam.ParDo0(s, testutils.CheckNoNegativeValuesFloat64, values)
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("TestSumPerKeyWithPartitionsReturnsNonNegativeFloat64 in-memory=%t returned errors: %v", tc.inMemory, err)
 		}
@@ -1174,7 +1174,7 @@ func TestSumPerKeyReturnsNonNegativeInt64(t *testing.T) {
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 	sums := SumPerKey(s, pcol, SumParams{MinValue: 0, MaxValue: maxValue, MaxPartitionsContributed: 1, NoiseKind: GaussianNoise{}})
 	values := beam.DropKey(s, sums)
-	beam.ParDo0(s, testutils.CheckNoNegativeValuesInt64Fn, values)
+	beam.ParDo0(s, testutils.CheckNoNegativeValuesInt64, values)
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestSumPerKeyReturnsNonNegativeInt64 returned errors: %v", err)
 	}
@@ -1215,7 +1215,7 @@ func TestSumPerKeyWithPartitionsReturnsNonNegativeInt64(t *testing.T) {
 		sumParams := SumParams{MinValue: 0, MaxValue: maxValue, MaxPartitionsContributed: 1, NoiseKind: GaussianNoise{}, PublicPartitions: publicPartitions}
 		sums := SumPerKey(s, pcol, sumParams)
 		values := beam.DropKey(s, sums)
-		beam.ParDo0(s, testutils.CheckNoNegativeValuesInt64Fn, values)
+		beam.ParDo0(s, testutils.CheckNoNegativeValuesInt64, values)
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("TestSumPerKeyWithPartitionsReturnsNonNegativeInt64 in-memory=%t returned errors: %v", tc.inMemory, err)
 		}
@@ -1239,7 +1239,7 @@ func TestSumPerKeyNoClampingForNegativeMinValueFloat64(t *testing.T) {
 	sums := SumPerKey(s, pcol, SumParams{MinValue: minValue, MaxValue: maxValue, MaxPartitionsContributed: 1, NoiseKind: GaussianNoise{}})
 	values := beam.DropKey(s, sums)
 	mValue := stats.Min(s, values)
-	beam.ParDo0(s, testutils.CheckAllValuesNegativeFloat64Fn, mValue)
+	beam.ParDo0(s, testutils.CheckAllValuesNegativeFloat64, mValue)
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestSumPerKeyNoClampingForNegativeMinValueFloat64 returned errors: %v", err)
 	}

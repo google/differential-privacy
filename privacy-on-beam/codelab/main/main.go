@@ -34,13 +34,13 @@ import (
 	"context"
 	"fmt"
 	"path"
-	"reflect"
 	"strings"
 
 	"flag"
 	log "github.com/golang/glog"
 	"github.com/google/differential-privacy/privacy-on-beam/v2/codelab"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 
 	// The following import is required for accessing local files.
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/local"
@@ -49,9 +49,8 @@ import (
 )
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*normalizeOutputCombineFn)(nil)))
-	beam.RegisterType(reflect.TypeOf(outputAccumulator{}))
-	beam.RegisterFunction(convertToPairFn)
+	register.Combiner3[outputAccumulator, pair, string](&normalizeOutputCombineFn{})
+	register.Function2x2[int, beam.V, pair, error](convertToPairFn)
 }
 
 var (

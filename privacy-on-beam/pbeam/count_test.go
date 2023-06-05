@@ -48,7 +48,7 @@ func TestCountNoNoise(t *testing.T) {
 		testutils.MakePairsWithFixedVStartingFromKey(7+30, 50, 2),
 		testutils.MakePairsWithFixedVStartingFromKey(7+30, 50, 2),
 	)
-	result := []testutils.TestInt64Metric{
+	result := []testutils.PairII64{
 		{1, 60},  // 30*2
 		{2, 100}, // 50*2
 	}
@@ -64,7 +64,7 @@ func TestCountNoNoise(t *testing.T) {
 	// ε is split by 2 for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
 	pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
 	got := Count(s, pcol, CountParams{MaxValue: 2, MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}})
-	want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+	want = beam.ParDo(s, testutils.PairII64ToKV, want)
 	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 		t.Fatalf("TestCountNoNoise: %v", err)
 	}
@@ -86,7 +86,7 @@ func TestCountWithPartitionsNoNoise(t *testing.T) {
 		for i := 0; i < 10; i++ {
 			pairs = append(pairs, testutils.PairII{1, i})
 		}
-		result := []testutils.TestInt64Metric{
+		result := []testutils.PairII64{
 			// Drop partitions 0 to 8 as they are not in public
 			// partitions.
 			{9, 1},  // Keep partition 9.
@@ -111,7 +111,7 @@ func TestCountWithPartitionsNoNoise(t *testing.T) {
 		countParams := CountParams{MaxValue: 2, MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions}
 
 		got := Count(s, pcol, countParams)
-		want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+		want = beam.ParDo(s, testutils.PairII64ToKV, want)
 		if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 			t.Fatalf("TestCountWithPartitionsNoNoise in-memory=%t: %v", tc.inMemory, err)
 		}
@@ -189,7 +189,7 @@ func TestCountPartitionSelection(t *testing.T) {
 			// Run Count on pairs
 			pcol := MakePrivate(s, col, NewPrivacySpec(tc.epsilon, tc.delta))
 			got := Count(s, pcol, CountParams{MaxValue: 1, MaxPartitionsContributed: 1, NoiseKind: tc.noiseKind})
-			got = beam.ParDo(s, testutils.KVToInt64Metric, got)
+			got = beam.ParDo(s, testutils.KVToPairII64, got)
 
 			// Validate that partition selection is applied (i.e., some emitted and some dropped).
 			testutils.CheckSomePartitionsAreDropped(s, got, tc.numPartitions)
@@ -266,7 +266,7 @@ func TestCountAddsNoise(t *testing.T) {
 
 		pcol := MakePrivate(s, col, NewPrivacySpec(tc.epsilon, tc.delta))
 		got := Count(s, pcol, CountParams{MaxPartitionsContributed: l0Sensitivity, MaxValue: lInfSensitivity, NoiseKind: tc.noiseKind})
-		got = beam.ParDo(s, testutils.KVToInt64Metric, got)
+		got = beam.ParDo(s, testutils.KVToPairII64, got)
 		testutils.CheckInt64MetricsAreNoisy(s, got, numIDs, tolerance)
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("CountPerKey didn't add any %s noise: %v", tc.name, err)
@@ -347,7 +347,7 @@ func TestCountAddsNoiseWithPartitions(t *testing.T) {
 		pcol := MakePrivate(s, col, NewPrivacySpec(tc.epsilon, tc.delta))
 		countParams := CountParams{MaxPartitionsContributed: l0Sensitivity, MaxValue: lInfSensitivity, NoiseKind: tc.noiseKind, PublicPartitions: publicPartitions}
 		got := Count(s, pcol, countParams)
-		got = beam.ParDo(s, testutils.KVToInt64Metric, got)
+		got = beam.ParDo(s, testutils.KVToPairII64, got)
 		testutils.CheckInt64MetricsAreNoisy(s, got, 10, tolerance)
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("CountPerKey with public partitions %s didn't add any noise: %v", tc.desc, err)
@@ -362,7 +362,7 @@ func TestCountCrossPartitionContributionBounding(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		pairs = append(pairs, testutils.MakePairsWithFixedV(50, i)...)
 	}
-	result := []testutils.TestInt64Metric{
+	result := []testutils.PairII64{
 		{0, 150},
 	}
 	p, s, col, want := ptest.CreateList2(pairs, result)
@@ -380,7 +380,7 @@ func TestCountCrossPartitionContributionBounding(t *testing.T) {
 	counts := beam.DropKey(s, got)
 	sumOverPartitions := stats.Sum(s, counts)
 	got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
-	want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+	want = beam.ParDo(s, testutils.PairII64ToKV, want)
 	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 		t.Fatalf("TestCountCrossPartitionContributionBounding: %v", err)
 	}
@@ -403,7 +403,7 @@ func TestCountWithPartitionsCrossPartitionContributionBounding(t *testing.T) {
 		for i := 0; i < 10; i++ {
 			pairs = append(pairs, testutils.MakePairsWithFixedV(50, i)...)
 		}
-		result := []testutils.TestInt64Metric{
+		result := []testutils.PairII64{
 			{0, 150},
 		}
 
@@ -429,7 +429,7 @@ func TestCountWithPartitionsCrossPartitionContributionBounding(t *testing.T) {
 		counts := beam.DropKey(s, got)
 		sumOverPartitions := stats.Sum(s, counts)
 		got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
-		want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+		want = beam.ParDo(s, testutils.PairII64ToKV, want)
 		if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 			t.Fatalf("TestCountWithPartitionsCrossPartitionContributionBounding in-memory=%t: %v", tc.inMemory, err)
 		}
@@ -454,7 +454,7 @@ func TestCountReturnsNonNegative(t *testing.T) {
 	counts := Count(s, pcol, CountParams{MaxValue: maxValue, MaxPartitionsContributed: 1, NoiseKind: GaussianNoise{}})
 	values := beam.DropKey(s, counts)
 	// Check if we have negative elements.
-	beam.ParDo0(s, testutils.CheckNoNegativeValuesInt64Fn, values)
+	beam.ParDo0(s, testutils.CheckNoNegativeValuesInt64, values)
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestCountReturnsNonNegative returned errors: %v", err)
 	}
@@ -494,7 +494,7 @@ func TestCountWithPartitionsReturnsNonNegative(t *testing.T) {
 		counts := Count(s, pcol, countParams)
 		values := beam.DropKey(s, counts)
 		// Check if we have negative elements.
-		beam.ParDo0(s, testutils.CheckNoNegativeValuesInt64Fn, values)
+		beam.ParDo0(s, testutils.CheckNoNegativeValuesInt64, values)
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("TestCountWithPartitionsReturnsNonNegative in-memory=%t returned errors: %v", tc.inMemory, err)
 		}

@@ -401,18 +401,18 @@ func TestFindConvertToFloat64Fn(t *testing.T) {
 		wantConvertFn any
 		wantErr       bool
 	}{
-		{"int", typex.New(reflect.TypeOf(int(0))), convertIntToFloat64Fn, false},
-		{"int8", typex.New(reflect.TypeOf(int8(0))), convertInt8ToFloat64Fn, false},
-		{"int16", typex.New(reflect.TypeOf(int16(0))), convertInt16ToFloat64Fn, false},
-		{"int32", typex.New(reflect.TypeOf(int32(0))), convertInt32ToFloat64Fn, false},
-		{"int64", typex.New(reflect.TypeOf(int64(0))), convertInt64ToFloat64Fn, false},
-		{"uint", typex.New(reflect.TypeOf(uint(0))), convertUintToFloat64Fn, false},
-		{"uint8", typex.New(reflect.TypeOf(uint8(0))), convertUint8ToFloat64Fn, false},
-		{"uint16", typex.New(reflect.TypeOf(uint16(0))), convertUint16ToFloat64Fn, false},
-		{"uint32", typex.New(reflect.TypeOf(uint32(0))), convertUint32ToFloat64Fn, false},
-		{"uint64", typex.New(reflect.TypeOf(uint64(0))), convertUint64ToFloat64Fn, false},
-		{"float32", typex.New(reflect.TypeOf(float32(0))), convertFloat32ToFloat64Fn, false},
-		{"float64", typex.New(reflect.TypeOf(float64(0))), convertFloat64ToFloat64Fn, false},
+		{"int", typex.New(reflect.TypeOf(int(0))), convertIntToFloat64, false},
+		{"int8", typex.New(reflect.TypeOf(int8(0))), convertInt8ToFloat64, false},
+		{"int16", typex.New(reflect.TypeOf(int16(0))), convertInt16ToFloat64, false},
+		{"int32", typex.New(reflect.TypeOf(int32(0))), convertInt32ToFloat64, false},
+		{"int64", typex.New(reflect.TypeOf(int64(0))), convertInt64ToFloat64, false},
+		{"uint", typex.New(reflect.TypeOf(uint(0))), convertUintToFloat64, false},
+		{"uint8", typex.New(reflect.TypeOf(uint8(0))), convertUint8ToFloat64, false},
+		{"uint16", typex.New(reflect.TypeOf(uint16(0))), convertUint16ToFloat64, false},
+		{"uint32", typex.New(reflect.TypeOf(uint32(0))), convertUint32ToFloat64, false},
+		{"uint64", typex.New(reflect.TypeOf(uint64(0))), convertUint64ToFloat64, false},
+		{"float32", typex.New(reflect.TypeOf(float32(0))), convertFloat32ToFloat64, false},
+		{"float64", typex.New(reflect.TypeOf(float64(0))), convertFloat64ToFloat64, false},
 		{"string", typex.New(reflect.TypeOf("")), nil, true},
 	} {
 		convertFn, err := findConvertToFloat64Fn(tc.fullType)

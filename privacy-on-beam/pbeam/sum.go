@@ -28,14 +28,25 @@ import (
 	"github.com/google/differential-privacy/privacy-on-beam/v2/internal/kv"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 )
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*prepareSumFn)(nil)))
-	beam.RegisterType(reflect.TypeOf((*addNoiseToEmptyPublicPartitionsInt64Fn)(nil)))
-	beam.RegisterType(reflect.TypeOf((*addNoiseToEmptyPublicPartitionsFloat64Fn)(nil)))
-	// TODO: add tests to make sure we don't forget anything here
+	register.DoFn2x3[beam.W, kv.Pair, kv.Pair, beam.V, error](&prepareSumFn{})
+	register.DoFn2x3[beam.X, int64, beam.X, int64, error](&addNoiseToEmptyPublicPartitionsInt64Fn{})
+	register.DoFn2x3[beam.X, float64, beam.X, float64, error](&addNoiseToEmptyPublicPartitionsFloat64Fn{})
+
+	register.Function2x2[kv.Pair, int, kv.Pair, int64](convertIntToInt64)
+	register.Function2x2[kv.Pair, int8, kv.Pair, int64](convertInt8ToInt64)
+	register.Function2x2[kv.Pair, int16, kv.Pair, int64](convertInt16ToInt64)
+	register.Function2x2[kv.Pair, int32, kv.Pair, int64](convertInt32ToInt64)
+	register.Function2x2[kv.Pair, int64, kv.Pair, int64](convertInt64ToInt64)
+	register.Function2x2[kv.Pair, uint, kv.Pair, int64](convertUintToInt64)
+	register.Function2x2[kv.Pair, uint8, kv.Pair, int64](convertUint8ToInt64)
+	register.Function2x2[kv.Pair, uint16, kv.Pair, int64](convertUint16ToInt64)
+	register.Function2x2[kv.Pair, uint32, kv.Pair, int64](convertUint32ToInt64)
+	register.Function2x2[kv.Pair, uint64, kv.Pair, int64](convertUint64ToInt64)
 }
 
 // SumParams specifies the parameters associated with a Sum aggregation.
@@ -315,62 +326,62 @@ func (fn *prepareSumFn) ProcessElement(id beam.W, pair kv.Pair) (kv.Pair, beam.V
 func findConvertFn(t typex.FullType) (any, error) {
 	switch t.Type().String() {
 	case "int":
-		return convertIntToInt64Fn, nil
+		return convertIntToInt64, nil
 	case "int8":
-		return convertInt8ToInt64Fn, nil
+		return convertInt8ToInt64, nil
 	case "int16":
-		return convertInt16ToInt64Fn, nil
+		return convertInt16ToInt64, nil
 	case "int32":
-		return convertInt32ToInt64Fn, nil
+		return convertInt32ToInt64, nil
 	case "int64":
-		return convertInt64ToInt64Fn, nil
+		return convertInt64ToInt64, nil
 	case "uint":
-		return convertUintToInt64Fn, nil
+		return convertUintToInt64, nil
 	case "uint8":
-		return convertUint8ToInt64Fn, nil
+		return convertUint8ToInt64, nil
 	case "uint16":
-		return convertUint16ToInt64Fn, nil
+		return convertUint16ToInt64, nil
 	case "uint32":
-		return convertUint32ToInt64Fn, nil
+		return convertUint32ToInt64, nil
 	case "uint64":
-		return convertUint64ToInt64Fn, nil
+		return convertUint64ToInt64, nil
 	case "float32":
-		return convertFloat32ToFloat64Fn, nil
+		return convertFloat32ToFloat64, nil
 	case "float64":
-		return convertFloat64ToFloat64Fn, nil
+		return convertFloat64ToFloat64, nil
 	default:
 		return nil, fmt.Errorf("unexpected value type of %v", t)
 	}
 }
 
-func convertIntToInt64Fn(idk kv.Pair, i int) (kv.Pair, int64) {
+func convertIntToInt64(idk kv.Pair, i int) (kv.Pair, int64) {
 	return idk, int64(i)
 }
-func convertInt8ToInt64Fn(idk kv.Pair, i int8) (kv.Pair, int64) {
+func convertInt8ToInt64(idk kv.Pair, i int8) (kv.Pair, int64) {
 	return idk, int64(i)
 }
-func convertInt16ToInt64Fn(idk kv.Pair, i int16) (kv.Pair, int64) {
+func convertInt16ToInt64(idk kv.Pair, i int16) (kv.Pair, int64) {
 	return idk, int64(i)
 }
-func convertInt32ToInt64Fn(idk kv.Pair, i int32) (kv.Pair, int64) {
+func convertInt32ToInt64(idk kv.Pair, i int32) (kv.Pair, int64) {
 	return idk, int64(i)
 }
-func convertInt64ToInt64Fn(idk kv.Pair, i int64) (kv.Pair, int64) {
+func convertInt64ToInt64(idk kv.Pair, i int64) (kv.Pair, int64) {
 	return idk, i
 }
-func convertUintToInt64Fn(idk kv.Pair, i uint) (kv.Pair, int64) {
+func convertUintToInt64(idk kv.Pair, i uint) (kv.Pair, int64) {
 	return idk, int64(i)
 }
-func convertUint8ToInt64Fn(idk kv.Pair, i uint8) (kv.Pair, int64) {
+func convertUint8ToInt64(idk kv.Pair, i uint8) (kv.Pair, int64) {
 	return idk, int64(i)
 }
-func convertUint16ToInt64Fn(idk kv.Pair, i uint16) (kv.Pair, int64) {
+func convertUint16ToInt64(idk kv.Pair, i uint16) (kv.Pair, int64) {
 	return idk, int64(i)
 }
-func convertUint32ToInt64Fn(idk kv.Pair, i uint32) (kv.Pair, int64) {
+func convertUint32ToInt64(idk kv.Pair, i uint32) (kv.Pair, int64) {
 	return idk, int64(i)
 }
-func convertUint64ToInt64Fn(idk kv.Pair, i uint64) (kv.Pair, int64) {
+func convertUint64ToInt64(idk kv.Pair, i uint64) (kv.Pair, int64) {
 	return idk, int64(i)
 }
 

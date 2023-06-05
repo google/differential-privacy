@@ -26,11 +26,12 @@ import (
 	log "github.com/golang/glog"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 )
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*DecodeFn)(nil)))
-	beam.RegisterType(reflect.TypeOf((*EncodeFn)(nil)))
+	register.DoFn2x1[beam.T, beam.V, Pair](&EncodeFn{})
+	register.DoFn1x2[Pair, beam.T, beam.V](&DecodeFn{})
 }
 
 // Codec provides functions for encoding a <K,V> pair into a Pair and

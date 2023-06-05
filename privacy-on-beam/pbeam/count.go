@@ -136,8 +136,8 @@ func Count(s beam.Scope, pcol PrivatePCollection, params CountParams) beam.PColl
 	// and re-key by the original privacy key.
 	coded := beam.ParDo(s, kv.NewEncodeFn(idT, partitionT), pcol.col)
 	kvCounts := stats.Count(s, coded)
-	counts64 := beam.ParDo(s, vToInt64Fn, kvCounts)
-	rekeyed := beam.ParDo(s, rekeyInt64Fn, counts64)
+	counts64 := beam.ParDo(s, convertIntToInt64, kvCounts)
+	rekeyed := beam.ParDo(s, rekeyInt64, counts64)
 	// Second, do cross-partition contribution bounding if not in test mode without contribution bounding.
 	if spec.testMode != noNoiseWithoutContributionBounding {
 		rekeyed = boundContributions(s, rekeyed, maxPartitionsContributed)
@@ -163,11 +163,11 @@ func Count(s beam.Scope, pcol PrivatePCollection, params CountParams) beam.PColl
 			boundedSumInt64Fn,
 			countsKV)
 		// Drop thresholded partitions.
-		result = beam.ParDo(s, dropThresholdedPartitionsInt64Fn, sums)
+		result = beam.ParDo(s, dropThresholdedPartitionsInt64, sums)
 	}
 
 	// Clamp negative counts to zero and return.
-	result = beam.ParDo(s, clampNegativePartitionsInt64Fn, result)
+	result = beam.ParDo(s, clampNegativePartitionsInt64, result)
 	return result
 }
 
@@ -197,7 +197,7 @@ func addPublicPartitionsForCount(s beam.Scope, epsilon, delta float64, maxPartit
 	if !isPCollection {
 		publicPartitions = beam.Reshuffle(s, beam.CreateList(s, params.PublicPartitions))
 	}
-	emptyCounts := beam.ParDo(s, addZeroValuesToPublicPartitionsInt64Fn, publicPartitions)
+	emptyCounts := beam.ParDo(s, addZeroValuesToPublicPartitionsInt64, publicPartitions)
 	// Merge countsKV and emptyCounts.
 	allPartitions := beam.Flatten(s, emptyCounts, countsKV)
 	// Sum and add noise.
@@ -206,5 +206,5 @@ func addPublicPartitionsForCount(s beam.Scope, epsilon, delta float64, maxPartit
 		log.Fatalf("Couldn't get boundedSumInt64Fn for Count: %v", err)
 	}
 	sums := beam.CombinePerKey(s, boundedSumInt64Fn, allPartitions)
-	return beam.ParDo(s, dereferenceValueToInt64Fn, sums)
+	return beam.ParDo(s, dereferenceValueToInt64, sums)
 }

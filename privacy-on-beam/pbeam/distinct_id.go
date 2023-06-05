@@ -26,11 +26,14 @@ import (
 	"github.com/google/differential-privacy/go/v2/noise"
 	"github.com/google/differential-privacy/privacy-on-beam/v2/internal/kv"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/filter"
 )
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*countFn)(nil)))
+	register.Combiner3[countAccum, int64, *int64](&countFn{})
+
+	register.Function1x2[beam.V, beam.V, int64](addOneValueFn)
 }
 
 // DistinctPrivacyIDParams specifies the parameters associated with a
@@ -157,11 +160,11 @@ func DistinctPrivacyID(s beam.Scope, pcol PrivatePCollection, params DistinctPri
 		}
 		noisedCounts := beam.CombinePerKey(s, countFn, emptyCounts)
 		// Drop thresholded partitions.
-		result = beam.ParDo(s, dropThresholdedPartitionsInt64Fn, noisedCounts)
+		result = beam.ParDo(s, dropThresholdedPartitionsInt64, noisedCounts)
 	}
 
 	// Clamp negative counts to zero and return.
-	result = beam.ParDo(s, clampNegativePartitionsInt64Fn, result)
+	result = beam.ParDo(s, clampNegativePartitionsInt64, result)
 	return result
 }
 
@@ -171,7 +174,7 @@ func addPublicPartitionsForDistinctID(s beam.Scope, params DistinctPrivacyIDPara
 	if !isPCollection {
 		publicPartitions = beam.Reshuffle(s, beam.CreateList(s, params.PublicPartitions))
 	}
-	prepareAddPublicPartitions := beam.ParDo(s, addZeroValuesToPublicPartitionsInt64Fn, publicPartitions)
+	prepareAddPublicPartitions := beam.ParDo(s, addZeroValuesToPublicPartitionsInt64, publicPartitions)
 	// Merge countsKV and prepareAddPublicPartitions.
 	allAddPartitions := beam.Flatten(s, countsKV, prepareAddPublicPartitions)
 	countFn, err := newCountFn(epsilon, delta, maxPartitionsContributed, noiseKind, true, testMode)
@@ -179,9 +182,9 @@ func addPublicPartitionsForDistinctID(s beam.Scope, params DistinctPrivacyIDPara
 		log.Fatalf("pbeam.DistinctPrivacyID: %v", err)
 	}
 	noisedCounts := beam.CombinePerKey(s, countFn, allAddPartitions)
-	finalPartitions := beam.ParDo(s, dereferenceValueToInt64Fn, noisedCounts)
+	finalPartitions := beam.ParDo(s, dereferenceValueToInt64, noisedCounts)
 	// Clamp negative counts to zero and return.
-	return beam.ParDo(s, clampNegativePartitionsInt64Fn, finalPartitions)
+	return beam.ParDo(s, clampNegativePartitionsInt64, finalPartitions)
 }
 
 func checkDistinctPrivacyIDParams(params DistinctPrivacyIDParams, epsilon, delta float64, noiseKind noise.Kind, partitionType reflect.Type) error {

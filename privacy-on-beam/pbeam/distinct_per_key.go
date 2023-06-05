@@ -170,7 +170,7 @@ func DistinctPerKey(s beam.Scope, pcol PrivatePCollection, params DistinctPerKey
 			decoded,
 			beam.TypeDefinition{Var: beam.VType, T: codedVSliceType.Type()}) // PCollection<kv.Pair{ID,K}, []codedV>, where codedV=[]byte
 
-		flattened := beam.ParDo(s, flattenValuesFn, rekeyed) // PCollection<kv.Pair{ID,K}, codedV>, where codedV=[]byte
+		flattened := beam.ParDo(s, flattenValues, rekeyed) // PCollection<kv.Pair{ID,K}, codedV>, where codedV=[]byte
 
 		pcol.col = beam.ParDo(
 			s,

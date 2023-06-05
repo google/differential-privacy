@@ -25,12 +25,15 @@ import (
 	"github.com/google/differential-privacy/go/v2/dpagg"
 	"github.com/google/differential-privacy/privacy-on-beam/v2/internal/kv"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/filter"
 )
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*partitionSelectionFn)(nil)))
-	beam.RegisterFunction(dropThresholdedPartitionsBoolFn)
+	register.Combiner3[partitionSelectionAccum, beam.W, bool](&partitionSelectionFn{})
+
+	register.Function3x0[beam.W, bool, func(beam.W)](dropThresholdedPartitionsBool)
+	register.Emitter1[beam.W]()
 }
 
 // SelectPartitionsParams specifies the parameters associated with a
@@ -109,7 +112,7 @@ func SelectPartitions(s beam.Scope, pcol PrivatePCollection, params SelectPartit
 	// Finally, we swap the privacy and partition key and perform partition selection.
 	partitions = beam.SwapKV(s, partitions) // PCollection<K, ID>
 	partitions = beam.CombinePerKey(s, newPartitionSelectionFn(epsilon, delta, maxPartitionsContributed, spec.testMode), partitions)
-	result := beam.ParDo(s, dropThresholdedPartitionsBoolFn, partitions)
+	result := beam.ParDo(s, dropThresholdedPartitionsBool, partitions)
 	return result
 }
 
@@ -165,11 +168,11 @@ func (fn *partitionSelectionFn) String() string {
 	return fmt.Sprintf("%#v", fn)
 }
 
-// dropThresholdedPartitionsBoolFn drops thresholded bool partitions, i.e. those
+// dropThresholdedPartitionsBool drops thresholded bool partitions, i.e. those
 // that have false v, by emitting only non-thresholded partitions. Differently from
 // other dropThresholdedPartitionsFn's, since v only indicates whether or not a
 // partition should be kept, the value is not emitted with the partition key.
-func dropThresholdedPartitionsBoolFn(k beam.W, v bool, emit func(beam.W)) {
+func dropThresholdedPartitionsBool(k beam.W, v bool, emit func(beam.W)) {
 	if v {
 		emit(k)
 	}

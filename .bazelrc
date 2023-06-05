@@ -1,5 +1,5 @@
 #
-# Copyright 2019 Google LLC
+# Copyright 2023 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,26 +14,8 @@
 # limitations under the License.
 #
 
-# Differential Privacy related proto utilities.
-
-package(
-    default_visibility = ["//visibility:public"],
-)
-
-cc_library(
-    name = "util-lib",
-    hdrs = ["util.h"],
-    deps = [
-        "@com_google_differential_privacy//proto:confidence_interval_cc_proto",
-        "@com_google_differential_privacy//proto:data_cc_proto",
-    ],
-)
-
-cc_test(
-    name = "util_test",
-    srcs = ["util_test.cc"],
-    deps = [
-        ":util-lib",
-        "@com_google_googletest//:gtest_main",
-    ],
-)
+# Platform specific compiler flags
+build --enable_platform_specific_config
+build:linux --copt="-Wno-sign-compare" --cxxopt="-std=c++17"
+build:macos --copt="-Wno-sign-compare" --cxxopt="-std=c++17"
+build:windows --copt="/wd4244" --cxxopt="/std:c++17"

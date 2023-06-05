@@ -27,10 +27,11 @@ import (
 	"github.com/google/differential-privacy/go/v2/noise"
 	"github.com/google/differential-privacy/privacy-on-beam/v2/internal/kv"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 )
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*boundedMeanFn)(nil)))
+	register.Combiner3[boundedMeanAccum, []float64, *float64](&boundedMeanFn{})
 }
 
 // MeanParams specifies the parameters associated with a Mean aggregation.
@@ -181,7 +182,7 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 	if err != nil {
 		log.Fatalf("Couldn't get MaxPartitionsContributed for MeanPerKey: %v", err)
 	}
-	rekeyed := beam.ParDo(s, rekeyArrayFloat64Fn, combined)
+	rekeyed := beam.ParDo(s, rekeyArrayFloat64, combined)
 	// Second, do cross-partition contribution bounding if not in test mode without contribution bounding.
 	if spec.testMode != noNoiseWithoutContributionBounding {
 		rekeyed = boundContributions(s, rekeyed, maxPartitionsContributed)
@@ -221,7 +222,7 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 			boundedMeanFloat64Fn,
 			partialKV)
 		// Finally, drop thresholded partitions.
-		result = beam.ParDo(s, dropThresholdedPartitionsFloat64Fn, means)
+		result = beam.ParDo(s, dropThresholdedPartitionsFloat64, means)
 	}
 
 	return result
@@ -255,7 +256,7 @@ func addPublicPartitionsForMean(s beam.Scope, epsilon, delta float64, maxPartiti
 		publicPartitions = beam.Reshuffle(s, beam.CreateList(s, params.PublicPartitions))
 	}
 	// Add value of empty array to each partition key in PublicPartitions.
-	publicPartitionsWithValues := beam.ParDo(s, addEmptySliceToPublicPartitionsFloat64Fn, publicPartitions)
+	publicPartitionsWithValues := beam.ParDo(s, addEmptySliceToPublicPartitionsFloat64, publicPartitions)
 	// emptyPublicPartitions are the partitions that are public but not found in the data.
 	emptyPublicPartitions := beam.ParDo(s, newEmitPartitionsNotInTheDataFn(partitionT), publicPartitionsWithValues, beam.SideInput{Input: partitionMap})
 	// Add noise to the empty public partitions.
@@ -276,8 +277,8 @@ func addPublicPartitionsForMean(s beam.Scope, epsilon, delta float64, maxPartiti
 	emptyMeans := beam.CombinePerKey(s,
 		boundedMeanFloat64Fn,
 		emptyPublicPartitions)
-	means = beam.ParDo(s, dereferenceValueToFloat64Fn, means)
-	emptyMeans = beam.ParDo(s, dereferenceValueToFloat64Fn, emptyMeans)
+	means = beam.ParDo(s, dereferenceValueToFloat64, means)
+	emptyMeans = beam.ParDo(s, dereferenceValueToFloat64, emptyMeans)
 	// Merge means from data with means from the empty public partitions and return.
 	return beam.Flatten(s, means, emptyMeans)
 }

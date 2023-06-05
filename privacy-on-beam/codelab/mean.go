@@ -19,11 +19,12 @@ package codelab
 import (
 	"github.com/google/differential-privacy/privacy-on-beam/v2/pbeam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 )
 
 func init() {
-	beam.RegisterFunction(extractVisitHourAndTimeSpentFn)
+	register.Function1x2[Visit, int, int](extractVisitHourAndTimeSpentFn)
 }
 
 // MeanTimeSpent calculates and returns the average time spent by visitors

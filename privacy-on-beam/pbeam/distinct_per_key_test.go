@@ -50,7 +50,7 @@ func TestDistinctPerKeyNoNoise(t *testing.T) {
 	for i := 0; i < 7; i++ { // Add 7 distinct values to Partition 2. Should be thresholded.
 		triples = append(triples, testutils.TripleWithIntValue{ID: i, Partition: 2, Value: i})
 	}
-	result := []testutils.TestInt64Metric{
+	result := []testutils.PairII64{
 		{0, 200},
 		{1, 100},
 		// Only 7 distinct values in partition 2: should be thresholded.
@@ -68,7 +68,7 @@ func TestDistinctPerKeyNoNoise(t *testing.T) {
 	pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 	got := DistinctPerKey(s, pcol, DistinctPerKeyParams{MaxPartitionsContributed: 3, NoiseKind: LaplaceNoise{}, MaxContributionsPerPartition: 2})
-	want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+	want = beam.ParDo(s, testutils.PairII64ToKV, want)
 	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 		t.Fatalf("TestDistinctPerKeyNoNoise: %v", err)
 	}
@@ -146,7 +146,7 @@ func TestDistinctPerKeyAddsNoise(t *testing.T) {
 		pcol := MakePrivate(s, col, NewPrivacySpec(tc.epsilon, tc.delta))
 		pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 		got := DistinctPerKey(s, pcol, DistinctPerKeyParams{MaxPartitionsContributed: int64(l0Sensitivity), NoiseKind: LaplaceNoise{}, MaxContributionsPerPartition: int64(lInfSensitivity)})
-		got = beam.ParDo(s, testutils.KVToInt64Metric, got)
+		got = beam.ParDo(s, testutils.KVToPairII64, got)
 
 		testutils.CheckInt64MetricsAreNoisy(s, got, numIDs, tolerance)
 		if err := ptest.Run(p); err != nil {
@@ -165,7 +165,7 @@ func TestDistinctPerKeyPerKeyCrossPartitionContributionBounding(t *testing.T) {
 			triples = append(triples, testutils.TripleWithIntValue{ID: j, Partition: i, Value: j}) // Duplicate each value. Should be discarded.
 		}
 	}
-	result := []testutils.TestInt64Metric{
+	result := []testutils.PairII64{
 		{0, 150},
 	}
 	p, s, col, want := ptest.CreateList2(triples, result)
@@ -184,7 +184,7 @@ func TestDistinctPerKeyPerKeyCrossPartitionContributionBounding(t *testing.T) {
 	counts := beam.DropKey(s, got)
 	sumOverPartitions := stats.Sum(s, counts)
 	got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
-	want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+	want = beam.ParDo(s, testutils.PairII64ToKV, want)
 	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 		t.Fatalf("TestDistinctPerKeyCrossPartitionContributionBounding: %v", err)
 	}
@@ -208,7 +208,7 @@ func TestDistinctPerKeyWithPartitionsCrossPartitionContributionBounding(t *testi
 				triples = append(triples, testutils.TripleWithIntValue{ID: i, Partition: j, Value: j})
 			}
 		}
-		result := []testutils.TestInt64Metric{
+		result := []testutils.PairII64{
 			{0, 10},
 		}
 		p, s, col, want := ptest.CreateList2(triples, result)
@@ -232,7 +232,7 @@ func TestDistinctPerKeyWithPartitionsCrossPartitionContributionBounding(t *testi
 		maxOverPartitions := stats.Sum(s, maxs)
 		got = beam.AddFixedKey(s, maxOverPartitions) // Adds a fixed key of 0.
 
-		want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+		want = beam.ParDo(s, testutils.PairII64ToKV, want)
 		if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 			t.Fatalf("ApproxEqualsKVInt64 in-memory=%t: got error %v", tc.inMemory, err)
 		}
@@ -274,7 +274,7 @@ func TestDistinctPerKeyWithPartitionsPerPartitionContributionBounding(t *testing
 			triples = append(triples, testutils.TripleWithIntValue{ID: i, Partition: 2, Value: 50 + i})
 			triples = append(triples, testutils.TripleWithIntValue{ID: i, Partition: 2, Value: 100 + i})
 		}
-		result := []testutils.TestInt64Metric{
+		result := []testutils.PairII64{
 			{0, 200}, // 300 distinct values will be dropped due to per-partition contribution bounding.
 			{1, 100}, // 100 distinct values will be dropped due to per-partition contribution bounding.
 			{2, 100}, // 50 distinct values will be dropped due to per-partition contribution bounding.
@@ -290,7 +290,7 @@ func TestDistinctPerKeyWithPartitionsPerPartitionContributionBounding(t *testing
 		pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
 		pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 		got := DistinctPerKey(s, pcol, DistinctPerKeyParams{MaxPartitionsContributed: 3, NoiseKind: LaplaceNoise{}, MaxContributionsPerPartition: 2})
-		want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+		want = beam.ParDo(s, testutils.PairII64ToKV, want)
 		if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 			t.Fatalf("ApproxEqualsKVInt64Slice in-memory=%t: got error %v", tc.inMemory, err)
 		}
@@ -317,9 +317,9 @@ func TestDistinctPerKeyCrossPartitionContributionBounding_IsAppliedBeforeDedupli
 	// so in expectation about 50 of 100 partitions' deduplicated values would have user with id=100
 	// associated with them. After cross-partition contribution bounding happens, we would be
 	// left with around 50 partitions with a single distinct value each and the test would fail.
-	result := []testutils.TestInt64Metric{}
+	result := []testutils.PairII64{}
 	for i := 0; i < 100; i++ {
-		result = append(result, testutils.TestInt64Metric{i, 1})
+		result = append(result, testutils.PairII64{i, 1})
 	}
 	p, s, col, want := ptest.CreateList2(triples, result)
 	col = beam.ParDo(s, testutils.ExtractIDFromTripleWithIntValue, col)
@@ -334,7 +334,7 @@ func TestDistinctPerKeyCrossPartitionContributionBounding_IsAppliedBeforeDedupli
 	pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 	got := DistinctPerKey(s, pcol, DistinctPerKeyParams{MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}, MaxContributionsPerPartition: 1})
-	want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+	want = beam.ParDo(s, testutils.PairII64ToKV, want)
 	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 		t.Fatalf("TestDistinctPerKeyPerKeyCrossPartitionContributionBounding_IsAppliedBeforeDeduplication: %v", err)
 	}
@@ -367,7 +367,7 @@ func TestDistinctPerKeyPerPartitionContributionBounding(t *testing.T) {
 		triples = append(triples, testutils.TripleWithIntValue{ID: i, Partition: 2, Value: 50 + i})
 		triples = append(triples, testutils.TripleWithIntValue{ID: i, Partition: 2, Value: 100 + i})
 	}
-	result := []testutils.TestInt64Metric{
+	result := []testutils.PairII64{
 		{0, 200}, // 300 distinct values will be dropped due to per-partition contribution bounding.
 		{1, 100}, // 100 distinct values will be dropped due to per-partition contribution bounding.
 		{2, 100}, // 50 distinct values will be dropped due to per-partition contribution bounding.
@@ -383,7 +383,7 @@ func TestDistinctPerKeyPerPartitionContributionBounding(t *testing.T) {
 	pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 	got := DistinctPerKey(s, pcol, DistinctPerKeyParams{MaxPartitionsContributed: 3, NoiseKind: LaplaceNoise{}, MaxContributionsPerPartition: 2})
-	want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+	want = beam.ParDo(s, testutils.PairII64ToKV, want)
 	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 		t.Fatalf("TestDistinctPerKeyPerPartitionContributionBounding: %v", err)
 	}
@@ -409,7 +409,7 @@ func TestDistinctPerKeyPerPartitionContributionBounding_IsAppliedBeforeDeduplica
 	// of 100 deduplicated values would have user with id=100 associated with them. After
 	// per-partition contribution bounding happens, we would be left with around 50 distinct
 	// values and the test would fail.
-	result := []testutils.TestInt64Metric{
+	result := []testutils.PairII64{
 		{0, 100},
 	}
 	p, s, col, want := ptest.CreateList2(triples, result)
@@ -423,7 +423,7 @@ func TestDistinctPerKeyPerPartitionContributionBounding_IsAppliedBeforeDeduplica
 	pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 	got := DistinctPerKey(s, pcol, DistinctPerKeyParams{MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}, MaxContributionsPerPartition: 1})
-	want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+	want = beam.ParDo(s, testutils.PairII64ToKV, want)
 	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 		t.Fatalf("TestDistinctPerKeyPerPartitionContributionBounding_IsAppliedBeforeDeduplication: %v", err)
 	}
@@ -503,7 +503,7 @@ func TestDistinctPerKeyPartitionSelection(t *testing.T) {
 			pcol := MakePrivate(s, col, NewPrivacySpec(tc.epsilon, tc.delta))
 			pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 			got := DistinctPerKey(s, pcol, DistinctPerKeyParams{MaxPartitionsContributed: int64(tc.numPartitions), NoiseKind: tc.noiseKind, MaxContributionsPerPartition: 1})
-			got = beam.ParDo(s, testutils.KVToInt64Metric, got)
+			got = beam.ParDo(s, testutils.KVToPairII64, got)
 
 			// Validate that partition selection is applied (i.e., some emitted and some dropped).
 			testutils.CheckSomePartitionsAreDropped(s, got, tc.numPartitions)
@@ -522,7 +522,7 @@ func TestDistinctPerKeyThresholdsOnPrivacyIDs(t *testing.T) {
 	for i := 0; i < 10; i++ { // Add 10 users (each contributing the same value) to Partition 1.
 		triples = append(triples, testutils.TripleWithIntValue{ID: i, Partition: 0, Value: 0})
 	}
-	result := []testutils.TestInt64Metric{
+	result := []testutils.PairII64{
 		{0, 1},
 	}
 	p, s, col, want := ptest.CreateList2(triples, result)
@@ -536,7 +536,7 @@ func TestDistinctPerKeyThresholdsOnPrivacyIDs(t *testing.T) {
 	pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 	got := DistinctPerKey(s, pcol, DistinctPerKeyParams{MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}, MaxContributionsPerPartition: 1})
-	want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+	want = beam.ParDo(s, testutils.PairII64ToKV, want)
 	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
 		t.Fatalf("TestDistinctPerKeyNoNoise: %v", err)
 	}

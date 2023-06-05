@@ -47,6 +47,7 @@ go_library(
         "@com_github_apache_beam_sdks_v2//go/pkg/beam/core/funcx:go_default_library",
         "@com_github_apache_beam_sdks_v2//go/pkg/beam/core/typex:go_default_library",
         "@com_github_apache_beam_sdks_v2//go/pkg/beam/core/util/reflectx:go_default_library",
+        "@com_github_apache_beam_sdks_v2//go/pkg/beam/register:go_default_library",
         "@com_github_apache_beam_sdks_v2//go/pkg/beam/transforms/filter:go_default_library",
         "@com_github_apache_beam_sdks_v2//go/pkg/beam/transforms/stats:go_default_library",
         "@com_github_apache_beam_sdks_v2//go/pkg/beam/transforms/top:go_default_library",

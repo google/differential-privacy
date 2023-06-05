@@ -28,90 +28,112 @@ import (
 	"github.com/google/differential-privacy/go/v2/noise"
 	"github.com/google/differential-privacy/privacy-on-beam/v2/internal/kv"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 func init() {
-	beam.RegisterType(reflect.TypeOf(PairII{}))
-	beam.RegisterType(reflect.TypeOf(PairII64{}))
-	beam.RegisterType(reflect.TypeOf(PairIF64{}))
-	beam.RegisterType(reflect.TypeOf(PairICodedKV{}))
-	beam.RegisterType(reflect.TypeOf(TestInt64Metric{}))
-	beam.RegisterType(reflect.TypeOf(TestFloat64Metric{}))
-	beam.RegisterType(reflect.TypeOf(TestFloat64SliceMetric{}))
+	register.DoFn3x1[beam.W, func(*int64) bool, func(*int64) bool, string](&diffInt64Fn{})
+	register.Iter1[int64]()
+	register.DoFn3x1[int, func(*float64) bool, func(*float64) bool, string](&diffFloat64Fn{})
+	register.Iter1[float64]()
+	register.DoFn3x1[int, func(*[]float64) bool, func(*[]float64) bool, string](&diffFloat64SliceFn{})
+	register.Iter1[[]float64]()
+	register.DoFn1x1[PairIF64, error](&checkFloat64MetricsAreNoisyFn{})
+	register.DoFn1x1[PairII64, error](&checkInt64MetricsAreNoisyFn{})
+	register.DoFn1x1[int, error](&checkSomePartitionsAreDroppedFn{})
 
-	beam.RegisterType(reflect.TypeOf((*diffInt64Fn)(nil)))
-	beam.RegisterType(reflect.TypeOf((*diffFloat64Fn)(nil)))
-	beam.RegisterType(reflect.TypeOf((*diffFloat64SliceFn)(nil)))
-
-	beam.RegisterFunction(CheckNoNegativeValuesInt64Fn)
-	beam.RegisterFunction(CheckNoNegativeValuesFloat64Fn)
-	beam.RegisterFunction(CheckAllValuesNegativeFloat64Fn)
-
-	beam.RegisterType(reflect.TypeOf((*checkFloat64MetricsAreNoisyFn)(nil)))
-	beam.RegisterType(reflect.TypeOf((*checkInt64MetricsAreNoisyFn)(nil)))
-
-	beam.RegisterType(reflect.TypeOf((*checkSomePartitionsAreDroppedFn)(nil)))
-	beam.RegisterFunction(gotExpectedNumPartitionsFn)
+	register.Function1x1[int64, error](CheckNoNegativeValuesInt64)
+	register.Function1x1[float64, error](CheckNoNegativeValuesFloat64)
+	register.Function1x1[float64, error](CheckAllValuesNegativeFloat64)
+	register.Function3x1[int, func(*int) bool, func(*int) bool, error](gotExpectedNumPartitions)
+	register.Iter1[int]()
+	register.Function2x3[beam.V, []float64, beam.V, float64, error](DereferenceFloat64Slice)
 }
 
-// PairII, pairII64, pairIF64, PairICodedKV and the related functions are helpers
+// PairII, PairII64, PairIF64, PairICodedKV and the related functions are helpers
 // necessary to get a PCollection of KV type as input of a test Beam pipeline.
 
 // PairII holds a key-value pair of type (int, int).
 type PairII struct {
-	A int
-	B int
+	Key   int
+	Value int
 }
 
 // PairToKV transforms a PairII into an (int, int) key-value pair.
-func PairToKV(p PairII) (a, b int) {
-	return p.A, p.B
+func PairToKV(p PairII) (k, v int) {
+	return p.Key, p.Value
 }
 
 // KVToPair transforms an (int, int) key-value pair into a PairII.
-func KVToPair(a, b int) PairII {
-	return PairII{a, b}
+func KVToPair(k, v int) PairII {
+	return PairII{k, v}
 }
 
 // PairII64 holds a key-value pair of type (int, int64).
 type PairII64 struct {
-	A int
-	B int64
+	Key   int
+	Value int64
+}
+
+// KVToPairII64 transforms an (int, int64) key-value pair into a PairII64.
+func KVToPairII64(v int, m int64) PairII64 {
+	return PairII64{v, m}
 }
 
 // PairII64ToKV transforms a PairII64 into an (int, int64) key-value pair.
-func PairII64ToKV(p PairII64) (a int, b int64) {
-	return p.A, p.B
+func PairII64ToKV(tm PairII64) (int, int64) {
+	return tm.Key, tm.Value
 }
 
 // PairIF64 holds a key-value pair of type (int, float64).
 type PairIF64 struct {
-	A int
-	B float64
+	Key   int
+	Value float64
 }
 
-// PairIFToKV transforms a PairIF64 into an (int, float64) key-value pair.
-func PairIFToKV(p PairIF64) (a int, b float64) {
-	return p.A, p.B
+// KVToPairIF64 transforms an (int, float64) key-value pair into a PairIF64.
+func KVToPairIF64(v int, m float64) PairIF64 {
+	return PairIF64{v, m}
+}
+
+// PairIF64ToKV transforms a PairIF64 into an (int, float64) key-value pair.
+func PairIF64ToKV(tm PairIF64) (int, float64) {
+	return tm.Key, tm.Value
+}
+
+// PairIF64Slice holds a key-value pair of type (int, []float64).
+type PairIF64Slice struct {
+	Key   int
+	Value []float64
+}
+
+// PairIF64SliceToKV transforms a PairIF64Slice into an (int, []float64) key-value pair.
+func PairIF64SliceToKV(tm PairIF64Slice) (int, []float64) {
+	return tm.Key, tm.Value
+}
+
+// KVToPairIF64Slice transforms an (int, []float64) key-value pair into a PairIF64Slice.
+func KVToPairIF64Slice(v int, m []float64) PairIF64Slice {
+	return PairIF64Slice{v, m}
 }
 
 // PairICodedKV holds a key-value pair of type (int, kv.Pair).
 type PairICodedKV struct {
-	A int
-	B kv.Pair
+	Key   int
+	Value kv.Pair
 }
 
 // PairICodedKVToKV transforms a PairICodedKV into an (int, kv.Pair) key-value pair.
 func PairICodedKVToKV(p PairICodedKV) (k int, v kv.Pair) {
-	return p.A, p.B
+	return p.Key, p.Value
 }
 
 // KVToPairICodedKV transforms an (int, kv.Pair) key-value pair into a PairICodedKV.
-func KVToPairICodedKV(a int, b kv.Pair) PairICodedKV {
-	return PairICodedKV{a, b}
+func KVToPairICodedKV(k int, v kv.Pair) PairICodedKV {
+	return PairICodedKV{k, v}
 }
 
 // MakePairsWithFixedV returns sample data where the same value is associated with
@@ -260,59 +282,6 @@ func ConcatenatePairs(slices ...[]PairII) []PairII {
 		s = append(s, slice...)
 	}
 	return s
-}
-
-// TestInt64Metric holds a Value and an associated int64 metric (aggregation).
-type TestInt64Metric struct {
-	Value  int
-	Metric int64
-}
-
-// KVToInt64Metric transforms an (int, int64) key-value pair into a TestInt64Metric.
-func KVToInt64Metric(v int, m int64) TestInt64Metric {
-	return TestInt64Metric{v, m}
-}
-
-// Int64MetricToKV transforms a TestInt64Metric into an (int, int64) key-value pair.
-func Int64MetricToKV(tm TestInt64Metric) (int, int64) {
-	return tm.Value, tm.Metric
-}
-
-// TestFloat64Metric holds a Value and an associated float64 metric (aggregation).
-type TestFloat64Metric struct {
-	Value  int
-	Metric float64
-}
-
-// KVToFloat64Metric transforms an (int, float64) key-value pair into a TestFloat64Metric.
-func KVToFloat64Metric(v int, m float64) TestFloat64Metric {
-	return TestFloat64Metric{v, m}
-}
-
-// Float64MetricToKV transforms a TestFloat64Metric into an (int, float64) key-value pair.
-func Float64MetricToKV(tm TestFloat64Metric) (int, float64) {
-	return tm.Value, tm.Metric
-}
-
-// Float64MetricToInt64Metric transforms a TestFloat64Metric into a TestInt64Metric.
-func Float64MetricToInt64Metric(tm TestFloat64Metric) TestInt64Metric {
-	return TestInt64Metric{tm.Value, int64(tm.Metric)}
-}
-
-// TestFloat64SliceMetric holds a Value and an associated []float64 metric (aggregation).
-type TestFloat64SliceMetric struct {
-	Value  int
-	Metric []float64
-}
-
-// Float64SliceMetricToKV transforms a TestFloat64SliceMetric into an (int, []float64) key-value pair.
-func Float64SliceMetricToKV(tm TestFloat64SliceMetric) (int, []float64) {
-	return tm.Value, tm.Metric
-}
-
-// KVToFloat64SliceMetric transforms an (int, []float64) key-value pair into a TestFloat64SliceMetric.
-func KVToFloat64SliceMetric(v int, m []float64) TestFloat64SliceMetric {
-	return TestFloat64SliceMetric{v, m}
 }
 
 // EqualsKVInt checks that two PCollections col1 and col2 of type
@@ -479,11 +448,11 @@ type diffInt64Fn struct {
 
 // ProcessElement returns a diff between values associated with a key. It
 // returns an empty string if the values are approximately equal.
-func (fn *diffInt64Fn) ProcessElement(k int, v1Iter, v2Iter func(*int64) bool) string {
+func (fn *diffInt64Fn) ProcessElement(k beam.W, v1Iter, v2Iter func(*int64) bool) string {
 	var v1 = int64PtrToSlice(v1Iter)
 	var v2 = int64PtrToSlice(v2Iter)
 	if diff := cmp.Diff(v1, v2, cmpopts.EquateApprox(0, fn.Tolerance)); diff != "" {
-		return fmt.Sprintf("For k=%d: diff=%s", k, diff)
+		return fmt.Sprintf("For k=%v: diff=%s", k, diff)
 	}
 	return ""
 }
@@ -765,8 +734,8 @@ func Float64Ptr(f float64) *float64 {
 	return &f
 }
 
-// CheckFloat64MetricsAreNoisy checks that no values in a PCollection<testFloat64Metric>
-// (where testFloat64Metric contains the aggregate statistic) is equal to exactMetric.
+// CheckFloat64MetricsAreNoisy checks that no values in a PCollection<pairIF64>
+// (where pairIF64 contains the aggregate statistic) is equal to exactMetric.
 func CheckFloat64MetricsAreNoisy(s beam.Scope, col beam.PCollection, exactMetric, tolerance float64) {
 	beam.ParDo0(s, &checkFloat64MetricsAreNoisyFn{exactMetric, tolerance}, col)
 }
@@ -776,15 +745,15 @@ type checkFloat64MetricsAreNoisyFn struct {
 	Tolerance   float64
 }
 
-func (fn *checkFloat64MetricsAreNoisyFn) ProcessElement(m TestFloat64Metric) error {
-	if cmp.Equal(m.Metric, fn.ExactMetric, cmpopts.EquateApprox(0, fn.Tolerance)) {
-		return fmt.Errorf("found a non-noisy output of %f for (value, exactOutput)=(%d, %f)", m.Metric, m.Value, fn.ExactMetric)
+func (fn *checkFloat64MetricsAreNoisyFn) ProcessElement(m PairIF64) error {
+	if cmp.Equal(m.Value, fn.ExactMetric, cmpopts.EquateApprox(0, fn.Tolerance)) {
+		return fmt.Errorf("found a non-noisy output of %f for (key, exactOutput)=(%d, %f)", m.Value, m.Key, fn.ExactMetric)
 	}
 	return nil
 }
 
-// CheckInt64MetricsAreNoisy checks that no values in a PCollection<testInt64Metric>
-// (where testInt64Metric contains the aggregate statistic) is equal to exactMetric.
+// CheckInt64MetricsAreNoisy checks that no values in a PCollection<pairII64>
+// (where pairII64 contains the aggregate statistic) is equal to exactMetric.
 func CheckInt64MetricsAreNoisy(s beam.Scope, col beam.PCollection, exactMetric int, tolerance float64) {
 	beam.ParDo0(s, &checkInt64MetricsAreNoisyFn{exactMetric, tolerance}, col)
 }
@@ -794,9 +763,9 @@ type checkInt64MetricsAreNoisyFn struct {
 	Tolerance   float64
 }
 
-func (fn *checkInt64MetricsAreNoisyFn) ProcessElement(m TestInt64Metric) error {
-	if cmp.Equal(float64(m.Metric), float64(fn.ExactMetric), cmpopts.EquateApprox(0, fn.Tolerance)) {
-		return fmt.Errorf("found a non-noisy output of %d for (value, exactOutput)=(%d, %d)", m.Metric, m.Value, fn.ExactMetric)
+func (fn *checkInt64MetricsAreNoisyFn) ProcessElement(m PairII64) error {
+	if cmp.Equal(float64(m.Value), float64(fn.ExactMetric), cmpopts.EquateApprox(0, fn.Tolerance)) {
+		return fmt.Errorf("found a non-noisy output of %d for (key, exactOutput)=(%d, %d)", m.Value, m.Key, fn.ExactMetric)
 	}
 	return nil
 }
@@ -826,24 +795,24 @@ func (fn *checkSomePartitionsAreDroppedFn) ProcessElement(i int) error {
 	return nil
 }
 
-// CheckNoNegativeValuesInt64Fn returns an error if an int64 value is negative.
-func CheckNoNegativeValuesInt64Fn(v int64) error {
+// CheckNoNegativeValuesInt64 returns an error if an int64 value is negative.
+func CheckNoNegativeValuesInt64(v int64) error {
 	if v < 0 {
 		return fmt.Errorf("unexpected negative element: %v", v)
 	}
 	return nil
 }
 
-// CheckNoNegativeValuesFloat64Fn returns an error if an float64 value is negative.
-func CheckNoNegativeValuesFloat64Fn(v float64) error {
+// CheckNoNegativeValuesFloat64 returns an error if an float64 value is negative.
+func CheckNoNegativeValuesFloat64(v float64) error {
 	if v < 0 {
 		return fmt.Errorf("unexpected negative element: %v", v)
 	}
 	return nil
 }
 
-// CheckAllValuesNegativeFloat64Fn returns an error if an float64 value is non-negative.
-func CheckAllValuesNegativeFloat64Fn(v float64) error {
+// CheckAllValuesNegativeFloat64 returns an error if an float64 value is non-negative.
+func CheckAllValuesNegativeFloat64(v float64) error {
 	if v >= 0 {
 		return fmt.Errorf("unexpected non-negative element: %v", v)
 	}
@@ -865,10 +834,10 @@ func CheckNumPartitions(s beam.Scope, col beam.PCollection, expected int) {
 	want := beam.Create(s, expected)
 	want = beam.AddFixedKey(s, want)
 	coGroupToValue := beam.CoGroupByKey(s, numPartitions, want)
-	beam.ParDo0(s, gotExpectedNumPartitionsFn, coGroupToValue)
+	beam.ParDo0(s, gotExpectedNumPartitions, coGroupToValue)
 }
 
-func gotExpectedNumPartitionsFn(_ int, v1Iter, v2Iter func(*int) bool) error {
+func gotExpectedNumPartitions(_ int, v1Iter, v2Iter func(*int) bool) error {
 	got := getNumPartitions(v1Iter)
 	want := getNumPartitions(v2Iter)
 	if got != want {

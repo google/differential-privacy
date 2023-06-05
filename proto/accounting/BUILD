@@ -16,7 +16,9 @@
 
 # Differential Privacy Accounting related proto definitions.
 
-package(default_visibility = ["//visibility:public"])
+package(
+    default_visibility = ["//visibility:public"],
+)
 
 proto_library(
     name = "privacy_loss_distribution_proto",

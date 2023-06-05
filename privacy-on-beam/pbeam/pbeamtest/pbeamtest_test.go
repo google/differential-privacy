@@ -75,7 +75,7 @@ func TestDistinctPrivacyIDTestMode(t *testing.T) {
 			pairs = append(pairs, testutils.MakePairsWithFixedV(1, i)...)
 			pairs = append(pairs, testutils.MakePairsWithFixedV(1, i)...) // Duplicate contributions should be dropped for DistinctPrivacyID.
 		}
-		wantMetric := []testutils.TestInt64Metric{
+		wantMetric := []testutils.PairII64{
 			{0, tc.want},
 		}
 		p, s, col, want := ptest.CreateList2(pairs, wantMetric)
@@ -88,7 +88,7 @@ func TestDistinctPrivacyIDTestMode(t *testing.T) {
 		counts := beam.DropKey(s, got)
 		sumOverPartitions := stats.Sum(s, counts)
 		got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
-		want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+		want = beam.ParDo(s, testutils.PairII64ToKV, want)
 		if err := testutils.EqualsKVInt64(s, got, want); err != nil {
 			t.Fatalf("EqualsKVInt64: %v", err)
 		}
@@ -133,7 +133,7 @@ func TestDistinctPrivacyIDWithPartitionsTestMode(t *testing.T) {
 			pairs = append(pairs, testutils.MakePairsWithFixedV(1, i)...)
 			pairs = append(pairs, testutils.MakePairsWithFixedV(1, i)...) // Duplicate contributions should be dropped for DistinctPrivacyID.
 		}
-		wantMetric := []testutils.TestInt64Metric{
+		wantMetric := []testutils.PairII64{
 			{0, tc.want},
 		}
 		p, s, col, want := ptest.CreateList2(pairs, wantMetric)
@@ -151,7 +151,7 @@ func TestDistinctPrivacyIDWithPartitionsTestMode(t *testing.T) {
 		counts := beam.DropKey(s, got)
 		sumOverPartitions := stats.Sum(s, counts)
 		got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
-		want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+		want = beam.ParDo(s, testutils.PairII64ToKV, want)
 		if err := testutils.EqualsKVInt64(s, got, want); err != nil {
 			t.Fatalf("EqualsKVInt64: %v", err)
 		}
@@ -182,7 +182,7 @@ func TestDistinctPrivacyIDWithPartitionsTestModeAddsEmptyPartitions(t *testing.T
 		for i := 0; i < 10; i++ {
 			pairs = append(pairs, testutils.PairII{1, i})
 		}
-		wantMetric := []testutils.TestInt64Metric{
+		wantMetric := []testutils.PairII64{
 			{9, 1},  // Keep partition 9.
 			{10, 0}, // Add partition 10.
 		}
@@ -199,7 +199,7 @@ func TestDistinctPrivacyIDWithPartitionsTestModeAddsEmptyPartitions(t *testing.T
 			MaxPartitionsContributed: 1,
 			NoiseKind:                pbeam.LaplaceNoise{},
 			PublicPartitions:         publicPartitions})
-		want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+		want = beam.ParDo(s, testutils.PairII64ToKV, want)
 		if err := testutils.EqualsKVInt64(s, got, want); err != nil {
 			t.Fatalf("EqualsKVInt64: %v", err)
 		}
@@ -250,7 +250,7 @@ func TestCountTestMode(t *testing.T) {
 			pairs = append(pairs, testutils.MakePairsWithFixedV(1, i)...)
 			pairs = append(pairs, testutils.MakePairsWithFixedV(1, i)...)
 		}
-		wantMetric := []testutils.TestInt64Metric{
+		wantMetric := []testutils.PairII64{
 			{0, tc.want},
 		}
 		p, s, col, want := ptest.CreateList2(pairs, wantMetric)
@@ -264,7 +264,7 @@ func TestCountTestMode(t *testing.T) {
 		counts := beam.DropKey(s, got)
 		sumOverPartitions := stats.Sum(s, counts)
 		got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
-		want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+		want = beam.ParDo(s, testutils.PairII64ToKV, want)
 		if err := testutils.EqualsKVInt64(s, got, want); err != nil {
 			t.Fatalf("EqualsKVInt64: %v", err)
 		}
@@ -315,7 +315,7 @@ func TestCountWithPartitionsTestMode(t *testing.T) {
 			pairs = append(pairs, testutils.MakePairsWithFixedV(1, i)...)
 			pairs = append(pairs, testutils.MakePairsWithFixedV(1, i)...)
 		}
-		wantMetric := []testutils.TestInt64Metric{
+		wantMetric := []testutils.PairII64{
 			{0, tc.want},
 		}
 
@@ -333,7 +333,7 @@ func TestCountWithPartitionsTestMode(t *testing.T) {
 		counts := beam.DropKey(s, got)
 		sumOverPartitions := stats.Sum(s, counts)
 		got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
-		want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+		want = beam.ParDo(s, testutils.PairII64ToKV, want)
 		if err := testutils.EqualsKVInt64(s, got, want); err != nil {
 			t.Fatalf("EqualsKVInt64: %v", err)
 		}
@@ -363,7 +363,7 @@ func TestCountWithPartitionsTestModeAddsEmptyPartitions(t *testing.T) {
 		for i := 0; i < 10; i++ {
 			pairs = append(pairs, testutils.PairII{1, i})
 		}
-		wantMetric := []testutils.TestInt64Metric{
+		wantMetric := []testutils.PairII64{
 			{9, 1},  // Keep partition 9.
 			{10, 0}, // Add partition 10.
 		}
@@ -379,7 +379,7 @@ func TestCountWithPartitionsTestModeAddsEmptyPartitions(t *testing.T) {
 			MaxPartitionsContributed: 1,
 			NoiseKind:                pbeam.LaplaceNoise{},
 			PublicPartitions:         publicPartitions})
-		want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+		want = beam.ParDo(s, testutils.PairII64ToKV, want)
 		if err := testutils.EqualsKVInt64(s, got, want); err != nil {
 			t.Fatalf("EqualsKVInt64: %v", err)
 		}
@@ -432,7 +432,7 @@ func TestSumPerKeyTestModeInt(t *testing.T) {
 			triples = append(triples, testutils.MakeSampleTripleWithIntValue(1, i)...)
 			triples = append(triples, testutils.MakeSampleTripleWithIntValue(1, i)...)
 		}
-		wantMetric := []testutils.TestInt64Metric{
+		wantMetric := []testutils.PairII64{
 			{0, tc.want},
 		}
 		p, s, col, want := ptest.CreateList2(triples, wantMetric)
@@ -448,7 +448,7 @@ func TestSumPerKeyTestModeInt(t *testing.T) {
 		sums := beam.DropKey(s, got)
 		sumOverPartitions := stats.Sum(s, sums)
 		got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
-		want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+		want = beam.ParDo(s, testutils.PairII64ToKV, want)
 		if err := testutils.EqualsKVInt64(s, got, want); err != nil {
 			t.Fatalf("EqualsKVInt64: %v", err)
 		}
@@ -501,7 +501,7 @@ func TestSumPerKeyWithPartitionsTestModeInt(t *testing.T) {
 			triples = append(triples, testutils.MakeSampleTripleWithIntValue(1, i)...)
 			triples = append(triples, testutils.MakeSampleTripleWithIntValue(1, i)...)
 		}
-		wantMetric := []testutils.TestInt64Metric{
+		wantMetric := []testutils.PairII64{
 			{0, tc.want},
 		}
 		p, s, col, want := ptest.CreateList2(triples, wantMetric)
@@ -520,7 +520,7 @@ func TestSumPerKeyWithPartitionsTestModeInt(t *testing.T) {
 		sums := beam.DropKey(s, got)
 		sumOverPartitions := stats.Sum(s, sums)
 		got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
-		want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+		want = beam.ParDo(s, testutils.PairII64ToKV, want)
 		if err := testutils.EqualsKVInt64(s, got, want); err != nil {
 			t.Fatalf("EqualsKVInt64: %v", err)
 		}
@@ -551,7 +551,7 @@ func TestSumPerKeyWithPartitionsTestModeAddsEmptyPartitionsInt(t *testing.T) {
 		for i := 0; i < 10; i++ {
 			triples = append(triples, testutils.MakeSampleTripleWithIntValue(1, i)...)
 		}
-		wantMetric := []testutils.TestInt64Metric{
+		wantMetric := []testutils.PairII64{
 			{9, 1},  // Keep partition 9.
 			{10, 0}, // Add partition 10.
 		}
@@ -568,7 +568,7 @@ func TestSumPerKeyWithPartitionsTestModeAddsEmptyPartitionsInt(t *testing.T) {
 			MaxValue:                 1,
 			NoiseKind:                pbeam.LaplaceNoise{},
 			PublicPartitions:         publicPartitions})
-		want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+		want = beam.ParDo(s, testutils.PairII64ToKV, want)
 		if err := testutils.EqualsKVInt64(s, got, want); err != nil {
 			t.Fatalf("EqualsKVInt64: %v", err)
 		}
@@ -621,7 +621,7 @@ func TestSumPerKeyTestModeFloat(t *testing.T) {
 			triples = append(triples, testutils.MakeSampleTripleWithFloatValue(1, i)...)
 			triples = append(triples, testutils.MakeSampleTripleWithFloatValue(1, i)...)
 		}
-		wantMetric := []testutils.TestFloat64Metric{
+		wantMetric := []testutils.PairIF64{
 			{0, tc.want},
 		}
 		p, s, col, want := ptest.CreateList2(triples, wantMetric)
@@ -637,7 +637,7 @@ func TestSumPerKeyTestModeFloat(t *testing.T) {
 		sums := beam.DropKey(s, got)
 		sumOverPartitions := stats.Sum(s, sums)
 		got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
-		want = beam.ParDo(s, testutils.Float64MetricToKV, want)
+		want = beam.ParDo(s, testutils.PairIF64ToKV, want)
 		if err := testutils.EqualsKVFloat64(s, got, want); err != nil {
 			t.Fatalf("EqualsKVFloat64: %v", err)
 		}
@@ -690,7 +690,7 @@ func TestSumPerKeyWithPartitionsTestModeFloat(t *testing.T) {
 			triples = append(triples, testutils.MakeSampleTripleWithFloatValue(1, i)...)
 			triples = append(triples, testutils.MakeSampleTripleWithFloatValue(1, i)...)
 		}
-		wantMetric := []testutils.TestFloat64Metric{
+		wantMetric := []testutils.PairIF64{
 			{0, tc.want},
 		}
 		p, s, col, want := ptest.CreateList2(triples, wantMetric)
@@ -709,7 +709,7 @@ func TestSumPerKeyWithPartitionsTestModeFloat(t *testing.T) {
 		sums := beam.DropKey(s, got)
 		sumOverPartitions := stats.Sum(s, sums)
 		got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
-		want = beam.ParDo(s, testutils.Float64MetricToKV, want)
+		want = beam.ParDo(s, testutils.PairIF64ToKV, want)
 		if err := testutils.EqualsKVFloat64(s, got, want); err != nil {
 			t.Fatalf("EqualsKVFloat64: %v", err)
 		}
@@ -740,7 +740,7 @@ func TestSumPerKeyWithPartitionsTestModeAddsEmptyPartitionsFloat(t *testing.T) {
 		for i := 0; i < 10; i++ {
 			triples = append(triples, testutils.MakeSampleTripleWithFloatValue(1, i)...)
 		}
-		wantMetric := []testutils.TestFloat64Metric{
+		wantMetric := []testutils.PairIF64{
 			{9, 1.0},  // Keep partition 9.
 			{10, 0.0}, // Add partition 10.
 		}
@@ -756,7 +756,7 @@ func TestSumPerKeyWithPartitionsTestModeAddsEmptyPartitionsFloat(t *testing.T) {
 			MaxValue:         1,
 			NoiseKind:        pbeam.LaplaceNoise{},
 			PublicPartitions: publicPartitions})
-		want = beam.ParDo(s, testutils.Float64MetricToKV, want)
+		want = beam.ParDo(s, testutils.PairIF64ToKV, want)
 		if err := testutils.EqualsKVFloat64(s, got, want); err != nil {
 			t.Fatalf("EqualsKVFloat64: %v", err)
 		}
@@ -801,7 +801,7 @@ func TestMeanPerKeyTestModeCrossPartitionContributionBounding(t *testing.T) {
 		for i := 0; i < 10; i++ {
 			triples = append(triples, testutils.MakeSampleTripleWithFloatValue(1, i)...)
 		}
-		wantMetric := []testutils.TestFloat64Metric{
+		wantMetric := []testutils.PairIF64{
 			{0, tc.want},
 		}
 		p, s, col, want := ptest.CreateList2(triples, wantMetric)
@@ -818,7 +818,7 @@ func TestMeanPerKeyTestModeCrossPartitionContributionBounding(t *testing.T) {
 		means := beam.DropKey(s, got)
 		sumOverPartitions := stats.Sum(s, means)
 		got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
-		want = beam.ParDo(s, testutils.Float64MetricToKV, want)
+		want = beam.ParDo(s, testutils.PairIF64ToKV, want)
 		if err := testutils.EqualsKVFloat64(s, got, want); err != nil {
 			t.Fatalf("EqualsKVFloat64: %v", err)
 		}
@@ -868,7 +868,7 @@ func TestMeanPerKeyTestModePerPartitionContributionBounding(t *testing.T) {
 		triples = append(triples, testutils.MakeTripleWithFloatValue(1, 0, 50)...)
 		triples = append(triples, testutils.MakeTripleWithFloatValue(1, 0, 50)...)
 		triples = append(triples, testutils.MakeTripleWithFloatValueStartingFromKey(1, 49, 0, 0)...)
-		wantMetric := []testutils.TestFloat64Metric{
+		wantMetric := []testutils.PairIF64{
 			{0, tc.want},
 		}
 		p, s, col, want := ptest.CreateList2(triples, wantMetric)
@@ -882,7 +882,7 @@ func TestMeanPerKeyTestModePerPartitionContributionBounding(t *testing.T) {
 			MinValue:                     tc.minValue,
 			MaxValue:                     tc.maxValue,
 			NoiseKind:                    pbeam.LaplaceNoise{}})
-		want = beam.ParDo(s, testutils.Float64MetricToKV, want)
+		want = beam.ParDo(s, testutils.PairIF64ToKV, want)
 		tolerance := 1e-10 // Using a small tolerance to make up for the rounding errors due to summation & division.
 		if err := testutils.ApproxEqualsKVFloat64(s, got, want, tolerance); err != nil {
 			t.Fatalf("ApproxEqualsKVFloat64: %v", err)
@@ -926,7 +926,7 @@ func TestMeanPerKeyWithPartitionsTestModeCrossPartitionContributionBounding(t *t
 		for i := 0; i < 10; i++ {
 			triples = append(triples, testutils.MakeSampleTripleWithFloatValue(1, i)...)
 		}
-		wantMetric := []testutils.TestFloat64Metric{
+		wantMetric := []testutils.PairIF64{
 			{0, tc.want},
 		}
 		p, s, col, want := ptest.CreateList2(triples, wantMetric)
@@ -946,7 +946,7 @@ func TestMeanPerKeyWithPartitionsTestModeCrossPartitionContributionBounding(t *t
 		means := beam.DropKey(s, got)
 		sumOverPartitions := stats.Sum(s, means)
 		got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
-		want = beam.ParDo(s, testutils.Float64MetricToKV, want)
+		want = beam.ParDo(s, testutils.PairIF64ToKV, want)
 		if err := testutils.EqualsKVFloat64(s, got, want); err != nil {
 			t.Fatalf("EqualsKVFloat64: %v", err)
 		}
@@ -998,7 +998,7 @@ func TestMeanPerKeyWithPartitionsTestModePerPartitionContributionBoundingAddsEmp
 		triples = append(triples, testutils.MakeTripleWithFloatValue(1, 0, 50)...)
 		triples = append(triples, testutils.MakeTripleWithFloatValueStartingFromKey(1, 49, 0, 0)...)
 
-		wantMetric := []testutils.TestFloat64Metric{
+		wantMetric := []testutils.PairIF64{
 			{0, tc.want},
 			{1, 25.0}, // Empty partition (output is midpoint of MinValue and MaxValue).
 		}
@@ -1016,7 +1016,7 @@ func TestMeanPerKeyWithPartitionsTestModePerPartitionContributionBoundingAddsEmp
 			MaxValue:                     tc.maxValue,
 			NoiseKind:                    pbeam.LaplaceNoise{},
 			PublicPartitions:             publicPartitions})
-		want = beam.ParDo(s, testutils.Float64MetricToKV, want)
+		want = beam.ParDo(s, testutils.PairIF64ToKV, want)
 		tolerance := 1e-10 // Using a small tolerance to make up for the rounding errors due to summation & division.
 		if err := testutils.ApproxEqualsKVFloat64(s, got, want, tolerance); err != nil {
 			t.Fatalf("EqualsKVFloat64: %v", err)
@@ -1078,7 +1078,7 @@ func TestQuantilesPerKeyTestModeCrossPartitionContributionBounding(t *testing.T)
 			triples = append(triples, testutils.TripleWithFloatValue{ID: 20, Partition: 1, Value: 1.0})
 		}
 
-		wantMetric := []testutils.TestFloat64Metric{
+		wantMetric := []testutils.PairIF64{
 			{0, tc.want},
 		}
 
@@ -1098,7 +1098,7 @@ func TestQuantilesPerKeyTestModeCrossPartitionContributionBounding(t *testing.T)
 		medians := beam.DropKey(s, got)
 		sumOverPartitions := stats.Sum(s, medians)
 		got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
-		want = beam.ParDo(s, testutils.Float64MetricToKV, want)
+		want = beam.ParDo(s, testutils.PairIF64ToKV, want)
 		// Tolerance is multiplied by 2 because we sum over 2 partitions.
 		tolerance := QuantilesTolerance(tc.minValue, tc.maxValue) * 2
 		if err := testutils.ApproxEqualsKVFloat64(s, got, want, tolerance); err != nil {
@@ -1161,7 +1161,7 @@ func TestQuantilesPerKeyWithPartitionsTestModeCrossPartitionContributionBounding
 			triples = append(triples, testutils.TripleWithFloatValue{ID: 200, Partition: 1, Value: 1.0})
 		}
 
-		wantMetric := []testutils.TestFloat64Metric{
+		wantMetric := []testutils.PairIF64{
 			{0, tc.want},
 		}
 		p, s, col, want := ptest.CreateList2(triples, wantMetric)
@@ -1183,7 +1183,7 @@ func TestQuantilesPerKeyWithPartitionsTestModeCrossPartitionContributionBounding
 		medians := beam.DropKey(s, got)
 		sumOverPartitions := stats.Sum(s, medians)
 		got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
-		want = beam.ParDo(s, testutils.Float64MetricToKV, want)
+		want = beam.ParDo(s, testutils.PairIF64ToKV, want)
 		// Tolerance is multiplied by 2 because we sum over 2 partitions.
 		tolerance := QuantilesTolerance(tc.minValue, tc.maxValue) * 2
 		if err := testutils.ApproxEqualsKVFloat64(s, got, want, tolerance); err != nil {
@@ -1239,7 +1239,7 @@ func TestQuantilesPerKeyTestModePerPartitionContributionBounding(t *testing.T) {
 		triples = append(triples, testutils.MakeTripleWithFloatValue(50, 0, 0.0)...)
 		triples = append(triples, testutils.MakeTripleWithFloatValue(50, 0, 0.0)...)
 		triples = append(triples, testutils.MakeTripleWithFloatValueStartingFromKey(50, 50, 0, 1.0)...)
-		wantMetric := []testutils.TestFloat64Metric{
+		wantMetric := []testutils.PairIF64{
 			{0, tc.want},
 		}
 		p, s, col, want := ptest.CreateList2(triples, wantMetric)
@@ -1256,7 +1256,7 @@ func TestQuantilesPerKeyTestModePerPartitionContributionBounding(t *testing.T) {
 			NoiseKind:                    pbeam.LaplaceNoise{}})
 		got = beam.ParDo(s, testutils.DereferenceFloat64Slice, got)
 
-		want = beam.ParDo(s, testutils.Float64MetricToKV, want)
+		want = beam.ParDo(s, testutils.PairIF64ToKV, want)
 		if err := testutils.ApproxEqualsKVFloat64(s, got, want, QuantilesTolerance(tc.minValue, tc.maxValue)); err != nil {
 			t.Fatalf("ApproxEqualsKVFloat64: %v", err)
 		}
@@ -1310,7 +1310,7 @@ func TestQuantilesPerKeyWithPartitionsTestModePerPartitionContributionBounding(t
 		triples = append(triples, testutils.MakeTripleWithFloatValue(50, 0, 0.0)...)
 		triples = append(triples, testutils.MakeTripleWithFloatValue(50, 0, 0.0)...)
 		triples = append(triples, testutils.MakeTripleWithFloatValueStartingFromKey(50, 50, 0, 1.0)...)
-		wantMetric := []testutils.TestFloat64Metric{
+		wantMetric := []testutils.PairIF64{
 			{0, tc.want},
 		}
 		p, s, col, want := ptest.CreateList2(triples, wantMetric)
@@ -1329,7 +1329,7 @@ func TestQuantilesPerKeyWithPartitionsTestModePerPartitionContributionBounding(t
 			NoiseKind:                    pbeam.LaplaceNoise{}})
 		got = beam.ParDo(s, testutils.DereferenceFloat64Slice, got)
 
-		want = beam.ParDo(s, testutils.Float64MetricToKV, want)
+		want = beam.ParDo(s, testutils.PairIF64ToKV, want)
 		if err := testutils.ApproxEqualsKVFloat64(s, got, want, QuantilesTolerance(tc.minValue, tc.maxValue)); err != nil {
 			t.Fatalf("ApproxEqualsKVFloat64: %v", err)
 		}
@@ -1359,7 +1359,7 @@ func TestQuantilesPerKeyWithPartitionsAppliesPublicPartitions(t *testing.T) {
 			testutils.MakeTripleWithFloatValue(100, 0, 4.0),
 			testutils.MakeTripleWithFloatValueStartingFromKey(100, 100, 1, 1.0))
 
-		wantMetric := []testutils.TestFloat64SliceMetric{
+		wantMetric := []testutils.PairIF64Slice{
 			{0, []float64{1.0, 1.0, 4.0, 4.0}},
 			// Partition 1 is not in the list of public partitions, so it will be dropped.
 			{2, []float64{0.5, 1.25, 3.75, 4.5}}, // Empty partition is linearly interpolated.
@@ -1383,7 +1383,7 @@ func TestQuantilesPerKeyWithPartitionsAppliesPublicPartitions(t *testing.T) {
 			PublicPartitions:             publicPartitions,
 		})
 
-		want = beam.ParDo(s, testutils.Float64SliceMetricToKV, want)
+		want = beam.ParDo(s, testutils.PairIF64SliceToKV, want)
 		if err := testutils.ApproxEqualsKVFloat64Slice(s, got, want, QuantilesTolerance(lower, upper)); err != nil {
 			t.Fatalf("ApproxEqualsKVFloat64Slice: got error %v", err)
 		}
@@ -1529,7 +1529,7 @@ func TestDistinctPerKeyTestModeCrossPartitionContributionBounding(t *testing.T) 
 		for i := 0; i < 10; i++ {
 			triples = append(triples, testutils.MakeSampleTripleWithIntValue(1, i)...)
 		}
-		wantMetric := []testutils.TestInt64Metric{
+		wantMetric := []testutils.PairII64{
 			{0, tc.want},
 		}
 		p, s, col, want := ptest.CreateList2(triples, wantMetric)
@@ -1544,7 +1544,7 @@ func TestDistinctPerKeyTestModeCrossPartitionContributionBounding(t *testing.T) 
 		sums := beam.DropKey(s, got)
 		sumOverPartitions := stats.Sum(s, sums)
 		got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
-		want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+		want = beam.ParDo(s, testutils.PairII64ToKV, want)
 		if err := testutils.EqualsKVInt64(s, got, want); err != nil {
 			t.Fatalf("EqualsKVInt64: %v", err)
 		}
@@ -1589,7 +1589,7 @@ func TestDistinctPerKeyTestModePerPartitionContributionBounding(t *testing.T) {
 		for i := 0; i < 10; i++ {
 			triples = append(triples, testutils.TripleWithIntValue{ID: 0, Partition: 0, Value: i})
 		}
-		wantMetric := []testutils.TestInt64Metric{
+		wantMetric := []testutils.PairII64{
 			{0, tc.want},
 		}
 		p, s, col, want := ptest.CreateList2(triples, wantMetric)
@@ -1604,7 +1604,7 @@ func TestDistinctPerKeyTestModePerPartitionContributionBounding(t *testing.T) {
 		sums := beam.DropKey(s, got)
 		sumOverPartitions := stats.Sum(s, sums)
 		got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
-		want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+		want = beam.ParDo(s, testutils.PairII64ToKV, want)
 		if err := testutils.EqualsKVInt64(s, got, want); err != nil {
 			t.Fatalf("EqualsKVInt64: %v", err)
 		}
@@ -1650,7 +1650,7 @@ func TestDistinctPerKeyWithPartitionsTestModeCrossPartitionContributionBounding(
 		for i := 0; i < 10; i++ {
 			triples = append(triples, testutils.MakeSampleTripleWithIntValue(1, i)...)
 		}
-		wantMetric := []testutils.TestInt64Metric{
+		wantMetric := []testutils.PairII64{
 			{0, tc.want},
 		}
 		p, s, col, want := ptest.CreateList2(triples, wantMetric)
@@ -1669,7 +1669,7 @@ func TestDistinctPerKeyWithPartitionsTestModeCrossPartitionContributionBounding(
 		means := beam.DropKey(s, got)
 		sumOverPartitions := stats.Sum(s, means)
 		got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
-		want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+		want = beam.ParDo(s, testutils.PairII64ToKV, want)
 		if err := testutils.EqualsKVInt64(s, got, want); err != nil {
 			t.Fatalf("EqualsKVInt64: %v", err)
 		}
@@ -1700,7 +1700,7 @@ func TestDistinctPerKeyWithPartitionsTestModeEmptyPartitionsInt(t *testing.T) {
 		for i := 0; i < 10; i++ {
 			triples = append(triples, testutils.MakeSampleTripleWithIntValue(1, i)...)
 		}
-		wantMetric := []testutils.TestInt64Metric{
+		wantMetric := []testutils.PairII64{
 			{9, 1},  // Keep partition 9.
 			{10, 0}, // Add partition 10.
 		}
@@ -1716,7 +1716,7 @@ func TestDistinctPerKeyWithPartitionsTestModeEmptyPartitionsInt(t *testing.T) {
 			MaxContributionsPerPartition: 1,
 			NoiseKind:                    pbeam.LaplaceNoise{},
 			PublicPartitions:             publicPartitions})
-		want = beam.ParDo(s, testutils.Int64MetricToKV, want)
+		want = beam.ParDo(s, testutils.PairII64ToKV, want)
 		if err := testutils.EqualsKVInt64(s, got, want); err != nil {
 			t.Fatalf("EqualsKVInt64: %v", err)
 		}
