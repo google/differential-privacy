@@ -217,12 +217,37 @@ TEST(PrivacyLossDistributionTest, ComposeNumTimes) {
   constexpr int num_times = 2;
   pld->Compose(num_times);
 
-  ProbabilityMassFunction expected_pmf = {{2, 0.36}, {3, 0.48}, {4, 0.16}};
   EXPECT_THAT(pld->InfinityMass(), DoubleNear(0.51, kMaxError));
   EXPECT_THAT(pld->Pmf(), UnorderedElementsAre(
                               FieldsAre(Eq(2), DoubleNear(0.36, kMaxError)),
                               FieldsAre(Eq(3), DoubleNear(0.48, kMaxError)),
                               FieldsAre(Eq(4), DoubleNear(0.16, kMaxError))));
+}
+
+TEST(PrivacyLossDistributionTest, ComposeNumTimesForEpsilonZero) {
+  EpsilonDelta epsilon_delta = {0, 0};
+  std::unique_ptr<PrivacyLossDistribution> pld =
+      PrivacyLossDistribution::CreateForPrivacyParameters(epsilon_delta);
+
+  constexpr int num_times = 60;
+  pld->Compose(num_times);
+
+  EXPECT_THAT(pld->InfinityMass(), DoubleNear(0, kMaxError));
+  EXPECT_THAT(pld->Pmf(),
+              UnorderedElementsAre(FieldsAre(Eq(0), DoubleNear(1, kMaxError))));
+}
+
+TEST(PrivacyLossDistributionTest, ComposeNumTimesForEpsilonZeroDeltaNonZero) {
+  EpsilonDelta epsilon_delta = {0, 1e-4};
+  std::unique_ptr<PrivacyLossDistribution> pld =
+      PrivacyLossDistribution::CreateForPrivacyParameters(epsilon_delta);
+
+  constexpr int num_times = 70;
+  pld->Compose(num_times);
+
+  EXPECT_THAT(pld->InfinityMass(), DoubleNear(0.007, kMaxError));
+  EXPECT_THAT(pld->Pmf(), UnorderedElementsAre(
+                              FieldsAre(Eq(0), DoubleNear(0.993, kMaxError))));
 }
 
 TEST(PrivacyLossDistributionTest, ComposeNumTimesTruncation) {

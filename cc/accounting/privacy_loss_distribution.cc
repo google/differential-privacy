@@ -243,12 +243,17 @@ PrivacyLossDistribution::CreateForPrivacyParameters(
     EpsilonDelta epsilon_delta, double discretization_interval) {
   double epsilon = epsilon_delta.epsilon;
   double delta = epsilon_delta.delta;
-  ProbabilityMassFunction rounded_pmf = {
-      {std::ceil(epsilon / discretization_interval),
-       (1 - delta) / (1 + std::exp(-epsilon))},
-      {std::ceil(-epsilon / discretization_interval),
-       (1 - delta) / (1 + std::exp(epsilon))},
-  };
+  ProbabilityMassFunction rounded_pmf;
+  if (epsilon != 0) {
+    rounded_pmf = {
+        {std::ceil(epsilon / discretization_interval),
+         (1 - delta) / (1 + std::exp(-epsilon))},
+        {std::ceil(-epsilon / discretization_interval),
+         (1 - delta) / (1 + std::exp(epsilon))},
+    };
+  } else {
+    rounded_pmf = {{0, 1 - delta}};
+  }
 
   return absl::WrapUnique(new PrivacyLossDistribution(
       discretization_interval, /*infinity_mass=*/delta, rounded_pmf));

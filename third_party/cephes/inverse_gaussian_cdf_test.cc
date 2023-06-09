@@ -40,14 +40,10 @@
 // found here: https://netlib.org/cephes/doubldoc.html#ndtri
 #include "third_party/cephes/inverse_gaussian_cdf.h"
 
+#include <cstdlib>
 #include <limits>
-#include <string>
 
-#include "base/testing/status_matchers.h"
-#include "gmock/gmock.h"
-#include "testing/base/public/googletest.h"
 #include "gtest/gtest.h"
-#include "base/status_macros.h"
 
 namespace differential_privacy::third_party::cephes {
 namespace {
