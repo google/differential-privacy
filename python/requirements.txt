@@ -1,9 +1,9 @@
 # The version of these dependencies need to be compatible with the versios of
 # the dependenices from `../learning/requirements.txt`.
 
-absl-py~=1.0.0
-attrs~=21.4.0
+absl-py~=1.0
+attrs~=21.4
 dm-tree~=0.1.8
-mpmath~=1.2.1
+mpmath~=1.2
 numpy~=1.21
-scipy~=1.9.3
+scipy~=1.7

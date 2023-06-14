@@ -53,7 +53,5 @@ py_test(
         requirement("absl-py"),
         requirement("mpmath"),
         requirement("numpy"),
-        requirement("scipy"),
-        requirement("six"),
     ],
 )
