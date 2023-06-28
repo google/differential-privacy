@@ -35,6 +35,7 @@
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/str_cat.h"
 #include "algorithms/algorithm.h"
 #include "algorithms/numerical-mechanisms.h"
 #include "algorithms/util.h"
@@ -145,10 +146,10 @@ class ApproxBounds : public Algorithm<T> {
 
   int64_t MemoryUsed() override {
     int64_t memory = sizeof(ApproxBounds<T>) +
-                   sizeof(int64_t) * neg_bins_.capacity() +
-                   sizeof(int64_t) * pos_bins_.capacity() +
-                   sizeof(T) * noisy_neg_bins_.capacity() +
-                   sizeof(T) * noisy_pos_bins_.capacity();
+                     sizeof(int64_t) * neg_bins_.capacity() +
+                     sizeof(int64_t) * pos_bins_.capacity() +
+                     sizeof(T) * noisy_neg_bins_.capacity() +
+                     sizeof(T) * noisy_pos_bins_.capacity();
     if (mechanism_) {
       memory += mechanism_->MemoryUsed();
     }

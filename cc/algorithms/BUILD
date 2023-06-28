@@ -145,6 +145,7 @@ cc_library(
         ":util",
         "//base:logging",
         "//proto:util-lib",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/memory",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
@@ -170,6 +171,7 @@ cc_test(
         "//base/testing:status_matchers",
         "//proto:util-lib",
         "@com_google_absl//absl/memory",
+        "@com_google_differential_privacy//proto:data_cc_proto",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -509,6 +511,7 @@ cc_library(
         "@com_google_absl//absl/memory",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
         "@com_google_cc_differential_privacy//base:status",
     ],
 )
