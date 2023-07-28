@@ -258,7 +258,8 @@ func (fn *decodePairArrayFloat64Fn) ProcessElement(pair pairArrayFloat64) (beam.
 	return k, pair.M, nil
 }
 
-func newBoundedSumFn(epsilon, delta float64, maxPartitionsContributed int64, lower, upper float64, noiseKind noise.Kind, vKind reflect.Kind, publicPartitions bool, testMode testMode) (any, error) {
+// newBoundedSumFn returns a boundedSumInt64Fn or boundedSumFloat64Fn depending on vKind.
+func newBoundedSumFn(epsilon, delta float64, maxPartitionsContributed int64, lower, upper float64, noiseKind noise.Kind, vKind reflect.Kind, publicPartitions bool, testMode TestMode) (any, error) {
 	var err, checkErr error
 	var bsFn any
 
@@ -275,6 +276,35 @@ func newBoundedSumFn(epsilon, delta float64, maxPartitionsContributed int64, low
 			return nil, checkErr
 		}
 		bsFn, err = newBoundedSumFloat64Fn(epsilon, delta, maxPartitionsContributed, lower, upper, noiseKind, publicPartitions, testMode)
+	default:
+		err = fmt.Errorf("vKind(%v) should be int64 or float64", vKind)
+	}
+
+	return bsFn, err
+}
+
+// newBoundedSumFn returns a boundedSumInt64Fn or boundedSumFloat64Fn depending on vKind.
+//
+// Uses the new privacy budget API where clients specify aggregation budget and partition selection budget separately.
+func newBoundedSumFnTemp(
+	aggregationEpsilon, aggregationDelta, partitionSelectionEpsilon, partitionSelectionDelta float64,
+	maxPartitionsContributed int64, lower, upper float64, noiseKind noise.Kind,
+	vKind reflect.Kind, publicPartitions bool, testMode TestMode) (any, error) {
+	var err, checkErr error
+	var bsFn any
+	switch vKind {
+	case reflect.Int64:
+		checkErr = checks.CheckBoundsFloat64AsInt64(lower, upper)
+		if checkErr != nil {
+			return nil, checkErr
+		}
+		bsFn, err = newBoundedSumInt64FnTemp(aggregationEpsilon, aggregationDelta, partitionSelectionEpsilon, partitionSelectionDelta, maxPartitionsContributed, int64(lower), int64(upper), noiseKind, publicPartitions, testMode)
+	case reflect.Float64:
+		checkErr = checks.CheckBoundsFloat64(lower, upper)
+		if checkErr != nil {
+			return nil, checkErr
+		}
+		bsFn, err = newBoundedSumFloat64FnTemp(aggregationEpsilon, aggregationDelta, partitionSelectionEpsilon, partitionSelectionDelta, maxPartitionsContributed, lower, upper, noiseKind, publicPartitions, testMode)
 	default:
 		err = fmt.Errorf("vKind(%v) should be int64 or float64", vKind)
 	}
@@ -302,11 +332,11 @@ type boundedSumInt64Fn struct {
 	NoiseKind                 noise.Kind
 	noise                     noise.Noise // Set during Setup phase according to NoiseKind.
 	PublicPartitions          bool
-	TestMode                  testMode
+	TestMode                  TestMode
 }
 
 // newBoundedSumInt64Fn returns a boundedSumInt64Fn with the given budget and parameters.
-func newBoundedSumInt64Fn(epsilon, delta float64, maxPartitionsContributed, lower, upper int64, noiseKind noise.Kind, publicPartitions bool, testMode testMode) (*boundedSumInt64Fn, error) {
+func newBoundedSumInt64Fn(epsilon, delta float64, maxPartitionsContributed, lower, upper int64, noiseKind noise.Kind, publicPartitions bool, testMode TestMode) (*boundedSumInt64Fn, error) {
 	fn := &boundedSumInt64Fn{
 		MaxPartitionsContributed: maxPartitionsContributed,
 		Lower:                    lower,
@@ -334,6 +364,27 @@ func newBoundedSumInt64Fn(epsilon, delta float64, maxPartitionsContributed, lowe
 	return fn, nil
 }
 
+// newBoundedSumInt64Fn returns a boundedSumInt64Fn with the given budget and parameters.
+//
+// Uses the new privacy budget API where clients specify aggregation budget and partition selection budget separately.
+func newBoundedSumInt64FnTemp(aggregationEpsilon, aggregationDelta, partitionSelectionEpsilon, partitionSelectionDelta float64, maxPartitionsContributed, lower, upper int64, noiseKind noise.Kind, publicPartitions bool, testMode TestMode) (*boundedSumInt64Fn, error) {
+	if noiseKind != noise.GaussianNoise && noiseKind != noise.LaplaceNoise {
+		return nil, fmt.Errorf("unknown noise.Kind (%v) is specified. Please specify a valid noise", noiseKind)
+	}
+	return &boundedSumInt64Fn{
+		NoiseEpsilon:              aggregationEpsilon,
+		NoiseDelta:                aggregationDelta,
+		PartitionSelectionEpsilon: partitionSelectionEpsilon,
+		PartitionSelectionDelta:   partitionSelectionDelta,
+		MaxPartitionsContributed:  maxPartitionsContributed,
+		Lower:                     lower,
+		Upper:                     upper,
+		NoiseKind:                 noiseKind,
+		PublicPartitions:          publicPartitions,
+		TestMode:                  testMode,
+	}, nil
+}
+
 func (fn *boundedSumInt64Fn) Setup() {
 	fn.noise = noise.ToNoise(fn.NoiseKind)
 	if fn.TestMode.isEnabled() {
@@ -342,7 +393,7 @@ func (fn *boundedSumInt64Fn) Setup() {
 }
 
 func (fn *boundedSumInt64Fn) CreateAccumulator() (boundedSumAccumInt64, error) {
-	if fn.TestMode == noNoiseWithoutContributionBounding {
+	if fn.TestMode == NoNoiseWithoutContributionBounding {
 		fn.Lower = math.MinInt64
 		fn.Upper = math.MaxInt64
 	}
@@ -443,11 +494,11 @@ type boundedSumFloat64Fn struct {
 	// Noise, set during Setup phase according to NoiseKind.
 	noise            noise.Noise
 	PublicPartitions bool
-	TestMode         testMode
+	TestMode         TestMode
 }
 
 // newBoundedSumFloat64Fn returns a boundedSumFloat64Fn with the given budget and parameters.
-func newBoundedSumFloat64Fn(epsilon, delta float64, maxPartitionsContributed int64, lower, upper float64, noiseKind noise.Kind, publicPartitions bool, testMode testMode) (*boundedSumFloat64Fn, error) {
+func newBoundedSumFloat64Fn(epsilon, delta float64, maxPartitionsContributed int64, lower, upper float64, noiseKind noise.Kind, publicPartitions bool, testMode TestMode) (*boundedSumFloat64Fn, error) {
 	fn := &boundedSumFloat64Fn{
 		MaxPartitionsContributed: maxPartitionsContributed,
 		Lower:                    lower,
@@ -475,6 +526,27 @@ func newBoundedSumFloat64Fn(epsilon, delta float64, maxPartitionsContributed int
 	return fn, nil
 }
 
+// newBoundedSumFloat64FnTemp returns a boundedSumFloat64Fn with the given budget and parameters.
+//
+// Uses the new privacy budget API where clients specify aggregation budget and partition selection budget separately.
+func newBoundedSumFloat64FnTemp(aggregationEpsilon, aggregationDelta, partitionSelectionEpsilon, partitionSelectionDelta float64, maxPartitionsContributed int64, lower, upper float64, noiseKind noise.Kind, publicPartitions bool, testMode TestMode) (*boundedSumFloat64Fn, error) {
+	if noiseKind != noise.GaussianNoise && noiseKind != noise.LaplaceNoise {
+		return nil, fmt.Errorf("unknown noise.Kind (%v) is specified. Please specify a valid noise", noiseKind)
+	}
+	return &boundedSumFloat64Fn{
+		NoiseEpsilon:              aggregationEpsilon,
+		NoiseDelta:                aggregationDelta,
+		PartitionSelectionEpsilon: partitionSelectionEpsilon,
+		PartitionSelectionDelta:   partitionSelectionDelta,
+		MaxPartitionsContributed:  maxPartitionsContributed,
+		Lower:                     lower,
+		Upper:                     upper,
+		NoiseKind:                 noiseKind,
+		PublicPartitions:          publicPartitions,
+		TestMode:                  testMode,
+	}, nil
+}
+
 func (fn *boundedSumFloat64Fn) Setup() {
 	fn.noise = noise.ToNoise(fn.NoiseKind)
 	if fn.TestMode.isEnabled() {
@@ -483,7 +555,7 @@ func (fn *boundedSumFloat64Fn) Setup() {
 }
 
 func (fn *boundedSumFloat64Fn) CreateAccumulator() (boundedSumAccumFloat64, error) {
-	if fn.TestMode == noNoiseWithoutContributionBounding {
+	if fn.TestMode == NoNoiseWithoutContributionBounding {
 		fn.Lower = math.Inf(-1)
 		fn.Upper = math.Inf(1)
 	}
@@ -883,18 +955,53 @@ func (fn *expandFloat64ValuesCombineFn) ExtractOutput(a expandFloat64ValuesAccum
 	return a.Values
 }
 
-// checkDelta returns an error if delta parameter of an aggregation is not valid. Delta
+// checkPartitionSelectionEpsilon returns an error if the partitionSelectionEpsilon parameter of an aggregation is not valid.
+// Epsilon is valid in the following cases:
+//
+//	epsilon == 0; if public partitions are used
+//	0 < epsilon < +∞; otherwise
+func checkPartitionSelectionEpsilon(epsilon float64, publicPartitions any) error {
+	if publicPartitions != nil {
+		if epsilon != 0 {
+			return fmt.Errorf("PartitionSelectionEpsilon is %e, using public partitions requires setting PartitionSelectionEpsilon to 0", epsilon)
+		}
+		return nil
+	}
+	return checks.CheckEpsilonStrict(epsilon)
+}
+
+// checkDelta returns an error if the delta parameter of an aggregation is not valid. Delta
 // is valid in the following cases:
 //
-//	delta == 0; when laplace noise with public partitions are used
+//	delta == 0; when laplace noise with public partitions is used
 //	0 < delta < 1; otherwise
 func checkDelta(delta float64, noiseKind noise.Kind, publicPartitions any) error {
 	if publicPartitions != nil && noiseKind == noise.LaplaceNoise {
-		if delta != 0 {
-			return fmt.Errorf("Delta is %e, using Laplace Noise with Public Partitions requires setting delta to 0", delta)
-		}
-	} else {
-		return checks.CheckDeltaStrict(delta)
+		return checks.CheckNoDelta(delta)
 	}
-	return nil
+	return checks.CheckDeltaStrict(delta)
+}
+
+// checkAggregationDelta returns an error if the aggregationDelta parameter of an aggregation is not valid.
+// Delta is valid in the following cases:
+//
+//	delta == 0; when laplace noise is used
+//	0 < delta < 1; otherwise
+func checkAggregationDelta(delta float64, noiseKind noise.Kind) error {
+	if noiseKind == noise.LaplaceNoise {
+		return checks.CheckNoDelta(delta)
+	}
+	return checks.CheckDeltaStrict(delta)
+}
+
+// checkPartitionSelectionDelta returns an error if the partitionSelectionDelta parameter of an aggregation is not valid.
+// Delta is valid in the following cases:
+//
+//	delta == 0; if public partitions are used
+//	0 < delta < 1; otherwise
+func checkPartitionSelectionDelta(delta float64, publicPartitions any) error {
+	if publicPartitions != nil {
+		return checks.CheckNoDelta(delta)
+	}
+	return checks.CheckDeltaStrict(delta)
 }

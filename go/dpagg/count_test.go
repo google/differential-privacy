@@ -217,31 +217,33 @@ func getNoiselessCount(t *testing.T) *Count {
 }
 
 func TestCountIncrement(t *testing.T) {
-	count := getNoiselessCount(t)
-	count.Increment()
-	count.Increment()
-	count.Increment()
-	count.Increment()
-	got, err := count.Result()
-	if err != nil {
-		t.Fatalf("Couldn't compute dp result: %v", err)
-	}
+	c := getNoiselessCount(t)
 	const want = 4
-	if got != want {
-		t.Errorf("Increment: after adding %d values got %d, want %d", want, got, want)
+	c.Increment()
+	c.Increment()
+	c.Increment()
+	c.Increment()
+
+	if c.count != want {
+		t.Errorf("IncrementBy: after adding %d got %d", want, c.count)
 	}
 }
 
 func TestCountIncrementBy(t *testing.T) {
-	count := getNoiselessCount(t)
-	count.IncrementBy(4)
-	got, err := count.Result()
-	if err != nil {
-		t.Fatalf("Couldn't compute dp result: %v", err)
-	}
+	c := getNoiselessCount(t)
 	const want = 4
-	if got != want {
-		t.Errorf("IncrementBy: after adding %d got %d, want %d", want, got, want)
+	c.IncrementBy(want)
+	if c.count != want {
+		t.Errorf("IncrementBy: after adding %d got %d", want, c.count)
+	}
+}
+
+func TestCountIncrementBy_NegativeValues(t *testing.T) {
+	c := getNoiselessCount(t)
+	const want = -2
+	c.IncrementBy(want)
+	if c.count != want {
+		t.Errorf("IncrementBy: after adding %d got %d", want, c.count)
 	}
 }
 

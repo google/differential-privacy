@@ -1,8 +1,8 @@
 # Bounded Standard Deviation
 
-WARNING: `BoundedStandardDeviation` is deprecated. Please use 
+WARNING: `BoundedStandardDeviation` is deprecated. Please use
 [`BoundedVariance`](bounded-variance.md) instead and take the square root of the
-result.
+result. This documentation might be out of date.
 
 [`BoundedStandardDeviation`](https://github.com/google/differential-privacy/blob/main/cc/algorithms/bounded-standard-deviation.h)
 computes the standard deviation of values in a dataset in a differentially

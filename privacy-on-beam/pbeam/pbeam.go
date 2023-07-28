@@ -115,6 +115,7 @@ import (
 	"sync"
 
 	log "github.com/golang/glog"
+	"github.com/google/differential-privacy/go/v2/checks"
 	"github.com/google/differential-privacy/go/v2/noise"
 	"github.com/google/differential-privacy/privacy-on-beam/v2/internal/kv"
 	"github.com/google/differential-privacy/privacy-on-beam/v2/internal/testoption"
@@ -139,68 +140,142 @@ func init() {
 // different privacy budgets, call NewPrivacySpec multiple times and give a
 // different PrivacySpec to each PrivatePCollection.
 type PrivacySpec struct {
-	epsilon           float64 // ε budget available for this PrivatePCollection.
-	delta             float64 // δ budget available for this PrivatePCollection.
-	partiallyConsumed bool    // Whether some privacy budget has already been consumed from this PrivacySpec.
-	testMode testMode // Used for test pipelines, disabled by default.
-	mux      sync.Mutex
+	budget *privacyBudget // Epsilon/Delta (ε,δ) budget available for this PrivatePCollection.
+	// Whether this PrivacySpec uses the new Privacy Budget API, i.e. aggregationBudget & partitionSelectionBudget
+	// as opposed to the old `budget`.
+	//
+	// TODO: Remove after migration is finalized.
+	usesNewPrivacyBudgetAPI  bool
+	aggregationBudget        *privacyBudget // Epsilon/Delta (ε,δ) budget available for aggregations performed on this PrivatePCollection.
+	partitionSelectionBudget *privacyBudget // Epsilon/Delta (ε,δ) budget available for partition selections performed  performed on this PrivatePCollection.
+	testMode TestMode // Used for test pipelines, disabled by default.
 }
 
-// getBudget computes the differential privacy budget (ε,δ) to consume
-// from a PrivacySpec. If epsilon and delta are 0, it gets the entire
-// budget, which is only possible if this is the first time its budget
-// is to be consumed.
+// PartitionSelectionParams holds the ε & δ budget to be used for partition selection of an aggregation.
+// If you are using public partitions, then you do not need to specify these parameters.
+type PartitionSelectionParams struct {
+	Epsilon float64
+	Delta   float64
+}
+
+// PrivacySpecParams contains parameters to construct a PrivacySpec.
+//
+// Uses the new privacy budget API where clients specify aggregation budget and partition selection budget separately.
+type PrivacySpecParams struct {
+	// Epsilon (ε) budget available for aggregations performed on this PrivatePCollection. Required unless
+	// the only aggregation in the pipeline is pbeam.SelectPartitions.
+	AggregationEpsilon float64
+	// Delta (δ) budget available for aggregations performed on this PrivatePCollection. Only set it if you
+	// use Gaussian Noise.
+	AggregationDelta float64
+	// Epsilon (ε) budget available for partition selections performed on this PrivatePCollection. Required unless
+	// you use public partitions.
+	PartitionSelectionEpsilon float64
+	// Delta (δ) budget available for partition selections performed on this PrivatePCollection. Required unless
+	// you use public partitions.
+	PartitionSelectionDelta float64
+	// Test mode for test pipelines, disabled by default. Set it to NoNoiseWithContributionBounding or
+	// NoNoiseWithoutContributionBounding if you want to enable test mode.
+	TestMode TestMode
+}
+
+// NewPrivacySpecTemp returns a PrivacySpec from given PrivacySpecParams. This is a temporary
+// constructor. Will be migrated to NewPrivacySpec once all clients are migrated to this temporary
+// constructor.
+//
+// Uses the new privacy budget API where clients specify aggregation budget and partition selection budget separately.
+func NewPrivacySpecTemp(params PrivacySpecParams) (*PrivacySpec, error) {
+
+	err := checks.CheckEpsilon(params.AggregationEpsilon)
+	if err != nil {
+		return nil, fmt.Errorf("AggregationEpsilon: %v", err)
+	}
+	err = checks.CheckDelta(params.AggregationDelta)
+	if err != nil {
+		return nil, fmt.Errorf("AggregationDelta: %v", err)
+	}
+	err = checks.CheckEpsilon(params.PartitionSelectionEpsilon)
+	if err != nil {
+		return nil, fmt.Errorf("PartitionSelectionEpsilon: %v", err)
+	}
+	err = checks.CheckDelta(params.PartitionSelectionDelta)
+	if err != nil {
+		return nil, fmt.Errorf("PartitionSelectionDelta: %v", err)
+	}
+	if params.AggregationEpsilon == 0 && params.PartitionSelectionEpsilon == 0 {
+		return nil, fmt.Errorf("either AggregationEpsilon or PartitionSelectionEpsilon must be set to a positive value")
+	}
+	if params.PartitionSelectionEpsilon != 0 && params.PartitionSelectionDelta == 0 {
+		return nil, fmt.Errorf("PartitionSelectionDelta must be set to a positive value whenever PartitionSelectionEpsilon (%f) is set", params.PartitionSelectionEpsilon)
+	}
+	return &PrivacySpec{
+		usesNewPrivacyBudgetAPI:  true,
+		aggregationBudget:        &privacyBudget{epsilon: params.AggregationEpsilon, delta: params.AggregationDelta},
+		partitionSelectionBudget: &privacyBudget{epsilon: params.PartitionSelectionEpsilon, delta: params.PartitionSelectionDelta},
+		testMode:                 params.TestMode,
+	}, nil
+}
+
+type privacyBudget struct {
+	// Epsilon/Delta (ε,δ) budget available.
+	epsilon, delta    float64
+	partiallyConsumed bool       // Whether some budget has already been consumed from this privacy budget.
+	mux               sync.Mutex // To avoid race conditions on epsilon & delta.
+}
+
+// consumes a differential privacy budget (ε,δ) from a PrivacySpec. If epsilon and delta are 0,
+// it consumes the entire budget, which is only possible if this is the first time its budget is consumed.
+//
+// Returns the budget consumed.
+func (budget *privacyBudget) consume(epsilon, delta float64) (eps, del float64, err error) {
+	budget.mux.Lock()
+	defer budget.mux.Unlock()
+	eps, del, err = budget.getThreadUnsafe(epsilon, delta)
+	budget.epsilon = budget.epsilon - eps
+	budget.delta = budget.delta - del
+	budget.partiallyConsumed = true
+	return eps, del, err
+}
+
+// get computes the differential privacy budget (ε,δ) to consume from a PrivacySpec.If epsilon and
+// delta are 0, it gets the entire available budget, which is only possible if this is the first
+// time its budget is to be consumed.
 //
 // Returns the budget to consume.
 //
 // Warning: use consumeBudget to actually consume the budget.
-func (ps *PrivacySpec) getBudget(epsilon, delta float64) (eps, del float64, err error) {
-	ps.mux.Lock()
-	defer ps.mux.Unlock()
-	return ps.getBudgetThreadUnsafe(epsilon, delta)
+func (budget *privacyBudget) get(epsilon, delta float64) (eps, del float64, err error) {
+	budget.mux.Lock()
+	defer budget.mux.Unlock()
+	return budget.getThreadUnsafe(epsilon, delta)
 }
 
-// getBudgetThreadUnsafe is not thread-safe and should not be used directly. Instead, use getBudget
-// or consumeBudget.
-func (ps *PrivacySpec) getBudgetThreadUnsafe(epsilon, delta float64) (eps, del float64, err error) {
+// getThreadUnsafe is not thread-safe and should not be used directly. Instead, use get or consume.
+func (budget *privacyBudget) getThreadUnsafe(epsilon, delta float64) (eps, del float64, err error) {
 	if epsilon == 0 && delta == 0 {
-		return ps.getEntireBudget()
+		return budget.getEntireBudget()
 	}
-	return ps.getPartialBudget(epsilon, delta)
+	return budget.getPartialBudget(epsilon, delta)
 }
 
-// consumeBudget consumes a differential privacy budget (ε,δ) from a
-// PrivacySpec. If epsilon and delta are 0, it consumes the entire budget,
-// which is only possible if this is the first time its budget is consumed.
-// Returns the budget consumed.
-func (ps *PrivacySpec) consumeBudget(epsilon, delta float64) (eps, del float64, err error) {
-	ps.mux.Lock()
-	defer ps.mux.Unlock()
-	eps, del, err = ps.getBudgetThreadUnsafe(epsilon, delta)
-	ps.epsilon = ps.epsilon - eps
-	ps.delta = ps.delta - del
-	ps.partiallyConsumed = true
-	return eps, del, err
+func (budget *privacyBudget) getEntireBudget() (eps, del float64, err error) {
+	if budget.partiallyConsumed {
+		return 0, 0, fmt.Errorf("trying to consume entire budget of PrivacySpec, but it has already been partially or fully consumed: %+v ", budget)
+	}
+	return budget.epsilon, budget.delta, nil
 }
 
-func (ps *PrivacySpec) getEntireBudget() (eps, del float64, err error) {
-	if ps.partiallyConsumed {
-		return 0, 0, fmt.Errorf("trying to consume entire budget of PrivacySpec, but it has already been partially or fully consumed: %+v ", ps)
+func (budget *privacyBudget) getPartialBudget(epsilon, delta float64) (eps, del float64, err error) {
+	if budgetSlightlyTooLarge(budget.epsilon, epsilon) {
+		log.Infof("corrected rounding error for epsilon budget allocation (requested: %f, available: %f, difference: %e)", epsilon, budget.epsilon, epsilon-budget.epsilon)
+		epsilon = budget.epsilon
 	}
-	return ps.epsilon, ps.delta, nil
-}
-
-func (ps *PrivacySpec) getPartialBudget(epsilon, delta float64) (eps, del float64, err error) {
-	if budgetSlightlyTooLarge(ps.epsilon, epsilon) {
-		log.Infof("corrected rounding error for epsilon budget allocation (requested: %f, available: %f, difference: %e)", epsilon, ps.epsilon, epsilon-ps.epsilon)
-		epsilon = ps.epsilon
+	if budgetSlightlyTooLarge(budget.delta, delta) {
+		log.Infof("corrected rounding error for delta budget allocation (requested: %e, available: %e, difference: %e)", delta, budget.delta, delta-budget.delta)
+		delta = budget.delta
 	}
-	if budgetSlightlyTooLarge(ps.delta, delta) {
-		log.Infof("corrected rounding error for delta budget allocation (requested: %e, available: %e, difference: %e)", epsilon, ps.epsilon, epsilon-ps.epsilon)
-		delta = ps.delta
-	}
-	if ps.epsilon < epsilon || ps.delta < delta {
-		return 0, 0, fmt.Errorf("not enough budget left for PrivacySpec: trying to consume epsilon=%f and delta=%e out of remaining epsilon=%f and delta=%e. Did you forget to split your budget among aggregations?", epsilon, delta, ps.epsilon, ps.delta)
+	if budget.epsilon < epsilon || budget.delta < delta {
+		return 0, 0, fmt.Errorf("not enough budget left for PrivacySpec: trying to consume epsilon=%f and delta=%e out of remaining epsilon=%f and delta=%e. Did you forget to split your budget among aggregations?", epsilon, delta, budget.epsilon, budget.delta)
 	}
 	return epsilon, delta, nil
 }
@@ -228,9 +303,9 @@ type PrivacySpecOption any
 func evaluatePrivacySpecOption(opt PrivacySpecOption, spec *PrivacySpec) {
 	switch opt {
 	case testoption.EnableNoNoiseWithContributionBounding{}:
-		spec.testMode = noNoiseWithContributionBounding
+		spec.testMode = NoNoiseWithContributionBounding
 	case testoption.EnableNoNoiseWithoutContributionBounding{}:
-		spec.testMode = noNoiseWithoutContributionBounding
+		spec.testMode = NoNoiseWithoutContributionBounding
 	}
 }
 
@@ -270,10 +345,7 @@ func (ln LaplaceNoise) toNoiseKind() noise.Kind {
 // will be used for this aggregation. Otherwise, the user must specify how the
 // privacy budget is split across aggregations.
 func NewPrivacySpec(epsilon, delta float64, options ...PrivacySpecOption) *PrivacySpec {
-	ps := &PrivacySpec{
-		epsilon: epsilon,
-		delta:   delta,
-	}
+	ps := &PrivacySpec{budget: &privacyBudget{epsilon: epsilon, delta: delta}}
 	for _, opt := range options {
 		evaluatePrivacySpecOption(opt, ps)
 	}

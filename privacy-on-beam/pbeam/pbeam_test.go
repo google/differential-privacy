@@ -33,6 +33,103 @@ func init() {
 	beam.RegisterType(reflect.TypeOf(protoPair{}))
 }
 
+func TestNewPrivacySpecTemp(t *testing.T) {
+	for _, tc := range []struct {
+		desc    string
+		params  PrivacySpecParams
+		wantErr bool
+	}{
+		{
+			"all fields set",
+			PrivacySpecParams{
+				AggregationEpsilon:        1.0,
+				AggregationDelta:          0.0,
+				PartitionSelectionEpsilon: 1.0,
+				PartitionSelectionDelta:   1e-5,
+			},
+			false,
+		},
+		{
+			"only aggregation budget set",
+			PrivacySpecParams{
+				AggregationEpsilon: 1.0,
+				AggregationDelta:   0.0,
+			},
+			false,
+		},
+		{
+			"only partition selection budget set",
+			PrivacySpecParams{
+				PartitionSelectionEpsilon: 1.0,
+				PartitionSelectionDelta:   1e-5,
+			},
+			false,
+		},
+		{
+			"no budget is set",
+			PrivacySpecParams{},
+			true,
+		},
+		{
+			"partition selection delta is not set when partition selection budget is set",
+			PrivacySpecParams{
+				PartitionSelectionEpsilon: 1.0,
+			},
+			true,
+		},
+		{
+			"negative AggregationEpsilon",
+			PrivacySpecParams{
+				AggregationEpsilon: -1.0,
+			},
+			true,
+		},
+		{
+			"negative AggregationDelta",
+			PrivacySpecParams{
+				AggregationEpsilon: 1.0,
+				AggregationDelta:   -1e-5,
+			},
+			true,
+		},
+		{
+			"AggregationDelta > 1",
+			PrivacySpecParams{
+				AggregationEpsilon: 1.0,
+				AggregationDelta:   -1e-5,
+			},
+			true,
+		},
+		{
+			"negative PartitionSelectionEpsilon",
+			PrivacySpecParams{
+				PartitionSelectionEpsilon: -1.0,
+			},
+			true,
+		},
+		{
+			"negative PartitionSelectionDelta",
+			PrivacySpecParams{
+				PartitionSelectionEpsilon: 1.0,
+				PartitionSelectionDelta:   -1e-5,
+			},
+			true,
+		},
+		{
+			"PartitionSelectionDelta > 1",
+			PrivacySpecParams{
+				PartitionSelectionEpsilon: 1.0,
+				PartitionSelectionDelta:   -1e-5,
+			},
+			true,
+		},
+	} {
+		if _, err := NewPrivacySpecTemp(tc.params); (err != nil) != tc.wantErr {
+			t.Errorf("With %s, got=%v, wantErr=%t", tc.desc, err, tc.wantErr)
+		}
+	}
+}
+
 type protoPair struct {
 	Key string
 	Pb  *testpb.TestAnon
@@ -293,8 +390,8 @@ func TestExtractProtoField(t *testing.T) {
 
 // Tests that we can get get the whole budget and consume it partially afterwards.
 func TestGetFullBudget(t *testing.T) {
-	spec := NewPrivacySpec(2, 2e-10)
-	eps, del, err := spec.getBudget(0, 0)
+	budget := &privacyBudget{epsilon: 2, delta: 2e-10}
+	eps, del, err := budget.get(0, 0)
 	if err != nil {
 		t.Errorf("expected no error but got error: %v", err)
 	}
@@ -303,26 +400,26 @@ func TestGetFullBudget(t *testing.T) {
 	}
 
 	// Split the budget and consume it in two calls.
-	eps, del, err = spec.consumeBudget(1, 1e-10)
+	eps, del, err = budget.consume(1, 1e-10)
 	if err != nil {
 		t.Errorf("expected no error but got error: %v", err)
 	}
 	if eps != 1.0 || del != 1e-10 {
-		t.Errorf("Trying to consume the budget after getBudget call: Got (epsilon,delta)=(%f,%e), expected=(%f,%e)", eps, del, 1.0, 1e-10)
+		t.Errorf("Trying to consume the budget after budget.get() call: Got (epsilon,delta)=(%f,%e), expected=(%f,%e)", eps, del, 1.0, 1e-10)
 	}
-	eps, del, err = spec.consumeBudget(1, 1e-10)
+	eps, del, err = budget.consume(1, 1e-10)
 	if err != nil {
 		t.Errorf("expected no error but got error: %v", err)
 	}
 	if eps != 1.0 || del != 1e-10 {
-		t.Errorf("Trying to consume the budget after getBudget call: Got (epsilon,delta)=(%f,%e), expected=(%f,%e)", eps, del, 1.0, 1e-10)
+		t.Errorf("Trying to consume the budget after budget.get() call: Got (epsilon,delta)=(%f,%e), expected=(%f,%e)", eps, del, 1.0, 1e-10)
 	}
 }
 
 // Tests that we can get and consume the budget partially.
 func TestGetPartialBudget(t *testing.T) {
-	spec := NewPrivacySpec(2, 2e-10)
-	eps, del, err := spec.getBudget(1, 1e-10)
+	budget := &privacyBudget{epsilon: 2, delta: 2e-10}
+	eps, del, err := budget.get(1, 1e-10)
 	if err != nil {
 		t.Errorf("expected no error but got error: %v", err)
 	}
@@ -330,15 +427,15 @@ func TestGetPartialBudget(t *testing.T) {
 		t.Errorf("Trying to get first half of the budget: Got (epsilon,delta)=(%f,%e), expected=(%f,%e)", eps, del, 1.0, 1e-10)
 	}
 
-	eps, del, err = spec.consumeBudget(1, 1e-10)
+	eps, del, err = budget.consume(1, 1e-10)
 	if err != nil {
 		t.Errorf("expected no error but got error: %v", err)
 	}
 	if eps != 1.0 || del != 1e-10 {
-		t.Errorf("Trying to consume second half of the budget after getBudget call: Got (epsilon,delta)=(%f,%e), expected=(%f,%e)", eps, del, 1.0, 1e-10)
+		t.Errorf("Trying to consume second half of the budget after budget.get() call: Got (epsilon,delta)=(%f,%e), expected=(%f,%e)", eps, del, 1.0, 1e-10)
 	}
 
-	eps, del, err = spec.getBudget(1, 1e-10)
+	eps, del, err = budget.get(1, 1e-10)
 	if err != nil {
 		t.Errorf("expected no error but got error: %v", err)
 	}
@@ -346,12 +443,12 @@ func TestGetPartialBudget(t *testing.T) {
 		t.Errorf("Trying to get second half of the budget: Got (epsilon,delta)=(%f,%e), expected=(%f,%e)", eps, del, 1.0, 1e-10)
 	}
 
-	eps, del, err = spec.consumeBudget(1, 1e-10)
+	eps, del, err = budget.consume(1, 1e-10)
 	if err != nil {
 		t.Errorf("expected no error but got error: %v", err)
 	}
 	if eps != 1.0 || del != 1e-10 {
-		t.Errorf("Trying to consume second half the budget after getBudget call: Got (epsilon,delta)=(%f,%e), expected=(%f,%e)", eps, del, 1.0, 1e-10)
+		t.Errorf("Trying to consume second half the budget after budget.get() call: Got (epsilon,delta)=(%f,%e), expected=(%f,%e)", eps, del, 1.0, 1e-10)
 	}
 }
 
@@ -371,7 +468,7 @@ func TestBudgetFullyConsumed(t *testing.T) {
 		t.Errorf("expected no error but got error: %v", err)
 	}
 	// Try consuming 1% of the initial budget.
-	if eps, del, err := spec.consumeBudget(0.01, 1e-32); err == nil {
+	if eps, del, err := spec.budget.consume(0.01, 1e-32); err == nil {
 		t.Errorf("expected spec to be out of budget, but could consume (%f,%e) without any error", eps, del)
 	}
 }
@@ -396,38 +493,29 @@ func TestTwoDistinctBudgets(t *testing.T) {
 		t.Errorf("expected no error but got error: %v", err)
 	}
 	// Try consuming 1% of the initial budget independently for ε and δ.
-	if eps, del, err := spec1.consumeBudget(0, 1e-32); err == nil {
+	if eps, del, err := spec1.budget.consume(0, 1e-32); err == nil {
 		t.Errorf("expected spec1 to be out of budget, but could consume (%f,%e) without any error", eps, del)
 	}
-	if eps, del, err := spec2.consumeBudget(0.01, 0); err == nil {
+	if eps, del, err := spec2.budget.consume(0.01, 0); err == nil {
 		t.Errorf("expected spec2 to be out of budget, but could consume (%f,%e) without any error", eps, del)
 	}
 }
 
-// Test for rounding errors during budget allocation. Dividing the overall
-// epsilon by 3 leads to rounding errors in this test case. Should run without
-// any errors.
+// Test for rounding errors during budget allocation. For example, dividing the overall
+// epsilon by 3 would lead to rounding errors unless mitigated in getPartialBudget.
 func TestBudgetRounding(t *testing.T) {
-	for numAggregations := 1; numAggregations <= 10; numAggregations++ {
-		values := []testutils.PairII{
-			{1, 1},
-			{2, 2},
-		}
-		p, s, col := ptest.CreateList(values)
-		colKV := beam.ParDo(s, testutils.PairToKV, col)
-		spec := NewPrivacySpec(1, 1e-30)
-		pcol := MakePrivate(s, colKV, spec)
-		epsPerAggregation := 1. / float64(numAggregations)
-		delPerAggregation := 1e-30 / float64(numAggregations)
-		for i := 0; i < numAggregations; i++ {
-			DistinctPrivacyID(s, pcol, DistinctPrivacyIDParams{Epsilon: epsPerAggregation, Delta: delPerAggregation, MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}})
-		}
-		if err := ptest.Run(p); err != nil {
-			t.Errorf("with %d aggregations, expected no error but got error: %v", numAggregations, err)
+	for numSplits := 1; numSplits <= 10; numSplits++ {
+		budget := &privacyBudget{epsilon: 1, delta: 1e-10}
+		epsPerAggregation := 1. / float64(numSplits)
+		delPerAggregation := 1e-10 / float64(numSplits)
+		for i := 0; i < numSplits; i++ {
+			if _, _, err := budget.consume(epsPerAggregation, delPerAggregation); err != nil {
+				t.Errorf("with %d aggregations, expected no error but got error: %v", numSplits, err)
+			}
 		}
 		// Now, the budget should be really empty.
-		if eps, del, err := spec.consumeBudget(1e-15, 1e-40); err == nil {
-			t.Errorf("with %d aggregations, expected spec to be out of budget, but could consume (%f,%e) without any error", numAggregations, eps, del)
+		if eps, del, err := budget.consume(1e-15, 1e-40); err == nil {
+			t.Errorf("with %d aggregations, expected spec to be out of budget, but could consume (%f,%e) without any error", numSplits, eps, del)
 		}
 	}
 }

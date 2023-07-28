@@ -40,8 +40,9 @@ func init() {
 // SelectPartitions aggregation.
 type SelectPartitionsParams struct {
 	// Differential privacy budget consumed by this aggregation. If there is
-	// only one aggregation, both Epsilon and Delta can be left 0; in that
-	// case, the entire budget of the PrivacySpec is consumed.
+	// only one aggregation, both Epsilon and Delta can be left 0; in that case,
+	// the entire budget reserved for partition selection in the PrivacySpec
+	// is consumed.
 	Epsilon, Delta float64
 	// The maximum number of distinct keys that a given privacy identifier
 	// can influence. If a privacy identifier is associated to more keys,
@@ -66,13 +67,20 @@ func SelectPartitions(s beam.Scope, pcol PrivatePCollection, params SelectPartit
 	s = s.Scope("pbeam.SelectPartitions")
 	// Obtain type information from the underlying PCollection<K,V>.
 	_, pT := beam.ValidateKVType(pcol.col)
-
-	// TODO: Test code paths ln 82, ln 87, ln 93 instead of fatal log.
-	epsilon, delta, err := pcol.privacySpec.consumeBudget(params.Epsilon, params.Delta)
-	if err != nil {
-		log.Fatalf("Couldn't consume budget for SelectPartition: %v", err)
-	}
 	spec := pcol.privacySpec
+	var epsilon, delta float64
+	var err error
+	if spec.usesNewPrivacyBudgetAPI {
+		epsilon, delta, err = spec.partitionSelectionBudget.consume(params.Epsilon, params.Delta)
+		if err != nil {
+			log.Fatalf("Couldn't consume budget for SelectPartitions: %v", err)
+		}
+	} else {
+		epsilon, delta, err = spec.budget.consume(params.Epsilon, params.Delta)
+		if err != nil {
+			log.Fatalf("Couldn't consume budget for SelectPartitions: %v", err)
+		}
+	}
 	maxPartitionsContributed, err := getMaxPartitionsContributed(spec, params.MaxPartitionsContributed)
 	if err != nil {
 		log.Fatalf("Couldn't get MaxPartitionsContributed for SelectPartitions: %v", err)
@@ -105,7 +113,7 @@ func SelectPartitions(s beam.Scope, pcol PrivatePCollection, params SelectPartit
 		beam.TypeDefinition{Var: beam.VType, T: partitionT.Type()})
 
 	// Third, do cross-partition contribution bounding if not in test mode without contribution bounding.
-	if spec.testMode != noNoiseWithoutContributionBounding {
+	if spec.testMode != NoNoiseWithoutContributionBounding {
 		partitions = boundContributions(s, partitions, maxPartitionsContributed)
 	}
 
@@ -132,10 +140,10 @@ type partitionSelectionFn struct {
 	Epsilon                  float64
 	Delta                    float64
 	MaxPartitionsContributed int64
-	TestMode                 testMode
+	TestMode                 TestMode
 }
 
-func newPartitionSelectionFn(epsilon, delta float64, maxPartitionsContributed int64, testMode testMode) *partitionSelectionFn {
+func newPartitionSelectionFn(epsilon, delta float64, maxPartitionsContributed int64, testMode TestMode) *partitionSelectionFn {
 	return &partitionSelectionFn{Epsilon: epsilon, Delta: delta, MaxPartitionsContributed: maxPartitionsContributed, TestMode: testMode}
 }
 

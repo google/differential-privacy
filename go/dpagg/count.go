@@ -125,6 +125,12 @@ func (c *Count) Increment() error {
 // IncrementBy increments the count by the given value.
 // Note that this shouldn't be used to count multiple contributions to a
 // single partition from the same privacy unit.
+//
+// It could, for example, be used to increment the count by k privacy
+// units at once.
+//
+// Note that decrementing counts by inputting a negative value is allowed,
+// for example if you want to remove some users you have previously added.
 func (c *Count) IncrementBy(count int64) error {
 	if c.state != defaultState {
 		return fmt.Errorf("Count cannot be amended: %v", c.state.errorMessage())

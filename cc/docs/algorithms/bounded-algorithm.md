@@ -5,8 +5,9 @@ as parameters. There is no `BoundedAlgorithm` interface as a subclass of
 [`Algorithm`](algorithm.md), but `Algorithms` that need bounds do share a common
 builder interface. Some Bounded algorithms are constructed using a
 [`BoundedAlgorithmBuilder`](https://github.com/google/differential-privacy/blob/main/cc/algorithms/bounded-algorithm.h),
-which is a subclass of [`AlgorithmBuilder`](https://github.com/google/differential-privacy/blob/main/cc/algorithms/algorithm.h).
-Others have builders which do not inerit from `BoundedAlgorithmBuilder`, but
+which is a subclass of
+[`AlgorithmBuilder`](https://github.com/google/differential-privacy/blob/main/cc/algorithms/algorithm.h).
+Others have builders which do not inherit from `BoundedAlgorithmBuilder`, but
 share the same interface.
 
 ## Construction
@@ -37,7 +38,7 @@ absl::StatusOr<std::unique_ptr<Algorithm<T>>> bounded_algorithm =
                   builder.Build();
 ```
 
-*   `T` is the template parameter type (usually `int64` or `double`).
+*   `T` is the template parameter type (usually `int64_t` or `double`).
 *   `T lower`: The lower bound of input to the algorithm. If an input is less
     than `lower`, it will be clamped to `lower`.
 *   `T upper`: The upper bound of input to the algorithm. If an input is greater
@@ -51,7 +52,6 @@ The following algorithms are bounded, and automatically infer bounds using the
 *   [`BoundedSum`](bounded-sum.md)
 *   [`BoundedMean`](bounded-mean.md)
 *   [`BoundedVariance`](bounded-variance.md)
-*   [`BoundedStandardDeviation`](bounded-standard-deviation.md)
 
 The following algorithm is bounded, but require the user to specify bounds. If
 bounds are not known in advance, you can run `ApproxBounds` separately, and

@@ -58,6 +58,17 @@ java_library(
 )
 
 java_library(
+    name = "zero_noise",
+    testonly = 1,
+    srcs = ["ZeroNoise.java"],
+    deps = [
+        ":differentialprivacy",
+        "@com_google_differential_privacy//proto:summary_java_proto",
+        "@maven//:com_google_code_findbugs_jsr305",
+    ],
+)
+
+java_library(
     name = "test_noise_factory",
     testonly = 1,
     srcs = ["TestNoiseFactory.java"],

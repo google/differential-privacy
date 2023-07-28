@@ -112,10 +112,10 @@ public class CountTest {
   }
 
   @Test
-  public void incrementBy_ignoresNegativeValues() {
+  public void incrementBy_allowsNegativeValues() {
     count.incrementBy(-100);
 
-    assertThat(count.computeResult()).isEqualTo(0);
+    assertThat(count.computeResult()).isEqualTo(-100);
   }
 
   @Test
@@ -492,7 +492,7 @@ public class CountTest {
     // extreme in the sense that it would result in numerical inaccuracies if
     // thresholdDeltaPerPartition is computed naively.
     count = getCountBuilderWithFields().maxPartitionsContributed(12345).build();
-    count.computeThresholdedResult(/*thresholdDelta=*/ 5.4321e-60);
+    count.computeThresholdedResult(/* thresholdDelta= */ 5.4321e-60);
 
     // The anticipated value of thresholdDeltaPerPartition is
     // thresholdDeltaPerPartition = 1 - (1 - thresholdDelta)^(1 / maxPartitionsContributed)

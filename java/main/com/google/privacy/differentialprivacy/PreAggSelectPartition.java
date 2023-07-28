@@ -109,8 +109,8 @@ public class PreAggSelectPartition {
    * library to ensure that for each privacy unit ID this method is called at most once and the each
    * privacy id is counted at most once in the input value.
    *
-   * <p>Value is expected to be positive, but we don't perform data-based validation as exceptions
-   * can leak information about the data and violate differential privacy.
+   * <p>Note that decrementing counts by inputting a negative value is allowed, for example if you
+   * want to remove some users you have previously added.
    *
    * @throws IllegalStateException if this this instance of {@link PreAggSelectPartition} has
    *     already been queried or serialized.
@@ -216,7 +216,7 @@ public class PreAggSelectPartition {
 
   @VisibleForTesting
   double getKeepPartitionProbability() {
-    if (idsCount == 0) {
+    if (idsCount <= 0) {
       return 0;
     }
 

@@ -82,17 +82,16 @@ public class Count {
    * Increments count by the given value. Note, that this shouldn't be used to count multiple
    * contributions to a partition from the same user.
    *
+   * <p>Note that decrementing counts by inputting a negative value is allowed, for example if you
+   * want to remove some users you have previously added.
+   *
    * @throws IllegalStateException if this instance of {@link Count} has already been queried or
    *     serialized.
    */
   public void incrementBy(long count) {
     Preconditions.checkState(
         state.equals(AggregationState.DEFAULT), "Count cannot be incremented.");
-
-    // Non-positive values are ignored because they don't make sense.
-    if (count > 0) {
-      this.rawCount += count;
-    }
+    this.rawCount += count;
   }
 
   /**

@@ -42,6 +42,7 @@ public class PreAggSelectPartitionTest {
   private static final double EPSILON = Math.log(2);
   private static final double LOW_EPSILON = Math.log(1.5);
   private static final double HIGH_EPSILON = 50;
+  private static final double HIGH_DELTA = 1 - 1e-15;
   private static final double DELTA = 0.1;
   private static final double LOW_DELTA = 1e-200;
   private static final int ONE_PARTITION_CONTRIBUTED = 1;
@@ -54,6 +55,35 @@ public class PreAggSelectPartitionTest {
     @Before
     public void setUp() {
       preAggSelectPartition = getPreAggSelectPartitionBuilderWithFields().build();
+    }
+
+    @Test
+    public void increment_calledAfterShouldKeepPartition_throwsException() {
+      preAggSelectPartition.shouldKeepPartition();
+      assertThrows(IllegalStateException.class, () -> preAggSelectPartition.increment());
+    }
+
+    @Test
+    public void increment_calledAfterSerialize_throwsException() {
+      preAggSelectPartition.getSerializableSummary();
+      assertThrows(IllegalStateException.class, () -> preAggSelectPartition.increment());
+    }
+
+    @Test
+    public void incrementBy_allowsNegativeValues() {
+      PreAggSelectPartition largeDeltaPreAggSelectPartition =
+          PreAggSelectPartition.builder()
+              .epsilon(HIGH_EPSILON)
+              .delta(HIGH_DELTA)
+              .maxPartitionsContributed(1)
+              .build();
+      // We can't access the value of the count, so instead we test that adding and subtracting the
+      // same large count results in a deterministic false when shouldKeepPartition is called.
+      // If negative values are ignored, shouldKeepPartition would return true.
+      largeDeltaPreAggSelectPartition.incrementBy(100);
+      largeDeltaPreAggSelectPartition.incrementBy(-100);
+
+      assertThat(largeDeltaPreAggSelectPartition.shouldKeepPartition()).isFalse();
     }
 
     // An attempt to compute the result several times should throw an exception.

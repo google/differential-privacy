@@ -41,9 +41,24 @@ type MeanParams struct {
 	// Defaults to LaplaceNoise{}.
 	NoiseKind NoiseKind
 	// Differential privacy budget consumed by this aggregation. If there is
-	// only one aggregation, both Epsilon and Delta can be left 0; in that
-	// case, the entire budget of the PrivacySpec is consumed.
+	// only one aggregation, both Epsilon and Delta can be left 0; in that case,
+	// the entire budget of the PrivacySpec is consumed. Deprecated, prefer
+	// using AggregationEpsilon & AggregationDelta, and PartitionSelectionParams.
 	Epsilon, Delta float64
+	// Differential privacy budget consumed by this aggregation. If there is
+	// only one aggregation, both epsilon and delta can be left 0; in that case
+	// the entire budget reserved for aggregation in the PrivacySpec is consumed.
+	//
+	// Uses the new privacy budget API.
+	AggregationEpsilon, AggregationDelta float64
+	// Differential privacy budget consumed by partition selection of this
+	// aggregation. If PublicPartitions are specified, this needs to be left unset.
+	// If there is only one aggregation, this can be left unset; in that case
+	// the entire budget reserved for partition selection in the PrivacySpec
+	// is consumed.
+	//
+	// Uses the new privacy budget API.
+	PartitionSelectionParams PartitionSelectionParams
 	// The maximum number of distinct values that a given privacy identifier
 	// can influence. There is an inherent trade-off when choosing this
 	// parameter: a larger MaxPartitionsContributed leads to less data loss due
@@ -99,7 +114,8 @@ type MeanParams struct {
 	// otherwise.
 	//
 	// Optional.
-	PublicPartitions interface{}
+	// TODO: Move PublicPartitions to PartitionSelectionParams.
+	PublicPartitions any
 }
 
 // MeanPerKey obtains the mean of the values associated with each key in a
@@ -128,9 +144,25 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 
 	// Get privacy parameters.
 	spec := pcol.privacySpec
-	epsilon, delta, err := spec.consumeBudget(params.Epsilon, params.Delta)
-	if err != nil {
-		log.Fatalf("Couldn't consume budget for Mean: %v", err)
+	var epsilon, delta float64
+	var err error
+	var aggregationEpsilon, aggregationDelta, partitionSelectionEpsilon, partitionSelectionDelta float64
+	if spec.usesNewPrivacyBudgetAPI {
+		aggregationEpsilon, aggregationDelta, err = spec.aggregationBudget.consume(params.AggregationEpsilon, params.AggregationDelta)
+		if err != nil {
+			log.Fatalf("Couldn't consume aggregation budget for Mean: %v", err)
+		}
+		if params.PublicPartitions == nil {
+			partitionSelectionEpsilon, partitionSelectionDelta, err = spec.partitionSelectionBudget.consume(params.PartitionSelectionParams.Epsilon, params.PartitionSelectionParams.Delta)
+			if err != nil {
+				log.Fatalf("Couldn't consume aggregation budget for Mean: %v", err)
+			}
+		}
+	} else {
+		epsilon, delta, err = spec.budget.consume(params.Epsilon, params.Delta)
+		if err != nil {
+			log.Fatalf("Couldn't consume budget for Mean: %v", err)
+		}
 	}
 	var noiseKind noise.Kind
 	if params.NoiseKind == nil {
@@ -139,7 +171,7 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 	} else {
 		noiseKind = params.NoiseKind.toNoiseKind()
 	}
-	err = checkMeanPerKeyParams(params, epsilon, delta, noiseKind, pcol.codec.KType.T)
+	err = checkMeanPerKeyParams(params, spec.usesNewPrivacyBudgetAPI, aggregationEpsilon, aggregationDelta, partitionSelectionEpsilon, partitionSelectionDelta, epsilon, delta, noiseKind, pcol.codec.KType.T)
 	if err != nil {
 		log.Fatalf("pbeam.MeanPerKey: %v", err)
 	}
@@ -158,7 +190,7 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 		beam.TypeDefinition{Var: beam.VType, T: pcol.codec.VType.T})
 
 	// Don't do per-partition contribution bounding if in test mode without contribution bounding.
-	if spec.testMode != noNoiseWithoutContributionBounding {
+	if spec.testMode != NoNoiseWithoutContributionBounding {
 		decoded = boundContributions(s, decoded, params.MaxContributionsPerPartition)
 	}
 
@@ -184,7 +216,7 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 	}
 	rekeyed := beam.ParDo(s, rekeyArrayFloat64, combined)
 	// Second, do cross-partition contribution bounding if not in test mode without contribution bounding.
-	if spec.testMode != noNoiseWithoutContributionBounding {
+	if spec.testMode != NoNoiseWithoutContributionBounding {
 		rekeyed = boundContributions(s, rekeyed, maxPartitionsContributed)
 	}
 
@@ -200,26 +232,48 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 	var result beam.PCollection
 	// Add public partitions and return the aggregation output, if public partitions are specified.
 	if params.PublicPartitions != nil {
+		if spec.usesNewPrivacyBudgetAPI {
+			epsilon = aggregationEpsilon
+			delta = aggregationDelta
+		}
 		result = addPublicPartitionsForMean(s, epsilon, delta, maxPartitionsContributed,
 			params, noiseKind, partialKV, spec.testMode)
 	} else {
 		// Compute the mean for each partition. Result is PCollection<partition, float64>.
-		boundedMeanFloat64Fn, err := newBoundedMeanFn(boundedMeanFnParams{
-			epsilon:                      epsilon,
-			delta:                        delta,
-			maxPartitionsContributed:     maxPartitionsContributed,
-			maxContributionsPerPartition: params.MaxContributionsPerPartition,
-			minValue:                     params.MinValue,
-			maxValue:                     params.MaxValue,
-			noiseKind:                    noiseKind,
-			publicPartitions:             false,
-			testMode:                     spec.testMode,
-			emptyPartitions:              false})
+		var boundedMeanFn *boundedMeanFn
+		if spec.usesNewPrivacyBudgetAPI {
+			boundedMeanFn, err = newBoundedMeanFnTemp(boundedMeanFnParams{
+				aggregationEpsilon:           aggregationEpsilon,
+				aggregationDelta:             aggregationDelta,
+				partitionSelectionEpsilon:    partitionSelectionEpsilon,
+				partitionSelectionDelta:      partitionSelectionDelta,
+				maxPartitionsContributed:     maxPartitionsContributed,
+				maxContributionsPerPartition: params.MaxContributionsPerPartition,
+				minValue:                     params.MinValue,
+				maxValue:                     params.MaxValue,
+				noiseKind:                    noiseKind,
+				publicPartitions:             false,
+				testMode:                     spec.testMode,
+				emptyPartitions:              false})
+		} else {
+			boundedMeanFn, err = newBoundedMeanFn(boundedMeanFnParams{
+				epsilon:                      epsilon,
+				delta:                        delta,
+				maxPartitionsContributed:     maxPartitionsContributed,
+				maxContributionsPerPartition: params.MaxContributionsPerPartition,
+				minValue:                     params.MinValue,
+				maxValue:                     params.MaxValue,
+				noiseKind:                    noiseKind,
+				publicPartitions:             false,
+				testMode:                     spec.testMode,
+				emptyPartitions:              false})
+		}
+
 		if err != nil {
 			log.Fatalf("Couldn't get boundedMeanFn for MeanPerKey: %v", err)
 		}
 		means := beam.CombinePerKey(s,
-			boundedMeanFloat64Fn,
+			boundedMeanFn,
 			partialKV)
 		// Finally, drop thresholded partitions.
 		result = beam.ParDo(s, dropThresholdedPartitionsFloat64, means)
@@ -228,9 +282,9 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 	return result
 }
 
-func addPublicPartitionsForMean(s beam.Scope, epsilon, delta float64, maxPartitionsContributed int64, params MeanParams, noiseKind noise.Kind, partialKV beam.PCollection, testMode testMode) beam.PCollection {
+func addPublicPartitionsForMean(s beam.Scope, epsilon, delta float64, maxPartitionsContributed int64, params MeanParams, noiseKind noise.Kind, partialKV beam.PCollection, testMode TestMode) beam.PCollection {
 	// Compute the mean for each partition with non-public partitions dropped. Result is PCollection<partition, float64>.
-	boundedMeanFloat64Fn, err := newBoundedMeanFn(boundedMeanFnParams{
+	boundedMeanFn, err := newBoundedMeanFn(boundedMeanFnParams{
 		epsilon:                      epsilon,
 		delta:                        delta,
 		maxPartitionsContributed:     maxPartitionsContributed,
@@ -245,7 +299,7 @@ func addPublicPartitionsForMean(s beam.Scope, epsilon, delta float64, maxPartiti
 		log.Fatalf("Couldn't get boundedMeanFn for MeanPerKey: %v", err)
 	}
 	means := beam.CombinePerKey(s,
-		boundedMeanFloat64Fn,
+		boundedMeanFn,
 		partialKV)
 	partitionT, _ := beam.ValidateKVType(means)
 	meansPartitions := beam.DropValue(s, means)
@@ -260,7 +314,7 @@ func addPublicPartitionsForMean(s beam.Scope, epsilon, delta float64, maxPartiti
 	// emptyPublicPartitions are the partitions that are public but not found in the data.
 	emptyPublicPartitions := beam.ParDo(s, newEmitPartitionsNotInTheDataFn(partitionT), publicPartitionsWithValues, beam.SideInput{Input: partitionMap})
 	// Add noise to the empty public partitions.
-	boundedMeanFloat64Fn, err = newBoundedMeanFn(boundedMeanFnParams{
+	boundedMeanFn, err = newBoundedMeanFn(boundedMeanFnParams{
 		epsilon:                      epsilon,
 		delta:                        delta,
 		maxPartitionsContributed:     maxPartitionsContributed,
@@ -275,7 +329,7 @@ func addPublicPartitionsForMean(s beam.Scope, epsilon, delta float64, maxPartiti
 		log.Fatalf("Couldn't get boundedMeanFn for MeanPerKey: %v", err)
 	}
 	emptyMeans := beam.CombinePerKey(s,
-		boundedMeanFloat64Fn,
+		boundedMeanFn,
 		emptyPublicPartitions)
 	means = beam.ParDo(s, dereferenceValueToFloat64, means)
 	emptyMeans = beam.ParDo(s, dereferenceValueToFloat64, emptyMeans)
@@ -283,18 +337,37 @@ func addPublicPartitionsForMean(s beam.Scope, epsilon, delta float64, maxPartiti
 	return beam.Flatten(s, means, emptyMeans)
 }
 
-func checkMeanPerKeyParams(params MeanParams, epsilon, delta float64, noiseKind noise.Kind, partitionType reflect.Type) error {
+func checkMeanPerKeyParams(params MeanParams, usesNewPrivacyBudgetAPI bool, aggregationEpsilon, aggregationDelta, partitionSelectionEpsilon, partitionSelectionDelta, epsilon, delta float64, noiseKind noise.Kind, partitionType reflect.Type) error {
 	err := checkPublicPartitions(params.PublicPartitions, partitionType)
 	if err != nil {
 		return err
 	}
-	err = checks.CheckEpsilon(epsilon)
-	if err != nil {
-		return err
-	}
-	err = checkDelta(delta, noiseKind, params.PublicPartitions)
-	if err != nil {
-		return err
+	if usesNewPrivacyBudgetAPI {
+		err = checks.CheckEpsilon(aggregationEpsilon)
+		if err != nil {
+			return err
+		}
+		err = checkAggregationDelta(aggregationDelta, noiseKind)
+		if err != nil {
+			return err
+		}
+		err = checkPartitionSelectionEpsilon(partitionSelectionEpsilon, params.PublicPartitions)
+		if err != nil {
+			return err
+		}
+		err = checkPartitionSelectionDelta(partitionSelectionDelta, params.PublicPartitions)
+		if err != nil {
+			return err
+		}
+	} else {
+		err = checks.CheckEpsilon(epsilon)
+		if err != nil {
+			return err
+		}
+		err = checkDelta(delta, noiseKind, params.PublicPartitions)
+		if err != nil {
+			return err
+		}
 	}
 	err = checks.CheckBoundsFloat64(params.MinValue, params.MaxValue)
 	if err != nil {
@@ -328,7 +401,7 @@ type boundedMeanFn struct {
 	NoiseKind                    noise.Kind
 	noise                        noise.Noise // Set during Setup phase according to NoiseKind.
 	PublicPartitions             bool        // Set to true if public partitions are used.
-	TestMode                     testMode
+	TestMode                     TestMode
 	EmptyPartitions              bool // Set to true if this combineFn is for adding noise to empty public partitions.
 }
 
@@ -336,13 +409,17 @@ type boundedMeanFn struct {
 type boundedMeanFnParams struct {
 	epsilon                      float64
 	delta                        float64
+	aggregationEpsilon           float64
+	aggregationDelta             float64
+	partitionSelectionEpsilon    float64
+	partitionSelectionDelta      float64
 	maxPartitionsContributed     int64
 	maxContributionsPerPartition int64
 	minValue                     float64
 	maxValue                     float64
 	noiseKind                    noise.Kind
 	publicPartitions             bool // True if public partitions are used.
-	testMode                     testMode
+	testMode                     TestMode
 	emptyPartitions              bool // Set to true if the boundedMeanFn is for adding noise to empty public partitions.
 }
 
@@ -377,6 +454,29 @@ func newBoundedMeanFn(params boundedMeanFnParams) (*boundedMeanFn, error) {
 	return fn, nil
 }
 
+// newBoundedMeanFnTemp returns a boundedMeanFn with the given budget and parameters.
+//
+// Uses the new privacy budget API.
+func newBoundedMeanFnTemp(params boundedMeanFnParams) (*boundedMeanFn, error) {
+	if params.noiseKind != noise.GaussianNoise && params.noiseKind != noise.LaplaceNoise {
+		return nil, fmt.Errorf("unknown noise.Kind (%v) is specified. Please specify a valid noise", params.noiseKind)
+	}
+	return &boundedMeanFn{
+		NoiseEpsilon:                 params.aggregationEpsilon,
+		NoiseDelta:                   params.aggregationDelta,
+		PartitionSelectionEpsilon:    params.partitionSelectionEpsilon,
+		PartitionSelectionDelta:      params.partitionSelectionDelta,
+		MaxPartitionsContributed:     params.maxPartitionsContributed,
+		MaxContributionsPerPartition: params.maxContributionsPerPartition,
+		Lower:                        params.minValue,
+		Upper:                        params.maxValue,
+		NoiseKind:                    params.noiseKind,
+		PublicPartitions:             params.publicPartitions,
+		TestMode:                     params.testMode,
+		EmptyPartitions:              params.emptyPartitions,
+	}, nil
+}
+
 func (fn *boundedMeanFn) Setup() {
 	fn.noise = noise.ToNoise(fn.NoiseKind)
 	if fn.TestMode.isEnabled() {
@@ -385,7 +485,7 @@ func (fn *boundedMeanFn) Setup() {
 }
 
 func (fn *boundedMeanFn) CreateAccumulator() (boundedMeanAccum, error) {
-	if fn.TestMode == noNoiseWithoutContributionBounding && !fn.EmptyPartitions {
+	if fn.TestMode == NoNoiseWithoutContributionBounding && !fn.EmptyPartitions {
 		fn.Lower = math.Inf(-1)
 		fn.Upper = math.Inf(1)
 	}

@@ -56,9 +56,24 @@ type SumParams struct {
 	// Defaults to LaplaceNoise{}.
 	NoiseKind NoiseKind
 	// Differential privacy budget consumed by this aggregation. If there is
-	// only one aggregation, both Epsilon and Delta can be left 0; in that
-	// case, the entire budget of the PrivacySpec is consumed.
+	// only one aggregation, both Epsilon and Delta can be left 0; in that case,
+	// the entire budget of the PrivacySpec is consumed. Deprecated, prefer
+	// using AggregationEpsilon & AggregationDelta, and PartitionSelectionParams.
 	Epsilon, Delta float64
+	// Differential privacy budget consumed by this aggregation. If there is
+	// only one aggregation, both epsilon and delta can be left 0; in that case
+	// the entire budget reserved for aggregation in the PrivacySpec is consumed.
+	//
+	// Uses the new privacy budget API.
+	AggregationEpsilon, AggregationDelta float64
+	// Differential privacy budget consumed by partition selection of this
+	// aggregation. If PublicPartitions are specified, this needs to be left unset.
+	// If there is only one aggregation, this can be left unset; in that case
+	// the entire budget reserved for partition selection in the PrivacySpec
+	// is consumed.
+	//
+	// Uses the new privacy budget API.
+	PartitionSelectionParams PartitionSelectionParams
 	// The maximum number of distinct values that a given privacy identifier
 	// can influence. There is an inherent trade-off when choosing this
 	// parameter: a larger MaxPartitionsContributed leads to less data loss due
@@ -104,6 +119,7 @@ type SumParams struct {
 	// otherwise.
 	//
 	// Optional.
+	// TODO: Move PublicPartitions to PartitionSelectionParams.
 	PublicPartitions any
 }
 
@@ -135,9 +151,25 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCo
 
 	// Get privacy parameters.
 	spec := pcol.privacySpec
-	epsilon, delta, err := spec.consumeBudget(params.Epsilon, params.Delta)
-	if err != nil {
-		log.Fatalf("Couldn't consume budget for SumPerKey: %v", err)
+	var epsilon, delta float64
+	var err error
+	var aggregationEpsilon, aggregationDelta, partitionSelectionEpsilon, partitionSelectionDelta float64
+	if spec.usesNewPrivacyBudgetAPI {
+		aggregationEpsilon, aggregationDelta, err = spec.aggregationBudget.consume(params.AggregationEpsilon, params.AggregationDelta)
+		if err != nil {
+			log.Fatalf("Couldn't consume aggregation budget for SumPerKey: %v", err)
+		}
+		if params.PublicPartitions == nil {
+			partitionSelectionEpsilon, partitionSelectionDelta, err = spec.partitionSelectionBudget.consume(params.PartitionSelectionParams.Epsilon, params.PartitionSelectionParams.Delta)
+			if err != nil {
+				log.Fatalf("Couldn't consume partition selection budget for SumPerKey: %v", err)
+			}
+		}
+	} else {
+		epsilon, delta, err = spec.budget.consume(params.Epsilon, params.Delta)
+		if err != nil {
+			log.Fatalf("Couldn't consume budget for SumPerKey: %v", err)
+		}
 	}
 
 	var noiseKind noise.Kind
@@ -147,7 +179,7 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCo
 	} else {
 		noiseKind = params.NoiseKind.toNoiseKind()
 	}
-	err = checkSumPerKeyParams(params, epsilon, delta, noiseKind, pcol.codec.KType.T)
+	err = checkSumPerKeyParams(params, spec.usesNewPrivacyBudgetAPI, aggregationEpsilon, aggregationDelta, partitionSelectionEpsilon, partitionSelectionDelta, epsilon, delta, noiseKind, pcol.codec.KType.T)
 	if err != nil {
 		log.Fatalf("pbeam.SumPerKey: %v", err)
 	}
@@ -185,7 +217,7 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCo
 	}
 	rekeyed := beam.ParDo(s, rekeyFn, converted)
 	// Second, do cross-partition contribution bounding if not in test mode without contribution bounding.
-	if spec.testMode != noNoiseWithoutContributionBounding {
+	if spec.testMode != NoNoiseWithoutContributionBounding {
 		rekeyed = boundContributions(s, rekeyed, maxPartitionsContributed)
 	}
 	// Fourth, now that contribution bounding is done, remove the privacy keys,
@@ -204,10 +236,19 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCo
 	var result beam.PCollection
 	// Add public partitions and return the aggregation output, if public partitions are specified.
 	if params.PublicPartitions != nil {
+		if spec.usesNewPrivacyBudgetAPI {
+			epsilon = aggregationEpsilon
+			delta = aggregationDelta
+		}
 		result = addPublicPartitionsForSum(s, epsilon, delta, maxPartitionsContributed,
 			params, noiseKind, vKind, partialSumKV, spec.testMode)
 	} else {
-		boundedSumFn, err := newBoundedSumFn(epsilon, delta, maxPartitionsContributed, params.MinValue, params.MaxValue, noiseKind, vKind, false, spec.testMode)
+		var boundedSumFn any
+		if spec.usesNewPrivacyBudgetAPI {
+			boundedSumFn, err = newBoundedSumFnTemp(aggregationEpsilon, aggregationDelta, partitionSelectionEpsilon, partitionSelectionDelta, maxPartitionsContributed, params.MinValue, params.MaxValue, noiseKind, vKind, false, spec.testMode)
+		} else {
+			boundedSumFn, err = newBoundedSumFn(epsilon, delta, maxPartitionsContributed, params.MinValue, params.MaxValue, noiseKind, vKind, false, spec.testMode)
+		}
 		if err != nil {
 			log.Fatalf("Couldn't get boundedSumFn for SumPerKey: %v", err)
 		}
@@ -234,8 +275,8 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCo
 	return result
 }
 
-func addPublicPartitionsForSum(s beam.Scope, epsilon, delta float64, maxPartitionsContributed int64, params SumParams, noiseKind noise.Kind, vKind reflect.Kind, partialSumKV beam.PCollection, testMode testMode) beam.PCollection {
-	// Calculate sums with non-public partitions dropped. Result is PCollection<partition, int64> or PCollection<partition, float64>.
+func addPublicPartitionsForSum(s beam.Scope, epsilon, delta float64, maxPartitionsContributed int64, params SumParams, noiseKind noise.Kind, vKind reflect.Kind, partialSumKV beam.PCollection, testMode TestMode) beam.PCollection {
+	// Calculate sums with non-public partitions dropped. Result is PCollection<partition, vKind>, where vKind is either int64 or float64.
 	boundedSumFn, err := newBoundedSumFn(epsilon, delta, maxPartitionsContributed, params.MinValue, params.MaxValue, noiseKind, vKind, true, testMode)
 	if err != nil {
 		log.Fatalf("Couldn't get boundedSumFn for SumPerKey: %v", err)
@@ -276,18 +317,37 @@ func addPublicPartitionsForSum(s beam.Scope, epsilon, delta float64, maxPartitio
 	return beam.Flatten(s, sums, emptySums)
 }
 
-func checkSumPerKeyParams(params SumParams, epsilon, delta float64, noiseKind noise.Kind, partitionType reflect.Type) error {
+func checkSumPerKeyParams(params SumParams, usesNewPrivacyBudgetAPI bool, aggregationEpsilon, aggregationDelta, partitionSelectionEpsilon, partitionSelectionDelta, epsilon, delta float64, noiseKind noise.Kind, partitionType reflect.Type) error {
 	err := checkPublicPartitions(params.PublicPartitions, partitionType)
 	if err != nil {
 		return err
 	}
-	err = checks.CheckEpsilon(epsilon)
-	if err != nil {
-		return err
-	}
-	err = checkDelta(delta, noiseKind, params.PublicPartitions)
-	if err != nil {
-		return err
+	if usesNewPrivacyBudgetAPI {
+		err = checks.CheckEpsilon(aggregationEpsilon)
+		if err != nil {
+			return err
+		}
+		err = checkAggregationDelta(aggregationDelta, noiseKind)
+		if err != nil {
+			return err
+		}
+		err = checkPartitionSelectionEpsilon(partitionSelectionEpsilon, params.PublicPartitions)
+		if err != nil {
+			return err
+		}
+		err = checkPartitionSelectionDelta(partitionSelectionDelta, params.PublicPartitions)
+		if err != nil {
+			return err
+		}
+	} else {
+		err = checks.CheckEpsilon(epsilon)
+		if err != nil {
+			return err
+		}
+		err = checkDelta(delta, noiseKind, params.PublicPartitions)
+		if err != nil {
+			return err
+		}
 	}
 	return checks.CheckBoundsFloat64(params.MinValue, params.MaxValue)
 }
@@ -399,7 +459,7 @@ func getKind(fn any) (reflect.Kind, error) {
 	return reflect.TypeOf(fn).Out(1).Kind(), nil
 }
 
-func newAddNoiseToEmptyPublicPartitionsFn(epsilon, delta float64, maxPartitionsContributed int64, lower, upper float64, noiseKind noise.Kind, vKind reflect.Kind, testMode testMode) (any, error) {
+func newAddNoiseToEmptyPublicPartitionsFn(epsilon, delta float64, maxPartitionsContributed int64, lower, upper float64, noiseKind noise.Kind, vKind reflect.Kind, testMode TestMode) (any, error) {
 	var err error
 	var bsFn any
 
@@ -427,11 +487,11 @@ type addNoiseToEmptyPublicPartitionsInt64Fn struct {
 	Upper                    int64
 	NoiseKind                noise.Kind
 	noise                    noise.Noise // Set during Setup phase according to NoiseKind.
-	TestMode                 testMode
+	TestMode                 TestMode
 }
 
 // newAddNoiseToEmptyPublicPartitionsInt64Fn returns a addNoiseToEmptyPublicPartitionsInt64Fn with the given budget and parameters.
-func newAddNoiseToEmptyPublicPartitionsInt64Fn(epsilon, delta float64, maxPartitionsContributed, lower, upper int64, noiseKind noise.Kind, testMode testMode) *addNoiseToEmptyPublicPartitionsInt64Fn {
+func newAddNoiseToEmptyPublicPartitionsInt64Fn(epsilon, delta float64, maxPartitionsContributed, lower, upper int64, noiseKind noise.Kind, testMode TestMode) *addNoiseToEmptyPublicPartitionsInt64Fn {
 	return &addNoiseToEmptyPublicPartitionsInt64Fn{
 		NoiseEpsilon:             epsilon,
 		NoiseDelta:               delta,
@@ -476,11 +536,11 @@ type addNoiseToEmptyPublicPartitionsFloat64Fn struct {
 	Upper                    float64
 	NoiseKind                noise.Kind
 	noise                    noise.Noise // Set during Setup phase according to NoiseKind.
-	TestMode                 testMode
+	TestMode                 TestMode
 }
 
 // newAddNoiseToEmptyPublicPartitionsFloat64Fn returns a addNoiseToEmptyPublicPartitionsFloat64Fn with the given budget and parameters.
-func newAddNoiseToEmptyPublicPartitionsFloat64Fn(epsilon, delta float64, maxPartitionsContributed int64, lower, upper float64, noiseKind noise.Kind, testMode testMode) *addNoiseToEmptyPublicPartitionsFloat64Fn {
+func newAddNoiseToEmptyPublicPartitionsFloat64Fn(epsilon, delta float64, maxPartitionsContributed int64, lower, upper float64, noiseKind noise.Kind, testMode TestMode) *addNoiseToEmptyPublicPartitionsFloat64Fn {
 	return &addNoiseToEmptyPublicPartitionsFloat64Fn{
 		NoiseEpsilon:             epsilon,
 		NoiseDelta:               delta,

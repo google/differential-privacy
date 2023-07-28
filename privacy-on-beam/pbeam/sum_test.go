@@ -42,7 +42,7 @@ func TestSumPerKeyNoNoiseInt(t *testing.T) {
 		testutils.MakeSampleTripleWithIntValue(31, 1),
 		testutils.MakeSampleTripleWithIntValue(99, 2))
 	result := []testutils.PairII64{
-		// The sum for value 0 is 7: should be thresholded.
+		// The sum for partition 0 is 7, which is below the threshold of 31: so it should be dropped.
 		{1, 31},
 		{2, 99},
 	}
@@ -1278,13 +1278,18 @@ func TestSumPerKeyNoClampingForNegativeMinValueInt64(t *testing.T) {
 func TestCheckSumPerKeyParams(t *testing.T) {
 	_, _, publicPartitions := ptest.CreateList([]int{0, 1})
 	for _, tc := range []struct {
-		desc          string
-		epsilon       float64
-		delta         float64
-		noiseKind     noise.Kind
-		params        SumParams
-		partitionType reflect.Type
-		wantErr       bool
+		desc                      string
+		usesNewPrivacyBudgetAPI   bool
+		epsilon                   float64
+		delta                     float64
+		aggregationEpsilon        float64
+		aggregationDelta          float64
+		partitionSelectionEpsilon float64
+		partitionSelectionDelta   float64
+		noiseKind                 noise.Kind
+		params                    SumParams
+		partitionType             reflect.Type
+		wantErr                   bool
 	}{
 		{
 			desc:          "valid parameters",
@@ -1343,7 +1348,7 @@ func TestCheckSumPerKeyParams(t *testing.T) {
 		{
 			desc:          "wrong partition type w/ public partitions as beam.PCollection",
 			epsilon:       1.0,
-			delta:         1e-5,
+			delta:         0,
 			noiseKind:     noise.LaplaceNoise,
 			params:        SumParams{MinValue: -5.0, MaxValue: 5.0, PublicPartitions: publicPartitions},
 			partitionType: reflect.TypeOf(""),
@@ -1352,7 +1357,7 @@ func TestCheckSumPerKeyParams(t *testing.T) {
 		{
 			desc:          "wrong partition type w/ public partitions as slice",
 			epsilon:       1.0,
-			delta:         1e-5,
+			delta:         0,
 			noiseKind:     noise.LaplaceNoise,
 			params:        SumParams{MinValue: -5.0, MaxValue: 5.0, PublicPartitions: []int{0}},
 			partitionType: reflect.TypeOf(""),
@@ -1361,7 +1366,7 @@ func TestCheckSumPerKeyParams(t *testing.T) {
 		{
 			desc:          "wrong partition type w/ public partitions as array",
 			epsilon:       1.0,
-			delta:         1e-5,
+			delta:         0,
 			noiseKind:     noise.LaplaceNoise,
 			params:        SumParams{MinValue: -5.0, MaxValue: 5.0, PublicPartitions: [1]int{0}},
 			partitionType: reflect.TypeOf(""),
@@ -1376,9 +1381,315 @@ func TestCheckSumPerKeyParams(t *testing.T) {
 			partitionType: reflect.TypeOf(""),
 			wantErr:       true,
 		},
+		// Test cases for the new privacy budget API.
+		{
+			desc:                      "new API, valid parameters",
+			usesNewPrivacyBudgetAPI:   true,
+			aggregationEpsilon:        1.0,
+			aggregationDelta:          0,
+			partitionSelectionEpsilon: 1.0,
+			partitionSelectionDelta:   1e-5,
+			noiseKind:                 noise.LaplaceNoise,
+			params:                    SumParams{MinValue: -5.0, MaxValue: 5.0},
+			partitionType:             nil,
+			wantErr:                   false,
+		},
+		{
+			desc:                      "new API, zero aggregationEpsilon w/ Gaussian noise",
+			usesNewPrivacyBudgetAPI:   true,
+			aggregationEpsilon:        1.0,
+			aggregationDelta:          0,
+			partitionSelectionEpsilon: 1.0,
+			partitionSelectionDelta:   1e-5,
+			noiseKind:                 noise.GaussianNoise,
+			params:                    SumParams{MinValue: -5.0, MaxValue: 5.0},
+			partitionType:             nil,
+			wantErr:                   true,
+		},
+		{
+			desc:                      "new API, negative aggregationEpsilon",
+			usesNewPrivacyBudgetAPI:   true,
+			aggregationEpsilon:        -1.0,
+			aggregationDelta:          0,
+			partitionSelectionEpsilon: 1.0,
+			partitionSelectionDelta:   1e-5,
+			noiseKind:                 noise.LaplaceNoise,
+			params:                    SumParams{MinValue: -5.0, MaxValue: 5.0},
+			partitionType:             nil,
+			wantErr:                   true,
+		},
+		{
+			desc:                      "new API, negative partitionSelectionEpsilon",
+			usesNewPrivacyBudgetAPI:   true,
+			aggregationEpsilon:        1.0,
+			aggregationDelta:          0,
+			partitionSelectionEpsilon: -1.0,
+			partitionSelectionDelta:   1e-5,
+			noiseKind:                 noise.LaplaceNoise,
+			params:                    SumParams{MinValue: -5.0, MaxValue: 5.0},
+			partitionType:             nil,
+			wantErr:                   true,
+		},
+		{
+			desc:                      "new API, zero partitionSelectionDelta w/o public partitions",
+			usesNewPrivacyBudgetAPI:   true,
+			aggregationEpsilon:        1.0,
+			aggregationDelta:          0,
+			partitionSelectionEpsilon: 1.0,
+			partitionSelectionDelta:   0,
+			noiseKind:                 noise.LaplaceNoise,
+			params:                    SumParams{MinValue: -5.0, MaxValue: 5.0},
+			partitionType:             nil,
+			wantErr:                   true,
+		},
+		{
+			desc:                      "new API, zero partitionSelectionEpsilon w/o public partitions",
+			usesNewPrivacyBudgetAPI:   true,
+			aggregationEpsilon:        1.0,
+			aggregationDelta:          0,
+			partitionSelectionEpsilon: 0,
+			partitionSelectionDelta:   1e-5,
+			noiseKind:                 noise.LaplaceNoise,
+			params:                    SumParams{MinValue: -5.0, MaxValue: 5.0},
+			partitionType:             nil,
+			wantErr:                   true,
+		},
+		{
+			desc:                      "new API, MaxValue < MinValue",
+			usesNewPrivacyBudgetAPI:   true,
+			aggregationEpsilon:        1.0,
+			aggregationDelta:          0,
+			partitionSelectionEpsilon: 1.0,
+			partitionSelectionDelta:   1e-5,
+			noiseKind:                 noise.LaplaceNoise,
+			params:                    SumParams{MinValue: 6.0, MaxValue: 5.0},
+			partitionType:             nil,
+			wantErr:                   true,
+		},
+		{
+			desc:                      "new API, MaxValue = MinValue",
+			usesNewPrivacyBudgetAPI:   true,
+			aggregationEpsilon:        1.0,
+			aggregationDelta:          0,
+			partitionSelectionEpsilon: 1.0,
+			partitionSelectionDelta:   1e-5,
+			noiseKind:                 noise.LaplaceNoise,
+			params:                    SumParams{MinValue: 5.0, MaxValue: 5.0},
+			partitionType:             nil,
+			wantErr:                   false,
+		},
+		{
+			desc:                      "new API, non-zero partitionSelectionDelta w/ public partitions",
+			usesNewPrivacyBudgetAPI:   true,
+			aggregationEpsilon:        1.0,
+			aggregationDelta:          0,
+			partitionSelectionEpsilon: 0,
+			partitionSelectionDelta:   1e-5,
+			noiseKind:                 noise.LaplaceNoise,
+			params:                    SumParams{MinValue: -5.0, MaxValue: 5.0, PublicPartitions: publicPartitions},
+			partitionType:             reflect.TypeOf(0),
+			wantErr:                   true,
+		},
+		{
+			desc:                      "new API, non-zero partitionSelectionEpsilon w/ public partitions",
+			usesNewPrivacyBudgetAPI:   true,
+			aggregationEpsilon:        1.0,
+			aggregationDelta:          0,
+			partitionSelectionEpsilon: 1.0,
+			partitionSelectionDelta:   0,
+			noiseKind:                 noise.LaplaceNoise,
+			params:                    SumParams{MinValue: -5.0, MaxValue: 5.0, PublicPartitions: publicPartitions},
+			partitionType:             reflect.TypeOf(0),
+			wantErr:                   true,
+		},
+		{
+			desc:                    "new API, wrong partition type w/ public partitions as beam.PCollection",
+			usesNewPrivacyBudgetAPI: true,
+			aggregationEpsilon:      1.0,
+			aggregationDelta:        0,
+			noiseKind:               noise.LaplaceNoise,
+			params:                  SumParams{MinValue: -5.0, MaxValue: 5.0, PublicPartitions: publicPartitions},
+			partitionType:           reflect.TypeOf(""),
+			wantErr:                 true,
+		},
+		{
+			desc:                    "new API, wrong partition type w/ public partitions as slice",
+			usesNewPrivacyBudgetAPI: true,
+			aggregationEpsilon:      1.0,
+			aggregationDelta:        0,
+			noiseKind:               noise.LaplaceNoise,
+			params:                  SumParams{MinValue: -5.0, MaxValue: 5.0, PublicPartitions: []int{0}},
+			partitionType:           reflect.TypeOf(""),
+			wantErr:                 true,
+		},
+		{
+			desc:                    "new API, wrong partition type w/ public partitions as array",
+			usesNewPrivacyBudgetAPI: true,
+			aggregationEpsilon:      1.0,
+			aggregationDelta:        0,
+			noiseKind:               noise.LaplaceNoise,
+			params:                  SumParams{MinValue: -5.0, MaxValue: 5.0, PublicPartitions: [1]int{0}},
+			partitionType:           reflect.TypeOf(""),
+			wantErr:                 true,
+		},
+		{
+			desc:                    "new API, public partitions as something other than beam.PCollection, slice or array",
+			usesNewPrivacyBudgetAPI: true,
+			aggregationEpsilon:      1.0,
+			aggregationDelta:        0,
+			noiseKind:               noise.LaplaceNoise,
+			params:                  SumParams{MinValue: -5.0, MaxValue: 5.0, PublicPartitions: ""},
+			partitionType:           reflect.TypeOf(""),
+			wantErr:                 true,
+		},
 	} {
-		if err := checkSumPerKeyParams(tc.params, tc.epsilon, tc.delta, tc.noiseKind, tc.partitionType); (err != nil) != tc.wantErr {
+		if err := checkSumPerKeyParams(tc.params, tc.usesNewPrivacyBudgetAPI, tc.aggregationEpsilon, tc.aggregationDelta, tc.partitionSelectionEpsilon, tc.partitionSelectionDelta, tc.epsilon, tc.delta, tc.noiseKind, tc.partitionType); (err != nil) != tc.wantErr {
 			t.Errorf("With %s, got=%v, wantErr=%t", tc.desc, err, tc.wantErr)
+		}
+	}
+}
+
+// Checks that SumPerKey returns a correct answer with int values. The logic
+// mirrors TestSumPerKeyNoNoiseInt, but with the new privacy budget API where
+// clients specify aggregation budget and partition selection budget separately.
+func TestSumPerKeyNoNoiseIntTemp(t *testing.T) {
+	triples := testutils.ConcatenateTriplesWithIntValue(
+		testutils.MakeSampleTripleWithIntValue(7, 0),
+		testutils.MakeSampleTripleWithIntValue(31, 1),
+		testutils.MakeSampleTripleWithIntValue(99, 2))
+	result := []testutils.PairII64{
+		// The sum for partition 0 is 7, which is below the threshold of 31: so it should be dropped.
+		{1, 31},
+		{2, 99},
+	}
+	p, s, col, want := ptest.CreateList2(triples, result)
+	col = beam.ParDo(s, testutils.ExtractIDFromTripleWithIntValue, col)
+
+	// ε=50, δ=10⁻²⁰⁰ and l0Sensitivity=3 gives a threshold of ≈31.
+	// We have 3 partitions. So, to get an overall flakiness of 10⁻²³,
+	// we need to have each partition pass with 1-10⁻²⁴ probability (k=24).
+	// To see the logic and the math behind flakiness and tolerance calculation,
+	// See https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf.
+	epsilon, delta, k, l1Sensitivity := 50.0, 1e-200, 24.0, 3.0
+	spec, err := NewPrivacySpecTemp(PrivacySpecParams{
+		AggregationEpsilon:        epsilon,
+		AggregationDelta:          0,
+		PartitionSelectionEpsilon: epsilon,
+		PartitionSelectionDelta:   delta,
+	})
+	if err != nil {
+		t.Fatalf("TestSumPerKeyNoNoiseIntTemp: %v", err)
+	}
+	pcol := MakePrivate(s, col, spec)
+	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
+	got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 3, MinValue: 0.0, MaxValue: 1, NoiseKind: LaplaceNoise{}})
+	want = beam.ParDo(s, testutils.PairII64ToKV, want)
+	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
+		t.Fatalf("TestSumPerKeyNoNoiseIntTemp: %v", err)
+	}
+	if err := ptest.Run(p); err != nil {
+		t.Errorf("TestSumPerKeyNoNoiseIntTemp: SumPerKey(%v) = %v, expected %v: %v", col, got, want, err)
+	}
+}
+
+// Checks that SumPerKey with partitions returns a correct answer with int values. The logic
+// mirrors TestSumPerKeyWithPartitionsNoNoiseInt, but with the new privacy budget API where
+// clients specify aggregation budget and partition selection budget separately.
+func TestSumPerKeyWithPartitionsNoNoiseIntTemp(t *testing.T) {
+	for _, tc := range []struct {
+		minValue        float64
+		maxValue        float64
+		lInfSensitivity float64
+		inMemory        bool
+	}{
+		{
+			minValue:        1.0,
+			maxValue:        3.0,
+			lInfSensitivity: 3.0,
+			inMemory:        false,
+		},
+		{
+			minValue:        1.0,
+			maxValue:        3.0,
+			lInfSensitivity: 3.0,
+			inMemory:        true,
+		},
+		{
+			minValue:        0.0,
+			maxValue:        2.0,
+			lInfSensitivity: 2.0,
+			inMemory:        false,
+		},
+		{
+			minValue:        0.0,
+			maxValue:        2.0,
+			lInfSensitivity: 2.0,
+			inMemory:        true,
+		},
+		{
+			minValue:        -10.0,
+			maxValue:        10.0,
+			lInfSensitivity: 10.0,
+			inMemory:        false,
+		},
+		{
+			minValue:        -10.0,
+			maxValue:        10.0,
+			lInfSensitivity: 10.0,
+			inMemory:        true,
+		},
+	} {
+		// ID:1 contributes to 8 partitions, only 3 of which are public partitions. So none
+		// should be dropped with maxPartitionsContributed=3.
+		// Tests that cross-partition contribution bounding happens after non-public partitions are dropped.
+		triples := testutils.ConcatenateTriplesWithIntValue(
+			testutils.MakeSampleTripleWithIntValue(7, 0),
+			testutils.MakeSampleTripleWithIntValue(58, 1),
+			testutils.MakeSampleTripleWithIntValue(99, 2),
+			testutils.MakeSampleTripleWithIntValue(1, 5),
+			testutils.MakeSampleTripleWithIntValue(1, 6),
+			testutils.MakeSampleTripleWithIntValue(1, 7),
+			testutils.MakeSampleTripleWithIntValue(1, 8),
+			testutils.MakeSampleTripleWithIntValue(1, 9))
+
+		publicPartitionsSlice := []int{0, 2, 5, 10, 11}
+		// Keep partitions 0, 2 and 5.
+		// drop partition 6 to 9.
+		// Add partitions 10 and 11.
+		result := []testutils.PairII64{
+			{0, 7},
+			{2, 99},
+			{5, 1},
+			{10, 0},
+			{11, 0},
+		}
+
+		p, s, col, want := ptest.CreateList2(triples, result)
+		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithIntValue, col)
+
+		var publicPartitions any
+		if tc.inMemory {
+			publicPartitions = publicPartitionsSlice
+		} else {
+			publicPartitions = beam.CreateList(s, publicPartitionsSlice)
+		}
+
+		// We have ε=50, δ=0, and l1Sensitivity=3*lInfSensitivity, to scale the noise with different MinValues and MaxValues.
+		epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 25.0, 3.0*tc.lInfSensitivity
+		spec, err := NewPrivacySpecTemp(PrivacySpecParams{AggregationEpsilon: epsilon, AggregationDelta: delta})
+		if err != nil {
+			t.Fatalf("TestSumPerKeyWithPartitionsNoNoiseIntTemp test case=+%v: %v", tc, err)
+		}
+		pcol := MakePrivate(s, col, spec)
+		pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
+		sumParams := SumParams{MaxPartitionsContributed: 3, MinValue: tc.minValue, MaxValue: tc.maxValue, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions}
+		got := SumPerKey(s, pcol, sumParams)
+		want = beam.ParDo(s, testutils.PairII64ToKV, want)
+		if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
+			t.Fatalf("TestSumPerKeyWithPartitionsNoNoiseIntTemp test case=+%v: %v", tc, err)
+		}
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("TestSumPerKeyWithPartitionsNoNoiseIntTemp test case=+%v: SumPerKey(%v) = %v, expected %v: %v", tc, col, got, want, err)
 		}
 	}
 }

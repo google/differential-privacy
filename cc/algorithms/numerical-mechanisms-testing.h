@@ -33,6 +33,30 @@
 namespace differential_privacy {
 namespace test_utils {
 
+// A full mock for the NumericalMechanism class using gmock.
+class MockNoiseMechanism : public NumericalMechanism {
+ public:
+  MockNoiseMechanism() : NumericalMechanism(/*epsilon=*/1.0) {}
+
+  MOCK_METHOD(double, AddDoubleNoise, (double result), (override));
+  MOCK_METHOD(int64_t, AddInt64Noise, (int64_t result), (override));
+  MOCK_METHOD(NumericalMechanism::NoiseConfidenceIntervalResult,
+              UncheckedNoiseConfidenceInterval,
+              (double confidence_level, double noised_result),
+              (override, const));
+  MOCK_METHOD(absl::StatusOr<ConfidenceInterval>, NoiseConfidenceInterval,
+              (double confidence_level, double noised_result), (override));
+  MOCK_METHOD(absl::StatusOr<ConfidenceInterval>, NoiseConfidenceInterval,
+              (double confidence_level), (override));
+  MOCK_METHOD(bool, NoisedValueAboveThreshold,
+              (double result, double threshold), (override));
+  MOCK_METHOD(double, ProbabilityOfNoisedValueAboveThreshold,
+              (double result, double threshold), (override));
+  MOCK_METHOD(int64_t, MemoryUsed, (), (override));
+  MOCK_METHOD(double, Cdf, (double x), (override, const));
+  MOCK_METHOD(double, Quantile, (double p), (override, const));
+};
+
 // A numerical mechanism that adds no noise to its input and does not perform
 // snapping. Returns whatever is passed to it unmodified. Use only for testing.
 // Not differentially private.

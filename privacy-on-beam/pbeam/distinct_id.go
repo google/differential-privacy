@@ -44,9 +44,26 @@ type DistinctPrivacyIDParams struct {
 	// Defaults to LaplaceNoise{}.
 	NoiseKind NoiseKind
 	// Differential privacy budget consumed by this aggregation. If there is
-	// only one aggregation, both Epsilon and Delta can be left 0; in that
-	// case, the entire budget of the PrivacySpec is consumed.
+	// only one aggregation, both Epsilon and Delta can be left 0; in that case,
+	// the entire budget of the PrivacySpec is consumed. Deprecated, prefer
+	// using AggregationEpsilon & AggregationDelta, and PartitionSelectionParams.
 	Epsilon, Delta float64
+	// Differential privacy budget consumed by this aggregation. If there is
+	// only one aggregation, both epsilon and delta can be left 0; in that case
+	// the entire budget reserved for aggregation in the PrivacySpec is consumed.
+	//
+	// Uses the new privacy budget API.
+	AggregationEpsilon, AggregationDelta float64
+	// Differential privacy budget consumed by partition selection of this
+	// aggregation. Note that DistinctPrivacyID doesn't consume epsilon for
+	// partition selection, so leave epsilon unset.
+	// If PublicPartitions are specified, this needs to be left unset.
+	// If there is only one aggregation, this can be left unset; in that case
+	// the entire budget reserved for partition selection in the PrivacySpec
+	// is consumed.
+	//
+	// Uses the new privacy budget API.
+	PartitionSelectionParams PartitionSelectionParams
 	// The maximum number of distinct values that a given privacy identifier
 	// can influence. If a privacy identifier is associated with more values,
 	// random values will be dropped. There is an inherent trade-off when
@@ -80,6 +97,7 @@ type DistinctPrivacyIDParams struct {
 	// otherwise.
 	//
 	// Optional.
+	// TODO: Move PublicPartitions to PartitionSelectionParams.
 	PublicPartitions any
 }
 
@@ -112,11 +130,28 @@ func DistinctPrivacyID(s beam.Scope, pcol PrivatePCollection, params DistinctPri
 	}
 	// Get privacy parameters.
 	spec := pcol.privacySpec
-	epsilon, delta, err := spec.consumeBudget(params.Epsilon, params.Delta)
-	if err != nil {
-		log.Fatalf("Couldn't consume budget for DistinctPrivacyID: %v", err)
+	var epsilon, delta float64
+	var err error
+	var aggregationEpsilon, aggregationDelta, partitionSelectionDelta float64
+	if spec.usesNewPrivacyBudgetAPI {
+		aggregationEpsilon, aggregationDelta, err = spec.aggregationBudget.consume(params.AggregationEpsilon, params.AggregationDelta)
+		if err != nil {
+			log.Fatalf("Couldn't consume aggregation budget for DistinctPrivacyID: %v", err)
+		}
+		if params.PublicPartitions == nil {
+			_, partitionSelectionDelta, err = spec.partitionSelectionBudget.consume(0, params.PartitionSelectionParams.Delta)
+			if err != nil {
+				log.Fatalf("Couldn't consume partition selection budget for DistinctPrivacyID: %v", err)
+			}
+		}
+	} else {
+		epsilon, delta, err = spec.budget.consume(params.Epsilon, params.Delta)
+		if err != nil {
+			log.Fatalf("Couldn't consume budget for DistinctPrivacyID: %v", err)
+		}
 	}
-	err = checkDistinctPrivacyIDParams(params, epsilon, delta, noiseKind, partitionT.Type())
+
+	err = checkDistinctPrivacyIDParams(params, spec.usesNewPrivacyBudgetAPI, aggregationEpsilon, aggregationDelta, partitionSelectionDelta, epsilon, delta, noiseKind, partitionT.Type())
 	if err != nil {
 		log.Fatalf("pbeam.DistinctPrivacyID: %v", err)
 	}
@@ -141,7 +176,7 @@ func DistinctPrivacyID(s beam.Scope, pcol PrivatePCollection, params DistinctPri
 		beam.TypeDefinition{Var: beam.TType, T: idT.Type()},
 		beam.TypeDefinition{Var: beam.VType, T: partitionT.Type()})
 	// Second, do cross-partition contribution bounding if not in test mode without contribution bounding.
-	if spec.testMode != noNoiseWithoutContributionBounding {
+	if spec.testMode != NoNoiseWithoutContributionBounding {
 		decoded = boundContributions(s, decoded, maxPartitionsContributed)
 	}
 	// Third, now that KV pairs are deduplicated and contribution bounding is
@@ -152,9 +187,18 @@ func DistinctPrivacyID(s beam.Scope, pcol PrivatePCollection, params DistinctPri
 	var result beam.PCollection
 	// Add public partitions and return the aggregation output, if public partitions are specified.
 	if params.PublicPartitions != nil {
+		if spec.usesNewPrivacyBudgetAPI {
+			epsilon = aggregationEpsilon
+			delta = aggregationDelta
+		}
 		result = addPublicPartitionsForDistinctID(s, params, epsilon, delta, maxPartitionsContributed, noiseKind, emptyCounts, spec.testMode)
 	} else {
-		countFn, err := newCountFn(epsilon, delta, maxPartitionsContributed, noiseKind, false, spec.testMode)
+		var countFn *countFn
+		if spec.usesNewPrivacyBudgetAPI {
+			countFn, err = newCountFnTemp(aggregationEpsilon, aggregationDelta, partitionSelectionDelta, maxPartitionsContributed, noiseKind, false, spec.testMode)
+		} else {
+			countFn, err = newCountFn(epsilon, delta, maxPartitionsContributed, noiseKind, false, spec.testMode)
+		}
 		if err != nil {
 			log.Fatalf("pbeam.DistinctPrivacyID: %v", err)
 		}
@@ -168,8 +212,7 @@ func DistinctPrivacyID(s beam.Scope, pcol PrivatePCollection, params DistinctPri
 	return result
 }
 
-func addPublicPartitionsForDistinctID(s beam.Scope, params DistinctPrivacyIDParams, epsilon, delta float64,
-	maxPartitionsContributed int64, noiseKind noise.Kind, countsKV beam.PCollection, testMode testMode) beam.PCollection {
+func addPublicPartitionsForDistinctID(s beam.Scope, params DistinctPrivacyIDParams, epsilon, delta float64, maxPartitionsContributed int64, noiseKind noise.Kind, countsKV beam.PCollection, testMode TestMode) beam.PCollection {
 	publicPartitions, isPCollection := params.PublicPartitions.(beam.PCollection)
 	if !isPCollection {
 		publicPartitions = beam.Reshuffle(s, beam.CreateList(s, params.PublicPartitions))
@@ -187,16 +230,31 @@ func addPublicPartitionsForDistinctID(s beam.Scope, params DistinctPrivacyIDPara
 	return beam.ParDo(s, clampNegativePartitionsInt64, finalPartitions)
 }
 
-func checkDistinctPrivacyIDParams(params DistinctPrivacyIDParams, epsilon, delta float64, noiseKind noise.Kind, partitionType reflect.Type) error {
+func checkDistinctPrivacyIDParams(params DistinctPrivacyIDParams, usesNewPrivacyBudgetAPI bool, aggregationEpsilon, aggregationDelta, partitionSelectionDelta, epsilon, delta float64, noiseKind noise.Kind, partitionType reflect.Type) error {
 	err := checkPublicPartitions(params.PublicPartitions, partitionType)
 	if err != nil {
 		return err
 	}
-	err = checks.CheckEpsilon(epsilon)
-	if err != nil {
-		return err
+	if usesNewPrivacyBudgetAPI {
+		err = checks.CheckEpsilon(aggregationEpsilon)
+		if err != nil {
+			return err
+		}
+		err = checkAggregationDelta(aggregationDelta, noiseKind)
+		if err != nil {
+			return err
+		}
+		err = checkPartitionSelectionDelta(partitionSelectionDelta, params.PublicPartitions)
+		if err != nil {
+			return err
+		}
+	} else {
+		err = checks.CheckEpsilon(epsilon)
+		if err != nil {
+			return err
+		}
+		err = checkDelta(delta, noiseKind, params.PublicPartitions)
 	}
-	err = checkDelta(delta, noiseKind, params.PublicPartitions)
 	return err
 }
 
@@ -214,11 +272,11 @@ type countFn struct {
 	NoiseKind                noise.Kind
 	noise                    noise.Noise // Set during Setup phase according to NoiseKind.
 	PublicPartitions         bool
-	TestMode                 testMode
+	TestMode                 TestMode
 }
 
 // newCountFn returns a newCountFn with the given budget and parameters.
-func newCountFn(epsilon, delta float64, maxPartitionsContributed int64, noiseKind noise.Kind, publicPartitions bool, testMode testMode) (*countFn, error) {
+func newCountFn(epsilon, delta float64, maxPartitionsContributed int64, noiseKind noise.Kind, publicPartitions bool, testMode TestMode) (*countFn, error) {
 	fn := &countFn{
 		MaxPartitionsContributed: maxPartitionsContributed,
 		NoiseKind:                noiseKind,
@@ -240,6 +298,22 @@ func newCountFn(epsilon, delta float64, maxPartitionsContributed int64, noiseKin
 	}
 	fn.ThresholdDelta = delta - fn.NoiseDelta
 	return fn, nil
+}
+
+// newCountFn returns a newCountFn with the given budget and parameters.
+func newCountFnTemp(aggregationEpsilon, aggregationDelta, partitionSelectionDelta float64, maxPartitionsContributed int64, noiseKind noise.Kind, publicPartitions bool, testMode TestMode) (*countFn, error) {
+	if noiseKind != noise.GaussianNoise && noiseKind != noise.LaplaceNoise {
+		return nil, fmt.Errorf("unknown noise.Kind (%v) is specified. Please specify a valid noise", noiseKind)
+	}
+	return &countFn{
+		Epsilon:                  aggregationEpsilon,
+		NoiseDelta:               aggregationDelta,
+		ThresholdDelta:           partitionSelectionDelta,
+		MaxPartitionsContributed: maxPartitionsContributed,
+		NoiseKind:                noiseKind,
+		PublicPartitions:         publicPartitions,
+		TestMode:                 testMode,
+	}, nil
 }
 
 func (fn *countFn) Setup() {

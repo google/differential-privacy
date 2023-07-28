@@ -92,6 +92,7 @@ type PreAggSelectPartition struct {
 	epsilon       float64
 	delta         float64
 	l0Sensitivity int64
+	preThreshold  int64
 
 	// State variables
 	// idCount is the count of unique privacy IDs in the partition.
@@ -103,7 +104,8 @@ func preAggSelectPartitionEquallyInitialized(s1, s2 *PreAggSelectPartition) bool
 	return s1.epsilon == s2.epsilon &&
 		s1.delta == s2.delta &&
 		s1.l0Sensitivity == s2.l0Sensitivity &&
-	s1.state == s2.state
+		s1.state == s2.state &&
+		s1.preThreshold == s2.preThreshold
 }
 
 // PreAggSelectPartitionOptions is used to set the privacy parameters when
@@ -111,8 +113,16 @@ func preAggSelectPartitionEquallyInitialized(s1, s2 *PreAggSelectPartition) bool
 type PreAggSelectPartitionOptions struct {
 	// Epsilon and Delta specify the (ε,δ)-differential privacy budget used for
 	// partition selection. Required.
-	Epsilon      float64
-	Delta        float64
+	Epsilon float64
+	Delta   float64
+	// An additional thresholding that is performed in combination with private
+	// partition selection to ensure that each partition has at least a
+	// PreThreshold number of unique contributions.
+	//
+	// See https://github.com/google/differential-privacy/blob/main/common_docs/pre_thresholding.md
+	// for more information.
+	// Optional.
+	PreThreshold int64
 	// MaxPartitionsContributed is the number of distinct partitions a single
 	// privacy unit can contribute to. Required.
 	MaxPartitionsContributed int64
@@ -124,9 +134,18 @@ func NewPreAggSelectPartition(opt *PreAggSelectPartitionOptions) (*PreAggSelectP
 		opt = &PreAggSelectPartitionOptions{} // Prevents panicking due to a nil pointer dereference.
 	}
 
+	if err := checks.CheckPreThreshold(opt.PreThreshold); err != nil {
+		return nil, fmt.Errorf("NewPreAggSelectPartition: %w", err)
+	}
+	// Set PreThreshold to default 1 if not specified.
+	if opt.PreThreshold < 1 {
+		opt.PreThreshold = 1
+	}
+
 	s := PreAggSelectPartition{
 		epsilon:       opt.Epsilon,
 		delta:         opt.Delta,
+		preThreshold:  opt.PreThreshold,
 		l0Sensitivity: opt.MaxPartitionsContributed,
 	}
 
@@ -145,12 +164,25 @@ func NewPreAggSelectPartition(opt *PreAggSelectPartitionOptions) (*PreAggSelectP
 }
 
 // Increment increments the ids count by one.
-// The caller must ensure this methods called at most once per privacy ID.
+// The caller must ensure this method is called at most once per privacy ID.
 func (s *PreAggSelectPartition) Increment() error {
+	return s.IncrementBy(1)
+}
+
+// IncrementBy increments the ids count by the given value.
+// Note that this shouldn't be used to count multiple contributions to a
+// single partition from the same privacy unit.
+//
+// It could, for example, be used to increment the ids count by k privacy
+// units at once.
+//
+// Note that decrementing counts by inputting a negative value is allowed,
+// for example if you want to remove some users you have previously added.
+func (s *PreAggSelectPartition) IncrementBy(count int64) error {
 	if s.state != defaultState {
 		return fmt.Errorf("PreAggSelectPartition cannot be amended: %v", s.state.errorMessage())
 	}
-	s.idCount++
+	s.idCount += count
 	return nil
 }
 
@@ -191,6 +223,16 @@ func (s *PreAggSelectPartition) ShouldKeepPartition() (bool, error) {
 		return false, fmt.Errorf("PreAggSelectPartition's ShouldKeepPartition cannot be computed: %v", s.state.errorMessage())
 	}
 	s.state = resultReturned
+
+	// Pre-thresholding guarantees that at least this number of unique contributions are in the
+	// partition.
+	if s.idCount < s.preThreshold {
+		return false, nil
+	}
+	// PreThreshold is set to 1 as the default, subtract it here so it has no effect.
+	// This subtraction also ensures that idCount will always be > 0 if preThreshold = idsCount.
+	s.idCount = s.idCount - (s.preThreshold - 1)
+
 	if s.l0Sensitivity > 3 { // Gaussian thresholding outperforms in this case.
 		c, err := NewCount(&CountOptions{
 			Epsilon:                  s.epsilon,
@@ -280,20 +322,19 @@ func sumExpPowers(epsilon float64, minPower, numPowers int64) (float64, error) {
 // keepPartitionProbability calculates the value of keepPartitionProbability
 // from PreAggSelectPartition's godoc comment.
 func keepPartitionProbability(idCount, l0Sensitivity int64, epsilon, delta float64) (float64, error) {
+	if idCount <= 0 {
+		return 0, nil
+	}
 	// Per-partition (ε,δ) privacy loss.
 	pEpsilon := epsilon / float64(l0Sensitivity)
 	pDelta := delta / float64(l0Sensitivity)
-
-	if idCount == 0 {
-		return 0, nil
-	}
 
 	// In keepPartitionProbability's recurrence formula (see Theorem 1 in the
 	// [Differentially private partition selection paper]), argument selection in
 	// the min operation has 3 distinct regions: min selects (1) on the lowest
 	// region of the domain, (2) on the second region of the domain, and (3)
 	// (i.e., the value 1) on the highest region of the domain. We denote by nCr
-	// the crossover proint in the domain from (1) to (2).
+	// the crossover point in the domain from (1) to (2).
 	nCr := int64(1 + math.Floor((1/pEpsilon)*math.Log(
 		(1+math.Exp(-pEpsilon)*(2*pDelta-1))/(pDelta*(1+math.Exp(-pEpsilon))))))
 
@@ -349,6 +390,7 @@ type encodablePreAggSelectPartition struct {
 	L0Sensitivity int64
 	IDCount       int64
 	State         aggregationState
+	PreThreshold  int64
 }
 
 // GobEncode encodes PreAggSelectPartition.
@@ -362,6 +404,7 @@ func (s *PreAggSelectPartition) GobEncode() ([]byte, error) {
 		L0Sensitivity: s.l0Sensitivity,
 		IDCount:       s.idCount,
 		State:         s.state,
+		PreThreshold:  s.preThreshold,
 	}
 	s.state = serialized
 	return encode(enc)
@@ -380,6 +423,7 @@ func (s *PreAggSelectPartition) GobDecode(data []byte) error {
 		l0Sensitivity: enc.L0Sensitivity,
 		idCount:       enc.IDCount,
 		state:         enc.State,
+		preThreshold:  enc.PreThreshold,
 	}
 	return nil
 }

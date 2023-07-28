@@ -42,14 +42,18 @@ func (noNoise) ComputeConfidenceIntervalFloat64(noisedX float64, _ int64, _, _, 
 	return noise.ConfidenceInterval{LowerBound: noisedX, UpperBound: noisedX}, nil
 }
 
-type testMode int
+// TestMode is an enum representing different test modes for test pipelines available in Privacy on Beam.
+type TestMode int
 
 const (
-	disabled testMode = iota // Default
-	noNoiseWithContributionBounding
-	noNoiseWithoutContributionBounding
+	// Disabled indicates that test mode is disabled. Default.
+	Disabled TestMode = iota
+	// NoNoiseWithContributionBounding is the test mode where no noise is added, but contribution bounding is done.
+	NoNoiseWithContributionBounding
+	// NoNoiseWithoutContributionBounding is the test mode where no noise is added and no contribution bounding is done.
+	NoNoiseWithoutContributionBounding
 )
 
-func (tm testMode) isEnabled() bool {
-	return tm != disabled
+func (tm TestMode) isEnabled() bool {
+	return tm != Disabled
 }

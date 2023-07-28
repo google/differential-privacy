@@ -17,9 +17,11 @@
 package pbeam
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/google/differential-privacy/go/v2/dpagg"
+	"github.com/google/differential-privacy/go/v2/noise"
 	"github.com/google/differential-privacy/privacy-on-beam/v2/pbeam/testutils"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
@@ -543,4 +545,242 @@ func TestDistinctPerKeyThresholdsOnPrivacyIDs(t *testing.T) {
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestDistinctPerKeyNoNoise: DistinctPerKey(%v) = %v, expected %v: %v", col, got, want, err)
 	}
+}
+
+func TestCheckDistinctPerKeyParams(t *testing.T) {
+	_, _, partitions := ptest.CreateList([]int{0, 1})
+	for _, tc := range []struct {
+		desc                      string
+		epsilon                   float64
+		delta                     float64
+		aggregationEpsilon        float64
+		aggregationDelta          float64
+		partitionSelectionEpsilon float64
+		partitionSelectionDelta   float64
+		noiseKind                 noise.Kind
+		params                    DistinctPerKeyParams
+		partitionType             reflect.Type
+		wantErr                   bool
+	}{
+		// checkDistinctPerKeyParams only uses the fields of the new privacy budget API, so no need for
+		// test cases for the old API.
+		{
+			desc:                      "valid parameters",
+			aggregationEpsilon:        1.0,
+			aggregationDelta:          0,
+			partitionSelectionEpsilon: 1.0,
+			partitionSelectionDelta:   1e-5,
+			noiseKind:                 noise.LaplaceNoise,
+			params:                    DistinctPerKeyParams{MaxPartitionsContributed: 1, MaxContributionsPerPartition: 1},
+			partitionType:             nil,
+			wantErr:                   false,
+		},
+		{
+			desc:                      "negative aggregationEpsilon",
+			aggregationEpsilon:        -1.0,
+			aggregationDelta:          0,
+			partitionSelectionEpsilon: 1.0,
+			partitionSelectionDelta:   1e-5,
+			noiseKind:                 noise.LaplaceNoise,
+			params:                    DistinctPerKeyParams{MaxPartitionsContributed: 1, MaxContributionsPerPartition: 1},
+			partitionType:             nil,
+			wantErr:                   true,
+		},
+		{
+			desc:                      "negative partitionSelectionEpsilon",
+			aggregationEpsilon:        1.0,
+			aggregationDelta:          0,
+			partitionSelectionEpsilon: -1.0,
+			partitionSelectionDelta:   1e-5,
+			noiseKind:                 noise.LaplaceNoise,
+			params:                    DistinctPerKeyParams{MaxPartitionsContributed: 1, MaxContributionsPerPartition: 1},
+			partitionType:             nil,
+			wantErr:                   true,
+		},
+		{
+			desc:                      "zero partitionSelectionDelta w/o public partitions",
+			aggregationEpsilon:        1.0,
+			aggregationDelta:          0,
+			partitionSelectionEpsilon: 1.0,
+			partitionSelectionDelta:   0,
+			noiseKind:                 noise.LaplaceNoise,
+			params:                    DistinctPerKeyParams{MaxPartitionsContributed: 1, MaxContributionsPerPartition: 1},
+			partitionType:             nil,
+			wantErr:                   true,
+		},
+		{
+			desc:                      "zero partitionSelectionEpsilon w/o public partitions",
+			aggregationEpsilon:        1.0,
+			aggregationDelta:          0,
+			partitionSelectionEpsilon: 0,
+			partitionSelectionDelta:   1e-5,
+			noiseKind:                 noise.LaplaceNoise,
+			params:                    DistinctPerKeyParams{MaxPartitionsContributed: 1, MaxContributionsPerPartition: 1},
+			partitionType:             nil,
+			wantErr:                   true,
+		},
+		{
+			desc:                      "zero MaxContributionsPerPartition",
+			aggregationEpsilon:        1.0,
+			aggregationDelta:          0,
+			partitionSelectionEpsilon: 1.0,
+			partitionSelectionDelta:   1e-5,
+			noiseKind:                 noise.LaplaceNoise,
+			params:                    DistinctPerKeyParams{MaxPartitionsContributed: 1, MaxContributionsPerPartition: 0},
+			partitionType:             nil,
+			wantErr:                   true,
+		},
+		{
+			desc:                      "non-zero delta w/ Laplace",
+			aggregationEpsilon:        1.0,
+			aggregationDelta:          1e-5,
+			partitionSelectionEpsilon: 1.0,
+			partitionSelectionDelta:   1e-5,
+			noiseKind:                 noise.LaplaceNoise,
+			params:                    DistinctPerKeyParams{MaxPartitionsContributed: 1, MaxContributionsPerPartition: 1},
+			partitionType:             reflect.TypeOf(0),
+			wantErr:                   true,
+		},
+		{
+			desc:               "wrong partition type w/ public partitions as beam.PCollection",
+			aggregationEpsilon: 1.0,
+			aggregationDelta:   0,
+			noiseKind:          noise.LaplaceNoise,
+			params:             DistinctPerKeyParams{MaxPartitionsContributed: 1, MaxContributionsPerPartition: 1, PublicPartitions: partitions},
+			partitionType:      reflect.TypeOf(""),
+			wantErr:            true,
+		},
+		{
+			desc:               "wrong partition type w/ public partitions as slice",
+			aggregationEpsilon: 1.0,
+			aggregationDelta:   0,
+			noiseKind:          noise.LaplaceNoise,
+			params:             DistinctPerKeyParams{MaxPartitionsContributed: 1, MaxContributionsPerPartition: 1, PublicPartitions: []int{0}},
+			partitionType:      reflect.TypeOf(""),
+			wantErr:            true,
+		},
+		{
+			desc:               "wrong partition type w/ public partitions as array",
+			aggregationEpsilon: 1.0,
+			aggregationDelta:   0,
+			noiseKind:          noise.LaplaceNoise,
+			params:             DistinctPerKeyParams{MaxPartitionsContributed: 1, MaxContributionsPerPartition: 1, PublicPartitions: [1]int{0}},
+			partitionType:      reflect.TypeOf(""),
+			wantErr:            true,
+		},
+		{
+			desc:               "public partitions as something other than beam.PCollection, slice or array",
+			aggregationEpsilon: 1.0,
+			aggregationDelta:   0,
+			noiseKind:          noise.LaplaceNoise,
+			params:             DistinctPerKeyParams{MaxPartitionsContributed: 1, MaxContributionsPerPartition: 1, PublicPartitions: ""},
+			partitionType:      reflect.TypeOf(""),
+			wantErr:            true,
+		},
+	} {
+		if err := checkDistinctPerKeyParams(tc.params, tc.aggregationEpsilon, tc.aggregationDelta, tc.partitionSelectionEpsilon, tc.partitionSelectionDelta, tc.noiseKind, tc.partitionType); (err != nil) != tc.wantErr {
+			t.Errorf("With %s, got=%v, wantErr=%t", tc.desc, err, tc.wantErr)
+		}
+	}
+}
+
+// The logic mirrors TestDistinctPerKeyNoNoise, but with the new privacy budget API.
+func TestDistinctPerKeyNoNoiseTemp(t *testing.T) {
+	var triples []testutils.TripleWithIntValue
+	for i := 0; i < 100; i++ { // Add 200 distinct values to Partition 0.
+		triples = append(triples, testutils.TripleWithIntValue{ID: i, Partition: 0, Value: i})
+		triples = append(triples, testutils.TripleWithIntValue{ID: i, Partition: 0, Value: 100 + i})
+	}
+	for i := 100; i < 200; i++ { // Add 200 additional values, all of which are duplicates of the existing distinct values, to Partition 0.
+		// The duplicates come from users different from the 100 users above in order to not discard
+		// any distinct values during the initial per-partition contribution bounding step.
+		triples = append(triples, testutils.TripleWithIntValue{ID: i, Partition: 0, Value: i - 100}) // Duplicate. Should be discarded by DistinctPerKey.
+		triples = append(triples, testutils.TripleWithIntValue{ID: i, Partition: 0, Value: i})       // Duplicate. Should be discarded by DistinctPerKey.
+	}
+	for i := 0; i < 50; i++ { // Add 200 values of which 100 are distinct to Partition 1.
+		triples = append(triples, testutils.TripleWithIntValue{ID: i, Partition: 1, Value: i})
+		triples = append(triples, testutils.TripleWithIntValue{ID: i, Partition: 1, Value: 50 + i})
+		// Have 2 users contribute to the same 100 distinct values.
+		triples = append(triples, testutils.TripleWithIntValue{ID: 100 + i, Partition: 1, Value: i})      // Should be discarded.
+		triples = append(triples, testutils.TripleWithIntValue{ID: 100 + i, Partition: 1, Value: 50 + i}) // Should be discarded.
+	}
+	for i := 0; i < 7; i++ { // Add 7 distinct values to Partition 2. Should be thresholded.
+		triples = append(triples, testutils.TripleWithIntValue{ID: i, Partition: 2, Value: i})
+	}
+	result := []testutils.PairII64{
+		{0, 200},
+		{1, 100},
+		// Only 7 distinct values in partition 2: should be thresholded.
+	}
+	p, s, col, want := ptest.CreateList2(triples, result)
+	col = beam.ParDo(s, testutils.ExtractIDFromTripleWithIntValue, col)
+
+	// ε=50, δ=10⁻¹⁰⁰ and l0Sensitivity=3 gives a threshold of ≈17.
+	// We have 3 partitions. So, to get an overall flakiness of 10⁻²³,
+	// we can have each partition fail with 1-10⁻²⁴ probability (k=24).
+	// To see the logic and the math behind flakiness and tolerance calculation,
+	// See https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf.
+	epsilon, delta, k, l1Sensitivity := 50.0, 1e-100, 24.0, 6.0
+	spec, err := NewPrivacySpecTemp(PrivacySpecParams{AggregationEpsilon: epsilon, PartitionSelectionEpsilon: epsilon, PartitionSelectionDelta: delta})
+	if err != nil {
+		t.Fatalf("TestDistinctPerKeyNoNoiseTemp: %v", err)
+	}
+	pcol := MakePrivate(s, col, spec)
+	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
+	got := DistinctPerKey(s, pcol, DistinctPerKeyParams{MaxPartitionsContributed: 3, NoiseKind: LaplaceNoise{}, MaxContributionsPerPartition: 2})
+	want = beam.ParDo(s, testutils.PairII64ToKV, want)
+	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
+		t.Fatalf("TestDistinctPerKeyNoNoiseTemp: %v", err)
+	}
+	if err := ptest.Run(p); err != nil {
+		t.Errorf("TestDistinctPerKeyNoNoiseTemp: DistinctPerKey(%v) = %v, expected %v: %v", col, got, want, err)
+	}
+}
+
+// The logic mirrors TestDistinctPerKeyWithPartitionNoNoise, but with the new privacy budget API.
+func TestDistinctPerKeyWithPartitionNoNoiseTemp(t *testing.T) {
+	for _, tc := range []struct {
+		inMemory bool
+	}{
+		{true},
+		{false},
+	} {
+		var triples []testutils.TripleWithIntValue // this is causing the int struct
+		for i := 0; i < 10; i++ {
+			triples = append(triples, testutils.TripleWithIntValue{1, i, i})
+		}
+		result := []testutils.PairII64{
+			{9, 1},  // keep partition 9.
+			{10, 0}, // Add partition 10.
+		}
+		p, s, col, want := ptest.CreateList2(triples, result)
+		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithIntValue, col)
+		publicParitionsSlice := []int{9, 10}
+		var publicPartitions any
+		if tc.inMemory {
+			publicPartitions = publicParitionsSlice
+		} else {
+			publicPartitions = beam.CreateList(s, publicParitionsSlice)
+		}
+		// We use ε=50, δ=0 and l1Sensitivity=2.
+		// We have 2 partitions. So, to get an overall flakiness of 10⁻²³,
+		// we need to have each partition pass with 1-10⁻²⁴ probability (k=24)
+		epsilon, k, liSensitivity := 50.0, 24.0, 2.0
+		spec, err := NewPrivacySpecTemp(PrivacySpecParams{AggregationEpsilon: epsilon})
+		if err != nil {
+			t.Fatalf("TestDistinctPerKeyWithPartitionNoNoiseTemp: %v", err)
+		}
+		pcol := MakePrivate(s, col, spec)
+		pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
+		DistinctPerKeyParams := DistinctPerKeyParams{MaxPartitionsContributed: 1, MaxContributionsPerPartition: 1, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions}
+		got := DistinctPerKey(s, pcol, DistinctPerKeyParams)
+		want = beam.ParDo(s, testutils.PairII64ToKV, want)
+		if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, liSensitivity, epsilon)); err != nil {
+			t.Fatalf("TestDistinctPerKeyWithPartitionNoNoiseTemp in-memory=%t: %v", tc.inMemory, err)
+		}
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("TestDistinctPerKeyWithPartitionNoNoiseTemp in-memory=%t: Count(%v) = %v, expected %v: %v", tc.inMemory, col, got, want, err)
+		}
+	}
+
 }

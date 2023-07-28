@@ -504,13 +504,18 @@ func TestCountWithPartitionsReturnsNonNegative(t *testing.T) {
 func TestCheckCountParams(t *testing.T) {
 	_, _, partitions := ptest.CreateList([]int{0})
 	for _, tc := range []struct {
-		desc          string
-		params        CountParams
-		epsilon       float64
-		delta         float64
-		noiseKind     noise.Kind
-		partitionType reflect.Type
-		wantErr       bool
+		desc                      string
+		usesNewPrivacyBudgetAPI   bool
+		epsilon                   float64
+		delta                     float64
+		aggregationEpsilon        float64
+		aggregationDelta          float64
+		partitionSelectionEpsilon float64
+		partitionSelectionDelta   float64
+		params                    CountParams
+		noiseKind                 noise.Kind
+		partitionType             reflect.Type
+		wantErr                   bool
 	}{
 		{
 			desc:          "valid parameters w/o public partitions",
@@ -602,9 +607,266 @@ func TestCheckCountParams(t *testing.T) {
 			partitionType: nil,
 			wantErr:       true,
 		},
+		// Test cases for the new privacy budget API.
+		{
+			desc:                      "new API, valid parameters w/o public partitions",
+			params:                    CountParams{MaxValue: 1},
+			usesNewPrivacyBudgetAPI:   true,
+			aggregationEpsilon:        1.0,
+			aggregationDelta:          0,
+			partitionSelectionEpsilon: 1.0,
+			partitionSelectionDelta:   1e-5,
+			noiseKind:                 noise.LaplaceNoise,
+			partitionType:             nil,
+			wantErr:                   false,
+		},
+		{
+			desc:                      "new API, valid parameters w/ Gaussian noise w/o public partitions",
+			params:                    CountParams{MaxValue: 1},
+			usesNewPrivacyBudgetAPI:   true,
+			aggregationEpsilon:        1.0,
+			aggregationDelta:          1e-5,
+			partitionSelectionEpsilon: 1.0,
+			partitionSelectionDelta:   1e-5,
+			noiseKind:                 noise.GaussianNoise,
+			partitionType:             nil,
+			wantErr:                   false,
+		},
+		{
+			desc:                      "new API, zero aggregationDelta w/ Gaussian noise w/o public partitions",
+			params:                    CountParams{MaxValue: 1},
+			usesNewPrivacyBudgetAPI:   true,
+			aggregationEpsilon:        1.0,
+			aggregationDelta:          0,
+			partitionSelectionEpsilon: 1.0,
+			partitionSelectionDelta:   1e-5,
+			noiseKind:                 noise.GaussianNoise,
+			partitionType:             nil,
+			wantErr:                   true,
+		},
+		{
+			desc:                    "new API, valid parameters w/ public partitions",
+			params:                  CountParams{MaxValue: 1, PublicPartitions: []int{0}},
+			usesNewPrivacyBudgetAPI: true,
+			aggregationEpsilon:      1.0,
+			aggregationDelta:        0,
+			noiseKind:               noise.LaplaceNoise,
+			partitionType:           reflect.TypeOf(0),
+			wantErr:                 false,
+		},
+		{
+			desc:                      "new API, non-zero aggregationDelta w/ laplace noise",
+			params:                    CountParams{MaxValue: 1},
+			usesNewPrivacyBudgetAPI:   true,
+			aggregationEpsilon:        1.0,
+			aggregationDelta:          1e-5,
+			partitionSelectionEpsilon: 1.0,
+			partitionSelectionDelta:   1e-5,
+			noiseKind:                 noise.LaplaceNoise,
+			partitionType:             reflect.TypeOf(0),
+			wantErr:                   true,
+		},
+		{
+			desc:                      "new API, negative aggregationEpsilon",
+			params:                    CountParams{MaxValue: 1},
+			usesNewPrivacyBudgetAPI:   true,
+			aggregationEpsilon:        -1.0,
+			aggregationDelta:          0,
+			partitionSelectionEpsilon: 1.0,
+			partitionSelectionDelta:   1e-5,
+			noiseKind:                 noise.LaplaceNoise,
+			partitionType:             nil,
+			wantErr:                   true,
+		},
+		{
+			desc:                      "new API, negative partitionSelectionEpsilon",
+			params:                    CountParams{MaxValue: 1},
+			usesNewPrivacyBudgetAPI:   true,
+			aggregationEpsilon:        1.0,
+			aggregationDelta:          0,
+			partitionSelectionEpsilon: -1.0,
+			partitionSelectionDelta:   1e-5,
+			noiseKind:                 noise.LaplaceNoise,
+			partitionType:             nil,
+			wantErr:                   true,
+		},
+		{
+			desc:                      "new API, zero partitionSelectionDelta w/o public partitions",
+			params:                    CountParams{MaxValue: 1},
+			usesNewPrivacyBudgetAPI:   true,
+			aggregationEpsilon:        1.0,
+			aggregationDelta:          0,
+			partitionSelectionEpsilon: 1.0,
+			partitionSelectionDelta:   0,
+			noiseKind:                 noise.LaplaceNoise,
+			partitionType:             nil,
+			wantErr:                   true,
+		},
+		{
+			desc:                      "new API, zero partitionSelectionEpsilon w/o public partitions",
+			params:                    CountParams{MaxValue: 1},
+			usesNewPrivacyBudgetAPI:   true,
+			aggregationEpsilon:        1.0,
+			aggregationDelta:          0,
+			partitionSelectionEpsilon: 0,
+			partitionSelectionDelta:   1e-5,
+			noiseKind:                 noise.LaplaceNoise,
+			partitionType:             nil,
+			wantErr:                   true,
+		},
+		{
+			desc:                    "new API, wrong partition type w/ public partitions as beam.PCollection",
+			params:                  CountParams{MaxValue: 1, PublicPartitions: partitions},
+			usesNewPrivacyBudgetAPI: true,
+			aggregationEpsilon:      1.0,
+			aggregationDelta:        0,
+			noiseKind:               noise.LaplaceNoise,
+			partitionType:           reflect.TypeOf(""),
+			wantErr:                 true,
+		},
+		{
+			desc:                    "new API, wrong partition type w/ public partitions as slice",
+			params:                  CountParams{MaxValue: 1, PublicPartitions: []int{0}},
+			usesNewPrivacyBudgetAPI: true,
+			aggregationEpsilon:      1.0,
+			aggregationDelta:        0,
+			noiseKind:               noise.LaplaceNoise,
+			partitionType:           reflect.TypeOf(""),
+			wantErr:                 true,
+		},
+		{
+			desc:                    "new API, wrong partition type w/ public partitions as array",
+			params:                  CountParams{MaxValue: 1, PublicPartitions: [1]int{0}},
+			usesNewPrivacyBudgetAPI: true,
+			aggregationEpsilon:      1.0,
+			aggregationDelta:        0,
+			noiseKind:               noise.LaplaceNoise,
+			partitionType:           reflect.TypeOf(""),
+			wantErr:                 true,
+		},
+		{
+			desc:                    "new API, public partitions as something other than beam.PCollection, slice or array",
+			params:                  CountParams{MaxValue: 1, PublicPartitions: ""},
+			usesNewPrivacyBudgetAPI: true,
+			aggregationEpsilon:      1.0,
+			aggregationDelta:        0,
+			noiseKind:               noise.LaplaceNoise,
+			partitionType:           reflect.TypeOf(""),
+			wantErr:                 true,
+		},
+		{
+			desc:                      "new API, negative max value",
+			params:                    CountParams{MaxValue: -1},
+			usesNewPrivacyBudgetAPI:   true,
+			aggregationEpsilon:        1.0,
+			aggregationDelta:          0,
+			partitionSelectionEpsilon: 1.0,
+			partitionSelectionDelta:   1e-5,
+			noiseKind:                 noise.LaplaceNoise,
+			partitionType:             nil,
+			wantErr:                   true,
+		},
 	} {
-		if err := checkCountParams(tc.params, tc.epsilon, tc.delta, tc.noiseKind, tc.partitionType); (err != nil) != tc.wantErr {
+		if err := checkCountParams(tc.params, tc.usesNewPrivacyBudgetAPI, tc.aggregationEpsilon, tc.aggregationDelta, tc.partitionSelectionEpsilon, tc.partitionSelectionDelta, tc.epsilon, tc.delta, tc.noiseKind, tc.partitionType); (err != nil) != tc.wantErr {
 			t.Errorf("With %s, got=%v error, wantErr=%t", tc.desc, err, tc.wantErr)
 		}
 	}
+}
+
+// The logic mirrors TestCountNoNoise, but with the new privacy budget API.
+func TestCountNoNoiseTemp(t *testing.T) {
+	// In this test, we set the per-partition l1Sensitivity to 2, and:
+	// - value 0 is associated with 7 privacy units, so it should be thresholded;
+	// - value 1 is associated with 30 privacy units appearing twice each, so each of
+	//   them should be counted twice;
+	// - value 2 is associated with 50 privacy units appearing 3 times each, but the
+	//   l1Sensitivity is 2, so each should only be counted twice.
+	// Each privacy unit contributes to at most 1 partition.
+	pairs := testutils.ConcatenatePairs(
+		testutils.MakePairsWithFixedVStartingFromKey(0, 7, 0),
+		testutils.MakePairsWithFixedVStartingFromKey(7, 30, 1),
+		testutils.MakePairsWithFixedVStartingFromKey(7, 30, 1),
+		testutils.MakePairsWithFixedVStartingFromKey(7+30, 50, 2),
+		testutils.MakePairsWithFixedVStartingFromKey(7+30, 50, 2),
+		testutils.MakePairsWithFixedVStartingFromKey(7+30, 50, 2),
+	)
+	result := []testutils.PairII64{
+		{1, 60},  // 30*2
+		{2, 100}, // 50*2
+	}
+	p, s, col, want := ptest.CreateList2(pairs, result)
+	col = beam.ParDo(s, testutils.PairToKV, col)
+
+	// ε=25, δ=10⁻²⁰⁰ and l0Sensitivity=1 gives a threshold of ≈21.
+	// We have 3 partitions. So, to get an overall flakiness of 10⁻²³,
+	// we need to have each partition pass with 1-10⁻²⁴ probability (k=24).
+	// To see the logic and the math behind flakiness and tolerance calculation,
+	// See https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf.
+	epsilon, delta, k, l1Sensitivity := 25.0, 1e-200, 24.0, 2.0
+	spec, err := NewPrivacySpecTemp(PrivacySpecParams{AggregationEpsilon: epsilon, PartitionSelectionEpsilon: epsilon, PartitionSelectionDelta: delta})
+	if err != nil {
+		t.Fatalf("TestCountNoNoiseTemp: %v", err)
+	}
+	pcol := MakePrivate(s, col, spec)
+	got := Count(s, pcol, CountParams{MaxValue: 2, MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}})
+	want = beam.ParDo(s, testutils.PairII64ToKV, want)
+	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
+		t.Fatalf("TestCountNoNoiseTemp: %v", err)
+	}
+	if err := ptest.Run(p); err != nil {
+		t.Errorf("TestCountNoNoiseTemp: Count(%v) = %v, expected %v: %v", col, got, want, err)
+	}
+}
+
+// The logic mirrors TestCountWithPartitionsNoNoise, but with the new privacy budget API.
+func TestCountWithPartitionsNoNoiseTemp(t *testing.T) {
+	// We have two test cases, one for public partitions as a PCollection and one for public partitions as a slice (i.e., in-memory).
+	for _, tc := range []struct {
+		inMemory bool
+	}{
+		{true},
+		{false},
+	} {
+		var pairs []testutils.PairII
+		for i := 0; i < 10; i++ {
+			pairs = append(pairs, testutils.PairII{1, i})
+		}
+		result := []testutils.PairII64{
+			// Drop partitions 0 to 8 as they are not in public
+			// partitions.
+			{9, 1},  // Keep partition 9.
+			{10, 0}, // Add partition 10.
+		}
+
+		p, s, col, want := ptest.CreateList2(pairs, result)
+		col = beam.ParDo(s, testutils.PairToKV, col)
+		publicPartitionsSlice := []int{9, 10}
+		var publicPartitions any
+		if tc.inMemory {
+			publicPartitions = publicPartitionsSlice
+		} else {
+			publicPartitions = beam.CreateList(s, publicPartitionsSlice)
+		}
+
+		// We use ε=50, δ=0 and l1Sensitivity=2.
+		// We have 2 partitions. So, to get an overall flakiness of 10⁻²³,
+		// we need to have each partition pass with 1-10⁻²⁴ probability (k=24).
+		epsilon, k, l1Sensitivity := 50.0, 24.0, 2.0
+		spec, err := NewPrivacySpecTemp(PrivacySpecParams{AggregationEpsilon: epsilon})
+		if err != nil {
+			t.Fatalf("TestCountWithPartitionsNoNoiseTemp: %v", err)
+		}
+		pcol := MakePrivate(s, col, spec)
+		countParams := CountParams{MaxValue: 2, MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions}
+
+		got := Count(s, pcol, countParams)
+		want = beam.ParDo(s, testutils.PairII64ToKV, want)
+		if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
+			t.Fatalf("TestCountWithPartitionsNoNoiseTemp in-memory=%t: %v", tc.inMemory, err)
+		}
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("TestCountWithPartitionsNoNoiseTemp in-memory=%t: Count(%v) = %v, expected %v: %v", tc.inMemory, col, got, want, err)
+		}
+	}
+
 }

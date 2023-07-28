@@ -242,3 +242,11 @@ func CheckBranchingFactor(branchingFactor int) error {
 	}
 	return nil
 }
+
+// CheckPreThreshold returns an error if preThreshold is less than 0.
+func CheckPreThreshold(preThreshold int64) error {
+	if preThreshold < 0 {
+		return fmt.Errorf("PreThreshold is %d, must be at least 0", preThreshold)
+	}
+	return nil
+}
