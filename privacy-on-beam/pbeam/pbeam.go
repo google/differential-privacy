@@ -148,6 +148,7 @@ type PrivacySpec struct {
 	usesNewPrivacyBudgetAPI  bool
 	aggregationBudget        *privacyBudget // Epsilon/Delta (ε,δ) budget available for aggregations performed on this PrivatePCollection.
 	partitionSelectionBudget *privacyBudget // Epsilon/Delta (ε,δ) budget available for partition selections performed  performed on this PrivatePCollection.
+	preThreshold             int64          // Pre-threshold K applied on top of DP partition selection.
 	testMode TestMode // Used for test pipelines, disabled by default.
 }
 
@@ -174,6 +175,15 @@ type PrivacySpecParams struct {
 	// Delta (δ) budget available for partition selections performed on this PrivatePCollection. Required unless
 	// you use public partitions.
 	PartitionSelectionDelta float64
+	// PreThreshold contains an optional additional threshold. Pre-thresholding is
+	// performed in combination with private partition selection to ensure that
+	// each partition has at least a K number of unique contributions.
+	//
+	// See https://github.com/google/differential-privacy/blob/main/common_docs/pre_thresholding.md
+	// for more information.
+	//
+	// Pre-thresholding is currently only available for partition selection.
+	PreThreshold int64
 	// Test mode for test pipelines, disabled by default. Set it to NoNoiseWithContributionBounding or
 	// NoNoiseWithoutContributionBounding if you want to enable test mode.
 	TestMode TestMode
@@ -202,6 +212,10 @@ func NewPrivacySpecTemp(params PrivacySpecParams) (*PrivacySpec, error) {
 	if err != nil {
 		return nil, fmt.Errorf("PartitionSelectionDelta: %v", err)
 	}
+	err = checks.CheckPreThreshold(params.PreThreshold)
+	if err != nil {
+		return nil, fmt.Errorf("PreThreshold: %v", err)
+	}
 	if params.AggregationEpsilon == 0 && params.PartitionSelectionEpsilon == 0 {
 		return nil, fmt.Errorf("either AggregationEpsilon or PartitionSelectionEpsilon must be set to a positive value")
 	}
@@ -212,6 +226,7 @@ func NewPrivacySpecTemp(params PrivacySpecParams) (*PrivacySpec, error) {
 		usesNewPrivacyBudgetAPI:  true,
 		aggregationBudget:        &privacyBudget{epsilon: params.AggregationEpsilon, delta: params.AggregationDelta},
 		partitionSelectionBudget: &privacyBudget{epsilon: params.PartitionSelectionEpsilon, delta: params.PartitionSelectionDelta},
+		preThreshold:             params.PreThreshold,
 		testMode:                 params.TestMode,
 	}, nil
 }

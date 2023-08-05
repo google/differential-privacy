@@ -24,7 +24,9 @@ from dp_accounting import dp_event
 from dp_accounting import privacy_accountant
 
 NeighborRel = privacy_accountant.NeighboringRelation
-CompositionErrorDetails = privacy_accountant.PrivacyAccountant.CompositionErrorDetails
+CompositionErrorDetails = (
+    privacy_accountant.PrivacyAccountant.CompositionErrorDetails
+)
 
 
 def _log_add(logx: float, logy: float) -> float:
@@ -144,8 +146,9 @@ def _log_erfc(x: float) -> float:
       return math.log(r)
 
 
-def compute_delta(orders: Sequence[float], rdp: Sequence[float],
-                  epsilon: float) -> Tuple[float, int]:
+def compute_delta(
+    orders: Sequence[float], rdp: Sequence[float], epsilon: float
+) -> Tuple[float, float]:
   """Computes delta given a list of RDP values and target epsilon.
 
   Args:
@@ -195,8 +198,9 @@ def compute_delta(orders: Sequence[float], rdp: Sequence[float],
   return min(math.exp(logdeltas[optimal_index]), 1.), orders[optimal_index]
 
 
-def compute_epsilon(orders: Sequence[float], rdp: Sequence[float],
-                    delta: float) -> Tuple[float, int]:
+def compute_epsilon(
+    orders: Sequence[float], rdp: Sequence[float], delta: float
+) -> Tuple[float, float]:
   """Computes epsilon given a list of RDP values and target delta.
 
   Args:
@@ -786,6 +790,12 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
       orders: Optional[Sequence[float]] = None,
       neighboring_relation: NeighborRel = NeighborRel.ADD_OR_REMOVE_ONE,
   ):
+    """Initializes the RDP accountant.
+
+    Args:
+      orders: The set of RDP orders.
+      neighboring_relation: The neighboring relation.
+    """
     super().__init__(neighboring_relation)
     if orders is None:
       orders = DEFAULT_RDP_ORDERS
@@ -895,16 +905,62 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
       return CompositionErrorDetails(
           invalid_event=event, error_message='Unsupported event.')
 
-  def get_epsilon_and_optimal_order(self,
-                                    target_delta: float) -> Tuple[float, int]:
+  def get_epsilon_and_optimal_order(
+      self, target_delta: float
+  ) -> Tuple[float, float]:
+    """Returns the current epsilon and the optimal RDP order.
+
+    Args:
+      target_delta: The target delta.
+
+    Returns:
+      A tuple containing the current epsilon, accounting for all composed
+      `DpEvent`s, and the optimal order.
+    """
     return compute_epsilon(self._orders, self._rdp, target_delta)
 
   def get_epsilon(self, target_delta: float) -> float:
+    """Returns the current epsilon.
+
+    Args:
+      target_delta: The target delta.
+
+    Returns:
+      The current epsilon, accounting for all composed `DpEvent`s.
+    """
     return compute_epsilon(self._orders, self._rdp, target_delta)[0]
 
-  def get_delta_and_optimal_order(self,
-                                  target_epsilon: float) -> Tuple[float, int]:
+  def get_delta_and_optimal_order(
+      self, target_epsilon: float
+  ) -> Tuple[float, float]:
+    """Returns the current delta and the optimal RDP order.
+
+    Args:
+      target_epsilon: The target epsilon.
+
+    Returns:
+      A tuple containing the current delta, accounting for all composed
+      `DpEvent`s, and the optimal order.
+    """
     return compute_delta(self._orders, self._rdp, target_epsilon)
 
   def get_delta(self, target_epsilon: float) -> float:
+    """Returns the current delta.
+
+    Args:
+      target_epsilon: The target epsilon.
+
+    Returns:
+      The current delta, accounting for all composed `DpEvent`s.
+    """
     return compute_delta(self._orders, self._rdp, target_epsilon)[0]
+
+  @property
+  def rdp(self) -> np.ndarray:
+    """Returns the current RDP values at each order."""
+    return np.copy(self._rdp)
+
+  @property
+  def orders(self) -> np.ndarray:
+    """Returns the set of RDP orders."""
+    return np.copy(self._orders)

@@ -797,11 +797,9 @@ func TestCountNoNoiseTemp(t *testing.T) {
 	p, s, col, want := ptest.CreateList2(pairs, result)
 	col = beam.ParDo(s, testutils.PairToKV, col)
 
-	// ε=25, δ=10⁻²⁰⁰ and l0Sensitivity=1 gives a threshold of ≈21.
+	// ε=25, δ=10⁻²⁰⁰ and l0Sensitivity=2 gives a threshold of ≈21.
 	// We have 3 partitions. So, to get an overall flakiness of 10⁻²³,
 	// we need to have each partition pass with 1-10⁻²⁴ probability (k=24).
-	// To see the logic and the math behind flakiness and tolerance calculation,
-	// See https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf.
 	epsilon, delta, k, l1Sensitivity := 25.0, 1e-200, 24.0, 2.0
 	spec, err := NewPrivacySpecTemp(PrivacySpecParams{AggregationEpsilon: epsilon, PartitionSelectionEpsilon: epsilon, PartitionSelectionDelta: delta})
 	if err != nil {
@@ -868,5 +866,46 @@ func TestCountWithPartitionsNoNoiseTemp(t *testing.T) {
 			t.Errorf("TestCountWithPartitionsNoNoiseTemp in-memory=%t: Count(%v) = %v, expected %v: %v", tc.inMemory, col, got, want, err)
 		}
 	}
+}
 
+func TestCountPreThresholding(t *testing.T) {
+	// In this test, we set pre-threshold to 10, per-partition l1 sensitivity to 2, and:
+	// - value 0 is associated with 9 privacy units, so it should be thresholded;
+	// - value 1 is associated with 10 privacy units appearing twice each, so each of
+	//   them should be counted twice;
+	// Each privacy unit contributes to at most 1 partition.
+	pairs := testutils.ConcatenatePairs(
+		testutils.MakePairsWithFixedVStartingFromKey(0, 9, 0),
+		testutils.MakePairsWithFixedVStartingFromKey(10, 10, 1),
+		testutils.MakePairsWithFixedVStartingFromKey(10, 10, 1),
+	)
+	result := []testutils.PairII64{
+		// Partition 0 is dropped due to the pre-threshold.
+		{1, 20}, // 10*2
+	}
+	p, s, col, want := ptest.CreateList2(pairs, result)
+	col = beam.ParDo(s, testutils.PairToKV, col)
+
+	// ε=10⁹, δ≈1 and l0Sensitivity=2 means partitions meeting the preThreshold should be kept.
+	// We have 1 partition. So, to get an overall flakiness of 10⁻²³,
+	// we can have each partition fail with 10⁻²³ probability (k=23).
+	epsilon, delta, k, l1Sensitivity := 1e9, dpagg.LargestRepresentableDelta, 24.0, 2.0
+	preThreshold := int64(10)
+	spec, err := NewPrivacySpecTemp(PrivacySpecParams{
+		AggregationEpsilon:        epsilon,
+		PartitionSelectionEpsilon: epsilon,
+		PartitionSelectionDelta:   delta,
+		PreThreshold:              preThreshold})
+	if err != nil {
+		t.Fatalf("TestCountNoNoiseTemp: %v", err)
+	}
+	pcol := MakePrivate(s, col, spec)
+	got := Count(s, pcol, CountParams{MaxValue: int64(l1Sensitivity), MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}})
+	want = beam.ParDo(s, testutils.PairII64ToKV, want)
+	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
+		t.Fatalf("TestCountNoNoiseTemp: %v", err)
+	}
+	if err := ptest.Run(p); err != nil {
+		t.Errorf("TestCountNoNoiseTemp: Count(%v) = %v, expected %v: %v", col, got, want, err)
+	}
 }

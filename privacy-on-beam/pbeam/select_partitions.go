@@ -119,7 +119,7 @@ func SelectPartitions(s beam.Scope, pcol PrivatePCollection, params SelectPartit
 
 	// Finally, we swap the privacy and partition key and perform partition selection.
 	partitions = beam.SwapKV(s, partitions) // PCollection<K, ID>
-	partitions = beam.CombinePerKey(s, newPartitionSelectionFn(epsilon, delta, maxPartitionsContributed, spec.testMode), partitions)
+	partitions = beam.CombinePerKey(s, newPartitionSelectionFn(epsilon, delta, spec.preThreshold, maxPartitionsContributed, spec.testMode), partitions)
 	result := beam.ParDo(s, dropThresholdedPartitionsBool, partitions)
 	return result
 }
@@ -139,18 +139,20 @@ type partitionSelectionAccum struct {
 type partitionSelectionFn struct {
 	Epsilon                  float64
 	Delta                    float64
+	PreThreshold             int64
 	MaxPartitionsContributed int64
 	TestMode                 TestMode
 }
 
-func newPartitionSelectionFn(epsilon, delta float64, maxPartitionsContributed int64, testMode TestMode) *partitionSelectionFn {
-	return &partitionSelectionFn{Epsilon: epsilon, Delta: delta, MaxPartitionsContributed: maxPartitionsContributed, TestMode: testMode}
+func newPartitionSelectionFn(epsilon, delta float64, prethreshold, maxPartitionsContributed int64, testMode TestMode) *partitionSelectionFn {
+	return &partitionSelectionFn{Epsilon: epsilon, Delta: delta, PreThreshold: prethreshold, MaxPartitionsContributed: maxPartitionsContributed, TestMode: testMode}
 }
 
 func (fn *partitionSelectionFn) CreateAccumulator() (partitionSelectionAccum, error) {
 	sp, err := dpagg.NewPreAggSelectPartition(&dpagg.PreAggSelectPartitionOptions{
 		Epsilon:                  fn.Epsilon,
 		Delta:                    fn.Delta,
+		PreThreshold:             fn.PreThreshold,
 		MaxPartitionsContributed: fn.MaxPartitionsContributed})
 	return partitionSelectionAccum{SP: sp}, err
 }

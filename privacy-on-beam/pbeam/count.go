@@ -193,7 +193,7 @@ func Count(s beam.Scope, pcol PrivatePCollection, params CountParams) beam.PColl
 	} else {
 		var boundedSumFn *boundedSumInt64Fn
 		if spec.usesNewPrivacyBudgetAPI {
-			boundedSumFn, err = newBoundedSumInt64FnTemp(aggregationEpsilon, aggregationDelta, partitionSelectionEpsilon, partitionSelectionDelta, maxPartitionsContributed, 0, params.MaxValue, noiseKind, false, spec.testMode)
+			boundedSumFn, err = newBoundedSumInt64FnTemp(aggregationEpsilon, aggregationDelta, partitionSelectionEpsilon, partitionSelectionDelta, spec.preThreshold, maxPartitionsContributed, 0, params.MaxValue, noiseKind, false, spec.testMode)
 		} else {
 			boundedSumFn, err = newBoundedSumInt64Fn(epsilon, delta, maxPartitionsContributed, 0, params.MaxValue, noiseKind, false, spec.testMode)
 		}
