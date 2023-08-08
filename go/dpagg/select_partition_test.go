@@ -517,15 +517,50 @@ func TestPreAggSelectPartition(t *testing.T) {
 }
 
 // Tests that an idCount smaller than prethreshold deterministically returns false.
-func TestNewPreAggSelectPartition_PreThresholding(t *testing.T) {
-	s := getTestPreAggSelectPartition(t)
-	s.IncrementBy(9)
-	should, err := s.ShouldKeepPartition()
-	if err != nil {
-		t.Fatalf("Couldn't compute ShouldKeepPartition: %v", err)
+func TestNewPreAggSelectPartition_CountSmallerThanPreThresholdReturnsFalse(t *testing.T) {
+	for _, tc := range []struct {
+		name                     string
+		maxPartitionsContributed int64 // > 3 leads to gaussian thresholding being used
+	}{
+		{"magic_partition_selection", 1},
+		{"gaussian_thresholding", 4},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := getTestPreAggSelectPartition(t)
+			s.preThreshold = 10
+			s.l0Sensitivity = tc.maxPartitionsContributed
+			s.IncrementBy(9)
+			should, err := s.ShouldKeepPartition()
+			if err != nil {
+				t.Fatalf("Couldn't compute ShouldKeepPartition: %v", err)
+			}
+			if should {
+				t.Errorf("ShouldKeepPartition returned true for a count smaller than prethreshold")
+			}
+		})
 	}
-	if should {
-		t.Errorf("ShouldKeepPartition returned true for a count smaller than prethreshold")
+}
+
+// Tests that an idCount greater than the pre-threshold deterministically returns true for a large enough delta & epsilon.
+func TestNewPreAggSelectPartition_CountGreaterThanPreThresholdReturnsTrue(t *testing.T) {
+	for _, tc := range []struct {
+		name                     string
+		maxPartitionsContributed int64 // > 3 leads to gaussian thresholding being used
+	}{
+		{"magic_partition_selection", 1},
+		{"gaussian_thresholding", 4},
+	} {
+		s := getTestPreAggSelectPartition(t)
+		s.preThreshold = 10
+		s.l0Sensitivity = tc.maxPartitionsContributed
+		s.IncrementBy(11)
+		should, err := s.ShouldKeepPartition()
+		if err != nil {
+			t.Fatalf("Couldn't compute ShouldKeepPartition: %v", err)
+		}
+		if !should {
+			t.Errorf("ShouldKeepPartition returned false for a count larger than prethreshold")
+		}
 	}
 }
 
@@ -660,9 +695,8 @@ func TestPreAggSelectPartitionResultSetsStateCorrectly(t *testing.T) {
 func getTestPreAggSelectPartition(t *testing.T) *PreAggSelectPartition {
 	t.Helper()
 	s, err := NewPreAggSelectPartition(&PreAggSelectPartitionOptions{
-		Epsilon:                  1e10,
-		Delta:                    1 - 1e-15,
-		PreThreshold:             10,
+		Epsilon:                  100,
+		Delta:                    1 - 1e-5,
 		MaxPartitionsContributed: 1,
 	})
 	if err != nil {

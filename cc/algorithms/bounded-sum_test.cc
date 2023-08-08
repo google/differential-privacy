@@ -20,12 +20,14 @@
 #include <cstdlib>
 #include <limits>
 #include <memory>
+#include <vector>
 
 #include "base/testing/proto_matchers.h"
 #include "base/testing/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/memory/memory.h"
+#include "absl/status/status.h"
 #include "algorithms/algorithm.h"
 #include "algorithms/approx-bounds.h"
 #include "algorithms/numerical-mechanisms-testing.h"

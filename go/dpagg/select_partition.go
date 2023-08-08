@@ -87,6 +87,12 @@ import (
 // partition and then determining whether the partition should be
 // materialized. Use Increment() to increment the count of IDs and ShouldKeepPartition() to decide
 // if the partition should be materialized.
+//
+// PreAggSelectPartition also supports doing additional pre-thresholding on top of the
+// differentially private partition selection via the PreThreshold in PreAggSelectPartitionOptions.
+//
+// See https://github.com/google/differential-privacy/blob/main/common_docs/pre_thresholding.md
+// for more information.
 type PreAggSelectPartition struct {
 	// parameters
 	epsilon       float64

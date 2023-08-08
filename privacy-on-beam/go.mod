@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/apache/beam/sdks/v2 v2.46.0
 	github.com/golang/glog v1.1.1
-	github.com/google/differential-privacy/go/v2 v2.1.0
+	github.com/google/differential-privacy/go/v2 v2.1.1-0.20230808111858-f2a2682a6752
 	github.com/google/go-cmp v0.5.9
 	gonum.org/v1/plot v0.12.0
 	google.golang.org/protobuf v1.30.0
