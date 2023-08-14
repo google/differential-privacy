@@ -162,8 +162,8 @@ def calibrate_dp_mechanism(
                     f'found {type(make_fresh_accountant)}.')
 
   if not callable(make_event_from_param):
-    raise TypeError(f'make_fresh_accountant must be callable. '
-                    f'found {type(make_fresh_accountant)}.')
+    raise TypeError(f'make_event_from_param must be callable. '
+                    f'found {type(make_event_from_param)}.')
 
   if target_epsilon < 0:
     raise ValueError(f'target_epsilon must be nonnegative. Found '
