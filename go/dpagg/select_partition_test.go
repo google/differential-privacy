@@ -516,8 +516,8 @@ func TestPreAggSelectPartition(t *testing.T) {
 	}
 }
 
-// Tests that an idCount smaller than prethreshold deterministically returns false.
-func TestNewPreAggSelectPartition_CountSmallerThanPreThresholdReturnsFalse(t *testing.T) {
+// Tests that an idCount smaller than the prethreshold deterministically returns false.
+func TestPreAggSelectPartition_CountSmallerThanPreThresholdReturnsFalse(t *testing.T) {
 	for _, tc := range []struct {
 		name                     string
 		maxPartitionsContributed int64 // > 3 leads to gaussian thresholding being used
@@ -535,14 +535,14 @@ func TestNewPreAggSelectPartition_CountSmallerThanPreThresholdReturnsFalse(t *te
 				t.Fatalf("Couldn't compute ShouldKeepPartition: %v", err)
 			}
 			if should {
-				t.Errorf("ShouldKeepPartition returned true for a count smaller than prethreshold")
+				t.Errorf("ShouldKeepPartition returned true for a count smaller than the pre-threshold")
 			}
 		})
 	}
 }
 
 // Tests that an idCount greater than the pre-threshold deterministically returns true for a large enough delta & epsilon.
-func TestNewPreAggSelectPartition_CountGreaterThanPreThresholdReturnsTrue(t *testing.T) {
+func TestPreAggSelectPartition_CountGreaterThanPreThresholdReturnsTrue(t *testing.T) {
 	for _, tc := range []struct {
 		name                     string
 		maxPartitionsContributed int64 // > 3 leads to gaussian thresholding being used
@@ -559,7 +559,7 @@ func TestNewPreAggSelectPartition_CountGreaterThanPreThresholdReturnsTrue(t *tes
 			t.Fatalf("Couldn't compute ShouldKeepPartition: %v", err)
 		}
 		if !should {
-			t.Errorf("ShouldKeepPartition returned false for a count larger than prethreshold")
+			t.Errorf("ShouldKeepPartition returned false for a count larger than the pre-threshold")
 		}
 	}
 }

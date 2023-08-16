@@ -21,10 +21,8 @@
 #include <cmath>
 #include <limits>
 #include <memory>
-#include <string>
 #include <vector>
 
-#include <cstdint>
 #include "google/protobuf/any.pb.h"
 #include "base/testing/proto_matchers.h"
 #include "base/testing/status_matchers.h"

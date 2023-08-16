@@ -18,9 +18,8 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "base/status.h"
-#include "base/status_macros.h"
-#include "base/statusor.h"
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
 
 namespace differential_privacy {
 namespace base {
@@ -31,15 +30,17 @@ using ::differential_privacy::base::testing::StatusIs;
 using ::testing::_;
 using ::testing::Not;
 
-Status AbortedStatus() { return Status(StatusCode::kAborted, "aborted"); }
+absl::Status AbortedStatus() {
+  return absl::Status(absl::StatusCode::kAborted, "aborted");
+}
 
-StatusOr<int> OkStatusOr(int n) { return n; }
+absl::StatusOr<int> OkStatusOr(int n) { return n; }
 
-StatusOr<int> AbortedStatusOr() { return AbortedStatus(); }
+absl::StatusOr<int> AbortedStatusOr() { return AbortedStatus(); }
 
 TEST(StatusMatcher, Macros) {
-  EXPECT_OK(OkStatus());
-  ASSERT_OK(OkStatus());
+  EXPECT_OK(absl::OkStatus());
+  ASSERT_OK(absl::OkStatus());
 }
 
 TEST(StatusMatcher, IsOkAndHolds) {
@@ -52,42 +53,43 @@ TEST(StatusMatcher, IsOkAndHolds) {
 }
 
 TEST(StatusMatcher, StatusIs) {
-  EXPECT_THAT(AbortedStatus(), StatusIs(StatusCode::kAborted, "aborted"));
-  EXPECT_THAT(AbortedStatus(), StatusIs(StatusCode::kAborted, _));
+  EXPECT_THAT(AbortedStatus(), StatusIs(absl::StatusCode::kAborted, "aborted"));
+  EXPECT_THAT(AbortedStatus(), StatusIs(absl::StatusCode::kAborted, _));
   EXPECT_THAT(AbortedStatus(), StatusIs(_, "aborted"));
   EXPECT_THAT(AbortedStatus(), StatusIs(_, _));
 
-  EXPECT_THAT(AbortedStatus(), StatusIs(StatusCode::kAborted));
-  EXPECT_THAT(AbortedStatus(), StatusIs(Not(StatusCode::kOk)));
+  EXPECT_THAT(AbortedStatus(), StatusIs(absl::StatusCode::kAborted));
+  EXPECT_THAT(AbortedStatus(), StatusIs(Not(absl::StatusCode::kOk)));
   EXPECT_THAT(AbortedStatus(), StatusIs(_));
 
-  EXPECT_THAT(AbortedStatusOr(), StatusIs(StatusCode::kAborted, "aborted"));
-  EXPECT_THAT(AbortedStatusOr(), StatusIs(StatusCode::kAborted, _));
+  EXPECT_THAT(AbortedStatusOr(),
+              StatusIs(absl::StatusCode::kAborted, "aborted"));
+  EXPECT_THAT(AbortedStatusOr(), StatusIs(absl::StatusCode::kAborted, _));
   EXPECT_THAT(AbortedStatusOr(), StatusIs(_, "aborted"));
   EXPECT_THAT(AbortedStatusOr(), StatusIs(_, _));
 
-  EXPECT_THAT(AbortedStatusOr(), StatusIs(StatusCode::kAborted));
-  EXPECT_THAT(AbortedStatusOr(), StatusIs(Not(StatusCode::kOk)));
+  EXPECT_THAT(AbortedStatusOr(), StatusIs(absl::StatusCode::kAborted));
+  EXPECT_THAT(AbortedStatusOr(), StatusIs(Not(absl::StatusCode::kOk)));
   EXPECT_THAT(AbortedStatusOr(), StatusIs(_));
 
   // Weird usages, but should work.
-  EXPECT_THAT(OkStatusOr(15), StatusIs(StatusCode::kOk, ""));
-  EXPECT_THAT(OkStatusOr(15), StatusIs(StatusCode::kOk, _));
+  EXPECT_THAT(OkStatusOr(15), StatusIs(absl::StatusCode::kOk, ""));
+  EXPECT_THAT(OkStatusOr(15), StatusIs(absl::StatusCode::kOk, _));
   EXPECT_THAT(OkStatusOr(15), StatusIs(_, ""));
   EXPECT_THAT(OkStatusOr(15), StatusIs(_, _));
 
-  EXPECT_THAT(OkStatusOr(15), StatusIs(StatusCode::kOk));
-  EXPECT_THAT(OkStatusOr(15), StatusIs(Not(StatusCode::kAborted), _));
+  EXPECT_THAT(OkStatusOr(15), StatusIs(absl::StatusCode::kOk));
+  EXPECT_THAT(OkStatusOr(15), StatusIs(Not(absl::StatusCode::kAborted), _));
   EXPECT_THAT(OkStatusOr(15), StatusIs(_));
 
-  EXPECT_THAT(OkStatus(), StatusIs(StatusCode::kOk, ""));
-  EXPECT_THAT(OkStatus(), StatusIs(StatusCode::kOk, _));
-  EXPECT_THAT(OkStatus(), StatusIs(_, ""));
-  EXPECT_THAT(OkStatus(), StatusIs(_, _));
+  EXPECT_THAT(absl::OkStatus(), StatusIs(absl::StatusCode::kOk, ""));
+  EXPECT_THAT(absl::OkStatus(), StatusIs(absl::StatusCode::kOk, _));
+  EXPECT_THAT(absl::OkStatus(), StatusIs(_, ""));
+  EXPECT_THAT(absl::OkStatus(), StatusIs(_, _));
 
-  EXPECT_THAT(OkStatus(), StatusIs(StatusCode::kOk));
-  EXPECT_THAT(OkStatus(), StatusIs(Not(StatusCode::kAborted), _));
-  EXPECT_THAT(OkStatus(), StatusIs(_));
+  EXPECT_THAT(absl::OkStatus(), StatusIs(absl::StatusCode::kOk));
+  EXPECT_THAT(absl::OkStatus(), StatusIs(Not(absl::StatusCode::kAborted), _));
+  EXPECT_THAT(absl::OkStatus(), StatusIs(_));
 }
 
 }  // namespace

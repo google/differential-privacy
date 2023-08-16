@@ -22,14 +22,17 @@ cc_binary(
         "execute_query.cc",
     ],
     visibility = ["//visibility:public"],
+    # TODO: Replace @com_google_cc_differential_privacy//base:status with
+    # @com_google_cc_differential_privacy//base:status_macros once ZetaSQL
+    # depends on the newer DP lib version.
     deps = [
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/memory",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
-        "@com_google_cc_differential_privacy//base:logging",
         "@com_google_cc_differential_privacy//base:status",
         "@com_google_protobuf//:protobuf",
         "@com_google_zetasql//zetasql/public:analyzer_options",

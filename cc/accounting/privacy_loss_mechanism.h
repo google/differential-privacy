@@ -15,7 +15,6 @@
 #ifndef DIFFERENTIAL_PRIVACY_ACCOUNTING_PRIVACY_LOSS_MECHANISM_H_
 #define DIFFERENTIAL_PRIVACY_ACCOUNTING_PRIVACY_LOSS_MECHANISM_H_
 
-#include "base/logging.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/types/optional.h"

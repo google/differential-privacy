@@ -286,25 +286,22 @@ func newBoundedSumFn(epsilon, delta float64, maxPartitionsContributed int64, low
 // newBoundedSumFn returns a boundedSumInt64Fn or boundedSumFloat64Fn depending on vKind.
 //
 // Uses the new privacy budget API where clients specify aggregation budget and partition selection budget separately.
-func newBoundedSumFnTemp(
-	aggregationEpsilon, aggregationDelta, partitionSelectionEpsilon, partitionSelectionDelta float64,
-	maxPartitionsContributed int64, lower, upper float64, noiseKind noise.Kind,
-	vKind reflect.Kind, publicPartitions bool, testMode TestMode) (any, error) {
+func newBoundedSumFnTemp(spec PrivacySpec, params SumParams, noiseKind noise.Kind, vKind reflect.Kind, publicPartitions bool) (any, error) {
 	var err, checkErr error
 	var bsFn any
 	switch vKind {
 	case reflect.Int64:
-		checkErr = checks.CheckBoundsFloat64AsInt64(lower, upper)
+		checkErr = checks.CheckBoundsFloat64AsInt64(params.MinValue, params.MaxValue)
 		if checkErr != nil {
 			return nil, checkErr
 		}
-		bsFn, err = newBoundedSumInt64FnTemp(aggregationEpsilon, aggregationDelta, partitionSelectionEpsilon, partitionSelectionDelta, 0, maxPartitionsContributed, int64(lower), int64(upper), noiseKind, publicPartitions, testMode)
+		bsFn, err = newBoundedSumInt64FnTemp(params.AggregationEpsilon, params.AggregationDelta, params.PartitionSelectionParams.Epsilon, params.PartitionSelectionParams.Delta, spec.preThreshold, params.MaxPartitionsContributed, int64(params.MinValue), int64(params.MaxValue), noiseKind, publicPartitions, spec.testMode)
 	case reflect.Float64:
-		checkErr = checks.CheckBoundsFloat64(lower, upper)
+		checkErr = checks.CheckBoundsFloat64(params.MinValue, params.MaxValue)
 		if checkErr != nil {
 			return nil, checkErr
 		}
-		bsFn, err = newBoundedSumFloat64FnTemp(aggregationEpsilon, aggregationDelta, partitionSelectionEpsilon, partitionSelectionDelta, maxPartitionsContributed, lower, upper, noiseKind, publicPartitions, testMode)
+		bsFn, err = newBoundedSumFloat64FnTemp(params.AggregationEpsilon, params.AggregationDelta, params.PartitionSelectionParams.Epsilon, params.PartitionSelectionParams.Delta, spec.preThreshold, params.MaxPartitionsContributed, params.MinValue, params.MaxValue, noiseKind, publicPartitions, spec.testMode)
 	default:
 		err = fmt.Errorf("vKind(%v) should be int64 or float64", vKind)
 	}
@@ -490,6 +487,7 @@ type boundedSumFloat64Fn struct {
 	PartitionSelectionEpsilon float64
 	NoiseDelta                float64
 	PartitionSelectionDelta   float64
+	PreThreshold              int64
 	MaxPartitionsContributed  int64
 	Lower                     float64
 	Upper                     float64
@@ -532,7 +530,7 @@ func newBoundedSumFloat64Fn(epsilon, delta float64, maxPartitionsContributed int
 // newBoundedSumFloat64FnTemp returns a boundedSumFloat64Fn with the given budget and parameters.
 //
 // Uses the new privacy budget API where clients specify aggregation budget and partition selection budget separately.
-func newBoundedSumFloat64FnTemp(aggregationEpsilon, aggregationDelta, partitionSelectionEpsilon, partitionSelectionDelta float64, maxPartitionsContributed int64, lower, upper float64, noiseKind noise.Kind, publicPartitions bool, testMode TestMode) (*boundedSumFloat64Fn, error) {
+func newBoundedSumFloat64FnTemp(aggregationEpsilon, aggregationDelta, partitionSelectionEpsilon, partitionSelectionDelta float64, preThreshold, maxPartitionsContributed int64, lower, upper float64, noiseKind noise.Kind, publicPartitions bool, testMode TestMode) (*boundedSumFloat64Fn, error) {
 	if noiseKind != noise.GaussianNoise && noiseKind != noise.LaplaceNoise {
 		return nil, fmt.Errorf("unknown noise.Kind (%v) is specified. Please specify a valid noise", noiseKind)
 	}
@@ -541,6 +539,7 @@ func newBoundedSumFloat64FnTemp(aggregationEpsilon, aggregationDelta, partitionS
 		NoiseDelta:                aggregationDelta,
 		PartitionSelectionEpsilon: partitionSelectionEpsilon,
 		PartitionSelectionDelta:   partitionSelectionDelta,
+		PreThreshold:              preThreshold,
 		MaxPartitionsContributed:  maxPartitionsContributed,
 		Lower:                     lower,
 		Upper:                     upper,
@@ -580,6 +579,7 @@ func (fn *boundedSumFloat64Fn) CreateAccumulator() (boundedSumAccumFloat64, erro
 		accum.SP, err = dpagg.NewPreAggSelectPartition(&dpagg.PreAggSelectPartitionOptions{
 			Epsilon:                  fn.PartitionSelectionEpsilon,
 			Delta:                    fn.PartitionSelectionDelta,
+			PreThreshold:             fn.PreThreshold,
 			MaxPartitionsContributed: fn.MaxPartitionsContributed,
 		})
 	}
@@ -1007,4 +1007,13 @@ func checkPartitionSelectionDelta(delta float64, publicPartitions any) error {
 		return checks.CheckNoDelta(delta)
 	}
 	return checks.CheckDeltaStrict(delta)
+}
+
+// checkMaxPartitionsContributed returns a maxPartitionsContributed parameter
+// if it greater than zero, otherwise it fails.
+func checkMaxPartitionsContributed(maxPartitionsContributed int64) error {
+	if maxPartitionsContributed <= 0 {
+		return fmt.Errorf("MaxPartitionsContributed must be set to a positive value, was %d instead", maxPartitionsContributed)
+	}
+	return nil
 }

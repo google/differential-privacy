@@ -1278,272 +1278,369 @@ func TestSumPerKeyNoClampingForNegativeMinValueInt64(t *testing.T) {
 func TestCheckSumPerKeyParams(t *testing.T) {
 	_, _, publicPartitions := ptest.CreateList([]int{0, 1})
 	for _, tc := range []struct {
-		desc                      string
-		usesNewPrivacyBudgetAPI   bool
-		epsilon                   float64
-		delta                     float64
-		aggregationEpsilon        float64
-		aggregationDelta          float64
-		partitionSelectionEpsilon float64
-		partitionSelectionDelta   float64
-		noiseKind                 noise.Kind
-		params                    SumParams
-		partitionType             reflect.Type
-		wantErr                   bool
+		desc                    string
+		usesNewPrivacyBudgetAPI bool
+		params                  SumParams
+		noiseKind               noise.Kind
+		partitionType           reflect.Type
+		wantErr                 bool
 	}{
 		{
-			desc:          "valid parameters",
-			epsilon:       1.0,
-			delta:         1e-5,
-			noiseKind:     noise.LaplaceNoise,
-			params:        SumParams{MinValue: -5.0, MaxValue: 5.0},
+			desc: "valid parameters",
+			params: SumParams{
+				Epsilon:                  1.0,
+				Delta:                    1e-5,
+				MaxPartitionsContributed: 1,
+				MinValue:                 -5.0,
+				MaxValue:                 5.0,
+			},
+			noiseKind: noise.LaplaceNoise,
+
 			partitionType: nil,
 			wantErr:       false,
 		},
 		{
-			desc:          "negative epsilon",
-			epsilon:       -1.0,
-			delta:         1e-5,
+			desc: "negative epsilon",
+			params: SumParams{
+				Epsilon:                  -1.0,
+				Delta:                    1e-5,
+				MaxPartitionsContributed: 1,
+				MinValue:                 -5.0,
+				MaxValue:                 5.0,
+			},
 			noiseKind:     noise.LaplaceNoise,
-			params:        SumParams{MinValue: -5.0, MaxValue: 5.0},
 			partitionType: nil,
 			wantErr:       true,
 		},
 		{
-			desc:          "zero delta w/o public partitions",
-			epsilon:       1.0,
-			delta:         0.0,
+			desc: "zero delta w/o public partitions",
+			params: SumParams{
+				Epsilon:                  1.0,
+				MaxPartitionsContributed: 1,
+				MinValue:                 -5.0,
+				MaxValue:                 5.0,
+			},
 			noiseKind:     noise.LaplaceNoise,
-			params:        SumParams{MinValue: -5.0, MaxValue: 5.0},
 			partitionType: nil,
 			wantErr:       true,
 		},
 		{
-			desc:          "MaxValue < MinValue",
-			epsilon:       1.0,
-			delta:         1e-5,
+			desc: "MaxPartitionsContributed unset",
+			params: SumParams{
+				Epsilon:  1.0,
+				Delta:    1e-5,
+				MinValue: -5.0,
+				MaxValue: 5.0,
+			},
 			noiseKind:     noise.LaplaceNoise,
-			params:        SumParams{MinValue: 6.0, MaxValue: 5.0},
 			partitionType: nil,
 			wantErr:       true,
 		},
 		{
-			desc:          "MaxValue = MinValue",
-			epsilon:       1.0,
-			delta:         1e-5,
+			desc: "MaxValue < MinValue",
+			params: SumParams{
+				Epsilon:                  1.0,
+				Delta:                    1e-5,
+				MaxPartitionsContributed: 1,
+				MinValue:                 6.0,
+				MaxValue:                 5.0,
+			},
 			noiseKind:     noise.LaplaceNoise,
-			params:        SumParams{MinValue: 5.0, MaxValue: 5.0},
+			partitionType: nil,
+			wantErr:       true,
+		},
+		{
+			desc: "MaxValue = MinValue",
+			params: SumParams{
+				Epsilon:                  1.0,
+				Delta:                    1e-5,
+				MaxPartitionsContributed: 1,
+				MinValue:                 5.0,
+				MaxValue:                 5.0,
+			},
+			noiseKind:     noise.LaplaceNoise,
 			partitionType: nil,
 			wantErr:       false,
 		},
 		{
-			desc:          "non-zero delta w/ public partitions & Laplace",
-			epsilon:       1.0,
-			delta:         1e-5,
+			desc: "non-zero delta w/ public partitions & Laplace",
+			params: SumParams{
+				Epsilon:                  1.0,
+				Delta:                    1e-5,
+				MaxPartitionsContributed: 1,
+				MinValue:                 -5.0,
+				MaxValue:                 5.0,
+				PublicPartitions:         publicPartitions,
+			},
 			noiseKind:     noise.LaplaceNoise,
-			params:        SumParams{MinValue: -5.0, MaxValue: 5.0, PublicPartitions: publicPartitions},
 			partitionType: reflect.TypeOf(0),
 			wantErr:       true,
 		},
 		{
-			desc:          "wrong partition type w/ public partitions as beam.PCollection",
-			epsilon:       1.0,
-			delta:         0,
+			desc: "wrong partition type w/ public partitions as beam.PCollection",
+			params: SumParams{
+				Epsilon:                  1.0,
+				MaxPartitionsContributed: 1,
+				MinValue:                 -5.0,
+				MaxValue:                 5.0,
+				PublicPartitions:         publicPartitions,
+			},
 			noiseKind:     noise.LaplaceNoise,
-			params:        SumParams{MinValue: -5.0, MaxValue: 5.0, PublicPartitions: publicPartitions},
 			partitionType: reflect.TypeOf(""),
 			wantErr:       true,
 		},
 		{
-			desc:          "wrong partition type w/ public partitions as slice",
-			epsilon:       1.0,
-			delta:         0,
+			desc: "wrong partition type w/ public partitions as slice",
+			params: SumParams{
+				Epsilon:                  1.0,
+				MaxPartitionsContributed: 1,
+				MinValue:                 -5.0,
+				MaxValue:                 5.0,
+				PublicPartitions:         []int{0},
+			},
 			noiseKind:     noise.LaplaceNoise,
-			params:        SumParams{MinValue: -5.0, MaxValue: 5.0, PublicPartitions: []int{0}},
 			partitionType: reflect.TypeOf(""),
 			wantErr:       true,
 		},
 		{
-			desc:          "wrong partition type w/ public partitions as array",
-			epsilon:       1.0,
-			delta:         0,
+			desc: "wrong partition type w/ public partitions as array",
+			params: SumParams{
+				Epsilon:                  1.0,
+				MaxPartitionsContributed: 1,
+				MinValue:                 -5.0,
+				MaxValue:                 5.0,
+				PublicPartitions:         [1]int{0},
+			},
 			noiseKind:     noise.LaplaceNoise,
-			params:        SumParams{MinValue: -5.0, MaxValue: 5.0, PublicPartitions: [1]int{0}},
 			partitionType: reflect.TypeOf(""),
 			wantErr:       true,
 		},
 		{
-			desc:          "public partitions as something other than beam.PCollection, slice or array",
-			epsilon:       1,
-			delta:         0,
+			desc: "public partitions as something other than beam.PCollection, slice or array",
+			params: SumParams{
+				Epsilon:                  1.0,
+				MaxPartitionsContributed: 1,
+				MinValue:                 -5.0,
+				MaxValue:                 5.0,
+				PublicPartitions:         "publicPartitions",
+			},
 			noiseKind:     noise.LaplaceNoise,
-			params:        SumParams{MinValue: -5.0, MaxValue: 5.0, PublicPartitions: ""},
 			partitionType: reflect.TypeOf(""),
 			wantErr:       true,
 		},
 		// Test cases for the new privacy budget API.
 		{
-			desc:                      "new API, valid parameters",
-			usesNewPrivacyBudgetAPI:   true,
-			aggregationEpsilon:        1.0,
-			aggregationDelta:          0,
-			partitionSelectionEpsilon: 1.0,
-			partitionSelectionDelta:   1e-5,
-			noiseKind:                 noise.LaplaceNoise,
-			params:                    SumParams{MinValue: -5.0, MaxValue: 5.0},
-			partitionType:             nil,
-			wantErr:                   false,
+			desc:                    "new API, valid parameters",
+			usesNewPrivacyBudgetAPI: true,
+			params: SumParams{
+				AggregationEpsilon:       1.0,
+				PartitionSelectionParams: PartitionSelectionParams{1.0, 1e-5},
+				MaxPartitionsContributed: 1,
+				MinValue:                 -5.0,
+				MaxValue:                 5.0,
+			},
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: nil,
+			wantErr:       false,
 		},
 		{
-			desc:                      "new API, zero aggregationEpsilon w/ Gaussian noise",
-			usesNewPrivacyBudgetAPI:   true,
-			aggregationEpsilon:        1.0,
-			aggregationDelta:          0,
-			partitionSelectionEpsilon: 1.0,
-			partitionSelectionDelta:   1e-5,
-			noiseKind:                 noise.GaussianNoise,
-			params:                    SumParams{MinValue: -5.0, MaxValue: 5.0},
-			partitionType:             nil,
-			wantErr:                   true,
+			desc:                    "new API, zero aggregationDelta w/ Gaussian noise",
+			usesNewPrivacyBudgetAPI: true,
+			params: SumParams{
+				AggregationEpsilon:       1.0,
+				PartitionSelectionParams: PartitionSelectionParams{1.0, 1e-5},
+				MaxPartitionsContributed: 1,
+				MinValue:                 -5.0,
+				MaxValue:                 5.0,
+			},
+			noiseKind:     noise.GaussianNoise,
+			partitionType: nil,
+			wantErr:       true,
 		},
 		{
-			desc:                      "new API, negative aggregationEpsilon",
-			usesNewPrivacyBudgetAPI:   true,
-			aggregationEpsilon:        -1.0,
-			aggregationDelta:          0,
-			partitionSelectionEpsilon: 1.0,
-			partitionSelectionDelta:   1e-5,
-			noiseKind:                 noise.LaplaceNoise,
-			params:                    SumParams{MinValue: -5.0, MaxValue: 5.0},
-			partitionType:             nil,
-			wantErr:                   true,
+			desc:                    "new API, negative aggregationEpsilon",
+			usesNewPrivacyBudgetAPI: true,
+			params: SumParams{
+				AggregationEpsilon:       -1.0,
+				PartitionSelectionParams: PartitionSelectionParams{1.0, 1e-5},
+				MaxPartitionsContributed: 1,
+				MinValue:                 -5.0,
+				MaxValue:                 5.0,
+			},
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: nil,
+			wantErr:       true,
 		},
 		{
-			desc:                      "new API, negative partitionSelectionEpsilon",
-			usesNewPrivacyBudgetAPI:   true,
-			aggregationEpsilon:        1.0,
-			aggregationDelta:          0,
-			partitionSelectionEpsilon: -1.0,
-			partitionSelectionDelta:   1e-5,
-			noiseKind:                 noise.LaplaceNoise,
-			params:                    SumParams{MinValue: -5.0, MaxValue: 5.0},
-			partitionType:             nil,
-			wantErr:                   true,
+			desc:                    "new API, negative partitionSelectionEpsilon",
+			usesNewPrivacyBudgetAPI: true,
+			params: SumParams{
+				AggregationEpsilon:       1.0,
+				PartitionSelectionParams: PartitionSelectionParams{-1.0, 1e-5},
+				MaxPartitionsContributed: 1,
+				MinValue:                 -5.0,
+				MaxValue:                 5.0,
+			},
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: nil,
+			wantErr:       true,
 		},
 		{
-			desc:                      "new API, zero partitionSelectionDelta w/o public partitions",
-			usesNewPrivacyBudgetAPI:   true,
-			aggregationEpsilon:        1.0,
-			aggregationDelta:          0,
-			partitionSelectionEpsilon: 1.0,
-			partitionSelectionDelta:   0,
-			noiseKind:                 noise.LaplaceNoise,
-			params:                    SumParams{MinValue: -5.0, MaxValue: 5.0},
-			partitionType:             nil,
-			wantErr:                   true,
+			desc:                    "new API, zero partitionSelectionDelta w/o public partitions",
+			usesNewPrivacyBudgetAPI: true,
+			params: SumParams{
+				AggregationEpsilon:       1.0,
+				PartitionSelectionParams: PartitionSelectionParams{1.0, 0},
+				MaxPartitionsContributed: 1,
+				MinValue:                 -5.0,
+				MaxValue:                 5.0,
+			},
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: nil,
+			wantErr:       true,
 		},
 		{
-			desc:                      "new API, zero partitionSelectionEpsilon w/o public partitions",
-			usesNewPrivacyBudgetAPI:   true,
-			aggregationEpsilon:        1.0,
-			aggregationDelta:          0,
-			partitionSelectionEpsilon: 0,
-			partitionSelectionDelta:   1e-5,
-			noiseKind:                 noise.LaplaceNoise,
-			params:                    SumParams{MinValue: -5.0, MaxValue: 5.0},
-			partitionType:             nil,
-			wantErr:                   true,
+			desc:                    "new API, zero partitionSelectionEpsilon w/o public partitions",
+			usesNewPrivacyBudgetAPI: true,
+			params: SumParams{
+				AggregationEpsilon:       1.0,
+				PartitionSelectionParams: PartitionSelectionParams{0, 1e-5},
+				MaxPartitionsContributed: 1,
+				MinValue:                 -5.0,
+				MaxValue:                 5.0,
+			},
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: nil,
+			wantErr:       true,
 		},
 		{
-			desc:                      "new API, MaxValue < MinValue",
-			usesNewPrivacyBudgetAPI:   true,
-			aggregationEpsilon:        1.0,
-			aggregationDelta:          0,
-			partitionSelectionEpsilon: 1.0,
-			partitionSelectionDelta:   1e-5,
-			noiseKind:                 noise.LaplaceNoise,
-			params:                    SumParams{MinValue: 6.0, MaxValue: 5.0},
-			partitionType:             nil,
-			wantErr:                   true,
+			desc: "new API, MaxPartitionsContributed unset",
+			params: SumParams{
+				AggregationEpsilon:       1.0,
+				PartitionSelectionParams: PartitionSelectionParams{1.0, 1e-5},
+				MinValue:                 -5.0,
+				MaxValue:                 5.0,
+			},
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: nil,
+			wantErr:       true,
 		},
 		{
-			desc:                      "new API, MaxValue = MinValue",
-			usesNewPrivacyBudgetAPI:   true,
-			aggregationEpsilon:        1.0,
-			aggregationDelta:          0,
-			partitionSelectionEpsilon: 1.0,
-			partitionSelectionDelta:   1e-5,
-			noiseKind:                 noise.LaplaceNoise,
-			params:                    SumParams{MinValue: 5.0, MaxValue: 5.0},
-			partitionType:             nil,
-			wantErr:                   false,
+			desc:                    "new API, MaxValue < MinValue",
+			usesNewPrivacyBudgetAPI: true,
+			params: SumParams{
+				AggregationEpsilon:       1.0,
+				PartitionSelectionParams: PartitionSelectionParams{1.0, 1e-5},
+				MaxPartitionsContributed: 1,
+				MinValue:                 6.0,
+				MaxValue:                 5.0,
+			},
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: nil,
+			wantErr:       true,
 		},
 		{
-			desc:                      "new API, non-zero partitionSelectionDelta w/ public partitions",
-			usesNewPrivacyBudgetAPI:   true,
-			aggregationEpsilon:        1.0,
-			aggregationDelta:          0,
-			partitionSelectionEpsilon: 0,
-			partitionSelectionDelta:   1e-5,
-			noiseKind:                 noise.LaplaceNoise,
-			params:                    SumParams{MinValue: -5.0, MaxValue: 5.0, PublicPartitions: publicPartitions},
-			partitionType:             reflect.TypeOf(0),
-			wantErr:                   true,
+			desc:                    "new API, MaxValue = MinValue",
+			usesNewPrivacyBudgetAPI: true,
+			params: SumParams{
+				AggregationEpsilon:       1.0,
+				PartitionSelectionParams: PartitionSelectionParams{1.0, 1e-5},
+				MaxPartitionsContributed: 1,
+				MinValue:                 5.0,
+				MaxValue:                 5.0,
+			},
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: nil,
+			wantErr:       false,
 		},
 		{
-			desc:                      "new API, non-zero partitionSelectionEpsilon w/ public partitions",
-			usesNewPrivacyBudgetAPI:   true,
-			aggregationEpsilon:        1.0,
-			aggregationDelta:          0,
-			partitionSelectionEpsilon: 1.0,
-			partitionSelectionDelta:   0,
-			noiseKind:                 noise.LaplaceNoise,
-			params:                    SumParams{MinValue: -5.0, MaxValue: 5.0, PublicPartitions: publicPartitions},
-			partitionType:             reflect.TypeOf(0),
-			wantErr:                   true,
+			desc:                    "new API, non-zero partitionSelectionDelta w/ public partitions",
+			usesNewPrivacyBudgetAPI: true,
+			params: SumParams{
+				AggregationEpsilon:       1.0,
+				PartitionSelectionParams: PartitionSelectionParams{0, 1e-5},
+				MaxPartitionsContributed: 1,
+				MinValue:                 -5.0,
+				MaxValue:                 5.0,
+				PublicPartitions:         publicPartitions,
+			},
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: reflect.TypeOf(0),
+			wantErr:       true,
+		},
+		{
+			desc:                    "new API, non-zero partitionSelectionEpsilon w/ public partitions",
+			usesNewPrivacyBudgetAPI: true,
+			params: SumParams{
+				AggregationEpsilon:       1.0,
+				PartitionSelectionParams: PartitionSelectionParams{1.0, 0},
+				MaxPartitionsContributed: 1,
+				MinValue:                 -5.0,
+				MaxValue:                 5.0,
+				PublicPartitions:         publicPartitions,
+			},
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: reflect.TypeOf(0),
+			wantErr:       true,
 		},
 		{
 			desc:                    "new API, wrong partition type w/ public partitions as beam.PCollection",
 			usesNewPrivacyBudgetAPI: true,
-			aggregationEpsilon:      1.0,
-			aggregationDelta:        0,
-			noiseKind:               noise.LaplaceNoise,
-			params:                  SumParams{MinValue: -5.0, MaxValue: 5.0, PublicPartitions: publicPartitions},
-			partitionType:           reflect.TypeOf(""),
-			wantErr:                 true,
+			params: SumParams{
+				AggregationEpsilon:       1.0,
+				MaxPartitionsContributed: 1,
+				MinValue:                 -5.0,
+				MaxValue:                 5.0,
+				PublicPartitions:         publicPartitions,
+			},
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: reflect.TypeOf(""),
+			wantErr:       true,
 		},
 		{
 			desc:                    "new API, wrong partition type w/ public partitions as slice",
 			usesNewPrivacyBudgetAPI: true,
-			aggregationEpsilon:      1.0,
-			aggregationDelta:        0,
-			noiseKind:               noise.LaplaceNoise,
-			params:                  SumParams{MinValue: -5.0, MaxValue: 5.0, PublicPartitions: []int{0}},
-			partitionType:           reflect.TypeOf(""),
-			wantErr:                 true,
+			params: SumParams{
+				AggregationEpsilon:       1.0,
+				MaxPartitionsContributed: 1,
+				MinValue:                 -5.0,
+				MaxValue:                 5.0,
+				PublicPartitions:         []int{0},
+			},
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: reflect.TypeOf(""),
+			wantErr:       true,
 		},
 		{
 			desc:                    "new API, wrong partition type w/ public partitions as array",
 			usesNewPrivacyBudgetAPI: true,
-			aggregationEpsilon:      1.0,
-			aggregationDelta:        0,
-			noiseKind:               noise.LaplaceNoise,
-			params:                  SumParams{MinValue: -5.0, MaxValue: 5.0, PublicPartitions: [1]int{0}},
-			partitionType:           reflect.TypeOf(""),
-			wantErr:                 true,
+			params: SumParams{
+				AggregationEpsilon:       1.0,
+				MaxPartitionsContributed: 1,
+				MinValue:                 -5.0,
+				MaxValue:                 5.0,
+				PublicPartitions:         [1]int{0},
+			},
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: reflect.TypeOf(""),
+			wantErr:       true,
 		},
 		{
 			desc:                    "new API, public partitions as something other than beam.PCollection, slice or array",
 			usesNewPrivacyBudgetAPI: true,
-			aggregationEpsilon:      1.0,
-			aggregationDelta:        0,
-			noiseKind:               noise.LaplaceNoise,
-			params:                  SumParams{MinValue: -5.0, MaxValue: 5.0, PublicPartitions: ""},
-			partitionType:           reflect.TypeOf(""),
-			wantErr:                 true,
+			params: SumParams{
+				AggregationEpsilon:       1.0,
+				MaxPartitionsContributed: 1,
+				MinValue:                 -5.0,
+				MaxValue:                 5.0,
+				PublicPartitions:         "",
+			},
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: reflect.TypeOf(""),
+			wantErr:       true,
 		},
 	} {
-		if err := checkSumPerKeyParams(tc.params, tc.usesNewPrivacyBudgetAPI, tc.aggregationEpsilon, tc.aggregationDelta, tc.partitionSelectionEpsilon, tc.partitionSelectionDelta, tc.epsilon, tc.delta, tc.noiseKind, tc.partitionType); (err != nil) != tc.wantErr {
+		if err := checkSumPerKeyParams(tc.params, tc.usesNewPrivacyBudgetAPI, tc.noiseKind, tc.partitionType); (err != nil) != tc.wantErr {
 			t.Errorf("With %s, got=%v, wantErr=%t", tc.desc, err, tc.wantErr)
 		}
 	}
@@ -1568,8 +1665,6 @@ func TestSumPerKeyNoNoiseIntTemp(t *testing.T) {
 	// ε=50, δ=10⁻²⁰⁰ and l0Sensitivity=3 gives a threshold of ≈31.
 	// We have 3 partitions. So, to get an overall flakiness of 10⁻²³,
 	// we need to have each partition pass with 1-10⁻²⁴ probability (k=24).
-	// To see the logic and the math behind flakiness and tolerance calculation,
-	// See https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf.
 	epsilon, delta, k, l1Sensitivity := 50.0, 1e-200, 24.0, 3.0
 	spec, err := NewPrivacySpecTemp(PrivacySpecParams{
 		AggregationEpsilon:        epsilon,
@@ -1691,5 +1786,88 @@ func TestSumPerKeyWithPartitionsNoNoiseIntTemp(t *testing.T) {
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("TestSumPerKeyWithPartitionsNoNoiseIntTemp test case=+%v: SumPerKey(%v) = %v, expected %v: %v", tc, col, got, want, err)
 		}
+	}
+}
+
+func TestSumPerKeyPreThresholdingInt(t *testing.T) {
+	// Arrange
+	// ε=10⁹, δ≈1 and l0Sensitivity=1 means partitions meeting the preThreshold should be kept.
+	// We have 1 partition. So, to get an overall flakiness of 10⁻²³,
+	// we need to have each partition pass with 1-10⁻²³ probability (k=23).
+	epsilon, delta, k, l1Sensitivity := 1e9, dpagg.LargestRepresentableDelta, 23.0, 1.0
+	spec, err := NewPrivacySpecTemp(PrivacySpecParams{
+		AggregationEpsilon:        epsilon,
+		AggregationDelta:          0,
+		PartitionSelectionEpsilon: epsilon,
+		PartitionSelectionDelta:   delta,
+		PreThreshold:              10,
+	})
+	if err != nil {
+		t.Fatalf("TestSumPerKeyPreThresholdingInt: %v", err)
+	}
+	triples := testutils.ConcatenateTriplesWithIntValue(
+		testutils.MakeSampleTripleWithIntValue(9, 0),
+		testutils.MakeTripleWithIntValueStartingFromKey(9, 10, 1, 1))
+	result := []testutils.PairII64{
+		// The privacy ID count for partition 0 is 9, which is below the pre-threshold of 10: so it should be dropped.
+		{1, 10},
+	}
+	p, s, col, want := ptest.CreateList2(triples, result)
+	want = beam.ParDo(s, testutils.PairII64ToKV, want)
+	col = beam.ParDo(s, testutils.ExtractIDFromTripleWithIntValue, col)
+
+	pcol := MakePrivate(s, col, spec)
+	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
+
+	// Act
+	got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 1, MinValue: 0, MaxValue: 1, NoiseKind: LaplaceNoise{}})
+
+	// Assert
+	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
+		t.Fatalf("TestSumPerKeyPreThresholdingInt: %v", err)
+	}
+	if err := ptest.Run(p); err != nil {
+		t.Errorf("TestSumPerKeyPreThresholdingInt: SumPerKey(%v) = %v, expected %v: %v", col, got, want, err)
+	}
+}
+
+func TestSumPerKeyPreThresholdingFloat(t *testing.T) {
+	// Arrange
+	// ε=10⁹, δ≈1 and l0Sensitivity=1 means partitions meeting the preThreshold should be kept.
+	// We have 1 partition. So, to get an overall flakiness of 10⁻²³,
+	// we need to have each partition pass with 1-10⁻²³ probability (k=23).
+	epsilon, delta, k, l1Sensitivity := 1e9, dpagg.LargestRepresentableDelta, 23.0, 1.0
+	spec, err := NewPrivacySpecTemp(PrivacySpecParams{
+		AggregationEpsilon:        epsilon,
+		AggregationDelta:          0,
+		PartitionSelectionEpsilon: epsilon,
+		PartitionSelectionDelta:   delta,
+		PreThreshold:              10,
+	})
+	if err != nil {
+		t.Fatalf("TestSumPerKeyPreThresholdingFloat: %v", err)
+	}
+	triples := testutils.ConcatenateTriplesWithFloatValue(
+		testutils.MakeSampleTripleWithFloatValue(9, 0),
+		testutils.MakeTripleWithFloatValueStartingFromKey(9, 10, 1, 1))
+	result := []testutils.PairIF64{
+		// The privacy ID count for partition 0 is 9, which is below the pre-threshold of 10: so it should be dropped.
+		{1, 10},
+	}
+	p, s, col, want := ptest.CreateList2(triples, result)
+	want = beam.ParDo(s, testutils.PairIF64ToKV, want)
+	col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
+	pcol := MakePrivate(s, col, spec)
+	pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
+
+	// Act
+	got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 1, MinValue: 0, MaxValue: 1, NoiseKind: LaplaceNoise{}})
+
+	// Assert
+	if err := testutils.ApproxEqualsKVFloat64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
+		t.Fatalf("TestSumPerKeyPreThresholdingFloat: %v", err)
+	}
+	if err := ptest.Run(p); err != nil {
+		t.Errorf("TestSumPerKeyPreThresholdingFloat: SumPerKey(%v) = %v, expected %v: %v", col, got, want, err)
 	}
 }

@@ -17,11 +17,11 @@
 #ifndef DIFFERENTIAL_PRIVACY_ALGORITHMS_NUMERICAL_MECHANISMS_TESTING_H_
 #define DIFFERENTIAL_PRIVACY_ALGORITHMS_NUMERICAL_MECHANISMS_TESTING_H_
 
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <random>
 
-#include <cstdint>
 #include "gmock/gmock.h"
 #include "absl/memory/memory.h"
 #include "absl/random/random.h"

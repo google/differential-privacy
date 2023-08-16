@@ -19,18 +19,21 @@
 #define DIFFERENTIAL_PRIVACY_BASE_STATUS_MACROS_H_
 
 // Helper macros and methods to return and propagate errors with
-// `differential_privacy::base::Status`.
+// `absl::Status`.
 
-#include "base/status.h"
+#include <utility>
 
-// Evaluates an expression that produces a `differential_privacy::base::Status`.
+#include "absl/base/optimization.h"
+#include "absl/status/status.h"
+
+// Evaluates an expression that produces a `absl::Status`.
 // If the status is not ok, returns it from the current function.
 //
 // For example:
-//   differential_privacy::base::Status MultiStepFunction() {
+//   absl::Status MultiStepFunction() {
 //     RETURN_IF_ERROR(Function(args...));
 //     RETURN_IF_ERROR(foo.Method(args...));
-//     return differential_privacy::base::OkStatus();
+//     return absl::OkStatus();
 //   }
 #define RETURN_IF_ERROR(expr)                                              \
   STATUS_MACROS_IMPL_ELSE_BLOCKER_                                         \
@@ -40,7 +43,7 @@
     return status_macro_internal_adaptor.Consume()
 
 // Executes an expression `rexpr` that returns a
-// `differential_privacy::base::StatusOr<T>`. On OK, extracts its value into the
+// `absl::StatusOr<T>`. On OK, extracts its value into the
 // variable defined by `lhs`, otherwise returns from the current function. If
 // there is an error, `lhs` is not evaluated; thus any side effects that `lhs`
 // may have only occur in the success case.
@@ -110,19 +113,19 @@ namespace status_macro_internal {
 // that declares a variable.
 class StatusAdaptorForMacros {
  public:
-  StatusAdaptorForMacros(const Status& status) : status_(status) {}
+  StatusAdaptorForMacros(const absl::Status& status) : status_(status) {}
 
-  StatusAdaptorForMacros(Status&& status) : status_(std::move(status)) {}
+  StatusAdaptorForMacros(absl::Status&& status) : status_(std::move(status)) {}
 
   StatusAdaptorForMacros(const StatusAdaptorForMacros&) = delete;
   StatusAdaptorForMacros& operator=(const StatusAdaptorForMacros&) = delete;
 
   explicit operator bool() const { return status_.ok(); }
 
-  differential_privacy::base::Status&& Consume() { return std::move(status_); }
+  absl::Status&& Consume() { return std::move(status_); }
 
  private:
-  differential_privacy::base::Status status_;
+  absl::Status status_;
 };
 }  // namespace status_macro_internal
 }  // namespace base

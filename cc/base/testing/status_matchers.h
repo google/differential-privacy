@@ -18,8 +18,7 @@
 #ifndef DIFFERENTIAL_PRIVACY_BASE_TESTING_STATUS_MATCHERS_H_
 #define DIFFERENTIAL_PRIVACY_BASE_TESTING_STATUS_MATCHERS_H_
 
-// Testing utilities for working with ::differential_privacy::base::Status and
-// ::differential_privacy::base::StatusOr.
+// Testing utilities for working with absl::Status and absl::StatusOr.
 //
 //
 // Defines the following utilities:
@@ -69,16 +68,14 @@
 //     using ::testing::HasSubstr;
 //     using ::testing::MatchesRegex;
 //     using ::testing::Ne;
-//     using ::differential_privacy::base::testing::StatusIs;
 //     using ::testing::_;
-//     using ::differential_privacy::base::StatusOr;
-//     StatusOr<std::string> GetName(int id);
+//     absl::StatusOr<std::string> GetName(int id);
 //     ...
 //
 //     // The status code must be kAborted;
 //     // the error message can be anything.
 //     EXPECT_THAT(GetName(42),
-//                 StatusIs(differential_privacy::base::StatusCode::kAborted,
+//                 StatusIs(absl::StatusCode::kAborted,
 //                 _));
 //     // The status code can be anything; the error message must match the
 //     // regex.
@@ -88,7 +85,7 @@
 //     // The status code should not be kAborted; the error message can be
 //     // anything with "client" in it.
 //     EXPECT_CALL(mock_env, HandleStatus(
-//         StatusIs(Ne(differential_privacy::base::StatusCode::kAborted),
+//         StatusIs(Ne(absl::StatusCode::kAborted),
 //                  HasSubstr("client"))));
 //
 //   ===============================
@@ -104,9 +101,8 @@
 //   IsOk()
 //   ===============
 //
-//   Matches a differential_privacy::base::Status or
-//   differential_privacy::base::StatusOr<T> value whose status value is
-//   StatusCode::kOK. Equivalent to 'StatusIs(StatusCode::kOK)'. Example:
+//   Matches a absl::Status or absl::StatusOr<T> value whose status value is
+//   absl::StatusCode::kOK. Equivalent to 'StatusIs(StatusCode::kOK)'. Example:
 //     using ::testing::status::IsOk;
 //     ...
 //     StatusOr<std::string> maybe_name = ...;
@@ -118,26 +114,24 @@
 #include <ostream>
 #include <string>
 #include <type_traits>
+#include <utility>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "absl/strings/str_cat.h"
-#include "absl/strings/string_view.h"
-#include "base/status.h"
-#include "base/status_macros.h"
-#include "base/statusor.h"
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
 
 namespace differential_privacy {
 namespace base {
 namespace testing {
 namespace internal_status {
 
-inline const Status& GetStatus(const Status& status) {
+inline const absl::Status& GetStatus(const absl::Status& status) {
   return status;
 }
 
 template <typename T>
-inline const Status& GetStatus(const StatusOr<T>& status) {
+inline const absl::Status& GetStatus(const absl::StatusOr<T>& status) {
   return status.status();
 }
 
@@ -180,7 +174,7 @@ class IsOkAndHoldsMatcherImpl
     const bool matches =
         inner_matcher_.MatchAndExplain(actual_value.value(), &inner_listener);
     const std::string inner_explanation = inner_listener.str();
-    if (inner_explanation != "") {
+    if (!inner_explanation.empty()) {
       *result_listener << "which contains value "
                        << ::testing::PrintToString(actual_value.value()) << ", "
                        << inner_explanation;
@@ -221,7 +215,7 @@ class IsOkAndHoldsMatcher {
 class StatusIsMatcherCommonImpl {
  public:
   StatusIsMatcherCommonImpl(
-      ::testing::Matcher<StatusCode> code_matcher,
+      ::testing::Matcher<absl::StatusCode> code_matcher,
       ::testing::Matcher<const std::string&> message_matcher)
       : code_matcher_(std::move(code_matcher)),
         message_matcher_(std::move(message_matcher)) {}
@@ -230,11 +224,11 @@ class StatusIsMatcherCommonImpl {
 
   void DescribeNegationTo(std::ostream* os) const;
 
-  bool MatchAndExplain(const Status& status,
+  bool MatchAndExplain(const absl::Status& status,
                        ::testing::MatchResultListener* result_listener) const;
 
  private:
-  const ::testing::Matcher<StatusCode> code_matcher_;
+  const ::testing::Matcher<absl::StatusCode> code_matcher_;
   const ::testing::Matcher<const std::string&> message_matcher_;
 };
 
@@ -268,7 +262,7 @@ class MonoStatusIsMatcherImpl : public ::testing::MatcherInterface<T> {
 // Implements StatusIs() as a polymorphic matcher.
 class StatusIsMatcher {
  public:
-  StatusIsMatcher(::testing::Matcher<StatusCode> code_matcher,
+  StatusIsMatcher(::testing::Matcher<absl::StatusCode> code_matcher,
                   ::testing::Matcher<const std::string&> message_matcher)
       : common_impl_(std::move(code_matcher), std::move(message_matcher)) {}
 

@@ -17,22 +17,21 @@
 #include "algorithms/bounded-variance.h"
 
 #include <cmath>
+#include <cstdint>
 #include <functional>
 #include <limits>
 #include <memory>
 #include <numeric>
 #include <random>
-#include <string>
 #include <type_traits>
 #include <utility>
 #include <vector>
 
-#include <cstdint>
-#include "base/logging.h"
 #include "base/testing/proto_matchers.h"
 #include "base/testing/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/log/check.h"
 #include "absl/memory/memory.h"
 #include "absl/random/distributions.h"
 #include "absl/status/status.h"

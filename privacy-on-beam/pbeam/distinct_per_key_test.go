@@ -550,135 +550,149 @@ func TestDistinctPerKeyThresholdsOnPrivacyIDs(t *testing.T) {
 func TestCheckDistinctPerKeyParams(t *testing.T) {
 	_, _, partitions := ptest.CreateList([]int{0, 1})
 	for _, tc := range []struct {
-		desc                      string
-		epsilon                   float64
-		delta                     float64
-		aggregationEpsilon        float64
-		aggregationDelta          float64
-		partitionSelectionEpsilon float64
-		partitionSelectionDelta   float64
-		noiseKind                 noise.Kind
-		params                    DistinctPerKeyParams
-		partitionType             reflect.Type
-		wantErr                   bool
+		desc          string
+		params        DistinctPerKeyParams
+		noiseKind     noise.Kind
+		partitionType reflect.Type
+		wantErr       bool
 	}{
 		// checkDistinctPerKeyParams only uses the fields of the new privacy budget API, so no need for
 		// test cases for the old API.
 		{
-			desc:                      "valid parameters",
-			aggregationEpsilon:        1.0,
-			aggregationDelta:          0,
-			partitionSelectionEpsilon: 1.0,
-			partitionSelectionDelta:   1e-5,
-			noiseKind:                 noise.LaplaceNoise,
-			params:                    DistinctPerKeyParams{MaxPartitionsContributed: 1, MaxContributionsPerPartition: 1},
-			partitionType:             nil,
-			wantErr:                   false,
+			desc: "valid parameters",
+			params: DistinctPerKeyParams{
+				AggregationEpsilon:           1.0,
+				PartitionSelectionParams:     PartitionSelectionParams{1.0, 1e-5},
+				MaxPartitionsContributed:     1,
+				MaxContributionsPerPartition: 1,
+			},
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: nil,
+			wantErr:       false,
 		},
 		{
-			desc:                      "negative aggregationEpsilon",
-			aggregationEpsilon:        -1.0,
-			aggregationDelta:          0,
-			partitionSelectionEpsilon: 1.0,
-			partitionSelectionDelta:   1e-5,
-			noiseKind:                 noise.LaplaceNoise,
-			params:                    DistinctPerKeyParams{MaxPartitionsContributed: 1, MaxContributionsPerPartition: 1},
-			partitionType:             nil,
-			wantErr:                   true,
+			desc: "negative aggregationEpsilon",
+			params: DistinctPerKeyParams{
+				AggregationEpsilon:           -1.0,
+				PartitionSelectionParams:     PartitionSelectionParams{1.0, 1e-5},
+				MaxPartitionsContributed:     1,
+				MaxContributionsPerPartition: 1,
+			},
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: nil,
+			wantErr:       true,
 		},
 		{
-			desc:                      "negative partitionSelectionEpsilon",
-			aggregationEpsilon:        1.0,
-			aggregationDelta:          0,
-			partitionSelectionEpsilon: -1.0,
-			partitionSelectionDelta:   1e-5,
-			noiseKind:                 noise.LaplaceNoise,
-			params:                    DistinctPerKeyParams{MaxPartitionsContributed: 1, MaxContributionsPerPartition: 1},
-			partitionType:             nil,
-			wantErr:                   true,
+			desc: "negative partitionSelectionEpsilon",
+			params: DistinctPerKeyParams{
+				AggregationEpsilon:           1.0,
+				PartitionSelectionParams:     PartitionSelectionParams{-1.0, 1e-5},
+				MaxPartitionsContributed:     1,
+				MaxContributionsPerPartition: 1,
+			},
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: nil,
+			wantErr:       true,
 		},
 		{
-			desc:                      "zero partitionSelectionDelta w/o public partitions",
-			aggregationEpsilon:        1.0,
-			aggregationDelta:          0,
-			partitionSelectionEpsilon: 1.0,
-			partitionSelectionDelta:   0,
-			noiseKind:                 noise.LaplaceNoise,
-			params:                    DistinctPerKeyParams{MaxPartitionsContributed: 1, MaxContributionsPerPartition: 1},
-			partitionType:             nil,
-			wantErr:                   true,
+			desc: "zero partitionSelectionDelta w/o public partitions",
+			params: DistinctPerKeyParams{
+				AggregationEpsilon:           1.0,
+				PartitionSelectionParams:     PartitionSelectionParams{1.0, 0},
+				MaxPartitionsContributed:     1,
+				MaxContributionsPerPartition: 1,
+			},
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: nil,
+			wantErr:       true,
 		},
 		{
-			desc:                      "zero partitionSelectionEpsilon w/o public partitions",
-			aggregationEpsilon:        1.0,
-			aggregationDelta:          0,
-			partitionSelectionEpsilon: 0,
-			partitionSelectionDelta:   1e-5,
-			noiseKind:                 noise.LaplaceNoise,
-			params:                    DistinctPerKeyParams{MaxPartitionsContributed: 1, MaxContributionsPerPartition: 1},
-			partitionType:             nil,
-			wantErr:                   true,
+			desc: "zero partitionSelectionEpsilon w/o public partitions",
+			params: DistinctPerKeyParams{
+				AggregationEpsilon:           1.0,
+				PartitionSelectionParams:     PartitionSelectionParams{0, 1e-5},
+				MaxPartitionsContributed:     1,
+				MaxContributionsPerPartition: 1,
+			},
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: nil,
+			wantErr:       true,
 		},
 		{
-			desc:                      "zero MaxContributionsPerPartition",
-			aggregationEpsilon:        1.0,
-			aggregationDelta:          0,
-			partitionSelectionEpsilon: 1.0,
-			partitionSelectionDelta:   1e-5,
-			noiseKind:                 noise.LaplaceNoise,
-			params:                    DistinctPerKeyParams{MaxPartitionsContributed: 1, MaxContributionsPerPartition: 0},
-			partitionType:             nil,
-			wantErr:                   true,
+			desc: "zero MaxContributionsPerPartition",
+			params: DistinctPerKeyParams{
+				AggregationEpsilon:       1.0,
+				AggregationDelta:         0,
+				PartitionSelectionParams: PartitionSelectionParams{1.0, 1e-5},
+				MaxPartitionsContributed: 1,
+			},
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: nil,
+			wantErr:       true,
 		},
 		{
-			desc:                      "non-zero delta w/ Laplace",
-			aggregationEpsilon:        1.0,
-			aggregationDelta:          1e-5,
-			partitionSelectionEpsilon: 1.0,
-			partitionSelectionDelta:   1e-5,
-			noiseKind:                 noise.LaplaceNoise,
-			params:                    DistinctPerKeyParams{MaxPartitionsContributed: 1, MaxContributionsPerPartition: 1},
-			partitionType:             reflect.TypeOf(0),
-			wantErr:                   true,
+			desc: "non-zero aggregation delta w/ Laplace",
+			params: DistinctPerKeyParams{
+				AggregationEpsilon:           1.0,
+				AggregationDelta:             1e-5,
+				PartitionSelectionParams:     PartitionSelectionParams{1.0, 1e-5},
+				MaxPartitionsContributed:     1,
+				MaxContributionsPerPartition: 1,
+			},
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: reflect.TypeOf(0),
+			wantErr:       true,
 		},
 		{
-			desc:               "wrong partition type w/ public partitions as beam.PCollection",
-			aggregationEpsilon: 1.0,
-			aggregationDelta:   0,
-			noiseKind:          noise.LaplaceNoise,
-			params:             DistinctPerKeyParams{MaxPartitionsContributed: 1, MaxContributionsPerPartition: 1, PublicPartitions: partitions},
-			partitionType:      reflect.TypeOf(""),
-			wantErr:            true,
+			desc: "wrong partition type w/ public partitions as beam.PCollection",
+			params: DistinctPerKeyParams{
+				AggregationEpsilon:           1.0,
+				MaxPartitionsContributed:     1,
+				MaxContributionsPerPartition: 1,
+				PublicPartitions:             partitions,
+			},
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: reflect.TypeOf(""),
+			wantErr:       true,
 		},
 		{
-			desc:               "wrong partition type w/ public partitions as slice",
-			aggregationEpsilon: 1.0,
-			aggregationDelta:   0,
-			noiseKind:          noise.LaplaceNoise,
-			params:             DistinctPerKeyParams{MaxPartitionsContributed: 1, MaxContributionsPerPartition: 1, PublicPartitions: []int{0}},
-			partitionType:      reflect.TypeOf(""),
-			wantErr:            true,
+			desc: "wrong partition type w/ public partitions as slice",
+			params: DistinctPerKeyParams{
+				AggregationEpsilon:           1.0,
+				MaxPartitionsContributed:     1,
+				MaxContributionsPerPartition: 1,
+				PublicPartitions:             []int{0},
+			},
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: reflect.TypeOf(""),
+			wantErr:       true,
 		},
 		{
-			desc:               "wrong partition type w/ public partitions as array",
-			aggregationEpsilon: 1.0,
-			aggregationDelta:   0,
-			noiseKind:          noise.LaplaceNoise,
-			params:             DistinctPerKeyParams{MaxPartitionsContributed: 1, MaxContributionsPerPartition: 1, PublicPartitions: [1]int{0}},
-			partitionType:      reflect.TypeOf(""),
-			wantErr:            true,
+			desc: "wrong partition type w/ public partitions as array",
+			params: DistinctPerKeyParams{
+				AggregationEpsilon:           1.0,
+				MaxPartitionsContributed:     1,
+				MaxContributionsPerPartition: 1,
+				PublicPartitions:             [1]int{0},
+			},
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: reflect.TypeOf(""),
+			wantErr:       true,
 		},
 		{
-			desc:               "public partitions as something other than beam.PCollection, slice or array",
-			aggregationEpsilon: 1.0,
-			aggregationDelta:   0,
-			noiseKind:          noise.LaplaceNoise,
-			params:             DistinctPerKeyParams{MaxPartitionsContributed: 1, MaxContributionsPerPartition: 1, PublicPartitions: ""},
-			partitionType:      reflect.TypeOf(""),
-			wantErr:            true,
+			desc: "public partitions as something other than beam.PCollection, slice or array",
+			params: DistinctPerKeyParams{
+				AggregationEpsilon:           1.0,
+				MaxPartitionsContributed:     1,
+				MaxContributionsPerPartition: 1,
+				PublicPartitions:             "",
+			},
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: reflect.TypeOf(""),
+			wantErr:       true,
 		},
 	} {
-		if err := checkDistinctPerKeyParams(tc.params, tc.aggregationEpsilon, tc.aggregationDelta, tc.partitionSelectionEpsilon, tc.partitionSelectionDelta, tc.noiseKind, tc.partitionType); (err != nil) != tc.wantErr {
+		if err := checkDistinctPerKeyParams(tc.params, tc.noiseKind, tc.partitionType); (err != nil) != tc.wantErr {
 			t.Errorf("With %s, got=%v, wantErr=%t", tc.desc, err, tc.wantErr)
 		}
 	}
@@ -782,5 +796,45 @@ func TestDistinctPerKeyWithPartitionNoNoiseTemp(t *testing.T) {
 			t.Errorf("TestDistinctPerKeyWithPartitionNoNoiseTemp in-memory=%t: Count(%v) = %v, expected %v: %v", tc.inMemory, col, got, want, err)
 		}
 	}
+}
 
+func TestDistinctPerKeyPreThresholding(t *testing.T) {
+	// Arrange
+	var triples []testutils.TripleWithIntValue
+	for i := 0; i < 9; i++ { // Add 9 privacy IDs & distinct values to Partition 0.
+		triples = append(triples, testutils.TripleWithIntValue{ID: i, Partition: 0, Value: i})
+	}
+	for i := 0; i < 10; i++ { // Add 10 privacy IDs & 20 distinct values to Partition 1.
+		triples = append(triples, testutils.TripleWithIntValue{ID: 9 + i, Partition: 1, Value: i})
+		triples = append(triples, testutils.TripleWithIntValue{ID: 9 + i, Partition: 1, Value: 10 + i})
+	}
+
+	result := []testutils.PairII64{
+		// The privacy ID count for partition 0 is 9, which is below the pre-threshold of 10: so it should be dropped.
+		{1, 20},
+	}
+	p, s, col, want := ptest.CreateList2(triples, result)
+	want = beam.ParDo(s, testutils.PairII64ToKV, want)
+	col = beam.ParDo(s, testutils.ExtractIDFromTripleWithIntValue, col)
+	// ε=10⁹, δ≈1 and l0Sensitivity=1 means partitions meeting the preThreshold should be kept.
+	// We have 1 partition. So, to get an overall flakiness of 10⁻²³,
+	// we need to have each partition pass with 1-10⁻²³ probability (k=23).
+	epsilon, delta, k, l1Sensitivity := 1e9, dpagg.LargestRepresentableDelta, 23.0, 2.0
+	spec, err := NewPrivacySpecTemp(PrivacySpecParams{AggregationEpsilon: epsilon, PartitionSelectionEpsilon: epsilon, PartitionSelectionDelta: delta, PreThreshold: 10})
+	if err != nil {
+		t.Fatalf("TestDistinctPerKeyPreThresholding: %v", err)
+	}
+	pcol := MakePrivate(s, col, spec)
+	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
+
+	// Act
+	got := DistinctPerKey(s, pcol, DistinctPerKeyParams{MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}, MaxContributionsPerPartition: 2})
+
+	// Assert
+	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
+		t.Fatalf("TestDistinctPerKeyPreThresholding: %v", err)
+	}
+	if err := ptest.Run(p); err != nil {
+		t.Errorf("TestDistinctPerKeyPreThresholding: DistinctPerKey(%v) = %v, expected %v: %v", col, got, want, err)
+	}
 }

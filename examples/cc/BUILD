@@ -24,9 +24,10 @@ cc_binary(
     deps = [
         ":animals_and_carrots",
         "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/strings:str_format",
-        "@com_google_cc_differential_privacy//base:statusor",
         "@com_google_cc_differential_privacy//proto:util-lib",
         "@com_google_differential_privacy//proto:confidence_interval_cc_proto",
         "@com_google_differential_privacy//proto:data_cc_proto",
@@ -39,12 +40,15 @@ cc_library(
     hdrs = ["animals_and_carrots.h"],
     data = ["animals_and_carrots.csv"],
     deps = [
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@com_google_cc_differential_privacy//algorithms:bounded-mean",
         "@com_google_cc_differential_privacy//algorithms:bounded-sum",
         "@com_google_cc_differential_privacy//algorithms:count",
         "@com_google_cc_differential_privacy//algorithms:quantiles",
-        "@com_google_cc_differential_privacy//base:statusor",
+        "@com_google_cc_differential_privacy//base:status_macros",
         "@com_google_differential_privacy//proto:data_cc_proto",
     ],
 )
@@ -54,7 +58,7 @@ cc_test(
     srcs = ["animals_and_carrots_test.cc"],
     deps = [
         ":animals_and_carrots",
-        "@com_google_cc_differential_privacy//base:status",
+        "@com_google_absl//absl/status",
         "@com_google_cc_differential_privacy//base/testing:status_matchers",
         "@com_google_googletest//:gtest_main",
     ],

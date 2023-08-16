@@ -17,19 +17,16 @@
 #ifndef DIFFERENTIAL_PRIVACY_ALGORITHMS_ALGORITHM_H_
 #define DIFFERENTIAL_PRIVACY_ALGORITHMS_ALGORITHM_H_
 
-#include <algorithm>
+#include <cstdint>
 #include <limits>
 #include <memory>
 #include <optional>
-#include <string>
 #include <utility>
 
-#include <cstdint>
-#include "base/logging.h"
+#include "absl/log/check.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
-#include "absl/strings/str_cat.h"
 #include "algorithms/numerical-mechanisms.h"
 #include "algorithms/util.h"
 #include "proto/util.h"
@@ -235,22 +232,22 @@ class AlgorithmBuilder {
   }
 
  private:
-  absl::optional<double> epsilon_;
-  absl::optional<double> delta_;
-  absl::optional<int> l0_sensitivity_;
-  absl::optional<int> max_contributions_per_partition_;
+  std::optional<double> epsilon_;
+  std::optional<double> delta_;
+  std::optional<int> l0_sensitivity_;
+  std::optional<int> max_contributions_per_partition_;
 
   // The mechanism builder is used to interject custom mechanisms for testing.
   std::unique_ptr<NumericalMechanismBuilder> mechanism_builder_ =
       absl::make_unique<LaplaceMechanism::Builder>();
 
  protected:
-  absl::optional<double> GetEpsilon() const { return epsilon_; }
-  absl::optional<double> GetDelta() const { return delta_; }
-  absl::optional<int> GetMaxPartitionsContributed() const {
+  std::optional<double> GetEpsilon() const { return epsilon_; }
+  std::optional<double> GetDelta() const { return delta_; }
+  std::optional<int> GetMaxPartitionsContributed() const {
     return l0_sensitivity_;
   }
-  absl::optional<int> GetMaxContributionsPerPartition() const {
+  std::optional<int> GetMaxContributionsPerPartition() const {
     return max_contributions_per_partition_;
   }
 

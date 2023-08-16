@@ -435,9 +435,6 @@ TEST_P(GeometricDistributionTest, Distribution) {
       ExpectedCounts(-std::expm1(-bucket_lambda), std::exp(-bucket_lambda),
                      kNumGeometricSamples);
 
-  LOG(INFO) << "COUNTS= " << FirstN<20>(counts);
-  LOG(INFO) << "PMF= " << FirstN<20>(expected_buckets);
-
   for (size_t i = 0; i < expected_buckets.size() && i < counts.size(); i++) {
     ASSERT_NEAR(counts[i], expected_buckets[i],
                 AllowedError(expected_buckets[i]))
@@ -458,9 +455,6 @@ TEST_P(GeometricDistributionTest, Distribution) {
     for (int i = 0; i < counts.size(); ++i) {
       sampled[i / kBigBucketSize] += counts[i];
     }
-
-    LOG(INFO) << "BIG_BUCKET_COUNTS= " << FirstN<20>(sampled);
-    LOG(INFO) << "BIG_BUCKET_PMF= " << FirstN<20>(expected_buckets);
 
     for (size_t i = 0; i < expected_buckets.size() && i < sampled.size(); i++) {
       EXPECT_NEAR(sampled[i], expected_buckets[i],

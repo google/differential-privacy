@@ -21,7 +21,7 @@ cc_library(
     name = "sequence",
     hdrs = ["sequence.h"],
     deps = [
-        "//base:logging",
+        "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/memory",
         "@com_google_absl//absl/random:distributions",
     ],
@@ -47,10 +47,11 @@ cc_library(
         ":sequence",
         "//algorithms:algorithm",
         "//algorithms:util",
-        "//base:logging",
         "//proto:util-lib",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/hash",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
     ],
@@ -60,12 +61,11 @@ cc_library(
     name = "density_estimation",
     hdrs = ["density_estimation.h"],
     deps = [
-        "//base:logging",
+        "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/strings:str_format",
-        "@com_google_cc_differential_privacy//base:status",
     ],
 )
 
@@ -95,9 +95,9 @@ cc_test(
     srcs = ["density_estimation_test.cc"],
     deps = [
         ":density_estimation",
-        "//base:logging",
         "//base/testing:status_matchers",
-        "@com_google_cc_differential_privacy//base:status",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -110,12 +110,12 @@ cc_library(
     deps = [
         "//algorithms:rand",
         "//algorithms:util",
-        "//base:logging",
         "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/random:distributions",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
-        "@com_google_cc_differential_privacy//base:status",
+        "@com_google_cc_differential_privacy//base:status_macros",
         "@com_google_protobuf//:protobuf",
     ],
 )

@@ -691,7 +691,6 @@ TEST_P(NoiseIntervalMultipleParametersTests, GaussNoiseConfidenceInterval) {
   double true_upper_bound = params.result - params.true_bound;
 
   GaussianMechanism mechanism(epsilon, delta, sensitivity);
-  LOG(INFO) << mechanism.CalculateStddev();
   absl::StatusOr<ConfidenceInterval> confidence_interval =
       mechanism.NoiseConfidenceInterval(conf_level, result);
 

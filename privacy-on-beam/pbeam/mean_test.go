@@ -65,17 +65,14 @@ func TestNewBoundedMeanFn(t *testing.T) {
 				NoiseKind:                    noise.GaussianNoise,
 			}},
 	} {
-		got, err := newBoundedMeanFn(boundedMeanFnParams{
-			epsilon:                      1,
-			delta:                        1e-5,
-			maxPartitionsContributed:     17,
-			maxContributionsPerPartition: 5,
-			minValue:                     0,
-			maxValue:                     10,
-			noiseKind:                    tc.noiseKind,
-			publicPartitions:             false,
-			testMode:                     Disabled,
-			emptyPartitions:              false})
+		got, err := newBoundedMeanFn(MeanParams{
+			Epsilon:                      1,
+			Delta:                        1e-5,
+			MaxPartitionsContributed:     17,
+			MaxContributionsPerPartition: 5,
+			MinValue:                     0,
+			MaxValue:                     10,
+		}, tc.noiseKind, false, Disabled, false)
 		if err != nil {
 			t.Fatalf("Couldn't get newBoundedMeanFn: %v", err)
 		}
@@ -99,9 +96,10 @@ func TestNewBoundedMeanFnTemp(t *testing.T) {
 		aggregationDelta          float64
 		partitionSelectionEpsilon float64
 		partitionSelectionDelta   float64
+		preThreshold              int64
 		want                      *boundedMeanFn
 	}{
-		{"Laplace noise kind", noise.LaplaceNoise, 1.0, 0, 1.0, 1e-5,
+		{"Laplace noise kind", noise.LaplaceNoise, 1.0, 0, 1.0, 1e-5, 0,
 			&boundedMeanFn{
 				NoiseEpsilon:                 1.0,
 				NoiseDelta:                   0,
@@ -113,7 +111,7 @@ func TestNewBoundedMeanFnTemp(t *testing.T) {
 				Upper:                        10,
 				NoiseKind:                    noise.LaplaceNoise,
 			}},
-		{"Gaussian noise kind", noise.GaussianNoise, 1.0, 1e-5, 1.0, 1e-5,
+		{"Gaussian noise kind", noise.GaussianNoise, 1.0, 1e-5, 1.0, 1e-5, 0,
 			&boundedMeanFn{
 				NoiseEpsilon:                 1.0,
 				NoiseDelta:                   1e-5,
@@ -125,20 +123,30 @@ func TestNewBoundedMeanFnTemp(t *testing.T) {
 				Upper:                        10,
 				NoiseKind:                    noise.GaussianNoise,
 			}},
+		{"PreThreshold set", noise.GaussianNoise, 1.0, 1e-5, 1.0, 1e-5, 10,
+			&boundedMeanFn{
+				NoiseEpsilon:                 1.0,
+				NoiseDelta:                   1e-5,
+				PartitionSelectionEpsilon:    1.0,
+				PartitionSelectionDelta:      1e-5,
+				PreThreshold:                 10,
+				MaxPartitionsContributed:     17,
+				MaxContributionsPerPartition: 5,
+				Lower:                        0,
+				Upper:                        10,
+				NoiseKind:                    noise.GaussianNoise,
+			}},
 	} {
-		got, err := newBoundedMeanFnTemp(boundedMeanFnParams{
-			aggregationEpsilon:           tc.aggregationEpsilon,
-			aggregationDelta:             tc.aggregationDelta,
-			partitionSelectionEpsilon:    tc.partitionSelectionEpsilon,
-			partitionSelectionDelta:      tc.partitionSelectionDelta,
-			maxPartitionsContributed:     17,
-			maxContributionsPerPartition: 5,
-			minValue:                     0,
-			maxValue:                     10,
-			noiseKind:                    tc.noiseKind,
-			publicPartitions:             false,
-			testMode:                     Disabled,
-			emptyPartitions:              false})
+		got, err := newBoundedMeanFnTemp(PrivacySpec{preThreshold: tc.preThreshold, testMode: Disabled},
+			MeanParams{
+				AggregationEpsilon:           tc.aggregationEpsilon,
+				AggregationDelta:             tc.aggregationDelta,
+				PartitionSelectionParams:     PartitionSelectionParams{tc.partitionSelectionEpsilon, tc.partitionSelectionDelta},
+				MaxPartitionsContributed:     17,
+				MaxContributionsPerPartition: 5,
+				MinValue:                     0,
+				MaxValue:                     10,
+			}, tc.noiseKind, false, false)
 		if err != nil {
 			t.Fatalf("Couldn't get newBoundedMeanFn: %v", err)
 		}
@@ -156,17 +164,14 @@ func TestBoundedMeanFnSetup(t *testing.T) {
 	}{
 		{"Laplace noise kind", noise.LaplaceNoise, noise.Laplace()},
 		{"Gaussian noise kind", noise.GaussianNoise, noise.Gaussian()}} {
-		got, err := newBoundedMeanFn(boundedMeanFnParams{
-			epsilon:                      1,
-			delta:                        1e-5,
-			maxPartitionsContributed:     17,
-			maxContributionsPerPartition: 5,
-			minValue:                     0,
-			maxValue:                     10,
-			noiseKind:                    tc.noiseKind,
-			publicPartitions:             false,
-			testMode:                     Disabled,
-			emptyPartitions:              false})
+		got, err := newBoundedMeanFn(MeanParams{
+			Epsilon:                      1,
+			Delta:                        1e-5,
+			MaxPartitionsContributed:     17,
+			MaxContributionsPerPartition: 5,
+			MinValue:                     0,
+			MaxValue:                     10,
+		}, tc.noiseKind, false, Disabled, false)
 		if err != nil {
 			t.Fatalf("Couldn't get newBoundedMeanFn: %v", err)
 		}
@@ -187,17 +192,14 @@ func TestBoundedMeanFnAddInput(t *testing.T) {
 	minValue := 0.0
 	maxValue := 5.0
 	// ε is split by 2 for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
-	fn, err := newBoundedMeanFn(boundedMeanFnParams{
-		epsilon:                      2 * epsilon,
-		delta:                        delta,
-		maxPartitionsContributed:     maxPartitionsContributed,
-		maxContributionsPerPartition: maxContributionsPerPartition,
-		minValue:                     minValue,
-		maxValue:                     maxValue,
-		noiseKind:                    noise.LaplaceNoise,
-		publicPartitions:             false,
-		testMode:                     Disabled,
-		emptyPartitions:              false})
+	fn, err := newBoundedMeanFn(MeanParams{
+		Epsilon:                      2 * epsilon,
+		Delta:                        delta,
+		MaxPartitionsContributed:     maxPartitionsContributed,
+		MaxContributionsPerPartition: maxContributionsPerPartition,
+		MinValue:                     minValue,
+		MaxValue:                     maxValue,
+	}, noise.LaplaceNoise, false, Disabled, false)
 	if err != nil {
 		t.Fatalf("Couldn't get newBoundedMeanFn: %v", err)
 	}
@@ -237,17 +239,14 @@ func TestBoundedMeanFnMergeAccumulators(t *testing.T) {
 	minValue := 0.0
 	maxValue := 5.0
 	// ε is split by 2 for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
-	fn, err := newBoundedMeanFn(boundedMeanFnParams{
-		epsilon:                      2 * epsilon,
-		delta:                        delta,
-		maxPartitionsContributed:     maxPartitionsContributed,
-		maxContributionsPerPartition: maxContributionsPerPartition,
-		minValue:                     minValue,
-		maxValue:                     maxValue,
-		noiseKind:                    noise.LaplaceNoise,
-		publicPartitions:             false,
-		testMode:                     Disabled,
-		emptyPartitions:              false})
+	fn, err := newBoundedMeanFn(MeanParams{
+		Epsilon:                      2 * epsilon,
+		Delta:                        delta,
+		MaxPartitionsContributed:     maxPartitionsContributed,
+		MaxContributionsPerPartition: maxContributionsPerPartition,
+		MinValue:                     minValue,
+		MaxValue:                     maxValue,
+	}, noise.LaplaceNoise, false, Disabled, false)
 	if err != nil {
 		t.Fatalf("Couldn't get newBoundedMeanFn: %v", err)
 	}
@@ -296,17 +295,14 @@ func TestBoundedMeanFnExtractOutputReturnsNilForSmallPartitions(t *testing.T) {
 	} {
 		// The choice of ε=1e100, δ=10⁻²³, and l0Sensitivity=1 gives a threshold of =2.
 		// ε is split by 2 for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
-		fn, err := newBoundedMeanFn(boundedMeanFnParams{
-			epsilon:                      2 * 1e100,
-			delta:                        1e-23,
-			maxPartitionsContributed:     1,
-			maxContributionsPerPartition: 1,
-			minValue:                     0,
-			maxValue:                     10,
-			noiseKind:                    noise.LaplaceNoise,
-			publicPartitions:             false,
-			testMode:                     Disabled,
-			emptyPartitions:              false})
+		fn, err := newBoundedMeanFn(MeanParams{
+			Epsilon:                      2 * 1e100,
+			Delta:                        1e-23,
+			MaxPartitionsContributed:     1,
+			MaxContributionsPerPartition: 1,
+			MinValue:                     0,
+			MaxValue:                     10,
+		}, noise.LaplaceNoise, false, Disabled, false)
 		if err != nil {
 			t.Fatalf("Couldn't get newBoundedMeanFn: %v", err)
 		}
@@ -344,17 +340,13 @@ func TestBoundedMeanFnWithPartitionsExtractOutputDoesNotReturnNilForSmallPartiti
 		{"Empty input", 0, 0},
 		{"Input with 1 user with 1 contribution", 1, 1},
 	} {
-		fn, err := newBoundedMeanFn(boundedMeanFnParams{
-			epsilon:                      1e100,
-			delta:                        0,
-			maxPartitionsContributed:     1,
-			maxContributionsPerPartition: 1,
-			minValue:                     0,
-			maxValue:                     10,
-			noiseKind:                    noise.LaplaceNoise,
-			publicPartitions:             true,
-			testMode:                     Disabled,
-			emptyPartitions:              false})
+		fn, err := newBoundedMeanFn(MeanParams{
+			Epsilon:                      1e100,
+			MaxPartitionsContributed:     1,
+			MaxContributionsPerPartition: 1,
+			MinValue:                     0,
+			MaxValue:                     10,
+		}, noise.LaplaceNoise, true, Disabled, false)
 		if err != nil {
 			t.Fatalf("Couldn't get newBoundedMeanFn: %v", err)
 		}
@@ -1468,279 +1460,407 @@ func TestMeanPerKeyWithEmptyPartitionsNoNoise(t *testing.T) {
 func TestCheckMeanPerKeyParams(t *testing.T) {
 	_, _, publicPartitions := ptest.CreateList([]int{0, 1})
 	for _, tc := range []struct {
-		desc                      string
-		usesNewPrivacyBudgetAPI   bool
-		epsilon                   float64
-		delta                     float64
-		aggregationEpsilon        float64
-		aggregationDelta          float64
-		partitionSelectionEpsilon float64
-		partitionSelectionDelta   float64
-		noiseKind                 noise.Kind
-		params                    MeanParams
-		partitionType             reflect.Type
-		wantErr                   bool
+		desc                    string
+		params                  MeanParams
+		usesNewPrivacyBudgetAPI bool
+		noiseKind               noise.Kind
+		partitionType           reflect.Type
+		wantErr                 bool
 	}{
 		{
-			desc:          "valid parameters",
-			epsilon:       1.0,
-			delta:         1e-5,
+			desc: "valid parameters",
+			params: MeanParams{
+				Epsilon:                      1.0,
+				Delta:                        1e-5,
+				MaxPartitionsContributed:     1,
+				MaxContributionsPerPartition: 1,
+				MinValue:                     -5.0,
+				MaxValue:                     5.0,
+			},
 			noiseKind:     noise.LaplaceNoise,
-			params:        MeanParams{MaxContributionsPerPartition: 1, MinValue: -5.0, MaxValue: 5.0},
 			partitionType: nil,
 			wantErr:       false,
 		},
 		{
-			desc:          "negative epsilon",
-			epsilon:       -1.0,
-			delta:         1e-5,
+			desc: "negative epsilon",
+			params: MeanParams{
+				Epsilon:                      -1.0,
+				Delta:                        1e-5,
+				MaxPartitionsContributed:     1,
+				MaxContributionsPerPartition: 1,
+				MinValue:                     -5.0,
+				MaxValue:                     5.0,
+			},
 			noiseKind:     noise.LaplaceNoise,
-			params:        MeanParams{MaxContributionsPerPartition: 1, MinValue: -5.0, MaxValue: 5.0},
 			partitionType: nil,
 			wantErr:       true,
 		},
 		{
-			desc:          "zero delta w/o public partitions",
-			epsilon:       1.0,
-			delta:         0.0,
+			desc: "zero delta w/o public partitions",
+			params: MeanParams{
+				Epsilon:                      1.0,
+				MaxPartitionsContributed:     1,
+				MaxContributionsPerPartition: 1,
+				MinValue:                     -5.0,
+				MaxValue:                     5.0,
+			},
 			noiseKind:     noise.LaplaceNoise,
-			params:        MeanParams{MaxContributionsPerPartition: 1, MinValue: -5.0, MaxValue: 5.0},
 			partitionType: nil,
 			wantErr:       true,
 		},
 		{
-			desc:          "MaxValue < MinValue",
-			epsilon:       1.0,
-			delta:         1e-5,
+			desc: "MaxValue < MinValue",
+			params: MeanParams{
+				Epsilon:                      1.0,
+				Delta:                        1e-5,
+				MaxPartitionsContributed:     1,
+				MaxContributionsPerPartition: 1,
+				MinValue:                     6.0,
+				MaxValue:                     5.0,
+			},
 			noiseKind:     noise.LaplaceNoise,
-			params:        MeanParams{MaxContributionsPerPartition: 1, MinValue: 6.0, MaxValue: 5.0},
 			partitionType: nil,
 			wantErr:       true,
 		},
 		{
-			desc:          "MaxValue = MinValue",
-			epsilon:       1.0,
-			delta:         1e-5,
+			desc: "MaxValue = MinValue",
+			params: MeanParams{
+				Epsilon:                      1.0,
+				Delta:                        1e-5,
+				MaxPartitionsContributed:     1,
+				MaxContributionsPerPartition: 1,
+				MinValue:                     5.0,
+				MaxValue:                     5.0,
+			},
 			noiseKind:     noise.LaplaceNoise,
-			params:        MeanParams{MaxContributionsPerPartition: 1, MinValue: 5.0, MaxValue: 5.0},
 			partitionType: nil,
 			wantErr:       true,
 		},
 		{
-			desc:          "zero MaxContributionsPerPartition",
-			epsilon:       1.0,
-			delta:         1e-5,
+			desc: "zero MaxContributionsPerPartition",
+			params: MeanParams{
+				Epsilon:                  1.0,
+				Delta:                    1e-5,
+				MaxPartitionsContributed: 1,
+				MinValue:                 -5.0,
+				MaxValue:                 5.0,
+			},
 			noiseKind:     noise.LaplaceNoise,
-			params:        MeanParams{MaxContributionsPerPartition: 0, MinValue: 5.0, MaxValue: 5.0},
 			partitionType: nil,
 			wantErr:       true,
 		},
 		{
-			desc:          "non-zero delta w/ public partitions & Laplace",
-			epsilon:       1.0,
-			delta:         1e-5,
+			desc: "zero MaxPartitionsContributed",
+			params: MeanParams{
+				Epsilon:                      1.0,
+				Delta:                        1e-5,
+				MaxContributionsPerPartition: 1,
+				MinValue:                     -5.0,
+				MaxValue:                     5.0,
+			},
 			noiseKind:     noise.LaplaceNoise,
-			params:        MeanParams{MaxContributionsPerPartition: 1, MinValue: -5.0, MaxValue: 5.0, PublicPartitions: publicPartitions},
+			partitionType: nil,
+			wantErr:       true,
+		},
+		{
+			desc: "non-zero delta w/ public partitions & Laplace",
+			params: MeanParams{
+				Epsilon:                      1.0,
+				Delta:                        1e-5,
+				MaxPartitionsContributed:     1,
+				MaxContributionsPerPartition: 1,
+				MinValue:                     -5.0,
+				MaxValue:                     5.0,
+				PublicPartitions:             publicPartitions,
+			},
+			noiseKind:     noise.LaplaceNoise,
 			partitionType: reflect.TypeOf(0),
 			wantErr:       true,
 		},
 		{
-			desc:          "wrong partition type w/ public partitions as beam.PCollection",
-			epsilon:       1.0,
-			delta:         1e-5,
+			desc: "wrong partition type w/ public partitions as beam.PCollection",
+			params: MeanParams{
+				Epsilon:                      1.0,
+				MaxPartitionsContributed:     1,
+				MaxContributionsPerPartition: 1,
+				MinValue:                     -5.0,
+				MaxValue:                     5.0,
+				PublicPartitions:             publicPartitions,
+			},
 			noiseKind:     noise.LaplaceNoise,
-			params:        MeanParams{MaxContributionsPerPartition: 1, MinValue: -5.0, MaxValue: 5.0, PublicPartitions: publicPartitions},
 			partitionType: reflect.TypeOf(""),
 			wantErr:       true,
 		},
 		{
-			desc:          "wrong partition type w/ public partitions as slice",
-			epsilon:       1.0,
-			delta:         1e-5,
+			desc: "wrong partition type w/ public partitions as slice",
+			params: MeanParams{
+				Epsilon:                      1.0,
+				MaxPartitionsContributed:     1,
+				MaxContributionsPerPartition: 1,
+				MinValue:                     -5.0,
+				MaxValue:                     5.0,
+				PublicPartitions:             []int{0},
+			},
 			noiseKind:     noise.LaplaceNoise,
-			params:        MeanParams{MaxContributionsPerPartition: 1, MinValue: -5.0, MaxValue: 5.0, PublicPartitions: []int{0}},
 			partitionType: reflect.TypeOf(""),
 			wantErr:       true,
 		},
 		{
-			desc:          "wrong partition type w/ public partitions as array",
-			epsilon:       1.0,
-			delta:         1e-5,
+			desc: "wrong partition type w/ public partitions as array",
+			params: MeanParams{
+				Epsilon:                      1.0,
+				MaxPartitionsContributed:     1,
+				MaxContributionsPerPartition: 1,
+				MinValue:                     -5.0,
+				MaxValue:                     5.0,
+				PublicPartitions:             [1]int{0},
+			},
 			noiseKind:     noise.LaplaceNoise,
-			params:        MeanParams{MaxContributionsPerPartition: 1, MinValue: -5.0, MaxValue: 5.0, PublicPartitions: [1]int{0}},
 			partitionType: reflect.TypeOf(""),
 			wantErr:       true,
 		},
 		{
-			desc:          "public partitions as something other than beam.PCollection, slice or array",
-			epsilon:       1,
-			delta:         0,
+			desc: "public partitions as something other than beam.PCollection, slice or array",
+			params: MeanParams{
+				Epsilon:                      1.0,
+				MaxPartitionsContributed:     1,
+				MaxContributionsPerPartition: 1,
+				MinValue:                     -5.0,
+				MaxValue:                     5.0,
+				PublicPartitions:             "",
+			},
 			noiseKind:     noise.LaplaceNoise,
-			params:        MeanParams{MaxContributionsPerPartition: 1, MinValue: -5.0, MaxValue: 5.0, PublicPartitions: ""},
 			partitionType: reflect.TypeOf(""),
 			wantErr:       true,
 		},
 		// Test cases for the new privacy budget API.
 		{
-			desc:                      "new API, valid parameters",
-			usesNewPrivacyBudgetAPI:   true,
-			aggregationEpsilon:        1.0,
-			aggregationDelta:          0,
-			partitionSelectionEpsilon: 1.0,
-			partitionSelectionDelta:   1e-5,
-			noiseKind:                 noise.LaplaceNoise,
-			params:                    MeanParams{MaxContributionsPerPartition: 1, MinValue: -5.0, MaxValue: 5.0},
-			partitionType:             nil,
-			wantErr:                   false,
-		},
-		{
-			desc:                      "new API, negative aggregationEpsilon",
-			usesNewPrivacyBudgetAPI:   true,
-			aggregationEpsilon:        -1.0,
-			aggregationDelta:          0,
-			partitionSelectionEpsilon: 1.0,
-			partitionSelectionDelta:   1e-5,
-			noiseKind:                 noise.LaplaceNoise,
-			params:                    MeanParams{MaxContributionsPerPartition: 1, MinValue: -5.0, MaxValue: 5.0},
-			partitionType:             nil,
-			wantErr:                   true,
-		},
-		{
-			desc:                      "new API, negative partitionSelectionEpsilon",
-			usesNewPrivacyBudgetAPI:   true,
-			aggregationEpsilon:        1.0,
-			aggregationDelta:          0,
-			partitionSelectionEpsilon: -1.0,
-			partitionSelectionDelta:   1e-5,
-			noiseKind:                 noise.LaplaceNoise,
-			params:                    MeanParams{MaxContributionsPerPartition: 1, MinValue: -5.0, MaxValue: 5.0},
-			partitionType:             nil,
-			wantErr:                   true,
-		},
-		{
-			desc:                      "new API, zero partitionSelectionDelta w/o public partitions",
-			usesNewPrivacyBudgetAPI:   true,
-			aggregationEpsilon:        1.0,
-			aggregationDelta:          0,
-			partitionSelectionEpsilon: 1.0,
-			partitionSelectionDelta:   0,
-			noiseKind:                 noise.LaplaceNoise,
-			params:                    MeanParams{MaxContributionsPerPartition: 1, MinValue: -5.0, MaxValue: 5.0},
-			partitionType:             nil,
-			wantErr:                   true,
-		},
-		{
-			desc:                      "new API, zero partitionSelectionEpsilon w/o public partitions",
-			usesNewPrivacyBudgetAPI:   true,
-			aggregationEpsilon:        1.0,
-			aggregationDelta:          0,
-			partitionSelectionEpsilon: 0,
-			partitionSelectionDelta:   1e-5,
-			noiseKind:                 noise.LaplaceNoise,
-			params:                    MeanParams{MaxContributionsPerPartition: 1, MinValue: -5.0, MaxValue: 5.0},
-			partitionType:             nil,
-			wantErr:                   true,
-		},
-		{
-			desc:                      "new API, MaxValue < MinValue",
-			usesNewPrivacyBudgetAPI:   true,
-			aggregationEpsilon:        1.0,
-			aggregationDelta:          0,
-			partitionSelectionEpsilon: 1.0,
-			partitionSelectionDelta:   1e-5,
-			noiseKind:                 noise.LaplaceNoise,
-			params:                    MeanParams{MaxContributionsPerPartition: 1, MinValue: 6.0, MaxValue: 5.0},
-			partitionType:             nil,
-			wantErr:                   true,
-		},
-		{
-			desc:                      "new API, MaxValue = MinValue",
-			usesNewPrivacyBudgetAPI:   true,
-			aggregationEpsilon:        1.0,
-			aggregationDelta:          0,
-			partitionSelectionEpsilon: 1.0,
-			partitionSelectionDelta:   1e-5,
-			noiseKind:                 noise.LaplaceNoise,
-			params:                    MeanParams{MaxContributionsPerPartition: 1, MinValue: 5.0, MaxValue: 5.0},
-			partitionType:             nil,
-			wantErr:                   true,
-		},
-		{
-			desc:                      "new API, zero MaxContributionsPerPartition",
-			usesNewPrivacyBudgetAPI:   true,
-			aggregationEpsilon:        1.0,
-			aggregationDelta:          0,
-			partitionSelectionEpsilon: 1.0,
-			partitionSelectionDelta:   1e-5,
-			noiseKind:                 noise.LaplaceNoise,
-			params:                    MeanParams{MaxContributionsPerPartition: 0, MinValue: 5.0, MaxValue: 5.0},
-			partitionType:             nil,
-			wantErr:                   true,
-		},
-		{
-			desc:                    "new API, non-zero partitionSelectionDelta w/ public partitions",
+			desc: "new API, valid parameters",
+			params: MeanParams{
+				AggregationEpsilon:           1.0,
+				PartitionSelectionParams:     PartitionSelectionParams{1.0, 1e-5},
+				MaxPartitionsContributed:     1,
+				MaxContributionsPerPartition: 1,
+				MinValue:                     -5.0,
+				MaxValue:                     5.0,
+			},
 			usesNewPrivacyBudgetAPI: true,
-			aggregationEpsilon:      1.0,
-			aggregationDelta:        0,
-			partitionSelectionDelta: 1e-5,
 			noiseKind:               noise.LaplaceNoise,
-			params:                  MeanParams{MaxContributionsPerPartition: 1, MinValue: -5.0, MaxValue: 5.0, PublicPartitions: publicPartitions},
+			partitionType:           nil,
+			wantErr:                 false,
+		},
+		{
+			desc: "new API, negative aggregationEpsilon",
+			params: MeanParams{
+				AggregationEpsilon:           -1.0,
+				PartitionSelectionParams:     PartitionSelectionParams{1.0, 1e-5},
+				MaxPartitionsContributed:     1,
+				MaxContributionsPerPartition: 1,
+				MinValue:                     -5.0,
+				MaxValue:                     5.0,
+			},
+			usesNewPrivacyBudgetAPI: true,
+			noiseKind:               noise.LaplaceNoise,
+			partitionType:           nil,
+			wantErr:                 true,
+		},
+		{
+			desc: "new API, negative partitionSelectionEpsilon",
+			params: MeanParams{
+				AggregationEpsilon:           1.0,
+				PartitionSelectionParams:     PartitionSelectionParams{-1.0, 1e-5},
+				MaxPartitionsContributed:     1,
+				MaxContributionsPerPartition: 1,
+				MinValue:                     -5.0,
+				MaxValue:                     5.0,
+			},
+			usesNewPrivacyBudgetAPI: true,
+			noiseKind:               noise.LaplaceNoise,
+			partitionType:           nil,
+			wantErr:                 true,
+		},
+		{
+			desc: "new API, zero partitionSelectionDelta w/o public partitions",
+			params: MeanParams{
+				AggregationEpsilon:           1.0,
+				PartitionSelectionParams:     PartitionSelectionParams{1.0, 0},
+				MaxPartitionsContributed:     1,
+				MaxContributionsPerPartition: 1,
+				MinValue:                     -5.0,
+				MaxValue:                     5.0,
+			},
+			usesNewPrivacyBudgetAPI: true,
+			noiseKind:               noise.LaplaceNoise,
+			partitionType:           nil,
+			wantErr:                 true,
+		},
+		{
+			desc: "new API, zero partitionSelectionEpsilon w/o public partitions",
+			params: MeanParams{
+				AggregationEpsilon:           1.0,
+				PartitionSelectionParams:     PartitionSelectionParams{0, 1e-5},
+				MaxPartitionsContributed:     1,
+				MaxContributionsPerPartition: 1,
+				MinValue:                     -5.0,
+				MaxValue:                     5.0,
+			},
+			usesNewPrivacyBudgetAPI: true,
+			noiseKind:               noise.LaplaceNoise,
+			partitionType:           nil,
+			wantErr:                 true,
+		},
+		{
+			desc: "new API, MaxValue < MinValue",
+			params: MeanParams{
+				AggregationEpsilon:           1.0,
+				PartitionSelectionParams:     PartitionSelectionParams{1.0, 1e-5},
+				MaxPartitionsContributed:     1,
+				MaxContributionsPerPartition: 1,
+				MinValue:                     6.0,
+				MaxValue:                     5.0,
+			},
+			usesNewPrivacyBudgetAPI: true,
+			noiseKind:               noise.LaplaceNoise,
+			partitionType:           nil,
+			wantErr:                 true,
+		},
+		{
+			desc: "new API, MaxValue = MinValue",
+			params: MeanParams{
+				AggregationEpsilon:           1.0,
+				PartitionSelectionParams:     PartitionSelectionParams{1.0, 1e-5},
+				MaxPartitionsContributed:     1,
+				MaxContributionsPerPartition: 1,
+				MinValue:                     5.0,
+				MaxValue:                     5.0,
+			},
+			usesNewPrivacyBudgetAPI: true,
+			noiseKind:               noise.LaplaceNoise,
+			partitionType:           nil,
+			wantErr:                 true,
+		},
+		{
+			desc: "new API, zero MaxContributionsPerPartition",
+			params: MeanParams{
+				AggregationEpsilon:       1.0,
+				PartitionSelectionParams: PartitionSelectionParams{1.0, 1e-5},
+				MaxPartitionsContributed: 1,
+				MinValue:                 -5.0,
+				MaxValue:                 5.0,
+			},
+			usesNewPrivacyBudgetAPI: true,
+			noiseKind:               noise.LaplaceNoise,
+			partitionType:           nil,
+			wantErr:                 true,
+		},
+		{
+			desc: "new API, zero MaxPartitionsContributed",
+			params: MeanParams{
+				AggregationEpsilon:           1.0,
+				PartitionSelectionParams:     PartitionSelectionParams{1.0, 1e-5},
+				MaxContributionsPerPartition: 1,
+				MinValue:                     -5.0,
+				MaxValue:                     5.0,
+			},
+			usesNewPrivacyBudgetAPI: true,
+			noiseKind:               noise.LaplaceNoise,
+			partitionType:           nil,
+			wantErr:                 true,
+		},
+		{
+			desc: "new API, non-zero partitionSelectionDelta w/ public partitions",
+			params: MeanParams{
+				AggregationEpsilon:           1.0,
+				PartitionSelectionParams:     PartitionSelectionParams{0, 1e-5},
+				MaxPartitionsContributed:     1,
+				MaxContributionsPerPartition: 1,
+				MinValue:                     -5.0,
+				MaxValue:                     5.0,
+				PublicPartitions:             publicPartitions,
+			},
+			usesNewPrivacyBudgetAPI: true,
+			noiseKind:               noise.LaplaceNoise,
 			partitionType:           reflect.TypeOf(0),
 			wantErr:                 true,
 		},
 		{
-			desc:                      "new API, non-zero partitionSelectionEpsilon w/ public partitions",
-			usesNewPrivacyBudgetAPI:   true,
-			aggregationEpsilon:        1.0,
-			aggregationDelta:          0,
-			partitionSelectionEpsilon: 1.0,
-			noiseKind:                 noise.LaplaceNoise,
-			params:                    MeanParams{MaxContributionsPerPartition: 1, MinValue: -5.0, MaxValue: 5.0, PublicPartitions: publicPartitions},
-			partitionType:             reflect.TypeOf(0),
-			wantErr:                   true,
+			desc: "new API, non-zero partitionSelectionEpsilon w/ public partitions",
+			params: MeanParams{
+				AggregationEpsilon:           1.0,
+				PartitionSelectionParams:     PartitionSelectionParams{1.0, 0},
+				MaxPartitionsContributed:     1,
+				MaxContributionsPerPartition: 1,
+				MinValue:                     -5.0,
+				MaxValue:                     5.0,
+				PublicPartitions:             publicPartitions,
+			},
+			usesNewPrivacyBudgetAPI: true,
+			noiseKind:               noise.LaplaceNoise,
+			partitionType:           reflect.TypeOf(0),
+			wantErr:                 true,
 		},
 		{
-			desc:                    "new API, wrong partition type w/ public partitions as beam.PCollection",
+			desc: "new API, wrong partition type w/ public partitions as beam.PCollection",
+			params: MeanParams{
+				AggregationEpsilon:           1.0,
+				MaxPartitionsContributed:     1,
+				MaxContributionsPerPartition: 1,
+				MinValue:                     -5.0,
+				MaxValue:                     5.0,
+				PublicPartitions:             publicPartitions,
+			},
 			usesNewPrivacyBudgetAPI: true,
-			aggregationEpsilon:      1.0,
-			aggregationDelta:        0,
 			noiseKind:               noise.LaplaceNoise,
-			params:                  MeanParams{MaxContributionsPerPartition: 1, MinValue: -5.0, MaxValue: 5.0, PublicPartitions: publicPartitions},
 			partitionType:           reflect.TypeOf(""),
 			wantErr:                 true,
 		},
 		{
-			desc:                    "new API, wrong partition type w/ public partitions as slice",
+			desc: "new API, wrong partition type w/ public partitions as slice",
+			params: MeanParams{
+				AggregationEpsilon:           1.0,
+				MaxPartitionsContributed:     1,
+				MaxContributionsPerPartition: 1,
+				MinValue:                     -5.0,
+				MaxValue:                     5.0,
+				PublicPartitions:             []int{0},
+			},
 			usesNewPrivacyBudgetAPI: true,
-			aggregationEpsilon:      1.0,
-			aggregationDelta:        0,
 			noiseKind:               noise.LaplaceNoise,
-			params:                  MeanParams{MaxContributionsPerPartition: 1, MinValue: -5.0, MaxValue: 5.0, PublicPartitions: []int{0}},
 			partitionType:           reflect.TypeOf(""),
 			wantErr:                 true,
 		},
 		{
-			desc:                    "new API, wrong partition type w/ public partitions as array",
+			desc: "new API, wrong partition type w/ public partitions as array",
+			params: MeanParams{
+				AggregationEpsilon:           1.0,
+				MaxPartitionsContributed:     1,
+				MaxContributionsPerPartition: 1,
+				MinValue:                     -5.0,
+				MaxValue:                     5.0,
+				PublicPartitions:             [1]int{0},
+			},
 			usesNewPrivacyBudgetAPI: true,
-			aggregationEpsilon:      1.0,
-			aggregationDelta:        0,
 			noiseKind:               noise.LaplaceNoise,
-			params:                  MeanParams{MaxContributionsPerPartition: 1, MinValue: -5.0, MaxValue: 5.0, PublicPartitions: [1]int{0}},
 			partitionType:           reflect.TypeOf(""),
 			wantErr:                 true,
 		},
 		{
-			desc:                    "new API, public partitions as something other than beam.PCollection, slice or array",
+			desc: "new API, public partitions as something other than beam.PCollection, slice or array",
+			params: MeanParams{
+				AggregationEpsilon:           1.0,
+				MaxPartitionsContributed:     1,
+				MaxContributionsPerPartition: 1,
+				MinValue:                     -5.0,
+				MaxValue:                     5.0,
+				PublicPartitions:             "",
+			},
 			usesNewPrivacyBudgetAPI: true,
-			aggregationEpsilon:      1.0,
-			aggregationDelta:        0,
 			noiseKind:               noise.LaplaceNoise,
-			params:                  MeanParams{MaxContributionsPerPartition: 1, MinValue: -5.0, MaxValue: 5.0, PublicPartitions: ""},
 			partitionType:           reflect.TypeOf(""),
 			wantErr:                 true,
 		},
 	} {
-		if err := checkMeanPerKeyParams(tc.params, tc.usesNewPrivacyBudgetAPI, tc.aggregationEpsilon, tc.aggregationDelta, tc.partitionSelectionEpsilon, tc.partitionSelectionDelta, tc.epsilon, tc.delta, tc.noiseKind, tc.partitionType); (err != nil) != tc.wantErr {
+		if err := checkMeanPerKeyParams(tc.params, tc.usesNewPrivacyBudgetAPI, tc.noiseKind, tc.partitionType); (err != nil) != tc.wantErr {
 			t.Errorf("With %s, got=%v, wantErr=%t", tc.desc, err, tc.wantErr)
 		}
 	}
@@ -1872,6 +1992,7 @@ func TestMeanPerKeyWithPartitionsNoNoiseIntTemp(t *testing.T) {
 
 		p, s, col, want := ptest.CreateList2(triples, result)
 		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithIntValue, col)
+		want = beam.ParDo(s, testutils.PairIF64ToKV, want)
 
 		var publicPartitions any
 		if tc.inMemory {
@@ -1879,8 +2000,6 @@ func TestMeanPerKeyWithPartitionsNoNoiseIntTemp(t *testing.T) {
 		} else {
 			publicPartitions = beam.CreateList(s, publicPartitionsSlice)
 		}
-
-		// Act
 		spec, err := NewPrivacySpecTemp(PrivacySpecParams{AggregationEpsilon: epsilon, AggregationDelta: 0})
 		if err != nil {
 			t.Fatalf("TestMeanPerKeyWithPartitionsNoNoiseIntTemp: %v", err)
@@ -1895,8 +2014,9 @@ func TestMeanPerKeyWithPartitionsNoNoiseIntTemp(t *testing.T) {
 			NoiseKind:                    LaplaceNoise{},
 			PublicPartitions:             publicPartitions,
 		}
+
+		// Act
 		got := MeanPerKey(s, pcol, meanParams)
-		want = beam.ParDo(s, testutils.PairIF64ToKV, want)
 
 		// Assert
 		exactNormalizedSum := (1.0-(tc.maxValue+tc.minValue)/2)*100 + (2.0-(tc.maxValue+tc.minValue)/2)*150

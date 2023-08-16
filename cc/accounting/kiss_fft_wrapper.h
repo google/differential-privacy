@@ -13,12 +13,12 @@
 // limitations under the License.
 #ifndef DIFFERENTIAL_PRIVACY_ACCOUNTING_CPP_KISS_FFT_WRAPPER_H_
 #define DIFFERENTIAL_PRIVACY_ACCOUNTING_CPP_KISS_FFT_WRAPPER_H_
-#define ABSL_DIE_IF_NULL CHECK_NOTNULL
 
 #include <cmath>
 #include <complex>
 
-#include "glog/logging.h"
+#include "absl/log/check.h"
+#include "absl/log/die_if_null.h"
 #include "kissfft/kiss_fft.h"
 #include "kissfft/kiss_fftr.h"
 

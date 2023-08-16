@@ -18,41 +18,39 @@
 #include "base/status_macros.h"
 
 #include <memory>
-#include <string>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/base/attributes.h"
 #include "absl/memory/memory.h"
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
-#include "base/status.h"
-#include "base/statusor.h"
 
 namespace differential_privacy {
 namespace base {
 namespace {
 
-using ::testing::AllOf;
-using ::testing::HasSubstr;
 using ::testing::Eq;
 
-Status ReturnOk() { return OkStatus(); }
+absl::Status ReturnOk() { return absl::OkStatus(); }
 
-Status ReturnError(absl::string_view msg) {
-  return Status(StatusCode::kUnknown, msg);
+absl::Status ReturnError(absl::string_view msg) {
+  return absl::Status(absl::StatusCode::kUnknown, msg);
 }
 
-StatusOr<int> ReturnStatusOrValue(int v) { return v; }
+absl::StatusOr<int> ReturnStatusOrValue(int v) { return v; }
 
-StatusOr<int> ReturnStatusOrError(absl::string_view msg) {
-  return Status(StatusCode::kUnknown, msg);
+absl::StatusOr<int> ReturnStatusOrError(absl::string_view msg) {
+  return absl::Status(absl::StatusCode::kUnknown, msg);
 }
 
-StatusOr<std::unique_ptr<int>> ReturnStatusOrPtrValue(int v) {
+absl::StatusOr<std::unique_ptr<int>> ReturnStatusOrPtrValue(int v) {
   return absl::make_unique<int>(v);
 }
 
 TEST(AssignOrReturn, Works) {
-  auto func = []() -> Status {
+  auto func = []() -> absl::Status {
     ASSIGN_OR_RETURN(int value1, ReturnStatusOrValue(1));
     EXPECT_EQ(1, value1);
     ASSIGN_OR_RETURN(const int value2, ReturnStatusOrValue(2));
@@ -68,7 +66,7 @@ TEST(AssignOrReturn, Works) {
 }
 
 TEST(AssignOrReturn, WorksForExistingVariable) {
-  auto func = []() -> Status {
+  auto func = []() -> absl::Status {
     int value = 1;
     ASSIGN_OR_RETURN(value, ReturnStatusOrValue(2));
     EXPECT_EQ(2, value);
@@ -82,7 +80,7 @@ TEST(AssignOrReturn, WorksForExistingVariable) {
 }
 
 TEST(AssignOrReturn, UniquePtrWorks) {
-  auto func = []() -> Status {
+  auto func = []() -> absl::Status {
     ASSIGN_OR_RETURN(std::unique_ptr<int> ptr, ReturnStatusOrPtrValue(1));
     EXPECT_EQ(*ptr, 1);
     return ReturnError("EXPECTED");
@@ -92,7 +90,7 @@ TEST(AssignOrReturn, UniquePtrWorks) {
 }
 
 TEST(AssignOrReturn, UniquePtrWorksForExistingVariable) {
-  auto func = []() -> Status {
+  auto func = []() -> absl::Status {
     std::unique_ptr<int> ptr;
     ASSIGN_OR_RETURN(ptr, ReturnStatusOrPtrValue(1));
     EXPECT_EQ(*ptr, 1);
@@ -106,7 +104,7 @@ TEST(AssignOrReturn, UniquePtrWorksForExistingVariable) {
 }
 
 TEST(ReturnIfError, Works) {
-  auto func = []() -> Status {
+  auto func = []() -> absl::Status {
     RETURN_IF_ERROR(ReturnOk());
     RETURN_IF_ERROR(ReturnOk());
     RETURN_IF_ERROR(ReturnError("EXPECTED"));
@@ -117,7 +115,7 @@ TEST(ReturnIfError, Works) {
 }
 
 TEST(ReturnIfError, WorksWithLambda) {
-  auto func = []() -> Status {
+  auto func = []() -> absl::Status {
     RETURN_IF_ERROR([] { return ReturnOk(); }());
     RETURN_IF_ERROR([] { return ReturnError("EXPECTED"); }());
     return ReturnError("ERROR");
@@ -127,9 +125,9 @@ TEST(ReturnIfError, WorksWithLambda) {
 }
 
 TEST(ReturnIfError, CallsFunctionOnce) {
-  auto successFunc = []() -> Status {
+  auto successFunc = []() -> absl::Status {
     bool calledBefore = false;
-    auto successfulCalledOnceFunc = [&calledBefore]() -> Status {
+    auto successfulCalledOnceFunc = [&calledBefore]() -> absl::Status {
       if (!calledBefore) {
         calledBefore = true;
         return ReturnOk();
@@ -141,9 +139,9 @@ TEST(ReturnIfError, CallsFunctionOnce) {
   };
   EXPECT_TRUE(successFunc().ok());
 
-  auto failureFunc = []() -> Status {
+  auto failureFunc = []() -> absl::Status {
     bool calledBefore = false;
-    auto successfulCalledOnceFunc = [&calledBefore]() -> Status {
+    auto successfulCalledOnceFunc = [&calledBefore]() -> absl::Status {
       if (!calledBefore) {
         calledBefore = true;
         return ReturnError("EXPECTED");

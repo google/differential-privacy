@@ -39,7 +39,6 @@ cc_library(
     deps = [
         ":convolution",
         "//accounting/common",
-        "//base:logging",
         "@boost//:lexical_cast",
         "@boost//:math",
         "@boost//:multiprecision",
@@ -49,7 +48,7 @@ cc_library(
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings:str_format",
         "@com_google_absl//absl/types:optional",
-        "@com_google_cc_differential_privacy//base:status",
+        "@com_google_cc_differential_privacy//base:status_macros",
         "@com_google_differential_privacy//proto/accounting:privacy_loss_distribution_cc_proto",
     ],
 )
@@ -107,6 +106,8 @@ cc_binary(
     srcs = ["example.cc"],
     deps = [
         ":pld",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings:str_format",
     ],
@@ -117,7 +118,8 @@ cc_library(
     hdrs = ["kiss_fft_wrapper.h"],
     deps = [
         "//accounting/kissfft",
-        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/log:die_if_null",
     ],
 )
 

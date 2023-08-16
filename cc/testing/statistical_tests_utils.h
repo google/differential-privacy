@@ -21,9 +21,9 @@
 #include <functional>
 #include <iostream>
 
-#include "base/logging.h"
 #include "google/protobuf/text_format.h"
 #include "absl/container/flat_hash_map.h"
+#include "absl/log/check.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "algorithms/rand.h"

@@ -24,7 +24,7 @@ cc_library(
     deps = [
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/status",
-        "@com_google_cc_differential_privacy//base:status",
+        "@com_google_cc_differential_privacy//base:status_macros",
         "@com_google_differential_privacy//proto:summary_cc_proto",
     ],
 )
@@ -57,8 +57,7 @@ cc_test(
     deps = [
         ":bounded-mean-ci",
         "//algorithms:numerical-mechanisms",
-        "//base:logging",
-        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/status:statusor",
         "@com_google_differential_privacy//proto:confidence_interval_cc_proto",
         "@com_google_googletest//:gtest_main",

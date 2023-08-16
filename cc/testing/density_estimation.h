@@ -17,15 +17,18 @@
 #ifndef DIFFERENTIAL_PRIVACY_TESTING_DENSITY_ESTIMATION_H_
 #define DIFFERENTIAL_PRIVACY_TESTING_DENSITY_ESTIMATION_H_
 
+#include <algorithm>
+#include <cmath>
 #include <limits>
 #include <numeric>
+#include <string>
+#include <vector>
 
-#include "base/logging.h"
+#include "absl/log/check.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
-#include "base/status.h"
 
 namespace differential_privacy {
 namespace testing {

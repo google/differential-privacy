@@ -68,25 +68,20 @@ func SelectPartitions(s beam.Scope, pcol PrivatePCollection, params SelectPartit
 	// Obtain type information from the underlying PCollection<K,V>.
 	_, pT := beam.ValidateKVType(pcol.col)
 	spec := pcol.privacySpec
-	var epsilon, delta float64
 	var err error
 	if spec.usesNewPrivacyBudgetAPI {
-		epsilon, delta, err = spec.partitionSelectionBudget.consume(params.Epsilon, params.Delta)
+		params.Epsilon, params.Delta, err = spec.partitionSelectionBudget.consume(params.Epsilon, params.Delta)
 		if err != nil {
 			log.Fatalf("Couldn't consume budget for SelectPartitions: %v", err)
 		}
 	} else {
-		epsilon, delta, err = spec.budget.consume(params.Epsilon, params.Delta)
+		params.Epsilon, params.Delta, err = spec.budget.consume(params.Epsilon, params.Delta)
 		if err != nil {
 			log.Fatalf("Couldn't consume budget for SelectPartitions: %v", err)
 		}
 	}
-	maxPartitionsContributed, err := getMaxPartitionsContributed(spec, params.MaxPartitionsContributed)
-	if err != nil {
-		log.Fatalf("Couldn't get MaxPartitionsContributed for SelectPartitions: %v", err)
-	}
 
-	err = checkSelectPartitionsParams(epsilon, delta)
+	err = checkSelectPartitionsParams(params)
 	if err != nil {
 		log.Fatalf("pbeam.SelectPartitions: %v", err)
 	}
@@ -114,22 +109,26 @@ func SelectPartitions(s beam.Scope, pcol PrivatePCollection, params SelectPartit
 
 	// Third, do cross-partition contribution bounding if not in test mode without contribution bounding.
 	if spec.testMode != NoNoiseWithoutContributionBounding {
-		partitions = boundContributions(s, partitions, maxPartitionsContributed)
+		partitions = boundContributions(s, partitions, params.MaxPartitionsContributed)
 	}
 
 	// Finally, we swap the privacy and partition key and perform partition selection.
 	partitions = beam.SwapKV(s, partitions) // PCollection<K, ID>
-	partitions = beam.CombinePerKey(s, newPartitionSelectionFn(epsilon, delta, spec.preThreshold, maxPartitionsContributed, spec.testMode), partitions)
+	partitions = beam.CombinePerKey(s, newPartitionSelectionFn(*spec, params), partitions)
 	result := beam.ParDo(s, dropThresholdedPartitionsBool, partitions)
 	return result
 }
 
-func checkSelectPartitionsParams(epsilon, delta float64) error {
-	err := checks.CheckEpsilon(epsilon)
+func checkSelectPartitionsParams(params SelectPartitionsParams) error {
+	err := checks.CheckEpsilon(params.Epsilon)
 	if err != nil {
 		return err
 	}
-	return checks.CheckDeltaStrict(delta)
+	err = checks.CheckDeltaStrict(params.Delta)
+	if err != nil {
+		return err
+	}
+	return checkMaxPartitionsContributed(params.MaxPartitionsContributed)
 }
 
 type partitionSelectionAccum struct {
@@ -144,8 +143,8 @@ type partitionSelectionFn struct {
 	TestMode                 TestMode
 }
 
-func newPartitionSelectionFn(epsilon, delta float64, prethreshold, maxPartitionsContributed int64, testMode TestMode) *partitionSelectionFn {
-	return &partitionSelectionFn{Epsilon: epsilon, Delta: delta, PreThreshold: prethreshold, MaxPartitionsContributed: maxPartitionsContributed, TestMode: testMode}
+func newPartitionSelectionFn(spec PrivacySpec, params SelectPartitionsParams) *partitionSelectionFn {
+	return &partitionSelectionFn{Epsilon: params.Epsilon, Delta: params.Delta, PreThreshold: spec.preThreshold, MaxPartitionsContributed: params.MaxPartitionsContributed, TestMode: spec.testMode}
 }
 
 func (fn *partitionSelectionFn) CreateAccumulator() (partitionSelectionAccum, error) {

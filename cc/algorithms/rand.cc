@@ -22,7 +22,10 @@
 #include <cstring>
 #include <limits>
 
-#include "base/logging.h"
+#include "absl/base/const_init.h"
+#include "absl/base/optimization.h"
+#include "absl/flags/flag.h"
+#include "absl/log/check.h"
 #include "absl/numeric/bits.h"
 #include "absl/synchronization/mutex.h"
 #include "openssl/rand.h"

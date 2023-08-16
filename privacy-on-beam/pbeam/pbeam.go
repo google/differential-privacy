@@ -324,15 +324,6 @@ func evaluatePrivacySpecOption(opt PrivacySpecOption, spec *PrivacySpec) {
 	}
 }
 
-// getMaxPartitionsContributed returns a maxPartitionsContributed parameter
-// if it greater than zero, otherwise it fails.
-func getMaxPartitionsContributed(spec *PrivacySpec, maxPartitionsContributed int64) (int64, error) {
-	if maxPartitionsContributed <= 0 {
-		return 0, fmt.Errorf("MaxPartitionsContributed must be set to a positive value, was %d instead.", maxPartitionsContributed)
-	}
-	return maxPartitionsContributed, nil
-}
-
 // NoiseKind represents the kind of noise to be used in an aggregations.
 type NoiseKind interface {
 	toNoiseKind() noise.Kind

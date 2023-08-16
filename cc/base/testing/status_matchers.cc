@@ -17,7 +17,12 @@
 
 #include "base/testing/status_matchers.h"
 
-#include "absl/strings/str_cat.h"
+#include <ostream>
+#include <string>
+
+#include "gmock/gmock.h"
+#include "gtest/gtest.h"
+#include "absl/status/status.h"
 
 namespace differential_privacy {
 namespace base {
@@ -39,7 +44,7 @@ void StatusIsMatcherCommonImpl::DescribeNegationTo(std::ostream* os) const {
 }
 
 bool StatusIsMatcherCommonImpl::MatchAndExplain(
-    const Status& status,
+    const absl::Status& status,
     ::testing::MatchResultListener* result_listener) const {
   ::testing::StringMatchResultListener inner_listener;
 
@@ -59,7 +64,6 @@ bool StatusIsMatcherCommonImpl::MatchAndExplain(
 
   return true;
 }
-
 
 }  // namespace internal_status
 }  // namespace testing

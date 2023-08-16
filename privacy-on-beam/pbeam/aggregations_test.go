@@ -112,12 +112,13 @@ func TestNewBoundedSumFnTemp(t *testing.T) {
 		aggregationDelta          float64
 		partitionSelectionEpsilon float64
 		partitionSelectionDelta   float64
+		preThreshold              int64
 		lower                     float64
 		upper                     float64
 		wantErr                   bool
 		want                      any
 	}{
-		{"Laplace Float64", noise.LaplaceNoise, reflect.Float64, 0.5, 0, 0.5, 1e-5, 0, 10, false,
+		{"Laplace Float64", noise.LaplaceNoise, reflect.Float64, 0.5, 0, 0.5, 1e-5, 0, 0, 10, false,
 			&boundedSumFloat64Fn{
 				NoiseEpsilon:              0.5,
 				NoiseDelta:                0,
@@ -129,7 +130,7 @@ func TestNewBoundedSumFnTemp(t *testing.T) {
 				NoiseKind:                 noise.LaplaceNoise,
 				PublicPartitions:          false,
 			}},
-		{"Gaussian Float64", noise.GaussianNoise, reflect.Float64, 0.5, 1e-5, 0.5, 1e-5, 0, 10, false,
+		{"Gaussian Float64", noise.GaussianNoise, reflect.Float64, 0.5, 1e-5, 0.5, 1e-5, 0, 0, 10, false,
 			&boundedSumFloat64Fn{
 				NoiseEpsilon:              0.5,
 				NoiseDelta:                1e-5,
@@ -141,7 +142,7 @@ func TestNewBoundedSumFnTemp(t *testing.T) {
 				NoiseKind:                 noise.GaussianNoise,
 				PublicPartitions:          false,
 			}},
-		{"Laplace Int64", noise.LaplaceNoise, reflect.Int64, 0.5, 0, 0.5, 1e-5, 0, 10, false,
+		{"Laplace Int64", noise.LaplaceNoise, reflect.Int64, 0.5, 0, 0.5, 1e-5, 0, 0, 10, false,
 			&boundedSumInt64Fn{
 				NoiseEpsilon:              0.5,
 				NoiseDelta:                0,
@@ -153,7 +154,7 @@ func TestNewBoundedSumFnTemp(t *testing.T) {
 				NoiseKind:                 noise.LaplaceNoise,
 				PublicPartitions:          false,
 			}},
-		{"Gaussian Int64", noise.GaussianNoise, reflect.Int64, 0.5, 1e-5, 0.5, 1e-5, 0, 10, false,
+		{"Gaussian Int64", noise.GaussianNoise, reflect.Int64, 0.5, 1e-5, 0.5, 1e-5, 0, 0, 10, false,
 			&boundedSumInt64Fn{
 				NoiseEpsilon:              0.5,
 				NoiseDelta:                1e-5,
@@ -165,10 +166,44 @@ func TestNewBoundedSumFnTemp(t *testing.T) {
 				NoiseKind:                 noise.GaussianNoise,
 				PublicPartitions:          false,
 			}},
-		{"lower > upper", noise.GaussianNoise, reflect.Int64, 0.5, 1e-5, 0.5, 1e-5, 10, 0, true, nil},
-		{"Float64 bounds that overflow when converted to int64", noise.GaussianNoise, reflect.Int64, 0.5, 1e-5, 0.5, 1e-5, 0, 1e100, true, nil},
+		{"PreThreshold set Int64", noise.GaussianNoise, reflect.Int64, 0.5, 1e-5, 0.5, 1e-5, 10, 0, 10, false,
+			&boundedSumInt64Fn{
+				NoiseEpsilon:              0.5,
+				NoiseDelta:                1e-5,
+				PartitionSelectionEpsilon: 0.5,
+				PartitionSelectionDelta:   1e-5,
+				PreThreshold:              10,
+				MaxPartitionsContributed:  17,
+				Lower:                     0,
+				Upper:                     10,
+				NoiseKind:                 noise.GaussianNoise,
+				PublicPartitions:          false,
+			}},
+		{"PreThreshold set Float64", noise.GaussianNoise, reflect.Float64, 0.5, 1e-5, 0.5, 1e-5, 10, 0, 10, false,
+			&boundedSumFloat64Fn{
+				NoiseEpsilon:              0.5,
+				NoiseDelta:                1e-5,
+				PartitionSelectionEpsilon: 0.5,
+				PartitionSelectionDelta:   1e-5,
+				PreThreshold:              10,
+				MaxPartitionsContributed:  17,
+				Lower:                     0,
+				Upper:                     10,
+				NoiseKind:                 noise.GaussianNoise,
+				PublicPartitions:          false,
+			}},
+		{"lower > upper", noise.GaussianNoise, reflect.Int64, 0.5, 1e-5, 0.5, 1e-5, 0, 10, 0, true, nil},
+		{"Float64 bounds that overflow when converted to int64", noise.GaussianNoise, reflect.Int64, 0.5, 1e-5, 0.5, 1e-5, 0, 0, 1e100, true, nil},
 	} {
-		got, err := newBoundedSumFnTemp(tc.aggregationEpsilon, tc.aggregationDelta, tc.partitionSelectionEpsilon, tc.partitionSelectionDelta, 17, tc.lower, tc.upper, tc.noiseKind, tc.vKind, false, Disabled)
+		got, err := newBoundedSumFnTemp(PrivacySpec{preThreshold: tc.preThreshold, testMode: Disabled},
+			SumParams{
+				AggregationEpsilon:       tc.aggregationEpsilon,
+				AggregationDelta:         tc.aggregationDelta,
+				PartitionSelectionParams: PartitionSelectionParams{tc.partitionSelectionEpsilon, tc.partitionSelectionDelta},
+				MaxPartitionsContributed: 17,
+				MinValue:                 tc.lower,
+				MaxValue:                 tc.upper,
+			}, tc.noiseKind, tc.vKind, false)
 		if (err != nil) != tc.wantErr {
 			t.Fatalf("With %s, got=%v, wantErr=%t", tc.desc, err, tc.wantErr)
 		}

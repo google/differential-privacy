@@ -138,13 +138,15 @@ class MechanismCalibrationTest(parameterized.TestCase):
           UnknownBracketInterval())
 
   def test_raises_mfa_not_callable(self):
-    with self.assertRaisesRegex(TypeError, 'callable'):
+    with self.assertRaisesRegex(TypeError,
+                                'make_fresh_accountant must be callable'):
       mechanism_calibration.calibrate_dp_mechanism(
           'not a callable', MockEvent, 1.0, 0,
           mechanism_calibration.ExplicitBracketInterval(0, 5))
 
-  def test_raises_mefv_not_callable(self):
-    with self.assertRaisesRegex(TypeError, 'callable'):
+  def test_raises_mefp_not_callable(self):
+    with self.assertRaisesRegex(TypeError,
+                                'make_event_from_param must be callable'):
       mechanism_calibration.calibrate_dp_mechanism(
           lambda: MockAccountant(lambda x: x), 'not a callable', 1.0, 0,
           mechanism_calibration.ExplicitBracketInterval(0, 5))

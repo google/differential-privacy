@@ -16,13 +16,15 @@
 
 #include "testing/density_estimation.h"
 
+#include <cstdint>
 #include <limits>
+#include <string>
 
-#include "base/logging.h"
 #include "base/testing/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "base/status.h"
+#include "absl/status/status.h"
+#include "absl/strings/str_cat.h"
 
 namespace differential_privacy {
 namespace testing {
@@ -84,7 +86,6 @@ TEST(HistogramTest, ToStringEmpty) {
       "Empty histogram.\n",
       "-------------------------------------------------------------");
   EXPECT_EQ(hist.ToString(), expected);
-  LOG(INFO) << hist.ToString();
 }
 
 TEST(HistogramTest, ToString) {
@@ -98,7 +99,6 @@ TEST(HistogramTest, ToString) {
       "[         0.333333,              inf) 2  66.667% ############\n",
       "-------------------------------------------------------------");
   EXPECT_EQ(hist.ToString(), expected);
-  LOG(INFO) << hist.ToString();
 }
 
 }  // namespace

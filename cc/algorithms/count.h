@@ -17,11 +17,11 @@
 #ifndef DIFFERENTIAL_PRIVACY_ALGORITHMS_COUNT_H_
 #define DIFFERENTIAL_PRIVACY_ALGORITHMS_COUNT_H_
 
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <utility>
 
-#include <cstdint>
 #include "google/protobuf/any.pb.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"

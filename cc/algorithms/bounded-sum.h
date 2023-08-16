@@ -24,13 +24,10 @@
 #include <limits>
 #include <memory>
 #include <optional>
-#include <string>
 #include <type_traits>
 #include <utility>
 #include <vector>
 
-#include <cstdint>
-#include "base/logging.h"
 #include "google/protobuf/any.pb.h"
 #include "absl/log/log.h"
 #include "absl/memory/memory.h"

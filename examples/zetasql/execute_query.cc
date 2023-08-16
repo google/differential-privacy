@@ -24,7 +24,6 @@
 #include <utility>
 #include <vector>
 
-#include "base/logging.h"
 #include "google/protobuf/descriptor.h"
 #include "zetasql/public/analyzer_options.h"
 #include "zetasql/public/catalog.h"
@@ -39,6 +38,7 @@
 #include "zetasql/resolved_ast/resolved_node_kind.pb.h"
 #include "zetasql/tools/execute_query/execute_query_tool.h"
 #include "absl/flags/flag.h"
+#include "absl/log/log.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"

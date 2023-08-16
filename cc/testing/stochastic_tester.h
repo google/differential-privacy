@@ -19,14 +19,18 @@
 #define DIFFERENTIAL_PRIVACY_TESTING_STOCHASTIC_TESTER_H_
 
 #include <cmath>
+#include <cstdint>
 #include <cstdlib>
 #include <iomanip>
+#include <memory>
 #include <stack>
 #include <type_traits>
+#include <vector>
 
-#include "base/logging.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/hash/hash.h"
+#include "absl/log/check.h"
+#include "absl/log/log.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "algorithms/algorithm.h"

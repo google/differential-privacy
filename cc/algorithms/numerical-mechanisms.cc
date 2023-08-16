@@ -17,20 +17,25 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <limits>
 #include <memory>
 #include <string>
 #include <utility>
 
-#include <cstdint>
-#include "base/logging.h"
+#include "absl/log/check.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/types/optional.h"
+#include "algorithms/distributions.h"
 #include "algorithms/internal/gaussian-stddev-calculator.h"
+#include "algorithms/rand.h"
+#include "algorithms/util.h"
+#include "proto/confidence-interval.pb.h"
+#include "proto/numerical-mechanism.pb.h"
 #include "base/status_macros.h"
 
 namespace differential_privacy {

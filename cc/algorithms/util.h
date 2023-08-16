@@ -19,21 +19,21 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <limits>
 #include <numeric>
-#include <optional>
 #include <string>
 #include <type_traits>
 #include <vector>
 
-#include <cstdint>
-#include "base/logging.h"
 #include "absl/base/attributes.h"
+#include "absl/log/check.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
 #include "base/status_macros.h"
 
 namespace differential_privacy {
@@ -283,12 +283,13 @@ inline SafeOpResult<T> SafeCastFromDouble(const double in) {
   // the precise value itself), they can still have residual decimal values that
   // are outside of the numeric limits of T, which would cause a static_cast to
   // crash with a SIGILL error. To illustrate, if `d_out` == MAX_INT64, then
-  // `static_cast<int64_t>(d_out)` will cause a SIGILL error, because the precise
-  // value of d_out is actually larger than MAX_INT64 (i.e., at such large
-  // magnitudes, doubles are actually exact integers, but many fewer integers
-  // can be accurately represented, since the double-precision format can only
-  // inaccurately approximate them). To prevent this, we try to simply set `out`
-  // to the numerical limit when `d_out` is close enough to the numerical limit.
+  // `static_cast<int64_t>(d_out)` will cause a SIGILL error, because the
+  // precise value of d_out is actually larger than MAX_INT64 (i.e., at such
+  // large magnitudes, doubles are actually exact integers, but many fewer
+  // integers can be accurately represented, since the double-precision format
+  // can only inaccurately approximate them). To prevent this, we try to simply
+  // set `out` to the numerical limit when `d_out` is close enough to the
+  // numerical limit.
   T out;
   if (d_out_floor >= kTMax) {
     out = kTMax;

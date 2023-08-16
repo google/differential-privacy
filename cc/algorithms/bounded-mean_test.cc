@@ -19,6 +19,7 @@
 #include <limits.h>
 
 #include <cmath>
+#include <cstdint>
 #include <functional>
 #include <limits>
 #include <memory>
@@ -26,13 +27,11 @@
 #include <utility>
 #include <vector>
 
-#include <cstdint>
-#include "base/logging.h"
 #include "base/testing/proto_matchers.h"
 #include "base/testing/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "absl/memory/memory.h"
+#include "absl/log/check.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "algorithms/approx-bounds.h"
@@ -353,7 +352,7 @@ TYPED_TEST(BoundedMeanTest, PropagateApproxBoundsError) {
           .Build();
   ASSERT_OK(bm);
 
-  // Automatic bounds are needed but there is no input, so the count-threshhold
+  // Automatic bounds are needed but there is no input, so the count-threshold
   // should exceed any bin count.
   EXPECT_THAT((*bm)->PartialResult(),
               StatusIs(absl::StatusCode::kFailedPrecondition,

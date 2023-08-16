@@ -21,16 +21,13 @@
 
 #include <algorithm>
 #include <cmath>
-#include <limits>
 #include <memory>
-#include <string>
 #include <type_traits>
 #include <utility>
 #include <vector>
 
-#include <cstdint>
-#include "base/logging.h"
 #include "google/protobuf/any.pb.h"
+#include "absl/log/log.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"

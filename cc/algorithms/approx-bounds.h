@@ -22,6 +22,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <functional>
 #include <limits>
 #include <memory>
@@ -30,8 +31,8 @@
 #include <utility>
 #include <vector>
 
-#include <cstdint>
 #include "google/protobuf/any.pb.h"
+#include "absl/log/log.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -498,7 +499,7 @@ class ApproxBounds : public Algorithm<T> {
   }
 
   // Add noise to each member of bins and return noisy vector.
-  const std::vector<T> AddNoise(const std::vector<int64_t>& bins) {
+  std::vector<T> AddNoise(const std::vector<int64_t>& bins) {
     std::vector<T> noisy_bins(bins.size());
     for (int i = 0; i < bins.size(); ++i) {
       noisy_bins[i] = mechanism_->AddNoise(bins[i]);
@@ -643,7 +644,7 @@ class ApproxBounds : public Algorithm<T> {
   double base_;
 
   // The desired probability that, when the dataset is empty, no bin counts are
-  // above the threshold for determing whether a bin is empty.
+  // above the threshold for determining whether a bin is empty.
   double success_probability_;
 
   // The minimum allowed success probability when relaxing the success

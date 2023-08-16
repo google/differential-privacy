@@ -17,14 +17,12 @@
 #ifndef DIFFERENTIAL_PRIVACY_ALGORITHMS_NUMERICAL_MECHANISMS_H_
 #define DIFFERENTIAL_PRIVACY_ALGORITHMS_NUMERICAL_MECHANISMS_H_
 
-#include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <memory>
-#include <string>
 #include <type_traits>
 #include <utility>
 
-#include <cstdint>
 #include "absl/base/attributes.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"

@@ -460,6 +460,48 @@ func TestCountThresholdedResult(t *testing.T) {
 	}
 }
 
+// Tests that a count smaller than the pre-threshold deterministically returns nil.
+func TestCount_CountSmallerThanPreThresholdReturnsNil(t *testing.T) {
+	// With a pre-threshold of 10, a count of 9 should not be kept.
+	//
+	// We use tiny threshold delta, which results in a DP threshold of 1 (after ceiling). A count is
+	// kept if it is greater than preThreshold + DPThreshold = 9 + 1 = 10.
+	//
+	// We use a tiny epsilon, which means the noisy count is greater than 10 with close to 1/2 probability.
+	//
+	// We run the test 50 times, which means it should fail with probability ~1-2^-50 if
+	// pre-thresholding doesn't drop counts smaller than the pre-threshold.
+	for i := 0; i < 50; i++ {
+		c, err := NewCount(&CountOptions{Epsilon: 1e-5, MaxPartitionsContributed: 1, Noise: noise.Laplace()})
+		if err != nil {
+			t.Fatalf("Couldn't create Count: %v", err)
+		}
+		c.IncrementBy(9)
+		res, err := c.PreThresholdedResult(10, 1-1e-10)
+		if err != nil {
+			t.Fatalf("Couldn't compute PreThresholdedResult: %v", err)
+		}
+		if res != nil {
+			t.Errorf("PreThresholdedResult returned a result (%d) for a count smaller than pre-threshold", *res)
+		}
+	}
+}
+
+// Tests that a count greater than the pre-threshold + DP threshold deterministically returns a non-nil result.
+func TestCount_CountGreaterThanPreThresholdReturnsResult(t *testing.T) {
+	// NoiselessCount has a DP threshold of 5.001. Using a Pre-Threshold of 10 means
+	// counts larger than 10 - 1 + 5.001 =14.001 should be deterministically kept.
+	c := getNoiselessCount(t)
+	c.IncrementBy(15)
+	res, err := c.PreThresholdedResult(10, 1e-5)
+	if err != nil {
+		t.Fatalf("Couldn't compute PreThresholdedResult: %v", err)
+	}
+	if res == nil {
+		t.Errorf("PreThresholdedResult returned nil for a count greater than the pre-threshold")
+	}
+}
+
 type mockNoiseCount struct {
 	t *testing.T
 	noise.Noise

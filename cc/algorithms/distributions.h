@@ -17,9 +17,9 @@
 #ifndef DIFFERENTIAL_PRIVACY_ALGORITHMS_DISTRIBUTIONS_H_
 #define DIFFERENTIAL_PRIVACY_ALGORITHMS_DISTRIBUTIONS_H_
 
+#include <cstdint>
 #include <memory>
 
-#include <cstdint>
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 
@@ -85,8 +85,8 @@ class GaussianDistribution {
 // p = 1 - e^-lambda, i.e. the number of bernoulli trial failures before the
 // first success where the success probability is as defined above. lambda must
 // be positive. If the result would be higher than the maximum int64_t, returns
-// the maximum int64_t, which means that users should be careful around the edges
-// of their distribution.
+// the maximum int64_t, which means that users should be careful around the
+// edges of their distribution.
 class GeometricDistribution {
  public:
   // Builder for GeometricDistribution.

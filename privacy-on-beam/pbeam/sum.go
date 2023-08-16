@@ -151,22 +151,20 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCo
 
 	// Get privacy parameters.
 	spec := pcol.privacySpec
-	var epsilon, delta float64
 	var err error
-	var aggregationEpsilon, aggregationDelta, partitionSelectionEpsilon, partitionSelectionDelta float64
 	if spec.usesNewPrivacyBudgetAPI {
-		aggregationEpsilon, aggregationDelta, err = spec.aggregationBudget.consume(params.AggregationEpsilon, params.AggregationDelta)
+		params.AggregationEpsilon, params.AggregationDelta, err = spec.aggregationBudget.get(params.AggregationEpsilon, params.AggregationDelta)
 		if err != nil {
 			log.Fatalf("Couldn't consume aggregation budget for SumPerKey: %v", err)
 		}
 		if params.PublicPartitions == nil {
-			partitionSelectionEpsilon, partitionSelectionDelta, err = spec.partitionSelectionBudget.consume(params.PartitionSelectionParams.Epsilon, params.PartitionSelectionParams.Delta)
+			params.PartitionSelectionParams.Epsilon, params.PartitionSelectionParams.Delta, err = spec.partitionSelectionBudget.get(params.PartitionSelectionParams.Epsilon, params.PartitionSelectionParams.Delta)
 			if err != nil {
 				log.Fatalf("Couldn't consume partition selection budget for SumPerKey: %v", err)
 			}
 		}
 	} else {
-		epsilon, delta, err = spec.budget.consume(params.Epsilon, params.Delta)
+		params.Epsilon, params.Delta, err = spec.budget.get(params.Epsilon, params.Delta)
 		if err != nil {
 			log.Fatalf("Couldn't consume budget for SumPerKey: %v", err)
 		}
@@ -179,15 +177,12 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCo
 	} else {
 		noiseKind = params.NoiseKind.toNoiseKind()
 	}
-	err = checkSumPerKeyParams(params, spec.usesNewPrivacyBudgetAPI, aggregationEpsilon, aggregationDelta, partitionSelectionEpsilon, partitionSelectionDelta, epsilon, delta, noiseKind, pcol.codec.KType.T)
+
+	err = checkSumPerKeyParams(params, spec.usesNewPrivacyBudgetAPI, noiseKind, pcol.codec.KType.T)
 	if err != nil {
 		log.Fatalf("pbeam.SumPerKey: %v", err)
 	}
 
-	maxPartitionsContributed, err := getMaxPartitionsContributed(spec, params.MaxPartitionsContributed)
-	if err != nil {
-		log.Fatalf("Couldn't get MaxPartitionsContributed for SumPerKey: %v", err)
-	}
 	// Drop non-public partitions, if public partitions are specified.
 	pcol.col, err = dropNonPublicPartitions(s, pcol, params.PublicPartitions, pcol.codec.KType.T)
 	if err != nil {
@@ -218,7 +213,7 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCo
 	rekeyed := beam.ParDo(s, rekeyFn, converted)
 	// Second, do cross-partition contribution bounding if not in test mode without contribution bounding.
 	if spec.testMode != NoNoiseWithoutContributionBounding {
-		rekeyed = boundContributions(s, rekeyed, maxPartitionsContributed)
+		rekeyed = boundContributions(s, rekeyed, params.MaxPartitionsContributed)
 	}
 	// Fourth, now that contribution bounding is done, remove the privacy keys,
 	// decode the value, and do a DP sum with all the partial sums.
@@ -237,17 +232,16 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCo
 	// Add public partitions and return the aggregation output, if public partitions are specified.
 	if params.PublicPartitions != nil {
 		if spec.usesNewPrivacyBudgetAPI {
-			epsilon = aggregationEpsilon
-			delta = aggregationDelta
+			result = addPublicPartitionsForSum(s, params.AggregationEpsilon, params.AggregationDelta, params.MaxPartitionsContributed, params, noiseKind, vKind, partialSumKV, spec.testMode)
+		} else {
+			result = addPublicPartitionsForSum(s, params.Epsilon, params.Delta, params.MaxPartitionsContributed, params, noiseKind, vKind, partialSumKV, spec.testMode)
 		}
-		result = addPublicPartitionsForSum(s, epsilon, delta, maxPartitionsContributed,
-			params, noiseKind, vKind, partialSumKV, spec.testMode)
 	} else {
 		var boundedSumFn any
 		if spec.usesNewPrivacyBudgetAPI {
-			boundedSumFn, err = newBoundedSumFnTemp(aggregationEpsilon, aggregationDelta, partitionSelectionEpsilon, partitionSelectionDelta, maxPartitionsContributed, params.MinValue, params.MaxValue, noiseKind, vKind, false, spec.testMode)
+			boundedSumFn, err = newBoundedSumFnTemp(*spec, params, noiseKind, vKind, false)
 		} else {
-			boundedSumFn, err = newBoundedSumFn(epsilon, delta, maxPartitionsContributed, params.MinValue, params.MaxValue, noiseKind, vKind, false, spec.testMode)
+			boundedSumFn, err = newBoundedSumFn(params.Epsilon, params.Delta, params.MaxPartitionsContributed, params.MinValue, params.MaxValue, noiseKind, vKind, false, spec.testMode)
 		}
 		if err != nil {
 			log.Fatalf("Couldn't get boundedSumFn for SumPerKey: %v", err)
@@ -317,39 +311,43 @@ func addPublicPartitionsForSum(s beam.Scope, epsilon, delta float64, maxPartitio
 	return beam.Flatten(s, sums, emptySums)
 }
 
-func checkSumPerKeyParams(params SumParams, usesNewPrivacyBudgetAPI bool, aggregationEpsilon, aggregationDelta, partitionSelectionEpsilon, partitionSelectionDelta, epsilon, delta float64, noiseKind noise.Kind, partitionType reflect.Type) error {
+func checkSumPerKeyParams(params SumParams, usesNewPrivacyBudgetAPI bool, noiseKind noise.Kind, partitionType reflect.Type) error {
 	err := checkPublicPartitions(params.PublicPartitions, partitionType)
 	if err != nil {
 		return err
 	}
 	if usesNewPrivacyBudgetAPI {
-		err = checks.CheckEpsilon(aggregationEpsilon)
+		err = checks.CheckEpsilon(params.AggregationEpsilon)
 		if err != nil {
 			return err
 		}
-		err = checkAggregationDelta(aggregationDelta, noiseKind)
+		err = checkAggregationDelta(params.AggregationDelta, noiseKind)
 		if err != nil {
 			return err
 		}
-		err = checkPartitionSelectionEpsilon(partitionSelectionEpsilon, params.PublicPartitions)
+		err = checkPartitionSelectionEpsilon(params.PartitionSelectionParams.Epsilon, params.PublicPartitions)
 		if err != nil {
 			return err
 		}
-		err = checkPartitionSelectionDelta(partitionSelectionDelta, params.PublicPartitions)
+		err = checkPartitionSelectionDelta(params.PartitionSelectionParams.Delta, params.PublicPartitions)
 		if err != nil {
 			return err
 		}
 	} else {
-		err = checks.CheckEpsilon(epsilon)
+		err = checks.CheckEpsilon(params.Epsilon)
 		if err != nil {
 			return err
 		}
-		err = checkDelta(delta, noiseKind, params.PublicPartitions)
+		err = checkDelta(params.Delta, noiseKind, params.PublicPartitions)
 		if err != nil {
 			return err
 		}
 	}
-	return checks.CheckBoundsFloat64(params.MinValue, params.MaxValue)
+	err = checks.CheckBoundsFloat64(params.MinValue, params.MaxValue)
+	if err != nil {
+		return err
+	}
+	return checkMaxPartitionsContributed(params.MaxPartitionsContributed)
 }
 
 // prepareSumFn takes a PCollection<ID,kv.Pair{K,V}> as input, and returns a
