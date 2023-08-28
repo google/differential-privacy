@@ -199,7 +199,7 @@ func TestNewBoundedSumFnTemp(t *testing.T) {
 			SumParams{
 				AggregationEpsilon:       tc.aggregationEpsilon,
 				AggregationDelta:         tc.aggregationDelta,
-				PartitionSelectionParams: PartitionSelectionParams{tc.partitionSelectionEpsilon, tc.partitionSelectionDelta},
+				PartitionSelectionParams: PartitionSelectionParams{Epsilon: tc.partitionSelectionEpsilon, Delta: tc.partitionSelectionDelta},
 				MaxPartitionsContributed: 17,
 				MinValue:                 tc.lower,
 				MaxValue:                 tc.upper,

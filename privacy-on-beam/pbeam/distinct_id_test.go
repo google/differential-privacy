@@ -662,7 +662,7 @@ func TestNewCountFnTemp(t *testing.T) {
 			DistinctPrivacyIDParams{
 				AggregationEpsilon:       tc.aggregationEpsilon,
 				AggregationDelta:         tc.aggregationDelta,
-				PartitionSelectionParams: PartitionSelectionParams{0, tc.partitionSelectionDelta},
+				PartitionSelectionDelta:  tc.partitionSelectionDelta,
 				MaxPartitionsContributed: 17,
 			}, tc.noiseKind, false)
 		if err != nil {
@@ -943,7 +943,7 @@ func TestCheckDistinctPrivacyIDParams(t *testing.T) {
 			desc: "new API, valid parameters w/o public partitions",
 			params: DistinctPrivacyIDParams{
 				AggregationEpsilon:       1.0,
-				PartitionSelectionParams: PartitionSelectionParams{0, 1e-5},
+				PartitionSelectionDelta:  1e-5,
 				MaxPartitionsContributed: 1,
 			},
 			usesNewPrivacyBudgetAPI: true,
@@ -956,7 +956,7 @@ func TestCheckDistinctPrivacyIDParams(t *testing.T) {
 			params: DistinctPrivacyIDParams{
 				AggregationEpsilon:       1.0,
 				AggregationDelta:         1e-5,
-				PartitionSelectionParams: PartitionSelectionParams{0, 1e-5},
+				PartitionSelectionDelta:  1e-5,
 				MaxPartitionsContributed: 1,
 			},
 			usesNewPrivacyBudgetAPI: true,
@@ -968,7 +968,7 @@ func TestCheckDistinctPrivacyIDParams(t *testing.T) {
 			desc: "new API, zero aggregationDelta w/ gaussian noise w/o public partitions",
 			params: DistinctPrivacyIDParams{
 				AggregationEpsilon:       1.0,
-				PartitionSelectionParams: PartitionSelectionParams{0, 1e-5},
+				PartitionSelectionDelta:  1e-5,
 				MaxPartitionsContributed: 1,
 			},
 			usesNewPrivacyBudgetAPI: true,
@@ -992,7 +992,7 @@ func TestCheckDistinctPrivacyIDParams(t *testing.T) {
 			desc: "new API, negative epsilon",
 			params: DistinctPrivacyIDParams{
 				AggregationEpsilon:       -1.0,
-				PartitionSelectionParams: PartitionSelectionParams{0, 1e-5},
+				PartitionSelectionDelta:  1e-5,
 				MaxPartitionsContributed: 1,
 			},
 			usesNewPrivacyBudgetAPI: true,
@@ -1015,7 +1015,7 @@ func TestCheckDistinctPrivacyIDParams(t *testing.T) {
 			desc: "new API, non-zero partitionSelectionDelta w/ laplace noise",
 			params: DistinctPrivacyIDParams{
 				AggregationEpsilon:       1.0,
-				PartitionSelectionParams: PartitionSelectionParams{0, 1e-5},
+				PartitionSelectionDelta:  1e-5,
 				MaxPartitionsContributed: 1,
 				PublicPartitions:         []int{},
 			},
@@ -1027,8 +1027,8 @@ func TestCheckDistinctPrivacyIDParams(t *testing.T) {
 		{
 			desc: "new API, unset MaxPartitionsContributed",
 			params: DistinctPrivacyIDParams{
-				AggregationEpsilon:       1.0,
-				PartitionSelectionParams: PartitionSelectionParams{0, 1e-5},
+				AggregationEpsilon:      1.0,
+				PartitionSelectionDelta: 1e-5,
 			},
 			usesNewPrivacyBudgetAPI: true,
 			noiseKind:               noise.LaplaceNoise,

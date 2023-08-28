@@ -1434,7 +1434,7 @@ func TestCheckSumPerKeyParams(t *testing.T) {
 			usesNewPrivacyBudgetAPI: true,
 			params: SumParams{
 				AggregationEpsilon:       1.0,
-				PartitionSelectionParams: PartitionSelectionParams{1.0, 1e-5},
+				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
 				MaxPartitionsContributed: 1,
 				MinValue:                 -5.0,
 				MaxValue:                 5.0,
@@ -1444,11 +1444,25 @@ func TestCheckSumPerKeyParams(t *testing.T) {
 			wantErr:       false,
 		},
 		{
+			desc:                    "new API, PartitionSelectionParams.MaxPartitionsContributed set",
+			usesNewPrivacyBudgetAPI: true,
+			params: SumParams{
+				AggregationEpsilon:       1.0,
+				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5, MaxPartitionsContributed: 1},
+				MaxPartitionsContributed: 1,
+				MinValue:                 -5.0,
+				MaxValue:                 5.0,
+			},
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: nil,
+			wantErr:       true,
+		},
+		{
 			desc:                    "new API, zero aggregationDelta w/ Gaussian noise",
 			usesNewPrivacyBudgetAPI: true,
 			params: SumParams{
 				AggregationEpsilon:       1.0,
-				PartitionSelectionParams: PartitionSelectionParams{1.0, 1e-5},
+				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
 				MaxPartitionsContributed: 1,
 				MinValue:                 -5.0,
 				MaxValue:                 5.0,
@@ -1462,7 +1476,7 @@ func TestCheckSumPerKeyParams(t *testing.T) {
 			usesNewPrivacyBudgetAPI: true,
 			params: SumParams{
 				AggregationEpsilon:       -1.0,
-				PartitionSelectionParams: PartitionSelectionParams{1.0, 1e-5},
+				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
 				MaxPartitionsContributed: 1,
 				MinValue:                 -5.0,
 				MaxValue:                 5.0,
@@ -1476,7 +1490,7 @@ func TestCheckSumPerKeyParams(t *testing.T) {
 			usesNewPrivacyBudgetAPI: true,
 			params: SumParams{
 				AggregationEpsilon:       1.0,
-				PartitionSelectionParams: PartitionSelectionParams{-1.0, 1e-5},
+				PartitionSelectionParams: PartitionSelectionParams{Epsilon: -1.0, Delta: 1e-5},
 				MaxPartitionsContributed: 1,
 				MinValue:                 -5.0,
 				MaxValue:                 5.0,
@@ -1490,7 +1504,7 @@ func TestCheckSumPerKeyParams(t *testing.T) {
 			usesNewPrivacyBudgetAPI: true,
 			params: SumParams{
 				AggregationEpsilon:       1.0,
-				PartitionSelectionParams: PartitionSelectionParams{1.0, 0},
+				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1.0, Delta: 0},
 				MaxPartitionsContributed: 1,
 				MinValue:                 -5.0,
 				MaxValue:                 5.0,
@@ -1504,7 +1518,7 @@ func TestCheckSumPerKeyParams(t *testing.T) {
 			usesNewPrivacyBudgetAPI: true,
 			params: SumParams{
 				AggregationEpsilon:       1.0,
-				PartitionSelectionParams: PartitionSelectionParams{0, 1e-5},
+				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 0, Delta: 1e-5},
 				MaxPartitionsContributed: 1,
 				MinValue:                 -5.0,
 				MaxValue:                 5.0,
@@ -1517,7 +1531,7 @@ func TestCheckSumPerKeyParams(t *testing.T) {
 			desc: "new API, MaxPartitionsContributed unset",
 			params: SumParams{
 				AggregationEpsilon:       1.0,
-				PartitionSelectionParams: PartitionSelectionParams{1.0, 1e-5},
+				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
 				MinValue:                 -5.0,
 				MaxValue:                 5.0,
 			},
@@ -1530,7 +1544,7 @@ func TestCheckSumPerKeyParams(t *testing.T) {
 			usesNewPrivacyBudgetAPI: true,
 			params: SumParams{
 				AggregationEpsilon:       1.0,
-				PartitionSelectionParams: PartitionSelectionParams{1.0, 1e-5},
+				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
 				MaxPartitionsContributed: 1,
 				MinValue:                 6.0,
 				MaxValue:                 5.0,
@@ -1544,7 +1558,7 @@ func TestCheckSumPerKeyParams(t *testing.T) {
 			usesNewPrivacyBudgetAPI: true,
 			params: SumParams{
 				AggregationEpsilon:       1.0,
-				PartitionSelectionParams: PartitionSelectionParams{1.0, 1e-5},
+				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
 				MaxPartitionsContributed: 1,
 				MinValue:                 5.0,
 				MaxValue:                 5.0,
@@ -1558,7 +1572,7 @@ func TestCheckSumPerKeyParams(t *testing.T) {
 			usesNewPrivacyBudgetAPI: true,
 			params: SumParams{
 				AggregationEpsilon:       1.0,
-				PartitionSelectionParams: PartitionSelectionParams{0, 1e-5},
+				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 0, Delta: 1e-5},
 				MaxPartitionsContributed: 1,
 				MinValue:                 -5.0,
 				MaxValue:                 5.0,
@@ -1573,7 +1587,7 @@ func TestCheckSumPerKeyParams(t *testing.T) {
 			usesNewPrivacyBudgetAPI: true,
 			params: SumParams{
 				AggregationEpsilon:       1.0,
-				PartitionSelectionParams: PartitionSelectionParams{1.0, 0},
+				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1.0, Delta: 0},
 				MaxPartitionsContributed: 1,
 				MinValue:                 -5.0,
 				MaxValue:                 5.0,

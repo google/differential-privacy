@@ -1442,7 +1442,7 @@ func TestSelectPartitionsTestModeCrossPartitionContributionBoundingV(t *testing.
 		col = beam.ParDo(s, testutils.PairToKV, col)
 
 		pcol := pbeam.MakePrivate(s, col, tc.privacySpec)
-		got := pbeam.SelectPartitions(s, pcol, pbeam.SelectPartitionsParams{MaxPartitionsContributed: tc.maxPartitionsContributed})
+		got := pbeam.SelectPartitions(s, pcol, pbeam.PartitionSelectionParams{MaxPartitionsContributed: tc.maxPartitionsContributed})
 
 		testutils.CheckNumPartitions(s, got, tc.want)
 		if err := ptest.Run(p); err != nil {
@@ -1485,7 +1485,7 @@ func TestSelectPartitionsTestModeCrossPartitionContributionBoundingKV(t *testing
 
 		pcol := pbeam.MakePrivate(s, col, tc.privacySpec)
 		pcol = pbeam.ParDo(s, testutils.TripleWithIntValueToKV, pcol)
-		got := pbeam.SelectPartitions(s, pcol, pbeam.SelectPartitionsParams{MaxPartitionsContributed: tc.maxPartitionsContributed})
+		got := pbeam.SelectPartitions(s, pcol, pbeam.PartitionSelectionParams{MaxPartitionsContributed: tc.maxPartitionsContributed})
 
 		testutils.CheckNumPartitions(s, got, tc.want)
 		if err := ptest.Run(p); err != nil {

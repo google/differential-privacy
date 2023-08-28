@@ -152,11 +152,28 @@ type PrivacySpec struct {
 	testMode TestMode // Used for test pipelines, disabled by default.
 }
 
-// PartitionSelectionParams holds the ε & δ budget to be used for partition selection of an aggregation.
-// If you are using public partitions, then you do not need to specify these parameters.
+// PartitionSelectionParams holds the ε & δ budget to be used for private partition selection of
+// an aggregation. It is also used to specify parameters of a SelectPartitions aggregation.
 type PartitionSelectionParams struct {
-	Epsilon float64
-	Delta   float64
+	// Differential privacy budget consumed by private partition selection.
+	//
+	// If this is the only private partition selection operation in the pipeline (e.g. the only
+	// aggregation in the pipeline, the only aggregation in the pipeline where public partitions are
+	// not specified, the only SelectPartitions aggregation aggregation in the pipeline where other
+	// aggregations use public partitions), both Epsilon and Delta can be left 0; in that case, the
+	// entire budget reserved for partition selection in the PrivacySpec is consumed.
+	Epsilon, Delta float64
+	// Warning: This parameter can currently only be set for SelectPartitions aggregation.
+	//
+	// The maximum number of distinct keys that a given privacy identifier can influence. If a privacy
+	// identifier is associated to more keys, random keys will be dropped. There is an inherent
+	// trade-off when choosing this parameter: a larger MaxPartitionsContributed leads to less data
+	// loss due to contribution bounding, but since the noise added in aggregations is scaled
+	// according to maxPartitionsContributed, it also means that probability of keeping a partition
+	// with a given privacy ID count is lowered.
+	//
+	// Required.
+	MaxPartitionsContributed int64
 }
 
 // PrivacySpecParams contains parameters to construct a PrivacySpec.

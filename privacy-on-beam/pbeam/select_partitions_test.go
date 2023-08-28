@@ -57,7 +57,7 @@ func TestSelectPartitionsIsNonDeterministicV(t *testing.T) {
 
 			// Run SelectPartitions on pairs
 			pcol := MakePrivate(s, col, NewPrivacySpec(tc.epsilon, tc.delta))
-			got := SelectPartitions(s, pcol, SelectPartitionsParams{MaxPartitionsContributed: 1})
+			got := SelectPartitions(s, pcol, PartitionSelectionParams{MaxPartitionsContributed: 1})
 
 			// Validate that partitions are selected randomly (i.e., some emitted and some dropped).
 			testutils.CheckSomePartitionsAreDropped(s, got, tc.numPartitions)
@@ -108,7 +108,7 @@ func TestSelectPartitionsIsNonDeterministicKV(t *testing.T) {
 			// Run SelectPartitions on triples
 			pcol := MakePrivate(s, col, NewPrivacySpec(tc.epsilon, tc.delta))
 			pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
-			got := SelectPartitions(s, pcol, SelectPartitionsParams{MaxPartitionsContributed: 1})
+			got := SelectPartitions(s, pcol, PartitionSelectionParams{MaxPartitionsContributed: 1})
 
 			// Validate that partitions are selected randomly (i.e., some emitted and some dropped).
 			testutils.CheckSomePartitionsAreDropped(s, got, tc.numPartitions)
@@ -133,7 +133,7 @@ func TestSelectPartitionsBoundsCrossPartitionContributionsV(t *testing.T) {
 	// ε=50, δ=~1 and l0Sensitivity=1 gives a threshold of 2.
 	epsilon, delta, l0Sensitivity := 50.0, dpagg.LargestRepresentableDelta, 1
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
-	got := SelectPartitions(s, pcol, SelectPartitionsParams{MaxPartitionsContributed: int64(l0Sensitivity)})
+	got := SelectPartitions(s, pcol, PartitionSelectionParams{MaxPartitionsContributed: int64(l0Sensitivity)})
 	// With a max contribution of 1, only 1 partition should be outputted.
 	testutils.CheckNumPartitions(s, got, 1)
 	if err := ptest.Run(p); err != nil {
@@ -156,7 +156,7 @@ func TestSelectPartitionsBoundsCrossPartitionContributionsKV(t *testing.T) {
 	epsilon, delta, l0Sensitivity := 50.0, dpagg.LargestRepresentableDelta, 1
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
-	got := SelectPartitions(s, pcol, SelectPartitionsParams{MaxPartitionsContributed: int64(l0Sensitivity)})
+	got := SelectPartitions(s, pcol, PartitionSelectionParams{MaxPartitionsContributed: int64(l0Sensitivity)})
 	// With a max contribution of 1, only 1 partition should be outputted.
 	testutils.CheckNumPartitions(s, got, 1)
 	if err := ptest.Run(p); err != nil {
@@ -180,7 +180,7 @@ func TestSelectPartitionsPrethresholding(t *testing.T) {
 	}
 	pcol := MakePrivate(s, col, spec)
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
-	got := SelectPartitions(s, pcol, SelectPartitionsParams{MaxPartitionsContributed: l0Sensitivity})
+	got := SelectPartitions(s, pcol, PartitionSelectionParams{MaxPartitionsContributed: l0Sensitivity})
 
 	// Assert
 	testutils.CheckNumPartitions(s, got, 1)

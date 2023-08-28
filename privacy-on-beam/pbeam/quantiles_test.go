@@ -147,7 +147,7 @@ func TestNewBoundedQuantilesFnTemp(t *testing.T) {
 			QuantilesParams{
 				AggregationEpsilon:           tc.aggregationEpsilon,
 				AggregationDelta:             tc.aggregationDelta,
-				PartitionSelectionParams:     PartitionSelectionParams{tc.partitionSelectionEpsilon, tc.partitionSelectionDelta},
+				PartitionSelectionParams:     PartitionSelectionParams{Epsilon: tc.partitionSelectionEpsilon, Delta: tc.partitionSelectionDelta},
 				MaxPartitionsContributed:     17,
 				MaxContributionsPerPartition: 5,
 				MinValue:                     0,
@@ -1326,7 +1326,7 @@ func TestCheckQuantilesPerKeyParams(t *testing.T) {
 			usesNewPrivacyBudgetAPI: true,
 			params: QuantilesParams{
 				AggregationEpsilon:           1.0,
-				PartitionSelectionParams:     PartitionSelectionParams{1.0, 1e-5},
+				PartitionSelectionParams:     PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
 				MaxPartitionsContributed:     1,
 				MaxContributionsPerPartition: 1,
 				MinValue:                     -5.0,
@@ -1338,11 +1338,11 @@ func TestCheckQuantilesPerKeyParams(t *testing.T) {
 			wantErr:       false,
 		},
 		{
-			desc:                    "negative aggregationEpsilon",
+			desc:                    "new API, PartitionSelectionParams.MaxPartitionsContributed set",
 			usesNewPrivacyBudgetAPI: true,
 			params: QuantilesParams{
-				AggregationEpsilon:           -1.0,
-				PartitionSelectionParams:     PartitionSelectionParams{1.0, 1e-5},
+				AggregationEpsilon:           1.0,
+				PartitionSelectionParams:     PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5, MaxPartitionsContributed: 1},
 				MaxPartitionsContributed:     1,
 				MaxContributionsPerPartition: 1,
 				MinValue:                     -5.0,
@@ -1354,11 +1354,27 @@ func TestCheckQuantilesPerKeyParams(t *testing.T) {
 			wantErr:       true,
 		},
 		{
-			desc:                    "negative partitionSelectionEpsilon",
+			desc:                    "new API, negative aggregationEpsilon",
+			usesNewPrivacyBudgetAPI: true,
+			params: QuantilesParams{
+				AggregationEpsilon:           -1.0,
+				PartitionSelectionParams:     PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
+				MaxPartitionsContributed:     1,
+				MaxContributionsPerPartition: 1,
+				MinValue:                     -5.0,
+				MaxValue:                     5.0,
+				Ranks:                        []float64{0.5},
+			},
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: nil,
+			wantErr:       true,
+		},
+		{
+			desc:                    "new API, negative partitionSelectionEpsilon",
 			usesNewPrivacyBudgetAPI: true,
 			params: QuantilesParams{
 				AggregationEpsilon:           1.0,
-				PartitionSelectionParams:     PartitionSelectionParams{-1.0, 1e-5},
+				PartitionSelectionParams:     PartitionSelectionParams{Epsilon: -1.0, Delta: 1e-5},
 				MaxPartitionsContributed:     1,
 				MaxContributionsPerPartition: 1,
 				MinValue:                     -5.0,
@@ -1374,7 +1390,7 @@ func TestCheckQuantilesPerKeyParams(t *testing.T) {
 			usesNewPrivacyBudgetAPI: true,
 			params: QuantilesParams{
 				AggregationEpsilon:           1.0,
-				PartitionSelectionParams:     PartitionSelectionParams{1.0, 0},
+				PartitionSelectionParams:     PartitionSelectionParams{Epsilon: 1.0, Delta: 0},
 				MaxPartitionsContributed:     1,
 				MaxContributionsPerPartition: 1,
 				MinValue:                     -5.0,
@@ -1390,7 +1406,7 @@ func TestCheckQuantilesPerKeyParams(t *testing.T) {
 			usesNewPrivacyBudgetAPI: true,
 			params: QuantilesParams{
 				AggregationEpsilon:           1.0,
-				PartitionSelectionParams:     PartitionSelectionParams{1.0, 1e-5},
+				PartitionSelectionParams:     PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
 				MaxPartitionsContributed:     1,
 				MaxContributionsPerPartition: 1,
 				MinValue:                     6.0,
@@ -1406,7 +1422,7 @@ func TestCheckQuantilesPerKeyParams(t *testing.T) {
 			usesNewPrivacyBudgetAPI: true,
 			params: QuantilesParams{
 				AggregationEpsilon:           1.0,
-				PartitionSelectionParams:     PartitionSelectionParams{1.0, 1e-5},
+				PartitionSelectionParams:     PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
 				MaxPartitionsContributed:     1,
 				MaxContributionsPerPartition: 1,
 				MinValue:                     5.0,
@@ -1422,7 +1438,7 @@ func TestCheckQuantilesPerKeyParams(t *testing.T) {
 			usesNewPrivacyBudgetAPI: true,
 			params: QuantilesParams{
 				AggregationEpsilon:       1.0,
-				PartitionSelectionParams: PartitionSelectionParams{1.0, 1e-5},
+				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
 				MaxPartitionsContributed: 1,
 				MinValue:                 -5.0,
 				MaxValue:                 5.0,
@@ -1437,7 +1453,7 @@ func TestCheckQuantilesPerKeyParams(t *testing.T) {
 			usesNewPrivacyBudgetAPI: true,
 			params: QuantilesParams{
 				AggregationEpsilon:           1.0,
-				PartitionSelectionParams:     PartitionSelectionParams{1.0, 1e-5},
+				PartitionSelectionParams:     PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
 				MaxContributionsPerPartition: 1,
 				MinValue:                     -5.0,
 				MaxValue:                     5.0,
@@ -1452,7 +1468,7 @@ func TestCheckQuantilesPerKeyParams(t *testing.T) {
 			usesNewPrivacyBudgetAPI: true,
 			params: QuantilesParams{
 				AggregationEpsilon:           1.0,
-				PartitionSelectionParams:     PartitionSelectionParams{1.0, 1e-5},
+				PartitionSelectionParams:     PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
 				MaxPartitionsContributed:     1,
 				MaxContributionsPerPartition: 1,
 				MinValue:                     -5.0,
@@ -1467,7 +1483,7 @@ func TestCheckQuantilesPerKeyParams(t *testing.T) {
 			usesNewPrivacyBudgetAPI: true,
 			params: QuantilesParams{
 				AggregationEpsilon:           1.0,
-				PartitionSelectionParams:     PartitionSelectionParams{1.0, 1e-5},
+				PartitionSelectionParams:     PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
 				MaxPartitionsContributed:     1,
 				MaxContributionsPerPartition: 1,
 				MinValue:                     -5.0,
@@ -1483,7 +1499,7 @@ func TestCheckQuantilesPerKeyParams(t *testing.T) {
 			usesNewPrivacyBudgetAPI: true,
 			params: QuantilesParams{
 				AggregationEpsilon:           1.0,
-				PartitionSelectionParams:     PartitionSelectionParams{0, 1e-5},
+				PartitionSelectionParams:     PartitionSelectionParams{Epsilon: 0, Delta: 1e-5},
 				MaxPartitionsContributed:     1,
 				MaxContributionsPerPartition: 1,
 				MinValue:                     -5.0,
@@ -1500,7 +1516,7 @@ func TestCheckQuantilesPerKeyParams(t *testing.T) {
 			usesNewPrivacyBudgetAPI: true,
 			params: QuantilesParams{
 				AggregationEpsilon:           1.0,
-				PartitionSelectionParams:     PartitionSelectionParams{1.0, 0},
+				PartitionSelectionParams:     PartitionSelectionParams{Epsilon: 1.0, Delta: 0},
 				MaxPartitionsContributed:     1,
 				MaxContributionsPerPartition: 1,
 				MinValue:                     -5.0,

@@ -51,13 +51,44 @@ type QuantilesParams struct {
 	// Uses the new privacy budget API.
 	AggregationEpsilon, AggregationDelta float64
 	// Differential privacy budget consumed by partition selection of this
-	// aggregation. If PublicPartitions are specified, this needs to be left unset.
+	// aggregation.
+	//
+	// If PublicPartitions are specified, this needs to be left unset.
+	//
 	// If there is only one aggregation, this can be left unset; in that case
 	// the entire budget reserved for partition selection in the PrivacySpec
 	// is consumed.
 	//
 	// Uses the new privacy budget API.
+	//
+	// Optional.
 	PartitionSelectionParams PartitionSelectionParams
+	// You can input the list of partitions present in the output if you know
+	// them in advance. When you specify partitions, partition selection /
+	// thresholding will be disabled and partitions will appear in the output
+	// if and only if they appear in the set of public partitions.
+	//
+	// You should not derive the list of partitions non-privately from private
+	// data. You should only use this in either of the following cases:
+	// 	1. The list of partitions is data-independent. For example, if you are
+	// 	aggregating a metric by hour, you could provide a list of all possible
+	// 	hourly period.
+	// 	2. You use a differentially private operation to come up with the list of
+	// 	partitions. For example, you could use the output of a SelectPartitions
+	//  operation or the keys of a DistinctPrivacyID operation as the list of
+	//  public partitions.
+	//
+	// PublicPartitions needs to be a beam.PCollection, slice, or array. The
+	// underlying type needs to match the partition type of the PrivatePCollection.
+	//
+	// Prefer slices or arrays if the list of public partitions is small and
+	// can fit into memory (e.g., up to a million). Prefer beam.PCollection
+	// otherwise.
+	//
+	// If PartitionSelectionParams are specified, this needs to be left unset.
+	//
+	// Optional.
+	PublicPartitions any
 	// The maximum number of distinct values that a given privacy identifier
 	// can influence. There is an inherent trade-off when choosing this
 	// parameter: a larger MaxPartitionsContributed leads to less data loss due
@@ -99,31 +130,6 @@ type QuantilesParams struct {
 	// i.e. computing multiple quantiles does not make each quantile less accurate
 	// for a fixed privacy budget.
 	Ranks []float64
-	// You can input the list of partitions present in the output if you know
-	// them in advance. When you specify partitions, partition selection /
-	// thresholding will be disabled and partitions will appear in the output
-	// if and only if they appear in the set of public partitions.
-	//
-	// You should not derive the list of partitions non-privately from private
-	// data. You should only use this in either of the following cases:
-	// 	1. The list of partitions is data-independent. For example, if you are
-	// 	aggregating a metric by hour, you could provide a list of all possible
-	// 	hourly period.
-	// 	2. You use a differentially private operation to come up with the list of
-	// 	partitions. For example, you could use the output of a SelectPartitions
-	//  operation or the keys of a DistinctPrivacyID operation as the list of
-	//  public partitions.
-	//
-	// PublicPartitions needs to be a beam.PCollection, slice, or array. The
-	// underlying type needs to match the partition type of the PrivatePCollection.
-	//
-	// Prefer slices or arrays if the list of public partitions is small and
-	// can fit into memory (e.g., up to a million). Prefer beam.PCollection
-	// otherwise.
-	//
-	// Optional.
-	// TODO: Move PublicPartitions to PartitionSelectionParams.
-	PublicPartitions any
 }
 
 // QuantilesPerKey computes one or multiple quantiles of the values associated with each
@@ -330,6 +336,10 @@ func checkQuantilesPerKeyParams(params QuantilesParams, usesNewPrivacyBudgetAPI 
 			return err
 		}
 		err = checkPartitionSelectionDelta(params.PartitionSelectionParams.Delta, params.PublicPartitions)
+		if err != nil {
+			return err
+		}
+		err = checkMaxPartitionsContributedPartitionSelection(params.PartitionSelectionParams.MaxPartitionsContributed)
 		if err != nil {
 			return err
 		}

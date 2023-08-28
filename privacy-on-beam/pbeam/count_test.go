@@ -647,7 +647,7 @@ func TestCheckCountParams(t *testing.T) {
 			desc: "new API, valid parameters w/o public partitions",
 			params: CountParams{
 				AggregationEpsilon:       1.0,
-				PartitionSelectionParams: PartitionSelectionParams{1.0, 1e-5},
+				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
 				MaxPartitionsContributed: 1,
 				MaxValue:                 1,
 			},
@@ -657,11 +657,23 @@ func TestCheckCountParams(t *testing.T) {
 			wantErr:                 false,
 		},
 		{
+			desc: "new API, PartitionSelectionParams.MaxPartitionsContributed set",
+			params: CountParams{
+				AggregationEpsilon:       1.0,
+				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5, MaxPartitionsContributed: 1},
+				MaxPartitionsContributed: 1,
+				MaxValue:                 1,
+			},
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: nil,
+			wantErr:       true,
+		},
+		{
 			desc: "new API, valid parameters w/ Gaussian noise w/o public partitions",
 			params: CountParams{
 				AggregationEpsilon:       1.0,
 				AggregationDelta:         1e-5,
-				PartitionSelectionParams: PartitionSelectionParams{1.0, 1e-5},
+				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
 				MaxPartitionsContributed: 1,
 				MaxValue:                 1,
 			},
@@ -674,7 +686,7 @@ func TestCheckCountParams(t *testing.T) {
 			desc: "new API, zero aggregationDelta w/ Gaussian noise w/o public partitions",
 			params: CountParams{
 				AggregationEpsilon:       1.0,
-				PartitionSelectionParams: PartitionSelectionParams{1.0, 1e-5},
+				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
 				MaxPartitionsContributed: 1,
 				MaxValue:                 1,
 			},
@@ -701,7 +713,7 @@ func TestCheckCountParams(t *testing.T) {
 			params: CountParams{
 				AggregationEpsilon:       1.0,
 				AggregationDelta:         1e-5,
-				PartitionSelectionParams: PartitionSelectionParams{1.0, 1e-5},
+				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
 				MaxPartitionsContributed: 1,
 				MaxValue:                 1,
 			},
@@ -714,7 +726,7 @@ func TestCheckCountParams(t *testing.T) {
 			desc: "new API, negative aggregationEpsilon",
 			params: CountParams{
 				AggregationEpsilon:       -1.0,
-				PartitionSelectionParams: PartitionSelectionParams{1.0, 1e-5},
+				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
 				MaxPartitionsContributed: 1,
 				MaxValue:                 1,
 			},
@@ -727,7 +739,7 @@ func TestCheckCountParams(t *testing.T) {
 			desc: "new API, negative partitionSelectionEpsilon",
 			params: CountParams{
 				AggregationEpsilon:       1.0,
-				PartitionSelectionParams: PartitionSelectionParams{-1.0, 1e-5},
+				PartitionSelectionParams: PartitionSelectionParams{Epsilon: -1.0, Delta: 1e-5},
 				MaxPartitionsContributed: 1,
 				MaxValue:                 1,
 			},
@@ -740,7 +752,7 @@ func TestCheckCountParams(t *testing.T) {
 			desc: "new API, zero partitionSelectionDelta w/o public partitions",
 			params: CountParams{
 				AggregationEpsilon:       1.0,
-				PartitionSelectionParams: PartitionSelectionParams{1.0, 0},
+				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1.0, Delta: 0},
 				MaxPartitionsContributed: 1,
 				MaxValue:                 1,
 			},
@@ -753,7 +765,7 @@ func TestCheckCountParams(t *testing.T) {
 			desc: "new API, zero partitionSelectionEpsilon w/o public partitions",
 			params: CountParams{
 				AggregationEpsilon:       1.0,
-				PartitionSelectionParams: PartitionSelectionParams{0, 1e-5},
+				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 0, Delta: 1e-5},
 				MaxPartitionsContributed: 1,
 				MaxValue:                 1,
 			},
@@ -818,7 +830,7 @@ func TestCheckCountParams(t *testing.T) {
 			desc: "new API, unset MaxPartitionsContributed",
 			params: CountParams{
 				AggregationEpsilon:       1.0,
-				PartitionSelectionParams: PartitionSelectionParams{1.0, 1e-5},
+				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
 				MaxValue:                 1,
 			},
 			usesNewPrivacyBudgetAPI: true,
@@ -830,7 +842,7 @@ func TestCheckCountParams(t *testing.T) {
 			desc: "new API, negative max value",
 			params: CountParams{
 				AggregationEpsilon:       1.0,
-				PartitionSelectionParams: PartitionSelectionParams{1.0, 1e-5},
+				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
 				MaxPartitionsContributed: 1,
 				MaxValue:                 -1,
 			},

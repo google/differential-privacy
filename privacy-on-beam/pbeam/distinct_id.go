@@ -56,24 +56,18 @@ type DistinctPrivacyIDParams struct {
 	AggregationEpsilon, AggregationDelta float64
 	// Differential privacy budget consumed by partition selection of this
 	// aggregation. Note that DistinctPrivacyID doesn't consume epsilon for
-	// partition selection, so leave epsilon unset.
+	// partition selection, so you can only specify a delta.
+	//
 	// If PublicPartitions are specified, this needs to be left unset.
+	//
 	// If there is only one aggregation, this can be left unset; in that case
 	// the entire budget reserved for partition selection in the PrivacySpec
 	// is consumed.
 	//
 	// Uses the new privacy budget API.
-	PartitionSelectionParams PartitionSelectionParams
-	// The maximum number of distinct values that a given privacy identifier
-	// can influence. If a privacy identifier is associated with more values,
-	// random values will be dropped. There is an inherent trade-off when
-	// choosing this parameter: a larger MaxPartitionsContributed leads to less
-	// data loss due to contribution bounding, but since the noise added in
-	// aggregations is scaled according to maxPartitionsContributed, it also
-	// means that more noise is added to each count.
 	//
-	// Required.
-	MaxPartitionsContributed int64
+	// Optional.
+	PartitionSelectionDelta float64
 	// You can input the list of partitions present in the output if you know
 	// them in advance. When you specify partitions, partition selection /
 	// thresholding will be disabled and partitions will appear in the output
@@ -96,9 +90,20 @@ type DistinctPrivacyIDParams struct {
 	// can fit into memory (e.g., up to a million). Prefer beam.PCollection
 	// otherwise.
 	//
+	// If PartitionSelectionDelta is specified, this needs to be left unset.
+	//
 	// Optional.
-	// TODO: Move PublicPartitions to PartitionSelectionParams.
 	PublicPartitions any
+	// The maximum number of distinct values that a given privacy identifier
+	// can influence. If a privacy identifier is associated with more values,
+	// random values will be dropped. There is an inherent trade-off when
+	// choosing this parameter: a larger MaxPartitionsContributed leads to less
+	// data loss due to contribution bounding, but since the noise added in
+	// aggregations is scaled according to maxPartitionsContributed, it also
+	// means that more noise is added to each count.
+	//
+	// Required.
+	MaxPartitionsContributed int64
 }
 
 // DistinctPrivacyID counts the number of distinct privacy identifiers
@@ -137,7 +142,7 @@ func DistinctPrivacyID(s beam.Scope, pcol PrivatePCollection, params DistinctPri
 			log.Fatalf("Couldn't consume aggregation budget for DistinctPrivacyID: %v", err)
 		}
 		if params.PublicPartitions == nil {
-			_, params.PartitionSelectionParams.Delta, err = spec.partitionSelectionBudget.consume(0, params.PartitionSelectionParams.Delta)
+			_, params.PartitionSelectionDelta, err = spec.partitionSelectionBudget.consume(0, params.PartitionSelectionDelta)
 			if err != nil {
 				log.Fatalf("Couldn't consume partition selection budget for DistinctPrivacyID: %v", err)
 			}
@@ -237,7 +242,7 @@ func checkDistinctPrivacyIDParams(params DistinctPrivacyIDParams, usesNewPrivacy
 		if err != nil {
 			return err
 		}
-		err = checkPartitionSelectionDelta(params.PartitionSelectionParams.Delta, params.PublicPartitions)
+		err = checkPartitionSelectionDelta(params.PartitionSelectionDelta, params.PublicPartitions)
 		if err != nil {
 			return err
 		}
@@ -305,7 +310,7 @@ func newCountFnTemp(spec PrivacySpec, params DistinctPrivacyIDParams, noiseKind 
 	return &countFn{
 		Epsilon:                  params.AggregationEpsilon,
 		NoiseDelta:               params.AggregationDelta,
-		ThresholdDelta:           params.PartitionSelectionParams.Delta,
+		ThresholdDelta:           params.PartitionSelectionDelta,
 		PreThreshold:             spec.preThreshold,
 		MaxPartitionsContributed: params.MaxPartitionsContributed,
 		NoiseKind:                noiseKind,

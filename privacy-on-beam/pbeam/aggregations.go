@@ -1009,11 +1009,21 @@ func checkPartitionSelectionDelta(delta float64, publicPartitions any) error {
 	return checks.CheckDeltaStrict(delta)
 }
 
-// checkMaxPartitionsContributed returns a maxPartitionsContributed parameter
-// if it greater than zero, otherwise it fails.
+// checkMaxPartitionsContributed returns an error if maxPartitionsContributed parameter of an aggregation
+// is smaller than or equal to 0.
 func checkMaxPartitionsContributed(maxPartitionsContributed int64) error {
 	if maxPartitionsContributed <= 0 {
 		return fmt.Errorf("MaxPartitionsContributed must be set to a positive value, was %d instead", maxPartitionsContributed)
+	}
+	return nil
+}
+
+// checkMaxPartitionsContributed returns an error if maxPartitionsContributed parameter of a PartitionSelectionParams
+// is set to anything other than 0.
+func checkMaxPartitionsContributedPartitionSelection(maxPartitionsContributed int64) error {
+	if maxPartitionsContributed != 0 {
+		return fmt.Errorf("Separate contribution bounding for partition selection is not supported. "+
+			"PartitionSelectionParams.MaxPartitionsContributed must be unset (i.e. 0), was %d instead", maxPartitionsContributed)
 	}
 	return nil
 }

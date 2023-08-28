@@ -38,23 +38,9 @@ func init() {
 
 // SelectPartitionsParams specifies the parameters associated with a
 // SelectPartitions aggregation.
-type SelectPartitionsParams struct {
-	// Differential privacy budget consumed by this aggregation. If there is
-	// only one aggregation, both Epsilon and Delta can be left 0; in that case,
-	// the entire budget reserved for partition selection in the PrivacySpec
-	// is consumed.
-	Epsilon, Delta float64
-	// The maximum number of distinct keys that a given privacy identifier
-	// can influence. If a privacy identifier is associated to more keys,
-	// random keys will be dropped. There is an inherent trade-off when
-	// choosing this parameter: a larger MaxPartitionsContributed leads to less
-	// data loss due to contribution bounding, but since the noise added in
-	// aggregations is scaled according to maxPartitionsContributed, it also
-	// means that more noise is added to each count.
-	//
-	// Required.
-	MaxPartitionsContributed int64
-}
+//
+// TODO: Remove this alias.
+type SelectPartitionsParams = PartitionSelectionParams
 
 // SelectPartitions performs differentially private partition selection using
 // dpagg.PreAggSelectPartitions and returns the list of partitions to keep as

@@ -141,7 +141,7 @@ func TestNewBoundedMeanFnTemp(t *testing.T) {
 			MeanParams{
 				AggregationEpsilon:           tc.aggregationEpsilon,
 				AggregationDelta:             tc.aggregationDelta,
-				PartitionSelectionParams:     PartitionSelectionParams{tc.partitionSelectionEpsilon, tc.partitionSelectionDelta},
+				PartitionSelectionParams:     PartitionSelectionParams{Epsilon: tc.partitionSelectionEpsilon, Delta: tc.partitionSelectionDelta},
 				MaxPartitionsContributed:     17,
 				MaxContributionsPerPartition: 5,
 				MinValue:                     0,
@@ -1638,7 +1638,7 @@ func TestCheckMeanPerKeyParams(t *testing.T) {
 			desc: "new API, valid parameters",
 			params: MeanParams{
 				AggregationEpsilon:           1.0,
-				PartitionSelectionParams:     PartitionSelectionParams{1.0, 1e-5},
+				PartitionSelectionParams:     PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
 				MaxPartitionsContributed:     1,
 				MaxContributionsPerPartition: 1,
 				MinValue:                     -5.0,
@@ -1650,10 +1650,25 @@ func TestCheckMeanPerKeyParams(t *testing.T) {
 			wantErr:                 false,
 		},
 		{
+			desc:                    "new API, PartitionSelectionParams.MaxPartitionsContributed set",
+			usesNewPrivacyBudgetAPI: true,
+			params: MeanParams{
+				AggregationEpsilon:           1.0,
+				PartitionSelectionParams:     PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5, MaxPartitionsContributed: 1},
+				MaxPartitionsContributed:     1,
+				MaxContributionsPerPartition: 1,
+				MinValue:                     -5.0,
+				MaxValue:                     5.0,
+			},
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: nil,
+			wantErr:       true,
+		},
+		{
 			desc: "new API, negative aggregationEpsilon",
 			params: MeanParams{
 				AggregationEpsilon:           -1.0,
-				PartitionSelectionParams:     PartitionSelectionParams{1.0, 1e-5},
+				PartitionSelectionParams:     PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
 				MaxPartitionsContributed:     1,
 				MaxContributionsPerPartition: 1,
 				MinValue:                     -5.0,
@@ -1668,7 +1683,7 @@ func TestCheckMeanPerKeyParams(t *testing.T) {
 			desc: "new API, negative partitionSelectionEpsilon",
 			params: MeanParams{
 				AggregationEpsilon:           1.0,
-				PartitionSelectionParams:     PartitionSelectionParams{-1.0, 1e-5},
+				PartitionSelectionParams:     PartitionSelectionParams{Epsilon: -1.0, Delta: 1e-5},
 				MaxPartitionsContributed:     1,
 				MaxContributionsPerPartition: 1,
 				MinValue:                     -5.0,
@@ -1683,7 +1698,7 @@ func TestCheckMeanPerKeyParams(t *testing.T) {
 			desc: "new API, zero partitionSelectionDelta w/o public partitions",
 			params: MeanParams{
 				AggregationEpsilon:           1.0,
-				PartitionSelectionParams:     PartitionSelectionParams{1.0, 0},
+				PartitionSelectionParams:     PartitionSelectionParams{Epsilon: 1.0, Delta: 0},
 				MaxPartitionsContributed:     1,
 				MaxContributionsPerPartition: 1,
 				MinValue:                     -5.0,
@@ -1698,7 +1713,7 @@ func TestCheckMeanPerKeyParams(t *testing.T) {
 			desc: "new API, zero partitionSelectionEpsilon w/o public partitions",
 			params: MeanParams{
 				AggregationEpsilon:           1.0,
-				PartitionSelectionParams:     PartitionSelectionParams{0, 1e-5},
+				PartitionSelectionParams:     PartitionSelectionParams{Epsilon: 0, Delta: 1e-5},
 				MaxPartitionsContributed:     1,
 				MaxContributionsPerPartition: 1,
 				MinValue:                     -5.0,
@@ -1713,7 +1728,7 @@ func TestCheckMeanPerKeyParams(t *testing.T) {
 			desc: "new API, MaxValue < MinValue",
 			params: MeanParams{
 				AggregationEpsilon:           1.0,
-				PartitionSelectionParams:     PartitionSelectionParams{1.0, 1e-5},
+				PartitionSelectionParams:     PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
 				MaxPartitionsContributed:     1,
 				MaxContributionsPerPartition: 1,
 				MinValue:                     6.0,
@@ -1728,7 +1743,7 @@ func TestCheckMeanPerKeyParams(t *testing.T) {
 			desc: "new API, MaxValue = MinValue",
 			params: MeanParams{
 				AggregationEpsilon:           1.0,
-				PartitionSelectionParams:     PartitionSelectionParams{1.0, 1e-5},
+				PartitionSelectionParams:     PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
 				MaxPartitionsContributed:     1,
 				MaxContributionsPerPartition: 1,
 				MinValue:                     5.0,
@@ -1743,7 +1758,7 @@ func TestCheckMeanPerKeyParams(t *testing.T) {
 			desc: "new API, zero MaxContributionsPerPartition",
 			params: MeanParams{
 				AggregationEpsilon:       1.0,
-				PartitionSelectionParams: PartitionSelectionParams{1.0, 1e-5},
+				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
 				MaxPartitionsContributed: 1,
 				MinValue:                 -5.0,
 				MaxValue:                 5.0,
@@ -1757,7 +1772,7 @@ func TestCheckMeanPerKeyParams(t *testing.T) {
 			desc: "new API, zero MaxPartitionsContributed",
 			params: MeanParams{
 				AggregationEpsilon:           1.0,
-				PartitionSelectionParams:     PartitionSelectionParams{1.0, 1e-5},
+				PartitionSelectionParams:     PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
 				MaxContributionsPerPartition: 1,
 				MinValue:                     -5.0,
 				MaxValue:                     5.0,
@@ -1771,7 +1786,7 @@ func TestCheckMeanPerKeyParams(t *testing.T) {
 			desc: "new API, non-zero partitionSelectionDelta w/ public partitions",
 			params: MeanParams{
 				AggregationEpsilon:           1.0,
-				PartitionSelectionParams:     PartitionSelectionParams{0, 1e-5},
+				PartitionSelectionParams:     PartitionSelectionParams{Epsilon: 0, Delta: 1e-5},
 				MaxPartitionsContributed:     1,
 				MaxContributionsPerPartition: 1,
 				MinValue:                     -5.0,
@@ -1787,7 +1802,7 @@ func TestCheckMeanPerKeyParams(t *testing.T) {
 			desc: "new API, non-zero partitionSelectionEpsilon w/ public partitions",
 			params: MeanParams{
 				AggregationEpsilon:           1.0,
-				PartitionSelectionParams:     PartitionSelectionParams{1.0, 0},
+				PartitionSelectionParams:     PartitionSelectionParams{Epsilon: 1.0, Delta: 0},
 				MaxPartitionsContributed:     1,
 				MaxContributionsPerPartition: 1,
 				MinValue:                     -5.0,

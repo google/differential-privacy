@@ -46,33 +46,18 @@ type CountParams struct {
 	// Uses the new privacy budget API.
 	AggregationEpsilon, AggregationDelta float64
 	// Differential privacy budget consumed by partition selection of this
-	// aggregation. If PublicPartitions are specified, this needs to be left unset.
+	// aggregation.
+	//
+	// If PublicPartitions are specified, this needs to be left unset.
+	//
 	// If there is only one aggregation, this can be left unset; in that case
 	// the entire budget reserved for partition selection in the PrivacySpec
 	// is consumed.
 	//
 	// Uses the new privacy budget API.
+	//
+	// Optional.
 	PartitionSelectionParams PartitionSelectionParams
-	// The maximum number of distinct values that a given privacy identifier
-	// can influence. If a privacy identifier is associated with more values,
-	// random values will be dropped. There is an inherent trade-off when
-	// choosing this parameter: a larger MaxPartitionsContributed leads to less
-	// data loss due to contribution bounding, but since the noise added in
-	// aggregations is scaled according to maxPartitionsContributed, it also
-	// means that more noise is added to each count.
-	//
-	// Required.
-	MaxPartitionsContributed int64
-	// The maximum number of times that a privacy identifier can contribute to
-	// a single count (or, equivalently, the maximum value that a privacy
-	// identifier can add to a single count in total). If MaxValue=10 and a
-	// privacy identifier is associated with the same value in 15 records, Count
-	// ignores 5 of these records and only adds 10 to the count for this value.
-	// There is an inherent trade-off when choosing MaxValue: a larger
-	// parameter means that fewer records are lost, but a larger noise is added.
-	//
-	// Required.
-	MaxValue int64
 	// You can input the list of partitions present in the output if you know
 	// them in advance. When you specify partitions, partition selection /
 	// thresholding will be disabled and partitions will appear in the output
@@ -95,9 +80,30 @@ type CountParams struct {
 	// can fit into memory (e.g., up to a million). Prefer beam.PCollection
 	// otherwise.
 	//
+	// If PartitionSelectionParams are specified, this needs to be left unset.
+	//
 	// Optional.
-	// TODO: Move PublicPartitions to PartitionSelectionParams.
 	PublicPartitions any
+	// The maximum number of distinct values that a given privacy identifier
+	// can influence. If a privacy identifier is associated with more values,
+	// random values will be dropped. There is an inherent trade-off when
+	// choosing this parameter: a larger MaxPartitionsContributed leads to less
+	// data loss due to contribution bounding, but since the noise added in
+	// aggregations is scaled according to maxPartitionsContributed, it also
+	// means that more noise is added to each count.
+	//
+	// Required.
+	MaxPartitionsContributed int64
+	// The maximum number of times that a privacy identifier can contribute to
+	// a single count (or, equivalently, the maximum value that a privacy
+	// identifier can add to a single count in total). If MaxValue=10 and a
+	// privacy identifier is associated with the same value in 15 records, Count
+	// ignores 5 of these records and only adds 10 to the count for this value.
+	// There is an inherent trade-off when choosing MaxValue: a larger
+	// parameter means that fewer records are lost, but a larger noise is added.
+	//
+	// Required.
+	MaxValue int64
 }
 
 // Count counts the number of times a value appears in a PrivatePCollection,
@@ -225,6 +231,10 @@ func checkCountParams(params CountParams, usesNewPrivacyBudgetAPI bool, noiseKin
 			return err
 		}
 		err = checkPartitionSelectionDelta(params.PartitionSelectionParams.Delta, params.PublicPartitions)
+		if err != nil {
+			return err
+		}
+		err = checkMaxPartitionsContributedPartitionSelection(params.PartitionSelectionParams.MaxPartitionsContributed)
 		if err != nil {
 			return err
 		}

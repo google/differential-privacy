@@ -562,7 +562,7 @@ func TestCheckDistinctPerKeyParams(t *testing.T) {
 			desc: "valid parameters",
 			params: DistinctPerKeyParams{
 				AggregationEpsilon:           1.0,
-				PartitionSelectionParams:     PartitionSelectionParams{1.0, 1e-5},
+				PartitionSelectionParams:     PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
 				MaxPartitionsContributed:     1,
 				MaxContributionsPerPartition: 1,
 			},
@@ -574,7 +574,7 @@ func TestCheckDistinctPerKeyParams(t *testing.T) {
 			desc: "negative aggregationEpsilon",
 			params: DistinctPerKeyParams{
 				AggregationEpsilon:           -1.0,
-				PartitionSelectionParams:     PartitionSelectionParams{1.0, 1e-5},
+				PartitionSelectionParams:     PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
 				MaxPartitionsContributed:     1,
 				MaxContributionsPerPartition: 1,
 			},
@@ -586,7 +586,7 @@ func TestCheckDistinctPerKeyParams(t *testing.T) {
 			desc: "negative partitionSelectionEpsilon",
 			params: DistinctPerKeyParams{
 				AggregationEpsilon:           1.0,
-				PartitionSelectionParams:     PartitionSelectionParams{-1.0, 1e-5},
+				PartitionSelectionParams:     PartitionSelectionParams{Epsilon: -1.0, Delta: 1e-5},
 				MaxPartitionsContributed:     1,
 				MaxContributionsPerPartition: 1,
 			},
@@ -598,7 +598,7 @@ func TestCheckDistinctPerKeyParams(t *testing.T) {
 			desc: "zero partitionSelectionDelta w/o public partitions",
 			params: DistinctPerKeyParams{
 				AggregationEpsilon:           1.0,
-				PartitionSelectionParams:     PartitionSelectionParams{1.0, 0},
+				PartitionSelectionParams:     PartitionSelectionParams{Epsilon: 1.0, Delta: 0},
 				MaxPartitionsContributed:     1,
 				MaxContributionsPerPartition: 1,
 			},
@@ -610,7 +610,7 @@ func TestCheckDistinctPerKeyParams(t *testing.T) {
 			desc: "zero partitionSelectionEpsilon w/o public partitions",
 			params: DistinctPerKeyParams{
 				AggregationEpsilon:           1.0,
-				PartitionSelectionParams:     PartitionSelectionParams{0, 1e-5},
+				PartitionSelectionParams:     PartitionSelectionParams{Epsilon: 0, Delta: 1e-5},
 				MaxPartitionsContributed:     1,
 				MaxContributionsPerPartition: 1,
 			},
@@ -623,7 +623,7 @@ func TestCheckDistinctPerKeyParams(t *testing.T) {
 			params: DistinctPerKeyParams{
 				AggregationEpsilon:       1.0,
 				AggregationDelta:         0,
-				PartitionSelectionParams: PartitionSelectionParams{1.0, 1e-5},
+				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
 				MaxPartitionsContributed: 1,
 			},
 			noiseKind:     noise.LaplaceNoise,
@@ -635,7 +635,7 @@ func TestCheckDistinctPerKeyParams(t *testing.T) {
 			params: DistinctPerKeyParams{
 				AggregationEpsilon:           1.0,
 				AggregationDelta:             1e-5,
-				PartitionSelectionParams:     PartitionSelectionParams{1.0, 1e-5},
+				PartitionSelectionParams:     PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
 				MaxPartitionsContributed:     1,
 				MaxContributionsPerPartition: 1,
 			},
@@ -689,6 +689,19 @@ func TestCheckDistinctPerKeyParams(t *testing.T) {
 			},
 			noiseKind:     noise.LaplaceNoise,
 			partitionType: reflect.TypeOf(""),
+			wantErr:       true,
+		},
+		{
+			desc: "new API, PartitionSelectionParams.MaxPartitionsContributed set",
+			params: DistinctPerKeyParams{
+				AggregationEpsilon:           1.0,
+				AggregationDelta:             1e-5,
+				PartitionSelectionParams:     PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5, MaxPartitionsContributed: 1},
+				MaxPartitionsContributed:     1,
+				MaxContributionsPerPartition: 1,
+			},
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: nil,
 			wantErr:       true,
 		},
 	} {
