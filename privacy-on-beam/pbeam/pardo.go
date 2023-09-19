@@ -114,9 +114,14 @@ type anonDoFn struct {
 
 // buildDoFn validates the provided doFn and transforms it into an *anonDoFn.
 func buildDoFn(doFn any) (*anonDoFn, error) {
-	if reflect.ValueOf(doFn).Type().Kind() != reflect.Func {
+	if reflect.TypeOf(doFn).Kind() != reflect.Func {
 		return nil, fmt.Errorf("pbeam.ParDo doesn't support structural DoFns for now: doFn must be a function")
 	}
+	err := checkUniversalTypes(reflect.TypeOf(doFn))
+	if err != nil {
+		return nil, err
+	}
+
 	reflectxFn := reflectx.MakeFunc(doFn)
 	funcxFn, err := funcx.New(reflectxFn)
 	if err != nil {
@@ -164,6 +169,45 @@ func buildDoFn(doFn any) (*anonDoFn, error) {
 		return buildEmitDoFn(reflectxFn, t)
 	}
 	return buildFunctionalDoFn(reflectxFn, t)
+}
+
+func checkUniversalTypes(t reflect.Type) error {
+	universalTypes := [7]reflect.Type{
+		reflect.TypeOf((*beam.T)(nil)).Elem(),
+		reflect.TypeOf((*beam.U)(nil)).Elem(),
+		reflect.TypeOf((*beam.V)(nil)).Elem(),
+		reflect.TypeOf((*beam.W)(nil)).Elem(),
+		reflect.TypeOf((*beam.X)(nil)).Elem(),
+		reflect.TypeOf((*beam.Y)(nil)).Elem(),
+		reflect.TypeOf((*beam.Z)(nil)).Elem(),
+	}
+	for i := 0; i < t.NumIn(); i++ {
+		if t.In(i).Kind() == reflect.Func {
+			if err := checkUniversalTypes(t.In(i)); err != nil {
+				return err
+			}
+			continue
+		}
+		for j := 0; j < len(universalTypes); j++ {
+			if t.In(i) == universalTypes[j] {
+				return fmt.Errorf("pbeam.ParDo doesn't support DoFns with beam universal types, got function with %v", t.In(i))
+			}
+		}
+	}
+	for i := 0; i < t.NumOut(); i++ {
+		if t.Out(i).Kind() == reflect.Func {
+			if err := checkUniversalTypes(t.Out(i)); err != nil {
+				return err
+			}
+			continue
+		}
+		for j := 0; j < len(universalTypes); j++ {
+			if t.Out(i) == universalTypes[j] {
+				return fmt.Errorf("pbeam.ParDo doesn't support DoFns with beam universal types, got function with %v", t.Out(i))
+			}
+		}
+	}
+	return nil
 }
 
 // buildFunctionalDoFn transforms the input functional doFn (without emit) into an anonDoFn.

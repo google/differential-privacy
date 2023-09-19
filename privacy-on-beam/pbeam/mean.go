@@ -196,7 +196,7 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 		beam.TypeDefinition{Var: beam.VType, T: pcol.codec.VType.T})
 
 	// Don't do per-partition contribution bounding if in test mode without contribution bounding.
-	if spec.testMode != NoNoiseWithoutContributionBounding {
+	if spec.testMode != TestModeWithoutContributionBounding {
 		decoded = boundContributions(s, decoded, params.MaxContributionsPerPartition)
 	}
 
@@ -218,7 +218,7 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 	// Result is PCollection<ID, pairArrayFloat64>.
 	rekeyed := beam.ParDo(s, rekeyArrayFloat64, combined)
 	// Second, do cross-partition contribution bounding if not in test mode without contribution bounding.
-	if spec.testMode != NoNoiseWithoutContributionBounding {
+	if spec.testMode != TestModeWithoutContributionBounding {
 		rekeyed = boundContributions(s, rekeyed, params.MaxPartitionsContributed)
 	}
 
@@ -446,7 +446,7 @@ func (fn *boundedMeanFn) Setup() {
 }
 
 func (fn *boundedMeanFn) CreateAccumulator() (boundedMeanAccum, error) {
-	if fn.TestMode == NoNoiseWithoutContributionBounding && !fn.EmptyPartitions {
+	if fn.TestMode == TestModeWithoutContributionBounding && !fn.EmptyPartitions {
 		fn.Lower = math.Inf(-1)
 		fn.Upper = math.Inf(1)
 	}

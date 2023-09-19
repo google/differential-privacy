@@ -392,7 +392,7 @@ func (fn *boundedSumInt64Fn) Setup() {
 }
 
 func (fn *boundedSumInt64Fn) CreateAccumulator() (boundedSumAccumInt64, error) {
-	if fn.TestMode == NoNoiseWithoutContributionBounding {
+	if fn.TestMode == TestModeWithoutContributionBounding {
 		fn.Lower = math.MinInt64
 		fn.Upper = math.MaxInt64
 	}
@@ -557,7 +557,7 @@ func (fn *boundedSumFloat64Fn) Setup() {
 }
 
 func (fn *boundedSumFloat64Fn) CreateAccumulator() (boundedSumAccumFloat64, error) {
-	if fn.TestMode == NoNoiseWithoutContributionBounding {
+	if fn.TestMode == TestModeWithoutContributionBounding {
 		fn.Lower = math.Inf(-1)
 		fn.Upper = math.Inf(1)
 	}

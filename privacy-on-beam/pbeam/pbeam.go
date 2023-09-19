@@ -37,24 +37,29 @@
 // To understand the main API contract provided by PrivatePCollection, consider
 // the following example pipeline.
 //
-//	p := beam.NewPipeline()
-//	s := p.Root()
-//	// The input is a series of files in which each line contains the data of a privacy unit (e.g. an individual).
-//	input := textio.Read(s, "/path/to/files/*.txt") // input is a PCollection<string>
-//	// Extracts the privacy ID and the data associated with each line: extractID is a func(string) (userID,data).
-//	icol := beam.ParDo(s, input, extractID) // icol is a PCollection<privacyUnitID,data>
-//	// Transforms the input PCollection into a PrivatePCollection with parameters ε=1 and δ=10⁻¹⁰.
-//	// The privacy ID is "hidden" by the operation: pcol behaves as if it were a PCollection<data>.
-//	pcol := MakePrivate(s, icol, NewPrivacySpec(1, 1e-10)) // pcol is a PrivatePCollection<data>
-//	// Arbitrary transformations can be applied to the data…
-//	pcol = ParDo(s, pcol, someDoFn)
-//	pcol = ParDo(s, pcol, otherDoFn)
-//	// …and to retrieve PCollection outputs, differentially private aggregations must be used.
-//	// For example, assuming pcol is now a PrivatePCollection<field,float64>:
-//	sumParams := SumParams{MaxPartitionsContributed: 10, MaxValue: 5}
-//	ocol := SumPerKey(s, pcol2, sumParams) // ocol is a PCollection<field,float64>
-//	// And it is now possible to output this data.
-//	textio.Write(s, "/path/to/output/file", ocol)
+//		p := beam.NewPipeline()
+//		s := p.Root()
+//		// The input is a series of files in which each line contains the data of a privacy unit (e.g. an individual).
+//		input := textio.Read(s, "/path/to/files/*.txt") // input is a PCollection<string>
+//		// Extracts the privacy ID and the data associated with each line: extractID is a func(string) (userID,data).
+//		icol := beam.ParDo(s, input, extractID) // icol is a PCollection<privacyUnitID,data>
+//		// Transforms the input PCollection into a PrivatePCollection with parameters ε=1 and δ=10⁻¹⁰.
+//		// The privacy ID is "hidden" by the operation: pcol behaves as if it were a PCollection<data>.
+//	  spec, err := pbeam.NewPrivacySpecTemp(pbeam.PrivacySpecParams{
+//	    AggregationEpsilon: 0.5,
+//	    PartitionSelectionEpsilon: 0.5,
+//	    PartitionSelectionDelta: 1e-10,
+//	  })
+//		pcol := pbeam.MakePrivate(s, icol, spec) // pcol is a PrivatePCollection<data>
+//		// Arbitrary transformations can be applied to the data…
+//		pcol = pbeam.ParDo(s, pcol, someDoFn)
+//		pcol = pbeam.ParDo(s, pcol, otherDoFn)
+//		// …and to retrieve PCollection outputs, differentially private aggregations must be used.
+//		// For example, assuming pcol is now a PrivatePCollection<field,float64>:
+//		sumParams := pbeam.SumParams{MaxPartitionsContributed: 10, MaxValue: 5}
+//		ocol := pbeam.SumPerKey(s, pcol2, sumParams) // ocol is a PCollection<field,float64>
+//		// And it is now possible to output this data.
+//		textio.Write(s, "/path/to/output/file", ocol)
 //
 // The behavior of PrivatePCollection is similar to the behavior of PCollection.
 // In particular, it implements arbitrary per-record transformations via ParDo.
@@ -137,7 +142,7 @@ func init() {
 // a PrivatePCollection. It encapsulates a privacy budget that must be shared
 // between all aggregations on PrivatePCollections using this PrivacySpec. If
 // you have multiple pipelines in the same binary, and want them to use
-// different privacy budgets, call NewPrivacySpec multiple times and give a
+// different privacy budgets, call NewPrivacySpecTemp multiple times and give a
 // different PrivacySpec to each PrivatePCollection.
 type PrivacySpec struct {
 	budget *privacyBudget // Epsilon/Delta (ε,δ) budget available for this PrivatePCollection.
@@ -147,7 +152,7 @@ type PrivacySpec struct {
 	// TODO: Remove after migration is finalized.
 	usesNewPrivacyBudgetAPI  bool
 	aggregationBudget        *privacyBudget // Epsilon/Delta (ε,δ) budget available for aggregations performed on this PrivatePCollection.
-	partitionSelectionBudget *privacyBudget // Epsilon/Delta (ε,δ) budget available for partition selections performed  performed on this PrivatePCollection.
+	partitionSelectionBudget *privacyBudget // Epsilon/Delta (ε,δ) budget available for partition selections performed on this PrivatePCollection.
 	preThreshold             int64          // Pre-threshold K applied on top of DP partition selection.
 	testMode TestMode // Used for test pipelines, disabled by default.
 }
@@ -201,8 +206,8 @@ type PrivacySpecParams struct {
 	//
 	// Pre-thresholding is currently only available for partition selection.
 	PreThreshold int64
-	// Test mode for test pipelines, disabled by default. Set it to NoNoiseWithContributionBounding or
-	// NoNoiseWithoutContributionBounding if you want to enable test mode.
+	// Test mode for test pipelines, disabled by default. Set it to TestModeWithContributionBounding or
+	// TestModeWithoutContributionBounding if you want to enable test mode.
 	TestMode TestMode
 }
 
@@ -230,6 +235,9 @@ func NewPrivacySpecTemp(params PrivacySpecParams) (*PrivacySpec, error) {
 		return nil, fmt.Errorf("PartitionSelectionDelta: %v", err)
 	}
 	err = checks.CheckPreThreshold(params.PreThreshold)
+	if params.PreThreshold > 0 && params.PartitionSelectionDelta == 0 {
+		return nil, fmt.Errorf("when PreThreshold is set, partition selection budget must also be set")
+	}
 	if err != nil {
 		return nil, fmt.Errorf("PreThreshold: %v", err)
 	}
@@ -335,9 +343,9 @@ type PrivacySpecOption any
 func evaluatePrivacySpecOption(opt PrivacySpecOption, spec *PrivacySpec) {
 	switch opt {
 	case testoption.EnableNoNoiseWithContributionBounding{}:
-		spec.testMode = NoNoiseWithContributionBounding
+		spec.testMode = TestModeWithContributionBounding
 	case testoption.EnableNoNoiseWithoutContributionBounding{}:
-		spec.testMode = NoNoiseWithoutContributionBounding
+		spec.testMode = TestModeWithoutContributionBounding
 	}
 }
 
@@ -367,6 +375,8 @@ func (ln LaplaceNoise) toNoiseKind() noise.Kind {
 // budget for the pipeline. If there is only one aggregation, the entire budget
 // will be used for this aggregation. Otherwise, the user must specify how the
 // privacy budget is split across aggregations.
+//
+// Deprecated: Use NewPrivacySpecTemp instead.
 func NewPrivacySpec(epsilon, delta float64, options ...PrivacySpecOption) *PrivacySpec {
 	ps := &PrivacySpec{budget: &privacyBudget{epsilon: epsilon, delta: delta}}
 	for _, opt := range options {

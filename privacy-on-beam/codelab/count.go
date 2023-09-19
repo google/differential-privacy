@@ -20,6 +20,7 @@ package codelab
 import (
 	"math"
 
+	log "github.com/golang/glog"
 	"github.com/google/differential-privacy/privacy-on-beam/v2/pbeam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
@@ -54,7 +55,14 @@ func extractVisitHourFn(v Visit) int {
 func PrivateCountVisitsPerHour(s beam.Scope, col beam.PCollection) beam.PCollection {
 	s = s.Scope("PrivateCountVisitsPerHour")
 	// Create a Privacy Spec and convert col into a PrivatePCollection
-	spec := pbeam.NewPrivacySpec(epsilon, delta)
+	spec, err := pbeam.NewPrivacySpecTemp(pbeam.PrivacySpecParams{
+		AggregationEpsilon:        epsilon / 2,
+		PartitionSelectionEpsilon: epsilon / 2,
+		PartitionSelectionDelta:   delta,
+	})
+	if err != nil {
+		log.Fatalf("Couldn't create a PrivacySpec: %v", err)
+	}
 	pCol := pbeam.MakePrivateFromStruct(s, col, spec, "VisitorID")
 
 	visitHours := pbeam.ParDo(s, extractVisitHourFn, pCol)

@@ -87,7 +87,7 @@ func TestNewBoundedSumFn(t *testing.T) {
 				PublicPartitions:          false,
 			}},
 	} {
-		got, err := newBoundedSumFn(1, 1e-5, 17, 0, 10, tc.noiseKind, tc.vKind, false, Disabled)
+		got, err := newBoundedSumFn(1, 1e-5, 17, 0, 10, tc.noiseKind, tc.vKind, false, TestModeDisabled)
 		if err != nil {
 			t.Fatalf("Couldn't get boundedSumFn: %v", err)
 		}
@@ -195,7 +195,7 @@ func TestNewBoundedSumFnTemp(t *testing.T) {
 		{"lower > upper", noise.GaussianNoise, reflect.Int64, 0.5, 1e-5, 0.5, 1e-5, 0, 10, 0, true, nil},
 		{"Float64 bounds that overflow when converted to int64", noise.GaussianNoise, reflect.Int64, 0.5, 1e-5, 0.5, 1e-5, 0, 0, 1e100, true, nil},
 	} {
-		got, err := newBoundedSumFnTemp(PrivacySpec{preThreshold: tc.preThreshold, testMode: Disabled},
+		got, err := newBoundedSumFnTemp(PrivacySpec{preThreshold: tc.preThreshold, testMode: TestModeDisabled},
 			SumParams{
 				AggregationEpsilon:       tc.aggregationEpsilon,
 				AggregationDelta:         tc.aggregationDelta,
@@ -221,7 +221,7 @@ func TestBoundedSumFloat64FnSetup(t *testing.T) {
 	}{
 		{"Laplace noise kind", noise.LaplaceNoise, noise.Laplace()},
 		{"Gaussian noise kind", noise.GaussianNoise, noise.Gaussian()}} {
-		got, err := newBoundedSumFloat64Fn(1, 1e-5, 17, 0, 10, tc.noiseKind, false, Disabled)
+		got, err := newBoundedSumFloat64Fn(1, 1e-5, 17, 0, 10, tc.noiseKind, false, TestModeDisabled)
 		if err != nil {
 			t.Fatalf("Couldn't get boundedSumFloat64Fn: %v", err)
 		}
@@ -240,7 +240,7 @@ func TestBoundedSumInt64FnSetup(t *testing.T) {
 	}{
 		{"Laplace noise kind", noise.LaplaceNoise, noise.Laplace()},
 		{"Gaussian noise kind", noise.GaussianNoise, noise.Gaussian()}} {
-		got, err := newBoundedSumInt64Fn(1, 1e-5, 17, 0, 10, tc.noiseKind, false, Disabled)
+		got, err := newBoundedSumInt64Fn(1, 1e-5, 17, 0, 10, tc.noiseKind, false, TestModeDisabled)
 		if err != nil {
 			t.Fatalf("Couldn't get boundedSumInf64Fn: %v", err)
 		}
@@ -255,7 +255,7 @@ func TestBoundedSumInt64FnAddInput(t *testing.T) {
 	// Since δ=0.5 and 2 entries are added, PreAggPartitionSelection always emits.
 	// Since ε=1e100, the noise is added with probability in the order of exp(-1e100),
 	// which means we don't have to worry about tolerance/flakiness calculations.
-	fn, err := newBoundedSumInt64Fn(1e100, 0.5, 1, 0, 2, noise.LaplaceNoise, false, Disabled)
+	fn, err := newBoundedSumInt64Fn(1e100, 0.5, 1, 0, 2, noise.LaplaceNoise, false, TestModeDisabled)
 	if err != nil {
 		t.Fatalf("Couldn't get boundedSumInt64Fn: %v", err)
 	}
@@ -285,7 +285,7 @@ func TestBoundedSumInt64FnMergeAccumulators(t *testing.T) {
 	//
 	// Since ε=1e100, the noise is added with probability in the order of exp(-1e100),
 	// which means we don't have to worry about tolerance/flakiness calculations.
-	fn, err := newBoundedSumInt64Fn(1e100, 0.5, 1, 0, 2, noise.LaplaceNoise, false, Disabled)
+	fn, err := newBoundedSumInt64Fn(1e100, 0.5, 1, 0, 2, noise.LaplaceNoise, false, TestModeDisabled)
 	if err != nil {
 		t.Fatalf("Couldn't get boundedSumInt64Fn: %v", err)
 	}
@@ -323,7 +323,7 @@ func TestBoundedSumInt64FnExtractOutputReturnsNilForSmallPartitions(t *testing.T
 		// The probability of keeping a partition with 1 privacy unit is equal to δ=1e-23 which results in a flakiness of 10⁻²³.
 		{"Input with 1 privacy unit", 1}} {
 
-		fn, err := newBoundedSumInt64Fn(1, 1e-23, 1, 0, 2, noise.LaplaceNoise, false, Disabled)
+		fn, err := newBoundedSumInt64Fn(1, 1e-23, 1, 0, 2, noise.LaplaceNoise, false, TestModeDisabled)
 		if err != nil {
 			t.Fatalf("Couldn't get boundedSumInt64Fn: %v", err)
 		}
@@ -358,7 +358,7 @@ func TestBoundedSumInt64FnExtractOutputWithPublicPartitionsDoesNotThreshold(t *t
 		{"Input with 10 users", 10},
 		{"Input with 100 users", 100}} {
 
-		fn, err := newBoundedSumInt64Fn(1, 0, 1, 0, 2, noise.LaplaceNoise, true, Disabled)
+		fn, err := newBoundedSumInt64Fn(1, 0, 1, 0, 2, noise.LaplaceNoise, true, TestModeDisabled)
 		if err != nil {
 			t.Fatalf("Couldn't get boundedSumInt64Fn: %v", err)
 		}
@@ -385,7 +385,7 @@ func TestBoundedSumInt64FnExtractOutputWithPublicPartitionsDoesNotThreshold(t *t
 func TestBoundedSumFloat64FnAddInput(t *testing.T) {
 	// Since δ=0.5 and 2 entries are added, PreAggPartitionSelection always emits.
 	// Since ε=1e100, added noise is negligible.
-	fn, err := newBoundedSumFloat64Fn(1e100, 0.5, 1, 0, 2, noise.LaplaceNoise, false, Disabled)
+	fn, err := newBoundedSumFloat64Fn(1e100, 0.5, 1, 0, 2, noise.LaplaceNoise, false, TestModeDisabled)
 	if err != nil {
 		t.Fatalf("Couldn't get boundedSumFloat64Fn: %v", err)
 	}
@@ -414,7 +414,7 @@ func TestBoundedSumFloat64FnMergeAccumulators(t *testing.T) {
 	// accumulators is also effecting our partition selection outcome.
 	//
 	// Since ε=1e100, added noise is negligible.
-	fn, err := newBoundedSumFloat64Fn(1e100, 0.5, 1, 0, 2, noise.LaplaceNoise, false, Disabled)
+	fn, err := newBoundedSumFloat64Fn(1e100, 0.5, 1, 0, 2, noise.LaplaceNoise, false, TestModeDisabled)
 	if err != nil {
 		t.Fatalf("Couldn't get boundedSumFloat64Fn: %v", err)
 	}
@@ -452,7 +452,7 @@ func TestBoundedSumFloat64FnExtractOutputReturnsNilForSmallPartitions(t *testing
 		// The probability of keeping a partition with 1 privacy unit is equal to δ=1e-23 which results in a flakiness of 10⁻²³.
 		{"Input with 1 privacy unit", 1}} {
 
-		fn, err := newBoundedSumFloat64Fn(1, 1e-23, 1, 0, 2, noise.LaplaceNoise, false, Disabled)
+		fn, err := newBoundedSumFloat64Fn(1, 1e-23, 1, 0, 2, noise.LaplaceNoise, false, TestModeDisabled)
 		if err != nil {
 			t.Fatalf("Couldn't get boundedSumFloat64Fn: %v", err)
 		}
@@ -487,7 +487,7 @@ func TestBoundedSumFloat64FnExtractOutputWithPublicPartitionsDoesNotThreshold(t 
 		{"Input with 10 users", 10},
 		{"Input with 100 users", 100}} {
 		publicPartitions := true
-		fn, err := newBoundedSumFloat64Fn(1, 0, 1, 0, 2, noise.LaplaceNoise, publicPartitions, Disabled)
+		fn, err := newBoundedSumFloat64Fn(1, 0, 1, 0, 2, noise.LaplaceNoise, publicPartitions, TestModeDisabled)
 		if err != nil {
 			t.Fatalf("Couldn't get boundedSumFloat64Fn: %v", err)
 		}

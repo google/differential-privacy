@@ -171,7 +171,7 @@ func Count(s beam.Scope, pcol PrivatePCollection, params CountParams) beam.PColl
 	counts64 := beam.ParDo(s, convertIntToInt64, kvCounts)
 	rekeyed := beam.ParDo(s, rekeyInt64, counts64)
 	// Second, do cross-partition contribution bounding if not in test mode without contribution bounding.
-	if spec.testMode != NoNoiseWithoutContributionBounding {
+	if spec.testMode != TestModeWithoutContributionBounding {
 		rekeyed = boundContributions(s, rekeyed, params.MaxPartitionsContributed)
 	}
 	// Third, now that contribution bounding is done, remove the privacy keys,

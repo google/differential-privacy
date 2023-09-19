@@ -211,7 +211,7 @@ func QuantilesPerKey(s beam.Scope, pcol PrivatePCollection, params QuantilesPara
 		beam.TypeDefinition{Var: beam.VType, T: pcol.codec.VType.T})
 
 	// Don't do per-partition contribution bounding if in test mode without contribution bounding.
-	if spec.testMode != NoNoiseWithoutContributionBounding {
+	if spec.testMode != TestModeWithoutContributionBounding {
 		decoded = boundContributions(s, decoded, params.MaxContributionsPerPartition)
 	}
 
@@ -233,7 +233,7 @@ func QuantilesPerKey(s beam.Scope, pcol PrivatePCollection, params QuantilesPara
 	// Result is PCollection<ID, pairArrayFloat64>.
 	rekeyed := beam.ParDo(s, rekeyArrayFloat64, combined)
 	// Second, do cross-partition contribution bounding if not in test mode without contribution bounding.
-	if spec.testMode != NoNoiseWithoutContributionBounding {
+	if spec.testMode != TestModeWithoutContributionBounding {
 		rekeyed = boundContributions(s, rekeyed, params.MaxPartitionsContributed)
 	}
 

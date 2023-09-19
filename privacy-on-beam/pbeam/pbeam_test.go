@@ -73,8 +73,17 @@ func TestNewPrivacySpecTemp(t *testing.T) {
 		{
 			"negative PreThreshold",
 			PrivacySpecParams{
+				AggregationEpsilon:      1.0,
+				PartitionSelectionDelta: 1e-5,
+				PreThreshold:            -1,
+			},
+			true,
+		},
+		{
+			"Partition selection budget is not set when PreThreshold is set",
+			PrivacySpecParams{
 				AggregationEpsilon: 1.0,
-				PreThreshold:       -1,
+				PreThreshold:       1,
 			},
 			true,
 		},

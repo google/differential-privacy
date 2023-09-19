@@ -44,12 +44,12 @@ func init() {
 	register.DoFn1x1[PairIF64, error](&checkFloat64MetricsAreNoisyFn{})
 	register.DoFn1x1[PairII64, error](&checkInt64MetricsAreNoisyFn{})
 	register.DoFn1x1[int, error](&checkSomePartitionsAreDroppedFn{})
+	register.DoFn3x1[int, func(*int) bool, func(*int) bool, error](&gotExpectedNumPartitionsFn{})
+	register.Iter1[int]()
 
 	register.Function1x1[int64, error](CheckNoNegativeValuesInt64)
 	register.Function1x1[float64, error](CheckNoNegativeValuesFloat64)
 	register.Function1x1[float64, error](CheckAllValuesNegativeFloat64)
-	register.Function3x1[int, func(*int) bool, func(*int) bool, error](gotExpectedNumPartitions)
-	register.Iter1[int]()
 	register.Function2x3[beam.V, []float64, beam.V, float64, error](DereferenceFloat64Slice)
 }
 
@@ -827,6 +827,12 @@ func ApproxEquals(x, y float64) bool {
 
 // CheckNumPartitions checks that col has expected number of partitions.
 func CheckNumPartitions(s beam.Scope, col beam.PCollection, expected int) {
+	CheckApproxNumPartitions(s, col, expected, 0)
+}
+
+// CheckApproxNumPartitions checks that col has approximately expected number of partitions.
+// col is allowed to have number of partitions within tolerance of expected.
+func CheckApproxNumPartitions(s beam.Scope, col beam.PCollection, expected, tolerance int) {
 	ones := beam.ParDo(s, OneFn, col)
 	numPartitions := stats.Sum(s, ones)
 	numPartitions = beam.AddFixedKey(s, numPartitions)
@@ -834,13 +840,20 @@ func CheckNumPartitions(s beam.Scope, col beam.PCollection, expected int) {
 	want := beam.Create(s, expected)
 	want = beam.AddFixedKey(s, want)
 	coGroupToValue := beam.CoGroupByKey(s, numPartitions, want)
-	beam.ParDo0(s, gotExpectedNumPartitions, coGroupToValue)
+	beam.ParDo0(s, &gotExpectedNumPartitionsFn{tolerance}, coGroupToValue)
 }
 
-func gotExpectedNumPartitions(_ int, v1Iter, v2Iter func(*int) bool) error {
+type gotExpectedNumPartitionsFn struct {
+	Tolerance int
+}
+
+func (fn *gotExpectedNumPartitionsFn) ProcessElement(_ int, v1Iter, v2Iter func(*int) bool) error {
 	got := getNumPartitions(v1Iter)
 	want := getNumPartitions(v2Iter)
-	if got != want {
+	if math.Abs(float64(got-want)) > float64(fn.Tolerance) {
+		if fn.Tolerance != 0 {
+			return fmt.Errorf("got %d emitted partitions, want %d +- %d", got, want, fn.Tolerance)
+		}
 		return fmt.Errorf("got %d emitted partitions, want %d", got, want)
 	}
 	return nil

@@ -144,9 +144,11 @@ func DistinctPerKey(s beam.Scope, pcol PrivatePCollection, params DistinctPerKey
 		if err != nil {
 			log.Fatalf("Couldn't get aggregation budget for DistinctPerKey: %v", err)
 		}
-		params.PartitionSelectionParams.Epsilon, params.PartitionSelectionParams.Delta, err = spec.partitionSelectionBudget.get(params.PartitionSelectionParams.Epsilon, params.PartitionSelectionParams.Delta)
-		if err != nil {
-			log.Fatalf("Couldn't get partition selection budget for DistinctPerKey: %v", err)
+		if params.PublicPartitions == nil {
+			params.PartitionSelectionParams.Epsilon, params.PartitionSelectionParams.Delta, err = spec.partitionSelectionBudget.get(params.PartitionSelectionParams.Epsilon, params.PartitionSelectionParams.Delta)
+			if err != nil {
+				log.Fatalf("Couldn't get partition selection budget for DistinctPerKey: %v", err)
+			}
 		}
 	} else {
 		params.AggregationEpsilon, params.AggregationDelta, err = spec.budget.get(params.Epsilon, params.Delta)
@@ -157,7 +159,6 @@ func DistinctPerKey(s beam.Scope, pcol PrivatePCollection, params DistinctPerKey
 			params.AggregationEpsilon, params.AggregationDelta, params.PartitionSelectionParams.Epsilon, params.PartitionSelectionParams.Delta = splitBudget(params.AggregationEpsilon, params.AggregationDelta, noiseKind)
 		}
 	}
-
 	err = checkDistinctPerKeyParams(params, noiseKind, pcol.codec.KType.T)
 	if err != nil {
 		log.Fatalf("pbeam.DistinctPerKey: %v", err)
@@ -173,7 +174,7 @@ func DistinctPerKey(s beam.Scope, pcol PrivatePCollection, params DistinctPerKey
 	// This is not great in terms of utility, since dropping contributions randomly might
 	// mean that we keep duplicates instead of distinct values. However, this is necessary
 	// for the current algorithm to be DP.
-	if spec.testMode != NoNoiseWithoutContributionBounding {
+	if spec.testMode != TestModeWithoutContributionBounding {
 		// First, rekey by kv.Pair{ID,K} and do per-partition contribution bounding.
 		rekeyed := beam.ParDo(
 			s,
@@ -242,6 +243,8 @@ func DistinctPerKey(s beam.Scope, pcol PrivatePCollection, params DistinctPerKey
 		NoiseKind:                params.NoiseKind,
 		Epsilon:                  params.AggregationEpsilon,
 		Delta:                    params.AggregationDelta,
+		AggregationEpsilon:       params.AggregationEpsilon, // to also work with the new API
+		AggregationDelta:         params.AggregationDelta,   // to also work with the new API
 		MaxPartitionsContributed: params.MaxPartitionsContributed,
 		MaxValue:                 params.MaxContributionsPerPartition,
 		PublicPartitions:         params.PublicPartitions,

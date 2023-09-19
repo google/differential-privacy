@@ -17,6 +17,7 @@
 package codelab
 
 import (
+	log "github.com/golang/glog"
 	"github.com/google/differential-privacy/privacy-on-beam/v2/pbeam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 )
@@ -28,7 +29,10 @@ import (
 func ComputeCountMeanSum(s beam.Scope, col beam.PCollection) (visitsPerHour, meanTimeSpent, revenues beam.PCollection) {
 	s = s.Scope("ComputeCountMeanSum")
 	// Create a Privacy Spec and convert col into a PrivatePCollection.
-	spec := pbeam.NewPrivacySpec(epsilon /* delta */, 0) // Shared by count, mean and sum.
+	spec, err := pbeam.NewPrivacySpecTemp(pbeam.PrivacySpecParams{AggregationEpsilon: epsilon}) // Shared by count, mean and sum.
+	if err != nil {
+		log.Fatalf("Couldn't create a PrivacySpec: %v", err)
+	}
 	pCol := pbeam.MakePrivateFromStruct(s, col, spec, "VisitorID")
 
 	// Create a PCollection of output partitions, i.e. restaurant's work hours (from 9 am till 9pm (exclusive)).
@@ -36,8 +40,7 @@ func ComputeCountMeanSum(s beam.Scope, col beam.PCollection) (visitsPerHour, mea
 
 	visitHours := pbeam.ParDo(s, extractVisitHourFn, pCol)
 	visitsPerHour = pbeam.Count(s, visitHours, pbeam.CountParams{
-		Epsilon:                  epsilon / 3,
-		Delta:                    0,
+		AggregationEpsilon:       epsilon / 3,
 		MaxPartitionsContributed: 1,     // Visitors can visit the restaurant once (one hour) a day
 		MaxValue:                 1,     // Visitors can visit the restaurant once within an hour
 		PublicPartitions:         hours, // Visitors only visit during work hours
@@ -45,7 +48,7 @@ func ComputeCountMeanSum(s beam.Scope, col beam.PCollection) (visitsPerHour, mea
 
 	hourToTimeSpent := pbeam.ParDo(s, extractVisitHourAndTimeSpentFn, pCol)
 	meanTimeSpent = pbeam.MeanPerKey(s, hourToTimeSpent, pbeam.MeanParams{
-		Epsilon:                      epsilon / 3,
+		AggregationEpsilon:           epsilon / 3,
 		Delta:                        0,
 		MaxPartitionsContributed:     1,     // Visitors can visit the restaurant once (one hour) a day
 		MaxContributionsPerPartition: 1,     // Visitors can visit the restaurant once within an hour
@@ -56,8 +59,7 @@ func ComputeCountMeanSum(s beam.Scope, col beam.PCollection) (visitsPerHour, mea
 
 	hourToMoneySpent := pbeam.ParDo(s, extractVisitHourAndMoneySpentFn, pCol)
 	revenues = pbeam.SumPerKey(s, hourToMoneySpent, pbeam.SumParams{
-		Epsilon:                  epsilon / 3,
-		Delta:                    0,
+		AggregationEpsilon:       epsilon / 3,
 		MaxPartitionsContributed: 1,     // Visitors can visit the restaurant once (one hour) a day
 		MinValue:                 0,     // Minimum money spent per user (in euros)
 		MaxValue:                 40,    // Maximum money spent per user (in euros)

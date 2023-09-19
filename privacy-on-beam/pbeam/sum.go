@@ -218,7 +218,7 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCo
 	}
 	rekeyed := beam.ParDo(s, rekeyFn, converted)
 	// Second, do cross-partition contribution bounding if not in test mode without contribution bounding.
-	if spec.testMode != NoNoiseWithoutContributionBounding {
+	if spec.testMode != TestModeWithoutContributionBounding {
 		rekeyed = boundContributions(s, rekeyed, params.MaxPartitionsContributed)
 	}
 	// Fourth, now that contribution bounding is done, remove the privacy keys,

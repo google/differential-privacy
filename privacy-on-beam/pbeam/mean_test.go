@@ -72,7 +72,7 @@ func TestNewBoundedMeanFn(t *testing.T) {
 			MaxContributionsPerPartition: 5,
 			MinValue:                     0,
 			MaxValue:                     10,
-		}, tc.noiseKind, false, Disabled, false)
+		}, tc.noiseKind, false, TestModeDisabled, false)
 		if err != nil {
 			t.Fatalf("Couldn't get newBoundedMeanFn: %v", err)
 		}
@@ -137,7 +137,7 @@ func TestNewBoundedMeanFnTemp(t *testing.T) {
 				NoiseKind:                    noise.GaussianNoise,
 			}},
 	} {
-		got, err := newBoundedMeanFnTemp(PrivacySpec{preThreshold: tc.preThreshold, testMode: Disabled},
+		got, err := newBoundedMeanFnTemp(PrivacySpec{preThreshold: tc.preThreshold, testMode: TestModeDisabled},
 			MeanParams{
 				AggregationEpsilon:           tc.aggregationEpsilon,
 				AggregationDelta:             tc.aggregationDelta,
@@ -171,7 +171,7 @@ func TestBoundedMeanFnSetup(t *testing.T) {
 			MaxContributionsPerPartition: 5,
 			MinValue:                     0,
 			MaxValue:                     10,
-		}, tc.noiseKind, false, Disabled, false)
+		}, tc.noiseKind, false, TestModeDisabled, false)
 		if err != nil {
 			t.Fatalf("Couldn't get newBoundedMeanFn: %v", err)
 		}
@@ -199,7 +199,7 @@ func TestBoundedMeanFnAddInput(t *testing.T) {
 		MaxContributionsPerPartition: maxContributionsPerPartition,
 		MinValue:                     minValue,
 		MaxValue:                     maxValue,
-	}, noise.LaplaceNoise, false, Disabled, false)
+	}, noise.LaplaceNoise, false, TestModeDisabled, false)
 	if err != nil {
 		t.Fatalf("Couldn't get newBoundedMeanFn: %v", err)
 	}
@@ -246,7 +246,7 @@ func TestBoundedMeanFnMergeAccumulators(t *testing.T) {
 		MaxContributionsPerPartition: maxContributionsPerPartition,
 		MinValue:                     minValue,
 		MaxValue:                     maxValue,
-	}, noise.LaplaceNoise, false, Disabled, false)
+	}, noise.LaplaceNoise, false, TestModeDisabled, false)
 	if err != nil {
 		t.Fatalf("Couldn't get newBoundedMeanFn: %v", err)
 	}
@@ -302,7 +302,7 @@ func TestBoundedMeanFnExtractOutputReturnsNilForSmallPartitions(t *testing.T) {
 			MaxContributionsPerPartition: 1,
 			MinValue:                     0,
 			MaxValue:                     10,
-		}, noise.LaplaceNoise, false, Disabled, false)
+		}, noise.LaplaceNoise, false, TestModeDisabled, false)
 		if err != nil {
 			t.Fatalf("Couldn't get newBoundedMeanFn: %v", err)
 		}
@@ -346,7 +346,7 @@ func TestBoundedMeanFnWithPartitionsExtractOutputDoesNotReturnNilForSmallPartiti
 			MaxContributionsPerPartition: 1,
 			MinValue:                     0,
 			MaxValue:                     10,
-		}, noise.LaplaceNoise, true, Disabled, false)
+		}, noise.LaplaceNoise, true, TestModeDisabled, false)
 		if err != nil {
 			t.Fatalf("Couldn't get newBoundedMeanFn: %v", err)
 		}

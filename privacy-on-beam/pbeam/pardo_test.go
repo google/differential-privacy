@@ -1653,6 +1653,8 @@ func TestInvalidDoFn(t *testing.T) {
 	}{
 		{"structural doFn", &testStructuralDoFn{1}},
 		// bad inputs
+		{"(beam.W) → int", func(x beam.W) int { return 0 }},
+		{"(string, emit(beam.W)) → <no output>", func(x string, emit func(beam.W)) { emit(x) }},
 		{"(string, string, string) → int", func(x, y, z string) int { return len(x) }},
 		{"(EventTime, string) → int", func(_ beam.EventTime, x string) int { return len(x) }},
 		{"(Window, string) → int", func(_ beam.Window, x string) int { return len(x) }},
@@ -1661,6 +1663,7 @@ func TestInvalidDoFn(t *testing.T) {
 		{"(string, emit(string), unWantedEmit(string)) → <no output>", func(x string, emit func(string), unWantedEmit func(string)) { emit(x) }},
 		{"(context, int, string, emit(string)) → string", func(_ context.Context, _ int, x string, emit func(string)) string { return x }},
 		// bad outputs
+		{"(int) → beam.W", func(x int) beam.W { return x }},
 		{"string → (EventTime, int)", func(x string) (beam.EventTime, int) { return 0, len(x) }},
 		{"string → (int, int, int)", func(x string) (int, int, int) { return len(x), 0, -1 }},
 		{"string → <no output>", func(x string) {}},

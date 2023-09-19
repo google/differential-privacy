@@ -610,7 +610,7 @@ func TestNewCountFn(t *testing.T) {
 				NoiseKind:                noise.GaussianNoise,
 			}},
 	} {
-		got, err := newCountFn(1, 1e-5, 17, tc.noiseKind, false, Disabled)
+		got, err := newCountFn(1, 1e-5, 17, tc.noiseKind, false, TestModeDisabled)
 		if err != nil {
 			t.Fatalf("Couldn't get countFn: %v", err)
 		}
@@ -658,7 +658,7 @@ func TestNewCountFnTemp(t *testing.T) {
 				NoiseKind:                noise.LaplaceNoise,
 			}},
 	} {
-		got, err := newCountFnTemp(PrivacySpec{preThreshold: tc.preThreshold, testMode: Disabled},
+		got, err := newCountFnTemp(PrivacySpec{preThreshold: tc.preThreshold, testMode: TestModeDisabled},
 			DistinctPrivacyIDParams{
 				AggregationEpsilon:       tc.aggregationEpsilon,
 				AggregationDelta:         tc.aggregationDelta,
@@ -682,7 +682,7 @@ func TestCountFnSetup(t *testing.T) {
 	}{
 		{"Laplace noise kind", noise.LaplaceNoise, noise.Laplace()},
 		{"Gaussian noise kind", noise.GaussianNoise, noise.Gaussian()}} {
-		got, err := newCountFn(1, 1e-5, 17, tc.noiseKind, false, Disabled)
+		got, err := newCountFn(1, 1e-5, 17, tc.noiseKind, false, TestModeDisabled)
 		if err != nil {
 			t.Fatalf("Couldn't get countFn: %v", err)
 		}

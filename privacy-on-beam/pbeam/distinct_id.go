@@ -174,7 +174,7 @@ func DistinctPrivacyID(s beam.Scope, pcol PrivatePCollection, params DistinctPri
 		beam.TypeDefinition{Var: beam.TType, T: idT.Type()},
 		beam.TypeDefinition{Var: beam.VType, T: partitionT.Type()})
 	// Second, do cross-partition contribution bounding if not in test mode without contribution bounding.
-	if spec.testMode != NoNoiseWithoutContributionBounding {
+	if spec.testMode != TestModeWithoutContributionBounding {
 		decoded = boundContributions(s, decoded, params.MaxPartitionsContributed)
 	}
 	// Third, now that KV pairs are deduplicated and contribution bounding is

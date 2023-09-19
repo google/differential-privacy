@@ -75,7 +75,7 @@ func TestNewBoundedQuantilesFn(t *testing.T) {
 			MinValue:                     0,
 			MaxValue:                     10,
 			Ranks:                        []float64{0.1, 0.5, 0.9},
-		}, tc.noiseKind, false, Disabled, false)
+		}, tc.noiseKind, false, TestModeDisabled, false)
 		if err != nil {
 			t.Fatalf("Couldn't get newBoundedQuantilesFn: %v", err)
 		}
@@ -143,7 +143,7 @@ func TestNewBoundedQuantilesFnTemp(t *testing.T) {
 				NoiseKind:                    noise.GaussianNoise,
 			}},
 	} {
-		got, err := newBoundedQuantilesFnTemp(PrivacySpec{preThreshold: tc.preThreshold, testMode: Disabled},
+		got, err := newBoundedQuantilesFnTemp(PrivacySpec{preThreshold: tc.preThreshold, testMode: TestModeDisabled},
 			QuantilesParams{
 				AggregationEpsilon:           tc.aggregationEpsilon,
 				AggregationDelta:             tc.aggregationDelta,
@@ -179,7 +179,7 @@ func TestBoundedQuantilesFnSetup(t *testing.T) {
 			MinValue:                     0,
 			MaxValue:                     10,
 			Ranks:                        []float64{0.1, 0.5, 0.9},
-		}, tc.noiseKind, false, Disabled, false)
+		}, tc.noiseKind, false, TestModeDisabled, false)
 		if err != nil {
 			t.Fatalf("Couldn't get newBoundedQuantilesFn: %v", err)
 		}
@@ -209,7 +209,7 @@ func TestBoundedQuantilesFnAddInput(t *testing.T) {
 		MinValue:                     lower,
 		MaxValue:                     upper,
 		Ranks:                        ranks,
-	}, noise.LaplaceNoise, false, Disabled, false)
+	}, noise.LaplaceNoise, false, TestModeDisabled, false)
 	if err != nil {
 		t.Fatalf("Couldn't get newBoundedQuantilesFn: %v", err)
 	}
@@ -256,7 +256,7 @@ func TestBoundedQuantilesFnMergeAccumulators(t *testing.T) {
 		MinValue:                     lower,
 		MaxValue:                     upper,
 		Ranks:                        ranks,
-	}, noise.LaplaceNoise, false, Disabled, false)
+	}, noise.LaplaceNoise, false, TestModeDisabled, false)
 	if err != nil {
 		t.Fatalf("Couldn't get newBoundedQuantilesFn: %v", err)
 	}
@@ -309,7 +309,7 @@ func TestBoundedQuantilesFnExtractOutputReturnsNilForSmallPartitions(t *testing.
 			MinValue:                     0,
 			MaxValue:                     10,
 			Ranks:                        []float64{0.5},
-		}, noise.LaplaceNoise, false, Disabled, false)
+		}, noise.LaplaceNoise, false, TestModeDisabled, false)
 		if err != nil {
 			t.Fatalf("Couldn't get newBoundedQuantilesFn: %v", err)
 		}
@@ -354,7 +354,7 @@ func TestBoundedQuantilesFnWithPartitionsExtractOutputDoesNotReturnNilForSmallPa
 			MinValue:                     0,
 			MaxValue:                     10,
 			Ranks:                        []float64{0.5},
-		}, noise.LaplaceNoise, true, Disabled, false)
+		}, noise.LaplaceNoise, true, TestModeDisabled, false)
 		if err != nil {
 			t.Fatalf("Couldn't get newBoundedQuantilesFn: %v", err)
 		}

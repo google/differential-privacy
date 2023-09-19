@@ -2,7 +2,7 @@
 # the dependenices from `../learning/requirements.txt`.
 
 absl-py~=1.0
-attrs~=23.1
+attrs>=22
 dm-tree~=0.1.8
 mpmath~=1.2
 numpy~=1.21

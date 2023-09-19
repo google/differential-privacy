@@ -94,7 +94,7 @@ func SelectPartitions(s beam.Scope, pcol PrivatePCollection, params SelectPartit
 		beam.TypeDefinition{Var: beam.VType, T: partitionT.Type()})
 
 	// Third, do cross-partition contribution bounding if not in test mode without contribution bounding.
-	if spec.testMode != NoNoiseWithoutContributionBounding {
+	if spec.testMode != TestModeWithoutContributionBounding {
 		partitions = boundContributions(s, partitions, params.MaxPartitionsContributed)
 	}
 

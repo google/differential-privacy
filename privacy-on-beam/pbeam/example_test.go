@@ -64,7 +64,14 @@ func Example() {
 	// provided by the pipeline.
 	const ε, δ = 1, 1e-3
 
-	privacySpec := pbeam.NewPrivacySpec(ε, δ)
+	privacySpec, err := pbeam.NewPrivacySpecTemp(pbeam.PrivacySpecParams{
+		AggregationEpsilon:        ε / 2,
+		PartitionSelectionEpsilon: ε / 2,
+		AggregationDelta:          δ,
+	})
+	if err != nil {
+		// Handle error.
+	}
 	pcol := pbeam.MakePrivateFromStruct(s, icol, privacySpec, "visitorID")
 	// pcol is now a PrivatePCollection<visit>.
 
