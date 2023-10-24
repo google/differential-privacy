@@ -27,7 +27,6 @@ import com.google.privacy.differentialprivacy.proto.SummaryOuterClass.BoundedSum
 import com.google.privacy.differentialprivacy.proto.SummaryOuterClass.CountSummary;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.Collection;
-import javax.annotation.Nullable;
 
 /**
  * Calculates differentially private average for a collection of values.
@@ -82,7 +81,7 @@ public class BoundedMean {
 
     // We split the budget in half to calculate count and noised normalized sum
     double halfEpsilon = params.epsilon() * 0.5;
-    Double halfDelta = params.delta() == null ? null : params.delta() * 0.5;
+    double halfDelta = params.delta() * 0.5;
 
     // normalizedSum yields a differentially private sum of the position of the entries e_i relative
     // to the midpoint m = (lower + upper) / 2 of the range of the bounded mean, i.e., Σ_i (e_i - m)
@@ -273,8 +272,8 @@ public class BoundedMean {
    * BoundedMean}.
    *
    * <p>This method cannot be invoked if the mean has already been queried, i.e., {@link
-   * computeResult()} has been called. Moreover, after this instance of {@link BoundedMean} has been
-   * serialized once, further modification and queries are not possible anymore.
+   * #computeResult()} has been called. Moreover, after this instance of {@link BoundedMean} has
+   * been serialized once, further modification and queries are not possible anymore.
    *
    * @throws IllegalStateException if this instance of {@link BoundedMean} has already been queried.
    */
@@ -332,8 +331,7 @@ public class BoundedMean {
 
     abstract double epsilon();
 
-    @Nullable
-    abstract Double delta();
+    abstract double delta();
 
     abstract int maxPartitionsContributed();
 
@@ -348,10 +346,9 @@ public class BoundedMean {
 
       private static BoundedMean.Params.Builder newBuilder() {
         BoundedMean.Params.Builder builder = new AutoValue_BoundedMean_Params.Builder();
-        // Provides LaplaceNoise as a default noise generator.
-        builder.noise(new LaplaceNoise());
-
-        return builder;
+        // Provides LaplaceNoise as a default noise generator. Since it doesn't use delta, it's set
+        // to 0.0.
+        return builder.noise(new LaplaceNoise()).delta(0.0);
       }
 
       /** Epsilon DP parameter. */
@@ -363,7 +360,17 @@ public class BoundedMean {
        * <p>Note that Laplace noise does not use delta. Hence, delta should not be set when Laplace
        * noise is used.
        */
-      public abstract BoundedMean.Params.Builder delta(@Nullable Double value);
+      public abstract BoundedMean.Params.Builder delta(double value);
+
+      /**
+       * @deprecated use {@link #delta(double)}.
+       *     <p>TODO: migrate clients and delete this method.
+       */
+      @Deprecated
+      public BoundedMean.Params.Builder delta(Double value) {
+        double primitiveDelta = value == null ? 0.0 : value;
+        return delta(primitiveDelta);
+      }
 
       /**
        * Maximum number of partitions that a single privacy unit (e.g., an individual) is allowed to

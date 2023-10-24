@@ -26,7 +26,6 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.doubleThat;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -66,8 +65,6 @@ public class CountTest {
   public void setUp() {
     // Mock the noise mechanism so that it does not add any noise.
     when(noise.addNoise(anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble()))
-        .thenAnswer(invocation -> invocation.getArguments()[0]);
-    when(noise.addNoise(anyLong(), anyInt(), anyLong(), anyDouble(), isNull()))
         .thenAnswer(invocation -> invocation.getArguments()[0]);
     // Tests that use serialization need to access to the type of the noise they use. Because the
     // tests don't rely on a specific noise type, we arbitrarily return Gaussian.
@@ -361,8 +358,8 @@ public class CountTest {
 
   @Test
   public void mergeWith_nullDelta_mergesWithoutException() {
-    Count targetCount = getCountBuilderWithFields().noise(new LaplaceNoise()).delta(null).build();
-    Count sourceCount = getCountBuilderWithFields().noise(new LaplaceNoise()).delta(null).build();
+    Count targetCount = getCountBuilderWithFields().noise(new LaplaceNoise()).delta(0.0).build();
+    Count sourceCount = getCountBuilderWithFields().noise(new LaplaceNoise()).delta(0.0).build();
     // no exception is thrown
     targetCount.mergeWith(sourceCount.getSerializableSummary());
   }
@@ -378,7 +375,7 @@ public class CountTest {
 
   @Test
   public void mergeWith_noiseMismatch_throwsException() {
-    Count targetCount = getCountBuilderWithFields().noise(new LaplaceNoise()).delta(null).build();
+    Count targetCount = getCountBuilderWithFields().noise(new LaplaceNoise()).delta(0.0).build();
     Count sourceCount = getCountBuilderWithFields().noise(new GaussianNoise()).build();
     assertThrows(
         IllegalArgumentException.class,
@@ -541,7 +538,7 @@ public class CountTest {
   public void computeThresholdedResult_forLaplace_appliesCorrectThreshold() {
     when(noise.getMechanismType()).thenReturn(LAPLACE);
     when(noise.computeQuantile(
-            anyDouble(), anyDouble(), anyInt(), anyDouble(), anyDouble(), isNull()))
+            anyDouble(), anyDouble(), anyInt(), anyDouble(), anyDouble(), eq(0.0)))
         .thenAnswer(
             invocation ->
                 new LaplaceNoise()

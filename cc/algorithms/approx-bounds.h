@@ -36,14 +36,22 @@
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/cord.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
 #include "algorithms/algorithm.h"
 #include "algorithms/numerical-mechanisms.h"
 #include "algorithms/util.h"
 #include "proto/util.h"
+#include "proto/data.pb.h"
 #include "base/status_macros.h"
 
 namespace differential_privacy {
+
+// This URL is added as payload to the error returned from GenerateResult in
+// case there was not enough data to provide approximate bounds.
+inline constexpr absl::string_view kApproxBoundsNotEnoughDataUrl =
+    "type.googleapis.com/differential_privacy.ApproxBoundsNotEnoughData";
 
 // Find the approximate bounds of a set of numbers using logarithmic histogram
 // bins. Like other algorithms, ApproxBounds assumes that it only gets one input
@@ -333,6 +341,10 @@ class ApproxBounds : public Algorithm<T> {
   // Returns an output containing approximate min as the first element and
   // approximate max as the second element. If not enough inputs exist to pass
   // the threshold, populate the output with an error status.
+  //
+  // In case there was not enough data, an empty payload will be added to the
+  // error returned from the method.  The URL of this payload is defined in
+  // kApproxBoundsNotEnoughDataUrl.
   absl::StatusOr<Output> GenerateResult(double noise_interval_level) override {
     // Populate noisy versions of the histogram bins.
     noisy_pos_bins_ = AddNoise(pos_bins_);
@@ -364,10 +376,12 @@ class ApproxBounds : public Algorithm<T> {
 
     // Record error status if approx min or max was not found.
     if (!output.has_value() || output->elements_size() < 2) {
-      return absl::FailedPreconditionError(
+      absl::Status result = absl::FailedPreconditionError(
           "Bin count threshold was too large to find approximate "
           "bounds. Either run over a larger dataset or decrease "
           "success_probability and try again.");
+      result.SetPayload(kApproxBoundsNotEnoughDataUrl, absl::Cord());
+      return result;
     }
 
     return *output;

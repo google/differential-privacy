@@ -50,7 +50,7 @@ import org.mockito.junit.MockitoRule;
 @RunWith(JUnit4.class)
 public class LongBoundedSumTest {
   private static final double EPSILON = 0.123;
-  private static final double DELTA = 0.123;
+  private static final double DELTA = 0.456;
 
   @Mock private Noise noise;
   private LongBoundedSum sum;
@@ -110,13 +110,13 @@ public class LongBoundedSumTest {
   @Test
   public void addEntries_calledAfterComputeResult_throwsException() {
     var unused = sum.computeResult();
-    assertThrows(IllegalStateException.class, () -> sum.addEntries(Arrays.asList(0L)));
+    assertThrows(IllegalStateException.class, () -> sum.addEntry(0L));
   }
 
   @Test
   public void addEntries_calledAfterSerialize_throwsException() {
     var unused = sum.getSerializableSummary();
-    assertThrows(IllegalStateException.class, () -> sum.addEntries(Arrays.asList(0L)));
+    assertThrows(IllegalStateException.class, () -> sum.addEntry(0L));
   }
 
   @Test
@@ -318,7 +318,7 @@ public class LongBoundedSumTest {
 
   @Test
   public void getSerializableSummary_copiesLaplaceNoiseCorrectly() {
-    sum = getLongBoundedSumBuilderWithFields().noise(new LaplaceNoise()).delta(null).build();
+    sum = getLongBoundedSumBuilderWithFields().noise(new LaplaceNoise()).delta(0.0).build();
     LongBoundedSumSummary summary = getSummary(sum);
     assertThat(summary.getMechanismType()).isEqualTo(LAPLACE);
   }
@@ -402,9 +402,9 @@ public class LongBoundedSumTest {
   @Test
   public void mergeWith_nullDelta_mergesWithoutException() {
     LongBoundedSum targetSum =
-        getLongBoundedSumBuilderWithFields().noise(new LaplaceNoise()).delta(null).build();
+        getLongBoundedSumBuilderWithFields().noise(new LaplaceNoise()).delta(0.0).build();
     LongBoundedSum sourceSum =
-        getLongBoundedSumBuilderWithFields().noise(new LaplaceNoise()).delta(null).build();
+        getLongBoundedSumBuilderWithFields().noise(new LaplaceNoise()).delta(0.0).build();
     // No exception should be thrown.
     targetSum.mergeWith(sourceSum.getSerializableSummary());
   }
@@ -421,9 +421,9 @@ public class LongBoundedSumTest {
   @Test
   public void mergeWith_noiseMismatch_throwsException() {
     LongBoundedSum targetSum =
-        getLongBoundedSumBuilderWithFields().noise(new LaplaceNoise()).delta(null).build();
+        getLongBoundedSumBuilderWithFields().noise(new LaplaceNoise()).delta(0.0).build();
     LongBoundedSum sourceSum =
-        getLongBoundedSumBuilderWithFields().noise(new DiscreteLaplaceNoise()).delta(null).build();
+        getLongBoundedSumBuilderWithFields().noise(new DiscreteLaplaceNoise()).delta(0.0).build();
     assertThrows(
         IllegalArgumentException.class,
         () -> targetSum.mergeWith(sourceSum.getSerializableSummary()));

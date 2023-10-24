@@ -49,7 +49,7 @@ public class DiscreteLaplaceNoise implements Noise {
 
   @Override
   public double addNoise(
-      double x, int l0Sensitivity, double lInfSensitivity, double epsilon, @Nullable Double delta) {
+      double x, int l0Sensitivity, double lInfSensitivity, double epsilon, double delta) {
     throw new IllegalArgumentException("Discrete Laplace Mechanism only applies to integers.");
   }
 
@@ -61,7 +61,7 @@ public class DiscreteLaplaceNoise implements Noise {
    */
   @Override
   public long addNoise(
-      long x, int l0Sensitivity, long lInfSensitivity, double epsilon, @Nullable Double delta) {
+      long x, int l0Sensitivity, long lInfSensitivity, double epsilon, double delta) {
     DpPreconditions.checkSensitivities(l0Sensitivity, lInfSensitivity);
 
     return addNoise(
@@ -69,13 +69,22 @@ public class DiscreteLaplaceNoise implements Noise {
   }
 
   /**
-   * See {@link #addNoise(long, int, long, double, Double)}.
+   * @deprecated Use {@link #addNoise(long, long, double, double)} instead. Set delta to 0.0.
+   */
+  @Deprecated
+  public long addNoise(long x, long l1Sensitivity, double epsilon, @Nullable Double delta) {
+    double primitiveDelta = delta == null ? 0.0 : delta;
+    return addNoise(x, l1Sensitivity, epsilon, primitiveDelta);
+  }
+
+  /**
+   * See {@link #addNoise(long, int, long, double, double)}.
    *
    * <p>As opposed to the latter method, this accepts the L_1 sensitivity of {@code x} directly
    * instead of the L_0 and L_Inf proxies. This should be used in settings where it is feasible or
    * more convenient to calculate the L_1 sensitivity directly.
    */
-  public long addNoise(long x, long l1Sensitivity, double epsilon, @Nullable Double delta) {
+  public long addNoise(long x, long l1Sensitivity, double epsilon, double delta) {
     checkParameters(l1Sensitivity, epsilon, delta);
 
     return x + SamplingUtil.sampleTwoSidedGeometric(random, epsilon / l1Sensitivity);

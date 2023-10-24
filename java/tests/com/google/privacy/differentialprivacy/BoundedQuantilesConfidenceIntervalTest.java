@@ -17,7 +17,6 @@
 package com.google.privacy.differentialprivacy;
 
 import static com.google.common.truth.Truth.assertThat;
-import static com.google.privacy.differentialprivacy.proto.SummaryOuterClass.MechanismType.LAPLACE;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -25,6 +24,7 @@ import static org.mockito.Mockito.when;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.privacy.differentialprivacy.proto.SummaryOuterClass.MechanismType;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,7 +41,6 @@ import org.mockito.junit.MockitoRule;
 @RunWith(JUnit4.class)
 public class BoundedQuantilesConfidenceIntervalTest {
   private static final double ARBITRARY_EPSILON = 5.5;
-  private static final double ARBITRARY_DELTA = 0.00001;
   private static final int ARBITRARY_MAX_CONTRIBUTIONS_PER_PARTITION = 1;
   private static final int ARBITRARY_MAX_PARTITIONS_CONTRIBUTED = 1;
   private static final double ARBITRARY_LOWER = -2.68545;
@@ -87,8 +86,6 @@ public class BoundedQuantilesConfidenceIntervalTest {
     builder =
         BoundedQuantiles.builder()
             .epsilon(ARBITRARY_EPSILON)
-            .delta(ARBITRARY_DELTA)
-            .noise(new GaussianNoise())
             .maxPartitionsContributed(ARBITRARY_MAX_PARTITIONS_CONTRIBUTED)
             .maxContributionsPerPartition(ARBITRARY_MAX_CONTRIBUTIONS_PER_PARTITION)
             .lower(ARBITRARY_LOWER)
@@ -143,7 +140,7 @@ public class BoundedQuantilesConfidenceIntervalTest {
                 ConfidenceInterval.create(
                     (double) invocation.getArguments()[0], (double) invocation.getArguments()[0]));
 
-    BoundedQuantiles quantiles = builder.noise(mockNoise).build();
+    BoundedQuantiles quantiles = builder.noise(mockNoise).delta(1e-5).build();
     quantiles.addEntries(ARBITRARY_DISTRIBUTION);
 
     for (double rank : RANKS) {
@@ -209,7 +206,7 @@ public class BoundedQuantilesConfidenceIntervalTest {
 
   @Test
   public void computeConfidenceInterval_gaussianNoise_calledTwiceForSameAlpha_returnsSameResult() {
-    BoundedQuantiles quantiles = builder.noise(new GaussianNoise()).build();
+    BoundedQuantiles quantiles = builder.noise(new GaussianNoise()).delta(0.1).build();
     quantiles.addEntries(ARBITRARY_DISTRIBUTION);
     // Compute an arbitrary quantile to apply noise and enable confidence interval queries.
     quantiles.computeResult(ARBITRARY_RANK);
@@ -222,7 +219,7 @@ public class BoundedQuantilesConfidenceIntervalTest {
 
   @Test
   public void computeConfidenceInterval_laplaceNoise_calledTwiceForSameAlpha_returnsSameResult() {
-    BoundedQuantiles quantiles = builder.noise(new LaplaceNoise()).delta(null).build();
+    BoundedQuantiles quantiles = builder.noise(new LaplaceNoise()).delta(0.0).build();
     quantiles.addEntries(ARBITRARY_DISTRIBUTION);
     // Compute an arbitrary quantile to apply noise and enable confidence interval queries.
     quantiles.computeResult(ARBITRARY_RANK);
@@ -236,7 +233,7 @@ public class BoundedQuantilesConfidenceIntervalTest {
   @Test
   public void
       computeConfidenceInterval_gaussianNoise_resultForSmallAlphaContainedInResultForLargeAlpha() {
-    BoundedQuantiles quantiles = builder.noise(new GaussianNoise()).build();
+    BoundedQuantiles quantiles = builder.noise(new GaussianNoise()).delta(0.1).build();
     quantiles.addEntries(ARBITRARY_DISTRIBUTION);
     // Compute an arbitrary quantile to apply noise and enable confidence interval queries.
     quantiles.computeResult(ARBITRARY_RANK);
@@ -252,7 +249,7 @@ public class BoundedQuantilesConfidenceIntervalTest {
   @Test
   public void
       computeConfidenceInterval_laplaceNoise_resultForSmallAlphaContainedInResultForLargeAlpha() {
-    BoundedQuantiles quantiles = builder.noise(new LaplaceNoise()).delta(null).build();
+    BoundedQuantiles quantiles = builder.noise(new LaplaceNoise()).delta(0.0).build();
     quantiles.addEntries(ARBITRARY_DISTRIBUTION);
     // Compute an arbitrary quantile to apply noise and enable confidence interval queries.
     quantiles.computeResult(ARBITRARY_RANK);
@@ -388,8 +385,8 @@ public class BoundedQuantilesConfidenceIntervalTest {
     }
 
     builder.noise(noise);
-    if (noise.getMechanismType() == LAPLACE) {
-      builder.delta(null);
+    if (noise.getMechanismType() == MechanismType.GAUSSIAN) {
+      builder.delta(1e-5);
     }
 
     // Sample the hit frequencies.

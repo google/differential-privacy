@@ -26,7 +26,6 @@ import com.google.privacy.differentialprivacy.proto.SummaryOuterClass.BoundedVar
 import com.google.privacy.differentialprivacy.proto.SummaryOuterClass.CountSummary;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.Collection;
-import javax.annotation.Nullable;
 
 /**
  * Calculates differentially private variance for a collection of values.
@@ -72,20 +71,15 @@ public final class BoundedVariance {
     double countEpsilon = params.epsilon() / 3;
     double sumEpsilon = params.epsilon() / 3;
     double sumOfSquaresEpsilon = params.epsilon() - countEpsilon - sumEpsilon;
-    Double countDelta = null;
-    Double sumDelta = null;
-    Double sumOfSquaresDelta = null;
-    if (params.delta() != null) {
-      countDelta = params.delta() / 3;
-      sumDelta = params.delta() / 3;
-      sumOfSquaresDelta = params.delta() - countDelta - sumDelta;
-    }
+    double countDelta = params.delta() / 3;
+    double sumDelta = params.delta() / 3;
+    double sumOfSquaresDelta = params.delta() - countDelta - sumDelta;
 
     // Check that the parameters are compatible with the noise chosen by calling
     // the noise on some dummy value.
-    params.noise().addNoise(0, 1, 1, countEpsilon, countDelta);
-    params.noise().addNoise(0, 1, 1, sumEpsilon, sumDelta);
-    params.noise().addNoise(0, 1, 1, sumOfSquaresEpsilon, sumOfSquaresDelta);
+    double unused1 = params.noise().addNoise(0, 1, 1, countEpsilon, countDelta);
+    double unused2 = params.noise().addNoise(0, 1, 1, sumEpsilon, sumDelta);
+    double unused3 = params.noise().addNoise(0, 1, 1, sumOfSquaresEpsilon, sumOfSquaresDelta);
 
     // normalizedSumOfSquares s2 yields a differentially private sum of squares of the position of
     // the entries e_i relative to the midpoint m = (lower + upper) / 2 of the range of the bounded
@@ -264,8 +258,7 @@ public final class BoundedVariance {
 
     abstract double epsilon();
 
-    @Nullable
-    abstract Double delta();
+    abstract double delta();
 
     abstract int maxPartitionsContributed();
 
@@ -282,6 +275,8 @@ public final class BoundedVariance {
         BoundedVariance.Params.Builder builder = new AutoValue_BoundedVariance_Params.Builder();
         // Provides LaplaceNoise as a default noise generator.
         builder.noise(new LaplaceNoise());
+        // Since Laplace noise doesn't use delta, set it to 0.0.
+        builder.delta(0.0);
 
         return builder;
       }
@@ -298,7 +293,17 @@ public final class BoundedVariance {
        * <p>Note that Laplace noise does not use delta. Hence, delta should not be set when Laplace
        * noise is used.
        */
-      public abstract BoundedVariance.Params.Builder delta(@Nullable Double value);
+      public abstract BoundedVariance.Params.Builder delta(double value);
+
+      /**
+       * @deprecated use {@link #delta(double)}.
+       *     <p>TODO: migrate clients and delete this method.
+       */
+      @Deprecated
+      public BoundedVariance.Params.Builder delta(Double value) {
+        double primitiveDelta = value == null ? 0.0 : value;
+        return delta(primitiveDelta);
+      }
 
       /**
        * Maximum number of partitions that a single privacy unit (e.g., an individual) is allowed to

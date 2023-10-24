@@ -277,7 +277,7 @@ class RdpPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
 
   def test_compute_epsilon_delta_pure_dp(self):
     orders = range(2, 33)
-    rdp = [1.1 for o in orders]  # Constant corresponds to pure DP.
+    rdp = [1.1 for _ in orders]  # Constant corresponds to pure DP.
 
     epsilon, optimal_order = rdp_privacy_accountant.compute_epsilon(
         orders, rdp, delta=1e-5)
@@ -487,19 +487,24 @@ class RdpPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
       ('small_eps', 0.01, 1),
       ('medium_eps', 1.0, 1),
       ('large_eps', 100.0, 1),
-      ('repetition', 1.0, 100)
+      ('repetition', 1.0, 100),
   )
   def test_laplace(self, eps, count):
-    event = dp_event.LaplaceDpEvent(1/eps)
+    event = dp_event.LaplaceDpEvent(1 / eps)
     if count != 1:
       event = dp_event.SelfComposedDpEvent(event, count)
     # Simulate Pure DP by using a large Renyi order.
-    accountant = rdp_privacy_accountant.RdpAccountant(orders=[1.0, 1e10])
+    accountant = rdp_privacy_accountant.RdpAccountant(
+        orders=[1.0, 1 + 1e-6, 1.1 - 1e-6, 1.1 + 1e-6, 1e10]
+    )
     accountant.compose(event)
     # Check basic composition by having small delta.
     self.assertAlmostEqual(accountant.get_epsilon(1e-10), eps * count)
     # Check KL divergence, a.k.a. expected privacy loss, a.k.a. order=1.
-    self.assertAlmostEqual(accountant._rdp[0], min(eps, eps*eps/2) * count)
+    self.assertLessEqual(accountant._rdp[0], min(eps, eps * eps / 2) * count)
+    # Check consistency between the three formulas.
+    self.assertAlmostEqual(accountant._rdp[0], accountant._rdp[1], places=3)
+    self.assertAlmostEqual(accountant._rdp[2], accountant._rdp[3], places=3)
 
   # The function _truncated_negative_binomial_mean computes the mean in
   # multiple ways to ensure numerical stability.
@@ -650,18 +655,25 @@ class RdpPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
       ('mean10', 10, 10),
       ('mean100', 0.001, 100),
       ('mean10^4', 2, 1000),
-      ('mean10^10', 1, 1e10)
+      ('mean10^10', 1, 1e10),
   )
   def test_repeat_and_select_pure_poisson(self, eps, mean):
-    event = dp_event.LaplaceDpEvent(1/eps)
+    event = dp_event.LaplaceDpEvent(1 / eps)
     event = dp_event.RepeatAndSelectDpEvent(event, mean, np.inf)
-    alpha = 1 + 1/math.expm1(eps)
-    orders = [alpha, 1e10, 1e100, 1e1000]
+    alpha = 1 + 1 / math.expm1(eps)
+    orders = [alpha, 1e10, 1e100]
     accountant = rdp_privacy_accountant.RdpAccountant(orders=orders)
     accountant.compose(event)
-    ans = min(eps, alpha*eps**2/2) + math.log(mean) * math.expm1(eps)
+    ans = (
+        eps
+        + math.log1p(
+            math.expm1((1 - 2 * alpha) * eps) * (alpha - 1) / (2 * alpha - 1)
+        )
+        / (alpha - 1)
+        + math.log(mean) * math.expm1(eps)
+    )
     self.assertAlmostEqual(accountant._orders[0], alpha)
-    self.assertAlmostEqual(accountant._rdp[0], ans)
+    self.assertAlmostEqual(accountant._rdp[0] / ans, 1, places=3)
 
 
 @parameterized.named_parameters(

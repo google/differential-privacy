@@ -182,7 +182,7 @@ public class CountConfidenceIntervalTest {
 
   @Test
   public void computeConfidenceInterval_laplaceNoise_smallAlpha_satisfiesConfidenceLevel() {
-    builder.noise(new LaplaceNoise()).delta(null);
+    builder.noise(new LaplaceNoise()).delta(0.0);
     int rawCount = 14523;
 
     int hits = 0;
@@ -226,7 +226,7 @@ public class CountConfidenceIntervalTest {
 
   @Test
   public void computeConfidenceInterval_laplaceNoise_largeAlpha_satisfiesConfidenceLevel() {
-    builder.noise(new LaplaceNoise()).delta(null);
+    builder.noise(new LaplaceNoise()).delta(0.0);
     int rawCount = 14523;
 
     int hits = 0;

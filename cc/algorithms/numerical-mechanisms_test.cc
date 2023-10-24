@@ -1112,10 +1112,16 @@ TEST(NumericalMechanismsTest, GaussianBuilderClone) {
 }
 
 TEST(NumericalMechanismsTest, Stddev) {
-  GaussianMechanism mechanism(std::log(3), 0.00001, 1.0);
-
-  EXPECT_DOUBLE_EQ(mechanism.CalculateStddev(std::log(3), 0.00001, 1),
-                   3.42578125);
+  auto mechanism = GaussianMechanism::Builder()
+                       .SetL2Sensitivity(1.0)
+                       .SetEpsilon(std::log(3))
+                       .SetDelta(0.00001)
+                       .Build();
+  auto gaussian = dynamic_cast<GaussianMechanism *>(mechanism.value().get());
+  EXPECT_DOUBLE_EQ(gaussian->CalculateStddev(), 3.42578125);
+  // Call CalculateStddev with parameters differing from the attributes.
+  EXPECT_DOUBLE_EQ(gaussian->CalculateStddev(std::log(4), 0.00002, 3.0),
+                   7.986328125);
 }
 
 TEST(NumericalMechanismsTest, GaussianVarianceReturnsWallysResult) {

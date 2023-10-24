@@ -129,13 +129,6 @@ public class BoundedQuantilesBuilderTest {
   }
 
   @Test
-  public void deltaGaussian_null_throwsException() {
-    builder.delta(null);
-    builder.noise(new GaussianNoise());
-    assertThrows(NullPointerException.class, builder::build);
-  }
-
-  @Test
   public void deltaGaussian_nan_throwsException() {
     builder.delta(NaN);
     builder.noise(new GaussianNoise());
@@ -154,22 +147,16 @@ public class BoundedQuantilesBuilderTest {
             .upper(DEFAULT_UPPER)
             .treeHeight(DEFAULT_TREE_HEIGHT)
             .branchingFactor(DEFAULT_BRANCHING_FACTOR);
-    assertThrows(NullPointerException.class, builder::build);
-  }
-
-  @Test
-  public void deltaLaplace_notNull_throwsException() {
-    builder.delta(DEFAULT_DELTA);
-    builder.noise(new LaplaceNoise());
     assertThrows(IllegalArgumentException.class, builder::build);
   }
 
   @Test
-  public void deltaLaplace_null_buildsInstance() {
+  public void deltaLaplace_notZero_throwsException() {
+    builder.delta(1e-5);
     builder.noise(new LaplaceNoise());
-    builder.delta(null);
-    assertThat(builder.build()).isNotNull();
+    assertThrows(IllegalArgumentException.class, builder::build);
   }
+
 
   @Test
   public void deltaLaplace_notProvided_buildsInstance() {

@@ -449,7 +449,7 @@ class GaussianMechanism : public NumericalMechanism {
   const double delta_;
   const double l2_sensitivity_;
   std::unique_ptr<internal::GaussianDistribution> standard_gaussian_;
-  absl::optional<double> stddev_;
+  const double stddev_;
 };
 
 // Mechanism builder that returns the mechanism with minimum variance for given

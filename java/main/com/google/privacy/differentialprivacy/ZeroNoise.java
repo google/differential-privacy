@@ -24,13 +24,13 @@ public final class ZeroNoise implements Noise {
 
   @Override
   public double addNoise(
-      double x, int l0Sensitivity, double lInfSensitivity, double epsilon, @Nullable Double delta) {
+      double x, int l0Sensitivity, double lInfSensitivity, double epsilon, double delta) {
     return x;
   }
 
   @Override
   public long addNoise(
-      long x, int l0Sensitivity, long lInfSensitivity, double epsilon, @Nullable Double delta) {
+      long x, int l0Sensitivity, long lInfSensitivity, double epsilon, double delta) {
     return x;
   }
 

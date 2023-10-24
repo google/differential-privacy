@@ -23,6 +23,7 @@
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/str_cat.h"
 #include "base/status_macros.h"
 
 namespace differential_privacy {
@@ -325,7 +326,22 @@ absl::Status ValidateBranchingFactor(absl::optional<int> branching_factor) {
                                         "Branching Factor");
 }
 
-absl::Status ValidatePreThreshold(absl::optional<int64_t> pre_threshold) {
+absl::Status ValidatePreThresholdOptional(absl::optional<int> pre_threshold) {
+  int v = pre_threshold.value_or(1);
+  if (v <= 0) {
+    return absl::Status(
+        absl::StatusCode::kInvalidArgument,
+        absl::StrCat(
+            "pre_threshold should be either unset or positive, but is ", v,
+            "."));
+  }
+  return absl::OkStatus();
+}
+
+[[deprecated(
+    "This validator is used for a class that is deprecated in favour of the "
+    "pre_threshold attribute of other strategies classes.")]] absl::Status
+ValidatePreThreshold(absl::optional<int64_t> pre_threshold) {
   return ValidateIsGreaterThan(
       static_cast<absl::optional<double>>(pre_threshold), /*lower_bound=*/0,
       "Pre Threshold");

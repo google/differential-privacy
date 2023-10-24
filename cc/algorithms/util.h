@@ -548,7 +548,12 @@ absl::Status ValidateBounds(absl::optional<T> lower, absl::optional<T> upper) {
   return absl::OkStatus();
 }
 
-absl::Status ValidatePreThreshold(absl::optional<int64_t> pre_threshold);
+absl::Status ValidatePreThresholdOptional(absl::optional<int> pre_threshold);
+
+[[deprecated(
+    "This validator is used for a class that is deprecated in favour of the "
+    "pre_threshold attribute of other strategies classes.")]] absl::Status
+ValidatePreThreshold(absl::optional<int64_t> pre_threshold);
 }  // namespace differential_privacy
 
 #endif  // DIFFERENTIAL_PRIVACY_ALGORITHMS_UTIL_H_

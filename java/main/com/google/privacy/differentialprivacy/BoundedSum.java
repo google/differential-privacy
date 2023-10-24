@@ -16,6 +16,7 @@
 
 package com.google.privacy.differentialprivacy;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.Math.abs;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
@@ -26,7 +27,6 @@ import com.google.privacy.differentialprivacy.proto.Data.ValueType;
 import com.google.privacy.differentialprivacy.proto.SummaryOuterClass.BoundedSumSummary;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.Collection;
-import javax.annotation.Nullable;
 
 /**
  * Calculates a differentially private sum for a collection of values using the Laplace or Gaussian
@@ -175,7 +175,7 @@ public class BoundedSum {
    * BoundedSum}.
    *
    * <p>This method cannot be invoked if the sum has already been queried, i.e., {@link
-   * computeResult()} has been called. Moreover, after this instance of {@link BoundedSum} has been
+   * #computeResult()} has been called. Moreover, after this instance of {@link BoundedSum} has been
    * serialized once, further modification and queries are not possible anymore.
    *
    * @throws IllegalStateException if this instance of {@link BoundedSum} has already been queried.
@@ -187,20 +187,17 @@ public class BoundedSum {
     state = AggregationState.SERIALIZED;
 
     ValueType sumValue = ValueType.newBuilder().setFloatValue(sum).build();
-    BoundedSumSummary.Builder builder =
-        BoundedSumSummary.newBuilder()
-            .setPartialSum(sumValue)
-            .setEpsilon(params.epsilon())
-            .setLower(params.lower())
-            .setUpper(params.upper())
-            .setMaxPartitionsContributed(params.maxPartitionsContributed())
-            .setMaxContributionsPerPartition(params.maxContributionsPerPartition())
-            .setMechanismType(params.noise().getMechanismType());
-    if (params.delta() != null) {
-      builder.setDelta(params.delta());
-    }
-
-    return builder.build().toByteArray();
+    return BoundedSumSummary.newBuilder()
+        .setPartialSum(sumValue)
+        .setEpsilon(params.epsilon())
+        .setDelta(params.delta())
+        .setLower(params.lower())
+        .setUpper(params.upper())
+        .setMaxPartitionsContributed(params.maxPartitionsContributed())
+        .setMaxContributionsPerPartition(params.maxContributionsPerPartition())
+        .setMechanismType(params.noise().getMechanismType())
+        .build()
+        .toByteArray();
   }
 
   /**
@@ -261,8 +258,7 @@ public class BoundedSum {
 
     abstract double epsilon();
 
-    @Nullable
-    abstract Double delta();
+    abstract double delta();
 
     abstract int maxPartitionsContributed();
 
@@ -277,7 +273,7 @@ public class BoundedSum {
       private static void checkLInfSensitivityOverflow(
           double lower, double upper, int maxContributionsPerPartition) {
         double lInfSensitivity = getLInfSensitivity(lower, upper, maxContributionsPerPartition);
-        Preconditions.checkArgument(
+        checkArgument(
             Double.compare(lInfSensitivity, Double.MAX_VALUE) <= 0,
             "bounds and maxContributionsPerPartition are too high - the LInfSensitivity "
                 + " overflows. Provided values: lower bound = %s, upper bound = %s,"
@@ -294,7 +290,7 @@ public class BoundedSum {
           int maxPartitionsContributed) {
         double lInfSensitivity = getLInfSensitivity(lower, upper, maxContributionsPerPartition);
         double l1Sensitivity = Noise.getL1Sensitivity(maxPartitionsContributed, lInfSensitivity);
-        Preconditions.checkArgument(
+        checkArgument(
             Double.compare(l1Sensitivity, Double.MAX_VALUE) <= 0,
             "bounds and maxContributionsPerPartition are too high - the L1Sensitivity "
                 + " overflows. Provided values: lower bound = %s, upper bound = %s,"
@@ -311,7 +307,7 @@ public class BoundedSum {
           int maxPartitionsContributed) {
         double lInfSensitivity = getLInfSensitivity(lower, upper, maxContributionsPerPartition);
         double l2Sensitivity = Noise.getL2Sensitivity(maxPartitionsContributed, lInfSensitivity);
-        Preconditions.checkArgument(
+        checkArgument(
             Double.compare(l2Sensitivity, Double.MAX_VALUE) <= 0,
             "bounds and maxContributionsPerPartition are too high - the L2Sensitivity "
                 + " overflows. Provided values: lower bound = %s, upper bound = %s,"
@@ -323,8 +319,10 @@ public class BoundedSum {
 
       private static Builder newBuilder() {
         Params.Builder builder = new AutoValue_BoundedSum_Params.Builder();
-        // Provide LaplaceNoise as a default noise generator.
+        // Provide LaplaceNoise as a default noise generator. Since it doesn't reqyuire delta,
+        // it's by default set to 0.0.
         builder.noise(new LaplaceNoise());
+        builder.delta(0.0);
         // By default, assume that each user contributes to a given partition no more than once.
         builder.maxContributionsPerPartition(1);
         return builder;
@@ -339,7 +337,18 @@ public class BoundedSum {
        * <p>Note that Laplace noise does not use delta. Hence, delta should not be set when Laplace
        * noise is used.
        */
-      public abstract Builder delta(@Nullable Double value);
+      public abstract Builder delta(double value);
+
+      /**
+       * @deprecated use {@link #delta(double)}.
+       *
+       * TODO: migrate clients and delete this method.
+       */
+      @Deprecated
+      public Builder delta(Double value) {
+        double primitiveDelta = value == null ? 0.0 : value;
+        return delta(primitiveDelta);
+      }
 
       /**
        * Maximum number of partitions to which a single privacy unit (i.e., an individual) is

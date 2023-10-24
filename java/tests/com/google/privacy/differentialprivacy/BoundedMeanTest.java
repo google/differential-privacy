@@ -119,7 +119,7 @@ public class BoundedMeanTest {
 
     mean.computeResult();
 
-    assertThrows(IllegalStateException.class, () -> mean.addEntries(Arrays.asList(0.0)));
+    assertThrows(IllegalStateException.class, () -> mean.addEntries(List.of(0.0)));
   }
 
   @Test
@@ -128,7 +128,7 @@ public class BoundedMeanTest {
 
     mean.getSerializableSummary();
 
-    assertThrows(IllegalStateException.class, () -> mean.addEntries(Arrays.asList(0.0)));
+    assertThrows(IllegalStateException.class, () -> mean.addEntries(List.of(0.0)));
   }
 
   @Test
@@ -137,7 +137,7 @@ public class BoundedMeanTest {
 
     mean.computeResult();
 
-    assertThrows(IllegalStateException.class, () -> mean.computeResult());
+    assertThrows(IllegalStateException.class, mean::computeResult);
   }
 
   @Test
@@ -146,7 +146,7 @@ public class BoundedMeanTest {
 
     mean.getSerializableSummary();
 
-    assertThrows(IllegalStateException.class, () -> mean.computeResult());
+    assertThrows(IllegalStateException.class, mean::computeResult);
   }
 
   // Input values are clamped to the upper and lower bounds.
@@ -371,10 +371,9 @@ public class BoundedMeanTest {
   @Test
   public void computeResult_lowLInfSensitivity_noiseAdded() {
     BoundedMean mean =
-        getMeanBuilder()
+        BoundedMean.builder()
             .noise(new LaplaceNoise())
             .epsilon(0.123)
-            .delta(null)
             .lower(0)
             .upper(10e-21)
             .maxContributionsPerPartition(1)
@@ -395,7 +394,7 @@ public class BoundedMeanTest {
 
     mean.computeResult();
 
-    assertThrows(IllegalStateException.class, () -> mean.getSerializableSummary());
+    assertThrows(IllegalStateException.class, mean::getSerializableSummary);
   }
 
   @Test
@@ -448,91 +447,93 @@ public class BoundedMeanTest {
 
   @Test
   public void mergeWith_nullDelta_mergesWithoutException() {
-    BoundedMean targetMean = getMeanBuilder().noise(new LaplaceNoise()).delta(null).build();
-    BoundedMean sourceMean = getMeanBuilder().noise(new LaplaceNoise()).delta(null).build();
+    BoundedMean mean = getMeanBuilder().noise(new LaplaceNoise()).delta(0.0).build();
+    BoundedMean sameMean = getMeanBuilder().noise(new LaplaceNoise()).delta(0.0).build();
 
     // No exception should be thrown.
-    targetMean.mergeWith(sourceMean.getSerializableSummary());
+    mean.mergeWith(sameMean.getSerializableSummary());
   }
 
   @Test
   public void mergeWith_deltaMismatch_throwsException() {
-    BoundedMean targetMean = getMeanBuilder().delta(DELTA).build();
-    BoundedMean sourceMean = getMeanBuilder().delta(2 * DELTA).build();
+    BoundedMean mean = getMeanBuilder().delta(DELTA).build();
+    BoundedMean meanDifferentDelta = getMeanBuilder().delta(2 * DELTA).build();
 
     assertThrows(
         IllegalArgumentException.class,
-        () -> targetMean.mergeWith(sourceMean.getSerializableSummary()));
+        () -> mean.mergeWith(meanDifferentDelta.getSerializableSummary()));
   }
 
   @Test
   public void mergeWith_noiseMismatch_throwsException() {
-    BoundedMean targetMean = getMeanBuilder().noise(new LaplaceNoise()).delta(null).build();
-    BoundedMean sourceMean = getMeanBuilder().noise(new GaussianNoise()).build();
+    BoundedMean mean = getMeanBuilder().noise(new LaplaceNoise()).delta(0.0).build();
+    BoundedMean meanDifferentNoise = getMeanBuilder().noise(new GaussianNoise()).build();
 
     assertThrows(
         IllegalArgumentException.class,
-        () -> targetMean.mergeWith(sourceMean.getSerializableSummary()));
+        () -> mean.mergeWith(meanDifferentNoise.getSerializableSummary()));
   }
 
   @Test
   public void mergeWith_maxPartitionsContributedMismatch_throwsException() {
-    BoundedMean targetMean = getMeanBuilder().maxPartitionsContributed(1).build();
-    BoundedMean sourceMean = getMeanBuilder().maxPartitionsContributed(2).build();
+    BoundedMean mean = getMeanBuilder().maxPartitionsContributed(1).build();
+    BoundedMean meanDifferentContributionBound =
+        getMeanBuilder().maxPartitionsContributed(2).build();
 
     assertThrows(
         IllegalArgumentException.class,
-        () -> targetMean.mergeWith(sourceMean.getSerializableSummary()));
+        () -> mean.mergeWith(meanDifferentContributionBound.getSerializableSummary()));
   }
 
   @Test
   public void mergeWith_differentMaxContributionsPerPartitionMismatch_throwsException() {
-    BoundedMean targetMean = getMeanBuilder().maxContributionsPerPartition(1).build();
-    BoundedMean sourceMean = getMeanBuilder().maxContributionsPerPartition(2).build();
+    BoundedMean mean = getMeanBuilder().maxContributionsPerPartition(1).build();
+    BoundedMean meanDifferentContributionBound =
+        getMeanBuilder().maxContributionsPerPartition(2).build();
 
     assertThrows(
         IllegalArgumentException.class,
-        () -> targetMean.mergeWith(sourceMean.getSerializableSummary()));
+        () -> mean.mergeWith(meanDifferentContributionBound.getSerializableSummary()));
   }
 
   @Test
   public void mergeWith_lowerBoundsMismatch_throwsException() {
-    BoundedMean targetMean = getMeanBuilder().lower(-1).build();
-    BoundedMean sourceMean = getMeanBuilder().lower(-100).build();
+    BoundedMean mean = getMeanBuilder().lower(-1).build();
+    BoundedMean meanDifferentContributionBound = getMeanBuilder().lower(-100).build();
 
     assertThrows(
         IllegalArgumentException.class,
-        () -> targetMean.mergeWith(sourceMean.getSerializableSummary()));
+        () -> mean.mergeWith(meanDifferentContributionBound.getSerializableSummary()));
   }
 
   @Test
   public void mergeWith_upperBoundsMismatch_throwsException() {
-    BoundedMean targetMean = getMeanBuilder().upper(1).build();
-    BoundedMean sourceMean = getMeanBuilder().upper(100).build();
+    BoundedMean mean = getMeanBuilder().upper(1).build();
+    BoundedMean meanDifferentContributionBound = getMeanBuilder().upper(100).build();
 
     assertThrows(
         IllegalArgumentException.class,
-        () -> targetMean.mergeWith(sourceMean.getSerializableSummary()));
+        () -> mean.mergeWith(meanDifferentContributionBound.getSerializableSummary()));
   }
 
   @Test
   public void mergeWith_calledAfterComputeResult_throwsException() {
-    BoundedMean targetMean = getMeanBuilder().build();
-    BoundedMean sourceMean = getMeanBuilder().build();
-    byte[] summary = sourceMean.getSerializableSummary();
-    targetMean.computeResult();
+    BoundedMean mean = getMeanBuilder().build();
+    BoundedMean otherMean = getMeanBuilder().build();
+    byte[] summary = mean.getSerializableSummary();
+    otherMean.computeResult();
 
-    assertThrows(IllegalStateException.class, () -> targetMean.mergeWith(summary));
+    assertThrows(IllegalStateException.class, () -> otherMean.mergeWith(summary));
   }
 
   @Test
   public void mergeWith_calledAfterSerializationOnTargetMean_throwsException() {
-    BoundedMean targetMean = getMeanBuilder().build();
-    BoundedMean sourceMean = getMeanBuilder().build();
-    byte[] summary = sourceMean.getSerializableSummary();
-    targetMean.getSerializableSummary();
+    BoundedMean mean = getMeanBuilder().build();
+    BoundedMean otherMean = getMeanBuilder().build();
+    byte[] summary = otherMean.getSerializableSummary();
+    mean.getSerializableSummary();
 
-    assertThrows(IllegalStateException.class, () -> targetMean.mergeWith(summary));
+    assertThrows(IllegalStateException.class, () -> mean.mergeWith(summary));
   }
 
   private BoundedMean.Params.Builder getMeanBuilder() {

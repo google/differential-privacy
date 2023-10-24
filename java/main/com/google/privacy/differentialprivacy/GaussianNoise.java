@@ -95,7 +95,7 @@ public class GaussianNoise implements Noise {
    */
   @Override
   public double addNoise(
-      double x, int l0Sensitivity, double lInfSensitivity, double epsilon, Double delta) {
+      double x, int l0Sensitivity, double lInfSensitivity, double epsilon, double delta) {
     checkParameters(l0Sensitivity, lInfSensitivity, epsilon, delta);
 
     double l2Sensitivity = Noise.getL2Sensitivity(l0Sensitivity, lInfSensitivity);
@@ -118,7 +118,7 @@ public class GaussianNoise implements Noise {
    */
   @Override
   public long addNoise(
-      long x, int l0Sensitivity, long lInfSensitivity, double epsilon, @Nullable Double delta) {
+      long x, int l0Sensitivity, long lInfSensitivity, double epsilon, double delta) {
     checkParameters(l0Sensitivity, lInfSensitivity, epsilon, delta);
 
     double l2Sensitivity = Noise.getL2Sensitivity(l0Sensitivity, lInfSensitivity);

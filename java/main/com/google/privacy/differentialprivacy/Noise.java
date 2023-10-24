@@ -25,11 +25,32 @@ import javax.annotation.Nullable;
  */
 public interface Noise {
 
-  double addNoise(
-      double x, int l0Sensitivity, double lInfSensitivity, double epsilon, @Nullable Double delta);
+  /**
+   * @deprecated Use {@link #addNoise(double, int, double, double, double)} instead. Set delta to
+   *     0.0 if it isn't used.
+   */
+  @Deprecated
+  default double addNoise(
+      double x, int l0Sensitivity, double lInfSensitivity, double epsilon, @Nullable Double delta) {
+    double primitiveDelta = delta == null ? 0.0 : delta;
+    return addNoise(x, l0Sensitivity, lInfSensitivity, epsilon, primitiveDelta);
+  }
 
-  long addNoise(
-      long x, int l0Sensitivity, long lInfSensitivity, double epsilon, @Nullable Double delta);
+  double addNoise(
+      double x, int l0Sensitivity, double lInfSensitivity, double epsilon, double delta);
+
+  /**
+   * @deprecated Use {{@link #addNoise(long, int, long, double, double)}} instead. Set delta to 0.0
+   *     if it isn't used.
+   */
+  @Deprecated
+  default long addNoise(
+      long x, int l0Sensitivity, long lInfSensitivity, double epsilon, @Nullable Double delta) {
+    double primitiveDelta = delta == null ? 0.0 : delta;
+    return addNoise(x, l0Sensitivity, lInfSensitivity, epsilon, primitiveDelta);
+  }
+
+  long addNoise(long x, int l0Sensitivity, long lInfSensitivity, double epsilon, double delta);
 
   ConfidenceInterval computeConfidenceInterval(
       double noisedX,
@@ -57,10 +78,6 @@ public interface Noise {
     return Math.sqrt(l0Sensitivity) * lInfSensitivity;
   }
 
-  /**
-   * Calculates a value k s.t. with probability {@code rank} the result of {@link #addNoise} with
-   * the given parameters will be less or equal to k.
-   */
   double computeQuantile(
       double rank,
       double x,

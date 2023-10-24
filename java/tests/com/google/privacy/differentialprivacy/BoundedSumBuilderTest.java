@@ -37,7 +37,7 @@ import org.mockito.junit.MockitoRule;
 @RunWith(JUnit4.class)
 public class BoundedSumBuilderTest {
   private static final double DEFAULT_EPSILON = 0.5;
-  private static final double DEFAULT_DELTA = 0.00001;
+  private static final double DEFAULT_DELTA = 1e-5;
   private static final int DEFAULT_MAX_CONTRIBUTIONS_PER_PARTITION = 1;
   private static final int DEFAULT_MAX_PARTITIONS_CONTRIBUTED = 1;
   private static final double DEFAULT_LOWER = 0.0;
@@ -135,13 +135,6 @@ public class BoundedSumBuilderTest {
   }
 
   @Test
-  public void deltaGaussian_null_throwsException() {
-    builder.delta(null);
-    builder.noise(new GaussianNoise());
-    assertThrows(NullPointerException.class, builder::build);
-  }
-
-  @Test
   public void deltaGaussian_nan_throwsException() {
     builder.delta(NaN);
     builder.noise(new GaussianNoise());
@@ -158,20 +151,20 @@ public class BoundedSumBuilderTest {
             .maxPartitionsContributed(DEFAULT_MAX_PARTITIONS_CONTRIBUTED)
             .lower(DEFAULT_LOWER)
             .upper(DEFAULT_UPPER);
-    assertThrows(NullPointerException.class, builder::build);
+    assertThrows(IllegalArgumentException.class, builder::build);
   }
 
   @Test
-  public void deltaLaplace_notNull_throwsException() {
+  public void deltaLaplace_notZero_throwsException() {
     builder.delta(DEFAULT_DELTA);
     builder.noise(new LaplaceNoise());
     assertThrows(IllegalArgumentException.class, builder::build);
   }
 
   @Test
-  public void deltaLaplace_null_buildsInstance() {
+  public void deltaLaplace_zero_buildsInstance() {
+    builder.delta(0.0);
     builder.noise(new LaplaceNoise());
-    builder.delta(null);
     assertThat(builder.build()).isNotNull();
   }
 
@@ -208,13 +201,6 @@ public class BoundedSumBuilderTest {
     builder.delta(NaN);
     builder.noise(unrecognizedNoise);
     assertThrows(IllegalArgumentException.class, builder::build);
-  }
-
-  @Test
-  public void deltaUnrecognizedNoise_null_buildsInstance() {
-    builder.delta(null);
-    builder.noise(unrecognizedNoise);
-    assertThat(builder.build()).isNotNull();
   }
 
   @Test

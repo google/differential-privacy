@@ -202,7 +202,7 @@ public final class LaplaceNoiseTest {
   }
 
   @Test
-  public void addNoise_deltaNonnul_throwsException() {
+  public void addNoise_deltaNonzero_throwsException() {
     assertThrows(
         IllegalArgumentException.class,
         () ->
@@ -211,7 +211,7 @@ public final class LaplaceNoiseTest {
                 DEFAULT_L_0_SENSITIVITY,
                 DEFAULT_L_INF_SENSITIVITY,
                 DEFAULT_EPSILON,
-                /* delta= */ 0.0));
+                /* delta= */ 0.1));
   }
 
   @Test

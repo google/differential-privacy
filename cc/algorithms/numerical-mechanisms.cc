@@ -293,7 +293,8 @@ GaussianMechanism::GaussianMechanism(double epsilon, double delta,
                                      double l2_sensitivity)
     : NumericalMechanism(epsilon),
       delta_(delta),
-      l2_sensitivity_(l2_sensitivity) {
+      l2_sensitivity_(l2_sensitivity),
+      stddev_(CalculateStddev(epsilon, delta, l2_sensitivity)) {
   absl::StatusOr<std::unique_ptr<internal::GaussianDistribution>>
       status_or_distro =
           internal::GaussianDistribution::Builder().SetStddev(1).Build();
@@ -377,13 +378,7 @@ double GaussianMechanism::CalculateStddev(double epsilon, double delta,
   return internal::CalculateGaussianStddev(epsilon, delta, l2_sensitivity);
 }
 
-double GaussianMechanism::CalculateStddev() const {
-  if (stddev_.has_value()) {
-    return stddev_.value();
-  }
-
-  return CalculateStddev(GetEpsilon(), delta_, l2_sensitivity_);
-}
+double GaussianMechanism::CalculateStddev() const { return stddev_; }
 
 double GaussianMechanism::AddDoubleNoise(double result) {
   double stddev = CalculateStddev();

@@ -105,7 +105,7 @@ public class BoundedSumConfidenceIntervalTest {
 
   @Test
   public void computeConfidenceInterval_laplaceNoise_calledTwiceForSameAlpha_returnsSameResult() {
-    BoundedSum sum = builder.noise(new LaplaceNoise()).delta(null).build();
+    BoundedSum sum = builder.noise(new LaplaceNoise()).delta(0.0).build();
     sum.computeResult();
 
     assertThat(sum.computeConfidenceInterval(ARBITRARY_ALPHA))
@@ -127,7 +127,7 @@ public class BoundedSumConfidenceIntervalTest {
   @Test
   public void
       computeConfidenceInterval_laplaceNoise_resultForSmallAlphaContainedInResultForLargeAlpha() {
-    BoundedSum sum = builder.noise(new LaplaceNoise()).delta(null).build();
+    BoundedSum sum = builder.noise(new LaplaceNoise()).delta(0.0).build();
     sum.computeResult();
 
     assertThat(sum.computeConfidenceInterval(ARBITRARY_ALPHA * 0.5).lowerBound())
@@ -171,8 +171,8 @@ public class BoundedSumConfidenceIntervalTest {
     BoundedSum sum =
         builder
             .epsilon(ARBITRARY_EPSILON)
-            .delta(null)
             .noise(new LaplaceNoise())
+            .delta(0.0)
             .maxPartitionsContributed(ARBITRARY_MAX_PARTITIONS_CONTRIBUTED)
             .maxContributionsPerPartition(ARBITRARY_MAX_CONTRIBUTIONS_PER_PARTITION)
             .lower(-874.36)
@@ -216,7 +216,7 @@ public class BoundedSumConfidenceIntervalTest {
 
   @Test
   public void computeConfidenceInterval_laplaceNoise_smallAlpha_satisfiesConfidenceLevel() {
-    builder.noise(new LaplaceNoise()).delta(null);
+    builder.noise(new LaplaceNoise()).delta(0.0);
     double rawValue = 1.0;
 
     int hits = 0;
@@ -260,7 +260,7 @@ public class BoundedSumConfidenceIntervalTest {
 
   @Test
   public void computeConfidenceInterval_laplaceNoise_largeAlpha_satisfiesConfidenceLevel() {
-    builder.noise(new LaplaceNoise()).delta(null);
+    builder.noise(new LaplaceNoise()).delta(0.0);
     double rawValue = 1.0;
 
     int hits = 0;

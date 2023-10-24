@@ -18,6 +18,7 @@
 
 #include <limits>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "base/testing/proto_matchers.h"
@@ -27,8 +28,10 @@
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/cord.h"
 #include "algorithms/numerical-mechanisms-testing.h"
 #include "algorithms/numerical-mechanisms.h"
+#include "proto/data.pb.h"
 
 namespace differential_privacy {
 
@@ -62,8 +65,10 @@ class ApproxBoundsTestPeer {
 namespace {
 
 using ::differential_privacy::test_utils::ZeroNoiseMechanism;
+using ::testing::Eq;
 using ::differential_privacy::base::testing::EqualsProto;
 using ::testing::HasSubstr;
+using ::testing::Optional;
 using ::differential_privacy::base::testing::StatusIs;
 
 template <typename T>
@@ -190,9 +195,13 @@ TYPED_TEST(ApproxBoundsTest, EmptyHistogramTest) {
           .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
-  EXPECT_THAT((*bounds)->PartialResult(),
-              StatusIs(absl::StatusCode::kFailedPrecondition,
-                       HasSubstr("Bin count threshold was too large")));
+  absl::StatusOr<Output> result = bounds->get()->PartialResult();
+  EXPECT_THAT(result, StatusIs(absl::StatusCode::kFailedPrecondition,
+                               HasSubstr("Bin count threshold was too large")));
+  EXPECT_THAT(
+      result.status().GetPayload(
+          "type.googleapis.com/differential_privacy.ApproxBoundsNotEnoughData"),
+      Optional(Eq(absl::Cord())));
 }
 
 TEST(ApproxBoundsTest, RetriesBoundingTest) {
@@ -243,6 +252,10 @@ TYPED_TEST(ApproxBoundsTest, ExplicitThresholdNotRelaxed) {
 
   EXPECT_THAT(result, StatusIs(absl::StatusCode::kFailedPrecondition,
                                HasSubstr("Bin count threshold was too large")));
+  EXPECT_THAT(
+      result.status().GetPayload(
+          "type.googleapis.com/differential_privacy.ApproxBoundsNotEnoughData"),
+      Optional(Eq(absl::Cord())));
 }
 
 TEST(ApproxBoundsTest, InsufficientPrivacyBudgetTest) {
@@ -260,9 +273,13 @@ TEST(ApproxBoundsTest, InsufficientPrivacyBudgetTest) {
   (*bounds)->AddEntries(a.begin(), a.end());
   absl::StatusOr<Output> result = (*bounds)->PartialResult();
   ASSERT_OK(result);
-  EXPECT_THAT((*bounds)->PartialResult(),
-              StatusIs(absl::StatusCode::kInvalidArgument,
-                       HasSubstr("can only produce results once")));
+  absl::StatusOr<Output> output = bounds->get()->PartialResult();
+  EXPECT_THAT(output, StatusIs(absl::StatusCode::kInvalidArgument,
+                               HasSubstr("can only produce results once")));
+  EXPECT_THAT(
+      output.status().GetPayload(
+          "type.googleapis.com/differential_privacy.ApproxBoundsNotEnoughData"),
+      Eq(std::nullopt));
 }
 
 TEST(ApproxBoundsTest, SmallScale) {

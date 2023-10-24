@@ -475,13 +475,12 @@ def _compute_rdp_sample_wor_gaussian_int(q: float, sigma: float,
     # The output is in polar form with logarithmic magnitude
     deltas, _ = _get_forward_diffs(cgf, alpha)
     # Compute the bound exactly requires book keeping of O(alpha**2)
-
     for i in range(2, alpha + 1):
       if i == 2:
         s = 2 * np.log(q) + _log_comb(alpha, 2) + np.minimum(
             np.log(4) + log_f2m1,
             func(2.0) + np.log(2))
-      elif i > 2:
+      else:  # i > 2
         delta_lo = deltas[int(2 * np.floor(i / 2.0)) - 1]
         delta_hi = deltas[int(2 * np.ceil(i / 2.0)) - 1]
         s = np.log(4) + 0.5 * (delta_lo + delta_hi)
@@ -776,6 +775,45 @@ def _compute_rdp_repeat_and_select(orders: Sequence[float],
   return rdp_out
 
 
+def _laplace_rdp(eps: float, order: float) -> float:
+  """Computes RDP of Laplace noise addition.
+  
+  See Proposition 6 of Mironov (2017): https://arxiv.org/abs/1702.07476
+  RDP = eps + log[ 1 + (a-1) * [exp( (1-2*a) * eps) - 1] / (2*a-1) ] / (a-1).
+  In contrast, the naive bound is RDP <= eps, which is tight as order->infinity.
+  For small order & eps, we can do better: In general, RDP <= order * eps^2 / 2.
+  The above formula is exactly tight for the Laplace mechanism.
+  
+  Args:
+    eps: The pure DP guarantee corresponding to the limit order->infinity.
+    order: The Renyi divergence order (a.k.a. alpha).
+
+  Returns:
+    The RDP of Laplace noise addition
+  """
+  a = float(order)
+  eps = float(eps)
+  if not math.isfinite(eps) or eps < 0:
+    raise ValueError(f'eps must be > 0. Got {eps}')
+  if not math.isfinite(a) or a < 1:
+    raise ValueError(f'order must be >= 1. Got {a}')
+
+  if a == 1:  # KL divergence
+    # Taking the limit as order->1 gives the following expression.
+    return eps + math.expm1(-eps)
+  elif a < 1.1:  # 1 < order <= 1.1
+    # For numerical stability in this case, we use a Taylor series.
+    # log(1+x) = sum_{k>=1} -(-x)^k/k
+    # Thus log(1+c*x)/x = c * sum_{k>=1} (-c*x)^{k-1}/k
+    # Since 0 <= -c*x <= 0.1, this Taylor series converges rapidly.
+    c = math.expm1(eps * (1 - 2 * a)) / (2 * a - 1)
+    v = -c * (a - 1)
+    return eps + c * math.fsum(v**(k - 1) / k for k in range(1, 100))
+  else:  # order > 1.1
+    return eps + math.log1p(
+        (a - 1) * math.expm1(eps * (1 - 2 * a)) / (2 * a - 1)
+    ) / (a - 1)
+
 # Default orders chosen to give good coverage for Gaussian mechanism in
 # the privacy regime of interest.
 DEFAULT_RDP_ORDERS = ([1 + x / 10. for x in range(1, 100)] +
@@ -880,20 +918,17 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
       return None
     elif isinstance(event, dp_event.LaplaceDpEvent):
       if do_compose:
-        # Laplace satisfies eps-DP with eps = 1 / event.noise_multiplier
-        # eps-DP implies (alpha, min(eps,alpha*eps^2/2))-RDP for all alpha.
         eps = 1 / event.noise_multiplier
-        rho = 0.5 * eps * eps
         self._rdp += count * np.array(
-            [min(eps, rho * order) for order in self._orders])
+            [_laplace_rdp(eps, order) for order in self._orders])
       return None
     elif isinstance(event, dp_event.RepeatAndSelectDpEvent):
+      save_rdp = self._rdp
       if do_compose:
         # Save the RDP values from already composed DPEvents. These will
         # be added back after we process this RepeatAndSelectDpEvent.
         # Zero out self._rdp before computing the RDP of the underlying
         # DP event.
-        save_rdp = self._rdp
         self._rdp = np.zeros_like(self._orders, dtype=np.float64)
       composition_error = self._maybe_compose(event.event, 1, do_compose)
       if composition_error is None and do_compose:

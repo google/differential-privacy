@@ -77,20 +77,29 @@ public class LaplaceNoise implements Noise {
    */
   @Override
   public double addNoise(
-      double x, int l0Sensitivity, double lInfSensitivity, double epsilon, @Nullable Double delta) {
+      double x, int l0Sensitivity, double lInfSensitivity, double epsilon, double delta) {
     DpPreconditions.checkSensitivities(l0Sensitivity, lInfSensitivity);
 
     return addNoise(x, Noise.getL1Sensitivity(l0Sensitivity, lInfSensitivity), epsilon, delta);
   }
 
   /**
-   * See {@link #addNoise(double, int, double, double, Double)}.
+   * @deprecated Use {@link #addNoise(double, double, double, double)} instead. Set delta to 0.0.
+   */
+  @Deprecated
+  public double addNoise(double x, double l1Sensitivity, double epsilon, @Nullable Double delta) {
+    double primitiveDelta = delta == null ? 0.0 : delta;
+    return addNoise(x, l1Sensitivity, epsilon, primitiveDelta);
+  }
+
+  /**
+   * See {@link #addNoise(double, int, double, double, double)}.
    *
    * <p>As opposed to the latter method, this accepts the L_1 sensitivity of {@code x} directly
    * instead of the L_0 and L_Inf proxies. This should be used in settings where it is feasible or
    * more convenient to calculate the L_1 sensitivity directly.
    */
-  public double addNoise(double x, double l1Sensitivity, double epsilon, @Nullable Double delta) {
+  public double addNoise(double x, double l1Sensitivity, double epsilon, double delta) {
     checkParameters(l1Sensitivity, epsilon, delta);
 
     double granularity = getGranularity(l1Sensitivity, epsilon);
@@ -109,7 +118,7 @@ public class LaplaceNoise implements Noise {
    */
   @Override
   public long addNoise(
-      long x, int l0Sensitivity, long lInfSensitivity, double epsilon, @Nullable Double delta) {
+      long x, int l0Sensitivity, long lInfSensitivity, double epsilon, double delta) {
     DpPreconditions.checkSensitivities(l0Sensitivity, lInfSensitivity);
 
     return addNoise(
@@ -117,13 +126,22 @@ public class LaplaceNoise implements Noise {
   }
 
   /**
-   * See {@link #addNoise(long, int, long, double, Double)}.
+   * @deprecated Use {@link #addNoise(long, long, double, double)} instead. Set delta to 0.0.
+   */
+  @Deprecated
+  public long addNoise(long x, long l1Sensitivity, double epsilon, @Nullable Double delta) {
+    double primitiveDelta = delta == null ? 0.0 : delta;
+    return addNoise(x, l1Sensitivity, epsilon, primitiveDelta);
+  }
+
+  /**
+   * See {@link #addNoise(long, int, long, double, double)}.
    *
    * <p>As opposed to the latter method, this accepts the L_1 sensitivity of {@code x} directly
    * instead of the L_0 and L_Inf proxies. This should be used in settings where it is feasible or
    * more convenient to calculate the L_1 sensitivity directly.
    */
-  public long addNoise(long x, long l1Sensitivity, double epsilon, @Nullable Double delta) {
+  public long addNoise(long x, long l1Sensitivity, double epsilon, double delta) {
     checkParameters(l1Sensitivity, epsilon, delta);
 
     double granularity = getGranularity(l1Sensitivity, epsilon);
@@ -145,7 +163,7 @@ public class LaplaceNoise implements Noise {
 
   /**
    * Computes a confidence interval that contains the raw value {@code x} passed to {@link
-   * #addNoise(double, int, double, double, Double)} with a probability equal to {@code 1 - alpha}
+   * #addNoise(double, int, double, double, double)} with a probability equal to {@code 1 - alpha}
    * based on the specified {@code noisedX} and noise parameters. Note that {@code delta} must be
    * set to {@code null} because it does not parameterize Laplace noise. Moreover, {@code epsilon}
    * must be at least 2^-50.
@@ -176,7 +194,7 @@ public class LaplaceNoise implements Noise {
 
   /**
    * Computes a confidence interval that contains the raw integer value {@code x} passed to {@link
-   * #addNoise(long, int, long, double, Double)} with a probability greater or equal to {@code 1 -
+   * #addNoise(long, int, long, double, double)} with a probability greater or equal to {@code 1 -
    * alpha} based on the specified {@code noisedX} and noise parameters. Note that {@code delta}
    * must be set to {@code null} because it does not parameterize Laplace noise. Moreover, {@code
    * epsilon} must be at least 2^-50.
@@ -283,7 +301,7 @@ public class LaplaceNoise implements Noise {
   }
 
   /**
-   * Determines the granularity of the output of {@link addNoise} based on the epsilon and
+   * Determines the granularity of the output of {@link #addNoise} based on the epsilon and
    * l1Sensitivity of the Laplace mechanism.
    */
   private static double getGranularity(double l1Sensitivity, double epsilon) {

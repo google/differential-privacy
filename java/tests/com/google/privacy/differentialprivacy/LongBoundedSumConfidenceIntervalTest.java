@@ -216,7 +216,7 @@ public class LongBoundedSumConfidenceIntervalTest {
 
   @Test
   public void computeConfidenceInterval_laplaceNoise_smallAlpha_satisfiesConfidenceLevel() {
-    builder.noise(new LaplaceNoise()).delta(null);
+    builder.noise(new LaplaceNoise()).delta(0.0);
     long rawValue = 1;
 
     int hits = 0;
@@ -260,7 +260,7 @@ public class LongBoundedSumConfidenceIntervalTest {
 
   @Test
   public void computeConfidenceInterval_laplaceNoise_largeAlpha_satisfiesConfidenceLevel() {
-    builder.noise(new LaplaceNoise()).delta(null);
+    builder.noise(new LaplaceNoise()).delta(0.0);
     long rawValue = 1;
 
     int hits = 0;

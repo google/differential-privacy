@@ -27,7 +27,6 @@ import com.google.privacy.differentialprivacy.proto.SummaryOuterClass.LongBounde
 import com.google.protobuf.ExtensionRegistry;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.Collection;
-import javax.annotation.Nullable;
 
 /**
  * Calculates a differentially private sum for a collection of integer values using the Laplace or
@@ -150,7 +149,7 @@ public class LongBoundedSum {
    * LongBoundedSum}.
    *
    * <p>This method cannot be invoked if the sum has already been queried, i.e., {@link
-   * computeResult()} has been called. Moreover, after this instance of {@link LongBoundedSum} has
+   * #computeResult()} has been called. Moreover, after this instance of {@link LongBoundedSum} has
    * been serialized once, further modification and queries are not possible anymore.
    *
    * @throws IllegalStateException if this instance of {@link LongBoundedSum} has already been
@@ -162,21 +161,17 @@ public class LongBoundedSum {
 
     state = AggregationState.SERIALIZED;
 
-    ValueType sumValue = ValueType.newBuilder().setIntValue(sum).build();
-    LongBoundedSumSummary.Builder builder =
-        LongBoundedSumSummary.newBuilder()
-            .setPartialSum(sumValue)
-            .setEpsilon(params.epsilon())
-            .setLower(params.lower())
-            .setUpper(params.upper())
-            .setMaxPartitionsContributed(params.maxPartitionsContributed())
-            .setMaxContributionsPerPartition(params.maxContributionsPerPartition())
-            .setMechanismType(params.noise().getMechanismType());
-    if (params.delta() != null) {
-      builder.setDelta(params.delta());
-    }
-
-    return builder.build().toByteArray();
+    return LongBoundedSumSummary.newBuilder()
+        .setPartialSum(ValueType.newBuilder().setIntValue(sum).build())
+        .setEpsilon(params.epsilon())
+        .setDelta(params.delta())
+        .setLower(params.lower())
+        .setUpper(params.upper())
+        .setMaxPartitionsContributed(params.maxPartitionsContributed())
+        .setMaxContributionsPerPartition(params.maxContributionsPerPartition())
+        .setMechanismType(params.noise().getMechanismType())
+        .build()
+        .toByteArray();
   }
 
   /**
@@ -239,8 +234,7 @@ public class LongBoundedSum {
 
     abstract double epsilon();
 
-    @Nullable
-    abstract Double delta();
+    abstract double delta();
 
     abstract int maxPartitionsContributed();
 
@@ -299,6 +293,8 @@ public class LongBoundedSum {
         Params.Builder builder = new AutoValue_LongBoundedSum_Params.Builder();
         // Provide LaplaceNoise as a default noise generator.
         builder.noise(new LaplaceNoise());
+        // Since Laplace noise doesn't use delta, set it to 0.0.
+        builder.delta(0.0);
         // By default, assume that each user contributes to a given partition no more than once.
         builder.maxContributionsPerPartition(1);
         return builder;
@@ -313,7 +309,17 @@ public class LongBoundedSum {
        * <p>Note that Laplace noise does not use delta. Hence, delta should not be set when Laplace
        * noise is used.
        */
-      public abstract Builder delta(@Nullable Double value);
+      public abstract Builder delta(double value);
+
+      /**
+       * @deprecated use {@link #delta(double)}.
+       *     <p>TODO: migrate clients and delete this method.
+       */
+      @Deprecated
+      public Builder delta(Double value) {
+        double primitiveDelta = value == null ? 0.0 : value;
+        return delta(primitiveDelta);
+      }
 
       /**
        * Maximum number of partitions to which a single privacy unit (i.e., an individual) is

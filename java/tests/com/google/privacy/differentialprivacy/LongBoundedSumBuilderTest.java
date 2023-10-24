@@ -134,13 +134,6 @@ public class LongBoundedSumBuilderTest {
   }
 
   @Test
-  public void deltaGaussian_null_throwsException() {
-    builder.delta(null);
-    builder.noise(new GaussianNoise());
-    assertThrows(NullPointerException.class, builder::build);
-  }
-
-  @Test
   public void deltaGaussian_nan_throwsException() {
     builder.delta(NaN);
     builder.noise(new GaussianNoise());
@@ -157,7 +150,7 @@ public class LongBoundedSumBuilderTest {
             .maxPartitionsContributed(DEFAULT_MAX_PARTITIONS_CONTRIBUTED)
             .lower(DEFAULT_LOWER)
             .upper(DEFAULT_UPPER);
-    assertThrows(NullPointerException.class, builder::build);
+    assertThrows(IllegalArgumentException.class, builder::build);
   }
 
   @Test
@@ -165,13 +158,6 @@ public class LongBoundedSumBuilderTest {
     builder.delta(DEFAULT_DELTA);
     builder.noise(new LaplaceNoise());
     assertThrows(IllegalArgumentException.class, builder::build);
-  }
-
-  @Test
-  public void deltaLaplace_null_buildsInstance() {
-    builder.noise(new LaplaceNoise());
-    builder.delta(null);
-    assertThat(builder.build()).isNotNull();
   }
 
   @Test
@@ -207,13 +193,6 @@ public class LongBoundedSumBuilderTest {
     builder.delta(NaN);
     builder.noise(unrecognizedNoise);
     assertThrows(IllegalArgumentException.class, builder::build);
-  }
-
-  @Test
-  public void deltaUnrecognizedNoise_null_buildsInstance() {
-    builder.delta(null);
-    builder.noise(unrecognizedNoise);
-    assertThat(builder.build()).isNotNull();
   }
 
   @Test

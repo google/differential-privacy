@@ -28,7 +28,6 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
-import javax.annotation.Nullable;
 
 /**
  * Calculates differentially private quantiles for a collection of values using a quantile tree
@@ -491,7 +490,7 @@ public class BoundedQuantiles {
    * {@link BoundedQuantiles}.
    *
    * <p>This method cannot be invoked if a quantile has already been queried, i.e., {@link
-   * computeResult(double)} has been called. Moreover, after this instance of {@link
+   * #computeResult(double)} has been called. Moreover, after this instance of {@link
    * BoundedQuantiles} has been serialized once, further modification and queries are not possible
    * anymore.
    *
@@ -504,22 +503,19 @@ public class BoundedQuantiles {
 
     state = AggregationState.SERIALIZED;
 
-    BoundedQuantilesSummary.Builder builder =
-        BoundedQuantilesSummary.newBuilder()
-            .putAllQuantileTree(tree)
-            .setEpsilon(params.epsilon())
-            .setLower(params.lower())
-            .setUpper(params.upper())
-            .setMaxPartitionsContributed(params.maxPartitionsContributed())
-            .setMaxContributionsPerPartition(params.maxContributionsPerPartition())
-            .setMechanismType(params.noise().getMechanismType())
-            .setTreeHeight(params.treeHeight())
-            .setBranchingFactor(params.branchingFactor());
-    if (params.delta() != null) {
-      builder.setDelta(params.delta());
-    }
-
-    return builder.build().toByteArray();
+    return BoundedQuantilesSummary.newBuilder()
+        .putAllQuantileTree(tree)
+        .setEpsilon(params.epsilon())
+        .setDelta(params.delta())
+        .setLower(params.lower())
+        .setUpper(params.upper())
+        .setMaxPartitionsContributed(params.maxPartitionsContributed())
+        .setMaxContributionsPerPartition(params.maxContributionsPerPartition())
+        .setMechanismType(params.noise().getMechanismType())
+        .setTreeHeight(params.treeHeight())
+        .setBranchingFactor(params.branchingFactor())
+        .build()
+        .toByteArray();
   }
 
   /**
@@ -590,8 +586,7 @@ public class BoundedQuantiles {
 
     abstract double epsilon();
 
-    @Nullable
-    abstract Double delta();
+    abstract double delta();
 
     abstract int maxPartitionsContributed();
 
@@ -612,6 +607,8 @@ public class BoundedQuantiles {
         BoundedQuantiles.Params.Builder builder = new AutoValue_BoundedQuantiles_Params.Builder();
         // Provides LaplaceNoise as a default noise generator.
         builder.noise(new LaplaceNoise());
+        // Since Laplace noise doesn't use delta, set it to 0.0.
+        builder.delta(0.0);
         // A default tree height of 4 and branching factor of 16 divides the domain of possible
         // values into 65536 partitions.
         builder.treeHeight(DEFAULT_TREE_HEIGHT);
@@ -629,7 +626,17 @@ public class BoundedQuantiles {
        * <p>Note that Laplace noise does not use delta. Hence, delta should not be set when Laplace
        * noise is used.
        */
-      public abstract BoundedQuantiles.Params.Builder delta(@Nullable Double value);
+      public abstract BoundedQuantiles.Params.Builder delta(double value);
+
+      /**
+       * @deprecated use {@link #delta(double)}.
+       *     <p>TODO: migrate clients and delete this method.
+       */
+      @Deprecated
+      public BoundedQuantiles.Params.Builder delta(Double value) {
+        double primitiveDelta = value == null ? 0.0 : value;
+        return delta(primitiveDelta);
+      }
 
       /**
        * Maximum number of partitions that a single privacy unit (e.g., an individual) is allowed to

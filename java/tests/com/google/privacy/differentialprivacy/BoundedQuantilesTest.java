@@ -162,7 +162,7 @@ public class BoundedQuantilesTest {
     int addNoiseInvocationCount = 0;
     Method addNoiseMethod =
         Noise.class.getMethod(
-            "addNoise", double.class, int.class, double.class, double.class, Double.class);
+            "addNoise", double.class, int.class, double.class, double.class, double.class);
     for (Invocation invoc : Mockito.mockingDetails(noise).getInvocations()) {
       if (invoc.getMethod().equals(addNoiseMethod)) {
         addNoiseInvocationCount++;
@@ -384,7 +384,7 @@ public class BoundedQuantilesTest {
 
     quantiles.computeResult(ARBITRARY_RANK);
 
-    assertThrows(IllegalStateException.class, () -> quantiles.addEntries(Arrays.asList(0.0)));
+    assertThrows(IllegalStateException.class, () -> quantiles.addEntry(0.0));
   }
 
   @Test
@@ -393,7 +393,7 @@ public class BoundedQuantilesTest {
 
     quantiles.getSerializableSummary();
 
-    assertThrows(IllegalStateException.class, () -> quantiles.addEntries(Arrays.asList(0.0)));
+    assertThrows(IllegalStateException.class, () -> quantiles.addEntry(0.0));
   }
 
   @Test
@@ -487,7 +487,7 @@ public class BoundedQuantilesTest {
 
   @Test
   public void getSerializableSummary_copiesLaplaceNoiseCorrectly() {
-    BoundedQuantiles quantiles = builder.noise(new LaplaceNoise()).delta(null).build();
+    BoundedQuantiles quantiles = builder.noise(new LaplaceNoise()).delta(0.0).build();
     BoundedQuantilesSummary summary = getSummary(quantiles);
     assertThat(summary.getMechanismType()).isEqualTo(LAPLACE);
   }
@@ -576,8 +576,8 @@ public class BoundedQuantilesTest {
 
   @Test
   public void mergeWith_nullDelta_mergesWithoutException() {
-    BoundedQuantiles quantiles1 = builder.noise(new LaplaceNoise()).delta(null).build();
-    BoundedQuantiles quantiles2 = builder.noise(new LaplaceNoise()).delta(null).build();
+    BoundedQuantiles quantiles1 = builder.noise(new LaplaceNoise()).delta(0.0).build();
+    BoundedQuantiles quantiles2 = builder.noise(new LaplaceNoise()).delta(0.0).build();
     // No exception should be thrown.
     quantiles1.mergeWith(quantiles2.getSerializableSummary());
   }
@@ -594,7 +594,7 @@ public class BoundedQuantilesTest {
   @Test
   public void mergeWith_noiseMismatch_throwsException() {
     BoundedQuantiles quantiles1 = builder.noise(new GaussianNoise()).build();
-    BoundedQuantiles quantiles2 = builder.noise(new LaplaceNoise()).delta(null).build();
+    BoundedQuantiles quantiles2 = builder.noise(new LaplaceNoise()).delta(0.0).build();
     assertThrows(
         IllegalArgumentException.class,
         () -> quantiles1.mergeWith(quantiles2.getSerializableSummary()));

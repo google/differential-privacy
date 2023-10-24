@@ -42,7 +42,7 @@ public class DpPreconditions {
     if (noise.getMechanismType() == MechanismType.LAPLACE
         || noise.getMechanismType() == MechanismType.DISCRETE_LAPLACE) {
       checkArgument(
-          delta == null,
+          delta == null || delta == 0.0,
           "delta should not be set when (Discrete) Laplace noise is used. Provided value: %s",
           delta);
     } else if (noise.getMechanismType() == MechanismType.GAUSSIAN) {

@@ -189,7 +189,7 @@ public class BoundedMeanConfidenceIntervalTest {
 
   @Test
   public void computeConfidenceInterval_laplaceNoise_calledTwiceForSameAlpha_returnsSameResult() {
-    BoundedMean mean = builder.noise(new LaplaceNoise()).delta(null).build();
+    BoundedMean mean = builder.noise(new LaplaceNoise()).delta(0.0).build();
     mean.computeResult();
 
     assertThat(mean.computeConfidenceInterval(ARBITRARY_ALPHA))
@@ -215,7 +215,7 @@ public class BoundedMeanConfidenceIntervalTest {
   @Test
   public void
       computeConfidenceInterval_laplaceNoise_resultForSmallAlphaContainedInResultForLargeAlpha() {
-    BoundedMean mean = builder.noise(new LaplaceNoise()).delta(null).build();
+    BoundedMean mean = builder.noise(new LaplaceNoise()).delta(0.0).build();
     // Adding many entries to prevent clamping.
     for (int i = 0; i < 1000; i++) {
       mean.addEntry(0.5);
@@ -254,7 +254,7 @@ public class BoundedMeanConfidenceIntervalTest {
   @Test
   public void
       computeConfidenceInterval_laplaceNoise_smallAlpha_emptyMean_satisfiesConfidenceLevel() {
-    builder.noise(new LaplaceNoise()).delta(null).lower(1.0).upper(2.0);
+    builder.noise(new LaplaceNoise()).delta(0.0).lower(1.0).upper(2.0);
     // When empty, the raw mean is assumed to be the midpoint between lower and upper.
     double rawValue = 1.5;
 
@@ -300,7 +300,7 @@ public class BoundedMeanConfidenceIntervalTest {
   @Test
   public void
       computeConfidenceInterval_laplaceNoise_largeAlpha_emptyMean_satisfiesConfidenceLevel() {
-    builder.noise(new LaplaceNoise()).delta(null).lower(1.0).upper(2.0);
+    builder.noise(new LaplaceNoise()).delta(0.0).lower(1.0).upper(2.0);
     // When empty, the raw mean is assumed to be the midpoint between lower and upper.
     double rawValue = 1.5;
 
@@ -348,7 +348,7 @@ public class BoundedMeanConfidenceIntervalTest {
   @Test
   public void
       computeConfidenceInterval_laplaceNoise_smallAlpha_oneEntry_satisfiesConfidenceLevel() {
-    builder.noise(new LaplaceNoise()).delta(null).lower(1.0).upper(2.0);
+    builder.noise(new LaplaceNoise()).delta(0.0).lower(1.0).upper(2.0);
     // Choosing the midpoint between lower and upper to maximize the variance of the result. This
     // should increase the likelihood of detecting potential violations of the confidence level.
     double rawValue = 1.5;
@@ -398,7 +398,7 @@ public class BoundedMeanConfidenceIntervalTest {
   @Test
   public void
       computeConfidenceInterval_laplaceNoise_largeAlpha_oneEntry_satisfiesConfidenceLevel() {
-    builder.noise(new LaplaceNoise()).delta(null).lower(1.0).upper(2.0);
+    builder.noise(new LaplaceNoise()).delta(0.0).lower(1.0).upper(2.0);
     // Choosing the midpoint between lower and upper to maximize the variance of the result. This
     // should increase the likelihood of detecting potential violations of the confidence level.
     double rawValue = 1.5;
@@ -450,7 +450,7 @@ public class BoundedMeanConfidenceIntervalTest {
   @Test
   public void
       computeConfidenceInterval_laplaceNoise_smallAlpha_manyEntries_satisfiesConfidenceLevel() {
-    builder.noise(new LaplaceNoise()).delta(null).lower(1.0).upper(2.0);
+    builder.noise(new LaplaceNoise()).delta(0.0).lower(1.0).upper(2.0);
     // Choosing the midpoint between lower and upper to maximize the variance of the result. This
     // should increase the likelihood of detecting potential violations of the confidence level.
     double rawValue = 1.5;
@@ -504,7 +504,7 @@ public class BoundedMeanConfidenceIntervalTest {
   @Test
   public void
       computeConfidenceInterval_laplaceNoise_largeAlpha_manyEntries_satisfiesConfidenceLevel() {
-    builder.noise(new LaplaceNoise()).delta(null).lower(1.0).upper(2.0);
+    builder.noise(new LaplaceNoise()).delta(0.0).lower(1.0).upper(2.0);
     // Choosing the midpoint between lower and upper to maximize the variance of the result. This
     // should increase the likelihood of detecting potential violations of the confidence level.
     double rawValue = 1.5;

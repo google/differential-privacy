@@ -116,13 +116,6 @@ public class CountBuilderTest {
   }
 
   @Test
-  public void deltaGaussian_null_throwsException() {
-    builder.delta(null);
-    builder.noise(new GaussianNoise());
-    assertThrows(NullPointerException.class, builder::build);
-  }
-
-  @Test
   public void deltaGaussian_nan_throwsException() {
     builder.delta(NaN);
     builder.noise(new GaussianNoise());
@@ -137,7 +130,7 @@ public class CountBuilderTest {
             .noise(new GaussianNoise())
             .maxContributionsPerPartition(DEFAULT_MAX_CONTRIBUTIONS_PER_PARTITION)
             .maxPartitionsContributed(DEFAULT_MAX_PARTITIONS_CONTRIBUTED);
-    assertThrows(NullPointerException.class, builder::build);
+    assertThrows(IllegalArgumentException.class, builder::build);
   }
 
   @Test
@@ -148,9 +141,9 @@ public class CountBuilderTest {
   }
 
   @Test
-  public void deltaLaplace_null_buildsInstance() {
+  public void deltaLaplace_zero_buildsInstance() {
     builder.noise(new LaplaceNoise());
-    builder.delta(null);
+    builder.delta(0.0);
     assertThat(builder.build()).isNotNull();
   }
 

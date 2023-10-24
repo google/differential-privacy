@@ -21,7 +21,6 @@ import static com.google.privacy.differentialprivacy.proto.SummaryOuterClass.Mec
 import static com.google.privacy.differentialprivacy.proto.SummaryOuterClass.MechanismType.LAPLACE;
 import static java.lang.Double.NaN;
 import static org.junit.Assert.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
@@ -49,7 +48,7 @@ import org.mockito.junit.MockitoRule;
 @RunWith(JUnit4.class)
 public class BoundedSumTest {
   private static final double EPSILON = 0.123;
-  private static final double DELTA = 0.123;
+  private static final double DELTA = 0.456;
 
   @Mock private Noise mockNoise;
 
@@ -161,8 +160,6 @@ public class BoundedSumTest {
   @Test
   public void computeResult_callsNoiseCorrectly() {
     when(mockNoise.getMechanismType()).thenReturn(GAUSSIAN);
-    when(mockNoise.addNoise(anyDouble(), anyInt(), anyDouble(), anyDouble(), any()))
-        .thenAnswer(invocation -> 0.0);
     int l0Sensitivity = 11;
     BoundedSum sum =
         getBoundedSumBuilder()
@@ -192,7 +189,7 @@ public class BoundedSumTest {
   @Test
   public void computeResult_addsNoise() {
     // Mock the noise mechanism so that it always generates 100.0.
-    when(mockNoise.addNoise(anyDouble(), anyInt(), anyDouble(), anyDouble(), any()))
+    when(mockNoise.addNoise(anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble()))
         .thenAnswer(invocation -> (double) invocation.getArguments()[0] + 100.0);
     BoundedSum sum = getBoundedSumBuilder().noise(mockNoise).build();
     sum.addEntry(10);
@@ -225,7 +222,7 @@ public class BoundedSumTest {
     // max(abs(lower), abs(upper)) * maxContributionsPerPartition =
     // max(-Integer.MIN_VALUE, 0) = -Integer.MIN_VALUE.
     verify(mockNoise)
-        .addNoise(anyDouble(), anyInt(), eq(-(double) Integer.MIN_VALUE), anyDouble(), any());
+        .addNoise(anyDouble(), anyInt(), eq(-(double) Integer.MIN_VALUE), anyDouble(), anyDouble());
   }
 
   @Test
@@ -303,7 +300,7 @@ public class BoundedSumTest {
     BoundedSum sum = buildBoundedSum();
     sum.computeResult();
 
-    assertThrows(IllegalStateException.class, () -> sum.getSerializableSummary());
+    assertThrows(IllegalStateException.class, sum::getSerializableSummary);
   }
 
   @Test
@@ -346,7 +343,7 @@ public class BoundedSumTest {
 
   @Test
   public void getSerializableSummary_copiesLaplaceNoiseCorrectly() {
-    BoundedSum sum = getBoundedSumBuilder().noise(new LaplaceNoise()).delta(null).build();
+    BoundedSum sum = getBoundedSumBuilder().noise(new LaplaceNoise()).build();
 
     BoundedSumSummary summary = getSummary(sum);
 
@@ -434,8 +431,8 @@ public class BoundedSumTest {
 
   @Test
   public void mergeWith_nullDelta_mergesWithoutException() {
-    BoundedSum targetSum = getBoundedSumBuilder().noise(new LaplaceNoise()).delta(null).build();
-    BoundedSum sourceSum = getBoundedSumBuilder().noise(new LaplaceNoise()).delta(null).build();
+    BoundedSum targetSum = getBoundedSumBuilder().noise(new LaplaceNoise()).build();
+    BoundedSum sourceSum = getBoundedSumBuilder().noise(new LaplaceNoise()).build();
 
     // No exception should be thrown.
     targetSum.mergeWith(sourceSum.getSerializableSummary());
@@ -454,7 +451,7 @@ public class BoundedSumTest {
 
   @Test
   public void mergeWith_noiseMismatch_throwsException() {
-    BoundedSum targetSum = getBoundedSumBuilder().noise(new LaplaceNoise()).delta(null).build();
+    BoundedSum targetSum = getBoundedSumBuilder().noise(new LaplaceNoise()).build();
     BoundedSum sourceSum = getBoundedSumBuilder().noise(new GaussianNoise()).delta(DELTA).build();
 
     assertThrows(
