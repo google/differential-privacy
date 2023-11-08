@@ -67,11 +67,11 @@ public final class BoundedQuantilesDpTest {
   private static BoundedQuantiles getBoundedQuantiles(
       BoundedQuantilesSamplingParameters samplingParameters) {
     Noise noise;
-    Double delta;
+    double delta;
     switch (samplingParameters.getNoiseType()) {
       case LAPLACE:
         noise = TestNoiseFactory.createLaplaceNoise(ThreadLocalRandom.current());
-        delta = null;
+        delta = 0.0;
         break;
       case GAUSSIAN:
         noise = TestNoiseFactory.createGaussianNoise(ThreadLocalRandom.current());

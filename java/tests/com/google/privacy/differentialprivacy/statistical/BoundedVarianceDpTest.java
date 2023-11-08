@@ -62,11 +62,11 @@ public final class BoundedVarianceDpTest {
   private static BoundedVariance getBoundedVariance(
       BoundedStdvSamplingParameters samplingParameters) {
     Noise noise;
-    Double delta;
+    double delta;
     switch (samplingParameters.getNoiseType()) {
       case LAPLACE:
         noise = TestNoiseFactory.createLaplaceNoise(ThreadLocalRandom.current());
-        delta = null;
+        delta = 0.0;
         break;
       case GAUSSIAN:
         noise = TestNoiseFactory.createGaussianNoise(ThreadLocalRandom.current());

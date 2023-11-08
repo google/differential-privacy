@@ -57,6 +57,8 @@ cc_test(
     deps = [
         ":bounded-mean-ci",
         "//algorithms:numerical-mechanisms",
+        "//base/testing:proto_matchers",
+        "//base/testing:status_matchers",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/status:statusor",
         "@com_google_differential_privacy//proto:confidence_interval_cc_proto",

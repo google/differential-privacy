@@ -54,7 +54,7 @@ public final class LaplaceNoiseTest {
               DEFAULT_L_0_SENSITIVITY,
               DEFAULT_L_INF_SENSITIVITY,
               DEFAULT_EPSILON,
-              /* delta= */ null));
+              /* delta= */ 0.0));
     }
     Stats stats = Stats.of(samples.build());
 
@@ -78,7 +78,7 @@ public final class LaplaceNoiseTest {
               DEFAULT_L_0_SENSITIVITY,
               DEFAULT_L_INF_SENSITIVITY,
               DEFAULT_EPSILON,
-              /* delta= */ null));
+              /* delta= */ 0.0));
     }
     Stats stats = Stats.of(samples.build());
 
@@ -103,7 +103,7 @@ public final class LaplaceNoiseTest {
               DEFAULT_L_0_SENSITIVITY,
               /* lInfSensitivity= */ 0.5,
               DEFAULT_EPSILON,
-              /* delta= */ null));
+              /* delta= */ 0.0));
     }
     Stats stats = Stats.of(samples.build());
 
@@ -126,7 +126,7 @@ public final class LaplaceNoiseTest {
               DEFAULT_L_0_SENSITIVITY,
               DEFAULT_L_INF_SENSITIVITY,
               /* epsilon= */ 2 * LN_3,
-              /* delta= */ null));
+              /* delta= */ 0.0));
     }
     Stats stats = Stats.of(samples.build());
 
@@ -149,7 +149,7 @@ public final class LaplaceNoiseTest {
               DEFAULT_L_0_SENSITIVITY,
               /* lInfSensitivity= */ 1L,
               DEFAULT_EPSILON,
-              /* delta= */ null));
+              /* delta= */ 0.0));
     }
     Stats stats = Stats.of(samples.build());
 
@@ -172,7 +172,7 @@ public final class LaplaceNoiseTest {
                 DEFAULT_L_0_SENSITIVITY,
                 DEFAULT_L_INF_SENSITIVITY,
                 /* epsilon= */ 1.0 / (1L << 51),
-                /* delta= */ null));
+                /* delta= */ 0.0));
   }
 
   @Test
@@ -185,7 +185,7 @@ public final class LaplaceNoiseTest {
                 DEFAULT_L_0_SENSITIVITY,
                 DEFAULT_L_INF_SENSITIVITY,
                 /* epsilon= */ Double.POSITIVE_INFINITY,
-                /* delta= */ null));
+                /* delta= */ 0.0));
   }
 
   @Test
@@ -198,7 +198,7 @@ public final class LaplaceNoiseTest {
                 DEFAULT_L_0_SENSITIVITY,
                 DEFAULT_L_INF_SENSITIVITY,
                 /* epsilon= */ Double.NaN,
-                /* delta= */ null));
+                /* delta= */ 0.0));
   }
 
   @Test
@@ -224,7 +224,7 @@ public final class LaplaceNoiseTest {
                 DEFAULT_L_0_SENSITIVITY,
                 /* lInfSensitivity= */ Double.MAX_VALUE,
                 DEFAULT_EPSILON,
-                /* delta= */ null));
+                /* delta= */ 0.0));
   }
 
   @Test
@@ -237,7 +237,7 @@ public final class LaplaceNoiseTest {
                 DEFAULT_L_0_SENSITIVITY,
                 /* lInfSensitivity= */ Double.NaN,
                 /* epsilon= */ 1.0,
-                /* delta= */ null));
+                /* delta= */ 0.0));
   }
 
   @Test
@@ -250,7 +250,7 @@ public final class LaplaceNoiseTest {
                 DEFAULT_L_0_SENSITIVITY,
                 /* lInfSensitivity= */ -1.0,
                 DEFAULT_EPSILON,
-                /* delta= */ null));
+                /* delta= */ 0.0));
   }
 
   @Test
@@ -263,7 +263,7 @@ public final class LaplaceNoiseTest {
                 DEFAULT_L_0_SENSITIVITY,
                 /* lInfSensitivity= */ 0.0,
                 DEFAULT_EPSILON,
-                /* delta= */ null));
+                /* delta= */ 0.0));
   }
 
   @Test
@@ -276,7 +276,7 @@ public final class LaplaceNoiseTest {
                 /* l0Sensitivity= */ -1,
                 DEFAULT_L_INF_SENSITIVITY,
                 DEFAULT_EPSILON,
-                /* delta= */ null));
+                /* delta= */ 0.0));
   }
 
   @Test
@@ -289,7 +289,7 @@ public final class LaplaceNoiseTest {
                 /* l0Sensitivity= */ 0,
                 DEFAULT_L_INF_SENSITIVITY,
                 DEFAULT_EPSILON,
-                /* delta= */ null));
+                /* delta= */ 0.0));
   }
 
   @Test
@@ -298,7 +298,7 @@ public final class LaplaceNoiseTest {
         IllegalArgumentException.class,
         () ->
             NOISE.addNoise(
-                DEFAULT_X, /* l1Sensitivity= */ -1.0, DEFAULT_EPSILON, /* delta= */ null));
+                DEFAULT_X, /* l1Sensitivity= */ -1.0, DEFAULT_EPSILON, /* delta= */ 0.0));
   }
 
   @Test
@@ -307,7 +307,7 @@ public final class LaplaceNoiseTest {
         IllegalArgumentException.class,
         () ->
             NOISE.addNoise(
-                DEFAULT_X, /* l1Sensitivity= */ 0.0, DEFAULT_EPSILON, /* delta= */ null));
+                DEFAULT_X, /* l1Sensitivity= */ 0.0, DEFAULT_EPSILON, /* delta= */ 0.0));
   }
 
   @Test
@@ -316,7 +316,7 @@ public final class LaplaceNoiseTest {
         IllegalArgumentException.class,
         () ->
             NOISE.addNoise(
-                DEFAULT_X, /* l1Sensitivity= */ Double.NaN, DEFAULT_EPSILON, /* delta= */ null));
+                DEFAULT_X, /* l1Sensitivity= */ Double.NaN, DEFAULT_EPSILON, /* delta= */ 0.0));
   }
 
   @Test
@@ -335,7 +335,7 @@ public final class LaplaceNoiseTest {
               /* l0Sensitivity= */ 1,
               /* lInfSensitivity= */ 1.0,
               /* epsilon= */ 4.7e-10,
-              /* delta= */ null);
+              /* delta= */ 0.0);
       assertThat(Math.floor(noisedX * 1024.0)).isEqualTo(noisedX * 1024.0);
 
       // The following choice of epsilon, l0 sensitivity and linf sensitivity should result in a
@@ -346,7 +346,7 @@ public final class LaplaceNoiseTest {
               /* l0Sensitivity= */ 1,
               /* lInfSensitivity= */ 1.0,
               /* epsilon= */ 9.1e-13,
-              /* delta= */ null);
+              /* delta= */ 0.0);
       assertThat(Math.floor(noisedX)).isEqualTo(noisedX);
 
       // The following choice of epsilon, l0 sensitivity and linf sensitivity should result in a
@@ -357,7 +357,7 @@ public final class LaplaceNoiseTest {
               /* l0Sensitivity= */ 1,
               /* lInfSensitivity= */ 1.0,
               /* epsilon= */ 8.9e-16,
-              /* delta= */ null);
+              /* delta= */ 0.0);
       assertThat(Math.floor(noisedX / 1024.0)).isEqualTo(noisedX / 1024.0);
     }
   }
@@ -378,7 +378,7 @@ public final class LaplaceNoiseTest {
               /* l0Sensitivity= */ 1,
               /* lInfSensitivity= */ 1,
               /* epsilon= */ 4.6e-13,
-              /* delta= */ null);
+              /* delta= */ 0.0);
       assertThat(noisedX % 2).isEqualTo(0);
 
       // The following choice of epsilon, l0 sensitivity and linf sensitivity should result in a
@@ -389,7 +389,7 @@ public final class LaplaceNoiseTest {
               /* l0Sensitivity= */ 1,
               /* lInfSensitivity= */ 1,
               /* epsilon= */ 8.9e-16,
-              /* delta= */ null);
+              /* delta= */ 0.0);
       assertThat(noisedX % 1024).isEqualTo(0);
     }
   }

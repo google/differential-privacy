@@ -55,7 +55,7 @@ public final class DiscreteLaplaceNoiseTest {
               DEFAULT_L_0_SENSITIVITY,
               DEFAULT_L_INF_SENSITIVITY,
               DEFAULT_EPSILON,
-              /* delta= */ null));
+              /* delta= */ 0.0));
     }
 
     double variance =
@@ -80,7 +80,7 @@ public final class DiscreteLaplaceNoiseTest {
               DEFAULT_L_0_SENSITIVITY,
               DEFAULT_L_INF_SENSITIVITY,
               DEFAULT_EPSILON,
-              /* delta= */ null));
+              /* delta= */ 0.0));
     }
 
     double mean = 42;
@@ -106,7 +106,7 @@ public final class DiscreteLaplaceNoiseTest {
               DEFAULT_L_0_SENSITIVITY,
               /* lInfSensitivity= */ 2,
               DEFAULT_EPSILON,
-              /* delta= */ null));
+              /* delta= */ 0.0));
     }
 
     double variance = getVariance(DEFAULT_EPSILON, DEFAULT_L_0_SENSITIVITY, 2);
@@ -130,7 +130,7 @@ public final class DiscreteLaplaceNoiseTest {
               DEFAULT_L_0_SENSITIVITY,
               DEFAULT_L_INF_SENSITIVITY,
               /* epsilon= */ 0.5 * LN_3,
-              /* delta= */ null));
+              /* delta= */ 0.0));
     }
 
     double variance = getVariance(0.5 * LN_3, DEFAULT_L_0_SENSITIVITY, DEFAULT_L_INF_SENSITIVITY);
@@ -153,7 +153,7 @@ public final class DiscreteLaplaceNoiseTest {
                 DEFAULT_L_0_SENSITIVITY,
                 DEFAULT_L_INF_SENSITIVITY,
                 /* epsilon= */ 1.0 / (1L << 51),
-                /* delta= */ null));
+                /* delta= */ 0.0));
   }
 
   @Test
@@ -166,7 +166,7 @@ public final class DiscreteLaplaceNoiseTest {
                 DEFAULT_L_0_SENSITIVITY,
                 DEFAULT_L_INF_SENSITIVITY,
                 /* epsilon= */ Double.POSITIVE_INFINITY,
-                /* delta= */ null));
+                /* delta= */ 0.0));
   }
 
   @Test
@@ -179,7 +179,7 @@ public final class DiscreteLaplaceNoiseTest {
                 DEFAULT_L_0_SENSITIVITY,
                 DEFAULT_L_INF_SENSITIVITY,
                 /* epsilon= */ Double.NaN,
-                /* delta= */ null));
+                /* delta= */ 0.0));
   }
 
   @Test
@@ -205,7 +205,7 @@ public final class DiscreteLaplaceNoiseTest {
                 DEFAULT_L_0_SENSITIVITY,
                 /* lInfSensitivity= */ Double.MAX_VALUE,
                 DEFAULT_EPSILON,
-                /* delta= */ null));
+                /* delta= */ 0.0));
   }
 
   @Test
@@ -218,7 +218,7 @@ public final class DiscreteLaplaceNoiseTest {
                 DEFAULT_L_0_SENSITIVITY,
                 /* lInfSensitivity= */ Double.NaN,
                 /* epsilon= */ 1.0,
-                /* delta= */ null));
+                /* delta= */ 0.0));
   }
 
   @Test
@@ -231,7 +231,7 @@ public final class DiscreteLaplaceNoiseTest {
                 DEFAULT_L_0_SENSITIVITY,
                 /* lInfSensitivity= */ -1.0,
                 DEFAULT_EPSILON,
-                /* delta= */ null));
+                /* delta= */ 0.0));
   }
 
   @Test
@@ -244,7 +244,7 @@ public final class DiscreteLaplaceNoiseTest {
                 DEFAULT_L_0_SENSITIVITY,
                 /* lInfSensitivity= */ 0.0,
                 DEFAULT_EPSILON,
-                /* delta= */ null));
+                /* delta= */ 0.0));
   }
 
   @Test
@@ -257,7 +257,7 @@ public final class DiscreteLaplaceNoiseTest {
                 /* l0Sensitivity= */ -1,
                 DEFAULT_L_INF_SENSITIVITY,
                 DEFAULT_EPSILON,
-                /* delta= */ null));
+                /* delta= */ 0.0));
   }
 
   @Test
@@ -270,7 +270,7 @@ public final class DiscreteLaplaceNoiseTest {
                 /* l0Sensitivity= */ 0,
                 DEFAULT_L_INF_SENSITIVITY,
                 DEFAULT_EPSILON,
-                /* delta= */ null));
+                /* delta= */ 0.0));
   }
 
   @Test
@@ -278,7 +278,7 @@ public final class DiscreteLaplaceNoiseTest {
     assertThrows(
         IllegalArgumentException.class,
         () ->
-            NOISE.addNoise(DEFAULT_X, /* l1Sensitivity= */ -1, DEFAULT_EPSILON, /* delta= */ null));
+            NOISE.addNoise(DEFAULT_X, /* l1Sensitivity= */ -1, DEFAULT_EPSILON, /* delta= */ 0.0));
   }
 
   @Test
@@ -286,7 +286,7 @@ public final class DiscreteLaplaceNoiseTest {
     assertThrows(
         IllegalArgumentException.class,
         () ->
-            NOISE.addNoise(DEFAULT_X, /* l1Sensitivity= */ 0, DEFAULT_EPSILON, /* delta= */ null));
+            NOISE.addNoise(DEFAULT_X, /* l1Sensitivity= */ 0, DEFAULT_EPSILON, /* delta= */ 0.0));
   }
 
   @Test

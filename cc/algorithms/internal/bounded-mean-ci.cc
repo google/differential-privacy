@@ -17,6 +17,7 @@
 #include "algorithms/internal/bounded-mean-ci.h"
 
 #include <algorithm>
+#include <cmath>
 #include <limits>
 
 #include "algorithms/numerical-mechanisms.h"
@@ -100,8 +101,17 @@ NoiseConfidenceIntervalForFixedNumAndDenom(
 //
 // This implementation uses a brute force search for confidenceLevelNum that
 // minimizes the size of the confidence interval of bounded mean.
+//
+// In case one of the input parameters is not finite, this function will return
+// a default-constructed ConfidenceInterval with no values set.
 ConfidenceInterval BoundedMeanConfidenceInterval(
     const BoundedMeanConfidenceIntervalParams &params) {
+  if (!std::isfinite(params.confidence_level) ||
+      !std::isfinite(params.noised_sum) || !std::isfinite(params.lower_bound) ||
+      !std::isfinite(params.upper_bound) ||
+      !std::isfinite(params.noised_count)) {
+    return ConfidenceInterval();
+  }
   NumericalMechanism::NoiseConfidenceIntervalResult tightest_ci;
   double tightest_ci_size = std::numeric_limits<double>::max();
   for (int i = 1; i < kNumStepsOptMeanConfidenceInterval; ++i) {

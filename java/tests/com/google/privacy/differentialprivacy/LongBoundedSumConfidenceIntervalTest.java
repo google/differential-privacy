@@ -105,7 +105,7 @@ public class LongBoundedSumConfidenceIntervalTest {
 
   @Test
   public void computeConfidenceInterval_laplaceNoise_calledTwiceForSameAlpha_returnsSameResult() {
-    LongBoundedSum sum = builder.noise(new LaplaceNoise()).delta(null).build();
+    LongBoundedSum sum = builder.noise(new LaplaceNoise()).delta(0.0).build();
     var unused = sum.computeResult();
 
     assertThat(sum.computeConfidenceInterval(ARBITRARY_ALPHA))
@@ -127,7 +127,7 @@ public class LongBoundedSumConfidenceIntervalTest {
   @Test
   public void
       computeConfidenceInterval_laplaceNoise_resultForSmallAlphaContainedInResultForLargeAlpha() {
-    LongBoundedSum sum = builder.noise(new LaplaceNoise()).delta(null).build();
+    LongBoundedSum sum = builder.noise(new LaplaceNoise()).delta(0.0).build();
     var unused = sum.computeResult();
 
     assertThat(sum.computeConfidenceInterval(ARBITRARY_ALPHA * 0.5).lowerBound())
@@ -171,7 +171,7 @@ public class LongBoundedSumConfidenceIntervalTest {
     LongBoundedSum sum =
         builder
             .epsilon(ARBITRARY_EPSILON)
-            .delta(null)
+            .delta(0.0)
             .noise(new LaplaceNoise())
             .maxPartitionsContributed(ARBITRARY_MAX_PARTITIONS_CONTRIBUTED)
             .maxContributionsPerPartition(ARBITRARY_MAX_CONTRIBUTIONS_PER_PARTITION)
@@ -188,7 +188,7 @@ public class LongBoundedSumConfidenceIntervalTest {
                     /* l0Sensitivity= */ ARBITRARY_MAX_PARTITIONS_CONTRIBUTED,
                     /* lInfSensitivity= */ ARBITRARY_MAX_CONTRIBUTIONS_PER_PARTITION * 875,
                     ARBITRARY_EPSILON,
-                    /* delta= */ null,
+                    /* delta= */ 0.0,
                     ARBITRARY_ALPHA));
   }
 

@@ -266,7 +266,7 @@ public final class GaussianNoiseTest {
                 DEFAULT_L_0_SENSITIVITY,
                 DEFAULT_L_INF_SENSITIVITY,
                 DEFAULT_EPSILON,
-                /* delta= */ null));
+                 /* delta= */ 0.0));
   }
 
   @Test

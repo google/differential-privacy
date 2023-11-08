@@ -26,9 +26,9 @@ def cc_differential_privacy_deps():
     # Abseil
     http_archive(
         name = "com_google_absl",
-        url = "https://github.com/abseil/abseil-cpp/archive/refs/tags/20230125.3.tar.gz",
-        sha256 = "5366d7e7fa7ba0d915014d387b66d0d002c03236448e1ba9ef98122c13b35c36",
-        strip_prefix = "abseil-cpp-20230125.3",
+        url = "https://github.com/abseil/abseil-cpp/archive/refs/tags/20230802.1.tar.gz",
+        sha256 = "987ce98f02eefbaf930d6e38ab16aa05737234d7afbab2d5c4ea7adbe50c28ed",
+        strip_prefix = "abseil-cpp-20230802.1",
     )
 
     # Common bazel rules.  Also required for Abseil.
@@ -69,11 +69,11 @@ def cc_differential_privacy_deps():
     # BoringSSL for cryptographic PRNG
     http_archive(
         name = "boringssl",
-        # Commit date: 2023-03-17
+        # Commit date: 2023-10-26
         # Note for updating: we need to use a commit from the `master-with-bazel` branch.
-        url = "https://github.com/google/boringssl/archive/e0648e015f039ef88801ff0cf84dcb5944b8b5ab.tar.gz",
-        sha256 = "b9ba36d3c309cfee56df70da8e8700f9ac65d4c0460f78bf8a4e580300b7f59d",
-        strip_prefix = "boringssl-e0648e015f039ef88801ff0cf84dcb5944b8b5ab",
+        url = "https://github.com/google/boringssl/archive/add3674f646bcc3dfa828f308454fb3b37919512.tar.gz",
+        sha256 = "f8b81f1741667e4a5aa9f0cc3e873875f7f832b3b141b8ee3a5d5863f992b8ba",
+        strip_prefix = "boringssl-add3674f646bcc3dfa828f308454fb3b37919512",
     )
 
     # Supports `./configure && make` style packages to become dependencies.

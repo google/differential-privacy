@@ -69,7 +69,7 @@ public final class LaplaceClosenessTest {
                 samplingParameters.getL0Sensitivity(),
                 samplingParameters.getLinfSensitivity(),
                 samplingParameters.getEpsilon(),
-                /* delta= */ null);
+                /* delta= */ 0.0);
     Supplier<Double> referenceSampleGenerator =
         () ->
             ReferenceNoiseUtil.sampleLaplace(

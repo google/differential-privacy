@@ -65,11 +65,11 @@ public final class LongBoundedSumDpTest {
     DpTestParameters dpTestParameters = testCase.getDpTestParameters();
 
     Noise noise;
-    Double delta;
+    double delta;
     switch (samplingParameters.getNoiseType()) {
       case LAPLACE:
         noise = TestNoiseFactory.createLaplaceNoise(new Random());
-        delta = null;
+        delta = 0.0;
         break;
       case GAUSSIAN:
         noise = TestNoiseFactory.createGaussianNoise(new Random());

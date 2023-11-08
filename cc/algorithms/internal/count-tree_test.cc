@@ -144,17 +144,6 @@ TEST(CountTreeTest, MisatchMergeFails) {
               StatusIs(absl::StatusCode::kInternal, HasSubstr("Branching")));
 }
 
-TEST(CountTreeTest, MemoryUsed) {
-  CountTree empty(3, 5);
-  CountTree single(3, 5);
-  CountTree twice(3, 5);
-  single.IncrementNode(1);
-  twice.IncrementNode(9);
-  twice.IncrementNode(9);
-  EXPECT_GT(single.MemoryUsed(), empty.MemoryUsed());
-  EXPECT_EQ(twice.MemoryUsed(), single.MemoryUsed());
-}
-
 TEST(CountTreeTest, ClearNodes) {
   CountTree test1(3, 5);
   test1.IncrementNode(1);

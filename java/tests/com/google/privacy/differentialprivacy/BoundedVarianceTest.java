@@ -58,21 +58,18 @@ public class BoundedVarianceTest {
   private static final double EPSILON = 1.0;
   private static final double DELTA = 0.123;
   @Rule public final MockitoRule mocks = MockitoJUnit.rule();
-  @Mock private Noise noise;
-  private BoundedVariance variance;
+  @Mock private Noise gaussianNoiseMock;
+  private BoundedVariance varianceWithZeroNoise;
 
   @Before
   public void setUp() {
-    when(noise.getMechanismType()).thenReturn(MechanismType.GAUSSIAN);
-    // Mock the noise mechanism so that it does not add any noise.
-    mockDoubleNoise(0);
-    mockLongNoise(0);
+    when(gaussianNoiseMock.getMechanismType()).thenReturn(MechanismType.GAUSSIAN);
 
-    variance =
+    varianceWithZeroNoise =
         BoundedVariance.builder()
             .epsilon(EPSILON)
             .delta(DELTA)
-            .noise(noise)
+            .noise(new ZeroNoise())
             .maxPartitionsContributed(1)
             .maxContributionsPerPartition(1)
             .lower(1.0)
@@ -82,56 +79,62 @@ public class BoundedVarianceTest {
 
   @Test
   public void addEntry() {
-    variance.addEntry(2.0);
-    variance.addEntry(4.0);
-    variance.addEntry(6.0);
-    variance.addEntry(8.0);
+    varianceWithZeroNoise.addEntry(2.0);
+    varianceWithZeroNoise.addEntry(4.0);
+    varianceWithZeroNoise.addEntry(6.0);
+    varianceWithZeroNoise.addEntry(8.0);
 
-    assertThat(variance.computeResult()).isEqualTo(5.0);
+    assertThat(varianceWithZeroNoise.computeResult()).isEqualTo(5.0);
   }
 
   @Test
   public void addEntry_nan_ignored() {
     // Add NaN - no exception is thrown.
-    variance.addEntry(NaN);
+    varianceWithZeroNoise.addEntry(NaN);
     // Add any values (let's say 7 and 9). Verify that the result is equal to their variance.
-    variance.addEntry(7);
-    variance.addEntry(9);
-    assertThat(variance.computeResult()).isEqualTo(1.0);
+    varianceWithZeroNoise.addEntry(7);
+    varianceWithZeroNoise.addEntry(9);
+
+    assertThat(varianceWithZeroNoise.computeResult()).isEqualTo(1.0);
   }
 
   @Test
   public void addEntry_calledAfterComputeResult_throwsException() {
-    variance.computeResult();
-    assertThrows(IllegalStateException.class, () -> variance.addEntry(0.0));
+    varianceWithZeroNoise.computeResult();
+
+    assertThrows(IllegalStateException.class, () -> varianceWithZeroNoise.addEntry(0.0));
   }
 
   @Test
   public void addEntries() {
-    variance.addEntries(ImmutableList.of(2.0, 4.0, 6.0, 8.0));
-    assertThat(variance.computeResult()).isEqualTo(5.0);
+    varianceWithZeroNoise.addEntries(ImmutableList.of(2.0, 4.0, 6.0, 8.0));
+
+    assertThat(varianceWithZeroNoise.computeResult()).isEqualTo(5.0);
   }
 
   @Test
   public void addEntries_calledAfterComputeResult_throwsException() {
-    variance.computeResult();
-    assertThrows(IllegalStateException.class, () -> variance.addEntries(ImmutableList.of(0.0)));
+    varianceWithZeroNoise.computeResult();
+
+    assertThrows(
+        IllegalStateException.class, () -> varianceWithZeroNoise.addEntries(ImmutableList.of(0.0)));
   }
 
   @Test
   public void computeResult_multipleCalls_throwsException() {
-    variance.computeResult();
-    assertThrows(IllegalStateException.class, () -> variance.computeResult());
+    varianceWithZeroNoise.computeResult();
+
+    assertThrows(IllegalStateException.class, () -> varianceWithZeroNoise.computeResult());
   }
 
   // Input values are clamped to the upper and lower bounds.
   @Test
   public void addEntry_clampsInput() {
-    variance =
+    BoundedVariance variance =
         BoundedVariance.builder()
             .epsilon(EPSILON)
             .delta(DELTA)
-            .noise(noise)
+            .noise(new ZeroNoise())
             .maxPartitionsContributed(1)
             .maxContributionsPerPartition(1)
             .lower(0.0)
@@ -148,35 +151,40 @@ public class BoundedVarianceTest {
 
   @Test
   public void computeResult_singleInput_returnsZero() {
-    variance.addEntry(3.0);
-    assertThat(variance.computeResult()).isEqualTo(0.0);
+    varianceWithZeroNoise.addEntry(3.0);
+
+    assertThat(varianceWithZeroNoise.computeResult()).isEqualTo(0.0);
   }
 
   @Test
   public void computeResult_noInput_returnsZero() {
-    assertThat(variance.computeResult()).isEqualTo(0.0);
+    assertThat(varianceWithZeroNoise.computeResult()).isEqualTo(0.0);
   }
 
   @Test
   public void computeResult_callsNoiseCorrectly() {
+    // Arrange.
     int maxPartitionsContributed = 1;
     int maxContributionsPerPartition = 3;
-    variance =
+    BoundedVariance varianceWithNoiseMock =
         BoundedVariance.builder()
             .epsilon(3.0)
             .delta(0.9)
-            .noise(noise)
+            .noise(gaussianNoiseMock)
             .maxPartitionsContributed(maxPartitionsContributed)
             .maxContributionsPerPartition(maxContributionsPerPartition)
             .lower(1.0)
             .upper(9.0)
             .build();
-    variance.addEntry(2.0);
-    variance.addEntry(4.0);
-    variance.computeResult();
+    varianceWithNoiseMock.addEntry(2.0);
+    varianceWithNoiseMock.addEntry(4.0);
 
+    // Act.
+    varianceWithNoiseMock.computeResult();
+
+    // Assert.
     // Noising normalized sum of squares.
-    verify(noise)
+    verify(gaussianNoiseMock)
         .addNoise(
             eq(/* (x1 - midpoint)^2 + (x2 - midpoint)^2 = (2 - 5)^2 + (4 - 5)^2 */ 10.0),
             eq(maxPartitionsContributed),
@@ -186,7 +194,7 @@ public class BoundedVarianceTest {
             doubleThat(closeTo(/* delta */ 0.3)));
 
     // Noising normalized sum.
-    verify(noise)
+    verify(gaussianNoiseMock)
         .addNoise(
             eq(/* x1 + x2 - midpoint * count = 2 + 4 - 5 * 2 */ -4.0),
             eq(maxPartitionsContributed),
@@ -195,7 +203,7 @@ public class BoundedVarianceTest {
             doubleThat(closeTo(/* delta */ 0.3)));
 
     // Noising count.
-    verify(noise)
+    verify(gaussianNoiseMock)
         .addNoise(
             eq(/* count */ 2L),
             eq(maxPartitionsContributed),
@@ -212,20 +220,20 @@ public class BoundedVarianceTest {
     mockDoubleNoise(-10);
     // Mock the noise mechanism so that it adds noise to the count == 0.
     mockLongNoise(0);
-
-    variance =
+    BoundedVariance varianceWithNoiseMock =
         BoundedVariance.builder()
             .epsilon(EPSILON)
             .delta(DELTA)
-            .noise(noise)
+            .noise(gaussianNoiseMock)
             .maxPartitionsContributed(1)
             .maxContributionsPerPartition(1)
             .lower(-100)
             .upper(100)
             .build();
 
-    variance.addEntry(10);
-    variance.addEntry(10);
+    varianceWithNoiseMock.addEntry(10);
+    varianceWithNoiseMock.addEntry(10);
+
     // midpoint = (lower + upper) / 2 = 0,
     // noised_normalized_sum_of_squares = (x1 - midpoint)^2 + (x2 - midpoint)^2 + noise = 10^2 +
     // 10^2 - 10 = 190,
@@ -233,7 +241,7 @@ public class BoundedVarianceTest {
     // noised_count = count + noise = 2 + 0 = 2,
     // BoundedVariance.computeResult() = noised_normalized_sum_of_squares / noised_count -
     // (noised_normalized_sum / noised_count)^2 = 190 / 2 - (10 / 2)^2 = 70
-    assertThat(variance.computeResult()).isEqualTo(70.0);
+    assertThat(varianceWithNoiseMock.computeResult()).isEqualTo(70.0);
   }
 
   @Test
@@ -242,20 +250,20 @@ public class BoundedVarianceTest {
     mockDoubleNoise(0);
     // Mock the noise mechanism so that it adds noise to the count == 2.
     mockLongNoise(2);
-
-    variance =
+    BoundedVariance varianceWithNoiseMock =
         BoundedVariance.builder()
             .epsilon(EPSILON)
             .delta(DELTA)
-            .noise(noise)
+            .noise(gaussianNoiseMock)
             .maxPartitionsContributed(1)
             .maxContributionsPerPartition(1)
             .lower(-100)
             .upper(100)
             .build();
 
-    variance.addEntry(20);
-    variance.addEntry(20);
+    varianceWithNoiseMock.addEntry(20);
+    varianceWithNoiseMock.addEntry(20);
+
     // midpoint = (lower + upper) / 2 = 0,
     // noised_normalized_sum_of_squares = (x1 - midpoint)^2 + (x2 - midpoint)^2 + noise = 20^2 +
     // 20^2 = 800,
@@ -263,7 +271,7 @@ public class BoundedVarianceTest {
     // noised_count = count + noise = 2 + 2 = 4,
     // BoundedVariance.computeResult() = noised_normalized_sum_of_squares / noised_count -
     // (noised_normalized_sum / noised_count)^2 = 800 / 4 - (40 / 4)^2 = 100
-    assertThat(variance.computeResult()).isEqualTo(100.0);
+    assertThat(varianceWithNoiseMock.computeResult()).isEqualTo(100.0);
   }
 
   @Test
@@ -276,19 +284,20 @@ public class BoundedVarianceTest {
     // The noise added to count is 0.
     mockLongNoise(0);
 
-    variance =
+    BoundedVariance varianceWithNoiseMock =
         BoundedVariance.builder()
             .epsilon(EPSILON)
             .delta(DELTA)
-            .noise(noise)
+            .noise(gaussianNoiseMock)
             .maxPartitionsContributed(1)
             .maxContributionsPerPartition(1)
             .lower(0.0)
             .upper(0.25)
             .build();
 
-    variance.addEntry(0.25);
-    variance.addEntry(0.25);
+    varianceWithNoiseMock.addEntry(0.25);
+    varianceWithNoiseMock.addEntry(0.25);
+
     // midpoint = (lower + upper) / 2 = 0.125,
     // noised_normalized_sum_of_squares = (x1 - midpoint)^2 + (x2 - midpoint)^2 + noise = 1.03125,
     // noised_normalized_sum = (x1 + x2) - midpoint * count + noise = 0.25 + 0.25 - 0.125 * 2 + 1 =
@@ -298,7 +307,7 @@ public class BoundedVarianceTest {
     // (noised_normalized_sum / noised_count)^2 = 1.03125 / 2 - (1.25 / 2)^2 = 0.125
     // BoundedVariance.computeResult = clamp(non_clamped_variance) = (0.25 - 0)^2 / 4 = 0.015625
     // (upper bound).
-    assertThat(variance.computeResult()).isEqualTo(0.015625);
+    assertThat(varianceWithNoiseMock.computeResult()).isEqualTo(0.015625);
   }
 
   @Test
@@ -311,19 +320,20 @@ public class BoundedVarianceTest {
     // The noise added to count is 0.
     mockLongNoise(0);
 
-    variance =
+    BoundedVariance varianceWithNoiseMock =
         BoundedVariance.builder()
             .epsilon(EPSILON)
             .delta(DELTA)
-            .noise(noise)
+            .noise(gaussianNoiseMock)
             .maxPartitionsContributed(1)
             .maxContributionsPerPartition(1)
             .lower(0)
             .upper(10)
             .build();
 
-    variance.addEntry(5.0);
-    variance.addEntry(5.0);
+    varianceWithNoiseMock.addEntry(5.0);
+    varianceWithNoiseMock.addEntry(5.0);
+
     // midpoint = (lower + upper) / 2 = 5,
     // noised_normalized_sum_of_squares = (x1 - midpoint)^2 + (x2 - midpoint)^2 + noise = -100,
     // noised_normalized_sum = (x1 + x2) - midpoint * count + noise = 5 + 5 - 5 * 2 - 100 = -100,
@@ -331,7 +341,7 @@ public class BoundedVarianceTest {
     // non_clamped_variance = noised_normalized_sum_of_squares / noised_count -
     // (noised_normalized_sum / noised_count)^2 = -100 / 2 - (-100 / 2)^2 = -2550
     // BoundedVariance.computeResult = clamp(non_clamped_variance) = 0 (lower bound).
-    assertThat(variance.computeResult()).isEqualTo(0.0);
+    assertThat(varianceWithNoiseMock.computeResult()).isEqualTo(0.0);
   }
 
   /**
@@ -346,7 +356,7 @@ public class BoundedVarianceTest {
       double lower = random.nextDouble() * 100;
       double upper = lower + random.nextDouble() * 100;
 
-      variance =
+      BoundedVariance varianceWithLaplaceNoise =
           BoundedVariance.builder()
               .epsilon(EPSILON)
               .noise(new LaplaceNoise())
@@ -364,46 +374,37 @@ public class BoundedVarianceTest {
               .boxed()
               .collect(toImmutableList());
 
-      variance.addEntries(dataset);
+      varianceWithLaplaceNoise.addEntries(dataset);
 
       assertWithMessage(
               "lower = %s\nupper = %s\ndataset = [%s]",
               lower, upper, dataset.stream().map(x -> Double.toString(x)).collect(joining(",\n")))
-          .that(variance.computeResult())
+          .that(varianceWithLaplaceNoise.computeResult())
           .isIn(Range.closed(0.0, (upper - lower) * (upper - lower) / 4.0));
     }
   }
 
   @Test
   public void getSerializableSummary_calledAfterComputeResult_throwsException() {
-    variance.computeResult();
+    varianceWithZeroNoise.computeResult();
 
-    assertThrows(IllegalStateException.class, () -> variance.getSerializableSummary());
+    assertThrows(IllegalStateException.class, () -> varianceWithZeroNoise.getSerializableSummary());
   }
 
   @Test
   public void getSerializableSummary_multipleCalls_returnsSameSummary() {
-    variance =
-        BoundedVariance.builder()
-            .epsilon(EPSILON)
-            .noise(new LaplaceNoise())
-            .maxPartitionsContributed(1)
-            .maxContributionsPerPartition(1)
-            .lower(0.0)
-            .upper(1.0)
-            .build();
-    variance.addEntry(0.5);
+    varianceWithZeroNoise.addEntry(0.5);
 
-    byte[] summary1 = variance.getSerializableSummary();
-    byte[] summary2 = variance.getSerializableSummary();
+    byte[] summary1 = varianceWithZeroNoise.getSerializableSummary();
+    byte[] summary2 = varianceWithZeroNoise.getSerializableSummary();
 
     assertThat(summary1).isEqualTo(summary2);
   }
 
   @Test
   public void mergeWith_anotherValue_computesVarianceOfTwoValues() {
-    BoundedVariance targetVariance = getVarianceBuilder().build();
-    BoundedVariance sourceVariance = getVarianceBuilder().build();
+    BoundedVariance targetVariance = getVarianceWithZeroNoiseBuilder().build();
+    BoundedVariance sourceVariance = getVarianceWithZeroNoiseBuilder().build();
     targetVariance.addEntry(1);
     sourceVariance.addEntry(9);
 
@@ -414,9 +415,9 @@ public class BoundedVarianceTest {
 
   @Test
   public void mergeWith_calledTwice_computesVarianceOfAllValues() {
-    BoundedVariance targetVariance = getVarianceBuilder().build();
-    BoundedVariance sourceVariance1 = getVarianceBuilder().build();
-    BoundedVariance sourceVariance2 = getVarianceBuilder().build();
+    BoundedVariance targetVariance = getVarianceWithZeroNoiseBuilder().build();
+    BoundedVariance sourceVariance1 = getVarianceWithZeroNoiseBuilder().build();
+    BoundedVariance sourceVariance2 = getVarianceWithZeroNoiseBuilder().build();
     targetVariance.addEntry(1);
     sourceVariance1.addEntry(4);
     sourceVariance2.addEntry(7);
@@ -429,8 +430,8 @@ public class BoundedVarianceTest {
 
   @Test
   public void mergeWith_epsilonMismatch_throwsException() {
-    BoundedVariance targetVariance = getVarianceBuilder().epsilon(EPSILON).build();
-    BoundedVariance sourceVariance = getVarianceBuilder().epsilon(2 * EPSILON).build();
+    BoundedVariance targetVariance = getVarianceWithZeroNoiseBuilder().epsilon(EPSILON).build();
+    BoundedVariance sourceVariance = getVarianceWithZeroNoiseBuilder().epsilon(2 * EPSILON).build();
 
     assertThrows(
         IllegalArgumentException.class,
@@ -440,9 +441,9 @@ public class BoundedVarianceTest {
   @Test
   public void mergeWith_nullDelta_mergesWithoutException() {
     BoundedVariance targetVariance =
-        getVarianceBuilder().noise(new LaplaceNoise()).delta(null).build();
+        getVarianceWithZeroNoiseBuilder().noise(new LaplaceNoise()).delta(0.0).build();
     BoundedVariance sourceVariance =
-        getVarianceBuilder().noise(new LaplaceNoise()).delta(null).build();
+        getVarianceWithZeroNoiseBuilder().noise(new LaplaceNoise()).delta(0.0).build();
 
     // No exception should be thrown.
     targetVariance.mergeWith(sourceVariance.getSerializableSummary());
@@ -450,8 +451,10 @@ public class BoundedVarianceTest {
 
   @Test
   public void mergeWith_deltaMismatch_throwsException() {
-    BoundedVariance targetVariance = getVarianceBuilder().delta(DELTA).build();
-    BoundedVariance sourceVariance = getVarianceBuilder().delta(2 * DELTA).build();
+    BoundedVariance targetVariance =
+        getVarianceWithZeroNoiseBuilder().noise(new GaussianNoise()).delta(DELTA).build();
+    BoundedVariance sourceVariance =
+        getVarianceWithZeroNoiseBuilder().noise(new GaussianNoise()).delta(2 * DELTA).build();
 
     assertThrows(
         IllegalArgumentException.class,
@@ -461,8 +464,9 @@ public class BoundedVarianceTest {
   @Test
   public void mergeWith_noiseMismatch_throwsException() {
     BoundedVariance targetVariance =
-        getVarianceBuilder().noise(new LaplaceNoise()).delta(null).build();
-    BoundedVariance sourceVariance = getVarianceBuilder().noise(new GaussianNoise()).build();
+        getVarianceWithZeroNoiseBuilder().noise(new LaplaceNoise()).delta(0.0).build();
+    BoundedVariance sourceVariance =
+        getVarianceWithZeroNoiseBuilder().noise(new GaussianNoise()).delta(0.1).build();
 
     assertThrows(
         IllegalArgumentException.class,
@@ -471,8 +475,10 @@ public class BoundedVarianceTest {
 
   @Test
   public void mergeWith_maxPartitionsContributedMismatch_throwsException() {
-    BoundedVariance targetVariance = getVarianceBuilder().maxPartitionsContributed(1).build();
-    BoundedVariance sourceVariance = getVarianceBuilder().maxPartitionsContributed(2).build();
+    BoundedVariance targetVariance =
+        getVarianceWithZeroNoiseBuilder().maxPartitionsContributed(1).build();
+    BoundedVariance sourceVariance =
+        getVarianceWithZeroNoiseBuilder().maxPartitionsContributed(2).build();
 
     assertThrows(
         IllegalArgumentException.class,
@@ -481,8 +487,10 @@ public class BoundedVarianceTest {
 
   @Test
   public void mergeWith_differentMaxContributionsPerPartitionMismatch_throwsException() {
-    BoundedVariance targetVariance = getVarianceBuilder().maxContributionsPerPartition(1).build();
-    BoundedVariance sourceVariance = getVarianceBuilder().maxContributionsPerPartition(2).build();
+    BoundedVariance targetVariance =
+        getVarianceWithZeroNoiseBuilder().maxContributionsPerPartition(1).build();
+    BoundedVariance sourceVariance =
+        getVarianceWithZeroNoiseBuilder().maxContributionsPerPartition(2).build();
 
     assertThrows(
         IllegalArgumentException.class,
@@ -491,8 +499,8 @@ public class BoundedVarianceTest {
 
   @Test
   public void mergeWith_lowerBoundsMismatch_throwsException() {
-    BoundedVariance targetVariance = getVarianceBuilder().lower(-1).build();
-    BoundedVariance sourceVariance = getVarianceBuilder().lower(-100).build();
+    BoundedVariance targetVariance = getVarianceWithZeroNoiseBuilder().lower(-1).build();
+    BoundedVariance sourceVariance = getVarianceWithZeroNoiseBuilder().lower(-100).build();
 
     assertThrows(
         IllegalArgumentException.class,
@@ -501,8 +509,8 @@ public class BoundedVarianceTest {
 
   @Test
   public void mergeWith_upperBoundsMismatch_throwsException() {
-    BoundedVariance targetVariance = getVarianceBuilder().upper(1).build();
-    BoundedVariance sourceVariance = getVarianceBuilder().upper(100).build();
+    BoundedVariance targetVariance = getVarianceWithZeroNoiseBuilder().upper(1).build();
+    BoundedVariance sourceVariance = getVarianceWithZeroNoiseBuilder().upper(100).build();
 
     assertThrows(
         IllegalArgumentException.class,
@@ -511,8 +519,8 @@ public class BoundedVarianceTest {
 
   @Test
   public void mergeWith_calledAfterComputeResult_throwsException() {
-    BoundedVariance targetVariance = getVarianceBuilder().build();
-    BoundedVariance sourceVariance = getVarianceBuilder().build();
+    BoundedVariance targetVariance = getVarianceWithZeroNoiseBuilder().build();
+    BoundedVariance sourceVariance = getVarianceWithZeroNoiseBuilder().build();
     targetVariance.computeResult();
     byte[] summary = sourceVariance.getSerializableSummary();
 
@@ -521,19 +529,19 @@ public class BoundedVarianceTest {
 
   @Test
   public void mergeWith_calledAfterSerializationOnTargetVariance_throwsException() {
-    BoundedVariance targetVariance = getVarianceBuilder().build();
-    BoundedVariance sourceVariance = getVarianceBuilder().build();
+    BoundedVariance targetVariance = getVarianceWithZeroNoiseBuilder().build();
+    BoundedVariance sourceVariance = getVarianceWithZeroNoiseBuilder().build();
     targetVariance.getSerializableSummary();
     byte[] summary = sourceVariance.getSerializableSummary();
 
     assertThrows(IllegalStateException.class, () -> targetVariance.mergeWith(summary));
   }
 
-  private BoundedVariance.Params.Builder getVarianceBuilder() {
+  private BoundedVariance.Params.Builder getVarianceWithZeroNoiseBuilder() {
     return BoundedVariance.builder()
         .epsilon(EPSILON)
         .delta(DELTA)
-        .noise(noise)
+        .noise(new ZeroNoise())
         .maxPartitionsContributed(1)
         // lower, upper and, maxContributionsPerPartition have arbitrarily chosen values.
         .maxContributionsPerPartition(10)
@@ -542,12 +550,12 @@ public class BoundedVarianceTest {
   }
 
   private void mockDoubleNoise(double value) {
-    when(noise.addNoise(anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble()))
+    when(gaussianNoiseMock.addNoise(anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble()))
         .thenAnswer(invocation -> (double) invocation.getArguments()[0] + value);
   }
 
   private void mockLongNoise(long value) {
-    when(noise.addNoise(anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble()))
+    when(gaussianNoiseMock.addNoise(anyLong(), anyInt(), anyLong(), anyDouble(), anyDouble()))
         .thenAnswer(invocation -> (long) invocation.getArguments()[0] + value);
   }
 
