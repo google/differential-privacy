@@ -218,11 +218,10 @@ func QuantilesPerKey(s beam.Scope, pcol PrivatePCollection, params QuantilesPara
 	// Convert value to float64.
 	// Result is PCollection<kv.Pair{ID,K},float64>.
 	_, valueT := beam.ValidateKVType(decoded)
-	convertFn, err := findConvertToFloat64Fn(valueT)
-	if err != nil {
-		log.Fatalf("Couldn't get convertFn for QuantilesPerKey: %v", err)
+	if err := checkNumericType(valueT); err != nil {
+		log.Fatalf("QuantilesPerKey: %v", err)
 	}
-	converted := beam.ParDo(s, convertFn, decoded)
+	converted := beam.ParDo(s, convertToFloat64Fn, decoded)
 
 	// Combine all values for <id, partition> into a slice.
 	// Result is PCollection<kv.Pair{ID,K},[]float64>.
@@ -258,9 +257,9 @@ func QuantilesPerKey(s beam.Scope, pcol PrivatePCollection, params QuantilesPara
 		// Compute the quantiles for each partition. Result is PCollection<partition, []float64>.
 		var boundedQuantilesFn *boundedQuantilesFn
 		if spec.usesNewPrivacyBudgetAPI {
-			boundedQuantilesFn, err = newBoundedQuantilesFnTemp(*spec, params, noiseKind, false, false)
+			boundedQuantilesFn, err = newBoundedQuantilesFnTemp(*spec, params, noiseKind, false)
 		} else {
-			boundedQuantilesFn, err = newBoundedQuantilesFn(params, noiseKind, false, spec.testMode, false)
+			boundedQuantilesFn, err = newBoundedQuantilesFn(params, noiseKind, false, spec.testMode)
 		}
 		if err != nil {
 			log.Fatalf("Couldn't get boundedQuantilesFn for QuantilesPerKey: %v", err)
@@ -275,46 +274,30 @@ func QuantilesPerKey(s beam.Scope, pcol PrivatePCollection, params QuantilesPara
 }
 
 func addPublicPartitionsForQuantiles(s beam.Scope, spec PrivacySpec, params QuantilesParams, noiseKind noise.Kind, partialKV beam.PCollection) beam.PCollection {
-	// Compute the quantiles for each partition with non-public partitions dropped. Result is PCollection<partition, map[float64]float64>.
-	var boundedQuantilesFn *boundedQuantilesFn
-	var err error
-	if spec.usesNewPrivacyBudgetAPI {
-		boundedQuantilesFn, err = newBoundedQuantilesFnTemp(spec, params, noiseKind, true, false)
-	} else {
-		boundedQuantilesFn, err = newBoundedQuantilesFn(params, noiseKind, true, spec.testMode, false)
-	}
-	if err != nil {
-		log.Fatalf("Couldn't get boundedQuantilesFn for QuantilesPerKey: %v", err)
-	}
-	quantiles := beam.CombinePerKey(s,
-		boundedQuantilesFn,
-		partialKV)
-	partitionT, _ := beam.ValidateKVType(quantiles)
-	quantilesPartitions := beam.DropValue(s, quantiles)
-	// Create map with partitions in the data as keys.
-	partitionMap := beam.Combine(s, newPartitionMapFn(beam.EncodedType{partitionT.Type()}), quantilesPartitions)
+	// Calculate quantiles with empty public partitions added. Result is PCollection<partition, []float64>.
+	// First, add empty slice to all public partitions.
 	publicPartitions, isPCollection := params.PublicPartitions.(beam.PCollection)
 	if !isPCollection {
 		publicPartitions = beam.Reshuffle(s, beam.CreateList(s, params.PublicPartitions))
 	}
-	// Add value of empty array to each partition key in PublicPartitions.
-	publicPartitionsWithValues := beam.ParDo(s, addEmptySliceToPublicPartitionsFloat64, publicPartitions)
-	// emptyPublicPartitions are the partitions that are public but not found in the data.
-	emptyPublicPartitions := beam.ParDo(s, newEmitPartitionsNotInTheDataFn(partitionT), publicPartitionsWithValues, beam.SideInput{Input: partitionMap})
-	// Compute DP quantiles for empty public partitions.
+	emptyPublicPartitions := beam.ParDo(s, addEmptySliceToPublicPartitionsFloat64, publicPartitions)
+	// Second, add noise to all public partitions (all of which are empty-valued).
+	var boundedQuantilesFn *boundedQuantilesFn
+	var err error
 	if spec.usesNewPrivacyBudgetAPI {
-		boundedQuantilesFn, err = newBoundedQuantilesFnTemp(spec, params, noiseKind, true, true)
+		boundedQuantilesFn, err = newBoundedQuantilesFnTemp(spec, params, noiseKind, true)
 	} else {
-		boundedQuantilesFn, err = newBoundedQuantilesFn(params, noiseKind, true, spec.testMode, true)
+		boundedQuantilesFn, err = newBoundedQuantilesFn(params, noiseKind, true, spec.testMode)
 	}
 	if err != nil {
-		log.Fatalf("Couldn't get boundedQuantilesFn for QuantilesPerKey: %v", err)
+		log.Fatalf("Couldn't get boundedMeanFn for MeanPerKey: %v", err)
 	}
-	emptyQuantiles := beam.CombinePerKey(s,
-		boundedQuantilesFn,
-		emptyPublicPartitions)
-	// Merge quantiles from data with quantiles from the empty public partitions and return.
-	return beam.Flatten(s, quantiles, emptyQuantiles)
+	noisyEmptyPublicPartitions := beam.CombinePerKey(s, boundedQuantilesFn, emptyPublicPartitions)
+	// Third, compute noisy quantiles for partitions in the actual data.
+	quantiles := beam.CombinePerKey(s, boundedQuantilesFn, partialKV)
+	// Fourth, co-group by actual noisy means with noisy public partitions, emit noisy empty value for public partitions not found in data and return.
+	noisyQuantilesWithEmptyPublicPartitions := beam.CoGroupByKey(s, quantiles, noisyEmptyPublicPartitions)
+	return beam.ParDo(s, mergeResultWithEmptyPublicPartitionsFn, noisyQuantilesWithEmptyPublicPartitions)
 }
 
 func checkQuantilesPerKeyParams(params QuantilesParams, usesNewPrivacyBudgetAPI bool, noiseKind noise.Kind, partitionType reflect.Type) error {
@@ -400,11 +383,10 @@ type boundedQuantilesFn struct {
 	Ranks                        []float64
 	PublicPartitions             bool // Set to true if public partitions are used.
 	TestMode                     TestMode
-	EmptyPartitions              bool // Set to true if this combineFn is for adding noise to empty public partitions.
 }
 
 // newBoundedQuantilesFn returns a boundedQuantilesFn with the given budget and parameters.
-func newBoundedQuantilesFn(params QuantilesParams, noiseKind noise.Kind, publicPartitions bool, testMode TestMode, emptyPartitions bool) (*boundedQuantilesFn, error) {
+func newBoundedQuantilesFn(params QuantilesParams, noiseKind noise.Kind, publicPartitions bool, testMode TestMode) (*boundedQuantilesFn, error) {
 	fn := &boundedQuantilesFn{
 		MaxPartitionsContributed:     params.MaxPartitionsContributed,
 		MaxContributionsPerPartition: params.MaxContributionsPerPartition,
@@ -414,7 +396,6 @@ func newBoundedQuantilesFn(params QuantilesParams, noiseKind noise.Kind, publicP
 		NoiseKind:                    noiseKind,
 		PublicPartitions:             publicPartitions,
 		TestMode:                     testMode,
-		EmptyPartitions:              emptyPartitions,
 	}
 	if fn.PublicPartitions {
 		fn.NoiseEpsilon = params.Epsilon
@@ -438,7 +419,7 @@ func newBoundedQuantilesFn(params QuantilesParams, noiseKind noise.Kind, publicP
 // newBoundedQuantilesFnTemp returns a boundedQuantilesFn with the given budget and parameters.
 //
 // Uses the new privacy budget API.
-func newBoundedQuantilesFnTemp(spec PrivacySpec, params QuantilesParams, noiseKind noise.Kind, publicPartitions bool, emptyPartitions bool) (*boundedQuantilesFn, error) {
+func newBoundedQuantilesFnTemp(spec PrivacySpec, params QuantilesParams, noiseKind noise.Kind, publicPartitions bool) (*boundedQuantilesFn, error) {
 	if noiseKind != noise.GaussianNoise && noiseKind != noise.LaplaceNoise {
 		return nil, fmt.Errorf("unknown noise.Kind (%v) is specified. Please specify a valid noise", noiseKind)
 	}
@@ -456,7 +437,6 @@ func newBoundedQuantilesFnTemp(spec PrivacySpec, params QuantilesParams, noiseKi
 		NoiseKind:                    noiseKind,
 		PublicPartitions:             publicPartitions,
 		TestMode:                     spec.testMode,
-		EmptyPartitions:              emptyPartitions,
 	}, nil
 }
 

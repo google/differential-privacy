@@ -510,33 +510,29 @@ func TestBoundedSumFloat64FnExtractOutputWithPublicPartitionsDoesNotThreshold(t 
 	}
 }
 
-func TestFindConvertToFloat64Fn(t *testing.T) {
+func TestCheckNumericType(t *testing.T) {
 	for _, tc := range []struct {
-		desc          string
-		fullType      typex.FullType
-		wantConvertFn any
-		wantErr       bool
+		desc     string
+		fullType typex.FullType
+		wantErr  bool
 	}{
-		{"int", typex.New(reflect.TypeOf(int(0))), convertIntToFloat64, false},
-		{"int8", typex.New(reflect.TypeOf(int8(0))), convertInt8ToFloat64, false},
-		{"int16", typex.New(reflect.TypeOf(int16(0))), convertInt16ToFloat64, false},
-		{"int32", typex.New(reflect.TypeOf(int32(0))), convertInt32ToFloat64, false},
-		{"int64", typex.New(reflect.TypeOf(int64(0))), convertInt64ToFloat64, false},
-		{"uint", typex.New(reflect.TypeOf(uint(0))), convertUintToFloat64, false},
-		{"uint8", typex.New(reflect.TypeOf(uint8(0))), convertUint8ToFloat64, false},
-		{"uint16", typex.New(reflect.TypeOf(uint16(0))), convertUint16ToFloat64, false},
-		{"uint32", typex.New(reflect.TypeOf(uint32(0))), convertUint32ToFloat64, false},
-		{"uint64", typex.New(reflect.TypeOf(uint64(0))), convertUint64ToFloat64, false},
-		{"float32", typex.New(reflect.TypeOf(float32(0))), convertFloat32ToFloat64, false},
-		{"float64", typex.New(reflect.TypeOf(float64(0))), convertFloat64ToFloat64, false},
-		{"string", typex.New(reflect.TypeOf("")), nil, true},
+		{"int", typex.New(reflect.TypeOf(int(0))), false},
+		{"int8", typex.New(reflect.TypeOf(int8(0))), false},
+		{"int16", typex.New(reflect.TypeOf(int16(0))), false},
+		{"int32", typex.New(reflect.TypeOf(int32(0))), false},
+		{"int64", typex.New(reflect.TypeOf(int64(0))), false},
+		{"uint", typex.New(reflect.TypeOf(uint(0))), false},
+		{"uint8", typex.New(reflect.TypeOf(uint8(0))), false},
+		{"uint16", typex.New(reflect.TypeOf(uint16(0))), false},
+		{"uint32", typex.New(reflect.TypeOf(uint32(0))), false},
+		{"uint64", typex.New(reflect.TypeOf(uint64(0))), false},
+		{"float32", typex.New(reflect.TypeOf(float32(0))), false},
+		{"float64", typex.New(reflect.TypeOf(float64(0))), false},
+		{"string", typex.New(reflect.TypeOf("")), true},
 	} {
-		convertFn, err := findConvertToFloat64Fn(tc.fullType)
+		err := checkNumericType(tc.fullType)
 		if (err != nil) != tc.wantErr {
-			t.Errorf("findConvertToFloat64Fn: when %s for err got got %v, want %t", tc.desc, err, tc.wantErr)
-		}
-		if !reflect.DeepEqual(reflect.TypeOf(convertFn), reflect.TypeOf(tc.wantConvertFn)) {
-			t.Errorf("findConvertToFloat64Fn: when %s got %v, want %v", tc.desc, convertFn, tc.wantConvertFn)
+			t.Errorf("checkNumericType: when %s for err got got %v, want %t", tc.desc, err, tc.wantErr)
 		}
 	}
 }

@@ -457,7 +457,7 @@ func (fn *diffInt64Fn) ProcessElement(k beam.W, v1Iter, v2Iter func(*int64) bool
 	return ""
 }
 
-// ProcessElement returns a diff between values associated with a key. It
+// diffIntFn returns a diff between values associated with a key. It
 // returns an empty string if the values are approximately equal.
 func diffIntFn(k beam.X, v1Iter, v2Iter func(*int) bool) string {
 	var v1 = intPtrToSlice(v1Iter)

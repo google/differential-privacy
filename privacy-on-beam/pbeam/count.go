@@ -168,7 +168,7 @@ func Count(s beam.Scope, pcol PrivatePCollection, params CountParams) beam.PColl
 	// and re-key by the original privacy key.
 	coded := beam.ParDo(s, kv.NewEncodeFn(idT, partitionT), pcol.col)
 	kvCounts := stats.Count(s, coded)
-	counts64 := beam.ParDo(s, convertIntToInt64, kvCounts)
+	counts64 := beam.ParDo(s, convertToInt64Fn, kvCounts)
 	rekeyed := beam.ParDo(s, rekeyInt64, counts64)
 	// Second, do cross-partition contribution bounding if not in test mode without contribution bounding.
 	if spec.testMode != TestModeWithoutContributionBounding {
@@ -270,5 +270,5 @@ func addPublicPartitionsForCount(s beam.Scope, epsilon, delta float64, params Co
 		log.Fatalf("Couldn't get boundedSumInt64Fn for Count: %v", err)
 	}
 	sums := beam.CombinePerKey(s, boundedSumFn, allPartitions)
-	return beam.ParDo(s, dereferenceValueToInt64, sums)
+	return beam.ParDo(s, dereferenceValueInt64, sums)
 }

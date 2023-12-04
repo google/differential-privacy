@@ -252,6 +252,7 @@ TEST(BoundedMeanCiTest,
 
 TEST(BoundedMeanCiTest, InfiniteNoisedParamsReturnsDefaultCi) {
   BoundedMeanConfidenceIntervalParams params;
+  params.confidence_level = 0.9;
   params.lower_bound = -1.0;
   params.upper_bound = 1.0;
   params.noised_sum = std::numeric_limits<double>::infinity();

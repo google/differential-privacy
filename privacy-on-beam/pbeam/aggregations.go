@@ -55,28 +55,18 @@ func init() {
 	register.Function2x2[kv.Pair, int64, []byte, pairInt64](rekeyInt64)
 	register.Function2x2[kv.Pair, float64, []byte, pairFloat64](rekeyFloat64)
 	register.Function2x2[kv.Pair, []float64, []byte, pairArrayFloat64](rekeyArrayFloat64)
-	register.Function2x2[beam.V, int64, beam.V, int64](clampNegativePartitionsInt64)
-	register.Function2x2[beam.V, float64, beam.V, float64](clampNegativePartitionsFloat64)
+	register.Function2x2[beam.W, int64, beam.W, int64](clampNegativePartitionsInt64)
+	register.Function2x2[beam.W, float64, beam.W, float64](clampNegativePartitionsFloat64)
 	register.Function3x0[beam.V, *int64, func(beam.V, int64)](dropThresholdedPartitionsInt64)
 	register.Emitter2[beam.V, int64]()
 	register.Function3x0[beam.V, *float64, func(beam.V, float64)](dropThresholdedPartitionsFloat64)
 	register.Emitter2[beam.V, float64]()
 	register.Function3x0[beam.V, []float64, func(beam.V, []float64)](dropThresholdedPartitionsFloat64Slice)
 	register.Emitter2[beam.V, []float64]()
-	register.Function2x2[beam.W, *int64, beam.W, int64](dereferenceValueToInt64)
-	register.Function2x2[beam.W, *float64, beam.W, float64](dereferenceValueToFloat64)
-	register.Function2x2[kv.Pair, int, kv.Pair, float64](convertIntToFloat64)
-	register.Function2x2[kv.Pair, int8, kv.Pair, float64](convertInt8ToFloat64)
-	register.Function2x2[kv.Pair, int16, kv.Pair, float64](convertInt16ToFloat64)
-	register.Function2x2[kv.Pair, int32, kv.Pair, float64](convertInt32ToFloat64)
-	register.Function2x2[kv.Pair, int64, kv.Pair, float64](convertInt64ToFloat64)
-	register.Function2x2[kv.Pair, uint, kv.Pair, float64](convertUintToFloat64)
-	register.Function2x2[kv.Pair, uint8, kv.Pair, float64](convertUint8ToFloat64)
-	register.Function2x2[kv.Pair, uint16, kv.Pair, float64](convertUint16ToFloat64)
-	register.Function2x2[kv.Pair, uint32, kv.Pair, float64](convertUint32ToFloat64)
-	register.Function2x2[kv.Pair, uint64, kv.Pair, float64](convertUint64ToFloat64)
-	register.Function2x2[kv.Pair, float32, kv.Pair, float64](convertFloat32ToFloat64)
-	register.Function2x2[kv.Pair, float64, kv.Pair, float64](convertFloat64ToFloat64)
+	register.Function2x2[beam.W, *int64, beam.W, int64](dereferenceValueInt64)
+	register.Function2x2[beam.W, *float64, beam.W, float64](dereferenceValueFloat64)
+	register.Function2x3[kv.Pair, beam.V, kv.Pair, int64, error](convertToInt64Fn)
+	register.Function2x3[kv.Pair, beam.V, kv.Pair, float64, error](convertToFloat64Fn)
 }
 
 // randBool returns a uniformly random boolean. The randomness used here is not
@@ -630,28 +620,28 @@ func (fn *boundedSumFloat64Fn) ExtractOutput(a boundedSumAccumFloat64) (*float64
 	return nil, nil
 }
 
+func (fn *boundedSumFloat64Fn) String() string {
+	return fmt.Sprintf("%#v", fn)
+}
+
 // findDereferenceValueFn dereferences a *int64 to int64 or *float64 to float64.
 func findDereferenceValueFn(kind reflect.Kind) (any, error) {
 	switch kind {
 	case reflect.Int64:
-		return dereferenceValueToInt64, nil
+		return dereferenceValueInt64, nil
 	case reflect.Float64:
-		return dereferenceValueToFloat64, nil
+		return dereferenceValueFloat64, nil
 	default:
 		return nil, fmt.Errorf("kind(%v) should be int64 or float64", kind)
 	}
 }
 
-func dereferenceValueToInt64(key beam.W, value *int64) (k beam.W, v int64) {
+func dereferenceValueInt64(key beam.W, value *int64) (k beam.W, v int64) {
 	return key, *value
 }
 
-func dereferenceValueToFloat64(key beam.W, value *float64) (k beam.W, v float64) {
+func dereferenceValueFloat64(key beam.W, value *float64) (k beam.W, v float64) {
 	return key, *value
-}
-
-func (fn *boundedSumFloat64Fn) String() string {
-	return fmt.Sprintf("%#v", fn)
 }
 
 func findDropThresholdedPartitionsFn(kind reflect.Kind) (any, error) {
@@ -701,19 +691,19 @@ func findClampNegativePartitionsFn(kind reflect.Kind) (any, error) {
 }
 
 // Clamp negative partitions to zero for int64 partitions, e.g., as a post aggregation step for Count.
-func clampNegativePartitionsInt64(v beam.V, r int64) (beam.V, int64) {
+func clampNegativePartitionsInt64(k beam.W, r int64) (beam.W, int64) {
 	if r < 0 {
-		return v, 0
+		return k, 0
 	}
-	return v, r
+	return k, r
 }
 
 // Clamp negative partitions to zero for float64 partitions.
-func clampNegativePartitionsFloat64(v beam.V, r float64) (beam.V, float64) {
+func clampNegativePartitionsFloat64(k beam.W, r float64) (beam.W, float64) {
 	if r < 0 {
-		return v, 0
+		return k, 0
 	}
-	return v, r
+	return k, r
 }
 
 type dropValuesFn struct {
@@ -809,84 +799,20 @@ func (fn *decodeIDKFn) ProcessElement(pair kv.Pair, v beam.V) (beam.W, kv.Pair, 
 	return id, kv.Pair{pair.V, vBuf.Bytes()}, err // pair.V is the K in PCollection<kv.Pair{ID,K},V>
 }
 
-// findConvertToFloat64Fn gets the correct conversion to float64 function.
-func findConvertToFloat64Fn(t typex.FullType) (any, error) {
-	switch t.Type().String() {
-	case "int":
-		return convertIntToFloat64, nil
-	case "int8":
-		return convertInt8ToFloat64, nil
-	case "int16":
-		return convertInt16ToFloat64, nil
-	case "int32":
-		return convertInt32ToFloat64, nil
-	case "int64":
-		return convertInt64ToFloat64, nil
-	case "uint":
-		return convertUintToFloat64, nil
-	case "uint8":
-		return convertUint8ToFloat64, nil
-	case "uint16":
-		return convertUint16ToFloat64, nil
-	case "uint32":
-		return convertUint32ToFloat64, nil
-	case "uint64":
-		return convertUint64ToFloat64, nil
-	case "float32":
-		return convertFloat32ToFloat64, nil
-	case "float64":
-		return convertFloat64ToFloat64, nil
-	default:
-		return nil, fmt.Errorf("unexpected value type of %v", t)
+func convertToInt64Fn(idk kv.Pair, i beam.V) (kv.Pair, int64, error) {
+	v := reflect.ValueOf(i)
+	if !v.Type().ConvertibleTo(reflect.TypeOf(int64(0))) {
+		return kv.Pair{}, 0, fmt.Errorf("unexpected value type of %v", v.Type())
 	}
+	return idk, v.Convert(reflect.TypeOf(int64(0))).Int(), nil
 }
 
-func convertIntToFloat64(idk kv.Pair, i int) (kv.Pair, float64) {
-	return idk, float64(i)
-}
-
-func convertInt8ToFloat64(idk kv.Pair, i int8) (kv.Pair, float64) {
-	return idk, float64(i)
-}
-
-func convertInt16ToFloat64(idk kv.Pair, i int16) (kv.Pair, float64) {
-	return idk, float64(i)
-}
-
-func convertInt32ToFloat64(idk kv.Pair, i int32) (kv.Pair, float64) {
-	return idk, float64(i)
-}
-
-func convertInt64ToFloat64(idk kv.Pair, i int64) (kv.Pair, float64) {
-	return idk, float64(i)
-}
-
-func convertUintToFloat64(idk kv.Pair, i uint) (kv.Pair, float64) {
-	return idk, float64(i)
-}
-
-func convertUint8ToFloat64(idk kv.Pair, i uint8) (kv.Pair, float64) {
-	return idk, float64(i)
-}
-
-func convertUint16ToFloat64(idk kv.Pair, i uint16) (kv.Pair, float64) {
-	return idk, float64(i)
-}
-
-func convertUint32ToFloat64(idk kv.Pair, i uint32) (kv.Pair, float64) {
-	return idk, float64(i)
-}
-
-func convertUint64ToFloat64(idk kv.Pair, i uint64) (kv.Pair, float64) {
-	return idk, float64(i)
-}
-
-func convertFloat32ToFloat64(idk kv.Pair, f float32) (kv.Pair, float64) {
-	return idk, float64(f)
-}
-
-func convertFloat64ToFloat64(idk kv.Pair, f float64) (kv.Pair, float64) {
-	return idk, f
+func convertToFloat64Fn(idk kv.Pair, i beam.V) (kv.Pair, float64, error) {
+	v := reflect.ValueOf(i)
+	if !v.Type().ConvertibleTo(reflect.TypeOf(float64(0))) {
+		return kv.Pair{}, 0, fmt.Errorf("unexpected value type of %v", v.Type())
+	}
+	return idk, v.Convert(reflect.TypeOf(float64(0))).Float(), nil
 }
 
 type expandValuesAccum struct {
@@ -1022,8 +948,22 @@ func checkMaxPartitionsContributed(maxPartitionsContributed int64) error {
 // is set to anything other than 0.
 func checkMaxPartitionsContributedPartitionSelection(maxPartitionsContributed int64) error {
 	if maxPartitionsContributed != 0 {
-		return fmt.Errorf("Separate contribution bounding for partition selection is not supported. "+
+		return fmt.Errorf("separate contribution bounding for partition selection is not supported: "+
 			"PartitionSelectionParams.MaxPartitionsContributed must be unset (i.e. 0), was %d instead", maxPartitionsContributed)
 	}
 	return nil
+}
+
+// checkNumericType returns an error if t is not a numeric type.
+func checkNumericType(t typex.FullType) error {
+	switch t.Type().Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return nil
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return nil
+	case reflect.Float32, reflect.Float64:
+		return nil
+	default:
+		return fmt.Errorf("unexpected value type of %v", t)
+	}
 }

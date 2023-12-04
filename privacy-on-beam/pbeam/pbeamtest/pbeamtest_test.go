@@ -847,7 +847,7 @@ func TestMeanPerKeyTestModePerPartitionContributionBounding(t *testing.T) {
 			maxValue:                    50.0,
 			// MaxContributionsPerPartition = 1, but id = 0 contributes 3 times to partition 0.
 			// There will be a per-partition contribution bounding stage.
-			// In this stage the algorithm will arbitrarily chose one of these 3 contributions.
+			// In this stage the algorithm will arbitrarily choose one of these 3 contributions.
 			// The mean should be equal to 50/50 = 1.0 (not 150/52 ≈ 2.88, if no per-partition contribution bounding is done).
 			want: 1.0,
 		},
@@ -976,7 +976,7 @@ func TestMeanPerKeyWithPartitionsTestModePerPartitionContributionBoundingAddsEmp
 			maxValue:                    50.0,
 			// MaxContributionsPerPartition = 1, but id = 0 contributes 3 times to partition 0.
 			// There will be a per-partition contribution bounding stage.
-			// In this stage the algorithm will arbitrarily chose one of these 3 contributions.
+			// In this stage the algorithm will arbitrarily choose one of these 3 contributions.
 			// The mean should be equal to 50/50 = 1.0 (not 150/52 ≈ 2.88, if no per-partition contribution bounding is done).
 			want: 1.0,
 		},

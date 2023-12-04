@@ -275,7 +275,7 @@ class AdditiveNoisePrivacyLoss(metaclass=abc.ABCMeta):
         np.exp(epsilons[inverse_indices] + self.mu_lower_log_cdf(x_cutoffs)))
     # Clip delta values to lie in [0,1] (to avoid numerical errors)
     deltas = np.clip(deltas, 0, 1)
-    return float(deltas) if is_scalar else deltas
+    return float(deltas[0]) if is_scalar else deltas
 
   @abc.abstractmethod
   def privacy_loss_tail(self) -> TailPrivacyLossDistribution:

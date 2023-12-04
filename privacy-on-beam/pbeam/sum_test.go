@@ -1040,18 +1040,18 @@ func TestFindConvertFn(t *testing.T) {
 		wantConvertFn any
 		wantErr       bool
 	}{
-		{"int", typex.New(reflect.TypeOf(int(0))), convertIntToInt64, false},
-		{"int8", typex.New(reflect.TypeOf(int8(0))), convertInt8ToInt64, false},
-		{"int16", typex.New(reflect.TypeOf(int16(0))), convertInt16ToInt64, false},
-		{"int32", typex.New(reflect.TypeOf(int32(0))), convertInt32ToInt64, false},
-		{"int64", typex.New(reflect.TypeOf(int64(0))), convertInt64ToInt64, false},
-		{"uint", typex.New(reflect.TypeOf(uint(0))), convertUintToInt64, false},
-		{"uint8", typex.New(reflect.TypeOf(uint8(0))), convertUint8ToInt64, false},
-		{"uint16", typex.New(reflect.TypeOf(uint16(0))), convertUint16ToInt64, false},
-		{"uint32", typex.New(reflect.TypeOf(uint32(0))), convertUint32ToInt64, false},
-		{"uint64", typex.New(reflect.TypeOf(uint64(0))), convertUint64ToInt64, false},
-		{"float32", typex.New(reflect.TypeOf(float32(0))), convertFloat32ToFloat64, false},
-		{"float64", typex.New(reflect.TypeOf(float64(0))), convertFloat64ToFloat64, false},
+		{"int", typex.New(reflect.TypeOf(int(0))), convertToInt64Fn, false},
+		{"int8", typex.New(reflect.TypeOf(int8(0))), convertToInt64Fn, false},
+		{"int16", typex.New(reflect.TypeOf(int16(0))), convertToInt64Fn, false},
+		{"int32", typex.New(reflect.TypeOf(int32(0))), convertToInt64Fn, false},
+		{"int64", typex.New(reflect.TypeOf(int64(0))), convertToInt64Fn, false},
+		{"uint", typex.New(reflect.TypeOf(uint(0))), convertToInt64Fn, false},
+		{"uint8", typex.New(reflect.TypeOf(uint8(0))), convertToInt64Fn, false},
+		{"uint16", typex.New(reflect.TypeOf(uint16(0))), convertToInt64Fn, false},
+		{"uint32", typex.New(reflect.TypeOf(uint32(0))), convertToInt64Fn, false},
+		{"uint64", typex.New(reflect.TypeOf(uint64(0))), convertToInt64Fn, false},
+		{"float32", typex.New(reflect.TypeOf(float32(0))), convertToFloat64Fn, false},
+		{"float64", typex.New(reflect.TypeOf(float64(0))), convertToFloat64Fn, false},
 		{"string", typex.New(reflect.TypeOf("")), nil, true},
 	} {
 		convertFn, err := findConvertFn(tc.fullType)
@@ -1071,18 +1071,8 @@ func TestGetKind(t *testing.T) {
 		wantKind  reflect.Kind
 		wantErr   bool
 	}{
-		{"convertIntToInt64", convertIntToInt64, reflect.Int64, false},
-		{"convertInt8ToInt64", convertInt8ToInt64, reflect.Int64, false},
-		{"convertInt16ToInt64", convertInt16ToInt64, reflect.Int64, false},
-		{"convertInt32ToInt64", convertInt32ToInt64, reflect.Int64, false},
-		{"convertInt64ToInt64", convertInt64ToInt64, reflect.Int64, false},
-		{"convertUintToInt64", convertUintToInt64, reflect.Int64, false},
-		{"convertUint8ToInt64", convertUint8ToInt64, reflect.Int64, false},
-		{"convertUint16ToInt64", convertUint16ToInt64, reflect.Int64, false},
-		{"convertUint32ToInt64", convertUint32ToInt64, reflect.Int64, false},
-		{"convertUint64ToInt64", convertUint64ToInt64, reflect.Int64, false},
-		{"convertFloat32ToFloat64", convertFloat32ToFloat64, reflect.Float64, false},
-		{"convertFloat64ToFloat64", convertFloat64ToFloat64, reflect.Float64, false},
+		{"convertToInt64", convertToInt64Fn, reflect.Int64, false},
+		{"convertToFloat64", convertToFloat64Fn, reflect.Float64, false},
 		{"nil interface", nil, reflect.Invalid, true},
 		{"function with less than 2 return values", func() int64 { return int64(0) }, reflect.Invalid, true},
 	} {

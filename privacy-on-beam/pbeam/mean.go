@@ -203,11 +203,10 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 	// Convert value to float64.
 	// Result is PCollection<kv.Pair{ID,K},float64>.
 	_, valueT := beam.ValidateKVType(decoded)
-	convertFn, err := findConvertToFloat64Fn(valueT)
-	if err != nil {
-		log.Fatalf("Couldn't get convertFn for MeanPerKey: %v", err)
+	if err := checkNumericType(valueT); err != nil {
+		log.Fatalf("MeanPerKey: %v", err)
 	}
-	converted := beam.ParDo(s, convertFn, decoded)
+	converted := beam.ParDo(s, convertToFloat64Fn, decoded)
 
 	// Combine all values for <id, partition> into a slice.
 	// Result is PCollection<kv.Pair{ID,K},[]float64>.
@@ -262,33 +261,16 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 }
 
 func addPublicPartitionsForMean(s beam.Scope, spec PrivacySpec, params MeanParams, noiseKind noise.Kind, partialKV beam.PCollection) beam.PCollection {
-	// Compute the mean for each partition with non-public partitions dropped. Result is PCollection<partition, float64>.
-	var boundedMeanFn *boundedMeanFn
-	var err error
-	if spec.usesNewPrivacyBudgetAPI {
-		boundedMeanFn, err = newBoundedMeanFnTemp(spec, params, noiseKind, true, false)
-	} else {
-		boundedMeanFn, err = newBoundedMeanFn(params, noiseKind, true, spec.testMode, false)
-	}
-	if err != nil {
-		log.Fatalf("Couldn't get boundedMeanFn for MeanPerKey: %v", err)
-	}
-	means := beam.CombinePerKey(s,
-		boundedMeanFn,
-		partialKV)
-	partitionT, _ := beam.ValidateKVType(means)
-	meansPartitions := beam.DropValue(s, means)
-	// Create map with partitions in the data as keys.
-	partitionMap := beam.Combine(s, newPartitionMapFn(beam.EncodedType{partitionT.Type()}), meansPartitions)
+	// Calculate means with empty public partitions added. Result is PCollection<partition, float64>.
+	// First, add empty slice to all public partitions.
 	publicPartitions, isPCollection := params.PublicPartitions.(beam.PCollection)
 	if !isPCollection {
 		publicPartitions = beam.Reshuffle(s, beam.CreateList(s, params.PublicPartitions))
 	}
-	// Add value of empty array to each partition key in PublicPartitions.
-	publicPartitionsWithValues := beam.ParDo(s, addEmptySliceToPublicPartitionsFloat64, publicPartitions)
-	// emptyPublicPartitions are the partitions that are public but not found in the data.
-	emptyPublicPartitions := beam.ParDo(s, newEmitPartitionsNotInTheDataFn(partitionT), publicPartitionsWithValues, beam.SideInput{Input: partitionMap})
-	// Add noise to the empty public partitions.
+	emptyPublicPartitions := beam.ParDo(s, addEmptySliceToPublicPartitionsFloat64, publicPartitions)
+	// Second, add noise to all public partitions (all of which are empty-valued).
+	var boundedMeanFn *boundedMeanFn
+	var err error
 	if spec.usesNewPrivacyBudgetAPI {
 		boundedMeanFn, err = newBoundedMeanFnTemp(spec, params, noiseKind, true, true)
 	} else {
@@ -297,13 +279,22 @@ func addPublicPartitionsForMean(s beam.Scope, spec PrivacySpec, params MeanParam
 	if err != nil {
 		log.Fatalf("Couldn't get boundedMeanFn for MeanPerKey: %v", err)
 	}
-	emptyMeans := beam.CombinePerKey(s,
-		boundedMeanFn,
-		emptyPublicPartitions)
-	means = beam.ParDo(s, dereferenceValueToFloat64, means)
-	emptyMeans = beam.ParDo(s, dereferenceValueToFloat64, emptyMeans)
-	// Merge means from data with means from the empty public partitions and return.
-	return beam.Flatten(s, means, emptyMeans)
+	noisyEmptyPublicPartitions := beam.CombinePerKey(s, boundedMeanFn, emptyPublicPartitions)
+	// Third, compute noisy means for partitions in the actual data.
+	if spec.usesNewPrivacyBudgetAPI {
+		boundedMeanFn, err = newBoundedMeanFnTemp(spec, params, noiseKind, true, false)
+	} else {
+		boundedMeanFn, err = newBoundedMeanFn(params, noiseKind, true, spec.testMode, false)
+	}
+	if err != nil {
+		log.Fatalf("Couldn't get boundedMeanFn for MeanPerKey: %v", err)
+	}
+	means := beam.CombinePerKey(s, boundedMeanFn, partialKV)
+	// Fourth, co-group by actual noisy means with noisy public partitions, emit noisy empty value for public partitions not found in data.
+	noisyMeansWithEmptyPublicPartitions := beam.CoGroupByKey(s, means, noisyEmptyPublicPartitions)
+	means = beam.ParDo(s, mergeResultWithEmptyPublicPartitionsFn, noisyMeansWithEmptyPublicPartitions)
+	// Fifth, dereference *float64 results and return.
+	return beam.ParDo(s, dereferenceValueFloat64, means)
 }
 
 func checkMeanPerKeyParams(params MeanParams, usesNewPrivacyBudgetAPI bool, noiseKind noise.Kind, partitionType reflect.Type) error {

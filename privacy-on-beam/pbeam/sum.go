@@ -36,17 +36,6 @@ func init() {
 	register.DoFn2x3[beam.W, kv.Pair, kv.Pair, beam.V, error](&prepareSumFn{})
 	register.DoFn2x3[beam.X, int64, beam.X, int64, error](&addNoiseToEmptyPublicPartitionsInt64Fn{})
 	register.DoFn2x3[beam.X, float64, beam.X, float64, error](&addNoiseToEmptyPublicPartitionsFloat64Fn{})
-
-	register.Function2x2[kv.Pair, int, kv.Pair, int64](convertIntToInt64)
-	register.Function2x2[kv.Pair, int8, kv.Pair, int64](convertInt8ToInt64)
-	register.Function2x2[kv.Pair, int16, kv.Pair, int64](convertInt16ToInt64)
-	register.Function2x2[kv.Pair, int32, kv.Pair, int64](convertInt32ToInt64)
-	register.Function2x2[kv.Pair, int64, kv.Pair, int64](convertInt64ToInt64)
-	register.Function2x2[kv.Pair, uint, kv.Pair, int64](convertUintToInt64)
-	register.Function2x2[kv.Pair, uint8, kv.Pair, int64](convertUint8ToInt64)
-	register.Function2x2[kv.Pair, uint16, kv.Pair, int64](convertUint16ToInt64)
-	register.Function2x2[kv.Pair, uint32, kv.Pair, int64](convertUint32ToInt64)
-	register.Function2x2[kv.Pair, uint64, kv.Pair, int64](convertUint64ToInt64)
 }
 
 // SumParams specifies the parameters associated with a Sum aggregation.
@@ -276,19 +265,8 @@ func SumPerKey(s beam.Scope, pcol PrivatePCollection, params SumParams) beam.PCo
 }
 
 func addPublicPartitionsForSum(s beam.Scope, epsilon, delta float64, maxPartitionsContributed int64, params SumParams, noiseKind noise.Kind, vKind reflect.Kind, partialSumKV beam.PCollection, testMode TestMode) beam.PCollection {
-	// Calculate sums with non-public partitions dropped. Result is PCollection<partition, vKind>, where vKind is either int64 or float64.
-	boundedSumFn, err := newBoundedSumFn(epsilon, delta, maxPartitionsContributed, params.MinValue, params.MaxValue, noiseKind, vKind, true, testMode)
-	if err != nil {
-		log.Fatalf("Couldn't get boundedSumFn for SumPerKey: %v", err)
-	}
-	sums := beam.CombinePerKey(s,
-		boundedSumFn,
-		partialSumKV)
-	partitionT, _ := beam.ValidateKVType(sums)
-	sumsPartitions := beam.DropValue(s, sums)
-	// Create map with partitions in the data as keys.
-	partitionMap := beam.Combine(s, newPartitionMapFn(beam.EncodedType{partitionT.Type()}), sumsPartitions)
-	// Add value of 0 to each partition key in PublicPartitions.
+	// Calculate sums with empty public partitions added. Result is PCollection<partition, vKind>, where vKind is either int64 or float64.
+	// First, add zero values to all public partitions.
 	addZeroValuesToPublicPartitions, err := newAddZeroValuesToPublicPartitionsFn(vKind)
 	if err != nil {
 		log.Fatalf("Couldn't get addZeroValuesToPublicPartitions for SumPerKey: %v", err)
@@ -297,24 +275,24 @@ func addPublicPartitionsForSum(s beam.Scope, epsilon, delta float64, maxPartitio
 	if !isPCollection {
 		publicPartitions = beam.Reshuffle(s, beam.CreateList(s, params.PublicPartitions))
 	}
-	publicPartitionsWithValues := beam.ParDo(s, addZeroValuesToPublicPartitions, publicPartitions)
-	// emptyPublicPartitions are the partitions that are public but not found in the data.
-	emptyPublicPartitions := beam.ParDo(s, newEmitPartitionsNotInTheDataFn(partitionT), publicPartitionsWithValues, beam.SideInput{Input: partitionMap})
-	// Add noise to the empty public partitions.
-	addNoiseToEmptyPublicPartitionsFn, err := newAddNoiseToEmptyPublicPartitionsFn(epsilon, delta, maxPartitionsContributed, params.MinValue, params.MaxValue, noiseKind, vKind, testMode)
+	publicPartitionsWithZeroValues := beam.ParDo(s, addZeroValuesToPublicPartitions, publicPartitions)
+	// Second, add noise to all public partitions (all of which are zero-valued).
+	boundedSumFn, err := newBoundedSumFn(epsilon, delta, maxPartitionsContributed, params.MinValue, params.MaxValue, noiseKind, vKind, true, testMode)
 	if err != nil {
-		log.Fatalf("Couldn't get addNoiseToEmptyPublicPartitionsFn for SumPerKey: %v", err)
+		log.Fatalf("Couldn't get boundedSumFn for SumPerKey: %v", err)
 	}
-	emptySums := beam.ParDo(s,
-		addNoiseToEmptyPublicPartitionsFn,
-		emptyPublicPartitions)
+	noisyEmptyPublicPartitions := beam.CombinePerKey(s, boundedSumFn, publicPartitionsWithZeroValues)
+	// Third, compute noisy sums for partitions in the actual data.
+	sums := beam.CombinePerKey(s, boundedSumFn, partialSumKV)
+	// Fourth, co-group by actual noisy sums with noisy public partitions, emit noisy zero value for public partitions not found in data.
+	actualNoisySumsWithPublicPartitions := beam.CoGroupByKey(s, sums, noisyEmptyPublicPartitions)
+	sums = beam.ParDo(s, mergeResultWithEmptyPublicPartitionsFn, actualNoisySumsWithPublicPartitions)
+	// Fifth, dereference *int64/*float64 results and return.
 	dereferenceValueFn, err := findDereferenceValueFn(vKind)
 	if err != nil {
 		log.Fatalf("Couldn't get dereferenceValueFn for SumPerKey: %v", err)
 	}
-	sums = beam.ParDo(s, dereferenceValueFn, sums)
-	// Merge sums from data with sums from the empty public partitions and return.
-	return beam.Flatten(s, sums, emptySums)
+	return beam.ParDo(s, dereferenceValueFn, sums)
 }
 
 func checkSumPerKeyParams(params SumParams, usesNewPrivacyBudgetAPI bool, noiseKind noise.Kind, partitionType reflect.Type) error {
@@ -393,64 +371,15 @@ func (fn *prepareSumFn) ProcessElement(id beam.W, pair kv.Pair) (kv.Pair, beam.V
 // findConvertFn gets the correct conversion to int64 or float64 function.
 func findConvertFn(t typex.FullType) (any, error) {
 	switch t.Type().String() {
-	case "int":
-		return convertIntToInt64, nil
-	case "int8":
-		return convertInt8ToInt64, nil
-	case "int16":
-		return convertInt16ToInt64, nil
-	case "int32":
-		return convertInt32ToInt64, nil
-	case "int64":
-		return convertInt64ToInt64, nil
-	case "uint":
-		return convertUintToInt64, nil
-	case "uint8":
-		return convertUint8ToInt64, nil
-	case "uint16":
-		return convertUint16ToInt64, nil
-	case "uint32":
-		return convertUint32ToInt64, nil
-	case "uint64":
-		return convertUint64ToInt64, nil
-	case "float32":
-		return convertFloat32ToFloat64, nil
-	case "float64":
-		return convertFloat64ToFloat64, nil
+	case "int", "int8", "int16", "int32", "int64":
+		return convertToInt64Fn, nil
+	case "uint", "uint8", "uint16", "uint32", "uint64":
+		return convertToInt64Fn, nil
+	case "float32", "float64":
+		return convertToFloat64Fn, nil
 	default:
 		return nil, fmt.Errorf("unexpected value type of %v", t)
 	}
-}
-
-func convertIntToInt64(idk kv.Pair, i int) (kv.Pair, int64) {
-	return idk, int64(i)
-}
-func convertInt8ToInt64(idk kv.Pair, i int8) (kv.Pair, int64) {
-	return idk, int64(i)
-}
-func convertInt16ToInt64(idk kv.Pair, i int16) (kv.Pair, int64) {
-	return idk, int64(i)
-}
-func convertInt32ToInt64(idk kv.Pair, i int32) (kv.Pair, int64) {
-	return idk, int64(i)
-}
-func convertInt64ToInt64(idk kv.Pair, i int64) (kv.Pair, int64) {
-	return idk, i
-}
-func convertUintToInt64(idk kv.Pair, i uint) (kv.Pair, int64) {
-	return idk, int64(i)
-}
-func convertUint8ToInt64(idk kv.Pair, i uint8) (kv.Pair, int64) {
-	return idk, int64(i)
-}
-func convertUint16ToInt64(idk kv.Pair, i uint16) (kv.Pair, int64) {
-	return idk, int64(i)
-}
-func convertUint32ToInt64(idk kv.Pair, i uint32) (kv.Pair, int64) {
-	return idk, int64(i)
-}
-func convertUint64ToInt64(idk kv.Pair, i uint64) (kv.Pair, int64) {
-	return idk, int64(i)
 }
 
 // getKind gets the return kind of the convertFn function.

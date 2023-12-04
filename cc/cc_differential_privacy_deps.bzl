@@ -34,36 +34,36 @@ def cc_differential_privacy_deps():
     # Common bazel rules.  Also required for Abseil.
     http_archive(
         name = "bazel_skylib",
-        sha256 = "b8a1527901774180afc798aeb28c4634bdccf19c4d98e7bdd1ce79d1fe9aaad7",
+        sha256 = "cd55a062e763b9349921f0f5db8c3933288dc8ba4f76dd9416aac68acee3cb94",
         urls = [
-            "https://mirror.bazel.build/github.com/bazelbuild/bazel-skylib/releases/download/1.4.1/bazel-skylib-1.4.1.tar.gz",
-            "https://github.com/bazelbuild/bazel-skylib/releases/download/1.4.1/bazel-skylib-1.4.1.tar.gz",
+            "https://mirror.bazel.build/github.com/bazelbuild/bazel-skylib/releases/download/1.5.0/bazel-skylib-1.5.0.tar.gz",
+            "https://github.com/bazelbuild/bazel-skylib/releases/download/1.5.0/bazel-skylib-1.5.0.tar.gz",
         ],
     )
 
     # GoogleTest/GoogleMock framework. Used by most unit-tests.
     http_archive(
         name = "com_google_googletest",
-        url = "https://github.com/google/googletest/archive/refs/tags/v1.13.0.tar.gz",
-        strip_prefix = "googletest-1.13.0",
-        sha256 = "ad7fdba11ea011c1d925b3289cf4af2c66a352e18d4c7264392fead75e919363",
+        url = "https://github.com/google/googletest/archive/refs/tags/v1.14.0.tar.gz",
+        strip_prefix = "googletest-1.14.0",
+        sha256 = "8ad598c73ad796e0d8280b082cebd82a630d73e73cd3c70057938a6501bba5d7",
     )
 
     # RE2 is a requirement for GoogleTest
     http_archive(
         name = "com_googlesource_code_re2",
-        sha256 = "1726508efc93a50854c92e3f7ac66eb28f0e57652e413f11d7c1e28f97d997ba",
-        strip_prefix = "re2-03da4fc0857c285e3a26782f6bc8931c4c950df4",
+        sha256 = "4e6593ac3c71de1c0f322735bc8b0492a72f66ffccfad76e259fa21c41d27d8a",
+        strip_prefix = "re2-2023-11-01",
         # release 2023-06-01
-        url = "https://github.com/google/re2/archive/03da4fc0857c285e3a26782f6bc8931c4c950df4.zip",
+        url = "https://github.com/google/re2/releases/download/2023-11-01/re2-2023-11-01.tar.gz",
     )
 
     # Benchmarks for testing.
     http_archive(
         name = "com_google_benchmark",
-        url = "https://github.com/google/benchmark/archive/refs/tags/v1.7.1.tar.gz",
-        sha256 = "6430e4092653380d9dc4ccb45a1e2dc9259d581f4866dc0759713126056bc1d7",
-        strip_prefix = "benchmark-1.7.1",
+        url = "https://github.com/google/benchmark/archive/refs/tags/v1.8.3.tar.gz",
+        sha256 = "6bc180a57d23d4d9515519f92b0c83d61b05b5bab188961f36ac7b06b0d9e9ce",
+        strip_prefix = "benchmark-1.8.3",
     )
 
     # BoringSSL for cryptographic PRNG
@@ -79,9 +79,9 @@ def cc_differential_privacy_deps():
     # Supports `./configure && make` style packages to become dependencies.
     http_archive(
         name = "rules_foreign_cc",
-        strip_prefix = "rules_foreign_cc-0.9.0",
-        url = "https://github.com/bazelbuild/rules_foreign_cc/archive/0.9.0.tar.gz",
-        sha256 = "2a4d07cd64b0719b39a7c12218a3e507672b82a97b98c6a89d38565894cf7c51",
+        strip_prefix = "rules_foreign_cc-0.10.1",
+        url = "https://github.com/bazelbuild/rules_foreign_cc/releases/download/0.10.1/rules_foreign_cc-0.10.1.tar.gz",
+        sha256 = "476303bd0f1b04cc311fc258f1708a5f6ef82d3091e53fd1977fa20383425a6a",
     )
 
     # Postgres depends on rules_foreign_cc. Use postgres 12.

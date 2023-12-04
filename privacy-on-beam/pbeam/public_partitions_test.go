@@ -131,7 +131,9 @@ func TestDropNonPublicPartitionsKVFn(t *testing.T) {
 
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
-	got := dropNonPublicPartitionsKVFn(s, partitionsCol, pcol, pcol.codec.KType)
+	idT, _ := beam.ValidateKVType(pcol.col)
+
+	got := dropNonPublicPartitionsKVFn(s, partitionsCol, pcol, idT)
 	got = beam.SwapKV(s, got)
 
 	pcol2 := MakePrivate(s, col2, NewPrivacySpec(epsilon, delta))
@@ -172,7 +174,9 @@ func TestDropNonPublicPartitionsFloat(t *testing.T) {
 
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 	pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
-	got := dropNonPublicPartitionsKVFn(s, partitionsCol, pcol, pcol.codec.KType)
+	idT, _ := beam.ValidateKVType(pcol.col)
+
+	got := dropNonPublicPartitionsKVFn(s, partitionsCol, pcol, idT)
 	got = beam.SwapKV(s, got)
 
 	pcol2 := MakePrivate(s, col2, NewPrivacySpec(epsilon, delta))

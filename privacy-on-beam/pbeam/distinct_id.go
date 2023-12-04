@@ -223,7 +223,7 @@ func addPublicPartitionsForDistinctID(s beam.Scope, params DistinctPrivacyIDPara
 		log.Fatalf("pbeam.DistinctPrivacyID: %v", err)
 	}
 	noisedCounts := beam.CombinePerKey(s, countFn, allAddPartitions)
-	finalPartitions := beam.ParDo(s, dereferenceValueToInt64, noisedCounts)
+	finalPartitions := beam.ParDo(s, dereferenceValueInt64, noisedCounts)
 	// Clamp negative counts to zero and return.
 	return beam.ParDo(s, clampNegativePartitionsInt64, finalPartitions)
 }
