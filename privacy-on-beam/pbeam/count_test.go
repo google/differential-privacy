@@ -439,27 +439,6 @@ func TestCountWithPartitionsCrossPartitionContributionBounding(t *testing.T) {
 	}
 }
 
-// Check that no negative values are returned from Count.
-func TestCountReturnsNonNegative(t *testing.T) {
-	var pairs []testutils.PairII
-	for i := 0; i < 100; i++ {
-		pairs = append(pairs, testutils.PairII{i, i})
-	}
-	p, s, col := ptest.CreateList(pairs)
-	col = beam.ParDo(s, testutils.PairToKV, col)
-	// Using a low epsilon and high maxValue adds a lot of noise and using
-	// a high delta keeps many partitions.
-	epsilon, delta, maxValue := 0.001, 0.999, int64(1e8)
-	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
-	counts := Count(s, pcol, CountParams{MaxValue: maxValue, MaxPartitionsContributed: 1, NoiseKind: GaussianNoise{}})
-	values := beam.DropKey(s, counts)
-	// Check if we have negative elements.
-	beam.ParDo0(s, testutils.CheckNoNegativeValuesInt64, values)
-	if err := ptest.Run(p); err != nil {
-		t.Errorf("TestCountReturnsNonNegative returned errors: %v", err)
-	}
-}
-
 // Check that no negative values are returned from Count with partitions.
 func TestCountWithPartitionsReturnsNonNegative(t *testing.T) {
 	// We have two test cases, one for public partitions as a PCollection and one for public partitions as a slice (i.e., in-memory).
@@ -992,5 +971,51 @@ func TestCountPreThresholding(t *testing.T) {
 	}
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestCountPreThresholding: Count(%v) = %v, expected %v: %v", col, got, want, err)
+	}
+}
+
+func TestCountAllowNegativeOutputs(t *testing.T) {
+	// We use public partitions to noise zeros. For a larger number of
+	// public partitions, we expect that at least one noised zero is
+	// negative (in case AllowNegativeOutputs is true) or that all are
+	// non-negative (in case AllowNegativeOutputs is false).
+	for _, tc := range []struct {
+		allowNegativeOutputs bool
+	}{
+		{true},
+		{false},
+	} {
+		privacySpec, err := NewPrivacySpecTemp(PrivacySpecParams{
+			AggregationEpsilon: 0.1,
+		})
+		if err != nil {
+			t.Fatalf("Test setup failed: %v", err)
+		}
+		p, s, col := ptest.CreateList([]testutils.PairII{})
+		col = beam.ParDo(s, testutils.PairToKV, col)
+		pcol := MakePrivate(s, col, privacySpec)
+		var emptyPartitions []int
+		for i := 0; i < 10000; i++ {
+			emptyPartitions = append(emptyPartitions, i)
+		}
+
+		countRes := Count(s, pcol,
+			CountParams{
+				MaxValue:                 1,
+				MaxPartitionsContributed: 1,
+				NoiseKind:                LaplaceNoise{},
+				PublicPartitions:         emptyPartitions,
+				AllowNegativeOutputs:     tc.allowNegativeOutputs,
+			})
+
+		values := beam.DropKey(s, countRes)
+		if tc.allowNegativeOutputs {
+			testutils.CheckAtLeastOneValueNegativeInt64(s, values)
+		} else {
+			beam.ParDo0(s, testutils.CheckNoNegativeValuesInt64, values)
+		}
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("TestCountAllowNegativeOutputs: error with allowNegativeOutputs = %v: %v", tc.allowNegativeOutputs, err)
+		}
 	}
 }

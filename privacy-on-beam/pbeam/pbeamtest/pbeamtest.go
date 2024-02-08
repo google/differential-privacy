@@ -37,6 +37,8 @@ import (
 //
 // This does NOT provide any privacy protections, so should only be used in
 // test code in order to avoid dealing with random noise.
+//
+// Deprecated: Use pbeam.NewPrivacySpecTemp() with TestMode: TestModeWithContributionBounding instead.
 func NewPrivacySpecNoNoiseWithContributionBounding(epsilon, delta float64) *pbeam.PrivacySpec {
 	return pbeam.NewPrivacySpec(epsilon, delta, testoption.EnableNoNoiseWithContributionBounding{})
 }
@@ -54,6 +56,8 @@ func NewPrivacySpecNoNoiseWithContributionBounding(epsilon, delta float64) *pbea
 //
 // This does NOT provide any privacy protections, so should only be used in
 // test code in order to avoid dealing with random noise.
+//
+// Deprecated: Use pbeam.NewPrivacySpecTemp() with TestMode: TestModeWithoutContributionBounding instead.
 func NewPrivacySpecNoNoiseWithoutContributionBounding(epsilon, delta float64) *pbeam.PrivacySpec {
 	return pbeam.NewPrivacySpec(epsilon, delta, testoption.EnableNoNoiseWithoutContributionBounding{})
 }

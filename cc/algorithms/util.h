@@ -545,6 +545,10 @@ absl::Status ValidateBounds(absl::optional<T> lower, absl::optional<T> upper) {
     return absl::InvalidArgumentError(
         "Lower bound cannot be greater than upper bound.");
   }
+  if (lower.value() == upper.value()) {
+    return absl::InvalidArgumentError(
+        "Lower bound cannot be equal to upper bound.");
+  }
   return absl::OkStatus();
 }
 

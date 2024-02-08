@@ -19,6 +19,7 @@
 package testutils
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"math/big"
@@ -29,6 +30,7 @@ import (
 	"github.com/google/differential-privacy/privacy-on-beam/v2/internal/kv"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/filter"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -47,10 +49,35 @@ func init() {
 	register.DoFn3x1[int, func(*int) bool, func(*int) bool, error](&gotExpectedNumPartitionsFn{})
 	register.Iter1[int]()
 
+	register.Function1x1[int64, *int64](Int64Ptr)
+	register.Function1x1[float64, *float64](Float64Ptr)
+	register.Function1x1[beam.V, int](OneFn)
 	register.Function1x1[int64, error](CheckNoNegativeValuesInt64)
 	register.Function1x1[float64, error](CheckNoNegativeValuesFloat64)
 	register.Function1x1[float64, error](CheckAllValuesNegativeFloat64)
+	register.Function2x1[int, int, PairII](KVToPair)
+	register.Function1x2[PairII, int, int](PairToKV)
+	register.Function2x1[int, int64, PairII64](KVToPairII64)
+	register.Function1x2[PairII64, int, int64](PairII64ToKV)
+	register.Function2x1[int, float64, PairIF64](KVToPairIF64)
+	register.Function1x2[PairIF64, int, float64](PairIF64ToKV)
+	register.Function2x1[int, []float64, PairIF64Slice](KVToPairIF64Slice)
+	register.Function1x2[PairIF64Slice, int, []float64](PairIF64SliceToKV)
+	register.Function2x1[int, kv.Pair, PairICodedKV](KVToPairICodedKV)
+	register.Function1x2[PairICodedKV, int, kv.Pair](PairICodedKVToKV)
 	register.Function2x3[beam.V, []float64, beam.V, float64, error](DereferenceFloat64Slice)
+	register.Function1x2[TripleWithIntValue, int, int](TripleWithIntValueToKV)
+	register.Function1x2[TripleWithIntValue, int, TripleWithIntValue](ExtractIDFromTripleWithIntValue)
+	register.Function1x2[TripleWithFloatValue, int, float32](TripleWithFloatValueToKV)
+	register.Function1x2[TripleWithFloatValue, int, TripleWithFloatValue](ExtractIDFromTripleWithFloatValue)
+	register.Function3x1[int, func(*float64) bool, func(*float64) bool, string](lessThanOrEqualTo)
+	register.Function2x1[string, string, string](combineDiffs)
+	register.Function1x1[string, error](reportDiffs)
+	register.Function1x1[string, error](reportEquals)
+	register.Function1x1[string, error](reportGreaterThan)
+	register.Function3x1[beam.X, func(*int) bool, func(*int) bool, string](diffIntFn)
+	register.Function1x1[int64, bool](isNegativeInt64)
+	register.Function1x1[int, error](checkNumNegativeElemCountIsPositive)
 }
 
 // PairII, PairII64, PairIF64, PairICodedKV and the related functions are helpers
@@ -801,6 +828,25 @@ func CheckNoNegativeValuesInt64(v int64) error {
 		return fmt.Errorf("unexpected negative element: %v", v)
 	}
 	return nil
+}
+
+func isNegativeInt64(v int64) bool {
+	return v < 0
+}
+
+func checkNumNegativeElemCountIsPositive(elemCount int) error {
+	if elemCount == 0 {
+		return errors.New("want at least one negative value, but got 0")
+	}
+	return nil
+}
+
+// CheckAtLeastOneValueNegativeInt64 operates on a PCollection<int64> and will
+// return an error during runtime if none of the int64 values is negative.
+func CheckAtLeastOneValueNegativeInt64(s beam.Scope, col beam.PCollection) {
+	negativeValues := filter.Include(s, col, isNegativeInt64)
+	numNegativeValues := stats.CountElms(s, negativeValues)
+	beam.ParDo0(s, checkNumNegativeElemCountIsPositive, numNegativeValues)
 }
 
 // CheckNoNegativeValuesFloat64 returns an error if an float64 value is negative.

@@ -18,6 +18,7 @@
 #define DIFFERENTIAL_PRIVACY_ALGORITHMS_BINARY_SEARCH_H_
 
 #include <cmath>
+#include <cstdint>
 #include <cstdlib>
 
 #include "base/percentile.h"

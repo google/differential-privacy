@@ -18,6 +18,7 @@
 #define DIFFERENTIAL_PRIVACY_BASE_PERCENTILE_H_
 
 #include <cmath>
+#include <cstdint>
 
 #include "google/protobuf/repeated_field.h"
 #include "proto/util.h"

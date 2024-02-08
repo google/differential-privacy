@@ -674,7 +674,7 @@ func dropThresholdedPartitionsFloat64(v beam.V, r *float64, emit func(beam.V, fl
 // dropThresholdedPartitionsFloat64Slice drops thresholded []float64 partitions, i.e.
 // those that have nil r, by emitting only non-thresholded partitions.
 func dropThresholdedPartitionsFloat64Slice(v beam.V, r []float64, emit func(beam.V, []float64)) {
-	if r != nil {
+	if len(r) != 0 {
 		emit(v, r)
 	}
 }

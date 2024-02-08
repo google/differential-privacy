@@ -22,6 +22,7 @@ import (
 	"github.com/google/differential-privacy/privacy-on-beam/v2/pbeam/testutils"
 	testpb "github.com/google/differential-privacy/privacy-on-beam/v2/testdata"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 	"github.com/google/go-cmp/cmp"
@@ -31,6 +32,11 @@ import (
 func init() {
 	beam.RegisterType(reflect.TypeOf((*testpb.TestAnon)(nil)))
 	beam.RegisterType(reflect.TypeOf(protoPair{}))
+
+	register.Function2x1[string, *testpb.TestAnon, protoPair](kvToProtoPair)
+	register.Function2x1[string, ComplexStruct, structPair](kvToStructPair)
+	register.Function1x2[int, int, int](addZeroIntKeyFn)
+	register.Function1x2[int, int, int](addZeroIntValueFn)
 }
 
 func TestNewPrivacySpecTemp(t *testing.T) {
@@ -553,7 +559,7 @@ func TestDropKey(t *testing.T) {
 	colKV := beam.ParDo(s, testutils.PairToKV, col)
 	spec := NewPrivacySpec(1e10, 0)
 	pcol := MakePrivate(s, colKV, spec)
-	pcol = ParDo(s, func(v int) (int, int) { return 0, v }, pcol)
+	pcol = ParDo(s, addZeroIntKeyFn, pcol)
 	pcol = DropKey(s, pcol)
 
 	// Assert that adding a test key of 0 and removing it is a no-op.
@@ -590,7 +596,7 @@ func TestDropValue(t *testing.T) {
 	colKV := beam.ParDo(s, testutils.PairToKV, col)
 	spec := NewPrivacySpec(1e10, 0)
 	pcol := MakePrivate(s, colKV, spec)
-	pcol = ParDo(s, func(k int) (int, int) { return k, 0 }, pcol)
+	pcol = ParDo(s, addZeroIntValueFn, pcol)
 	pcol = DropValue(s, pcol)
 
 	// Assert that adding a test value of 0 and removing it is a no-op.
@@ -610,4 +616,12 @@ func TestDropValue(t *testing.T) {
 	if err := ptest.Run(p); err != nil {
 		t.Error(err)
 	}
+}
+
+func addZeroIntKeyFn(v int) (int, int) {
+	return 0, v
+}
+
+func addZeroIntValueFn(k int) (int, int) {
+	return k, 0
 }

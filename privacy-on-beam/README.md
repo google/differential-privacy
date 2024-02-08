@@ -66,22 +66,22 @@ In order to include Privacy on Beam in your Bazel project, we recommend you use
    load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
    http_archive(
-       name = "io_bazel_rules_go",
-       sha256 = "6b65cb7917b4d1709f9410ffe00ecf3e160edf674b78c54a894471320862184f",
-       urls = [
-           "https://mirror.bazel.build/github.com/bazelbuild/rules_go/releases/download/v0.39.0/rules_go-v0.39.0.zip",
-            "https://github.com/bazelbuild/rules_go/releases/download/v0.39.0/rules_go-v0.39.0.zip",
-       ],
+      name = "io_bazel_rules_go",
+      sha256 = "b6828eb2d03bb5ef76f2077f8670b211fe792e77ddb83450ea9f887df04db9c7",
+      urls = [
+         "https://mirror.bazel.build/github.com/bazelbuild/rules_go/releases/download/v0.44.1/rules_go-v0.44.1.zip",
+         "https://github.com/bazelbuild/rules_go/releases/download/v0.44.1/rules_go-v0.44.1.zip",
+      ],
    )
 
-  http_archive(
+   http_archive(
       name = "bazel_gazelle",
-      sha256 = "ecba0f04f96b4960a5b250c8e8eeec42281035970aa8852dda73098274d14a1d",
+      sha256 = "b7387f72efb59f876e4daae42f1d3912d0d45563eac7cb23d1de0b094ab588cf",
       urls = [
-          "https://mirror.bazel.build/github.com/bazelbuild/bazel-gazelle/releases/download/v0.29.0/bazel-gazelle-v0.29.0.tar.gz",
-          "https://github.com/bazelbuild/bazel-gazelle/releases/download/v0.29.0/bazel-gazelle-v0.29.0.tar.gz",
+         "https://mirror.bazel.build/github.com/bazelbuild/bazel-gazelle/releases/download/v0.34.0/bazel-gazelle-v0.34.0.tar.gz",
+         "https://github.com/bazelbuild/bazel-gazelle/releases/download/v0.34.0/bazel-gazelle-v0.34.0.tar.gz",
       ],
-  )
+   )
 
    http_archive(
        name = "com_google_protobuf",
@@ -94,7 +94,7 @@ In order to include Privacy on Beam in your Bazel project, we recommend you use
 
    go_rules_dependencies()
 
-   go_register_toolchains(version = "1.19.5")
+   go_register_toolchains(version = "1.21.5")
 
    # Protobuf transitive dependencies.
    load("@com_google_protobuf//:protobuf_deps.bzl", "protobuf_deps")
@@ -104,6 +104,20 @@ In order to include Privacy on Beam in your Bazel project, we recommend you use
    load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies")
 
    gazelle_dependencies()
+
+   # Googleapis needs to be included separately for dependencies to work: https://github.com/bazelbuild/rules_go/issues/3625#issuecomment-1643804054
+   http_archive(
+      name = "googleapis",
+      sha256 = "78aae8879967e273044bc786e691d9a16db385bd137454e80cd0b53476adfc2d",
+      strip_prefix = "googleapis-c09efadc6785560333d967f0bd40f1d1c3232088",
+      urls = ["https://github.com/googleapis/googleapis/archive/c09efadc6785560333d967f0bd40f1d1c3232088.tar.gz"],
+   )
+
+   load("@googleapis//:repository_rules.bzl", "switched_rules_by_language")
+
+   switched_rules_by_language(
+      name = "com_google_googleapis_imports",
+   )
    ```
 
 1. Add the following code to your root `BUILD` or `BUILD.bazel` file:

@@ -104,6 +104,16 @@ type CountParams struct {
 	//
 	// Required.
 	MaxValue int64
+	// Allow negative counts in the output. Most users would expect a count
+	// aggregation to return non-negative values. However, to get better
+	// statistical properties, especially for subsequent post-processing
+	// steps, users can choose to allow negative outputs via this option.
+	//
+	// The default is to clamp the anonymized values and only return
+	// non-negative counts.
+	//
+	// Optional.
+	AllowNegativeOutputs bool
 }
 
 // Count counts the number of times a value appears in a PrivatePCollection,
@@ -207,8 +217,10 @@ func Count(s beam.Scope, pcol PrivatePCollection, params CountParams) beam.PColl
 		result = beam.ParDo(s, dropThresholdedPartitionsInt64, sums)
 	}
 
-	// Clamp negative counts to zero and return.
-	result = beam.ParDo(s, clampNegativePartitionsInt64, result)
+	if !params.AllowNegativeOutputs {
+		// Clamp negative counts to zero.
+		result = beam.ParDo(s, clampNegativePartitionsInt64, result)
+	}
 	return result
 }
 

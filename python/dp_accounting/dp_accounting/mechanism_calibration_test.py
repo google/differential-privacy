@@ -16,7 +16,6 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 import attr
-
 import numpy as np
 
 from dp_accounting import dp_event

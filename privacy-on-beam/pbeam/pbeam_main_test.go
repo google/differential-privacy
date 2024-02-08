@@ -22,7 +22,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	ptest.Main(m)
+	ptest.MainWithDefault(m, "direct")
 }
 
 // Used in various tests.

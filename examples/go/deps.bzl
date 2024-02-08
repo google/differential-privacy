@@ -54,14 +54,12 @@ def go_differential_privacy_examples_deps():
         sum = "h1:FSii2UQeSLngl3jFoR4tUKZLprO7qUlh/TKKticc0BM=",
         version = "v0.0.0-20230228185258-2292f9e40198",
     )
-
     go_repository(
         name = "com_github_golang_freetype",
         importpath = "github.com/golang/freetype",
         sum = "h1:DACJavvAHhabrF08vX0COfcOBJRhZ8lUbR+ZWIs0Y5g=",
         version = "v0.0.0-20170609003504-e2365dfdc4a0",
     )
-
     go_repository(
         name = "com_github_golang_glog",
         importpath = "github.com/golang/glog",
@@ -74,7 +72,6 @@ def go_differential_privacy_examples_deps():
         sum = "h1:ofyhxvXcZhMsU5ulbFiLKl/XBFqE1GSq7atu8tAmTRI=",
         version = "v0.6.0",
     )
-
     go_repository(
         name = "ht_sr_git_sbinet_gg",
         importpath = "git.sr.ht/~sbinet/gg",
@@ -87,12 +84,11 @@ def go_differential_privacy_examples_deps():
         sum = "h1:k1MczvYDUvJBe93bYd7wrZLLUEcLZAuF824/I4e5Xr4=",
         version = "v0.1.1",
     )
-
     go_repository(
         name = "org_golang_x_exp",
         importpath = "golang.org/x/exp",
-        sum = "h1:Gvh4YaCaXNs6dKTlfgismwWZKyjVZXwOPfIyUaqU3No=",
-        version = "v0.0.0-20231127185646-65229373498e",
+        sum = "h1:kLiC65FbiHWFAOu+lxwNPujcsl8VYyTYYEZnsOO1WK4=",
+        version = "v0.0.0-20231226003508-02704c960a9b",
     )
     go_repository(
         name = "org_golang_x_image",
@@ -106,7 +102,6 @@ def go_differential_privacy_examples_deps():
         sum = "h1:dGoOF9QVLYng8IHTm7BAyWqCqSheQ5pYWGhzW00YJr0=",
         version = "v0.14.0",
     )
-
     go_repository(
         name = "org_golang_x_text",
         importpath = "golang.org/x/text",
@@ -119,7 +114,6 @@ def go_differential_privacy_examples_deps():
         sum = "h1:GO788SKMRunPIBCXiQyo2AaexLstOrVhuAL5YwsckQM=",
         version = "v0.16.0",
     )
-
     go_repository(
         name = "org_gonum_v1_gonum",
         importpath = "gonum.org/v1/gonum",

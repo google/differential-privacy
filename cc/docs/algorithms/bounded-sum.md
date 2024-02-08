@@ -5,9 +5,9 @@ computes the sum of values in a dataset in a differentially private manner.
 
 ## Input & Output
 
-`BoundedSum` supports `int64`s and `double`s as input. When successful, the
-returned [`Output`](../protos.md) message will contain one element with
-the differentially private sum, and a `ConfidenceInterval` describing the 95%
+`BoundedSum` supports `int64_t` and `double` types as input. When successful,
+the returned [`Output`](../protos.md) message will contain one element with the
+differentially private sum, and a `ConfidenceInterval` describing the 95%
 confidence interval of the noise added. When bounds are inferred, the `Output`
 also contains a `BoundingReport`.
 
@@ -23,11 +23,11 @@ Information on how to construct a `BoundedSum` is found in the
 construction example.
 
 ```
-absl::StatusOr<std::unique_ptr<BoundedSum<int64>>> bounded_sum =
-                 BoundedSum<int64>::Builder.SetEpsilon(1)
-                                           .SetLower(-10)
-                                           .SetUpper(10)
-                                           .Build();
+absl::StatusOr<std::unique_ptr<BoundedSum<int64_t>>> bounded_sum =
+                 BoundedSum<int64_t>::Builder.SetEpsilon(1)
+                                             .SetLower(-10)
+                                             .SetUpper(10)
+                                             .Build();
 ```
 
 ## Use

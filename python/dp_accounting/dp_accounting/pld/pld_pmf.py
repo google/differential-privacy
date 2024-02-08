@@ -24,6 +24,7 @@ import itertools
 import math
 import numbers
 from typing import Iterable, List, Mapping, Sequence, Tuple, Union
+
 import numpy as np
 import numpy.typing
 from scipy import signal

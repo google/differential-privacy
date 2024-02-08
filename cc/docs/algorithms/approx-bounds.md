@@ -8,7 +8,7 @@ bounds of input sets inside [bounded algorithms](bounded-algorithm.md).
 
 ## Input & Output
 
-`ApproxBounds` supports `int64` and `double` type input sets. When successful,
+`ApproxBounds` supports `int64_t` and `double` type input sets. When successful,
 the returned [`Output`](../protos.md) message will contain two elements. The
 first is the differentially private lower bound; the second is the upper. The
 `Output` message will contain an error status instead if not enough inputs were
@@ -21,7 +21,7 @@ are additional parameters.
 
 ```
 ApproxBounds<T>::Builder builder =
-   ApproxBounds<T>::Builder.SetNumBins(int64 num_bins)
+   ApproxBounds<T>::Builder.SetNumBins(int64_t num_bins)
                            .SetScale(double scale)
                            .SetBase(double base)
 

@@ -18,6 +18,7 @@
 #define DIFFERENTIAL_PRIVACY_TESTING_SEQUENCE_H_
 
 #include <algorithm>
+#include <cstdint>
 #include <memory>
 #include <vector>
 

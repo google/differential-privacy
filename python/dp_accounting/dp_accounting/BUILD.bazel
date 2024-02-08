@@ -1,0 +1,131 @@
+#
+# Copyright 2020 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# Tools for tracking privacy budget.
+
+load("@accounting_py_pip_deps//:requirements.bzl", "requirement")
+
+package(default_visibility = [
+    "//visibility:public",
+])
+
+licenses(["notice"])
+
+py_library(
+    name = "accounting",
+    srcs = ["__init__.py"],
+    deps = [
+        ":dp_event",
+        ":dp_event_builder",
+        ":mechanism_calibration",
+        ":privacy_accountant",
+        "//dp_accounting/pld",
+        "//dp_accounting/rdp",
+    ],
+)
+
+py_library(
+    name = "mechanism_calibration",
+    srcs = [
+        "mechanism_calibration.py",
+    ],
+    srcs_version = "PY3",
+    deps = [
+        ":dp_event",
+        ":privacy_accountant",
+        requirement("attrs"),
+        requirement("scipy"),
+    ],
+)
+
+py_test(
+    name = "mechanism_calibration_test",
+    size = "small",
+    srcs = ["mechanism_calibration_test.py"],
+    python_version = "PY3",
+    deps = [
+        ":dp_event",
+        ":mechanism_calibration",
+        ":privacy_accountant",
+        requirement("absl-py"),
+        requirement("attrs"),
+        requirement("numpy"),
+    ],
+)
+
+py_library(
+    name = "dp_event",
+    srcs = ["dp_event.py"],
+    srcs_version = "PY3",
+    deps = [
+        requirement("attrs"),
+    ],
+)
+
+py_test(
+    name = "dp_event_test",
+    srcs = ["dp_event_test.py"],
+    python_version = "PY3",
+    srcs_version = "PY3",
+    deps = [
+        ":dp_event",
+        requirement("absl-py"),
+        requirement("attrs"),
+        requirement("dm-tree"),
+    ],
+)
+
+py_library(
+    name = "dp_event_builder",
+    srcs = ["dp_event_builder.py"],
+    srcs_version = "PY3",
+    deps = [
+        ":dp_event",
+    ],
+)
+
+py_test(
+    name = "dp_event_builder_test",
+    srcs = ["dp_event_builder_test.py"],
+    python_version = "PY3",
+    srcs_version = "PY3",
+    deps = [
+        ":dp_event",
+        ":dp_event_builder",
+        requirement("absl-py"),
+    ],
+)
+
+py_library(
+    name = "privacy_accountant",
+    srcs = ["privacy_accountant.py"],
+    srcs_version = "PY3",
+    deps = [
+        ":dp_event",
+        ":dp_event_builder",
+    ],
+)
+
+py_library(
+    name = "privacy_accountant_test",
+    srcs = ["privacy_accountant_test.py"],
+    srcs_version = "PY3",
+    deps = [
+        ":dp_event",
+        ":privacy_accountant",
+        requirement("absl-py"),
+    ],
+)

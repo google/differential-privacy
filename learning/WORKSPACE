@@ -17,19 +17,22 @@
 workspace(name = "learning")
 
 load("@learning//:learning_py_deps.bzl", "learning_py_deps")
+
 learning_py_deps()
 
 load("@learning//:learning_py_deps_init.bzl", "learning_py_deps_init")
+
 learning_py_deps_init("learning")
 
 local_repository(
     name = "com_google_python_dp_accounting",
-    path = "../python",
+    path = "../python/dp_accounting/",
 )
 
 load("@com_google_python_dp_accounting//:accounting_py_deps.bzl", "accounting_py_deps")
+
 accounting_py_deps()
 
 load("@com_google_python_dp_accounting//:accounting_py_deps_init.bzl", "accounting_py_deps_init")
-accounting_py_deps_init("com_google_python_dp_accounting")
 
+accounting_py_deps_init("com_google_python_dp_accounting")

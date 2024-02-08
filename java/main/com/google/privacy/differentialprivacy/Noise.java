@@ -78,6 +78,12 @@ public interface Noise {
     return Math.sqrt(l0Sensitivity) * lInfSensitivity;
   }
 
+  /**
+   * Computes the quantile z satisfying Pr[Y <= z] = {@code rank} for a random variable Y
+   * whose distribution is given by applying the Noise mechanism to the raw value {@code x} using
+   * the specified privacy parameters {@code epsilon}, {@code delta}, {@code l0Sensitivity}, and
+   * {@code lInfSensitivity}.
+   */
   double computeQuantile(
       double rank,
       double x,

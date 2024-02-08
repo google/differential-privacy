@@ -58,7 +58,7 @@ absl::StatusOr<std::unique_ptr<Quantiles<T>>> quantile =
        .Build();
 ```
 
-*   `T`: The input type, for example `double` or `int64`.
+*   `T`: The input type, for example `double` or `int64_t`.
 *   `T upper, lower`: The upper and lower bounds on each input element. If any
     input elements are greater than `upper` or less than `lower`, they will be
     replaced with `upper` or `lower` respectively.
@@ -93,7 +93,7 @@ absl::StatusOr<std::unique_ptr<QuantileTree<T>>> quantile_tree =
       .Build();
 ```
 
-*   `T`: The input type, for example `double` or `int64`.
+*   `T`: The input type, for example `double` or `int64_t`.
 *   `T upper, lower`: The upper and lower bounds for each input element. If any
     inputs are greater than `upper` or less than `lower` they will be replaced
     with `upper` or `lower` respectively.

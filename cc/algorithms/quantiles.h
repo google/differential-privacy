@@ -17,6 +17,8 @@
 #ifndef DIFFERENTIAL_PRIVACY_CPP_ALGORITHMS_QUANTILES_H_
 #define DIFFERENTIAL_PRIVACY_CPP_ALGORITHMS_QUANTILES_H_
 
+#include <cstdint>
+
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "algorithms/algorithm.h"
@@ -115,10 +117,10 @@ class Quantiles : public Algorithm<T> {
 
  private:
   Quantiles(std::unique_ptr<QuantileTree<T>> tree,
-                std::vector<double> quantiles, double epsilon, double delta,
-                int max_contributions_per_partition,
-                int max_partitions_contributed_to,
-                std::unique_ptr<NumericalMechanismBuilder> mechanism_builder)
+            std::vector<double> quantiles, double epsilon, double delta,
+            int max_contributions_per_partition,
+            int max_partitions_contributed_to,
+            std::unique_ptr<NumericalMechanismBuilder> mechanism_builder)
       : Algorithm<T>(epsilon, delta),
         tree_(std::move(tree)),
         quantiles_(quantiles),

@@ -58,7 +58,7 @@ functions for the common cases. We outline some of these functions below. See
 the [utility function file](https://github.com/google/differential-privacy/blob/main/cc/proto/util.h)
 for the full list.
 
-### GetValue&lt;T&gt;
+### `GetValue<T>`
 
 ```
 template <typename T>
@@ -69,7 +69,7 @@ Extracts the first element from the provided `Output` proto. `T` is the
 requested return type; the value in the proto must match that type. For example,
 if `T` is an integral type, the element must have `int_value` set.
 
-### MakeOutput
+### `MakeOutput`
 
 Creates an `Output` with one element. Which field gets set depends on the type
 of the template parameter `T`. For example, `MakeOutput(7)` will set
@@ -80,7 +80,7 @@ template <typename T>
 MakeOutput(T value);
 ```
 
-### AddToOutput
+### `AddToOutput`
 
 Adds an element to the given output. Which field gets set depends on the type of
 the template parameter `T`. For example, `AddToOutput(&output, 7.0)` will add an
@@ -88,5 +88,5 @@ element to `output` and set the `float_value`.
 
 ```
 template <typename T>
-void AddToOutput(Output* output, T value) {
+void AddToOutput(Output* output, T value);
 ```

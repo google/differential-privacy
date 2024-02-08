@@ -27,7 +27,14 @@ licenses(["notice"])
 py_library(
     name = "pld",
     srcs = ["__init__.py"],
-    deps = [":pld_privacy_accountant"],
+    deps = [
+        ":accountant",
+        ":common",
+        ":pld_pmf",
+        ":pld_privacy_accountant",
+        ":privacy_loss_distribution",
+        ":privacy_loss_mechanism",
+    ],
 )
 
 py_library(

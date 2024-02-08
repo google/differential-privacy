@@ -41,6 +41,7 @@ absl::StatusOr<std::unique_ptr<Algorithm>> algorithm =
     noise during testing.
 
 ### Partitions
+
 Several of the parameters refer to the concept of a partition. We define a
 partition as a portion of the data for which a single statistic will be
 released. This is best explained through examples: if you're counting the number
@@ -126,6 +127,6 @@ Note that whichever method of getting a result you use, you can only get a
 single result before your `epsilon` and `delta` are exhausted.
 
 Values are returned from `Result` in an [`Output`](../protos.md) proto. For most
-algorithms, this is a single `int64` or `double` value. Some algorithms contain
-additional data about accuracy and algorithm mechanisms. You can use
+algorithms, this is a single `int64_t` or `double` value. Some algorithms
+contain additional data about accuracy and algorithm mechanisms. You can use
 [`GetValue<Type>`](../protos.md) to get values out of `Output`s easily.

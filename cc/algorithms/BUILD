@@ -683,6 +683,8 @@ cc_test(
         "//base/testing:proto_matchers",
         "//base/testing:status_matchers",
         "@com_google_absl//absl/random",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
         "@com_google_googletest//:gtest_main",
     ],
 )

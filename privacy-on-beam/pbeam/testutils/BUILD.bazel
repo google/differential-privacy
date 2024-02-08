@@ -14,8 +14,8 @@
 # limitations under the License.
 #
 
-load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 load("@bazel_gazelle//:def.bzl", "gazelle")
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 
 # gazelle:prefix github.com/google/differential-privacy/privacy-on-beam/v2/pbeam/testutils
 gazelle(name = "gazelle")
@@ -30,6 +30,7 @@ go_library(
         "//internal/kv:go_default_library",
         "@com_github_apache_beam_sdks_v2//go/pkg/beam:go_default_library",
         "@com_github_apache_beam_sdks_v2//go/pkg/beam/register:go_default_library",
+        "@com_github_apache_beam_sdks_v2//go/pkg/beam/transforms/filter:go_default_library",
         "@com_github_apache_beam_sdks_v2//go/pkg/beam/transforms/stats:go_default_library",
         "@com_github_google_differential_privacy_go_v2//dpagg:go_default_library",
         "@com_github_google_differential_privacy_go_v2//noise:go_default_library",
