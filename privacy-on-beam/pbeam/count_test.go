@@ -65,9 +65,7 @@ func TestCountNoNoise(t *testing.T) {
 	pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
 	got := Count(s, pcol, CountParams{MaxValue: 2, MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}})
 	want = beam.ParDo(s, testutils.PairII64ToKV, want)
-	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-		t.Fatalf("TestCountNoNoise: %v", err)
-	}
+	testutils.ApproxEqualsKVInt64(t, s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon))
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestCountNoNoise: Count(%v) = %v, expected %v: %v", col, got, want, err)
 	}
@@ -112,9 +110,7 @@ func TestCountWithPartitionsNoNoise(t *testing.T) {
 
 		got := Count(s, pcol, countParams)
 		want = beam.ParDo(s, testutils.PairII64ToKV, want)
-		if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-			t.Fatalf("TestCountWithPartitionsNoNoise in-memory=%t: %v", tc.inMemory, err)
-		}
+		testutils.ApproxEqualsKVInt64(t, s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon))
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("TestCountWithPartitionsNoNoise in-memory=%t: Count(%v) = %v, expected %v: %v", tc.inMemory, col, got, want, err)
 		}
@@ -381,9 +377,7 @@ func TestCountCrossPartitionContributionBounding(t *testing.T) {
 	sumOverPartitions := stats.Sum(s, counts)
 	got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
 	want = beam.ParDo(s, testutils.PairII64ToKV, want)
-	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-		t.Fatalf("TestCountCrossPartitionContributionBounding: %v", err)
-	}
+	testutils.ApproxEqualsKVInt64(t, s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon))
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestCountCrossPartitionContributionBounding: Metric(%v) = %v, expected elements to sum to 150: %v", col, got, err)
 	}
@@ -430,9 +424,7 @@ func TestCountWithPartitionsCrossPartitionContributionBounding(t *testing.T) {
 		sumOverPartitions := stats.Sum(s, counts)
 		got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
 		want = beam.ParDo(s, testutils.PairII64ToKV, want)
-		if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-			t.Fatalf("TestCountWithPartitionsCrossPartitionContributionBounding in-memory=%t: %v", tc.inMemory, err)
-		}
+		testutils.ApproxEqualsKVInt64(t, s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon))
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("TestCountWithPartitionsCrossPartitionContributionBounding in-memory=%t: Metric(%v) = %v, expected elements to sum to 150: %v", tc.inMemory, col, got, err)
 		}
@@ -872,9 +864,7 @@ func TestCountNoNoiseTemp(t *testing.T) {
 	pcol := MakePrivate(s, col, spec)
 	got := Count(s, pcol, CountParams{MaxValue: 2, MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}})
 	want = beam.ParDo(s, testutils.PairII64ToKV, want)
-	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-		t.Fatalf("TestCountNoNoiseTemp: %v", err)
-	}
+	testutils.ApproxEqualsKVInt64(t, s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon))
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestCountNoNoiseTemp: Count(%v) = %v, expected %v: %v", col, got, want, err)
 	}
@@ -923,9 +913,7 @@ func TestCountWithPartitionsNoNoiseTemp(t *testing.T) {
 
 		got := Count(s, pcol, countParams)
 		want = beam.ParDo(s, testutils.PairII64ToKV, want)
-		if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-			t.Fatalf("TestCountWithPartitionsNoNoiseTemp in-memory=%t: %v", tc.inMemory, err)
-		}
+		testutils.ApproxEqualsKVInt64(t, s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon))
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("TestCountWithPartitionsNoNoiseTemp in-memory=%t: Count(%v) = %v, expected %v: %v", tc.inMemory, col, got, want, err)
 		}
@@ -966,9 +954,7 @@ func TestCountPreThresholding(t *testing.T) {
 	pcol := MakePrivate(s, col, spec)
 	got := Count(s, pcol, CountParams{MaxValue: int64(l1Sensitivity), MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}})
 	want = beam.ParDo(s, testutils.PairII64ToKV, want)
-	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-		t.Fatalf("TestCountPreThresholding: %v", err)
-	}
+	testutils.ApproxEqualsKVInt64(t, s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon))
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestCountPreThresholding: Count(%v) = %v, expected %v: %v", col, got, want, err)
 	}

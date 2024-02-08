@@ -7,8 +7,8 @@ def dp_java_deps_prework():
 
         This must be called before the rest of the dependencies are loaded.
     """
-    RULES_JVM_EXTERNAL_TAG = "5.1"
-    RULES_JVM_EXTERNAL_SHA = "8c3b207722e5f97f1c83311582a6c11df99226e65e2471086e296561e57cc954"
+    RULES_JVM_EXTERNAL_TAG = "6.0"
+    RULES_JVM_EXTERNAL_SHA = "85fd6bad58ac76cc3a27c8e051e4255ff9ccd8c92ba879670d195622e7c0a9b7"
     BAZEL_COMMON_TAG = "a9e1d8efd54cbf27249695b23775b75ca65bb59d"
     BAZEL_COMMON_SHA = "17ea98149586dff60aa741c67fbd9a010fbb1507df90e741c50403bf5228bea3"
     http_archive(

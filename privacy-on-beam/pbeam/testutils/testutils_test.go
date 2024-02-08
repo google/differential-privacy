@@ -21,8 +21,6 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
-	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 // Tests for the test helpers.
@@ -76,9 +74,7 @@ func TestApproxEqualsKVInt64(t *testing.T) {
 		p, s, col1, col2 := ptest.CreateList2(tc.values1, tc.values2)
 		col1KV := beam.ParDo(s, PairII64ToKV, col1)
 		col2KV := beam.ParDo(s, PairII64ToKV, col2)
-		if err := ApproxEqualsKVInt64(s, col1KV, col2KV, tolerance); err != nil {
-			t.Fatalf("TestApproxEqualsKVInt64: %v", err)
-		}
+		ApproxEqualsKVInt64(t, s, col1KV, col2KV, tolerance)
 		if err := ptest.Run(p); (err != nil) != tc.wantErr {
 			t.Errorf("TestApproxEqualsKVInt64 failed for %s: got=%v, wantErr=%v", tc.desc, err, tc.wantErr)
 		}
@@ -130,20 +126,10 @@ func TestApproxEqualsKVFloat64(t *testing.T) {
 		p, s, col1, col2 := ptest.CreateList2(tc.values1, tc.values2)
 		col1KV := beam.ParDo(s, PairIF64ToKV, col1)
 		col2KV := beam.ParDo(s, PairIF64ToKV, col2)
-		if err := ApproxEqualsKVFloat64(s, col1KV, col2KV, tolerance); err != nil {
-			t.Fatalf("TestApproxEqualsKVFloat64: %v", err)
-		}
+		ApproxEqualsKVFloat64(t, s, col1KV, col2KV, tolerance)
 		if err := ptest.Run(p); (err != nil) != tc.wantErr {
 			t.Errorf("TestApproxEqualsKVFloat64 failed for %s: got=%v, wantErr=%v", tc.desc, err, tc.wantErr)
 		}
-	}
-}
-
-func assertFloat64PtrHasApproxValue(t *testing.T, got *float64, wantValue, tolerance float64) {
-	if got == nil {
-		t.Errorf("got <nil>, want: %g", wantValue)
-	} else if diff := cmp.Diff(*got, wantValue, cmpopts.EquateApprox(0, tolerance)); diff != "" {
-		t.Errorf("got %g, want %g", *got, wantValue)
 	}
 }
 

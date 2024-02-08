@@ -77,20 +77,19 @@ func TestPartitionMapFnMergeAccumulators(t *testing.T) {
 func TestDropNonPublicPartitionsVFn(t *testing.T) {
 	pairs := testutils.ConcatenatePairs(
 		testutils.MakePairsWithFixedV(7, 0),
-		testutils.MakePairsWithFixedV(52, 1),
-		testutils.MakePairsWithFixedV(99, 2),
-		testutils.MakePairsWithFixedV(10, 3),
+		testutils.MakePairsWithFixedVStartingFromKey(7, 10, 1),
+		testutils.MakePairsWithFixedVStartingFromKey(17, 83, 2),
+		testutils.MakePairsWithFixedVStartingFromKey(100, 10, 3),
 	)
 
 	// Keep partitions 0, 2;
 	// drop partitions 1, 3.
 	result := testutils.ConcatenatePairs(
 		testutils.MakePairsWithFixedV(7, 0),
-		testutils.MakePairsWithFixedV(99, 2),
-		testutils.MakePairsWithFixedV(99, 2),
+		testutils.MakePairsWithFixedVStartingFromKey(17, 83, 2),
 	)
 
-	_, s, col, want := ptest.CreateList2(pairs, result)
+	p, s, col, want := ptest.CreateList2(pairs, result)
 	want = beam.ParDo(s, testutils.PairToKV, want)
 	col = beam.ParDo(s, testutils.PairToKV, col)
 	partitions := []int{0, 2}
@@ -99,8 +98,9 @@ func TestDropNonPublicPartitionsVFn(t *testing.T) {
 	epsilon, delta := 50.0, 1e-200
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 	got := dropNonPublicPartitionsVFn(s, partitionsCol, pcol)
-	if err := testutils.EqualsKVInt(s, got, want); err != nil {
-		t.Fatalf("dropNonPublicPartitionsVFn: for %v got: %v, want %v", col, got, want)
+	testutils.EqualsKVInt(t, s, got, want)
+	if err := ptest.Run(p); err != nil {
+		t.Errorf("DropNonPublicPartitionsVFn did not drop non public partitions as expected: %v", err)
 	}
 }
 
@@ -108,18 +108,18 @@ func TestDropNonPublicPartitionsVFn(t *testing.T) {
 // are dropped (tests function used for sum and mean).
 func TestDropNonPublicPartitionsKVFn(t *testing.T) {
 	triples := testutils.ConcatenateTriplesWithIntValue(
-		testutils.MakeSampleTripleWithIntValue(7, 0),
-		testutils.MakeSampleTripleWithIntValue(58, 1),
-		testutils.MakeSampleTripleWithIntValue(99, 2),
-		testutils.MakeSampleTripleWithIntValue(45, 100),
-		testutils.MakeSampleTripleWithIntValue(20, 33))
+		testutils.MakeTripleWithIntValueStartingFromKey(0, 7, 0, 0),
+		testutils.MakeTripleWithIntValueStartingFromKey(7, 3, 1, 0),
+		testutils.MakeTripleWithIntValueStartingFromKey(10, 90, 2, 0),
+		testutils.MakeTripleWithIntValueStartingFromKey(100, 100, 11, 0),
+		testutils.MakeTripleWithIntValueStartingFromKey(200, 5, 12, 0))
 	// Keep partitions 0, 2.
 	// Drop partitions 1, 33, 100.
 	result := testutils.ConcatenateTriplesWithIntValue(
-		testutils.MakeSampleTripleWithIntValue(7, 0),
-		testutils.MakeSampleTripleWithIntValue(99, 2))
+		testutils.MakeTripleWithIntValueStartingFromKey(0, 7, 0, 0),
+		testutils.MakeTripleWithIntValueStartingFromKey(10, 90, 2, 0))
 
-	_, s, col, col2 := ptest.CreateList2(triples, result)
+	p, s, col, col2 := ptest.CreateList2(triples, result)
 	// Doesn't matter that the values 3, 4, 5, 6, 9, 10
 	// are in the partitions PCollection because we are
 	// just dropping the values that are in our original PCollection
@@ -141,8 +141,9 @@ func TestDropNonPublicPartitionsKVFn(t *testing.T) {
 	want := pcol2.col
 	want = beam.SwapKV(s, want)
 
-	if err := testutils.EqualsKVInt(s, got, want); err != nil {
-		t.Fatalf("dropPublicPartitionsKVFn: for %v got: %v, want %v", col, got, want)
+	testutils.EqualsKVInt(t, s, got, want)
+	if err := ptest.Run(p); err != nil {
+		t.Errorf("TestDropNonPublicPartitionsKVFn did not drop non public partitions as expected: %v", err)
 	}
 }
 
@@ -162,7 +163,7 @@ func TestDropNonPublicPartitionsFloat(t *testing.T) {
 	result := testutils.ConcatenateTriplesWithFloatValue(
 		testutils.MakeTripleWithFloatValue(7, 0, 2.0))
 
-	_, s, col, col2 := ptest.CreateList2(triples, result)
+	p, s, col, col2 := ptest.CreateList2(triples, result)
 
 	// Doesn't matter that the values 2, 3, 4, 5, 6, 7 are in the partitions PCollection.
 	// We are just dropping the values that are in our original PCollection that are not in
@@ -184,7 +185,8 @@ func TestDropNonPublicPartitionsFloat(t *testing.T) {
 	want := pcol2.col
 	want = beam.SwapKV(s, want)
 
-	if err := testutils.EqualsKVInt(s, got, want); err != nil {
-		t.Fatalf("DropNonPublicPartitionsFloat: for %v got: %v, want %v", col, got, want)
+	testutils.EqualsKVInt(t, s, got, want)
+	if err := ptest.Run(p); err != nil {
+		t.Errorf("TestDropNonPublicPartitionsFloat did not drop non public partitions as expected: %v", err)
 	}
 }

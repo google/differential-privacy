@@ -89,9 +89,7 @@ func TestDistinctPrivacyIDTestMode(t *testing.T) {
 		sumOverPartitions := stats.Sum(s, counts)
 		got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
 		want = beam.ParDo(s, testutils.PairII64ToKV, want)
-		if err := testutils.EqualsKVInt64(s, got, want); err != nil {
-			t.Fatalf("EqualsKVInt64: %v", err)
-		}
+		testutils.EqualsKVInt64(t, s, got, want)
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("DistinctPrivacyID: %s did not bound contributions correctly: %v", tc.desc, err)
 		}
@@ -152,9 +150,7 @@ func TestDistinctPrivacyIDWithPartitionsTestMode(t *testing.T) {
 		sumOverPartitions := stats.Sum(s, counts)
 		got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
 		want = beam.ParDo(s, testutils.PairII64ToKV, want)
-		if err := testutils.EqualsKVInt64(s, got, want); err != nil {
-			t.Fatalf("EqualsKVInt64: %v", err)
-		}
+		testutils.EqualsKVInt64(t, s, got, want)
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("DistinctPrivacyID: %s with partitions did not bound contributions correctly: %v", tc.desc, err)
 		}
@@ -200,9 +196,7 @@ func TestDistinctPrivacyIDWithPartitionsTestModeAddsEmptyPartitions(t *testing.T
 			NoiseKind:                pbeam.LaplaceNoise{},
 			PublicPartitions:         publicPartitions})
 		want = beam.ParDo(s, testutils.PairII64ToKV, want)
-		if err := testutils.EqualsKVInt64(s, got, want); err != nil {
-			t.Fatalf("EqualsKVInt64: %v", err)
-		}
+		testutils.EqualsKVInt64(t, s, got, want)
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("DistinctPrivacyID: %s with partitions did not add empty partitions: %v", tc.desc, err)
 		}
@@ -265,9 +259,7 @@ func TestCountTestMode(t *testing.T) {
 		sumOverPartitions := stats.Sum(s, counts)
 		got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
 		want = beam.ParDo(s, testutils.PairII64ToKV, want)
-		if err := testutils.EqualsKVInt64(s, got, want); err != nil {
-			t.Fatalf("EqualsKVInt64: %v", err)
-		}
+		testutils.EqualsKVInt64(t, s, got, want)
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("Count: %s did not bound contributions correctly: %v", tc.desc, err)
 		}
@@ -334,9 +326,7 @@ func TestCountWithPartitionsTestMode(t *testing.T) {
 		sumOverPartitions := stats.Sum(s, counts)
 		got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
 		want = beam.ParDo(s, testutils.PairII64ToKV, want)
-		if err := testutils.EqualsKVInt64(s, got, want); err != nil {
-			t.Fatalf("EqualsKVInt64: %v", err)
-		}
+		testutils.EqualsKVInt64(t, s, got, want)
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("Count: %s with partitions did not bound contributions correctly: %v", tc.desc, err)
 		}
@@ -380,9 +370,7 @@ func TestCountWithPartitionsTestModeAddsEmptyPartitions(t *testing.T) {
 			NoiseKind:                pbeam.LaplaceNoise{},
 			PublicPartitions:         publicPartitions})
 		want = beam.ParDo(s, testutils.PairII64ToKV, want)
-		if err := testutils.EqualsKVInt64(s, got, want); err != nil {
-			t.Fatalf("EqualsKVInt64: %v", err)
-		}
+		testutils.EqualsKVInt64(t, s, got, want)
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("Count: %s with partitions did not add empty partitions: %v", tc.desc, err)
 		}
@@ -449,9 +437,7 @@ func TestSumPerKeyTestModeInt(t *testing.T) {
 		sumOverPartitions := stats.Sum(s, sums)
 		got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
 		want = beam.ParDo(s, testutils.PairII64ToKV, want)
-		if err := testutils.EqualsKVInt64(s, got, want); err != nil {
-			t.Fatalf("EqualsKVInt64: %v", err)
-		}
+		testutils.EqualsKVInt64(t, s, got, want)
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("SumPerKey: %s did not bound contributions correctly for ints: %v", tc.desc, err)
 		}
@@ -521,9 +507,7 @@ func TestSumPerKeyWithPartitionsTestModeInt(t *testing.T) {
 		sumOverPartitions := stats.Sum(s, sums)
 		got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
 		want = beam.ParDo(s, testutils.PairII64ToKV, want)
-		if err := testutils.EqualsKVInt64(s, got, want); err != nil {
-			t.Fatalf("EqualsKVInt64: %v", err)
-		}
+		testutils.EqualsKVInt64(t, s, got, want)
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("SumPerKey: %s with partitions did not bound contributions correctly for ints: %v", tc.desc, err)
 		}
@@ -569,9 +553,7 @@ func TestSumPerKeyWithPartitionsTestModeAddsEmptyPartitionsInt(t *testing.T) {
 			NoiseKind:                pbeam.LaplaceNoise{},
 			PublicPartitions:         publicPartitions})
 		want = beam.ParDo(s, testutils.PairII64ToKV, want)
-		if err := testutils.EqualsKVInt64(s, got, want); err != nil {
-			t.Fatalf("EqualsKVInt64: %v", err)
-		}
+		testutils.EqualsKVInt64(t, s, got, want)
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("SumPerKey: %s with partitions did not add empty partitions for ints: %v", tc.desc, err)
 		}
@@ -638,9 +620,7 @@ func TestSumPerKeyTestModeFloat(t *testing.T) {
 		sumOverPartitions := stats.Sum(s, sums)
 		got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
 		want = beam.ParDo(s, testutils.PairIF64ToKV, want)
-		if err := testutils.EqualsKVFloat64(s, got, want); err != nil {
-			t.Fatalf("EqualsKVFloat64: %v", err)
-		}
+		testutils.EqualsKVFloat64(t, s, got, want)
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("SumPerKey: %s did not bound contributions correctly for floats: %v", tc.desc, err)
 		}
@@ -710,9 +690,7 @@ func TestSumPerKeyWithPartitionsTestModeFloat(t *testing.T) {
 		sumOverPartitions := stats.Sum(s, sums)
 		got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
 		want = beam.ParDo(s, testutils.PairIF64ToKV, want)
-		if err := testutils.EqualsKVFloat64(s, got, want); err != nil {
-			t.Fatalf("EqualsKVFloat64: %v", err)
-		}
+		testutils.EqualsKVFloat64(t, s, got, want)
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("SumPerKey: %s with partitions did not bound contributions correctly for floats: %v", tc.desc, err)
 		}
@@ -757,9 +735,7 @@ func TestSumPerKeyWithPartitionsTestModeAddsEmptyPartitionsFloat(t *testing.T) {
 			NoiseKind:        pbeam.LaplaceNoise{},
 			PublicPartitions: publicPartitions})
 		want = beam.ParDo(s, testutils.PairIF64ToKV, want)
-		if err := testutils.EqualsKVFloat64(s, got, want); err != nil {
-			t.Fatalf("EqualsKVFloat64: %v", err)
-		}
+		testutils.EqualsKVFloat64(t, s, got, want)
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("SumPerKey: %s with partitions did not add empty partitions for floats: %v", tc.desc, err)
 		}
@@ -819,9 +795,7 @@ func TestMeanPerKeyTestModeCrossPartitionContributionBounding(t *testing.T) {
 		sumOverPartitions := stats.Sum(s, means)
 		got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
 		want = beam.ParDo(s, testutils.PairIF64ToKV, want)
-		if err := testutils.EqualsKVFloat64(s, got, want); err != nil {
-			t.Fatalf("EqualsKVFloat64: %v", err)
-		}
+		testutils.EqualsKVFloat64(t, s, got, want)
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("MeanPerKey: %s did not do cross-partition contribution bounding correctly: %v", tc.desc, err)
 		}
@@ -884,9 +858,7 @@ func TestMeanPerKeyTestModePerPartitionContributionBounding(t *testing.T) {
 			NoiseKind:                    pbeam.LaplaceNoise{}})
 		want = beam.ParDo(s, testutils.PairIF64ToKV, want)
 		tolerance := 1e-10 // Using a small tolerance to make up for the rounding errors due to summation & division.
-		if err := testutils.ApproxEqualsKVFloat64(s, got, want, tolerance); err != nil {
-			t.Fatalf("ApproxEqualsKVFloat64: %v", err)
-		}
+		testutils.ApproxEqualsKVFloat64(t, s, got, want, tolerance)
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("MeanPerKey: %s did not do per-partition contribution bounding correctly: %v", tc.desc, err)
 		}
@@ -947,9 +919,7 @@ func TestMeanPerKeyWithPartitionsTestModeCrossPartitionContributionBounding(t *t
 		sumOverPartitions := stats.Sum(s, means)
 		got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
 		want = beam.ParDo(s, testutils.PairIF64ToKV, want)
-		if err := testutils.EqualsKVFloat64(s, got, want); err != nil {
-			t.Fatalf("EqualsKVFloat64: %v", err)
-		}
+		testutils.EqualsKVFloat64(t, s, got, want)
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("MeanPerKey: %s with partitions did not do cross-partition contribution bounding correctly: %v", tc.desc, err)
 		}
@@ -1018,9 +988,7 @@ func TestMeanPerKeyWithPartitionsTestModePerPartitionContributionBoundingAddsEmp
 			PublicPartitions:             publicPartitions})
 		want = beam.ParDo(s, testutils.PairIF64ToKV, want)
 		tolerance := 1e-10 // Using a small tolerance to make up for the rounding errors due to summation & division.
-		if err := testutils.ApproxEqualsKVFloat64(s, got, want, tolerance); err != nil {
-			t.Fatalf("EqualsKVFloat64: %v", err)
-		}
+		testutils.ApproxEqualsKVFloat64(t, s, got, want, tolerance)
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("MeanPerKey: %s with partitions did not do per-partition contribution bounding correctly or added empty partitions: %v", tc.desc, err)
 		}
@@ -1101,9 +1069,7 @@ func TestQuantilesPerKeyTestModeCrossPartitionContributionBounding(t *testing.T)
 		want = beam.ParDo(s, testutils.PairIF64ToKV, want)
 		// Tolerance is multiplied by 2 because we sum over 2 partitions.
 		tolerance := QuantilesTolerance(tc.minValue, tc.maxValue) * 2
-		if err := testutils.ApproxEqualsKVFloat64(s, got, want, tolerance); err != nil {
-			t.Fatalf("ApproxEqualsKVFloat64: %v", err)
-		}
+		testutils.ApproxEqualsKVFloat64(t, s, got, want, tolerance)
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("QuantilesPerKey: %s did not bound cross-partition contributions correctly: %v", tc.desc, err)
 		}
@@ -1186,9 +1152,7 @@ func TestQuantilesPerKeyWithPartitionsTestModeCrossPartitionContributionBounding
 		want = beam.ParDo(s, testutils.PairIF64ToKV, want)
 		// Tolerance is multiplied by 2 because we sum over 2 partitions.
 		tolerance := QuantilesTolerance(tc.minValue, tc.maxValue) * 2
-		if err := testutils.ApproxEqualsKVFloat64(s, got, want, tolerance); err != nil {
-			t.Fatalf("ApproxEqualsKVFloat64: %v", err)
-		}
+		testutils.ApproxEqualsKVFloat64(t, s, got, want, tolerance)
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("QuantilesPerKey: %s with partitions did not bound cross-partition contributions correctly: %v", tc.desc, err)
 		}
@@ -1257,9 +1221,7 @@ func TestQuantilesPerKeyTestModePerPartitionContributionBounding(t *testing.T) {
 		got = beam.ParDo(s, testutils.DereferenceFloat64Slice, got)
 
 		want = beam.ParDo(s, testutils.PairIF64ToKV, want)
-		if err := testutils.ApproxEqualsKVFloat64(s, got, want, QuantilesTolerance(tc.minValue, tc.maxValue)); err != nil {
-			t.Fatalf("ApproxEqualsKVFloat64: %v", err)
-		}
+		testutils.ApproxEqualsKVFloat64(t, s, got, want, QuantilesTolerance(tc.minValue, tc.maxValue))
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("QuantilesPerKey: %s did not do per-partition contribution bounding correctly: %v", tc.desc, err)
 		}
@@ -1330,9 +1292,7 @@ func TestQuantilesPerKeyWithPartitionsTestModePerPartitionContributionBounding(t
 		got = beam.ParDo(s, testutils.DereferenceFloat64Slice, got)
 
 		want = beam.ParDo(s, testutils.PairIF64ToKV, want)
-		if err := testutils.ApproxEqualsKVFloat64(s, got, want, QuantilesTolerance(tc.minValue, tc.maxValue)); err != nil {
-			t.Fatalf("ApproxEqualsKVFloat64: %v", err)
-		}
+		testutils.ApproxEqualsKVFloat64(t, s, got, want, QuantilesTolerance(tc.minValue, tc.maxValue))
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("QuantilesPerKey: %s with partitions did not do per-partition contribution bounding correctly: %v", tc.desc, err)
 		}
@@ -1384,9 +1344,7 @@ func TestQuantilesPerKeyWithPartitionsAppliesPublicPartitions(t *testing.T) {
 		})
 
 		want = beam.ParDo(s, testutils.PairIF64SliceToKV, want)
-		if err := testutils.ApproxEqualsKVFloat64Slice(s, got, want, QuantilesTolerance(lower, upper)); err != nil {
-			t.Fatalf("ApproxEqualsKVFloat64Slice: got error %v", err)
-		}
+		testutils.ApproxEqualsKVFloat64Slice(t, s, got, want, QuantilesTolerance(lower, upper))
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("QuantilesPerKey: %s did not apply public partitions correctly: %v", tc.desc, err)
 		}
@@ -1545,9 +1503,7 @@ func TestDistinctPerKeyTestModeCrossPartitionContributionBounding(t *testing.T) 
 		sumOverPartitions := stats.Sum(s, sums)
 		got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
 		want = beam.ParDo(s, testutils.PairII64ToKV, want)
-		if err := testutils.EqualsKVInt64(s, got, want); err != nil {
-			t.Fatalf("EqualsKVInt64: %v", err)
-		}
+		testutils.EqualsKVInt64(t, s, got, want)
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("DistinctPerKey: %s did not bound cross-partition contributions correctly: %v", tc.desc, err)
 		}
@@ -1605,9 +1561,7 @@ func TestDistinctPerKeyTestModePerPartitionContributionBounding(t *testing.T) {
 		sumOverPartitions := stats.Sum(s, sums)
 		got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
 		want = beam.ParDo(s, testutils.PairII64ToKV, want)
-		if err := testutils.EqualsKVInt64(s, got, want); err != nil {
-			t.Fatalf("EqualsKVInt64: %v", err)
-		}
+		testutils.EqualsKVInt64(t, s, got, want)
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("DistinctPerKey: %s did not bound per-partition contributions correctly: %v", tc.desc, err)
 		}
@@ -1670,9 +1624,7 @@ func TestDistinctPerKeyWithPartitionsTestModeCrossPartitionContributionBounding(
 		sumOverPartitions := stats.Sum(s, means)
 		got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
 		want = beam.ParDo(s, testutils.PairII64ToKV, want)
-		if err := testutils.EqualsKVInt64(s, got, want); err != nil {
-			t.Fatalf("EqualsKVInt64: %v", err)
-		}
+		testutils.EqualsKVInt64(t, s, got, want)
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("DistinctPerKey: %s with partitions did not bound contribution bounding correctly: %v", tc.desc, err)
 		}
@@ -1717,9 +1669,7 @@ func TestDistinctPerKeyWithPartitionsTestModeEmptyPartitionsInt(t *testing.T) {
 			NoiseKind:                    pbeam.LaplaceNoise{},
 			PublicPartitions:             publicPartitions})
 		want = beam.ParDo(s, testutils.PairII64ToKV, want)
-		if err := testutils.EqualsKVInt64(s, got, want); err != nil {
-			t.Fatalf("EqualsKVInt64: %v", err)
-		}
+		testutils.EqualsKVInt64(t, s, got, want)
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("DistinctPerKey: %s did not apply public partitions correctly: %v", tc.desc, err)
 		}

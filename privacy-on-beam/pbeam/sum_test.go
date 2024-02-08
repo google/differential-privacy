@@ -60,9 +60,7 @@ func TestSumPerKeyNoNoiseInt(t *testing.T) {
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 	got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 3, MinValue: 0.0, MaxValue: 1, NoiseKind: LaplaceNoise{}})
 	want = beam.ParDo(s, testutils.PairII64ToKV, want)
-	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-		t.Fatalf("TestSumPerKeyNoNoiseInt: %v", err)
-	}
+	testutils.ApproxEqualsKVInt64(t, s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon))
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestSumPerKeyNoNoiseInt: SumPerKey(%v) = %v, expected %v: %v", col, got, want, err)
 	}
@@ -155,9 +153,7 @@ func TestSumPerKeyWithPartitionsNoNoiseInt(t *testing.T) {
 		sumParams := SumParams{MaxPartitionsContributed: 3, MinValue: tc.minValue, MaxValue: tc.maxValue, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions}
 		got := SumPerKey(s, pcol, sumParams)
 		want = beam.ParDo(s, testutils.PairII64ToKV, want)
-		if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-			t.Fatalf("TestSumPerKeyWithPartitionsNoNoiseInt test case=+%v: %v", tc, err)
-		}
+		testutils.ApproxEqualsKVInt64(t, s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon))
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("TestSumPerKeyWithPartitionsNoNoiseInt test case=+%v: SumPerKey(%v) = %v, expected %v: %v", tc, col, got, want, err)
 		}
@@ -185,9 +181,7 @@ func TestSumPerKeyNegativeBoundsInt(t *testing.T) {
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 	got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 2, MinValue: -3, MaxValue: -2, NoiseKind: LaplaceNoise{}})
 	want = beam.ParDo(s, testutils.PairII64ToKV, want)
-	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-		t.Fatalf("TestSumPerKeyNegativeBoundsInt: %v", err)
-	}
+	testutils.ApproxEqualsKVInt64(t, s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon))
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestSumPerKeyNegativeBoundsInt: SumPerKey(%v) = %v, expected %v: %v", col, got, want, err)
 	}
@@ -229,9 +223,7 @@ func TestSumPerKeyWithPartitionsNegativeBoundsInt(t *testing.T) {
 		sumParams := SumParams{MaxPartitionsContributed: 2, MinValue: -3, MaxValue: -2, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions}
 		got := SumPerKey(s, pcol, sumParams)
 		want = beam.ParDo(s, testutils.PairII64ToKV, want)
-		if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-			t.Fatalf("TestSumPerKeyWithPartitionsNegativeBoundsInt in-memory=%t: %v", tc.inMemory, err)
-		}
+		testutils.ApproxEqualsKVInt64(t, s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon))
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("TestSumPerKeyWithPartitionsNegativeBoundsInt in-memory=%t: SumPerKey(%v) = %v, expected %v: %v", tc.inMemory, col, got, want, err)
 		}
@@ -262,9 +254,7 @@ func TestSumPerKeyNoNoiseFloat(t *testing.T) {
 	pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
 	got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 3, MinValue: 0.0, MaxValue: 1.0, NoiseKind: LaplaceNoise{}})
 	want = beam.ParDo(s, testutils.PairIF64ToKV, want)
-	if err := testutils.ApproxEqualsKVFloat64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-		t.Fatalf("TestSumPerKeyNoNoiseFloat: %v", err)
-	}
+	testutils.ApproxEqualsKVFloat64(t, s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon))
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestSumPerKeyNoNoiseFloat: SumPerKey(%v) = %v, expected %v: %v", col, got, want, err)
 	}
@@ -350,9 +340,7 @@ func TestSumPerKeyWithPartitionsNoNoiseFloat(t *testing.T) {
 		sumParams := SumParams{MaxPartitionsContributed: 3, MinValue: tc.minValue, MaxValue: tc.maxValue, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions}
 		got := SumPerKey(s, pcol, sumParams)
 		want = beam.ParDo(s, testutils.PairIF64ToKV, want)
-		if err := testutils.ApproxEqualsKVFloat64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-			t.Fatalf("TestSumPerKeyWithPartitionsNoNoiseFloat test case=%+v: %v", tc, err)
-		}
+		testutils.ApproxEqualsKVFloat64(t, s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon))
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("TestSumPerKeyWithPartitionsNoNoiseFloat test case=%+v: SumPerKey(%v) = %v, expected %v: %v", tc, col, got, want, err)
 		}
@@ -380,9 +368,7 @@ func TestSumPerKeyNegativeBoundsFloat(t *testing.T) {
 	pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
 	got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 2, MinValue: -3.0, MaxValue: -2.0, NoiseKind: LaplaceNoise{}})
 	want = beam.ParDo(s, testutils.PairIF64ToKV, want)
-	if err := testutils.ApproxEqualsKVFloat64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-		t.Fatalf("TestSumPerKeyNegativeBoundsFloat: %v", err)
-	}
+	testutils.ApproxEqualsKVFloat64(t, s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon))
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestSumPerKeyNegativeBoundsFloat: SumPerKey(%v) = %v, expected %v: %v", col, got, want, err)
 	}
@@ -425,9 +411,7 @@ func TestSumPerKeyWithPartitionsNegativeBoundsFloat(t *testing.T) {
 		sumParams := SumParams{MaxPartitionsContributed: 2, MinValue: -3.0, MaxValue: -2.0, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions}
 		got := SumPerKey(s, pcol, sumParams)
 		want = beam.ParDo(s, testutils.PairIF64ToKV, want)
-		if err := testutils.ApproxEqualsKVFloat64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-			t.Fatalf("TestSumPerKeyWithPartitionsNegativeBoundsFloat in-memory=%t: %v", tc.inMemory, err)
-		}
+		testutils.ApproxEqualsKVFloat64(t, s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon))
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("TestSumPerKeyWithPartitionsNegativeBoundsFloat in-memory=%t: SumPerKey(%v) = %v, expected %v: %v", tc.inMemory, col, got, want, err)
 		}
@@ -692,9 +676,7 @@ func TestSumPerKeyCrossPartitionContributionBoundingInt(t *testing.T) {
 	sumOverPartitions := stats.Sum(s, counts)
 	got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
 	want = beam.ParDo(s, testutils.PairII64ToKV, want)
-	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-		t.Fatalf("TestSumPerKeyCrossPartitionContributionBoundingInt: %v", err)
-	}
+	testutils.ApproxEqualsKVInt64(t, s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon))
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestSumPerKeyCrossPartitionContributionBoundingInt: SumPerKey(%v) = %v, expected elements to sum to 150: %v", col, got, err)
 	}
@@ -743,9 +725,7 @@ func TestSumPerKeyWithPartitionsCrossPartitionContributionBoundingInt(t *testing
 		sumOverPartitions := stats.Sum(s, counts)
 		got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
 		want = beam.ParDo(s, testutils.PairII64ToKV, want)
-		if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-			t.Fatalf("TestSumPerKeyWithPartitionsCrossPartitionContributionBoundingInt in-memory=%t: %v", tc.inMemory, err)
-		}
+		testutils.ApproxEqualsKVInt64(t, s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon))
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("TestSumPerKeyWithPartitionsCrossPartitionContributionBoundingInt in-memory=%t: SumPerKey(%v) = %v, expected elements to sum to 150: %v", tc.inMemory, col, got, err)
 		}
@@ -779,9 +759,7 @@ func TestSumPerKeyCrossPartitionContributionBoundingFloat(t *testing.T) {
 	sumOverPartitions := stats.Sum(s, counts)
 	got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
 	want = beam.ParDo(s, testutils.PairIF64ToKV, want)
-	if err := testutils.ApproxEqualsKVFloat64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-		t.Fatalf("TestSumPerKeyCrossPartitionContributionBoundingFloat: %v", err)
-	}
+	testutils.ApproxEqualsKVFloat64(t, s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon))
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestSumPerKeyCrossPartitionContributionBoundingFloat: SumPerKey(%v) = %v, expected elements to sum to 150.0: %v", col, got, err)
 	}
@@ -831,9 +809,7 @@ func TestSumPerKeyWithPartitionsCrossPartitionContributionBoundingFloat(t *testi
 		sumOverPartitions := stats.Sum(s, counts)
 		got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
 		want = beam.ParDo(s, testutils.PairIF64ToKV, want)
-		if err := testutils.ApproxEqualsKVFloat64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-			t.Fatalf("TestSumPerKeyWithPartitionsCrossPartitionContributionBoundingFloat in-memory=%t: %v", tc.inMemory, err)
-		}
+		testutils.ApproxEqualsKVFloat64(t, s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon))
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("TestSumPerKeyWithPartitionsCrossPartitionContributionBoundingFloat in-memory=%t: SumPerKey(%v) = %v, expected elements to sum to 150.0: %v", tc.inMemory, col, got, err)
 		}
@@ -866,9 +842,7 @@ func TestSumPerKeyPerPartitionContributionBoundingInt(t *testing.T) {
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 	got := SumPerKey(s, pcol, SumParams{MinValue: 2, MaxValue: 3, MaxPartitionsContributed: 2, NoiseKind: LaplaceNoise{}})
 	want = beam.ParDo(s, testutils.PairII64ToKV, want)
-	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-		t.Fatalf("TestSumPerKeyPerPartitionContributionBoundingInt: %v", err)
-	}
+	testutils.ApproxEqualsKVInt64(t, s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon))
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestSumPerKeyPerPartitionContributionBoundingInt: SumPerKey(%v) = %v, expected %v: %v", col, got, want, err)
 	}
@@ -900,9 +874,7 @@ func TestSumPerKeyPerPartitionContributionBoundingFloat(t *testing.T) {
 	pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
 	got := SumPerKey(s, pcol, SumParams{MinValue: 2.0, MaxValue: 3.0, MaxPartitionsContributed: 2, NoiseKind: LaplaceNoise{}})
 	want = beam.ParDo(s, testutils.PairIF64ToKV, want)
-	if err := testutils.ApproxEqualsKVFloat64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-		t.Fatalf("TestSumPerKeyPerPartitionContributionBoundingFloat: %v", err)
-	}
+	testutils.ApproxEqualsKVFloat64(t, s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon))
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestSumPerKeyPerPartitionContributionBoundingFloat: SumPerKey(%v) = %v, expected %v: %v", col, got, want, err)
 	}
@@ -1683,9 +1655,7 @@ func TestSumPerKeyNoNoiseIntTemp(t *testing.T) {
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 	got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 3, MinValue: 0.0, MaxValue: 1, NoiseKind: LaplaceNoise{}})
 	want = beam.ParDo(s, testutils.PairII64ToKV, want)
-	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-		t.Fatalf("TestSumPerKeyNoNoiseIntTemp: %v", err)
-	}
+	testutils.ApproxEqualsKVInt64(t, s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon))
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestSumPerKeyNoNoiseIntTemp: SumPerKey(%v) = %v, expected %v: %v", col, got, want, err)
 	}
@@ -1784,9 +1754,7 @@ func TestSumPerKeyWithPartitionsNoNoiseIntTemp(t *testing.T) {
 		sumParams := SumParams{MaxPartitionsContributed: 3, MinValue: tc.minValue, MaxValue: tc.maxValue, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions}
 		got := SumPerKey(s, pcol, sumParams)
 		want = beam.ParDo(s, testutils.PairII64ToKV, want)
-		if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-			t.Fatalf("TestSumPerKeyWithPartitionsNoNoiseIntTemp test case=+%v: %v", tc, err)
-		}
+		testutils.ApproxEqualsKVInt64(t, s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon))
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("TestSumPerKeyWithPartitionsNoNoiseIntTemp test case=+%v: SumPerKey(%v) = %v, expected %v: %v", tc, col, got, want, err)
 		}
@@ -1827,9 +1795,7 @@ func TestSumPerKeyPreThresholdingInt(t *testing.T) {
 	got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 1, MinValue: 0, MaxValue: 1, NoiseKind: LaplaceNoise{}})
 
 	// Assert
-	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-		t.Fatalf("TestSumPerKeyPreThresholdingInt: %v", err)
-	}
+	testutils.ApproxEqualsKVInt64(t, s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon))
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestSumPerKeyPreThresholdingInt: SumPerKey(%v) = %v, expected %v: %v", col, got, want, err)
 	}
@@ -1868,9 +1834,7 @@ func TestSumPerKeyPreThresholdingFloat(t *testing.T) {
 	got := SumPerKey(s, pcol, SumParams{MaxPartitionsContributed: 1, MinValue: 0, MaxValue: 1, NoiseKind: LaplaceNoise{}})
 
 	// Assert
-	if err := testutils.ApproxEqualsKVFloat64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-		t.Fatalf("TestSumPerKeyPreThresholdingFloat: %v", err)
-	}
+	testutils.ApproxEqualsKVFloat64(t, s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon))
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestSumPerKeyPreThresholdingFloat: SumPerKey(%v) = %v, expected %v: %v", col, got, want, err)
 	}

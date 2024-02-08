@@ -563,18 +563,13 @@ func TestDropKey(t *testing.T) {
 	pcol = DropKey(s, pcol)
 
 	// Assert that adding a test key of 0 and removing it is a no-op.
-	if err := testutils.EqualsKVInt(s, pcol.col, colKV); err != nil {
-		t.Fatalf("DropKey() did not work as expected: %v", err)
-	}
+	testutils.EqualsKVInt(t, s, pcol.col, colKV)
 	publicPartitionsSlice := []int{100}
 	publicPartitions := beam.CreateList(s, publicPartitionsSlice)
 	got := Count(s, pcol, CountParams{MaxValue: 1, MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions})
 	want = beam.ParDo(s, testutils.PairII64ToKV, want)
 
-	if err := testutils.EqualsKVInt64(s, got, want); err != nil {
-		t.Fatalf("Count() is different than expected: %v", err)
-	}
-
+	testutils.EqualsKVInt64(t, s, got, want)
 	if err := ptest.Run(p); err != nil {
 		t.Error(err)
 	}
@@ -600,19 +595,14 @@ func TestDropValue(t *testing.T) {
 	pcol = DropValue(s, pcol)
 
 	// Assert that adding a test value of 0 and removing it is a no-op.
-	if err := testutils.EqualsKVInt(s, pcol.col, colKV); err != nil {
-		t.Fatalf("DropValue() did not work as expected: %v", err)
-	}
+	testutils.EqualsKVInt(t, s, pcol.col, colKV)
 
 	publicPartitionsSlice := []int{100}
 	publicPartitions := beam.CreateList(s, publicPartitionsSlice)
 	got := Count(s, pcol, CountParams{MaxValue: 1, MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions})
 	want = beam.ParDo(s, testutils.PairII64ToKV, want)
 
-	if err := testutils.EqualsKVInt64(s, got, want); err != nil {
-		t.Fatalf("Count() is different than expected: %v", err)
-	}
-
+	testutils.EqualsKVInt64(t, s, got, want)
 	if err := ptest.Run(p); err != nil {
 		t.Error(err)
 	}

@@ -442,9 +442,7 @@ func TestQuantilesPerKeyAddsNoise(t *testing.T) {
 		got1 = beam.ParDo(s, testutils.DereferenceFloat64Slice, got1)
 		got2 = beam.ParDo(s, testutils.DereferenceFloat64Slice, got2)
 
-		if err := testutils.NotEqualsFloat64(s, got1, got2); err != nil {
-			t.Fatalf("NotEqualsFloat64: got error %v", err)
-		}
+		testutils.NotEqualsFloat64(t, s, got1, got2)
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("QuantilesPerKey didn't add any noise with float inputs and %s Noise: %v", tc.name, err)
 		}
@@ -525,9 +523,7 @@ func TestQuantilesWithPartitionsPerKeyAddsNoise(t *testing.T) {
 		got1 = beam.ParDo(s, testutils.DereferenceFloat64Slice, got1)
 		got2 = beam.ParDo(s, testutils.DereferenceFloat64Slice, got2)
 
-		if err := testutils.NotEqualsFloat64(s, got1, got2); err != nil {
-			t.Fatalf("NotEqualsFloat64: got error %v", err)
-		}
+		testutils.NotEqualsFloat64(t, s, got1, got2)
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("QuantilesPerKey with partitions %s didn't add any noise: %v", tc.desc, err)
 		}
@@ -568,9 +564,7 @@ func TestQuantilesPerKeyNoNoise(t *testing.T) {
 
 	// Assert
 	want = beam.ParDo(s, testutils.PairIF64SliceToKV, want)
-	if err := testutils.ApproxEqualsKVFloat64Slice(s, got, want, testutils.QuantilesTolerance(lower, upper)); err != nil {
-		t.Fatalf("ApproxEqualsKVFloat64Slice: got error %v", err)
-	}
+	testutils.ApproxEqualsKVFloat64Slice(t, s, got, want, testutils.QuantilesTolerance(lower, upper))
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("QuantilesPerKey did not return approximate quantile: %v", err)
 	}
@@ -625,9 +619,7 @@ func TestQuantilesPerKeyWithPartitionsNoNoise(t *testing.T) {
 
 		// Assert
 		want = beam.ParDo(s, testutils.PairIF64SliceToKV, want)
-		if err := testutils.ApproxEqualsKVFloat64Slice(s, got, want, testutils.QuantilesTolerance(lower, upper)); err != nil {
-			t.Fatalf("ApproxEqualsKVFloat64Slice in-memory=%t: got error %v", tc.inMemory, err)
-		}
+		testutils.ApproxEqualsKVFloat64Slice(t, s, got, want, testutils.QuantilesTolerance(lower, upper))
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("QuantilesPerKey with partitions in-memory=%t did not return approximate quantile: %v", tc.inMemory, err)
 		}
@@ -828,9 +820,7 @@ func TestQuantilesPerKeyCrossPartitionContributionBounding(t *testing.T) {
 	got = beam.AddFixedKey(s, maxOverPartitions) // Adds a fixed key of 0.
 
 	want = beam.ParDo(s, testutils.PairIF64ToKV, want)
-	if err := testutils.LessThanOrEqualToKVFloat64(s, got, want); err != nil {
-		t.Fatalf("LessThanOrEqualToKVFloat64: got error %v", err)
-	}
+	testutils.LessThanOrEqualToKVFloat64(t, s, got, want)
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("QuantilesPerKey did not bound cross-partition contributions correctly: %v", err)
 	}
@@ -896,9 +886,7 @@ func TestQuantilesPerKeyWithPartitionsCrossPartitionContributionBounding(t *test
 		got = beam.AddFixedKey(s, maxOverPartitions) // Adds a fixed key of 0.
 
 		want = beam.ParDo(s, testutils.PairIF64ToKV, want)
-		if err := testutils.LessThanOrEqualToKVFloat64(s, got, want); err != nil {
-			t.Fatalf("LessThanOrEqualToKVFloat64 in-memory=%t: got error %v", tc.inMemory, err)
-		}
+		testutils.LessThanOrEqualToKVFloat64(t, s, got, want)
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("QuantilesPerKey with partitions in-memory=%t did not bound cross-partition contributions correctly: %v", tc.inMemory, err)
 		}
@@ -940,9 +928,7 @@ func TestQuantilesPerKeyPerPartitionContributionBounding(t *testing.T) {
 	})
 
 	want = beam.ParDo(s, testutils.PairIF64SliceToKV, want)
-	if err := testutils.ApproxEqualsKVFloat64Slice(s, got, want, testutils.QuantilesTolerance(lower, upper)); err != nil {
-		t.Fatalf("ApproxEqualsKVFloat64Slice: got error %v", err)
-	}
+	testutils.ApproxEqualsKVFloat64Slice(t, s, got, want, testutils.QuantilesTolerance(lower, upper))
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("QuantilesPerKey did not bound cross-partition contributions correctly: %v", err)
 	}
@@ -999,9 +985,7 @@ func TestQuantilesPerKeyWithPartitionsPerPartitionContributionBounding(t *testin
 		got := QuantilesPerKey(s, pcol, quantilesParams)
 
 		want = beam.ParDo(s, testutils.PairIF64SliceToKV, want)
-		if err := testutils.ApproxEqualsKVFloat64Slice(s, got, want, testutils.QuantilesTolerance(lower, upper)); err != nil {
-			t.Fatalf("ApproxEqualsKVFloat64Slice in-memory=%t: got error %v", tc.inMemory, err)
-		}
+		testutils.ApproxEqualsKVFloat64Slice(t, s, got, want, testutils.QuantilesTolerance(lower, upper))
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("QuantilesPerKey with partitions in-memory=%t did not bound cross-partition contributions correctly: %v", tc.inMemory, err)
 		}
@@ -1039,9 +1023,7 @@ func TestQuantilesPerKeyAppliesClamping(t *testing.T) {
 	})
 
 	want = beam.ParDo(s, testutils.PairIF64SliceToKV, want)
-	if err := testutils.ApproxEqualsKVFloat64Slice(s, got, want, testutils.QuantilesTolerance(lower, upper)); err != nil {
-		t.Fatalf("ApproxEqualsKVFloat64Slice: got error %v", err)
-	}
+	testutils.ApproxEqualsKVFloat64Slice(t, s, got, want, testutils.QuantilesTolerance(lower, upper))
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("QuantilesPerKey did not clamp input values: %v", err)
 	}
@@ -1094,9 +1076,7 @@ func TestQuantilesPerKeyWithPartitionsAppliesClamping(t *testing.T) {
 		got := QuantilesPerKey(s, pcol, quantilesParams)
 
 		want = beam.ParDo(s, testutils.PairIF64SliceToKV, want)
-		if err := testutils.ApproxEqualsKVFloat64Slice(s, got, want, testutils.QuantilesTolerance(lower, upper)); err != nil {
-			t.Fatalf("ApproxEqualsKVFloat64Slice in-memory=%t: got error %v", tc.inMemory, err)
-		}
+		testutils.ApproxEqualsKVFloat64Slice(t, s, got, want, testutils.QuantilesTolerance(lower, upper))
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("QuantilesPerKey with partitions in-memory=%t did not clamp input values: %v", tc.inMemory, err)
 		}
@@ -1638,9 +1618,7 @@ func TestQuantilesPerKeyNoNoiseTemp(t *testing.T) {
 	})
 
 	// Assert
-	if err := testutils.ApproxEqualsKVFloat64Slice(s, got, want, testutils.QuantilesTolerance(lower, upper)); err != nil {
-		t.Fatalf("ApproxEqualsKVFloat64Slice: got error %v", err)
-	}
+	testutils.ApproxEqualsKVFloat64Slice(t, s, got, want, testutils.QuantilesTolerance(lower, upper))
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("QuantilesPerKey did not return approximate quantile: %v", err)
 	}
@@ -1699,9 +1677,7 @@ func TestQuantilesPerKeyWithPartitionsNoNoiseTemp(t *testing.T) {
 		got := QuantilesPerKey(s, pcol, quantilesParams)
 
 		// Assert
-		if err := testutils.ApproxEqualsKVFloat64Slice(s, got, want, testutils.QuantilesTolerance(lower, upper)); err != nil {
-			t.Fatalf("ApproxEqualsKVFloat64Slice in-memory=%t: got error %v", tc.inMemory, err)
-		}
+		testutils.ApproxEqualsKVFloat64Slice(t, s, got, want, testutils.QuantilesTolerance(lower, upper))
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("QuantilesPerKey with partitions in-memory=%t did not return approximate quantile: %v", tc.inMemory, err)
 		}
@@ -1751,9 +1727,7 @@ func TestQuantilesPerKeyPreThresholding(t *testing.T) {
 	})
 
 	// Assert
-	if err := testutils.ApproxEqualsKVFloat64Slice(s, got, want, testutils.QuantilesTolerance(lower, upper)); err != nil {
-		t.Fatalf("ApproxEqualsKVFloat64Slice: got error %v", err)
-	}
+	testutils.ApproxEqualsKVFloat64Slice(t, s, got, want, testutils.QuantilesTolerance(lower, upper))
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestQuantilesPerKeyPreThresholding: %v", err)
 	}

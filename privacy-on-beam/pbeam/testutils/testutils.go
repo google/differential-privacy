@@ -24,6 +24,7 @@ import (
 	"math"
 	"math/big"
 	"reflect"
+	"testing"
 
 	"github.com/google/differential-privacy/go/v2/dpagg"
 	"github.com/google/differential-privacy/go/v2/noise"
@@ -313,50 +314,49 @@ func ConcatenatePairs(slices ...[]PairII) []PairII {
 
 // EqualsKVInt checks that two PCollections col1 and col2 of type
 // <K,int> are exactly equal.
-func EqualsKVInt(s beam.Scope, col1, col2 beam.PCollection) error {
+func EqualsKVInt(t *testing.T, s beam.Scope, col1, col2 beam.PCollection) {
+	t.Helper()
 	wantV := reflect.TypeOf(int(0))
 	if err := checkValueType(col1, wantV); err != nil {
-		return fmt.Errorf("unexpected value type for col1: %v", err)
+		t.Fatalf("EqualsKVInt: unexpected value type for col1: %v", err)
 	}
 	if err := checkValueType(col2, wantV); err != nil {
-		return fmt.Errorf("unexpected value type for col2: %v", err)
+		t.Fatalf("EqualsKVInt: unexpected value type for col2: %v", err)
 	}
 
 	coGroupToValue := beam.CoGroupByKey(s, col1, col2)
 	diffs := beam.ParDo(s, diffIntFn, coGroupToValue)
 	combinedDiff := beam.Combine(s, combineDiffs, diffs)
 	beam.ParDo0(s, reportDiffs, combinedDiff)
-	return nil
 }
 
 // EqualsKVInt64 checks that two PCollections col1 and col2 of type
 // <K,int64> are exactly equal. Each key can only hold a single value.
-func EqualsKVInt64(s beam.Scope, col1, col2 beam.PCollection) error {
-	return ApproxEqualsKVInt64(s, col1, col2, 0.0)
+func EqualsKVInt64(t *testing.T, s beam.Scope, col1, col2 beam.PCollection) {
+	ApproxEqualsKVInt64(t, s, col1, col2, 0.0)
 }
 
 // EqualsKVFloat64 checks that two PCollections col1 and col2 of type
 // <K,float64> are exactly equal. Each key can only hold a single value.
-func EqualsKVFloat64(s beam.Scope, col1, col2 beam.PCollection) error {
-	return ApproxEqualsKVFloat64(s, col1, col2, 0.0)
+func EqualsKVFloat64(t *testing.T, s beam.Scope, col1, col2 beam.PCollection) {
+	ApproxEqualsKVFloat64(t, s, col1, col2, 0.0)
 }
 
 // NotEqualsFloat64 checks that two PCollections col1 and col2 of type
 // <K,float64> are different. Each key can only hold a single value.
-func NotEqualsFloat64(s beam.Scope, col1, col2 beam.PCollection) error {
+func NotEqualsFloat64(t *testing.T, s beam.Scope, col1, col2 beam.PCollection) {
+	t.Helper()
 	wantV := reflect.TypeOf(float64(0))
 	if err := checkValueType(col1, wantV); err != nil {
-		return fmt.Errorf("unexpected value type for col1: %v", err)
+		t.Fatalf("NotEqualsFloat64: unexpected value type for col1: %v", err)
 	}
 	if err := checkValueType(col2, wantV); err != nil {
-		return fmt.Errorf("unexpected value type for col2: %v", err)
+		t.Fatalf("NotEqualsFloat64: unexpected value type for col2: %v", err)
 	}
-
 	coGroupToValue := beam.CoGroupByKey(s, col1, col2)
 	diffs := beam.ParDo(s, &diffFloat64Fn{Tolerance: 0.0}, coGroupToValue)
 	combinedDiff := beam.Combine(s, combineDiffs, diffs)
 	beam.ParDo0(s, reportEquals, combinedDiff)
-	return nil
 }
 
 // ApproxEqualsKVInt64 checks that two PCollections col1 and col2 of type
@@ -364,20 +364,20 @@ func NotEqualsFloat64(s beam.Scope, col1, col2 beam.PCollection) error {
 // "the keys are the same in both col1 and col2, and the value associated with
 // key k in col1 is within the specified tolerance of the value associated with k
 // in col2". Each key can only hold a single value.
-func ApproxEqualsKVInt64(s beam.Scope, col1, col2 beam.PCollection, tolerance float64) error {
+func ApproxEqualsKVInt64(t *testing.T, s beam.Scope, col1, col2 beam.PCollection, tolerance float64) {
+	t.Helper()
 	wantV := reflect.TypeOf(int64(0))
 	if err := checkValueType(col1, wantV); err != nil {
-		return fmt.Errorf("unexpected value type for col1: %v", err)
+		t.Fatalf("ApproxEqualsKVInt64: unexpected value type for col1: %v", err)
 	}
 	if err := checkValueType(col2, wantV); err != nil {
-		return fmt.Errorf("unexpected value type for col2: %v", err)
+		t.Fatalf("ApproxEqualsKVInt64: unexpected value type for col2: %v", err)
 	}
 
 	coGroupToValue := beam.CoGroupByKey(s, col1, col2)
 	diffs := beam.ParDo(s, &diffInt64Fn{Tolerance: tolerance}, coGroupToValue)
 	combinedDiff := beam.Combine(s, combineDiffs, diffs)
 	beam.ParDo0(s, reportDiffs, combinedDiff)
-	return nil
 }
 
 // ApproxEqualsKVFloat64 checks that two PCollections col1 and col2 of type
@@ -385,39 +385,39 @@ func ApproxEqualsKVInt64(s beam.Scope, col1, col2 beam.PCollection, tolerance fl
 // "the keys are the same in both col1 and col2, and the value associated with
 // key k in col1 is within the specified tolerance of the value associated with k
 // in col2". Each key can only hold a single value.
-func ApproxEqualsKVFloat64(s beam.Scope, col1, col2 beam.PCollection, tolerance float64) error {
+func ApproxEqualsKVFloat64(t *testing.T, s beam.Scope, col1, col2 beam.PCollection, tolerance float64) {
+	t.Helper()
 	wantV := reflect.TypeOf(float64(0))
 	if err := checkValueType(col1, wantV); err != nil {
-		return fmt.Errorf("unexpected value type for col1: %v", err)
+		t.Fatalf("ApproxEqualsKVFloat64: unexpected value type for col1: %v", err)
 	}
 	if err := checkValueType(col2, wantV); err != nil {
-		return fmt.Errorf("unexpected value type for col2: %v", err)
+		t.Fatalf("ApproxEqualsKVFloat64: unexpected value type for col2: %v", err)
 	}
 
 	coGroupToValue := beam.CoGroupByKey(s, col1, col2)
 	diffs := beam.ParDo(s, &diffFloat64Fn{Tolerance: tolerance}, coGroupToValue)
 	combinedDiff := beam.Combine(s, combineDiffs, diffs)
 	beam.ParDo0(s, reportDiffs, combinedDiff)
-	return nil
 }
 
 // LessThanOrEqualToKVFloat64 checks that for PCollections col1 and col2 of type
 // <K,float64>, for each key k, value corresponding to col1 is less than or equal
 // to the value corresponding in col2. Each key can only hold a single value.
-func LessThanOrEqualToKVFloat64(s beam.Scope, col1, col2 beam.PCollection) error {
+func LessThanOrEqualToKVFloat64(t *testing.T, s beam.Scope, col1, col2 beam.PCollection) {
+	t.Helper()
 	wantV := reflect.TypeOf(float64(0))
 	if err := checkValueType(col1, wantV); err != nil {
-		return fmt.Errorf("unexpected value type for col1: %v", err)
+		t.Fatalf("LessThanOrEqualToKVFloat64: unexpected value type for col1: %v", err)
 	}
 	if err := checkValueType(col2, wantV); err != nil {
-		return fmt.Errorf("unexpected value type for col2: %v", err)
+		t.Fatalf("LessThanOrEqualToKVFloat64: unexpected value type for col2: %v", err)
 	}
 
 	coGroupToValue := beam.CoGroupByKey(s, col1, col2)
 	diffs := beam.ParDo(s, lessThanOrEqualTo, coGroupToValue)
 	combinedDiff := beam.Combine(s, combineDiffs, diffs)
 	beam.ParDo0(s, reportGreaterThan, combinedDiff)
-	return nil
 }
 
 // ApproxEqualsKVFloat64Slice checks that two PCollections col1 and col2 of type
@@ -425,20 +425,20 @@ func LessThanOrEqualToKVFloat64(s beam.Scope, col1, col2 beam.PCollection) error
 // "the keys are the same in both col1 and col2, and each value in the slice
 // associated with key k in col1 is within the specified tolerance of each value
 // in the slice associated with k in col2". Each key can only hold a single slice.
-func ApproxEqualsKVFloat64Slice(s beam.Scope, col1, col2 beam.PCollection, tolerance float64) error {
+func ApproxEqualsKVFloat64Slice(t *testing.T, s beam.Scope, col1, col2 beam.PCollection, tolerance float64) {
+	t.Helper()
 	wantV := reflect.TypeOf([]float64{0.0})
 	if err := checkValueType(col1, wantV); err != nil {
-		return fmt.Errorf("unexpected value type for col1: %v", err)
+		t.Fatalf("ApproxEqualsKVFloat64Slice: unexpected value type for col1: %v", err)
 	}
 	if err := checkValueType(col2, wantV); err != nil {
-		return fmt.Errorf("unexpected value type for col2: %v", err)
+		t.Fatalf("ApproxEqualsKVFloat64Slice: unexpected value type for col2: %v", err)
 	}
 
 	coGroupToValue := beam.CoGroupByKey(s, col1, col2)
 	diffs := beam.ParDo(s, &diffFloat64SliceFn{Tolerance: tolerance}, coGroupToValue)
 	combinedDiff := beam.Combine(s, combineDiffs, diffs)
 	beam.ParDo0(s, reportDiffs, combinedDiff)
-	return nil
 }
 
 func reportEquals(diffs string) error {

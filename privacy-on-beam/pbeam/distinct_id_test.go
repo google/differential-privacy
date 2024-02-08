@@ -88,9 +88,7 @@ func TestDistinctPrivacyIDNoNoise(t *testing.T) {
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 	got := DistinctPrivacyID(s, pcol, DistinctPrivacyIDParams{MaxPartitionsContributed: 4, NoiseKind: LaplaceNoise{}})
 	want = beam.ParDo(s, testutils.PairII64ToKV, want)
-	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-		t.Fatalf("TestDistinctPrivacyIDNoNoise: %v", err)
-	}
+	testutils.ApproxEqualsKVInt64(t, s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon))
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestDistinctPrivacyIDNoNoise: DistinctPrivacyID(%v) = %v, expected %v: %v", col, got, want, err)
 	}
@@ -141,9 +139,7 @@ func TestDistinctPrivacyIDWithPartitionsNoNoise(t *testing.T) {
 		distinctPrivacyIDParams := DistinctPrivacyIDParams{MaxPartitionsContributed: 4, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions}
 		got := DistinctPrivacyID(s, pcol, distinctPrivacyIDParams)
 		want = beam.ParDo(s, testutils.PairII64ToKV, want)
-		if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-			t.Fatalf("TestDistinctPrivacyIDWithPartitionsNoNoise in-memory=%t: %v", tc.inMemory, err)
-		}
+		testutils.ApproxEqualsKVInt64(t, s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon))
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("TestDistinctPrivacyIDWithPartitionsNoNoise in-memory=%t: DistinctPrivacyID(%v) = %v, expected %v: %v", tc.inMemory, col, got, want, err)
 		}
@@ -426,9 +422,7 @@ func TestDistinctPrivacyIDCrossPartitionContributionBounding(t *testing.T) {
 	sumOverPartitions := stats.Sum(s, counts)
 	got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
 	want = beam.ParDo(s, testutils.PairII64ToKV, want)
-	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-		t.Fatalf("TestDistinctPrivacyIDCrossPartitionContributionBounding: %v", err)
-	}
+	testutils.ApproxEqualsKVInt64(t, s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon))
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestDistinctPrivacyIDCrossPartitionContributionBounding: DistinctPrivacyID(%v) = %v, expected elements to sum to 150: %v", col, got, err)
 	}
@@ -476,9 +470,7 @@ func TestDistinctPrivacyIDWithPartitionsCrossPartitionContributionBounding(t *te
 		sumOverPartitions := stats.Sum(s, counts)
 		got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
 		want = beam.ParDo(s, testutils.PairII64ToKV, want)
-		if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-			t.Fatalf("TestDistinctPrivacyIDWithPartitionsCrossPartitionContributionBounding in-memory=%t: %v", tc.inMemory, err)
-		}
+		testutils.ApproxEqualsKVInt64(t, s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon))
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("TestDistinctPrivacyIDWithPartitionsCrossPartitionContributionBounding in-memory=%t: DistinctPrivacyID(%v) = %v, expected elements to sum to 150: %v", tc.inMemory, col, got, err)
 		}
@@ -579,9 +571,7 @@ func TestDistinctPrivacyIDOptimizedContrib(t *testing.T) {
 	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
 	got := DistinctPrivacyID(s, pcol, DistinctPrivacyIDParams{MaxPartitionsContributed: 4, NoiseKind: LaplaceNoise{}})
 	want = beam.ParDo(s, testutils.PairII64ToKV, want)
-	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-		t.Fatalf("TestDistinctPrivacyIDOptimizedContrib: %v", err)
-	}
+	testutils.ApproxEqualsKVInt64(t, s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon))
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestDistinctPrivacyIDOptimizedContrib: DistinctPrivacyID(%v) = %v, expected %v: %v", col, got, want, err)
 	}
@@ -1116,9 +1106,7 @@ func TestDistinctPrivacyIDNoNoiseTemp(t *testing.T) {
 	pcol := MakePrivate(s, col, spec)
 	got := DistinctPrivacyID(s, pcol, DistinctPrivacyIDParams{MaxPartitionsContributed: 4, NoiseKind: LaplaceNoise{}})
 	want = beam.ParDo(s, testutils.PairII64ToKV, want)
-	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-		t.Fatalf("TestDistinctPrivacyIDNoNoiseTemp: %v", err)
-	}
+	testutils.ApproxEqualsKVInt64(t, s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon))
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestDistinctPrivacyIDNoNoiseTemp: DistinctPrivacyID(%v) = %v, expected %v: %v", col, got, want, err)
 	}
@@ -1172,9 +1160,7 @@ func TestDistinctPrivacyIDWithPartitionsNoNoiseTemp(t *testing.T) {
 		distinctPrivacyIDParams := DistinctPrivacyIDParams{MaxPartitionsContributed: 4, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions}
 		got := DistinctPrivacyID(s, pcol, distinctPrivacyIDParams)
 		want = beam.ParDo(s, testutils.PairII64ToKV, want)
-		if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-			t.Fatalf("TestDistinctPrivacyIDWithPartitionsNoNoiseTemp in-memory=%t: %v", tc.inMemory, err)
-		}
+		testutils.ApproxEqualsKVInt64(t, s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon))
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("TestDistinctPrivacyIDWithPartitionsNoNoiseTemp in-memory=%t: DistinctPrivacyID(%v) = %v, expected %v: %v", tc.inMemory, col, got, want, err)
 		}
@@ -1214,9 +1200,7 @@ func TestDistinctPrivacyIDPreThresholding(t *testing.T) {
 	pcol := MakePrivate(s, col, spec)
 	got := DistinctPrivacyID(s, pcol, DistinctPrivacyIDParams{MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}})
 	want = beam.ParDo(s, testutils.PairII64ToKV, want)
-	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-		t.Fatalf("TestDistinctPrivacyIDPreThresholding: %v", err)
-	}
+	testutils.ApproxEqualsKVInt64(t, s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon))
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestDistinctPrivacyIDPreThresholding: Count(%v) = %v, expected %v: %v", col, got, want, err)
 	}

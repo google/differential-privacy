@@ -569,9 +569,7 @@ func TestMeanPerKeyNoNoiseFloat(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LaplaceToleranceForMean: got error %v", err)
 	}
-	if err := testutils.ApproxEqualsKVFloat64(s, got, want, tolerance); err != nil {
-		t.Fatalf("ApproxEqualsKVFloat64: got error %v", err)
-	}
+	testutils.ApproxEqualsKVFloat64(t, s, got, want, tolerance)
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestMeanPerKeyNoNoiseFloat: MeanPerKey(%v) = %v, want %v, error %v", col, got, want, err)
 	}
@@ -623,9 +621,7 @@ func TestMeanPerKeyNoNoiseInt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LaplaceToleranceForMean: got error %v", err)
 	}
-	if err := testutils.ApproxEqualsKVFloat64(s, got, want, tolerance); err != nil {
-		t.Fatalf("ApproxEqualsKVFloat64: got error %v", err)
-	}
+	testutils.ApproxEqualsKVFloat64(t, s, got, want, tolerance)
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestMeanPerKeyNoNoiseInt: MeanPerKey(%v) = %v, want %v, error %v", col, got, want, err)
 	}
@@ -721,9 +717,7 @@ func TestMeanPerKeyWithPartitionsNoNoiseFloat(t *testing.T) {
 		if err != nil {
 			t.Fatalf("LaplaceToleranceForMean test case=%+v: got error %v", tc, err)
 		}
-		if err := testutils.ApproxEqualsKVFloat64(s, got, want, tolerance); err != nil {
-			t.Fatalf("ApproxEqualsKVFloat64 test case=%+v: got error %v", tc, err)
-		}
+		testutils.ApproxEqualsKVFloat64(t, s, got, want, tolerance)
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("TestMeanPerKeyWithPartitionsNoNoiseFloat test case=%+v: MeanPerKey(%v) = %v, want %v, error %v", tc, col, got, want, err)
 		}
@@ -823,9 +817,7 @@ func TestMeanPerKeyWithPartitionsNoNoiseInt(t *testing.T) {
 		if err != nil {
 			t.Fatalf("LaplaceToleranceForMean: test case=%+v got error %v", tc, err)
 		}
-		if err := testutils.ApproxEqualsKVFloat64(s, got, want, tolerance); err != nil {
-			t.Fatalf("ApproxEqualsKVFloat64 test case=%+v: got error %v", tc, err)
-		}
+		testutils.ApproxEqualsKVFloat64(t, s, got, want, tolerance)
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("TestMeanPerKeyWithPartitionsNoNoiseInt test case=%+v: MeanPerKey(%v) = %v, want %v, error %v", tc, col, got, want, err)
 		}
@@ -881,9 +873,7 @@ func TestMeanPerKeyCountsPrivacyUnitIDsWithMultipleContributionsCorrectly(t *tes
 	if err != nil {
 		t.Fatalf("LaplaceToleranceForMean: got error %v", err)
 	}
-	if err := testutils.ApproxEqualsKVFloat64(s, got, want, tolerance); err != nil {
-		t.Fatalf("ApproxEqualsKVFloat64: got error %v", err)
-	}
+	testutils.ApproxEqualsKVFloat64(t, s, got, want, tolerance)
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("MeanPerKey: for %v got %v, want %v, error %v", col, got, want, err)
 	}
@@ -1018,9 +1008,7 @@ func TestMeanKeyNegativeBounds(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LaplaceToleranceForMean: got error %v", err)
 	}
-	if err := testutils.ApproxEqualsKVFloat64(s, got, want, tolerance); err != nil {
-		t.Fatalf("ApproxEqualsKVFloat64: got error %v", err)
-	}
+	testutils.ApproxEqualsKVFloat64(t, s, got, want, tolerance)
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestMeanPerKeyNegativeBounds: MeanPerKey(%v) = %v, want %v, error %v", col, got, want, err)
 	}
@@ -1086,9 +1074,7 @@ func TestMeanPerKeyCrossPartitionContributionBounding(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LaplaceToleranceForMean: got error %v", err)
 	}
-	if err := testutils.ApproxEqualsKVFloat64(s, got, want, tolerance1+tolerance2); err != nil {
-		t.Fatalf("ApproxEqualsKVFloat64: got error %v", err)
-	}
+	testutils.ApproxEqualsKVFloat64(t, s, got, want, tolerance1+tolerance2)
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestMeanPerKeyCrossPartitionContributionBounding: MeanPerKey(%v) = %v, want %v, error %v", col, got, want, err)
 	}
@@ -1146,9 +1132,7 @@ func TestMeanPerKeyPerPartitionContributionBounding(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LaplaceToleranceForMean: got error %v", err)
 	}
-	if err := testutils.ApproxEqualsKVFloat64(s, got, want, tolerance); err != nil {
-		t.Fatalf("ApproxEqualsKVFloat64: got error %v", err)
-	}
+	testutils.ApproxEqualsKVFloat64(t, s, got, want, tolerance)
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestMeanPerKeyPerPartitionContributionBounding: MeanPerKey(%v) = %v, want %v, error %v", col, got, want, err)
 	}
@@ -1351,9 +1335,7 @@ func TestMeanPerKeyWithPartitionsCrossPartitionContributionBounding(t *testing.T
 		if err != nil {
 			t.Fatalf("LaplaceToleranceForMean in-memory=%t: got error %v", tc.inMemory, err)
 		}
-		if err := testutils.ApproxEqualsKVFloat64(s, got, want, tolerance1+tolerance2); err != nil {
-			t.Fatalf("ApproxEqualsKVFloat64 in-memory=%t: got error %v", tc.inMemory, err)
-		}
+		testutils.ApproxEqualsKVFloat64(t, s, got, want, tolerance1+tolerance2)
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("TestMeanPerKeyWithPartitionsPerPartitionContributionBounding in-memory=%t: MeanPerKey(%v) = %v, want %v, error %v", tc.inMemory, col, got, want, err)
 		}
@@ -1448,9 +1430,7 @@ func TestMeanPerKeyWithEmptyPartitionsNoNoise(t *testing.T) {
 		if err != nil {
 			t.Fatalf("LaplaceToleranceForMean test case=%+v: got error %v", tc, err)
 		}
-		if err := testutils.ApproxEqualsKVFloat64(s, got, want, tolerance); err != nil {
-			t.Fatalf("ApproxEqualsKVFloat64 test case=%+v: got error %v", tc, err)
-		}
+		testutils.ApproxEqualsKVFloat64(t, s, got, want, tolerance)
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("TestMeanPerKeyWithEmptyPartitionsNoNoise test case=%+v: MeanPerKey(%v) = %v, want %v, error %v", tc, col, got, want, err)
 		}
@@ -1934,9 +1914,7 @@ func TestMeanPerKeyNoNoiseFloatTemp(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LaplaceToleranceForMean: got error %v", err)
 	}
-	if err := testutils.ApproxEqualsKVFloat64(s, got, want, tolerance); err != nil {
-		t.Fatalf("ApproxEqualsKVFloat64: got error %v", err)
-	}
+	testutils.ApproxEqualsKVFloat64(t, s, got, want, tolerance)
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestMeanPerKeyNoNoiseFloatTemp: MeanPerKey(%v) = %v, want %v, error %v", col, got, want, err)
 	}
@@ -2039,9 +2017,7 @@ func TestMeanPerKeyWithPartitionsNoNoiseIntTemp(t *testing.T) {
 		if err != nil {
 			t.Fatalf("LaplaceToleranceForMean: test case=%+v got error %v", tc, err)
 		}
-		if err := testutils.ApproxEqualsKVFloat64(s, got, want, tolerance); err != nil {
-			t.Fatalf("ApproxEqualsKVFloat64 test case=%+v: got error %v", tc, err)
-		}
+		testutils.ApproxEqualsKVFloat64(t, s, got, want, tolerance)
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("TestMeanPerKeyWithPartitionsNoNoiseIntTemp test case=%+v: MeanPerKey(%v) = %v, want %v, error %v", tc, col, got, want, err)
 		}

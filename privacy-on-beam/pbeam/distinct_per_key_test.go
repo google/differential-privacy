@@ -71,9 +71,7 @@ func TestDistinctPerKeyNoNoise(t *testing.T) {
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 	got := DistinctPerKey(s, pcol, DistinctPerKeyParams{MaxPartitionsContributed: 3, NoiseKind: LaplaceNoise{}, MaxContributionsPerPartition: 2})
 	want = beam.ParDo(s, testutils.PairII64ToKV, want)
-	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-		t.Fatalf("TestDistinctPerKeyNoNoise: %v", err)
-	}
+	testutils.ApproxEqualsKVInt64(t, s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon))
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestDistinctPerKeyNoNoise: DistinctPerKey(%v) = %v, expected %v: %v", col, got, want, err)
 	}
@@ -187,9 +185,7 @@ func TestDistinctPerKeyPerKeyCrossPartitionContributionBounding(t *testing.T) {
 	sumOverPartitions := stats.Sum(s, counts)
 	got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
 	want = beam.ParDo(s, testutils.PairII64ToKV, want)
-	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-		t.Fatalf("TestDistinctPerKeyCrossPartitionContributionBounding: %v", err)
-	}
+	testutils.ApproxEqualsKVInt64(t, s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon))
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestDistinctPerKeyCrossPartitionContributionBounding: DistinctPerKey(%v) = %v, expected elements to sum to 150: %v", col, got, err)
 	}
@@ -235,9 +231,7 @@ func TestDistinctPerKeyWithPartitionsCrossPartitionContributionBounding(t *testi
 		got = beam.AddFixedKey(s, maxOverPartitions) // Adds a fixed key of 0.
 
 		want = beam.ParDo(s, testutils.PairII64ToKV, want)
-		if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-			t.Fatalf("ApproxEqualsKVInt64 in-memory=%t: got error %v", tc.inMemory, err)
-		}
+		testutils.ApproxEqualsKVInt64(t, s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon))
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("DistinctPerKey with partitions in-memory=%t did not bound cross-partition contributions correctly: %v", tc.inMemory, err)
 		}
@@ -293,9 +287,7 @@ func TestDistinctPerKeyWithPartitionsPerPartitionContributionBounding(t *testing
 		pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 		got := DistinctPerKey(s, pcol, DistinctPerKeyParams{MaxPartitionsContributed: 3, NoiseKind: LaplaceNoise{}, MaxContributionsPerPartition: 2})
 		want = beam.ParDo(s, testutils.PairII64ToKV, want)
-		if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-			t.Fatalf("ApproxEqualsKVInt64Slice in-memory=%t: got error %v", tc.inMemory, err)
-		}
+		testutils.ApproxEqualsKVInt64(t, s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon))
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("DistinctPerKey with partitions in-memory=%t did not bound cross-partition contributions correctly: %v", tc.inMemory, err)
 		}
@@ -337,9 +329,7 @@ func TestDistinctPerKeyCrossPartitionContributionBounding_IsAppliedBeforeDedupli
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 	got := DistinctPerKey(s, pcol, DistinctPerKeyParams{MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}, MaxContributionsPerPartition: 1})
 	want = beam.ParDo(s, testutils.PairII64ToKV, want)
-	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-		t.Fatalf("TestDistinctPerKeyPerKeyCrossPartitionContributionBounding_IsAppliedBeforeDeduplication: %v", err)
-	}
+	testutils.ApproxEqualsKVInt64(t, s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon))
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestDistinctPerKeyPerKeyCrossPartitionContributionBounding_IsAppliedBeforeDeduplication: DistinctPerKey(%v) = %v, expected %v: %v", col, got, want, err)
 	}
@@ -386,9 +376,7 @@ func TestDistinctPerKeyPerPartitionContributionBounding(t *testing.T) {
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 	got := DistinctPerKey(s, pcol, DistinctPerKeyParams{MaxPartitionsContributed: 3, NoiseKind: LaplaceNoise{}, MaxContributionsPerPartition: 2})
 	want = beam.ParDo(s, testutils.PairII64ToKV, want)
-	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-		t.Fatalf("TestDistinctPerKeyPerPartitionContributionBounding: %v", err)
-	}
+	testutils.ApproxEqualsKVInt64(t, s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon))
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestDistinctPerKeyPerPartitionContributionBounding: DistinctPerKey(%v) = %v, expected %v: %v", col, got, want, err)
 	}
@@ -426,9 +414,7 @@ func TestDistinctPerKeyPerPartitionContributionBounding_IsAppliedBeforeDeduplica
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 	got := DistinctPerKey(s, pcol, DistinctPerKeyParams{MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}, MaxContributionsPerPartition: 1})
 	want = beam.ParDo(s, testutils.PairII64ToKV, want)
-	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-		t.Fatalf("TestDistinctPerKeyPerPartitionContributionBounding_IsAppliedBeforeDeduplication: %v", err)
-	}
+	testutils.ApproxEqualsKVInt64(t, s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon))
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestDistinctPerKeyPerPartitionContributionBounding_IsAppliedBeforeDeduplication: DistinctPerKey(%v) = %v, expected %v: %v", col, got, want, err)
 	}
@@ -539,9 +525,7 @@ func TestDistinctPerKeyThresholdsOnPrivacyIDs(t *testing.T) {
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 	got := DistinctPerKey(s, pcol, DistinctPerKeyParams{MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}, MaxContributionsPerPartition: 1})
 	want = beam.ParDo(s, testutils.PairII64ToKV, want)
-	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-		t.Fatalf("TestDistinctPerKeyNoNoise: %v", err)
-	}
+	testutils.ApproxEqualsKVInt64(t, s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon))
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestDistinctPerKeyNoNoise: DistinctPerKey(%v) = %v, expected %v: %v", col, got, want, err)
 	}
@@ -756,9 +740,7 @@ func TestDistinctPerKeyNoNoiseTemp(t *testing.T) {
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 	got := DistinctPerKey(s, pcol, DistinctPerKeyParams{MaxPartitionsContributed: 3, NoiseKind: LaplaceNoise{}, MaxContributionsPerPartition: 2})
 	want = beam.ParDo(s, testutils.PairII64ToKV, want)
-	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-		t.Fatalf("TestDistinctPerKeyNoNoiseTemp: %v", err)
-	}
+	testutils.ApproxEqualsKVInt64(t, s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon))
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestDistinctPerKeyNoNoiseTemp: DistinctPerKey(%v) = %v, expected %v: %v", col, got, want, err)
 	}
@@ -789,10 +771,10 @@ func TestDistinctPerKeyWithPartitionNoNoiseTemp(t *testing.T) {
 		} else {
 			publicPartitions = beam.CreateList(s, publicParitionsSlice)
 		}
-		// We use ε=50, δ=0 and l1Sensitivity=2.
+		// We use ε=50, δ=0 and l1Sensitivity=1.
 		// We have 2 partitions. So, to get an overall flakiness of 10⁻²³,
 		// we need to have each partition pass with 1-10⁻²⁴ probability (k=24)
-		epsilon, k, liSensitivity := 50.0, 24.0, 2.0
+		epsilon, k, l1Sensitivity := 50.0, 24.0, 1.0
 		spec, err := NewPrivacySpecTemp(PrivacySpecParams{AggregationEpsilon: epsilon})
 		if err != nil {
 			t.Fatalf("TestDistinctPerKeyWithPartitionNoNoiseTemp: %v", err)
@@ -802,9 +784,7 @@ func TestDistinctPerKeyWithPartitionNoNoiseTemp(t *testing.T) {
 		DistinctPerKeyParams := DistinctPerKeyParams{MaxPartitionsContributed: 1, MaxContributionsPerPartition: 1, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions}
 		got := DistinctPerKey(s, pcol, DistinctPerKeyParams)
 		want = beam.ParDo(s, testutils.PairII64ToKV, want)
-		if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, liSensitivity, epsilon)); err != nil {
-			t.Fatalf("TestDistinctPerKeyWithPartitionNoNoiseTemp in-memory=%t: %v", tc.inMemory, err)
-		}
+		testutils.ApproxEqualsKVInt64(t, s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon))
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("TestDistinctPerKeyWithPartitionNoNoiseTemp in-memory=%t: Count(%v) = %v, expected %v: %v", tc.inMemory, col, got, want, err)
 		}
@@ -844,9 +824,7 @@ func TestDistinctPerKeyPreThresholding(t *testing.T) {
 	got := DistinctPerKey(s, pcol, DistinctPerKeyParams{MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}, MaxContributionsPerPartition: 2})
 
 	// Assert
-	if err := testutils.ApproxEqualsKVInt64(s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon)); err != nil {
-		t.Fatalf("TestDistinctPerKeyPreThresholding: %v", err)
-	}
+	testutils.ApproxEqualsKVInt64(t, s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon))
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestDistinctPerKeyPreThresholding: DistinctPerKey(%v) = %v, expected %v: %v", col, got, want, err)
 	}
