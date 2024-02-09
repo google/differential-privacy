@@ -61,8 +61,12 @@ func TestCountNoNoise(t *testing.T) {
 	// To see the logic and the math behind flakiness and tolerance calculation,
 	// See https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf.
 	epsilon, delta, k, l1Sensitivity := 25.0, 1e-200, 24.0, 2.0
-	// ε is split by 2 for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
-	pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
+	pcol := MakePrivate(s, col, privacySpec(t,
+		PrivacySpecParams{
+			AggregationEpsilon:        epsilon,
+			PartitionSelectionEpsilon: epsilon,
+			PartitionSelectionDelta:   delta,
+		}))
 	got := Count(s, pcol, CountParams{MaxValue: 2, MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}})
 	want = beam.ParDo(s, testutils.PairII64ToKV, want)
 	testutils.ApproxEqualsKVInt64(t, s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon))
@@ -105,7 +109,11 @@ func TestCountWithPartitionsNoNoise(t *testing.T) {
 		// We have 2 partitions. So, to get an overall flakiness of 10⁻²³,
 		// we need to have each partition pass with 1-10⁻²⁴ probability (k=24).
 		epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 24.0, 2.0
-		pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+		pcol := MakePrivate(s, col, privacySpec(t,
+			PrivacySpecParams{
+				AggregationEpsilon:      epsilon,
+				PartitionSelectionDelta: delta,
+			}))
 		countParams := CountParams{MaxValue: 2, MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions}
 
 		got := Count(s, pcol, countParams)
@@ -121,21 +129,22 @@ func TestCountWithPartitionsNoNoise(t *testing.T) {
 // Checks that Count applies partition selection.
 func TestCountPartitionSelection(t *testing.T) {
 	for _, tc := range []struct {
-		name          string
-		noiseKind     NoiseKind
-		epsilon       float64
-		delta         float64
-		numPartitions int
-		countPerValue int
+		name                      string
+		noiseKind                 NoiseKind
+		aggregationEpsilon        float64
+		aggregationDelta          float64
+		partitionSelectionEpsilon float64
+		partitionSelectionDelta   float64
+		numPartitions             int
+		countPerValue             int
 	}{
 		{
-			name:      "Gaussian",
-			noiseKind: GaussianNoise{},
-			// After splitting the (ε, δ) budget between the noise and partition
-			// selection portions of the privacy algorithm, this results in a ε=1,
-			// δ=0.3 partition selection budget.
-			epsilon: 2,
-			delta:   0.6,
+			name:                      "Gaussian",
+			noiseKind:                 GaussianNoise{},
+			aggregationEpsilon:        1,
+			aggregationDelta:          0.3,
+			partitionSelectionEpsilon: 1,
+			partitionSelectionDelta:   0.3,
 			// countPerValue=1 yields a 30% chance of emitting any particular partition
 			// (since δ_emit=0.3).
 			countPerValue: 1,
@@ -144,14 +153,11 @@ func TestCountPartitionSelection(t *testing.T) {
 			numPartitions: 143,
 		},
 		{
-			name:      "Laplace",
-			noiseKind: LaplaceNoise{},
-			// After splitting the (ε, δ) budget between the noise and partition
-			// selection portions of the privacy algorithm, this results in the
-			// partition selection portion of the budget being ε_selectPartition=1,
-			// δ_selectPartition=0.3.
-			epsilon: 2,
-			delta:   0.3,
+			name:                      "Laplace",
+			noiseKind:                 LaplaceNoise{},
+			aggregationEpsilon:        1,
+			partitionSelectionEpsilon: 1,
+			partitionSelectionDelta:   0.3,
 			// countPerValue=1 yields a 30% chance of emitting any particular partition
 			// (since δ_emit=0.3).
 			countPerValue: 1,
@@ -183,7 +189,13 @@ func TestCountPartitionSelection(t *testing.T) {
 			col = beam.ParDo(s, testutils.PairToKV, col)
 
 			// Run Count on pairs
-			pcol := MakePrivate(s, col, NewPrivacySpec(tc.epsilon, tc.delta))
+			pcol := MakePrivate(s, col, privacySpec(t,
+				PrivacySpecParams{
+					AggregationEpsilon:        tc.aggregationEpsilon,
+					AggregationDelta:          tc.aggregationDelta,
+					PartitionSelectionEpsilon: tc.partitionSelectionEpsilon,
+					PartitionSelectionDelta:   tc.partitionSelectionDelta,
+				}))
 			got := Count(s, pcol, CountParams{MaxValue: 1, MaxPartitionsContributed: 1, NoiseKind: tc.noiseKind})
 			got = beam.ParDo(s, testutils.KVToPairII64, got)
 
@@ -202,20 +214,25 @@ func TestCountAddsNoise(t *testing.T) {
 		name      string
 		noiseKind NoiseKind
 		// Differential privacy params used.
-		epsilon float64
-		delta   float64
+		aggregationEpsilon        float64
+		aggregationDelta          float64
+		partitionSelectionEpsilon float64
+		partitionSelectionDelta   float64
 	}{
 		{
-			name:      "Gaussian",
-			noiseKind: GaussianNoise{},
-			epsilon:   2 * 1e-15, // It is split by 2: 1e-15 for the noise and 1e-15 for the partition selection.
-			delta:     2 * 1e-5,  // It is split by 2: 1e-5 for the noise and 1e-5 for the partition selection.
+			name:                      "Gaussian",
+			noiseKind:                 GaussianNoise{},
+			aggregationEpsilon:        1e-15,
+			aggregationDelta:          1e-5,
+			partitionSelectionEpsilon: 1e-15,
+			partitionSelectionDelta:   1e-5,
 		},
 		{
-			name:      "Laplace",
-			noiseKind: LaplaceNoise{},
-			epsilon:   2 * 1e-15, // It is split by 2: 1e-15 for the noise and 1e-15 for the partition selection.
-			delta:     0.01,
+			name:                      "Laplace",
+			noiseKind:                 LaplaceNoise{},
+			aggregationEpsilon:        1e-15,
+			partitionSelectionEpsilon: 1e-15,
+			partitionSelectionDelta:   1e-5,
 		},
 	} {
 		// Because this is an integer aggregation, we can't use the regular complementary
@@ -235,16 +252,12 @@ func TestCountAddsNoise(t *testing.T) {
 		// about tests taking long.
 		tolerance := 0.0
 		l0Sensitivity, lInfSensitivity := int64(1), int64(1)
-		partitionSelectionEpsilon, partitionSelectionDelta := tc.epsilon/2, tc.delta
-		if tc.noiseKind == gaussianNoise {
-			partitionSelectionDelta = tc.delta / 2
-		}
 
 		// Compute the number of IDs needed to keep the partition.
 		sp, err := dpagg.NewPreAggSelectPartition(
 			&dpagg.PreAggSelectPartitionOptions{
-				Epsilon:                  partitionSelectionEpsilon,
-				Delta:                    partitionSelectionDelta,
+				Epsilon:                  tc.partitionSelectionEpsilon,
+				Delta:                    tc.partitionSelectionDelta,
 				MaxPartitionsContributed: l0Sensitivity,
 			})
 		if err != nil {
@@ -260,7 +273,13 @@ func TestCountAddsNoise(t *testing.T) {
 		p, s, col := ptest.CreateList(pairs)
 		col = beam.ParDo(s, testutils.PairToKV, col)
 
-		pcol := MakePrivate(s, col, NewPrivacySpec(tc.epsilon, tc.delta))
+		pcol := MakePrivate(s, col, privacySpec(t,
+			PrivacySpecParams{
+				AggregationEpsilon:        tc.aggregationEpsilon,
+				AggregationDelta:          tc.aggregationDelta,
+				PartitionSelectionEpsilon: tc.partitionSelectionEpsilon,
+				PartitionSelectionDelta:   tc.partitionSelectionDelta,
+			}))
 		got := Count(s, pcol, CountParams{MaxPartitionsContributed: l0Sensitivity, MaxValue: lInfSensitivity, NoiseKind: tc.noiseKind})
 		got = beam.ParDo(s, testutils.KVToPairII64, got)
 		testutils.CheckInt64MetricsAreNoisy(s, got, numIDs, tolerance)
@@ -340,7 +359,11 @@ func TestCountAddsNoiseWithPartitions(t *testing.T) {
 		}
 
 		col = beam.ParDo(s, testutils.PairToKV, col)
-		pcol := MakePrivate(s, col, NewPrivacySpec(tc.epsilon, tc.delta))
+		pcol := MakePrivate(s, col, privacySpec(t,
+			PrivacySpecParams{
+				AggregationEpsilon: tc.epsilon,
+				AggregationDelta:   tc.delta,
+			}))
 		countParams := CountParams{MaxPartitionsContributed: l0Sensitivity, MaxValue: lInfSensitivity, NoiseKind: tc.noiseKind, PublicPartitions: publicPartitions}
 		got := Count(s, pcol, countParams)
 		got = beam.ParDo(s, testutils.KVToPairII64, got)
@@ -368,8 +391,12 @@ func TestCountCrossPartitionContributionBounding(t *testing.T) {
 	// We have 10 partitions. So, to get an overall flakiness of 10⁻²³,
 	// we need to have each partition pass with 1-10⁻²⁴ probability (k=24).
 	epsilon, delta, k, l1Sensitivity := 50.0, 0.01, 25.0, 3.0
-	// ε is split by 2 for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
-	pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
+	pcol := MakePrivate(s, col, privacySpec(t,
+		PrivacySpecParams{
+			AggregationEpsilon:        epsilon,
+			PartitionSelectionEpsilon: epsilon,
+			PartitionSelectionDelta:   delta,
+		}))
 	got := Count(s, pcol, CountParams{MaxPartitionsContributed: 3, MaxValue: 1, NoiseKind: LaplaceNoise{}})
 	// With a max contribution of 3, 70% of the data should be
 	// dropped. The sum of all elements must then be 150.
@@ -415,7 +442,11 @@ func TestCountWithPartitionsCrossPartitionContributionBounding(t *testing.T) {
 		// We have 5 partitions. So, to get an overall flakiness of 10⁻²³,
 		// we need to have each partition pass with 1-10⁻²⁴ probability (k=24).
 		epsilon, delta, k, l1Sensitivity := 50.0, 0.0, 24.0, 3.0
-		pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+		pcol := MakePrivate(s, col, privacySpec(t,
+			PrivacySpecParams{
+				AggregationEpsilon:      epsilon,
+				PartitionSelectionDelta: delta,
+			}))
 		countParams := CountParams{MaxPartitionsContributed: 3, MaxValue: 1, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions}
 		got := Count(s, pcol, countParams)
 		// With a max contribution of 3, 40% of the data from the public partitions should be dropped.
@@ -427,47 +458,6 @@ func TestCountWithPartitionsCrossPartitionContributionBounding(t *testing.T) {
 		testutils.ApproxEqualsKVInt64(t, s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon))
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("TestCountWithPartitionsCrossPartitionContributionBounding in-memory=%t: Metric(%v) = %v, expected elements to sum to 150: %v", tc.inMemory, col, got, err)
-		}
-	}
-}
-
-// Check that no negative values are returned from Count with partitions.
-func TestCountWithPartitionsReturnsNonNegative(t *testing.T) {
-	// We have two test cases, one for public partitions as a PCollection and one for public partitions as a slice (i.e., in-memory).
-	for _, tc := range []struct {
-		inMemory bool
-	}{
-		{true},
-		{false},
-	} {
-		var pairs []testutils.PairII
-		var publicPartitionsSlice []int
-		for i := 0; i < 100; i++ {
-			pairs = append(pairs, testutils.PairII{i, i})
-		}
-		for i := 0; i < 200; i++ {
-			publicPartitionsSlice = append(publicPartitionsSlice, i)
-		}
-		p, s, col := ptest.CreateList(pairs)
-		var publicPartitions any
-		if tc.inMemory {
-			publicPartitions = publicPartitionsSlice
-		} else {
-			publicPartitions = beam.CreateList(s, publicPartitionsSlice)
-		}
-
-		col = beam.ParDo(s, testutils.PairToKV, col)
-		// Using a low epsilon and high maxValue adds a lot of noise and using
-		// a high delta keeps many partitions.
-		epsilon, delta, maxValue := 0.001, 0.999, int64(1e8)
-		pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
-		countParams := CountParams{MaxValue: maxValue, MaxPartitionsContributed: 1, NoiseKind: GaussianNoise{}, PublicPartitions: publicPartitions}
-		counts := Count(s, pcol, countParams)
-		values := beam.DropKey(s, counts)
-		// Check if we have negative elements.
-		beam.ParDo0(s, testutils.CheckNoNegativeValuesInt64, values)
-		if err := ptest.Run(p); err != nil {
-			t.Errorf("TestCountWithPartitionsReturnsNonNegative in-memory=%t returned errors: %v", tc.inMemory, err)
 		}
 	}
 }
@@ -829,97 +819,6 @@ func TestCheckCountParams(t *testing.T) {
 	}
 }
 
-// The logic mirrors TestCountNoNoise, but with the new privacy budget API.
-func TestCountNoNoiseTemp(t *testing.T) {
-	// In this test, we set the per-partition l1Sensitivity to 2, and:
-	// - value 0 is associated with 7 privacy units, so it should be thresholded;
-	// - value 1 is associated with 30 privacy units appearing twice each, so each of
-	//   them should be counted twice;
-	// - value 2 is associated with 50 privacy units appearing 3 times each, but the
-	//   l1Sensitivity is 2, so each should only be counted twice.
-	// Each privacy unit contributes to at most 1 partition.
-	pairs := testutils.ConcatenatePairs(
-		testutils.MakePairsWithFixedVStartingFromKey(0, 7, 0),
-		testutils.MakePairsWithFixedVStartingFromKey(7, 30, 1),
-		testutils.MakePairsWithFixedVStartingFromKey(7, 30, 1),
-		testutils.MakePairsWithFixedVStartingFromKey(7+30, 50, 2),
-		testutils.MakePairsWithFixedVStartingFromKey(7+30, 50, 2),
-		testutils.MakePairsWithFixedVStartingFromKey(7+30, 50, 2),
-	)
-	result := []testutils.PairII64{
-		{1, 60},  // 30*2
-		{2, 100}, // 50*2
-	}
-	p, s, col, want := ptest.CreateList2(pairs, result)
-	col = beam.ParDo(s, testutils.PairToKV, col)
-
-	// ε=25, δ=10⁻²⁰⁰ and l0Sensitivity=2 gives a threshold of ≈21.
-	// We have 3 partitions. So, to get an overall flakiness of 10⁻²³,
-	// we need to have each partition pass with 1-10⁻²⁴ probability (k=24).
-	epsilon, delta, k, l1Sensitivity := 25.0, 1e-200, 24.0, 2.0
-	spec, err := NewPrivacySpecTemp(PrivacySpecParams{AggregationEpsilon: epsilon, PartitionSelectionEpsilon: epsilon, PartitionSelectionDelta: delta})
-	if err != nil {
-		t.Fatalf("TestCountNoNoiseTemp: %v", err)
-	}
-	pcol := MakePrivate(s, col, spec)
-	got := Count(s, pcol, CountParams{MaxValue: 2, MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}})
-	want = beam.ParDo(s, testutils.PairII64ToKV, want)
-	testutils.ApproxEqualsKVInt64(t, s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon))
-	if err := ptest.Run(p); err != nil {
-		t.Errorf("TestCountNoNoiseTemp: Count(%v) = %v, expected %v: %v", col, got, want, err)
-	}
-}
-
-// The logic mirrors TestCountWithPartitionsNoNoise, but with the new privacy budget API.
-func TestCountWithPartitionsNoNoiseTemp(t *testing.T) {
-	// We have two test cases, one for public partitions as a PCollection and one for public partitions as a slice (i.e., in-memory).
-	for _, tc := range []struct {
-		inMemory bool
-	}{
-		{true},
-		{false},
-	} {
-		var pairs []testutils.PairII
-		for i := 0; i < 10; i++ {
-			pairs = append(pairs, testutils.PairII{1, i})
-		}
-		result := []testutils.PairII64{
-			// Drop partitions 0 to 8 as they are not in public
-			// partitions.
-			{9, 1},  // Keep partition 9.
-			{10, 0}, // Add partition 10.
-		}
-
-		p, s, col, want := ptest.CreateList2(pairs, result)
-		col = beam.ParDo(s, testutils.PairToKV, col)
-		publicPartitionsSlice := []int{9, 10}
-		var publicPartitions any
-		if tc.inMemory {
-			publicPartitions = publicPartitionsSlice
-		} else {
-			publicPartitions = beam.CreateList(s, publicPartitionsSlice)
-		}
-
-		// We use ε=50, δ=0 and l1Sensitivity=2.
-		// We have 2 partitions. So, to get an overall flakiness of 10⁻²³,
-		// we need to have each partition pass with 1-10⁻²⁴ probability (k=24).
-		epsilon, k, l1Sensitivity := 50.0, 24.0, 2.0
-		spec, err := NewPrivacySpecTemp(PrivacySpecParams{AggregationEpsilon: epsilon})
-		if err != nil {
-			t.Fatalf("TestCountWithPartitionsNoNoiseTemp: %v", err)
-		}
-		pcol := MakePrivate(s, col, spec)
-		countParams := CountParams{MaxValue: 2, MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions}
-
-		got := Count(s, pcol, countParams)
-		want = beam.ParDo(s, testutils.PairII64ToKV, want)
-		testutils.ApproxEqualsKVInt64(t, s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon))
-		if err := ptest.Run(p); err != nil {
-			t.Errorf("TestCountWithPartitionsNoNoiseTemp in-memory=%t: Count(%v) = %v, expected %v: %v", tc.inMemory, col, got, want, err)
-		}
-	}
-}
-
 func TestCountPreThresholding(t *testing.T) {
 	// In this test, we set pre-threshold to 10, per-partition l1 sensitivity to 2, and:
 	// - value 0 is associated with 9 privacy units, so it should be thresholded;
@@ -943,15 +842,12 @@ func TestCountPreThresholding(t *testing.T) {
 	// we can have each partition fail with 10⁻²³ probability (k=23).
 	epsilon, delta, k, l1Sensitivity := 1e9, dpagg.LargestRepresentableDelta, 23.0, 2.0
 	preThreshold := int64(10)
-	spec, err := NewPrivacySpecTemp(PrivacySpecParams{
-		AggregationEpsilon:        epsilon,
-		PartitionSelectionEpsilon: epsilon,
-		PartitionSelectionDelta:   delta,
-		PreThreshold:              preThreshold})
-	if err != nil {
-		t.Fatalf("TestCountPreThresholding: %v", err)
-	}
-	pcol := MakePrivate(s, col, spec)
+	pcol := MakePrivate(s, col, privacySpec(t,
+		PrivacySpecParams{
+			AggregationEpsilon:        epsilon,
+			PartitionSelectionEpsilon: epsilon,
+			PartitionSelectionDelta:   delta,
+			PreThreshold:              preThreshold}))
 	got := Count(s, pcol, CountParams{MaxValue: int64(l1Sensitivity), MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}})
 	want = beam.ParDo(s, testutils.PairII64ToKV, want)
 	testutils.ApproxEqualsKVInt64(t, s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon))

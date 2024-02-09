@@ -25,5 +25,15 @@ func TestMain(m *testing.M) {
 	ptest.MainWithDefault(m, "direct")
 }
 
-// Used in various tests.
+// Below are used in various tests.
 var gaussianNoise = GaussianNoise{}
+
+// Helper function to create a PrivacySpec that deals with error handling.
+func privacySpec(t *testing.T, params PrivacySpecParams) *PrivacySpec {
+	t.Helper()
+	spec, err := NewPrivacySpecTemp(params)
+	if err != nil {
+		t.Fatalf("Failed to create PrivacySpec")
+	}
+	return spec
+}

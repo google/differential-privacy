@@ -28,7 +28,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.google.common.truth.Truth8;
 import com.google.privacy.differentialprivacy.proto.SummaryOuterClass.CountSummary;
 import com.google.privacy.differentialprivacy.proto.SummaryOuterClass.MechanismType;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -531,7 +530,7 @@ public class CountTest {
     // noise) count is equal to 12, which passes the threshold and therefore 12 should be returned.
     count.incrementBy(12);
     Optional<Long> actualResult = count.computeThresholdedResult(THRESHOLD_DELTA);
-    Truth8.assertThat(actualResult).hasValue(12);
+    assertThat(actualResult).hasValue(12);
   }
 
   @Test
@@ -573,8 +572,8 @@ public class CountTest {
     count.incrementBy(122);
     Optional<Long> ceiledThreshold = count.computeThresholdedResult(0.1);
 
-    Truth8.assertThat(flooredThreshold).isEmpty();
-    Truth8.assertThat(ceiledThreshold).hasValue(122);
+    assertThat(flooredThreshold).isEmpty();
+    assertThat(ceiledThreshold).hasValue(122);
   }
 
   @Test
@@ -613,8 +612,8 @@ public class CountTest {
     count.incrementBy(72);
     Optional<Long> ceiledThreshold = count.computeThresholdedResult(0.1);
 
-    Truth8.assertThat(flooredThreshold).isEmpty();
-    Truth8.assertThat(ceiledThreshold).hasValue(72);
+    assertThat(flooredThreshold).isEmpty();
+    assertThat(ceiledThreshold).hasValue(72);
   }
 
   private Count.Params.Builder getCountBuilderWithFields() {

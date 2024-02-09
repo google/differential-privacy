@@ -389,20 +389,24 @@ func TestQuantilesPerKeyAddsNoise(t *testing.T) {
 		name      string
 		noiseKind NoiseKind
 		// Differential privacy params used
-		epsilon float64
-		delta   float64
+		aggregationEpsilon        float64
+		aggregationDelta          float64
+		partitionSelectionEpsilon float64
+		partitionSelectionDelta   float64
 	}{
 		{
-			name:      "Gaussian",
-			noiseKind: GaussianNoise{},
-			epsilon:   0.1,  // It is split in two: 0.05 for the noise and 0.05 for the partition selection.
-			delta:     2e-3, // It is split in two: 1e-3 for the noise and 1e-3 for the partition selection.
-		},
+			name:                      "Gaussian",
+			noiseKind:                 GaussianNoise{},
+			aggregationEpsilon:        0.05,
+			aggregationDelta:          1e-3,
+			partitionSelectionEpsilon: 0.05,
+			partitionSelectionDelta:   1e-3},
 		{
-			name:      "Laplace",
-			noiseKind: LaplaceNoise{},
-			epsilon:   0.1, // It is split in two: 0.05 for the noise and 0.05 for the partition selection.
-			delta:     1e-3,
+			name:                      "Laplace",
+			noiseKind:                 LaplaceNoise{},
+			aggregationEpsilon:        0.05,
+			partitionSelectionEpsilon: 0.05,
+			partitionSelectionDelta:   1e-3,
 		},
 	} {
 		ranks := []float64{0.50}
@@ -417,28 +421,30 @@ func TestQuantilesPerKeyAddsNoise(t *testing.T) {
 		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
 
 		// Use twice epsilon & delta because we compute Quantiles twice.
-		pcol := MakePrivate(s, col, NewPrivacySpec(2*tc.epsilon, 2*tc.delta))
+		pcol := MakePrivate(s, col, privacySpec(t,
+			PrivacySpecParams{
+				AggregationEpsilon:        2 * tc.aggregationEpsilon,
+				AggregationDelta:          2 * tc.aggregationDelta,
+				PartitionSelectionEpsilon: 2 * tc.partitionSelectionEpsilon,
+				PartitionSelectionDelta:   2 * tc.partitionSelectionDelta,
+			}))
 		pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
-		got1 := QuantilesPerKey(s, pcol, QuantilesParams{
-			Epsilon:                      tc.epsilon,
-			Delta:                        tc.delta,
+		quantilesParams := QuantilesParams{
+			AggregationEpsilon: tc.aggregationEpsilon,
+			AggregationDelta:   tc.aggregationDelta,
+			PartitionSelectionParams: PartitionSelectionParams{
+				Epsilon: tc.partitionSelectionEpsilon,
+				Delta:   tc.partitionSelectionDelta,
+			},
 			MaxPartitionsContributed:     1,
 			MaxContributionsPerPartition: 1,
 			MinValue:                     0.0,
 			MaxValue:                     2.0,
 			NoiseKind:                    tc.noiseKind,
 			Ranks:                        ranks,
-		})
-		got2 := QuantilesPerKey(s, pcol, QuantilesParams{
-			Epsilon:                      tc.epsilon,
-			Delta:                        tc.delta,
-			MaxPartitionsContributed:     1,
-			MaxContributionsPerPartition: 1,
-			MinValue:                     0.0,
-			MaxValue:                     2.0,
-			NoiseKind:                    tc.noiseKind,
-			Ranks:                        ranks,
-		})
+		}
+		got1 := QuantilesPerKey(s, pcol, quantilesParams)
+		got2 := QuantilesPerKey(s, pcol, quantilesParams)
 		got1 = beam.ParDo(s, testutils.DereferenceFloat64Slice, got1)
 		got2 = beam.ParDo(s, testutils.DereferenceFloat64Slice, got2)
 
@@ -505,11 +511,15 @@ func TestQuantilesWithPartitionsPerKeyAddsNoise(t *testing.T) {
 		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
 
 		// Use twice epsilon & delta because we compute Quantiles twice.
-		pcol := MakePrivate(s, col, NewPrivacySpec(2*tc.epsilon, 2*tc.delta))
+		pcol := MakePrivate(s, col, privacySpec(t,
+			PrivacySpecParams{
+				AggregationEpsilon: 2 * tc.epsilon,
+				AggregationDelta:   2 * tc.delta,
+			}))
 		pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
 		quantilesParams := QuantilesParams{
-			Epsilon:                      tc.epsilon,
-			Delta:                        tc.delta,
+			AggregationEpsilon:           tc.epsilon,
+			AggregationDelta:             tc.delta,
 			MaxPartitionsContributed:     100,
 			MaxContributionsPerPartition: 100,
 			MinValue:                     0.0,
@@ -551,8 +561,12 @@ func TestQuantilesPerKeyNoNoise(t *testing.T) {
 	ranks := []float64{0.00, 0.25, 0.75, 1.00}
 
 	// Act
-	// ε is split in two for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
-	pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
+	pcol := MakePrivate(s, col, privacySpec(t,
+		PrivacySpecParams{
+			AggregationEpsilon:        epsilon,
+			PartitionSelectionEpsilon: epsilon,
+			PartitionSelectionDelta:   delta,
+		}))
 	pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
 	got := QuantilesPerKey(s, pcol, QuantilesParams{
 		MaxPartitionsContributed:     1,
@@ -590,7 +604,6 @@ func TestQuantilesPerKeyWithPartitionsNoNoise(t *testing.T) {
 		p, s, col, want := ptest.CreateList2(triples, wantMetric)
 
 		epsilon := 900.0
-		delta := 0.0
 		lower := 0.0
 		upper := 5.0
 		ranks := []float64{0.00, 0.25, 0.75, 1.00}
@@ -605,7 +618,7 @@ func TestQuantilesPerKeyWithPartitionsNoNoise(t *testing.T) {
 		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
 
 		// Act
-		pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+		pcol := MakePrivate(s, col, privacySpec(t, PrivacySpecParams{AggregationEpsilon: epsilon}))
 		pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
 		quantilesParams := QuantilesParams{
 			MaxPartitionsContributed:     1,
@@ -643,7 +656,6 @@ func TestQuantilesPerKeyWithPartitionsAppliesPublicPartitions(t *testing.T) {
 		p, s, col := ptest.CreateList(triples)
 
 		epsilon := 900.0
-		delta := 0.0
 		lower := 0.0
 		upper := 5.0
 		ranks := []float64{0.00, 0.25, 0.75, 1.00}
@@ -657,7 +669,7 @@ func TestQuantilesPerKeyWithPartitionsAppliesPublicPartitions(t *testing.T) {
 
 		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
 
-		pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+		pcol := MakePrivate(s, col, privacySpec(t, PrivacySpecParams{AggregationEpsilon: epsilon}))
 		pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
 		quantilesParams := QuantilesParams{
 			MaxPartitionsContributed:     1,
@@ -686,21 +698,22 @@ func TestQuantilesPerKeyWithPartitionsAppliesPublicPartitions(t *testing.T) {
 }
 
 var quantilesPartitionSelectionTestCases = []struct {
-	name                string
-	noiseKind           NoiseKind
-	epsilon             float64
-	delta               float64
-	numPartitions       int
-	entriesPerPartition int
+	name                      string
+	noiseKind                 NoiseKind
+	aggregationEpsilon        float64
+	aggregationDelta          float64
+	partitionSelectionEpsilon float64
+	partitionSelectionDelta   float64
+	numPartitions             int
+	entriesPerPartition       int
 }{
 	{
-		name:      "Gaussian",
-		noiseKind: GaussianNoise{},
-		// After splitting the (ε, δ) budget between the noise and partition
-		// selection portions of the privacy algorithm, this results in a ε=1,
-		// δ=0.3 partition selection budget.
-		epsilon: 2,
-		delta:   0.6,
+		name:                      "Gaussian",
+		noiseKind:                 GaussianNoise{},
+		aggregationEpsilon:        1,
+		aggregationDelta:          0.3,
+		partitionSelectionEpsilon: 1,
+		partitionSelectionDelta:   0.3,
 		// entriesPerPartition=1 yields a 30% chance of emitting any particular partition
 		// (since δ_emit=0.3).
 		entriesPerPartition: 1,
@@ -709,14 +722,11 @@ var quantilesPartitionSelectionTestCases = []struct {
 		numPartitions: 143,
 	},
 	{
-		name:      "Laplace",
-		noiseKind: LaplaceNoise{},
-		// After splitting the (ε, δ) budget between the noise and partition
-		// selection portions of the privacy algorithm, this results in the
-		// partition selection portion of the budget being ε_selectPartition=1,
-		// δ_selectPartition=0.3.
-		epsilon: 2,
-		delta:   0.3,
+		name:                      "Laplace",
+		noiseKind:                 LaplaceNoise{},
+		aggregationEpsilon:        1,
+		partitionSelectionEpsilon: 1,
+		partitionSelectionDelta:   0.3,
 		// entriesPerPartition=1 yields a 30% chance of emitting any particular partition
 		// (since δ_emit=0.3).
 		entriesPerPartition: 1,
@@ -754,7 +764,13 @@ func TestQuantilesPartitionSelection(t *testing.T) {
 
 			// Run QuantilesPerKey on triples
 			ranks := []float64{0.00, 0.25, 0.75, 1.00}
-			pcol := MakePrivate(s, col, NewPrivacySpec(tc.epsilon, tc.delta))
+			pcol := MakePrivate(s, col, privacySpec(t,
+				PrivacySpecParams{
+					AggregationEpsilon:        tc.aggregationEpsilon,
+					AggregationDelta:          tc.aggregationDelta,
+					PartitionSelectionEpsilon: tc.partitionSelectionEpsilon,
+					PartitionSelectionDelta:   tc.partitionSelectionDelta,
+				}))
 			pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
 			got := QuantilesPerKey(s, pcol, QuantilesParams{
 				MinValue:                     0.0,
@@ -804,8 +820,12 @@ func TestQuantilesPerKeyCrossPartitionContributionBounding(t *testing.T) {
 	delta := 1e-200
 	ranks := []float64{0.60}
 
-	// ε is split in two for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
-	pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
+	pcol := MakePrivate(s, col, privacySpec(t,
+		PrivacySpecParams{
+			AggregationEpsilon:        epsilon,
+			PartitionSelectionEpsilon: epsilon,
+			PartitionSelectionDelta:   delta,
+		}))
 	pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
 	got := QuantilesPerKey(s, pcol, QuantilesParams{
 		MaxPartitionsContributed:     1,
@@ -857,7 +877,6 @@ func TestQuantilesPerKeyWithPartitionsCrossPartitionContributionBounding(t *test
 		p, s, col, want := ptest.CreateList2(triples, wantMetric)
 
 		epsilon := 900.0
-		delta := 0.0
 		ranks := []float64{0.60}
 		publicPartitionsSlice := []int{0, 1}
 		var publicPartitions any
@@ -869,7 +888,7 @@ func TestQuantilesPerKeyWithPartitionsCrossPartitionContributionBounding(t *test
 
 		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
 
-		pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+		pcol := MakePrivate(s, col, privacySpec(t, PrivacySpecParams{AggregationEpsilon: epsilon}))
 		pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
 		quantilesParams := QuantilesParams{
 			MaxPartitionsContributed:     1,
@@ -916,8 +935,12 @@ func TestQuantilesPerKeyPerPartitionContributionBounding(t *testing.T) {
 	upper := 5.0
 	ranks := []float64{0.49, 0.51}
 
-	// ε is split in two for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
-	pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
+	pcol := MakePrivate(s, col, privacySpec(t,
+		PrivacySpecParams{
+			AggregationEpsilon:        epsilon,
+			PartitionSelectionEpsilon: epsilon,
+			PartitionSelectionDelta:   delta,
+		}))
 	pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
 	got := QuantilesPerKey(s, pcol, QuantilesParams{
 		MaxPartitionsContributed:     1,
@@ -957,7 +980,6 @@ func TestQuantilesPerKeyWithPartitionsPerPartitionContributionBounding(t *testin
 		p, s, col, want := ptest.CreateList2(triples, wantMetric)
 
 		epsilon := 900.0
-		delta := 0.0
 		lower := 0.0
 		upper := 5.0
 		ranks := []float64{0.49, 0.51}
@@ -971,8 +993,7 @@ func TestQuantilesPerKeyWithPartitionsPerPartitionContributionBounding(t *testin
 
 		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
 
-		// ε is split in two for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
-		pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+		pcol := MakePrivate(s, col, privacySpec(t, PrivacySpecParams{AggregationEpsilon: epsilon}))
 		pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
 		quantilesParams := QuantilesParams{
 			MaxPartitionsContributed:     1,
@@ -1011,8 +1032,12 @@ func TestQuantilesPerKeyAppliesClamping(t *testing.T) {
 	upper := 5.0
 	ranks := []float64{0.00, 0.25, 0.75, 1.00}
 
-	// ε is split in two for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
-	pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
+	pcol := MakePrivate(s, col, privacySpec(t,
+		PrivacySpecParams{
+			AggregationEpsilon:        epsilon,
+			PartitionSelectionEpsilon: epsilon,
+			PartitionSelectionDelta:   delta,
+		}))
 	pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
 	got := QuantilesPerKey(s, pcol, QuantilesParams{
 		MaxPartitionsContributed:     1,
@@ -1048,7 +1073,6 @@ func TestQuantilesPerKeyWithPartitionsAppliesClamping(t *testing.T) {
 		p, s, col, want := ptest.CreateList2(triples, wantMetric)
 
 		epsilon := 900.0
-		delta := 0.0
 		lower := 0.0
 		upper := 5.0
 		ranks := []float64{0.00, 0.25, 0.75, 1.00}
@@ -1062,8 +1086,7 @@ func TestQuantilesPerKeyWithPartitionsAppliesClamping(t *testing.T) {
 
 		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
 
-		// ε is split in two for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
-		pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
+		pcol := MakePrivate(s, col, privacySpec(t, PrivacySpecParams{AggregationEpsilon: epsilon}))
 		pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
 		quantilesParams := QuantilesParams{
 			MaxPartitionsContributed:     1,
@@ -1575,115 +1598,6 @@ func TestCheckQuantilesPerKeyParams(t *testing.T) {
 	}
 }
 
-// The logic mirrors TestQuantilesPerKeyNoNoise, but with the new privacy budget API where
-// clients specify aggregation budget and partition selection budget separately.
-func TestQuantilesPerKeyNoNoiseTemp(t *testing.T) {
-	// Arrange
-	triples := testutils.ConcatenateTriplesWithFloatValue(
-		testutils.MakeTripleWithFloatValue(100, 0, 1.0),
-		testutils.MakeTripleWithFloatValue(100, 0, 4.0))
-
-	wantMetric := []testutils.PairIF64Slice{
-		{0, []float64{1.0, 1.0, 4.0, 4.0}},
-	}
-	p, s, col, want := ptest.CreateList2(triples, wantMetric)
-	want = beam.ParDo(s, testutils.PairIF64SliceToKV, want)
-	col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
-
-	// ε=900, δ=10⁻²⁰⁰ and l0Sensitivity=1 gives a threshold of =2.
-	epsilon := 900.0
-	delta := 1e-200
-	lower := 0.0
-	upper := 5.0
-	ranks := []float64{0.00, 0.25, 0.75, 1.00}
-
-	// Act
-	spec, err := NewPrivacySpecTemp(PrivacySpecParams{
-		AggregationEpsilon:        epsilon,
-		AggregationDelta:          0,
-		PartitionSelectionEpsilon: epsilon,
-		PartitionSelectionDelta:   delta,
-	})
-	if err != nil {
-		t.Fatalf("TestQuantilesPerKeyNoNoiseTemp: %v", err)
-	}
-	pcol := MakePrivate(s, col, spec)
-	pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
-	got := QuantilesPerKey(s, pcol, QuantilesParams{
-		MaxPartitionsContributed:     1,
-		MaxContributionsPerPartition: 2,
-		MinValue:                     lower,
-		MaxValue:                     upper,
-		Ranks:                        ranks,
-	})
-
-	// Assert
-	testutils.ApproxEqualsKVFloat64Slice(t, s, got, want, testutils.QuantilesTolerance(lower, upper))
-	if err := ptest.Run(p); err != nil {
-		t.Errorf("QuantilesPerKey did not return approximate quantile: %v", err)
-	}
-}
-
-// The logic mirrors TestQuantilesPerKeyWithPartitionsNoNoise, but with the new privacy budget API where
-// clients specify aggregation budget and partition selection budget separately.
-func TestQuantilesPerKeyWithPartitionsNoNoiseTemp(t *testing.T) {
-	// We have two test cases, one for public partitions as a PCollection and one for public partitions as a slice (i.e., in-memory).
-	for _, tc := range []struct {
-		inMemory bool
-	}{
-		{true},
-		{false},
-	} {
-		// Arrange
-		triples := testutils.ConcatenateTriplesWithFloatValue(
-			testutils.MakeTripleWithFloatValue(100, 0, 1.0),
-			testutils.MakeTripleWithFloatValue(100, 0, 4.0))
-
-		wantMetric := []testutils.PairIF64Slice{
-			{0, []float64{1.0, 1.0, 4.0, 4.0}},
-		}
-		p, s, col, want := ptest.CreateList2(triples, wantMetric)
-		want = beam.ParDo(s, testutils.PairIF64SliceToKV, want)
-
-		epsilon := 900.0
-		lower := 0.0
-		upper := 5.0
-		ranks := []float64{0.00, 0.25, 0.75, 1.00}
-		publicPartitionsSlice := []int{0}
-		var publicPartitions any
-		if tc.inMemory {
-			publicPartitions = publicPartitionsSlice
-		} else {
-			publicPartitions = beam.CreateList(s, publicPartitionsSlice)
-		}
-
-		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
-
-		// Act
-		spec, err := NewPrivacySpecTemp(PrivacySpecParams{AggregationEpsilon: epsilon, AggregationDelta: 0})
-		if err != nil {
-			t.Fatalf("TestQuantilesPerKeyWithPartitionsNoNoiseTemp: %v", err)
-		}
-		pcol := MakePrivate(s, col, spec)
-		pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
-		quantilesParams := QuantilesParams{
-			MaxPartitionsContributed:     1,
-			MaxContributionsPerPartition: 2,
-			MinValue:                     lower,
-			MaxValue:                     upper,
-			Ranks:                        ranks,
-			PublicPartitions:             publicPartitions,
-		}
-		got := QuantilesPerKey(s, pcol, quantilesParams)
-
-		// Assert
-		testutils.ApproxEqualsKVFloat64Slice(t, s, got, want, testutils.QuantilesTolerance(lower, upper))
-		if err := ptest.Run(p); err != nil {
-			t.Errorf("QuantilesPerKey with partitions in-memory=%t did not return approximate quantile: %v", tc.inMemory, err)
-		}
-	}
-}
-
 func TestQuantilesPerKeyPreThresholding(t *testing.T) {
 	// Arrange
 	// ε=10⁹, δ≈1 and l0Sensitivity=1 gives a threshold of ≈1.
@@ -1692,16 +1606,13 @@ func TestQuantilesPerKeyPreThresholding(t *testing.T) {
 	lower := 0.0
 	upper := 5.0
 	ranks := []float64{0.00, 0.25, 0.75, 1.00}
-	spec, err := NewPrivacySpecTemp(PrivacySpecParams{
-		AggregationEpsilon:        epsilon,
-		AggregationDelta:          0,
-		PartitionSelectionEpsilon: epsilon,
-		PartitionSelectionDelta:   delta,
-		PreThreshold:              10,
-	})
-	if err != nil {
-		t.Fatalf("TestQuantilesPerKeyPreThresholding: %v", err)
-	}
+	spec := privacySpec(t,
+		PrivacySpecParams{
+			AggregationEpsilon:        epsilon,
+			PartitionSelectionEpsilon: epsilon,
+			PartitionSelectionDelta:   delta,
+			PreThreshold:              10,
+		})
 	triples := testutils.ConcatenateTriplesWithFloatValue(
 		testutils.MakeTripleWithFloatValue(9, 0, 1.0),
 		testutils.MakeTripleWithFloatValueStartingFromKey(10, 10, 1, 1.0),

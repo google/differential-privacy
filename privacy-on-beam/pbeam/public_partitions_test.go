@@ -95,8 +95,8 @@ func TestDropNonPublicPartitionsVFn(t *testing.T) {
 	partitions := []int{0, 2}
 
 	partitionsCol := beam.CreateList(s, partitions)
-	epsilon, delta := 50.0, 1e-200
-	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+	epsilon := 50.0
+	pcol := MakePrivate(s, col, privacySpec(t, PrivacySpecParams{AggregationEpsilon: epsilon}))
 	got := dropNonPublicPartitionsVFn(s, partitionsCol, pcol)
 	testutils.EqualsKVInt(t, s, got, want)
 	if err := ptest.Run(p); err != nil {
@@ -127,16 +127,16 @@ func TestDropNonPublicPartitionsKVFn(t *testing.T) {
 	partitionsCol := beam.CreateList(s, []int{0, 2, 3, 4, 5, 6, 9, 10})
 	col = beam.ParDo(s, testutils.ExtractIDFromTripleWithIntValue, col)
 	col2 = beam.ParDo(s, testutils.ExtractIDFromTripleWithIntValue, col2)
-	epsilon, delta := 50.0, 1e-200
+	epsilon := 50.0
 
-	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+	pcol := MakePrivate(s, col, privacySpec(t, PrivacySpecParams{AggregationEpsilon: epsilon}))
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 	idT, _ := beam.ValidateKVType(pcol.col)
 
 	got := dropNonPublicPartitionsKVFn(s, partitionsCol, pcol, idT)
 	got = beam.SwapKV(s, got)
 
-	pcol2 := MakePrivate(s, col2, NewPrivacySpec(epsilon, delta))
+	pcol2 := MakePrivate(s, col2, privacySpec(t, PrivacySpecParams{AggregationEpsilon: epsilon}))
 	pcol2 = ParDo(s, testutils.TripleWithIntValueToKV, pcol2)
 	want := pcol2.col
 	want = beam.SwapKV(s, want)
@@ -171,16 +171,16 @@ func TestDropNonPublicPartitionsFloat(t *testing.T) {
 	partitionsCol := beam.CreateList(s, []int{0, 2, 3, 4, 5, 6, 7})
 	col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
 	col2 = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col2)
-	epsilon, delta := 50.0, 1e-200
+	epsilon := 50.0
 
-	pcol := MakePrivate(s, col, NewPrivacySpec(epsilon, delta))
+	pcol := MakePrivate(s, col, privacySpec(t, PrivacySpecParams{AggregationEpsilon: epsilon}))
 	pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
 	idT, _ := beam.ValidateKVType(pcol.col)
 
 	got := dropNonPublicPartitionsKVFn(s, partitionsCol, pcol, idT)
 	got = beam.SwapKV(s, got)
 
-	pcol2 := MakePrivate(s, col2, NewPrivacySpec(epsilon, delta))
+	pcol2 := MakePrivate(s, col2, privacySpec(t, PrivacySpecParams{AggregationEpsilon: epsilon}))
 	pcol2 = ParDo(s, testutils.TripleWithFloatValueToKV, pcol2)
 	want := pcol2.col
 	want = beam.SwapKV(s, want)

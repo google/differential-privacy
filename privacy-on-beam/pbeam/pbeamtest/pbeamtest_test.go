@@ -29,7 +29,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	ptest.Main(m)
+	ptest.MainWithDefault(m, "direct")
 }
 
 const (
@@ -39,6 +39,29 @@ const (
 	// Zero δ is used when public partitions are specified.
 	zeroDelta = 0.0
 )
+
+func privacySpec(t *testing.T, testMode pbeam.TestMode, publicPartitions bool) *pbeam.PrivacySpec {
+	t.Helper()
+	var spec *pbeam.PrivacySpec
+	var err error
+	if publicPartitions {
+		spec, err = pbeam.NewPrivacySpecTemp(pbeam.PrivacySpecParams{
+			AggregationEpsilon: tinyEpsilon,
+			TestMode:           testMode,
+		})
+	} else {
+		spec, err = pbeam.NewPrivacySpecTemp(pbeam.PrivacySpecParams{
+			AggregationEpsilon:        tinyEpsilon / 2,
+			PartitionSelectionEpsilon: tinyEpsilon / 2,
+			PartitionSelectionDelta:   tinyDelta,
+			TestMode:                  testMode,
+		})
+	}
+	if err != nil {
+		t.Fatalf("NewPrivacySpecTemp: %v", err)
+	}
+	return spec
+}
 
 // Tests that DistinctPrivacyID bounds per-partition and cross-partition contributions
 // correctly, adds no noise and keeps all partitions in test mode.
@@ -51,7 +74,7 @@ func TestDistinctPrivacyIDTestMode(t *testing.T) {
 	}{
 		{
 			desc:                     "test mode with contribution bounding",
-			privacySpec:              NewPrivacySpecNoNoiseWithContributionBounding(tinyEpsilon, tinyDelta),
+			privacySpec:              privacySpec(t, pbeam.TestModeWithContributionBounding, false),
 			maxPartitionsContributed: 3,
 			// The same privacy ID contributes to 10 partitions, which implies that count of each
 			// partition is 1. With a max contribution of 3, 7 partitions should be dropped. The sum
@@ -61,7 +84,7 @@ func TestDistinctPrivacyIDTestMode(t *testing.T) {
 		},
 		{
 			desc:                     "test mode without contribution bounding",
-			privacySpec:              NewPrivacySpecNoNoiseWithoutContributionBounding(tinyEpsilon, tinyDelta),
+			privacySpec:              privacySpec(t, pbeam.TestModeWithoutContributionBounding, false),
 			maxPartitionsContributed: 3,
 			// The same privacy ID contributes to 10 partitions, which implies that count of each
 			// partition is 1. Contribution bounding is disabled. The sum of all counts must then be 10.
@@ -108,7 +131,7 @@ func TestDistinctPrivacyIDWithPartitionsTestMode(t *testing.T) {
 	}{
 		{
 			desc:                     "test mode with contribution bounding",
-			privacySpec:              NewPrivacySpecNoNoiseWithContributionBounding(tinyEpsilon, zeroDelta),
+			privacySpec:              privacySpec(t, pbeam.TestModeWithContributionBounding, true),
 			maxPartitionsContributed: 3,
 			// The same privacy ID contributes to 10 partitions, which implies that count of each
 			// partition is 1. With a max contribution of 3, 2 out of 5 public partitions should be
@@ -117,7 +140,7 @@ func TestDistinctPrivacyIDWithPartitionsTestMode(t *testing.T) {
 		},
 		{
 			desc:                     "test mode without contribution bounding",
-			privacySpec:              NewPrivacySpecNoNoiseWithoutContributionBounding(tinyEpsilon, zeroDelta),
+			privacySpec:              privacySpec(t, pbeam.TestModeWithoutContributionBounding, true),
 			maxPartitionsContributed: 3,
 			// The same privacy ID contributes to 10 partitions, which implies that count of each
 			// partition is 1. Contribution bounding is disabled and 5 out of 10 partitions are
@@ -166,11 +189,11 @@ func TestDistinctPrivacyIDWithPartitionsTestModeAddsEmptyPartitions(t *testing.T
 	}{
 		{
 			desc:        "test mode with contribution bounding",
-			privacySpec: NewPrivacySpecNoNoiseWithContributionBounding(tinyEpsilon, zeroDelta),
+			privacySpec: privacySpec(t, pbeam.TestModeWithContributionBounding, true),
 		},
 		{
 			desc:        "test mode without contribution bounding",
-			privacySpec: NewPrivacySpecNoNoiseWithoutContributionBounding(tinyEpsilon, zeroDelta),
+			privacySpec: privacySpec(t, pbeam.TestModeWithoutContributionBounding, true),
 		},
 	} {
 		// pairs{privacy_id, partition_key} contains {0,0}, {0,1}, {0,2}, …, {0,9}.
@@ -215,7 +238,7 @@ func TestCountTestMode(t *testing.T) {
 	}{
 		{
 			desc:                     "test mode with contribution bounding",
-			privacySpec:              NewPrivacySpecNoNoiseWithContributionBounding(tinyEpsilon, tinyDelta),
+			privacySpec:              privacySpec(t, pbeam.TestModeWithContributionBounding, false),
 			maxPartitionsContributed: 3,
 			maxValue:                 2,
 			// The same privacy ID contributes twice (third contribution is dropped due per-partition
@@ -229,7 +252,7 @@ func TestCountTestMode(t *testing.T) {
 			desc:                     "test mode without contribution bounding",
 			maxPartitionsContributed: 3,
 			maxValue:                 2,
-			privacySpec:              NewPrivacySpecNoNoiseWithoutContributionBounding(tinyEpsilon, tinyDelta),
+			privacySpec:              privacySpec(t, pbeam.TestModeWithoutContributionBounding, false),
 			// The same privacy ID contributes thrice to 10 partitions, which implies that count of each
 			// partition is 3. Contribution bounding is disabled. The sum of all counts must then be 30.
 			// This also ensures that no partitions (each with a single privacy id) gets thresholded.
@@ -279,7 +302,7 @@ func TestCountWithPartitionsTestMode(t *testing.T) {
 	}{
 		{
 			desc:                     "test mode with contribution bounding",
-			privacySpec:              NewPrivacySpecNoNoiseWithContributionBounding(tinyEpsilon, zeroDelta),
+			privacySpec:              privacySpec(t, pbeam.TestModeWithContributionBounding, true),
 			maxPartitionsContributed: 3,
 			maxValue:                 2,
 			// The same privacy ID contributes twice (third contribution is dropped due per-partition
@@ -290,7 +313,7 @@ func TestCountWithPartitionsTestMode(t *testing.T) {
 		},
 		{
 			desc:                     "test mode without contribution bounding",
-			privacySpec:              NewPrivacySpecNoNoiseWithoutContributionBounding(tinyEpsilon, zeroDelta),
+			privacySpec:              privacySpec(t, pbeam.TestModeWithoutContributionBounding, true),
 			maxPartitionsContributed: 3,
 			maxValue:                 2,
 			// The same privacy ID contributes thrice to 10 partitions, which implies that count of each
@@ -342,11 +365,11 @@ func TestCountWithPartitionsTestModeAddsEmptyPartitions(t *testing.T) {
 	}{
 		{
 			desc:        "test mode with contribution bounding",
-			privacySpec: NewPrivacySpecNoNoiseWithContributionBounding(tinyEpsilon, zeroDelta),
+			privacySpec: privacySpec(t, pbeam.TestModeWithContributionBounding, true),
 		},
 		{
 			desc:        "test mode without contribution bounding",
-			privacySpec: NewPrivacySpecNoNoiseWithoutContributionBounding(tinyEpsilon, zeroDelta),
+			privacySpec: privacySpec(t, pbeam.TestModeWithoutContributionBounding, true),
 		},
 	} {
 		var pairs []testutils.PairII
@@ -390,7 +413,7 @@ func TestSumPerKeyTestModeInt(t *testing.T) {
 	}{
 		{
 			desc:                     "test mode with contribution bounding",
-			privacySpec:              NewPrivacySpecNoNoiseWithContributionBounding(tinyEpsilon, tinyDelta),
+			privacySpec:              privacySpec(t, pbeam.TestModeWithContributionBounding, false),
 			maxPartitionsContributed: 3,
 			minValue:                 0.0,
 			maxValue:                 1.0,
@@ -402,7 +425,7 @@ func TestSumPerKeyTestModeInt(t *testing.T) {
 		},
 		{
 			desc:                     "test mode without contribution bounding",
-			privacySpec:              NewPrivacySpecNoNoiseWithoutContributionBounding(tinyEpsilon, tinyDelta),
+			privacySpec:              privacySpec(t, pbeam.TestModeWithoutContributionBounding, false),
 			maxPartitionsContributed: 3,
 			minValue:                 0.0,
 			maxValue:                 1.0,
@@ -458,7 +481,7 @@ func TestSumPerKeyWithPartitionsTestModeInt(t *testing.T) {
 	}{
 		{
 			desc:                     "test mode with contribution bounding",
-			privacySpec:              NewPrivacySpecNoNoiseWithContributionBounding(tinyEpsilon, zeroDelta),
+			privacySpec:              privacySpec(t, pbeam.TestModeWithContributionBounding, true),
 			maxPartitionsContributed: 3,
 			minValue:                 0.0,
 			maxValue:                 1.0,
@@ -469,7 +492,7 @@ func TestSumPerKeyWithPartitionsTestModeInt(t *testing.T) {
 		},
 		{
 			desc:                     "test mode without contribution bounding",
-			privacySpec:              NewPrivacySpecNoNoiseWithoutContributionBounding(tinyEpsilon, zeroDelta),
+			privacySpec:              privacySpec(t, pbeam.TestModeWithoutContributionBounding, true),
 			maxPartitionsContributed: 3,
 			minValue:                 0.0,
 			maxValue:                 1.0,
@@ -523,11 +546,11 @@ func TestSumPerKeyWithPartitionsTestModeAddsEmptyPartitionsInt(t *testing.T) {
 	}{
 		{
 			desc:        "test mode with contribution bounding",
-			privacySpec: NewPrivacySpecNoNoiseWithContributionBounding(tinyEpsilon, zeroDelta),
+			privacySpec: privacySpec(t, pbeam.TestModeWithContributionBounding, true),
 		},
 		{
 			desc:        "test mode without contribution bounding",
-			privacySpec: NewPrivacySpecNoNoiseWithoutContributionBounding(tinyEpsilon, zeroDelta),
+			privacySpec: privacySpec(t, pbeam.TestModeWithoutContributionBounding, true),
 		},
 	} {
 		// triples{privacy_id, partition_key, value} contains {0,0,1}, {0,1,1}, {0,2,1}, …, {0,9,1}.
@@ -573,7 +596,7 @@ func TestSumPerKeyTestModeFloat(t *testing.T) {
 	}{
 		{
 			desc:                     "test mode with contribution bounding",
-			privacySpec:              NewPrivacySpecNoNoiseWithContributionBounding(tinyEpsilon, tinyDelta),
+			privacySpec:              privacySpec(t, pbeam.TestModeWithContributionBounding, false),
 			maxPartitionsContributed: 3,
 			minValue:                 0.0,
 			maxValue:                 1.0,
@@ -585,7 +608,7 @@ func TestSumPerKeyTestModeFloat(t *testing.T) {
 		},
 		{
 			desc:                     "test mode without contribution bounding",
-			privacySpec:              NewPrivacySpecNoNoiseWithoutContributionBounding(tinyEpsilon, tinyDelta),
+			privacySpec:              privacySpec(t, pbeam.TestModeWithoutContributionBounding, false),
 			maxPartitionsContributed: 3,
 			minValue:                 0.0,
 			maxValue:                 1.0,
@@ -641,7 +664,7 @@ func TestSumPerKeyWithPartitionsTestModeFloat(t *testing.T) {
 	}{
 		{
 			desc:                     "test mode with contribution bounding",
-			privacySpec:              NewPrivacySpecNoNoiseWithContributionBounding(tinyEpsilon, zeroDelta),
+			privacySpec:              privacySpec(t, pbeam.TestModeWithContributionBounding, true),
 			maxPartitionsContributed: 3,
 			minValue:                 0.0,
 			maxValue:                 1.0,
@@ -652,7 +675,7 @@ func TestSumPerKeyWithPartitionsTestModeFloat(t *testing.T) {
 		},
 		{
 			desc:                     "test mode without contribution bounding",
-			privacySpec:              NewPrivacySpecNoNoiseWithoutContributionBounding(tinyEpsilon, zeroDelta),
+			privacySpec:              privacySpec(t, pbeam.TestModeWithoutContributionBounding, true),
 			maxPartitionsContributed: 3,
 			minValue:                 0.0,
 			maxValue:                 1.0,
@@ -706,11 +729,11 @@ func TestSumPerKeyWithPartitionsTestModeAddsEmptyPartitionsFloat(t *testing.T) {
 	}{
 		{
 			desc:        "test mode with contribution bounding",
-			privacySpec: NewPrivacySpecNoNoiseWithContributionBounding(tinyEpsilon, zeroDelta),
+			privacySpec: privacySpec(t, pbeam.TestModeWithContributionBounding, true),
 		},
 		{
 			desc:        "test mode without contribution bounding",
-			privacySpec: NewPrivacySpecNoNoiseWithoutContributionBounding(tinyEpsilon, zeroDelta),
+			privacySpec: privacySpec(t, pbeam.TestModeWithoutContributionBounding, true),
 		},
 	} {
 		// triples{privacy_id, partition_key, value} contains {0,0,1}, {0,1,1}, {0,2,1}, …, {0,9,1}.
@@ -753,7 +776,7 @@ func TestMeanPerKeyTestModeCrossPartitionContributionBounding(t *testing.T) {
 	}{
 		{
 			desc:                     "test mode with contribution bounding",
-			privacySpec:              NewPrivacySpecNoNoiseWithContributionBounding(tinyEpsilon, tinyDelta),
+			privacySpec:              privacySpec(t, pbeam.TestModeWithContributionBounding, false),
 			maxPartitionsContributed: 3,
 			// The same privacy ID contributes "1.0" to 10 partitions, which implies that mean of each
 			// partition is 1.0. With a max contribution of 3, 7 partitions should be dropped. The sum
@@ -763,7 +786,7 @@ func TestMeanPerKeyTestModeCrossPartitionContributionBounding(t *testing.T) {
 		},
 		{
 			desc:                     "test mode without contribution bounding",
-			privacySpec:              NewPrivacySpecNoNoiseWithoutContributionBounding(tinyEpsilon, tinyDelta),
+			privacySpec:              privacySpec(t, pbeam.TestModeWithoutContributionBounding, false),
 			maxPartitionsContributed: 3,
 			// The same privacy ID contributes "1.0" to 10 partitions, which implies that mean of each
 			// partition is 1.0. Cross-partition contribution bounding is disabled. The sum of all means
@@ -815,7 +838,7 @@ func TestMeanPerKeyTestModePerPartitionContributionBounding(t *testing.T) {
 	}{
 		{
 			desc:                        "test mode with contribution bounding",
-			privacySpec:                 NewPrivacySpecNoNoiseWithContributionBounding(tinyEpsilon, tinyDelta),
+			privacySpec:                 privacySpec(t, pbeam.TestModeWithContributionBounding, false),
 			maxContributionPerPartition: 1,
 			minValue:                    0.0,
 			maxValue:                    50.0,
@@ -827,7 +850,7 @@ func TestMeanPerKeyTestModePerPartitionContributionBounding(t *testing.T) {
 		},
 		{
 			desc:                        "test mode without contribution bounding",
-			privacySpec:                 NewPrivacySpecNoNoiseWithoutContributionBounding(tinyEpsilon, tinyDelta),
+			privacySpec:                 privacySpec(t, pbeam.TestModeWithoutContributionBounding, false),
 			maxContributionPerPartition: 1,
 			minValue:                    0.0,
 			maxValue:                    50.0,
@@ -876,7 +899,7 @@ func TestMeanPerKeyWithPartitionsTestModeCrossPartitionContributionBounding(t *t
 	}{
 		{
 			desc:                     "test mode with contribution bounding",
-			privacySpec:              NewPrivacySpecNoNoiseWithContributionBounding(tinyEpsilon, zeroDelta),
+			privacySpec:              privacySpec(t, pbeam.TestModeWithContributionBounding, true),
 			maxPartitionsContributed: 3,
 			// The same privacy ID contributes "1.0" to 10 partitions, which implies that mean of each
 			// partition is 1.0. With a max contribution of 3, 2 out of 5 public partitions should be
@@ -885,7 +908,7 @@ func TestMeanPerKeyWithPartitionsTestModeCrossPartitionContributionBounding(t *t
 		},
 		{
 			desc:                     "test mode without contribution bounding",
-			privacySpec:              NewPrivacySpecNoNoiseWithoutContributionBounding(tinyEpsilon, zeroDelta),
+			privacySpec:              privacySpec(t, pbeam.TestModeWithoutContributionBounding, true),
 			maxPartitionsContributed: 3,
 			// The same privacy ID contributes "1.0" to 10 partitions, which implies that mean of each
 			// partition is 1.0. Cross-partition contribution bounding is disabled and 5 out of 10 partitions
@@ -940,7 +963,7 @@ func TestMeanPerKeyWithPartitionsTestModePerPartitionContributionBoundingAddsEmp
 	}{
 		{
 			desc:                        "test mode with contribution bounding",
-			privacySpec:                 NewPrivacySpecNoNoiseWithContributionBounding(tinyEpsilon, zeroDelta),
+			privacySpec:                 privacySpec(t, pbeam.TestModeWithContributionBounding, true),
 			maxContributionPerPartition: 1,
 			minValue:                    0.0,
 			maxValue:                    50.0,
@@ -952,7 +975,7 @@ func TestMeanPerKeyWithPartitionsTestModePerPartitionContributionBoundingAddsEmp
 		},
 		{
 			desc:                        "test mode without contribution bounding",
-			privacySpec:                 NewPrivacySpecNoNoiseWithoutContributionBounding(tinyEpsilon, zeroDelta),
+			privacySpec:                 privacySpec(t, pbeam.TestModeWithoutContributionBounding, true),
 			maxContributionPerPartition: 1,
 			minValue:                    0.0,
 			maxValue:                    50.0,
@@ -1009,7 +1032,7 @@ func TestQuantilesPerKeyTestModeCrossPartitionContributionBounding(t *testing.T)
 	}{
 		{
 			desc:                         "test mode with contribution bounding",
-			privacySpec:                  NewPrivacySpecNoNoiseWithContributionBounding(tinyEpsilon, tinyDelta),
+			privacySpec:                  privacySpec(t, pbeam.TestModeWithContributionBounding, false),
 			maxContributionsPerPartition: 20,
 			maxPartitionsContributed:     1,
 			minValue:                     0.0,
@@ -1025,7 +1048,7 @@ func TestQuantilesPerKeyTestModeCrossPartitionContributionBounding(t *testing.T)
 		},
 		{
 			desc:                         "test mode without contribution bounding",
-			privacySpec:                  NewPrivacySpecNoNoiseWithoutContributionBounding(tinyEpsilon, tinyDelta),
+			privacySpec:                  privacySpec(t, pbeam.TestModeWithoutContributionBounding, false),
 			maxContributionsPerPartition: 20,
 			maxPartitionsContributed:     1,
 			minValue:                     0.0,
@@ -1090,7 +1113,7 @@ func TestQuantilesPerKeyWithPartitionsTestModeCrossPartitionContributionBounding
 	}{
 		{
 			desc:                         "test mode with contribution bounding",
-			privacySpec:                  NewPrivacySpecNoNoiseWithContributionBounding(tinyEpsilon, zeroDelta),
+			privacySpec:                  privacySpec(t, pbeam.TestModeWithContributionBounding, true),
 			maxContributionsPerPartition: 20,
 			maxPartitionsContributed:     1,
 			minValue:                     0.0,
@@ -1106,7 +1129,7 @@ func TestQuantilesPerKeyWithPartitionsTestModeCrossPartitionContributionBounding
 		},
 		{
 			desc:                         "test mode without contribution bounding",
-			privacySpec:                  NewPrivacySpecNoNoiseWithoutContributionBounding(tinyEpsilon, zeroDelta),
+			privacySpec:                  privacySpec(t, pbeam.TestModeWithoutContributionBounding, true),
 			maxContributionsPerPartition: 20,
 			maxPartitionsContributed:     1,
 			minValue:                     0.0,
@@ -1172,7 +1195,7 @@ func TestQuantilesPerKeyTestModePerPartitionContributionBounding(t *testing.T) {
 	}{
 		{
 			desc:                        "test mode with contribution bounding",
-			privacySpec:                 NewPrivacySpecNoNoiseWithContributionBounding(tinyEpsilon, tinyDelta),
+			privacySpec:                 privacySpec(t, pbeam.TestModeWithContributionBounding, false),
 			maxContributionPerPartition: 1,
 			minValue:                    0.0,
 			maxValue:                    1.0,
@@ -1186,7 +1209,7 @@ func TestQuantilesPerKeyTestModePerPartitionContributionBounding(t *testing.T) {
 		},
 		{
 			desc:                        "test mode without contribution bounding",
-			privacySpec:                 NewPrivacySpecNoNoiseWithoutContributionBounding(tinyEpsilon, tinyDelta),
+			privacySpec:                 privacySpec(t, pbeam.TestModeWithoutContributionBounding, false),
 			maxContributionPerPartition: 1,
 			minValue:                    0.0,
 			maxValue:                    1.0,
@@ -1241,7 +1264,7 @@ func TestQuantilesPerKeyWithPartitionsTestModePerPartitionContributionBounding(t
 	}{
 		{
 			desc:                        "test mode with contribution bounding",
-			privacySpec:                 NewPrivacySpecNoNoiseWithContributionBounding(tinyEpsilon, zeroDelta),
+			privacySpec:                 privacySpec(t, pbeam.TestModeWithContributionBounding, true),
 			maxContributionPerPartition: 1,
 			minValue:                    0.0,
 			maxValue:                    1.0,
@@ -1255,7 +1278,7 @@ func TestQuantilesPerKeyWithPartitionsTestModePerPartitionContributionBounding(t
 		},
 		{
 			desc:                        "test mode without contribution bounding",
-			privacySpec:                 NewPrivacySpecNoNoiseWithoutContributionBounding(tinyEpsilon, zeroDelta),
+			privacySpec:                 privacySpec(t, pbeam.TestModeWithoutContributionBounding, true),
 			maxContributionPerPartition: 1,
 			minValue:                    0.0,
 			maxValue:                    1.0,
@@ -1307,11 +1330,11 @@ func TestQuantilesPerKeyWithPartitionsAppliesPublicPartitions(t *testing.T) {
 	}{
 		{
 			desc:        "test mode with contribution bounding",
-			privacySpec: NewPrivacySpecNoNoiseWithContributionBounding(tinyEpsilon, zeroDelta),
+			privacySpec: privacySpec(t, pbeam.TestModeWithContributionBounding, true),
 		},
 		{
 			desc:        "test mode without contribution bounding",
-			privacySpec: NewPrivacySpecNoNoiseWithoutContributionBounding(tinyEpsilon, zeroDelta),
+			privacySpec: privacySpec(t, pbeam.TestModeWithoutContributionBounding, true),
 		},
 	} {
 		triples := testutils.ConcatenateTriplesWithFloatValue(
@@ -1378,14 +1401,14 @@ func TestSelectPartitionsTestModeCrossPartitionContributionBoundingV(t *testing.
 	}{
 		{
 			desc:                     "test mode with contribution bounding",
-			privacySpec:              NewPrivacySpecNoNoiseWithContributionBounding(tinyEpsilon, tinyDelta),
+			privacySpec:              privacySpec(t, pbeam.TestModeWithContributionBounding, false),
 			maxPartitionsContributed: 1,
 			// With a max contribution of 1, only 1 partition should be outputted.
 			want: 1,
 		},
 		{
 			desc:                     "test mode without contribution bounding",
-			privacySpec:              NewPrivacySpecNoNoiseWithoutContributionBounding(tinyEpsilon, tinyDelta),
+			privacySpec:              privacySpec(t, pbeam.TestModeWithoutContributionBounding, false),
 			maxPartitionsContributed: 1,
 			// Cross-partition contribution bounding is disabled, so all 10 partitions should be outputted.
 			want: 10,
@@ -1420,14 +1443,14 @@ func TestSelectPartitionsTestModeCrossPartitionContributionBoundingKV(t *testing
 	}{
 		{
 			desc:                     "test mode with contribution bounding",
-			privacySpec:              NewPrivacySpecNoNoiseWithContributionBounding(tinyEpsilon, tinyDelta),
+			privacySpec:              privacySpec(t, pbeam.TestModeWithContributionBounding, false),
 			maxPartitionsContributed: 1,
 			// With a max contribution of 1, only 1 partition should be outputted.
 			want: 1,
 		},
 		{
 			desc:                     "test mode without contribution bounding",
-			privacySpec:              NewPrivacySpecNoNoiseWithoutContributionBounding(tinyEpsilon, tinyDelta),
+			privacySpec:              privacySpec(t, pbeam.TestModeWithoutContributionBounding, false),
 			maxPartitionsContributed: 1,
 			// Cross-partition contribution bounding is disabled, so all 10 partitions should be outputted.
 			want: 10,
@@ -1463,7 +1486,7 @@ func TestDistinctPerKeyTestModeCrossPartitionContributionBounding(t *testing.T) 
 	}{
 		{
 			desc:                     "test mode with contribution bounding",
-			privacySpec:              NewPrivacySpecNoNoiseWithContributionBounding(tinyEpsilon, tinyDelta),
+			privacySpec:              privacySpec(t, pbeam.TestModeWithContributionBounding, false),
 			maxPartitionsContributed: 3,
 			// The same privacy ID contributes once to 10 partitions, which implies that count of each
 			// partition is 1. With a max contribution of 3, 7 partitions should be dropped. The sum of
@@ -1473,7 +1496,7 @@ func TestDistinctPerKeyTestModeCrossPartitionContributionBounding(t *testing.T) 
 		},
 		{
 			desc:                     "test mode without contribution bounding",
-			privacySpec:              NewPrivacySpecNoNoiseWithoutContributionBounding(tinyEpsilon, tinyDelta),
+			privacySpec:              privacySpec(t, pbeam.TestModeWithoutContributionBounding, false),
 			maxPartitionsContributed: 3,
 			// The same privacy ID contributes once to 10 partitions, which implies that count of each
 			// partition is 3. Cross-partition contribution bounding is disabled. The sum of all counts
@@ -1521,7 +1544,7 @@ func TestDistinctPerKeyTestModePerPartitionContributionBounding(t *testing.T) {
 	}{
 		{
 			desc:                         "test mode with contribution bounding",
-			privacySpec:                  NewPrivacySpecNoNoiseWithContributionBounding(tinyEpsilon, tinyDelta),
+			privacySpec:                  privacySpec(t, pbeam.TestModeWithContributionBounding, false),
 			maxContributionsPerPartition: 3,
 			// MaxContributionsPerPartition = 3, but id = 0 contributes 10 distinct values to partition 0.
 			// There will be a per-partition contribution bounding stage and only 3 of 10 distinct values
@@ -1531,7 +1554,7 @@ func TestDistinctPerKeyTestModePerPartitionContributionBounding(t *testing.T) {
 		},
 		{
 			desc:                         "test mode without contribution bounding",
-			privacySpec:                  NewPrivacySpecNoNoiseWithoutContributionBounding(tinyEpsilon, tinyDelta),
+			privacySpec:                  privacySpec(t, pbeam.TestModeWithoutContributionBounding, false),
 			maxContributionsPerPartition: 3,
 			// MaxContributionsPerPartition = 3, but id = 0 contributes 10 distinct values to partition 0.
 			// There will not be a per-partition contribution bounding stage, so all 10 distinct values will
@@ -1580,7 +1603,7 @@ func TestDistinctPerKeyWithPartitionsTestModeCrossPartitionContributionBounding(
 	}{
 		{
 			desc:                     "test mode with contribution bounding",
-			privacySpec:              NewPrivacySpecNoNoiseWithContributionBounding(tinyEpsilon, zeroDelta),
+			privacySpec:              privacySpec(t, pbeam.TestModeWithContributionBounding, true),
 			maxPartitionsContributed: 3,
 			// The same privacy ID contributes "1.0" to 10 partitions, which implies that mean of each
 			// partition is 1.0. With a max contribution of 3, 2 out of 5 public partitions should be
@@ -1590,7 +1613,7 @@ func TestDistinctPerKeyWithPartitionsTestModeCrossPartitionContributionBounding(
 		},
 		{
 			desc:                     "test mode without contribution bounding",
-			privacySpec:              NewPrivacySpecNoNoiseWithoutContributionBounding(tinyEpsilon, zeroDelta),
+			privacySpec:              privacySpec(t, pbeam.TestModeWithoutContributionBounding, true),
 			maxPartitionsContributed: 3,
 			// The same privacy ID contributes "1.0" to 10 partitions, which implies that mean of each
 			// partition is 1.0. Cross-partition contribution bounding is disabled and 5 out of 10 partitions
@@ -1640,11 +1663,11 @@ func TestDistinctPerKeyWithPartitionsTestModeEmptyPartitionsInt(t *testing.T) {
 	}{
 		{
 			desc:        "test mode with contribution bounding",
-			privacySpec: NewPrivacySpecNoNoiseWithContributionBounding(tinyEpsilon, zeroDelta),
+			privacySpec: privacySpec(t, pbeam.TestModeWithContributionBounding, true),
 		},
 		{
 			desc:        "test mode without contribution bounding",
-			privacySpec: NewPrivacySpecNoNoiseWithoutContributionBounding(tinyEpsilon, zeroDelta),
+			privacySpec: privacySpec(t, pbeam.TestModeWithoutContributionBounding, true),
 		},
 	} {
 		// triples{privacy_id, partition_key, value} contains {0,0,1}, {0,1,1}, {0,2,1}, …, {0,9,1}.

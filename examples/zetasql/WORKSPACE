@@ -22,41 +22,11 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 http_archive(
     name = "com_google_zetasql",
-    sha256 = "9d3c2149ffe21512fd50f873f718fe663546f2c2ee355af479b06ff31e228b8c",
-    strip_prefix = "zetasql-2023.03.2",
-    url = "https://github.com/google/zetasql/archive/refs/tags/2023.03.2.tar.gz",
+    strip_prefix = "zetasql-2023.11.1",
+    url = "https://github.com/google/zetasql/archive/refs/tags/2023.11.1.tar.gz",
 )
 
 # Transitive dependencies from the ZetaSQL WORKSPACE file:
-RULES_JVM_EXTERNAL_TAG = "4.5"
-
-RULES_JVM_EXTERNAL_SHA = "b17d7388feb9bfa7f2fa09031b32707df529f26c91ab9e5d909eb1676badd9a6"
-
-http_archive(
-    name = "rules_jvm_external",
-    sha256 = RULES_JVM_EXTERNAL_SHA,
-    strip_prefix = "rules_jvm_external-%s" % RULES_JVM_EXTERNAL_TAG,
-    url = "https://github.com/bazelbuild/rules_jvm_external/archive/refs/tags/%s.zip" % RULES_JVM_EXTERNAL_TAG,
-)
-
-http_archive(
-    name = "io_grpc_grpc_java",
-    sha256 = "6c39c5feecda4f1ccafe88d8928d9a0f2a686d9a9a9c03888a2e5ac92f7ee34a",
-    strip_prefix = "grpc-java-1.43.2",
-    url = "https://github.com/grpc/grpc-java/archive/v1.43.2.tar.gz",
-)
-
-load("@rules_jvm_external//:repositories.bzl", "rules_jvm_external_deps")
-
-rules_jvm_external_deps()
-
-load("@rules_jvm_external//:setup.bzl", "rules_jvm_external_setup")
-
-rules_jvm_external_setup()
-
-load("@com_google_zetasql//bazel:zetasql_java_deps.bzl", "zetasql_java_deps")
-
-zetasql_java_deps()
 
 load("@com_google_zetasql//bazel:zetasql_deps_step_1.bzl", "zetasql_deps_step_1")
 
@@ -64,11 +34,20 @@ zetasql_deps_step_1()
 
 load("@com_google_zetasql//bazel:zetasql_deps_step_2.bzl", "zetasql_deps_step_2")
 
-zetasql_deps_step_2()
+zetasql_deps_step_2(
+    java_deps = False,
+    testing_deps = False,
+)
 
-load("@com_google_zetasql//bazel:zetasql_deps_step_3.bzl", "zetasql_deps_step_3")
+# Only need to load a subset of zetasql_deps_step_3:
 
-zetasql_deps_step_3()
+load("@com_google_protobuf//:protobuf_deps.bzl", "protobuf_deps")
+
+protobuf_deps()
+
+load("@com_github_grpc_grpc//bazel:grpc_deps.bzl", "grpc_deps")
+
+grpc_deps()
 
 load("@com_google_zetasql//bazel:zetasql_deps_step_4.bzl", "zetasql_deps_step_4")
 

@@ -171,7 +171,7 @@ func TestMakePrivate(t *testing.T) {
 	colKV := beam.ParDo(s, testutils.PairToKV, col)
 
 	// pcol should contain 17→42 and 99→0.
-	pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
+	pcol := MakePrivate(s, colKV, privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1}))
 	got := beam.ParDo(s, testutils.KVToPair, pcol.col)
 	passert.Equals(s, got, col)
 	if err := ptest.Run(p); err != nil {
@@ -248,7 +248,7 @@ func TestMakePrivateFromStruct(t *testing.T) {
 	} {
 		p, s, col, want := ptest.CreateList2(tc.values, tc.want)
 
-		pcol := MakePrivateFromStruct(s, col, NewPrivacySpec(1, 1e-10), tc.idFieldPath)
+		pcol := MakePrivateFromStruct(s, col, privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1}), tc.idFieldPath)
 		got := beam.ParDo(s, kvToStructPair, pcol.col)
 		passert.Equals(s, got, want)
 		if err := ptest.Run(p); err != nil {
@@ -325,7 +325,7 @@ func TestMakePrivateFromProto(t *testing.T) {
 	}
 	p, s, col, want := ptest.CreateList2(values, result)
 
-	pcol := MakePrivateFromProto(s, col, NewPrivacySpec(1, 1e-10), "foo")
+	pcol := MakePrivateFromProto(s, col, privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1}), "foo")
 	got := beam.ParDo(s, kvToProtoPair, pcol.col)
 	passert.Equals(s, got, want)
 	if err := ptest.Run(p); err != nil {
@@ -483,7 +483,7 @@ func TestBudgetFullyConsumed(t *testing.T) {
 	}
 	p, s, col := ptest.CreateList(values)
 	colKV := beam.ParDo(s, testutils.PairToKV, col)
-	spec := NewPrivacySpec(1, 1e-30)
+	spec := privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1, PartitionSelectionEpsilon: 1, PartitionSelectionDelta: 1e-30})
 	pcol := MakePrivate(s, colKV, spec)
 	got := Count(s, pcol, CountParams{MaxValue: 1, MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}})
 	passert.Empty(s, got)
@@ -491,7 +491,10 @@ func TestBudgetFullyConsumed(t *testing.T) {
 		t.Errorf("expected no error but got error: %v", err)
 	}
 	// Try consuming 1% of the initial budget.
-	if eps, del, err := spec.budget.consume(0.01, 1e-32); err == nil {
+	if eps, del, err := spec.aggregationBudget.consume(0.01, 0); err == nil {
+		t.Errorf("expected spec to be out of budget, but could consume (%f,%e) without any error", eps, del)
+	}
+	if eps, del, err := spec.partitionSelectionBudget.consume(0.01, 1e-32); err == nil {
 		t.Errorf("expected spec to be out of budget, but could consume (%f,%e) without any error", eps, del)
 	}
 }
@@ -504,8 +507,8 @@ func TestTwoDistinctBudgets(t *testing.T) {
 	}
 	p, s, col := ptest.CreateList(values)
 	colKV := beam.ParDo(s, testutils.PairToKV, col)
-	spec1 := NewPrivacySpec(1, 1e-30)
-	spec2 := NewPrivacySpec(1, 1e-30)
+	spec1 := privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1, PartitionSelectionEpsilon: 1, PartitionSelectionDelta: 1e-30})
+	spec2 := privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1, PartitionSelectionEpsilon: 1, PartitionSelectionDelta: 1e-30})
 	pcol1 := MakePrivate(s, colKV, spec1)
 	pcol2 := MakePrivate(s, colKV, spec2)
 	got1 := Count(s, pcol1, CountParams{MaxValue: 1, MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}})
@@ -516,11 +519,17 @@ func TestTwoDistinctBudgets(t *testing.T) {
 		t.Errorf("expected no error but got error: %v", err)
 	}
 	// Try consuming 1% of the initial budget independently for ε and δ.
-	if eps, del, err := spec1.budget.consume(0, 1e-32); err == nil {
-		t.Errorf("expected spec1 to be out of budget, but could consume (%f,%e) without any error", eps, del)
+	if eps, del, err := spec1.aggregationBudget.consume(0.01, 0); err == nil {
+		t.Errorf("expected spec to be out of budget, but could consume (%f,%e) without any error", eps, del)
 	}
-	if eps, del, err := spec2.budget.consume(0.01, 0); err == nil {
-		t.Errorf("expected spec2 to be out of budget, but could consume (%f,%e) without any error", eps, del)
+	if eps, del, err := spec1.partitionSelectionBudget.consume(0.01, 1e-32); err == nil {
+		t.Errorf("expected spec to be out of budget, but could consume (%f,%e) without any error", eps, del)
+	}
+	if eps, del, err := spec2.aggregationBudget.consume(0.01, 0); err == nil {
+		t.Errorf("expected spec to be out of budget, but could consume (%f,%e) without any error", eps, del)
+	}
+	if eps, del, err := spec2.partitionSelectionBudget.consume(0.01, 1e-32); err == nil {
+		t.Errorf("expected spec to be out of budget, but could consume (%f,%e) without any error", eps, del)
 	}
 }
 
@@ -557,7 +566,7 @@ func TestDropKey(t *testing.T) {
 	}
 	p, s, col, want := ptest.CreateList2(values, result)
 	colKV := beam.ParDo(s, testutils.PairToKV, col)
-	spec := NewPrivacySpec(1e10, 0)
+	spec := privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1e10})
 	pcol := MakePrivate(s, colKV, spec)
 	pcol = ParDo(s, addZeroIntKeyFn, pcol)
 	pcol = DropKey(s, pcol)
@@ -589,7 +598,7 @@ func TestDropValue(t *testing.T) {
 	}
 	p, s, col, want := ptest.CreateList2(values, result)
 	colKV := beam.ParDo(s, testutils.PairToKV, col)
-	spec := NewPrivacySpec(1e10, 0)
+	spec := privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1e10})
 	pcol := MakePrivate(s, colKV, spec)
 	pcol = ParDo(s, addZeroIntValueFn, pcol)
 	pcol = DropValue(s, pcol)

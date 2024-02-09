@@ -147,7 +147,7 @@ func TestParDo1x1(t *testing.T) {
 	colKV := beam.ParDo(s, testutils.PairToKV, col)
 
 	// pcol should contain 17→42 and 99→0.
-	pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
+	pcol := MakePrivate(s, colKV, privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1}))
 	// We change that to 17→26 and 99→5 in the PrivatePCollection
 	pcol = ParDo(s, doFn, pcol)
 	gotCol := beam.ParDo(s, testutils.KVToPair, pcol.col)
@@ -165,7 +165,7 @@ func TestParDo1x2(t *testing.T) {
 	colKV := beam.ParDo(s, testutils.PairToKV, col)
 
 	// pcol should contain 17→42 and 99→0.
-	pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
+	pcol := MakePrivate(s, colKV, privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1}))
 	// We change that to 17→<kv.Pair{84, 22}> and 99→<kv.Pair{0, 1}> in the PrivatePCollection
 	pcol = ParDo(s, doFn, pcol)
 	gotCol := beam.ParDo(s, testutils.KVToPairICodedKV, pcol.col)
@@ -203,7 +203,7 @@ func TestParDoCtx1x2(t *testing.T) {
 		colKV := beam.ParDo(s, testutils.PairToKV, col)
 
 		// pcol should contain 17→42 and 99→0.
-		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
+		pcol := MakePrivate(s, colKV, privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1}))
 		// We change that to 17→<kv.Pair{84, 22}> and 99→<kv.Pair{0, 1}> in the PrivatePCollection
 		pcol = ParDo(s, doFn, pcol)
 		gotCol := beam.ParDo(s, testutils.KVToPairICodedKV, pcol.col)
@@ -238,7 +238,7 @@ func TestParDo1x2Err(t *testing.T) {
 		colKV := beam.ParDo(s, testutils.PairToKV, col)
 
 		// pcol should contain 17→42 and 99→0.
-		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
+		pcol := MakePrivate(s, colKV, privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1}))
 		// We change that to 17→<kv.Pair{84, 22}> and 99→<kv.Pair{0, 1}> in the PrivatePCollection
 		pcol = ParDo(s, tc.doFn, pcol)
 		gotCol := beam.ParDo(s, testutils.KVToPairICodedKV, pcol.col)
@@ -288,7 +288,7 @@ func TestParDoCtx1x2Err(t *testing.T) {
 		colKV := beam.ParDo(s, testutils.PairToKV, col)
 
 		// pcol should contain 17→42 and 99→0.
-		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
+		pcol := MakePrivate(s, colKV, privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1}))
 		// We change that to 17→<kv.Pair{84, 22}> and 99→<kv.Pair{0, 1}> in the PrivatePCollection
 		pcol = ParDo(s, tc.doFn, pcol)
 		gotCol := beam.ParDo(s, testutils.KVToPairICodedKV, pcol.col)
@@ -315,7 +315,7 @@ func TestParDo2x1(t *testing.T) {
 	colKV := beam.ParDo(s, testutils.PairICodedKVToKV, col)
 
 	// pcol should contain 17→<kv.Pair{84, 22}> and 99→<kv.Pair{0, 1}>.
-	pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
+	pcol := MakePrivate(s, colKV, privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1}))
 	// We change that to 17→106 and 99→1 in the PrivatePCollection
 	pcol = ParDo(s, doFn, pcol)
 	gotCol := beam.ParDo(s, testutils.KVToPair, pcol.col)
@@ -350,7 +350,7 @@ func TestParDoCtx2x1(t *testing.T) {
 		colKV := beam.ParDo(s, testutils.PairICodedKVToKV, col)
 
 		// pcol should contain 17→<codedKV{84, 22}> and 99→<codedKV{0, 1}>.
-		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
+		pcol := MakePrivate(s, colKV, privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1}))
 		// We change that to 17→106 and 99→1 in the PrivatePCollection
 		pcol = ParDo(s, doFn, pcol)
 		gotCol := beam.ParDo(s, testutils.KVToPair, pcol.col)
@@ -381,7 +381,7 @@ func TestParDo2x1Err(t *testing.T) {
 		colKV := beam.ParDo(s, testutils.PairICodedKVToKV, col)
 
 		// pcol should contain 17→<codedKV{84, 22}> and 99→<codedKV{0, 1}>.
-		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
+		pcol := MakePrivate(s, colKV, privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1}))
 		// We change that to 17→106 and 99→1 in the PrivatePCollection
 		pcol = ParDo(s, tc.doFn, pcol)
 		gotCol := beam.ParDo(s, testutils.KVToPair, pcol.col)
@@ -427,7 +427,7 @@ func TestParDoCtx2x1Err(t *testing.T) {
 		colKV := beam.ParDo(s, testutils.PairICodedKVToKV, col)
 
 		// pcol should contain 17→<codedKV{84, 22}> and 99→<codedKV{0, 1}>.
-		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
+		pcol := MakePrivate(s, colKV, privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1}))
 		// We change that to 17→106 and 99→1 in the PrivatePCollection
 		pcol = ParDo(s, tc.doFn, pcol)
 		gotCol := beam.ParDo(s, testutils.KVToPair, pcol.col)
@@ -452,7 +452,7 @@ func TestParDo2x2(t *testing.T) {
 	colKV := beam.ParDo(s, testutils.PairICodedKVToKV, col)
 
 	// pcol should contain 17→<kv.Pair{84, 22}> and 99→<kv.Pair{0, 1}>.
-	pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
+	pcol := MakePrivate(s, colKV, privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1}))
 	// We change that to 17→<kv.Pair{106, 62}> and 99→<kv.Pair{1, -1}> in the PrivatePCollection
 	pcol = ParDo(s, doFn, pcol)
 	gotCol := beam.ParDo(s, testutils.KVToPairICodedKV, pcol.col)
@@ -490,7 +490,7 @@ func TestParDoCtx2x2(t *testing.T) {
 		colKV := beam.ParDo(s, testutils.PairICodedKVToKV, col)
 
 		// pcol should contain 17→<kv.Pair{84, 22}> and 99→<kv.Pair{0, 1}>.
-		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
+		pcol := MakePrivate(s, colKV, privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1}))
 		// We change that to 17→<kv.Pair{106, 62}> and 99→<kv.Pair{1, -1}> in the PrivatePCollection
 		pcol = ParDo(s, doFn, pcol)
 		gotCol := beam.ParDo(s, testutils.KVToPairICodedKV, pcol.col)
@@ -525,7 +525,7 @@ func TestParDo2x2Err(t *testing.T) {
 		colKV := beam.ParDo(s, testutils.PairICodedKVToKV, col)
 
 		// pcol should contain 17→<kv.Pair{84, 22}> and 99→<kv.Pair{0, 1}>.
-		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
+		pcol := MakePrivate(s, colKV, privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1}))
 		// We change that to 17→<kv.Pair{106, 62}> and 99→<kv.Pair{1, -1}> in the PrivatePCollection
 		pcol = ParDo(s, tc.doFn, pcol)
 		gotCol := beam.ParDo(s, testutils.KVToPairICodedKV, pcol.col)
@@ -575,7 +575,7 @@ func TestParDoCtx2x2Err(t *testing.T) {
 		colKV := beam.ParDo(s, testutils.PairICodedKVToKV, col)
 
 		// pcol should contain 17→<kv.Pair{84, 22}> and 99→<kv.Pair{0, 1}>.
-		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
+		pcol := MakePrivate(s, colKV, privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1}))
 		// We change that to 17→<kv.Pair{106, 62}> and 99→<kv.Pair{1, -1}> in the PrivatePCollection
 		pcol = ParDo(s, tc.doFn, pcol)
 		gotCol := beam.ParDo(s, testutils.KVToPairICodedKV, pcol.col)
@@ -646,7 +646,7 @@ func TestParDoCtx1x1(t *testing.T) {
 		colKV := beam.ParDo(s, testutils.PairToKV, col)
 
 		// pcol should contain 17→42 and 99→0.
-		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
+		pcol := MakePrivate(s, colKV, privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1}))
 		// If the context was cancelled, we change that to 17→0 and 99→0 in the PrivatePCollection,
 		// Otherwise, we change that to 17→26 and 99→5
 		pcol = ParDo(s, doFnWithContext, pcol)
@@ -666,7 +666,7 @@ func TestParDo1x1Err(t *testing.T) {
 	p, s, col, wantCol := ptest.CreateList2(values, goodResult)
 	colKV := beam.ParDo(s, testutils.PairToKV, col)
 
-	pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
+	pcol := MakePrivate(s, colKV, privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1}))
 	pcol = ParDo(s, doFn, pcol)
 	gotCol := beam.ParDo(s, testutils.KVToPair, pcol.col)
 	passert.Equals(s, gotCol, wantCol)
@@ -682,7 +682,7 @@ func TestParDo1x1ErrReturnsError(t *testing.T) {
 	p, s, col, wantCol := ptest.CreateList2(values, zeroResult)
 	colKV := beam.ParDo(s, testutils.PairToKV, col)
 
-	pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
+	pcol := MakePrivate(s, colKV, privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1}))
 	pcol = ParDo(s, doFn, pcol)
 	gotCol := beam.ParDo(s, testutils.KVToPair, pcol.col)
 	passert.Equals(s, gotCol, wantCol)
@@ -711,7 +711,7 @@ func TestParDoCtx1x1Err(t *testing.T) {
 		colKV := beam.ParDo(s, testutils.PairToKV, col)
 
 		// pcol should contain 17→42 and 99→0.
-		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
+		pcol := MakePrivate(s, colKV, privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1}))
 		// If the context was cancelled, we change that to 17→0 and 99→0 in the PrivatePCollection,
 		// Otherwise, we change that to 17→26 and 99→5
 		pcol = ParDo(s, doFn, pcol)
@@ -743,7 +743,7 @@ func TestParDo1x1Emit(t *testing.T) {
 	p, s, col := ptest.CreateList(values)
 	colKV := beam.ParDo(s, testutils.PairToKV, col)
 
-	pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
+	pcol := MakePrivate(s, colKV, privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1}))
 	pcol = ParDo(s, doFnPair, pcol)
 	gotCol := beam.ParDo(s, testutils.KVToPair, pcol.col)
 	passert.Equals(s, gotCol, col)
@@ -752,7 +752,7 @@ func TestParDo1x1Emit(t *testing.T) {
 	}
 
 	// Check for values with ctx passed in doFn
-	pcol = MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
+	pcol = MakePrivate(s, colKV, privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1}))
 	pcol = ParDo(s, doFnPairWithCtx, pcol)
 	gotCol = beam.ParDo(s, testutils.KVToPair, pcol.col)
 	passert.Equals(s, gotCol, col)
@@ -783,7 +783,7 @@ func TestParDo1x1ErrEmit(t *testing.T) {
 		colKV := beam.ParDo(s, testutils.PairToKV, col)
 
 		// pcol should contain 17→42 and 99→0.
-		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
+		pcol := MakePrivate(s, colKV, privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1}))
 		// We change that to 17→26 and 99→5 in the PrivatePCollection
 		pcol = ParDo(s, tc.doFn, pcol)
 		gotCol := beam.ParDo(s, testutils.KVToPair, pcol.col)
@@ -831,7 +831,7 @@ func TestParDoCtx1x1ErrEmit(t *testing.T) {
 		colKV := beam.ParDo(s, testutils.PairToKV, col)
 
 		// pcol should contain 17→42 and 99→0.
-		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
+		pcol := MakePrivate(s, colKV, privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1}))
 		// We change that to 17→26 and 99→5 in the PrivatePCollection
 		pcol = ParDo(s, tc.doFn, pcol)
 		gotCol := beam.ParDo(s, testutils.KVToPair, pcol.col)
@@ -887,7 +887,7 @@ func TestParDo1x2Emit(t *testing.T) {
 		colKV := beam.ParDo(s, testutils.PairToKV, col)
 
 		// pcol should contain 17→42 and 99→0.
-		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
+		pcol := MakePrivate(s, colKV, privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1}))
 		// We change that to 17→<kv.Pair{84, 22}> and 99→<kv.Pair{0, 1}> in the PrivatePCollection
 		pcol = ParDo(s, tc.doFn, pcol)
 		gotCol := beam.ParDo(s, testutils.KVToPairICodedKV, pcol.col)
@@ -926,7 +926,7 @@ func TestParDoCtx1x2Emit(t *testing.T) {
 		colKV := beam.ParDo(s, testutils.PairToKV, col)
 
 		// pcol should contain 17→42 and 99→0.
-		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
+		pcol := MakePrivate(s, colKV, privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1}))
 		// We change that to 17→<kv.Pair{84, 22}> and 99→<kv.Pair{0, 1}> in the PrivatePCollection
 		pcol = ParDo(s, doFn, pcol)
 		gotCol := beam.ParDo(s, testutils.KVToPairICodedKV, pcol.col)
@@ -962,7 +962,7 @@ func TestParDo1x2ErrEmit(t *testing.T) {
 		colKV := beam.ParDo(s, testutils.PairToKV, col)
 
 		// pcol should contain 17→42 and 99→0.
-		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
+		pcol := MakePrivate(s, colKV, privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1}))
 		// We change that to 17→<kv.Pair{84, 22}> and 99→<kv.Pair{0, 1}> in the PrivatePCollection
 		pcol = ParDo(s, tc.doFn, pcol)
 		gotCol := beam.ParDo(s, testutils.KVToPairICodedKV, pcol.col)
@@ -1014,7 +1014,7 @@ func TestParDoCtx1x2ErrEmit(t *testing.T) {
 		colKV := beam.ParDo(s, testutils.PairToKV, col)
 
 		// pcol should contain 17→42 and 99→0.
-		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
+		pcol := MakePrivate(s, colKV, privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1}))
 		// We change that to 17→<kv.Pair{84, 22}> and 99→<kv.Pair{0, 1}> in the PrivatePCollection
 		pcol = ParDo(s, tc.doFn, pcol)
 		gotCol := beam.ParDo(s, testutils.KVToPairICodedKV, pcol.col)
@@ -1073,7 +1073,7 @@ func TestParDo2x1Emit(t *testing.T) {
 		colKV := beam.ParDo(s, testutils.PairICodedKVToKV, col)
 
 		// pcol should contain 17→<kv.Pair{84, 22}> and 99→<kv.Pair{0, 1}>.
-		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
+		pcol := MakePrivate(s, colKV, privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1}))
 		// We change that to 17→106 and 99→1 in the PrivatePCollection
 		pcol = ParDo(s, tc.doFn, pcol)
 		gotCol := beam.ParDo(s, testutils.KVToPair, pcol.col)
@@ -1108,7 +1108,7 @@ func TestParDoCtx2x1Emit(t *testing.T) {
 		colKV := beam.ParDo(s, testutils.PairICodedKVToKV, col)
 
 		// pcol should contain 17→<kv.Pair{84, 22}> and 99→<kv.Pair{0, 1}>.
-		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
+		pcol := MakePrivate(s, colKV, privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1}))
 		// We change that to 17→106 and 99→1 in the PrivatePCollection
 		pcol = ParDo(s, doFn, pcol)
 		gotCol := beam.ParDo(s, testutils.KVToPair, pcol.col)
@@ -1140,7 +1140,7 @@ func TestParDo2x1ErrEmit(t *testing.T) {
 		colKV := beam.ParDo(s, testutils.PairICodedKVToKV, col)
 
 		// pcol should contain 17→<codedKV{84, 22}> and 99→<codedKV{0, 1}>.
-		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
+		pcol := MakePrivate(s, colKV, privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1}))
 		// We change that to 17→106 and 99→1 in the PrivatePCollection
 		pcol = ParDo(s, tc.doFn, pcol)
 		gotCol := beam.ParDo(s, testutils.KVToPair, pcol.col)
@@ -1188,7 +1188,7 @@ func TestParDoCtx2x1ErrEmit(t *testing.T) {
 		colKV := beam.ParDo(s, testutils.PairICodedKVToKV, col)
 
 		// pcol should contain 17→<codedKV{84, 22}> and 99→<codedKV{0, 1}>.
-		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
+		pcol := MakePrivate(s, colKV, privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1}))
 		// We change that to 17→106 and 99→1 in the PrivatePCollection
 		pcol = ParDo(s, tc.doFn, pcol)
 		gotCol := beam.ParDo(s, testutils.KVToPair, pcol.col)
@@ -1245,7 +1245,7 @@ func TestParDo2x2Emit(t *testing.T) {
 		colKV := beam.ParDo(s, testutils.PairICodedKVToKV, col)
 
 		// pcol should contain 17→<kv.Pair{84, 22}> and 99→<kv.Pair{0, 1}>.
-		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
+		pcol := MakePrivate(s, colKV, privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1}))
 		// We change that to 17→<kv.Pair{106, 62}> and 99→<kv.Pair{1, -1}> in the PrivatePCollection
 		pcol = ParDo(s, tc.doFn, pcol)
 		gotCol := beam.ParDo(s, testutils.KVToPairICodedKV, pcol.col)
@@ -1284,7 +1284,7 @@ func TestParDoCtx2x2Emit(t *testing.T) {
 		colKV := beam.ParDo(s, testutils.PairICodedKVToKV, col)
 
 		// pcol should contain 17→<kv.Pair{84, 22}> and 99→<kv.Pair{0, 1}>.
-		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
+		pcol := MakePrivate(s, colKV, privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1}))
 		// We change that to 17→<kv.Pair{106, 62}> and 99→<kv.Pair{1, -1}> in the PrivatePCollection
 		pcol = ParDo(s, doFn, pcol)
 		gotCol := beam.ParDo(s, testutils.KVToPairICodedKV, pcol.col)
@@ -1320,7 +1320,7 @@ func TestParDo2x2ErrEmit(t *testing.T) {
 		colKV := beam.ParDo(s, testutils.PairICodedKVToKV, col)
 
 		// pcol should contain 17→<kv.Pair{84, 22}> and 99→<kv.Pair{0, 1}>.
-		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
+		pcol := MakePrivate(s, colKV, privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1}))
 		// We change that to 17→<kv.Pair{106, 62}> and 99→<kv.Pair{1, -1}> in the PrivatePCollection
 		pcol = ParDo(s, tc.doFn, pcol)
 		gotCol := beam.ParDo(s, testutils.KVToPairICodedKV, pcol.col)
@@ -1372,7 +1372,7 @@ func TestParDoCtx2x2ErrEmit(t *testing.T) {
 		colKV := beam.ParDo(s, testutils.PairICodedKVToKV, col)
 
 		// pcol should contain 17→<kv.Pair{84, 22}> and 99→<kv.Pair{0, 1}>.
-		pcol := MakePrivate(s, colKV, NewPrivacySpec(1, 1e-10))
+		pcol := MakePrivate(s, colKV, privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1}))
 		// We change that to 17→<kv.Pair{106, 62}> and 99→<kv.Pair{1, -1}> in the PrivatePCollection
 		pcol = ParDo(s, tc.doFn, pcol)
 		gotCol := beam.ParDo(s, testutils.KVToPairICodedKV, pcol.col)

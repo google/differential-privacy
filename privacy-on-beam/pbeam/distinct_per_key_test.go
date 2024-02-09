@@ -66,8 +66,12 @@ func TestDistinctPerKeyNoNoise(t *testing.T) {
 	// To see the logic and the math behind flakiness and tolerance calculation,
 	// See https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf.
 	epsilon, delta, k, l1Sensitivity := 50.0, 1e-100, 24.0, 6.0
-	// ε is split by 2 for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
-	pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
+	pcol := MakePrivate(s, col, privacySpec(t,
+		PrivacySpecParams{
+			AggregationEpsilon:        epsilon,
+			PartitionSelectionEpsilon: epsilon,
+			PartitionSelectionDelta:   delta,
+		}))
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 	got := DistinctPerKey(s, pcol, DistinctPerKeyParams{MaxPartitionsContributed: 3, NoiseKind: LaplaceNoise{}, MaxContributionsPerPartition: 2})
 	want = beam.ParDo(s, testutils.PairII64ToKV, want)
@@ -83,20 +87,25 @@ func TestDistinctPerKeyAddsNoise(t *testing.T) {
 		name      string
 		noiseKind NoiseKind
 		// Differential privacy params used.
-		epsilon float64
-		delta   float64
+		aggregationEpsilon        float64
+		aggregationDelta          float64
+		partitionSelectionEpsilon float64
+		partitionSelectionDelta   float64
 	}{
 		{
-			name:      "Gaussian",
-			noiseKind: GaussianNoise{},
-			epsilon:   2 * 1e-15, // It is split by 2: 1e-15 for the noise and 1e-15 for the partition selection.
-			delta:     2 * 1e-5,  // It is split by 2: 1e-5 for the noise and 1e-5 for the partition selection.
+			name:                      "Gaussian",
+			noiseKind:                 GaussianNoise{},
+			aggregationEpsilon:        1e-15,
+			aggregationDelta:          1e-5,
+			partitionSelectionEpsilon: 1e-15,
+			partitionSelectionDelta:   1e-5,
 		},
 		{
-			name:      "Laplace",
-			noiseKind: LaplaceNoise{},
-			epsilon:   2 * 1e-15, // It is split by 2: 1e-15 for the noise and 1e-15 for the partition selection.
-			delta:     0.01,
+			name:                      "Laplace",
+			noiseKind:                 LaplaceNoise{},
+			aggregationEpsilon:        1e-15,
+			partitionSelectionEpsilon: 1e-15,
+			partitionSelectionDelta:   0.01,
 		},
 	} {
 		// Because this is an integer aggregation, we can't use the regular complementary
@@ -116,16 +125,12 @@ func TestDistinctPerKeyAddsNoise(t *testing.T) {
 		// about tests taking long.
 		tolerance := 0.0
 		l0Sensitivity, lInfSensitivity := int64(1), int64(1)
-		partitionSelectionEpsilon, partitionSelectionDelta := tc.epsilon/2, tc.delta
-		if tc.noiseKind == gaussianNoise {
-			partitionSelectionDelta = tc.delta / 2
-		}
 
 		// Compute the number of IDs needed to keep the partition.
 		sp, err := dpagg.NewPreAggSelectPartition(
 			&dpagg.PreAggSelectPartitionOptions{
-				Epsilon:                  partitionSelectionEpsilon,
-				Delta:                    partitionSelectionDelta,
+				Epsilon:                  tc.partitionSelectionEpsilon,
+				Delta:                    tc.partitionSelectionDelta,
 				MaxPartitionsContributed: l0Sensitivity,
 			})
 		if err != nil {
@@ -143,9 +148,15 @@ func TestDistinctPerKeyAddsNoise(t *testing.T) {
 		p, s, col := ptest.CreateList(triples)
 		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithIntValue, col)
 
-		pcol := MakePrivate(s, col, NewPrivacySpec(tc.epsilon, tc.delta))
+		pcol := MakePrivate(s, col, privacySpec(t,
+			PrivacySpecParams{
+				AggregationEpsilon:        tc.aggregationEpsilon,
+				AggregationDelta:          tc.aggregationDelta,
+				PartitionSelectionEpsilon: tc.partitionSelectionEpsilon,
+				PartitionSelectionDelta:   tc.partitionSelectionDelta,
+			}))
 		pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
-		got := DistinctPerKey(s, pcol, DistinctPerKeyParams{MaxPartitionsContributed: int64(l0Sensitivity), NoiseKind: LaplaceNoise{}, MaxContributionsPerPartition: int64(lInfSensitivity)})
+		got := DistinctPerKey(s, pcol, DistinctPerKeyParams{MaxPartitionsContributed: int64(l0Sensitivity), NoiseKind: tc.noiseKind, MaxContributionsPerPartition: int64(lInfSensitivity)})
 		got = beam.ParDo(s, testutils.KVToPairII64, got)
 
 		testutils.CheckInt64MetricsAreNoisy(s, got, numIDs, tolerance)
@@ -175,8 +186,12 @@ func TestDistinctPerKeyPerKeyCrossPartitionContributionBounding(t *testing.T) {
 	// We have 10 partitions. So, to get an overall flakiness of 10⁻²³,
 	// we need to have each partition pass with 1-10⁻²⁴ probability (k=24).
 	epsilon, delta, k, l1Sensitivity := 50.0, 0.01, 24.0, 3.0
-	// ε is split by 2 for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
-	pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
+	pcol := MakePrivate(s, col, privacySpec(t,
+		PrivacySpecParams{
+			AggregationEpsilon:        epsilon,
+			PartitionSelectionEpsilon: epsilon,
+			PartitionSelectionDelta:   delta,
+		}))
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 	got := DistinctPerKey(s, pcol, DistinctPerKeyParams{MaxPartitionsContributed: 3, NoiseKind: LaplaceNoise{}, MaxContributionsPerPartition: 1})
 	// With a max contribution of 3, 70% of the data should have be
@@ -214,7 +229,6 @@ func TestDistinctPerKeyWithPartitionsCrossPartitionContributionBounding(t *testi
 		k := 25.0
 		l1Sensitivity := 6.0
 		epsilon := 50.0
-		delta := 0.0
 		publicPartitionsSlice := []int{0, 1, 2, 3, 4}
 		var publicPartitions any
 		if tc.inMemory {
@@ -223,7 +237,7 @@ func TestDistinctPerKeyWithPartitionsCrossPartitionContributionBounding(t *testi
 			publicPartitions = beam.CreateList(s, publicPartitionsSlice)
 		}
 
-		pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
+		pcol := MakePrivate(s, col, privacySpec(t, PrivacySpecParams{AggregationEpsilon: epsilon}))
 		pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 		got := DistinctPerKey(s, pcol, DistinctPerKeyParams{MaxPartitionsContributed: 3, NoiseKind: LaplaceNoise{}, MaxContributionsPerPartition: 2, PublicPartitions: publicPartitions})
 		maxs := beam.DropKey(s, got)
@@ -278,14 +292,20 @@ func TestDistinctPerKeyWithPartitionsPerPartitionContributionBounding(t *testing
 		p, s, col, want := ptest.CreateList2(triples, result)
 		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithIntValue, col)
 
-		// ε=50, δ=10⁻¹⁰⁰ and l0Sensitivity=3 gives a threshold of ≈17.
+		publicPartitionsSlice := []int{0, 1, 2}
+		var publicPartitions any
+		if tc.inMemory {
+			publicPartitions = publicPartitionsSlice
+		} else {
+			publicPartitions = beam.CreateList(s, publicPartitionsSlice)
+		}
+
 		// We have 3 partitions. So, to get an overall flakiness of 10⁻²³,
 		// we can have each partition fail with 1-10⁻²⁴ probability (k=24).
-		epsilon, delta, k, l1Sensitivity := 50.0, 1e-100, 24.0, 6.0
-		// ε is split by 2 for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
-		pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
+		epsilon, k, l1Sensitivity := 50.0, 24.0, 6.0
+		pcol := MakePrivate(s, col, privacySpec(t, PrivacySpecParams{AggregationEpsilon: epsilon}))
 		pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
-		got := DistinctPerKey(s, pcol, DistinctPerKeyParams{MaxPartitionsContributed: 3, NoiseKind: LaplaceNoise{}, MaxContributionsPerPartition: 2})
+		got := DistinctPerKey(s, pcol, DistinctPerKeyParams{MaxPartitionsContributed: 3, NoiseKind: LaplaceNoise{}, MaxContributionsPerPartition: 2, PublicPartitions: publicPartitions})
 		want = beam.ParDo(s, testutils.PairII64ToKV, want)
 		testutils.ApproxEqualsKVInt64(t, s, got, want, testutils.LaplaceTolerance(k, l1Sensitivity, epsilon))
 		if err := ptest.Run(p); err != nil {
@@ -324,8 +344,12 @@ func TestDistinctPerKeyCrossPartitionContributionBounding_IsAppliedBeforeDedupli
 	// We have 100 partitions. So, to get an overall flakiness of 10⁻²³,
 	// we can have each partition fail with 1-10⁻²⁴ probability (k=24).
 	epsilon, delta, k, l1Sensitivity := 50.0, 1-1e-15, 24.0, 1.0
-	// ε is split by 2 for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
-	pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
+	pcol := MakePrivate(s, col, privacySpec(t,
+		PrivacySpecParams{
+			AggregationEpsilon:        epsilon,
+			PartitionSelectionEpsilon: epsilon,
+			PartitionSelectionDelta:   delta,
+		}))
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 	got := DistinctPerKey(s, pcol, DistinctPerKeyParams{MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}, MaxContributionsPerPartition: 1})
 	want = beam.ParDo(s, testutils.PairII64ToKV, want)
@@ -371,8 +395,12 @@ func TestDistinctPerKeyPerPartitionContributionBounding(t *testing.T) {
 	// We have 3 partitions. So, to get an overall flakiness of 10⁻²³,
 	// we can have each partition fail with 1-10⁻²⁴ probability (k=24).
 	epsilon, delta, k, l1Sensitivity := 50.0, 1e-100, 24.0, 6.0
-	// ε is split by 2 for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
-	pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
+	pcol := MakePrivate(s, col, privacySpec(t,
+		PrivacySpecParams{
+			AggregationEpsilon:        epsilon,
+			PartitionSelectionEpsilon: epsilon,
+			PartitionSelectionDelta:   delta,
+		}))
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 	got := DistinctPerKey(s, pcol, DistinctPerKeyParams{MaxPartitionsContributed: 3, NoiseKind: LaplaceNoise{}, MaxContributionsPerPartition: 2})
 	want = beam.ParDo(s, testutils.PairII64ToKV, want)
@@ -409,8 +437,12 @@ func TestDistinctPerKeyPerPartitionContributionBounding_IsAppliedBeforeDeduplica
 	// We have 1 partition. So, to get an overall flakiness of 10⁻²³,
 	// we need to have each partition pass with 1-10⁻²³ probability (k=23).
 	epsilon, delta, k, l1Sensitivity := 50.0, 1e-100, 23.0, 1.0
-	// ε is split by 2 for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
-	pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
+	pcol := MakePrivate(s, col, privacySpec(t,
+		PrivacySpecParams{
+			AggregationEpsilon:        epsilon,
+			PartitionSelectionEpsilon: epsilon,
+			PartitionSelectionDelta:   delta,
+		}))
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 	got := DistinctPerKey(s, pcol, DistinctPerKeyParams{MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}, MaxContributionsPerPartition: 1})
 	want = beam.ParDo(s, testutils.PairII64ToKV, want)
@@ -421,21 +453,22 @@ func TestDistinctPerKeyPerPartitionContributionBounding_IsAppliedBeforeDeduplica
 }
 
 var distinctPerKeyPartitionSelectionTestCases = []struct {
-	name                string
-	noiseKind           NoiseKind
-	epsilon             float64
-	delta               float64
-	numPartitions       int
-	entriesPerPartition int
+	name                      string
+	noiseKind                 NoiseKind
+	aggregationEpsilon        float64
+	aggregationDelta          float64
+	partitionSelectionEpsilon float64
+	partitionSelectionDelta   float64
+	numPartitions             int
+	entriesPerPartition       int
 }{
 	{
-		name:      "Gaussian",
-		noiseKind: GaussianNoise{},
-		// After splitting the (ε, δ) budget between the noise and partition
-		// selection portions of the privacy algorithm, this results in a ε=1,
-		// δ=0.3 partition selection budget.
-		epsilon: 2,
-		delta:   0.6,
+		name:                      "Gaussian",
+		noiseKind:                 GaussianNoise{},
+		aggregationEpsilon:        1,
+		aggregationDelta:          0.3,
+		partitionSelectionEpsilon: 1,
+		partitionSelectionDelta:   0.3,
 		// entriesPerPartition=1 yields a 30% chance of emitting any particular partition
 		// (since δ_emit=0.3).
 		entriesPerPartition: 1,
@@ -444,14 +477,11 @@ var distinctPerKeyPartitionSelectionTestCases = []struct {
 		numPartitions: 143,
 	},
 	{
-		name:      "Laplace",
-		noiseKind: LaplaceNoise{},
-		// After splitting the (ε, δ) budget between the noise and partition
-		// selection portions of the privacy algorithm, this results in the
-		// partition selection portion of the budget being ε_selectPartition=1,
-		// δ_selectPartition=0.3.
-		epsilon: 2,
-		delta:   0.3,
+		name:                      "Laplace",
+		noiseKind:                 LaplaceNoise{},
+		aggregationEpsilon:        1,
+		partitionSelectionEpsilon: 1,
+		partitionSelectionDelta:   0.3,
 		// entriesPerPartition=1 yields a 30% chance of emitting any particular partition
 		// (since δ_emit=0.3).
 		entriesPerPartition: 1,
@@ -488,7 +518,13 @@ func TestDistinctPerKeyPartitionSelection(t *testing.T) {
 			col = beam.ParDo(s, testutils.ExtractIDFromTripleWithIntValue, col)
 
 			// Run DistinctPerKey on triples
-			pcol := MakePrivate(s, col, NewPrivacySpec(tc.epsilon, tc.delta))
+			pcol := MakePrivate(s, col, privacySpec(t,
+				PrivacySpecParams{
+					AggregationEpsilon:        tc.aggregationEpsilon,
+					AggregationDelta:          tc.aggregationDelta,
+					PartitionSelectionEpsilon: tc.partitionSelectionEpsilon,
+					PartitionSelectionDelta:   tc.partitionSelectionDelta,
+				}))
 			pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 			got := DistinctPerKey(s, pcol, DistinctPerKeyParams{MaxPartitionsContributed: int64(tc.numPartitions), NoiseKind: tc.noiseKind, MaxContributionsPerPartition: 1})
 			got = beam.ParDo(s, testutils.KVToPairII64, got)
@@ -520,8 +556,12 @@ func TestDistinctPerKeyThresholdsOnPrivacyIDs(t *testing.T) {
 	// We have 1 partition. So, to get an overall flakiness of 10⁻²³,
 	// we need to have each partition pass with 1-10⁻²³ probability (k=23).
 	epsilon, delta, k, l1Sensitivity := 50.0, 1e-10, 23.0, 1.0
-	// ε is split by 2 for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
-	pcol := MakePrivate(s, col, NewPrivacySpec(2*epsilon, delta))
+	pcol := MakePrivate(s, col, privacySpec(t,
+		PrivacySpecParams{
+			AggregationEpsilon:        epsilon,
+			PartitionSelectionEpsilon: epsilon,
+			PartitionSelectionDelta:   delta,
+		}))
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 	got := DistinctPerKey(s, pcol, DistinctPerKeyParams{MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}, MaxContributionsPerPartition: 1})
 	want = beam.ParDo(s, testutils.PairII64ToKV, want)
@@ -695,102 +735,6 @@ func TestCheckDistinctPerKeyParams(t *testing.T) {
 	}
 }
 
-// The logic mirrors TestDistinctPerKeyNoNoise, but with the new privacy budget API.
-func TestDistinctPerKeyNoNoiseTemp(t *testing.T) {
-	var triples []testutils.TripleWithIntValue
-	for i := 0; i < 100; i++ { // Add 200 distinct values to Partition 0.
-		triples = append(triples, testutils.TripleWithIntValue{ID: i, Partition: 0, Value: i})
-		triples = append(triples, testutils.TripleWithIntValue{ID: i, Partition: 0, Value: 100 + i})
-	}
-	for i := 100; i < 200; i++ { // Add 200 additional values, all of which are duplicates of the existing distinct values, to Partition 0.
-		// The duplicates come from users different from the 100 users above in order to not discard
-		// any distinct values during the initial per-partition contribution bounding step.
-		triples = append(triples, testutils.TripleWithIntValue{ID: i, Partition: 0, Value: i - 100}) // Duplicate. Should be discarded by DistinctPerKey.
-		triples = append(triples, testutils.TripleWithIntValue{ID: i, Partition: 0, Value: i})       // Duplicate. Should be discarded by DistinctPerKey.
-	}
-	for i := 0; i < 50; i++ { // Add 200 values of which 100 are distinct to Partition 1.
-		triples = append(triples, testutils.TripleWithIntValue{ID: i, Partition: 1, Value: i})
-		triples = append(triples, testutils.TripleWithIntValue{ID: i, Partition: 1, Value: 50 + i})
-		// Have 2 users contribute to the same 100 distinct values.
-		triples = append(triples, testutils.TripleWithIntValue{ID: 100 + i, Partition: 1, Value: i})      // Should be discarded.
-		triples = append(triples, testutils.TripleWithIntValue{ID: 100 + i, Partition: 1, Value: 50 + i}) // Should be discarded.
-	}
-	for i := 0; i < 7; i++ { // Add 7 distinct values to Partition 2. Should be thresholded.
-		triples = append(triples, testutils.TripleWithIntValue{ID: i, Partition: 2, Value: i})
-	}
-	result := []testutils.PairII64{
-		{0, 200},
-		{1, 100},
-		// Only 7 distinct values in partition 2: should be thresholded.
-	}
-	p, s, col, want := ptest.CreateList2(triples, result)
-	col = beam.ParDo(s, testutils.ExtractIDFromTripleWithIntValue, col)
-
-	// ε=50, δ=10⁻¹⁰⁰ and l0Sensitivity=3 gives a threshold of ≈17.
-	// We have 3 partitions. So, to get an overall flakiness of 10⁻²³,
-	// we can have each partition fail with 1-10⁻²⁴ probability (k=24).
-	// To see the logic and the math behind flakiness and tolerance calculation,
-	// See https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf.
-	epsilon, delta, k, l1Sensitivity := 50.0, 1e-100, 24.0, 6.0
-	spec, err := NewPrivacySpecTemp(PrivacySpecParams{AggregationEpsilon: epsilon, PartitionSelectionEpsilon: epsilon, PartitionSelectionDelta: delta})
-	if err != nil {
-		t.Fatalf("TestDistinctPerKeyNoNoiseTemp: %v", err)
-	}
-	pcol := MakePrivate(s, col, spec)
-	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
-	got := DistinctPerKey(s, pcol, DistinctPerKeyParams{MaxPartitionsContributed: 3, NoiseKind: LaplaceNoise{}, MaxContributionsPerPartition: 2})
-	want = beam.ParDo(s, testutils.PairII64ToKV, want)
-	testutils.ApproxEqualsKVInt64(t, s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon))
-	if err := ptest.Run(p); err != nil {
-		t.Errorf("TestDistinctPerKeyNoNoiseTemp: DistinctPerKey(%v) = %v, expected %v: %v", col, got, want, err)
-	}
-}
-
-// The logic mirrors TestDistinctPerKeyWithPartitionNoNoise, but with the new privacy budget API.
-func TestDistinctPerKeyWithPartitionNoNoiseTemp(t *testing.T) {
-	for _, tc := range []struct {
-		inMemory bool
-	}{
-		{true},
-		{false},
-	} {
-		var triples []testutils.TripleWithIntValue // this is causing the int struct
-		for i := 0; i < 10; i++ {
-			triples = append(triples, testutils.TripleWithIntValue{1, i, i})
-		}
-		result := []testutils.PairII64{
-			{9, 1},  // keep partition 9.
-			{10, 0}, // Add partition 10.
-		}
-		p, s, col, want := ptest.CreateList2(triples, result)
-		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithIntValue, col)
-		publicParitionsSlice := []int{9, 10}
-		var publicPartitions any
-		if tc.inMemory {
-			publicPartitions = publicParitionsSlice
-		} else {
-			publicPartitions = beam.CreateList(s, publicParitionsSlice)
-		}
-		// We use ε=50, δ=0 and l1Sensitivity=1.
-		// We have 2 partitions. So, to get an overall flakiness of 10⁻²³,
-		// we need to have each partition pass with 1-10⁻²⁴ probability (k=24)
-		epsilon, k, l1Sensitivity := 50.0, 24.0, 1.0
-		spec, err := NewPrivacySpecTemp(PrivacySpecParams{AggregationEpsilon: epsilon})
-		if err != nil {
-			t.Fatalf("TestDistinctPerKeyWithPartitionNoNoiseTemp: %v", err)
-		}
-		pcol := MakePrivate(s, col, spec)
-		pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
-		DistinctPerKeyParams := DistinctPerKeyParams{MaxPartitionsContributed: 1, MaxContributionsPerPartition: 1, NoiseKind: LaplaceNoise{}, PublicPartitions: publicPartitions}
-		got := DistinctPerKey(s, pcol, DistinctPerKeyParams)
-		want = beam.ParDo(s, testutils.PairII64ToKV, want)
-		testutils.ApproxEqualsKVInt64(t, s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon))
-		if err := ptest.Run(p); err != nil {
-			t.Errorf("TestDistinctPerKeyWithPartitionNoNoiseTemp in-memory=%t: Count(%v) = %v, expected %v: %v", tc.inMemory, col, got, want, err)
-		}
-	}
-}
-
 func TestDistinctPerKeyPreThresholding(t *testing.T) {
 	// Arrange
 	var triples []testutils.TripleWithIntValue
@@ -813,11 +757,13 @@ func TestDistinctPerKeyPreThresholding(t *testing.T) {
 	// We have 1 partition. So, to get an overall flakiness of 10⁻²³,
 	// we need to have each partition pass with 1-10⁻²³ probability (k=23).
 	epsilon, delta, k, l1Sensitivity := 1e9, dpagg.LargestRepresentableDelta, 23.0, 2.0
-	spec, err := NewPrivacySpecTemp(PrivacySpecParams{AggregationEpsilon: epsilon, PartitionSelectionEpsilon: epsilon, PartitionSelectionDelta: delta, PreThreshold: 10})
-	if err != nil {
-		t.Fatalf("TestDistinctPerKeyPreThresholding: %v", err)
-	}
-	pcol := MakePrivate(s, col, spec)
+	preThreshold := int64(10)
+	pcol := MakePrivate(s, col, privacySpec(t,
+		PrivacySpecParams{
+			AggregationEpsilon:        epsilon,
+			PartitionSelectionEpsilon: epsilon,
+			PartitionSelectionDelta:   delta,
+			PreThreshold:              preThreshold}))
 	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
 
 	// Act

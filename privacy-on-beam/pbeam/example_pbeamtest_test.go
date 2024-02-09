@@ -21,23 +21,24 @@ import (
 	"fmt"
 
 	"github.com/google/differential-privacy/privacy-on-beam/v2/pbeam"
-	"github.com/google/differential-privacy/privacy-on-beam/v2/pbeam/pbeamtest"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/direct"
 )
 
-// This example demonstrates how to write test pipelines for pbeam using package
-// pbeamtest where pbeam does not add any noise, disables partition selection
+// This example demonstrates how to write test pipelines for pbeam using test
+// modes where pbeam does not add any noise, disables partition selection
 // and might disable or enable contribution bounding depending on the particular
 // test mode used.
 //
 // This mirrors the default example with two differences:
-// 1. pbeamtest is used to create a PrivacySpec instead of pbeam.
+// 1. TestMode is specified when creating the PrivacySpec.
 // 2. Code comments are different.
 //
-// Package pbeamtest does not provide any privacy guarantees and is only meant
-// to be used in test code. DO NOT use this for production code.
+// Using Privacy on Beam with test mode enabled does not provide any privacy guarantees
+// and is only meant to be used in test code or for performing an analysis of
+// the utility of differential privacy by comparing "true" results with "private"
+// results. DO NOT use this for production pipelines.
 func Example_testPipelines() {
 	// This example computes the "Sum-up revenue per day of the week" example
 	// from the Go Differential Privacy Library documentation, available at
@@ -75,17 +76,26 @@ func Example_testPipelines() {
 
 	// ε and δ are the differential privacy parameters that quantify the privacy
 	// provided by the pipeline. Even though noise will not be added since we are using
-	// pbeamtest, ε and δ will still be used for validation of parameters; so use the
+	// test mode, ε and δ will still be used for validation of parameters; so use the
 	// same parameters you use for production.
 	const ε, δ = 1, 1e-3
 
-	// Instead of calling pbeam.NewPrivacySpec(), we call the corresponding function in
-	// package pbeamtest. This is the only difference with a production pipeline with
-	// privacy that uses pbeam.NewPrivacySpec(), everything else remains the same.
+	// We enable test mode by setting TestMode field to pbeam.TestModeWithContributionBounding.
+	// This is the only difference with a production pipeline with privacy
+	// that uses pbeam.NewPrivacySpec(), everything else remains the same.
 	// This enables per-partition and cross-partition contribution bounding. If you
 	// wish to disable both types of contribution bounding altogether, use
-	// pbeamtest.NewPrivacySpecNoNoiseWithoutContributionBounding() instead.
-	privacySpec := pbeamtest.NewPrivacySpecNoNoiseWithContributionBounding(ε, δ)
+	// pbeam.TestModeWithoutContributionBounding instead.
+	privacySpec, err := pbeam.NewPrivacySpecTemp(pbeam.PrivacySpecParams{
+		AggregationEpsilon:        ε / 2,
+		AggregationDelta:          δ / 2,
+		PartitionSelectionEpsilon: ε / 2,
+		PartitionSelectionDelta:   δ / 2,
+		TestMode:                  pbeam.TestModeWithContributionBounding,
+	})
+	if err != nil {
+		fmt.Printf("Couldn't create PrivacySpec: %v", err)
+	}
 	pcol := pbeam.MakePrivateFromStruct(s, icol, privacySpec, "visitorID")
 	// pcol is now a PrivatePCollection<visit>.
 
@@ -116,7 +126,7 @@ func Example_testPipelines() {
 		MinValue: 0,
 		MaxValue: 50,
 	}
-	// Since pbeamtest is used, this will produce a non-differentially private
+	// Since test mode is used, this will produce a non-differentially private
 	// sum of revenue per day.
 	ocol := pbeam.SumPerKey(s, pWeekdayEuros, sumParams)
 
