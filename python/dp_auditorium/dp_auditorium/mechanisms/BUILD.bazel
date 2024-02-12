@@ -1,0 +1,103 @@
+#
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# Differential Privacy Mechanisms
+
+load("@dp_auditorium_py_pip_deps//:requirements.bzl", "requirement")
+
+package(default_visibility = ["//visibility:public"])
+
+licenses(["notice"])
+
+py_library(
+    name = "mechanisms",
+    srcs = ["__init__.py"],
+    deps = [
+        ":mean",
+        ":noisy_max",
+        ":sparse_vector_technique",
+    ],
+)
+
+py_library(
+    name = "mean",
+    srcs = ["mean.py"],
+    deps = [
+        "//dp_auditorium/configs",
+        requirement("numpy"),
+    ],
+)
+
+py_test(
+    name = "mean_test",
+    srcs = ["mean_test.py"],
+    deps = [
+        ":mean",
+        ":mechanisms_utils",
+        requirement("absl-py"),
+        requirement("numpy"),
+        requirement("tensorflow"),
+    ],
+)
+
+py_library(
+    name = "noisy_max",
+    srcs = ["noisy_max.py"],
+    deps = [
+        "//dp_auditorium/configs",
+        requirement("numpy"),
+    ],
+)
+
+py_test(
+    name = "noisy_max_test",
+    srcs = ["noisy_max_test.py"],
+    deps = [
+        ":noisy_max",
+        "//dp_auditorium/configs",
+        requirement("absl-py"),
+        requirement("numpy"),
+        requirement("tensorflow"),
+    ],
+)
+
+py_library(
+    name = "sparse_vector_technique",
+    srcs = ["sparse_vector_technique.py"],
+    deps = [
+        "//dp_auditorium/configs",
+        requirement("numpy"),
+        requirement("typing-extensions"),
+    ],
+)
+
+py_test(
+    name = "sparse_vector_technique_test",
+    srcs = ["sparse_vector_technique_test.py"],
+    deps = [
+        ":sparse_vector_technique",
+        "//dp_auditorium/configs",
+        requirement("absl-py"),
+        requirement("numpy"),
+        requirement("tensorflow"),
+    ],
+)
+
+py_library(
+    name = "mechanisms_utils",
+    srcs = ["mechanisms_utils.py"],
+    deps = ["//dp_auditorium/configs"],
+)

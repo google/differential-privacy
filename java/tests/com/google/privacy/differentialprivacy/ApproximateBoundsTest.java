@@ -25,8 +25,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.privacy.differentialprivacy.proto.SummaryOuterClass.ApproxBoundsSummary;
 import com.google.protobuf.ExtensionRegistry;
 import com.google.testing.junit.testparameterinjector.TestParameter;
-import com.google.testing.junit.testparameterinjector.TestParameter.TestParameterValuesProvider;
 import com.google.testing.junit.testparameterinjector.TestParameterInjector;
+import com.google.testing.junit.testparameterinjector.TestParameterValuesProvider;
 import java.util.List;
 import org.junit.Before;
 import org.junit.Test;
@@ -406,16 +406,16 @@ public class ApproximateBoundsTest {
     assertThat(thrown).hasMessageThat().contains("already serialized");
   }
 
-  private static class SuccessProbabilityProvider implements TestParameterValuesProvider {
+  private static class SuccessProbabilityProvider extends TestParameterValuesProvider {
     @Override
-    public List<Double> provideValues() {
+    public List<Double> provideValues(Context context) {
       return ImmutableList.of(1e-11, 1e-5, 0.1, 0.25, 0.5, 0.75, 0.9, 1 - 1e-5, 1 - 1e-15);
     }
   }
 
-  private static class NumBinsProvider implements TestParameterValuesProvider {
+  private static class NumBinsProvider extends TestParameterValuesProvider {
     @Override
-    public List<Integer> provideValues() {
+    public List<Integer> provideValues(Context context) {
       return ImmutableList.of(1, 2, 4, 1024, 2048);
     }
   }

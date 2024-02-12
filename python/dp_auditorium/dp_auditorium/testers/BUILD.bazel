@@ -1,0 +1,153 @@
+#
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# Differential Privacy Testers
+
+load("@dp_auditorium_py_pip_deps//:requirements.bzl", "requirement")
+
+package(default_visibility = ["//visibility:public"])
+
+py_library(
+    name = "testers",
+    srcs = ["__init__.py"],
+    deps = [
+        ":histogram_tester",
+        ":hockey_stick_tester",
+        ":mmd_tester",
+        ":renyi_tester",
+    ],
+)
+
+py_library(
+    name = "hockey_stick_tester",
+    srcs = ["hockey_stick_tester.py"],
+    deps = [
+        ":property_tester_utils",
+        "//dp_auditorium:interfaces",
+        "//dp_auditorium/configs",
+        requirement("absl-py"),
+        requirement("numpy"),
+        requirement("tensorflow"),
+    ],
+)
+
+py_test(
+    name = "hockey_stick_tester_test",
+    srcs = ["hockey_stick_tester_test.py"],
+    deps = [
+        ":hockey_stick_tester",
+        "//dp_auditorium/configs",
+        requirement("absl-py"),
+        requirement("numpy"),
+        requirement("tensorflow"),
+    ],
+)
+
+py_library(
+    name = "mmd_tester",
+    srcs = ["mmd_tester.py"],
+    deps = [
+        ":property_tester_utils",
+        "//dp_auditorium:interfaces",
+        "//dp_auditorium/configs",
+        requirement("numpy"),
+    ],
+)
+
+py_test(
+    name = "mmd_tester_test",
+    srcs = ["mmd_tester_test.py"],
+    deps = [
+        ":mmd_tester",
+        "//dp_auditorium/configs",
+        requirement("absl-py"),
+        requirement("numpy"),
+        requirement("tensorflow"),
+    ],
+)
+
+py_library(
+    name = "renyi_tester",
+    srcs = ["renyi_tester.py"],
+    deps = [
+        ":property_tester_utils",
+        "//dp_auditorium:interfaces",
+        "//dp_auditorium/configs",
+        requirement("absl-py"),
+        requirement("numpy"),
+        requirement("tensorflow"),
+    ],
+)
+
+py_test(
+    name = "renyi_tester_test",
+    srcs = ["renyi_tester_test.py"],
+    deps = [
+        ":renyi_tester",
+        "//dp_auditorium/configs",
+        requirement("absl-py"),
+        requirement("numpy"),
+        requirement("tensorflow"),
+    ],
+)
+
+py_library(
+    name = "histogram_tester",
+    srcs = ["histogram_tester.py"],
+    deps = [
+        ":property_tester_utils",
+        "//dp_auditorium:interfaces",
+        "//dp_auditorium/configs",
+        requirement("numpy"),
+        requirement("typing_extensions"),
+    ],
+)
+
+py_test(
+    name = "histogram_tester_test",
+    srcs = ["histogram_tester_test.py"],
+    deps = [
+        ":histogram_tester",
+        "//dp_auditorium/configs",
+        requirement("absl-py"),
+        requirement("numpy"),
+        requirement("tensorflow"),
+    ],
+)
+
+py_library(
+    name = "property_tester_utils",
+    srcs = ["property_tester_utils.py"],
+    deps = [
+        "//dp_auditorium/configs",
+        requirement("etils"),
+        requirement("absl-py"),
+        requirement("numpy"),
+        requirement("tensorflow"),
+    ],
+)
+
+py_test(
+    name = "property_tester_utils_test",
+    srcs = ["property_tester_utils_test.py"],
+    deps = [
+        ":property_tester_utils",
+        "//dp_auditorium/configs",
+        requirement("absl-py"),
+        requirement("numpy"),
+        requirement("tensorflow"),
+    ],
+)

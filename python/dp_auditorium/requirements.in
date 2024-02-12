@@ -1,0 +1,23 @@
+# Base requirements needed to generate `requirements.txt`. To compile, use the
+# command `python3 -m piptools compile` from this directory, and modify the
+# last line in the generated `requirements.txt` file to `setuptools~=69.0.3`
+# in order to include `setuptools` as one of the package requirements.
+absl-py<=1.0.0
+etils<=1.5.2
+# v0.1.7 uses `dataclass.kw_only` which is unsupported in Python 3.9
+google-vizier<0.1.7
+importlib-metadata<=7.0.1
+numpy<=1.26.3
+scipy<=1.11.4
+tensorflow<=2.15.0
+tensorflow-probability<=0.23.0
+typing-extensions<=4.9.0
+# Required to run on older Ubuntu machines.
+urllib3 < 2.0.0
+# Used only for google-vizier compatibility.
+equinox<=0.11.3
+flax<=0.8.0
+jax<=0.4.23
+jaxlib<=0.4.23
+google-api-core<=2.15.0
+pysqlite3<=0.5.2
