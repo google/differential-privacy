@@ -30,35 +30,39 @@ Details on the signature of the above objects, can be found in the
 An illustrative example is available in
 `examples/run_mean_mechanism_example.py`. This binary defines a Hockey-Stick
 divergence test as the property tester and a dataset generator that employs a
-Gaussian process bandit (using OSS Vizier) for suggesting datasets.
-Subsequently, the runner is instantiated with these two objects to conduct a
-test on a non-private mean mechanism.
+random search (using [Vizier](https://github.com/google/vizier)) for suggesting
+datasets. Subsequently, the runner is instantiated with these two objects to
+conduct a test on a non-private mean mechanism.
 
 There are two ways to run this, either via Bazel or after installing the library
-using `setup.py`.
+using `pip install`. Before install, please ensure that your machine has the
+`sqlite3` library installed, e.g., `sudo apt-get install libsqlite3-dev` on Ubuntu
+machines.
 
-### Run with bazel
+### Run with Bazelisk
 
 For the first option, you need to have
-[Bazel installed](https://docs.bazel.build/versions/main/install.html).
-Once that is done, run:
+[Bazelisk installed](https://github.com/bazelbuild/bazelisk). Once that is done,
+run:
 
 ```
-bazel build dp_auditorium:all
-bazel run dp_auditorium/examples:run_mean_mechanism_example
+bazelisk build dp_auditorium:all
+bazelisk run dp_auditorium/examples:run_mean_mechanism_example
 ```
 
-### Run via setup.py
+### Run via pip
 
-For the second option, you will need the
-[setuptools package](https://pypi.org/project/setuptools/) installed.
-To ensure this, you may run
+For the second option, you will need the [setuptools
+package](https://pypi.org/project/setuptools/) installed. To ensure this, you
+may run `pip install --upgrade setuptools`. Then, to demonstrate our example,
+run:
 ```
-pip install --upgrade setuptools
-```
-Then, to demonstrate our example, run:
-```
-python setup.py install
+python -m pip install .
 python dp_auditorium/examples/run_mean_mechanism_example.py
 ```
-
+Some MacOS users may run into issues linking Sqlite3 with Python during the
+installation of DP-Auditorium. In these cases, users may have to pass the
+relevant C++ options to `pip` directly. For example,
+```
+CFLAGS=-Wno-error=implicit-function-declaration pip install .
+```

@@ -282,6 +282,18 @@ class HockeyStickDivergenceTest(absltest.TestCase):
     self.assertTrue(hsdt.reject_property(0.11))
     self.assertFalse(hsdt.reject_property(0.09))
 
+  def test_privacy_property(self):
+    training_options = hst.make_default_hs_training_config()
+    hs_config = config.HockeyStickPropertyTesterConfig(
+        approximate_dp=self.make_privacy_property(epsilon=1.0, delta=0.1),
+        training_config=training_options,
+    )
+    hs_tester = hst.HockeyStickPropertyTester(
+        config=hs_config,
+        base_model=hst.make_default_hs_base_model())
+    self.assertEqual(
+        hs_config.approximate_dp, hs_tester.privacy_property.approximate_dp
+    )
 
 if __name__ == "__main__":
   absltest.main()

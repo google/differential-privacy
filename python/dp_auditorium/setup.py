@@ -59,9 +59,8 @@ def _read_description(path):
   return open(os.path.join(here, path)).read().split("## Examples")[0]
 
 
-
 setuptools.setup(
-    name="dp-testing",
+    name="dp-auditorium",
     version=_get_version(),
     author="Google Differential Privacy Team",
     author_email="dp-open-source@google.com",

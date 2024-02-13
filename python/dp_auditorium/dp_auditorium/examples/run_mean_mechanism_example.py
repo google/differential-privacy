@@ -14,12 +14,13 @@
 """Example binary running privacy tests for a DP mean mechanism."""
 
 from collections.abc import Sequence
-import os
+import time
+from typing import Callable
 
 from absl import app
 from absl import flags
-from absl import logging
 import numpy as np
+import tensorflow as tf
 
 from dp_auditorium import privacy_test_runner
 from dp_auditorium.configs import dataset_generator_config
@@ -32,28 +33,51 @@ from dp_auditorium.mechanisms import mean
 from dp_auditorium.testers import hockey_stick_tester
 
 
-_OUTPUT_DIR = flags.DEFINE_string("output_dir", "", "Output directory")
-_EXPERIMENT_NAME = flags.DEFINE_string("experiment_name", "", "Experiment name")
-_EPSILON = flags.DEFINE_float("epsilon", 0.01, "Privacy parameter")
+_EPSILON = flags.DEFINE_float("epsilon", 1.0, "Privacy parameter")
 _DELTA = flags.DEFINE_float("delta", 0.0, "Privacy parameter")
 _SEED = flags.DEFINE_integer(
     "seed", 0, "Seed to initialize random numbers generator."
 )
 
 
-def main(argv: Sequence[str]) -> None:
-  if len(argv) > 1:
-    raise app.UsageError("Too many command-line arguments.")
+def default_generator_factory(
+    config: dataset_generator_config.VizierDatasetGeneratorConfig,
+) -> vizier_dataset_generator.VizierScalarDataAddRemoveGenerator:
+  return vizier_dataset_generator.VizierScalarDataAddRemoveGenerator(
+      config=config
+  )
 
-  rng = np.random.default_rng(seed=_SEED.value)
+
+def mean_mechanism_report(
+    epsilon: float,
+    delta: float,
+    seed: int,
+    generator_factory: Callable[
+        [dataset_generator_config.VizierDatasetGeneratorConfig],
+        vizier_dataset_generator.VizierScalarDataAddRemoveGenerator,
+    ] = default_generator_factory,
+) -> privacy_test_runner_config.PrivacyTestRunnerResults:
+  """Runs the example code for a mean mechanism.
+
+  Args:
+    epsilon: standard DP parmaeter.
+    delta: standard DP parameter.
+    seed: seed to initialize the random number generator.
+    generator_factory: factory to create a generator; to be replaced in tests
+
+  Returns:
+    The result of the example code as PrivacyTestRunnerResults.
+  """
+  rng = np.random.default_rng(seed=seed)
+  tf.random.set_seed(seed)
 
   # Configuration for a non-private mean mechanism that uses the true number of
-  # points to calculate the average.
+  # points to calculate the average and the scale of the noise.
   mech_config = mechanism_config.MeanMechanismConfig(
-      epsilon=_EPSILON.value,
-      delta=_DELTA.value,
+      epsilon=epsilon,
+      delta=delta,
       use_noised_counts_for_calculating_mean=False,
-      use_noised_counts_for_calculating_noise_scale=True,
+      use_noised_counts_for_calculating_noise_scale=False,
       min_value=0.0,
       max_value=1.0,
   )
@@ -67,8 +91,8 @@ def main(argv: Sequence[str]) -> None:
   tester_config = property_tester_config.HockeyStickPropertyTesterConfig(
       training_config=hockey_stick_tester.make_default_hs_training_config(),
       approximate_dp=privacy_property.ApproximateDp(
-          epsilon=_EPSILON.value,
-          delta=_DELTA.value,
+          epsilon=epsilon,
+          delta=delta,
       ),
   )
   # Initialize a classifier model for the Hockey-Stick property tester.
@@ -80,28 +104,25 @@ def main(argv: Sequence[str]) -> None:
   )
 
   # Configuration for dataset generator. It generates neighboring datasets under
-  # the add/remove definition.
+  # the add/remove definition. Unique study name prevents using cached results
+  # from previous runs.
   generator_config = dataset_generator_config.VizierDatasetGeneratorConfig(
-      study_name="non-private-mean-hockey-stick-test",
+      study_name=str(time.time()),
       study_owner="owner",
       num_vizier_parameters=2,
       data_type=dataset_generator_config.DataType.DATA_TYPE_FLOAT,
       min_value=-1.0,
       max_value=1.0,
-      search_algorithm="GAUSSIAN_PROCESS_BANDIT",
+      search_algorithm="RANDOM_SEARCH",
       metric_name="hockey_stick_divergence",
   )
   # Initialize the dataset generator.
-  dataset_generator = (
-      vizier_dataset_generator.VizierScalarDataAddRemoveGenerator(
-          config=generator_config,
-      )
-  )
+  dataset_generator = generator_factory(generator_config)
 
   # Configuration for the test runner.
   test_runner_config = privacy_test_runner_config.PrivacyTestRunnerConfig(
       property_tester=privacy_test_runner_config.PropertyTester.HOCKEY_STICK_TESTER,
-      max_num_trials=5,
+      max_num_trials=10,
       failure_probability=0.05,
       num_samples=10_000,
       # Apply a hyperbolic tangent function to the output of the mechanism
@@ -114,22 +135,17 @@ def main(argv: Sequence[str]) -> None:
       property_tester=property_tester,
   )
 
-  results = test_runner.test_privacy(mechanism, "non-private-mean-mechanism")
+  return test_runner.test_privacy(mechanism, "non-private-mean-mechanism")
 
-  logging.info("\nResults: \n")
-  logging.info(results)
 
-  # Write results to the output directory.
-  if not os.path.exists(_OUTPUT_DIR.value):
-    os.makedirs(_OUTPUT_DIR.value)
-    logging.info("Directory %s created successfully", _OUTPUT_DIR.value)
-  else:
-    print(f"Directory '{_OUTPUT_DIR.value}' already exists")
+def main(argv: Sequence[str]) -> None:
+  if len(argv) > 1:
+    raise app.UsageError("Too many command-line arguments.")
 
-  output_file_name = os.path.join(_OUTPUT_DIR.value, _EXPERIMENT_NAME.value)
-  with open(output_file_name, mode="w") as f:
-    f.write(str(results))
+  results = mean_mechanism_report(_EPSILON.value, _DELTA.value, _SEED.value)
 
+  print(" \nResults: \n")
+  print(results)
 
 if __name__ == "__main__":
   app.run(main)

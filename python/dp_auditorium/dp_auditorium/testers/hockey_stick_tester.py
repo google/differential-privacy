@@ -26,7 +26,8 @@ import numpy as np
 import tensorflow as tf
 
 from dp_auditorium import interfaces
-from dp_auditorium.configs import property_tester_config as config
+from dp_auditorium.configs import privacy_property
+from dp_auditorium.configs import property_tester_config
 from dp_auditorium.testers import property_tester_utils
 
 
@@ -50,8 +51,8 @@ class HockeyStickDivergenceTrainingOptions:
   verbose: int
 
 
-def make_default_hs_training_config() -> config.TrainingConfig:
-  return config.TrainingConfig(
+def make_default_hs_training_config() -> property_tester_config.TrainingConfig:
+  return property_tester_config.TrainingConfig(
       training_epochs=2,
       optimizer_learning_rate=1e-2,
       batch_size=100,
@@ -69,7 +70,7 @@ def make_default_hs_base_model() -> tf.keras.Model:
 
 
 def make_training_options_from_config(
-    training_config: config.TrainingConfig,
+    training_config: property_tester_config.TrainingConfig,
 ):
   return HockeyStickDivergenceTrainingOptions(
       num_epochs=training_config.training_epochs,
@@ -123,7 +124,7 @@ class HockeyStickPropertyTester(interfaces.PropertyTester):
 
   def __init__(
       self,
-      config: config.HockeyStickPropertyTesterConfig,
+      config: property_tester_config.HockeyStickPropertyTesterConfig,
       base_model: tf.keras.Model,
   ):
     """Initializes the instance.
@@ -140,11 +141,17 @@ class HockeyStickPropertyTester(interfaces.PropertyTester):
     self._base_model = base_model
     self._epsilon = config.approximate_dp.epsilon
     self._delta = config.approximate_dp.delta
+    self._approximate_dp = config.approximate_dp
     self._has_called_fit = False
     self._training_options = make_training_options_from_config(
         config.training_config
     )
     self.initialize(self._training_options)
+
+  @property
+  def privacy_property(self) -> privacy_property.PrivacyProperty:
+    """The privacy guarantee that the tester is being used to test for."""
+    return privacy_property.PrivacyProperty(approximate_dp=self._approximate_dp)
 
   def initialize(self, training_options: HockeyStickDivergenceTrainingOptions):
     """Compiles internal model.
@@ -225,6 +232,7 @@ class HockeyStickPropertyTester(interfaces.PropertyTester):
       epochs: Number of epochs to train for.
       verbose: Option passed to keras trainer.
     """
+    self.initialize(self._training_options)
     features, labels = self._generate_inputs_to_model(samples1, samples2)
     self._base_model.fit(
         features,

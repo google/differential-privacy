@@ -18,6 +18,8 @@ private statistics over datasets. It contains the following tools.
   tracking privacy budget.
 * A [command line interface](examples/zetasql) for running differentially
   private SQL queries with [ZetaSQL](https://github.com/google/zetasql).
+* [DP Auditorium](python/dp_auditorium) is a library for auditing differential
+  privacy guarantees.
 
 To get started on generating differentially private data, we recommend you follow
 the [Privacy on Beam codelab](https://codelabs.developers.google.com/codelabs/privacy-on-beam/).

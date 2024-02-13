@@ -63,6 +63,7 @@ google-vizier==0.1.6
     # via -r requirements.in
 googleapis-common-protos==1.56.4
     # via
+    #   -r requirements.in
     #   google-api-core
     #   google-vizier
 greenlet==3.0.3
@@ -89,14 +90,18 @@ jax==0.4.23
     #   chex
     #   equinox
     #   flax
+    #   jaxopt
     #   optax
     #   orbax-checkpoint
 jaxlib==0.4.23
     # via
     #   -r requirements.in
     #   chex
+    #   jaxopt
     #   optax
     #   orbax-checkpoint
+jaxopt==0.8.3
+    # via -r requirements.in
 jaxtyping==0.2.25
     # via equinox
 keras==2.15.0
@@ -131,6 +136,7 @@ numpy==1.26.3
     #   h5py
     #   jax
     #   jaxlib
+    #   jaxopt
     #   jaxtyping
     #   ml-dtypes
     #   opt-einsum
@@ -196,6 +202,7 @@ scipy==1.11.4
     #   -r requirements.in
     #   jax
     #   jaxlib
+    #   jaxopt
 six==1.16.0
     # via
     #   absl-py
@@ -214,8 +221,10 @@ tensorflow==2.15.0
     # via -r requirements.in
 tensorflow-estimator==2.15.0
     # via tensorflow
-tensorflow-io-gcs-filesystem==0.35.0
-    # via tensorflow
+tensorflow-io-gcs-filesystem==0.36.0
+    # via
+    #   -r requirements.in
+    #   tensorflow
 tensorflow-probability==0.23.0
     # via -r requirements.in
 tensorstore==0.1.45
