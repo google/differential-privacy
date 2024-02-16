@@ -30,64 +30,9 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
-func TestNewBoundedQuantilesFn(t *testing.T) {
-	opts := []cmp.Option{
-		cmpopts.EquateApprox(0, 1e-10),
-		cmpopts.IgnoreUnexported(boundedQuantilesFn{}),
-	}
-	for _, tc := range []struct {
-		desc      string
-		noiseKind noise.Kind
-		want      any
-	}{
-		{"Laplace noise kind", noise.LaplaceNoise,
-			&boundedQuantilesFn{
-				NoiseEpsilon:                 0.5,
-				PartitionSelectionEpsilon:    0.5,
-				NoiseDelta:                   0,
-				PartitionSelectionDelta:      1e-5,
-				MaxPartitionsContributed:     17,
-				MaxContributionsPerPartition: 5,
-				Lower:                        0,
-				Upper:                        10,
-				Ranks:                        []float64{0.1, 0.5, 0.9},
-				NoiseKind:                    noise.LaplaceNoise,
-			}},
-		{"Gaussian noise kind", noise.GaussianNoise,
-			&boundedQuantilesFn{
-				NoiseEpsilon:                 0.5,
-				PartitionSelectionEpsilon:    0.5,
-				NoiseDelta:                   5e-6,
-				PartitionSelectionDelta:      5e-6,
-				MaxPartitionsContributed:     17,
-				MaxContributionsPerPartition: 5,
-				Lower:                        0,
-				Upper:                        10,
-				Ranks:                        []float64{0.1, 0.5, 0.9},
-				NoiseKind:                    noise.GaussianNoise,
-			}},
-	} {
-		got, err := newBoundedQuantilesFn(QuantilesParams{
-			Epsilon:                      1,
-			Delta:                        1e-5,
-			MaxPartitionsContributed:     17,
-			MaxContributionsPerPartition: 5,
-			MinValue:                     0,
-			MaxValue:                     10,
-			Ranks:                        []float64{0.1, 0.5, 0.9},
-		}, tc.noiseKind, false, TestModeDisabled)
-		if err != nil {
-			t.Fatalf("Couldn't get newBoundedQuantilesFn: %v", err)
-		}
-		if diff := cmp.Diff(tc.want, got, opts...); diff != "" {
-			t.Errorf("newBoundedQuantilesFn: for %q (-want +got):\n%s", tc.desc, diff)
-		}
-	}
-}
-
 // The logic mirrors TestNewBoundedQuantilesFn, but with the new privacy budget API where
 // clients specify aggregation budget and partition selection budget separately.
-func TestNewBoundedQuantilesFnTemp(t *testing.T) {
+func TestNewBoundedQuantilesFn(t *testing.T) {
 	opts := []cmp.Option{
 		cmpopts.EquateApprox(0, 1e-10),
 		cmpopts.IgnoreUnexported(boundedQuantilesFn{}),
@@ -143,7 +88,7 @@ func TestNewBoundedQuantilesFnTemp(t *testing.T) {
 				NoiseKind:                    noise.GaussianNoise,
 			}},
 	} {
-		got, err := newBoundedQuantilesFnTemp(PrivacySpec{preThreshold: tc.preThreshold, testMode: TestModeDisabled},
+		got, err := newBoundedQuantilesFn(PrivacySpec{preThreshold: tc.preThreshold, testMode: TestModeDisabled},
 			QuantilesParams{
 				AggregationEpsilon:           tc.aggregationEpsilon,
 				AggregationDelta:             tc.aggregationDelta,
@@ -171,15 +116,20 @@ func TestBoundedQuantilesFnSetup(t *testing.T) {
 	}{
 		{"Laplace noise kind", noise.LaplaceNoise, noise.Laplace()},
 		{"Gaussian noise kind", noise.GaussianNoise, noise.Gaussian()}} {
-		got, err := newBoundedQuantilesFn(QuantilesParams{
-			Epsilon:                      1,
-			Delta:                        1e-5,
-			MaxPartitionsContributed:     17,
-			MaxContributionsPerPartition: 5,
-			MinValue:                     0,
-			MaxValue:                     10,
-			Ranks:                        []float64{0.1, 0.5, 0.9},
-		}, tc.noiseKind, false, TestModeDisabled)
+		spec := privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1, PartitionSelectionEpsilon: 1, PartitionSelectionDelta: 1e-5})
+		got, err := newBoundedQuantilesFn(
+			*spec,
+			QuantilesParams{
+				Epsilon:                      1,
+				Delta:                        1e-5,
+				MaxPartitionsContributed:     17,
+				MaxContributionsPerPartition: 5,
+				MinValue:                     0,
+				MaxValue:                     10,
+				Ranks:                        []float64{0.1, 0.5, 0.9},
+			},
+			tc.noiseKind,
+			false)
 		if err != nil {
 			t.Fatalf("Couldn't get newBoundedQuantilesFn: %v", err)
 		}
@@ -200,16 +150,21 @@ func TestBoundedQuantilesFnAddInput(t *testing.T) {
 	lower := 0.0
 	upper := 5.0
 	ranks := []float64{0.25, 0.75}
+	spec := privacySpec(t, PrivacySpecParams{AggregationEpsilon: epsilon, PartitionSelectionEpsilon: epsilon, PartitionSelectionDelta: delta})
 	// ε is split in two for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
-	fn, err := newBoundedQuantilesFn(QuantilesParams{
-		Epsilon:                      2 * epsilon,
-		Delta:                        delta,
-		MaxPartitionsContributed:     maxPartitionsContributed,
-		MaxContributionsPerPartition: maxContributionsPerPartition,
-		MinValue:                     lower,
-		MaxValue:                     upper,
-		Ranks:                        ranks,
-	}, noise.LaplaceNoise, false, TestModeDisabled)
+	fn, err := newBoundedQuantilesFn(
+		*spec,
+		QuantilesParams{
+			AggregationEpsilon:           epsilon,
+			PartitionSelectionParams:     PartitionSelectionParams{Epsilon: epsilon, Delta: delta},
+			MaxPartitionsContributed:     maxPartitionsContributed,
+			MaxContributionsPerPartition: maxContributionsPerPartition,
+			MinValue:                     lower,
+			MaxValue:                     upper,
+			Ranks:                        ranks,
+		},
+		noise.LaplaceNoise,
+		false)
 	if err != nil {
 		t.Fatalf("Couldn't get newBoundedQuantilesFn: %v", err)
 	}
@@ -247,16 +202,19 @@ func TestBoundedQuantilesFnMergeAccumulators(t *testing.T) {
 	lower := 0.0
 	upper := 5.0
 	ranks := []float64{0.25, 0.75}
-	// ε is split in two for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
-	fn, err := newBoundedQuantilesFn(QuantilesParams{
-		Epsilon:                      2 * epsilon,
-		Delta:                        delta,
-		MaxPartitionsContributed:     maxPartitionsContributed,
-		MaxContributionsPerPartition: maxContributionsPerPartition,
-		MinValue:                     lower,
-		MaxValue:                     upper,
-		Ranks:                        ranks,
-	}, noise.LaplaceNoise, false, TestModeDisabled)
+	spec := privacySpec(t, PrivacySpecParams{AggregationEpsilon: epsilon, PartitionSelectionEpsilon: epsilon, PartitionSelectionDelta: delta})
+	fn, err := newBoundedQuantilesFn(*spec,
+		QuantilesParams{
+			AggregationEpsilon:           epsilon,
+			PartitionSelectionParams:     PartitionSelectionParams{Epsilon: epsilon, Delta: delta},
+			MaxPartitionsContributed:     maxPartitionsContributed,
+			MaxContributionsPerPartition: maxContributionsPerPartition,
+			MinValue:                     lower,
+			MaxValue:                     upper,
+			Ranks:                        ranks,
+		},
+		noise.LaplaceNoise,
+		false)
 	if err != nil {
 		t.Fatalf("Couldn't get newBoundedQuantilesFn: %v", err)
 	}
@@ -300,16 +258,20 @@ func TestBoundedQuantilesFnExtractOutputReturnsNilForSmallPartitions(t *testing.
 		{"Input with 1 privacy unit with 1 contribution", 1, 1},
 	} {
 		// The choice of ε=1e100, δ=10⁻²³, and l0Sensitivity=1 gives a threshold of =2.
-		// ε is split in two for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
-		fn, err := newBoundedQuantilesFn(QuantilesParams{
-			Epsilon:                      2 * 1e100,
-			Delta:                        1e-23,
-			MaxPartitionsContributed:     1,
-			MaxContributionsPerPartition: 1,
-			MinValue:                     0,
-			MaxValue:                     10,
-			Ranks:                        []float64{0.5},
-		}, noise.LaplaceNoise, false, TestModeDisabled)
+		spec := privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1e100, PartitionSelectionEpsilon: 1e100, PartitionSelectionDelta: 1e-23})
+		fn, err := newBoundedQuantilesFn(
+			*spec,
+			QuantilesParams{
+				AggregationEpsilon:           1e100,
+				PartitionSelectionParams:     PartitionSelectionParams{Epsilon: 1e100, Delta: 1e-23},
+				MaxPartitionsContributed:     1,
+				MaxContributionsPerPartition: 1,
+				MinValue:                     0,
+				MaxValue:                     10,
+				Ranks:                        []float64{0.5},
+			},
+			noise.LaplaceNoise,
+			false)
 		if err != nil {
 			t.Fatalf("Couldn't get newBoundedQuantilesFn: %v", err)
 		}
@@ -347,14 +309,18 @@ func TestBoundedQuantilesFnWithPartitionsExtractOutputDoesNotReturnNilForSmallPa
 		{"Empty input", 0, 0},
 		{"Input with 1 privacy unit with 1 contribution", 1, 1},
 	} {
-		fn, err := newBoundedQuantilesFn(QuantilesParams{
-			Epsilon:                      1e100,
-			MaxPartitionsContributed:     1,
-			MaxContributionsPerPartition: 1,
-			MinValue:                     0,
-			MaxValue:                     10,
-			Ranks:                        []float64{0.5},
-		}, noise.LaplaceNoise, true, TestModeDisabled)
+		spec := privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1e100})
+		fn, err := newBoundedQuantilesFn(*spec,
+			QuantilesParams{
+				AggregationEpsilon:           1e100,
+				MaxPartitionsContributed:     1,
+				MaxContributionsPerPartition: 1,
+				MinValue:                     0,
+				MaxValue:                     10,
+				Ranks:                        []float64{0.5},
+			},
+			noise.LaplaceNoise,
+			true)
 		if err != nil {
 			t.Fatalf("Couldn't get newBoundedQuantilesFn: %v", err)
 		}
@@ -1109,224 +1075,14 @@ func TestQuantilesPerKeyWithPartitionsAppliesClamping(t *testing.T) {
 func TestCheckQuantilesPerKeyParams(t *testing.T) {
 	_, _, publicPartitions := ptest.CreateList([]int{0, 1})
 	for _, tc := range []struct {
-		desc                    string
-		usesNewPrivacyBudgetAPI bool
-		params                  QuantilesParams
-		noiseKind               noise.Kind
-		partitionType           reflect.Type
-		wantErr                 bool
+		desc          string
+		params        QuantilesParams
+		noiseKind     noise.Kind
+		partitionType reflect.Type
+		wantErr       bool
 	}{
 		{
 			desc: "valid parameters",
-			params: QuantilesParams{
-				Epsilon:                      1.0,
-				Delta:                        1e-5,
-				MaxPartitionsContributed:     1,
-				MaxContributionsPerPartition: 1,
-				MinValue:                     -5.0,
-				MaxValue:                     5.0,
-				Ranks:                        []float64{0.5},
-			},
-			noiseKind:     noise.LaplaceNoise,
-			partitionType: nil,
-			wantErr:       false,
-		},
-		{
-			desc: "negative epsilon",
-			params: QuantilesParams{
-				Epsilon:                      -1.0,
-				Delta:                        1e-5,
-				MaxPartitionsContributed:     1,
-				MaxContributionsPerPartition: 1,
-				MinValue:                     -5.0,
-				MaxValue:                     5.0,
-				Ranks:                        []float64{0.5},
-			},
-			noiseKind:     noise.LaplaceNoise,
-			partitionType: nil,
-			wantErr:       true,
-		},
-		{
-			desc: "zero delta w/o public partitions",
-			params: QuantilesParams{
-				Epsilon:                      1.0,
-				MaxPartitionsContributed:     1,
-				MaxContributionsPerPartition: 1,
-				MinValue:                     -5.0,
-				MaxValue:                     5.0,
-				Ranks:                        []float64{0.5},
-			},
-			noiseKind:     noise.LaplaceNoise,
-			partitionType: nil,
-			wantErr:       true,
-		},
-		{
-			desc: "MaxValue < MinValue",
-			params: QuantilesParams{
-				Epsilon:                      1.0,
-				Delta:                        1e-5,
-				MaxPartitionsContributed:     1,
-				MaxContributionsPerPartition: 1,
-				MinValue:                     6.0,
-				MaxValue:                     5.0,
-				Ranks:                        []float64{0.5},
-			},
-			noiseKind:     noise.LaplaceNoise,
-			partitionType: nil,
-			wantErr:       true,
-		},
-		{
-			desc: "MaxValue = MinValue",
-			params: QuantilesParams{
-				Epsilon:                      1.0,
-				Delta:                        1e-5,
-				MaxPartitionsContributed:     1,
-				MaxContributionsPerPartition: 1,
-				MinValue:                     5.0,
-				MaxValue:                     5.0,
-				Ranks:                        []float64{0.5},
-			},
-			noiseKind:     noise.LaplaceNoise,
-			partitionType: nil,
-			wantErr:       true,
-		},
-		{
-			desc: "zero MaxContributionsPerPartition",
-			params: QuantilesParams{
-				Epsilon:                  1.0,
-				Delta:                    1e-5,
-				MaxPartitionsContributed: 1,
-				MinValue:                 -5.0,
-				MaxValue:                 5.0,
-				Ranks:                    []float64{0.5},
-			},
-			noiseKind:     noise.LaplaceNoise,
-			partitionType: nil,
-			wantErr:       true,
-		},
-		{
-			desc: "zero MaxPartitionsContributed",
-			params: QuantilesParams{
-				Epsilon:                      1.0,
-				Delta:                        1e-5,
-				MaxContributionsPerPartition: 1,
-				MinValue:                     -5.0,
-				MaxValue:                     5.0,
-				Ranks:                        []float64{0.5},
-			},
-			noiseKind:     noise.LaplaceNoise,
-			partitionType: nil,
-			wantErr:       true,
-		},
-		{
-			desc: "No ranks",
-			params: QuantilesParams{
-				Epsilon:                      1.0,
-				Delta:                        1e-5,
-				MaxPartitionsContributed:     1,
-				MaxContributionsPerPartition: 1,
-				MinValue:                     -5.0,
-				MaxValue:                     5.0,
-			},
-			noiseKind:     noise.LaplaceNoise,
-			partitionType: nil,
-			wantErr:       true,
-		},
-		{
-			desc: "Out of bound (<0.0 || >1.0) ranks",
-			params: QuantilesParams{
-				Epsilon:                      1.0,
-				Delta:                        1e-5,
-				MaxPartitionsContributed:     1,
-				MaxContributionsPerPartition: 1,
-				MinValue:                     -5.0,
-				MaxValue:                     5.0,
-				Ranks:                        []float64{0.3, 1.5},
-			},
-			noiseKind:     noise.LaplaceNoise,
-			partitionType: nil,
-			wantErr:       true,
-		},
-		{
-			desc: "non-zero delta w/ public partitions & Laplace",
-			params: QuantilesParams{
-				Epsilon:                      1.0,
-				Delta:                        1e-5,
-				MaxPartitionsContributed:     1,
-				MaxContributionsPerPartition: 1,
-				MinValue:                     -5.0,
-				MaxValue:                     5.0,
-				Ranks:                        []float64{0.5},
-				PublicPartitions:             publicPartitions,
-			},
-			noiseKind:     noise.LaplaceNoise,
-			partitionType: reflect.TypeOf(0),
-			wantErr:       true,
-		},
-		{
-			desc: "wrong partition type w/ public partitions as beam.PCollection",
-			params: QuantilesParams{
-				Epsilon:                      1.0,
-				MaxContributionsPerPartition: 1,
-				MaxPartitionsContributed:     1,
-				MinValue:                     -5.0,
-				MaxValue:                     5.0,
-				Ranks:                        []float64{0.5},
-				PublicPartitions:             publicPartitions,
-			},
-			noiseKind:     noise.LaplaceNoise,
-			partitionType: reflect.TypeOf(""),
-			wantErr:       true,
-		},
-		{
-			desc: "wrong partition type w/ public partitions as slice",
-			params: QuantilesParams{
-				Epsilon:                      1.0,
-				MaxContributionsPerPartition: 1,
-				MaxPartitionsContributed:     1,
-				MinValue:                     -5.0,
-				MaxValue:                     5.0,
-				Ranks:                        []float64{0.5},
-				PublicPartitions:             []int{0},
-			},
-			noiseKind:     noise.LaplaceNoise,
-			partitionType: reflect.TypeOf(""),
-			wantErr:       true,
-		},
-		{
-			desc: "wrong partition type w/ public partitions as array",
-			params: QuantilesParams{
-				Epsilon:                      1.0,
-				MaxPartitionsContributed:     1,
-				MaxContributionsPerPartition: 1,
-				MinValue:                     -5.0,
-				MaxValue:                     5.0,
-				Ranks:                        []float64{0.5},
-				PublicPartitions:             [1]int{0},
-			},
-			noiseKind:     noise.LaplaceNoise,
-			partitionType: reflect.TypeOf(""),
-			wantErr:       true,
-		},
-		{
-			desc: "public partitions as something other than beam.PCollection, slice or array",
-			params: QuantilesParams{
-				Epsilon:                      1.0,
-				MaxPartitionsContributed:     1,
-				MaxContributionsPerPartition: 1,
-				MinValue:                     -5.0,
-				MaxValue:                     5.0,
-				Ranks:                        []float64{0.5},
-				PublicPartitions:             "",
-			},
-			noiseKind:     noise.LaplaceNoise,
-			partitionType: reflect.TypeOf(""),
-			wantErr:       true,
-		},
-		// Test cases for the new privacy budget API.
-		{
-			desc:                    "new API, valid parameters",
-			usesNewPrivacyBudgetAPI: true,
 			params: QuantilesParams{
 				AggregationEpsilon:           1.0,
 				PartitionSelectionParams:     PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
@@ -1341,8 +1097,7 @@ func TestCheckQuantilesPerKeyParams(t *testing.T) {
 			wantErr:       false,
 		},
 		{
-			desc:                    "new API, PartitionSelectionParams.MaxPartitionsContributed set",
-			usesNewPrivacyBudgetAPI: true,
+			desc: "PartitionSelectionParams.MaxPartitionsContributed set",
 			params: QuantilesParams{
 				AggregationEpsilon:           1.0,
 				PartitionSelectionParams:     PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5, MaxPartitionsContributed: 1},
@@ -1357,8 +1112,7 @@ func TestCheckQuantilesPerKeyParams(t *testing.T) {
 			wantErr:       true,
 		},
 		{
-			desc:                    "new API, negative aggregationEpsilon",
-			usesNewPrivacyBudgetAPI: true,
+			desc: "negative aggregationEpsilon",
 			params: QuantilesParams{
 				AggregationEpsilon:           -1.0,
 				PartitionSelectionParams:     PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
@@ -1373,8 +1127,7 @@ func TestCheckQuantilesPerKeyParams(t *testing.T) {
 			wantErr:       true,
 		},
 		{
-			desc:                    "new API, negative partitionSelectionEpsilon",
-			usesNewPrivacyBudgetAPI: true,
+			desc: "negative partitionSelectionEpsilon",
 			params: QuantilesParams{
 				AggregationEpsilon:           1.0,
 				PartitionSelectionParams:     PartitionSelectionParams{Epsilon: -1.0, Delta: 1e-5},
@@ -1389,8 +1142,7 @@ func TestCheckQuantilesPerKeyParams(t *testing.T) {
 			wantErr:       true,
 		},
 		{
-			desc:                    "new API, zero partitionSelectionDelta w/o public partitions",
-			usesNewPrivacyBudgetAPI: true,
+			desc: "zero partitionSelectionDelta w/o public partitions",
 			params: QuantilesParams{
 				AggregationEpsilon:           1.0,
 				PartitionSelectionParams:     PartitionSelectionParams{Epsilon: 1.0, Delta: 0},
@@ -1405,8 +1157,7 @@ func TestCheckQuantilesPerKeyParams(t *testing.T) {
 			wantErr:       true,
 		},
 		{
-			desc:                    "new API, MaxValue < MinValue",
-			usesNewPrivacyBudgetAPI: true,
+			desc: "MaxValue < MinValue",
 			params: QuantilesParams{
 				AggregationEpsilon:           1.0,
 				PartitionSelectionParams:     PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
@@ -1421,8 +1172,7 @@ func TestCheckQuantilesPerKeyParams(t *testing.T) {
 			wantErr:       true,
 		},
 		{
-			desc:                    "new API, MaxValue = MinValue",
-			usesNewPrivacyBudgetAPI: true,
+			desc: "MaxValue = MinValue",
 			params: QuantilesParams{
 				AggregationEpsilon:           1.0,
 				PartitionSelectionParams:     PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
@@ -1437,8 +1187,7 @@ func TestCheckQuantilesPerKeyParams(t *testing.T) {
 			wantErr:       true,
 		},
 		{
-			desc:                    "new API, zero MaxContributionsPerPartition",
-			usesNewPrivacyBudgetAPI: true,
+			desc: "zero MaxContributionsPerPartition",
 			params: QuantilesParams{
 				AggregationEpsilon:       1.0,
 				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
@@ -1452,8 +1201,7 @@ func TestCheckQuantilesPerKeyParams(t *testing.T) {
 			wantErr:       true,
 		},
 		{
-			desc:                    "new API, zero MaxPartitionsContributed",
-			usesNewPrivacyBudgetAPI: true,
+			desc: "zero MaxPartitionsContributed",
 			params: QuantilesParams{
 				AggregationEpsilon:           1.0,
 				PartitionSelectionParams:     PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
@@ -1467,8 +1215,7 @@ func TestCheckQuantilesPerKeyParams(t *testing.T) {
 			wantErr:       true,
 		},
 		{
-			desc:                    "new API, no ranks",
-			usesNewPrivacyBudgetAPI: true,
+			desc: "no ranks",
 			params: QuantilesParams{
 				AggregationEpsilon:           1.0,
 				PartitionSelectionParams:     PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
@@ -1482,8 +1229,7 @@ func TestCheckQuantilesPerKeyParams(t *testing.T) {
 			wantErr:       true,
 		},
 		{
-			desc:                    "new API, out of bound (<0.0 || >1.0) ranks",
-			usesNewPrivacyBudgetAPI: true,
+			desc: "out of bound (<0.0 || >1.0) ranks",
 			params: QuantilesParams{
 				AggregationEpsilon:           1.0,
 				PartitionSelectionParams:     PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
@@ -1498,8 +1244,7 @@ func TestCheckQuantilesPerKeyParams(t *testing.T) {
 			wantErr:       true,
 		},
 		{
-			desc:                    "new API, non-zero partitionSelectionDelta w/ public partitions",
-			usesNewPrivacyBudgetAPI: true,
+			desc: "non-zero partitionSelectionDelta w/ public partitions",
 			params: QuantilesParams{
 				AggregationEpsilon:           1.0,
 				PartitionSelectionParams:     PartitionSelectionParams{Epsilon: 0, Delta: 1e-5},
@@ -1515,8 +1260,7 @@ func TestCheckQuantilesPerKeyParams(t *testing.T) {
 			wantErr:       true,
 		},
 		{
-			desc:                    "new API, non-zero partitionSelectionEpsilon w/ public partitions",
-			usesNewPrivacyBudgetAPI: true,
+			desc: "non-zero partitionSelectionEpsilon w/ public partitions",
 			params: QuantilesParams{
 				AggregationEpsilon:           1.0,
 				PartitionSelectionParams:     PartitionSelectionParams{Epsilon: 1.0, Delta: 0},
@@ -1532,7 +1276,7 @@ func TestCheckQuantilesPerKeyParams(t *testing.T) {
 			wantErr:       true,
 		},
 		{
-			desc: "new API, wrong partition type w/ public partitions as beam.PCollection",
+			desc: "wrong partition type w/ public partitions as beam.PCollection",
 			params: QuantilesParams{
 				AggregationEpsilon:           1.0,
 				MaxPartitionsContributed:     1,
@@ -1547,7 +1291,7 @@ func TestCheckQuantilesPerKeyParams(t *testing.T) {
 			wantErr:       true,
 		},
 		{
-			desc: "new API, wrong partition type w/ public partitions as slice",
+			desc: "wrong partition type w/ public partitions as slice",
 			params: QuantilesParams{
 				AggregationEpsilon:           1.0,
 				MaxPartitionsContributed:     1,
@@ -1562,7 +1306,7 @@ func TestCheckQuantilesPerKeyParams(t *testing.T) {
 			wantErr:       true,
 		},
 		{
-			desc: "new API, wrong partition type w/ public partitions as array",
+			desc: "wrong partition type w/ public partitions as array",
 			params: QuantilesParams{
 				AggregationEpsilon:           1.0,
 				MaxPartitionsContributed:     1,
@@ -1577,7 +1321,7 @@ func TestCheckQuantilesPerKeyParams(t *testing.T) {
 			wantErr:       true,
 		},
 		{
-			desc: "new API, public partitions as something other than beam.PCollection, slice or array",
+			desc: "public partitions as something other than beam.PCollection, slice or array",
 			params: QuantilesParams{
 				AggregationEpsilon:           1.0,
 				MaxPartitionsContributed:     1,
@@ -1592,7 +1336,7 @@ func TestCheckQuantilesPerKeyParams(t *testing.T) {
 			wantErr:       true,
 		},
 	} {
-		if err := checkQuantilesPerKeyParams(tc.params, tc.usesNewPrivacyBudgetAPI, tc.noiseKind, tc.partitionType); (err != nil) != tc.wantErr {
+		if err := checkQuantilesPerKeyParams(tc.params, tc.noiseKind, tc.partitionType); (err != nil) != tc.wantErr {
 			t.Errorf("With %s, got=%v, wantErr=%t", tc.desc, err, tc.wantErr)
 		}
 	}

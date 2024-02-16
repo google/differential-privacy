@@ -139,24 +139,14 @@ func DistinctPerKey(s beam.Scope, pcol PrivatePCollection, params DistinctPerKey
 	// In the new privacy budget API, budgets are already split.
 	spec := pcol.privacySpec
 	var err error
-	if spec.usesNewPrivacyBudgetAPI {
-		params.AggregationEpsilon, params.AggregationDelta, err = spec.aggregationBudget.get(params.AggregationEpsilon, params.AggregationDelta)
+	params.AggregationEpsilon, params.AggregationDelta, err = spec.aggregationBudget.get(params.AggregationEpsilon, params.AggregationDelta)
+	if err != nil {
+		log.Fatalf("Couldn't get aggregation budget for DistinctPerKey: %v", err)
+	}
+	if params.PublicPartitions == nil {
+		params.PartitionSelectionParams.Epsilon, params.PartitionSelectionParams.Delta, err = spec.partitionSelectionBudget.get(params.PartitionSelectionParams.Epsilon, params.PartitionSelectionParams.Delta)
 		if err != nil {
-			log.Fatalf("Couldn't get aggregation budget for DistinctPerKey: %v", err)
-		}
-		if params.PublicPartitions == nil {
-			params.PartitionSelectionParams.Epsilon, params.PartitionSelectionParams.Delta, err = spec.partitionSelectionBudget.get(params.PartitionSelectionParams.Epsilon, params.PartitionSelectionParams.Delta)
-			if err != nil {
-				log.Fatalf("Couldn't get partition selection budget for DistinctPerKey: %v", err)
-			}
-		}
-	} else {
-		params.AggregationEpsilon, params.AggregationDelta, err = spec.budget.get(params.Epsilon, params.Delta)
-		if err != nil {
-			log.Fatalf("Couldn't get budget for DistinctPerKey: %v", err)
-		}
-		if params.PublicPartitions == nil {
-			params.AggregationEpsilon, params.AggregationDelta, params.PartitionSelectionParams.Epsilon, params.PartitionSelectionParams.Delta = splitBudget(params.AggregationEpsilon, params.AggregationDelta, noiseKind)
+			log.Fatalf("Couldn't get partition selection budget for DistinctPerKey: %v", err)
 		}
 	}
 	err = checkDistinctPerKeyParams(params, noiseKind, pcol.codec.KType.T)

@@ -29,7 +29,7 @@ import (
 func ComputeCountMeanSum(s beam.Scope, col beam.PCollection) (visitsPerHour, meanTimeSpent, revenues beam.PCollection) {
 	s = s.Scope("ComputeCountMeanSum")
 	// Create a Privacy Spec and convert col into a PrivatePCollection.
-	spec, err := pbeam.NewPrivacySpecTemp(pbeam.PrivacySpecParams{AggregationEpsilon: epsilon}) // Shared by count, mean and sum.
+	spec, err := pbeam.NewPrivacySpec(pbeam.PrivacySpecParams{AggregationEpsilon: epsilon}) // Shared by count, mean and sum.
 	if err != nil {
 		log.Fatalf("Couldn't create a PrivacySpec: %v", err)
 	}

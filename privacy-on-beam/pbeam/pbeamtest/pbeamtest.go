@@ -22,45 +22,7 @@ import (
 	"math"
 
 	"github.com/google/differential-privacy/go/v2/dpagg"
-	"github.com/google/differential-privacy/privacy-on-beam/v2/internal/testoption"
-	"github.com/google/differential-privacy/privacy-on-beam/v2/pbeam"
 )
-
-// NewPrivacySpecNoNoiseWithContributionBounding creates a new PrivacySpec with
-// the specified privacy budget that adds no noise and keeps all partitions but
-// still does contribution bounding.
-//
-// The epsilon and delta arguments are the total (ε,δ)-differential privacy
-// budget for the pipeline. If there is only one aggregation, the entire budget
-// will be used for this aggregation. Otherwise, the user must specify how the
-// privacy budget is split across aggregations.
-//
-// This does NOT provide any privacy protections, so should only be used in
-// test code in order to avoid dealing with random noise.
-//
-// Deprecated: Use pbeam.NewPrivacySpecTemp() with TestMode: TestModeWithContributionBounding instead.
-func NewPrivacySpecNoNoiseWithContributionBounding(epsilon, delta float64) *pbeam.PrivacySpec {
-	return pbeam.NewPrivacySpec(epsilon, delta, testoption.EnableNoNoiseWithContributionBounding{})
-}
-
-// NewPrivacySpecNoNoiseWithoutContributionBounding creates a new PrivacySpec with
-// the specified privacy budget that adds no noise, keeps all partitions and disables
-// contribution bounding (both per-partition and cross-partition). The contribution
-// bounding parameters should still be specified for all the pbeam aggregations
-// in the pipeline since they will be validated.
-//
-// The epsilon and delta arguments are the total (ε,δ)-differential privacy
-// budget for the pipeline. If there is only one aggregation, the entire budget
-// will be used for this aggregation. Otherwise, the user must specify how the
-// privacy budget is split across aggregations.
-//
-// This does NOT provide any privacy protections, so should only be used in
-// test code in order to avoid dealing with random noise.
-//
-// Deprecated: Use pbeam.NewPrivacySpecTemp() with TestMode: TestModeWithoutContributionBounding instead.
-func NewPrivacySpecNoNoiseWithoutContributionBounding(epsilon, delta float64) *pbeam.PrivacySpec {
-	return pbeam.NewPrivacySpec(epsilon, delta, testoption.EnableNoNoiseWithoutContributionBounding{})
-}
 
 // QuantilesTolerance returns a tolerance t such that the output of QuantilesPerKey is
 // within t of the exact result for given MinValue and MaxValue parameters of

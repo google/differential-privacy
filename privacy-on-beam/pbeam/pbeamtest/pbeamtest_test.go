@@ -45,12 +45,12 @@ func privacySpec(t *testing.T, testMode pbeam.TestMode, publicPartitions bool) *
 	var spec *pbeam.PrivacySpec
 	var err error
 	if publicPartitions {
-		spec, err = pbeam.NewPrivacySpecTemp(pbeam.PrivacySpecParams{
+		spec, err = pbeam.NewPrivacySpec(pbeam.PrivacySpecParams{
 			AggregationEpsilon: tinyEpsilon,
 			TestMode:           testMode,
 		})
 	} else {
-		spec, err = pbeam.NewPrivacySpecTemp(pbeam.PrivacySpecParams{
+		spec, err = pbeam.NewPrivacySpec(pbeam.PrivacySpecParams{
 			AggregationEpsilon:        tinyEpsilon / 2,
 			PartitionSelectionEpsilon: tinyEpsilon / 2,
 			PartitionSelectionDelta:   tinyDelta,
@@ -58,7 +58,7 @@ func privacySpec(t *testing.T, testMode pbeam.TestMode, publicPartitions bool) *
 		})
 	}
 	if err != nil {
-		t.Fatalf("NewPrivacySpecTemp: %v", err)
+		t.Fatalf("Couldn't create PrivacySpec: %v", err)
 	}
 	return spec
 }

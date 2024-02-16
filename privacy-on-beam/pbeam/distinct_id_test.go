@@ -626,41 +626,6 @@ func TestDistinctPrivacyIDOptimizedContrib(t *testing.T) {
 
 func TestNewCountFn(t *testing.T) {
 	for _, tc := range []struct {
-		desc      string
-		noiseKind noise.Kind
-		want      *countFn
-	}{
-		{"Laplace", noise.LaplaceNoise,
-			&countFn{
-				Epsilon:                  1,
-				NoiseDelta:               0,
-				ThresholdDelta:           1e-5,
-				MaxPartitionsContributed: 17,
-				NoiseKind:                noise.LaplaceNoise,
-			}},
-		{"Gaussian", noise.GaussianNoise,
-			&countFn{
-				Epsilon:                  1,
-				NoiseDelta:               5e-6,
-				ThresholdDelta:           5e-6,
-				MaxPartitionsContributed: 17,
-				NoiseKind:                noise.GaussianNoise,
-			}},
-	} {
-		got, err := newCountFn(1, 1e-5, 17, tc.noiseKind, false, TestModeDisabled)
-		if err != nil {
-			t.Fatalf("Couldn't get countFn: %v", err)
-		}
-		if diff := cmp.Diff(tc.want, got, cmpopts.IgnoreUnexported(countFn{})); diff != "" {
-			t.Errorf("newCountFn mismatch for '%s' (-want +got):\n%s", tc.desc, diff)
-		}
-	}
-}
-
-// The logic mirrors TestCountFnSetup, but with the new privacy budget API where
-// clients specify aggregation budget and partition selection budget separately.
-func TestNewCountFnTemp(t *testing.T) {
-	for _, tc := range []struct {
 		desc                    string
 		noiseKind               noise.Kind
 		aggregationEpsilon      float64
@@ -695,7 +660,7 @@ func TestNewCountFnTemp(t *testing.T) {
 				NoiseKind:                noise.LaplaceNoise,
 			}},
 	} {
-		got, err := newCountFnTemp(PrivacySpec{preThreshold: tc.preThreshold, testMode: TestModeDisabled},
+		got, err := newCountFn(PrivacySpec{preThreshold: tc.preThreshold, testMode: TestModeDisabled},
 			DistinctPrivacyIDParams{
 				AggregationEpsilon:       tc.aggregationEpsilon,
 				AggregationDelta:         tc.aggregationDelta,
@@ -718,8 +683,10 @@ func TestCountFnSetup(t *testing.T) {
 		wantNoise any
 	}{
 		{"Laplace noise kind", noise.LaplaceNoise, noise.Laplace()},
-		{"Gaussian noise kind", noise.GaussianNoise, noise.Gaussian()}} {
-		got, err := newCountFn(1, 1e-5, 17, tc.noiseKind, false, TestModeDisabled)
+		{"Gaussian noise kind", noise.GaussianNoise, noise.Gaussian()},
+	} {
+		spec := privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1, PartitionSelectionDelta: 1e-5})
+		got, err := newCountFn(*spec, DistinctPrivacyIDParams{MaxPartitionsContributed: 17}, tc.noiseKind, false)
 		if err != nil {
 			t.Fatalf("Couldn't get countFn: %v", err)
 		}
@@ -859,18 +826,17 @@ func TestCountFnExtractOutputDoesNotReturnNilIfPartitionsPublic(t *testing.T) {
 func TestCheckDistinctPrivacyIDParams(t *testing.T) {
 	_, _, partitions := ptest.CreateList([]int{0})
 	for _, tc := range []struct {
-		desc                    string
-		params                  DistinctPrivacyIDParams
-		usesNewPrivacyBudgetAPI bool
-		noiseKind               noise.Kind
-		partitionType           reflect.Type
-		wantErr                 bool
+		desc          string
+		params        DistinctPrivacyIDParams
+		noiseKind     noise.Kind
+		partitionType reflect.Type
+		wantErr       bool
 	}{
 		{
 			desc: "valid parameters w/o public partitions",
 			params: DistinctPrivacyIDParams{
-				Epsilon:                  1,
-				Delta:                    1e-10,
+				AggregationEpsilon:       1.0,
+				PartitionSelectionDelta:  1e-5,
 				MaxPartitionsContributed: 1,
 			},
 			noiseKind:     noise.LaplaceNoise,
@@ -878,11 +844,34 @@ func TestCheckDistinctPrivacyIDParams(t *testing.T) {
 			wantErr:       false,
 		},
 		{
+			desc: "valid parameters w/ gaussian noise w/o public partitions",
+			params: DistinctPrivacyIDParams{
+				AggregationEpsilon:       1.0,
+				AggregationDelta:         1e-5,
+				PartitionSelectionDelta:  1e-5,
+				MaxPartitionsContributed: 1,
+			},
+			noiseKind:     noise.GaussianNoise,
+			partitionType: nil,
+			wantErr:       false,
+		},
+		{
+			desc: "zero aggregationDelta w/ gaussian noise w/o public partitions",
+			params: DistinctPrivacyIDParams{
+				AggregationEpsilon:       1.0,
+				PartitionSelectionDelta:  1e-5,
+				MaxPartitionsContributed: 1,
+			},
+			noiseKind:     noise.GaussianNoise,
+			partitionType: nil,
+			wantErr:       true,
+		},
+		{
 			desc: "valid parameters w/ public partitions",
 			params: DistinctPrivacyIDParams{
-				Epsilon:                  1,
-				MaxPartitionsContributed: 1,
+				AggregationEpsilon:       1.0,
 				PublicPartitions:         []int{0},
+				MaxPartitionsContributed: 1,
 			},
 			noiseKind:     noise.LaplaceNoise,
 			partitionType: reflect.TypeOf(0),
@@ -891,8 +880,8 @@ func TestCheckDistinctPrivacyIDParams(t *testing.T) {
 		{
 			desc: "negative epsilon",
 			params: DistinctPrivacyIDParams{
-				Epsilon:                  -1,
-				Delta:                    1e-10,
+				AggregationEpsilon:       -1.0,
+				PartitionSelectionDelta:  1e-5,
 				MaxPartitionsContributed: 1,
 			},
 			noiseKind:     noise.LaplaceNoise,
@@ -900,9 +889,9 @@ func TestCheckDistinctPrivacyIDParams(t *testing.T) {
 			wantErr:       true,
 		},
 		{
-			desc: "zero delta w/o public partitions",
+			desc: "zero partitionSelectionDelta w/o public partitions",
 			params: DistinctPrivacyIDParams{
-				Epsilon:                  1,
+				AggregationEpsilon:       1.0,
 				MaxPartitionsContributed: 1,
 			},
 			noiseKind:     noise.LaplaceNoise,
@@ -910,10 +899,10 @@ func TestCheckDistinctPrivacyIDParams(t *testing.T) {
 			wantErr:       true,
 		},
 		{
-			desc: "non-zero delta w/ public partitions & laplace noise",
+			desc: "non-zero partitionSelectionDelta w/ laplace noise",
 			params: DistinctPrivacyIDParams{
-				Epsilon:                  1,
-				Delta:                    1e-10,
+				AggregationEpsilon:       1.0,
+				PartitionSelectionDelta:  1e-5,
 				MaxPartitionsContributed: 1,
 				PublicPartitions:         []int{},
 			},
@@ -924,8 +913,8 @@ func TestCheckDistinctPrivacyIDParams(t *testing.T) {
 		{
 			desc: "unset MaxPartitionsContributed",
 			params: DistinctPrivacyIDParams{
-				Epsilon: 1,
-				Delta:   1e-10,
+				AggregationEpsilon:      1.0,
+				PartitionSelectionDelta: 1e-5,
 			},
 			noiseKind:     noise.LaplaceNoise,
 			partitionType: nil,
@@ -934,7 +923,7 @@ func TestCheckDistinctPrivacyIDParams(t *testing.T) {
 		{
 			desc: "wrong partition type w/ public partitions as beam.PCollection",
 			params: DistinctPrivacyIDParams{
-				Epsilon:                  1,
+				AggregationEpsilon:       1.0,
 				MaxPartitionsContributed: 1,
 				PublicPartitions:         partitions,
 			},
@@ -945,7 +934,7 @@ func TestCheckDistinctPrivacyIDParams(t *testing.T) {
 		{
 			desc: "wrong partition type w/ public partitions as slice",
 			params: DistinctPrivacyIDParams{
-				Epsilon:                  1,
+				AggregationEpsilon:       1.0,
 				MaxPartitionsContributed: 1,
 				PublicPartitions:         []int{0},
 			},
@@ -956,7 +945,7 @@ func TestCheckDistinctPrivacyIDParams(t *testing.T) {
 		{
 			desc: "wrong partition type w/ public partitions as array",
 			params: DistinctPrivacyIDParams{
-				Epsilon:                  1,
+				AggregationEpsilon:       1.0,
 				MaxPartitionsContributed: 1,
 				PublicPartitions:         [1]int{0},
 			},
@@ -967,148 +956,6 @@ func TestCheckDistinctPrivacyIDParams(t *testing.T) {
 		{
 			desc: "public partitions as something other than beam.PCollection, slice or array",
 			params: DistinctPrivacyIDParams{
-				Epsilon:                  1,
-				MaxPartitionsContributed: 1,
-				PublicPartitions:         "",
-			},
-			noiseKind:     noise.LaplaceNoise,
-			partitionType: reflect.TypeOf(""),
-			wantErr:       true,
-		},
-		// Test cases for the new privacy budget API.
-		{
-			desc: "new API, valid parameters w/o public partitions",
-			params: DistinctPrivacyIDParams{
-				AggregationEpsilon:       1.0,
-				PartitionSelectionDelta:  1e-5,
-				MaxPartitionsContributed: 1,
-			},
-			usesNewPrivacyBudgetAPI: true,
-			noiseKind:               noise.LaplaceNoise,
-			partitionType:           nil,
-			wantErr:                 false,
-		},
-		{
-			desc: "new API, valid parameters w/ gaussian noise w/o public partitions",
-			params: DistinctPrivacyIDParams{
-				AggregationEpsilon:       1.0,
-				AggregationDelta:         1e-5,
-				PartitionSelectionDelta:  1e-5,
-				MaxPartitionsContributed: 1,
-			},
-			usesNewPrivacyBudgetAPI: true,
-			noiseKind:               noise.GaussianNoise,
-			partitionType:           nil,
-			wantErr:                 false,
-		},
-		{
-			desc: "new API, zero aggregationDelta w/ gaussian noise w/o public partitions",
-			params: DistinctPrivacyIDParams{
-				AggregationEpsilon:       1.0,
-				PartitionSelectionDelta:  1e-5,
-				MaxPartitionsContributed: 1,
-			},
-			usesNewPrivacyBudgetAPI: true,
-			noiseKind:               noise.GaussianNoise,
-			partitionType:           nil,
-			wantErr:                 true,
-		},
-		{
-			desc: "new API, valid parameters w/ public partitions",
-			params: DistinctPrivacyIDParams{
-				AggregationEpsilon:       1.0,
-				PublicPartitions:         []int{0},
-				MaxPartitionsContributed: 1,
-			},
-			usesNewPrivacyBudgetAPI: true,
-			noiseKind:               noise.LaplaceNoise,
-			partitionType:           reflect.TypeOf(0),
-			wantErr:                 false,
-		},
-		{
-			desc: "new API, negative epsilon",
-			params: DistinctPrivacyIDParams{
-				AggregationEpsilon:       -1.0,
-				PartitionSelectionDelta:  1e-5,
-				MaxPartitionsContributed: 1,
-			},
-			usesNewPrivacyBudgetAPI: true,
-			noiseKind:               noise.LaplaceNoise,
-			partitionType:           nil,
-			wantErr:                 true,
-		},
-		{
-			desc: "new API, zero partitionSelectionDelta w/o public partitions",
-			params: DistinctPrivacyIDParams{
-				AggregationEpsilon:       1.0,
-				MaxPartitionsContributed: 1,
-			},
-			usesNewPrivacyBudgetAPI: true,
-			noiseKind:               noise.LaplaceNoise,
-			partitionType:           nil,
-			wantErr:                 true,
-		},
-		{
-			desc: "new API, non-zero partitionSelectionDelta w/ laplace noise",
-			params: DistinctPrivacyIDParams{
-				AggregationEpsilon:       1.0,
-				PartitionSelectionDelta:  1e-5,
-				MaxPartitionsContributed: 1,
-				PublicPartitions:         []int{},
-			},
-			usesNewPrivacyBudgetAPI: true,
-			noiseKind:               noise.LaplaceNoise,
-			partitionType:           reflect.TypeOf(0),
-			wantErr:                 true,
-		},
-		{
-			desc: "new API, unset MaxPartitionsContributed",
-			params: DistinctPrivacyIDParams{
-				AggregationEpsilon:      1.0,
-				PartitionSelectionDelta: 1e-5,
-			},
-			usesNewPrivacyBudgetAPI: true,
-			noiseKind:               noise.LaplaceNoise,
-			partitionType:           nil,
-			wantErr:                 true,
-		},
-		{
-			desc: "new API, wrong partition type w/ public partitions as beam.PCollection",
-			params: DistinctPrivacyIDParams{
-				AggregationEpsilon:       1.0,
-				MaxPartitionsContributed: 1,
-				PublicPartitions:         partitions,
-			},
-			usesNewPrivacyBudgetAPI: true,
-			noiseKind:               noise.LaplaceNoise,
-			partitionType:           reflect.TypeOf(""),
-			wantErr:                 true,
-		},
-		{
-			desc: "new API, wrong partition type w/ public partitions as slice",
-			params: DistinctPrivacyIDParams{
-				AggregationEpsilon:       1.0,
-				MaxPartitionsContributed: 1,
-				PublicPartitions:         []int{0},
-			},
-			noiseKind:     noise.LaplaceNoise,
-			partitionType: reflect.TypeOf(""),
-			wantErr:       true,
-		},
-		{
-			desc: "new API, wrong partition type w/ public partitions as array",
-			params: DistinctPrivacyIDParams{
-				AggregationEpsilon:       1.0,
-				MaxPartitionsContributed: 1,
-				PublicPartitions:         [1]int{0},
-			},
-			noiseKind:     noise.LaplaceNoise,
-			partitionType: reflect.TypeOf(""),
-			wantErr:       true,
-		},
-		{
-			desc: "new API, public partitions as something other than beam.PCollection, slice or array",
-			params: DistinctPrivacyIDParams{
 				AggregationEpsilon:       1.0,
 				MaxPartitionsContributed: 1,
 				PublicPartitions:         "",
@@ -1118,7 +965,7 @@ func TestCheckDistinctPrivacyIDParams(t *testing.T) {
 			wantErr:       true,
 		},
 	} {
-		if err := checkDistinctPrivacyIDParams(tc.params, tc.usesNewPrivacyBudgetAPI, tc.noiseKind, tc.partitionType); (err != nil) != tc.wantErr {
+		if err := checkDistinctPrivacyIDParams(tc.params, tc.noiseKind, tc.partitionType); (err != nil) != tc.wantErr {
 			t.Errorf("With %s, got=%v error, wantErr=%t", tc.desc, err, tc.wantErr)
 		}
 	}

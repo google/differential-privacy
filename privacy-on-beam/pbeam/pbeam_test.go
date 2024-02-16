@@ -39,7 +39,7 @@ func init() {
 	register.Function1x2[int, int, int](addZeroIntValueFn)
 }
 
-func TestNewPrivacySpecTemp(t *testing.T) {
+func TestNewPrivacySpec(t *testing.T) {
 	for _, tc := range []struct {
 		desc    string
 		params  PrivacySpecParams
@@ -77,6 +77,14 @@ func TestNewPrivacySpecTemp(t *testing.T) {
 			true,
 		},
 		{
+			"negative PartitionSelectionEpsilon",
+			PrivacySpecParams{
+				PartitionSelectionEpsilon: -1,
+				PartitionSelectionDelta:   1e-5,
+			},
+			true,
+		},
+		{
 			"negative PreThreshold",
 			PrivacySpecParams{
 				AggregationEpsilon:      1.0,
@@ -86,7 +94,7 @@ func TestNewPrivacySpecTemp(t *testing.T) {
 			true,
 		},
 		{
-			"Partition selection budget is not set when PreThreshold is set",
+			"partition selection budget is not set when PreThreshold is set",
 			PrivacySpecParams{
 				AggregationEpsilon: 1.0,
 				PreThreshold:       1,
@@ -147,7 +155,7 @@ func TestNewPrivacySpecTemp(t *testing.T) {
 			true,
 		},
 	} {
-		if _, err := NewPrivacySpecTemp(tc.params); (err != nil) != tc.wantErr {
+		if _, err := NewPrivacySpec(tc.params); (err != nil) != tc.wantErr {
 			t.Errorf("With %s, got=%v, wantErr=%t", tc.desc, err, tc.wantErr)
 		}
 	}

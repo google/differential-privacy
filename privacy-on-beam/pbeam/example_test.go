@@ -64,7 +64,7 @@ func Example() {
 	// provided by the pipeline.
 	const ε, δ = 1, 1e-3
 
-	privacySpec, err := pbeam.NewPrivacySpecTemp(pbeam.PrivacySpecParams{
+	privacySpec, err := pbeam.NewPrivacySpec(pbeam.PrivacySpecParams{
 		AggregationEpsilon:        ε / 2,
 		PartitionSelectionEpsilon: ε / 2,
 		AggregationDelta:          δ,

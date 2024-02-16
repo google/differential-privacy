@@ -1332,160 +1332,15 @@ func TestSumPerKeyNoClampingForNegativeMinValueInt64(t *testing.T) {
 func TestCheckSumPerKeyParams(t *testing.T) {
 	_, _, publicPartitions := ptest.CreateList([]int{0, 1})
 	for _, tc := range []struct {
-		desc                    string
-		usesNewPrivacyBudgetAPI bool
-		params                  SumParams
-		noiseKind               noise.Kind
-		partitionType           reflect.Type
-		wantErr                 bool
+		desc          string
+		params        SumParams
+		noiseKind     noise.Kind
+		partitionType reflect.Type
+		wantErr       bool
 	}{
+
 		{
 			desc: "valid parameters",
-			params: SumParams{
-				Epsilon:                  1.0,
-				Delta:                    1e-5,
-				MaxPartitionsContributed: 1,
-				MinValue:                 -5.0,
-				MaxValue:                 5.0,
-			},
-			noiseKind: noise.LaplaceNoise,
-
-			partitionType: nil,
-			wantErr:       false,
-		},
-		{
-			desc: "negative epsilon",
-			params: SumParams{
-				Epsilon:                  -1.0,
-				Delta:                    1e-5,
-				MaxPartitionsContributed: 1,
-				MinValue:                 -5.0,
-				MaxValue:                 5.0,
-			},
-			noiseKind:     noise.LaplaceNoise,
-			partitionType: nil,
-			wantErr:       true,
-		},
-		{
-			desc: "zero delta w/o public partitions",
-			params: SumParams{
-				Epsilon:                  1.0,
-				MaxPartitionsContributed: 1,
-				MinValue:                 -5.0,
-				MaxValue:                 5.0,
-			},
-			noiseKind:     noise.LaplaceNoise,
-			partitionType: nil,
-			wantErr:       true,
-		},
-		{
-			desc: "MaxPartitionsContributed unset",
-			params: SumParams{
-				Epsilon:  1.0,
-				Delta:    1e-5,
-				MinValue: -5.0,
-				MaxValue: 5.0,
-			},
-			noiseKind:     noise.LaplaceNoise,
-			partitionType: nil,
-			wantErr:       true,
-		},
-		{
-			desc: "MaxValue < MinValue",
-			params: SumParams{
-				Epsilon:                  1.0,
-				Delta:                    1e-5,
-				MaxPartitionsContributed: 1,
-				MinValue:                 6.0,
-				MaxValue:                 5.0,
-			},
-			noiseKind:     noise.LaplaceNoise,
-			partitionType: nil,
-			wantErr:       true,
-		},
-		{
-			desc: "MaxValue = MinValue",
-			params: SumParams{
-				Epsilon:                  1.0,
-				Delta:                    1e-5,
-				MaxPartitionsContributed: 1,
-				MinValue:                 5.0,
-				MaxValue:                 5.0,
-			},
-			noiseKind:     noise.LaplaceNoise,
-			partitionType: nil,
-			wantErr:       false,
-		},
-		{
-			desc: "non-zero delta w/ public partitions & Laplace",
-			params: SumParams{
-				Epsilon:                  1.0,
-				Delta:                    1e-5,
-				MaxPartitionsContributed: 1,
-				MinValue:                 -5.0,
-				MaxValue:                 5.0,
-				PublicPartitions:         publicPartitions,
-			},
-			noiseKind:     noise.LaplaceNoise,
-			partitionType: reflect.TypeOf(0),
-			wantErr:       true,
-		},
-		{
-			desc: "wrong partition type w/ public partitions as beam.PCollection",
-			params: SumParams{
-				Epsilon:                  1.0,
-				MaxPartitionsContributed: 1,
-				MinValue:                 -5.0,
-				MaxValue:                 5.0,
-				PublicPartitions:         publicPartitions,
-			},
-			noiseKind:     noise.LaplaceNoise,
-			partitionType: reflect.TypeOf(""),
-			wantErr:       true,
-		},
-		{
-			desc: "wrong partition type w/ public partitions as slice",
-			params: SumParams{
-				Epsilon:                  1.0,
-				MaxPartitionsContributed: 1,
-				MinValue:                 -5.0,
-				MaxValue:                 5.0,
-				PublicPartitions:         []int{0},
-			},
-			noiseKind:     noise.LaplaceNoise,
-			partitionType: reflect.TypeOf(""),
-			wantErr:       true,
-		},
-		{
-			desc: "wrong partition type w/ public partitions as array",
-			params: SumParams{
-				Epsilon:                  1.0,
-				MaxPartitionsContributed: 1,
-				MinValue:                 -5.0,
-				MaxValue:                 5.0,
-				PublicPartitions:         [1]int{0},
-			},
-			noiseKind:     noise.LaplaceNoise,
-			partitionType: reflect.TypeOf(""),
-			wantErr:       true,
-		},
-		{
-			desc: "public partitions as something other than beam.PCollection, slice or array",
-			params: SumParams{
-				Epsilon:                  1.0,
-				MaxPartitionsContributed: 1,
-				MinValue:                 -5.0,
-				MaxValue:                 5.0,
-				PublicPartitions:         "publicPartitions",
-			},
-			noiseKind:     noise.LaplaceNoise,
-			partitionType: reflect.TypeOf(""),
-			wantErr:       true,
-		},
-		// Test cases for the new privacy budget API.
-		{
-			desc:                    "new API, valid parameters",
-			usesNewPrivacyBudgetAPI: true,
 			params: SumParams{
 				AggregationEpsilon:       1.0,
 				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
@@ -1498,8 +1353,7 @@ func TestCheckSumPerKeyParams(t *testing.T) {
 			wantErr:       false,
 		},
 		{
-			desc:                    "new API, PartitionSelectionParams.MaxPartitionsContributed set",
-			usesNewPrivacyBudgetAPI: true,
+			desc: "PartitionSelectionParams.MaxPartitionsContributed set",
 			params: SumParams{
 				AggregationEpsilon:       1.0,
 				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5, MaxPartitionsContributed: 1},
@@ -1512,8 +1366,7 @@ func TestCheckSumPerKeyParams(t *testing.T) {
 			wantErr:       true,
 		},
 		{
-			desc:                    "new API, zero aggregationDelta w/ Gaussian noise",
-			usesNewPrivacyBudgetAPI: true,
+			desc: "zero aggregationDelta w/ Gaussian noise",
 			params: SumParams{
 				AggregationEpsilon:       1.0,
 				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
@@ -1526,8 +1379,7 @@ func TestCheckSumPerKeyParams(t *testing.T) {
 			wantErr:       true,
 		},
 		{
-			desc:                    "new API, negative aggregationEpsilon",
-			usesNewPrivacyBudgetAPI: true,
+			desc: "negative aggregationEpsilon",
 			params: SumParams{
 				AggregationEpsilon:       -1.0,
 				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
@@ -1540,8 +1392,7 @@ func TestCheckSumPerKeyParams(t *testing.T) {
 			wantErr:       true,
 		},
 		{
-			desc:                    "new API, negative partitionSelectionEpsilon",
-			usesNewPrivacyBudgetAPI: true,
+			desc: "negative partitionSelectionEpsilon",
 			params: SumParams{
 				AggregationEpsilon:       1.0,
 				PartitionSelectionParams: PartitionSelectionParams{Epsilon: -1.0, Delta: 1e-5},
@@ -1554,8 +1405,7 @@ func TestCheckSumPerKeyParams(t *testing.T) {
 			wantErr:       true,
 		},
 		{
-			desc:                    "new API, zero partitionSelectionDelta w/o public partitions",
-			usesNewPrivacyBudgetAPI: true,
+			desc: "zero partitionSelectionDelta w/o public partitions",
 			params: SumParams{
 				AggregationEpsilon:       1.0,
 				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1.0, Delta: 0},
@@ -1568,8 +1418,7 @@ func TestCheckSumPerKeyParams(t *testing.T) {
 			wantErr:       true,
 		},
 		{
-			desc:                    "new API, zero partitionSelectionEpsilon w/o public partitions",
-			usesNewPrivacyBudgetAPI: true,
+			desc: "zero partitionSelectionEpsilon w/o public partitions",
 			params: SumParams{
 				AggregationEpsilon:       1.0,
 				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 0, Delta: 1e-5},
@@ -1582,7 +1431,7 @@ func TestCheckSumPerKeyParams(t *testing.T) {
 			wantErr:       true,
 		},
 		{
-			desc: "new API, MaxPartitionsContributed unset",
+			desc: "MaxPartitionsContributed unset",
 			params: SumParams{
 				AggregationEpsilon:       1.0,
 				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
@@ -1594,8 +1443,7 @@ func TestCheckSumPerKeyParams(t *testing.T) {
 			wantErr:       true,
 		},
 		{
-			desc:                    "new API, MaxValue < MinValue",
-			usesNewPrivacyBudgetAPI: true,
+			desc: "MaxValue < MinValue",
 			params: SumParams{
 				AggregationEpsilon:       1.0,
 				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
@@ -1608,8 +1456,7 @@ func TestCheckSumPerKeyParams(t *testing.T) {
 			wantErr:       true,
 		},
 		{
-			desc:                    "new API, MaxValue = MinValue",
-			usesNewPrivacyBudgetAPI: true,
+			desc: "MaxValue = MinValue",
 			params: SumParams{
 				AggregationEpsilon:       1.0,
 				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
@@ -1622,8 +1469,7 @@ func TestCheckSumPerKeyParams(t *testing.T) {
 			wantErr:       false,
 		},
 		{
-			desc:                    "new API, non-zero partitionSelectionDelta w/ public partitions",
-			usesNewPrivacyBudgetAPI: true,
+			desc: "non-zero partitionSelectionDelta w/ public partitions",
 			params: SumParams{
 				AggregationEpsilon:       1.0,
 				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 0, Delta: 1e-5},
@@ -1637,8 +1483,7 @@ func TestCheckSumPerKeyParams(t *testing.T) {
 			wantErr:       true,
 		},
 		{
-			desc:                    "new API, non-zero partitionSelectionEpsilon w/ public partitions",
-			usesNewPrivacyBudgetAPI: true,
+			desc: "non-zero partitionSelectionEpsilon w/ public partitions",
 			params: SumParams{
 				AggregationEpsilon:       1.0,
 				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1.0, Delta: 0},
@@ -1652,8 +1497,7 @@ func TestCheckSumPerKeyParams(t *testing.T) {
 			wantErr:       true,
 		},
 		{
-			desc:                    "new API, wrong partition type w/ public partitions as beam.PCollection",
-			usesNewPrivacyBudgetAPI: true,
+			desc: "wrong partition type w/ public partitions as beam.PCollection",
 			params: SumParams{
 				AggregationEpsilon:       1.0,
 				MaxPartitionsContributed: 1,
@@ -1666,8 +1510,7 @@ func TestCheckSumPerKeyParams(t *testing.T) {
 			wantErr:       true,
 		},
 		{
-			desc:                    "new API, wrong partition type w/ public partitions as slice",
-			usesNewPrivacyBudgetAPI: true,
+			desc: "wrong partition type w/ public partitions as slice",
 			params: SumParams{
 				AggregationEpsilon:       1.0,
 				MaxPartitionsContributed: 1,
@@ -1680,8 +1523,7 @@ func TestCheckSumPerKeyParams(t *testing.T) {
 			wantErr:       true,
 		},
 		{
-			desc:                    "new API, wrong partition type w/ public partitions as array",
-			usesNewPrivacyBudgetAPI: true,
+			desc: "wrong partition type w/ public partitions as array",
 			params: SumParams{
 				AggregationEpsilon:       1.0,
 				MaxPartitionsContributed: 1,
@@ -1694,8 +1536,7 @@ func TestCheckSumPerKeyParams(t *testing.T) {
 			wantErr:       true,
 		},
 		{
-			desc:                    "new API, public partitions as something other than beam.PCollection, slice or array",
-			usesNewPrivacyBudgetAPI: true,
+			desc: "public partitions as something other than beam.PCollection, slice or array",
 			params: SumParams{
 				AggregationEpsilon:       1.0,
 				MaxPartitionsContributed: 1,
@@ -1708,7 +1549,7 @@ func TestCheckSumPerKeyParams(t *testing.T) {
 			wantErr:       true,
 		},
 	} {
-		if err := checkSumPerKeyParams(tc.params, tc.usesNewPrivacyBudgetAPI, tc.noiseKind, tc.partitionType); (err != nil) != tc.wantErr {
+		if err := checkSumPerKeyParams(tc.params, tc.noiseKind, tc.partitionType); (err != nil) != tc.wantErr {
 			t.Errorf("With %s, got=%v, wantErr=%t", tc.desc, err, tc.wantErr)
 		}
 	}

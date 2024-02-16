@@ -45,7 +45,7 @@
 //		icol := beam.ParDo(s, input, extractID) // icol is a PCollection<privacyUnitID,data>
 //		// Transforms the input PCollection into a PrivatePCollection with parameters ε=1 and δ=10⁻¹⁰.
 //		// The privacy ID is "hidden" by the operation: pcol behaves as if it were a PCollection<data>.
-//	  spec, err := pbeam.NewPrivacySpecTemp(pbeam.PrivacySpecParams{
+//	  spec, err := pbeam.NewPrivacySpec(pbeam.PrivacySpecParams{
 //	    AggregationEpsilon: 0.5,
 //	    PartitionSelectionEpsilon: 0.5,
 //	    PartitionSelectionDelta: 1e-10,
@@ -123,7 +123,6 @@ import (
 	"github.com/google/differential-privacy/go/v2/checks"
 	"github.com/google/differential-privacy/go/v2/noise"
 	"github.com/google/differential-privacy/privacy-on-beam/v2/internal/kv"
-	"github.com/google/differential-privacy/privacy-on-beam/v2/internal/testoption"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
@@ -142,15 +141,9 @@ func init() {
 // a PrivatePCollection. It encapsulates a privacy budget that must be shared
 // between all aggregations on PrivatePCollections using this PrivacySpec. If
 // you have multiple pipelines in the same binary, and want them to use
-// different privacy budgets, call NewPrivacySpecTemp multiple times and give a
+// different privacy budgets, call NewPrivacySpec multiple times and give a
 // different PrivacySpec to each PrivatePCollection.
 type PrivacySpec struct {
-	budget *privacyBudget // Epsilon/Delta (ε,δ) budget available for this PrivatePCollection.
-	// Whether this PrivacySpec uses the new Privacy Budget API, i.e. aggregationBudget & partitionSelectionBudget
-	// as opposed to the old `budget`.
-	//
-	// TODO: Remove after migration is finalized.
-	usesNewPrivacyBudgetAPI  bool
 	aggregationBudget        *privacyBudget // Epsilon/Delta (ε,δ) budget available for aggregations performed on this PrivatePCollection.
 	partitionSelectionBudget *privacyBudget // Epsilon/Delta (ε,δ) budget available for partition selections performed on this PrivatePCollection.
 	preThreshold             int64          // Pre-threshold K applied on top of DP partition selection.
@@ -210,52 +203,6 @@ type PrivacySpecParams struct {
 	// TestModeWithoutContributionBounding if you want to enable test mode.
 	TestMode TestMode
 }
-
-// NewPrivacySpecTemp returns a PrivacySpec from given PrivacySpecParams. This is a temporary
-// constructor. Will be migrated to NewPrivacySpec once all clients are migrated to this temporary
-// constructor.
-//
-// Uses the new privacy budget API where clients specify aggregation budget and partition selection budget separately.
-func NewPrivacySpecTemp(params PrivacySpecParams) (*PrivacySpec, error) {
-
-	err := checks.CheckEpsilon(params.AggregationEpsilon)
-	if err != nil {
-		return nil, fmt.Errorf("AggregationEpsilon: %v", err)
-	}
-	err = checks.CheckDelta(params.AggregationDelta)
-	if err != nil {
-		return nil, fmt.Errorf("AggregationDelta: %v", err)
-	}
-	err = checks.CheckEpsilon(params.PartitionSelectionEpsilon)
-	if err != nil {
-		return nil, fmt.Errorf("PartitionSelectionEpsilon: %v", err)
-	}
-	err = checks.CheckDelta(params.PartitionSelectionDelta)
-	if err != nil {
-		return nil, fmt.Errorf("PartitionSelectionDelta: %v", err)
-	}
-	err = checks.CheckPreThreshold(params.PreThreshold)
-	if params.PreThreshold > 0 && params.PartitionSelectionDelta == 0 {
-		return nil, fmt.Errorf("when PreThreshold is set, partition selection budget must also be set")
-	}
-	if err != nil {
-		return nil, fmt.Errorf("PreThreshold: %v", err)
-	}
-	if params.AggregationEpsilon == 0 && params.PartitionSelectionEpsilon == 0 {
-		return nil, fmt.Errorf("either AggregationEpsilon or PartitionSelectionEpsilon must be set to a positive value")
-	}
-	if params.PartitionSelectionEpsilon != 0 && params.PartitionSelectionDelta == 0 {
-		return nil, fmt.Errorf("PartitionSelectionDelta must be set to a positive value whenever PartitionSelectionEpsilon (%f) is set", params.PartitionSelectionEpsilon)
-	}
-	return &PrivacySpec{
-		usesNewPrivacyBudgetAPI:  true,
-		aggregationBudget:        &privacyBudget{epsilon: params.AggregationEpsilon, delta: params.AggregationDelta},
-		partitionSelectionBudget: &privacyBudget{epsilon: params.PartitionSelectionEpsilon, delta: params.PartitionSelectionDelta},
-		preThreshold:             params.PreThreshold,
-		testMode:                 params.TestMode,
-	}, nil
-}
-
 type privacyBudget struct {
 	// Epsilon/Delta (ε,δ) budget available.
 	epsilon, delta    float64
@@ -335,20 +282,6 @@ func budgetSlightlyTooLarge(remaining, requested float64) bool {
 	return math.Abs(diff) <= remaining/eqBudgetRelTol
 }
 
-// PrivacySpecOption is used for customizing PrivacySpecs. In the typical use
-// case, PrivacySpecOptions are passed into the NewPrivacySpec constructor to
-// create a further customized PrivacySpec.
-type PrivacySpecOption any
-
-func evaluatePrivacySpecOption(opt PrivacySpecOption, spec *PrivacySpec) {
-	switch opt {
-	case testoption.EnableNoNoiseWithContributionBounding{}:
-		spec.testMode = TestModeWithContributionBounding
-	case testoption.EnableNoNoiseWithoutContributionBounding{}:
-		spec.testMode = TestModeWithoutContributionBounding
-	}
-}
-
 // NoiseKind represents the kind of noise to be used in an aggregations.
 type NoiseKind interface {
 	toNoiseKind() noise.Kind
@@ -369,20 +302,50 @@ func (ln LaplaceNoise) toNoiseKind() noise.Kind {
 }
 
 // NewPrivacySpec creates a new PrivacySpec with the specified privacy budget
-// and options.
+// and parameters.
 //
-// The epsilon and delta arguments are the total (ε,δ)-differential privacy
-// budget for the pipeline. If there is only one aggregation, the entire budget
-// will be used for this aggregation. Otherwise, the user must specify how the
-// privacy budget is split across aggregations.
-//
-// Deprecated: Use NewPrivacySpecTemp instead.
-func NewPrivacySpec(epsilon, delta float64, options ...PrivacySpecOption) *PrivacySpec {
-	ps := &PrivacySpec{budget: &privacyBudget{epsilon: epsilon, delta: delta}}
-	for _, opt := range options {
-		evaluatePrivacySpecOption(opt, ps)
+// Aggregation(Epsilon|Delta) and PartitionSelection(Epsilon|Delta) are the total
+// (ε,δ)-differential privacy budget for the pipeline. If there is only one aggregation
+// or partition selection,  the entire budget will be used for this operation. Otherwise,
+// the user must specify how the privacy budget is split across aggregations.
+func NewPrivacySpec(params PrivacySpecParams) (*PrivacySpec, error) {
+
+	err := checks.CheckEpsilon(params.AggregationEpsilon)
+	if err != nil {
+		return nil, fmt.Errorf("AggregationEpsilon: %v", err)
 	}
-	return ps
+	err = checks.CheckDelta(params.AggregationDelta)
+	if err != nil {
+		return nil, fmt.Errorf("AggregationDelta: %v", err)
+	}
+	err = checks.CheckEpsilon(params.PartitionSelectionEpsilon)
+	if err != nil {
+		return nil, fmt.Errorf("PartitionSelectionEpsilon: %v", err)
+	}
+	err = checks.CheckDelta(params.PartitionSelectionDelta)
+	if err != nil {
+		return nil, fmt.Errorf("PartitionSelectionDelta: %v", err)
+	}
+	if params.PreThreshold > 0 && params.PartitionSelectionDelta == 0 {
+		return nil, fmt.Errorf("when PreThreshold is set, partition selection budget must also be set")
+	}
+	err = checks.CheckPreThreshold(params.PreThreshold)
+	if err != nil {
+		return nil, fmt.Errorf("PreThreshold: %v", err)
+	}
+	if params.AggregationEpsilon == 0 && params.PartitionSelectionEpsilon == 0 {
+		return nil, fmt.Errorf("either AggregationEpsilon or PartitionSelectionEpsilon must be set to a positive value")
+	}
+	if params.PartitionSelectionEpsilon != 0 && params.PartitionSelectionDelta == 0 {
+		return nil, fmt.Errorf("PartitionSelectionDelta must be set to a positive value whenever PartitionSelectionEpsilon is set. "+
+			"PartitionSelectionEpsilon is currently set to (%f)", params.PartitionSelectionEpsilon)
+	}
+	return &PrivacySpec{
+		aggregationBudget:        &privacyBudget{epsilon: params.AggregationEpsilon, delta: params.AggregationDelta},
+		partitionSelectionBudget: &privacyBudget{epsilon: params.PartitionSelectionEpsilon, delta: params.PartitionSelectionDelta},
+		preThreshold:             params.PreThreshold,
+		testMode:                 params.TestMode,
+	}, nil
 }
 
 // A PrivatePCollection embeds a PCollection, associating each element to a

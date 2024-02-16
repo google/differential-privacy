@@ -137,21 +137,14 @@ func Count(s beam.Scope, pcol PrivatePCollection, params CountParams) beam.PColl
 	// Get privacy parameters.
 	spec := pcol.privacySpec
 	var err error
-	if spec.usesNewPrivacyBudgetAPI {
-		params.AggregationEpsilon, params.AggregationDelta, err = spec.aggregationBudget.consume(params.AggregationEpsilon, params.AggregationDelta)
+	params.AggregationEpsilon, params.AggregationDelta, err = spec.aggregationBudget.consume(params.AggregationEpsilon, params.AggregationDelta)
+	if err != nil {
+		log.Fatalf("Couldn't consume aggregation budget for Count: %v", err)
+	}
+	if params.PublicPartitions == nil {
+		params.PartitionSelectionParams.Epsilon, params.PartitionSelectionParams.Delta, err = spec.partitionSelectionBudget.consume(params.PartitionSelectionParams.Epsilon, params.PartitionSelectionParams.Delta)
 		if err != nil {
-			log.Fatalf("Couldn't consume aggregation budget for Count: %v", err)
-		}
-		if params.PublicPartitions == nil {
-			params.PartitionSelectionParams.Epsilon, params.PartitionSelectionParams.Delta, err = spec.partitionSelectionBudget.consume(params.PartitionSelectionParams.Epsilon, params.PartitionSelectionParams.Delta)
-			if err != nil {
-				log.Fatalf("Couldn't consume partition selection budget for Count: %v", err)
-			}
-		}
-	} else {
-		params.Epsilon, params.Delta, err = spec.budget.consume(params.Epsilon, params.Delta)
-		if err != nil {
-			log.Fatalf("Couldn't consume budget for Count: %v", err)
+			log.Fatalf("Couldn't consume partition selection budget for Count: %v", err)
 		}
 	}
 
@@ -163,7 +156,7 @@ func Count(s beam.Scope, pcol PrivatePCollection, params CountParams) beam.PColl
 		noiseKind = params.NoiseKind.toNoiseKind()
 	}
 
-	err = checkCountParams(params, spec.usesNewPrivacyBudgetAPI, noiseKind, partitionT.Type())
+	err = checkCountParams(params, noiseKind, partitionT.Type())
 	if err != nil {
 		log.Fatalf("pbeam.Count: %v", err)
 	}
@@ -195,18 +188,9 @@ func Count(s beam.Scope, pcol PrivatePCollection, params CountParams) beam.PColl
 	var result beam.PCollection
 	// Add public partitions and compute the aggregation output, if public partitions are specified.
 	if params.PublicPartitions != nil {
-		if spec.usesNewPrivacyBudgetAPI {
-			result = addPublicPartitionsForCount(s, params.AggregationEpsilon, params.AggregationDelta, params, noiseKind, countsKV, spec.testMode)
-		} else {
-			result = addPublicPartitionsForCount(s, params.Epsilon, params.Delta, params, noiseKind, countsKV, spec.testMode)
-		}
+		result = addPublicPartitionsForCount(s, *spec, params, noiseKind, countsKV)
 	} else {
-		var boundedSumFn *boundedSumInt64Fn
-		if spec.usesNewPrivacyBudgetAPI {
-			boundedSumFn, err = newBoundedSumInt64FnTemp(params.AggregationEpsilon, params.AggregationDelta, params.PartitionSelectionParams.Epsilon, params.PartitionSelectionParams.Delta, spec.preThreshold, params.MaxPartitionsContributed, 0, params.MaxValue, noiseKind, false, spec.testMode)
-		} else {
-			boundedSumFn, err = newBoundedSumInt64Fn(params.Epsilon, params.Delta, params.MaxPartitionsContributed, 0, params.MaxValue, noiseKind, false, spec.testMode)
-		}
+		boundedSumFn, err := newBoundedSumInt64Fn(*spec, countToSumParams(params), noiseKind, false)
 		if err != nil {
 			log.Fatalf("Couldn't get boundedSumInt64Fn for Count: %v", err)
 		}
@@ -221,44 +205,34 @@ func Count(s beam.Scope, pcol PrivatePCollection, params CountParams) beam.PColl
 		// Clamp negative counts to zero.
 		result = beam.ParDo(s, clampNegativePartitionsInt64, result)
 	}
+
 	return result
 }
 
-func checkCountParams(params CountParams, usesNewPrivacyBudgetAPI bool, noiseKind noise.Kind, partitionType reflect.Type) error {
+func checkCountParams(params CountParams, noiseKind noise.Kind, partitionType reflect.Type) error {
 	err := checkPublicPartitions(params.PublicPartitions, partitionType)
 	if err != nil {
 		return err
 	}
-	if usesNewPrivacyBudgetAPI {
-		err = checks.CheckEpsilon(params.AggregationEpsilon)
-		if err != nil {
-			return err
-		}
-		err = checkAggregationDelta(params.AggregationDelta, noiseKind)
-		if err != nil {
-			return err
-		}
-		err = checkPartitionSelectionEpsilon(params.PartitionSelectionParams.Epsilon, params.PublicPartitions)
-		if err != nil {
-			return err
-		}
-		err = checkPartitionSelectionDelta(params.PartitionSelectionParams.Delta, params.PublicPartitions)
-		if err != nil {
-			return err
-		}
-		err = checkMaxPartitionsContributedPartitionSelection(params.PartitionSelectionParams.MaxPartitionsContributed)
-		if err != nil {
-			return err
-		}
-	} else {
-		err = checks.CheckEpsilon(params.Epsilon)
-		if err != nil {
-			return err
-		}
-		err = checkDelta(params.Delta, noiseKind, params.PublicPartitions)
-		if err != nil {
-			return err
-		}
+	err = checks.CheckEpsilon(params.AggregationEpsilon)
+	if err != nil {
+		return err
+	}
+	err = checkAggregationDelta(params.AggregationDelta, noiseKind)
+	if err != nil {
+		return err
+	}
+	err = checkPartitionSelectionEpsilon(params.PartitionSelectionParams.Epsilon, params.PublicPartitions)
+	if err != nil {
+		return err
+	}
+	err = checkPartitionSelectionDelta(params.PartitionSelectionParams.Delta, params.PublicPartitions)
+	if err != nil {
+		return err
+	}
+	err = checkMaxPartitionsContributedPartitionSelection(params.PartitionSelectionParams.MaxPartitionsContributed)
+	if err != nil {
+		return err
 	}
 	if params.MaxValue <= 0 {
 		return fmt.Errorf("MaxValue should be strictly positive, got %d", params.MaxValue)
@@ -266,7 +240,7 @@ func checkCountParams(params CountParams, usesNewPrivacyBudgetAPI bool, noiseKin
 	return checkMaxPartitionsContributed(params.MaxPartitionsContributed)
 }
 
-func addPublicPartitionsForCount(s beam.Scope, epsilon, delta float64, params CountParams, noiseKind noise.Kind, countsKV beam.PCollection, testMode TestMode) beam.PCollection {
+func addPublicPartitionsForCount(s beam.Scope, spec PrivacySpec, params CountParams, noiseKind noise.Kind, countsKV beam.PCollection) beam.PCollection {
 	// Turn PublicPartitions from PCollection<K> into PCollection<K, int64> by adding
 	// the value zero to each K.
 	publicPartitions, isPCollection := params.PublicPartitions.(beam.PCollection)
@@ -277,10 +251,23 @@ func addPublicPartitionsForCount(s beam.Scope, epsilon, delta float64, params Co
 	// Merge countsKV and emptyCounts.
 	allPartitions := beam.Flatten(s, emptyCounts, countsKV)
 	// Sum and add noise.
-	boundedSumFn, err := newBoundedSumInt64Fn(epsilon, delta, params.MaxPartitionsContributed, 0, params.MaxValue, noiseKind, true, testMode)
+	boundedSumFn, err := newBoundedSumInt64Fn(spec, countToSumParams(params), noiseKind, true)
 	if err != nil {
 		log.Fatalf("Couldn't get boundedSumInt64Fn for Count: %v", err)
 	}
 	sums := beam.CombinePerKey(s, boundedSumFn, allPartitions)
 	return beam.ParDo(s, dereferenceValueInt64, sums)
+}
+
+func countToSumParams(params CountParams) SumParams {
+	return SumParams{
+		AggregationEpsilon:       params.AggregationEpsilon,
+		AggregationDelta:         params.AggregationDelta,
+		PartitionSelectionParams: params.PartitionSelectionParams,
+		MaxPartitionsContributed: params.MaxPartitionsContributed,
+		MinValue:                 0,
+		MaxValue:                 float64(params.MaxValue),
+		NoiseKind:                params.NoiseKind,
+		PublicPartitions:         params.PublicPartitions,
+	}
 }

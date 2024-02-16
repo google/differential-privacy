@@ -48,7 +48,7 @@ func extractVisitHourAndTimeSpentFn(v Visit) (int, int) {
 func PrivateMeanTimeSpent(s beam.Scope, col beam.PCollection) beam.PCollection {
 	s = s.Scope("PrivateMeanTimeSpent")
 	// Create a Privacy Spec and convert col into a PrivatePCollection.
-	spec, err := pbeam.NewPrivacySpecTemp(pbeam.PrivacySpecParams{AggregationEpsilon: epsilon})
+	spec, err := pbeam.NewPrivacySpec(pbeam.PrivacySpecParams{AggregationEpsilon: epsilon})
 	if err != nil {
 		log.Fatalf("Couldn't create a PrivacySpec: %v", err)
 	}

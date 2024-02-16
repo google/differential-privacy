@@ -151,21 +151,14 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 	// Get privacy parameters.
 	spec := pcol.privacySpec
 	var err error
-	if spec.usesNewPrivacyBudgetAPI {
-		params.AggregationEpsilon, params.AggregationDelta, err = spec.aggregationBudget.get(params.AggregationEpsilon, params.AggregationDelta)
+	params.AggregationEpsilon, params.AggregationDelta, err = spec.aggregationBudget.get(params.AggregationEpsilon, params.AggregationDelta)
+	if err != nil {
+		log.Fatalf("Couldn't consume aggregation budget for Mean: %v", err)
+	}
+	if params.PublicPartitions == nil {
+		params.PartitionSelectionParams.Epsilon, params.PartitionSelectionParams.Delta, err = spec.partitionSelectionBudget.get(params.PartitionSelectionParams.Epsilon, params.PartitionSelectionParams.Delta)
 		if err != nil {
-			log.Fatalf("Couldn't consume aggregation budget for Mean: %v", err)
-		}
-		if params.PublicPartitions == nil {
-			params.PartitionSelectionParams.Epsilon, params.PartitionSelectionParams.Delta, err = spec.partitionSelectionBudget.get(params.PartitionSelectionParams.Epsilon, params.PartitionSelectionParams.Delta)
-			if err != nil {
-				log.Fatalf("Couldn't consume partition selection budget for Mean: %v", err)
-			}
-		}
-	} else {
-		params.Epsilon, params.Delta, err = spec.budget.get(params.Epsilon, params.Delta)
-		if err != nil {
-			log.Fatalf("Couldn't consume budget for Mean: %v", err)
+			log.Fatalf("Couldn't consume partition selection budget for Mean: %v", err)
 		}
 	}
 
@@ -177,7 +170,7 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 		noiseKind = params.NoiseKind.toNoiseKind()
 	}
 
-	err = checkMeanPerKeyParams(params, spec.usesNewPrivacyBudgetAPI, noiseKind, pcol.codec.KType.T)
+	err = checkMeanPerKeyParams(params, noiseKind, pcol.codec.KType.T)
 	if err != nil {
 		log.Fatalf("pbeam.MeanPerKey: %v", err)
 	}
@@ -233,20 +226,10 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 	var result beam.PCollection
 	// Add public partitions and return the aggregation output, if public partitions are specified.
 	if params.PublicPartitions != nil {
-		if spec.usesNewPrivacyBudgetAPI {
-			result = addPublicPartitionsForMean(s, *spec, params, noiseKind, partialKV)
-		} else {
-			result = addPublicPartitionsForMean(s, *spec, params, noiseKind, partialKV)
-		}
+		result = addPublicPartitionsForMean(s, *spec, params, noiseKind, partialKV)
 	} else {
 		// Compute the mean for each partition. Result is PCollection<partition, float64>.
-		var boundedMeanFn *boundedMeanFn
-		if spec.usesNewPrivacyBudgetAPI {
-			boundedMeanFn, err = newBoundedMeanFnTemp(*spec, params, noiseKind, false, false)
-		} else {
-			boundedMeanFn, err = newBoundedMeanFn(params, noiseKind, false, spec.testMode, false)
-		}
-
+		boundedMeanFn, err := newBoundedMeanFnTemp(*spec, params, noiseKind, false, false)
 		if err != nil {
 			log.Fatalf("Couldn't get boundedMeanFn for MeanPerKey: %v", err)
 		}
@@ -269,23 +252,13 @@ func addPublicPartitionsForMean(s beam.Scope, spec PrivacySpec, params MeanParam
 	}
 	emptyPublicPartitions := beam.ParDo(s, addEmptySliceToPublicPartitionsFloat64, publicPartitions)
 	// Second, add noise to all public partitions (all of which are empty-valued).
-	var boundedMeanFn *boundedMeanFn
-	var err error
-	if spec.usesNewPrivacyBudgetAPI {
-		boundedMeanFn, err = newBoundedMeanFnTemp(spec, params, noiseKind, true, true)
-	} else {
-		boundedMeanFn, err = newBoundedMeanFn(params, noiseKind, true, spec.testMode, true)
-	}
+	boundedMeanFn, err := newBoundedMeanFnTemp(spec, params, noiseKind, true, true)
 	if err != nil {
 		log.Fatalf("Couldn't get boundedMeanFn for MeanPerKey: %v", err)
 	}
 	noisyEmptyPublicPartitions := beam.CombinePerKey(s, boundedMeanFn, emptyPublicPartitions)
 	// Third, compute noisy means for partitions in the actual data.
-	if spec.usesNewPrivacyBudgetAPI {
-		boundedMeanFn, err = newBoundedMeanFnTemp(spec, params, noiseKind, true, false)
-	} else {
-		boundedMeanFn, err = newBoundedMeanFn(params, noiseKind, true, spec.testMode, false)
-	}
+	boundedMeanFn, err = newBoundedMeanFnTemp(spec, params, noiseKind, true, false)
 	if err != nil {
 		log.Fatalf("Couldn't get boundedMeanFn for MeanPerKey: %v", err)
 	}
@@ -297,41 +270,30 @@ func addPublicPartitionsForMean(s beam.Scope, spec PrivacySpec, params MeanParam
 	return beam.ParDo(s, dereferenceValueFloat64, means)
 }
 
-func checkMeanPerKeyParams(params MeanParams, usesNewPrivacyBudgetAPI bool, noiseKind noise.Kind, partitionType reflect.Type) error {
+func checkMeanPerKeyParams(params MeanParams, noiseKind noise.Kind, partitionType reflect.Type) error {
 	err := checkPublicPartitions(params.PublicPartitions, partitionType)
 	if err != nil {
 		return err
 	}
-	if usesNewPrivacyBudgetAPI {
-		err = checks.CheckEpsilon(params.AggregationEpsilon)
-		if err != nil {
-			return err
-		}
-		err = checkAggregationDelta(params.AggregationDelta, noiseKind)
-		if err != nil {
-			return err
-		}
-		err = checkPartitionSelectionEpsilon(params.PartitionSelectionParams.Epsilon, params.PublicPartitions)
-		if err != nil {
-			return err
-		}
-		err = checkPartitionSelectionDelta(params.PartitionSelectionParams.Delta, params.PublicPartitions)
-		if err != nil {
-			return err
-		}
-		err = checkMaxPartitionsContributedPartitionSelection(params.PartitionSelectionParams.MaxPartitionsContributed)
-		if err != nil {
-			return err
-		}
-	} else {
-		err = checks.CheckEpsilon(params.Epsilon)
-		if err != nil {
-			return err
-		}
-		err = checkDelta(params.Delta, noiseKind, params.PublicPartitions)
-		if err != nil {
-			return err
-		}
+	err = checks.CheckEpsilon(params.AggregationEpsilon)
+	if err != nil {
+		return err
+	}
+	err = checkAggregationDelta(params.AggregationDelta, noiseKind)
+	if err != nil {
+		return err
+	}
+	err = checkPartitionSelectionEpsilon(params.PartitionSelectionParams.Epsilon, params.PublicPartitions)
+	if err != nil {
+		return err
+	}
+	err = checkPartitionSelectionDelta(params.PartitionSelectionParams.Delta, params.PublicPartitions)
+	if err != nil {
+		return err
+	}
+	err = checkMaxPartitionsContributedPartitionSelection(params.PartitionSelectionParams.MaxPartitionsContributed)
+	if err != nil {
+		return err
 	}
 	err = checks.CheckBoundsFloat64(params.MinValue, params.MaxValue)
 	if err != nil {

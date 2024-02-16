@@ -55,16 +55,9 @@ func SelectPartitions(s beam.Scope, pcol PrivatePCollection, params SelectPartit
 	_, pT := beam.ValidateKVType(pcol.col)
 	spec := pcol.privacySpec
 	var err error
-	if spec.usesNewPrivacyBudgetAPI {
-		params.Epsilon, params.Delta, err = spec.partitionSelectionBudget.consume(params.Epsilon, params.Delta)
-		if err != nil {
-			log.Fatalf("Couldn't consume budget for SelectPartitions: %v", err)
-		}
-	} else {
-		params.Epsilon, params.Delta, err = spec.budget.consume(params.Epsilon, params.Delta)
-		if err != nil {
-			log.Fatalf("Couldn't consume budget for SelectPartitions: %v", err)
-		}
+	params.Epsilon, params.Delta, err = spec.partitionSelectionBudget.consume(params.Epsilon, params.Delta)
+	if err != nil {
+		log.Fatalf("Couldn't consume budget for SelectPartitions: %v", err)
 	}
 
 	err = checkSelectPartitionsParams(params)

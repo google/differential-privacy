@@ -31,7 +31,7 @@ var gaussianNoise = GaussianNoise{}
 // Helper function to create a PrivacySpec that deals with error handling.
 func privacySpec(t *testing.T, params PrivacySpecParams) *PrivacySpec {
 	t.Helper()
-	spec, err := NewPrivacySpecTemp(params)
+	spec, err := NewPrivacySpec(params)
 	if err != nil {
 		t.Fatalf("Failed to create PrivacySpec")
 	}

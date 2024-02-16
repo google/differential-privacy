@@ -86,7 +86,7 @@ func Example_testPipelines() {
 	// This enables per-partition and cross-partition contribution bounding. If you
 	// wish to disable both types of contribution bounding altogether, use
 	// pbeam.TestModeWithoutContributionBounding instead.
-	privacySpec, err := pbeam.NewPrivacySpecTemp(pbeam.PrivacySpecParams{
+	privacySpec, err := pbeam.NewPrivacySpec(pbeam.PrivacySpecParams{
 		AggregationEpsilon:        ε / 2,
 		AggregationDelta:          δ / 2,
 		PartitionSelectionEpsilon: ε / 2,

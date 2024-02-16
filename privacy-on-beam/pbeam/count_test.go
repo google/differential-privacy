@@ -465,160 +465,26 @@ func TestCountWithPartitionsCrossPartitionContributionBounding(t *testing.T) {
 func TestCheckCountParams(t *testing.T) {
 	_, _, partitions := ptest.CreateList([]int{0})
 	for _, tc := range []struct {
-		desc                    string
-		usesNewPrivacyBudgetAPI bool
-		params                  CountParams
-		noiseKind               noise.Kind
-		partitionType           reflect.Type
-		wantErr                 bool
+		desc          string
+		params        CountParams
+		noiseKind     noise.Kind
+		partitionType reflect.Type
+		wantErr       bool
 	}{
 		{
 			desc: "valid parameters w/o public partitions",
-			params: CountParams{
-				Epsilon:                  1.0,
-				Delta:                    1e-10,
-				MaxPartitionsContributed: 1,
-				MaxValue:                 1,
-			},
-			noiseKind:     noise.LaplaceNoise,
-			partitionType: nil,
-			wantErr:       false,
-		},
-		{
-			desc: "valid parameters w/ public partitions",
-			params: CountParams{
-				Epsilon:                  1.0,
-				MaxPartitionsContributed: 1,
-				MaxValue:                 1,
-				PublicPartitions:         []int{0},
-			},
-			noiseKind:     noise.LaplaceNoise,
-			partitionType: reflect.TypeOf(0),
-			wantErr:       false,
-		},
-		{
-			desc: "negative epsilon",
-			params: CountParams{
-				Epsilon:                  -1.0,
-				Delta:                    1e-10,
-				MaxPartitionsContributed: 1,
-				MaxValue:                 1,
-			},
-			noiseKind:     noise.LaplaceNoise,
-			partitionType: nil,
-			wantErr:       true,
-		},
-		{
-			desc: "zero delta w/o public partitions",
-			params: CountParams{
-				Epsilon:                  1.0,
-				MaxPartitionsContributed: 1,
-				MaxValue:                 1,
-			},
-			noiseKind:     noise.LaplaceNoise,
-			partitionType: nil,
-			wantErr:       true,
-		},
-		{
-			desc: "non-zero delta w/ public partitions & laplace noise",
-			params: CountParams{
-				Epsilon:                  1.0,
-				Delta:                    1e-10,
-				MaxPartitionsContributed: 1,
-				MaxValue:                 1,
-				PublicPartitions:         []int{},
-			},
-			noiseKind:     noise.LaplaceNoise,
-			partitionType: reflect.TypeOf(0),
-			wantErr:       true,
-		},
-		{
-			desc: "wrong partition type w/ public partitions as beam.PCollection",
-			params: CountParams{
-				Epsilon:                  1.0,
-				MaxPartitionsContributed: 1,
-				MaxValue:                 1,
-				PublicPartitions:         partitions,
-			},
-			noiseKind:     noise.LaplaceNoise,
-			partitionType: reflect.TypeOf(""),
-			wantErr:       true,
-		},
-		{
-			desc: "wrong partition type w/ public partitions as slice",
-			params: CountParams{
-				Epsilon:                  1.0,
-				MaxPartitionsContributed: 1,
-				MaxValue:                 1,
-				PublicPartitions:         []int{0},
-			},
-			noiseKind:     noise.LaplaceNoise,
-			partitionType: reflect.TypeOf(""),
-			wantErr:       true,
-		},
-		{
-			desc: "wrong partition type w/ public partitions as array",
-			params: CountParams{
-				Epsilon:                  1.0,
-				MaxPartitionsContributed: 1,
-				MaxValue:                 1,
-				PublicPartitions:         [1]int{0},
-			},
-			noiseKind:     noise.LaplaceNoise,
-			partitionType: reflect.TypeOf(""),
-			wantErr:       true,
-		},
-		{
-			desc: "public partitions as something other than beam.PCollection, slice or array",
-			params: CountParams{
-				Epsilon:                  1.0,
-				MaxPartitionsContributed: 1,
-				MaxValue:                 1,
-				PublicPartitions:         "",
-			},
-			noiseKind:     noise.LaplaceNoise,
-			partitionType: reflect.TypeOf(""),
-			wantErr:       true,
-		},
-		{
-			desc: "unset MaxPartitionsContributed",
-			params: CountParams{
-				Epsilon:  1.0,
-				Delta:    1e-10,
-				MaxValue: 1,
-			},
-			noiseKind:     noise.LaplaceNoise,
-			partitionType: nil,
-			wantErr:       true,
-		},
-		{
-			desc: "negative max value",
-			params: CountParams{
-				Epsilon:                  1.0,
-				Delta:                    1e-10,
-				MaxPartitionsContributed: 1,
-				MaxValue:                 -1,
-			},
-			noiseKind:     noise.LaplaceNoise,
-			partitionType: nil,
-			wantErr:       true,
-		},
-		// Test cases for the new privacy budget API.
-		{
-			desc: "new API, valid parameters w/o public partitions",
 			params: CountParams{
 				AggregationEpsilon:       1.0,
 				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
 				MaxPartitionsContributed: 1,
 				MaxValue:                 1,
 			},
-			usesNewPrivacyBudgetAPI: true,
-			noiseKind:               noise.LaplaceNoise,
-			partitionType:           nil,
-			wantErr:                 false,
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: nil,
+			wantErr:       false,
 		},
 		{
-			desc: "new API, PartitionSelectionParams.MaxPartitionsContributed set",
+			desc: "PartitionSelectionParams.MaxPartitionsContributed set",
 			params: CountParams{
 				AggregationEpsilon:       1.0,
 				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5, MaxPartitionsContributed: 1},
@@ -630,7 +496,7 @@ func TestCheckCountParams(t *testing.T) {
 			wantErr:       true,
 		},
 		{
-			desc: "new API, valid parameters w/ Gaussian noise w/o public partitions",
+			desc: "valid parameters w/ Gaussian noise w/o public partitions",
 			params: CountParams{
 				AggregationEpsilon:       1.0,
 				AggregationDelta:         1e-5,
@@ -638,39 +504,36 @@ func TestCheckCountParams(t *testing.T) {
 				MaxPartitionsContributed: 1,
 				MaxValue:                 1,
 			},
-			usesNewPrivacyBudgetAPI: true,
-			noiseKind:               noise.GaussianNoise,
-			partitionType:           nil,
-			wantErr:                 false,
+			noiseKind:     noise.GaussianNoise,
+			partitionType: nil,
+			wantErr:       false,
 		},
 		{
-			desc: "new API, zero aggregationDelta w/ Gaussian noise w/o public partitions",
+			desc: "zero aggregationDelta w/ Gaussian noise w/o public partitions",
 			params: CountParams{
 				AggregationEpsilon:       1.0,
 				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
 				MaxPartitionsContributed: 1,
 				MaxValue:                 1,
 			},
-			usesNewPrivacyBudgetAPI: true,
-			noiseKind:               noise.GaussianNoise,
-			partitionType:           nil,
-			wantErr:                 true,
+			noiseKind:     noise.GaussianNoise,
+			partitionType: nil,
+			wantErr:       true,
 		},
 		{
-			desc: "new API, valid parameters w/ public partitions",
+			desc: "valid parameters w/ public partitions",
 			params: CountParams{
 				AggregationEpsilon:       1.0,
 				MaxPartitionsContributed: 1,
 				MaxValue:                 1,
 				PublicPartitions:         []int{0},
 			},
-			usesNewPrivacyBudgetAPI: true,
-			noiseKind:               noise.LaplaceNoise,
-			partitionType:           reflect.TypeOf(0),
-			wantErr:                 false,
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: reflect.TypeOf(0),
+			wantErr:       false,
 		},
 		{
-			desc: "new API, non-zero aggregationDelta w/ laplace noise",
+			desc: "non-zero aggregationDelta w/ laplace noise",
 			params: CountParams{
 				AggregationEpsilon:       1.0,
 				AggregationDelta:         1e-5,
@@ -678,142 +541,131 @@ func TestCheckCountParams(t *testing.T) {
 				MaxPartitionsContributed: 1,
 				MaxValue:                 1,
 			},
-			usesNewPrivacyBudgetAPI: true,
-			noiseKind:               noise.LaplaceNoise,
-			partitionType:           reflect.TypeOf(0),
-			wantErr:                 true,
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: reflect.TypeOf(0),
+			wantErr:       true,
 		},
 		{
-			desc: "new API, negative aggregationEpsilon",
+			desc: "negative aggregationEpsilon",
 			params: CountParams{
 				AggregationEpsilon:       -1.0,
 				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
 				MaxPartitionsContributed: 1,
 				MaxValue:                 1,
 			},
-			usesNewPrivacyBudgetAPI: true,
-			noiseKind:               noise.LaplaceNoise,
-			partitionType:           nil,
-			wantErr:                 true,
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: nil,
+			wantErr:       true,
 		},
 		{
-			desc: "new API, negative partitionSelectionEpsilon",
+			desc: "negative partitionSelectionEpsilon",
 			params: CountParams{
 				AggregationEpsilon:       1.0,
 				PartitionSelectionParams: PartitionSelectionParams{Epsilon: -1.0, Delta: 1e-5},
 				MaxPartitionsContributed: 1,
 				MaxValue:                 1,
 			},
-			usesNewPrivacyBudgetAPI: true,
-			noiseKind:               noise.LaplaceNoise,
-			partitionType:           nil,
-			wantErr:                 true,
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: nil,
+			wantErr:       true,
 		},
 		{
-			desc: "new API, zero partitionSelectionDelta w/o public partitions",
+			desc: "zero partitionSelectionDelta w/o public partitions",
 			params: CountParams{
 				AggregationEpsilon:       1.0,
 				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1.0, Delta: 0},
 				MaxPartitionsContributed: 1,
 				MaxValue:                 1,
 			},
-			usesNewPrivacyBudgetAPI: true,
-			noiseKind:               noise.LaplaceNoise,
-			partitionType:           nil,
-			wantErr:                 true,
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: nil,
+			wantErr:       true,
 		},
 		{
-			desc: "new API, zero partitionSelectionEpsilon w/o public partitions",
+			desc: "zero partitionSelectionEpsilon w/o public partitions",
 			params: CountParams{
 				AggregationEpsilon:       1.0,
 				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 0, Delta: 1e-5},
 				MaxPartitionsContributed: 1,
 				MaxValue:                 1,
 			},
-			usesNewPrivacyBudgetAPI: true,
-			noiseKind:               noise.LaplaceNoise,
-			partitionType:           nil,
-			wantErr:                 true,
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: nil,
+			wantErr:       true,
 		},
 		{
-			desc: "new API, wrong partition type w/ public partitions as beam.PCollection",
+			desc: "wrong partition type w/ public partitions as beam.PCollection",
 			params: CountParams{
 				AggregationEpsilon:       1.0,
 				MaxValue:                 1,
 				MaxPartitionsContributed: 1,
 				PublicPartitions:         partitions,
 			},
-			usesNewPrivacyBudgetAPI: true,
-			noiseKind:               noise.LaplaceNoise,
-			partitionType:           reflect.TypeOf(""),
-			wantErr:                 true,
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: reflect.TypeOf(""),
+			wantErr:       true,
 		},
 		{
-			desc: "new API, wrong partition type w/ public partitions as slice",
+			desc: "wrong partition type w/ public partitions as slice",
 			params: CountParams{
 				AggregationEpsilon:       1.0,
 				MaxValue:                 1,
 				MaxPartitionsContributed: 1,
 				PublicPartitions:         []int{0},
 			},
-			usesNewPrivacyBudgetAPI: true,
-			noiseKind:               noise.LaplaceNoise,
-			partitionType:           reflect.TypeOf(""),
-			wantErr:                 true,
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: reflect.TypeOf(""),
+			wantErr:       true,
 		},
 		{
-			desc: "new API, wrong partition type w/ public partitions as array",
+			desc: "wrong partition type w/ public partitions as array",
 			params: CountParams{
 				AggregationEpsilon:       1.0,
 				MaxValue:                 1,
 				MaxPartitionsContributed: 1,
 				PublicPartitions:         [1]int{0},
 			},
-			usesNewPrivacyBudgetAPI: true,
-			noiseKind:               noise.LaplaceNoise,
-			partitionType:           reflect.TypeOf(""),
-			wantErr:                 true,
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: reflect.TypeOf(""),
+			wantErr:       true,
 		},
 		{
-			desc: "new API, public partitions as something other than beam.PCollection, slice or array",
+			desc: "public partitions as something other than beam.PCollection, slice or array",
 			params: CountParams{
 				AggregationEpsilon:       1.0,
 				MaxValue:                 1,
 				MaxPartitionsContributed: 1,
 				PublicPartitions:         "",
 			},
-			usesNewPrivacyBudgetAPI: true,
-			noiseKind:               noise.LaplaceNoise,
-			partitionType:           reflect.TypeOf(""),
-			wantErr:                 true,
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: reflect.TypeOf(""),
+			wantErr:       true,
 		},
 		{
-			desc: "new API, unset MaxPartitionsContributed",
+			desc: "unset MaxPartitionsContributed",
 			params: CountParams{
 				AggregationEpsilon:       1.0,
 				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
 				MaxValue:                 1,
 			},
-			usesNewPrivacyBudgetAPI: true,
-			noiseKind:               noise.LaplaceNoise,
-			partitionType:           nil,
-			wantErr:                 true,
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: nil,
+			wantErr:       true,
 		},
 		{
-			desc: "new API, negative max value",
+			desc: "negative max value",
 			params: CountParams{
 				AggregationEpsilon:       1.0,
 				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
 				MaxPartitionsContributed: 1,
 				MaxValue:                 -1,
 			},
-			usesNewPrivacyBudgetAPI: true,
-			noiseKind:               noise.LaplaceNoise,
-			partitionType:           nil,
-			wantErr:                 true,
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: nil,
+			wantErr:       true,
 		},
 	} {
-		if err := checkCountParams(tc.params, tc.usesNewPrivacyBudgetAPI, tc.noiseKind, tc.partitionType); (err != nil) != tc.wantErr {
+		if err := checkCountParams(tc.params, tc.noiseKind, tc.partitionType); (err != nil) != tc.wantErr {
 			t.Errorf("With %s, got=%v error, wantErr=%t", tc.desc, err, tc.wantErr)
 		}
 	}
@@ -867,7 +719,7 @@ func TestCountAllowNegativeOutputs(t *testing.T) {
 		{true},
 		{false},
 	} {
-		privacySpec, err := NewPrivacySpecTemp(PrivacySpecParams{
+		privacySpec, err := NewPrivacySpec(PrivacySpecParams{
 			AggregationEpsilon: 0.1,
 		})
 		if err != nil {
