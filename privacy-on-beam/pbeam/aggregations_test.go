@@ -277,7 +277,7 @@ func TestBoundedSumInt64FnExtractOutputReturnsNilForSmallPartitions(t *testing.T
 		{"Input with 1 privacy unit", 1},
 	} {
 		spec := privacySpec(t, PrivacySpecParams{AggregationEpsilon: 0.5, PartitionSelectionEpsilon: 0.5, PartitionSelectionDelta: 1e-23})
-		fn, err := newBoundedSumFloat64Fn(
+		fn, err := newBoundedSumInt64Fn(
 			*spec,
 			SumParams{AggregationEpsilon: 0.5, PartitionSelectionParams: PartitionSelectionParams{Epsilon: 0.5, Delta: 1e-23}, MaxPartitionsContributed: 1, MinValue: 0, MaxValue: 2},
 			noise.LaplaceNoise,
