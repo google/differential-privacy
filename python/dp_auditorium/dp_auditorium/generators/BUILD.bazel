@@ -26,6 +26,7 @@ py_library(
     srcs = ["__init__.py"],
     deps = [
         ":constant_dataset_generator",
+        ":pipeline_dp_vizier_dataset_generator",
         ":vizier_dataset_generator",
     ],
 )
@@ -85,5 +86,53 @@ py_test(
         requirement("pysqlite3"),
         ":vizier_dataset_generator",
         "//dp_auditorium:interfaces",
+    ],
+)
+
+py_library(
+    name = "pipeline_dp_vizier_dataset_generator",
+    srcs = ["pipeline_dp_vizier_dataset_generator.py"],
+    deps = [
+        requirement("numpy"),
+        ":vizier_dataset_generator",
+        "//dp_auditorium:interfaces",
+        "//dp_auditorium/configs",
+    ],
+)
+
+py_test(
+    name = "pipeline_dp_vizier_dataset_generator_test",
+    srcs = ["pipeline_dp_vizier_dataset_generator_test.py"],
+    deps = [
+        # Needed to fix strange dependency bugs in Vizier. Order is important!
+        requirement("absl-py"),
+        requirement("google-vizier"),
+        requirement("tensorflow"),
+        ":pipeline_dp_vizier_dataset_generator",
+        "//dp_auditorium/configs",
+    ],
+)
+
+py_library(
+    name = "classification_dataset_generator",
+    srcs = ["classification_dataset_generator.py"],
+    deps = [
+        requirement("google-vizier"),
+        requirement("numpy"),
+        ":vizier_dataset_generator",
+        "//dp_auditorium:interfaces",
+        "//dp_auditorium/configs",
+    ],
+)
+
+py_test(
+    name = "classification_dataset_generator_test",
+    srcs = ["classification_dataset_generator_test.py"],
+    deps = [
+        requirement("absl-py"),
+        requirement("google-vizier"),
+        requirement("tensorflow"),
+        ":classification_dataset_generator",
+        "//dp_auditorium/configs",
     ],
 )

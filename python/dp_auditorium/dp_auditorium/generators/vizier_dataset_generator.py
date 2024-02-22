@@ -14,8 +14,7 @@
 """DatasetGenerator that connects with Vizier to suggest trials."""
 
 import abc
-import dataclasses
-from typing import Optional, Union
+from typing import Optional
 
 from absl import logging
 import numpy as np
@@ -24,14 +23,6 @@ from vizier.service import pyvizier as vz
 
 from dp_auditorium import interfaces
 from dp_auditorium.configs import dataset_generator_config
-
-
-@dataclasses.dataclass(frozen=True)
-class VizierGeneratorConfig:
-  num_params: int
-  min_value: Union[float, int]
-  max_value: Union[float, int]
-  data_type: dataset_generator_config.DataType
 
 
 def _get_trial(
@@ -66,14 +57,14 @@ def _get_params_name_mapping(
 def _add_params_to_vizier_problem(
     vizier_problem: vz.ProblemStatement,
     idx_to_str: dict[int, str],
-    input_config: VizierGeneratorConfig,
+    input_config: dataset_generator_config.VizierDatasetGeneratorConfig,
 ) -> vz.ProblemStatement:
   """Adds variables to optimize be optimized to a vizier problem."""
   if (
       input_config.data_type
       == dataset_generator_config.DataType.DATA_TYPE_FLOAT
   ):
-    for i in range(input_config.num_params):
+    for i in range(input_config.num_vizier_parameters):
       vizier_problem.search_space.root.add_float_param(
           idx_to_str[i],
           min_value=input_config.min_value,
@@ -83,11 +74,15 @@ def _add_params_to_vizier_problem(
       input_config.data_type
       == dataset_generator_config.DataType.DATA_TYPE_INT32
   ):
-    for i in range(input_config.num_params):
+    for i in range(input_config.num_vizier_parameters):
+      logging.info(
+          'When using `DATA_TYPE_INT32`, `min_value` and `max_value` of type'
+          ' float will be converted to `int` type.'
+      )
       vizier_problem.search_space.root.add_int_param(
           idx_to_str[i],
-          min_value=input_config.min_value,
-          max_value=input_config.max_value,
+          min_value=int(input_config.min_value),
+          max_value=int(input_config.max_value),
       )
   else:
     raise NotImplementedError(
@@ -117,14 +112,7 @@ class VizierDatasetGenerator(interfaces.DatasetGenerator):
 
     Args:
       config: A configuration proto for Vizier dataset generator.
-
-    Raises:
-      ValueError: Unsupported Vizier algorithm.
     """
-    vizier_algorithms = [algorithm.value for algorithm in vz.Algorithm]
-    if config.search_algorithm not in vizier_algorithms:
-      raise ValueError('Unsupported algorithm: %s' % config.search_algorithm)
-
     # Get indices to parameter names mapping assigned in Vizier and its inverse.
     idx_to_str, str_to_idx = _get_params_name_mapping(
         config.num_vizier_parameters
@@ -135,12 +123,7 @@ class VizierDatasetGenerator(interfaces.DatasetGenerator):
     problem = _add_params_to_vizier_problem(
         vizier_problem=problem,
         idx_to_str=idx_to_str,
-        input_config=VizierGeneratorConfig(
-            num_params=config.num_vizier_parameters,
-            min_value=config.min_value,
-            max_value=config.max_value,
-            data_type=config.data_type,
-        ),
+        input_config=config,
     )
 
     # Define metric.
@@ -162,7 +145,6 @@ class VizierDatasetGenerator(interfaces.DatasetGenerator):
 
     self._trial_loaded = False
     self._last_trial = None
-    logging.info('Finished initializing dataset generator.')
 
   def _load_trial(self) -> None:
     if not self._trial_loaded:

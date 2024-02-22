@@ -14,5 +14,7 @@
 
 """Differential Privacy Data Generators."""
 
+from dp_auditorium.generators.classification_dataset_generator import ClassificationDatasetGenerator
 from dp_auditorium.generators.constant_dataset_generator import ConstantDatasetGenerator
+from dp_auditorium.generators.pipeline_dp_vizier_dataset_generator import PipelineDpDatasetGenerator
 from dp_auditorium.generators.vizier_dataset_generator import VizierDatasetGenerator

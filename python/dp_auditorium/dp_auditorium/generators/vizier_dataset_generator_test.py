@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Tests for vizier_dataset_generator."""
-
+import time
 from absl.testing import absltest
 import numpy as np
 import tensorflow as tf
@@ -45,7 +45,7 @@ class VizierDatasetGeneratorTest(tf.test.TestCase):
     self.min_value = 0.0
     self.max_value = 1.0
     self.config = dataset_generator_config.VizierDatasetGeneratorConfig(
-        study_name='stub_study',
+        study_name='stub_study'+str(time.time()),
         study_owner='owner',
         num_vizier_parameters=self.num_params,
         data_type=dataset_generator_config.DataType.DATA_TYPE_FLOAT,

@@ -30,4 +30,5 @@ py_library(
         "privacy_test_runner_config.py",
         "property_tester_config.py",
     ],
+    deps = [requirement("google-vizier")],
 )
