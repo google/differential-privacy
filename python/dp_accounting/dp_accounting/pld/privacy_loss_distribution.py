@@ -1328,6 +1328,69 @@ def from_discrete_gaussian_mechanism(
                                        sampling_prob)
 
 
+def from_mixture_gaussian_mechanism(
+    standard_deviation: float,
+    sensitivities: Sequence[float],
+    sampling_probs: Sequence[float],
+    pessimistic_estimate: bool = True,
+    value_discretization_interval: float = 1e-4,
+    log_mass_truncation_bound: float = -50,
+    use_connect_dots: bool = True,
+) -> PrivacyLossDistribution:
+  """Creates the privacy loss distribution of a Mixture of Gaussians mechanism.
+
+  This method supports two algorithms for constructing the privacy loss
+  distribution. One given by the "Privacy Buckets" algorithm and other given by
+  "Connect the Dots" algorithm. See Sections 2.1 and 2.2 of supplementary
+  material for more details.
+
+  Args:
+    standard_deviation: the standard_deviation of the Gaussian distribution.
+    sensitivities: the support of the sensitivity distribution. Must be the same
+      length as sampling_probs, and both should be 1D.
+    sampling_probs: the probabilities associated with the sensitivities.
+    pessimistic_estimate: a value indicating whether the rounding is done in
+      such a way that the resulting epsilon-hockey stick divergence computation
+      gives an upper estimate to the real value.
+    value_discretization_interval: the length of the dicretization interval for
+      the privacy loss distribution. The values will be rounded up/down to be
+      integer multiples of this number. Smaller value results in more accurate
+      estimates of the privacy loss, at the cost of increased run-time / memory
+      usage.
+    log_mass_truncation_bound: the ln of the probability mass that might be
+      discarded from the noise distribution. The larger this number, the more
+      error it may introduce in divergence calculations.
+    use_connect_dots: When True (default), the connect-the-dots algorithm will
+      be used to construct the privacy loss distribution. When False, the
+      privacy buckets algorithm will be used.
+
+  Returns:
+    The privacy loss distribution corresponding to the Mixture of Gaussians
+    mechanism with given parameters.
+  """
+
+  def single_pld_pmf(
+      adjacency_type: privacy_loss_mechanism.AdjacencyType,
+  ) -> pld_pmf.PLDPmf:
+    return _create_pld_pmf_from_additive_noise(
+        privacy_loss_mechanism.MixtureGaussianPrivacyLoss(
+            standard_deviation,
+            sensitivities,
+            sampling_probs,
+            pessimistic_estimate=pessimistic_estimate,
+            log_mass_truncation_bound=log_mass_truncation_bound,
+            adjacency_type=adjacency_type,
+        ),
+        pessimistic_estimate=pessimistic_estimate,
+        value_discretization_interval=value_discretization_interval,
+        use_connect_dots=use_connect_dots,
+    )
+
+  pmf_remove = single_pld_pmf(privacy_loss_mechanism.AdjacencyType.REMOVE)
+  pmf_add = single_pld_pmf(privacy_loss_mechanism.AdjacencyType.ADD)
+  return PrivacyLossDistribution(pmf_remove, pmf_add)
+
+
 def from_privacy_parameters(
     privacy_parameters: common.DifferentialPrivacyParameters,
     value_discretization_interval: float = 1e-4) -> PrivacyLossDistribution:

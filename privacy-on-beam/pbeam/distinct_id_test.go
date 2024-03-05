@@ -671,7 +671,7 @@ func TestNewCountFn(t *testing.T) {
 			t.Fatalf("Couldn't get countFn: %v", err)
 		}
 		if diff := cmp.Diff(tc.want, got, cmpopts.IgnoreUnexported(countFn{})); diff != "" {
-			t.Errorf("newCountFnTemp mismatch for '%s' (-want +got):\n%s", tc.desc, diff)
+			t.Errorf("newCountFn mismatch for '%s' (-want +got):\n%s", tc.desc, diff)
 		}
 	}
 }

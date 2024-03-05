@@ -86,19 +86,6 @@ TEST(UtilTest, MakeOutputStringWithConfidenceInterval) {
   EXPECT_EQ(output_ci.lower_bound(), ci.lower_bound());
   EXPECT_EQ(output_ci.upper_bound(), ci.upper_bound());
   EXPECT_EQ(output_ci.confidence_level(), ci.confidence_level());
-
-  // Although the ErrorReport.noise_confidence_interval is deprecated, we still
-  // keep it updated for a more seamless transition for existing clients. After
-  // some time, we should no longer use ErrorReport.noise_confidence_interval.
-  // But for now, test to make sure ErrorReport.noise_confidence_interval is
-  // being set.
-  EXPECT_EQ(output.error_report().noise_confidence_interval().lower_bound(),
-            ci.lower_bound());
-  EXPECT_EQ(output.error_report().noise_confidence_interval().upper_bound(),
-            ci.upper_bound());
-  EXPECT_EQ(
-      output.error_report().noise_confidence_interval().confidence_level(),
-      ci.confidence_level());
 }
 
 TEST(UtilTest, MakeOutputIntWithConfidenceInterval) {
@@ -114,19 +101,6 @@ TEST(UtilTest, MakeOutputIntWithConfidenceInterval) {
   EXPECT_EQ(output_ci.lower_bound(), ci.lower_bound());
   EXPECT_EQ(output_ci.upper_bound(), ci.upper_bound());
   EXPECT_EQ(output_ci.confidence_level(), ci.confidence_level());
-
-  // Although the ErrorReport.noise_confidence_interval is deprecated, we still
-  // keep it updated for a more seamless transition for existing clients. After
-  // some time, we should no longer use ErrorReport.noise_confidence_interval.
-  // But for now, test to make sure ErrorReport.noise_confidence_interval is
-  // being set.
-  EXPECT_EQ(output.error_report().noise_confidence_interval().lower_bound(),
-            ci.lower_bound());
-  EXPECT_EQ(output.error_report().noise_confidence_interval().upper_bound(),
-            ci.upper_bound());
-  EXPECT_EQ(
-      output.error_report().noise_confidence_interval().confidence_level(),
-      ci.confidence_level());
 }
 
 TEST(UtilTest, MakeOutputFloatWithConfidenceInterval) {
@@ -142,19 +116,6 @@ TEST(UtilTest, MakeOutputFloatWithConfidenceInterval) {
   EXPECT_EQ(output_ci.lower_bound(), ci.lower_bound());
   EXPECT_EQ(output_ci.upper_bound(), ci.upper_bound());
   EXPECT_EQ(output_ci.confidence_level(), ci.confidence_level());
-
-  // Although the ErrorReport.noise_confidence_interval is deprecated, we still
-  // keep it updated for a more seamless transition for existing clients. After
-  // some time, we should no longer use ErrorReport.noise_confidence_interval.
-  // But for now, test to make sure ErrorReport.noise_confidence_interval is
-  // being set.
-  EXPECT_EQ(output.error_report().noise_confidence_interval().lower_bound(),
-            ci.lower_bound());
-  EXPECT_EQ(output.error_report().noise_confidence_interval().upper_bound(),
-            ci.upper_bound());
-  EXPECT_EQ(
-      output.error_report().noise_confidence_interval().confidence_level(),
-      ci.confidence_level());
 }
 
 TEST(UtilTest, AddToOutputString) {

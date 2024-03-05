@@ -430,7 +430,7 @@ type boundedSumFloat64Fn struct {
 	TestMode         TestMode
 }
 
-// newBoundedSumFloat64FnTemp returns a boundedSumFloat64Fn with the given budget and parameters.
+// newBoundedSumFloat64Fn returns a boundedSumFloat64Fn with the given budget and parameters.
 func newBoundedSumFloat64Fn(spec PrivacySpec, params SumParams, noiseKind noise.Kind, publicPartitions bool) (*boundedSumFloat64Fn, error) {
 	if noiseKind != noise.GaussianNoise && noiseKind != noise.LaplaceNoise {
 		return nil, fmt.Errorf("unknown noise.Kind (%v) is specified. Please specify a valid noise", noiseKind)

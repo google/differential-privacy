@@ -83,7 +83,7 @@ func TestNewBoundedMeanFn(t *testing.T) {
 				NoiseKind:                    noise.GaussianNoise,
 			}},
 	} {
-		got, err := newBoundedMeanFnTemp(PrivacySpec{preThreshold: tc.preThreshold, testMode: TestModeDisabled},
+		got, err := newBoundedMeanFn(PrivacySpec{preThreshold: tc.preThreshold, testMode: TestModeDisabled},
 			MeanParams{
 				AggregationEpsilon:           tc.aggregationEpsilon,
 				AggregationDelta:             tc.aggregationDelta,
@@ -97,7 +97,7 @@ func TestNewBoundedMeanFn(t *testing.T) {
 			t.Fatalf("Couldn't get newBoundedMeanFn: %v", err)
 		}
 		if diff := cmp.Diff(tc.want, got, opts...); diff != "" {
-			t.Errorf("newBoundedMeanFnTemp: for %q (-want +got):\n%s", tc.desc, diff)
+			t.Errorf("newBoundedMeanFn: for %q (-want +got):\n%s", tc.desc, diff)
 		}
 	}
 }
@@ -110,14 +110,15 @@ func TestBoundedMeanFnSetup(t *testing.T) {
 	}{
 		{"Laplace noise kind", noise.LaplaceNoise, noise.Laplace()},
 		{"Gaussian noise kind", noise.GaussianNoise, noise.Gaussian()}} {
-		got, err := newBoundedMeanFn(MeanParams{
-			Epsilon:                      1,
-			Delta:                        1e-5,
+		spec := privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1, PartitionSelectionEpsilon: 1, PartitionSelectionDelta: 1e-5})
+		got, err := newBoundedMeanFn(*spec, MeanParams{
+			AggregationEpsilon:           1,
+			PartitionSelectionParams:     PartitionSelectionParams{Epsilon: 1, Delta: 1e-5},
 			MaxPartitionsContributed:     17,
 			MaxContributionsPerPartition: 5,
 			MinValue:                     0,
 			MaxValue:                     10,
-		}, tc.noiseKind, false, TestModeDisabled, false)
+		}, tc.noiseKind, false, false)
 		if err != nil {
 			t.Fatalf("Couldn't get newBoundedMeanFn: %v", err)
 		}
@@ -137,15 +138,15 @@ func TestBoundedMeanFnAddInput(t *testing.T) {
 	delta := 1e-23
 	minValue := 0.0
 	maxValue := 5.0
-	// ε is split by 2 for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
-	fn, err := newBoundedMeanFn(MeanParams{
-		Epsilon:                      2 * epsilon,
-		Delta:                        delta,
+	spec := privacySpec(t, PrivacySpecParams{AggregationEpsilon: epsilon, PartitionSelectionEpsilon: epsilon, PartitionSelectionDelta: delta})
+	fn, err := newBoundedMeanFn(*spec, MeanParams{
+		AggregationEpsilon:           epsilon,
+		PartitionSelectionParams:     PartitionSelectionParams{Epsilon: epsilon, Delta: delta},
 		MaxPartitionsContributed:     maxPartitionsContributed,
 		MaxContributionsPerPartition: maxContributionsPerPartition,
 		MinValue:                     minValue,
 		MaxValue:                     maxValue,
-	}, noise.LaplaceNoise, false, TestModeDisabled, false)
+	}, noise.LaplaceNoise, false, false)
 	if err != nil {
 		t.Fatalf("Couldn't get newBoundedMeanFn: %v", err)
 	}
@@ -184,15 +185,15 @@ func TestBoundedMeanFnMergeAccumulators(t *testing.T) {
 	delta := 1e-23
 	minValue := 0.0
 	maxValue := 5.0
-	// ε is split by 2 for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
-	fn, err := newBoundedMeanFn(MeanParams{
-		Epsilon:                      2 * epsilon,
-		Delta:                        delta,
+	spec := privacySpec(t, PrivacySpecParams{AggregationEpsilon: epsilon, PartitionSelectionEpsilon: epsilon, PartitionSelectionDelta: delta})
+	fn, err := newBoundedMeanFn(*spec, MeanParams{
+		AggregationEpsilon:           epsilon,
+		PartitionSelectionParams:     PartitionSelectionParams{Epsilon: epsilon, Delta: delta},
 		MaxPartitionsContributed:     maxPartitionsContributed,
 		MaxContributionsPerPartition: maxContributionsPerPartition,
 		MinValue:                     minValue,
 		MaxValue:                     maxValue,
-	}, noise.LaplaceNoise, false, TestModeDisabled, false)
+	}, noise.LaplaceNoise, false, false)
 	if err != nil {
 		t.Fatalf("Couldn't get newBoundedMeanFn: %v", err)
 	}
@@ -240,15 +241,15 @@ func TestBoundedMeanFnExtractOutputReturnsNilForSmallPartitions(t *testing.T) {
 		{"Input with 1 privacy unit with 1 contribution", 1, 1},
 	} {
 		// The choice of ε=1e100, δ=10⁻²³, and l0Sensitivity=1 gives a threshold of =2.
-		// ε is split by 2 for noise and for partition selection, so we use 2*ε to get a Laplace noise with ε.
-		fn, err := newBoundedMeanFn(MeanParams{
-			Epsilon:                      2 * 1e100,
-			Delta:                        1e-23,
+		spec := privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1e100, PartitionSelectionEpsilon: 1e100, PartitionSelectionDelta: 1e-23})
+		fn, err := newBoundedMeanFn(*spec, MeanParams{
+			AggregationEpsilon:           1e100,
+			PartitionSelectionParams:     PartitionSelectionParams{Epsilon: 1e100, Delta: 1e-23},
 			MaxPartitionsContributed:     1,
 			MaxContributionsPerPartition: 1,
 			MinValue:                     0,
 			MaxValue:                     10,
-		}, noise.LaplaceNoise, false, TestModeDisabled, false)
+		}, noise.LaplaceNoise, false, false)
 		if err != nil {
 			t.Fatalf("Couldn't get newBoundedMeanFn: %v", err)
 		}
@@ -286,13 +287,14 @@ func TestBoundedMeanFnWithPartitionsExtractOutputDoesNotReturnNilForSmallPartiti
 		{"Empty input", 0, 0},
 		{"Input with 1 user with 1 contribution", 1, 1},
 	} {
-		fn, err := newBoundedMeanFn(MeanParams{
-			Epsilon:                      1e100,
+		spec := privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1e100})
+		fn, err := newBoundedMeanFn(*spec, MeanParams{
+			AggregationEpsilon:           1e100,
 			MaxPartitionsContributed:     1,
 			MaxContributionsPerPartition: 1,
 			MinValue:                     0,
 			MaxValue:                     10,
-		}, noise.LaplaceNoise, true, TestModeDisabled, false)
+		}, noise.LaplaceNoise, true, false)
 		if err != nil {
 			t.Fatalf("Couldn't get newBoundedMeanFn: %v", err)
 		}

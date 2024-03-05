@@ -49,7 +49,6 @@ func ComputeCountMeanSum(s beam.Scope, col beam.PCollection) (visitsPerHour, mea
 	hourToTimeSpent := pbeam.ParDo(s, extractVisitHourAndTimeSpentFn, pCol)
 	meanTimeSpent = pbeam.MeanPerKey(s, hourToTimeSpent, pbeam.MeanParams{
 		AggregationEpsilon:           epsilon / 3,
-		Delta:                        0,
 		MaxPartitionsContributed:     1,     // Visitors can visit the restaurant once (one hour) a day
 		MaxContributionsPerPartition: 1,     // Visitors can visit the restaurant once within an hour
 		MinValue:                     0,     // Minimum time spent per user (in mins)

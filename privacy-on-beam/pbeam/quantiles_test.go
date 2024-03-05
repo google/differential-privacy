@@ -30,8 +30,6 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
-// The logic mirrors TestNewBoundedQuantilesFn, but with the new privacy budget API where
-// clients specify aggregation budget and partition selection budget separately.
 func TestNewBoundedQuantilesFn(t *testing.T) {
 	opts := []cmp.Option{
 		cmpopts.EquateApprox(0, 1e-10),
@@ -103,7 +101,7 @@ func TestNewBoundedQuantilesFn(t *testing.T) {
 			t.Fatalf("Couldn't get newBoundedQuantilesFn: %v", err)
 		}
 		if diff := cmp.Diff(tc.want, got, opts...); diff != "" {
-			t.Errorf("newBoundedQuantilesFnTemp: for %q (-want +got):\n%s", tc.desc, diff)
+			t.Errorf("newBoundedQuantilesFn: for %q (-want +got):\n%s", tc.desc, diff)
 		}
 	}
 }
@@ -120,8 +118,8 @@ func TestBoundedQuantilesFnSetup(t *testing.T) {
 		got, err := newBoundedQuantilesFn(
 			*spec,
 			QuantilesParams{
-				Epsilon:                      1,
-				Delta:                        1e-5,
+				AggregationEpsilon:           1,
+				AggregationDelta:             1e-5,
 				MaxPartitionsContributed:     17,
 				MaxContributionsPerPartition: 5,
 				MinValue:                     0,

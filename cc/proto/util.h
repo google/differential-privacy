@@ -113,11 +113,6 @@ Output MakeOutput(const T& value,
                   const ConfidenceInterval& noise_confidence_interval) {
   Output i;
   AddToOutput(&i, value, noise_confidence_interval);
-  // Although the ErrorReport.noise_confidence_interval is deprecated, we still
-  // keep it updated for a more seamless transition for existing clients. After
-  // some time, we should no longer use ErrorReport.noise_confidence_interval.
-  *(i.mutable_error_report()->mutable_noise_confidence_interval()) =
-      noise_confidence_interval;
   return i;
 }
 

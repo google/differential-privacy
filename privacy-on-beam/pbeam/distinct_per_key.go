@@ -34,15 +34,8 @@ type DistinctPerKeyParams struct {
 	// Defaults to LaplaceNoise{}.
 	NoiseKind NoiseKind
 	// Differential privacy budget consumed by this aggregation. If there is
-	// only one aggregation, both Epsilon and Delta can be left 0; in that case,
-	// the entire budget of the PrivacySpec is consumed. Deprecated, prefer
-	// using AggregationEpsilon & AggregationDelta, and PartitionSelectionParams.
-	Epsilon, Delta float64
-	// Differential privacy budget consumed by this aggregation. If there is
 	// only one aggregation, both epsilon and delta can be left 0; in that case
 	// the entire budget reserved for aggregation in the PrivacySpec is consumed.
-	//
-	// Uses the new privacy budget API.
 	AggregationEpsilon, AggregationDelta float64
 	// Differential privacy budget consumed by partition selection of this
 	// aggregation.
@@ -52,8 +45,6 @@ type DistinctPerKeyParams struct {
 	// If there is only one aggregation, this can be left unset; in that case
 	// the entire budget reserved for partition selection in the PrivacySpec
 	// is consumed.
-	//
-	// Uses the new privacy budget API.
 	//
 	// Optional.
 	PartitionSelectionParams PartitionSelectionParams
@@ -231,10 +222,8 @@ func DistinctPerKey(s beam.Scope, pcol PrivatePCollection, params DistinctPerKey
 	pcol.codec = nil
 	return Count(s, pcol, CountParams{
 		NoiseKind:                params.NoiseKind,
-		Epsilon:                  params.AggregationEpsilon,
-		Delta:                    params.AggregationDelta,
-		AggregationEpsilon:       params.AggregationEpsilon, // to also work with the new API
-		AggregationDelta:         params.AggregationDelta,   // to also work with the new API
+		AggregationEpsilon:       params.AggregationEpsilon,
+		AggregationDelta:         params.AggregationDelta,
 		MaxPartitionsContributed: params.MaxPartitionsContributed,
 		MaxValue:                 params.MaxContributionsPerPartition,
 		PublicPartitions:         params.PublicPartitions,

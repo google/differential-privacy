@@ -162,6 +162,7 @@ py_test(
         ":privacy_loss_mechanism",
         ":test_util",
         requirement("absl-py"),
+        requirement("numpy"),
         requirement("scipy"),
     ],
 )

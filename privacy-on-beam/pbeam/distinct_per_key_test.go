@@ -580,8 +580,6 @@ func TestCheckDistinctPerKeyParams(t *testing.T) {
 		partitionType reflect.Type
 		wantErr       bool
 	}{
-		// checkDistinctPerKeyParams only uses the fields of the new privacy budget API, so no need for
-		// test cases for the old API.
 		{
 			desc: "valid parameters",
 			params: DistinctPerKeyParams{
@@ -716,7 +714,7 @@ func TestCheckDistinctPerKeyParams(t *testing.T) {
 			wantErr:       true,
 		},
 		{
-			desc: "new API, PartitionSelectionParams.MaxPartitionsContributed set",
+			desc: "PartitionSelectionParams.MaxPartitionsContributed set",
 			params: DistinctPerKeyParams{
 				AggregationEpsilon:           1.0,
 				AggregationDelta:             1e-5,

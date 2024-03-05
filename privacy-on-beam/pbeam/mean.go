@@ -41,15 +41,8 @@ type MeanParams struct {
 	// Defaults to LaplaceNoise{}.
 	NoiseKind NoiseKind
 	// Differential privacy budget consumed by this aggregation. If there is
-	// only one aggregation, both Epsilon and Delta can be left 0; in that case,
-	// the entire budget of the PrivacySpec is consumed. Deprecated, prefer
-	// using AggregationEpsilon & AggregationDelta, and PartitionSelectionParams.
-	Epsilon, Delta float64
-	// Differential privacy budget consumed by this aggregation. If there is
 	// only one aggregation, both epsilon and delta can be left 0; in that case
 	// the entire budget reserved for aggregation in the PrivacySpec is consumed.
-	//
-	// Uses the new privacy budget API.
 	AggregationEpsilon, AggregationDelta float64
 	// Differential privacy budget consumed by partition selection of this
 	// aggregation.
@@ -59,8 +52,6 @@ type MeanParams struct {
 	// If there is only one aggregation, this can be left unset; in that case
 	// the entire budget reserved for partition selection in the PrivacySpec
 	// is consumed.
-	//
-	// Uses the new privacy budget API.
 	//
 	// Optional.
 	PartitionSelectionParams PartitionSelectionParams
@@ -229,7 +220,7 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 		result = addPublicPartitionsForMean(s, *spec, params, noiseKind, partialKV)
 	} else {
 		// Compute the mean for each partition. Result is PCollection<partition, float64>.
-		boundedMeanFn, err := newBoundedMeanFnTemp(*spec, params, noiseKind, false, false)
+		boundedMeanFn, err := newBoundedMeanFn(*spec, params, noiseKind, false, false)
 		if err != nil {
 			log.Fatalf("Couldn't get boundedMeanFn for MeanPerKey: %v", err)
 		}
@@ -252,13 +243,13 @@ func addPublicPartitionsForMean(s beam.Scope, spec PrivacySpec, params MeanParam
 	}
 	emptyPublicPartitions := beam.ParDo(s, addEmptySliceToPublicPartitionsFloat64, publicPartitions)
 	// Second, add noise to all public partitions (all of which are empty-valued).
-	boundedMeanFn, err := newBoundedMeanFnTemp(spec, params, noiseKind, true, true)
+	boundedMeanFn, err := newBoundedMeanFn(spec, params, noiseKind, true, true)
 	if err != nil {
 		log.Fatalf("Couldn't get boundedMeanFn for MeanPerKey: %v", err)
 	}
 	noisyEmptyPublicPartitions := beam.CombinePerKey(s, boundedMeanFn, emptyPublicPartitions)
 	// Third, compute noisy means for partitions in the actual data.
-	boundedMeanFn, err = newBoundedMeanFnTemp(spec, params, noiseKind, true, false)
+	boundedMeanFn, err = newBoundedMeanFn(spec, params, noiseKind, true, false)
 	if err != nil {
 		log.Fatalf("Couldn't get boundedMeanFn for MeanPerKey: %v", err)
 	}
@@ -337,40 +328,7 @@ type boundedMeanFn struct {
 }
 
 // newBoundedMeanFn returns a boundedMeanFn with the given budget and parameters.
-func newBoundedMeanFn(params MeanParams, noiseKind noise.Kind, publicPartitions bool, testMode TestMode, emptyPartitions bool) (*boundedMeanFn, error) {
-	fn := &boundedMeanFn{
-		MaxPartitionsContributed:     params.MaxPartitionsContributed,
-		MaxContributionsPerPartition: params.MaxContributionsPerPartition,
-		Lower:                        params.MinValue,
-		Upper:                        params.MaxValue,
-		NoiseKind:                    noiseKind,
-		PublicPartitions:             publicPartitions,
-		TestMode:                     testMode,
-		EmptyPartitions:              emptyPartitions,
-	}
-	if fn.PublicPartitions {
-		fn.NoiseEpsilon = params.Epsilon
-		fn.NoiseDelta = params.Delta
-		return fn, nil
-	}
-	fn.NoiseEpsilon = params.Epsilon / 2
-	fn.PartitionSelectionEpsilon = params.Epsilon - fn.NoiseEpsilon
-	switch noiseKind {
-	case noise.GaussianNoise:
-		fn.NoiseDelta = params.Delta / 2
-	case noise.LaplaceNoise:
-		fn.NoiseDelta = 0
-	default:
-		return nil, fmt.Errorf("unknown noise.Kind (%v) is specified. Please specify a valid noise", noiseKind)
-	}
-	fn.PartitionSelectionDelta = params.Delta - fn.NoiseDelta
-	return fn, nil
-}
-
-// newBoundedMeanFnTemp returns a boundedMeanFn with the given budget and parameters.
-//
-// Uses the new privacy budget API.
-func newBoundedMeanFnTemp(spec PrivacySpec, params MeanParams, noiseKind noise.Kind, publicPartitions bool, emptyPartitions bool) (*boundedMeanFn, error) {
+func newBoundedMeanFn(spec PrivacySpec, params MeanParams, noiseKind noise.Kind, publicPartitions bool, emptyPartitions bool) (*boundedMeanFn, error) {
 	if noiseKind != noise.GaussianNoise && noiseKind != noise.LaplaceNoise {
 		return nil, fmt.Errorf("unknown noise.Kind (%v) is specified. Please specify a valid noise", noiseKind)
 	}

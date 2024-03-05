@@ -1476,6 +1476,490 @@ class DiscreteGaussianPrivacyLossDistributionTest(parameterized.TestCase):
         expected_rounded_pmf_remove, expected_infinity_mass_remove)
 
 
+class MixtureGaussianPrivacyLossDistributionTest(parameterized.TestCase):
+  """Tests for from_mixture_gaussian_mechanism.
+
+  We reuse some test cases from GaussianPrivacyLoss since
+  MixtureGaussianPrivacyLoss generalizes that class. However, since
+  MixtureGaussianPrivacyLoss uses tighter cutoffs on the PLD than
+  GaussianPrivacyLoss, their expected values are different for the same test
+  case.
+  """
+
+  @parameterized.named_parameters(
+      # Gaussian mechanisms
+      {
+          'testcase_name': 'gaussian_1',
+          'standard_deviation': 1.0,
+          'sensitivities': [1.0],
+          'sampling_probs': [1.0],
+          'expected_rounded_pmf_add': {
+              2: 0.12447741,
+              1: 0.38292492,
+              0: 0.30853754,
+          },
+          'expected_rounded_pmf_remove': {
+              2: 0.12447741,
+              1: 0.38292492,
+              0: 0.24173034,
+              -1: 0.0668072
+          },
+      },
+      {
+          'testcase_name': 'gaussian_2',
+          'standard_deviation': 1.0,
+          'sensitivities': [2.0],
+          'sampling_probs': [1.0],
+          'expected_rounded_pmf_add': {
+              1: 0.30853754,
+              2: 0.19146246,
+              3: 0.19146246,
+              4: 0.12447741
+          },
+          'expected_rounded_pmf_remove': {
+              -3: 0.00620967,
+              -2: 0.01654047,
+              -1: 0.04405707,
+              0: 0.09184805,
+              1: 0.14988228,
+              2: 0.19146246,
+              3: 0.19146246,
+              4: 0.12447741,
+          },
+      },
+      # Subsampled Gaussian mechanisms
+      {
+          'testcase_name': 'subsampled_gaussian_1',
+          'standard_deviation': 1.0,
+          'sensitivities': [0.0, 1.0],
+          'sampling_probs': [0.2, 0.8],
+          'expected_rounded_pmf_add': {
+              1: 0.50740234,
+              0: 0.30853754,
+          },
+          'expected_rounded_pmf_remove': {
+              2: 0.03303238,
+              1: 0.39779076,
+              0: 0.38512252
+          },
+      },
+      {
+          'testcase_name': 'subsampled_gaussian_2',
+          'standard_deviation': 5.0,
+          'sensitivities': [0.0, 5.0],
+          'sampling_probs': [0.4, 0.6],
+          'expected_rounded_pmf_add': {
+              1: 0.50740234,
+              0: 0.30853754,
+          },
+          'expected_rounded_pmf_remove': {
+              1: 0.35423381,
+              0: 0.46170751
+          },
+      },
+      # Mixture Gaussian mechanisms
+      {
+          'testcase_name': 'mixture_gaussian_1',
+          'standard_deviation': 1.0,
+          'sensitivities': [0.0, 1.0, 2.0],
+          'sampling_probs': [0.2, 0.6, 0.2],
+          'expected_rounded_pmf_add': {
+              2: 0.315939874,
+              1: 0.0,
+              0: 0.5
+          },
+          'expected_rounded_pmf_remove': {
+              2: 0.315949035,
+              1: 0.300256821,
+              0: 0.0,
+              -1: 0.199743179
+          },
+      },
+  )
+  def test_mixture_gaussian_varying_standard_deviation_and_sensitivity(
+      self,
+      standard_deviation,
+      sensitivities,
+      sampling_probs,
+      expected_rounded_pmf_add,
+      expected_rounded_pmf_remove,
+  ):
+    """Verifies correctness of pessimistic PLD for various parameter values."""
+    pld = privacy_loss_distribution.from_mixture_gaussian_mechanism(
+        standard_deviation,
+        sensitivities=sensitivities,
+        sampling_probs=sampling_probs,
+        log_mass_truncation_bound=math.log(2) + stats.norm.logcdf(-0.9),
+        value_discretization_interval=1,
+        use_connect_dots=False,
+    )
+
+    test_util.assert_dictionary_almost_equal(
+        self, expected_rounded_pmf_add, pld._pmf_add._loss_probs  # pytype: disable=attribute-error
+    )
+    test_util.assert_almost_greater_equal(
+        self, stats.norm.cdf(-0.9), pld._pmf_add._infinity_mass
+    )
+    test_util.assert_dictionary_almost_equal(
+        self, expected_rounded_pmf_remove, pld._pmf_remove._loss_probs  # pytype: disable=attribute-error
+    )
+    test_util.assert_almost_greater_equal(
+        self, stats.norm.cdf(-0.9), pld._pmf_remove._infinity_mass
+    )
+    self.assertFalse(pld._symmetric)
+
+  @parameterized.named_parameters(
+      # Gaussian mechanisms
+      {
+          'testcase_name': 'gaussian_1',
+          'standard_deviation': 1.0,
+          'sensitivities': [1.0],
+          'sampling_probs': [1.0],
+          'expected_rounded_pmf_add': {
+              -1: 0.158655254,
+              0: 0.341344746,
+              1: 0.391270256,
+              2: 0.108729744
+          },
+          'expected_rounded_pmf_remove': {
+              -2: 0.016737493,
+              -1: 0.141917761,
+              0: 0.341344746,
+              1: 0.391270256,
+              2: 0.108729744,
+          },
+      },
+      {
+          'testcase_name': 'gaussian_2',
+          'standard_deviation': 1.0,
+          'sensitivities': [2.0],
+          'sampling_probs': [1.0],
+          'expected_rounded_pmf_add': {
+              0: 0.1749993,
+              1: 0.3250007,
+              2: 0.02438595,
+              3: 0.390660732,
+              4: 0.0,
+          },
+          'expected_rounded_pmf_remove': {
+              -4: 0.0,
+              -3: 0.023964237,
+              -2: 0.0,
+              -1: 0.119561076,
+              0: 0.016344046,
+              1: 0.38577247,
+              2: 0.0,
+              3: 0.390660732,
+              4: 0.0,
+          },
+      },
+      # Subsampled Gaussian mechanisms
+      {
+          'testcase_name': 'subsampled_gaussian_1',
+          'standard_deviation': 1.0,
+          'sensitivities': [0.0, 1.0],
+          'sampling_probs': [0.2, 0.8],
+          'expected_rounded_pmf_add': {
+              -1: 0.158655254,
+              0: 0.422688932,
+              1: 0.395727515
+          },
+          'expected_rounded_pmf_remove': {
+              -1: 0.145580017,
+              0: 0.422688932,
+              1: 0.431001195,
+              2: 0.000729856
+          },
+      },
+      {
+          'testcase_name': 'subsampled_gaussian_2',
+          'standard_deviation': 5.0,
+          'sensitivities': [0.0, 5.0],
+          'sampling_probs': [0.4, 0.6],
+          'expected_rounded_pmf_add': {
+              -1: 0.107598496,
+              0: 0.530601573,
+              1: 0.361799931
+          },
+          'expected_rounded_pmf_remove': {
+              -1: 0.133098756,
+              0: 0.530601573,
+              1: 0.292483037
+          },
+      },
+      # Mixture Gaussian mechanisms
+      {
+          'testcase_name': 'mixture_gaussian_1',
+          'standard_deviation': 1.0,
+          'sensitivities': [0.0, 1.0, 2.0],
+          'sampling_probs': [0.2, 0.6, 0.2],
+          'expected_rounded_pmf_add': {
+              -1: 0.134743039,
+              0: 0.390257664,
+              1: 0.474999297,
+              2: 0.0,
+          },
+          'expected_rounded_pmf_remove': {
+              -2: 0.0,
+              -1: 0.208940423,
+              0: 0.365256961,
+              1: 0.344684545,
+              2: 0.058674138,
+          },
+      },
+  )
+  def test_mixture_gaussian_varying_standard_deviation_and_sensitivity_connect_dots(
+      self,
+      standard_deviation,
+      sensitivities,
+      sampling_probs,
+      expected_rounded_pmf_add,
+      expected_rounded_pmf_remove,
+  ):
+    """Verifies correctness of pessimistic PLD for various parameter values."""
+    pld = privacy_loss_distribution.from_mixture_gaussian_mechanism(
+        standard_deviation,
+        sensitivities=sensitivities,
+        sampling_probs=sampling_probs,
+        log_mass_truncation_bound=math.log(2) + stats.norm.logcdf(-0.9),
+        value_discretization_interval=1,
+        use_connect_dots=True,
+    )
+
+    test_util.assert_dictionary_almost_equal(
+        self, expected_rounded_pmf_add, pld._pmf_add._loss_probs  # pytype: disable=attribute-error
+    )
+    test_util.assert_almost_greater_equal(
+        self, stats.norm.cdf(-0.9), pld._pmf_add._infinity_mass
+    )
+    test_util.assert_dictionary_almost_equal(
+        self, expected_rounded_pmf_remove, pld._pmf_remove._loss_probs  # pytype: disable=attribute-error
+    )
+    test_util.assert_almost_greater_equal(
+        self, stats.norm.cdf(-0.9), pld._pmf_remove._infinity_mass
+    )
+    self.assertFalse(pld._symmetric)
+
+  @parameterized.named_parameters(
+      {
+          'testcase_name': 'discretization_0.5',
+          'value_discretization_interval': 0.5,
+          'expected_add_pmf': {
+              3: 0.02595983,
+              2: 0.3045079,
+              1: 0.22891269,
+              0: 0.25655945
+          },
+          'expected_remove_pmf': {
+              4: 0.01100095,
+              3: 0.10672757,
+              2: 0.1421942,
+              1: 0.17070797,
+              0: 0.17687728,
+              -1: 0.144677,
+              -2: 0.06376406,
+          },
+      },
+      {
+          'testcase_name': 'discretization_0.3',
+          'value_discretization_interval': 0.3,
+          'expected_add_pmf': {
+              4: 0.08817633,
+              3: 0.18512511,
+              2: 0.16071804,
+              1: 0.12536095,
+              0: 0.25655945,
+          },
+          'expected_remove_pmf': {
+              6: 0.01100095,
+              5: 0.05979597,
+              4: 0.07257058,
+              3: 0.08541692,
+              2: 0.09686874,
+              1: 0.10497753,
+              0: 0.10751992,
+              -1: 0.10233776,
+              -2: 0.08761942,
+              -3: 0.08784134,
+          },
+      },
+  )
+  def test_mixture_gaussian_discretization(
+      self,
+      value_discretization_interval,
+      expected_add_pmf,
+      expected_remove_pmf,
+  ):
+    """Verifies correctness of pessimistic PLD for varying discretization."""
+    pld = privacy_loss_distribution.from_mixture_gaussian_mechanism(
+        standard_deviation=1,
+        sensitivities=[0.0, 1.0, 2.0],
+        sampling_probs=[0.2, 0.6, 0.2],
+        log_mass_truncation_bound=math.log(2) + stats.norm.logcdf(-0.9),
+        value_discretization_interval=value_discretization_interval,
+        use_connect_dots=False,
+    )
+    test_util.assert_almost_greater_equal(
+        self, stats.norm.cdf(-0.9), pld._pmf_add._infinity_mass
+    )
+    test_util.assert_almost_greater_equal(
+        self, stats.norm.cdf(-0.9), pld._pmf_remove._infinity_mass
+    )
+    test_util.assert_dictionary_almost_equal(
+        self, expected_add_pmf, pld._pmf_add._loss_probs  # pytype: disable=attribute-error
+    )
+    test_util.assert_dictionary_almost_equal(
+        self, expected_remove_pmf, pld._pmf_remove._loss_probs  # pytype: disable=attribute-error
+    )
+
+  @parameterized.named_parameters(
+      {
+          'testcase_name': 'discretization_0.5',
+          'value_discretization_interval': 0.5,
+          'expected_add_infinity_mass': 7.02736093e-05,
+          'expected_remove_infinity_mass': 0.058450414,
+          'expected_add_pmf': {
+              -1: 0.1766054,
+              0: 0.17661904,
+              1: 0.26907836,
+              2: 0.2845549,
+              3: 0.09307203,
+          },
+          'expected_remove_pmf': {
+              -3: 0.02076718,
+              -2: 0.1046819,
+              -1: 0.16320427,
+              0: 0.17661904,
+              1: 0.15880237,
+              2: 0.12600393,
+              3: 0.09134778,
+              4: 0.10012311,
+          },
+      },
+      {
+          'testcase_name': 'discretization_0.3',
+          'value_discretization_interval': 0.3,
+          'expected_add_infinity_mass': 0.010838515,
+          'expected_remove_infinity_mass': 0.072142753,
+          'expected_add_pmf': {
+              -1: 0.20621578,
+              0: 0.10686974,
+              1: 0.14244404,
+              2: 0.17395599,
+              3: 0.18472755,
+              4: 0.17494839,
+          },
+          'expected_remove_pmf': {
+              -4: 0.05269344,
+              -3: 0.07510462,
+              -2: 0.09546907,
+              -1: 0.10552514,
+              0: 0.10686974,
+              1: 0.10149509,
+              2: 0.09162041,
+              3: 0.07936186,
+              4: 0.06644975,
+              5: 0.05409823,
+              6: 0.09916991,
+          },
+      },
+  )
+  def test_mixture_gaussian_discretization_connect_dots(
+      self,
+      value_discretization_interval,
+      expected_add_infinity_mass,
+      expected_remove_infinity_mass,
+      expected_add_pmf,
+      expected_remove_pmf,
+  ):
+    """Verifies correctness of pessimistic PLD for varying discretization."""
+    pld = privacy_loss_distribution.from_mixture_gaussian_mechanism(
+        standard_deviation=1,
+        sensitivities=[0.0, 1.0, 2.0],
+        sampling_probs=[0.2, 0.6, 0.2],
+        log_mass_truncation_bound=math.log(2) + stats.norm.logcdf(-0.9),
+        value_discretization_interval=value_discretization_interval,
+        use_connect_dots=True,
+    )
+    self.assertAlmostEqual(
+        expected_add_infinity_mass, pld._pmf_add._infinity_mass
+    )
+    self.assertAlmostEqual(
+        expected_remove_infinity_mass, pld._pmf_remove._infinity_mass
+    )
+    test_util.assert_dictionary_almost_equal(
+        self, expected_add_pmf, pld._pmf_add._loss_probs  # pytype: disable=attribute-error
+    )
+    test_util.assert_dictionary_almost_equal(
+        self, expected_remove_pmf, pld._pmf_remove._loss_probs  # pytype: disable=attribute-error
+    )
+
+  @parameterized.named_parameters(
+      (
+          'negative_stdev',
+          -1.0,
+          [1.0],
+          [1.0],
+      ),
+      (
+          'negative_sensitivity',
+          1.0,
+          [-1.0, 1.0],
+          [0.5, 0.5],
+      ),
+      (
+          'negative_probability',
+          1.0,
+          [0.0, 1.0, 2.0],
+          [0.75, 0.75, -0.5],
+      ),
+      (
+          'probability_greater_than_one',
+          1.0,
+          [0.0, 1.0, 2.0],
+          [1.5, 0.5, 0.5],
+      ),
+      (
+          'probabilities_dont_add_up_to_one',
+          1.0,
+          [0.0, 1.0, 2.0],
+          [0.2, 0.2, 0.2],
+      ),
+      (
+          'list_lengths_differ_1',
+          1.0,
+          [1.0],
+          [0.5, 0.5],
+      ),
+      (
+          'list_lengths_differ_2',
+          1.0,
+          [1.0, 2.0, 3.0],
+          [0.5, 0.5],
+      ),
+  )
+  def test_mixture_gaussian_value_errors(
+      self, standard_deviation, sensitivities, sampling_probs
+  ):
+    with self.assertRaises(ValueError):
+      privacy_loss_distribution.from_mixture_gaussian_mechanism(
+          standard_deviation,
+          sensitivities=sensitivities,
+          sampling_probs=sampling_probs,
+          value_discretization_interval=1,
+      )
+
+  def test_mixture_gaussian_does_not_overflow(self):
+    """Verifies that mixture Gaussian PLD does not result in overflow."""
+    privacy_loss_distribution.from_mixture_gaussian_mechanism(
+        standard_deviation=1,
+        sensitivities=[0.0, 1.0, 10.0],
+        sampling_probs=[0.98, 0.01, 0.01],
+        value_discretization_interval=1,
+        use_connect_dots=False,
+    )
+
+
 class RandomizedResponsePrivacyLossDistributionTest(parameterized.TestCase):
 
   @parameterized.parameters((0.5, 2, {

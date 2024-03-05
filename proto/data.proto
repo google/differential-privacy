@@ -40,19 +40,18 @@ message Output {
   message Element {
     // Diff. priv. result of the operation performed over the input data.
     optional ValueType value = 1;
-    // DEPRECATED: Use Element.noise_confidence_interval instead.
-    optional ValueType error = 2 [deprecated = true];
     // Confidence interval of the noise added to the result
     optional ConfidenceInterval noise_confidence_interval = 3;
+
+    reserved 2;
   }
   repeated Element elements = 1;
 
   // Contains information about algorithm accuracy.
   message ErrorReport {
-    // DEPRECATED: Use Element.noise_confidence_interval instead.
-    optional ConfidenceInterval noise_confidence_interval = 1
-        [deprecated = true];
     optional BoundingReport bounding_report = 2;
+
+    reserved 1;
   }
   // Error report is attached if either the noise confidence interval or the
   // bounding report is available.

@@ -40,15 +40,8 @@ type QuantilesParams struct {
 	// Defaults to LaplaceNoise{}.
 	NoiseKind NoiseKind
 	// Differential privacy budget consumed by this aggregation. If there is
-	// only one aggregation, both Epsilon and Delta can be left 0; in that case,
-	// the entire budget of the PrivacySpec is consumed. Deprecated, prefer
-	// using AggregationEpsilon & AggregationDelta, and PartitionSelectionParams.
-	Epsilon, Delta float64
-	// Differential privacy budget consumed by this aggregation. If there is
 	// only one aggregation, both epsilon and delta can be left 0; in that case
 	// the entire budget reserved for aggregation in the PrivacySpec is consumed.
-	//
-	// Uses the new privacy budget API.
 	AggregationEpsilon, AggregationDelta float64
 	// Differential privacy budget consumed by partition selection of this
 	// aggregation.
@@ -58,8 +51,6 @@ type QuantilesParams struct {
 	// If there is only one aggregation, this can be left unset; in that case
 	// the entire budget reserved for partition selection in the PrivacySpec
 	// is consumed.
-	//
-	// Uses the new privacy budget API.
 	//
 	// Optional.
 	PartitionSelectionParams PartitionSelectionParams
@@ -354,7 +345,7 @@ type boundedQuantilesFn struct {
 	TestMode                     TestMode
 }
 
-// newBoundedQuantilesFnTemp returns a boundedQuantilesFn with the given budget and parameters.
+// newBoundedQuantilesFn returns a boundedQuantilesFn with the given budget and parameters.
 func newBoundedQuantilesFn(spec PrivacySpec, params QuantilesParams, noiseKind noise.Kind, publicPartitions bool) (*boundedQuantilesFn, error) {
 	if noiseKind != noise.GaussianNoise && noiseKind != noise.LaplaceNoise {
 		return nil, fmt.Errorf("unknown noise.Kind (%v) is specified. Please specify a valid noise", noiseKind)

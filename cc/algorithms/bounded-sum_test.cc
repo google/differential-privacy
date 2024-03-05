@@ -250,14 +250,6 @@ TEST(BoundedSumTest, ConfidenceIntervalWithLaplaceTest) {
   ASSERT_OK(result);
   EXPECT_THAT(GetNoiseConfidenceInterval(*result),
               EqualsProto(wantConfidenceInterval));
-
-  // Although the ErrorReport.noise_confidence_interval is deprecated, we still
-  // keep it updated for a more seamless transition for existing clients. After
-  // some time, we should no longer use ErrorReport.noise_confidence_interval.
-  // But for now, test to make sure ErrorReport.noise_confidence_interval is
-  // being set.
-  EXPECT_THAT((*result).error_report().noise_confidence_interval(),
-              EqualsProto(wantConfidenceInterval));
 }
 
 TYPED_TEST(BoundedSumTest, BoundGettersForFixedBounds) {
