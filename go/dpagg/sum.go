@@ -22,8 +22,8 @@ import (
 	"math"
 
 	log "github.com/golang/glog"
-	"github.com/google/differential-privacy/go/v2/checks"
-	"github.com/google/differential-privacy/go/v2/noise"
+	"github.com/google/differential-privacy/go/v3/checks"
+	"github.com/google/differential-privacy/go/v3/noise"
 )
 
 // BoundedSumInt64 calculates a differentially private sum of a collection of

@@ -14,10 +14,10 @@
 # limitations under the License.
 #
 
-load("@io_bazel_rules_go//go:def.bzl", "go_library")
 load("@bazel_gazelle//:def.bzl", "gazelle")
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
 
-# gazelle:prefix github.com/google/differential-privacy/privacy-on-beam/v2/codelab
+# gazelle:prefix github.com/google/differential-privacy/privacy-on-beam/v3/codelab
 gazelle(name = "gazelle")
 
 go_library(
@@ -30,7 +30,7 @@ go_library(
         "sum.go",
         "visit.go",
     ],
-    importpath = "github.com/google/differential-privacy/privacy-on-beam/v2/codelab",
+    importpath = "github.com/google/differential-privacy/privacy-on-beam/v3/codelab",
     visibility = ["//visibility:public"],
     deps = [
         "//pbeam:go_default_library",

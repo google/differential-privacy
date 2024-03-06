@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-workspace(name = "com_github_google_differential_privacy_privacy_on_beam_v2")
+workspace(name = "com_github_google_differential_privacy_privacy_on_beam_v3")
 
 local_repository(
     name = "com_google_differential_privacy",
@@ -22,7 +22,7 @@ local_repository(
 )
 
 local_repository(
-    name = "com_github_google_differential_privacy_go_v2",
+    name = "com_github_google_differential_privacy_go_v3",
     path = "../go",
 )
 
@@ -53,7 +53,7 @@ go_rules_dependencies()
 go_register_toolchains(version = "1.21.5")
 
 # Load Go DP library dependencies.
-load("@com_github_google_differential_privacy_go_v2//:go_differential_privacy_deps.bzl", "go_differential_privacy_deps")
+load("@com_github_google_differential_privacy_go_v3//:go_differential_privacy_deps.bzl", "go_differential_privacy_deps")
 
 go_differential_privacy_deps()
 

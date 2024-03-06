@@ -21,9 +21,9 @@ import (
 	"reflect"
 
 	log "github.com/golang/glog"
-	"github.com/google/differential-privacy/go/v2/checks"
-	"github.com/google/differential-privacy/go/v2/dpagg"
-	"github.com/google/differential-privacy/privacy-on-beam/v2/internal/kv"
+	"github.com/google/differential-privacy/go/v3/checks"
+	"github.com/google/differential-privacy/go/v3/dpagg"
+	"github.com/google/differential-privacy/privacy-on-beam/v3/internal/kv"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/filter"
@@ -99,7 +99,7 @@ func SelectPartitions(s beam.Scope, pcol PrivatePCollection, params SelectPartit
 }
 
 func checkSelectPartitionsParams(params SelectPartitionsParams) error {
-	err := checks.CheckEpsilon(params.Epsilon)
+	err := checks.CheckEpsilonStrict(params.Epsilon)
 	if err != nil {
 		return err
 	}

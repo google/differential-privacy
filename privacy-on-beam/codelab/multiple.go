@@ -18,7 +18,7 @@ package codelab
 
 import (
 	log "github.com/golang/glog"
-	"github.com/google/differential-privacy/privacy-on-beam/v2/pbeam"
+	"github.com/google/differential-privacy/privacy-on-beam/v3/pbeam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 )
 

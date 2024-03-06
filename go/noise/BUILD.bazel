@@ -14,10 +14,10 @@
 # limitations under the License.
 #
 
-load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 load("@bazel_gazelle//:def.bzl", "gazelle")
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 
-# gazelle:prefix github.com/google/differential-privacy/go/v2/noise
+# gazelle:prefix github.com/google/differential-privacy/go/v3/noise
 gazelle(name = "gazelle")
 
 go_library(
@@ -28,7 +28,7 @@ go_library(
         "noise.go",
         "secure_noise_math.go",
     ],
-    importpath = "github.com/google/differential-privacy/go/v2/noise",
+    importpath = "github.com/google/differential-privacy/go/v3/noise",
     visibility = ["//visibility:public"],
     deps = [
         "//checks:go_default_library",

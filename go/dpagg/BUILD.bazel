@@ -14,10 +14,10 @@
 # limitations under the License.
 #
 
-load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 load("@bazel_gazelle//:def.bzl", "gazelle")
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 
-# gazelle:prefix github.com/google/differential-privacy/go/v2/dpagg
+# gazelle:prefix github.com/google/differential-privacy/go/v3/dpagg
 gazelle(name = "gazelle")
 
 go_library(
@@ -34,7 +34,7 @@ go_library(
         "sum.go",
         "variance.go",
     ],
-    importpath = "github.com/google/differential-privacy/go/v2/dpagg",
+    importpath = "github.com/google/differential-privacy/go/v3/dpagg",
     visibility = ["//visibility:public"],
     deps = [
         "//checks:go_default_library",

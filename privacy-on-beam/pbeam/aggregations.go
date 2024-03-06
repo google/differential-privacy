@@ -25,10 +25,10 @@ import (
 	"math/rand"
 	"reflect"
 
-	"github.com/google/differential-privacy/go/v2/checks"
-	"github.com/google/differential-privacy/go/v2/dpagg"
-	"github.com/google/differential-privacy/go/v2/noise"
-	"github.com/google/differential-privacy/privacy-on-beam/v2/internal/kv"
+	"github.com/google/differential-privacy/go/v3/checks"
+	"github.com/google/differential-privacy/go/v3/dpagg"
+	"github.com/google/differential-privacy/go/v3/noise"
+	"github.com/google/differential-privacy/privacy-on-beam/v3/internal/kv"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
@@ -795,11 +795,17 @@ func (fn *expandFloat64ValuesCombineFn) ExtractOutput(a expandFloat64ValuesAccum
 	return a.Values
 }
 
-// checkPartitionSelectionEpsilon returns an error if the partitionSelectionEpsilon parameter of an aggregation is not valid.
-// Epsilon is valid in the following cases:
+// checkAggregationEpsilon returns an error if the AggregationEpsilon parameter of an aggregation is not valid.
+// AggregationEpsilon is valid if 0 < AggregationEpsilon < +∞.
+func checkAggregationEpsilon(epsilon float64) error {
+	return checks.CheckEpsilonStrict(epsilon, "AggregationEpsilon")
+}
+
+// checkPartitionSelectionEpsilon returns an error if the PartitionSelectionEpsilon parameter of an aggregation is not valid.
+// PartitionSelectionEpsilon is valid in the following cases:
 //
-//	epsilon == 0; if public partitions are used
-//	0 < epsilon < +∞; otherwise
+//	PartitionSelectionEpsilon == 0; if public partitions are used
+//	0 < PartitionSelectionEpsilon < +∞; otherwise
 func checkPartitionSelectionEpsilon(epsilon float64, publicPartitions any) error {
 	if publicPartitions != nil {
 		if epsilon != 0 {
@@ -807,43 +813,31 @@ func checkPartitionSelectionEpsilon(epsilon float64, publicPartitions any) error
 		}
 		return nil
 	}
-	return checks.CheckEpsilonStrict(epsilon)
+	return checks.CheckEpsilonStrict(epsilon, "PartitionSelectionEpsilon")
 }
 
-// checkDelta returns an error if the delta parameter of an aggregation is not valid. Delta
-// is valid in the following cases:
+// checkAggregationDelta returns an error if the AggregationDelta parameter of an aggregation is not valid.
+// AggregationDelta is valid in the following cases:
 //
-//	delta == 0; when laplace noise with public partitions is used
-//	0 < delta < 1; otherwise
-func checkDelta(delta float64, noiseKind noise.Kind, publicPartitions any) error {
-	if publicPartitions != nil && noiseKind == noise.LaplaceNoise {
-		return checks.CheckNoDelta(delta)
-	}
-	return checks.CheckDeltaStrict(delta)
-}
-
-// checkAggregationDelta returns an error if the aggregationDelta parameter of an aggregation is not valid.
-// Delta is valid in the following cases:
-//
-//	delta == 0; when laplace noise is used
-//	0 < delta < 1; otherwise
+//	AggregationDelta == 0; when laplace noise is used
+//	0 < AggregationDelta < 1; otherwise
 func checkAggregationDelta(delta float64, noiseKind noise.Kind) error {
 	if noiseKind == noise.LaplaceNoise {
-		return checks.CheckNoDelta(delta)
+		return checks.CheckNoDelta(delta, "AggregationDelta")
 	}
-	return checks.CheckDeltaStrict(delta)
+	return checks.CheckDeltaStrict(delta, "AggregationDelta")
 }
 
-// checkPartitionSelectionDelta returns an error if the partitionSelectionDelta parameter of an aggregation is not valid.
-// Delta is valid in the following cases:
+// checkPartitionSelectionDelta returns an error if the PartitionSelectionDelta parameter of an aggregation is not valid.
+// PartitionSelectionDelta is valid in the following cases:
 //
-//	delta == 0; if public partitions are used
-//	0 < delta < 1; otherwise
+//	PartitionSelectionDelta == 0; if public partitions are used
+//	0 < PartitionSelectionDelta < 1; otherwise
 func checkPartitionSelectionDelta(delta float64, publicPartitions any) error {
 	if publicPartitions != nil {
-		return checks.CheckNoDelta(delta)
+		return checks.CheckNoDelta(delta, "PartitionSelectionDelta")
 	}
-	return checks.CheckDeltaStrict(delta)
+	return checks.CheckDeltaStrict(delta, "PartitionSelectionDelta")
 }
 
 // checkMaxPartitionsContributed returns an error if maxPartitionsContributed parameter of an aggregation

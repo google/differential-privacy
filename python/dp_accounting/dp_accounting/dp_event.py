@@ -370,3 +370,25 @@ class RepeatAndSelectDpEvent(DpEvent):
   event: DpEvent
   mean: float
   shape: float
+
+
+@attr.s(frozen=True, slots=True, auto_attribs=True)
+class MixtureOfGaussiansDpEvent(DpEvent):
+  """Represents an application of the Mixture of Gaussians mechanism.
+
+  For sigma, sensitivities c_i and probabilities p_i, given D this mechanism
+  outputs a sample from N(0, sigma^2) and given D' this mechanism outputs a
+  sample from sum_i p_i N(c_i, sigma^2).
+
+  See https://arxiv.org/abs/2310.15526 for details.
+
+  Attributes:
+    standard_deviation: The standard deviation of the Gaussian noise.
+    sensitivities: The support of the sensitivity random variable. Should be the
+      same length as sampling_probs.
+    sampling_probs: The probabilities associated with the sensitivities.
+  """
+
+  standard_deviation: float
+  sensitivities: Sequence[float]
+  sampling_probs: Sequence[float]

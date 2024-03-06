@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/google/differential-privacy/go/v2/noise"
+	"github.com/google/differential-privacy/go/v3/noise"
 )
 
 // BoundedStandardDeviation calculates a differentially private standard deviation

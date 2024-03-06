@@ -16,7 +16,7 @@
 
 load("@bazel_gazelle//:def.bzl", "gazelle")
 
-# gazelle:prefix github.com/google/differential-privacy/privacy-on-beam/v2
+# gazelle:prefix github.com/google/differential-privacy/privacy-on-beam/v3
 gazelle(name = "gazelle")
 
 # gazelle:proto disable_global

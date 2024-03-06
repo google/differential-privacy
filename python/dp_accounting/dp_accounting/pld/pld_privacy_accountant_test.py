@@ -55,7 +55,9 @@ class PldPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
       dp_event.GaussianDpEvent(0),
       dp_event.LaplaceDpEvent(0),
       dp_event.PoissonSampledDpEvent(0.1, dp_event.GaussianDpEvent(0)),
-      dp_event.PoissonSampledDpEvent(0.1, dp_event.LaplaceDpEvent(0)))
+      dp_event.PoissonSampledDpEvent(0.1, dp_event.LaplaceDpEvent(0)),
+      dp_event.MixtureOfGaussiansDpEvent(0, [1, 2], [0.5, 0.5]),
+  )
   def test_additive_noise_mechanisms_with_zero_noise_multiplier(self, event):
     accountant = pld_privacy_accountant.PLDAccountant()
     accountant.compose(event)
@@ -66,7 +68,10 @@ class PldPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
       dp_event.PoissonSampledDpEvent(0, dp_event.GaussianDpEvent(1)),
       dp_event.PoissonSampledDpEvent(0, dp_event.LaplaceDpEvent(1)),
       dp_event.PoissonSampledDpEvent(0, dp_event.GaussianDpEvent(0)),
-      dp_event.PoissonSampledDpEvent(0, dp_event.LaplaceDpEvent(0)))
+      dp_event.PoissonSampledDpEvent(0, dp_event.LaplaceDpEvent(0)),
+      dp_event.MixtureOfGaussiansDpEvent(1, [0], [1.0]),
+      dp_event.MixtureOfGaussiansDpEvent(0, [0], [1.0]),
+  )
   def test_poisson_subsampling_with_zero_probability(self, event):
     accountant = pld_privacy_accountant.PLDAccountant()
     accountant.compose(event)
@@ -122,7 +127,7 @@ class PldPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
 
     expected_epsilon = 4
     expected_delta = 1e-14  # expected delta is not 0 due to truncation in
-                            # self composition
+    # self composition
     self.assertAlmostEqual(
         accountant.get_delta(expected_epsilon), expected_delta, delta=1e-6)
     self.assertAlmostEqual(
@@ -137,11 +142,35 @@ class PldPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
 
     exact_epsilon = 2.46964
     expected_delta = 1e-14  # expected delta is not 0 due to truncation in
-                            # self composition
+    # self composition
     self.assertAlmostEqual(
         accountant.get_delta(exact_epsilon), expected_delta, delta=1e-6)
     self.assertAlmostEqual(
         accountant.get_epsilon(expected_delta), exact_epsilon, delta=1e-3)
+
+  def test_mixture_of_gaussians_basic(self):
+    first_mog_event = dp_event.MixtureOfGaussiansDpEvent(
+        standard_deviation=1.0,
+        sensitivities=[0.0, 1.0, 2.0],
+        sampling_probs=[0.2, 0.6, 0.2],
+    )
+    second_mog_event = dp_event.MixtureOfGaussiansDpEvent(
+        standard_deviation=2.0,
+        sensitivities=[0.0, 2.0, 3.0],
+        sampling_probs=[0.33, 0.34, 0.33],
+    )
+    accountant = pld_privacy_accountant.PLDAccountant()
+    accountant.compose(first_mog_event, 3)
+    accountant.compose(second_mog_event, 2)
+
+    expected_epsilon = 17.193115
+    expected_delta = 1e-6
+    self.assertAlmostEqual(
+        accountant.get_delta(expected_epsilon), expected_delta, delta=1e-12
+    )
+    self.assertAlmostEqual(
+        accountant.get_epsilon(expected_delta), expected_epsilon, delta=1e-6
+    )
 
 
 if __name__ == '__main__':

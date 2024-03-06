@@ -76,6 +76,21 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
           ).self_compose(count)
           self._pld = self._pld.compose(laplace_pld)
       return None
+    elif isinstance(event, dp_event.MixtureOfGaussiansDpEvent):
+      if do_compose:
+        if len(event.sensitivities) == 1 and event.sensitivities[0] == 0.0:
+          pass
+        elif event.standard_deviation == 0:
+          self._contains_non_dp_event = True
+        else:
+          mog_pld = PLD.from_mixture_gaussian_mechanism(
+              standard_deviation=event.standard_deviation,
+              sensitivities=event.sensitivities,
+              sampling_probs=event.sampling_probs,
+              value_discretization_interval=self._value_discretization_interval,
+          ).self_compose(count)
+          self._pld = self._pld.compose(mog_pld)
+      return None
     elif isinstance(event, dp_event.PoissonSampledDpEvent):
       if self.neighboring_relation != NeighborRel.ADD_OR_REMOVE_ONE:
         error_msg = (

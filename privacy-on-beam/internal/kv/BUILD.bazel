@@ -1,13 +1,13 @@
-load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 load("@bazel_gazelle//:def.bzl", "gazelle")
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 
-# gazelle:prefix github.com/google/differential-privacy/privacy-on-beam/v2/internal/kv
+# gazelle:prefix github.com/google/differential-privacy/privacy-on-beam/v3/internal/kv
 gazelle(name = "gazelle")
 
 go_library(
     name = "go_default_library",
     srcs = ["kv.go"],
-    importpath = "github.com/google/differential-privacy/privacy-on-beam/v2/internal/kv",
+    importpath = "github.com/google/differential-privacy/privacy-on-beam/v3/internal/kv",
     visibility = ["//:__subpackages__"],
     deps = [
         "@com_github_apache_beam_sdks_v2//go/pkg/beam:go_default_library",

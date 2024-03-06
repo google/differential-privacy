@@ -21,7 +21,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/google/differential-privacy/go/v2/stattestutils"
+	"github.com/google/differential-privacy/go/v3/stattestutils"
 )
 
 func TestGaussianStatistics(t *testing.T) {

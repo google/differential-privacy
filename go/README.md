@@ -9,7 +9,7 @@ This document describes Go-specific aspects.
 Usage of the Go Differential Privacy library is demonstrated in the
 [codelab](../examples/go/).
 
-Full documentation of the API is available as [godoc](https://godoc.org/github.com/google/differential-privacy/go/v2/dpagg).
+Full documentation of the API is available as [godoc](https://godoc.org/github.com/google/differential-privacy/go/v3/dpagg).
 
 ## Using with the "go" Command
 
@@ -103,10 +103,10 @@ use [Gazelle](https://github.com/bazelbuild/bazel-gazelle):
 
 1. Run `bazel run //:gazelle -- update-repos -from_file=go.mod`, which will add
    dependencies to your `WORKSPACE` file (you need a valid go.mod file with your
-   dependencies, e.g. `github.com/google/differential-privacy/go/v2`).
+   dependencies, e.g. `github.com/google/differential-privacy/go/v3`).
 
 1. Run `bazel run //:gazelle -- -go_naming_convention_external=go_default_library`
    to automatically generate or update your `BUILD` files and build targets.
    Alternatively, you can manually add
-   `@com_github_google_differential_privacy_go_v2` as a dependency
+   `@com_github_google_differential_privacy_go_v3` as a dependency
    to targets in your `BUILD` files.

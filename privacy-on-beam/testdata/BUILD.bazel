@@ -14,16 +14,16 @@
 # limitations under the License.
 #
 
-load("@io_bazel_rules_go//go:def.bzl", "go_library")
 load("@bazel_gazelle//:def.bzl", "gazelle")
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
 
-# gazelle:prefix github.com/google/differential-privacy/privacy-on-beam/v2/testdata
+# gazelle:prefix github.com/google/differential-privacy/privacy-on-beam/v3/testdata
 gazelle(name = "gazelle")
 
 go_library(
     name = "go_default_library",
     srcs = ["test.pb.go"],
-    importpath = "github.com/google/differential-privacy/privacy-on-beam/v2/testdata",
+    importpath = "github.com/google/differential-privacy/privacy-on-beam/v3/testdata",
     visibility = ["//visibility:public"],
     deps = [
         "@org_golang_google_protobuf//reflect/protoreflect:go_default_library",

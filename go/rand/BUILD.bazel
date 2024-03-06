@@ -1,13 +1,13 @@
-load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 load("@bazel_gazelle//:def.bzl", "gazelle")
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 
-# gazelle:prefix github.com/google/differential-privacy/go/v2/rand
+# gazelle:prefix github.com/google/differential-privacy/go/v3/rand
 gazelle(name = "gazelle")
 
 go_library(
     name = "go_default_library",
     srcs = ["rand.go"],
-    importpath = "github.com/google/differential-privacy/go/v2/rand",
+    importpath = "github.com/google/differential-privacy/go/v3/rand",
     visibility = ["//visibility:public"],
     deps = ["@com_github_golang_glog//:go_default_library"],
 )

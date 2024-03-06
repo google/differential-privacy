@@ -21,8 +21,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/google/differential-privacy/go/v2/noise"
-	"github.com/google/differential-privacy/go/v2/rand"
+	"github.com/google/differential-privacy/go/v3/noise"
+	"github.com/google/differential-privacy/go/v3/rand"
 	"github.com/google/go-cmp/cmp"
 )
 

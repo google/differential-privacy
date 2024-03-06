@@ -24,7 +24,7 @@ import (
 	"strings"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
-	"github.com/google/differential-privacy/privacy-on-beam/v2/codelab"
+	"github.com/google/differential-privacy/privacy-on-beam/v3/codelab"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"gonum.org/v1/plot"
 	"gonum.org/v1/plot/plotter"

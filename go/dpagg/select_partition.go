@@ -20,9 +20,9 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/google/differential-privacy/go/v2/checks"
-	"github.com/google/differential-privacy/go/v2/noise"
-	"github.com/google/differential-privacy/go/v2/rand"
+	"github.com/google/differential-privacy/go/v3/checks"
+	"github.com/google/differential-privacy/go/v3/noise"
+	"github.com/google/differential-privacy/go/v3/rand"
 )
 
 // PreAggSelectPartition is used to compute an (ε,δ)-differentially private decision

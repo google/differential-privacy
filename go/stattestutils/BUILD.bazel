@@ -14,10 +14,10 @@
 # limitations under the License.
 #
 
-load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 load("@bazel_gazelle//:def.bzl", "gazelle")
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 
-# gazelle:prefix github.com/google/differential-privacy/go/v2/stattestutils
+# gazelle:prefix github.com/google/differential-privacy/go/v3/stattestutils
 gazelle(name = "gazelle")
 
 go_library(
@@ -26,7 +26,7 @@ go_library(
     srcs = [
         "stattestutils.go",
     ],
-    importpath = "github.com/google/differential-privacy/go/v2/stattestutils",
+    importpath = "github.com/google/differential-privacy/go/v3/stattestutils",
     visibility = ["//visibility:public"],
 )
 

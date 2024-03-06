@@ -23,7 +23,7 @@ demonstrates how to use the library. Source code for the codelab is available in
 the [codelab/](codelab)
 directory.
 
-Full documentation of the API is available as [godoc](https://godoc.org/github.com/google/differential-privacy/privacy-on-beam/v2/pbeam).
+Full documentation of the API is available as [godoc](https://godoc.org/github.com/google/differential-privacy/privacy-on-beam/v3/pbeam).
 
 ## Using with the "go" Command
 
@@ -129,10 +129,10 @@ In order to include Privacy on Beam in your Bazel project, we recommend you use
 
 1. Run `bazel run //:gazelle -- update-repos -from_file=go.mod`, which will add
    dependencies to your `WORKSPACE` file (you need a valid go.mod file with your
-   dependencies, e.g. `github.com/google/differential-privacy/privacy-on-beam/v2`).
+   dependencies, e.g. `github.com/google/differential-privacy/privacy-on-beam/v3`).
 
 1. Run `bazel run //:gazelle -- -go_naming_convention_external=go_default_library`
    to automatically generate or update your `BUILD` files and build targets.
    Alternatively, you can manually add
-   `@com_github_google_differential_privacy_privacy_on_beam_v2` as a dependency
+   `@com_github_google_differential_privacy_privacy_on_beam_v3` as a dependency
    to targets in your `BUILD` files.

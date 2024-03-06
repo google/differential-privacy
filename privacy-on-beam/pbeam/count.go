@@ -21,9 +21,8 @@ import (
 	"reflect"
 
 	log "github.com/golang/glog"
-	"github.com/google/differential-privacy/go/v2/checks"
-	"github.com/google/differential-privacy/go/v2/noise"
-	"github.com/google/differential-privacy/privacy-on-beam/v2/internal/kv"
+	"github.com/google/differential-privacy/go/v3/noise"
+	"github.com/google/differential-privacy/privacy-on-beam/v3/internal/kv"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 )
@@ -205,7 +204,7 @@ func checkCountParams(params CountParams, noiseKind noise.Kind, partitionType re
 	if err != nil {
 		return err
 	}
-	err = checks.CheckEpsilon(params.AggregationEpsilon)
+	err = checkAggregationEpsilon(params.AggregationEpsilon)
 	if err != nil {
 		return err
 	}

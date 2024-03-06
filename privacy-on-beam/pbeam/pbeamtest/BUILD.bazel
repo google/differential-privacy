@@ -17,17 +17,17 @@
 load("@bazel_gazelle//:def.bzl", "gazelle")
 load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 
-# gazelle:prefix github.com/google/differential-privacy/privacy-on-beam/v2/pbeam/pbeamtest
+# gazelle:prefix github.com/google/differential-privacy/privacy-on-beam/v3/pbeam/pbeamtest
 gazelle(name = "gazelle")
 
 go_library(
     name = "go_default_library",
     testonly = 1,
     srcs = ["pbeamtest.go"],
-    importpath = "github.com/google/differential-privacy/privacy-on-beam/v2/pbeam/pbeamtest",
+    importpath = "github.com/google/differential-privacy/privacy-on-beam/v3/pbeam/pbeamtest",
     visibility = ["//visibility:public"],
     deps = [
-        "@com_github_google_differential_privacy_go_v2//dpagg:go_default_library",
+        "@com_github_google_differential_privacy_go_v3//dpagg:go_default_library",
     ],
 )
 

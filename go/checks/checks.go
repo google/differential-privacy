@@ -24,62 +24,105 @@ import (
 	log "github.com/golang/glog"
 )
 
+const (
+	epsilonName = "Epsilon"
+	deltaName   = "Delta"
+)
+
+func verifyName(defaultName string, nameSlice []string) (string, error) {
+	var name string
+	switch len(nameSlice) {
+	case 0:
+		name = defaultName
+	case 1:
+		name = nameSlice[0]
+	default:
+		// TODO Add instructions for filing bugs.
+		return "", fmt.Errorf("This should never happen. There should be 0 or 1 'name' parameter, got %d", len(nameSlice))
+	}
+	return name, nil
+}
+
 // CheckEpsilonVeryStrict returns an error if ε is +∞ or less than 2⁻⁵⁰.
-func CheckEpsilonVeryStrict(epsilon float64) error {
+func CheckEpsilonVeryStrict(epsilon float64, name ...string) error {
+	epsName, err := verifyName(epsilonName, name)
+	if err != nil {
+		return err
+	}
 	if epsilon < math.Exp2(-50.0) || math.IsInf(epsilon, 0) || math.IsNaN(epsilon) {
-		return fmt.Errorf("Epsilon is %f, must be at least 2^-50 and finite", epsilon)
+		return fmt.Errorf("%s is %f, must be at least 2^-50 and finite", epsName, epsilon)
 	}
 	return nil
 }
 
 // CheckEpsilonStrict returns an error if ε is nonpositive or +∞.
-func CheckEpsilonStrict(epsilon float64) error {
+func CheckEpsilonStrict(epsilon float64, name ...string) error {
+	epsName, err := verifyName(epsilonName, name)
+	if err != nil {
+		return err
+	}
 	if epsilon <= 0 || math.IsInf(epsilon, 0) || math.IsNaN(epsilon) {
-		return fmt.Errorf("Epsilon is %f, must be strictly positive and finite", epsilon)
+		return fmt.Errorf("%s is %f, must be strictly positive and finite", epsName, epsilon)
 	}
 	return nil
 }
 
 // CheckEpsilon returns an error if ε is strictly negative or +∞.
-func CheckEpsilon(epsilon float64) error {
+func CheckEpsilon(epsilon float64, name ...string) error {
+	epsName, err := verifyName(epsilonName, name)
+	if err != nil {
+		return err
+	}
 	if epsilon < 0 || math.IsInf(epsilon, 0) || math.IsNaN(epsilon) {
-		return fmt.Errorf("Epsilon is %f, must be nonnegative and finite", epsilon)
+		return fmt.Errorf("%s is %f, must be nonnegative and finite", epsName, epsilon)
 	}
 	return nil
 }
 
 // CheckDelta returns an error if δ is negative or greater than or equal to 1.
-func CheckDelta(delta float64) error {
+func CheckDelta(delta float64, name ...string) error {
+	delName, err := verifyName(deltaName, name)
+	if err != nil {
+		return err
+	}
 	if math.IsNaN(delta) {
-		return fmt.Errorf("Delta is %e, cannot be NaN", delta)
+		return fmt.Errorf("%s is %e, cannot be NaN", delName, delta)
 	}
 	if delta < 0 {
-		return fmt.Errorf("Delta is %e, cannot be negative", delta)
+		return fmt.Errorf("%s is %e, cannot be negative", delName, delta)
 	}
 	if delta >= 1 {
-		return fmt.Errorf("Delta is %e, must be strictly less than 1", delta)
+		return fmt.Errorf("%s is %e, must be strictly less than 1", delName, delta)
 	}
 	return nil
 }
 
 // CheckDeltaStrict returns an error if δ is nonpositive or greater than or equal to 1.
-func CheckDeltaStrict(delta float64) error {
+func CheckDeltaStrict(delta float64, name ...string) error {
+	delName, err := verifyName(deltaName, name)
+	if err != nil {
+		return err
+	}
 	if math.IsNaN(delta) {
-		return fmt.Errorf("Delta is %e, cannot be NaN", delta)
+		return fmt.Errorf("%s is %e, cannot be NaN", delName, delta)
 	}
 	if delta <= 0 {
-		return fmt.Errorf("Delta is %e, must be strictly positive", delta)
+		return fmt.Errorf("%s is %e, must be strictly positive", delName, delta)
 	}
 	if delta >= 1 {
-		return fmt.Errorf("Delta is %e, must be strictly less than 1", delta)
+		return fmt.Errorf("%s is %e, must be strictly less than 1", delName, delta)
 	}
 	return nil
 }
 
 // CheckNoDelta returns an error if δ is non-zero.
-func CheckNoDelta(delta float64) error {
+func CheckNoDelta(delta float64, name ...string) error {
+	delName, err := verifyName(deltaName, name)
+	if err != nil {
+		return err
+	}
 	if delta != 0 {
-		return fmt.Errorf("Delta is %e, must be 0", delta)
+		return fmt.Errorf("%s is %e, must be 0", delName, delta)
 	}
 	return nil
 }

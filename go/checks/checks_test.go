@@ -21,6 +21,28 @@ import (
 	"testing"
 )
 
+func TestVerifyName(t *testing.T) {
+	tests := []struct {
+		defaultName string
+		nameSlice   []string
+		want        string
+		wantErr     bool
+	}{
+		{"Epsilon", []string{}, "Epsilon", false},
+		{"Epsilon", []string{"AggregationEpsilon"}, "AggregationEpsilon", false},
+		{"Epsilon", []string{"AggregationEpsilon", "PartitionSelectionEpsilon"}, "", true},
+	}
+	for _, tc := range tests {
+		got, err := verifyName(tc.defaultName, tc.nameSlice)
+		if (err != nil) != tc.wantErr {
+			t.Errorf("verifyName(%v, %v) returned an unexpected error: %v", tc.defaultName, tc.nameSlice, err)
+		}
+		if got != tc.want {
+			t.Errorf("verifyName(%v, %v) = %v, want: %v", tc.defaultName, tc.nameSlice, got, tc.want)
+		}
+	}
+}
+
 func TestCheckEpsilonVeryStrict(t *testing.T) {
 	for _, tc := range []struct {
 		desc    string
