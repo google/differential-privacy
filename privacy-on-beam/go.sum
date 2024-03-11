@@ -103,6 +103,8 @@ github.com/golang/protobuf v1.5.4 h1:i7eJL8qZTpSEXOPTxNKhASYpMn+8e5Q6AdndVa1dWek
 github.com/golang/protobuf v1.5.4/go.mod h1:lnTiLA8Wa4RWRcIUkrtSVa5nRhsEGBg48fD6rSs7xps=
 github.com/google/differential-privacy/go/v3 v3.0.0-20240306213115-7126f6194117 h1:yoWADpdysRF9xeFv26wIuc0YEr3o1nmsTmTqWX+C4vI=
 github.com/google/differential-privacy/go/v3 v3.0.0-20240306213115-7126f6194117/go.mod h1:7msb8H86cI/WUa9cu6hJaGRd5db/3s/zAQbVHb5lCTc=
+github.com/google/differential-privacy/go/v3 v3.0.0 h1:tZI3vVuQg4rv/X36JUFE6ltlk53QzMk0wiVG5QAy1Ps=
+github.com/google/differential-privacy/go/v3 v3.0.0/go.mod h1:oSU4a+FIQT0sMNW7oFoTyDCO5+Asv+YYrT/G4b9c/RQ=
 github.com/google/go-cmp v0.2.0/go.mod h1:oXzfMopK8JAjlY9xF4vHSVASa0yLyX7SntLO5aqRK0M=
 github.com/google/go-cmp v0.2.1-0.20190312032427-6f77996f0c42/go.mod h1:8QqcDgzrUqlUb/G2PQTWiueGozuR1884gddMywk6iLU=
 github.com/google/go-cmp v0.3.0/go.mod h1:8QqcDgzrUqlUb/G2PQTWiueGozuR1884gddMywk6iLU=

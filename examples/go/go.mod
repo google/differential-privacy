@@ -4,7 +4,7 @@ go 1.22
 
 require (
 	github.com/golang/glog v1.2.0
-	github.com/google/differential-privacy/go/v3 v3.0.0-20240306213115-7126f6194117
+	github.com/google/differential-privacy/go/v3 v3.0.0
 )
 
 require (
