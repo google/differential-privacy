@@ -46,10 +46,6 @@ class NoBracketIntervalFoundError(Exception):
   """Error raised when explicit bracket interval cannot be found."""
 
 
-class NoOptimumFoundError(Exception):
-  """Error raised when root finding algorithm fails."""
-
-
 class NonEmptyAccountantError(Exception):
   """Error raised when result of make_fresh_accountant has nonempty ledger."""
 
@@ -98,6 +94,59 @@ def _search_for_explicit_bracket_interval(
     lower_value, upper_value = upper_value, epsilon_gap(upper)
 
   return ExplicitBracketInterval(lower, upper)
+
+
+def _bisect(
+    function: Callable[[float], float],
+    lower: float,
+    upper: float,
+    tol: float,
+    lower_value: Optional[float] = None,
+    upper_value: Optional[float] = None,
+) -> float:
+  """Bisection search to find approximate root with non-positive value.
+
+  Args:
+    function: Function to find approximate root of. Conceptually, the function
+      should be continuous, although really the only requirement is that it has
+      opposite signs at the endpoints.
+    lower: Lower endpoint.
+    upper: Upper endpoint.
+    tol: Terminate when endpoints are within tol of each other.
+    lower_value: Value at lower endpoint.
+    upper_value: Value at upper endpoint.
+
+  Returns:
+    A point with non-positive value within tol of root.
+
+  Raises:
+    ValueError: If values at lower and upper do not have opposite signs.
+  """
+  if lower_value is None:
+    lower_value = function(lower)
+  if upper_value is None:
+    upper_value = function(upper)
+
+  if lower_value == 0:
+    return lower
+  if upper_value == 0:
+    return upper
+
+  if lower_value * upper_value > 0:
+    raise ValueError('Values must have opposite signs.')
+
+  if upper - lower <= tol:
+    return lower if lower_value < 0 else upper
+
+  middle = (lower + upper) / 2
+  middle_value = function(middle)
+
+  if middle_value == 0:
+    return middle
+  elif lower_value * middle_value < 0:
+    return _bisect(function, lower, middle, tol, lower_value, middle_value)
+  else:
+    return _bisect(function, middle, upper, tol, middle_value, upper_value)
 
 
 def calibrate_dp_mechanism(
@@ -152,7 +201,6 @@ def calibrate_dp_mechanism(
     NoBracketIntervalFoundError: if bracket_interval is LowerEndpointAndGuess
       and no upper bound can be found within a factor of 2**30 of the original
       guess.
-    NoOptimumFoundError: if scipy.optimize.brentq fails to find an optimum.
     NonEmptyAccountantError: if make_fresh_accountant returns an accountant with
       nonempty ledger.
   """
@@ -177,9 +225,9 @@ def calibrate_dp_mechanism(
     bracket_interval = LowerEndpointAndGuess(0, 1)
 
   if tol is None:
-    tol = 0.5 if discrete else 1e-6
+    tol = 1.0 if discrete else 1e-6
   elif discrete:
-    tol = max(tol, 0.5)
+    tol = max(tol, 1.0)
   elif tol <= 0:
     raise ValueError(f'tol must be positive. Found {tol}.')
 
@@ -212,19 +260,29 @@ def calibrate_dp_mechanism(
         f'interval {bracket_interval} did not bracket a solution.') from err
 
   if not result.converged:
-    raise NoOptimumFoundError(
-        'Unable to find root with scipy.optimize.brentq.')
+    root = None
+  else:
+    # We need to ensure that gap is not positive, guaranteeing the returned
+    # parameter gives no less privacy than was requested. Since epsilon_gap can
+    # be expensive to compute, we first try values near the returned root.
+    # Considering brentq's contract that there exists a root within tol of the
+    # returned value, in most cases adding +/- tol will suffice.
+    if epsilon_gap(root) > 0:
+      if epsilon_gap(root + tol) < 0:
+        root += tol
+      elif epsilon_gap(root - tol) < 0:
+        root -= tol
+      else:
+        root = None
 
-  if epsilon_gap(root) > 0:
-    # Ensure that gap is not positive, guaranteeing returned parameter gives no
-    # less privacy than was requested.
-    if epsilon_gap(root + tol) < 0:
-      root += tol
-    elif epsilon_gap(root - tol) < 0:
-      root -= tol
-    else:
-      raise NoOptimumFoundError(
-          f'Unable to find valid value near root {root} returned by brentq.')
+  if root is None:
+    # Fallback to custom bisection that guarantees root with non-positive value.
+    root = _bisect(
+        epsilon_gap,
+        bracket_interval.endpoint_1,
+        bracket_interval.endpoint_2,
+        tol,
+    )
 
   if discrete:
     root = round(root)

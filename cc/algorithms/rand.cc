@@ -72,7 +72,7 @@ double UniformDouble() {
   i += j;
   double r;
   std::memcpy(&r, &i, sizeof(r));
-  return r == 0 ? 1.0 : r;
+  return r;
 }
 
 uint64_t Geometric() {

@@ -14,8 +14,8 @@
 # limitations under the License.
 #
 
-load("@io_bazel_rules_go//go:def.bzl", "go_binary")
 load("@bazel_gazelle//:def.bzl", "gazelle")
+load("@io_bazel_rules_go//go:def.bzl", "go_binary")
 
 # gazelle:prefix github.com/google/differential-privacy/examples/go/main
 gazelle(name = "gazelle")

@@ -13,6 +13,4 @@ threshold may, for instance, be suitable as an extra layer of protection in
 cases where the partitions themselves are inherently sensitive.
 
 This library includes an implementation of this technique in
-[Java](https://github.com/google/differential-privacy/blob/main/java/main/com/google/privacy/differentialprivacy/PreAggSelectPartition.java)
-and in
-[C++](https://github.com/google/differential-privacy/blob/main/cc/algorithms/partition-selection.h).
+[Java](https://github.com/google/differential-privacy/blob/main/java/main/com/google/privacy/differentialprivacy/PreAggSelectPartition.java), [C++](https://github.com/google/differential-privacy/blob/main/cc/algorithms/partition-selection.h), [Go](https://github.com/google/differential-privacy/blob/main/go/dpagg/select_partition.go), and [Privacy on Beam](https://github.com/google/differential-privacy/blob/privacy-on-beam/v3.0.0/privacy-on-beam/pbeam/pbeam.go#L201).
