@@ -78,7 +78,7 @@ grpcio-tools==1.60.0
     # via google-vizier
 h5py==3.10.0
     # via tensorflow
-idna==3.6
+idna==3.7
     # via requests
 importlib-metadata==7.0.1
     # via -r requirements.in
@@ -263,4 +263,4 @@ zipp==3.17.0
     #   importlib-metadata
 
 # The following packages are considered to be unsafe in a requirements file:
-setuptools~=69.0.3
+# setuptools
