@@ -35,8 +35,8 @@ py_library(
     name = "hockey_stick_tester",
     srcs = ["hockey_stick_tester.py"],
     deps = [
+        ":divergence_tester",
         ":property_tester_utils",
-        "//dp_auditorium:interfaces",
         "//dp_auditorium/configs",
         requirement("absl-py"),
         requirement("numpy"),
@@ -83,8 +83,8 @@ py_library(
     name = "renyi_tester",
     srcs = ["renyi_tester.py"],
     deps = [
+        ":divergence_tester",
         ":property_tester_utils",
-        "//dp_auditorium:interfaces",
         "//dp_auditorium/configs",
         requirement("absl-py"),
         requirement("numpy"),
@@ -121,6 +121,30 @@ py_test(
     srcs = ["histogram_tester_test.py"],
     deps = [
         ":histogram_tester",
+        "//dp_auditorium/configs",
+        requirement("absl-py"),
+        requirement("numpy"),
+        requirement("tensorflow"),
+    ],
+)
+
+py_library(
+    name = "divergence_tester",
+    srcs = ["divergence_tester.py"],
+    deps = [
+        ":property_tester_utils",
+        "//dp_auditorium:interfaces",
+        requirement("numpy"),
+        requirement("tensorflow"),
+        requirement("typing_extensions"),
+    ],
+)
+
+py_test(
+    name = "divergence_tester_test",
+    srcs = ["divergence_tester_test.py"],
+    deps = [
+        ":divergence_tester",
         "//dp_auditorium/configs",
         requirement("absl-py"),
         requirement("numpy"),

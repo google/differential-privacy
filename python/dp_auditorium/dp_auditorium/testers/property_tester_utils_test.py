@@ -34,30 +34,30 @@ class PropertyTesterUtilsTest(parameterized.TestCase, tf.test.TestCase):
     )
 
   @parameterized.parameters(-0.1, 0.0)
-  def test_validate_training_params_wrong_lr(self, learning_rate):
+  def test_validate_training_config_wrong_lr(self, learning_rate):
     self.training_config.optimizer_learning_rate = learning_rate
     with self.assertRaises(ValueError):
-      _ = property_tester_utils.validate_training_params(self.training_config)
+      _ = property_tester_utils.validate_training_config(self.training_config)
 
   @parameterized.parameters(-10, 0)
-  def test_validate_training_params_wrong_training_epochs(
+  def test_validate_training_config_wrong_training_epochs(
       self, training_epochs
   ):
     self.training_config.training_epochs = training_epochs
     with self.assertRaises(ValueError):
-      _ = property_tester_utils.validate_training_params(self.training_config)
+      _ = property_tester_utils.validate_training_config(self.training_config)
 
   @parameterized.parameters(-5, 0)
-  def test_validate_training_params_wrong_batch_size(self, batch_size):
+  def test_validate_training_config_wrong_batch_size(self, batch_size):
     self.training_config.batch_size = batch_size
     with self.assertRaises(ValueError):
-      _ = property_tester_utils.validate_training_params(self.training_config)
+      _ = property_tester_utils.validate_training_config(self.training_config)
 
   @parameterized.parameters(-0.1, 0.0)
-  def test_validate_training_params_wrong_bound(self, bound):
+  def test_validate_training_config_wrong_bound(self, bound):
     self.training_config.model_output_coordinate_bound = bound
     with self.assertRaises(ValueError):
-      _ = property_tester_utils.validate_training_params(self.training_config)
+      _ = property_tester_utils.validate_training_config(self.training_config)
 
   def test_split_train_test_samples_raises_exception(self):
     with self.assertRaises(ValueError):

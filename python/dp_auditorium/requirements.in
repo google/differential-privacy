@@ -25,3 +25,5 @@ googleapis-common-protos~=1.56.4
 pysqlite3~=0.5.2
 # Used for multi-platform compatibility.
 tensorflow-io-gcs-filesystem~=0.36.0
+pipeline-dp
+python-dp

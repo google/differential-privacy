@@ -16,103 +16,24 @@
 Functions to estimate Renyi divergence between samples of two distributions.
 """
 
-from typing import Dict, Optional, Union
+from typing import Dict
 
 import numpy as np
 import tensorflow as tf
 from typing_extensions import override
 
-from dp_auditorium import interfaces
 from dp_auditorium.configs import privacy_property
 from dp_auditorium.configs import property_tester_config
+from dp_auditorium.testers import divergence_tester
 from dp_auditorium.testers import property_tester_utils
 
 
-def _renyi_model_parameters_initializer(
-    config: property_tester_config.RenyiPropertyTesterConfig,
-    base_model: Optional[tf.keras.Model] = None,
-) -> dict[str, Union[float, int, None, tf.keras.Model]]:
-  """Initializes attributes for RenyiPropertyTester.
-
-  This function processes `config` to extract privacy parameters
-  and initialize the model parametrizing the Renyi divergence approximation. See
-  section 4.1. of https://arxiv.org/pdf/2307.05608.pdf for more details.
-
-  Args:
-    config: A RenyiPropertyTester configuration.
-    base_model: A keras model to use to parametrize the variational formulation
-      of the Renyi divergence.
-
-  Returns:
-    A dictionary with relevant attributes to initialize a RenyiPropertyTester.
-    The dictionary contains (1) a value `alpha` for the order of the Renyi
-    divergence being estimated, (2) the `test_threshold`, and (3) a `base_model`
-    keras model parametrizing the function space to estimate the Renyi
-    divergence.
-
-  Raises:
-    ValueError if the config sets two different alpha parameters
-    when testing Renyi DP or if the privacy property is different than pure or
-    Renyi DP.
-  """
-
-  if config.privacy_property.renyi_dp is not None:
-    privacy_type = 'renyi_dp'
-    alpha = config.privacy_property.renyi_dp.alpha
-    epsilon = config.privacy_property.renyi_dp.epsilon
-    if config.alpha != alpha:
-      raise ValueError(
-          'Alpha parameter for Renyi DP should be specified in'
-          ' privacy_tester_config.privacy_property. It was specified in'
-          ' config.alpha which is only used for Pure DP tests.'
-      )
-  elif config.privacy_property.pure_dp is not None:
-    privacy_type = 'pure_dp'
-    epsilon = config.privacy_property.pure_dp.epsilon
-    alpha = config.alpha
-  else:
-    raise ValueError(
-        'The specified privacy_property is not supported by RenyiTester.'
-    )
-
-  model_output_coordinate_bound = (
-      config.training_config.model_output_coordinate_bound
-  )
-
-  def scaled_tanh(x):
-    return model_output_coordinate_bound * tf.keras.activations.tanh(x)
-
-  if base_model is None:
-    base_model = tf.keras.models.Sequential([
-        tf.keras.layers.Dense(100, activation=scaled_tanh),
-        tf.keras.layers.Dense(100, activation=scaled_tanh),
-        tf.keras.layers.Dense(1),
-    ])
-
-  base_model.add(tf.keras.layers.Activation(scaled_tanh))
-
-  if privacy_type == 'renyi_dp':
-    threshold = epsilon
-  else:
-    threshold = min(epsilon, 2 * alpha * epsilon**2)
-  return {
-      'alpha': alpha,
-      'test_threshold': threshold,
-      'base_model': base_model,
-  }
-
-
-def _compute_error_from_gamma(gamma: float) -> float:
-  """Returns additive error from convenience variable gamma.
-
-  To estimate number of samples we allow for a multiplicative error `gamma` from
-  chernoff bound in https://arxiv.org/abs/2307.05608. This function converts the
-  multiplicative error to additive error.
-
-  Args:
-    gamma: Multiplicative error.
-  """
-  return np.log((1 + gamma) / (1 - gamma))
+def make_default_renyi_base_model() -> tf.keras.Model:
+  return tf.keras.models.Sequential([
+      tf.keras.layers.Dense(100, activation=tf.keras.activations.tanh),
+      tf.keras.layers.Dense(100, activation=tf.keras.activations.tanh),
+      tf.keras.layers.Dense(1),
+  ])
 
 
 def _compute_error_from_samples(
@@ -143,7 +64,8 @@ def _compute_error_from_samples(
       / num_samples
   )
   gamma = max(error_1, error_2)
-  return _compute_error_from_gamma(gamma)
+  error_from_gamma = np.log((1 + gamma) / (1 - gamma))
+  return error_from_gamma
 
 
 class RenyiModel(tf.keras.Model):
@@ -164,7 +86,7 @@ class RenyiModel(tf.keras.Model):
     trainable_vars = self.nn_model.trainable_variables
     d_loss = tape.gradient(loss, trainable_vars)
     self.optimizer.apply_gradients(zip(d_loss, trainable_vars))
-    return {'renyi': divergence}
+    return {'divergence': divergence}
 
   def call(
       self, data: tuple[np.ndarray, np.ndarray], training: bool = None
@@ -196,7 +118,7 @@ class RenyiModel(tf.keras.Model):
     return divergence
 
 
-class RenyiPropertyTester(interfaces.PropertyTester):
+class RenyiPropertyTester(divergence_tester.DivergencePropertyTester):
   """Renyi tester main class.
 
   RenyiTester computes a lower bound for the Renyi divergence using Algorithm 2
@@ -209,40 +131,56 @@ class RenyiPropertyTester(interfaces.PropertyTester):
   def __init__(
       self,
       config: property_tester_config.RenyiPropertyTesterConfig,
-      base_model: Optional[tf.keras.Model] = None,
+      base_model: tf.keras.Model,
   ):
     # Get privacy parameters
     if config.privacy_property.renyi_dp is not None:
       property_tester_utils.validate_renyi_dp_property(
           config.privacy_property.renyi_dp
       )
+      privacy_type = 'renyi_dp'
+      epsilon = config.privacy_property.renyi_dp.epsilon
+      alpha = config.privacy_property.renyi_dp.alpha
+      if config.alpha != alpha:
+        raise ValueError(
+            'Alpha parameter for Renyi DP should be specified in'
+            ' privacy_tester_config.privacy_property. It was specified in'
+            ' config.alpha which is only used for Pure DP tests.'
+        )
     elif config.privacy_property.pure_dp is not None:
       property_tester_utils.validate_pure_dp_property(
           config.privacy_property.pure_dp
       )
+      privacy_type = 'pure_dp'
+      epsilon = config.privacy_property.pure_dp.epsilon
+      alpha = config.alpha
     else:
       raise ValueError(
           'The specified privacy_property is not supported by'
           ' RenyiPropertyTester.'
       )
-    property_tester_utils.validate_training_params(config.training_config)
-    params = _renyi_model_parameters_initializer(
-        config=config,
-        base_model=base_model,
-    )
+    property_tester_utils.validate_training_config(config.training_config)
 
-    # Privacy test parameters.
+    if privacy_type == 'renyi_dp':
+      self._initial_test_threshold = epsilon
+    else:
+      self._initial_test_threshold = min(epsilon, 2 * alpha * epsilon**2)
+
     self._tested_property = config.privacy_property
+    self._alpha = alpha
+
+    self._training_config = config.training_config
+
     self._model_output_coordinate_bound = (
         config.training_config.model_output_coordinate_bound
     )
-    self._alpha = params['alpha']
-    self._test_threshold = params['test_threshold']
 
-    # Optimization parameters.
-    self._training_config = config.training_config
+    def scaled_tanh(x):
+      return self._model_output_coordinate_bound * tf.keras.activations.tanh(x)
 
-    self._renyi_model = RenyiModel(params['base_model'], self._alpha)
+    base_model.add(tf.keras.layers.Activation(scaled_tanh))
+
+    self._renyi_model = RenyiModel(base_model, self._alpha)
     self._renyi_model.compile(
         optimizer=tf.keras.optimizers.Adam(
             config.training_config.optimizer_learning_rate
@@ -251,10 +189,14 @@ class RenyiPropertyTester(interfaces.PropertyTester):
     self._divergence_train = []
 
   @property
+  def _test_threshold(self) -> float:
+    return self._initial_test_threshold
+
+  @property
   def privacy_property(self) -> privacy_property.PrivacyProperty:
     return self._tested_property
 
-  def _reinitialize_nn_model(self):
+  def _reset_model_weights(self):
     for layer in self._renyi_model.nn_model.layers:
       if hasattr(layer, 'kernel'):
         if layer.kernel is not None and hasattr(layer, 'kernel_initializer'):
@@ -263,77 +205,34 @@ class RenyiPropertyTester(interfaces.PropertyTester):
         if layer.bias is not None and hasattr(layer, 'bias_initializer'):
           layer.bias.assign(layer.bias_initializer(tf.shape(layer.bias)))
 
-  def _optimize_renyi_divergence(
+  @override
+  def _get_optimized_divergence_estimation_model(
       self,
       samples_first_distribution: np.ndarray,
       samples_second_distribution: np.ndarray,
-      verbose: int = 0,
-  ) -> tf.Tensor:
-    """Renyi divergence computation.
-
-    Args:
-      samples_first_distribution: one dimensional array with samples.
-      samples_second_distribution: one dimensional arrays with samples and same
-        shape as as p.
-      verbose: whether to print training evolution, for details see
-        `tf.keras.mode.fit`.
-
-    Returns:
-      Estimated Renyi divergence on train samples.
-    """
-    self._reinitialize_nn_model()
+  ) -> tf.keras.Model:
+    self._reset_model_weights()
     self._renyi_model.fit(
         samples_first_distribution,
         samples_second_distribution,
         batch_size=self._training_config.batch_size,
         epochs=self._training_config.training_epochs,
-        verbose=verbose,
+        verbose=self._training_config.verbose,
     )
-    train_renyi = self._renyi_model.history.history['renyi'][-1]
+    return self._renyi_model
 
-    return train_renyi
-
-  def estimate_divergence_from_samples(
+  @override
+  def _compute_divergence_on_samples(
       self,
-      samples_1_train: np.ndarray,
-      samples_2_train: np.ndarray,
-      samples_1_test: np.ndarray,
-      samples_2_test: np.ndarray,
+      model: tf.keras.Model,
+      samples1_test: np.ndarray,
+      samples2_test: np.ndarray,
       failure_probability: float,
-      verbose: int,
-  ) -> tuple[tf.Tensor, tf.Tensor]:
-    """Estimates Renyi divergence from samples.
-
-    This method estimates the Renyi divergence beween two distributions. First
-    it optimizes over a function space determined by the RenyiModel and
-    then uses the learned function to estimate the Renyi divergence over test
-    samples.
-
-    Args:
-      samples_1_train: Samples from the first distribution used to find a
-        suitable set of parameters for `renyi_model`.
-      samples_2_train: Samples from the second distribution used to find a
-        suitable set of parameters for `renyi_model`.
-      samples_1_test: Samples from the first distribution used to estimate
-        divergence.
-      samples_2_test: Samples from the second distribution used to estimate
-        divergence.
-      failure_probability: P
-      verbose: integer passed to `fit` method for logging.
-
-    Returns:
-      A tuple where the first element is the train divergence and the second is
-      the estimated divergence lower bound.
-    """
-    # Find suitable model parameters.
-    divergence_train = self._optimize_renyi_divergence(
-        samples_1_train, samples_2_train, verbose=verbose
-    )
-
-    divergence_test = self._renyi_model((samples_1_test, samples_2_test))
+  ) -> float:
+    divergence_test = model((samples1_test, samples2_test))
 
     # Calculate lower end of confidence interval.
-    num_samples = samples_1_test.shape[0]
+    num_samples = min(samples1_test.shape[0], samples2_test.shape[0])
     error = _compute_error_from_samples(
         num_samples=num_samples,
         failure_probability=failure_probability,
@@ -342,34 +241,4 @@ class RenyiPropertyTester(interfaces.PropertyTester):
     )
     divergence_test_lower_bound = divergence_test - error
 
-    return divergence_train, divergence_test_lower_bound
-
-  @override
-  def estimate_lower_bound(
-      self,
-      samples1: np.ndarray,
-      samples2: np.ndarray,
-      failure_probability: float,
-  ) -> float:
-    samples1_train, samples1_test = (
-        property_tester_utils.split_train_test_samples(samples1)
-    )
-    samples2_train, samples2_test = (
-        property_tester_utils.split_train_test_samples(samples2)
-    )
-
-    divergence_train, divergence_test = self.estimate_divergence_from_samples(
-        samples1_train,
-        samples2_train,
-        samples1_test,
-        samples2_test,
-        failure_probability,
-        verbose=0,
-    )
-    self._divergence_train.append(divergence_train)
-
-    return divergence_test.numpy()
-
-  @override
-  def reject_property(self, lower_bound: float) -> bool:
-    return lower_bound > self._test_threshold
+    return divergence_test_lower_bound

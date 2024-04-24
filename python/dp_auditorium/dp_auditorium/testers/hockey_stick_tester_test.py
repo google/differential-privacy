@@ -16,13 +16,14 @@
 from absl.testing import absltest
 import numpy as np
 from tensorflow import keras
-from dp_auditorium.configs import privacy_property as privacy_property
+from dp_auditorium.configs import privacy_property
 from dp_auditorium.configs import property_tester_config as config
 from dp_auditorium.testers import hockey_stick_tester as hst
 
 
 _SEED = 123456
 _RNG = np.random.default_rng(seed=_SEED)
+_ESTIMATION_RANGE_BOUND = 1.0
 
 
 class HockeyStickDivergenceTest(absltest.TestCase):
@@ -30,7 +31,9 @@ class HockeyStickDivergenceTest(absltest.TestCase):
   def test_confidence_bound(self):
     n_samples = 100
     n_experiments = 1000
-    cb = hst._get_accuracy_confidence_bound(n_samples, confidence=0.95)
+    cb = hst._get_accuracy_confidence_bound(
+        _ESTIMATION_RANGE_BOUND, n_samples, confidence=0.95
+    )
     # Generate 1000 sums of bernoulli random variables.
     sample = _RNG.binomial(n_samples, 0.3, n_experiments)
     errors = np.abs(sample / n_samples - 0.3)
@@ -52,7 +55,7 @@ class HockeyStickDivergenceTest(absltest.TestCase):
     training_config = hst.make_default_hs_training_config()
     hs_config = config.HockeyStickPropertyTesterConfig(
         approximate_dp=self.make_privacy_property(epsilon=1.0, delta=0.001),
-        training_config=training_config,
+        training_config=training_config, evaluation_batch_size=1000,
     )
     div_estimator = hst.HockeyStickPropertyTester(
         config=hs_config, base_model=model
@@ -81,7 +84,7 @@ class HockeyStickDivergenceTest(absltest.TestCase):
     training_config = hst.make_default_hs_training_config()
     hs_config = config.HockeyStickPropertyTesterConfig(
         approximate_dp=self.make_privacy_property(epsilon=1.0, delta=0.001),
-        training_config=training_config,
+        training_config=training_config, evaluation_batch_size=1000,
     )
     div_estimator = hst.HockeyStickPropertyTester(
         config=hs_config, base_model=model
@@ -124,35 +127,37 @@ class HockeyStickDivergenceTest(absltest.TestCase):
         labels[features_sort_ix, ...], expected_labels
     )
 
-  def test_get_accuracy_and_divergence(self):
+  def test_compute_divergence_on_samples(self):
     data1 = np.array([1])
     data2 = np.array([-1])
-    samples1 = self.dummy_mechanism(data1, 2000)
-    samples2 = self.dummy_mechanism(data2, 2000)
+    samples1_train = self.dummy_mechanism(data1, 2000)
+    samples2_train = self.dummy_mechanism(data2, 2000)
+
+    samples1_test = self.dummy_mechanism(data1, 2000)
+    samples2_test = self.dummy_mechanism(data2, 2000)
     model = keras.Sequential([keras.layers.Dense(1, use_bias=False)])
     training_options = hst.make_default_hs_training_config()
     training_options.training_epochs = 1000
     hs_config = config.HockeyStickPropertyTesterConfig(
         approximate_dp=self.make_privacy_property(epsilon=0.5, delta=0.1),
-        training_config=training_options,
+        training_config=training_options, evaluation_batch_size=1000,
     )
     div_estimator = hst.HockeyStickPropertyTester(
         config=hs_config, base_model=model
     )
 
-    accuracy, div = (
-        div_estimator._estimate_discriminative_accuracy_and_hs_divergence_of_mechanism(  # pylint: disable=line-too-long
-            samples1, samples2, 0.05
-        )
+    model = div_estimator._get_optimized_divergence_estimation_model(
+        samples1_train, samples2_train
     )
-    expected_accuracy = 0.99 - hst._get_accuracy_confidence_bound(1000)
-    self.assertGreater(accuracy, expected_accuracy)
+    div = div_estimator._compute_divergence_on_samples(
+        model, samples1_test, samples2_test, 0.05
+    )
     self.assertGreater(div, 0.5)
 
   def laplace_mechanism(self, x, n_samples):
     return _RNG.laplace(0, 1.0, n_samples) + x
 
-  def test_get_accuracy_and_divergence_private_mechanism(self):
+  def test_compute_divergence_private_mechanism(self):
     data1 = np.array([1])
     data2 = np.array([0])
     model = keras.Sequential([keras.layers.Dense(1)])
@@ -162,56 +167,38 @@ class HockeyStickDivergenceTest(absltest.TestCase):
     training_config.training_epochs = 1000
     hs_config = config.HockeyStickPropertyTesterConfig(
         approximate_dp=self.make_privacy_property(epsilon=1.0, delta=0.0),
-        training_config=training_config,
+        training_config=training_config, evaluation_batch_size=1000,
     )
     div_estimator = hst.HockeyStickPropertyTester(
         config=hs_config, base_model=model
     )
-
-    accuracy, div = (
-        div_estimator._estimate_discriminative_accuracy_and_hs_divergence_of_mechanism(  # pylint: disable=line-too-long
-            samples1, samples2, 0.05
-        )
+    model = div_estimator._get_optimized_divergence_estimation_model(
+        samples1[:1000], samples2[:1000]
     )
-    expected_accuracy = np.exp(1) / (1 + np.exp(1))
-    self.assertLess(accuracy, expected_accuracy)
+    div = div_estimator._compute_divergence_on_samples(
+        model, samples1, samples2, 0.05
+    )
+
     self.assertLess(div, 0.0)
 
-  def test_fails_to_evaluate_when_not_fitted(self):
-    model = keras.Sequential([keras.layers.Dense(1)])
-    training_options = hst.make_default_hs_training_config()
-    hs_config = config.HockeyStickPropertyTesterConfig(
-        approximate_dp=self.make_privacy_property(epsilon=1.0, delta=0.0),
-        training_config=training_options,
-    )
-    div_estimator = hst.HockeyStickPropertyTester(
-        config=hs_config, base_model=model
-    )
-
-    with self.assertRaises(AttributeError) as context:
-      div_estimator._get_accuracy_and_divergence_estimate(
-          np.array([0]), np.array([1]), 0.05
-      )
-    self.assertIn("should be trained", str(context.exception))
-
-  def bad_mechanism(self, data, n_samples):
+  def mechanism_with_different_output_shapes(self, data, n_samples):
     if data[0] == 0:
       return np.ones((n_samples, 2))
     if data[0] == 1:
       return np.ones((n_samples, 3, 4))
 
-  def test_fails_on_bad_mechanism(self):
+  def test_fails_on_mechanism_with_different_output_shapes(self):
     model = keras.Sequential([keras.layers.Dense(1)])
     training_options = hst.make_default_hs_training_config()
     hs_config = config.HockeyStickPropertyTesterConfig(
         approximate_dp=self.make_privacy_property(epsilon=1.0, delta=0.1),
-        training_config=training_options,
+        training_config=training_options, evaluation_batch_size=1000,
     )
     div_estimator = hst.HockeyStickPropertyTester(
         config=hs_config, base_model=model
     )
-    samples1 = self.bad_mechanism(np.array([0]), 100)
-    samples2 = self.bad_mechanism(np.array([1]), 100)
+    samples1 = self.mechanism_with_different_output_shapes(np.array([0]), 100)
+    samples2 = self.mechanism_with_different_output_shapes(np.array([1]), 100)
     with self.assertRaises(ValueError) as context:
       div_estimator._generate_inputs_to_model(samples1, samples2)
     self.assertIn("rank", str(context.exception))
@@ -233,7 +220,7 @@ class HockeyStickDivergenceTest(absltest.TestCase):
     training_options.training_epochs = 1000
     hs_config = config.HockeyStickPropertyTesterConfig(
         approximate_dp=self.make_privacy_property(epsilon=epsilon, delta=delta),
-        training_config=training_options,
+        training_config=training_options, evaluation_batch_size=1000,
     )
     hsdt = hst.HockeyStickPropertyTester(config=hs_config, base_model=model)
 
@@ -244,10 +231,11 @@ class HockeyStickDivergenceTest(absltest.TestCase):
     divergence = hsdt.estimate_lower_bound(
         samples1, samples2, failure_probability
     )
-
-    self.assertLess(divergence, 0.0)
+    with self.subTest("divergence_less_than_threshold"):
+      self.assertLess(divergence, 0.0)
     found_privacy_violation = hsdt.reject_property(divergence)
-    self.assertFalse(found_privacy_violation)
+    with self.subTest("found_privacy_violation"):
+      self.assertFalse(found_privacy_violation)
 
   def test_hockey_stick_non_private_mechanism(self):
     model = keras.Sequential([keras.layers.Dense(1, use_bias=True)])
@@ -257,22 +245,24 @@ class HockeyStickDivergenceTest(absltest.TestCase):
     training_options.training_epochs = 1000
     hs_config = config.HockeyStickPropertyTesterConfig(
         approximate_dp=self.make_privacy_property(epsilon=epsilon, delta=delta),
-        training_config=training_options,
+        training_config=training_options, evaluation_batch_size=1000,
     )
     hsdt = hst.HockeyStickPropertyTester(config=hs_config, base_model=model)
     samples1 = self.non_private_mechanism_for_testing(np.array([0, 1]), 200)
     samples2 = self.non_private_mechanism_for_testing(np.array([0]), 200)
     divergence = hsdt.estimate_lower_bound(samples1, samples2, 0.05)
+    with self.subTest("divergence_greater_than_threshold"):
+      self.assertLess(0.5, divergence)
 
-    self.assertLess(0.5, divergence)
     found_privacy_violation = hsdt.reject_property(divergence)
-    self.assertTrue(found_privacy_violation)
+    with self.subTest("found_privacy_violation"):
+      self.assertTrue(found_privacy_violation)
 
   def test_assert_privacy_violation(self):
     training_options = hst.make_default_hs_training_config()
     hs_config = config.HockeyStickPropertyTesterConfig(
         approximate_dp=self.make_privacy_property(epsilon=1.0, delta=0.1),
-        training_config=training_options,
+        training_config=training_options, evaluation_batch_size=1000,
     )
     hsdt = hst.HockeyStickPropertyTester(
         config=hs_config,
@@ -286,14 +276,15 @@ class HockeyStickDivergenceTest(absltest.TestCase):
     training_options = hst.make_default_hs_training_config()
     hs_config = config.HockeyStickPropertyTesterConfig(
         approximate_dp=self.make_privacy_property(epsilon=1.0, delta=0.1),
-        training_config=training_options,
+        training_config=training_options, evaluation_batch_size=1000,
     )
     hs_tester = hst.HockeyStickPropertyTester(
-        config=hs_config,
-        base_model=hst.make_default_hs_base_model())
+        config=hs_config, base_model=hst.make_default_hs_base_model()
+    )
     self.assertEqual(
         hs_config.approximate_dp, hs_tester.privacy_property.approximate_dp
     )
+
 
 if __name__ == "__main__":
   absltest.main()

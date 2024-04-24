@@ -139,6 +139,7 @@ class HistogramTester(interfaces.PropertyTester):
       )
     self._epsilon = config.approximate_dp.epsilon
     self._delta = config.approximate_dp.delta
+    self._use_original_tester = config.use_original_tester
     self._histogram_size = config.histogram_size
     self._approximate_dp = config.approximate_dp
 
@@ -148,18 +149,33 @@ class HistogramTester(interfaces.PropertyTester):
     return privacy_property.PrivacyProperty(approximate_dp=self._approximate_dp)
 
   def _get_error_tolerance(
-      self, num_samples: float, failure_probability: float
+      self,
+      num_samples: float,
+      probabilities1: np.ndarray,
+      probabilities2: np.ndarray,
+      failure_probability: float
   ) -> float:
     """Gets error tolerance for Histogram property tester."""
-    term_1 = (
-        2
-        * (1 + np.exp(self._epsilon))
-        * np.sqrt(self._histogram_size / num_samples)
-    )
+    if self._use_original_tester:
+      term_1 = (
+          2.0
+          * (1.0 + np.exp(self._epsilon))
+          * np.sqrt(self._histogram_size / num_samples)
+      )
+    else:
+      term_1a = (
+          2.0 / np.sqrt(num_samples)
+          * sum(np.sqrt(probabilities1))
+      )
+      term_1b = (
+          2.0 * np.exp(self._epsilon) / np.sqrt(num_samples)
+          * sum(np.sqrt(probabilities2))
+      )
+      term_1 = term_1a + term_1b
     term_2 = (
-        6
-        * (1 + np.exp(self._epsilon))
-        * np.sqrt(np.log(4 / failure_probability) / (2 * num_samples))
+        6.0
+        * (1.0 + np.exp(self._epsilon))
+        * np.sqrt(np.log(4.0 / failure_probability) / (2.0 * num_samples))
     )
     return term_1 + term_2
 
@@ -177,7 +193,7 @@ class HistogramTester(interfaces.PropertyTester):
     per_outcome_delta = probabilities1 - np.exp(self._epsilon) * probabilities2
     estimated_delta = np.sum(per_outcome_delta[per_outcome_delta > 0])
     error_tolerance = self._get_error_tolerance(
-        num_samples, failure_probability
+        num_samples, probabilities1, probabilities2, failure_probability
     )
     return estimated_delta - error_tolerance
 

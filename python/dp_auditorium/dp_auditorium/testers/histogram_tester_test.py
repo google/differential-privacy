@@ -42,11 +42,28 @@ class HistogramPropertyTesterTest(tf.test.TestCase, parameterized.TestCase):
         test_discrete_mechanism=False,
         histogram_size=histogram_size,
     )
-    tester = histogram_tester.HistogramTester(config)
-    result = tester._get_error_tolerance(num_samples, failure_probability)
-    self.assertAllClose(result, expected_error_tolerance, rtol=1e-2)
+    probabilities1 = np.random.dirichlet(alpha=np.ones(histogram_size))
+    probabilities2 = np.random.dirichlet(alpha=np.ones(histogram_size))
+    with self.subTest(use_original_tester=True):
+      config.use_original_tester = True
+      tester = histogram_tester.HistogramTester(config)
+      result = tester._get_error_tolerance(num_samples,
+                                           probabilities1,
+                                           probabilities2,
+                                           failure_probability)
+      self.assertAllClose(result, expected_error_tolerance, rtol=1e-2)
+    with self.subTest(use_original_tester=False):
+      config.use_original_tester = False
+      tester = histogram_tester.HistogramTester(config)
+      result = tester._get_error_tolerance(num_samples,
+                                           probabilities1,
+                                           probabilities2,
+                                           failure_probability)
+      # New tester always has smaller error tolerance than original tester.
+      self.assertLess(result, expected_error_tolerance)
 
-  def test_estimate_lower_bound(self):
+  @parameterized.parameters(True, False)
+  def test_estimate_lower_bound(self, use_original_tester):
     """Verifies estimate of delta lower bound.
 
     Verifies that correct delta is calculated for a mechanism that
@@ -56,6 +73,8 @@ class HistogramPropertyTesterTest(tf.test.TestCase, parameterized.TestCase):
     num_samples = 100
     samples1 = np.zeros(num_samples)
     samples2 = np.ones(num_samples)
+    probabilities1 = np.array([1, 0])
+    probabilities2 = np.array([0, 1])
 
     # Initialize tester.
     config = property_tester_config.HistogramPropertyTesterConfig(
@@ -65,12 +84,13 @@ class HistogramPropertyTesterTest(tf.test.TestCase, parameterized.TestCase):
         test_discrete_mechanism=False,
         histogram_size=2,
     )
+    config.use_original_tester = use_original_tester
     tester = histogram_tester.HistogramTester(config)
 
     # Estimate delta.
     failure_probability = 0.1
     expected_delta = 1.0 - tester._get_error_tolerance(
-        num_samples, failure_probability
+        num_samples, probabilities1, probabilities2, failure_probability
     )
     estimated_delta = tester.estimate_lower_bound(
         samples1, samples2, failure_probability
@@ -85,6 +105,7 @@ class HistogramPropertyTesterTest(tf.test.TestCase, parameterized.TestCase):
         max_value=1,
         min_value=0,
         test_discrete_mechanism=False,
+        use_original_tester=True,
         histogram_size=2,
     )
     tester = histogram_tester.HistogramTester(config)

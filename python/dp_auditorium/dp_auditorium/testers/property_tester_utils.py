@@ -48,7 +48,7 @@ def split_train_test_samples(
   return samples[0 : n // 2, ...], samples[n // 2 :, ...]
 
 
-def validate_training_params(
+def validate_training_config(
     training_config: property_tester_config.TrainingConfig,
 ):
   """Returns true if the training_params parameters are valid."""

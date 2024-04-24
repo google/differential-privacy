@@ -15,7 +15,6 @@
 """Differential Privacy Property Testers."""
 
 from dp_auditorium.testers.histogram_tester import HistogramTester
-from dp_auditorium.testers.hockey_stick_tester import HockeyStickDivergenceTrainingOptions
 from dp_auditorium.testers.hockey_stick_tester import HockeyStickPropertyTester
 from dp_auditorium.testers.mmd_tester import MMDPropertyTester
 from dp_auditorium.testers.renyi_tester import RenyiModel

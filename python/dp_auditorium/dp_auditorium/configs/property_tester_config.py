@@ -66,10 +66,14 @@ class HockeyStickPropertyTesterConfig:
   Attributes:
     training_config: Required training parameters.
     approximate_dp: Approximate DP privacy parameters to be tested.
+    evaluation_batch_size: Batch size for computing accuracy of classifier
+      distinguishing two distributions for Hockey Stick divergence. See
+      `HockeyStickPropertyTester` class for details.
   """
 
   training_config: TrainingConfig
   approximate_dp: privacy_property.ApproximateDp
+  evaluation_batch_size: int = 1000
 
 
 @dataclasses.dataclass
@@ -83,6 +87,10 @@ class HistogramPropertyTesterConfig:
     min_value: Lower end value for the histogram.
     max_value: Upper end value for the histogram.
     approximate_dp: Approximate DP privacy parameters to be tested.
+    use_original_tester: Whether to use the original version of the tester due
+      to Gilbert and McMillan (2018), or a new version developed for
+      DP-Auditorium. The new version generally improves over the original
+      verison, but the original version is retained for comparison purposes.
   """
 
   test_discrete_mechanism: bool
@@ -90,6 +98,7 @@ class HistogramPropertyTesterConfig:
   min_value: float
   max_value: float
   approximate_dp: privacy_property.ApproximateDp
+  use_original_tester: bool = False
 
 
 class Kernel(enum.Enum):

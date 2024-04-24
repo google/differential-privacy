@@ -118,7 +118,8 @@ class RenyiTesterTest(tf.test.TestCase, parameterized.TestCase):
         alpha=3.0,
     )
     self.renyi_tester = renyi_tester.RenyiPropertyTester(
-        self.renyi_tester_config
+        self.renyi_tester_config,
+        base_model=renyi_tester.make_default_renyi_base_model(),
     )
 
   @parameterized.parameters(1.1, 1.5)
@@ -136,10 +137,17 @@ class RenyiTesterTest(tf.test.TestCase, parameterized.TestCase):
     x_test = self.rng.normal(0, sigma, (num_samples, 1))
     y_test = self.rng.normal(mu, sigma, (num_samples, 1))
     self.renyi_tester_config.alpha = alpha
-    tester = renyi_tester.RenyiPropertyTester(self.renyi_tester_config)
+    tester = renyi_tester.RenyiPropertyTester(
+        self.renyi_tester_config,
+        base_model=renyi_tester.make_default_renyi_base_model(),
+    )
 
-    _, divergence_test = tester.estimate_divergence_from_samples(
-        x, y, x_test, y_test, failure_probability=0.1, verbose=0
+    model = tester._get_optimized_divergence_estimation_model(x, y)
+    divergence_test = tester._compute_divergence_on_samples(
+        model,
+        x_test,
+        y_test,
+        failure_probability=0.1,
     )
     logging.info('Result divergence test: %.3f', divergence_test)
     logging.info('Expected divergence: %.3f', expected_divergence)
@@ -165,10 +173,18 @@ class RenyiTesterTest(tf.test.TestCase, parameterized.TestCase):
     x_test = self.rng.uniform(low_1, high_1, (num_samples, 1))
     y_test = self.rng.uniform(low_2, high_2, (num_samples, 1))
     self.renyi_tester_config.alpha = alpha
-    tester = renyi_tester.RenyiPropertyTester(self.renyi_tester_config)
 
-    _, divergence_test = tester.estimate_divergence_from_samples(
-        x, y, x_test, y_test, failure_probability=0.1, verbose=0
+    tester = renyi_tester.RenyiPropertyTester(
+        self.renyi_tester_config,
+        base_model=renyi_tester.make_default_renyi_base_model(),
+    )
+
+    model = tester._get_optimized_divergence_estimation_model(x, y)
+    divergence_test = tester._compute_divergence_on_samples(
+        model,
+        x_test,
+        y_test,
+        failure_probability=0.1,
     )
     logging.info('Result divergence test: %.3f', divergence_test)
     logging.info('Expected divergence: %.3f', expected_divergence)
@@ -198,12 +214,18 @@ class RenyiTesterTest(tf.test.TestCase, parameterized.TestCase):
     y_test = self.rng.exponential(lambda_2, (num_samples, 1))
 
     self.renyi_tester_config.alpha = alpha
-    tester = renyi_tester.RenyiPropertyTester(self.renyi_tester_config)
-
-    _, divergence_test = tester.estimate_divergence_from_samples(
-        x, y, x_test, y_test, failure_probability=0.1, verbose=0
+    tester = renyi_tester.RenyiPropertyTester(
+        self.renyi_tester_config,
+        base_model=renyi_tester.make_default_renyi_base_model(),
     )
 
+    model = tester._get_optimized_divergence_estimation_model(x, y)
+    divergence_test = tester._compute_divergence_on_samples(
+        model,
+        x_test,
+        y_test,
+        failure_probability=0.1,
+    )
     logging.info('Result divergence test: %.3f', divergence_test)
     logging.info('Expected divergence: %.3f', expected_divergence)
     self.assertLess(divergence_test, expected_divergence)
@@ -228,10 +250,17 @@ class RenyiTesterTest(tf.test.TestCase, parameterized.TestCase):
     x_test = self.rng.laplace(mu_1, scale_1, (num_samples, 1))
     y_test = self.rng.laplace(mu_2, scale_2, (num_samples, 1))
     self.renyi_tester_config.alpha = alpha
-    tester = renyi_tester.RenyiPropertyTester(self.renyi_tester_config)
+    tester = renyi_tester.RenyiPropertyTester(
+        self.renyi_tester_config,
+        base_model=renyi_tester.make_default_renyi_base_model(),
+    )
 
-    _, divergence_test = tester.estimate_divergence_from_samples(
-        x, y, x_test, y_test, failure_probability=0.1, verbose=0
+    model = tester._get_optimized_divergence_estimation_model(x, y)
+    divergence_test = tester._compute_divergence_on_samples(
+        model,
+        x_test,
+        y_test,
+        failure_probability=0.1,
     )
     logging.info('Result divergence test: %.3f', divergence_test)
     logging.info('Expected divergence: %.3f', expected_divergence)
@@ -261,13 +290,10 @@ class RenyiTesterUtilsTest(parameterized.TestCase):
         training_config=self.training_config,
         privacy_property=approx_dp_privacy_property,
     )
-
-    with self.assertRaisesRegex(
-        ValueError,
-        'The specified privacy_property is not supported by RenyiTester.',
-    ):
-      _ = renyi_tester._renyi_model_parameters_initializer(
+    with self.assertRaises(ValueError):
+      _ = renyi_tester.RenyiPropertyTester(
           config=renyi_tester_config,
+          base_model=renyi_tester.make_default_renyi_base_model(),
       )
 
   @parameterized.parameters(
@@ -301,11 +327,12 @@ class RenyiTesterUtilsTest(parameterized.TestCase):
         training_config=self.training_config,
         privacy_property=tested_property,
     )
-    params = renyi_tester._renyi_model_parameters_initializer(
+    tester = renyi_tester.RenyiPropertyTester(
         config=renyi_tester_config,
+        base_model=renyi_tester.make_default_renyi_base_model(),
     )
-    self.assertAlmostEqual(params['test_threshold'], threshold, places=6)
-    self.assertAlmostEqual(params['alpha'], alpha, places=6)
+    self.assertAlmostEqual(tester._test_threshold, threshold, places=6)
+    self.assertAlmostEqual(tester._alpha, alpha, places=6)
 
   def test_computes_error_from_samples(self):
     alpha = 2

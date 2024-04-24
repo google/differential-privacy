@@ -78,7 +78,7 @@ grpcio-tools==1.60.0
     # via google-vizier
 h5py==3.10.0
     # via tensorflow
-idna==3.6
+idna==3.7
     # via requests
 importlib-metadata==7.0.1
     # via -r requirements.in
@@ -159,6 +159,8 @@ orbax-checkpoint==0.4.4
     # via flax
 packaging==22.0
     # via tensorflow
+pipeline-dp
+    # via -r requirements.in
 portpicker==1.6.0
     # via google-vizier
 protobuf==4.23.4
@@ -176,6 +178,8 @@ pyasn1==0.5.1
     # via
     #   pyasn1-modules
     #   rsa
+python-dp
+    # via -r requirements.in
 pyasn1-modules==0.3.0
     # via google-auth
 pygments==2.17.2
