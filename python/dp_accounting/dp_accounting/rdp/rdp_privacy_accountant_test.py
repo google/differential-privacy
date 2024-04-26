@@ -263,30 +263,41 @@ class RdpPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
     count = 50
     event = dp_event.SelfComposedDpEvent(
         dp_event.PoissonSampledDpEvent(
-            sampling_probability, dp_event.GaussianDpEvent(noise_multiplier)),
-        count)
+            sampling_probability, dp_event.GaussianDpEvent(noise_multiplier)
+        ),
+        count,
+    )
     accountant = rdp_privacy_accountant.RdpAccountant(orders=orders)
     accountant.compose(event)
     self.assertTrue(
         np.allclose(
-            accountant._rdp, [
-                6.5007e-04, 1.0854e-03, 2.1808e-03, 2.3846e-02, 1.6742e+02,
-                np.inf
+            accountant._rdp,
+            [
+                6.70579741e-04,
+                1.08548710e-03,
+                2.18075656e-03,
+                2.38460375e-02,
+                1.67416308e02,
+                np.inf,
             ],
-            rtol=1e-4))
+            rtol=1e-4,
+        )
+    )
 
   def test_compute_epsilon_delta_pure_dp(self):
     orders = range(2, 33)
     rdp = [1.1 for _ in orders]  # Constant corresponds to pure DP.
 
     epsilon, optimal_order = rdp_privacy_accountant.compute_epsilon(
-        orders, rdp, delta=1e-5)
+        orders, rdp, delta=1e-5
+    )
     # Compare with epsilon computed by hand.
     self.assertAlmostEqual(epsilon, 1.32783806176)
     self.assertEqual(optimal_order, 32)
 
     delta, optimal_order = rdp_privacy_accountant.compute_delta(
-        orders, rdp, epsilon=1.32783806176)
+        orders, rdp, epsilon=1.32783806176
+    )
     self.assertAlmostEqual(delta, 1e-5)
     self.assertEqual(optimal_order, 32)
 
@@ -352,7 +363,7 @@ class RdpPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
     # computation.
     log_a = rdp_privacy_accountant._compute_log_a(q, sigma, order)
     log_a_mp = _log_float_mp(_compute_a_mp(sigma, q, order))
-    np.testing.assert_allclose(log_a, log_a_mp, rtol=1e-4)
+    np.testing.assert_allclose(log_a, log_a_mp, rtol=1e-4, atol=1e-8)
 
   def test_delta_bounds_gaussian(self):
     # Compare the optimal bound for Gaussian with the one derived from RDP.

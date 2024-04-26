@@ -36,6 +36,7 @@ py_library(
     deps = [
         "//dp_accounting:dp_event",
         "//dp_accounting:privacy_accountant",
+        requirement("absl-py"),
         requirement("numpy"),
         requirement("scipy"),
     ],

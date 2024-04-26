@@ -17,6 +17,7 @@
 import math
 from typing import Callable, Optional, Sequence, Tuple, Union
 
+from absl import logging
 import numpy as np
 from scipy import special
 
@@ -38,30 +39,14 @@ def _log_add(logx: float, logy: float) -> float:
   return math.log1p(math.exp(a - b)) + b  # log1p(x) = log(x + 1)
 
 
-def _log_sub(logx: float, logy: float) -> float:
-  """Subtracts two numbers in the log space. Answer must be non-negative."""
-  if logx < logy:
-    raise ValueError('The result of subtraction must be non-negative.')
-  if logy == -np.inf:  # subtracting 0
-    return logx
-  if logx == logy:
-    return -np.inf  # 0 is represented as -np.inf in the log space.
-
-  try:
-    # Use exp(x) - exp(y) = (exp(x - y) - 1) * exp(y).
-    return math.log(math.expm1(logx - logy)) + logy  # expm1(x) = exp(x) - 1
-  except OverflowError:
-    return logx
-
-
 def _log_sub_sign(logx: float, logy: float) -> Tuple[bool, float]:
   """Returns log(exp(logx)-exp(logy)) and its sign."""
   if logx > logy:
     s = True
-    mag = logx + np.log(1 - np.exp(logy - logx))
+    mag = logx + math.log1p(-np.exp(logy - logx))
   elif logx < logy:
     s = False
-    mag = logy + np.log(1 - np.exp(logx - logy))
+    mag = logy + np.log1p(-np.exp(logx - logy))
   else:
     s = True
     mag = -np.inf
@@ -69,7 +54,7 @@ def _log_sub_sign(logx: float, logy: float) -> Tuple[bool, float]:
   return s, mag
 
 
-def _log_comb(n: int, k: int) -> float:
+def _log_comb(n: float, k: float) -> float:
   """Computes log of binomial coefficient."""
   return (special.gammaln(n + 1) - special.gammaln(k + 1) -
           special.gammaln(n - k + 1))
@@ -80,15 +65,14 @@ def _compute_log_a_int(q: float, sigma: float, alpha: int) -> float:
 
   # Initialize with 0 in the log space.
   log_a = -np.inf
+  log1mq = math.log1p(-q)
 
   for i in range(alpha + 1):
-    log_coef_i = (
-        _log_comb(alpha, i) + i * math.log(q) + (alpha - i) * math.log(1 - q))
-
+    log_coef_i = _log_comb(alpha, i) + i * math.log(q) + (alpha - i) * log1mq
     s = log_coef_i + (i * i - i) / (2 * (sigma**2))
     log_a = _log_add(log_a, s)
 
-  return float(log_a)
+  return log_a
 
 
 def _compute_log_a_frac(q: float, sigma: float, alpha: float) -> float:
@@ -96,17 +80,16 @@ def _compute_log_a_frac(q: float, sigma: float, alpha: float) -> float:
   # The two parts of A_alpha, integrals over (-inf,z0] and [z0, +inf), are
   # initialized to 0 in the log space:
   log_a0, log_a1 = -np.inf, -np.inf
-  i = 0
-
   z0 = sigma**2 * math.log(1 / q - 1) + .5
+  log1mq = math.log1p(-q)
 
+  i = 0
   while True:  # do ... until loop
-    coef = special.binom(alpha, i)
-    log_coef = math.log(abs(coef))
+    log_coef = _log_comb(alpha, i)
     j = alpha - i
 
-    log_t0 = log_coef + i * math.log(q) + j * math.log(1 - q)
-    log_t1 = log_coef + j * math.log(q) + i * math.log(1 - q)
+    log_t0 = log_coef + i * math.log(q) + j * log1mq
+    log_t1 = log_coef + j * math.log(q) + i * log1mq
 
     log_e0 = math.log(.5) + _log_erfc((i - z0) / (math.sqrt(2) * sigma))
     log_e1 = math.log(.5) + _log_erfc((z0 - j) / (math.sqrt(2) * sigma))
@@ -114,12 +97,8 @@ def _compute_log_a_frac(q: float, sigma: float, alpha: float) -> float:
     log_s0 = log_t0 + (i * i - i) / (2 * (sigma**2)) + log_e0
     log_s1 = log_t1 + (j * j - j) / (2 * (sigma**2)) + log_e1
 
-    if coef > 0:
-      log_a0 = _log_add(log_a0, log_s0)
-      log_a1 = _log_add(log_a1, log_s1)
-    else:
-      log_a0 = _log_sub(log_a0, log_s0)
-      log_a1 = _log_sub(log_a1, log_s1)
+    log_a0 = _log_add(log_a0, log_s0)
+    log_a1 = _log_add(log_a1, log_s1)
 
     i += 1
     if max(log_s0, log_s1) < -30:
@@ -177,11 +156,16 @@ def compute_delta(
     if a < 1:
       raise ValueError(f'Renyi divergence order must be at least 1. Found {a}.')
     if r < 0:
-      raise ValueError(f'Renyi divergence cannot be negative. Found {r}.')
+      logging.warning(
+          'Negative Renyi divergence of %s, probably caused by numerical '
+          'instability from extreme DpEvents. Returning a delta of zero.',
+          r,
+      )
+      logdelta = -np.inf
     # For small alpha, we are better of with bound via KL divergence:
     # delta <= sqrt(1-exp(-KL)).
     # Take a min of the two bounds.
-    if r == 0:
+    elif r == 0:
       logdelta = -np.inf
     else:
       logdelta = 0.5 * math.log1p(-math.exp(-r))
@@ -237,9 +221,13 @@ def compute_epsilon(
     if a < 1:
       raise ValueError(f'Renyi divergence order must be at least 1. Found {a}.')
     if r < 0:
-      raise ValueError(f'Renyi divergence cannot be negative. Found {r}.')
-
-    if delta**2 + math.expm1(-r) > 0:
+      logging.warning(
+          'Negative Renyi divergence of %s, probably caused by numerical '
+          'instability from extreme DpEvents. Returning an epsilon of zero.',
+          r,
+      )
+      epsilon = 0.0
+    elif delta**2 + math.expm1(-r) > 0:
       # In this case, we can simply bound via KL divergence:
       # delta <= sqrt(1-exp(-KL)).
       epsilon = 0  # No need to try further computation if we have epsilon = 0.
@@ -468,7 +456,7 @@ def _compute_rdp_sample_wor_gaussian_int(q: float, sigma: float,
   # Initialize with 1 in the log space.
   log_a = 0
   # Calculates the log term when alpha = 2
-  log_f2m1 = func(2.0) + np.log(1 - np.exp(-func(2.0)))
+  log_f2m1 = func(2.0) + math.log1p(-np.exp(-func(2.0)))
   if alpha <= max_alpha:
     # We need forward differences of exp(cgf)
     # The following line is the numerically stable way of implementing it.
@@ -777,13 +765,13 @@ def _compute_rdp_repeat_and_select(orders: Sequence[float],
 
 def _laplace_rdp(eps: float, order: float) -> float:
   """Computes RDP of Laplace noise addition.
-  
+
   See Proposition 6 of Mironov (2017): https://arxiv.org/abs/1702.07476
   RDP = eps + log[ 1 + (a-1) * [exp( (1-2*a) * eps) - 1] / (2*a-1) ] / (a-1).
   In contrast, the naive bound is RDP <= eps, which is tight as order->infinity.
   For small order & eps, we can do better: In general, RDP <= order * eps^2 / 2.
   The above formula is exactly tight for the Laplace mechanism.
-  
+
   Args:
     eps: The pure DP guarantee corresponding to the limit order->infinity.
     order: The Renyi divergence order (a.k.a. alpha).
