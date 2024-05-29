@@ -24,6 +24,7 @@ cc_library(
     deps = [
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
         "@com_google_cc_differential_privacy//base:status_macros",
         "@com_google_differential_privacy//proto:summary_cc_proto",
     ],
@@ -36,6 +37,7 @@ cc_test(
         ":count-tree",
         "//base/testing:proto_matchers",
         "//base/testing:status_matchers",
+        "@com_google_absl//absl/status",
         "@com_google_googletest//:gtest_main",
     ],
 )

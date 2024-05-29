@@ -16,9 +16,12 @@
 
 #include "algorithms/internal/count-tree.h"
 
-#include <unordered_map>
+#include <cmath>
+#include <cstdint>
+#include <utility>
 
 #include "absl/status/status.h"
+#include "absl/strings/str_cat.h"
 #include "proto/summary.pb.h"
 #include "base/status_macros.h"
 

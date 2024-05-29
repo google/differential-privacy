@@ -54,13 +54,13 @@ class NumericalMechanism {
   virtual ~NumericalMechanism() = default;
 
   template <typename T, std::enable_if_t<std::is_integral<T>::value>* = nullptr>
-  T AddNoise(T result) {
+  int64_t AddNoise(T result) {
     return AddInt64Noise(result);
   }
 
   template <typename T,
             std::enable_if_t<std::is_floating_point<T>::value>* = nullptr>
-  T AddNoise(T result) {
+  double AddNoise(T result) {
     return AddDoubleNoise(result);
   }
 

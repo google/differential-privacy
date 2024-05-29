@@ -17,7 +17,10 @@
 #include "algorithms/numerical-mechanisms.h"
 
 #include <cmath>
+#include <cstdint>
 #include <cstdlib>
+#include <memory>
+#include <vector>
 
 #include "base/testing/status_matchers.h"
 #include "gmock/gmock.h"
@@ -29,11 +32,13 @@ namespace differential_privacy {
 namespace {
 
 using ::testing::_;
+using ::testing::Contains;
 using ::testing::DoubleNear;
 using ::testing::Eq;
 using ::testing::Ge;
 using ::testing::HasSubstr;
 using ::testing::IsNull;
+using ::testing::Lt;
 using ::testing::MatchesRegex;
 using ::testing::Not;
 using ::testing::Return;
@@ -1282,6 +1287,24 @@ TEST(NumericalMechanismTest, MinVarianceMechanismBuilderFailsWithoutEpsilon) {
 
   EXPECT_THAT(fails.status().code(), Eq(absl::StatusCode::kInvalidArgument));
   EXPECT_THAT(fails.status().message(), HasSubstr("Epsilon must be set"));
+}
+
+TEST(NumericalMechanismTest, AddNoiseReturnsNegativeValuesForUnsignedInt) {
+  // Flakiness of this test is approximately 1 / 2**50 ~= 8e-16
+  absl::StatusOr<std::unique_ptr<NumericalMechanism>> mechanism =
+      LaplaceMechanism::Builder()
+          .SetEpsilon(0.001)  // low epsilon for more variance
+          .SetL0Sensitivity(20)
+          .SetLInfSensitivity(100)
+          .Build();
+  ASSERT_OK(mechanism);
+
+  std::vector<int64_t> results;
+  for (int i = 0; i < 50; ++i) {
+    results.push_back(mechanism.value()->AddNoise<uint8_t>(0));
+  }
+
+  EXPECT_THAT(results, Contains(Lt(0)));
 }
 
 }  // namespace

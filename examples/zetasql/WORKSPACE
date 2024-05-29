@@ -22,8 +22,9 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 http_archive(
     name = "com_google_zetasql",
-    strip_prefix = "zetasql-2023.11.1",
-    url = "https://github.com/google/zetasql/archive/refs/tags/2023.11.1.tar.gz",
+    sha256 = "58510f44dc815648039fd4e45fc40da3d9f0a746cf483e6bbc5171e984eb7e79",
+    strip_prefix = "zetasql-2024.03.1",
+    url = "https://github.com/google/zetasql/archive/refs/tags/2024.03.1.tar.gz",
 )
 
 # Transitive dependencies from the ZetaSQL WORKSPACE file:
