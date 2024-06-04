@@ -21,6 +21,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -476,14 +477,14 @@ class BoundedSum<T>::Builder {
   }
 
  private:
-  absl::optional<double> epsilon_;
+  std::optional<double> epsilon_;
   double delta_ = 0;
-  absl::optional<T> upper_;
-  absl::optional<T> lower_;
+  std::optional<T> upper_;
+  std::optional<T> lower_;
   int max_partitions_contributed_ = 1;
   int max_contributions_per_partition_ = 1;
   std::unique_ptr<NumericalMechanismBuilder> mechanism_builder_ =
-      absl::make_unique<LaplaceMechanism::Builder>();
+      std::make_unique<LaplaceMechanism::Builder>();
   std::unique_ptr<ApproxBounds<T>> approx_bounds_;
 
   absl::StatusOr<std::unique_ptr<BoundedSum<T>>> BuildSumWithFixedBounds() {
@@ -495,7 +496,7 @@ class BoundedSum<T>::Builder {
                        upper_.value()));
 
     return absl::StatusOr<std::unique_ptr<BoundedSum<T>>>(
-        absl::make_unique<BoundedSumWithFixedBounds<T>>(
+        std::make_unique<BoundedSumWithFixedBounds<T>>(
             epsilon_.value(), delta_, lower_.value(), upper_.value(),
             std::move(mechanism)));
   }
@@ -520,7 +521,7 @@ class BoundedSum<T>::Builder {
     }
 
     return absl::StatusOr<std::unique_ptr<BoundedSum<T>>>(
-        absl::make_unique<BoundedSumWithApproxBounds<T>>(
+        std::make_unique<BoundedSumWithApproxBounds<T>>(
             epsilon_.value(), delta_, max_partitions_contributed_,
             max_contributions_per_partition_, mechanism_builder_->Clone(),
             std::move(approx_bounds_)));
