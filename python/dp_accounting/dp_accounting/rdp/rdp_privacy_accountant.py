@@ -336,7 +336,17 @@ def _compute_rdp_poisson_subsampled_gaussian(
 
   Returns:
     The RDPs at all orders. Can be `np.inf`.
+
+  Raises:
+    ValueError: If q is not in [0, 1] or noise_multiplier is negative.
   """
+  if not 0 <= q <= 1:
+    raise ValueError(f'Sampling rate must be in [0, 1]. Found {q}.')
+
+  if noise_multiplier < 0:
+    raise ValueError(
+        f'Noise multiplier must be non-negative: {noise_multiplier}'
+    )
 
   def compute_one_order(q, alpha):
     if q == 0:
@@ -524,7 +534,7 @@ def _effective_gaussian_noise_multiplier(
     sigma = _effective_gaussian_noise_multiplier(event.event)
     if not isinstance(sigma, float):
       return sigma
-    return (event.count * sigma**-2)**-0.5
+    return sigma * event.count**-0.5
   else:
     return event
 

@@ -36,6 +36,7 @@ cc_binary(
         "@com_google_cc_differential_privacy//base:status",
         "@com_google_protobuf//:protobuf",
         "@com_google_zetasql//zetasql/public:analyzer_options",
+        "@com_google_zetasql//zetasql/public:builtin_function_options",
         "@com_google_zetasql//zetasql/public:catalog",
         "@com_google_zetasql//zetasql/public:language_options",
         "@com_google_zetasql//zetasql/public:options_cc_proto",

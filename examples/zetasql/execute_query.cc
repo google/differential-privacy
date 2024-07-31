@@ -26,6 +26,7 @@
 
 #include "google/protobuf/descriptor.h"
 #include "zetasql/public/analyzer_options.h"
+#include "zetasql/public/builtin_function_options.h"
 #include "zetasql/public/catalog.h"
 #include "zetasql/public/language_options.h"
 #include "zetasql/public/options.pb.h"
@@ -177,15 +178,19 @@ static std::string GetCSVFileNameFromPath(const std::string_view file_path) {
   return std::string(file_name);
 }
 
-static absl::Status InitializeExecuteQueryConfig(
+// Wrapper to get catalog for a config.
+static zetasql::SimpleCatalog& GetCatalogForConfig(
+    zetasql::ExecuteQueryConfig& config) {
+  return config.mutable_catalog();
+}
+
+static absl::Status InitExecuteQueryConfig(
     zetasql::ExecuteQueryConfig& config) {
   config.set_examine_resolved_ast_callback(
       [](const zetasql::ResolvedNode* node) -> absl::Status {
         auto visitor = VerifyAnonymizationParametersVisitor();
         return node->Accept(&visitor);
       });
-  config.mutable_catalog().SetDescriptorPool(
-      google::protobuf::DescriptorPool::generated_pool());
 
   RETURN_IF_ERROR(SetToolModeFromFlags(config));
 
@@ -194,18 +199,16 @@ static absl::Status InitializeExecuteQueryConfig(
 
   ASSIGN_OR_RETURN(std::unique_ptr<zetasql::SimpleTable> table,
                    zetasql::MakeTableFromCsvFile(table_name, file_path));
-
   const std::string userid_col = absl::GetFlag(FLAGS_userid_col);
   RETURN_IF_ERROR(table->SetAnonymizationInfo({userid_col}));
   config.mutable_analyzer_options().set_enabled_rewrites(
       {zetasql::REWRITE_ANONYMIZATION});
-
-  config.mutable_catalog().AddOwnedTable(std::move(table));
+  GetCatalogForConfig(config).AddOwnedTable(std::move(table));
 
   config.mutable_analyzer_options()
       .mutable_language()
       ->EnableMaximumLanguageFeaturesForDevelopment();
-  config.mutable_catalog().AddZetaSQLFunctions(
+  GetCatalogForConfig(config).AddZetaSQLFunctions(
       config.analyzer_options().language());
   return absl::OkStatus();
 }
@@ -221,7 +224,7 @@ int main(int argc, char* argv[]) {
   const std::string sql = absl::StrJoin(remaining_args.begin() + 1,
   remaining_args.end(), " ");
   zetasql::ExecuteQueryConfig config;
-  absl::Status status = InitializeExecuteQueryConfig(config);
+  absl::Status status = InitExecuteQueryConfig(config);
   if (!status.ok()) {
     std::cout << "ERROR: " << status << std::endl;
     return 1;

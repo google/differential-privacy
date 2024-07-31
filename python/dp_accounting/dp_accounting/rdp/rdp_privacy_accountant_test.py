@@ -686,69 +686,51 @@ class RdpPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
     self.assertAlmostEqual(accountant._orders[0], alpha)
     self.assertAlmostEqual(accountant._rdp[0] / ans, 1, places=3)
 
+  @parameterized.named_parameters(('q_neg', -0.1), ('q_large', 1.1))
+  def test_raises_on_invalid_sampling_rate(self, q):
+    with self.assertRaisesRegex(ValueError, 'Sampling rate'):
+      rdp_privacy_accountant.RdpAccountant().compose(
+          dp_event.PoissonSampledDpEvent(q, dp_event.GaussianDpEvent(1))
+      )
 
-@parameterized.named_parameters(
-    ('small_small', 0.001, 1),
-    ('small_med', 0.001, 1000),
-    ('small_large', 0.001, 1e9),
-    ('med_small', 1, 1),
-    ('med_med', 1, 1000),
-    ('med_large', 1, 1e9),
-    ('large_small', 1000, 1),
-    ('large_med', 1000, 1000),
-    ('large_large', 1000, 1e9)
-)
-def test_repeat_and_select_gaussian_poisson(self, sigma, mean):
-  event = dp_event.GaussianDpEvent(sigma)
-  event = dp_event.RepeatAndSelectDpEvent(event, mean, np.inf)
-  accountant = rdp_privacy_accountant.RdpAccountant()
-  accountant.compose(event)
-  orders = accountant._orders
-  rdp = []
-  for order in orders:
-    if order <= 1:   # Avoid division by zero.
-      rdp.append(np.inf)
-      continue
-    eps = math.log1p(1/(order-1))
-    x = (eps * sigma - 0.5/sigma)/math.sqrt(2)
-    y = (eps * sigma + 0.5/sigma)/math.sqrt(2)
-    delta = math.erfc(x)/2-math.exp(eps)*math.erfc(y)/2
-    rdp.append(order*0.5/(sigma**2) + mean*delta + math.log(mean)/(order - 1))
-  for i in range(len(orders)):
-    lb = min(rdp[j] for j in range(len(orders)) if orders[j] >= orders[i])
-    self.assertLessEqual(lb, accountant._rdp[i])
+  def test_raises_on_invalid_noise_multiplier(self):
+    with self.assertRaisesRegex(ValueError, 'Noise multiplier'):
+      rdp_privacy_accountant.RdpAccountant().compose(
+          dp_event.GaussianDpEvent(-1)
+      )
 
-
-@parameterized.named_parameters(
-    ('all_0', 1, 1, 1, 0),  # Compose before and after.
-    ('all_1', 2, 3, 4, 1),
-    ('all_2', 0.1, 0.2, 0.3, 2),
-    ('all_inf', 1.1, 1.2, 2.1, np.inf),
-    ('pre_0', 1, 2, 0, 0),  # Compose before, but not after.
-    ('pre_1', 1, 0.5, 0, 1),
-    ('pre_2', 2, 1, 0, 2),
-    ('pre_inf', 10, 0.1, 0, np.inf),
-    ('post_0', 1, 0, 2, 0),  # Compose after, but not before.
-    ('post_1', 10, 0, 2, 1),
-    ('post_half', 0.1, 0, 12, 0.5),
-    ('post_inf', 6, 0, 0.2, np.inf)
-)
-def test_repeat_and_select_composition(self, sigma, sigma1, sigma2, shape):
-  pre_event = dp_event.GaussianDpEvent(sigma1)
-  post_event = dp_event.GaussianDpEvent(sigma2)
-  event = dp_event.GaussianDpEvent(sigma)
-  event = dp_event.RepeatAndSelectDpEvent(event, 1, shape)
-  accountant = rdp_privacy_accountant.RdpAccountant()
-  rho = 0.5 / (sigma**2)
-  if sigma1 > 0:
-    rho += 0.5 / (sigma1**2)
-    accountant.compose(pre_event)
-  accountant.compose(event)
-  if sigma2 > 0:
-    rho += 0.5 / (sigma2**2)
-    accountant.compose(post_event)
-  for i in range(len(accountant._orders)):
-    self.assertAlmostEqual(accountant._rdp[i], accountant._orders[i] * rho)
+  @parameterized.named_parameters(
+      ('small_small', 0.001, 1),
+      ('small_med', 0.001, 1000),
+      ('small_large', 0.001, 1e9),
+      ('med_small', 1, 1),
+      ('med_med', 1, 1000),
+      ('med_large', 1, 1e9),
+      ('large_small', 1000, 1),
+      ('large_med', 1000, 1000),
+      ('large_large', 1000, 1e9),
+  )
+  def test_repeat_and_select_gaussian_poisson(self, sigma, mean):
+    event = dp_event.GaussianDpEvent(sigma)
+    event = dp_event.RepeatAndSelectDpEvent(event, mean, np.inf)
+    accountant = rdp_privacy_accountant.RdpAccountant()
+    accountant.compose(event)
+    orders = accountant._orders
+    rdp = []
+    for order in orders:
+      if order <= 1:  # Avoid division by zero.
+        rdp.append(np.inf)
+        continue
+      eps = math.log1p(1 / (order - 1))
+      x = (eps * sigma - 0.5 / sigma) / math.sqrt(2)
+      y = (eps * sigma + 0.5 / sigma) / math.sqrt(2)
+      delta = math.erfc(x) / 2 - math.exp(eps) * math.erfc(y) / 2
+      rdp.append(
+          order * 0.5 / (sigma**2) + mean * delta + math.log(mean) / (order - 1)
+      )
+    for order, accountant_rdp in zip(orders, accountant._rdp):
+      lb = min(rdp[j] for j in range(len(orders)) if orders[j] >= order)
+      self.assertLessEqual(lb, accountant_rdp)
 
 
 if __name__ == '__main__':
