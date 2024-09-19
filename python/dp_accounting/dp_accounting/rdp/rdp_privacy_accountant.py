@@ -75,16 +75,21 @@ def _compute_log_a_int(q: float, sigma: float, alpha: int) -> float:
   return log_a
 
 
+_MAX_STEPS_LOG_A_FRAC = 1000
+
+
 def _compute_log_a_frac(q: float, sigma: float, alpha: float) -> float:
   """Computes log(A_alpha) for fractional alpha, 0 < q < 1."""
+  # Computation derived in Sec 3.3 of https://arxiv.org/pdf/1908.10530.
   # The two parts of A_alpha, integrals over (-inf,z0] and [z0, +inf), are
   # initialized to 0 in the log space:
   log_a0, log_a1 = -np.inf, -np.inf
   z0 = sigma**2 * math.log(1 / q - 1) + .5
   log1mq = math.log1p(-q)
 
-  i = 0
-  while True:  # do ... until loop
+  last_s0 = last_s1 = -np.inf
+
+  for i in range(_MAX_STEPS_LOG_A_FRAC):
     log_coef = _log_comb(alpha, i)
     j = alpha - i
 
@@ -100,11 +105,30 @@ def _compute_log_a_frac(q: float, sigma: float, alpha: float) -> float:
     log_a0 = _log_add(log_a0, log_s0)
     log_a1 = _log_add(log_a1, log_s1)
 
-    i += 1
-    if max(log_s0, log_s1) < -30:
-      break
+    total = _log_add(log_a0, log_a1)
 
-  return _log_add(log_a0, log_a1)
+    # Terminate when both s0 and s1 are decreasing and sufficiently small
+    # relative to total.
+    if (
+        log_s0 < last_s0
+        and log_s1 < last_s1
+        and max(log_s0, log_s1) < total - 30
+    ):
+      return total
+
+    last_s0 = log_s0
+    last_s1 = log_s1
+
+  logging.warning(
+      '_compute_log_a_frac failed to converge after %d iterations with q=%f'
+      ', sigma=%f, alpha=%f. Excluding this order from the epsilon '
+      'computation.',
+      _MAX_STEPS_LOG_A_FRAC,
+      q,
+      sigma,
+      alpha,
+  )
+  return np.inf
 
 
 def _log_erfc(x: float) -> float:

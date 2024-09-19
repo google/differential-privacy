@@ -352,7 +352,7 @@ public class ApproximateBounds {
 
     abstract InputType inputType();
 
-    abstract Integer maxContributions();
+    abstract int maxContributions();
 
     public abstract Builder toBuilder();
 
@@ -378,7 +378,7 @@ public class ApproximateBounds {
       public abstract Builder inputType(InputType inputType);
 
       /** The maximum number of contributions each privacy unit can make to the dataset. */
-      public abstract Builder maxContributions(Integer value);
+      public abstract Builder maxContributions(int value);
 
       abstract Params autoBuild();
 

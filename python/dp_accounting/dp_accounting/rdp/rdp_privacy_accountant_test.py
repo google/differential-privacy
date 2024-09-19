@@ -732,6 +732,22 @@ class RdpPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
       lb = min(rdp[j] for j in range(len(orders)) if orders[j] >= order)
       self.assertLessEqual(lb, accountant_rdp)
 
+  def test_log_a_frac_positive(self):
+    # Testing a combination of q, sigma and alpha that formerly returned a
+    # negative log_a_frac.
+    for order in np.linspace(58.5, 59.5, 21):
+      log_a = rdp_privacy_accountant._compute_log_a_frac(0.4, 12, order)
+      self.assertGreater(log_a, 0)
+
+  def test_log_a_frac_early_termination(self):
+    # Test an event that is known to not converge for small orders.
+    event = dp_event.PoissonSampledDpEvent(0.1, dp_event.GaussianDpEvent(1.0))
+    accountant = rdp_privacy_accountant.RdpAccountant()
+    with self.assertLogs(level='WARNING') as log:
+      accountant.compose(event)
+    self.assertNotEmpty([l for l in log.output if 'failed to converge' in l])
+    self.assertIn(np.inf, accountant._rdp)
+
 
 if __name__ == '__main__':
   absltest.main()

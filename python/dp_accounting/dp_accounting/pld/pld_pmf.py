@@ -35,11 +35,36 @@ ArrayLike = Union[np.ndarray, List[float]]
 _MAX_PMF_SPARSE_SIZE = 1000
 
 
+def _get_delta_for_epsilon(infinity_mass: float,
+                           losses: Sequence[float],
+                           probs: Sequence[float],
+                           epsilon: float) -> float:
+  """Computes the epsilon-hockey stick divergence.
+
+  Args:
+    infinity_mass: The probability of the infinite loss.
+    losses: The privacy losses, assumed to be sorted in ascending order.
+    probs: The probabilities corresponding to losses.
+    epsilon: The epsilon in the epsilon-hockey stick divergence.
+
+  Returns:
+    The epsilon-hockey stick divergence.
+  """
+  # delta is inf_mass + sum_{loss} max(0, 1 - exp(epsilon - loss)) * prob
+  losses = np.asarray(losses)
+  probs = np.asarray(probs)
+  indices = losses > epsilon
+  return (
+      infinity_mass +
+      np.dot(-np.expm1(epsilon - losses[indices]), probs[indices])
+  )
+
+
 def _get_delta_for_epsilon_vectorized(infinity_mass: float,
                                       losses: Sequence[float],
                                       probs: Sequence[float],
                                       epsilons: Sequence[float]) -> np.ndarray:
-  """Computes the epsilon-hockey stick divergence.
+  """Computes the epsilon-hockey stick divergence for multiple epsilons.
 
   Args:
     infinity_mass: the probability of the infinite loss.
@@ -346,15 +371,11 @@ class DensePLDPmf(PLDPmf):
     """Computes the epsilon-hockey stick divergence."""
     losses = (np.arange(self.size) + self._lower_loss) * self._discretization
 
-    is_scalar = isinstance(epsilon, numbers.Number)
-    if is_scalar:
-      epsilon = [epsilon]
-
-    delta = _get_delta_for_epsilon_vectorized(self._infinity_mass, losses,
-                                              self._probs, epsilon)
-    if is_scalar:
-      delta = delta[0]
-    return delta
+    if isinstance(epsilon, numbers.Number):
+      return _get_delta_for_epsilon(self._infinity_mass, losses,
+                                    self._probs, epsilon)
+    return _get_delta_for_epsilon_vectorized(self._infinity_mass, losses,
+                                             self._probs, epsilon)
 
   def get_epsilon_for_delta(self, delta: float) -> float:
     """Computes epsilon for which hockey stick divergence is at most delta."""
@@ -499,15 +520,11 @@ class SparsePLDPmf(PLDPmf):
       self, epsilon: Union[float, Sequence[float]]) -> Union[float, np.ndarray]:
     """Computes the epsilon-hockey stick divergence."""
     losses, probs = self._get_losses_probs()
-    is_scalar = isinstance(epsilon, numbers.Number)
-    if is_scalar:
-      epsilon = [epsilon]
+    if isinstance(epsilon, numbers.Number):
+      return _get_delta_for_epsilon(self._infinity_mass, losses, probs, epsilon)
 
-    delta = _get_delta_for_epsilon_vectorized(self._infinity_mass, losses,
-                                              probs, epsilon)
-    if is_scalar:
-      delta = delta[0]
-    return delta
+    return _get_delta_for_epsilon_vectorized(self._infinity_mass, losses,
+                                             probs, epsilon)
 
   def get_epsilon_for_delta(self, delta: float) -> float:
     """Computes epsilon for which hockey stick divergence is at most delta."""

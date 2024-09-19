@@ -138,7 +138,11 @@ func TestBoundedMeanFnAddInput(t *testing.T) {
 	delta := 1e-23
 	minValue := 0.0
 	maxValue := 5.0
-	spec := privacySpec(t, PrivacySpecParams{AggregationEpsilon: epsilon, PartitionSelectionEpsilon: epsilon, PartitionSelectionDelta: delta})
+	spec := privacySpec(t, PrivacySpecParams{
+		AggregationEpsilon:        epsilon,
+		PartitionSelectionEpsilon: epsilon,
+		PartitionSelectionDelta:   delta,
+	})
 	fn, err := newBoundedMeanFn(*spec, MeanParams{
 		AggregationEpsilon:           epsilon,
 		PartitionSelectionParams:     PartitionSelectionParams{Epsilon: epsilon, Delta: delta},
@@ -185,7 +189,11 @@ func TestBoundedMeanFnMergeAccumulators(t *testing.T) {
 	delta := 1e-23
 	minValue := 0.0
 	maxValue := 5.0
-	spec := privacySpec(t, PrivacySpecParams{AggregationEpsilon: epsilon, PartitionSelectionEpsilon: epsilon, PartitionSelectionDelta: delta})
+	spec := privacySpec(t, PrivacySpecParams{
+		AggregationEpsilon:        epsilon,
+		PartitionSelectionEpsilon: epsilon,
+		PartitionSelectionDelta:   delta,
+	})
 	fn, err := newBoundedMeanFn(*spec, MeanParams{
 		AggregationEpsilon:           epsilon,
 		PartitionSelectionParams:     PartitionSelectionParams{Epsilon: epsilon, Delta: delta},
@@ -221,12 +229,15 @@ func TestBoundedMeanFnMergeAccumulators(t *testing.T) {
 	exactCount := 4.0
 	exactMean := exactSum / exactCount
 	want := testutils.Float64Ptr(exactMean)
-	tolerance, err := testutils.LaplaceToleranceForMean(23, minValue, maxValue, maxContributionsPerPartition, maxPartitionsContributed, epsilon, 0, exactCount, exactMean)
+	tolerance, err := testutils.LaplaceToleranceForMean(
+		23, minValue, maxValue, maxContributionsPerPartition, maxPartitionsContributed,
+		epsilon, 0, exactCount, exactMean)
 	if err != nil {
 		t.Fatalf("LaplaceToleranceForMean: got error %v", err)
 	}
 	if !cmp.Equal(want, got, cmpopts.EquateApprox(0, tolerance)) {
-		t.Errorf("MergeAccumulators: when merging 2 instances of boundedMeanAccum got: %f, want %f", *got, *want)
+		t.Errorf("MergeAccumulators: when merging 2 instances of boundedMeanAccum got: %f, want %f",
+			*got, *want)
 	}
 }
 
@@ -495,7 +506,7 @@ func TestMeanPerKeyNoNoiseFloat(t *testing.T) {
 	exactCount := 250.0
 	exactMean := (1.3*100 + 2.5*150) / exactCount
 	result := []testutils.PairIF64{
-		{1, exactMean},
+		{Key: 1, Value: exactMean},
 	}
 	p, s, col, want := ptest.CreateList2(triples, result)
 	col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
@@ -551,7 +562,7 @@ func TestMeanPerKeyNoNoiseInt(t *testing.T) {
 	exactCount := 250.0
 	exactMean := (100.0 + 2.0*150.0) / exactCount
 	result := []testutils.PairIF64{
-		{1, exactMean},
+		{Key: 1, Value: exactMean},
 	}
 	p, s, col, want := ptest.CreateList2(triples, result)
 	col = beam.ParDo(s, testutils.ExtractIDFromTripleWithIntValue, col)
@@ -584,13 +595,16 @@ func TestMeanPerKeyNoNoiseInt(t *testing.T) {
 
 	// Assert
 	want = beam.ParDo(s, testutils.PairIF64ToKV, want)
-	tolerance, err := testutils.LaplaceToleranceForMean(24, minValue, maxValue, maxContributionsPerPartition, maxPartitionsContributed, epsilon, 150.0, exactCount, exactMean)
+	tolerance, err := testutils.LaplaceToleranceForMean(
+		24, minValue, maxValue, maxContributionsPerPartition, maxPartitionsContributed,
+		epsilon, 150.0, exactCount, exactMean)
 	if err != nil {
 		t.Fatalf("LaplaceToleranceForMean: got error %v", err)
 	}
 	testutils.ApproxEqualsKVFloat64(t, s, got, want, tolerance)
 	if err := ptest.Run(p); err != nil {
-		t.Errorf("TestMeanPerKeyNoNoiseInt: MeanPerKey(%v) = %v, want %v, error %v", col, got, want, err)
+		t.Errorf("TestMeanPerKeyNoNoiseInt: MeanPerKey(%v) = %v, want %v, error %v",
+			col, got, want, err)
 	}
 }
 
@@ -640,7 +654,7 @@ func TestMeanPerKeyWithPartitionsNoNoiseFloat(t *testing.T) {
 		exactCount := 7.0
 		exactMean := 14.0 / exactCount
 		result := []testutils.PairIF64{
-			{0, exactMean},
+			{Key: 0, Value: exactMean},
 			// Partition 1 will be dropped because it's not in the list of public partitions.
 		}
 		publicPartitionsSlice := []int{0}
@@ -678,13 +692,16 @@ func TestMeanPerKeyWithPartitionsNoNoiseFloat(t *testing.T) {
 		// Assert
 		want = beam.ParDo(s, testutils.PairIF64ToKV, want)
 		exactNormalizedSum := (2.0 - (tc.maxValue+tc.minValue)/2) * exactCount
-		tolerance, err := testutils.LaplaceToleranceForMean(24, tc.minValue, tc.maxValue, maxContributionsPerPartition, maxPartitionsContributed, epsilon, exactNormalizedSum, exactCount, exactMean)
+		tolerance, err := testutils.LaplaceToleranceForMean(
+			24, tc.minValue, tc.maxValue, maxContributionsPerPartition, maxPartitionsContributed,
+			epsilon, exactNormalizedSum, exactCount, exactMean)
 		if err != nil {
 			t.Fatalf("LaplaceToleranceForMean test case=%+v: got error %v", tc, err)
 		}
 		testutils.ApproxEqualsKVFloat64(t, s, got, want, tolerance)
 		if err := ptest.Run(p); err != nil {
-			t.Errorf("TestMeanPerKeyWithPartitionsNoNoiseFloat test case=%+v: MeanPerKey(%v) = %v, want %v, error %v", tc, col, got, want, err)
+			t.Errorf("TestMeanPerKeyWithPartitionsNoNoiseFloat test case=%+v: "+
+				"MeanPerKey(%v) = %v, want %v, error %v", tc, col, got, want, err)
 		}
 	}
 }
@@ -748,7 +765,7 @@ func TestMeanPerKeyWithPartitionsNoNoiseInt(t *testing.T) {
 
 		result := []testutils.PairIF64{
 			// Partition 0 will be dropped because it's not in the list of public partitions.
-			{1, exactMean},
+			{Key: 1, Value: exactMean},
 		}
 		publicPartitionsSlice := []int{1}
 
@@ -776,13 +793,16 @@ func TestMeanPerKeyWithPartitionsNoNoiseInt(t *testing.T) {
 		want = beam.ParDo(s, testutils.PairIF64ToKV, want)
 
 		exactNormalizedSum := (1.0-(tc.maxValue+tc.minValue)/2)*100 + (2.0-(tc.maxValue+tc.minValue)/2)*150
-		tolerance, err := testutils.LaplaceToleranceForMean(23, tc.minValue, tc.maxValue, maxContributionsPerPartition, maxPartitionsContributed, epsilon, exactNormalizedSum, exactCount, exactMean)
+		tolerance, err := testutils.LaplaceToleranceForMean(
+			23, tc.minValue, tc.maxValue, maxContributionsPerPartition, maxPartitionsContributed,
+			epsilon, exactNormalizedSum, exactCount, exactMean)
 		if err != nil {
 			t.Fatalf("LaplaceToleranceForMean: test case=%+v got error %v", tc, err)
 		}
 		testutils.ApproxEqualsKVFloat64(t, s, got, want, tolerance)
 		if err := ptest.Run(p); err != nil {
-			t.Errorf("TestMeanPerKeyWithPartitionsNoNoiseInt test case=%+v: MeanPerKey(%v) = %v, want %v, error %v", tc, col, got, want, err)
+			t.Errorf("TestMeanPerKeyWithPartitionsNoNoiseInt test case=%+v: "+
+				"MeanPerKey(%v) = %v, want %v, error %v", tc, col, got, want, err)
 		}
 	}
 }
@@ -805,7 +825,7 @@ func TestMeanPerKeyCountsPrivacyUnitIDsWithMultipleContributionsCorrectly(t *tes
 	exactCount := 11.0
 	exactMean := 1.3
 	result := []testutils.PairIF64{
-		{1, exactMean},
+		{Key: 1, Value: exactMean},
 	}
 	p, s, col, want := ptest.CreateList2(triples, result)
 	col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
@@ -836,7 +856,9 @@ func TestMeanPerKeyCountsPrivacyUnitIDsWithMultipleContributionsCorrectly(t *tes
 	})
 
 	want = beam.ParDo(s, testutils.PairIF64ToKV, want)
-	tolerance, err := testutils.LaplaceToleranceForMean(24, minValue, maxValue, maxContributionsPerPartition, maxPartitionsContributed, epsilon, -7.7, exactCount, exactMean)
+	tolerance, err := testutils.LaplaceToleranceForMean(
+		24, minValue, maxValue, maxContributionsPerPartition, maxPartitionsContributed,
+		epsilon, -7.7, exactCount, exactMean)
 	if err != nil {
 		t.Fatalf("LaplaceToleranceForMean: got error %v", err)
 	}
@@ -889,7 +911,8 @@ func TestMeanPartitionSelection(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Verify that entriesPerPartition is sensical.
 			if tc.entriesPerPartition <= 0 {
-				t.Fatalf("Invalid test case: entriesPerPartition must be positive. Got: %d", tc.entriesPerPartition)
+				t.Fatalf("Invalid test case: entriesPerPartition must be positive. Got: %d",
+					tc.entriesPerPartition)
 			}
 
 			// Build up {ID, Partition, Value} pairs such that for each of the tc.numPartitions partitions,
@@ -904,7 +927,8 @@ func TestMeanPartitionSelection(t *testing.T) {
 			)
 			for i := 0; i < tc.numPartitions; i++ {
 				for j := 0; j < tc.entriesPerPartition; j++ {
-					triples = append(triples, testutils.TripleWithFloatValue{ID: kOffset + j, Partition: i, Value: 1.0})
+					triples = append(triples, testutils.TripleWithFloatValue{
+						ID: kOffset + j, Partition: i, Value: 1.0})
 				}
 				kOffset += tc.entriesPerPartition
 			}
@@ -945,9 +969,9 @@ func TestMeanKeyNegativeBounds(t *testing.T) {
 		testutils.MakeTripleWithFloatValueStartingFromKey(100, 150, 1, -1.0))
 
 	exactCount := 250.0
-	exactMean := (-5.0*100 - 1.0*150) / exactCount
+	exactMean := (-5.0*100 - 2.0*150) / exactCount // 1.0 is clamped down to -2.0
 	result := []testutils.PairIF64{
-		{1, exactMean},
+		{Key: 1, Value: exactMean},
 	}
 
 	p, s, col, want := ptest.CreateList2(triples, result)
@@ -979,13 +1003,16 @@ func TestMeanKeyNegativeBounds(t *testing.T) {
 	})
 
 	want = beam.ParDo(s, testutils.PairIF64ToKV, want)
-	tolerance, err := testutils.LaplaceToleranceForMean(23, minValue, maxValue, maxContributionsPerPartition, maxPartitionsContributed, epsilon, 200.0, exactCount, exactMean)
+	tolerance, err := testutils.LaplaceToleranceForMean(
+		23, minValue, maxValue, maxContributionsPerPartition, maxPartitionsContributed,
+		epsilon, 200.0, exactCount, exactMean)
 	if err != nil {
 		t.Fatalf("LaplaceToleranceForMean: got error %v", err)
 	}
 	testutils.ApproxEqualsKVFloat64(t, s, got, want, tolerance)
 	if err := ptest.Run(p); err != nil {
-		t.Errorf("TestMeanPerKeyNegativeBounds: MeanPerKey(%v) = %v, want %v, error %v", col, got, want, err)
+		t.Errorf("TestMeanPerKeyNegativeBounds: MeanPerKey(%v) = %v, want %v, error %v",
+			col, got, want, err)
 	}
 }
 
@@ -1007,7 +1034,7 @@ func TestMeanPerKeyCrossPartitionContributionBounding(t *testing.T) {
 	exactCount := 51.0
 	exactMean := 150.0 / exactCount
 	result := []testutils.PairIF64{
-		{0, exactMean},
+		{Key: 0, Value: exactMean},
 	}
 	p, s, col, want := ptest.CreateList2(triples, result)
 	col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
@@ -1044,18 +1071,23 @@ func TestMeanPerKeyCrossPartitionContributionBounding(t *testing.T) {
 	want = beam.ParDo(s, testutils.PairIF64ToKV, want)
 
 	// Tolerance for the partition with an extra contribution which is equal to 150.
-	tolerance1, err := testutils.LaplaceToleranceForMean(24, minValue, maxValue, maxContributionsPerPartition, maxPartitionsContributed, epsilon, -3675.0, 51.0, exactMean) // ≈0.00367
+	tolerance1, err := testutils.LaplaceToleranceForMean(
+		24, minValue, maxValue, maxContributionsPerPartition, maxPartitionsContributed,
+		epsilon, -3675.0, 51.0, exactMean) // ≈0.00367
 	if err != nil {
 		t.Fatalf("LaplaceToleranceForMean: got error %v", err)
 	}
 	// Tolerance for the partition without an extra contribution.
-	tolerance2, err := testutils.LaplaceToleranceForMean(24, minValue, maxValue, maxContributionsPerPartition, maxPartitionsContributed, epsilon, -3700.0, 50.0, 0.0) // ≈1.074
+	tolerance2, err := testutils.LaplaceToleranceForMean(
+		24, minValue, maxValue, maxContributionsPerPartition, maxPartitionsContributed,
+		epsilon, -3700.0, 50.0, 0.0) // ≈1.074
 	if err != nil {
 		t.Fatalf("LaplaceToleranceForMean: got error %v", err)
 	}
 	testutils.ApproxEqualsKVFloat64(t, s, got, want, tolerance1+tolerance2)
 	if err := ptest.Run(p); err != nil {
-		t.Errorf("TestMeanPerKeyCrossPartitionContributionBounding: MeanPerKey(%v) = %v, want %v, error %v", col, got, want, err)
+		t.Errorf("TestMeanPerKeyCrossPartitionContributionBounding: MeanPerKey(%v) = %v, "+
+			"want %v, error %v", col, got, want, err)
 	}
 }
 
@@ -1075,7 +1107,7 @@ func TestMeanPerKeyPerPartitionContributionBounding(t *testing.T) {
 	exactCount := 51.0
 	exactMean := 50.0 / exactCount
 	result := []testutils.PairIF64{
-		{0, exactMean},
+		{Key: 0, Value: exactMean},
 	}
 
 	p, s, col, want := ptest.CreateList2(triples, result)
@@ -1111,13 +1143,16 @@ func TestMeanPerKeyPerPartitionContributionBounding(t *testing.T) {
 	got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
 
 	want = beam.ParDo(s, testutils.PairIF64ToKV, want)
-	tolerance, err := testutils.LaplaceToleranceForMean(23, minValue, maxValue, maxContributionsPerPartition, maxPartitionsContributed, epsilon, -2500.0, exactCount, exactMean) // ≈0.92
+	tolerance, err := testutils.LaplaceToleranceForMean(
+		23, minValue, maxValue, maxContributionsPerPartition, maxPartitionsContributed,
+		epsilon, -2500.0, exactCount, exactMean) // ≈0.92
 	if err != nil {
 		t.Fatalf("LaplaceToleranceForMean: got error %v", err)
 	}
 	testutils.ApproxEqualsKVFloat64(t, s, got, want, tolerance)
 	if err := ptest.Run(p); err != nil {
-		t.Errorf("TestMeanPerKeyPerPartitionContributionBounding: MeanPerKey(%v) = %v, want %v, error %v", col, got, want, err)
+		t.Errorf("TestMeanPerKeyPerPartitionContributionBounding: MeanPerKey(%v) = %v, "+
+			"want %v, error %v", col, got, want, err)
 	}
 }
 
@@ -1125,7 +1160,8 @@ func TestMeanPerKeyPerPartitionContributionBounding(t *testing.T) {
 func TestMeanPerKeyReturnsNonNegative(t *testing.T) {
 	var triples []testutils.TripleWithFloatValue
 	for key := 0; key < 100; key++ {
-		triples = append(triples, testutils.TripleWithFloatValue{key, key, 0.01})
+		triples = append(triples, testutils.TripleWithFloatValue{
+			ID: key, Partition: key, Value: 0.01})
 	}
 	p, s, col := ptest.CreateList(triples)
 	col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
@@ -1170,7 +1206,8 @@ func TestMeanPerKeyWithPartitionsReturnsNonNegative(t *testing.T) {
 	} {
 		var triples []testutils.TripleWithFloatValue
 		for key := 0; key < 100; key++ {
-			triples = append(triples, testutils.TripleWithFloatValue{key, key, 0.01})
+			triples = append(triples, testutils.TripleWithFloatValue{
+				ID: key, Partition: key, Value: 0.01})
 		}
 		p, s, col := ptest.CreateList(triples)
 		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
@@ -1206,7 +1243,8 @@ func TestMeanPerKeyWithPartitionsReturnsNonNegative(t *testing.T) {
 		values := beam.DropKey(s, means)
 		beam.ParDo0(s, testutils.CheckNoNegativeValuesFloat64, values)
 		if err := ptest.Run(p); err != nil {
-			t.Errorf("TestMeanPerKeyWithPartitionsReturnsNonNegativeFloat64 in-memory=%t returned errors: %v", tc.inMemory, err)
+			t.Errorf("TestMeanPerKeyWithPartitionsReturnsNonNegativeFloat64 in-memory=%t "+
+				"returned errors: %v", tc.inMemory, err)
 		}
 	}
 }
@@ -1217,7 +1255,8 @@ func TestMeanPerKeyNoClampingForNegativeMinValue(t *testing.T) {
 	// The probability that any given partition has a negative noisy mean is 1/2 * 0.999.
 	// The probability of none of the partitions having a noisy negative mean is 1 - (1/2 * 0.999)^100, which is negligible.
 	for key := 0; key < 100; key++ {
-		triples = append(triples, testutils.TripleWithFloatValue{key, key, 0})
+		triples = append(triples, testutils.TripleWithFloatValue{
+			ID: key, Partition: key, Value: 0})
 	}
 	p, s, col := ptest.CreateList(triples)
 	col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
@@ -1274,7 +1313,7 @@ func TestMeanPerKeyWithPartitionsCrossPartitionContributionBounding(t *testing.T
 		exactCount := 51.0
 		exactMean := 150.0 / exactCount
 		result := []testutils.PairIF64{
-			{0, exactMean},
+			{Key: 0, Value: exactMean},
 		}
 		publicPartitionsSlice := []int{0, 1}
 
@@ -1314,18 +1353,23 @@ func TestMeanPerKeyWithPartitionsCrossPartitionContributionBounding(t *testing.T
 		want = beam.ParDo(s, testutils.PairIF64ToKV, want)
 
 		// Tolerance for the partition with an extra contribution which is equal to 150.
-		tolerance1, err := testutils.LaplaceToleranceForMean(25, minValue, maxValue, maxContributionsPerPartition, maxPartitionsContributed, epsilon, -3675.0, 51.0, exactMean) // ≈0.00367
+		tolerance1, err := testutils.LaplaceToleranceForMean(
+			25, minValue, maxValue, maxContributionsPerPartition, maxPartitionsContributed,
+			epsilon, -3675.0, 51.0, exactMean) // ≈0.00367
 		if err != nil {
 			t.Fatalf("LaplaceToleranceForMean in-memory=%t: got error %v", tc.inMemory, err)
 		}
 		// Tolerance for the partition without an extra contribution.
-		tolerance2, err := testutils.LaplaceToleranceForMean(25, minValue, maxValue, maxContributionsPerPartition, maxPartitionsContributed, epsilon, -3700.0, 50.0, 0.0) // ≈1.074
+		tolerance2, err := testutils.LaplaceToleranceForMean(
+			25, minValue, maxValue, maxContributionsPerPartition, maxPartitionsContributed,
+			epsilon, -3700.0, 50.0, 0.0) // ≈1.074
 		if err != nil {
 			t.Fatalf("LaplaceToleranceForMean in-memory=%t: got error %v", tc.inMemory, err)
 		}
 		testutils.ApproxEqualsKVFloat64(t, s, got, want, tolerance1+tolerance2)
 		if err := ptest.Run(p); err != nil {
-			t.Errorf("TestMeanPerKeyWithPartitionsPerPartitionContributionBounding in-memory=%t: MeanPerKey(%v) = %v, want %v, error %v", tc.inMemory, col, got, want, err)
+			t.Errorf("TestMeanPerKeyWithPartitionsPerPartitionContributionBounding in-memory=%t: "+
+				"MeanPerKey(%v) = %v, want %v, error %v", tc.inMemory, col, got, want, err)
 		}
 	}
 }
@@ -1383,9 +1427,9 @@ func TestMeanPerKeyWithEmptyPartitionsNoNoise(t *testing.T) {
 		epsilon := 50.0
 
 		result := []testutils.PairIF64{
-			{1, midpoint},
-			{2, midpoint},
-			{3, midpoint},
+			{Key: 1, Value: midpoint},
+			{Key: 2, Value: midpoint},
+			{Key: 3, Value: midpoint},
 		}
 		publicPartitionsSlice := []int{1, 2, 3}
 
@@ -1412,13 +1456,16 @@ func TestMeanPerKeyWithEmptyPartitionsNoNoise(t *testing.T) {
 		got := MeanPerKey(s, pcol, meanParams)
 		want = beam.ParDo(s, testutils.PairIF64ToKV, want)
 
-		tolerance, err := testutils.LaplaceToleranceForMean(24, tc.minValue, tc.maxValue, maxContributionsPerPartition, maxPartitionsContributed, epsilon, 0.0, exactCount, exactMean)
+		tolerance, err := testutils.LaplaceToleranceForMean(
+			24, tc.minValue, tc.maxValue, maxContributionsPerPartition, maxPartitionsContributed,
+			epsilon, 0.0, exactCount, exactMean)
 		if err != nil {
 			t.Fatalf("LaplaceToleranceForMean test case=%+v: got error %v", tc, err)
 		}
 		testutils.ApproxEqualsKVFloat64(t, s, got, want, tolerance)
 		if err := ptest.Run(p); err != nil {
-			t.Errorf("TestMeanPerKeyWithEmptyPartitionsNoNoise test case=%+v: MeanPerKey(%v) = %v, want %v, error %v", tc, col, got, want, err)
+			t.Errorf("TestMeanPerKeyWithEmptyPartitionsNoNoise test case=%+v: MeanPerKey(%v) = %v, "+
+				"want %v, error %v", tc, col, got, want, err)
 		}
 	}
 }
