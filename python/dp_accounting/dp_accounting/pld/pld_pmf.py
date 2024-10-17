@@ -24,6 +24,7 @@ import itertools
 import math
 import numbers
 from typing import Iterable, List, Mapping, Sequence, Tuple, Union
+import warnings
 
 import numpy as np
 import numpy.typing
@@ -658,10 +659,10 @@ def create_pmf_pessimistic_connect_dots(
       multiples of it.
     rounded_epsilons: The desired support of the privacy loss distribution
       specified as a strictly increasing sequence of integer values. The support
-      will be given by these values times discretization.
-    deltas: The delta values corresponding to the epsilon values. These values
-      must be in non-increasing order, due to the nature of hockey stick
-      divergence.
+      will be given by these values times discretization..
+    deltas: The delta values corresponding to the epsilon values. If these
+      values are not in non-increasing order, the method will replace deltas[i]
+      with the minimum of deltas[0:i] to ensure they are non-increasing.
 
   Returns:
     The pessimistic Connect-the-Dots privacy loss distribution supported on
@@ -672,7 +673,6 @@ def create_pmf_pessimistic_connect_dots(
       - rounded_epsilons and deltas do not have the same length, or if one of
         them is empty, or
       - if rounded_epsilons are not in strictly increasing order, or
-      - if deltas are not in non-increasing order.
   """
   rounded_epsilons = np.asarray(rounded_epsilons, dtype=int)
   deltas = np.asarray(deltas, dtype=float)
@@ -695,8 +695,11 @@ def create_pmf_pessimistic_connect_dots(
   # delta_diffs = [delta_2 - delta_1, ... , delta_n - delta_{n-1}]
   delta_diffs = np.diff(deltas)
   if np.any(delta_diffs > 0):
-    raise ValueError(f'deltas are not in non-increasing order: '
-                     f'deltas={deltas}.')
+    deltas = np.minimum.accumulate(deltas)
+    delta_diffs = np.diff(deltas)
+    warnings.warn(f'deltas are not in non-increasing order: deltas={deltas}.'
+                  'This is likely a numerical stability issue. Using '
+                  'np.minimum.accumulate to ensure non-increasing order.')
 
   # delta_diffs_scaled_v1 = [y_0, y_1, ..., y_{n-1}]
   # where y_i = (delta_{i+1} - delta_i) / (exp(eps_i - eps_{i+1}) - 1)
@@ -765,19 +768,18 @@ def create_pmf_pessimistic_connect_dots_fixed_gap(
       multiples of it.
     rounded_epsilon_lower: The smallest epsilon value divided by discretization.
     rounded_epsilon_upper: The largest epsilon value divided by discretization.
-    deltas: The delta values corresponding to the epsilon values. These values
-      must be in non-increasing order, due to the nature of hockey stick
-      divergence.
+    deltas: The delta values corresponding to the epsilon values. If these
+      values are not in non-increasing order, the method will replace deltas[i]
+      with the minimum of deltas[0:i] to ensure they are non-increasing.
 
   Returns:
     The pessimistic Connect-the-Dots privacy loss distribution supported on
     specified epsilons.
 
   Raises:
-    ValueError: If any of the following hold:
+    ValueError: If either of the following hold:
       - rounded_epsilon_upper < rounded_epsilon_lower, or
-      - length of deltas does not equal the number of epsilons, or
-      - if deltas are not in non-increasing order.
+      - length of deltas does not equal the number of epsilons
   """
   deltas = np.asarray(deltas, dtype=np.float64)
 
@@ -803,8 +805,11 @@ def create_pmf_pessimistic_connect_dots_fixed_gap(
   # delta_diffs = [delta_2 - delta_1, ... , delta_n - delta_{n-1}]
   delta_diffs = np.diff(deltas)
   if np.any(delta_diffs > 0):
-    raise ValueError(f'deltas are not in non-increasing order: '
-                     f'deltas={deltas}.')
+    deltas = np.minimum.accumulate(deltas)
+    delta_diffs = np.diff(deltas)
+    warnings.warn(f'deltas are not in non-increasing order: deltas={deltas}.'
+                  'This is likely a numerical stability issue. Using '
+                  'np.minimum.accumulate to ensure non-increasing order.')
 
   # probs = [p_1, p_2, ... , p_n]
   probs = np.zeros_like(deltas)
