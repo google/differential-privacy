@@ -14,6 +14,7 @@
 #include "accounting/accountant.h"
 
 #include <cmath>
+#include <optional>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -28,14 +29,14 @@ namespace accounting {
 absl::StatusOr<double> GetSmallestParameter(EpsilonDelta epsilon_delta,
                                             int num_queries, double sensitivity,
                                             NoiseFunction noise_function,
-                                            absl::optional<double> upper_bound,
+                                            std::optional<double> upper_bound,
                                             double tolerance) {
   BinarySearchParameters search_parameters = {
       .lower_bound = 0,
       .upper_bound = upper_bound.has_value() ? upper_bound.value()
                                              : 2 * num_queries * sensitivity /
                                                    epsilon_delta.epsilon,
-      .initial_guess = absl::nullopt,
+      .initial_guess = std::nullopt,
       .tolerance = tolerance};
 
   auto compute_delta = [noise_function, sensitivity, num_queries,

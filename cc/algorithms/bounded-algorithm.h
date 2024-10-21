@@ -86,24 +86,24 @@ class BoundedAlgorithmBuilder : public AlgorithmBuilder<T, Algorithm, Builder> {
   // automatically this will be the full epsilon - epsilon spent on that
   // ApproxBounds. If called before BoundsSetup this will always return the full
   // epsilon.
-  absl::optional<double> GetRemainingEpsilon() {
+  std::optional<double> GetRemainingEpsilon() {
     if (remaining_epsilon_.has_value()) {
       return remaining_epsilon_;
     }
     return AlgorithmBuilder::GetEpsilon();
   }
 
-  absl::optional<T> GetLower() const { return lower_; }
-  absl::optional<T> GetUpper() const { return upper_; }
+  std::optional<T> GetLower() const { return lower_; }
+  std::optional<T> GetUpper() const { return upper_; }
 
  private:
   // Bounds are optional and do not need to be set.  If they are not set,
   // automatic bounds will be determined.
-  absl::optional<T> lower_;
-  absl::optional<T> upper_;
+  std::optional<T> lower_;
+  std::optional<T> upper_;
 
   // Epsilon left over after creating an ApproxBounds.
-  absl::optional<double> remaining_epsilon_;
+  std::optional<double> remaining_epsilon_;
 
   // Common initialization and checks for building bounded algorithms.
   absl::StatusOr<std::unique_ptr<Algorithm>> BuildAlgorithm() final {

@@ -354,12 +354,12 @@ class LaplacePartitionSelection : public PartitionSelectionStrategy {
     return mechanism_->NoisedValueAboveThreshold(num_users, threshold_);
   }
 
-  absl::optional<double> NoiseValueIfShouldKeep(double num_users) {
+  std::optional<double> NoiseValueIfShouldKeep(double num_users) {
     if (num_users < GetPreThreshold()) {
-      return absl::optional<double>();
+      return std::optional<double>();
     }
     double noised_value = mechanism_->AddNoise(num_users);
-    return noised_value > threshold_ ? noised_value : absl::optional<double>();
+    return noised_value > threshold_ ? noised_value : std::optional<double>();
   }
 
   double ProbabilityOfKeep(double num_users) const override {
@@ -529,12 +529,12 @@ class GaussianPartitionSelection : public PartitionSelectionStrategy {
     return mechanism_->NoisedValueAboveThreshold(num_users, threshold_);
   }
 
-  absl::optional<double> NoiseValueIfShouldKeep(double num_users) {
+  std::optional<double> NoiseValueIfShouldKeep(double num_users) {
     if (num_users < GetPreThreshold()) {
-      return absl::optional<double>();
+      return std::optional<double>();
     }
     double noised_value = mechanism_->AddNoise(num_users);
-    return noised_value > threshold_ ? noised_value : absl::optional<double>();
+    return noised_value > threshold_ ? noised_value : std::optional<double>();
   }
 
   double ProbabilityOfKeep(double num_users) const override {

@@ -489,7 +489,7 @@ TEST(SafeCastFromDoubleTest, ForFloat) {
 }
 
 TEST(ValidateTest, IsSet) {
-  absl::optional<double> opt;
+  std::optional<double> opt;
   EXPECT_THAT(ValidateIsSet(opt, "Test value"),
               StatusIs(absl::StatusCode::kInvalidArgument,
                        HasSubstr("Test value must be set.")));
@@ -1161,11 +1161,11 @@ TEST(ValidateTest, ValidateBoundsChecksOrder) {
 }
 
 TEST(ValidateTest, ValidateBoundsChecksBothSetOrUnset) {
-  EXPECT_THAT(ValidateBounds<double>(1, absl::nullopt),
+  EXPECT_THAT(ValidateBounds<double>(1, std::nullopt),
               StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("both")));
-  EXPECT_THAT(ValidateBounds<double>(absl::nullopt, 1),
+  EXPECT_THAT(ValidateBounds<double>(std::nullopt, 1),
               StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("both")));
-  EXPECT_THAT(ValidateBounds<double>(absl::nullopt, absl::nullopt),
+  EXPECT_THAT(ValidateBounds<double>(std::nullopt, std::nullopt),
               StatusIs(absl::StatusCode::kOk));
 }
 
@@ -1188,7 +1188,7 @@ TEST(ValidateTest, ValidateTreeHeightForInvalidNumeric) {
 }
 
 TEST(ValidateTest, ValidateTreeHeightForEmpty) {
-  EXPECT_THAT(ValidateTreeHeight(absl::nullopt),
+  EXPECT_THAT(ValidateTreeHeight(std::nullopt),
               StatusIs(absl::StatusCode::kInvalidArgument,
                        HasSubstr("Tree Height must be set.")));
 }
@@ -1216,7 +1216,7 @@ TEST(ValidateTest, ValidateBranchingFactorForInvalidNumeric) {
 }
 
 TEST(ValidateTest, ValidateBranchingFactorForEmpty) {
-  EXPECT_THAT(ValidateBranchingFactor(absl::nullopt),
+  EXPECT_THAT(ValidateBranchingFactor(std::nullopt),
               StatusIs(absl::StatusCode::kInvalidArgument,
                        HasSubstr("Branching Factor must be set")));
 }

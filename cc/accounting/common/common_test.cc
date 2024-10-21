@@ -14,6 +14,9 @@
 
 #include "accounting/common/common.h"
 
+#include <cmath>
+#include <optional>
+
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status.h"
@@ -56,7 +59,7 @@ struct InverseMonotoneFunctionParam {
   double value;
   double lower_x;
   double upper_x;
-  absl::optional<double> initial_guess;
+  std::optional<double> initial_guess;
   bool increasing;
   double expected_x;
   bool discrete = false;
@@ -73,7 +76,7 @@ INSTANTIATE_TEST_SUITE_P(
                                      .value = -4.5,
                                      .lower_x = 0,
                                      .upper_x = 10,
-                                     .initial_guess = absl::nullopt,
+                                     .initial_guess = std::nullopt,
                                      .increasing = false,
                                      .expected_x = 4.5},
         // with initial guess
@@ -94,27 +97,29 @@ INSTANTIATE_TEST_SUITE_P(
             .increasing = false,
             .expected_x = 5},
         // increasing, without initial guess
-        InverseMonotoneFunctionParam{.func = [](double x) { return pow(x, 2); },
-                                     .value = 25,
-                                     .lower_x = 0,
-                                     .upper_x = 10,
-                                     .initial_guess = absl::nullopt,
-                                     .increasing = true,
-                                     .expected_x = 5},
+        InverseMonotoneFunctionParam{
+            .func = [](double x) { return std::pow(x, 2); },
+            .value = 25,
+            .lower_x = 0,
+            .upper_x = 10,
+            .initial_guess = std::nullopt,
+            .increasing = true,
+            .expected_x = 5},
         // increasing, with initial guess
-        InverseMonotoneFunctionParam{.func = [](double x) { return pow(x, 2); },
-                                     .value = 25,
-                                     .lower_x = 0,
-                                     .upper_x = 10,
-                                     .initial_guess = 2,
-                                     .increasing = true,
-                                     .expected_x = 5},
+        InverseMonotoneFunctionParam{
+            .func = [](double x) { return std::pow(x, 2); },
+            .value = 25,
+            .lower_x = 0,
+            .upper_x = 10,
+            .initial_guess = 2,
+            .increasing = true,
+            .expected_x = 5},
         // discrete
         InverseMonotoneFunctionParam{.func = [](double x) { return -x; },
                                      .value = -4.5,
                                      .lower_x = 0,
                                      .upper_x = 10,
-                                     .initial_guess = absl::nullopt,
+                                     .initial_guess = std::nullopt,
                                      .increasing = false,
                                      .expected_x = 5,
                                      .discrete = true}));

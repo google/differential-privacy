@@ -143,6 +143,9 @@ the contents of a dataset and/or its order. Our integer implementations are not
 subject to the vulnerabilities described in the paper (though note that Java
 does not have an integer implementation).
 
+Please refer to our [attack model](common_docs/attack_model.md) to learn more
+about how to use our libraries in a safe way.
+
 ## Support
 
 We will continue to publish updates and improvements to the library. We are

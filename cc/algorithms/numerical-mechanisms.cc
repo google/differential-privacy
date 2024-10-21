@@ -245,7 +245,7 @@ GaussianMechanism::Builder::Build() {
     return result;
   }  // Else construct from DP parameters.
 
-  absl::optional<double> epsilon = GetEpsilon();
+  std::optional<double> epsilon = GetEpsilon();
   RETURN_IF_ERROR(ValidateIsFiniteAndPositive(epsilon, "Epsilon"));
   RETURN_IF_ERROR(DeltaIsSetAndValid());
   ASSIGN_OR_RETURN(double l2, CalculateL2Sensitivity());

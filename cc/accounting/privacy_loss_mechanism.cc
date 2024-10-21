@@ -14,6 +14,7 @@
 #include "accounting/privacy_loss_mechanism.h"
 
 #include <cmath>
+#include <optional>
 
 #include "base/status_macros.h"
 
@@ -244,7 +245,7 @@ PrivacyLossTail DiscreteLaplacePrivacyLoss::PrivacyLossDistributionTail()
 }
 absl::StatusOr<std::unique_ptr<DiscreteGaussianPrivacyLoss>>
 DiscreteGaussianPrivacyLoss::Create(double sigma, int sensitivity,
-                                    absl::optional<int> truncation_bound) {
+                                    std::optional<int> truncation_bound) {
   if (sigma <= 0) {
     return absl::InvalidArgumentError("sigma should be positive.");
   }

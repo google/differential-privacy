@@ -195,7 +195,7 @@ class PrivacyLossDistribution {
       double sigma, int sensitivity = 1,
       EstimateType estimate_type = EstimateType::kPessimistic,
       double discretization_interval = 1e-4,
-      absl::optional<int> truncation_bound = absl::nullopt);
+      std::optional<int> truncation_bound = std::nullopt);
 
   // Creates {@link PrivacyLossDistribution} from epsilon and delta parameters.
   //

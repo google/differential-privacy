@@ -15,6 +15,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <optional>
 #include <vector>
 
 #include "absl/status/status.h"
@@ -230,7 +231,7 @@ PrivacyLossDistribution::CreateForGaussianMechanism(
 absl::StatusOr<std::unique_ptr<PrivacyLossDistribution>>
 PrivacyLossDistribution::CreateForDiscreteGaussianMechanism(
     double sigma, int sensitivity, EstimateType estimate_type,
-    double discretization_interval, absl::optional<int> truncation_bound) {
+    double discretization_interval, std::optional<int> truncation_bound) {
   ASSIGN_OR_RETURN(std::unique_ptr<DiscreteGaussianPrivacyLoss> privacy_loss,
                    DiscreteGaussianPrivacyLoss::Create(sigma, sensitivity,
                                                        truncation_bound));

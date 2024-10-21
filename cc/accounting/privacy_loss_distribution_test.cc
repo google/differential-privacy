@@ -14,6 +14,8 @@
 
 #include "accounting/privacy_loss_distribution.h"
 
+#include <optional>
+
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/statusor.h"
@@ -860,7 +862,7 @@ struct DiscreteGaussianPrivacyLossDistributionParam {
   double discretization_interval;
   ProbabilityMassFunction expected_pmf;
   double expected_infinity_mass;
-  absl::optional<int> truncation_bound = absl::nullopt;
+  std::optional<int> truncation_bound = std::nullopt;
 };
 
 class DiscreteGaussianPrivacyLossDistribution

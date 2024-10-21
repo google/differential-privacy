@@ -19,6 +19,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "absl/status/status.h"
@@ -108,7 +109,7 @@ int64_t RoundToNearestInt64Multiple(int64_t n, int64_t base) {
   return n - remainder;
 }
 
-absl::Status ValidateIsSet(absl::optional<double> opt, absl::string_view name,
+absl::Status ValidateIsSet(std::optional<double> opt, absl::string_view name,
                            absl::StatusCode error_code) {
   if (!opt.has_value()) {
     return absl::InvalidArgumentError(absl::StrCat(name, " must be set."));
@@ -122,7 +123,7 @@ absl::Status ValidateIsSet(absl::optional<double> opt, absl::string_view name,
   return absl::OkStatus();
 }
 
-absl::Status ValidateIsPositive(absl::optional<double> opt,
+absl::Status ValidateIsPositive(std::optional<double> opt,
                                 absl::string_view name,
                                 absl::StatusCode error_code) {
   RETURN_IF_ERROR(ValidateIsSet(opt, name, error_code));
@@ -134,7 +135,7 @@ absl::Status ValidateIsPositive(absl::optional<double> opt,
   return absl::OkStatus();
 }
 
-absl::Status ValidateIsNonNegative(absl::optional<double> opt,
+absl::Status ValidateIsNonNegative(std::optional<double> opt,
                                    absl::string_view name,
                                    absl::StatusCode error_code) {
   RETURN_IF_ERROR(ValidateIsSet(opt, name, error_code));
@@ -147,8 +148,7 @@ absl::Status ValidateIsNonNegative(absl::optional<double> opt,
   return absl::OkStatus();
 }
 
-absl::Status ValidateIsFinite(absl::optional<double> opt,
-                              absl::string_view name,
+absl::Status ValidateIsFinite(std::optional<double> opt, absl::string_view name,
                               absl::StatusCode error_code) {
   RETURN_IF_ERROR(ValidateIsSet(opt, name, error_code));
   double d = opt.value();
@@ -159,7 +159,7 @@ absl::Status ValidateIsFinite(absl::optional<double> opt,
   return absl::OkStatus();
 }
 
-absl::Status ValidateIsFiniteAndPositive(absl::optional<double> opt,
+absl::Status ValidateIsFiniteAndPositive(std::optional<double> opt,
                                          absl::string_view name,
                                          absl::StatusCode error_code) {
   RETURN_IF_ERROR(ValidateIsSet(opt, name, error_code));
@@ -172,7 +172,7 @@ absl::Status ValidateIsFiniteAndPositive(absl::optional<double> opt,
   return absl::OkStatus();
 }
 
-absl::Status ValidateIsFiniteAndNonNegative(absl::optional<double> opt,
+absl::Status ValidateIsFiniteAndNonNegative(std::optional<double> opt,
                                             absl::string_view name,
                                             absl::StatusCode error_code) {
   RETURN_IF_ERROR(ValidateIsSet(opt, name, error_code));
@@ -186,7 +186,7 @@ absl::Status ValidateIsFiniteAndNonNegative(absl::optional<double> opt,
   return absl::OkStatus();
 }
 
-absl::Status ValidateIsInInclusiveInterval(absl::optional<double> opt,
+absl::Status ValidateIsInInclusiveInterval(std::optional<double> opt,
                                            double lower_bound,
                                            double upper_bound,
                                            absl::string_view name,
@@ -195,7 +195,7 @@ absl::Status ValidateIsInInclusiveInterval(absl::optional<double> opt,
                               error_code);
 }
 
-absl::Status ValidateIsInExclusiveInterval(absl::optional<double> opt,
+absl::Status ValidateIsInExclusiveInterval(std::optional<double> opt,
                                            double lower_bound,
                                            double upper_bound,
                                            absl::string_view name,
@@ -204,8 +204,8 @@ absl::Status ValidateIsInExclusiveInterval(absl::optional<double> opt,
                               error_code);
 }
 
-absl::Status ValidateIsLesserThan(absl::optional<double> opt,
-                                  double upper_bound, absl::string_view name,
+absl::Status ValidateIsLesserThan(std::optional<double> opt, double upper_bound,
+                                  absl::string_view name,
                                   absl::StatusCode error_code) {
   RETURN_IF_ERROR(ValidateIsSet(opt, name, error_code));
   if (opt.value() < upper_bound) {
@@ -216,7 +216,7 @@ absl::Status ValidateIsLesserThan(absl::optional<double> opt,
                                    ", but is ", opt.value(), "."));
 }
 
-absl::Status ValidateIsLesserThanOrEqualTo(absl::optional<double> opt,
+absl::Status ValidateIsLesserThanOrEqualTo(std::optional<double> opt,
                                            double upper_bound,
                                            absl::string_view name,
                                            absl::StatusCode error_code) {
@@ -229,7 +229,7 @@ absl::Status ValidateIsLesserThanOrEqualTo(absl::optional<double> opt,
                                    upper_bound, ", but is ", opt.value(), "."));
 }
 
-absl::Status ValidateIsGreaterThan(absl::optional<double> opt,
+absl::Status ValidateIsGreaterThan(std::optional<double> opt,
                                    double lower_bound, absl::string_view name,
                                    absl::StatusCode error_code) {
   RETURN_IF_ERROR(ValidateIsSet(opt, name, error_code));
@@ -241,7 +241,7 @@ absl::Status ValidateIsGreaterThan(absl::optional<double> opt,
                                    ", but is ", opt.value(), "."));
 }
 
-absl::Status ValidateIsGreaterThanOrEqualTo(absl::optional<double> opt,
+absl::Status ValidateIsGreaterThanOrEqualTo(std::optional<double> opt,
                                             double lower_bound,
                                             absl::string_view name,
                                             absl::StatusCode error_code) {
@@ -254,10 +254,9 @@ absl::Status ValidateIsGreaterThanOrEqualTo(absl::optional<double> opt,
                                    lower_bound, ", but is ", opt.value(), "."));
 }
 
-absl::Status ValidateIsInInterval(absl::optional<double> opt,
-                                  double lower_bound, double upper_bound,
-                                  bool include_lower, bool include_upper,
-                                  absl::string_view name,
+absl::Status ValidateIsInInterval(std::optional<double> opt, double lower_bound,
+                                  double upper_bound, bool include_lower,
+                                  bool include_upper, absl::string_view name,
                                   absl::StatusCode error_code) {
   RETURN_IF_ERROR(ValidateIsSet(opt, name, error_code));
   double d = opt.value();
@@ -289,44 +288,44 @@ absl::Status ValidateIsInInterval(absl::optional<double> opt,
   return absl::OkStatus();
 }
 
-absl::Status ValidateEpsilon(absl::optional<double> epsilon) {
+absl::Status ValidateEpsilon(std::optional<double> epsilon) {
   return ValidateIsFiniteAndPositive(epsilon, "Epsilon");
 }
 
-absl::Status ValidateDelta(absl::optional<double> delta) {
+absl::Status ValidateDelta(std::optional<double> delta) {
   return ValidateIsInInclusiveInterval(delta, 0, 1, "Delta");
 }
 
 absl::Status ValidateMaxPartitionsContributed(
-    absl::optional<double> max_partitions_contributed) {
+    std::optional<double> max_partitions_contributed) {
   return ValidateIsPositive(max_partitions_contributed,
                             "Maximum number of partitions that can be "
                             "contributed to (i.e., L0 sensitivity)");
 }
 
 absl::Status ValidateMaxContributionsPerPartition(
-    absl::optional<double> max_contributions_per_partition) {
+    std::optional<double> max_contributions_per_partition) {
   return ValidateIsPositive(max_contributions_per_partition,
                             "Maximum number of contributions per partition");
 }
 
-absl::Status ValidateMaxContributions(absl::optional<int> max_contributions) {
+absl::Status ValidateMaxContributions(std::optional<int> max_contributions) {
   return ValidateIsPositive(
       max_contributions,
       "Maximum number of contributions (i.e., L1 sensitivity)");
 }
 
-absl::Status ValidateTreeHeight(absl::optional<int> tree_height) {
+absl::Status ValidateTreeHeight(std::optional<int> tree_height) {
   return ValidateIsGreaterThanOrEqualTo(tree_height, /*lower_bound=*/1,
                                         "Tree Height");
 }
 
-absl::Status ValidateBranchingFactor(absl::optional<int> branching_factor) {
+absl::Status ValidateBranchingFactor(std::optional<int> branching_factor) {
   return ValidateIsGreaterThanOrEqualTo(branching_factor, /*lower_bound=*/2,
                                         "Branching Factor");
 }
 
-absl::Status ValidatePreThresholdOptional(absl::optional<int> pre_threshold) {
+absl::Status ValidatePreThresholdOptional(std::optional<int> pre_threshold) {
   int v = pre_threshold.value_or(1);
   if (v <= 0) {
     return absl::Status(
@@ -341,9 +340,9 @@ absl::Status ValidatePreThresholdOptional(absl::optional<int> pre_threshold) {
 [[deprecated(
     "This validator is used for a class that is deprecated in favour of the "
     "pre_threshold attribute of other strategies classes.")]] absl::Status
-ValidatePreThreshold(absl::optional<int64_t> pre_threshold) {
+ValidatePreThreshold(std::optional<int64_t> pre_threshold) {
   return ValidateIsGreaterThan(
-      static_cast<absl::optional<double>>(pre_threshold), /*lower_bound=*/0,
+      static_cast<std::optional<double>>(pre_threshold), /*lower_bound=*/0,
       "Pre Threshold");
 }
 }  // namespace differential_privacy

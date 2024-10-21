@@ -54,7 +54,7 @@ struct BinarySearchParameters {
   // An initial guess to start the search with. Must be positive. When this
   // guess is close to the true value, it can help make the binary search
   // faster.
-  absl::optional<double> initial_guess;
+  std::optional<double> initial_guess;
   // An acceptable error on the returned value.
   double tolerance = 1e-7;
   // Whether the search is over integers.

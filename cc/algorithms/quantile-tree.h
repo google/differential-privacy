@@ -20,6 +20,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <limits>
+#include <optional>
 #include <unordered_map>
 
 #include "absl/status/status.h"
@@ -561,10 +562,10 @@ class QuantileTree<T>::Builder {
   }
 
  private:
-  absl::optional<int> tree_height_;
-  absl::optional<int> branching_factor_;
-  absl::optional<T> lower_;
-  absl::optional<T> upper_;
+  std::optional<int> tree_height_;
+  std::optional<int> branching_factor_;
+  std::optional<T> lower_;
+  std::optional<T> upper_;
 };
 }  // namespace differential_privacy
 

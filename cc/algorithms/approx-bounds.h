@@ -811,13 +811,13 @@ class ApproxBounds<T>::Builder {
     }
   }
 
-  absl::optional<double> epsilon_;
+  std::optional<double> epsilon_;
   int max_partitions_contributed_ = 1;
   int max_contributions_per_partition_ = 1;
   std::unique_ptr<NumericalMechanismBuilder> mechanism_builder_ =
       absl::make_unique<LaplaceMechanism::Builder>();
 
-  absl::optional<double> threshold_;
+  std::optional<double> threshold_;
   double scale_ = DefaultScaleForT();
   double base_ = 2.0;
   double success_probability_ = 1 - std::pow(10, -9);

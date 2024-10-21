@@ -312,7 +312,7 @@ class DiscreteGaussianPrivacyLoss : public AdditiveNoisePrivacyLoss {
   //   outside of this range is at most 1e-30.
   static absl::StatusOr<std::unique_ptr<DiscreteGaussianPrivacyLoss>> Create(
       double sigma, int sensitivity,
-      absl::optional<int> truncation_bound = absl::nullopt);
+      std::optional<int> truncation_bound = std::nullopt);
 
   NoiseType Discrete() const override { return NoiseType::kDiscrete; }
 

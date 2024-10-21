@@ -14,6 +14,8 @@
 
 #include "accounting/accountant.h"
 
+#include <optional>
+
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status.h"
@@ -74,7 +76,7 @@ TEST_P(AccountantTest, Basic) {
 
   auto result = GetSmallestParameter(param.epsilon_delta, param.num_queries,
                                      param.sensitivity, param.noise_function,
-                                     absl::optional<double>());
+                                     std::optional<double>());
   EXPECT_OK(result.status());
   EXPECT_NEAR(result.value(), param.expected_parameter, kMaxError);
 }

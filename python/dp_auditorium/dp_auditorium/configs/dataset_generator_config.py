@@ -18,7 +18,6 @@ import enum
 from vizier.service import pyvizier as vz
 
 
-
 class DataType(enum.Enum):
   DATA_TYPE_UNSPECIFIED = 0
   DATA_TYPE_INT32 = 1
@@ -52,7 +51,7 @@ class VizierDatasetGeneratorConfig:
   data_type: DataType
   min_value: float
   max_value: float
-  search_algorithm: vz.Algorithm
+  search_algorithm: str
   metric_name: str
 
 
@@ -83,6 +82,7 @@ class ClassificationDatasetGeneratorConfig:
     num_samples: Number of samples in the largest dataset.
     num_classes: Number of classes in the classification task.
   """
+
   study_name: str
   study_owner: str
   min_value: float

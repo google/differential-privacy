@@ -34,7 +34,7 @@ using NoiseFunction = std::function<std::unique_ptr<AdditiveNoisePrivacyLoss>(
 absl::StatusOr<double> GetSmallestParameter(EpsilonDelta epsilon_delta,
                                             int num_queries, double sensitivity,
                                             NoiseFunction noise_function,
-                                            absl::optional<double> upper_bound,
+                                            std::optional<double> upper_bound,
                                             double tolerance = 1e-4);
 
 // Uses the optimal advanced composition theorem, Theorem 3.3 from the paper

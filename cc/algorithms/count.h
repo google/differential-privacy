@@ -178,7 +178,7 @@ class Count<T>::Builder {
   }
 
  private:
-  absl::optional<double> epsilon_;
+  std::optional<double> epsilon_;
   double delta_ = 0;
   int max_partitions_contributed_ = 1;
   int max_contributions_per_partition_ = 1;

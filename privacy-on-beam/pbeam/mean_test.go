@@ -819,9 +819,18 @@ func TestMeanPerKeyCountsPrivacyUnitIDsWithMultipleContributionsCorrectly(t *tes
 		// because the probability of keeping the partition with 2 elements is negligible, ≈5.184e-179.
 		testutils.MakeTripleWithFloatValueStartingFromKey(18, 2, 2, 0))
 
+	// Duplicated contribution to partition 2 from privacy unit 18 and 19, each duplicated 20 times.
+	// While these duplicates are kept for computing the mean (due to maxContributionsPerPartition=20),
+	// they are not considered for partition selection.
+	// There are only two privacy units in partition 2, which is smaller than the threshold and should be dropped.
 	for i := 0; i < 20; i++ {
 		triples = append(triples, testutils.MakeTripleWithFloatValueStartingFromKey(18, 2, 2, 1)...)
 	}
+
+	// The threshold is equal to 11.
+	// The probability to keep partition 0 (count = 7) is 1.942e-70.
+	// The probability to keep partition 2 (count = 2) is 5.184e-179.
+	// So only partition 1 is kept.
 	exactCount := 11.0
 	exactMean := 1.3
 	result := []testutils.PairIF64{

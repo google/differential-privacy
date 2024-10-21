@@ -16,6 +16,7 @@
 
 #include <cmath>
 #include <complex>
+#include <optional>
 #include <ostream>
 #include <vector>
 
@@ -121,7 +122,7 @@ ProbabilityMassFunction Convolve(const ProbabilityMassFunction& x,
 
 ConvolutionTruncationBounds ComputeConvolutionTruncationBounds(
     const UnpackedProbabilityMassFunction& x, int num_times,
-    double tail_mass_truncation, absl::optional<std::vector<double>> orders) {
+    double tail_mass_truncation, std::optional<std::vector<double>> orders) {
   const int size = x.items.size();
   int64_t upper_bound = static_cast<int64_t>(size - 1) * num_times;
   int64_t lower_bound = 0;

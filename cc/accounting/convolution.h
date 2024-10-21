@@ -69,7 +69,7 @@ struct ConvolutionTruncationBounds {
 ConvolutionTruncationBounds ComputeConvolutionTruncationBounds(
     const UnpackedProbabilityMassFunction& x, int num_times,
     double tail_mass_truncation = 0,
-    absl::optional<std::vector<double>> orders = {});
+    std::optional<std::vector<double>> orders = {});
 
 // Returns convolution of probability mass function with itself num_times.
 // Additional parameter:

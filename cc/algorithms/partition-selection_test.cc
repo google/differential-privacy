@@ -592,7 +592,7 @@ TEST(PartitionSelectionTest,
 struct CalculateDeltaTest {
   CalculateDeltaTest(double epsilon_in, double threshold_in,
                      int64_t max_partitions_contributed_in,
-                     absl::optional<double> expected_delta_in,
+                     std::optional<double> expected_delta_in,
                      double tolerance_in = kCalcDeltaTestDefaultTolerance)
       : epsilon(epsilon_in),
         threshold(threshold_in),
@@ -604,7 +604,7 @@ struct CalculateDeltaTest {
   const double threshold;
   const int64_t max_partitions_contributed;
   // Missing implies an error is expected to be returned.
-  const absl::optional<double> expected_delta;
+  const std::optional<double> expected_delta;
   const double tolerance;
 };
 
@@ -763,7 +763,7 @@ TEST(PartitionSelectionTest, CalculateDeltaTests) {
 struct CalculateThresholdTest {
   CalculateThresholdTest(
       double epsilon_in, double delta_in, int64_t max_partitions_contributed_in,
-      absl::optional<double> expected_threshold_in,
+      std::optional<double> expected_threshold_in,
       double tolerance_in = kCalcThresholdTestDefaultTolerance)
       : epsilon(epsilon_in),
         delta(delta_in),
@@ -775,7 +775,7 @@ struct CalculateThresholdTest {
   const double delta;
   const int64_t max_partitions_contributed;
   // Missing implies an error is expected to be returned.
-  const absl::optional<double> expected_threshold;
+  const std::optional<double> expected_threshold;
   const double tolerance;
 };
 

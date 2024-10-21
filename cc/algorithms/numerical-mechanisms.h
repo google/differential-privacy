@@ -166,18 +166,16 @@ class NumericalMechanismBuilder {
     return absl::OkStatus();
   }
 
-  absl::optional<double> GetEpsilon() const { return epsilon_; }
-  absl::optional<double> GetDelta() const { return delta_; }
-  absl::optional<double> GetL0Sensitivity() const { return l0_sensitivity_; }
-  absl::optional<double> GetLInfSensitivity() const {
-    return linf_sensitivity_;
-  }
+  std::optional<double> GetEpsilon() const { return epsilon_; }
+  std::optional<double> GetDelta() const { return delta_; }
+  std::optional<double> GetL0Sensitivity() const { return l0_sensitivity_; }
+  std::optional<double> GetLInfSensitivity() const { return linf_sensitivity_; }
 
  private:
-  absl::optional<double> epsilon_;
-  absl::optional<double> delta_;
-  absl::optional<double> l0_sensitivity_;
-  absl::optional<double> linf_sensitivity_;
+  std::optional<double> epsilon_;
+  std::optional<double> delta_;
+  std::optional<double> l0_sensitivity_;
+  std::optional<double> linf_sensitivity_;
 };
 
 // Provides differential privacy by adding Laplace noise. This class also
@@ -205,10 +203,10 @@ class LaplaceMechanism : public NumericalMechanism {
     }
 
    protected:
-    absl::optional<double> GetL1Sensitivity() const { return l1_sensitivity_; }
+    std::optional<double> GetL1Sensitivity() const { return l1_sensitivity_; }
 
    private:
-    absl::optional<double> l1_sensitivity_;
+    std::optional<double> l1_sensitivity_;
   };
 
   ABSL_DEPRECATED(
@@ -333,8 +331,8 @@ class GaussianMechanism : public NumericalMechanism {
     }
 
    protected:
-    absl::optional<double> l2_sensitivity_;
-    absl::optional<double> stddev_;
+    std::optional<double> l2_sensitivity_;
+    std::optional<double> stddev_;
 
    private:
     // Returns the l2 sensitivity when it has been set or returns an upper bound
