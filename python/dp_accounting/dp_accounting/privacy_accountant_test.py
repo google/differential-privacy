@@ -21,13 +21,18 @@ for standard `DpEvent` classes.
 from typing import Collection
 
 from absl.testing import absltest
+from absl.testing import parameterized
 
 from dp_accounting import dp_event
 from dp_accounting import privacy_accountant
 
 
+class UnknownDpEvent(dp_event.DpEvent):
+  pass
+
+
 @absltest.skipThisClass('only intended to be run by subclasses')
-class PrivacyAccountantTest(absltest.TestCase):
+class PrivacyAccountantTest(parameterized.TestCase):
 
   def _make_test_accountants(
       self) -> Collection[privacy_accountant.PrivacyAccountant]:
@@ -43,29 +48,27 @@ class PrivacyAccountantTest(absltest.TestCase):
   def test_make_test_accountants(self):
     self.assertNotEmpty(self._make_test_accountants())
 
-  def test_unsupported(self):
-
-    class UnknownDpEvent(dp_event.DpEvent):
-      pass
-
+  @parameterized.product(
+      unsupported_event=(dp_event.UnsupportedDpEvent(), UnknownDpEvent()),
+      nest_fn=(
+          lambda event_: event_,
+          lambda event_: dp_event.ComposedDpEvent([event_]),
+          lambda event_: dp_event.SelfComposedDpEvent(event_, 10),
+      ),
+  )
+  def test_unsupported(self, unsupported_event, nest_fn):
+    event_ = nest_fn(unsupported_event)
     for accountant in self._make_test_accountants():
-      for unsupported_event in [
-          dp_event.UnsupportedDpEvent(),
-          UnknownDpEvent()
-      ]:
-        for nested_unsupported_event in [
-            unsupported_event,
-            dp_event.SelfComposedDpEvent(unsupported_event, 10),
-            dp_event.ComposedDpEvent([unsupported_event])
-        ]:
-          composition_error = accountant._maybe_compose(
-              nested_unsupported_event, count=1, do_compose=False)
-          self.assertIsNotNone(composition_error)
-          self.assertEqual(composition_error.invalid_event, unsupported_event)
-          self.assertFalse(accountant.supports(nested_unsupported_event))
-          with self.assertRaisesRegex(privacy_accountant.UnsupportedEventError,
-                                      'caused by subevent'):
-            accountant.compose(nested_unsupported_event)
+      composition_error = accountant._maybe_compose(
+          event_, count=1, do_compose=False
+      )
+      self.assertIsNotNone(composition_error)
+      self.assertEqual(composition_error.invalid_event, unsupported_event)
+      self.assertFalse(accountant.supports(event_))
+      with self.assertRaisesRegex(
+          privacy_accountant.UnsupportedEventError, 'caused by subevent'
+      ):
+        accountant.compose(event_)
 
   def test_no_events(self):
     for accountant in self._make_test_accountants():
@@ -96,11 +99,18 @@ class PrivacyAccountantTest(absltest.TestCase):
         # Implementing `get_delta` is optional.
         pass
 
-  def test_non_private(self):
+  @parameterized.parameters(
+      dp_event.NonPrivateDpEvent(),
+      dp_event.ComposedDpEvent([dp_event.NonPrivateDpEvent()]),
+      dp_event.ComposedDpEvent(
+          [dp_event.NoOpDpEvent(), dp_event.NonPrivateDpEvent()]
+      ),
+      dp_event.SelfComposedDpEvent(dp_event.NonPrivateDpEvent(), 10),
+  )
+  def test_non_private(self, non_private_event):
     for accountant in self._make_test_accountants():
-      event = dp_event.NonPrivateDpEvent()
-      self.assertTrue(accountant.supports(event))
-      accountant.compose(event)
+      self.assertTrue(accountant.supports(non_private_event))
+      accountant.compose(non_private_event)
       self.assertEqual(accountant.get_epsilon(0.99), float('inf'))
       self.assertEqual(accountant.get_epsilon(0), float('inf'))
       self.assertEqual(accountant.get_epsilon(1), float('inf'))

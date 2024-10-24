@@ -27,6 +27,7 @@ from dp_accounting.dp_event import LaplaceDpEvent
 from dp_accounting.dp_event import NonPrivateDpEvent
 from dp_accounting.dp_event import NoOpDpEvent
 from dp_accounting.dp_event import PoissonSampledDpEvent
+from dp_accounting.dp_event import RandomizedResponseDpEvent
 from dp_accounting.dp_event import SampledWithoutReplacementDpEvent
 from dp_accounting.dp_event import SampledWithReplacementDpEvent
 from dp_accounting.dp_event import SelfComposedDpEvent

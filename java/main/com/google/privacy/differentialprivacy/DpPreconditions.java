@@ -38,6 +38,15 @@ public class DpPreconditions {
         epsilon);
   }
 
+  static void checkRho(double rho) {
+    double rhoLowerBound = 1.0 / (1L << 50);
+    checkArgument(
+        Double.isFinite(rho) && rho >= rhoLowerBound,
+        "rho must be >= %s and < infinity. Provided value: %s",
+        rhoLowerBound,
+        rho);
+  }
+
   static void checkNoiseDelta(Double delta, Noise noise) {
     if (noise.getMechanismType() == MechanismType.LAPLACE
         || noise.getMechanismType() == MechanismType.DISCRETE_LAPLACE) {
@@ -78,6 +87,13 @@ public class DpPreconditions {
         Double.isFinite(l1Sensitivity) && l1Sensitivity > 0,
         "l1Sensitivity must be > 0 and finite. Provided value: %s",
         l1Sensitivity);
+  }
+
+  static void checkL2Sensitivity(double l2Sensitivity) {
+    checkArgument(
+        Double.isFinite(l2Sensitivity) && l2Sensitivity > 0,
+        "l2Sensitivity must be > 0 and finite. Provided value: %s",
+        l2Sensitivity);
   }
 
   static void checkMaxPartitionsContributed(int maxPartitionsContributed) {

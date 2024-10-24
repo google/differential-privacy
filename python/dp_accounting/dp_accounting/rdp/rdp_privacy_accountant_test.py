@@ -52,7 +52,7 @@ def _compute_a_mp(sigma, q, alpha):
     return (1 - q) + q * mpmath.exp((2 * x - 1) / (2 * sigma**2))
 
   def a_alpha_fn(z):
-    return mu0(z) * _mu_over_mu0(z, q, sigma)**alpha
+    return mu0(z) * _mu_over_mu0(z, q, sigma) ** alpha
 
   bounds = (-mpmath.inf, mpmath.inf)
   a_alpha, _ = mpmath.quad(a_alpha_fn, bounds, error=True, maxdegree=8)
@@ -61,42 +61,53 @@ def _compute_a_mp(sigma, q, alpha):
 
 def _compose_trees(noise_multiplier, step_counts, orders):
   accountant = rdp_privacy_accountant.RdpAccountant(
-      orders, privacy_accountant.NeighboringRelation.REPLACE_SPECIAL)
+      orders, privacy_accountant.NeighboringRelation.REPLACE_SPECIAL
+  )
   accountant.compose(
       dp_event.ComposedDpEvent([
-          dp_event.SingleEpochTreeAggregationDpEvent(noise_multiplier,
-                                                     step_count)
+          dp_event.SingleEpochTreeAggregationDpEvent(
+              noise_multiplier, step_count
+          )
           for step_count in step_counts
-      ]))
+      ])
+  )
   return accountant
 
 
 def _compose_trees_single_epoch(noise_multiplier, step_counts, orders):
   accountant = rdp_privacy_accountant.RdpAccountant(
-      orders, privacy_accountant.NeighboringRelation.REPLACE_SPECIAL)
+      orders, privacy_accountant.NeighboringRelation.REPLACE_SPECIAL
+  )
   accountant.compose(
-      dp_event.SingleEpochTreeAggregationDpEvent(noise_multiplier, step_counts))
+      dp_event.SingleEpochTreeAggregationDpEvent(noise_multiplier, step_counts)
+  )
   return accountant
 
 
-class RdpPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
-                               parameterized.TestCase):
+class RdpPrivacyAccountantTest(
+    privacy_accountant_test.PrivacyAccountantTest, parameterized.TestCase
+):
 
   def _make_test_accountants(self):
     return [
         rdp_privacy_accountant.RdpAccountant(
-            [2.0], privacy_accountant.NeighboringRelation.ADD_OR_REMOVE_ONE),
+            [2.0], privacy_accountant.NeighboringRelation.ADD_OR_REMOVE_ONE
+        ),
         rdp_privacy_accountant.RdpAccountant(
-            [2.0], privacy_accountant.NeighboringRelation.REPLACE_ONE),
+            [2.0], privacy_accountant.NeighboringRelation.REPLACE_ONE
+        ),
         rdp_privacy_accountant.RdpAccountant(
-            [2.0], privacy_accountant.NeighboringRelation.REPLACE_SPECIAL)
+            [2.0], privacy_accountant.NeighboringRelation.REPLACE_SPECIAL
+        ),
     ]
 
   def test_supports(self):
     aor_accountant = rdp_privacy_accountant.RdpAccountant(
-        [2.0], privacy_accountant.NeighboringRelation.ADD_OR_REMOVE_ONE)
+        [2.0], privacy_accountant.NeighboringRelation.ADD_OR_REMOVE_ONE
+    )
     ro_accountant = rdp_privacy_accountant.RdpAccountant(
-        [2.0], privacy_accountant.NeighboringRelation.REPLACE_ONE)
+        [2.0], privacy_accountant.NeighboringRelation.REPLACE_ONE
+    )
 
     event = dp_event.GaussianDpEvent(1.0)
     self.assertTrue(aor_accountant.supports(event))
@@ -107,8 +118,8 @@ class RdpPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
     self.assertTrue(ro_accountant.supports(event))
 
     event = dp_event.ComposedDpEvent(
-        [dp_event.GaussianDpEvent(1.0),
-         dp_event.GaussianDpEvent(2.0)])
+        [dp_event.GaussianDpEvent(1.0), dp_event.GaussianDpEvent(2.0)]
+    )
     self.assertTrue(aor_accountant.supports(event))
     self.assertTrue(ro_accountant.supports(event))
 
@@ -117,24 +128,27 @@ class RdpPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
     self.assertFalse(ro_accountant.supports(event))
 
     composed_gaussian = dp_event.ComposedDpEvent(
-        [dp_event.GaussianDpEvent(1.0),
-         dp_event.GaussianDpEvent(2.0)])
+        [dp_event.GaussianDpEvent(1.0), dp_event.GaussianDpEvent(2.0)]
+    )
     event = dp_event.PoissonSampledDpEvent(0.1, composed_gaussian)
     self.assertTrue(aor_accountant.supports(event))
     self.assertFalse(ro_accountant.supports(event))
 
     event = dp_event.SampledWithoutReplacementDpEvent(
-        1000, 10, dp_event.GaussianDpEvent(1.0))
+        1000, 10, dp_event.GaussianDpEvent(1.0)
+    )
     self.assertFalse(aor_accountant.supports(event))
     self.assertTrue(ro_accountant.supports(event))
 
-    event = dp_event.SampledWithoutReplacementDpEvent(1000, 10,
-                                                      composed_gaussian)
+    event = dp_event.SampledWithoutReplacementDpEvent(
+        1000, 10, composed_gaussian
+    )
     self.assertFalse(aor_accountant.supports(event))
     self.assertTrue(ro_accountant.supports(event))
 
     event = dp_event.SampledWithReplacementDpEvent(
-        1000, 10, dp_event.GaussianDpEvent(1.0))
+        1000, 10, dp_event.GaussianDpEvent(1.0)
+    )
     self.assertFalse(aor_accountant.supports(event))
     self.assertFalse(ro_accountant.supports(event))
 
@@ -146,11 +160,13 @@ class RdpPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
     self.assertAlmostEqual(rdp_with_count, base_rdp * 6)
 
     rdp_with_self_compose = _get_test_rdp(
-        dp_event.SelfComposedDpEvent(base_event, 6))
+        dp_event.SelfComposedDpEvent(base_event, 6)
+    )
     self.assertAlmostEqual(rdp_with_self_compose, base_rdp * 6)
 
     rdp_with_self_compose_and_count = _get_test_rdp(
-        dp_event.SelfComposedDpEvent(base_event, 2), count=3)
+        dp_event.SelfComposedDpEvent(base_event, 2), count=3
+    )
     self.assertAlmostEqual(rdp_with_self_compose_and_count, base_rdp * 6)
 
     rdp_with_compose = _get_test_rdp(dp_event.ComposedDpEvent([base_event] * 6))
@@ -160,20 +176,24 @@ class RdpPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
         dp_event.ComposedDpEvent([
             dp_event.SelfComposedDpEvent(base_event, 1),
             dp_event.SelfComposedDpEvent(base_event, 2),
-            dp_event.SelfComposedDpEvent(base_event, 3)
-        ]))
+            dp_event.SelfComposedDpEvent(base_event, 3),
+        ])
+    )
     self.assertAlmostEqual(rdp_with_compose_and_self_compose, base_rdp * 6)
 
     base_event_2 = dp_event.GaussianDpEvent(1.61803)
     base_rdp_2 = _get_test_rdp(base_event_2)
     rdp_with_heterogeneous_compose = _get_test_rdp(
-        dp_event.ComposedDpEvent([base_event, base_event_2]))
-    self.assertAlmostEqual(rdp_with_heterogeneous_compose,
-                           base_rdp + base_rdp_2)
+        dp_event.ComposedDpEvent([base_event, base_event_2])
+    )
+    self.assertAlmostEqual(
+        rdp_with_heterogeneous_compose, base_rdp + base_rdp_2
+    )
 
   @parameterized.parameters(
       dp_event.PoissonSampledDpEvent(0, dp_event.GaussianDpEvent(1.0)),
-      dp_event.PoissonSampledDpEvent(0, dp_event.GaussianDpEvent(0.0)))
+      dp_event.PoissonSampledDpEvent(0, dp_event.GaussianDpEvent(0.0)),
+  )
   def test_zero_poisson_sample(self, event):
     accountant = rdp_privacy_accountant.RdpAccountant([3.14159])
     accountant.compose(event)
@@ -182,10 +202,13 @@ class RdpPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
 
   def test_zero_fixed_batch_sample(self):
     accountant = rdp_privacy_accountant.RdpAccountant(
-        [3.14159], privacy_accountant.NeighboringRelation.REPLACE_ONE)
+        [3.14159], privacy_accountant.NeighboringRelation.REPLACE_ONE
+    )
     accountant.compose(
         dp_event.SampledWithoutReplacementDpEvent(
-            1000, 0, dp_event.GaussianDpEvent(1.0)))
+            1000, 0, dp_event.GaussianDpEvent(1.0)
+        )
+    )
     self.assertEqual(accountant.get_epsilon(1e-10), 0)
     self.assertEqual(accountant.get_delta(1e-10), 0)
 
@@ -216,15 +239,18 @@ class RdpPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
             1.0,
             dp_event.ComposedDpEvent([
                 dp_event.GaussianDpEvent(sigma1),
-                dp_event.GaussianDpEvent(sigma2)
-            ])))
+                dp_event.GaussianDpEvent(sigma2),
+            ]),
+        )
+    )
     self.assertAlmostEqual(accountant._rdp[0], rdp)
 
   def test_effective_gaussian_noise_multiplier_basic(self):
     sigma = 2.71828
     event = dp_event.GaussianDpEvent(sigma)
     sigma_out = rdp_privacy_accountant._effective_gaussian_noise_multiplier(
-        event)
+        event
+    )
     self.assertEqual(sigma_out, sigma)
 
   def test_effective_gaussian_noise_multiplier_composed(self):
@@ -236,13 +262,13 @@ class RdpPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
         dp_event.SelfComposedDpEvent(dp_event.GaussianDpEvent(sigmas[1]), 3),
         dp_event.ComposedDpEvent([
             dp_event.GaussianDpEvent(sigmas[2]),
-            dp_event.GaussianDpEvent(sigmas[3])
-        ])
+            dp_event.GaussianDpEvent(sigmas[3]),
+        ]),
     ])
 
     sigma = rdp_privacy_accountant._effective_gaussian_noise_multiplier(event)
     multi_sigmas = list(sigmas) + [sigmas[1]] * 2
-    expected = sum(s**-2 for s in multi_sigmas)**-0.5
+    expected = sum(s**-2 for s in multi_sigmas) ** -0.5
     self.assertAlmostEqual(sigma, expected)
 
   _LAPLACE_EVENT = dp_event.LaplaceDpEvent(1.0)
@@ -306,7 +332,8 @@ class RdpPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
 
     # noise multiplier is chosen to obtain exactly (1,1e-6)-DP.
     rdp = rdp_privacy_accountant._compute_rdp_poisson_subsampled_gaussian(
-        1, 4.530877117, orders)
+        1, 4.530877117, orders
+    )
 
     eps = rdp_privacy_accountant.compute_epsilon(orders, rdp, delta=1e-6)[0]
     self.assertAlmostEqual(eps, 1)
@@ -314,47 +341,18 @@ class RdpPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
     delta = rdp_privacy_accountant.compute_delta(orders, rdp, epsilon=1)[0]
     self.assertAlmostEqual(delta, 1e-6)
 
-  params = ({
-      'q': 1e-7,
-      'sigma': .1,
-      'order': 1.01
-  }, {
-      'q': 1e-6,
-      'sigma': .1,
-      'order': 256
-  }, {
-      'q': 1e-5,
-      'sigma': .1,
-      'order': 256.1
-  }, {
-      'q': 1e-6,
-      'sigma': 1,
-      'order': 27
-  }, {
-      'q': 1e-4,
-      'sigma': 1.,
-      'order': 1.5
-  }, {
-      'q': 1e-3,
-      'sigma': 1.,
-      'order': 2
-  }, {
-      'q': .01,
-      'sigma': 10,
-      'order': 20
-  }, {
-      'q': .1,
-      'sigma': 100,
-      'order': 20.5
-  }, {
-      'q': .99,
-      'sigma': .1,
-      'order': 256
-  }, {
-      'q': .999,
-      'sigma': 100,
-      'order': 256.1
-  })
+  params = (
+      {'q': 1e-7, 'sigma': 0.1, 'order': 1.01},
+      {'q': 1e-6, 'sigma': 0.1, 'order': 256},
+      {'q': 1e-5, 'sigma': 0.1, 'order': 256.1},
+      {'q': 1e-6, 'sigma': 1, 'order': 27},
+      {'q': 1e-4, 'sigma': 1.0, 'order': 1.5},
+      {'q': 1e-3, 'sigma': 1.0, 'order': 2},
+      {'q': 0.01, 'sigma': 10, 'order': 20},
+      {'q': 0.1, 'sigma': 100, 'order': 20.5},
+      {'q': 0.99, 'sigma': 0.1, 'order': 256},
+      {'q': 0.999, 'sigma': 100, 'order': 256.1},
+  )
 
   # pylint:disable=undefined-variable
   @parameterized.parameters(p for p in params)
@@ -371,32 +369,36 @@ class RdpPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
     orders = [0.1 * x for x in range(10, 505)]
     eps_vec = [0.1 * x for x in range(500)]
     rdp = rdp_privacy_accountant._compute_rdp_poisson_subsampled_gaussian(
-        1, 1, orders)
+        1, 1, orders
+    )
     for eps in eps_vec:
       delta = rdp_privacy_accountant.compute_delta(orders, rdp, epsilon=eps)[0]
       # For comparison, we compute the optimal guarantee for Gaussian
       # using https://arxiv.org/abs/1805.06530 Theorem 8 (in v2).
-      delta0 = math.erfc((eps - .5) / math.sqrt(2)) / 2
-      delta0 = delta0 - math.exp(eps) * math.erfc((eps + .5) / math.sqrt(2)) / 2
+      delta0 = math.erfc((eps - 0.5) / math.sqrt(2)) / 2
+      delta0 = (
+          delta0 - math.exp(eps) * math.erfc((eps + 0.5) / math.sqrt(2)) / 2
+      )
       self.assertLessEqual(delta0, delta + 1e-300)  # need tolerance 10^-300
 
       # Compute the "standard" upper bound, which should be an upper bound.
       # Note, if orders is too sparse, this will NOT be an upper bound.
       if eps >= 0.5:
-        delta1 = math.exp(-0.5 * (eps - 0.5)**2)
+        delta1 = math.exp(-0.5 * (eps - 0.5) ** 2)
       else:
         delta1 = 1
       self.assertLessEqual(delta, delta1 + 1e-300)
 
   def test_epsilon_delta_consistency(self):
     orders = range(2, 50)  # Large range of orders (helps test for overflows).
-    for q in [0, 0.01, 0.1, 0.8, 1.]:
-      for multiplier in [0.0, 0.1, 1., 10., 100.]:
+    for q in [0, 0.01, 0.1, 0.8, 1.0]:
+      for multiplier in [0.0, 0.1, 1.0, 10.0, 100.0]:
         event = dp_event.PoissonSampledDpEvent(
-            q, dp_event.GaussianDpEvent(multiplier))
+            q, dp_event.GaussianDpEvent(multiplier)
+        )
         accountant = rdp_privacy_accountant.RdpAccountant(orders)
         accountant.compose(event)
-        for delta in [.99, .9, .1, .01, 1e-3, 1e-5, 1e-9, 1e-12]:
+        for delta in [0.99, 0.9, 0.1, 0.01, 1e-3, 1e-5, 1e-9, 1e-12]:
           epsilon = accountant.get_epsilon(delta)
           delta2 = accountant.get_delta(epsilon)
           if np.isposinf(epsilon):
@@ -408,11 +410,13 @@ class RdpPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
 
   @parameterized.named_parameters(
       ('add_remove', privacy_accountant.NeighboringRelation.ADD_OR_REMOVE_ONE),
-      ('replace', privacy_accountant.NeighboringRelation.REPLACE_ONE))
+      ('replace', privacy_accountant.NeighboringRelation.REPLACE_ONE),
+  )
   def test_tree_wrong_neighbor_rel(self, neighboring_relation):
     event = dp_event.SingleEpochTreeAggregationDpEvent(1.0, 1)
     accountant = rdp_privacy_accountant.RdpAccountant(
-        neighboring_relation=neighboring_relation)
+        neighboring_relation=neighboring_relation
+    )
     self.assertFalse(accountant.supports(event))
 
   @parameterized.named_parameters(('eps20', 1.13, 19.74), ('eps2', 8.83, 2.04))
@@ -422,8 +426,9 @@ class RdpPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
     # Private (Deep) Learning without Sampling or Shuffling". The calculated
     # epsilon could be better as the method in this package keeps improving.
     step_counts, target_delta = 1600, 1e-6
-    new_eps = _compose_trees_single_epoch(noise_multiplier, step_counts,
-                                          orders).get_epsilon(target_delta)
+    new_eps = _compose_trees_single_epoch(
+        noise_multiplier, step_counts, orders
+    ).get_epsilon(target_delta)
     self.assertLess(new_eps, eps)
 
   @parameterized.named_parameters(
@@ -435,8 +440,9 @@ class RdpPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
     noise_multiplier, orders = 0.1, [1]
 
     def get_rdp(step_count):
-      return _compose_trees_single_epoch(noise_multiplier, [step_count],
-                                         orders)._rdp[0]
+      return _compose_trees_single_epoch(
+          noise_multiplier, [step_count], orders
+      )._rdp[0]
 
     rdp_summed = sum(get_rdp(step_count) for step_count in step_counts)
     rdp_composed = _compose_trees(noise_multiplier, step_counts, orders)._rdp[0]
@@ -445,13 +451,16 @@ class RdpPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
   def test_single_epoch_multi_tree_rdp(self):
     noise_multiplier, orders = 0.1, [1]
     step_counts = [10, 40, 30, 20]
-    single_rdp = _compose_trees_single_epoch(noise_multiplier, step_counts,
-                                             orders)._rdp[0]
+    single_rdp = _compose_trees_single_epoch(
+        noise_multiplier, step_counts, orders
+    )._rdp[0]
 
     max_rdp = max(
-        _compose_trees_single_epoch(noise_multiplier, step_count,
-                                    orders)._rdp[0]
-        for step_count in step_counts)
+        _compose_trees_single_epoch(noise_multiplier, step_count, orders)._rdp[
+            0
+        ]
+        for step_count in step_counts
+    )
 
     self.assertEqual(single_rdp, max_rdp)
 
@@ -463,7 +472,7 @@ class RdpPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
   def test_compute_eps_tree_decreasing(self, step_counts):
     # Test privacy epsilon decreases with noise multiplier increasing when
     # keeping other parameters the same.
-    orders = [1 + x / 10. for x in range(1, 100)] + list(range(12, 64))
+    orders = [1 + x / 10.0 for x in range(1, 100)] + list(range(12, 64))
     target_delta = 1e-6
     prev_eps = np.inf
     for noise_multiplier in [0.1 * x for x in range(1, 100, 5)]:
@@ -489,7 +498,8 @@ class RdpPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
     tree_rdp = _compose_trees(noise_multiplier, [1] * total_steps, orders)._rdp
     accountant = rdp_privacy_accountant.RdpAccountant(orders)
     event = dp_event.SelfComposedDpEvent(
-        dp_event.GaussianDpEvent(noise_multiplier), total_steps)
+        dp_event.GaussianDpEvent(noise_multiplier), total_steps
+    )
     accountant.compose(event)
     base_rdp = accountant._rdp
     self.assertTrue(np.allclose(tree_rdp, base_rdp, rtol=1e-12))
@@ -524,22 +534,37 @@ class RdpPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
       ('gamma_shape0', 0.9, 0, 0.9 - 1e-9, 0),
       ('gamma_shape2', 0.9, 2, 0.9 - 1e-9, 2),
       ('gamma_shape_0.5', 0.9, 0.5, 0.9 - 1e-9, 0.5),
-      ('x_shape2', math.exp(-0.05), 2, math.exp(-0.05) - 1e-9,
-       2),  # x = shape * math.log(gamma) = -0.1
-      ('x_shape0.5', math.exp(-0.2), 0.5, math.exp(-0.2) - 1e-9,
-       0.5),  # x = shape * math.log(gamma) = -0.1
+      (
+          'x_shape2',
+          math.exp(-0.05),
+          2,
+          math.exp(-0.05) - 1e-9,
+          2,
+      ),  # x = shape * math.log(gamma) = -0.1
+      (
+          'x_shape0.5',
+          math.exp(-0.2),
+          0.5,
+          math.exp(-0.2) - 1e-9,
+          0.5,
+      ),  # x = shape * math.log(gamma) = -0.1
       ('shape_0', 0.6, 0, 0.6, 1e-9),
-      ('shape_1', 0.6, 1, 0.6, 1 + 1e-9))
-  def test_truncated_negative_binomial_mean(self, gamma1, shape1, gamma2,
-                                            shape2):
+      ('shape_1', 0.6, 1, 0.6, 1 + 1e-9),
+  )
+  def test_truncated_negative_binomial_mean(
+      self, gamma1, shape1, gamma2, shape2
+  ):
     mean1 = rdp_privacy_accountant._truncated_negative_binomial_mean(
-        gamma1, shape1)
+        gamma1, shape1
+    )
     mean2 = rdp_privacy_accountant._truncated_negative_binomial_mean(
-        gamma2, shape2)
+        gamma2, shape2
+    )
     self.assertAlmostEqual(mean1, mean2)
 
-  @parameterized.named_parameters(('1e-7', 1e-7), ('.1', 0.1),
-                                  ('0.999999', 1 - 1e-6), ('1', 1))
+  @parameterized.named_parameters(
+      ('1e-7', 1e-7), ('.1', 0.1), ('0.999999', 1 - 1e-6), ('1', 1)
+  )
   def test_truncated_negative_binomial_mean2(self, gamma):
     # Test this function by simply applying the non-numerically stable formula.
     # logarithmic distribution
@@ -547,21 +572,22 @@ class RdpPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
     if gamma == 1:
       ans = 1
     else:
-      ans = (1-1/gamma)/math.log(gamma)
+      ans = (1 - 1 / gamma) / math.log(gamma)
     self.assertAlmostEqual(mean, ans)
 
     # geometric Distribution
     mean = rdp_privacy_accountant._truncated_negative_binomial_mean(gamma, 1)
-    self.assertAlmostEqual(mean, 1/gamma)
+    self.assertAlmostEqual(mean, 1 / gamma)
 
     # general TNB Distribution
     for shape in [0.01, 0.5, 0.99, 1.01, 2, 10]:
       mean = rdp_privacy_accountant._truncated_negative_binomial_mean(
-          gamma, shape)
+          gamma, shape
+      )
       if gamma == 1:
         ans = 1
       else:
-        ans = shape*(1/gamma-1)/(1-gamma**shape)
+        ans = shape * (1 / gamma - 1) / (1 - gamma**shape)
       self.assertAlmostEqual(mean, ans)
 
   # _gamma_truncated_negative_binomial is meant to be the inverse of
@@ -582,11 +608,12 @@ class RdpPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
       ('shape0', 0.999, 0),
       ('shape0.5', 0.999, 0.5),
       ('shape1', 0.999, 1),
-      ('shape2', 0.999, 2)
+      ('shape2', 0.999, 2),
   )
   def test_gamma_truncated_negative_binomial(self, gamma, shape):
     mean = rdp_privacy_accountant._truncated_negative_binomial_mean(
-        gamma, shape)
+        gamma, shape
+    )
     g = rdp_privacy_accountant._gamma_truncated_negative_binomial(shape, mean)
     self.assertAlmostEqual(g, gamma)
 
@@ -599,7 +626,7 @@ class RdpPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
   )
   def test_repeat_select_pure_negative_binomial(self, eps, mean, shape):
     # Test the Repeat and Select DP event in the almost-pure DP case.
-    event = dp_event.LaplaceDpEvent(1/eps)
+    event = dp_event.LaplaceDpEvent(1 / eps)
     event = dp_event.RepeatAndSelectDpEvent(event, mean, shape)
     # Use single large order to simulate pure DP.
     accountant = rdp_privacy_accountant.RdpAccountant(orders=[1e10])
@@ -608,14 +635,40 @@ class RdpPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
     self.assertAlmostEqual(accountant._rdp[0], eps * (2 + shape))
     self.assertAlmostEqual(accountant.get_epsilon(1e-10), eps * (2 + shape))
 
-  @parameterized.named_parameters(('shape0', 0, 1), ('shape0.5', 0.5, 10),
-                                  ('shape1', 1, 0.1), ('shape2', 2, 1))
+  @parameterized.named_parameters(
+      ('shape0', 0, 1),
+      ('shape0.5', 0.5, 10),
+      ('shape1', 1, 0.1),
+      ('shape2', 2, 1),
+  )
   def test_repeat_select_trivial(self, shape, sigma):
     # Test the repeat and select function in the trivial mean=1 case.
-    orders = [1, 1 + 1e-6,  # We include 1, as otherwise this test fails.
-              2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16, 20, 24, 28, 32, 48, 64,
-              128, 256, 512, 1024
-             ]
+    orders = [
+        1,
+        1 + 1e-6,  # We include 1, as otherwise this test fails.
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        12,
+        14,
+        16,
+        20,
+        24,
+        28,
+        32,
+        48,
+        64,
+        128,
+        256,
+        512,
+        1024,
+    ]
     event1 = dp_event.GaussianDpEvent(sigma)
     accountant1 = rdp_privacy_accountant.RdpAccountant(orders=orders)
     accountant1.compose(event1)
@@ -627,23 +680,39 @@ class RdpPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
         self.assertAlmostEqual(accountant1._rdp[i], accountant2._rdp[i])
 
   @parameterized.named_parameters(
-      ('small0', 0.01, 0.01, 0), ('med0', 1, 0.1, 0), ('large0', 10, 0.99, 0),
-      ('small0.5', 0.01, 0.01, 0.5), ('med0.5', 1, 0.1, 0.5),
-      ('large0.5', 10, 0.99, 0.5), ('small1', 0.01, 0.01, 1),
-      ('med1', 1, 0.1, 1), ('large1', 10, 0.99, 1), ('small5', 0.01, 0.01, 5),
-      ('med5', 1, 0.1, 5), ('large5', 10, 0.99, 5))
+      ('small0', 0.01, 0.01, 0),
+      ('med0', 1, 0.1, 0),
+      ('large0', 10, 0.99, 0),
+      ('small0.5', 0.01, 0.01, 0.5),
+      ('med0.5', 1, 0.1, 0.5),
+      ('large0.5', 10, 0.99, 0.5),
+      ('small1', 0.01, 0.01, 1),
+      ('med1', 1, 0.1, 1),
+      ('large1', 10, 0.99, 1),
+      ('small5', 0.01, 0.01, 5),
+      ('med5', 1, 0.1, 5),
+      ('large5', 10, 0.99, 5),
+  )
   def test_repeat_select_gaussian_negative_binomial(self, rho, gamma, shape):
     # Test the Repeat and Select DP event in the Gaussian case.
     # Correct answer is given by Corollary 4 https://arxiv.org/abs/2110.03620
     mean = rdp_privacy_accountant._truncated_negative_binomial_mean(
-        gamma, shape)
+        gamma, shape
+    )
     rho = min(rho, -math.log(gamma))  # We need rho<=log(1/gamma).
     self.assertGreater(rho, 0)  # Otherwise we get division by zero.
     orders = [
-        1, 1.1, 2,
+        1,
+        1.1,
+        2,
         math.sqrt(-math.log(gamma) / rho),
         1 + math.sqrt(math.log(mean) / rho),
-        3, 5, 10, 100, 1000, 10000
+        3,
+        5,
+        10,
+        100,
+        1000,
+        10000,
     ]
     event = dp_event.GaussianDpEvent(math.sqrt(0.5 / rho))
     event = dp_event.RepeatAndSelectDpEvent(event, mean, shape)
@@ -653,11 +722,18 @@ class RdpPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
       order = accountant._orders[i]
       rdp = accountant._rdp[i]
       if order <= 1 + math.sqrt(math.log(mean) / rho):
-        eps = 2 * math.sqrt(rho * math.log(mean)) + 2 * (1 + shape) * math.sqrt(
-            -rho * math.log(gamma)) - shape * rho
+        eps = (
+            2 * math.sqrt(rho * math.log(mean))
+            + 2 * (1 + shape) * math.sqrt(-rho * math.log(gamma))
+            - shape * rho
+        )
       else:
-        eps = rho * (order - 1) + math.log(mean) / (order - 1) + 2 * (
-            1 + shape) * math.sqrt(-rho * math.log(gamma)) - shape * rho
+        eps = (
+            rho * (order - 1)
+            + math.log(mean) / (order - 1)
+            + 2 * (1 + shape) * math.sqrt(-rho * math.log(gamma))
+            - shape * rho
+        )
       self.assertAlmostEqual(rdp, eps, msg='order=' + str(order))
 
   @parameterized.named_parameters(

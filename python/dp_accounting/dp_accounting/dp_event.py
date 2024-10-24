@@ -243,6 +243,24 @@ class UnsupportedDpEvent(DpEvent):
 
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
+class RandomizedResponseDpEvent(DpEvent):
+  """Represents application of the randomized response mechanism.
+
+  The Randomized Response over k buckets with noise parameter p takes in an
+  input which is one of the k buckets. With probability 1 - p, it simply
+  outputs the input bucket. Otherwise, with probability p, it outputs a bucket
+  drawn uniformly at random from the k buckets.
+
+  The noise parameter p can be any value in [0, 1], with p=0 corresponding to
+  the case where the mechanism always outputs the input bucket, and p=1
+  corresponding to the case where the mechanism outputs a bucket drawn
+  uniformly at random from the k buckets regardless of the input bucket.
+  """
+  noise_parameter: float
+  num_buckets: int
+
+
+@attr.s(frozen=True, slots=True, auto_attribs=True)
 class GaussianDpEvent(DpEvent):
   """Represents an application of the Gaussian mechanism.
 

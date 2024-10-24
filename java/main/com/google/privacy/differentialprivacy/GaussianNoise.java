@@ -99,17 +99,7 @@ public class GaussianNoise implements Noise {
     checkParameters(l0Sensitivity, lInfSensitivity, epsilon, delta);
 
     double l2Sensitivity = Noise.getL2Sensitivity(l0Sensitivity, lInfSensitivity);
-    double sigma = getSigma(l2Sensitivity, epsilon, delta);
-
-    double granularity = getGranularity(sigma);
-
-    // The square root of n is chosen in a way that places it in the interval between BINOMIAL_BOUND
-    // and BINOMIAL_BOUND / 2. This ensures that the respective binomial distribution consists of
-    // enough Bernoulli samples to closely approximate a Gaussian distribution.
-    double sqrtN = 2.0 * sigma / granularity;
-    long binomialSample = sampleSymmetricBinomial(sqrtN);
-    return SecureNoiseMath.roundToMultipleOfPowerOfTwo(x, granularity)
-        + binomialSample * granularity;
+    return addNoiseDefinedBySigma(x, getSigma(l2Sensitivity, epsilon, delta));
   }
 
   /**
@@ -122,22 +112,55 @@ public class GaussianNoise implements Noise {
     checkParameters(l0Sensitivity, lInfSensitivity, epsilon, delta);
 
     double l2Sensitivity = Noise.getL2Sensitivity(l0Sensitivity, lInfSensitivity);
-    double sigma = getSigma(l2Sensitivity, epsilon, delta);
+    return addNoiseDefinedBySigma(x, getSigma(l2Sensitivity, epsilon, delta));
+  }
 
-    double granularity = getGranularity(sigma);
+  /**
+   * Adds Gaussian noise to {@code x} such that the output is {@code rho}-zero Concentrated DP
+   * (zCDP) with respect to the specified L_2 sensitivity. For more details on rho-zCDP see
+   * https://eprint.iacr.org/2016/816.pdf
+   */
+  public double addNoiseDefinedByRho(double x, double l2Sensitivity, double rho) {
+    checkParametersForRhozCDP(l2Sensitivity, rho);
+    return addNoiseDefinedBySigma(x, getSigmaForRho(l2Sensitivity, rho));
+  }
+
+  /**
+   * Adds Gaussian noise to {@code x} such that the output is {@code rho}-zCDP with respect to the
+   * specified L_2 sensitivity.
+   */
+  public long addNoiseDefinedByRho(long x, double l2Sensitivity, double rho) {
+    checkParametersForRhozCDP(l2Sensitivity, rho);
+    return addNoiseDefinedBySigma(x, getSigmaForRho(l2Sensitivity, rho));
+  }
+
+  private double addNoiseDefinedBySigma(double x, double noiseSigma) {
+    double granularity = getGranularity(noiseSigma);
 
     // The square root of n is chosen in a way that places it in the interval between BINOMIAL_BOUND
     // and BINOMIAL_BOUND / 2. This ensures that the respective binomial distribution consists of
     // enough Bernoulli samples to closely approximate a Gaussian distribution.
-    double sqrtN = 2.0 * sigma / granularity;
+    double sqrtN = 2.0 * noiseSigma / granularity;
+    long binomialSample = sampleSymmetricBinomial(sqrtN);
+    return SecureNoiseMath.roundToMultipleOfPowerOfTwo(x, granularity)
+        + binomialSample * granularity;
+  }
+
+  private long addNoiseDefinedBySigma(long x, double noiseSigma) {
+    double granularity = getGranularity(noiseSigma);
+
+    // The square root of n is chosen in a way that places it in the interval between BINOMIAL_BOUND
+    // and BINOMIAL_BOUND / 2. This ensures that the respective binomial distribution consists of
+    // enough Bernoulli samples to closely approximate a Gaussian distribution.
+    double sqrtN = 2.0 * noiseSigma / granularity;
     long binomialSample = sampleSymmetricBinomial(sqrtN);
     if (granularity <= 1.0) {
       return x + Math.round(binomialSample * granularity);
-    } else {
-      return SecureNoiseMath.roundToMultiple(x, (long) granularity)
-          + binomialSample * (long) granularity;
     }
+    return SecureNoiseMath.roundToMultiple(x, (long) granularity)
+        + binomialSample * (long) granularity;
   }
+
 
   @Override
   public MechanismType getMechanismType() {
@@ -236,6 +259,11 @@ public class GaussianNoise implements Noise {
         Double.isFinite(twoLInf), "2 * lInfSensitivity must be finite but is %s", twoLInf);
   }
 
+  private void checkParametersForRhozCDP(double l2Sensitivity, double rho) {
+    DpPreconditions.checkL2Sensitivity(l2Sensitivity);
+    DpPreconditions.checkRho(rho);
+  }
+
   private void checkConfidenceIntervalParameters(
       int l0Sensitivity, double lInfSensitivity, double epsilon, Double delta, double alpha) {
     DpPreconditions.checkAlpha(alpha);
@@ -281,6 +309,15 @@ public class GaussianNoise implements Noise {
 
     // Return the over-approximation to err on the safe side.
     return upperBound;
+  }
+
+  /*
+   * Computes sigma of Gaissian noise to satisify rho Zero Concentrated DP (rho-zCDP).
+   * For more details on rho-zCDP see https://eprint.iacr.org/2016/816.pdf
+   */
+  public static double getSigmaForRho(double l2Sensitivity, double rho) {
+    // From https://eprint.iacr.org/2016/816.pdf Propositon 6.
+    return l2Sensitivity / Math.sqrt(2 * rho);
   }
 
   /**

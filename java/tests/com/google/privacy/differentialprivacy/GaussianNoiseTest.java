@@ -266,7 +266,7 @@ public final class GaussianNoiseTest {
                 DEFAULT_L_0_SENSITIVITY,
                 DEFAULT_L_INF_SENSITIVITY,
                 DEFAULT_EPSILON,
-                 /* delta= */ 0.0));
+                /* delta= */ 0.0));
   }
 
   @Test
@@ -349,6 +349,26 @@ public final class GaussianNoiseTest {
   }
 
   @Test
+  public void addNoiseDefinedByRho_Nan_rho_throwsException() {
+    assertThrows(IllegalArgumentException.class, () -> NOISE.addNoiseDefinedByRho(0, 1, NaN));
+  }
+
+  @Test
+  public void addNoiseDefinedByRho_zero_rho_throwsException() {
+    assertThrows(IllegalArgumentException.class, () -> NOISE.addNoiseDefinedByRho(0, 1, 0));
+  }
+
+  @Test
+  public void addNoiseDefinedByRho_negativeSensitivity_throwsException() {
+    assertThrows(IllegalArgumentException.class, () -> NOISE.addNoiseDefinedByRho(0, -1, 1));
+  }
+
+  @Test
+  public void addNoiseDefinedByRho_zeroSensitivity_throwsException() {
+    assertThrows(IllegalArgumentException.class, () -> NOISE.addNoiseDefinedByRho(0, 0, 1));
+  }
+
+  @Test
   public void addNoise_returnsMultipleOfGranularity() {
     SecureRandom random = new SecureRandom();
     for (int i = 0; i < NUM_SAMPLES; i++) {
@@ -395,8 +415,8 @@ public final class GaussianNoiseTest {
   public void addNoise_integralX_returnsMultipleOfGranularity() {
     SecureRandom random = new SecureRandom();
     for (int i = 0; i < NUM_SAMPLES; i++) {
-      // The rounding pricess should be independent of the value of x. Set x to a value between
-      // -1*10^6 and 10^6 at random should covere a broad range of congruence classes.
+      // The rounding process should be independent of the value of x. Set x to a value between
+      // -1*10^6 and 10^6 at random should cover a broad range of congruence classes.
       long x = (long) random.nextInt(2000000) - 1000000;
 
       // The following choice of epsilon, delta, l0 sensitivity and linf sensitivity should result
@@ -449,5 +469,40 @@ public final class GaussianNoiseTest {
   @Test
   public void getMechanismType_returnsGaussian() {
     assertThat(NOISE.getMechanismType()).isEqualTo(GAUSSIAN);
+  }
+
+  @Test
+  public void getSigmaForRho_returnsCorrectly() {
+    // sigma = l2Sensitivity / sqrt(2*rho)
+    assertThat(GaussianNoise.getSigmaForRho(/* l2Sensitivity= */ 1.0, /* rho= */ 1))
+        .isWithin(1e-12)
+        .of(0.7071067811865475);
+    assertThat(GaussianNoise.getSigmaForRho(/* l2Sensitivity= */ 3.0, /* rho= */ 1))
+        .isWithin(1e-12)
+        .of(2.1213203435596424);
+    assertThat(GaussianNoise.getSigmaForRho(/* l2Sensitivity= */ 1.0, /* rho= */ 2))
+        .isWithin(1e-12)
+        .of(0.5);
+    assertThat(GaussianNoise.getSigmaForRho(/* l2Sensitivity= */ 10.0, /* rho= */ 8))
+        .isWithin(1e-12)
+        .of(2.5);
+  }
+
+  @Test
+  public void addNoiseDefinedByRho_hasAccurateStatisticalProperties() {
+    ImmutableList.Builder<Double> samples = ImmutableList.builder();
+    for (int i = 0; i < NUM_SAMPLES; i++) {
+      samples.add(NOISE.addNoiseDefinedByRho(/* x */ 1.0, /* l2Sensitivity */ 10.0, /* rho */ 2));
+    }
+    Stats stats = Stats.of(samples.build());
+
+    double variance = 25; // std_dev = 10/sqrt(2*2) = 5
+    // The tolerance is chosen according to the 99.9995% quantile of the anticipated distributions
+    // of the sample mean and variance. Thus, the test falsely rejects with a probability of 10^-5.
+    final double stdNormQuantile = 4.41717; // 99.9995% quantile of the standard normal distribution
+    double sampleMeanTolerance = stdNormQuantile * Math.sqrt(variance / NUM_SAMPLES);
+    double sampleVarianceTolerance = stdNormQuantile * variance * Math.sqrt(2.0 / NUM_SAMPLES);
+    assertThat(stats.mean()).isWithin(sampleMeanTolerance).of(1.0);
+    assertThat(stats.populationVariance()).isWithin(sampleVarianceTolerance).of(variance);
   }
 }

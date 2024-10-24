@@ -56,8 +56,11 @@ def _log_sub_sign(logx: float, logy: float) -> Tuple[bool, float]:
 
 def _log_comb(n: float, k: float) -> float:
   """Computes log of binomial coefficient."""
-  return (special.gammaln(n + 1) - special.gammaln(k + 1) -
-          special.gammaln(n - k + 1))
+  return (
+      special.gammaln(n + 1)
+      - special.gammaln(k + 1)
+      - special.gammaln(n - k + 1)
+  )
 
 
 def _compute_log_a_int(q: float, sigma: float, alpha: int) -> float:
@@ -84,7 +87,7 @@ def _compute_log_a_frac(q: float, sigma: float, alpha: float) -> float:
   # The two parts of A_alpha, integrals over (-inf,z0] and [z0, +inf), are
   # initialized to 0 in the log space:
   log_a0, log_a1 = -np.inf, -np.inf
-  z0 = sigma**2 * math.log(1 / q - 1) + .5
+  z0 = sigma**2 * math.log(1 / q - 1) + 0.5
   log1mq = math.log1p(-q)
 
   last_s0 = last_s1 = -np.inf
@@ -96,8 +99,8 @@ def _compute_log_a_frac(q: float, sigma: float, alpha: float) -> float:
     log_t0 = log_coef + i * math.log(q) + j * log1mq
     log_t1 = log_coef + j * math.log(q) + i * log1mq
 
-    log_e0 = math.log(.5) + _log_erfc((i - z0) / (math.sqrt(2) * sigma))
-    log_e1 = math.log(.5) + _log_erfc((z0 - j) / (math.sqrt(2) * sigma))
+    log_e0 = math.log(0.5) + _log_erfc((i - z0) / (math.sqrt(2) * sigma))
+    log_e1 = math.log(0.5) + _log_erfc((z0 - j) / (math.sqrt(2) * sigma))
 
     log_s0 = log_t0 + (i * i - i) / (2 * (sigma**2)) + log_e0
     log_s1 = log_t1 + (j * j - j) / (2 * (sigma**2)) + log_e1
@@ -134,7 +137,7 @@ def _compute_log_a_frac(q: float, sigma: float, alpha: float) -> float:
 def _log_erfc(x: float) -> float:
   """Computes log(erfc(x)) with high accuracy for large x."""
   try:
-    return math.log(2) + special.log_ndtr(-x * 2**.5)
+    return math.log(2) + special.log_ndtr(-x * 2**0.5)
   except NameError:
     # If log_ndtr is not available, approximate as follows:
     r = special.erfc(x)
@@ -143,8 +146,15 @@ def _log_erfc(x: float) -> float:
       #     erfc(x) ~ exp(-x^2-.5/x^2+.625/x^4)/(x*pi^.5)
       # To verify in Mathematica:
       #     Series[Log[Erfc[x]] + Log[x] + Log[Pi]/2 + x^2, {x, Infinity, 6}]
-      return (-math.log(math.pi) / 2 - math.log(x) - x**2 - .5 * x**-2 +
-              .625 * x**-4 - 37. / 24. * x**-6 + 353. / 64. * x**-8)
+      return (
+          -math.log(math.pi) / 2
+          - math.log(x)
+          - x**2
+          - 0.5 * x**-2
+          + 0.625 * x**-4
+          - 37.0 / 24.0 * x**-6
+          + 353.0 / 64.0 * x**-8
+      )
     else:
       return math.log(r)
 
@@ -164,7 +174,6 @@ def compute_delta(
 
   Raises:
     ValueError: If input is malformed.
-
   """
   if epsilon < 0:
     raise ValueError(f'Epsilon cannot be negative. Found {epsilon}.')
@@ -176,7 +185,7 @@ def compute_delta(
 
   # Improved bound from https://arxiv.org/abs/2004.00010 Proposition 12 (in v4):
   logdeltas = []  # work in log space to avoid overflows
-  for (a, r) in zip(orders, rdp):
+  for a, r in zip(orders, rdp):
     if a < 1:
       raise ValueError(f'Renyi divergence order must be at least 1. Found {a}.')
     if r < 0:
@@ -203,7 +212,7 @@ def compute_delta(
     logdeltas.append(logdelta)
 
   optimal_index = np.argmin(logdeltas)
-  return min(math.exp(logdeltas[optimal_index]), 1.), orders[optimal_index]
+  return min(math.exp(logdeltas[optimal_index]), 1.0), orders[optimal_index]
 
 
 def compute_epsilon(
@@ -221,7 +230,6 @@ def compute_epsilon(
 
   Raises:
     ValueError: If input is malformed.
-
   """
   if delta < 0:
     raise ValueError(f'Delta cannot be negative. Found {delta}.')
@@ -241,7 +249,7 @@ def compute_epsilon(
   # Improved bound from https://arxiv.org/abs/2004.00010 Proposition 12 (in v4).
   # Also appears in https://arxiv.org/abs/2001.05990 Equation 20 (in v1).
   eps = []
-  for (a, r) in zip(orders, rdp):
+  for a, r in zip(orders, rdp):
     if a < 1:
       raise ValueError(f'Renyi divergence order must be at least 1. Found {a}.')
     if r < 0:
@@ -269,9 +277,9 @@ def compute_epsilon(
   return max(0, eps[optimal_index]), orders[optimal_index]
 
 
-def _stable_inplace_diff_in_log(vec: np.ndarray,
-                                signs: np.ndarray,
-                                n: Optional[int] = None):
+def _stable_inplace_diff_in_log(
+    vec: np.ndarray, signs: np.ndarray, n: Optional[int] = None
+):
   """Replaces the first n-1 dims of vec with the log of abs difference operator.
 
   Args:
@@ -310,8 +318,9 @@ def _stable_inplace_diff_in_log(vec: np.ndarray,
       signs[j] = signs[j + 1]
 
 
-def _get_forward_diffs(fun: Callable[[float], float],
-                       n: int) -> Tuple[np.ndarray, np.ndarray]:
+def _get_forward_diffs(
+    fun: Callable[[float], float], n: int
+) -> Tuple[np.ndarray, np.ndarray]:
   """Computes up to nth order forward difference evaluated at 0.
 
   See Theorem 27 of https://arxiv.org/pdf/1808.00087.pdf
@@ -339,8 +348,9 @@ def _get_forward_diffs(fun: Callable[[float], float],
   return deltas, signs_deltas
 
 
-def _compute_log_a(q: float, noise_multiplier: float,
-                   alpha: Union[int, float]) -> float:
+def _compute_log_a(
+    q: float, noise_multiplier: float, alpha: Union[int, float]
+) -> float:
   if float(alpha).is_integer():
     return _compute_log_a_int(q, noise_multiplier, int(alpha))
   else:
@@ -348,8 +358,8 @@ def _compute_log_a(q: float, noise_multiplier: float,
 
 
 def _compute_rdp_poisson_subsampled_gaussian(
-    q: float, noise_multiplier: float,
-    orders: Sequence[float]) -> Union[float, np.ndarray]:
+    q: float, noise_multiplier: float, orders: Sequence[float]
+) -> Union[float, np.ndarray]:
   """Computes RDP of the Poisson sampled Gaussian mechanism.
 
   Args:
@@ -379,7 +389,7 @@ def _compute_rdp_poisson_subsampled_gaussian(
     if np.isinf(alpha) or noise_multiplier == 0:
       return np.inf
 
-    if q == 1.:
+    if q == 1.0:
       return alpha / (2 * noise_multiplier**2)
 
     return _compute_log_a(q, noise_multiplier, alpha) / (alpha - 1)
@@ -388,8 +398,8 @@ def _compute_rdp_poisson_subsampled_gaussian(
 
 
 def _compute_rdp_sample_wor_gaussian(
-    q: float, noise_multiplier: float,
-    orders: Sequence[float]) -> Union[float, np.ndarray]:
+    q: float, noise_multiplier: float, orders: Sequence[float]
+) -> Union[float, np.ndarray]:
   """Computes RDP of Gaussian mechanism using sampling without replacement.
 
   This function applies to the following schemes:
@@ -417,8 +427,9 @@ def _compute_rdp_sample_wor_gaussian(
   ])
 
 
-def _compute_rdp_sample_wor_gaussian_scalar(q: float, sigma: float,
-                                            alpha: Union[float, int]) -> float:
+def _compute_rdp_sample_wor_gaussian_scalar(
+    q: float, sigma: float, alpha: Union[float, int]
+) -> float:
   """Computes RDP of the Sampled Gaussian mechanism at order alpha.
 
   Args:
@@ -435,7 +446,7 @@ def _compute_rdp_sample_wor_gaussian_scalar(q: float, sigma: float,
   if q == 0:
     return 0
 
-  if q == 1.:
+  if q == 1.0:
     return alpha / (2 * sigma**2)
 
   if np.isinf(alpha):
@@ -443,7 +454,8 @@ def _compute_rdp_sample_wor_gaussian_scalar(q: float, sigma: float,
 
   if float(alpha).is_integer():
     return _compute_rdp_sample_wor_gaussian_int(q, sigma, int(alpha)) / (
-        alpha - 1)
+        alpha - 1
+    )
   else:
     # When alpha not an integer, we apply Corollary 10 of [WBK19] to interpolate
     # the CGF and obtain an upper bound
@@ -456,8 +468,9 @@ def _compute_rdp_sample_wor_gaussian_scalar(q: float, sigma: float,
     return ((1 - t) * x + t * y) / (alpha - 1)
 
 
-def _compute_rdp_sample_wor_gaussian_int(q: float, sigma: float,
-                                         alpha: int) -> float:
+def _compute_rdp_sample_wor_gaussian_int(
+    q: float, sigma: float, alpha: int
+) -> float:
   """Computes log(A_alpha) for integer alpha, subsampling without replacement.
 
   When alpha is smaller than max_alpha, compute the bound Theorem 27 exactly,
@@ -499,9 +512,11 @@ def _compute_rdp_sample_wor_gaussian_int(q: float, sigma: float,
     # Compute the bound exactly requires book keeping of O(alpha**2)
     for i in range(2, alpha + 1):
       if i == 2:
-        s = 2 * np.log(q) + _log_comb(alpha, 2) + np.minimum(
-            np.log(4) + log_f2m1,
-            func(2.0) + np.log(2))
+        s = (
+            2 * np.log(q)
+            + _log_comb(alpha, 2)
+            + np.minimum(np.log(4) + log_f2m1, func(2.0) + np.log(2))
+        )
       else:  # i > 2
         delta_lo = deltas[int(2 * np.floor(i / 2.0)) - 1]
         delta_hi = deltas[int(2 * np.ceil(i / 2.0)) - 1]
@@ -514,9 +529,11 @@ def _compute_rdp_sample_wor_gaussian_int(q: float, sigma: float,
     # Compute the bound with stirling approximation. Everything is O(x) now.
     for i in range(2, alpha + 1):
       if i == 2:
-        s = 2 * np.log(q) + _log_comb(alpha, 2) + np.minimum(
-            np.log(4) + log_f2m1,
-            func(2.0) + np.log(2))
+        s = (
+            2 * np.log(q)
+            + _log_comb(alpha, 2)
+            + np.minimum(np.log(4) + log_f2m1, func(2.0) + np.log(2))
+        )
       else:
         s = np.log(2) + cgf(i - 1) + i * np.log(q) + _log_comb(alpha, i)
       log_a = _log_add(log_a, s)
@@ -525,7 +542,8 @@ def _compute_rdp_sample_wor_gaussian_int(q: float, sigma: float,
 
 
 def _effective_gaussian_noise_multiplier(
-    event: dp_event.DpEvent) -> Union[float, dp_event.DpEvent]:
+    event: dp_event.DpEvent,
+) -> Union[float, dp_event.DpEvent]:
   """Determines the effective noise multiplier of nested structure of Gaussians.
 
   A series of Gaussian queries on the same data can be reexpressed as a single
@@ -564,8 +582,10 @@ def _effective_gaussian_noise_multiplier(
 
 
 def _compute_rdp_single_epoch_tree_aggregation(
-    noise_multiplier: float, step_counts: Union[int, Sequence[int]],
-    orders: Sequence[float]) -> Union[float, np.ndarray]:
+    noise_multiplier: float,
+    step_counts: Union[int, Sequence[int]],
+    orders: Sequence[float],
+) -> Union[float, np.ndarray]:
   """Computes RDP of the Tree Aggregation Protocol for Gaussian Mechanism.
 
   This function implements the accounting when the tree is periodically
@@ -586,14 +606,16 @@ def _compute_rdp_single_epoch_tree_aggregation(
   """
   if noise_multiplier < 0:
     raise ValueError(
-        f'noise_multiplier must be non-negative. Got {noise_multiplier}.')
+        f'noise_multiplier must be non-negative. Got {noise_multiplier}.'
+    )
   if noise_multiplier == 0:
     return np.inf
 
   if not step_counts:
     raise ValueError(
         'steps_list must be a non-empty list, or a non-zero scalar. Got '
-        f'{step_counts}.')
+        f'{step_counts}.'
+    )
 
   if np.isscalar(step_counts):
     step_counts = [step_counts]
@@ -647,7 +669,7 @@ def _logx_over_xm1(x: float) -> float:
   # Denote y = 1-x. Then we have a Taylor series for the natural logarithm:
   # log(x) = log(1-y) = - sum_{k>=1} y^k / k
   # Thus log(x)/(x-1) = -log(1-y)/y = sum_{k>=1} y^{k-1}/k
-  return math.fsum((1 - x)**(k - 1) / k for k in range(1, 100))
+  return math.fsum((1 - x) ** (k - 1) / k for k in range(1, 100))
   # Dropped terms: sum_{k>=100} y^{k-1}/k.
   # Since |y|<=0.1, this sum is < 10^-100.
   # Since 0.9 <= log(x)/(x-1) <= 1.1, this is also a small relative error.
@@ -686,9 +708,9 @@ def _truncated_negative_binomial_mean(gamma: float, shape: float) -> float:
     return 1 / (gamma * a * b)
 
 
-def _gamma_truncated_negative_binomial(shape: float,
-                                       mean: float,
-                                       tolerance: float = 1e-9) -> float:
+def _gamma_truncated_negative_binomial(
+    shape: float, mean: float, tolerance: float = 1e-9
+) -> float:
   """Computes gamma parameter of truncated negative binomial from mean.
 
   Args:
@@ -723,9 +745,9 @@ def _gamma_truncated_negative_binomial(shape: float,
   return gamma_min  # The conservative estimate is returned.
 
 
-def _compute_rdp_repeat_and_select(orders: Sequence[float],
-                                   rdp: Sequence[float], mean: float,
-                                   shape: float) -> Sequence[float]:
+def _compute_rdp_repeat_and_select(
+    orders: Sequence[float], rdp: Sequence[float], mean: float, shape: float
+) -> Sequence[float]:
   # pyformat: disable
   """Computes RDP of repeating and selecting best run.
 
@@ -759,7 +781,8 @@ def _compute_rdp_repeat_and_select(orders: Sequence[float],
     raise ValueError(f'Mean of number of repetitions must be >=1. Got {mean}.')
   if len(orders) != len(rdp):
     raise ValueError(
-        f'orders and rdp must be same length, got {len(orders)} & {len(rdp)}.')
+        f'orders and rdp must be same length, got {len(orders)} & {len(rdp)}.'
+    )
 
   orders = np.asarray(orders)
   rdp_out = np.zeros_like(orders, dtype=np.float64)  # This will be the output.
@@ -793,7 +816,8 @@ def _compute_rdp_repeat_and_select(orders: Sequence[float],
     # We can use this to bound rdp for low orders.
     for i in range(len(orders)):
       rdp_out[i] = min(
-          rdp_out[j] for j in range(len(orders)) if orders[i] <= orders[j])
+          rdp_out[j] for j in range(len(orders)) if orders[i] <= orders[j]
+      )
   return rdp_out
 
 
@@ -830,16 +854,20 @@ def _laplace_rdp(eps: float, order: float) -> float:
     # Since 0 <= -c*x <= 0.1, this Taylor series converges rapidly.
     c = math.expm1(eps * (1 - 2 * a)) / (2 * a - 1)
     v = -c * (a - 1)
-    return eps + c * math.fsum(v**(k - 1) / k for k in range(1, 100))
+    return eps + c * math.fsum(v ** (k - 1) / k for k in range(1, 100))
   else:  # order > 1.1
     return eps + math.log1p(
         (a - 1) * math.expm1(eps * (1 - 2 * a)) / (2 * a - 1)
     ) / (a - 1)
 
+
 # Default orders chosen to give good coverage for Gaussian mechanism in
 # the privacy regime of interest.
-DEFAULT_RDP_ORDERS = ([1 + x / 10. for x in range(1, 100)] +
-                      list(range(11, 64)) + [128, 256, 512, 1024])
+DEFAULT_RDP_ORDERS = (
+    [1 + x / 10.0 for x in range(1, 100)]
+    + list(range(11, 64))
+    + [128, 256, 512, 1024]
+)
 
 
 class RdpAccountant(privacy_accountant.PrivacyAccountant):
@@ -862,8 +890,9 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
     self._orders = np.array(orders)
     self._rdp = np.zeros_like(orders, dtype=np.float64)
 
-  def _maybe_compose(self, event: dp_event.DpEvent, count: int,
-                     do_compose: bool) -> Optional[CompositionErrorDetails]:
+  def _maybe_compose(
+      self, event: dp_event.DpEvent, count: int, do_compose: bool
+  ) -> Optional[CompositionErrorDetails]:
     """Traverses `event` and performs composition if `do_compose` is True."""
 
     if isinstance(event, dp_event.NoOpDpEvent):
@@ -883,66 +912,85 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
     elif isinstance(event, dp_event.GaussianDpEvent):
       if do_compose:
         self._rdp += count * _compute_rdp_poisson_subsampled_gaussian(
-            q=1.0, noise_multiplier=event.noise_multiplier, orders=self._orders)
+            q=1.0, noise_multiplier=event.noise_multiplier, orders=self._orders
+        )
       return None
     elif isinstance(event, dp_event.PoissonSampledDpEvent):
       if self._neighboring_relation is not NeighborRel.ADD_OR_REMOVE_ONE:
         error_msg = (
             'neighboring_relation must be `ADD_OR_REMOVE_ONE` for '
-            f'`PoissonSampledDpEvent`. Found {self._neighboring_relation}.')
+            f'`PoissonSampledDpEvent`. Found {self._neighboring_relation}.'
+        )
         return CompositionErrorDetails(
-            invalid_event=event, error_message=error_msg)
+            invalid_event=event, error_message=error_msg
+        )
       sigma_or_bad_event = _effective_gaussian_noise_multiplier(event.event)
       if isinstance(sigma_or_bad_event, dp_event.DpEvent):
         return CompositionErrorDetails(
             invalid_event=event,
-            error_message='Subevent of `PoissonSampledDpEvent` must be a '
-            '`GaussianDpEvent` or a nested structure of `ComposedDpEvent` '
-            'and/or `SelfComposedDpEvent` bottoming out in `GaussianDpEvent`s.'
-            f' Found subevent {sigma_or_bad_event}.')
+            error_message=(
+                'Subevent of `PoissonSampledDpEvent` must be a'
+                ' `GaussianDpEvent` or a nested structure of `ComposedDpEvent`'
+                ' and/or `SelfComposedDpEvent` bottoming out in'
+                f' `GaussianDpEvent`s. Found subevent {sigma_or_bad_event}.'
+            ),
+        )
       if do_compose:
         self._rdp += count * _compute_rdp_poisson_subsampled_gaussian(
             q=event.sampling_probability,
             noise_multiplier=sigma_or_bad_event,
-            orders=self._orders)
+            orders=self._orders,
+        )
       return None
     elif isinstance(event, dp_event.SampledWithoutReplacementDpEvent):
       if self._neighboring_relation is not NeighborRel.REPLACE_ONE:
-        error_msg = ('neighboring_relation must be `REPLACE_ONE` for '
-                     '`SampledWithoutReplacementDpEvent`. Found '
-                     f'{self._neighboring_relation}.')
+        error_msg = (
+            'neighboring_relation must be `REPLACE_ONE` for '
+            '`SampledWithoutReplacementDpEvent`. Found '
+            f'{self._neighboring_relation}.'
+        )
         return CompositionErrorDetails(
-            invalid_event=event, error_message=error_msg)
+            invalid_event=event, error_message=error_msg
+        )
       sigma_or_bad_event = _effective_gaussian_noise_multiplier(event.event)
       if isinstance(sigma_or_bad_event, dp_event.DpEvent):
         return CompositionErrorDetails(
             invalid_event=event,
-            error_message='Subevent of `SampledWithoutReplacementDpEvent` must '
-            'be a `GaussianDpEvent` or a nested structure of `ComposedDpEvent` '
-            'and/or `SelfComposedDpEvent` bottoming out in `GaussianDpEvent`s. '
-            f'Found subevent {sigma_or_bad_event}.')
+            error_message=(
+                'Subevent of `SampledWithoutReplacementDpEvent` must be a'
+                ' `GaussianDpEvent` or a nested structure of `ComposedDpEvent`'
+                ' and/or `SelfComposedDpEvent` bottoming out in'
+                f' `GaussianDpEvent`s. Found subevent {sigma_or_bad_event}.'
+            ),
+        )
       if do_compose:
         self._rdp += count * _compute_rdp_sample_wor_gaussian(
             q=event.sample_size / event.source_dataset_size,
             noise_multiplier=sigma_or_bad_event,
-            orders=self._orders)
+            orders=self._orders,
+        )
       return None
     elif isinstance(event, dp_event.SingleEpochTreeAggregationDpEvent):
       if self._neighboring_relation is not NeighborRel.REPLACE_SPECIAL:
-        error_msg = ('neighboring_relation must be `REPLACE_SPECIAL` for '
-                     '`SingleEpochTreeAggregationDpEvent`. Found '
-                     f'{self._neighboring_relation}.')
+        error_msg = (
+            'neighboring_relation must be `REPLACE_SPECIAL` for '
+            '`SingleEpochTreeAggregationDpEvent`. Found '
+            f'{self._neighboring_relation}.'
+        )
         return CompositionErrorDetails(
-            invalid_event=event, error_message=error_msg)
+            invalid_event=event, error_message=error_msg
+        )
       if do_compose:
         self._rdp += count * _compute_rdp_single_epoch_tree_aggregation(
-            event.noise_multiplier, event.step_counts, self._orders)
+            event.noise_multiplier, event.step_counts, self._orders
+        )
       return None
     elif isinstance(event, dp_event.LaplaceDpEvent):
       if do_compose:
         eps = 1 / event.noise_multiplier
         self._rdp += count * np.array(
-            [_laplace_rdp(eps, order) for order in self._orders])
+            [_laplace_rdp(eps, order) for order in self._orders]
+        )
       return None
     elif isinstance(event, dp_event.RepeatAndSelectDpEvent):
       save_rdp = self._rdp
@@ -954,13 +1002,19 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
         self._rdp = np.zeros_like(self._orders, dtype=np.float64)
       composition_error = self._maybe_compose(event.event, 1, do_compose)
       if composition_error is None and do_compose:
-        self._rdp = count * _compute_rdp_repeat_and_select(
-            self._orders, self._rdp, event.mean, event.shape) + save_rdp
+        self._rdp = (
+            count
+            * _compute_rdp_repeat_and_select(
+                self._orders, self._rdp, event.mean, event.shape
+            )
+            + save_rdp
+        )
       return composition_error
     else:
       # Unsupported event (including `UnsupportedDpEvent`).
       return CompositionErrorDetails(
-          invalid_event=event, error_message='Unsupported event.')
+          invalid_event=event, error_message='Unsupported event.'
+      )
 
   def get_epsilon_and_optimal_order(
       self, target_delta: float
