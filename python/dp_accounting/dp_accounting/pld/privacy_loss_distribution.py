@@ -85,13 +85,11 @@ class PrivacyLossDistribution:
   this class associated to various mechanisms.
 
   Attributes:
-    _basic_pld_remove: basic privacy loss distribution with respect to REMOVE
-      adjacency.
-    _basic_pld_add: basic privacy loss distribution with respect to ADD
-      adjacency.
-    _symmetric: When True, basic_pld_add is assumed to be the same as
-      basic_pld_remove.
-    _basic_pld: An alias for basic_pld_remove. Useful when symmetric is True.
+    _pmf_remove: the privacy loss distribution probability mass function with
+      respect to REMOVE adjacency.
+    _pmf_add: the privacy loss distribution probability mass function with
+      respect to ADD adjacency.
+    _symmetric: When True, _pmf_add is assumed to be the same as _pmf_remove.
   """
 
   def __init__(self,
@@ -100,7 +98,7 @@ class PrivacyLossDistribution:
     """Initialization method for PrivacyLossDistribution."""
     self._pmf_remove = pmf_remove
     self._symmetric = pmf_add is None
-    self._pmf_add = pmf_remove if self._symmetric else pmf_add
+    self._pmf_add = pmf_remove if pmf_add is None else pmf_add
 
   @classmethod
   def create_from_rounded_probability(
@@ -718,70 +716,71 @@ def from_two_probability_mass_functions(
   """
 
   def _create_rounded_probability_mass_function(
-      log_probability_mass_function_lower: Mapping[Any, float],
-      log_probability_mass_function_upper: Mapping[Any, float]
+      log_pmf_lower: Mapping[Any, float],
+      log_pmf_upper: Mapping[Any, float]
   ) -> Tuple[float, Mapping[int, float]]:
     """Helper function for creating rounded pmf."""
     infinity_mass = 0
-    for outcome in log_probability_mass_function_upper:
-      if log_probability_mass_function_lower.get(outcome,
-                                                 -math.inf) == -math.inf:
+    for outcome in log_pmf_upper:
+      if log_pmf_lower.get(outcome, -math.inf) == -math.inf:
         # When an outcome only appears in the upper distribution but not in the
         # lower distribution, then it must be counted in infinity_mass as such
         # an outcome contributes to the hockey stick divergence.
-        infinity_mass += math.exp(log_probability_mass_function_upper[outcome])
+        infinity_mass += math.exp(log_pmf_upper[outcome])
     # Compute the (non-discretized) probability mass function for the privacy
     # loss distribution.
-    probability_mass_function = {}
-    for outcome in log_probability_mass_function_lower:
-      if log_probability_mass_function_lower[outcome] == -math.inf:
+    pmf = {}
+    for outcome, log_prob_lower in log_pmf_lower.items():
+      if log_prob_lower == -math.inf:
         # This outcome never occurs in mu_lower. This case was already included
         # as infinity_mass above.
         continue
-      elif (log_probability_mass_function_upper.get(outcome, -math.inf) >
-            log_mass_truncation_bound):
+      elif log_pmf_upper.get(outcome, -math.inf) > log_mass_truncation_bound:
         # When the probability mass of mu_upper at the outcome is greater than
         # the threshold, add it to the distribution.
-        privacy_loss_value = (
-            log_probability_mass_function_upper[outcome] -
-            log_probability_mass_function_lower[outcome])
-        probability_mass_function[privacy_loss_value] = (
-            probability_mass_function.get(privacy_loss_value, 0) +
-            math.exp(log_probability_mass_function_upper[outcome]))
+        privacy_loss_value = log_pmf_upper[outcome] - log_prob_lower
+        pmf[privacy_loss_value] = (
+            pmf.get(privacy_loss_value, 0) + math.exp(log_pmf_upper[outcome])
+        )
       else:
         if pessimistic_estimate:
           # When the probability mass of mu_upper at the outcome is no more than
           # the threshold and we would like to get a pessimistic estimate,
           # account for this in infinity_mass.
-          infinity_mass += math.exp(
-              log_probability_mass_function_upper.get(outcome, -math.inf))
+          infinity_mass += math.exp(log_pmf_upper.get(outcome, -math.inf))
     # Discretize the probability mass so that the values are integer multiples
     # of value_discretization_interval
-    rounded_probability_mass_function = collections.defaultdict(lambda: 0)
+    rounded_pmf = collections.defaultdict(lambda: 0)
     round_fn = math.ceil if pessimistic_estimate else math.floor
-    for val in probability_mass_function:
-      rounded_probability_mass_function[round_fn(
-          val /
-          value_discretization_interval)] += probability_mass_function[val]
-    return infinity_mass, rounded_probability_mass_function
+    for val in pmf:
+      rounded_pmf[round_fn(val / value_discretization_interval)] += pmf[val]
+    return infinity_mass, rounded_pmf
 
-  infinity_mass, rounded_probability_mass_function = _create_rounded_probability_mass_function(
-      log_probability_mass_function_lower, log_probability_mass_function_upper)
+  infinity_mass, rounded_probability_mass_function = (
+      _create_rounded_probability_mass_function(
+          log_pmf_lower=log_probability_mass_function_lower,
+          log_pmf_upper=log_probability_mass_function_upper
+      )
+  )
 
   if symmetric:
     return PrivacyLossDistribution.create_from_rounded_probability(
-        rounded_probability_mass_function,
-        infinity_mass,
-        value_discretization_interval,
-        pessimistic_estimate=pessimistic_estimate)
+        rounded_probability_mass_function, infinity_mass,
+        value_discretization_interval, pessimistic_estimate,
+    )
 
-  infinity_mass_add, rounded_probability_mass_function_add = _create_rounded_probability_mass_function(
-      log_probability_mass_function_lower=log_probability_mass_function_upper,
-      log_probability_mass_function_upper=log_probability_mass_function_lower)
+  infinity_mass_add, rounded_probability_mass_function_add = (
+      _create_rounded_probability_mass_function(
+          log_pmf_lower=log_probability_mass_function_upper,
+          log_pmf_upper=log_probability_mass_function_lower,
+      )
+  )
   return PrivacyLossDistribution.create_from_rounded_probability(
       rounded_probability_mass_function, infinity_mass,
       value_discretization_interval, pessimistic_estimate,
-      rounded_probability_mass_function_add, infinity_mass_add)
+      rounded_probability_mass_function_add, infinity_mass_add,
+      symmetric=False,
+  )
 
 
 def _create_pld_pmf_from_additive_noise(
@@ -846,6 +845,14 @@ def _create_pld_pmf_from_additive_noise(
           if math.ceil(scaled_epsilon) > rounded_epsilons[-1]:
             rounded_epsilons.append(math.ceil(scaled_epsilon))
         rounded_epsilons = np.array(rounded_epsilons)
+
+        deltas = additive_noise_privacy_loss.get_delta_for_epsilon(
+            rounded_epsilons * value_discretization_interval)
+
+        return pld_pmf.create_pmf_pessimistic_connect_dots(
+            value_discretization_interval,
+            rounded_epsilons,
+            deltas)
       else:
         if (connect_dots_bounds.epsilon_upper is None or
             connect_dots_bounds.epsilon_lower is None):
@@ -859,20 +866,15 @@ def _create_pld_pmf_from_additive_noise(
         rounded_epsilons = np.arange(rounded_epsilon_lower,
                                      rounded_epsilon_upper + 1)
 
-      deltas = additive_noise_privacy_loss.get_delta_for_epsilon(
-          rounded_epsilons * value_discretization_interval)
+        deltas = additive_noise_privacy_loss.get_delta_for_epsilon(
+            rounded_epsilons * value_discretization_interval)
 
-      if additive_noise_privacy_loss.discrete_noise:
-        return pld_pmf.create_pmf_pessimistic_connect_dots(
+        # Use a specialized numerically stable approach for continuous noise
+        return pld_pmf.create_pmf_pessimistic_connect_dots_fixed_gap(
             value_discretization_interval,
-            rounded_epsilons,
+            rounded_epsilon_lower,
+            rounded_epsilon_upper,
             deltas)
-      # Else use specialized numerically stable approach for continuous noise
-      return pld_pmf.create_pmf_pessimistic_connect_dots_fixed_gap(
-          value_discretization_interval,
-          rounded_epsilon_lower,
-          rounded_epsilon_upper,
-          deltas)
 
   round_fn = math.ceil if pessimistic_estimate else math.floor
 
@@ -1039,7 +1041,7 @@ def from_randomized_response(
 
   if noise_parameter <= 0 or noise_parameter >= 1:
     raise ValueError(f'Noise parameter must be strictly between 0 and 1: '
-                     f'{noise_parameter}')
+                     f'Found {noise_parameter}')
 
   if num_buckets <= 1:
     raise ValueError(
@@ -1429,3 +1431,4 @@ def from_privacy_parameters(
   return PrivacyLossDistribution.create_from_rounded_probability(
       rounded_probability_mass_function, privacy_parameters.delta,
       value_discretization_interval)
+  

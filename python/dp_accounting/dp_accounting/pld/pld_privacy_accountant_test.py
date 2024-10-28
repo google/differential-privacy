@@ -27,7 +27,14 @@ class PldPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
                                parameterized.TestCase):
 
   def _make_test_accountants(self):
-    return [pld_privacy_accountant.PLDAccountant()]
+    return [
+        pld_privacy_accountant.PLDAccountant(
+            pld_privacy_accountant.NeighborRel.ADD_OR_REMOVE_ONE),
+        pld_privacy_accountant.PLDAccountant(
+            pld_privacy_accountant.NeighborRel.REPLACE_ONE),
+        pld_privacy_accountant.PLDAccountant(
+            pld_privacy_accountant.NeighborRel.REPLACE_SPECIAL),
+    ]
 
   @parameterized.parameters(
       dp_event.GaussianDpEvent(1.0),

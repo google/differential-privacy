@@ -26,7 +26,7 @@ import enum
 import functools
 import math
 import numbers
-from typing import Iterable, List, Mapping, Optional, Sequence, Union
+from typing import Iterable, Mapping, Optional, Sequence, Union
 
 import numpy as np
 import scipy
@@ -230,7 +230,8 @@ class AdditiveNoisePrivacyLoss(metaclass=abc.ABCMeta):
       return self.noise_log_cdf(x)
 
   def get_delta_for_epsilon(
-      self, epsilon: Union[float, List[float]]) -> Union[float, List[float]]:
+      self, epsilon: Union[float, Sequence[float]],
+  ) -> Union[float, Sequence[float]]:
     """Computes the epsilon-hockey stick divergence of the mechanism.
 
     The epsilon-hockey stick divergence of the mechanism is the value of delta

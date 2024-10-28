@@ -1029,34 +1029,46 @@ func TestMeanKeyNegativeBounds(t *testing.T) {
 func TestMeanPerKeyCrossPartitionContributionBounding(t *testing.T) {
 	var triples []testutils.TripleWithFloatValue
 
+	// id 0 contributes to partition 0 and 1 with value 150.0.
+	// ids [1, 4] each contributes to partition 0 with value 0.0.
+	// ids [5, 8] each contributes to partition 1 with value 0.0.
 	triples = append(triples, testutils.MakeTripleWithFloatValue(1, 0, 150)...)
 	triples = append(triples, testutils.MakeTripleWithFloatValue(1, 1, 150)...)
 
-	triples = append(triples, testutils.MakeTripleWithFloatValueStartingFromKey(1, 50, 0, 0)...)
-	triples = append(triples, testutils.MakeTripleWithFloatValueStartingFromKey(51, 50, 1, 0)...)
+	triples = append(triples, testutils.MakeTripleWithFloatValueStartingFromKey(1, 4, 0, 0)...)
+	triples = append(triples, testutils.MakeTripleWithFloatValueStartingFromKey(5, 4, 1, 0)...)
 
 	// MaxPartitionContributed = 1, but id = 0 contributes to 2 partitions (0 and 1).
 	// There will be cross-partition contribution bounding stage.
-	// In this stage the algorithm will randomly chose either contribution for partition 0 or contribution to partition 1.
-	// The sum of 2 means should be equal to 150/51 + 0/50 = 150/51 ≈ 2.94 in both cases (unlike 150/51 + 150/51 ≈ 5.88, if no cross-partition contribution bounding is done).
-	// The difference between these numbers ≈ 2.94 and the tolerance (see below) is ≈ 0.04, so the test should catch if there was no cross-partition contribution bounding.
-	exactCount := 51.0
-	exactMean := 150.0 / exactCount
+	// In this stage the algorithm will randomly keep either partition 0 or partition 1 for id 0.
+	// The sum of 2 means should be equal to 150/5 + 0/4 = 30 in both cases
+	// (unlike 150/5 + 150/5 = 60, if no cross-partition contribution bounding is done).
+	// The difference between these numbers is 30 (60-30), and the sum of two tolerances (see below)
+	// is ≈ 26.6277 (11.4598 + 15.1679),
+	// so the test should fail if there was no cross-partition contribution bounding.
+	minValue := 0.0
+	maxValue := 150.0
+	midValue := (minValue + maxValue) / 2
+	count2 := 4.0
+	count1 := count2 + 1
+	normalizedSum2 := (0.0 - midValue) * count2
+	normalizedSum1 := normalizedSum2 + (150.0 - midValue)
+	normalizedMean2 := normalizedSum2 / count2
+	normalizedMean1 := normalizedSum1 / count1
+	mean1, mean2 := normalizedMean1+midValue, normalizedMean2+midValue
 	result := []testutils.PairIF64{
-		{Key: 0, Value: exactMean},
+		{Key: 0, Value: mean1 + mean2},
 	}
 	p, s, col, want := ptest.CreateList2(triples, result)
 	col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
 
-	// ε=60, δ=0.01 and l0Sensitivity=1 gives a threshold of =2.
+	// ε=10000, δ=0.01 and l0Sensitivity=1 gives a threshold of =2.
 	// We have 2 partitions. So, to get an overall flakiness of 10⁻²³,
 	// we can have each partition fail with 10⁻²⁴ probability (k=24).
 	maxContributionsPerPartition := int64(1)
 	maxPartitionsContributed := int64(1)
-	epsilon := 60.0
+	epsilon := 1e4
 	delta := 0.01
-	minValue := 0.0
-	maxValue := 150.0
 
 	pcol := MakePrivate(s, col, privacySpec(t,
 		PrivacySpecParams{
@@ -1079,20 +1091,21 @@ func TestMeanPerKeyCrossPartitionContributionBounding(t *testing.T) {
 
 	want = beam.ParDo(s, testutils.PairIF64ToKV, want)
 
-	// Tolerance for the partition with an extra contribution which is equal to 150.
+	// Tolerance for the partition with an extra contribution with value 150.0.
 	tolerance1, err := testutils.LaplaceToleranceForMean(
 		24, minValue, maxValue, maxContributionsPerPartition, maxPartitionsContributed,
-		epsilon, -3675.0, 51.0, exactMean) // ≈0.00367
+		epsilon, normalizedSum1, count1, mean1) // ≈15.1679
 	if err != nil {
 		t.Fatalf("LaplaceToleranceForMean: got error %v", err)
 	}
 	// Tolerance for the partition without an extra contribution.
 	tolerance2, err := testutils.LaplaceToleranceForMean(
 		24, minValue, maxValue, maxContributionsPerPartition, maxPartitionsContributed,
-		epsilon, -3700.0, 50.0, 0.0) // ≈1.074
+		epsilon, normalizedSum2, count2, mean2) // ≈1.074
 	if err != nil {
 		t.Fatalf("LaplaceToleranceForMean: got error %v", err)
 	}
+
 	testutils.ApproxEqualsKVFloat64(t, s, got, want, tolerance1+tolerance2)
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestMeanPerKeyCrossPartitionContributionBounding: MeanPerKey(%v) = %v, "+
@@ -1308,21 +1321,35 @@ func TestMeanPerKeyWithPartitionsCrossPartitionContributionBounding(t *testing.T
 		{true},
 		{false},
 	} {
+		// id 0 contributes to partition 0 and 1 with value 150.0.
+		// ids [1, 4] each contributes to partition 0 with value 0.0.
+		// ids [5, 8] each contributes to partition 1 with value 0.0.
 		var triples []testutils.TripleWithFloatValue
 		triples = append(triples, testutils.MakeTripleWithFloatValue(1, 0, 150)...)
 		triples = append(triples, testutils.MakeTripleWithFloatValue(1, 1, 150)...)
-		triples = append(triples, testutils.MakeTripleWithFloatValueStartingFromKey(1, 50, 0, 0)...)
-		triples = append(triples, testutils.MakeTripleWithFloatValueStartingFromKey(51, 50, 1, 0)...)
+		triples = append(triples, testutils.MakeTripleWithFloatValueStartingFromKey(1, 4, 0, 0)...)
+		triples = append(triples, testutils.MakeTripleWithFloatValueStartingFromKey(5, 8, 1, 0)...)
 
 		// MaxPartitionContributed = 1, but id = 0 contributes to 2 partitions (0 and 1).
 		// There will be cross-partition contribution bounding stage.
-		// In this stage the algorithm will typically randomly choose either contribution for partition 0 or contribution to partition 1.
-		// The sum of 2 means should be equal to 150/51 + 0/50 = 150/51 ≈ 2.94 in both cases (unlike 150/51 + 150/51 ≈ 5.88, if no cross-partition contribution bounding is done).
-		// The difference between these numbers ≈ 2.94 and the tolerance (see below) is ≈ 0.04, so the test should catch if there was no cross-partition contribution bounding.
-		exactCount := 51.0
-		exactMean := 150.0 / exactCount
+		// In this stage the algorithm the algorithm will randomly keep either partition 0 or partition 1 for id 0.
+		// The sum of 2 means should be equal to 150/5 + 0/4 = 30 in both cases
+		// (unlike 150/5 + 150/5 = 60, if no cross-partition contribution bounding is done).
+		// The difference between these numbers is 30 (60-30), and the sum of two tolerances (see below)
+		// is ≈ 26.6433 (11.4685 + 15.1748),
+		// so the test should fail if there was no cross-partition contribution bounding.
+		minValue := 0.0
+		maxValue := 150.0
+		midValue := (minValue + maxValue) / 2
+		count2 := 4.0
+		count1 := count2 + 1
+		normalizedSum2 := (0.0 - midValue) * count2
+		normalizedSum1 := normalizedSum2 + (150.0 - midValue)
+		normalizedMean2 := normalizedSum2 / count2
+		normalizedMean1 := normalizedSum1 / count1
+		mean1, mean2 := normalizedMean1+midValue, normalizedMean2+midValue
 		result := []testutils.PairIF64{
-			{Key: 0, Value: exactMean},
+			{Key: 0, Value: mean1 + mean2},
 		}
 		publicPartitionsSlice := []int{0, 1}
 
@@ -1338,9 +1365,7 @@ func TestMeanPerKeyWithPartitionsCrossPartitionContributionBounding(t *testing.T
 
 		maxContributionsPerPartition := int64(1)
 		maxPartitionsContributed := int64(1)
-		epsilon := 60.0
-		minValue := 0.0
-		maxValue := 150.0
+		epsilon := 1e4
 
 		// ε is not split, because partitions are public.
 		pcol := MakePrivate(s, col, privacySpec(t, PrivacySpecParams{AggregationEpsilon: epsilon}))
@@ -1364,14 +1389,14 @@ func TestMeanPerKeyWithPartitionsCrossPartitionContributionBounding(t *testing.T
 		// Tolerance for the partition with an extra contribution which is equal to 150.
 		tolerance1, err := testutils.LaplaceToleranceForMean(
 			25, minValue, maxValue, maxContributionsPerPartition, maxPartitionsContributed,
-			epsilon, -3675.0, 51.0, exactMean) // ≈0.00367
+			epsilon, normalizedSum1, count1, mean1) // ≈11.4685
 		if err != nil {
 			t.Fatalf("LaplaceToleranceForMean in-memory=%t: got error %v", tc.inMemory, err)
 		}
 		// Tolerance for the partition without an extra contribution.
 		tolerance2, err := testutils.LaplaceToleranceForMean(
 			25, minValue, maxValue, maxContributionsPerPartition, maxPartitionsContributed,
-			epsilon, -3700.0, 50.0, 0.0) // ≈1.074
+			epsilon, normalizedSum2, count2, mean2) // ≈15.1748
 		if err != nil {
 			t.Fatalf("LaplaceToleranceForMean in-memory=%t: got error %v", tc.inMemory, err)
 		}

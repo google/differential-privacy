@@ -56,6 +56,119 @@ def _assert_pld_pmf_equal(
     testcase.assertFalse(pld._symmetric)
 
 
+class PrivacyLossDistributionTest(parameterized.TestCase):
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='basic_symmetric',
+          log_pmf_lower={
+              0: math.log(0.8),
+              1: math.log(0.2),
+          },
+          log_pmf_upper={
+              0: math.log(0.2),
+              1: math.log(0.8),
+          },
+          pessimistic_estimate=True,
+          value_discretization_interval=1,
+          log_mass_truncation_bound=-math.inf,
+          symmetric=True,
+          expected_pmf={
+              math.ceil(math.log(4)): 0.8,
+              math.ceil(-math.log(4)): 0.2,
+          },
+          infinity_mass=0,
+      ),
+      dict(
+          testcase_name='symmetric_with_inf_mass',
+          log_pmf_lower={
+              0: math.log(0.8),
+              1: math.log(0.1),
+              2: math.log(0.1),
+          },
+          log_pmf_upper={
+              0: math.log(0.1),
+              1: math.log(0.8),
+              3: math.log(0.1),
+          },
+          pessimistic_estimate=True,
+          value_discretization_interval=1,
+          log_mass_truncation_bound=-math.inf,
+          symmetric=True,
+          expected_pmf={
+              math.ceil(math.log(8)): 0.8,
+              math.ceil(-math.log(8)): 0.1,
+          },
+          infinity_mass=0.1,
+      ),
+      dict(
+          testcase_name='basic_asymmetric',
+          log_pmf_lower={
+              0: math.log(0.5),
+              1: math.log(0.5),
+          },
+          log_pmf_upper={
+              0: math.log(0.8),
+              1: math.log(0.2),
+          },
+          pessimistic_estimate=True,
+          value_discretization_interval=1,
+          log_mass_truncation_bound=-math.inf,
+          symmetric=False,
+          expected_pmf={
+              math.ceil(math.log(8/5)): 0.8,
+              math.ceil(math.log(2/5)): 0.2,
+          },
+          infinity_mass=0,
+          expected_pmf_add={
+              math.ceil(math.log(5/8)): 0.5,
+              math.ceil(math.log(5/2)): 0.5,
+          },
+          infinity_mass_add=0,
+      ),
+      dict(
+          testcase_name='asymmetric_with_inf_mass',
+          log_pmf_lower={
+              0: math.log(0.4),
+              1: math.log(0.4),
+              2: math.log(0.2),
+          },
+          log_pmf_upper={
+              0: math.log(0.7),
+              1: math.log(0.2),
+              3: math.log(0.1),
+          },
+          pessimistic_estimate=True,
+          value_discretization_interval=1,
+          log_mass_truncation_bound=-math.inf,
+          symmetric=False,
+          expected_pmf={
+              math.ceil(math.log(7/4)): 0.7,
+              math.ceil(math.log(2/4)): 0.2,
+          },
+          infinity_mass=0.1,
+          expected_pmf_add={
+              math.ceil(math.log(4/7)): 0.4,
+              math.ceil(math.log(4/2)): 0.4,
+          },
+          infinity_mass_add=0.2,
+      ),
+  )
+  def test_from_two_probability_mass_functions(
+      self, log_pmf_lower, log_pmf_upper, pessimistic_estimate,
+      value_discretization_interval, log_mass_truncation_bound, symmetric,
+      expected_pmf, infinity_mass,
+      expected_pmf_add=None, infinity_mass_add=None):
+    pld = privacy_loss_distribution.from_two_probability_mass_functions(
+        log_pmf_lower, log_pmf_upper, pessimistic_estimate,
+        value_discretization_interval, log_mass_truncation_bound, symmetric)
+    if symmetric:
+      _assert_pld_pmf_equal(self, pld, expected_pmf, infinity_mass)
+    else:
+      _assert_pld_pmf_equal(self, pld, expected_pmf_add, infinity_mass_add,
+                            expected_pmf, infinity_mass)
+
+
 class AddRemovePrivacyLossDistributionTest(parameterized.TestCase):
 
   def _create_pld(
