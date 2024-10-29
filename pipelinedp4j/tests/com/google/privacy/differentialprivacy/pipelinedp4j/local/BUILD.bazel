@@ -1,0 +1,30 @@
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
+
+kt_jvm_test(
+    name = "local_framework_tests",
+    srcs = glob(
+        ["*.kt"],
+    ),
+    test_class = "com.google.privacy.differentialprivacy.pipelinedp4j.local.LocalFrameworkTests",
+    deps = [
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/local:local_collections",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/local:local_encoders",
+        "@maven//:com_google_testparameterinjector_test_parameter_injector",
+        "@maven//:com_google_truth_truth",
+        "@maven//:junit_junit",
+    ],
+)

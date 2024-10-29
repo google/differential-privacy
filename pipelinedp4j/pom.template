@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<modelVersion>4.0.0</modelVersion>
+
+<groupId>com.google.privacy.differentialprivacy.pipelinedp4j</groupId>
+<artifactId>pipelinedp4j</artifactId>
+<version>RELEASE_VERSION</version>
+<packaging>jar</packaging>
+
+<name>A framework for Differential Privacy</name>
+<description>
+  Solution for generating differential private statistics using large-scale data
+  processing, such as Apache Beam or Apache Spark.
+</description>
+<url>https://github.com/google/differential-privacy/tree/main/pipelinedp4j</url>
+
+<licenses>
+  <license>
+    <name>Apache License, Version 2.0</name>
+    <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+  </license>
+</licenses>
+
+<developers>
+  <developer>
+    <name>Differential Privacy Team</name>
+    <email>dp-open-source@google.com</email>
+    <organization>Google</organization>
+    <organizationUrl>https://google.com</organizationUrl>
+  </developer>
+</developers>
+
+<scm>
+  <connection>scm:git:git://github.com/google/differential-privacy.git</connection>
+  <url>https://github.com/google/differential-privacy/tree/main/pipelinedp4j</url>
+</scm>
+
+<dependencies>
+  {generated_bzl_deps}
+</dependencies>
+</project>

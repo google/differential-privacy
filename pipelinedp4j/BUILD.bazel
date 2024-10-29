@@ -1,0 +1,49 @@
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+load("@bazel_common//tools/maven:pom_file.bzl", "pom_file")
+load("@rules_jvm_external//:kt_defs.bzl", "kt_jvm_export")
+load("@rules_kotlin//kotlin:core.bzl", "kt_kotlinc_options")
+
+package(
+    default_visibility = [
+        # TODO: make visibility as strict as possible.
+        "//visibility:public",
+    ],
+)
+
+kt_kotlinc_options(
+    name = "kotlinc_options_for_parameterized_tests",
+    java_parameters = True,
+    jvm_target = "11",
+)
+
+# Update the following version for packaging of a new release.
+_RELEASE_VERSION = "0.0.1"
+
+pom_file(
+    name = "export_pom",
+    substitutions = {"RELEASE_VERSION": _RELEASE_VERSION},
+    targets = [
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/api",
+    ],
+    template_file = "pom.template",
+)
+
+kt_jvm_export(
+    name = "export",
+    srcs = glob(["*.kt"]),
+    maven_coordinates = "com.google.privacy.differentialprivacy.pipelinedp4j:pipelinedp4j:%s" % _RELEASE_VERSION,
+    pom_template = ":export_pom",
+)

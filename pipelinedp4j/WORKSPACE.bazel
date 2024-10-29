@@ -1,0 +1,152 @@
+workspace(name = "com_google_java_pipeline_dp")
+
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+# JVM
+http_archive(
+    name = "rules_jvm_external",
+    sha256 = "a4ccfc3cb86448f0c8f1d2d6ba59ea34f771f854e7d16e38ef529a31a739e250",
+    strip_prefix = "rules_jvm_external-6.4",
+    url = "https://github.com/bazelbuild/rules_jvm_external/archive/6.4.tar.gz",
+)
+
+http_archive(
+    name = "bazel_common",
+    sha256 = "ba4700fe928da1574726c9228e8a321907cd166040aed7fbafd0468f13a08fdb",
+    strip_prefix = "bazel-common-ebce2af3f0de560b649dcf98ef732a56b80e829c",
+    url = "https://github.com/google/bazel-common/archive/ebce2af3f0de560b649dcf98ef732a56b80e829c.tar.gz",
+)
+
+load("@rules_jvm_external//:repositories.bzl", "rules_jvm_external_deps")
+
+rules_jvm_external_deps()
+
+load("@rules_jvm_external//:setup.bzl", "rules_jvm_external_setup")
+
+rules_jvm_external_setup()
+
+load("@rules_jvm_external//:defs.bzl", "maven_install")
+load("@rules_jvm_external//:specs.bzl", "maven")
+
+# Kotlin
+http_archive(
+    name = "rules_kotlin",
+    sha256 = "3b772976fec7bdcda1d84b9d39b176589424c047eb2175bed09aac630e50af43",
+    url = "https://github.com/bazelbuild/rules_kotlin/releases/download/v1.9.6/rules_kotlin-v1.9.6.tar.gz",
+)
+
+load("@rules_kotlin//kotlin:repositories.bzl", "kotlin_repositories")
+
+kotlin_repositories()
+
+load("@rules_kotlin//kotlin:core.bzl", "kt_register_toolchains")
+
+kt_register_toolchains()
+
+# Kotlin gRPC
+http_archive(
+    name = "com_github_grpc_grpc_kotlin",
+    repo_mapping = {"@io_bazel_rules_kotlin": "@rules_kotlin"},
+    strip_prefix = "grpc-kotlin-1.4.2",
+    url = "https://github.com/grpc/grpc-kotlin/archive/refs/tags/v1.4.2.tar.gz",
+)
+
+# Repositories
+load(
+    "@com_github_grpc_grpc_kotlin//:repositories.bzl",
+    "grpc_kt_repositories",
+    "io_grpc_grpc_java",
+)
+
+io_grpc_grpc_java()
+
+load(
+    "@io_grpc_grpc_java//:repositories.bzl",
+    "grpc_java_repositories",
+)
+
+# Maven
+maven_install(
+    artifacts = [
+        "com.google.privacy.differentialprivacy:differentialprivacy:3.0.0",
+        "com.google.protobuf:protobuf-kotlin:3.18.0",
+        "org.apache.beam:beam-sdks-java-core:2.49.0",
+        "org.apache.beam:beam-sdks-java-extensions-avro:2.49.0",
+        "org.apache.beam:beam-sdks-java-extensions-protobuf:2.49.0",
+        # Test only dependencies.
+        maven.artifact(
+            "com.google.truth",
+            "truth",
+            "1.0.1",
+            testonly = True,
+        ),
+        maven.artifact(
+            "com.google.truth.extensions",
+            "truth-proto-extension",
+            "1.0.1",
+            testonly = True,
+        ),
+        maven.artifact(
+            "com.google.truth.extensions",
+            "truth-liteproto-extension",
+            "1.0.1",
+            testonly = True,
+        ),
+        maven.artifact(
+            "junit",
+            "junit",
+            "4.13.2",
+            testonly = True,
+        ),
+        maven.artifact(
+            "com.google.testparameterinjector",
+            "test-parameter-injector",
+            "1.18",
+            testonly = True,
+        ),
+        maven.artifact(
+            "org.jetbrains.kotlin",
+            "kotlin-test",
+            "2.0.21",
+            testonly = True,
+        ),
+        maven.artifact(
+            "org.mockito",
+            "mockito-core",
+            "5.14.2",
+            testonly = True,
+        ),
+        maven.artifact(
+            "org.mockito.kotlin",
+            "mockito-kotlin",
+            "5.4.0",
+            testonly = True,
+        ),
+        maven.artifact(
+            "org.apache.beam",
+            "beam-runners-direct-java",
+            "2.49.0",
+            testonly = True,
+        ),
+        maven.artifact(
+            "org.hamcrest",
+            "hamcrest",
+            "3.0",
+            testonly = True,
+        ),
+    ],
+    repositories = [
+        "https://maven.google.com",
+        "https://repo.maven.apache.org/maven2/",
+    ],
+)
+
+# gRPC
+grpc_kt_repositories()
+
+grpc_java_repositories()
+
+# Protocol Buffers
+load("@com_google_protobuf//:protobuf_deps.bzl", "protobuf_deps")
+
+protobuf_deps()

@@ -1,0 +1,59 @@
+// Copyright 2024 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package privacy.differentialprivacy.pipelinedp4j.proto;
+
+option java_package = "com.google.privacy.differentialprivacy.pipelinedp4j.proto";
+option java_multiple_files = true;
+
+message PrivacyIdCountAccumulator {
+  int64 count = 1;
+}
+
+message CountAccumulator {
+  int64 count = 1;
+}
+
+message SumAccumulator {
+  double sum = 1;
+}
+
+message MeanAccumulator {
+  int64 count = 1;
+  double normalized_sum = 2;
+}
+
+message QuantilesAccumulator {
+  bytes serialized_quantiles_summary = 1;
+}
+
+message VarianceAccumulator {
+  int64 count = 1;
+  double normalized_sum = 2;
+  double normalized_sum_squares = 3;
+}
+
+// A collection of accumulators for all metrics that can possibly be computed.
+// Only accumulators that correspond to the aggregations, which are actually
+// being computed, are populated.
+message CompoundAccumulator {
+  PrivacyIdCountAccumulator privacy_id_count_accumulator = 3;
+  CountAccumulator count_accumulator = 1;
+  SumAccumulator sum_accumulator = 2;
+  MeanAccumulator mean_accumulator = 4;
+  QuantilesAccumulator quantiles_accumulator = 5;
+  VarianceAccumulator variance_accumulator = 6;
+}

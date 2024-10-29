@@ -1,0 +1,437 @@
+/*
+ * Copyright 2024 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.google.privacy.differentialprivacy.pipelinedp4j.core
+
+import com.google.common.collect.ImmutableList
+import com.google.errorprone.annotations.Immutable
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.COUNT
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.MEAN
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.PRIVACY_ID_COUNT
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.QUANTILES
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.SUM
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.VARIANCE
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.PrivacyLevel.DATASET_LEVEL
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.AbsoluteBudgetPerOpSpec
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.BudgetPerOpSpec
+import java.io.Serializable
+import kotlin.reflect.KClass
+
+// Constant to limit the number of contributions per privacy unit for avoiding OOM and stucking
+// on privacy units with too many contributions. Usually such privacy units are not actual
+// privacy units, but rather a set of privacy units, e.g. all users w/o privacy id.
+// Now it is implemented only for DpEngine.SelectPartitions().
+// TODO: Implement this for DpEngine.Aggregate().
+const val MAX_PROCESSED_CONTRIBUTIONS_PER_PRIVACY_ID: Int = 100_000_000
+
+/** Contains shared parameters for validation. */
+sealed interface Params {
+  /** The privacy level that determines the kind of bounding. */
+  val privacyLevel: PrivacyLevel
+  /** The maximum number of partitions that can be contributed by a privacy unit. */
+  val maxPartitionsContributed: Int?
+  /**
+   * The pre-threshold to use for partition selection.
+   *
+   * Pre-threshold is the minimum number of unique contributors (privacy units) a partition must
+   * have. Partitions with fewer contributors will be dropped. If set to 1, no pre-thresholding is
+   * applied.
+   */
+  val preThreshold: Int
+}
+
+/**
+ * The parameters of the metrics being anonymized: the metric types, the contribution bounds, etc.
+ * This data-class contains a "bag" of all possible parameters that can be used for any combination
+ * of the metrics being computed.
+ */
+@Immutable
+data class AggregationParams(
+  /** The metrics being anonymized. */
+  val metrics: ImmutableList<MetricDefinition>,
+  val noiseKind: NoiseKind,
+  /**
+   * The maximum number of partitions that can be contributed by a privacy unit. Used by all
+   * metrics. Note this is mutually exclusive with maxContributions.
+   */
+  override val maxPartitionsContributed: Int? = null,
+  /**
+   * The maximum number of times a privacy unit can contribute to a partition. Used for COUNT, MEAN
+   * and QUANTILES. Note this is mutually exclusive with maxContributions.
+   */
+  val maxContributionsPerPartition: Int? = null,
+  /**
+   * The maximum number of times a privacy unit can contribute to a dataset. Used by all metrics.
+   * Note this is mutually exclusive with maxContributionsPerPartition.
+   */
+  val maxContributions: Int? = null,
+  /**
+   * The minimum bound on the individual value that can be contributed by a user to a partition.
+   * Used for MEAN and QUANTILES.
+   */
+  val minValue: Double? = null,
+  /**
+   * The maximum bound on the individual value that can be contributed by a user to a partition.
+   * Used for MEAN and QUANTILES.
+   */
+  val maxValue: Double? = null,
+  /**
+   * The minimum bound on the sum of the values that can be contributed by a user to a partition.
+   * Used for SUM.
+   */
+  val minTotalValue: Double? = null,
+  /**
+   * The maximum bound on the sum of the values that can be contributed by a user to a partition.
+   * Used for SUM.
+   */
+  val maxTotalValue: Double? = null,
+  /**
+   * The amount of budget used for partition selection.
+   *
+   * If [AbsoluteBudgetPerOpSpec] is null, [RelativeBudgetPerOpSpec] with weight = 1 is used, i.e.
+   * the budget is split evenly among all DP operations (metrics and partition selection).
+   */
+  val partitionSelectionBudget: AbsoluteBudgetPerOpSpec? = null,
+  /** The pre-threshold to use for partition selection. */
+  override val preThreshold: Int = 1,
+  /** The privacy level that determines the kind of contribution bounding in aggregations. */
+  override val privacyLevel: PrivacyLevel = DATASET_LEVEL,
+  /**
+   * The balance of partitions.
+   *
+   * Optional parameter that influences only public partitions processing and will be used as a hint
+   * for the execution to make it more optimized.
+   *
+   * Processing unbalanced partitions might lead to not enough paralellisation and long processing
+   * time. In case if it happens for public partitions processing, set to [UNBALANCED], and as a
+   * result special processing for better paralellisation will be performed. See [PartitionsBalance]
+   * for definition of balanced/unbalanced partitions.
+   */
+  val partitionsBalance: PartitionsBalance = PartitionsBalance.UNKNOWN,
+) : Params, Serializable
+
+/**
+ * Validates [AggregationParams].
+ *
+ * @param usePublicPartitions indicates whether [DpEngine.aggregate()] was called with public
+ *   partitions.
+ * @param hasValueExtractor indicates whether [DpEngine.aggregate()] was called with a DataExtractor
+ *   which contains a value extractor.
+ */
+fun validateAggregationParams(
+  params: AggregationParams,
+  usePublicPartitions: Boolean,
+  hasValueExtractor: Boolean,
+) {
+  // Validate params shared between AggregationParams and SelectPartitionsParams.
+  validateBaseParams(params)
+
+  // Privacy level and maxPartitionsContributed are in sync.
+  if (params.privacyLevel.withPartitionsContributedBounding) {
+    require(params.maxPartitionsContributed != null || params.maxContributions != null) {
+      "maxPartitionsContributed or maxContributions must be set because specified ${params.privacyLevel} privacy level requires cross partition bounding."
+    }
+  }
+
+  // Metrics.
+  require(!params.metrics.isEmpty()) { "metrics must not be empty." }
+  require(params.metrics.map { it.type }.distinct().size == params.metrics.size) {
+    "metrics must not contain duplicate metric types. Provided ${params.metrics.map { it.type }}."
+  }
+  // Max contributions per partition.
+  require(isGreaterThanZeroIfSet(params.maxContributionsPerPartition)) {
+    "maxContributionsPerPartition must be positive. Provided value: " +
+      "${params.maxContributionsPerPartition}."
+  }
+  if (params.privacyLevel.withContributionsPerPartitionBounding) {
+    require(
+      params.maxContributionsPerPartition != null ||
+        params.maxContributions != null ||
+        (params.minTotalValue != null && params.maxTotalValue != null)
+    ) {
+      "maxContributionsPerPartition or maxContributions or (minTotalValue, maxTotalValue) must be set because specified ${params.privacyLevel} privacy level requires per partition bounding."
+    }
+  }
+  // Max contributions.
+  require(isGreaterThanZeroIfSet(params.maxContributions)) {
+    "maxContributions must be positive. Provided value: " + "${params.maxContributions}."
+  }
+  // Mutually exclusive partition bounds
+  require(params.maxContributions == null || params.maxPartitionsContributed == null) {
+    "maxContributions and maxPartitionsContributed are mutually exclusive. " +
+      "Provided values: maxContributions=${params.maxContributions}, " +
+      "maxPartitionsContributed=${params.maxPartitionsContributed}."
+  }
+  require(params.maxContributions == null || params.maxContributionsPerPartition == null) {
+    "maxContributions and maxContributionsPerPartition are mutually exclusive. " +
+      "Provided values: maxContributions=${params.maxContributions}, " +
+      "maxContributionsPerPartition=${params.maxContributionsPerPartition}."
+  }
+  // Min/Max bounds
+  require(sameNullability(params.minValue, params.maxValue)) {
+    "minValue and maxValue must be simultaneously equal or not equal to null. Provided values: " +
+      "minValue=${params.minValue}, maxValue=${params.maxValue}."
+  }
+  var areMinMaxValuesSet = false
+  if (params.minValue != null && params.maxValue != null) {
+    areMinMaxValuesSet = true
+    require(params.minValue < params.maxValue) {
+      "minValue must be less than maxValue. Provided values: " +
+        "minValue=${params.minValue}, maxValue=${params.maxValue}."
+    }
+  }
+  require(sameNullability(params.minTotalValue, params.maxTotalValue)) {
+    "minTotalValue and maxTotalValue must be simultaneously equal or not equal to null. " +
+      "Provided values: minTotalValue=${params.minTotalValue}, " +
+      "maxTotalValue=${params.maxTotalValue}."
+  }
+  var areMinMaxTotalValuesSet = false
+  if (params.minTotalValue != null && params.maxTotalValue != null) {
+    areMinMaxTotalValuesSet = true
+    require(params.minTotalValue <= params.maxTotalValue) {
+      "minTotalValue must be less or equal to maxTotalValue. Provided values: " +
+        "minTotalValue=${params.minTotalValue}, maxTotalValue=${params.maxTotalValue}."
+    }
+  }
+
+  // Required parameters per each metric.
+  if (metricIsRequested(COUNT::class, params)) {
+    require(params.maxContributionsPerPartition != null || params.maxContributions != null) {
+      "maxContributionsPerPartition or maxContributions must be set for COUNT metric."
+    }
+  }
+  // When MEAN and SUM are set together, then contribution bounding with (minValue, maxValue)
+  // is used. SUM and VARIANCE should not be set together.
+  if (
+    metricIsRequested(SUM::class, params) &&
+      !metricIsRequested(MEAN::class, params) &&
+      !metricIsRequested(VARIANCE::class, params)
+  ) {
+    require(areMinMaxTotalValuesSet) {
+      "(minTotalValue, maxTotalValue) must be set for SUM metrics."
+    }
+  }
+
+  if (metricIsRequested(MEAN::class, params)) {
+    require(params.maxContributionsPerPartition != null || params.maxContributions != null) {
+      "maxContributionsPerPartition or maxContributions must be set for MEAN metric."
+    }
+    require(areMinMaxValuesSet) { "(minValue, maxValue) must be set for MEAN metric." }
+    require(!areMinMaxTotalValuesSet) {
+      "(minTotalValue, maxTotalValue) should not be set if MEAN metric is requested."
+    }
+  }
+  require(
+    params.metrics.find { it.type == COUNT }?.budgetSpec == null ||
+      params.metrics.find { it.type == MEAN }?.budgetSpec == null
+  ) {
+    "BudgetPerOpSpec can not be set for both COUNT and MEAN metrics."
+  }
+  require(
+    params.metrics.find { it.type == SUM }?.budgetSpec == null ||
+      params.metrics.find { it.type == MEAN }?.budgetSpec === null
+  ) {
+    "BudgetPerOpSpec can not be set for both SUM and MEAN metrics."
+  }
+  require(
+    params.metrics.find { it.type == MEAN }?.budgetSpec == null ||
+      params.metrics.find { it.type == VARIANCE }?.budgetSpec == null
+  ) {
+    "BudgetPerOpSpec can not be set for both MEAN and VARIANCE metrics."
+  }
+  // Validation for VARIANCE metric.
+  if (metricIsRequested(VARIANCE::class, params)) {
+    require(params.maxContributionsPerPartition != null || params.maxContributions != null) {
+      "maxContributionsPerPartition or maxContributions must be set for VARIANCE metric."
+    }
+    require(areMinMaxValuesSet) { "(minValue, maxValue) must be set for VARIANCE metric." }
+    require(!areMinMaxTotalValuesSet) {
+      "(minTotalValue, maxTotalValue) should not be set if VARIANCE metric is requested."
+    }
+  }
+  require(
+    params.metrics.find { it.type == SUM }?.budgetSpec == null ||
+      params.metrics.find { it.type == VARIANCE }?.budgetSpec == null
+  ) {
+    "BudgetPerOpSpec can not be set for both SUM and VARIANCE metrics."
+  }
+
+  require(
+    params.metrics.find { it.type == COUNT }?.budgetSpec == null ||
+      params.metrics.find { it.type == VARIANCE }?.budgetSpec == null
+  ) {
+    "BudgetPerOpSpec can not be set for both COUNT and VARIANCE metrics."
+  }
+  // Validation for QUANTILES metric.
+  if (metricIsRequested(QUANTILES::class, params)) {
+    require(params.maxContributionsPerPartition != null) {
+      "maxContributionsPerPartition must be set for QUANTILES metric."
+    }
+    require(areMinMaxValuesSet) { "(minValue, maxValue) must be set for QUANTILES metric." }
+  }
+
+  // Partition selection
+  if (usePublicPartitions) {
+    require(params.partitionSelectionBudget == null) {
+      "partitionSelectionBudget can not be set for public partitions."
+    }
+  }
+
+  // ValueExtractor: only COUNT and PRIVACY_ID_COUNT can be computed w/o a value extractor.
+  if (!hasValueExtractor) {
+    val metricsWhichRequireValueExtractor =
+      params.metrics.map { it.type }.filter { it != COUNT && it != PRIVACY_ID_COUNT }
+    require(metricsWhichRequireValueExtractor.isEmpty()) {
+      "Metrics $metricsWhichRequireValueExtractor require a value extractor."
+    }
+  }
+}
+
+/** The parameters of [DPEngine.selectPartitions()]. */
+@Immutable
+data class SelectPartitionsParams(
+  /** The maximum number of partitions that can be contributed by a privacy unit. */
+  override val maxPartitionsContributed: Int,
+  /**
+   * The amount of budget that should be used for partition selection.
+   *
+   * If [AbsoluteBudgetPerOpSpec] is null, [RelativeBudgetPerOpSpec] with weight = 1 is used, i.e.
+   * the budget is split evenly among all DP operations (metrics and partition selection).
+   */
+  val budget: AbsoluteBudgetPerOpSpec? = null,
+  /** The pre-threshold to use for partition selection. */
+  override val preThreshold: Int = 1,
+  /** The privacy level that determines the kind of contribution bounding in partition selection. */
+  override val privacyLevel: PrivacyLevel = DATASET_LEVEL,
+) : Params, Serializable
+
+/** Validates [SelectPartitionsParams]. */
+fun validateSelectPartitionsParams(params: SelectPartitionsParams) {
+  // Validate params shared between AggregationParams and SelectPartitionsParams.
+  validateBaseParams(params)
+}
+
+/**
+ * The balance of the partitions in the input dataset.
+ *
+ * Partitions are balanced if there is no partition which contribute > 1% of data. Otherwise, the
+ * partitions are unbalanced.
+ */
+enum class PartitionsBalance {
+  /** Use if you don't know the answer. */
+  UNKNOWN,
+  /** Use if you know that the partitions are balanced. */
+  BALANCED,
+  /** Use if you know that the partitions are unbalanced. */
+  UNBALANCED,
+}
+
+/** The type of privacy level that determines the kind of contribution bounding. */
+enum class PrivacyLevel(
+  val privacyDisabled: Boolean,
+  val withPartitionsContributedBounding: Boolean,
+  val withContributionsPerPartitionBounding: Boolean,
+) {
+  DATASET_LEVEL(
+    privacyDisabled = false,
+    withPartitionsContributedBounding = true,
+    withContributionsPerPartitionBounding = true,
+  ), // Enables contribution bounding across dataset.
+  NONE_WITHOUT_CONTRIBUTION_BOUNDING(
+    privacyDisabled = true,
+    withPartitionsContributedBounding = false,
+    withContributionsPerPartitionBounding = false,
+  ), // No privacy, use only for testing and utility analysis.
+  NONE_WITH_CONTRIBUTION_BOUNDING(
+    privacyDisabled = true,
+    withPartitionsContributedBounding = true,
+    withContributionsPerPartitionBounding = true,
+  ), // No privacy with cross and per partition bounding, use only for testing
+  // and utility analysis.
+}
+
+/** The definition of the DP metric to compute. */
+@Immutable
+data class MetricDefinition(
+  val type: MetricType,
+  /**
+   * The amount of privacy budget used to anonymize this metric.
+   *
+   * If [budgetSpec] is null, [RelativeBudgetPerOpSpec] with weight = 1 is used, i.e. the budget is
+   * split evenly among all DP calculations (metrics and partition selection).
+   */
+  val budgetSpec: BudgetPerOpSpec? = null,
+) : Serializable
+
+/** The types of metrics that can be anonymized. */
+@Immutable
+sealed class MetricType : Serializable {
+  data object PRIVACY_ID_COUNT : MetricType()
+
+  data object COUNT : MetricType()
+
+  data object SUM : MetricType()
+
+  data object MEAN : MetricType()
+
+  data class QUANTILES(val ranks: ImmutableList<Double>) : MetricType() {
+    init {
+      require(ranks.all { it in 0.0..1.0 }) { "Ranks for quantiles must be all in [0, 1]." }
+    }
+  }
+
+  data object VARIANCE : MetricType()
+}
+
+/** The kind of noise that can be applied to the data. */
+enum class NoiseKind {
+  LAPLACE,
+  GAUSSIAN,
+}
+
+private fun sameNullability(a: Double?, b: Double?): Boolean {
+  return (a == null) == (b == null)
+}
+
+private fun metricIsRequested(metricTypeClass: KClass<out MetricType>, params: AggregationParams) =
+  params.metrics.any { metricTypeClass.isInstance(it.type) }
+
+private fun isGreaterThanZeroIfSet(value: Int?): Boolean = value == null || value > 0
+
+private fun isLessOrEqualToIfSet(value: Int?, upperBound: Int): Boolean =
+  value == null || value <= upperBound
+
+private fun validateBaseParams(params: Params) {
+  // Cross partition bounds.
+  require(isGreaterThanZeroIfSet(params.maxPartitionsContributed)) {
+    "maxPartitionsContributed must be positive. Provided value: ${params.maxPartitionsContributed}."
+  }
+
+  require(
+    isLessOrEqualToIfSet(
+      params.maxPartitionsContributed,
+      MAX_PROCESSED_CONTRIBUTIONS_PER_PRIVACY_ID,
+    )
+  ) {
+    "maxPartitionsContributed must be less than ${MAX_PROCESSED_CONTRIBUTIONS_PER_PRIVACY_ID} " +
+      "Provided values: maxPartitionsContributed=${params.maxPartitionsContributed}."
+  }
+
+  // Pre-threshold.
+  require(params.preThreshold > 0) {
+    "preThreshold must be positive. Provided value: ${params.preThreshold}."
+  }
+}

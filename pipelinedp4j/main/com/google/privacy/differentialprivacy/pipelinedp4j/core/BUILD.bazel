@@ -1,0 +1,119 @@
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_library")
+
+package(
+    default_visibility = [
+        "//visibility:public",
+    ],
+)
+
+kt_jvm_library(
+    name = "encoders",
+    srcs = ["Encoders.kt"],
+    deps = [
+        "@maven//:com_google_protobuf_protobuf_java",
+    ],
+)
+
+kt_jvm_library(
+    name = "framework_collections",
+    srcs = [
+        "FrameworkCollection.kt",
+        "FrameworkTable.kt",
+    ],
+    deps = [
+        ":encoders",
+    ],
+)
+
+kt_jvm_library(
+    name = "dp_functions_params",
+    srcs = [
+        "DpFunctionsParams.kt",
+    ],
+    deps = [
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core/budget:budget_spec",
+        "@maven//:com_google_errorprone_error_prone_annotations",
+        "@maven//:com_google_guava_guava",
+    ],
+)
+
+kt_jvm_library(
+    name = "core_types",
+    srcs = [
+        "CoreTypes.kt",
+    ],
+    deps = [
+        ":encoders",
+    ],
+)
+
+kt_jvm_library(
+    name = "data_extractors",
+    srcs = [
+        "DataExtractors.kt",
+    ],
+    deps = [
+        ":core_types",
+        ":encoders",
+    ],
+)
+
+kt_jvm_library(
+    name = "contribution_sampler",
+    srcs = [
+        "ContributionSampler.kt",
+        "NoPrivacySampler.kt",
+        "PartitionAndPerPartitionSampler.kt",
+        "PartitionSampler.kt",
+        "PerPartitionContributionsSampler.kt",
+    ],
+    deps = [
+        ":core_types",
+        ":encoders",
+        ":framework_collections",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/proto:dpaggregates_kt_proto",
+    ],
+)
+
+kt_jvm_library(
+    name = "dp_engine",
+    srcs = [
+        "Combiners.kt",
+        "ComputationalGraph.kt",
+        "DpEngine.kt",
+        "PrivatePartitions.kt",
+        "PublicPartitions.kt",
+    ],
+    deps = [
+        ":contribution_sampler",
+        ":core_types",
+        ":data_extractors",
+        ":dp_functions_params",
+        ":encoders",
+        ":framework_collections",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core/budget:allocated_budget",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core/budget:budget_accountant",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core/budget:budget_spec",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/dplibrary:noise_factories",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/dplibrary:pre_aggregation_partition_selection_factory",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/proto:accumulators_kt_proto",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/proto:dpaggregates_kt_proto",
+        "@maven//:com_google_errorprone_error_prone_annotations",
+        "@maven//:com_google_privacy_differentialprivacy_differentialprivacy",
+        "@maven//:com_google_protobuf_protobuf_java",
+    ],
+)
