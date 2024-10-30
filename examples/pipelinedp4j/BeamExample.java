@@ -95,18 +95,19 @@ public class BeamExample implements Runnable {
 
     // Define the query
     var query =
-        QueryBuilder.from(data, new UserIdExtractor())
+        QueryBuilder.from(data, /* privacyIdExtractor= */ new UserIdExtractor())
             .groupBy(
                 /* groupKeyExtractor= */ new MovieIdExtractor(),
                 /* maxGroupsContributed= */ 3,
                 /* maxContributionsPerGroup= */ 1,
                 usePublicGroups ? publiclyKnownMovieIds(pipeline) : null)
+            .countDistinctPrivacyUnits("numberOfViewers")
             .count(/* outputColumnName= */ "numberOfViews")
-            .sum(
+            .mean(
                 new RatingExtractor(),
-                /* minTotalValuePerPrivacyUnitInGroup= */ 1.0,
-                /* maxTotalValuePerPrivacyUnitInGroup= */ 5.0,
-                /* outputColumnName= */ "sumOfRatings",
+                /* minValue= */ 1.0,
+                /* maxValue= */ 5.0,
+                /* outputColumnName= */ "averageOfRatings",
                 /* budget= */ null)
             .build();
     // Run the query with DP parameters.
@@ -118,9 +119,11 @@ public class BeamExample implements Runnable {
     SerializableFunction<QueryPerGroupResult, MovieMetrics> mapToMovieMetricsFn =
         perGroupResult -> {
           String movieId = perGroupResult.getGroupKey();
+          long numberOfViewers =
+              round(perGroupResult.getAggregationResults().get("numberOfViewers"));
           long numberOfViews = round(perGroupResult.getAggregationResults().get("numberOfViews"));
-          long sumOfRatings = round(perGroupResult.getAggregationResults().get("sumOfRatings"));
-          return new MovieMetrics(movieId, numberOfViews, sumOfRatings);
+          double averageOfRatings = perGroupResult.getAggregationResults().get("averageOfRatings");
+          return new MovieMetrics(movieId, numberOfViewers, numberOfViews, averageOfRatings);
         };
     // We now have our anonymized metrics of movie views.
     PCollection<MovieMetrics> anonymizedMovieMetrics =

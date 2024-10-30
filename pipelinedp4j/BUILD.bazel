@@ -35,8 +35,31 @@ _RELEASE_VERSION = "0.0.1"
 pom_file(
     name = "export_pom",
     substitutions = {"RELEASE_VERSION": _RELEASE_VERSION},
+    # Generate this list via `bazelisk query //main/...`
     targets = [
-        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/api",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/api:api",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/beam:beam_collections",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/beam:beam_dp_engine_factory",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/beam:beam_encoders",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core:contribution_sampler",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core:core_types",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core:data_extractors",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core:dp_engine",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core:dp_functions_params",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core:encoders",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core:framework_collections",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core/budget:allocated_budget",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core/budget:budget_accountant",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core/budget:budget_spec",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/dplibrary:noise_factories",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/dplibrary:pre_aggregation_partition_selection_factory",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/local:local_collections",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/local:local_dp_engine_factory",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/local:local_encoders",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/proto:accumulators_kt_proto",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/proto:accumulators_proto",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/proto:dpaggregates_kt_proto",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/proto:dpaggregates_proto",
     ],
     template_file = "pom.template",
 )
@@ -46,4 +69,7 @@ kt_jvm_export(
     srcs = glob(["*.kt"]),
     maven_coordinates = "com.google.privacy.differentialprivacy.pipelinedp4j:pipelinedp4j:%s" % _RELEASE_VERSION,
     pom_template = ":export_pom",
+    runtime_deps = [
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/api",
+    ],
 )

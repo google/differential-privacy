@@ -95,6 +95,29 @@ jobs:
         working-directory: privacy-on-beam
         run: bazelisk test --test_timeout_filters=-eternal ...
 
+  pipelinedp4j-tests:
+    name: PipelineDP4J Bazel Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v3
+      - name: Mount Cache
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/bazel/
+          key: bazel-pipelinedp4j-cache
+      - name: Ensure bazelisk is installed
+        run: bazelisk --version
+      - name: Build PipelineDP4J Workspace
+        working-directory: pipelinedp4j
+        run: bazelisk build ...
+      - name: Test PipelineDP4J Workspace (without long and eternal tests)
+        working-directory: pipelinedp4j
+        run: bazelisk test --test_timeout_filters=-long,-eternal ...
+      - name: Build PipelineDP4J Example
+        working-directory: examples/pipelinedp4j
+        run: bazelisk build ...
+
   zetasql-build:
     name: ZetaSQL Examples Build Test
     runs-on: ubuntu-latest

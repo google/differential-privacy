@@ -23,23 +23,28 @@ package com.google.privacy.differentialprivacy.pipelinedp4j.examples;
  */
 final class MovieMetrics {
   private final String movieId;
-  private final long numberOfViews;
-  private final long sumOfRatings;
 
-  MovieMetrics(String movieId, long numberOfViews, long sumOfRatings) {
+  private final long numberOfViewers;
+  private final long numberOfViews;
+
+  private final double averageOfRatings;
+
+  MovieMetrics(String movieId, long numberOfViewers, long numberOfViews, double averageOfRatings) {
     this.movieId = movieId;
+    this.numberOfViewers = numberOfViewers;
     this.numberOfViews = numberOfViews;
-    this.sumOfRatings = sumOfRatings;
+    this.averageOfRatings = averageOfRatings;
   }
 
   // 0-arg constructor is necessary for serialization to work.
   private MovieMetrics() {
-    this("", 0, 0);
+    this("", 0, 0, 0.0);
   }
 
   @Override
   public String toString() {
     return String.format(
-        "movieId=%s, numberOfViews=%s, sumOfRatings=%s", movieId, numberOfViews, sumOfRatings);
+        "movieId=%s, numberOfViewers=%s, numberOfViews=%s, averageOfRatings=%s",
+        movieId, numberOfViewers, numberOfViews, averageOfRatings);
   }
 }

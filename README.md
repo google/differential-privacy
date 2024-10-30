@@ -9,6 +9,12 @@ private statistics over datasets. It contains the following tools.
 * [Privacy on Beam](privacy-on-beam) is an end-to-end differential privacy
   framework built on top of [Apache Beam](https://beam.apache.org/documentation/).
   It is intended to be easy to use, even by non-experts.
+* [PipelineDP4j](pipelinedp4j) is an end-to-end differential privacy framework
+  for JVM languages (Java, Kotlin, Scala). It supports different data
+  processing frameworks such as
+  [Apache Beam](https://beam.apache.org/documentation/) and
+  [Apache Spark](https://spark.apache.org/) (coming soon). It is intended to
+  be easy to use, even by non-experts.
 * Three "DP building block" libraries, in [C++](cc), [Go](go), and [Java](java).
   These libraries implement basic noise addition primitives and differentially
   private aggregations. Privacy on Beam is implemented using these libraries.
@@ -86,6 +92,12 @@ bazel build ...
 To build the Java library, run:
 ```shell
 cd java
+bazel build ...
+```
+
+To build the PipelineDP4j library, run:
+```shell
+cd pipelinedp4j
 bazel build ...
 ```
 
