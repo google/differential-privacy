@@ -40,7 +40,7 @@ You can look at it if you need something beyond the example.
 
 The easiest way to start using the library in your project is to use the
 dependency from Maven repository. You can find it
-[here](https://mvnrepository.com/artifact/com.google.privacy.differentialprivacy/pipelinedp4j).
+[here](https://mvnrepository.com/artifact/com.google.privacy.differentialprivacy.pipelinedp4j/pipelinedp4j).
 After adding this dependency into your project you can write the same code as in
 the example above and it will compile.
 

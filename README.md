@@ -60,14 +60,15 @@ experimental and subject to change.
 
 ## How to Build
 
-In order to run the differential privacy library, you need to install Bazel in
-version 5.3.2, if you don't have it already.
-[Follow the instructions for your platform on the Bazel website](https://docs.bazel.build/versions/main/install.html)
+In order to run the differential privacy library, you need to install bazelisk,
+if you don't have it already. Bazelisk manages [Bazel](https://bazel.build/)
+versions and installs correct one.
+[Follow the instructions for your platform on the bazelisk github page](https://github.com/bazelbuild/bazelisk?tab=readme-ov-file#installation)
 
 You also need to install Git, if you don't have it already.
 [Follow the instructions for your platform on the Git website.](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
 
-Once you've installed Bazel and Git, open a Terminal and clone the
+Once you've installed bazelisk and Git, open a Terminal and clone the
 differential privacy directory into a local folder:
 
 ```shell
@@ -75,36 +76,36 @@ git clone https://github.com/google/differential-privacy.git
 ```
 
 Navigate into the `differential-privacy` folder you just created,
-and build the differential privacy library and dependencies using Bazel
+and build the differential privacy library and dependencies using bazelisk
 (note: *...* is a part of the command and not a placeholder):
 
 To build the C++ library, run:
 ```shell
 cd cc
-bazel build ...
+bazelisk build ...
 ```
 To build the Go library, run:
 ```shell
 cd go
-bazel build ...
+bazelisk build ...
 ```
 
 To build the Java library, run:
 ```shell
 cd java
-bazel build ...
+bazelisk build ...
 ```
 
 To build the PipelineDP4j library, run:
 ```shell
 cd pipelinedp4j
-bazel build ...
+bazelisk build ...
 ```
 
 To build Privacy on Beam, run:
 ```shell
 cd privacy-on-beam
-bazel build ...
+bazelisk build ...
 ```
 
 You may need to install additional dependencies when building the PostgreSQL
