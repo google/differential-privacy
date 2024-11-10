@@ -73,6 +73,12 @@ maven_install(
         "org.apache.beam:beam-sdks-java-core:2.49.0",
         "org.apache.beam:beam-sdks-java-extensions-avro:2.49.0",
         "org.apache.beam:beam-sdks-java-extensions-protobuf:2.49.0",
+
+        "org.apache.spark:spark-core_2.12:3.3.2",
+        "org.apache.spark:spark-sql_2.12:3.3.2",
+        "org.apache.spark:spark-mllib_2.12:3.3.2",
+        "org.apache.spark:spark-catalyst_2.12:3.3.2",
+
         # Test only dependencies.
         maven.artifact(
             "com.google.truth",

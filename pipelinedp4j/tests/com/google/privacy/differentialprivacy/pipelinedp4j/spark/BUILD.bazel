@@ -1,0 +1,20 @@
+load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
+
+kt_jvm_test(
+    name = "spark_tests",
+    srcs = [
+        "SparkCollectionTest.kt",
+        "SparkTests.kt",
+    ],
+    test_class = "com.google.privacy.differentialprivacy.pipelinedp4j.spark.SparkTests",
+    deps = [
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/spark:spark_collections",
+        "@maven//:com_google_testparameterinjector_test_parameter_injector",
+        "@maven//:com_google_truth_truth",
+        "@maven//:junit_junit",
+        "@maven//:org_apache_spark_spark_core_2_12",
+        "@maven//:org_apache_spark_spark_sql_2_12",
+        "@maven//:org_apache_spark_spark_mllib_2_12",
+        "@maven//:org_apache_spark_spark_catalyst_2_12"
+    ],
+)
