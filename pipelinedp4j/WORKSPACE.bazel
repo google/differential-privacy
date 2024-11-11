@@ -78,9 +78,9 @@ maven_install(
         "org.apache.spark:spark-sql_2.12:3.3.2",
         "org.apache.spark:spark-mllib_2.12:3.3.2",
         "org.apache.spark:spark-catalyst_2.12:3.3.2",
-        "com.fasterxml.jackson.core:jackson-databind:2.13.4",  # Set jackson-databind to 2.13.4
-        "com.fasterxml.jackson.module:jackson-module-paranamer:2.13.4",
-        "com.fasterxml.jackson.module:jackson-module-scala_2.12:2.13.4",  # Scala module compatible with jackson-databind 2.13.x
+        "com.fasterxml.jackson.core:jackson-databind:2.14.2",  # Set jackson-databind to 2.14.2
+        "com.fasterxml.jackson.module:jackson-module-paranamer:2.14.2",
+        "com.fasterxml.jackson.module:jackson-module-scala_2.12:2.14.2",  # Scala module compatible with jackson-databind 2.14.2
 
         # Test only dependencies.
         maven.artifact(

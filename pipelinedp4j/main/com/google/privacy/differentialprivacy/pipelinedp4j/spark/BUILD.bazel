@@ -45,7 +45,7 @@ kt_jvm_library(
          "@maven//:org_apache_spark_spark_sql_2_12",
          "@maven//:org_apache_spark_spark_mllib_2_12",
          "@maven//:org_apache_spark_spark_catalyst_2_12",
-         "@maven//:com_fasterxml_jackson_core_jackson_databind",  # Jackson Databind 2.13.4
-         "@maven//:com_fasterxml_jackson_module_jackson_module_paranamer",  # Jackson Databind 2.13.4
+         "@maven//:com_fasterxml_jackson_core_jackson_databind",
+         "@maven//:com_fasterxml_jackson_module_jackson_module_paranamer",
     ],
 )
