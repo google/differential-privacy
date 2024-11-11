@@ -10,7 +10,7 @@ class SparkCollection<T>(val data: Dataset<T>): FrameworkCollection<T>  {
 
     override val elementsEncoder: SparkEncoder<T> = SparkEncoder<T>(data.encoder())
 
-    override fun distinct(stageName: String): FrameworkCollection<T> {
+    override fun distinct(stageName: String): SparkCollection<T> {
         return SparkCollection(data.distinct())
     }
 

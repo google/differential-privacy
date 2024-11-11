@@ -19,9 +19,9 @@ class SparkCollectionTest {
         fun setup() {
             try {
                 spark = SparkSession.builder()
-                        .appName("Kotlin Spark Example")
-                        .master("local[*]")
-                        .getOrCreate()
+                    .appName("Kotlin Spark Example")
+                    .master("local[*]")
+                    .getOrCreate();
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -35,12 +35,21 @@ class SparkCollectionTest {
     }
     @Test
     fun elementsEncoder_returnsCorrectEncoder() {
-        val dataset = spark.createDataset(listOf(1, 2, 3, 4, 5), Encoders.INT())
+        val dataset = spark.createDataset(listOf(), Encoders.INT())
         val sparkCollection = SparkCollection(dataset)
         val result = sparkCollection.elementsEncoder
 
         Truth.assertThat(result).isInstanceOf(SparkEncoder::class.java)
         Truth.assertThat(result.encoder).isEqualTo(Encoders.INT())
+    }
+
+    @Test
+    fun distinct_removesDuplicates() {
+        val dataset = spark.createDataset(listOf(1, 2, 1), Encoders.INT())
+        val sparkCollection = SparkCollection(dataset)
+        val result: SparkCollection<Int> = sparkCollection.distinct("stageName")
+
+        Truth.assertThat(result.data.count()).isEqualTo(2L)
     }
 
 }
