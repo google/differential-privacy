@@ -2365,6 +2365,323 @@ class DoubleMixturePrivacyLoss(AdditiveNoisePrivacyLoss):
     )
 
 
+class DoubleMixtureGaussianPrivacyLoss(DoubleMixturePrivacyLoss):
+  """Privacy loss of a Double Mixture mechanism with Gaussian components.
+
+  This class can be used for tight group privacy accounting of DP-SGD
+    via Theorem 3.8 of the following paper:
+      Title: Unified Mechanism-Specific Amplification by Subsampling
+        and Group Privacy Amplification
+      Authors: J. Schuchardt, M. Stoian*, A. Kosmaka*, S. Guennemann
+      Link: https://arxiv.org/abs/2403.04867
+
+  Attributes:
+    sensitivities_upper: the support of the upper sensitivity distribution.
+    sensitivities_lower: the support of the lower sensitivity distribution.
+    sampling_probs_upper: the probabilities associated with sensitivities_upper.
+    sampling_probs_lower: the probabilities associated with sensitivities_upper.
+    _strictly_monotonic_interval: interval [a, b] on which privacy loss
+      is strictly monotic. None if no such interval exists.
+    _privacy_loss_at_boundaries: privacy losses at [a, b].
+      None if _strictly_monotonic_interval is None.
+  """
+
+  def __init__(  # pylint: disable=super-init-not-called
+      self,
+      standard_deviation: float,
+      sensitivities_upper: Sequence[float],
+      sensitivities_lower: Sequence[float],
+      sampling_probs_upper: Sequence[float],
+      sampling_probs_lower: Sequence[float],
+      pessimistic_estimate: bool = True,
+      log_mass_truncation_bound: float = -50,
+  ) -> None:
+    """Initializes the privacy loss of a DoubleMixtureGaussianPrivacyLoss.
+
+    Args:
+      standard_deviation: The standard_deviation of the Gaussian distribution.
+      sensitivities_upper: The support of the upper sensitivity distribution.
+        Must be the ame length as sampling_probs_upper, and both should be 1D.
+      sampling_probs_upper: Probabilities associated with sensitivities_upper.
+      sensitivities_lower: The support of the lower sensitivity distribution.
+        Must be the ame length as sampling_probs_lower, and both should be 1D.
+      sampling_probs_lower: Probabilities associated with sensitivities_lower.
+      pessimistic_estimate: A value indicating whether the rounding is done in
+        such a way that the resulting epsilon-hockey stick divergence
+        computation gives an upper estimate to the real value.
+      log_mass_truncation_bound: The ln of the probability mass that might be
+        discarded from the noise distribution. The larger this number, the more
+        error it may introduce in divergence calculations.
+
+    Raises:
+      ValueError: If args are invalid, e.g. sensitivities and sampling_probs
+        are different lengths.
+    """
+    if standard_deviation <= 0:
+      raise ValueError(
+          'Standard deviation is not a positive real number: '
+          f'{standard_deviation}'
+      )
+
+    super().__init__(
+      sensitivities_upper, sensitivities_lower,
+      sampling_probs_upper, sampling_probs_lower,
+      pessimistic_estimate, log_mass_truncation_bound)
+
+    self._gaussian_random_variable = stats.norm(scale=standard_deviation)
+
+  @property
+  def _strictly_monotonic_interval(self) -> Optional[Tuple[float, float]]:
+    """Interval on which privacy loss is strictly decreasing.
+
+    Returns:
+        Optional[Tuple[float, float]]: Left and right boundary of the interval.
+          None if no such interval exists or privacy loss is not
+          (non-strictly) monotonic everywhere.
+    """
+    if (self._max_sens_upper == 0) and (self._max_sens_lower == 0):
+      # Distributions are identical, i.e., not strictly monotonic anywhere
+      return None
+    else:
+      # Privacy loss is strictly monotonic everywhere
+      return (-np.inf, np.inf)
+
+  @property
+  def _privacy_loss_at_boundaries(self) -> Optional[Tuple[float, float]]:
+    """Privacy loss at left and right boundary of _strictly_monotonic_interval.
+
+    Returns:
+        Optional[Tuple[float, float]]: Privacy loss l(a) and l(b)
+          when _strictly_monotonic_interval=[a, b].
+          None if _strictly_monotonic_interval=None.
+    """
+    if (self._max_sens_upper == 0) and (self._max_sens_lower == 0):
+      # Distributions are identical, i.e., not strictly monotonic anywhere
+      return None
+    elif (self._max_sens_upper == 0):
+      # Privacy loss converges for x -> -infty
+      return (-np.log1p(-self._sampling_prob_lower), -np.inf)
+    elif (self._max_sens_lower == 0):
+      # Privacy loss converges for x -> infty
+      return (np.inf, np.log1p(-self._sampling_prob_upper))
+    else:
+      return (np.inf, -np.inf)
+
+  def noise_cdf(
+      self, x: Union[float, Iterable[float]]
+  ) -> Union[float, np.ndarray]:
+    """Computes the cumulative density function of the Gaussian distribution.
+
+    Args:
+     x: the point or points at which the cumulative density function is to be
+       calculated.
+
+    Returns:
+      The cumulative density function of the Gaussian noise at x, i.e., the
+      probability that the Gaussian noise is less than or equal to x.
+    """
+    return self._gaussian_random_variable.cdf(x)
+
+  def noise_log_pdf(
+    self, x: Union[float, Iterable[float]]
+  ) -> Union[float, np.ndarray]:
+    """Computes the probability desnsity function of the Gaussian distribution.
+
+    Args:
+     x: the point or points at which the cumulative density function is to be
+       calculated.
+
+    Returns:
+      The cumulative density function of the Gaussian noise at x, i.e., the
+      probability that the Gaussian noise is less than or equal to x.
+    """
+    return self._gaussian_random_variable.logpdf(x)
+
+  def noise_ppf(self, p: Union[float,
+                               Iterable[float]]) -> Union[float, np.ndarray]:
+    """Computes the probability point function of the Gaussian distribution.
+
+    Args:
+     x: the point or points at which the probability point function, i.e.,
+      the inverse cumulative density function is to be evaluated.
+
+    Returns:
+      The probability point function of the Gaussian noise at p, i.e., an x
+      such that the interval (-infty, x] has probability p.
+    """
+    raise self._gaussian_random_variable.ppf(p)
+
+  def noise_log_cdf(
+      self, x: Union[float, Iterable[float]]
+  ) -> Union[float, np.ndarray]:
+    """Computes log of cumulative density function of the Gaussian distribution.
+
+    Args:
+      x: the point or points at which the log cumulative density function is to
+        be calculated.
+
+    Returns:
+      The log cumulative density function of the Gaussian noise at x, i.e., the
+      log of the probability that the Gaussian noise is less than or equal to x.
+    """
+    return self._gaussian_random_variable.logcdf(x)
+
+
+class DoubleMixtureLaplacePrivacyLoss(DoubleMixturePrivacyLoss):
+  """Privacy loss of a Double Mixture mechanism with Laplace components.
+
+  Attributes:
+    sensitivities_upper: the support of the upper sensitivity distribution.
+    sensitivities_lower: the support of the lower sensitivity distribution.
+    sampling_probs_upper: the probabilities associated with sensitivities_upper.
+    sampling_probs_lower: the probabilities associated with sensitivities_upper.
+    _strictly_monotonic_interval: interval [a, b] on which privacy loss
+      is strictly monotic. None if no such interval exists.
+    _privacy_loss_at_boundaries: privacy losses at [a, b].
+      None if _strictly_monotonic_interval is None.
+  """
+
+  def __init__(  # pylint: disable=super-init-not-called
+      self,
+      scale: float,
+      sensitivities_upper: Sequence[float],
+      sensitivities_lower: Sequence[float],
+      sampling_probs_upper: Sequence[float],
+      sampling_probs_lower: Sequence[float],
+      pessimistic_estimate: bool = True,
+      log_mass_truncation_bound: float = -50,
+  ) -> None:
+    """Initializes the privacy loss of a DoubleMixtureGaussianPrivacyLoss.
+
+    Args:
+      standard_deviation: The scale of the Laplace distribution.
+      sensitivities_upper: The support of the upper sensitivity distribution.
+        Must be the ame length as sampling_probs_upper, and both should be 1D.
+      sampling_probs_upper: Probabilities associated with sensitivities_upper.
+      sensitivities_lower: The support of the lower sensitivity distribution.
+        Must be the ame length as sampling_probs_lower, and both should be 1D.
+      sampling_probs_lower: Probabilities associated with sensitivities_lower.
+      pessimistic_estimate: A value indicating whether the rounding is done in
+        such a way that the resulting epsilon-hockey stick divergence
+        computation gives an upper estimate to the real value.
+      log_mass_truncation_bound: The ln of the probability mass that might be
+        discarded from the noise distribution. The larger this number, the more
+        error it may introduce in divergence calculations.
+
+    Raises:
+      ValueError: If args are invalid, e.g. sensitivities and sampling_probs
+        are different lengths.
+    """
+    if scale <= 0:
+      raise ValueError(
+          'Scale is not a positive real number: '
+          f'{scale}'
+      )
+
+    super().__init__(
+      sensitivities_upper, sensitivities_lower,
+      sampling_probs_upper, sampling_probs_lower,
+      pessimistic_estimate, log_mass_truncation_bound)
+
+    self._laplace_random_variable = stats.laplace(scale=scale)
+
+  @property
+  def _strictly_monotonic_interval(self) -> Optional[Tuple[float, float]]:
+    """Interval on which privacy loss is strictly decreasing.
+
+    Returns:
+        Optional[Tuple[float, float]]: Left and right boundary of the interval.
+          None if no such interval exists or privacy loss is not
+          (non-strictly) monotonic everywhere.
+    """
+    if (self._max_sens_upper == 0) and (self._max_sens_lower == 0):
+      # Distributions are identical, i.e., not strictly monotonic anywhere
+      return None
+    else:
+      # Outside this interval, both mu_upper and mu_lower
+      # increase/decrease with the same factor that only depends on x,
+      # i.e., privacy loss is constant.
+      return (-self._max_sens_upper, self._max_sens_lower)
+
+  @property
+  def _privacy_loss_at_boundaries(self) -> Optional[Tuple[float, float]]:
+    """Privacy loss at left and right boundary of _strictly_monotonic_interval.
+
+    Returns:
+        Optional[Tuple[float, float]]: Privacy loss l(a) and l(b)
+          when _strictly_monotonic_interval=[a, b].
+          None if _strictly_monotonic_interval=None.
+    """
+    if (self._max_sens_upper == 0) and (self._max_sens_lower == 0):
+      # Distributions are identical, i.e., not strictly monotonic anywhere
+      return None
+    elif (self._max_sens_upper == 0):
+      # Boundaries are finite, so we can just call privacy_loss instead of
+      # having to evaluate asymptotic bounds.
+      left_boundary, right_boundary = self._strictly_monotonic_interval
+      return (self.privacy_loss(left_boundary),
+              self.inverse_privacy_loss(right_boundary))
+
+  def noise_cdf(
+      self, x: Union[float, Iterable[float]]
+  ) -> Union[float, np.ndarray]:
+    """Computes the cumulative density function of the Gaussian distribution.
+
+    Args:
+     x: the point or points at which the cumulative density function is to be
+       calculated.
+
+    Returns:
+      The cumulative density function of the Gaussian noise at x, i.e., the
+      probability that the Gaussian noise is less than or equal to x.
+    """
+    return self._laplace_random_variable.cdf(x)
+
+  def noise_log_pdf(
+    self, x: Union[float, Iterable[float]]
+  ) -> Union[float, np.ndarray]:
+    """Computes the probability desnsity function of the Gaussian distribution.
+
+    Args:
+     x: the point or points at which the cumulative density function is to be
+       calculated.
+
+    Returns:
+      The cumulative density function of the Gaussian noise at x, i.e., the
+      probability that the Gaussian noise is less than or equal to x.
+    """
+    return self._laplace_random_variable.logpdf(x)
+
+  def noise_ppf(self, p: Union[float,
+                               Iterable[float]]) -> Union[float, np.ndarray]:
+    """Computes the probability point function of the Gaussian distribution.
+
+    Args:
+     x: the point or points at which the probability point function, i.e.,
+      the inverse cumulative density function is to be evaluated.
+
+    Returns:
+      The probability point function of the Gaussian noise at p, i.e., an x
+      such that the interval (-infty, x] has probability p.
+    """
+    raise self._laplace_random_variable.ppf(p)
+
+  def noise_log_cdf(
+      self, x: Union[float, Iterable[float]]
+  ) -> Union[float, np.ndarray]:
+    """Computes log of cumulative density function of the Gaussian distribution.
+
+    Args:
+      x: the point or points at which the log cumulative density function is to
+        be calculated.
+
+    Returns:
+      The log cumulative density function of the Gaussian noise at x, i.e., the
+      log of the probability that the Gaussian noise is less than or equal to x.
+    """
+    return self._laplace_random_variable.logcdf(x)
+
+
 class MixtureGaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
   """Privacy loss of the Mixture of Gaussians mechanism.
 
