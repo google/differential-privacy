@@ -26,7 +26,7 @@ import enum
 import functools
 import math
 import numbers
-from typing import Iterable, Mapping, Optional, Sequence, Union
+from typing import Iterable, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import scipy
@@ -1693,7 +1693,1009 @@ def _pl_without_sampling_remove(pl, sampling_prob):
   return -_pl_without_sampling_add(-pl, sampling_prob)
 
 
-class MixtureGaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
+class DoubleMixturePrivacyLoss(AdditiveNoisePrivacyLoss):
+  """Privacy loss of a Double Mixture mechanism.
+
+  It is the privacy loss distribution between two mixtures, each of which
+  is some base continuous distribution convolved with
+  a discrete distribution specified by sensitivities and sampling_probs.
+  That is, let mu be some continuous PDF.
+  The privacy loss distribution is generated as follows:
+  For ADD adjacency type:
+  - Let mu_upper(x) := sum over i of sampling_probs_upper[i] *
+    mu(x + sensitivities_upper[i])
+  - Let mu_lower(x) := sum over j of sampling_probs_lower[j] *
+    mu(x - sensitivities_lower[j])
+  - Sample x ~ mu_upper and let the privacy loss be
+    ln(mu_upper(x) / mu_lower(x)).
+
+  For example, when mu is a zero-mean Gaussian distribution:
+    sensitivities_upper = [1.0], sampling_probs_upper = [1.0],
+     sensitivities_lower = [0.0], sampling_probs_lower = [1.0]
+     captures the sensitivity-1 Gaussian mechanism.
+    sensitivities_upper = [0.0, 1.0], sampling_probs_upper = [0.9, 0.1]
+      sensitivities_lower = [0.0], sampling_probs_lower = [1.0]
+      captures the sensitivity-1 subsampled Gaussian mechanism.
+    sensitivities_upper = [0.0, 1.0], sampling_probs_upper = [0.9, 0.1]
+      sensitivities_lower = [0.0, 2.0, 2.0],
+      sampling_probs_lower = [0.8, 0.1, 0.1]
+      captures a generalization where mu_upper and mu_lower can sample
+      different sensitivities, and mu_lower samples the sensitive example twice,
+      each time with sampling probability 0.1.
+
+  The concrete methods in this base class make the following assumptions
+  about privacy loss l(x) = log(mu_upper(x) / mu_lower(x)):
+  - l is continuous
+  - l is strictly decreasing on some interval (a, b) with a < b
+  - l is constant outside this interval
+  These assumptions hold for common mu (Gausian, Laplace, ...),
+  but methods may have to be overriden for atypical distributions.
+
+  Attributes:
+    sensitivities_upper: the support of the upper sensitivity distribution.
+    sensitivities_lower: the support of the lower sensitivity distribution.
+    sampling_probs_upper: the probabilities associated with sensitivities_upper.
+    sampling_probs_lower: the probabilities associated with sensitivities_upper.
+  """
+  def __init__(  # pylint: disable=super-init-not-called
+      self,
+      sensitivities_upper: Sequence[float],
+      sensitivities_lower: Sequence[float],
+      sampling_probs_upper: Sequence[float],
+      sampling_probs_lower: Sequence[float],
+      pessimistic_estimate: bool = True,
+      log_mass_truncation_bound: float = -50,
+  ) -> None:
+    """Initializes the privacy loss of a DoubleMixture mechanism.
+
+    Args:
+      sensitivities_upper: The support of the upper sensitivity distribution.
+        Must be the ame length as sampling_probs_upper, and both should be 1D.
+      sampling_probs_upper: Probabilities associated with sensitivities_upper.
+      sensitivities_lower: The support of the lower sensitivity distribution.
+        Must be the ame length as sampling_probs_lower, and both should be 1D.
+      sampling_probs_lower: Probabilities associated with sensitivities_lower.
+      pessimistic_estimate: A value indicating whether the rounding is done in
+        such a way that the resulting epsilon-hockey stick divergence
+        computation gives an upper estimate to the real value.
+      log_mass_truncation_bound: The ln of the probability mass that might be
+        discarded from the noise distribution. The larger this number, the more
+        error it may introduce in divergence calculations.
+
+    Raises:
+      ValueError: If args are invalid, e.g. sensitivities and sampling_probs
+        are different lengths.
+    """
+
+    if log_mass_truncation_bound > 0:
+      raise ValueError(
+          'Log mass truncation bound is not a non-positive real '
+          f'number: {log_mass_truncation_bound}'
+      )
+
+    if len(sampling_probs_upper) != len(sensitivities_upper):
+      raise ValueError(
+          'sensitivities and sampling_probs must have the same '
+          f'length. Got {sampling_probs_upper=} '
+          f'of length {len(sampling_probs_upper)}, '
+          f'{sensitivities_upper=} of length {len(sensitivities_upper)}.'
+      )
+
+    if len(sampling_probs_lower) != len(sampling_probs_lower):
+      raise ValueError(
+          'sensitivities and sampling_probs must have the same '
+          f'length. Got {sampling_probs_upper=} '
+          f'of length {len(sampling_probs_upper)}, '
+          f'{sampling_probs_lower=} of length {len(sampling_probs_lower)}.'
+      )
+
+    non_zero_indices_upper = np.asarray(sampling_probs_upper) != 0.0
+    sensitivities_upper = np.asarray(sensitivities_upper)[
+                              non_zero_indices_upper]
+    sampling_probs_upper = np.asarray(sampling_probs_upper)[
+                              non_zero_indices_upper]
+
+    non_zero_indices_lower = np.asarray(sampling_probs_lower) != 0.0
+    sensitivities_lower = np.asarray(sensitivities_lower)[
+                              non_zero_indices_lower]
+    sampling_probs_lower = np.asarray(sampling_probs_lower)[
+                              non_zero_indices_lower]
+
+    if np.any(sensitivities_upper < 0) or np.any(sensitivities_lower < 0):
+        raise ValueError(
+            'Sensitivities contain a negative number. '
+            f'Got {sensitivities_upper=}, '
+            f'{sensitivities_lower=}.'
+        )
+
+    if not (math.isclose(sum(sampling_probs_upper), 1)
+            and
+            math.isclose(sum(sampling_probs_lower), 1)):
+        raise ValueError(
+            'Probabilities do not add up to 1. '
+            f'sum(sampling_probs_upper)={sum(sampling_probs_upper)}, '
+            f'sum(sampling_probs_lower)={sum(sampling_probs_lower)}.'
+        )
+
+    if (np.any((sampling_probs_upper <= 0) | (sampling_probs_upper > 1))
+        or np.any((sampling_probs_lower <= 0) | (sampling_probs_lower > 1))):
+
+        raise ValueError(
+            'Sampling probabilities are not in (0,1].'
+        )
+
+    self.discrete_noise = False
+
+    self.sampling_probs_upper = sampling_probs_upper
+    self.sensitivities_upper = sensitivities_upper
+    self.sampling_probs_lower = sampling_probs_lower
+    self.sensitivities_lower = sensitivities_lower
+
+    self._pessimistic_estimate = pessimistic_estimate
+    self._log_mass_truncation_bound = log_mass_truncation_bound
+
+    # Constant properties.
+    self._log_sampling_probs_upper = np.log(self.sampling_probs_upper)
+    self._pos_sampling_probs_upper = self.sampling_probs_upper[
+                                        self.sensitivities_upper > 0.0]
+    self._sampling_prob_upper = np.clip(self._pos_sampling_probs_upper.sum(),
+                                        0, 1)
+    self._max_sens_upper = self.sensitivities_upper.max()
+
+    self._log_sampling_probs_lower = np.log(self.sampling_probs_lower)
+    self._pos_sampling_probs_lower = self.sampling_probs_lower[
+                                        self.sensitivities_lower > 0.0]
+    self._sampling_prob_lower = np.clip(self._pos_sampling_probs_lower.sum(),
+                                        0, 1)
+    self._max_sens_lower = self.sensitivities_lower.max()
+
+    if (self._max_sens_upper <= 0) and (self._max_sens_lower <= 0):
+      raise ValueError('Must have at least one positive sensitivity, '
+                       f'but {self._max_sens_upper=} and '
+                       f'{self._max_sens_lower=}.')
+
+  @property
+  @abc.abstractmethod
+  def _strictly_decreasing_interval(self) -> Optional[Tuple[float, float]]:
+    """Interval on which privacy loss is strictly decreasing.
+
+    Returns:
+        Optional[Tuple[float, float]]: Left and right boundary of the interval.
+          None if no such interval exists or privacy loss is not
+          constant outside this interval.
+    """
+    raise NotImplementedError
+
+  @property
+  @abc.abstractmethod
+  def _privacy_loss_at_boundaries(self) -> Optional[Tuple[float, float]]:
+    """Privacy loss at left and right boundary of _strictly_decreasing_interval.
+
+    Returns:
+        Optional[Tuple[float, float]]: Privacy loss l(a) and l(b)
+          when _strictly_decreasing_interval=(a, b).
+          None if _strictly_decreasing_interval=None.
+    """
+    raise NotImplementedError
+
+  def _verify_monotonicity(self) -> None:
+    """Verifies that privacy loss fulfills monotonicity requirements.
+
+    These requiremnts are:
+    - l is strictly decreasing on some interval (a, b) with a < b
+    - l is constant outside this interval
+
+    Raises:
+        ValueError: If monotonicity requirements are violated.
+    """
+    if ((self._strictly_decreasing_interval is None)
+        or (self._strictly_decreasing_interval[1]
+            <= self._strictly_decreasing_interval[0])):
+      raise ValueError('Privacy loss must be strictly  '
+                       'decreasing on some non-empty interval, but '
+                       f'{self._strictly_decreasing_interval=}.')
+
+  def mu_upper_cdf(
+      self, x: Union[float, Iterable[float]]
+  ) -> Union[float, np.ndarray]:
+    """Computes the cumulative density function of the mu_upper distribution.
+
+      mu_upper(x) := sum of sampling_probs_upper[i] *
+                      mu(x + sensitivities_upper[i])
+
+    Args:
+      x: the point or points at which the cumulative density function is to be
+        calculated.
+
+    Returns:
+      The cumulative density function of the mu_upper distribution at x, i.e.,
+      the probability that mu_upper is less than or equal to x.
+    """
+    points_per_sens = np.add.outer(np.atleast_1d(x), self.sensitivities_upper)
+    output = (self.noise_cdf(points_per_sens) * self.sampling_probs_upper).sum(
+        axis=1
+    )
+    if isinstance(x, numbers.Number):
+      return output[0]
+    else:
+      return output
+
+  def mu_lower_log_cdf(
+      self, x: Union[float, Iterable[float]]) -> Union[float, np.ndarray]:
+    """Computes log cumulative density function of the mu_lower distribution.
+
+      mu_lower(x) := sum of sampling_probs_lower[i] *
+                      mu(x - sensitivities_lower[i])
+
+    Args:
+      x: the point or points at which the log of the cumulative density function
+        is to be calculated.
+
+    Returns:
+      The log of the cumulative density function of the mu_lower distribution at
+      x, i.e., the log of the probability that mu_lower is less than or equal to
+      x.
+    """
+    points_per_sens = np.add.outer(np.atleast_1d(x), -self.sensitivities_lower)
+    logcdf_per_sens = self.noise_log_cdf(points_per_sens)
+    output = scipy.special.logsumexp(
+        logcdf_per_sens, axis=1, b=self.sampling_probs_lower
+    )
+    if isinstance(x, numbers.Number):
+      return output[0]
+    else:
+      return output
+
+  def get_delta_for_epsilon(
+      self, epsilon: Union[float, Sequence[float]],
+  ) -> Union[float, Sequence[float]]:
+    """Computes the epsilon-hockey stick divergence of the mechanism.
+
+    Args:
+      epsilon: the epsilon, or list-like object of epsilon values, in
+        epsilon-hockey stick divergence. Should be non-decreasing if list-like.
+
+    Returns:
+      A non-negative real number which is the epsilon-hockey stick divergence of
+      the mechanism, or a numpy array if epsilon is list-like.
+
+    Raises:
+      ValueError: If monotonicity requirements for privacy loss or epsilons
+        are violated.
+    """
+    self._verify_monotonicity()
+
+    is_scalar = isinstance(epsilon, numbers.Number)
+    epsilons = np.array([epsilon]) if is_scalar else np.asarray(epsilon)
+    if not np.all(epsilons[1:] >= epsilons[:-1]):
+      raise ValueError(f'Epsilon values must be non-decreasing: {epsilons}')
+    deltas = np.zeros_like(epsilons, dtype=float)
+
+    # Computing delta requires that we determine (log)-probabilitites of
+    # pre-images of the set {r | r > epsilon} under privacy loss l.
+
+    # Preimage = {}
+    beyond_left_boundary = (epsilons >= self._privacy_loss_at_boundaries[0])
+
+    # Preimage = (-infty, infty)
+    beyond_right_boundary = (epsilon < self._privacy_loss_at_boundaries[1])
+    # In case of asmyptotic bounds, privacy loss is always marginally larger than
+    # self._privacy_loss_at_boundaries[1]
+    if self._strictly_decreasing_interval[1] == np.infty:
+        beyond_right_boundary = np.logical_or(
+          beyond_right_boundary,
+          epsilon == self._privacy_loss_at_boundaries[1])
+    deltas[beyond_right_boundary] = -np.expm1(epsilons[beyond_right_boundary])
+
+    # Preimage = (-infty, b)
+    # In case of non-asymptotic bounds, privacy loss is only larger than
+    # self._privacy_loss_at_boundaries[1] for x < b
+    if self._strictly_decreasing_interval[1] < np.infty:
+      at_right_boundary = (epsilon == self._privacy_loss_at_boundaries[1])
+      deltas[at_right_boundary] = (
+          self.mu_upper_cdf(self._strictly_decreasing_interval[1]) -
+          np.exp(epsilons[at_right_boundary] +
+                 self.mu_lower_log_cdf(self._strictly_decreasing_interval[1])))
+    else:
+      at_right_boundary = np.full_like(epsilons, False, dtype=bool)
+
+    # Preimage = (-infty, c) with some c s.t. a  < c < b. This c can be found
+    # via the inverse privacy loss on the strictly decreasing interval (a, b).
+    inverse_indices = np.logical_not(
+                        np.logical_or(beyond_left_boundary,
+                                      np.logical_or(beyond_right_boundary,
+                                                    at_right_boundary)))
+
+    x_cutoffs = self.inverse_privacy_losses(epsilons[inverse_indices])
+    deltas[inverse_indices] = (
+        self.mu_upper_cdf(x_cutoffs) -
+        np.exp(epsilons[inverse_indices] + self.mu_lower_log_cdf(x_cutoffs)))
+    # Clip delta values to lie in [0,1] (to avoid numerical errors)
+    deltas = np.clip(deltas, 0, 1)
+    return float(deltas[0]) if is_scalar else deltas
+
+  def privacy_loss_tail(
+        self, precision: float = 1e-4
+  ) -> TailPrivacyLossDistribution:
+    """Computes the privacy loss at the tail of the random-sensitivity Gaussian.
+
+    If max(sensitivity_upper) = 0: The upper distribution has a single component
+      and we can exactly compute the tails easily.
+
+    Otherwise:  We set upper_x_truncation such that
+      CDF(upper_x_truncation) = 1 - 0.5 * exp(log_mass_truncation_bound). It is
+      worthwhile to spend some up-front computation getting a more precise value
+      for lower_x_truncation to save computation later on. So we binary search
+      over the interval [-upper_x_truncation - max(sensitivities),
+      -upper_x_truncation] for the point where the cdf of mu_upper is
+      0.5 * exp(log_mass_truncation_bound). Since we're binary searching over a
+      continuous domain, we proceed until the width of the binary search
+      interval is at most some small precision, and then set lower_x_truncation
+      to be the left endpoint of this interval.
+
+    Args:
+      precision: The additive error we will compute the truncation values
+        within. That is, we terminate the binary search when the interval has
+        length at most precision, and then use the more conservative endpoint
+        of the interval as our truncation value.
+
+    Returns:
+      A TailPrivacyLossDistribution instance representing the tail of the
+      privacy loss distribution.
+    """
+    tail_mass = 0.5 * np.exp(self._log_mass_truncation_bound)
+    z_value = self.noise_ppf(tail_mass)
+    upper_x_truncation = -z_value
+    if self._max_sens_upper == 0.0:
+      lower_x_truncation = z_value
+    else:  # Case: self.adjacency_type == AdjacencyType.REMOVE
+      lower_x_truncation = common.inverse_monotone_function(
+          self.mu_upper_cdf,
+          tail_mass,
+          common.BinarySearchParameters(
+              z_value - self._max_sens_upper,
+              z_value,
+              tolerance=precision
+          ),
+          increasing=True,
+      )
+    if self._pessimistic_estimate:
+      tail_probability_mass_function = {
+          math.inf: self.mu_upper_cdf(lower_x_truncation),
+          self.privacy_loss(upper_x_truncation): 1 - self.mu_upper_cdf(
+              upper_x_truncation
+          ),
+      }
+    else:
+      tail_probability_mass_function = {
+          self.privacy_loss(lower_x_truncation): self.mu_upper_cdf(
+              lower_x_truncation
+          ),
+      }
+    return TailPrivacyLossDistribution(
+        lower_x_truncation, upper_x_truncation, tail_probability_mass_function
+    )
+
+  def connect_dots_bounds(self) -> ConnectDotsBounds:
+    """Computes bounds on epsilon values to use in connect-the-dots algorithm.
+
+    Returns:
+      A ConnectDotsBounds instance containing upper and lower values of
+      epsilon to use in connect-the-dots algorithm.
+    """
+    tail_pld = self.privacy_loss_tail()
+
+    return ConnectDotsBounds(
+        epsilon_upper=self.privacy_loss(tail_pld.lower_x_truncation),
+        epsilon_lower=self.privacy_loss(tail_pld.upper_x_truncation),
+    )
+
+  def privacy_loss(self, x: float) -> float:
+    """Computes the privacy loss at a given point `x`."""
+    p_upper = scipy.special.logsumexp(
+                self.noise_log_pdf(x + self.sensitivities_upper),
+                b=self.sampling_probs_upper)
+
+    p_lower = scipy.special.logsumexp(
+                self.noise_log_pdf(x - self.sensitivities_lower),
+                b=self.sampling_probs_lower)
+
+    return p_upper - p_lower
+
+  def privacy_loss_without_subsampling(self, x: float) -> float:
+    raise NotImplementedError(
+        'MixturePrivacyLoss uses multiple sensitivities, so '
+        'privacy loss without subsampling is ill-defined.'
+    )
+
+  def inverse_privacy_loss(
+      self, privacy_loss: float, precision: float = 1e-6
+  ) -> float:
+    """(Approximately) computes the inverse of a given privacy loss.
+
+    Technically, this method can be sped up by rewriting the logic in
+    inverse_privacy_losses to take advantage of the fact that we have a
+    single privacy loss rather than a list. However, this method is only written
+    to complete the abstract class, and the process of generating a PLD from
+    this class won't ever call this method. So, we have chosen the simple but
+    inefficient implementation of calling inverse_privacy_losses.
+
+    Args:
+      privacy_loss: the privacy loss value.
+      precision: Precision of the output.
+
+    Returns:
+      The largest float x such that the privacy loss at x is at least
+      privacy_loss, rounded down to the nearest multiple of precision if
+      we are using pessimistic estimates, and otherwise rounded up.
+    """
+    return float(
+        self.inverse_privacy_losses(np.atleast_1d(privacy_loss), precision)[0]
+    )
+
+  def inverse_privacy_loss_without_subsampling(
+      self, privacy_loss: float
+  ) -> float:
+    raise NotImplementedError(
+        'DoubleMixturePrivacyLoss uses multiple sensitivities, so '
+        'inverse_privacy_loss_without_subsampling is ill-defined.'
+    )
+
+  def inverse_privacy_losses(
+      self,
+      privacy_losses: np.ndarray,
+      precision: float = 1e-6,
+  ) -> np.ndarray:
+    """(Approximately) computes the inverse of a list of privacy losses.
+
+    Unlike subsampled Gaussians, for mixture Gaussians the privacy loss does
+    not have a closed-form inverse, to the best of our knowledge. So, we use
+    binary search. This is the main bottleneck in this library, so we optimize
+    it by doing one binary search for all values in privacy losses rather than a
+    separate binary search for each. This way, we avoid recomputing the privacy
+    loss at the same point across different binary searches.
+
+    Args:
+      privacy_losses: the privacy losses we wish to invert, in increasing order.
+      precision: Precision of the output. In particular, for each entry l in
+        privacy_losses, we output the smallest multiple of precision, x, such
+        that the privacy loss at x is at most l. This ensures (i) given a
+        monotonic privacy_losses, we return a monotonic list of xs, and (ii) the
+        approximation results in an overestimate of epsilon, i.e. the final
+        epsilon reported is valid.
+
+    Returns:
+      For each l in privacy_losses, the smallest multiple of precision, x, such
+      that the privacy loss at x is at most l.
+
+    Raises:
+      ValueError: If monotonicity requirements for inversion of the privacy loss
+        via binary search are violated.
+    """
+    self._verify_monotonicity()
+
+    if not (np.diff(privacy_losses) >= 0).all():
+      raise ValueError(
+          f'Expected non-decreasing privacy_losses, got: {privacy_losses}.'
+      )
+    if len(privacy_losses) == 0:  # pylint: disable=g-explicit-length-test
+      return np.ndarray([])
+
+    # Some privacy losses might be close to the privacy loss at x=a or a=b,
+    # where (a, b) is the interval on which the privacy loss is strictly
+    # monotonic, in which case we report the corresponding a or infinity.
+    max_pl = privacy_losses[-1]
+    min_pl = privacy_losses[0]
+    output = np.empty_like(privacy_losses, dtype=float)
+
+    if max_pl > self._privacy_loss_at_boundaries[0]:
+        raise ValueError(
+            f'max of privacy_losses ({max_pl}) is larger than '
+            f'{self._privacy_loss_at_boundaries[0]=}.'
+        )
+
+    left_boundary_mask = np.isclose(privacy_losses,
+                                    self._privacy_loss_at_boundaries[0])
+    output[left_boundary_mask] = self._strictly_decreasing_interval[0]
+
+    if min_pl <= self._privacy_loss_at_boundaries[1]:
+        raise ValueError(
+            f'min of privacy_losses ({min_pl}) is smaller than '
+            f'{self._privacy_loss_at_boundaries[1]=}'
+        )
+
+    right_boundary_mask = np.isclose(privacy_losses,
+                                     self._privacy_loss_at_boundaries[1])
+    output[right_boundary_mask] = np.inf
+
+    within_interval_mask = np.logical_not(
+                              np.logical_or(
+                                left_boundary_mask, right_boundary_mask))
+    max_pl = np.max(privacy_losses[within_interval_mask])
+    min_pl = np.min(privacy_losses[within_interval_mask])
+
+    search_bounds = self._binary_search_bounds(min_pl, max_pl, precision)
+    output[within_interval_mask] = self._inverse_privacy_losses_with_range(
+        privacy_losses[within_interval_mask], search_bounds, precision
+    )
+    return output
+
+  def _binary_search_bounds(
+      self, min_pl: float, max_pl: float,
+      precision: float = 1e-6,) -> Tuple[float, float]:
+    """Determines interval s.t. privacy loss contains max_pl and min_pl.
+
+    Since have no additional assumptions about mu and sensitivities,
+    we choose pessimistic bounds and then refine them by searching
+    for min_pl and max_pl
+    (which is preferable to performing binary search with pessimistic bounds
+    for many privacy losses in inverse_privacy_losses).
+
+    Args:
+        min_pl: Smallest privacy loss that must be attained within
+          the search bounds.
+        max_pl: Largest privacy loss that must be attained within
+          the search bounds.
+        precision: Precision of the output. In particular, for each entry l in
+          privacy_losses, we output the smallest multiple of precision, x, such
+          that the privacy loss at x is at most l. This ensures (i) given a
+          monotonic privacy_losses, we return a monotonic list of xs, and (ii) the
+          approximation results in an overestimate of epsilon, i.e. the final
+          epsilon reported is valid.
+
+    Returns:
+        Tuple[float, float]: _description_
+    """
+    left_bound = max(-1, self._strictly_decreasing_interval[0])
+    while (left_bound < 0) and (self.privacy_loss(left_bound) < max_pl):
+      left_bound *= 2
+    if left_bound < self._strictly_decreasing_interval[0]:
+      left_bound = self._strictly_decreasing_interval[0]
+
+    right_bound = min(1, self._strictly_decreasing_interval[1])
+    while (right_bound > 0) and (self.privacy_loss(right_bound) > min_pl):
+      right_bound *= 2
+    if right_bound > self._strictly_decreasing_interval[1]:
+      right_bound = self._strictly_decreasing_interval[1]
+
+    refined_bounds = tuple(self._inverse_privacy_losses_with_range(
+      np.array([min_pl, max_pl]),
+      [left_bound, right_bound],
+      precision*0.5,  # Higher precision to avoid off-by-one rounding errors.
+    ))
+
+    # Must revert order, because inverse of max_pl is smaller.
+    return refined_bounds[1], refined_bounds[0]
+
+  def _inverse_privacy_losses_with_range(
+      self,
+      privacy_losses: np.ndarray,
+      bounds: tuple[float, float],
+      precision: float = 1e-6,
+  ) -> Iterable[float]:
+    """Helper method for performing binary search in inverse_privacy_losses.
+
+    Args:
+      privacy_losses: the privacy losses we wish to invert.
+      bounds: Range to search over, i.e. the inverses are in the range
+        [bounds[0], bounds[1]].
+      precision: Precision of the output; in particular, for each entry l in
+        privacy_losses, we output the smallest multiple of precision, x, such
+        that the privacy loss at x is at most l. This ensures (i) given a
+        monotonic privacy_losses, we return a monotonic list of xs, and (ii) the
+        approximation results in an overestimate of epsilon, i.e. the final
+        epsilon we report is a valid epsilon.
+
+    Returns:
+      For each l in privacy_losses, the smallest multiple of precision, x, such
+      that the privacy loss at x is at most l.
+    """
+    if len(privacy_losses) == 0:  # pylint: disable=g-explicit-length-test
+      return []
+    if bounds[1] - bounds[0] <= precision:
+      return np.repeat(
+          np.floor(bounds[1] / precision) * precision, len(privacy_losses)
+      )
+
+    mid = (bounds[0] + bounds[1]) / 2
+    pl_split = self.privacy_loss(mid)
+    lower_indices = privacy_losses < pl_split
+    higher_indices = privacy_losses >= pl_split
+    output = np.zeros_like(privacy_losses)
+    output[lower_indices] = self._inverse_privacy_losses_with_range(
+        privacy_losses[lower_indices], (mid, bounds[1]), precision
+    )
+    output[higher_indices] = self._inverse_privacy_losses_with_range(
+        privacy_losses[higher_indices], (bounds[0], mid), precision
+    )
+    return output
+
+  @abc.abstractmethod
+  def noise_cdf(self, x: Union[float,
+                               Iterable[float]]) -> Union[float, np.ndarray]:
+    """Computes the cumulative density function of base distribution mu.
+
+    Args:
+     x: the point or points at which the cumulative density function is to be
+       calculated.
+
+    Returns:
+      The cumulative density function of the base noise at x, i.e., the
+      probability that the base noise is less than or equal to x.
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def noise_log_pdf(
+    self, x: Union[float, Iterable[float]]
+  ) -> Union[float, np.ndarray]:
+    """Computes the probability desnsity function of base distribution mu.
+
+    Args:
+     x: the point or points at which the cumulative density function is to be
+       calculated.
+
+    Returns:
+      The cumulative density function of the base noise at x, i.e., the
+      probability that the base noise is less than or equal to x.
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def noise_ppf(self, p: Union[float,
+                               Iterable[float]]) -> Union[float, np.ndarray]:
+    """Computes the probability point function of base distribution mu.
+
+    Args:
+     x: the point or points at which the probability point function, i.e.,
+      the inverse cumulative density function is to be evaluated.
+
+    Returns:
+      The probability point function of the base noise at p, i.e., an x
+      such that the interval (-infty, x] has probability p.
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def noise_log_cdf(
+      self, x: Union[float, Iterable[float]]) -> Union[float, np.ndarray]:
+    """Computes log of cumulative density function of the base distribution mu.
+
+    Args:
+      x: the point or points at which the log cumulative density function is to
+        be calculated.
+
+    Returns:
+      The log cumulative density function of the base noise at x, i.e., the
+      log of the probability that the base noise is less than or equal to x.
+    """
+    raise NotImplementedError
+
+  @classmethod
+  def from_privacy_guarantee(
+      cls,
+      privacy_parameters: common.DifferentialPrivacyParameters,
+      sensitivity: float = 1,
+      pessimistic_estimate: bool = True,
+      sampling_prob: float = 1.0,
+      adjacency_type: AdjacencyType = AdjacencyType.REMOVE
+  ) -> 'AdditiveNoisePrivacyLoss':
+    raise NotImplementedError(
+        'MixtureGaussianPrivacy loss cannot be uniquely '
+        'instantiated from privacy parameters.'
+    )
+
+
+class DoubleMixtureGaussianPrivacyLoss(DoubleMixturePrivacyLoss):
+  """Privacy loss of a Double Mixture mechanism with Gaussian components.
+
+  This class can be used for tight group privacy accounting of DP-SGD
+    via Theorem 3.8 of the following paper:
+      Title: Unified Mechanism-Specific Amplification by Subsampling
+        and Group Privacy Amplification
+      Authors: J. Schuchardt, M. Stoian*, A. Kosmala*, S. Guennemann
+      Link: https://arxiv.org/abs/2403.04867
+
+  Attributes:
+    sensitivities_upper: the support of the upper sensitivity distribution.
+    sensitivities_lower: the support of the lower sensitivity distribution.
+    sampling_probs_upper: the probabilities associated with sensitivities_upper.
+    sampling_probs_lower: the probabilities associated with sensitivities_upper.
+  """
+
+  def __init__(  # pylint: disable=super-init-not-called
+      self,
+      standard_deviation: float,
+      sensitivities_upper: Sequence[float],
+      sensitivities_lower: Sequence[float],
+      sampling_probs_upper: Sequence[float],
+      sampling_probs_lower: Sequence[float],
+      pessimistic_estimate: bool = True,
+      log_mass_truncation_bound: float = -50,
+  ) -> None:
+    """Initializes the privacy loss of a DoubleMixtureGaussianPrivacyLoss.
+
+    Args:
+      standard_deviation: The standard_deviation of the Gaussian distribution.
+      sensitivities_upper: The support of the upper sensitivity distribution.
+        Must be the ame length as sampling_probs_upper, and both should be 1D.
+      sampling_probs_upper: Probabilities associated with sensitivities_upper.
+      sensitivities_lower: The support of the lower sensitivity distribution.
+        Must be the ame length as sampling_probs_lower, and both should be 1D.
+      sampling_probs_lower: Probabilities associated with sensitivities_lower.
+      pessimistic_estimate: A value indicating whether the rounding is done in
+        such a way that the resulting epsilon-hockey stick divergence
+        computation gives an upper estimate to the real value.
+      log_mass_truncation_bound: The ln of the probability mass that might be
+        discarded from the noise distribution. The larger this number, the more
+        error it may introduce in divergence calculations.
+
+    Raises:
+      ValueError: If args are invalid, e.g. sensitivities and sampling_probs
+        are different lengths.
+    """
+    if standard_deviation <= 0:
+      raise ValueError(
+          'Standard deviation is not a positive real number: '
+          f'{standard_deviation}'
+      )
+
+    super().__init__(
+      sensitivities_upper, sensitivities_lower,
+      sampling_probs_upper, sampling_probs_lower,
+      pessimistic_estimate, log_mass_truncation_bound)
+
+    self._gaussian_random_variable = stats.norm(scale=standard_deviation)
+
+  @property
+  def _strictly_decreasing_interval(self) -> Optional[Tuple[float, float]]:
+    """Interval on which privacy loss is strictly decreasing.
+
+    Returns:
+        Optional[Tuple[float, float]]: Left and right boundary of the interval.
+          None if no such interval exists or privacy loss is not
+          constant outside this interval.
+    """
+    if (self._max_sens_upper == 0) and (self._max_sens_lower == 0):
+      # Distributions are identical, i.e., not strictly decreasing anywhere
+      return None
+    else:
+      # Privacy loss is strictly decreasing everywhere
+      return (-np.inf, np.inf)
+
+  @property
+  def _privacy_loss_at_boundaries(self) -> Optional[Tuple[float, float]]:
+    """Privacy loss at left and right boundary of _strictly_decreasing_interval.
+
+    Returns:
+        Optional[Tuple[float, float]]: Privacy loss l(a) and l(b)
+          when _strictly_decreasing_interval=(a, b).
+          None if _strictly_decreasing_interval=None.
+    """
+    if (self._max_sens_upper == 0) and (self._max_sens_lower == 0):
+      # Distributions are identical, i.e., not strictly monotonic anywhere
+      return None
+    elif (self._max_sens_upper == 0):
+      # Privacy loss converges for x -> -infty
+      return (-np.log1p(-self._sampling_prob_lower), -np.inf)
+    elif (self._max_sens_lower == 0):
+      # Privacy loss converges for x -> infty
+      return (np.inf, np.log1p(-self._sampling_prob_upper))
+    else:
+      return (np.inf, -np.inf)
+
+  def noise_cdf(
+      self, x: Union[float, Iterable[float]]
+  ) -> Union[float, np.ndarray]:
+    """Computes the cumulative density function of the Gaussian distribution.
+
+    Args:
+     x: the point or points at which the cumulative density function is to be
+       calculated.
+
+    Returns:
+      The cumulative density function of the Gaussian noise at x, i.e., the
+      probability that the Gaussian noise is less than or equal to x.
+    """
+    return self._gaussian_random_variable.cdf(x)
+
+  def noise_log_pdf(
+    self, x: Union[float, Iterable[float]]
+  ) -> Union[float, np.ndarray]:
+    """Computes the probability desnsity function of the Gaussian distribution.
+
+    Args:
+     x: the point or points at which the cumulative density function is to be
+       calculated.
+
+    Returns:
+      The cumulative density function of the Gaussian noise at x, i.e., the
+      probability that the Gaussian noise is less than or equal to x.
+    """
+    return self._gaussian_random_variable.logpdf(x)
+
+  def noise_ppf(self, p: Union[float,
+                               Iterable[float]]) -> Union[float, np.ndarray]:
+    """Computes the probability point function of the Gaussian distribution.
+
+    Args:
+     x: the point or points at which the probability point function, i.e.,
+      the inverse cumulative density function is to be evaluated.
+
+    Returns:
+      The probability point function of the Gaussian noise at p, i.e., an x
+      such that the interval (-infty, x] has probability p.
+    """
+    return self._gaussian_random_variable.ppf(p)
+
+  def noise_log_cdf(
+      self, x: Union[float, Iterable[float]]
+  ) -> Union[float, np.ndarray]:
+    """Computes log of cumulative density function of the Gaussian distribution.
+
+    Args:
+      x: the point or points at which the log cumulative density function is to
+        be calculated.
+
+    Returns:
+      The log cumulative density function of the Gaussian noise at x, i.e., the
+      log of the probability that the Gaussian noise is less than or equal to x.
+    """
+    return self._gaussian_random_variable.logcdf(x)
+
+
+class DoubleMixtureLaplacePrivacyLoss(DoubleMixturePrivacyLoss):
+  """Privacy loss of a Double Mixture mechanism with Laplace components.
+
+  Attributes:
+    sensitivities_upper: the support of the upper sensitivity distribution.
+    sensitivities_lower: the support of the lower sensitivity distribution.
+    sampling_probs_upper: the probabilities associated with sensitivities_upper.
+    sampling_probs_lower: the probabilities associated with sensitivities_upper.
+  """
+
+  def __init__(  # pylint: disable=super-init-not-called
+      self,
+      scale: float,
+      sensitivities_upper: Sequence[float],
+      sensitivities_lower: Sequence[float],
+      sampling_probs_upper: Sequence[float],
+      sampling_probs_lower: Sequence[float],
+      pessimistic_estimate: bool = True,
+      log_mass_truncation_bound: float = -50,
+  ) -> None:
+    """Initializes the privacy loss of a DoubleMixtureGaussianPrivacyLoss.
+
+    Args:
+      standard_deviation: The scale of the Laplace distribution.
+      sensitivities_upper: The support of the upper sensitivity distribution.
+        Must be the ame length as sampling_probs_upper, and both should be 1D.
+      sampling_probs_upper: Probabilities associated with sensitivities_upper.
+      sensitivities_lower: The support of the lower sensitivity distribution.
+        Must be the ame length as sampling_probs_lower, and both should be 1D.
+      sampling_probs_lower: Probabilities associated with sensitivities_lower.
+      pessimistic_estimate: A value indicating whether the rounding is done in
+        such a way that the resulting epsilon-hockey stick divergence
+        computation gives an upper estimate to the real value.
+      log_mass_truncation_bound: The ln of the probability mass that might be
+        discarded from the noise distribution. The larger this number, the more
+        error it may introduce in divergence calculations.
+
+    Raises:
+      ValueError: If args are invalid, e.g. sensitivities and sampling_probs
+        are different lengths.
+    """
+    if scale <= 0:
+      raise ValueError(
+          'Scale is not a positive real number: '
+          f'{scale}'
+      )
+
+    super().__init__(
+      sensitivities_upper, sensitivities_lower,
+      sampling_probs_upper, sampling_probs_lower,
+      pessimistic_estimate, log_mass_truncation_bound)
+
+    self._laplace_random_variable = stats.laplace(scale=scale)
+
+  @property
+  def _strictly_decreasing_interval(self) -> Optional[Tuple[float, float]]:
+    """Interval on which privacy loss is strictly decreasing.
+
+    Returns:
+        Optional[Tuple[float, float]]: Left and right boundary of the interval.
+          None if no such interval exists or privacy loss is not
+          constant outside this interval.
+    """
+    if (self._max_sens_upper == 0) and (self._max_sens_lower == 0):
+      # Distributions are identical, i.e., not strictly decreasing anywhere
+      return None
+    else:
+      # Outside this interval, both mu_upper and mu_lower
+      # increase/decrease with the same factor that only depends on x,
+      # i.e., privacy loss is constant.
+      return (-self._max_sens_upper, self._max_sens_lower)
+
+  @property
+  def _privacy_loss_at_boundaries(self) -> Optional[Tuple[float, float]]:
+    """Privacy loss at left and right boundary of _strictly_decreasing_interval.
+
+    Returns:
+        Optional[Tuple[float, float]]: Privacy loss l(a) and l(b)
+          when _strictly_decreasing_interval=(a, b).
+          None if _strictly_decreasing_interval=None.
+    """
+    if (self._max_sens_upper == 0) and (self._max_sens_lower == 0):
+      # Distributions are identical, i.e., not strictly decreasing anywhere
+      return None
+    else:
+      # Boundaries are finite, so we can just call privacy_loss instead of
+      # having to evaluate asymptotic bounds.
+      left_boundary, right_boundary = self._strictly_decreasing_interval
+      return (self.privacy_loss(left_boundary),
+              self.privacy_loss(right_boundary))
+
+  def noise_cdf(
+      self, x: Union[float, Iterable[float]]
+  ) -> Union[float, np.ndarray]:
+    """Computes the cumulative density function of the Gaussian distribution.
+
+    Args:
+     x: the point or points at which the cumulative density function is to be
+       calculated.
+
+    Returns:
+      The cumulative density function of the Gaussian noise at x, i.e., the
+      probability that the Gaussian noise is less than or equal to x.
+    """
+    return self._laplace_random_variable.cdf(x)
+
+  def noise_log_pdf(
+    self, x: Union[float, Iterable[float]]
+  ) -> Union[float, np.ndarray]:
+    """Computes the probability desnsity function of the Gaussian distribution.
+
+    Args:
+     x: the point or points at which the cumulative density function is to be
+       calculated.
+
+    Returns:
+      The cumulative density function of the Gaussian noise at x, i.e., the
+      probability that the Gaussian noise is less than or equal to x.
+    """
+    return self._laplace_random_variable.logpdf(x)
+
+  def noise_ppf(self, p: Union[float,
+                               Iterable[float]]) -> Union[float, np.ndarray]:
+    """Computes the probability point function of the Gaussian distribution.
+
+    Args:
+     x: the point or points at which the probability point function, i.e.,
+      the inverse cumulative density function is to be evaluated.
+
+    Returns:
+      The probability point function of the Gaussian noise at p, i.e., an x
+      such that the interval (-infty, x] has probability p.
+    """
+    raise self._laplace_random_variable.ppf(p)
+
+  def noise_log_cdf(
+      self, x: Union[float, Iterable[float]]
+  ) -> Union[float, np.ndarray]:
+    """Computes log of cumulative density function of the Gaussian distribution.
+
+    Args:
+      x: the point or points at which the log cumulative density function is to
+        be calculated.
+
+    Returns:
+      The log cumulative density function of the Gaussian noise at x, i.e., the
+      log of the probability that the Gaussian noise is less than or equal to x.
+    """
+    return self._laplace_random_variable.logcdf(x)
+
+
+class MixtureGaussianPrivacyLoss(DoubleMixtureGaussianPrivacyLoss):
   """Privacy loss of the Mixture of Gaussians mechanism.
 
   This class gives the privacy loss for a scalar Gaussian mechanism where the
@@ -1781,232 +2783,48 @@ class MixtureGaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
           'Standard deviation is not a positive real number: '
           f'{standard_deviation}'
       )
-    if log_mass_truncation_bound > 0:
-      raise ValueError(
-          'Log mass truncation bound is not a non-positive real '
-          f'number: {log_mass_truncation_bound}'
-      )
-    if len(sampling_probs) != len(sensitivities):
-      raise ValueError(
-          'sensitivities and sampling_probs must have the same '
-          f'length. Got {sampling_probs=} of length {len(sampling_probs)}, '
-          f'{sensitivities=} of length {len(sensitivities)}.'
-      )
 
-    non_zero_indices = np.asarray(sampling_probs) != 0.0
-    sensitivities = np.asarray(sensitivities)[non_zero_indices]
-    sampling_probs = np.asarray(sampling_probs)[non_zero_indices]
-    if np.any(sensitivities < 0):
-      raise ValueError(
-          f'Sensitivities contains a negative number: {sensitivities}.'
-      )
-    if sensitivities.max() == 0.0:
-      raise ValueError('Must have at least one positive sensitivity.')
-    if not math.isclose(sum(sampling_probs), 1):
-      raise ValueError(
-          f'Probabilities do not add up to 1: {sum(sampling_probs)}'
-      )
-    for sampling_prob in sampling_probs:
-      if sampling_prob <= 0 or sampling_prob > 1:
-        raise ValueError(
-            f'Sampling probability is not in (0,1] : {sampling_prob}'
-        )
-    self.discrete_noise = False
     self.adjacency_type = adjacency_type
-    self.sampling_probs = sampling_probs
-    self.sensitivities = sensitivities
+    if self.adjacency_type == AdjacencyType.ADD:
+      sensitivities_upper = [0.0]
+      sensitivities_lower = sensitivities
+      sampling_probs_upper = [1.0]
+      sampling_probs_lower = sampling_probs
+    else:
+      sensitivities_upper = sensitivities
+      sensitivities_lower = [0.0]
+      sampling_probs_upper = sampling_probs
+      sampling_probs_lower = [1.0]
+
+    super().__init__(
+      standard_deviation,
+      sensitivities_upper, sensitivities_lower,
+      sampling_probs_upper, sampling_probs_lower,
+      pessimistic_estimate, log_mass_truncation_bound
+    )
+
+    # Init does some cleanup like removing zero-prob entries, so assign here
+    if self.adjacency_type == AdjacencyType.ADD:
+      self.sensitivities = self.sensitivities_lower
+      self.sampling_probs = self.sampling_probs_lower
+      # Constant properties
+      self._log_sampling_probs = self._log_sampling_probs_lower
+      self._pos_sampling_probs = self._pos_sampling_probs_lower
+      self._sampling_prob = self._sampling_prob_lower
+    else:
+      self.sensitivities = self.sensitivities_upper
+      self.sampling_probs = self.sampling_probs_upper
+      # Constant properties
+      self._log_sampling_probs = self._log_sampling_probs_upper
+      self._pos_sampling_probs = self._pos_sampling_probs_upper
+      self._sampling_prob = self._sampling_prob_upper
+
+    # Constant properties that are not present in parent class.
     self._standard_deviation = standard_deviation
     self._variance = standard_deviation**2
-    self._pessimistic_estimate = pessimistic_estimate
-    self._log_mass_truncation_bound = log_mass_truncation_bound
-
-    # Constant properties.
-    self._log_sampling_probs = np.log(self.sampling_probs)
-    self._pos_sampling_probs = self.sampling_probs[self.sensitivities > 0.0]
-    self._sampling_prob = np.clip(self._pos_sampling_probs.sum(), 0, 1)
     nonzero_sens = self.sensitivities[self.sensitivities > 0.0]
     self._min_sens = np.min(nonzero_sens)
     self._max_sens = np.max(nonzero_sens)
-    self._gaussian_random_variable = stats.norm(scale=standard_deviation)
-
-  def mu_upper_cdf(
-      self, x: Union[float, Iterable[float]]
-  ) -> Union[float, np.ndarray]:
-    """Computes the cumulative density function of the mu_upper distribution.
-
-    For ADD adjacency type:
-      mu_upper(x) := mu
-    For REMOVE adjacency type:
-      mu_upper(x) := sum of sampling_probs[i] * mu(x + sensitivities[i])
-
-    Args:
-      x: the point or points at which the cumulative density function is to be
-        calculated.
-
-    Returns:
-      The cumulative density function of the mu_upper distribution at x, i.e.,
-      the probability that mu_upper is less than or equal to x.
-    """
-    if self.adjacency_type == AdjacencyType.ADD:
-      return self.noise_cdf(x)
-    else:  # Case: self.adjacency_type == AdjacencyType.REMOVE
-      points_per_sens = np.add.outer(np.atleast_1d(x), self.sensitivities)
-      output = (self.noise_cdf(points_per_sens) * self.sampling_probs).sum(
-          axis=1
-      )
-      if isinstance(x, numbers.Number):
-        return output[0]
-      else:
-        return output
-
-  def mu_lower_log_cdf(
-      self, x: Union[float, Iterable[float]]
-  ) -> Union[float, np.ndarray]:
-    """Computes log cumulative density function of the mu_lower distribution.
-
-    For ADD adjacency type:
-      mu_lower(x) := sum of sampling_probs[i] * mu(x - sensitivities[i])
-    For REMOVE adjacency type:
-      mu_lower(x) := mu
-
-    Args:
-      x: the point or points at which the log of the cumulative density function
-        is to be calculated.
-
-    Returns:
-      The log of the cumulative density function of the mu_lower distribution at
-      x, i.e., the log of the probability that mu_lower is less than or equal to
-      x.
-    """
-    if self.adjacency_type == AdjacencyType.ADD:
-      points_per_sens = np.add.outer(np.atleast_1d(x), -self.sensitivities)
-      logcdf_per_sens = self.noise_log_cdf(points_per_sens)
-      output = scipy.special.logsumexp(
-          logcdf_per_sens, axis=1, b=self.sampling_probs
-      )
-      if isinstance(x, numbers.Number):
-        return output[0]
-      else:
-        return output
-    else:  # Case: self.adjacency_type == AdjacencyType.REMOVE
-      return self.noise_log_cdf(x)
-
-  def get_delta_for_epsilon(
-      self, epsilon: Union[float, Sequence[float]]
-  ) -> Union[float, list[float]]:
-    """Computes the epsilon-hockey stick divergence of the mechanism.
-
-    Args:
-      epsilon: the epsilon, or list-like object of epsilon values, in
-        epsilon-hockey stick divergence. Should be non-decreasing if list-like.
-
-    Returns:
-      A non-negative real number which is the epsilon-hockey stick divergence of
-      the mechanism, or a numpy array if epsilon is list-like.
-    """
-    epsilons = np.atleast_1d(epsilon)
-    if not np.all(epsilons[1:] >= epsilons[:-1]):
-      raise ValueError(f'Epsilon values must be non-decreasing: {epsilons}')
-    deltas = np.zeros_like(epsilons, dtype=float)
-    if self._sampling_prob == 1.0:
-      inverse_indices = np.full_like(epsilons, True, dtype=bool)
-    elif self.adjacency_type == AdjacencyType.ADD:
-      inverse_indices = epsilons < -np.log1p(-self._sampling_prob)
-    else:  # Case: self.adjacency_type == AdjacencyType.REMOVE
-      inverse_indices = epsilons > np.log1p(-self._sampling_prob)
-      other_indices = np.logical_not(inverse_indices)
-      deltas[other_indices] = -np.expm1(epsilons[other_indices])
-    x_cutoffs = self.inverse_privacy_losses(epsilons[inverse_indices])
-    deltas[inverse_indices] = self.mu_upper_cdf(x_cutoffs) - np.exp(
-        epsilons[inverse_indices] + self.mu_lower_log_cdf(x_cutoffs)
-    )
-    # Clip delta values to lie in [0,1] (to avoid numerical errors)
-    deltas = np.clip(deltas, 0, 1)
-    if isinstance(epsilon, numbers.Number):
-      return float(deltas)
-    else:
-      # For numerical stability reasons, deltas may not be non-increasing. This
-      # is fixed post-hoc at small cost in accuracy.
-      for i in reversed(range(deltas.shape[0] - 1)):
-        deltas[i] = max(deltas[i], deltas[i + 1])
-      return deltas
-
-  def privacy_loss_tail(
-      self, precision: float = 1e-4
-  ) -> TailPrivacyLossDistribution:
-    """Computes the privacy loss at the tail of the random-sensitivity Gaussian.
-
-    For ADD adjacency type: The upper distribution is a single Gaussian and we
-      can exactly compute the tails easily.
-
-    For REMOVE adjacency type:  We set upper_x_truncation such that
-      CDF(upper_x_truncation) = 1 - 0.5 * exp(log_mass_truncation_bound). It is
-      worthwhile to spend some up-front computation getting a more precise value
-      for lower_x_truncation to save computation later on. So we binary search
-      over the interval [-upper_x_truncation - max(sensitivities),
-      -upper_x_truncation] for the point where the cdf of mu_upper is
-      0.5 * exp(log_mass_truncation_bound). Since we're binary searching over a
-      continuous domain, we proceed until the width of the binary search
-      interval is at most some small precision, and then set lower_x_truncation
-      to be the left endpoint of this interval.
-
-    Args:
-      precision: The additive error we will compute the truncation values
-        within. That is, when we binary search for log_mass_truncation_bound in
-        the REMOVE case, we terminate the binary search when the interval has
-        length at most precision, and then use the more conservative endpoint
-        of the interval as our truncation value.
-
-    Returns:
-      A TailPrivacyLossDistribution instance representing the tail of the
-      privacy loss distribution.
-    """
-    tail_mass = 0.5 * np.exp(self._log_mass_truncation_bound)
-    z_value = self._gaussian_random_variable.ppf(tail_mass)
-    upper_x_truncation = -z_value
-    if self.adjacency_type == AdjacencyType.ADD:
-      lower_x_truncation = z_value
-    else:  # Case: self.adjacency_type == AdjacencyType.REMOVE
-      lower_x_truncation = common.inverse_monotone_function(
-          self.mu_upper_cdf,
-          tail_mass,
-          common.BinarySearchParameters(
-              z_value - self._max_sens,
-              z_value,
-              tolerance=precision
-          ),
-          increasing=True,
-      )
-    if self._pessimistic_estimate:
-      tail_probability_mass_function = {
-          math.inf: self.mu_upper_cdf(lower_x_truncation),
-          self.privacy_loss(upper_x_truncation): 1 - self.mu_upper_cdf(
-              upper_x_truncation
-          ),
-      }
-    else:
-      tail_probability_mass_function = {
-          self.privacy_loss(lower_x_truncation): self.mu_upper_cdf(
-              lower_x_truncation
-          ),
-      }
-    return TailPrivacyLossDistribution(
-        lower_x_truncation, upper_x_truncation, tail_probability_mass_function
-    )
-
-  def connect_dots_bounds(self) -> ConnectDotsBounds:
-    """Computes the bounds on epsilon values to use in connect-the-dots algorithm.
-
-    Returns:
-      A ConnectDotsBounds instance containing upper and lower values of
-      epsilon to use in connect-the-dots algorithm.
-    """
-    tail_pld = self.privacy_loss_tail()
-
-    return ConnectDotsBounds(
-        epsilon_upper=self.privacy_loss(tail_pld.lower_x_truncation),
-        epsilon_lower=self.privacy_loss(tail_pld.upper_x_truncation),
-    )
 
   @functools.cached_property
   def _precompute_privacy_loss_constants(self) -> np.ndarray:
@@ -2106,102 +2924,34 @@ class MixtureGaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
     else:  # Case: self.adjacency_type == AdjacencyType.REMOVE
       return add_inverse_loss - sensitivity
 
-  def inverse_privacy_loss(
-      self, privacy_loss: float, precision: float = 1e-6
-  ) -> float:
-    """(Approximately) computes the inverse of a given privacy loss.
+  def _binary_search_bounds(
+      self, min_pl: float, max_pl: float,
+      precision: float = 1e-6,) -> Tuple[float, float]:
+    """Determines interval s.t. privacy loss contains max_pl and min_pl.
 
-    Technically, this method can be sped up by rewriting the logic in
-    inverse_privacy_losses to take advantage of the fact that we have a
-    single privacy loss rather than a list. However, this method is only written
-    to complete the abstract class, and the process of generating a PLD from
-    this class won't ever call this method. So, we have chosen the simple but
-    inefficient implementation of calling inverse_privacy_losses.
-
-    Args:
-      privacy_loss: the privacy loss value.
-      precision: Precision of the output.
-
-    Returns:
-      The largest float x such that the privacy loss at x is at least
-      privacy_loss, rounded down to the nearest multiple of precision if
-      we are using pessimistic estimates, and otherwise rounded up.
-    """
-    return float(
-        self.inverse_privacy_losses(np.atleast_1d(privacy_loss), precision)[0]
-    )
-
-  def inverse_privacy_losses(
-      self,
-      privacy_losses: np.ndarray,
-      precision: float = 1e-6,
-  ) -> np.ndarray:
-    """(Approximately) computes the inverse of a list of privacy losses.
-
-    Unlike subsampled Gaussians, for mixture Gaussians the privacy loss does
-    not have a closed-form inverse, to the best of our knowledge. So, we use
-    binary search. This is the main bottleneck in this library, so we optimize
-    it by doing one binary search for all values in privacy losses rather than a
-    separate binary search for each. This way, we avoid recomputing the privacy
-    loss at the same point across different binary searches.
-
-    Args:
-      privacy_losses: the privacy losses we wish to invert, in increasing order.
-      precision: Precision of the output. In particular, for each entry l in
-        privacy_losses, we output the smallest multiple of precision, x, such
-        that the privacy loss at x is at most l. This ensures (i) given a
-        monotonic privacy_losses, we return a monotonic list of xs, and (ii) the
-        approximation results in an overestimate of epsilon, i.e. the final
-        epsilon reported is valid.
-
-    Returns:
-      For each l in privacy_losses, the smallest multiple of precision, x, such
-      that the privacy loss at x is at most l.
-    """
-    if not (np.diff(privacy_losses) >= 0).all():
-      raise ValueError(
-          f'Expected non-decreasing privacy_losses, got: {privacy_losses}.'
-      )
-    if len(privacy_losses) == 0:  # pylint: disable=g-explicit-length-test
-      return np.ndarray([])
-
-    # If we have a non-zero probability of choosing sensitivity = 0, then the
-    # privacy loss does not take on all values in [-inf, inf], and so we need to
-    # make sure all values in privacy_losses are in the proper range for the
-    # given adjacency type.
-
-    # Some privacy losses might be close to the privacy loss at x = +/-inf, in
-    # which case we report the corresponding infinity for them.
-    min_pl = privacy_losses[0]
-    max_pl = privacy_losses[-1]
-    log_1m_prob = (
-        math.log1p(-self._sampling_prob) if self._sampling_prob < 1 else -np.inf
-    )
-    if self.adjacency_type == AdjacencyType.ADD:
-      if max_pl > -log_1m_prob:
-        raise ValueError(
-            f'max of privacy_losses ({max_pl}) is larger than '
-            f'-log(1 - sampling_prob)={-log_1m_prob}.'
-        )
-      finite_indices = np.logical_not(np.isclose(privacy_losses, -log_1m_prob))
-      max_pl = np.max(privacy_losses[finite_indices])
-    else:  # Case: self.adjacency_type == AdjacencyType.REMOVE
-      if min_pl <= log_1m_prob:
-        raise ValueError(
-            f'min of privacy_losses ({min_pl}) is smaller than '
-            f'log(1 - sampling_prob)={log_1m_prob}'
-        )
-      finite_indices = np.logical_not(np.isclose(privacy_losses, log_1m_prob))
-      min_pl = np.min(privacy_losses[finite_indices])
-
-    # Now, we need to determine a suitable range to binary search over. To do
-    # this, we consider the subsampled Gaussian mechanisms given by moving
+    # To do this, we consider the subsampled Gaussian mechanisms given by moving
     # all the probability mass on non-zero sensitivities to either the
     # smallest or largest sensitivity. We can show the privacy loss of the
     # mixture is contained between these two mechanisms' privacy losses, and
     # the subsampled Gaussian privacy loss is easy to invert. Then, we can
     # compute the inverse privacy loss at min_pl and max_pl to get four
     # candidate bounds, and take the min/max of these bounds.
+
+    Args:
+        min_pl: Smallest privacy loss that must be attained within
+          the search bounds.
+        max_pl: Largest privacy loss that must be attained within
+          the search bounds.
+        precision: Precision of the output. In particular, for each entry l in
+          privacy_losses, we output the smallest multiple of precision, x, such
+          that the privacy loss at x is at most l. This ensures (i) given a
+          monotonic privacy_losses, we return a monotonic list of xs, and (ii) the
+          approximation results in an overestimate of epsilon, i.e. the final
+          epsilon reported is valid.
+
+    Returns:
+        Tuple[float, float]: _description_
+    """
     loss_bounds = np.array([min_pl, min_pl, max_pl, max_pl])
     sens_bounds = np.array([
         self._min_sens,
@@ -2217,106 +2967,8 @@ class MixtureGaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
     possible_bounds = self.inverse_privacy_loss_for_single_gaussian(
         pl_without_sampling(loss_bounds, self._sampling_prob), sens_bounds
     )
-    bounds = (
+
+    return (
         np.floor(np.min(possible_bounds) / precision) * precision,
         np.ceil(np.max(possible_bounds) / precision) * precision,
-    )
-    if self.adjacency_type == AdjacencyType.ADD:
-      output = self.privacy_loss_for_single_gaussian(
-          np.full_like(privacy_losses, np.inf)
-      )
-    else:
-      output = self.privacy_loss_for_single_gaussian(
-          np.full_like(privacy_losses, -np.inf)
-      )
-    output[finite_indices] = self._inverse_privacy_losses_with_range(
-        privacy_losses[finite_indices], bounds, precision
-    )
-    return output
-
-  def _inverse_privacy_losses_with_range(
-      self,
-      privacy_losses: np.ndarray,
-      bounds: tuple[float, float],
-      precision: float = 1e-6,
-  ) -> Iterable[float]:
-    """Helper method for performing binary search in inverse_privacy_losses.
-
-    Args:
-      privacy_losses: the privacy losses we wish to invert.
-      bounds: Range to search over, i.e. the inverses are in the range
-        [bounds[0], bounds[1]].
-      precision: Precision of the output; in particular, for each entry l in
-        privacy_losses, we output the smallest multiple of precision, x, such
-        that the privacy loss at x is at most l. This ensures (i) given a
-        monotonic privacy_losses, we return a monotonic list of xs, and (ii) the
-        approximation results in an overestimate of epsilon, i.e. the final
-        epsilon we report is a valid epsilon.
-
-    Returns:
-      For each l in privacy_losses, the smallest multiple of precision, x, such
-      that the privacy loss at x is at most l.
-    """
-    if len(privacy_losses) == 0:  # pylint: disable=g-explicit-length-test
-      return []
-    if bounds[1] - bounds[0] <= precision:
-      return np.repeat(
-          np.floor(bounds[1] / precision) * precision, len(privacy_losses)
-      )
-
-    mid = (bounds[0] + bounds[1]) / 2
-    pl_split = self.privacy_loss(mid)
-    lower_indices = privacy_losses < pl_split
-    higher_indices = privacy_losses >= pl_split
-    output = np.zeros_like(privacy_losses)
-    output[lower_indices] = self._inverse_privacy_losses_with_range(
-        privacy_losses[lower_indices], (mid, bounds[1]), precision
-    )
-    output[higher_indices] = self._inverse_privacy_losses_with_range(
-        privacy_losses[higher_indices], (bounds[0], mid), precision
-    )
-    return output
-
-  def noise_cdf(
-      self, x: Union[float, Iterable[float]]
-  ) -> Union[float, np.ndarray]:
-    """Computes the cumulative density function of the Gaussian distribution.
-
-    Args:
-     x: the point or points at which the cumulative density function is to be
-       calculated.
-
-    Returns:
-      The cumulative density function of the Gaussian noise at x, i.e., the
-      probability that the Gaussian noise is less than or equal to x.
-    """
-    return self._gaussian_random_variable.cdf(x)
-
-  def noise_log_cdf(
-      self, x: Union[float, Iterable[float]]
-  ) -> Union[float, np.ndarray]:
-    """Computes log of cumulative density function of the Gaussian distribution.
-
-    Args:
-      x: the point or points at which the log cumulative density function is to
-        be calculated.
-
-    Returns:
-      The log cumulative density function of the Gaussian noise at x, i.e., the
-      log of the probability that the Gaussian noise is less than or equal to x.
-    """
-    return self._gaussian_random_variable.logcdf(x)
-
-  @classmethod
-  def from_privacy_guarantee(
-      cls,
-      privacy_parameters: common.DifferentialPrivacyParameters,
-      sensitivity: float = 1,
-      pessimistic_estimate: bool = True,
-      sampling_prob: float = 1.0,
-      adjacency_type: AdjacencyType = AdjacencyType.REMOVE,
-  ) -> 'MixtureGaussianPrivacyLoss':
-    raise NotImplementedError(
-        'MixtureGaussianPrivacy loss cannot be uniquely '
-        'instantiated from privacy parameters.'
     )
