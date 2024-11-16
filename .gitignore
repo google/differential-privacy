@@ -4,6 +4,7 @@
 **/bazel-testlogs
 
 //IntelliJ setup files
+.ijwb/
 pipelinedp4j/.ijwb/
 pipelinedp4j/MODULE.bazel
 pipelinedp4j/MODULE.bazel.lock

@@ -32,12 +32,15 @@ kt_jvm_library(
         "@maven//:org_apache_spark_spark_catalyst_2_12",
         "@maven//:com_fasterxml_jackson_core_jackson_databind",
         "@maven//:com_fasterxml_jackson_module_jackson_module_paranamer",
+        #"@maven//:org_jetbrains_kotlin_kotlin_stdlib",
+        #"@maven//:org_scala_lang_scala_library",
     ],
 )
 
 kt_jvm_library(
     name = "spark_collections",
-    srcs = ["SparkCollection.kt"],
+    srcs = ["SparkCollection.kt",
+            "SparkTable.kt",],
     deps = [
         ":spark_encoders",
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core:encoders",

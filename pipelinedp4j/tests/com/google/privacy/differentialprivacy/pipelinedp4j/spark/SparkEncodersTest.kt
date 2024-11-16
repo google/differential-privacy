@@ -1,9 +1,6 @@
 package com.google.privacy.differentialprivacy.pipelinedp4j.spark
 
 import com.google.common.truth.Truth.assertThat
-import com.google.privacy.differentialprivacy.pipelinedp4j.core.ContributionWithPrivacyId
-import com.google.privacy.differentialprivacy.pipelinedp4j.core.contributionWithPrivacyId
-import com.google.privacy.differentialprivacy.pipelinedp4j.core.encoderOfContributionWithPrivacyId
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.CompoundAccumulator
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.compoundAccumulator
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.meanAccumulator
@@ -89,7 +86,12 @@ class SparkEncodersTest {
 
     @Test
     fun tuple2sOf_isPossibleToCreateSparkCollectionOfThatType() {
-
+//        val input = listOf("pid1" to 1, "pid1" to 1, "pid1" to -2, "pid2" to 3)
+//        val inputEncoder =
+//            sparkEncoderFactory.tuple2sOf(sparkEncoderFactory.strings(), sparkEncoderFactory.ints()).encoder
+//
+//        val dataset = spark.createDataset(input, inputEncoder)
+//        assertThat(dataset.collectAsList()).containsExactlyElementsIn(input)
     }
 
     companion object {
@@ -102,6 +104,7 @@ class SparkEncodersTest {
                 spark = SparkSession.builder()
                     .appName("Kotlin Spark Example")
                     .master("local[*]")
+                    .config("spark.driver.bindAddress", "127.0.0.1")
                     .getOrCreate();
             } catch (e: Exception) {
                 e.printStackTrace()

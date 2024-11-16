@@ -81,6 +81,8 @@ maven_install(
         "com.fasterxml.jackson.core:jackson-databind:2.14.2",  # Set jackson-databind to 2.14.2
         "com.fasterxml.jackson.module:jackson-module-paranamer:2.14.2",
         "com.fasterxml.jackson.module:jackson-module-scala_2.12:2.14.2",  # Scala module compatible with jackson-databind 2.14.2
+        #"org.jetbrains.kotlin:kotlin-stdlib:1.9.10",
+        #"org.scala-lang:scala-library:2.12.17",
 
         # Test only dependencies.
         maven.artifact(

@@ -53,6 +53,7 @@ class SparkCollectionTest {
                 spark = SparkSession.builder()
                     .appName("Kotlin Spark Example")
                     .master("local[*]")
+                    .config("spark.driver.bindAddress", "127.0.0.1")
                     .getOrCreate();
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -62,7 +63,9 @@ class SparkCollectionTest {
         @JvmStatic
         fun tearDown() {
             // Stop SparkSession after all tests are done
-            spark.stop()
+            if (::spark.isInitialized) {
+                spark.stop()
+            }
         }
     }
 }

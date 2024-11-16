@@ -4,21 +4,7 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.core.Encoder
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.EncoderFactory
 import com.google.protobuf.Message
 import org.apache.spark.sql.Encoders
-import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder
-import org.apache.spark.sql.catalyst.expressions.BoundReference
-import org.apache.spark.sql.catalyst.expressions.CreateNamedStruct
-import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.catalyst.expressions.Literal
-import org.apache.spark.sql.catalyst.expressions.objects.Invoke
-import org.apache.spark.sql.catalyst.expressions.objects.NewInstance
-import org.apache.spark.sql.types.Metadata
-import org.apache.spark.sql.types.ObjectType
-import org.apache.spark.sql.types.StructField
-import org.apache.spark.sql.types.StructType
-import scala.collection.immutable.Seq
-import scala.reflect.ClassTag
 import kotlin.reflect.KClass
-
 
 class SparkEncoder<T>(val encoder: org.apache.spark.sql.Encoder<T>) : Encoder<T>
 
@@ -44,9 +30,28 @@ class SparkEncoderFactory: EncoderFactory {
         return SparkEncoder<T>(Encoders.kryo(protoClass.java))
     }
 
-    override fun <T1 : Any, T2 : Any> tuple2sOf(first: Encoder<T1>, second: Encoder<T2>): Encoder<Pair<T1, T2>> {
+    override fun <T1 : Any, T2 : Any> tuple2sOf(first: Encoder<T1>, second: Encoder<T2>): SparkEncoder<Pair<T1, T2>> {
+//        Pair(first, second).toKV()
+//        val firstEncoder = (first as SparkEncoder<T1>).encoder
+//        val firstExpression = firstEncoder as ExpressionEncoder<T1>
+//        val secondEncoder = (second as SparkEncoder<T2>).encoder
+//        val secondExpression = secondEncoder as ExpressionEncoder<T2>
+//        val firstObjSerializer = firstExpression.objSerializer()
+//        val secondObjSerializer = secondExpression.objSerializer()
+//        val firstObjDeserializer = firstExpression.objDeserializer()
+//        val secondObjDeserializer = secondExpression.objDeserializer()
+//        val tupleEncoder: org.apache.spark.sql.Encoder<Tuple2<T1, T2>> = Encoders.tuple(firstEncoder, secondEncoder)
+//
+//        val firstClsTag = firstEncoder.clsTag()
+//        val secondClsTag = secondEncoder.clsTag()
+//        val clsTag = ClassTag.apply<Pair<T1, T2>>(Pair::class.java)
+//
+//
+//        return SparkEncoder<Pair<T1, T2>>(ExpressionEncoder(
+//            firstObjSerializer,
+//            firstObjDeserializer,
+//            clsTag)
+//        )
         TODO("Not yet implemented")
     }
-
-
 }
