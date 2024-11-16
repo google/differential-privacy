@@ -5,10 +5,12 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.core.FrameworkCollect
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.FrameworkTable
 import com.google.privacy.differentialprivacy.pipelinedp4j.local.LocalCollection
 import org.apache.spark.api.java.function.MapFunction
+import org.apache.spark.api.java.function.MapGroupsFunction
 import org.apache.spark.api.java.function.ReduceFunction
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.Encoders
 import org.apache.spark.sql.Row
+import scala.Function2
 import scala.Tuple2
 
 class SparkTable<K, V>(val data: Dataset<Tuple2<K, V>>,
@@ -34,12 +36,12 @@ class SparkTable<K, V>(val data: Dataset<Tuple2<K, V>>,
     }
 
     override fun groupByKey(stageName: String): SparkTable<K, Iterable<V>> {
-//        val outputEncoder = Encoders.tuple(keysEncoder.encoder, Encoders.javaSerialization(Iterable::class.java))
-//        data
+//        val outputEncoder = Encoders.tuple(keysEncoder.encoder, Encoders.bean(Iterable::class.java))
+//        val dataset = data
 //            .groupByKey(MapFunction{ kv: Tuple2<K, V> -> kv._1}, keysEncoder.encoder)
-//            .mapGroups(MapGroupsFunction { k : K, t: Iterable<V> -> Tuple2(k, t.asSequence())}, outputEncoder)
-//        return data.groupByKey(MapFunction { kv: Tuple2<K, V> -> kv._1}, keysEncoder)
-        TODO("Need to fix this method")
+//            .mapGroups( MapGroupsFunction { k : K, t: Iterable<V> -> Tuple2(k, t.map { e -> e }.toList()<V>()) }, outputEncoder)
+//        return SparkTable(dataset, keyEncoder, Encoders.bean(Iterable::class.java))
+        TODO("Not yet implemented")
     }
 
     override fun keys(stageName: String): SparkCollection<K> {

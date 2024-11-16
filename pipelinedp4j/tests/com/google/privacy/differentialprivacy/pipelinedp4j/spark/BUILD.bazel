@@ -5,13 +5,17 @@ kt_jvm_test(
     srcs = [
         "SparkCollectionTest.kt",
         "SparkEncodersTest.kt",
+        "SparkTableTest.kt",
         "SparkTests.kt",
     ],
     test_class = "com.google.privacy.differentialprivacy.pipelinedp4j.spark.SparkTests",
     deps = [
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/spark:spark_collections",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/spark:spark_encoders",
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core:core_types",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/local:local_collections",
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/proto:accumulators_kt_proto",
+        "@maven//:com_google_protobuf_protobuf_java",
         "@maven//:com_google_testparameterinjector_test_parameter_injector",
         "@maven//:com_google_truth_truth",
         "@maven//:junit_junit",
