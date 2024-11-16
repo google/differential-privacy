@@ -12,11 +12,13 @@ import org.apache.spark.sql.Row
 import scala.Tuple2
 
 class SparkTable<K, V>(val data: Dataset<Tuple2<K, V>>,
-                       override val keysEncoder: SparkEncoder<K>,
-                       override val valuesEncoder: SparkEncoder<V>
+                       val keyEncoder: org.apache.spark.sql.Encoder<K>,
+                       val valueEncoder: org.apache.spark.sql.Encoder<V>
 ): FrameworkTable<K, V> {
 
-    val keyValueEncoder = Encoders.tuple(keysEncoder.encoder, valuesEncoder.encoder)
+    override val keysEncoder = SparkEncoder(keyEncoder)
+    override val valuesEncoder = SparkEncoder(valueEncoder)
+    val keyValueEncoder = Encoders.tuple(keyEncoder, valueEncoder)
     override fun <R> map(stageName: String, outputType: Encoder<R>, mapFn: (K, V) -> R): SparkCollection<R> {
         val outputEncoder = (outputType as SparkEncoder<R>).encoder
         val transformedData = data.map(MapFunction { kv: Tuple2<K, V> -> mapFn(kv._1, kv._2) }, outputEncoder)
@@ -25,10 +27,10 @@ class SparkTable<K, V>(val data: Dataset<Tuple2<K, V>>,
 
     override fun groupAndCombineValues(stageName: String, combFn: (V, V) -> V): SparkTable<K, V> {
         val dataset = data
-            .groupByKey(MapFunction { kv: Tuple2<K, V> -> kv._1}, keysEncoder.encoder)
+            .groupByKey(MapFunction { kv: Tuple2<K, V> -> kv._1}, keyEncoder)
             .reduceGroups(ReduceFunction { t1 : Tuple2<K, V>, t2: Tuple2<K, V> ->  Tuple2(t1._1, combFn(t1._2, t2._2))})
             .map(MapFunction {it._2}, keyValueEncoder)
-        return SparkTable(dataset, keysEncoder, valuesEncoder)
+        return SparkTable(dataset, keyEncoder, valueEncoder)
     }
 
     override fun groupByKey(stageName: String): SparkTable<K, Iterable<V>> {
@@ -41,11 +43,11 @@ class SparkTable<K, V>(val data: Dataset<Tuple2<K, V>>,
     }
 
     override fun keys(stageName: String): SparkCollection<K> {
-        return SparkCollection(data.map(MapFunction { kv: Tuple2<K, V> -> kv._1}, keysEncoder.encoder))
+        return SparkCollection(data.map(MapFunction { kv: Tuple2<K, V> -> kv._1}, keyEncoder))
     }
 
     override fun values(stageName: String): SparkCollection<V> {
-        return SparkCollection(data.map(MapFunction { kv: Tuple2<K, V> -> kv._2}, valuesEncoder.encoder))
+        return SparkCollection(data.map(MapFunction { kv: Tuple2<K, V> -> kv._2}, valueEncoder))
     }
 
     override fun samplePerKey(stageName: String, count: Int): SparkTable<K, List<V>> {
@@ -55,7 +57,7 @@ class SparkTable<K, V>(val data: Dataset<Tuple2<K, V>>,
     override fun flattenWith(stageName: String, other: FrameworkTable<K, V>): SparkTable<K, V> {
         val otherSparkTable = other as SparkTable<K, V>
         val thisAndOther = this.data.union(otherSparkTable.data)
-        return SparkTable(thisAndOther, keysEncoder, valuesEncoder)
+        return SparkTable(thisAndOther, keyEncoder, valueEncoder)
     }
 
     override fun filterKeys(
@@ -86,7 +88,7 @@ class SparkTable<K, V>(val data: Dataset<Tuple2<K, V>>,
         val filteredData = data
             .join(allowedKeysDataset, data.col("_1").equalTo(allowedKeysDataset.col("_1")), "left_semi")
             .map(MapFunction { row : Row -> Tuple2(row.getAs(0), row.getAs(1))}, keyValueEncoder)
-        return SparkTable(filteredData, keysEncoder, valuesEncoder)
+        return SparkTable(filteredData, keyEncoder, valueEncoder)
     }
 
     private fun filterKeysStoredInLocalCollection(
@@ -100,12 +102,12 @@ class SparkTable<K, V>(val data: Dataset<Tuple2<K, V>>,
 
     override fun filterKeys(stageName: String, predicate: (K) -> Boolean): SparkTable<K, V> {
         val kvPredicate = { x: Tuple2<K, V> -> predicate(x._1) }
-        return SparkTable(data.filter { kv: Tuple2<K, V> -> kvPredicate(kv) }, keysEncoder, valuesEncoder)
+        return SparkTable(data.filter { kv: Tuple2<K, V> -> kvPredicate(kv) }, keyEncoder, valueEncoder)
     }
 
     override fun filterValues(stageName: String, predicate: (V) -> Boolean): SparkTable<K, V> {
         val kvPredicate = { x: Tuple2<K, V> -> predicate(x._2) }
-        return SparkTable(data.filter { kv: Tuple2<K, V> -> kvPredicate(kv) }, keysEncoder, valuesEncoder)
+        return SparkTable(data.filter { kv: Tuple2<K, V> -> kvPredicate(kv) }, keyEncoder, valueEncoder)
     }
 
     override fun <KO, VO> mapToTable(
