@@ -43,23 +43,8 @@ class SparkEncodersTest {
     }
 
     @Test
-    fun records_isPossibleToCreateBeamPCollectionOfThatType() {
-//        val input =
-//            listOf(
-//                contributionWithPrivacyId("privacyId1", "partitionKey1", -1.0),
-//                contributionWithPrivacyId("privacyId2", "partitionKey1", 0.0),
-//                contributionWithPrivacyId("privacyId1", "partitionKey2", 1.0),
-//                contributionWithPrivacyId("privacyId3", "partitionKey3", 1.2345),
-//            )
-//        val inputCoder =
-//            (encoderOfContributionWithPrivacyId(
-//                sparkEncoderFactory.strings(),
-//                sparkEncoderFactory.strings(),
-//                sparkEncoderFactory,
-//            ) as SparkEncoder<ContributionWithPrivacyId<String, String>>).encoder
-//
-//        val dataset = spark.createDataset(input, inputCoder)
-//        assertThat(dataset.collectAsList()).containsExactlyElementsIn(input)
+    fun records_isPossibleToCreateSparkCollectionOfThatType() {
+
     }
 
     @Test
@@ -86,12 +71,12 @@ class SparkEncodersTest {
 
     @Test
     fun tuple2sOf_isPossibleToCreateSparkCollectionOfThatType() {
-//        val input = listOf("pid1" to 1, "pid1" to 1, "pid1" to -2, "pid2" to 3)
-//        val inputEncoder =
-//            sparkEncoderFactory.tuple2sOf(sparkEncoderFactory.strings(), sparkEncoderFactory.ints()).encoder
-//
-//        val dataset = spark.createDataset(input, inputEncoder)
-//        assertThat(dataset.collectAsList()).containsExactlyElementsIn(input)
+        val input = listOf("pid1" to 1, "pid1" to 1, "pid1" to -2, "pid2" to 3)
+        val inputEncoder =
+            sparkEncoderFactory.tuple2sOf(sparkEncoderFactory.strings(), sparkEncoderFactory.ints()).encoder
+
+        val dataset = spark.createDataset(input, inputEncoder)
+        assertThat(dataset.collectAsList()).containsExactlyElementsIn(input)
     }
 
     companion object {
