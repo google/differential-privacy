@@ -4,13 +4,12 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.core.Encoder
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.FrameworkCollection
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.FrameworkTable
 import com.google.privacy.differentialprivacy.pipelinedp4j.local.LocalCollection
+import org.apache.spark.api.java.function.FlatMapFunction
 import org.apache.spark.api.java.function.MapFunction
-import org.apache.spark.api.java.function.MapGroupsFunction
 import org.apache.spark.api.java.function.ReduceFunction
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.Encoders
 import org.apache.spark.sql.Row
-import scala.Function2
 import scala.Tuple2
 
 class SparkTable<K, V>(val data: Dataset<Tuple2<K, V>>,
@@ -97,7 +96,8 @@ class SparkTable<K, V>(val data: Dataset<Tuple2<K, V>>,
         stageName: String,
         allowedKeys: LocalCollection<K>,
     ): SparkTable<K, V> {
-        TODO("Not yet implemented")
+        val allowedKeysHashSet = allowedKeys.data.toHashSet()
+        return filterKeys(stageName) {k -> k in allowedKeysHashSet}
     }
 
 
@@ -112,13 +112,30 @@ class SparkTable<K, V>(val data: Dataset<Tuple2<K, V>>,
         return SparkTable(data.filter { kv: Tuple2<K, V> -> kvPredicate(kv) }, keyEncoder, valueEncoder)
     }
 
+    override fun <VO> mapValues(
+        stageName: String,
+        outputType: Encoder<VO>,
+        mapValuesFn: (K, V) -> VO
+    ): SparkTable<K, VO> {
+        val valueSparkEncoder = outputType as SparkEncoder<VO>
+        val outputEncoder = Encoders.tuple(keyEncoder, valueSparkEncoder.encoder)
+        val kvMapFn = { x: Tuple2<K, V> -> Tuple2(x._1, mapValuesFn(x._1, x._2)) }
+        val transformedData = data.map( MapFunction {kvMapFn(it)}, outputEncoder)
+        return SparkTable(transformedData, keyEncoder, valueSparkEncoder.encoder)
+    }
+
+
     override fun <KO, VO> mapToTable(
         stageName: String,
         outputKeyType: Encoder<KO>,
         outputValueType: Encoder<VO>,
         mapFn: (K, V) -> Pair<KO, VO>
-    ): FrameworkTable<KO, VO> {
-        TODO("Not yet implemented")
+    ): SparkTable<KO, VO> {
+        val keySparkEncoder = outputKeyType as SparkEncoder<KO>
+        val valueSparkEncoder = outputValueType as SparkEncoder<VO>
+        val outputEncoder = Encoders.tuple(keySparkEncoder.encoder, valueSparkEncoder.encoder)
+        val transformedData = data.map(MapFunction { kv: Tuple2<K, V> -> mapFn(kv._1, kv._2).toTuple2() }, outputEncoder)
+        return SparkTable(transformedData, keySparkEncoder.encoder, valueSparkEncoder.encoder)
     }
 
     override fun <KO, VO> flatMapToTable(
@@ -126,16 +143,12 @@ class SparkTable<K, V>(val data: Dataset<Tuple2<K, V>>,
         keyType: Encoder<KO>,
         valueType: Encoder<VO>,
         mapFn: (K, V) -> Sequence<Pair<KO, VO>>
-    ): FrameworkTable<KO, VO> {
-        TODO("Not yet implemented")
+    ): SparkTable<KO, VO> {
+        val keySparkEncoder = keyType as SparkEncoder<KO>
+        val valueSparkEncoder = valueType as SparkEncoder<VO>
+        val outputEncoder = Encoders.tuple(keySparkEncoder.encoder, valueSparkEncoder.encoder)
+        val kvMapFn = { x: Tuple2<K, V> -> mapFn(x._1, x._2).map { p: Pair<KO, VO> -> p.toTuple2() }}
+        val transformedData = data.flatMap( FlatMapFunction {kvMapFn(it).iterator()}, outputEncoder)
+        return SparkTable(transformedData, keySparkEncoder.encoder, valueSparkEncoder.encoder)
     }
-
-    override fun <VO> mapValues(
-        stageName: String,
-        outputType: Encoder<VO>,
-        mapValuesFn: (K, V) -> VO
-    ): FrameworkTable<K, VO> {
-        TODO("Not yet implemented")
-    }
-
 }
