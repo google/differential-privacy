@@ -27,9 +27,7 @@ import kotlin.reflect.KClass
  * PipelineDP4j system whenever it needs to convert between an in-memory Kotlin object and an
  * externalizable byte-string representation.
  */
-interface Encoder<T> {
-
-}
+interface Encoder<T> {}
 
 /** A factory for [Encoder]s */
 interface EncoderFactory {
