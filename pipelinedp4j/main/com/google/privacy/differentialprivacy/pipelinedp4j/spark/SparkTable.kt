@@ -33,23 +33,14 @@ class SparkTable<K, V>(val data: Dataset<Tuple2<K, V>>,
             .map(MapFunction {it._2}, keyValueEncoder)
         return SparkTable(dataset, keyEncoder, valueEncoder)
     }
-
-    override fun groupByKey(stageName: String): SparkTable<K, Iterable<V>> {
-//        val outputEncoder = Encoders.tuple(keysEncoder.encoder, Encoders.bean(Iterable::class.java))
+    override fun groupByKey(stageName: String): FrameworkTable<K, Iterable<V>> {
+//        val iterableEncoder = Encoders.kryo(ClassTag.apply<V>(Iterable::class.java).runtimeClass())
 //        val dataset = data
-//            .groupByKey( MapFunction{ kv: Tuple2<K, V> -> kv._1}, keysEncoder.encoder)
-//            .mapGroups( MapGroupsFunction {k :K, v: Tuple2<K,V>, u : Iterable<V> -> }, outputEncoder)
-//            .agg()
-//            .
-//            .agg(collect_list(v : V -> v))
-//            .agg(collectList { it.second }.alias("values"))
+//            .groupByKey(MapFunction { kv: Tuple2<K, V> -> kv._1}, keyEncoder)
+//            .mapGroups(MapGroupsFunction { kv : Tuple2<K, Iterable<V>> -> kv._2.map { it }.iterator()} )
+//            .mapGroups( MapFunction { kv : Tuple2<K, V> -> kv._2}, valueEncoder)
 //
-//            .mapGroups( Function2 { k: K, v: Iterable<Tuple2<K,V>> ->
-//                                  val itr = v.
-//            }, outputEncoder )
-//            .mapGroups( MapGroupsFunction { k: K, i: Iterable<Tuple2<K, V>>, v : V -> Tuple2(k, i.toList().map { e : V -> e })}, )
-//            .mapGroups( MapGroupsFunction { k : K, t: Iterable<V> -> Tuple2(k, t.map { e -> e }.toList()<V>()) }, outputEncoder)
-//        return SparkTable(dataset, keyEncoder, Encoders.bean<V>(Iterable::class.java))
+//        return SparkTable(dataset, keyEncoder, valueEncoder)
         TODO("Not yet implemented")
     }
 

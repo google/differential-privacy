@@ -1,9 +1,6 @@
 package com.google.privacy.differentialprivacy.pipelinedp4j.spark
 
-import com.google.common.truth.Truth
 import com.google.common.truth.Truth.assertThat
-import org.apache.spark.api.java.function.MapFunction
-import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.Encoders
 import org.apache.spark.sql.SparkSession
 import org.junit.Test
@@ -11,6 +8,7 @@ import org.junit.runner.RunWith
 import org.junit.runners.JUnit4
 import org.junit.AfterClass
 import org.junit.BeforeClass
+import scala.Tuple2
 
 @RunWith(JUnit4::class)
 class SparkCollectionTest {
@@ -41,6 +39,32 @@ class SparkCollectionTest {
             {v -> v.toString() })
         assertThat(result.data.collectAsList()).containsExactly("1")
 
+    }
+
+    @Test
+    fun keyBy_keysCollection() {
+        val dataset = spark.createDataset(listOf(1), Encoders.INT())
+        val sparkCollection = SparkCollection(dataset)
+
+        val result: SparkTable<String, Int> =
+            sparkCollection.keyBy("Test", sparkEncoderFactory.strings(), { v -> v.toString() })
+
+        assertThat(result.data.collectAsList()).containsExactly(Tuple2("1", 1))
+    }
+
+    @Test
+    fun mapToTable_appliesMapFn() {
+        val dataset = spark.createDataset(listOf(1), Encoders.INT())
+        val sparkCollection = SparkCollection(dataset)
+
+        val result: SparkTable<String, Int> =
+            sparkCollection.mapToTable(
+                "Test",
+                sparkEncoderFactory.strings(),
+                sparkEncoderFactory.ints(),
+                { v -> Pair(v.toString(), v) },
+            )
+        assertThat(result.data.collectAsList()).containsExactly(Tuple2("1", 1))
     }
 
     companion object {
