@@ -45,7 +45,7 @@ class BeamEncoderFactory() : EncoderFactory {
   override fun <T : Message> protos(protoClass: KClass<T>) =
     BeamEncoder<T>(ProtoCoder.of(protoClass.java))
 
-  override fun <T1 : Any, T2 : Any> tuple2sOf(first: Encoder<T1>, second: Encoder<T2>): BeamEncoder<Pair<T1, T2>> =
+  override fun <T1 : Any, T2 : Any> tuple2sOf(first: Encoder<T1>, second: Encoder<T2>) =
     BeamEncoder(
       KotlinPairCoder((first as BeamEncoder<T1>).coder, (second as BeamEncoder<T2>).coder)
     )

@@ -26,14 +26,14 @@ kt_jvm_library(
     deps = [
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core:encoders",
         "@maven//:com_google_protobuf_protobuf_java",
-        "@maven//:org_apache_spark_spark_core_2_12",
-        "@maven//:org_apache_spark_spark_sql_2_12",
-        "@maven//:org_apache_spark_spark_mllib_2_12",
-        "@maven//:org_apache_spark_spark_catalyst_2_12",
+        "@maven//:org_apache_spark_spark_core_2_13",
+        "@maven//:org_apache_spark_spark_sql_2_13",
+        "@maven//:org_apache_spark_spark_mllib_2_13",
+        "@maven//:org_apache_spark_spark_catalyst_2_13",
         "@maven//:com_fasterxml_jackson_core_jackson_databind",
         "@maven//:com_fasterxml_jackson_module_jackson_module_paranamer",
         #"@maven//:org_jetbrains_kotlin_kotlin_stdlib",
-        #"@maven//:org_scala_lang_scala_library",
+        "@maven//:org_scala_lang_scala_library",
     ],
 )
 
@@ -46,11 +46,20 @@ kt_jvm_library(
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core:encoders",
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core:framework_collections",
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/local:local_collections",
-         "@maven//:org_apache_spark_spark_core_2_12",
-         "@maven//:org_apache_spark_spark_sql_2_12",
-         "@maven//:org_apache_spark_spark_mllib_2_12",
-         "@maven//:org_apache_spark_spark_catalyst_2_12",
+         "@maven//:org_apache_spark_spark_core_2_13",
+         "@maven//:org_apache_spark_spark_sql_2_13",
+         "@maven//:org_apache_spark_spark_mllib_2_13",
+         "@maven//:org_apache_spark_spark_catalyst_2_13",
          "@maven//:com_fasterxml_jackson_core_jackson_databind",
          "@maven//:com_fasterxml_jackson_module_jackson_module_paranamer",
+    ],
+)
+
+kt_jvm_library(
+    name = "spark_dp_engine_factory",
+    srcs = ["SparkDpEngineFactory.kt"],
+    deps = [
+        ":spark_encoders",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core:dp_engine",
     ],
 )
