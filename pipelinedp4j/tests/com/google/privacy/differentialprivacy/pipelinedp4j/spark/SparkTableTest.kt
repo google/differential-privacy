@@ -57,7 +57,13 @@ class SparkTableTest {
 
     @Test
     fun groupByKey_groupsValues() {
-
+        val dataset = spark.createDataset(listOf(Tuple2("positive", 1),
+            Tuple2("positive", 10), Tuple2("negative", -1)), Encoders.tuple(Encoders.STRING(), Encoders.INT()))
+        val sparkTable = SparkTable(dataset, Encoders.STRING(), Encoders.INT())
+        val result: SparkTable<String, Iterable<Int>> = sparkTable.groupByKey("stageName")
+        assertThat(result.data.count()).isEqualTo(2)
+        val ans = result.data.collectAsList()
+        assertThat(ans).containsExactly(Tuple2("positive", listOf(1,10)), Tuple2("negative", listOf(-1)))
     }
 
     @Test

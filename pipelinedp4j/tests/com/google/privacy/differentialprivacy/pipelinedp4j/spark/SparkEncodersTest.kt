@@ -1,6 +1,9 @@
 package com.google.privacy.differentialprivacy.pipelinedp4j.spark
 
 import com.google.common.truth.Truth.assertThat
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.ContributionWithPrivacyId
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.contributionWithPrivacyId
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.encoderOfContributionWithPrivacyId
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.CompoundAccumulator
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.compoundAccumulator
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.meanAccumulator
@@ -16,8 +19,6 @@ import org.junit.runners.JUnit4
 
 @RunWith(JUnit4::class)
 class SparkEncodersTest {
-
-
     @Test
     fun strings_isPossibleToCreateSparkCollectionOfThatType() {
         val input = listOf("a", "b", "c")
@@ -44,11 +45,26 @@ class SparkEncodersTest {
 
     @Test
     fun records_isPossibleToCreateSparkCollectionOfThatType() {
+        val input =
+            listOf(
+                contributionWithPrivacyId("privacyId1", "partitionKey1", -1.0),
+                contributionWithPrivacyId("privacyId2", "partitionKey1", 0.0),
+                contributionWithPrivacyId("privacyId1", "partitionKey2", 1.0),
+                contributionWithPrivacyId("privacyId3", "partitionKey3", 1.2345),
+            )
+        val inputCoder =
+            (encoderOfContributionWithPrivacyId(
+                sparkEncoderFactory.strings(),
+                sparkEncoderFactory.strings(),
+                sparkEncoderFactory,
+            ) as SparkEncoder<ContributionWithPrivacyId<String, String>>).encoder
+        val dataset = spark.createDataset(input, inputCoder)
+        assertThat(dataset.collectAsList()).containsExactlyElementsIn(input)
 
     }
 
     @Test
-    fun protos_isPossibleToCreateBeamPCollectionOfThatType() {
+    fun protos_isPossibleToSparkCollectionOfThatType() {
         val input =
             listOf(
                 compoundAccumulator {

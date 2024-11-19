@@ -6,6 +6,7 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.core.FrameworkTable
 import com.google.privacy.differentialprivacy.pipelinedp4j.local.LocalCollection
 import org.apache.spark.api.java.function.FlatMapFunction
 import org.apache.spark.api.java.function.MapFunction
+import org.apache.spark.api.java.function.MapGroupsFunction
 import org.apache.spark.api.java.function.ReduceFunction
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.Encoders
@@ -33,15 +34,14 @@ class SparkTable<K, V>(val data: Dataset<Tuple2<K, V>>,
             .map(MapFunction {it._2}, keyValueEncoder)
         return SparkTable(dataset, keyEncoder, valueEncoder)
     }
-    override fun groupByKey(stageName: String): FrameworkTable<K, Iterable<V>> {
-//        val iterableEncoder = Encoders.kryo(ClassTag.apply<V>(Iterable::class.java).runtimeClass())
-//        val dataset = data
-//            .groupByKey(MapFunction { kv: Tuple2<K, V> -> kv._1}, keyEncoder)
-//            .mapGroups(MapGroupsFunction { kv : Tuple2<K, Iterable<V>> -> kv._2.map { it }.iterator()} )
-//            .mapGroups( MapFunction { kv : Tuple2<K, V> -> kv._2}, valueEncoder)
-//
-//        return SparkTable(dataset, keyEncoder, valueEncoder)
-        TODO("Not yet implemented")
+    override fun groupByKey(stageName: String): SparkTable<K, Iterable<V>> {
+        val itrEncoder = Encoders.kryo(Iterable::class.java) as org.apache.spark.sql.Encoder<Iterable<V>>
+        val dats = data
+            .groupByKey(MapFunction { kv: Tuple2<K, V> -> kv._1}, keyEncoder)
+            .mapValues(MapFunction { kv: Tuple2<K, V> -> kv._2}, valueEncoder)
+            .mapGroups(MapGroupsFunction { k: K, v: MutableIterator<V> -> Tuple2(k, v.asSequence().toList()) },
+                Encoders.tuple(keyEncoder, itrEncoder))
+        return SparkTable(dats, keyEncoder, itrEncoder)
     }
 
     override fun keys(stageName: String): SparkCollection<K> {
