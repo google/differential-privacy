@@ -3,5 +3,5 @@
 **/bazel-out
 **/bazel-testlogs
 
-**/pipelinedp4j/.ijwb/.idea/*
-**/.ijwb/.idea/
+**/pipelinedp4j/.ijwb/.idea
+**/.ijwb/.idea
