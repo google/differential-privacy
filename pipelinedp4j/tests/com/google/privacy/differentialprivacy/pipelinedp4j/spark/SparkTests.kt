@@ -16,6 +16,7 @@
 
 package com.google.privacy.differentialprivacy.pipelinedp4j.spark
 
+import org.apache.spark.sql.SparkSession
 import org.junit.runner.RunWith
 import org.junit.runners.Suite
 
@@ -23,3 +24,17 @@ import org.junit.runners.Suite
 @RunWith(Suite::class)
 @Suite.SuiteClasses(SparkCollectionTest::class, SparkEncodersTest::class, SparkTableTest::class)
 class SparkTests {}
+
+// Helper method to create SparkSession
+fun createSparkSession(): SparkSession {
+    return SparkSession.builder()
+        .appName("Kotlin Spark Example")
+        .master("local[*]")
+        .config("spark.driver.bindAddress", "127.0.0.1")
+        .getOrCreate()
+}
+
+// Helper method to stop SparkSession
+fun stopSparkSession(spark: SparkSession) {
+    spark.stop()
+}

@@ -1,0 +1,16 @@
+
+³kotlin:S100"jRename function "keysEncoder_returnsCorrectEncoder" to match the regular expression ^[a-zA-Z][a-zA-Z0-9]*$(ñ»˜‚ûÿÿÿÿ8³Äµ2J$b61260a6-6b82-4f27-890c-7ae5b6f88eec
+°kotlin:S100"lRename function "valuesEncoder_returnsCorrectEncoder" to match the regular expression ^[a-zA-Z][a-zA-Z0-9]*$(Íšİå8³Äµ2J$facfb688-a380-4e46-8d0f-6ea25e0ce4bd
+¢kotlin:S100&"YRename function "map_appliesMapFn" to match the regular expression ^[a-zA-Z][a-zA-Z0-9]*$(óºÔøÿÿÿÿ8³Äµ2J$b9d0c0d6-df43-4a02-bf48-da8be5ce2597
+²kotlin:S100/"nRename function "groupAndCombineValues_appliesCombiner" to match the regular expression ^[a-zA-Z][a-zA-Z0-9]*$(µ«Ç×8³Äµ2J$56430e1c-0c79-4e17-b612-e72c721379bd
+©kotlin:S100;"`Rename function "groupByKey_groupsValues" to match the regular expression ^[a-zA-Z][a-zA-Z0-9]*$(¥¬Óûÿÿÿÿ8³Äµ2J$2eef5bfd-e7ca-449a-a74b-0c106981b8f3
+œkotlin:S100G"XRename function "keys_returnKeys" to match the regular expression ^[a-zA-Z][a-zA-Z0-9]*$(Üãå®8³Äµ2J$add68386-aeff-4eb1-a537-02e2645e95df
+Ÿkotlin:S100O"[Rename function "keys_returnsValues" to match the regular expression ^[a-zA-Z][a-zA-Z0-9]*$(€ÿ¢¹8³Äµ2J$106d8b5d-d488-4090-9f13-8f3e9889731f
+£kotlin:S100W"_Rename function "mapValues_appliesMapFn" to match the regular expression ^[a-zA-Z][a-zA-Z0-9]*$(÷£Î´8³Äµ2J$52255457-2a47-4c4b-9a6d-5f3b66e16049
+¤kotlin:S100a"`Rename function "mapToTable_appliesMapFn" to match the regular expression ^[a-zA-Z][a-zA-Z0-9]*$(©ôïà8³Äµ2J$b8380c21-2045-4a8d-99c4-b5e72d1f38ee
+¨kotlin:S100j"dRename function "flatMapToTable_appliesMapFn" to match the regular expression ^[a-zA-Z][a-zA-Z0-9]*$(¨”Ÿ8³Äµ2J$f1e743cf-c222-4d67-8f95-7d85a09b319a
+ªkotlin:S100u"fRename function "filterValues_appliesPredicate" to match the regular expression ^[a-zA-Z][a-zA-Z0-9]*$(Ô´÷8³Äµ2J$0d948840-95de-4a58-b2d9-7dd0f03c23d1
+­kotlin:S100~"dRename function "filterKeys_appliesPredicate" to match the regular expression ^[a-zA-Z][a-zA-Z0-9]*$(æîÁ‘ûÿÿÿÿ8³Äµ2J$502b93b3-a6bf-44f6-8cc0-65e6420e5579
+Õkotlin:S100‡"ŠRename function "filterKeys_allowedKeysStoredInSparkollection_keepsOnlyAllowedKeys" to match the regular expression ^[a-zA-Z][a-zA-Z0-9]*$(ÔóØ´şÿÿÿÿ8³Äµ2J$d663963b-a08e-4d77-8ee2-e54cc18eef12
+Ökotlin:S100“"‹Rename function "filterKeys_allowedKeysStoredInLocalCollection_keepsOnlyAllowedKeys" to match the regular expression ^[a-zA-Z][a-zA-Z0-9]*$(ö¹äıüÿÿÿÿ8³Äµ2J$0074c7bb-d54c-4516-b57d-ef3c5ccc8643
+­kotlin:S100Ÿ"hRename function "flattenWith_flattensCollections" to match the regular expression ^[a-zA-Z][a-zA-Z0-9]*$(ˆåŸ²8³Äµ2J$64ab1651-9e26-44ed-8fa0-24cbd0bcad45

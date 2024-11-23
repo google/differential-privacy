@@ -32,11 +32,11 @@ class SparkCollection<T>(val data: Dataset<T>): FrameworkCollection<T>  {
     }
 
     override fun <K> keyBy(stageName: String, outputType: Encoder<K>, keyFn: (T) -> K): SparkTable<K, T> {
-        val inputEncoder = data.encoder()
-        val outputEncoder = (outputType as SparkEncoder<K>).encoder
-        val tupleEncoder = Encoders.tuple(outputEncoder, inputEncoder)
+        val keyEncoder = data.encoder()
+        val valueEncoder = (outputType as SparkEncoder<K>).encoder
+        val tupleEncoder = Encoders.tuple(valueEncoder, keyEncoder)
         val keyDataset = data.map(MapFunction { t: T ->  Tuple2(keyFn(t), t)}, tupleEncoder)
-        return SparkTable(keyDataset, outputEncoder, inputEncoder)
+        return SparkTable(keyDataset, valueEncoder, keyEncoder)
     }
 }
 

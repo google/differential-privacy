@@ -6,8 +6,6 @@ import org.apache.spark.sql.SparkSession
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.JUnit4
-import org.junit.AfterClass
-import org.junit.BeforeClass
 import scala.Tuple2
 
 @RunWith(JUnit4::class)
@@ -38,7 +36,6 @@ class SparkCollectionTest {
         val result: SparkCollection<String> = sparkCollection.map("Map Test", sparkEncoderFactory.strings(),
             {v -> v.toString() })
         assertThat(result.data.collectAsList()).containsExactly("1")
-
     }
 
     @Test
@@ -68,28 +65,7 @@ class SparkCollectionTest {
     }
 
     companion object {
+        private val spark: SparkSession = createSparkSession()
         private val sparkEncoderFactory = SparkEncoderFactory()
-        private lateinit var spark: SparkSession
-        @BeforeClass
-        @JvmStatic
-        fun setup() {
-            try {
-                spark = SparkSession.builder()
-                    .appName("Kotlin Spark Example")
-                    .master("local[*]")
-                    .config("spark.driver.bindAddress", "127.0.0.1")
-                    .getOrCreate();
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
-        @AfterClass
-        @JvmStatic
-        fun tearDown() {
-            // Stop SparkSession after all tests are done
-            if (::spark.isInitialized) {
-                spark.stop()
-            }
-        }
     }
 }

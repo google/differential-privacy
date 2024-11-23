@@ -1,0 +1,11 @@
+<component name="libraryTable">
+  <library name="dpaggregates_kt_proto.abi_b84cdb3c">
+    <CLASSES>
+      <root url="jar:///private/var/tmp/_bazel_skkumar/816dcaefc3b95d3f6c5a29b993bbae5b/execroot/_main/bazel-out/darwin_arm64-fastbuild/bin/main/com/google/privacy/differentialprivacy/pipelinedp4j/proto/dpaggregates_kt_proto.abi.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="jar:///private/var/tmp/_bazel_skkumar/816dcaefc3b95d3f6c5a29b993bbae5b/execroot/_main/bazel-out/darwin_arm64-fastbuild/bin/main/com/google/privacy/differentialprivacy/pipelinedp4j/proto/dpaggregates_kt_proto-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

@@ -11,14 +11,13 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.proto.quantilesAccumu
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.sumAccumulator
 import com.google.protobuf.ByteString
 import org.apache.spark.sql.SparkSession
-import org.junit.AfterClass
-import org.junit.BeforeClass
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.JUnit4
 
 @RunWith(JUnit4::class)
 class SparkEncodersTest {
+
     @Test
     fun strings_isPossibleToCreateSparkCollectionOfThatType() {
         val input = listOf("a", "b", "c")
@@ -60,7 +59,6 @@ class SparkEncodersTest {
             ) as SparkEncoder<ContributionWithPrivacyId<String, String>>).encoder
         val dataset = spark.createDataset(input, inputCoder)
         assertThat(dataset.collectAsList()).containsExactlyElementsIn(input)
-
     }
 
     @Test
@@ -96,26 +94,7 @@ class SparkEncodersTest {
     }
 
     companion object {
+        private val spark: SparkSession = createSparkSession()
         private val sparkEncoderFactory = SparkEncoderFactory()
-        private lateinit var spark: SparkSession
-        @BeforeClass
-        @JvmStatic
-        fun setup() {
-            try {
-                spark = SparkSession.builder()
-                    .appName("Kotlin Spark Example")
-                    .master("local[*]")
-                    .config("spark.driver.bindAddress", "127.0.0.1")
-                    .getOrCreate();
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
-        @AfterClass
-        @JvmStatic
-        fun tearDown() {
-            // Stop SparkSession after all tests are done
-            spark.stop()
-        }
     }
 }

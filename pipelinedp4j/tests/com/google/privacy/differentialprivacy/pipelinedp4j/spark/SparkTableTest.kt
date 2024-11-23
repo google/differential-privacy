@@ -6,14 +6,14 @@ import com.google.testing.junit.testparameterinjector.TestParameter
 import com.google.testing.junit.testparameterinjector.TestParameterInjector
 import org.apache.spark.sql.Encoders
 import org.apache.spark.sql.SparkSession
-import org.junit.AfterClass
-import org.junit.BeforeClass
 import org.junit.Test
 import org.junit.runner.RunWith
 import scala.Tuple2
 
 @RunWith(TestParameterInjector::class)
 class SparkTableTest {
+
+
     @Test
     fun keysEncoder_returnsCorrectEncoder() {
         val dataset = spark.createDataset(listOf(), Encoders.tuple(Encoders.STRING(), Encoders.INT()))
@@ -58,7 +58,8 @@ class SparkTableTest {
     @Test
     fun groupByKey_groupsValues() {
         val dataset = spark.createDataset(listOf(Tuple2("positive", 1),
-            Tuple2("positive", 10), Tuple2("negative", -1)), Encoders.tuple(Encoders.STRING(), Encoders.INT()))
+            Tuple2("positive", 10), Tuple2("negative", -1)),
+            Encoders.tuple(Encoders.STRING(), Encoders.INT()))
         val sparkTable = SparkTable(dataset, Encoders.STRING(), Encoders.INT())
         val result: SparkTable<String, Iterable<Int>> = sparkTable.groupByKey("stageName")
         assertThat(result.data.count()).isEqualTo(2)
@@ -122,7 +123,16 @@ class SparkTableTest {
     }
 
     @Test
-    fun filterKeys_allowedKeysStoredInBeamCollection_keepsOnlyAllowedKeys(@TestParameter unbalancedKeys: Boolean) {
+    fun filterKeys_appliesPredicate() {
+        val dataset = spark.createDataset(listOf(Tuple2("one", 1), Tuple2("two", 2), Tuple2("two", -2)), Encoders.tuple(Encoders.STRING(), Encoders.INT()))
+        val sparkTable = SparkTable(dataset, Encoders.STRING(), Encoders.INT())
+        val predicate: (String) -> Boolean = { k -> k == "two" }
+        val result: SparkTable<String, Int> = sparkTable.filterKeys("Test", predicate)
+        assertThat(result.data.collectAsList()).containsExactly(Tuple2("two", 2), Tuple2("two", -2))
+    }
+
+    @Test
+    fun filterKeys_allowedKeysStoredInSparkollection_keepsOnlyAllowedKeys(@TestParameter unbalancedKeys: Boolean) {
         val dataset = spark.createDataset(listOf(Tuple2("one", 1), Tuple2("two", 2), Tuple2("three", 3),
             Tuple2("two", -2)), Encoders.tuple(Encoders.STRING(), Encoders.INT()))
         val sparkTable = SparkTable(dataset, Encoders.STRING(), Encoders.INT())
@@ -157,28 +167,7 @@ class SparkTableTest {
     }
 
     companion object {
+        private val spark: SparkSession = createSparkSession()
         private val sparkEncoderFactory = SparkEncoderFactory()
-        private lateinit var spark: SparkSession
-        @BeforeClass
-        @JvmStatic
-        fun setup() {
-            try {
-                spark = SparkSession.builder()
-                    .appName("Kotlin Spark Example")
-                    .master("local[*]")
-                    .config("spark.driver.bindAddress", "127.0.0.1")
-                    .getOrCreate();
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
-        @AfterClass
-        @JvmStatic
-        fun tearDown() {
-            // Stop SparkSession after all tests are done
-            if (::spark.isInitialized) {
-                spark.stop()
-            }
-        }
     }
 }

@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module external.system.id="Blaze" type="JAVA_MODULE" version="4">
+  <component name="CheckStyle-IDEA-Module" serialisationVersion="2">
+    <option name="activeLocationsIds" />
+  </component>
+  <component name="FacetManager">
+    <facet type="kotlin-language" name="Kotlin">
+      <configuration version="5" />
+    </facet>
+  </component>
+  <component name="NewModuleRootManager">
+    <exclude-output />
+    <content url="file://$MODULE_DIR$/../../..">
+      <sourceFolder url="file://$MODULE_DIR$/../../../main" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/../../../tests" isTestSource="false" />
+      <excludeFolder url="file://$MODULE_DIR$/../.." />
+      <excludeFolder url="file://$MODULE_DIR$/../../../bazel-bin" />
+      <excludeFolder url="file://$MODULE_DIR$/../../../bazel-genfiles" />
+      <excludeFolder url="file://$MODULE_DIR$/../../../bazel-out" />
+      <excludeFolder url="file://$MODULE_DIR$/../../../bazel-pipelinedp4j" />
+      <excludeFolder url="file://$MODULE_DIR$/../../../bazel-testlogs" />
+      <excludePattern pattern="bazel-bin" />
+      <excludePattern pattern="bazel-genfiles" />
+      <excludePattern pattern="bazel-out" />
+      <excludePattern pattern="bazel-testlogs" />
+      <excludePattern pattern="bazel-pipelinedp4j" />
+    </content>
+    <orderEntry type="inheritedJdk" />
+    <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="library" name="header_truth-liteproto-extension-1.0.1_d3c9725a" level="project" />
+    <orderEntry type="library" name="processed_protobuf-kotlin-3.18.0_529fe814" level="project" />
+    <orderEntry type="library" name="kotlin-stdlib_7c33dead" level="project" />
+    <orderEntry type="library" name="processed_junit-4.13.2_b4f8b42a" level="project" />
+    <orderEntry type="library" name="processed_protobuf-java-3.25.3_af859172" level="project" />
+    <orderEntry type="library" name="processed_hamcrest-3.0_ef7c3642" level="project" />
+    <orderEntry type="library" name="accumulators_kt_proto.abi_b84cdb3c" level="project" />
+    <orderEntry type="library" name="dpaggregates_kt_proto.abi_b84cdb3c" level="project" />
+    <orderEntry type="library" name="processed_kotlin-test-2.0.21_ba8ddd2c" level="project" />
+    <orderEntry type="library" name="processed_spark-core_2.13-3.3.2_50e5da5b" level="project" />
+    <orderEntry type="library" name="processed_spark-mllib_2.13-3.3.2_51b783b4" level="project" />
+    <orderEntry type="library" name="processed_guava-33.0.0-jre_147e1296" level="project" />
+    <orderEntry type="library" name="processed_differentialprivacy-3.0.0_94ff8eac" level="project" />
+    <orderEntry type="library" name="processed_mockito-kotlin-5.4.0_db0253a8" level="project" />
+    <orderEntry type="library" name="processed_mockito-core-5.14.2_72777955" level="project" />
+    <orderEntry type="library" name="processed_spark-catalyst_2.13-3.3.2_447b41" level="project" />
+    <orderEntry type="library" name="processed_error_prone_annotations-2.25.0_faa3a271" level="project" />
+    <orderEntry type="library" name="processed_beam-sdks-java-core-2.49.0_ce099370" level="project" />
+    <orderEntry type="library" name="processed_jackson-databind-2.14.2_bbf381b4" level="project" />
+    <orderEntry type="library" name="processed_scala-library-2.13.12_3dfbbaf" level="project" />
+    <orderEntry type="library" name="processed_spark-sql_2.13-3.3.2_8186796c" level="project" />
+    <orderEntry type="library" name="processed_test-parameter-injector-1.18_9411cba4" level="project" />
+    <orderEntry type="library" name="processed_beam-sdks-java-extensions-avro-2.49.0_95e886aa" level="project" />
+    <orderEntry type="library" name="processed_jackson-module-paranamer-2.14.2_720ed782" level="project" />
+    <orderEntry type="library" name="processed_truth-proto-extension-1.0.1_5f1e05c8" level="project" />
+    <orderEntry type="library" name="processed_beam-sdks-java-extensions-protobuf-2.49.0_489d3131" level="project" />
+    <orderEntry type="library" name="processed_truth-1.0.1_8969186e" level="project" />
+    <orderEntry type="library" name="libaccumulators_proto-speed-hjar_b84cdb3c" level="project" />
+    <orderEntry type="library" name="libdpaggregates_proto-speed-hjar_b84cdb3c" level="project" />
+  </component>
+</module>

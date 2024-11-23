@@ -1,0 +1,6 @@
+
+°kotlin:S100"nRename function "elementsEncoder_returnsCorrectEncoder" to match the regular expression ^[a-zA-Z][a-zA-Z0-9]*$(õÙó¥ıÿÿÿÿJ$647d6645-9ff1-4fd3-864f-8393c6031c88
+ kotlin:S100"cRename function "distinct_removesDuplicates" to match the regular expression ^[a-zA-Z][a-zA-Z0-9]*$(ë„Å“J$4d7b9afa-68dd-4742-8385-19d72fca4ed9
+›kotlin:S100!"YRename function "map_appliesMapFn" to match the regular expression ^[a-zA-Z][a-zA-Z0-9]*$(óºÔøÿÿÿÿJ$63d7358c-0b9b-47fd-a5f9-d707a5238d61
+Ÿkotlin:S100*"]Rename function "keyBy_keysCollection" to match the regular expression ^[a-zA-Z][a-zA-Z0-9]*$(µŒÎµøÿÿÿÿJ$1c607381-8561-46a3-961e-3828561aa5be
+kotlin:S1005"`Rename function "mapToTable_appliesMapFn" to match the regular expression ^[a-zA-Z][a-zA-Z0-9]*$(©ôïàJ$c1a34241-3947-4a97-a60d-a8efebcb798c

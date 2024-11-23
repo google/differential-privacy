@@ -38,7 +38,6 @@ pom_file(
     # Generate this list via `bazelisk query //main/...`
     targets = [
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/api:api",
-        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/spark:spark_collections",
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/beam:beam_collections",
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/beam:beam_dp_engine_factory",
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/beam:beam_encoders",
@@ -61,6 +60,7 @@ pom_file(
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/proto:accumulators_proto",
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/proto:dpaggregates_kt_proto",
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/proto:dpaggregates_proto",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/spark:spark_collections",
     ],
     template_file = "pom.template",
 )
