@@ -1,7 +1,0 @@
-
-“kotlin:S100)"|Rename function "strings_isPossibleToCreateBeamPCollectionOfThatType" to match the regular expression ^[a-zA-Z][a-zA-Z0-9]*$(„€Êø
-˜kotlin:S1005"|Rename function "doubles_isPossibleToCreateBeamPCollectionOfThatType" to match the regular expression ^[a-zA-Z][a-zA-Z0-9]*$(„Š«Œşÿÿÿÿ
-•kotlin:S100A"yRename function "ints_isPossibleToCreateBeamPCollectionOfThatType" to match the regular expression ^[a-zA-Z][a-zA-Z0-9]*$(›ìÂšüÿÿÿÿ
-˜kotlin:S100M"|Rename function "records_isPossibleToCreateBeamPCollectionOfThatType" to match the regular expression ^[a-zA-Z][a-zA-Z0-9]*$(–”„˜üÿÿÿÿ
-’kotlin:S100f"{Rename function "protos_isPossibleToCreateBeamPCollectionOfThatType" to match the regular expression ^[a-zA-Z][a-zA-Z0-9]*$(¾³£
-–kotlin:S100€"~Rename function "tuple2sOf_isPossibleToCreateBeamPCollectionOfThatType" to match the regular expression ^[a-zA-Z][a-zA-Z0-9]*$(ïŞÀÚ

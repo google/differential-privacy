@@ -1,9 +1,0 @@
-<component name="libraryTable">
-  <library name="processed_error_prone_annotations-2.25.0_faa3a271">
-    <CLASSES>
-      <root url="jar:///private/var/tmp/_bazel_skkumar/816dcaefc3b95d3f6c5a29b993bbae5b/execroot/_main/bazel-out/darwin_arm64-fastbuild/bin/external/maven/v1/https/repo.maven.apache.org/maven2/com/google/errorprone/error_prone_annotations/2.25.0/processed_error_prone_annotations-2.25.0.jar!/" />
-    </CLASSES>
-    <JAVADOC />
-    <SOURCES />
-  </library>
-</component>
