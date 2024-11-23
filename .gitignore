@@ -3,8 +3,5 @@
 **/bazel-out
 **/bazel-testlogs
 
-//IntelliJ setup files
-.ijwb/
-pipelinedp4j/.ijwb/
-pipelinedp4j/MODULE.bazel
-pipelinedp4j/MODULE.bazel.lock
+**/pipelinedp4j/.ijwb/.idea/*
+**/.ijwb/.idea/
