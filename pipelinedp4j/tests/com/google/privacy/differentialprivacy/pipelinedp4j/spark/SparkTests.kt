@@ -29,7 +29,7 @@ class SparkTests {}
 /** Class rule to start and stop spark session once per test class which is equivalent to @BeforeClass and @AfterClass */
 class SparkSessionRule : ExternalResource() {
     lateinit var spark: SparkSession
-        private set
+
     override fun before() {
         // Create SparkSession once for the entire test class
         spark = SparkSession.builder()

@@ -165,6 +165,36 @@ class SparkTableTest {
         assertThat(result.data.collectAsList()).containsExactly(Tuple2("one", 1), Tuple2("two", 2))
     }
 
+    @Test
+    fun samplePerKey_samplesElements() {
+        val dataset =
+            sparkSession.spark.createDataset(
+                listOf(
+                    Tuple2("one", 1),
+                    Tuple2("one", 2),
+                    Tuple2("one", 3),
+                    Tuple2("one", 4),
+                    Tuple2("one", 5),
+                    Tuple2("two", 6),
+                    Tuple2("two", 7),
+                    Tuple2("two", 8),
+                    Tuple2("two", 9),
+                    Tuple2("two", 10),
+                    Tuple2("three", 11),
+                    Tuple2("three", 12)
+                ), Encoders.tuple(Encoders.STRING(), Encoders.INT()))
+        val sparkTable = SparkTable(dataset, Encoders.STRING(), Encoders.INT())
+
+        val result: SparkTable<String, List<Int>> = sparkTable.samplePerKey("Test", 3)
+
+        val resultData = result.data.collectAsList()
+        assertThat(resultData.size).isEqualTo(3)
+
+        assertThat(resultData.filter { it._1 == "one" }[0]._2.size).isEqualTo(3)
+        assertThat(resultData.filter { it._1 == "two" }[0]._2.size).isEqualTo(3)
+        assertThat(resultData.filter { it._1 == "three" }[0]._2.size).isEqualTo(2)
+    }
+
     companion object {
         @JvmField
         @ClassRule

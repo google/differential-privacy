@@ -7,7 +7,7 @@ import org.apache.spark.sql.Encoders
 import kotlin.reflect.KClass
 
 
-
+/** A serializer and a deserializer for the data types to convert into Spark internal data types. */
 class SparkEncoder<T>(val encoder: org.apache.spark.sql.Encoder<T>) : Encoder<T>
 
 class SparkEncoderFactory: EncoderFactory {

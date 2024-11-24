@@ -11,7 +11,11 @@ import org.apache.spark.api.java.function.ReduceFunction
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.Encoders
 import org.apache.spark.sql.Row
+import org.apache.spark.sql.expressions.Window
+import org.apache.spark.sql.functions.row_number
 import scala.Tuple2
+import scala.Tuple3
+import kotlin.random.Random
 
 /** An implementation of [FrameworkTable], which runs all operations on Spark. */
 class SparkTable<K, V>(val data: Dataset<Tuple2<K, V>>,
@@ -130,6 +134,14 @@ class SparkTable<K, V>(val data: Dataset<Tuple2<K, V>>,
         return SparkTable(thisAndOther, keyEncoder, valueEncoder)
     }
 
+    /**
+     * Keeps only those table entries whose keys are in [allowedKeys] Spark collection.
+     *
+     * Filtering is done by joining the table with [allowedKeys] and keeping only those entries that
+     * matched with some key in [allowedKeys]. The data that belongs to one key is processed in a
+     * single worker, however it does not have to fit in memory. The algorithm does not handle
+     * unbalanced keys (i.e. hot partitions) in any specific way.
+     */
     private fun filterKeysStoredInSparkCollection(
         stageName: String,
         allowedKeys: SparkCollection<K>,
@@ -141,6 +153,12 @@ class SparkTable<K, V>(val data: Dataset<Tuple2<K, V>>,
         return SparkTable(filteredData, keyEncoder, valueEncoder)
     }
 
+    /**
+     * Keeps only those table entries whose keys are in [allowedKeys] spark collection.
+     *
+     * Filtering is done by converting [allowedKeys] to a HashSet and checking if the key of the entry
+     * is in that set.
+     */
     private fun filterKeysStoredInLocalCollection(
         stageName: String,
         allowedKeys: LocalCollection<K>,
@@ -149,7 +167,40 @@ class SparkTable<K, V>(val data: Dataset<Tuple2<K, V>>,
         return filterKeys(stageName) {k -> k in allowedKeysHashSet}
     }
 
+    /**
+     * Randomly samples values per key. The output table will contain same keys as this table, each key will appear
+     * only once. The number of values per key will be at most [count].
+     * It uses window partition by function which requires an extra shuffle and sort operation and introduces
+     * an extra step to transfer data over network but is a scalable and efficient approach for large dataset.
+     */
     override fun samplePerKey(stageName: String, count: Int): SparkTable<K, List<V>> {
-        TODO("Not yet implemented")
+        val listEncoder = Encoders.kryo(List::class.java) as org.apache.spark.sql.Encoder<List<V>>
+        val withRandValueEncoder = Encoders.tuple(keyEncoder, valueEncoder, Encoders.DOUBLE())
+        val withRandomValueEncoder = Encoders.tuple(keyEncoder, valueEncoder, Encoders.INT())
+
+        // Generate a random score for each record in dataset
+        val withRandomDataset = data.map(
+            MapFunction { kv: Tuple2<K, V> -> Tuple3(kv._1, kv._2, Random.nextDouble()) },
+            withRandValueEncoder)
+
+        // Partition records by key and order them withIn each partition window by the random score and assign a sequential row_number to them
+        val windowSpec = Window.partitionBy("_1").orderBy("_3")
+        val withRowNumberDataset = withRandomDataset
+            .withColumn("rowNum", row_number().over(windowSpec))
+            .select("_1", "_2", "rowNum")
+            .`as`(withRandomValueEncoder)
+
+        // Filter rows which has row_number <= count
+        val sampledDataset = withRowNumberDataset
+            .filter { withRowNum: Tuple3<K, V, Int> -> withRowNum._3() <= count }
+
+        // group by key and create list of selected values
+        val sampledPerKeyData = sampledDataset
+            .groupByKey(MapFunction { data: Tuple3<K, V, Int> -> data._1() }, keyEncoder)
+            .mapValues(MapFunction { kv: Tuple3<K, V, Int> -> kv._2() }, valueEncoder)
+            .mapGroups(MapGroupsFunction { k: K, v: Iterator<V> -> Tuple2(k, v.asSequence().toList()) },
+                Encoders.tuple(keyEncoder, listEncoder))
+
+        return SparkTable(sampledPerKeyData, keyEncoder, listEncoder)
     }
 }
