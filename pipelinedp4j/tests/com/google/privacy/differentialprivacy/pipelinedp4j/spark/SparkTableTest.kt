@@ -5,7 +5,7 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.local.LocalCollection
 import com.google.testing.junit.testparameterinjector.TestParameter
 import com.google.testing.junit.testparameterinjector.TestParameterInjector
 import org.apache.spark.sql.Encoders
-import org.apache.spark.sql.SparkSession
+import org.junit.ClassRule
 import org.junit.Test
 import org.junit.runner.RunWith
 import scala.Tuple2
@@ -13,10 +13,9 @@ import scala.Tuple2
 @RunWith(TestParameterInjector::class)
 class SparkTableTest {
 
-
     @Test
     fun keysEncoder_returnsCorrectEncoder() {
-        val dataset = spark.createDataset(listOf(), Encoders.tuple(Encoders.STRING(), Encoders.INT()))
+        val dataset = sparkSession.spark.createDataset(listOf(), Encoders.tuple(Encoders.STRING(), Encoders.INT()))
         val sparkTable = SparkTable(dataset, Encoders.STRING(), Encoders.INT())
         val result = sparkTable.keysEncoder
 
@@ -26,7 +25,7 @@ class SparkTableTest {
 
     @Test
     fun valuesEncoder_returnsCorrectEncoder() {
-        val dataset = spark.createDataset(listOf(), Encoders.tuple(Encoders.STRING(), Encoders.INT()))
+        val dataset = sparkSession.spark.createDataset(listOf(), Encoders.tuple(Encoders.STRING(), Encoders.INT()))
         val sparkTable = SparkTable(dataset, Encoders.STRING(), Encoders.INT())
         val result = sparkTable.valuesEncoder
 
@@ -36,7 +35,7 @@ class SparkTableTest {
 
     @Test
     fun map_appliesMapFn() {
-        val dataset = spark.createDataset(listOf(Tuple2(1, 10)), Encoders.tuple(Encoders.INT(), Encoders.INT()))
+        val dataset = sparkSession.spark.createDataset(listOf(Tuple2(1, 10)), Encoders.tuple(Encoders.INT(), Encoders.INT()))
         val sparkTable = SparkTable(dataset, Encoders.INT(), Encoders.INT())
         val mapFn: (Int, Int) -> String = { k, v -> "${k}_$v" }
         val result = sparkTable.map("Test", sparkEncoderFactory.strings(), mapFn)
@@ -45,7 +44,7 @@ class SparkTableTest {
 
     @Test
     fun groupAndCombineValues_appliesCombiner() {
-        val dataset = spark.createDataset(listOf(Tuple2("positive", 1),
+        val dataset = sparkSession.spark.createDataset(listOf(Tuple2("positive", 1),
             Tuple2("positive", 10), Tuple2("negative", -1),
             Tuple2("negative", -10)
         ), Encoders.tuple(Encoders.STRING(), Encoders.INT()))
@@ -57,7 +56,7 @@ class SparkTableTest {
 
     @Test
     fun groupByKey_groupsValues() {
-        val dataset = spark.createDataset(listOf(Tuple2("positive", 1),
+        val dataset = sparkSession.spark.createDataset(listOf(Tuple2("positive", 1),
             Tuple2("positive", 10), Tuple2("negative", -1)),
             Encoders.tuple(Encoders.STRING(), Encoders.INT()))
         val sparkTable = SparkTable(dataset, Encoders.STRING(), Encoders.INT())
@@ -69,7 +68,7 @@ class SparkTableTest {
 
     @Test
     fun keys_returnKeys() {
-        val data = spark.createDataset(listOf(Tuple2("key", "value")), Encoders.tuple(Encoders.STRING(), Encoders.STRING()))
+        val data = sparkSession.spark.createDataset(listOf(Tuple2("key", "value")), Encoders.tuple(Encoders.STRING(), Encoders.STRING()))
         val sparkTable = SparkTable(data, Encoders.STRING(), Encoders.STRING())
         val result = sparkTable.keys("stageName")
         assertThat(result.data.collectAsList()).containsExactly("key")
@@ -77,7 +76,7 @@ class SparkTableTest {
 
     @Test
     fun keys_returnsValues() {
-        val data = spark.createDataset(listOf(Tuple2("key", "value")), Encoders.tuple(Encoders.STRING(), Encoders.STRING()))
+        val data = sparkSession.spark.createDataset(listOf(Tuple2("key", "value")), Encoders.tuple(Encoders.STRING(), Encoders.STRING()))
         val sparkTable = SparkTable(data, Encoders.STRING(), Encoders.STRING())
         val result = sparkTable.values("stageName")
         assertThat(result.data.collectAsList()).containsExactly("value")
@@ -85,7 +84,7 @@ class SparkTableTest {
 
     @Test
     fun mapValues_appliesMapFn() {
-        val dataset = spark.createDataset(listOf(Tuple2("one", 1)), Encoders.tuple(Encoders.STRING(), Encoders.INT()))
+        val dataset = sparkSession.spark.createDataset(listOf(Tuple2("one", 1)), Encoders.tuple(Encoders.STRING(), Encoders.INT()))
         val sparkTable = SparkTable(dataset, Encoders.STRING(), Encoders.INT())
         val mapFn: (String, Int) -> String = { k, v -> "${k}_$v" }
 
@@ -95,7 +94,7 @@ class SparkTableTest {
 
     @Test
     fun mapToTable_appliesMapFn() {
-        val dataset = spark.createDataset(listOf(Tuple2("one", 1)), Encoders.tuple(Encoders.STRING(), Encoders.INT()))
+        val dataset = sparkSession.spark.createDataset(listOf(Tuple2("one", 1)), Encoders.tuple(Encoders.STRING(), Encoders.INT()))
         val sparkTable = SparkTable(dataset, Encoders.STRING(), Encoders.INT())
         val mapFn: (String, Int) -> Pair<Int, String> = { k, v -> Pair(v, k) }
         val result = sparkTable.mapToTable("Test", sparkEncoderFactory.ints(), sparkEncoderFactory.strings(), mapFn)
@@ -104,7 +103,7 @@ class SparkTableTest {
 
     @Test
     fun flatMapToTable_appliesMapFn() {
-        val dataset = spark.createDataset(listOf(Tuple2("one", 1)), Encoders.tuple(Encoders.STRING(), Encoders.INT()))
+        val dataset = sparkSession.spark.createDataset(listOf(Tuple2("one", 1)), Encoders.tuple(Encoders.STRING(), Encoders.INT()))
         val sparkTable = SparkTable(dataset, Encoders.STRING(), Encoders.INT())
         val mapFn: (String, Int) -> Sequence<Pair<Int, String>> = { k, v ->
             sequenceOf(Pair(v, k), Pair(v, k))
@@ -115,7 +114,7 @@ class SparkTableTest {
 
     @Test
     fun filterValues_appliesPredicate() {
-        val dataset = spark.createDataset(listOf(Tuple2("one", 1), Tuple2("two", 2)), Encoders.tuple(Encoders.STRING(), Encoders.INT()))
+        val dataset = sparkSession.spark.createDataset(listOf(Tuple2("one", 1), Tuple2("two", 2)), Encoders.tuple(Encoders.STRING(), Encoders.INT()))
         val sparkTable = SparkTable(dataset, Encoders.STRING(), Encoders.INT())
         val predicate: (Int) -> Boolean = { v -> v == 1 }
         val result = sparkTable.filterValues("Test", predicate)
@@ -124,7 +123,7 @@ class SparkTableTest {
 
     @Test
     fun filterKeys_appliesPredicate() {
-        val dataset = spark.createDataset(listOf(Tuple2("one", 1), Tuple2("two", 2), Tuple2("two", -2)), Encoders.tuple(Encoders.STRING(), Encoders.INT()))
+        val dataset = sparkSession.spark.createDataset(listOf(Tuple2("one", 1), Tuple2("two", 2), Tuple2("two", -2)), Encoders.tuple(Encoders.STRING(), Encoders.INT()))
         val sparkTable = SparkTable(dataset, Encoders.STRING(), Encoders.INT())
         val predicate: (String) -> Boolean = { k -> k == "two" }
         val result: SparkTable<String, Int> = sparkTable.filterKeys("Test", predicate)
@@ -133,10 +132,10 @@ class SparkTableTest {
 
     @Test
     fun filterKeys_allowedKeysStoredInSparkollection_keepsOnlyAllowedKeys(@TestParameter unbalancedKeys: Boolean) {
-        val dataset = spark.createDataset(listOf(Tuple2("one", 1), Tuple2("two", 2), Tuple2("three", 3),
+        val dataset = sparkSession.spark.createDataset(listOf(Tuple2("one", 1), Tuple2("two", 2), Tuple2("three", 3),
             Tuple2("two", -2)), Encoders.tuple(Encoders.STRING(), Encoders.INT()))
         val sparkTable = SparkTable(dataset, Encoders.STRING(), Encoders.INT())
-        val allowedKeysCollection = spark.createDataset(listOf("three", "two", "four"), Encoders.STRING())
+        val allowedKeysCollection = sparkSession.spark.createDataset(listOf("three", "two", "four"), Encoders.STRING())
         val allowedKeysDataset = SparkCollection(allowedKeysCollection)
         val result = sparkTable.filterKeys("stageName", allowedKeysDataset, unbalancedKeys)
         assertThat(result.data.collectAsList()).containsExactly(Tuple2("two", 2), Tuple2("three", 3),
@@ -145,7 +144,7 @@ class SparkTableTest {
 
     @Test
     fun filterKeys_allowedKeysStoredInLocalCollection_keepsOnlyAllowedKeys() {
-        val dataset = spark.createDataset(listOf(Tuple2("one", 1), Tuple2("two", 2), Tuple2("three", 3),
+        val dataset = sparkSession.spark.createDataset(listOf(Tuple2("one", 1), Tuple2("two", 2), Tuple2("three", 3),
             Tuple2("two", -2)), Encoders.tuple(Encoders.STRING(), Encoders.INT()))
         val sparkTable = SparkTable(dataset, Encoders.STRING(), Encoders.INT())
         val allowedKeys = sequenceOf("three", "two", "four")
@@ -157,9 +156,9 @@ class SparkTableTest {
 
     @Test
     fun flattenWith_flattensCollections() {
-        val dataset = spark.createDataset(listOf(Tuple2("one", 1)), Encoders.tuple(Encoders.STRING(), Encoders.INT()))
+        val dataset = sparkSession.spark.createDataset(listOf(Tuple2("one", 1)), Encoders.tuple(Encoders.STRING(), Encoders.INT()))
         val sparkTable = SparkTable(dataset, Encoders.STRING(), Encoders.INT())
-        val otherSparkDataset = spark.createDataset(listOf(Tuple2("two", 2)), Encoders.tuple(Encoders.STRING(), Encoders.INT()))
+        val otherSparkDataset = sparkSession.spark.createDataset(listOf(Tuple2("two", 2)), Encoders.tuple(Encoders.STRING(), Encoders.INT()))
         val otherSparkTable = SparkTable(otherSparkDataset, Encoders.STRING(), Encoders.INT())
 
         val result = sparkTable.flattenWith("stageName", otherSparkTable)
@@ -167,7 +166,9 @@ class SparkTableTest {
     }
 
     companion object {
-        private val spark: SparkSession = createSparkSession()
+        @JvmField
+        @ClassRule
+        val sparkSession = SparkSessionRule()
         private val sparkEncoderFactory = SparkEncoderFactory()
     }
 }

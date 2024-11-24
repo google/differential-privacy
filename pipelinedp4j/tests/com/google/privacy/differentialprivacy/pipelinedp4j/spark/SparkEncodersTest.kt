@@ -10,7 +10,7 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.proto.meanAccumulator
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.quantilesAccumulator
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.sumAccumulator
 import com.google.protobuf.ByteString
-import org.apache.spark.sql.SparkSession
+import org.junit.ClassRule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.JUnit4
@@ -22,7 +22,7 @@ class SparkEncodersTest {
     fun strings_isPossibleToCreateSparkCollectionOfThatType() {
         val input = listOf("a", "b", "c")
         val inputCoder = sparkEncoderFactory.strings().encoder
-        val dataset = spark.createDataset(input, inputCoder)
+        val dataset = sparkSession.spark.createDataset(input, inputCoder)
         assertThat(dataset.collectAsList()).containsExactlyElementsIn(input)
     }
 
@@ -30,7 +30,7 @@ class SparkEncodersTest {
     fun doubles_isPossibleToCreateSparkCollectionOfThatType() {
         val input = listOf(-1.2, 0.0, 2.1)
         val inputCoder = sparkEncoderFactory.doubles().encoder
-        val dataset = spark.createDataset(input, inputCoder)
+        val dataset = sparkSession.spark.createDataset(input, inputCoder)
         assertThat(dataset.collectAsList()).containsExactlyElementsIn(input)
     }
 
@@ -38,7 +38,7 @@ class SparkEncodersTest {
     fun ints_isPossibleToCreateSparkCollectionOfThatType() {
         val input = listOf(-1, 0, 1)
         val inputCoder = sparkEncoderFactory.ints().encoder
-        val dataset = spark.createDataset(input, inputCoder)
+        val dataset = sparkSession.spark.createDataset(input, inputCoder)
         assertThat(dataset.collectAsList()).containsExactlyElementsIn(input)
     }
 
@@ -57,7 +57,7 @@ class SparkEncodersTest {
                 sparkEncoderFactory.strings(),
                 sparkEncoderFactory,
             ) as SparkEncoder<ContributionWithPrivacyId<String, String>>).encoder
-        val dataset = spark.createDataset(input, inputCoder)
+        val dataset = sparkSession.spark.createDataset(input, inputCoder)
         assertThat(dataset.collectAsList()).containsExactlyElementsIn(input)
     }
 
@@ -79,7 +79,7 @@ class SparkEncodersTest {
                 compoundAccumulator {},
             )
         val inputCoder = sparkEncoderFactory.protos(CompoundAccumulator::class).encoder
-        val dataset = spark.createDataset(input, inputCoder)
+        val dataset = sparkSession.spark.createDataset(input, inputCoder)
         assertThat(dataset.collectAsList()).containsExactlyElementsIn(input)
     }
 
@@ -89,12 +89,14 @@ class SparkEncodersTest {
         val inputEncoder =
             sparkEncoderFactory.tuple2sOf(sparkEncoderFactory.strings(), sparkEncoderFactory.ints()).encoder
 
-        val dataset = spark.createDataset(input, inputEncoder)
+        val dataset = sparkSession.spark.createDataset(input, inputEncoder)
         assertThat(dataset.collectAsList()).containsExactlyElementsIn(input)
     }
 
     companion object {
-        private val spark: SparkSession = createSparkSession()
+        @JvmField
+        @ClassRule
+        val sparkSession = SparkSessionRule()
         private val sparkEncoderFactory = SparkEncoderFactory()
     }
 }

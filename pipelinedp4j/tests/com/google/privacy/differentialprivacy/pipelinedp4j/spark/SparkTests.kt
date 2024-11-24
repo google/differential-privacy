@@ -17,6 +17,7 @@
 package com.google.privacy.differentialprivacy.pipelinedp4j.spark
 
 import org.apache.spark.sql.SparkSession
+import org.junit.rules.ExternalResource
 import org.junit.runner.RunWith
 import org.junit.runners.Suite
 
@@ -25,16 +26,21 @@ import org.junit.runners.Suite
 @Suite.SuiteClasses(SparkCollectionTest::class, SparkEncodersTest::class, SparkTableTest::class)
 class SparkTests {}
 
-// Helper method to create SparkSession
-fun createSparkSession(): SparkSession {
-    return SparkSession.builder()
-        .appName("Kotlin Spark Example")
-        .master("local[*]")
-        .config("spark.driver.bindAddress", "127.0.0.1")
-        .getOrCreate()
-}
+/** Class rule to start and stop spark session once per test class which is equivalent to @BeforeClass and @AfterClass */
+class SparkSessionRule : ExternalResource() {
+    lateinit var spark: SparkSession
+        private set
+    override fun before() {
+        // Create SparkSession once for the entire test class
+        spark = SparkSession.builder()
+            .appName("Kotlin Spark Example")
+            .master("local[*]")
+            .config("spark.driver.bindAddress", "127.0.0.1")
+            .getOrCreate()
+    }
 
-// Helper method to stop SparkSession
-fun stopSparkSession(spark: SparkSession) {
-    spark.stop()
+    override fun after() {
+        // Stop SparkSession after all tests in the class
+        spark.stop()
+    }
 }

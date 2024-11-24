@@ -2,7 +2,7 @@ package com.google.privacy.differentialprivacy.pipelinedp4j.spark
 
 import com.google.common.truth.Truth.assertThat
 import org.apache.spark.sql.Encoders
-import org.apache.spark.sql.SparkSession
+import org.junit.ClassRule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.JUnit4
@@ -12,7 +12,7 @@ import scala.Tuple2
 class SparkCollectionTest {
     @Test
     fun elementsEncoder_returnsCorrectEncoder() {
-        val dataset = spark.createDataset(listOf(), Encoders.INT())
+        val dataset = sparkSession.spark.createDataset(listOf(), Encoders.INT())
         val sparkCollection = SparkCollection(dataset)
         val result = sparkCollection.elementsEncoder
 
@@ -22,7 +22,7 @@ class SparkCollectionTest {
 
     @Test
     fun distinct_removesDuplicates() {
-        val dataset = spark.createDataset(listOf(1, 2, 1), Encoders.INT())
+        val dataset = sparkSession.spark.createDataset(listOf(1, 2, 1), Encoders.INT())
         val sparkCollection = SparkCollection(dataset)
         val result: SparkCollection<Int> = sparkCollection.distinct("stageName")
 
@@ -31,7 +31,7 @@ class SparkCollectionTest {
 
     @Test
     fun map_appliesMapFn() {
-        val dataset = spark.createDataset(listOf(1), Encoders.INT())
+        val dataset = sparkSession.spark.createDataset(listOf(1), Encoders.INT())
         val sparkCollection = SparkCollection(dataset)
         val result: SparkCollection<String> = sparkCollection.map("Map Test", sparkEncoderFactory.strings(),
             {v -> v.toString() })
@@ -40,7 +40,7 @@ class SparkCollectionTest {
 
     @Test
     fun keyBy_keysCollection() {
-        val dataset = spark.createDataset(listOf(1), Encoders.INT())
+        val dataset = sparkSession.spark.createDataset(listOf(1), Encoders.INT())
         val sparkCollection = SparkCollection(dataset)
 
         val result: SparkTable<String, Int> =
@@ -51,7 +51,7 @@ class SparkCollectionTest {
 
     @Test
     fun mapToTable_appliesMapFn() {
-        val dataset = spark.createDataset(listOf(1), Encoders.INT())
+        val dataset = sparkSession.spark.createDataset(listOf(1), Encoders.INT())
         val sparkCollection = SparkCollection(dataset)
 
         val result: SparkTable<String, Int> =
@@ -65,7 +65,9 @@ class SparkCollectionTest {
     }
 
     companion object {
-        private val spark: SparkSession = createSparkSession()
+        @JvmField
+        @ClassRule
+        val sparkSession = SparkSessionRule()
         private val sparkEncoderFactory = SparkEncoderFactory()
     }
 }
