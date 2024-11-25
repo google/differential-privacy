@@ -22,6 +22,9 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.core.EncoderFactory
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.FrameworkCollection
 import com.google.privacy.differentialprivacy.pipelinedp4j.local.LocalCollection
 import com.google.privacy.differentialprivacy.pipelinedp4j.local.LocalEncoderFactory
+import com.google.privacy.differentialprivacy.pipelinedp4j.spark.SparkCollection
+import com.google.privacy.differentialprivacy.pipelinedp4j.spark.SparkEncoderFactory
+import org.apache.spark.sql.Dataset
 import org.apache.beam.sdk.values.PCollection as BeamPCollection
 
 /**
@@ -51,4 +54,11 @@ internal data class LocalPipelineDpCollection<T>(val data: Sequence<T>) : Pipeli
   override val encoderFactory = LocalEncoderFactory()
 
   override fun toFrameworkCollection() = LocalCollection<T>(data)
+}
+
+/** Spark Collection represented as a Spark Dataset. */
+internal data class SparkPipelineDpCollection<T>(val data: Dataset<T>) : PipelineDpCollection<T> {
+  override val encoderFactory = SparkEncoderFactory()
+
+  override fun toFrameworkCollection() = SparkCollection<T>(data)
 }

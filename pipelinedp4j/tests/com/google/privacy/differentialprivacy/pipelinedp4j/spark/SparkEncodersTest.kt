@@ -10,6 +10,7 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.proto.meanAccumulator
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.quantilesAccumulator
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.sumAccumulator
 import com.google.protobuf.ByteString
+import org.apache.spark.sql.Encoders
 import org.junit.ClassRule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -90,6 +91,18 @@ class SparkEncodersTest {
             sparkEncoderFactory.tuple2sOf(sparkEncoderFactory.strings(), sparkEncoderFactory.ints()).encoder
 
         val dataset = sparkSession.spark.createDataset(input, inputEncoder)
+        val t = dataset.collectAsList()
+        assertThat(dataset.collectAsList()).containsExactlyElementsIn(input)
+    }
+
+    @Test
+    fun tuple2sOf_tuple2sOf_isPossibleToCreateSparkCollectionOfThatType() {
+        val input = listOf(Pair("pid1", 1) to "pid1", Pair("pid1", 1) to "pid1", Pair("pid1", -2) to "pid1", Pair("pid2", 3) to "pid2")
+        val inputEncoder =
+            sparkEncoderFactory.tuple2sOf(sparkEncoderFactory.tuple2sOf(sparkEncoderFactory.strings(), sparkEncoderFactory.ints()),
+                sparkEncoderFactory.strings()).encoder
+        val dataset = sparkSession.spark.createDataset(input, inputEncoder)
+        val temp = dataset.collect()
         assertThat(dataset.collectAsList()).containsExactlyElementsIn(input)
     }
 

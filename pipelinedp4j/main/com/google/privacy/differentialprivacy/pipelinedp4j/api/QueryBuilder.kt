@@ -16,6 +16,7 @@
 
 package com.google.privacy.differentialprivacy.pipelinedp4j.api
 
+import org.apache.spark.sql.Dataset
 import org.apache.beam.sdk.values.PCollection as BeamPCollection
 
 /**
@@ -225,5 +226,9 @@ protected constructor(
     @JvmStatic
     fun <T> from(data: BeamPCollection<T>, privacyIdExtractor: (T) -> String) =
       BeamQueryBuilder<T>(data, privacyIdExtractor)
+
+    @JvmStatic
+    fun <T> from(data: Dataset<T>, privacyIdExtractor: (T) -> String) =
+      SparkQueryBuilder<T>(data, privacyIdExtractor)
   }
 }

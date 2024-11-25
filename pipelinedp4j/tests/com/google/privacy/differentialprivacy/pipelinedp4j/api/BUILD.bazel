@@ -20,6 +20,8 @@ kt_jvm_test(
         "ApiTests.kt",
         "BeamQueryBuilderTest.kt",
         "BeamQueryTest.kt",
+        "SparkQueryBuilderTest.kt",
+        "SparkQueryTest.kt"
     ],
     test_class = "com.google.privacy.differentialprivacy.pipelinedp4j.api.ApiTests",
     runtime_deps = [
@@ -29,9 +31,16 @@ kt_jvm_test(
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/api",
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core:dp_functions_params",
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core/budget:budget_spec",
+        "//tests/com/google/privacy/differentialprivacy/pipelinedp4j/spark:spark_tests",
         "@maven//:com_google_truth_truth",
         "@maven//:junit_junit",
         "@maven//:org_apache_beam_beam_sdks_java_core",
         "@maven//:org_jetbrains_kotlin_kotlin_test",
+        "@maven//:org_apache_spark_spark_core_2_13",
+        "@maven//:org_apache_spark_spark_sql_2_13",
+        "@maven//:org_apache_spark_spark_mllib_2_13",
+        "@maven//:org_apache_spark_spark_catalyst_2_13",
+        "@maven//:com_fasterxml_jackson_core_jackson_databind",
+        "@maven//:com_fasterxml_jackson_module_jackson_module_paranamer",
     ],
 )

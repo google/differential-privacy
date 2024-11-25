@@ -16,6 +16,9 @@
 
 package com.google.privacy.differentialprivacy.pipelinedp4j.api
 
+
+import scala.Tuple2
+
 /**
  * The result of a query for a single partition.
  *
@@ -28,3 +31,5 @@ data class QueryPerGroupResult(val groupKey: String, val aggregationResults: Map
   // Necessary for Beam serialization.
   private constructor() : this("", mapOf())
 }
+
+val queryPerGroupResultTuple = Tuple2("", java.util.HashMap<String, Double>())
