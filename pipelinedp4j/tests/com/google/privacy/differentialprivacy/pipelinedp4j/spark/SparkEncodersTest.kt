@@ -91,7 +91,6 @@ class SparkEncodersTest {
             sparkEncoderFactory.tuple2sOf(sparkEncoderFactory.strings(), sparkEncoderFactory.ints()).encoder
 
         val dataset = sparkSession.spark.createDataset(input, inputEncoder)
-        val t = dataset.collectAsList()
         assertThat(dataset.collectAsList()).containsExactlyElementsIn(input)
     }
 
@@ -102,7 +101,6 @@ class SparkEncodersTest {
             sparkEncoderFactory.tuple2sOf(sparkEncoderFactory.tuple2sOf(sparkEncoderFactory.strings(), sparkEncoderFactory.ints()),
                 sparkEncoderFactory.strings()).encoder
         val dataset = sparkSession.spark.createDataset(input, inputEncoder)
-        val temp = dataset.collect()
         assertThat(dataset.collectAsList()).containsExactlyElementsIn(input)
     }
 

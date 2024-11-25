@@ -168,30 +168,30 @@ class SparkTable<K, V>(val data: Dataset<Tuple2<K, V>>,
     }
 
     /**
-     * Randomly samples values per key. The output table will contain same keys as this table, each key will appear
-     * only once. The number of values per key will be at most [count].
+     * Randomly samples values per key.
+     * The output table will contain same keys as this table, each key will appear only once. The number of values per key will be at most [count].
      * It uses window partition by function which requires an extra shuffle and sort operation and introduces
      * an extra step to transfer data over network but is a scalable and efficient approach for large dataset.
      */
     override fun samplePerKey(stageName: String, count: Int): SparkTable<K, List<V>> {
         val listEncoder = Encoders.kryo(List::class.java) as org.apache.spark.sql.Encoder<List<V>>
-        val withRandValueEncoder = Encoders.tuple(keyEncoder, valueEncoder, Encoders.DOUBLE())
-        val withRandomValueEncoder = Encoders.tuple(keyEncoder, valueEncoder, Encoders.INT())
+        val randomValueEncoder = Encoders.tuple(keyEncoder, valueEncoder, Encoders.DOUBLE())
+        val rowNumberEncoder = Encoders.tuple(keyEncoder, valueEncoder, Encoders.INT())
 
         // Generate a random score for each record in dataset
-        val withRandomDataset = data.map(
+        val randomValueDataset = data.map(
             MapFunction { kv: Tuple2<K, V> -> Tuple3(kv._1, kv._2, Random.nextDouble()) },
-            withRandValueEncoder)
+            randomValueEncoder)
 
         // Partition records by key and order them withIn each partition window by the random score and assign a sequential row_number to them
         val windowSpec = Window.partitionBy("_1").orderBy("_3")
-        val withRowNumberDataset = withRandomDataset
+        val rowNumberDataset = randomValueDataset
             .withColumn("rowNum", row_number().over(windowSpec))
             .select("_1", "_2", "rowNum")
-            .`as`(withRandomValueEncoder)
+            .`as`(rowNumberEncoder)
 
         // Filter rows which has row_number <= count
-        val sampledDataset = withRowNumberDataset
+        val sampledDataset = rowNumberDataset
             .filter { withRowNum: Tuple3<K, V, Int> -> withRowNum._3() <= count }
 
         // group by key and create list of selected values
