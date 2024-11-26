@@ -163,13 +163,16 @@ class SparkTable<K, V>(val data: Dataset<Pair<K, V>>,
     ): SparkTable<K, V> {
         val allowedKeysDataset = allowedKeys.data.map(MapFunction { k: K -> Pair(k, "")},
             Encoders.kryo(Pair::class.java) as org.apache.spark.sql.Encoder<Pair<K, String>>)
-        val dataTuple2DS = data.map(MapFunction {kv: Pair<K, V> -> Tuple2(kv.first, kv.second)}, Encoders.tuple(keyEncoder, valueEncoder))
-        val allowedKeysTuple2DS = allowedKeysDataset.map(MapFunction {kv: Pair<K, String> -> Tuple2(kv.first, kv.second)}, Encoders.tuple(keyEncoder, Encoders.STRING()))
-        val filteredData = dataTuple2DS.joinWith(allowedKeysTuple2DS, dataTuple2DS.col("_1").equalTo(allowedKeysTuple2DS.col("_1")),
-            "inner" )
-            .map(MapFunction { kv: Tuple2<Tuple2<K, V>, Tuple2<K, String>> -> Pair(kv._1._1, kv._1._2)}, keyValueEncoder)
 
-        return SparkTable(filteredData, keyEncoder, valueEncoder)
+        // Dataset<Pair<>> is converted into Dataset<Tuple2<>> to work with Join in Spark
+        // We can check in future if we can work with Pair<> for join
+        val tupleDataset = data.map(MapFunction {kv: Pair<K, V> -> kv.toTuple2()}, Encoders.tuple(keyEncoder, valueEncoder))
+        val allowedKeysTupleDataset = allowedKeysDataset.map(MapFunction {kv: Pair<K, String> -> kv.toTuple2()}, Encoders.tuple(keyEncoder, Encoders.STRING()))
+        val filteredTupleDataset = tupleDataset.joinWith(allowedKeysTupleDataset, tupleDataset.col("_1").equalTo(allowedKeysTupleDataset.col("_1")),
+            "inner" )
+        val filteredPairDataset= filteredTupleDataset.map(MapFunction { kv: Tuple2<Tuple2<K, V>, Tuple2<K, String>> -> Pair(kv._1._1, kv._1._2)}, keyValueEncoder)
+
+        return SparkTable(filteredPairDataset, keyEncoder, valueEncoder)
     }
 
     /**
@@ -224,3 +227,5 @@ class SparkTable<K, V>(val data: Dataset<Pair<K, V>>,
         return SparkTable(sampledPerKeyData, keyEncoder, listEncoder)
     }
 }
+
+internal fun <K, V> Pair<K, V>.toTuple2(): Tuple2<K, V> = Tuple2(first, second)
