@@ -8,14 +8,13 @@ import org.apache.spark.sql.Encoders
 import org.junit.ClassRule
 import org.junit.Test
 import org.junit.runner.RunWith
-import scala.Tuple2
 
 @RunWith(TestParameterInjector::class)
 class SparkTableTest {
 
     @Test
     fun keysEncoder_returnsCorrectEncoder() {
-        val dataset = sparkSession.spark.createDataset(listOf(), Encoders.tuple(Encoders.STRING(), Encoders.INT()))
+        val dataset = sparkSession.spark.createDataset(listOf(), Encoders.kryo(Pair::class.java) as org.apache.spark.sql.Encoder<Pair<String, Int>>)
         val sparkTable = SparkTable(dataset, Encoders.STRING(), Encoders.INT())
         val result = sparkTable.keysEncoder
 
@@ -25,7 +24,7 @@ class SparkTableTest {
 
     @Test
     fun valuesEncoder_returnsCorrectEncoder() {
-        val dataset = sparkSession.spark.createDataset(listOf(), Encoders.tuple(Encoders.STRING(), Encoders.INT()))
+        val dataset = sparkSession.spark.createDataset(listOf(), Encoders.kryo(Pair::class.java) as org.apache.spark.sql.Encoder<Pair<String, Int>>)
         val sparkTable = SparkTable(dataset, Encoders.STRING(), Encoders.INT())
         val result = sparkTable.valuesEncoder
 
@@ -35,7 +34,7 @@ class SparkTableTest {
 
     @Test
     fun map_appliesMapFn() {
-        val dataset = sparkSession.spark.createDataset(listOf(Tuple2(1, 10)), Encoders.tuple(Encoders.INT(), Encoders.INT()))
+        val dataset = sparkSession.spark.createDataset(listOf(Pair(1, 10)), Encoders.kryo(Pair::class.java) as org.apache.spark.sql.Encoder<Pair<Int, Int>>)
         val sparkTable = SparkTable(dataset, Encoders.INT(), Encoders.INT())
         val mapFn: (Int, Int) -> String = { k, v -> "${k}_$v" }
         val result = sparkTable.map("Test", sparkEncoderFactory.strings(), mapFn)
@@ -44,31 +43,31 @@ class SparkTableTest {
 
     @Test
     fun groupAndCombineValues_appliesCombiner() {
-        val dataset = sparkSession.spark.createDataset(listOf(Tuple2("positive", 1),
-            Tuple2("positive", 10), Tuple2("negative", -1),
-            Tuple2("negative", -10)
-        ), Encoders.tuple(Encoders.STRING(), Encoders.INT()))
+        val dataset = sparkSession.spark.createDataset(listOf(Pair("positive", 1),
+            Pair("positive", 10), Pair("negative", -1),
+            Pair("negative", -10)
+        ), Encoders.kryo(Pair::class.java) as org.apache.spark.sql.Encoder<Pair<String, Int>>)
         val sparkTable = SparkTable(dataset, Encoders.STRING(), Encoders.INT())
         val combineFn: (Int, Int) -> Int = { v1, v2 -> v1 + v2 }
         val result = sparkTable.groupAndCombineValues("Test", combineFn)
-        assertThat(result.data.collectAsList()).containsExactly(Tuple2("positive", 11), Tuple2("negative", -11))
+        assertThat(result.data.collectAsList()).containsExactly(Pair("positive", 11), Pair("negative", -11))
     }
 
     @Test
     fun groupByKey_groupsValues() {
-        val dataset = sparkSession.spark.createDataset(listOf(Tuple2("positive", 1),
-            Tuple2("positive", 10), Tuple2("negative", -1)),
-            Encoders.tuple(Encoders.STRING(), Encoders.INT()))
+        val dataset = sparkSession.spark.createDataset(listOf(Pair("positive", 1),
+            Pair("positive", 10), Pair("negative", -1)),
+            Encoders.kryo(Pair::class.java) as org.apache.spark.sql.Encoder<Pair<String, Int>>)
         val sparkTable = SparkTable(dataset, Encoders.STRING(), Encoders.INT())
         val result: SparkTable<String, Iterable<Int>> = sparkTable.groupByKey("stageName")
         assertThat(result.data.count()).isEqualTo(2)
         val ans = result.data.collectAsList()
-        assertThat(ans).containsExactly(Tuple2("positive", listOf(1,10)), Tuple2("negative", listOf(-1)))
+        assertThat(ans).containsExactly(Pair("positive", listOf(1,10)), Pair("negative", listOf(-1)))
     }
 
     @Test
     fun keys_returnKeys() {
-        val data = sparkSession.spark.createDataset(listOf(Tuple2("key", "value")), Encoders.tuple(Encoders.STRING(), Encoders.STRING()))
+        val data = sparkSession.spark.createDataset(listOf(Pair("key", "value")), Encoders.kryo(Pair::class.java) as org.apache.spark.sql.Encoder<Pair<String, String>>)
         val sparkTable = SparkTable(data, Encoders.STRING(), Encoders.STRING())
         val result = sparkTable.keys("stageName")
         assertThat(result.data.collectAsList()).containsExactly("key")
@@ -76,7 +75,7 @@ class SparkTableTest {
 
     @Test
     fun keys_returnsValues() {
-        val data = sparkSession.spark.createDataset(listOf(Tuple2("key", "value")), Encoders.tuple(Encoders.STRING(), Encoders.STRING()))
+        val data = sparkSession.spark.createDataset(listOf(Pair("key", "value")), Encoders.kryo(Pair::class.java) as org.apache.spark.sql.Encoder<Pair<String, String>>)
         val sparkTable = SparkTable(data, Encoders.STRING(), Encoders.STRING())
         val result = sparkTable.values("stageName")
         assertThat(result.data.collectAsList()).containsExactly("value")
@@ -84,85 +83,85 @@ class SparkTableTest {
 
     @Test
     fun mapValues_appliesMapFn() {
-        val dataset = sparkSession.spark.createDataset(listOf(Tuple2("one", 1)), Encoders.tuple(Encoders.STRING(), Encoders.INT()))
+        val dataset = sparkSession.spark.createDataset(listOf(Pair("one", 1)), Encoders.kryo(Pair::class.java) as org.apache.spark.sql.Encoder<Pair<String, Int>>)
         val sparkTable = SparkTable(dataset, Encoders.STRING(), Encoders.INT())
         val mapFn: (String, Int) -> String = { k, v -> "${k}_$v" }
 
         val result = sparkTable.mapValues("stageName", sparkEncoderFactory.strings(), mapFn)
-        assertThat(result.data.collectAsList()).containsExactly(Tuple2("one", "one_1"))
+        assertThat(result.data.collectAsList()).containsExactly(Pair("one", "one_1"))
     }
 
     @Test
     fun mapToTable_appliesMapFn() {
-        val dataset = sparkSession.spark.createDataset(listOf(Tuple2("one", 1)), Encoders.tuple(Encoders.STRING(), Encoders.INT()))
+        val dataset = sparkSession.spark.createDataset(listOf(Pair("one", 1)), Encoders.kryo(Pair::class.java) as org.apache.spark.sql.Encoder<Pair<String, Int>>)
         val sparkTable = SparkTable(dataset, Encoders.STRING(), Encoders.INT())
         val mapFn: (String, Int) -> Pair<Int, String> = { k, v -> Pair(v, k) }
         val result = sparkTable.mapToTable("Test", sparkEncoderFactory.ints(), sparkEncoderFactory.strings(), mapFn)
-        assertThat(result.data.collectAsList()).containsExactly(Tuple2(1, "one"))
+        assertThat(result.data.collectAsList()).containsExactly(Pair(1, "one"))
     }
 
     @Test
     fun flatMapToTable_appliesMapFn() {
-        val dataset = sparkSession.spark.createDataset(listOf(Tuple2("one", 1)), Encoders.tuple(Encoders.STRING(), Encoders.INT()))
+        val dataset = sparkSession.spark.createDataset(listOf(Pair("one", 1)), Encoders.kryo(Pair::class.java) as org.apache.spark.sql.Encoder<Pair<String, Int>>)
         val sparkTable = SparkTable(dataset, Encoders.STRING(), Encoders.INT())
         val mapFn: (String, Int) -> Sequence<Pair<Int, String>> = { k, v ->
             sequenceOf(Pair(v, k), Pair(v, k))
         }
         val result = sparkTable.flatMapToTable("Test", sparkEncoderFactory.ints(), sparkEncoderFactory.strings(), mapFn)
-        assertThat(result.data.collectAsList()).containsExactly(Tuple2(1,"one"), Tuple2(1, "one"))
+        assertThat(result.data.collectAsList()).containsExactly(Pair(1,"one"), Pair(1, "one"))
     }
 
     @Test
     fun filterValues_appliesPredicate() {
-        val dataset = sparkSession.spark.createDataset(listOf(Tuple2("one", 1), Tuple2("two", 2)), Encoders.tuple(Encoders.STRING(), Encoders.INT()))
+        val dataset = sparkSession.spark.createDataset(listOf(Pair("one", 1), Pair("two", 2)), Encoders.kryo(Pair::class.java) as org.apache.spark.sql.Encoder<Pair<String, Int>>)
         val sparkTable = SparkTable(dataset, Encoders.STRING(), Encoders.INT())
         val predicate: (Int) -> Boolean = { v -> v == 1 }
         val result = sparkTable.filterValues("Test", predicate)
-        assertThat(result.data.collectAsList()).containsExactly(Tuple2("one", 1))
+        assertThat(result.data.collectAsList()).containsExactly(Pair("one", 1))
     }
 
     @Test
     fun filterKeys_appliesPredicate() {
-        val dataset = sparkSession.spark.createDataset(listOf(Tuple2("one", 1), Tuple2("two", 2), Tuple2("two", -2)), Encoders.tuple(Encoders.STRING(), Encoders.INT()))
+        val dataset = sparkSession.spark.createDataset(listOf(Pair("one", 1), Pair("two", 2), Pair("two", -2)), Encoders.kryo(Pair::class.java) as org.apache.spark.sql.Encoder<Pair<String, Int>>)
         val sparkTable = SparkTable(dataset, Encoders.STRING(), Encoders.INT())
         val predicate: (String) -> Boolean = { k -> k == "two" }
         val result: SparkTable<String, Int> = sparkTable.filterKeys("Test", predicate)
-        assertThat(result.data.collectAsList()).containsExactly(Tuple2("two", 2), Tuple2("two", -2))
+        assertThat(result.data.collectAsList()).containsExactly(Pair("two", 2), Pair("two", -2))
     }
 
     @Test
     fun filterKeys_allowedKeysStoredInSparkollection_keepsOnlyAllowedKeys(@TestParameter unbalancedKeys: Boolean) {
-        val dataset = sparkSession.spark.createDataset(listOf(Tuple2("one", 1), Tuple2("two", 2), Tuple2("three", 3),
-            Tuple2("two", -2)), Encoders.tuple(Encoders.STRING(), Encoders.INT()))
+        val dataset = sparkSession.spark.createDataset(listOf(Pair("one", 1), Pair("two", 2), Pair("three", 3),
+            Pair("two", -2)), Encoders.kryo(Pair::class.java) as org.apache.spark.sql.Encoder<Pair<String, Int>>)
         val sparkTable = SparkTable(dataset, Encoders.STRING(), Encoders.INT())
         val allowedKeysCollection = sparkSession.spark.createDataset(listOf("three", "two", "four"), Encoders.STRING())
         val allowedKeysDataset = SparkCollection(allowedKeysCollection)
         val result = sparkTable.filterKeys("stageName", allowedKeysDataset, unbalancedKeys)
-        assertThat(result.data.collectAsList()).containsExactly(Tuple2("two", 2), Tuple2("three", 3),
-            Tuple2("two", -2))
+        assertThat(result.data.collectAsList()).containsExactly(Pair("two", 2), Pair("three", 3),
+            Pair("two", -2))
     }
 
     @Test
     fun filterKeys_allowedKeysStoredInLocalCollection_keepsOnlyAllowedKeys() {
-        val dataset = sparkSession.spark.createDataset(listOf(Tuple2("one", 1), Tuple2("two", 2), Tuple2("three", 3),
-            Tuple2("two", -2)), Encoders.tuple(Encoders.STRING(), Encoders.INT()))
+        val dataset = sparkSession.spark.createDataset(listOf(Pair("one", 1), Pair("two", 2), Pair("three", 3),
+            Pair("two", -2)), Encoders.kryo(Pair::class.java) as org.apache.spark.sql.Encoder<Pair<String, Int>>)
         val sparkTable = SparkTable(dataset, Encoders.STRING(), Encoders.INT())
         val allowedKeys = sequenceOf("three", "two", "four")
         val allowedKeysLocalCollection = LocalCollection(allowedKeys)
         val result = sparkTable.filterKeys("stageName", allowedKeysLocalCollection)
-        assertThat(result.data.collectAsList()).containsExactly(Tuple2("two", 2), Tuple2("three", 3),
-            Tuple2("two", -2))
+        assertThat(result.data.collectAsList()).containsExactly(Pair("two", 2), Pair("three", 3),
+            Pair("two", -2))
     }
 
     @Test
     fun flattenWith_flattensCollections() {
-        val dataset = sparkSession.spark.createDataset(listOf(Tuple2("one", 1)), Encoders.tuple(Encoders.STRING(), Encoders.INT()))
+        val dataset = sparkSession.spark.createDataset(listOf(Pair("one", 1)), Encoders.kryo(Pair::class.java) as org.apache.spark.sql.Encoder<Pair<String, Int>>)
         val sparkTable = SparkTable(dataset, Encoders.STRING(), Encoders.INT())
-        val otherSparkDataset = sparkSession.spark.createDataset(listOf(Tuple2("two", 2)), Encoders.tuple(Encoders.STRING(), Encoders.INT()))
+        val otherSparkDataset = sparkSession.spark.createDataset(listOf(Pair("two", 2)), Encoders.kryo(Pair::class.java) as org.apache.spark.sql.Encoder<Pair<String, Int>>)
         val otherSparkTable = SparkTable(otherSparkDataset, Encoders.STRING(), Encoders.INT())
 
         val result = sparkTable.flattenWith("stageName", otherSparkTable)
-        assertThat(result.data.collectAsList()).containsExactly(Tuple2("one", 1), Tuple2("two", 2))
+        assertThat(result.data.collectAsList()).containsExactly(Pair("one", 1), Pair("two", 2))
     }
 
     @Test
@@ -170,19 +169,19 @@ class SparkTableTest {
         val dataset =
             sparkSession.spark.createDataset(
                 listOf(
-                    Tuple2("one", 1),
-                    Tuple2("one", 2),
-                    Tuple2("one", 3),
-                    Tuple2("one", 4),
-                    Tuple2("one", 5),
-                    Tuple2("two", 6),
-                    Tuple2("two", 7),
-                    Tuple2("two", 8),
-                    Tuple2("two", 9),
-                    Tuple2("two", 10),
-                    Tuple2("three", 11),
-                    Tuple2("three", 12)
-                ), Encoders.tuple(Encoders.STRING(), Encoders.INT()))
+                    Pair("one", 1),
+                    Pair("one", 2),
+                    Pair("one", 3),
+                    Pair("one", 4),
+                    Pair("one", 5),
+                    Pair("two", 6),
+                    Pair("two", 7),
+                    Pair("two", 8),
+                    Pair("two", 9),
+                    Pair("two", 10),
+                    Pair("three", 11),
+                    Pair("three", 12)
+                ), Encoders.kryo(Pair::class.java) as org.apache.spark.sql.Encoder<Pair<String, Int>>)
         val sparkTable = SparkTable(dataset, Encoders.STRING(), Encoders.INT())
 
         val result: SparkTable<String, List<Int>> = sparkTable.samplePerKey("Test", 3)
@@ -190,9 +189,9 @@ class SparkTableTest {
         val resultData = result.data.collectAsList()
         assertThat(resultData.size).isEqualTo(3)
 
-        assertThat(resultData.filter { it._1 == "one" }[0]._2.size).isEqualTo(3)
-        assertThat(resultData.filter { it._1 == "two" }[0]._2.size).isEqualTo(3)
-        assertThat(resultData.filter { it._1 == "three" }[0]._2.size).isEqualTo(2)
+        assertThat(resultData.filter { it.first == "one" }[0].second.size).isEqualTo(3)
+        assertThat(resultData.filter { it.first == "two" }[0].second.size).isEqualTo(3)
+        assertThat(resultData.filter { it.first == "three" }[0].second.size).isEqualTo(2)
     }
 
     companion object {

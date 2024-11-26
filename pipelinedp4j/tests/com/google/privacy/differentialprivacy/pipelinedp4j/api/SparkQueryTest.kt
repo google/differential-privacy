@@ -21,12 +21,12 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.spark.SparkEncoderFac
 import com.google.privacy.differentialprivacy.pipelinedp4j.spark.SparkEncodersTest
 import com.google.privacy.differentialprivacy.pipelinedp4j.spark.SparkSessionRule
 import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.Encoder
 import org.apache.spark.sql.Encoders
 import org.junit.ClassRule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.JUnit4
-import scala.Tuple2
 
 @RunWith(JUnit4::class)
 class SparkQueryTest {
@@ -37,15 +37,13 @@ class SparkQueryTest {
       Pair(Pair("group1", "pid1"), 1.0),
       Pair(Pair("group1", "pid1"), 1.5),
       Pair(Pair("group1", "pid2"), 2.0)
-    ), sparkEncoderFactory.tuple2sOf(
-      sparkEncoderFactory.tuple2sOf(sparkEncoderFactory.strings(), sparkEncoderFactory.strings()),
-      sparkEncoderFactory.doubles()).encoder)
+    ), Encoders.kryo(Pair::class.java) as Encoder<Pair<Pair<String, String>, Double>>)
 
     val publicGroups = sparkSession.spark.createDataset(listOf("group1"), Encoders.STRING())
 
     val valueExtractor = { it: Pair<Pair<String, String>, Double> -> it.second }
 
-    val result: Dataset<Tuple2<String, Map<String, Double>>> =
+    val result: Dataset<QueryPerGroupResult> =
       QueryBuilder.from(dataset, { it.first.second })
         .groupBy(
           { it.first.first },
@@ -68,49 +66,45 @@ class SparkQueryTest {
         .build()
         .run(TotalBudget(epsilon = 1000.0), NoiseKind.LAPLACE)
 
-    val output = result.collect()
-    //assertThat(output.size).isEqualTo(1)
-
-//    assertThat(output).run {
-//      hasLength(1)
-//      val queryPerGroupResult = output.iterator().next()
-//      assertThat(queryPerGroupResult._1).isEqualTo("group1")
-//      assertThat(queryPerGroupResult._2).hasSize(6)
-//      assertThat(queryPerGroupResult._2.keys).containsExactly( "pid_cnt",
-//        "cnt",
-//        "sumResult",
-//        "meanResult",
-//        "varianceResult",
-//        "quantilesResult_0.5",
-//        )
-//      assertThat(queryPerGroupResult._2["pid_cnt"]).isWithin(0.5).of(2.0)
-//      assertThat(queryPerGroupResult._2["cnt"]).isWithin(0.5).of(3.0)
-//      assertThat(queryPerGroupResult._2["sumResult"]).isWithin(0.5).of(4.5)
-//      assertThat(queryPerGroupResult._2["meanResult"]).isWithin(0.5).of(2.0)
-//      assertThat(queryPerGroupResult._2["varianceResult"]).isWithin(0.05).of(0.16)
-//      assertThat(queryPerGroupResult._2["quantilesResult_0"]).isWithin(0.5).of(1.5)
-//      null
-//    }
+    val output = result.collectAsList()
+    assertThat(output).run {
+      hasSize(1)
+      val queryPerGroupResult = output.iterator().next()
+      assertThat(queryPerGroupResult.groupKey).isEqualTo("group1")
+      assertThat(queryPerGroupResult.aggregationResults).hasSize(6)
+      assertThat(queryPerGroupResult.aggregationResults.keys).containsExactly( "pid_cnt",
+        "cnt",
+        "sumResult",
+        "meanResult",
+        "varianceResult",
+        "quantilesResult_0.5",
+        )
+      assertThat(queryPerGroupResult.aggregationResults["pid_cnt"]).isWithin(0.5).of(2.0)
+      assertThat(queryPerGroupResult.aggregationResults["cnt"]).isWithin(0.5).of(3.0)
+      assertThat(queryPerGroupResult.aggregationResults["sumResult"]).isWithin(0.5).of(4.5)
+      assertThat(queryPerGroupResult.aggregationResults["meanResult"]).isWithin(0.5).of(1.5)
+      assertThat(queryPerGroupResult.aggregationResults["varianceResult"]).isWithin(0.05).of(0.16)
+      assertThat(queryPerGroupResult.aggregationResults["quantilesResult_0.5"]).isWithin(0.5).of(1.5)
+      null
+    }
   }
 
   @Test
   fun run_sumAndQuantiles_calculatesCorrectly() {
     val dataset = sparkSession.spark.createDataset(listOf(
-      Tuple2(Tuple2("group1", "pid1"), 1.0),
-      Tuple2(Tuple2("group1", "pid1"), 1.5),
-      Tuple2(Tuple2("group1", "pid2"), 2.0)
-    ), Encoders.tuple(
-      Encoders.tuple(
-        Encoders.STRING(), Encoders.STRING()), Encoders.DOUBLE()))
+      Pair(Pair("group1", "pid1"), 1.0),
+      Pair(Pair("group1", "pid1"), 1.5),
+      Pair(Pair("group1", "pid2"), 2.0)
+    ), Encoders.kryo(Pair::class.java) as Encoder<Pair<Pair<String, String>, Double>>)
 
     val publicGroups = sparkSession.spark.createDataset(listOf("group1"), Encoders.STRING())
 
-    val valueExtractor = { it: Tuple2<Tuple2<String, String>, Double> -> it._2 }
+    val valueExtractor = { it: Pair<Pair<String, String>, Double> -> it.second }
 
-    val result: Dataset<Tuple2<String, Map<String, Double>>> =
-      QueryBuilder.from(dataset, { it._1._2 })
+    val result: Dataset<QueryPerGroupResult> =
+      QueryBuilder.from(dataset, { it.first.second })
         .groupBy(
-          { it._1._1 },
+          { it.first.first },
           maxGroupsContributed = 1,
           maxContributionsPerGroup = 2,
           publicGroups,
@@ -131,25 +125,23 @@ class SparkQueryTest {
         .build()
         .run(TotalBudget(epsilon = 1000.0), NoiseKind.LAPLACE)
 
-    val output = result.collect()
-    //assertThat(output.size).isEqualTo(1)
+    val output = result.collectAsList()
 
-//    assertThat(output).run {
-//      hasLength(1)
-//      val queryPerGroupResult = output.iterator().next()
-//      assertThat(queryPerGroupResult._1).isEqualTo("group1")
-//      assertThat(queryPerGroupResult._2).hasSize(2)
-//      assertThat(queryPerGroupResult._2.keys).containsExactly( "sumResult", "quantilesResult_0.5")
-//      assertThat(queryPerGroupResult._2["sumResult"]).isWithin(0.5).of(4.5)
-//      assertThat(queryPerGroupResult._2["quantilesResult_0.5"]).isWithin(0.5).of(1.5)
-//      null
-//    }
+    assertThat(output).run {
+      hasSize(1)
+      val queryPerGroupResult = output.iterator().next()
+      assertThat(queryPerGroupResult.groupKey).isEqualTo("group1")
+      assertThat(queryPerGroupResult.aggregationResults).hasSize(2)
+      assertThat(queryPerGroupResult.aggregationResults.keys).containsExactly( "sumResult", "quantilesResult_0.5")
+      assertThat(queryPerGroupResult.aggregationResults["sumResult"]).isWithin(0.5).of(4.5)
+      assertThat(queryPerGroupResult.aggregationResults["quantilesResult_0.5"]).isWithin(0.5).of(1.5)
+      null
+    }
   }
 
   companion object {
     @JvmField
     @ClassRule
     val sparkSession = SparkSessionRule()
-    private val sparkEncoderFactory = SparkEncoderFactory()
   }
 }

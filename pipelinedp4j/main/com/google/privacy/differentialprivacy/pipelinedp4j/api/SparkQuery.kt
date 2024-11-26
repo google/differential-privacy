@@ -6,7 +6,6 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.spark.SparkTable
 import org.apache.spark.api.java.function.MapFunction
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.Encoders
-import scala.Tuple2
 
 /**
  * A differentially-private query to run on Spark.
@@ -23,7 +22,7 @@ internal constructor(
     publicKeys: PipelineDpCollection<String>?,
     aggregations: List<AggregationSpec<T>>,
 ) :
-    Query<T, Dataset<Tuple2<String, Map<String, Double>>>>(
+    Query<T, Dataset<QueryPerGroupResult>>(
         data,
         privacyIdExtractor,
         groupKeyExtractor,
@@ -42,13 +41,15 @@ internal constructor(
     override fun run(
         budget: TotalBudget,
         noiseKind: NoiseKind,
-    ): Dataset<Tuple2<String, Map<String, Double>>> {
+    ): Dataset<QueryPerGroupResult> {
+
         val result = (runWithDpEngine(budget, noiseKind) as SparkTable<String, DpAggregates>).data
         val outputColumnNamesWithMetricTypes = aggregations.outputColumnNamesWithMetricTypes()
-        val encoder = Encoders.tuple(Encoders.STRING(), Encoders.kryo(Map::class.java) as org.apache.spark.sql.Encoder<Map<String, Double>>)
-        val mapToResultFn = { kv: Tuple2<String, DpAggregates> ->
-            val key = kv._1
-            val dpAggregates = kv._2
+        val encoder = Encoders.kryo(QueryPerGroupResult::class.java)
+
+        val mapToResultFn = { kv: Pair<String, DpAggregates> ->
+            val key = kv.first
+            val dpAggregates = kv.second
 
             val aggregationsMap =
                 buildMap<String, Double> {
@@ -68,8 +69,9 @@ internal constructor(
                     }
                 }
 
-            Tuple2(key, aggregationsMap)
+            QueryPerGroupResult(key, aggregationsMap)
         }
-        return result.map(MapFunction { kv: Tuple2<String, DpAggregates> -> mapToResultFn(kv) }, encoder)
+
+        return result.map(MapFunction { kv: Pair<String, DpAggregates> -> mapToResultFn(kv) }, encoder)
     }
 }

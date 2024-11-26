@@ -17,8 +17,6 @@
 package com.google.privacy.differentialprivacy.pipelinedp4j.api
 
 import org.apache.spark.sql.Dataset
-import scala.Tuple2
-import org.apache.beam.sdk.values.PCollection as BeamPCollection
 
 /**
  * A builder for queries on Spark.
@@ -27,7 +25,7 @@ import org.apache.beam.sdk.values.PCollection as BeamPCollection
  */
 class SparkQueryBuilder<T>
 internal constructor(data: Dataset<T>, privacyIdExtractor: (T) -> String) :
-  QueryBuilder<T, Dataset<Tuple2<String, Map<String, Double>>>>(
+  QueryBuilder<T, Dataset<QueryPerGroupResult>>(
     SparkPipelineDpCollection(data),
     privacyIdExtractor = privacyIdExtractor,
   ) {

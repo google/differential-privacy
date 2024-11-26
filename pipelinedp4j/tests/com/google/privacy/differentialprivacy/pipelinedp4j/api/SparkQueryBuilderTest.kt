@@ -19,6 +19,7 @@ package com.google.privacy.differentialprivacy.pipelinedp4j.api
 import com.google.common.truth.Truth.assertThat
 import com.google.privacy.differentialprivacy.pipelinedp4j.spark.SparkEncoderFactory
 import com.google.privacy.differentialprivacy.pipelinedp4j.spark.SparkSessionRule
+import org.apache.spark.sql.Encoder
 import kotlin.test.assertFailsWith
 import org.apache.spark.sql.Encoders
 import org.junit.ClassRule
@@ -31,13 +32,13 @@ class SparkQueryBuilderTest {
 
   @Test
   fun build_sameOutputColumnNames_throwsException() {
-    val dataset = sparkSession.spark.createDataset(listOf(), Encoders.tuple(Encoders.tuple(Encoders.STRING(), Encoders.STRING()), Encoders.DOUBLE()))
+    val dataset = sparkSession.spark.createDataset(listOf(), Encoders.kryo(Pair::class.java) as Encoder<Pair<Pair<String, String>, Double>>)
 
     val queryBuilder =
-      QueryBuilder.from(dataset, { it._1._2 })
-        .groupBy({ it._1._1 }, maxGroupsContributed = 1, maxContributionsPerGroup = 1)
+      QueryBuilder.from(dataset, { it.first.second })
+        .groupBy({ it.first.first }, maxGroupsContributed = 1, maxContributionsPerGroup = 1)
         .sum(
-          { it._2 },
+          { it.second },
           minTotalValuePerPrivacyUnitInGroup = 1.0,
           maxTotalValuePerPrivacyUnitInGroup = 2.0,
           outputColumnName = "sameColumnName",
@@ -52,19 +53,19 @@ class SparkQueryBuilderTest {
 
   @Test
   fun build_differentValues_throwsException() {
-    val dataset = sparkSession.spark.createDataset(listOf(), Encoders.tuple(Encoders.tuple(Encoders.STRING(), Encoders.STRING()), Encoders.DOUBLE()))
+    val dataset = sparkSession.spark.createDataset(listOf(), Encoders.kryo(Pair::class.java) as Encoder<Pair<Pair<String, String>, Double>>)
 
     val queryBuilder =
-      QueryBuilder.from(dataset, { it._1._2 })
-        .groupBy({ it._1._1 }, maxGroupsContributed = 1, maxContributionsPerGroup = 1)
+      QueryBuilder.from(dataset, { it.first.second })
+        .groupBy({ it.first.first }, maxGroupsContributed = 1, maxContributionsPerGroup = 1)
         .sum(
-          { it._2 },
+          { it.second },
           minTotalValuePerPrivacyUnitInGroup = 1.0,
           maxTotalValuePerPrivacyUnitInGroup = 2.0,
           outputColumnName = "sameColumnName",
         )
         .sum(
-          { it._2 * 2.0 },
+          { it.second * 2.0 },
           minTotalValuePerPrivacyUnitInGroup = 1.0,
           maxTotalValuePerPrivacyUnitInGroup = 2.0,
           outputColumnName = "otherColumnName",
@@ -78,6 +79,5 @@ class SparkQueryBuilderTest {
     @JvmField
     @ClassRule
     val sparkSession = SparkSessionRule()
-    private val sparkEncoderFactory = SparkEncoderFactory()
   }
 }

@@ -6,7 +6,6 @@ import org.junit.ClassRule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.JUnit4
-import scala.Tuple2
 
 @RunWith(JUnit4::class)
 class SparkCollectionTest {
@@ -46,7 +45,7 @@ class SparkCollectionTest {
         val result: SparkTable<String, Int> =
             sparkCollection.keyBy("Test", sparkEncoderFactory.strings(), { v -> v.toString() })
 
-        assertThat(result.data.collectAsList()).containsExactly(Tuple2("1", 1))
+        assertThat(result.data.collectAsList()).containsExactly(Pair("1", 1))
     }
 
     @Test
@@ -61,7 +60,7 @@ class SparkCollectionTest {
                 sparkEncoderFactory.ints(),
                 { v -> Pair(v.toString(), v) },
             )
-        assertThat(result.data.collectAsList()).containsExactly(Tuple2("1", 1))
+        assertThat(result.data.collectAsList()).containsExactly(Pair("1", 1))
     }
 
     companion object {
