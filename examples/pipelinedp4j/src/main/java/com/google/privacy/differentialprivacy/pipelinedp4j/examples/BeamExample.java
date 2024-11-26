@@ -36,62 +36,68 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.Validation.Required;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
-import picocli.CommandLine;
-import picocli.CommandLine.Command;
-import picocli.CommandLine.Option;
 
 /**
  * An end-to-end example how to compute DP metrics on a Netflix dataset using the library on Beam.
  *
  * <p>See README for details including how to run the example.
  */
-@Command(
-    name = "BeamExample",
-    version = {"BeamExample 1.0"},
-    mixinStandardHelpOptions = true)
-public class BeamExample implements Runnable {
-  @Option(
-      names = "--use-public-groups",
-      description =
-          "If true we will assume in the example that movie ids are publicly known and are from "
-              + "4500 to 4509"
-              + ". Default is false, i.e. we will choose movie ids in a differentially"
-              + " private way.",
-      defaultValue = "false")
-  private boolean usePublicGroups = false;
+public final class BeamExample {
+  /**
+   * Options supported by {@link BeamExample}.
+   *
+   * <p>Inherits standard configuration options.
+   */
+  public interface BeamExampleOptions extends PipelineOptions {
+    @Description(
+        "If true we will assume in the example that movie ids are publicly known and are from "
+            + "4500 to 4509"
+            + ". Default is false, i.e. we will choose movie ids in a differentially"
+            + " private way.")
+    @Default.Boolean(false)
+    boolean getUsePublicGroups();
 
-  @Option(
-      names = "--local-input-file-path",
-      description =
-          "Input file. For using as input file you can download data from"
-              + " https://www.kaggle.com/datasets/netflix-inc/netflix-prize-data. Use only part of"
-              + " it to speed up the calculations.",
-      required = true)
-  private String localInputFilePath;
+    void setUsePublicGroups(boolean usePublicGroups);
 
-  @Option(
-      names = "--local-output-file-path",
-      description = "Output file.",
-      defaultValue = "/tmp/anonymized_output.txt")
-  private String localOutputFilePath;
+    @Description(
+        "Input file. For using as input file you can download data from"
+            + " https://www.kaggle.com/datasets/netflix-inc/netflix-prize-data. Use only part of"
+            + " it to speed up the calculations.")
+    @Required
+    String getInputFilePath();
 
-  public static void main(String[] args) {
-    int exitCode = new CommandLine(new BeamExample()).execute(args);
-    System.exit(exitCode);
+    void setInputFilePath(String value);
+
+    /** Set this required option to specify where to write the output. */
+    @Description("Output file.")
+    @Required
+    String getOutputFilePath();
+
+    void setOutputFilePath(String value);
   }
 
-  @Override
-  public void run() {
+  public static void main(String[] args) {
+    BeamExampleOptions options =
+        PipelineOptionsFactory.fromArgs(args).withValidation().as(BeamExampleOptions.class);
+
+    runBeamExample(options);
+  }
+
+  static void runBeamExample(BeamExampleOptions options) {
     System.out.println("Starting calculations...");
 
-    var pipeline = initBeam();
+    var pipeline = Pipeline.create(options);
     // Read the input data, these are movie views that contain movie id, user id and rating.
-    PCollection<MovieView> data = readData(pipeline);
+    PCollection<MovieView> data = readData(pipeline, options.getInputFilePath());
 
     // Define the query
     var query =
@@ -100,7 +106,7 @@ public class BeamExample implements Runnable {
                 /* groupKeyExtractor= */ new MovieIdExtractor(),
                 /* maxGroupsContributed= */ 3,
                 /* maxContributionsPerGroup= */ 1,
-                usePublicGroups ? publiclyKnownMovieIds(pipeline) : null)
+                options.getUsePublicGroups() ? publiclyKnownMovieIds(pipeline) : null)
             .countDistinctPrivacyUnits("numberOfViewers")
             .count(/* outputColumnName= */ "numberOfViews")
             .mean(
@@ -135,7 +141,7 @@ public class BeamExample implements Runnable {
             .setCoder(movieMetricsCoder);
 
     // Save the result to a file.
-    writeOutput(anonymizedMovieMetrics);
+    writeOutput(anonymizedMovieMetrics, options.getOutputFilePath());
 
     // Run the scheduled calculations in the pipeline.
     pipeline.run().waitUntilFinish();
@@ -167,14 +173,9 @@ public class BeamExample implements Runnable {
     }
   }
 
-  private static Pipeline initBeam() {
-    var options = PipelineOptionsFactory.create();
-    return Pipeline.create(options);
-  }
-
-  private PCollection<MovieView> readData(Pipeline pipeline) {
+  private static PCollection<MovieView> readData(Pipeline pipeline, String inputFilePath) {
     PCollection<String> inputPCollection =
-        pipeline.apply("Read input", TextIO.read().from(localInputFilePath));
+        pipeline.apply("Read input", TextIO.read().from(inputFilePath));
     var coder = AvroCoder.of(MovieView.class);
     SerializableFunction<String, MovieView> parseFunction = MovieView::parseView;
     return inputPCollection
@@ -196,13 +197,15 @@ public class BeamExample implements Runnable {
     return pipeline.apply("Create public groups", Create.of(publicGroupsAsJavaList));
   }
 
-  private void writeOutput(PCollection<MovieMetrics> result) {
+  private static void writeOutput(PCollection<MovieMetrics> result, String outputFilePath) {
     SerializableFunction<MovieMetrics, String> toStringFunction = MovieMetrics::toString;
     var lines =
         result.apply(
             "Map MovieMetrics to string",
             MapElements.into(StringUtf8Coder.of().getEncodedTypeDescriptor())
                 .via(toStringFunction));
-    lines.apply("Write output to file", TextIO.write().withoutSharding().to(localOutputFilePath));
+    lines.apply("Write output to file", TextIO.write().withoutSharding().to(outputFilePath));
   }
+
+  private BeamExample() {}
 }

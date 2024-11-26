@@ -861,6 +861,113 @@ def _laplace_rdp(eps: float, order: float) -> float:
     ) / (a - 1)
 
 
+def _randomized_response_rdp_replace_special(
+    p: float, k: int, alpha: float
+) -> float:
+  """Computes RDP of Randomized Response with REPLACE_SPECIAL relation.
+
+  RDP = max{1/(a-1) * log((k * (1-p) + p)^a / k     + (k - 1) * p^a / k),
+            1/(a-1) * log((k * (1-p) + p)^{1-a} / k + (k - 1) * p^{1-a} / k)}.
+
+  Args:
+    p: The noise parameter as defined in dp_event.RandomizedResponseDpEvent.
+    k: The number of buckets for k-ary Randomized Response mechanism.
+    alpha: The Renyi divergence order(s) (a.k.a. alpha).
+
+  Returns:
+    The RDP of Randomized Response at order alpha.
+  """
+  if alpha <= 1:
+    raise ValueError(f'Renyi divergence order alpha must be > 1. Got {alpha}')
+  if k == 1 or p == 1:
+    return 0
+  if p == 0:
+    return np.inf
+  log_1 = np.log(k * (1 - p) + p)
+  log_2 = np.log(p)
+  if np.isinf(alpha):
+    # RDP infinite bound approaches epsilon-DP bound.
+    return max(log_1, -log_2)
+
+  bound1, bound2 = (
+      special.logsumexp([x * log_1, x * log_2], b=[1 / k, 1 - 1 / k])
+      for x in [alpha, 1 - alpha]
+  )
+  return max(bound1, bound2) / (alpha - 1)
+
+
+def _randomized_response_rdp_replace_one(
+    p: float, k: int, alpha: float
+) -> float:
+  """Computes RDP of Randomized Response with REPLACE_ONE relation.
+
+  The RDP is the Renyi divergence of order alpha between the following
+  distributions supported over {1, 2, ..., k}:
+    P = [ 1 - p + p/k, p/k, p/k, ... , p/k ]
+    Q = [ p/k, 1 - p + p/k, p/k, ... , p/k ]
+  RDP = 1 / (a-1) * log(
+      (1 - p + p / k)^a (p / k)^(1 - a) +
+      (p / k)^a (1 - p + p/k)^(1 - a) +
+      (k - 2) * p / k
+    )
+
+  Args:
+    p: The noise parameter as defined in dp_event.RandomizedResponseDpEvent.
+    k: The number of buckets for k-ary Randomized Response mechanism.
+    alpha: The Renyi divergence order(s) (a.k.a. alpha).
+
+  Returns:
+    The RDP of Randomized Response at order alpha.
+  """
+  if alpha <= 1:
+    raise ValueError(f'Renyi divergence order alpha must be > 1. Got {alpha}')
+  if k == 1 or p == 1:
+    return 0
+  if p == 0:
+    return np.inf
+
+  log_1 = np.log(k / p - k + 1)
+  if np.isinf(alpha):
+    return log_1
+  return special.logsumexp(
+      a=[alpha * log_1, -alpha * log_1, 0],
+      b=[p / k, 1 - p + p / k, (1 - 2 / k) * p],
+  ) / (alpha - 1)
+
+
+def _compute_randomized_response_rdp(
+    noise_parameter: float,
+    num_buckets: int,
+    alphas: Sequence[float],
+    neighboring_relation: NeighborRel,
+) -> Union[float, np.ndarray]:
+  """Computes RDP of Randomized Response with REPLACE_SPECIAL or REPLACE_ONE neighboring relation for an array of orders.
+
+  Args:
+    noise_parameter: The noise parameter as defined in
+      dp_event.RandomizedResponseDpEvent.
+    num_buckets: The number of buckets for k-ary Randomized Response mechanism.
+    alphas: The array of orders.
+    neighboring_relation: The neighboring relation.
+
+  Returns:
+    The RDP of Randomized Response at given orders.
+  """
+  if noise_parameter < 0 or noise_parameter > 1:
+    raise ValueError(f'noise_parameter must be in [0,1]. Got {noise_parameter}')
+  if num_buckets < 1:
+    raise ValueError(f'num_buckets must be >= 1. Got {num_buckets}')
+  rr_rdp_fn = (
+      _randomized_response_rdp_replace_one
+      if neighboring_relation == NeighborRel.REPLACE_ONE
+      else _randomized_response_rdp_replace_special
+  )
+  return np.array([
+      rr_rdp_fn(p=noise_parameter, k=num_buckets, alpha=alpha)
+      for alpha in alphas
+  ])
+
+
 # Default orders chosen to give good coverage for Gaussian mechanism in
 # the privacy regime of interest.
 DEFAULT_RDP_ORDERS = (
@@ -916,10 +1023,14 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
         )
       return None
     elif isinstance(event, dp_event.PoissonSampledDpEvent):
-      if self._neighboring_relation is not NeighborRel.ADD_OR_REMOVE_ONE:
+      if self._neighboring_relation not in [
+          NeighborRel.ADD_OR_REMOVE_ONE,
+          NeighborRel.REPLACE_SPECIAL,
+      ]:
         error_msg = (
-            'neighboring_relation must be `ADD_OR_REMOVE_ONE` for '
-            f'`PoissonSampledDpEvent`. Found {self._neighboring_relation}.'
+            'neighboring_relation must be `ADD_OR_REMOVE_ONE` or'
+            ' `REPLACE_SPECIAL` for `PoissonSampledDpEvent`. Found'
+            f' {self._neighboring_relation}.'
         )
         return CompositionErrorDetails(
             invalid_event=event, error_message=error_msg
@@ -1010,6 +1121,27 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
             + save_rdp
         )
       return composition_error
+    elif isinstance(event, dp_event.RandomizedResponseDpEvent):
+      if self._neighboring_relation not in [
+          NeighborRel.REPLACE_SPECIAL,
+          NeighborRel.REPLACE_ONE,
+      ]:
+        error_msg = (
+            'neighboring_relation must be `REPLACE_SPECIAL` or `REPLACE_ONE`'
+            ' for `RandomizedResponseDpEvent`. Found'
+            f' {self._neighboring_relation}.'
+        )
+        return CompositionErrorDetails(
+            invalid_event=event, error_message=error_msg
+        )
+      if do_compose:
+        self._rdp += count * _compute_randomized_response_rdp(
+            event.noise_parameter,
+            event.num_buckets,
+            self._orders,
+            self._neighboring_relation,
+        )
+      return None
     else:
       # Unsupported event (including `UnsupportedDpEvent`).
       return CompositionErrorDetails(

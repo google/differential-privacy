@@ -118,5 +118,5 @@ interface FrameworkTable<K, V> {
    * Samples values without replacement per key. The output table will contain the same keys as this
    * table, each key will appear only once. The number of values per key will be at most [count].
    */
-  fun samplePerKey(stageName: String, count: Int): FrameworkTable<K, List<V>>
+  fun samplePerKey(stageName: String, count: Int): FrameworkTable<K, Iterable<V>>
 }

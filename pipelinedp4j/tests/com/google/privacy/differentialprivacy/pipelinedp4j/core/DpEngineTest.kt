@@ -20,6 +20,10 @@ import com.google.common.collect.ImmutableList
 import com.google.common.truth.Truth.assertThat
 import com.google.privacy.differentialprivacy.GaussianNoise
 import com.google.privacy.differentialprivacy.Noise
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.ContributionBoundingLevel.DATASET_LEVEL
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.ContributionBoundingLevel.PARTITION_LEVEL
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.ExecutionMode.FULL_TEST_MODE
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.ExecutionMode.TEST_MODE_WITH_CONTRIBUTION_BOUNDING
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.COUNT
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.MEAN
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.PRIVACY_ID_COUNT
@@ -28,9 +32,6 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.SUM
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.VARIANCE
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.NoiseKind.GAUSSIAN
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.NoiseKind.LAPLACE
-import com.google.privacy.differentialprivacy.pipelinedp4j.core.PrivacyLevel.DATASET_LEVEL
-import com.google.privacy.differentialprivacy.pipelinedp4j.core.PrivacyLevel.NONE_WITHOUT_CONTRIBUTION_BOUNDING
-import com.google.privacy.differentialprivacy.pipelinedp4j.core.PrivacyLevel.NONE_WITH_CONTRIBUTION_BOUNDING
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.AbsoluteBudgetPerOpSpec
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.BudgetAccountingStrategy.NAIVE
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.BudgetPerOpSpec
@@ -402,28 +403,28 @@ class DpEngineTest {
     val expectedContributionSampler: Class<out ContributionSampler<*, *>>,
   ) {
     DATASET_LEVEL_WITH_PRIVACY_ID_COUNT_METRIC(
-      PRIVACY_ID_COUNT_PARAMS.copy(privacyLevel = DATASET_LEVEL),
+      PRIVACY_ID_COUNT_PARAMS.copy(contributionBoundingLevel = DATASET_LEVEL),
       PartitionSampler::class.java,
     ),
     DATASET_LEVEL_WITH_COUNT_METRIC(
-      COUNT_PARAMS.copy(privacyLevel = DATASET_LEVEL),
+      COUNT_PARAMS.copy(contributionBoundingLevel = DATASET_LEVEL),
       PartitionSampler::class.java,
     ),
     DATASET_LEVEL_WITH_SUM_METRIC(
-      SUM_PARAMS.copy(privacyLevel = DATASET_LEVEL),
+      SUM_PARAMS.copy(contributionBoundingLevel = DATASET_LEVEL),
       PartitionSampler::class.java,
     ),
     DATASET_LEVEL_WITH_MEAN_METRIC(
-      MEAN_PARAMS.copy(privacyLevel = DATASET_LEVEL),
+      MEAN_PARAMS.copy(contributionBoundingLevel = DATASET_LEVEL),
       PartitionAndPerPartitionSampler::class.java,
     ),
     DATASET_LEVEL_WITH_QUANTILES_METRIC(
-      QUANTILES_PARAMS.copy(privacyLevel = DATASET_LEVEL),
+      QUANTILES_PARAMS.copy(contributionBoundingLevel = DATASET_LEVEL),
       PartitionAndPerPartitionSampler::class.java,
     ),
     DATASET_LEVEL_WITH_ALL_METRICS(
       AggregationParams(
-        privacyLevel = DATASET_LEVEL,
+        contributionBoundingLevel = DATASET_LEVEL,
         noiseKind = GAUSSIAN,
         metrics =
           ImmutableList.of(
@@ -440,14 +441,95 @@ class DpEngineTest {
       ),
       PartitionAndPerPartitionSampler::class.java,
     ),
-    // It is enough to test with one metric because logic that depends on the metric is agnostic to
-    // privacy level.
-    NONE_WITH_CONTRIBUTION_BOUNDING_PRIVACY_LEVEL(
-      COUNT_PARAMS.copy(privacyLevel = NONE_WITH_CONTRIBUTION_BOUNDING),
+    PARTITION_LEVEL_WITH_PRIVACY_ID_COUNT_METRIC(
+      PRIVACY_ID_COUNT_PARAMS.copy(
+        contributionBoundingLevel = PARTITION_LEVEL,
+        maxPartitionsContributed = 1,
+      ),
+      NoPrivacySampler::class.java,
+    ),
+    PARTITION_LEVEL_WITH_COUNT_METRIC(
+      COUNT_PARAMS.copy(contributionBoundingLevel = PARTITION_LEVEL, maxPartitionsContributed = 1),
+      NoPrivacySampler::class.java,
+    ),
+    PARTITION_LEVEL_WITH_SUM_METRIC(
+      SUM_PARAMS.copy(contributionBoundingLevel = PARTITION_LEVEL, maxPartitionsContributed = 1),
+      NoPrivacySampler::class.java,
+    ),
+    PARTITION_LEVEL_WITH_MEAN_METRIC(
+      MEAN_PARAMS.copy(contributionBoundingLevel = PARTITION_LEVEL, maxPartitionsContributed = 1),
+      PerPartitionContributionsSampler::class.java,
+    ),
+    PARTITION_LEVEL_WITH_QUANTILES_METRIC(
+      QUANTILES_PARAMS.copy(
+        contributionBoundingLevel = PARTITION_LEVEL,
+        maxPartitionsContributed = 1,
+      ),
+      PerPartitionContributionsSampler::class.java,
+    ),
+    PARTITION_LEVEL_WITH_ALL_METRICS(
+      AggregationParams(
+        contributionBoundingLevel = PARTITION_LEVEL,
+        noiseKind = GAUSSIAN,
+        metrics =
+          ImmutableList.of(
+            MetricDefinition(PRIVACY_ID_COUNT),
+            MetricDefinition(COUNT),
+            MetricDefinition(SUM),
+            MetricDefinition(MEAN),
+            MetricDefinition(QUANTILES(ranks = ImmutableList.of())),
+          ),
+        maxPartitionsContributed = 1,
+        maxContributionsPerPartition = 20,
+        minValue = -10.0,
+        maxValue = 10.0,
+      ),
+      PerPartitionContributionsSampler::class.java,
+    ),
+    // Count is an example of a metric that does not require per-partition bounded input.
+    DATASET_LEVEL_COUNT_WITH_TEST_MODE_WITH_CONTRIBUTION_BOUNDING(
+      COUNT_PARAMS.copy(
+        contributionBoundingLevel = DATASET_LEVEL,
+        executionMode = TEST_MODE_WITH_CONTRIBUTION_BOUNDING,
+      ),
       PartitionSampler::class.java,
     ),
-    NONE_WITHOUT_CONTRIBUTION_BOUNDING_PRIVACY_LEVEL(
-      COUNT_PARAMS.copy(privacyLevel = NONE_WITHOUT_CONTRIBUTION_BOUNDING),
+    // Mean is an example of a metric that requires per-partition bounded input.
+    DATASET_LEVEL_MEAN_WITH_TEST_MODE_WITH_CONTRIBUTION_BOUNDING(
+      MEAN_PARAMS.copy(
+        contributionBoundingLevel = DATASET_LEVEL,
+        executionMode = TEST_MODE_WITH_CONTRIBUTION_BOUNDING,
+      ),
+      PartitionAndPerPartitionSampler::class.java,
+    ),
+    // Count is an example of a metric that does not require per-partition bounded input.
+    PARTITION_LEVEL_COUNT_WITH_TEST_MODE_WITH_CONTRIBUTION_BOUNDING(
+      COUNT_PARAMS.copy(
+        contributionBoundingLevel = PARTITION_LEVEL,
+        maxPartitionsContributed = 1,
+        executionMode = TEST_MODE_WITH_CONTRIBUTION_BOUNDING,
+      ),
+      NoPrivacySampler::class.java,
+    ),
+    // Mean is an example of a metric that requires per-partition bounded input.
+    PARTITION_LEVEL_MEAN_WITH_TEST_MODE_WITH_CONTRIBUTION_BOUNDING(
+      MEAN_PARAMS.copy(
+        contributionBoundingLevel = PARTITION_LEVEL,
+        maxPartitionsContributed = 1,
+        executionMode = TEST_MODE_WITH_CONTRIBUTION_BOUNDING,
+      ),
+      PerPartitionContributionsSampler::class.java,
+    ),
+    DATASET_LEVEL_WITH_FULL_TEST_MODE(
+      COUNT_PARAMS.copy(contributionBoundingLevel = DATASET_LEVEL, executionMode = FULL_TEST_MODE),
+      NoPrivacySampler::class.java,
+    ),
+    PARTITION_LEVEL_WITH_FULL_TEST_MODE(
+      COUNT_PARAMS.copy(
+        contributionBoundingLevel = PARTITION_LEVEL,
+        maxPartitionsContributed = 1,
+        executionMode = FULL_TEST_MODE,
+      ),
       NoPrivacySampler::class.java,
     ),
   }
@@ -487,11 +569,11 @@ class DpEngineTest {
   }
 
   @TestParameters(
-    "{privacyLevel: NONE_WITH_CONTRIBUTION_BOUNDING}",
-    "{privacyLevel: NONE_WITHOUT_CONTRIBUTION_BOUNDING}",
+    "{executionMode: TEST_MODE_WITH_CONTRIBUTION_BOUNDING}",
+    "{executionMode: FULL_TEST_MODE}",
   )
   @Test
-  fun aggregate_noPrivacy_createsNoPrivacyPartitionSelector(privacyLevel: PrivacyLevel) {
+  fun aggregate_testMode_createsNoPrivacyPartitionSelector(executionMode: ExecutionMode) {
     val graphFactorySpy: ComputationalGraphFactory = spy()
     val dpEngine =
       DpEngine.createForTesting(
@@ -503,7 +585,7 @@ class DpEngineTest {
     val unused =
       dpEngine.aggregate(
         LocalCollection(sequenceOf()),
-        PRIVACY_ID_COUNT_PARAMS.copy(privacyLevel = privacyLevel),
+        PRIVACY_ID_COUNT_PARAMS.copy(executionMode = executionMode),
         testDataExtractors,
       )
 
@@ -705,7 +787,7 @@ class DpEngineTest {
   }
 
   @Test
-  fun selectPartitons_nonePrivacyWithoutContributionBounding_computationalGraphIsCorrect() {
+  fun selectPartitons_fullTestMode_computationalGraphIsCorrect() {
     val graphFactorySpy: ComputationalGraphFactory = spy()
     val dpEngine =
       DpEngine.createForTesting(
@@ -717,10 +799,7 @@ class DpEngineTest {
     val unused =
       dpEngine.selectPartitions(
         LocalCollection(sequenceOf()),
-        SelectPartitionsParams(
-          privacyLevel = NONE_WITHOUT_CONTRIBUTION_BOUNDING,
-          maxPartitionsContributed = 5,
-        ),
+        SelectPartitionsParams(executionMode = FULL_TEST_MODE, maxPartitionsContributed = 5),
         testDataExtractors,
       )
 
@@ -734,7 +813,7 @@ class DpEngineTest {
   }
 
   @Test
-  fun selectPartitons_nonePrivacyWithContributionBounding_computationalGraphIsCorrect() {
+  fun selectPartitons_testModeWithContributionBounding_computationalGraphIsCorrect() {
     val graphFactorySpy: ComputationalGraphFactory = spy()
     val dpEngine =
       DpEngine.createForTesting(
@@ -747,7 +826,7 @@ class DpEngineTest {
       dpEngine.selectPartitions(
         LocalCollection(sequenceOf()),
         SelectPartitionsParams(
-          privacyLevel = NONE_WITH_CONTRIBUTION_BOUNDING,
+          executionMode = TEST_MODE_WITH_CONTRIBUTION_BOUNDING,
           maxPartitionsContributed = 5,
         ),
         testDataExtractors,
@@ -755,7 +834,7 @@ class DpEngineTest {
 
     verify(graphFactorySpy)
       .createForSelectPartitions(
-        isA<PartitionSampler<String, String>>(),
+        isA<PartitionSamplerWithoutValues<String, String>>(),
         isA<NoPrivacyPartitionSelector>(),
         isA<DataExtractors<TestDataRow, String, String>>(),
         any(),

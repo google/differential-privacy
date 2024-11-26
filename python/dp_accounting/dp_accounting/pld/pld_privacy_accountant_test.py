@@ -19,6 +19,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 
 from dp_accounting import dp_event
+from dp_accounting import privacy_accountant
 from dp_accounting import privacy_accountant_test
 from dp_accounting.pld import pld_privacy_accountant
 
@@ -37,6 +38,69 @@ class PldPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
     ]
 
   @parameterized.parameters(
+      (dp_event.RandomizedResponseDpEvent(0.1, 3),
+       pld_privacy_accountant.NeighborRel.ADD_OR_REMOVE_ONE,
+       'neighboring_relation must be `REPLACE_ONE` or `REPLACE_SPECIAL`'),
+      (dp_event.PoissonSampledDpEvent(0.1, dp_event.GaussianDpEvent(1.0)),
+       pld_privacy_accountant.NeighborRel.REPLACE_ONE,
+       'neighboring_relation must be `ADD_OR_REMOVE_ONE` or `REPLACE_SPECIAL`'),
+  )
+  def test_composition_errors_for_adjacency(
+      self, event, neighboring_relation, error_msg):
+    pld_accountant = pld_privacy_accountant.PLDAccountant(neighboring_relation)
+    with self.assertRaisesRegex(privacy_accountant.UnsupportedEventError,
+                                error_msg):
+      pld_accountant.compose(event)
+
+  @parameterized.named_parameters(
+      ('replace_one',
+       pld_privacy_accountant.NeighborRel.REPLACE_ONE, True),
+      ('replace_special',
+       pld_privacy_accountant.NeighborRel.REPLACE_SPECIAL, True),
+      ('add_or_remove_one',
+       pld_privacy_accountant.NeighborRel.ADD_OR_REMOVE_ONE, False),
+  )
+  def test_supports_randomized_response(
+      self, neighboring_relation, supports_composition):
+    pld_accountant = pld_privacy_accountant.PLDAccountant(neighboring_relation)
+    event = dp_event.RandomizedResponseDpEvent(noise_parameter=0.1,
+                                               num_buckets=3)
+    self.assertEqual(pld_accountant.supports(event), supports_composition)
+
+  @parameterized.named_parameters(
+      ('replace_one', pld_privacy_accountant.NeighborRel.REPLACE_ONE),
+      ('replace_special', pld_privacy_accountant.NeighborRel.REPLACE_SPECIAL),
+  )
+  def test_randomized_response_with_single_bucket(self, neighboring_relation):
+    accountant = pld_privacy_accountant.PLDAccountant(neighboring_relation)
+    accountant.compose(dp_event.RandomizedResponseDpEvent(0.0, 1))
+    self.assertEqual(accountant.get_delta(0), 0)
+    self.assertEqual(accountant.get_epsilon(0), 0)
+
+  def test_randomized_response_with_zero_noise_parameter(self):
+    accountant = pld_privacy_accountant.PLDAccountant(
+        pld_privacy_accountant.NeighborRel.REPLACE_SPECIAL)
+    accountant.compose(dp_event.RandomizedResponseDpEvent(0.0, 3))
+    self.assertEqual(accountant.get_delta(1.0), 1)
+    self.assertEqual(accountant.get_epsilon(0.01), math.inf)
+
+  @parameterized.parameters(
+      (pld_privacy_accountant.NeighborRel.REPLACE_ONE,
+       4 / (3 + math.exp(1)), 4, 1.0),
+      (pld_privacy_accountant.NeighborRel.REPLACE_SPECIAL,
+       (4 - math.exp(1)) / 3, 4, 1.0),
+      (pld_privacy_accountant.NeighborRel.REPLACE_SPECIAL,
+       math.exp(-1), 2, 1.0),
+  )
+  def test_randomized_response(
+      self, neighboring_relation,
+      noise_parameter, num_buckets, expected_epsilon):
+    accountant = pld_privacy_accountant.PLDAccountant(neighboring_relation)
+    accountant.compose(
+        dp_event.RandomizedResponseDpEvent(noise_parameter, num_buckets))
+    self.assertAlmostEqual(accountant.get_delta(expected_epsilon), 0.0)
+
+  @parameterized.parameters(
       dp_event.GaussianDpEvent(1.0),
       dp_event.SelfComposedDpEvent(dp_event.GaussianDpEvent(1.0), 6),
       dp_event.ComposedDpEvent(
@@ -49,6 +113,21 @@ class PldPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
       ]))
   def test_supports_gaussian(self, event):
     pld_accountant = pld_privacy_accountant.PLDAccountant()
+    self.assertTrue(pld_accountant.supports(event))
+
+  def test_poisson_subsampling_not_supported_for_replace_one(self):
+    pld_accountant = pld_privacy_accountant.PLDAccountant(
+        pld_privacy_accountant.NeighborRel.REPLACE_ONE)
+    event = dp_event.PoissonSampledDpEvent(0.1, dp_event.GaussianDpEvent(1.0))
+    self.assertFalse(pld_accountant.supports(event))
+
+  def test_supports_subsampled_gaussian_and_rr_composition(self):
+    pld_accountant = pld_privacy_accountant.PLDAccountant(
+        pld_privacy_accountant.NeighborRel.REPLACE_SPECIAL)
+    event = dp_event.ComposedDpEvent([
+        dp_event.PoissonSampledDpEvent(0.1, dp_event.GaussianDpEvent(1.0)),
+        dp_event.RandomizedResponseDpEvent(noise_parameter=0.1, num_buckets=3)
+    ])
     self.assertTrue(pld_accountant.supports(event))
 
   @parameterized.parameters(0, -1)

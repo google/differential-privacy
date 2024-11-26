@@ -33,6 +33,7 @@ import org.apache.beam.sdk.transforms.GroupByKey
 import org.apache.beam.sdk.transforms.Keys
 import org.apache.beam.sdk.transforms.MapElements
 import org.apache.beam.sdk.transforms.ParDo
+import org.apache.beam.sdk.transforms.Sample
 import org.apache.beam.sdk.transforms.SerializableBiFunction
 import org.apache.beam.sdk.transforms.SerializableFunction
 import org.apache.beam.sdk.transforms.Values
@@ -262,8 +263,7 @@ class BeamTable<K, V>(val data: PCollection<KV<K, V>>) : FrameworkTable<K, V> {
     return filterKeys(stageName) { k -> k in allowedKeysHashSet }
   }
 
-  override fun samplePerKey(stageName: String, count: Int): BeamTable<K, List<V>> {
-    // TODO: implement.
-    throw UnsupportedOperationException("Not implemented yet")
+  override fun samplePerKey(stageName: String, count: Int): BeamTable<K, Iterable<V>> {
+    return BeamTable(data.apply(stageName, Sample.fixedSizePerKey<K, V>(count)))
   }
 }

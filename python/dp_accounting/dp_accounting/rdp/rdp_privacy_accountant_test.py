@@ -108,6 +108,9 @@ class RdpPrivacyAccountantTest(
     ro_accountant = rdp_privacy_accountant.RdpAccountant(
         [2.0], privacy_accountant.NeighboringRelation.REPLACE_ONE
     )
+    rs_accountant = rdp_privacy_accountant.RdpAccountant(
+        [2.0], privacy_accountant.NeighboringRelation.REPLACE_SPECIAL
+    )
 
     event = dp_event.GaussianDpEvent(1.0)
     self.assertTrue(aor_accountant.supports(event))
@@ -151,6 +154,11 @@ class RdpPrivacyAccountantTest(
     )
     self.assertFalse(aor_accountant.supports(event))
     self.assertFalse(ro_accountant.supports(event))
+
+    event = dp_event.RandomizedResponseDpEvent(0.3, 15)
+    self.assertTrue(rs_accountant.supports(event))
+    self.assertTrue(ro_accountant.supports(event))
+    self.assertFalse(aor_accountant.supports(event))
 
   def test_rdp_composition(self):
     base_event = dp_event.GaussianDpEvent(3.14159)
@@ -309,6 +317,190 @@ class RdpPrivacyAccountantTest(
             rtol=1e-4,
         )
     )
+
+  @parameterized.named_parameters(
+      (
+          'small_eps',
+          0.3,
+          10,
+          [
+              1.5030552584146897,
+              1.7801182478869704,
+              1.9091969256833639,
+              1.9814516798923105,
+              1.9846954517418232,
+              1.9878743481543455,
+          ],
+      ),
+      (
+          'medium_eps',
+          0.05,
+          20,
+          [
+              2.8985312222056674,
+              2.9615414620514047,
+              2.982908949957726,
+              2.994685471627712,
+              2.9952141594692665,
+              2.995732273553991,
+          ],
+      ),
+      (
+          'large_eps',
+          0.01,
+          3,
+          [
+              3.851345343526459,
+              4.334924907685137,
+              4.503803908976894,
+              4.596895387863428,
+              4.601074578835478,
+              4.605170185988092,
+          ],
+      ),
+  )
+  def test_compute_rdp_randomized_response_replace_special(
+      self, noise_parameter, num_buckets, expected_rdps
+  ):
+    orders = [1.5, 2.5, 5, 50, 100, np.inf]
+    event = dp_event.RandomizedResponseDpEvent(noise_parameter, num_buckets)
+    accountant = rdp_privacy_accountant.RdpAccountant(
+        orders,
+        privacy_accountant.NeighboringRelation.REPLACE_SPECIAL,
+    )
+    accountant.compose(event)
+    self.assertTrue(
+        np.allclose(
+            accountant._rdp,
+            expected_rdps,
+            rtol=1e-4,
+        )
+    )
+
+  @parameterized.named_parameters(
+      (
+          'small_eps',
+          0.3,
+          10,
+          [
+              2.6946320226546314,
+              2.983865364028855,
+              3.11316970070507,
+              3.1854244842182466,
+              3.1886682560677593,
+              3.1918471524802814,
+          ],
+      ),
+      (
+          'medium_eps',
+          0.05,
+          20,
+          [
+              5.850317703374384,
+              5.910360162307462,
+              5.930633082131939,
+              5.94180620835157,
+              5.942307807732949,
+              5.942799375126701,
+          ],
+      ),
+      (
+          'large_eps',
+          0.01,
+          3,
+          [
+              5.684126770932727,
+              5.692634596034571,
+              5.695421239467805,
+              5.696956976543137,
+              5.697025920968522,
+              5.697093486505405,
+          ],
+      ),
+  )
+  def test_compute_rdp_randomized_response_replace_one(
+      self, noise_parameter, num_buckets, expected_rdps
+  ):
+    orders = [1.5, 2.5, 5, 50, 100, np.inf]
+    event = dp_event.RandomizedResponseDpEvent(noise_parameter, num_buckets)
+    accountant = rdp_privacy_accountant.RdpAccountant(
+        orders,
+        privacy_accountant.NeighboringRelation.REPLACE_ONE,
+    )
+    accountant.compose(event)
+    self.assertTrue(
+        np.allclose(
+            accountant._rdp,
+            expected_rdps,
+            rtol=1e-4,
+        )
+    )
+
+  @parameterized.named_parameters(
+      ('noise_param_1', 1, 2, [1.1, 1.2], [0, 0]),
+      ('noise_param_0', 0.0, 2, [1.1, 1.2], [np.inf, np.inf]),
+      ('num_buckets_1', 0.1, 1, [1.1, 1.2], [0, 0]),
+  )
+  def test_compute_rdp_randomized_response_boundary(
+      self, noise_param, num_buckets, alphas, expected_rdps
+  ):
+    for rel in [
+        privacy_accountant.NeighboringRelation.REPLACE_SPECIAL,
+        privacy_accountant.NeighboringRelation.REPLACE_ONE,
+    ]:
+      self.assertSequenceAlmostEqual(
+          rdp_privacy_accountant._compute_randomized_response_rdp(
+              noise_param, num_buckets, alphas, rel
+          ),
+          expected_rdps,
+      )
+
+  @parameterized.named_parameters(
+      (
+          'replace_special',
+          privacy_accountant.NeighboringRelation.REPLACE_SPECIAL,
+          2.302585092994046,
+      ),
+      (
+          'replace_one',
+          privacy_accountant.NeighboringRelation.REPLACE_ONE,
+          4.51085950651685,
+      ),
+  )
+  def test_compute_rdp_randomized_response_inf_order(self, rel, expected_rdp):
+    noise_param = 0.1
+    num_buckets = 10
+    orders = [np.inf]
+    self.assertSequenceAlmostEqual(
+        rdp_privacy_accountant._compute_randomized_response_rdp(
+            noise_param, num_buckets, orders, rel
+        ),
+        [expected_rdp],
+    )
+
+  def test_compute_rdp_randomized_response_raises(self):
+    with self.assertRaisesRegex(ValueError, 'noise_parameter must be in'):
+      for rel in [
+          privacy_accountant.NeighboringRelation.REPLACE_SPECIAL,
+          privacy_accountant.NeighboringRelation.REPLACE_ONE,
+      ]:
+        rdp_privacy_accountant._compute_randomized_response_rdp(
+            -1, 10, [1.1, 1.2], rel
+        )
+      with self.assertRaisesRegex(ValueError, 'noise_parameter must be in'):
+        rdp_privacy_accountant._compute_randomized_response_rdp(
+            2, 10, [1.1, 1.2], rel
+        )
+      with self.assertRaisesRegex(ValueError, 'num_buckets must be >= 1'):
+        rdp_privacy_accountant._compute_randomized_response_rdp(
+            0.1, 0, [1.1, 1.2], rel
+        )
+      with self.assertRaisesRegex(
+          ValueError, 'Renyi divergence order alpha must be > 1'
+      ):
+        rdp_privacy_accountant._compute_randomized_response_rdp(
+            0.1, 10, [1, 1.2], rel
+        )
 
   def test_compute_epsilon_delta_pure_dp(self):
     orders = range(2, 33)

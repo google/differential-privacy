@@ -16,14 +16,23 @@
 
 #include "algorithms/quantile-tree.h"
 
+#include <cmath>
+#include <cstdint>
+#include <limits>
 #include <memory>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
 #include "base/testing/proto_matchers.h"
 #include "base/testing/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/random/random.h"
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "algorithms/numerical-mechanisms-testing.h"
+#include "algorithms/numerical-mechanisms.h"
 #include "proto/confidence-interval.pb.h"
 
 namespace differential_privacy {
@@ -1378,6 +1387,28 @@ TYPED_TEST(QuantileTreeTest, MemoryUsed) {
   twice->AddEntry(49);
   EXPECT_GT(once->MemoryUsed(), empty->MemoryUsed());
   EXPECT_EQ(once->MemoryUsed(), twice->MemoryUsed());
+}
+
+TEST(QuantileTreeTest, BuildWithLargeDoubleBoundsFails) {
+  absl::StatusOr<std::unique_ptr<QuantileTree<double>>> quantile_tree =
+      QuantileTree<double>::Builder()
+          .SetUpper(1.7e308)
+          .SetLower(-1.7e308)
+          .Build();
+  EXPECT_THAT(quantile_tree,
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("failed floating point overflow check")));
+}
+
+TEST(QuantileTreeTest, BuildWithLargeInt64BoundsFails) {
+  absl::StatusOr<std::unique_ptr<QuantileTree<int64_t>>> quantile_tree =
+      QuantileTree<int64_t>::Builder()
+          .SetUpper(std::numeric_limits<int64_t>::max())
+          .SetLower(std::numeric_limits<int64_t>::lowest())
+          .Build();
+  EXPECT_THAT(quantile_tree,
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("failed signed integer overflow check")));
 }
 
 }  // namespace

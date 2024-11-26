@@ -655,10 +655,17 @@ func ComplementaryGaussianTolerance(flakinessK, l0Sensitivity, lInfSensitivity, 
 // LaplaceToleranceForMean returns tolerance to be used in approxEquals for tests
 // for mean to pass with 10⁻ᵏ flakiness.
 //
-// flakinessK is the parameter used to specify k in the flakiness.
+//   - flakinessK: parameter used to specify k in the flakiness.
+//   - lower: minimum possible value of the input entities.
+//   - upper: maximum possible value of the input entities.
+//   - epsilon: the differential privacy parameter epsilon.
+//   - exactNormalizedSum: clamped (with boundaries -distanceFromMidPoint and distanceFromMidPoint)
+//     sum of distances of the input entities from the mid.
+//
 // distanceFromMidPoint = upper - midPoint, where midPoint = (lower + upper)/2.
-// exactNormalizedSum is a clamped (with boundaries -distanceFromMidPoint and distanceFromMidPoint) sum of distances of the input entities from the midPoint.
-// exactNormalizedSum is needed for calculating tolerance because the algorithm of the mean aggregation uses noisy normalized sum in its calculations.
+//
+// exactNormalizedSum is needed for calculating tolerance because the algorithm of the mean
+// aggregation uses noisy normalized sum in its calculations.
 //
 // To see the logic and the math behind flakiness and tolerance calculation,
 // See https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf
@@ -669,8 +676,14 @@ func LaplaceToleranceForMean(flakinessK, lower, upper float64, maxContributionsP
 	normalizedSumFlakinessK := countFlakinessK // We use the same flakiness for simplicity.
 	halfEpsilon := epsilon / 2
 
-	_, l1Count, _ := sensitivitiesForCount(maxContributionsPerPartition, maxPartitionsContributed)
-	_, l1NormalizedSum, _ := sensitivitiesForNormalizedSum(lower, upper, maxContributionsPerPartition, maxPartitionsContributed)
+	computer := sensitivityComputer{
+		Lower:                        lower,
+		Upper:                        upper,
+		MaxContributionsPerPartition: maxContributionsPerPartition,
+		MaxPartitionsContributed:     maxPartitionsContributed,
+	}
+	l1Count := computer.SensitivitiesForCount().L1
+	l1NormalizedSum := computer.SensitivitiesForNormalizedSum().L1
 
 	countTolerance := math.Ceil(LaplaceTolerance(countFlakinessK, l1Count, halfEpsilon))
 	normalizedSumTolerance := LaplaceTolerance(normalizedSumFlakinessK, l1NormalizedSum, halfEpsilon)
@@ -680,42 +693,59 @@ func LaplaceToleranceForMean(flakinessK, lower, upper float64, maxContributionsP
 // ToleranceForMean returns tolerance to be used in approxEquals or checkMetricsAreNoisy for tests
 // for mean to pass with 10⁻ᵏ flakiness.
 //
-// flakinessK is the parameter used to specify k in the flakiness.
+//   - flakinessK: parameter used to specify k in the flakiness.
+//   - exactNormalizedSum: clamped (with boundaries -distanceFromMidPoint and distanceFromMidPoint)
+//     sum of distances of the input entities from the midPoint.
+//
 // distanceFromMidPoint = upper - midPoint, where midPoint = (lower + upper)/2.
-// exactNormalizedSum is a clamped (with boundaries -distanceFromMidPoint and distanceFromMidPoint) sum of distances of the input entities from the midPoint.
-// exactNormalizedSum is needed for calculating tolerance because the algorithm of the mean aggregation uses noisy normalized sum in its calculations.
+//
+// exactNormalizedSum is needed for calculating tolerance because the algorithm of the mean
+// aggregation uses noisy normalized sum in its calculations.
 //
 // To see the logic and the math behind flakiness and tolerance calculation,
 // see https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf.
 func ToleranceForMean(lower, upper, exactNormalizedSum, exactCount, exactMean, countTolerance, normalizedSumTolerance float64) (float64, error) {
 	midPoint := lower + (upper-lower)/2.0
 
-	minNoisyCount := math.Max(1.0, exactCount-countTolerance)
-	maxNoisyCount := math.Max(1.0, exactCount+countTolerance)
-	minNoisyNormalizedSum := exactNormalizedSum - normalizedSumTolerance
-	maxNoisyNormalizedSum := exactNormalizedSum + normalizedSumTolerance
-	minNoisyMeanCount := maxNoisyCount
-	maxNoisyMeanCount := minNoisyCount
-	// If the numerator (min/max noisy normalized sum) of the mean is negative,
-	// min/max noisy counts should switch places to find min/max noisy mean.
-	if minNoisyNormalizedSum < 0 {
-		minNoisyMeanCount = minNoisyCount
-	}
-	if maxNoisyNormalizedSum < 0 {
-		maxNoisyMeanCount = maxNoisyCount
-	}
-	minNoisyMean, err := dpagg.ClampFloat64(minNoisyNormalizedSum/minNoisyMeanCount+midPoint, lower, upper)
-	if err != nil {
-		return 0, err
-	}
-	maxNoisyMean, err := dpagg.ClampFloat64(maxNoisyNormalizedSum/maxNoisyMeanCount+midPoint, lower, upper)
-	if err != nil {
-		return 0, err
-	}
-	distFromMinNoisyMean := distanceBetween(exactMean, minNoisyMean)
-	distFromMaxNoisyMean := distanceBetween(maxNoisyMean, exactMean)
+	minNoisyCount := math.Max(1.0, exactCount-countTolerance)            // c_-
+	maxNoisyCount := math.Max(1.0, exactCount+countTolerance)            // c_+
+	minNoisyNormalizedSum := exactNormalizedSum - normalizedSumTolerance // s_-
+	maxNoisyNormalizedSum := exactNormalizedSum + normalizedSumTolerance // s_+
 
-	return math.Max(distFromMaxNoisyMean, distFromMinNoisyMean), nil
+	// Find m_- and m_+ such that {s \in [s_-, s_+] and c \in [c_-, c_+]} implies {m \in [m_-, m_+]}.
+	//
+	// 1. For m_-:
+	//   - If s_- >= 0, then m_- = s_-/c_+.
+	//   - Otherwise, m_- = s_-/c_-.
+	// 2. For m_+:
+	//   - If s_+ >= 0, then m_+ = s_+/c_-.
+	//   - Otherwise, m_+ = s_+/c_+.
+
+	getMBound := func(a, b, c float64) (float64, error) {
+		// If the numerator (min/max noisy normalized sum) of the mean is negative,
+		// min/max noisy counts should switch places to find min/max noisy mean.
+		normalizedBound := a / b
+		if a < 0 {
+			normalizedBound = a / c
+		}
+		return dpagg.ClampFloat64(normalizedBound+midPoint, lower, upper)
+	}
+	// Get M_- = m_- + midPoint.
+	minNoisyMean, err := getMBound(minNoisyNormalizedSum, maxNoisyCount, minNoisyCount)
+	if err != nil {
+		return 0, err
+	}
+	// Get M_+ = m_+ + midPoint.
+	maxNoisyMean, err := getMBound(maxNoisyNormalizedSum, minNoisyCount, maxNoisyCount)
+	if err != nil {
+		return 0, err
+	}
+
+	// Return the tolerance as max(|exactMean - M_-| , |exactMean - M_+|).
+	return math.Max(
+		distanceBetween(exactMean, minNoisyMean),
+		distanceBetween(maxNoisyMean, exactMean),
+	), nil
 }
 
 // QuantilesTolerance returns tolerance to be used in approxEquals for tests
@@ -735,20 +765,42 @@ func distanceBetween(a, b float64) float64 {
 	return math.Abs(a - b)
 }
 
-func sensitivitiesForNormalizedSum(lower, upper float64, maxContributionsPerPartition, maxPartitionsContributed int64) (l0Sensitivity, l1Sensitivity, lInfSensitivity float64) {
-	midPoint := lower + (upper-lower)/2.0
-	maxDistFromMidpoint := upper - midPoint
-	l0Sensitivity = float64(maxPartitionsContributed)
-	lInfSensitivity = maxDistFromMidpoint * float64(maxContributionsPerPartition)
-	l1Sensitivity = l0Sensitivity * lInfSensitivity
-	return l0Sensitivity, l1Sensitivity, lInfSensitivity
+type sensitivityComputer struct {
+	Lower, Upper                 float64
+	MaxContributionsPerPartition int64
+	MaxPartitionsContributed     int64
 }
 
-func sensitivitiesForCount(maxContributionsPerPartition, maxPartitionsContributed int64) (l0Sensitivity, l1Sensitivity, lInfSensitivity float64) {
-	l0Sensitivity = float64(maxPartitionsContributed)
-	lInfSensitivity = float64(maxContributionsPerPartition)
-	l1Sensitivity = l0Sensitivity * lInfSensitivity
-	return l0Sensitivity, l1Sensitivity, lInfSensitivity
+type sensitivity struct {
+	L0   float64 // L0 sensitivity
+	LInf float64 // LInf sensitivity
+	L1   float64 // L1 sensitivity
+}
+
+func (c *sensitivityComputer) MaxDistFromMidPoint() float64 {
+	midPoint := c.Lower + (c.Upper-c.Lower)/2.0
+	return c.Upper - midPoint
+}
+
+func (c *sensitivityComputer) MaxContributions() float64 {
+	return float64(c.MaxContributionsPerPartition) * float64(c.MaxPartitionsContributed)
+}
+
+func (c *sensitivityComputer) SensitivitiesForNormalizedSum() sensitivity {
+	maxDistFromMidpoint := c.MaxDistFromMidPoint()
+	return sensitivity{
+		L0:   float64(c.MaxPartitionsContributed),
+		LInf: maxDistFromMidpoint * float64(c.MaxContributionsPerPartition),
+		L1:   maxDistFromMidpoint * c.MaxContributions(),
+	}
+}
+
+func (c *sensitivityComputer) SensitivitiesForCount() sensitivity {
+	return sensitivity{
+		L0:   float64(c.MaxPartitionsContributed),
+		LInf: float64(c.MaxContributionsPerPartition),
+		L1:   float64(c.MaxContributionsPerPartition) * float64(c.MaxPartitionsContributed),
+	}
 }
 
 // Int64Ptr transforms an int64 into an *int64.

@@ -20,10 +20,10 @@ import com.google.common.collect.ImmutableList
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.extensions.proto.ProtoTruth.assertThat
 import com.google.privacy.differentialprivacy.Noise
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.ExecutionMode.FULL_TEST_MODE
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.COUNT
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.MEAN
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.SUM
-import com.google.privacy.differentialprivacy.pipelinedp4j.core.PrivacyLevel.NONE_WITHOUT_CONTRIBUTION_BOUNDING
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.AllocatedBudget
 import com.google.privacy.differentialprivacy.pipelinedp4j.dplibrary.NoiseFactory
 import com.google.privacy.differentialprivacy.pipelinedp4j.dplibrary.ZeroNoiseFactory
@@ -121,14 +121,10 @@ class MeanCombinerTest {
   }
 
   @Test
-  fun createAccumulator_privacyLevelWithoutContributionBounding_doesNotClampValues() {
+  fun createAccumulator_fullTestMode_doesNotClampValues() {
     val combiner =
       MeanCombiner(
-        AGG_PARAMS.copy(
-          minValue = -10.0,
-          maxValue = 10.0,
-          privacyLevel = NONE_WITHOUT_CONTRIBUTION_BOUNDING,
-        ),
+        AGG_PARAMS.copy(minValue = -10.0, maxValue = 10.0, executionMode = FULL_TEST_MODE),
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),

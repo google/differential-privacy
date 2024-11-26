@@ -62,11 +62,12 @@ maven_install(
     artifacts = [
         "com.google.privacy.differentialprivacy:differentialprivacy:3.0.0",
         "com.google.protobuf:protobuf-kotlin:3.18.0",
-        "info.picocli:picocli:4.7.6",
         "org.apache.beam:beam-runners-direct-java:2.49.0",
         "org.apache.beam:beam-sdks-java-core:2.49.0",
         "org.apache.beam:beam-sdks-java-extensions-avro:2.49.0",
         "org.apache.beam:beam-sdks-java-extensions-protobuf:2.49.0",
+        # For logging to console.
+        "org.slf4j:slf4j-jdk14:1.7.36",
     ],
     repositories = [
         "https://maven.google.com",

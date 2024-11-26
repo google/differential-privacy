@@ -26,9 +26,10 @@ java_binary(
     deps = [
         "@com_google_privacy_differentialprivacy_pipielinedp4j//main/com/google/privacy/differentialprivacy/pipelinedp4j/api",
         "@maven//:com_google_guava_guava",
-        "@maven//:info_picocli_picocli",
         "@maven//:org_apache_beam_beam_sdks_java_core",
         "@maven//:org_apache_beam_beam_sdks_java_extensions_avro",
         "@maven//:org_jetbrains_kotlin_kotlin_stdlib",
+        # For logging to console.
+        "@maven//:org_slf4j_slf4j_jdk14",
     ],
 )

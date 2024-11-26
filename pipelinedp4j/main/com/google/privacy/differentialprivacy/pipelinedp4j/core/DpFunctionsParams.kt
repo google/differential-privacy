@@ -18,13 +18,14 @@ package com.google.privacy.differentialprivacy.pipelinedp4j.core
 
 import com.google.common.collect.ImmutableList
 import com.google.errorprone.annotations.Immutable
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.ContributionBoundingLevel.DATASET_LEVEL
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.ContributionBoundingLevel.PARTITION_LEVEL
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.COUNT
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.MEAN
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.PRIVACY_ID_COUNT
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.QUANTILES
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.SUM
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.VARIANCE
-import com.google.privacy.differentialprivacy.pipelinedp4j.core.PrivacyLevel.DATASET_LEVEL
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.AbsoluteBudgetPerOpSpec
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.BudgetPerOpSpec
 import java.io.Serializable
@@ -39,9 +40,14 @@ const val MAX_PROCESSED_CONTRIBUTIONS_PER_PRIVACY_ID: Int = 100_000_000
 
 /** Contains shared parameters for validation. */
 sealed interface Params {
-  /** The privacy level that determines the kind of bounding. */
-  val privacyLevel: PrivacyLevel
-  /** The maximum number of partitions that can be contributed by a privacy unit. */
+  /** The contribution bounding level that determines the kind of bounding. */
+  val contributionBoundingLevel: ContributionBoundingLevel
+  /**
+   * The maximum number of partitions that can be contributed by a privacy unit.
+   *
+   * Must be set to 1 if contributionBoundingLevel is PARTITION_LEVEL to disable cross-partition
+   * bounding.
+   */
   val maxPartitionsContributed: Int?
   /**
    * The pre-threshold to use for partition selection.
@@ -51,7 +57,62 @@ sealed interface Params {
    * applied.
    */
   val preThreshold: Int
+  // TODO: move this field out of params to show that params represent params in the
+  // production execution mode and other execution modes modify them on top of it.
+  /** Execution mode of the DP engine. */
+  val executionMode: ExecutionMode
+
+  /**
+   * Whether per-partition contribution bounding should be applied with respect to execution mode.
+   *
+   * It can be used outside of this class to determine whether per-partition contribution bounding
+   * should be applied with respect to [contributionBoundingLevel] and [executionMode].
+   *
+   * This property should not be used for validation of [Params] because it accounts for the
+   * execution mode and validation should always be performed for the production mode only.
+   * [contributionBoundingLevel] represents the contribution bounding level that is used in
+   * production therefore only its values should be used for validation.
+   */
+  val applyPerPartitionBounding: Boolean
+    get() =
+      perPartitionContributionBoundingShouldBeApplied(executionMode, contributionBoundingLevel)
+
+  /**
+   * Whether cross-partition contribution bounding should be applied with respect to execution mode.
+   *
+   * It can be used outside of this class to determine whether cross-partition contribution bounding
+   * should be applied with respect to [executionMode] and [contributionBoundingLevel].
+   *
+   * This property should not be used for validation of [Params] because it accounts for the
+   * execution mode and validation should always be performed for the production mode only.
+   * [contributionBoundingLevel] represents the contribution bounding level that is used in
+   * production therefore only its values should be used for validation.
+   */
+  val applyPartitionsContributedBounding: Boolean
+    get() = partitionsContributedBoundingShouldBeApplied(executionMode, contributionBoundingLevel)
 }
+
+/**
+ * Determines whether per-partition contribution bounding should be applied given [executionMode]
+ * and [contributionBoundingLevel].
+ */
+fun perPartitionContributionBoundingShouldBeApplied(
+  executionMode: ExecutionMode,
+  contributionBoundingLevel: ContributionBoundingLevel,
+): Boolean =
+  executionMode.appliesContributionBounding &&
+    contributionBoundingLevel.withContributionsPerPartitionBounding
+
+/**
+ * Determines whether cross-partition contribution bounding should be applied given [executionMode]
+ * and [contributionBoundingLevel].
+ */
+private fun partitionsContributedBoundingShouldBeApplied(
+  executionMode: ExecutionMode,
+  contributionBoundingLevel: ContributionBoundingLevel,
+): Boolean =
+  executionMode.appliesContributionBounding &&
+    contributionBoundingLevel.withPartitionsContributedBounding
 
 /**
  * The parameters of the metrics being anonymized: the metric types, the contribution bounds, etc.
@@ -107,8 +168,13 @@ data class AggregationParams(
   val partitionSelectionBudget: AbsoluteBudgetPerOpSpec? = null,
   /** The pre-threshold to use for partition selection. */
   override val preThreshold: Int = 1,
-  /** The privacy level that determines the kind of contribution bounding in aggregations. */
-  override val privacyLevel: PrivacyLevel = DATASET_LEVEL,
+  /**
+   * The contribution bounding level that determines the kind of contribution bounding in
+   * aggregations and partition selection if partitions are private.
+   */
+  override val contributionBoundingLevel: ContributionBoundingLevel = DATASET_LEVEL,
+  /** Execution mode of the DP engine, default is PRODUCTION. */
+  override val executionMode: ExecutionMode = ExecutionMode.PRODUCTION,
   /**
    * The balance of partitions.
    *
@@ -139,10 +205,10 @@ fun validateAggregationParams(
   // Validate params shared between AggregationParams and SelectPartitionsParams.
   validateBaseParams(params)
 
-  // Privacy level and maxPartitionsContributed are in sync.
-  if (params.privacyLevel.withPartitionsContributedBounding) {
+  // Contribution bounding level and maxPartitionsContributed are in sync.
+  if (params.contributionBoundingLevel.withPartitionsContributedBounding) {
     require(params.maxPartitionsContributed != null || params.maxContributions != null) {
-      "maxPartitionsContributed or maxContributions must be set because specified ${params.privacyLevel} privacy level requires cross partition bounding."
+      "maxPartitionsContributed or maxContributions must be set because specified ${params.contributionBoundingLevel} contribution bounding level requires cross partition bounding."
     }
   }
 
@@ -156,13 +222,13 @@ fun validateAggregationParams(
     "maxContributionsPerPartition must be positive. Provided value: " +
       "${params.maxContributionsPerPartition}."
   }
-  if (params.privacyLevel.withContributionsPerPartitionBounding) {
+  if (params.contributionBoundingLevel.withContributionsPerPartitionBounding) {
     require(
       params.maxContributionsPerPartition != null ||
         params.maxContributions != null ||
         (params.minTotalValue != null && params.maxTotalValue != null)
     ) {
-      "maxContributionsPerPartition or maxContributions or (minTotalValue, maxTotalValue) must be set because specified ${params.privacyLevel} privacy level requires per partition bounding."
+      "maxContributionsPerPartition or maxContributions or (minTotalValue, maxTotalValue) must be set because specified ${params.contributionBoundingLevel} contribution bounding level requires per partition bounding."
     }
   }
   // Max contributions.
@@ -314,8 +380,13 @@ data class SelectPartitionsParams(
   val budget: AbsoluteBudgetPerOpSpec? = null,
   /** The pre-threshold to use for partition selection. */
   override val preThreshold: Int = 1,
-  /** The privacy level that determines the kind of contribution bounding in partition selection. */
-  override val privacyLevel: PrivacyLevel = DATASET_LEVEL,
+  /**
+   * The contribution bounding level that determines the kind of contribution bounding in partition
+   * selection.
+   */
+  override val contributionBoundingLevel: ContributionBoundingLevel = DATASET_LEVEL,
+  /** Execution mode of the DP engine, default is PRODUCTION. */
+  override val executionMode: ExecutionMode = ExecutionMode.PRODUCTION,
 ) : Params, Serializable
 
 /** Validates [SelectPartitionsParams]. */
@@ -339,28 +410,76 @@ enum class PartitionsBalance {
   UNBALANCED,
 }
 
-/** The type of privacy level that determines the kind of contribution bounding. */
-enum class PrivacyLevel(
-  val privacyDisabled: Boolean,
-  val withPartitionsContributedBounding: Boolean,
-  val withContributionsPerPartitionBounding: Boolean,
+// TODO: Move maxPartitionsContributed and maxContributionsPerPartition to
+// ContributionBoundingLevel.
+/** The type of contribution bounding to be applied. */
+enum class ContributionBoundingLevel(
+  internal val withPartitionsContributedBounding: Boolean,
+  internal val withContributionsPerPartitionBounding: Boolean,
 ) {
+  /** Enables contribution bounding across the whole dataset. */
   DATASET_LEVEL(
-    privacyDisabled = false,
     withPartitionsContributedBounding = true,
     withContributionsPerPartitionBounding = true,
-  ), // Enables contribution bounding across dataset.
-  NONE_WITHOUT_CONTRIBUTION_BOUNDING(
-    privacyDisabled = true,
+  ),
+  /** Enables contribution bounding only within partitions. */
+  PARTITION_LEVEL(
     withPartitionsContributedBounding = false,
-    withContributionsPerPartitionBounding = false,
-  ), // No privacy, use only for testing and utility analysis.
-  NONE_WITH_CONTRIBUTION_BOUNDING(
-    privacyDisabled = true,
-    withPartitionsContributedBounding = true,
     withContributionsPerPartitionBounding = true,
-  ), // No privacy with cross and per partition bounding, use only for testing
-  // and utility analysis.
+  ),
+}
+
+/**
+ * The execution mode of the DP engine.
+ *
+ * @property appliesContributionBounding whether contribution bounding should be applied in this
+ *   mode. If [appliesContributionBounding] is false, then [ContributionBoundingLevel] will be
+ *   ignored. If true then contribution bounding will be applied normally according to
+ *   [ContributionBoundingLevel].
+ * @property appliesNoise whether noise should be applied in this mode. If [appliesNoise] is false,
+ *   then at the time of noise addition a zero noise will be used, however the provided [NoiseKind]
+ *   will remain the same and still be used. If true, then noise will be added normally according to
+ *   [NoiseKind].
+ * @property partitionSelectionIsNonDeterministic whether partition selection should be
+ *   non-deterministic in this mode. If [partitionSelectionIsNonDeterministic] is false, then
+ *   partition selection will be deterministic and output all partitions that are present in the
+ *   data. If true, then partition selection will be non-deterministic and differentially private.
+ */
+enum class ExecutionMode(
+  val appliesContributionBounding: Boolean,
+  val appliesNoise: Boolean,
+  val partitionSelectionIsNonDeterministic: Boolean,
+) {
+  /**
+   * Production execution mode.
+   *
+   * Only this mode should be used in production code. It does not affect the execution in any form
+   * and fully respects the other executon params (i.e. it does not affect contribution bounding,
+   * noise, parititon selection, etc.).
+   */
+  PRODUCTION(
+    appliesContributionBounding = true,
+    appliesNoise = true,
+    partitionSelectionIsNonDeterministic = true,
+  ),
+  /**
+   * Test mode when contribution bounding is applied, but no noise is added and partition selection
+   * is deterministic.
+   */
+  TEST_MODE_WITH_CONTRIBUTION_BOUNDING(
+    appliesContributionBounding = true,
+    appliesNoise = false,
+    partitionSelectionIsNonDeterministic = false,
+  ),
+  /**
+   * Test mode when no contribution bounding and no noise are applied and partition selection is
+   * deterministic.
+   */
+  FULL_TEST_MODE(
+    appliesContributionBounding = false,
+    appliesNoise = false,
+    partitionSelectionIsNonDeterministic = false,
+  ),
 }
 
 /** The definition of the DP metric to compute. */
@@ -428,6 +547,14 @@ private fun validateBaseParams(params: Params) {
   ) {
     "maxPartitionsContributed must be less than ${MAX_PROCESSED_CONTRIBUTIONS_PER_PRIVACY_ID} " +
       "Provided values: maxPartitionsContributed=${params.maxPartitionsContributed}."
+  }
+  // Contribution bounding level.
+  require(
+    params.contributionBoundingLevel != PARTITION_LEVEL ||
+      (params.contributionBoundingLevel == PARTITION_LEVEL && params.maxPartitionsContributed == 1)
+  ) {
+    "maxPartitionsContributed must be 1 if partition level contribution bounding is set. " +
+      "Provided value: ${params.maxPartitionsContributed}."
   }
 
   // Pre-threshold.

@@ -77,15 +77,24 @@ class DpFunctionsParamsTest {
       aggregationParams = AGGREGATION_PARAMS.copy(maxPartitionsContributed = 0),
       exceptionMessage = "maxPartitionsContributed must be positive. Provided value: 0.",
     ),
-    MAX_PARTITIONS_CONTRIBUTED_NOT_SET_WHEN_PRIVACY_LEVEL_REQUIRES_CROSS_PARTITION_BOUNDING(
+    PARTITION_LEVEL_CONTRIBUTION_BOUNDING_MAX_PARTITIONS_CONTRIBUTED(
       aggregationParams =
         AGGREGATION_PARAMS.copy(
-          privacyLevel = PrivacyLevel.DATASET_LEVEL,
+          contributionBoundingLevel = ContributionBoundingLevel.PARTITION_LEVEL,
+          maxPartitionsContributed = 2,
+        ),
+      exceptionMessage =
+        "maxPartitionsContributed must be 1 if partition level contribution bounding is set. Provided value: 2",
+    ),
+    MAX_PARTITIONS_CONTRIBUTED_NOT_SET_WHEN_CONTRIBUTION_BOUNDING_LEVEL_REQUIRES_CROSS_PARTITION_BOUNDING(
+      aggregationParams =
+        AGGREGATION_PARAMS.copy(
+          contributionBoundingLevel = ContributionBoundingLevel.DATASET_LEVEL,
           maxPartitionsContributed = null,
           maxContributions = null,
         ),
       exceptionMessage =
-        "maxPartitionsContributed or maxContributions must be set because specified DATASET_LEVEL privacy level requires cross partition bounding",
+        "maxPartitionsContributed or maxContributions must be set because specified DATASET_LEVEL contribution bounding level requires cross partition bounding",
     ),
     NOT_POSITIVE_PRETHRESHOLD(
       aggregationParams = AGGREGATION_PARAMS.copy(preThreshold = 0),
@@ -102,6 +111,16 @@ class DpFunctionsParamsTest {
     NEGATIVE_MAX_CONTRIBUTIONS_PER_PARTITION(
       aggregationParams = AGGREGATION_PARAMS.copy(maxContributionsPerPartition = -1),
       exceptionMessage = "maxContributionsPerPartition must be positive. Provided value: -1.",
+    ),
+    MAX_CONTRIBUTIONS_PER_PARTITION_NOT_SET_WHEN_CONTRIBUTION_BOUNDING_LEVEL_REQUIRES_PER_PARTITION_BOUNDING(
+      aggregationParams =
+        AGGREGATION_PARAMS.copy(
+          contributionBoundingLevel = ContributionBoundingLevel.PARTITION_LEVEL,
+          maxContributionsPerPartition = null,
+          maxContributions = null,
+        ),
+      exceptionMessage =
+        "maxContributionsPerPartition or maxContributions or (minTotalValue, maxTotalValue) must be set because specified PARTITION_LEVEL contribution bounding level requires per partition bounding",
     ),
     ZERO_MAX_CONTRIBUTIONS(
       aggregationParams = AGGREGATION_PARAMS.copy(maxContributions = 0),
@@ -444,6 +463,15 @@ class DpFunctionsParamsTest {
     NOT_POSITIVE_MAX_PARTITION_CONTRIBUTED(
       selectPartitionsParams = SELECT_PARTITIONS_PARAMS.copy(maxPartitionsContributed = 0),
       exceptionMessage = "maxPartitionsContributed must be positive. Provided value: 0.",
+    ),
+    PARTITION_LEVEL_CONTRIBUTION_BOUNDING_MAX_PARTITIONS_CONTRIBUTED(
+      selectPartitionsParams =
+        SELECT_PARTITIONS_PARAMS.copy(
+          contributionBoundingLevel = ContributionBoundingLevel.PARTITION_LEVEL,
+          maxPartitionsContributed = 2,
+        ),
+      exceptionMessage =
+        "maxPartitionsContributed must be 1 if partition level contribution bounding is set. Provided value: 2",
     ),
     NOT_POSITIVE_PRETHRESHOLD(
       selectPartitionsParams = SELECT_PARTITIONS_PARAMS.copy(preThreshold = 0),

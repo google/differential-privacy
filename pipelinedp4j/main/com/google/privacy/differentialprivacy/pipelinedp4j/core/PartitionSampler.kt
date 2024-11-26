@@ -96,7 +96,7 @@ class PartitionSamplerWithoutValues<PrivacyIdT : Any, PartitionKeyT : Any>(
         _,
         contributions ->
         // Contribtions is a list of size 1, since we sampled 1 element per key.
-        contributions[0].privacyId() to contributions[0].partitionKey()
+        contributions.first().privacyId() to contributions.first().partitionKey()
       }
       .samplePerKey("L0Sampling", maxPartitionsContributed)
       .flatMapToTable(

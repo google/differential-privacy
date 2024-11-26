@@ -19,6 +19,7 @@ import unittest
 from absl.testing import parameterized
 from scipy import stats
 
+from dp_accounting import privacy_accountant
 from dp_accounting.pld import common
 from dp_accounting.pld import pld_pmf
 from dp_accounting.pld import privacy_loss_distribution
@@ -2075,57 +2076,193 @@ class MixtureGaussianPrivacyLossDistributionTest(parameterized.TestCase):
 
 class RandomizedResponsePrivacyLossDistributionTest(parameterized.TestCase):
 
-  @parameterized.parameters((0.5, 2, {
-      2: 0.75,
-      -1: 0.25
-  }), (0.2, 4, {
-      3: 0.85,
-      -2: 0.05,
-      0: 0.1
-  }))
-  def test_randomized_response_basic(
-      self, noise_parameter, num_buckets,
-      expected_rounded_pmf):
+  @parameterized.parameters(
+      dict(
+          noise_parameter=0.5,
+          num_buckets=2,
+          neighbor_rel=privacy_accountant.NeighboringRelation.REPLACE_ONE,
+          expected_rounded_pmf={
+              2: 0.75,  # ceil(log(3)) = ceil(1.098).
+              -1: 0.25,  # ceil(-log(3)) = ceil(-1.098).
+          },
+      ),
+      dict(
+          noise_parameter=0.5,
+          num_buckets=2,
+          neighbor_rel=privacy_accountant.NeighboringRelation.REPLACE_SPECIAL,
+          expected_rounded_pmf={
+              1: 0.75,  # ceil(log(3/2)) = ceil(0.405).
+              0: 0.25,  # ceil(log(1/2))) = ceil(-0.693).
+          },
+          expected_rounded_pmf_add={
+              1: 0.5,  # ceil(log(2)) = ceil(0.693).
+              0: 0.5,  # ceil(log(2/3)) = ceil(-0.405).
+          }
+      ),
+      dict(
+          noise_parameter=0.2,
+          num_buckets=4,
+          neighbor_rel=privacy_accountant.NeighboringRelation.REPLACE_ONE,
+          expected_rounded_pmf={
+              3: 0.85,  # ceil(log(17)) = ceil(2.833)
+              -2: 0.05,  # ceil(-log(17)) = ceil(-2.833)
+              0: 0.1,
+          }
+      ),
+      dict(
+          noise_parameter=0.2,
+          num_buckets=4,
+          neighbor_rel=privacy_accountant.NeighboringRelation.REPLACE_SPECIAL,
+          expected_rounded_pmf={
+              2: 0.85,  # ceil(log(0.85 / 0.25)) = ceil(1.224)
+              -1: 0.15,  # ceil(log(0.05 / 0.25)) = ceil(-1.609).
+          },
+          expected_rounded_pmf_add={
+              2: 0.75,  # ceil(log(0.25 / 0.05)) = ceil(1.609).
+              -1: 0.25,  # ceil(log(0.25 / 0.85)) = ceil(-1.224).
+          },
+      ),
+  )
+  def test_randomized_response_pessimistic(
+      self, noise_parameter, num_buckets, neighbor_rel,
+      expected_rounded_pmf, expected_rounded_pmf_add=None):
     # Set value_discretization_interval = 1 here.
     pld = privacy_loss_distribution.from_randomized_response(
-        noise_parameter, num_buckets, value_discretization_interval=1)
-    _assert_pld_pmf_equal(self, pld, expected_rounded_pmf, 0.0)
+        noise_parameter, num_buckets,
+        value_discretization_interval=1,
+        neighboring_relation=neighbor_rel)
+    if neighbor_rel == privacy_accountant.NeighboringRelation.REPLACE_ONE:
+      _assert_pld_pmf_equal(self, pld, expected_rounded_pmf, 0.0)
+    else:  # Case of REPLACE_SPECIAL.
+      _assert_pld_pmf_equal(
+          self, pld, expected_rounded_pmf_add, 0.0, expected_rounded_pmf, 0.0
+      )
 
-  @parameterized.parameters((0.7, {
-      5: 0.85,
-      -4: 0.05,
-      0: 0.1
-  }), (2, {
-      2: 0.85,
-      -1: 0.05,
-      0: 0.1
-  }))
+  @parameterized.parameters(
+      dict(
+          value_discretization_interval=0.7,
+          neighbor_rel=privacy_accountant.NeighboringRelation.REPLACE_ONE,
+          expected_rounded_pmf={
+              5: 0.85,
+              -4: 0.05,
+              0: 0.1,
+          },
+      ),
+      dict(
+          value_discretization_interval=0.5,
+          neighbor_rel=privacy_accountant.NeighboringRelation.REPLACE_SPECIAL,
+          expected_rounded_pmf={
+              3: 0.85,
+              -3: 0.15,
+          },
+          expected_rounded_pmf_add={
+              4: 0.75,
+              -2: 0.25,
+          },
+      ),
+      dict(
+          value_discretization_interval=2,
+          neighbor_rel=privacy_accountant.NeighboringRelation.REPLACE_ONE,
+          expected_rounded_pmf={
+              2: 0.85,
+              -1: 0.05,
+              0: 0.1,
+          },
+      ),
+      dict(
+          value_discretization_interval=2,
+          neighbor_rel=privacy_accountant.NeighboringRelation.REPLACE_SPECIAL,
+          expected_rounded_pmf={
+              1: 0.85,
+              0: 0.15,
+          },
+          expected_rounded_pmf_add={
+              1: 0.75,
+              0: 0.25,
+          },
+      ),
+  )
   def test_randomized_response_discretization(
-      self, value_discretization_interval, expected_rounded_pmf):
+      self, value_discretization_interval, neighbor_rel,
+      expected_rounded_pmf, expected_rounded_pmf_add=None):
     # Set noise_parameter = 0.2, num_buckets = 4 here.
-    # The true (non-discretized) PLD is
-    # {2.83321334: 0.85, -2.83321334: 0.05, 0: 0.1}.
     pld = privacy_loss_distribution.from_randomized_response(
-        0.2, 4, value_discretization_interval=value_discretization_interval)
-    _assert_pld_pmf_equal(self, pld, expected_rounded_pmf, 0.0)
+        0.2, 4, value_discretization_interval=value_discretization_interval,
+        neighboring_relation=neighbor_rel)
+    if neighbor_rel == privacy_accountant.NeighboringRelation.REPLACE_ONE:
+      # The true (non-discretized) PLD is
+      # {2.83321334: 0.85, -2.83321334: 0.05, 0: 0.1}.
+      _assert_pld_pmf_equal(self, pld, expected_rounded_pmf, 0.0)
+    else:  # Case of REPLACE_SPECIAL
+      # The true (non-discretized) PLD is
+      # REMOVE: {1.224: 0.85, -1.609: 0.15}.
+      # ADD: {1.609: 0.75, -1.224: 0.25}.
+      _assert_pld_pmf_equal(
+          self, pld, expected_rounded_pmf_add, 0.0, expected_rounded_pmf, 0.0)
 
-  @parameterized.parameters((0.5, 2, {
-      1: 0.75,
-      -2: 0.25
-  }), (0.2, 4, {
-      2: 0.85,
-      -3: 0.05,
-      0: 0.1
-  }))
+  @parameterized.parameters(
+      dict(
+          noise_parameter=0.5,
+          num_buckets=2,
+          neighbor_rel=privacy_accountant.NeighboringRelation.REPLACE_ONE,
+          expected_rounded_pmf={
+              1: 0.75,  # floor(log(3)) = floor(1.098).
+              -2: 0.25,  # floor(-log(3)) = floor(-1.098).
+          },
+      ),
+      dict(
+          noise_parameter=0.5,
+          num_buckets=2,
+          neighbor_rel=privacy_accountant.NeighboringRelation.REPLACE_SPECIAL,
+          expected_rounded_pmf={
+              0: 0.75,  # floor(log(3/2)) = floor(0.405).
+              -1: 0.25,  # floor(log(1/2))) = floor(-0.693).
+          },
+          expected_rounded_pmf_add={
+              0: 0.5,  # floor(log(2)) = floor(0.693).
+              -1: 0.5,  # floor(log(2/3)) = floor(-0.405).
+          }
+      ),
+      dict(
+          noise_parameter=0.2,
+          num_buckets=4,
+          neighbor_rel=privacy_accountant.NeighboringRelation.REPLACE_ONE,
+          expected_rounded_pmf={
+              2: 0.85,  # floor(log(17)) = floor(2.833)
+              -3: 0.05,  # floor(-log(17)) = floor(-2.833)
+              0: 0.1,
+          }
+      ),
+      dict(
+          noise_parameter=0.2,
+          num_buckets=4,
+          neighbor_rel=privacy_accountant.NeighboringRelation.REPLACE_SPECIAL,
+          expected_rounded_pmf={
+              1: 0.85,  # floor(log(0.85 / 0.25)) = floor(1.224)
+              -2: 0.15,  # floor(log(0.05 / 0.25)) = floor(-1.609).
+          },
+          expected_rounded_pmf_add={
+              1: 0.75,  # floor(log(0.25 / 0.05)) = floor(1.609).
+              -2: 0.25,  # floor(log(0.25 / 0.85)) = floor(-1.224).
+          },
+      ),
+  )
   def test_randomized_response_optimistic(
-      self, noise_parameter, num_buckets, expected_rounded_pmf):
+      self, noise_parameter, num_buckets, neighbor_rel,
+      expected_rounded_pmf, expected_rounded_pmf_add=None):
     # Set value_discretization_interval = 1 here.
     pld = privacy_loss_distribution.from_randomized_response(
         noise_parameter,
         num_buckets,
         pessimistic_estimate=False,
-        value_discretization_interval=1)
-    _assert_pld_pmf_equal(self, pld, expected_rounded_pmf, 0.0)
+        value_discretization_interval=1,
+        neighboring_relation=neighbor_rel)
+    if neighbor_rel == privacy_accountant.NeighboringRelation.REPLACE_ONE:
+      _assert_pld_pmf_equal(self, pld, expected_rounded_pmf, 0.0)
+    else:  # Case of REPLACE_SPECIAL.
+      _assert_pld_pmf_equal(
+          self, pld, expected_rounded_pmf_add, 0.0, expected_rounded_pmf, 0.0
+      )
 
   @parameterized.parameters((0.0, 10), (1.1, 4), (0.5, 1))
   def test_randomized_response_value_errors(self, noise_parameter, num_buckets):

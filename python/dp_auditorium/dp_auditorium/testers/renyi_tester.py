@@ -88,7 +88,7 @@ class RenyiModel(tf.keras.Model):
     self.optimizer.apply_gradients(zip(d_loss, trainable_vars))
     return {'divergence': divergence}
 
-  def call(
+  def call(  # pytype: disable=annotation-type-mismatch
       self, data: tuple[np.ndarray, np.ndarray], training: bool = None
   ) -> tf.Tensor:
     """Estimate renyi divergence from samples and current nn_model.

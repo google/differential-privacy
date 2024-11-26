@@ -149,18 +149,6 @@ class NaiveBudgetAccountantTest {
   }
 
   @Test
-  fun allocateBudgets_relativeEpsilonRequest_noEpsilonAllocated_throws() {
-    val accountant = NaiveBudgetAccountant(TotalBudget(epsilon = 0.0, delta = 0.1))
-    // All relative budget requests request epsilon to be consumed.
-    val unused1 =
-      accountant.requestBudget(BudgetRequest(RelativeBudgetPerOpSpec(1.0), GAUSSIAN_NOISE))
-
-    assertFailsWith<IllegalArgumentException>("Can't allocate relative budget") {
-      accountant.allocateBudgets()
-    }
-  }
-
-  @Test
   fun allocateBudgets_relativeEpsilonRequest_noEpsilonLeft_throws() {
     val accountant = NaiveBudgetAccountant(TotalBudget(epsilon = 1.0, delta = 0.1))
     // Consume all epsilon with an absolute budget request

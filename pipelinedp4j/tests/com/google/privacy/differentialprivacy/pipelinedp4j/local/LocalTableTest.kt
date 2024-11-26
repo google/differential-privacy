@@ -226,12 +226,12 @@ class LocalTableTest {
         )
       )
 
-    val result: LocalTable<String, List<Int>> = localTable.samplePerKey("Test", 3)
+    val result: LocalTable<String, Iterable<Int>> = localTable.samplePerKey("Test", 3)
 
     val resultData = result.data.toList()
     assertThat(resultData.size).isEqualTo(3)
-    assertThat(resultData.filter { it.first == "one" }[0].second.size).isEqualTo(3)
-    assertThat(resultData.filter { it.first == "two" }[0].second.size).isEqualTo(3)
-    assertThat(resultData.filter { it.first == "three" }[0].second.size).isEqualTo(2)
+    assertThat(resultData.filter { it.first == "one" }[0].second.toList().size).isEqualTo(3)
+    assertThat(resultData.filter { it.first == "two" }[0].second.toList().size).isEqualTo(3)
+    assertThat(resultData.filter { it.first == "three" }[0].second.toList().size).isEqualTo(2)
   }
 }

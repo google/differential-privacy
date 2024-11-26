@@ -53,6 +53,7 @@ py_test(
     deps = [
         ":pld_privacy_accountant",
         "//dp_accounting:dp_event",
+        "//dp_accounting:privacy_accountant",
         "//dp_accounting:privacy_accountant_test",
         requirement("absl-py"),
     ],
@@ -120,6 +121,7 @@ py_library(
         ":common",
         ":pld_pmf",
         ":privacy_loss_mechanism",
+        "//dp_accounting:privacy_accountant",
         requirement("numpy"),
     ],
 )
@@ -134,6 +136,7 @@ py_test(
         ":pld_pmf",
         ":privacy_loss_distribution",
         ":test_util",
+        "//dp_accounting:privacy_accountant",
         requirement("absl-py"),
         requirement("scipy"),
     ],
