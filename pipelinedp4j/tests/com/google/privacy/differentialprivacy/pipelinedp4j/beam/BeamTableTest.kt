@@ -150,7 +150,7 @@ class BeamTableTest {
   }
 
   @Test
-  fun keys_returnsValues() {
+  fun values_returnsValues() {
     val pCollection =
       testPipeline.apply(
         Create.of(listOf(KV.of("key", "value")))
