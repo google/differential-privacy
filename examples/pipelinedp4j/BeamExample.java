@@ -146,21 +146,21 @@ public class BeamExample implements Runnable {
   // doesn't implement Serializable interface, it will fail on Beam. If it doesn't implement
   // Function1, it will fail at compile time due to types mismatch. Do not use lambdas for data
   // extractors as they won't be serializable.
-  static class UserIdExtractor implements Function1<MovieView, String>, Serializable {
+  private static class UserIdExtractor implements Function1<MovieView, String>, Serializable {
     @Override
     public String invoke(MovieView movieView) {
       return movieView.getUserId();
     }
   }
 
-  static class MovieIdExtractor implements Function1<MovieView, String>, Serializable {
+  private static class MovieIdExtractor implements Function1<MovieView, String>, Serializable {
     @Override
     public String invoke(MovieView movieView) {
       return movieView.getMovieId();
     }
   }
 
-  static class RatingExtractor implements Function1<MovieView, Double>, Serializable {
+  private static class RatingExtractor implements Function1<MovieView, Double>, Serializable {
     @Override
     public Double invoke(MovieView movieView) {
       return movieView.getRating();

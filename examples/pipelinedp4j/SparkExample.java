@@ -133,21 +133,21 @@ public class SparkExample implements Runnable {
   // doesn't implement Serializable interface, it will fail on Spark. If it doesn't implement
   // Function1, it will fail at compile time due to types mismatch. Do not use lambdas for data
   // extractors as they won't be serializable.
-  static class UserIdExtractor implements Function1<MovieView, String>, Serializable {
+  private static class UserIdExtractor implements Function1<MovieView, String>, Serializable {
     @Override
     public String invoke(MovieView movieView) {
       return movieView.getUserId();
     }
   }
 
-  static class MovieIdExtractor implements Function1<MovieView, String>, Serializable {
+  private static class MovieIdExtractor implements Function1<MovieView, String>, Serializable {
     @Override
     public String invoke(MovieView movieView) {
       return movieView.getMovieId();
     }
   }
 
-  static class RatingExtractor implements Function1<MovieView, Double>, Serializable {
+  private static class RatingExtractor implements Function1<MovieView, Double>, Serializable {
     @Override
     public Double invoke(MovieView movieView) {
       return movieView.getRating();
@@ -184,8 +184,7 @@ public class SparkExample implements Runnable {
   }
 
   private void writeOutput(Dataset<MovieMetrics> result) {
-    MapFunction<MovieMetrics, String> toStringFunction = MovieMetrics::toString;
-    Dataset<String> lines = result.map(toStringFunction, Encoders.STRING());
+    Dataset<String> lines = result.map((MapFunction<MovieMetrics, String>) MovieMetrics::toString, Encoders.STRING());
     lines.write()
         .mode(SaveMode.Overwrite) // Overwrite existing file if any
         .text(localOutputFilePath);
