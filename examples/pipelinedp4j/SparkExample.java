@@ -106,8 +106,6 @@ public class SparkExample implements Runnable {
     Dataset<QueryPerGroupResult> result =
         query.run(new TotalBudget(/* epsilon= */ 1.1, /* delta= */ 1e-10), NoiseKind.LAPLACE);
 
-    System.out.println("result " + result.collectAsList());
-
     // Convert the result to better representation, i.e. to MovieMetrics.
     Encoder<MovieMetrics> movieMetricsEncoder = Encoders.kryo(MovieMetrics.class);
     MapFunction<QueryPerGroupResult, MovieMetrics> mapToMovieMetricsFn =
