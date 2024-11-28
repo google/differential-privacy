@@ -131,7 +131,7 @@ public class SparkExample implements Runnable {
 
   // Data extractors. They always have to implement Function1 and Serializable interfaces. If it
   // doesn't implement Serializable interface, it will fail on Spark. If it doesn't implement
-  // Function1, it will at compile time due to types mismatch. Do not use lambdas for data
+  // Function1, it will fail at compile time due to types mismatch. Do not use lambdas for data
   // extractors as they won't be serializable.
   static class UserIdExtractor implements Function1<MovieView, String>, Serializable {
     @Override
@@ -170,7 +170,7 @@ public class SparkExample implements Runnable {
   }
 
   /**
-   * Movie ids (which are group keys for this dataset) are integers from 1 to ~17000. Set public
+   * Movie ids (which are group keys for this dataset) are integers from 4500-4509. Set public
    * groups 1-10.
    */
   private static Dataset<String> publiclyKnownMovieIds(SparkSession spark) {
