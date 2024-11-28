@@ -25,9 +25,6 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.SUM
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.VARIANCE
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.NoiseKind.GAUSSIAN
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.NoiseKind.LAPLACE
-import com.google.privacy.differentialprivacy.pipelinedp4j.core.PrivacyLevel.DATASET_LEVEL
-import com.google.privacy.differentialprivacy.pipelinedp4j.core.PrivacyLevel.NONE_WITHOUT_CONTRIBUTION_BOUNDING
-import com.google.privacy.differentialprivacy.pipelinedp4j.core.PrivacyLevel.NONE_WITH_CONTRIBUTION_BOUNDING
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.AbsoluteBudgetPerOpSpec
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.AccountedMechanism.GAUSSIAN_NOISE
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.AccountedMechanism.LAPLACE_NOISE
@@ -112,10 +109,10 @@ internal constructor(
     )
     // Beyond this point we can assume aggregation parameters are correct.
     val noiseFactory =
-      if (aggregationParams.privacyLevel.privacyDisabled) {
-        ZeroNoiseFactory()
-      } else {
+      if (aggregationParams.executionMode.appliesNoise) {
         defaultNoiseFactory
+      } else {
+        ZeroNoiseFactory()
       }
     val compoundCombiner =
       createCompoundCombiner(aggregationParams, uniquePublicPartitions != null, noiseFactory)
@@ -167,29 +164,23 @@ internal constructor(
     throwIfDoneWasCalled()
     validateSelectPartitionsParams(params)
 
-    val (contributionSampler, partitionSelector) =
-      when (params.privacyLevel) {
-        NONE_WITHOUT_CONTRIBUTION_BOUNDING ->
-          NoPrivacySampler(
-            dataExtractors.privacyIdEncoder,
-            dataExtractors.partitionKeyEncoder,
-            encoderFactory,
-          ) to NoPrivacyPartitionSelector()
-        NONE_WITH_CONTRIBUTION_BOUNDING ->
-          PartitionSampler(
-            params.maxPartitionsContributed,
-            dataExtractors.privacyIdEncoder,
-            dataExtractors.partitionKeyEncoder,
-            encoderFactory,
-          ) to NoPrivacyPartitionSelector()
-        DATASET_LEVEL ->
-          PartitionSamplerWithoutValues(
-            params.maxPartitionsContributed,
-            dataExtractors.privacyIdEncoder,
-            dataExtractors.partitionKeyEncoder,
-            encoderFactory,
-          ) to createPartitionSelector(params)
-      }
+    val partitionSelector =
+      if (params.executionMode.partitionSelectionIsNonDeterministic) createPartitionSelector(params)
+      else NoPrivacyPartitionSelector()
+    val contributionSampler =
+      if (params.applyPartitionsContributedBounding)
+        PartitionSamplerWithoutValues(
+          params.maxPartitionsContributed,
+          dataExtractors.privacyIdEncoder,
+          dataExtractors.partitionKeyEncoder,
+          encoderFactory,
+        )
+      else
+        NoPrivacySampler(
+          dataExtractors.privacyIdEncoder,
+          dataExtractors.partitionKeyEncoder,
+          encoderFactory,
+        )
 
     val graph: SelectPartitionsComputationalGraph<T, PrivacyIdT, PartitionKeyT> =
       computationalGraphFactory.createForSelectPartitions(
@@ -225,11 +216,7 @@ internal constructor(
     privacyIdEncoder: Encoder<PrivacyIdT>,
     partitionKeyEncoder: Encoder<PartitionKeyT>,
   ): ContributionSampler<PrivacyIdT, PartitionKeyT> {
-    val privacyLevel = params.privacyLevel
-    return if (
-      privacyLevel.withPartitionsContributedBounding &&
-        privacyLevel.withContributionsPerPartitionBounding
-    ) {
+    return if (params.applyPerPartitionBounding && params.applyPartitionsContributedBounding) {
       if (combiner.requiresPerPartitionBoundedInput) {
         PartitionAndPerPartitionSampler(
           params.maxPartitionsContributed!!,
@@ -246,16 +233,16 @@ internal constructor(
           encoderFactory,
         )
       }
-    } else if (privacyLevel.withPartitionsContributedBounding) {
-      // && !withContributionsPerPartitionBounding
+    } else if (params.applyPartitionsContributedBounding) {
+      // && !applyPerPartitionBounding
       PartitionSampler(
         params.maxPartitionsContributed!!,
         privacyIdEncoder,
         partitionKeyEncoder,
         encoderFactory,
       )
-    } else if (privacyLevel.withContributionsPerPartitionBounding) {
-      // && !withPartitionsContributedBounding
+    } else if (params.applyPerPartitionBounding) {
+      // && !applyPartitionsContributedBounding
       if (combiner.requiresPerPartitionBoundedInput) {
         PerPartitionContributionsSampler(
           params.maxContributionsPerPartition!!,
@@ -267,7 +254,7 @@ internal constructor(
         NoPrivacySampler(privacyIdEncoder, partitionKeyEncoder, encoderFactory)
       }
     } else {
-      // !withPartitionsContributedBounding && !withContributionsPerPartitionBounding
+      // !applyPartitionsContributedBounding && !applyPerPartitionBounding
       NoPrivacySampler(privacyIdEncoder, partitionKeyEncoder, encoderFactory)
     }
   }
@@ -339,7 +326,8 @@ internal constructor(
   private fun createPartitionSelectorIfPreaggregationIsUsed(
     params: AggregationParams
   ): PreAggregationPartitionSelector? {
-    if (params.privacyLevel.privacyDisabled) {
+    // If partition selection is deterministic, we create a no-op partition selector.
+    if (!params.executionMode.partitionSelectionIsNonDeterministic) {
       return NoPrivacyPartitionSelector()
     }
     if (usePostAggregationPartitionSelection(params, usePublicPartitions = false)) return null
@@ -474,4 +462,4 @@ private fun usePostAggregationPartitionSelection(
 ): Boolean =
   !usePublicPartitions &&
     params.metrics.any { it.type == PRIVACY_ID_COUNT } &&
-    params.privacyLevel == DATASET_LEVEL
+    params.executionMode.partitionSelectionIsNonDeterministic

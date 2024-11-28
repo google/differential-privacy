@@ -65,4 +65,12 @@ private class KotlinPairCoder<FirstT, SecondT>(
     val second = secondCoder.decode(inStream)
     return Pair(first, second)
   }
+
+  override fun verifyDeterministic() {
+    Coder.verifyDeterministic(
+      this,
+      "KotlinPairCoder is not deterministic",
+      listOf(firstCoder, secondCoder),
+    )
+  }
 }

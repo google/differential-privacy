@@ -55,6 +55,30 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
         if result is not None:
           return result
       return None
+    elif isinstance(event, dp_event.RandomizedResponseDpEvent):
+      if self.neighboring_relation not in [NeighborRel.REPLACE_ONE,
+                                           NeighborRel.REPLACE_SPECIAL]:
+        error_msg = (
+            'neighboring_relation must be `REPLACE_ONE` or '
+            '`REPLACE_SPECIAL` for `RandomizedResponseDpEvent`. Found '
+            f'{self._neighboring_relation}.')
+        return CompositionErrorDetails(
+            invalid_event=event, error_message=error_msg)
+      if do_compose:
+        if event.num_buckets == 1:
+          # This is a NoOp event, even when noise_parameter is zero.
+          pass
+        elif event.noise_parameter == 0:
+          self._contains_non_dp_event = True
+        else:
+          rr_pld = PLD.from_randomized_response(
+              noise_parameter=event.noise_parameter,
+              num_buckets=event.num_buckets,
+              value_discretization_interval=self._value_discretization_interval,
+              neighboring_relation=self._neighboring_relation,
+          )
+          self._pld = self._pld.compose(rr_pld)
+      return None
     elif isinstance(event, dp_event.GaussianDpEvent):
       if do_compose:
         if event.noise_multiplier == 0:
@@ -92,10 +116,13 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
           self._pld = self._pld.compose(mog_pld)
       return None
     elif isinstance(event, dp_event.PoissonSampledDpEvent):
-      if self.neighboring_relation != NeighborRel.ADD_OR_REMOVE_ONE:
+      if self.neighboring_relation not in [
+          NeighborRel.ADD_OR_REMOVE_ONE, NeighborRel.REPLACE_SPECIAL
+      ]:
         error_msg = (
-            'neighboring_relation must be `ADD_OR_REMOVE_ONE` for '
-            f'`PoissonSampledDpEvent`. Found {self._neighboring_relation}.')
+            'neighboring_relation must be `ADD_OR_REMOVE_ONE` or '
+            '`REPLACE_SPECIAL` for `PoissonSampledDpEvent`. Found '
+            f'{self._neighboring_relation}.')
         return CompositionErrorDetails(
             invalid_event=event, error_message=error_msg)
       if isinstance(event.event, dp_event.GaussianDpEvent):

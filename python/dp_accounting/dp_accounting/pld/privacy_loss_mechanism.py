@@ -100,7 +100,128 @@ class ConnectDotsBounds:
   upper_x: Optional[int] = None
 
 
-class AdditiveNoisePrivacyLoss(metaclass=abc.ABCMeta):
+class MonotonePrivacyLoss(metaclass=abc.ABCMeta):
+  """Superclass for privacy loss distributions that are monotone in x.
+
+  Given distributions mu_upper and mu_lower over real numbers, the privacy loss
+  function is defined as: privacy_loss(x) := ln(mu_upper(x) / mu_lower(x)).
+  The privacy loss distribution is generated as follows:
+  - Sample x ~ mu_upper and let the privacy loss be privacy_loss(x).
+
+  This class assumes that privacy_loss(x) is non-increasing as x increases.
+
+  Attributes:
+    is_discrete: a value indicating whether the privacy loss distribution is
+      discrete. If this is True, then it is assumed that mu_upper and mu_lower
+      are supported over integer values. If False, then it is assumed that
+      mu_upper and mu_lower are supported over real numbers.
+  """
+
+  def __init__(self, is_discrete: bool):
+    self.is_discrete = is_discrete
+
+  @abc.abstractmethod
+  def mu_upper_cdf(
+      self, x: Union[float, Iterable[float]]) -> Union[float, np.ndarray]:
+    """Computes the cumulative density function of the mu_upper distribution.
+
+    Args:
+      x: the point or points at which the cumulative density function is to be
+        calculated.
+
+    Returns:
+      The cumulative density function of the mu_upper distribution at x, i.e.,
+      the probability that mu_upper is less than or equal to x.
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def mu_lower_log_cdf(
+      self, x: Union[float, Iterable[float]]) -> Union[float, np.ndarray]:
+    """Computes log cumulative density function of the mu_lower distribution.
+
+    Args:
+      x: the point or points at which the log of the cumulative density function
+        is to be calculated.
+
+    Returns:
+      The log of the cumulative density function of the mu_lower distribution at
+      x, i.e., the log of the probability that mu_lower is less than or equal to
+      x.
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def get_delta_for_epsilon(
+      self, epsilon: Union[float, Sequence[float]],
+  ) -> Union[float, Sequence[float]]:
+    """Computes the epsilon-hockey stick divergence of the mechanism.
+
+    The epsilon-hockey stick divergence of the mechanism is the value of delta
+    for which the mechanism is (epsilon, delta)-differentially private. (See
+    Observation 1 in the supplementary material.)
+
+    Args:
+      epsilon: the epsilon, or list-like object of epsilon values, in
+      epsilon-hockey stick divergence.
+
+    Returns:
+      A non-negative real number which is the epsilon-hockey stick divergence of
+      the mechanism, or a numpy array if epsilon is list-like.
+    """
+
+  @abc.abstractmethod
+  def privacy_loss_tail(self) -> TailPrivacyLossDistribution:
+    """Computes the privacy loss at the tail of the distribution.
+
+    Returns:
+      A TailPrivacyLossDistribution instance representing the tail of the
+      privacy loss distribution.
+
+    Raises:
+      NotImplementedError: If not implemented by the subclass.
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def connect_dots_bounds(self) -> ConnectDotsBounds:
+    """Computes the bounds on epsilon values to use in connect-the-dots algorithm.
+
+    Returns:
+      A ConnectDotsBounds instance containing either
+      - upper and lower values of epsilon for continuous privacy loss
+        distributions, or
+      - lower and upper values of x for discrete privacy loss distributions.
+      These values are to be used in connect-the-dots algorithm.
+    """
+
+  @abc.abstractmethod
+  def privacy_loss(self, x: float) -> float:
+    """Computes the privacy loss at a given point.
+
+    Args:
+      x: the point at which the privacy loss is computed.
+
+    Returns:
+      The privacy loss at point x.
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def inverse_privacy_loss(self, privacy_loss: float) -> float:
+    """Computes the inverse of a given privacy loss.
+
+    Args:
+      privacy_loss: the privacy loss value.
+
+    Returns:
+      The largest float x such that the privacy loss at x is at least
+      privacy_loss.
+    """
+    raise NotImplementedError
+
+
+class AdditiveNoisePrivacyLoss(MonotonePrivacyLoss, metaclass=abc.ABCMeta):
   """Superclass for privacy loss of additive noise mechanisms.
 
   An additive noise mechanism for computing a scalar-valued function f is a
@@ -146,7 +267,7 @@ class AdditiveNoisePrivacyLoss(metaclass=abc.ABCMeta):
   Attributes:
     sensitivity: the sensitivity of function f. (i.e. the maximum absolute
       change in f when an input to a single user changes.)
-    discrete_noise: a value indicating whether the noise is discrete. If this
+    is_discrete: a value indicating whether the noise is discrete. If this
         is True, then it is assumed that the noise can only take integer values.
         If False, then it is assumed that the noise is continuous, i.e., the
         probability mass at any given point is zero.
@@ -157,7 +278,7 @@ class AdditiveNoisePrivacyLoss(metaclass=abc.ABCMeta):
 
   def __init__(self,
                sensitivity: float,
-               discrete_noise: bool,
+               is_discrete: bool,
                sampling_prob: float = 1.0,
                adjacency_type: AdjacencyType = AdjacencyType.REMOVE):
     if sensitivity <= 0:
@@ -167,9 +288,9 @@ class AdditiveNoisePrivacyLoss(metaclass=abc.ABCMeta):
       raise ValueError(
           f'Sampling probability is not in (0,1] : {sampling_prob}')
     self.sensitivity = sensitivity
-    self.discrete_noise = discrete_noise
     self.sampling_prob = sampling_prob
     self.adjacency_type = adjacency_type
+    super().__init__(is_discrete=is_discrete)
 
   def mu_upper_cdf(
       self, x: Union[float, Iterable[float]]) -> Union[float, np.ndarray]:
@@ -1693,7 +1814,7 @@ def _pl_without_sampling_remove(pl, sampling_prob):
   return -_pl_without_sampling_add(-pl, sampling_prob)
 
 
-class MixtureGaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
+class MixtureGaussianPrivacyLoss(MonotonePrivacyLoss):
   """Privacy loss of the Mixture of Gaussians mechanism.
 
   This class gives the privacy loss for a scalar Gaussian mechanism where the
@@ -1743,11 +1864,13 @@ class MixtureGaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
   fact that this class is more general.
 
   Attributes:
+    adjacency_type: type of adjacency relation to used for defining the privacy
+        loss distribution.
     sensitivities: the support of the sensitivity distribution.
     sampling_probs: the probabilities associated with the sensitivities.
   """
 
-  def __init__(  # pylint: disable=super-init-not-called
+  def __init__(
       self,
       standard_deviation: float,
       sensitivities: Sequence[float],
@@ -1811,7 +1934,7 @@ class MixtureGaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
         raise ValueError(
             f'Sampling probability is not in (0,1] : {sampling_prob}'
         )
-    self.discrete_noise = False
+    super().__init__(is_discrete=False)
     self.adjacency_type = adjacency_type
     self.sampling_probs = sampling_probs
     self.sensitivities = sensitivities
@@ -2041,13 +2164,6 @@ class MixtureGaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
       summands = self._precompute_privacy_loss_constants - x_loss
       return np.logaddexp.reduce(summands)
 
-  def privacy_loss_without_subsampling(self, x: float) -> float:
-    raise NotImplementedError(
-        'MixtureGaussianPrivacyLoss uses multiple sensitivities, so '
-        'privacy loss without subsampling is ill-defined. Use '
-        'privacy_loss_for_single_gaussian instead.'
-    )
-
   def privacy_loss_for_single_gaussian(
       self,
       x: Union[float, np.ndarray],
@@ -2073,15 +2189,6 @@ class MixtureGaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
     else:  # Case: self.adjacency_type == AdjacencyType.REMOVE
       scale = -0.5
     return sensitivity * (scale * sensitivity - x) / (self._variance)
-
-  def inverse_privacy_loss_without_subsampling(
-      self, privacy_loss: float
-  ) -> float:
-    raise NotImplementedError(
-        'MixtureGaussianPrivacyLoss uses multiple sensitivities, so '
-        'inverse_privacy_loss_without_subsampling is ill-defined. Use '
-        'inverse_privacy_loss_for_single_gaussian instead.'
-    )
 
   def inverse_privacy_loss_for_single_gaussian(
       self,
@@ -2306,17 +2413,3 @@ class MixtureGaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
       log of the probability that the Gaussian noise is less than or equal to x.
     """
     return self._gaussian_random_variable.logcdf(x)
-
-  @classmethod
-  def from_privacy_guarantee(
-      cls,
-      privacy_parameters: common.DifferentialPrivacyParameters,
-      sensitivity: float = 1,
-      pessimistic_estimate: bool = True,
-      sampling_prob: float = 1.0,
-      adjacency_type: AdjacencyType = AdjacencyType.REMOVE,
-  ) -> 'MixtureGaussianPrivacyLoss':
-    raise NotImplementedError(
-        'MixtureGaussianPrivacy loss cannot be uniquely '
-        'instantiated from privacy parameters.'
-    )

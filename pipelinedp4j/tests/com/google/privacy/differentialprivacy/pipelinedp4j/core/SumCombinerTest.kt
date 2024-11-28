@@ -20,9 +20,9 @@ import com.google.common.collect.ImmutableList
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.extensions.proto.ProtoTruth.assertThat
 import com.google.privacy.differentialprivacy.Noise
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.ExecutionMode.FULL_TEST_MODE
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.SUM
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.NoiseKind.GAUSSIAN
-import com.google.privacy.differentialprivacy.pipelinedp4j.core.PrivacyLevel.NONE_WITHOUT_CONTRIBUTION_BOUNDING
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.AllocatedBudget
 import com.google.privacy.differentialprivacy.pipelinedp4j.dplibrary.NoiseFactory
 import com.google.privacy.differentialprivacy.pipelinedp4j.dplibrary.ZeroNoiseFactory
@@ -106,7 +106,7 @@ class SumCombinerTest {
   }
 
   @Test
-  fun createAccumulator_privacyLevelWithoutContributionBounding_doesNotClampTotalSum() {
+  fun createAccumulator_fullTestMode_doesNotClampTotalSum() {
     val combiner =
       SumCombiner(
         SUM_AGG_PARAMS.copy(
@@ -114,7 +114,7 @@ class SumCombinerTest {
           maxValue = 4.0,
           minTotalValue = -2.0,
           maxTotalValue = 300.0,
-          privacyLevel = NONE_WITHOUT_CONTRIBUTION_BOUNDING,
+          executionMode = FULL_TEST_MODE,
         ),
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),

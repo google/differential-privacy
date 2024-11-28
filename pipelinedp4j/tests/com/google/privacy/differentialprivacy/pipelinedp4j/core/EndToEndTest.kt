@@ -18,14 +18,14 @@ package com.google.privacy.differentialprivacy.pipelinedp4j.core
 
 import com.google.common.collect.ImmutableList
 import com.google.common.truth.Truth.assertThat
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.ExecutionMode.FULL_TEST_MODE
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.ExecutionMode.TEST_MODE_WITH_CONTRIBUTION_BOUNDING
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.COUNT
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.MEAN
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.PRIVACY_ID_COUNT
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.SUM
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.NoiseKind.GAUSSIAN
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.NoiseKind.LAPLACE
-import com.google.privacy.differentialprivacy.pipelinedp4j.core.PrivacyLevel.NONE_WITHOUT_CONTRIBUTION_BOUNDING
-import com.google.privacy.differentialprivacy.pipelinedp4j.core.PrivacyLevel.NONE_WITH_CONTRIBUTION_BOUNDING
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.AbsoluteBudgetPerOpSpec
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.TotalBudget
 import com.google.privacy.differentialprivacy.pipelinedp4j.local.LocalCollection
@@ -123,7 +123,7 @@ class EndToEndTest {
 
   /** Tests for no privacy below */
   @Test
-  fun aggregate_noPrivacyAndNoContributionBounding_returnsNonDpResult() {
+  fun aggregate_fullTestMode_returnsNonDpResult() {
     // Create dataset with 2 partition and 100 privacy ids which contribute to each partition twice.
     val inputData =
       LocalCollection(
@@ -147,7 +147,7 @@ class EndToEndTest {
         // Contribution bounding would be applied if it was not disabled.
         maxPartitionsContributed = 1,
         maxContributionsPerPartition = 1,
-        privacyLevel = NONE_WITHOUT_CONTRIBUTION_BOUNDING,
+        executionMode = FULL_TEST_MODE,
       )
 
     val dpAggregates =
@@ -162,7 +162,7 @@ class EndToEndTest {
   }
 
   @Test
-  fun aggregate_noPrivacyAndWithContributionBounding_returnsBoundedNonDpResult() {
+  fun aggregate_testModeWithContributionBounding_returnsBoundedNonDpResult() {
     // Create dataset with 2 partition and 100 privacy ids which contribute to each partition twice.
     val inputData =
       LocalCollection(
@@ -187,7 +187,7 @@ class EndToEndTest {
         noiseKind = LAPLACE,
         maxPartitionsContributed = 2, // Contributions to each of the two partitions are kept.
         maxContributionsPerPartition = 1, // Double contributions per partition are removed.
-        privacyLevel = NONE_WITH_CONTRIBUTION_BOUNDING,
+        executionMode = TEST_MODE_WITH_CONTRIBUTION_BOUNDING,
       )
 
     val dpAggregates =

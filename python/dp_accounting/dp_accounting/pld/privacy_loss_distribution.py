@@ -27,6 +27,7 @@ from typing import Any, Callable, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
+from dp_accounting import privacy_accountant
 from dp_accounting.pld import common
 from dp_accounting.pld import pld_pmf
 from dp_accounting.pld import privacy_loss_mechanism
@@ -147,7 +148,7 @@ class PrivacyLossDistribution:
     if symmetric:
       if (rounded_probability_mass_function_add is not None or
           infinity_mass_add is not None):
-        raise ValueError('Details about privacy loss distribution with respect'
+        raise ValueError('Details about privacy loss distribution with respect '
                          'to ADD adjacency cannot be specified when symmetric')
     else:
       if (rounded_probability_mass_function_add is None or
@@ -783,9 +784,9 @@ def from_two_probability_mass_functions(
   )
 
 
-def _create_pld_pmf_from_additive_noise(
-    additive_noise_privacy_loss:
-    'privacy_loss_mechanism.AdditiveNoisePrivacyLoss',
+def _create_pld_pmf_from_monotone_privacy_loss(
+    monotone_privacy_loss:
+    'privacy_loss_mechanism.MonotonePrivacyLoss',
     pessimistic_estimate: bool = True,
     value_discretization_interval: float = 1e-4,
     use_connect_dots: bool = False) -> pld_pmf.PLDPmf:
@@ -802,8 +803,7 @@ def _create_pld_pmf_from_additive_noise(
   material for more details.
 
   Args:
-    additive_noise_privacy_loss: the privacy loss representation of the
-      mechanism.
+    monotone_privacy_loss: the privacy loss representation of the mechanism.
     pessimistic_estimate: a value indicating whether the rounding is done in
       such a way that the resulting epsilon-hockey stick divergence computation
       gives an upper estimate to the real value.
@@ -826,9 +826,9 @@ def _create_pld_pmf_from_additive_noise(
                       'algorithm instead. Set use_connect_dots=False to avoid '
                       'this warning.')
     else:
-      connect_dots_bounds = additive_noise_privacy_loss.connect_dots_bounds()
+      connect_dots_bounds = monotone_privacy_loss.connect_dots_bounds()
 
-      if additive_noise_privacy_loss.discrete_noise:
+      if monotone_privacy_loss.is_discrete:
         if (connect_dots_bounds.lower_x is None or
             connect_dots_bounds.upper_x is None):
           raise ValueError('Connect dots bounds does not contain lower_x and '
@@ -837,7 +837,7 @@ def _create_pld_pmf_from_additive_noise(
         for x in range(connect_dots_bounds.upper_x,
                        connect_dots_bounds.lower_x - 1,
                        -1):
-          scaled_epsilon = (additive_noise_privacy_loss.privacy_loss(x)
+          scaled_epsilon = (monotone_privacy_loss.privacy_loss(x)
                             / value_discretization_interval)
           if (not rounded_epsilons or
               math.floor(scaled_epsilon) > rounded_epsilons[-1]):
@@ -846,7 +846,7 @@ def _create_pld_pmf_from_additive_noise(
             rounded_epsilons.append(math.ceil(scaled_epsilon))
         rounded_epsilons = np.array(rounded_epsilons)
 
-        deltas = additive_noise_privacy_loss.get_delta_for_epsilon(
+        deltas = monotone_privacy_loss.get_delta_for_epsilon(
             rounded_epsilons * value_discretization_interval)
 
         return pld_pmf.create_pmf_pessimistic_connect_dots(
@@ -866,7 +866,7 @@ def _create_pld_pmf_from_additive_noise(
         rounded_epsilons = np.arange(rounded_epsilon_lower,
                                      rounded_epsilon_upper + 1)
 
-        deltas = additive_noise_privacy_loss.get_delta_for_epsilon(
+        deltas = monotone_privacy_loss.get_delta_for_epsilon(
             rounded_epsilons * value_discretization_interval)
 
         # Use a specialized numerically stable approach for continuous noise
@@ -878,7 +878,7 @@ def _create_pld_pmf_from_additive_noise(
 
   round_fn = math.ceil if pessimistic_estimate else math.floor
 
-  tail_pld = additive_noise_privacy_loss.privacy_loss_tail()
+  tail_pld = monotone_privacy_loss.privacy_loss_tail()
   lower_x, upper_x = tail_pld.lower_x_truncation, tail_pld.upper_x_truncation
 
   rounded_probability_mass_function = collections.defaultdict(lambda: 0)
@@ -889,23 +889,23 @@ def _create_pld_pmf_from_additive_noise(
           privacy_loss / value_discretization_interval
       )] += tail_pld.tail_probability_mass_function[privacy_loss]
 
-  if additive_noise_privacy_loss.discrete_noise:
+  if monotone_privacy_loss.is_discrete:
     xs = list(range(math.ceil(lower_x) - 1, math.floor(upper_x) + 1))
 
     # Compute PMF for the x's. Note that a vectorized call to mu_upper_cdf can
     # be much faster than many scalar calls.
-    cdf_values = additive_noise_privacy_loss.mu_upper_cdf(xs)
+    cdf_values = monotone_privacy_loss.mu_upper_cdf(xs)
     probability_mass = cdf_values[1:] - cdf_values[:-1]
 
     for x, prob in zip(xs[1:], probability_mass):
       rounded_probability_mass_function[round_fn(
-          additive_noise_privacy_loss.privacy_loss(x) /
+          monotone_privacy_loss.privacy_loss(x) /
           value_discretization_interval)] += prob
   else:
     rounded_down_value = math.floor(
-        additive_noise_privacy_loss.privacy_loss(lower_x) /
+        monotone_privacy_loss.privacy_loss(lower_x) /
         value_discretization_interval)
-    upper_x_privacy_loss = additive_noise_privacy_loss.privacy_loss(upper_x)
+    upper_x_privacy_loss = monotone_privacy_loss.privacy_loss(upper_x)
 
     # Compute discretization intervals for PLD approximation.
     xs, rounded_values = [lower_x], []
@@ -915,7 +915,7 @@ def _create_pld_pmf_from_additive_noise(
           upper_x_privacy_loss):
         x = upper_x
       else:
-        x = additive_noise_privacy_loss.inverse_privacy_loss(
+        x = monotone_privacy_loss.inverse_privacy_loss(
             value_discretization_interval * rounded_down_value)
 
       xs.append(x)
@@ -924,7 +924,7 @@ def _create_pld_pmf_from_additive_noise(
 
     # Compute PLD for discretization intervals. Note that a vectorized call to
     # mu_upper_cdf is much faster than many scalar calls.
-    cdf_values = additive_noise_privacy_loss.mu_upper_cdf(xs)
+    cdf_values = monotone_privacy_loss.mu_upper_cdf(xs)
     probability_mass = cdf_values[1:] - cdf_values[:-1]
 
     # Each x in [lower_x, upper_x] results in privacy loss that lies in
@@ -994,7 +994,9 @@ def from_randomized_response(
     noise_parameter: float,
     num_buckets: int,
     pessimistic_estimate: bool = True,
-    value_discretization_interval: float = 1e-4
+    value_discretization_interval: float = 1e-4,
+    neighboring_relation: privacy_accountant.NeighboringRelation = (
+        privacy_accountant.NeighboringRelation.REPLACE_ONE),
 ) -> PrivacyLossDistribution:
   """Constructs the privacy loss distribution of Randomized Response.
 
@@ -1005,21 +1007,41 @@ def from_randomized_response(
 
   This function calculates the privacy loss distribution for the
   aforementioned Randomized Response with a given number of buckets, and a
-  given noise parameter.
+  given noise parameter, for REPLACE_ONE and REPLACE_SPECIAL neighboring
+  relations. For defining the privacy loss distribution for the REPLACE_SPECIAL
+  neighboring relation, we augment the mechanism to also handle a "special"
+  input bucket on which the output is uniformly random over all k buckets.
 
-  Specifically, suppose that the original input is x and it is changed to x'.
-  Recall that the privacy loss distribution of the Randomized Response
-  mechanism is generated as follows: first pick o according to R(x), where
-  R(x) denote the output distribution of the Randomized Response mechanism
-  on input x. Then, the privacy loss is ln(Pr[R(x) = o] / Pr[R(x') = o]).
-  There are three cases here:
-    - When o = x, ln(Pr[R(x) = o] / Pr[R(x') = o]) =
-      ln(Pr[R(x) = x] / Pr[R(x') = x]). Here Pr[R(x) = x] = 1 - p + p / k
-      and Pr[R(x') = x] = p / k.
-    - When o = x', ln(Pr[R(x) = o] / Pr[R(x') = o]) =
-      ln(Pr[R(x') = x'] / Pr[R(x) = x']), which is just the negation of the
-      previous privacy loss.
-    - When o != x, x', the privacy loss is zero.
+  Case REPLACE_ONE:
+    Suppose that the original input is x is changed to x'. The privacy loss
+    distribution of the Randomized Response mechanism is generated as follows:
+      first pick o according to R(x), where R(x) denote the output distribution
+      of the Randomized Response mechanism on input x. Then, the privacy loss is
+      ln(Pr[R(x) = o] / Pr[R(x') = o]).
+    There are three cases here:
+      - When o = x, ln(Pr[R(x) = o] / Pr[R(x') = o]) =
+        ln(Pr[R(x) = x] / Pr[R(x') = x]). Here Pr[R(x) = x] = 1 - p + p / k
+        and Pr[R(x') = x] = p / k.
+      - When o = x', ln(Pr[R(x) = o] / Pr[R(x') = o]) =
+        ln(Pr[R(x') = x'] / Pr[R(x) = x']), which is just the negation of the
+        previous privacy loss.
+      - When o != x, x', the privacy loss is zero.
+
+  Case REPLACE_SPECIAL:
+    Suppose that the original input is x is changed to the special bucket 'bot'.
+    The privacy loss distribution of the Randomized Response mechanism in this
+    case is asymmetric corresponding to the following two distributions:
+    R(x): that outputs x with probability 1 - p + p / k, and outputs any other
+      o != x with probability p/k.
+    R('bot'): that outputs o with probability 1/k.
+    In particular, the privacy loss distribution for the REMOVE adjacency
+    corresponds to sampling o according to R(x) and returning the privacy loss
+    ln(Pr[R(x) = o] / Pr[R('bot') = o]), and the privacy loss distribution for
+    the ADD adjacency corresponds to sampling o according to R('bot') and
+    returning the privacy loss ln(Pr[R('bot') = o] / Pr[R(x) = o]).
+    Note: While REMOVE and ADD adjacency types usually refer to the
+    ADD_OR_REMOVE_ONE neighboring relation, we overload the same terminology
+    to correspond to "x -> 'bot'" and "'bot' -> x" adjacencies respectively.
 
   Args:
     noise_parameter: the probability that the Randomized Response outputs a
@@ -1034,6 +1056,11 @@ def from_randomized_response(
       integer multiples of this number. Smaller value results in more accurate
       estimates of the privacy loss, at the cost of increased run-time / memory
       usage.
+    neighboring_relation: the neighboring relation for analyzing the mechanism.
+      The default value is REPLACE_ONE, which corresponds to the case where
+      the input is replaced by a different bucket. The other option is
+      REPLACE_SPECIAL, which corresponds to the case, where the input is
+      replaced by a uniformly random bucket.
 
   Returns:
     The privacy loss distribution constructed as specified.
@@ -1047,40 +1074,52 @@ def from_randomized_response(
     raise ValueError(
         f'Number of buckets must be strictly greater than 1: {num_buckets}')
 
-  round_fn = math.ceil if pessimistic_estimate else math.floor
+  if neighboring_relation not in [
+      privacy_accountant.NeighboringRelation.REPLACE_ONE,
+      privacy_accountant.NeighboringRelation.REPLACE_SPECIAL,
+  ]:
+    raise ValueError(
+        'Neighboring relation must be either REPLACE_ONE or REPLACE_SPECIAL: '
+        f'Found {neighboring_relation}.')
 
-  rounded_probability_mass_function = collections.defaultdict(lambda: 0)
-
-  # Probability that the output is equal to the input, i.e., Pr[R(x) = x]
-  probability_output_equal_input = ((1 - noise_parameter) +
-                                    noise_parameter / num_buckets)
-  # Probability that the output is equal to a specific bucket that is not the
-  # input, i.e., Pr[R(x') = x] for x' != x.
-  probability_output_not_input = noise_parameter / num_buckets
-
-  # Add privacy loss for the case o = x
-  rounded_value = round_fn(
-      math.log(probability_output_equal_input / probability_output_not_input)
-      / value_discretization_interval)
-  rounded_probability_mass_function[
-      rounded_value] += probability_output_equal_input
-
-  # Add privacy loss for the case o = x'
-  rounded_value = round_fn(
-      math.log(probability_output_not_input / probability_output_equal_input)
-      / value_discretization_interval)
-  rounded_probability_mass_function[
-      rounded_value] += probability_output_not_input
-
-  # Add privacy loss for the case o != x, x'
-  rounded_probability_mass_function[0] += (
-      probability_output_not_input * (num_buckets - 2))
-
-  return PrivacyLossDistribution.create_from_rounded_probability(
-      rounded_probability_mass_function,
-      0,
-      value_discretization_interval,
-      pessimistic_estimate=pessimistic_estimate)
+  if neighboring_relation == privacy_accountant.NeighboringRelation.REPLACE_ONE:
+    log_pmf_upper = {
+        0: math.log(1 - noise_parameter * (num_buckets - 1) / num_buckets),
+        1: math.log(noise_parameter / num_buckets),
+    }
+    log_pmf_lower = {0: log_pmf_upper[1], 1: log_pmf_upper[0]}
+    if num_buckets > 2:
+      # Since all other buckets correspond to the same privacy loss, we can
+      # combine them into a single bucket.
+      log_pmf_upper[2] = math.log(
+          (num_buckets - 2) * noise_parameter / num_buckets
+      )
+      log_pmf_lower[2] = log_pmf_upper[2]
+    return from_two_probability_mass_functions(
+        log_pmf_lower,
+        log_pmf_upper,
+        pessimistic_estimate,
+        value_discretization_interval,
+        symmetric=True,
+    )
+  else:  # Case of REPLACE_SPECIAL
+    # Since all buckets other than the input bucket correspond to the same
+    # privacy loss, we can combine them into a single bucket `1`.
+    log_pmf_upper = {
+        0: math.log(1 - noise_parameter * (num_buckets - 1) / num_buckets),
+        1: math.log((num_buckets - 1) * noise_parameter / num_buckets),
+    }
+    log_pmf_lower = {
+        0: - math.log(num_buckets),  # equals log(1 / num_buckets)
+        1: math.log1p(- 1 / num_buckets),  # equals log(1 - 1 / num_buckets)
+    }
+    return from_two_probability_mass_functions(
+        log_pmf_lower,
+        log_pmf_upper,
+        pessimistic_estimate,
+        value_discretization_interval,
+        symmetric=False,
+    )
 
 
 def _pld_for_subsampled_mechanism(
@@ -1148,7 +1187,7 @@ def from_laplace_mechanism(
 
   def single_laplace_pld(
       adjacency_type: privacy_loss_mechanism.AdjacencyType) -> pld_pmf.PLDPmf:
-    return _create_pld_pmf_from_additive_noise(
+    return _create_pld_pmf_from_monotone_privacy_loss(
         privacy_loss_mechanism.LaplacePrivacyLoss(
             parameter,
             sensitivity=sensitivity,
@@ -1203,7 +1242,7 @@ def from_gaussian_mechanism(
 
   def single_gaussian_pld(
       adjacency_type: privacy_loss_mechanism.AdjacencyType) -> pld_pmf.PLDPmf:
-    return _create_pld_pmf_from_additive_noise(
+    return _create_pld_pmf_from_monotone_privacy_loss(
         privacy_loss_mechanism.GaussianPrivacyLoss(
             standard_deviation,
             sensitivity=sensitivity,
@@ -1256,7 +1295,7 @@ def from_discrete_laplace_mechanism(
 
   def single_discrete_laplace_pld(
       adjacency_type: privacy_loss_mechanism.AdjacencyType) -> pld_pmf.PLDPmf:
-    return _create_pld_pmf_from_additive_noise(
+    return _create_pld_pmf_from_monotone_privacy_loss(
         privacy_loss_mechanism.DiscreteLaplacePrivacyLoss(
             parameter,
             sensitivity=sensitivity,
@@ -1315,7 +1354,7 @@ def from_discrete_gaussian_mechanism(
 
   def single_discrete_gaussian_pld(
       adjacency_type: privacy_loss_mechanism.AdjacencyType) -> pld_pmf.PLDPmf:
-    return _create_pld_pmf_from_additive_noise(
+    return _create_pld_pmf_from_monotone_privacy_loss(
         privacy_loss_mechanism.DiscreteGaussianPrivacyLoss(
             sigma,
             sensitivity=sensitivity,
@@ -1374,7 +1413,7 @@ def from_mixture_gaussian_mechanism(
   def single_pld_pmf(
       adjacency_type: privacy_loss_mechanism.AdjacencyType,
   ) -> pld_pmf.PLDPmf:
-    return _create_pld_pmf_from_additive_noise(
+    return _create_pld_pmf_from_monotone_privacy_loss(
         privacy_loss_mechanism.MixtureGaussianPrivacyLoss(
             standard_deviation,
             sensitivities,
@@ -1431,4 +1470,3 @@ def from_privacy_parameters(
   return PrivacyLossDistribution.create_from_rounded_probability(
       rounded_probability_mass_function, privacy_parameters.delta,
       value_discretization_interval)
-  

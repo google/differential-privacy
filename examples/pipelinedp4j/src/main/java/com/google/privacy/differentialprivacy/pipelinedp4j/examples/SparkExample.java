@@ -23,6 +23,8 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.api.NoiseKind;
 import com.google.privacy.differentialprivacy.pipelinedp4j.api.QueryBuilder;
 import com.google.privacy.differentialprivacy.pipelinedp4j.api.QueryPerGroupResult;
 import com.google.privacy.differentialprivacy.pipelinedp4j.api.TotalBudget;
+import com.google.privacy.differentialprivacy.pipelinedp4j.examples.MovieMetrics;
+import com.google.privacy.differentialprivacy.pipelinedp4j.examples.MovieView;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.stream.IntStream;

@@ -126,7 +126,7 @@ class CountCombiner(
           .coerceInIfContributionBoundingEnabled(
             0,
             aggregationParams.maxContributionsPerPartition!!.toLong(),
-            aggregationParams.privacyLevel,
+            aggregationParams,
           )
     }
 
@@ -404,7 +404,7 @@ class SumCombiner(
             .coerceInIfContributionBoundingEnabled(
               aggregationParams.minTotalValue!!,
               aggregationParams.maxTotalValue!!,
-              aggregationParams.privacyLevel,
+              aggregationParams,
             )
         }
     }
@@ -487,7 +487,7 @@ class MeanCombiner(
             it.coerceInIfContributionBoundingEnabled(
               aggregationParams.minValue!!,
               aggregationParams.maxValue!!,
-              aggregationParams.privacyLevel,
+              aggregationParams,
             ) - midValue
           }
           .sum()
@@ -621,15 +621,19 @@ class QuantilesCombiner(
       .epsilon(budget.epsilon())
       .delta(budget.delta())
       .noise(noiseFactory(aggregationParams.noiseKind))
+      // TODO: reconsider the if clauses, contribution bounds here affect the noise but
+      // contribution bounding with them is not performed therefore we should probably just use the
+      // bounds as they are no matter what execution mode is. We should make it clear in the
+      // documentation.
       .maxPartitionsContributed(
-        if (aggregationParams.privacyLevel.withPartitionsContributedBounding) {
+        if (aggregationParams.applyPartitionsContributedBounding) {
           aggregationParams.maxPartitionsContributed!!
         } else {
           1
         }
       )
       .maxContributionsPerPartition(
-        if (aggregationParams.privacyLevel.withContributionsPerPartitionBounding) {
+        if (aggregationParams.applyPerPartitionBounding) {
           aggregationParams.maxContributionsPerPartition!!
         } else {
           Int.MAX_VALUE
@@ -690,7 +694,7 @@ class VarianceCombiner(
           it.coerceInIfContributionBoundingEnabled(
             aggregationParams.minValue!!,
             aggregationParams.maxValue!!,
-            aggregationParams.privacyLevel,
+            aggregationParams,
           ) - midValue
         }
       count = coercedValues.size.toLong()
@@ -943,16 +947,16 @@ class CompoundCombiner(val combiners: Iterable<Combiner<*, *>>) :
 }
 
 /**
- * Clamp value to the range [minimumValue, maximumValue] if privacy level requires contribution
- * bounding.
+ * Clamp value to the range [minimumValue, maximumValue] if per partition contribution bounding is
+ * required.
  */
 private fun <T : Comparable<T>> T.coerceInIfContributionBoundingEnabled(
   minimumValue: T,
   maximumValue: T,
-  privacyLevel: PrivacyLevel,
+  params: AggregationParams,
 ): T {
   // Per-pertition bounding implies clamping.
-  return if (privacyLevel.withContributionsPerPartitionBounding) {
+  return if (params.applyPerPartitionBounding) {
     coerceIn(minimumValue, maximumValue)
   } else {
     this

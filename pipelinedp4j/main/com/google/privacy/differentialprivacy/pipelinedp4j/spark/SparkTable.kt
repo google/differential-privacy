@@ -195,9 +195,9 @@ class SparkTable<K, V>(val data: Dataset<Pair<K, V>>,
      * It uses window partition by function which requires an extra shuffle and sort operation and introduces
      * an extra step to transfer data over network but is a scalable and efficient approach for large dataset.
      */
-    override fun samplePerKey(stageName: String, count: Int): SparkTable<K, List<V>> {
-        val listEncoder = Encoders.kryo(List::class.java) as org.apache.spark.sql.Encoder<List<V>>
-        val outputEncoder = Encoders.kryo(Pair::class.java) as org.apache.spark.sql.Encoder<Pair<K, List<V>>>
+    override fun samplePerKey(stageName: String, count: Int): SparkTable<K, Iterable<V>> {
+        val iterableEncoder = Encoders.kryo(List::class.java) as org.apache.spark.sql.Encoder<Iterable<V>>
+        val outputEncoder = Encoders.kryo(Pair::class.java) as org.apache.spark.sql.Encoder<Pair<K, Iterable<V>>>
         val randomValueEncoder = Encoders.tuple(keyEncoder, valueEncoder, Encoders.DOUBLE())
         val rowNumberEncoder = Encoders.tuple(keyEncoder, valueEncoder, Encoders.INT())
 
@@ -221,10 +221,10 @@ class SparkTable<K, V>(val data: Dataset<Pair<K, V>>,
         val sampledPerKeyData = sampledDataset
             .groupByKey(MapFunction { data: Tuple3<K, V, Int> -> data._1() }, keyEncoder)
             .mapValues(MapFunction { kv: Tuple3<K, V, Int> -> kv._2() }, valueEncoder)
-            .mapGroups(MapGroupsFunction { k: K, v: Iterator<V> -> Pair(k, v.asSequence().toList()) },
+            .mapGroups(MapGroupsFunction { k: K, v: Iterator<V> -> Pair(k, v.asSequence().toList().asIterable()) },
                 outputEncoder)
 
-        return SparkTable(sampledPerKeyData, keyEncoder, listEncoder)
+        return SparkTable(sampledPerKeyData, keyEncoder, iterableEncoder)
     }
 }
 

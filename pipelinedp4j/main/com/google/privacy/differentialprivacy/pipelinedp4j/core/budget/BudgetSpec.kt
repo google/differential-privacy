@@ -91,13 +91,13 @@ data class TotalBudget(val epsilon: Double, val delta: Double = 0.0) : Serializa
 private object BudgetValidationUtils {
 
   /**
-   * Validates that epsilon is non-negative.
+   * Validates that epsilon is positive.
    *
    * @param epsilon the epsilon value to validate.
    * @throws IllegalArgumentException if epsilon is negative.
    */
   fun validateEpsilon(epsilon: Double) {
-    require(epsilon >= 0.0) { "Epsilon must be >= 0.0. Provided epsilon: $epsilon." }
+    require(epsilon > 0.0) { "Epsilon must be > 0.0. Provided epsilon: $epsilon." }
   }
 
   /**

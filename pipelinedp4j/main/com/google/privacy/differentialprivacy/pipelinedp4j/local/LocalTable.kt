@@ -100,7 +100,7 @@ class LocalTable<K, V>(val data: Sequence<Pair<K, V>>) : FrameworkTable<K, V> {
     return LocalTable(sequenceOf(data, localOther.data).flatten())
   }
 
-  override fun samplePerKey(stageName: String, count: Int): LocalTable<K, List<V>> {
+  override fun samplePerKey(stageName: String, count: Int): LocalTable<K, Iterable<V>> {
     return LocalTable(
       groupByKey(stageName).data.map { (k, v) ->
         val elements = v.toList()

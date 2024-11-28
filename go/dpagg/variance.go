@@ -108,14 +108,26 @@ func NewBoundedVariance(opt *BoundedVarianceOptions) (*BoundedVariance, error) {
 	if lower == 0 && upper == 0 {
 		return nil, fmt.Errorf("NewBoundedVariance: Lower and  Upper must be set (automatic bounds determination is not implemented yet). Lower and Upper cannot be both 0")
 	}
-	if err := checks.CheckBoundsFloat64(lower, upper); err != nil {
-		return nil, fmt.Errorf("NewBoundedVariance: CheckBoundsFloat64: %w", err)
+	switch noise.ToKind(opt.Noise) {
+	case noise.Unrecognised:
+		if err := checks.CheckBoundsFloat64IgnoreOverflows(lower, upper); err != nil {
+			return nil, fmt.Errorf("NewBoundedVariance: CheckBoundFloat64IgnoreOverflows: %w", err)
+		}
+	default:
+		if err := checks.CheckBoundsFloat64(lower, upper); err != nil {
+			return nil, fmt.Errorf("NewBoundedVariance: CheckBoundsFloat64: %w", err)
+		}
 	}
 	if err := checks.CheckBoundsNotEqual(lower, upper); err != nil {
 		return nil, fmt.Errorf("NewBoundedVariance: CheckBoundsNotEqual: %w", err)
 	}
-	// (lower + upper) / 2 may cause an overflow if lower and upper are large values.
-	midPoint := lower + (upper-lower)/2.0
+	// In case lower or upper bound is infinity, midPoint is set to 0.0 to prevent getting
+	// a NaN midPoint or sumMaxDistFromMidpoint.
+	midPoint := 0.0
+	if !math.IsInf(lower, 0) && !math.IsInf(upper, 0) {
+		// (lower + upper) / 2 may cause an overflow if lower and upper are large values.
+		midPoint = lower + (upper-lower)/2.0
+	}
 	sumMaxDistFromMidpoint := upper - midPoint
 
 	eps, del := opt.Epsilon, opt.Delta
@@ -233,7 +245,7 @@ func (bv *BoundedVariance) Add(e float64) error {
 // Note that the returned value is not an unbiased estimate of the raw bounded variance.
 func (bv *BoundedVariance) Result() (float64, error) {
 	if bv.state != defaultState {
-		return 0, fmt.Errorf("BoundedVariance's noised result cannot be computed: " + bv.state.errorMessage())
+		return 0, fmt.Errorf("BoundedVariance's noised result cannot be computed: %s", bv.state.errorMessage())
 	}
 	bv.state = resultReturned
 
@@ -293,7 +305,7 @@ func checkMergeBoundedVariance(bv1, bv2 *BoundedVariance) error {
 // GobEncode encodes BoundedVariance.
 func (bv *BoundedVariance) GobEncode() ([]byte, error) {
 	if bv.state != defaultState && bv.state != serialized {
-		return nil, fmt.Errorf("BoundedVariance object cannot be serialized: " + bv.state.errorMessage())
+		return nil, fmt.Errorf("BoundedVariance object cannot be serialized: %s", bv.state.errorMessage())
 	}
 	enc := encodableBoundedVariance{
 		Lower:                           bv.lower,

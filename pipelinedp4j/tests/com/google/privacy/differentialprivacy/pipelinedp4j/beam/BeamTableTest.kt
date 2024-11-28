@@ -338,6 +338,46 @@ class BeamTableTest {
     testPipeline.run().waitUntilFinish()
   }
 
+  @Test
+  fun samplePerKey_samplesElements() {
+    val inputData =
+      listOf(
+        KV.of("one", 1),
+        KV.of("one", 2),
+        KV.of("one", 3),
+        KV.of("one", 4),
+        KV.of("one", 5),
+        KV.of("two", 6),
+        KV.of("two", 7),
+        KV.of("two", 8),
+        KV.of("two", 9),
+        KV.of("two", 10),
+        KV.of("three", 14),
+        KV.of("three", 15),
+        KV.of("four", 21),
+      )
+    val pCollection =
+      testPipeline.apply(
+        "CreateInputData",
+        Create.of(inputData).withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())),
+      )
+    val beamTable = BeamTable(pCollection)
+
+    val result: BeamTable<String, Iterable<Int>> = beamTable.samplePerKey("Test", 3)
+
+    PAssert.that(result.data).satisfies { output: Iterable<KV<String, Iterable<Int>>> ->
+      val kotlinMap = output.associate { it.key to it.value.toList() }
+      assertThat(kotlinMap.size).isEqualTo(4)
+      assertThat(kotlinMap["one"]!!.size).isEqualTo(3)
+      assertThat(kotlinMap["two"]!!.size).isEqualTo(3)
+      assertThat(kotlinMap["three"]!!.size).isEqualTo(2)
+      assertThat(kotlinMap["four"]!!.size).isEqualTo(1)
+      null
+    }
+
+    testPipeline.run().waitUntilFinish()
+  }
+
   companion object {
     private val beamEncoderFactory = BeamEncoderFactory()
   }

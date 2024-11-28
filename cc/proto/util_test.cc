@@ -16,7 +16,12 @@
 
 #include "proto/util.h"
 
+#include <cmath>
+#include <cstdint>
+#include <cstring>
+#include <limits>
 #include <string>
+#include <vector>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -53,6 +58,48 @@ TEST(UtilTest, GetSetValueTypeFloat) {
   SetValue(&v, 10.0);
   EXPECT_TRUE(v.has_float_value());
   EXPECT_THAT(GetValue<double>(v), Eq(10.0));
+}
+
+uint64_t BitCastDoubleToUint64(double d) {
+  static_assert(sizeof(double) == sizeof(uint64_t));
+  uint64_t result;
+  std::memcpy(&result, &d, sizeof(uint64_t));
+  return result;
+}
+
+TEST(UtilTest, SetValueNormalizesSignalingNanToQuietNan) {
+  ValueType v;
+  const double signaling_nan = std::numeric_limits<double>::signaling_NaN();
+
+  SetValue(&v, signaling_nan);
+
+  // NaN comparison is always false, we therefore compare the bit patterns.
+  EXPECT_TRUE(BitCastDoubleToUint64(GetValue<double>(v)) ==
+              BitCastDoubleToUint64(std::numeric_limits<double>::quiet_NaN()));
+}
+
+TEST(UtilTest, SetValueKeepsSignOfZeros) {
+  ValueType v1, v2;
+  const double positive_zero = 0.0;
+  const double negative_zero = -0.0;
+
+  SetValue(&v1, positive_zero);
+  SetValue(&v2, negative_zero);
+
+  EXPECT_FALSE(std::signbit(GetValue<double>(v1)));
+  EXPECT_TRUE(std::signbit(GetValue<double>(v2)));
+}
+
+TEST(UtilTest, SetValueKeepsSignOfInf) {
+  ValueType v1, v2;
+  const double positive_inf = std::numeric_limits<double>::infinity();
+  const double negative_inf = -std::numeric_limits<double>::infinity();
+
+  SetValue(&v1, positive_inf);
+  SetValue(&v2, negative_inf);
+
+  EXPECT_FALSE(std::signbit(GetValue<double>(v1)));
+  EXPECT_TRUE(std::signbit(GetValue<double>(v2)));
 }
 
 TEST(UtilTest, MakeOutputString) {

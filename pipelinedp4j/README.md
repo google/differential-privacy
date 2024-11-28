@@ -30,7 +30,8 @@ maintained after that.
 Familiarize yourself with an
 [example](https://github.com/google/differential-privacy/tree/main/examples/pipelinedp4j).
 It shows how to compute differentially private statistics on a real dataset
-using the library.
+using the library. Also, the documentation explains how to
+[run the library on Google Cloud](https://github.com/google/differential-privacy/tree/main/examples/pipelinedp4j#running-on-google-cloud-platform).
 
 The public API of the library is located in the
 [API package](https://github.com/google/differential-privacy/tree/main/pipelinedp4j/main/com/google/privacy/differentialprivacy/pipelinedp4j/api).

@@ -17,12 +17,33 @@
 #ifndef DIFFERENTIAL_PRIVACY_PROTO_UTIL_H_
 #define DIFFERENTIAL_PRIVACY_PROTO_UTIL_H_
 
+#include <cmath>
+#include <cstdint>
 #include <limits>
+#include <string>
+#include <type_traits>
 
 #include "proto/confidence-interval.pb.h"
 #include "proto/data.pb.h"
 
 namespace differential_privacy {
+namespace internal {
+
+// Floating point NaN values need to be normalized to not contain architecture
+// specific interpretation.
+template <typename T>
+T NormalizeNaN(T value) {
+  static_assert(std::is_floating_point_v<T>,
+                "Use NormalizeNaN for floating point T only");
+  if (std::isnan(value)) {
+    // Return quiet NaN as signaling NaN might have architecture dependent
+    // interpretation.
+    return std::numeric_limits<T>::quiet_NaN();
+  }
+  return value;
+}
+
+}  // namespace internal
 
 template <typename T>
 struct is_string
@@ -68,7 +89,7 @@ void SetValue(ValueType* value_type, T value) {
 template <typename T, typename std::enable_if<
                           std::is_floating_point<T>::value>::type* = nullptr>
 void SetValue(ValueType* value_type, T value) {
-  value_type->set_float_value(value);
+  value_type->set_float_value(internal::NormalizeNaN(value));
 }
 
 template <typename T>

@@ -200,14 +200,14 @@ class SparkTableTest {
                 ), Encoders.kryo(Pair::class.java) as org.apache.spark.sql.Encoder<Pair<String, Int>>)
         val sparkTable = SparkTable(dataset, Encoders.STRING(), Encoders.INT())
 
-        val result: SparkTable<String, List<Int>> = sparkTable.samplePerKey("Test", 3)
+        val result: SparkTable<String, Iterable<Int>> = sparkTable.samplePerKey("Test", 3)
 
         val resultData = result.data.collectAsList()
         assertThat(resultData.size).isEqualTo(3)
 
-        assertThat(resultData.filter { it.first == "one" }[0].second.size).isEqualTo(3)
-        assertThat(resultData.filter { it.first == "two" }[0].second.size).isEqualTo(3)
-        assertThat(resultData.filter { it.first == "three" }[0].second.size).isEqualTo(2)
+        assertThat(resultData.filter { it.first == "one" }[0].second.count()).isEqualTo(3)
+        assertThat(resultData.filter { it.first == "two" }[0].second.count()).isEqualTo(3)
+        assertThat(resultData.filter { it.first == "three" }[0].second.count()).isEqualTo(2)
     }
 
     companion object {
