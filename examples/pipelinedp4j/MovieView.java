@@ -20,7 +20,7 @@ import com.google.common.base.Splitter;
 import java.util.List;
 
 /** Represents a single movie view from the Netflix dataset. */
-public class MovieView {
+public final class MovieView {
   private final String userId;
   private final String movieId;
   private final Double rating;
