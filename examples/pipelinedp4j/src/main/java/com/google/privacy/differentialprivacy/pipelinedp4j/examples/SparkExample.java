@@ -172,8 +172,8 @@ public class SparkExample implements Runnable {
   }
 
   /**
-   * Movie ids (which are group keys for this dataset) are integers from 4500-4509. Set public
-   * groups 1-10.
+   * Movie ids (which are group keys for this dataset) are integers from 1 to ~17000. Set public
+   * groups 4500-4509.
    */
   private static Dataset<String> publiclyKnownMovieIds(SparkSession spark) {
     ArrayList<String> publicGroupsAsJavaList =
