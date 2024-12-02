@@ -21,4 +21,4 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.core.DpEngineBudgetSp
 
 /** Creates a [DpEngine] that runs DP aggregations on Spark. */
 fun DpEngine.Factory.createSparkEngine(budgetSpec: DpEngineBudgetSpec) =
-    create(SparkEncoderFactory(), budgetSpec)
+  create(SparkEncoderFactory(), budgetSpec)

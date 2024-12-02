@@ -23,8 +23,6 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.api.NoiseKind;
 import com.google.privacy.differentialprivacy.pipelinedp4j.api.QueryBuilder;
 import com.google.privacy.differentialprivacy.pipelinedp4j.api.QueryPerGroupResult;
 import com.google.privacy.differentialprivacy.pipelinedp4j.api.TotalBudget;
-import com.google.privacy.differentialprivacy.pipelinedp4j.examples.MovieMetrics;
-import com.google.privacy.differentialprivacy.pipelinedp4j.examples.MovieView;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.stream.IntStream;
@@ -120,7 +118,8 @@ public class SparkExample implements Runnable {
           return new MovieMetrics(movieId, numberOfViewers, numberOfViews, averageOfRatings);
         };
     // We now have our anonymized metrics of movie views.
-    Dataset<MovieMetrics> anonymizedMovieMetrics = result.map(mapToMovieMetricsFn, movieMetricsEncoder);
+    Dataset<MovieMetrics> anonymizedMovieMetrics =
+        result.map(mapToMovieMetricsFn, movieMetricsEncoder);
 
     // Save the result to a file.
     writeOutput(anonymizedMovieMetrics);
@@ -128,7 +127,6 @@ public class SparkExample implements Runnable {
     // Stop spark session
     spark.stop();
     System.out.println("Finished calculations.");
-
   }
 
   // Data extractors. They always have to implement Function1 and Serializable interfaces. If it
@@ -166,8 +164,10 @@ public class SparkExample implements Runnable {
 
   private Dataset<MovieView> readData(SparkSession spark) {
     Dataset<Row> inputDataFrame = spark.read().option("header", "false").csv(localInputFilePath);
-    MapFunction<Row, MovieView> mapToMovieView = row -> new MovieView(row.getString(1), row.getString(0), java.lang.Double.valueOf(
-        (String) row.get(2)));
+    MapFunction<Row, MovieView> mapToMovieView =
+        row ->
+            new MovieView(
+                row.getString(1), row.getString(0), java.lang.Double.valueOf((String) row.get(2)));
     return inputDataFrame.map(mapToMovieView, Encoders.kryo(MovieView.class));
   }
 
@@ -177,17 +177,17 @@ public class SparkExample implements Runnable {
    */
   private static Dataset<String> publiclyKnownMovieIds(SparkSession spark) {
     ArrayList<String> publicGroupsAsJavaList =
-        IntStream.rangeClosed(
-                4500, 4509
-            )
+        IntStream.rangeClosed(4500, 4509)
             .mapToObj(Integer::toString)
             .collect(toCollection(ArrayList::new));
-    return  spark.createDataset(publicGroupsAsJavaList, Encoders.STRING());
+    return spark.createDataset(publicGroupsAsJavaList, Encoders.STRING());
   }
 
   private void writeOutput(Dataset<MovieMetrics> result) {
-    Dataset<String> lines = result.map((MapFunction<MovieMetrics, String>) MovieMetrics::toString, Encoders.STRING());
-    lines.write()
+    Dataset<String> lines =
+        result.map((MapFunction<MovieMetrics, String>) MovieMetrics::toString, Encoders.STRING());
+    lines
+        .write()
         .mode(SaveMode.Overwrite) // Overwrite existing file if any
         .text(localOutputFilePath);
   }

@@ -16,7 +16,6 @@
 
 package com.google.privacy.differentialprivacy.pipelinedp4j.beam
 
-import org.apache.beam.sdk.extensions.protobuf.ProtoCoder
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.Encoder
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.EncoderFactory
 import com.google.protobuf.Message
@@ -29,6 +28,7 @@ import org.apache.beam.sdk.coders.DoubleCoder
 import org.apache.beam.sdk.coders.StringUtf8Coder
 import org.apache.beam.sdk.coders.VarIntCoder
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder
+import org.apache.beam.sdk.extensions.protobuf.ProtoCoder
 
 class BeamEncoder<T>(val coder: Coder<T>) : Encoder<T>
 

@@ -40,7 +40,6 @@ internal constructor(data: Dataset<T>, privacyIdExtractor: (T) -> String) :
    * @param publicGroups a collection of publicly known keys. Read more about public groups in the
    *   documentation to the library.
    */
-
   @JvmOverloads
   fun groupBy(
     groupKeyExtractor: (T) -> String,

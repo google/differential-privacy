@@ -24,8 +24,8 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.local.LocalCollection
 import com.google.privacy.differentialprivacy.pipelinedp4j.local.LocalEncoderFactory
 import com.google.privacy.differentialprivacy.pipelinedp4j.spark.SparkCollection
 import com.google.privacy.differentialprivacy.pipelinedp4j.spark.SparkEncoderFactory
-import org.apache.spark.sql.Dataset
 import org.apache.beam.sdk.values.PCollection as BeamPCollection
+import org.apache.spark.sql.Dataset
 
 /**
  * An internal interface to represent an arbitrary collection that is supported by PipelineDP4j.

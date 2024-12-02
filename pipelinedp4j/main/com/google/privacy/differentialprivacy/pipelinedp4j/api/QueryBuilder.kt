@@ -16,8 +16,8 @@
 
 package com.google.privacy.differentialprivacy.pipelinedp4j.api
 
-import org.apache.spark.sql.Dataset
 import org.apache.beam.sdk.values.PCollection as BeamPCollection
+import org.apache.spark.sql.Dataset
 
 /**
  * A builder for differentially-private queries.

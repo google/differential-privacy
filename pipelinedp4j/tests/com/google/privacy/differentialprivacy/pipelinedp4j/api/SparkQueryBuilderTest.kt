@@ -1,10 +1,9 @@
 package com.google.privacy.differentialprivacy.pipelinedp4j.api
 
 import com.google.common.truth.Truth.assertThat
-import com.google.privacy.differentialprivacy.pipelinedp4j.spark.SparkEncoderFactory
 import com.google.privacy.differentialprivacy.pipelinedp4j.spark.SparkSessionRule
-import org.apache.spark.sql.Encoder
 import kotlin.test.assertFailsWith
+import org.apache.spark.sql.Encoder
 import org.apache.spark.sql.Encoders
 import org.junit.ClassRule
 import org.junit.Test
@@ -16,7 +15,11 @@ class SparkQueryBuilderTest {
 
   @Test
   fun build_sameOutputColumnNames_throwsException() {
-    val dataset = sparkSession.spark.createDataset(listOf(), Encoders.kryo(Pair::class.java) as Encoder<Pair<Pair<String, String>, Double>>)
+    val dataset =
+      sparkSession.spark.createDataset(
+        listOf(),
+        Encoders.kryo(Pair::class.java) as Encoder<Pair<Pair<String, String>, Double>>,
+      )
 
     val queryBuilder =
       QueryBuilder.from(dataset, { it.first.second })
@@ -37,7 +40,11 @@ class SparkQueryBuilderTest {
 
   @Test
   fun build_differentValues_throwsException() {
-    val dataset = sparkSession.spark.createDataset(listOf(), Encoders.kryo(Pair::class.java) as Encoder<Pair<Pair<String, String>, Double>>)
+    val dataset =
+      sparkSession.spark.createDataset(
+        listOf(),
+        Encoders.kryo(Pair::class.java) as Encoder<Pair<Pair<String, String>, Double>>,
+      )
 
     val queryBuilder =
       QueryBuilder.from(dataset, { it.first.second })
@@ -60,8 +67,6 @@ class SparkQueryBuilderTest {
   }
 
   companion object {
-    @JvmField
-    @ClassRule
-    val sparkSession = SparkSessionRule()
+    @JvmField @ClassRule val sparkSession = SparkSessionRule()
   }
 }
