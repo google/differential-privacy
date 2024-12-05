@@ -73,6 +73,16 @@ maven_install(
         "org.apache.beam:beam-sdks-java-core:2.49.0",
         "org.apache.beam:beam-sdks-java-extensions-avro:2.49.0",
         "org.apache.beam:beam-sdks-java-extensions-protobuf:2.49.0",
+
+        "org.apache.spark:spark-core_2.13:3.3.2",
+        "org.apache.spark:spark-sql_2.13:3.3.2",
+        "org.apache.spark:spark-mllib_2.13:3.3.2",
+        "org.apache.spark:spark-catalyst_2.13:3.3.2",
+        "com.fasterxml.jackson.core:jackson-databind:2.14.2",
+        "com.fasterxml.jackson.module:jackson-module-paranamer:2.14.2",
+        "com.fasterxml.jackson.module:jackson-module-scala_2.13:2.14.2",
+        "org.scala-lang:scala-library:2.13.12",
+
         # Test only dependencies.
         maven.artifact(
             "com.google.truth",

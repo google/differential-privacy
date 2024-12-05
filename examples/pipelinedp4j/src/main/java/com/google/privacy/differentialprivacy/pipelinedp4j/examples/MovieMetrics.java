@@ -21,7 +21,7 @@ package com.google.privacy.differentialprivacy.pipelinedp4j.examples;
  *
  * <p>It is the result of the DP metrics query.
  */
-final class MovieMetrics {
+public final class MovieMetrics {
   private final String movieId;
 
   private final long numberOfViewers;

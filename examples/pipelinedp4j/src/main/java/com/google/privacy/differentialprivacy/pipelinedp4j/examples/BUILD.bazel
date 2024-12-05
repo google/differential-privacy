@@ -33,3 +33,27 @@ java_binary(
         "@maven//:org_slf4j_slf4j_jdk14",
     ],
 )
+
+java_binary(
+    name = "SparkExample",
+    srcs = [
+        "SparkExample.java",
+        "MovieMetrics.java",
+        "MovieView.java",
+    ],
+    main_class = "com.google.privacy.differentialprivacy.pipelinedp4j.examples.SparkExample",
+    deps = [
+        "@com_google_privacy_differentialprivacy_pipielinedp4j//main/com/google/privacy/differentialprivacy/pipelinedp4j/api",
+        "@maven//:com_google_guava_guava",
+        "@maven//:info_picocli_picocli",
+        "@maven//:org_jetbrains_kotlin_kotlin_stdlib",
+
+        "@maven//:org_apache_spark_spark_core_2_13",
+        "@maven//:org_apache_spark_spark_sql_2_13",
+        "@maven//:org_apache_spark_spark_mllib_2_13",
+        "@maven//:org_apache_spark_spark_catalyst_2_13",
+        "@maven//:com_fasterxml_jackson_core_jackson_databind",
+        "@maven//:com_fasterxml_jackson_module_jackson_module_paranamer",
+        "@maven//:org_scala_lang_scala_library",
+    ],
+)

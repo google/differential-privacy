@@ -14,17 +14,11 @@
  * limitations under the License.
  */
 
-package com.google.privacy.differentialprivacy.pipelinedp4j.api
+package com.google.privacy.differentialprivacy.pipelinedp4j.spark
 
-import org.junit.runner.RunWith
-import org.junit.runners.Suite
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.DpEngine
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.DpEngineBudgetSpec
 
-/** Provides a list of JUnit test classes to Bazel. When creating a new test class, add it here. */
-@RunWith(Suite::class)
-@Suite.SuiteClasses(
-  BeamQueryTest::class,
-  BeamQueryBuilderTest::class,
-  SparkQueryTest::class,
-  SparkQueryBuilderTest::class,
-)
-class ApiTests {}
+/** Creates a [DpEngine] that runs DP aggregations on Spark. */
+fun DpEngine.Factory.createSparkEngine(budgetSpec: DpEngineBudgetSpec) =
+  create(SparkEncoderFactory(), budgetSpec)
