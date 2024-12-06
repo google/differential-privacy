@@ -139,7 +139,6 @@ cc_library(
     deps = [
         ":algorithm",
         ":approx-bounds",
-        ":bounded-algorithm",
         ":numerical-mechanisms",
         ":util",
         "//proto:util-lib",
@@ -245,7 +244,6 @@ cc_library(
     deps = [
         ":algorithm",
         ":approx-bounds",
-        ":bounded-algorithm",
         ":numerical-mechanisms",
         ":util",
         "//proto:util-lib",
@@ -291,10 +289,8 @@ cc_library(
     deps = [
         ":algorithm",
         ":approx-bounds",
-        ":bounded-algorithm",
         ":bounded-variance",
         ":numerical-mechanisms",
-        ":util",
         "//proto:util-lib",
         "@com_google_absl//absl/memory",
         "@com_google_absl//absl/status",
@@ -534,6 +530,7 @@ cc_test(
 cc_library(
     name = "bounded-algorithm",
     hdrs = ["bounded-algorithm.h"],
+    visibility = ["//visibility:private"],
     deps = [
         ":algorithm",
         ":approx-bounds",
@@ -668,10 +665,14 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":algorithm",
-        ":bounded-algorithm",
+        ":numerical-mechanisms",
         ":quantile-tree",
+        ":util",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_cc_differential_privacy//base:status_macros",
     ],
 )
 

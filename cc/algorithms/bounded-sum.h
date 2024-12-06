@@ -31,13 +31,11 @@
 
 #include "google/protobuf/any.pb.h"
 #include "absl/log/log.h"
-#include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "algorithms/algorithm.h"
 #include "algorithms/approx-bounds.h"
-#include "algorithms/bounded-algorithm.h"
 #include "algorithms/numerical-mechanisms.h"
 #include "algorithms/util.h"
 #include "proto/util.h"

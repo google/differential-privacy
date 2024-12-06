@@ -16,16 +16,16 @@
 
 package com.google.privacy.differentialprivacy.pipelinedp4j.api
 
+import com.google.privacy.differentialprivacy.pipelinedp4j.spark.SparkCollection
+import com.google.privacy.differentialprivacy.pipelinedp4j.spark.SparkEncoderFactory
+import org.apache.spark.sql.Dataset
 import com.google.privacy.differentialprivacy.pipelinedp4j.beam.BeamCollection
 import com.google.privacy.differentialprivacy.pipelinedp4j.beam.BeamEncoderFactory
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.EncoderFactory
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.FrameworkCollection
 import com.google.privacy.differentialprivacy.pipelinedp4j.local.LocalCollection
 import com.google.privacy.differentialprivacy.pipelinedp4j.local.LocalEncoderFactory
-import com.google.privacy.differentialprivacy.pipelinedp4j.spark.SparkCollection
-import com.google.privacy.differentialprivacy.pipelinedp4j.spark.SparkEncoderFactory
 import org.apache.beam.sdk.values.PCollection as BeamPCollection
-import org.apache.spark.sql.Dataset
 
 /**
  * An internal interface to represent an arbitrary collection that is supported by PipelineDP4j.
@@ -57,7 +57,8 @@ internal data class LocalPipelineDpCollection<T>(val data: Sequence<T>) : Pipeli
 }
 
 /** Spark Collection represented as a Spark Dataset. */
-internal data class SparkPipelineDpCollection<T>(val data: Dataset<T>) : PipelineDpCollection<T> {
+internal data class SparkPipelineDpCollection<T>(val data: Dataset<T>) : PipelineDpCollection<T>
+{
   override val encoderFactory = SparkEncoderFactory()
 
   override fun toFrameworkCollection() = SparkCollection<T>(data)

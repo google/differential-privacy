@@ -90,7 +90,7 @@ Here's are the steps to build and run the example assuming you are in the
 1.  Run the program:
 
     ```shell
-    bazel-bin/BeamExample --inputFilePath=netflix_data.csv --outputFilePath=output.txt
+    bazel-bin/src/main/java/com/google/privacy/differentialprivacy/pipelinedp4j/examples/BeamExample --inputFilePath=netflix_data.csv --outputFilePath=output.txt
     ```
 
 1.  View the results:

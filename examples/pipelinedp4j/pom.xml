@@ -46,6 +46,10 @@
                 <configuration>
                     <source>11</source>
                     <target>11</target>
+                    <excludes>
+                        <!-- SparkExample is not supoprted yet. -->
+                        <exclude>com/google/privacy/differentialprivacy/pipelinedp4j/examples/SparkExample.java</exclude>
+                    </excludes>
                 </configuration>
             </plugin>
         </plugins>

@@ -522,6 +522,7 @@ absl::Status ValidateEpsilon(std::optional<double> epsilon);
 absl::Status ValidateDelta(std::optional<double> delta);
 absl::Status ValidateMaxPartitionsContributed(
     std::optional<double> max_partitions_contributed);
+absl::Status ValidateMaxWindows(std::optional<int> max_windows);
 absl::Status ValidateMaxContributionsPerPartition(
     std::optional<double> max_contributions_per_partition);
 absl::Status ValidateMaxContributions(std::optional<int> max_contributions);

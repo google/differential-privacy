@@ -63,7 +63,6 @@ pom_file(
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/spark:spark_collections",
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/spark:spark_dp_engine_factory",
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/spark:spark_encoders",
-
     ],
     template_file = "pom.template",
 )

@@ -185,7 +185,7 @@ public final class BeamExample {
 
   /**
    * Movie ids (which are group keys for this dataset) are integers from 1 to ~17000. Set public
-   * groups 4500-4509.
+   * groups to a subset of them.
    */
   private static PCollection<String> publiclyKnownMovieIds(Pipeline pipeline) {
     var publicGroupsAsJavaList =

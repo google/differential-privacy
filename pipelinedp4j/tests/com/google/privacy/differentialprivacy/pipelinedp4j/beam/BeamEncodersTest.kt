@@ -16,6 +16,8 @@
 
 package com.google.privacy.differentialprivacy.pipelinedp4j.beam
 
+import org.apache.beam.sdk.extensions.protobuf.ProtoCoder
+import com.google.common.truth.Truth.assertThat
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.ContributionWithPrivacyId
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.contributionWithPrivacyId
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.encoderOfContributionWithPrivacyId
@@ -25,6 +27,10 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.proto.meanAccumulator
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.quantilesAccumulator
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.sumAccumulator
 import com.google.protobuf.ByteString
+import org.apache.beam.sdk.coders.DoubleCoder
+import org.apache.beam.sdk.coders.StringUtf8Coder
+import org.apache.beam.sdk.coders.VarIntCoder
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder
 import org.apache.beam.sdk.testing.PAssert
 import org.apache.beam.sdk.testing.TestPipeline
 import org.apache.beam.sdk.transforms.Create
@@ -75,21 +81,9 @@ class BeamEncodersTest {
 
   @Test
   fun records_isPossibleToCreateBeamPCollectionOfThatType() {
-    val input =
-      listOf(
-        contributionWithPrivacyId("privacyId1", "partitionKey1", -1.0),
-        contributionWithPrivacyId("privacyId2", "partitionKey1", 0.0),
-        contributionWithPrivacyId("privacyId1", "partitionKey2", 1.0),
-        contributionWithPrivacyId("privacyId3", "partitionKey3", 1.2345),
-      )
+    val input = listOf(TestRecord("privacyId1", 1.0, -1), TestRecord("privacyId2", 2.0, 2))
     val inputCoder =
-      (encoderOfContributionWithPrivacyId(
-          beamEncoderFactory.strings(),
-          beamEncoderFactory.strings(),
-          beamEncoderFactory,
-        )
-          as BeamEncoder<ContributionWithPrivacyId<String, String>>)
-        .coder
+      (beamEncoderFactory.records(TestRecord::class) as BeamEncoder<TestRecord>).coder
 
     val pCollection = testPipeline.apply(Create.of(input).withCoder(inputCoder))
 
@@ -115,7 +109,9 @@ class BeamEncodersTest {
         },
         compoundAccumulator {},
       )
-    val inputCoder = beamEncoderFactory.protos(CompoundAccumulator::class).coder
+    val inputCoder =
+      (beamEncoderFactory.protos(CompoundAccumulator::class) as BeamEncoder<CompoundAccumulator>)
+        .coder
 
     val pCollection = testPipeline.apply(Create.of(input).withCoder(inputCoder))
 
@@ -135,6 +131,79 @@ class BeamEncodersTest {
     PAssert.that(pCollection).containsInAnyOrder(input)
 
     testPipeline.run().waitUntilFinish()
+  }
+
+  @Test
+  fun contributionWithPrivacyIdOf_isPossibleToCreateBeamPCollectionOfThatType() {
+    val input =
+      listOf(
+        contributionWithPrivacyId("privacyId1", "partitionKey1", -1.0),
+        contributionWithPrivacyId("privacyId2", "partitionKey1", 0.0),
+        contributionWithPrivacyId("privacyId1", "partitionKey2", 1.0),
+        contributionWithPrivacyId("privacyId3", "partitionKey3", 1.2345),
+      )
+    val inputCoder =
+      (encoderOfContributionWithPrivacyId(
+          beamEncoderFactory.strings(),
+          beamEncoderFactory.strings(),
+          beamEncoderFactory,
+        )
+          as BeamEncoder<ContributionWithPrivacyId<String, String>>)
+        .coder
+
+    val pCollection = testPipeline.apply(Create.of(input).withCoder(inputCoder))
+
+    PAssert.that(pCollection).containsInAnyOrder(input)
+
+    testPipeline.run().waitUntilFinish()
+  }
+
+  @Test
+  fun recordsOfUnknownClass_string_createsEncoderWithStringCoder() {
+    @Suppress("UNCHECKED_CAST")
+    val encoder = beamEncoderFactory.recordsOfUnknownClass(String::class) as BeamEncoder<String>
+
+    assertThat(encoder.coder).isInstanceOf(StringUtf8Coder::class.java)
+  }
+
+  @Test
+  fun recordsOfUnknownClass_double_createsEncoderWithDoubleCoder() {
+    @Suppress("UNCHECKED_CAST")
+    val encoder = beamEncoderFactory.recordsOfUnknownClass(Double::class) as BeamEncoder<Double>
+
+    assertThat(encoder.coder).isInstanceOf(DoubleCoder::class.java)
+  }
+
+  @Test
+  fun recordsOfUnknownClass_int_createsEncoderWithIntCoder() {
+    @Suppress("UNCHECKED_CAST")
+    val encoder = beamEncoderFactory.recordsOfUnknownClass(Int::class) as BeamEncoder<Int>
+
+    assertThat(encoder.coder).isInstanceOf(VarIntCoder::class.java)
+  }
+
+  @Test
+  fun recordsOfUnknownClass_kotlinClass_createsEncoderWithAvroCoder() {
+    @Suppress("UNCHECKED_CAST")
+    val encoder =
+      beamEncoderFactory.recordsOfUnknownClass(TestRecord::class) as BeamEncoder<TestRecord>
+
+    assertThat(encoder.coder).isInstanceOf(AvroCoder::class.java)
+  }
+
+  @Test
+  fun recordsOfUnknownClass_proto_createsEncoderWithProtoCoder() {
+    @Suppress("UNCHECKED_CAST")
+    val encoder =
+      beamEncoderFactory.recordsOfUnknownClass(CompoundAccumulator::class)
+        as BeamEncoder<CompoundAccumulator>
+
+    assertThat(encoder.coder).isInstanceOf(ProtoCoder::class.java)
+  }
+
+  private data class TestRecord(val string: String, val double: Double, val int: Int) {
+    // Required for Beam serialization.
+    private constructor() : this("", 0.0, 0)
   }
 
   companion object {

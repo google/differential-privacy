@@ -19,7 +19,6 @@ package com.google.privacy.differentialprivacy.pipelinedp4j.local
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.Encoder
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.EncoderFactory
 import com.google.protobuf.Message
-import kotlin.reflect.KClass
 
 class LocalEncoderFactory() : EncoderFactory {
   // The implementation of local encoders is empty because when the data is being processed
@@ -36,9 +35,9 @@ class LocalEncoderFactory() : EncoderFactory {
     return object : Encoder<Int> {}
   }
 
-  override fun <T : Any> records(recordClass: KClass<T>): Encoder<T> = object : Encoder<T> {}
+  override fun <T : Any> records(recordClass: Class<T>): Encoder<T> = object : Encoder<T> {}
 
-  override fun <T : Message> protos(protoClass: KClass<T>): Encoder<T> = object : Encoder<T> {}
+  override fun <T : Message> protos(protoClass: Class<T>): Encoder<T> = object : Encoder<T> {}
 
   override fun <T1 : Any, T2 : Any> tuple2sOf(first: Encoder<T1>, second: Encoder<T2>) =
     object : Encoder<Pair<T1, T2>> {}

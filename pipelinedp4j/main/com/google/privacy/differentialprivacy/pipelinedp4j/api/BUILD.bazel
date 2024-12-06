@@ -41,6 +41,5 @@ kt_jvm_library(
         "@maven//:com_google_guava_guava",
         "@maven//:org_apache_beam_beam_sdks_java_core",
         "@maven//:org_apache_beam_beam_sdks_java_extensions_avro",
-
     ],
 )

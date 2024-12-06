@@ -24,6 +24,7 @@ import (
 	"math"
 	"math/big"
 	"reflect"
+	"sort"
 	"testing"
 
 	"github.com/google/differential-privacy/go/v3/dpagg"
@@ -510,6 +511,7 @@ func intPtrToSlice(vIter func(*int) bool) []float64 {
 	for vIter(&v) {
 		vSlice = append(vSlice, float64(v))
 	}
+	sort.Float64s(vSlice)
 	return vSlice
 }
 

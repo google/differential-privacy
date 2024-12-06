@@ -303,6 +303,10 @@ absl::Status ValidateMaxPartitionsContributed(
                             "contributed to (i.e., L0 sensitivity)");
 }
 
+absl::Status ValidateMaxWindows(std::optional<int> max_windows) {
+  return ValidateIsPositive(max_windows, "Maximum number of windows");
+}
+
 absl::Status ValidateMaxContributionsPerPartition(
     std::optional<double> max_contributions_per_partition) {
   return ValidateIsPositive(max_contributions_per_partition,

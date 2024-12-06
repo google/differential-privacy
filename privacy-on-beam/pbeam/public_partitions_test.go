@@ -22,6 +22,7 @@ import (
 	"reflect"
 	"testing"
 
+	"flag"
 	"github.com/google/differential-privacy/privacy-on-beam/v3/pbeam/testutils"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
@@ -104,6 +105,40 @@ func TestDropNonPublicPartitionsVFn(t *testing.T) {
 	}
 }
 
+// TODO: Remove once the enable_sharded_public_partitions flag is gone.
+func TestDropNonPublicPartitionsVFnShardedImpl(t *testing.T) {
+	flag.Set("enable_sharded_public_partitions", "true")
+
+	pairs := testutils.ConcatenatePairs(
+		testutils.MakePairsWithFixedV(7, 0),
+		testutils.MakePairsWithFixedVStartingFromKey(7, 10, 1),
+		testutils.MakePairsWithFixedVStartingFromKey(17, 83, 2),
+		testutils.MakePairsWithFixedVStartingFromKey(100, 10, 3),
+	)
+
+	// Keep partitions 0, 2;
+	// drop partitions 1, 3.
+	result := testutils.ConcatenatePairs(
+		testutils.MakePairsWithFixedV(7, 0),
+		testutils.MakePairsWithFixedVStartingFromKey(17, 83, 2),
+	)
+
+	p, s, col, want := ptest.CreateList2(pairs, result)
+	want = beam.ParDo(s, testutils.PairToKV, want)
+	col = beam.ParDo(s, testutils.PairToKV, col)
+	partitions := []int{0, 2}
+
+	partitionsCol := beam.CreateList(s, partitions)
+	epsilon := 50.0
+	pcol := MakePrivate(s, col, privacySpec(t, PrivacySpecParams{AggregationEpsilon: epsilon}))
+	got := dropNonPublicPartitionsVFn(s, partitionsCol, pcol)
+	testutils.EqualsKVInt(t, s, got, want)
+	if err := ptest.Run(p); err != nil {
+		t.Errorf("DropNonPublicPartitionsVFn did not drop non public partitions as expected: %v", err)
+	}
+	flag.Set("enable_sharded_public_partitions", "false")
+}
+
 // TestDropNonPublicPartitionsKVFn checks that int elements with non-public partitions
 // are dropped (tests function used for sum and mean).
 func TestDropNonPublicPartitionsKVFn(t *testing.T) {
@@ -145,6 +180,51 @@ func TestDropNonPublicPartitionsKVFn(t *testing.T) {
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestDropNonPublicPartitionsKVFn did not drop non public partitions as expected: %v", err)
 	}
+}
+
+// TODO: Remove once the enable_sharded_public_partitions flag is gone.
+func TestDropNonPublicPartitionsKVFnShardedImpl(t *testing.T) {
+	flag.Set("enable_sharded_public_partitions", "true")
+
+	triples := testutils.ConcatenateTriplesWithIntValue(
+		testutils.MakeTripleWithIntValueStartingFromKey(0, 7, 0, 0),
+		testutils.MakeTripleWithIntValueStartingFromKey(7, 3, 1, 0),
+		testutils.MakeTripleWithIntValueStartingFromKey(10, 90, 2, 0),
+		testutils.MakeTripleWithIntValueStartingFromKey(100, 100, 11, 0),
+		testutils.MakeTripleWithIntValueStartingFromKey(200, 5, 12, 0))
+	// Keep partitions 0, 2.
+	// Drop partitions 1, 33, 100.
+	result := testutils.ConcatenateTriplesWithIntValue(
+		testutils.MakeTripleWithIntValueStartingFromKey(0, 7, 0, 0),
+		testutils.MakeTripleWithIntValueStartingFromKey(10, 90, 2, 0))
+
+	p, s, col, col2 := ptest.CreateList2(triples, result)
+	// Doesn't matter that the values 3, 4, 5, 6, 9, 10
+	// are in the partitions PCollection because we are
+	// just dropping the values that are in our original PCollection
+	// that are not in public partitions.
+	partitionsCol := beam.CreateList(s, []int{0, 2, 3, 4, 5, 6, 9, 10})
+	col = beam.ParDo(s, testutils.ExtractIDFromTripleWithIntValue, col)
+	col2 = beam.ParDo(s, testutils.ExtractIDFromTripleWithIntValue, col2)
+	epsilon := 50.0
+
+	pcol := MakePrivate(s, col, privacySpec(t, PrivacySpecParams{AggregationEpsilon: epsilon}))
+	pcol = ParDo(s, testutils.TripleWithIntValueToKV, pcol)
+	idT, _ := beam.ValidateKVType(pcol.col)
+
+	got := dropNonPublicPartitionsKVFn(s, partitionsCol, pcol, idT)
+	got = beam.SwapKV(s, got)
+
+	pcol2 := MakePrivate(s, col2, privacySpec(t, PrivacySpecParams{AggregationEpsilon: epsilon}))
+	pcol2 = ParDo(s, testutils.TripleWithIntValueToKV, pcol2)
+	want := pcol2.col
+	want = beam.SwapKV(s, want)
+
+	testutils.EqualsKVInt(t, s, got, want)
+	if err := ptest.Run(p); err != nil {
+		t.Errorf("TestDropNonPublicPartitionsKVFn did not drop non public partitions as expected: %v", err)
+	}
+	flag.Set("enable_sharded_public_partitions", "false")
 }
 
 // Check that float elements with non-public partitions
@@ -189,4 +269,50 @@ func TestDropNonPublicPartitionsFloat(t *testing.T) {
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("TestDropNonPublicPartitionsFloat did not drop non public partitions as expected: %v", err)
 	}
+}
+
+// TODO: Remove once the enable_sharded_public_partitions flag is gone.
+func TestDropNonPublicPartitionsFloatShardedImpl(t *testing.T) {
+	flag.Set("enable_sharded_public_partitions", "true")
+
+	// In this test, we check  that non-public partitions
+	// are dropped. This function is used for sum and mean.
+	// Used example values from the mean test.
+	triples := testutils.ConcatenateTriplesWithFloatValue(
+		testutils.MakeTripleWithFloatValue(7, 0, 2.0),
+		testutils.MakeTripleWithFloatValueStartingFromKey(7, 100, 1, 1.3),
+		testutils.MakeTripleWithFloatValueStartingFromKey(107, 150, 1, 2.5),
+	)
+	// Keep partition 0.
+	// drop partition 1.
+	result := testutils.ConcatenateTriplesWithFloatValue(
+		testutils.MakeTripleWithFloatValue(7, 0, 2.0))
+
+	p, s, col, col2 := ptest.CreateList2(triples, result)
+
+	// Doesn't matter that the values 2, 3, 4, 5, 6, 7 are in the partitions PCollection.
+	// We are just dropping the values that are in our original PCollection that are not in
+	// public partitions.
+	partitionsCol := beam.CreateList(s, []int{0, 2, 3, 4, 5, 6, 7})
+	col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
+	col2 = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col2)
+	epsilon := 50.0
+
+	pcol := MakePrivate(s, col, privacySpec(t, PrivacySpecParams{AggregationEpsilon: epsilon}))
+	pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
+	idT, _ := beam.ValidateKVType(pcol.col)
+
+	got := dropNonPublicPartitionsKVFn(s, partitionsCol, pcol, idT)
+	got = beam.SwapKV(s, got)
+
+	pcol2 := MakePrivate(s, col2, privacySpec(t, PrivacySpecParams{AggregationEpsilon: epsilon}))
+	pcol2 = ParDo(s, testutils.TripleWithFloatValueToKV, pcol2)
+	want := pcol2.col
+	want = beam.SwapKV(s, want)
+
+	testutils.EqualsKVInt(t, s, got, want)
+	if err := ptest.Run(p); err != nil {
+		t.Errorf("TestDropNonPublicPartitionsFloat did not drop non public partitions as expected: %v", err)
+	}
+	flag.Set("enable_sharded_public_partitions", "false")
 }

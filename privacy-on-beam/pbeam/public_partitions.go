@@ -22,12 +22,19 @@ import (
 	"bytes"
 	"encoding/base64"
 	"fmt"
+	"math/rand"
 	"reflect"
 
+	"flag"
 	"github.com/google/differential-privacy/privacy-on-beam/v3/internal/kv"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/filter"
+)
+
+var (
+	enableShardedPublicPartitions = flag.Bool("enable_sharded_public_partitions", false, "Enable sharded public partitions. This is a temporary flag to allow us to test the new sharded implementation of public partition filtering.")
 )
 
 func init() {
@@ -51,6 +58,11 @@ func init() {
 	register.Function4x0[beam.W, func(*beam.V) bool, func(*beam.V) bool, func(beam.W, beam.V)](mergeResultWithEmptyPublicPartitionsFn)
 	register.Iter1[beam.V]()
 	register.Emitter2[beam.W, beam.V]()
+
+	register.Function1x2[kv.Pair, ShardedKey, []byte](addRandomShardIDFn)
+	register.Function4x0[[]byte, func(*[]byte) bool, func(*int) bool, func(ShardedKey, int)](extractEmittableKeysWithShardIDFn)
+	register.DoFn4x1[ShardedKey, func(*int) bool, func(*[]byte) bool, func(beam.T, beam.W), error](&filterKeysWithShardIDFn{})
+	register.Function1x2[kv.Pair, []byte, []byte](unwrapPairFn)
 }
 
 // newAddZeroValuesToPublicPartitionsFn turns a PCollection<V> into PCollection<V,0>.
@@ -138,6 +150,116 @@ func mergePublicValues(value beam.V, isKnown func(*int64) bool, privacyKeys func
 	}
 }
 
+// ShardedKey is an key encoded as bytes with a int shardID.
+type ShardedKey struct {
+	K       []byte
+	ShardID int
+}
+
+func addRandomShardIDFn(encoded kv.Pair) (ShardedKey, []byte) {
+	return ShardedKey{K: encoded.K, ShardID: rand.Intn(2048)}, encoded.V
+}
+
+func extractEmittableKeysWithShardIDFn(k []byte, isAllowedKeyIter func(*[]byte) bool, shardIDIter func(*int) bool, emit func(ShardedKey, int)) {
+	var isAllowedKey []byte
+	if !isAllowedKeyIter(&isAllowedKey) {
+		// k is not an allow listed key, filter it out.
+		return
+	}
+
+	var subkey int
+	for shardIDIter(&subkey) {
+		emit(ShardedKey{K: k, ShardID: subkey}, 0)
+	}
+}
+
+type filterKeysWithShardIDFn struct {
+	KType     beam.EncodedType
+	VType     beam.EncodedType
+	PairCodec *kv.Codec
+}
+
+func newFilterKeysWithShardIDFn(kType, vType reflect.Type) *filterKeysWithShardIDFn {
+	return &filterKeysWithShardIDFn{
+		KType: beam.EncodedType{T: kType},
+		VType: beam.EncodedType{T: vType},
+	}
+}
+
+func (fn *filterKeysWithShardIDFn) Setup() error {
+	fn.PairCodec = kv.NewCodec(fn.KType.T, fn.VType.T)
+	return fn.PairCodec.Setup()
+}
+
+func (fn *filterKeysWithShardIDFn) ProcessElement(k ShardedKey, isEmittableShardIDIter func(*int) bool, pcolValueIter func(*[]byte) bool, emit func(beam.T, beam.W)) error {
+	var isEmittableShardID int
+	if !isEmittableShardIDIter(&isEmittableShardID) {
+		// k isn't a key from the public partitions collection.
+		return nil
+	}
+
+	var pcolValue []byte
+	for pcolValueIter(&pcolValue) {
+		k, v, err := fn.PairCodec.Decode(kv.Pair{K: k.K, V: pcolValue})
+		if err != nil {
+			return err
+		}
+		emit(k, v)
+	}
+
+	return nil
+}
+
+func unwrapPairFn(encoded kv.Pair) ([]byte, []byte) {
+	return encoded.K, encoded.V
+}
+
+func unwrapShardedKeyFn(shardedKey ShardedKey) ([]byte, int) {
+	return shardedKey.K, shardedKey.ShardID
+}
+
+// Filters out KV-s from col that have a key in 'keys'.
+//
+// A single key in col may have a huge number of values. This function handles that
+// case by sharding col randomly into 2048 collections, and then joining the keys
+// within each of those shards. This reduces stragglers when there is a hot key in col,
+// since its processing is parallelized 2048 ways.
+//
+// Each value in col is randomly selected to be in one of the 2048 shards. Then the
+// 'keys' collection is joined with the sharded col collection to find the shardIds
+// that need to be present per key. Then the sharded col collection is joined with
+// the sharded 'keys' collection to compute the final filtered result.
+func filterKeysImbalanced(s beam.Scope, col beam.PCollection, keys beam.PCollection) beam.PCollection {
+	s = s.Scope("filterKeysImbalanced")
+
+	kT, vT := beam.ValidateKVType(col)
+
+	// Add a random shardId (one of 2048) to each element in col.
+	// PCollection<KV<ShardedKey[key, randInt[0;2048)], []byte>>
+	pcolAsBytesWithShardID := beam.ParDo(s, addRandomShardIDFn, beam.ParDo(s, kv.NewEncodeFn(kT, vT), col))
+	// Drop values and remove duplicates.
+	// PCollection<ShardedKey[key, randInt[0;2048)]>
+	uniqueKeysWithShardID := filter.Distinct(s, beam.DropValue(s, pcolAsBytesWithShardID))
+
+	// Prepare the keys for a CoGroupBy with uniqueSubkeys.
+	// PCollection<KV<key, 0>>
+	keysWithZero := beam.ParDo(s, addZeroValuesToPublicPartitionsInt64, keys)
+	// PCollection<kv.Pair<key, 0>>
+	keysEncodedWithZero := beam.ParDo(
+		s,
+		kv.NewEncodeFn(keysWithZero.Type().Components()[0],
+			keysWithZero.Type().Components()[1]), keysWithZero)
+
+	// Find the shardIds per key in the keys collection.
+	// PCollection<KV<key, *>>
+	groupedByKey := beam.CoGroupByKey(s, beam.ParDo(s, unwrapPairFn, keysEncodedWithZero), beam.ParDo(s, unwrapShardedKeyFn, uniqueKeysWithShardID))
+	emittableKeysWithShardID := beam.ParDo(s, extractEmittableKeysWithShardIDFn, groupedByKey)
+
+	// Finally perform the sharded filter.
+	groupedByKeyAndShardID := beam.CoGroupByKey(s, emittableKeysWithShardID, pcolAsBytesWithShardID)
+	return beam.ParDo(s, newFilterKeysWithShardIDFn(kT.Type(), vT.Type()), groupedByKeyAndShardID, beam.TypeDefinition{Var: beam.TType, T: kT.Type()}, beam.TypeDefinition{Var: beam.WType, T: vT.Type()})
+}
+
 // dropNonPublicPartitionsVFn drops partitions not specified in
 // PublicPartitions from pcol. It can be used for aggregations on V values,
 // e.g. Count and DistinctPrivacyID.
@@ -152,9 +274,13 @@ func mergePublicValues(value beam.V, isKnown func(*int64) bool, privacyKeys func
 // Returns a PCollection<PrivacyKey, Value> only for values present in
 // publicPartitions.
 func dropNonPublicPartitionsVFn(s beam.Scope, publicPartitions beam.PCollection, pcol PrivatePCollection) beam.PCollection {
-	publicPartitionsWithZeros := beam.ParDo(s, addZeroValuesToPublicPartitionsInt64, publicPartitions)
-	groupedByValue := beam.CoGroupByKey(s, publicPartitionsWithZeros, beam.SwapKV(s, pcol.col))
-	return beam.ParDo(s, mergePublicValues, groupedByValue)
+	if *enableShardedPublicPartitions {
+		return beam.SwapKV(s, filterKeysImbalanced(s, beam.SwapKV(s, pcol.col), publicPartitions))
+	} else {
+		publicPartitionsWithZeros := beam.ParDo(s, addZeroValuesToPublicPartitionsInt64, publicPartitions)
+		groupedByValue := beam.CoGroupByKey(s, publicPartitionsWithZeros, beam.SwapKV(s, pcol.col))
+		return beam.ParDo(s, mergePublicValues, groupedByValue)
+	}
 }
 
 // dropNonPublicPartitionsKVFn drops partitions not specified in
@@ -175,12 +301,20 @@ func dropNonPublicPartitionsVFn(s beam.Scope, publicPartitions beam.PCollection,
 // Returns a PCollection<PrivacyKey, <PartitionKey, Value>> only for values present in
 // publicPartitions.
 func dropNonPublicPartitionsKVFn(s beam.Scope, publicPartitions beam.PCollection, pcol PrivatePCollection, idType typex.FullType) beam.PCollection {
-	publicPartitionsWithZeros := beam.ParDo(s, addZeroValuesToPublicPartitionsInt64, publicPartitions)
-	encodedIDV := beam.ParDo(s, newEncodeIDVFn(idType, pcol.codec), pcol.col, beam.TypeDefinition{Var: beam.WType, T: pcol.codec.KType.T})
-	groupedByValue := beam.CoGroupByKey(s, publicPartitionsWithZeros, encodedIDV)
-	merged := beam.SwapKV(s, beam.ParDo(s, mergePublicValues, groupedByValue))
-	decodeFn := newDecodeIDVFn(pcol.codec.KType, kv.NewCodec(idType.Type(), pcol.codec.VType.T))
-	return beam.ParDo(s, decodeFn, merged, beam.TypeDefinition{Var: beam.UType, T: idType.Type()})
+	if *enableShardedPublicPartitions {
+		encodedIDV := beam.ParDo(
+			s, newEncodeIDVFn(idType, pcol.codec), pcol.col, beam.TypeDefinition{Var: beam.WType, T: pcol.codec.KType.T})
+		filteredEncodedIDV := filterKeysImbalanced(s, encodedIDV, publicPartitions)
+		decodeFn := newDecodeIDVFn(pcol.codec.KType, kv.NewCodec(idType.Type(), pcol.codec.VType.T))
+		return beam.ParDo(s, decodeFn, filteredEncodedIDV, beam.TypeDefinition{Var: beam.UType, T: idType.Type()})
+	} else {
+		publicPartitionsWithZeros := beam.ParDo(s, addZeroValuesToPublicPartitionsInt64, publicPartitions)
+		encodedIDV := beam.ParDo(s, newEncodeIDVFn(idType, pcol.codec), pcol.col, beam.TypeDefinition{Var: beam.WType, T: pcol.codec.KType.T})
+		groupedByValue := beam.CoGroupByKey(s, publicPartitionsWithZeros, encodedIDV)
+		merged := beam.SwapKV(s, beam.ParDo(s, mergePublicValues, groupedByValue))
+		decodeFn := newDecodeIDVFn(pcol.codec.KType, kv.NewCodec(idType.Type(), pcol.codec.VType.T))
+		return beam.ParDo(s, decodeFn, merged, beam.TypeDefinition{Var: beam.UType, T: idType.Type()})
+	}
 }
 
 // encodeIDVFn takes a PCollection<ID,kv.Pair{K,V}> as input, and returns a

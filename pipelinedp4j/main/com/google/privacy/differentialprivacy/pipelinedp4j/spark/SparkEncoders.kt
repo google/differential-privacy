@@ -19,7 +19,6 @@ package com.google.privacy.differentialprivacy.pipelinedp4j.spark
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.Encoder
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.EncoderFactory
 import com.google.protobuf.Message
-import kotlin.reflect.KClass
 import org.apache.spark.sql.Encoders
 
 /** A serializer and a deserializer for the data types to convert into Spark internal data types. */
@@ -39,12 +38,12 @@ class SparkEncoderFactory : EncoderFactory {
     return SparkEncoder<Int>(Encoders.INT())
   }
 
-  override fun <T : Any> records(recordClass: KClass<T>): SparkEncoder<T> {
-    return SparkEncoder(Encoders.bean(recordClass.java))
+  override fun <T : Any> records(recordClass: Class<T>): SparkEncoder<T> {
+    return SparkEncoder(Encoders.bean(recordClass))
   }
 
-  override fun <T : Message> protos(protoClass: KClass<T>): SparkEncoder<T> {
-    return SparkEncoder<T>(Encoders.kryo(protoClass.java))
+  override fun <T : Message> protos(protoClass: Class<T>): SparkEncoder<T> {
+    return SparkEncoder<T>(Encoders.kryo(protoClass))
   }
 
   override fun <T1 : Any, T2 : Any> tuple2sOf(

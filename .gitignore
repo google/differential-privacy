@@ -2,12 +2,3 @@
 **/bazel-java
 **/bazel-out
 **/bazel-testlogs
-
-**/bazel-differential-privacy
-**/.ijwb/
-**/pipelinedp4j/.ijwb/
-**/pipelinedp4j/bazel-pipelinedp4j
-**/pipelinedp4j/MODULE**
-**/examples/.idea/
-**/examples/pipelinedp4j/bazel-pipelinedp4j
-**/examples/pipelinedp4j/MODULE**

@@ -21,13 +21,13 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.core.EncoderFactory
 import com.google.protobuf.Message
 import java.io.InputStream
 import java.io.OutputStream
-import kotlin.reflect.KClass
 import org.apache.beam.sdk.coders.Coder
 import org.apache.beam.sdk.coders.CustomCoder
 import org.apache.beam.sdk.coders.DoubleCoder
 import org.apache.beam.sdk.coders.StringUtf8Coder
 import org.apache.beam.sdk.coders.VarIntCoder
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder
+
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder
 
 class BeamEncoder<T>(val coder: Coder<T>) : Encoder<T>
@@ -39,11 +39,10 @@ class BeamEncoderFactory() : EncoderFactory {
 
   override fun ints() = BeamEncoder<Int>(VarIntCoder.of())
 
-  override fun <T : Any> records(recordClass: KClass<T>) =
-    BeamEncoder<T>(AvroCoder.of(recordClass.java))
+  override fun <T : Any> records(recordClass: Class<T>) = BeamEncoder<T>(AvroCoder.of(recordClass))
 
-  override fun <T : Message> protos(protoClass: KClass<T>) =
-    BeamEncoder<T>(ProtoCoder.of(protoClass.java))
+  override fun <T : Message> protos(protoClass: Class<T>) =
+    BeamEncoder<T>(ProtoCoder.of(protoClass))
 
   override fun <T1 : Any, T2 : Any> tuple2sOf(first: Encoder<T1>, second: Encoder<T2>) =
     BeamEncoder(
