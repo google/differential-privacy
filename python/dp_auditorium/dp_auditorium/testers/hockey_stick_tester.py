@@ -193,7 +193,7 @@ class HockeyStickPropertyTester(divergence_tester.DivergencePropertyTester):
             self._training_options.optimizer_learning_rate
         ),
         loss=tf.keras.losses.BinaryCrossentropy(from_logits=True),
-        metrics=tf.keras.metrics.BinaryAccuracy(threshold=0.0),
+        metrics=[tf.keras.metrics.BinaryAccuracy(threshold=0.0)],
     )
     features, labels = self._generate_inputs_to_model(
         samples_first_distribution,
