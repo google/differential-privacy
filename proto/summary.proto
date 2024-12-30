@@ -16,171 +16,166 @@
 
 // This file defines the summary data format for the count algorithm.
 
-syntax = "proto2";
+ = "proto2";
 
-package differential_privacy;
+ differential_privacy;
+ "google/protobuf/any.proto";
+ "proto/data.proto";
 
-import "google/protobuf/any.proto";
-import "proto/data.proto";
-
-option java_package = "com.google.privacy.differentialprivacy.proto";
+ java_package = "com.google.privacy.differentialprivacy.proto";
 
 // Serialized summary data of a subset of the input data, to be merged at a
 // later time.
-message Summary {
+Summary {
   // The summary data.
-  optional google.protobuf.Any data = 2;
+   google.protobuf.Any data = 2;
 }
-
-message CountSummary {
+ CountSummary {
   // Count of the data subset.
-  optional int64 count = 1;
+   count = 1;
 
   // TODO: Use below fields in C++ library.
   // Count parameters:
-  optional double epsilon = 3;
-  optional double delta = 4;
-  optional MechanismType mechanism_type = 5;
-  optional int32 max_partitions_contributed = 6;
-  optional int32 max_contributions_per_partition = 7;
+   epsilon = 3;
+   delta = 4;
+   MechanismType mechanism_type = 5;
+   max_partitions_contributed = 6;
+  o max_contributions_per_partition = 7;
 }
-
-message BoundedQuantilesSummary {
+ BoundedQuantilesSummary {
   // Distribution of the data subset, stored in the form of a quantile tree
-  map<int32, int64> quantile_tree = 1;
+  map<,  quantile_tree = 1;
 
   // Quantiles parameters:
-  optional double epsilon = 2;
-  optional double delta = 3;
-  optional MechanismType mechanism_type = 4;
-  optional double lower = 5;
-  optional double upper = 6;
-  optional int32 max_partitions_contributed = 7;
-  optional int32 max_contributions_per_partition = 8;
-  optional int32 tree_height = 9;
-  optional int32 branching_factor = 10;
+  epsilon = 2;
+   delta = 3;
+   MechanismType mechanism_type = 4;
+   lower = 5;
+   upper = 6;
+   max_partitions_contributed = 7;
+   max_contributions_per_partition = 8;
+   tree_height = 9;
+   branching_factor = 10;
 }
 
-message BoundedSumSummary {
+ BoundedSumSummary {
   // Partial sum data for the dataset. For automatically set bounds, partial
   // sum values are stored corresponding to each ApproxBounds bin.
   // For manually set bounds, clamped sum will be stored in pos_sum.
   // Currently, used only by C++ library.
-  repeated ValueType pos_sum = 1;
+  rñ ValueType pos_sum = 1;
   // neg_sum is used only when bounds are determined automatically.
-  repeated ValueType neg_sum = 2;
+   ValueType neg_sum = 2;
 
   // ApproxBounds data if available.
-  optional ApproxBoundsSummary bounds_summary = 3;
+   ApproxBoundsSummary bounds_summary = 3;
 
   // partial_sum is used by the Java library to store partial sum.
   // TODO: Use partial_sum in C++ library
   //  when bounds are set manually.
-  optional ValueType partial_sum = 4;
+   ValueType partial_sum = 4;
 
   // TODO: Use below fields in C++ library.
   // partial_sum is used by Java library to store sum
   // Sum parameters:
-  optional double epsilon = 5;
-  optional double delta = 6;
-  optional MechanismType mechanism_type = 7;
-  optional double lower = 8;
-  optional double upper = 9;
-  optional int32 max_partitions_contributed = 10;
-  optional int32 max_contributions_per_partition = 11;
+   epsilon = 5;
+   delta = 6;
+   MechanismType mechanism_type = 7;
+   lower = 8;
+   upper = 9;
+   max_partitions_contributed = 10;
+   max_contributions_per_partition = 11;
 }
 
-message LongBoundedSumSummary {
-  optional ValueType partial_sum = 1;
+ LongBoundedSumSummary {
+ ValueType partial_sum = 1;
 
-  optional double epsilon = 2;
-  optional double delta = 3;
-  optional MechanismType mechanism_type = 4;
-  optional int64 lower = 5;
-  optional int64 upper = 6;
-  optional int32 max_partitions_contributed = 7;
-  optional int32 max_contributions_per_partition = 8;
+   epsilon = 2;
+   delta = 3;
+   MechanismType mechanism_type = 4;
+   lower = 5;
+   upper = 6;
+   max_partitions_contributed = 7;
+   max_contributions_per_partition = 8;
 }
 
-enum MechanismType {
+ MechanismType {
   EMPTY = 0;
   LAPLACE = 1;
   GAUSSIAN = 2;
   DISCRETE_LAPLACE = 3;
-  reserved 4;
+   4;
   MECHANISM_NONE = 5;
 }
 
-message BoundedMeanSummary {
+ BoundedMeanSummary {
   // Count of the data subset.
-  optional int64 count = 1;
+   count = 1;
 
   // Partial sum data for the dataset.
-  repeated ValueType pos_sum = 2;
-  repeated ValueType neg_sum = 3;
+   ValueType pos_sum = 2;
+   ValueType neg_sum = 3;
 
   // ApproxBounds data if available.
-  optional ApproxBoundsSummary bounds_summary = 4;
+   ApproxBoundsSummary bounds_summary = 4;
 
   // These two fields are only used by the Java library (not C++), similarly to
   // pos_sum and count.
-  optional BoundedSumSummary sum_summary = 5;
-  optional CountSummary count_summary = 6;
+   BoundedSumSummary sum_summary = 5;
+   CountSummary count_summary = 6;
 }
 
 // Used for BoundedVariance and BoundedStandardDeviation algorithms.
-message BoundedVarianceSummary {
+ BoundedVarianceSummary {
   // Count of the dataset.
-  optional int64 count = 1;
+   count = 1;
 
   // Partial sum data for the dataset. For manually set bounds, the clamped sum
   // will be stored in pos_sum. For automatically set bounds, partial sum values
   // stored corresponding to each ApproxBounds bin.
-  repeated ValueType pos_sum = 2;
-  repeated ValueType neg_sum = 3;
+   ValueType pos_sum = 2;
+   ValueType neg_sum = 3;
 
   // Partial sum of squares for the dataset. For manually set bounds, clamped
   // sum of squares is stored in pos_sum_of_squares.
-  repeated double pos_sum_of_squares = 4;
-  repeated double neg_sum_of_squares = 5;
+   pos_sum_of_squares = 4;
+  r neg_sum_of_squares = 5;
 
   // ApproxBounds data if available.
-  optional ApproxBoundsSummary bounds_summary = 6;
+  ApproxBoundsSummary bounds_summary = 6;
 
   // These three fields are only used by the Java library (not C++), similarly
   // to pos_sum_of_squares, pos_sum and count.
-  optional BoundedSumSummary sum_of_squares_summary = 7;
-  optional BoundedSumSummary sum_summary = 8;
-  optional CountSummary count_summary = 9;
+   BoundedSumSummary sum_of_squares_summary = 7;
+   BoundedSumSummary sum_summary = 8;
+   CountSummary count_summary = 9;
 }
 
-message Elements {
-  repeated string element = 1;
+ Elements {
+  element = 1;
 }
 
-message HistogramSummary {
-  repeated int64 bin_count = 1;
+ HistogramSummary {
+   bin_count = 1;
 }
-
-message BinarySearchSummary {
-  reserved 1;
+ BinarySearchSummary {
+   1;
 
   // Store all inputs.
-  repeated ValueType input = 2;
+   ValueType input = 2;
 }
 
-message ApproxBoundsSummary {
-  repeated int64 pos_bin_count = 1;
-  repeated int64 neg_bin_count = 2;
+ ApproxBoundsSummary {
+  pos_bin_count = 1;
+   neg_bin_count = 2;
 }
-
-message PreAggSelectPartitionSummary {
+PreAggSelectPartitionSummary {
   // The count of unique privacy units IDs in the partition.
-  optional int64 ids_count = 1;
+   ids_count = 1;
 
   // PreAggSelectPartition parameters:
-  optional double epsilon = 2;
-  optional double delta = 3;
-  optional int32 max_partitions_contributed = 4;
-  optional int32 pre_threshold = 5;
+   epsilon = 2;
+   delta = 3;
+   max_partitions_contributed = 4;
+   pre_threshold = 5;
 }
