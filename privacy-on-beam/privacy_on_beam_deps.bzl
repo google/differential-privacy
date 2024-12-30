@@ -18,7 +18,7 @@
 
 load("@bazel_gazelle//:deps.bzl", "go_repository")
 
-def privacy_on_beam_deps():
+ privacy_on_beam_deps():
     """ Macro to include Privacy on Beam's critical dependencies in a WORKSPACE.
 
         Generated automatically by gazelle.
