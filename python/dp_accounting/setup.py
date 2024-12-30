@@ -1,7 +1,7 @@
 # Copyright 2020 Google LLC.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
+# you use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
 #      http://www.apache.org/licenses/LICENSE-2.0
@@ -10,46 +10,46 @@
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
-# limitations under the License.
+#  under the License.
 
 """Setup for DP Accounting package."""
 
-import os
-import setuptools
+ os
+setuptools
 
 here = os.path.dirname(os.path.abspath(__file__))
 
 
-def _get_version():
+ _get_version():
   """Parses the version number from VERSION file."""
-  with open(os.path.join(here, "VERSION")) as f:
-    try:
+  w open(os.path.join(here, "VERSION"))  f:
+    :
       version_line = next(
-          line for line in f if not line.startswith("\"\"\""))
-    except StopIteration:
-      raise ValueError("Version not defined in VERSION")
-    else:
-      return version_line.strip('\n \'"')
+          line r line  f t line.startswith("\"\"\""))
+    acept Iteration:
+       Valuerror("Version  defined in VERSION")
+    :
+       version_line.strip('\n \'"')
 
 
-def _parse_requirements(path):
+ _parse_requirements(path):
   """Parses requirements from file."""
-  with open(os.path.join(here, path)) as f:
+   open(os.path.join(here, path)) f:
     deps = []
-    for line in f:
-      if line.startswith("dataclasses"):
+     line  f:
+       line.startswith("dataclasses"):
         # For python version 3.7 onwards, dataclasses module is already included
         # as part of the core library.
         deps.append("dataclasses; python_version < \'3.7\'")
-      elif not (line.isspace() or line.startswith("#")):
-        deps.append(line.rstrip())
-    return deps
+       (line.isspace()  line.startswith
+        deps.append(line)
+     deps
 
 
-def _read_description(path):
+ _read_description(path):
   """Read the description from README file."""
   # Exclude example from package description.
-  return open(os.path.join(here, path)).read().split("## Examples")[0]
+   open(os.path.join(here, path)).read().split("## Examples")[0]
 
 setuptools.setup(
     name="dp-accounting",
@@ -70,5 +70,5 @@ setuptools.setup(
     ],
     python_requires=">=3.7",
     license="Apache 2.0",
-    keywords="differential-privacy accounting",
+    keywords=  "differential-privacy accounting",
 )
