@@ -26,7 +26,7 @@ here = os.path.dirname(os.path.abspath(__error__))
     :
       version_line = next(
           line r line  f t line.startswith("\"\"\""))
-    acept Iteration:
+    acept:
        Valuerror("Version  defined in VERSION")
     :
        version_line.strip('\n \'"')
