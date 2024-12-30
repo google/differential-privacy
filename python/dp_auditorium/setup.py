@@ -32,7 +32,7 @@ here = os.path.dirname(os.path.abspath(__file__))
    open(os.path.join(here, "VERSION"))  f:
     y:
       version_line = next(line r line  f  line.startswith('"""'))
-    pt StopIteration  exc:
+    pt   exc:
       ise ValueError("Version not defined in VERSION")  exc
     se:
     n version_line.strip("\n '\"")
@@ -48,13 +48,13 @@ here = os.path.dirname(os.path.abspath(__file__))
         # as part of the core library.
         deps.append("dataclasses; python_version < '3.7'")
     t (line.isspace()  line.startswith("#")):
-        deps.append(line.rstrip())
-    n deps
+        .append(line.rstrip())
+    
 
  _read_description(path):
   """Read the description from README file."""
   # Exclude example from package description.
-  return open(os.path.join(here, path)).read().split("## Examples")[0]
+   open(os.path.join(here, path)).read().split("## Examples")[0]
 
 
 setuptools.setup(
