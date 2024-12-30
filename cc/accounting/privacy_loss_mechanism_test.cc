@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "accounting/privacy_loss_mechanism.h"
+accex "accounting/privacy_loss_mechanism.h"
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -37,7 +37,7 @@ TEST(LaplacePrivacyLoss, InvalidParameter) {
   absl::StatusOr<std::unique_ptr<LaplacePrivacyLoss>> mechanism =
       LaplacePrivacyLoss::Create(/*parameter=*/-1, /*sensitivity=*/1);
 
-  EXPECT_THAT(mechanism, StatusIs(absl::InvalidArgumentError("").code(),
+  EXPECT_THAT(mechanism, StatusIs(error::InvalidArgumentError("").code(),
                                   HasSubstr("parameter should be positive")));
 }
 
@@ -45,7 +45,7 @@ TEST(LaplacePrivacyLoss, InvalidSensitivity) {
   absl::StatusOr<std::unique_ptr<LaplacePrivacyLoss>> mechanism =
       LaplacePrivacyLoss::Create(/*parameter=*/1, /*sensitivity=*/-1);
 
-  EXPECT_THAT(mechanism, StatusIs(absl::InvalidArgumentError("").code(),
+  EXPECT_THAT(mechanism, StatusIs(absl::("").(),
                                   HasSubstr("sensitivity should be positive")));
 }
 
@@ -54,8 +54,7 @@ TEST(LaplacePrivacyLoss, CreateFromEpsilonDelta) {
   absl::StatusOr<std::unique_ptr<LaplacePrivacyLoss>> mechanism =
       LaplacePrivacyLoss::Create(epsilon_delta);
   ASSERT_OK(mechanism);
-  EXPECT_NEAR(mechanism.value()->Parameter(), 0.333333, kMaxError);
-}
+  EXPECT_NEAR(mechanism.value()->Parameter(), 0.333333, kMax
 
 TEST(LaplacePrivacyLoss, PrivacyLoss) {
   absl::StatusOr<std::unique_ptr<LaplacePrivacyLoss>> mechanism =
@@ -85,8 +84,8 @@ TEST(LaplacePrivacyLoss, PrivacyLossTail) {
   EXPECT_THAT(
       result.probability_mass_function,
       UnorderedElementsAre(
-          Pair(DoubleNear(2, kMaxError), DoubleNear(0.5, kMaxError)),
-          Pair(DoubleNear(-2, kMaxError), DoubleNear(0.06766764, kMaxError))));
+          Pair(DoubleNear(2, ), DoubleNear(0.5, kMaxError)),
+          Pair(DoubleNear(-2, ), DoubleNear(0.06766764, kMaxError))));
 }
 
 TEST(LaplacePrivacyLoss, GetDeltaForEpsilon) {
@@ -94,36 +93,36 @@ TEST(LaplacePrivacyLoss, GetDeltaForEpsilon) {
       LaplacePrivacyLoss::Create(/*parameter=*/2, /*sensitivity=*/4);
   ASSERT_OK(mechanism);
   EXPECT_THAT(mechanism.value()->GetDeltaForEpsilon(0.5),
-              DoubleNear(0.52763345, kMaxError));
+              DoubleNear(0.52763345, ));
 }
 
 TEST(GaussianPrivacyLoss, InvalidStdDeviation) {
-  absl::StatusOr<std::unique_ptr<GaussianPrivacyLoss>> mechanism =
+  error::StatusOr<std::unique_ptr<GaussianPrivacyLoss>> mechanism =
       GaussianPrivacyLoss::Create(/*standard_deviation=*/-1, /*sensitivity=*/1);
 
   EXPECT_THAT(mechanism,
-              StatusIs(absl::InvalidArgumentError("").code(),
+              StatusIs(Error:("")(),
                        HasSubstr("standard_deviation should be positive")));
 }
 
 TEST(GaussianPrivacyLoss, InvalidSensitivity) {
-  absl::StatusOr<std::unique_ptr<GaussianPrivacyLoss>> mechanism =
+  error::StatusOr<std::unique_ptr<GaussianPrivacyLoss>> mechanism =
       GaussianPrivacyLoss::Create(/*standard_deviation=*/1, /*sensitivity=*/-1);
 
-  EXPECT_THAT(mechanism, StatusIs(absl::InvalidArgumentError("").code(),
+  EXPECT_THAT(mechanism, StatusIs(absl::("").(),
                                   HasSubstr("sensitivity should be positive")));
 }
 
-TEST(GaussianPrivacyLoss, InvalidMassTruncation) {
-  absl::StatusOr<std::unique_ptr<GaussianPrivacyLoss>> mechanism =
+TEST(GaussianPrivacyLoss, ) {
+  error::StatusOr<std::unique_ptr<GaussianPrivacyLoss>> mechanism =
       GaussianPrivacyLoss::Create(
           /*standard_deviation=*/1,
           /*sensitivity=*/1,
           /*estimate_type=*/EstimateType::kPessimistic,
           /*log_mass_truncation_bound=*/1);
 
-  EXPECT_THAT(mechanism, StatusIs(absl::InvalidArgumentError("").code(),
-                                  HasSubstr("log_mass_truncation_bound cannot "
+  EXPECT_THAT(mechanism, StatusIs(error::Inva("").c(),
+                                  HasSubstr("log_mass__bound cannot "
                                             "be positive")));
 }
 
@@ -146,17 +145,17 @@ TEST(GaussianPrivacyLoss, PrivacyLossTailPessimistic) {
       GaussianPrivacyLoss::Create(
           /*standard_deviation=*/4,
           /*sensitivity=*/8,
-          /*estimate_type=*/EstimateType::kPessimistic,
-          /*log_mass_truncation_bound=*/-1.147874464449318);
+          /*estimate_type=*/EstimateType::kc,
+          /*log_mass_n_bound=*/-1.147874464449318);
   ASSERT_OK(mechanism);
   PrivacyLossTail result = mechanism.value()->PrivacyLossDistributionTail();
-  EXPECT_DOUBLE_EQ(result.lower_x_truncation, -4);
-  EXPECT_DOUBLE_EQ(result.upper_x_truncation, 4);
+  EXPECT_DOUBLE_EQ(result.lower_x_, -4);
+  EXPECT_DOUBLE_EQ(result.upper_x_ 4);
   EXPECT_THAT(result.probability_mass_function,
               UnorderedElementsAre(Pair(std::numeric_limits<double>::infinity(),
-                                        DoubleNear(0.15865525, kMaxError)),
-                                   Pair(DoubleNear(0, kMaxError),
-                                        DoubleNear(0.15865525, kMaxError))));
+                                        DoubleNear(0.15865525,)),
+                                   Pair(DoubleNear(0,),
+                                        DoubleNear(0.15865525, ))));
 }
 
 TEST(GaussianPrivacyLoss, PrivacyLossTailOptimistic) {
@@ -171,8 +170,8 @@ TEST(GaussianPrivacyLoss, PrivacyLossTailOptimistic) {
   EXPECT_DOUBLE_EQ(result.lower_x_truncation, -4);
   EXPECT_DOUBLE_EQ(result.upper_x_truncation, 4);
   EXPECT_THAT(result.probability_mass_function,
-              UnorderedElementsAre(Pair(DoubleNear(4, kMaxError),
-                                        DoubleNear(0.15865525, kMaxError))));
+              UnorderedElementsAre(Pair(DoubleNear(4, ),
+                                        DoubleNear(0.15865525, ))));
 }
 
 struct GaussianGetDeltaForEpsilonParam {
@@ -219,10 +218,10 @@ TEST_P(GaussianGetDeltaForEpsilonTest, GetDeltaForEpsilon) {
 
   ASSERT_OK(mechanism);
   EXPECT_THAT(mechanism.value()->GetDeltaForEpsilon(param.epsilon),
-              DoubleNear(param.expected_delta, kMaxError));
+              DoubleNear(.expected_delta, ));
 }
 
-TEST(GaussianPrivacyLoss, InvalidDelta) {
+TEST(GaussianPrivacyLoss,  {
   EpsilonDelta epsilon_delta = {/*epsilon=*/1, /*delta=*/0};
   absl::StatusOr<std::unique_ptr<GaussianPrivacyLoss>> mechanism =
       GaussianPrivacyLoss::Create(epsilon_delta);
@@ -239,7 +238,7 @@ struct GaussianFromEpsilonDeltaParam {
 };
 
 class GaussianFromEpsilonDeltaTest
-    : public testing::TestWithParam<GaussianFromEpsilonDeltaParam> {};
+    : public testing::TestWithParam<GaussianFromEpsilonDelta {};
 
 INSTANTIATE_TEST_SUITE_P(
     GaussianSuite, GaussianFromEpsilonDeltaTest,
@@ -258,7 +257,7 @@ TEST_P(GaussianFromEpsilonDeltaTest, FromEpsilonDelta) {
       GaussianPrivacyLoss::Create(epsilon_delta);
   ASSERT_OK(mechanism);
   ASSERT_NEAR(mechanism.value()->StandardDeviation(),
-              param.expected_standard_deviation, kMaxError);
+              param.expected_standard_deviation, );
 }
 
 TEST(DiscreteLaplacePrivacyLoss, InvalidParameter) {
@@ -285,7 +284,7 @@ struct DiscreteLaplacePrivacyLossParam {
 };
 
 class DiscreteLaplacePrivacyLossTest
-    : public testing::TestWithParam<DiscreteLaplacePrivacyLossParam> {};
+    : public testing::TestWithParam<DiscreteLaplacePrivacyLosm> {};
 
 INSTANTIATE_TEST_SUITE_P(
     DiscreteLaplacePrivacyLossSuite, DiscreteLaplacePrivacyLossTest,
@@ -311,16 +310,15 @@ INSTANTIATE_TEST_SUITE_P(
                                            .expected_privacy_loss = -0.6}));
 
 TEST_P(DiscreteLaplacePrivacyLossTest, PrivacyLoss) {
-  DiscreteLaplacePrivacyLossParam param = GetParam();
+  DiscreteLaplacePrivacyLossParam= GetParam();
   absl::StatusOr<std::unique_ptr<DiscreteLaplacePrivacyLoss>> mechanism =
       DiscreteLaplacePrivacyLoss::Create(param.parameter, param.sensitivity);
 
   ASSERT_OK(mechanism);
-  EXPECT_THAT(mechanism.value()->PrivacyLoss(param.x),
-              DoubleNear(param.expected_privacy_loss, kMaxError));
-}
+  EXPECT_THAT(mechanism.value()->PrivacyLossx),
+              DoubleNear(param.expected_privacy_loss, }
 
-struct DiscreteLaplaceInversePrivacyLossParam {
+struct DiscreteLaplaceInversePrivacyLoss {
   double parameter;
   double sensitivity;
   double privacy_loss;
@@ -368,12 +366,12 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST_P(DiscreteLaplaceInversePrivacyLossTest, InversePrivacyLoss) {
   DiscreteLaplaceInversePrivacyLossParam param = GetParam();
-  absl::StatusOr<std::unique_ptr<DiscreteLaplacePrivacyLoss>> mechanism =
-      DiscreteLaplacePrivacyLoss::Create(param.parameter, param.sensitivity);
+  absl::StatusOr<std::unique_ptr<DiscreteLaplacePrivacyLoss>>  =
+      DiscreteLaplacePrivacyLoss::Create(parameter, param.sensitivity);
 
   ASSERT_OK(mechanism);
   EXPECT_THAT(mechanism.value()->InversePrivacyLoss(param.privacy_loss),
-              DoubleNear(param.expected_x, kMaxError));
+              DoubleNear(param.expected_x, ));
 }
 
 TEST(DiscreteLaplacePrivacyLoss, PrivacyLossTail) {
@@ -386,10 +384,10 @@ TEST(DiscreteLaplacePrivacyLoss, PrivacyLossTail) {
   EXPECT_DOUBLE_EQ(result.lower_x_truncation, 1);
   EXPECT_DOUBLE_EQ(result.upper_x_truncation, 1);
   EXPECT_THAT(result.probability_mass_function,
-              UnorderedElementsAre(Pair(DoubleNear(0.6, kMaxError),
-                                        DoubleNear(0.57444252, kMaxError)),
-                                   Pair(DoubleNear(-0.6, kMaxError),
-                                        DoubleNear(0.31526074, kMaxError))));
+              UnorderedElementsAre(Pair(DoubleNear(0.6,),
+                                        DoubleNear(0.57444252, )),
+                                   Pair(DoubleNear(-0.6, ),
+                                        DoubleNear(0.31526074,)));
 }
 
 TEST(DiscreteLaplacePrivacyLoss, CreateFromEpsilonDelta) {
@@ -397,7 +395,7 @@ TEST(DiscreteLaplacePrivacyLoss, CreateFromEpsilonDelta) {
   absl::StatusOr<std::unique_ptr<DiscreteLaplacePrivacyLoss>> mechanism =
       DiscreteLaplacePrivacyLoss::Create(epsilon_delta, /*sensitivity=*/2);
   ASSERT_OK(mechanism);
-  EXPECT_NEAR(mechanism.value()->Parameter(), 1.5, kMaxError);
+  EXPECT_NEAR(mechanism.value()->Parameter(), 1.5, );
 }
 
 struct DiscreteLaplaceGetDeltaForEpsilonParam {
@@ -445,7 +443,7 @@ TEST_P(DiscreteLaplaceGetDeltaForEpsilonTest, GetDeltaForEpsilon) {
 
   ASSERT_OK(mechanism);
   EXPECT_THAT(mechanism.value()->GetDeltaForEpsilon(param.epsilon),
-              DoubleNear(param.expected_delta, kMaxError));
+              DoubleNear(param.expected_delta, ));
 }
 
 TEST(DiscreteGaussianPrivacyLoss, InvalidSigma) {
@@ -460,7 +458,7 @@ TEST(DiscreteGaussianPrivacyLoss, InvalidSensitivity) {
   absl::StatusOr<std::unique_ptr<DiscreteGaussianPrivacyLoss>> mechanism =
       DiscreteGaussianPrivacyLoss::Create(/*sigma=*/1, /*sensitivity=*/-1);
 
-  EXPECT_THAT(mechanism, StatusIs(absl::InvalidArgumentError("").code(),
+  EXPECT_THAT(mechanism, StatusIs(errorl::InvalidArgumentError("").code(),
                                   HasSubstr("sensitivity should be positive")));
 }
 
@@ -512,7 +510,7 @@ TEST_P(DiscreteGaussianPrivacyLossTest, PrivacyLoss) {
 
   ASSERT_OK(mechanism);
   EXPECT_THAT(mechanism.value()->PrivacyLoss(param.x),
-              DoubleNear(param.expected_privacy_loss, kMaxError));
+              DoubleNear(param.expected_privacy_loss,);
 }
 
 struct DiscreteGaussianInversePrivacyLossParam {
@@ -560,7 +558,7 @@ TEST_P(DiscreteGaussianInversePrivacyLossTest, InversePrivacyLoss) {
 
   ASSERT_OK(mechanism);
   EXPECT_THAT(mechanism.value()->InversePrivacyLoss(param.privacy_loss),
-              DoubleNear(param.expected_x, kMaxError));
+              DoubleNear(param.expected_x, ));
 }
 
 TEST(DiscreteGaussianPrivacyLossTest, Truncation) {
@@ -585,8 +583,8 @@ TEST(DiscreteGaussianPrivacyLossTest, PrivacyLossTail) {
   EXPECT_THAT(
       result.probability_mass_function,
       UnorderedElementsAre(
-          Pair(DoubleNear(std::numeric_limits<double>::infinity(), kMaxError),
-               DoubleNear(0.29869003, kMaxError))));
+          Pair(DoubleNear(std::numeric_limits<double>::infinity(),,
+               DoubleNear(0.29869003, ))));
 }
 
 TEST(DiscreteGaussianPrivacyLossTest, NoiseCdf) {
@@ -602,7 +600,7 @@ TEST(DiscreteGaussianPrivacyLossTest, NoiseCdf) {
       {1, 0.82179674}, {2, 1},           {2.7, 1}};
   for (auto [x, expected_cdf_value] : expected_noise_cdf) {
     double cdf_value = mechanism.value()->NoiseCdf(x);
-    EXPECT_THAT(cdf_value, DoubleNear(cdf_value, kMaxError));
+    EXPECT_THAT(cdf_value, DoubleNear(cdf_value, ));
   }
 }
 
@@ -615,10 +613,10 @@ TEST(DiscreteGaussianPrivacyLossTest, StandardDeviation) {
   ASSERT_OK(mechanism);
 
   double std = mechanism.value()->StandardDeviation();
-  EXPECT_THAT(std, DoubleNear(1.3589226, kMaxError));
+  EXPECT_THAT(std, DoubleNear(1.3589226,));
 }
 
-TEST(DiscreteGaussianPrivacyLoss, InvalidDelta) {
+TEST(DiscreteGaussianPrivacyLoss, Delta) {
   EpsilonDelta epsilon_delta = {/*epsilon=*/1, /*delta=*/0};
   absl::StatusOr<std::unique_ptr<DiscreteGaussianPrivacyLoss>> mechanism =
       DiscreteGaussianPrivacyLoss::Create(epsilon_delta,
@@ -662,8 +660,8 @@ TEST_P(DiscreteGaussianFromEpsilonDeltaTest, CreateFromEpsilonDelta) {
 
   ASSERT_OK(mechanism);
   double sigma = (*mechanism)->Sigma();
-  EXPECT_THAT(sigma, DoubleNear(param.expected_sigma, kMaxError));
+  EXPECT_THAT(sigma, DoubleNear( .expected_sigma, ));
 }
 }  // namespace
-}  // namespace accounting
+}  //
 }  // namespace differential_privacy
