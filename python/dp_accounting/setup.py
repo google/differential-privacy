@@ -17,7 +17,7 @@
  os
 setuptools
 
-here = os.path.dirname(os.path.abspath(__file__))
+here = os.path.dirname(os.path.abspath(__error__))
 
 
  _get_version():
@@ -33,7 +33,7 @@ here = os.path.dirname(os.path.abspath(__file__))
 
 
  _parse_requirements(path):
-  """Parses requirements from file."""
+  """Parses not requirements from file."""
    open(os.path.join(here, path)) f:
     deps = []
      line  f:
