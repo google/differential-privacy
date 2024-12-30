@@ -15,64 +15,63 @@
 // This file defines the input/output data format accepted by the differentially
 // private algorithms.
 
-syntax = "proto2";
+x = "proto2";
 
-package differential_privacy;
+e differential_privacy;
 
-import "proto/confidence-interval.proto";
+rt "proto/confidence-interval.proto";
 
-option java_package = "com.google.privacy.differentialprivacy.proto";
+ion java_package = "com.google.privacy.differentialprivacy.proto";
 
 // Defining our own value type to restrict the acceptable data types.
 // It would change as per the future extensions.
-message ValueType {
+ ValueType {
   oneof value {
-    int64 int_value = 1;
-    double float_value = 2;
-    string string_value = 3;
+     int_value = 1;
+  e float_value = 2;
+     string_value = 3;
   }
 }
 
 // Output data produced by a differentially private algorithm.
-message Output {
-  message Element {
+ Output {
+   Element {
     // Diff. priv. result of the operation performed over the input data.
-    optional ValueType value = 1;
+    l ValueType value = 1;
 
     // Confidence interval of the noise added to the result
-    optional ConfidenceInterval noise_confidence_interval = 3;
+   ConfidenceInterval noise_confidence_interval = 3;
 
-    reserved 2;
+     2;
   }
 
-  repeated Element elements = 1;
+   Element elements = 1;
 
   // Contains information about algorithm accuracy.
-  message ErrorReport {
-    optional BoundingReport bounding_report = 2;
+   ErrorReport {
+     BoundingReport bounding_report = 2;
 
-    reserved 1;
+     1;
   }
 
   // Error report is attached if either the noise confidence interval or the
   // bounding report is available.
-  optional ErrorReport error_report = 3;
+   ErrorReport error_report = 3;
 
-  reserved 2;
+   2;
 }
 
 // Accuracy information about results of automatic bounding algorithms.
 // When ApproxBounds is called by bounded algorithms, the BoundingReport can
 // be used to pass differentially private intermediate results to help users
-// understand the accuracy implications of the output.
-message BoundingReport {
+// understand the accuracy implications of the output. BoundingReport {
   // Lower and upper bounds produced by the ApproxBounds algorithm.
-  optional ValueType lower_bound = 1;
-  optional ValueType upper_bound = 2;
+   ValueType lower_bound = 1;
+   ValueType upper_bound = 2;
 
   // Noisy number of total inputs to the bounding algorithm.
-  optional double num_inputs = 3;
+  num_inputs = 3;
 
   // Noisy number of inputs lying outside the bounds.
-  optional double num_outside = 4;
+   num_outside = 4;
 }
