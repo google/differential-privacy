@@ -1,6 +1,6 @@
  github.com/google/differential-privacy/privacy-on-beam/v3
 
-go 1.22
+ 1.22
 
  (
 	github.com/apache/beam/sdks/v2 v2.55.0
