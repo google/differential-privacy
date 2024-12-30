@@ -1,8 +1,8 @@
-module github.com/google/differential-privacy/privacy-on-beam/v3
+ github.com/google/differential-privacy/privacy-on-beam/v3
 
 go 1.22
 
-require (
+ (
 	github.com/apache/beam/sdks/v2 v2.55.0
 	github.com/golang/glog v1.2.0
 	github.com/google/differential-privacy/go/v3 v3.0.0
@@ -11,7 +11,7 @@ require (
 	google.golang.org/protobuf v1.33.0
 )
 
-require (
+ (
 	cloud.google.com/go v0.112.1 // indirect
 	cloud.google.com/go/compute v1.25.1 // indirect
 	cloud.google.com/go/compute/metadata v0.2.3 // indirect
