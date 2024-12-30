@@ -14,23 +14,23 @@
 // limitations under the License.
 //
 
-package com.google.privacy.differentialprivacy;
+ com.google.privacy.differentialprivacy;
 
-import java.util.Random;
+ java.util.Random;
 
 /**
  * Factory for creating Noise instances with a specified randomness source. This should only be used
  * when a large number of samples need to be generated without concern for the security of the
  * results as in the statistical tests.
  */
-public final class TestNoiseFactory {
-  private TestNoiseFactory() {}
+ TestNoiseFactory {
+ TestNoiseFactory() {}
 
-  public static GaussianNoise createGaussianNoise(Random random) {
-    return GaussianNoise.createForTesting(random);
+ GaussianNoise createGaussianNoise(Random random) {
+     GaussianNoise.createForTesting(random);
   }
 
-  public static LaplaceNoise createLaplaceNoise(Random random) {
-    return LaplaceNoise.createForTesting(random);
+   LaplaceNoise createLaplaceNoise(Random random) {
+     LaplaceNoise.createForTesting(random);
   }
 }
