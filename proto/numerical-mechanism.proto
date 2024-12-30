@@ -15,18 +15,16 @@
 //
 
 // Serialization of numerical mechanisms.
+ = "proto2";
+ differential_privacy.serialization;
 
-syntax = "proto2";
-
-package differential_privacy.serialization;
-
-message GaussianMechanism {
-  optional double epsilon = 1;
-  optional double delta = 2;
-  optional double l2_sensitivity = 3;
+e GaussianMechanism {
+   epsilon = 1;
+  e delta = 2;
+   l2_sensitivity = 3;
 }
 
-message LaplaceMechanism {
-  optional double epsilon = 1;
-  optional double l1_sensitivity = 2;
+ LaplaceMechanism {
+   epsilon = 1;
+   l1_sensitivity = 2;
 }
