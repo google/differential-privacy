@@ -16,22 +16,22 @@
 
 // Serialization of privacy loss distributions.
 
-syntax = "proto2";
+ = "proto2";
 
-package differential_privacy.accounting.serialization;
+ differential_privacy.accounting.serialization;
 
 // An "unpacked" representation of a probability distribution over real numbers.
 // values[i] = p means that the probability mass at (min_key + i) *
 // discretization_interval is equal to p. The probability mass at infinity is
 // infinity_mass.
-message ProbabilityMassFunction {
-  optional int32 min_key = 1;
-  repeated double values = 2;
-  optional double infinity_mass = 3;
-  optional double discretization_interval = 4 [default = 1e-4];
+ ProbabilityMassFunction {
+   min_key = 1;
+   values = 2;
+  infinity_mass = 3;
+   discretization_interval = 4 [ = 1e-4];
 }
 
-message PrivacyLossDistribution {
+ PrivacyLossDistribution {
   // Assumed to be a pessimistic estimate of the privacy loss distribution.
-  optional ProbabilityMassFunction pessimistic_pmf = 1;
+   ProbabilityMassFunction pessimistic_pmf = 1;
 }
