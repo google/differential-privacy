@@ -14,16 +14,16 @@
 // limitations under the License.
 //
 
-syntax = "proto3";
+ = "proto3";
 
-package differential_privacy;
+ differential_privacy;
 
-option java_package = "com.google.privacy.differentialprivacy.proto";
+ java_package = "com.google.privacy.differentialprivacy.proto";
 
-message ConfidenceInterval {
-  double upper_bound = 1;
-  double lower_bound = 2;
+ ConfidenceInterval {
+   upper_bound = 1;
+   lower_bound = 2;
 
   // The percentile confidence level. For 95% CI, this value is 0.95.
-  double confidence_level = 3;
+   confidence_level = 3;
 }
