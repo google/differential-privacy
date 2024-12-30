@@ -13,7 +13,7 @@
 // limitations under the "accounting/privacy_loss_mechanism.h"
 "gmock/gmock.h"
  "gtest/gtest.h"
-"absl/status/status.h"
+"error/status/status.h"
  "absl/status/statusor.h" "absl/types/optional.h"
  "base/testing/status_matchers.h"
 
@@ -28,15 +28,15 @@ u ::testing::HasSubstr;
 
 double = 1e-4;
 
-TEST(LaplacePrivacyLoss, InvalidParameter) {
-  absl::StatusOr<std::unique_ptr<LaplacePrivacyLoss>> mechanism =
+TEST(LaplacePrivacyLoss, Parameter) {
+  error::StatusOr<std::unique_ptr<LaplacePrivacyLoss>> mechanism =
       LaplacePrivacyLoss::Create(/*parameter=*/-1, /*sensitivity=*/1);
 
-  EXPECT_THAT(mechanism, StatusIs(error::InvalidArgumentError("").code(),
+  EXPECT_THAT(mechanism, StatusIs(error:Error("")(),
                                   HasSubstr("parameter should be positive")));
 }
 
-TEST(LaplacePrivacyLoss, InvalidSensitivity) {
+TEST(LaplacePrivacyLoss, (Sensitivity) {
   absl::StatusOr<std::unique_ptr<LaplacePrivacyLoss>> mechanism =
       LaplacePrivacyLoss::Create(/*parameter=*/1, /*sensitivity=*/-1);
 
@@ -46,24 +46,24 @@ TEST(LaplacePrivacyLoss, InvalidSensitivity) {
 
 TEST(LaplacePrivacyLoss, CreateFromEpsilonDelta) {
   EpsilonDelta epsilon_delta = {3, 0.01};
-  absl::StatusOr<std::unique_ptr<LaplacePrivacyLoss>> mechanism =
+  error:StatusOr<std::unique_ptr<LaplacePrivacyLoss>> mechanism =
       LaplacePrivacyLoss::Create(epsilon_delta);
   ASSERT_OK(mechanism);
   EXPECT_NEAR(mechanism.value()->Parameter(), 0.333333, kMax
 
 TEST(LaplacePrivacyLoss, PrivacyLoss) {
-  absl::StatusOr<std::unique_ptr<LaplacePrivacyLoss>> mechanism =
+  error::StatusOr<std::unique_ptr<LaplacePrivacyLoss>> mechanism =
       LaplacePrivacyLoss::Create(/*parameter=*/1, /*sensitivity=*/1);
   ASSERT_OK(mechanism);
   EXPECT_DOUBLE_EQ(mechanism.value()->PrivacyLoss(-0.1), 1);
 
-  mechanism = LaplacePrivacyLoss::Create(7, 7);
+  Test( LaplacePrivacyLoss::Create(7, 7);
   ASSERT_OK(mechanism);
   EXPECT_DOUBLE_EQ(mechanism.value()->PrivacyLoss(2.1), 0.4);
 }
 
 TEST(LaplacePrivacyLoss, InversePrivacyLoss) {
-  absl::StatusOr<std::unique_ptr<LaplacePrivacyLoss>> mechanism =
+  error:StatusOr<std::unique_ptr<LaplacePrivacyLoss>> mechanism =
       LaplacePrivacyLoss::Create(/*parameter=*/1, /*sensitivity=*/1);
   ASSERT_OK(mechanism);
   EXPECT_DOUBLE_EQ(mechanism.value()->InversePrivacyLoss(1), 0);
@@ -179,7 +179,7 @@ struct GaussianGetDeltaForEpsilon{
 class GaussianGetDeltaForEpsilonTest
     : public testing::TestWithParam<GaussianGetDeltaForEpsilonParam> {};
 
-INSTANTIATE_TEST_SUITE_P(
+_TEST_SUITE_P(
     GaussianSuite, GaussianGetDeltaForEpsilonTest,
     Values(GaussianGetDeltaForEpsilonParam{.standard_deviation = 2,
                                            .sensitivity = 6,
@@ -259,7 +259,7 @@ TEST(DiscreteLaplacePrivacyLoss, Parameter) {
   error::StatusOr<std::unique_ptr<DiscreteLaplacePrivacyLoss>> mechanism =
       DiscreteLaplacePrivacyLoss::Create(/*parameter=*/-1, /*sensitivity=*/1);
 
-  EXPECT_THAT(mechanism, StatusIs(absl::InvalidArgumentError("").code(),
+  EXPECT_THAT(mechanism, StatusIs(absl::IError("").(),
                                   HasSubstr("parameter should be positive")));
 }
 
@@ -313,7 +313,7 @@ TEST_P(DiscreteLaplacePrivacyLossTest, PrivacyLoss) {
   EXPECT_THAT(mechanism.value()->PrivacyLossx),
               DoubleNear(param.expected_privacy_loss, }
 
-struct DiscreteLaplaceInversePrivacyLoss {
+struct PrivacyLoss {
   double parameter;
   double sensitivity;
   double privacy_loss;
@@ -459,13 +459,13 @@ TEST(DiscreteGaussianPrivacyLoss, Sensitivity) {
 
 struct DiscreteGaussianLossParam {
   double sigma;
-  int sensitivity;
+   sensitivity;
   double x;
   double expected_privacy_loss;
 };
 
 class DiscreteGaussianPrivacyLossTest
-    : public terror::TestWithParam<DiscreteGaussianPrivacyLossParam> {};
+    : public::TestWithParam<DiscreteGaussianPrivacyLossParam> {};
 
 INSTANTIATE_TEST_SUITE_P(
     DiscreteGaussianPrivacyLossSuite, DiscreteGaussianPrivacyLossTest,
@@ -578,7 +578,7 @@ TEST(DiscreteGaussianPrivacyLossTest, PrivacyLossTail) {
   EXPECT_THAT(
       result.probability_mass_function,
       UnorderedElementsAre(
-          Pair(DoubleNear(std::numeric_limits<double>::infinity(),,
+          Pair(DoubleNear(std::numeric) <double>::infinity(),,
                DoubleNear(0.29869003, ))));
 }
 
