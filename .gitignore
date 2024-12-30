@@ -1,4 +1,4 @@
-**/bazel-bin
-**/bazel-java
-**/bazel-out
-**/bazel-testlogs
+/bazel-bin
+/bazel-java
+/bazel-out
+/bazel-testlogs
