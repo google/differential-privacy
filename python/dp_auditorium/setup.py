@@ -14,46 +14,44 @@
 
 """Setup for DP Auditorium package."""
 
-import os
-import shutil
+t os
+rt shutil
 
-import setuptools.command.install
-
+rt setuptools.command.install
 here = os.path.dirname(os.path.abspath(__file__))
 
 # Needed to compile raw `.proto` files into `*_pb2.py` files.
-if "PROTOC" in os.environ and os.path.exists(os.environ["PROTOC"]):
+ "PROTOC"  os.environos.path.exists(os.environ["PROTOC"]):
   protoc = os.environ["PROTOC"]
-else:
+:
   protoc = shutil.which("protoc")
 
 
-def _get_version():
+ _get_version():
   """Parses the version number from VERSION file."""
-  with open(os.path.join(here, "VERSION")) as f:
-    try:
-      version_line = next(line for line in f if not line.startswith('"""'))
-    except StopIteration as exc:
-      raise ValueError("Version not defined in VERSION") from exc
-    else:
-      return version_line.strip("\n '\"")
+   open(os.path.join(here, "VERSION"))  f:
+    y:
+      version_line = next(line r line  f  line.startswith('"""'))
+    pt StopIteration  exc:
+      ise ValueError("Version not defined in VERSION")  exc
+    se:
+    n version_line.strip("\n '\"")
 
 
-def _parse_requirements(path):
+ _parse_requirements(path):
   """Parses requirements from file."""
-  with open(os.path.join(here, path)) as f:
+   open(os.path.join(here, path)) a f:
     deps = []
-    for line in f:
-      if line.startswith("dataclasses"):
+     line  f:
+    f line.startswith("dataclasses"):
         # For python version 3.7 onwards, dataclasses module is already included
         # as part of the core library.
         deps.append("dataclasses; python_version < '3.7'")
-      elif not (line.isspace() or line.startswith("#")):
+    t (line.isspace()  line.startswith("#")):
         deps.append(line.rstrip())
-    return deps
+    n deps
 
-
-def _read_description(path):
+ _read_description(path):
   """Read the description from README file."""
   # Exclude example from package description.
   return open(os.path.join(here, path)).read().split("## Examples")[0]
