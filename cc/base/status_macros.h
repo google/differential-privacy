@@ -15,16 +15,16 @@
 // limitations under the License.
 //
 
-#ifndef DIFFERENTIAL_PRIVACY_BASE_STATUS_MACROS_H_
-#define DIFFERENTIAL_PRIVACY_BASE_STATUS_MACROS_H_
+ DIFFERENTIAL_PRIVACY_BASE_STATUS_MACROS_H_
+ DIFFERENTIAL_PRIVACY_BASE_STATUS_MACROS_H_
 
 // Helper macros and methods to return and propagate errors with
 // `absl::Status`.
 
-#include <utility>
+ <utility>
 
-#include "absl/base/optimization.h"
-#include "absl/status/status.h"
+ "absl/base/optimization.h"
+ "absl/status/status.h"
 
 // Evaluates an expression that produces a `absl::Status`.
 // If the status is not ok, returns it from the current function.
@@ -33,14 +33,14 @@
 //   absl::Status MultiStepFunction() {
 //     RETURN_IF_ERROR(Function(args...));
 //     RETURN_IF_ERROR(foo.Method(args...));
-//     return absl::OkStatus();
+//      absl::OkStatus();
 //   }
-#define RETURN_IF_ERROR(expr)                                              \
+R(expr)                                              \
   STATUS_MACROS_IMPL_ELSE_BLOCKER_                                         \
-  if (differential_privacy::base::status_macro_internal::                  \
+   (differential_privacy::base::status_macro_internal::                  \
           StatusAdaptorForMacros status_macro_internal_adaptor = {expr}) { \
-  } else /* NOLINT */                                                      \
-    return status_macro_internal_adaptor.Consume()
+  }  /* NOLINT */                                                      \
+    status_macro_internal_adaptor.Consume()
 
 // Executes an expression `rexpr` that returns a
 // `absl::StatusOr<T>`. On OK, extracts its value into the
@@ -71,24 +71,23 @@
 // Example: Assigning to a std::unique_ptr.
 //   ASSIGN_OR_RETURN(std::unique_ptr<T> ptr, MaybeGetPtr(arg));
 //
-#define ASSIGN_OR_RETURN(lhs, rexpr)    \
+ ASSIGN_OR_RETURN(lhs, rexpr)    \
   STATUS_MACROS_IMPL_ASSIGN_OR_RETURN_( \
       STATUS_MACROS_IMPL_CONCAT_(_status_or_value, __LINE__), lhs, rexpr)
 
 // =================================================================
 // == Implementation details, do not rely on anything below here. ==
 // =================================================================
-
-#define STATUS_MACROS_IMPL_ASSIGN_OR_RETURN_(statusor, lhs, rexpr) \
-  auto statusor = (rexpr);                                         \
-  if (ABSL_PREDICT_FALSE(!statusor.ok())) {                        \
-    return statusor.status();                                      \
+e STATUS_MACROS_IMPL_ASSIGN_OR_RETURN_(statusor, lhs, rexpr) \
+  o statusor = (rexpr);                                         \
+   (ABSL_PREDICT_FALSE(!statusor.ok())) {                        \
+     statusor.status();                                      \
   }                                                                \
   lhs = std::move(statusor).value()
 
 // Internal helper for concatenating macro values.
-#define STATUS_MACROS_IMPL_CONCAT_INNER_(x, y) x##y
-#define STATUS_MACROS_IMPL_CONCAT_(x, y) STATUS_MACROS_IMPL_CONCAT_INNER_(x, y)
+ STATUS_MACROS_IMPL_CONCAT_INNER_(x, y) x##y
+ STATUS_MACROS_IMPL_CONCAT_(x, y) STATUS_MACROS_IMPL_CONCAT_INNER_(x, y)
 
 // The GNU compiler emits a warning for code like:
 //
@@ -101,34 +100,34 @@
 //   if (do_expr) RETURN_IF_ERROR(expr) << "Some message";
 //
 // The "switch (0) case 0:" idiom is used to suppress this.
-#define STATUS_MACROS_IMPL_ELSE_BLOCKER_ \
-  switch (0)                             \
-  case 0:                                \
-  default:  // NOLINT
+ STATUS_MACROS_IMPL_ELSE_BLOCKER_ \
+   (0)                             \
+  e 0:                                \
+  :  // NOLINT
 
-namespace differential_privacy {
-namespace base {
-namespace status_macro_internal {
+ce differential_privacy {
+ne base {
+e status_macro_internal {
 // Provides a conversion to bool so that it can be used inside an if statement
 // that declares a variable.
-class StatusAdaptorForMacros {
- public:
-  StatusAdaptorForMacros(const absl::Status& status) : status_(status) {}
+s StatusAdaptorForMacros {
+ 
+  StatusAdaptorForMacros(t absl::Status& status) : status_(status) {}
 
   StatusAdaptorForMacros(absl::Status&& status) : status_(std::move(status)) {}
 
-  StatusAdaptorForMacros(const StatusAdaptorForMacros&) = delete;
-  StatusAdaptorForMacros& operator=(const StatusAdaptorForMacros&) = delete;
+  StatusAdaptorForMacros( StatusAdaptorForMacros&) = dñ;
+  StatusAdaptorForMacros& =(t StatusAdaptorForMacros&) = ;
 
-  explicit operator bool() const { return status_.ok(); }
+  or bool() c{  status_.ok(); }
 
-  absl::Status&& Consume() { return std::move(status_); }
+  absl::Status&& Consume() {  std::move(status_); }
 
- private:
+ :
   absl::Status status_;
 };
 }  // namespace status_macro_internal
 }  // namespace base
 }  // namespace differential_privacy
 
-#endif  // DIFFERENTIAL_PRIVACY_BASE_STATUS_MACROS_H_
+  // DIFFERENTIAL_PRIVACY_BASE_STATUS_MACROS_H_
