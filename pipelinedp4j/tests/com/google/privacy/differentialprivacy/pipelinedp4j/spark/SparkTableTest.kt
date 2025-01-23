@@ -18,6 +18,7 @@ package com.google.privacy.differentialprivacy.pipelinedp4j.spark
 
 import com.google.common.truth.Truth.assertThat
 import com.google.privacy.differentialprivacy.pipelinedp4j.local.LocalCollection
+import com.google.privacy.differentialprivacy.pipelinedp4j.local.LocalTable
 import com.google.testing.junit.testparameterinjector.TestParameter
 import com.google.testing.junit.testparameterinjector.TestParameterInjector
 import org.apache.spark.sql.Encoders
@@ -240,7 +241,7 @@ class SparkTableTest {
   }
 
   @Test
-  fun flattenWith_flattensCollections() {
+  fun flattenWith_sparkTable_flattensCollections() {
     val dataset =
       sparkSession.spark.createDataset(
         listOf(Pair("one", 1)),
@@ -255,6 +256,23 @@ class SparkTableTest {
     val otherSparkTable = SparkTable(otherSparkDataset, Encoders.STRING(), Encoders.INT())
 
     val result = sparkTable.flattenWith("stageName", otherSparkTable)
+
+    assertThat(result.data.collectAsList()).containsExactly(Pair("one", 1), Pair("two", 2))
+  }
+
+  @Test
+  fun flattenWith_localTable_flattensCollections() {
+    val dataset =
+      sparkSession.spark.createDataset(
+        listOf(Pair("one", 1)),
+        Encoders.kryo(Pair::class.java) as org.apache.spark.sql.Encoder<Pair<String, Int>>,
+      )
+    val sparkTable = SparkTable(dataset, Encoders.STRING(), Encoders.INT())
+    val otherTable = sequenceOf("two" to 2)
+    val otherLocalTable = LocalTable(otherTable)
+
+    val result = sparkTable.flattenWith("stageName", otherLocalTable)
+
     assertThat(result.data.collectAsList()).containsExactly(Pair("one", 1), Pair("two", 2))
   }
 

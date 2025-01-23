@@ -20,6 +20,7 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.core.Encoder
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.FrameworkCollection
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.FrameworkTable
 import com.google.privacy.differentialprivacy.pipelinedp4j.local.LocalCollection
+import com.google.privacy.differentialprivacy.pipelinedp4j.local.LocalTable
 import kotlin.random.Random
 import org.apache.spark.api.java.function.FlatMapFunction
 import org.apache.spark.api.java.function.MapFunction
@@ -38,10 +39,13 @@ class SparkTable<K, V>(
   val keyEncoder: org.apache.spark.sql.Encoder<K>,
   val valueEncoder: org.apache.spark.sql.Encoder<V>,
 ) : FrameworkTable<K, V> {
+  private val sparkSession = data.sparkSession()
+  private val keyValueEncoder =
+    Encoders.kryo(Pair::class.java) as org.apache.spark.sql.Encoder<Pair<K, V>>
 
   override val keysEncoder = SparkEncoder<K>(keyEncoder)
+
   override val valuesEncoder = SparkEncoder<V>(valueEncoder)
-  val keyValueEncoder = Encoders.kryo(Pair::class.java) as org.apache.spark.sql.Encoder<Pair<K, V>>
 
   override fun <R> map(
     stageName: String,
@@ -162,9 +166,20 @@ class SparkTable<K, V>(
   }
 
   override fun flattenWith(stageName: String, other: FrameworkTable<K, V>): SparkTable<K, V> {
-    val otherSparkTable = other as SparkTable<K, V>
-    val thisAndOther = this.data.union(otherSparkTable.data)
-    return SparkTable(thisAndOther, keyEncoder, valueEncoder)
+    return when (other) {
+      is SparkTable<K, V> -> {
+        val thisAndOther = data.union(other.data)
+        SparkTable(thisAndOther, keyEncoder, valueEncoder)
+      }
+      is LocalTable<K, V> -> {
+        flattenWith(stageName, other.toSparkTable())
+      }
+      else ->
+        throw IllegalArgumentException(
+          "Table is of unsupported backend. Only Spark or local backends are supported, " +
+            "the type of the given table is ${other.javaClass}."
+        )
+    }
   }
 
   /**
@@ -275,6 +290,11 @@ class SparkTable<K, V>(
 
     return SparkTable(sampledPerKeyData, keyEncoder, iterableEncoder)
   }
+
+  private fun LocalTable<K, V>.toSparkTable(): SparkTable<K, V> {
+    val dataset = sparkSession.createDataset(data.toList(), keyValueEncoder)
+    return SparkTable(dataset, keyEncoder, valueEncoder)
+  }
 }
 
-internal fun <K, V> Pair<K, V>.toTuple2(): Tuple2<K, V> = Tuple2(first, second)
+private fun <K, V> Pair<K, V>.toTuple2(): Tuple2<K, V> = Tuple2(first, second)

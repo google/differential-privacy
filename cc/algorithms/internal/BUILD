@@ -18,6 +18,27 @@ package(
 )
 
 cc_library(
+    name = "clamped-calculation-without-bounds",
+    hdrs = ["clamped-calculation-without-bounds.h"],
+    deps = [
+        "//algorithms:util",
+        "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_cc_differential_privacy//base:status_macros",
+    ],
+)
+
+cc_test(
+    name = "clamped-calculation-without-bounds_test",
+    srcs = ["clamped-calculation-without-bounds_test.cc"],
+    deps = [
+        ":clamped-calculation-without-bounds",
+        "@com_google_absl//absl/status:status_matchers",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "count-tree",
     srcs = ["count-tree.cc"],
     hdrs = ["count-tree.h"],

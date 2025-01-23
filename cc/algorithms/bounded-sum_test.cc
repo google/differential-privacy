@@ -17,18 +17,21 @@
 #include "algorithms/bounded-sum.h"
 
 #include <cmath>
-#include <cstdlib>
+#include <cstdint>
+#include <functional>
 #include <limits>
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "base/testing/proto_matchers.h"
 #include "base/testing/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "absl/memory/memory.h"
+#include "absl/log/check.h"
 #include "absl/status/status.h"
-#include "algorithms/algorithm.h"
+#include "absl/status/statusor.h"
+#include "algorithms/approx-bounds-as-bounds-provider.h"
 #include "algorithms/approx-bounds.h"
 #include "algorithms/numerical-mechanisms-testing.h"
 #include "algorithms/numerical-mechanisms.h"
@@ -44,6 +47,7 @@ using ::testing::Eq;
 using ::differential_privacy::base::testing::EqualsProto;
 using ::testing::HasSubstr;
 using ::testing::NotNull;
+using ::differential_privacy::base::testing::IsOk;
 using ::differential_privacy::base::testing::IsOkAndHolds;
 using ::differential_privacy::base::testing::StatusIs;
 
@@ -432,6 +436,33 @@ TYPED_TEST(BoundedSumTest, SerializeMergePartialSumsTest) {
   EXPECT_EQ(GetValue<TypeParam>(*output1), GetValue<TypeParam>(*output2));
 }
 
+// This test will be removed when removing backwards compatibility for the
+// `bounds_summary` field.
+TYPED_TEST(BoundedSumTest, SerializeMergeApproxBoundsBackwardsCompatability) {
+  absl::StatusOr<std::unique_ptr<BoundedSum<TypeParam>>> bounds1 =
+      typename BoundedSum<TypeParam>::Builder().SetEpsilon(1e10).Build();
+  ASSERT_OK(bounds1.status());
+
+  for (int i = 0; i < 100; ++i) {
+    bounds1.value()->AddEntry(10);
+  }
+
+  absl::StatusOr<std::unique_ptr<BoundedSum<TypeParam>>> bounds2 =
+      typename BoundedSum<TypeParam>::Builder().SetEpsilon(1.0).Build();
+  ASSERT_OK(bounds2.status());
+
+  // Remove the newly introduced field as this field is ignored by versions
+  // before the proto change.
+  Summary bounds1_summary = bounds1.value()->Serialize();
+  BoundedSumSummary bs_summary;
+  bounds1_summary.data().UnpackTo(&bs_summary);
+  bs_summary.clear_bounds();
+  bounds1_summary.mutable_data()->PackFrom(bs_summary);
+
+  ASSERT_OK(bounds2.value()->Merge(bounds1_summary));
+  EXPECT_THAT(bounds2.value()->PartialResult(), IsOk());
+}
+
 TEST(BoundedSumTest, OverflowFromAddNoiseTypeCast) {
   // Overflowing should result in the sum + noise eventually wrapping around and
   // become negative.
@@ -615,7 +646,7 @@ TYPED_TEST(BoundedSumTest, PropagateApproxBoundsError) {
           .Build();
   ASSERT_OK(bs);
 
-  // Automatic bounds are needed but there is no input, so the count-threshhold
+  // Automatic bounds are needed but there is no input, so the count-threshold
   // should exceed any bin count.
   EXPECT_FALSE((*bs)->PartialResult().ok());
 }
@@ -877,6 +908,14 @@ TEST(BoundedSumTest, ApproxBoundsSumHasExpectedL0Sensitivity) {
 TEST(BoundedSumTest, ApproxBoundsMechanismHasExpectedVariance) {
   const int max_partitions_contributed = 2;
   const int max_contributions_per_partition = 3;
+  const double expected_variance =
+      LaplaceMechanism::Builder()
+          .SetEpsilon(kDefaultEpsilon / 2)
+          .SetL0Sensitivity(max_partitions_contributed)
+          .SetLInfSensitivity(max_contributions_per_partition)
+          .Build()
+          .value()
+          ->GetVariance();
 
   absl::StatusOr<std::unique_ptr<BoundedSum<double>>> bs =
       BoundedSum<double>::Builder()
@@ -889,17 +928,12 @@ TEST(BoundedSumTest, ApproxBoundsMechanismHasExpectedVariance) {
   auto* bs_with_approx_bounds =
       static_cast<BoundedSumWithApproxBounds<double>*>(bs.value().get());
   ASSERT_THAT(bs_with_approx_bounds, NotNull());
+  auto* approx_bounds_as_bounds_provider =
+      static_cast<ApproxBoundsAsBoundsProvider<double>*>(
+          bs_with_approx_bounds->GetBoundsProviderForTesting());
+  ASSERT_THAT(approx_bounds_as_bounds_provider, NotNull());
 
-  const double expected_variance =
-      LaplaceMechanism::Builder()
-          .SetEpsilon(kDefaultEpsilon / 2)
-          .SetL0Sensitivity(max_partitions_contributed)
-          .SetLInfSensitivity(max_contributions_per_partition)
-          .Build()
-          .value()
-          ->GetVariance();
-
-  ASSERT_THAT(bs_with_approx_bounds->GetApproxBoundsForTesting()
+  EXPECT_THAT(approx_bounds_as_bounds_provider->GetApproxBoundsForTesting()
                   ->GetMechanismForTesting()
                   ->GetVariance(),
               DoubleEq(expected_variance));
@@ -923,6 +957,44 @@ TEST(BoundedSumTest, ApproxBoundsOnInt64LowestUsesFullRangeBounds) {
   EXPECT_EQ(
       GetValue<int64_t>(result->error_report().bounding_report().upper_bound()),
       std::numeric_limits<int64_t>::max());
+}
+
+TEST(BoundedSumTest, BuilderReturnsErrorWhenApproxBoundsAndBoundsProviderSet) {
+  auto approx_bounds1 = ApproxBounds<int64_t>::Builder().SetEpsilon(1).Build();
+  ASSERT_OK(approx_bounds1.status());
+  auto approx_bounds2 = ApproxBounds<int64_t>::Builder().SetEpsilon(1).Build();
+  ASSERT_OK(approx_bounds2.status());
+
+  EXPECT_THAT(BoundedSum<int64_t>::Builder()
+                  .SetEpsilon(3)
+                  .SetApproxBounds(std::move(approx_bounds1).value())
+                  .SetBoundsProvider(
+                      std::make_unique<ApproxBoundsAsBoundsProvider<int64_t>>(
+                          std::move(approx_bounds2).value()))
+                  .Build(),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("only one is allowed")));
+}
+
+TEST(BoundedSumTest, BuilderUsesBoundsProvider) {
+  auto approx_bounds =
+      ApproxBounds<int64_t>::Builder().SetEpsilon(1.23).Build();
+  ASSERT_OK(approx_bounds.status());
+  auto bounded_sum =
+      BoundedSum<int64_t>::Builder()
+          .SetEpsilon(2)
+          .SetBoundsProvider(
+              std::make_unique<ApproxBoundsAsBoundsProvider<int64_t>>(
+                  std::move(approx_bounds).value()))
+          .Build();
+  ASSERT_OK(bounded_sum.status());
+  auto* bounded_sum_with_approx_bounds =
+      dynamic_cast<BoundedSumWithApproxBounds<int64_t>*>(bounded_sum->get());
+  ASSERT_THAT(bounded_sum_with_approx_bounds, NotNull());
+
+  EXPECT_THAT(bounded_sum_with_approx_bounds->GetBoundsProviderForTesting()
+                  ->GetEpsilon(),
+              Eq(1.23));
 }
 
 }  //  namespace

@@ -25,7 +25,6 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.SUM
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.VARIANCE
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.NoiseKind.GAUSSIAN
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.NoiseKind.LAPLACE
-import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.AbsoluteBudgetPerOpSpec
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.AccountedMechanism.GAUSSIAN_NOISE
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.AccountedMechanism.LAPLACE_NOISE
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.AccountedMechanism.POSTAGGREGATED_PARTITION_SELECTION
@@ -265,6 +264,7 @@ internal constructor(
     noiseFactory: (NoiseKind) -> Noise,
   ): CompoundCombiner {
     val meanInMetrics = params.metrics.any { it.type == MEAN }
+    val varianceInMetrics = params.metrics.any { it.type == VARIANCE }
     val metricCombiners =
       params.metrics
         .mapNotNull { metric ->
@@ -282,22 +282,26 @@ internal constructor(
               }
             }
             COUNT -> {
-              if (!meanInMetrics) {
+              if (!meanInMetrics && !varianceInMetrics) {
                 CountCombiner(params, getBudgetForMetric(metric, params), noiseFactory)
               } else {
                 null
               }
             }
             SUM -> {
-              if (!meanInMetrics) {
+              if (!meanInMetrics && !varianceInMetrics) {
                 SumCombiner(params, getBudgetForMetric(metric, params), noiseFactory)
               } else {
                 null
               }
             }
             MEAN -> {
-              val (countBudget, sumBudget) = calculateCountSumBudgetsForMean(params)
-              MeanCombiner(params, countBudget, sumBudget, noiseFactory)
+              if (!varianceInMetrics) {
+                val (countBudget, sumBudget) = calculateCountSumBudgetsForMean(params)
+                MeanCombiner(params, countBudget, sumBudget, noiseFactory)
+              } else {
+                null
+              }
             }
             VARIANCE -> {
               val (countBudget, sumBudget, sumSquaresBudget) = calculateBudgetsForVariance(params)
@@ -306,7 +310,7 @@ internal constructor(
 
             is QUANTILES -> {
               QuantilesCombiner(
-                (metric.type as QUANTILES).ranks,
+                (metric.type as QUANTILES).sortedRanks,
                 params,
                 getBudgetForMetric(metric, params),
                 noiseFactory,
@@ -366,7 +370,7 @@ internal constructor(
   }
 
   private fun getBudgetForPreAggregationPartitionSelection(
-    partitionSelectionBudget: AbsoluteBudgetPerOpSpec?
+    partitionSelectionBudget: BudgetPerOpSpec?
   ): AllocatedBudget {
     val budgetSpec = partitionSelectionBudget ?: RelativeBudgetPerOpSpec(weight = 1.0)
     return budgetAccountant.requestBudget(
@@ -375,7 +379,7 @@ internal constructor(
   }
 
   private fun getBudgetForPostAggregationPartitionSelection(
-    partitionSelectionBudget: AbsoluteBudgetPerOpSpec?
+    partitionSelectionBudget: BudgetPerOpSpec?
   ): AllocatedBudget {
     val budgetSpec = partitionSelectionBudget ?: RelativeBudgetPerOpSpec(weight = 1.0)
     return budgetAccountant.requestBudget(

@@ -34,7 +34,7 @@ import (
 )
 
 var (
-	enableShardedPublicPartitions = flag.Bool("enable_sharded_public_partitions", false, "Enable sharded public partitions. This is a temporary flag to allow us to test the new sharded implementation of public partition filtering.")
+	enableShardedPublicPartitions = flag.Bool("enable_sharded_public_partitions", true, "Enable sharded public partitions. This is a temporary flag to allow us to test the new sharded implementation of public partition filtering.")
 )
 
 func init() {
@@ -61,8 +61,13 @@ func init() {
 
 	register.Function1x2[kv.Pair, ShardedKey, []byte](addRandomShardIDFn)
 	register.Function4x0[[]byte, func(*[]byte) bool, func(*int) bool, func(ShardedKey, int)](extractEmittableKeysWithShardIDFn)
+	register.Iter1[[]byte]()
+	register.Iter1[int]()
+	register.Emitter2[ShardedKey, int]()
 	register.DoFn4x1[ShardedKey, func(*int) bool, func(*[]byte) bool, func(beam.T, beam.W), error](&filterKeysWithShardIDFn{})
+	register.Emitter2[beam.T, beam.W]()
 	register.Function1x2[kv.Pair, []byte, []byte](unwrapPairFn)
+	register.Function1x2[ShardedKey, []byte, int](unwrapShardedKeyFn)
 }
 
 // newAddZeroValuesToPublicPartitionsFn turns a PCollection<V> into PCollection<V,0>.

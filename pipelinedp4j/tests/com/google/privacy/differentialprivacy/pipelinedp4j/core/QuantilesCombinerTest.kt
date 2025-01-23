@@ -47,7 +47,7 @@ class QuantilesCombinerTest {
     allocatedBudget.initialize(1.1, 1e-5)
     val combiner =
       QuantilesCombiner(
-        ranks = listOf(0.25, 0.75, 0.5),
+        sortedRanks = listOf(0.25, 0.5, 0.75),
         defaultQuantilesAggParams(),
         allocatedBudget,
         ZeroNoiseFactory(),
@@ -76,7 +76,7 @@ class QuantilesCombinerTest {
     allocatedBudget.initialize(1.1, 1e-5)
     val combiner =
       QuantilesCombiner(
-        ranks = listOf(0.0, 0.5, 1.0),
+        sortedRanks = listOf(0.0, 0.5, 1.0),
         defaultQuantilesAggParams().copy(minValue = -10.0, maxValue = 10.0),
         allocatedBudget,
         ZeroNoiseFactory(),
@@ -97,7 +97,7 @@ class QuantilesCombinerTest {
     allocatedBudget.initialize(100.0, delta)
     val combiner =
       QuantilesCombiner(
-        ranks = listOf(0.0, 0.5, 1.0),
+        sortedRanks = listOf(0.0, 0.5, 1.0),
         defaultQuantilesAggParams().copy(minValue = 1.0, maxValue = 1000.0, noiseKind = noiseKind),
         allocatedBudget,
         NoiseFactory(),

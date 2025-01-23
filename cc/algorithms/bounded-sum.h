@@ -35,7 +35,10 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "algorithms/algorithm.h"
+#include "algorithms/approx-bounds-as-bounds-provider.h"
 #include "algorithms/approx-bounds.h"
+#include "algorithms/bounds-provider.h"
+#include "algorithms/internal/clamped-calculation-without-bounds.h"
 #include "algorithms/numerical-mechanisms.h"
 #include "algorithms/util.h"
 #include "proto/util.h"
@@ -48,9 +51,9 @@ namespace differential_privacy {
 
 template <typename T>
 class BoundedSum : public Algorithm<T> {
-  static_assert(std::is_arithmetic<T>::value,
+  static_assert(std::is_arithmetic<T>(),
                 "BoundedSum can only be used for arithmetic types");
-  static_assert(std::numeric_limits<T>::lowest() < 0,
+  static_assert(std::is_signed<T>(),
                 "BoundedSum can only be used for signed types");
 
  public:
@@ -213,16 +216,18 @@ class BoundedSumWithApproxBounds : public BoundedSum<T> {
       const double epsilon, const double delta, const double l0_sensitivity,
       const double max_contributions_per_partition,
       std::unique_ptr<NumericalMechanismBuilder> mechanism_builder,
-      std::unique_ptr<ApproxBounds<T>> approx_bounds)
+      std::unique_ptr<BoundsProvider<T>> bounds_provider)
       : BoundedSum<T>(epsilon, delta),
         mechanism_builder_(std::move(mechanism_builder)),
         l0_sensitivity_(l0_sensitivity),
         max_contributions_per_partition_(max_contributions_per_partition),
-        approx_bounds_(std::move(approx_bounds)) {
+        bounds_provider_(std::move(bounds_provider)),
+        clamped_calculation_(
+            bounds_provider_->CreateClampedCalculationWithoutBounds()) {
     // We use partial values for each bin of the ApproxBounds logarithmic
     // histogram.
-    pos_sum_.resize(approx_bounds_->NumPositiveBins(), 0);
-    neg_sum_.resize(approx_bounds_->NumPositiveBins(), 0);
+    pos_sum_.resize(clamped_calculation_->GetNumBins(), 0);
+    neg_sum_.resize(clamped_calculation_->GetNumBins(), 0);
   }
 
   void AddEntry(const T& t) override {
@@ -232,13 +237,13 @@ class BoundedSumWithApproxBounds : public BoundedSum<T> {
       return;
     }
 
-    approx_bounds_->AddEntry(t);
+    bounds_provider_->AddEntry(t);
 
     // Find partial sums.
     if (t >= 0) {
-      approx_bounds_->template AddToPartialSums<T>(&pos_sum_, t);
+      clamped_calculation_->template AddToPartialSums<T>(&pos_sum_, t);
     } else {
-      approx_bounds_->template AddToPartialSums<T>(&neg_sum_, t);
+      clamped_calculation_->template AddToPartialSums<T>(&neg_sum_, t);
     }
   }
 
@@ -263,8 +268,14 @@ class BoundedSumWithApproxBounds : public BoundedSum<T> {
     for (T x : neg_sum_) {
       SetValue(bs_summary.add_neg_sum(), x);
     }
-    Summary approx_bounds_summary = approx_bounds_->Serialize();
-    approx_bounds_summary.data().UnpackTo(bs_summary.mutable_bounds_summary());
+    *bs_summary.mutable_bounds() = bounds_provider_->Serialize();
+
+    // TODO: Remove this old serialization code that we keep for
+    // limited backwards compatibility.
+    if (bs_summary.bounds().has_approx_bounds_summary()) {
+      *bs_summary.mutable_bounds_summary() =
+          bs_summary.bounds().approx_bounds_summary();
+    }
 
     // Create Summary.
     Summary summary;
@@ -296,27 +307,35 @@ class BoundedSumWithApproxBounds : public BoundedSum<T> {
       neg_sum_[i] += GetValue<T>(bs_summary.neg_sum(i));
     }
 
-    // Merge approx bounds summary.
-    Summary approx_bounds_summary;
-    approx_bounds_summary.mutable_data()->PackFrom(bs_summary.bounds_summary());
-    RETURN_IF_ERROR(approx_bounds_->Merge(approx_bounds_summary));
+    // Merge bounds summary.
+    if (bs_summary.has_bounds()) {
+      RETURN_IF_ERROR(bounds_provider_->Merge(bs_summary.bounds()));
+    } else if (bs_summary.has_bounds_summary()) {
+      // TODO: Remove this old serialization code that we keep for
+      // limited backwards compatibility.
+      BoundsSummary bounds_summary;
+      *bounds_summary.mutable_approx_bounds_summary() =
+          bs_summary.bounds_summary();
+      RETURN_IF_ERROR(bounds_provider_->Merge(bounds_summary));
+    }
 
     return absl::OkStatus();
   }
 
-  // Returns the epsilon used to calculate approximate bounds.
-  double GetBoundingEpsilon() const { return approx_bounds_->GetEpsilon(); }
+  // Returns the epsilon used to calculate bounds.
+  double GetBoundingEpsilon() const { return bounds_provider_->GetEpsilon(); }
 
   // Returns the epsilon used to calculate the noisy sum.  The overall algorithm
   // also uses epsilon for privately inferred bounds using approx bounds.
   double GetAggregationEpsilon() const {
-    return Algorithm<T>::GetEpsilon() - approx_bounds_->GetEpsilon();
+    return Algorithm<T>::GetEpsilon() - bounds_provider_->GetEpsilon();
   }
 
   int64_t MemoryUsed() override {
     int64_t memory = sizeof(BoundedSum<T>);
     memory += sizeof(T) * (pos_sum_.capacity() + neg_sum_.capacity());
-    memory += approx_bounds_->MemoryUsed();
+    memory += bounds_provider_->MemoryUsed();
+    memory += clamped_calculation_->MemoryUsed();
     memory += sizeof(*mechanism_builder_);
     return memory;
   }
@@ -328,41 +347,50 @@ class BoundedSumWithApproxBounds : public BoundedSum<T> {
 
   double GetL0SensitivityForTesting() { return l0_sensitivity_; }
 
-  ApproxBounds<T>* GetApproxBoundsForTesting() { return approx_bounds_.get(); }
+  BoundsProvider<T>* GetBoundsProviderForTesting() {
+    return bounds_provider_.get();
+  }
 
  protected:
-  absl::StatusOr<Output> GenerateResult(double noise_interval_level) override {
-    // Get results of approximate bounds.
-    ASSIGN_OR_RETURN(Output bounds,
-                     approx_bounds_->PartialResult(noise_interval_level));
-    const T approx_bounds_lower = GetValue<T>(bounds.elements(0).value());
-    const T approx_bounds_upper = GetValue<T>(bounds.elements(1).value());
-
-    // Since sensitivity is determined only by the larger-magnitude bound,
-    // set the smaller-magnitude bound to be the negative of the larger. This
-    // minimizes clamping and so maximizes accuracy. We need to be careful with
-    // the numerical limits since -max == lowest + 1 for integers.
-    T lower = approx_bounds_lower;
-    T upper = approx_bounds_upper;
-    if (approx_bounds_lower == std::numeric_limits<T>::lowest()) {
-      upper = std::numeric_limits<T>::max();
-    } else {
-      lower = std::min(approx_bounds_lower, -1 * approx_bounds_upper);
-      upper = std::max(approx_bounds_upper, -1 * approx_bounds_lower);
+  // Since sensitivity is determined only by the larger-magnitude bound,
+  // set the smaller-magnitude bound to be the negative of the larger. This
+  // minimizes clamping and so maximizes accuracy.
+  static BoundsResult<T> RelaxBoundsSameSumSensitivity(
+      const BoundsResult<T>& bounds_result) {
+    BoundsResult<T> result = bounds_result;
+    // We need to be careful with the numerical limits since -max == lowest + 1
+    // for integers.
+    if (bounds_result.lower_bound == std::numeric_limits<T>::lowest()) {
+      result.upper_bound = std::numeric_limits<T>::max();
+      return result;
     }
+
+    result.lower_bound =
+        std::min(bounds_result.lower_bound, -1 * bounds_result.upper_bound);
+    result.upper_bound =
+        std::max(bounds_result.upper_bound, -1 * bounds_result.lower_bound);
+    return result;
+  }
+
+  absl::StatusOr<Output> GenerateResult(double noise_interval_level) override {
+    ASSIGN_OR_RETURN(BoundsResult<T> bounds_result,
+                     bounds_provider_->FinalizeAndCalculateBounds());
+    bounds_result = RelaxBoundsSameSumSensitivity(bounds_result);
 
     // Construct NumericalMechanism.
     ASSIGN_OR_RETURN(std::unique_ptr<NumericalMechanism> mechanism,
                      BoundedSum<T>::BuildMechanism(
                          mechanism_builder_->Clone(), GetAggregationEpsilon(),
                          Algorithm<T>::GetDelta(), l0_sensitivity_,
-                         max_contributions_per_partition_, lower, upper));
+                         max_contributions_per_partition_,
+                         bounds_result.lower_bound, bounds_result.upper_bound));
 
     // To find the sum, pass the identity function as the transform. We pass
     // count = 0 because the count should never be used.
     ASSIGN_OR_RETURN(
-        T sum, approx_bounds_->template ComputeFromPartials<T>(
-                   pos_sum_, neg_sum_, [](T x) { return x; }, lower, upper, 0));
+        T sum, clamped_calculation_->template ComputeFromPartials<T>(
+                   pos_sum_, neg_sum_, [](T x) { return x; },
+                   bounds_result.lower_bound, bounds_result.upper_bound, 0));
 
     // Add noise and confidence interval to the sum output. Use the remaining
     // privacy budget.
@@ -380,7 +408,7 @@ class BoundedSumWithApproxBounds : public BoundedSum<T> {
 
     // Populate the bounding report with ApproxBounds information.
     output.mutable_error_report()->set_allocated_bounding_report(
-        new BoundingReport(approx_bounds_->GetBoundingReport(lower, upper)));
+        new BoundingReport(bounds_provider_->GetBoundingReport(bounds_result)));
 
     return output;
   }
@@ -388,7 +416,7 @@ class BoundedSumWithApproxBounds : public BoundedSum<T> {
   void ResetState() override {
     std::fill(pos_sum_.begin(), pos_sum_.end(), 0);
     std::fill(neg_sum_.begin(), neg_sum_.end(), 0);
-    approx_bounds_->Reset();
+    bounds_provider_->Reset();
   }
 
  private:
@@ -401,7 +429,9 @@ class BoundedSumWithApproxBounds : public BoundedSum<T> {
   const int max_contributions_per_partition_;
 
   // Algorithm to privately infer bounds.
-  std::unique_ptr<ApproxBounds<T>> approx_bounds_;
+  std::unique_ptr<BoundsProvider<T>> bounds_provider_;
+  std::unique_ptr<internal::ClampedCalculationWithoutBounds<T>>
+      clamped_calculation_;
 };
 
 template <typename T>
@@ -445,6 +475,12 @@ class BoundedSum<T>::Builder {
     return *this;
   }
 
+  BoundedSum<T>::Builder& SetBoundsProvider(
+      std::unique_ptr<BoundsProvider<T>> bounds_provider) {
+    bounds_provider_ = std::move(bounds_provider);
+    return *this;
+  }
+
   BoundedSum<T>::Builder& SetLaplaceMechanism(
       std::unique_ptr<NumericalMechanismBuilder> builder) {
     mechanism_builder_ = std::move(builder);
@@ -484,6 +520,7 @@ class BoundedSum<T>::Builder {
   std::unique_ptr<NumericalMechanismBuilder> mechanism_builder_ =
       std::make_unique<LaplaceMechanism::Builder>();
   std::unique_ptr<ApproxBounds<T>> approx_bounds_;
+  std::unique_ptr<BoundsProvider<T>> bounds_provider_;
 
   absl::StatusOr<std::unique_ptr<BoundedSum<T>>> BuildSumWithFixedBounds() {
     ASSIGN_OR_RETURN(
@@ -500,29 +537,39 @@ class BoundedSum<T>::Builder {
   }
 
   absl::StatusOr<std::unique_ptr<BoundedSum<T>>> BuildSumWithApproxBounds() {
-    if (!approx_bounds_) {
+    if (approx_bounds_ != nullptr && bounds_provider_ != nullptr) {
+      return absl::InvalidArgumentError(
+          "ApproxBounds and a generic BoundsProvider have been set, but only "
+          "one is allowed. Please use only one, either SetApproxBounds or "
+          "SetBoundsProvider.");
+    } else if (approx_bounds_ == nullptr && bounds_provider_ == nullptr) {
       ASSIGN_OR_RETURN(
-          approx_bounds_,
+          std::unique_ptr<ApproxBounds<T>> approx_bounds,
           typename ApproxBounds<T>::Builder()
               .SetEpsilon(epsilon_.value() / 2)
               .SetLaplaceMechanism(mechanism_builder_->Clone())
               .SetMaxContributionsPerPartition(max_contributions_per_partition_)
               .SetMaxPartitionsContributed(max_partitions_contributed_)
               .Build());
+      bounds_provider_ = std::make_unique<ApproxBoundsAsBoundsProvider<T>>(
+          std::move(approx_bounds));
+    } else if (approx_bounds_ != nullptr && bounds_provider_ == nullptr) {
+      bounds_provider_ = std::make_unique<ApproxBoundsAsBoundsProvider<T>>(
+          std::move(approx_bounds_));
     }
-    if (epsilon_.value() <= approx_bounds_->GetEpsilon()) {
+    if (epsilon_.value() <= bounds_provider_->GetEpsilon()) {
       return absl::InvalidArgumentError(absl::StrCat(
           "Approx Bounds consumes more epsilon budget than available. Total "
           "Epsilon: ",
           epsilon_.value(),
-          " Approx Bounds Epsilon: ", approx_bounds_->GetEpsilon()));
+          " Approx Bounds Epsilon: ", bounds_provider_->GetEpsilon()));
     }
 
     return absl::StatusOr<std::unique_ptr<BoundedSum<T>>>(
         std::make_unique<BoundedSumWithApproxBounds<T>>(
             epsilon_.value(), delta_, max_partitions_contributed_,
             max_contributions_per_partition_, mechanism_builder_->Clone(),
-            std::move(approx_bounds_)));
+            std::move(bounds_provider_)));
   }
 };
 

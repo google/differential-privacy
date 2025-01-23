@@ -549,14 +549,14 @@ data class MeanCombinerResult(val mean: Double, val sum: Double?, val count: Dou
  * It returns noisy quantiles for the requested ranks. The output quantiles are sorted by ranks.
  *
  * @property ranks a list of ranks for which quantiles will be computed. The ranks must be between 0
- *   (inclusive) and 1 (inclusive).
+ *   (inclusive) and 1 (inclusive) and sorted in ascending order.
  * @property aggregationParams parameters controlling the aggregation process.
  * @property budget the amount of privacy budget that can be used by the combiner.
  * @property noiseFactory allows for passing the noise generator as a parameter in order to be able
  *   to mock it in tests.
  */
 class QuantilesCombiner(
-  private val ranks: List<Double>,
+  private val sortedRanks: List<Double>,
   private val aggregationParams: AggregationParams,
   private val budget: AllocatedBudget,
   private val noiseFactory: (NoiseKind) -> Noise,
@@ -608,7 +608,7 @@ class QuantilesCombiner(
   override fun computeMetrics(accumulator: QuantilesAccumulator): List<Double> {
     val boundedQuantiles = emptyBoundedQuantiles()
     boundedQuantiles.mergeWith(accumulator.serializedQuantilesSummary.toByteArray())
-    return ranks.sorted().map { boundedQuantiles.computeResult(it) }
+    return sortedRanks.map { boundedQuantiles.computeResult(it) }
   }
 
   /**

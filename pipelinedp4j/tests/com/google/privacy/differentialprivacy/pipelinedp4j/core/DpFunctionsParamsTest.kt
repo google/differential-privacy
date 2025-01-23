@@ -443,6 +443,13 @@ class DpFunctionsParamsTest {
   }
 
   @Test
+  fun validQuantiles_ranksAreSorted() {
+    val ranks = QUANTILES(ranks = ImmutableList.of(1.0, 0.0, 0.5)).sortedRanks
+
+    assertThat(ranks).containsExactly(0.0, 0.5, 1.0).inOrder()
+  }
+
+  @Test
   @TestParameters("{ranks: [-0.00001]}")
   @TestParameters("{ranks: [1.00001]}")
   fun invalidQuantiles_fail(ranks: List<Double>) {

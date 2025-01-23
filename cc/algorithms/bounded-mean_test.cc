@@ -34,7 +34,9 @@
 #include "absl/log/check.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "algorithms/approx-bounds-as-bounds-provider.h"
 #include "algorithms/approx-bounds.h"
+#include "algorithms/bounds-provider.h"
 #include "algorithms/numerical-mechanisms-testing.h"
 #include "algorithms/numerical-mechanisms.h"
 #include "proto/util.h"
@@ -69,6 +71,7 @@ using ::testing::Le;
 using ::testing::Lt;
 using ::testing::NotNull;
 using ::testing::Property;
+using ::differential_privacy::base::testing::IsOk;
 using ::differential_privacy::base::testing::StatusIs;
 
 constexpr double kSmallEpsilon = 0.00000001;
@@ -695,6 +698,88 @@ TYPED_TEST(BoundedMeanTest, SerializeMergePartialSumsTest) {
   EXPECT_DOUBLE_EQ(GetValue<double>(*result1), GetValue<double>(*result2));
 }
 
+TYPED_TEST(BoundedMeanTest, SerializeMergePartialSumsWithBoundsProvider) {
+  // Automatic bounding, so entries will be split and stored as partial sums.
+  auto bounds =
+      typename ApproxBounds<TypeParam>::Builder()
+          .SetThresholdForTest(0.5)
+          .SetNumBins(10)
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetEpsilon(kDefaultEpsilon / 2)
+          .Build();
+  ASSERT_OK(bounds);
+  std::unique_ptr<BoundsProvider<TypeParam>> bounds_provider =
+      std::make_unique<ApproxBoundsAsBoundsProvider<TypeParam>>(
+          std::move(bounds).value());
+  auto bm1 =
+      typename BoundedMean<TypeParam>::Builder()
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetBoundsProvider(std::move(bounds_provider))
+          .SetEpsilon(kDefaultEpsilon)
+          .Build();
+  ASSERT_OK(bm1);
+  (*bm1)->AddEntry(-10);
+  (*bm1)->AddEntry(4);
+  Summary summary = (*bm1)->Serialize();
+  (*bm1)->AddEntry(6);
+
+  // Merge summary into second BoundedVariance.
+  auto bounds2 =
+      typename ApproxBounds<TypeParam>::Builder()
+          .SetThresholdForTest(0.5)
+          .SetNumBins(10)
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetEpsilon(kDefaultEpsilon / 2)
+          .Build();
+  ASSERT_OK(bounds2);
+  std::unique_ptr<BoundsProvider<TypeParam>> bounds_provider2 =
+      std::make_unique<ApproxBoundsAsBoundsProvider<TypeParam>>(
+          std::move(bounds2).value());
+  auto bm2 =
+      typename BoundedMean<TypeParam>::Builder()
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetBoundsProvider(std::move(bounds_provider2))
+          .SetEpsilon(kDefaultEpsilon)
+          .Build();
+  ASSERT_OK(bm2);
+  (*bm2)->AddEntry(6);
+  EXPECT_OK((*bm2)->Merge(summary));
+
+  // Check equality.  Bounds are set to [-16, 8].
+  auto result1 = (*bm1)->PartialResult();
+  ASSERT_OK(result1);
+  auto result2 = (*bm2)->PartialResult();
+  ASSERT_OK(result2);
+  EXPECT_DOUBLE_EQ(GetValue<double>(*result1), GetValue<double>(*result2));
+}
+
+// This test will be removed when removing backwards compatibility for the
+// `bounds_summary` field.
+TYPED_TEST(BoundedMeanTest, SerializeMergeApproxBoundsBackwardsCompatability) {
+  absl::StatusOr<std::unique_ptr<BoundedMean<TypeParam>>> bounds1 =
+      typename BoundedMean<TypeParam>::Builder().SetEpsilon(1e10).Build();
+  ASSERT_OK(bounds1.status());
+
+  for (int i = 0; i < 100; ++i) {
+    bounds1.value()->AddEntry(10);
+  }
+
+  absl::StatusOr<std::unique_ptr<BoundedMean<TypeParam>>> bounds2 =
+      typename BoundedMean<TypeParam>::Builder().SetEpsilon(1.0).Build();
+  ASSERT_OK(bounds2.status());
+
+  // Remove the newly introduced field as this field is ignored by versions
+  // before the proto change.
+  Summary bounds1_summary = bounds1.value()->Serialize();
+  BoundedMeanSummary bm_summary;
+  bounds1_summary.data().UnpackTo(&bm_summary);
+  bm_summary.clear_bounds();
+  bounds1_summary.mutable_data()->PackFrom(bm_summary);
+
+  ASSERT_OK(bounds2.value()->Merge(bounds1_summary));
+  EXPECT_THAT(bounds2.value()->PartialResult(), IsOk());
+}
+
 TYPED_TEST(BoundedMeanTest, AutomaticBoundsNegative) {
   std::vector<TypeParam> a = {9, -2, -2, -1, -6, -6};
   auto bounds =
@@ -903,9 +988,10 @@ TEST(BoundedMeanTest, BuilderWithApproxBoundsMoreBudgetThanTotalBudgetFails) {
           .SetEpsilon(1.09)
           .SetApproxBounds(std::move(bounds).value())
           .Build();
-  ASSERT_THAT(bm.status(),
-              StatusIs(absl::StatusCode::kInvalidArgument,
-                       HasSubstr("Approx Bounds consumes more epsilon")));
+  ASSERT_THAT(
+      bm.status(),
+      StatusIs(absl::StatusCode::kInvalidArgument,
+               HasSubstr("consumes more epsilon budget than available")));
 }
 
 // Test when a bound is 0.
@@ -1032,6 +1118,14 @@ TEST(BoundedMeanWithApproxBoundsTest, ConsumesAllBudgetOfNumericalMechanisms) {
 TEST(BoundedMeanWithFixedBoundsTest, ApproxBoundsMechanismHasExpectedVariance) {
   const int max_partitions_contributed = 2;
   const int max_contributions_per_partition = 3;
+  const double expected_variance =
+      LaplaceMechanism::Builder()
+          .SetEpsilon(kDefaultEpsilon / 2)
+          .SetL0Sensitivity(max_partitions_contributed)
+          .SetLInfSensitivity(max_contributions_per_partition)
+          .Build()
+          .value()
+          ->GetVariance();
 
   absl::StatusOr<std::unique_ptr<BoundedMean<double>>> bm =
       BoundedMean<double>::Builder()
@@ -1044,17 +1138,12 @@ TEST(BoundedMeanWithFixedBoundsTest, ApproxBoundsMechanismHasExpectedVariance) {
   auto* bm_with_approx_bounds =
       static_cast<BoundedMeanWithApproxBounds<double>*>(bm.value().get());
   ASSERT_THAT(bm_with_approx_bounds, NotNull());
+  auto* approx_bounds_as_bounds_provider =
+      static_cast<ApproxBoundsAsBoundsProvider<double>*>(
+          bm_with_approx_bounds->GetBoundsProviderForTesting());
+  ASSERT_THAT(approx_bounds_as_bounds_provider, NotNull());
 
-  const double expected_variance =
-      LaplaceMechanism::Builder()
-          .SetEpsilon(kDefaultEpsilon / 2)
-          .SetL0Sensitivity(max_partitions_contributed)
-          .SetLInfSensitivity(max_contributions_per_partition)
-          .Build()
-          .value()
-          ->GetVariance();
-
-  ASSERT_THAT(bm_with_approx_bounds->GetApproxBoundsForTesting()
+  EXPECT_THAT(approx_bounds_as_bounds_provider->GetApproxBoundsForTesting()
                   ->GetMechanismForTesting()
                   ->GetVariance(),
               DoubleEq(expected_variance));

@@ -39,7 +39,10 @@ class SparkEncoderFactory : EncoderFactory {
   }
 
   override fun <T : Any> records(recordClass: Class<T>): SparkEncoder<T> {
-    return SparkEncoder(Encoders.bean(recordClass))
+    // RecordClass might not be a Java Bean class then kryo encoding is used (it is less optimized).
+    val encoder =
+      runCatching { Encoders.bean(recordClass) }.getOrElse { Encoders.kryo(recordClass) }
+    return SparkEncoder(encoder!!)
   }
 
   override fun <T : Message> protos(protoClass: Class<T>): SparkEncoder<T> {

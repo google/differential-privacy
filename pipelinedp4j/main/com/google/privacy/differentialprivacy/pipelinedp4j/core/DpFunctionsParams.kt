@@ -26,7 +26,6 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.PRIVA
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.QUANTILES
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.SUM
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.VARIANCE
-import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.AbsoluteBudgetPerOpSpec
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.BudgetPerOpSpec
 import java.io.Serializable
 import kotlin.reflect.KClass
@@ -162,10 +161,10 @@ data class AggregationParams(
   /**
    * The amount of budget used for partition selection.
    *
-   * If [AbsoluteBudgetPerOpSpec] is null, [RelativeBudgetPerOpSpec] with weight = 1 is used, i.e.
-   * the budget is split evenly among all DP operations (metrics and partition selection).
+   * If [BudgetPerOpSpec] is null, [RelativeBudgetPerOpSpec] with weight = 1 is used, i.e. the
+   * budget is split evenly among all DP operations (metrics and partition selection).
    */
-  val partitionSelectionBudget: AbsoluteBudgetPerOpSpec? = null,
+  val partitionSelectionBudget: BudgetPerOpSpec? = null,
   /** The pre-threshold to use for partition selection. */
   override val preThreshold: Int = 1,
   /**
@@ -374,10 +373,10 @@ data class SelectPartitionsParams(
   /**
    * The amount of budget that should be used for partition selection.
    *
-   * If [AbsoluteBudgetPerOpSpec] is null, [RelativeBudgetPerOpSpec] with weight = 1 is used, i.e.
-   * the budget is split evenly among all DP operations (metrics and partition selection).
+   * If [BudgetPerOpSpec] is null, [RelativeBudgetPerOpSpec] with weight = 1 is used, i.e. the
+   * budget is split evenly among all DP operations (metrics and partition selection).
    */
-  val budget: AbsoluteBudgetPerOpSpec? = null,
+  val budget: BudgetPerOpSpec? = null,
   /** The pre-threshold to use for partition selection. */
   override val preThreshold: Int = 1,
   /**
@@ -506,9 +505,11 @@ sealed class MetricType : Serializable {
 
   data object MEAN : MetricType()
 
-  data class QUANTILES(val ranks: ImmutableList<Double>) : MetricType() {
+  data class QUANTILES(private val ranks: ImmutableList<Double>) : MetricType() {
+    val sortedRanks = ImmutableList.copyOf(ranks.sorted())
+
     init {
-      require(ranks.all { it in 0.0..1.0 }) { "Ranks for quantiles must be all in [0, 1]." }
+      require(sortedRanks.all { it in 0.0..1.0 }) { "Ranks for quantiles must be all in [0, 1]." }
     }
   }
 

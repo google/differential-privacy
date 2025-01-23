@@ -61,6 +61,7 @@ message BoundedQuantilesSummary {
   optional int32 branching_factor = 10;
 }
 
+// Next ID: 13
 message BoundedSumSummary {
   // Partial sum data for the dataset. For automatically set bounds, partial
   // sum values are stored corresponding to each ApproxBounds bin.
@@ -70,8 +71,10 @@ message BoundedSumSummary {
   // neg_sum is used only when bounds are determined automatically.
   repeated ValueType neg_sum = 2;
 
-  // ApproxBounds data if available.
-  optional ApproxBoundsSummary bounds_summary = 3;
+  // (DEPRECATED) ApproxBounds data if available.  Use `bounds` field instead.
+  optional ApproxBoundsSummary bounds_summary = 3 [deprecated = true];
+  // BoundsProvider data if available.
+  optional BoundsSummary bounds = 12;
 
   // partial_sum is used by the Java library to store partial sum.
   // TODO: Use partial_sum in C++ library
@@ -111,6 +114,7 @@ enum MechanismType {
   MECHANISM_NONE = 5;
 }
 
+// Next ID: 8
 message BoundedMeanSummary {
   // Count of the data subset.
   optional int64 count = 1;
@@ -119,8 +123,10 @@ message BoundedMeanSummary {
   repeated ValueType pos_sum = 2;
   repeated ValueType neg_sum = 3;
 
-  // ApproxBounds data if available.
-  optional ApproxBoundsSummary bounds_summary = 4;
+  // (DEPRECATED) ApproxBounds data if available.  Use `bounds` field instead.
+  optional ApproxBoundsSummary bounds_summary = 4 [deprecated = true];
+  // BoundsProvider data if available.
+  optional BoundsSummary bounds = 7;
 
   // These two fields are only used by the Java library (not C++), similarly to
   // pos_sum and count.
@@ -129,6 +135,8 @@ message BoundedMeanSummary {
 }
 
 // Used for BoundedVariance and BoundedStandardDeviation algorithms.
+//
+// Next ID: 11
 message BoundedVarianceSummary {
   // Count of the dataset.
   optional int64 count = 1;
@@ -144,8 +152,10 @@ message BoundedVarianceSummary {
   repeated double pos_sum_of_squares = 4;
   repeated double neg_sum_of_squares = 5;
 
-  // ApproxBounds data if available.
-  optional ApproxBoundsSummary bounds_summary = 6;
+  // (DEPRECATED) ApproxBounds data if available.  Use `bounds` field instead.
+  optional ApproxBoundsSummary bounds_summary = 6 [deprecated = true];
+  // BoundsProvider data if available.
+  optional BoundsSummary bounds = 10;
 
   // These three fields are only used by the Java library (not C++), similarly
   // to pos_sum_of_squares, pos_sum and count.
@@ -172,6 +182,14 @@ message BinarySearchSummary {
 message ApproxBoundsSummary {
   repeated int64 pos_bin_count = 1;
   repeated int64 neg_bin_count = 2;
+}
+
+// Next ID: 3
+message BoundsSummary {
+  oneof bounds_summary {
+    ApproxBoundsSummary approx_bounds_summary = 1;
+  }
+  reserved 2;
 }
 
 message PreAggSelectPartitionSummary {

@@ -1237,7 +1237,7 @@ class DpEngineTest {
       AggregationParams(
         metrics =
           ImmutableList.of(
-            MetricDefinition(QUANTILES(ranks = ImmutableList.of(0.0, 0.0001, 0.5, 0.999, 1.0)))
+            MetricDefinition(QUANTILES(ranks = ImmutableList.of(0.0001, 0.0, 0.5, 0.999, 1.0)))
           ),
         noiseKind = GAUSSIAN,
         maxPartitionsContributed = 10,

@@ -103,6 +103,19 @@ cc_test(
 )
 
 cc_library(
+    name = "bounds-provider",
+    hdrs = ["bounds-provider.h"],
+    visibility = ["//visibility:private"],
+    deps = [
+        "//algorithms/internal:clamped-calculation-without-bounds",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_differential_privacy//proto:data_cc_proto",
+        "@com_google_differential_privacy//proto:summary_cc_proto",
+    ],
+)
+
+cc_library(
     name = "order-statistics",
     hdrs = ["order-statistics.h"],
     visibility = ["//visibility:public"],
@@ -139,11 +152,13 @@ cc_library(
     deps = [
         ":algorithm",
         ":approx-bounds",
+        ":approx-bounds-as-bounds-provider",
+        ":bounds-provider",
         ":numerical-mechanisms",
         ":util",
+        "//algorithms/internal:clamped-calculation-without-bounds",
         "//proto:util-lib",
         "@com_google_absl//absl/log",
-        "@com_google_absl//absl/memory",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
@@ -159,16 +174,17 @@ cc_test(
     size = "small",
     srcs = ["bounded-sum_test.cc"],
     deps = [
-        ":algorithm",
         ":approx-bounds",
+        ":approx-bounds-as-bounds-provider",
         ":bounded-sum",
         ":numerical-mechanisms",
         ":numerical-mechanisms-testing",
         "//base/testing:proto_matchers",
         "//base/testing:status_matchers",
         "//proto:util-lib",
-        "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
         "@com_google_differential_privacy//proto:data_cc_proto",
         "@com_google_googletest//:gtest_main",
     ],
@@ -181,9 +197,12 @@ cc_library(
     deps = [
         ":algorithm",
         ":approx-bounds",
+        ":approx-bounds-as-bounds-provider",
+        ":bounds-provider",
         ":numerical-mechanisms",
         ":util",
         "//algorithms/internal:bounded-mean-ci",
+        "//algorithms/internal:clamped-calculation-without-bounds",
         "//proto:util-lib",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/memory",
@@ -205,7 +224,9 @@ cc_test(
     srcs = ["bounded-mean_test.cc"],
     deps = [
         ":approx-bounds",
+        ":approx-bounds-as-bounds-provider",
         ":bounded-mean",
+        ":bounds-provider",
         ":numerical-mechanisms",
         ":numerical-mechanisms-testing",
         "//base/testing:proto_matchers",
@@ -244,8 +265,11 @@ cc_library(
     deps = [
         ":algorithm",
         ":approx-bounds",
+        ":approx-bounds-as-bounds-provider",
+        ":bounds-provider",
         ":numerical-mechanisms",
         ":util",
+        "//algorithms/internal:clamped-calculation-without-bounds",
         "//proto:util-lib",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/log:check",
@@ -265,6 +289,7 @@ cc_test(
     srcs = ["bounded-variance_test.cc"],
     deps = [
         ":approx-bounds",
+        ":approx-bounds-as-bounds-provider",
         ":bounded-variance",
         ":numerical-mechanisms",
         ":numerical-mechanisms-testing",
@@ -496,6 +521,7 @@ cc_library(
         ":algorithm",
         ":numerical-mechanisms",
         ":util",
+        "//algorithms/internal:clamped-calculation-without-bounds",
         "//proto:util-lib",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/memory",
@@ -516,6 +542,7 @@ cc_test(
         ":approx-bounds",
         ":numerical-mechanisms",
         ":numerical-mechanisms-testing",
+        "//algorithms/internal:clamped-calculation-without-bounds",
         "//base/testing:proto_matchers",
         "//base/testing:status_matchers",
         "@com_google_absl//absl/memory",
@@ -523,6 +550,36 @@ cc_test(
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings:cord",
         "@com_google_differential_privacy//proto:data_cc_proto",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "approx-bounds-as-bounds-provider",
+    hdrs = ["approx-bounds-as-bounds-provider.h"],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":approx-bounds",
+        ":bounds-provider",
+        "//algorithms/internal:clamped-calculation-without-bounds",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_cc_differential_privacy//base:status_macros",
+    ],
+)
+
+cc_test(
+    name = "approx-bounds-as-bounds-provider_test",
+    srcs = ["approx-bounds-as-bounds-provider_test.cc"],
+    deps = [
+        ":approx-bounds",
+        ":approx-bounds-as-bounds-provider",
+        ":bounds-provider",
+        "//algorithms/internal:clamped-calculation-without-bounds",
+        "//base/testing:status_matchers",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
+        "@com_google_absl//absl/status:statusor",
         "@com_google_googletest//:gtest_main",
     ],
 )

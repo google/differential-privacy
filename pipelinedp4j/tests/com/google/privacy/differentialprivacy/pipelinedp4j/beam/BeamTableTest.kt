@@ -18,6 +18,7 @@ package com.google.privacy.differentialprivacy.pipelinedp4j.beam
 
 import com.google.common.truth.Truth.assertThat
 import com.google.privacy.differentialprivacy.pipelinedp4j.local.LocalCollection
+import com.google.privacy.differentialprivacy.pipelinedp4j.local.LocalTable
 import com.google.testing.junit.testparameterinjector.TestParameter
 import com.google.testing.junit.testparameterinjector.TestParameterInjector
 import org.apache.beam.sdk.coders.KvCoder
@@ -314,7 +315,7 @@ class BeamTableTest {
   }
 
   @Test
-  fun flattenWith_flattensCollections() {
+  fun flattenWith_beamTable_flattensCollections() {
     val pCollection =
       testPipeline.apply(
         "Create1",
@@ -329,6 +330,26 @@ class BeamTableTest {
           .withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())),
       )
     val otherBeamCollection = BeamTable(otherPCollection)
+
+    val result: BeamTable<String, Int> =
+      beamCollection.flattenWith("stageName", otherBeamCollection)
+
+    PAssert.that(result.data).containsInAnyOrder(KV.of("one", 1), KV.of("two", 2))
+
+    testPipeline.run().waitUntilFinish()
+  }
+
+  @Test
+  fun flattenWith_localTable_flattensCollections() {
+    val pCollection =
+      testPipeline.apply(
+        "Create1",
+        Create.of(listOf(KV.of("one", 1)))
+          .withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())),
+      )
+    val beamCollection = BeamTable(pCollection)
+    val otherPCollection = sequenceOf("two" to 2)
+    val otherBeamCollection = LocalTable(otherPCollection)
 
     val result: BeamTable<String, Int> =
       beamCollection.flattenWith("stageName", otherBeamCollection)

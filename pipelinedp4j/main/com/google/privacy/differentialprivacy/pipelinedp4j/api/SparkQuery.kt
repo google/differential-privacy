@@ -74,7 +74,7 @@ internal constructor(
               MetricType.MEAN -> put(outputColumnName, dpAggregates.mean)
               MetricType.VARIANCE -> put(outputColumnName, dpAggregates.variance)
               is MetricType.QUANTILES -> {
-                for ((rank, value) in metricType.ranks.zip(dpAggregates.quantilesList)) {
+                for ((rank, value) in metricType.sortedRanks.zip(dpAggregates.quantilesList)) {
                   put("${outputColumnName}_${rank}", value)
                 }
               }

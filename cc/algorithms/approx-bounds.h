@@ -40,6 +40,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "algorithms/algorithm.h"
+#include "algorithms/internal/clamped-calculation-without-bounds.h"
 #include "algorithms/numerical-mechanisms.h"
 #include "algorithms/util.h"
 #include "proto/util.h"
@@ -311,6 +312,15 @@ class ApproxBounds : public Algorithm<T> {
   // Returns a pointer to the mechanism for testing.  Does not transfer
   // ownership.
   NumericalMechanism* GetMechanismForTesting() { return mechanism_.get(); }
+
+  std::unique_ptr<internal::ClampedCalculationWithoutBounds<T>>
+  CreateClampedCalculationWithoutBounds() const {
+    typename internal::ClampedCalculationWithoutBounds<T>::Options options;
+    options.num_bins = pos_bins_.size();
+    options.scale = scale_;
+    options.base = base_;
+    return internal::ClampedCalculationWithoutBounds<T>::Create(options);
+  }
 
  protected:
   ApproxBounds(double epsilon, int64_t num_bins, double scale, double base,

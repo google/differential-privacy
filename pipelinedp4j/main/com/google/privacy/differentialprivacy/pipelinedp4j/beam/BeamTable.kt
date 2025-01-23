@@ -21,9 +21,11 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.core.FrameworkCollect
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.FrameworkTable
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.StageNameUtils.append
 import com.google.privacy.differentialprivacy.pipelinedp4j.local.LocalCollection
+import com.google.privacy.differentialprivacy.pipelinedp4j.local.LocalTable
 import org.apache.beam.sdk.coders.KvCoder
 import org.apache.beam.sdk.coders.VoidCoder
 import org.apache.beam.sdk.transforms.Combine
+import org.apache.beam.sdk.transforms.Create
 import org.apache.beam.sdk.transforms.DoFn
 import org.apache.beam.sdk.transforms.DoFn.ProcessContext
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement
@@ -46,6 +48,7 @@ import org.apache.beam.sdk.values.PCollectionList
 
 /** An implementation of [FrameworkTable], which runs all operations on Beam. */
 class BeamTable<K, V>(val data: PCollection<KV<K, V>>) : FrameworkTable<K, V> {
+  private val beamPipeline = data.pipeline
   private val kvCoder = (data.coder as KvCoder<K, V>)
 
   override val keysEncoder = BeamEncoder<K>(kvCoder.keyCoder)
@@ -182,9 +185,20 @@ class BeamTable<K, V>(val data: PCollection<KV<K, V>>) : FrameworkTable<K, V> {
   }
 
   override fun flattenWith(stageName: String, other: FrameworkTable<K, V>): BeamTable<K, V> {
-    val otherBeamTable = other as BeamTable<K, V>
-    val collectionsList = PCollectionList.of(this.data).and(otherBeamTable.data)
-    return BeamTable(collectionsList.apply(stageName, Flatten.pCollections()))
+    return when (other) {
+      is BeamTable<K, V> -> {
+        val collectionsList = PCollectionList.of(this.data).and(other.data)
+        BeamTable(collectionsList.apply(stageName, Flatten.pCollections()))
+      }
+      is LocalTable<K, V> -> {
+        flattenWith(stageName, other.toBeamTable(stageName.append("ConvertLocalTableToBeamTable")))
+      }
+      else ->
+        throw IllegalArgumentException(
+          "Table is of unsupported backend. Only Beam or local backends are supported, " +
+            "the type of the given table is ${other.javaClass}."
+        )
+    }
   }
 
   /**
@@ -265,5 +279,10 @@ class BeamTable<K, V>(val data: PCollection<KV<K, V>>) : FrameworkTable<K, V> {
 
   override fun samplePerKey(stageName: String, count: Int): BeamTable<K, Iterable<V>> {
     return BeamTable(data.apply(stageName, Sample.fixedSizePerKey<K, V>(count)))
+  }
+
+  private fun LocalTable<K, V>.toBeamTable(stageName: String): BeamTable<K, V> {
+    val localInput = data.map { it.toKV() }.toList()
+    return BeamTable(beamPipeline.apply(stageName, Create.of(localInput).withCoder(kvCoder)))
   }
 }

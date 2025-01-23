@@ -28,7 +28,7 @@ class TotalBudgetTest {
   @Test
   @TestParameters(
     "{epsilon: -1.0, delta: 0.5}",
-    "{epsilon: 0.0, delta: 0.0}",
+    "{epsilon: 0.0, delta: 0.5}",
     "{epsilon: 0.5, delta: -1.0}",
   )
   fun create_invalidParameters_throws(epsilon: Double, delta: Double) {

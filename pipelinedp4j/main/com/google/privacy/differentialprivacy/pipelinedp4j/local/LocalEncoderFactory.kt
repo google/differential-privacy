@@ -41,4 +41,6 @@ class LocalEncoderFactory() : EncoderFactory {
 
   override fun <T1 : Any, T2 : Any> tuple2sOf(first: Encoder<T1>, second: Encoder<T2>) =
     object : Encoder<Pair<T1, T2>> {}
+
+  fun <T> encoderForArbitraryType(): Encoder<T> = object : Encoder<T> {}
 }

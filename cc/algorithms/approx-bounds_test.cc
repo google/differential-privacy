@@ -16,6 +16,7 @@
 
 #include "algorithms/approx-bounds.h"
 
+#include <cstdint>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -29,6 +30,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/cord.h"
+#include "algorithms/internal/clamped-calculation-without-bounds.h"
 #include "algorithms/numerical-mechanisms-testing.h"
 #include "algorithms/numerical-mechanisms.h"
 #include "proto/data.pb.h"
@@ -1167,6 +1169,26 @@ TEST(ApproxBoundsTest, DefaultNumBinsForInt64Is64) {
       ApproxBounds<int64_t>::Builder().SetEpsilon(1.1).SetScale(1.0).Build();
   ASSERT_OK(bounds);
   EXPECT_EQ(bounds.value()->GetNumPosBinsForTesting(), 64);
+}
+
+TYPED_TEST(ApproxBoundsTest,
+           CreateClampedCalculationWithoutBoundsHasSameProperties) {
+  absl::StatusOr<std::unique_ptr<ApproxBounds<TypeParam>>> bounds =
+      typename ApproxBounds<TypeParam>::Builder()
+          .SetEpsilon(1.1)
+          .SetScale(2.0)
+          .SetNumBins(5)
+          .SetBase(3)
+          .Build();
+  ASSERT_OK(bounds);
+
+  std::unique_ptr<internal::ClampedCalculationWithoutBounds<TypeParam>>
+      clamped_calculation =
+          bounds.value()->CreateClampedCalculationWithoutBounds();
+
+  EXPECT_THAT(clamped_calculation->GetNumBins(), Eq(5));
+  EXPECT_THAT(clamped_calculation->GetScaleForTesting(), Eq(2.0));
+  EXPECT_THAT(clamped_calculation->GetBaseForTesting(), Eq(3));
 }
 
 }  //  namespace

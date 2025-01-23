@@ -36,7 +36,10 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "algorithms/algorithm.h"
+#include "algorithms/approx-bounds-as-bounds-provider.h"
 #include "algorithms/approx-bounds.h"
+#include "algorithms/bounds-provider.h"
+#include "algorithms/internal/clamped-calculation-without-bounds.h"
 #include "algorithms/numerical-mechanisms.h"
 #include "algorithms/util.h"
 #include "proto/util.h"
@@ -316,7 +319,7 @@ class BoundedVarianceWithApproxBounds : public BoundedVariance<T> {
       const int max_contributions_per_partition,
       std::unique_ptr<NumericalMechanismBuilder> mechanism_builder,
       std::unique_ptr<NumericalMechanism> count_mechanism,
-      std::unique_ptr<ApproxBounds<T>> approx_bounds)
+      std::unique_ptr<BoundsProvider<T>> bounds_provider)
       : BoundedVariance<T>(epsilon),
         epsilon_for_sum_(epsilon_for_sum),
         epsilon_for_squares_(epsilon_for_squares),
@@ -324,13 +327,15 @@ class BoundedVarianceWithApproxBounds : public BoundedVariance<T> {
         l0_sensitivity_(l0_sensitivity),
         max_contributions_per_partition_(max_contributions_per_partition),
         count_mechanism_(std::move(count_mechanism)),
-        approx_bounds_(std::move(approx_bounds)) {
+        bounds_provider_(std::move(bounds_provider)),
+        clamped_calculation_(
+            bounds_provider_->CreateClampedCalculationWithoutBounds()) {
     // To determining bounds, we need partial values for each bin of the
     // ApproxBounds logarithmic histogram.
-    pos_sum_.resize(approx_bounds_->NumPositiveBins(), 0);
-    neg_sum_.resize(approx_bounds_->NumPositiveBins(), 0);
-    pos_sum_of_squares_.resize(approx_bounds_->NumPositiveBins(), 0);
-    neg_sum_of_squares_.resize(approx_bounds_->NumPositiveBins(), 0);
+    pos_sum_.resize(clamped_calculation_->GetNumBins(), 0);
+    neg_sum_.resize(clamped_calculation_->GetNumBins(), 0);
+    pos_sum_of_squares_.resize(clamped_calculation_->GetNumBins(), 0);
+    neg_sum_of_squares_.resize(clamped_calculation_->GetNumBins(), 0);
   }
 
   void AddEntry(const T& t) override { AddMultipleEntries(t, 1); }
@@ -352,9 +357,15 @@ class BoundedVarianceWithApproxBounds : public BoundedVariance<T> {
       bv_summary.add_neg_sum_of_squares(x);
     }
 
-    // Serialize approx bounds data.
-    Summary approx_bounds_summary = approx_bounds_->Serialize();
-    approx_bounds_summary.data().UnpackTo(bv_summary.mutable_bounds_summary());
+    // Serialize bounds data.
+    *bv_summary.mutable_bounds() = bounds_provider_->Serialize();
+
+    // TODO: Remove this old serialization code that we keep for
+    // limited backwards compatibility.
+    if (bv_summary.bounds().has_approx_bounds_summary()) {
+      *bv_summary.mutable_bounds_summary() =
+          bv_summary.bounds().approx_bounds_summary();
+    }
 
     // Create Summary.
     Summary summary;
@@ -374,7 +385,7 @@ class BoundedVarianceWithApproxBounds : public BoundedVariance<T> {
       return absl::InternalError(
           "Bounded variance summary unable to be unpacked.");
     }
-    if ((approx_bounds_ != nullptr) != bv_summary.has_bounds_summary()) {
+    if (!bv_summary.has_bounds() && !bv_summary.has_bounds_summary()) {
       return absl::InternalError(
           "Merged BoundedVariance must have the same bounding strategy.");
     }
@@ -387,10 +398,17 @@ class BoundedVarianceWithApproxBounds : public BoundedVariance<T> {
           "sum or sum of squares values as this BoundedVariance.");
     }
 
-    // Merge approx bounds
-    Summary approx_bounds_summary;
-    approx_bounds_summary.mutable_data()->PackFrom(bv_summary.bounds_summary());
-    RETURN_IF_ERROR(approx_bounds_->Merge(approx_bounds_summary));
+    // Merge bounds
+    if (bv_summary.has_bounds()) {
+      RETURN_IF_ERROR(bounds_provider_->Merge(bv_summary.bounds()));
+    } else if (bv_summary.has_bounds_summary()) {
+      // TODO: Remove this old serialization code that we keep for
+      // limited backwards compatibility.
+      BoundsSummary bounds_summary;
+      *bounds_summary.mutable_approx_bounds_summary() =
+          bv_summary.bounds_summary();
+      RETURN_IF_ERROR(bounds_provider_->Merge(bounds_summary));
+    }
 
     // Add count and partial values to current ones.
     partial_count_ += bv_summary.count();
@@ -412,13 +430,14 @@ class BoundedVarianceWithApproxBounds : public BoundedVariance<T> {
     memory += sizeof(double) *
               (pos_sum_of_squares_.capacity() + neg_sum_of_squares_.capacity());
     memory += sizeof(*mechanism_builder_);
-    memory += approx_bounds_->MemoryUsed();
+    memory += bounds_provider_->MemoryUsed();
+    memory += clamped_calculation_->MemoryUsed();
     return memory;
   }
 
-  // Returns the epsilon used to calculate approximate bounds.
+  // Returns the epsilon used to calculate bounds.
   double GetBoundingEpsilon() const override {
-    return approx_bounds_->GetEpsilon();
+    return bounds_provider_->GetEpsilon();
   }
 
   // Returns the epsilon used to calculate the noisy mean.
@@ -426,36 +445,39 @@ class BoundedVarianceWithApproxBounds : public BoundedVariance<T> {
     return Algorithm<T>::GetEpsilon() - GetBoundingEpsilon();
   }
 
-  // Returns a pointer to the ApproxBounds object.  Does not transfer
+  // Returns a pointer to the BoundsProvider object.  Does not transfer
   // ownership.  Only use for testing.
-  ApproxBounds<T>* GetApproxBoundsForTesting() { return approx_bounds_.get(); }
+  BoundsProvider<T>* GetBoundsProviderForTesting() {
+    return bounds_provider_.get();
+  }
 
  private:
   absl::StatusOr<Output> GenerateResult(double noise_interval_level) override {
     Output output;
 
-    ASSIGN_OR_RETURN(Output bounds,
-                     approx_bounds_->PartialResult(noise_interval_level));
-    const T lower = GetValue<T>(bounds.elements(0).value());
-    const T upper = GetValue<T>(bounds.elements(1).value());
+    ASSIGN_OR_RETURN(BoundsResult<T> bounds_result,
+                     bounds_provider_->FinalizeAndCalculateBounds());
+
+    const T lower = bounds_result.lower_bound;
+    const T upper = bounds_result.upper_bound;
     RETURN_IF_ERROR(BoundedVariance<T>::CheckBounds(lower, upper));
 
     // To find the sum, pass the identity function as the transform.
     ASSIGN_OR_RETURN(const double sum,
-                     approx_bounds_->template ComputeFromPartials<T>(
+                     clamped_calculation_->template ComputeFromPartials<T>(
                          pos_sum_, neg_sum_, [](T x) { return x; }, lower,
                          upper, partial_count_));
 
     // To find sum of squares, pass the square function.
     ASSIGN_OR_RETURN(
         const double sum_of_squares,
-        approx_bounds_->template ComputeFromPartials<double>(
+        clamped_calculation_->template ComputeFromPartials<double>(
             pos_sum_of_squares_, neg_sum_of_squares_, [](T x) { return x * x; },
             lower, upper, partial_count_));
 
     // Populate the bounding report with ApproxBounds information.
     *(output.mutable_error_report()->mutable_bounding_report()) =
-        approx_bounds_->GetBoundingReport(lower, upper);
+        bounds_provider_->GetBoundingReport(bounds_result);
 
     const double noised_count = count_mechanism_->AddNoise(partial_count_);
 
@@ -507,7 +529,7 @@ class BoundedVarianceWithApproxBounds : public BoundedVariance<T> {
     std::fill(neg_sum_.begin(), neg_sum_.end(), 0);
     std::fill(neg_sum_of_squares_.begin(), neg_sum_of_squares_.end(), 0);
     partial_count_ = 0;
-    approx_bounds_->Reset();
+    bounds_provider_->Reset();
   }
 
   void AddMultipleEntries(const T& input, int64_t num_of_entries) override {
@@ -524,7 +546,9 @@ class BoundedVarianceWithApproxBounds : public BoundedVariance<T> {
     partial_count_ += num_of_entries;
 
     // Store partial results and feed input into ApproxBounds algorithm.
-    approx_bounds_->AddMultipleEntries(input, num_of_entries);
+    for (int i = 0; i < num_of_entries; ++i) {
+      bounds_provider_->AddEntry(input);
+    }
 
     // Add to partial sums and sum of squares.
     auto difference_of_squares = [](T val1, T val2) {
@@ -534,15 +558,17 @@ class BoundedVarianceWithApproxBounds : public BoundedVariance<T> {
     };
 
     if (input >= 0) {
-      approx_bounds_->template AddMultipleEntriesToPartialSums<T>(
-          &pos_sum_, input, num_of_entries);
-      approx_bounds_->template AddMultipleEntriesToPartials<double>(
-          &pos_sum_of_squares_, input, num_of_entries, difference_of_squares);
+      for (int i = 0; i < num_of_entries; ++i) {
+        clamped_calculation_->template AddToPartialSums<T>(&pos_sum_, input);
+        clamped_calculation_->template AddToPartials<double>(
+            &pos_sum_of_squares_, input, difference_of_squares);
+      }
     } else {
-      approx_bounds_->template AddMultipleEntriesToPartialSums<T>(
-          &neg_sum_, input, num_of_entries);
-      approx_bounds_->template AddMultipleEntriesToPartials<double>(
-          &neg_sum_of_squares_, input, num_of_entries, difference_of_squares);
+      for (int i = 0; i < num_of_entries; ++i) {
+        clamped_calculation_->template AddToPartialSums<T>(&neg_sum_, input);
+        clamped_calculation_->template AddToPartials<double>(
+            &neg_sum_of_squares_, input, difference_of_squares);
+      }
     }
   }
 
@@ -560,9 +586,10 @@ class BoundedVarianceWithApproxBounds : public BoundedVariance<T> {
 
   std::unique_ptr<NumericalMechanism> count_mechanism_;
 
-  // If this is not nullptr, we are automatically determining bounds. Otherwise,
-  // lower and upper contain the manually set bounds.
-  std::unique_ptr<ApproxBounds<T>> approx_bounds_;
+  std::unique_ptr<BoundsProvider<T>> bounds_provider_;
+
+  std::unique_ptr<internal::ClampedCalculationWithoutBounds<T>>
+      clamped_calculation_;
 };
 
 template <typename T>
@@ -602,7 +629,14 @@ class BoundedVariance<T>::Builder {
 
   BoundedVariance<T>::Builder& SetApproxBounds(
       std::unique_ptr<ApproxBounds<T>> approx_bounds) {
-    approx_bounds_ = std::move(approx_bounds);
+    bounds_provider_ = std::make_unique<ApproxBoundsAsBoundsProvider<T>>(
+        std::move(approx_bounds));
+    return *this;
+  }
+
+  BoundedVariance<T>::Builder& SetBoundsProvider(
+      std::unique_ptr<BoundsProvider<T>> bounds_provider) {
+    bounds_provider_ = std::move(bounds_provider);
     return *this;
   }
 
@@ -641,7 +675,7 @@ class BoundedVariance<T>::Builder {
   int max_contributions_per_partition_ = 1;
   std::unique_ptr<NumericalMechanismBuilder> mechanism_builder_ =
       absl::make_unique<LaplaceMechanism::Builder>();
-  std::unique_ptr<ApproxBounds<T>> approx_bounds_;
+  std::unique_ptr<BoundsProvider<T>> bounds_provider_;
 
   absl::StatusOr<std::unique_ptr<BoundedVariance<T>>>
   BuildVarianceWithFixedBounds() {
@@ -675,28 +709,30 @@ class BoundedVariance<T>::Builder {
 
   absl::StatusOr<std::unique_ptr<BoundedVariance<T>>>
   BuildVarianceWithApproxBounds() {
-    if (!approx_bounds_) {
+    if (bounds_provider_ == nullptr) {
       ASSIGN_OR_RETURN(
-          approx_bounds_,
+          std::unique_ptr<ApproxBounds<T>> approx_bounds,
           typename ApproxBounds<T>::Builder()
-              .SetEpsilon(epsilon_.value() / 2)
+              .SetEpsilon(epsilon_.value() / 2.0)
               .SetLaplaceMechanism(mechanism_builder_->Clone())
               .SetMaxContributionsPerPartition(max_contributions_per_partition_)
               .SetMaxPartitionsContributed(max_partitions_contributed_)
               .Build());
+      bounds_provider_ = std::make_unique<ApproxBoundsAsBoundsProvider<T>>(
+          std::move(approx_bounds));
     }
 
-    if (epsilon_.value() <= approx_bounds_->GetEpsilon()) {
+    if (epsilon_.value() <= bounds_provider_->GetEpsilon()) {
       return absl::InvalidArgumentError(absl::StrCat(
-          "Approx Bounds consumes more epsilon budget than available. Total "
-          "Epsilon: ",
+          "The Bounds Provider consumes more epsilon budget than available. "
+          "Total Epsilon: ",
           epsilon_.value(),
-          " Approx Bounds Epsilon: ", approx_bounds_->GetEpsilon()));
+          " Bounds Provider Epsilon: ", bounds_provider_->GetEpsilon()));
     }
 
     // Budget calculation.
     const double remaining_epsilon =
-        epsilon_.value() - approx_bounds_->GetEpsilon();
+        epsilon_.value() - bounds_provider_->GetEpsilon();
 
     const double epsilon_for_count = remaining_epsilon / 3;
     const double epsilon_for_sum = remaining_epsilon / 3;
@@ -715,7 +751,7 @@ class BoundedVariance<T>::Builder {
             epsilon_.value(), epsilon_for_sum, epsilon_for_squares,
             max_partitions_contributed_, max_contributions_per_partition_,
             mechanism_builder_->Clone(), std::move(count_mechanism),
-            std::move(approx_bounds_)));
+            std::move(bounds_provider_)));
   }
 };
 

@@ -79,7 +79,7 @@ internal constructor(
               is MetricType.QUANTILES -> {
                 // TODO: consider creating a data class or resuing copy of DpAggregates
                 // proto and not allowing outputColumnName.
-                for ((rank, value) in metricType.ranks.zip(dpAggregates.quantilesList)) {
+                for ((rank, value) in metricType.sortedRanks.zip(dpAggregates.quantilesList)) {
                   put("${outputColumnName}_${rank}", value)
                 }
               }
