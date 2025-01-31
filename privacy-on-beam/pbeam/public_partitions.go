@@ -25,16 +25,11 @@ import (
 	"math/rand"
 	"reflect"
 
-	"flag"
 	"github.com/google/differential-privacy/privacy-on-beam/v3/internal/kv"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/filter"
-)
-
-var (
-	enableShardedPublicPartitions = flag.Bool("enable_sharded_public_partitions", true, "Enable sharded public partitions. This is a temporary flag to allow us to test the new sharded implementation of public partition filtering.")
 )
 
 func init() {
@@ -50,11 +45,6 @@ func init() {
 	register.Function1x2[beam.W, beam.W, int64](addZeroValuesToPublicPartitionsInt64)
 	register.Function1x2[beam.W, beam.W, float64](addZeroValuesToPublicPartitionsFloat64)
 	register.Function1x2[beam.W, beam.W, []float64](addEmptySliceToPublicPartitionsFloat64)
-	register.Function4x1[beam.U, kv.Pair, func(*pMap) bool, func(beam.U, kv.Pair), error](prunePartitionsKV)
-	register.Function4x0[beam.V, func(*int64) bool, func(*beam.U) bool, func(beam.U, beam.V)](mergePublicValues)
-	register.Iter1[int64]()
-	register.Iter1[beam.U]()
-	register.Emitter2[beam.U, beam.V]()
 	register.Function4x0[beam.W, func(*beam.V) bool, func(*beam.V) bool, func(beam.W, beam.V)](mergeResultWithEmptyPublicPartitionsFn)
 	register.Iter1[beam.V]()
 	register.Emitter2[beam.W, beam.V]()
@@ -139,20 +129,6 @@ func dropNonPublicPartitions(s beam.Scope, pcol PrivatePCollection, publicPartit
 	// Data is <PrivacyKey, PartitionKey>
 	partitionEncodedType := beam.EncodedType{partitionType}
 	return beam.ParDo(s, newPrunePartitionsInMemoryVFn(partitionEncodedType, partitionMap), pcol.col), nil
-}
-
-// mergePublicValues merges the public partitions with the values for a PrivatePCollection
-// after a CoGroupByKey. Only outputs a <privacyKey, v> pair (where v is value in the case
-// of Count & DistinctPrivacyID, and kv.Pair for other aggregations) if the value is in
-// the public partitions, i.e., the PCollection that is passed to the CoGroupByKey first.
-func mergePublicValues(value beam.V, isKnown func(*int64) bool, privacyKeys func(*beam.U) bool, emit func(beam.U, beam.V)) {
-	var ignoredZero int64
-	if isKnown(&ignoredZero) {
-		var privacyKey beam.U
-		for privacyKeys(&privacyKey) {
-			emit(privacyKey, value)
-		}
-	}
 }
 
 // ShardedKey is an key encoded as bytes with a int shardID.
@@ -268,58 +244,33 @@ func filterKeysImbalanced(s beam.Scope, col beam.PCollection, keys beam.PCollect
 // dropNonPublicPartitionsVFn drops partitions not specified in
 // PublicPartitions from pcol. It can be used for aggregations on V values,
 // e.g. Count and DistinctPrivacyID.
-//
-// We drop values that are not in the publicPartitions PCollection as follows:
-//  1. Transform publicPartitions from <V> to <V, int64(0)> (0 is a placeholder value)
-//  2. Swap pcol.col from <PrivacyKey, V> to <V, PrivacyKey>
-//  3. Do a CoGroupByKey on the output of 1 and 2.
-//  4. From the output of 3, only output <PrivacyKey, V> if there is an input
-//     from 1 using the mergePublicValues.
+
+// Relies on filterKeysImbalanced to drop non-public partitions, which mitigates
+// performance bottlenecks we would otherwise encounter with hot keys (partitions
+// with many user contributions) if we were to filter without sharding.
 //
 // Returns a PCollection<PrivacyKey, Value> only for values present in
 // publicPartitions.
 func dropNonPublicPartitionsVFn(s beam.Scope, publicPartitions beam.PCollection, pcol PrivatePCollection) beam.PCollection {
-	if *enableShardedPublicPartitions {
-		return beam.SwapKV(s, filterKeysImbalanced(s, beam.SwapKV(s, pcol.col), publicPartitions))
-	} else {
-		publicPartitionsWithZeros := beam.ParDo(s, addZeroValuesToPublicPartitionsInt64, publicPartitions)
-		groupedByValue := beam.CoGroupByKey(s, publicPartitionsWithZeros, beam.SwapKV(s, pcol.col))
-		return beam.ParDo(s, mergePublicValues, groupedByValue)
-	}
+	return beam.SwapKV(s, filterKeysImbalanced(s, beam.SwapKV(s, pcol.col), publicPartitions))
 }
 
 // dropNonPublicPartitionsKVFn drops partitions not specified in
 // PublicPartitions from pcol. It can be used for aggregations on <K,V> pairs,
 // e.g. SumPerKey and MeanPerKey.
 //
-// We drop values that are not in the publicPartitions PCollection as follows:
-//  1. Transform publicPartitions from <PartitionKey> to <PartitionKey, int64(0)> (0 is a placeholder value)
-//  2. Transform pcol.col from <PrivacyKey, <PartitionKey, Value>> to <PartitionKey, <PrivacyKey, Value>>
-//  3. Do a CoGroupByKey on the output of 1 and 2.
-//  4. From the output of 3, only output <PartitionKey, <PrivacyKey, Value>> if there
-//     is an input from 1 using mergePublicValues.
-//  5. Transform output of 4 from <PartitionKey, <PrivacyKey, Value>> to <PrivacyKey, <PartitionKey, Value>>
-//
-// This works great for smaller partitions, but we run into performance bottlenecks in
-// steps 3 & 4 in case some partitions have a huge number of user contributions.
+// Relies on filterKeysImbalanced to drop non-public partitions, which mitigates
+// performance bottlenecks we would otherwise encounter with hot keys (partitions
+// with many user contributions) if we were to filter without sharding.
 //
 // Returns a PCollection<PrivacyKey, <PartitionKey, Value>> only for values present in
 // publicPartitions.
 func dropNonPublicPartitionsKVFn(s beam.Scope, publicPartitions beam.PCollection, pcol PrivatePCollection, idType typex.FullType) beam.PCollection {
-	if *enableShardedPublicPartitions {
-		encodedIDV := beam.ParDo(
-			s, newEncodeIDVFn(idType, pcol.codec), pcol.col, beam.TypeDefinition{Var: beam.WType, T: pcol.codec.KType.T})
-		filteredEncodedIDV := filterKeysImbalanced(s, encodedIDV, publicPartitions)
-		decodeFn := newDecodeIDVFn(pcol.codec.KType, kv.NewCodec(idType.Type(), pcol.codec.VType.T))
-		return beam.ParDo(s, decodeFn, filteredEncodedIDV, beam.TypeDefinition{Var: beam.UType, T: idType.Type()})
-	} else {
-		publicPartitionsWithZeros := beam.ParDo(s, addZeroValuesToPublicPartitionsInt64, publicPartitions)
-		encodedIDV := beam.ParDo(s, newEncodeIDVFn(idType, pcol.codec), pcol.col, beam.TypeDefinition{Var: beam.WType, T: pcol.codec.KType.T})
-		groupedByValue := beam.CoGroupByKey(s, publicPartitionsWithZeros, encodedIDV)
-		merged := beam.SwapKV(s, beam.ParDo(s, mergePublicValues, groupedByValue))
-		decodeFn := newDecodeIDVFn(pcol.codec.KType, kv.NewCodec(idType.Type(), pcol.codec.VType.T))
-		return beam.ParDo(s, decodeFn, merged, beam.TypeDefinition{Var: beam.UType, T: idType.Type()})
-	}
+	encodedIDV := beam.ParDo(
+		s, newEncodeIDVFn(idType, pcol.codec), pcol.col, beam.TypeDefinition{Var: beam.WType, T: pcol.codec.KType.T})
+	filteredEncodedIDV := filterKeysImbalanced(s, encodedIDV, publicPartitions)
+	decodeFn := newDecodeIDVFn(pcol.codec.KType, kv.NewCodec(idType.Type(), pcol.codec.VType.T))
+	return beam.ParDo(s, decodeFn, filteredEncodedIDV, beam.TypeDefinition{Var: beam.UType, T: idType.Type()})
 }
 
 // encodeIDVFn takes a PCollection<ID,kv.Pair{K,V}> as input, and returns a
@@ -458,23 +409,6 @@ func (fn *prunePartitionsInMemoryKVFn) ProcessElement(id beam.U, pair kv.Pair, e
 	if fn.PartitionMap[base64.StdEncoding.EncodeToString(pair.K)] {
 		emit(id, pair)
 	}
-}
-
-// prunePartitionsFn takes a PCollection<ID, kv.Pair{K,V}> as input, and returns a
-// PCollection<ID, kv.Pair{K,V}>, where non-public partitions have been dropped.
-// Used for sum and mean.
-func prunePartitionsKV(id beam.U, pair kv.Pair, partitionsIter func(*pMap) bool, emit func(beam.U, kv.Pair)) error {
-	var partitionMap pMap
-	partitionsIter(&partitionMap)
-	var err error
-	if partitionMap == nil {
-		return err
-	}
-	// Partition Key in a kv.Pair is already encoded, we just convert it to base64 encoding.
-	if partitionMap[base64.StdEncoding.EncodeToString(pair.K)] {
-		emit(id, pair)
-	}
-	return nil
 }
 
 func mergeResultWithEmptyPublicPartitionsFn(k beam.W, resultIter, publicPartitionsIter func(*beam.V) bool, emit func(beam.W, beam.V)) {

@@ -22,9 +22,9 @@ import org.junit.runners.Suite
 /** Provides a list of JUnit test classes to Bazel. When creating a new test class, add it here. */
 @RunWith(Suite::class)
 @Suite.SuiteClasses(
-  BeamQueryTest::class,
-  BeamQueryBuilderTest::class,
-  SparkQueryTest::class,
-  SparkQueryBuilderTest::class,
+  BeamApiTest::class,
+  SparkApiTest::class,
+  SparkDataFrameApiTest::class,
+  LocalApiTest::class,
 )
 class ApiTests {}

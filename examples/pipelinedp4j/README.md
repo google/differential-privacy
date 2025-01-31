@@ -1,4 +1,4 @@
-# Running code walkthrough of BeamExample
+# Running code walkthrough of the examples
 
 Begin by reviewing the [Problem statement](#problem-statement) to understand the
 statistics we aim to calculate and the data involved.
@@ -27,10 +27,21 @@ Using this data, we want to compute the following statistics:
 *   Number of users who watched a certain movie (`privacy_id_count` metric)
 *   Average rating of a certain movie (`mean` metric)
 
-The output is a TXT file in this format:
+If you used a DataFrame API then the output is a CSV file in the following format:
 
 ```
-movieId=<value>, numberOfViews=<value>, averageOfRatings=<value>
+movieId, numberOfViewers, numberOfViews, averageOfRatings
+value, value, value, value
+value, value, value, value
+...
+```
+
+If you used a row-based API then the output will be in the following format:
+
+```
+movieId=<value>, numberOfViewers=<value>, numberOfViews=<value>, averageOfRatings=<value>
+movieId=<value>, numberOfViewers=<value>, numberOfViews=<value>, averageOfRatings=<value>
+...
 ```
 
 ## Running
@@ -87,11 +98,15 @@ Here's are the steps to build and run the example assuming you are in the
     bazelisk build ...
     ```
 
-1.  Run the program:
+1.  Run the program (change `BeamExample` to `SparkExample` or `SparkDatasetExample` if you need):
 
     ```shell
     bazel-bin/src/main/java/com/google/privacy/differentialprivacy/pipelinedp4j/examples/BeamExample --inputFilePath=netflix_data.csv --outputFilePath=output.txt
     ```
+
+    If you run examples on Apache Spark then `outputFilePath` should be changed
+    to `outputFolder` and will be a directory where output is written to.
+    The result will be stored in a file whose name starts with `part-00000`.
 
 1.  View the results:
 

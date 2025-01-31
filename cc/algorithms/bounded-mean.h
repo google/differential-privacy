@@ -382,6 +382,25 @@ class BoundedMeanWithApproxBounds : public BoundedMean<T> {
   absl::StatusOr<Output> GenerateResult(double noise_interval_level) override {
     ASSIGN_OR_RETURN(BoundsResult<T> bounds,
                      bounds_provider_->FinalizeAndCalculateBounds());
+
+    if (bounds.lower_bound == bounds.upper_bound) {
+      // When the bounds provider returns equal bounds, sensitivity is 0, so we
+      // need to slightly widen the bounds.  This is a quick fix that works with
+      // BoundsProvider returning powers of two.
+      //
+      // TODO: Find a better solution for this quick fix.
+      if (std::round(bounds.lower_bound) == -1 ||
+          std::round(bounds.lower_bound) == 0) {
+        bounds.upper_bound += 1;
+      } else if (std::round(bounds.upper_bound) == 1) {
+        bounds.lower_bound = 0;
+      } else if (bounds.lower_bound < 0) {
+        bounds.upper_bound = bounds.lower_bound / 2;
+      } else {
+        bounds.lower_bound = bounds.upper_bound / 2;
+      }
+    }
+
     RETURN_IF_ERROR(
         BoundedMean<T>::CheckBounds(bounds.lower_bound, bounds.upper_bound));
 

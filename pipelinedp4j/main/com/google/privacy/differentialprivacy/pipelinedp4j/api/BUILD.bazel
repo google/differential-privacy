@@ -37,9 +37,7 @@ kt_jvm_library(
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/proto:dpaggregates_kt_proto",
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/spark:spark_collections",
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/spark:spark_encoders",
-        "@maven//:com_google_errorprone_error_prone_annotations",
         "@maven//:com_google_guava_guava",
         "@maven//:org_apache_beam_beam_sdks_java_core",
-        "@maven//:org_apache_beam_beam_sdks_java_extensions_avro",
     ],
 )

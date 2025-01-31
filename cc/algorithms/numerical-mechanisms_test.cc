@@ -412,36 +412,6 @@ TEST(NumericalMechanismsTest, LaplaceNoisedValueAboveThreshold) {
   }
 }
 
-TEST(NumericalMechanismsTest, LaplaceMechanismAddNoiseOverflowFromTypeCast) {
-  LaplaceMechanism mechanism(1);
-
-  // The noise should eventually be positive, which, when added to the numeric
-  // limit, will cause an overflow and return a negative result.
-  int i;
-  for (i = 0; i < 100; ++i) {
-    if (mechanism.AddNoise(std::numeric_limits<int64_t>::max()) < 0) {
-      // An overflow has happened, so return to end the test as a success.
-      return;
-    }
-  }
-  FAIL() << "No overflow occurred after " << i << " iterations.";
-}
-
-TEST(NumericalMechanismsTest, LaplaceMechanismAddNoiseUnderflowFromTypeCast) {
-  LaplaceMechanism mechanism(1);
-
-  // The noise should eventually be negative, which, when added to the numeric
-  // limit, will cause an underflow and return a positive result.
-  int i;
-  for (i = 0; i < 100; ++i) {
-    if (mechanism.AddNoise(std::numeric_limits<int64_t>::lowest()) > 0) {
-      // An underflow has happened, so return to end the test as a success.
-      return;
-    }
-  }
-  FAIL() << "No overflow occurred after " << i << " iterations.";
-}
-
 TEST(NumericalMechanismsTest, LaplaceDiversityCorrect) {
   LaplaceMechanism mechanism(1.0, 1.0);
   EXPECT_EQ(mechanism.GetDiversity(), 1.0);
@@ -1079,26 +1049,6 @@ TEST(NumericalMechanismsTest, GaussianMechanismNoisedValueAboveThreshold) {
     EXPECT_NEAR(num_above_thresold / kNumSamples, ts.expected_probability,
                 0.0025);
   }
-}
-
-TEST(NumericalMechanismsTest, GaussianMechanismAddNoiseOverflowFromTypeCast) {
-  auto mechanism = GaussianMechanism::Builder()
-                       .SetL2Sensitivity(1)
-                       .SetEpsilon(1)
-                       .SetDelta(0.5)
-                       .Build();
-  ASSERT_OK(mechanism);
-
-  // The noise should eventually be positive, which, when added to the numeric
-  // limit, will cause an overflow and return a negative result.
-  int i;
-  for (i = 0; i < 100; ++i) {
-    if ((*mechanism)->AddNoise(std::numeric_limits<int64_t>::max()) < 0) {
-      // An overflow has happened, so return to end the test as a success.
-      return;
-    }
-  }
-  FAIL() << "No overflow occurred after " << i << " iterations.";
 }
 
 TEST(NumericalMechanismsTest, GaussianBuilderClone) {

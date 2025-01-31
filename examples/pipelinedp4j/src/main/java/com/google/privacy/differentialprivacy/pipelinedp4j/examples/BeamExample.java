@@ -24,10 +24,15 @@ package com.google.privacy.differentialprivacy.pipelinedp4j.examples;
 import static java.lang.Math.round;
 import static java.util.stream.Collectors.toCollection;
 
+import com.google.privacy.differentialprivacy.pipelinedp4j.api.BeamQueryBuilder;
+import com.google.privacy.differentialprivacy.pipelinedp4j.api.Bounds;
+import com.google.privacy.differentialprivacy.pipelinedp4j.api.ContributionBoundingLevel;
+import com.google.privacy.differentialprivacy.pipelinedp4j.api.ContributionBounds;
+import com.google.privacy.differentialprivacy.pipelinedp4j.api.GroupsType;
 import com.google.privacy.differentialprivacy.pipelinedp4j.api.NoiseKind;
-import com.google.privacy.differentialprivacy.pipelinedp4j.api.QueryBuilder;
 import com.google.privacy.differentialprivacy.pipelinedp4j.api.QueryPerGroupResult;
 import com.google.privacy.differentialprivacy.pipelinedp4j.api.TotalBudget;
+import com.google.privacy.differentialprivacy.pipelinedp4j.api.ValueAggregationsBuilder;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.stream.IntStream;
@@ -100,29 +105,33 @@ public final class BeamExample {
     PCollection<MovieView> data = readData(pipeline, options.getInputFilePath());
 
     // Define the query
+    var groupsType =
+        options.getUsePublicGroups()
+            ? GroupsType.PublicGroups.create(publiclyKnownMovieIds(pipeline))
+            : new GroupsType.PrivateGroups();
     var query =
-        QueryBuilder.from(data, /* privacyIdExtractor= */ new UserIdExtractor())
-            .groupBy(
-                /* groupKeyExtractor= */ new MovieIdExtractor(),
-                /* maxGroupsContributed= */ 3,
-                /* maxContributionsPerGroup= */ 1,
-                options.getUsePublicGroups() ? publiclyKnownMovieIds(pipeline) : null)
-            .countDistinctPrivacyUnits("numberOfViewers")
+        BeamQueryBuilder.from(
+                data,
+                /* privacyUnitExtractor= */ MovieView::getUserId,
+                new ContributionBoundingLevel.DATASET_LEVEL(
+                    /* maxGroupsContributed= */ 3, /* maxContributionsPerGroup= */ 1))
+            .groupBy(/* groupKeyExtractor= */ MovieView::getMovieId, groupsType)
+            .countDistinctPrivacyUnits(/* outputColumnName= */ "numberOfViewers")
             .count(/* outputColumnName= */ "numberOfViews")
-            .mean(
-                new RatingExtractor(),
-                /* minValue= */ 1.0,
-                /* maxValue= */ 5.0,
-                /* outputColumnName= */ "averageOfRatings",
-                /* budget= */ null)
-            .build();
+            .aggregateValue(
+                /* valueExtractor= */ new RatingExtractor(),
+                /* valueAggregations= */ new ValueAggregationsBuilder()
+                    .mean(/* outputColumnName= */ "averageOfRatings"),
+                /* contributionBounds= */ new ContributionBounds(
+                    /* totalValueBounds= */ null,
+                    /* valueBounds= */ new Bounds(/* minValue= */ 1.0, /* maxValue= */ 5.0)))
+            .build(new TotalBudget(/* epsilon= */ 1.1, /* delta= */ 1e-10), NoiseKind.LAPLACE);
     // Run the query with DP parameters.
-    PCollection<QueryPerGroupResult> result =
-        query.run(new TotalBudget(/* epsilon= */ 1.1, /* delta= */ 1e-10), NoiseKind.LAPLACE);
+    PCollection<QueryPerGroupResult<String>> result = query.run();
 
     // Convert the result to better representation, i.e. to MovieMetrics.
     var movieMetricsCoder = AvroCoder.of(MovieMetrics.class);
-    SerializableFunction<QueryPerGroupResult, MovieMetrics> mapToMovieMetricsFn =
+    SerializableFunction<QueryPerGroupResult<String>, MovieMetrics> mapToMovieMetricsFn =
         perGroupResult -> {
           String movieId = perGroupResult.getGroupKey();
           long numberOfViewers =
@@ -148,24 +157,12 @@ public final class BeamExample {
     System.out.println("Finished calculations.");
   }
 
-  // Data extractors. They always have to implement Function1 and Serializable interfaces. If it
-  // doesn't implement Serializable interface, it will fail on Beam. If it doesn't implement
-  // Function1, it will fail at compile time due to types mismatch. Do not use lambdas for data
-  // extractors as they won't be serializable.
-  private static class UserIdExtractor implements Function1<MovieView, String>, Serializable {
-    @Override
-    public String invoke(MovieView movieView) {
-      return movieView.getUserId();
-    }
-  }
-
-  private static class MovieIdExtractor implements Function1<MovieView, String>, Serializable {
-    @Override
-    public String invoke(MovieView movieView) {
-      return movieView.getMovieId();
-    }
-  }
-
+  /**
+   * Static extractor for rating extraction.
+   *
+   * <p>Rating extractor must be serializable. In Java, we can't use lambdas, method references or
+   * anonymous classes because they capture `this` and therefore are not serializable.
+   */
   private static class RatingExtractor implements Function1<MovieView, Double>, Serializable {
     @Override
     public Double invoke(MovieView movieView) {

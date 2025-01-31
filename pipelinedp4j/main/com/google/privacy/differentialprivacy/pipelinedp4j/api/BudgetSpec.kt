@@ -29,22 +29,16 @@ import java.io.Serializable
  * This is a sealed interface with two implementations: [AbsoluteBudgetPerOpSpec] for absolute
  * budget values and [RelativeBudgetPerOpSpec] for relative weights.
  */
-@Immutable
-sealed interface BudgetPerOpSpec {
-  /**
-   * Multiplies this budget specification by a given factor.
-   *
-   * @param factor the factor to multiply the budget by.
-   * @return a new budget specification with the multiplied values or weights.
-   */
-  operator fun times(factor: Double): BudgetPerOpSpec
-}
+@Immutable sealed interface BudgetPerOpSpec
 
 /**
  * Represents an absolute budget (epsilon and delta) for anonymizing a metric or group selection.
  *
- * @property epsilon the epsilon (ε) privacy budget value. Must be non-negative.
- * @property delta the delta (δ) privacy budget value. Must be non-negative.
+ * @property epsilon the epsilon (ε) privacy budget value. It must be zero if your query selects
+ *   private groups and also counts distinct privacy units. In all other cases it must be positive.
+ * @property delta the delta (δ) privacy budget value. If this is a budget for an aggregation with
+ *   Laplace noise, it can be not set (zero). If this is a budget for an aggregation with Gaussian
+ *   noise or for a private group selection, it must be positive.
  */
 @Immutable
 data class AbsoluteBudgetPerOpSpec(val epsilon: Double, val delta: Double) :
@@ -53,14 +47,24 @@ data class AbsoluteBudgetPerOpSpec(val epsilon: Double, val delta: Double) :
     BudgetValidationUtils.validateEpsilon(epsilon)
     BudgetValidationUtils.validateDelta(delta)
   }
-
-  override fun times(factor: Double) = AbsoluteBudgetPerOpSpec(factor * epsilon, factor * delta)
 }
 
 /**
- * Represents a relative weight for anonymizing a metric or partition selection.
+ * @usesMathJax
+ *
+ * Represents a relative weight for anonymizing a metric or group selection.
  *
  * The weight is relative to the weights of other metrics computed by the same query.
+ *
+ * The formula to calculate absolute budget for a relative budget is:
+ *
+ * $$ \text{absolute budget} = (\text{total budget} - \text{sum of absolute budgets}) *
+ * \frac{\text{budget weight}}{\text{sum of relative budget weights}} $$
+ *
+ * For example, if a query has total budget of 2.0 and selects groups privately with absolute budget
+ * of 0.5 and then computes two metrics, one with a relative weight of 1.0 and the other with a
+ * relative weight of 3.0 then the first metrics will have an effective budget of (2 - 0.5) * 1.0 /
+ * 4.0 = 0.375 and the second will have an effective budget of (2 - 0.5) * 3.0 / 4.0 = 1.125.
  *
  * @property weight the relative weight. Must be strictly positive.
  */
@@ -69,20 +73,18 @@ data class RelativeBudgetPerOpSpec(val weight: Double) : BudgetPerOpSpec, Serial
   init {
     BudgetValidationUtils.validateWeight(weight)
   }
-
-  override fun times(factor: Double) = RelativeBudgetPerOpSpec(factor * weight)
 }
 
 /**
  * The total amount of budget allowed to be used in a single query for accounting both relative and
  * absolute operation costs.
  *
- * @property epsilon the total epsilon (ε) privacy budget value. Must be non-negative.
- * @property delta the total delta (δ) privacy budget value. Must be non-negative. Defaults to 0.0.
+ * @property epsilon the total epsilon (ε) privacy budget value. Must be positive.
+ * @property delta the total delta (δ) privacy budget value. Can be not set (zero) if Laplace noise
+ *   is used and groups are publicly known. In all other cases it must be positive.
  */
 @Immutable
-data class TotalBudget @JvmOverloads constructor(val epsilon: Double, val delta: Double = 0.0) :
-  Serializable {
+data class TotalBudget(val epsilon: Double, val delta: Double = 0.0) : Serializable {
   init {
     BudgetValidationUtils.validateEpsilon(epsilon)
     BudgetValidationUtils.validateDelta(delta)
@@ -117,7 +119,6 @@ internal fun TotalBudget.toInternalTotalBudget() = InternalTotalBudget(epsilon, 
 
 /** Utility object for validating budget parameters. */
 private object BudgetValidationUtils {
-
   /**
    * Validates that epsilon is non-negative.
    *

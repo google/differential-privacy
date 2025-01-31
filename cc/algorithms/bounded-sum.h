@@ -375,6 +375,17 @@ class BoundedSumWithApproxBounds : public BoundedSum<T> {
   absl::StatusOr<Output> GenerateResult(double noise_interval_level) override {
     ASSIGN_OR_RETURN(BoundsResult<T> bounds_result,
                      bounds_provider_->FinalizeAndCalculateBounds());
+
+    if (bounds_result.lower_bound == 0 && bounds_result.upper_bound == 0) {
+      // In case both bounds are 0, we need to enlarge the bounds range as we
+      // would otherwise have 0 sensitivity.  This is a quick fix that works
+      // with BoundsProvider returning powers of two.
+      //
+      // TODO: Find a better solution for this quick fix.
+      bounds_result.upper_bound = 1;
+      bounds_result.lower_bound = -1;
+    }
+
     bounds_result = RelaxBoundsSameSumSensitivity(bounds_result);
 
     // Construct NumericalMechanism.

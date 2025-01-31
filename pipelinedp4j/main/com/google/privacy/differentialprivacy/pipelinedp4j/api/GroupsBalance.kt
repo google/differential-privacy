@@ -16,29 +16,32 @@
 
 package com.google.privacy.differentialprivacy.pipelinedp4j.api
 
-import com.google.privacy.differentialprivacy.pipelinedp4j.core.NoiseKind as InternalNoiseKind
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.PartitionsBalance
 
 /**
- * The kind of noise that will be applied to the data.
+ * The balance of the groups in the input dataset.
  *
- * @property LAPLACE noise is sampled from a Laplace distribution. To use it, you need to specify
- *   epsilon, delta is not required if groups are public.
- * @property GAUSSIAN noise is sampled from a Gaussian distribution. To use it, you need to specify
- *   both epsilon and delta in absolute budgets for aggregations and total budgets.
+ * Groups are balanced if there is no group which contribute > 1% of data. Otherwise, the groups are
+ * unbalanced.
  */
-enum class NoiseKind {
-  LAPLACE,
-  GAUSSIAN,
+enum class GroupsBalance {
+  /** Use if you don't know the answer. */
+  UNKNOWN,
+  /** Use if you know that the groups are balanced according to the definition above. */
+  BALANCED,
+  /** Use if you know that the groups are unbalanced according to the definition above. */
+  UNBALANCED,
 }
 
 /**
- * Converts the [NoiseKind] to the [InternalNoiseKind].
+ * Converts the [GroupsBalance] to the [PartitionsBalance] which is used internally.
  *
  * We delibaretly do not expose the internal classes in the public API to limit the surface of the
  * API. This will give us more flexibility to change the implementation.
  */
-internal fun NoiseKind.toInternalNoiseKind() =
+internal fun GroupsBalance.toPartitionsBalance() =
   when (this) {
-    NoiseKind.LAPLACE -> InternalNoiseKind.LAPLACE
-    NoiseKind.GAUSSIAN -> InternalNoiseKind.GAUSSIAN
+    GroupsBalance.UNKNOWN -> PartitionsBalance.UNKNOWN
+    GroupsBalance.BALANCED -> PartitionsBalance.BALANCED
+    GroupsBalance.UNBALANCED -> PartitionsBalance.UNBALANCED
   }

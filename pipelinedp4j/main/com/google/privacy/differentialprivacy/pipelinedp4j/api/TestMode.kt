@@ -16,29 +16,31 @@
 
 package com.google.privacy.differentialprivacy.pipelinedp4j.api
 
-import com.google.privacy.differentialprivacy.pipelinedp4j.core.NoiseKind as InternalNoiseKind
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.ExecutionMode
 
 /**
- * The kind of noise that will be applied to the data.
+ * The test mode to apply in tests to make them deterministic.
  *
- * @property LAPLACE noise is sampled from a Laplace distribution. To use it, you need to specify
- *   epsilon, delta is not required if groups are public.
- * @property GAUSSIAN noise is sampled from a Gaussian distribution. To use it, you need to specify
- *   both epsilon and delta in absolute budgets for aggregations and total budgets.
+ * Always use NONE in production code.
+ *
+ * @property NONE default, no test mode, the only mode that can be used in production, applies all
+ *   privacy measures requested by the pipeline code.
+ * @property FULL no contribution bounding, no noise and no groups selection. The pipeline will
+ *   calculate metrics as if no privacy measures were applied.
  */
-enum class NoiseKind {
-  LAPLACE,
-  GAUSSIAN,
+enum class TestMode {
+  NONE,
+  FULL,
 }
 
 /**
- * Converts the [NoiseKind] to the [InternalNoiseKind].
+ * Converts the [TestMode] to the [ExecutionMode] which is used internally.
  *
  * We delibaretly do not expose the internal classes in the public API to limit the surface of the
  * API. This will give us more flexibility to change the implementation.
  */
-internal fun NoiseKind.toInternalNoiseKind() =
+internal fun TestMode.toExecutionMode() =
   when (this) {
-    NoiseKind.LAPLACE -> InternalNoiseKind.LAPLACE
-    NoiseKind.GAUSSIAN -> InternalNoiseKind.GAUSSIAN
+    TestMode.NONE -> ExecutionMode.PRODUCTION
+    TestMode.FULL -> ExecutionMode.FULL_TEST_MODE
   }

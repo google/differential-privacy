@@ -16,25 +16,21 @@
 
 package com.google.privacy.differentialprivacy.pipelinedp4j.examples;
 
-import static java.lang.Math.round;
 import static java.util.stream.Collectors.toCollection;
+import static org.apache.spark.sql.functions.col;
 
 import com.google.privacy.differentialprivacy.pipelinedp4j.api.Bounds;
+import com.google.privacy.differentialprivacy.pipelinedp4j.api.ColumnNames;
 import com.google.privacy.differentialprivacy.pipelinedp4j.api.ContributionBoundingLevel;
 import com.google.privacy.differentialprivacy.pipelinedp4j.api.ContributionBounds;
 import com.google.privacy.differentialprivacy.pipelinedp4j.api.GroupsType;
 import com.google.privacy.differentialprivacy.pipelinedp4j.api.NoiseKind;
-import com.google.privacy.differentialprivacy.pipelinedp4j.api.QueryPerGroupResult;
-import com.google.privacy.differentialprivacy.pipelinedp4j.api.SparkQueryBuilder;
+import com.google.privacy.differentialprivacy.pipelinedp4j.api.SparkDataFrameQueryBuilder;
 import com.google.privacy.differentialprivacy.pipelinedp4j.api.TotalBudget;
 import com.google.privacy.differentialprivacy.pipelinedp4j.api.ValueAggregationsBuilder;
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.stream.IntStream;
-import kotlin.jvm.functions.Function1;
-import org.apache.spark.api.java.function.MapFunction;
 import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Encoder;
 import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SaveMode;
@@ -44,15 +40,16 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
 /**
- * An end-to-end example how to compute DP metrics on a Netflix dataset using the library on Spark.
+ * An end-to-end example how to compute DP metrics on a Netflix dataset using the library on Spark
+ * with DataFrame API.
  *
  * <p>See README for details including how to run the example.
  */
 @Command(
-    name = "SparkExample",
-    version = {"SparkExample 1.0"},
+    name = "SparkDataFrameExample",
+    version = {"SparkDataFrameExample 1.0"},
     mixinStandardHelpOptions = true)
-public class SparkExample implements Runnable {
+public class SparkDataFrameExample implements Runnable {
   @Option(
       names = "--usePublicGroups",
       description =
@@ -79,7 +76,7 @@ public class SparkExample implements Runnable {
   private String outputFolder;
 
   public static void main(String[] args) {
-    int exitCode = new CommandLine(new SparkExample()).execute(args);
+    int exitCode = new CommandLine(new SparkDataFrameExample()).execute(args);
     System.exit(exitCode);
   }
 
@@ -88,24 +85,24 @@ public class SparkExample implements Runnable {
     System.out.println("Starting calculations...");
     SparkSession spark = initSpark();
     // Read the input data, these are movie views that contain movie id, user id and rating.
-    Dataset<MovieView> data = readData(spark);
+    Dataset<Row> data = readData(spark);
 
     // Define the query
     var groupsType =
         usePublicGroups
-            ? GroupsType.PublicGroups.create(publiclyKnownMovieIds(spark))
+            ? GroupsType.PublicGroups.createForDataFrame(publiclyKnownMovieIds(spark))
             : new GroupsType.PrivateGroups();
     var query =
-        SparkQueryBuilder.from(
+        SparkDataFrameQueryBuilder.from(
                 data,
-                /* privacyUnitExtractor= */ MovieView::getUserId,
+                /* privacyUnitColumnNames= */ new ColumnNames("userId"),
                 new ContributionBoundingLevel.DATASET_LEVEL(
                     /* maxGroupsContributed= */ 3, /* maxContributionsPerGroup= */ 1))
-            .groupBy(/* groupKeyExtractor= */ MovieView::getMovieId, groupsType)
+            .groupBy(/* groupKeyColumnNames= */ new ColumnNames("movieId"), groupsType)
             .countDistinctPrivacyUnits(/* outputColumnName= */ "numberOfViewers")
             .count(/* outputColumnName= */ "numberOfViews")
             .aggregateValue(
-                /* valueExtractor= */ new RatingExtractor(),
+                /* valueColumnName= */ "rating",
                 /* valueAggregations= */ new ValueAggregationsBuilder()
                     .mean(/* outputColumnName= */ "averageOfRatings"),
                 /* contributionBounds= */ new ContributionBounds(
@@ -113,22 +110,7 @@ public class SparkExample implements Runnable {
                     /* valueBounds= */ new Bounds(/* minValue= */ 1.0, /* maxValue= */ 5.0)))
             .build(new TotalBudget(/* epsilon= */ 1.1, /* delta= */ 1e-10), NoiseKind.LAPLACE);
     // Run the query with DP parameters.
-    Dataset<QueryPerGroupResult<String>> result = query.run();
-
-    // Convert the result to better representation, i.e. to MovieMetrics.
-    Encoder<MovieMetrics> movieMetricsEncoder = Encoders.kryo(MovieMetrics.class);
-    MapFunction<QueryPerGroupResult<String>, MovieMetrics> mapToMovieMetricsFn =
-        perGroupResult -> {
-          String movieId = perGroupResult.getGroupKey();
-          long numberOfViewers =
-              round(perGroupResult.getAggregationResults().get("numberOfViewers"));
-          long numberOfViews = round(perGroupResult.getAggregationResults().get("numberOfViews"));
-          double averageOfRatings = perGroupResult.getAggregationResults().get("averageOfRatings");
-          return new MovieMetrics(movieId, numberOfViewers, numberOfViews, averageOfRatings);
-        };
-    // We now have our anonymized metrics of movie views.
-    Dataset<MovieMetrics> anonymizedMovieMetrics =
-        result.map(mapToMovieMetricsFn, movieMetricsEncoder);
+    Dataset<Row> anonymizedMovieMetrics = query.run();
 
     // Save the result to a file.
     writeOutput(anonymizedMovieMetrics);
@@ -138,50 +120,42 @@ public class SparkExample implements Runnable {
     System.out.println("Finished calculations.");
   }
 
-  /**
-   * Static extractor for rating extraction.
-   *
-   * <p>Rating extractor must be serializable. In Java, we can't use lambdas, method references or
-   * anonymous classes because they capture `this` and therefore are not serializable.
-   */
-  private static class RatingExtractor implements Function1<MovieView, Double>, Serializable {
-    @Override
-    public Double invoke(MovieView movieView) {
-      return movieView.getRating();
-    }
-  }
-
   private static SparkSession initSpark() {
     String sparkMasterEnv = System.getenv("SPARK_MASTER");
     return SparkSession.builder()
-        .appName("PipelineDP4j Spark Example")
+        .appName("PipelineDP4j Spark DataFrame Example")
         .master(sparkMasterEnv != null && !sparkMasterEnv.isEmpty() ? sparkMasterEnv : "local[*]")
         .getOrCreate();
   }
 
-  private Dataset<MovieView> readData(SparkSession spark) {
-    Dataset<Row> inputDataFrame = spark.read().option("header", "false").csv(inputFilePath);
-    MapFunction<Row, MovieView> mapToMovieView =
-        row ->
-            new MovieView(row.getString(1), row.getString(0), Double.valueOf((String) row.get(2)));
-    return inputDataFrame.map(mapToMovieView, Encoders.kryo(MovieView.class));
+  private Dataset<Row> readData(SparkSession spark) {
+    return spark
+        .read()
+        .option("header", "false")
+        .csv(inputFilePath)
+        .selectExpr("_c0 as movieId", "_c1 as userId", "_c2 as rating")
+        .withColumn("rating", col("rating").cast("double"));
   }
 
   /**
    * Movie ids (which are group keys for this dataset) are integers from 1 to ~17000. Set public
    * groups 4500-4509.
    */
-  private static Dataset<String> publiclyKnownMovieIds(SparkSession spark) {
+  private static Dataset<Row> publiclyKnownMovieIds(SparkSession spark) {
     ArrayList<String> publicGroupsAsJavaList =
         IntStream.rangeClosed(4500, 4509)
             .mapToObj(Integer::toString)
             .collect(toCollection(ArrayList::new));
-    return spark.createDataset(publicGroupsAsJavaList, Encoders.STRING());
+    return spark.createDataset(publicGroupsAsJavaList, Encoders.STRING()).toDF("movieId");
   }
 
-  private void writeOutput(Dataset<MovieMetrics> result) {
-    Dataset<String> lines =
-        result.map((MapFunction<MovieMetrics, String>) MovieMetrics::toString, Encoders.STRING());
-    lines.write().mode(SaveMode.Overwrite).text(outputFolder);
+  private void writeOutput(Dataset<Row> result) {
+    result
+        .write()
+        .format("csv")
+        .option("header", "true")
+        .option("delimiter", ",")
+        .mode(SaveMode.Overwrite)
+        .save(outputFolder);
   }
 }

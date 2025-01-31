@@ -19,215 +19,125 @@ package com.google.privacy.differentialprivacy.pipelinedp4j.api
 import com.google.common.collect.ImmutableList
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricDefinition
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType
-import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.BudgetPerOpSpec
+
+/** An internal interface to specify aggregations. */
+sealed interface AggregationSpec
 
 /**
- * An internal interface to specify an aggregation.
+ * A privacy id count aggregation.
  *
- * The fields of the sealed class are the properties that any aggregation must have: in which column
- * to write the result, how much budget we can use, aggregation type, and how to extract the
- * aggregated value from the input.
- *
- * @param T the type of the elements in the collection.
+ * @param outputColumnName the name of the column to write the result to.
+ * @param budget the budget to use for the aggregation.
  */
-sealed class AggregationSpec<T>
+internal data class PrivacyIdCount(val outputColumnName: String, val budget: BudgetPerOpSpec?) :
+  AggregationSpec
+
+/**
+ * A count aggregation.
+ *
+ * @param outputColumnName the name of the column to write the result to.
+ * @param budget the budget to use for the aggregation.
+ */
+internal data class Count(val outputColumnName: String, val budget: BudgetPerOpSpec?) :
+  AggregationSpec
+
+/**
+ * Aggregations of specific value.
+ *
+ * @param valueExtractor a function to extract the value to aggregate from the input.
+ * @param valueAggregationSpecs the aggregations to perform.
+ * @param contributionBounds contribution bounds of the value.
+ * @param valueColumnName in case of data frames and column based API.
+ */
+internal data class ValueAggregations<DataRowT : Any>(
+  val valueExtractor: (DataRowT) -> Double,
+  val valueAggregationSpecs: List<ValueAggregationSpec>,
+  val contributionBounds: ContributionBounds,
+  val valueColumnName: String? = null,
+) : AggregationSpec
+
+/** Internal representation of aggregations of specific value. */
+internal data class ValueAggregationSpec
 private constructor(
-  internal val outputColumnName: String,
-  internal val budget: BudgetPerOpSpec?,
-  metricType: MetricType,
-  internal val valueExtractor: ((T) -> Double)? = null,
+  val metricType: MetricType,
+  val outputColumnName: String,
+  val budget: BudgetPerOpSpec?,
 ) {
-  internal val metricDefinition = MetricDefinition(metricType, budget)
+  companion object {
+    fun sum(outputColumnName: String, budget: BudgetPerOpSpec?) =
+      ValueAggregationSpec(MetricType.SUM, outputColumnName, budget)
 
-  /**
-   * A privacy id count aggregation.
-   *
-   * @param outputColumnName the name of the column to write the result to.
-   * @param budget the budget to use for the aggregation.
-   */
-  internal class PrivacyIdCount<T>(outputColumnName: String, budget: BudgetPerOpSpec?) :
-    AggregationSpec<T>(
-      outputColumnName,
-      budget,
-      MetricType.PRIVACY_ID_COUNT,
-      valueExtractor = null,
-    ) {}
+    fun mean(outputColumnName: String, budget: BudgetPerOpSpec?) =
+      ValueAggregationSpec(MetricType.MEAN, outputColumnName, budget)
 
-  /**
-   * A count aggregation.
-   *
-   * @param outputColumnName the name of the column to write the result to.
-   * @param budget the budget to use for the aggregation.
-   */
-  internal class Count<T>(outputColumnName: String, budget: BudgetPerOpSpec?) :
-    AggregationSpec<T>(outputColumnName, budget, MetricType.COUNT, valueExtractor = null) {}
+    fun variance(outputColumnName: String, budget: BudgetPerOpSpec?) =
+      ValueAggregationSpec(MetricType.VARIANCE, outputColumnName, budget)
 
-  /**
-   * A sum aggregation.
-   *
-   * @param outputColumnName the name of the column to write the result to.
-   * @param budget the budget to use for the aggregation.
-   * @param valueExtractor a function to extract the aggregated value from the input.
-   * @param minTotalValue the minimum value of the sum.
-   * @param maxTotalValue the maximum value of the sum.
-   */
-  internal class Sum<T>(
-    outputColumnName: String,
-    budget: BudgetPerOpSpec?,
-    valueExtractor: (T) -> Double,
-    internal val minTotalValue: Double?,
-    internal val maxTotalValue: Double?,
-  ) : AggregationSpec<T>(outputColumnName, budget, MetricType.SUM, valueExtractor) {}
-
-  /**
-   * A mean aggregation.
-   *
-   * @param outputColumnName the name of the column to write the result to.
-   * @param budget the budget to use for the aggregation.
-   * @param valueExtractor a function to extract the aggregated value from the input.
-   * @param minValue the smallest possible value that a privacy unit can contribute.
-   * @param maxValue the largest possible value that a privacy unit can contribute.
-   */
-  internal class Mean<T>(
-    outputColumnName: String,
-    budget: BudgetPerOpSpec?,
-    valueExtractor: (T) -> Double,
-    internal val minValue: Double,
-    internal val maxValue: Double,
-  ) : AggregationSpec<T>(outputColumnName, budget, MetricType.MEAN, valueExtractor) {}
-
-  /**
-   * A variance aggregation.
-   *
-   * @param outputColumnName the name of the column to write the result to.
-   * @param budget the budget to use for the aggregation.
-   * @param valueExtractor a function to extract the aggregated value from the input.
-   * @param minValue the smallest possible value that a privacy unit can contribute.
-   * @param maxValue the largest possible value that a privacy unit can contribute.
-   */
-  internal class Variance<T>(
-    outputColumnName: String,
-    budget: BudgetPerOpSpec?,
-    valueExtractor: (T) -> Double,
-    internal val minValue: Double,
-    internal val maxValue: Double,
-  ) : AggregationSpec<T>(outputColumnName, budget, MetricType.VARIANCE, valueExtractor) {}
-
-  /**
-   * A quantiles aggregation.
-   *
-   * @param outputColumnName the name of the column to write the result to.
-   * @param budget the budget to use for the aggregation.
-   * @param valueExtractor a function to extract the aggregated value from the input.
-   * @param ranks the ranks of the quantiles to compute.
-   * @param minValue the smallest possible value that a privacy unit can contribute.
-   * @param maxValue the largest possible value that a privacy unit can contribute.
-   */
-  internal class Quantiles<T>(
-    outputColumnName: String,
-    budget: BudgetPerOpSpec?,
-    valueExtractor: (T) -> Double,
-    ranks: List<Double>,
-    internal val minValue: Double,
-    internal val maxValue: Double,
-  ) :
-    AggregationSpec<T>(
-      outputColumnName,
-      budget,
-      MetricType.QUANTILES(ImmutableList.copyOf(ranks)),
-      valueExtractor,
-    ) {}
-}
-
-internal fun <T> List<AggregationSpec<T>>.minTotalValue(): Double? {
-  val values =
-    mapNotNull {
-        when (it) {
-          is AggregationSpec.PrivacyIdCount<*> -> null
-          is AggregationSpec.Count<*> -> null
-          is AggregationSpec.Sum<*> -> it.minTotalValue
-          is AggregationSpec.Mean<*> -> null
-          is AggregationSpec.Variance<*> -> null
-          is AggregationSpec.Quantiles<*> -> null
-        }
-      }
-      .toSet()
-  require(values.size <= 1) {
-    "Different minTotalValues: ${values}. minTotalValue can be specified only once because for now only aggregations of the same value are supported."
+    fun quantiles(ranks: List<Double>, outputColumnName: String, budget: BudgetPerOpSpec?) =
+      ValueAggregationSpec(
+        MetricType.QUANTILES(ImmutableList.copyOf(ranks)),
+        outputColumnName,
+        budget,
+      )
   }
-  return values.singleOrNull()
 }
 
-internal fun <T> List<AggregationSpec<T>>.maxTotalValue(): Double? {
-  val values =
-    mapNotNull {
-        when (it) {
-          is AggregationSpec.PrivacyIdCount<*> -> null
-          is AggregationSpec.Count<*> -> null
-          is AggregationSpec.Sum<*> -> it.maxTotalValue
-          is AggregationSpec.Mean<*> -> null
-          is AggregationSpec.Variance<*> -> null
-          is AggregationSpec.Quantiles<*> -> null
+internal fun List<AggregationSpec>.budgets(): Map<String, BudgetPerOpSpec?> = buildMap {
+  for (aggregation in this@budgets) {
+    when (aggregation) {
+      is PrivacyIdCount -> put(aggregation.outputColumnName, aggregation.budget)
+      is Count -> put(aggregation.outputColumnName, aggregation.budget)
+      is ValueAggregations<*> -> {
+        for (valueAggregationSpec in aggregation.valueAggregationSpecs) {
+          put(valueAggregationSpec.outputColumnName, valueAggregationSpec.budget)
         }
-      }
-      .toSet()
-  require(values.size <= 1) {
-    "Different maxTotalValues: ${values}. maxTotalValue can be specified only once because for now only aggregations of the same value are supported."
-  }
-  return values.singleOrNull()
-}
-
-internal fun <T> List<AggregationSpec<T>>.minValue(): Double? {
-  val values =
-    mapNotNull {
-        when (it) {
-          is AggregationSpec.PrivacyIdCount<*> -> null
-          is AggregationSpec.Count<*> -> null
-          is AggregationSpec.Sum<*> -> null
-          is AggregationSpec.Mean<*> -> it.minValue
-          is AggregationSpec.Variance<*> -> it.minValue
-          is AggregationSpec.Quantiles<*> -> it.minValue
-        }
-      }
-      .toSet()
-  require(values.size <= 1) {
-    "Different minValues: ${values}. Only aggregations of the same value are supported for now and they must have the same bounds including minValue."
-  }
-  return values.singleOrNull()
-}
-
-internal fun <T> List<AggregationSpec<T>>.maxValue(): Double? {
-  val values =
-    mapNotNull {
-        when (it) {
-          is AggregationSpec.PrivacyIdCount<*> -> null
-          is AggregationSpec.Count<*> -> null
-          is AggregationSpec.Sum<*> -> null
-          is AggregationSpec.Mean<*> -> it.maxValue
-          is AggregationSpec.Variance<*> -> it.maxValue
-          is AggregationSpec.Quantiles<*> -> it.maxValue
-        }
-      }
-      .toSet()
-  require(values.size <= 1) {
-    "Different maxValues: ${values}. Only aggregations of the same value are supported for now and they must have the same bounds including maxValue."
-  }
-  return values.singleOrNull()
-}
-
-internal fun <T> List<AggregationSpec<T>>.outputColumnNamesWithMetricTypes() = map {
-  it.outputColumnName to it.metricDefinition.type
-}
-
-internal fun <T> List<AggregationSpec<T>>.valueExtractors() =
-  mapNotNull {
-      when (it) {
-        is AggregationSpec.PrivacyIdCount<*> -> null
-        is AggregationSpec.Count<*> -> null
-        is AggregationSpec.Sum<*> -> it.valueExtractor
-        is AggregationSpec.Mean<*> -> it.valueExtractor
-        is AggregationSpec.Variance<*> -> it.valueExtractor
-        is AggregationSpec.Quantiles<*> -> it.valueExtractor
       }
     }
-    .toSet()
+  }
+}
+
+internal fun List<AggregationSpec>.metrics(): List<MetricDefinition> = buildList {
+  for (aggregation in this@metrics) {
+    when (aggregation) {
+      // Count and PrivacyIdCount do not aggregate any specific value, therefore they are handled
+      // differently.
+      is PrivacyIdCount ->
+        add(
+          MetricDefinition(
+            MetricType.PRIVACY_ID_COUNT,
+            aggregation.budget?.toInternalBudgetPerOpSpec(),
+          )
+        )
+      is Count ->
+        add(MetricDefinition(MetricType.COUNT, aggregation.budget?.toInternalBudgetPerOpSpec()))
+      is ValueAggregations<*> -> {
+        for (valueAggregationSpec in aggregation.valueAggregationSpecs) {
+          add(
+            MetricDefinition(
+              valueAggregationSpec.metricType,
+              valueAggregationSpec.budget?.toInternalBudgetPerOpSpec(),
+            )
+          )
+        }
+      }
+    }
+  }
+}
+
+internal fun List<AggregationSpec>.outputColumnNamesWithMetricTypes():
+  List<Pair<String, MetricType>> = buildList {
+  for (aggregation in this@outputColumnNamesWithMetricTypes) {
+    when (aggregation) {
+      is PrivacyIdCount -> add(aggregation.outputColumnName to MetricType.PRIVACY_ID_COUNT)
+      is Count -> add(aggregation.outputColumnName to MetricType.COUNT)
+      is ValueAggregations<*> -> {
+        for (valueAggregationSpec in aggregation.valueAggregationSpecs) {
+          add(valueAggregationSpec.outputColumnName to valueAggregationSpec.metricType)
+        }
+      }
+    }
+  }
+}
+
+internal fun List<AggregationSpec>.outputColumnNames(): List<String> =
+  outputColumnNamesWithMetricTypes().map { it.first }
