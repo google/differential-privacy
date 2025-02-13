@@ -2364,7 +2364,7 @@ class DoubleMixturePrivacyLoss(MonotonePrivacyLoss):
           epsilon reported is valid.
 
     Returns:
-        Tuple[float, float]: _description_
+        Tuple[float, float]: Left and right boundary for binary search.
     """
     left_bound = max(-1, self._strictly_decreasing_interval[0])
     while (left_bound < 0) and (self.privacy_loss(left_bound) < max_pl):
@@ -3034,7 +3034,7 @@ def _binary_search_bounds(
           epsilon reported is valid.
 
     Returns:
-        Tuple[float, float]: _description_
+        Tuple[float, float]: Left and right boundary for binary search.
     """
     loss_bounds = np.array([min_pl, min_pl, max_pl, max_pl])
     sens_bounds = np.array([
