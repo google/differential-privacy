@@ -2924,8 +2924,6 @@ class DoubleMixtureGaussianPrivacyLossTest(parameterized.TestCase):
       sensitivities_upper=None, sensitivities_lower=None,
       sampling_probs_upper=None, sampling_probs_lower=None
   ):
-    log_cutoff = -10.0
-
     if adjacency_type == REM:
       sensitivities_upper = sensitivities
       sensitivities_lower = [0.0]
@@ -3193,8 +3191,6 @@ class DoubleMixtureGaussianPrivacyLossTest(parameterized.TestCase):
       sampling_probs_upper = [1.0]
       sampling_probs_lower = sampling_probs
 
-    padded_sensitivities = sensitivities + [100.0]
-    padded_sampling_probs = sampling_probs + [0.0]
     expected_pl = privacy_loss_mechanism.DoubleMixtureGaussianPrivacyLoss(
         standard_deviation=standard_deviation,
         sensitivities_upper=sensitivities_upper,
@@ -3204,6 +3200,570 @@ class DoubleMixtureGaussianPrivacyLossTest(parameterized.TestCase):
     )
     padded_pl = privacy_loss_mechanism.DoubleMixtureGaussianPrivacyLoss(
         standard_deviation=standard_deviation,
+        sensitivities_upper=sensitivities_upper + [100.0, 200.0],
+        sensitivities_lower=sensitivities_lower + [50.0, 75.0],
+        sampling_probs_upper=sampling_probs_upper + [0.0, 0.0],
+        sampling_probs_lower=sampling_probs_lower + [0.0, 0.0],
+    )
+    self.assertAlmostEqual(expected_pl.get_delta_for_epsilon(1),
+                           padded_pl.get_delta_for_epsilon(1))
+
+
+class DoubleMixtureLaplacePrivacyLoss(parameterized.TestCase):
+  """Tests for privacy_loss_mechanism.DoubleMixtureLaplacePrivaczLoss class."""
+
+  @parameterized.named_parameters(
+      {
+          'testcase_name': 'negative_stdev',
+          'scale': -1.0,
+          'sensitivities_upper': [1.0],
+          'sensitivities_lower': [1.0],
+          'sampling_probs_upper': [1.0],
+          'sampling_probs_lower': [1.0]
+      },
+      {
+          'testcase_name': 'negative_sensitivity',
+          'scale': 1.0,
+          'sensitivities_upper': [-1.0, 1.0],
+          'sensitivities_lower': [-1.0, 1.0],
+          'sampling_probs_upper': [0.5, 0.5],
+          'sampling_probs_lower': [0.5, 0.5],
+      },
+      {
+          'testcase_name': 'negative_probability',
+          'scale': 1.0,
+          'sensitivities_upper': [0.0, 1.0, 2.0],
+          'sensitivities_lower': [0.0, 1.0, 2.0],
+          'sampling_probs_upper': [0.75, 0.75, -0.5],
+          'sampling_probs_lower': [0.75, 0.75, -0.5],
+      },
+      {
+          'testcase_name': 'probability_greater_than_one',
+          'scale': 1.0,
+          'sensitivities_upper': [0.0, 1.0, 2.0],
+          'sensitivities_lower': [0.0, 1.0, 2.0],
+          'sampling_probs_upper': [1.5, 0.5, 0.5],
+          'sampling_probs_lower': [1.5, 0.5, 0.5],
+      },
+      {
+          'testcase_name': 'probabilities_dont_add_up_to_one',
+          'scale': 1.0,
+          'sensitivities_upper': [0.0, 1.0, 2.0],
+          'sensitivities_lower': [0.0, 1.0, 2.0],
+          'sampling_probs_upper': [0.2, 0.2, 0.2],
+          'sampling_probs_lower': [0.2, 0.2, 0.2],
+      },
+      {
+          'testcase_name': 'list_lengths_differ_1',
+          'scale': 1.0,
+          'sensitivities_upper': [1.0],
+          'sensitivities_lower': [1.0],
+          'sampling_probs_upper': [0.5, 0.5],
+          'sampling_probs_lower': [0.5, 0.5],
+      },
+      {
+          'testcase_name': 'list_lengths_differ_2',
+          'scale': 1.0,
+          'sensitivities_upper': [1.0, 2.0, 3.0],
+          'sensitivities_lower': [1.0, 2.0, 3.0],
+          'sampling_probs_upper': [0.5, 0.5],
+          'sampling_probs_lower': [0.5, 0.5],
+      },
+  )
+  def test_init_raises_error(
+      self,
+      scale,
+      sensitivities_upper,
+      sensitivities_lower,
+      sampling_probs_upper,
+      sampling_probs_lower
+  ):
+    with self.assertRaises(ValueError):
+      privacy_loss_mechanism.DoubleMixtureLaplacePrivacyLoss(
+          scale=scale,
+          sensitivities_upper=sensitivities_upper,
+          sensitivities_lower=sensitivities_lower,
+          sampling_probs_upper=sampling_probs_upper,
+          sampling_probs_lower=sampling_probs_lower,
+      )
+
+  # These test cases are identical to those for LaplacePrivacyLoss,
+  # since the log_cdf of mu_lower is not dependent on whether
+  # mu_upper is a mixture or not.
+  @parameterized.parameters(
+      # Tests with sampling_prob = 1 for adjacency_type=ADD
+      (1.0, 1.0, 1.0, ADD, [0, 1, 2, 30],
+       [-1.69314718, -0.69314718, -0.20326705, -1.27231559e-13]),
+      (2.0, 1.0, 1.0, ADD, [-1, 0, 1, 30],
+       [-1.69314718, -1.19314718, -0.69314718, -2.52173863e-07]),
+      # Tests with sampling_prob < 1 for adjacency_type=ADD
+      (1.0, 1.0, 0.8, ADD, [0, 1, 2, 30],
+       [-1.39775265, -0.57409907, -0.17516956, -1.11161080e-13]),
+      (2.0, 1.0, 0.2, ADD, [-1, 0, 1, 30],
+       [-1.27511009, -0.77511009, -0.41948127, -1.72795709e-07]),
+      # Tests with sampling_prob = 1 for adjacency_type=REMOVE
+      (1.0, 1.0, 1.0, REM, [-1, 0, 1, 30],
+       [-1.69314718, -0.69314718, -0.20326705, -4.67403893e-14]),
+      (2.0, 1.0, 1.0, REM, [-2, -1, 0, 30],
+       [-1.69314718, -1.19314718, -0.69314718, -1.52951172e-07]),
+      # Tests with sampling_prob < 1 for adjacency_type=REMOVE
+      (1.0, 1.0, 0.8, REM, [-1, 0, 1, 30],
+       [-1.69314718, -0.69314718, -0.20326705, -4.67403893e-14]),
+      (2.0, 1.0, 0.2, REM, [-2, -1, 0, 30],
+       [-1.69314718, -1.19314718, -0.69314718, -1.52951172e-07]),
+  )
+  def test_mu_lower_log_cdf(
+      self, scale, sensitivity, sampling_prob, adjacency_type,
+      x, expected_mu_lower_log_cdf):
+    if adjacency_type == REM:
+      sensitivities_upper = [0.0, sensitivity]
+      sensitivities_lower = [0.0]
+      sampling_probs_upper = [1 - sampling_prob, sampling_prob]
+      sampling_probs_lower = [1.0]
+    else:
+      sensitivities_upper = [0.0]
+      sensitivities_lower = [0.0, sensitivity]
+      sampling_probs_upper = [1.0]
+      sampling_probs_lower = [1 - sampling_prob, sampling_prob]
+
+    pl = privacy_loss_mechanism.DoubleMixtureLaplacePrivacyLoss(
+        scale=scale,
+        sensitivities_upper=sensitivities_upper,
+        sensitivities_lower=sensitivities_lower,
+        sampling_probs_upper=sampling_probs_upper,
+        sampling_probs_lower=sampling_probs_lower,
+    )
+    self.assertSequenceAlmostEqual(pl.mu_lower_log_cdf(x),
+                                   expected_mu_lower_log_cdf)
+
+  # These test cases are identical to those for LaplacPrivacyLoss,
+  # to make sure that we recover the desired behavior in the special case
+  # where one of the "mixtures" is simply N(0,standard_deviation)
+  @parameterized.parameters(
+      # Tests with sampling_prob = 1 for adjacency_type=ADD
+      (1.0, 1.0, 1.0, ADD, -0.1, 1.0), (1.0, 1.0, 1.0, ADD, 2.0, -1.0),
+      (1.0, 1.0, 1.0, ADD, 0.3, 0.4), (4.0, 4.0, 1.0, ADD, -0.4, 1.0),
+      (5.0, 5.0, 1.0, ADD, 7.0, -1.0), (7.0, 7.0, 1.0, ADD, 2.1, 0.4),
+      # Tests with sampling_prob < 1 for adjacency_type=ADD
+      (1.0, 1.0, 0.8, ADD, 1.1, -0.86483972516319),
+      (2.0, 1.0, 0.2, ADD, -0.2, 0.0819629071393439),
+      (1.0, 1.0, 0.5, ADD, 0.5, 0.0),
+      # Tests with sampling_prob = 1 for adjacency_type=REMOVE
+      (1.0, 1.0, 1.0, REM, -1.1, 1.0), (1.0, 1.0, 1.0, REM, 1.0, -1.0),
+      (1.0, 1.0, 1.0, REM, -0.7, 0.4), (4.0, 4.0, 1.0, REM, -4.4, 1.0),
+      (5.0, 5.0, 1.0, REM, 2.0, -1.0), (7.0, 7.0, 1.0, REM, -4.9, 0.4),
+      # Tests with sampling_prob < 1 for adjacency_type=REMOVE
+      (1.0, 1.0, 0.8, REM, -1.1, 0.86483972516319),
+      (2.0, 1.0, 0.2, REM, 0.2, -0.0819629071393439),
+      (1.0, 1.0, 0.5, REM, -0.5, 0.0))
+  def test_privacy_loss_single_mixture(
+      self, scale, sensitivity, sampling_prob,
+      adjacency_type, x, expected_privacy_loss):
+    if adjacency_type == REM:
+      sensitivities_upper = [0.0, sensitivity]
+      sensitivities_lower = [0.0]
+      sampling_probs_upper = [1 - sampling_prob, sampling_prob]
+      sampling_probs_lower = [1.0]
+    else:
+      sensitivities_upper = [0.0]
+      sensitivities_lower = [0.0, sensitivity]
+      sampling_probs_upper = [1.0]
+      sampling_probs_lower = [1 - sampling_prob, sampling_prob]
+
+    pl = privacy_loss_mechanism.DoubleMixtureLaplacePrivacyLoss(
+        scale=scale,
+        sensitivities_upper=sensitivities_upper,
+        sensitivities_lower=sensitivities_lower,
+        sampling_probs_upper=sampling_probs_upper,
+        sampling_probs_lower=sampling_probs_lower,
+    )
+    self.assertAlmostEqual(expected_privacy_loss, pl.privacy_loss(x))
+
+  @parameterized.named_parameters(
+      {
+          'testcase_name': 'double_laplace_1_rem_1_add_1',
+          'scale': 1.0,
+          'sensitivities_upper': [1.0, 2.0],
+          'sensitivities_lower': [0.5, 1.2],
+          'sampling_probs_upper': [0.25, 0.75],
+          'sampling_probs_lower': [0.5, 0.5],
+          'x': 5.0,
+          'expected_privacy_loss': -2.55266484881672,
+      },
+      {
+          'testcase_name': 'double_laplace_1_rem_1_add_2',
+          'scale': 1.0,
+          'sensitivities_upper': [0.4, 0.8],
+          'sensitivities_lower': [2.0, 3.0],
+          'sampling_probs_upper': [0.7, 0.3],
+          'sampling_probs_lower': [0.4, 0.6],
+          'x': -1.0,
+          'expected_privacy_loss': 3.01448981377500,
+      },
+      {
+          'testcase_name': 'double_laplace_2_rem_2_add',
+          'scale': 1.0,
+          'sensitivities_upper': [0.4, 0.8, 2.0],
+          'sensitivities_lower': [2.0, 3.0, 4.0],
+          'sampling_probs_upper': [0.4, 0.3, 0.3],
+          'sampling_probs_lower': [0.5, 0.25, 0.25],
+          'x': 2.0,
+          'expected_privacy_loss': -2.3442773744286,
+      },
+      {
+          'testcase_name': 'double_laplace_3_rem_2_add',
+          'scale': 1.0,
+          'sensitivities_upper': [0.4, 0.8, 2.0, 3.0],
+          'sensitivities_lower': [2.0, 3.0, 4.0],
+          'sampling_probs_upper': [0.4, 0.3, 0.2, 0.1],
+          'sampling_probs_lower': [0.4, 0.1, 0.5],
+          'x': -3.0,
+          'expected_privacy_loss': 4.2425794677102,
+      },
+      {
+          'testcase_name': 'double_laplace_2_rem_3_add',
+          'scale': 1.0,
+          'sensitivities_upper': [0.4, 0.8, 2.0],
+          'sensitivities_lower': [2.0, 3.0, 4.0, 5.0],
+          'sampling_probs_upper': [0.2, 0.6, 0.2],
+          'sampling_probs_lower': [0.8, 0.1, 0.05, 0.05],
+          'x': 1.5,
+          'expected_privacy_loss': -1.6750936086730
+      },
+  )
+  def test_privacy_loss_double_mixture(
+      self,
+      scale,
+      sensitivities_upper,
+      sensitivities_lower,
+      sampling_probs_upper,
+      sampling_probs_lower,
+      x,
+      expected_privacy_loss,
+  ):
+    pl = privacy_loss_mechanism.DoubleMixtureLaplacePrivacyLoss(
+        scale=scale,
+        sensitivities_upper=sensitivities_upper,
+        sensitivities_lower=sensitivities_lower,
+        sampling_probs_upper=sampling_probs_upper,
+        sampling_probs_lower=sampling_probs_lower,
+    )
+
+    self.assertAlmostEqual(expected_privacy_loss, pl.privacy_loss(x))
+
+  @parameterized.named_parameters(
+      (_add_and_remove_test_cases(
+          _gaussian_test_cases(5)
+          + _subsampled_gaussian_test_cases(5)
+          + _mixture_gaussian_with_zero_test_cases(5)
+       )
+       + _double_mixture_gaussian_with_zero_test_cases(5)
+       + _double_mixture_gaussian_without_zero_test_cases(5)
+       )
+  )
+  def test_privacy_loss_tail(
+      self, standard_deviation,
+      sensitivities=None, sampling_probs=None, adjacency_type=None,
+      sensitivities_upper=None, sensitivities_lower=None,
+      sampling_probs_upper=None, sampling_probs_lower=None
+  ):
+    scale = standard_deviation  # Rename so that we can reuse test cases
+    log_cutoff = -10.0
+
+    if adjacency_type == REM:
+      sensitivities_upper = sensitivities
+      sensitivities_lower = [0.0]
+      sampling_probs_upper = sampling_probs
+      sampling_probs_lower = [1.0]
+    elif adjacency_type == ADD:
+      sensitivities_upper = [0.0]
+      sensitivities_lower = sensitivities
+      sampling_probs_upper = [1.0]
+      sampling_probs_lower = sampling_probs
+
+    pl = privacy_loss_mechanism.DoubleMixtureLaplacePrivacyLoss(
+        scale=scale,
+        sensitivities_upper=sensitivities_upper,
+        sensitivities_lower=sensitivities_lower,
+        sampling_probs_upper=sampling_probs_upper,
+        sampling_probs_lower=sampling_probs_lower,
+        log_mass_truncation_bound=log_cutoff
+    )
+    tail_mass = math.exp(log_cutoff) / 2
+    privacy_loss_tail = pl.privacy_loss_tail()
+    lower = privacy_loss_tail.lower_x_truncation
+    upper = privacy_loss_tail.upper_x_truncation
+    lower_cdf = pl.mu_upper_cdf(lower)
+    upper_cdf = pl.mu_upper_cdf(upper)
+    # Any solution that reports a privacy loss that doesn't exceed the cutoff is
+    # correct, so we use LessEqual instead of AlmostEqual to be robust to
+    # changes that might e.g. sacrifice accuracy for efficiency (e.g., changing
+    # the default discretization).
+    self.assertLessEqual(lower_cdf, tail_mass)
+    # Computing 1 - upper_cdf is numerically imprecise.
+    self.assertLessEqual(1 - upper_cdf, tail_mass * (1 + 1e-7))
+    self.assertDictEqual(
+        privacy_loss_tail.tail_probability_mass_function,
+        {
+            math.inf: pl.mu_upper_cdf(lower),
+            pl.privacy_loss(upper): 1 - pl.mu_upper_cdf(upper),
+        },
+    )
+
+  @parameterized.named_parameters(
+      (_add_and_remove_test_cases(
+          _gaussian_test_cases(5)
+          + _subsampled_gaussian_test_cases(5)
+          + _mixture_gaussian_with_zero_test_cases(5)
+       )
+       + _double_mixture_gaussian_with_zero_test_cases(5)
+       + _double_mixture_gaussian_without_zero_test_cases(5)
+       )
+  )
+  def test_connect_dots_bounds(
+      self, standard_deviation,
+      sensitivities=None, sampling_probs=None, adjacency_type=None,
+      sensitivities_upper=None, sensitivities_lower=None,
+      sampling_probs_upper=None, sampling_probs_lower=None
+  ):
+    scale = standard_deviation  # Rename so that we can reuse test cases
+    log_cutoff = -10.0
+
+    if adjacency_type == REM:
+      sensitivities_upper = sensitivities
+      sensitivities_lower = [0.0]
+      sampling_probs_upper = sampling_probs
+      sampling_probs_lower = [1.0]
+    elif adjacency_type == ADD:
+      sensitivities_upper = [0.0]
+      sensitivities_lower = sensitivities
+      sampling_probs_upper = [1.0]
+      sampling_probs_lower = sampling_probs
+
+    pl = privacy_loss_mechanism.DoubleMixtureLaplacePrivacyLoss(
+        scale=scale,
+        sensitivities_upper=sensitivities_upper,
+        sensitivities_lower=sensitivities_lower,
+        sampling_probs_upper=sampling_probs_upper,
+        sampling_probs_lower=sampling_probs_lower,
+        log_mass_truncation_bound=log_cutoff
+    )
+
+    connect_dots_bounds = pl.connect_dots_bounds()
+    privacy_loss_tail = pl.privacy_loss_tail()
+    pl_lower = connect_dots_bounds.epsilon_lower
+    pl_upper = connect_dots_bounds.epsilon_upper
+    x_lower = privacy_loss_tail.lower_x_truncation
+    x_upper = privacy_loss_tail.upper_x_truncation
+    self.assertAlmostEqual(pl.privacy_loss(x_lower), pl_upper)
+    self.assertAlmostEqual(pl.privacy_loss(x_upper), pl_lower)
+    self.assertIsNone(connect_dots_bounds.lower_x)
+    self.assertIsNone(connect_dots_bounds.upper_x)
+
+  @parameterized.named_parameters(
+      (_add_and_remove_test_cases(
+          _gaussian_test_cases(5)
+          + _subsampled_gaussian_test_cases(5)
+          + _mixture_gaussian_with_zero_test_cases(5)
+       )
+       + _double_mixture_gaussian_with_zero_test_cases(5)
+       + _double_mixture_gaussian_without_zero_test_cases(5)
+       )
+  )
+  def test_inverse_privacy_losses(
+      self, standard_deviation,
+      sensitivities=None, sampling_probs=None, adjacency_type=None,
+      sensitivities_upper=None, sensitivities_lower=None,
+      sampling_probs_upper=None, sampling_probs_lower=None
+  ):
+    scale = standard_deviation  # Rename so that we can reuse test cases
+
+    if adjacency_type == REM:
+      sensitivities_upper = sensitivities
+      sensitivities_lower = [0.0]
+      sampling_probs_upper = sampling_probs
+      sampling_probs_lower = [1.0]
+    elif adjacency_type == ADD:
+      sensitivities_upper = [0.0]
+      sensitivities_lower = sensitivities
+      sampling_probs_upper = [1.0]
+      sampling_probs_lower = sampling_probs
+
+    pl = privacy_loss_mechanism.DoubleMixtureLaplacePrivacyLoss(
+        scale=scale,
+        sensitivities_upper=sensitivities_upper,
+        sensitivities_lower=sensitivities_lower,
+        sampling_probs_upper=sampling_probs_upper,
+        sampling_probs_lower=sampling_probs_lower,
+    )
+    privacy_loss_tail = pl.privacy_loss_tail()
+    pl_lower = pl.privacy_loss(privacy_loss_tail.upper_x_truncation)
+    pl_upper = pl.privacy_loss(privacy_loss_tail.lower_x_truncation)
+    pl_inputs = np.array(
+        [pl_lower + alpha * (pl_upper - pl_lower) / 10 for alpha in range(1, 9)]
+    )
+    outputs = pl.inverse_privacy_losses(pl_inputs)
+    for pl_input, output in zip(pl_inputs, outputs):
+      # The method we're testing is only approximately implemented, so
+      # we use a lower-precision test.
+      self.assertAlmostEqual(pl_input, pl.privacy_loss(output), places=5)
+
+  # These test cases are identical to those for LaplacePrivacyLoss,
+  # to make sure that we recover the desired behavior in the special case
+  # where one of the "mixtures" is simply N(0,standard_deviation)
+  @parameterized.parameters(
+      # Tests with sampling_prob = 1 for adjacency_type=ADD
+      (1.0, 1.0, 1.0, ADD, 1.0, 0.0), (3.0, 3.0, 1.0, ADD, 1.0, 0.0),
+      (2.0, 4.0, 1.0, ADD, 2.0, 0.0),
+      (2.0, 4.0, 1.0, ADD, 0.5, 0.52763345),
+      (1.0, 1.0, 1.0, ADD, 0.0, 0.39346934),
+      (2.0, 2.0, 1.0, ADD, 0.0, 0.39346934),
+      (1.0, 1.0, 1.0, ADD, -2.0, 0.86466472),
+      # Tests with sampling_prob < 1 for adjacency_type=ADD
+      (1.0, 1.0, 0.8, ADD, 1.0, 0.0),
+      (2.0, 4.0, 0.8, ADD, 0.5, 0.3243606497234246),
+      (1.0, 1.0, 0.6, ADD, 0.2, 0.1401134521354217),
+      (2.0, 2.0, 0.3, ADD, 0.0, 0.1180408020862099),
+      (5.0, 5.0, 0.2, ADD, 2.0, 0.0),
+      # Tests with sampling_prob = 1 for adjacency_type=REMOVE
+      (1.0, 1.0, 1.0, REM, 1.0, 0.0), (3.0, 3.0, 1.0, REM, 1.0, 0.0),
+      (2.0, 4.0, 1.0, REM, 2.0, 0.0), (2.0, 4.0, 1.0, REM, 0.5, 0.52763345),
+      (1.0, 1.0, 1.0, REM, 0.0, 0.39346934),
+      (2.0, 2.0, 1.0, REM, 0.0, 0.39346934),
+      (1.0, 1.0, 1.0, REM, -2.0, 0.86466472),
+      # Tests with sampling_prob < 1 for adjacency_type=REMOVE)
+      (1.0, 1.0, 0.8, REM, 1.0, 0.0),
+      (2.0, 4.0, 0.8, REM, 0.5, 0.4039564635032081),
+      (1.0, 1.0, 0.6, REM, 0.2, 0.1741992102060086),
+      (2.0, 2.0, 0.3, REM, 0.0, 0.1180408020862099),
+      (5.0, 5.0, 0.2, REM, -0.25, 0.2211992169285951))
+  def test_get_delta_for_epsilon_single_mixture(
+        self, scale, sensitivity, sampling_prob,
+        adjacency_type, epsilon, expected_delta):
+    if adjacency_type == REM:
+      sensitivities_upper = [0.0, sensitivity]
+      sensitivities_lower = [0.0]
+      sampling_probs_upper = [1 - sampling_prob, sampling_prob]
+      sampling_probs_lower = [1.0]
+    else:
+      sensitivities_upper = [0.0]
+      sensitivities_lower = [0.0, sensitivity]
+      sampling_probs_upper = [1.0]
+      sampling_probs_lower = [1 - sampling_prob, sampling_prob]
+
+    pl = privacy_loss_mechanism.DoubleMixtureLaplacePrivacyLoss(
+        scale=scale,
+        sensitivities_upper=sensitivities_upper,
+        sensitivities_lower=sensitivities_lower,
+        sampling_probs_upper=sampling_probs_upper,
+        sampling_probs_lower=sampling_probs_lower,
+    )
+    self.assertAlmostEqual(expected_delta, pl.get_delta_for_epsilon(epsilon))
+
+  @parameterized.named_parameters(
+      {
+          'testcase_name': 'double_laplace_1_remove_1_add_1',
+          'scale': 1.0,
+          'sensitivities_upper': [1.0, 2.0],
+          'sensitivities_lower': [0.5, 1.2],
+          'sampling_probs_upper': [0.25, 0.75],
+          'sampling_probs_lower': [0.5, 0.5],
+          'epsilon': 1.0,
+          'expected_delta': 0.51144027653245,
+      },
+      {
+          'testcase_name': 'double_laplace_1_remove_1_add_2',
+          'scale': 1.0,
+          'sensitivities_upper': [0.4, 0.8],
+          'sensitivities_lower': [2.0, 3.0],
+          'sampling_probs_upper': [0.7, 0.3],
+          'sampling_probs_lower': [0.4, 0.6],
+          'epsilon': 1.0,
+          'expected_delta': 0.62861022073245,
+      },
+      {
+          'testcase_name': 'double_laplace_2_remove_2_add',
+          'scale': 1.0,
+          'sensitivities_upper': [0.4, 0.8, 2.0],
+          'sensitivities_lower': [2.0, 3.0, 4.0],
+          'sampling_probs_upper': [0.4, 0.3, 0.3],
+          'sampling_probs_lower': [0.5, 0.25, 0.25],
+          'epsilon': 1.0,
+          'expected_delta': 0.68045502643694,
+      },
+      {
+          'testcase_name': 'double_laplace_3_remove_2_add',
+          'scale': 1.0,
+          'sensitivities_upper': [0.4, 0.8, 2.0, 3.0],
+          'sensitivities_lower': [2.0, 3.0, 4.0],
+          'sampling_probs_upper': [0.4, 0.3, 0.2, 0.1],
+          'sampling_probs_lower': [0.4, 0.1, 0.5],
+          'epsilon': 1.0,
+          'expected_delta': 0.71588437885330,
+      },
+      {
+          'testcase_name': 'double_laplace_2_remove_3_add',
+          'scale': 1.0,
+          'sensitivities_upper': [0.4, 0.8, 2.0],
+          'sensitivities_lower': [2.0, 3.0, 4.0, 5.0],
+          'sampling_probs_upper': [0.2, 0.6, 0.2],
+          'sampling_probs_lower': [0.8, 0.1, 0.05, 0.05],
+          'epsilon': 1.0,
+          'expected_delta': 0.63385675511556,
+      },
+  )
+  def test_get_delta_for_epsilon_double_mixture(
+      self,
+      scale,
+      sensitivities_upper,
+      sensitivities_lower,
+      sampling_probs_upper,
+      sampling_probs_lower,
+      epsilon,
+      expected_delta,
+  ):
+    pl = privacy_loss_mechanism.DoubleMixtureLaplacePrivacyLoss(
+        scale=scale,
+        sensitivities_upper=sensitivities_upper,
+        sensitivities_lower=sensitivities_lower,
+        sampling_probs_upper=sampling_probs_upper,
+        sampling_probs_lower=sampling_probs_lower,
+    )
+    self.assertAlmostEqual(pl.get_delta_for_epsilon(epsilon), expected_delta)
+
+  @parameterized.named_parameters(
+      _add_and_remove_test_cases(
+          _gaussian_test_cases(5)
+          + _subsampled_gaussian_test_cases(5)
+          + _mixture_gaussian_with_zero_test_cases(5)
+          + _mixture_gaussian_without_zero_test_cases(5)
+      )
+  )
+  def test_zero_sampling_probs_ignored(
+      self, standard_deviation, sensitivities, sampling_probs, adjacency_type
+  ):
+    """Tests that zeros in sampling_probs are ignored."""
+
+    if adjacency_type == REM:
+      sensitivities_upper = sensitivities
+      sensitivities_lower = [0.0]
+      sampling_probs_upper = sampling_probs
+      sampling_probs_lower = [1.0]
+    elif adjacency_type == ADD:
+      sensitivities_upper = [0.0]
+      sensitivities_lower = sensitivities
+      sampling_probs_upper = [1.0]
+      sampling_probs_lower = sampling_probs
+
+    expected_pl = privacy_loss_mechanism.DoubleMixtureLaplacePrivacyLoss(
+        scale=standard_deviation,
+        sensitivities_upper=sensitivities_upper,
+        sensitivities_lower=sensitivities_lower,
+        sampling_probs_upper=sampling_probs_upper,
+        sampling_probs_lower=sampling_probs_lower,
+    )
+    padded_pl = privacy_loss_mechanism.DoubleMixtureLaplacePrivacyLoss(
+        scale=standard_deviation,
         sensitivities_upper=sensitivities_upper + [100.0, 200.0],
         sensitivities_lower=sensitivities_lower + [50.0, 75.0],
         sampling_probs_upper=sampling_probs_upper + [0.0, 0.0],
