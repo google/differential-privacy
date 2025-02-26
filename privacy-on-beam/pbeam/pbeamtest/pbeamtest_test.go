@@ -1018,6 +1018,280 @@ func TestMeanPerKeyWithPartitionsTestModePerPartitionContributionBoundingAddsEmp
 	}
 }
 
+// Tests that VariancePerKey bounds cross-partition contributions correctly, adds no noise
+// and keeps all partitions in test mode.
+func TestVariancePerKeyTestModeCrossPartitionContributionBounding(t *testing.T) {
+	for _, tc := range []struct {
+		desc                     string
+		privacySpec              *pbeam.PrivacySpec
+		maxPartitionsContributed int64
+		want                     float64
+	}{
+		{
+			desc:                     "test mode with contribution bounding",
+			privacySpec:              privacySpec(t, pbeam.TestModeWithContributionBounding, false),
+			maxPartitionsContributed: 1,
+			// There are 8 distinct privacy IDs (1 ~ 8) contributing "0." to the 2 partitions, each with 4 IDs.
+			// Moreover, privacy ID 0 contributes "5." to both partitions.
+			// With a max contribution of 1, privacy ID 0 will only contribute to one partition.
+			// Thus the variance of the partition with privacy ID 0 is 4,
+			// and the variance of the other partition is 0.
+			// The sum of the two variances is then 4.
+			want: 4.,
+		},
+		{
+			desc:                     "test mode without contribution bounding",
+			privacySpec:              privacySpec(t, pbeam.TestModeWithoutContributionBounding, false),
+			maxPartitionsContributed: 1,
+			// There are 8 distinct privacy IDs (1 ~ 8) contributing "0." to the 2 partitions, each with 4 IDs.
+			// Moreover, privacy ID 0 contributes "5." to both partitions.
+			// Without cross-partition contribution bounding, privacy ID 0 will contribute to both partitions.
+			// Thus the variance of both partitions are 4, and the sum of them is 8.
+			want: 8.,
+		},
+	} {
+		var triples []testutils.TripleWithFloatValue
+		// id 0 contributes to partition 0 and 1 with value 5.0.
+		// ids [1, 4] each contributes to partition 0 with value 0.0.
+		// ids [5, 8] each contributes to partition 1 with value 0.0.
+		triples = append(triples, testutils.MakeTripleWithFloatValue(1, 0, 5)...)
+		triples = append(triples, testutils.MakeTripleWithFloatValue(1, 1, 5)...)
+		triples = append(triples, testutils.MakeTripleWithFloatValueStartingFromKey(1, 4, 0, 0)...)
+		triples = append(triples, testutils.MakeTripleWithFloatValueStartingFromKey(5, 4, 1, 0)...)
+
+		wantMetric := []testutils.PairIF64{
+			{Key: 0, Value: tc.want},
+		}
+		p, s, col, want := ptest.CreateList2(triples, wantMetric)
+		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
+
+		pcol := pbeam.MakePrivate(s, col, tc.privacySpec)
+		pcol = pbeam.ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
+		got := pbeam.VariancePerKey(s, pcol, pbeam.VarianceParams{
+			MaxPartitionsContributed:     tc.maxPartitionsContributed,
+			MaxContributionsPerPartition: 1,
+			MinValue:                     -5,
+			MaxValue:                     5,
+			NoiseKind:                    pbeam.LaplaceNoise{}})
+		variances := beam.DropKey(s, got)
+		sumOverPartitions := stats.Sum(s, variances)
+		got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
+		want = beam.ParDo(s, testutils.PairIF64ToKV, want)
+		testutils.EqualsKVFloat64(t, s, got, want)
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("VariancePerKey: %s did not do cross-partition contribution bounding correctly: %v", tc.desc, err)
+		}
+	}
+}
+
+// Tests that VariancePerKey bounds per-partition contributions correctly, adds no noise
+// and keeps all partitions in test mode.
+func TestVariancePerKeyTestModePerPartitionContributionBounding(t *testing.T) {
+	for _, tc := range []struct {
+		desc                        string
+		privacySpec                 *pbeam.PrivacySpec
+		maxContributionPerPartition int64
+		minValue                    float64
+		maxValue                    float64
+		want                        float64
+	}{
+		{
+			desc:                        "test mode with contribution bounding",
+			privacySpec:                 privacySpec(t, pbeam.TestModeWithContributionBounding, false),
+			maxContributionPerPartition: 1,
+			minValue:                    -15,
+			maxValue:                    15,
+			// MaxContributionsPerPartition = 1, but id = 0 contributes 3 times to partition 0.
+			// There will be a per-partition contribution bounding stage.
+			// In this stage the algorithm will arbitrarily choose one of these 3 contributions.
+			// The variance should be equal to 15^2/3 - (15/3)^2 = 50
+			// (not 15^2*3/5 - (15*3/5)^2 = 54, if no per-partition contribution bounding is done).
+			want: 50.,
+		},
+		{
+			desc:                        "test mode without contribution bounding",
+			privacySpec:                 privacySpec(t, pbeam.TestModeWithoutContributionBounding, false),
+			maxContributionPerPartition: 1,
+			minValue:                    -15,
+			maxValue:                    15,
+			// There will not be a per-partition contribution bounding stage.
+			// The variance should be equal to 15^2*3/5 - (15*3/5)^2 = 54.
+			want: 54.,
+		},
+	} {
+		var triples []testutils.TripleWithFloatValue
+		// triples{privacy_id, partition_key, value} contains {0,0,15}, {0,0,15}, {0,0,15}, {1,0,0}, {2,0,0}.
+		triples = append(triples, testutils.MakeTripleWithFloatValue(1, 0, 15)...)
+		triples = append(triples, testutils.MakeTripleWithFloatValue(1, 0, 15)...)
+		triples = append(triples, testutils.MakeTripleWithFloatValue(1, 0, 15)...)
+		triples = append(triples, testutils.MakeTripleWithFloatValueStartingFromKey(1, 2, 0, 0)...)
+		wantMetric := []testutils.PairIF64{
+			{Key: 0, Value: tc.want},
+		}
+		p, s, col, want := ptest.CreateList2(triples, wantMetric)
+		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
+
+		pcol := pbeam.MakePrivate(s, col, tc.privacySpec)
+		pcol = pbeam.ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
+		got := pbeam.VariancePerKey(s, pcol, pbeam.VarianceParams{
+			MaxPartitionsContributed:     3,
+			MaxContributionsPerPartition: tc.maxContributionPerPartition,
+			MinValue:                     tc.minValue,
+			MaxValue:                     tc.maxValue,
+			NoiseKind:                    pbeam.LaplaceNoise{}})
+		want = beam.ParDo(s, testutils.PairIF64ToKV, want)
+		tolerance := 1e-10 // Using a small tolerance to make up for the rounding errors due to summation & division.
+		testutils.ApproxEqualsKVFloat64(t, s, got, want, tolerance)
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("VariancePerKey: %s did not do per-partition contribution bounding correctly: %v", tc.desc, err)
+		}
+	}
+}
+
+// Tests that VariancePerKey with public partitions bounds cross-partition contributions correctly,
+// adds no noise and respects public partitions (keeps only public partitions) in test mode.
+func TestVariancePerKeyWithPartitionsTestModeCrossPartitionContributionBounding(t *testing.T) {
+	for _, tc := range []struct {
+		desc                     string
+		privacySpec              *pbeam.PrivacySpec
+		maxPartitionsContributed int64
+		want                     float64
+	}{
+		{
+			desc:                     "test mode with contribution bounding",
+			privacySpec:              privacySpec(t, pbeam.TestModeWithContributionBounding, true),
+			maxPartitionsContributed: 1,
+			// The input data are {0,0,3}, {0,1,3}, {1,0,-3}, {2,1,-3}, {3,2,3}, {4,2,-3}.
+			//
+			// Privacy ID 3 and 4 contribute to partition 2 which is not in public partition,
+			// so they will be dropped.
+			//
+			// With a max contribution of 1, privacy ID 0 will only contribute to one partition.
+			// Therefore, the expected result (partition to variance) is either {0: 9, 1: 0} or {0: 0, 1: 9}.
+			// The sum of the variances is then 9.
+			want: 9.,
+		},
+		{
+			desc:                     "test mode without contribution bounding",
+			privacySpec:              privacySpec(t, pbeam.TestModeWithoutContributionBounding, true),
+			maxPartitionsContributed: 1,
+			// Privacy ID 3 and 4 contribute to partition 2 which is not in public partition,
+			// so they will be dropped.
+			//
+			// Without cross-partition contribution bounding, the expected result (partition to variance)
+			// is {0: 9, 1: 9}.
+			// The sum of the variances is then 18.
+			want: 18.,
+		},
+	} {
+		// triples{privacy_id, partition_key, value} contains
+		// {0,0,3},{0,1,3},{1,0,-3},{2,1,-3},{3,2,3},{4,2,-3}.
+		triples := []testutils.TripleWithFloatValue{
+			{ID: 0, Partition: 0, Value: 3},
+			{ID: 0, Partition: 1, Value: 3},
+			{ID: 1, Partition: 0, Value: -3},
+			{ID: 2, Partition: 1, Value: -3},
+			{ID: 3, Partition: 2, Value: 3},
+			{ID: 4, Partition: 2, Value: -3},
+		}
+		wantMetric := []testutils.PairIF64{
+			{Key: 0, Value: tc.want},
+		}
+		p, s, col, want := ptest.CreateList2(triples, wantMetric)
+		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
+		partitions := []int{0, 1}
+		publicPartitions := beam.CreateList(s, partitions)
+
+		pcol := pbeam.MakePrivate(s, col, tc.privacySpec)
+		pcol = pbeam.ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
+		got := pbeam.VariancePerKey(s, pcol, pbeam.VarianceParams{
+			MaxPartitionsContributed:     tc.maxPartitionsContributed,
+			MaxContributionsPerPartition: 1,
+			MinValue:                     -3,
+			MaxValue:                     3,
+			NoiseKind:                    pbeam.LaplaceNoise{},
+			PublicPartitions:             publicPartitions})
+		variances := beam.DropKey(s, got)
+		sumOverPartitions := stats.Sum(s, variances)
+		got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
+		want = beam.ParDo(s, testutils.PairIF64ToKV, want)
+		testutils.EqualsKVFloat64(t, s, got, want)
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("VariancePerKey: %s with partitions did not do cross-partition contribution bounding correctly: %v", tc.desc, err)
+		}
+	}
+}
+
+// Tests that VariancePerKey with public partitions bounds per-partition contributions correctly,
+// adds no noise and respects public partitions (keeps public partitions and adds empty
+// partitions) in test mode.
+func TestVariancePerKeyWithPartitionsTestModePerPartitionContributionBoundingAddsEmptyPartitions(t *testing.T) {
+	for _, tc := range []struct {
+		desc                        string
+		privacySpec                 *pbeam.PrivacySpec
+		maxContributionPerPartition int64
+		minValue                    float64
+		maxValue                    float64
+		want                        float64
+	}{
+		{
+			desc:                        "test mode with contribution bounding",
+			privacySpec:                 privacySpec(t, pbeam.TestModeWithContributionBounding, true),
+			maxContributionPerPartition: 1,
+			minValue:                    -15,
+			maxValue:                    15,
+			// MaxContributionsPerPartition = 1, but id = 0 contributes 3 times to partition 0.
+			// There will be a per-partition contribution bounding stage.
+			// In this stage the algorithm will arbitrarily choose one of these 3 contributions.
+			// The variance should be equal to 15^2/3 - (15/3)^2 = 50
+			// (not 15^2 *3/5 - (15*3/5)^2 = 54, if no per-partition contribution bounding is done).
+			want: 50,
+		},
+		{
+			desc:                        "test mode without contribution bounding",
+			privacySpec:                 privacySpec(t, pbeam.TestModeWithoutContributionBounding, true),
+			maxContributionPerPartition: 1,
+			minValue:                    -15,
+			maxValue:                    15,
+			// There will not be a per-partition contribution bounding stage.
+			// The variance should be equal to 15^2*3/5 - (15*3/5)^2 = 54.
+			want: 54,
+		},
+	} {
+		var triples []testutils.TripleWithFloatValue
+		// triples{privacy_id, partition_key, value} contains {0,0,15}, {0,0,15}, {0,0,15}, {1,0,0}, {2,0,0}.
+		triples = append(triples, testutils.MakeTripleWithFloatValue(1, 0, 15)...)
+		triples = append(triples, testutils.MakeTripleWithFloatValue(1, 0, 15)...)
+		triples = append(triples, testutils.MakeTripleWithFloatValue(1, 0, 15)...)
+		triples = append(triples, testutils.MakeTripleWithFloatValueStartingFromKey(1, 2, 0, 0)...)
+
+		wantMetric := []testutils.PairIF64{
+			{Key: 0, Value: tc.want},
+			{Key: 1, Value: 0}, // Empty partition (output is 0).
+		}
+		p, s, col, want := ptest.CreateList2(triples, wantMetric)
+		col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
+		partitions := []int{0, 1}
+		publicPartitions := beam.CreateList(s, partitions)
+
+		pcol := pbeam.MakePrivate(s, col, tc.privacySpec)
+		pcol = pbeam.ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
+		got := pbeam.VariancePerKey(s, pcol, pbeam.VarianceParams{
+			MaxPartitionsContributed:     1,
+			MaxContributionsPerPartition: tc.maxContributionPerPartition,
+			MinValue:                     tc.minValue,
+			MaxValue:                     tc.maxValue,
+			NoiseKind:                    pbeam.LaplaceNoise{},
+			PublicPartitions:             publicPartitions})
+		want = beam.ParDo(s, testutils.PairIF64ToKV, want)
+		tolerance := 1e-10 // Using a small tolerance to make up for the rounding errors due to summation & division.
+		testutils.ApproxEqualsKVFloat64(t, s, got, want, tolerance)
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("VariancePerKey: %s with partitions did not do per-partition contribution bounding correctly or added empty partitions: %v", tc.desc, err)
+		}
+	}
+}
+
 // Tests that QuantilesPerKey bounds cross-partitions contributions correctly, adds no
 // noise and keeps all partitions in test mode.
 func TestQuantilesPerKeyTestModeCrossPartitionContributionBounding(t *testing.T) {

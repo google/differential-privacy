@@ -74,7 +74,8 @@ class VarianceCombinerTest {
         NoiseFactory(),
       )
 
-    val accumulator = combiner.createAccumulator(privacyIdContributions { values += listOf(5.5) })
+    val accumulator =
+      combiner.createAccumulator(privacyIdContributions { singleValueContributions += listOf(5.5) })
     // midValue is the midpoint between minValue = -8.0 and maxValue = 12.0 = 2
     assertThat(accumulator)
       .isEqualTo(
@@ -87,7 +88,7 @@ class VarianceCombinerTest {
   }
 
   @Test
-  fun createAccumulator_privacyLevelWithContributionBounding_clampsValues() {
+  fun createAccumulator_privacyLevelWithContributionBounding_clampssingleValueContributions() {
     val combiner =
       VarianceCombiner(
         AGG_PARAMS.copy(minValue = -10.0, maxValue = 10.0),
@@ -98,7 +99,9 @@ class VarianceCombinerTest {
       )
 
     val accumulator =
-      combiner.createAccumulator(privacyIdContributions { values += listOf(-20.0, 30.0) })
+      combiner.createAccumulator(
+        privacyIdContributions { singleValueContributions += listOf(-20.0, 30.0) }
+      )
     // midValue is the midpoint between minValue = -10.0 and maxValue = 10.0 = 0
     assertThat(accumulator)
       .isEqualTo(
@@ -112,7 +115,7 @@ class VarianceCombinerTest {
   }
 
   @Test
-  fun createAccumulator_fullTestMode_doesNotClampValues() {
+  fun createAccumulator_fullTestMode_doesNotClampSingleValueContributions() {
     val combiner =
       VarianceCombiner(
         AGG_PARAMS.copy(minValue = -10.0, maxValue = 10.0, executionMode = FULL_TEST_MODE),
@@ -123,7 +126,9 @@ class VarianceCombinerTest {
       )
 
     val accumulator =
-      combiner.createAccumulator(privacyIdContributions { values += listOf(-20.0, 30.0) })
+      combiner.createAccumulator(
+        privacyIdContributions { singleValueContributions += listOf(-20.0, 30.0) }
+      )
     // midValue is the midpoint between minValue = -10.0 and maxValue = 10.0 = 0
     assertThat(accumulator)
       .isEqualTo(
@@ -146,7 +151,8 @@ class VarianceCombinerTest {
         NoiseFactory(),
       )
 
-    val accumulator = combiner.createAccumulator(privacyIdContributions { values += listOf(6.0) })
+    val accumulator =
+      combiner.createAccumulator(privacyIdContributions { singleValueContributions += listOf(6.0) })
 
     assertThat(accumulator)
       .isEqualTo(
@@ -169,7 +175,10 @@ class VarianceCombinerTest {
         NoiseFactory(),
       )
 
-    val accumulator = combiner.createAccumulator(privacyIdContributions { values += listOf(30.0) })
+    val accumulator =
+      combiner.createAccumulator(
+        privacyIdContributions { singleValueContributions += listOf(30.0) }
+      )
 
     assertThat(accumulator)
       .isEqualTo(
@@ -194,20 +203,22 @@ class VarianceCombinerTest {
 
     // Create list with one value that is clamped to min value.
     val accumulator =
-      combiner.createAccumulator(privacyIdContributions { values += listOf(3.0, 5.5, 6.0) })
+      combiner.createAccumulator(
+        privacyIdContributions { singleValueContributions += listOf(3.0, 5.5, 6.0) }
+      )
 
     assertThat(accumulator)
       .isEqualTo(
         varianceAccumulator {
           count = 3
-          normalizedSum = -5.5 // = sum of normalized values = -3 - 1.5 - 1
+          normalizedSum = -5.5 // = sum of normalized singleValueContributions = -3 - 1.5 - 1
           normalizedSumSquares = 12.25 // sum of each normalized value squared
         }
       )
   }
 
   @Test
-  fun mergeAccumulator_sumsValuesInMergedAccumulators() {
+  fun mergeAccumulator_sumssingleValueContributionsInMergedAccumulators() {
     val combiner =
       VarianceCombiner(
         AGG_PARAMS,
@@ -454,9 +465,13 @@ class VarianceCombinerTest {
 
     val accumulator0 = combiner.emptyAccumulator()
     val accumulator1 =
-      combiner.createAccumulator(privacyIdContributions { values += listOf(10.0, -10.0) })
-    val accumulator2 = combiner.createAccumulator(privacyIdContributions { values += listOf(9.0) })
-    val accumulator3 = combiner.createAccumulator(privacyIdContributions { values += listOf(0.0) })
+      combiner.createAccumulator(
+        privacyIdContributions { singleValueContributions += listOf(10.0, -10.0) }
+      )
+    val accumulator2 =
+      combiner.createAccumulator(privacyIdContributions { singleValueContributions += listOf(9.0) })
+    val accumulator3 =
+      combiner.createAccumulator(privacyIdContributions { singleValueContributions += listOf(0.0) })
     val accumulator01 = combiner.mergeAccumulators(accumulator0, accumulator1)
     val accumulator23 = combiner.mergeAccumulators(accumulator2, accumulator3)
     val finalAccumulator = combiner.mergeAccumulators(accumulator01, accumulator23)

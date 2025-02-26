@@ -24,6 +24,13 @@ import (
 	"github.com/google/differential-privacy/go/v3/noise"
 	"github.com/google/differential-privacy/go/v3/rand"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+)
+
+var (
+	diffBoundedVarianceResultOpts []cmp.Option = []cmp.Option{
+		cmpopts.EquateApprox(0, tenten), // float comparison margin = 1e-10
+	}
 )
 
 func TestNewBoundedVariance(t *testing.T) {
@@ -189,14 +196,17 @@ func TestNewBoundedVariance(t *testing.T) {
 func TestBVNoInput(t *testing.T) {
 	lower, upper := -1.0, 5.0
 	bv := getNoiselessBV(t, lower, upper)
-	got, err := bv.Result()
+	got, err := bv.ResultWithCountAndMean()
 	if err != nil {
-		t.Fatalf("Couldn't compute dp result: %v", err)
+		t.Fatalf("Couldn't compare dp result: %v", err)
 	}
-	// count = 0 => variance should be 0.0
-	want := 0.0
-	if !ApproxEqual(got, want) {
-		t.Errorf("BoundedVariance: when there is no input data got=%f, want=%f", got, want)
+	want := BoundedVarianceResult{
+		Count:    0,
+		Mean:     (lower + upper) / 2, // midPoint
+		Variance: 0,
+	}
+	if diff := cmp.Diff(want, got, diffBoundedVarianceResultOpts...); diff != "" {
+		t.Errorf("BoundedVariance: when there is no input data (-want +got):\n%s", diff)
 	}
 }
 
@@ -207,13 +217,13 @@ func TestBVAdd(t *testing.T) {
 	bv.Add(2.5)
 	bv.Add(3.5)
 	bv.Add(4.5)
-	got, err := bv.Result()
+	got, err := bv.ResultWithCountAndMean()
 	if err != nil {
 		t.Fatalf("Couldn't compute dp result: %v", err)
 	}
-	want := 1.25
-	if !ApproxEqual(got, want) {
-		t.Errorf("Add: when dataset with elements inside boundaries got %f, want %f", got, want)
+	want := BoundedVarianceResult{Count: 4, Mean: 3, Variance: 1.25}
+	if diff := cmp.Diff(want, got, diffBoundedVarianceResultOpts...); diff != "" {
+		t.Errorf("Add: when dataset with elements inside boundaries (-want +got):\n%s", diff)
 	}
 }
 
@@ -223,13 +233,13 @@ func TestBVAddIgnoresNaN(t *testing.T) {
 	bv.Add(1)
 	bv.Add(math.NaN())
 	bv.Add(3)
-	got, err := bv.Result()
+	got, err := bv.ResultWithCountAndMean()
 	if err != nil {
 		t.Fatalf("Couldn't compute dp result: %v", err)
 	}
-	want := 1.0
-	if !ApproxEqual(got, want) {
-		t.Errorf("Add: when dataset contains NaN got %f, want %f", got, want)
+	want := BoundedVarianceResult{Count: 2, Mean: 2, Variance: 1}
+	if diff := cmp.Diff(want, got, diffBoundedVarianceResultOpts...); diff != "" {
+		t.Errorf("Add: when dataset contains NaN (-want +got):\n%s", diff)
 	}
 }
 
@@ -238,13 +248,13 @@ func TestBVReturns0IfSingleEntryIsAdded(t *testing.T) {
 	bv := getNoiselessBV(t, lower, upper)
 
 	bv.Add(1.2345)
-	got, err := bv.Result()
+	got, err := bv.ResultWithCountAndMean()
 	if err != nil {
 		t.Fatalf("Couldn't compute dp result: %v", err)
 	}
-	want := 0.0 // single entry means 0 variance
-	if !ApproxEqual(got, want) {
-		t.Errorf("BoundedVariance: when dataset contains single entry got %f, want %f", got, want)
+	want := BoundedVarianceResult{Count: 1, Mean: 1.2345, Variance: 0}
+	if diff := cmp.Diff(want, got, diffBoundedVarianceResultOpts...); diff != "" {
+		t.Errorf("BoundedVariance: when dataset contains single entry (-want +got):\n%s", diff)
 	}
 }
 
@@ -255,20 +265,20 @@ func TestBVClamp(t *testing.T) {
 	bv.Add(1.0) // clamped to 2.0
 	bv.Add(3.5)
 	bv.Add(7.5) // clamped to 5.0
-	got, err := bv.Result()
+	got, err := bv.ResultWithCountAndMean()
 	if err != nil {
 		t.Fatalf("Couldn't compute dp result: %v", err)
 	}
-	want := 1.5
-	if !ApproxEqual(got, want) {
-		t.Errorf("Add: when dataset with elements outside boundaries got %f, want %f", got, want)
+	want := BoundedVarianceResult{Count: 3, Mean: 3.5, Variance: 1.5}
+	if diff := cmp.Diff(want, got, diffBoundedVarianceResultOpts...); diff != "" {
+		t.Errorf("Add: when dataset with elements outside boundaries (-want +got):\n%s", diff)
 	}
 }
 
 func TestBoundedVarianceResultSetsStateCorrectly(t *testing.T) {
 	lower, upper := -1.0, 5.0
 	bv := getNoiselessBV(t, lower, upper)
-	_, err := bv.Result()
+	_, err := bv.ResultWithCountAndMean()
 	if err != nil {
 		t.Fatalf("Couldn't compute dp result: %v", err)
 	}
@@ -282,11 +292,10 @@ func TestBVNoiseIsCorrectlyCalled(t *testing.T) {
 	bv := getMockBV(t)
 	bv.Add(1)
 	bv.Add(2)
-	got, _ := bv.Result() // will fail if parameters are wrong. See mockBVNoise implementation for details.
-	want := 0.25
-
-	if !ApproxEqual(got, want) {
-		t.Errorf("Add: when dataset = {1, 2} got %f, want %f", got, want)
+	got, _ := bv.ResultWithCountAndMean() // will fail if parameters are wrong. See mockBVNoise implementation for details.
+	want := BoundedVarianceResult{Count: 2, Mean: 1.5, Variance: 0.25}
+	if diff := cmp.Diff(want, got, diffBoundedVarianceResultOpts...); diff != "" {
+		t.Errorf("Add: when dataset = {1, 2} (-want +got):\n%s", diff)
 	}
 }
 
@@ -396,16 +405,32 @@ func TestBVReturnsResultInsidePossibleBoundaries(t *testing.T) {
 		bv.Add(rand.Uniform() * 300 * rand.Sign())
 	}
 
-	res, err := bv.Result()
+	res, err := bv.ResultWithCountAndMean()
 	if err != nil {
 		t.Fatalf("Couldn't compute dp result: %v", err)
 	}
-	if res < 0 {
-		t.Errorf("BoundedVariance: variance can't be smaller than 0, got variance %f, want to be >= %f", res, 0.0)
+
+	// Check count is in range.
+	if res.Count < 0 {
+		t.Errorf("BoundedVariance: count can't be smaller than 0, "+
+			"got count %f, want to be >= %f", res.Count, 0.0)
 	}
 
-	if res > computeMaxVariance(lower, upper) {
-		t.Errorf("BoundedVariance: variance can't be larger than max variance, got %f, want to be <= %f", res, computeMaxVariance(lower, upper))
+	// Check mean is in range.
+	if res.Mean < lower || res.Mean > upper {
+		t.Errorf("BoundedVariance: mean can't be outside of the bounds, "+
+			"got mean %f, want to be in [%f, %f]", res.Mean, lower, upper)
+	}
+
+	// Check variance is in range.
+	if res.Variance < 0 {
+		t.Errorf("BoundedVariance: variance can't be smaller than 0, "+
+			"got variance %f, want to be >= %f", res.Variance, 0.0)
+	}
+	maxVariance := computeMaxVariance(lower, upper)
+	if res.Variance > maxVariance {
+		t.Errorf("BoundedVariance: variance can't be larger than max variance, "+
+			"got %f, want to be <= %f", res.Variance, maxVariance)
 	}
 }
 
@@ -421,13 +446,15 @@ func TestMergeBoundedVariance(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't merge bv1 and bv2: %v", err)
 	}
-	got, err := bv1.Result()
+	got, err := bv1.ResultWithCountAndMean()
 	if err != nil {
 		t.Fatalf("Couldn't compute dp result: %v", err)
 	}
-	want := 1.0 // Would be 0.0 if merge didn't work.
-	if !ApproxEqual(got, want) {
-		t.Errorf("Merge: when merging 2 instances of BoundedVariance got %f, want %f", got, want)
+
+	// Variance would be 0 if merge didn't work.
+	want := BoundedVarianceResult{Count: 4, Mean: 2, Variance: 1}
+	if diff := cmp.Diff(want, got, diffBoundedVarianceResultOpts...); diff != "" {
+		t.Errorf("Merge: when merging 2 instances of BoundedVariance (-want +got):\n%s", diff)
 	}
 	if bv2.state != merged {
 		t.Errorf("Merge: when merging 2 instances of BoundedVariance for bv2.state got %v, want Merged", bv2.state)

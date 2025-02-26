@@ -23,6 +23,7 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.PRIVA
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.QUANTILES
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.SUM
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.VARIANCE
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.VECTOR_SUM
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.NoiseKind.GAUSSIAN
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.NoiseKind.LAPLACE
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.AccountedMechanism.GAUSSIAN_NOISE
@@ -294,6 +295,9 @@ internal constructor(
               } else {
                 null
               }
+            }
+            VECTOR_SUM -> {
+              VectorSumCombiner(params, getBudgetForMetric(metric, params), noiseFactory)
             }
             MEAN -> {
               if (!varianceInMetrics) {

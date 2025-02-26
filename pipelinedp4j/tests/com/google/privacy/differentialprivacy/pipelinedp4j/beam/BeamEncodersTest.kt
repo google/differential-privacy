@@ -134,6 +134,18 @@ class BeamEncodersTest {
   }
 
   @Test
+  fun lists_isPossibleToCreateBeamPCollectionOfThatType() {
+    val input = listOf(listOf("pid1", "pid1"), listOf("pid1", "pid2"))
+    val inputCoder = beamEncoderFactory.lists(beamEncoderFactory.strings()).coder
+
+    val pCollection = testPipeline.apply(Create.of(input).withCoder(inputCoder))
+
+    PAssert.that(pCollection).containsInAnyOrder(input)
+
+    testPipeline.run().waitUntilFinish()
+  }
+
+  @Test
   fun contributionWithPrivacyIdOf_isPossibleToCreateBeamPCollectionOfThatType() {
     val input =
       listOf(

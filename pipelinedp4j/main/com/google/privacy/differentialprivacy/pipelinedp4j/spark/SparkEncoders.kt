@@ -53,7 +53,14 @@ class SparkEncoderFactory : EncoderFactory {
     first: Encoder<T1>,
     second: Encoder<T2>,
   ): SparkEncoder<Pair<T1, T2>> {
+    @Suppress("UNCHECKED_CAST")
     val pairEncoder = Encoders.kryo(Pair::class.java) as org.apache.spark.sql.Encoder<Pair<T1, T2>>
     return SparkEncoder(pairEncoder)
+  }
+
+  override fun <T : Any> lists(unusedElementEncoder: Encoder<T>): SparkEncoder<List<T>> {
+    @Suppress("UNCHECKED_CAST")
+    val listEncoder = Encoders.kryo(List::class.java) as org.apache.spark.sql.Encoder<List<T>>
+    return SparkEncoder(listEncoder)
   }
 }

@@ -27,8 +27,8 @@ message DpAggregates {
   double privacy_id_count = 3;
   double count = 1;
   double sum = 2;
+  repeated double vector_sum = 7;
   double mean = 4;
-
   // Sorted by rank.
   repeated double quantiles = 5;
   double variance = 6;
@@ -36,5 +36,14 @@ message DpAggregates {
 
 // Contribution that belong to the same privacy ID and partition key.
 message PrivacyIdContributions {
-  repeated double values = 1;
+  message MultiValueContribution {
+    repeated double values = 1;
+  }
+
+  // Used for metrics like VECTOR_SUM where a single contribution has
+  // multiple double values.
+  repeated MultiValueContribution multi_value_contributions = 1;
+  // Used for metrics like SUM where a single contribution has
+  // a single double value.
+  repeated double single_value_contributions = 2;
 }

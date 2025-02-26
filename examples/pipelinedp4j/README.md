@@ -7,7 +7,8 @@ Next, explore the following options for building and running the example:
 
 *   [Using Bazel with the library source files](#running-using-bazel-and-library-sources)
 *   [Using Maven with the library loaded from Maven repository as dependency](#running-using-maven)
-*   [Using Maven on Google Cloud Platform (GCP)](#running-on-google-cloud-platform)
+*   [Using Dataflow (Beam) on Google Cloud Platform (GCP)](#running-on-dataflow-beam)
+*   [Using Dataproc (Spark) on Google Cloud Platform (GCP)](#running-on-dataproc-spark)
 
 Finally, delve into the [code walkthrough](#code-walkthrough) for a
 comprehensive understanding of how PipelineDP4j was employed to solve the task.
@@ -23,11 +24,11 @@ The example code expects a CSV file in the following format: `movie_id`,
 
 Using this data, we want to compute the following statistics:
 
-*   Number of views of a certain movie (`count` metric)
 *   Number of users who watched a certain movie (`privacy_id_count` metric)
+*   Number of views of a certain movie (`count` metric)
 *   Average rating of a certain movie (`mean` metric)
 
-If you used a DataFrame API then the output is a CSV file in the following format:
+For column-based DataFrame API the output is a CSV file in the following format:
 
 ```
 movieId, numberOfViewers, numberOfViews, averageOfRatings
@@ -36,7 +37,7 @@ value, value, value, value
 ...
 ```
 
-If you used a row-based API then the output will be in the following format:
+For row-based API then the output will be in the following format:
 
 ```
 movieId=<value>, numberOfViewers=<value>, numberOfViews=<value>, averageOfRatings=<value>
@@ -75,6 +76,8 @@ Before we run the example, we need to prepare the input dataset.
     cp path/to/netflix_data.csv netflix_data.csv
     ```
 
+    If you want to run on GCP, then you will need to copy it to your bucket.
+
 ### Running using Bazel and library sources
 
 To build and run this way you need the source files of the library. It means you
@@ -89,30 +92,29 @@ on how to install it.
 
 `pom.xml` file is not necessary for this build. We need it to build with Maven.
 
-Here's are the steps to build and run the example assuming you are in the
+Here are the steps to build and run the example assuming you are in the
 `examples/pipelinedp4j` directory:
 
-1.  Build the program:
+1.  Build the code:
 
     ```shell
     bazelisk build ...
     ```
 
-1.  Run the program (change `BeamExample` to `SparkExample` or `SparkDatasetExample` if you need):
+1.  Run the program (if you want to run Spark example, change `beam` to `spark`,
+    `BeamExample` to `SparkExample` or `SparkDatasetExample` and
+    `--outputFilePath=output.txt` to `--outputFolder=output`):
 
     ```shell
-    bazel-bin/src/main/java/com/google/privacy/differentialprivacy/pipelinedp4j/examples/BeamExample --inputFilePath=netflix_data.csv --outputFilePath=output.txt
+    bazel-bin/beam/src/main/java/com/google/privacy/differentialprivacy/pipelinedp4j/examples/BeamExample --inputFilePath=netflix_data.csv --outputFilePath=output.txt
     ```
 
-    If you run examples on Apache Spark then `outputFilePath` should be changed
-    to `outputFolder` and will be a directory where output is written to.
-    The result will be stored in a file whose name starts with `part-00000`.
+1.  View the results.
 
-1.  View the results:
+    For Beam: `cat output.txt`
 
-    ```shell
-    cat output.txt
-    ```
+    For Spark the output is written to a folder and the result is stored in a
+    file whose name starts with `part-00000`: `cat output/part-00000<...>`
 
 ### Running using Maven
 
@@ -128,30 +130,42 @@ install maven`, respectively. While any Maven version should work, refer to
 [this documentation](https://www.baeldung.com/install-maven-on-windows-linux-mac)
 for specific version requirements or Windows installation instructions.
 
-Once Maven is installed, navigate to the `examples/pipelinedp4j` directory and
-execute the following command:
+Also, make sure that Maven uses Java <= 11: `mvn -v`. If not, install JDK <= 11
+and update the `JAVA_HOME` accordingly. Otherwise you might have runtime errors
+when running Spark example.
+
+Once Maven is installed, navigate to the directory of a backend you want to use:
+
+*   `examples/pipelinedp4j/beam` for Beam
+
+*   `examples/pipelinedp4j/spark` for Spark
+
+Then execute the following command with updated `inputFilePath` (if you want to
+run on Spark, change `BeamExample` to `SparkExample` or `SparkDatasetExample`
+and `--outputFilePath=output.txt` to `--outputFolder=output`):
 
 ```shell
-mvn compile exec:java -Dexec.mainClass=com.google.privacy.differentialprivacy.pipelinedp4j.examples.BeamExample -Dexec.args="--inputFilePath=netflix_data.csv --outputFilePath=output.txt"
+mvn compile exec:java -Dexec.mainClass=com.google.privacy.differentialprivacy.pipelinedp4j.examples.BeamExample -Dexec.args="--inputFilePath=<absolute_paht_to>/netflix_data.csv --outputFilePath=output.txt"
 ```
 
-This command compiles the code and runs the `BeamExample` class with specified
-input and output file paths.
+This command compiles the code and runs the example with specified input and
+output file paths.
 
-To view the results, simply run:
+View the results.
 
-```shell
-cat output.txt
-```
+For Beam `cat output.txt` For Spark the output is written to a folder and the
+result is stored in a file whose name starts with `part-00000`: `cat
+output/part-00000<...>`
 
-#### Running on Google Cloud Platform
+### Running on Google Cloud Platform
 
-This section explains how to run the Maven-built example on Google Cloud
-Platform (GCP).
+This section explains the examples on Google Cloud Platform (GCP).
+
+#### Running on Dataflow (Beam)
 
 If you already have a Beam pipeline on GCP and want to make it differentially
 private, simply update your `pom.xml` file (refer to the "PipelineDP4j
-dependencies" section in the example `pom.xml` file):
+dependencies" section in the root `pom.xml` file):
 
 1.  Add a dependency on PipelineDP4j.
 
@@ -165,22 +179,17 @@ For those new to running Beam pipelines on GCP, follow these steps:
 1.  Familiarize yourself with the
     [official example](https://cloud.google.com/dataflow/docs/quickstarts/create-pipeline-java).
 
-1.  Prepare the input file:
-
-    *   Create an `inputs` directory in your Cloud Storage bucket.
-    *   Upload `netflix_data.csv` to this directory.
-
 1.  Upload the `examples/pipelinedp4j` folder to your project using Cloud Shell
-    (click ":" -> "Upload"). You can upload it fully but you only need `pom.xml`
-    file and `src` folder.
+    (click ":" -> "Upload").
 
-1.  Navigate to the uploaded directory in Cloud Shell:
+1.  Navigate to the uploaded directory in Cloud Shell and build the example:
 
     ```shell
-    cd pipelinedp4j
+    cd pipelinedp4j && mvn clean install
     ```
 
-1.  Modify the mvn command from the official example:
+1.  Go to `beam` folder and then run the modified mvn command from the official
+    example:
 
     *   Add `inputFilePath` and `outputFilePath` arguments.
     *   Remove the `output` argument.
@@ -191,18 +200,43 @@ For those new to running Beam pipelines on GCP, follow these steps:
     `<project_name>` and `<bucket_name>`):
 
     ```shell
-    mvn -Pdataflow-runner compile exec:java -Dexec.mainClass=com.google.privacy.differentialprivacy.pipelinedp4j.examples.BeamExample -Dexec.args="--project=<project_name> --gcpTempLocation=gs://<bucket_name>/temp/ --inputFilePath=gs://<bucket_name>/inputs/netflix_data.csv --outputFilePath=gs://<bucket_name>/results/output.txt --runner=DataflowRunner --region=us-central1" -Pdataflow-runner
+    cd beam && mvn -Pdataflow-runner compile exec:java -Dexec.mainClass=com.google.privacy.differentialprivacy.pipelinedp4j.examples.BeamExample -Dexec.args="--project=<project_name> --gcpTempLocation=gs://<bucket_name>/temp/ --inputFilePath=gs://<bucket_name>/netflix_data.csv --outputFilePath=gs://<bucket_name>/output.txt --runner=DataflowRunner --region=us-central1" -Pdataflow-runner
     ```
 
 Running this command schedules the execution on GCP. You can then inspect the
 job and its results as described in the official example.
 
+#### Running on Dataproc (Spark)
+
+In the guide below if you want to use SparkDataFrameExample, just replace all
+occurences of SparkExample with SparkDataFrameExample.
+
+If you already have a Spark pipeline then just add a PipelineDP4j dependency in
+your Maven build, the same way as it described for Beam above.
+
+If you are new to Spark on GCP, then go through the
+[official Spark on GCP documentation](https://cloud.google.com/dataproc-serverless/docs/quickstarts/spark-batch)
+to ensure your environment is correctly set up. Then do the following.
+
+1.  Upload the example sources as in the Beam instructions above.
+
+1.  Build a deploy jar (also called Uber jar):
+
+    ```shell
+    mvn clean install && cd spark && mvn package assembly:single
+    ```
+
+1.  Submit the Spark job:
+
+    ```shell
+    gcloud dataproc batches submit spark --region=us-central1 --jars=./target/spark-1.0-SNAPSHOT-jar-with-dependencies.jar --class=com.google.privacy.differentialprivacy.pipelinedp4j.examples.SparkExample --deps-bucket=gs://<bucket_name> -- --inputFilePath=gs://<bucket_name>/netflix_data.csv --outputFolder=gs://<bucket_name>/output
+    ```
+
+After finish you can inspect the result on GCP bucket.
+
 ## Code walkthrough
 
 Let's deep into details how code for computing DP statistics is organized.
-
-Warning: this API is experimental and will change in 2025 without backward
-compatibility. The new version API released in 2024 will be long-term supported.
 
 ### Key definitions:
 
@@ -245,12 +279,13 @@ compatibility. The new version API released in 2024 will be long-term supported.
 
 ### Reading and pre-processing data
 
-We need to read and preprocess data to `PCollection`, such that we can extract
-from records Privacy Id, Group Key and Values to aggregate. In the example that
-is encapsulated in the `readData` function.
+We need to read and preprocess data to a distributed collection (e.g.
+`PCollection` in Beam or `Dataset` in Spark), such that we can extract from
+records Privacy Id, Group Key and Values to aggregate. In the example that is
+encapsulated in the `readData` function.
 
 ```java
-PCollection<MovieView> data = readData(pipeline);
+Dataset<MovieView> data = readData(spark);
 ```
 
 ### Create DP query
@@ -258,56 +293,77 @@ PCollection<MovieView> data = readData(pipeline);
 By creating DP query, we specify what DP operation on what data should be
 computed.
 
-In PipelineDP4j semantics of data is specified with data_extractors, functions
-that take single dataset record and return corresponding object. There are 3
-types of extractors: privacyIdExtractor, groupKeyExtractor, valueExtractor.
+In PipelineDP4j there are two ways to represent the data. Column-based and
+row-based. Column-based are the APIs that expect dataframes as input and you
+specify data semantics via column names. Row-based are the APIs that expect
+distributed collections as input and you specify data semantics via
+data_extractors - functions that take single dataset record (row) and return
+corresponding object. There are 3 types of extractors: privacyIdExtractor,
+groupKeyExtractor, valueExtractor. In the column-based API instead of extactors
+you have to provide list of column names.
 
 ```java
+var groupsType =
+    usePublicGroups
+        ? GroupsType.PublicGroups.create(publiclyKnownMovieIds(spark))
+        : new GroupsType.PrivateGroups();
 var query =
-    QueryBuilder.from(data, /* privacyIdExtractor= */ new UserIdExtractor())
-        .groupBy(
-            /* groupKeyExtractor= */ new MovieIdExtractor(),
-            /* maxGroupsContributed= */ 3,
-            /* maxContributionsPerGroup= */ 1,
-            usePublicGroups ? publiclyKnownMovieIds(pipeline) : null)
-        .countDistinctPrivacyUnits("numberOfViewers")
+    SparkQueryBuilder.from(
+            data,
+            /* privacyUnitExtractor= */ MovieView::getUserId,
+            new ContributionBoundingLevel.DATASET_LEVEL(
+                /* maxGroupsContributed= */ 3, /* maxContributionsPerGroup= */ 1))
+        .groupBy(/* groupKeyExtractor= */ MovieView::getMovieId, groupsType)
+        .countDistinctPrivacyUnits(/* outputColumnName= */ "numberOfViewers")
         .count(/* outputColumnName= */ "numberOfViews")
-        .mean(
-            new RatingExtractor(),
-            /* minValue= */ 1.0,
-            /* maxValue= */ 5.0,
-            /* outputColumnName= */ "averageOfRatings",
-            /* budget= */ null)
-        .build();
+        .aggregateValue(
+            /* valueExtractor= */ new RatingExtractor(),
+            /* valueAggregations= */ new ValueAggregationsBuilder()
+                .mean(/* outputColumnName= */ "averageOfRatings"),
+            /* contributionBounds= */ new ContributionBounds(
+                /* totalValueBounds= */ null,
+                /* valueBounds= */ new Bounds(/* minValue= */ 1.0, /* maxValue= */ 5.0)))
+        .build(new TotalBudget(/* epsilon= */ 1.1, /* delta= */ 1e-10), NoiseKind.LAPLACE);
 ```
 
 Building of query is similar to writing SQL query. It consists:
 
-1.  Create `QueryBuilder` from data and privacyIdExtractor.
+1.  Create `SparkQueryBuilder` from data and privacyUnitExtractor, indicating on
+    what level contributions from a privacy unit should be bounded (see KDoc for
+    detailed description of available levels). There are also other builders:
+    `BeamQueryBuilder`, `SparkDataFrameQueryBuilder` and `LocalQueryBuilder`.
+    For `SparkDataFrameQueryBuilder` you have to specify column names instead of
+    the extractor.
 
-1.  Call `groupBy`: specify group by key, setting contribution bounding
-    parameters and setting public groups if any. If no public group are
-    specified, groups will be determined with the DP group selection procedure.
+1.  Call `groupBy`: specify keys to group by via groupKeyExtractor or
+    groupKeyColumnNames and groups type (either public or private). If groups
+    are public, you will need to explicitly provide them, if private then the
+    groups will be determined with the DP group selection procedure.
 
 1.  Specify aggregations to compute (`count`, `countDistinctPrivacyUnits`,
     `sum`, `mean`, `variance`). For non-count aggregation it's required to
-    specify a value (with valueExtractor) to aggregate.
+    specify a value (with valueExtractor or valueColumnName) to aggregate.
 
-1.  Finish building with call `.build()`.
+1.  Finish building with call `.build(totalBudget, noiseType)`. On the building
+    of the query we specify the total (&epsilon;, &delta;)-DP budget and DP
+    mechanism to apply (Laplace mechanism in this case).
 
 Note that optionally it's possible to specify a DP budget per aggregation or per
 `groupBy`. If the budget is not specified, the total budget will be split evenly
-among all aggregations.
+among all aggregations without explicit budgeting.
 
 ### Run query
 
-On the running of the query we specify the total (&epsilon;, &delta;)$-DP budget
-and DP mechanism to apply (Laplace mechanism in this case).
-
 ```java
-PCollection<QueryPerGroupResult> result =
-    query.run(new TotalBudget(/* epsilon= */ 1.1, /* delta= */ 1e-10), NoiseKind.LAPLACE);
+Dataset<QueryPerGroupResult> result = query.run();
 ```
+
+The result will contain a collection of `QueryPerGroupResult`s which consist of
+a group key and mapping from output column names to calculated metrics.
+
+If you used the column-based API then you will get a dataframe back (e.g.
+`Dataset<Row>` in Spark) which contains "group by key" columns and columns with
+requested aggregations.
 
 ### Saving results
 

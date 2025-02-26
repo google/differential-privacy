@@ -244,33 +244,57 @@ func (bv *BoundedVariance) Add(e float64) error {
 //
 // Note that the returned value is not an unbiased estimate of the raw bounded variance.
 func (bv *BoundedVariance) Result() (float64, error) {
+	result, err := bv.ResultWithCountAndMean()
+	if err != nil {
+		return 0, fmt.Errorf("couldn't compute dp variance: %w", err)
+	}
+	return result.Variance, nil
+}
+
+// ResultWithCountAndMean returns a differentially private estimate of the count, mean, and variance
+// of bounded elements added so far. The method can be called only once.
+//
+// Note that none of the returned values are the unbiased estimate of the raw bounded statistics.
+func (bv *BoundedVariance) ResultWithCountAndMean() (BoundedVarianceResult, error) {
+	nullResult := BoundedVarianceResult{}
 	if bv.state != defaultState {
-		return 0, fmt.Errorf("BoundedVariance's noised result cannot be computed: %s", bv.state.errorMessage())
+		return nullResult, fmt.Errorf(
+			"BoundedVariance's noised result cannot be computed: %s", bv.state.errorMessage())
 	}
 	bv.state = resultReturned
 
-	noisedCount, err := bv.Count.Result()
+	noisedCountInt, err := bv.Count.Result()
 	if err != nil {
-		return 0, fmt.Errorf("couldn't compute dp count: %w", err)
+		return nullResult, fmt.Errorf("couldn't compute dp count: %w", err)
 	}
-	noisedCountClamped := math.Max(1.0, float64(noisedCount))
+	noisedCountClamped := math.Max(1.0, float64(noisedCountInt))
 	noisedSum, err := bv.NormalizedSum.Result()
 	if err != nil {
-		return 0, fmt.Errorf("couldn't compute dp normalized sum: %w", err)
+		return nullResult, fmt.Errorf("couldn't compute dp normalized sum: %w", err)
 	}
 	noisedSumOfSquares, err := bv.NormalizedSumOfSquares.Result()
 	if err != nil {
-		return 0, fmt.Errorf("couldn't compute dp normalized sum of squares: %w", err)
+		return nullResult, fmt.Errorf("couldn't compute dp normalized sum of squares: %w", err)
 	}
 
 	normalizedMean := noisedSum / noisedCountClamped
 	normalizedMeanOfSquares := noisedSumOfSquares / noisedCountClamped
 
-	clamped, err := ClampFloat64(normalizedMeanOfSquares-normalizedMean*normalizedMean, 0.0, computeMaxVariance(bv.lower, bv.upper))
+	noisedMeanClamped, err := ClampFloat64(normalizedMean+bv.midPoint, bv.lower, bv.upper)
 	if err != nil {
-		return 0, fmt.Errorf("couldn't clamp the result: %w", err)
+		return nullResult, fmt.Errorf("couldn't clamp the mean: %w", err)
 	}
-	return clamped, nil
+
+	variance := normalizedMeanOfSquares - normalizedMean*normalizedMean
+	noisedVarianceClamped, err := ClampFloat64(variance, 0.0, computeMaxVariance(bv.lower, bv.upper))
+	if err != nil {
+		return nullResult, fmt.Errorf("couldn't clamp the variance: %w", err)
+	}
+	return BoundedVarianceResult{
+		Count:    float64(noisedCountInt),
+		Mean:     noisedMeanClamped,
+		Variance: noisedVarianceClamped,
+	}, nil
 }
 
 // Merge merges bv2 into bv (i.e., adds to bv all entries that were added to
@@ -346,4 +370,12 @@ type encodableBoundedVariance struct {
 	EncodableNormalizedSum          *BoundedSumFloat64
 	EncodableNormalizedSumOfSquares *BoundedSumFloat64
 	Midpoint                        float64
+}
+
+// BoundedVarianceResult holds the noised count, mean, and variance output by
+// BoundedVariance.ResultWithCountAndMean.
+type BoundedVarianceResult struct {
+	Count    float64
+	Mean     float64
+	Variance float64
 }

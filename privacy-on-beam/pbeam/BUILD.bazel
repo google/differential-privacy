@@ -36,6 +36,7 @@ go_library(
         "quantiles.go",
         "select_partitions.go",
         "sum.go",
+        "variance.go",
     ],
     importpath = "github.com/google/differential-privacy/privacy-on-beam/v3/pbeam",
     visibility = ["//visibility:public"],
@@ -78,6 +79,7 @@ go_test(
         "quantiles_test.go",
         "select_partitions_test.go",
         "sum_test.go",
+        "variance_test.go",
     ],
     embed = [":go_default_library"],
     deps = [
@@ -90,6 +92,7 @@ go_test(
         "@com_github_apache_beam_sdks_v2//go/pkg/beam/core/funcx:go_default_library",
         "@com_github_apache_beam_sdks_v2//go/pkg/beam/core/typex:go_default_library",
         "@com_github_apache_beam_sdks_v2//go/pkg/beam/io/textio:go_default_library",
+        "@com_github_apache_beam_sdks_v2//go/pkg/beam/register:go_default_library",
         "@com_github_apache_beam_sdks_v2//go/pkg/beam/runners/direct:go_default_library",
         "@com_github_apache_beam_sdks_v2//go/pkg/beam/testing/passert:go_default_library",
         "@com_github_apache_beam_sdks_v2//go/pkg/beam/testing/ptest:go_default_library",

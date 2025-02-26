@@ -37,6 +37,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.JUnit4
 
+// TODO: Update tests, they are a little bit outdated in terms of names.
 @RunWith(JUnit4::class)
 class CompoundCombinerTest {
   private val COUNT_PARAMS =
@@ -86,7 +87,7 @@ class CompoundCombinerTest {
 
     val accumulator =
       compoundCombiner.createAccumulator(
-        privacyIdContributions { values += listOf(10.0, 10.0, 10.0) }
+        privacyIdContributions { singleValueContributions += listOf(10.0, 10.0, 10.0) }
       )
 
     assertThat(accumulator)
@@ -105,7 +106,7 @@ class CompoundCombinerTest {
 
     val accumulator =
       compoundCombiner.createAccumulator(
-        privacyIdContributions { values += listOf(10.0, 10.0, 10.0) }
+        privacyIdContributions { singleValueContributions += listOf(10.0, 10.0, 10.0) }
       )
 
     assertThat(accumulator)
@@ -133,7 +134,7 @@ class CompoundCombinerTest {
 
     val accumulator =
       compoundCombiner.createAccumulator(
-        privacyIdContributions { values += listOf(5.0, 10.5, 19.0) }
+        privacyIdContributions { singleValueContributions += listOf(5.0, 10.5, 19.0) }
       )
 
     assertThat(accumulator)
@@ -164,7 +165,7 @@ class CompoundCombinerTest {
 
     val accumulator =
       compoundCombiner.createAccumulator(
-        privacyIdContributions { values += listOf(5.0, 10.5, 19.0) }
+        privacyIdContributions { singleValueContributions += listOf(5.0, 10.5, 19.0) }
       )
 
     assertThat(accumulator)
@@ -500,7 +501,9 @@ class CompoundCombinerTest {
     val compoundCombiner = CompoundCombiner(listOf(ExactPrivacyIdCountCombiner()))
 
     val accumulator =
-      compoundCombiner.createAccumulator(privacyIdContributions { values += listOf(10.0, 5.0) })
+      compoundCombiner.createAccumulator(
+        privacyIdContributions { singleValueContributions += listOf(10.0, 5.0) }
+      )
 
     assertThat(accumulator)
       .isEqualTo(

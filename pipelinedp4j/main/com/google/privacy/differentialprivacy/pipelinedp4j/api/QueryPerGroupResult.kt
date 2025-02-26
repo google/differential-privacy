@@ -28,6 +28,7 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.proto.DpAggregates
  *   "aggregationName_rank".
  * @param GroupKeysT is the type of the group key.
  */
+@ConsistentCopyVisibility
 data class QueryPerGroupResult<GroupKeysT : Any>
 internal constructor(
   private val nullableGroupKey: GroupKeysT?,
@@ -60,6 +61,8 @@ internal constructor(
             MetricType.PRIVACY_ID_COUNT -> put(outputColumnName, dpAggregates.privacyIdCount)
             MetricType.COUNT -> put(outputColumnName, dpAggregates.count)
             MetricType.SUM -> put(outputColumnName, dpAggregates.sum)
+            MetricType.VECTOR_SUM ->
+              throw IllegalArgumentException("Vector sum is not supported yet.")
             MetricType.MEAN -> put(outputColumnName, dpAggregates.mean)
             MetricType.VARIANCE -> put(outputColumnName, dpAggregates.variance)
             is MetricType.QUANTILES -> {
@@ -82,6 +85,8 @@ internal constructor(
             MetricType.PRIVACY_ID_COUNT -> add(outputColumnName)
             MetricType.COUNT -> add(outputColumnName)
             MetricType.SUM -> add(outputColumnName)
+            MetricType.VECTOR_SUM ->
+              throw IllegalArgumentException("Vector sum is not supported yet.")
             MetricType.MEAN -> add(outputColumnName)
             MetricType.VARIANCE -> add(outputColumnName)
             is MetricType.QUANTILES -> {

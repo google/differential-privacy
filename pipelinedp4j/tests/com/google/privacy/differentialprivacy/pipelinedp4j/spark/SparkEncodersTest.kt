@@ -34,7 +34,6 @@ import org.junit.runners.JUnit4
 
 @RunWith(JUnit4::class)
 class SparkEncodersTest {
-
   @Test
   fun strings_isPossibleToCreateSparkCollectionOfThatType() {
     val input = listOf("a", "b", "c")
@@ -109,6 +108,16 @@ class SparkEncodersTest {
       sparkEncoderFactory
         .tuple2sOf(sparkEncoderFactory.strings(), sparkEncoderFactory.ints())
         .encoder
+
+    val dataset = sparkSession.spark.createDataset(input, inputEncoder)
+
+    assertThat(dataset.collectAsList()).containsExactlyElementsIn(input)
+  }
+
+  @Test
+  fun lists_isPossibleToCreateSparkCollectionOfThatType() {
+    val input = listOf(listOf("pid1", "pid1"), listOf("pid1", "pid2"))
+    val inputEncoder = sparkEncoderFactory.lists(sparkEncoderFactory.strings()).encoder
 
     val dataset = sparkSession.spark.createDataset(input, inputEncoder)
 

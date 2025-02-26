@@ -40,6 +40,7 @@ class SparkTable<K, V>(
   val valueEncoder: org.apache.spark.sql.Encoder<V>,
 ) : FrameworkTable<K, V> {
   private val sparkSession = data.sparkSession()
+  @Suppress("UNCHECKED_CAST")
   private val keyValueEncoder =
     Encoders.kryo(Pair::class.java) as org.apache.spark.sql.Encoder<Pair<K, V>>
 
@@ -71,6 +72,7 @@ class SparkTable<K, V>(
     return SparkTable(dataset, keyEncoder, valueEncoder)
   }
 
+  @Suppress("UNCHECKED_CAST")
   override fun groupByKey(stageName: String): SparkTable<K, Iterable<V>> {
     val itrEncoder =
       Encoders.kryo(Iterable::class.java) as org.apache.spark.sql.Encoder<Iterable<V>>
@@ -99,6 +101,7 @@ class SparkTable<K, V>(
     mapValuesFn: (K, V) -> VO,
   ): SparkTable<K, VO> {
     val valueEncoder = (outputType as SparkEncoder<VO>).encoder
+    @Suppress("UNCHECKED_CAST")
     val outputEncoder = Encoders.kryo(Pair::class.java) as org.apache.spark.sql.Encoder<Pair<K, VO>>
     val kvMapFn = { x: Pair<K, V> -> Pair(x.first, mapValuesFn(x.first, x.second)) }
     val transformedData = data.map(MapFunction { kvMapFn(it) }, outputEncoder)
@@ -113,6 +116,7 @@ class SparkTable<K, V>(
   ): SparkTable<KO, VO> {
     val keySparkEncoder = outputKeyType as SparkEncoder<KO>
     val valueSparkEncoder = outputValueType as SparkEncoder<VO>
+    @Suppress("UNCHECKED_CAST")
     val outputEncoder =
       Encoders.kryo(Pair::class.java) as org.apache.spark.sql.Encoder<Pair<KO, VO>>
     val transformedData =
@@ -128,6 +132,7 @@ class SparkTable<K, V>(
   ): SparkTable<KO, VO> {
     val keySparkEncoder = keyType as SparkEncoder<KO>
     val valueSparkEncoder = valueType as SparkEncoder<VO>
+    @Suppress("UNCHECKED_CAST")
     val outputEncoder =
       Encoders.kryo(Pair::class.java) as org.apache.spark.sql.Encoder<Pair<KO, VO>>
     val kvMapFn = { x: Pair<K, V> -> mapFn(x.first, x.second) }
@@ -190,6 +195,7 @@ class SparkTable<K, V>(
    * single worker, however it does not have to fit in memory. The algorithm does not handle
    * unbalanced keys (i.e. hot partitions) in any specific way.
    */
+  @Suppress("UNCHECKED_CAST")
   private fun filterKeysStoredInSparkCollection(
     stageName: String,
     allowedKeys: SparkCollection<K>,
@@ -248,6 +254,7 @@ class SparkTable<K, V>(
    * extra step to transfer data over network but is a scalable and efficient approach for large
    * dataset.
    */
+  @Suppress("UNCHECKED_CAST")
   override fun samplePerKey(stageName: String, count: Int): SparkTable<K, Iterable<V>> {
     val iterableEncoder =
       Encoders.kryo(List::class.java) as org.apache.spark.sql.Encoder<Iterable<V>>

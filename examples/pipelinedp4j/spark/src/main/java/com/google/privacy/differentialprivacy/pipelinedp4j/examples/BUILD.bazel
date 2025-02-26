@@ -13,45 +13,24 @@
 # limitations under the License.
 
 java_binary(
-    name = "BeamExample",
-    srcs = [
-        "BeamExample.java",
-        "MovieMetrics.java",
-        "MovieView.java",
-    ],
-    main_class = "com.google.privacy.differentialprivacy.pipelinedp4j.examples.BeamExample",
-    runtime_deps = [
-        "@maven//:org_apache_beam_beam_runners_direct_java",
-    ],
-    deps = [
-        "@com_google_privacy_differentialprivacy_pipielinedp4j//main/com/google/privacy/differentialprivacy/pipelinedp4j/api",
-        "@maven//:com_google_guava_guava",
-        "@maven//:org_apache_beam_beam_sdks_java_core",
-        "@maven//:org_apache_beam_beam_sdks_java_extensions_avro",
-        "@maven//:org_jetbrains_kotlin_kotlin_stdlib",
-        # For logging to console.
-        "@maven//:org_slf4j_slf4j_jdk14",
-    ],
-)
-
-java_binary(
     name = "SparkExample",
     srcs = [
-        "MovieMetrics.java",
-        "MovieView.java",
         "SparkExample.java",
     ],
     main_class = "com.google.privacy.differentialprivacy.pipelinedp4j.examples.SparkExample",
     deps = [
+        "//common/src/main/java/com/google/privacy/differentialprivacy/pipelinedp4j/examples:common",
         "@com_google_privacy_differentialprivacy_pipielinedp4j//main/com/google/privacy/differentialprivacy/pipelinedp4j/api",
         "@maven//:com_fasterxml_jackson_core_jackson_databind",
         "@maven//:com_fasterxml_jackson_module_jackson_module_paranamer",
         "@maven//:com_google_guava_guava",
         "@maven//:info_picocli_picocli",
         "@maven//:org_apache_spark_spark_catalyst_2_13",
+        "@maven//:org_apache_spark_spark_common_utils_2_13",
         "@maven//:org_apache_spark_spark_core_2_13",
         "@maven//:org_apache_spark_spark_mllib_2_13",
         "@maven//:org_apache_spark_spark_sql_2_13",
+        "@maven//:org_apache_spark_spark_sql_api_2_13",
         "@maven//:org_jetbrains_kotlin_kotlin_stdlib",
         "@maven//:org_scala_lang_scala_library",
     ],
@@ -60,21 +39,20 @@ java_binary(
 java_binary(
     name = "SparkDataFrameExample",
     srcs = [
-        "MovieMetrics.java",
-        "MovieView.java",
         "SparkDataFrameExample.java",
     ],
     main_class = "com.google.privacy.differentialprivacy.pipelinedp4j.examples.SparkDataFrameExample",
     deps = [
+        "//common/src/main/java/com/google/privacy/differentialprivacy/pipelinedp4j/examples:common",
         "@com_google_privacy_differentialprivacy_pipielinedp4j//main/com/google/privacy/differentialprivacy/pipelinedp4j/api",
         "@maven//:com_fasterxml_jackson_core_jackson_databind",
         "@maven//:com_fasterxml_jackson_module_jackson_module_paranamer",
-        "@maven//:com_google_guava_guava",
         "@maven//:info_picocli_picocli",
         "@maven//:org_apache_spark_spark_catalyst_2_13",
         "@maven//:org_apache_spark_spark_core_2_13",
         "@maven//:org_apache_spark_spark_mllib_2_13",
         "@maven//:org_apache_spark_spark_sql_2_13",
+        "@maven//:org_apache_spark_spark_sql_api_2_13",
         "@maven//:org_jetbrains_kotlin_kotlin_stdlib",
         "@maven//:org_scala_lang_scala_library",
     ],

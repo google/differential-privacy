@@ -78,7 +78,9 @@ class SumCombinerTest {
       )
 
     val accumulator =
-      combiner.createAccumulator(privacyIdContributions { values += listOf(-10.0, 15.0, 0.0) })
+      combiner.createAccumulator(
+        privacyIdContributions { singleValueContributions += listOf(-10.0, 15.0, 0.0) }
+      )
 
     assertThat(accumulator).isEqualTo(sumAccumulator { sum = 5.0 })
   }
@@ -99,7 +101,7 @@ class SumCombinerTest {
 
     val accumulator =
       combiner.createAccumulator(
-        privacyIdContributions { values += listOf(-1000.0, 1000.0, 500.0) }
+        privacyIdContributions { singleValueContributions += listOf(-1000.0, 1000.0, 500.0) }
       )
 
     assertThat(accumulator).isEqualTo(sumAccumulator { sum = 300.0 })
@@ -122,7 +124,7 @@ class SumCombinerTest {
 
     val accumulator =
       combiner.createAccumulator(
-        privacyIdContributions { values += listOf(-1000.0, 1000.0, 500.0) }
+        privacyIdContributions { singleValueContributions += listOf(-1000.0, 1000.0, 500.0) }
       )
 
     assertThat(accumulator).isEqualTo(sumAccumulator { sum = 500.0 })
@@ -192,9 +194,13 @@ class SumCombinerTest {
 
     val accumulator0 = combiner.emptyAccumulator()
     val accumulator1 =
-      combiner.createAccumulator(privacyIdContributions { values += listOf(-2.0, 3.0) })
+      combiner.createAccumulator(
+        privacyIdContributions { singleValueContributions += listOf(-2.0, 3.0) }
+      )
     val accumulator2 =
-      combiner.createAccumulator(privacyIdContributions { values += listOf(4.0, -1.0) })
+      combiner.createAccumulator(
+        privacyIdContributions { singleValueContributions += listOf(4.0, -1.0) }
+      )
     val accumulator3 = combiner.mergeAccumulators(accumulator0, accumulator1)
     val finalAccumulator = combiner.mergeAccumulators(accumulator2, accumulator3)
     val result = combiner.computeMetrics(finalAccumulator)

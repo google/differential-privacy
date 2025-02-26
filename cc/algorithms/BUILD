@@ -105,7 +105,9 @@ cc_test(
 cc_library(
     name = "bounds-provider",
     hdrs = ["bounds-provider.h"],
-    visibility = ["//visibility:private"],
+    visibility = [
+        "//algorithms/approx_count_distinct:__subpackages__",
+    ],
     deps = [
         "//algorithms/internal:clamped-calculation-without-bounds",
         "@com_google_absl//absl/status",
@@ -557,7 +559,9 @@ cc_test(
 cc_library(
     name = "approx-bounds-as-bounds-provider",
     hdrs = ["approx-bounds-as-bounds-provider.h"],
-    visibility = ["//visibility:private"],
+    visibility = [
+        "//algorithms/approx_count_distinct:__subpackages__",
+    ],
     deps = [
         ":approx-bounds",
         ":bounds-provider",
@@ -593,7 +597,6 @@ cc_library(
         ":approx-bounds",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
-        "@com_google_absl//absl/types:optional",
         "@com_google_cc_differential_privacy//base:status_macros",
     ],
 )

@@ -73,8 +73,8 @@ func init() {
 	register.Function1x2[TripleWithFloatValue, int, float32](TripleWithFloatValueToKV)
 	register.Function1x2[TripleWithFloatValue, int, TripleWithFloatValue](ExtractIDFromTripleWithFloatValue)
 	register.Function3x1[int, func(*float64) bool, func(*float64) bool, string](lessThanOrEqualTo)
-	register.Function2x1[string, string, string](combineDiffs)
-	register.Function1x1[string, error](reportDiffs)
+	register.Function2x1[string, string, string](CombineDiffs)
+	register.Function1x1[string, error](ReportDiffs)
 	register.Function1x1[string, error](reportEquals)
 	register.Function1x1[string, error](reportGreaterThan)
 	register.Function3x1[beam.X, func(*int) bool, func(*int) bool, string](diffIntFn)
@@ -327,8 +327,8 @@ func EqualsKVInt(t *testing.T, s beam.Scope, col1, col2 beam.PCollection) {
 
 	coGroupToValue := beam.CoGroupByKey(s, col1, col2)
 	diffs := beam.ParDo(s, diffIntFn, coGroupToValue)
-	combinedDiff := beam.Combine(s, combineDiffs, diffs)
-	beam.ParDo0(s, reportDiffs, combinedDiff)
+	combinedDiff := beam.Combine(s, CombineDiffs, diffs)
+	beam.ParDo0(s, ReportDiffs, combinedDiff)
 }
 
 // EqualsKVInt64 checks that two PCollections col1 and col2 of type
@@ -356,7 +356,7 @@ func NotEqualsFloat64(t *testing.T, s beam.Scope, col1, col2 beam.PCollection) {
 	}
 	coGroupToValue := beam.CoGroupByKey(s, col1, col2)
 	diffs := beam.ParDo(s, &diffFloat64Fn{Tolerance: 0.0}, coGroupToValue)
-	combinedDiff := beam.Combine(s, combineDiffs, diffs)
+	combinedDiff := beam.Combine(s, CombineDiffs, diffs)
 	beam.ParDo0(s, reportEquals, combinedDiff)
 }
 
@@ -377,8 +377,8 @@ func ApproxEqualsKVInt64(t *testing.T, s beam.Scope, col1, col2 beam.PCollection
 
 	coGroupToValue := beam.CoGroupByKey(s, col1, col2)
 	diffs := beam.ParDo(s, &diffInt64Fn{Tolerance: tolerance}, coGroupToValue)
-	combinedDiff := beam.Combine(s, combineDiffs, diffs)
-	beam.ParDo0(s, reportDiffs, combinedDiff)
+	combinedDiff := beam.Combine(s, CombineDiffs, diffs)
+	beam.ParDo0(s, ReportDiffs, combinedDiff)
 }
 
 // ApproxEqualsKVFloat64 checks that two PCollections col1 and col2 of type
@@ -398,8 +398,8 @@ func ApproxEqualsKVFloat64(t *testing.T, s beam.Scope, col1, col2 beam.PCollecti
 
 	coGroupToValue := beam.CoGroupByKey(s, col1, col2)
 	diffs := beam.ParDo(s, &diffFloat64Fn{Tolerance: tolerance}, coGroupToValue)
-	combinedDiff := beam.Combine(s, combineDiffs, diffs)
-	beam.ParDo0(s, reportDiffs, combinedDiff)
+	combinedDiff := beam.Combine(s, CombineDiffs, diffs)
+	beam.ParDo0(s, ReportDiffs, combinedDiff)
 }
 
 // LessThanOrEqualToKVFloat64 checks that for PCollections col1 and col2 of type
@@ -417,7 +417,7 @@ func LessThanOrEqualToKVFloat64(t *testing.T, s beam.Scope, col1, col2 beam.PCol
 
 	coGroupToValue := beam.CoGroupByKey(s, col1, col2)
 	diffs := beam.ParDo(s, lessThanOrEqualTo, coGroupToValue)
-	combinedDiff := beam.Combine(s, combineDiffs, diffs)
+	combinedDiff := beam.Combine(s, CombineDiffs, diffs)
 	beam.ParDo0(s, reportGreaterThan, combinedDiff)
 }
 
@@ -438,8 +438,8 @@ func ApproxEqualsKVFloat64Slice(t *testing.T, s beam.Scope, col1, col2 beam.PCol
 
 	coGroupToValue := beam.CoGroupByKey(s, col1, col2)
 	diffs := beam.ParDo(s, &diffFloat64SliceFn{Tolerance: tolerance}, coGroupToValue)
-	combinedDiff := beam.Combine(s, combineDiffs, diffs)
-	beam.ParDo0(s, reportDiffs, combinedDiff)
+	combinedDiff := beam.Combine(s, CombineDiffs, diffs)
+	beam.ParDo0(s, ReportDiffs, combinedDiff)
 }
 
 func reportEquals(diffs string) error {
@@ -449,7 +449,8 @@ func reportEquals(diffs string) error {
 	return fmt.Errorf("collections are equal")
 }
 
-func reportDiffs(diffs string) error {
+// ReportDiffs returns an error if diffs is not empty.
+func ReportDiffs(diffs string) error {
 	if diffs != "" {
 		return fmt.Errorf("collections are not approximately equal. Diff (-got, +want):\n%s", diffs)
 	}
@@ -463,7 +464,8 @@ func reportGreaterThan(errors string) error {
 	return nil
 }
 
-func combineDiffs(diff1, diff2 string) string {
+// CombineDiffs concatenates two diff strings into a single string.
+func CombineDiffs(diff1, diff2 string) string {
 	if diff2 == "" {
 		return fmt.Sprintf("%s", diff1)
 	}
@@ -750,6 +752,232 @@ func ToleranceForMean(lower, upper, exactNormalizedSum, exactCount, exactMean, c
 	), nil
 }
 
+// VarianceStatistics is a struct that contains the statistics related to a variance aggregation.
+type VarianceStatistics struct {
+	Count                  float64
+	NormalizedSum          float64
+	NormalizedSumOfSquares float64
+	Mean                   float64
+	Variance               float64
+}
+
+// ComputeMeanVariance computes the mean and variance fields based on the other fields in
+// the original struct, plus the given bounds.
+// Remember to call this function after having Count, NormalizedSum, and NormalizedSumOfSquares,
+// and do not pass in inf or -inf as bounds.
+// If the count is zero, the mean is set to the midPoint, and variance is set to zero.
+func (s *VarianceStatistics) ComputeMeanVariance(upper, lower float64) {
+	midPoint := (lower + upper) / 2
+	if s.Count == 0 {
+		s.Mean = midPoint
+		s.Variance = 0
+	} else {
+		normalizedMean := s.NormalizedSum / s.Count
+		s.Mean = normalizedMean + midPoint
+		s.Variance = s.NormalizedSumOfSquares/s.Count - normalizedMean*normalizedMean
+	}
+}
+
+// PerPartitionVarianceStatistics calculates the variance related statistics of each partition and
+// returns a map of partition to varianceStatistics.
+func PerPartitionVarianceStatistics(
+	minValue, maxValue float64, contributions []TripleWithFloatValue,
+) map[int]VarianceStatistics {
+	midPoint := (minValue + maxValue) / 2
+	m := make(map[int]VarianceStatistics)
+	for _, triple := range contributions {
+		partition := triple.Partition
+		normalizedValue := min(maxValue, max(minValue, float64(triple.Value))) - midPoint
+		var newStats VarianceStatistics
+		if stats, ok := m[partition]; ok {
+			newStats = stats
+		}
+
+		// Insert or update the statistics for the partition.
+		newStats.Count++
+		newStats.NormalizedSum += normalizedValue
+		newStats.NormalizedSumOfSquares += normalizedValue * normalizedValue
+		m[partition] = newStats
+	}
+	for partition, stats := range m {
+		stats.ComputeMeanVariance(minValue, maxValue)
+		m[partition] = stats
+	}
+	return m
+}
+
+// PerPartitionVarianceStatisticsInt is similar to PerPartitionVarianceStatistics but for input
+// with TripleWithIntValue type.
+func PerPartitionVarianceStatisticsInt(
+	minValue, maxValue float64, contributions []TripleWithIntValue,
+) map[int]VarianceStatistics {
+	var floatTriples []TripleWithFloatValue
+	for _, t := range contributions {
+		floatTriples = append(floatTriples, TripleWithFloatValue{
+			ID:        t.ID,
+			Partition: t.Partition,
+			Value:     float32(t.Value),
+		})
+	}
+	return PerPartitionVarianceStatistics(minValue, maxValue, floatTriples)
+}
+
+// LaplaceToleranceForVariance returns tolerances to be used in approxEquals for tests
+// for variance to pass with 10⁻ᵏ flakiness.
+//
+// The return values include the tolerances for count, normalized sum, normalized sum of squares,
+// mean, and variance.
+//
+//   - flakinessK: parameter used to specify k in the flakiness.
+//   - lower: minimum possible value of the input entities.
+//   - upper: maximum possible value of the input entities.
+//   - epsilon: the differential privacy parameter epsilon.
+//   - stats.NormalizedSumOfSquares: \sum { (clamp(x_i, lower, upper) - midPoint) ^ 2 }
+//   - stats.NormalizedSum: \sum { clamp(x_i, lower, upper) - midPoint }.
+//
+// distanceFromMidPoint = upper - midPoint, where midPoint = (lower + upper)/2.
+//
+// To see the logic and the math behind flakiness and tolerance calculation,
+// See https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf
+func LaplaceToleranceForVariance(
+	flakinessK, lower, upper float64, maxContributionsPerPartition, maxPartitionsContributed int64,
+	epsilon float64, stats VarianceStatistics,
+) (VarianceStatistics, error) {
+	// The term below is equivalent to -log_10(1-cbrt(1-1e-k)).
+	// It is formulated this way to increase precision and to avoid having this term go to infinity.
+	// Count, normalized sum, and normalized square sum uses the same following flakiness for simplicity.
+	newFlakinessK := -math.Log10(-math.Expm1(1 / 3. * math.Log1p(-math.Pow(10, -flakinessK))))
+	newEpsilon := epsilon / 3
+
+	computer := sensitivityComputer{
+		Lower:                        lower,
+		Upper:                        upper,
+		MaxContributionsPerPartition: maxContributionsPerPartition,
+		MaxPartitionsContributed:     maxPartitionsContributed,
+	}
+	l1Count := computer.SensitivitiesForCount().L1
+	l1NormalizedSum := computer.SensitivitiesForNormalizedSum().L1
+	l1NormalizedSumOfSquares := computer.SensitivitiesForNormalizedSumOfSquares().L1
+
+	countTolerance := math.Ceil(LaplaceTolerance(newFlakinessK, l1Count, newEpsilon))
+	normalizedSumTolerance := LaplaceTolerance(newFlakinessK, l1NormalizedSum, newEpsilon)
+	normalizedSumOfSquaresTolerance := LaplaceTolerance(newFlakinessK, l1NormalizedSumOfSquares, newEpsilon)
+
+	tolerances := VarianceStatistics{
+		Count:                  countTolerance,
+		NormalizedSum:          normalizedSumTolerance,
+		NormalizedSumOfSquares: normalizedSumOfSquaresTolerance,
+	}
+
+	meanTolerance, err := ToleranceForMean(
+		lower, upper, stats.NormalizedSum, stats.Count, stats.Mean,
+		countTolerance, normalizedSumTolerance,
+	)
+	if err != nil {
+		return VarianceStatistics{}, fmt.Errorf("ToleranceForMean: %w", err)
+	}
+
+	varianceTolerance, err := ToleranceForVariance(lower, upper, stats, tolerances)
+	if err != nil {
+		return VarianceStatistics{}, fmt.Errorf("ToleranceForVariance: %w", err)
+	}
+
+	tolerances.Mean = meanTolerance
+	tolerances.Variance = varianceTolerance
+
+	return tolerances, nil
+}
+
+// ToleranceForVariance returns tolerance to be used in approxEquals or checkMetricsAreNoisy for
+// tests for variance to pass with 10⁻ᵏ flakiness.
+//
+//   - flakinessK: parameter used to specify k in the flakiness.
+//   - lower: minimum possible value of the input entities.
+//   - upper: maximum possible value of the input entities.
+//   - exactStats: Count, NormalizedSum, and NormalizedSumOfSquares of the input entities.
+//   - tolerances: tolerances for count, normalized sum, and normalized sum of squares.
+//
+// To see the logic and the math behind flakiness and tolerance calculation,
+// see https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf.
+func ToleranceForVariance(
+	lower, upper float64,
+	exactStats, tolerances VarianceStatistics,
+) (float64, error) {
+
+	minNoisyC := math.Max(1.0, exactStats.Count-tolerances.Count)                        // c_-
+	maxNoisyC := math.Max(1.0, exactStats.Count+tolerances.Count)                        // c_+
+	minNoisyNS := exactStats.NormalizedSum - tolerances.NormalizedSum                    // s_-
+	maxNoisyNS := exactStats.NormalizedSum + tolerances.NormalizedSum                    // s_+
+	minNoisyNSS := exactStats.NormalizedSumOfSquares - tolerances.NormalizedSumOfSquares // ss_-
+	maxNoisyNSS := exactStats.NormalizedSumOfSquares + tolerances.NormalizedSumOfSquares // ss_+
+
+	// Let mm denote the mean of noisy normalized squares, i.e. mm = ss/c.
+	// Find the lower and upper bounds of mm, i.e. mm_- <= mm <= mm_+, using the following rules:
+	//
+	// 1. For mm_-:
+	//   - If ss_- >= 0, then mm_- = ss_-/c_+.
+	//   - Otherwise, mm_- = ss_-/c_-.
+	// 2. For mm_+:
+	//   - Since ss_+ is always non-negative, mm_+ = ss_+/c_-.
+
+	// Calculate mm_-.
+	minNoisyNMM := minNoisyNSS / maxNoisyC
+	if minNoisyNSS < 0 {
+		minNoisyNMM = minNoisyNSS / minNoisyC
+	}
+	// Calculate mm_+
+	maxNoisyNMM := maxNoisyNSS / minNoisyC
+
+	// Let m denote the mean of noisy normalized values, i.e. m = s/c.
+	// Find the lower and upper bounds of m^2, i.e. (m2_-)^2 <= m^2 <= (m2_+)^2, as follows:
+	//
+	// 1. If s_- <= s_+ <= 0, then
+	//   - m2_- = (s_+/c_+)^2.
+	//   - m2_+ = (s_-/c_-)^2.
+	// 2. If s_- <= 0 <= s_+, then
+	//   - m2_- = 0.
+	//   - m2_+ = ( max(|s_-|, |s_+|)/c_- )^2.
+	// 3. If 0 <= s_- <= s_+, then
+	//   - m2_- = (s_-/c_+ )^2.
+	//   - m2_+ = (s_+/c_- )^2.
+
+	// Calculate m2_- and m2_+.
+	minNoisyNM2, maxNoisyNM2 := math.Pow(maxNoisyNS/maxNoisyC, 2), math.Pow(minNoisyNS/minNoisyC, 2)
+	if minNoisyNS <= 0 && 0 <= maxNoisyNS {
+		minNoisyNM2 = 0
+		maxNoisyNM2 = math.Pow(math.Max(-minNoisyNS, maxNoisyNS)/minNoisyC, 2)
+	} else if minNoisyNS >= 0 {
+		minNoisyNM2 = math.Pow(minNoisyNS/maxNoisyC, 2)
+		maxNoisyNM2 = math.Pow(maxNoisyNS/minNoisyC, 2)
+	}
+
+	// Because shifting the element value by midPoint does not change variance,
+	// that is we have the noisy variance V = MM - M2 = mm - m2.
+	// Given the bounds of mm and m2, we have (mm_- - m2_+) <= V <= (mm_+ - m2_-).
+
+	// Return the tolerance as max(|exactVariance - V_-| , |exactVariance - V_+|).
+	// However, we first clamp V_- and V_+ to the range [0, maxVariance],
+	// where maxVariance = (upper - lower)^2/4.
+	maxVariance := math.Pow(upper-lower, 2) / 4
+	minNoisyV := minNoisyNMM - maxNoisyNM2
+	minNoisyVariance, err := dpagg.ClampFloat64(minNoisyV, 0, maxVariance)
+	if err != nil {
+		return 0, fmt.Errorf("clamping minNoisyVariance(%v, %v, %v): %w",
+			minNoisyV, 0, maxVariance, err)
+	}
+	maxNoisyV := maxNoisyNMM - minNoisyNM2
+	maxNoisyVariance, err := dpagg.ClampFloat64(maxNoisyV, 0, maxVariance)
+	if err != nil {
+		return 0, fmt.Errorf("clamping maxNoisyVariance(%v, %v, %v): %w",
+			maxNoisyV, 0, maxVariance, err)
+	}
+
+	return math.Max(
+		distanceBetween(exactStats.Variance, minNoisyVariance),
+		distanceBetween(exactStats.Variance, maxNoisyVariance),
+	), nil
+}
+
 // QuantilesTolerance returns tolerance to be used in approxEquals for tests
 // for quantiles to pass with negligible flakiness.
 //
@@ -786,6 +1014,15 @@ func (c *sensitivityComputer) MaxDistFromMidPoint() float64 {
 
 func (c *sensitivityComputer) MaxContributions() float64 {
 	return float64(c.MaxContributionsPerPartition) * float64(c.MaxPartitionsContributed)
+}
+
+func (c *sensitivityComputer) SensitivitiesForNormalizedSumOfSquares() sensitivity {
+	maxDistFromMidPoint := c.MaxDistFromMidPoint()
+	return sensitivity{
+		L0:   float64(c.MaxPartitionsContributed),
+		LInf: math.Pow(maxDistFromMidPoint, 2) * float64(c.MaxContributionsPerPartition),
+		L1:   math.Pow(maxDistFromMidPoint, 2) * c.MaxContributions(),
+	}
 }
 
 func (c *sensitivityComputer) SensitivitiesForNormalizedSum() sensitivity {

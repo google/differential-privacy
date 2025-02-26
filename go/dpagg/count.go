@@ -177,7 +177,7 @@ func checkMergeCount(c1, c2 *Count) error {
 // result.
 func (c *Count) Result() (int64, error) {
 	if c.state != defaultState {
-		return 0, fmt.Errorf("Count's noised result cannot be computed: " + c.state.errorMessage())
+		return 0, fmt.Errorf("Count's noised result cannot be computed: %s", c.state.errorMessage())
 	}
 	c.state = resultReturned
 	var err error

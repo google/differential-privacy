@@ -18,7 +18,6 @@ package com.google.privacy.differentialprivacy.pipelinedp4j.core
 
 import com.google.common.collect.ImmutableList
 import com.google.common.truth.Truth.assertThat
-import com.google.common.truth.extensions.proto.ProtoTruth.assertThat
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.NoiseKind.GAUSSIAN
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.AllocatedBudget
 import com.google.privacy.differentialprivacy.pipelinedp4j.dplibrary.NoiseFactory
@@ -55,10 +54,15 @@ class QuantilesCombinerTest {
 
     val accumulator0 = combiner.emptyAccumulator()
     val accumulator1 =
-      combiner.createAccumulator(privacyIdContributions { values += listOf(1.0, 3.0) })
+      combiner.createAccumulator(
+        privacyIdContributions { singleValueContributions += listOf(1.0, 3.0) }
+      )
     val accumulator2 =
-      combiner.createAccumulator(privacyIdContributions { values += listOf(2.0, 4.0) })
-    val accumulator3 = combiner.createAccumulator(privacyIdContributions { values += listOf(5.0) })
+      combiner.createAccumulator(
+        privacyIdContributions { singleValueContributions += listOf(2.0, 4.0) }
+      )
+    val accumulator3 =
+      combiner.createAccumulator(privacyIdContributions { singleValueContributions += listOf(5.0) })
     val accumulator01 = combiner.mergeAccumulators(accumulator0, accumulator1)
     val accumulator012 = combiner.mergeAccumulators(accumulator01, accumulator2)
     val accumulator0123 = combiner.mergeAccumulators(accumulator3, accumulator012)
@@ -105,7 +109,9 @@ class QuantilesCombinerTest {
 
     val accumulator =
       combiner.createAccumulator(
-        privacyIdContributions { values += (1..1000).map { it.toDouble() }.toList() }
+        privacyIdContributions {
+          singleValueContributions += (1..1000).map { it.toDouble() }.toList()
+        }
       )
     val quantiles = combiner.computeMetrics(accumulator)
 

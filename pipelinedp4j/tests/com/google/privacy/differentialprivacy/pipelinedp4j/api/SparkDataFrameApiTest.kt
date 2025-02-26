@@ -1178,6 +1178,7 @@ class SparkDataFrameApiTest {
   ) = assertEquals(result.toQueryPerGroupResultList(), expected)
 
   private fun SparkDataFrame.toQueryPerGroupResultList(): List<QueryPerGroupResult<String>> {
+    @Suppress("UNCHECKED_CAST")
     return map(
         MapFunction { row: Row ->
           val aggregationsColumnNames = row.schema().fieldNames().drop(1)

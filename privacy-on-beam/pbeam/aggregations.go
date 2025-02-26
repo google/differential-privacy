@@ -61,10 +61,15 @@ func init() {
 	register.Emitter2[beam.V, int64]()
 	register.Function3x0[beam.V, *float64, func(beam.V, float64)](dropThresholdedPartitionsFloat64)
 	register.Emitter2[beam.V, float64]()
+	register.Function3x0[beam.V, *VarianceStatistics, func(beam.V, VarianceStatistics)](
+		dropThresholdedPartitionsVarianceStatistics)
+	register.Emitter2[beam.V, VarianceStatistics]()
 	register.Function3x0[beam.V, []float64, func(beam.V, []float64)](dropThresholdedPartitionsFloat64Slice)
 	register.Emitter2[beam.V, []float64]()
 	register.Function2x2[beam.W, *int64, beam.W, int64](dereferenceValueInt64)
 	register.Function2x2[beam.W, *float64, beam.W, float64](dereferenceValueFloat64)
+	register.Function2x2[beam.W, *VarianceStatistics, beam.W, VarianceStatistics](
+		dereferenceVarianceStatistics)
 	register.Function2x3[kv.Pair, beam.V, kv.Pair, int64, error](convertToInt64Fn)
 	register.Function2x3[kv.Pair, beam.V, kv.Pair, float64, error](convertToFloat64Fn)
 }
@@ -555,6 +560,12 @@ func dereferenceValueFloat64(key beam.W, value *float64) (k beam.W, v float64) {
 	return key, *value
 }
 
+func dereferenceVarianceStatistics(
+	key beam.W, value *VarianceStatistics,
+) (k beam.W, v VarianceStatistics) {
+	return key, *value
+}
+
 func findDropThresholdedPartitionsFn(kind reflect.Kind) (any, error) {
 	switch kind {
 	case reflect.Int64:
@@ -577,6 +588,16 @@ func dropThresholdedPartitionsInt64(v beam.V, r *int64, emit func(beam.V, int64)
 // dropThresholdedPartitionsFloat64 drops thresholded float partitions, i.e. those
 // that have nil r, by emitting only non-thresholded partitions.
 func dropThresholdedPartitionsFloat64(v beam.V, r *float64, emit func(beam.V, float64)) {
+	if r != nil {
+		emit(v, *r)
+	}
+}
+
+// dropThresholdedPartitionsVarianceStatistics drops thresholded partitions, i.e. those
+// that have nil r, by emitting only non-thresholded partitions.
+func dropThresholdedPartitionsVarianceStatistics(
+	v beam.V, r *VarianceStatistics, emit func(beam.V, VarianceStatistics),
+) {
 	if r != nil {
 		emit(v, *r)
 	}

@@ -21,14 +21,23 @@ package com.google.privacy.differentialprivacy.pipelinedp4j.core
  * type and value of Double type.
  */
 typealias ContributionWithPrivacyId<PrivacyIdT, PartitionKeyT> =
-  Pair<Pair<PrivacyIdT, PartitionKeyT>, Double>
+  Pair<Pair<PrivacyIdT, PartitionKeyT>, List<Double>>
 
-/** Helper function to create a [ContributionWithPrivacyId] from the given arguments. */
+/** Helper function to create a [ContributionWithPrivacyId] from the list of values. */
+fun <PrivacyIdT : Any, PartitionKeyT : Any> contributionWithPrivacyId(
+  privacyId: PrivacyIdT,
+  partitionKey: PartitionKeyT,
+  values: List<Double>,
+): ContributionWithPrivacyId<PrivacyIdT, PartitionKeyT> =
+  Pair(Pair(privacyId, partitionKey), values)
+
+/** Helper function to create a [ContributionWithPrivacyId] from one value. */
 fun <PrivacyIdT : Any, PartitionKeyT : Any> contributionWithPrivacyId(
   privacyId: PrivacyIdT,
   partitionKey: PartitionKeyT,
   value: Double,
-): ContributionWithPrivacyId<PrivacyIdT, PartitionKeyT> = Pair(Pair(privacyId, partitionKey), value)
+): ContributionWithPrivacyId<PrivacyIdT, PartitionKeyT> =
+  contributionWithPrivacyId(privacyId, partitionKey, listOf(value))
 
 /** Encoder of [ContributionWithPrivacyId]. */
 fun <PrivacyIdT : Any, PartitionKeyT : Any> encoderOfContributionWithPrivacyId(
@@ -38,7 +47,7 @@ fun <PrivacyIdT : Any, PartitionKeyT : Any> encoderOfContributionWithPrivacyId(
 ) =
   encodersFactory.tuple2sOf(
     encodersFactory.tuple2sOf(privacyIdEncoder, partitionKeyEncoder),
-    encodersFactory.doubles(),
+    encodersFactory.lists(encodersFactory.doubles()),
   )
 
 /** Helper function to get the privacy ID of the given [ContributionWithPrivacyId]. */
@@ -51,4 +60,4 @@ fun <PrivacyIdT : Any, PartitionKeyT : Any> ContributionWithPrivacyId<PrivacyIdT
 
 /** Helper function to get the value of the given [ContributionWithPrivacyId]. */
 fun <PrivacyIdT : Any, PartitionKeyT : Any> ContributionWithPrivacyId<PrivacyIdT, PartitionKeyT>
-  .value() = second
+  .values() = second

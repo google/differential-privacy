@@ -87,7 +87,8 @@ class MeanCombinerTest {
         NoiseFactory(),
       )
 
-    val accumulator = combiner.createAccumulator(privacyIdContributions { values += listOf(5.5) })
+    val accumulator =
+      combiner.createAccumulator(privacyIdContributions { singleValueContributions += listOf(5.5) })
 
     assertThat(accumulator)
       .isEqualTo(
@@ -109,7 +110,9 @@ class MeanCombinerTest {
       )
 
     val accumulator =
-      combiner.createAccumulator(privacyIdContributions { values += listOf(-20.0, 30.0) })
+      combiner.createAccumulator(
+        privacyIdContributions { singleValueContributions += listOf(-20.0, 30.0) }
+      )
 
     assertThat(accumulator)
       .isEqualTo(
@@ -131,7 +134,9 @@ class MeanCombinerTest {
       )
 
     val accumulator =
-      combiner.createAccumulator(privacyIdContributions { values += listOf(-20.0, 30.0) })
+      combiner.createAccumulator(
+        privacyIdContributions { singleValueContributions += listOf(-20.0, 30.0) }
+      )
 
     assertThat(accumulator)
       .isEqualTo(
@@ -152,7 +157,8 @@ class MeanCombinerTest {
         NoiseFactory(),
       )
 
-    val accumulator = combiner.createAccumulator(privacyIdContributions { values += listOf(6.0) })
+    val accumulator =
+      combiner.createAccumulator(privacyIdContributions { singleValueContributions += listOf(6.0) })
 
     assertThat(accumulator)
       .isEqualTo(
@@ -173,7 +179,10 @@ class MeanCombinerTest {
         NoiseFactory(),
       )
 
-    val accumulator = combiner.createAccumulator(privacyIdContributions { values += listOf(30.0) })
+    val accumulator =
+      combiner.createAccumulator(
+        privacyIdContributions { singleValueContributions += listOf(30.0) }
+      )
 
     assertThat(accumulator)
       .isEqualTo(
@@ -195,7 +204,9 @@ class MeanCombinerTest {
       )
 
     val accumulator =
-      combiner.createAccumulator(privacyIdContributions { values += listOf(3.0, 5.5, 6.0) })
+      combiner.createAccumulator(
+        privacyIdContributions { singleValueContributions += listOf(3.0, 5.5, 6.0) }
+      )
 
     assertThat(accumulator)
       .isEqualTo(
@@ -394,8 +405,11 @@ class MeanCombinerTest {
 
     val accumulator0 = combiner.emptyAccumulator()
     val accumulator1 =
-      combiner.createAccumulator(privacyIdContributions { values += listOf(10.0, -10.0) })
-    val accumulator2 = combiner.createAccumulator(privacyIdContributions { values += listOf(9.0) })
+      combiner.createAccumulator(
+        privacyIdContributions { singleValueContributions += listOf(10.0, -10.0) }
+      )
+    val accumulator2 =
+      combiner.createAccumulator(privacyIdContributions { singleValueContributions += listOf(9.0) })
     val accumulator3 = combiner.mergeAccumulators(accumulator0, accumulator1)
     val finalAccumulator = combiner.mergeAccumulators(accumulator2, accumulator3)
     val result = combiner.computeMetrics(finalAccumulator)

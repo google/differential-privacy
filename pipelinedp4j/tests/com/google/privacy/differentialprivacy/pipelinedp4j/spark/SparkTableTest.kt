@@ -27,8 +27,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(TestParameterInjector::class)
+@Suppress("UNCHECKED_CAST")
 class SparkTableTest {
-
   @Test
   fun keysEncoder_returnsCorrectEncoder() {
     val dataset =

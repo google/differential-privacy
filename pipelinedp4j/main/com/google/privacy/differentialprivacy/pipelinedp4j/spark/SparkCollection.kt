@@ -49,6 +49,7 @@ class SparkCollection<T>(val data: Dataset<T>) : FrameworkCollection<T> {
   ): SparkTable<K, V> {
     val keySparkType = keyType as SparkEncoder<K>
     val valueSparkType = valueType as SparkEncoder<V>
+    @Suppress("UNCHECKED_CAST")
     val outputEncoder = Encoders.kryo(Pair::class.java) as org.apache.spark.sql.Encoder<Pair<K, V>>
     val dataset = data.map(MapFunction { mapFn(it) }, outputEncoder)
     return SparkTable(dataset, keySparkType.encoder, valueSparkType.encoder)
@@ -61,6 +62,7 @@ class SparkCollection<T>(val data: Dataset<T>) : FrameworkCollection<T> {
   ): SparkTable<K, T> {
     val valueEncoder = data.encoder()
     val keyEncoder = (outputType as SparkEncoder<K>).encoder
+    @Suppress("UNCHECKED_CAST")
     val keyValueEncoder =
       Encoders.kryo(Pair::class.java) as org.apache.spark.sql.Encoder<Pair<K, T>>
     val keyDataset = data.map(MapFunction { t: T -> Pair(keyFn(t), t) }, keyValueEncoder)

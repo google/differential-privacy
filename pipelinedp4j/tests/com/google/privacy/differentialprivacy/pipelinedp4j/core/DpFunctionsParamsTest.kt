@@ -24,6 +24,7 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.PRIVA
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.QUANTILES
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.SUM
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.VARIANCE
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.VECTOR_SUM
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.NoiseKind.LAPLACE
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.AbsoluteBudgetPerOpSpec
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.RelativeBudgetPerOpSpec
@@ -63,6 +64,21 @@ class DpFunctionsParamsTest {
         maxTotalValue = 2.0,
       ),
       usePublicPartitions = true,
+      hasValueExtractor = true,
+    )
+    validateAggregationParams(
+      AGGREGATION_PARAMS.copy(
+        maxContributionsPerPartition = null,
+        metrics = ImmutableList.of(MetricDefinition(VECTOR_SUM)),
+        minValue = null,
+        maxValue = null,
+        minTotalValue = null,
+        maxTotalValue = null,
+        vectorSize = 2,
+        vectorMaxTotalNorm = 1.0,
+        vectorNormKind = NormKind.L1,
+      ),
+      usePublicPartitions = false,
       hasValueExtractor = true,
     )
   }
@@ -120,7 +136,7 @@ class DpFunctionsParamsTest {
           maxContributions = null,
         ),
       exceptionMessage =
-        "maxContributionsPerPartition or maxContributions or (minTotalValue, maxTotalValue) must be set because specified PARTITION_LEVEL contribution bounding level requires per partition bounding",
+        "maxContributionsPerPartition or maxContributions or (minTotalValue, maxTotalValue) or vectorMaxTotalNorm must be set because specified PARTITION_LEVEL contribution bounding level requires per partition bounding",
     ),
     ZERO_MAX_CONTRIBUTIONS(
       aggregationParams = AGGREGATION_PARAMS.copy(maxContributions = 0),
@@ -419,6 +435,53 @@ class DpFunctionsParamsTest {
       exceptionMessage =
         "metrics must not contain duplicate metric types. Provided " +
           "[COUNT, PRIVACY_ID_COUNT, COUNT].",
+    ),
+    NORM_KIND_NOT_SET_FOR_VECTOR_SUM(
+      aggregationParams =
+        AGGREGATION_PARAMS.copy(
+          metrics = ImmutableList.of(MetricDefinition(VECTOR_SUM)),
+          vectorNormKind = null,
+          vectorMaxTotalNorm = 2.3,
+          vectorSize = 2,
+        ),
+      exceptionMessage = "vectorNormKind must be set for VECTOR_SUM metric.",
+    ),
+    MAX_TOTAL_NORM_NOT_SET_FOR_VECTOR_SUM(
+      aggregationParams =
+        AGGREGATION_PARAMS.copy(
+          metrics = ImmutableList.of(MetricDefinition(VECTOR_SUM)),
+          vectorNormKind = NormKind.L2,
+          vectorMaxTotalNorm = null,
+          vectorSize = 2,
+        ),
+      exceptionMessage = "vectorMaxTotalNorm must be set for VECTOR_SUM metric.",
+    ),
+    VECTOR_SIZE_NOT_SET_FOR_VECTOR_SUM(
+      aggregationParams =
+        AGGREGATION_PARAMS.copy(
+          metrics = ImmutableList.of(MetricDefinition(VECTOR_SUM)),
+          vectorNormKind = NormKind.L_INF,
+          vectorMaxTotalNorm = 1.0,
+          vectorSize = null,
+        ),
+      exceptionMessage = "vectorSize must be set for VECTOR_SUM metric.",
+    ),
+    VECTOR_SUM_IS_REQUESTED_TOGETHER_WITH_SCALAR_METRICS(
+      aggregationParams =
+        AGGREGATION_PARAMS.copy(
+          metrics =
+            ImmutableList.of(
+              MetricDefinition(VECTOR_SUM),
+              MetricDefinition(SUM),
+              MetricDefinition(MEAN),
+              MetricDefinition(VARIANCE),
+            ),
+          vectorNormKind = NormKind.L_INF,
+          vectorMaxTotalNorm = 1.0,
+          vectorSize = 3,
+        ),
+      exceptionMessage =
+        "VECTOR_SUM can not be computed together with scalar metrics such as SUM, MEAN, VARIANCE and QUANTILES.",
     ),
   }
 

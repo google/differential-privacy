@@ -52,8 +52,11 @@ interface EncoderFactory {
   /** Same as [protos(Class)] but accepts Kotlin class. */
   fun <T : Message> protos(protoClass: KClass<T>) = protos(protoClass.java)
 
-  /** Returns an [Encoder] for a pair of tuples, which can be stored in a [FrameworkCollection]. */
+  /** Returns an [Encoder] for a pair, which can be stored in a [FrameworkCollection]. */
   fun <T1 : Any, T2 : Any> tuple2sOf(first: Encoder<T1>, second: Encoder<T2>): Encoder<Pair<T1, T2>>
+
+  /** Returns an [Encoder] for a list, which can be stored in a [FrameworkCollection]. */
+  fun <T : Any> lists(elementsEncoder: Encoder<T>): Encoder<List<T>>
 
   /**
    * Returns the most specific [Encoder] for any record type given its [KClass], including primitive

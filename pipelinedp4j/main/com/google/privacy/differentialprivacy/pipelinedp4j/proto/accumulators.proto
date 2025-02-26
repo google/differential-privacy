@@ -31,6 +31,10 @@ message SumAccumulator {
   double sum = 1;
 }
 
+message VectorSumAccumulator {
+  repeated double sums_per_dimension = 1;
+}
+
 message MeanAccumulator {
   int64 count = 1;
   double normalized_sum = 2;
@@ -53,6 +57,7 @@ message CompoundAccumulator {
   PrivacyIdCountAccumulator privacy_id_count_accumulator = 3;
   CountAccumulator count_accumulator = 1;
   SumAccumulator sum_accumulator = 2;
+  VectorSumAccumulator vector_sum_accumulator = 7;
   MeanAccumulator mean_accumulator = 4;
   QuantilesAccumulator quantiles_accumulator = 5;
   VarianceAccumulator variance_accumulator = 6;

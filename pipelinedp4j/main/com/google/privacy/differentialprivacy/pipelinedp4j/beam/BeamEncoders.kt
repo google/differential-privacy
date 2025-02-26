@@ -24,6 +24,7 @@ import java.io.OutputStream
 import org.apache.beam.sdk.coders.Coder
 import org.apache.beam.sdk.coders.CustomCoder
 import org.apache.beam.sdk.coders.DoubleCoder
+import org.apache.beam.sdk.coders.ListCoder
 import org.apache.beam.sdk.coders.StringUtf8Coder
 import org.apache.beam.sdk.coders.VarIntCoder
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder
@@ -48,6 +49,9 @@ class BeamEncoderFactory() : EncoderFactory {
     BeamEncoder(
       KotlinPairCoder((first as BeamEncoder<T1>).coder, (second as BeamEncoder<T2>).coder)
     )
+
+  override fun <T : Any> lists(elementsEncoder: Encoder<T>) =
+    BeamEncoder(ListCoder.of((elementsEncoder as BeamEncoder<T>).coder))
 }
 
 private class KotlinPairCoder<FirstT, SecondT>(

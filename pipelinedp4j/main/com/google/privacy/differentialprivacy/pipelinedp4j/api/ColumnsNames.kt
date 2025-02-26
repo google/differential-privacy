@@ -18,6 +18,7 @@ package com.google.privacy.differentialprivacy.pipelinedp4j.api
 
 import java.io.Serializable
 
+@ConsistentCopyVisibility
 data class ColumnNames internal constructor(internal val names: List<String>) : Serializable {
   constructor(vararg names: String) : this(names.toList())
 }

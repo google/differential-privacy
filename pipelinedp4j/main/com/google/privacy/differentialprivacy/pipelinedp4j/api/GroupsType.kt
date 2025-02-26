@@ -58,9 +58,11 @@ sealed interface GroupsType {
    * aggregations. If the input data contains a group that is in [publicGroups], it will be kept and
    * its aggregations will be anonymized.
    */
+  @ConsistentCopyVisibility
   data class PublicGroups<GroupKeysT : Any>
   internal constructor(internal val publicGroups: FrameworkCollection<GroupKeysT>) : GroupsType {
     companion object {
+
       /**
        * Constructor for [PublicGroups] when [publicGroups] are provided as a [BeamPCollection].
        *

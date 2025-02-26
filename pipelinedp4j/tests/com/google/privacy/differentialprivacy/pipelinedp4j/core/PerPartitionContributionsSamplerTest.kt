@@ -24,6 +24,7 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.local.LocalCollection
 import com.google.privacy.differentialprivacy.pipelinedp4j.local.LocalEncoderFactory
 import com.google.privacy.differentialprivacy.pipelinedp4j.local.LocalTable
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PrivacyIdContributions
+import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PrivacyIdContributionsKt.multiValueContribution
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.privacyIdContributions
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -32,8 +33,7 @@ import org.junit.runners.JUnit4
 @RunWith(JUnit4::class)
 class PerPartitionContributionsSamplerTest {
   @Test
-  fun sampleContributions_returnsSubsampleOfContributionsPerPartitionSinglePrivacyId() {
-    val contributions = listOf(1.0, 2.0, 3.0, 4.0)
+  fun sampleContributions_singleValueContributions_returnsSubsampleOfContributionsPerPartitionSinglePrivacyId() {
     val inputData =
       LocalCollection(
         sequenceOf(
@@ -52,11 +52,48 @@ class PerPartitionContributionsSamplerTest {
           LOCAL_EF,
         )
         .sampleContributions(inputData) as LocalTable<String, PrivacyIdContributions>
-    val returnedContributions = sampledData.data.toMap().getValue("pk1").valuesList
+    val returnedContributions = sampledData.data.toMap().get("pk1")!!
+    assertThat(returnedContributions.multiValueContributionsList.count()).isEqualTo(0)
+    val singleValueContributions = returnedContributions.singleValueContributionsList
+    assertThat(singleValueContributions.count()).isEqualTo(2)
+    // Returned values are all in the list of the contributed values.
+    assertThat(listOf(1.0, 2.0, 3.0, 4.0)).containsAtLeastElementsIn(singleValueContributions)
+  }
 
-    assertThat(returnedContributions.count()).isEqualTo(2)
-    // Returned partition keys are all in the list of the contributed partition keys.
-    assertThat(contributions).containsAtLeastElementsIn(returnedContributions)
+  @Test
+  fun sampleContributions_multiValueContributions_returnsSubsampleOfContributionsPerPartitionSinglePrivacyId() {
+    val inputData =
+      LocalCollection(
+        sequenceOf(
+          contributionWithPrivacyId("samePrivacyId", "pk1", listOf(1.0, 2.0)),
+          contributionWithPrivacyId("samePrivacyId", "pk1", listOf(3.0, 4.0)),
+          contributionWithPrivacyId("samePrivacyId", "pk1", listOf(5.0, 6.0)),
+          contributionWithPrivacyId("samePrivacyId", "pk1", listOf(7.0, 8.0)),
+        )
+      )
+
+    val sampledData =
+      PerPartitionContributionsSampler(
+          maxContributionsPerPartition = 2,
+          LOCAL_EF.strings(),
+          LOCAL_EF.strings(),
+          LOCAL_EF,
+        )
+        .sampleContributions(inputData) as LocalTable<String, PrivacyIdContributions>
+    val returnedContributions = sampledData.data.toMap().get("pk1")!!
+    assertThat(returnedContributions.singleValueContributionsList.count()).isEqualTo(0)
+    val multiValueContributions = returnedContributions.multiValueContributionsList
+    assertThat(multiValueContributions.count()).isEqualTo(2)
+    // Returned values are all in the list of the contributed values.
+    assertThat(
+        listOf(
+          multiValueContribution { values += listOf(1.0, 2.0) },
+          multiValueContribution { values += listOf(3.0, 4.0) },
+          multiValueContribution { values += listOf(5.0, 6.0) },
+          multiValueContribution { values += listOf(7.0, 8.0) },
+        )
+      )
+      .containsAtLeastElementsIn(multiValueContributions)
   }
 
   @Test
@@ -73,9 +110,9 @@ class PerPartitionContributionsSamplerTest {
 
     assertThat(sampledData.data.toList())
       .containsExactly(
-        Pair("pk1", privacyIdContributions { values += listOf(1.0, 2.0, 3.0) }),
-        Pair("pk2", privacyIdContributions { values += listOf(4.0, 5.0, 6.0) }),
-        Pair("pk1", privacyIdContributions { values += listOf(7.0) }),
+        Pair("pk1", privacyIdContributions { singleValueContributions += listOf(1.0, 2.0, 3.0) }),
+        Pair("pk2", privacyIdContributions { singleValueContributions += listOf(4.0, 5.0, 6.0) }),
+        Pair("pk1", privacyIdContributions { singleValueContributions += listOf(7.0) }),
       )
   }
 
@@ -96,7 +133,7 @@ class PerPartitionContributionsSamplerTest {
 
     // Returned partition keys should only have 1 contribution from each privacy ID.
     for (pk in returnedPks) {
-      assertThat(sampledData.data.toMap().getValue(pk).valuesList).hasSize(1)
+      assertThat(sampledData.data.toMap().getValue(pk).singleValueContributionsList).hasSize(1)
     }
   }
 
@@ -120,7 +157,7 @@ class PerPartitionContributionsSamplerTest {
           LOCAL_EF,
         )
         .sampleContributions(inputData) as LocalTable<String, PrivacyIdContributions>
-    val returnedContributions = sampledData.data.toMap().getValue("pk").valuesList
+    val returnedContributions = sampledData.data.toMap().getValue("pk").singleValueContributionsList
 
     assertThat(returnedContributions.count()).isEqualTo(300)
   }

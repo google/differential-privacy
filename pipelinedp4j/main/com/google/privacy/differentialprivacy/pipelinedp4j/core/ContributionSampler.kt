@@ -17,6 +17,7 @@
 package com.google.privacy.differentialprivacy.pipelinedp4j.core
 
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PrivacyIdContributions
+import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PrivacyIdContributionsKt.multiValueContribution
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.privacyIdContributions
 
 /** Bounds contributions to the entire non-aggregated data collection. */
@@ -55,9 +56,17 @@ internal fun <PrivacyIdT : Any, PartitionKeyT : Any> sampleContributionsPerParti
   partitionContributions: Iterable<ContributionWithPrivacyId<PrivacyIdT, PartitionKeyT>>,
   maxContributionsPerPartition: Int,
 ): PrivacyIdContributions {
-  val sampledValues: Collection<Double> =
-    sampleNElements(partitionContributions.map { it.value() }, maxContributionsPerPartition)
-  return privacyIdContributions { values += sampledValues }
+  val sampledListsOfValues: Collection<List<Double>> =
+    sampleNElements(partitionContributions.map { it.values() }, maxContributionsPerPartition)
+  return privacyIdContributions {
+    for (sampledValues in sampledListsOfValues) {
+      if (sampledValues.size == 1) {
+        singleValueContributions += sampledValues.first()
+      } else {
+        multiValueContributions += multiValueContribution { values += sampledValues }
+      }
+    }
+  }
 }
 
 private fun <T> sampleNElements(elements: Collection<T>, N: Int): Collection<T> {

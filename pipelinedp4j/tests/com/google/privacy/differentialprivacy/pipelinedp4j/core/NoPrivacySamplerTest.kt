@@ -44,7 +44,8 @@ class NoPrivacySamplerTest {
     val sampledData =
       NoPrivacySampler(LOCAL_EF.strings(), LOCAL_EF.strings(), LOCAL_EF)
         .sampleContributions(inputData) as LocalTable<String, PrivacyIdContributions>
-    val returnedContributionsPk1 = sampledData.data.toMap().getValue("pk1").valuesList
+    val returnedContributionsPk1 =
+      sampledData.data.toMap().getValue("pk1").singleValueContributionsList
 
     // Returned contributions are of the same size as the originals.
     assertThat(returnedContributionsPk1).hasSize(4)
@@ -77,11 +78,14 @@ class NoPrivacySamplerTest {
     assertThat(resultMap)
       .isEqualTo(
         mapOf(
-          "pk1" to setOf(privacyIdContributions { values += listOf(1.0, 2.0, 3.0, 4.0) }),
+          "pk1" to
+            setOf(
+              privacyIdContributions { singleValueContributions += listOf(1.0, 2.0, 3.0, 4.0) }
+            ),
           "pk2" to
             setOf(
-              privacyIdContributions { values += listOf(5.0, 6.0) },
-              privacyIdContributions { values += listOf(7.0, 8.0) },
+              privacyIdContributions { singleValueContributions += listOf(5.0, 6.0) },
+              privacyIdContributions { singleValueContributions += listOf(7.0, 8.0) },
             ),
         )
       )

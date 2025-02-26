@@ -21,6 +21,7 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.local.LocalCollection
 import com.google.privacy.differentialprivacy.pipelinedp4j.local.LocalEncoderFactory
 import com.google.privacy.differentialprivacy.pipelinedp4j.local.LocalTable
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PrivacyIdContributions
+import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PrivacyIdContributionsKt.multiValueContribution
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.privacyIdContributions
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -56,7 +57,7 @@ class PartitionSamplerTest {
   }
 
   @Test
-  fun sampleContributions_doesntsampleContributionsPerPartition() {
+  fun sampleContributions_doesntSampleContributionsPerPartition() {
     val inputData =
       LocalCollection(
         sequenceOf(
@@ -75,11 +76,11 @@ class PartitionSamplerTest {
         )
         .sampleContributions(inputData) as LocalTable<String, PrivacyIdContributions>
 
-    assertThat(sampledData.data.toMap().get("pk")!!.valuesList.size).isEqualTo(3)
+    assertThat(sampledData.data.toMap().get("pk")!!.singleValueContributionsList.size).isEqualTo(3)
   }
 
   @Test
-  fun sampleContributions_returnsResultPerPrivacyId() {
+  fun sampleContributions_singleValueContributions_returnsResultPerPrivacyId() {
     val inputData =
       LocalCollection(
         sequenceOf(
@@ -100,8 +101,49 @@ class PartitionSamplerTest {
 
     assertThat(sampledData.data.toList())
       .containsExactly(
-        Pair("pk", privacyIdContributions { values += listOf(1.0, 1.0) }),
-        Pair("pk", privacyIdContributions { values += 2.0 }),
+        Pair("pk", privacyIdContributions { singleValueContributions += listOf(1.0, 1.0) }),
+        Pair("pk", privacyIdContributions { singleValueContributions += 2.0 }),
+      )
+  }
+
+  @Test
+  fun sampleContributions_multiValueContributions_returnsResultPerPrivacyId() {
+    val inputData =
+      LocalCollection(
+        sequenceOf(
+          contributionWithPrivacyId("privacyId", "pk", listOf(1.0, 2.0)),
+          contributionWithPrivacyId("privacyId", "pk", listOf(3.0, 4.0)),
+          contributionWithPrivacyId("anotherPrivacyId", "pk", listOf(5.0, 6.0)),
+        )
+      )
+
+    val sampledData =
+      PartitionSampler(
+          maxPartitionsContributed = 5,
+          LOCAL_EF.strings(),
+          LOCAL_EF.strings(),
+          LOCAL_EF,
+        )
+        .sampleContributions(inputData) as LocalTable<String, PrivacyIdContributions>
+
+    assertThat(sampledData.data.toList())
+      .containsExactly(
+        Pair(
+          "pk",
+          privacyIdContributions {
+            multiValueContributions +=
+              listOf(
+                multiValueContribution { values += listOf(1.0, 2.0) },
+                multiValueContribution { values += listOf(3.0, 4.0) },
+              )
+          },
+        ),
+        Pair(
+          "pk",
+          privacyIdContributions {
+            multiValueContributions += listOf(multiValueContribution { values += listOf(5.0, 6.0) })
+          },
+        ),
       )
   }
 

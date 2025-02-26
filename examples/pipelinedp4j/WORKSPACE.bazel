@@ -3,11 +3,15 @@ workspace(name = "examples_kotlin")
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 # JVM
+RULES_JVM_EXTERNAL_TAG = "6.7"
+
+RULES_JVM_EXTERNAL_SHA = "a1e351607f04fed296ba33c4977d3fe2a615ed50df7896676b67aac993c53c18"
+
 http_archive(
     name = "rules_jvm_external",
-    sha256 = "a4ccfc3cb86448f0c8f1d2d6ba59ea34f771f854e7d16e38ef529a31a739e250",
-    strip_prefix = "rules_jvm_external-6.4",
-    url = "https://github.com/bazelbuild/rules_jvm_external/archive/6.4.tar.gz",
+    sha256 = RULES_JVM_EXTERNAL_SHA,
+    strip_prefix = "rules_jvm_external-%s" % RULES_JVM_EXTERNAL_TAG,
+    url = "https://github.com/bazel-contrib/rules_jvm_external/releases/download/%s/rules_jvm_external-%s.tar.gz" % (RULES_JVM_EXTERNAL_TAG, RULES_JVM_EXTERNAL_TAG),
 )
 
 load("@rules_jvm_external//:repositories.bzl", "rules_jvm_external_deps")
@@ -21,10 +25,14 @@ rules_jvm_external_setup()
 load("@rules_jvm_external//:defs.bzl", "maven_install")
 
 # Kotlin
+RULES_KOTLIN_TAG = "2.1.0"
+
+RULES_KOTLIN_SHA = "dd32f19e73c70f32ccb9a166c615c0ca4aed8e27e72c4a6330c3523eafa1aa55"
+
 http_archive(
     name = "rules_kotlin",
-    sha256 = "3b772976fec7bdcda1d84b9d39b176589424c047eb2175bed09aac630e50af43",
-    url = "https://github.com/bazelbuild/rules_kotlin/releases/download/v1.9.6/rules_kotlin-v1.9.6.tar.gz",
+    sha256 = RULES_KOTLIN_SHA,
+    url = "https://github.com/bazelbuild/rules_kotlin/releases/download/v%s/rules_kotlin-v%s.tar.gz" % (RULES_KOTLIN_TAG, RULES_KOTLIN_TAG),
 )
 
 load("@rules_kotlin//kotlin:repositories.bzl", "kotlin_repositories")
@@ -36,11 +44,13 @@ load("@rules_kotlin//kotlin:core.bzl", "kt_register_toolchains")
 kt_register_toolchains()
 
 # Kotlin gRPC
+COM_GITHUB_GRPC_GRPC_KOTLIN_TAG = "1.4.2"
+
 http_archive(
     name = "com_github_grpc_grpc_kotlin",
     repo_mapping = {"@io_bazel_rules_kotlin": "@rules_kotlin"},
-    strip_prefix = "grpc-kotlin-1.4.2",
-    url = "https://github.com/grpc/grpc-kotlin/archive/refs/tags/v1.4.2.tar.gz",
+    strip_prefix = "grpc-kotlin-%s" % COM_GITHUB_GRPC_GRPC_KOTLIN_TAG,
+    url = "https://github.com/grpc/grpc-kotlin/archive/refs/tags/v%s.tar.gz" % COM_GITHUB_GRPC_GRPC_KOTLIN_TAG,
 )
 
 # Repositories
@@ -58,28 +68,36 @@ load(
 )
 
 # Maven
+BEAM_TAG = "2.62.0"
+
+SCALA_TAG = "2.13"
+
+SCALA_LIBRARY_TAG = "%s.16" % SCALA_TAG
+
+SPARK_TAG = "3.5.4"
+
+JACKSON_TAG = "2.18.2"
+
+GOOGLE_TRUTH_TAG = "1.4.4"
+
 maven_install(
     artifacts = [
         "com.google.privacy.differentialprivacy:differentialprivacy:3.0.0",
-        "com.google.protobuf:protobuf-kotlin:3.18.0",
-        "org.apache.beam:beam-runners-direct-java:2.49.0",
-        "org.apache.beam:beam-sdks-java-core:2.49.0",
-        "org.apache.beam:beam-sdks-java-extensions-avro:2.49.0",
-        "org.apache.beam:beam-sdks-java-extensions-protobuf:2.49.0",
-
-        "info.picocli:picocli:4.7.6",
+        "com.google.protobuf:protobuf-kotlin:4.29.3",
+        "org.apache.beam:beam-runners-direct-java:%s" % BEAM_TAG,
+        "org.apache.beam:beam-sdks-java-core:%s" % BEAM_TAG,
+        "org.apache.beam:beam-sdks-java-extensions-avro:%s" % BEAM_TAG,
+        "org.apache.beam:beam-sdks-java-extensions-protobuf:%s" % BEAM_TAG,
         # For Apache Spark
-        "org.apache.spark:spark-core_2.13:3.3.2",
-        "org.apache.spark:spark-sql_2.13:3.3.2",
-        "org.apache.spark:spark-mllib_2.13:3.3.2",
-        "org.apache.spark:spark-catalyst_2.13:3.3.2",
-        "com.fasterxml.jackson.core:jackson-databind:2.14.2",
-        "com.fasterxml.jackson.module:jackson-module-paranamer:2.14.2",
-        "com.fasterxml.jackson.module:jackson-module-scala_2.13:2.14.2",
-        "org.scala-lang:scala-library:2.13.12",
-
-        # For logging to console.
-        "org.slf4j:slf4j-jdk14:1.7.36",
+        "org.apache.spark:spark-core_%s:%s" % (SCALA_TAG, SPARK_TAG),
+        "org.apache.spark:spark-sql_%s:%s" % (SCALA_TAG, SPARK_TAG),
+        "org.apache.spark:spark-mllib_%s:%s" % (SCALA_TAG, SPARK_TAG),
+        "org.apache.spark:spark-catalyst_%s:%s" % (SCALA_TAG, SPARK_TAG),
+        "com.fasterxml.jackson.core:jackson-databind:%s" % JACKSON_TAG,
+        "com.fasterxml.jackson.module:jackson-module-paranamer:%s" % JACKSON_TAG,
+        "com.fasterxml.jackson.module:jackson-module-scala_%s:%s" % (SCALA_TAG, JACKSON_TAG),
+        "org.scala-lang:scala-library:%s" % SCALA_LIBRARY_TAG,
+        "info.picocli:picocli:4.7.6",
     ],
     repositories = [
         "https://maven.google.com",

@@ -16,6 +16,8 @@
 
 package com.google.privacy.differentialprivacy.pipelinedp4j.api
 
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.NormKind as InternalNormKind
+
 /**
  * Contribution bounds of the value.
  *
@@ -46,3 +48,51 @@ data class Bounds(internal val minValue: Double, internal val maxValue: Double) 
     }
   }
 }
+
+/**
+ * Contribution bounds of the vector.
+ *
+ * @param maxVectorTotalNorm the maximum norm of the vector sum per privacy unit in a group. Used
+ *   for vector sum. E.g. if a privacy unit contributes v1, v2 and v3 in a group "A" then the sum
+ *   v1 + v2 + v3 will be scaled down so that its norm is <= maxVectorTotalNorm and not each of v1,
+ *   v2 and v3 will scaled down individually. That's why there is "total" in the name.
+ *
+ * There is no min bound on the vector norm because the norm of a vector is always non-negative.
+ */
+data class VectorContributionBounds(internal val maxVectorTotalNorm: VectorNorm)
+
+/**
+ * The norm of the vector.
+ *
+ * @param normKind the kind of the vector norm.
+ * @param value the value of the norm.
+ */
+data class VectorNorm(internal val normKind: NormKind, internal val value: Double) {
+  init {
+    require(value >= 0.0) { "value of the vector norm must be >= 0.0, but value=$value" }
+  }
+}
+
+/**
+ * The kind of the vector norm.
+ *
+ * See https://en.wikipedia.org/wiki/Norm_%28mathematics%29#p-norm for definitions.
+ */
+enum class NormKind {
+  L_INF,
+  L1,
+  L2,
+}
+
+/**
+ * Converts the [NormKind] to the [InternalNormKind].
+ *
+ * We delibaretly do not expose the internal classes in the public API to limit the surface of the
+ * API. This will give us more flexibility to change the implementation.
+ */
+internal fun NormKind.toInternalNormKind() =
+  when (this) {
+    NormKind.L_INF -> InternalNormKind.L_INF
+    NormKind.L1 -> InternalNormKind.L1
+    NormKind.L2 -> InternalNormKind.L2
+  }

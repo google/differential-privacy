@@ -17,6 +17,7 @@
 package testutils
 
 import (
+	"math"
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
@@ -167,6 +168,75 @@ func TestCheckNumPartitionsFn(t *testing.T) {
 		CheckNumPartitions(s, col, tc.wantPartitions)
 		if err := ptest.Run(p); (err != nil) != tc.wantErr {
 			t.Errorf("With %s, got error=%v, wantErr=%t", tc.desc, err, tc.wantErr)
+		}
+	}
+}
+
+func TestLaplaceToleranceForVariance(t *testing.T) {
+	for _, tc := range []struct {
+		flakinessK                   float64
+		lower                        float64
+		upper                        float64
+		maxContributionsPerPartition int64
+		maxPartitionsContributed     int64
+		epsilon                      float64
+		stats                        VarianceStatistics
+		wantTolerance                VarianceStatistics
+		within                       VarianceStatistics
+	}{
+		{
+			lower: 10., upper: 20.,
+			maxContributionsPerPartition: 2,
+			maxPartitionsContributed:     2,
+			epsilon:                      20.,
+			stats: VarianceStatistics{
+				NormalizedSumOfSquares: 2000.,
+				NormalizedSum:          -300.,
+				Count:                  100.,
+				Mean:                   -300./100. + (10.+20.)/2,
+				Variance:               2000./100. - (-300. / 100. * -300. / 100.),
+			},
+			wantTolerance: VarianceStatistics{
+				Mean:     2.,
+				Variance: 14.,
+			},
+		},
+		{
+			lower: 10., upper: 30.,
+			maxContributionsPerPartition: 2,
+			maxPartitionsContributed:     2,
+			epsilon:                      30.,
+			stats: VarianceStatistics{
+				NormalizedSumOfSquares: 5000.,
+				NormalizedSum:          -300.,
+				Count:                  100.,
+				Mean:                   -300./100. + (10.+30.)/2,
+				Variance:               5000./100. - (-300. / 100. * -300. / 100.),
+			},
+			wantTolerance: VarianceStatistics{
+				Mean:     3.6183,
+				Variance: 50.35,
+			},
+			within: VarianceStatistics{
+				Mean:     1e-4,
+				Variance: 0.01,
+			},
+		},
+	} {
+		got, err := LaplaceToleranceForVariance(
+			23, tc.lower, tc.upper, tc.maxContributionsPerPartition,
+			tc.maxPartitionsContributed, tc.epsilon, tc.stats,
+		)
+		if err != nil {
+			t.Fatalf("ToleranceForVariance(%v): got error %v", tc, err)
+		}
+		if math.Abs(got.Mean-tc.wantTolerance.Mean) > tc.within.Mean {
+			t.Errorf("wrong tolerance for mean, got %f, want %f",
+				got.Mean, tc.wantTolerance.Mean)
+		}
+		if math.Abs(got.Variance-tc.wantTolerance.Variance) > tc.within.Variance {
+			t.Errorf("wrong tolerance for variance, got %f, want %f",
+				got.Variance, tc.wantTolerance.Variance)
 		}
 	}
 }

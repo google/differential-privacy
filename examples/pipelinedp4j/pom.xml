@@ -18,24 +18,41 @@
 
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://www.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.google.privacy.differentialprivacy.pipelinedp4j</groupId>
-    <artifactId>BeamExample</artifactId>
+    <groupId>com.google.privacy.differentialprivacy</groupId>
+    <artifactId>pipelinedp4j</artifactId>
     <version>1.0-SNAPSHOT</version>
-    <packaging>jar</packaging>
+    <packaging>pom</packaging>
+
+    <modules>
+        <module>common</module>
+        <module>beam</module>
+        <module>spark</module>
+    </modules>
 
     <properties>
-        <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
-        <beam.version>2.60.0</beam.version>
-        <slf4j.version>1.7.36</slf4j.version>
-
-        <!-- Otherwise you get errors like https://shorturl.at/7mfCi -->
-        <exec.cleanupDaemonThreads>false</exec.cleanupDaemonThreads>
-        <!-- To get rid of the encoding warning. -->
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven-compiler-plugin.version>3.14.0</maven-compiler-plugin.version>
+        <maven-assembly-plugin.version>3.7.1</maven-assembly-plugin.version>
+        <pipelinedp4j.version>0.0.3</pipelinedp4j.version>
+        <kotlin-stdlib.version>2.1.0</kotlin-stdlib.version>
     </properties>
+
+    <dependencies>
+        <!-- PipelineDP4j dependencies -->
+        <dependency>
+            <groupId>com.google.privacy.differentialprivacy.pipelinedp4j</groupId>
+            <artifactId>pipelinedp4j</artifactId>
+            <version>${pipelinedp4j.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.jetbrains.kotlin</groupId>
+            <artifactId>kotlin-stdlib</artifactId>
+            <version>${kotlin-stdlib.version}</version>
+        </dependency>
+    </dependencies>
 
     <build>
         <plugins>
@@ -46,77 +63,28 @@
                 <configuration>
                     <source>11</source>
                     <target>11</target>
-                    <excludes>
-                        <!-- SparkExample is not supoprted yet. -->
-                        <exclude>com/google/privacy/differentialprivacy/pipelinedp4j/examples/SparkExample.java</exclude>
-                    </excludes>
                 </configuration>
+            </plugin>
+            <!-- This plugin is needed to build a deploy jar for Spark. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <version>${maven-assembly-plugin.version}</version>
+                <configuration>
+                    <descriptorRefs>
+                        <descriptorRef>jar-with-dependencies</descriptorRef>
+                    </descriptorRefs>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>make-assembly</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
-
-    <profiles>
-        <profile>
-            <id>direct-runner</id>
-            <activation>
-                <activeByDefault>true</activeByDefault>
-            </activation>
-            <!-- Makes the DirectRunner available when running a pipeline. -->
-            <dependencies>
-                <dependency>
-                    <groupId>org.apache.beam</groupId>
-                    <artifactId>beam-runners-direct-java</artifactId>
-                    <version>${beam.version}</version>
-                    <scope>runtime</scope>
-                </dependency>
-            </dependencies>
-        </profile>
-
-        <profile>
-            <id>dataflow-runner</id>
-            <!-- Makes the DataflowRunner available when running a pipeline. -->
-            <dependencies>
-                <dependency>
-                    <groupId>org.apache.beam</groupId>
-                    <artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
-                    <version>${beam.version}</version>
-                    <scope>runtime</scope>
-                </dependency>
-            </dependencies>
-        </profile>
-    </profiles>
-
-    <dependencies>
-        <!-- Adds a dependency on the Beam SDK. -->
-        <dependency>
-            <groupId>org.apache.beam</groupId>
-            <artifactId>beam-sdks-java-core</artifactId>
-            <version>${beam.version}</version>
-        </dependency>
-
-        <!-- Necessary for logging -->
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-jdk14</artifactId>
-            <version>${slf4j.version}</version>
-            <!-- When loaded at runtime this will wire up slf4j to the JUL backend -->
-            <scope>runtime</scope>
-        </dependency>
-
-        <!-- PipelineDP4j dependencies -->
-        <!-- https://mvnrepository.com/artifact/com.google.privacy.differentialprivacy.pipelinedp4j/pipelinedp4j -->
-        <dependency>
-            <groupId>com.google.privacy.differentialprivacy.pipelinedp4j</groupId>
-            <artifactId>pipelinedp4j</artifactId>
-            <version>0.0.1</version>
-        </dependency>
-
-        <!-- We need the following dependency because the code is in Java but PipelineDP4j is written in Kotlin -->
-        <!-- https://mvnrepository.com/artifact/org.jetbrains.kotlin/kotlin-stdlib -->
-        <dependency>
-            <groupId>org.jetbrains.kotlin</groupId>
-            <artifactId>kotlin-stdlib</artifactId>
-            <version>1.9.20</version>
-        </dependency>
-    </dependencies>
 </project>

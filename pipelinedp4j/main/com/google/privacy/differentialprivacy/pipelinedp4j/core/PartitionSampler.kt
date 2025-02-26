@@ -17,6 +17,7 @@
 package com.google.privacy.differentialprivacy.pipelinedp4j.core
 
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PrivacyIdContributions
+import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PrivacyIdContributionsKt.multiValueContribution
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.privacyIdContributions
 
 /**
@@ -47,14 +48,23 @@ class PartitionSampler<PrivacyIdT : Any, PartitionKeyT : Any>(
       "SamplePartitions",
       partitionKeyEncoder,
       encoderFactory.protos(PrivacyIdContributions::class),
-    ) { _, contributions ->
-      val l0BoundedData = samplePartitions(contributions, maxPartitionsContributed)
+    ) { _, intialContributions ->
+      val l0BoundedData = samplePartitions(intialContributions, maxPartitionsContributed)
       val groupedByPartitionKey:
         Map<PartitionKeyT, List<ContributionWithPrivacyId<PrivacyIdT, PartitionKeyT>>> =
         l0BoundedData.groupBy { it.partitionKey() }
       groupedByPartitionKey
         .mapValues { (_, partitionContributions) ->
-          privacyIdContributions { values += partitionContributions.map { it.value() } }
+          privacyIdContributions {
+            for (partitionContribution in partitionContributions) {
+              val contributionValues = partitionContribution.values()
+              if (contributionValues.size == 1) {
+                singleValueContributions += contributionValues.first()
+              } else {
+                multiValueContributions += multiValueContribution { values += contributionValues }
+              }
+            }
+          }
         }
         .map { it.toPair() }
         .asSequence()

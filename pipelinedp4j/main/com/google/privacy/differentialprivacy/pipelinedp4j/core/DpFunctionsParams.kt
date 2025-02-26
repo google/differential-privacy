@@ -26,6 +26,7 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.PRIVA
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.QUANTILES
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.SUM
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.VARIANCE
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.VECTOR_SUM
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.BudgetPerOpSpec
 import java.io.Serializable
 import kotlin.reflect.KClass
@@ -158,6 +159,17 @@ data class AggregationParams(
    * Used for SUM.
    */
   val maxTotalValue: Double? = null,
+  /** The type of norm. Used for VECTOR_SUM. */
+  val vectorNormKind: NormKind? = null,
+  /**
+   * The maximum norm of the sum of the vectors that can be contributed by a user to a partition.
+   * Used for VECTOR_SUM.
+   */
+  val vectorMaxTotalNorm: Double? = null,
+  /**
+   * The size of the vectors that can be contributed by a user to a partition. Used for VECTOR_SUM.
+   */
+  val vectorSize: Int? = null,
   /**
    * The amount of budget used for partition selection.
    *
@@ -225,9 +237,10 @@ fun validateAggregationParams(
     require(
       params.maxContributionsPerPartition != null ||
         params.maxContributions != null ||
-        (params.minTotalValue != null && params.maxTotalValue != null)
+        (params.minTotalValue != null && params.maxTotalValue != null) ||
+        params.vectorMaxTotalNorm != null
     ) {
-      "maxContributionsPerPartition or maxContributions or (minTotalValue, maxTotalValue) must be set because specified ${params.contributionBoundingLevel} contribution bounding level requires per partition bounding."
+      "maxContributionsPerPartition or maxContributions or (minTotalValue, maxTotalValue) or vectorMaxTotalNorm must be set because specified ${params.contributionBoundingLevel} contribution bounding level requires per partition bounding."
     }
   }
   // Max contributions.
@@ -346,6 +359,23 @@ fun validateAggregationParams(
       "maxContributionsPerPartition must be set for QUANTILES metric."
     }
     require(areMinMaxValuesSet) { "(minValue, maxValue) must be set for QUANTILES metric." }
+  }
+  // Validation for VECTOR_SUM metric.
+  if (metricIsRequested(VECTOR_SUM::class, params)) {
+    require(params.vectorNormKind != null) { "vectorNormKind must be set for VECTOR_SUM metric." }
+    require(params.vectorMaxTotalNorm != null) {
+      "vectorMaxTotalNorm must be set for VECTOR_SUM metric."
+    }
+    require(params.vectorSize != null) { "vectorSize must be set for VECTOR_SUM metric." }
+
+    require(
+      !metricIsRequested(SUM::class, params) &&
+        !metricIsRequested(MEAN::class, params) &&
+        !metricIsRequested(VARIANCE::class, params) &&
+        !metricIsRequested(QUANTILES::class, params)
+    ) {
+      "VECTOR_SUM can not be computed together with scalar metrics such as SUM, MEAN, VARIANCE and QUANTILES."
+    }
   }
 
   // Partition selection
@@ -503,6 +533,8 @@ sealed class MetricType : Serializable {
 
   data object SUM : MetricType()
 
+  data object VECTOR_SUM : MetricType()
+
   data object MEAN : MetricType()
 
   data class QUANTILES(private val ranks: ImmutableList<Double>) : MetricType() {
@@ -520,6 +552,17 @@ sealed class MetricType : Serializable {
 enum class NoiseKind {
   LAPLACE,
   GAUSSIAN,
+}
+
+/**
+ * The kind of vector norm.
+ *
+ * See https://en.wikipedia.org/wiki/Norm_%28mathematics%29#p-norm for definitions.
+ */
+enum class NormKind {
+  L_INF,
+  L1,
+  L2,
 }
 
 private fun sameNullability(a: Double?, b: Double?): Boolean {

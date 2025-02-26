@@ -44,6 +44,25 @@ class DataExtractorsTest {
   }
 
   @Test
+  fun forVectorfrom_withValuesExtractor_constructsDataExtractors() {
+    val inputRow = InputRow(privacyId = "userId", partitionKey = "partitionKey", value = 10.0)
+    val ef = LocalEncoderFactory()
+
+    val dataExtractors =
+      DataExtractors.forVectorFrom<InputRow, String, String>(
+        { it.privacyId },
+        ef.strings(),
+        { it.partitionKey },
+        ef.strings(),
+        { listOf(it.value, it.value, it.value) },
+      )
+    val extractedContribution = dataExtractors.contributionExtractor.invoke(inputRow)
+
+    assertThat(extractedContribution)
+      .isEqualTo(contributionWithPrivacyId("userId", "partitionKey", listOf(10.0, 10.0, 10.0)))
+  }
+
+  @Test
   fun from_withoutValueExtractor_constructsDataExtractors() {
     val inputRow = InputRow(privacyId = "userId", partitionKey = "partitionKey", value = 20.0)
     val ef = LocalEncoderFactory()

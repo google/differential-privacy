@@ -57,6 +57,33 @@ internal constructor(
       )
 
     /**
+     * Constructs a [DataExtractors] that uses the provided functions to extract a
+     * [ContributionWithPrivacyId] from the input data row.
+     *
+     * This version is useful when the user contribution consists of multiple values, e.g. when
+     * claculating vector sum.
+     */
+    inline fun <T, PrivacyIdT : Any, PartitionKeyT : Any> forVectorFrom(
+      crossinline privacyIdExtractor: (T) -> PrivacyIdT,
+      privacyIdEncoder: Encoder<PrivacyIdT>,
+      crossinline partitionKeyExtractor: (T) -> PartitionKeyT,
+      partitionKeyEncoder: Encoder<PartitionKeyT>,
+      crossinline valuesExtractor: (T) -> List<Double>,
+    ) =
+      DataExtractors<T, PrivacyIdT, PartitionKeyT>(
+        {
+          contributionWithPrivacyId(
+            privacyId = privacyIdExtractor(it),
+            partitionKey = partitionKeyExtractor(it),
+            values = valuesExtractor(it),
+          )
+        },
+        privacyIdEncoder = privacyIdEncoder,
+        partitionKeyEncoder = partitionKeyEncoder,
+        hasValueExtractor = true,
+      )
+
+    /**
      * Constructs a [DataExtractors] that uses the provided functions to extract a privacy id and a
      * partition key into [ContributionWithPrivacyId] from the input data row.
      */

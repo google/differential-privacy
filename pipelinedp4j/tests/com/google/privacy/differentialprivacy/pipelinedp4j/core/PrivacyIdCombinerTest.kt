@@ -24,6 +24,7 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.PRIVA
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.NoiseKind.GAUSSIAN
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.AllocatedBudget
 import com.google.privacy.differentialprivacy.pipelinedp4j.dplibrary.NoiseFactory
+import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PrivacyIdContributionsKt.multiValueContribution
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.privacyIdContributions
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.privacyIdCountAccumulator
 import com.google.testing.junit.testparameterinjector.TestParameterInjector
@@ -57,17 +58,38 @@ class PrivacyIdCombinerTest {
   }
 
   @Test
-  fun createAccumulator_initsAccumulatorWithOne() {
+  fun createAccumulator_singleValueContributions_initsAccumulatorWithOne() {
     val combiner = PrivacyIdCountCombiner(AGG_PARAMS, UNUSED_ALLOCATED_BUDGET, NoiseFactory())
 
     val accumulator =
-      combiner.createAccumulator(privacyIdContributions { values += listOf(1.0, 1.0, 1.0) })
+      combiner.createAccumulator(
+        privacyIdContributions { singleValueContributions += listOf(1.0, 1.0, 1.0) }
+      )
 
     assertThat(accumulator).isEqualTo(privacyIdCountAccumulator { count = 1 })
   }
 
   @Test
-  fun createAccumulator_initsAccumulatorWithZero() {
+  fun createAccumulator_multiValueContributions_initsAccumulatorWithOne() {
+    val combiner = PrivacyIdCountCombiner(AGG_PARAMS, UNUSED_ALLOCATED_BUDGET, NoiseFactory())
+
+    val accumulator =
+      combiner.createAccumulator(
+        privacyIdContributions {
+          multiValueContributions +=
+            listOf(
+              multiValueContribution { values += listOf(1.0, 1.0, 1.0) },
+              multiValueContribution { values += listOf(2.0, 2.0, 2.0) },
+              multiValueContribution { values += listOf(3.0, 3.0, 3.0) },
+            )
+        }
+      )
+
+    assertThat(accumulator).isEqualTo(privacyIdCountAccumulator { count = 1 })
+  }
+
+  @Test
+  fun createAccumulator_noContributions_initsAccumulatorWithZero() {
     val combiner = PrivacyIdCountCombiner(AGG_PARAMS, UNUSED_ALLOCATED_BUDGET, NoiseFactory())
 
     val accumulator = combiner.createAccumulator(privacyIdContributions {})

@@ -32,6 +32,7 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PrivacyIdCountA
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.QuantilesAccumulator
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.SumAccumulator
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.VarianceAccumulator
+import com.google.privacy.differentialprivacy.pipelinedp4j.proto.VectorSumAccumulator
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.compoundAccumulator
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.countAccumulator
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.dpAggregates
@@ -40,10 +41,13 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.proto.privacyIdCountA
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.quantilesAccumulator
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.sumAccumulator
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.varianceAccumulator
+import com.google.privacy.differentialprivacy.pipelinedp4j.proto.vectorSumAccumulator
 import com.google.protobuf.ByteString
 import java.io.Serializable
 import kotlin.math.abs
 import kotlin.math.max
+import org.apache.commons.math3.linear.ArrayRealVector
+import org.apache.commons.math3.linear.RealVector
 
 /**
  * An entity that aggregates input values and adds noise for differential privacy (DP).
@@ -121,7 +125,8 @@ class CountCombiner(
   override fun createAccumulator(contributions: PrivacyIdContributions): CountAccumulator =
     countAccumulator {
       count =
-        contributions.valuesList.size
+        contributions
+          .size()
           .toLong()
           .coerceInIfContributionBoundingEnabled(
             0,
@@ -187,7 +192,7 @@ class PrivacyIdCountCombiner(
    */
   override fun createAccumulator(contributions: PrivacyIdContributions): PrivacyIdCountAccumulator {
     val privacyIdCount =
-      if (contributions.valuesList.isEmpty()) {
+      if (contributions.size() == 0) {
         // Empty public partition, no privacy ids.
         0
       } else {
@@ -316,7 +321,7 @@ class PostAggregationPartitionSelectionCombiner(
    * @throws IllegalArgumentException if the contributions are empty.
    */
   override fun createAccumulator(contributions: PrivacyIdContributions): PrivacyIdCountAccumulator {
-    require(contributions.valuesList.size > 0) {
+    require(contributions.size() > 0) {
       "There must be contributions for PostAggregationPartitionSelectionCombiner."
     }
     return privacyIdCountAccumulator { count = 1 }
@@ -375,10 +380,7 @@ class PostAggregationPartitionSelectionCombiner(
  */
 class SumCombiner(
   private val aggregationParams: AggregationParams,
-  // The amount of privacy budget that can be used by the combiner.
   private val budget: AllocatedBudget,
-  // We allow for passing the noise generator as a parameter in order to be able to mock it in
-  // tests.
   private val noiseFactory: (NoiseKind) -> Noise,
 ) : Combiner<SumAccumulator, Double>, Serializable {
   override val requiresPerPartitionBoundedInput = false
@@ -396,10 +398,10 @@ class SumCombiner(
   override fun createAccumulator(contributions: PrivacyIdContributions): SumAccumulator =
     sumAccumulator {
       sum =
-        if (contributions.valuesList.isEmpty()) {
+        if (contributions.singleValueContributionsList.isEmpty()) {
           0.0
         } else {
-          contributions.valuesList
+          contributions.singleValueContributionsList
             .sum()
             .coerceInIfContributionBoundingEnabled(
               aggregationParams.minTotalValue!!,
@@ -443,6 +445,110 @@ class SumCombiner(
 }
 
 /**
+ * A [Combiner] for the [MetricType.VECTOR_SUM].
+ *
+ * It returns a noisy sum of input vectors.
+ *
+ * @property aggregationParams parameters controlling the aggregation process.
+ * @property budget the amount of privacy budget that can be used by the combiner.
+ * @property noiseFactory allows for passing the noise generator as a parameter in order to be able
+ *   to mock it in tests.
+ */
+class VectorSumCombiner(
+  private val aggregationParams: AggregationParams,
+  private val budget: AllocatedBudget,
+  private val noiseFactory: (NoiseKind) -> Noise,
+) : Combiner<VectorSumAccumulator, List<Double>>, Serializable {
+  override val requiresPerPartitionBoundedInput = false
+
+  /**
+   * Creates a [VectorSumAccumulator] from the given privacy id contributions.
+   *
+   * **Important Note:** The `contributions` must contain all contributions by a single privacy id
+   * to a single partition.
+   *
+   * @param contributions the contributions of a single privacy id to a single partition.
+   * @return a new `VectorSumAccumulator` initialized with the sum of the contributions, potentially
+   *   bounded based on the privacy level.
+   */
+  override fun createAccumulator(contributions: PrivacyIdContributions) = vectorSumAccumulator {
+    sumsPerDimension +=
+      contributions.multiValueContributionsList
+        .map { contribution -> ArrayRealVector(contribution.valuesList.toDoubleArray()) }
+        .reduceOrNull { acc, vector -> acc.add(vector) }
+        ?.clipIfContributionBoundingEnabled(
+          aggregationParams.vectorMaxTotalNorm!!,
+          aggregationParams.vectorNormKind!!,
+        )
+        ?.toArray()
+        ?.asList() ?: List(aggregationParams.vectorSize!!) { 0.0 }
+  }
+
+  /**
+   * Merges two [VectorSumAccumulator] instances by summing their vectors.
+   *
+   * @param accumulator1 the first accumulator to merge.
+   * @param accumulator2 the second accumulator to merge.
+   * @return a new `VectorSumAccumulator` with the combined vector sum.
+   */
+  override fun mergeAccumulators(
+    accumulator1: VectorSumAccumulator,
+    accumulator2: VectorSumAccumulator,
+  ) = vectorSumAccumulator {
+    sumsPerDimension +=
+      accumulator1.sumsPerDimensionList.zip(accumulator2.sumsPerDimensionList).map { (e1, e2) ->
+        e1 + e2
+      }
+  }
+
+  /**
+   * Computes a noisy vector sum from the given [VectorSumAccumulator].
+   *
+   * @param accumulator the accumulator containing the aggregated vector of sum.
+   * @return a noisy vector sum with added differential privacy guarantees.
+   */
+  override fun computeMetrics(accumulator: VectorSumAccumulator): List<Double> {
+    val noise = noiseFactory(aggregationParams.noiseKind)
+    val vector = ArrayRealVector(accumulator.sumsPerDimensionList.toDoubleArray())
+    // TODO: introduce l2 sensitivity for Gaussian noise.
+    val epsPerDimension = budget.epsilon() / vector.dimension
+    val deltaPerDimension = budget.delta() / vector.dimension
+    return vector
+      .map {
+        noise.addNoise(
+          it,
+          /* l0Sensitivity= */ aggregationParams.maxPartitionsContributed!!,
+          /* lInfSensitivity= */ aggregationParams.vectorMaxTotalNorm!!,
+          epsPerDimension,
+          deltaPerDimension,
+        )
+      }
+      .toArray()
+      .asList()
+  }
+
+  private fun RealVector.clipIfContributionBoundingEnabled(
+    maxNorm: Double,
+    normKind: NormKind,
+  ): RealVector {
+    if (!aggregationParams.applyPerPartitionBounding) {
+      return this.copy()
+    }
+    val currentNorm =
+      when (normKind) {
+        NormKind.L1 -> this.l1Norm
+        NormKind.L2 -> this.norm
+        NormKind.L_INF -> this.lInfNorm
+      }
+    return if (currentNorm <= maxNorm) {
+      this.copy()
+    } else {
+      this.mapMultiply(maxNorm / currentNorm)
+    }
+  }
+}
+
+/**
  * A [Combiner] for the [MetricType.MEAN].
  *
  * It returns a noisy mean of input items. It can also return count and sum if requested by the
@@ -480,9 +586,9 @@ class MeanCombiner(
     // half the sensitivity it would otherwise take for better accuracy (as compared
     // to doing noisy sum / noisy count).
     meanAccumulator {
-      count = contributions.valuesList.size.toLong()
+      count = contributions.singleValueContributionsList.size.toLong()
       normalizedSum =
-        contributions.valuesList
+        contributions.singleValueContributionsList
           .map {
             it.coerceInIfContributionBoundingEnabled(
               aggregationParams.minValue!!,
@@ -576,7 +682,7 @@ class QuantilesCombiner(
   override fun createAccumulator(contributions: PrivacyIdContributions): QuantilesAccumulator =
     quantilesAccumulator {
       val boundedQuantiles = emptyBoundedQuantiles()
-      boundedQuantiles.addEntries(contributions.valuesList)
+      boundedQuantiles.addEntries(contributions.singleValueContributionsList)
       serializedQuantilesSummary = ByteString.copyFrom(boundedQuantiles.serializableSummary)
     }
 
@@ -690,7 +796,7 @@ class VarianceCombiner(
     // to doing noisy sum / noisy count).
     varianceAccumulator {
       val coercedValues =
-        contributions.valuesList.map {
+        contributions.singleValueContributionsList.map {
           it.coerceInIfContributionBoundingEnabled(
             aggregationParams.minValue!!,
             aggregationParams.maxValue!!,
@@ -815,6 +921,7 @@ class CompoundCombiner(val combiners: Iterable<Combiner<*, *>>) :
           privacyIdCountAccumulator = combiner.createAccumulator(contributions)
         is CountCombiner -> countAccumulator = combiner.createAccumulator(contributions)
         is SumCombiner -> sumAccumulator = combiner.createAccumulator(contributions)
+        is VectorSumCombiner -> vectorSumAccumulator = combiner.createAccumulator(contributions)
         is MeanCombiner -> meanAccumulator = combiner.createAccumulator(contributions)
         is QuantilesCombiner -> quantilesAccumulator = combiner.createAccumulator(contributions)
         is VarianceCombiner -> varianceAccumulator = combiner.createAccumulator(contributions)
@@ -861,6 +968,12 @@ class CompoundCombiner(val combiners: Iterable<Combiner<*, *>>) :
         is SumCombiner ->
           sumAccumulator =
             combiner.mergeAccumulators(accumulator1.sumAccumulator, accumulator2.sumAccumulator)
+        is VectorSumCombiner ->
+          vectorSumAccumulator =
+            combiner.mergeAccumulators(
+              accumulator1.vectorSumAccumulator,
+              accumulator2.vectorSumAccumulator,
+            )
         is MeanCombiner ->
           meanAccumulator =
             combiner.mergeAccumulators(accumulator1.meanAccumulator, accumulator2.meanAccumulator)
@@ -901,6 +1014,8 @@ class CompoundCombiner(val combiners: Iterable<Combiner<*, *>>) :
         }
         is CountCombiner -> count = combiner.computeMetrics(accumulator.countAccumulator)
         is SumCombiner -> sum = combiner.computeMetrics(accumulator.sumAccumulator)
+        is VectorSumCombiner ->
+          vectorSum += combiner.computeMetrics(accumulator.vectorSumAccumulator)
         is MeanCombiner -> {
           val meanResult = combiner.computeMetrics(accumulator.meanAccumulator)
           mean = meanResult.mean
@@ -1022,4 +1137,13 @@ private fun getNoisedNormalizedSumOfSquares(
     sumOfSquaresBudget.epsilon(),
     sumOfSquaresBudget.delta(),
   )
+}
+
+private fun PrivacyIdContributions.size(): Int {
+  if (singleValueContributionsCount > 0 && multiValueContributionsCount > 0) {
+    throw IllegalArgumentException(
+      "PrivacyIdContributions cannot have both single and multi value contributions."
+    )
+  }
+  return max(singleValueContributionsCount, multiValueContributionsCount)
 }

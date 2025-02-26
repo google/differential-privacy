@@ -33,7 +33,9 @@ class ExactPrivacyIdCountCombinerTest {
     val combiner = ExactPrivacyIdCountCombiner()
 
     val accumulator =
-      combiner.createAccumulator(privacyIdContributions { values += listOf(1.0, 1.0, 1.0) })
+      combiner.createAccumulator(
+        privacyIdContributions { singleValueContributions += listOf(1.0, 1.0, 1.0) }
+      )
 
     assertThat(accumulator).isEqualTo(privacyIdCountAccumulator { count = 1 })
   }

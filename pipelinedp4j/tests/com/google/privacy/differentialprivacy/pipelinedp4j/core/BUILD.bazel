@@ -42,6 +42,7 @@ kt_jvm_test(
         "SelectPartitionsComputationalGraphTest.kt",
         "SumCombinerTest.kt",
         "VarianceCombinerTest.kt",
+        "VectorSumCombinerTest.kt",
     ],
     associates = ["//main/com/google/privacy/differentialprivacy/pipelinedp4j/core:dp_engine"],
     kotlinc_opts = "//:kotlinc_options_for_parameterized_tests",
