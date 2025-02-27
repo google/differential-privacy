@@ -43,10 +43,10 @@ class BeamApiTest {
 
   @Test
   fun build_noNoiseWhenAggregationScheduled_throwsException() {
-    val pCollection: PCollection<TestDataRow> = createEmptyInputData()
+    val data: PCollection<TestDataRow> = createEmptyInputData()
     val queryBuilder =
       BeamQueryBuilder.from(
-          pCollection,
+          data,
           StringExtractor { it.privacyUnit },
           ContributionBoundingLevel.DATASET_LEVEL(
             maxGroupsContributed = 1,
@@ -67,10 +67,10 @@ class BeamApiTest {
 
   @Test
   fun build_sameOutputColumnNames_throwsException() {
-    val pCollection: PCollection<TestDataRow> = createEmptyInputData()
+    val data: PCollection<TestDataRow> = createEmptyInputData()
     val queryBuilder =
       BeamQueryBuilder.from(
-          pCollection,
+          data,
           StringExtractor { it.privacyUnit },
           ContributionBoundingLevel.DATASET_LEVEL(
             maxGroupsContributed = 1,
@@ -96,10 +96,10 @@ class BeamApiTest {
 
   @Test
   fun build_countingDistinctPrivacyUnitsMultipleTimes_throwsException() {
-    val pCollection: PCollection<TestDataRow> = createEmptyInputData()
+    val data: PCollection<TestDataRow> = createEmptyInputData()
     val queryBuilder =
       BeamQueryBuilder.from(
-          pCollection,
+          data,
           StringExtractor { it.privacyUnit },
           ContributionBoundingLevel.DATASET_LEVEL(
             maxGroupsContributed = 1,
@@ -121,10 +121,10 @@ class BeamApiTest {
 
   @Test
   fun build_countingMultipleTimes_throwsException() {
-    val pCollection: PCollection<TestDataRow> = createEmptyInputData()
+    val data: PCollection<TestDataRow> = createEmptyInputData()
     val queryBuilder =
       BeamQueryBuilder.from(
-          pCollection,
+          data,
           StringExtractor { it.privacyUnit },
           ContributionBoundingLevel.DATASET_LEVEL(
             maxGroupsContributed = 1,
@@ -144,11 +144,11 @@ class BeamApiTest {
 
   @Test
   fun build_sameValueExtractors_throwsException() {
-    val pCollection: PCollection<TestDataRow> = createEmptyInputData()
+    val data: PCollection<TestDataRow> = createEmptyInputData()
     val valueExtractor: (TestDataRow) -> Double = { it.value }
     val queryBuilder =
       BeamQueryBuilder.from(
-          pCollection,
+          data,
           StringExtractor { it.privacyUnit },
           ContributionBoundingLevel.DATASET_LEVEL(
             maxGroupsContributed = 1,
@@ -180,10 +180,10 @@ class BeamApiTest {
 
   @Test
   fun build_sameAggregationsPerValue_throwsException() {
-    val pCollection: PCollection<TestDataRow> = createEmptyInputData()
+    val data: PCollection<TestDataRow> = createEmptyInputData()
     val queryBuilder =
       BeamQueryBuilder.from(
-          pCollection,
+          data,
           StringExtractor { it.privacyUnit },
           ContributionBoundingLevel.DATASET_LEVEL(
             maxGroupsContributed = 1,
@@ -210,10 +210,10 @@ class BeamApiTest {
 
   @Test
   fun build_sumMeanAndVarianceWithTotalValueBounds_throwsException() {
-    val pCollection: PCollection<TestDataRow> = createEmptyInputData()
+    val data: PCollection<TestDataRow> = createEmptyInputData()
     val queryBuilder =
       BeamQueryBuilder.from(
-          pCollection,
+          data,
           StringExtractor { it.privacyUnit },
           ContributionBoundingLevel.DATASET_LEVEL(
             maxGroupsContributed = 1,
@@ -246,10 +246,10 @@ class BeamApiTest {
 
   @Test
   fun build_sumWithoutMeanAndVarianceAndWithoutTotalValueBounds_throwsException() {
-    val pCollection: PCollection<TestDataRow> = createEmptyInputData()
+    val data: PCollection<TestDataRow> = createEmptyInputData()
     val queryBuilder =
       BeamQueryBuilder.from(
-          pCollection,
+          data,
           StringExtractor { it.privacyUnit },
           ContributionBoundingLevel.DATASET_LEVEL(
             maxGroupsContributed = 1,
@@ -276,10 +276,10 @@ class BeamApiTest {
 
   @Test
   fun build_noSumButTotalValueBoundsAreProvided_throwsException() {
-    val pCollection: PCollection<TestDataRow> = createEmptyInputData()
+    val data: PCollection<TestDataRow> = createEmptyInputData()
     val queryBuilder =
       BeamQueryBuilder.from(
-          pCollection,
+          data,
           StringExtractor { it.privacyUnit },
           ContributionBoundingLevel.DATASET_LEVEL(
             maxGroupsContributed = 1,
@@ -304,10 +304,10 @@ class BeamApiTest {
 
   @Test
   fun build_meanAndVarianceAndQuantilesWithoutValueBounds_throwsException() {
-    val pCollection: PCollection<TestDataRow> = createEmptyInputData()
+    val data: PCollection<TestDataRow> = createEmptyInputData()
     val queryBuilder =
       BeamQueryBuilder.from(
-          pCollection,
+          data,
           StringExtractor { it.privacyUnit },
           ContributionBoundingLevel.DATASET_LEVEL(
             maxGroupsContributed = 1,
@@ -335,10 +335,10 @@ class BeamApiTest {
 
   @Test
   fun build_noMeanNoVarianceAndNoQuantilesButValueBoundsProvided_throwsException() {
-    val pCollection: PCollection<TestDataRow> = createEmptyInputData()
+    val data: PCollection<TestDataRow> = createEmptyInputData()
     val queryBuilder =
       BeamQueryBuilder.from(
-          pCollection,
+          data,
           StringExtractor { it.privacyUnit },
           ContributionBoundingLevel.DATASET_LEVEL(
             maxGroupsContributed = 1,
@@ -367,11 +367,86 @@ class BeamApiTest {
   }
 
   @Test
-  fun build_zeroEpsilonInTotalBudget_throwsException() {
-    val pCollection: PCollection<TestDataRow> = createEmptyInputData()
+  fun build_sameVectorExtractors_throwsException() {
+    val data: PCollection<TestDataRow> = createEmptyInputData()
+    val vectorExtractor: (TestDataRow) -> List<Double> = { listOf(it.value, it.anotherValue) }
     val queryBuilder =
       BeamQueryBuilder.from(
-          pCollection,
+          data,
+          StringExtractor { it.privacyUnit },
+          ContributionBoundingLevel.DATASET_LEVEL(
+            maxGroupsContributed = 1,
+            maxContributionsPerGroup = 1,
+          ),
+        )
+        .groupBy(StringExtractor { it.groupKey }, GroupsType.PrivateGroups())
+        .aggregateVector(
+          vectorExtractor,
+          vectorSize = 2,
+          VectorAggregationsBuilder().vectorSum(outputColumnName = "vectorSum"),
+          VectorContributionBounds(
+            maxVectorTotalNorm = VectorNorm(normKind = NormKind.L2, value = 10.0)
+          ),
+        )
+        .aggregateVector(
+          vectorExtractor,
+          vectorSize = 2,
+          VectorAggregationsBuilder().vectorSum(outputColumnName = "vectorSum2"),
+          VectorContributionBounds(
+            maxVectorTotalNorm = VectorNorm(normKind = NormKind.L_INF, value = 100.0)
+          ),
+        )
+
+    val e =
+      assertFailsWith<IllegalArgumentException> {
+        queryBuilder.build(TotalBudget(epsilon = 1.1, delta = 0.001), NoiseKind.LAPLACE)
+      }
+    assertThat(e)
+      .hasMessageThat()
+      .contains(
+        "There are the same (object reference equality) vector extractors used in different aggregateVector() calls"
+      )
+  }
+
+  @Test
+  fun build_sameAggregationsPerVector_throwsException() {
+    val data: PCollection<TestDataRow> = createEmptyInputData()
+    val queryBuilder =
+      BeamQueryBuilder.from(
+          data,
+          StringExtractor { it.privacyUnit },
+          ContributionBoundingLevel.DATASET_LEVEL(
+            maxGroupsContributed = 1,
+            maxContributionsPerGroup = 1,
+          ),
+        )
+        .groupBy(StringExtractor { it.groupKey }, GroupsType.PrivateGroups())
+        .aggregateVector(
+          { listOf(it.value, it.anotherValue) },
+          vectorSize = 2,
+          VectorAggregationsBuilder()
+            .vectorSum(outputColumnName = "vectorSum")
+            .vectorSum(outputColumnName = "vectorSum2"),
+          VectorContributionBounds(
+            maxVectorTotalNorm = VectorNorm(normKind = NormKind.L_INF, value = 100.0)
+          ),
+        )
+
+    val e =
+      assertFailsWith<IllegalArgumentException> {
+        queryBuilder.build(TotalBudget(epsilon = 1.1, delta = 0.001), NoiseKind.LAPLACE)
+      }
+    assertThat(e)
+      .hasMessageThat()
+      .contains("There are duplicate aggregations for the same vector: [VECTOR_SUM].")
+  }
+
+  @Test
+  fun build_zeroEpsilonInTotalBudget_throwsException() {
+    val data: PCollection<TestDataRow> = createEmptyInputData()
+    val queryBuilder =
+      BeamQueryBuilder.from(
+          data,
           StringExtractor { it.privacyUnit },
           ContributionBoundingLevel.DATASET_LEVEL(
             maxGroupsContributed = 1,
@@ -389,10 +464,10 @@ class BeamApiTest {
 
   @Test
   fun build_zeroEpsilonInAggregationBudget_throwsException() {
-    val pCollection: PCollection<TestDataRow> = createEmptyInputData()
+    val data: PCollection<TestDataRow> = createEmptyInputData()
     val queryBuilder =
       BeamQueryBuilder.from(
-          pCollection,
+          data,
           StringExtractor { it.privacyUnit },
           ContributionBoundingLevel.DATASET_LEVEL(
             maxGroupsContributed = 1,
@@ -414,10 +489,10 @@ class BeamApiTest {
 
   @Test
   fun build_zeroDeltaInTotalBudgetWithGaussianNoise_throwsException() {
-    val pCollection: PCollection<TestDataRow> = createEmptyInputData()
+    val data: PCollection<TestDataRow> = createEmptyInputData()
     val queryBuilder =
       BeamQueryBuilder.from(
-          pCollection,
+          data,
           StringExtractor { it.privacyUnit },
           ContributionBoundingLevel.DATASET_LEVEL(
             maxGroupsContributed = 1,
@@ -437,10 +512,10 @@ class BeamApiTest {
 
   @Test
   fun build_zeroDeltaInAggregationBudgetWithGaussianNoise_throwsException() {
-    val pCollection: PCollection<TestDataRow> = createEmptyInputData()
+    val data: PCollection<TestDataRow> = createEmptyInputData()
     val queryBuilder =
       BeamQueryBuilder.from(
-          pCollection,
+          data,
           StringExtractor { it.privacyUnit },
           ContributionBoundingLevel.DATASET_LEVEL(
             maxGroupsContributed = 1,
@@ -464,10 +539,10 @@ class BeamApiTest {
 
   @Test
   fun build_zeroDeltaInPrivateGroupSelectionAbsoluteBudget_throwsException() {
-    val pCollection: PCollection<TestDataRow> = createEmptyInputData()
+    val data: PCollection<TestDataRow> = createEmptyInputData()
     val queryBuilder =
       BeamQueryBuilder.from(
-          pCollection,
+          data,
           StringExtractor { it.privacyUnit },
           ContributionBoundingLevel.DATASET_LEVEL(
             maxGroupsContributed = 1,
@@ -490,10 +565,10 @@ class BeamApiTest {
 
   @Test
   fun build_positiveEpsilonInPrivateGroupSelectionBudgetWhenCountingDistinctPrivacyUnits_throwsException() {
-    val pCollection: PCollection<TestDataRow> = createEmptyInputData()
+    val data: PCollection<TestDataRow> = createEmptyInputData()
     val queryBuilder =
       BeamQueryBuilder.from(
-          pCollection,
+          data,
           StringExtractor { it.privacyUnit },
           ContributionBoundingLevel.DATASET_LEVEL(
             maxGroupsContributed = 1,
@@ -522,10 +597,10 @@ class BeamApiTest {
 
   @Test
   fun build_zeroEpsilonInPrivateGroupSelectionBudgetWhenNotCountingDistinctPrivacyUnits_throwsException() {
-    val pCollection: PCollection<TestDataRow> = createEmptyInputData()
+    val data: PCollection<TestDataRow> = createEmptyInputData()
     val queryBuilder =
       BeamQueryBuilder.from(
-          pCollection,
+          data,
           StringExtractor { it.privacyUnit },
           ContributionBoundingLevel.DATASET_LEVEL(
             maxGroupsContributed = 1,
@@ -550,10 +625,10 @@ class BeamApiTest {
 
   @Test
   fun build_zeroDeltaInTotalBudgetWhenPrivateGroupSelectionIsUsed_throwsException() {
-    val pCollection: PCollection<TestDataRow> = createEmptyInputData()
+    val data: PCollection<TestDataRow> = createEmptyInputData()
     val queryBuilder =
       BeamQueryBuilder.from(
-          pCollection,
+          data,
           StringExtractor { it.privacyUnit },
           ContributionBoundingLevel.DATASET_LEVEL(
             maxGroupsContributed = 1,
@@ -574,10 +649,10 @@ class BeamApiTest {
 
   @Test
   fun build_groupSelectionOnlyAndGroupsArePublic_throwsException() {
-    val pCollection: PCollection<TestDataRow> = createEmptyInputData()
+    val data: PCollection<TestDataRow> = createEmptyInputData()
     val queryBuilder =
       BeamQueryBuilder.from(
-          pCollection,
+          data,
           StringExtractor { it.privacyUnit },
           ContributionBoundingLevel.DATASET_LEVEL(
             maxGroupsContributed = 1,
@@ -597,10 +672,10 @@ class BeamApiTest {
 
   @Test
   fun build_aggregatesMultipleValues_notSupportedYet() {
-    val pCollection: PCollection<TestDataRow> = createEmptyInputData()
+    val data: PCollection<TestDataRow> = createEmptyInputData()
     val queryBuilder =
       BeamQueryBuilder.from(
-          pCollection,
+          data,
           StringExtractor { it.privacyUnit },
           ContributionBoundingLevel.DATASET_LEVEL(
             maxGroupsContributed = 1,
@@ -618,7 +693,41 @@ class BeamApiTest {
     assertThat(e)
       .hasMessageThat()
       .contains(
-        "Aggregation of different values is not supported yet (i.e. only one aggregateValue() call is allowed)."
+        "Aggregation of different values or vectors is not supported yet (i.e. only one aggregateValue() or aggregateVector() call is allowed)."
+      )
+  }
+
+  @Test
+  fun build_aggregatesValueAndVector_notSupportedYet() {
+    val data: PCollection<TestDataRow> = createEmptyInputData()
+    val queryBuilder =
+      BeamQueryBuilder.from(
+          data,
+          StringExtractor { it.privacyUnit },
+          ContributionBoundingLevel.DATASET_LEVEL(
+            maxGroupsContributed = 1,
+            maxContributionsPerGroup = 1,
+          ),
+        )
+        .groupBy(StringExtractor { it.groupKey }, GroupsType.PrivateGroups())
+        .aggregateValue({ it.value }, ValueAggregationsBuilder(), ContributionBounds())
+        .aggregateVector(
+          { listOf(it.value, it.anotherValue) },
+          vectorSize = 2,
+          VectorAggregationsBuilder(),
+          VectorContributionBounds(
+            maxVectorTotalNorm = VectorNorm(normKind = NormKind.L_INF, value = 100.0)
+          ),
+        )
+
+    val e =
+      assertFailsWith<IllegalArgumentException> {
+        queryBuilder.build(TotalBudget(epsilon = 1.1, delta = 0.001), NoiseKind.LAPLACE)
+      }
+    assertThat(e)
+      .hasMessageThat()
+      .contains(
+        "Aggregation of different values or vectors is not supported yet (i.e. only one aggregateValue() or aggregateVector() call is allowed)."
       )
   }
 
@@ -626,7 +735,7 @@ class BeamApiTest {
 
   @Test
   fun run_groupSelection_selectsGroupsCorrectly() {
-    val pCollection =
+    val data =
       createInputData(
         listOf(
           TestDataRow("group1", "pid1", 1.0),
@@ -641,7 +750,7 @@ class BeamApiTest {
       )
     val query =
       BeamQueryBuilder.from(
-          pCollection,
+          data,
           StringExtractor { it.privacyUnit },
           ContributionBoundingLevel.DATASET_LEVEL(
             maxGroupsContributed = 2,
@@ -663,7 +772,7 @@ class BeamApiTest {
 
   @Test
   fun run_publicGroups_allPossibleAggregations_calculatesStatisticsCorrectly() {
-    val pCollection =
+    val data =
       createInputData(
         listOf(
           TestDataRow("group1", "pid1", 1.0),
@@ -675,7 +784,7 @@ class BeamApiTest {
     val publicGroups = createPublicGroups(listOf("group1"))
     val query =
       BeamQueryBuilder.from(
-          pCollection,
+          data,
           StringExtractor { it.privacyUnit },
           ContributionBoundingLevel.DATASET_LEVEL(
             maxGroupsContributed = 1,
@@ -718,7 +827,7 @@ class BeamApiTest {
 
   @Test
   fun run_privateGroups_allPossibleAggregations_calculatesStatisticsCorrectly() {
-    val pCollection =
+    val data =
       createInputData(
         listOf(
           TestDataRow("group1", "pid1", 1.0),
@@ -729,7 +838,7 @@ class BeamApiTest {
       )
     val query =
       BeamQueryBuilder.from(
-          pCollection,
+          data,
           StringExtractor { it.privacyUnit },
           ContributionBoundingLevel.DATASET_LEVEL(
             maxGroupsContributed = 2,
@@ -773,7 +882,7 @@ class BeamApiTest {
   // When counting distinct privacy units different group selection mechanism is used.
   @Test
   fun run_privateGroups_noCountDistinctPrivacyUnits_calculatesStatisticsCorrectly() {
-    val pCollection =
+    val data =
       createInputData(
         listOf(
           TestDataRow("group1", "pid1", 1.0),
@@ -784,7 +893,7 @@ class BeamApiTest {
       )
     val query =
       BeamQueryBuilder.from(
-          pCollection,
+          data,
           StringExtractor { it.privacyUnit },
           ContributionBoundingLevel.DATASET_LEVEL(
             maxGroupsContributed = 2,
@@ -826,7 +935,7 @@ class BeamApiTest {
   // When sum without mean or variance is requested then total value bounds are used.
   @Test
   fun run_sumOnly_calculatesStatisticsCorrectly() {
-    val pCollection =
+    val data =
       createInputData(
         listOf(
           TestDataRow("group1", "pid1", 1.0),
@@ -837,7 +946,7 @@ class BeamApiTest {
     val publicGroups = createPublicGroups(listOf("group1"))
     val query =
       BeamQueryBuilder.from(
-          pCollection,
+          data,
           StringExtractor { it.privacyUnit },
           ContributionBoundingLevel.DATASET_LEVEL(
             maxGroupsContributed = 1,
@@ -866,7 +975,7 @@ class BeamApiTest {
 
   @Test
   fun run_sumAndQuantiles_bothBoundTypesAreUsed_calculatesStatisticsCorrectly() {
-    val pCollection =
+    val data =
       createInputData(
         listOf(
           TestDataRow("group1", "pid1", 1.0),
@@ -877,7 +986,7 @@ class BeamApiTest {
     val publicGroups = createPublicGroups(listOf("group1"))
     val query =
       BeamQueryBuilder.from(
-          pCollection,
+          data,
           StringExtractor { it.privacyUnit },
           ContributionBoundingLevel.DATASET_LEVEL(
             maxGroupsContributed = 1,
@@ -914,7 +1023,7 @@ class BeamApiTest {
 
   @Test
   fun run_countSumAndMean_budgetIsUsedForMeanOnly() {
-    val pCollection =
+    val data =
       createInputData(
         listOf(
           TestDataRow("group1", "pid1", 1.0),
@@ -925,7 +1034,7 @@ class BeamApiTest {
     val publicGroups = createPublicGroups(listOf("group1"))
     val query =
       BeamQueryBuilder.from(
-          pCollection,
+          data,
           StringExtractor { it.privacyUnit },
           ContributionBoundingLevel.DATASET_LEVEL(
             maxGroupsContributed = 1,
@@ -966,7 +1075,7 @@ class BeamApiTest {
 
   @Test
   fun run_countSumMeanAndVariance_budgetIsUsedForVarianceOnly() {
-    val pCollection =
+    val data =
       createInputData(
         listOf(
           TestDataRow("group1", "pid1", 1.0),
@@ -977,7 +1086,7 @@ class BeamApiTest {
     val publicGroups = createPublicGroups(listOf("group1"))
     val query =
       BeamQueryBuilder.from(
-          pCollection,
+          data,
           StringExtractor { it.privacyUnit },
           ContributionBoundingLevel.DATASET_LEVEL(
             maxGroupsContributed = 1,
@@ -1021,7 +1130,7 @@ class BeamApiTest {
 
   @Test
   fun run_quantileRanksNotSorted_mapsToCorrectColumnNames() {
-    val pCollection =
+    val data =
       createInputData(
         listOf(
           TestDataRow("group1", "pid1", 1.0),
@@ -1032,7 +1141,7 @@ class BeamApiTest {
     val publicGroups = createPublicGroups(listOf("group1"))
     val query =
       BeamQueryBuilder.from(
-          pCollection,
+          data,
           StringExtractor { it.privacyUnit },
           ContributionBoundingLevel.DATASET_LEVEL(
             maxGroupsContributed = 1,
@@ -1066,7 +1175,7 @@ class BeamApiTest {
 
   @Test
   fun run_publicGroupsProvidedAsIterableOfLists_respectsProvidedGroups() {
-    val pCollection =
+    val data =
       createInputData(
         listOf(
           TestDataRow("group1", "pid1", 1.0),
@@ -1077,7 +1186,7 @@ class BeamApiTest {
     val publicGroups = listOf("group1")
     val query =
       BeamQueryBuilder.from(
-          pCollection,
+          data,
           StringExtractor { it.privacyUnit },
           ContributionBoundingLevel.DATASET_LEVEL(
             maxGroupsContributed = 1,

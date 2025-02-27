@@ -196,6 +196,24 @@ internal constructor(
     return this
   }
 
+  override fun aggregateVector(
+    vectorColumnNames: ColumnNames,
+    vectorSize: Int,
+    vectorAggregations: VectorAggregationsBuilder,
+    vectorContributionBounds: VectorContributionBounds,
+  ): AggregationBuilder<SparkRow, SparkDataFrame> {
+    aggregations.add(
+      VectorAggregations(
+        vectorExtractorFromColumns(vectorColumnNames.names),
+        vectorSize,
+        vectorAggregations.aggregations,
+        vectorContributionBounds,
+        vectorColumnNames,
+      )
+    )
+    return this
+  }
+
   override fun build(totalBudget: TotalBudget, noiseKind: NoiseKind?): SparkDataFrameQuery {
     sparkAggregationBuilder.aggregations = aggregations
     val sparkQuery = sparkAggregationBuilder.build(totalBudget, noiseKind)
@@ -258,5 +276,29 @@ internal fun SparkDataFrame.toSparkDataset(): SparkDataset<List<Any?>> {
 private fun extractorFromColumns(columnNames: List<String>): (SparkRow) -> List<Any?> {
   return { dataRow: SparkRow ->
     columnNames.map { dataRow.getAs<Any?>(it) }.toCollection(ColumnValuesListImplementation())
+  }
+}
+
+private fun vectorExtractorFromColumns(columnNames: List<String>): (SparkRow) -> List<Double> {
+  val extractFromOneColumnFn: (String, SparkRow) -> Iterable<Double> = { columnName, dataRow ->
+    val columnValue = dataRow.getAs<Any?>(columnName)
+    if (columnValue is Double) {
+      listOf(columnValue)
+    } else {
+      @Suppress("UNCHECKED_CAST")
+      try {
+        (columnValue as Iterable<Double>)
+      } catch (e: ClassCastException) {
+        throw IllegalArgumentException(
+          "Column $columnName used in vector aggregation must contain either doubles or iterables of doubles, but it contains $columnValue which is of type ${columnValue::class.java.name}.",
+          e,
+        )
+      }
+    }
+  }
+  return { dataRow: SparkRow ->
+    columnNames
+      .flatMap { columnName -> extractFromOneColumnFn(columnName, dataRow) }
+      .toCollection(ColumnValuesListImplementation())
   }
 }

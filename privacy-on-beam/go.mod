@@ -11,6 +11,9 @@ require (
 	google.golang.org/protobuf v1.33.0
 )
 
+// Use the current version of the Go DP Library.
+replace github.com/google/differential-privacy/go/v3 => ../go
+
 require (
 	cloud.google.com/go v0.112.1 // indirect
 	cloud.google.com/go/compute v1.25.1 // indirect

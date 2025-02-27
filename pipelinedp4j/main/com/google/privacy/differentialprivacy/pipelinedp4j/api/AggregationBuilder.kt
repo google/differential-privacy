@@ -170,9 +170,9 @@ sealed class AggregationBuilder<DataRowT : Any, ReturnT : Any> {
    * Instructs the query to aggregate a vector in each group.
    *
    * @param vectorColumnNames columns that store the values to aggregate. A column can be either a
-   *   single double value or a list of double values. The columns will be joined into a single
-   *   vector where lists will be flattened, e.g. columns with values (1.0, [-1.0, 2.0], 4.0) will
-   *   result in a vector [1.0, -1.0, 2.0, 4.0].
+   *   single double value or an iterable (e.g. list) over double values. The columns will be joined
+   *   into a single vector where lists will be flattened, e.g. columns with values (1.0,
+   *   [-1.0, 2.0], 4.0) will result in a vector [1.0, -1.0, 2.0, 4.0].
    * @param vectorSize the size of the vectors that will be aggregated.
    * @param vectorAggregations the aggregations to perform on the vector.
    * @param vectorContributionBounds contribution bounds for the vector, see

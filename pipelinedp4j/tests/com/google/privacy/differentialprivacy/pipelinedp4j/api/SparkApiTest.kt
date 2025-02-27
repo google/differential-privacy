@@ -357,6 +357,81 @@ class SparkApiTest {
   }
 
   @Test
+  fun build_sameVectorExtractors_throwsException() {
+    val data: Dataset<TestDataRow> = createEmptyInputData()
+    val vectorExtractor: (TestDataRow) -> List<Double> = { listOf(it.value, it.anotherValue) }
+    val queryBuilder =
+      SparkQueryBuilder.from(
+          data,
+          StringExtractor { it.privacyUnit },
+          ContributionBoundingLevel.DATASET_LEVEL(
+            maxGroupsContributed = 1,
+            maxContributionsPerGroup = 1,
+          ),
+        )
+        .groupBy(StringExtractor { it.groupKey }, GroupsType.PrivateGroups())
+        .aggregateVector(
+          vectorExtractor,
+          vectorSize = 2,
+          VectorAggregationsBuilder().vectorSum(outputColumnName = "vectorSum"),
+          VectorContributionBounds(
+            maxVectorTotalNorm = VectorNorm(normKind = NormKind.L2, value = 10.0)
+          ),
+        )
+        .aggregateVector(
+          vectorExtractor,
+          vectorSize = 2,
+          VectorAggregationsBuilder().vectorSum(outputColumnName = "vectorSum2"),
+          VectorContributionBounds(
+            maxVectorTotalNorm = VectorNorm(normKind = NormKind.L_INF, value = 100.0)
+          ),
+        )
+
+    val e =
+      assertFailsWith<IllegalArgumentException> {
+        queryBuilder.build(TotalBudget(epsilon = 1.1, delta = 0.001), NoiseKind.LAPLACE)
+      }
+    assertThat(e)
+      .hasMessageThat()
+      .contains(
+        "There are the same (object reference equality) vector extractors used in different aggregateVector() calls"
+      )
+  }
+
+  @Test
+  fun build_sameAggregationsPerVector_throwsException() {
+    val data: Dataset<TestDataRow> = createEmptyInputData()
+    val queryBuilder =
+      SparkQueryBuilder.from(
+          data,
+          StringExtractor { it.privacyUnit },
+          ContributionBoundingLevel.DATASET_LEVEL(
+            maxGroupsContributed = 1,
+            maxContributionsPerGroup = 1,
+          ),
+        )
+        .groupBy(StringExtractor { it.groupKey }, GroupsType.PrivateGroups())
+        .aggregateVector(
+          { listOf(it.value, it.anotherValue) },
+          vectorSize = 2,
+          VectorAggregationsBuilder()
+            .vectorSum(outputColumnName = "vectorSum")
+            .vectorSum(outputColumnName = "vectorSum2"),
+          VectorContributionBounds(
+            maxVectorTotalNorm = VectorNorm(normKind = NormKind.L_INF, value = 100.0)
+          ),
+        )
+
+    val e =
+      assertFailsWith<IllegalArgumentException> {
+        queryBuilder.build(TotalBudget(epsilon = 1.1, delta = 0.001), NoiseKind.LAPLACE)
+      }
+    assertThat(e)
+      .hasMessageThat()
+      .contains("There are duplicate aggregations for the same vector: [VECTOR_SUM].")
+  }
+
+  @Test
   fun build_zeroEpsilonInTotalBudget_throwsException() {
     val data: Dataset<TestDataRow> = createEmptyInputData()
     val queryBuilder =
@@ -608,7 +683,41 @@ class SparkApiTest {
     assertThat(e)
       .hasMessageThat()
       .contains(
-        "Aggregation of different values is not supported yet (i.e. only one aggregateValue() call is allowed)."
+        "Aggregation of different values or vectors is not supported yet (i.e. only one aggregateValue() or aggregateVector() call is allowed)."
+      )
+  }
+
+  @Test
+  fun build_aggregatesValueAndVector_notSupportedYet() {
+    val data: Dataset<TestDataRow> = createEmptyInputData()
+    val queryBuilder =
+      SparkQueryBuilder.from(
+          data,
+          StringExtractor { it.privacyUnit },
+          ContributionBoundingLevel.DATASET_LEVEL(
+            maxGroupsContributed = 1,
+            maxContributionsPerGroup = 1,
+          ),
+        )
+        .groupBy(StringExtractor { it.groupKey }, GroupsType.PrivateGroups())
+        .aggregateValue({ it.value }, ValueAggregationsBuilder(), ContributionBounds())
+        .aggregateVector(
+          { listOf(it.value, it.anotherValue) },
+          vectorSize = 2,
+          VectorAggregationsBuilder(),
+          VectorContributionBounds(
+            maxVectorTotalNorm = VectorNorm(normKind = NormKind.L_INF, value = 100.0)
+          ),
+        )
+
+    val e =
+      assertFailsWith<IllegalArgumentException> {
+        queryBuilder.build(TotalBudget(epsilon = 1.1, delta = 0.001), NoiseKind.LAPLACE)
+      }
+    assertThat(e)
+      .hasMessageThat()
+      .contains(
+        "Aggregation of different values or vectors is not supported yet (i.e. only one aggregateValue() or aggregateVector() call is allowed)."
       )
   }
 

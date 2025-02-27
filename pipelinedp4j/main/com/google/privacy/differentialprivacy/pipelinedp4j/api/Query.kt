@@ -74,8 +74,12 @@ protected constructor(
     @Suppress("UNCHECKED_CAST")
     val valueAggregations =
       aggregations.firstOrNull { it is ValueAggregations<*> } as ValueAggregations<DataRowT>?
+    @Suppress("UNCHECKED_CAST")
+    val vectorAggregations =
+      aggregations.firstOrNull { it is VectorAggregations<*> } as VectorAggregations<DataRowT>?
 
-    val extractors = createDataExtractors(valueAggregations?.valueExtractor)
+    val extractors =
+      createDataExtractors(valueAggregations?.valueExtractor, vectorAggregations?.vectorExtractor)
 
     if (aggregations.isEmpty()) {
       // Only select groups.
@@ -90,8 +94,7 @@ protected constructor(
         { it to DpAggregates.getDefaultInstance() },
       )
     } else {
-      val contributionBounds = valueAggregations?.contributionBounds
-      val aggregateParams = createAggregationParams(contributionBounds, testMode)
+      val aggregateParams = createAggregationParams(valueAggregations, vectorAggregations, testMode)
 
       val result =
         dpEngine.aggregate(
@@ -178,6 +181,15 @@ protected constructor(
         }
       }
     }
+
+    // Validate aggregations of specific vectors.
+    val aggregationsPerVectors =
+      aggregations.filter { it is VectorAggregations<*> }.map { it as VectorAggregations<*> }
+    requireDistinctVectorColumnNames(aggregationsPerVectors)
+    requireDistinctVectorExtractors(aggregationsPerVectors)
+    for (aggregationsPerVector in aggregationsPerVectors) {
+      requireDistinctAggregationsPerVector(aggregationsPerVector)
+    }
   }
 
   private fun requireNoDuplicateOutputColumnNames() {
@@ -201,6 +213,19 @@ protected constructor(
     }
   }
 
+  private fun requireDistinctVectorExtractors(aggregationsPerVector: List<VectorAggregations<*>>) {
+    val vectorExtractorCounts = aggregationsPerVector.groupingBy { it.vectorExtractor }.eachCount()
+    val duplicates = vectorExtractorCounts.filter { it.value > 1 }.keys
+    val vectorAggregationsWithDuplicates =
+      aggregationsPerVector.filter { it.vectorExtractor in duplicates }
+    require(duplicates.isEmpty()) {
+      "There are the same (object reference equality) vector extractors used in different aggregateVector() calls. Please merge them into one call." +
+        "\nVector aggregations with duplicate vector extractors:\n${
+                        vectorAggregationsWithDuplicates.map { "* ${it.vectorAggregationSpecs}" }.joinToString("\n")
+                    }"
+    }
+  }
+
   private fun requireDistinctValueColumnNames(aggregationsPerValue: List<ValueAggregations<*>>) {
     val valueColumnNameCounts =
       aggregationsPerValue.groupingBy { it.valueColumnName }.eachCount().filterKeys { it != null }
@@ -213,12 +238,36 @@ protected constructor(
     }
   }
 
+  private fun requireDistinctVectorColumnNames(aggregationsPerVector: List<VectorAggregations<*>>) {
+    val vectorColumnNamesCounts =
+      aggregationsPerVector
+        .filter { it.vectorColumnNames != null }
+        .groupingBy { it.vectorColumnNames!!.names.toSet() }
+        .eachCount()
+    val duplicates = vectorColumnNamesCounts.filter { it.value > 1 }.keys
+    require(duplicates.isEmpty()) {
+      "The same vector column names are used in different aggregateVector() calls. Please merge them into one call." +
+        "\nDuplicate vector columns:\n${
+                        duplicates.joinToString("\n") { "* $it" }
+                    }"
+    }
+  }
+
   private fun requireDistinctAggregationsPerValue(valueAggregations: ValueAggregations<*>) {
     val metricTypeCounts =
       valueAggregations.valueAggregationSpecs.map { it.metricType }.groupingBy { it }.eachCount()
     val duplicates = metricTypeCounts.filter { it.value > 1 }.keys
     require(duplicates.isEmpty()) {
       "There are duplicate aggregations for the same value: ${duplicates}. Aggregations: ${valueAggregations.valueAggregationSpecs}."
+    }
+  }
+
+  private fun requireDistinctAggregationsPerVector(vectorAggregations: VectorAggregations<*>) {
+    val metricTypeCounts =
+      vectorAggregations.vectorAggregationSpecs.map { it.metricType }.groupingBy { it }.eachCount()
+    val duplicates = metricTypeCounts.filter { it.value > 1 }.keys
+    require(duplicates.isEmpty()) {
+      "There are duplicate aggregations for the same vector: ${duplicates}. Aggregations: ${vectorAggregations.vectorAggregationSpecs}."
     }
   }
 
@@ -289,27 +338,46 @@ protected constructor(
   }
 
   private fun validateUnsupportedFeatures() {
-    require(aggregations.filter { it is ValueAggregations<*> }.size <= 1) {
-      "Aggregation of different values is not supported yet (i.e. only one aggregateValue() call is allowed). Please aggregate only one value."
+    require(
+      aggregations.filter { it is ValueAggregations<*> || it is VectorAggregations<*> }.size <= 1
+    ) {
+      "Aggregation of different values or vectors is not supported yet (i.e. only one aggregateValue() or aggregateVector() call is allowed). Please aggregate only one value or vector."
     }
   }
 
-  private fun createDataExtractors(valueExtractor: ((DataRowT) -> Double)?) =
-    if (valueExtractor == null)
-      DataExtractors.from<DataRowT, PrivacyUnitT, GroupKeysT>(
-        privacyUnitExtractor,
-        privacyUnitEncoder,
-        groupKeyExtractor,
-        groupKeyEncoder,
-      )
-    else
-      DataExtractors.from<DataRowT, PrivacyUnitT, GroupKeysT>(
-        privacyUnitExtractor,
-        privacyUnitEncoder,
-        groupKeyExtractor,
-        groupKeyEncoder,
-        valueExtractor,
-      )
+  private fun createDataExtractors(
+    valueExtractor: ((DataRowT) -> Double)?,
+    vectorExtractor: ((DataRowT) -> List<Double>)?,
+  ) =
+    when {
+      valueExtractor == null && vectorExtractor == null ->
+        DataExtractors.from<DataRowT, PrivacyUnitT, GroupKeysT>(
+          privacyUnitExtractor,
+          privacyUnitEncoder,
+          groupKeyExtractor,
+          groupKeyEncoder,
+        )
+      valueExtractor != null && vectorExtractor == null ->
+        DataExtractors.from<DataRowT, PrivacyUnitT, GroupKeysT>(
+          privacyUnitExtractor,
+          privacyUnitEncoder,
+          groupKeyExtractor,
+          groupKeyEncoder,
+          valueExtractor,
+        )
+      valueExtractor == null && vectorExtractor != null ->
+        DataExtractors.forVectorFrom<DataRowT, PrivacyUnitT, GroupKeysT>(
+          privacyUnitExtractor,
+          privacyUnitEncoder,
+          groupKeyExtractor,
+          groupKeyEncoder,
+          vectorExtractor,
+        )
+      else ->
+        throw IllegalArgumentException(
+          "Only one of valueExtractor and vectorExtractor can be specified, but both were specified."
+        )
+    }
 
   private fun createSelectPartitionsParams(testMode: TestMode) =
     SelectPartitionsParams(
@@ -320,20 +388,30 @@ protected constructor(
       executionMode = testMode.toExecutionMode(),
     )
 
-  private fun createAggregationParams(contributionBounds: ContributionBounds?, testMode: TestMode) =
-    AggregationParams(
+  private fun createAggregationParams(
+    valueAggregations: ValueAggregations<*>?,
+    vectorAggregations: VectorAggregations<*>?,
+    testMode: TestMode,
+  ): AggregationParams {
+    val valueContributionBounds = valueAggregations?.contributionBounds
+    val vectorContributionBounds = vectorAggregations?.vectorContributionBounds
+    return AggregationParams(
       metrics = ImmutableList.copyOf(aggregations.metrics()),
       noiseKind = noiseKind!!.toInternalNoiseKind(),
       maxPartitionsContributed = contributionBoundingLevel.getMaxPartitionsContributed(),
       maxContributionsPerPartition = contributionBoundingLevel.getMaxContributionsPerPartition(),
-      minValue = contributionBounds?.valueBounds?.minValue,
-      maxValue = contributionBounds?.valueBounds?.maxValue,
-      minTotalValue = contributionBounds?.totalValueBounds?.minValue,
-      maxTotalValue = contributionBounds?.totalValueBounds?.maxValue,
+      minValue = valueContributionBounds?.valueBounds?.minValue,
+      maxValue = valueContributionBounds?.valueBounds?.maxValue,
+      minTotalValue = valueContributionBounds?.totalValueBounds?.minValue,
+      maxTotalValue = valueContributionBounds?.totalValueBounds?.maxValue,
+      vectorNormKind = vectorContributionBounds?.maxVectorTotalNorm?.normKind?.toInternalNormKind(),
+      vectorMaxTotalNorm = vectorContributionBounds?.maxVectorTotalNorm?.value,
+      vectorSize = vectorAggregations?.vectorSize,
       partitionSelectionBudget = groupsType.getBudget()?.toInternalBudgetPerOpSpec(),
       preThreshold = groupsType.getPreThreshold(),
       contributionBoundingLevel = contributionBoundingLevel.toInternalContributionBoundingLevel(),
       executionMode = testMode.toExecutionMode(),
       partitionsBalance = groupByAdditionalParameters.groupsBalance.toPartitionsBalance(),
     )
+  }
 }

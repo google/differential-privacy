@@ -20,7 +20,12 @@ import com.google.common.truth.Truth.assertThat
 import java.io.Serializable
 
 /** Test data row to be used in tests for different backends. */
-internal data class TestDataRow(val groupKey: String, val privacyUnit: String, val value: Double) {
+internal data class TestDataRow(
+  val groupKey: String,
+  val privacyUnit: String,
+  val value: Double,
+  val anotherValue: Double = 0.0,
+) {
   // Necessary for Beam serialization.
   private constructor() : this("", "", 0.0)
 }

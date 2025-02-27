@@ -32,4 +32,4 @@ data class ColumnNames internal constructor(internal val names: List<String>) : 
  * operations are compared just as a sequence of bytes and different list implementations have
  * different serialized representation even if they are equal.
  */
-internal typealias ColumnValuesListImplementation = ArrayList<Any?>
+internal typealias ColumnValuesListImplementation<T> = ArrayList<T>

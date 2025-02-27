@@ -102,6 +102,7 @@ private constructor(
 }
 
 /** Internal representation of aggregations of specific vector. */
+@ConsistentCopyVisibility
 internal data class VectorAggregationSpec
 private constructor(
   val metricType: MetricType,
