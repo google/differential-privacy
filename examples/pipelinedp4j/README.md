@@ -124,6 +124,12 @@ utilizes a
 from the Maven repository, eliminating the need for the library source files and
 the Bazel files (`WORKSPACE.bazel`, `.bazelversion` and `BUILD.bazel`).
 
+NOTE: Currently the version of examples at HEAD does not build with Maven
+because the examples were migrated to the new version of public API which has
+not been uploaded to the Maven repository yet. It will be uploaded in a few
+days. For now, use the version of examples from commit that preceded the commit
+when this note was created (use git blame).
+
 To proceed, ensure Maven is installed on your system. If you're using Linux or
 MacOS, you can install it by running `sudo apt-get install maven` or `brew
 install maven`, respectively. While any Maven version should work, refer to

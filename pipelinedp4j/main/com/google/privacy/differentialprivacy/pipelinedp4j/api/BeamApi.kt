@@ -27,6 +27,7 @@ import java.io.OutputStream
 import org.apache.beam.sdk.coders.Coder
 import org.apache.beam.sdk.coders.CustomCoder
 import org.apache.beam.sdk.coders.DoubleCoder
+import org.apache.beam.sdk.coders.ListCoder
 import org.apache.beam.sdk.coders.MapCoder
 import org.apache.beam.sdk.coders.StringUtf8Coder
 import org.apache.beam.sdk.transforms.MapElements
@@ -372,13 +373,29 @@ internal class QueryPerGroupResultCoder<GroupKeysT : Any>(
 
   override fun encode(value: QueryPerGroupResult<GroupKeysT>, outStream: OutputStream) {
     groupKeyCoder.encode(value.groupKey, outStream)
-    MapCoder.of(StringUtf8Coder.of(), DoubleCoder.of()).encode(value.aggregationResults, outStream)
+    VALUE_AGGREGATION_RESULTS_CODER.encode(value.valueAggregationResults, outStream)
+    VECTOR_AGGREGATION_RESULTS_CODER.encode(value.vectorAggregationResults, outStream)
   }
 
   override fun decode(inStream: InputStream): QueryPerGroupResult<GroupKeysT> {
     val groupKey = groupKeyCoder.decode(inStream)
-    val aggregationResults = MapCoder.of(StringUtf8Coder.of(), DoubleCoder.of()).decode(inStream)
+    val valueAggregationResults = VALUE_AGGREGATION_RESULTS_CODER.decode(inStream)
+    val vectorAggregationResults = VECTOR_AGGREGATION_RESULTS_CODER.decode(inStream)
     @Suppress("UNCHECKED_CAST")
-    return QueryPerGroupResult(groupKey, aggregationResults as Map<String, Double>)
+    return QueryPerGroupResult(
+      groupKey,
+      valueAggregationResults as Map<String, Double>,
+      vectorAggregationResults as Map<String, List<Double>>,
+    )
+  }
+
+  private companion object {
+    val VALUE_AGGREGATION_RESULTS_CODER = createAggregationResultsCoder(DoubleCoder.of())
+    val VECTOR_AGGREGATION_RESULTS_CODER =
+      createAggregationResultsCoder(ListCoder.of(DoubleCoder.of()))
+
+    fun <T> createAggregationResultsCoder(aggregationResultCoder: Coder<T>): Coder<Map<String, T>> {
+      return MapCoder.of(StringUtf8Coder.of(), aggregationResultCoder)
+    }
   }
 }

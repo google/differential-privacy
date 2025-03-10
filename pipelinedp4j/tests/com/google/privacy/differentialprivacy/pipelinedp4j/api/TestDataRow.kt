@@ -38,7 +38,8 @@ internal data class TestDataRow(
  */
 internal data class QueryPerGroupResultWithTolerance(
   val groupKey: String,
-  val aggregationResults: Map<String, DoubleWithTolerance>,
+  val valueAggregationResults: Map<String, DoubleWithTolerance>,
+  val vectorAggregationResults: Map<String, List<DoubleWithTolerance>>,
 ) : Serializable
 
 internal data class DoubleWithTolerance(val value: Double, val tolerance: Double) : Serializable
@@ -53,15 +54,33 @@ internal fun assertEquals(
   assertThat(queryPerGroupResults.keys).isEqualTo(expectedQueryPerGroupResults.keys)
   for (groupKey in queryPerGroupResults.keys) {
     assertThat(queryPerGroupResults[groupKey]!!.size).isEqualTo(1)
-    val aggregationResults = queryPerGroupResults[groupKey]!!.first().aggregationResults
+    val groupResult = queryPerGroupResults[groupKey]!![0]
     assertThat(expectedQueryPerGroupResults[groupKey]!!.size).isEqualTo(1)
-    val expectedAggregationResults = expectedQueryPerGroupResults[groupKey]!![0].aggregationResults
-    assertThat(aggregationResults.keys).isEqualTo(expectedAggregationResults.keys)
-    for (aggregationKey in aggregationResults.keys) {
-      val expectedAggregationResult = expectedAggregationResults[aggregationKey]!!
-      assertThat(aggregationResults[aggregationKey])
+    val expectedGroupResult = expectedQueryPerGroupResults[groupKey]!![0]
+
+    // Check value aggregation results.
+    val valueAggregationResults = groupResult.valueAggregationResults
+    val expectedValueAggregationResults =
+      expectedQueryPerGroupResults[groupKey]!![0].valueAggregationResults
+    assertThat(valueAggregationResults.keys).isEqualTo(expectedValueAggregationResults.keys)
+    for (aggregationKey in valueAggregationResults.keys) {
+      val expectedAggregationResult = expectedValueAggregationResults[aggregationKey]!!
+      assertThat(valueAggregationResults[aggregationKey])
         .isWithin(expectedAggregationResult.tolerance)
         .of(expectedAggregationResult.value)
+    }
+
+    // Check vector aggregation results.
+    val vectorAggregationResults = groupResult.vectorAggregationResults
+    val expectedVectorAggregationResults = expectedGroupResult.vectorAggregationResults
+    assertThat(vectorAggregationResults.keys).isEqualTo(expectedVectorAggregationResults.keys)
+    for (aggregationKey in vectorAggregationResults.keys) {
+      val expectedAggregationResult = expectedVectorAggregationResults[aggregationKey]!!
+      for (i in 0 until expectedAggregationResult.size) {
+        assertThat(vectorAggregationResults[aggregationKey]!![i])
+          .isWithin(expectedAggregationResult[i].tolerance)
+          .of(expectedAggregationResult[i].value)
+      }
     }
   }
 }

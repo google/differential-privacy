@@ -70,6 +70,7 @@ class DpFunctionsParamsTest {
       AGGREGATION_PARAMS.copy(
         maxContributionsPerPartition = null,
         metrics = ImmutableList.of(MetricDefinition(VECTOR_SUM)),
+        noiseKind = NoiseKind.LAPLACE,
         minValue = null,
         maxValue = null,
         minTotalValue = null,
@@ -446,10 +447,33 @@ class DpFunctionsParamsTest {
         ),
       exceptionMessage = "vectorNormKind must be set for VECTOR_SUM metric.",
     ),
+    L2_NORM_KIND_WHEN_LAPLACE_NOISE_IS_USED(
+      aggregationParams =
+        AGGREGATION_PARAMS.copy(
+          metrics = ImmutableList.of(MetricDefinition(VECTOR_SUM)),
+          noiseKind = NoiseKind.LAPLACE,
+          vectorNormKind = NormKind.L2,
+          vectorMaxTotalNorm = 2.3,
+          vectorSize = 2,
+        ),
+      exceptionMessage = "vectorNormKind must be L_INF or L1 for LAPLACE noise.",
+    ),
+    L1_NORM_KIND_WHEN_LAPLACE_NOISE_IS_USED(
+      aggregationParams =
+        AGGREGATION_PARAMS.copy(
+          metrics = ImmutableList.of(MetricDefinition(VECTOR_SUM)),
+          noiseKind = NoiseKind.GAUSSIAN,
+          vectorNormKind = NormKind.L1,
+          vectorMaxTotalNorm = 2.3,
+          vectorSize = 2,
+        ),
+      exceptionMessage = "vectorNormKind must be L_INF or L2 for GAUSSIAN noise.",
+    ),
     MAX_TOTAL_NORM_NOT_SET_FOR_VECTOR_SUM(
       aggregationParams =
         AGGREGATION_PARAMS.copy(
           metrics = ImmutableList.of(MetricDefinition(VECTOR_SUM)),
+          noiseKind = NoiseKind.GAUSSIAN,
           vectorNormKind = NormKind.L2,
           vectorMaxTotalNorm = null,
           vectorSize = 2,

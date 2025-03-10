@@ -26,7 +26,8 @@ import org.apache.spark.sql.types.DataTypes as SparkDataTypes
 import org.apache.spark.sql.types.Metadata as SparkMetadata
 import org.apache.spark.sql.types.StructField as SparkStructField
 import org.apache.spark.sql.types.StructType
-import scala.collection.JavaConverters
+import scala.jdk.CollectionConverters.IterableHasAsScala
+import scala.jdk.CollectionConverters.SeqHasAsJava
 
 typealias SparkDataFrame = SparkDataset<SparkRow>
 
@@ -226,6 +227,10 @@ internal constructor(
   private val sparkQuery: SparkQuery<SparkRow, List<Any?>, List<Any?>>,
   private val groupKeyColumnStructFields: List<SparkStructField>,
 ) : Query<SparkDataFrame> {
+  /**
+   * Note that collections in the returned [SparkDataFrame] will be scala collections (e.g.
+   * List<Double> which represents a vector will be a scala sequence).
+   */
   override fun run(testMode: TestMode): SparkDataFrame {
     val sparkQueryResult: SparkDataset<QueryPerGroupResult<List<Any?>>> = sparkQuery.run(testMode)
 
@@ -233,14 +238,18 @@ internal constructor(
       sparkQueryResult.map(
         MapFunction { record: QueryPerGroupResult<List<Any?>> ->
           val groupKeyValues = record.groupKey.toTypedArray()
-          val aggregationValues = record.aggregationResults.values.toTypedArray()
-          SparkRowFactory.create(*groupKeyValues, *aggregationValues)
+          val aggregationValues = record.valueAggregationResults.values.toTypedArray()
+          val aggregationVectors =
+            record.vectorAggregationResults.values
+              .map { IterableHasAsScala(it).asScala().toSeq() }
+              .toTypedArray()
+          SparkRowFactory.create(*groupKeyValues, *aggregationValues, *aggregationVectors)
         },
         SparkEncoders.kryo(SparkRow::class.java),
       )
 
-    val aggregationColumnStructFields =
-      QueryPerGroupResult.columnsNamesInAggregationResults(
+    val valueAggregationColumnStructFields =
+      QueryPerGroupResult.valueColumnsNamesInAggregationResults(
           sparkQuery.aggregations.outputColumnNamesWithMetricTypes()
         )
         .map { key ->
@@ -252,15 +261,33 @@ internal constructor(
           )
         }
 
+    val vectorAggregationColumnStructFields =
+      QueryPerGroupResult.vectorColumnsNamesInAggregationResults(
+          sparkQuery.aggregations.outputColumnNamesWithMetricTypes()
+        )
+        .map { key ->
+          SparkStructField(
+            key,
+            SparkDataTypes.createArrayType(SparkDataTypes.DoubleType),
+            /* nullable= */ false,
+            SparkMetadata.empty(),
+          )
+        }
+
     val schema =
-      StructType((groupKeyColumnStructFields + aggregationColumnStructFields).toTypedArray())
+      StructType(
+        (groupKeyColumnStructFields +
+            valueAggregationColumnStructFields +
+            vectorAggregationColumnStructFields)
+          .toTypedArray()
+      )
     return rows.sparkSession().createDataFrame(rows.javaRDD(), schema)
   }
 }
 
 internal fun SparkDataFrame.toSparkDataset(): SparkDataset<List<Any?>> {
   return map(
-    MapFunction { row -> ColumnValuesListImplementation(JavaConverters.asJava(row.toSeq())) },
+    MapFunction { row -> ColumnValuesListImplementation(SeqHasAsJava(row.toSeq()).asJava()) },
     Encoders.kryo(List::class.java),
   )
 }

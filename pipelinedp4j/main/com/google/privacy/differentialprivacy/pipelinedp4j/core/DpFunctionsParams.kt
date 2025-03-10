@@ -363,6 +363,16 @@ fun validateAggregationParams(
   // Validation for VECTOR_SUM metric.
   if (metricIsRequested(VECTOR_SUM::class, params)) {
     require(params.vectorNormKind != null) { "vectorNormKind must be set for VECTOR_SUM metric." }
+    when (params.noiseKind) {
+      NoiseKind.LAPLACE ->
+        require(params.vectorNormKind in listOf(NormKind.L_INF, NormKind.L1)) {
+          "vectorNormKind must be L_INF or L1 for LAPLACE noise. Provided value: ${params.vectorNormKind}."
+        }
+      NoiseKind.GAUSSIAN ->
+        require(params.vectorNormKind in listOf(NormKind.L_INF, NormKind.L2)) {
+          "vectorNormKind must be L_INF or L2 for GAUSSIAN noise. Provided value: ${params.vectorNormKind}."
+        }
+    }
     require(params.vectorMaxTotalNorm != null) {
       "vectorMaxTotalNorm must be set for VECTOR_SUM metric."
     }

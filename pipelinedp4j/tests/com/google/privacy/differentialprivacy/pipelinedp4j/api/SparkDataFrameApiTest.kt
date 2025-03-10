@@ -27,6 +27,8 @@ import org.junit.ClassRule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.JUnit4
+import scala.collection.mutable.Seq as ScalaSeq
+import scala.jdk.CollectionConverters.SeqHasAsJava
 
 @RunWith(JUnit4::class)
 class SparkDataFrameApiTest {
@@ -507,6 +509,68 @@ class SparkDataFrameApiTest {
   }
 
   @Test
+  fun build_l2VectorNormKindWithLaplaceNoise_throwsException() {
+    val data: SparkDataFrame = createEmptyInputData()
+    val queryBuilder =
+      SparkDataFrameQueryBuilder.from(
+          data,
+          ColumnNames("privacyUnit"),
+          ContributionBoundingLevel.DATASET_LEVEL(
+            maxGroupsContributed = 1,
+            maxContributionsPerGroup = 1,
+          ),
+        )
+        .groupBy(ColumnNames("groupKey"), GroupsType.PrivateGroups())
+        .aggregateVector(
+          ColumnNames("value", "anotherValue"),
+          vectorSize = 2,
+          VectorAggregationsBuilder().vectorSum(outputColumnName = "vectorSum"),
+          VectorContributionBounds(
+            maxVectorTotalNorm = VectorNorm(normKind = NormKind.L2, value = 100.0)
+          ),
+        )
+
+    val e =
+      assertFailsWith<IllegalArgumentException> {
+        queryBuilder.build(TotalBudget(epsilon = 1.1, delta = 0.001), NoiseKind.LAPLACE)
+      }
+    assertThat(e)
+      .hasMessageThat()
+      .contains("Norm kind must be L_INF or L1 when Laplace mechanism is used.")
+  }
+
+  @Test
+  fun build_l1VectorNormKindWithGaussianNoise_throwsException() {
+    val data: SparkDataFrame = createEmptyInputData()
+    val queryBuilder =
+      SparkDataFrameQueryBuilder.from(
+          data,
+          ColumnNames("privacyUnit"),
+          ContributionBoundingLevel.DATASET_LEVEL(
+            maxGroupsContributed = 1,
+            maxContributionsPerGroup = 1,
+          ),
+        )
+        .groupBy(ColumnNames("groupKey"), GroupsType.PrivateGroups())
+        .aggregateVector(
+          ColumnNames("value", "anotherValue"),
+          vectorSize = 2,
+          VectorAggregationsBuilder().vectorSum(outputColumnName = "vectorSum"),
+          VectorContributionBounds(
+            maxVectorTotalNorm = VectorNorm(normKind = NormKind.L1, value = 100.0)
+          ),
+        )
+
+    val e =
+      assertFailsWith<IllegalArgumentException> {
+        queryBuilder.build(TotalBudget(epsilon = 1.1, delta = 0.001), NoiseKind.GAUSSIAN)
+      }
+    assertThat(e)
+      .hasMessageThat()
+      .contains("Norm kind must be L_INF or L2 when Gaussian mechanism is used.")
+  }
+
+  @Test
   fun build_zeroEpsilonInTotalBudget_throwsException() {
     val data: SparkDataFrame = createEmptyInputData()
     val queryBuilder =
@@ -829,14 +893,22 @@ class SparkDataFrameApiTest {
 
     val expected =
       listOf(
-        QueryPerGroupResultWithTolerance("group1", mapOf<String, DoubleWithTolerance>()),
-        QueryPerGroupResultWithTolerance("group2", mapOf<String, DoubleWithTolerance>()),
+        QueryPerGroupResultWithTolerance(
+          "group1",
+          valueAggregationResults = mapOf(),
+          vectorAggregationResults = mapOf(),
+        ),
+        QueryPerGroupResultWithTolerance(
+          "group2",
+          valueAggregationResults = mapOf(),
+          vectorAggregationResults = mapOf(),
+        ),
       )
     assertEquals(result, expected)
   }
 
   @Test
-  fun run_publicGroups_allPossibleAggregations_calculatesStatisticsCorrectly() {
+  fun run_publicGroups_allPossibleValueAggregations_calculatesStatisticsCorrectly() {
     val data =
       createInputData(
         listOf(
@@ -885,13 +957,74 @@ class SparkDataFrameApiTest {
             "varianceResult" to DoubleWithTolerance(value = 0.16, tolerance = 0.05),
             "quantilesResult_0.5" to DoubleWithTolerance(value = 1.5, tolerance = 0.5),
           ),
+          vectorAggregationResults = mapOf(),
         )
       )
     assertEquals(result, expected)
   }
 
   @Test
-  fun run_privateGroups_allPossibleAggregations_calculatesStatisticsCorrectly() {
+  fun run_publicGroups_allPossibleVectorAggregations_calculatesStatisticsCorrectly() {
+    val data =
+      createInputData(
+        listOf(
+          TestDataRow("group1", "pid1", 1.0, 2.0),
+          TestDataRow("group1", "pid1", 0.5, 2.5),
+          TestDataRow("group1", "pid2", 1.0, 0.0),
+          TestDataRow("nonPublicGroup", "pid2", 3.0),
+        )
+      )
+    val publicGroups = createPublicGroups(listOf("group1"))
+    val query =
+      SparkDataFrameQueryBuilder.from(
+          data,
+          ColumnNames("privacyUnit"),
+          ContributionBoundingLevel.DATASET_LEVEL(
+            maxGroupsContributed = 1,
+            maxContributionsPerGroup = 2,
+          ),
+        )
+        .groupBy(ColumnNames("groupKey"), GroupsType.PublicGroups.createForDataFrame(publicGroups))
+        .countDistinctPrivacyUnits("pidCnt")
+        .count("cnt")
+        .aggregateVector(
+          ColumnNames("value", "anotherValue"),
+          vectorSize = 2,
+          VectorAggregationsBuilder().vectorSum("vectorSumResult"),
+          VectorContributionBounds(
+            maxVectorTotalNorm = VectorNorm(normKind = NormKind.L_INF, value = 2.0)
+          ),
+        )
+        .build(TotalBudget(epsilon = 1000.0), NoiseKind.LAPLACE)
+
+    val result: SparkDataFrame = query.run()
+
+    val expected =
+      listOf(
+        QueryPerGroupResultWithTolerance(
+          "group1",
+          mapOf(
+            "pidCnt" to DoubleWithTolerance(value = 2.0, tolerance = 0.5),
+            "cnt" to DoubleWithTolerance(value = 3.0, tolerance = 0.5),
+          ),
+          mapOf(
+            // pid1: (1.0, 2.0) + (0.5, 2.5) = (1.5, 4.5), L_INF norm is 4.5 =>
+            // clip it (1.5, 4.5) * 2.0 / 4.5 = (0.(6), 2.0).
+            // pid2: (1.0, 0.0), L_INF norm is 1.0 => no clipping.
+            // result: (0.(6), 2.0) + (1.0, 0.0) = (1.(6), 2.0)
+            "vectorSumResult" to
+              listOf(
+                DoubleWithTolerance(value = 1.6, tolerance = 0.5),
+                DoubleWithTolerance(value = 2.0, tolerance = 0.5),
+              )
+          ),
+        )
+      )
+    assertEquals(result, expected)
+  }
+
+  @Test
+  fun run_privateGroups_allPossibleValueAggregations_calculatesStatisticsCorrectly() {
     val data =
       createInputData(
         listOf(
@@ -938,6 +1071,66 @@ class SparkDataFrameApiTest {
             // (1^2+(1.5)^2+2^2)/3-((1.0+1.5+2)/3)^2 = 0.1(6)
             "varianceResult" to DoubleWithTolerance(value = 0.16, tolerance = 0.05),
             "quantilesResult_0.5" to DoubleWithTolerance(value = 1.5, tolerance = 0.5),
+          ),
+          vectorAggregationResults = mapOf(),
+        )
+      )
+    assertEquals(result, expected)
+  }
+
+  @Test
+  fun run_privateGroups_allPossibleVectorAggregations_calculatesStatisticsCorrectly() {
+    val data =
+      createInputData(
+        listOf(
+          TestDataRow("group1", "pid1", 1.0, 2.0),
+          TestDataRow("group1", "pid1", 1.5, 2.5),
+          TestDataRow("group1", "pid2", 3.0, -1.0),
+          TestDataRow("group2", "pid1", -1.0, -3.0),
+        )
+      )
+    val query =
+      SparkDataFrameQueryBuilder.from(
+          data,
+          ColumnNames("privacyUnit"),
+          ContributionBoundingLevel.DATASET_LEVEL(
+            maxGroupsContributed = 2,
+            maxContributionsPerGroup = 2,
+          ),
+        )
+        .groupBy(ColumnNames("groupKey"), GroupsType.PrivateGroups())
+        .countDistinctPrivacyUnits("pidCnt")
+        .count("cnt")
+        .aggregateVector(
+          ColumnNames("value", "anotherValue"),
+          vectorSize = 2,
+          VectorAggregationsBuilder().vectorSum("vectorSumResult"),
+          VectorContributionBounds(
+            maxVectorTotalNorm = VectorNorm(normKind = NormKind.L1, value = 5.0)
+          ),
+        )
+        .build(TotalBudget(epsilon = 3500.0, delta = 0.001), NoiseKind.LAPLACE)
+
+    val result: SparkDataFrame = query.run()
+
+    val expected =
+      listOf(
+        QueryPerGroupResultWithTolerance(
+          "group1",
+          mapOf(
+            "pidCnt" to DoubleWithTolerance(value = 2.0, tolerance = 0.5),
+            "cnt" to DoubleWithTolerance(value = 3.0, tolerance = 0.5),
+          ),
+          mapOf(
+            "vectorSumResult" to
+              // pid1: (1.0, 2.0) + (1.5, 2.5) = (2.5, 4.5), L1 norm is 7 =>
+              // clip it to (2.5, 4.5) * 5.0 / 7.0 = (1.8, 3.2)
+              // pid2: (3.0, -1.0), L1 norm is 4.0 => no clipping.
+              // result: (1.8, 3.2) + (3.0, -1.0) = (4.8, 2.2)
+              listOf(
+                DoubleWithTolerance(value = 4.8, tolerance = 0.5),
+                DoubleWithTolerance(value = 2.2, tolerance = 0.5),
+              )
           ),
         )
       )
@@ -992,6 +1185,61 @@ class SparkDataFrameApiTest {
             "varianceResult" to DoubleWithTolerance(value = 0.16, tolerance = 0.05),
             "quantilesResult_0.5" to DoubleWithTolerance(value = 1.5, tolerance = 0.5),
           ),
+          vectorAggregationResults = mapOf(),
+        )
+      )
+    assertEquals(result, expected)
+  }
+
+  @Test
+  fun run_vectorSumOnly_calculatesStatisticsCorrectly() {
+    val data =
+      createInputData(
+        listOf(
+          TestDataRow("group1", "pid1", 1.0, 2.0),
+          TestDataRow("group1", "pid1", 1.5, 2.5),
+          TestDataRow("group1", "pid2", -2.0, 0.0),
+        )
+      )
+    val publicGroups = createPublicGroups(listOf("group1"))
+    val query =
+      SparkDataFrameQueryBuilder.from(
+          data,
+          ColumnNames("privacyUnit"),
+          ContributionBoundingLevel.DATASET_LEVEL(
+            maxGroupsContributed = 1,
+            maxContributionsPerGroup = 2,
+          ),
+        )
+        .groupBy(ColumnNames("groupKey"), GroupsType.PublicGroups.createForDataFrame(publicGroups))
+        .aggregateVector(
+          ColumnNames("value", "anotherValue"),
+          vectorSize = 2,
+          VectorAggregationsBuilder().vectorSum("vectorSumResult"),
+          VectorContributionBounds(
+            maxVectorTotalNorm = VectorNorm(normKind = NormKind.L2, value = 3.0)
+          ),
+        )
+        .build(TotalBudget(epsilon = 500.0, delta = 0.999), NoiseKind.GAUSSIAN)
+
+    val result: SparkDataFrame = query.run()
+
+    val expected =
+      listOf(
+        QueryPerGroupResultWithTolerance(
+          "group1",
+          valueAggregationResults = mapOf(),
+          mapOf(
+            "vectorSumResult" to
+              // pid1: (1.0, 2.0) + (1.5, 2.5) = (2.5, 4.5), L2 norm is ~5.7 =>
+              // clip it to (2.5, 4.5) * 3.0 / 5.1 = (1.5, 2.6).
+              // pid2: (-2.0, 0.0), L2 norm is 2.0 => no clipping.
+              // result: (1.5, 2.6) + (-2.0, 0.0) = (-0.5, 2.6)
+              listOf(
+                DoubleWithTolerance(value = -0.5, tolerance = 0.5),
+                DoubleWithTolerance(value = 2.6, tolerance = 0.5),
+              )
+          ),
         )
       )
     assertEquals(result, expected)
@@ -1033,6 +1281,7 @@ class SparkDataFrameApiTest {
         QueryPerGroupResultWithTolerance(
           "group1",
           mapOf("sumResult" to DoubleWithTolerance(value = 4.5, tolerance = 0.5)),
+          vectorAggregationResults = mapOf(),
         )
       )
     assertEquals(result, expected)
@@ -1081,6 +1330,7 @@ class SparkDataFrameApiTest {
             "sumResult" to DoubleWithTolerance(value = 4.5, tolerance = 0.5),
             "quantilesResult_0.5" to DoubleWithTolerance(value = 1.5, tolerance = 0.5),
           ),
+          vectorAggregationResults = mapOf(),
         )
       )
     assertEquals(result, expected)
@@ -1133,6 +1383,7 @@ class SparkDataFrameApiTest {
             "sumResult" to DoubleWithTolerance(value = 4.5, tolerance = 0.5),
             "meanResult" to DoubleWithTolerance(value = 1.5, tolerance = 0.5),
           ),
+          vectorAggregationResults = mapOf(),
         )
       )
     assertEquals(result, expected)
@@ -1188,6 +1439,7 @@ class SparkDataFrameApiTest {
             // (1^2+(1.5)^2+2^2)/3-((1.0+1.5+2)/3)^2 = 0.1(6)
             "varianceResult" to DoubleWithTolerance(value = 0.16, tolerance = 0.05),
           ),
+          vectorAggregationResults = mapOf(),
         )
       )
     assertEquals(result, expected)
@@ -1233,6 +1485,7 @@ class SparkDataFrameApiTest {
             "quantilesResult_0.5" to DoubleWithTolerance(value = 1.5, tolerance = 0.5),
             "quantilesResult_1.0" to DoubleWithTolerance(value = 2.0, tolerance = 0.5),
           ),
+          vectorAggregationResults = mapOf(),
         )
       )
     assertEquals(result, expected)
@@ -1273,6 +1526,7 @@ class SparkDataFrameApiTest {
         QueryPerGroupResultWithTolerance(
           "group1",
           mapOf("cnt" to DoubleWithTolerance(value = 3.0, tolerance = 0.5)),
+          vectorAggregationResults = mapOf(),
         )
       )
     assertEquals(result, expected)
@@ -1309,6 +1563,7 @@ class SparkDataFrameApiTest {
         QueryPerGroupResultWithTolerance(
           "group1",
           mapOf("cnt" to DoubleWithTolerance(value = 3.0, tolerance = 0.5)),
+          vectorAggregationResults = mapOf(),
         )
       )
     assertEquals(result, expected)
@@ -1332,9 +1587,14 @@ class SparkDataFrameApiTest {
     return map(
         MapFunction { row: Row ->
           val aggregationsColumnNames = row.schema().fieldNames().drop(1)
+          val aggregationResults: Map<String, Any?> =
+            aggregationsColumnNames.associateWith { row.getAs(it) }
           QueryPerGroupResult(
             row.getAs("groupKey"),
-            aggregationsColumnNames.associateWith { row.getAs(it) },
+            aggregationResults.filterValues { it is Double }.mapValues { it.value as Double },
+            aggregationResults
+              .filterValues { it is ScalaSeq<*> }
+              .mapValues { SeqHasAsJava(it.value as ScalaSeq<Double>).asJava() },
           )
         },
         Encoders.kryo(QueryPerGroupResult::class.java) as Encoder<QueryPerGroupResult<String>>,

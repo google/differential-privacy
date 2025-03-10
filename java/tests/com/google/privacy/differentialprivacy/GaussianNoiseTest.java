@@ -344,6 +344,32 @@ public final class GaussianNoiseTest {
   }
 
   @Test
+  public void addNoise_l2SensitivityNegative_throwsException() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            NOISE.addNoise(
+                DEFAULT_X, /* l2Sensitivity= */ -1.0, DEFAULT_EPSILON, /* delta= */ 0.0));
+  }
+
+  @Test
+  public void addNoise_l2SensitivityZero_throwsException() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            NOISE.addNoise(DEFAULT_X, /* l2Sensitivity= */ 0.0, DEFAULT_EPSILON, /* delta= */ 0.0));
+  }
+
+  @Test
+  public void addNoise_l2SensitivityNan_throwsException() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            NOISE.addNoise(
+                DEFAULT_X, /* l2Sensitivity= */ Double.NaN, DEFAULT_EPSILON, /* delta= */ 0.0));
+  }
+
+  @Test
   public void addNoise_lInfSensitivityNan_throwsException() {
     assertThrows(IllegalArgumentException.class, () -> NOISE.addNoise(0, 1, NaN, 1, DEFAULT_DELTA));
   }
@@ -492,7 +518,8 @@ public final class GaussianNoiseTest {
   public void addNoiseDefinedByRho_hasAccurateStatisticalProperties() {
     ImmutableList.Builder<Double> samples = ImmutableList.builder();
     for (int i = 0; i < NUM_SAMPLES; i++) {
-      samples.add(NOISE.addNoiseDefinedByRho(/* x */ 1.0, /* l2Sensitivity */ 10.0, /* rho */ 2));
+      samples.add(
+          NOISE.addNoiseDefinedByRho(/* x= */ 1.0, /* l2Sensitivity= */ 10.0, /* rho= */ 2));
     }
     Stats stats = Stats.of(samples.build());
 

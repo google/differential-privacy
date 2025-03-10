@@ -32,13 +32,14 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.proto.DpAggregates
 data class QueryPerGroupResult<GroupKeysT : Any>
 internal constructor(
   private val nullableGroupKey: GroupKeysT?,
-  val aggregationResults: Map<String, Double>,
+  val valueAggregationResults: Map<String, Double>,
+  val vectorAggregationResults: Map<String, List<Double>>,
 ) {
   val groupKey: GroupKeysT
     get() = nullableGroupKey!!
 
   // Necessary for Beam serialization.
-  private constructor() : this(null, mapOf())
+  private constructor() : this(null, mapOf(), mapOf())
 
   companion object {
     internal fun <GroupKeysT : Any> create(
@@ -46,12 +47,52 @@ internal constructor(
       dpAggregates: DpAggregates,
       outputColumnNamesWithMetricTypes: List<Pair<String, MetricType>>,
     ): QueryPerGroupResult<GroupKeysT> {
-      val aggregationsMap =
-        constructAggregationResults(dpAggregates, outputColumnNamesWithMetricTypes)
-      return QueryPerGroupResult<GroupKeysT>(groupKey, aggregationsMap)
+      val valueAggregationsMap =
+        constructValueAggregationResults(dpAggregates, outputColumnNamesWithMetricTypes)
+      val vectorAggregationsMap =
+        constructVectorAggregationResults(dpAggregates, outputColumnNamesWithMetricTypes)
+      return QueryPerGroupResult<GroupKeysT>(groupKey, valueAggregationsMap, vectorAggregationsMap)
     }
 
-    internal fun constructAggregationResults(
+    internal fun valueColumnsNamesInAggregationResults(
+      outputColumnNamesWithMetricTypes: List<Pair<String, MetricType>>
+    ) =
+      buildList<String> {
+        for ((outputColumnName, metricType) in outputColumnNamesWithMetricTypes) {
+          when (metricType) {
+            MetricType.PRIVACY_ID_COUNT -> add(outputColumnName)
+            MetricType.COUNT -> add(outputColumnName)
+            MetricType.SUM -> add(outputColumnName)
+            MetricType.VECTOR_SUM -> {} // not processed in this function.
+            MetricType.MEAN -> add(outputColumnName)
+            MetricType.VARIANCE -> add(outputColumnName)
+            is MetricType.QUANTILES -> {
+              for (rank in metricType.sortedRanks) {
+                add(outputColumnName.withRank(rank))
+              }
+            }
+          }
+        }
+      }
+
+    internal fun vectorColumnsNamesInAggregationResults(
+      outputColumnNamesWithMetricTypes: List<Pair<String, MetricType>>
+    ) =
+      buildList<String> {
+        for ((outputColumnName, metricType) in outputColumnNamesWithMetricTypes) {
+          when (metricType) {
+            MetricType.PRIVACY_ID_COUNT -> {} // not processed in this function.
+            MetricType.COUNT -> {} // not processed in this function.
+            MetricType.SUM -> {} // not processed in this function.
+            MetricType.VECTOR_SUM -> add(outputColumnName)
+            MetricType.MEAN -> {} // not processed in this function.
+            MetricType.VARIANCE -> {} // not processed in this function.
+            is MetricType.QUANTILES -> {} // not processed in this function.
+          }
+        }
+      }
+
+    private fun constructValueAggregationResults(
       dpAggregates: DpAggregates,
       outputColumnNamesWithMetricTypes: List<Pair<String, MetricType>>,
     ) =
@@ -61,8 +102,7 @@ internal constructor(
             MetricType.PRIVACY_ID_COUNT -> put(outputColumnName, dpAggregates.privacyIdCount)
             MetricType.COUNT -> put(outputColumnName, dpAggregates.count)
             MetricType.SUM -> put(outputColumnName, dpAggregates.sum)
-            MetricType.VECTOR_SUM ->
-              throw IllegalArgumentException("Vector sum is not supported yet.")
+            MetricType.VECTOR_SUM -> {} // not processed in this function.
             MetricType.MEAN -> put(outputColumnName, dpAggregates.mean)
             MetricType.VARIANCE -> put(outputColumnName, dpAggregates.variance)
             is MetricType.QUANTILES -> {
@@ -76,24 +116,20 @@ internal constructor(
         }
       }
 
-    internal fun columnsNamesInAggregationResults(
-      outputColumnNamesWithMetricTypes: List<Pair<String, MetricType>>
+    private fun constructVectorAggregationResults(
+      dpAggregates: DpAggregates,
+      outputColumnNamesWithMetricTypes: List<Pair<String, MetricType>>,
     ) =
-      buildList<String> {
+      buildMap<String, List<Double>> {
         for ((outputColumnName, metricType) in outputColumnNamesWithMetricTypes) {
           when (metricType) {
-            MetricType.PRIVACY_ID_COUNT -> add(outputColumnName)
-            MetricType.COUNT -> add(outputColumnName)
-            MetricType.SUM -> add(outputColumnName)
-            MetricType.VECTOR_SUM ->
-              throw IllegalArgumentException("Vector sum is not supported yet.")
-            MetricType.MEAN -> add(outputColumnName)
-            MetricType.VARIANCE -> add(outputColumnName)
-            is MetricType.QUANTILES -> {
-              for (rank in metricType.sortedRanks) {
-                add(outputColumnName.withRank(rank))
-              }
-            }
+            MetricType.PRIVACY_ID_COUNT -> {} // not processed in this function.
+            MetricType.COUNT -> {} // not processed in this function.
+            MetricType.SUM -> {} // not processed in this function.
+            MetricType.VECTOR_SUM -> put(outputColumnName, dpAggregates.vectorSumList)
+            MetricType.MEAN -> {} // not processed in this function.
+            MetricType.VARIANCE -> {} // not processed in this function.
+            is MetricType.QUANTILES -> {} // not processed in this function.
           }
         }
       }

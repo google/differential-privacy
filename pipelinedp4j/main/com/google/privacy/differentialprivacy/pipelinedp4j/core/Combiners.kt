@@ -18,7 +18,10 @@ package com.google.privacy.differentialprivacy.pipelinedp4j.core
 
 import com.google.errorprone.annotations.Immutable
 import com.google.privacy.differentialprivacy.BoundedQuantiles
+import com.google.privacy.differentialprivacy.GaussianNoise
+import com.google.privacy.differentialprivacy.LaplaceNoise
 import com.google.privacy.differentialprivacy.Noise
+import com.google.privacy.differentialprivacy.ZeroNoise
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.COUNT
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.MEAN
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.SUM
@@ -510,21 +513,37 @@ class VectorSumCombiner(
   override fun computeMetrics(accumulator: VectorSumAccumulator): List<Double> {
     val noise = noiseFactory(aggregationParams.noiseKind)
     val vector = ArrayRealVector(accumulator.sumsPerDimensionList.toDoubleArray())
-    // TODO: introduce l2 sensitivity for Gaussian noise.
-    val epsPerDimension = budget.epsilon() / vector.dimension
-    val deltaPerDimension = budget.delta() / vector.dimension
-    return vector
-      .map {
-        noise.addNoise(
-          it,
-          /* l0Sensitivity= */ aggregationParams.maxPartitionsContributed!!,
-          /* lInfSensitivity= */ aggregationParams.vectorMaxTotalNorm!!,
-          epsPerDimension,
-          deltaPerDimension,
-        )
+    val noisedVector =
+      when (noise) {
+        is LaplaceNoise -> {
+          val l1Sensitivity =
+            calculateL1Sensistivity(
+              aggregationParams.vectorNormKind!!,
+              aggregationParams.vectorMaxTotalNorm!!,
+              aggregationParams.vectorSize!!,
+              aggregationParams.maxPartitionsContributed!!,
+            )
+          vector.map { noise.addNoise(it, l1Sensitivity, budget.epsilon(), budget.delta()) }
+        }
+        // TODO: Update Java DP library and add noise with L2 sensitivity.
+        is GaussianNoise -> {
+          val epsPerDimension = budget.epsilon() / vector.dimension
+          val deltaPerDimension = budget.delta() / vector.dimension
+          vector
+            .map {
+              noise.addNoise(
+                it,
+                aggregationParams.maxPartitionsContributed!!,
+                aggregationParams.vectorMaxTotalNorm!!,
+                epsPerDimension,
+                deltaPerDimension,
+              )
+            }
+        }
+        is ZeroNoise -> vector.map { it }
+        else -> throw IllegalArgumentException("Unsupported noise kind: ${noise.javaClass}.")
       }
-      .toArray()
-      .asList()
+    return noisedVector.toArray().asList()
   }
 
   private fun RealVector.clipIfContributionBoundingEnabled(
@@ -544,6 +563,26 @@ class VectorSumCombiner(
       this.copy()
     } else {
       this.mapMultiply(maxNorm / currentNorm)
+    }
+  }
+
+  private companion object {
+    fun calculateL1Sensistivity(
+      normKind: NormKind,
+      maxNorm: Double,
+      vectorSize: Int,
+      maxPartitionsContributed: Int,
+    ): Double {
+      val onePartitionSensitivity =
+        when (normKind) {
+          NormKind.L1 -> maxNorm
+          NormKind.L2 ->
+            throw IllegalStateException(
+              "L2 norm vector norm is not supported for Laplace mechanism."
+            )
+          NormKind.L_INF -> maxNorm * vectorSize
+        }
+      return onePartitionSensitivity * maxPartitionsContributed
     }
   }
 }

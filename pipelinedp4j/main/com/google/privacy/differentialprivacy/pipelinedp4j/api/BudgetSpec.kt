@@ -41,7 +41,7 @@ import java.io.Serializable
  *   noise or for a private group selection, it must be positive.
  */
 @Immutable
-data class AbsoluteBudgetPerOpSpec(val epsilon: Double, val delta: Double) :
+data class AbsoluteBudgetPerOpSpec(val epsilon: Double, val delta: Double = 0.0) :
   BudgetPerOpSpec, Serializable {
   init {
     BudgetValidationUtils.validateEpsilon(epsilon)

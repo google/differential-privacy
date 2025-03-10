@@ -43,6 +43,7 @@ public class GaussianNoise implements Noise {
    * if the square root is set to 2^57.
    */
   private static final double BINOMIAL_BOUND = (double) (1L << 57);
+
   /**
    * The absolute bound of the two sided geometric samples k that are used for creating a binomial
    * sample m + n / 2. For performance reasons, m is not composed of n Bernoulli trials. Instead m
@@ -62,6 +63,7 @@ public class GaussianNoise implements Noise {
    * null random generator as recommended by its documentation.
    */
   private static final NormalDistribution NORMAL_DISTRIBUTION = new NormalDistribution(null, 0, 1);
+
   /**
    * The relative accuracy at which to stop the binary search to find the tightest sigma such that
    * Gaussian noise satisfies (epsilon, delta)-differential privacy given the sensitivities.
@@ -96,9 +98,18 @@ public class GaussianNoise implements Noise {
   @Override
   public double addNoise(
       double x, int l0Sensitivity, double lInfSensitivity, double epsilon, double delta) {
-    checkParameters(l0Sensitivity, lInfSensitivity, epsilon, delta);
+    checkSensitivities(l0Sensitivity, lInfSensitivity);
 
-    double l2Sensitivity = Noise.getL2Sensitivity(l0Sensitivity, lInfSensitivity);
+    return addNoise(x, Noise.getL2Sensitivity(l0Sensitivity, lInfSensitivity), epsilon, delta);
+  }
+
+  /**
+   * Adds Gaussian noise to {@code x} such that the output is {@code (epsilon,
+   * delta)}-differentially private, with respect to the specified L_2 sensitivity.
+   */
+  public double addNoise(double x, double l2Sensitivity, double epsilon, double delta) {
+    checkParameters(l2Sensitivity, epsilon, delta);
+
     return addNoiseDefinedBySigma(x, getSigma(l2Sensitivity, epsilon, delta));
   }
 
@@ -160,7 +171,6 @@ public class GaussianNoise implements Noise {
     return SecureNoiseMath.roundToMultiple(x, (long) granularity)
         + binomialSample * (long) granularity;
   }
-
 
   @Override
   public MechanismType getMechanismType() {
@@ -247,16 +257,26 @@ public class GaussianNoise implements Noise {
     return x - sigma * Math.sqrt(2) * Erf.erfcInv(2 * rank);
   }
 
-  private void checkParameters(
-      int l0Sensitivity, double lInfSensitivity, double epsilon, Double delta) {
+  private void checkSensitivities(int l0Sensitivity, double lInfSensitivity) {
     DpPreconditions.checkSensitivities(l0Sensitivity, lInfSensitivity);
-    DpPreconditions.checkEpsilon(epsilon);
-    DpPreconditions.checkNoiseDelta(delta, this);
 
     // The secure Gaussian noise implementation will fail if 2 * lInfSensitivity is infinite.
     double twoLInf = 2.0 * lInfSensitivity;
     checkArgument(
         Double.isFinite(twoLInf), "2 * lInfSensitivity must be finite but is %s", twoLInf);
+  }
+
+  private void checkParameters(
+      int l0Sensitivity, double lInfSensitivity, double epsilon, Double delta) {
+    checkSensitivities(l0Sensitivity, lInfSensitivity);
+    DpPreconditions.checkEpsilon(epsilon);
+    DpPreconditions.checkNoiseDelta(delta, this);
+  }
+
+  private void checkParameters(double l2Sensitivity, double epsilon, Double delta) {
+    DpPreconditions.checkL2Sensitivity(l2Sensitivity);
+    DpPreconditions.checkEpsilon(epsilon);
+    DpPreconditions.checkNoiseDelta(delta, this);
   }
 
   private void checkParametersForRhozCDP(double l2Sensitivity, double rho) {

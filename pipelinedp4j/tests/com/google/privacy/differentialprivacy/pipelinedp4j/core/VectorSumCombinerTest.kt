@@ -19,6 +19,8 @@ package com.google.privacy.differentialprivacy.pipelinedp4j.core
 import com.google.common.collect.ImmutableList
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.extensions.proto.ProtoTruth.assertThat
+import com.google.privacy.differentialprivacy.GaussianNoise
+import com.google.privacy.differentialprivacy.LaplaceNoise
 import com.google.privacy.differentialprivacy.Noise
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.ContributionBoundingLevel.PARTITION_LEVEL
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.ExecutionMode.FULL_TEST_MODE
@@ -36,6 +38,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
+import org.mockito.kotlin.verifyNoMoreInteractions
 
 @RunWith(TestParameterInjector::class)
 class VectorSumCombinerTest {
@@ -43,14 +46,12 @@ class VectorSumCombinerTest {
     AggregationParams(
       metrics = ImmutableList.of(MetricDefinition(VECTOR_SUM)),
       noiseKind = GAUSSIAN,
-      vectorNormKind = NormKind.L2,
+      vectorNormKind = NormKind.L_INF,
       vectorMaxTotalNorm = 3.0,
       vectorSize = 3,
       maxPartitionsContributed = 5,
     )
 
-  private val noiseMock: Noise = mock()
-  private val noiseFactoryMock: (NoiseKind) -> Noise = { _ -> noiseMock }
   private val UNUSED_ALLOCATED_BUDGET = AllocatedBudget()
 
   init {
@@ -196,13 +197,25 @@ class VectorSumCombinerTest {
   }
 
   @Test
-  fun computeMetrics_passesCorrectParametersToNoise() {
+  @TestParameters(
+    // For all test cases vectorMaxTotalNorm = 30.0, vectorSize = 3, maxPartitionsContributed = 10.
+    // Then sensitivity with L_INF norm is: 30 * 3 * 10 = 900.
+    // with L1 norm is: 30 * 10 = 300.
+    "{normKind: L_INF, expectedSensitivity: 900.0}",
+    "{normKind: L1, expectedSensitivity: 300.0}",
+  )
+  fun computeMetrics_laplaceNoise_passesCorrectParametersToNoise(
+    normKind: NormKind,
+    expectedSensitivity: Double,
+  ) {
+    val noiseMock: LaplaceNoise = mock()
+    val noiseFactoryMock: (NoiseKind) -> Noise = { _ -> noiseMock }
     val allocatedBudget = AllocatedBudget()
     allocatedBudget.initialize(1.1, 1e-3)
     val combiner =
       VectorSumCombiner(
         VECTOR_SUM_AGG_PARAMS.copy(
-          vectorNormKind = NormKind.L2,
+          vectorNormKind = normKind,
           vectorMaxTotalNorm = 30.0,
           vectorSize = 3,
           maxPartitionsContributed = 10,
@@ -217,27 +230,52 @@ class VectorSumCombinerTest {
     verify(noiseMock)
       .addNoise(
         /* x= */ 1.0,
-        /* l0Sensitivity= */ 10,
-        /* lInfSensitivity= */ 30.0,
-        /* epsilon= */ 1.1 / 3,
-        /* delta= */ 1e-3 / 3,
+        /* l1Sensitivity= */ expectedSensitivity,
+        /* epsilon= */ 1.1,
+        /* delta= */ 1e-3,
       )
     verify(noiseMock)
       .addNoise(
         /* x= */ 2.0,
-        /* l0Sensitivity= */ 10,
-        /* lInfSensitivity= */ 30.0,
-        /* epsilon= */ 1.1 / 3,
-        /* delta= */ 1e-3 / 3,
+        /* l1Sensitivity= */ expectedSensitivity,
+        /* epsilon= */ 1.1,
+        /* delta= */ 1e-3,
       )
     verify(noiseMock)
       .addNoise(
         /* x= */ 3.0,
-        /* l0Sensitivity= */ 10,
-        /* lInfSensitivity= */ 30.0,
-        /* epsilon= */ 1.1 / 3,
-        /* delta= */ 1e-3 / 3,
+        /* l1Sensitivity= */ expectedSensitivity,
+        /* epsilon= */ 1.1,
+        /* delta= */ 1e-3,
       )
+    verifyNoMoreInteractions(noiseMock)
+  }
+
+  @Test
+  fun computeMetrics_gaussianNoise_passesCorrectParametersToNoise() {
+    val noiseMock: GaussianNoise = mock()
+    val noiseFactoryMock: (NoiseKind) -> Noise = { _ -> noiseMock }
+    val allocatedBudget = AllocatedBudget()
+    allocatedBudget.initialize(1.1, 1e-3)
+    val combiner =
+      VectorSumCombiner(
+        VECTOR_SUM_AGG_PARAMS.copy(
+          vectorNormKind = NormKind.L_INF,
+          vectorMaxTotalNorm = 30.0,
+          vectorSize = 3,
+          maxPartitionsContributed = 10,
+        ),
+        allocatedBudget,
+        noiseFactoryMock,
+      )
+
+    val unused =
+      combiner.computeMetrics(vectorSumAccumulator { sumsPerDimension += listOf(1.0, 2.0, 3.0) })
+
+    verify(noiseMock).addNoise(1.0, 10, 30.0, 1.1 / 3, 1e-3 / 3)
+    verify(noiseMock).addNoise(2.0, 10, 30.0, 1.1 / 3, 1e-3 / 3)
+    verify(noiseMock).addNoise(3.0, 10, 30.0, 1.1 / 3, 1e-3 / 3)
+    verifyNoMoreInteractions(noiseMock)
   }
 
   @Test

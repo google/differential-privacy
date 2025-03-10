@@ -148,8 +148,7 @@ sealed class AggregationBuilder<DataRowT : Any, ReturnT : Any> {
    * @param contributionBounds contribution bounds for the vector, see [ContributionBounds] for
    *   details on which bounds to specify in which cases.
    */
-  // TODO: make it public once it is covered by tests.
-  internal fun aggregateVector(
+  fun aggregateVector(
     vectorExtractor: (DataRowT) -> List<Double>,
     vectorSize: Int,
     vectorAggregations: VectorAggregationsBuilder,
@@ -178,8 +177,7 @@ sealed class AggregationBuilder<DataRowT : Any, ReturnT : Any> {
    * @param vectorContributionBounds contribution bounds for the vector, see
    *   [VectorContributionBounds] for details on which bounds to specify in which cases.
    */
-  // TODO: make it public once it is covered by tests.
-  open internal fun aggregateVector(
+  open fun aggregateVector(
     vectorColumnNames: ColumnNames,
     vectorSize: Int,
     vectorAggregations: VectorAggregationsBuilder,

@@ -189,6 +189,18 @@ protected constructor(
     requireDistinctVectorExtractors(aggregationsPerVectors)
     for (aggregationsPerVector in aggregationsPerVectors) {
       requireDistinctAggregationsPerVector(aggregationsPerVector)
+
+      val normKind = aggregationsPerVector.vectorContributionBounds.maxVectorTotalNorm.normKind
+      when (noiseKind) {
+        NoiseKind.LAPLACE ->
+          require(normKind in listOf(NormKind.L_INF, NormKind.L1)) {
+            "Norm kind must be L_INF or L1 when Laplace mechanism is used. Provided norm kind: $normKind."
+          }
+        NoiseKind.GAUSSIAN ->
+          require(normKind in listOf(NormKind.L_INF, NormKind.L2)) {
+            "Norm kind must be L_INF or L2 when Gaussian mechanism is used. Provided norm kind: $normKind."
+          }
+      }
     }
   }
 

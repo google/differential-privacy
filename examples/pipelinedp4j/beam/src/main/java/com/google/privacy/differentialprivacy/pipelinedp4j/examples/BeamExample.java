@@ -35,6 +35,7 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.api.TotalBudget;
 import com.google.privacy.differentialprivacy.pipelinedp4j.api.ValueAggregationsBuilder;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Map;
 import java.util.stream.IntStream;
 import kotlin.jvm.functions.Function1;
 import org.apache.beam.sdk.Pipeline;
@@ -133,11 +134,11 @@ public final class BeamExample {
     var movieMetricsCoder = AvroCoder.of(MovieMetrics.class);
     SerializableFunction<QueryPerGroupResult<String>, MovieMetrics> mapToMovieMetricsFn =
         perGroupResult -> {
+          Map<String, Double> valueAggregationResults = perGroupResult.getValueAggregationResults();
           String movieId = perGroupResult.getGroupKey();
-          long numberOfViewers =
-              round(perGroupResult.getAggregationResults().get("numberOfViewers"));
-          long numberOfViews = round(perGroupResult.getAggregationResults().get("numberOfViews"));
-          double averageOfRatings = perGroupResult.getAggregationResults().get("averageOfRatings");
+          long numberOfViewers = round(valueAggregationResults.get("numberOfViewers"));
+          long numberOfViews = round(valueAggregationResults.get("numberOfViews"));
+          double averageOfRatings = valueAggregationResults.get("averageOfRatings");
           return new MovieMetrics(movieId, numberOfViewers, numberOfViews, averageOfRatings);
         };
     // We now have our anonymized metrics of movie views.
