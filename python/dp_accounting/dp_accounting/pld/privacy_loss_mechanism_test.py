@@ -3210,7 +3210,7 @@ class DoubleMixtureGaussianPrivacyLossTest(parameterized.TestCase):
 
 
 class DoubleMixtureLaplacePrivacyLoss(parameterized.TestCase):
-  """Tests for privacy_loss_mechanism.DoubleMixtureLaplacePrivaczLoss class."""
+  """Tests for privacy_loss_mechanism.DoubleMixtureLaplacePrivacyLoss class."""
 
   @parameterized.named_parameters(
       {
@@ -3336,9 +3336,9 @@ class DoubleMixtureLaplacePrivacyLoss(parameterized.TestCase):
     self.assertSequenceAlmostEqual(pl.mu_lower_log_cdf(x),
                                    expected_mu_lower_log_cdf)
 
-  # These test cases are identical to those for LaplacPrivacyLoss,
+  # These test cases are identical to those for LaplacePrivacyLoss,
   # to make sure that we recover the desired behavior in the special case
-  # where one of the "mixtures" is simply N(0,standard_deviation)
+  # where one of the "mixtures" is simply Lap(0,standard_deviation)
   @parameterized.parameters(
       # Tests with sampling_prob = 1 for adjacency_type=ADD
       (1.0, 1.0, 1.0, ADD, -0.1, 1.0), (1.0, 1.0, 1.0, ADD, 2.0, -1.0),
@@ -3610,7 +3610,7 @@ class DoubleMixtureLaplacePrivacyLoss(parameterized.TestCase):
 
   # These test cases are identical to those for LaplacePrivacyLoss,
   # to make sure that we recover the desired behavior in the special case
-  # where one of the "mixtures" is simply N(0,standard_deviation)
+  # where one of the "mixtures" is simply Lap(0,standard_deviation)
   @parameterized.parameters(
       # Tests with sampling_prob = 1 for adjacency_type=ADD
       (1.0, 1.0, 1.0, ADD, 1.0, 0.0), (3.0, 3.0, 1.0, ADD, 1.0, 0.0),
