@@ -1896,7 +1896,7 @@ class DoubleMixturePrivacyLoss(MonotonePrivacyLoss):
 
     if len(sampling_probs_upper) != len(sensitivities_upper):
       raise ValueError(
-          'sensitivities and sampling_probs must have the same '
+          'sensitivities_upper and sampling_probs_upper must have the same '
           f'length. Got {sampling_probs_upper=} '
           f'of length {len(sampling_probs_upper)}, '
           f'{sensitivities_lower=} of length {len(sensitivities_lower)}.'
@@ -1904,7 +1904,7 @@ class DoubleMixturePrivacyLoss(MonotonePrivacyLoss):
 
     if len(sampling_probs_lower) != len(sampling_probs_lower):
       raise ValueError(
-          'sensitivities and sampling_probs must have the same '
+          'sensitivities_lower and sampling_probs_lower must have the same '
           f'length. Got {sampling_probs_upper=} '
           f'of length {len(sampling_probs_upper)}, '
           f'{sampling_probs_lower=} of length {len(sampling_probs_lower)}.'
