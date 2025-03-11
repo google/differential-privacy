@@ -26,7 +26,7 @@ import enum
 import functools
 import math
 import numbers
-from typing import Iterable, Mapping, Optional, Sequence, Tuple, Union
+from typing import Iterable, Mapping, Optional, Sequence, Union
 
 import numpy as np
 import scipy
@@ -1977,11 +1977,11 @@ class DoubleMixturePrivacyLoss(MonotonePrivacyLoss):
 
   @property
   @abc.abstractmethod
-  def _strictly_decreasing_interval(self) -> Optional[Tuple[float, float]]:
+  def _strictly_decreasing_interval(self) -> Optional[tuple[float, float]]:
     """Interval on which privacy loss is strictly decreasing.
 
     Returns:
-        Optional[Tuple[float, float]]: Left and right boundary of the interval.
+        Optional[tuple[float, float]]: Left and right boundary of the interval.
           None if no such interval exists or privacy loss is not
           constant outside this interval.
     """
@@ -1989,11 +1989,11 @@ class DoubleMixturePrivacyLoss(MonotonePrivacyLoss):
 
   @property
   @abc.abstractmethod
-  def _privacy_loss_at_boundaries(self) -> Optional[Tuple[float, float]]:
+  def _privacy_loss_at_boundaries(self) -> Optional[tuple[float, float]]:
     """Privacy loss at left and right boundary of _strictly_decreasing_interval.
 
     Returns:
-        Optional[Tuple[float, float]]: Privacy loss l(a) and l(b)
+        Optional[tuple[float, float]]: Privacy loss l(a) and l(b)
           when _strictly_decreasing_interval=(a, b).
           None if _strictly_decreasing_interval=None.
     """
@@ -2342,7 +2342,7 @@ class DoubleMixturePrivacyLoss(MonotonePrivacyLoss):
 
   def _binary_search_bounds(
       self, min_pl: float, max_pl: float,
-      precision: float = 1e-6,) -> Tuple[float, float]:
+      precision: float = 1e-6,) -> tuple[float, float]:
     """Determines interval s.t. privacy loss contains max_pl and min_pl.
 
     Since we have no additional assumptions about mu and sensitivities,
@@ -2364,7 +2364,7 @@ class DoubleMixturePrivacyLoss(MonotonePrivacyLoss):
           epsilon reported is valid.
 
     Returns:
-        Tuple[float, float]: Left and right boundary for binary search.
+        tuple[float, float]: Left and right boundary for binary search.
     """
     left_bound = max(-1, self._strictly_decreasing_interval[0])
     while (left_bound < 0) and (self.privacy_loss(left_bound) < max_pl):
@@ -2554,11 +2554,11 @@ class DoubleMixtureGaussianPrivacyLoss(DoubleMixturePrivacyLoss):
     self._gaussian_random_variable = stats.norm(scale=standard_deviation)
 
   @property
-  def _strictly_decreasing_interval(self) -> Optional[Tuple[float, float]]:
+  def _strictly_decreasing_interval(self) -> Optional[tuple[float, float]]:
     """Interval on which privacy loss is strictly decreasing.
 
     Returns:
-        Optional[Tuple[float, float]]: Left and right boundary of the interval.
+        Optional[tuple[float, float]]: Left and right boundary of the interval.
           None if no such interval exists or privacy loss is not
           constant outside this interval.
     """
@@ -2570,11 +2570,11 @@ class DoubleMixtureGaussianPrivacyLoss(DoubleMixturePrivacyLoss):
       return (-np.inf, np.inf)
 
   @property
-  def _privacy_loss_at_boundaries(self) -> Optional[Tuple[float, float]]:
+  def _privacy_loss_at_boundaries(self) -> Optional[tuple[float, float]]:
     """Privacy loss at left and right boundary of _strictly_decreasing_interval.
 
     Returns:
-        Optional[Tuple[float, float]]: Privacy loss l(a) and l(b)
+        Optional[tuple[float, float]]: Privacy loss l(a) and l(b)
           when _strictly_decreasing_interval=(a, b).
           None if _strictly_decreasing_interval=None.
     """
@@ -2705,11 +2705,11 @@ class DoubleMixtureLaplacePrivacyLoss(DoubleMixturePrivacyLoss):
     self._laplace_random_variable = stats.laplace(scale=scale)
 
   @property
-  def _strictly_decreasing_interval(self) -> Optional[Tuple[float, float]]:
+  def _strictly_decreasing_interval(self) -> Optional[tuple[float, float]]:
     """Interval on which privacy loss is strictly decreasing.
 
     Returns:
-        Optional[Tuple[float, float]]: Left and right boundary of the interval.
+        Optional[tuple[float, float]]: Left and right boundary of the interval.
           None if no such interval exists or privacy loss is not
           constant outside this interval.
     """
@@ -2723,11 +2723,11 @@ class DoubleMixtureLaplacePrivacyLoss(DoubleMixturePrivacyLoss):
       return (-self._max_sens_upper, self._max_sens_lower)
 
   @property
-  def _privacy_loss_at_boundaries(self) -> Optional[Tuple[float, float]]:
+  def _privacy_loss_at_boundaries(self) -> Optional[tuple[float, float]]:
     """Privacy loss at left and right boundary of _strictly_decreasing_interval.
 
     Returns:
-        Optional[Tuple[float, float]]: Privacy loss l(a) and l(b)
+        Optional[tuple[float, float]]: Privacy loss l(a) and l(b)
           when _strictly_decreasing_interval=(a, b).
           None if _strictly_decreasing_interval=None.
     """
@@ -3010,7 +3010,7 @@ class MixtureGaussianPrivacyLoss(DoubleMixtureGaussianPrivacyLoss):
 
 def _binary_search_bounds(
       self, min_pl: float, max_pl: float,
-      precision: float = 1e-6,) -> Tuple[float, float]:
+      precision: float = 1e-6,) -> tuple[float, float]:
     """Determines interval s.t. privacy loss contains max_pl and min_pl.
 
     # To do this, we consider the subsampled Gaussian mechanisms given by moving
@@ -3034,7 +3034,7 @@ def _binary_search_bounds(
           epsilon reported is valid.
 
     Returns:
-        Tuple[float, float]: Left and right boundary for binary search.
+        tuple[float, float]: Left and right boundary for binary search.
     """
     loss_bounds = np.array([min_pl, min_pl, max_pl, max_pl])
     sens_bounds = np.array([
