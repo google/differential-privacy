@@ -3338,7 +3338,7 @@ class DoubleMixtureLaplacePrivacyLoss(parameterized.TestCase):
 
   # These test cases are identical to those for LaplacePrivacyLoss,
   # to make sure that we recover the desired behavior in the special case
-  # where one of the "mixtures" is simply Lap(0,standard_deviation)
+  # where one of the "mixtures" is simply N(0,standard_deviation)
   @parameterized.parameters(
       # Tests with sampling_prob = 1 for adjacency_type=ADD
       (1.0, 1.0, 1.0, ADD, -0.1, 1.0), (1.0, 1.0, 1.0, ADD, 2.0, -1.0),
@@ -3467,7 +3467,6 @@ class DoubleMixtureLaplacePrivacyLoss(parameterized.TestCase):
       sensitivities_upper=None, sensitivities_lower=None,
       sampling_probs_upper=None, sampling_probs_lower=None
   ):
-    scale = standard_deviation  # Rename so that we can reuse test cases
     log_cutoff = -10.0
 
     if adjacency_type == REM:
@@ -3482,7 +3481,7 @@ class DoubleMixtureLaplacePrivacyLoss(parameterized.TestCase):
       sampling_probs_lower = sampling_probs
 
     pl = privacy_loss_mechanism.DoubleMixtureLaplacePrivacyLoss(
-        scale=scale,
+        scale=standard_deviation,
         sensitivities_upper=sensitivities_upper,
         sensitivities_lower=sensitivities_lower,
         sampling_probs_upper=sampling_probs_upper,
@@ -3526,7 +3525,6 @@ class DoubleMixtureLaplacePrivacyLoss(parameterized.TestCase):
       sensitivities_upper=None, sensitivities_lower=None,
       sampling_probs_upper=None, sampling_probs_lower=None
   ):
-    scale = standard_deviation  # Rename so that we can reuse test cases
     log_cutoff = -10.0
 
     if adjacency_type == REM:
@@ -3541,7 +3539,7 @@ class DoubleMixtureLaplacePrivacyLoss(parameterized.TestCase):
       sampling_probs_lower = sampling_probs
 
     pl = privacy_loss_mechanism.DoubleMixtureLaplacePrivacyLoss(
-        scale=scale,
+        scale=standard_deviation,
         sensitivities_upper=sensitivities_upper,
         sensitivities_lower=sensitivities_lower,
         sampling_probs_upper=sampling_probs_upper,
@@ -3576,8 +3574,6 @@ class DoubleMixtureLaplacePrivacyLoss(parameterized.TestCase):
       sensitivities_upper=None, sensitivities_lower=None,
       sampling_probs_upper=None, sampling_probs_lower=None
   ):
-    scale = standard_deviation  # Rename so that we can reuse test cases
-
     if adjacency_type == REM:
       sensitivities_upper = sensitivities
       sensitivities_lower = [0.0]
@@ -3590,7 +3586,7 @@ class DoubleMixtureLaplacePrivacyLoss(parameterized.TestCase):
       sampling_probs_lower = sampling_probs
 
     pl = privacy_loss_mechanism.DoubleMixtureLaplacePrivacyLoss(
-        scale=scale,
+        scale=standard_deviation,
         sensitivities_upper=sensitivities_upper,
         sensitivities_lower=sensitivities_lower,
         sampling_probs_upper=sampling_probs_upper,
@@ -3610,7 +3606,7 @@ class DoubleMixtureLaplacePrivacyLoss(parameterized.TestCase):
 
   # These test cases are identical to those for LaplacePrivacyLoss,
   # to make sure that we recover the desired behavior in the special case
-  # where one of the "mixtures" is simply Lap(0,standard_deviation)
+  # where one of the "mixtures" is simply (0,standard_deviation)
   @parameterized.parameters(
       # Tests with sampling_prob = 1 for adjacency_type=ADD
       (1.0, 1.0, 1.0, ADD, 1.0, 0.0), (3.0, 3.0, 1.0, ADD, 1.0, 0.0),
