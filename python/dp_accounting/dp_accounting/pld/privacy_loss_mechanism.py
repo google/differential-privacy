@@ -1849,7 +1849,7 @@ class DoubleMixturePrivacyLoss(MonotonePrivacyLoss):
   - l is continuous
   - l is strictly decreasing on some interval (a, b) with a < b
   - l is constant outside this interval
-  These assumptions hold for common mu (Gausian, Laplace, ...),
+  These assumptions hold for common mu (Gaussian, Laplace, ...),
   but methods may have to be overriden for atypical distributions.
 
   Attributes:
@@ -1871,10 +1871,10 @@ class DoubleMixturePrivacyLoss(MonotonePrivacyLoss):
 
     Args:
       sensitivities_upper: The support of the upper sensitivity distribution.
-        Must be the ame length as sampling_probs_upper, and both should be 1D.
+        Must be the same length as sampling_probs_upper, and both should be 1D.
       sampling_probs_upper: Probabilities associated with sensitivities_upper.
       sensitivities_lower: The support of the lower sensitivity distribution.
-        Must be the ame length as sampling_probs_lower, and both should be 1D.
+        Must be the same length as sampling_probs_lower, and both should be 1D.
       sampling_probs_lower: Probabilities associated with sensitivities_lower.
       pessimistic_estimate: A value indicating whether the rounding is done in
         such a way that the resulting epsilon-hockey stick divergence
@@ -1899,7 +1899,7 @@ class DoubleMixturePrivacyLoss(MonotonePrivacyLoss):
           'sensitivities and sampling_probs must have the same '
           f'length. Got {sampling_probs_upper=} '
           f'of length {len(sampling_probs_upper)}, '
-          f'{sensitivities_upper=} of length {len(sensitivities_upper)}.'
+          f'{sensitivities_lower=} of length {len(sensitivities_lower)}.'
       )
 
     if len(sampling_probs_lower) != len(sampling_probs_lower):
@@ -2093,14 +2093,14 @@ class DoubleMixturePrivacyLoss(MonotonePrivacyLoss):
       raise ValueError(f'Epsilon values must be non-decreasing: {epsilons}')
     deltas = np.zeros_like(epsilons, dtype=float)
 
-    # Computing delta requires that we determine (log)-probabilitites of
+    # Computing delta requires that we determine (log)-probabilities of
     # pre-images of the set {r | r > epsilon} under privacy loss l.
 
     # Preimage = {}
     beyond_left_boundary = (epsilons >= self._privacy_loss_at_boundaries[0])
 
     # Preimage = (-infty, infty)
-    beyond_right_boundary = (epsilon < self._privacy_loss_at_boundaries[1])
+    beyond_right_boundary = (epsilons < self._privacy_loss_at_boundaries[1])
     # In case of asymptotic bounds (strictly_decreasing_interval[1]=infty),
     # privacy loss is always marginally larger than
     # self._privacy_loss_at_boundaries[1]
@@ -2345,7 +2345,7 @@ class DoubleMixturePrivacyLoss(MonotonePrivacyLoss):
       precision: float = 1e-6,) -> Tuple[float, float]:
     """Determines interval s.t. privacy loss contains max_pl and min_pl.
 
-    Since have no additional assumptions about mu and sensitivities,
+    Since we have no additional assumptions about mu and sensitivities,
     we choose pessimistic bounds and then refine them by searching
     for min_pl and max_pl
     (which is preferable to performing binary search with pessimistic bounds
@@ -2449,7 +2449,7 @@ class DoubleMixturePrivacyLoss(MonotonePrivacyLoss):
   def noise_log_pdf(
     self, x: Union[float, Iterable[float]]
   ) -> Union[float, np.ndarray]:
-    """Computes the probability desnsity function of base distribution mu.
+    """Computes the probability density function of base distribution mu.
 
     Args:
      x: the point or points at which the cumulative density function is to be
@@ -2524,10 +2524,10 @@ class DoubleMixtureGaussianPrivacyLoss(DoubleMixturePrivacyLoss):
     Args:
       standard_deviation: The standard_deviation of the Gaussian distribution.
       sensitivities_upper: The support of the upper sensitivity distribution.
-        Must be the ame length as sampling_probs_upper, and both should be 1D.
+        Must be the same length as sampling_probs_upper, and both should be 1D.
       sampling_probs_upper: Probabilities associated with sensitivities_upper.
       sensitivities_lower: The support of the lower sensitivity distribution.
-        Must be the ame length as sampling_probs_lower, and both should be 1D.
+        Must be the same length as sampling_probs_lower, and both should be 1D.
       sampling_probs_lower: Probabilities associated with sensitivities_lower.
       pessimistic_estimate: A value indicating whether the rounding is done in
         such a way that the resulting epsilon-hockey stick divergence
@@ -2608,7 +2608,7 @@ class DoubleMixtureGaussianPrivacyLoss(DoubleMixturePrivacyLoss):
   def noise_log_pdf(
     self, x: Union[float, Iterable[float]]
   ) -> Union[float, np.ndarray]:
-    """Computes the probability desnsity function of the Gaussian distribution.
+    """Computes the probability density function of the Gaussian distribution.
 
     Args:
      x: the point or points at which the cumulative density function is to be
@@ -2675,10 +2675,10 @@ class DoubleMixtureLaplacePrivacyLoss(DoubleMixturePrivacyLoss):
     Args:
       scale: The scale of the Laplace distribution.
       sensitivities_upper: The support of the upper sensitivity distribution.
-        Must be the ame length as sampling_probs_upper, and both should be 1D.
+        Must be the same length as sampling_probs_upper, and both should be 1D.
       sampling_probs_upper: Probabilities associated with sensitivities_upper.
       sensitivities_lower: The support of the lower sensitivity distribution.
-        Must be the ame length as sampling_probs_lower, and both should be 1D.
+        Must be the same length as sampling_probs_lower, and both should be 1D.
       sampling_probs_lower: Probabilities associated with sensitivities_lower.
       pessimistic_estimate: A value indicating whether the rounding is done in
         such a way that the resulting epsilon-hockey stick divergence
@@ -2759,7 +2759,7 @@ class DoubleMixtureLaplacePrivacyLoss(DoubleMixturePrivacyLoss):
   def noise_log_pdf(
     self, x: Union[float, Iterable[float]]
   ) -> Union[float, np.ndarray]:
-    """Computes the probability desnsity function of the Laplace distribution.
+    """Computes the probability density function of the Laplace distribution.
 
     Args:
      x: the point or points at which the cumulative density function is to be
