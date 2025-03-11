@@ -1902,7 +1902,7 @@ class DoubleMixturePrivacyLoss(MonotonePrivacyLoss):
           f'{sensitivities_lower=} of length {len(sensitivities_lower)}.'
       )
 
-    if len(sampling_probs_lower) != len(sampling_probs_lower):
+    if len(sampling_probs_lower) != len(sensitivities_lower):
       raise ValueError(
           'sensitivities_lower and sampling_probs_lower must have the same '
           f'length. Got {sampling_probs_upper=} '
