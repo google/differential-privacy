@@ -1545,8 +1545,8 @@ def _add_and_remove_test_cases(test_cases):
   return add_test_cases + remove_test_cases
 
 
-def _gaussian_test_cases(num_tests):
-  """Generates lists of inputs corresponding to Gaussians."""
+def _not_subsampled_test_cases(num_tests):
+  """Generates lists of inputs corresponding to mechanism w/o subsampling."""
   random.seed(0)
   def test(i):
     return {
@@ -1558,14 +1558,14 @@ def _gaussian_test_cases(num_tests):
   return [test(i) for i in range(num_tests)]
 
 
-def _subsampled_gaussian_test_cases(num_tests):
-  """Generates lists of inputs corresponding to subsampled Gaussians."""
+def _subsampled_test_cases(num_tests):
+  """Generates lists of inputs corresponding to mechanism w/ subsampling."""
   random.seed(0)
   probs = [random.uniform(0, 1) for _ in range(num_tests)]
 
   def test(i):
     return {
-        'testcase_name': f'subsampled_gaussian_{i}',
+        'testcase_name': f'subsampled_{i}',
         'standard_deviation': random.uniform(1, 10),
         'sensitivities': [0, random.uniform(1, 10)],
         'sampling_probs': [probs[i], 1 - probs[i]],
@@ -1574,8 +1574,8 @@ def _subsampled_gaussian_test_cases(num_tests):
   return [test(i) for i in range(num_tests)]
 
 
-def _mixture_gaussian_with_zero_test_cases(num_tests):
-  """Generates lists of inputs corresponding to mixture Gaussians."""
+def _mixture_with_zero_test_cases(num_tests):
+  """Generates lists of inputs corresponding to mixture w/ sensitivity 0."""
   random.seed(0)
   probs = [random.uniform(0, 0.5) for _ in range(2 * num_tests)]
   prob_lists = [
@@ -1585,7 +1585,7 @@ def _mixture_gaussian_with_zero_test_cases(num_tests):
 
   def test(i):
     return {
-        'testcase_name': f'mixture_gaussian_with_zero_{i}',
+        'testcase_name': f'mixture_with_zero_{i}',
         'standard_deviation': random.uniform(1, 10),
         'sensitivities': [0, random.uniform(1, 10), random.uniform(1, 10)],
         'sampling_probs': prob_lists[i],
@@ -1594,14 +1594,14 @@ def _mixture_gaussian_with_zero_test_cases(num_tests):
   return [test(i) for i in range(num_tests)]
 
 
-def _mixture_gaussian_without_zero_test_cases(num_tests):
-  """Generates lists of inputs corresponding to non-zero mixture Gaussians."""
+def _mixture_without_zero_test_cases(num_tests):
+  """Generates lists of inputs corresponding to mixture w/o sensitivity 0."""
   random.seed(0)
   probs = [random.uniform(0, 1.0) for _ in range(num_tests)]
 
   def test(i):
     return {
-        'testcase_name': f'mixture_gaussian_without_zero_{i}',
+        'testcase_name': f'mixture_without_zero_{i}',
         'standard_deviation': random.uniform(1, 10),
         'sensitivities': [random.uniform(1, 10), random.uniform(1, 10)],
         'sampling_probs': [probs[i], 1 - probs[i]],
@@ -1992,10 +1992,10 @@ class MixtureGaussianPrivacyLossTest(parameterized.TestCase):
 
   @parameterized.named_parameters(
       _add_and_remove_test_cases(
-          _gaussian_test_cases(5)
-          + _subsampled_gaussian_test_cases(5)
-          + _mixture_gaussian_with_zero_test_cases(5)
-          + _mixture_gaussian_without_zero_test_cases(5)
+          _not_subsampled_test_cases(5)
+          + _subsampled_test_cases(5)
+          + _mixture_with_zero_test_cases(5)
+          + _mixture_without_zero_test_cases(5)
       )
   )
   def test_privacy_loss_tail(
@@ -2032,10 +2032,10 @@ class MixtureGaussianPrivacyLossTest(parameterized.TestCase):
 
   @parameterized.named_parameters(
       _add_and_remove_test_cases(
-          _gaussian_test_cases(5)
-          + _subsampled_gaussian_test_cases(5)
-          + _mixture_gaussian_with_zero_test_cases(5)
-          + _mixture_gaussian_without_zero_test_cases(5)
+          _not_subsampled_test_cases(5)
+          + _subsampled_test_cases(5)
+          + _mixture_with_zero_test_cases(5)
+          + _mixture_without_zero_test_cases(5)
       )
   )
   def test_connect_dots_bounds(
@@ -2062,10 +2062,10 @@ class MixtureGaussianPrivacyLossTest(parameterized.TestCase):
 
   @parameterized.named_parameters(
       _add_and_remove_test_cases(
-          _gaussian_test_cases(5)
-          + _subsampled_gaussian_test_cases(5)
-          + _mixture_gaussian_with_zero_test_cases(5)
-          + _mixture_gaussian_without_zero_test_cases(5)
+          _not_subsampled_test_cases(5)
+          + _subsampled_test_cases(5)
+          + _mixture_with_zero_test_cases(5)
+          + _mixture_without_zero_test_cases(5)
       )
   )
   def test_inverse_privacy_losses(
@@ -2225,10 +2225,10 @@ class MixtureGaussianPrivacyLossTest(parameterized.TestCase):
 
   @parameterized.named_parameters(
       _add_and_remove_test_cases(
-          _gaussian_test_cases(5)
-          + _subsampled_gaussian_test_cases(5)
-          + _mixture_gaussian_with_zero_test_cases(5)
-          + _mixture_gaussian_without_zero_test_cases(5)
+          _not_subsampled_test_cases(5)
+          + _subsampled_test_cases(5)
+          + _mixture_with_zero_test_cases(5)
+          + _mixture_without_zero_test_cases(5)
       )
   )
   def test_zero_sampling_probs_ignored(
@@ -2253,8 +2253,8 @@ class MixtureGaussianPrivacyLossTest(parameterized.TestCase):
                            padded_pl.get_delta_for_epsilon(1))
 
 
-def _double_mixture_gaussian_with_zero_test_cases(num_tests):
-  """Generates lists of inputs corresponding to pair of mixture Gaussians."""
+def _double_mixture_with_zero_test_cases(num_tests):
+  """Generates lists of inputs corresponding to pair of mixtures w/ sensitivity 0."""
   random.seed(0)
   prob_lists = {}
 
@@ -2267,7 +2267,7 @@ def _double_mixture_gaussian_with_zero_test_cases(num_tests):
 
   def test(i):
     return {
-        'testcase_name': f'double_mixture_gaussian_with_zero_{i}',
+        'testcase_name': f'double_mixture_with_zero_{i}',
         'standard_deviation': random.uniform(1, 10),
         'sensitivities_upper': [0, random.uniform(1, 10), random.uniform(1, 10)],
         'sensitivities_lower': [0, random.uniform(1, 10), random.uniform(1, 10)],
@@ -2278,9 +2278,8 @@ def _double_mixture_gaussian_with_zero_test_cases(num_tests):
   return [test(i) for i in range(num_tests)]
 
 
-
-def _double_mixture_gaussian_without_zero_test_cases(num_tests):
-  """Generates lists of inputs corresponding to pair of non-zero mixture Gaussians."""
+def _double_mixture_without_zero_test_cases(num_tests):
+  """Generates lists of inputs corresponding to pair of mixtures w/o sensitivity 0."""
   random.seed(0)
   probs = {}
 
@@ -2289,7 +2288,7 @@ def _double_mixture_gaussian_without_zero_test_cases(num_tests):
 
   def test(i):
     return {
-        'testcase_name': f'double_mixture_gaussian_without_zero_{i}',
+        'testcase_name': f'double_mixture_without_zero_{i}',
         'standard_deviation': random.uniform(1, 10),
         'sensitivities_upper': [random.uniform(1, 10), random.uniform(1, 10)],
         'sensitivities_lower': [random.uniform(1, 10), random.uniform(1, 10)],
@@ -2803,12 +2802,12 @@ class DoubleMixtureGaussianPrivacyLossTest(parameterized.TestCase):
 
   @parameterized.named_parameters(
       (_add_and_remove_test_cases(
-          _gaussian_test_cases(5)
-          + _subsampled_gaussian_test_cases(5)
-          + _mixture_gaussian_with_zero_test_cases(5)
+          _not_subsampled_test_cases(5)
+          + _subsampled_test_cases(5)
+          + _mixture_with_zero_test_cases(5)
        )
-       + _double_mixture_gaussian_with_zero_test_cases(5)
-       + _double_mixture_gaussian_without_zero_test_cases(5)
+       + _double_mixture_with_zero_test_cases(5)
+       + _double_mixture_without_zero_test_cases(5)
        )
   )
   def test_privacy_loss_tail(
@@ -2861,12 +2860,12 @@ class DoubleMixtureGaussianPrivacyLossTest(parameterized.TestCase):
 
   @parameterized.named_parameters(
       (_add_and_remove_test_cases(
-          _gaussian_test_cases(5)
-          + _subsampled_gaussian_test_cases(5)
-          + _mixture_gaussian_with_zero_test_cases(5)
+          _not_subsampled_test_cases(5)
+          + _subsampled_test_cases(5)
+          + _mixture_with_zero_test_cases(5)
        )
-       + _double_mixture_gaussian_with_zero_test_cases(5)
-       + _double_mixture_gaussian_without_zero_test_cases(5)
+       + _double_mixture_with_zero_test_cases(5)
+       + _double_mixture_without_zero_test_cases(5)
        )
   )
   def test_connect_dots_bounds(
@@ -2910,12 +2909,12 @@ class DoubleMixtureGaussianPrivacyLossTest(parameterized.TestCase):
 
   @parameterized.named_parameters(
       (_add_and_remove_test_cases(
-          _gaussian_test_cases(5)
-          + _subsampled_gaussian_test_cases(5)
-          + _mixture_gaussian_with_zero_test_cases(5)
+          _not_subsampled_test_cases(5)
+          + _subsampled_test_cases(5)
+          + _mixture_with_zero_test_cases(5)
        )
-       + _double_mixture_gaussian_with_zero_test_cases(5)
-       + _double_mixture_gaussian_without_zero_test_cases(5)
+       + _double_mixture_with_zero_test_cases(5)
+       + _double_mixture_without_zero_test_cases(5)
        )
   )
   def test_inverse_privacy_losses(
@@ -3169,10 +3168,10 @@ class DoubleMixtureGaussianPrivacyLossTest(parameterized.TestCase):
 
   @parameterized.named_parameters(
       _add_and_remove_test_cases(
-          _gaussian_test_cases(5)
-          + _subsampled_gaussian_test_cases(5)
-          + _mixture_gaussian_with_zero_test_cases(5)
-          + _mixture_gaussian_without_zero_test_cases(5)
+          _not_subsampled_test_cases(5)
+          + _subsampled_test_cases(5)
+          + _mixture_with_zero_test_cases(5)
+          + _mixture_without_zero_test_cases(5)
       )
   )
   def test_zero_sampling_probs_ignored(
@@ -3453,12 +3452,12 @@ class DoubleMixtureLaplacePrivacyLoss(parameterized.TestCase):
 
   @parameterized.named_parameters(
       (_add_and_remove_test_cases(
-          _gaussian_test_cases(5)
-          + _subsampled_gaussian_test_cases(5)
-          + _mixture_gaussian_with_zero_test_cases(5)
+          _not_subsampled_test_cases(5)
+          + _subsampled_test_cases(5)
+          + _mixture_with_zero_test_cases(5)
        )
-       + _double_mixture_gaussian_with_zero_test_cases(5)
-       + _double_mixture_gaussian_without_zero_test_cases(5)
+       + _double_mixture_with_zero_test_cases(5)
+       + _double_mixture_without_zero_test_cases(5)
        )
   )
   def test_privacy_loss_tail(
@@ -3511,12 +3510,12 @@ class DoubleMixtureLaplacePrivacyLoss(parameterized.TestCase):
 
   @parameterized.named_parameters(
       (_add_and_remove_test_cases(
-          _gaussian_test_cases(5)
-          + _subsampled_gaussian_test_cases(5)
-          + _mixture_gaussian_with_zero_test_cases(5)
+          _not_subsampled_test_cases(5)
+          + _subsampled_test_cases(5)
+          + _mixture_with_zero_test_cases(5)
        )
-       + _double_mixture_gaussian_with_zero_test_cases(5)
-       + _double_mixture_gaussian_without_zero_test_cases(5)
+       + _double_mixture_with_zero_test_cases(5)
+       + _double_mixture_without_zero_test_cases(5)
        )
   )
   def test_connect_dots_bounds(
@@ -3560,12 +3559,12 @@ class DoubleMixtureLaplacePrivacyLoss(parameterized.TestCase):
 
   @parameterized.named_parameters(
       (_add_and_remove_test_cases(
-          _gaussian_test_cases(5)
-          + _subsampled_gaussian_test_cases(5)
-          + _mixture_gaussian_with_zero_test_cases(5)
+          _not_subsampled_test_cases(5)
+          + _subsampled_test_cases(5)
+          + _mixture_with_zero_test_cases(5)
        )
-       + _double_mixture_gaussian_with_zero_test_cases(5)
-       + _double_mixture_gaussian_without_zero_test_cases(5)
+       + _double_mixture_with_zero_test_cases(5)
+       + _double_mixture_without_zero_test_cases(5)
        )
   )
   def test_inverse_privacy_losses(
@@ -3729,10 +3728,10 @@ class DoubleMixtureLaplacePrivacyLoss(parameterized.TestCase):
 
   @parameterized.named_parameters(
       _add_and_remove_test_cases(
-          _gaussian_test_cases(5)
-          + _subsampled_gaussian_test_cases(5)
-          + _mixture_gaussian_with_zero_test_cases(5)
-          + _mixture_gaussian_without_zero_test_cases(5)
+          _not_subsampled_test_cases(5)
+          + _subsampled_test_cases(5)
+          + _mixture_with_zero_test_cases(5)
+          + _mixture_without_zero_test_cases(5)
       )
   )
   def test_zero_sampling_probs_ignored(
