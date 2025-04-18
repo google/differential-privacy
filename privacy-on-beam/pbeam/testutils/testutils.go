@@ -27,9 +27,9 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/google/differential-privacy/go/v3/dpagg"
-	"github.com/google/differential-privacy/go/v3/noise"
-	"github.com/google/differential-privacy/privacy-on-beam/v3/internal/kv"
+	"github.com/google/differential-privacy/go/v4/dpagg"
+	"github.com/google/differential-privacy/go/v4/noise"
+	"github.com/google/differential-privacy/privacy-on-beam/v4/internal/kv"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/filter"
@@ -472,6 +472,16 @@ func CombineDiffs(diff1, diff2 string) string {
 	return fmt.Sprintf("%s\n%s", diff1, diff2)
 }
 
+// SliceFromIter returns a slice of type T from an iterator.
+func SliceFromIter[T any](iter func(*T) bool) []T {
+	var result []T
+	var value T
+	for iter(&value) {
+		result = append(result, value)
+	}
+	return result
+}
+
 type diffInt64Fn struct {
 	Tolerance float64
 }
@@ -518,8 +528,8 @@ func intPtrToSlice(vIter func(*int) bool) []float64 {
 }
 
 func lessThanOrEqualTo(k int, v1Iter, v2Iter func(*float64) bool) string {
-	var v1 = float64PtrToSlice(v1Iter)
-	var v2 = float64PtrToSlice(v2Iter)
+	var v1 = SliceFromIter(v1Iter)
+	var v2 = SliceFromIter(v2Iter)
 	if len(v1) != 1 {
 		return fmt.Sprintf("For k=%d, col1 has %d values, it needs to have exactly 1 value", k, len(v1))
 	}
@@ -538,8 +548,8 @@ type diffFloat64Fn struct {
 }
 
 func (fn *diffFloat64Fn) ProcessElement(k int, v1Iter, v2Iter func(*float64) bool) string {
-	var v1 = float64PtrToSlice(v1Iter)
-	var v2 = float64PtrToSlice(v2Iter)
+	var v1 = SliceFromIter(v1Iter)
+	var v2 = SliceFromIter(v2Iter)
 	if diff := cmp.Diff(v1, v2, cmpopts.EquateApprox(0, fn.Tolerance)); diff != "" {
 		return fmt.Sprintf("For k=%d: diff=%s", k, diff)
 	}
@@ -559,15 +569,6 @@ func (fn *diffFloat64SliceFn) ProcessElement(k int, v1Iter, v2Iter func(*[]float
 	}
 
 	return "" // No diff
-}
-
-func float64PtrToSlice(vIter func(*float64) bool) []float64 {
-	var vSlice []float64
-	var v float64
-	for vIter(&v) {
-		vSlice = append(vSlice, v)
-	}
-	return vSlice
 }
 
 func float64SlicePtrToSlice(vIter func(*[]float64) bool) []float64 {
@@ -656,28 +657,29 @@ func ComplementaryGaussianTolerance(flakinessK, l0Sensitivity, lInfSensitivity, 
 	return math.Erfinv(math.Pow(10, -flakinessK)) * noise.SigmaForGaussian(int64(l0Sensitivity), lInfSensitivity, epsilon, delta) * math.Sqrt(2)
 }
 
-// LaplaceToleranceForMean returns tolerance to be used in approxEquals for tests
+// LaplaceToleranceForMean returns tolerances to be used in approxEquals for tests
 // for mean to pass with 10⁻ᵏ flakiness.
+//
+// The return values include the tolerances for count, normalized sum, and mean.
 //
 //   - flakinessK: parameter used to specify k in the flakiness.
 //   - lower: minimum possible value of the input entities.
 //   - upper: maximum possible value of the input entities.
 //   - epsilon: the differential privacy parameter epsilon.
-//   - exactNormalizedSum: clamped (with boundaries -distanceFromMidPoint and distanceFromMidPoint)
-//     sum of distances of the input entities from the mid.
+//   - stats.NormalizedSum: \sum { clamp(x_i, lower, upper) - midPoint }.
 //
 // distanceFromMidPoint = upper - midPoint, where midPoint = (lower + upper)/2.
 //
-// exactNormalizedSum is needed for calculating tolerance because the algorithm of the mean
-// aggregation uses noisy normalized sum in its calculations.
-//
 // To see the logic and the math behind flakiness and tolerance calculation,
 // See https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf
-func LaplaceToleranceForMean(flakinessK, lower, upper float64, maxContributionsPerPartition, maxPartitionsContributed int64, epsilon float64, exactNormalizedSum, exactCount, exactMean float64) (float64, error) {
+func LaplaceToleranceForMean(
+	flakinessK, lower, upper float64, maxContributionsPerPartition, maxPartitionsContributed int64,
+	epsilon float64, stats VarianceStatistics,
+) (VarianceStatistics, error) {
 	// The term below is equivalent to -log_10(1-sqrt(1-1e-k)).
 	// It is formulated this way to increase precision and to avoid having this term go to infinity.
-	countFlakinessK := -math.Log10(-math.Expm1(0.5 * math.Log1p(-math.Pow(10, -flakinessK))))
-	normalizedSumFlakinessK := countFlakinessK // We use the same flakiness for simplicity.
+	// Count and normalized sum uses the same following flakiness for simplicity.
+	newFlakinessK := -math.Log10(-math.Expm1(0.5 * math.Log1p(-math.Pow(10, -flakinessK))))
 	halfEpsilon := epsilon / 2
 
 	computer := sensitivityComputer{
@@ -689,32 +691,47 @@ func LaplaceToleranceForMean(flakinessK, lower, upper float64, maxContributionsP
 	l1Count := computer.SensitivitiesForCount().L1
 	l1NormalizedSum := computer.SensitivitiesForNormalizedSum().L1
 
-	countTolerance := math.Ceil(LaplaceTolerance(countFlakinessK, l1Count, halfEpsilon))
-	normalizedSumTolerance := LaplaceTolerance(normalizedSumFlakinessK, l1NormalizedSum, halfEpsilon)
-	return ToleranceForMean(lower, upper, exactNormalizedSum, exactCount, exactMean, countTolerance, normalizedSumTolerance)
+	countTolerance := math.Ceil(LaplaceTolerance(newFlakinessK, l1Count, halfEpsilon))
+	normalizedSumTolerance := LaplaceTolerance(newFlakinessK, l1NormalizedSum, halfEpsilon)
+
+	tolerances := VarianceStatistics{
+		Count:         countTolerance,
+		NormalizedSum: normalizedSumTolerance,
+	}
+
+	meanTolerance, err := ToleranceForMean(lower, upper, stats, tolerances)
+	if err != nil {
+		return VarianceStatistics{}, fmt.Errorf("ToleranceForMean: %w", err)
+	}
+	tolerances.Mean = meanTolerance
+
+	return tolerances, nil
 }
 
-// ToleranceForMean returns tolerance to be used in approxEquals or checkMetricsAreNoisy for tests
-// for mean to pass with 10⁻ᵏ flakiness.
+// ToleranceForMean returns tolerance for mean to be used in approxEquals or checkMetricsAreNoisy
+// for tests, under the pre-calculated tolerances for count and normalized sum so that the tests
+// pass with 10⁻ᵏ flakiness.
 //
-//   - flakinessK: parameter used to specify k in the flakiness.
-//   - exactNormalizedSum: clamped (with boundaries -distanceFromMidPoint and distanceFromMidPoint)
-//     sum of distances of the input entities from the midPoint.
-//
-// distanceFromMidPoint = upper - midPoint, where midPoint = (lower + upper)/2.
-//
-// exactNormalizedSum is needed for calculating tolerance because the algorithm of the mean
-// aggregation uses noisy normalized sum in its calculations.
+//   - lower: minimum possible value of the input entities.
+//   - upper: maximum possible value of the input entities.
+//   - exactStats: Count, NormalizedSum, and Mean of the input entities. NormalizedSumOfSquares is
+//     not needed.
+//   - tolerances: tolerances for count and normalized sum. The tolerance for normalized sum of
+//     squares is not needed.
 //
 // To see the logic and the math behind flakiness and tolerance calculation,
 // see https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf.
-func ToleranceForMean(lower, upper, exactNormalizedSum, exactCount, exactMean, countTolerance, normalizedSumTolerance float64) (float64, error) {
+func ToleranceForMean(
+	lower, upper float64,
+	exactStats, tolerances VarianceStatistics,
+) (float64, error) {
+
 	midPoint := lower + (upper-lower)/2.0
 
-	minNoisyCount := math.Max(1.0, exactCount-countTolerance)            // c_-
-	maxNoisyCount := math.Max(1.0, exactCount+countTolerance)            // c_+
-	minNoisyNormalizedSum := exactNormalizedSum - normalizedSumTolerance // s_-
-	maxNoisyNormalizedSum := exactNormalizedSum + normalizedSumTolerance // s_+
+	minNoisyCount := math.Max(1.0, exactStats.Count-tolerances.Count)            // c_-
+	maxNoisyCount := math.Max(1.0, exactStats.Count+tolerances.Count)            // c_+
+	minNoisyNormalizedSum := exactStats.NormalizedSum - tolerances.NormalizedSum // s_-
+	maxNoisyNormalizedSum := exactStats.NormalizedSum + tolerances.NormalizedSum // s_+
 
 	// Find m_- and m_+ such that {s \in [s_-, s_+] and c \in [c_-, c_+]} implies {m \in [m_-, m_+]}.
 	//
@@ -747,12 +764,17 @@ func ToleranceForMean(lower, upper, exactNormalizedSum, exactCount, exactMean, c
 
 	// Return the tolerance as max(|exactMean - M_-| , |exactMean - M_+|).
 	return math.Max(
-		distanceBetween(exactMean, minNoisyMean),
-		distanceBetween(maxNoisyMean, exactMean),
+		distanceBetween(exactStats.Mean, minNoisyMean),
+		distanceBetween(maxNoisyMean, exactStats.Mean),
 	), nil
 }
 
-// VarianceStatistics is a struct that contains the statistics related to a variance aggregation.
+// VarianceStatistics is a struct that contains the statistics related to mean or variance
+// aggregation.
+//
+// When used in tests for variance, all fields are used.
+//
+// When used in tests for mean, only Count, NormalizedSum, and Mean are used.
 type VarianceStatistics struct {
 	Count                  float64
 	NormalizedSum          float64
@@ -761,12 +783,27 @@ type VarianceStatistics struct {
 	Variance               float64
 }
 
+// ComputeMean computes the mean field based on the count and normalized sum fields in
+// the original struct, plus the given bounds.
+// Remember to call this function after having Count and NormalizedSum,
+// and do not pass in inf or -inf as bounds.
+// If the count is zero, the mean is set to the midPoint.
+func (s *VarianceStatistics) ComputeMean(lower, upper float64) {
+	midPoint := (lower + upper) / 2
+	if s.Count == 0 {
+		s.Mean = midPoint
+	} else {
+		normalizedMean := s.NormalizedSum / s.Count
+		s.Mean = normalizedMean + midPoint
+	}
+}
+
 // ComputeMeanVariance computes the mean and variance fields based on the other fields in
 // the original struct, plus the given bounds.
 // Remember to call this function after having Count, NormalizedSum, and NormalizedSumOfSquares,
 // and do not pass in inf or -inf as bounds.
 // If the count is zero, the mean is set to the midPoint, and variance is set to zero.
-func (s *VarianceStatistics) ComputeMeanVariance(upper, lower float64) {
+func (s *VarianceStatistics) ComputeMeanVariance(lower, upper float64) {
 	midPoint := (lower + upper) / 2
 	if s.Count == 0 {
 		s.Mean = midPoint
@@ -869,10 +906,7 @@ func LaplaceToleranceForVariance(
 		NormalizedSumOfSquares: normalizedSumOfSquaresTolerance,
 	}
 
-	meanTolerance, err := ToleranceForMean(
-		lower, upper, stats.NormalizedSum, stats.Count, stats.Mean,
-		countTolerance, normalizedSumTolerance,
-	)
+	meanTolerance, err := ToleranceForMean(lower, upper, stats, tolerances)
 	if err != nil {
 		return VarianceStatistics{}, fmt.Errorf("ToleranceForMean: %w", err)
 	}
@@ -888,13 +922,13 @@ func LaplaceToleranceForVariance(
 	return tolerances, nil
 }
 
-// ToleranceForVariance returns tolerance to be used in approxEquals or checkMetricsAreNoisy for
-// tests for variance to pass with 10⁻ᵏ flakiness.
+// ToleranceForVariance returns tolerance for variance to be used in approxEquals or
+// checkMetricsAreNoisy for tests, under the pre-calculated tolerances for count, normalized sum,
+// and normalized sum of squares so that the tests pass with 10⁻ᵏ flakiness.
 //
-//   - flakinessK: parameter used to specify k in the flakiness.
 //   - lower: minimum possible value of the input entities.
 //   - upper: maximum possible value of the input entities.
-//   - exactStats: Count, NormalizedSum, and NormalizedSumOfSquares of the input entities.
+//   - exactStats: Count, NormalizedSum, NormalizedSumOfSquares, and variance of the input entities.
 //   - tolerances: tolerances for count, normalized sum, and normalized sum of squares.
 //
 // To see the logic and the math behind flakiness and tolerance calculation,
@@ -1212,4 +1246,18 @@ func DereferenceFloat64Slice(v beam.V, r []float64) (beam.V, float64, error) {
 		return v, 0.0, fmt.Errorf("dereferenceFloat64: r=%v does not contain a single element", r)
 	}
 	return v, r[0], nil
+}
+
+// MeanVarianceAPIAddsNoiseTestParams contains the privacy parameters for the Mean and Variance API
+// tests which checks that noise is added.
+//
+// We use small epsilon and delta to avoid flakiness due to rounding count noises to 0.
+var MeanVarianceAPIAddsNoiseTestParams = struct {
+	AggEpsGaussian float64
+	AggDelGaussian float64
+	AggEpsLaplace  float64
+}{
+	AggEpsGaussian: 1 * math.Pow10(-13),
+	AggDelGaussian: 0.005 * math.Pow10(-13),
+	AggEpsLaplace:  9.8e-11,
 }

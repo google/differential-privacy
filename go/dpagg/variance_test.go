@@ -21,15 +21,15 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/google/differential-privacy/go/v3/noise"
-	"github.com/google/differential-privacy/go/v3/rand"
+	"github.com/google/differential-privacy/go/v4/noise"
+	"github.com/google/differential-privacy/go/v4/rand"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 var (
 	diffBoundedVarianceResultOpts []cmp.Option = []cmp.Option{
-		cmpopts.EquateApprox(0, tenten), // float comparison margin = 1e-10
+		cmpopts.EquateApprox(0, tenten), // tolerance = 1e-10
 	}
 )
 

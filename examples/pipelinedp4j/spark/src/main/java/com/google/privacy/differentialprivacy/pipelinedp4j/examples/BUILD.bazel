@@ -20,7 +20,7 @@ java_binary(
     main_class = "com.google.privacy.differentialprivacy.pipelinedp4j.examples.SparkExample",
     deps = [
         "//common/src/main/java/com/google/privacy/differentialprivacy/pipelinedp4j/examples:common",
-        "@com_google_privacy_differentialprivacy_pipielinedp4j//main/com/google/privacy/differentialprivacy/pipelinedp4j/api",
+        "@com_google_privacy_differentialprivacy_pipelinedp4j//main/com/google/privacy/differentialprivacy/pipelinedp4j/api",
         "@maven//:com_fasterxml_jackson_core_jackson_databind",
         "@maven//:com_fasterxml_jackson_module_jackson_module_paranamer",
         "@maven//:com_google_guava_guava",
@@ -44,7 +44,7 @@ java_binary(
     main_class = "com.google.privacy.differentialprivacy.pipelinedp4j.examples.SparkDataFrameExample",
     deps = [
         "//common/src/main/java/com/google/privacy/differentialprivacy/pipelinedp4j/examples:common",
-        "@com_google_privacy_differentialprivacy_pipielinedp4j//main/com/google/privacy/differentialprivacy/pipelinedp4j/api",
+        "@com_google_privacy_differentialprivacy_pipelinedp4j//main/com/google/privacy/differentialprivacy/pipelinedp4j/api",
         "@maven//:com_fasterxml_jackson_core_jackson_databind",
         "@maven//:com_fasterxml_jackson_module_jackson_module_paranamer",
         "@maven//:info_picocli_picocli",

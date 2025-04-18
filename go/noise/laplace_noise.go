@@ -19,8 +19,8 @@ package noise
 import (
 	"math"
 
-	"github.com/google/differential-privacy/go/v3/checks"
-	"github.com/google/differential-privacy/go/v3/rand"
+	"github.com/google/differential-privacy/go/v4/checks"
+	"github.com/google/differential-privacy/go/v4/rand"
 )
 
 var (
@@ -264,7 +264,9 @@ func inverseCDFLaplace(lambda, p float64) float64 {
 }
 
 // geometric draws a sample drawn from a geometric distribution with parameter
-//   p = 1 - e^-λ.
+//
+//	p = 1 - e^-λ.
+//
 // More precisely, it returns the number of Bernoulli trials until the first success
 // where the success probability is p = 1 - e^-λ. The returned sample is truncated
 // to the max int64 value.

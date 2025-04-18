@@ -64,13 +64,6 @@ class PartitionSelectionStrategy {
   virtual double ProbabilityOfKeep(double num_users) const = 0;
 
  protected:
-  [[deprecated(
-      "Deprecated in favour of the one that also supports setting pre_threshold"
-      "")]] PartitionSelectionStrategy(double epsilon, double delta,
-                                       int64_t max_partitions_contributed,
-                                       double adjusted_delta)
-      : PartitionSelectionStrategy(epsilon, delta, max_partitions_contributed,
-                                   adjusted_delta, 1) {}
   PartitionSelectionStrategy(double epsilon, double delta,
                              int64_t max_partitions_contributed,
                              double adjusted_delta, int pre_threshold)
@@ -418,16 +411,6 @@ class LaplacePartitionSelection : public PartitionSelectionStrategy {
   double GetThreshold() const { return threshold_; }
 
  protected:
-  [[deprecated(
-      "Deprecated in favour of the one that also supports setting pre_threshold"
-      "")]] LaplacePartitionSelection(double epsilon, double delta,
-                                      int64_t max_partitions_contributed,
-                                      double adjusted_delta, double threshold,
-                                      std::unique_ptr<NumericalMechanism>
-                                          laplace)
-      : LaplacePartitionSelection(epsilon, delta, max_partitions_contributed,
-                                  adjusted_delta, 1, threshold,
-                                  std::move(laplace)) {}
   LaplacePartitionSelection(double epsilon, double delta,
                             int64_t max_partitions_contributed,
                             double adjusted_delta, int pre_threshold,
@@ -619,18 +602,6 @@ class GaussianPartitionSelection : public PartitionSelectionStrategy {
   double GetThreshold() const { return threshold_; }
 
  protected:
-  [[deprecated(
-      "Deprecated in favour of the one that also supports setting pre_threshold"
-      "")]] GaussianPartitionSelection(double epsilon, double delta,
-                                       double threshold_delta,
-                                       double noise_delta,
-                                       int64_t max_partitions_contributed,
-                                       double adjusted_delta, double threshold,
-                                       std::unique_ptr<NumericalMechanism>
-                                           gaussian)
-      : GaussianPartitionSelection(epsilon, delta, threshold_delta, noise_delta,
-                                   max_partitions_contributed, adjusted_delta,
-                                   1, threshold, std::move(gaussian)) {}
   GaussianPartitionSelection(double epsilon, double delta,
                              double threshold_delta, double noise_delta,
                              int64_t max_partitions_contributed,
@@ -781,7 +752,7 @@ class [[deprecated(
       int pre_threshold, std::unique_ptr<PartitionSelectionStrategy> strategy)
       : PartitionSelectionStrategy(strategy->GetEpsilon(), strategy->GetDelta(),
                                    strategy->GetMaxPartitionsContributed(),
-                                   strategy->GetAdjustedDelta()),
+                                   strategy->GetAdjustedDelta(), pre_threshold),
         pre_threshold_(pre_threshold),
         wrapped_strategy_(std::move(strategy)) {}
 

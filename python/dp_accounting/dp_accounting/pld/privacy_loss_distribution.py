@@ -33,9 +33,7 @@ from dp_accounting.pld import pld_pmf
 from dp_accounting.pld import privacy_loss_mechanism
 
 
-def _deprecation_warning(method_name: str):
-  logging.warning('PrivacyLossDistribution.%s() will be deprecated shortly. '
-                  'Use factory method %s() instead.', method_name, method_name)
+NeighborRel = privacy_accountant.NeighboringRelation
 
 
 class PrivacyLossDistribution:
@@ -160,359 +158,6 @@ class PrivacyLossDistribution:
                                    value_discretization_interval,
                                    infinity_mass_add, pessimistic_estimate)
     return cls(pmf_remove, pmf_add)
-
-  @classmethod
-  def identity(
-      cls,
-      value_discretization_interval: float = 1e-4) -> 'PrivacyLossDistribution':
-    """Constructs an identity privacy loss distribution.
-
-    This class method will be deprecated shortly. Use factory method identity()
-    instead.
-
-    Args:
-      value_discretization_interval: the dicretization interval for the privacy
-        loss distribution. The values will be rounded up/down to be integer
-        multiples of this number. Smaller value results in more accurate
-        estimates of the privacy loss, at the cost of increased run-time /
-        memory usage.
-
-    Returns:
-      The privacy loss distribution corresponding to an algorithm with no
-      privacy leak (i.e. output is independent of input).
-    """
-    _deprecation_warning('identity')
-    return identity(value_discretization_interval)
-
-  @classmethod
-  def from_two_probability_mass_functions(
-      cls,
-      log_probability_mass_function_lower: Mapping[Any, float],
-      log_probability_mass_function_upper: Mapping[Any, float],
-      pessimistic_estimate: bool = True,
-      value_discretization_interval: float = 1e-4,
-      log_mass_truncation_bound: float = -math.inf
-  ) -> 'PrivacyLossDistribution':
-    """Constructs a privacy loss distribution from mu_lower and mu_upper.
-
-    This class method will be deprecated shortly. Use factory method
-    from_two_probability_mass_functions() instead.
-
-    Args:
-      log_probability_mass_function_lower: the probability mass function of
-        mu_lower represented as a dictionary where each key is an outcome o of
-        mu_lower and the corresponding value is the natural log of the
-        probability mass of mu_lower at o.
-      log_probability_mass_function_upper: the probability mass function of
-        mu_upper represented as a dictionary where each key is an outcome o of
-        mu_upper and the corresponding value is the natural log of the
-        probability mass of mu_upper at o.
-      pessimistic_estimate: whether the rounding is done in such a way that the
-        resulting epsilon-hockey stick divergence computation gives an upper
-        estimate to the real value.
-      value_discretization_interval: the dicretization interval for the privacy
-        loss distribution. The values will be rounded up/down to be integer
-        multiples of this number. Smaller value results in more accurate
-        estimates of the privacy loss, at the cost of increased run-time /
-        memory usage.
-      log_mass_truncation_bound: when the log of the probability mass of the
-        upper distribution is below this bound, it is either (i) included in
-        infinity_mass in the case of pessimistic estimate or (ii) discarded
-        completely in the case of optimistic estimate. The larger
-        log_mass_truncation_bound is, the more error it may introduce in
-        divergence calculations.
-
-    Returns:
-      The privacy loss distribution constructed as specified.
-    """
-    _deprecation_warning('from_two_probability_mass_functions')
-    return from_two_probability_mass_functions(
-        log_probability_mass_function_lower,
-        log_probability_mass_function_upper,
-        pessimistic_estimate,
-        value_discretization_interval,
-        log_mass_truncation_bound)
-
-  @classmethod
-  def create_from_cdf(
-      cls,
-      cdf: Callable[[float], float],
-      pessimistic_estimate: bool = True,
-      value_discretization_interval: float = 1e-4,
-      tail_mass_truncation: float = 1e-15) -> 'PrivacyLossDistribution':
-    """Constructs the privacy loss distribution from its cumulative density function.
-
-    This class method will be deprecated shortly. Use factory method
-    create_from_cdf() instead.
-
-    Args:
-      cdf: the cumulative density function of the privacy loss distribution.
-      pessimistic_estimate: a value indicating whether the rounding is done in
-        such a way that the resulting epsilon-hockey stick divergence
-        computation gives an upper estimate to the real value.
-      value_discretization_interval: the length of the dicretization interval
-        for the privacy loss distribution. The values will be rounded up/down to
-        be integer multiples of this number. Smaller value results in more
-        accurate estimates of the privacy loss, at the cost of increased
-        run-time / memory usage.
-      tail_mass_truncation: an upper bound on the tails of the probability mass
-        of the PLD that might be truncated.
-
-    Returns:
-      The privacy loss distribution constructed as specified.
-    """
-    _deprecation_warning('create_from_cdf')
-    return create_from_cdf(cdf, pessimistic_estimate,
-                           value_discretization_interval,
-                           tail_mass_truncation)
-
-  @classmethod
-  def from_randomized_response(
-      cls,
-      noise_parameter: float,
-      num_buckets: int,
-      pessimistic_estimate: bool = True,
-      value_discretization_interval: float = 1e-4) -> 'PrivacyLossDistribution':
-    """Constructs the privacy loss distribution of Randomized Response.
-
-    The Randomized Response over k buckets with noise parameter p takes in an
-    input which is one of the k buckets. With probability 1 - p, it simply
-    outputs the input bucket. Otherwise, with probability p, it outputs a bucket
-    drawn uniformly at random from the k buckets.
-
-    This function calculates the privacy loss distribution for the
-    aforementioned Randomized Response with a given number of buckets, and a
-    given noise parameter.
-
-    Specifically, suppose that the original input is x and it is changed to x'.
-    Recall that the privacy loss distribution of the Randomized Response
-    mechanism is generated as follows: first pick o according to R(x), where
-    R(x) denote the output distribution of the Randomized Response mechanism
-    on input x. Then, the privacy loss is ln(Pr[R(x) = o] / Pr[R(x') = o]).
-    There are three cases here:
-      - When o = x, ln(Pr[R(x) = o] / Pr[R(x') = o]) =
-        ln(Pr[R(x) = x] / Pr[R(x') = x]). Here Pr[R(x) = x] = 1 - p + p / k
-        and Pr[R(x') = x] = p / k.
-      - When o = x', ln(Pr[R(x) = o] / Pr[R(x') = o]) =
-        ln(Pr[R(x') = x'] / Pr[R(x) = x']), which is just the negation of the
-        previous privacy loss.
-      - When o != x, x', the privacy loss is zero.
-
-    This class method will be deprecated shortly. Use factory method
-    from_randomized_response() instead.
-
-    Args:
-      noise_parameter: the probability that the Randomized Response outputs a
-        completely random bucket.
-      num_buckets: the total number of possible input values (which is equal to
-        the total number of possible output values).
-      pessimistic_estimate: a value indicating whether the rounding is done in
-        such a way that the resulting epsilon-hockey stick divergence
-        computation gives an upper estimate to the real value.
-      value_discretization_interval: the length of the dicretization interval
-        for the privacy loss distribution. The values will be rounded up/down to
-        be integer multiples of this number. Smaller value results in more
-        accurate estimates of the privacy loss, at the cost of increased
-        run-time / memory usage.
-
-    Returns:
-      The privacy loss distribution constructed as specified.
-    """
-    _deprecation_warning('from_randomized_response')
-    return from_randomized_response(noise_parameter, num_buckets,
-                                    pessimistic_estimate,
-                                    value_discretization_interval)
-
-  @classmethod
-  def from_laplace_mechanism(
-      cls,
-      parameter: float,
-      sensitivity: float = 1,
-      pessimistic_estimate: bool = True,
-      value_discretization_interval: float = 1e-4,
-      sampling_prob: float = 1.0) -> 'PrivacyLossDistribution':
-    """Computes the privacy loss distribution of the Laplace mechanism.
-
-    This class method will be deprecated shortly. Use factory method
-    from_laplace_mechanism() instead.
-
-    Args:
-      parameter: the parameter of the Laplace distribution.
-      sensitivity: the sensitivity of function f. (i.e. the maximum absolute
-        change in f when an input to a single user changes.)
-      pessimistic_estimate: a value indicating whether the rounding is done in
-        such a way that the resulting epsilon-hockey stick divergence
-        computation gives an upper estimate to the real value.
-      value_discretization_interval: the length of the dicretization interval
-        for the privacy loss distribution. The values will be rounded up/down to
-        be integer multiples of this number. Smaller value results in more
-        accurate estimates of the privacy loss, at the cost of increased
-        run-time / memory usage.
-      sampling_prob: sub-sampling probability, a value in (0,1].
-
-    Returns:
-      The privacy loss distribution corresponding to the Laplace mechanism with
-      given parameters.
-    """
-    _deprecation_warning('from_laplace_mechanism')
-    return from_laplace_mechanism(parameter, sensitivity, pessimistic_estimate,
-                                  value_discretization_interval, sampling_prob)
-
-  @classmethod
-  def from_gaussian_mechanism(
-      cls,
-      standard_deviation: float,
-      sensitivity: float = 1,
-      pessimistic_estimate: bool = True,
-      value_discretization_interval: float = 1e-4,
-      log_mass_truncation_bound: float = -50,
-      sampling_prob: float = 1.0) -> 'PrivacyLossDistribution':
-    """Creates the privacy loss distribution of the Gaussian mechanism.
-
-    This class method will be deprecated shortly. Use factory method
-    from_gaussian_mechanism() instead.
-
-    Args:
-      standard_deviation: the standard_deviation of the Gaussian distribution.
-      sensitivity: the sensitivity of function f. (i.e. the maximum absolute
-        change in f when an input to a single user changes.)
-      pessimistic_estimate: a value indicating whether the rounding is done in
-        such a way that the resulting epsilon-hockey stick divergence
-        computation gives an upper estimate to the real value.
-      value_discretization_interval: the length of the dicretization interval
-        for the privacy loss distribution. The values will be rounded up/down to
-        be integer multiples of this number. Smaller value results in more
-        accurate estimates of the privacy loss, at the cost of increased
-        run-time / memory usage.
-      log_mass_truncation_bound: the ln of the probability mass that might be
-        discarded from the noise distribution. The larger this number, the more
-        error it may introduce in divergence calculations.
-      sampling_prob: sub-sampling probability, a value in (0,1].
-
-    Returns:
-      The privacy loss distribution corresponding to the Gaussian mechanism with
-      given parameters.
-    """
-    _deprecation_warning('from_gaussian_mechanism')
-    return from_gaussian_mechanism(standard_deviation, sensitivity,
-                                   pessimistic_estimate,
-                                   value_discretization_interval,
-                                   log_mass_truncation_bound,
-                                   sampling_prob)
-
-  @classmethod
-  def from_discrete_laplace_mechanism(
-      cls,
-      parameter: float,
-      sensitivity: int = 1,
-      pessimistic_estimate: bool = True,
-      value_discretization_interval: float = 1e-4,
-      sampling_prob: float = 1.0) -> 'PrivacyLossDistribution':
-    """Computes the privacy loss distribution of the Discrete Laplace mechanism.
-
-    This class method will be deprecated shortly. Use factory method
-    from_discrete_laplace_mechanism() instead.
-
-    Args:
-      parameter: the parameter of the discrete Laplace distribution.
-      sensitivity: the sensitivity of function f. (i.e. the maximum absolute
-        change in f when an input to a single user changes.)
-      pessimistic_estimate: a value indicating whether the rounding is done in
-        such a way that the resulting epsilon-hockey stick divergence
-        computation gives an upper estimate to the real value.
-      value_discretization_interval: the length of the dicretization interval
-        for the privacy loss distribution. The values will be rounded up/down to
-        be integer multiples of this number. Smaller value results in more
-        accurate estimates of the privacy loss, at the cost of increased
-        run-time / memory usage.
-      sampling_prob: sub-sampling probability, a value in (0,1].
-
-    Returns:
-      The privacy loss distribution corresponding to the Discrete Laplace
-      mechanism with given parameters.
-    """
-    _deprecation_warning('from_discrete_laplace_mechanism')
-    return from_discrete_laplace_mechanism(parameter, sensitivity,
-                                           pessimistic_estimate,
-                                           value_discretization_interval,
-                                           sampling_prob)
-
-  @classmethod
-  def from_discrete_gaussian_mechanism(
-      cls,
-      sigma: float,
-      sensitivity: int = 1,
-      truncation_bound: Optional[int] = None,
-      pessimistic_estimate: bool = True,
-      value_discretization_interval: float = 1e-4,
-      sampling_prob: float = 1.0) -> 'PrivacyLossDistribution':
-    """Creates the privacy loss distribution of the discrete Gaussian mechanism.
-
-    This class method will be deprecated shortly. Use factory method
-    from_discrete_gaussian_mechanism() instead.
-
-    Args:
-      sigma: the parameter of the discrete Gaussian distribution. Note that
-        unlike the (continuous) Gaussian distribution this is not equal to the
-        standard deviation of the noise.
-      sensitivity: the sensitivity of function f. (i.e. the maximum absolute
-        change in f when an input to a single user changes.)
-      truncation_bound: bound for truncating the noise, i.e. the noise will only
-        have a support in [-truncation_bound, truncation_bound]. When not
-        specified, truncation_bound will be chosen in such a way that the mass
-        of the noise outside of this range is at most 1e-30.
-      pessimistic_estimate: a value indicating whether the rounding is done in
-        such a way that the resulting epsilon-hockey stick divergence
-        computation gives an upper estimate to the real value.
-      value_discretization_interval: the length of the dicretization interval
-        for the privacy loss distribution. The values will be rounded up/down to
-        be integer multiples of this number. Smaller value results in more
-        accurate estimates of the privacy loss, at the cost of increased
-        run-time / memory usage.
-      sampling_prob: sub-sampling probability, a value in (0,1].
-
-    Returns:
-      The privacy loss distribution corresponding to the discrete Gaussian
-      mechanism with given parameters.
-    """
-    _deprecation_warning('from_discrete_gaussian_mechanism')
-    return from_discrete_gaussian_mechanism(sigma, sensitivity,
-                                            truncation_bound,
-                                            pessimistic_estimate,
-                                            value_discretization_interval,
-                                            sampling_prob)
-
-  @classmethod
-  def from_privacy_parameters(
-      cls,
-      privacy_parameters: common.DifferentialPrivacyParameters,
-      value_discretization_interval: float = 1e-4) -> 'PrivacyLossDistribution':
-    """Constructs pessimistic PLD from epsilon and delta parameters.
-
-    When the mechanism is (epsilon, delta)-differentially private, the following
-    is a pessimistic estimate of its privacy loss distribution (see Section 3.5
-    of the supplementary material for more explanation):
-      - infinity with probability delta.
-      - epsilon with probability (1 - delta) / (1 + exp(-eps))
-      - -epsilon with probability (1 - delta) / (1 + exp(eps))
-
-    This class method will be deprecated shortly. Use factory method
-    from_privacy_parameters() instead.
-
-    Args:
-      privacy_parameters: the privacy guarantee of the mechanism.
-      value_discretization_interval: the length of the dicretization interval
-        for the privacy loss distribution. The values will be rounded up/down to
-        be integer multiples of this number. Smaller value results in more
-        accurate estimates of the privacy loss, at the cost of increased
-        run-time / memory usage.
-
-    Returns:
-      The privacy loss distribution constructed as specified.
-    """
-    _deprecation_warning('from_privacy_parameters')
-    return from_privacy_parameters(privacy_parameters,
-                                   value_discretization_interval)
 
   def get_delta_for_epsilon(
       self, epsilon: Union[float, Sequence[float]]) -> Union[float, np.ndarray]:
@@ -995,8 +640,7 @@ def from_randomized_response(
     num_buckets: int,
     pessimistic_estimate: bool = True,
     value_discretization_interval: float = 1e-4,
-    neighboring_relation: privacy_accountant.NeighboringRelation = (
-        privacy_accountant.NeighboringRelation.REPLACE_ONE),
+    neighboring_relation: NeighborRel = NeighborRel.REPLACE_ONE,
 ) -> PrivacyLossDistribution:
   """Constructs the privacy loss distribution of Randomized Response.
 
@@ -1075,14 +719,13 @@ def from_randomized_response(
         f'Number of buckets must be strictly greater than 1: {num_buckets}')
 
   if neighboring_relation not in [
-      privacy_accountant.NeighboringRelation.REPLACE_ONE,
-      privacy_accountant.NeighboringRelation.REPLACE_SPECIAL,
+      NeighborRel.REPLACE_ONE, NeighborRel.REPLACE_SPECIAL,
   ]:
     raise ValueError(
         'Neighboring relation must be either REPLACE_ONE or REPLACE_SPECIAL: '
         f'Found {neighboring_relation}.')
 
-  if neighboring_relation == privacy_accountant.NeighboringRelation.REPLACE_ONE:
+  if neighboring_relation == NeighborRel.REPLACE_ONE:
     log_pmf_upper = {
         0: math.log(1 - noise_parameter * (num_buckets - 1) / num_buckets),
         1: math.log(noise_parameter / num_buckets),
@@ -1207,7 +850,9 @@ def from_gaussian_mechanism(
     value_discretization_interval: float = 1e-4,
     log_mass_truncation_bound: float = -50,
     sampling_prob: float = 1.0,
-    use_connect_dots: bool = True) -> PrivacyLossDistribution:
+    use_connect_dots: bool = True,
+    neighboring_relation: NeighborRel = NeighborRel.ADD_OR_REMOVE_ONE,
+) -> PrivacyLossDistribution:
   """Creates the privacy loss distribution of the Gaussian mechanism.
 
   This method supports two algorithms for constructing the privacy loss
@@ -1234,6 +879,13 @@ def from_gaussian_mechanism(
     use_connect_dots: When True (default), the connect-the-dots algorithm will
       be used to construct the privacy loss distribution. When False, the
       privacy buckets algorithm will be used.
+    neighboring_relation: the neighboring relation for analyzing the mechanism.
+      The default value is ADD_OR_REMOVE_ONE, which corresponds to the case
+      where an input is added or removed from the dataset. The value of
+      REPLACE_SPECIAL, corresponding to replacing an element by a special
+      element that corresponds to zero value, results in the same privacy loss
+      distribution. The other option is REPLACE_ONE, which corresponds to the
+      case, where an input is replaced by a different input.
 
   Returns:
     The privacy loss distribution corresponding to the Gaussian mechanism with
@@ -1254,7 +906,17 @@ def from_gaussian_mechanism(
         value_discretization_interval=value_discretization_interval,
         use_connect_dots=use_connect_dots)
 
-  return _pld_for_subsampled_mechanism(single_gaussian_pld, sampling_prob)
+  if neighboring_relation in [
+      NeighborRel.ADD_OR_REMOVE_ONE, NeighborRel.REPLACE_SPECIAL,
+  ]:
+    return _pld_for_subsampled_mechanism(single_gaussian_pld, sampling_prob)
+  if neighboring_relation == NeighborRel.REPLACE_ONE:
+    return PrivacyLossDistribution(
+        single_gaussian_pld(privacy_loss_mechanism.AdjacencyType.REPLACE)
+    )
+  raise ValueError(
+      'Unsupported neighboring relation: %s' % neighboring_relation
+  )
 
 
 def from_discrete_laplace_mechanism(

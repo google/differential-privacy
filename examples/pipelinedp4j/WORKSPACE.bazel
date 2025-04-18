@@ -25,9 +25,9 @@ rules_jvm_external_setup()
 load("@rules_jvm_external//:defs.bzl", "maven_install")
 
 # Kotlin
-RULES_KOTLIN_TAG = "2.1.0"
+RULES_KOTLIN_TAG = "2.1.3"
 
-RULES_KOTLIN_SHA = "dd32f19e73c70f32ccb9a166c615c0ca4aed8e27e72c4a6330c3523eafa1aa55"
+RULES_KOTLIN_SHA = "e1448a56b2462407b2688dea86df5c375b36a0991bd478c2ddd94c97168125e2"
 
 http_archive(
     name = "rules_kotlin",
@@ -68,22 +68,22 @@ load(
 )
 
 # Maven
-BEAM_TAG = "2.62.0"
+BEAM_TAG = "2.63.0"
 
 SCALA_TAG = "2.13"
 
 SCALA_LIBRARY_TAG = "%s.16" % SCALA_TAG
 
-SPARK_TAG = "3.5.4"
+SPARK_TAG = "3.5.5"
 
-JACKSON_TAG = "2.18.2"
+JACKSON_TAG = "2.18.3"
 
 GOOGLE_TRUTH_TAG = "1.4.4"
 
 maven_install(
     artifacts = [
         "com.google.privacy.differentialprivacy:differentialprivacy:3.0.0",
-        "com.google.protobuf:protobuf-kotlin:4.29.3",
+        "com.google.protobuf:protobuf-kotlin:4.30.1",
         "org.apache.beam:beam-runners-direct-java:%s" % BEAM_TAG,
         "org.apache.beam:beam-sdks-java-core:%s" % BEAM_TAG,
         "org.apache.beam:beam-sdks-java-extensions-avro:%s" % BEAM_TAG,
@@ -100,8 +100,10 @@ maven_install(
         "info.picocli:picocli:4.7.6",
     ],
     repositories = [
+        "https://jcenter.bintray.com",
         "https://maven.google.com",
-        "https://repo.maven.apache.org/maven2/",
+        "https://repo.maven.apache.org/maven2",
+        "https://repo1.maven.org/maven2",
     ],
 )
 
@@ -117,6 +119,6 @@ protobuf_deps()
 
 # Kotlin DP library repository
 local_repository(
-    name = "com_google_privacy_differentialprivacy_pipielinedp4j",
+    name = "com_google_privacy_differentialprivacy_pipelinedp4j",
     path = "../../pipelinedp4j",
 )

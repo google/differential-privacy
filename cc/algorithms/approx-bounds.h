@@ -100,7 +100,7 @@ inline constexpr absl::string_view kApproxBoundsNotEnoughDataUrl =
 //   (1, 2]: 0
 //   (2, 4]: 1
 //   (4, 8]: 4
-// Then if success_probability=.9 and epsilon=1 we will obtain approximately
+// Then if success_probability=0.9 and epsilon=1 we will obtain approximately
 // threshold=3.5. Since the count of bin (4, 8] > threshold, we return an
 // approx max of 2^3 = 8. Since the count of bin [0,1] > threshold, we return an
 // approx min of 0.
@@ -738,15 +738,6 @@ class ApproxBounds<T>::Builder {
     success_probability_ = success_probability;
     threshold_.reset();
     return *this;
-  }
-
-  // Set exactly one of success_probability or k threshold. Not recommended
-  // for use in non-test code: if you know enough about your sample
-  // distribution to choose a value for this parameter, then you probably know
-  // enough to choose sensible bounds for your sample.
-  ABSL_DEPRECATED("Use SetThresholdForTest instead")
-  ApproxBounds<T>::Builder& SetThreshold(double threshold) {
-    return SetThresholdForTest(threshold);
   }
 
   // Set exactly one of success_probability or k threshold. Not recommended

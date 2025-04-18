@@ -16,7 +16,9 @@ load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_library")
 
 package(
     default_visibility = [
-        "//visibility:public",
+        "//:__pkg__",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core:__subpackages__",
+        "//tests/com/google/privacy/differentialprivacy/pipelinedp4j/core:__subpackages__",
     ],
 )
 

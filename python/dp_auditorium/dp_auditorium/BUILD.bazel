@@ -16,7 +16,8 @@
 
 # Top-level APIs
 
-load("@dp_auditorium_py_pip_deps//:requirements.bzl", "requirement")
+load("@rules_python//python:py_library.bzl", "py_library")
+load("@rules_python//python:py_test.bzl", "py_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -37,7 +38,7 @@ py_library(
     srcs = ["interfaces.py"],
     deps = [
         "//dp_auditorium/configs",
-        requirement("numpy"),
+        "@pypi//numpy",
     ],
 )
 
@@ -47,8 +48,8 @@ py_library(
     deps = [
         ":interfaces",
         "//dp_auditorium/configs",
-        requirement("numpy"),
-        requirement("scipy"),
+        "@pypi//numpy",
+        "@pypi//scipy",
     ],
 )
 
@@ -59,8 +60,8 @@ py_test(
         ":interfaces",
         ":privacy_test_runner",
         "//dp_auditorium/configs",
-        requirement("absl-py"),
-        requirement("numpy"),
-        requirement("tensorflow"),
+        "@pypi//absl_py",
+        "@pypi//numpy",
+        "@pypi//tensorflow",
     ],
 )

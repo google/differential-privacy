@@ -16,7 +16,9 @@
 
 # Accountant using Privacy Loss Distributions (PLD).
 
-load("@accounting_py_pip_deps//:requirements.bzl", "requirement")
+load("@rules_python//python:py_binary.bzl", "py_binary")
+load("@rules_python//python:py_library.bzl", "py_library")
+load("@rules_python//python:py_test.bzl", "py_test")
 
 package(default_visibility = [
     "//visibility:public",
@@ -55,7 +57,7 @@ py_test(
         "//dp_accounting:dp_event",
         "//dp_accounting:privacy_accountant",
         "//dp_accounting:privacy_accountant_test",
-        requirement("absl-py"),
+        "@accounting_py_pip_deps//absl_py",
     ],
 )
 
@@ -66,8 +68,8 @@ py_library(
     ],
     srcs_version = "PY3",
     deps = [
-        requirement("numpy"),
-        requirement("scipy"),
+        "@accounting_py_pip_deps//numpy",
+        "@accounting_py_pip_deps//scipy",
     ],
 )
 
@@ -79,8 +81,8 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":common",
-        requirement("numpy"),
-        requirement("scipy"),
+        "@accounting_py_pip_deps//numpy",
+        "@accounting_py_pip_deps//scipy",
     ],
 )
 
@@ -92,8 +94,8 @@ py_test(
     deps = [
         ":common",
         ":test_util",
-        requirement("absl-py"),
-        requirement("numpy"),
+        "@accounting_py_pip_deps//absl_py",
+        "@accounting_py_pip_deps//numpy",
     ],
 )
 
@@ -106,8 +108,8 @@ py_test(
         ":common",
         ":pld_pmf",
         ":test_util",
-        requirement("absl-py"),
-        requirement("numpy"),
+        "@accounting_py_pip_deps//absl_py",
+        "@accounting_py_pip_deps//numpy",
     ],
 )
 
@@ -122,7 +124,7 @@ py_library(
         ":pld_pmf",
         ":privacy_loss_mechanism",
         "//dp_accounting:privacy_accountant",
-        requirement("numpy"),
+        "@accounting_py_pip_deps//numpy",
     ],
 )
 
@@ -137,8 +139,8 @@ py_test(
         ":privacy_loss_distribution",
         ":test_util",
         "//dp_accounting:privacy_accountant",
-        requirement("absl-py"),
-        requirement("scipy"),
+        "@accounting_py_pip_deps//absl_py",
+        "@accounting_py_pip_deps//scipy",
     ],
 )
 
@@ -150,8 +152,8 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":common",
-        requirement("numpy"),
-        requirement("scipy"),
+        "@accounting_py_pip_deps//numpy",
+        "@accounting_py_pip_deps//scipy",
     ],
 )
 
@@ -164,9 +166,9 @@ py_test(
         ":common",
         ":privacy_loss_mechanism",
         ":test_util",
-        requirement("absl-py"),
-        requirement("numpy"),
-        requirement("scipy"),
+        "@accounting_py_pip_deps//absl_py",
+        "@accounting_py_pip_deps//numpy",
+        "@accounting_py_pip_deps//scipy",
     ],
 )
 
@@ -180,7 +182,7 @@ py_library(
         ":common",
         ":privacy_loss_distribution",
         ":privacy_loss_mechanism",
-        requirement("scipy"),
+        "@accounting_py_pip_deps//scipy",
     ],
 )
 
@@ -193,7 +195,7 @@ py_test(
         ":accountant",
         ":common",
         ":privacy_loss_mechanism",
-        requirement("absl-py"),
+        "@accounting_py_pip_deps//absl_py",
     ],
 )
 
@@ -203,7 +205,7 @@ py_library(
         "test_util.py",
     ],
     srcs_version = "PY3",
-    deps = [requirement("numpy")],
+    deps = ["@accounting_py_pip_deps//numpy"],
 )
 
 py_test(
@@ -213,7 +215,7 @@ py_test(
     python_version = "PY3",
     deps = [
         ":test_util",
-        requirement("absl-py"),
+        "@accounting_py_pip_deps//absl_py",
     ],
 )
 
@@ -225,6 +227,6 @@ py_binary(
     python_version = "PY3",
     deps = [
         ":privacy_loss_distribution",
-        requirement("absl-py"),
+        "@accounting_py_pip_deps//absl_py",
     ],
 )

@@ -15,7 +15,7 @@
 
 # Demo examples for DP-Auditorium.
 
-load("@dp_auditorium_py_pip_deps//:requirements.bzl", "requirement")
+load("@rules_python//python:py_test.bzl", "py_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -28,12 +28,12 @@ py_binary(
         "//dp_auditorium/generators:vizier_dataset_generator",
         "//dp_auditorium/mechanisms:mean",
         "//dp_auditorium/testers:hockey_stick_tester",
-        requirement("absl-py"),
-        requirement("jax"),
-        requirement("jaxopt"),
-        requirement("numpy"),
-        requirement("tensorflow"),
-        requirement("tensorflow_probability"),
+        "@pypi//absl_py",
+        "@pypi//jax",
+        "@pypi//jaxopt",
+        "@pypi//numpy",
+        "@pypi//tensorflow",
+        "@pypi//tensorflow_probability",
     ],
 )
 
@@ -43,16 +43,16 @@ py_test(
     deps = [
         ":run_mean_mechanism_example",
         "//dp_auditorium/generators:vizier_dataset_generator",
-        requirement("absl-py"),
-        requirement("google-vizier"),
-        requirement("numpy"),
+        "@pypi//absl_py",
+        "@pypi//google_vizier",
+        "@pypi//numpy",
         # Needed to fix strange dependency bugs in Vizier. Order is important!
-        requirement("equinox"),
-        requirement("flax"),
-        requirement("googleapis-common-protos"),
-        requirement("jax"),
-        requirement("jaxlib"),
-        requirement("pysqlite3"),
+        "@pypi//equinox",
+        "@pypi//flax",
+        "@pypi//googleapis_common_protos",
+        "@pypi//jax",
+        "@pypi//jaxlib",
+        "@pypi//pysqlite3",
         "//dp_auditorium:interfaces",
         "//dp_auditorium/configs",
     ],

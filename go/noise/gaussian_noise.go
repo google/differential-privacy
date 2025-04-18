@@ -19,8 +19,8 @@ package noise
 import (
 	"math"
 
-	"github.com/google/differential-privacy/go/v3/checks"
-	"github.com/google/differential-privacy/go/v3/rand"
+	"github.com/google/differential-privacy/go/v4/checks"
+	"github.com/google/differential-privacy/go/v4/rand"
 	"gonum.org/v1/gonum/stat/distuv"
 )
 

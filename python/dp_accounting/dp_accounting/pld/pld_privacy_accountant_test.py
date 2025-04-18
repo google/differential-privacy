@@ -41,11 +41,20 @@ class PldPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
       (dp_event.RandomizedResponseDpEvent(0.1, 3),
        pld_privacy_accountant.NeighborRel.ADD_OR_REMOVE_ONE,
        'neighboring_relation must be `REPLACE_ONE` or `REPLACE_SPECIAL`'),
-      (dp_event.PoissonSampledDpEvent(0.1, dp_event.GaussianDpEvent(1.0)),
+      (dp_event.LaplaceDpEvent(1.0),
+       pld_privacy_accountant.NeighborRel.REPLACE_ONE,
+       'neighboring_relation must be `ADD_OR_REMOVE_ONE` or `REPLACE_SPECIAL`'),
+      (dp_event.PoissonSampledDpEvent(0.1, dp_event.LaplaceDpEvent(1.0)),
+       pld_privacy_accountant.NeighborRel.REPLACE_ONE,
+       'neighboring_relation must be `ADD_OR_REMOVE_ONE` or `REPLACE_SPECIAL`'),
+      (dp_event.DiscreteLaplaceDpEvent(0.1, 1),
+       pld_privacy_accountant.NeighborRel.REPLACE_ONE,
+       'neighboring_relation must be `ADD_OR_REMOVE_ONE` or `REPLACE_SPECIAL`'),
+      (dp_event.MixtureOfGaussiansDpEvent(1.0, [0.0, 1.0], [0.5, 0.5]),
        pld_privacy_accountant.NeighborRel.REPLACE_ONE,
        'neighboring_relation must be `ADD_OR_REMOVE_ONE` or `REPLACE_SPECIAL`'),
   )
-  def test_composition_errors_for_adjacency(
+  def test_composition_errors_for_neighboring_relation(
       self, event, neighboring_relation, error_msg):
     pld_accountant = pld_privacy_accountant.PLDAccountant(neighboring_relation)
     with self.assertRaisesRegex(privacy_accountant.UnsupportedEventError,
@@ -100,35 +109,49 @@ class PldPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
         dp_event.RandomizedResponseDpEvent(noise_parameter, num_buckets))
     self.assertAlmostEqual(accountant.get_delta(expected_epsilon), 0.0)
 
-  @parameterized.parameters(
-      dp_event.GaussianDpEvent(1.0),
-      dp_event.SelfComposedDpEvent(dp_event.GaussianDpEvent(1.0), 6),
-      dp_event.ComposedDpEvent(
-          [dp_event.GaussianDpEvent(1.0),
-           dp_event.GaussianDpEvent(2.0)]),
-      dp_event.PoissonSampledDpEvent(0.1, dp_event.GaussianDpEvent(1.0)),
-      dp_event.ComposedDpEvent([
+  @parameterized.product(
+      event=[
+          dp_event.GaussianDpEvent(1.0),
+          dp_event.SelfComposedDpEvent(dp_event.GaussianDpEvent(1.0), 6),
+          dp_event.ComposedDpEvent(
+              [dp_event.GaussianDpEvent(1.0), dp_event.GaussianDpEvent(2.0)]
+          ),
           dp_event.PoissonSampledDpEvent(0.1, dp_event.GaussianDpEvent(1.0)),
-          dp_event.GaussianDpEvent(2.0)
-      ]))
-  def test_supports_gaussian(self, event):
-    pld_accountant = pld_privacy_accountant.PLDAccountant()
+          dp_event.ComposedDpEvent([
+              dp_event.PoissonSampledDpEvent(0.1,
+                                             dp_event.GaussianDpEvent(1.0)),
+              dp_event.GaussianDpEvent(2.0),
+          ]),
+      ],
+      neighboring_relation=[
+          pld_privacy_accountant.NeighborRel.ADD_OR_REMOVE_ONE,
+          pld_privacy_accountant.NeighborRel.REPLACE_ONE,
+          pld_privacy_accountant.NeighborRel.REPLACE_SPECIAL,
+      ],
+  )
+  def test_supports_gaussian(self, event, neighboring_relation):
+    pld_accountant = pld_privacy_accountant.PLDAccountant(neighboring_relation)
     self.assertTrue(pld_accountant.supports(event))
 
-  def test_poisson_subsampling_not_supported_for_replace_one(self):
+  def test_poisson_subsampling_laplace_not_supported_for_replace_one(self):
     pld_accountant = pld_privacy_accountant.PLDAccountant(
         pld_privacy_accountant.NeighborRel.REPLACE_ONE)
-    event = dp_event.PoissonSampledDpEvent(0.1, dp_event.GaussianDpEvent(1.0))
+    event = dp_event.PoissonSampledDpEvent(0.1, dp_event.LaplaceDpEvent(1.0))
     self.assertFalse(pld_accountant.supports(event))
 
-  def test_supports_subsampled_gaussian_and_rr_composition(self):
-    pld_accountant = pld_privacy_accountant.PLDAccountant(
-        pld_privacy_accountant.NeighborRel.REPLACE_SPECIAL)
+  @parameterized.parameters(
+      (pld_privacy_accountant.NeighborRel.REPLACE_ONE, True),
+      (pld_privacy_accountant.NeighborRel.REPLACE_SPECIAL, True),
+      (pld_privacy_accountant.NeighborRel.ADD_OR_REMOVE_ONE, False),
+  )
+  def test_supports_subsampled_gaussian_and_rr_composition(
+      self, neighboring_relation, supports_composition):
+    pld_accountant = pld_privacy_accountant.PLDAccountant(neighboring_relation)
     event = dp_event.ComposedDpEvent([
         dp_event.PoissonSampledDpEvent(0.1, dp_event.GaussianDpEvent(1.0)),
         dp_event.RandomizedResponseDpEvent(noise_parameter=0.1, num_buckets=3)
     ])
-    self.assertTrue(pld_accountant.supports(event))
+    self.assertEqual(pld_accountant.supports(event), supports_composition)
 
   @parameterized.parameters(0, -1)
   def test_non_positive_composition_value_error(self, count):
@@ -140,6 +163,7 @@ class PldPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
   @parameterized.parameters(
       dp_event.GaussianDpEvent(0),
       dp_event.LaplaceDpEvent(0),
+      dp_event.DiscreteLaplaceDpEvent(0, 1),
       dp_event.PoissonSampledDpEvent(0.1, dp_event.GaussianDpEvent(0)),
       dp_event.PoissonSampledDpEvent(0.1, dp_event.LaplaceDpEvent(0)),
       dp_event.MixtureOfGaussiansDpEvent(0, [1, 2], [0.5, 0.5]),
@@ -233,6 +257,23 @@ class PldPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
         accountant.get_delta(exact_epsilon), expected_delta, delta=1e-6)
     self.assertAlmostEqual(
         accountant.get_epsilon(expected_delta), exact_epsilon, delta=1e-3)
+
+  def test_discrete_laplace_basic(self):
+    first_discrete_laplace_event = dp_event.DiscreteLaplaceDpEvent(
+        noise_parameter=1, sensitivity=1
+    )
+    second_discrete_laplace_event = dp_event.DiscreteLaplaceDpEvent(
+        noise_parameter=0.5, sensitivity=1
+    )
+    accountant = pld_privacy_accountant.PLDAccountant()
+    accountant.compose(first_discrete_laplace_event, 3)
+    accountant.compose(second_discrete_laplace_event, 2)
+    expected_epsilon = 4
+    expected_delta = 0.0
+    self.assertAlmostEqual(
+        accountant.get_delta(expected_epsilon), expected_delta, delta=1e-6)
+    self.assertAlmostEqual(
+        accountant.get_epsilon(expected_delta), expected_epsilon, delta=1e-6)
 
   def test_mixture_of_gaussians_basic(self):
     first_mog_event = dp_event.MixtureOfGaussiansDpEvent(

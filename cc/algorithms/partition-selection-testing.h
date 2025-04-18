@@ -74,7 +74,7 @@ class MockLaplaceStrategy : public LaplacePartitionSelection {
   };
   MockLaplaceStrategy()
       : LaplacePartitionSelection(
-            0.5, 0.02, 1, 0.02, 1,
+            0.5, 0.02, 1, 0.02, 1, 1,
             std::move(absl::StatusOr<std::unique_ptr<NumericalMechanism>>(
                           absl::make_unique<LaplaceMechanism>(0.5, 1))
                           .value())) {}
@@ -103,7 +103,7 @@ class MockGaussianStrategy : public GaussianPartitionSelection {
   };
   MockGaussianStrategy()
       : GaussianPartitionSelection(
-            0.5, 0.02, 1, 0.02, 1, 0.5, 1,
+            0.5, 0.02, 1, 0.02, 1, 0.5, 1, 1,
             std::move(absl::StatusOr<std::unique_ptr<NumericalMechanism>>(
                           absl::make_unique<GaussianMechanism>(0.5, 1, 1))
                           .value())) {}

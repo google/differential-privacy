@@ -1,5 +1,5 @@
 #
-# Copyright 2021 Google LLC
+# Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,17 +14,18 @@
 # limitations under the License.
 #
 
-"""Dependencies of Python DP Clustering."""
+bazel_dep(name = "rules_python", version = "1.2.0")
 
-load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(
+    ignore_root_user_error = True,
+    python_version = "3.9",
+)
 
-def learning_py_deps():
-    """ Loads dependencies of Python DP Learning.
-    """
-
-    if not native.existing_rule("rules_python"):
-        http_archive(
-            name = "rules_python",
-            url = "https://github.com/bazelbuild/rules_python/releases/download/0.4.0/rules_python-0.4.0.tar.gz",
-            sha256 = "954aa89b491be4a083304a2cb838019c8b8c3720a7abb9c4cb81ac7a24230cea",
-        )
+pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+pip.parse(
+    hub_name = "pypi",
+    python_version = "3.9",
+    requirements_lock = "//:requirements.txt",
+)
+use_repo(pip, "pypi")

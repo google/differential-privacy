@@ -15,7 +15,8 @@
 
 # Differential Privacy Data Generators.
 
-load("@dp_auditorium_py_pip_deps//:requirements.bzl", "requirement")
+load("@rules_python//python:py_library.bzl", "py_library")
+load("@rules_python//python:py_test.bzl", "py_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -36,7 +37,7 @@ py_library(
     srcs = ["constant_dataset_generator.py"],
     deps = [
         "//dp_auditorium:interfaces",
-        requirement("numpy"),
+        "@pypi//numpy",
     ],
 )
 
@@ -45,8 +46,8 @@ py_test(
     srcs = ["constant_dataset_generator_test.py"],
     deps = [
         ":constant_dataset_generator",
-        requirement("absl-py"),
-        requirement("numpy"),
+        "@pypi//absl_py",
+        "@pypi//numpy",
     ],
 )
 
@@ -54,16 +55,16 @@ py_library(
     name = "vizier_dataset_generator",
     srcs = ["vizier_dataset_generator.py"],
     deps = [
-        requirement("absl-py"),
-        requirement("google-vizier"),
-        requirement("numpy"),
+        "@pypi//absl_py",
+        "@pypi//google_vizier",
+        "@pypi//numpy",
         # Needed to fix strange dependency bugs in Vizier. Order is important!
-        requirement("equinox"),
-        requirement("flax"),
-        requirement("googleapis-common-protos"),
-        requirement("jax"),
-        requirement("jaxlib"),
-        requirement("pysqlite3"),
+        "@pypi//equinox",
+        "@pypi//flax",
+        "@pypi//googleapis_common_protos",
+        "@pypi//jax",
+        "@pypi//jaxlib",
+        "@pypi//pysqlite3",
         "//dp_auditorium:interfaces",
         "//dp_auditorium/configs",
     ],
@@ -73,17 +74,17 @@ py_test(
     name = "vizier_dataset_generator_test",
     srcs = ["vizier_dataset_generator_test.py"],
     deps = [
-        requirement("absl-py"),
-        requirement("google-vizier"),
-        requirement("numpy"),
-        requirement("tensorflow"),
+        "@pypi//absl_py",
+        "@pypi//google_vizier",
+        "@pypi//numpy",
+        "@pypi//tensorflow",
         # Needed to fix strange dependency bugs in Vizier. Order is important!
-        requirement("equinox"),
-        requirement("flax"),
-        requirement("googleapis-common-protos"),
-        requirement("jax"),
-        requirement("jaxlib"),
-        requirement("pysqlite3"),
+        "@pypi//equinox",
+        "@pypi//flax",
+        "@pypi//googleapis_common_protos",
+        "@pypi//jax",
+        "@pypi//jaxlib",
+        "@pypi//pysqlite3",
         ":vizier_dataset_generator",
         "//dp_auditorium:interfaces",
     ],
@@ -93,10 +94,10 @@ py_library(
     name = "pipeline_dp_vizier_dataset_generator",
     srcs = ["pipeline_dp_vizier_dataset_generator.py"],
     deps = [
-        requirement("numpy"),
         ":vizier_dataset_generator",
         "//dp_auditorium:interfaces",
         "//dp_auditorium/configs",
+        "@pypi//numpy",
     ],
 )
 
@@ -105,9 +106,9 @@ py_test(
     srcs = ["pipeline_dp_vizier_dataset_generator_test.py"],
     deps = [
         # Needed to fix strange dependency bugs in Vizier. Order is important!
-        requirement("absl-py"),
-        requirement("google-vizier"),
-        requirement("tensorflow"),
+        "@pypi//absl_py",
+        "@pypi//google_vizier",
+        "@pypi//tensorflow",
         ":pipeline_dp_vizier_dataset_generator",
         "//dp_auditorium/configs",
     ],
@@ -117,11 +118,11 @@ py_library(
     name = "classification_dataset_generator",
     srcs = ["classification_dataset_generator.py"],
     deps = [
-        requirement("google-vizier"),
-        requirement("numpy"),
         ":vizier_dataset_generator",
         "//dp_auditorium:interfaces",
         "//dp_auditorium/configs",
+        "@pypi//google_vizier",
+        "@pypi//numpy",
     ],
 )
 
@@ -129,10 +130,10 @@ py_test(
     name = "classification_dataset_generator_test",
     srcs = ["classification_dataset_generator_test.py"],
     deps = [
-        requirement("absl-py"),
-        requirement("google-vizier"),
-        requirement("tensorflow"),
         ":classification_dataset_generator",
         "//dp_auditorium/configs",
+        "@pypi//absl_py",
+        "@pypi//google_vizier",
+        "@pypi//tensorflow",
     ],
 )

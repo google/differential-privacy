@@ -19,7 +19,7 @@ package dpagg
 import (
 	"testing"
 
-	"github.com/google/differential-privacy/go/v3/noise"
+	"github.com/google/differential-privacy/go/v4/noise"
 )
 
 func getBoundedSumInt64(t *testing.T, n noise.Noise, lower, upper int64) *BoundedSumInt64 {

@@ -19,11 +19,15 @@ import unittest
 from absl.testing import parameterized
 from scipy import stats
 
-from dp_accounting import privacy_accountant
 from dp_accounting.pld import common
 from dp_accounting.pld import pld_pmf
 from dp_accounting.pld import privacy_loss_distribution
 from dp_accounting.pld import test_util
+
+
+ADD_OR_REMOVE_ONE = privacy_loss_distribution.NeighborRel.ADD_OR_REMOVE_ONE
+REPLACE_SPECIAL = privacy_loss_distribution.NeighborRel.REPLACE_SPECIAL
+REPLACE_ONE = privacy_loss_distribution.NeighborRel.REPLACE_ONE
 
 
 def _assert_pld_pmf_equal(
@@ -722,9 +726,15 @@ class LaplacePrivacyLossDistributionTest(parameterized.TestCase):
 
 class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
 
-  @parameterized.parameters((1.0, 1.0, -0.1), (1.0, 1.0, 1.1), (1.0, 1.0, 0.0),
-                            (-0.1, 1.0, 1.0), (0.0, 1.0, 1.0), (1.0, -1.0, 1.0),
-                            (1.0, 0.0, 1.0))
+  @parameterized.named_parameters(
+      ('negative_sampling_prob', 1.0, 1.0, -0.1),
+      ('sampling_prob_more_than_1', 1.0, 1.0, 1.1),
+      ('sampling_prob_zero', 1.0, 1.0, 0.0),
+      ('negative_standard_deviation', -0.1, 1.0, 1.0),
+      ('zero_standard_deviation', 0.0, 1.0, 1.0),
+      ('negative_sensitivity', 1.0, -1.0, 1.0),
+      ('zero_sensitivity', 1.0, 0.0, 1.0),
+  )
   def test_gaussian_value_errors(self, standard_deviation, sensitivity,
                                  sampling_prob):
     with self.assertRaises(ValueError):
@@ -736,19 +746,19 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
 
   @parameterized.parameters(
       # Tests with sampling_prob = 1
-      (1.0, 1.0, 1.0, {
+      (1.0, 1.0, 1.0, ADD_OR_REMOVE_ONE, {
           2: 0.12447741,
           1: 0.38292492,
           0: 0.24173034,
           -1: 0.0668072
       }),
-      (5.0, 5.0, 1.0, {
+      (5.0, 5.0, 1.0, ADD_OR_REMOVE_ONE, {
           2: 0.12447741,
           1: 0.38292492,
           0: 0.24173034,
           -1: 0.0668072
       }),
-      (1.0, 2.0, 1.0, {
+      (1.0, 2.0, 1.0, ADD_OR_REMOVE_ONE, {
           -3: 0.00620967,
           -2: 0.01654047,
           -1: 0.04405707,
@@ -758,7 +768,7 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
           3: 0.19146246,
           4: 0.12447741
       }),
-      (3.0, 6.0, 1.0, {
+      (3.0, 6.0, 1.0, ADD_OR_REMOVE_ONE, {
           -3: 0.00620967,
           -2: 0.01654047,
           -1: 0.04405707,
@@ -767,9 +777,35 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
           2: 0.19146246,
           3: 0.19146246,
           4: 0.12447741
+      }),
+      (1.0, 0.5, 1.0, REPLACE_ONE, {
+          0: 0.30853754,
+          1: 0.38292491,
+          2: 0.12447742,
+      }),
+      (5.0, 2.5, 1.0, REPLACE_ONE, {
+          0: 0.30853754,
+          1: 0.38292491,
+          2: 0.12447742,
+      }),
+      (1.0, 1.0, 1.0, REPLACE_ONE, {
+          -1: 0.06680719,
+          0: 0.09184806,
+          1: 0.14988228,
+          2: 0.19146246,
+          3: 0.19146246,
+          4: 0.12447743,
+      }),
+      (3.0, 3.0, 1.0, REPLACE_ONE, {
+          -1: 0.06680720,
+          0: 0.09184806,
+          1: 0.14988228,
+          2: 0.19146246,
+          3: 0.19146247,
+          4: 0.12447741,
       }),
       # Tests with sampling_prob < 1
-      (1.0, 1.0, 0.8, {
+      (1.0, 1.0, 0.8, ADD_OR_REMOVE_ONE, {
           1: 0.50740234,
           0: 0.25872977,
           -1: 0.04980776
@@ -778,7 +814,7 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
           1: 0.39779076,
           0: 0.38512252
       }),
-      (5.0, 5.0, 0.6, {
+      (5.0, 5.0, 0.6, ADD_OR_REMOVE_ONE, {
           1: 0.50740234,
           0: 0.27649963,
           -1: 0.03203791
@@ -787,7 +823,7 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
           1: 0.40715514,
           0: 0.46170751
       }),
-      (1.0, 2.0, 0.4, {
+      (1.0, 2.0, 0.4, ADD_OR_REMOVE_ONE, {
           1: 0.65728462,
           0: 0.12528727,
           -1: 0.02551767,
@@ -798,7 +834,7 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
           1: 0.18525477,
           0: 0.56826895
       }),
-      (3.0, 6.0, 0.2, {
+      (3.0, 6.0, 0.2, ADD_OR_REMOVE_ONE, {
           1: 0.65728462,
           0: 0.14208735,
           -1: 0.01356463,
@@ -808,9 +844,34 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
           2: 0.05499325,
           1: 0.19231652,
           0: 0.70480685
+      }),
+      (1.0, 1.0, 0.8, REPLACE_ONE, {
+          -1: 0.08224694,
+          0: 0.14467727,
+          1: 0.23519769,
+          2: 0.26750658,
+          3: 0.11738012,
+      }),
+      (5.0, 5.0, 0.6, REPLACE_ONE, {
+          0: 0.29519315,
+          1: 0.35647862,
+          2: 0.22640553,
+      }),
+      (1.0, 2.0, 0.4, REPLACE_ONE, {
+          0: 0.30910005,
+          1: 0.36921424,
+          2: 0.13256016,
+          3: 0.08727219,
+          4: 0.02710982,
+      }),
+      (3.0, 6.0, 0.2, REPLACE_ONE, {
+          0: 0.40455003,
+          1: 0.47280851,
+          2: 0.06563991,
+          3: 0.01869688,
       }))
   def test_gaussian_varying_standard_deviation_and_sensitivity(
-      self, standard_deviation, sensitivity, sampling_prob,
+      self, standard_deviation, sensitivity, sampling_prob, neighbor_rel,
       expected_rounded_pmf_add, expected_rounded_pmf_remove=None):
     """Verifies correctness of pessimistic PLD for various parameter values."""
     pld = privacy_loss_distribution.from_gaussian_mechanism(
@@ -819,7 +880,8 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
         log_mass_truncation_bound=math.log(2) + stats.norm.logcdf(-0.9),
         value_discretization_interval=1,
         sampling_prob=sampling_prob,
-        use_connect_dots=False)
+        use_connect_dots=False,
+        neighboring_relation=neighbor_rel)
 
     test_util.assert_dictionary_almost_equal(self, expected_rounded_pmf_add,
                                              pld._pmf_add._loss_probs)  # pytype: disable=attribute-error
@@ -837,21 +899,21 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
 
   @parameterized.parameters(
       # Tests with sampling_prob = 1
-      (1.0, 1.0, 1.0, {
+      (1.0, 1.0, 1.0, ADD_OR_REMOVE_ONE, {
           2: 0.167710257,
           1: 0.343270190,
           0: 0.319116756,
           -1: 0.126282046,
           -2: 0.022697115,
       }, 0.020923636),
-      (5.0, 5.0, 1.0, {
+      (5.0, 5.0, 1.0, ADD_OR_REMOVE_ONE, {
           2: 0.167710257,
           1: 0.343270190,
           0: 0.319116756,
           -1: 0.126282046,
           -2: 0.022697115,
       }, 0.020923636),
-      (1.0, 2.0, 1.0, {
+      (1.0, 2.0, 1.0, ADD_OR_REMOVE_ONE, {
           4: 0.156393834,
           3: 0.176732821,
           2: 0.195352391,
@@ -862,7 +924,7 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
           -3: 0.008799009,
           -4: 0.002864453,
       }, 0.084953319),
-      (3.0, 6.0, 1.0, {
+      (3.0, 6.0, 1.0, ADD_OR_REMOVE_ONE, {
           4: 0.156393834,
           3: 0.176732821,
           2: 0.195352391,
@@ -872,9 +934,39 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
           -2: 0.026438071,
           -3: 0.008799009,
           -4: 0.002864453,
+      }, 0.084953319),
+      (1.0, 0.5, 1.0, REPLACE_ONE, {
+          2: 0.167710257,
+          1: 0.343270190,
+          0: 0.319116756,
+          -1: 0.148979161,
+      }, 0.020923636),
+      (5.0, 2.5, 1.0, REPLACE_ONE, {
+          2: 0.167710257,
+          1: 0.343270190,
+          0: 0.319116756,
+          -1: 0.148979161,
+      }, 0.020923636),
+      (1.0, 1.0, 1.0, REPLACE_ONE, {
+          4: 0.156393834,
+          3: 0.176732821,
+          2: 0.195352391,
+          1: 0.169838899,
+          0: 0.116146963,
+          -1: 0.062480239,
+          -2: 0.038101533,
+      }, 0.084953319),
+      (3.0, 3.0, 1.0, REPLACE_ONE, {
+          4: 0.156393834,
+          3: 0.176732821,
+          2: 0.195352391,
+          1: 0.169838899,
+          0: 0.116146963,
+          -1: 0.062480239,
+          -2: 0.038101533,
       }, 0.084953319),
       # Tests with sampling_prob < 1
-      (1.0, 1.0, 0.8, {
+      (1.0, 1.0, 0.8, ADD_OR_REMOVE_ONE, {
           1: 0.448021700,
           0: 0.398104072,
           -1: 0.115544309,
@@ -885,7 +977,7 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
           0: 0.398104072,
           -1: 0.164817973,
       }, 0.010728796),
-      (5.0, 5.0, 0.6, {
+      (5.0, 5.0, 0.6, ADD_OR_REMOVE_ONE, {
           1: 0.363466985,
           0: 0.528456643,
           -1: 0.099555157,
@@ -896,7 +988,7 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
           0: 0.528456643,
           -1: 0.133712031,
       }, 0.004248614),
-      (1.0, 2.0, 0.4, {
+      (1.0, 2.0, 0.4, ADD_OR_REMOVE_ONE, {
           1: 0.431999550,
           0: 0.499732772,
           -1: 0.052519150,
@@ -909,7 +1001,7 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
           0: 0.499732772,
           -1: 0.158923753,
       }, 0.037467466),
-      (3.0, 6.0, 0.2, {
+      (3.0, 6.0, 0.2, ADD_OR_REMOVE_ONE, {
           1: 0.215999775,
           0: 0.738200118,
           -1: 0.038917231,
@@ -921,9 +1013,38 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
           1: 0.105788001,
           0: 0.738200118,
           -1: 0.079461876,
-      }, 0.010045317))
+      }, 0.010045317),
+      (1.0, 1.0, 0.8, REPLACE_ONE, {
+          3: 0.152221152,
+          2: 0.243537311,
+          1: 0.256578347,
+          0: 0.183992937,
+          -1: 0.094389899,
+          -2: 0.040537836,
+      }, 0.028742519),
+      (5.0, 5.0, 0.6, REPLACE_ONE, {
+          2: 0.194074972,
+          1: 0.332685221,
+          0: 0.293079816,
+          -1: 0.148653245,
+      }, 0.031506747),
+      (1.0, 2.0, 0.4, REPLACE_ONE, {
+          4: 0.052530086,
+          3: 0.073288168,
+          2: 0.111233661,
+          1: 0.222238357,
+          0: 0.415356732,
+          -1: 0.101421687,
+      }, 0.023931308),
+      (3.0, 6.0, 0.2, REPLACE_ONE, {
+          3: 0.029249326,
+          2: 0.048971483,
+          1: 0.171170848,
+          0: 0.666991966,
+          -1: 0.071054043,
+      }, 0.012562334))
   def test_gaussian_varying_standard_deviation_and_sensitivity_connect_dots(
-      self, standard_deviation, sensitivity, sampling_prob,
+      self, standard_deviation, sensitivity, sampling_prob, neighbor_rel,
       expected_rounded_pmf_add, expected_infinity_mass_add,
       expected_rounded_pmf_remove=None, expected_infinity_mass_remove=None):
     """Verifies correctness of connect_dots PLD for various parameter values."""
@@ -933,7 +1054,8 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
         log_mass_truncation_bound=math.log(2) + stats.norm.logcdf(-0.9),
         value_discretization_interval=1,
         sampling_prob=sampling_prob,
-        use_connect_dots=True)
+        use_connect_dots=True,
+        neighboring_relation=neighbor_rel)
 
     _assert_pld_pmf_equal(
         self, pld,
@@ -1008,19 +1130,19 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
 
   @parameterized.parameters(
       # Tests with sampling_prob = 1
-      (1.0, 1.0, 1.0, {
+      (1.0, 1.0, 1.0, ADD_OR_REMOVE_ONE, {
           1: 0.30853754,
           0: 0.38292492,
           -1: 0.24173034,
           -2: 0.03809064
       }),
-      (5.0, 5.0, 1.0, {
+      (5.0, 5.0, 1.0, ADD_OR_REMOVE_ONE, {
           1: 0.30853754,
           0: 0.38292492,
           -1: 0.24173034,
           -2: 0.03809064
       }),
-      (1.0, 2.0, 1.0, {
+      (1.0, 2.0, 1.0, ADD_OR_REMOVE_ONE, {
           3: 0.30853754,
           2: 0.19146246,
           1: 0.19146246,
@@ -1030,7 +1152,7 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
           -3: 0.01654047,
           -4: 0.00434385
       }),
-      (3.0, 6.0, 1.0, {
+      (3.0, 6.0, 1.0, ADD_OR_REMOVE_ONE, {
           3: 0.30853754,
           2: 0.19146246,
           1: 0.19146246,
@@ -1039,9 +1161,35 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
           -2: 0.04405707,
           -3: 0.01654047,
           -4: 0.00434385
+      }),
+      (1.0, 0.5, 1.0, REPLACE_ONE, {
+          1: 0.30853755,
+          0: 0.38292491,
+          -1: 0.22778088,
+      }),
+      (5.0, 2.5, 1.0, REPLACE_ONE, {
+          1: 0.30853754,
+          0: 0.38292492,
+          -1: 0.22778088,
+      }),
+      (1.0, 1.0, 1.0, REPLACE_ONE, {
+          3: 0.30853755,
+          2: 0.19146246,
+          1: 0.19146246,
+          0: 0.14988228,
+          -1: 0.09184806,
+          -2: 0.03809063,
+      }),
+      (3.0, 3.0, 1.0, REPLACE_ONE, {
+          3: 0.30853754,
+          2: 0.19146247,
+          1: 0.19146246,
+          0: 0.14988228,
+          -1: 0.09184806,
+          -2: 0.03809064,
       }),
       # Tests with sampling_prob < 1
-      (1.0, 1.0, 0.8, {
+      (1.0, 1.0, 0.8, ADD_OR_REMOVE_ONE, {
           0: 0.69146246,
           -1: 0.25872977,
           -2: 0.0210912
@@ -1050,7 +1198,7 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
           0: 0.39779076,
           -1: 0.32533725
       }),
-      (5.0, 5.0, 0.6, {
+      (5.0, 5.0, 0.6, ADD_OR_REMOVE_ONE, {
           0: 0.69146246,
           -1: 0.27649963,
           -2: 0.00332135
@@ -1059,7 +1207,7 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
           0: 0.40715514,
           -1: 0.37085352
       }),
-      (1.0, 2.0, 0.4, {
+      (1.0, 2.0, 0.4, ADD_OR_REMOVE_ONE, {
           0: 0.84134475,
           -1: 0.12528727,
           -2: 0.02551767,
@@ -1070,7 +1218,7 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
           0: 0.18525477,
           -1: 0.45708655
       }),
-      (3.0, 6.0, 0.2, {
+      (3.0, 6.0, 0.2, ADD_OR_REMOVE_ONE, {
           0: 0.84134475,
           -1: 0.14208735,
           -2: 0.01356463,
@@ -1080,9 +1228,34 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
           1: 0.05499325,
           0: 0.19231652,
           -1: 0.55718558
+      }),
+      (1.0, 1.0, 0.8, REPLACE_ONE, {
+          2: 0.27037153,
+          1: 0.26750658,
+          0: 0.23519769,
+          -1: 0.14467727,
+          -2: 0.02246166,
+      }),
+      (5.0, 5.0, 0.6, REPLACE_ONE, {
+          1: 0.34832823,
+          0: 0.35647862,
+          -1: 0.20433917,
+      }),
+      (1.0, 2.0, 0.4, REPLACE_ONE, {
+          3: 0.10185336,
+          2: 0.08727219,
+          1: 0.13256016,
+          0: 0.36921424,
+          -1: 0.19791765,
+      }),
+      (3.0, 6.0, 0.2, REPLACE_ONE, {
+          2: 0.05700155,
+          1: 0.06563991,
+          0: 0.47280851,
+          -1: 0.25692876,
       }))
   def test_gaussian_varying_standard_deviation_and_sensitivity_optimistic(
-      self, standard_deviation, sensitivity, sampling_prob,
+      self, standard_deviation, sensitivity, sampling_prob, neighbor_rel,
       expected_rounded_pmf_add, expected_rounded_pmf_remove=None):
     """Verifies correctness of optimistic PLD for various parameter values."""
     pld = privacy_loss_distribution.from_gaussian_mechanism(
@@ -1092,21 +1265,12 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
         log_mass_truncation_bound=math.log(2) + stats.norm.logcdf(-0.9),
         value_discretization_interval=1,
         sampling_prob=sampling_prob,
-        use_connect_dots=False)
+        use_connect_dots=False,
+        neighboring_relation=neighbor_rel)
 
-    test_util.assert_dictionary_almost_equal(self, expected_rounded_pmf_add,
-                                             pld._pmf_add._loss_probs)  # pytype: disable=attribute-error
-    test_util.assert_almost_greater_equal(self, stats.norm.cdf(-0.9),
-                                          pld._pmf_add._infinity_mass)
-    if expected_rounded_pmf_remove is None:
-      self.assertTrue(pld._symmetric)
-    else:
-      test_util.assert_dictionary_almost_equal(self,
-                                               expected_rounded_pmf_remove,
-                                               pld._pmf_remove._loss_probs)  # pytype: disable=attribute-error
-      test_util.assert_almost_greater_equal(self, stats.norm.cdf(-0.9),
-                                            pld._pmf_remove._infinity_mass)
-      self.assertFalse(pld._symmetric)
+    _assert_pld_pmf_equal(self, pld,
+                          expected_rounded_pmf_add, 0.0,
+                          expected_rounded_pmf_remove, 0.0)
 
   def test_subsampled_gaussian_does_not_overflow(self):
     """Verifies that creating subsampled Gaussian PLD does not result in overflow."""
@@ -2080,7 +2244,7 @@ class RandomizedResponsePrivacyLossDistributionTest(parameterized.TestCase):
       dict(
           noise_parameter=0.5,
           num_buckets=2,
-          neighbor_rel=privacy_accountant.NeighboringRelation.REPLACE_ONE,
+          neighbor_rel=REPLACE_ONE,
           expected_rounded_pmf={
               2: 0.75,  # ceil(log(3)) = ceil(1.098).
               -1: 0.25,  # ceil(-log(3)) = ceil(-1.098).
@@ -2089,7 +2253,7 @@ class RandomizedResponsePrivacyLossDistributionTest(parameterized.TestCase):
       dict(
           noise_parameter=0.5,
           num_buckets=2,
-          neighbor_rel=privacy_accountant.NeighboringRelation.REPLACE_SPECIAL,
+          neighbor_rel=REPLACE_SPECIAL,
           expected_rounded_pmf={
               1: 0.75,  # ceil(log(3/2)) = ceil(0.405).
               0: 0.25,  # ceil(log(1/2))) = ceil(-0.693).
@@ -2102,7 +2266,7 @@ class RandomizedResponsePrivacyLossDistributionTest(parameterized.TestCase):
       dict(
           noise_parameter=0.2,
           num_buckets=4,
-          neighbor_rel=privacy_accountant.NeighboringRelation.REPLACE_ONE,
+          neighbor_rel=REPLACE_ONE,
           expected_rounded_pmf={
               3: 0.85,  # ceil(log(17)) = ceil(2.833)
               -2: 0.05,  # ceil(-log(17)) = ceil(-2.833)
@@ -2112,7 +2276,7 @@ class RandomizedResponsePrivacyLossDistributionTest(parameterized.TestCase):
       dict(
           noise_parameter=0.2,
           num_buckets=4,
-          neighbor_rel=privacy_accountant.NeighboringRelation.REPLACE_SPECIAL,
+          neighbor_rel=REPLACE_SPECIAL,
           expected_rounded_pmf={
               2: 0.85,  # ceil(log(0.85 / 0.25)) = ceil(1.224)
               -1: 0.15,  # ceil(log(0.05 / 0.25)) = ceil(-1.609).
@@ -2131,7 +2295,7 @@ class RandomizedResponsePrivacyLossDistributionTest(parameterized.TestCase):
         noise_parameter, num_buckets,
         value_discretization_interval=1,
         neighboring_relation=neighbor_rel)
-    if neighbor_rel == privacy_accountant.NeighboringRelation.REPLACE_ONE:
+    if neighbor_rel == REPLACE_ONE:
       _assert_pld_pmf_equal(self, pld, expected_rounded_pmf, 0.0)
     else:  # Case of REPLACE_SPECIAL.
       _assert_pld_pmf_equal(
@@ -2141,7 +2305,7 @@ class RandomizedResponsePrivacyLossDistributionTest(parameterized.TestCase):
   @parameterized.parameters(
       dict(
           value_discretization_interval=0.7,
-          neighbor_rel=privacy_accountant.NeighboringRelation.REPLACE_ONE,
+          neighbor_rel=REPLACE_ONE,
           expected_rounded_pmf={
               5: 0.85,
               -4: 0.05,
@@ -2150,7 +2314,7 @@ class RandomizedResponsePrivacyLossDistributionTest(parameterized.TestCase):
       ),
       dict(
           value_discretization_interval=0.5,
-          neighbor_rel=privacy_accountant.NeighboringRelation.REPLACE_SPECIAL,
+          neighbor_rel=REPLACE_SPECIAL,
           expected_rounded_pmf={
               3: 0.85,
               -3: 0.15,
@@ -2162,7 +2326,7 @@ class RandomizedResponsePrivacyLossDistributionTest(parameterized.TestCase):
       ),
       dict(
           value_discretization_interval=2,
-          neighbor_rel=privacy_accountant.NeighboringRelation.REPLACE_ONE,
+          neighbor_rel=REPLACE_ONE,
           expected_rounded_pmf={
               2: 0.85,
               -1: 0.05,
@@ -2171,7 +2335,7 @@ class RandomizedResponsePrivacyLossDistributionTest(parameterized.TestCase):
       ),
       dict(
           value_discretization_interval=2,
-          neighbor_rel=privacy_accountant.NeighboringRelation.REPLACE_SPECIAL,
+          neighbor_rel=REPLACE_SPECIAL,
           expected_rounded_pmf={
               1: 0.85,
               0: 0.15,
@@ -2189,7 +2353,7 @@ class RandomizedResponsePrivacyLossDistributionTest(parameterized.TestCase):
     pld = privacy_loss_distribution.from_randomized_response(
         0.2, 4, value_discretization_interval=value_discretization_interval,
         neighboring_relation=neighbor_rel)
-    if neighbor_rel == privacy_accountant.NeighboringRelation.REPLACE_ONE:
+    if neighbor_rel == REPLACE_ONE:
       # The true (non-discretized) PLD is
       # {2.83321334: 0.85, -2.83321334: 0.05, 0: 0.1}.
       _assert_pld_pmf_equal(self, pld, expected_rounded_pmf, 0.0)
@@ -2204,7 +2368,7 @@ class RandomizedResponsePrivacyLossDistributionTest(parameterized.TestCase):
       dict(
           noise_parameter=0.5,
           num_buckets=2,
-          neighbor_rel=privacy_accountant.NeighboringRelation.REPLACE_ONE,
+          neighbor_rel=REPLACE_ONE,
           expected_rounded_pmf={
               1: 0.75,  # floor(log(3)) = floor(1.098).
               -2: 0.25,  # floor(-log(3)) = floor(-1.098).
@@ -2213,7 +2377,7 @@ class RandomizedResponsePrivacyLossDistributionTest(parameterized.TestCase):
       dict(
           noise_parameter=0.5,
           num_buckets=2,
-          neighbor_rel=privacy_accountant.NeighboringRelation.REPLACE_SPECIAL,
+          neighbor_rel=REPLACE_SPECIAL,
           expected_rounded_pmf={
               0: 0.75,  # floor(log(3/2)) = floor(0.405).
               -1: 0.25,  # floor(log(1/2))) = floor(-0.693).
@@ -2226,7 +2390,7 @@ class RandomizedResponsePrivacyLossDistributionTest(parameterized.TestCase):
       dict(
           noise_parameter=0.2,
           num_buckets=4,
-          neighbor_rel=privacy_accountant.NeighboringRelation.REPLACE_ONE,
+          neighbor_rel=REPLACE_ONE,
           expected_rounded_pmf={
               2: 0.85,  # floor(log(17)) = floor(2.833)
               -3: 0.05,  # floor(-log(17)) = floor(-2.833)
@@ -2236,7 +2400,7 @@ class RandomizedResponsePrivacyLossDistributionTest(parameterized.TestCase):
       dict(
           noise_parameter=0.2,
           num_buckets=4,
-          neighbor_rel=privacy_accountant.NeighboringRelation.REPLACE_SPECIAL,
+          neighbor_rel=REPLACE_SPECIAL,
           expected_rounded_pmf={
               1: 0.85,  # floor(log(0.85 / 0.25)) = floor(1.224)
               -2: 0.15,  # floor(log(0.05 / 0.25)) = floor(-1.609).
@@ -2257,7 +2421,7 @@ class RandomizedResponsePrivacyLossDistributionTest(parameterized.TestCase):
         pessimistic_estimate=False,
         value_discretization_interval=1,
         neighboring_relation=neighbor_rel)
-    if neighbor_rel == privacy_accountant.NeighboringRelation.REPLACE_ONE:
+    if neighbor_rel == REPLACE_ONE:
       _assert_pld_pmf_equal(self, pld, expected_rounded_pmf, 0.0)
     else:  # Case of REPLACE_SPECIAL.
       _assert_pld_pmf_equal(

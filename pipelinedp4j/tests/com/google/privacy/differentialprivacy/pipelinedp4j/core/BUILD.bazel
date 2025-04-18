@@ -79,9 +79,6 @@ kt_jvm_test(
 kt_jvm_library(
     name = "test_data_types",
     srcs = ["TestDataTypes.kt"],
-    visibility = [
-        "//visibility:public",
-    ],
     deps = [
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core:data_extractors",
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core:encoders",

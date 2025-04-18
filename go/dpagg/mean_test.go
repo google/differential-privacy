@@ -21,9 +21,16 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/google/differential-privacy/go/v3/noise"
-	"github.com/google/differential-privacy/go/v3/rand"
+	"github.com/google/differential-privacy/go/v4/noise"
+	"github.com/google/differential-privacy/go/v4/rand"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+)
+
+var (
+	diffBoundedMeanResultOpts []cmp.Option = []cmp.Option{
+		cmpopts.EquateApprox(0, tenten), // tolerance = 1e-10
+	}
 )
 
 func TestNewBoundedMean(t *testing.T) {
@@ -176,14 +183,17 @@ func TestNewBoundedMean(t *testing.T) {
 
 func TestBMNoInput(t *testing.T) {
 	bm := getNoiselessBM(t)
-	got, err := bm.Result()
+	got, err := bm.ResultWithCount()
 	if err != nil {
 		t.Fatalf("Couldn't compute dp result: %v", err)
 	}
 	// count = 0 => returns midPoint = 2
-	want := 2.0
-	if !ApproxEqual(got, want) {
-		t.Errorf("BoundedMean: when there is no input data got=%f, want=%f", got, want)
+	want := BoundedMeanResult{
+		Count: 0,
+		Mean:  2.0,
+	}
+	if diff := cmp.Diff(want, got, diffBoundedMeanResultOpts...); diff != "" {
+		t.Errorf("BoundedMean: when there is no input data (-want +got):\n%s", diff)
 	}
 }
 
@@ -208,13 +218,19 @@ func TestBMAddIgnoresNaN(t *testing.T) {
 	bm.Add(1)
 	bm.Add(math.NaN())
 	bm.Add(3)
-	got, err := bm.Result()
+	got, err := bm.ResultWithCount()
 	if err != nil {
 		t.Fatalf("Couldn't compute dp result: %v", err)
 	}
-	want := 2.0
-	if !ApproxEqual(got, want) {
-		t.Errorf("Add: when dataset contains NaN got %f, want %f", got, want)
+	want := BoundedMeanResult{
+		Count: 2,
+		Mean:  2.0,
+	}
+	if diff := cmp.Diff(want, got, diffBoundedMeanResultOpts...); diff != "" {
+		t.Errorf("BoundedMean: when dataset contains NaN (-want +got):\n%s", diff)
+	}
+	if diff := cmp.Diff(want, got, diffBoundedMeanResultOpts...); diff != "" {
+		t.Errorf("BoundedMean: when dataset contains NaN (-want +got):\n%s", diff)
 	}
 }
 
@@ -225,13 +241,16 @@ func TestBMReturnsEntryIfSingleEntryIsAdded(t *testing.T) {
 	// midPoint = 2
 
 	bm.Add(1.2345)
-	got, err := bm.Result()
+	got, err := bm.ResultWithCount()
 	if err != nil {
 		t.Fatalf("Couldn't compute dp result: %v", err)
 	}
-	want := 1.2345 // single entry
-	if !ApproxEqual(got, want) {
-		t.Errorf("BoundedMean: when dataset contains single entry got %f, want %f", got, want)
+	want := BoundedMeanResult{
+		Count: 1,
+		Mean:  1.2345,
+	}
+	if diff := cmp.Diff(want, got, diffBoundedMeanResultOpts...); diff != "" {
+		t.Errorf("BoundedMean: when dataset contains single entry (-want +got):\n%s", diff)
 	}
 }
 
@@ -244,19 +263,22 @@ func TestBMClamp(t *testing.T) {
 	bm.Add(3.5)  // clamp(3.5) - midPoint = 3.5 - 2 = 1.5 -> to normalizedSum
 	bm.Add(8.3)  // clamp(8.3) - midPoint = 5 - 2 = 3 -> to normalizedSum
 	bm.Add(-7.5) // clamp(-7.5) - midPoint = -1 - 2 = -3 -> to normalizedSum
-	got, err := bm.Result()
+	got, err := bm.ResultWithCount()
 	if err != nil {
 		t.Fatalf("Couldn't compute dp result: %v", err)
 	}
-	want := 2.5
-	if !ApproxEqual(got, want) { // clamp (normalizedSum/count + mid point) = 1.5 / 3 + 2 = 2.5
-		t.Errorf("Add: when dataset with elements outside boundaries got %f, want %f", got, want)
+	want := BoundedMeanResult{
+		Count: 3,
+		Mean:  2.5,
+	}
+	if diff := cmp.Diff(want, got, diffBoundedMeanResultOpts...); diff != "" {
+		t.Errorf("BoundedMean: when dataset contains elements outside boundaries (-want +got):\n%s", diff)
 	}
 }
 
 func TestBoundedMeanResultSetsStateCorrectly(t *testing.T) {
 	bm := getNoiselessBM(t)
-	_, err := bm.Result()
+	_, err := bm.ResultWithCount()
 	if err != nil {
 		t.Fatalf("Couldn't compute dp result: %v", err)
 	}
@@ -270,11 +292,15 @@ func TestBMNoiseIsCorrectlyCalled(t *testing.T) {
 	bm := getMockBM(t)
 	bm.Add(1)
 	bm.Add(2)
-	got, _ := bm.Result() // will fail if parameters are wrong
-	want := 5.0
+	got, _ := bm.ResultWithCount() // will fail if parameters are wrong
+
 	// clamp((noised normalizedSum / noised count) + mid point) = clamp((-1 + 100) / (2 + 10) + 2) = 5
-	if !ApproxEqual(got, want) {
-		t.Errorf("Add: when dataset = {1, 2} got %f, want %f", got, want)
+	want := BoundedMeanResult{
+		Count: 12,
+		Mean:  5.0,
+	}
+	if diff := cmp.Diff(want, got, diffBoundedMeanResultOpts...); diff != "" {
+		t.Errorf("BoundedMean: when dataset = {1, 2} (-want +got):\n%s", diff)
 	}
 }
 
@@ -298,16 +324,16 @@ func TestBMReturnsResultInsideProvidedBoundaries(t *testing.T) {
 		bm.Add(rand.Uniform() * 300 * rand.Sign())
 	}
 
-	res, err := bm.Result()
+	res, err := bm.ResultWithCount()
 	if err != nil {
 		t.Fatalf("Couldn't compute dp result: %v", err)
 	}
-	if res < lower {
-		t.Errorf("BoundedMean: result is outside of boundaries, got %f, want to be >= %f", res, lower)
+	if res.Mean < lower {
+		t.Errorf("BoundedMean: result is outside of boundaries, got %f, want to be >= %f", res.Mean, lower)
 	}
 
-	if res > upper {
-		t.Errorf("BoundedMean: result is outside of boundaries, got %f, want to be <= %f", res, upper)
+	if res.Mean > upper {
+		t.Errorf("BoundedMean: result is outside of boundaries, got %f, want to be <= %f", res.Mean, upper)
 	}
 }
 
@@ -405,13 +431,16 @@ func TestMergeBoundedMean(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't merge bm1 and bm2: %v", err)
 	}
-	got, err := bm1.Result()
+	got, err := bm1.ResultWithCount()
 	if err != nil {
 		t.Fatalf("Couldn't compute dp result: %v", err)
 	}
-	want := 3.0
-	if !ApproxEqual(got, want) {
-		t.Errorf("Merge: when merging 2 instances of BoundedMean got %f, want %f", got, want)
+	want := BoundedMeanResult{
+		Count: 5,
+		Mean:  3.0,
+	}
+	if diff := cmp.Diff(want, got, diffBoundedMeanResultOpts...); diff != "" {
+		t.Errorf("BoundedMean: when merging 2 instances of BoundedMean (-want +got):\n%s", diff)
 	}
 	if bm2.state != merged {
 		t.Errorf("Merge: when merging 2 instances of BoundedMean for bm2.state got %v, want Merged", bm2.state)

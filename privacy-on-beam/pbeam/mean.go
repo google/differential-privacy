@@ -22,16 +22,28 @@ import (
 	"reflect"
 
 	log "github.com/golang/glog"
-	"github.com/google/differential-privacy/go/v3/checks"
-	"github.com/google/differential-privacy/go/v3/dpagg"
-	"github.com/google/differential-privacy/go/v3/noise"
-	"github.com/google/differential-privacy/privacy-on-beam/v3/internal/kv"
+	"github.com/google/differential-privacy/go/v4/checks"
+	"github.com/google/differential-privacy/go/v4/dpagg"
+	"github.com/google/differential-privacy/go/v4/noise"
+	"github.com/google/differential-privacy/privacy-on-beam/v4/internal/kv"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 )
 
 func init() {
-	register.Combiner3[boundedMeanAccum, []float64, *float64](&boundedMeanFn{})
+	register.Combiner3[boundedMeanAccum, []float64, *MeanStatistics](&boundedMeanFn{})
+	register.Function2x2[beam.V, MeanStatistics, beam.V, float64](extractMean)
+}
+
+// MeanStatistics holds the returned values of a bounded mean aggregation,
+// including the count and mean.
+type MeanStatistics struct {
+	Count float64
+	Mean  float64
+}
+
+func extractMean(k beam.V, ms MeanStatistics) (beam.V, float64) {
+	return k, ms.Mean
 }
 
 // MeanParams specifies the parameters associated with a Mean aggregation.
@@ -115,39 +127,59 @@ type MeanParams struct {
 	MinValue, MaxValue float64
 }
 
-// MeanPerKey obtains the mean of the values associated with each key in a
-// PrivatePCollection<K,V>, adding differentially private noise to the means and
-// doing pre-aggregation thresholding to remove means with a low number of
+// MeanPerKey is the same as MeanStatisticsPerKey, but returns only the mean.
+// MeanPerKey transforms a PrivatePCollection<K,V> into a PCollection<K,float64>.
+func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.PCollection {
+	s = s.Scope("pbeam.MeanPerKey")
+	msPerKey := meanStatisticsPerKeyImpl(s, pcol, params)
+
+	// Transforms a PCollection<K,MeanStatistics> into a PCollection<K,float64>.
+	return beam.ParDo(s, extractMean, msPerKey)
+}
+
+// MeanStatisticsPerKey obtains the count and mean of the values associated with each key in a
+// PrivatePCollection<K,V>, adding differentially private noise to the values and
+// doing pre-aggregation thresholding to remove partitions with a low number of
 // distinct privacy identifiers.
 //
 // It is also possible to manually specify the list of partitions
 // present in the output, in which case the partition selection/thresholding
 // step is skipped.
 //
-// MeanPerKey transforms a PrivatePCollection<K,V> into a PCollection<K,float64>.
+// MeanStatisticsPerKey transforms a PrivatePCollection<K,V> into a PCollection<K,MeanStatistics>.
 //
 // Note: Do not use when your results may cause overflows for float64 values.
 // This aggregation is not hardened for such applications yet.
-func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.PCollection {
-	s = s.Scope("pbeam.MeanPerKey")
+func MeanStatisticsPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.PCollection {
+	s = s.Scope("pbeam.MeanStatisticsPerKey")
+	return meanStatisticsPerKeyImpl(s, pcol, params)
+}
+
+// meanStatisticsPerKeyImpl is the same as MeanStatisticsPerKey, but does not change the scope.
+//
+// This is to separate the scope for MeanPerKey and MeanStatisticsPerKey.
+func meanStatisticsPerKeyImpl(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.PCollection {
 	// Obtain & validate type information from the underlying PCollection<K,V>.
 	idT, kvT := beam.ValidateKVType(pcol.col)
 	if kvT.Type() != reflect.TypeOf(kv.Pair{}) {
-		log.Fatalf("MeanPerKey must be used on a PrivatePCollection of type <K,V>, got type %v instead", kvT)
+		log.Fatalf("MeanStatisticsPerKey must be used on a PrivatePCollection of type <K,V>, "+
+			"got type %v instead", kvT)
 	}
 	if pcol.codec == nil {
-		log.Fatalf("MeanPerKey: no codec found for the input PrivatePCollection.")
+		log.Fatalf("MeanStatisticsPerKey: no codec found for the input PrivatePCollection.")
 	}
 
 	// Get privacy parameters.
 	spec := pcol.privacySpec
 	var err error
-	params.AggregationEpsilon, params.AggregationDelta, err = spec.aggregationBudget.get(params.AggregationEpsilon, params.AggregationDelta)
+	params.AggregationEpsilon, params.AggregationDelta, err = spec.aggregationBudget.get(
+		params.AggregationEpsilon, params.AggregationDelta)
 	if err != nil {
 		log.Fatalf("Couldn't consume aggregation budget for Mean: %v", err)
 	}
 	if params.PublicPartitions == nil {
-		params.PartitionSelectionParams.Epsilon, params.PartitionSelectionParams.Delta, err = spec.partitionSelectionBudget.get(params.PartitionSelectionParams.Epsilon, params.PartitionSelectionParams.Delta)
+		params.PartitionSelectionParams.Epsilon, params.PartitionSelectionParams.Delta, err = spec.partitionSelectionBudget.get(
+			params.PartitionSelectionParams.Epsilon, params.PartitionSelectionParams.Delta)
 		if err != nil {
 			log.Fatalf("Couldn't consume partition selection budget for Mean: %v", err)
 		}
@@ -163,13 +195,13 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 
 	err = checkMeanPerKeyParams(params, noiseKind, pcol.codec.KType.T)
 	if err != nil {
-		log.Fatalf("pbeam.MeanPerKey: %v", err)
+		log.Fatalf("pbeam.MeanStatisticsPerKey: %v", err)
 	}
 
 	// Drop non-public partitions, if public partitions are specified.
 	pcol.col, err = dropNonPublicPartitions(s, pcol, params.PublicPartitions, pcol.codec.KType.T)
 	if err != nil {
-		log.Fatalf("Couldn't drop non-public partitions for MeanPerKey: %v", err)
+		log.Fatalf("Couldn't drop non-public partitions for MeanStatisticsPerKey: %v", err)
 	}
 
 	// First, group together the privacy ID and the partition ID and do per-partition contribution bounding.
@@ -188,7 +220,7 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 	// Result is PCollection<kv.Pair{ID,K},float64>.
 	_, valueT := beam.ValidateKVType(decoded)
 	if err := checkNumericType(valueT); err != nil {
-		log.Fatalf("MeanPerKey: %v", err)
+		log.Fatalf("MeanStatisticsPerKey: %v", err)
 	}
 	converted := beam.ParDo(s, convertToFloat64Fn, decoded)
 
@@ -220,18 +252,24 @@ func MeanPerKey(s beam.Scope, pcol PrivatePCollection, params MeanParams) beam.P
 		// Compute the mean for each partition. Result is PCollection<partition, float64>.
 		boundedMeanFn, err := newBoundedMeanFn(*spec, params, noiseKind, false, false)
 		if err != nil {
-			log.Fatalf("Couldn't get boundedMeanFn for MeanPerKey: %v", err)
+			log.Fatalf("Couldn't get boundedMeanFn for MeanStatisticsPerKey: %v", err)
 		}
-		means := beam.CombinePerKey(s,
-			boundedMeanFn,
-			partialKV)
+		meanStatistics := beam.CombinePerKey(s, boundedMeanFn, partialKV)
+
 		// Finally, drop thresholded partitions.
-		result = beam.ParDo(s, dropThresholdedPartitionsFloat64, means)
+		// PCollection<partition, *MeanStatistics> -> PCollection<partition, MeanStatistics>.
+		result = beam.ParDo(s, dropThresholdedPartitionsMeanStatistics, meanStatistics)
 	}
 
 	return result
 }
 
+// addPublicPartitionsForMean adds empty-valued MeanStatistics with noise for all public partitions
+// not found in the input when public partitions are specified
+// and calculates the MeanStatistics for all partitions.
+//
+// The function transforms a PCollection<partition, []float64> into a
+// PCollection<partition, MeanStatistics>.
 func addPublicPartitionsForMean(s beam.Scope, spec PrivacySpec, params MeanParams, noiseKind noise.Kind, partialKV beam.PCollection) beam.PCollection {
 	// Calculate means with empty public partitions added. Result is PCollection<partition, float64>.
 	// First, add empty slice to all public partitions.
@@ -243,20 +281,20 @@ func addPublicPartitionsForMean(s beam.Scope, spec PrivacySpec, params MeanParam
 	// Second, add noise to all public partitions (all of which are empty-valued).
 	boundedMeanFn, err := newBoundedMeanFn(spec, params, noiseKind, true, true)
 	if err != nil {
-		log.Fatalf("Couldn't get boundedMeanFn for MeanPerKey: %v", err)
+		log.Fatalf("Couldn't get boundedMeanFn for MeanStatisticsPerKey: %v", err)
 	}
 	noisyEmptyPublicPartitions := beam.CombinePerKey(s, boundedMeanFn, emptyPublicPartitions)
 	// Third, compute noisy means for partitions in the actual data.
 	boundedMeanFn, err = newBoundedMeanFn(spec, params, noiseKind, true, false)
 	if err != nil {
-		log.Fatalf("Couldn't get boundedMeanFn for MeanPerKey: %v", err)
+		log.Fatalf("Couldn't get boundedMeanFn for MeanStatisticsPerKey: %v", err)
 	}
-	means := beam.CombinePerKey(s, boundedMeanFn, partialKV)
+	meanStatistics := beam.CombinePerKey(s, boundedMeanFn, partialKV)
 	// Fourth, co-group by actual noisy means with noisy public partitions, emit noisy empty value for public partitions not found in data.
-	noisyMeansWithEmptyPublicPartitions := beam.CoGroupByKey(s, means, noisyEmptyPublicPartitions)
-	means = beam.ParDo(s, mergeResultWithEmptyPublicPartitionsFn, noisyMeansWithEmptyPublicPartitions)
-	// Fifth, dereference *float64 results and return.
-	return beam.ParDo(s, dereferenceValueFloat64, means)
+	noisyMeansWithEmptyPublicPartitions := beam.CoGroupByKey(s, meanStatistics, noisyEmptyPublicPartitions)
+	meanStatistics = beam.ParDo(s, mergeResultWithEmptyPublicPartitionsFn, noisyMeansWithEmptyPublicPartitions)
+	// Fifth, dereference *MeanStatistics results and return.
+	return beam.ParDo(s, dereferenceMeanStatistics, meanStatistics)
 }
 
 func checkMeanPerKeyParams(params MeanParams, noiseKind noise.Kind, partitionType reflect.Type) error {
@@ -414,7 +452,7 @@ func (fn *boundedMeanFn) MergeAccumulators(a, b boundedMeanAccum) (boundedMeanAc
 	return a, err
 }
 
-func (fn *boundedMeanFn) ExtractOutput(a boundedMeanAccum) (*float64, error) {
+func (fn *boundedMeanFn) ExtractOutput(a boundedMeanAccum) (*MeanStatistics, error) {
 	if fn.TestMode.isEnabled() {
 		a.BM.NormalizedSum.Noise = noNoise{}
 		a.BM.Count.Noise = noNoise{}
@@ -428,11 +466,17 @@ func (fn *boundedMeanFn) ExtractOutput(a boundedMeanAccum) (*float64, error) {
 		}
 	}
 
-	if shouldKeepPartition {
-		result, err := a.BM.Result()
-		return &result, err
+	if !shouldKeepPartition {
+		return nil, nil
 	}
-	return nil, nil
+	result, err := a.BM.ResultWithCount()
+	if err != nil {
+		return nil, fmt.Errorf("dpagg.BoundedMean.ResultWithCount: %w", err)
+	}
+	return &MeanStatistics{
+		Count: result.Count,
+		Mean:  result.Mean,
+	}, nil
 }
 
 func (fn *boundedMeanFn) String() string {

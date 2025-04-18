@@ -22,10 +22,10 @@ import (
 	"reflect"
 
 	log "github.com/golang/glog"
-	"github.com/google/differential-privacy/go/v3/checks"
-	"github.com/google/differential-privacy/go/v3/dpagg"
-	"github.com/google/differential-privacy/go/v3/noise"
-	"github.com/google/differential-privacy/privacy-on-beam/v3/internal/kv"
+	"github.com/google/differential-privacy/go/v4/checks"
+	"github.com/google/differential-privacy/go/v4/dpagg"
+	"github.com/google/differential-privacy/go/v4/noise"
+	"github.com/google/differential-privacy/privacy-on-beam/v4/internal/kv"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 )
@@ -132,15 +132,16 @@ type VarianceParams struct {
 //
 // VariancePerKey transforms a PrivatePCollection<K,V> into a PCollection<K,float64>.
 func VariancePerKey(s beam.Scope, pcol PrivatePCollection, params VarianceParams) beam.PCollection {
-	vsPerKey := VarianceStatisticsPerKey(s, pcol, params)
+	s = s.Scope("pbeam.VariancePerKey")
+	vsPerKey := varianceStatisticsPerKeyImpl(s, pcol, params)
 
 	// Transforms a PCollection<K,VarianceStatistics> into a PCollection<K,float64>.
 	return beam.ParDo(s, extractVariance, vsPerKey)
 }
 
 // VarianceStatisticsPerKey obtains the count, mean, and variance of the values associated with
-// each key in a PrivatePCollection<K,V>, adding differentially private noise to the variances and
-// doing pre-aggregation thresholding to remove variances with a low number of
+// each key in a PrivatePCollection<K,V>, adding differentially private noise to the values and
+// doing pre-aggregation thresholding to remove partitions with a low number of
 // distinct privacy identifiers.
 //
 // It is also possible to manually specify the list of partitions
@@ -153,6 +154,14 @@ func VariancePerKey(s beam.Scope, pcol PrivatePCollection, params VarianceParams
 // This aggregation is not hardened for such applications yet.
 func VarianceStatisticsPerKey(s beam.Scope, pcol PrivatePCollection, params VarianceParams) beam.PCollection {
 	s = s.Scope("pbeam.VarianceStatisticsPerKey")
+	return varianceStatisticsPerKeyImpl(s, pcol, params)
+}
+
+// varianceStatisticsPerKeyImpl is the same as VarianceStatisticsPerKey,
+// but does not change the scope.
+//
+// This is to separate the scope for VariancePerKey and VarianceStatisticsPerKey.
+func varianceStatisticsPerKeyImpl(s beam.Scope, pcol PrivatePCollection, params VarianceParams) beam.PCollection {
 	// Obtain & validate type information from the underlying PCollection<K,V>.
 	idT, kvT := beam.ValidateKVType(pcol.col)
 	if kvT.Type() != reflect.TypeOf(kv.Pair{}) {
@@ -288,7 +297,7 @@ func addPublicPartitionsForVariance(s beam.Scope, spec PrivacySpec, params Varia
 	// and emit noisy empty value for public partitions not found in data.
 	varianceStatistics = beam.ParDo(s, mergeResultWithEmptyPublicPartitionsFn,
 		beam.CoGroupByKey(s, varianceStatistics, noisyEmptyPublicPartitions))
-	// Fifth, dereference *float64 results and return.
+	// Fifth, dereference *VarianceStatistics results and return.
 	return beam.ParDo(s, dereferenceVarianceStatistics, varianceStatistics)
 }
 
@@ -473,7 +482,7 @@ func (fn *boundedVarianceFn) ExtractOutput(a boundedVarianceAccum) (*VarianceSta
 		return nil, fmt.Errorf("dpagg.BoundedVariance.ResultWithCountAndMean: %w", err)
 	}
 	return &VarianceStatistics{
-		Count:    float64(result.Count),
+		Count:    result.Count,
 		Mean:     result.Mean,
 		Variance: result.Variance,
 	}, nil

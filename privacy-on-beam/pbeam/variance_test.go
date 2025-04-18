@@ -18,14 +18,13 @@ package pbeam
 
 import (
 	"fmt"
-	"math"
 	"reflect"
 	"strings"
 	"testing"
 
-	"github.com/google/differential-privacy/go/v3/dpagg"
-	"github.com/google/differential-privacy/go/v3/noise"
-	"github.com/google/differential-privacy/privacy-on-beam/v3/pbeam/testutils"
+	"github.com/google/differential-privacy/go/v4/dpagg"
+	"github.com/google/differential-privacy/go/v4/noise"
+	"github.com/google/differential-privacy/privacy-on-beam/v4/pbeam/testutils"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
@@ -113,7 +112,7 @@ func checkVSsAreNoisy(
 	// PCollection<K,VarianceStatistics> -> PCollection<pairIntVS>.
 	got = beam.ParDo(s, kVSToPairIntVS, got)
 
-	// PCollection<pairIntVS> -> PCollection<nil>.
+	// PCollection<pairIntVS> -> N/A.
 	beam.ParDo0(s, fn, got)
 }
 
@@ -200,8 +199,8 @@ type diffVarianceStatisticsFn struct {
 func (fn *diffVarianceStatisticsFn) ProcessElement(
 	k int, gotSliceIter, wantSliceIter vsSliceIter,
 ) string {
-	gotSlice := sliceFromIter(gotSliceIter)
-	wantSlice := sliceFromIter(wantSliceIter)
+	gotSlice := testutils.SliceFromIter(gotSliceIter)
+	wantSlice := testutils.SliceFromIter(wantSliceIter)
 	if len(gotSlice) != 1 || len(wantSlice) != 1 {
 		return fmt.Sprintf(
 			"VarianceStatistics of key %d: got has %d values, want has %d values",
@@ -212,15 +211,6 @@ func (fn *diffVarianceStatisticsFn) ProcessElement(
 		return fmt.Sprintf("VarianceStatistics of key %d diff (-got +want):\n%s", k, diff)
 	}
 	return "" // No diff for key k.
-}
-
-func sliceFromIter[T any](iter func(*T) bool) []T {
-	var result []T
-	var value T
-	for iter(&value) {
-		result = append(result, value)
-	}
-	return result
 }
 
 func TestNewBoundedVarianceFn(t *testing.T) {
@@ -534,6 +524,7 @@ func TestBoundedVarianceFnWithPartitionsExtractOutputDoesNotReturnNilForSmallPar
 
 // Checks that VarianceStatisticsPerKey adds noise to its output.
 func TestVarianceStatisticsPerKeyAddsNoise(t *testing.T) {
+	params := &testutils.MeanVarianceAPIAddsNoiseTestParams
 	for _, tc := range []struct {
 		name      string
 		noiseKind NoiseKind
@@ -546,15 +537,15 @@ func TestVarianceStatisticsPerKeyAddsNoise(t *testing.T) {
 		{
 			name:                      "Gaussian",
 			noiseKind:                 GaussianNoise{},
-			aggregationEpsilon:        1 * math.Pow10(-13),     // Use small epsilon to avoid flakiness due to rounding noises to 0.
-			aggregationDelta:          0.005 * math.Pow10(-13), // Use small delta to avoid flakiness due to rounding noises to 0.
+			aggregationEpsilon:        params.AggEpsGaussian,
+			aggregationDelta:          params.AggDelGaussian,
 			partitionSelectionEpsilon: 1,
 			partitionSelectionDelta:   0.005,
 		},
 		{
 			name:                      "Laplace",
 			noiseKind:                 LaplaceNoise{},
-			aggregationEpsilon:        9.8e-11, // Use small epsilon to avoid flakiness due to rounding noises to 0.
+			aggregationEpsilon:        params.AggEpsLaplace,
 			partitionSelectionEpsilon: 0.1,
 			partitionSelectionDelta:   0.01,
 		},
@@ -620,6 +611,7 @@ func TestVarianceStatisticsPerKeyAddsNoise(t *testing.T) {
 
 // Checks that VarianceStatisticsPerKey with partitions adds noise to its output.
 func TestVarianceStatisticsPerKeyWithPartitionsAddsNoise(t *testing.T) {
+	params := &testutils.MeanVarianceAPIAddsNoiseTestParams
 	for _, tc := range []struct {
 		desc      string
 		noiseKind NoiseKind
@@ -631,29 +623,29 @@ func TestVarianceStatisticsPerKeyWithPartitionsAddsNoise(t *testing.T) {
 		{
 			desc:      "as PCollection w/ Gaussian",
 			noiseKind: GaussianNoise{},
-			epsilon:   1 * math.Pow10(-13),     // Use small epsilon to avoid flakiness due to rounding noises to 0.
-			delta:     0.005 * math.Pow10(-13), // Use small delta to avoid flakiness due to rounding noises to 0.
+			epsilon:   params.AggEpsGaussian,
+			delta:     params.AggDelGaussian,
 			inMemory:  false,
 		},
 		{
 			desc:      "as slice w/ Gaussian",
 			noiseKind: GaussianNoise{},
-			epsilon:   1 * math.Pow10(-13),     // Use small epsilon to avoid flakiness due to rounding noises to 0.
-			delta:     0.005 * math.Pow10(-13), // Use small delta to avoid flakiness due to rounding noises to 0.
+			epsilon:   params.AggEpsGaussian,
+			delta:     params.AggDelGaussian,
 			inMemory:  true,
 		},
 		{
 			desc:      "as PCollection w/ Laplace",
 			noiseKind: LaplaceNoise{},
-			epsilon:   9.8e-11, // Use small epsilon to avoid flakiness due to rounding noises to 0.
-			delta:     0,       // It is 0 because partitions are public and we are using Laplace noise.
+			epsilon:   params.AggEpsLaplace,
+			delta:     0, // It is 0 because partitions are public and we are using Laplace noise.
 			inMemory:  false,
 		},
 		{
 			desc:      "as PCollection w/ Laplace",
 			noiseKind: LaplaceNoise{},
-			epsilon:   9.8e-11, // Use small epsilon to avoid flakiness due to rounding noises to 0.
-			delta:     0,       // It is 0 because partitions are public and we are using Laplace noise.
+			epsilon:   params.AggEpsLaplace,
+			delta:     0, // It is 0 because partitions are public and we are using Laplace noise.
 			inMemory:  true,
 		},
 	} {
@@ -1337,7 +1329,7 @@ func TestVarianceStatisticsPerKeyPerPartitionContributionBounding(t *testing.T) 
 	// The tolerance of the former case is ≈33.95, and the tolerance of the latter case is ≈35.78.
 	// So the test (|gotVariance - wantVariance| <= 33.95) should fail if there was no per-partition contribution bounding.
 
-	// stat1 represents the statistics result with per-partition contribution bounding.
+	// stat represents the statistics result with per-partition contribution bounding.
 	stat := testutils.PerPartitionVarianceStatistics(minValue, maxValue, triples)[0]
 	result := []testutils.PairIF64{
 		{Key: 0, Value: stat.Variance},

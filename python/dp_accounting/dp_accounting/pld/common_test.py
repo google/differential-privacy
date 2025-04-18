@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests for common."""
 
 import math
 import unittest
@@ -242,6 +241,9 @@ class ConvolveTest(parameterized.TestCase):
     self.assertEqual(min_val, 6)
     self.assertSequenceAlmostEqual([1], result_list)
 
+
+class HelperMethodsTest(parameterized.TestCase):
+
   @parameterized.parameters(
       (5, 7, 3, 8.60998489),
       (0.5, 3, 0.1, 2.31676098),
@@ -249,6 +251,28 @@ class ConvolveTest(parameterized.TestCase):
   def test_log_a_times_exp_b_plus_c(self, a, b, c, expected_result):
     self.assertAlmostEqual(
         common.log_a_times_exp_b_plus_c(a, b, c), expected_result)
+
+  def test_log_sinh_errors(self):
+    with self.assertRaises(ValueError):
+      common.log_sinh(-1)
+
+  @parameterized.parameters(
+      (0.0, 0.0),
+      (1, math.log(math.sinh(1))),
+      (100000, 100000 - math.log(2)),
+  )
+  def test_log_sinh(self, a, log_sinh_a):
+    self.assertAlmostEqual(common.log_sinh(a), log_sinh_a)
+
+  @parameterized.parameters(
+      dict(a=1.0, b=0.0, asinh_exp_b_times_exp_a=0.0),
+      dict(a=math.log(math.sinh(1)), b=1.0, asinh_exp_b_times_exp_a=1.0),
+      dict(a=100000, b=0.5, asinh_exp_b_times_exp_a=100000),
+      dict(a=math.log(math.sinh(1)), b=-1.0, asinh_exp_b_times_exp_a=-1.0),
+      dict(a=100000, b=-0.5, asinh_exp_b_times_exp_a=-100000),
+  )
+  def test_asinh_exp(self, a, b, asinh_exp_b_times_exp_a):
+    self.assertAlmostEqual(common.asinh_exp(a, b), asinh_exp_b_times_exp_a)
 
 if __name__ == '__main__':
   unittest.main()

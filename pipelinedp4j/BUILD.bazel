@@ -18,8 +18,8 @@ load("@rules_kotlin//kotlin:core.bzl", "kt_kotlinc_options")
 
 package(
     default_visibility = [
-        # TODO: make visibility as strict as possible.
-        "//visibility:public",
+        "//tests/com/google/privacy/differentialprivacy/pipelinedp4j/core:__subpackages__",
+        "//tests/com/google/privacy/differentialprivacy/pipelinedp4j/core/budget:__subpackages__",
     ],
 )
 

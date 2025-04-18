@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/google/differential-privacy/go/v3/noise"
+	"github.com/google/differential-privacy/go/v4/noise"
 )
 
 // BoundedStandardDeviation calculates a differentially private standard deviation
@@ -40,6 +40,8 @@ import (
 // aggregation is not hardened for such applications yet.
 //
 // Not thread-safe.
+//
+// Deprecated: Use BoundedVariance instead.
 type BoundedStandardDeviation struct {
 	// State variables
 	Variance BoundedVariance

@@ -16,7 +16,7 @@
 
 package pbeam
 
-import "github.com/google/differential-privacy/go/v3/noise"
+import "github.com/google/differential-privacy/go/v4/noise"
 
 // TestMode is an enum representing different test modes for test pipelines available in Privacy on Beam.
 type TestMode int

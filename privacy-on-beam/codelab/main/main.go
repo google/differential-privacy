@@ -17,13 +17,6 @@
 // package main runs the Privacy on Beam codelab.
 // Example command to run:
 // (From the codelab/ directory)
-// Linux: bazel run main/codelab -- --example=count --input_file=$(pwd)/main/day_data.csv --output_stats_file=$(pwd)/stats.csv --output_chart_file=$(pwd)/chart.png
-// Windows: bazel run main/codelab -- --example=count --input_file=%CD%/main/day_data.csv --output_stats_file=%CD%/stats.csv --output_chart_file=%CD%/chart.png
-// (Or alternatively, from the codelab/main/ directory)
-// Linux: bazel run codelab -- --example=count --input_file=$(pwd)/day_data.csv --output_stats_file=$(pwd)/stats.csv --output_chart_file=$(pwd)/chart.png
-// Windows: bazel run codelab -- --example=count --input_file=%CD%/day_data.csv --output_stats_file=%CD%/stats.csv --output_chart_file=%CD%/chart.png
-// If instead you'd like to build and run with native "go" command, you can run the following:
-// (From the codelab/ directory)
 // go run --mod=mod ./main  --example=count --input_file=main/day_data.csv --output_stats_file=stats.csv --output_chart_file=chart.png
 // (From the codelab/main directory)
 // go run --mod=mod . --example=count --input_file=day_data.csv --output_stats_file=stats.csv --output_chart_file=chart.png
@@ -38,7 +31,7 @@ import (
 
 	"flag"
 	log "github.com/golang/glog"
-	"github.com/google/differential-privacy/privacy-on-beam/v3/codelab"
+	"github.com/google/differential-privacy/privacy-on-beam/v4/codelab"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 

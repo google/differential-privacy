@@ -13,9 +13,9 @@
 # limitations under the License.
 
 package(
-    # TODO: make visible only to examples.
     default_visibility = [
-        "//visibility:public",
+        "//beam/src/main/java/com/google/privacy/differentialprivacy/pipelinedp4j/examples:__subpackages__",
+        "//spark/src/main/java/com/google/privacy/differentialprivacy/pipelinedp4j/examples:__subpackages__",
     ],
 )
 

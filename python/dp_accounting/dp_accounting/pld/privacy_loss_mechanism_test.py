@@ -28,6 +28,7 @@ from dp_accounting.pld import test_util
 
 ADD = privacy_loss_mechanism.AdjacencyType.ADD
 REM = privacy_loss_mechanism.AdjacencyType.REMOVE
+REP = privacy_loss_mechanism.AdjacencyType.REPLACE
 
 
 def _assert_connect_bounds_equal(
@@ -44,6 +45,11 @@ def _assert_connect_bounds_equal(
 
 
 class LaplacePrivacyLossTest(parameterized.TestCase):
+
+  def test_replace_adjacency_type_not_supported(self):
+    with self.assertRaisesRegex(
+        NotImplementedError, 'REPLACE adjacency type is not supported'):
+      privacy_loss_mechanism.LaplacePrivacyLoss(1.0, 1.0, 0.1, REP)
 
   @parameterized.parameters(
       # Tests with sampling_prob = 1 for adjacency_type=ADD
@@ -392,6 +398,18 @@ class GaussianPrivacyLossTest(parameterized.TestCase):
        [9.028859644691143e-20, 0.7730757968548344, 0.9500688436551652, 1.0]),
       (2.0, 1.0, 0.2, REM, [-10, 0, 1, 10],
        [9.08855882449e-07, 0.53829249225, 0.7214389182, 0.99999976688083]),
+      # Tests with sampling_prob = 1 for adjacency_type=REPLACE
+      # (same as REMOVE above)
+      (1.0, 1.0, 1.0, REP, [-10, 0, 1, 10],
+       [1.1285884059538324e-19, 0.8413447460685429, 0.9772498680518208, 1.0]),
+      (2.0, 1.0, 1.0, REP, [-10, 0, 1, 10],
+       [3.39767312473e-06, 0.6914624612, 0.8413447460, 0.9999999810]),
+      # Tests with sampling_prob < 1 for adjacency_type=REPLACE
+      # (same as REMOVE above)
+      (1.0, 1.0, 0.8, REP, [-10, 0, 1, 10],
+       [9.028859644691143e-20, 0.7730757968548344, 0.9500688436551652, 1.0]),
+      (2.0, 1.0, 0.2, REP, [-10, 0, 1, 10],
+       [9.08855882449e-07, 0.53829249225, 0.7214389182, 0.99999976688083]),
   )
   def test_mu_upper_cdf(
       self, standard_deviation, sensitivity, sampling_prob, adjacency_type,
@@ -424,6 +442,16 @@ class GaussianPrivacyLossTest(parameterized.TestCase):
        [-5.32312852e+01, -6.93147181e-01, -1.72753779e-01, -7.61985302e-24]),
       (2.0, 1.0, 0.2, REM, [-10, 0, 1, 10],
        [-1.50649984e+01, -6.93147181e-01, -3.68946415e-01, -2.86651613e-07]),
+      # Tests with sampling_prob = 1 for adjacency_type=REP (same as ADD above)
+      (1.0, 1.0, 1.0, REP, [-10, 0, 1, 10],
+       [-6.38249341e+01, -1.84102165e+00, -6.93147181e-01, -1.12858841e-19]),
+      (2.0, 1.0, 1.0, REP, [-10, 0, 1, 10],
+       [-1.77793764e+01, -1.17591176e+00, -6.93147181e-01, -3.39767890e-06]),
+      # Tests with sampling_prob < 1 for adjacency_type=REP (same as ADD above)
+      (1.0, 1.0, 0.8, REP, [-10, 0, 1, 10],
+       [-54.84062277, -1.48313922, -0.56516047, 0.]),
+      (2.0, 1.0, 0.2, REP, [-10, 0, 1, 10],
+       [-1.52717161e+01, -7.72823689e-01, -4.25917894e-01, -9.08856295e-07]),
   )
   def test_mu_lower_log_cdf(
       self, standard_deviation, sensitivity, sampling_prob, adjacency_type,
@@ -459,7 +487,19 @@ class GaussianPrivacyLossTest(parameterized.TestCase):
       (1.0, 2.0, 0.7, REM, 0.0, -0.929541389699331),
       (4.0, 4.0, 0.3, REM, 16.0, -0.3519252431310541),
       (5.0, 5.0, 0.45, REM, -20.0, 2.737735427805667),
-      (7.0, 14.0, 0.9, REM, 7.0, -2.150000710600199))
+      (7.0, 14.0, 0.9, REM, 7.0, -2.150000710600199),
+      # Tests with sampling_prob = 1 for adjacency_type=REPLACE
+      (1.0, 1.0, 1.0, REP, 4.0, -8.0), (1.0, 1.0, 1.0, REP, -4.0, 8.0),
+      (1.0, 2.0, 1.0, REP, 1.0, -4.0), (4.0, 4.0, 1.0, REP, 16.0, -8.0),
+      (5.0, 5.0, 1.0, REP, -20.0, 8.0), (7.0, 14.0, 1.0, REP, 7.0, -4.0),
+      # Tests with sampling_prob < 1 for adjacency_type=REPLACE
+      (1.0, 1.0, 0.8, REP, -0.5, 0.7046054708796524),
+      (1.0, 1.0, 0.5, REP, 4.0, -3.5187026734240265),
+      (1.0, 2.0, 0.7, REP, 0.0, 0.0),
+      (4.0, 4.0, 0.3, REP, 16.0, -2.7160414258090357),
+      (5.0, 5.0, 0.45, REP, -20.0, 3.3265243075613813),
+      (7.0, 14.0, 0.9, REP, 7.0, -2.1500007106001986),
+  )
   def test_gaussian_privacy_loss(self, standard_deviation, sensitivity,
                                  sampling_prob, adjacency_type, x,
                                  expected_privacy_loss):
@@ -493,7 +533,19 @@ class GaussianPrivacyLossTest(parameterized.TestCase):
       (1.0, 2.0, 0.7, REM, -0.929541389699331, 0.0),
       (4.0, 4.0, 0.3, REM, -0.3519252431310541, 16.0),
       (5.0, 5.0, 0.45, REM, 2.737735427805667, -20.0),
-      (7.0, 14.0, 0.9, REM, -2.150000710600199, 7.0))
+      (7.0, 14.0, 0.9, REM, -2.150000710600199, 7.0),
+      # Tests with sampling_prob = 1 for adjacency_type=REPLACE
+      (1.0, 1.0, 1.0, REP, -8.0, 4.0), (1.0, 1.0, 1.0, REP, 8.0, -4.0),
+      (1.0, 2.0, 1.0, REP, -4.0, 1.0), (4.0, 4.0, 1.0, REP, -8.0, 16.0),
+      (5.0, 5.0, 1.0, REP, 8.0, -20.0), (7.0, 14.0, 1.0, REP, -4.0, 7.0),
+      # Tests with sampling_prob < 1 for adjacency_type=REPLACE
+      (1.0, 1.0, 0.8, REP, 0.7046054708796524, -0.5),
+      (1.0, 1.0, 0.5, REP, -3.5187026734240265, 4.0),
+      (1.0, 2.0, 0.7, REP, 0.0, 0.0),
+      (4.0, 4.0, 0.3, REP, -2.7160414258090357, 16.0),
+      (5.0, 5.0, 0.45, REP, 3.3265243075613813, -20.0),
+      (7.0, 14.0, 0.9, REP, -2.1500007106001986, 7.0),
+  )
   def test_gaussian_inverse_privacy_loss(self, standard_deviation, sensitivity,
                                          sampling_prob, adjacency_type,
                                          privacy_loss, expected_x):
@@ -620,7 +672,66 @@ class GaussianPrivacyLossTest(parameterized.TestCase):
       }),
       (4.0, 8, 0.2, REM, -12.0, 4.0, False, {
           2.461265214250274: 0.03281096921159548,
-      }))
+      }),
+      # Tests with sampling_prob = 1 for adjacency_type=REPLACE
+      (1.0, 1.0, 1.0, REP, -2.0, 1.0, True, {
+          math.inf: 0.15865525393145707,
+          -2.0: 0.02275013194817921,
+      }),
+      (3.0, 3.0, 1.0, REP, -6.0, 3.0, True, {
+          math.inf: 0.15865525393145707,
+          -2.0: 0.02275013194817921,
+      }),
+      (1.0, 2.0, 1.0, REP, -3.0, 1.0, True, {
+          math.inf: 0.15865525393145707,
+          -4.0: 0.0013498980316301035
+      }),
+      (4.0, 8.0, 1.0, REP, -12.0, 4.0, True, {
+          math.inf: 0.15865525393145707,
+          -4.0: 0.0013498980316301035
+      }),
+      (1.0, 1.0, 1.0, REP, -2.0, 1.0, False, {
+          4.0: 0.15865525393145707
+      }),
+      (3.0, 3.0, 1.0, REP, -6.0, 3.0, False, {
+          4.0: 0.15865525393145707
+      }),
+      (1.0, 2.0, 1.0, REP, -3.0, 1.0, False, {
+          12.0: 0.15865525393145707
+      }),
+      (4.0, 8.0, 1.0, REP, -12.0, 4.0, False, {
+          12.0: 0.15865525393145707
+      }),
+      # Tests with sampling_prob < 1 for adjacency_type=REPLACE
+      (1.0, 1.0, 0.8, REP, -2.0, 1.0, True, {
+          math.inf: 0.1314742295348015,
+          -1.3895653925023248: 0.049931156344834804
+      }),
+      (3.0, 3.0, 0.8, REP, -6.0, 3.0, True, {
+          math.inf: 0.1314742295348015,
+          -1.3895653925023248: 0.049931156344834804
+      }),
+      (1.0, 2.0, 0.5, REP, -3.0, 1.0, True, {
+          math.inf: 0.08000257598154359,
+          -0.6749972526421355: 0.08000257598154359
+      }),
+      (4.0, 8.0, 0.6, REP, -12.0, 4.0, True, {
+          math.inf: 0.09573311157152628,
+          -0.8891878961255205: 0.06427204039156087
+      }),
+      (1.0, 1.0, 0.9, REP, -2.0, 1.0, False, {
+          3.168539392732204: 0.1450647417331293
+      }),
+      (3.0, 3.0, 0.7, REP, -6.0, 3.0, False, {
+          2.2633852639016148: 0.1178837173364737
+      }),
+      (1.0, 2.0, 0.4, REP, -3.0, 1.0, False, {
+          3.6214141108926237: 0.0642720403915609
+      }),
+      (4.0, 8, 0.2, REP, -12.0, 4.0, False, {
+          2.6843249034240353: 0.03281096921159549
+      }),
+  )
   def test_gaussian_privacy_loss_tail(self, standard_deviation, sensitivity,
                                       sampling_prob, adjacency_type,
                                       expected_lower_x_truncation,
@@ -661,7 +772,18 @@ class GaussianPrivacyLossTest(parameterized.TestCase):
       (1.0, 1.0, 0.8, REM, 1.331138685, -0.971528300),
       (3.0, 3.0, 0.8, REM, 1.331138685, -0.971528300),
       (1.0, 2.0, 0.5, REM, 3.325002747, -0.674997253),
-      (4.0, 8.0, 0.6, REM, 3.501310856, -0.889187896))
+      (4.0, 8.0, 0.6, REM, 3.501310856, -0.889187896),
+      # Tests with sampling_prob = 1 for adjacency_type=REPLACE
+      (1.0, 1.0, 1.0, REP, 4.0, -2.0),
+      (3.0, 3.0, 1.0, REP, 4.0, -2.0),
+      (1.0, 2.0, 1.0, REP, 12.0, -4.0),
+      (4.0, 8.0, 1.0, REP, 12.0, -4.0),
+      # Tests with sampling_prob < 1 for adjacency_type=REPLACE
+      (1.0, 1.0, 0.8, REP, 2.6566465589644865, -1.3895653925023248),
+      (3.0, 3.0, 0.8, REP, 2.6566465589644865, -1.3895653925023248),
+      (1.0, 2.0, 0.5, REP, 4.017814521544914, -0.6749972526421355),
+      (4.0, 8.0, 0.6, REP, 4.41709852073334, -0.8891878961255205),
+  )
   def test_gaussian_connect_dots_bounds(self, standard_deviation, sensitivity,
                                         sampling_prob, adjacency_type,
                                         expected_epsilon_upper,
@@ -677,23 +799,35 @@ class GaussianPrivacyLossTest(parameterized.TestCase):
                                  expected_epsilon_upper, expected_epsilon_lower,
                                  None, None)
 
-  @parameterized.parameters((0.0, 1.0), (-10.0, 2.0), (4.0, 0.0), (2.0, -1.0),
-                            (1.0, 1.0, 1.0, ADD, 1), (2.0, 1.0, 0.0, REM),
-                            (1.0, 1.0, 1.2, ADD), (2.0, 1.0, -0.1, REM))
+  @parameterized.named_parameters(
+      ('zero_standard_deviation', 0.0, 1.0),
+      ('negative_standard_deviation', -10.0, 2.0),
+      ('zero_sensitivity', 4.0, 0.0),
+      ('negative_sensitivity', 2.0, -1.0),
+      ('positive_log_mass_truncation_bound', 1.0, 1.0, 1.0, 1),
+      ('zero_sampling_prob', 2.0, 1.0, 0.0),
+      ('sampling_prob_greater_than_1', 1.0, 1.0, 1.2),
+      ('negative_sampling_prob', 2.0, 1.0, -0.1),
+  )
   def test_gaussian_value_errors(self, standard_deviation, sensitivity,
-                                 sampling_prob=1.0, adjacency_type=ADD,
+                                 sampling_prob=1.0,
                                  log_mass_truncation_bound=-50):
     with self.assertRaises(ValueError):
       privacy_loss_mechanism.GaussianPrivacyLoss(
           standard_deviation,
           sensitivity=sensitivity,
           log_mass_truncation_bound=log_mass_truncation_bound,
-          sampling_prob=sampling_prob,
-          adjacency_type=adjacency_type)
+          sampling_prob=sampling_prob)
 
-  @parameterized.parameters((1.0, 1.0, 1.0, 0), (1.0, 1.0, 1.0, 1.1),
-                            (1.0, 1.0, 1.0, -0.1), (1.0, 0, 1.0, 0.1),
-                            (1.0, -0.2, 1.0, 0.1), (1.0, 1.1, 1.0, 0.2))
+  @parameterized.named_parameters(
+      ('delta_zero', 1.0, 1.0, 1.0, 0),
+      ('delta_greater_than_1', 1.0, 1.0, 1.0, 1.1),
+      ('delta_less_than_zero', 1.0, 1.0, 1.0, -0.1),
+      ('epsilon_less_than_zero', 1.0, 1.0, -0.1, 0.1),
+      ('sampling_prob_zero', 1.0, 0, 1.0, 0.1),
+      ('sampling_prob_negative', 1.0, -0.2, 1.0, 0.1),
+      ('sampling_prob_greater_than_1', 1.0, 1.1, 1.0, 0.2),
+  )
   def test_gaussian_from_privacy_parameters_value_errors(
       self, sensitivity, sampling_prob, epsilon, delta):
     with self.assertRaises(ValueError):
@@ -702,22 +836,33 @@ class GaussianPrivacyLossTest(parameterized.TestCase):
           sensitivity,
           sampling_prob=sampling_prob)
 
-  @parameterized.parameters((1.0, 1.0, ADD, 1.0, 0.12693674, 1.0),
-                            (2.0, 1.0, REM, 1.0, 0.12693674, 2.0),
-                            (3.0, 1.0, ADD, 1.0, 0.78760074, 1.0),
-                            (6.0, 1.0, REM, 1.0, 0.78760074, 2.0),
-                            (1.0, 1.0, ADD, 2.0, 0.02092364, 1.0),
-                            (5.0, 1.0, REM, 2.0, 0.02092364, 5.0),
-                            (1.0, 1.0, ADD, 16.0, 1e-5, 0.344),
-                            (2.0, 1.0, REM, 16.0, 1e-5, 0.688),
-                            (1.0, 0.8, ADD, 1.0, 0.081695179, 1.0),
-                            (2.0, 0.7, ADD, 1.0, 0.143886147, 1.5),
-                            (3.0, 0.5, ADD, 1.0, 0.267379199, 1.3),
-                            (6.0, 0.01, ADD, 1.0, 0.0030216468, 2.0),
-                            (1.0, 0.1, REM, 2.0, 2.355186318853955e-6, 1.0),
-                            (5.0, 0.75, REM, 2.0, 0.0087720149, 5.0),
-                            (1.0, 0.3, REM, 16, 0.0000329405, 0.3),
-                            (2.0, 0.2, REM, 16, 0.0230238234, 0.4))
+  @parameterized.parameters(
+      # Test cases with sampling_prob = 1. ADD and REMOVE behave similarly
+      # REPLACE has twice the noise as required for ADD / REMOVE.
+      (1.0, 1.0, ADD, 1.0, 0.12693674, 1.0),
+      (2.0, 1.0, REM, 1.0, 0.12693674, 2.0),
+      (2.0, 1.0, REP, 1.0, 0.12693674, 4.0),
+      (3.0, 1.0, ADD, 1.0, 0.78760074, 1.0),
+      (6.0, 1.0, REM, 1.0, 0.78760074, 2.0),
+      (6.0, 1.0, REP, 1.0, 0.78760074, 4.0),
+      (1.0, 1.0, ADD, 2.0, 0.02092364, 1.0),
+      (5.0, 1.0, REM, 2.0, 0.02092364, 5.0),
+      (5.0, 1.0, REP, 2.0, 0.02092364, 10.0),
+      (1.0, 1.0, ADD, 16.0, 1.016e-05, 0.344),
+      (2.0, 1.0, REM, 16.0, 1.016e-05, 0.688),
+      (2.0, 1.0, REP, 16.0, 1.016e-05, 1.376),
+      # Test cases with sampling_prob < 1.
+      (1.0, 0.8, ADD, 1.0, 0.02313621, 1.0),
+      (2.0, 0.7, ADD, 1.0, 0.01080649, 1.5),
+      (1.0, 0.1, REM, 2.0, 2.355e-06, 1.0),
+      (5.0, 0.75, REM, 2.0, 0.00877201, 5.0),
+      (1.0, 0.3, REM, 16, 3.294e-05, 0.3),
+      (2.0, 0.2, REM, 16, 0.02302382, 0.4),
+      (5.0, 0.75, REP, 2.0, 0.09233932, 5.0),
+      (1.0, 0.3, REP, 16, 4.960e-05, 0.3),
+      (1.0, 0.1, REP, 2.0, 3.828e-06, 1.0),
+      (2.0, 0.2, REP, 16, 0.02477823, 0.4),
+  )
   def test_gaussian_from_privacy_parameters(self, sensitivity, sampling_prob,
                                             adjacency_type, epsilon, delta,
                                             expected_standard_deviation):
@@ -758,7 +903,22 @@ class GaussianPrivacyLossTest(parameterized.TestCase):
       (1.0, 3.0, 0.7, REM, 1.0, 0.5356298793262404),
       (2.0, 6.0, 0.4, REM, 1.0, 0.2888308005139968),
       (1.0, 1.0, 0.3, REM, 2.0, 0.0003341102928869332),
-      (5.0, 5.0, 0.2, REM, -0.25, 0.2211992169285951))
+      (5.0, 5.0, 0.2, REM, -0.25, 0.2211992169285951),
+      # Tests with sampling_prob = 1 for adjacency_type=REPLACE
+      (2.0, 1.0, 0.8, REP, 1.0, 0.05808665654484252),
+      (3.0, 2.0, 0.8, REP, 1.0, 0.13711260900644096),
+      (2.0, 3.0, 0.7, REP, 1.0, 0.4013057526509164),
+      (3.0, 6.0, 0.4, REP, 1.0, 0.20752885274183325),
+      (2.0, 1.0, 0.3, REP, 2.0, 2.4770380148941894e-09),
+      (10.0, 5.0, 0.2, REP, -0.25, 0.22989794629827498),
+      # Tests with sampling_prob < 1 for adjacency_type=REPLACE
+      (2.0, 1.0, 0.8, REP, 1.0, 0.05808665654484252),
+      (3.0, 2.0, 0.8, REP, 1.0, 0.13711260900644096),
+      (2.0, 3.0, 0.7, REP, 1.0, 0.4013057526509164),
+      (3.0, 6.0, 0.4, REP, 1.0, 0.20752885274183325),
+      (2.0, 1.0, 0.3, REP, 2.0, 2.4770380148941894e-09),
+      (10.0, 5.0, 0.2, REP, -0.25, 0.22989794629827498),
+  )
   def test_gaussian_get_delta_for_epsilon(
       self, standard_deviation, sensitivity, sampling_prob, adjacency_type,
       epsilon, expected_delta):
@@ -784,7 +944,14 @@ class GaussianPrivacyLossTest(parameterized.TestCase):
       (1.0, 1.0, 0.2, REM, [-0.3, -0.2, -0.1, 0.0, 0.1, 0.2, 0.5, 1.0],
        [0.25918178, 0.1814346, 0.11631708, 0.076584985, 0.051816131,
         0.035738492, 0.012494629, 0.00229682]),
-      )
+      # Tests with sampling_prob = 1 for adjacency_type=REPLACE
+      (1.0, 1.0, 1.0, REP, [-2.0, -1.0, 0.0, 1.0, 2.0],
+       [0.90958223, 0.81968818, 0.68268949, 0.50986166, 0.331897999]),
+      # Tests with sampling_prob < 1 for adjacency_type=REPLACE
+      (1.0, 1.0, 0.2, REP, [-0.3, -0.2, -0.1, 0.0, 0.1, 0.2, 0.5, 1.0],
+       [0.29584154, 0.23846474, 0.18414510, 0.13653790, 0.098340892,
+        0.069858734, 0.0250311655, 0.004734828]),
+  )
   def test_gaussian_get_delta_for_epsilon_vectorized(
       self, standard_deviation, sensitivity, sampling_prob, adjacency_type,
       epsilon_values, expected_delta_values):
@@ -799,6 +966,11 @@ class GaussianPrivacyLossTest(parameterized.TestCase):
 
 
 class DiscreteLaplacePrivacyLossDistributionTest(parameterized.TestCase):
+
+  def test_replace_adjacency_type_not_supported(self):
+    with self.assertRaisesRegex(
+        NotImplementedError, 'REPLACE adjacency type is not supported'):
+      privacy_loss_mechanism.DiscreteLaplacePrivacyLoss(1.0, 1, 1.0, REP)
 
   @parameterized.parameters(
       # Tests with sampling_prob = 1 for adjacency_type=ADD
@@ -1142,6 +1314,11 @@ class DiscreteLaplacePrivacyLossDistributionTest(parameterized.TestCase):
 
 
 class DiscreteGaussianPrivacyLossTest(parameterized.TestCase):
+
+  def test_replace_adjacency_type_not_supported(self):
+    with self.assertRaisesRegex(
+        NotImplementedError, 'REPLACE adjacency type is not supported'):
+      privacy_loss_mechanism.DiscreteGaussianPrivacyLoss(1.0, 1, None, 1.0, REP)
 
   @parameterized.parameters(
       # Tests with sampling_prob = 1 for adjacency_type=ADD
@@ -1612,6 +1789,26 @@ def _mixture_gaussian_without_zero_test_cases(num_tests):
 
 class MixtureGaussianPrivacyLossTest(parameterized.TestCase):
   """Tests for privacy_loss_mechanism.MixtureGaussianPrivacyLoss class."""
+
+  @parameterized.parameters(
+      ('mu_upper_cdf', ([0.0, 1.0, 2.0,],)),
+      ('mu_lower_log_cdf', ([0.0, 1.0, 2.0,],)),
+      ('get_delta_for_epsilon', ([1.0, 2.0],),),
+      ('privacy_loss_tail', ()),
+      ('connect_dots_bounds', ()),
+      ('_precompute_privacy_loss_constants', ()),
+      ('privacy_loss', (1.0,)),
+      ('privacy_loss_for_single_gaussian', (1.0,)),
+      ('inverse_privacy_loss_for_single_gaussian', (0.1,)),
+      ('inverse_privacy_loss', (0.1,)),
+      ('inverse_privacy_losses', (np.array([0.1, 0.2]),)),
+  )
+  def test_replace_adjacency_type_not_supported(self, method_name, args):
+    pl = privacy_loss_mechanism.MixtureGaussianPrivacyLoss(
+        1.0, [0.0, 1.0, 2.0], [0.5, 0.4, 0.1], True, -50, REP)
+    with self.assertRaisesRegex(
+        ValueError, 'REPLACE adjacency type is not supported'):
+      getattr(pl, method_name)(*args)
 
   @parameterized.named_parameters(
       {

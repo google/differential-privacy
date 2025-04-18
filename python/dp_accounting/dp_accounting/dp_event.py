@@ -286,6 +286,21 @@ class LaplaceDpEvent(DpEvent):
 
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
+class DiscreteLaplaceDpEvent(DpEvent):
+  """Represents an application of the discrete Laplace mechanism.
+
+  For integer values v_i and noise z sampled coordinate-wise from the discrete
+  Laplace distribution DLap(a), this mechanism returns sum_i v_i + z.
+  The probability mass function of the discrete Laplace distribution DLap(a)
+  with noise parameter `a` is given as exp(-a|x|) * tanh(a/2) at x for any
+  integer value x. If the L_1 norm of the values are bounded ||v_i||_1 <= C,
+  the sensitivity is `C`.
+  """
+  noise_parameter: float
+  sensitivity: int
+
+
+@attr.s(frozen=True, slots=True, auto_attribs=True)
 class SelfComposedDpEvent(DpEvent):
   """Represents repeated application of a mechanism.
 

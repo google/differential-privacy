@@ -22,11 +22,6 @@ package(
     default_visibility = ["//visibility:private"],
 )
 
-config_setting(
-    name = "darwin_build",
-    values = {"cpu": "darwin"},
-)
-
 cc_binary(
     name = "anon_func.so",
     srcs = ["anon_func.cc"],

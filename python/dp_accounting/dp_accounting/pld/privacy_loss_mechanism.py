@@ -38,12 +38,15 @@ from dp_accounting.pld import common
 class AdjacencyType(enum.Enum):
   """Designates the type of adjacency for computing privacy loss distributions.
 
-  ADD: the 'add' adjacency type specifies that the privacy loss distribution
+  ADD: the 'ADD' adjacency type specifies that the privacy loss distribution
     for a mechanism M is to be computed with mu_upper = M(D) and mu_lower =
     M(D'), where D' contains one more datapoint than D.
-  REMOVE: the 'remove' adjacency type specifies that the privacy loss
+  REMOVE: the 'REMOVE' adjacency type specifies that the privacy loss
     distribution for a mechanism M is to be computed with mu_upper = M(D) and
     mu_lower = M(D'), where D' contains one less datapoint than D.
+  REPLACE: the 'REPLACE' adjacency type specifies that the privacy loss
+    distribution for a mechanism M is to be computed with mu_upper = M(D) and
+    mu_lower = M(D'), where one datapoint in D is replaced by another in D'.
 
   Note: The rest of code currently assumes existence of only these two adjacency
   types. If a new adjacency type is added and used, the API in this file will
@@ -51,6 +54,7 @@ class AdjacencyType(enum.Enum):
   """
   ADD = 'ADD'
   REMOVE = 'REMOVE'
+  REPLACE = 'REPLACE'
 
 
 @dataclasses.dataclass(frozen=True)
@@ -226,41 +230,58 @@ class AdditiveNoisePrivacyLoss(MonotonePrivacyLoss, metaclass=abc.ABCMeta):
 
   An additive noise mechanism for computing a scalar-valued function f is a
   mechanism that outputs the sum of the true value of the function and a noise
-  drawn from a certain distribution mu. This class allows one to compute several
-  quantities related to the privacy loss of additive noise mechanisms.
+  drawn from a certain symmetric distribution mu.
+  When mu is discrete, mu(x) refers to the probability mass of mu at x, and when
+  mu is continuous, mu(x) is the probability density of mu at x.
+  The assumption that mu is symmetric means that mu(x) = mu(-x) for all x.
+
+  This class allows one to compute several quantities related to the privacy
+  loss of additive noise mechanisms.
 
   We assume that the noise mu is such that the algorithm is more private as the
   sensitivity of f decreases. (Recall that the sensitivity of f is the maximum
   absolute change in f when an input to a single user changes.) Under this
   assumption, the privacy loss distribution of the mechanism is exactly
   generated as follows:
-  - Let mu_lower(x) := mu(x - sensitivity), i.e., right shifted by sensitivity
-  - Sample x ~ mu_upper = mu and let the privacy loss be
-    ln(mu_upper(x) / mu_lower(x)).
-  When mu is discrete, mu(x) refers to the probability mass of mu at x, and when
-  mu is continuous, mu(x) is the probability density of mu at x; mu_upper and
-  mu_lower are defined analogously.
+  * For ADD adjacency type, let
+    - mu_upper(x) := mu(x)
+    - mu_lower(x) := mu(x - sensitivity), i.e., right shifted by sensitivity
+  * For REMOVE adjacency type, let:
+    - mu_upper(x) := mu(x + sensitivity), i.e., left shifted by sensitivity
+    - mu_lower(x) := mu(x),
+  * For REPLACE adjacency type, let:
+    - mu_upper(x) := mu(x + sensitivity), i.e., left shifted by sensitivity
+    - mu_lower(x) := mu(x - sensitivity), i.e., right shifted by sensitivity
+
+  In any case, the privacy loss distribution can be sampled from by sampling
+  x ~ mu_upper and letting the privacy loss be ln(mu_upper(x) / mu_lower(x)).
 
   Support for sub-sampling (Refer to supplementary material for more details):
   An additive noise mechanism with Poisson sub-sampling first samples a subset
   of data points including each data point independently with probability q,
   and outputs the sum of the true value of the function and a noise drawn from
   a certain distribution mu. Here, we consider differential privacy with
-  respect to the addition/removal relation.
+  respect to the addition/removal and substitution relation.
 
   With sub-sampling probability of q, the privacy loss distribution is
   generated as follows:
-  For ADD adjacency type:
-  - Let mu_lower(x) := q * mu(x - sensitivity) + (1-q) * mu(x)
-  - Sample x ~ mu_upper = mu and let the privacy loss be
-    ln(mu_upper(x) / mu_lower(x)).
-  For REMOVE adjacency type:
-  - Let mu_upper(x) := q * mu(x + sensitivity) + (1-q) * mu(x)
-  - Sample x ~ mu_lower = mu and let the privacy loss be
-    ln(mu_upper(x) / mu_lower(x)).
+  * For ADD adjacency type, let:
+    - mu_upper(x) := mu(x)
+    - mu_lower(x) := q * mu(x - sensitivity) + (1-q) * mu(x)
+  * For REMOVE adjacency type, let:
+    - mu_upper(x) := q * mu(x + sensitivity) + (1-q) * mu(x)
+    - mu_lower(x) := mu(x)
+  * For REPLACE adjacency type, let:
+    - mu_upper(x) := q * mu(x + sensitivity) + (1-q) * mu(x)
+    - mu_lower(x) := q * mu(x - sensitivity) + (1-q) * mu(x)
 
-  Note: When q = 1, the result privacy loss distributions for both ADD and
-    REMOVE adjacency types are identical.
+  As before, the privacy loss distribution can be sampled from by sampling
+  x ~ mu_upper and letting the privacy loss be ln(mu_upper(x) / mu_lower(x)).
+
+  Note: When q = 1, the resulting privacy loss distributions for both ADD and
+    REMOVE adjacency types are identical, and the privacy loss distribution
+    for REPLACE adjacency corresponds to the same privacy loss distribution
+    with twice the sensitivity.
 
   This class also assumes the privacy loss is non-increasing as x increases.
 
@@ -292,13 +313,25 @@ class AdditiveNoisePrivacyLoss(MonotonePrivacyLoss, metaclass=abc.ABCMeta):
     self.adjacency_type = adjacency_type
     super().__init__(is_discrete=is_discrete)
 
+    if self.adjacency_type == AdjacencyType.REPLACE:
+      try:
+        # Check if the inverse privacy loss method has been defined for
+        # REPLACE adjacency type, and if not, raise NotImplementedError.
+        self._inverse_privacy_loss_replace(0)
+      except NotImplementedError as exc:
+        raise NotImplementedError(
+            'REPLACE adjacency type is not supported for the class: '
+            f'{self.__class__.__name__}.'
+        ) from exc
+
   def mu_upper_cdf(
       self, x: Union[float, Iterable[float]]) -> Union[float, np.ndarray]:
     """Computes the cumulative density function of the mu_upper distribution.
 
-    For ADD adjacency type, for any sub-sampling probability:
+    For any subsampling probability q:
+    * For ADD adjacency type:
       mu_upper(x) := mu
-    For REMOVE adjacency type, with sub-sampling probability q:
+    * For REMOVE or REPLACE adjacency type:
       mu_upper(x) := (1-q) * mu(x) + q * mu(x + sensitivity)
 
     Args:
@@ -309,23 +342,26 @@ class AdditiveNoisePrivacyLoss(MonotonePrivacyLoss, metaclass=abc.ABCMeta):
       The cumulative density function of the mu_upper distribution at x, i.e.,
       the probability that mu_upper is less than or equal to x.
     """
-
     if self.adjacency_type == AdjacencyType.ADD:
       return self.noise_cdf(x)
-    else:  # Case: self.adjacency_type == AdjacencyType.REMOVE
+    elif self.adjacency_type in [AdjacencyType.REMOVE, AdjacencyType.REPLACE]:
       # For performance, the case of sampling_prob=1 is handled separately.
       if self.sampling_prob == 1.0:
         return self.noise_cdf(np.add(x, self.sensitivity))
       return ((1 - self.sampling_prob) * self.noise_cdf(x) +
               self.sampling_prob * self.noise_cdf(np.add(x, self.sensitivity)))
+    else:
+      raise ValueError(
+          f'{self.adjacency_type} adjacency type is not supported.')
 
   def mu_lower_log_cdf(
       self, x: Union[float, Iterable[float]]) -> Union[float, np.ndarray]:
     """Computes log cumulative density function of the mu_lower distribution.
 
-    For ADD adjacency type, with sub-sampling probability q:
+    For any subsampling probability q:
+    * For ADD or REPLACE adjacency type:
       mu_lower(x) := (1-q) * mu(x) + q * mu(x - sensitivity)
-    For REMOVE adjacency type, for any sub-sampling probability:
+    * For REMOVE adjacency type:
       mu_lower(x) := mu(x)
 
     Args:
@@ -337,7 +373,7 @@ class AdditiveNoisePrivacyLoss(MonotonePrivacyLoss, metaclass=abc.ABCMeta):
       x, i.e., the log of the probability that mu_lower is less than or equal to
       x.
     """
-    if self.adjacency_type == AdjacencyType.ADD:
+    if self.adjacency_type in [AdjacencyType.ADD, AdjacencyType.REPLACE]:
       # For performance, the case of sampling_prob=1 is handled separately.
       if self.sampling_prob == 1.0:
         return self.noise_log_cdf(np.add(x, -self.sensitivity))
@@ -346,9 +382,11 @@ class AdditiveNoisePrivacyLoss(MonotonePrivacyLoss, metaclass=abc.ABCMeta):
           np.log(self.sampling_prob) +
           self.noise_log_cdf(np.add(x, -self.sensitivity))
       )
-
-    else:  # Case: self.adjacency_type == AdjacencyType.REMOVE
+    elif self.adjacency_type == AdjacencyType.REMOVE:
       return self.noise_log_cdf(x)
+    else:
+      raise ValueError(
+          f'{self.adjacency_type} adjacency type is not supported.')
 
   def get_delta_for_epsilon(
       self, epsilon: Union[float, Sequence[float]],
@@ -361,10 +399,9 @@ class AdditiveNoisePrivacyLoss(MonotonePrivacyLoss, metaclass=abc.ABCMeta):
 
     This function assumes the privacy loss is non-increasing as x increases.
     Under this assumption, the hockey stick divergence is simply
-    mu_upper_cdf(inverse_privacy_loss(epsilon)) - exp(epsilon) *
-    mu_lower_cdf(inverse_privacy_loss(epsilon) - sensitivity), because the
-    privacy loss at a point x is at least epsilon iff
-    x <= inverse_privacy_loss(epsilon).
+    mu_upper_cdf(x) - exp(epsilon) * mu_lower_cdf(x)
+    for x = inverse_privacy_loss(epsilon) because the privacy loss at a point x'
+    is at least epsilon iff x' <= inverse_privacy_loss(epsilon).
 
     When adjacency_type is ADD and epsilon >= -log(1 - sampling_prob),
       the hockey stick divergence is 0,
@@ -384,14 +421,19 @@ class AdditiveNoisePrivacyLoss(MonotonePrivacyLoss, metaclass=abc.ABCMeta):
     is_scalar = isinstance(epsilon, numbers.Number)
     epsilons = np.array([epsilon]) if is_scalar else np.asarray(epsilon)
     deltas = np.zeros_like(epsilons, dtype=float)
-    if self.sampling_prob == 1.0:
+    if (self.sampling_prob == 1.0 or
+        self.adjacency_type == AdjacencyType.REPLACE):
       inverse_indices = np.full_like(epsilons, True, dtype=bool)
     elif self.adjacency_type == AdjacencyType.ADD:
       inverse_indices = epsilons < -math.log1p(-self.sampling_prob)
-    else:  # Case: self.adjacency_type == AdjacencyType.REMOVE
+      # The divergence is 0 when epsilon >= -log(1 - sampling_prob).
+    elif self.adjacency_type == AdjacencyType.REMOVE:
       inverse_indices = epsilons > math.log1p(-self.sampling_prob)
       other_indices = np.logical_not(inverse_indices)
       deltas[other_indices] = -np.expm1(epsilons[other_indices])
+    else:
+      raise ValueError(
+          f'{self.adjacency_type} adjacency type is not supported.')
     x_cutoffs = np.array([
         self.inverse_privacy_loss(eps) for eps in epsilons[inverse_indices]
     ])
@@ -431,11 +473,51 @@ class AdditiveNoisePrivacyLoss(MonotonePrivacyLoss, metaclass=abc.ABCMeta):
 
     For ADD adjacency type, with sub-sampling probability of q:
     the privacy loss at x is
-    - log(1-q + q*exp(-privacy_loss_without_subsampling(x))).
+    - log(1-q + q*exp(-privacy_loss_without_subsampling_add(x))).
 
     For REMOVE adjacency type, with sub-sampling probability of q:
     the privacy loss at x is
-    log(1-q + q*exp(privacy_loss_without_subsampling(x))).
+    log(1-q + q*exp(privacy_loss_without_subsampling_remove(x))).
+
+    For REPLACE adjacency type, with sub-sampling probability of q:
+    the privacy loss at x is
+    log(1-q + q*exp(privacy_loss_without_subsampling_remove(x)))
+    - log(1-q + q*exp(-privacy_loss_without_subsampling_add(x))), which is
+    the sum of the privacy losses for REMOVE and ADD adjacency types.
+
+    Args:
+      x: the point at which the privacy loss is computed.
+
+    Returns:
+      The privacy loss at point x.
+
+    Raises:
+      NotImplementedError: If privacy_loss_without_subsampling_add and/or
+        privacy_loss_without_subsampling_remove is not implemented by the
+        subclass.
+      ValueError: If privacy loss is undefined at x.
+    """
+    if self.adjacency_type == AdjacencyType.ADD:
+      return self._privacy_loss_add(x)
+    elif self.adjacency_type == AdjacencyType.REMOVE:
+      return self._privacy_loss_remove(x)
+    elif self.adjacency_type == AdjacencyType.REPLACE:
+      return self._privacy_loss_remove(x) + self._privacy_loss_add(x)
+    else:
+      raise ValueError(
+          f'{self.adjacency_type} adjacency type is not supported.')
+
+  def _privacy_loss_add(self, x: float) -> float:
+    """Computes the privacy loss at a given point for ADD adjacency type.
+
+    The privacy loss at x is ln(mu_upper(x) / mu_lower(x)).
+    When sub-sampling probability is q, this is given as:
+    - log((1 - q) + q * mu(x - sensitivity) / mu(x))
+
+    By symmetry of mu (namely, mu(x) = mu(-x)), this is equal to:
+    - log((1 - q) + q * mu(- x + sensitivity) / mu(- x))
+
+    This is precisely same as - privacy_loss_remove(-x).
 
     Args:
       x: the point at which the privacy loss is computed.
@@ -448,42 +530,50 @@ class AdditiveNoisePrivacyLoss(MonotonePrivacyLoss, metaclass=abc.ABCMeta):
         implemented by the subclass.
       ValueError: If privacy loss is undefined at x.
     """
-    privacy_loss_without_subsampling = self.privacy_loss_without_subsampling(x)
-    # For performance, the case of sampling_prob=1 is handled separately.
+    return - self._privacy_loss_remove(-x)
+
+  def _privacy_loss_remove(self, x: float) -> float:
+    """Computes the privacy loss at a given point for REMOVE adjacency type.
+
+    For REMOVE adjacency type, with sub-sampling probability of q:
+    the privacy loss at x is
+    log(1-q + q*exp(privacy_loss_without_subsampling_remove(x))).
+
+    Args:
+      x: the point at which the privacy loss is computed.
+
+    Returns:
+      The privacy loss at point x.
+
+    Raises:
+      NotImplementedError: If privacy_loss_without_subsampling is not
+        implemented by the subclass.
+      ValueError: If privacy loss is undefined at x.
+    """
+    loss_without_subsampling = self._privacy_loss_without_subsampling_remove(x)
     if self.sampling_prob == 1.0:
-      return privacy_loss_without_subsampling
-    if self.adjacency_type == AdjacencyType.ADD:
-      # Privacy loss is
-      # -log(1 - sampling_prob +
-      #      sampling_prob * exp(-privacy_loss_without_subsampling)).
-      return -common.log_a_times_exp_b_plus_c(self.sampling_prob,
-                                              -privacy_loss_without_subsampling,
-                                              1 - self.sampling_prob)
-    else:  # Case: self.adjacency_type == AdjacencyType.REMOVE
-      # Privacy loss is
-      # log(1 - sampling_prob +
-      #      sampling_prob * exp(privacy_loss_without_subsampling)).
-      return common.log_a_times_exp_b_plus_c(self.sampling_prob,
-                                             privacy_loss_without_subsampling,
-                                             1 - self.sampling_prob)
+      # For performance, the case of sampling_prob=1 is handled separately.
+      return loss_without_subsampling
+    # Privacy loss is
+    # log(1 - sampling_prob + sampling_prob * exp(loss_without_subsampling)).
+    return common.log_a_times_exp_b_plus_c(self.sampling_prob,
+                                           loss_without_subsampling,
+                                           1 - self.sampling_prob)
 
   @abc.abstractmethod
-  def privacy_loss_without_subsampling(self, x: float) -> float:
-    """Computes the privacy loss at a given point without sub-sampling.
+  def _privacy_loss_without_subsampling_remove(self, x: float) -> float:
+    """Computes the privacy loss without sub-sampling for REMOVE adjacency type.
 
     Args:
       x: the point at which the privacy loss is computed.
 
     Returns:
       The privacy loss at point x without sub-sampling, which is given as:
-      For ADD adjacency type: ln(mu(x - sensitivity) / mu(x)).
-      If mu(x - sensitivity) == 0 and mu(x) > 0, this is -infinity.
-      If mu(x - sensitivity) > 0  and mu(x) == 0, this is +infinity.
-      If mu(x - sensitivity) == 0 and mu(x) == 0, this is undefined
-        (ValueError is raised in this case).
-
-      For REMOVE adjacency type: ln(mu(x + sensitivity) / mu(x)).
-      Similar conventions (regarding corner cases) apply as above.
+      ln(mu_upper(x) / mu_lower(x)). In particular,
+      If mu_upper(x) == 0 and mu_lower(x) > 0, this is -infinity.
+      If mu_upper(x) > 0  and mu_lower(x) == 0, this is +infinity.
+      If mu_upper(x) == 0 and mu_lower(x) == 0, this is undefined
+        (ValueError should be raised in this case).
 
     Raises:
       NotImplementedError: If not implemented by the subclass.
@@ -519,6 +609,41 @@ class AdditiveNoisePrivacyLoss(MonotonePrivacyLoss, metaclass=abc.ABCMeta):
         inverse_privacy_loss_without_subsampling(+infinity).
 
     Raises:
+      NotImplementedError: If corresponding
+        inverse_privacy_loss_without_subsampling method is not implemented by
+        the subclass.
+      ValueError: If inverse_privacy_loss_without_subsampling raises a
+        ValueError
+    """
+    if self.adjacency_type == AdjacencyType.ADD:
+      return self._inverse_privacy_loss_add(privacy_loss)
+    elif self.adjacency_type == AdjacencyType.REMOVE:
+      return self._inverse_privacy_loss_remove(privacy_loss)
+    elif self.adjacency_type == AdjacencyType.REPLACE:
+      return self._inverse_privacy_loss_replace(privacy_loss)
+    else:
+      raise ValueError(
+          f'{self.adjacency_type} adjacency type is not supported.')
+
+  def _inverse_privacy_loss_add(self, privacy_loss: float) -> float:
+    """Computes the inverse of a given privacy loss for ADD adjacency type.
+
+    For the ADD adjacency type, with sub-sampling probability of q:
+    the inverse privacy loss is given as
+    inverse_privacy_loss_without_subsampling(-log(1 +(exp(-privacy_loss)-1)/q)),
+    When privacy_loss >= -log(1-q), the inverse privacy loss is
+    inverse_privacy_loss_without_subsampling(+infinity),
+    When privacy_loss == -infinity, the inverse privacy loss is
+    inverse_privacy_loss_without_subsampling(-infinity).
+
+    Args:
+      privacy_loss: the privacy loss value.
+
+    Returns:
+      The largest float x such that the privacy loss at x is at least
+      privacy_loss.
+
+    Raises:
       NotImplementedError: If inverse_privacy_loss_without_subsampling is not
         implemented by the subclass.
       ValueError: If inverse_privacy_loss_without_subsampling raises a
@@ -526,47 +651,118 @@ class AdditiveNoisePrivacyLoss(MonotonePrivacyLoss, metaclass=abc.ABCMeta):
     """
     # For performance, the case of sampling_prob=1 is handled separately.
     if self.sampling_prob == 1.0:
-      return self.inverse_privacy_loss_without_subsampling(privacy_loss)
+      return self._inverse_privacy_loss_without_subsampling_add(privacy_loss)
 
-    if self.adjacency_type == AdjacencyType.ADD:
-      if math.isclose(privacy_loss, - math.log(1 - self.sampling_prob)):
-        return self.inverse_privacy_loss_without_subsampling(math.inf)
-      if privacy_loss > - math.log(1 - self.sampling_prob):
-        raise ValueError(f'privacy_loss ({privacy_loss}) is larger than '
-                         f'-log(1 - sampling_prob) '
-                         f'({-math.log(1 - self.sampling_prob)}')
-      # Privacy loss without subsampling is
-      # -log(1 + (exp(-privacy_loss) - 1) / sampling_prob).
-      privacy_loss_without_subsampling = -common.log_a_times_exp_b_plus_c(
-          1 / self.sampling_prob, -privacy_loss, 1 - 1 / self.sampling_prob)
-      return self.inverse_privacy_loss_without_subsampling(
-          privacy_loss_without_subsampling)
+    if math.isclose(privacy_loss, - math.log(1 - self.sampling_prob)):
+      return self._inverse_privacy_loss_without_subsampling_add(math.inf)
+    if privacy_loss > - math.log(1 - self.sampling_prob):
+      raise ValueError(
+          f'privacy_loss ({privacy_loss}) is larger than '
+          f'-log(1 - sampling_prob) ({-math.log(1 - self.sampling_prob)}).'
+      )
+    # Privacy loss without subsampling is
+    # -log(1 + (exp(-privacy_loss) - 1) / sampling_prob).
+    privacy_loss_without_subsampling = -common.log_a_times_exp_b_plus_c(
+        1 / self.sampling_prob, -privacy_loss, 1 - 1 / self.sampling_prob)
+    return self._inverse_privacy_loss_without_subsampling_add(
+        privacy_loss_without_subsampling)
 
-    else:  # Case: self.adjacency_type == AdjacencyType.REMOVE
-      if math.isclose(privacy_loss, math.log(1 - self.sampling_prob)):
-        return self.inverse_privacy_loss_without_subsampling(-math.inf)
-      if privacy_loss <= math.log(1 - self.sampling_prob):
-        raise ValueError(f'privacy_loss ({privacy_loss}) is smaller than '
-                         f'log(1 - sampling_prob) '
-                         f'({math.log(1 - self.sampling_prob)}')
-      # Privacy loss without subsampling is
-      # log(1 + (exp(privacy_loss) - 1) / sampling_prob).
-      privacy_loss_without_subsampling = common.log_a_times_exp_b_plus_c(
-          1 / self.sampling_prob, privacy_loss, 1 - 1 / self.sampling_prob)
-      return self.inverse_privacy_loss_without_subsampling(
-          privacy_loss_without_subsampling)
+  def _inverse_privacy_loss_remove(self, privacy_loss: float) -> float:
+    """Computes the inverse of a given privacy loss for REMOVE adjacency type.
 
-  @abc.abstractmethod
-  def inverse_privacy_loss_without_subsampling(self,
-                                               privacy_loss: float) -> float:
-    """Computes the inverse of a given privacy loss without sub-sampling.
+    For the REMOVE adjacency type, with sub-sampling probability of q:
+    the inverse privacy loss is given as
+    inverse_privacy_loss_without_subsampling(log(1 + (exp(privacy_loss)-1)/q)),
+    When privacy_loss <= log(1-q), the inverse privacy loss is
+    inverse_privacy_loss_without_subsampling(-infinity),
+    When privacy_loss == infinity, the inverse privacy loss is
+    inverse_privacy_loss_without_subsampling(+infinity).
+
+    Args:
+      privacy_loss: the privacy loss value.
+
+    Returns:
+      The largest float x such that the privacy loss at x is at least
+      privacy_loss.
+
+    Raises:
+      NotImplementedError: If inverse_privacy_loss_without_subsampling is not
+        implemented by the subclass.
+      ValueError: If inverse_privacy_loss_without_subsampling raises a
+        ValueError
+    """
+    # For performance, the case of sampling_prob=1 is handled separately.
+    if self.sampling_prob == 1.0:
+      return self._inverse_privacy_loss_without_subsampling_remove(privacy_loss)
+
+    if math.isclose(privacy_loss, math.log(1 - self.sampling_prob)):
+      return self._inverse_privacy_loss_without_subsampling_remove(-math.inf)
+    if privacy_loss <= math.log(1 - self.sampling_prob):
+      raise ValueError(
+          f'privacy_loss ({privacy_loss}) is smaller than '
+          f'log(1 - sampling_prob) ({math.log(1 - self.sampling_prob)}).'
+      )
+    # Privacy loss without subsampling is
+    # log(1 + (exp(privacy_loss) - 1) / sampling_prob).
+    privacy_loss_without_subsampling = common.log_a_times_exp_b_plus_c(
+        1 / self.sampling_prob, privacy_loss, 1 - 1 / self.sampling_prob)
+    return self._inverse_privacy_loss_without_subsampling_remove(
+        privacy_loss_without_subsampling)
+
+  def _inverse_privacy_loss_replace(self, privacy_loss: float) -> float:
+    """Computes the inverse of a given privacy loss for REPLACE adjacency type.
+
+    For the REPLACE adjacency type, with sub-sampling probability of q:
+    the inverse privacy loss cannot be easily obtained by applying some
+    transformation to the inverse privacy loss for ADD or REMOVE adjacency
+    types. This method would have to be implemented separately for each
+    mechanism. But it is not required that this method be implemented for all
+    additive noise mechanisms.
+
+    Args:
+      privacy_loss: the privacy loss value.
+
+    Returns:
+      The largest float x such that the privacy loss at x is at least
+      privacy_loss.
+
+    Raises:
+      NotImplementedError: If inverse_privacy_loss_without_subsampling is not
+        implemented by the subclass.
+    """
+    raise NotImplementedError
+
+  def _inverse_privacy_loss_without_subsampling_add(
+      self, privacy_loss: float) -> float:
+    """Computes the inverse of privacy loss without sub-sampling for ADD.
 
     Args:
       privacy_loss: the privacy loss value.
 
     Returns:
       The largest float x such that the privacy loss at x without sub-sampling,
-      is at least privacy_loss.
+      is at least privacy_loss for ADD adjacency type.
+
+    Raises:
+      NotImplementedError: If _inverse_privacy_loss_without_subsampling_remove
+      is not implemented by the subclass.
+    """
+    return (
+        self.sensitivity +
+        self._inverse_privacy_loss_without_subsampling_remove(privacy_loss)
+    )
+
+  @abc.abstractmethod
+  def _inverse_privacy_loss_without_subsampling_remove(
+      self, privacy_loss: float) -> float:
+    """Computes the inverse of privacy loss without sub-sampling for REMOVE.
+
+    Args:
+      privacy_loss: the privacy loss value.
+
+    Returns:
+      The largest float x such that the privacy loss at x without sub-sampling,
+      is at least privacy_loss for REMOVE adjacency type.
 
     Raises:
       NotImplementedError: If not implemented by the subclass.
@@ -728,8 +924,11 @@ class LaplacePrivacyLoss(AdditiveNoisePrivacyLoss):
     """
     if self.adjacency_type == AdjacencyType.ADD:
       lower_x_truncation, upper_x_truncation = 0.0, self.sensitivity
-    else:  # Case: self.adjacency_type == AdjacencyType.REMOVE
+    elif self.adjacency_type == AdjacencyType.REMOVE:
       lower_x_truncation, upper_x_truncation = -self.sensitivity, 0.0
+    else:
+      raise ValueError(
+          f'{self.adjacency_type} adjacency type is not supported.')
 
     return TailPrivacyLossDistribution(
         lower_x_truncation, upper_x_truncation, {
@@ -766,33 +965,38 @@ class LaplacePrivacyLoss(AdditiveNoisePrivacyLoss):
                                    self.sampling_prob * math.exp(-max_epsilon)),
           epsilon_lower=- math.log(1 - self.sampling_prob +
                                    self.sampling_prob * math.exp(max_epsilon)))
-    else:  # Case: self.adjacency_type == AdjacencyType.REMOVE
+    elif self.adjacency_type == AdjacencyType.REMOVE:
       return ConnectDotsBounds(
           epsilon_upper=math.log(1 - self.sampling_prob +
                                  self.sampling_prob * math.exp(max_epsilon)),
           epsilon_lower=math.log(1 - self.sampling_prob +
                                  self.sampling_prob * math.exp(-max_epsilon)))
+    else:
+      raise ValueError(
+          f'{self.adjacency_type} adjacency type is not supported.')
 
-  def privacy_loss_without_subsampling(self, x: float) -> float:
-    """Computes the privacy loss of the Laplace mechanism without sub-sampling at a given point.
+  def _privacy_loss_without_subsampling_remove(self, x: float) -> float:
+    """Computes the privacy loss without sub-sampling for REMOVE adjacency type.
 
     Args:
       x: the point at which the privacy loss is computed.
 
     Returns:
       The privacy loss of the Laplace mechanism without sub-sampling at point x,
-      which is given as
-      For ADD adjacency type:    (|x - sensitivity| - |x|) / parameter.
-      For REMOVE adjacency type: (|x| - |x + sensitivity|) / parameter.
+      given as (|x| - |x + sensitivity|) / parameter for REMOVE adjacency type.
     """
-    if self.adjacency_type == AdjacencyType.ADD:
-      return (abs(x - self.sensitivity) - abs(x)) / self._parameter
-    else:  # Case: self.adjacency_type == AdjacencyType.REMOVE
-      return (abs(x) - abs(x + self.sensitivity)) / self._parameter
+    return (abs(x) - abs(x + self.sensitivity)) / self._parameter
 
-  def inverse_privacy_loss_without_subsampling(self,
-                                               privacy_loss: float) -> float:
-    """Computes the inverse of a given privacy loss for the Laplace mechanism without sub-sampling.
+  def _inverse_privacy_loss_without_subsampling_remove(
+      self, privacy_loss: float) -> float:
+    """Computes the inverse of privacy loss without sub-sampling for REMOVE.
+
+    For REMOVE adjacency type:
+    If privacy_loss <= - sensitivity / parameter, x is equal to infinity.
+    If - sensitivity / parameter < privacy_loss <= sensitivity / parameter,
+      x is equal to 0.5 * (-self.sensitivity - privacy_loss * parameter).
+    If privacy_loss > sensitivity / parameter, no such x exists and the
+      function returns -infinity.
 
     Args:
       privacy_loss: the privacy loss value.
@@ -800,25 +1004,13 @@ class LaplacePrivacyLoss(AdditiveNoisePrivacyLoss):
     Returns:
       The largest float x such that the privacy loss at x is at least
       privacy_loss.
-      For ADD adjacency type:
-        If privacy_loss <= - sensitivity / parameter, x is equal to infinity.
-        If - sensitivity / parameter < privacy_loss <= sensitivity / parameter,
-          x is equal to 0.5 * (sensitivity - privacy_loss * parameter).
-        If privacy_loss > sensitivity / parameter, no such x exists and the
-          function returns -infinity.
-      For REMOVE adjacency type:
-        For any value of privacy_loss, x is equal to the corresponding value for
-          ADD adjacency type decreased by sensitivity.
     """
     loss_threshold = privacy_loss * self._parameter
     if loss_threshold > self.sensitivity:
       return -math.inf
     if loss_threshold <= -self.sensitivity:
       return math.inf
-    if self.adjacency_type == AdjacencyType.ADD:
-      return 0.5 * (self.sensitivity - loss_threshold)
-    else:  # Case: self.adjacency_type == AdjacencyType.REMOVE
-      return 0.5 * (-self.sensitivity - loss_threshold)
+    return 0.5 * (-self.sensitivity - loss_threshold)
 
   def noise_cdf(self, x: Union[float,
                                Iterable[float]]) -> Union[float, np.ndarray]:
@@ -977,7 +1169,7 @@ class GaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
   def privacy_loss_tail(self) -> TailPrivacyLossDistribution:
     """Computes the privacy loss at the tail of the Gaussian distribution.
 
-    For REMOVE adjacency type: lower_x_truncation is set such that
+    For REMOVE / REPLACE adjacency types: lower_x_truncation is set such that
       CDF(lower_x_truncation) = 0.5 * exp(log_mass_truncation_bound), and
       upper_x_truncation is set to be -lower_x_truncation. Finally,
       lower_x_truncation is shifted by -1 * sensitivity.
@@ -1023,8 +1215,11 @@ class GaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
     upper_x_truncation = -lower_x_truncation
     if self.adjacency_type == AdjacencyType.ADD:
       upper_x_truncation += self.sensitivity
-    else:  # Case: self.adjacency_type == AdjacencyType.REMOVE
+    elif self.adjacency_type in [AdjacencyType.REMOVE, AdjacencyType.REPLACE]:
       lower_x_truncation -= self.sensitivity
+    else:
+      raise ValueError(
+          f'{self.adjacency_type} adjacency type is not supported.')
     if self._pessimistic_estimate:
       tail_probability_mass_function = {
           math.inf:
@@ -1059,51 +1254,75 @@ class GaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
         epsilon_upper=self.privacy_loss(tail_pld.lower_x_truncation),
         epsilon_lower=self.privacy_loss(tail_pld.upper_x_truncation))
 
-  def privacy_loss_without_subsampling(self, x: float) -> float:
-    """Computes the privacy loss of the Gaussian mechanism without sub-sampling at a given point.
+  def _privacy_loss_without_subsampling_remove(self, x: float) -> float:
+    """Computes the privacy loss without sub-sampling for REMOVE adjacency type.
 
     Args:
       x: the point at which the privacy loss is computed.
 
     Returns:
-      The privacy loss of the Laplace mechanism at point x, which is given as
-      For ADD adjacency type: (|x - sensitivity| - |x|) / parameter.
-      For REMOVE adjacency type: (|x| - |x + sensitivity|) / parameter.
       The privacy loss of the Gaussian mechanism without sub-sampling at point
-      x, which is given as
-      For ADD adjacency type:
-        sensitivity * (0.5 * sensitivity - x) / standard_deviation^2.
-      For REMOVE adjacency type:
-        sensitivity * (- 0.5 * sensitivity - x) / standard_deviation^2.
+      x, given as sensitivity * (- 0.5 * sensitivity - x) / standard_deviation^2
+      for REMOVE adjacency type.
     """
-    if self.adjacency_type == AdjacencyType.ADD:
-      return (self.sensitivity * (0.5 * self.sensitivity - x) /
-              (self._standard_deviation**2))
-    else:  # Case: self.adjacency_type == AdjacencyType.REMOVE
-      return (self.sensitivity * (-0.5 * self.sensitivity - x) /
-              (self._standard_deviation**2))
+    return (self.sensitivity * (-0.5 * self.sensitivity - x) /
+            (self._standard_deviation**2))
 
-  def inverse_privacy_loss_without_subsampling(self,
-                                               privacy_loss: float) -> float:
-    """Computes the inverse of a given privacy loss for the Gaussian mechanism without sub-sampling.
+  def _inverse_privacy_loss_without_subsampling_remove(
+      self, privacy_loss: float) -> float:
+    """Computes the inverse of privacy loss without sub-sampling for REMOVE.
 
     Args:
       privacy_loss: the privacy loss value.
 
     Returns:
       The largest float x such that the privacy loss at x is at least
-      privacy_loss. This is equal to
-      For ADD adjacency type:
-        0.5 * sensitivity - privacy_loss * standard_deviation^2 / sensitivity.
-      For REMOVE adjacency type:
+      privacy_loss. For REMOVE adjacency type, this is equal to
         -0.5 * sensitivity - privacy_loss * standard_deviation^2 / sensitivity.
     """
-    if self.adjacency_type == AdjacencyType.ADD:
-      return (0.5 * self.sensitivity - privacy_loss *
-              (self._standard_deviation**2) / self.sensitivity)
-    else:  # Case: self.adjacency_type == AdjacencyType.REMOVE
-      return (-0.5 * self.sensitivity - privacy_loss *
-              (self._standard_deviation**2) / self.sensitivity)
+    return (-0.5 * self.sensitivity - privacy_loss *
+            (self._standard_deviation**2) / self.sensitivity)
+
+  def _inverse_privacy_loss_replace(self, privacy_loss: float) -> float:
+    """Computes the inverse of a given privacy loss for REPLACE adjacency type.
+
+    The inverse at privacy_loss eps is given as:
+      x = (
+          standard_deviation^2 / sensitivity *
+          (arcsinh(- sinh(privacy_loss / 2) * alpha) - privacy_loss / 2
+      )
+    where, alpha = (
+        exp(0.5 * (sensitivity / standard_deviation) ** 2)
+        * (1 - sampling_prob) / sampling_prob
+    )
+    See supplementary material for detailed derivation.
+
+    Args:
+      privacy_loss: the privacy loss value.
+
+    Returns:
+      The largest float x such that the privacy loss at x is at least
+      privacy_loss.
+    """
+    if privacy_loss == 0:
+      return 0.0
+    if self.sampling_prob == 1.0:
+      # For performance, the case of sampling_prob=1 is handled separately.
+      return - privacy_loss * self._standard_deviation**2 / self.sensitivity / 2
+    abs_privacy_loss = abs(privacy_loss)
+    sign_privacy_loss = 1.0 if privacy_loss >= 0 else -1.0
+    log_alpha = (
+        0.5 * (self.sensitivity / self._standard_deviation) ** 2
+        + math.log1p(- self.sampling_prob) - math.log(self.sampling_prob)
+    )
+    # sinh_term below is equal to log(sinh(|privacy_loss| / 2) * exp(log_alpha))
+    log_sinh_term = log_alpha + common.log_sinh(abs_privacy_loss / 2)
+    # asinh_term below is equal to arcsinh(- sinh(privacy_loss / 2) * alpha)
+    asinh_term = common.asinh_exp(log_sinh_term, - sign_privacy_loss)
+    return (
+        self._standard_deviation**2 / self.sensitivity
+        * (asinh_term - privacy_loss / 2)
+    )
 
   def noise_cdf(self, x: Union[float,
                                Iterable[float]]) -> Union[float, np.ndarray]:
@@ -1176,18 +1395,23 @@ class GaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
     # epsilon is no more than one, the Gaussian mechanism with this standard
     # deviation is (epsilon, delta)-DP. See e.g. Appendix A in Dwork and Roth
     # book, "The Algorithmic Foundations of Differential Privacy".
+    effective_sensitivity = (
+        2 * sensitivity if adjacency_type == AdjacencyType.REPLACE
+        else sensitivity
+    )
     search_parameters = common.BinarySearchParameters(
         0,
         math.inf,
         initial_guess=math.sqrt(2 * math.log(1.5 / privacy_parameters.delta)) *
-        sensitivity / privacy_parameters.epsilon)
+        effective_sensitivity / privacy_parameters.epsilon,
+    )
 
     def _get_delta_for_standard_deviation(current_standard_deviation):
       return GaussianPrivacyLoss(
           current_standard_deviation,
           sensitivity=sensitivity,
           sampling_prob=sampling_prob,
-          adjacency_type=AdjacencyType.REMOVE).get_delta_for_epsilon(
+          adjacency_type=adjacency_type).get_delta_for_epsilon(
               privacy_parameters.epsilon)
 
     standard_deviation = common.inverse_monotone_function(
@@ -1294,8 +1518,11 @@ class DiscreteLaplacePrivacyLoss(AdditiveNoisePrivacyLoss):
     """
     if self.adjacency_type == AdjacencyType.ADD:
       lower_x_truncation, upper_x_truncation = 1, self.sensitivity - 1
-    else:  # Case: self.adjacency_type == AdjacencyType.REMOVE
+    elif self.adjacency_type == AdjacencyType.REMOVE:
       lower_x_truncation, upper_x_truncation = 1 - self.sensitivity, -1
+    else:
+      raise ValueError(
+          f'{self.adjacency_type} adjacency type is not supported.')
     return TailPrivacyLossDistribution(
         lower_x_truncation, upper_x_truncation, {
             self.privacy_loss(lower_x_truncation - 1):
@@ -1320,34 +1547,32 @@ class DiscreteLaplacePrivacyLoss(AdditiveNoisePrivacyLoss):
     """
     if self.adjacency_type == AdjacencyType.ADD:
       lower_x, upper_x = 0, int(self.sensitivity)
-    else:  # Case: self.adjacency_type == AdjacencyType.REMOVE
+    elif self.adjacency_type == AdjacencyType.REMOVE:
       lower_x, upper_x = -int(self.sensitivity), 0
+    else:
+      raise ValueError(
+          f'{self.adjacency_type} adjacency type is not supported.')
 
     return ConnectDotsBounds(lower_x=lower_x, upper_x=upper_x)
 
-  def privacy_loss_without_subsampling(self, x: float) -> float:
-    """Computes privacy loss of the discrete Laplace mechanism without sub-sampling at a given point.
+  def _privacy_loss_without_subsampling_remove(self, x: float) -> float:
+    """Computes the privacy loss without sub-sampling for REMOVE adjacency type.
 
     Args:
       x: the point at which the privacy loss is computed.
 
     Returns:
       The privacy loss of the discrete Laplace mechanism without sub-sampling at
-      integer value x, which is given as
-      For ADD adjacency type:    parameter * (|x - sensitivity| - |x|).
-      For REMOVE adjacency type: parameter * (|x| - |x + sensitivity|).
+      integer value x, which is given as parameter * (|x| - |x + sensitivity|)
+      for REMOVE adjacency type.
     """
     if not isinstance(x, int):
       raise ValueError(f'Privacy loss at x is undefined for x = {x}')
+    return (abs(x) - abs(x + self.sensitivity)) * self._parameter
 
-    if self.adjacency_type == AdjacencyType.ADD:
-      return (abs(x - self.sensitivity) - abs(x)) * self._parameter
-    else:  # Case: self.adjacency_type == AdjacencyType.REMOVE
-      return (abs(x) - abs(x + self.sensitivity)) * self._parameter
-
-  def inverse_privacy_loss_without_subsampling(self,
-                                               privacy_loss: float) -> float:
-    """Computes the inverse of a given privacy loss for the discrete Laplace mechanism.
+  def _inverse_privacy_loss_without_subsampling_remove(
+      self, privacy_loss: float) -> float:
+    """Computes the inverse of privacy loss without sub-sampling for REMOVE.
 
     Args:
       privacy_loss: the privacy loss value.
@@ -1355,25 +1580,19 @@ class DiscreteLaplacePrivacyLoss(AdditiveNoisePrivacyLoss):
     Returns:
       The largest float x such that the privacy loss at x is at least
       privacy_loss.
-      For ADD adjacency type:
+      For REMOVE adjacency type:
         If privacy_loss <= - sensitivity * parameter, x is equal to infinity.
         If - sensitivity * parameter < privacy_loss <= sensitivity * parameter,
-          x is equal to floor(0.5 * (sensitivity - privacy_loss / parameter)).
+          x is equal to floor(0.5 * (- sensitivity - privacy_loss / parameter)).
         If privacy_loss > sensitivity * parameter, no such x exists and the
           function returns -infinity.
-      For REMOVE adjacency type:
-        For any value of privacy_loss, x is equal to the corresponding value for
-          ADD adjacency type decreased by sensitivity.
     """
     loss_threshold = privacy_loss / self._parameter
     if loss_threshold > self.sensitivity:
       return -math.inf
     if loss_threshold <= -self.sensitivity:
       return math.inf
-    if self.adjacency_type == AdjacencyType.ADD:
-      return math.floor(0.5 * (self.sensitivity - loss_threshold))
-    else:  # Case: self.adjacency_type == AdjacencyType.REMOVE
-      return math.floor(0.5 * (-self.sensitivity - loss_threshold))
+    return math.floor(0.5 * (-self.sensitivity - loss_threshold))
 
   def noise_cdf(self, x: Union[float,
                                Iterable[float]]) -> Union[float, np.ndarray]:
@@ -1592,12 +1811,15 @@ class DiscreteGaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
         lower_x_truncation = self.sensitivity - self._truncation_bound
       else:
         lower_x_truncation = -1 * self._truncation_bound
-    else:  # Case: self.adjacency_type == AdjacencyType.REMOVE
+    elif self.adjacency_type == AdjacencyType.REMOVE:
       lower_x_truncation = -1 * self._truncation_bound
       if self.sampling_prob == 1.0:
         upper_x_truncation = self._truncation_bound - self.sensitivity
       else:
         upper_x_truncation = self._truncation_bound
+    else:
+      raise ValueError(
+          f'{self.adjacency_type} adjacency type is not supported.')
 
     return TailPrivacyLossDistribution(
         lower_x_truncation, upper_x_truncation,
@@ -1618,8 +1840,8 @@ class DiscreteGaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
     return ConnectDotsBounds(lower_x=int(tail_pld.lower_x_truncation),
                              upper_x=int(tail_pld.upper_x_truncation))
 
-  def privacy_loss_without_subsampling(self, x: float) -> float:
-    """Computes the privacy loss of the discrete Gaussian mechanism without sub-sampling at a given point.
+  def _privacy_loss_without_subsampling_remove(self, x: float) -> float:
+    """Computes the privacy loss without sub-sampling for REMOVE adjacency type.
 
     Args:
       x: the point at which the privacy loss is computed.
@@ -1628,72 +1850,53 @@ class DiscreteGaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
       The privacy loss of the discrete Gaussian mechanism at integer value x,
       which is given as
 
-      For ADD adjacency type:
-      If x lies in [-truncation_bound + sensitivity, truncation_bound],
-        it is equal to sensitivity * (0.5 * sensitivity - x) / sigma^2.
-      If x lies in [-truncation_bound, -truncation_bound + sensitivity),
+      For REMOVE adjacency type:
+      If x lies in [-truncation_bound - sensitivity, -truncation_bound),
         it is equal to infinity.
-      If x lies in (truncation_bound, trunction_bound + sensitivity],
+      If x lies in [-truncation_bound, truncation_bound - sensitivity],
+        it is equal to sensitivity * (-0.5 * sensitivity - x) / sigma^2.
+      If x lies in (truncation_bound - sensitivity, trunction_bound],
         it is equal to -infinity.
       Otherwise, the privacy loss is undefined (ValueError is raised).
-
-      For REMOVE adjacency type:
-       Same as the case of ADD with x replaced by x + sensitivity.
 
     Raises:
       ValueError: if the privacy loss is undefined.
     """
-    def privacy_loss_without_subsampling_for_add(x: float) -> float:
-      if (not isinstance(x, int) or x < -1 * self._truncation_bound or
-          x > self._truncation_bound + self.sensitivity):
-        actual_x = (
-            x if self.adjacency_type == AdjacencyType.ADD else
-            x - self.sensitivity)
-        raise ValueError(f'Privacy loss at x is undefined for x = {actual_x}')
-      if x > self._truncation_bound:
-        return -math.inf
-      if x < self.sensitivity - self._truncation_bound:
-        return math.inf
-      return self.sensitivity * (0.5 * self.sensitivity - x) / (self._sigma**2)
+    if (not isinstance(x, int) or x > self._truncation_bound or
+        x < -1 * self._truncation_bound - self.sensitivity):
+      actual_x = (
+          x if self.adjacency_type == AdjacencyType.REMOVE else
+          x + self.sensitivity)
+      raise ValueError(f'Privacy loss at x is undefined for x = {actual_x}')
+    if x > self._truncation_bound - self.sensitivity:
+      return -math.inf
+    if x < - self._truncation_bound:
+      return math.inf
+    return self.sensitivity * (- 0.5 * self.sensitivity - x) / (self._sigma**2)
 
-    if self.adjacency_type == AdjacencyType.ADD:
-      return privacy_loss_without_subsampling_for_add(x)
-    else:  # Case: self.adjacency_type == AdjacencyType.REMOVE
-      return privacy_loss_without_subsampling_for_add(x + self.sensitivity)
-
-  def inverse_privacy_loss_without_subsampling(self,
-                                               privacy_loss: float) -> float:
-    """Computes the inverse of a given privacy loss for the discrete Gaussian mechanism without sub-sampling.
+  def _inverse_privacy_loss_without_subsampling_remove(
+      self, privacy_loss: float) -> float:
+    """Computes the inverse of privacy loss without sub-sampling for REMOVE.
 
     Args:
       privacy_loss: the privacy loss value.
 
     Returns:
       The largest int x such that the privacy loss at x is at least
-      privacy_loss, which is given as
-      For ADD adjacency type:
-        floor(0.5 * sensitivity - privacy_loss * sigma^2 / sensitivity) clipped
-        to the interval [sensitivity - truncation_bound - 1, truncation_bound].
-      For REMOVE adjacency type:
-        Same as that for ADD decreased by sensitivity.
+      privacy_loss. For REMOVE adjacency type, this is given as
+      floor(-0.5 * sensitivity - privacy_loss * sigma^2 / sensitivity) clipped
+      to the interval [-truncation_bound - 1, truncation_bound - sensitivity].
     """
-
-    def inverse_privacy_loss_without_subsampling_for_add(
-        privacy_loss: float) -> float:
-      if privacy_loss == -math.inf:
-        return self._truncation_bound
-      return math.floor(
-          np.clip(
-              0.5 * self.sensitivity - privacy_loss * (self._sigma**2) /
-              self.sensitivity,
-              self.sensitivity - self._truncation_bound - 1,
-              self._truncation_bound))
-
-    if self.adjacency_type == AdjacencyType.ADD:
-      return inverse_privacy_loss_without_subsampling_for_add(privacy_loss)
-    else:  # Case: self.adjacency_type == AdjacencyType.REMOVE
-      return (inverse_privacy_loss_without_subsampling_for_add(privacy_loss) -
-              self.sensitivity)
+    if privacy_loss == -math.inf:
+      return self._truncation_bound - self.sensitivity
+    return math.floor(
+        np.clip(
+            - 0.5 * self.sensitivity - privacy_loss * (self._sigma**2) /
+            self.sensitivity,
+            - self._truncation_bound - 1,
+            self._truncation_bound - self.sensitivity,
+        )
+    )
 
   def noise_cdf(self, x: Union[float,
                                Iterable[float]]) -> Union[float, np.ndarray]:
@@ -1972,7 +2175,7 @@ class MixtureGaussianPrivacyLoss(MonotonePrivacyLoss):
     """
     if self.adjacency_type == AdjacencyType.ADD:
       return self.noise_cdf(x)
-    else:  # Case: self.adjacency_type == AdjacencyType.REMOVE
+    elif self.adjacency_type == AdjacencyType.REMOVE:
       points_per_sens = np.add.outer(np.atleast_1d(x), self.sensitivities)
       output = (self.noise_cdf(points_per_sens) * self.sampling_probs).sum(
           axis=1
@@ -1981,6 +2184,9 @@ class MixtureGaussianPrivacyLoss(MonotonePrivacyLoss):
         return output[0]
       else:
         return output
+    else:
+      raise ValueError(
+          f'{self.adjacency_type} adjacency type is not supported.')
 
   def mu_lower_log_cdf(
       self, x: Union[float, Iterable[float]]
@@ -2011,8 +2217,11 @@ class MixtureGaussianPrivacyLoss(MonotonePrivacyLoss):
         return output[0]
       else:
         return output
-    else:  # Case: self.adjacency_type == AdjacencyType.REMOVE
+    elif self.adjacency_type == AdjacencyType.REMOVE:
       return self.noise_log_cdf(x)
+    else:
+      raise ValueError(
+          f'{self.adjacency_type} adjacency type is not supported.')
 
   def get_delta_for_epsilon(
       self, epsilon: Union[float, Sequence[float]]
@@ -2035,10 +2244,13 @@ class MixtureGaussianPrivacyLoss(MonotonePrivacyLoss):
       inverse_indices = np.full_like(epsilons, True, dtype=bool)
     elif self.adjacency_type == AdjacencyType.ADD:
       inverse_indices = epsilons < -np.log1p(-self._sampling_prob)
-    else:  # Case: self.adjacency_type == AdjacencyType.REMOVE
+    elif self.adjacency_type == AdjacencyType.REMOVE:
       inverse_indices = epsilons > np.log1p(-self._sampling_prob)
       other_indices = np.logical_not(inverse_indices)
       deltas[other_indices] = -np.expm1(epsilons[other_indices])
+    else:
+      raise ValueError(
+          f'{self.adjacency_type} adjacency type is not supported.')
     x_cutoffs = self.inverse_privacy_losses(epsilons[inverse_indices])
     deltas[inverse_indices] = self.mu_upper_cdf(x_cutoffs) - np.exp(
         epsilons[inverse_indices] + self.mu_lower_log_cdf(x_cutoffs)
@@ -2089,7 +2301,7 @@ class MixtureGaussianPrivacyLoss(MonotonePrivacyLoss):
     upper_x_truncation = -z_value
     if self.adjacency_type == AdjacencyType.ADD:
       lower_x_truncation = z_value
-    else:  # Case: self.adjacency_type == AdjacencyType.REMOVE
+    elif self.adjacency_type == AdjacencyType.REMOVE:
       lower_x_truncation = common.inverse_monotone_function(
           self.mu_upper_cdf,
           tail_mass,
@@ -2100,6 +2312,9 @@ class MixtureGaussianPrivacyLoss(MonotonePrivacyLoss):
           ),
           increasing=True,
       )
+    else:
+      raise ValueError(
+          f'{self.adjacency_type} adjacency type is not supported.')
     if self._pessimistic_estimate:
       tail_probability_mass_function = {
           math.inf: self.mu_upper_cdf(lower_x_truncation),
@@ -2139,8 +2354,11 @@ class MixtureGaussianPrivacyLoss(MonotonePrivacyLoss):
     )
     if self.adjacency_type == AdjacencyType.ADD:
       return self._log_sampling_probs - sens_loss
-    else:  # Case: self.adjacency_type == AdjacencyType.REMOVE
+    elif self.adjacency_type == AdjacencyType.REMOVE:
       return self._log_sampling_probs + sens_loss
+    else:
+      raise ValueError(
+          f'{self.adjacency_type} adjacency type is not supported.')
 
   def privacy_loss(self, x: float) -> float:
     """Computes the privacy loss at a given point `x`."""
@@ -2160,9 +2378,12 @@ class MixtureGaussianPrivacyLoss(MonotonePrivacyLoss):
     if self.adjacency_type == AdjacencyType.ADD:
       summands = self._precompute_privacy_loss_constants + x_loss
       return -np.logaddexp.reduce(summands)
-    else:  # Case: self.adjacency_type == AdjacencyType.REMOVE
+    elif self.adjacency_type == AdjacencyType.REMOVE:
       summands = self._precompute_privacy_loss_constants - x_loss
       return np.logaddexp.reduce(summands)
+    else:
+      raise ValueError(
+          f'{self.adjacency_type} adjacency type is not supported.')
 
   def privacy_loss_for_single_gaussian(
       self,
@@ -2186,8 +2407,11 @@ class MixtureGaussianPrivacyLoss(MonotonePrivacyLoss):
     x = np.atleast_1d(x)
     if self.adjacency_type == AdjacencyType.ADD:
       scale = 0.5
-    else:  # Case: self.adjacency_type == AdjacencyType.REMOVE
+    elif self.adjacency_type == AdjacencyType.REMOVE:
       scale = -0.5
+    else:
+      raise ValueError(
+          f'{self.adjacency_type} adjacency type is not supported.')
     return sensitivity * (scale * sensitivity - x) / (self._variance)
 
   def inverse_privacy_loss_for_single_gaussian(
@@ -2210,8 +2434,11 @@ class MixtureGaussianPrivacyLoss(MonotonePrivacyLoss):
     )
     if self.adjacency_type == AdjacencyType.ADD:
       return add_inverse_loss
-    else:  # Case: self.adjacency_type == AdjacencyType.REMOVE
+    elif self.adjacency_type == AdjacencyType.REMOVE:
       return add_inverse_loss - sensitivity
+    else:
+      raise ValueError(
+          f'{self.adjacency_type} adjacency type is not supported.')
 
   def inverse_privacy_loss(
       self, privacy_loss: float, precision: float = 1e-6
@@ -2292,7 +2519,7 @@ class MixtureGaussianPrivacyLoss(MonotonePrivacyLoss):
         )
       finite_indices = np.logical_not(np.isclose(privacy_losses, -log_1m_prob))
       max_pl = np.max(privacy_losses[finite_indices])
-    else:  # Case: self.adjacency_type == AdjacencyType.REMOVE
+    elif self.adjacency_type == AdjacencyType.REMOVE:
       if min_pl <= log_1m_prob:
         raise ValueError(
             f'min of privacy_losses ({min_pl}) is smaller than '
@@ -2300,6 +2527,9 @@ class MixtureGaussianPrivacyLoss(MonotonePrivacyLoss):
         )
       finite_indices = np.logical_not(np.isclose(privacy_losses, log_1m_prob))
       min_pl = np.min(privacy_losses[finite_indices])
+    else:
+      raise ValueError(
+          f'{self.adjacency_type} adjacency type is not supported.')
 
     # Now, we need to determine a suitable range to binary search over. To do
     # this, we consider the subsampled Gaussian mechanisms given by moving
@@ -2318,8 +2548,11 @@ class MixtureGaussianPrivacyLoss(MonotonePrivacyLoss):
     ])
     if self.adjacency_type == AdjacencyType.ADD:
       pl_without_sampling = _pl_without_sampling_add
-    else:  # Case: self.adjacency_type == AdjacencyType.REMOVE
+    elif self.adjacency_type == AdjacencyType.REMOVE:
       pl_without_sampling = _pl_without_sampling_remove
+    else:
+      raise ValueError(
+          f'{self.adjacency_type} adjacency type is not supported.')
 
     possible_bounds = self.inverse_privacy_loss_for_single_gaussian(
         pl_without_sampling(loss_bounds, self._sampling_prob), sens_bounds

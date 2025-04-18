@@ -21,7 +21,9 @@ from dp_accounting import privacy_accountant
 from dp_accounting.pld import privacy_loss_distribution
 
 NeighborRel = privacy_accountant.NeighboringRelation
-CompositionErrorDetails = privacy_accountant.PrivacyAccountant.CompositionErrorDetails
+CompositionErrorDetails = (
+    privacy_accountant.PrivacyAccountant.CompositionErrorDetails
+)
 PLD = privacy_loss_distribution
 
 
@@ -33,7 +35,7 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
       neighboring_relation: NeighborRel = NeighborRel.ADD_OR_REMOVE_ONE,
       value_discretization_interval: float = 1e-4,
   ):
-    super(PLDAccountant, self).__init__(neighboring_relation)
+    super().__init__(neighboring_relation)
     self._contains_non_dp_event = False
     self._pld = PLD.identity(
         value_discretization_interval=value_discretization_interval)
@@ -86,10 +88,22 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
         else:
           gaussian_pld = PLD.from_gaussian_mechanism(
               standard_deviation=event.noise_multiplier / math.sqrt(count),
-              value_discretization_interval=self._value_discretization_interval)
+              value_discretization_interval=self._value_discretization_interval,
+              neighboring_relation=self.neighboring_relation)
           self._pld = self._pld.compose(gaussian_pld)
       return None
     elif isinstance(event, dp_event.LaplaceDpEvent):
+      if self.neighboring_relation not in [
+          NeighborRel.ADD_OR_REMOVE_ONE, NeighborRel.REPLACE_SPECIAL
+      ]:
+        return CompositionErrorDetails(
+            invalid_event=event,
+            error_message=(
+                'neighboring_relation must be `ADD_OR_REMOVE_ONE` or '
+                '`REPLACE_SPECIAL` for `LaplaceDpEvent`. Found '
+                f'{self._neighboring_relation}.'
+            ),
+        )
       if do_compose:
         if event.noise_multiplier == 0:
           self._contains_non_dp_event = True
@@ -100,7 +114,41 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
           ).self_compose(count)
           self._pld = self._pld.compose(laplace_pld)
       return None
+    elif isinstance(event, dp_event.DiscreteLaplaceDpEvent):
+      if self.neighboring_relation not in [
+          NeighborRel.ADD_OR_REMOVE_ONE, NeighborRel.REPLACE_SPECIAL
+      ]:
+        return CompositionErrorDetails(
+            invalid_event=event,
+            error_message=(
+                'neighboring_relation must be `ADD_OR_REMOVE_ONE` or '
+                '`REPLACE_SPECIAL` for `DiscreteLaplaceDpEvent`. Found '
+                f'{self._neighboring_relation}.'
+            ),
+        )
+      if do_compose:
+        if event.noise_parameter == 0:
+          self._contains_non_dp_event = True
+        else:
+          discrete_laplace_pld = PLD.from_discrete_laplace_mechanism(
+              parameter=event.noise_parameter,
+              sensitivity=event.sensitivity,
+              value_discretization_interval=self._value_discretization_interval
+          ).self_compose(count)
+          self._pld = self._pld.compose(discrete_laplace_pld)
+      return None
     elif isinstance(event, dp_event.MixtureOfGaussiansDpEvent):
+      if self.neighboring_relation not in [
+          NeighborRel.ADD_OR_REMOVE_ONE, NeighborRel.REPLACE_SPECIAL
+      ]:
+        return CompositionErrorDetails(
+            invalid_event=event,
+            error_message=(
+                'neighboring_relation must be `ADD_OR_REMOVE_ONE` or '
+                '`REPLACE_SPECIAL` for `MixtureOfGaussiansDpEvent`. Found '
+                f'{self._neighboring_relation}.'
+            ),
+        )
       if do_compose:
         if len(event.sensitivities) == 1 and event.sensitivities[0] == 0.0:
           pass
@@ -116,15 +164,6 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
           self._pld = self._pld.compose(mog_pld)
       return None
     elif isinstance(event, dp_event.PoissonSampledDpEvent):
-      if self.neighboring_relation not in [
-          NeighborRel.ADD_OR_REMOVE_ONE, NeighborRel.REPLACE_SPECIAL
-      ]:
-        error_msg = (
-            'neighboring_relation must be `ADD_OR_REMOVE_ONE` or '
-            '`REPLACE_SPECIAL` for `PoissonSampledDpEvent`. Found '
-            f'{self._neighboring_relation}.')
-        return CompositionErrorDetails(
-            invalid_event=event, error_message=error_msg)
       if isinstance(event.event, dp_event.GaussianDpEvent):
         if do_compose:
           if event.sampling_probability == 0:
@@ -136,10 +175,23 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
                 standard_deviation=event.event.noise_multiplier,
                 value_discretization_interval=self
                 ._value_discretization_interval,
-                sampling_prob=event.sampling_probability).self_compose(count)
+                sampling_prob=event.sampling_probability,
+                neighboring_relation=self.neighboring_relation,
+            ).self_compose(count)
             self._pld = self._pld.compose(subsampled_gaussian_pld)
         return None
       elif isinstance(event.event, dp_event.LaplaceDpEvent):
+        if self.neighboring_relation not in [
+            NeighborRel.ADD_OR_REMOVE_ONE, NeighborRel.REPLACE_SPECIAL
+        ]:
+          return CompositionErrorDetails(
+              invalid_event=event,
+              error_message=(
+                  'neighboring_relation must be `ADD_OR_REMOVE_ONE` or '
+                  '`REPLACE_SPECIAL` for `PoissonSampledDpEvent` of a '
+                  f'`LaplaceDpEvent`. Found {self._neighboring_relation}.'
+              ),
+          )
         if do_compose:
           if event.sampling_probability == 0:
             pass
@@ -158,7 +210,9 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
             invalid_event=event,
             error_message=(
                 'Subevent of `PoissonSampledEvent` must be either '
-                f'`GaussianDpEvent` or `LaplaceDpEvent`. Found {event.event}.'))
+                f'`GaussianDpEvent` or `LaplaceDpEvent`. Found {event.event}.'
+            ),
+        )
     else:
       # Unsupported event (including `UnsupportedDpEvent`).
       return CompositionErrorDetails(

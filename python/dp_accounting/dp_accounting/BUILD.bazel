@@ -16,7 +16,8 @@
 
 # Tools for tracking privacy budget.
 
-load("@accounting_py_pip_deps//:requirements.bzl", "requirement")
+load("@rules_python//python:py_library.bzl", "py_library")
+load("@rules_python//python:py_test.bzl", "py_test")
 
 package(default_visibility = [
     "//visibility:public",
@@ -46,8 +47,8 @@ py_library(
     deps = [
         ":dp_event",
         ":privacy_accountant",
-        requirement("attrs"),
-        requirement("scipy"),
+        "@accounting_py_pip_deps//attrs",
+        "@accounting_py_pip_deps//scipy",
     ],
 )
 
@@ -60,9 +61,9 @@ py_test(
         ":dp_event",
         ":mechanism_calibration",
         ":privacy_accountant",
-        requirement("absl-py"),
-        requirement("attrs"),
-        requirement("numpy"),
+        "@accounting_py_pip_deps//absl_py",
+        "@accounting_py_pip_deps//attrs",
+        "@accounting_py_pip_deps//numpy",
     ],
 )
 
@@ -71,7 +72,7 @@ py_library(
     srcs = ["dp_event.py"],
     srcs_version = "PY3",
     deps = [
-        requirement("attrs"),
+        "@accounting_py_pip_deps//attrs",
     ],
 )
 
@@ -82,9 +83,9 @@ py_test(
     srcs_version = "PY3",
     deps = [
         ":dp_event",
-        requirement("absl-py"),
-        requirement("attrs"),
-        requirement("dm-tree"),
+        "@accounting_py_pip_deps//absl_py",
+        "@accounting_py_pip_deps//attrs",
+        "@accounting_py_pip_deps//dm_tree",
     ],
 )
 
@@ -105,7 +106,7 @@ py_test(
     deps = [
         ":dp_event",
         ":dp_event_builder",
-        requirement("absl-py"),
+        "@accounting_py_pip_deps//absl_py",
     ],
 )
 
@@ -126,6 +127,6 @@ py_library(
     deps = [
         ":dp_event",
         ":privacy_accountant",
-        requirement("absl-py"),
+        "@accounting_py_pip_deps//absl_py",
     ],
 )

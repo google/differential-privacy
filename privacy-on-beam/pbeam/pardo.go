@@ -21,8 +21,8 @@ import (
 	"reflect"
 
 	log "github.com/golang/glog"
-	"github.com/google/differential-privacy/privacy-on-beam/v3/internal/generated"
-	"github.com/google/differential-privacy/privacy-on-beam/v3/internal/kv"
+	"github.com/google/differential-privacy/privacy-on-beam/v4/internal/generated"
+	"github.com/google/differential-privacy/privacy-on-beam/v4/internal/kv"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"

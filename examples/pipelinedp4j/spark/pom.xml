@@ -32,8 +32,7 @@
 
     <properties>
         <scala.version>2.13</scala.version>
-        <!-- TODO: Update to the latest Spark version once new version of PipelineDP4j is released. -->
-        <spark.version>3.3.2</spark.version>
+        <spark.version>3.5.5</spark.version>
         <picocli.version>4.7.6</picocli.version>
     </properties>
 

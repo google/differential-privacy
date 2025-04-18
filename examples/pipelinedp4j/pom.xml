@@ -35,8 +35,8 @@
     <properties>
         <maven-compiler-plugin.version>3.14.0</maven-compiler-plugin.version>
         <maven-assembly-plugin.version>3.7.1</maven-assembly-plugin.version>
-        <pipelinedp4j.version>0.0.3</pipelinedp4j.version>
-        <kotlin-stdlib.version>2.1.0</kotlin-stdlib.version>
+        <pipelinedp4j.version>0.0.4</pipelinedp4j.version>
+        <kotlin-stdlib.version>2.1.20</kotlin-stdlib.version>
     </properties>
 
     <dependencies>

@@ -19,8 +19,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/google/differential-privacy/privacy-on-beam/v3/pbeam/testutils"
-	testpb "github.com/google/differential-privacy/privacy-on-beam/v3/testdata"
+	"github.com/google/differential-privacy/privacy-on-beam/v4/pbeam/testutils"
+	testpb "github.com/google/differential-privacy/privacy-on-beam/v4/testdata"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"

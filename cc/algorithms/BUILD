@@ -589,6 +589,47 @@ cc_test(
 )
 
 cc_library(
+    name = "approx-bounds-provider",
+    hdrs = ["approx-bounds-provider.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":bounds-provider",
+        ":numerical-mechanisms",
+        ":util",
+        "//algorithms/internal:clamped-calculation-without-bounds",
+        "//proto:util-lib",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:cord",
+        "@com_google_absl//absl/types:span",
+        "@com_google_cc_differential_privacy//base:status_macros",
+        "@com_google_differential_privacy//proto:data_cc_proto",
+    ],
+)
+
+cc_test(
+    name = "approx-bounds-provider_test",
+    srcs = ["approx-bounds-provider_test.cc"],
+    deps = [
+        ":approx-bounds-provider",
+        ":bounds-provider",
+        ":numerical-mechanisms",
+        ":numerical-mechanisms-testing",
+        "//algorithms/internal:clamped-calculation-without-bounds",
+        "//base/testing:status_matchers",
+        "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "bounded-algorithm",
     hdrs = ["bounded-algorithm.h"],
     visibility = ["//visibility:private"],

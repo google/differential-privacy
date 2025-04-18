@@ -45,7 +45,6 @@ class PartitionAndPerPartitionSampler<PrivacyIdT : Any, PartitionKeyT : Any>(
       data
         .keyBy("KeyByPrivacyId", privacyIdEncoder) { it.privacyId() }
         .groupByKey("GroupByPrivacyId")
-    // TODO: Cover with tests (i.e. test should fail if this is not copied).
     // Necessary for DoFn to be serializable.
     val maxPartitionsContributedCopy = maxPartitionsContributed
     val maxContributionsPerPartitionCopy = maxContributionsPerPartition

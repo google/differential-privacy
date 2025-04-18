@@ -1,5 +1,5 @@
 #
-# Copyright 2020 Google LLC
+# Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,19 +14,20 @@
 # limitations under the License.
 #
 
-load("@bazel_gazelle//:def.bzl", "gazelle")
+module(name = "google_dp_accounting_py")
 
-# gazelle:prefix github.com/google/differential-privacy/privacy-on-beam/v3
-gazelle(name = "gazelle")
+bazel_dep(name = "rules_python", version = "1.2.0")
 
-# gazelle:proto disable_global
-#
-gazelle(
-    name = "update-repos",
-    args = [
-        "-from_file=go.mod",
-        "-to_macro=privacy_on_beam_deps.bzl%privacy_on_beam_deps",
-        "-prune",
-    ],
-    command = "update-repos",
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(
+    ignore_root_user_error = True,
+    python_version = "3.9",
 )
+
+pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+pip.parse(
+    hub_name = "accounting_py_pip_deps",
+    python_version = "3.9",
+    requirements_lock = "//:requirements_lock.txt",
+)
+use_repo(pip, "accounting_py_pip_deps")

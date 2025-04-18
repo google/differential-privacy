@@ -23,8 +23,8 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/google/differential-privacy/go/v3/dpagg"
-	"github.com/google/differential-privacy/go/v3/noise"
+	"github.com/google/differential-privacy/go/v4/dpagg"
+	"github.com/google/differential-privacy/go/v4/noise"
 )
 
 const (

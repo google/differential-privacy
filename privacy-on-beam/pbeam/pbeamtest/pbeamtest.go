@@ -21,7 +21,7 @@ package pbeamtest
 import (
 	"math"
 
-	"github.com/google/differential-privacy/go/v3/dpagg"
+	"github.com/google/differential-privacy/go/v4/dpagg"
 )
 
 // QuantilesTolerance returns a tolerance t such that the output of QuantilesPerKey is

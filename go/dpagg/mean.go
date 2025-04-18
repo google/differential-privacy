@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/google/differential-privacy/go/v3/checks"
-	"github.com/google/differential-privacy/go/v3/noise"
+	"github.com/google/differential-privacy/go/v4/checks"
+	"github.com/google/differential-privacy/go/v4/noise"
 )
 
 // BoundedMean calculates a differentially private mean of a collection of
@@ -215,24 +215,41 @@ func (bm *BoundedMean) Add(e float64) error {
 //
 // Note that the returned value is not an unbiased estimate of the raw bounded mean.
 func (bm *BoundedMean) Result() (float64, error) {
+	result, err := bm.ResultWithCount()
+	if err != nil {
+		return 0, fmt.Errorf("couldn't compute dp mean: %w", err)
+	}
+	return result.Mean, nil
+}
+
+// ResultWithCount returns a differentially private estimate of the count and mean of bounded
+// elements added so far. The method can be called only once.
+//
+// Note that none of the returned values are the unbiased estimate of the raw bounded statistics.
+func (bm *BoundedMean) ResultWithCount() (BoundedMeanResult, error) {
+	nullResult := BoundedMeanResult{}
 	if bm.state != defaultState {
-		return 0, fmt.Errorf("BoundedMean's noised result cannot be computed: " + bm.state.errorMessage())
+		return nullResult, fmt.Errorf(
+			"BoundedMean's noised result cannot be computed: %s", bm.state.errorMessage())
 	}
 	bm.state = resultReturned
 	noisedCount, err := bm.Count.Result()
 	if err != nil {
-		return 0, fmt.Errorf("couldn't compute dp count: %w", err)
+		return nullResult, fmt.Errorf("couldn't compute dp count: %w", err)
 	}
 	noisedCountClamped := math.Max(1.0, float64(noisedCount))
 	noisedSum, err := bm.NormalizedSum.Result()
 	if err != nil {
-		return 0, fmt.Errorf("couldn't compute dp sum: %w", err)
+		return nullResult, fmt.Errorf("couldn't compute dp sum: %w", err)
 	}
 	clamped, err := ClampFloat64(noisedSum/noisedCountClamped+bm.midPoint, bm.lower, bm.upper)
 	if err != nil {
-		return 0, fmt.Errorf("couldn't clamp the result: %w", err)
+		return nullResult, fmt.Errorf("couldn't clamp the result: %w", err)
 	}
-	return clamped, nil
+	return BoundedMeanResult{
+		Count: float64(noisedCount),
+		Mean:  clamped,
+	}, nil
 }
 
 // ComputeConfidenceInterval computes a confidence interval that contains the true mean with
@@ -380,4 +397,11 @@ type encodableBoundedMeanFloat64 struct {
 	EncodableCount         *Count
 	EncodableNormalizedSum *BoundedSumFloat64
 	MidPoint               float64
+}
+
+// BoundedMeanResult holds the noised count and mean output by
+// BoundedMean.ResultWithCount.
+type BoundedMeanResult struct {
+	Count float64
+	Mean  float64
 }

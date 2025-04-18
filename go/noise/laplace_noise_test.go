@@ -21,7 +21,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/google/differential-privacy/go/v3/stattestutils"
+	"github.com/google/differential-privacy/go/v4/stattestutils"
 )
 
 func TestLaplaceStatistics(t *testing.T) {

@@ -22,10 +22,10 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/google/differential-privacy/go/v3/dpagg"
-	"github.com/google/differential-privacy/go/v3/noise"
-	"github.com/google/differential-privacy/privacy-on-beam/v3/pbeam/testutils"
-	testpb "github.com/google/differential-privacy/privacy-on-beam/v3/testdata"
+	"github.com/google/differential-privacy/go/v4/dpagg"
+	"github.com/google/differential-privacy/go/v4/noise"
+	"github.com/google/differential-privacy/privacy-on-beam/v4/pbeam/testutils"
+	testpb "github.com/google/differential-privacy/privacy-on-beam/v4/testdata"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
@@ -192,7 +192,7 @@ var distinctThresholdTestCases = []distinctThresholdTestCase{
 		aggregationDelta:        0.005,
 		partitionSelectionDelta: 0.005,
 		numPartitions:           25,
-		minAllowedValue:         int(computeGaussianThreshold(25, 1, 1, 0.005, 0.005)),
+		minAllowedValue:         int(math.Ceil(computeGaussianThreshold(25, 1, 1, 0.005, 0.005))),
 	},
 	{
 		name:                    "Laplace",
@@ -201,7 +201,7 @@ var distinctThresholdTestCases = []distinctThresholdTestCase{
 		aggregationDelta:        0,
 		partitionSelectionDelta: 0.005,
 		numPartitions:           25,
-		minAllowedValue:         int(computeLaplaceThreshold(25, 1, 1, 0, 0.01)),
+		minAllowedValue:         int(math.Ceil(computeLaplaceThreshold(25, 1, 1, 0, 0.005))),
 	},
 }
 
@@ -240,6 +240,14 @@ func buildDistinctPrivacyIDThresholdPipeline(t *testing.T, tc distinctThresholdT
 }
 
 // Checks that DistinctPrivacyID correctly removes partitions under the threshold.
+//
+// The probability of getting a noisy count fulfilling the threshold is about 1/2.
+//
+// Therefore, the probability of getting a set of noisy counts all fulfilling the threshold is
+// about (1/2)^n, where n is the number of partitions.
+//
+// That is, with probability 1 - (1/2)^n, the test should be able to verify that partitions with
+// noisy counts below the threshold will be removed.
 func TestDistinctPrivacyIDThresholdsSmallEntries(t *testing.T) {
 	for _, tc := range distinctThresholdTestCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -259,6 +267,14 @@ func TestDistinctPrivacyIDThresholdsSmallEntries(t *testing.T) {
 
 // Checks that DistinctPrivacyID does not remove all data (partitions above the
 // threshold should be maintained).
+//
+// The probability of getting a noisy count below the threshold is about 1/2.
+//
+// Therefore, the probability of getting a set of noisy counts all below the threshold is about
+// (1/2)^n, where n is the number of partitions.
+//
+// That is, with probability 1 - (1/2)^n, the test should be able to verify that partitions with
+// noisy counts above the threshold will be kept.
 func TestDistinctPrivacyIDThresholdLeavesSomeEntries(t *testing.T) {
 	for _, tc := range distinctThresholdTestCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -268,9 +284,9 @@ func TestDistinctPrivacyIDThresholdLeavesSomeEntries(t *testing.T) {
 			}
 
 			p, s, col, got := buildDistinctPrivacyIDThresholdPipeline(t, tc)
-			passert.Empty(s, got) // We want this to be an error.
-			if err := ptest.Run(p); err == nil {
-				t.Errorf("%s: DistinctPrivacyID(%v) returned an empty result.", tc.name, col)
+			passert.NonEmpty(s, got) // We expect the result to be non-empty.
+			if err := ptest.Run(p); err != nil {
+				t.Errorf("%s: DistinctPrivacyID(%v) thresholded all partitions: %v", tc.name, col, err)
 			}
 		})
 	}

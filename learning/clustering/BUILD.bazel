@@ -16,8 +16,6 @@
 
 # Private LSH clustering library
 
-load("@learning_py_pip_deps//:requirements.bzl", "requirement")
-
 package(default_visibility = [
     "//visibility:public",
 ])
@@ -35,9 +33,9 @@ py_library(
         ":lsh_tree",
         ":privacy_calculator",
         ":private_outputs",
-        requirement("absl-py"),
-        requirement("numpy"),
-        requirement("scikit-learn"),
+        "@learning_py_pip_deps//absl_py",
+        "@learning_py_pip_deps//numpy",
+        "@learning_py_pip_deps//scikit_learn",
     ],
 )
 
@@ -49,8 +47,8 @@ py_test(
     deps = [
         ":clustering_algorithm",
         ":clustering_params",
-        requirement("absl-py"),
-        requirement("numpy"),
+        "@learning_py_pip_deps//absl_py",
+        "@learning_py_pip_deps//numpy",
     ],
 )
 
@@ -59,8 +57,8 @@ py_library(
     srcs = ["central_privacy_utils.py"],
     srcs_version = "PY3",
     deps = [
-        requirement("numpy"),
-        requirement("scipy"),
+        "@learning_py_pip_deps//numpy",
+        "@learning_py_pip_deps//scipy",
     ],
 )
 
@@ -73,9 +71,9 @@ py_test(
     deps = [
         ":central_privacy_utils",
         ":test_utils",
-        requirement("absl-py"),
-        requirement("numpy"),
-        requirement("scipy"),
+        "@learning_py_pip_deps//absl_py",
+        "@learning_py_pip_deps//numpy",
+        "@learning_py_pip_deps//scipy",
     ],
 )
 
@@ -84,8 +82,8 @@ py_library(
     srcs = ["clustering_params.py"],
     srcs_version = "PY3",
     deps = [
-        requirement("absl-py"),
-        requirement("numpy"),
+        "@learning_py_pip_deps//absl_py",
+        "@learning_py_pip_deps//numpy",
     ],
 )
 
@@ -96,8 +94,8 @@ py_test(
     srcs_version = "PY3",
     deps = [
         ":clustering_params",
-        requirement("absl-py"),
-        requirement("numpy"),
+        "@learning_py_pip_deps//absl_py",
+        "@learning_py_pip_deps//numpy",
     ],
 )
 
@@ -120,7 +118,7 @@ py_test(
         ":clustering_params",
         ":coreset_params",
         ":test_utils",
-        requirement("absl-py"),
+        "@learning_py_pip_deps//absl_py",
     ],
 )
 
@@ -132,7 +130,7 @@ py_library(
         ":central_privacy_utils",
         ":clustering_params",
         ":privacy_calculator",
-        requirement("numpy"),
+        "@learning_py_pip_deps//numpy",
     ],
 )
 
@@ -146,8 +144,8 @@ py_test(
         ":clustering_params",
         ":default_clustering_params",
         ":test_utils",
-        requirement("absl-py"),
-        requirement("numpy"),
+        "@learning_py_pip_deps//absl_py",
+        "@learning_py_pip_deps//numpy",
     ],
 )
 
@@ -156,7 +154,7 @@ py_library(
     srcs = ["lsh.py"],
     srcs_version = "PY3",
     deps = [
-        requirement("numpy"),
+        "@learning_py_pip_deps//numpy",
     ],
 )
 
@@ -167,8 +165,8 @@ py_test(
     srcs_version = "PY3",
     deps = [
         ":lsh",
-        requirement("absl-py"),
-        requirement("numpy"),
+        "@learning_py_pip_deps//absl_py",
+        "@learning_py_pip_deps//numpy",
     ],
 )
 
@@ -181,8 +179,8 @@ py_library(
         ":clustering_params",
         ":coreset_params",
         ":lsh",
-        requirement("absl-py"),
-        requirement("numpy"),
+        "@learning_py_pip_deps//absl_py",
+        "@learning_py_pip_deps//numpy",
     ],
 )
 
@@ -197,9 +195,9 @@ py_test(
         ":lsh",
         ":lsh_tree",
         ":test_utils",
-        requirement("absl-py"),
-        requirement("numpy"),
-        requirement("scipy"),
+        "@learning_py_pip_deps//absl_py",
+        "@learning_py_pip_deps//numpy",
+        "@learning_py_pip_deps//scipy",
     ],
 )
 
@@ -210,14 +208,14 @@ py_library(
     deps = [
         ":central_privacy_utils",
         ":clustering_params",
-        "@com_google_python_dp_accounting//dp_accounting:dp_event",
-        "@com_google_python_dp_accounting//dp_accounting:dp_event_builder",
-        "@com_google_python_dp_accounting//dp_accounting:mechanism_calibration",
-        "@com_google_python_dp_accounting//dp_accounting/pld:accountant",
-        "@com_google_python_dp_accounting//dp_accounting/pld:common",
-        "@com_google_python_dp_accounting//dp_accounting/pld:pld_privacy_accountant",
-        requirement("absl-py"),
-        requirement("numpy"),
+        "@google_dp_accounting_py//dp_accounting:dp_event",
+        "@google_dp_accounting_py//dp_accounting:dp_event_builder",
+        "@google_dp_accounting_py//dp_accounting:mechanism_calibration",
+        "@google_dp_accounting_py//dp_accounting/pld:accountant",
+        "@google_dp_accounting_py//dp_accounting/pld:common",
+        "@google_dp_accounting_py//dp_accounting/pld:pld_privacy_accountant",
+        "@learning_py_pip_deps//absl_py",
+        "@learning_py_pip_deps//numpy",
     ],
 )
 
@@ -231,11 +229,11 @@ py_test(
         ":clustering_params",
         ":privacy_calculator",
         ":test_utils",
-        "@com_google_python_dp_accounting//dp_accounting:dp_event",
-        "@com_google_python_dp_accounting//dp_accounting:mechanism_calibration",
-        "@com_google_python_dp_accounting//dp_accounting/pld:accountant",
-        requirement("absl-py"),
-        requirement("numpy"),
+        "@google_dp_accounting_py//dp_accounting:dp_event",
+        "@google_dp_accounting_py//dp_accounting:mechanism_calibration",
+        "@google_dp_accounting_py//dp_accounting/pld:accountant",
+        "@learning_py_pip_deps//absl_py",
+        "@learning_py_pip_deps//numpy",
     ],
 )
 
@@ -245,7 +243,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":clustering_params",
-        requirement("numpy"),
+        "@learning_py_pip_deps//numpy",
     ],
 )
 
@@ -256,8 +254,8 @@ py_test(
     srcs_version = "PY3",
     deps = [
         ":private_outputs",
-        requirement("absl-py"),
-        requirement("numpy"),
+        "@learning_py_pip_deps//absl_py",
+        "@learning_py_pip_deps//numpy",
     ],
 )
 

@@ -1,0 +1,6 @@
+absl-py==1.4.0
+joblib==1.4.2
+numpy==1.26.4
+scikit-learn==0.24.2
+scipy==1.13.1
+threadpoolctl==3.6.0

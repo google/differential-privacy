@@ -31,7 +31,7 @@
     <packaging>jar</packaging>
 
     <properties>
-        <beam.version>2.62.0</beam.version>
+        <beam.version>2.63.0</beam.version>
 
         <!-- Otherwise you get errors like https://shorturl.at/7mfCi -->
         <exec.cleanupDaemonThreads>false</exec.cleanupDaemonThreads>
@@ -54,18 +54,6 @@
             <version>${beam.version}</version>
         </dependency>
      </dependencies>
-
-    <!-- Necessary to downgrade jackson-databind from 2.15.4 to 2.13.5 because otherwise jackson-databind from beam-sdks-java-core (2.62.0) is not compatible with jackson-module-scala_2.13 (2.13.4) from PipelineDP4j (0.0.3). -->
-    <!-- TODO: upgrade scala module version and create new PipelineDP4j maven release to remove this dependency management. -->
-    <dependencyManagement>
-        <dependencies>
-            <dependency>
-                <groupId>com.fasterxml.jackson.core</groupId>
-                <artifactId>jackson-databind</artifactId>
-                <version>2.13.5</version>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
 
     <profiles>
         <profile>

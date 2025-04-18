@@ -15,7 +15,7 @@
 
 # Differential Privacy Data Generators.
 
-load("@dp_auditorium_py_pip_deps//:requirements.bzl", "requirement")
+load("@rules_python//python:py_library.bzl", "py_library")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -30,5 +30,5 @@ py_library(
         "privacy_test_runner_config.py",
         "property_tester_config.py",
     ],
-    deps = [requirement("google-vizier")],
+    deps = ["@pypi//google_vizier"],
 )

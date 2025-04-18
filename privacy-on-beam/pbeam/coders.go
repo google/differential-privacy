@@ -36,6 +36,8 @@ func init() {
 	beam.RegisterCoder(reflect.TypeOf(expandFloat64ValuesAccum{}), encodeExpandFloat64ValuesAccum, decodeExpandFloat64ValuesAccum)
 	beam.RegisterCoder(reflect.TypeOf(partitionSelectionAccum{}), encodePartitionSelectionAccum, decodePartitionSelectionAccum)
 	beam.RegisterCoder(reflect.TypeOf(boundedVarianceAccum{}), encodeBoundedVarianceAccum, decodeBoundedVarianceAccum)
+	beam.RegisterCoder(reflect.TypeOf((*MeanStatistics)(nil)),
+		encodeMeanStatisticsPtr, decodeMeanStatisticsPtr)
 	beam.RegisterCoder(reflect.TypeOf((*VarianceStatistics)(nil)),
 		encodeVarianceStatisticsPtr, decodeVarianceStatisticsPtr)
 }
@@ -126,6 +128,22 @@ func encodeBoundedVarianceAccum(v boundedVarianceAccum) ([]byte, error) {
 
 func decodeBoundedVarianceAccum(data []byte) (boundedVarianceAccum, error) {
 	var ret boundedVarianceAccum
+	err := decode(&ret, data)
+	return ret, err
+}
+
+func encodeMeanStatisticsPtr(v *MeanStatistics) ([]byte, error) {
+	if v == nil {
+		return nil, nil
+	}
+	return encode(v)
+}
+
+func decodeMeanStatisticsPtr(data []byte) (*MeanStatistics, error) {
+	if len(data) == 0 {
+		return nil, nil
+	}
+	var ret *MeanStatistics
 	err := decode(&ret, data)
 	return ret, err
 }

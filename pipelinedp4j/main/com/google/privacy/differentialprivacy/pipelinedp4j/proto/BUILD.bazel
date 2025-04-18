@@ -16,7 +16,13 @@ load("@com_github_grpc_grpc_kotlin//:kt_jvm_grpc.bzl", "kt_jvm_proto_library")
 
 package(
     default_visibility = [
-        "//visibility:public",
+        "//:__pkg__",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/api:__subpackages__",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core:__subpackages__",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/dev_examples:__subpackages__",
+        "//tests/com/google/privacy/differentialprivacy/pipelinedp4j/beam:__subpackages__",
+        "//tests/com/google/privacy/differentialprivacy/pipelinedp4j/core:__subpackages__",
+        "//tests/com/google/privacy/differentialprivacy/pipelinedp4j/spark:__subpackages__",
     ],
 )
 

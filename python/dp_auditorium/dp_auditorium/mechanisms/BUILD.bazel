@@ -16,7 +16,8 @@
 
 # Differential Privacy Mechanisms
 
-load("@dp_auditorium_py_pip_deps//:requirements.bzl", "requirement")
+load("@rules_python//python:py_library.bzl", "py_library")
+load("@rules_python//python:py_test.bzl", "py_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -37,7 +38,7 @@ py_library(
     srcs = ["mean.py"],
     deps = [
         "//dp_auditorium/configs",
-        requirement("numpy"),
+        "@pypi//numpy",
     ],
 )
 
@@ -47,9 +48,9 @@ py_test(
     deps = [
         ":mean",
         ":mechanisms_utils",
-        requirement("absl-py"),
-        requirement("numpy"),
-        requirement("tensorflow"),
+        "@pypi//absl_py",
+        "@pypi//numpy",
+        "@pypi//tensorflow",
     ],
 )
 
@@ -58,7 +59,7 @@ py_library(
     srcs = ["noisy_max.py"],
     deps = [
         "//dp_auditorium/configs",
-        requirement("numpy"),
+        "@pypi//numpy",
     ],
 )
 
@@ -68,9 +69,9 @@ py_test(
     deps = [
         ":noisy_max",
         "//dp_auditorium/configs",
-        requirement("absl-py"),
-        requirement("numpy"),
-        requirement("tensorflow"),
+        "@pypi//absl_py",
+        "@pypi//numpy",
+        "@pypi//tensorflow",
     ],
 )
 
@@ -79,8 +80,8 @@ py_library(
     srcs = ["sparse_vector_technique.py"],
     deps = [
         "//dp_auditorium/configs",
-        requirement("numpy"),
-        requirement("typing-extensions"),
+        "@pypi//numpy",
+        "@pypi//typing_extensions",
     ],
 )
 
@@ -90,9 +91,9 @@ py_test(
     deps = [
         ":sparse_vector_technique",
         "//dp_auditorium/configs",
-        requirement("absl-py"),
-        requirement("numpy"),
-        requirement("tensorflow"),
+        "@pypi//absl_py",
+        "@pypi//numpy",
+        "@pypi//tensorflow",
     ],
 )
 

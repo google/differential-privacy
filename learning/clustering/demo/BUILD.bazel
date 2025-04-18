@@ -16,8 +16,6 @@
 
 # Demo for private clustering
 
-load("@learning_py_pip_deps//:requirements.bzl", "requirement")
-
 package(default_visibility = [
     "//visibility:public",
 ])
@@ -30,7 +28,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         "//clustering:clustering_params",
-        requirement("numpy"),
+        "@learning_py_pip_deps//numpy",
     ],
 )
 
@@ -42,8 +40,8 @@ py_test(
     deps = [
         ":data_generation",
         "//clustering:clustering_params",
-        requirement("absl-py"),
-        requirement("numpy"),
+        "@learning_py_pip_deps//absl_py",
+        "@learning_py_pip_deps//numpy",
     ],
 )
 
@@ -56,7 +54,7 @@ py_binary(
         ":data_generation",
         "//clustering:clustering_algorithm",
         "//clustering:clustering_params",
-        requirement("absl-py"),
-        requirement("numpy"),
+        "@learning_py_pip_deps//absl_py",
+        "@learning_py_pip_deps//numpy",
     ],
 )

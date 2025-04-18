@@ -351,3 +351,37 @@ def log_a_times_exp_b_plus_c(a: float, b: float, c: float) -> float:
     return _log_sub(d, np.log(-c))
   else:
     return _log_add(d, np.log(c))
+
+
+def log_sinh(a: float) -> float:
+  """Returns log(sinh(a)) = log((exp(a) - exp(-a)) / 2)."""
+  if a < 0:
+    raise ValueError(f'a must be non-negative. Got a={a}.')
+  if a == 0:
+    return 0
+  # log(exp(a) * (1 - exp(-2a)) / 2) = a + log(1 - exp(-2a)) - log(2)
+  return a + math.log1p(-math.exp(-2 * a)) - math.log(2)
+
+
+def asinh_exp(a: float, b: float) -> float:
+  """Returns asinh(b * exp(a)).
+
+  Positive solution of the following quadratic equation in X = e^x:
+    X^2 - 2 * b * e^a * X - 1 = 0
+  Given as: X = sqrt{(b * e^a)^2 + 1} + b * e^a
+              = 1 / (sqrt{(b * e^a)^2 + 1} - b * e^a)
+  Thus, we get x = log(sqrt{(b * e^a)^2 + 1} + b * e^a)   [useful when b > 0]
+                 = - log(sqrt{(b * e^a)^2 + 1} - b * e^a) [useful when b < 0]
+                 = sign(b) * log(sqrt{(b * e^a)^2 + 1} + |b| * e^a)
+  Args:
+    a: The first argument.
+    b: The second argument.
+  """
+  if b == 0.0:
+    return 0.0
+  sign_b, abs_b = (1, b) if b >= 0 else (-1, -b)
+  log_abs_b_times_exp_a = math.log(abs_b) + a
+  return sign_b * np.logaddexp(
+      0.5 * np.logaddexp(0, 2 * log_abs_b_times_exp_a),
+      log_abs_b_times_exp_a,
+  )

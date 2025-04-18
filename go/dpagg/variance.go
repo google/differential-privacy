@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/google/differential-privacy/go/v3/checks"
-	"github.com/google/differential-privacy/go/v3/noise"
+	"github.com/google/differential-privacy/go/v4/checks"
+	"github.com/google/differential-privacy/go/v4/noise"
 )
 
 // BoundedVariance calculates a differentially private variance of a collection of

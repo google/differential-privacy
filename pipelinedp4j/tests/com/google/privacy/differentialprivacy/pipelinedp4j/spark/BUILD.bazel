@@ -14,8 +14,6 @@
 
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
 
-package(default_visibility = ["//visibility:public"])
-
 kt_jvm_test(
     name = "spark_tests",
     srcs = [
@@ -25,6 +23,7 @@ kt_jvm_test(
         "SparkTests.kt",
     ],
     test_class = "com.google.privacy.differentialprivacy.pipelinedp4j.spark.SparkTests",
+    visibility = ["//tests/com/google/privacy/differentialprivacy/pipelinedp4j/api:__subpackages__"],
     deps = [
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core:core_types",
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/local:local_collections",

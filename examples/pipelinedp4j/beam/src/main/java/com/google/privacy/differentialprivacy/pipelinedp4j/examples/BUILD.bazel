@@ -23,7 +23,7 @@ java_binary(
     ],
     deps = [
         "//common/src/main/java/com/google/privacy/differentialprivacy/pipelinedp4j/examples:common",
-        "@com_google_privacy_differentialprivacy_pipielinedp4j//main/com/google/privacy/differentialprivacy/pipelinedp4j/api",
+        "@com_google_privacy_differentialprivacy_pipelinedp4j//main/com/google/privacy/differentialprivacy/pipelinedp4j/api",
         "@maven//:org_apache_beam_beam_sdks_java_core",
         "@maven//:org_apache_beam_beam_sdks_java_extensions_avro",
         "@maven//:org_jetbrains_kotlin_kotlin_stdlib",

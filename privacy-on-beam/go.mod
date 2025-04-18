@@ -1,18 +1,18 @@
-module github.com/google/differential-privacy/privacy-on-beam/v3
+module github.com/google/differential-privacy/privacy-on-beam/v4
 
 go 1.22
 
 require (
 	github.com/apache/beam/sdks/v2 v2.55.0
 	github.com/golang/glog v1.2.0
-	github.com/google/differential-privacy/go/v3 v3.0.0
+	github.com/google/differential-privacy/go/v4 v4.0.0
 	github.com/google/go-cmp v0.6.0
 	gonum.org/v1/plot v0.14.0
 	google.golang.org/protobuf v1.33.0
 )
 
 // Use the current version of the Go DP Library.
-replace github.com/google/differential-privacy/go/v3 => ../go
+replace github.com/google/differential-privacy/go/v4 => ../go
 
 require (
 	cloud.google.com/go v0.112.1 // indirect
@@ -76,5 +76,5 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240325203815-454cdb8f5daa // indirect
 	google.golang.org/grpc v1.62.1 // indirect
 	gopkg.in/retry.v1 v1.0.3 // indirect
-	gotest.tools/v3 v3.5.1 // indirect
+	gotest.tools/v4 v4.5.1 // indirect
 )

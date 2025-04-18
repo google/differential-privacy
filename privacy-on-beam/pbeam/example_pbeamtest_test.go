@@ -20,7 +20,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/google/differential-privacy/privacy-on-beam/v3/pbeam"
+	"github.com/google/differential-privacy/privacy-on-beam/v4/pbeam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/direct"

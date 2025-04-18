@@ -25,10 +25,10 @@ import (
 	"math/rand"
 	"reflect"
 
-	"github.com/google/differential-privacy/go/v3/checks"
-	"github.com/google/differential-privacy/go/v3/dpagg"
-	"github.com/google/differential-privacy/go/v3/noise"
-	"github.com/google/differential-privacy/privacy-on-beam/v3/internal/kv"
+	"github.com/google/differential-privacy/go/v4/checks"
+	"github.com/google/differential-privacy/go/v4/dpagg"
+	"github.com/google/differential-privacy/go/v4/noise"
+	"github.com/google/differential-privacy/privacy-on-beam/v4/internal/kv"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
@@ -61,6 +61,9 @@ func init() {
 	register.Emitter2[beam.V, int64]()
 	register.Function3x0[beam.V, *float64, func(beam.V, float64)](dropThresholdedPartitionsFloat64)
 	register.Emitter2[beam.V, float64]()
+	register.Function3x0[beam.V, *MeanStatistics, func(beam.V, MeanStatistics)](
+		dropThresholdedPartitionsMeanStatistics)
+	register.Emitter2[beam.V, MeanStatistics]()
 	register.Function3x0[beam.V, *VarianceStatistics, func(beam.V, VarianceStatistics)](
 		dropThresholdedPartitionsVarianceStatistics)
 	register.Emitter2[beam.V, VarianceStatistics]()
@@ -68,6 +71,7 @@ func init() {
 	register.Emitter2[beam.V, []float64]()
 	register.Function2x2[beam.W, *int64, beam.W, int64](dereferenceValueInt64)
 	register.Function2x2[beam.W, *float64, beam.W, float64](dereferenceValueFloat64)
+	register.Function2x2[beam.W, *MeanStatistics, beam.W, MeanStatistics](dereferenceMeanStatistics)
 	register.Function2x2[beam.W, *VarianceStatistics, beam.W, VarianceStatistics](
 		dereferenceVarianceStatistics)
 	register.Function2x3[kv.Pair, beam.V, kv.Pair, int64, error](convertToInt64Fn)
@@ -560,6 +564,12 @@ func dereferenceValueFloat64(key beam.W, value *float64) (k beam.W, v float64) {
 	return key, *value
 }
 
+func dereferenceMeanStatistics(
+	key beam.W, value *MeanStatistics,
+) (k beam.W, v MeanStatistics) {
+	return key, *value
+}
+
 func dereferenceVarianceStatistics(
 	key beam.W, value *VarianceStatistics,
 ) (k beam.W, v VarianceStatistics) {
@@ -588,6 +598,16 @@ func dropThresholdedPartitionsInt64(v beam.V, r *int64, emit func(beam.V, int64)
 // dropThresholdedPartitionsFloat64 drops thresholded float partitions, i.e. those
 // that have nil r, by emitting only non-thresholded partitions.
 func dropThresholdedPartitionsFloat64(v beam.V, r *float64, emit func(beam.V, float64)) {
+	if r != nil {
+		emit(v, *r)
+	}
+}
+
+// dropThresholdedPartitionsMeanStatistics drops thresholded partitions, i.e. those
+// that have nil r, by emitting only non-thresholded partitions.
+func dropThresholdedPartitionsMeanStatistics(
+	v beam.V, r *MeanStatistics, emit func(beam.V, MeanStatistics),
+) {
 	if r != nil {
 		emit(v, *r)
 	}

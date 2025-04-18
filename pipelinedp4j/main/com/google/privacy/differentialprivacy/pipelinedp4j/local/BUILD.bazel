@@ -16,7 +16,16 @@ load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_library")
 
 package(
     default_visibility = [
-        "//visibility:public",
+        "//:__pkg__",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/api:__subpackages__",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/beam:__subpackages__",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core:__subpackages__",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/dev_examples:__subpackages__",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/spark:__subpackages__",
+        "//tests/com/google/privacy/differentialprivacy/pipelinedp4j/beam:__subpackages__",
+        "//tests/com/google/privacy/differentialprivacy/pipelinedp4j/core:__subpackages__",
+        "//tests/com/google/privacy/differentialprivacy/pipelinedp4j/local:__subpackages__",
+        "//tests/com/google/privacy/differentialprivacy/pipelinedp4j/spark:__subpackages__",
     ],
 )
 

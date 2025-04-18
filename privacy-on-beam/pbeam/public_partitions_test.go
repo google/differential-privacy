@@ -23,7 +23,7 @@ import (
 	"testing"
 
 	"flag"
-	"github.com/google/differential-privacy/privacy-on-beam/v3/pbeam/testutils"
+	"github.com/google/differential-privacy/privacy-on-beam/v4/pbeam/testutils"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 )
