@@ -1,7 +1,7 @@
-# The version of these dependencies need to be compatible with the versios of
-# the dependenices from `../python/requirements.txt`.
+# The version of these dependencies need to be compatible with the versions of
+# the dependenices from `../python/dp_accounting/requirements.txt`.
 
 absl-py~=1.0
 numpy~=1.21
-scikit-learn~=0.24.2
+scikit-learn>=1.5.0
 scipy~=1.7

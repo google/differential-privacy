@@ -48,8 +48,8 @@ class PartitionSampler<PrivacyIdT : Any, PartitionKeyT : Any>(
       "SamplePartitions",
       partitionKeyEncoder,
       encoderFactory.protos(PrivacyIdContributions::class),
-    ) { _, intialContributions ->
-      val l0BoundedData = samplePartitions(intialContributions, maxPartitionsContributed)
+    ) { _, initialContributions ->
+      val l0BoundedData = samplePartitions(initialContributions, maxPartitionsContributed)
       val groupedByPartitionKey:
         Map<PartitionKeyT, List<ContributionWithPrivacyId<PrivacyIdT, PartitionKeyT>>> =
         l0BoundedData.groupBy { it.partitionKey() }
@@ -105,7 +105,7 @@ class PartitionSamplerWithoutValues<PrivacyIdT : Any, PartitionKeyT : Any>(
       .mapToTable("DropPartitionKeyFromKey", privacyIdEncoder, partitionKeyEncoder) {
         _,
         contributions ->
-        // Contribtions is a list of size 1, since we sampled 1 element per key.
+        // Contributions is a list of size 1, since we sampled 1 element per key.
         contributions.first().privacyId() to contributions.first().partitionKey()
       }
       .samplePerKey("L0Sampling", maxPartitionsContributed)

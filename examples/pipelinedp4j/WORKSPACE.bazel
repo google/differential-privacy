@@ -82,8 +82,9 @@ GOOGLE_TRUTH_TAG = "1.4.4"
 
 maven_install(
     artifacts = [
-        "com.google.privacy.differentialprivacy:differentialprivacy:3.0.0",
+        "com.google.privacy.differentialprivacy:differentialprivacy:4.0.0",
         "com.google.protobuf:protobuf-kotlin:4.30.1",
+        "com.google.errorprone:error_prone_annotations:2.38.0",
         "org.apache.beam:beam-runners-direct-java:%s" % BEAM_TAG,
         "org.apache.beam:beam-sdks-java-core:%s" % BEAM_TAG,
         "org.apache.beam:beam-sdks-java-extensions-avro:%s" % BEAM_TAG,

@@ -525,20 +525,15 @@ class VectorSumCombiner(
             )
           vector.map { noise.addNoise(it, l1Sensitivity, budget.epsilon(), budget.delta()) }
         }
-        // TODO: Update Java DP library and add noise with L2 sensitivity.
         is GaussianNoise -> {
-          val epsPerDimension = budget.epsilon() / vector.dimension
-          val deltaPerDimension = budget.delta() / vector.dimension
-          vector
-            .map {
-              noise.addNoise(
-                it,
-                aggregationParams.maxPartitionsContributed!!,
-                aggregationParams.vectorMaxTotalNorm!!,
-                epsPerDimension,
-                deltaPerDimension,
-              )
-            }
+          val l2Sensitivity =
+            calculateL2Sensistivity(
+              aggregationParams.vectorNormKind!!,
+              aggregationParams.vectorMaxTotalNorm!!,
+              aggregationParams.vectorSize!!,
+              aggregationParams.maxPartitionsContributed!!,
+            )
+          vector.map { noise.addNoise(it, l2Sensitivity, budget.epsilon(), budget.delta()) }
         }
         is ZeroNoise -> vector.map { it }
         else -> throw IllegalArgumentException("Unsupported noise kind: ${noise.javaClass}.")
@@ -583,6 +578,24 @@ class VectorSumCombiner(
           NormKind.L_INF -> maxNorm * vectorSize
         }
       return onePartitionSensitivity * maxPartitionsContributed
+    }
+
+    fun calculateL2Sensistivity(
+      normKind: NormKind,
+      maxNorm: Double,
+      vectorSize: Int,
+      maxPartitionsContributed: Int,
+    ): Double {
+      val onePartitionSensitivity =
+        when (normKind) {
+          NormKind.L1 ->
+            throw IllegalStateException(
+              "L1 norm vector norm is not supported for Gaussian mechanism."
+            )
+          NormKind.L2 -> maxNorm
+          NormKind.L_INF -> maxNorm * Math.sqrt(vectorSize.toDouble())
+        }
+      return onePartitionSensitivity * Math.sqrt(maxPartitionsContributed.toDouble())
     }
   }
 }
