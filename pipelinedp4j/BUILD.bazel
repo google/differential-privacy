@@ -30,7 +30,7 @@ kt_kotlinc_options(
 )
 
 # Update the following version for packaging of a new release.
-_RELEASE_VERSION = "0.0.1"
+_RELEASE_VERSION = "4.0.0"
 
 pom_file(
     name = "export_pom",

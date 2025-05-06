@@ -18,10 +18,6 @@ You can use PipelineDP4j in Java, Kotlin or Scala.
 
 ## How to Use
 
-WARNING: Current API version (0.0.1) is experimental and will be changed in 2024
-without backward-compatibility. The experimental API won't be supported and
-maintained after that.
-
 ### Example
 
 <!-- TODO: create codelab and rewrite this section. -->
@@ -44,6 +40,3 @@ dependency from Maven repository. You can find it
 [here](https://mvnrepository.com/artifact/com.google.privacy.differentialprivacy.pipelinedp4j/pipelinedp4j).
 After adding this dependency into your project you can write the same code as in
 the example above and it will compile.
-
-Please, don't use `0.0.1` version in production code as it is experimental and
-its maintenance will be stopped in 2024 with release of the new version.

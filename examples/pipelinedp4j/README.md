@@ -102,7 +102,7 @@ Here are the steps to build and run the example assuming you are in the
     ```
 
 1.  Run the program (if you want to run Spark example, change `beam` to `spark`,
-    `BeamExample` to `SparkExample` or `SparkDatasetExample` and
+    `BeamExample` to `SparkExample` or `SparkDataFrameExample` and
     `--outputFilePath=output.txt` to `--outputFolder=output`):
 
     ```shell
@@ -124,12 +124,6 @@ utilizes a
 from the Maven repository, eliminating the need for the library source files and
 the Bazel files (`WORKSPACE.bazel`, `.bazelversion` and `BUILD.bazel`).
 
-NOTE: Currently the version of examples at HEAD does not build with Maven
-because the examples were migrated to the new version of public API which has
-not been uploaded to the Maven repository yet. It will be uploaded in a few
-days. For now, use the version of examples from commit that preceded the commit
-when this note was created (use git blame).
-
 To proceed, ensure Maven is installed on your system. If you're using Linux or
 MacOS, you can install it by running `sudo apt-get install maven` or `brew
 install maven`, respectively. While any Maven version should work, refer to
@@ -147,7 +141,7 @@ Once Maven is installed, navigate to the directory of a backend you want to use:
 *   `examples/pipelinedp4j/spark` for Spark
 
 Then execute the following command with updated `inputFilePath` (if you want to
-run on Spark, change `BeamExample` to `SparkExample` or `SparkDatasetExample`
+run on Spark, change `BeamExample` to `SparkExample` or `SparkDataFrameExample`
 and `--outputFilePath=output.txt` to `--outputFolder=output`):
 
 ```shell
@@ -159,7 +153,9 @@ output file paths.
 
 View the results.
 
-For Beam `cat output.txt` For Spark the output is written to a folder and the
+For Beam `cat output.txt`.
+
+For Spark the output is written to a folder and the
 result is stored in a file whose name starts with `part-00000`: `cat
 output/part-00000<...>`
 

@@ -18,7 +18,7 @@ load("@bazel_common//tools/maven:pom_file.bzl", "pom_file")
 load("@rules_jvm_external//:defs.bzl", "java_export")
 
 # Update the following version for packaging of a new release.
-_DP_LIB_VERSION = "3.0.0"
+_DP_LIB_VERSION = "4.0.0"
 
 exports_files([
     "dp_java_deps.bzl",

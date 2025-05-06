@@ -169,6 +169,7 @@ class ApproxBoundsProvider final : public BoundsProvider<T> {
 
     RETURN_IF_ERROR(ValidateIsInExclusiveInterval(options.success_probability,
                                                   0, 1, "Success probability"));
+
     // Using `new` to access non-public constructor.
     return absl::WrapUnique(new ApproxBoundsProvider<T>(
         options.epsilon, options.num_bins, options.scale, options.base,
