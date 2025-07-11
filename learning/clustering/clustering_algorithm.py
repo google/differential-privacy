@@ -284,7 +284,7 @@ def get_private_coreset(
   coreset_points = []
   coreset_point_weights = []
   for leaf in leaves:
-    coreset_points.append(leaf.get_private_average())
+    coreset_points.append(leaf.private_average)
     coreset_point_weights.append(leaf.private_count)
 
   # To improve accuracy, we can clip the coreset points to the provided radius.
