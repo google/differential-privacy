@@ -61,7 +61,11 @@ def default_tree_param(
   min_num_points_in_node = max(1, min_num_points_in_node)
   min_num_points_in_branching_node = 3 * min_num_points_in_node
 
-  return (clustering_params.TreeParam(
-      min_num_points_in_branching_node=min_num_points_in_branching_node,
-      min_num_points_in_node=min_num_points_in_node,
-      max_depth=max_depth), private_count)
+  return (
+      clustering_params.TreeParam(
+          min_num_points_in_branching_node=min_num_points_in_branching_node,
+          min_num_points_in_node=min_num_points_in_node,
+          max_depth=max_depth,
+      ),
+      private_count,
+  )

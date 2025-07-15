@@ -14,7 +14,7 @@
 """Parameters for coreset generation."""
 
 import dataclasses
-import typing
+from typing import Optional
 
 from clustering import clustering_params
 from clustering import privacy_calculator
@@ -32,5 +32,5 @@ class CoresetParam():
   """
   pcalc: privacy_calculator.PrivacyCalculator
   tree_param: clustering_params.TreeParam
-  short_description: typing.Optional[str]
+  short_description: Optional[str]
   radius: float

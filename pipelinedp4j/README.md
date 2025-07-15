@@ -16,6 +16,17 @@ it is recommended to use PipelineDP4j, as it can reduce implementation mistakes.
 
 You can use PipelineDP4j in Java, Kotlin or Scala.
 
+## How to Build
+
+Build the PipelineDP4j sources and dependencies using
+[bazelisk](https://github.com/google/differential-privacy?tab=readme-ov-file#how-to-build)
+(*...* is a part of the command and not a placeholder):
+
+```shell
+cd pipelinedp4j
+bazelisk build ...
+```
+
 ## How to Use
 
 ### Example

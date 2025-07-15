@@ -108,7 +108,7 @@ class LshTreeTest(absltest.TestCase):
         sim_hash=sim_hash)
     self.assertEqual(lsh_tree_node.get_private_count(), 25)
     mock_dlaplace_fn.assert_called_once_with(
-        coreset_param.pcalc.count_privacy_param.laplace_param
+        coreset_param.pcalc.count_privacy_param.dlaplace_param
     )
 
   def test_get_private_count_cache(self):

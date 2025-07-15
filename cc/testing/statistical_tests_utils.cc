@@ -16,9 +16,15 @@
 
 #include "testing/statistical_tests_utils.h"
 
+#include <algorithm>
 #include <cmath>
-#include <cstdlib>
+#include <cstdint>
+#include <functional>
+#include <utility>
+#include <vector>
 
+#include "absl/container/flat_hash_map.h"
+#include "absl/log/check.h"
 #include "absl/random/distributions.h"
 #include "absl/status/statusor.h"
 #include "algorithms/rand.h"
@@ -142,8 +148,8 @@ bool GenerateApproximateDpVote(std::function<double()> sample_generator_a,
 int Bucketize(double sample, double lower, double upper, int num_buckets) {
   return std::max(
       0, std::min(num_buckets - 1,
-                  static_cast<int>(floor(((sample - lower) / (upper - lower)) *
-                                         num_buckets))));
+                  static_cast<int>(std::floor(
+                      ((sample - lower) / (upper - lower)) * num_buckets))));
 }
 
 }  // namespace differential_privacy::testing

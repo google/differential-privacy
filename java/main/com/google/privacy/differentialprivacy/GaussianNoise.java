@@ -145,7 +145,7 @@ public class GaussianNoise implements Noise {
     return addNoiseDefinedBySigma(x, getSigmaForRho(l2Sensitivity, rho));
   }
 
-  private double addNoiseDefinedBySigma(double x, double noiseSigma) {
+  public double addNoiseDefinedBySigma(double x, double noiseSigma) {
     double granularity = getGranularity(noiseSigma);
 
     // The square root of n is chosen in a way that places it in the interval between BINOMIAL_BOUND

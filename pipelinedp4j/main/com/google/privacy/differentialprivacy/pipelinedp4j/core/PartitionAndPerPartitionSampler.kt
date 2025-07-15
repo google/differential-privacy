@@ -17,6 +17,8 @@
 package com.google.privacy.differentialprivacy.pipelinedp4j.core
 
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PrivacyIdContributions
+import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PrivacyIdContributionsKt.multiValueContribution
+import com.google.privacy.differentialprivacy.pipelinedp4j.proto.privacyIdContributions
 
 /**
  * Samples partitions contributed by each [PrivacyId] and per-partition contributions.
@@ -26,6 +28,11 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PrivacyIdContri
  *
  * Note: this class does not perform any checks on the consistency of [AggregationParams]. We expect
  * this to be done earlier in the call.
+ *
+ * This class uses [samplePerKey] for sampling and grouping per key, which is more efficient than
+ * [groupByKey] in case one key is hot, and the bound is smaller than INTEGER.MAX_VALUE. If the
+ * bound is MAX_VALUE, [samplePerKey] is equivalent to [groupByKey]. Using [samplePerKey] in this
+ * way allows us to use this sampler for all other samplers, avoiding code reuse.
  *
  * Note: the bounder assumes that all contributions that belong to the same privacy ID can fit in
  * memory.
@@ -40,29 +47,62 @@ class PartitionAndPerPartitionSampler<PrivacyIdT : Any, PartitionKeyT : Any>(
   override fun sampleContributions(
     data: FrameworkCollection<ContributionWithPrivacyId<PrivacyIdT, PartitionKeyT>>
   ): FrameworkTable<PartitionKeyT, PrivacyIdContributions> {
-    val inputByPid:
-      FrameworkTable<PrivacyIdT, Iterable<ContributionWithPrivacyId<PrivacyIdT, PartitionKeyT>>> =
+    val perPartitionAggregatedData:
+      FrameworkTable<PrivacyIdT, Pair<PartitionKeyT, PrivacyIdContributions>> =
       data
-        .keyBy("KeyByPrivacyId", privacyIdEncoder) { it.privacyId() }
-        .groupByKey("GroupByPrivacyId")
-    // Necessary for DoFn to be serializable.
-    val maxPartitionsContributedCopy = maxPartitionsContributed
-    val maxContributionsPerPartitionCopy = maxContributionsPerPartition
-    return inputByPid.flatMapToTable(
-      "SamplePartitionsAndPerPartitionContributions",
-      partitionKeyEncoder,
-      encoderFactory.protos(PrivacyIdContributions::class),
-    ) { _, contributions ->
-      val l0BoundedData = samplePartitions(contributions, maxPartitionsContributedCopy)
-      val groupedByPartitionKey:
-        Map<PartitionKeyT, List<ContributionWithPrivacyId<PrivacyIdT, PartitionKeyT>>> =
-        l0BoundedData.groupBy { it.partitionKey() }
-      groupedByPartitionKey
-        .mapValues { (_, partitionContributions) ->
-          sampleContributionsPerPartition(partitionContributions, maxContributionsPerPartitionCopy)
+        .keyBy(
+          "KeyByPrivacyIdAndPartitionKey",
+          encoderFactory.tuple2sOf(privacyIdEncoder, partitionKeyEncoder),
+        ) {
+          it.privacyId() to it.partitionKey()
         }
-        .map { it.toPair() }
-        .asSequence()
+        .samplePerKey("LInfSampling", maxContributionsPerPartition)
+        .mapToTable(
+          "MergeContributionsAndReKeyByPrivacyId",
+          privacyIdEncoder,
+          encoderFactory.tuple2sOf(
+            partitionKeyEncoder,
+            encoderFactory.protos(PrivacyIdContributions::class),
+          ),
+        ) { (privacyId, partitionKey), contributions ->
+          privacyId to (partitionKey to mergeContributions(contributions))
+        }
+
+    // If the bound is MAX_VALUE, no need to sample partitions.
+    if (maxPartitionsContributed == Int.MAX_VALUE) {
+      return perPartitionAggregatedData.mapToTable(
+        "KeyByPartitionKey",
+        partitionKeyEncoder,
+        encoderFactory.protos(PrivacyIdContributions::class),
+      ) { _, (partitionKey, contribution) ->
+        partitionKey to contribution
+      }
+    } else {
+      return perPartitionAggregatedData
+        .samplePerKey("L0Sampling", maxPartitionsContributed)
+        .flatMapToTable(
+          "Flatten",
+          partitionKeyEncoder,
+          encoderFactory.protos(PrivacyIdContributions::class),
+        ) { _, contributions ->
+          contributions.asSequence().map { it }
+        }
+    }
+  }
+}
+
+/**
+ * Merges contributions of the same (privacy ID, partition key) into one [PrivacyIdContributions].
+ */
+private fun <PrivacyIdT : Any, PartitionKeyT : Any> mergeContributions(
+  partitionContributions: Iterable<ContributionWithPrivacyId<PrivacyIdT, PartitionKeyT>>
+): PrivacyIdContributions = privacyIdContributions {
+  for (partitionContribution in partitionContributions) {
+    val contributionValues = partitionContribution.values()
+    if (contributionValues.size == 1) {
+      singleValueContributions += contributionValues.first()
+    } else {
+      multiValueContributions += multiValueContribution { values += contributionValues }
     }
   }
 }

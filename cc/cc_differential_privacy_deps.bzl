@@ -68,11 +68,9 @@ def cc_differential_privacy_deps():
     # BoringSSL for cryptographic PRNG
     http_archive(
         name = "boringssl",
-        # Commit date: 2025-02-18
-        # Note for updating: we need to use a commit from the `master-with-bazel` branch.
-        url = "https://github.com/google/boringssl/archive/9802ee3a03f1a601527d724d72173d405615c6aa.tar.gz",
-        strip_prefix = "boringssl-9802ee3a03f1a601527d724d72173d405615c6aa",
-        sha256 = "a0d0c144f7f934932dafe5b341881f389c60b7749e1745f5b2877db62dc8145b",
+        url = "https://github.com/google/boringssl/releases/download/0.20250415.0/boringssl-0.20250415.0.tar.gz",
+        strip_prefix = "boringssl-0.20250415.0",
+        sha256 = "b2d64c4d52c505d60b0fb86833568dc4762445910d7a7757ff9b172e5556cb01",
     )
 
     # Supports `./configure && make` style packages to become dependencies.

@@ -104,7 +104,7 @@ class VectorSumCombinerTest {
   }
 
   @Test
-  fun createAccumulator_perPartitionContributionBoundingEnabled_clampsOnlyTotalVectorSum() {
+  fun createAccumulator_perPartitionContributionBoundingEnabledLInfNorm_clampsOnlyTotalVectorSum() {
     val combiner =
       VectorSumCombiner(
         VECTOR_SUM_AGG_PARAMS.copy(
@@ -122,17 +122,73 @@ class VectorSumCombinerTest {
         privacyIdContributions {
           multiValueContributions +=
             listOf(
-              multiValueContribution { values += listOf(-10.0, 15.0, 0.0) },
-              multiValueContribution { values += listOf(10.0, 20.0, -1.0) },
+              multiValueContribution { values += listOf(-10.0, 75.0, 0.0) },
+              multiValueContribution { values += listOf(10.0, -40.0, -1.0) },
             )
         }
       )
 
     // The vector sum is [0.0, 35.0, 1.0], which has L_INF norm of 35.
-    // The max norm is 30 < 35, so the vector is clipped to
-    // 30 / 35 * [0.0, 35.0, 1.0] = [0.0, 30.0, 30.0 / 35.0].
+    // Each component is clipped to -30, 30.
     assertThat(accumulator)
-      .isEqualTo(vectorSumAccumulator { sumsPerDimension += listOf(0.0, 30.0, 30.0 / 35.0 * -1.0) })
+      .isEqualTo(vectorSumAccumulator { sumsPerDimension += listOf(0.0, 30.0, -1.0) })
+  }
+
+  @Test
+  fun createAccumulator_perPartitionContributionBoundingEnabledL1Norm_clampsOnlyTotalVectorSum() {
+    val combiner =
+      VectorSumCombiner(
+        VECTOR_SUM_AGG_PARAMS.copy(
+          vectorNormKind = NormKind.L1,
+          vectorMaxTotalNorm = 10.0,
+          vectorSize = 2,
+        ),
+        UNUSED_ALLOCATED_BUDGET,
+        NoiseFactory(),
+      )
+
+    val accumulator =
+      combiner.createAccumulator(
+        privacyIdContributions {
+          multiValueContributions +=
+            listOf(
+              multiValueContribution { values += listOf(-4.0, 2.0) },
+              multiValueContribution { values += listOf(-5.0, 1.0) },
+              multiValueContribution { values += listOf(-3.0, 1.0) },
+            )
+        }
+      )
+
+    assertThat(accumulator)
+      .isEqualTo(vectorSumAccumulator { sumsPerDimension += listOf(-7.5, 2.5) })
+  }
+
+  @Test
+  fun createAccumulator_perPartitionContributionBoundingEnabledL2Norm_clampsOnlyTotalVectorSum() {
+    val combiner =
+      VectorSumCombiner(
+        VECTOR_SUM_AGG_PARAMS.copy(
+          vectorNormKind = NormKind.L2,
+          vectorMaxTotalNorm = 6.5,
+          vectorSize = 2,
+        ),
+        UNUSED_ALLOCATED_BUDGET,
+        NoiseFactory(),
+      )
+
+    val accumulator =
+      combiner.createAccumulator(
+        privacyIdContributions {
+          multiValueContributions +=
+            listOf(
+              multiValueContribution { values += listOf(-10.0, 2.0) },
+              multiValueContribution { values += listOf(-2.0, 3.0) },
+            )
+        }
+      )
+
+    assertThat(accumulator)
+      .isEqualTo(vectorSumAccumulator { sumsPerDimension += listOf(-6.0, 2.5) })
   }
 
   @Test
@@ -252,7 +308,17 @@ class VectorSumCombinerTest {
   }
 
   @Test
-  fun computeMetrics_gaussianNoise_passesCorrectParametersToNoise() {
+  @TestParameters(
+    // For all test cases vectorMaxTotalNorm = 30.0, vectorSize = 4, maxPartitionsContributed = 100.
+    // Then sensitivity with L_INF norm is: 30 * sqrt(4) * sqrt(100) ~= 600.
+    // with L2 norm is: 30 * sqrt(100) ~= 300.
+    "{normKind: L_INF, expectedSensitivity: 600.0}",
+    "{normKind: L2, expectedSensitivity: 300.0}",
+  )
+  fun computeMetrics_gaussianNoise_passesCorrectParametersToNoise(
+    normKind: NormKind,
+    expectedSensitivity: Double,
+  ) {
     val noiseMock: GaussianNoise = mock()
     val noiseFactoryMock: (NoiseKind) -> Noise = { _ -> noiseMock }
     val allocatedBudget = AllocatedBudget()
@@ -260,21 +326,48 @@ class VectorSumCombinerTest {
     val combiner =
       VectorSumCombiner(
         VECTOR_SUM_AGG_PARAMS.copy(
-          vectorNormKind = NormKind.L_INF,
+          vectorNormKind = normKind,
           vectorMaxTotalNorm = 30.0,
-          vectorSize = 3,
-          maxPartitionsContributed = 10,
+          vectorSize = 4,
+          maxPartitionsContributed = 100,
         ),
         allocatedBudget,
         noiseFactoryMock,
       )
 
     val unused =
-      combiner.computeMetrics(vectorSumAccumulator { sumsPerDimension += listOf(1.0, 2.0, 3.0) })
+      combiner.computeMetrics(
+        vectorSumAccumulator { sumsPerDimension += listOf(1.0, 2.0, 3.0, 4.0) }
+      )
 
-    verify(noiseMock).addNoise(1.0, 10, 30.0, 1.1 / 3, 1e-3 / 3)
-    verify(noiseMock).addNoise(2.0, 10, 30.0, 1.1 / 3, 1e-3 / 3)
-    verify(noiseMock).addNoise(3.0, 10, 30.0, 1.1 / 3, 1e-3 / 3)
+    verify(noiseMock)
+      .addNoise(
+        /* x= */ 1.0,
+        /* l2Sensitivity= */ expectedSensitivity,
+        /* epsilon= */ 1.1,
+        /* delta= */ 1e-3,
+      )
+    verify(noiseMock)
+      .addNoise(
+        /* x= */ 2.0,
+        /* l2Sensitivity= */ expectedSensitivity,
+        /* epsilon= */ 1.1,
+        /* delta= */ 1e-3,
+      )
+    verify(noiseMock)
+      .addNoise(
+        /* x= */ 3.0,
+        /* l2Sensitivity= */ expectedSensitivity,
+        /* epsilon= */ 1.1,
+        /* delta= */ 1e-3,
+      )
+    verify(noiseMock)
+      .addNoise(
+        /* x= */ 4.0,
+        /* l2Sensitivity= */ expectedSensitivity,
+        /* epsilon= */ 1.1,
+        /* delta= */ 1e-3,
+      )
     verifyNoMoreInteractions(noiseMock)
   }
 

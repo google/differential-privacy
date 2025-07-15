@@ -14,13 +14,13 @@
 """Hashes data by projecting against stored random vectors and taking the sign."""
 
 import dataclasses
-import typing
+from typing import Dict, Optional
 
 import numpy as np
 
 
 HashChar = str
-HashCharToPoints = typing.Dict[HashChar, np.ndarray]
+HashCharToPoints = Dict[HashChar, np.ndarray]
 
 
 @dataclasses.dataclass
@@ -43,7 +43,7 @@ class SimHash():
   """
   dim: int
   max_hash_len: int
-  projection_vectors: typing.Optional[np.ndarray] = None
+  projection_vectors: Optional[np.ndarray] = None
 
   def __post_init__(self):
     if self.projection_vectors is None:

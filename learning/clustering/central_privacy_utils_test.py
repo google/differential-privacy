@@ -21,8 +21,10 @@ import numpy as np
 from scipy import stats
 
 from clustering import central_privacy_utils
-from clustering.central_privacy_utils import AveragePrivacyParam
-from clustering.central_privacy_utils import CountPrivacyParam
+
+
+AveragePrivacyParam = central_privacy_utils.AveragePrivacyParam
+CountPrivacyParam = central_privacy_utils.CountPrivacyParam
 
 
 class CentralPrivacyUtilsTest(parameterized.TestCase):
@@ -99,20 +101,20 @@ class CentralPrivacyUtilsTest(parameterized.TestCase):
 
   def test_private_count_param_basic(self):
     count_privacy_param = CountPrivacyParam(2.0)
-    self.assertEqual(count_privacy_param.laplace_param, 2.0)
+    self.assertEqual(count_privacy_param.dlaplace_param, 2.0)
 
   def test_private_count_param_error(self):
     with self.assertRaises(
         ValueError, msg='Laplace param was 0, but it must be positive.'):
-      CountPrivacyParam(laplace_param=0)
+      CountPrivacyParam(dlaplace_param=0)
 
     with self.assertRaises(
         ValueError, msg='Laplace param was -0.2, but it must be positive.'):
-      CountPrivacyParam(laplace_param=-0.2)
+      CountPrivacyParam(dlaplace_param=-0.2)
 
   def test_private_count_param_infinite(self):
     count_privacy_param = CountPrivacyParam(np.inf)
-    self.assertEqual(count_privacy_param.laplace_param, np.inf)
+    self.assertEqual(count_privacy_param.dlaplace_param, np.inf)
 
   @parameterized.named_parameters(('basic', 10, 70), ('not_clip', -80, -20))
   @mock.patch.object(stats.dlaplace, 'rvs', autospec=True)
@@ -121,16 +123,16 @@ class CentralPrivacyUtilsTest(parameterized.TestCase):
     mock_dlaplace_fn.return_value = dlaplace_noise
 
     nonprivate_count = 60
-    count_privacy_param = CountPrivacyParam(laplace_param=2.0)
+    count_privacy_param = CountPrivacyParam(dlaplace_param=2.0)
 
     result = central_privacy_utils.get_private_count(nonprivate_count,
                                                      count_privacy_param)
     self.assertEqual(result, expected_private_count)
     mock_dlaplace_fn.assert_called_once_with(2)
 
-  def test_get_private_count_inf_laplace_param(self):
+  def test_get_private_count_inf_dlaplace_param(self):
     nonprivate_count = 60
-    count_privacy_param = CountPrivacyParam(laplace_param=np.inf)
+    count_privacy_param = CountPrivacyParam(dlaplace_param=np.inf)
     self.assertEqual(
         central_privacy_utils.get_private_count(nonprivate_count,
                                                 count_privacy_param),

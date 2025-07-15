@@ -15,7 +15,7 @@
 
 import dataclasses
 import enum
-import typing
+from typing import Optional
 
 from absl import logging
 import numpy as np
@@ -39,33 +39,6 @@ class DifferentialPrivacyParam():
   privacy_model: PrivacyModel = PrivacyModel.CENTRAL
 
 
-# DEPRECATED: Use PrivacyCalculatorMultiplier instead.
-@dataclasses.dataclass
-class PrivacyBudgetSplit():
-  """How to split epsilon between the computations.
-
-  DEPRECATED: Use PrivacyCalculatorMultiplier instead.
-
-  Attributes:
-    frac_sum: The fraction of epsilon to use when computing the sum of points
-      for noisy averaging.
-    frac_group_count: The fraction of epsilon to use when counting the number of
-      points with a particular hash value.
-  """
-  frac_sum: float = 0.8
-  frac_group_count: float = 0.2
-
-  def __post_init__(self):
-    logging.warn(
-        "PrivacyBudgetSplit is deprecated and has been replaced with"
-        " PrivacyCalculatorMultiplier."
-    )
-    total = self.frac_sum + self.frac_group_count
-    if total > 1.0:
-      raise ValueError(
-          f"The provided privacy budget split ({total}) was greater than 1.0.")
-
-
 @dataclasses.dataclass
 class PrivacyCalculatorMultiplier():
   """Multipliers to be used by mechanism calibration.
@@ -74,9 +47,9 @@ class PrivacyCalculatorMultiplier():
   optimal alpha such that our clustering algorithm is within the privacy budget,
   where:
     gaussian_std_dev = gaussian_std_dev_multiplier * alpha * sensitivity
-    laplace_param = 1 / (laplace_param_multiplier * alpha)
+    dlaplace_param = 1 / (dlaplace_param_multiplier * alpha)
   where gaussian_std_dev is used to calculate the sum Gaussian noise when
-  adding points (used when averaging points), and laplace_param is used to
+  adding points (used when averaging points), and dlaplace_param is used to
   calculate the discrete Laplace noise when counting points (used when averaging
   points and constructing the tree).
 
@@ -88,7 +61,7 @@ class PrivacyCalculatorMultiplier():
   https://github.com/google/differential-privacy/blob/main/python/dp_accounting/mechanism_calibration.py
   """
   gaussian_std_dev_multiplier: float = 1.0
-  laplace_param_multiplier: float = 20.0
+  dlaplace_param_multiplier: float = 20.0
 
   def get_gaussian_std_dev(self, alpha: float, sensitivity: float) -> float:
     """Returns Gaussian standard deviation based on alpha.
@@ -110,16 +83,15 @@ class PrivacyCalculatorMultiplier():
     """
     return gaussian_std_dev / (sensitivity * self.gaussian_std_dev_multiplier)
 
-  def get_laplace_param(self, alpha: float) -> float:
-    """Returns Laplace parameter based on alpha.
+  def get_dlaplace_param(self, alpha: float) -> float:
+    """Returns discrete Laplace parameter based on alpha.
 
     Args:
       alpha: parameter varied in mechanism calibration.
     """
-    inverse_laplace_param = self.laplace_param_multiplier * alpha
-    # Laplace param increases as noise decreases, so we scale it inversely with
-    # alpha.
-    return 1.0 / inverse_laplace_param
+    # Discrete Laplace param increases as noise decreases, so we scale it
+    # inversely with alpha.
+    return 1 / (self.dlaplace_param_multiplier * alpha)
 
 
 @dataclasses.dataclass
@@ -166,7 +138,7 @@ class Data():
   """
   datapoints: Points
   radius: float
-  labels: typing.Optional[np.ndarray] = None
+  labels: Optional[np.ndarray] = None
   num_points: int = dataclasses.field(init=False)
   dim: int = dataclasses.field(init=False)
 
@@ -179,8 +151,7 @@ class Data():
           f"Number of labels ({self.labels.shape[0]}) is different from "
           f"number of datapoints ({self.num_points})")
 
-  def clip_by_radius(self,
-                     points: typing.Optional[Points] = None) -> np.ndarray:
+  def clip_by_radius(self, points: Optional[Points] = None) -> np.ndarray:
     """Returns clipped points based on self.radius.
 
     If a point already has norm at most the radius, we leave it unchanged.

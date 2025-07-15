@@ -70,13 +70,12 @@ def get_private_average(nonprivate_points: np.ndarray, private_count: int,
 @dataclasses.dataclass
 class CountPrivacyParam():
   """Privacy parameters for calling get_private_count()."""
-  laplace_param: float
+  dlaplace_param: float
 
   def __post_init__(self):
-    # No noise means laplace_param == inf, not 0. We invert the discrete Laplace
-    # param for accounting.
-    if self.laplace_param <= 0:
-      raise ValueError(f'Discrete Laplace param was {self.laplace_param}, '
+    # Note: No noise means dlaplace_param == inf, not 0.
+    if self.dlaplace_param <= 0:
+      raise ValueError(f'Discrete Laplace param was {self.dlaplace_param}, '
                        'but it must be positive.')
 
 
@@ -93,7 +92,7 @@ def get_private_count(nonprivate_count: int,
     The differentially private count where a Discrete Laplace noise with
     appropriate parameter is added to the non-private count.
   """
-  if count_privacy_param.laplace_param == np.inf:
+  if count_privacy_param.dlaplace_param == np.inf:
     return nonprivate_count
   return nonprivate_count + stats.dlaplace.rvs(
-      count_privacy_param.laplace_param)
+      count_privacy_param.dlaplace_param)

@@ -1009,12 +1009,12 @@ class SparkDataFrameApiTest {
           ),
           mapOf(
             // pid1: (1.0, 2.0) + (0.5, 2.5) = (1.5, 4.5), L_INF norm is 4.5 =>
-            // clip it (1.5, 4.5) * 2.0 / 4.5 = (0.(6), 2.0).
+            // clip it (1.5, 2.0).
             // pid2: (1.0, 0.0), L_INF norm is 1.0 => no clipping.
-            // result: (0.(6), 2.0) + (1.0, 0.0) = (1.(6), 2.0)
+            // result: (1.5, 2.0) + (1.0, 0.0) = (2.5, 2.0)
             "vectorSumResult" to
               listOf(
-                DoubleWithTolerance(value = 1.6, tolerance = 0.5),
+                DoubleWithTolerance(value = 2.5, tolerance = 0.5),
                 DoubleWithTolerance(value = 2.0, tolerance = 0.5),
               )
           ),

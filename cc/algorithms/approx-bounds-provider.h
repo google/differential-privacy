@@ -32,6 +32,7 @@
 #include <vector>
 
 #include "google/protobuf/any.pb.h"
+#include "absl/log/check.h"
 #include "absl/log/log.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
@@ -180,6 +181,10 @@ class ApproxBoundsProvider final : public BoundsProvider<T> {
   virtual ~ApproxBoundsProvider() = default;
 
   absl::StatusOr<BoundsResult<T>> FinalizeAndCalculateBounds() override {
+    return FindBoundsWithLaplace();
+  }
+
+  absl::StatusOr<BoundsResult<T>> FindBoundsWithLaplace() {
     // Populate noisy versions of the histogram bins.
     noisy_pos_bins_ = AddNoise(pos_bins_);
     noisy_neg_bins_ = AddNoise(neg_bins_);

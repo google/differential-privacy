@@ -256,6 +256,12 @@ class SparkTable<K, V>(
    */
   @Suppress("UNCHECKED_CAST")
   override fun samplePerKey(stageName: String, count: Int): SparkTable<K, Iterable<V>> {
+    // Alternative implemention in case all contributions should be kept. More efficient than
+    // `samplePerKey` with count=Int.MAX_VALUE.
+    if (count == Int.MAX_VALUE) {
+      return groupByKey(stageName)
+    }
+
     val iterableEncoder =
       Encoders.kryo(List::class.java) as org.apache.spark.sql.Encoder<Iterable<V>>
     val outputEncoder =

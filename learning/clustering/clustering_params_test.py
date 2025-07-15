@@ -29,17 +29,6 @@ class ClusteringParamTest(absltest.TestCase):
     self.assertEqual(privacy_param.privacy_model,
                      clustering_params.PrivacyModel.CENTRAL)
 
-  def test_privacy_budget_split_defaults(self):
-    privacy_budget_split = clustering_params.PrivacyBudgetSplit()
-    self.assertEqual(privacy_budget_split.frac_sum, 0.8)
-    self.assertEqual(privacy_budget_split.frac_group_count, 0.2)
-
-  def test_privacy_budget_split_invalid(self):
-    with self.assertRaises(
-        ValueError,
-        msg="The provided privacy budget split (1.6) was greater than 1.0."):
-      clustering_params.PrivacyBudgetSplit(frac_sum=0.7, frac_group_count=0.8)
-
   def test_tree_param(self):
     tree_param = clustering_params.TreeParam(
         min_num_points_in_branching_node=4,
@@ -114,13 +103,13 @@ class ClusteringParamTest(absltest.TestCase):
 
   def test_privacy_calculator_multiplier(self):
     multiplier = clustering_params.PrivacyCalculatorMultiplier(
-        gaussian_std_dev_multiplier=4.2, laplace_param_multiplier=5.1)
+        gaussian_std_dev_multiplier=4.2, dlaplace_param_multiplier=5.1)
     alpha = 3.0
     sensitivity = 1.4
     std_dev = multiplier.get_gaussian_std_dev(alpha, sensitivity)
     self.assertEqual(std_dev, 17.64)
     self.assertEqual(multiplier.get_alpha(std_dev, sensitivity), alpha)
-    self.assertEqual(multiplier.get_laplace_param(alpha), 1.0 / 15.3)
+    self.assertEqual(multiplier.get_dlaplace_param(alpha), 1.0 / 15.3)
 
 
 if __name__ == "__main__":

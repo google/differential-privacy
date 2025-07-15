@@ -623,7 +623,7 @@ TYPED_TEST(ApproxBoundsProviderTypedTest, OverflowComputeFromPartials) {
 }
 
 TEST(ApproxBoundsProviderTest, ComputeSumFromPartialsAcrossOne) {
-  typename ApproxBoundsProvider<double>::Options options{
+  const typename ApproxBoundsProvider<double>::Options options{
       1,  // epsilon
       1,  // max_partitions_contributed
       1,  // max_contributions_per_partition

@@ -18,6 +18,13 @@ aggregate functions. We will refer to them as the anonymous functions.
   *  Note that this script invokes `sudo install` to copy the compiled extension
      into the postgres system folders.
 
+  You might need to install additional dependencies when building the PostgreSQL
+  extension. For example, on Ubuntu you will need these packages:
+
+  ```shell
+  sudo apt-get install make libreadline-dev bison flex
+  ```
+
 * Start the Postgres server.
 
 * In PostgreSQL, load the extension by calling

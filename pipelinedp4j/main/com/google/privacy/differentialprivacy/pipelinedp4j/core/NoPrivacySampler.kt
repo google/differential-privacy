@@ -27,11 +27,9 @@ class NoPrivacySampler<PrivacyIdT : Any, PartitionKeyT : Any>(
   partitionKeyEncoder: Encoder<PartitionKeyT>,
   encoderFactory: EncoderFactory,
 ) :
-  ContributionSampler<PrivacyIdT, PartitionKeyT> by OnlyPerPartitionContributionSampler<
-    PrivacyIdT,
-    PartitionKeyT,
-  >(
-    maxContributionsPerPartition = Int.MAX_VALUE,
+  ContributionSampler<PrivacyIdT, PartitionKeyT> by PartitionAndPerPartitionSampler(
+    maxPartitionsContributed = Integer.MAX_VALUE,
+    maxContributionsPerPartition = Integer.MAX_VALUE,
     privacyIdEncoder,
     partitionKeyEncoder,
     encoderFactory,

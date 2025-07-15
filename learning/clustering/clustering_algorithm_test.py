@@ -169,18 +169,6 @@ class ClusteringEdgeCaseTest(parameterized.TestCase):
         )
     )
 
-  def test_privacy_budget_split_does_not_error(self):
-    datapoints = np.array([[0.3, 0.2]])
-    data = clustering_params.Data(datapoints=datapoints, radius=1)
-    self.assertIsNotNone(
-        clustering_algorithm.private_lsh_clustering(
-            self.baseline_k,
-            data,
-            self.baseline_privacy_param,
-            privacy_budget_split=clustering_params.PrivacyBudgetSplit(),
-        )
-    )
-
 
 if __name__ == '__main__':
   absltest.main()

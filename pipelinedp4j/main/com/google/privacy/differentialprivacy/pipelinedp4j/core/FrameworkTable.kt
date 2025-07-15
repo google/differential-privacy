@@ -115,8 +115,11 @@ interface FrameworkTable<K, V> {
   fun flattenWith(stageName: String, other: FrameworkTable<K, V>): FrameworkTable<K, V>
 
   /**
-   * Samples values without replacement per key. The output table will contain the same keys as this
-   * table, each key will appear only once. The number of values per key will be at most [count].
+   * Samples values without replacement per key.
+   *
+   * The output table will contain the same keys as this table, each key will appear only once. The
+   * number of values per key will be at most [count]. If [count] is set to [Int.MAX_VALUE], all
+   * values will be kept, and the method will behave identically to [groupByKey].
    */
   fun samplePerKey(stageName: String, count: Int): FrameworkTable<K, Iterable<V>>
 }

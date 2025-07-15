@@ -61,6 +61,7 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/google/differential-privacy/",
     packages=setuptools.find_packages(),
+    include_package_data=True,
     install_requires=_parse_requirements("requirements.txt"),
     classifiers=[
         "Programming Language :: Python :: 3.7",

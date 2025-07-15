@@ -308,6 +308,38 @@ class SparkTableTest {
     assertThat(resultData.filter { it.first == "three" }[0].second.count()).isEqualTo(2)
   }
 
+  @Test
+  fun samplePerKey_withMaxIntValue_keepsAllElements() {
+    val dataset =
+      sparkSession.spark.createDataset(
+        listOf(
+          Pair("one", 1),
+          Pair("one", 2),
+          Pair("one", 3),
+          Pair("one", 4),
+          Pair("one", 5),
+          Pair("two", 6),
+          Pair("two", 7),
+          Pair("two", 8),
+          Pair("two", 9),
+          Pair("two", 10),
+          Pair("three", 11),
+          Pair("three", 12),
+        ),
+        Encoders.kryo(Pair::class.java) as org.apache.spark.sql.Encoder<Pair<String, Int>>,
+      )
+    val sparkTable = SparkTable(dataset, Encoders.STRING(), Encoders.INT())
+
+    val result: SparkTable<String, Iterable<Int>> = sparkTable.samplePerKey("Test", Int.MAX_VALUE)
+
+    val resultData = result.data.collectAsList()
+    assertThat(resultData.size).isEqualTo(3)
+
+    assertThat(resultData.filter { it.first == "one" }[0].second.count()).isEqualTo(5)
+    assertThat(resultData.filter { it.first == "two" }[0].second.count()).isEqualTo(5)
+    assertThat(resultData.filter { it.first == "three" }[0].second.count()).isEqualTo(2)
+  }
+
   companion object {
     @JvmField @ClassRule val sparkSession = SparkSessionRule()
     private val sparkEncoderFactory = SparkEncoderFactory()

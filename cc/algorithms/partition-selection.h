@@ -18,13 +18,12 @@
 #define DIFFERENTIAL_PRIVACY_CPP_ALGORITHMS_PARTITION_SELECTION_H_
 
 #include <cmath>
-#include <cstddef>
 #include <cstdint>
-#include <cstdlib>
-#include <iostream>
-#include <string>
+#include <memory>
+#include <optional>
 #include <utility>
 
+#include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "algorithms/distributions.h"
@@ -90,7 +89,7 @@ class PartitionSelectionStrategy {
     if (delta == 1) {  // Avoid NaN from log1p(-1) -> log(0)
       return 1;
     }
-    return -std::expm1(log1p(-delta) / max_partitions_contributed);
+    return -std::expm1(std::log1p(-delta) / max_partitions_contributed);
   }
 
   // Inverse of CalculateAdjustedDelta()
@@ -105,7 +104,8 @@ class PartitionSelectionStrategy {
     if (adjusted_delta == 1) {  // Avoid NaN from log1p(-1) -> log(0)
       return 1;
     }
-    return -std::expm1(max_partitions_contributed * log1p(-adjusted_delta));
+    return -std::expm1(max_partitions_contributed *
+                       std::log1p(-adjusted_delta));
   }
 
  private:
@@ -258,16 +258,16 @@ class NearTruncatedGeometricPartitionSelection
 
  private:
   inline void SetCrossovers(double adjusted_epsilon, double adjusted_delta) {
-    crossover_1_ =
-        1 +
-        floor(log1p(tanh(adjusted_epsilon_ / 2) * (1 / adjusted_delta - 1)) /
-              adjusted_epsilon_) +
-        GetPreThreshold() - 1;
+    crossover_1_ = 1 +
+                   std::floor(std::log1p(std::tanh(adjusted_epsilon_ / 2) *
+                                         (1 / adjusted_delta - 1)) /
+                              adjusted_epsilon_) +
+                   GetPreThreshold() - 1;
     crossover_2_ =
         crossover_1_ +
-        floor((1.0 / adjusted_epsilon_) *
-              log1p((std::expm1(adjusted_epsilon_) / adjusted_delta) *
-                    (1 - ProbabilityOfKeep(crossover_1_))));
+        std::floor((1.0 / adjusted_epsilon_) *
+                   std::log1p((std::expm1(adjusted_epsilon_) / adjusted_delta) *
+                              (1 - ProbabilityOfKeep(crossover_1_))));
   }
 
   double adjusted_epsilon_;

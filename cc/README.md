@@ -1,8 +1,19 @@
 ## Differential Privacy library in C++
 
 This is the C++ implementation of the differential privacy library. For general
-details and key definitions, see the top-level documentation.
-This document describes C++-specific aspects.
+details and key definitions, see the top-level documentation. This document
+describes C++-specific aspects.
+
+## How to Build
+
+Build the C++ differential privacy library and dependencies using
+[bazelisk](https://github.com/google/differential-privacy?tab=readme-ov-file#how-to-build)
+(*...* is a part of the command and not a placeholder):
+
+```shell
+cd cc
+bazelisk build ...
+```
 
 ## How to Use
 
@@ -37,8 +48,10 @@ int64_t count(const std::vector<double>& values, double epsilon) {
 ```
 
 We also include the following example code:
-- A [tool for releasing epsilon-DP aggregate statistics](https://github.com/google/differential-privacy/tree/main/examples/cc/).
-- A [PostgreSQL extension](https://github.com/google/differential-privacy/tree/main/cc/postgres)
-that adds epsilon-DP aggregate functions.
 
+-   A
+    [tool for releasing epsilon-DP aggregate statistics](https://github.com/google/differential-privacy/tree/main/examples/cc/).
 
+-   A
+    [PostgreSQL extension](https://github.com/google/differential-privacy/tree/main/cc/postgres)
+    that adds epsilon-DP aggregate functions.

@@ -33,36 +33,37 @@ class PrivacyCalculatorTest(parameterized.TestCase):
   def test_make_clustering_event(self):
     gaussian_std_dev = 5.4
     sensitivity = 2
-    laplace_param = 5
+    dlaplace_param = 5
     max_depth = 25
     clustering_event = privacy_calculator.make_clustering_event(
-        gaussian_std_dev, laplace_param, sensitivity, max_depth)
+        gaussian_std_dev, dlaplace_param, sensitivity, max_depth)
     gaussian_event = dp_event.GaussianDpEvent(2.7)
-    laplace_event = dp_event.SelfComposedDpEvent(
-        dp_event.LaplaceDpEvent(0.2), 26)
+    dlaplace_event = dp_event.SelfComposedDpEvent(
+        dp_event.DiscreteLaplaceDpEvent(5, 1), 26)
     self.assertEqual(clustering_event,
-                     dp_event.ComposedDpEvent([gaussian_event, laplace_event]))
+                     dp_event.ComposedDpEvent([gaussian_event, dlaplace_event]))
 
   def test_make_clustering_event_zero_std_dev(self):
     gaussian_std_dev = 0
     sensitivity = 2
-    laplace_param = 5
+    dlaplace_param = 5
     max_depth = 25
     clustering_event = privacy_calculator.make_clustering_event(
-        gaussian_std_dev, laplace_param, sensitivity, max_depth)
-    laplace_event = dp_event.SelfComposedDpEvent(
-        dp_event.LaplaceDpEvent(0.2), 26)
+        gaussian_std_dev, dlaplace_param, sensitivity, max_depth)
+    dlaplace_event = dp_event.SelfComposedDpEvent(
+        dp_event.DiscreteLaplaceDpEvent(5, 1), 26)
     self.assertEqual(
         clustering_event,
-        dp_event.ComposedDpEvent([dp_event.NonPrivateDpEvent(), laplace_event]))
+        dp_event.ComposedDpEvent([dp_event.NonPrivateDpEvent(),
+                                  dlaplace_event]))
 
   def test_make_clustering_event_inf_laplace_event(self):
     gaussian_std_dev = 5.4
     sensitivity = 2
-    laplace_param = np.inf
+    dlaplace_param = np.inf
     max_depth = 25
     clustering_event = privacy_calculator.make_clustering_event(
-        gaussian_std_dev, laplace_param, sensitivity, max_depth)
+        gaussian_std_dev, dlaplace_param, sensitivity, max_depth)
     gaussian_event = dp_event.GaussianDpEvent(2.7)
     self.assertEqual(
         clustering_event,
@@ -74,7 +75,9 @@ class PrivacyCalculatorTest(parameterized.TestCase):
       "make_clustering_event",
       return_value=dp_event.ComposedDpEvent([
           dp_event.GaussianDpEvent(2.4),
-          dp_event.SelfComposedDpEvent(dp_event.LaplaceDpEvent(0.8), 26)
+          dp_event.SelfComposedDpEvent(
+              dp_event.DiscreteLaplaceDpEvent(1.25, 1),
+              26)
       ]),
       autospec=True)
   def test_make_clustering_event_from_param(self, mock_make_clustering_event):
@@ -86,14 +89,16 @@ class PrivacyCalculatorTest(parameterized.TestCase):
         multipliers, sensitivity, max_depth, alpha)
     mock_args = mock_make_clustering_event.call_args[1]
     self.assertAlmostEqual(mock_args["sum_std_dev"], 9.6)
-    self.assertAlmostEqual(mock_args["count_laplace_param"], 1.25)
+    self.assertAlmostEqual(mock_args["count_dlaplace_param"], 1.25)
     self.assertAlmostEqual(mock_args["sensitivity"], 2)
     self.assertAlmostEqual(mock_args["max_depth"], 25)
     self.assertEqual(
         clustering_event,
         dp_event.ComposedDpEvent([
             dp_event.GaussianDpEvent(2.4),
-            dp_event.SelfComposedDpEvent(dp_event.LaplaceDpEvent(0.8), 26)
+            dp_event.SelfComposedDpEvent(
+                dp_event.DiscreteLaplaceDpEvent(1.25, 1), 26
+            )
         ]))
 
   @mock.patch.object(
@@ -153,13 +158,13 @@ class PrivacyCalculatorTest(parameterized.TestCase):
       ("no_sum_noise", 0, 0.01),
       ("no_count_noise", 0.5, np.inf),
   )
-  def test_validate_accounting_error(self, sum_std_dev, count_laplace_param):
+  def test_validate_accounting_error(self, sum_std_dev, count_dlaplace_param):
     privacy_param = clustering_params.DifferentialPrivacyParam(
         epsilon=10, delta=1e-2
     )
     depth = 3
     pcalc = test_utils.TestPrivacyCalculator(
-        sum_std_dev, 10, count_laplace_param
+        sum_std_dev, 10, count_dlaplace_param
     )
     with self.assertRaisesRegex(
         ValueError,
@@ -210,8 +215,8 @@ class PrivacyCalculatorTest(parameterized.TestCase):
         delta=1e-4,
     )
     self.assertAlmostEqual(
-        pcalc1.count_privacy_param.laplace_param,
-        pcalc2.count_privacy_param.laplace_param,
+        pcalc1.count_privacy_param.dlaplace_param,
+        pcalc2.count_privacy_param.dlaplace_param,
         delta=1e-4)
 
 

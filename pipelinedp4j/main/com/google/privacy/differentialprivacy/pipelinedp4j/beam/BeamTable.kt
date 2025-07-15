@@ -278,6 +278,11 @@ class BeamTable<K, V>(val data: PCollection<KV<K, V>>) : FrameworkTable<K, V> {
   }
 
   override fun samplePerKey(stageName: String, count: Int): BeamTable<K, Iterable<V>> {
+    // Alternative implemention in case all contributions should be kept, as `fixedSizePerKey`
+    // does not support count=Int.MAX_VALUE.
+    if (count == Int.MAX_VALUE) {
+      return groupByKey(stageName)
+    }
     return BeamTable(data.apply(stageName, Sample.fixedSizePerKey<K, V>(count)))
   }
 

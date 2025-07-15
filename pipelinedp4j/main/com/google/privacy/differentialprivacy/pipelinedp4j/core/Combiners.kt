@@ -548,11 +548,17 @@ class VectorSumCombiner(
     if (!aggregationParams.applyPerPartitionBounding) {
       return this.copy()
     }
+    // L_INF is treated differently. When clamping, each component is clamped independently.
+    if (normKind == NormKind.L_INF) {
+      return this.map { it.coerceIn(-maxNorm, maxNorm) }
+    }
+
     val currentNorm =
       when (normKind) {
         NormKind.L1 -> this.l1Norm
         NormKind.L2 -> this.norm
-        NormKind.L_INF -> this.lInfNorm
+        // L_INF is handled above.
+        else -> throw IllegalStateException("Unsupported norm kind: $normKind")
       }
     return if (currentNorm <= maxNorm) {
       this.copy()

@@ -28,7 +28,8 @@ from dp_accounting.pld import common
 from dp_accounting.pld import pld_privacy_accountant
 
 
-def make_clustering_event(sum_std_dev: float, count_laplace_param: float,
+def make_clustering_event(sum_std_dev: float,
+                          count_dlaplace_param: float,
                           sensitivity: float,
                           max_depth: int) -> dp_event.DpEvent:
   """Returns a DpEvent for clustering."""
@@ -41,11 +42,13 @@ def make_clustering_event(sum_std_dev: float, count_laplace_param: float,
 
   # Depth is based on the number of edges in the path, so add one to the depth
   # to get the number of levels.
-  if count_laplace_param == np.inf:
+  if count_dlaplace_param == np.inf:
     builder.compose(dp_event.NonPrivateDpEvent())
   else:
     builder.compose(
-        dp_event.LaplaceDpEvent(1 / count_laplace_param), max_depth + 1)
+        dp_event.DiscreteLaplaceDpEvent(count_dlaplace_param, 1),
+        max_depth + 1,
+    )
   return builder.build()
 
 
@@ -63,9 +66,10 @@ def make_clustering_event_from_param(
   logging.debug('Mechanism Calibration: Testing param alpha = %s', alpha)
   return make_clustering_event(
       sum_std_dev=multipliers.get_gaussian_std_dev(alpha, sensitivity),
-      count_laplace_param=multipliers.get_laplace_param(alpha),
+      count_dlaplace_param=multipliers.get_dlaplace_param(alpha),
       sensitivity=sensitivity,
-      max_depth=max_depth)
+      max_depth=max_depth,
+  )
 
 
 def get_alpha_interval(
@@ -152,7 +156,7 @@ class PrivacyCalculator():
         multipliers.get_gaussian_std_dev(alpha, radius), radius
     )
     self.count_privacy_param = central_privacy_utils.CountPrivacyParam(
-        multipliers.get_laplace_param(alpha)
+        multipliers.get_dlaplace_param(alpha)
     )
 
   def validate_accounting(
@@ -166,7 +170,7 @@ class PrivacyCalculator():
 
     clustering_event = make_clustering_event(
         self.average_privacy_param.gaussian_standard_deviation,
-        self.count_privacy_param.laplace_param,
+        self.count_privacy_param.dlaplace_param,
         self.average_privacy_param.sensitivity,
         max_depth,
     )

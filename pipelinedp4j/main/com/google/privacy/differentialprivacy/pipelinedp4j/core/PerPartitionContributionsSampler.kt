@@ -16,8 +16,6 @@
 
 package com.google.privacy.differentialprivacy.pipelinedp4j.core
 
-import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PrivacyIdContributions
-
 /**
  * Samples per-partition contributions by each [PrivacyId].
  *
@@ -33,44 +31,10 @@ class PerPartitionContributionsSampler<PrivacyIdT : Any, PartitionKeyT : Any>(
   partitionKeyEncoder: Encoder<PartitionKeyT>,
   encoderFactory: EncoderFactory,
 ) :
-  ContributionSampler<PrivacyIdT, PartitionKeyT> by OnlyPerPartitionContributionSampler(
+  ContributionSampler<PrivacyIdT, PartitionKeyT> by PartitionAndPerPartitionSampler(
+    maxPartitionsContributed = Integer.MAX_VALUE,
     maxContributionsPerPartition,
     privacyIdEncoder,
     partitionKeyEncoder,
     encoderFactory,
   )
-
-/**
- * A generalized implementation of per-partition contribution sampling.
- *
- * [PerPartitionContributionsSampler] and [NoPrivacySampler] delegate their implementations to this
- * class. It is introduced to avoid code duplication.
- */
-internal class OnlyPerPartitionContributionSampler<PrivacyIdT : Any, PartitionKeyT : Any>(
-  private val maxContributionsPerPartition: Int,
-  private val privacyIdEncoder: Encoder<PrivacyIdT>,
-  private val partitionKeyEncoder: Encoder<PartitionKeyT>,
-  private val encoderFactory: EncoderFactory,
-) : ContributionSampler<PrivacyIdT, PartitionKeyT> {
-  override fun sampleContributions(
-    data: FrameworkCollection<ContributionWithPrivacyId<PrivacyIdT, PartitionKeyT>>
-  ): FrameworkTable<PartitionKeyT, PrivacyIdContributions> {
-    val maxContributionsPerPartitionLocalCopy = maxContributionsPerPartition
-    return data
-      .keyBy(
-        "KeyByPartitionKeyAndPrivacyId",
-        encoderFactory.tuple2sOf(partitionKeyEncoder, privacyIdEncoder),
-      ) {
-        it.partitionKey() to it.privacyId()
-      }
-      .groupByKey("GroupByPartitionKeyAndPrivacyId")
-      .mapToTable(
-        "DropPrivacyIdAndSampleContributions",
-        partitionKeyEncoder,
-        encoderFactory.protos(PrivacyIdContributions::class),
-      ) { (partitionKey, _), contributions ->
-        partitionKey to
-          sampleContributionsPerPartition(contributions, maxContributionsPerPartitionLocalCopy)
-      }
-  }
-}
