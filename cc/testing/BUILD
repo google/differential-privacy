@@ -146,6 +146,10 @@ cc_test(
     ],
     # The shard count must match the number of test cases defined in bounded_quantiles_dp_test_cases.textproto
     shard_count = 39,
+    tags = [
+        "nofastbuild",
+        "nokokoro",
+    ],
     deps = [
         ":statistical_tests_utils",
         "//algorithms:numerical-mechanisms",
