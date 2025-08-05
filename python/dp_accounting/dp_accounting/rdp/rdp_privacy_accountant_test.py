@@ -116,6 +116,10 @@ class RdpPrivacyAccountantTest(
     self.assertTrue(aor_accountant.supports(event))
     self.assertTrue(ro_accountant.supports(event))
 
+    event = dp_event.ZCDpEvent(1.0, 2.0)
+    self.assertTrue(aor_accountant.supports(event))
+    self.assertTrue(ro_accountant.supports(event))
+
     event = dp_event.SelfComposedDpEvent(dp_event.GaussianDpEvent(1.0), 6)
     self.assertTrue(aor_accountant.supports(event))
     self.assertTrue(ro_accountant.supports(event))
@@ -278,6 +282,32 @@ class RdpPrivacyAccountantTest(
     multi_sigmas = list(sigmas) + [sigmas[1]] * 2
     expected = sum(s**-2 for s in multi_sigmas) ** -0.5
     self.assertAlmostEqual(sigma, expected)
+
+  def test_compute_rdp_multi_zcdp(self):
+    alpha = 2.0
+    xi1, xi2 = 3.14159, 1.23456
+    rho1, rho2 = 2.71828, 6.28319
+
+    rdp = xi1 + xi2 + alpha * (rho1 + rho2)
+
+    accountant = rdp_privacy_accountant.RdpAccountant(orders=[alpha])
+    accountant.compose(
+        dp_event.ComposedDpEvent([
+            dp_event.ZCDpEvent(rho1, xi1),
+            dp_event.ZCDpEvent(rho2, xi2),
+        ]),
+    )
+    self.assertAlmostEqual(accountant._rdp[0], rdp)
+
+  def test_zcdp_matches_gaussian(self):
+    alpha = 2.71828
+    sigma = 3.14159
+    rho = 1 / (2 * sigma**2)
+    accountant1 = rdp_privacy_accountant.RdpAccountant(orders=[alpha])
+    accountant1.compose(dp_event.GaussianDpEvent(sigma))
+    accountant2 = rdp_privacy_accountant.RdpAccountant(orders=[alpha])
+    accountant2.compose(dp_event.ZCDpEvent(rho))
+    self.assertAlmostEqual(accountant1._rdp[0], accountant2._rdp[0])
 
   _LAPLACE_EVENT = dp_event.LaplaceDpEvent(1.0)
 

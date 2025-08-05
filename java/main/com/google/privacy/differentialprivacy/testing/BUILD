@@ -15,6 +15,7 @@
 #
 
 load("@rules_java//java:defs.bzl", "java_library")
+load("@rules_jvm_external//:defs.bzl", "artifact")
 
 package(
     default_visibility = [
@@ -28,9 +29,18 @@ java_library(
     srcs = ["ReferenceNoiseUtil.java"],
     deps = [
         "@com_google_differential_privacy//proto/testing:statistical_tests_java_proto",
-        "@maven//:com_google_guava_guava",
-        "@maven//:com_google_protobuf_protobuf_java",
-        "@maven//:org_apache_commons_commons_math3",
+        artifact(
+            "com.google.guava:guava",
+            repository_name = "differential_privacy_java_deps",
+        ),
+        artifact(
+            "com.google.protobuf:protobuf-java",
+            repository_name = "differential_privacy_java_deps",
+        ),
+        artifact(
+            "org.apache.commons:commons-math3",
+            repository_name = "differential_privacy_java_deps",
+        ),
     ],
 )
 
@@ -42,6 +52,9 @@ java_library(
         "VotingUtil.java",
     ],
     deps = [
-        "@maven//:com_google_guava_guava",
+        artifact(
+            "com.google.guava:guava",
+            repository_name = "differential_privacy_java_deps",
+        ),
     ],
 )

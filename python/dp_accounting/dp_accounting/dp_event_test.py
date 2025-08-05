@@ -105,6 +105,10 @@ class DpEventTest(parameterized.TestCase):
           'mixture_gaussian',
           dp_event.MixtureOfGaussiansDpEvent(1.0, [0, 1, 2], [0.25, 0.5, 0.25]),
       ),
+      (
+          'zcdp',
+          dp_event.ZCDpEvent(1.0, 2.0),
+      ),
   )
   def test_to_from_named_tuple(self, event):
     named_tuple = event.to_named_tuple()

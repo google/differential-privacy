@@ -14,6 +14,7 @@
 # limitations under the License.
 
 load("@rules_java//java:defs.bzl", "java_library")
+load("@rules_jvm_external//:defs.bzl", "artifact")
 
 package(
     default_visibility = [
@@ -25,7 +26,10 @@ java_plugin(
     name = "autovalue_plugin",
     processor_class = "com.google.auto.value.processor.AutoValueProcessor",
     deps = [
-        "@maven//:com_google_auto_value_auto_value",
+        artifact(
+            "com.google.auto.value:auto-value",
+            repository_name = "differential_privacy_java_deps",
+        ),
     ],
 )
 
@@ -35,7 +39,10 @@ java_library(
         ":autovalue_plugin",
     ],
     exports = [
-        "@maven//:com_google_auto_value_auto_value",
+        artifact(
+            "com.google.auto.value:auto-value",
+            repository_name = "differential_privacy_java_deps",
+        ),
     ],
 )
 
@@ -53,14 +60,41 @@ java_test(
         ":autovalue",
         "//main/com/google/privacy/differentialprivacy",
         "@com_google_differential_privacy//proto:summary_java_proto",
-        "@maven//:com_google_auto_value_auto_value",
-        "@maven//:com_google_auto_value_auto_value_annotations",
-        "@maven//:com_google_guava_guava",
-        "@maven//:com_google_protobuf_protobuf_java",
-        "@maven//:com_google_testparameterinjector_test_parameter_injector",
-        "@maven//:com_google_truth_extensions_truth_java8_extension",
-        "@maven//:com_google_truth_truth",
-        "@maven//:junit_junit",
-        "@maven//:org_mockito_mockito_core",
+        artifact(
+            "com.google.auto.value:auto-value",
+            repository_name = "differential_privacy_java_deps",
+        ),
+        artifact(
+            "com.google.auto.value:auto-value-annotations",
+            repository_name = "differential_privacy_java_deps",
+        ),
+        artifact(
+            "com.google.guava:guava",
+            repository_name = "differential_privacy_java_deps",
+        ),
+        artifact(
+            "com.google.protobuf:protobuf-java",
+            repository_name = "differential_privacy_java_deps",
+        ),
+        artifact(
+            "com.google.testparameterinjector:test-parameter-injector",
+            repository_name = "differential_privacy_java_deps",
+        ),
+        artifact(
+            "com.google.truth.extensions:truth-java8-extension",
+            repository_name = "differential_privacy_java_deps",
+        ),
+        artifact(
+            "com.google.truth:truth",
+            repository_name = "differential_privacy_java_deps",
+        ),
+        artifact(
+            "junit:junit",
+            repository_name = "differential_privacy_java_deps",
+        ),
+        artifact(
+            "org.mockito:mockito-core",
+            repository_name = "differential_privacy_java_deps",
+        ),
     ],
 )

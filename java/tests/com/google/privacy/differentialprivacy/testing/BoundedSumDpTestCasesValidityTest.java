@@ -39,7 +39,7 @@ import org.junit.runners.Parameterized;
 public final class BoundedSumDpTestCasesValidityTest {
    private static final String TEST_CASES_FILE_PATH =
 
-  "external/com_google_differential_privacy/proto/testing/bounded_sum_dp_test_cases.textproto";
+  "external/differential_privacy_common~/proto/testing/bounded_sum_dp_test_cases.textproto";
   private final int numberOfVotes =
       getTestCaseCollectionFromFile().getVotingParameters().getNumberOfVotes();
   private final double distanceSpecificity =

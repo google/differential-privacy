@@ -44,7 +44,7 @@ import org.junit.runners.Parameterized;
 public final class BoundedMeanDpTest {
   private static final String TEST_CASES_FILE_PATH =
 
-  "external/com_google_differential_privacy/proto/testing/bounded_mean_dp_test_cases.textproto";
+  "external/differential_privacy_common~/proto/testing/bounded_mean_dp_test_cases.textproto";
 
   private final BoundedMeanDpTestCase testCase;
 

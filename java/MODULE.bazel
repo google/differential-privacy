@@ -1,0 +1,80 @@
+#
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+module(
+    name = "differential_privacy_java",
+)
+
+bazel_dep(
+    name = "differential_privacy_common",
+    repo_name = "com_google_differential_privacy",
+)
+local_path_override(
+    module_name = "differential_privacy_common",
+    path = "..",
+)
+
+bazel_dep(name = "rules_jvm_external", version = "6.8")
+bazel_dep(name = "rules_java", version = "8.14.0")
+bazel_dep(name = "google_bazel_common", version = "0.0.1", repo_name = "bazel_common")
+bazel_dep(name = "protobuf", version = "29.5", repo_name = "com_google_protobuf")
+bazel_dep(name = "rules_python", version = "1.5.1")
+
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(
+    ignore_root_user_error = True,
+    python_version = "3.10",
+)
+
+maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
+maven.install(
+    # As this module is used as a dependency, we define a separate repository
+    # name than the default (which is "maven").
+    name = "differential_privacy_java_deps",
+
+    # Run the following command after updating the following list and include
+    # the modified maven_install.json file in your commit:
+    #
+    # > REPIN=1 bazelisk run @differential_privacy_java_deps//:pin
+    #
+    artifacts = [
+        # artifacts for building and testing
+        "org.apache.commons:commons-math3:3.6.1",
+        "com.google.auto.value:auto-value-annotations:1.11.0",
+        "com.google.auto.value:auto-value:1.11.0",
+        "com.google.code.findbugs:jsr305:3.0.2",
+        "com.google.errorprone:error_prone_annotations:2.41.0",
+        "com.google.guava:guava:33.4.5-jre",
+        "com.google.protobuf:protobuf-java:4.30.1",
+        # artifacts for testing only
+        "org.mockito:mockito-core:5.16.1",
+        "junit:junit:4.13.2",
+        "com.google.truth:truth:1.4.4",
+        "com.google.truth.extensions:truth-java8-extension:1.4.4",
+        "com.google.testparameterinjector:test-parameter-injector:1.18",
+    ],
+    lock_file = "//:maven_install.json",
+    repositories = [
+        "https://maven.google.com",
+        "https://repo1.maven.org/maven2",
+        "https://jcenter.bintray.com/",
+    ],
+    strict_visibility = True,
+)
+use_repo(
+    maven,
+    "differential_privacy_java_deps",
+)

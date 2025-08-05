@@ -425,3 +425,20 @@ class MixtureOfGaussiansDpEvent(DpEvent):
   standard_deviation: float
   sensitivities: Sequence[float]
   sampling_probs: Sequence[float]
+
+
+@attr.s(frozen=True, slots=True, auto_attribs=True)
+class ZCDpEvent(DpEvent):
+  """Represents an application of a mechanism satisfying (xi, rho)-zCDP.
+
+  Specifically, this event satisfies (alpha, xi + rho * alpha)-RDP
+  for all alpha > 0. The case where xi = 0 is referred to as rho-zCDP. See
+  https://arxiv.org/pdf/1605.02065 for details.
+
+  Attributes:
+    rho: The multiplicative constant in the RDP bound.
+    xi: The additive constant in the RDP bound.
+  """
+
+  rho: float
+  xi: float = 0.0

@@ -44,7 +44,7 @@ import org.junit.runners.Parameterized;
 public final class LongBoundedSumDpTest {
   private static final String TEST_CASES_FILE_PATH =
 
-  "external/com_google_differential_privacy/proto/testing/long_bounded_sum_dp_test_cases.textproto";
+  "external/differential_privacy_common~/proto/testing/long_bounded_sum_dp_test_cases.textproto";
 
   private final LongBoundedSumDpTestCase testCase;
 

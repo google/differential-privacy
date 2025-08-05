@@ -41,7 +41,7 @@ import org.junit.runners.Parameterized;
 @RunWith(Parameterized.class)
 public final class CountDpTest {
   private static final String TEST_CASES_FILE_PATH =
-      "external/com_google_differential_privacy/proto/testing/count_dp_test_cases.textproto";
+      "external/differential_privacy_common~/proto/testing/count_dp_test_cases.textproto";
 
   private final CountDpTestCase testCase;
 

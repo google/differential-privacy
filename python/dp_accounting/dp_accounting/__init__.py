@@ -33,6 +33,7 @@ from dp_accounting.dp_event import SampledWithReplacementDpEvent
 from dp_accounting.dp_event import SelfComposedDpEvent
 from dp_accounting.dp_event import SingleEpochTreeAggregationDpEvent
 from dp_accounting.dp_event import UnsupportedDpEvent
+from dp_accounting.dp_event import ZCDpEvent
 from dp_accounting.dp_event_builder import DpEventBuilder
 from dp_accounting.mechanism_calibration import calibrate_dp_mechanism
 from dp_accounting.mechanism_calibration import ExplicitBracketInterval

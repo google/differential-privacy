@@ -15,6 +15,7 @@
 #
 
 load("@rules_java//java:defs.bzl", "java_binary")
+load("@rules_jvm_external//:defs.bzl", "artifact")
 
 package(
     default_visibility = [
@@ -26,7 +27,7 @@ java_plugin(
     name = "autovalue_plugin",
     processor_class = "com.google.auto.value.processor.AutoValueProcessor",
     deps = [
-        "@maven//:com_google_auto_value_auto_value",
+        artifact("com.google.auto.value:auto-value"),
     ],
 )
 
@@ -36,7 +37,7 @@ java_library(
         ":autovalue_plugin",
     ],
     exports = [
-        "@maven//:com_google_auto_value_auto_value",
+        artifact("com.google.auto.value:auto-value"),
     ],
 )
 
@@ -48,7 +49,7 @@ java_binary(
     deps = [
         ":autovalue",
         "@com_google_java_differential_privacy//main/com/google/privacy/differentialprivacy",
-        "@maven//:com_google_auto_value_auto_value_annotations",
-        "@maven//:com_google_guava_guava",
+        artifact("com.google.auto.value:auto-value-annotations"),
+        artifact("com.google.guava:guava"),
     ],
 )

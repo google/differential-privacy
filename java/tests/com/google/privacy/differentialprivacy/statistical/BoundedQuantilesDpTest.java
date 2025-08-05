@@ -50,7 +50,7 @@ public final class BoundedQuantilesDpTest {
 
   private static final String TEST_CASES_FILE_PATH =
 
-  "external/com_google_differential_privacy/proto/testing/bounded_quantiles_dp_test_cases.textproto";
+  "external/differential_privacy_common~/proto/testing/bounded_quantiles_dp_test_cases.textproto";
 
   private final BoundedQuantilesDpTestCase testCase;
 

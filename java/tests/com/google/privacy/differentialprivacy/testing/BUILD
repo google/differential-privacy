@@ -14,6 +14,7 @@
 # limitations under the License.
 
 load("@rules_java//java:defs.bzl", "java_library", "java_test")
+load("@rules_jvm_external//:defs.bzl", "artifact")
 
 package(
     default_visibility = [
@@ -31,9 +32,18 @@ java_test(
     deps = [
         "//main/com/google/privacy/differentialprivacy/testing:reference_noise",
         "//main/com/google/privacy/differentialprivacy/testing:statistical_utils",
-        "@maven//:com_google_guava_guava",
-        "@maven//:com_google_truth_truth",
-        "@maven//:junit_junit",
+        artifact(
+            "com.google.guava:guava",
+            repository_name = "differential_privacy_java_deps",
+        ),
+        artifact(
+            "com.google.truth:truth",
+            repository_name = "differential_privacy_java_deps",
+        ),
+        artifact(
+            "junit:junit",
+            repository_name = "differential_privacy_java_deps",
+        ),
     ],
 )
 
@@ -47,9 +57,18 @@ java_test(
     deps = [
         "//main/com/google/privacy/differentialprivacy/testing:reference_noise",
         "//main/com/google/privacy/differentialprivacy/testing:statistical_utils",
-        "@maven//:com_google_guava_guava",
-        "@maven//:com_google_truth_truth",
-        "@maven//:junit_junit",
+        artifact(
+            "com.google.guava:guava",
+            repository_name = "differential_privacy_java_deps",
+        ),
+        artifact(
+            "com.google.truth:truth",
+            repository_name = "differential_privacy_java_deps",
+        ),
+        artifact(
+            "junit:junit",
+            repository_name = "differential_privacy_java_deps",
+        ),
     ],
 )
 
@@ -67,10 +86,22 @@ java_test(
         "//main/com/google/privacy/differentialprivacy/testing:reference_noise",
         "//main/com/google/privacy/differentialprivacy/testing:statistical_utils",
         "@com_google_differential_privacy//proto/testing:statistical_tests_java_proto",
-        "@maven//:com_google_guava_guava",
-        "@maven//:com_google_protobuf_protobuf_java",
-        "@maven//:com_google_truth_truth",
-        "@maven//:junit_junit",
+        artifact(
+            "com.google.guava:guava",
+            repository_name = "differential_privacy_java_deps",
+        ),
+        artifact(
+            "com.google.protobuf:protobuf-java",
+            repository_name = "differential_privacy_java_deps",
+        ),
+        artifact(
+            "com.google.truth:truth",
+            repository_name = "differential_privacy_java_deps",
+        ),
+        artifact(
+            "junit:junit",
+            repository_name = "differential_privacy_java_deps",
+        ),
     ],
 )
 
@@ -88,10 +119,22 @@ java_test(
         "//main/com/google/privacy/differentialprivacy/testing:reference_noise",
         "//main/com/google/privacy/differentialprivacy/testing:statistical_utils",
         "@com_google_differential_privacy//proto/testing:statistical_tests_java_proto",
-        "@maven//:com_google_guava_guava",
-        "@maven//:com_google_protobuf_protobuf_java",
-        "@maven//:com_google_truth_truth",
-        "@maven//:junit_junit",
+        artifact(
+            "com.google.guava:guava",
+            repository_name = "differential_privacy_java_deps",
+        ),
+        artifact(
+            "com.google.protobuf:protobuf-java",
+            repository_name = "differential_privacy_java_deps",
+        ),
+        artifact(
+            "com.google.truth:truth",
+            repository_name = "differential_privacy_java_deps",
+        ),
+        artifact(
+            "junit:junit",
+            repository_name = "differential_privacy_java_deps",
+        ),
     ],
 )
 
@@ -109,10 +152,22 @@ java_test(
         "//main/com/google/privacy/differentialprivacy/testing:reference_noise",
         "//main/com/google/privacy/differentialprivacy/testing:statistical_utils",
         "@com_google_differential_privacy//proto/testing:statistical_tests_java_proto",
-        "@maven//:com_google_guava_guava",
-        "@maven//:com_google_protobuf_protobuf_java",
-        "@maven//:com_google_truth_truth",
-        "@maven//:junit_junit",
+        artifact(
+            "com.google.guava:guava",
+            repository_name = "differential_privacy_java_deps",
+        ),
+        artifact(
+            "com.google.protobuf:protobuf-java",
+            repository_name = "differential_privacy_java_deps",
+        ),
+        artifact(
+            "com.google.truth:truth",
+            repository_name = "differential_privacy_java_deps",
+        ),
+        artifact(
+            "junit:junit",
+            repository_name = "differential_privacy_java_deps",
+        ),
     ],
 )
 
@@ -130,10 +185,22 @@ java_test(
         "//main/com/google/privacy/differentialprivacy/testing:reference_noise",
         "//main/com/google/privacy/differentialprivacy/testing:statistical_utils",
         "@com_google_differential_privacy//proto/testing:statistical_tests_java_proto",
-        "@maven//:com_google_guava_guava",
-        "@maven//:com_google_protobuf_protobuf_java",
-        "@maven//:com_google_truth_truth",
-        "@maven//:junit_junit",
+        artifact(
+            "com.google.guava:guava",
+            repository_name = "differential_privacy_java_deps",
+        ),
+        artifact(
+            "com.google.protobuf:protobuf-java",
+            repository_name = "differential_privacy_java_deps",
+        ),
+        artifact(
+            "com.google.truth:truth",
+            repository_name = "differential_privacy_java_deps",
+        ),
+        artifact(
+            "junit:junit",
+            repository_name = "differential_privacy_java_deps",
+        ),
     ],
 )
 
@@ -151,10 +218,22 @@ java_test(
         "//main/com/google/privacy/differentialprivacy/testing:reference_noise",
         "//main/com/google/privacy/differentialprivacy/testing:statistical_utils",
         "@com_google_differential_privacy//proto/testing:statistical_tests_java_proto",
-        "@maven//:com_google_guava_guava",
-        "@maven//:com_google_protobuf_protobuf_java",
-        "@maven//:com_google_truth_truth",
-        "@maven//:junit_junit",
+        artifact(
+            "com.google.guava:guava",
+            repository_name = "differential_privacy_java_deps",
+        ),
+        artifact(
+            "com.google.protobuf:protobuf-java",
+            repository_name = "differential_privacy_java_deps",
+        ),
+        artifact(
+            "com.google.truth:truth",
+            repository_name = "differential_privacy_java_deps",
+        ),
+        artifact(
+            "junit:junit",
+            repository_name = "differential_privacy_java_deps",
+        ),
     ],
 )
 
@@ -172,10 +251,22 @@ java_test(
         "//main/com/google/privacy/differentialprivacy/testing:reference_noise",
         "//main/com/google/privacy/differentialprivacy/testing:statistical_utils",
         "@com_google_differential_privacy//proto/testing:statistical_tests_java_proto",
-        "@maven//:com_google_guava_guava",
-        "@maven//:com_google_protobuf_protobuf_java",
-        "@maven//:com_google_truth_truth",
-        "@maven//:junit_junit",
+        artifact(
+            "com.google.guava:guava",
+            repository_name = "differential_privacy_java_deps",
+        ),
+        artifact(
+            "com.google.protobuf:protobuf-java",
+            repository_name = "differential_privacy_java_deps",
+        ),
+        artifact(
+            "com.google.truth:truth",
+            repository_name = "differential_privacy_java_deps",
+        ),
+        artifact(
+            "junit:junit",
+            repository_name = "differential_privacy_java_deps",
+        ),
     ],
 )
 
@@ -193,10 +284,22 @@ java_test(
         "//main/com/google/privacy/differentialprivacy/testing:reference_noise",
         "//main/com/google/privacy/differentialprivacy/testing:statistical_utils",
         "@com_google_differential_privacy//proto/testing:statistical_tests_java_proto",
-        "@maven//:com_google_guava_guava",
-        "@maven//:com_google_protobuf_protobuf_java",
-        "@maven//:com_google_truth_truth",
-        "@maven//:junit_junit",
+        artifact(
+            "com.google.guava:guava",
+            repository_name = "differential_privacy_java_deps",
+        ),
+        artifact(
+            "com.google.protobuf:protobuf-java",
+            repository_name = "differential_privacy_java_deps",
+        ),
+        artifact(
+            "com.google.truth:truth",
+            repository_name = "differential_privacy_java_deps",
+        ),
+        artifact(
+            "junit:junit",
+            repository_name = "differential_privacy_java_deps",
+        ),
     ],
 )
 
@@ -213,9 +316,21 @@ java_test(
     deps = [
         "//main/com/google/privacy/differentialprivacy/testing:statistical_utils",
         "@com_google_differential_privacy//proto/testing:statistical_tests_java_proto",
-        "@maven//:com_google_guava_guava",
-        "@maven//:com_google_protobuf_protobuf_java",
-        "@maven//:com_google_truth_truth",
-        "@maven//:junit_junit",
+        artifact(
+            "com.google.guava:guava",
+            repository_name = "differential_privacy_java_deps",
+        ),
+        artifact(
+            "com.google.protobuf:protobuf-java",
+            repository_name = "differential_privacy_java_deps",
+        ),
+        artifact(
+            "com.google.truth:truth",
+            repository_name = "differential_privacy_java_deps",
+        ),
+        artifact(
+            "junit:junit",
+            repository_name = "differential_privacy_java_deps",
+        ),
     ],
 )

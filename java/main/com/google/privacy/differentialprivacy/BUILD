@@ -15,6 +15,7 @@
 #
 
 load("@rules_java//java:defs.bzl", "java_library")
+load("@rules_jvm_external//:defs.bzl", "artifact")
 
 package(
     default_visibility = [
@@ -26,7 +27,10 @@ java_plugin(
     name = "autovalue_plugin",
     processor_class = "com.google.auto.value.processor.AutoValueProcessor",
     deps = [
-        "@maven//:com_google_auto_value_auto_value",
+        artifact(
+            "com.google.auto.value:auto-value",
+            repository_name = "differential_privacy_java_deps",
+        ),
     ],
 )
 
@@ -36,7 +40,10 @@ java_library(
         ":autovalue_plugin",
     ],
     exports = [
-        "@maven//:com_google_auto_value_auto_value",
+        artifact(
+            "com.google.auto.value:auto-value",
+            repository_name = "differential_privacy_java_deps",
+        ),
     ],
 )
 
@@ -50,13 +57,34 @@ java_library(
         ":autovalue",
         "@com_google_differential_privacy//proto:data_java_proto",
         "@com_google_differential_privacy//proto:summary_java_proto",
-        "@maven//:com_google_auto_value_auto_value",
-        "@maven//:com_google_auto_value_auto_value_annotations",
-        "@maven//:com_google_code_findbugs_jsr305",
-        "@maven//:com_google_errorprone_error_prone_annotations",
-        "@maven//:com_google_guava_guava",
-        "@maven//:com_google_protobuf_protobuf_java",
-        "@maven//:org_apache_commons_commons_math3",
+        artifact(
+            "com.google.auto.value:auto-value",
+            repository_name = "differential_privacy_java_deps",
+        ),
+        artifact(
+            "com.google.auto.value:auto-value-annotations",
+            repository_name = "differential_privacy_java_deps",
+        ),
+        artifact(
+            "com.google.code.findbugs:jsr305",
+            repository_name = "differential_privacy_java_deps",
+        ),
+        artifact(
+            "com.google.errorprone:error_prone_annotations",
+            repository_name = "differential_privacy_java_deps",
+        ),
+        artifact(
+            "com.google.guava:guava",
+            repository_name = "differential_privacy_java_deps",
+        ),
+        artifact(
+            "com.google.protobuf:protobuf-java",
+            repository_name = "differential_privacy_java_deps",
+        ),
+        artifact(
+            "org.apache.commons:commons-math3",
+            repository_name = "differential_privacy_java_deps",
+        ),
     ],
 )
 
@@ -67,7 +95,10 @@ java_library(
     deps = [
         ":differentialprivacy",
         "@com_google_differential_privacy//proto:summary_java_proto",
-        "@maven//:com_google_code_findbugs_jsr305",
+        artifact(
+            "com.google.code.findbugs:jsr305",
+            repository_name = "differential_privacy_java_deps",
+        ),
     ],
 )
 

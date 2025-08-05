@@ -1022,6 +1022,14 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
             q=1.0, noise_multiplier=event.noise_multiplier, orders=self._orders
         )
       return None
+    elif isinstance(event, dp_event.ZCDpEvent):
+      if do_compose:
+        if event.xi < 0:
+          raise ValueError(f'xi must be >= 0. Got {event.xi}')
+        if event.rho < 0:
+          raise ValueError(f'rho must be >= 0. Got {event.rho}')
+        self._rdp += count * (event.xi + event.rho * self._orders)
+      return None
     elif isinstance(event, dp_event.PoissonSampledDpEvent):
       if self._neighboring_relation not in [
           NeighborRel.ADD_OR_REMOVE_ONE,

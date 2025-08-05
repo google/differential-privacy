@@ -44,7 +44,7 @@ import org.junit.runners.Parameterized;
 @RunWith(Parameterized.class)
 public final class LaplaceClosenessTest {
   private static final String TEST_CASES_FILE_PATH =
-     "external/com_google_differential_privacy/proto/testing/laplace_closeness_test_cases.textproto";
+     "external/differential_privacy_common~/proto/testing/laplace_closeness_test_cases.textproto";
 
   private final DistributionClosenessTestCase testCase;
 
