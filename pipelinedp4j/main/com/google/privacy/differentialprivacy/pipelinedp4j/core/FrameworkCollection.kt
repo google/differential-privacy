@@ -52,8 +52,6 @@ interface FrameworkCollection<T> {
   ): FrameworkTable<K, V>
 }
 
-// TODO: verify for stage name collisions (especially for Beam) (add tests and ability
-// to add suffixes to avoid collisisons).
 object StageNameUtils {
   /** Appends name of the next stage to the current stage name. */
   fun String.append(nextStageName: String) = "$this/$nextStageName"
