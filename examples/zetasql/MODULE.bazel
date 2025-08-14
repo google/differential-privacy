@@ -1,0 +1,35 @@
+#
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+bazel_dep(name = "platforms", version = "1.0.0")
+bazel_dep(name = "bazel_skylib", version = "1.8.1")
+
+http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
+
+http_file(
+    name = "zetasql_execute_query_linux",
+    executable = True,
+    sha256 = "b01732643efa224630334ccf05df36e3ef95443c9e3e1691e810fa2522bcdca0",
+    urls = ["https://github.com/google/zetasql/releases/download/2025.06.1/execute_query_linux"],
+)
+
+# The Mac OS version only works for x86_64 (not arm64) in the current version.
+http_file(
+    name = "zetasql_execute_query_macos",
+    executable = True,
+    sha256 = "6565f5674a92c38024c6247317b33564fbf749434498bf9687f6ee5b00f2485e",
+    urls = ["https://github.com/google/zetasql/releases/download/2025.06.1/execute_query_macos"],
+)

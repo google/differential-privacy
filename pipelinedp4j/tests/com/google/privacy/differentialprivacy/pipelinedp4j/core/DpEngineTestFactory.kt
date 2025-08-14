@@ -25,10 +25,12 @@ internal fun DpEngine.Factory.createForTesting(
   budgetSpec: DpEngineBudgetSpec,
   noiseFactory: (NoiseKind) -> Noise = NoiseFactory(),
   computationalGraphFactory: ComputationalGraphFactory = ComputationalGraphFactory(),
+  executionMode: ExecutionMode = ExecutionMode.PRODUCTION,
 ) =
   DpEngine(
     encoderFactory,
     BudgetAccountantFactory.forStrategy(budgetSpec.accountingStrategy, budgetSpec.budget),
     noiseFactory,
     computationalGraphFactory,
+    executionMode = executionMode,
   )

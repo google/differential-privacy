@@ -57,7 +57,8 @@ class CountCombinerTest {
 
   @Test
   fun emptyAccumulator_countIsZero() {
-    val combiner = CountCombiner(AGG_PARAMS, UNUSED_ALLOCATED_BUDGET, NoiseFactory())
+    val combiner =
+      CountCombiner(AGG_PARAMS, UNUSED_ALLOCATED_BUDGET, NoiseFactory(), ExecutionMode.PRODUCTION)
 
     val accumulator = combiner.emptyAccumulator()
 
@@ -66,7 +67,8 @@ class CountCombinerTest {
 
   @Test
   fun createAccumulator_singleValueContributions_countsItems() {
-    val combiner = CountCombiner(AGG_PARAMS, UNUSED_ALLOCATED_BUDGET, NoiseFactory())
+    val combiner =
+      CountCombiner(AGG_PARAMS, UNUSED_ALLOCATED_BUDGET, NoiseFactory(), ExecutionMode.PRODUCTION)
 
     val accumulator =
       combiner.createAccumulator(
@@ -78,7 +80,8 @@ class CountCombinerTest {
 
   @Test
   fun createAccumulator_multiValueContributions_countsItems() {
-    val combiner = CountCombiner(AGG_PARAMS, UNUSED_ALLOCATED_BUDGET, NoiseFactory())
+    val combiner =
+      CountCombiner(AGG_PARAMS, UNUSED_ALLOCATED_BUDGET, NoiseFactory(), ExecutionMode.PRODUCTION)
 
     val accumulator =
       combiner.createAccumulator(
@@ -105,6 +108,7 @@ class CountCombinerTest {
         ),
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
+        ExecutionMode.PRODUCTION,
       )
 
     val accumulator =
@@ -122,10 +126,10 @@ class CountCombinerTest {
         AGG_PARAMS.copy(
           maxContributionsPerPartition = 2,
           contributionBoundingLevel = DATASET_LEVEL,
-          executionMode = FULL_TEST_MODE,
         ),
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
+        FULL_TEST_MODE,
       )
 
     val accumulator =
@@ -138,7 +142,8 @@ class CountCombinerTest {
 
   @Test
   fun mergeAccumulators_sumsCounts() {
-    val combiner = CountCombiner(AGG_PARAMS, UNUSED_ALLOCATED_BUDGET, NoiseFactory())
+    val combiner =
+      CountCombiner(AGG_PARAMS, UNUSED_ALLOCATED_BUDGET, NoiseFactory(), ExecutionMode.PRODUCTION)
 
     val accumulator =
       combiner.mergeAccumulators(countAccumulator { count = 1 }, countAccumulator { count = 2 })
@@ -158,7 +163,8 @@ class CountCombinerTest {
       )
     val allocatedBudget = AllocatedBudget()
     allocatedBudget.initialize(1.1, delta)
-    val combiner = CountCombiner(paramsWithNoise, allocatedBudget, NoiseFactory())
+    val combiner =
+      CountCombiner(paramsWithNoise, allocatedBudget, NoiseFactory(), ExecutionMode.PRODUCTION)
 
     val result = combiner.computeMetrics(countAccumulator { count = 1 })
 
@@ -176,7 +182,8 @@ class CountCombinerTest {
       )
     val allocatedBudget = AllocatedBudget()
     allocatedBudget.initialize(1.1, 1e-3)
-    val combiner = CountCombiner(params, allocatedBudget, noiseFactoryMock)
+    val combiner =
+      CountCombiner(params, allocatedBudget, noiseFactoryMock, ExecutionMode.PRODUCTION)
 
     val unused = combiner.computeMetrics(countAccumulator { count = 1 })
 
@@ -194,7 +201,8 @@ class CountCombinerTest {
   fun computeMetrics_withoutNoise_withMultipleContributionsIncludingEmptyAccumulator_returnsCorrectResult() {
     val allocatedBudget = AllocatedBudget()
     allocatedBudget.initialize(1.1, 1e-3)
-    val combiner = CountCombiner(AGG_PARAMS, allocatedBudget, ZeroNoiseFactory())
+    val combiner =
+      CountCombiner(AGG_PARAMS, allocatedBudget, ZeroNoiseFactory(), ExecutionMode.PRODUCTION)
 
     val accumulator0 = combiner.emptyAccumulator()
     val accumulator1 =
@@ -214,7 +222,8 @@ class CountCombinerTest {
   fun computeMetrics_withoutNoise_onlyEmptyAccumulator_returnsZeroCount() {
     val allocatedBudget = AllocatedBudget()
     allocatedBudget.initialize(1.1, 1e-3)
-    val combiner = CountCombiner(AGG_PARAMS, allocatedBudget, ZeroNoiseFactory())
+    val combiner =
+      CountCombiner(AGG_PARAMS, allocatedBudget, ZeroNoiseFactory(), ExecutionMode.PRODUCTION)
 
     val result = combiner.computeMetrics(combiner.emptyAccumulator())
 

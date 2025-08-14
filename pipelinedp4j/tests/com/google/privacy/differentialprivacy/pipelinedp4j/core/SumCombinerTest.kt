@@ -61,6 +61,7 @@ class SumCombinerTest {
         SUM_AGG_PARAMS.copy(minTotalValue = 1.0, maxTotalValue = 2.0),
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
+        ExecutionMode.PRODUCTION,
       )
 
     val accumulator = combiner.emptyAccumulator()
@@ -75,6 +76,7 @@ class SumCombinerTest {
         SUM_AGG_PARAMS.copy(minTotalValue = -300.0, maxTotalValue = 300.0),
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
+        ExecutionMode.TEST_MODE_WITH_CONTRIBUTION_BOUNDING,
       )
 
     val accumulator =
@@ -97,6 +99,7 @@ class SumCombinerTest {
         ),
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
+        ExecutionMode.TEST_MODE_WITH_CONTRIBUTION_BOUNDING,
       )
 
     val accumulator =
@@ -116,10 +119,10 @@ class SumCombinerTest {
           maxValue = 4.0,
           minTotalValue = -2.0,
           maxTotalValue = 300.0,
-          executionMode = FULL_TEST_MODE,
         ),
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
+        FULL_TEST_MODE,
       )
 
     val accumulator =
@@ -132,7 +135,13 @@ class SumCombinerTest {
 
   @Test
   fun mergeAccumulators_sumsPartialSums() {
-    val combiner = SumCombiner(SUM_AGG_PARAMS, UNUSED_ALLOCATED_BUDGET, NoiseFactory())
+    val combiner =
+      SumCombiner(
+        SUM_AGG_PARAMS,
+        UNUSED_ALLOCATED_BUDGET,
+        NoiseFactory(),
+        ExecutionMode.TEST_MODE_WITH_CONTRIBUTION_BOUNDING,
+      )
 
     val accumulator =
       combiner.mergeAccumulators(sumAccumulator { sum = 1000.0 }, sumAccumulator { sum = -2000.0 })
@@ -146,7 +155,12 @@ class SumCombinerTest {
     val allocatedBudget = AllocatedBudget()
     allocatedBudget.initialize(1.1, delta)
     val combiner =
-      SumCombiner(SUM_AGG_PARAMS.copy(noiseKind = noiseKind), allocatedBudget, NoiseFactory())
+      SumCombiner(
+        SUM_AGG_PARAMS.copy(noiseKind = noiseKind),
+        allocatedBudget,
+        NoiseFactory(),
+        ExecutionMode.PRODUCTION,
+      )
 
     val result = combiner.computeMetrics(sumAccumulator { sum = 1.0 })
 
@@ -167,6 +181,7 @@ class SumCombinerTest {
         ),
         allocatedBudget,
         noiseFactoryMock,
+        ExecutionMode.TEST_MODE_WITH_CONTRIBUTION_BOUNDING,
       )
 
     val unused = combiner.computeMetrics(sumAccumulator { sum = 1.0 })
@@ -190,6 +205,7 @@ class SumCombinerTest {
         SUM_AGG_PARAMS.copy(minTotalValue = -1.0, maxTotalValue = 3.0),
         allocatedBudget,
         ZeroNoiseFactory(),
+        ExecutionMode.TEST_MODE_WITH_CONTRIBUTION_BOUNDING,
       )
 
     val accumulator0 = combiner.emptyAccumulator()
@@ -217,6 +233,7 @@ class SumCombinerTest {
         SUM_AGG_PARAMS.copy(minTotalValue = -1.0, maxTotalValue = 3.0),
         allocatedBudget,
         ZeroNoiseFactory(),
+        ExecutionMode.TEST_MODE_WITH_CONTRIBUTION_BOUNDING,
       )
 
     val result = combiner.computeMetrics(combiner.emptyAccumulator())

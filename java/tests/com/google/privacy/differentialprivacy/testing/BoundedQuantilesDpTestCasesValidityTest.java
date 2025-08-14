@@ -36,7 +36,7 @@ import org.junit.runners.Parameterized;
 public final class BoundedQuantilesDpTestCasesValidityTest {
    private static final String TEST_CASES_FILE_PATH =
 
-  "external/differential_privacy_common~/proto/testing/bounded_quantiles_dp_test_cases.textproto";
+  "external/differential_privacy_common+/proto/testing/bounded_quantiles_dp_test_cases.textproto";
   private final int numberOfVotes =
       getTestCaseCollectionFromFile().getVotingParameters().getNumberOfVotes();
   private final double epsilonSpecificity =

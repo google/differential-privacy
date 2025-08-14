@@ -6,6 +6,8 @@ describes C++-specific aspects.
 
 ## How to Build
 
+### Bazel
+
 Build the C++ differential privacy library and dependencies using
 [bazelisk](https://github.com/google/differential-privacy?tab=readme-ov-file#how-to-build)
 (*...* is a part of the command and not a placeholder):
@@ -13,6 +15,30 @@ Build the C++ differential privacy library and dependencies using
 ```shell
 cd cc
 bazelisk build ...
+```
+### CMake
+
+Note: CMake build is experimental. It was tested on Ubuntu 22.04.
+
+Before building, we need to install dependencies via the following command:
+
+```
+sudo apt install -y cmake protobuf-compiler libssl-dev
+```
+
+To build the library, we need to follow the following steps:
+```sh
+mkdir build
+cd build
+cmake ..
+make -j
+```
+
+To run unit tests:
+
+```sh
+cd cc
+ctest
 ```
 
 ## How to Use

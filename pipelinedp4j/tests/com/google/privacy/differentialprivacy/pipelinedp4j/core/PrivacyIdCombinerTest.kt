@@ -59,7 +59,13 @@ class PrivacyIdCombinerTest {
 
   @Test
   fun createAccumulator_singleValueContributions_initsAccumulatorWithOne() {
-    val combiner = PrivacyIdCountCombiner(AGG_PARAMS, UNUSED_ALLOCATED_BUDGET, NoiseFactory())
+    val combiner =
+      PrivacyIdCountCombiner(
+        AGG_PARAMS,
+        UNUSED_ALLOCATED_BUDGET,
+        NoiseFactory(),
+        ExecutionMode.PRODUCTION,
+      )
 
     val accumulator =
       combiner.createAccumulator(
@@ -71,7 +77,13 @@ class PrivacyIdCombinerTest {
 
   @Test
   fun createAccumulator_multiValueContributions_initsAccumulatorWithOne() {
-    val combiner = PrivacyIdCountCombiner(AGG_PARAMS, UNUSED_ALLOCATED_BUDGET, NoiseFactory())
+    val combiner =
+      PrivacyIdCountCombiner(
+        AGG_PARAMS,
+        UNUSED_ALLOCATED_BUDGET,
+        NoiseFactory(),
+        ExecutionMode.PRODUCTION,
+      )
 
     val accumulator =
       combiner.createAccumulator(
@@ -90,7 +102,13 @@ class PrivacyIdCombinerTest {
 
   @Test
   fun createAccumulator_noContributions_initsAccumulatorWithZero() {
-    val combiner = PrivacyIdCountCombiner(AGG_PARAMS, UNUSED_ALLOCATED_BUDGET, NoiseFactory())
+    val combiner =
+      PrivacyIdCountCombiner(
+        AGG_PARAMS,
+        UNUSED_ALLOCATED_BUDGET,
+        NoiseFactory(),
+        ExecutionMode.PRODUCTION,
+      )
 
     val accumulator = combiner.createAccumulator(privacyIdContributions {})
 
@@ -99,7 +117,13 @@ class PrivacyIdCombinerTest {
 
   @Test
   fun mergeAccumulators_sumsCounts() {
-    val combiner = PrivacyIdCountCombiner(AGG_PARAMS, UNUSED_ALLOCATED_BUDGET, NoiseFactory())
+    val combiner =
+      PrivacyIdCountCombiner(
+        AGG_PARAMS,
+        UNUSED_ALLOCATED_BUDGET,
+        NoiseFactory(),
+        ExecutionMode.PRODUCTION,
+      )
 
     val accumulator =
       combiner.mergeAccumulators(
@@ -120,7 +144,13 @@ class PrivacyIdCombinerTest {
       )
     val allocatedBudget = AllocatedBudget()
     allocatedBudget.initialize(1.1, 1e-3)
-    val combiner = PrivacyIdCountCombiner(paramsWithNoise, allocatedBudget, NoiseFactory())
+    val combiner =
+      PrivacyIdCountCombiner(
+        paramsWithNoise,
+        allocatedBudget,
+        NoiseFactory(),
+        ExecutionMode.PRODUCTION,
+      )
 
     val result = combiner.computeMetrics(privacyIdCountAccumulator { count = 1 })
 
@@ -131,7 +161,13 @@ class PrivacyIdCombinerTest {
   fun computeMetrics_passesCorrectParametersToNoise() {
     val allocatedBudget = AllocatedBudget()
     allocatedBudget.initialize(1.1, 1e-3)
-    val combiner = PrivacyIdCountCombiner(AGG_PARAMS, allocatedBudget, noiseFactoryMock)
+    val combiner =
+      PrivacyIdCountCombiner(
+        AGG_PARAMS,
+        allocatedBudget,
+        noiseFactoryMock,
+        ExecutionMode.PRODUCTION,
+      )
 
     val unused = combiner.computeMetrics(privacyIdCountAccumulator { count = 1 })
 

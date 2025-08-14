@@ -34,7 +34,7 @@ import org.junit.runners.Parameterized;
 public final class LaplaceClosenessTestCasesValidityTest {
   private static final String TEST_CASES_FILE_PATH =
 
-  "external/differential_privacy_common~/proto/testing/laplace_closeness_test_cases.textproto";
+  "external/differential_privacy_common+/proto/testing/laplace_closeness_test_cases.textproto";
   private final int numberOfVotes =
       getTestCaseCollectionFromFile().getVotingParameters().getNumberOfVotes();
   private final double shiftSpecificity =

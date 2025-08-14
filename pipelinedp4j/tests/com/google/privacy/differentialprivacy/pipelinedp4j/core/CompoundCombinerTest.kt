@@ -83,7 +83,16 @@ class CompoundCombinerTest {
   @Test
   fun createAccumulator_oneMetric_createsOneAccumulator() {
     val compoundCombiner =
-      CompoundCombiner(listOf(CountCombiner(COUNT_PARAMS, UNUSED_ALLOCATED_BUDGET, NoiseFactory())))
+      CompoundCombiner(
+        listOf(
+          CountCombiner(
+            COUNT_PARAMS,
+            UNUSED_ALLOCATED_BUDGET,
+            NoiseFactory(),
+            ExecutionMode.PRODUCTION,
+          )
+        )
+      )
 
     val accumulator =
       compoundCombiner.createAccumulator(
@@ -99,8 +108,18 @@ class CompoundCombinerTest {
     val compoundCombiner =
       CompoundCombiner(
         listOf(
-          CountCombiner(COUNT_AND_SUM_PARAMS, UNUSED_ALLOCATED_BUDGET, NoiseFactory()),
-          SumCombiner(COUNT_AND_SUM_PARAMS, UNUSED_ALLOCATED_BUDGET, NoiseFactory()),
+          CountCombiner(
+            COUNT_AND_SUM_PARAMS,
+            UNUSED_ALLOCATED_BUDGET,
+            NoiseFactory(),
+            ExecutionMode.PRODUCTION,
+          ),
+          SumCombiner(
+            COUNT_AND_SUM_PARAMS,
+            UNUSED_ALLOCATED_BUDGET,
+            NoiseFactory(),
+            ExecutionMode.PRODUCTION,
+          ),
         )
       )
 
@@ -128,6 +147,7 @@ class CompoundCombinerTest {
             UNUSED_ALLOCATED_BUDGET,
             UNUSED_ALLOCATED_BUDGET,
             NoiseFactory(),
+            ExecutionMode.PRODUCTION,
           )
         )
       )
@@ -159,6 +179,7 @@ class CompoundCombinerTest {
             UNUSED_ALLOCATED_BUDGET,
             UNUSED_ALLOCATED_BUDGET,
             NoiseFactory(),
+            ExecutionMode.PRODUCTION,
           )
         )
       )
@@ -185,8 +206,18 @@ class CompoundCombinerTest {
     val compoundCombiner =
       CompoundCombiner(
         listOf(
-          CountCombiner(COUNT_AND_SUM_PARAMS, UNUSED_ALLOCATED_BUDGET, NoiseFactory()),
-          SumCombiner(COUNT_AND_SUM_PARAMS, UNUSED_ALLOCATED_BUDGET, NoiseFactory()),
+          CountCombiner(
+            COUNT_AND_SUM_PARAMS,
+            UNUSED_ALLOCATED_BUDGET,
+            NoiseFactory(),
+            ExecutionMode.PRODUCTION,
+          ),
+          SumCombiner(
+            COUNT_AND_SUM_PARAMS,
+            UNUSED_ALLOCATED_BUDGET,
+            NoiseFactory(),
+            ExecutionMode.PRODUCTION,
+          ),
         )
       )
 
@@ -214,7 +245,16 @@ class CompoundCombinerTest {
   @Test
   fun mergeAccumulators_oneMetric_mergesAccumulators() {
     val compoundCombiner =
-      CompoundCombiner(listOf(CountCombiner(COUNT_PARAMS, UNUSED_ALLOCATED_BUDGET, NoiseFactory())))
+      CompoundCombiner(
+        listOf(
+          CountCombiner(
+            COUNT_PARAMS,
+            UNUSED_ALLOCATED_BUDGET,
+            NoiseFactory(),
+            ExecutionMode.PRODUCTION,
+          )
+        )
+      )
 
     val mergedAccumulator =
       compoundCombiner.mergeAccumulators(
@@ -236,6 +276,7 @@ class CompoundCombinerTest {
             UNUSED_ALLOCATED_BUDGET,
             UNUSED_ALLOCATED_BUDGET,
             NoiseFactory(),
+            ExecutionMode.PRODUCTION,
           )
         )
       )
@@ -278,6 +319,7 @@ class CompoundCombinerTest {
             UNUSED_ALLOCATED_BUDGET,
             UNUSED_ALLOCATED_BUDGET,
             NoiseFactory(),
+            ExecutionMode.PRODUCTION,
           )
         )
       )
@@ -317,8 +359,18 @@ class CompoundCombinerTest {
     val compoundCombiner =
       CompoundCombiner(
         listOf(
-          CountCombiner(COUNT_AND_SUM_PARAMS, UNUSED_ALLOCATED_BUDGET, ZeroNoiseFactory()),
-          SumCombiner(COUNT_AND_SUM_PARAMS, UNUSED_ALLOCATED_BUDGET, ZeroNoiseFactory()),
+          CountCombiner(
+            COUNT_AND_SUM_PARAMS,
+            UNUSED_ALLOCATED_BUDGET,
+            ZeroNoiseFactory(),
+            ExecutionMode.PRODUCTION,
+          ),
+          SumCombiner(
+            COUNT_AND_SUM_PARAMS,
+            UNUSED_ALLOCATED_BUDGET,
+            ZeroNoiseFactory(),
+            ExecutionMode.PRODUCTION,
+          ),
         )
       )
 
@@ -343,7 +395,14 @@ class CompoundCombinerTest {
   fun computeMetrics_oneMetric_returnsOneMetric() {
     val compoundCombiner =
       CompoundCombiner(
-        listOf(CountCombiner(COUNT_PARAMS, UNUSED_ALLOCATED_BUDGET, ZeroNoiseFactory()))
+        listOf(
+          CountCombiner(
+            COUNT_PARAMS,
+            UNUSED_ALLOCATED_BUDGET,
+            ZeroNoiseFactory(),
+            ExecutionMode.PRODUCTION,
+          )
+        )
       )
 
     val dpAggregates =
@@ -364,6 +423,7 @@ class CompoundCombinerTest {
             UNUSED_ALLOCATED_BUDGET,
             UNUSED_ALLOCATED_BUDGET,
             ZeroNoiseFactory(),
+            ExecutionMode.PRODUCTION,
           )
         )
       )
@@ -398,6 +458,7 @@ class CompoundCombinerTest {
             UNUSED_ALLOCATED_BUDGET,
             UNUSED_ALLOCATED_BUDGET,
             ZeroNoiseFactory(),
+            ExecutionMode.PRODUCTION,
           )
         )
       )
@@ -433,6 +494,7 @@ class CompoundCombinerTest {
             UNUSED_ALLOCATED_BUDGET,
             UNUSED_ALLOCATED_BUDGET,
             ZeroNoiseFactory(),
+            ExecutionMode.PRODUCTION,
           )
         )
       )
@@ -470,6 +532,7 @@ class CompoundCombinerTest {
             UNUSED_ALLOCATED_BUDGET,
             UNUSED_ALLOCATED_BUDGET,
             ZeroNoiseFactory(),
+            ExecutionMode.PRODUCTION,
           )
         )
       )

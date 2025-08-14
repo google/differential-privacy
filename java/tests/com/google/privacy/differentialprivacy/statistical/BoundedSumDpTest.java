@@ -42,7 +42,7 @@ import org.junit.runners.Parameterized;
 public final class BoundedSumDpTest {
   private static final String TEST_CASES_FILE_PATH =
 
-  "external/differential_privacy_common~/proto/testing/bounded_sum_dp_test_cases.textproto";
+  "external/differential_privacy_common+/proto/testing/bounded_sum_dp_test_cases.textproto";
 
   private final BoundedSumDpTestCase testCase;
 

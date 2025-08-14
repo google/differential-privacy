@@ -70,14 +70,20 @@ internal constructor(
   private val budgetAccountant: BudgetAccountant,
   private val defaultNoiseFactory: (NoiseKind) -> Noise = NoiseFactory(),
   private val computationalGraphFactory: ComputationalGraphFactory = ComputationalGraphFactory(),
+  private val executionMode: ExecutionMode = ExecutionMode.PRODUCTION,
 ) {
   companion object Factory {
-    fun create(encoderFactory: EncoderFactory, budgetSpec: DpEngineBudgetSpec) =
+    fun create(
+      encoderFactory: EncoderFactory,
+      budgetSpec: DpEngineBudgetSpec,
+      executionMode: ExecutionMode = ExecutionMode.PRODUCTION,
+    ) =
       DpEngine(
         encoderFactory,
         BudgetAccountantFactory.forStrategy(budgetSpec.accountingStrategy, budgetSpec.budget),
         NoiseFactory(),
         ComputationalGraphFactory(),
+        executionMode,
       )
   }
 
@@ -109,13 +115,18 @@ internal constructor(
     )
     // Beyond this point we can assume aggregation parameters are correct.
     val noiseFactory =
-      if (aggregationParams.executionMode.appliesNoise) {
+      if (executionMode.appliesNoise) {
         defaultNoiseFactory
       } else {
         ZeroNoiseFactory()
       }
     val compoundCombiner =
-      createCompoundCombiner(aggregationParams, uniquePublicPartitions != null, noiseFactory)
+      createCompoundCombiner(
+        aggregationParams,
+        uniquePublicPartitions != null,
+        noiseFactory,
+        executionMode,
+      )
     val contributionSampler =
       createContributionsSampler(
         aggregationParams,
@@ -165,10 +176,10 @@ internal constructor(
     validateSelectPartitionsParams(params)
 
     val partitionSelector =
-      if (params.executionMode.partitionSelectionIsNonDeterministic) createPartitionSelector(params)
+      if (executionMode.partitionSelectionIsNonDeterministic) createPartitionSelector(params)
       else NoPrivacyPartitionSelector()
     val contributionSampler =
-      if (params.applyPartitionsContributedBounding)
+      if (params.applyPartitionsContributedBounding(executionMode))
         PartitionSamplerWithoutValues(
           params.maxPartitionsContributed,
           dataExtractors.privacyIdEncoder,
@@ -216,7 +227,10 @@ internal constructor(
     privacyIdEncoder: Encoder<PrivacyIdT>,
     partitionKeyEncoder: Encoder<PartitionKeyT>,
   ): ContributionSampler<PrivacyIdT, PartitionKeyT> {
-    return if (params.applyPerPartitionBounding && params.applyPartitionsContributedBounding) {
+    return if (
+      params.applyPerPartitionBounding(executionMode) &&
+        params.applyPartitionsContributedBounding(executionMode)
+    ) {
       if (combiner.requiresPerPartitionBoundedInput) {
         PartitionAndPerPartitionSampler(
           params.maxPartitionsContributed!!,
@@ -233,7 +247,7 @@ internal constructor(
           encoderFactory,
         )
       }
-    } else if (params.applyPartitionsContributedBounding) {
+    } else if (params.applyPartitionsContributedBounding(executionMode)) {
       // && !applyPerPartitionBounding
       PartitionSampler(
         params.maxPartitionsContributed!!,
@@ -241,7 +255,7 @@ internal constructor(
         partitionKeyEncoder,
         encoderFactory,
       )
-    } else if (params.applyPerPartitionBounding) {
+    } else if (params.applyPerPartitionBounding(executionMode)) {
       // && !applyPartitionsContributedBounding
       if (combiner.requiresPerPartitionBoundedInput) {
         PerPartitionContributionsSampler(
@@ -263,6 +277,7 @@ internal constructor(
     params: AggregationParams,
     usePublicPartitions: Boolean,
     noiseFactory: (NoiseKind) -> Noise,
+    executionMode: ExecutionMode,
   ): CompoundCombiner {
     val meanInMetrics = params.metrics.any { it.type == MEAN }
     val varianceInMetrics = params.metrics.any { it.type == VARIANCE }
@@ -271,45 +286,70 @@ internal constructor(
         .mapNotNull { metric ->
           when (metric.type) {
             PRIVACY_ID_COUNT -> {
-              if (usePostAggregationPartitionSelection(params, usePublicPartitions)) {
+              if (
+                usePostAggregationPartitionSelection(params, usePublicPartitions, executionMode)
+              ) {
                 PostAggregationPartitionSelectionCombiner(
                   params,
                   getBudgetForMetric(metric, params),
                   getBudgetForPostAggregationPartitionSelection(params.partitionSelectionBudget),
                   noiseFactory,
+                  executionMode,
                 )
               } else {
-                PrivacyIdCountCombiner(params, getBudgetForMetric(metric, params), noiseFactory)
+                PrivacyIdCountCombiner(
+                  params,
+                  getBudgetForMetric(metric, params),
+                  noiseFactory,
+                  executionMode,
+                )
               }
             }
             COUNT -> {
               if (!meanInMetrics && !varianceInMetrics) {
-                CountCombiner(params, getBudgetForMetric(metric, params), noiseFactory)
+                CountCombiner(
+                  params,
+                  getBudgetForMetric(metric, params),
+                  noiseFactory,
+                  executionMode,
+                )
               } else {
                 null
               }
             }
             SUM -> {
               if (!meanInMetrics && !varianceInMetrics) {
-                SumCombiner(params, getBudgetForMetric(metric, params), noiseFactory)
+                SumCombiner(params, getBudgetForMetric(metric, params), noiseFactory, executionMode)
               } else {
                 null
               }
             }
             VECTOR_SUM -> {
-              VectorSumCombiner(params, getBudgetForMetric(metric, params), noiseFactory)
+              VectorSumCombiner(
+                params,
+                getBudgetForMetric(metric, params),
+                noiseFactory,
+                executionMode,
+              )
             }
             MEAN -> {
               if (!varianceInMetrics) {
                 val (countBudget, sumBudget) = calculateCountSumBudgetsForMean(params)
-                MeanCombiner(params, countBudget, sumBudget, noiseFactory)
+                MeanCombiner(params, countBudget, sumBudget, noiseFactory, executionMode)
               } else {
                 null
               }
             }
             VARIANCE -> {
               val (countBudget, sumBudget, sumSquaresBudget) = calculateBudgetsForVariance(params)
-              VarianceCombiner(params, countBudget, sumBudget, sumSquaresBudget, noiseFactory)
+              VarianceCombiner(
+                params,
+                countBudget,
+                sumBudget,
+                sumSquaresBudget,
+                noiseFactory,
+                executionMode,
+              )
             }
 
             is QUANTILES -> {
@@ -318,6 +358,7 @@ internal constructor(
                 params,
                 getBudgetForMetric(metric, params),
                 noiseFactory,
+                executionMode,
               )
             }
           }
@@ -335,10 +376,11 @@ internal constructor(
     params: AggregationParams
   ): PreAggregationPartitionSelector? {
     // If partition selection is deterministic, we create a no-op partition selector.
-    if (!params.executionMode.partitionSelectionIsNonDeterministic) {
+    if (!executionMode.partitionSelectionIsNonDeterministic) {
       return NoPrivacyPartitionSelector()
     }
-    if (usePostAggregationPartitionSelection(params, usePublicPartitions = false)) return null
+    if (usePostAggregationPartitionSelection(params, usePublicPartitions = false, executionMode))
+      return null
     val budget = getBudgetForPreAggregationPartitionSelection(params.partitionSelectionBudget)
     // If maxPartitionsContributed unset for partition selection, NullPointerException is expected.
     return DpLibPreAggregationPartitionSelector(
@@ -467,7 +509,8 @@ data class DpEngineBudgetSpec(
 private fun usePostAggregationPartitionSelection(
   params: AggregationParams,
   usePublicPartitions: Boolean,
+  executionMode: ExecutionMode,
 ): Boolean =
   !usePublicPartitions &&
     params.metrics.any { it.type == PRIVACY_ID_COUNT } &&
-    params.executionMode.partitionSelectionIsNonDeterministic
+    executionMode.partitionSelectionIsNonDeterministic

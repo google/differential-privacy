@@ -65,6 +65,7 @@ class VectorSumCombinerTest {
         VECTOR_SUM_AGG_PARAMS.copy(vectorSize = 3),
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
+        ExecutionMode.PRODUCTION,
       )
 
     val accumulator = combiner.emptyAccumulator()
@@ -84,6 +85,7 @@ class VectorSumCombinerTest {
         ),
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
+        ExecutionMode.PRODUCTION,
       )
 
     val accumulator =
@@ -115,6 +117,7 @@ class VectorSumCombinerTest {
         ),
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
+        ExecutionMode.PRODUCTION,
       )
 
     val accumulator =
@@ -145,6 +148,7 @@ class VectorSumCombinerTest {
         ),
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
+        ExecutionMode.PRODUCTION,
       )
 
     val accumulator =
@@ -174,6 +178,7 @@ class VectorSumCombinerTest {
         ),
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
+        ExecutionMode.PRODUCTION,
       )
 
     val accumulator =
@@ -199,10 +204,10 @@ class VectorSumCombinerTest {
           vectorNormKind = NormKind.L_INF,
           vectorMaxTotalNorm = 30.0,
           vectorSize = 3,
-          executionMode = FULL_TEST_MODE,
         ),
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
+        FULL_TEST_MODE,
       )
 
     val accumulator =
@@ -222,7 +227,13 @@ class VectorSumCombinerTest {
 
   @Test
   fun mergeAccumulators_sumsPartialVectorSums() {
-    val combiner = VectorSumCombiner(VECTOR_SUM_AGG_PARAMS, UNUSED_ALLOCATED_BUDGET, NoiseFactory())
+    val combiner =
+      VectorSumCombiner(
+        VECTOR_SUM_AGG_PARAMS,
+        UNUSED_ALLOCATED_BUDGET,
+        NoiseFactory(),
+        ExecutionMode.PRODUCTION,
+      )
 
     val accumulator =
       combiner.mergeAccumulators(
@@ -244,6 +255,7 @@ class VectorSumCombinerTest {
         VECTOR_SUM_AGG_PARAMS.copy(noiseKind = noiseKind),
         allocatedBudget,
         NoiseFactory(),
+        ExecutionMode.PRODUCTION,
       )
 
     val result =
@@ -278,6 +290,7 @@ class VectorSumCombinerTest {
         ),
         allocatedBudget,
         noiseFactoryMock,
+        ExecutionMode.PRODUCTION,
       )
 
     val unused =
@@ -333,6 +346,7 @@ class VectorSumCombinerTest {
         ),
         allocatedBudget,
         noiseFactoryMock,
+        ExecutionMode.PRODUCTION,
       )
 
     val unused =
@@ -385,6 +399,7 @@ class VectorSumCombinerTest {
         ),
         allocatedBudget,
         ZeroNoiseFactory(),
+        ExecutionMode.PRODUCTION,
       )
 
     val accumulator0 = combiner.emptyAccumulator()
@@ -424,6 +439,7 @@ class VectorSumCombinerTest {
         VECTOR_SUM_AGG_PARAMS.copy(vectorSize = 3),
         allocatedBudget,
         ZeroNoiseFactory(),
+        ExecutionMode.PRODUCTION,
       )
 
     val result = combiner.computeMetrics(combiner.emptyAccumulator())

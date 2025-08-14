@@ -69,7 +69,11 @@ protected constructor(
 
   protected fun runWithDpEngine(testMode: TestMode): FrameworkTable<GroupKeysT, DpAggregates> {
     val dpEngine =
-      DpEngine.create(encoderFactory, DpEngineBudgetSpec(totalBudget.toInternalTotalBudget()))
+      DpEngine.create(
+        encoderFactory,
+        DpEngineBudgetSpec(totalBudget.toInternalTotalBudget()),
+        testMode.toExecutionMode(),
+      )
 
     @Suppress("UNCHECKED_CAST")
     val valueAggregations =
@@ -83,8 +87,7 @@ protected constructor(
 
     if (aggregations.isEmpty()) {
       // Only select groups.
-      val result =
-        dpEngine.selectPartitions(data, createSelectPartitionsParams(testMode), extractors)
+      val result = dpEngine.selectPartitions(data, createSelectPartitionsParams(), extractors)
       dpEngine.done()
 
       return result.mapToTable(
@@ -94,7 +97,7 @@ protected constructor(
         { it to DpAggregates.getDefaultInstance() },
       )
     } else {
-      val aggregateParams = createAggregationParams(valueAggregations, vectorAggregations, testMode)
+      val aggregateParams = createAggregationParams(valueAggregations, vectorAggregations)
 
       val result =
         dpEngine.aggregate(
@@ -391,19 +394,17 @@ protected constructor(
         )
     }
 
-  private fun createSelectPartitionsParams(testMode: TestMode) =
+  private fun createSelectPartitionsParams() =
     SelectPartitionsParams(
       maxPartitionsContributed = contributionBoundingLevel.getMaxPartitionsContributed(),
       budget = (groupsType as GroupsType.PrivateGroups).budget?.toInternalBudgetPerOpSpec(),
       preThreshold = groupsType.getPreThreshold(),
       contributionBoundingLevel = contributionBoundingLevel.toInternalContributionBoundingLevel(),
-      executionMode = testMode.toExecutionMode(),
     )
 
   private fun createAggregationParams(
     valueAggregations: ValueAggregations<*>?,
     vectorAggregations: VectorAggregations<*>?,
-    testMode: TestMode,
   ): AggregationParams {
     val valueContributionBounds = valueAggregations?.contributionBounds
     val vectorContributionBounds = vectorAggregations?.vectorContributionBounds
@@ -422,7 +423,6 @@ protected constructor(
       partitionSelectionBudget = groupsType.getBudget()?.toInternalBudgetPerOpSpec(),
       preThreshold = groupsType.getPreThreshold(),
       contributionBoundingLevel = contributionBoundingLevel.toInternalContributionBoundingLevel(),
-      executionMode = testMode.toExecutionMode(),
       partitionsBalance = groupByAdditionalParameters.groupsBalance.toPartitionsBalance(),
     )
   }

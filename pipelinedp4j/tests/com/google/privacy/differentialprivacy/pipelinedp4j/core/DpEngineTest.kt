@@ -52,7 +52,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.ArgumentMatchers.anyDouble
 import org.mockito.ArgumentMatchers.anyInt
-import org.mockito.ArgumentMatchers.isA
 import org.mockito.kotlin.any
 import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.argThat
@@ -401,6 +400,7 @@ class DpEngineTest {
   enum class ContributionSamplerTestCase(
     val aggregationParams: AggregationParams,
     val expectedContributionSampler: Class<out ContributionSampler<*, *>>,
+    val executionMode: ExecutionMode = ExecutionMode.PRODUCTION,
   ) {
     DATASET_LEVEL_WITH_PRIVACY_ID_COUNT_METRIC(
       PRIVACY_ID_COUNT_PARAMS.copy(contributionBoundingLevel = DATASET_LEVEL),
@@ -488,49 +488,37 @@ class DpEngineTest {
     ),
     // Count is an example of a metric that does not require per-partition bounded input.
     DATASET_LEVEL_COUNT_WITH_TEST_MODE_WITH_CONTRIBUTION_BOUNDING(
-      COUNT_PARAMS.copy(
-        contributionBoundingLevel = DATASET_LEVEL,
-        executionMode = TEST_MODE_WITH_CONTRIBUTION_BOUNDING,
-      ),
+      COUNT_PARAMS.copy(contributionBoundingLevel = DATASET_LEVEL),
       PartitionSampler::class.java,
+      TEST_MODE_WITH_CONTRIBUTION_BOUNDING,
     ),
     // Mean is an example of a metric that requires per-partition bounded input.
     DATASET_LEVEL_MEAN_WITH_TEST_MODE_WITH_CONTRIBUTION_BOUNDING(
-      MEAN_PARAMS.copy(
-        contributionBoundingLevel = DATASET_LEVEL,
-        executionMode = TEST_MODE_WITH_CONTRIBUTION_BOUNDING,
-      ),
+      MEAN_PARAMS.copy(contributionBoundingLevel = DATASET_LEVEL),
       PartitionAndPerPartitionSampler::class.java,
+      TEST_MODE_WITH_CONTRIBUTION_BOUNDING,
     ),
     // Count is an example of a metric that does not require per-partition bounded input.
     PARTITION_LEVEL_COUNT_WITH_TEST_MODE_WITH_CONTRIBUTION_BOUNDING(
-      COUNT_PARAMS.copy(
-        contributionBoundingLevel = PARTITION_LEVEL,
-        maxPartitionsContributed = 1,
-        executionMode = TEST_MODE_WITH_CONTRIBUTION_BOUNDING,
-      ),
+      COUNT_PARAMS.copy(contributionBoundingLevel = PARTITION_LEVEL, maxPartitionsContributed = 1),
       NoPrivacySampler::class.java,
+      TEST_MODE_WITH_CONTRIBUTION_BOUNDING,
     ),
     // Mean is an example of a metric that requires per-partition bounded input.
     PARTITION_LEVEL_MEAN_WITH_TEST_MODE_WITH_CONTRIBUTION_BOUNDING(
-      MEAN_PARAMS.copy(
-        contributionBoundingLevel = PARTITION_LEVEL,
-        maxPartitionsContributed = 1,
-        executionMode = TEST_MODE_WITH_CONTRIBUTION_BOUNDING,
-      ),
+      MEAN_PARAMS.copy(contributionBoundingLevel = PARTITION_LEVEL, maxPartitionsContributed = 1),
       PerPartitionContributionsSampler::class.java,
+      TEST_MODE_WITH_CONTRIBUTION_BOUNDING,
     ),
     DATASET_LEVEL_WITH_FULL_TEST_MODE(
-      COUNT_PARAMS.copy(contributionBoundingLevel = DATASET_LEVEL, executionMode = FULL_TEST_MODE),
+      COUNT_PARAMS.copy(contributionBoundingLevel = DATASET_LEVEL),
       NoPrivacySampler::class.java,
+      FULL_TEST_MODE,
     ),
     PARTITION_LEVEL_WITH_FULL_TEST_MODE(
-      COUNT_PARAMS.copy(
-        contributionBoundingLevel = PARTITION_LEVEL,
-        maxPartitionsContributed = 1,
-        executionMode = FULL_TEST_MODE,
-      ),
+      COUNT_PARAMS.copy(contributionBoundingLevel = PARTITION_LEVEL, maxPartitionsContributed = 1),
       NoPrivacySampler::class.java,
+      FULL_TEST_MODE,
     ),
   }
 
@@ -544,6 +532,7 @@ class DpEngineTest {
         LOCAL_EF,
         LARGE_BUDGET_SPEC,
         computationalGraphFactory = graphFactorySpy,
+        executionMode = testCase.executionMode,
       )
 
     val unused =
@@ -580,12 +569,13 @@ class DpEngineTest {
         LOCAL_EF,
         LARGE_BUDGET_SPEC,
         computationalGraphFactory = graphFactorySpy,
+        executionMode = executionMode,
       )
 
     val unused =
       dpEngine.aggregate(
         LocalCollection(sequenceOf()),
-        PRIVACY_ID_COUNT_PARAMS.copy(executionMode = executionMode),
+        PRIVACY_ID_COUNT_PARAMS.copy(),
         testDataExtractors,
       )
 
@@ -653,7 +643,14 @@ class DpEngineTest {
       )
 
     verify(graphFactorySpy)
-      .createForPublicPartitions(any(), any(), eq(testDataExtractors), any(), any(), any())
+      .createForPublicPartitions<TestDataRow, String, String>(
+        any(),
+        any(),
+        eq(testDataExtractors),
+        any(),
+        any(),
+        any(),
+      )
   }
 
   @Test
@@ -704,7 +701,7 @@ class DpEngineTest {
 
     val combinerCaptor = argumentCaptor<CompoundCombiner>()
     verify(graphFactorySpy)
-      .createForPrivatePartitions(
+      .createForPrivatePartitions<TestDataRow, String, String>(
         isA<PartitionSampler<String, String>>(),
         argThat { (this as DpLibPreAggregationPartitionSelector).preThreshold == 10 },
         combinerCaptor.capture(),
@@ -794,12 +791,13 @@ class DpEngineTest {
         LOCAL_EF,
         LARGE_BUDGET_SPEC,
         computationalGraphFactory = graphFactorySpy,
+        executionMode = FULL_TEST_MODE,
       )
 
     val unused =
       dpEngine.selectPartitions(
         LocalCollection(sequenceOf()),
-        SelectPartitionsParams(executionMode = FULL_TEST_MODE, maxPartitionsContributed = 5),
+        SelectPartitionsParams(maxPartitionsContributed = 5),
         testDataExtractors,
       )
 
@@ -820,15 +818,13 @@ class DpEngineTest {
         LOCAL_EF,
         LARGE_BUDGET_SPEC,
         computationalGraphFactory = graphFactorySpy,
+        executionMode = TEST_MODE_WITH_CONTRIBUTION_BOUNDING,
       )
 
     val unused =
       dpEngine.selectPartitions(
         LocalCollection(sequenceOf()),
-        SelectPartitionsParams(
-          executionMode = TEST_MODE_WITH_CONTRIBUTION_BOUNDING,
-          maxPartitionsContributed = 5,
-        ),
+        SelectPartitionsParams(maxPartitionsContributed = 5),
         testDataExtractors,
       )
 

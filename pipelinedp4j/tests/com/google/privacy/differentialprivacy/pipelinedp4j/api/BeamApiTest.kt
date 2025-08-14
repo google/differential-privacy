@@ -25,6 +25,7 @@ import org.apache.beam.sdk.testing.TestPipeline
 import org.apache.beam.sdk.transforms.Create
 import org.apache.beam.sdk.values.PCollection
 import org.junit.After
+import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -1457,6 +1458,98 @@ class BeamApiTest {
           mapOf("cnt" to DoubleWithTolerance(value = 3.0, tolerance = 0.5)),
           vectorAggregationResults = mapOf(),
         )
+      )
+    assertEquals(result, expected)
+  }
+
+  @Test
+  @Ignore("TODO: fix stage names collisions and enable the test back")
+  fun run_withFullTestMode_addsNoNoiseAndDoesNotPerformContributionBounding() {
+    val data =
+      createInputData(
+        listOf(
+          TestDataRow("group1", "pid1", 1.0),
+          TestDataRow("group1", "pid1", 1.5),
+          TestDataRow("group1", "pid2", 2.0),
+          TestDataRow("group2", "pid1", 5.0),
+          TestDataRow("group2", "pid1", 6.0),
+          TestDataRow("group2", "pid1", 7.0),
+        )
+      )
+    val publicGroups = createPublicGroups(listOf("group1", "group2"))
+    val query =
+      BeamQueryBuilder.from(
+          data,
+          StringExtractor { it.privacyUnit },
+          ContributionBoundingLevel.DATASET_LEVEL(
+            maxGroupsContributed = 1,
+            maxContributionsPerGroup = 1,
+          ),
+        )
+        .groupBy(StringExtractor { it.groupKey }, GroupsType.PublicGroups.create(publicGroups))
+        .count("cnt")
+        .aggregateValue(
+          { it.value },
+          ValueAggregationsBuilder()
+            .sum("sumResult")
+            .mean("meanResult")
+            .variance("varianceResult")
+            .quantiles(ranks = listOf(1.0, 0.5, 0.0), outputColumnName = "quantilesResult"),
+          ContributionBounds(valueBounds = Bounds(minValue = 1.0, maxValue = 2.0)),
+        )
+        .build(TotalBudget(epsilon = 0.0001, delta = 0.0001), NoiseKind.GAUSSIAN)
+
+    val result: PCollection<QueryPerGroupResult<String>> = query.run(testMode = TestMode.FULL)
+
+    val valuesEqualTolerance = 1e-4
+    val expected =
+      listOf(
+        QueryPerGroupResultWithTolerance(
+          "group1",
+          mapOf(
+            "cnt" to DoubleWithTolerance(value = 3.0, tolerance = valuesEqualTolerance),
+            "sumResult" to DoubleWithTolerance(value = 4.5, tolerance = valuesEqualTolerance),
+            "meanResult" to DoubleWithTolerance(value = 1.5, tolerance = valuesEqualTolerance),
+            "varianceResult" to
+              DoubleWithTolerance(value = 0.16666, tolerance = valuesEqualTolerance),
+            "quantilesResult_0.0" to
+              DoubleWithTolerance(value = 1.0, tolerance = valuesEqualTolerance),
+            "quantilesResult_0.5" to
+              DoubleWithTolerance(value = 1.5, tolerance = valuesEqualTolerance),
+            "quantilesResult_1.0" to
+              DoubleWithTolerance(value = 2.0, tolerance = valuesEqualTolerance),
+          ),
+          vectorAggregationResults = mapOf(),
+        ),
+        QueryPerGroupResultWithTolerance(
+          "group2",
+          mapOf(
+            "cnt" to DoubleWithTolerance(value = 3.0, tolerance = valuesEqualTolerance),
+            "sumResult" to DoubleWithTolerance(value = 18.0, tolerance = valuesEqualTolerance),
+            "meanResult" to DoubleWithTolerance(value = 6.0, tolerance = valuesEqualTolerance),
+            "varianceResult" to
+              DoubleWithTolerance(value = 0.66666, tolerance = valuesEqualTolerance),
+            "quantilesResult_0.0" to
+              DoubleWithTolerance(
+                value = 2.0,
+                tolerance = valuesEqualTolerance,
+              ), // assert value should be 5.0 but FULL test mode does not currently perform
+            // contribution bounding for quantiles.
+            "quantilesResult_0.5" to
+              DoubleWithTolerance(
+                value = 2.0,
+                tolerance = valuesEqualTolerance,
+              ), // assert value should be 6.0 but FULL test mode does not currently perform
+            // contribution bounding for quantiles.
+            "quantilesResult_1.0" to
+              DoubleWithTolerance(
+                value = 2.0,
+                tolerance = valuesEqualTolerance,
+              ), // assert value should be 7.0 but FULL test mode does not currently perform
+            // contribution bounding for quantiles.
+          ),
+          vectorAggregationResults = mapOf(),
+        ),
       )
     assertEquals(result, expected)
   }

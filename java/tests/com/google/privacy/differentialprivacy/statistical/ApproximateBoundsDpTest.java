@@ -45,7 +45,7 @@ import org.junit.runners.Parameterized;
 public final class ApproximateBoundsDpTest {
   private static final String TEST_CASES_FILE_PATH =
 
-  "external/differential_privacy_common~/proto/testing/approximate_bounds_dp_test_cases.textproto";
+  "external/differential_privacy_common+/proto/testing/approximate_bounds_dp_test_cases.textproto";
 
   private final ApproximateBoundsDpTestCase testCase;
 

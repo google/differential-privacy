@@ -38,7 +38,7 @@ import org.junit.runners.Parameterized;
 @RunWith(Parameterized.class)
 public final class CountDpTestCasesValidityTest {
   private static final String TEST_CASES_FILE_PATH =
-      "external/differential_privacy_common~/proto/testing/count_dp_test_cases.textproto";
+      "external/differential_privacy_common+/proto/testing/count_dp_test_cases.textproto";
   private final int numberOfVotes =
       getTestCaseCollectionFromFile().getVotingParameters().getNumberOfVotes();
   private final double distanceSpecificity =

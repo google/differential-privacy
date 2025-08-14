@@ -115,6 +115,7 @@ class CountCombiner(
   private val aggregationParams: AggregationParams,
   private val budget: AllocatedBudget,
   private val noiseFactory: (NoiseKind) -> Noise,
+  private val executionMode: ExecutionMode,
 ) : Combiner<CountAccumulator, Double> {
   override val requiresPerPartitionBoundedInput = false
 
@@ -135,6 +136,7 @@ class CountCombiner(
             0,
             aggregationParams.maxContributionsPerPartition!!.toLong(),
             aggregationParams,
+            executionMode,
           )
     }
 
@@ -182,6 +184,7 @@ class PrivacyIdCountCombiner(
   private val aggregationParams: AggregationParams,
   private val budget: AllocatedBudget,
   private val noiseFactory: (NoiseKind) -> Noise,
+  private val executionMode: ExecutionMode,
 ) : Combiner<PrivacyIdCountAccumulator, Double> {
   override val requiresPerPartitionBoundedInput = false
 
@@ -311,6 +314,7 @@ class PostAggregationPartitionSelectionCombiner(
   private val noiseBudget: AllocatedBudget,
   private val thresholdingBudget: AllocatedBudget,
   private val noiseFactory: (NoiseKind) -> Noise,
+  private val executionMode: ExecutionMode,
 ) : Combiner<PrivacyIdCountAccumulator, Double?> {
   override val requiresPerPartitionBoundedInput = false
 
@@ -385,6 +389,7 @@ class SumCombiner(
   private val aggregationParams: AggregationParams,
   private val budget: AllocatedBudget,
   private val noiseFactory: (NoiseKind) -> Noise,
+  private val executionMode: ExecutionMode,
 ) : Combiner<SumAccumulator, Double>, Serializable {
   override val requiresPerPartitionBoundedInput = false
 
@@ -410,6 +415,7 @@ class SumCombiner(
               aggregationParams.minTotalValue!!,
               aggregationParams.maxTotalValue!!,
               aggregationParams,
+              executionMode,
             )
         }
     }
@@ -461,6 +467,7 @@ class VectorSumCombiner(
   private val aggregationParams: AggregationParams,
   private val budget: AllocatedBudget,
   private val noiseFactory: (NoiseKind) -> Noise,
+  private val executionMode: ExecutionMode,
 ) : Combiner<VectorSumAccumulator, List<Double>>, Serializable {
   override val requiresPerPartitionBoundedInput = false
 
@@ -545,7 +552,7 @@ class VectorSumCombiner(
     maxNorm: Double,
     normKind: NormKind,
   ): RealVector {
-    if (!aggregationParams.applyPerPartitionBounding) {
+    if (!aggregationParams.applyPerPartitionBounding(executionMode)) {
       return this.copy()
     }
     // L_INF is treated differently. When clamping, each component is clamped independently.
@@ -623,6 +630,7 @@ class MeanCombiner(
   private val countBudget: AllocatedBudget,
   private val sumBudget: AllocatedBudget,
   private val noiseFactory: (NoiseKind) -> Noise,
+  private val executionMode: ExecutionMode,
 ) : Combiner<MeanAccumulator, MeanCombinerResult>, Serializable {
   private val midValue = (aggregationParams.minValue!! + aggregationParams.maxValue!!) / 2
   private val returnCount = aggregationParams.metrics.any { it.type == COUNT }
@@ -652,6 +660,7 @@ class MeanCombiner(
               aggregationParams.minValue!!,
               aggregationParams.maxValue!!,
               aggregationParams,
+              executionMode,
             ) - midValue
           }
           .sum()
@@ -724,6 +733,7 @@ class QuantilesCombiner(
   private val aggregationParams: AggregationParams,
   private val budget: AllocatedBudget,
   private val noiseFactory: (NoiseKind) -> Noise,
+  private val executionMode: ExecutionMode,
 ) : Combiner<QuantilesAccumulator, List<Double>>, Serializable {
   override val requiresPerPartitionBoundedInput = true
 
@@ -790,14 +800,19 @@ class QuantilesCombiner(
       // bounds as they are no matter what execution mode is. We should make it clear in the
       // documentation.
       .maxPartitionsContributed(
-        if (aggregationParams.applyPartitionsContributedBounding) {
+        if (aggregationParams.applyPartitionsContributedBounding(executionMode)) {
           aggregationParams.maxPartitionsContributed!!
         } else {
           1
         }
       )
       .maxContributionsPerPartition(
-        if (aggregationParams.applyPerPartitionBounding) {
+        if (
+          perPartitionContributionBoundingShouldBeApplied(
+            executionMode,
+            aggregationParams.contributionBoundingLevel,
+          )
+        ) {
           aggregationParams.maxContributionsPerPartition!!
         } else {
           Int.MAX_VALUE
@@ -830,6 +845,7 @@ class VarianceCombiner(
   private val sumBudget: AllocatedBudget,
   private val sumSquaresBudget: AllocatedBudget,
   private val noiseFactory: (NoiseKind) -> Noise,
+  private val executionMode: ExecutionMode,
 ) : Combiner<VarianceAccumulator, VarianceCombinerResult>, Serializable {
   private val midValue = (aggregationParams.minValue!! + aggregationParams.maxValue!!) / 2
   private val returnCount = aggregationParams.metrics.any { it.type == COUNT }
@@ -859,6 +875,7 @@ class VarianceCombiner(
             aggregationParams.minValue!!,
             aggregationParams.maxValue!!,
             aggregationParams,
+            executionMode,
           ) - midValue
         }
       count = coercedValues.size.toLong()
@@ -1127,9 +1144,10 @@ private fun <T : Comparable<T>> T.coerceInIfContributionBoundingEnabled(
   minimumValue: T,
   maximumValue: T,
   params: AggregationParams,
+  executionMode: ExecutionMode,
 ): T {
   // Per-pertition bounding implies clamping.
-  return if (params.applyPerPartitionBounding) {
+  return if (params.applyPerPartitionBounding(executionMode)) {
     coerceIn(minimumValue, maximumValue)
   } else {
     this

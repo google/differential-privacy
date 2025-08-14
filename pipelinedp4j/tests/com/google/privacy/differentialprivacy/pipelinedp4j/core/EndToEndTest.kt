@@ -139,7 +139,11 @@ class EndToEndTest {
           .asSequence()
       )
     val lowBudgetWithLotsOfNoise = TotalBudget(epsilon = 1e-10, delta = 1e-10)
-    val dpEngine = DpEngine.createLocalEngine(DpEngineBudgetSpec(budget = lowBudgetWithLotsOfNoise))
+    val dpEngine =
+      DpEngine.createLocalEngine(
+        DpEngineBudgetSpec(budget = lowBudgetWithLotsOfNoise),
+        FULL_TEST_MODE,
+      )
     val params =
       AggregationParams(
         metrics = ImmutableList.of(MetricDefinition(COUNT)),
@@ -147,7 +151,6 @@ class EndToEndTest {
         // Contribution bounding would be applied if it was not disabled.
         maxPartitionsContributed = 1,
         maxContributionsPerPartition = 1,
-        executionMode = FULL_TEST_MODE,
       )
 
     val dpAggregates =
@@ -180,14 +183,17 @@ class EndToEndTest {
 
     val lowBudgetWithLotsOfNoise = TotalBudget(epsilon = 1e-10, delta = 1e-10)
 
-    val dpEngine = DpEngine.createLocalEngine(DpEngineBudgetSpec(budget = lowBudgetWithLotsOfNoise))
+    val dpEngine =
+      DpEngine.createLocalEngine(
+        DpEngineBudgetSpec(budget = lowBudgetWithLotsOfNoise),
+        TEST_MODE_WITH_CONTRIBUTION_BOUNDING,
+      )
     val params =
       AggregationParams(
         metrics = ImmutableList.of(MetricDefinition(COUNT)),
         noiseKind = LAPLACE,
         maxPartitionsContributed = 2, // Contributions to each of the two partitions are kept.
         maxContributionsPerPartition = 1, // Double contributions per partition are removed.
-        executionMode = TEST_MODE_WITH_CONTRIBUTION_BOUNDING,
       )
 
     val dpAggregates =

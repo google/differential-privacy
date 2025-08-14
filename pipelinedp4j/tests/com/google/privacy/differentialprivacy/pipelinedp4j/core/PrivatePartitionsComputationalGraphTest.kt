@@ -133,6 +133,7 @@ class PrivatePartitionsComputationalGraphTest {
         METRICS_ALLOCATED_BUDGET,
         thresholdBudget,
         NoiseFactory(),
+        ExecutionMode.PRODUCTION,
       )
 
     val compoundCombinerWithThresholding = CompoundCombiner(listOf(preAggregationPartitionSelector))
@@ -174,6 +175,7 @@ class PrivatePartitionsComputationalGraphTest {
         metricsBudget,
         thresholdBudget,
         NoiseFactory(),
+        ExecutionMode.PRODUCTION,
       )
 
     val compoundCombinerWithThresholding = CompoundCombiner(listOf(preAggregationPartitionSelector))
@@ -325,12 +327,19 @@ class PrivatePartitionsComputationalGraphTest {
             COUNT_SUM_AND_ID_COUNT_PARAMS,
             METRICS_ALLOCATED_BUDGET,
             ZeroNoiseFactory(),
+            ExecutionMode.PRODUCTION,
           ),
-          SumCombiner(COUNT_SUM_AND_ID_COUNT_PARAMS, METRICS_ALLOCATED_BUDGET, ZeroNoiseFactory()),
+          SumCombiner(
+            COUNT_SUM_AND_ID_COUNT_PARAMS,
+            METRICS_ALLOCATED_BUDGET,
+            ZeroNoiseFactory(),
+            ExecutionMode.PRODUCTION,
+          ),
           PrivacyIdCountCombiner(
             COUNT_SUM_AND_ID_COUNT_PARAMS,
             METRICS_ALLOCATED_BUDGET,
             ZeroNoiseFactory(),
+            ExecutionMode.PRODUCTION,
           ),
         )
       )
@@ -338,7 +347,12 @@ class PrivatePartitionsComputationalGraphTest {
     val PRIVACY_ID_COUNT_COMBINER =
       CompoundCombiner(
         listOf(
-          PrivacyIdCountCombiner(PRIVACY_ID_COUNT_PARAMS, METRICS_ALLOCATED_BUDGET, NoiseFactory())
+          PrivacyIdCountCombiner(
+            PRIVACY_ID_COUNT_PARAMS,
+            METRICS_ALLOCATED_BUDGET,
+            NoiseFactory(),
+            ExecutionMode.PRODUCTION,
+          )
         )
       )
 
@@ -350,6 +364,7 @@ class PrivatePartitionsComputationalGraphTest {
             METRICS_ALLOCATED_BUDGET,
             THRESHOLDING_BUDGET,
             NoiseFactory(),
+            ExecutionMode.PRODUCTION,
           )
         )
       )

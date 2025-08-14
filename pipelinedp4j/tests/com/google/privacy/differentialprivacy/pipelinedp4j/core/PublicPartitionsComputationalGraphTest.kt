@@ -84,12 +84,23 @@ class PublicPartitionsComputationalGraphTest {
     private val COUNT_SUM_AND_ID_COUNT_COMBINER =
       CompoundCombiner(
         listOf(
-          CountCombiner(COUNT_SUM_AND_ID_COUNT_PARAMS, ALLOCATED_BUDGET, ZeroNoiseFactory()),
-          SumCombiner(COUNT_SUM_AND_ID_COUNT_PARAMS, ALLOCATED_BUDGET, ZeroNoiseFactory()),
+          CountCombiner(
+            COUNT_SUM_AND_ID_COUNT_PARAMS,
+            ALLOCATED_BUDGET,
+            ZeroNoiseFactory(),
+            ExecutionMode.PRODUCTION,
+          ),
+          SumCombiner(
+            COUNT_SUM_AND_ID_COUNT_PARAMS,
+            ALLOCATED_BUDGET,
+            ZeroNoiseFactory(),
+            ExecutionMode.PRODUCTION,
+          ),
           PrivacyIdCountCombiner(
             COUNT_SUM_AND_ID_COUNT_PARAMS,
             ALLOCATED_BUDGET,
             ZeroNoiseFactory(),
+            ExecutionMode.PRODUCTION,
           ),
         )
       )
@@ -143,7 +154,14 @@ class PublicPartitionsComputationalGraphTest {
           .addParameter(
             "combiner",
             CompoundCombiner(
-              listOf(CountCombiner(COUNT_PARAMS, ALLOCATED_BUDGET, ZeroNoiseFactory()))
+              listOf(
+                CountCombiner(
+                  COUNT_PARAMS,
+                  ALLOCATED_BUDGET,
+                  ZeroNoiseFactory(),
+                  ExecutionMode.PRODUCTION,
+                )
+              )
             ),
           )
           .addParameter(
@@ -171,7 +189,16 @@ class PublicPartitionsComputationalGraphTest {
           .addParameter("params", SUM_PARAMS)
           .addParameter(
             "combiner",
-            CompoundCombiner(listOf(SumCombiner(SUM_PARAMS, ALLOCATED_BUDGET, ZeroNoiseFactory()))),
+            CompoundCombiner(
+              listOf(
+                SumCombiner(
+                  SUM_PARAMS,
+                  ALLOCATED_BUDGET,
+                  ZeroNoiseFactory(),
+                  ExecutionMode.PRODUCTION,
+                )
+              )
+            ),
           )
           .addParameter(
             "inputData",
@@ -204,6 +231,7 @@ class PublicPartitionsComputationalGraphTest {
                   PRIVACY_ID_COUNT_PARAMS,
                   ALLOCATED_BUDGET,
                   ZeroNoiseFactory(),
+                  ExecutionMode.PRODUCTION,
                 )
               )
             ),

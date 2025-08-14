@@ -17,6 +17,7 @@
 package pbeam
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/google/differential-privacy/go/v4/dpagg"
@@ -203,5 +204,34 @@ func TestSelectPartitionsPrethresholding(t *testing.T) {
 	testutils.CheckNumPartitions(s, got, 1)
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("Expected only a single partition to be kept with pre-thresholding:  %v", err)
+	}
+}
+
+// Checks that SelectPartitions returns PCollection<K> for PrivatePCollection<K,V> inputs.
+func TestSelectPartitionsKV_ReturnsK(t *testing.T) {
+	// Build up {ID, Partition, Value} pairs such that there are 10 partitions, each with
+	// a distinct single privacy unit contributing to it.
+	var triples []testutils.TripleWithFloatValue
+	for i := 0; i < 10; i++ {
+		triples = append(triples, testutils.TripleWithFloatValue{i, i, 0.0})
+	}
+	p, s, col := ptest.CreateList(triples)
+	col = beam.ParDo(s, testutils.ExtractIDFromTripleWithFloatValue, col)
+
+	// Run SelectPartitions on triples
+	pcol := MakePrivate(s, col, privacySpec(t,
+		PrivacySpecParams{
+			PartitionSelectionEpsilon: 1,
+			PartitionSelectionDelta:   0.9999999, // 99.99999% chance of keeping a partition
+		}))
+	pcol = ParDo(s, testutils.TripleWithFloatValueToKV, pcol)
+	got := SelectPartitions(s, pcol, PartitionSelectionParams{MaxPartitionsContributed: 1})
+	gotType := beam.ValidateNonCompositeType(got)
+
+	if gotType.Type() != reflect.TypeOf(int(0)) {
+		t.Errorf("SelectPartitions returned PCollection<V> for PrivatePCollection<K,V> inputs, got type %v, want %v", gotType.Type(), reflect.TypeOf(int(0)))
+	}
+	if err := ptest.Run(p); err != nil {
+		t.Errorf("%v", err)
 	}
 }

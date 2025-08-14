@@ -50,6 +50,7 @@ class QuantilesCombinerTest {
         defaultQuantilesAggParams(),
         allocatedBudget,
         ZeroNoiseFactory(),
+        ExecutionMode.PRODUCTION,
       )
 
     val accumulator0 = combiner.emptyAccumulator()
@@ -84,6 +85,7 @@ class QuantilesCombinerTest {
         defaultQuantilesAggParams().copy(minValue = -10.0, maxValue = 10.0),
         allocatedBudget,
         ZeroNoiseFactory(),
+        ExecutionMode.PRODUCTION,
       )
 
     val quantiles = combiner.computeMetrics(combiner.emptyAccumulator())
@@ -105,6 +107,7 @@ class QuantilesCombinerTest {
         defaultQuantilesAggParams().copy(minValue = 1.0, maxValue = 1000.0, noiseKind = noiseKind),
         allocatedBudget,
         NoiseFactory(),
+        ExecutionMode.PRODUCTION,
       )
 
     val accumulator =

@@ -25,8 +25,9 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.core.ExecutionMode
  *
  * @property NONE default, no test mode, the only mode that can be used in production, applies all
  *   privacy measures requested by the pipeline code.
- * @property FULL no contribution bounding, no noise and no groups selection. The pipeline will
- *   calculate metrics as if no privacy measures were applied.
+ * @property FULL no contribution bounding*, no noise and no groups selection. The pipeline will
+ *   calculate metrics as if no privacy measures were applied. *Currently, contribution bounding is
+ *   not turned off for quantiles.
  */
 enum class TestMode {
   NONE,

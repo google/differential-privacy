@@ -57,40 +57,35 @@ sealed interface Params {
    * applied.
    */
   val preThreshold: Int
-  // TODO: move this field out of params to show that params represent params in the
-  // production execution mode and other execution modes modify them on top of it.
-  /** Execution mode of the DP engine. */
-  val executionMode: ExecutionMode
-
-  /**
-   * Whether per-partition contribution bounding should be applied with respect to execution mode.
-   *
-   * It can be used outside of this class to determine whether per-partition contribution bounding
-   * should be applied with respect to [contributionBoundingLevel] and [executionMode].
-   *
-   * This property should not be used for validation of [Params] because it accounts for the
-   * execution mode and validation should always be performed for the production mode only.
-   * [contributionBoundingLevel] represents the contribution bounding level that is used in
-   * production therefore only its values should be used for validation.
-   */
-  val applyPerPartitionBounding: Boolean
-    get() =
-      perPartitionContributionBoundingShouldBeApplied(executionMode, contributionBoundingLevel)
-
-  /**
-   * Whether cross-partition contribution bounding should be applied with respect to execution mode.
-   *
-   * It can be used outside of this class to determine whether cross-partition contribution bounding
-   * should be applied with respect to [executionMode] and [contributionBoundingLevel].
-   *
-   * This property should not be used for validation of [Params] because it accounts for the
-   * execution mode and validation should always be performed for the production mode only.
-   * [contributionBoundingLevel] represents the contribution bounding level that is used in
-   * production therefore only its values should be used for validation.
-   */
-  val applyPartitionsContributedBounding: Boolean
-    get() = partitionsContributedBoundingShouldBeApplied(executionMode, contributionBoundingLevel)
 }
+
+/**
+ * Whether per-partition contribution bounding should be applied with respect to execution mode.
+ *
+ * It can be used outside of this class to determine whether per-partition contribution bounding
+ * should be applied with respect to [contributionBoundingLevel] and [executionMode].
+ *
+ * This property should not be used for validation of [Params] because it accounts for the execution
+ * mode and validation should always be performed for the production mode only.
+ * [contributionBoundingLevel] represents the contribution bounding level that is used in production
+ * therefore only its values should be used for validation.
+ */
+fun Params.applyPerPartitionBounding(executionMode: ExecutionMode): Boolean =
+  perPartitionContributionBoundingShouldBeApplied(executionMode, contributionBoundingLevel)
+
+/**
+ * Whether cross-partition contribution bounding should be applied with respect to execution mode.
+ *
+ * It can be used outside of this class to determine whether cross-partition contribution bounding
+ * should be applied with respect to [executionMode] and [contributionBoundingLevel].
+ *
+ * This property should not be used for validation of [Params] because it accounts for the execution
+ * mode and validation should always be performed for the production mode only.
+ * [contributionBoundingLevel] represents the contribution bounding level that is used in production
+ * therefore only its values should be used for validation.
+ */
+fun Params.applyPartitionsContributedBounding(executionMode: ExecutionMode): Boolean =
+  partitionsContributedBoundingShouldBeApplied(executionMode, contributionBoundingLevel)
 
 /**
  * Determines whether per-partition contribution bounding should be applied given [executionMode]
@@ -184,8 +179,6 @@ data class AggregationParams(
    * aggregations and partition selection if partitions are private.
    */
   override val contributionBoundingLevel: ContributionBoundingLevel = DATASET_LEVEL,
-  /** Execution mode of the DP engine, default is PRODUCTION. */
-  override val executionMode: ExecutionMode = ExecutionMode.PRODUCTION,
   /**
    * The balance of partitions.
    *
@@ -424,8 +417,6 @@ data class SelectPartitionsParams(
    * selection.
    */
   override val contributionBoundingLevel: ContributionBoundingLevel = DATASET_LEVEL,
-  /** Execution mode of the DP engine, default is PRODUCTION. */
-  override val executionMode: ExecutionMode = ExecutionMode.PRODUCTION,
 ) : Params, Serializable
 
 /** Validates [SelectPartitionsParams]. */

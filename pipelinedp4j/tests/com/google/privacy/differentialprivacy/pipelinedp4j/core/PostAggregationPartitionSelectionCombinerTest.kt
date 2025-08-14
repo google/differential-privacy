@@ -45,6 +45,7 @@ class PostAggregationPartitionSelectionCombinerTest {
         unusedAllocatedBudget,
         unusedAllocatedBudget,
         NoiseFactory(),
+        ExecutionMode.PRODUCTION,
       )
 
     val accumulator =
@@ -63,6 +64,7 @@ class PostAggregationPartitionSelectionCombinerTest {
         unusedAllocatedBudget,
         unusedAllocatedBudget,
         NoiseFactory(),
+        ExecutionMode.PRODUCTION,
       )
 
     val accumulator =
@@ -88,6 +90,7 @@ class PostAggregationPartitionSelectionCombinerTest {
         unusedAllocatedBudget,
         unusedAllocatedBudget,
         NoiseFactory(),
+        ExecutionMode.PRODUCTION,
       )
 
     val e =
@@ -105,6 +108,7 @@ class PostAggregationPartitionSelectionCombinerTest {
         unusedAllocatedBudget,
         unusedAllocatedBudget,
         NoiseFactory(),
+        ExecutionMode.PRODUCTION,
       )
 
     val accumulator =
@@ -132,6 +136,7 @@ class PostAggregationPartitionSelectionCombinerTest {
         noiseBudget,
         thresholdingBudget,
         NoiseFactory(),
+        ExecutionMode.PRODUCTION,
       )
 
     val result = combiner.computeMetrics(privacyIdCountAccumulator { count = 1 })
@@ -149,6 +154,7 @@ class PostAggregationPartitionSelectionCombinerTest {
         allocatedBudget,
         thresholdingBudget,
         noiseFactoryMock,
+        ExecutionMode.PRODUCTION,
       )
 
     val unused = combiner.computeMetrics(privacyIdCountAccumulator { count = 105 })
@@ -183,6 +189,7 @@ class PostAggregationPartitionSelectionCombinerTest {
         allocatedBudget,
         thresholdingBudget,
         NoiseFactory(),
+        ExecutionMode.PRODUCTION,
       )
 
     val noisedValue = combiner.computeMetrics(privacyIdCountAccumulator { count = 200 })

@@ -49,7 +49,7 @@ public final class BoundedVarianceDpTest {
   private static final int NUM_SAMPLE_GENERATION_THREADS = 4;
   private static final String TEST_CASES_FILE_PATH =
 
-  "external/differential_privacy_common~/proto/testing/bounded_stdv_dp_test_cases.textproto";
+  "external/differential_privacy_common+/proto/testing/bounded_stdv_dp_test_cases.textproto";
   private final BoundedStdvDpTestCase testCase;
   public BoundedVarianceDpTest(BoundedStdvDpTestCase testCase) {
     this.testCase = testCase;

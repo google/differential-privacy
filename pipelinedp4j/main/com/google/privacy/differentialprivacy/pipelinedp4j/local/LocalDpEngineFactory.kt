@@ -18,7 +18,10 @@ package com.google.privacy.differentialprivacy.pipelinedp4j.local
 
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.DpEngine
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.DpEngineBudgetSpec
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.ExecutionMode
 
 /** Creates a [DpEngine] that runs DP aggregations locally. */
-fun DpEngine.Factory.createLocalEngine(budgetSpec: DpEngineBudgetSpec) =
-  create(LocalEncoderFactory(), budgetSpec)
+fun DpEngine.Factory.createLocalEngine(
+  budgetSpec: DpEngineBudgetSpec,
+  executionMode: ExecutionMode = ExecutionMode.PRODUCTION,
+) = create(LocalEncoderFactory(), budgetSpec, executionMode = executionMode)

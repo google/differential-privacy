@@ -41,7 +41,7 @@ import org.junit.runners.Parameterized;
 public final class BoundedStdvDpTestCasesValidityTest {
   private static final String TEST_CASES_FILE_PATH =
 
-  "external/differential_privacy_common~/proto/testing/bounded_stdv_dp_test_cases.textproto";
+  "external/differential_privacy_common+/proto/testing/bounded_stdv_dp_test_cases.textproto";
 
   // The fractions of the privacy budget that are allocated to the count, sum and sum of squares
   // aggregation respectively. The three fractions should sum up to 1.0.

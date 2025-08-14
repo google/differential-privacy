@@ -49,6 +49,7 @@ class VarianceCombinerTest {
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
+        ExecutionMode.PRODUCTION,
       )
 
     val accumulator = combiner.emptyAccumulator()
@@ -72,6 +73,7 @@ class VarianceCombinerTest {
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
+        ExecutionMode.PRODUCTION,
       )
 
     val accumulator =
@@ -96,6 +98,7 @@ class VarianceCombinerTest {
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
+        ExecutionMode.PRODUCTION,
       )
 
     val accumulator =
@@ -118,11 +121,12 @@ class VarianceCombinerTest {
   fun createAccumulator_fullTestMode_doesNotClampSingleValueContributions() {
     val combiner =
       VarianceCombiner(
-        AGG_PARAMS.copy(minValue = -10.0, maxValue = 10.0, executionMode = FULL_TEST_MODE),
+        AGG_PARAMS.copy(minValue = -10.0, maxValue = 10.0),
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
+        FULL_TEST_MODE,
       )
 
     val accumulator =
@@ -149,6 +153,7 @@ class VarianceCombinerTest {
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
+        ExecutionMode.PRODUCTION,
       )
 
     val accumulator =
@@ -173,6 +178,7 @@ class VarianceCombinerTest {
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
+        ExecutionMode.PRODUCTION,
       )
 
     val accumulator =
@@ -199,6 +205,7 @@ class VarianceCombinerTest {
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
+        ExecutionMode.PRODUCTION,
       )
 
     // Create list with one value that is clamped to min value.
@@ -226,6 +233,7 @@ class VarianceCombinerTest {
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
+        ExecutionMode.PRODUCTION,
       )
 
     val accumulator =
@@ -276,6 +284,7 @@ class VarianceCombinerTest {
         sumBudget,
         sumSquaresBudget,
         noiseFactory,
+        ExecutionMode.PRODUCTION,
       )
 
     val accumulator = varianceAccumulator {
@@ -345,6 +354,7 @@ class VarianceCombinerTest {
         sumBudget,
         sumSquaresBudget,
         NoiseFactory(),
+        ExecutionMode.PRODUCTION,
       )
 
     val accumulator = varianceAccumulator {
@@ -419,6 +429,7 @@ class VarianceCombinerTest {
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
+        ExecutionMode.PRODUCTION,
       )
 
     val metrics =
@@ -461,6 +472,7 @@ class VarianceCombinerTest {
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         ZeroNoiseFactory(),
+        ExecutionMode.PRODUCTION,
       )
 
     val accumulator0 = combiner.emptyAccumulator()
@@ -499,6 +511,7 @@ class VarianceCombinerTest {
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         ZeroNoiseFactory(),
+        ExecutionMode.PRODUCTION,
       )
 
     val result = combiner.computeMetrics(combiner.emptyAccumulator())

@@ -40,7 +40,7 @@ import org.junit.runners.Parameterized;
 public final class BoundedMeanDpTestCasesValidityTest {
   private static final String TEST_CASES_FILE_PATH =
 
-  "external/differential_privacy_common~/proto/testing/bounded_mean_dp_test_cases.textproto";
+  "external/differential_privacy_common+/proto/testing/bounded_mean_dp_test_cases.textproto";
 
   // The fractions of the privacy budget that are allocated to the count and sum aggregation
   // respectively. The two fractions should sum up to 1.0.

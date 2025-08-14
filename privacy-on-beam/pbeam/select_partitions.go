@@ -73,7 +73,7 @@ func SelectPartitions(s beam.Scope, pcol PrivatePCollection, params SelectPartit
 		if pcol.codec == nil {
 			log.Fatalf("SelectPartitions: no codec found for the input PrivatePCollection.")
 		}
-		partitions = beam.ParDo(s, &dropValuesFn{pcol.codec}, pcol.col, beam.TypeDefinition{Var: beam.WType, T: pcol.codec.VType.T})
+		partitions = beam.ParDo(s, &dropValuesFn{pcol.codec}, pcol.col, beam.TypeDefinition{Var: beam.WType, T: pcol.codec.KType.T})
 	}
 
 	// Second, we keep one contribution per user for each partition.

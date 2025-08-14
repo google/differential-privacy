@@ -64,7 +64,13 @@ class MeanCombinerTest {
   @Test
   fun emptyAccumulator_countAndSumAreZero() {
     val combiner =
-      MeanCombiner(AGG_PARAMS, UNUSED_ALLOCATED_BUDGET, UNUSED_ALLOCATED_BUDGET, NoiseFactory())
+      MeanCombiner(
+        AGG_PARAMS,
+        UNUSED_ALLOCATED_BUDGET,
+        UNUSED_ALLOCATED_BUDGET,
+        NoiseFactory(),
+        ExecutionMode.PRODUCTION,
+      )
 
     val accumulator = combiner.emptyAccumulator()
 
@@ -85,6 +91,7 @@ class MeanCombinerTest {
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
+        ExecutionMode.PRODUCTION,
       )
 
     val accumulator =
@@ -107,6 +114,7 @@ class MeanCombinerTest {
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
+        ExecutionMode.PRODUCTION,
       )
 
     val accumulator =
@@ -127,10 +135,11 @@ class MeanCombinerTest {
   fun createAccumulator_fullTestMode_doesNotClampValues() {
     val combiner =
       MeanCombiner(
-        AGG_PARAMS.copy(minValue = -10.0, maxValue = 10.0, executionMode = FULL_TEST_MODE),
+        AGG_PARAMS.copy(minValue = -10.0, maxValue = 10.0),
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
+        FULL_TEST_MODE,
       )
 
     val accumulator =
@@ -155,6 +164,7 @@ class MeanCombinerTest {
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
+        ExecutionMode.PRODUCTION,
       )
 
     val accumulator =
@@ -177,6 +187,7 @@ class MeanCombinerTest {
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
+        ExecutionMode.PRODUCTION,
       )
 
     val accumulator =
@@ -201,6 +212,7 @@ class MeanCombinerTest {
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
+        ExecutionMode.PRODUCTION,
       )
 
     val accumulator =
@@ -220,7 +232,13 @@ class MeanCombinerTest {
   @Test
   fun mergeAccumulator_sumsValuesInMergedAccumulators() {
     val combiner =
-      MeanCombiner(AGG_PARAMS, UNUSED_ALLOCATED_BUDGET, UNUSED_ALLOCATED_BUDGET, NoiseFactory())
+      MeanCombiner(
+        AGG_PARAMS,
+        UNUSED_ALLOCATED_BUDGET,
+        UNUSED_ALLOCATED_BUDGET,
+        NoiseFactory(),
+        ExecutionMode.PRODUCTION,
+      )
 
     val accumulator =
       combiner.mergeAccumulators(
@@ -261,6 +279,7 @@ class MeanCombinerTest {
         countBudget,
         sumBudget,
         noiseFactoryMock,
+        ExecutionMode.PRODUCTION,
       )
     val accumulator = meanAccumulator {
       count = 10
@@ -315,6 +334,7 @@ class MeanCombinerTest {
         countBudget,
         sumBudget,
         NoiseFactory(),
+        ExecutionMode.PRODUCTION,
       )
 
     val accumulator = meanAccumulator {
@@ -371,6 +391,7 @@ class MeanCombinerTest {
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
+        ExecutionMode.PRODUCTION,
       )
 
     val metrics =
@@ -401,6 +422,7 @@ class MeanCombinerTest {
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         ZeroNoiseFactory(),
+        ExecutionMode.PRODUCTION,
       )
 
     val accumulator0 = combiner.emptyAccumulator()
@@ -429,6 +451,7 @@ class MeanCombinerTest {
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         ZeroNoiseFactory(),
+        ExecutionMode.PRODUCTION,
       )
 
     val result = combiner.computeMetrics(combiner.emptyAccumulator())
