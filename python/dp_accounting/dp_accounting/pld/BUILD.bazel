@@ -138,8 +138,8 @@ py_test(
         ":pld_pmf",
         ":privacy_loss_distribution",
         ":test_util",
-        "//dp_accounting:privacy_accountant",
         "@accounting_py_pip_deps//absl_py",
+        "@accounting_py_pip_deps//numpy",
         "@accounting_py_pip_deps//scipy",
     ],
 )

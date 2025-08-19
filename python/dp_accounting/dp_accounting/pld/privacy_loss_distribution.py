@@ -305,6 +305,25 @@ class PrivacyLossDistribution:
     pmf_add = self._pmf_add.self_compose(num_times, tail_mass_truncation)
     return PrivacyLossDistribution(pmf_remove, pmf_add)
 
+  def compute_mixture(
+      self,
+      other: 'PrivacyLossDistribution',
+      self_weight: float,
+  ) -> 'PrivacyLossDistribution':
+    """Returns self_weight * self + (1-self_weight) * other."""
+    if not 0 <= self_weight <= 1:
+      raise ValueError(f'weight should be in [0, 1], weight={self_weight}')
+    # pylint:disable=protected-access
+    if self._symmetric and other._symmetric:
+      return PrivacyLossDistribution(
+          self._pmf_remove.compute_mixture(other._pmf_remove, self_weight),
+      )
+    return PrivacyLossDistribution(
+        self._pmf_remove.compute_mixture(other._pmf_remove, self_weight),
+        self._pmf_add.compute_mixture(other._pmf_add, self_weight),
+    )
+    # pylint:enable=protected-access
+
 
 def identity(
     value_discretization_interval: float = 1e-4,

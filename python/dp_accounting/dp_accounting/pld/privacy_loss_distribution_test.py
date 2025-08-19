@@ -17,6 +17,7 @@ from typing import Any, Mapping, Optional
 import unittest
 
 from absl.testing import parameterized
+import numpy as np
 from scipy import stats
 
 from dp_accounting.pld import common
@@ -172,6 +173,53 @@ class PrivacyLossDistributionTest(parameterized.TestCase):
     else:
       _assert_pld_pmf_equal(self, pld, expected_pmf_add, infinity_mass_add,
                             expected_pmf, infinity_mass)
+
+  def test_compute_mixture(self):
+    pld1 = privacy_loss_distribution.PrivacyLossDistribution(
+        pmf_remove=pld_pmf.DensePLDPmf(
+            discretization=1.0,
+            lower_loss=0,
+            probs=np.array([0.7, 0.1]),
+            infinity_mass=0.2,
+            pessimistic_estimate=True,
+        ),
+        pmf_add=pld_pmf.DensePLDPmf(
+            discretization=1.0,
+            lower_loss=1,
+            probs=np.array([0.5, 0.5]),
+            infinity_mass=0.0,
+            pessimistic_estimate=True,
+        ),
+    )
+    pld2 = privacy_loss_distribution.PrivacyLossDistribution(
+        pmf_remove=pld_pmf.DensePLDPmf(
+            discretization=1.0,
+            lower_loss=1,
+            probs=np.array([0.5, 0.5]),
+            infinity_mass=0.0,
+            pessimistic_estimate=True,
+        ),
+        pmf_add=pld_pmf.DensePLDPmf(
+            discretization=1.0,
+            lower_loss=2,
+            probs=np.array([0.3, 0.7]),
+            infinity_mass=0.0,
+            pessimistic_estimate=True,
+        ),
+    )
+    averaged_pld = pld1.compute_mixture(pld2, 0.5)
+    remove_pmf = averaged_pld._pmf_remove
+    add_pmf = averaged_pld._pmf_add
+    self.assertIsInstance(remove_pmf, pld_pmf.DensePLDPmf)
+    self.assertIsInstance(add_pmf, pld_pmf.DensePLDPmf)
+    self.assertSequenceAlmostEqual(
+        remove_pmf._probs, np.array([0.35, 0.3, 0.25])
+    )
+    self.assertSequenceAlmostEqual(add_pmf._probs, np.array([0.25, 0.4, 0.35]))
+    self.assertEqual(remove_pmf._lower_loss, 0)
+    self.assertEqual(add_pmf._lower_loss, 1)
+    self.assertEqual(remove_pmf._infinity_mass, 0.1)
+    self.assertEqual(add_pmf._infinity_mass, 0.0)
 
 
 class AddRemovePrivacyLossDistributionTest(parameterized.TestCase):

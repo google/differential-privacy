@@ -672,6 +672,203 @@ class PLDPmfTest(parameterized.TestCase):
     else:
       self.assertIsInstance(pmf, pld_pmf.DensePLDPmf)
 
+  @parameterized.named_parameters(
+      (
+          'same_start_and_end',
+          pld_pmf.DensePLDPmf(
+              discretization=1.0,
+              lower_loss=0,
+              probs=np.array([0.4, 0.4]),
+              infinity_mass=0.2,
+              pessimistic_estimate=True,
+          ),
+          pld_pmf.DensePLDPmf(
+              discretization=1.0,
+              lower_loss=0,
+              probs=np.array([0.5, 0.5]),
+              infinity_mass=0.0,
+              pessimistic_estimate=True,
+          ),
+          0.5,
+          pld_pmf.DensePLDPmf(
+              discretization=1.0,
+              lower_loss=0,
+              probs=np.array([0.45, 0.45]),
+              infinity_mass=0.1,
+              pessimistic_estimate=True,
+          ),
+      ),
+      (
+          'different_start_and_end',
+          pld_pmf.DensePLDPmf(
+              discretization=1.0,
+              lower_loss=0,
+              probs=np.array([0.4, 0.4]),
+              infinity_mass=0.2,
+              pessimistic_estimate=True,
+          ),
+          pld_pmf.DensePLDPmf(
+              discretization=1.0,
+              lower_loss=1,
+              probs=np.array([0.5, 0.5]),
+              infinity_mass=0.0,
+              pessimistic_estimate=True,
+          ),
+          0.5,
+          pld_pmf.DensePLDPmf(
+              discretization=1.0,
+              lower_loss=0,
+              probs=np.array([0.2, 0.45, 0.25]),
+              infinity_mass=0.1,
+              pessimistic_estimate=True,
+          ),
+      ),
+      (
+          'weight_1',
+          pld_pmf.DensePLDPmf(
+              discretization=1.0,
+              lower_loss=0,
+              probs=np.array([0.4, 0.4]),
+              infinity_mass=0.2,
+              pessimistic_estimate=True,
+          ),
+          pld_pmf.DensePLDPmf(
+              discretization=1.0,
+              lower_loss=1,
+              probs=np.array([0.5, 0.5]),
+              infinity_mass=0.0,
+              pessimistic_estimate=True,
+          ),
+          1.0,
+          pld_pmf.DensePLDPmf(
+              discretization=1.0,
+              lower_loss=0,
+              probs=np.array([0.4, 0.4]),
+              infinity_mass=0.2,
+              pessimistic_estimate=True,
+          ),
+      ),
+      (
+          'weight_0',
+          pld_pmf.DensePLDPmf(
+              discretization=1.0,
+              lower_loss=0,
+              probs=np.array([0.4, 0.4]),
+              infinity_mass=0.2,
+              pessimistic_estimate=True,
+          ),
+          pld_pmf.DensePLDPmf(
+              discretization=1.0,
+              lower_loss=1,
+              probs=np.array([0.5, 0.5]),
+              infinity_mass=0.0,
+              pessimistic_estimate=True,
+          ),
+          0.0,
+          pld_pmf.DensePLDPmf(
+              discretization=1.0,
+              lower_loss=1,
+              probs=np.array([0.5, 0.5]),
+              infinity_mass=0.0,
+              pessimistic_estimate=True,
+          ),
+      ),
+      (
+          'dense_and_sparse',
+          pld_pmf.DensePLDPmf(
+              discretization=1.0,
+              lower_loss=0,
+              probs=np.array([0.4, 0.4]),
+              infinity_mass=0.2,
+              pessimistic_estimate=True,
+          ),
+          pld_pmf.SparsePLDPmf(
+              loss_probs={1: 0.5, 2: 0.5},
+              discretization=1.0,
+              infinity_mass=0.0,
+              pessimistic_estimate=True,
+          ),
+          0.5,
+          pld_pmf.DensePLDPmf(
+              discretization=1.0,
+              lower_loss=0,
+              probs=np.array([0.2, 0.45, 0.25]),
+              infinity_mass=0.1,
+              pessimistic_estimate=True,
+          ),
+      ),
+  )
+  def test_compute_mixture(self, pmf1, pmf2, self_weight, expected_pmf):
+    averaged_pmf = pmf1.compute_mixture(pmf2, self_weight)
+    self.assertEqual(averaged_pmf._lower_loss, expected_pmf._lower_loss)
+    self.assertSequenceAlmostEqual(averaged_pmf._probs, expected_pmf._probs)
+    self.assertEqual(averaged_pmf._infinity_mass, expected_pmf._infinity_mass)
+
+  @parameterized.named_parameters(
+      (
+          'different_discretization',
+          pld_pmf.DensePLDPmf(
+              discretization=1.0,
+              lower_loss=0,
+              probs=np.array([0.4, 0.4]),
+              infinity_mass=0.2,
+              pessimistic_estimate=True,
+          ),
+          pld_pmf.DensePLDPmf(
+              discretization=0.5,
+              lower_loss=0,
+              probs=np.array([0.4, 0.4]),
+              infinity_mass=0.2,
+              pessimistic_estimate=True,
+          ),
+          0.5,
+          'Discretization intervals are different:',
+      ),
+      (
+          'different_pessimistic_estimate',
+          pld_pmf.DensePLDPmf(
+              discretization=1.0,
+              lower_loss=0,
+              probs=np.array([0.4, 0.4]),
+              infinity_mass=0.2,
+              pessimistic_estimate=True,
+          ),
+          pld_pmf.DensePLDPmf(
+              discretization=1.0,
+              lower_loss=0,
+              probs=np.array([0.4, 0.4]),
+              infinity_mass=0.2,
+              pessimistic_estimate=False,
+          ),
+          0.5,
+          'Estimation types are different:',
+      ),
+      (
+          'weight_out_of_range',
+          pld_pmf.DensePLDPmf(
+              discretization=1.0,
+              lower_loss=0,
+              probs=np.array([0.4, 0.4]),
+              infinity_mass=0.2,
+              pessimistic_estimate=True,
+          ),
+          pld_pmf.DensePLDPmf(
+              discretization=1.0,
+              lower_loss=0,
+              probs=np.array([0.4, 0.4]),
+              infinity_mass=0.2,
+              pessimistic_estimate=True,
+          ),
+          -0.5,
+          'weight should be in',
+      ),
+  )
+  def test_compute_mixture_raises_error(
+      self, pmf1, pmf2, self_weight, error_message
+  ):
+    with self.assertRaisesRegex(ValueError, error_message):
+      pmf1.compute_mixture(pmf2, self_weight)
+
 
 if __name__ == '__main__':
   unittest.main()

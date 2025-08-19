@@ -311,6 +311,54 @@ class PLDPmf(abc.ABC):
                        f'{other._pessimistic_estimate}.')  # pylint: disable=protected-access
     # pylint: enable=protected-access
 
+  def compute_mixture(self, other: 'PLDPmf', self_weight: float) -> 'PLDPmf':
+    """Returns self_weight * (this PMF) + (1-self_weight) * (other PMF)."""
+    # pylint: disable=protected-access
+    if self._discretization != other._discretization:
+      raise ValueError(
+          'Discretization intervals are different: '
+          f'{self._discretization} != '
+          f'{other._discretization}.'
+      )
+    if self._pessimistic_estimate != other._pessimistic_estimate:
+      raise ValueError(
+          'Estimation types are different: '
+          f'{self._pessimistic_estimate} != '
+          f'{other._pessimistic_estimate}.'
+      )
+    if not 0 <= self_weight <= 1:
+      raise ValueError(f'self_weight should be in [0, 1], {self_weight=}')
+    if self_weight == 0:
+      return other
+    if self_weight == 1:
+      return self
+    dense_self = self.to_dense_pmf()
+    other = other.to_dense_pmf()
+    min_lower_loss = min(dense_self._lower_loss, other._lower_loss)
+    max_upper_loss = max(
+        dense_self._lower_loss + dense_self.size, other._lower_loss + other.size
+    )
+    size = max_upper_loss - min_lower_loss
+    probs = np.zeros(size, dtype=np.float64)
+    start1 = dense_self._lower_loss - min_lower_loss
+    end1 = start1 + dense_self.size
+    probs[start1:end1] += self_weight * dense_self._probs
+    start2 = other._lower_loss - min_lower_loss
+    end2 = start2 + other.size
+    probs[start2:end2] += (1 - self_weight) * other._probs
+    infinity_mass = (
+        dense_self._infinity_mass * self_weight
+        + other._infinity_mass * (1 - self_weight)
+    )
+    return DensePLDPmf(
+        dense_self._discretization,
+        min_lower_loss,
+        probs,
+        infinity_mass,
+        dense_self._pessimistic_estimate,
+    )
+    # pylint: enable=protected-access
+
 
 class DensePLDPmf(PLDPmf):
   """Class for dense probability mass function.
@@ -437,7 +485,8 @@ class DensePLDPmf(PLDPmf):
         lower_mass += other_probs[j] * np.exp(-other_loss(j))
       j -= 1
       delta += self_probs[i] * (
-          upper_mass - np.exp(epsilon - self_loss(i)) * lower_mass)
+          upper_mass - np.exp(epsilon - self_loss(i)) * lower_mass
+      )
 
     return delta
 
