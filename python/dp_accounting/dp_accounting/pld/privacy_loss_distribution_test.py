@@ -2437,16 +2437,20 @@ class RandomizedResponsePrivacyLossDistributionTest(parameterized.TestCase):
 
 class IdentityPrivacyLossDistributionTest(parameterized.TestCase):
 
-  def test_identity(self):
-    pld = privacy_loss_distribution.identity()
+  @parameterized.parameters((True,), (False,))
+  def test_identity(self, pessimistic_estimate):
+    pld = privacy_loss_distribution.identity(1e-4, pessimistic_estimate)
     _assert_pld_pmf_equal(self, pld, {0: 1}, 0.0)
+    self.assertEqual(pld._pmf_remove._pessimistic_estimate,
+                     pessimistic_estimate)
+    self.assertTrue(pld._symmetric)
 
     pld = pld.compose(
         privacy_loss_distribution.PrivacyLossDistribution
         .create_from_rounded_probability({
             1: 0.5,
             -1: 0.5
-        }, 0, 1e-4))
+        }, 0, 1e-4, pessimistic_estimate))
     _assert_pld_pmf_equal(self, pld, {1: 0.5, -1: 0.5}, 0.0)
 
 

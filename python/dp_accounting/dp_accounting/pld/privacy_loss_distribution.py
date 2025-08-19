@@ -307,7 +307,9 @@ class PrivacyLossDistribution:
 
 
 def identity(
-    value_discretization_interval: float = 1e-4) -> PrivacyLossDistribution:
+    value_discretization_interval: float = 1e-4,
+    pessimistic_estimate: bool = True,
+) -> PrivacyLossDistribution:
   """Constructs an identity privacy loss distribution.
 
   Args:
@@ -315,13 +317,17 @@ def identity(
       loss distribution. The values will be rounded up/down to be integer
       multiples of this number. Smaller value results in more accurate estimates
       of the privacy loss, at the cost of increased run-time / memory usage.
+    pessimistic_estimate: whether the rounding is done in such a way that the
+      resulting epsilon-hockey stick divergence computation gives an upper
+      estimate to the real value.
 
   Returns:
     The privacy loss distribution corresponding to an algorithm with no
     privacy leak (i.e. output is independent of input).
   """
   return PrivacyLossDistribution.create_from_rounded_probability(
-      {0: 1}, 0, value_discretization_interval)
+      {0: 1}, 0, value_discretization_interval, pessimistic_estimate,
+  )
 
 
 def from_two_probability_mass_functions(
