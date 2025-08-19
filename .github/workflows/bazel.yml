@@ -93,3 +93,57 @@ jobs:
       - name: Build ZetaSQL Examples
         working-directory: examples/zetasql
         run: bazelisk build ...
+
+  python-tests:
+    name: Python Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --upgrade setuptools
+      - name: Mount Cache
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/bazel/
+          key: bazel-python-cache
+      - name: Ensure bazelisk is installed
+        run: bazelisk --version
+      # TODO: Remove the --use-pep517 flag when migrating to Python Wheel.
+      # `pip check` is required since `pip install` always terminates successfully, even on errors.
+      - name: Build and Test dp_accounting
+        working-directory: python/dp_accounting
+        run: |
+          bazelisk build ...
+          bazelisk test --test_timeout_filters=-long,-eternal ...
+          python3 -m venv ./venv
+          ./venv/bin/python3 -m pip install --use-pep517 .
+          ./venv/bin/python3 -m pip check .
+          ./venv/bin/python3 -m unittest discover -p '*_test.py'
+          rm -rf ./venv
+      - name: Build and Test dp_auditorium
+        working-directory: python/dp_auditorium
+        run: |
+          bazelisk build ...
+          bazelisk test --test_timeout_filters=-long,-eternal ...
+          python3 -m venv ./venv
+          ./venv/bin/python3 -m pip install --use-pep517 .
+          ./venv/bin/python3 -m pip check .
+          ./venv/bin/python3 -m unittest discover -p '*_test.py'
+          rm -rf ./venv
+      - name: Build and Test learning
+        working-directory: learning
+        run: |
+          bazelisk build ...
+          bazelisk test --test_output=errors --test_timeout_filters=-eternal --test_tag_filters=-nokokoro --test_verbose_timeout_warnings ...
+          python3 -m venv ./venv
+          ./venv/bin/python3 -m pip install --use-pep517 .
+          ./venv/bin/python3 -m pip check .
+          ./venv/bin/python3 -m unittest discover -p '*_test.py'
+          rm -rf ./venv
