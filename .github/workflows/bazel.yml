@@ -73,9 +73,26 @@ jobs:
       - name: Test PipelineDP4J Workspace (without long and eternal tests)
         working-directory: pipelinedp4j
         run: bazelisk test --test_timeout_filters=-long,-eternal ...
-      - name: Build PipelineDP4J Example
+      - name: Create dummy input file for examples
         working-directory: examples/pipelinedp4j
-        run: bazelisk build ...
+        run: |
+          cat << EOF > input.csv
+          4505,573364,5,2004-13-29
+          4501,2532865,4,2005-11-06
+          4501,573364,2,2005-02-25
+          4500,2532865,2,2004-12-12
+          4505,1265574,4,2003-05-05
+          4505,2532865,1,2004-12-12
+          EOF
+      - name: Run Beam Example
+        working-directory: examples/pipelinedp4j
+        run: bazelisk run beam/src/main/java/com/google/privacy/differentialprivacy/pipelinedp4j/examples:BeamExample -- --inputFilePath="$(pwd)/input.csv" --outputFilePath="$(pwd)/output.txt"
+      - name: Run Spark Example
+        working-directory: examples/pipelinedp4j
+        run: bazelisk run spark/src/main/java/com/google/privacy/differentialprivacy/pipelinedp4j/examples:SparkExample -- --inputFilePath="$(pwd)/input.csv" --outputFolder="$(pwd)/output"
+      - name: Run Spark DataFrame Example
+        working-directory: examples/pipelinedp4j
+        run: bazelisk run spark/src/main/java/com/google/privacy/differentialprivacy/pipelinedp4j/examples:SparkDataFrameExample -- --inputFilePath="$(pwd)/input.csv" --outputFolder="$(pwd)/output"
 
   zetasql-build:
     name: ZetaSQL Examples Build Test
