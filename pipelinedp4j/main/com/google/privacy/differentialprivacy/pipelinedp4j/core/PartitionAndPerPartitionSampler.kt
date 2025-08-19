@@ -71,7 +71,7 @@ class PartitionAndPerPartitionSampler<PrivacyIdT : Any, PartitionKeyT : Any>(
     // If the bound is MAX_VALUE, no need to sample partitions.
     if (maxPartitionsContributed == Int.MAX_VALUE) {
       return perPartitionAggregatedData.mapToTable(
-        "KeyByPartitionKey",
+        "RekeyByPartitionKey",
         partitionKeyEncoder,
         encoderFactory.protos(PrivacyIdContributions::class),
       ) { _, (partitionKey, contribution) ->

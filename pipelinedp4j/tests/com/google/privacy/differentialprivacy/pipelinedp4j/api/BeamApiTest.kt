@@ -25,7 +25,6 @@ import org.apache.beam.sdk.testing.TestPipeline
 import org.apache.beam.sdk.transforms.Create
 import org.apache.beam.sdk.values.PCollection
 import org.junit.After
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -1463,7 +1462,6 @@ class BeamApiTest {
   }
 
   @Test
-  @Ignore("TODO: fix stage names collisions and enable the test back")
   fun run_withFullTestMode_addsNoNoiseAndDoesNotPerformContributionBounding() {
     val data =
       createInputData(
