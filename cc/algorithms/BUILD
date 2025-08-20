@@ -106,7 +106,7 @@ cc_library(
     name = "bounds-provider",
     hdrs = ["bounds-provider.h"],
     visibility = [
-        "//algorithms/approx_count_distinct:__subpackages__",
+        "//visibility:public",
     ],
     deps = [
         "//algorithms/internal:clamped-calculation-without-bounds",
