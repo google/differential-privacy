@@ -252,6 +252,8 @@ def compute_self_convolve_bounds(
     # the supplementary material.
     bound = (num_times * log_mgf_value +
              math.log(2 / tail_mass_truncation)) / order
+    if not math.isfinite(bound):
+      continue
     if order > 0:
       upper_bound = min(upper_bound, math.ceil(bound))
     if order < 0:
