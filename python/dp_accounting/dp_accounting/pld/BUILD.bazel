@@ -125,6 +125,7 @@ py_library(
         ":privacy_loss_mechanism",
         "//dp_accounting:privacy_accountant",
         "@accounting_py_pip_deps//numpy",
+        "@accounting_py_pip_deps//scipy",
     ],
 )
 

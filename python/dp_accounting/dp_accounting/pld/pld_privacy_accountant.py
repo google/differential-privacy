@@ -213,6 +213,29 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
                 f'`GaussianDpEvent` or `LaplaceDpEvent`. Found {event.event}.'
             ),
         )
+    elif isinstance(event, dp_event.TruncatedSubsampledGaussianDpEvent):
+      if do_compose:
+        if (
+            event.sampling_probability == 0
+            or event.truncated_batch_size == 0
+            or event.dataset_size == 0
+        ):
+          pass
+        elif event.noise_multiplier == 0:
+          self._contains_non_dp_event = True
+        else:
+          truncated_subsampled_gaussian_pld = PLD.from_truncated_subsampled_gaussian_mechanism(
+              dataset_size=event.dataset_size,
+              sampling_probability=event.sampling_probability,
+              truncated_batch_size=event.truncated_batch_size,
+              noise_multiplier=event.noise_multiplier,
+              value_discretization_interval=self._value_discretization_interval,
+              neighboring_relation=self.neighboring_relation,
+          ).self_compose(
+              count
+          )
+          self._pld = self._pld.compose(truncated_subsampled_gaussian_pld)
+      return None
     else:
       # Unsupported event (including `UnsupportedDpEvent`).
       return CompositionErrorDetails(

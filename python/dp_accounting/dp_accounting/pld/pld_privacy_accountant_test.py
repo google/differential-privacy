@@ -299,6 +299,32 @@ class PldPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
         accountant.get_epsilon(expected_delta), expected_epsilon, delta=1e-6
     )
 
+  def test_truncated_subsampled_gaussian_basic(self):
+    first_event = dp_event.TruncatedSubsampledGaussianDpEvent(
+        dataset_size=4,
+        sampling_probability=0.5,
+        truncated_batch_size=2,
+        noise_multiplier=1.0,
+    )
+    second_event = dp_event.TruncatedSubsampledGaussianDpEvent(
+        dataset_size=3,
+        sampling_probability=0.5,
+        truncated_batch_size=2,
+        noise_multiplier=1.0,
+    )
+    accountant = pld_privacy_accountant.PLDAccountant()
+    accountant.compose(first_event, 3)
+    accountant.compose(second_event, 2)
+
+    expected_epsilon = 17.904330
+    expected_delta = 1e-6
+    self.assertAlmostEqual(
+        accountant.get_delta(expected_epsilon), expected_delta, delta=1e-12
+    )
+    self.assertAlmostEqual(
+        accountant.get_epsilon(expected_delta), expected_epsilon, delta=1e-6
+    )
+
 
 if __name__ == '__main__':
   absltest.main()

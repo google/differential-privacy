@@ -109,6 +109,15 @@ class DpEventTest(parameterized.TestCase):
           'zcdp',
           dp_event.ZCDpEvent(1.0, 2.0),
       ),
+      (
+          'truncated_subsampled_gaussian',
+          dp_event.TruncatedSubsampledGaussianDpEvent(
+              10000,
+              0.1,
+              1000,
+              1.0,
+          ),
+      ),
   )
   def test_to_from_named_tuple(self, event):
     named_tuple = event.to_named_tuple()

@@ -32,6 +32,7 @@ from dp_accounting.dp_event import SampledWithoutReplacementDpEvent
 from dp_accounting.dp_event import SampledWithReplacementDpEvent
 from dp_accounting.dp_event import SelfComposedDpEvent
 from dp_accounting.dp_event import SingleEpochTreeAggregationDpEvent
+from dp_accounting.dp_event import TruncatedSubsampledGaussianDpEvent
 from dp_accounting.dp_event import UnsupportedDpEvent
 from dp_accounting.dp_event import ZCDpEvent
 from dp_accounting.dp_event_builder import DpEventBuilder

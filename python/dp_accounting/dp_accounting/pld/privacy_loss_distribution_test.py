@@ -2286,6 +2286,391 @@ class MixtureGaussianPrivacyLossDistributionTest(parameterized.TestCase):
     )
 
 
+class TruncatedSubsampledGaussianPrivacyLossDistributionTest(
+    parameterized.TestCase
+):
+  """Tests for from_truncated_subsampled_gaussian_mechanism."""
+
+  @parameterized.named_parameters(
+      {
+          'testcase_name': 'always_truncate',
+          'dataset_size': 1000,
+          'sampling_probability': 1.0,
+          'truncated_batch_size': 100,
+          'noise_multiplier': 1.0,
+          'neighboring_relation': (
+              privacy_loss_distribution.NeighborRel.ADD_OR_REMOVE_ONE
+          ),
+          'gaussian_pld': privacy_loss_distribution.from_gaussian_mechanism(
+              standard_deviation=1.0,
+              sensitivity=2.0,
+              sampling_prob=0.1,
+              neighboring_relation=privacy_loss_distribution.NeighborRel.REPLACE_ONE,
+          ),
+      },
+      {
+          'testcase_name': 'never_truncate',
+          'dataset_size': 1000,
+          'sampling_probability': 0.1,
+          'truncated_batch_size': 1000,
+          'noise_multiplier': 1.0,
+          'neighboring_relation': (
+              privacy_loss_distribution.NeighborRel.ADD_OR_REMOVE_ONE
+          ),
+          'gaussian_pld': privacy_loss_distribution.from_gaussian_mechanism(
+              standard_deviation=1.0,
+              sampling_prob=0.1,
+              neighboring_relation=privacy_loss_distribution.NeighborRel.ADD_OR_REMOVE_ONE,
+          ),
+      },
+      {
+          'testcase_name': 'never_truncate_replace_special',
+          'dataset_size': 1000,
+          'sampling_probability': 0.1,
+          'truncated_batch_size': 1000,
+          'noise_multiplier': 1.0,
+          'neighboring_relation': (
+              privacy_loss_distribution.NeighborRel.REPLACE_SPECIAL
+          ),
+          'gaussian_pld': privacy_loss_distribution.from_gaussian_mechanism(
+              standard_deviation=1.0,
+              sampling_prob=0.1,
+              neighboring_relation=privacy_loss_distribution.NeighborRel.REPLACE_SPECIAL,
+          ),
+      },
+      {
+          'testcase_name': 'never_truncate_replace',
+          'dataset_size': 1000,
+          'sampling_probability': 0.1,
+          'truncated_batch_size': 1000,
+          'noise_multiplier': 1.0,
+          'neighboring_relation': (
+              privacy_loss_distribution.NeighborRel.REPLACE_ONE
+          ),
+          'gaussian_pld': privacy_loss_distribution.from_gaussian_mechanism(
+              standard_deviation=1.0,
+              sampling_prob=0.1,
+              neighboring_relation=privacy_loss_distribution.NeighborRel.REPLACE_ONE,
+          ),
+      },
+      {
+          'testcase_name': 'no_sampling_or_truncation',
+          'dataset_size': 1000,
+          'sampling_probability': 1.0,
+          'truncated_batch_size': 1000,
+          'noise_multiplier': 1.0,
+          'neighboring_relation': (
+              privacy_loss_distribution.NeighborRel.ADD_OR_REMOVE_ONE
+          ),
+          'gaussian_pld': privacy_loss_distribution.from_gaussian_mechanism(
+              standard_deviation=1.0,
+              sampling_prob=1.0,
+              neighboring_relation=privacy_loss_distribution.NeighborRel.ADD_OR_REMOVE_ONE,
+          ),
+      },
+  )
+  def test_truncated_gaussian_matches_gaussian(
+      self,
+      dataset_size,
+      sampling_probability,
+      truncated_batch_size,
+      noise_multiplier,
+      neighboring_relation,
+      gaussian_pld,
+  ):
+    """Verifies that the PLD matches from_gaussian_mechanism at extremes."""
+    pld = (
+        privacy_loss_distribution.from_truncated_subsampled_gaussian_mechanism(
+            dataset_size,
+            sampling_probability,
+            truncated_batch_size,
+            noise_multiplier,
+            neighboring_relation=neighboring_relation,
+        )
+    )
+    expected_pmf_remove = gaussian_pld._pmf_remove.to_dense_pmf()
+    expected_pmf_add = gaussian_pld._pmf_add.to_dense_pmf()
+    actual_pmf_remove = pld._pmf_remove
+    actual_pmf_add = pld._pmf_add
+    self.assertIsInstance(actual_pmf_remove, pld_pmf.DensePLDPmf)
+    self.assertIsInstance(actual_pmf_add, pld_pmf.DensePLDPmf)
+    self.assertSequenceAlmostEqual(
+        actual_pmf_remove._probs,
+        expected_pmf_remove._probs,
+    )
+    self.assertSequenceAlmostEqual(
+        actual_pmf_add._probs,
+        expected_pmf_add._probs,
+    )
+    self.assertAlmostEqual(
+        actual_pmf_remove._infinity_mass,
+        expected_pmf_remove._infinity_mass,
+    )
+    self.assertAlmostEqual(
+        actual_pmf_add._infinity_mass,
+        expected_pmf_add._infinity_mass,
+    )
+
+  @parameterized.named_parameters(
+      {
+          'testcase_name': 'batch_size_equals_dataset_size_minus_one',
+          'dataset_size': 3,
+          'sampling_probability': 0.5,
+          'truncated_batch_size': 2,
+          'standard_deviation': 1.0,
+          'neighboring_relation': (
+              privacy_loss_distribution.NeighborRel.ADD_OR_REMOVE_ONE
+          ),
+          'expected_remove_lower_loss': 0,
+          'expected_remove_probs': [
+              0.4602291776623483,
+              0.3971752461977371,
+              0.028230690898060747,
+              0.017026874561262836,
+              0.0018974410822616694,
+          ],
+          'expected_add_lower_loss': 0,
+          'expected_add_probs': [
+              0.31663233170683847,
+              0.4825182550792128,
+              0.028230690898060747,
+              0.017026874561262836,
+              0.0018974410822616694,
+          ],
+      },
+      {
+          'testcase_name': 'batch_size_equals_dataset_size_minus_two',
+          'dataset_size': 4,
+          'sampling_probability': 0.5,
+          'truncated_batch_size': 2,
+          'standard_deviation': 1.0,
+          'neighboring_relation': (
+              privacy_loss_distribution.NeighborRel.ADD_OR_REMOVE_ONE
+          ),
+          'expected_remove_lower_loss': 0,
+          'expected_remove_probs': [
+              0.425429708116903,
+              0.40641942991487245,
+              0.053075111787205725,
+              0.031098596901848144,
+              0.0013822140810422073,
+          ],
+          'expected_add_lower_loss': 0,
+          'expected_add_probs': [
+              0.32969847747989645,
+              0.4633147691691896,
+              0.053075111787205725,
+              0.031098596901848144,
+              0.0013822140810422073,
+          ],
+      },
+  )
+  def test_truncated_gaussian_varying_dataset_size(
+      self,
+      dataset_size,
+      sampling_probability,
+      truncated_batch_size,
+      standard_deviation,
+      neighboring_relation,
+      expected_remove_lower_loss,
+      expected_remove_probs,
+      expected_add_lower_loss,
+      expected_add_probs,
+  ):
+    """Verifies correctness of pessimistic PLD for various parameter values."""
+    pld = (
+        privacy_loss_distribution.from_truncated_subsampled_gaussian_mechanism(
+            dataset_size=dataset_size,
+            sampling_probability=sampling_probability,
+            truncated_batch_size=truncated_batch_size,
+            noise_multiplier=standard_deviation,
+            neighboring_relation=neighboring_relation,
+            value_discretization_interval=1,
+            log_mass_truncation_bound=math.log(2) + stats.norm.logcdf(-0.9),
+            use_connect_dots=False,
+        )
+    )
+    remove_pmf = pld._pmf_remove
+    add_pmf = pld._pmf_add
+    self.assertIsInstance(remove_pmf, pld_pmf.DensePLDPmf)
+    self.assertIsInstance(add_pmf, pld_pmf.DensePLDPmf)
+
+    self.assertEqual(expected_remove_lower_loss, remove_pmf._lower_loss)
+    self.assertSequenceAlmostEqual(expected_remove_probs, remove_pmf._probs)
+    test_util.assert_almost_greater_equal(
+        self, stats.norm.cdf(-0.9), remove_pmf._infinity_mass
+    )
+    self.assertEqual(expected_add_lower_loss, add_pmf._lower_loss)
+    self.assertSequenceAlmostEqual(expected_add_probs, add_pmf._probs)
+    test_util.assert_almost_greater_equal(
+        self, stats.norm.cdf(-0.9), add_pmf._infinity_mass
+    )
+    self.assertFalse(pld._symmetric)
+
+  @parameterized.named_parameters(
+      {
+          'testcase_name': 'batch_size_equals_dataset_size_minus_one',
+          'dataset_size': 3,
+          'sampling_probability': 0.5,
+          'truncated_batch_size': 2,
+          'standard_deviation': 1.0,
+          'neighboring_relation': (
+              privacy_loss_distribution.NeighborRel.ADD_OR_REMOVE_ONE
+          ),
+          'expected_remove_lower_loss': -1,
+          'expected_remove_probs': [
+              0.1072221054305259,
+              0.5750175093813645,
+              0.24646336289751442,
+              0.022865957358847812,
+              0.01388675505995418,
+              0.00912546415256483,
+          ],
+          'expected_add_lower_loss': -1,
+          'expected_add_probs': [
+              0.09462189455729614,
+              0.5750175093813645,
+              0.28071428714896685,
+              0.022865957358847812,
+              0.01388675505995418,
+              0.00912546415256483,
+          ],
+      },
+      {
+          'testcase_name': 'batch_size_equals_dataset_size_minus_two',
+          'dataset_size': 4,
+          'sampling_probability': 0.5,
+          'truncated_batch_size': 2,
+          'standard_deviation': 1.0,
+          'neighboring_relation': (
+              privacy_loss_distribution.NeighborRel.ADD_OR_REMOVE_ONE
+          ),
+          'expected_remove_lower_loss': -1,
+          'expected_remove_probs': [
+              0.10162886309504321,
+              0.5602705999888661,
+              0.23358984055161794,
+              0.04249628168264489,
+              0.02512152877677031,
+              0.016043607350074908,
+          ],
+          'expected_add_lower_loss': -1,
+          'expected_add_probs': [
+              0.09322872251289002,
+              0.5602705999888662,
+              0.2564237900525862,
+              0.04249628168264489,
+              0.02512152877677031,
+              0.016043607350074908,
+          ],
+      },
+  )
+  def test_truncated_gaussian_varying_dataset_size_connect_dots(
+      self,
+      dataset_size,
+      sampling_probability,
+      truncated_batch_size,
+      standard_deviation,
+      neighboring_relation,
+      expected_remove_lower_loss,
+      expected_remove_probs,
+      expected_add_lower_loss,
+      expected_add_probs,
+  ):
+    """Verifies correctness of pessimistic PLD for various parameter values."""
+    pld = (
+        privacy_loss_distribution.from_truncated_subsampled_gaussian_mechanism(
+            dataset_size=dataset_size,
+            sampling_probability=sampling_probability,
+            truncated_batch_size=truncated_batch_size,
+            noise_multiplier=standard_deviation,
+            neighboring_relation=neighboring_relation,
+            value_discretization_interval=1,
+            log_mass_truncation_bound=math.log(2) + stats.norm.logcdf(-0.9),
+            use_connect_dots=True,
+        )
+    )
+    remove_pmf = pld._pmf_remove
+    add_pmf = pld._pmf_add
+    self.assertIsInstance(remove_pmf, pld_pmf.DensePLDPmf)
+    self.assertIsInstance(add_pmf, pld_pmf.DensePLDPmf)
+
+    self.assertEqual(expected_remove_lower_loss, remove_pmf._lower_loss)
+    self.assertSequenceAlmostEqual(expected_remove_probs, remove_pmf._probs)
+    test_util.assert_almost_greater_equal(
+        self, stats.norm.cdf(-0.9), remove_pmf._infinity_mass
+    )
+    self.assertEqual(expected_add_lower_loss, add_pmf._lower_loss)
+    self.assertSequenceAlmostEqual(expected_add_probs, add_pmf._probs)
+    test_util.assert_almost_greater_equal(
+        self, stats.norm.cdf(-0.9), add_pmf._infinity_mass
+    )
+    self.assertFalse(pld._symmetric)
+
+  @parameterized.named_parameters(
+      (
+          'negative_dataset_size',
+          -100,
+          1.1,
+          10,
+          1.0,
+      ),
+      (
+          'negative_probability',
+          100,
+          -0.1,
+          10,
+          1.0,
+      ),
+      (
+          'probability_greater_than_one',
+          100,
+          1.1,
+          10,
+          1.0,
+      ),
+      (
+          'negative_batch_size',
+          100,
+          1.1,
+          -10,
+          1.0,
+      ),
+      (
+          'negative_stdev',
+          100,
+          0.1,
+          10,
+          -1.0,
+      ),
+  )
+  def test_truncated_gaussian_value_errors(
+      self,
+      dataset_size,
+      sampling_probability,
+      truncated_batch_size,
+      noise_multiplier,
+  ):
+    with self.assertRaises(ValueError):
+      privacy_loss_distribution.from_truncated_subsampled_gaussian_mechanism(
+          dataset_size=dataset_size,
+          sampling_probability=sampling_probability,
+          truncated_batch_size=truncated_batch_size,
+          noise_multiplier=noise_multiplier,
+      )
+
+  def test_truncated_gaussian_does_not_overflow(self):
+    """Verifies that truncated Gaussian PLD does not result in overflow."""
+    privacy_loss_distribution.from_truncated_subsampled_gaussian_mechanism(
+        dataset_size=1000,
+        sampling_probability=0.02,
+        truncated_batch_size=20,
+        noise_multiplier=1.0,
+        value_discretization_interval=1,
+        use_connect_dots=False,
+    )
+
+
 class RandomizedResponsePrivacyLossDistributionTest(parameterized.TestCase):
 
   @parameterized.parameters(

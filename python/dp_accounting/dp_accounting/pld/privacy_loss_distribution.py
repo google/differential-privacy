@@ -26,6 +26,7 @@ import math
 from typing import Any, Callable, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
+from scipy import stats
 
 from dp_accounting import privacy_accountant
 from dp_accounting.pld import common
@@ -1119,9 +1120,93 @@ def from_mixture_gaussian_mechanism(
   return PrivacyLossDistribution(pmf_remove, pmf_add)
 
 
+def from_truncated_subsampled_gaussian_mechanism(
+    dataset_size: int,
+    sampling_probability: float,
+    truncated_batch_size: int,
+    noise_multiplier: float,
+    value_discretization_interval: float = 1e-4,
+    log_mass_truncation_bound: float = -50,
+    use_connect_dots: bool = True,
+    neighboring_relation: NeighborRel = NeighborRel.ADD_OR_REMOVE_ONE,
+) -> PrivacyLossDistribution:
+  """Privacy loss distribution of a truncated subsampled Gaussian mechanism.
+
+  This method builds on from_gaussian_mechanism and hence supports the same
+  algorithms for constructing the privacy loss distribution as
+  from_gaussian_mechanism. See Sections 2.1 and 2.2 of supplementary material
+  for more details.
+
+  Args:
+    dataset_size: the size of the dataset.
+    sampling_probability: the probability of sampling a given record.
+    truncated_batch_size: the maximum number of records to sample in a batch.
+    noise_multiplier: the noise multiplier of the Gaussian distribution.
+    value_discretization_interval: the length of the dicretization interval for
+      the privacy loss distribution. The values will be rounded up/down to be
+      integer multiples of this number. Smaller value results in more accurate
+      estimates of the privacy loss, at the cost of increased run-time / memory
+      usage.
+    log_mass_truncation_bound: the ln of the probability mass that might be
+      discarded from the noise distribution. The larger this number, the more
+      error it may introduce in divergence calculations.
+    use_connect_dots: When True (default), the connect-the-dots algorithm will
+      be used to construct the privacy loss distribution. When False, the
+      privacy buckets algorithm will be used.
+    neighboring_relation: the neighboring relation to use for the privacy loss
+      distribution.
+
+  Returns:
+    The privacy loss distribution corresponding to the Mixture of Gaussians
+    mechanism with given parameters.
+  """
+  sens_1_mechanism = from_gaussian_mechanism(
+      standard_deviation=noise_multiplier,
+      value_discretization_interval=value_discretization_interval,
+      sampling_prob=sampling_probability,
+      log_mass_truncation_bound=log_mass_truncation_bound,
+      use_connect_dots=use_connect_dots,
+      neighboring_relation=neighboring_relation,
+  )
+
+  # The probability of truncation occurring conditioned on the sensitive example
+  # being sampled.
+  truncation_probability = stats.binom.sf(
+      truncated_batch_size - 1, dataset_size - 1, sampling_probability
+  )
+
+  if truncation_probability == 0.0:
+    return sens_1_mechanism
+
+  # Compute the probability of the sensitive example being sampled conditioned
+  # on truncation occurring.
+  conditional_sampling_probability = (
+      stats.binom.sf(truncated_batch_size, dataset_size, sampling_probability)
+      * truncated_batch_size
+      / truncation_probability
+      / dataset_size
+  )
+
+  # REPLACE_ONE provides a (slightly loose) upper bound in all cases and is
+  # readily supported by from_gaussian_mechanism.
+  sens_2_mechanism = from_gaussian_mechanism(
+      standard_deviation=noise_multiplier / 2,
+      value_discretization_interval=value_discretization_interval,
+      sampling_prob=conditional_sampling_probability,
+      log_mass_truncation_bound=log_mass_truncation_bound,
+      use_connect_dots=use_connect_dots,
+      neighboring_relation=NeighborRel.REPLACE_ONE,
+  )
+
+  return sens_2_mechanism.compute_mixture(
+      sens_1_mechanism, truncation_probability
+  )
+
+
 def from_privacy_parameters(
     privacy_parameters: common.DifferentialPrivacyParameters,
-    value_discretization_interval: float = 1e-4) -> PrivacyLossDistribution:
+    value_discretization_interval: float = 1e-4,
+) -> PrivacyLossDistribution:
   """Constructs pessimistic PLD from epsilon and delta parameters.
 
   When the mechanism is (epsilon, delta)-differentially private, the following

@@ -442,3 +442,26 @@ class ZCDpEvent(DpEvent):
 
   rho: float
   xi: float = 0.0
+
+
+@attr.s(frozen=True, slots=True, auto_attribs=True)
+class TruncatedSubsampledGaussianDpEvent(DpEvent):
+  """Represents the Gaussian mechanism with truncated Poisson sampling.
+
+  In this event, we sample from a dataset of size dataset_size using Poisson
+  sampling with probability sampling_probability, truncate the resulting sample
+  to size truncated_batch_size by sampling a random subset, and then apply a
+  Gaussian mechanism with standard deviation noise_multiplier to the truncated
+  sample.
+
+  Attributes:
+    dataset_size: The size of the dataset.
+    sampling_probability: The probability of sampling a given record.
+    truncated_batch_size: The maximum number of records to sample in a batch.
+    noise_multiplier: The noise multiplier of the Gaussian distribution.
+  """
+
+  dataset_size: int
+  sampling_probability: float
+  truncated_batch_size: int
+  noise_multiplier: float
