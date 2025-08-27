@@ -20,11 +20,11 @@ package codelab
 import (
 	"math"
 
-	log "github.com/golang/glog"
-	"github.com/google/differential-privacy/privacy-on-beam/v4/pbeam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
+	log "github.com/golang/glog"
+	"github.com/google/differential-privacy/privacy-on-beam/v4/pbeam"
 )
 
 // Constants used throughtout the codelab
@@ -71,4 +71,26 @@ func PrivateCountVisitsPerHour(s beam.Scope, col beam.PCollection) beam.PCollect
 		MaxValue:                 1, // Visitors can visit the restaurant once within an hour
 	})
 	return visitsPerHour
+}
+
+func PrivateCountNewVisitsPerHour(s beam.Scope, col beam.PCollection) beam.PCollection {
+	s = s.Scope("PrivateCountNewVisitsPerHour")
+	// Create a Privacy Spec and convert col into a PrivatePCollection
+	spec, err := pbeam.NewPrivacySpec(pbeam.PrivacySpecParams{
+		AggregationEpsilon:        epsilon / 2,
+		PartitionSelectionEpsilon: epsilon / 2,
+		PartitionSelectionDelta:   delta,
+	})
+	if err != nil {
+		log.Fatalf("Couldn't create a PrivacySpec: %v", err)
+	}
+	pCol := pbeam.MakePrivateFromStruct(s, col, spec, "VisitorID")
+
+	visitHours := pbeam.ParDo(s, extractVisitHourFn, pCol)
+	visitsPerHour := pbeam.Count(s, visitHours, pbeam.CountParams{
+		MaxPartitionsContributed: 1, // Visitors can visit the restaurant once (one hour) a day
+		MaxValue:                 1, // Visitors can visit the restaurant once within an hour
+	})
+	return visitsPerHour
+
 }
