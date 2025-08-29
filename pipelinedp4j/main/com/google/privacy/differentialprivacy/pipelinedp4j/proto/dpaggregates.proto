@@ -20,6 +20,16 @@ option java_package = "com.google.privacy.differentialprivacy.pipelinedp4j.proto
 option java_outer_classname = "DpAggregatesProto";
 option java_multiple_files = true;
 
+// Results for a single feature within DpAggregates.
+message PerFeature {
+  double sum = 1;
+  repeated double vector_sum = 5;
+  double mean = 2;
+  // Sorted by rank.
+  repeated double quantiles = 4;
+  double variance = 3;
+}
+
 // The anonymized aggregated result returned by PipelineDP4j. The proto has
 // fields for all possible metrics that can be computed. Only metrics requested
 // by the user are populated.
@@ -32,6 +42,7 @@ message DpAggregates {
   // Sorted by rank.
   repeated double quantiles = 5;
   double variance = 6;
+  map<string, PerFeature> per_feature = 8;
 }
 
 // Contribution that belong to the same privacy ID and partition key.
