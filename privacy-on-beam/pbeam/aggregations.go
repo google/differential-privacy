@@ -25,14 +25,14 @@ import (
 	"math/rand"
 	"reflect"
 
-	"github.com/google/differential-privacy/go/v4/checks"
-	"github.com/google/differential-privacy/go/v4/dpagg"
-	"github.com/google/differential-privacy/go/v4/noise"
-	"github.com/google/differential-privacy/privacy-on-beam/v4/internal/kv"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/top"
+	"github.com/google/differential-privacy/go/v4/checks"
+	"github.com/google/differential-privacy/go/v4/dpagg"
+	"github.com/google/differential-privacy/go/v4/noise"
+	"github.com/google/differential-privacy/privacy-on-beam/v4/internal/kv"
 )
 
 func init() {
@@ -299,6 +299,7 @@ type boundedSumInt64Fn struct {
 	MaxPartitionsContributed  int64
 	Lower                     int64
 	Upper                     int64
+	MaxContributions          int64
 	NoiseKind                 noise.Kind
 	noise                     noise.Noise // Set during Setup phase according to NoiseKind.
 	PublicPartitions          bool
@@ -322,6 +323,7 @@ func newBoundedSumInt64Fn(spec PrivacySpec, params SumParams, noiseKind noise.Ki
 		NoiseKind:                 noiseKind,
 		PublicPartitions:          publicPartitions,
 		TestMode:                  spec.testMode,
+		MaxContributions:          params.MaxContributions,
 	}, nil
 }
 
@@ -345,6 +347,7 @@ func (fn *boundedSumInt64Fn) CreateAccumulator() (boundedSumAccumInt64, error) {
 		MaxPartitionsContributed: fn.MaxPartitionsContributed,
 		Lower:                    fn.Lower,
 		Upper:                    fn.Upper,
+		MaxContributions:         fn.MaxContributions,
 		Noise:                    fn.noise,
 	})
 	if err != nil {
@@ -357,6 +360,7 @@ func (fn *boundedSumInt64Fn) CreateAccumulator() (boundedSumAccumInt64, error) {
 			Delta:                    fn.PartitionSelectionDelta,
 			PreThreshold:             fn.PreThreshold,
 			MaxPartitionsContributed: fn.MaxPartitionsContributed,
+			MaxContributions:         fn.MaxContributions,
 		})
 	}
 	return accum, err
@@ -898,6 +902,46 @@ func checkMaxPartitionsContributedPartitionSelection(maxPartitionsContributed in
 			"PartitionSelectionParams.MaxPartitionsContributed must be unset (i.e. 0), was %d instead", maxPartitionsContributed)
 	}
 	return nil
+}
+
+// checkContributionBounding checks that either MaxContributions or MaxValue/MaxPartitionsContributed is set, but not both.
+// If MaxContributions is set, MaxValue and MaxPartitionsContributed must be 0.
+// If MaxValue/MaxPartitionsContributed is set, MaxContributions must be 0.
+func checkContributionBounding(maxContributions int64, maxValue int64, maxPartitionsContributed int64) error {
+	if maxContributions < 0 {
+		return fmt.Errorf("MaxContributions must be non-negative, was %d instead", maxContributions)
+	}
+	if maxValue < 0 {
+		return fmt.Errorf("MaxValue must be non-negative, was %d instead", maxValue)
+	}
+	if maxPartitionsContributed < 0 {
+		return fmt.Errorf("MaxPartitionsContributed must be non-negative, was %d instead", maxPartitionsContributed)
+	}
+
+	maxContributionsSet := maxContributions > 0
+	maxValueSet := maxValue > 0
+	maxPartitionsContributedSet := maxPartitionsContributed > 0
+
+	if maxContributionsSet && (maxValueSet || maxPartitionsContributedSet) {
+		return fmt.Errorf("MaxContributions and MaxValue/MaxPartitionsContributed cannot be set at the same time")
+	}
+
+	if maxContributionsSet {
+		// MaxContributions configuration must be used
+		if maxValue != 0 || maxPartitionsContributed != 0 {
+			return fmt.Errorf("when MaxContributions is set, MaxValue and MaxPartitionsContributed must be 0")
+		}
+		return nil
+	} else {
+		// MaxValue/MaxPartitionsContributed configuration must be used
+		if !maxValueSet {
+			return fmt.Errorf("MaxValue must be set to a positive value, was %d instead", maxValue)
+		}
+		if !maxPartitionsContributedSet {
+			return fmt.Errorf("MaxPartitionsContributed must be set to a positive value, was %d instead", maxPartitionsContributed)
+		}
+		return nil
+	}
 }
 
 // checkNumericType returns an error if t is not a numeric type.

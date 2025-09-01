@@ -107,6 +107,8 @@ type SumParams struct {
 	//
 	// Required.
 	MinValue, MaxValue float64
+	// Optional
+	MaxContributions int64
 }
 
 // SumPerKey sums the values associated with each key in a
