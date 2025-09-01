@@ -14,7 +14,8 @@
 """LSH tree for hierarchically grouping nearby points."""
 
 import dataclasses
-import typing
+import functools
+from typing import Dict, List, Optional
 
 from absl import logging
 import numpy as np
@@ -37,34 +38,29 @@ class LshTreeNode():
     coreset_param: Clustering params used for constructing this node.
     sim_hash: LSH used for generating the hashes.
     private_count: Private count of the points in nonprivate_points.
-    private_average: Private average of the points in nonprivate_points if
-      get_private_average has been called in the past, otherwise None.
   """
   hash_prefix: HashPrefix
   nonprivate_points: np.ndarray
   coreset_param: coreset_params.CoresetParam
   sim_hash: lsh.SimHash
-  private_count: typing.Optional[int] = None
-  private_average: typing.Optional[np.ndarray] = dataclasses.field(
-      init=False, default=None)
+  private_count: Optional[int] = None
 
   def __post_init__(self):
     if self.private_count is None:
       self.get_private_count()
 
-  def get_private_average(self) -> np.ndarray:
+  @functools.cached_property
+  def private_average(self) -> np.ndarray:
     """Returns and saves private average of the points in the node.
 
     Requires that self.private_count >= 1.
     """
-    # Reuse old results if they've been computed in the past.
-    if self.private_average is not None:
-      return self.private_average
-
-    self.private_average = central_privacy_utils.get_private_average(
-        self.nonprivate_points, self.private_count,
-        self.coreset_param.pcalc.average_privacy_param, self.sim_hash.dim)
-    return self.private_average
+    return central_privacy_utils.get_private_average(
+        self.nonprivate_points,
+        self.private_count,
+        self.coreset_param.pcalc.average_privacy_param,
+        self.sim_hash.dim,
+    )
 
   def get_private_count(self) -> int:
     """Returns and saves private count of the points in the node."""
@@ -76,7 +72,7 @@ class LshTreeNode():
         self.coreset_param.pcalc.count_privacy_param)
     return self.private_count
 
-  def children(self) -> typing.List["LshTreeNode"]:
+  def children(self) -> List["LshTreeNode"]:
     """Returns the children for this node.
 
     There is a child for every hash_prefix equal to self.hash_prefix with one
@@ -98,18 +94,18 @@ class LshTreeNode():
 
 
 # List of leaves in the LSH tree.
-LshTreeLeaves = typing.List[LshTreeNode]
+LshTreeLeaves = List[LshTreeNode]
 # Index of a particular level of the tree
 LevelIndex = int
 # Nodes on one levels of the tree
-LshTreeLevel = typing.List[LshTreeNode]
+LshTreeLevel = List[LshTreeNode]
 # Subset of a level including just the nodes that should be branched.
 NodesToBranch = LshTreeLevel
 
 
 def root_node(data: clustering_params.Data,
               coreset_param: coreset_params.CoresetParam,
-              private_count: typing.Optional[int] = None):
+              private_count: Optional[int] = None):
   """Returns root node for an LSH prefix tree.
 
   Args:
@@ -130,7 +126,7 @@ class LshTree():
     tree: Maps level indices to each level.
     leaves: Leaf nodes of the tree.
   """
-  tree: typing.Dict[LevelIndex, LshTreeLevel]
+  tree: Dict[LevelIndex, LshTreeLevel]
   leaves: LshTreeLeaves
 
   def __init__(self, root: LshTreeNode):
@@ -145,7 +141,7 @@ class LshTree():
     logging.debug("Starting tree construction with max_levels %s",
                   coreset_param.tree_param.max_depth)
     level_idx: LevelIndex = 0
-    self.tree: typing.Dict[LevelIndex, LshTreeLevel] = dict()
+    self.tree: Dict[LevelIndex, LshTreeLevel] = dict()
     self.tree[level_idx] = [root]
 
     while level_idx < coreset_param.tree_param.max_depth:
