@@ -13,7 +13,7 @@
 # limitations under the License.
 """Tests for lsh_tree."""
 
-import typing
+from typing import List
 from unittest import mock
 
 from absl.testing import absltest
@@ -63,7 +63,7 @@ class TestLshTreeNode(lsh_tree.LshTreeNode):
     self.private_count = len(self.nonprivate_points) + 1
     return self.private_count
 
-  def children(self) -> typing.List[lsh_tree.LshTreeNode]:
+  def children(self) -> List[lsh_tree.LshTreeNode]:
     """Returns fake children for this node."""
     cutoff = int(len(self.nonprivate_points) * self.frac_zero)
     return [
@@ -125,6 +125,25 @@ class LshTreeTest(absltest.TestCase):
 
     first_private_count = lsh_tree_node.get_private_count()
     self.assertEqual(first_private_count, lsh_tree_node.get_private_count())
+
+  def test_get_private_average_cache(self):
+    nonprivate_count = 30
+    nonprivate_points = get_test_origin_points(
+        nonprivate_count=nonprivate_count)
+    coreset_param = test_utils.get_test_coreset_param(epsilon=0.01)
+    sim_hash = get_test_sim_hash()
+    lsh_tree_node = lsh_tree.LshTreeNode(
+        hash_prefix='',
+        nonprivate_points=nonprivate_points,
+        coreset_param=coreset_param,
+        sim_hash=sim_hash,
+        private_count=nonprivate_count,  # To prevent negative private_count.
+    )
+
+    first_private_average = lsh_tree_node.private_average
+    np.testing.assert_array_almost_equal(
+        lsh_tree_node.private_average, first_private_average,
+    )
 
   def test_get_children(self):
     hash_prefix, dim, max_hash_len = '0', 5, 2
