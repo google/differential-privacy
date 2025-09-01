@@ -32,7 +32,7 @@ message PerFeature {
 
 // The anonymized aggregated result returned by PipelineDP4j. The proto has
 // fields for all possible metrics that can be computed. Only metrics requested
-// by the user are populated.
+// by the user are populated. per_feature is not used yet.
 message DpAggregates {
   double privacy_id_count = 3;
   double count = 1;
