@@ -16,6 +16,10 @@
 # The files in this directory implement a postgres extension adding
 # anonymous aggregate functions.
 
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
+
 licenses(["notice"])
 
 package(
