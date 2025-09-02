@@ -16,6 +16,9 @@
 
 # Dependencies for C++ Differential Privacy Library OSS
 
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
+
 licenses(["notice"])
 
 package(
