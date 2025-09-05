@@ -336,19 +336,22 @@ internal constructor(
       Encoders.kryo(QueryPerGroupResult::class.java) as Encoder<QueryPerGroupResult<GroupKeysT>>
     val mapToResultFn =
       createConvertDpAggregatesToQueryPerGroupResultFn(
-        aggregations.outputColumnNamesWithMetricTypes()
+        aggregations.outputColumnNamesWithMetricTypes(),
+        aggregations.outputColumnNameToFeatureIdMap(),
       )
     return sparkResult.map(MapFunction(mapToResultFn), queryPerGroupResultEncoder)
   }
 
   private fun createConvertDpAggregatesToQueryPerGroupResultFn(
-    outputColumnNamesWithMetricTypes: List<Pair<String, MetricType>>
+    outputColumnNamesWithMetricTypes: List<Pair<String, MetricType>>,
+    outputColumnNameToFeatureIdMap: Map<String, String>,
   ): (Pair<GroupKeysT, DpAggregates>) -> QueryPerGroupResult<GroupKeysT> {
     return { perGroupAggregates: Pair<GroupKeysT, DpAggregates> ->
       QueryPerGroupResult.create(
         groupKey = perGroupAggregates.first,
         dpAggregates = perGroupAggregates.second,
         outputColumnNamesWithMetricTypes,
+        outputColumnNameToFeatureIdMap,
       )
     }
   }

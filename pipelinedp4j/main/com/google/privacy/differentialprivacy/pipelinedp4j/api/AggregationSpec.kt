@@ -134,6 +134,20 @@ internal fun List<AggregationSpec>.budgets(): Map<String, BudgetPerOpSpec?> = bu
   }
 }
 
+internal fun AggregationSpec.getFeatureId(): String {
+  return when (this) {
+    is ValueAggregations<*> ->
+      this.valueColumnName ?: this.valueAggregationSpecs.joinToString("_") { it.outputColumnName }
+    is VectorAggregations<*> ->
+      this.vectorColumnNames?.names?.joinToString("_")
+        ?: this.vectorAggregationSpecs.joinToString("_") { it.outputColumnName }
+    else ->
+      throw IllegalStateException(
+        "getFeatureId() should only be called for ValueAggregations or VectorAggregations"
+      )
+  }
+}
+
 internal fun List<AggregationSpec>.metrics(): List<MetricDefinition> = buildList {
   for (aggregation in this@metrics) {
     when (aggregation) {
@@ -191,6 +205,25 @@ internal fun List<AggregationSpec>.outputColumnNamesWithMetricTypes():
     }
   }
 }
+
+internal fun List<AggregationSpec>.outputColumnNameToFeatureIdMap(): Map<String, String> =
+  this.filter { it is ValueAggregations<*> || it is VectorAggregations<*> }
+    .flatMap { aggregation ->
+      val featureId = aggregation.getFeatureId()
+      when (aggregation) {
+        is ValueAggregations<*> -> {
+          aggregation.valueAggregationSpecs.map { spec -> spec.outputColumnName to featureId }
+        }
+        is VectorAggregations<*> -> {
+          aggregation.vectorAggregationSpecs.map { spec -> spec.outputColumnName to featureId }
+        }
+        else ->
+          throw IllegalStateException(
+            "AggregationSpec is not a ValueAggregations or VectorAggregations"
+          )
+      }
+    }
+    .toMap()
 
 internal fun List<AggregationSpec>.outputColumnNames(): List<String> =
   outputColumnNamesWithMetricTypes().map { it.first }

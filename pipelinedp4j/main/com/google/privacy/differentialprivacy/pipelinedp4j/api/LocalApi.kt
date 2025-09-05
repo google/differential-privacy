@@ -232,19 +232,22 @@ internal constructor(
       (runWithDpEngine(testMode) as LocalFrameworkTable<GroupKeysT, DpAggregates>).data
     val mapToResultFn =
       createConvertDpAggregatesToQueryPerGroupResultFn(
-        aggregations.outputColumnNamesWithMetricTypes()
+        aggregations.outputColumnNamesWithMetricTypes(),
+        aggregations.outputColumnNameToFeatureIdMap(),
       )
     return localResult.map(mapToResultFn)
   }
 
   private fun createConvertDpAggregatesToQueryPerGroupResultFn(
-    outputColumnNamesWithMetricTypes: List<Pair<String, MetricType>>
+    outputColumnNamesWithMetricTypes: List<Pair<String, MetricType>>,
+    outputColumnNameToFeatureIdMap: Map<String, String>,
   ): (Pair<GroupKeysT, DpAggregates>) -> QueryPerGroupResult<GroupKeysT> {
     return { perGroupAggregates: Pair<GroupKeysT, DpAggregates> ->
       QueryPerGroupResult.create(
         groupKey = perGroupAggregates.first,
         dpAggregates = perGroupAggregates.second,
         outputColumnNamesWithMetricTypes,
+        outputColumnNameToFeatureIdMap,
       )
     }
   }

@@ -347,7 +347,8 @@ internal constructor(
     val coder = QueryPerGroupResultCoder(groupKeyEncoder.coder)
     val mapToResultFn =
       createConvertDpAggregatesToQueryPerGroupResultFn(
-        aggregations.outputColumnNamesWithMetricTypes()
+        aggregations.outputColumnNamesWithMetricTypes(),
+        aggregations.outputColumnNameToFeatureIdMap(),
       )
     return beamResult
       .apply(MapElements.into(coder.encodedTypeDescriptor).via(SerializableFunction(mapToResultFn)))
@@ -355,13 +356,15 @@ internal constructor(
   }
 
   private fun createConvertDpAggregatesToQueryPerGroupResultFn(
-    outputColumnNamesWithMetricTypes: List<Pair<String, MetricType>>
+    outputColumnNamesWithMetricTypes: List<Pair<String, MetricType>>,
+    outputColumnNameToFeatureIdMap: Map<String, String>,
   ): (KV<GroupKeysT, DpAggregates>) -> QueryPerGroupResult<GroupKeysT> {
     return { perGroupAggregates: KV<GroupKeysT, DpAggregates> ->
       QueryPerGroupResult.create(
         groupKey = perGroupAggregates.key,
         dpAggregates = perGroupAggregates.value,
         outputColumnNamesWithMetricTypes,
+        outputColumnNameToFeatureIdMap,
       )
     }
   }
