@@ -39,14 +39,15 @@ add_library(dp_algorithms
 )
 
 target_link_libraries(dp_algorithms
-    PRIVATE
+    PUBLIC
         absl::base
         absl::status
         absl::strings
-        OpenSSL::SSL
-        OpenSSL::Crypto
         protobuf::libprotobuf
         dp_protos
+    PRIVATE
+        OpenSSL::SSL
+        OpenSSL::Crypto
 )
 # Public include directory for the library
 target_include_directories(dp_algorithms PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
