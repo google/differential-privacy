@@ -722,67 +722,6 @@ class SparkApiTest {
       .contains("There are no aggregations, therefore public groups do not make any sense.")
   }
 
-  @Test
-  fun build_aggregatesMultipleValues_notSupportedYet() {
-    val data: Dataset<TestDataRow> = createEmptyInputData()
-    val queryBuilder =
-      SparkQueryBuilder.from(
-          data,
-          StringExtractor { it.privacyUnit },
-          ContributionBoundingLevel.DATASET_LEVEL(
-            maxGroupsContributed = 1,
-            maxContributionsPerGroup = 1,
-          ),
-        )
-        .groupBy(StringExtractor { it.groupKey }, GroupsType.PrivateGroups())
-        .aggregateValue({ it.value }, ValueAggregationsBuilder(), ContributionBounds())
-        .aggregateValue({ it.value }, ValueAggregationsBuilder(), ContributionBounds())
-
-    val e =
-      assertFailsWith<IllegalArgumentException> {
-        queryBuilder.build(TotalBudget(epsilon = 1.1, delta = 0.001), NoiseKind.LAPLACE)
-      }
-    assertThat(e)
-      .hasMessageThat()
-      .contains(
-        "Aggregation of different values or vectors is not supported yet (i.e. only one aggregateValue() or aggregateVector() call is allowed)."
-      )
-  }
-
-  @Test
-  fun build_aggregatesValueAndVector_notSupportedYet() {
-    val data: Dataset<TestDataRow> = createEmptyInputData()
-    val queryBuilder =
-      SparkQueryBuilder.from(
-          data,
-          StringExtractor { it.privacyUnit },
-          ContributionBoundingLevel.DATASET_LEVEL(
-            maxGroupsContributed = 1,
-            maxContributionsPerGroup = 1,
-          ),
-        )
-        .groupBy(StringExtractor { it.groupKey }, GroupsType.PrivateGroups())
-        .aggregateValue({ it.value }, ValueAggregationsBuilder(), ContributionBounds())
-        .aggregateVector(
-          { listOf(it.value, it.anotherValue) },
-          vectorSize = 2,
-          VectorAggregationsBuilder(),
-          VectorContributionBounds(
-            maxVectorTotalNorm = VectorNorm(normKind = NormKind.L_INF, value = 100.0)
-          ),
-        )
-
-    val e =
-      assertFailsWith<IllegalArgumentException> {
-        queryBuilder.build(TotalBudget(epsilon = 1.1, delta = 0.001), NoiseKind.LAPLACE)
-      }
-    assertThat(e)
-      .hasMessageThat()
-      .contains(
-        "Aggregation of different values or vectors is not supported yet (i.e. only one aggregateValue() or aggregateVector() call is allowed)."
-      )
-  }
-
   // Execution tests.
 
   @Test
@@ -930,6 +869,66 @@ class SparkApiTest {
             "pidCnt" to DoubleWithTolerance(value = 2.0, tolerance = 0.5),
             "cnt" to DoubleWithTolerance(value = 3.0, tolerance = 0.5),
           ),
+          mapOf(
+            // pid1: (1.0, 2.0) + (0.5, 2.5) = (1.5, 4.5), L_INF norm is 4.5 =>
+            // clip it (1.5, 2.0).
+            // pid2: (1.0, 0.0), L_INF norm is 1.0 => no clipping.
+            // result: (1.5, 2.0) + (1.0, 0.0) = (2.5, 2.0)
+            "vectorSumResult" to
+              listOf(
+                DoubleWithTolerance(value = 2.5, tolerance = 0.5),
+                DoubleWithTolerance(value = 2.0, tolerance = 0.5),
+              )
+          ),
+        )
+      )
+    assertEquals(result, expected)
+  }
+
+  @Test
+  fun run_publicGroups_multipleValueAndVectorAggregations_calculatesStatisticsCorrectly() {
+    val data =
+      createInputData(
+        listOf(
+          TestDataRow("group1", "pid1", 1.0, 2.0),
+          TestDataRow("group1", "pid1", 0.5, 2.5),
+          TestDataRow("group1", "pid2", 1.0, 0.0),
+          TestDataRow("nonPublicGroup", "pid2", 3.0),
+        )
+      )
+    val publicGroups = createPublicGroups(listOf("group1"))
+    val query =
+      SparkQueryBuilder.from(
+          data,
+          StringExtractor { it.privacyUnit },
+          ContributionBoundingLevel.DATASET_LEVEL(
+            maxGroupsContributed = 1,
+            maxContributionsPerGroup = 2,
+          ),
+        )
+        .groupBy(StringExtractor { it.groupKey }, GroupsType.PublicGroups.create(publicGroups))
+        .aggregateValue(
+          { it.value },
+          ValueAggregationsBuilder().sum("sumResult"),
+          ContributionBounds(totalValueBounds = Bounds(1.0, 2.0)),
+        )
+        .aggregateVector(
+          { listOf(it.value, it.anotherValue) },
+          vectorSize = 2,
+          VectorAggregationsBuilder().vectorSum("vectorSumResult"),
+          VectorContributionBounds(
+            maxVectorTotalNorm = VectorNorm(normKind = NormKind.L_INF, value = 2.0)
+          ),
+        )
+        .build(TotalBudget(epsilon = 1000.0), NoiseKind.LAPLACE)
+
+    val result: Dataset<QueryPerGroupResult<String>> = query.run()
+
+    val expected =
+      listOf(
+        QueryPerGroupResultWithTolerance(
+          "group1",
+          mapOf("sumResult" to DoubleWithTolerance(value = 2.5, tolerance = 0.5)),
           mapOf(
             // pid1: (1.0, 2.0) + (0.5, 2.5) = (1.5, 4.5), L_INF norm is 4.5 =>
             // clip it (1.5, 2.0).
