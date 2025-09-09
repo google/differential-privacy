@@ -18,6 +18,7 @@ package com.google.privacy.differentialprivacy.pipelinedp4j.beam
 
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.Encoder
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.FrameworkCollection
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.StageNameUtils.makeStageNameUnique
 import org.apache.beam.sdk.coders.KvCoder
 import org.apache.beam.sdk.transforms.Distinct
 import org.apache.beam.sdk.transforms.MapElements
@@ -31,7 +32,7 @@ class BeamCollection<T>(val data: PCollection<T>) : FrameworkCollection<T> {
   override val elementsEncoder: BeamEncoder<T> = BeamEncoder<T>(data.coder)
 
   override fun distinct(stageName: String): BeamCollection<T> =
-    BeamCollection<T>(data.apply(stageName, Distinct.create()))
+    BeamCollection<T>(data.apply(stageName.makeStageNameUnique(), Distinct.create()))
 
   override fun <R> map(
     stageName: String,
@@ -42,7 +43,7 @@ class BeamCollection<T>(val data: PCollection<T>) : FrameworkCollection<T> {
     return BeamCollection<R>(
       data
         .apply(
-          stageName,
+          stageName.makeStageNameUnique(),
           MapElements.into(outputCoder.encodedTypeDescriptor).via(SerializableFunction(mapFn)),
         )
         .setCoder(outputCoder)
@@ -58,7 +59,7 @@ class BeamCollection<T>(val data: PCollection<T>) : FrameworkCollection<T> {
     return BeamTable<K, T>(
       data
         .apply(
-          stageName,
+          stageName.makeStageNameUnique(),
           WithKeys.of(SerializableFunction(keyFn)).withKeyType(keyCoder.encodedTypeDescriptor),
         )
         .setCoder(KvCoder.of(keyCoder, data.coder))
@@ -78,7 +79,7 @@ class BeamCollection<T>(val data: PCollection<T>) : FrameworkCollection<T> {
     return BeamTable<K, V>(
       data
         .apply(
-          stageName,
+          stageName.makeStageNameUnique(),
           MapElements.into(outputCoder.encodedTypeDescriptor).via(SerializableFunction(kvMapFn)),
         )
         .setCoder(outputCoder)

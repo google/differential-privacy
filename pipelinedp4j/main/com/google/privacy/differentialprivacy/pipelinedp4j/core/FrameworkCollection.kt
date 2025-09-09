@@ -16,6 +16,9 @@
 
 package com.google.privacy.differentialprivacy.pipelinedp4j.core
 
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
+
 /**
  * An abstraction for a framework-specific collection. The internal PipelineDP4j logic is
  * framework-agnostic and operates on this abstraction.
@@ -55,4 +58,13 @@ interface FrameworkCollection<T> {
 object StageNameUtils {
   /** Appends name of the next stage to the current stage name. */
   fun String.append(nextStageName: String) = "$this/$nextStageName"
+
+  private val stageNameCounters = ConcurrentHashMap<String, AtomicInteger>()
+
+  /** Makes stage names unique. Currently only used in Beam backend. */
+  fun String.makeStageNameUnique(): String {
+    val counter = stageNameCounters.computeIfAbsent(this) { AtomicInteger() }
+    val count = counter.getAndIncrement()
+    return if (count == 0) this else "${this}_${count}"
+  }
 }

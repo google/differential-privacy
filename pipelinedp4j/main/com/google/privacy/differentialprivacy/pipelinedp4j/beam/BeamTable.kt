@@ -20,6 +20,7 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.core.Encoder
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.FrameworkCollection
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.FrameworkTable
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.StageNameUtils.append
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.StageNameUtils.makeStageNameUnique
 import com.google.privacy.differentialprivacy.pipelinedp4j.local.LocalCollection
 import com.google.privacy.differentialprivacy.pipelinedp4j.local.LocalTable
 import org.apache.beam.sdk.coders.KvCoder
@@ -65,7 +66,7 @@ class BeamTable<K, V>(val data: PCollection<KV<K, V>>) : FrameworkTable<K, V> {
     return BeamCollection<R>(
       data
         .apply(
-          stageName,
+          stageName.makeStageNameUnique(),
           MapElements.into(outputCoder.encodedTypeDescriptor).via(SerializableFunction(kvMapFn)),
         )
         .setCoder(outputCoder)
@@ -73,18 +74,20 @@ class BeamTable<K, V>(val data: PCollection<KV<K, V>>) : FrameworkTable<K, V> {
   }
 
   override fun groupAndCombineValues(stageName: String, combFn: (V, V) -> V): BeamTable<K, V> {
-    return BeamTable(data.apply(stageName, Combine.perKey(SerializableBiFunction(combFn))))
+    return BeamTable(
+      data.apply(stageName.makeStageNameUnique(), Combine.perKey(SerializableBiFunction(combFn)))
+    )
   }
 
   override fun groupByKey(stageName: String): BeamTable<K, Iterable<V>> {
-    return BeamTable(data.apply(stageName, GroupByKey.create()))
+    return BeamTable(data.apply(stageName.makeStageNameUnique(), GroupByKey.create()))
   }
 
   override fun keys(stageName: String): BeamCollection<K> =
-    BeamCollection<K>(data.apply(Keys.create()))
+    BeamCollection<K>(data.apply(stageName.makeStageNameUnique(), Keys.create()))
 
   override fun values(stageName: String): BeamCollection<V> =
-    BeamCollection<V>(data.apply(Values.create()))
+    BeamCollection<V>(data.apply(stageName.makeStageNameUnique(), Values.create()))
 
   override fun <VO> mapValues(
     stageName: String,
@@ -97,7 +100,7 @@ class BeamTable<K, V>(val data: PCollection<KV<K, V>>) : FrameworkTable<K, V> {
     return BeamTable(
       data
         .apply(
-          stageName,
+          stageName.makeStageNameUnique(),
           MapElements.into(outputCoder.encodedTypeDescriptor).via(SerializableFunction(kvMapFn)),
         )
         .setCoder(outputCoder)
@@ -117,7 +120,7 @@ class BeamTable<K, V>(val data: PCollection<KV<K, V>>) : FrameworkTable<K, V> {
     return BeamTable(
       data
         .apply(
-          stageName,
+          stageName.makeStageNameUnique(),
           MapElements.into(outputCoder.encodedTypeDescriptor).via(SerializableFunction(kvMapFn)),
         )
         .setCoder(outputCoder)
@@ -135,7 +138,7 @@ class BeamTable<K, V>(val data: PCollection<KV<K, V>>) : FrameworkTable<K, V> {
     return BeamTable(
       data
         .apply(
-          stageName,
+          stageName.makeStageNameUnique(),
           ParDo.of(
             object : DoFn<KV<K, V>, KV<KO, VO>>() {
               @ProcessElement
@@ -155,12 +158,16 @@ class BeamTable<K, V>(val data: PCollection<KV<K, V>>) : FrameworkTable<K, V> {
 
   override fun filterValues(stageName: String, predicate: (V) -> Boolean): BeamTable<K, V> {
     val kvPredicate = { x: KV<K, V> -> predicate(x.getValue()) }
-    return BeamTable(data.apply(stageName, Filter.by(SerializableFunction(kvPredicate))))
+    return BeamTable(
+      data.apply(stageName.makeStageNameUnique(), Filter.by(SerializableFunction(kvPredicate)))
+    )
   }
 
   override fun filterKeys(stageName: String, predicate: (K) -> Boolean): BeamTable<K, V> {
     val kvPredicate = { x: KV<K, V> -> predicate(x.getKey()) }
-    return BeamTable(data.apply(stageName, Filter.by(SerializableFunction(kvPredicate))))
+    return BeamTable(
+      data.apply(stageName.makeStageNameUnique(), Filter.by(SerializableFunction(kvPredicate)))
+    )
   }
 
   override fun filterKeys(
@@ -188,10 +195,13 @@ class BeamTable<K, V>(val data: PCollection<KV<K, V>>) : FrameworkTable<K, V> {
     return when (other) {
       is BeamTable<K, V> -> {
         val collectionsList = PCollectionList.of(this.data).and(other.data)
-        BeamTable(collectionsList.apply(stageName, Flatten.pCollections()))
+        BeamTable(collectionsList.apply(stageName.makeStageNameUnique(), Flatten.pCollections()))
       }
       is LocalTable<K, V> -> {
-        flattenWith(stageName, other.toBeamTable(stageName.append("ConvertLocalTableToBeamTable")))
+        flattenWith(
+          stageName,
+          other.toBeamTable(stageName.append("ConvertLocalTableToBeamTable").makeStageNameUnique()),
+        )
       }
       else ->
         throw IllegalArgumentException(
@@ -225,12 +235,16 @@ class BeamTable<K, V>(val data: PCollection<KV<K, V>>) : FrameworkTable<K, V> {
     val allowedKeysTag = "AllowedKeysTag"
     val pCollectionTuple =
       KeyedPCollectionTuple.of(dataTag, data).and(allowedKeysTag, allowedKeysAsTable)
-    val joinResult = pCollectionTuple.apply(CoGroupByKey.create())
+    val joinResult =
+      pCollectionTuple.apply(
+        stageName.append("CoGroupByKey").makeStageNameUnique(),
+        CoGroupByKey.create(),
+      )
 
     val filteredTable =
       joinResult
         .apply(
-          stageName.append("FilterForAllowedKeys"),
+          stageName.append("FilterForAllowedKeys").makeStageNameUnique(),
           ParDo.of(
             object : DoFn<KV<K, CoGbkResult>, KV<K, V>>() {
               @ProcessElement
@@ -283,7 +297,9 @@ class BeamTable<K, V>(val data: PCollection<KV<K, V>>) : FrameworkTable<K, V> {
     if (count == Int.MAX_VALUE) {
       return groupByKey(stageName)
     }
-    return BeamTable(data.apply(stageName, Sample.fixedSizePerKey<K, V>(count)))
+    return BeamTable(
+      data.apply(stageName.makeStageNameUnique(), Sample.fixedSizePerKey<K, V>(count))
+    )
   }
 
   private fun LocalTable<K, V>.toBeamTable(stageName: String): BeamTable<K, V> {
