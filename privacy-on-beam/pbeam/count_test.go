@@ -20,12 +20,12 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/google/differential-privacy/go/v4/dpagg"
-	"github.com/google/differential-privacy/go/v4/noise"
-	"github.com/google/differential-privacy/privacy-on-beam/v4/pbeam/testutils"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
+	"github.com/google/differential-privacy/go/v4/dpagg"
+	"github.com/google/differential-privacy/go/v4/noise"
+	"github.com/google/differential-privacy/privacy-on-beam/v4/pbeam/testutils"
 )
 
 // Checks that Count returns a correct answer by verifying:
@@ -126,6 +126,7 @@ func TestCountWithPartitionsNoNoise(t *testing.T) {
 
 }
 
+// TODO: This will need to be updated to also test MaxContributions.
 // Checks that Count applies partition selection.
 func TestCountPartitionSelection(t *testing.T) {
 	for _, tc := range []struct {
@@ -208,6 +209,7 @@ func TestCountPartitionSelection(t *testing.T) {
 	}
 }
 
+// TODO: This will need to be updated to also test MaxContributions.
 // Checks that Count adds noise to its output.
 func TestCountAddsNoise(t *testing.T) {
 	for _, tc := range []struct {
@@ -289,6 +291,7 @@ func TestCountAddsNoise(t *testing.T) {
 	}
 }
 
+// TODO: This will need to be updated to also test MaxContributions.
 // Checks that Count with partitions adds noise to its output.
 func TestCountAddsNoiseWithPartitions(t *testing.T) {
 	for _, tc := range []struct {
@@ -458,6 +461,91 @@ func TestCountWithPartitionsCrossPartitionContributionBounding(t *testing.T) {
 		testutils.ApproxEqualsKVInt64(t, s, got, want, testutils.RoundedLaplaceTolerance(k, l1Sensitivity, epsilon))
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("TestCountWithPartitionsCrossPartitionContributionBounding in-memory=%t: Metric(%v) = %v, expected elements to sum to 150: %v", tc.inMemory, col, got, err)
+		}
+	}
+}
+
+// Checks that Count with MaxContributions does per-privacy identifier contribution bounding, instead of cross and per-partition contribution bounding.
+func TestCountMaxContributionsContributionBounding(t *testing.T) {
+	// pairs contains {1,0}, {1,0}, {1,1}, {1,1}; {2,0}, {2,0}, {2,1}, {2,1}; … {50,0}, {50,0}, {50,1}, {50,1}.
+	// with maxContributions = 3, we expect 150 out of 200 elements.
+	pairs := testutils.ConcatenatePairs(
+		testutils.MakePairsWithFixedVStartingFromKey(1, 50, 0),
+		testutils.MakePairsWithFixedVStartingFromKey(1, 50, 0),
+		testutils.MakePairsWithFixedVStartingFromKey(1, 50, 1),
+		testutils.MakePairsWithFixedVStartingFromKey(1, 50, 1),
+	)
+	result := []testutils.PairII64{
+		{0, 150},
+	}
+
+	p, s, col, want := ptest.CreateList2(pairs, result)
+	col = beam.ParDo(s, testutils.PairToKV, col)
+
+	epsilon, delta := 50.0, 0.1
+	pcol := MakePrivate(s, col, privacySpec(t,
+		PrivacySpecParams{
+			AggregationEpsilon:        epsilon,
+			PartitionSelectionEpsilon: epsilon,
+			PartitionSelectionDelta:   delta,
+			TestMode:                  TestModeWithContributionBounding,
+		}))
+	got := Count(s, pcol, CountParams{MaxContributions: 3})
+	counts := beam.DropKey(s, got)
+	sumOverPartitions := stats.Sum(s, counts)
+	got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
+	want = beam.ParDo(s, testutils.PairII64ToKV, want)
+	testutils.EqualsKVInt64(t, s, got, want)
+	if err := ptest.Run(p); err != nil {
+		t.Errorf("TestCountMaxContributionsContributionBounding: Metric(%v) = %v, expected elements to sum to 150: %v", col, got, err)
+	}
+}
+
+// Checks that Count with MaxContributions bounds per-privacy identifier while using public partitions.
+func TestCountWithPartitionsMaxContributionsContributionBounding(t *testing.T) {
+	// We have two test cases, one for public partitions as a PCollection and one for public partitions as a slice (i.e., in-memory).
+	for _, tc := range []struct {
+		inMemory bool
+	}{
+		{true},
+		{false},
+	} {
+		pairs := testutils.ConcatenatePairs(
+			testutils.MakePairsWithFixedVStartingFromKey(1, 50, 0),
+			testutils.MakePairsWithFixedVStartingFromKey(1, 50, 0),
+			testutils.MakePairsWithFixedVStartingFromKey(1, 50, 1),
+			testutils.MakePairsWithFixedVStartingFromKey(1, 50, 1),
+		)
+		result := []testutils.PairII64{
+			{0, 150},
+		}
+
+		p, s, col, want := ptest.CreateList2(pairs, result)
+		col = beam.ParDo(s, testutils.PairToKV, col)
+
+		publicPartitionsSlice := []int{0, 1, 2}
+		var publicPartitions any
+		if tc.inMemory {
+			publicPartitions = publicPartitionsSlice
+		} else {
+			publicPartitions = beam.CreateList(s, publicPartitionsSlice)
+		}
+
+		epsilon, delta := 50.0, 0.0
+		pcol := MakePrivate(s, col, privacySpec(t,
+			PrivacySpecParams{
+				AggregationEpsilon:      epsilon,
+				PartitionSelectionDelta: delta,
+				TestMode:                TestModeWithContributionBounding,
+			}))
+		got := Count(s, pcol, CountParams{MaxContributions: 3, PublicPartitions: publicPartitions})
+		counts := beam.DropKey(s, got)
+		sumOverPartitions := stats.Sum(s, counts)
+		got = beam.AddFixedKey(s, sumOverPartitions) // Adds a fixed key of 0.
+		want = beam.ParDo(s, testutils.PairII64ToKV, want)
+		testutils.EqualsKVInt64(t, s, got, want)
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("TestCountWithPartitionsMaxContributionsContributionBounding in-memory=%t: Metric(%v) = %v, expected elements to sum to 150: %v", tc.inMemory, col, got, err)
 		}
 	}
 }
@@ -659,6 +747,74 @@ func TestCheckCountParams(t *testing.T) {
 				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
 				MaxPartitionsContributed: 1,
 				MaxValue:                 -1,
+			},
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: nil,
+			wantErr:       true,
+		},
+		{
+			desc: "negative max partitions contributed",
+			params: CountParams{
+				AggregationEpsilon:       1.0,
+				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
+				MaxPartitionsContributed: -1,
+			},
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: nil,
+			wantErr:       true,
+		},
+		{
+			desc: "negative max contributions",
+			params: CountParams{
+				AggregationEpsilon:       1.0,
+				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
+				MaxContributions:         -1,
+			},
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: nil,
+			wantErr:       true,
+		},
+		{
+			desc: "MaxPartitionsContributed and MaxValue set, MaxContributions unset",
+			params: CountParams{
+				AggregationEpsilon:       1.0,
+				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
+				MaxPartitionsContributed: 1,
+				MaxValue:                 1,
+			},
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: nil,
+			wantErr:       false,
+		},
+		{
+			desc: "MaxPartitionsContributed and MaxValue unset, MaxContributions set",
+			params: CountParams{
+				AggregationEpsilon:       1.0,
+				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
+				MaxContributions:         1,
+			},
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: nil,
+			wantErr:       false,
+		},
+		{
+			desc: "Both MaxPartitionsContributed and MaxValue set, and MaxContributions set",
+			params: CountParams{
+				AggregationEpsilon:       1.0,
+				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
+				MaxPartitionsContributed: 1,
+				MaxValue:                 1,
+				MaxContributions:         1,
+			},
+			noiseKind:     noise.LaplaceNoise,
+			partitionType: nil,
+			wantErr:       true,
+		},
+		{
+			desc: "Both MaxPartitionsContributed and MaxValue unset, and MaxContributions unset",
+			params: CountParams{
+				AggregationEpsilon:       1.0,
+				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1.0, Delta: 1e-5},
 			},
 			noiseKind:     noise.LaplaceNoise,
 			partitionType: nil,

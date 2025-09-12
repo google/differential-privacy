@@ -320,10 +320,10 @@ func newBoundedSumInt64Fn(spec PrivacySpec, params SumParams, noiseKind noise.Ki
 		MaxPartitionsContributed:  params.MaxPartitionsContributed,
 		Lower:                     int64(params.MinValue),
 		Upper:                     int64(params.MaxValue),
+		MaxContributions:          params.MaxContributions,
 		NoiseKind:                 noiseKind,
 		PublicPartitions:          publicPartitions,
 		TestMode:                  spec.testMode,
-		MaxContributions:          params.MaxContributions,
 	}, nil
 }
 
@@ -922,10 +922,6 @@ func checkContributionBounding(maxContributions int64, maxValue int64, maxPartit
 	maxValueSet := maxValue > 0
 	maxPartitionsContributedSet := maxPartitionsContributed > 0
 
-	if maxContributionsSet && (maxValueSet || maxPartitionsContributedSet) {
-		return fmt.Errorf("MaxContributions and MaxValue/MaxPartitionsContributed cannot be set at the same time")
-	}
-
 	if maxContributionsSet {
 		// MaxContributions configuration must be used
 		if maxValue != 0 || maxPartitionsContributed != 0 {
@@ -934,6 +930,9 @@ func checkContributionBounding(maxContributions int64, maxValue int64, maxPartit
 		return nil
 	} else {
 		// MaxValue/MaxPartitionsContributed configuration must be used
+		if !maxValueSet && !maxPartitionsContributedSet {
+			return fmt.Errorf("when MaxContributions is not set, both MaxValue and MaxPartitionsContributed must be set to a positive value")
+		}
 		if !maxValueSet {
 			return fmt.Errorf("MaxValue must be set to a positive value, was %d instead", maxValue)
 		}

@@ -99,8 +99,11 @@ func NewBoundedSumInt64(opt *BoundedSumInt64Options) (*BoundedSumInt64, error) {
 
 	var l0 int64
 	if opt.MaxContributions > 0 {
-		l0 = 1 // Set L_0 to 1, and L_∞ to MaxContributions so that L_1=L_2=MaxContributions
+		// To set l1 = l2 = MaxContributions during Result()
+		l0 = opt.MaxContributions
 	} else {
+		// Legacy per-partition contribution bounding where the user specifies the
+		// number of partitions a privacy unit may contribute to.
 		l0 = opt.MaxPartitionsContributed
 	}
 
@@ -128,10 +131,11 @@ func NewBoundedSumInt64(opt *BoundedSumInt64Options) (*BoundedSumInt64, error) {
 	if err != nil {
 		return nil, fmt.Errorf("NewBoundedSumInt64: %w", err)
 	}
-	// TODO: Implement int64 overflow check for MaxContributions. Currently only on getLInfInt.
+
 	var lInf int64
 	if opt.MaxContributions > 0 {
-		lInf = opt.MaxContributions // Set L_∞ to MaxContributions so that L_1=L_2=MaxContributions
+		lInf = 1                     // To map noise to l1 = l2 = MaxContributions during Result()
+		upper = opt.MaxContributions // To clamp by MaxContributions during Add() 
 	} else {
 		lInf, err = getLInfInt(lower, upper, maxContributionsPerPartition)
 	}
