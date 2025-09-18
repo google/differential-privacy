@@ -105,6 +105,8 @@ interface FrameworkTable<K, V> {
    * @param unbalancedKeys whether the number of values per keys are very different. If true, the
    *   implementation may use a more efficient algorithm.
    */
+  // TODO: Make sure that we try to avoid materialzing the allowedKeys when they are
+  // local collection.
   fun filterKeys(
     stageName: String,
     allowedKeys: FrameworkCollection<K>,

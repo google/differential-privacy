@@ -91,8 +91,8 @@ class LocalTable<K, V>(val data: Sequence<Pair<K, V>>) : FrameworkTable<K, V> {
     allowedKeys: FrameworkCollection<K>,
     unbalancedKeys: Boolean,
   ): FrameworkTable<K, V> {
-    val allowedKeysHashSet = (allowedKeys as LocalCollection<K>).data.toCollection(HashSet())
-    return filterKeys(stageName) { k -> k in allowedKeysHashSet }
+    val allowedKeysSet by lazy { (allowedKeys as LocalCollection<K>).data.toHashSet() }
+    return filterKeys(stageName) { k -> allowedKeysSet.contains(k) }
   }
 
   override fun flattenWith(stageName: String, other: FrameworkTable<K, V>): LocalTable<K, V> {
