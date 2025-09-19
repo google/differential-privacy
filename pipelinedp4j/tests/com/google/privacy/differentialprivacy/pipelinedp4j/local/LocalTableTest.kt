@@ -186,6 +186,35 @@ class LocalTableTest {
   }
 
   @Test
+  fun filterKeys_executesLazy(@TestParameter unbalancedKeys: Boolean) {
+    var tableInitialized = false
+    val localTable =
+      LocalTable(
+        (1..2).asSequence().map {
+          require(tableInitialized) { "Table not initialized" }
+          Pair(it, it)
+        }
+      )
+    var keysInitialized = false
+    val allowedKeys: LocalCollection<Int> =
+      LocalCollection(
+        sequence {
+          require(keysInitialized) { "Keys not initialized" }
+          yield(1)
+        }
+      )
+
+    // Check that filterKeys() is lazy, i.e. it does not access elements of localTable.
+    val result = localTable.filterKeys("Test", allowedKeys, unbalancedKeys) as LocalTable<Int, Int>
+
+    // Check that when the input collection is initialized, it is safe to access the output
+    // elements.
+    tableInitialized = true
+    keysInitialized = true
+    assertThat(result.data.asIterable()).containsExactly(1 to 1)
+  }
+
+  @Test
   fun filterKeys_keepsAllowedKeys(@TestParameter unbalancedKeys: Boolean) {
     val localTable = LocalTable(sequenceOf("one" to 1, "two" to 2, "three" to 3, "two" to -2))
     val allowedKeys: LocalCollection<String> = LocalCollection(sequenceOf("three", "two", "four"))
