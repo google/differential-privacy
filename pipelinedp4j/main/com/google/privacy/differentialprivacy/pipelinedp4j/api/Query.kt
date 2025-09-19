@@ -28,6 +28,10 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.core.FrameworkTable
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.SelectPartitionsParams
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.DpAggregates
+import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PerFeature
+import com.google.privacy.differentialprivacy.pipelinedp4j.proto.copy
+import com.google.privacy.differentialprivacy.pipelinedp4j.proto.dpAggregates
+import com.google.privacy.differentialprivacy.pipelinedp4j.proto.perFeature
 
 sealed interface Query<ReturnT> {
   /** Executes the query (in production mode). */
@@ -64,7 +68,6 @@ protected constructor(
 ) : Query<ReturnT> {
   init {
     validate()
-    validateUnsupportedFeatures()
   }
 
   protected fun runWithDpEngine(testMode: TestMode): FrameworkTable<GroupKeysT, DpAggregates> {
@@ -75,18 +78,9 @@ protected constructor(
         testMode.toExecutionMode(),
       )
 
-    @Suppress("UNCHECKED_CAST")
-    val valueAggregations =
-      aggregations.firstOrNull { it is ValueAggregations<*> } as ValueAggregations<DataRowT>?
-    @Suppress("UNCHECKED_CAST")
-    val vectorAggregations =
-      aggregations.firstOrNull { it is VectorAggregations<*> } as VectorAggregations<DataRowT>?
-
-    val extractors =
-      createDataExtractors(valueAggregations?.valueExtractor, vectorAggregations?.vectorExtractor)
-
+    // 1. If aggregation is empty then we do partition selection.
     if (aggregations.isEmpty()) {
-      // Only select groups.
+      val extractors = createDataExtractors(valueExtractor = null, vectorExtractor = null)
       val result = dpEngine.selectPartitions(data, createSelectPartitionsParams(), extractors)
       dpEngine.done()
 
@@ -96,20 +90,83 @@ protected constructor(
         encoderFactory.protos(DpAggregates::class),
         { it to DpAggregates.getDefaultInstance() },
       )
-    } else {
-      val aggregateParams = createAggregationParams(valueAggregations, vectorAggregations)
-
-      val result =
-        dpEngine.aggregate(
-          data,
-          aggregateParams,
-          extractors,
-          groupsType.getPublicGroups<GroupKeysT>(),
-        )
-      dpEngine.done()
-
-      return result
     }
+
+    val isValueOrVectorAgg: (AggregationSpec) -> Boolean = {
+      it is ValueAggregations<*> || it is VectorAggregations<*>
+    }
+    val valueAndVectorAggs: List<AggregationSpec> = aggregations.filter(isValueOrVectorAgg)
+
+    // Count/PidCount aggregations
+    val countAggs: List<AggregationSpec> = aggregations.filterNot(isValueOrVectorAgg)
+
+    var partitions: FrameworkCollection<GroupKeysT>? = groupsType.getPublicGroups()
+    // 2. If aggregations are not empty, split them into runs.
+    // The first run contains all aggregations that do not relate to specific values or vectors
+    // (e.g. COUNT), plus the first value or vector aggregation (if any).
+    // The subsequent runs contain one value or vector aggregation each.
+    val firstFeatureAggregation = valueAndVectorAggs.firstOrNull()
+    val firstRun = buildList {
+      if (firstFeatureAggregation != null) {
+        add(firstFeatureAggregation)
+      }
+      addAll(countAggs)
+    }
+    val otherOneFeatureRuns = valueAndVectorAggs.drop(1)
+
+    val aggResults = mutableListOf<FrameworkTable<GroupKeysT, DpAggregates>>()
+
+    // 3. Run the first aggregation. If public partitions are not provided,
+    // this run performs partition selection, and the result partitions are used
+    // in subsequent runs.
+    val result = aggregateWithDpEngine(dpEngine, firstFeatureAggregation, firstRun, partitions)
+    aggResults.add(result)
+    if (partitions == null) {
+      partitions = result.keys("GetPartitions")
+    }
+
+    // 4. Run all subsequent aggregations using partitions from the first run.
+    for (featureAggregation in otherOneFeatureRuns) {
+      val result =
+        aggregateWithDpEngine(dpEngine, featureAggregation, listOf(featureAggregation), partitions)
+      aggResults.add(result)
+    }
+    dpEngine.done()
+
+    val featureIdPerRun =
+      if (valueAndVectorAggs.isEmpty()) {
+        listOf(null)
+      } else {
+        valueAndVectorAggs.map { it.getFeatureId() }
+      }
+    return aggResults
+      .zip(featureIdPerRun)
+      .map { (table, featureId) ->
+        table.mapValues("TagWithFeatureId", encoderFactory.protos(DpAggregates::class)) { _, agg ->
+          if (featureId == null) {
+            agg
+          } else {
+            val perFeature = constructPerFeature(agg, featureId)
+            dpAggregates {
+              count = agg.count
+              privacyIdCount = agg.privacyIdCount
+              this.perFeature += perFeature
+            }
+          }
+        }
+      }
+      .reduce {
+        acc: FrameworkTable<GroupKeysT, DpAggregates>,
+        table: FrameworkTable<GroupKeysT, DpAggregates> ->
+        acc.flattenWith("FlattenResultsFromMultipleRuns", table)
+      }
+      .groupAndCombineValues("MergeDpAggregates") { acc, dpAggregatesFromSingleRun ->
+        acc.copy {
+          count += dpAggregatesFromSingleRun.count
+          privacyIdCount += dpAggregatesFromSingleRun.privacyIdCount
+          perFeature += dpAggregatesFromSingleRun.perFeatureList
+        }
+      }
   }
 
   private fun validate() {
@@ -352,12 +409,17 @@ protected constructor(
     // Other validations are done inside the DpEngine or in constructors of repsective data classes.
   }
 
-  private fun validateUnsupportedFeatures() {
-    require(
-      aggregations.filter { it is ValueAggregations<*> || it is VectorAggregations<*> }.size <= 1
-    ) {
-      "Aggregation of different values or vectors is not supported yet (i.e. only one aggregateValue() or aggregateVector() call is allowed). Please aggregate only one value or vector."
-    }
+  private fun aggregateWithDpEngine(
+    dpEngine: DpEngine,
+    featureAggregation: AggregationSpec?,
+    aggregationSpecs: List<AggregationSpec>,
+    partitions: FrameworkCollection<GroupKeysT>?,
+  ): FrameworkTable<GroupKeysT, DpAggregates> {
+    @Suppress("UNCHECKED_CAST") val va = featureAggregation as? ValueAggregations<DataRowT>
+    @Suppress("UNCHECKED_CAST") val vea = featureAggregation as? VectorAggregations<DataRowT>
+    val extractors = createDataExtractors(va?.valueExtractor, vea?.vectorExtractor)
+    val params = createAggregationParams(aggregationSpecs, va, vea)
+    return dpEngine.aggregate(data, params, extractors, partitions)
   }
 
   private fun createDataExtractors(
@@ -403,13 +465,14 @@ protected constructor(
     )
 
   private fun createAggregationParams(
+    aggregationSpecs: List<AggregationSpec>,
     valueAggregations: ValueAggregations<*>?,
     vectorAggregations: VectorAggregations<*>?,
   ): AggregationParams {
     val valueContributionBounds = valueAggregations?.contributionBounds
     val vectorContributionBounds = vectorAggregations?.vectorContributionBounds
     return AggregationParams(
-      metrics = ImmutableList.copyOf(aggregations.metrics()),
+      metrics = ImmutableList.copyOf(aggregationSpecs.metrics()),
       noiseKind = noiseKind!!.toInternalNoiseKind(),
       maxPartitionsContributed = contributionBoundingLevel.getMaxPartitionsContributed(),
       maxContributionsPerPartition = contributionBoundingLevel.getMaxContributionsPerPartition(),
@@ -425,5 +488,22 @@ protected constructor(
       contributionBoundingLevel = contributionBoundingLevel.toInternalContributionBoundingLevel(),
       partitionsBalance = groupByAdditionalParameters.groupsBalance.toPartitionsBalance(),
     )
+  }
+
+  companion object {
+    private fun constructPerFeature(dpAggregates: DpAggregates, featureId: String): PerFeature {
+      return perFeature {
+        this.featureId = featureId
+        sum = dpAggregates.sum
+        mean = dpAggregates.mean
+        variance = dpAggregates.variance
+        if (dpAggregates.quantilesList.isNotEmpty()) {
+          quantiles += dpAggregates.quantilesList
+        }
+        if (dpAggregates.vectorSumList.isNotEmpty()) {
+          vectorSum += dpAggregates.vectorSumList
+        }
+      }
+    }
   }
 }

@@ -18,6 +18,7 @@ package com.google.privacy.differentialprivacy.pipelinedp4j.api
 
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.DpAggregates
+import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PerFeature
 
 /**
  * The result of a query for a single group.
@@ -107,31 +108,33 @@ internal constructor(
       columnNameToFeatureIdMap: Map<String, String>,
     ) =
       buildMap<String, Double> {
+        val featuresMap: Map<String, PerFeature> =
+          dpAggregates.perFeatureList.associateBy { it.featureId }
         for ((outputColumnName, metricType) in outputColumnNamesWithMetricTypes) {
           when (metricType) {
             MetricType.PRIVACY_ID_COUNT -> put(outputColumnName, dpAggregates.privacyIdCount)
             MetricType.COUNT -> put(outputColumnName, dpAggregates.count)
             MetricType.SUM -> {
-              if (dpAggregates.perFeatureMap.isNotEmpty()) {
+              if (dpAggregates.perFeatureList.isNotEmpty()) {
                 val featureId = columnNameToFeatureIdMap[outputColumnName]!!
-                put(outputColumnName, dpAggregates.perFeatureMap[featureId]!!.sum)
+                put(outputColumnName, featuresMap[featureId]!!.sum)
               } else {
                 put(outputColumnName, dpAggregates.sum)
               }
             }
             MetricType.VECTOR_SUM -> {} // not processed in this function.
             MetricType.MEAN -> {
-              if (dpAggregates.perFeatureMap.isNotEmpty()) {
+              if (dpAggregates.perFeatureList.isNotEmpty()) {
                 val featureId = columnNameToFeatureIdMap[outputColumnName]!!
-                put(outputColumnName, dpAggregates.perFeatureMap[featureId]!!.mean)
+                put(outputColumnName, featuresMap[featureId]!!.mean)
               } else {
                 put(outputColumnName, dpAggregates.mean)
               }
             }
             MetricType.VARIANCE -> {
-              if (dpAggregates.perFeatureMap.isNotEmpty()) {
+              if (dpAggregates.perFeatureList.isNotEmpty()) {
                 val featureId = columnNameToFeatureIdMap[outputColumnName]!!
-                put(outputColumnName, dpAggregates.perFeatureMap[featureId]!!.variance)
+                put(outputColumnName, featuresMap[featureId]!!.variance)
               } else {
                 put(outputColumnName, dpAggregates.variance)
               }
@@ -140,9 +143,9 @@ internal constructor(
               // TODO: consider creating a data class or resuing copy of
               // DpAggregates proto and not allowing outputColumnName.
               val quantilesList =
-                if (dpAggregates.perFeatureMap.isNotEmpty()) {
+                if (dpAggregates.perFeatureList.isNotEmpty()) {
                   val featureId = columnNameToFeatureIdMap[outputColumnName]!!
-                  dpAggregates.perFeatureMap[featureId]!!.quantilesList
+                  featuresMap[featureId]!!.quantilesList
                 } else {
                   dpAggregates.quantilesList
                 }
@@ -160,15 +163,17 @@ internal constructor(
       colNameToFeatureIdMap: Map<String, String>,
     ) =
       buildMap<String, List<Double>> {
+        val featuresMap: Map<String, PerFeature> =
+          dpAggregates.perFeatureList.associateBy { it.featureId }
         for ((outputColumnName, metricType) in outputColumnNamesWithMetricTypes) {
           when (metricType) {
             MetricType.PRIVACY_ID_COUNT -> {} // not processed in this function.
             MetricType.COUNT -> {} // not processed in this function.
             MetricType.SUM -> {} // not processed in this function.
             MetricType.VECTOR_SUM -> {
-              if (dpAggregates.perFeatureMap.isNotEmpty()) {
+              if (dpAggregates.perFeatureList.isNotEmpty()) {
                 val featureId = colNameToFeatureIdMap[outputColumnName]!!
-                put(outputColumnName, dpAggregates.perFeatureMap[featureId]!!.vectorSumList)
+                put(outputColumnName, featuresMap[featureId]!!.vectorSumList)
               } else {
                 put(outputColumnName, dpAggregates.vectorSumList)
               }

@@ -28,11 +28,14 @@ message PerFeature {
   // Sorted by rank.
   repeated double quantiles = 4;
   double variance = 3;
+  // ID of the feature. It can be any string that is unique among other
+  // PerFeature messages in DpAggregates.per_feature.
+  string feature_id = 6;
 }
 
 // The anonymized aggregated result returned by PipelineDP4j. The proto has
 // fields for all possible metrics that can be computed. Only metrics requested
-// by the user are populated. per_feature is not used yet.
+// by the user are populated.
 message DpAggregates {
   double privacy_id_count = 3;
   double count = 1;
@@ -42,7 +45,7 @@ message DpAggregates {
   // Sorted by rank.
   repeated double quantiles = 5;
   double variance = 6;
-  map<string, PerFeature> per_feature = 8;
+  repeated PerFeature per_feature = 8;
 }
 
 // Contribution that belong to the same privacy ID and partition key.
