@@ -453,6 +453,7 @@ class TruncatedSubsampledGaussianDpEvent(DpEvent):
   to size truncated_batch_size by sampling a random subset, and then apply a
   Gaussian mechanism with standard deviation noise_multiplier to the truncated
   sample.
+  See https://arxiv.org/abs/2508.15089 for more details.
 
   Attributes:
     dataset_size: The size of the dataset.

@@ -1135,7 +1135,8 @@ def from_truncated_subsampled_gaussian_mechanism(
   This method builds on from_gaussian_mechanism and hence supports the same
   algorithms for constructing the privacy loss distribution as
   from_gaussian_mechanism. See Sections 2.1 and 2.2 of supplementary material
-  for more details.
+  for more details. See Section 4.3 of the supplementary material for more
+  details on the computation of the privacy loss distribution.
 
   Args:
     dataset_size: the size of the dataset.
