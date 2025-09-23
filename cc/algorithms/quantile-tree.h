@@ -103,12 +103,16 @@ class QuantileTree {
 
   BoundedQuantilesSummary Serialize() {
     BoundedQuantilesSummary to_return = tree_.Serialize();
+    to_return.set_algorithm(BoundedQuantilesSummary::TREE);
     to_return.set_lower(lower_);
     to_return.set_upper(upper_);
     return to_return;
   }
 
   absl::Status Merge(const BoundedQuantilesSummary& summary) {
+    if (summary.algorithm() != BoundedQuantilesSummary::TREE) {
+      return absl::InternalError("Algorithm type mismatch. Expected TREE");
+    }
     if (static_cast<double>(lower_) != summary.lower() ||
         static_cast<double>(upper_) != summary.upper()) {
       return absl::InternalError(absl::StrCat(
