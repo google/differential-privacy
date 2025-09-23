@@ -30,7 +30,7 @@ sealed interface ContributionSampler<PrivacyIdT : Any, PartitionKeyT : Any> {
    * [PartitionKey], all its contributions are grouped inside the same entry.
    */
   fun sampleContributions(
-    data: FrameworkCollection<ContributionWithPrivacyId<PrivacyIdT, PartitionKeyT>>
+    data: FrameworkCollection<MultiFeatureContribution<PrivacyIdT, PartitionKeyT>>
   ): FrameworkTable<PartitionKeyT, PrivacyIdContributions>
 }
 
@@ -39,9 +39,9 @@ sealed interface ContributionSampler<PrivacyIdT : Any, PartitionKeyT : Any> {
  * assuming that they all belong to the same [PrivacyId].
  */
 internal fun <PrivacyIdT : Any, PartitionKeyT : Any> samplePartitions(
-  contributions: Iterable<ContributionWithPrivacyId<PrivacyIdT, PartitionKeyT>>,
+  contributions: Iterable<MultiFeatureContribution<PrivacyIdT, PartitionKeyT>>,
   maxPartitionsContributed: Int,
-): Collection<ContributionWithPrivacyId<PrivacyIdT, PartitionKeyT>> {
+): Collection<MultiFeatureContribution<PrivacyIdT, PartitionKeyT>> {
   val allPartitions = contributions.map { it.partitionKey() }.toSet()
   val keptPartitions = sampleNElements(allPartitions, maxPartitionsContributed).toSet()
   return contributions.filter { it.partitionKey() in keptPartitions }
@@ -53,17 +53,21 @@ internal fun <PrivacyIdT : Any, PartitionKeyT : Any> samplePartitions(
  * into a [PrivacyIdContributions] and returns it.
  */
 internal fun <PrivacyIdT : Any, PartitionKeyT : Any> sampleContributionsPerPartition(
-  partitionContributions: Iterable<ContributionWithPrivacyId<PrivacyIdT, PartitionKeyT>>,
+  partitionContributions: Iterable<MultiFeatureContribution<PrivacyIdT, PartitionKeyT>>,
   maxContributionsPerPartition: Int,
 ): PrivacyIdContributions {
-  val sampledListsOfValues: Collection<List<Double>> =
-    sampleNElements(partitionContributions.map { it.values() }, maxContributionsPerPartition)
+  val sampledContributions =
+    sampleNElements(partitionContributions.toList(), maxContributionsPerPartition)
   return privacyIdContributions {
-    for (sampledValues in sampledListsOfValues) {
-      if (sampledValues.size == 1) {
-        singleValueContributions += sampledValues.first()
+    for (contribution in sampledContributions) {
+      // TODO: Update to add support for multiple features.
+      // We expect that contribution contains only one feature with featureId="",
+      // produced by DataExtractors.
+      val perFeatureValues = contribution.perFeatureValues().single()
+      if (perFeatureValues.values.size == 1) {
+        singleValueContributions += perFeatureValues.values
       } else {
-        multiValueContributions += multiValueContribution { values += sampledValues }
+        multiValueContributions += multiValueContribution { values += perFeatureValues.values }
       }
     }
   }
