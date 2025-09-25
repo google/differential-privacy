@@ -22,6 +22,7 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.core.NoiseKind.GAUSSI
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.AllocatedBudget
 import com.google.privacy.differentialprivacy.pipelinedp4j.dplibrary.NoiseFactory
 import com.google.privacy.differentialprivacy.pipelinedp4j.dplibrary.ZeroNoiseFactory
+import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PrivacyIdContributionsKt.featureContribution
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.privacyIdContributions
 import com.google.testing.junit.testparameterinjector.TestParameterInjector
 import com.google.testing.junit.testparameterinjector.TestParameters
@@ -56,14 +57,22 @@ class QuantilesCombinerTest {
     val accumulator0 = combiner.emptyAccumulator()
     val accumulator1 =
       combiner.createAccumulator(
-        privacyIdContributions { singleValueContributions += listOf(1.0, 3.0) }
+        privacyIdContributions {
+          features += featureContribution { singleValueContributions += listOf(1.0, 3.0) }
+        }
       )
     val accumulator2 =
       combiner.createAccumulator(
-        privacyIdContributions { singleValueContributions += listOf(2.0, 4.0) }
+        privacyIdContributions {
+          features += featureContribution { singleValueContributions += listOf(2.0, 4.0) }
+        }
       )
     val accumulator3 =
-      combiner.createAccumulator(privacyIdContributions { singleValueContributions += listOf(5.0) })
+      combiner.createAccumulator(
+        privacyIdContributions {
+          features += featureContribution { singleValueContributions += listOf(5.0) }
+        }
+      )
     val accumulator01 = combiner.mergeAccumulators(accumulator0, accumulator1)
     val accumulator012 = combiner.mergeAccumulators(accumulator01, accumulator2)
     val accumulator0123 = combiner.mergeAccumulators(accumulator3, accumulator012)
@@ -113,7 +122,9 @@ class QuantilesCombinerTest {
     val accumulator =
       combiner.createAccumulator(
         privacyIdContributions {
-          singleValueContributions += (1..1000).map { it.toDouble() }.toList()
+          features += featureContribution {
+            singleValueContributions += (1..1000).map { it.toDouble() }.toList()
+          }
         }
       )
     val quantiles = combiner.computeMetrics(accumulator)

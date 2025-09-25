@@ -39,6 +39,7 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.proto.VectorSumAccumu
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.compoundAccumulator
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.countAccumulator
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.dpAggregates
+import com.google.privacy.differentialprivacy.pipelinedp4j.proto.featureAccumulator
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.meanAccumulator
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.privacyIdCountAccumulator
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.quantilesAccumulator
@@ -405,11 +406,12 @@ class SumCombiner(
    */
   override fun createAccumulator(contributions: PrivacyIdContributions): SumAccumulator =
     sumAccumulator {
+      val values = contributions.featuresList.flatMap { it.singleValueContributionsList }
       sum =
-        if (contributions.singleValueContributionsList.isEmpty()) {
+        if (values.isEmpty()) {
           0.0
         } else {
-          contributions.singleValueContributionsList
+          values
             .sum()
             .coerceInIfContributionBoundingEnabled(
               aggregationParams.minTotalValue!!,
@@ -483,7 +485,7 @@ class VectorSumCombiner(
    */
   override fun createAccumulator(contributions: PrivacyIdContributions) = vectorSumAccumulator {
     sumsPerDimension +=
-      contributions.multiValueContributionsList
+      (contributions.featuresList.flatMap { it.multiValueContributionsList })
         .map { contribution -> ArrayRealVector(contribution.valuesList.toDoubleArray()) }
         .reduceOrNull { acc, vector -> acc.add(vector) }
         ?.clipIfContributionBoundingEnabled(
@@ -652,9 +654,10 @@ class MeanCombiner(
     // half the sensitivity it would otherwise take for better accuracy (as compared
     // to doing noisy sum / noisy count).
     meanAccumulator {
-      count = contributions.singleValueContributionsList.size.toLong()
+      val values = contributions.featuresList.flatMap { it.singleValueContributionsList }
+      count = values.size.toLong()
       normalizedSum =
-        contributions.singleValueContributionsList
+        values
           .map {
             it.coerceInIfContributionBoundingEnabled(
               aggregationParams.minValue!!,
@@ -750,7 +753,9 @@ class QuantilesCombiner(
   override fun createAccumulator(contributions: PrivacyIdContributions): QuantilesAccumulator =
     quantilesAccumulator {
       val boundedQuantiles = emptyBoundedQuantiles()
-      boundedQuantiles.addEntries(contributions.singleValueContributionsList)
+      boundedQuantiles.addEntries(
+        contributions.featuresList.flatMap { it.singleValueContributionsList }
+      )
       serializedQuantilesSummary = ByteString.copyFrom(boundedQuantiles.serializableSummary)
     }
 
@@ -869,8 +874,9 @@ class VarianceCombiner(
     // half the sensitivity it would otherwise take for better accuracy (as compared
     // to doing noisy sum / noisy count).
     varianceAccumulator {
+      val values = contributions.featuresList.flatMap { it.singleValueContributionsList }
       val coercedValues =
-        contributions.singleValueContributionsList.map {
+        values.map {
           it.coerceInIfContributionBoundingEnabled(
             aggregationParams.minValue!!,
             aggregationParams.maxValue!!,
@@ -986,21 +992,40 @@ class CompoundCombiner(val combiners: Iterable<Combiner<*, *>>) :
    * @return a new [CompoundAccumulator] containing accumulators for each underlying combiner.
    */
   override fun createAccumulator(contributions: PrivacyIdContributions) = compoundAccumulator {
+    val featureCombiners =
+      combiners.filter {
+        it is SumCombiner ||
+          it is VectorSumCombiner ||
+          it is MeanCombiner ||
+          it is QuantilesCombiner ||
+          it is VarianceCombiner
+      }
+    if (featureCombiners.isNotEmpty()) {
+      this.featureAccumulators += featureAccumulator {
+        contributions.featuresList.firstOrNull()?.let { this.featureId = it.featureId }
+        for (combiner in featureCombiners) {
+          when (combiner) {
+            is SumCombiner -> this.sum = combiner.createAccumulator(contributions)
+            is VectorSumCombiner -> this.vectorSum = combiner.createAccumulator(contributions)
+            is MeanCombiner -> this.mean = combiner.createAccumulator(contributions)
+            is QuantilesCombiner -> this.quantiles = combiner.createAccumulator(contributions)
+            is VarianceCombiner -> this.variance = combiner.createAccumulator(contributions)
+            else -> {}
+          }
+        }
+      }
+    }
+
     for (combiner in combiners) {
       when (combiner) {
         is PrivacyIdCountCombiner ->
-          privacyIdCountAccumulator = combiner.createAccumulator(contributions)
+          this.privacyIdCountAccumulator = combiner.createAccumulator(contributions)
         is ExactPrivacyIdCountCombiner ->
-          privacyIdCountAccumulator = combiner.createAccumulator(contributions)
+          this.privacyIdCountAccumulator = combiner.createAccumulator(contributions)
         is PostAggregationPartitionSelectionCombiner ->
-          privacyIdCountAccumulator = combiner.createAccumulator(contributions)
-        is CountCombiner -> countAccumulator = combiner.createAccumulator(contributions)
-        is SumCombiner -> sumAccumulator = combiner.createAccumulator(contributions)
-        is VectorSumCombiner -> vectorSumAccumulator = combiner.createAccumulator(contributions)
-        is MeanCombiner -> meanAccumulator = combiner.createAccumulator(contributions)
-        is QuantilesCombiner -> quantilesAccumulator = combiner.createAccumulator(contributions)
-        is VarianceCombiner -> varianceAccumulator = combiner.createAccumulator(contributions)
-        is CompoundCombiner -> throwIfCompoundCombiner()
+          this.privacyIdCountAccumulator = combiner.createAccumulator(contributions)
+        is CountCombiner -> this.countAccumulator = combiner.createAccumulator(contributions)
+        else -> {}
       }
     }
   }
@@ -1017,54 +1042,74 @@ class CompoundCombiner(val combiners: Iterable<Combiner<*, *>>) :
     accumulator1: CompoundAccumulator,
     accumulator2: CompoundAccumulator,
   ) = compoundAccumulator {
+    val acc1 = accumulator1.featureAccumulatorsList.firstOrNull()
+    val acc2 = accumulator2.featureAccumulatorsList.firstOrNull()
+
+    if (acc1 != null || acc2 != null) {
+      this.featureAccumulators += featureAccumulator {
+        this.featureId = acc1?.featureId ?: acc2!!.featureId
+        for (combiner in combiners) {
+          when (combiner) {
+            is SumCombiner ->
+              this.sum =
+                combiner.mergeAccumulators(
+                  acc1?.sum ?: SumAccumulator.getDefaultInstance(),
+                  acc2?.sum ?: SumAccumulator.getDefaultInstance(),
+                )
+            is VectorSumCombiner ->
+              this.vectorSum =
+                combiner.mergeAccumulators(
+                  acc1?.vectorSum ?: VectorSumAccumulator.getDefaultInstance(),
+                  acc2?.vectorSum ?: VectorSumAccumulator.getDefaultInstance(),
+                )
+            is MeanCombiner ->
+              this.mean =
+                combiner.mergeAccumulators(
+                  acc1?.mean ?: MeanAccumulator.getDefaultInstance(),
+                  acc2?.mean ?: MeanAccumulator.getDefaultInstance(),
+                )
+            is VarianceCombiner ->
+              this.variance =
+                combiner.mergeAccumulators(
+                  acc1?.variance ?: VarianceAccumulator.getDefaultInstance(),
+                  acc2?.variance ?: VarianceAccumulator.getDefaultInstance(),
+                )
+            is QuantilesCombiner ->
+              this.quantiles =
+                combiner.mergeAccumulators(
+                  acc1?.quantiles ?: QuantilesAccumulator.getDefaultInstance(),
+                  acc2?.quantiles ?: QuantilesAccumulator.getDefaultInstance(),
+                )
+            else -> {}
+          }
+        }
+      }
+    }
+
     for (combiner in combiners) {
       when (combiner) {
         is PrivacyIdCountCombiner ->
-          privacyIdCountAccumulator =
+          this.privacyIdCountAccumulator =
             combiner.mergeAccumulators(
               accumulator1.privacyIdCountAccumulator,
               accumulator2.privacyIdCountAccumulator,
             )
         is ExactPrivacyIdCountCombiner ->
-          privacyIdCountAccumulator =
+          this.privacyIdCountAccumulator =
             combiner.mergeAccumulators(
               accumulator1.privacyIdCountAccumulator,
               accumulator2.privacyIdCountAccumulator,
             )
         is PostAggregationPartitionSelectionCombiner ->
-          privacyIdCountAccumulator =
+          this.privacyIdCountAccumulator =
             combiner.mergeAccumulators(
               accumulator1.privacyIdCountAccumulator,
               accumulator2.privacyIdCountAccumulator,
             )
         is CountCombiner ->
-          countAccumulator =
+          this.countAccumulator =
             combiner.mergeAccumulators(accumulator1.countAccumulator, accumulator2.countAccumulator)
-        is SumCombiner ->
-          sumAccumulator =
-            combiner.mergeAccumulators(accumulator1.sumAccumulator, accumulator2.sumAccumulator)
-        is VectorSumCombiner ->
-          vectorSumAccumulator =
-            combiner.mergeAccumulators(
-              accumulator1.vectorSumAccumulator,
-              accumulator2.vectorSumAccumulator,
-            )
-        is MeanCombiner ->
-          meanAccumulator =
-            combiner.mergeAccumulators(accumulator1.meanAccumulator, accumulator2.meanAccumulator)
-        is VarianceCombiner ->
-          varianceAccumulator =
-            combiner.mergeAccumulators(
-              accumulator1.varianceAccumulator,
-              accumulator2.varianceAccumulator,
-            )
-        is QuantilesCombiner ->
-          quantilesAccumulator =
-            combiner.mergeAccumulators(
-              accumulator1.quantilesAccumulator,
-              accumulator2.quantilesAccumulator,
-            )
-        is CompoundCombiner -> throwIfCompoundCombiner()
+        else -> {}
       }
     }
   }
@@ -1076,6 +1121,7 @@ class CompoundCombiner(val combiners: Iterable<Combiner<*, *>>) :
    * @return a [DpAggregates] object containing the computed results for all metrics.
    */
   override fun computeMetrics(accumulator: CompoundAccumulator) = dpAggregates {
+    val featureAcc = accumulator.featureAccumulatorsList.firstOrNull()
     for (combiner in combiners) {
       when (combiner) {
         is PrivacyIdCountCombiner ->
@@ -1088,32 +1134,36 @@ class CompoundCombiner(val combiners: Iterable<Combiner<*, *>>) :
           }
         }
         is CountCombiner -> count = combiner.computeMetrics(accumulator.countAccumulator)
-        is SumCombiner -> sum = combiner.computeMetrics(accumulator.sumAccumulator)
+        is SumCombiner -> if (featureAcc != null) sum = combiner.computeMetrics(featureAcc.sum)
         is VectorSumCombiner ->
-          vectorSum += combiner.computeMetrics(accumulator.vectorSumAccumulator)
+          if (featureAcc != null) vectorSum += combiner.computeMetrics(featureAcc.vectorSum)
         is MeanCombiner -> {
-          val meanResult = combiner.computeMetrics(accumulator.meanAccumulator)
-          mean = meanResult.mean
-          if (meanResult.sum != null) {
-            sum = meanResult.sum
-          }
-          if (meanResult.count != null) {
-            count = meanResult.count
+          if (featureAcc != null) {
+            val meanResult = combiner.computeMetrics(featureAcc.mean)
+            mean = meanResult.mean
+            if (meanResult.sum != null) {
+              sum = meanResult.sum
+            }
+            if (meanResult.count != null) {
+              count = meanResult.count
+            }
           }
         }
         is QuantilesCombiner ->
-          quantiles += combiner.computeMetrics(accumulator.quantilesAccumulator)
+          if (featureAcc != null) quantiles += combiner.computeMetrics(featureAcc.quantiles)
         is VarianceCombiner -> {
-          val varianceResult = combiner.computeMetrics(accumulator.varianceAccumulator)
-          variance = varianceResult.variance
-          if (varianceResult.count != null) {
-            count = varianceResult.count
-          }
-          if (varianceResult.sum != null) {
-            sum = varianceResult.sum
-          }
-          if (varianceResult.mean != null) {
-            mean = varianceResult.mean
+          if (featureAcc != null) {
+            val varianceResult = combiner.computeMetrics(featureAcc.variance)
+            variance = varianceResult.variance
+            if (varianceResult.count != null) {
+              count = varianceResult.count
+            }
+            if (varianceResult.sum != null) {
+              sum = varianceResult.sum
+            }
+            if (varianceResult.mean != null) {
+              mean = varianceResult.mean
+            }
           }
         }
         is CompoundCombiner -> throwIfCompoundCombiner()
@@ -1216,10 +1266,5 @@ private fun getNoisedNormalizedSumOfSquares(
 }
 
 private fun PrivacyIdContributions.size(): Int {
-  if (singleValueContributionsCount > 0 && multiValueContributionsCount > 0) {
-    throw IllegalArgumentException(
-      "PrivacyIdContributions cannot have both single and multi value contributions."
-    )
-  }
-  return max(singleValueContributionsCount, multiValueContributionsCount)
+  return featuresList.sumOf { it.singleValueContributionsCount + it.multiValueContributionsCount }
 }

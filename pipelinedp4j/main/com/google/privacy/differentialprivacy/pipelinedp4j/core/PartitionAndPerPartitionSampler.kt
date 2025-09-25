@@ -17,6 +17,7 @@
 package com.google.privacy.differentialprivacy.pipelinedp4j.core
 
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PrivacyIdContributions
+import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PrivacyIdContributionsKt.featureContribution
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PrivacyIdContributionsKt.multiValueContribution
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.privacyIdContributions
 
@@ -45,7 +46,7 @@ class PartitionAndPerPartitionSampler<PrivacyIdT : Any, PartitionKeyT : Any>(
   private val encoderFactory: EncoderFactory,
 ) : ContributionSampler<PrivacyIdT, PartitionKeyT> {
   override fun sampleContributions(
-    data: FrameworkCollection<ContributionWithPrivacyId<PrivacyIdT, PartitionKeyT>>
+    data: FrameworkCollection<MultiFeatureContribution<PrivacyIdT, PartitionKeyT>>
   ): FrameworkTable<PartitionKeyT, PrivacyIdContributions> {
     val perPartitionAggregatedData:
       FrameworkTable<PrivacyIdT, Pair<PartitionKeyT, PrivacyIdContributions>> =
@@ -95,14 +96,25 @@ class PartitionAndPerPartitionSampler<PrivacyIdT : Any, PartitionKeyT : Any>(
  * Merges contributions of the same (privacy ID, partition key) into one [PrivacyIdContributions].
  */
 private fun <PrivacyIdT : Any, PartitionKeyT : Any> mergeContributions(
-  partitionContributions: Iterable<ContributionWithPrivacyId<PrivacyIdT, PartitionKeyT>>
-): PrivacyIdContributions = privacyIdContributions {
-  for (partitionContribution in partitionContributions) {
-    val contributionValues = partitionContribution.values()
-    if (contributionValues.size == 1) {
-      singleValueContributions += contributionValues.first()
-    } else {
-      multiValueContributions += multiValueContribution { values += contributionValues }
+  partitionContributions: Iterable<MultiFeatureContribution<PrivacyIdT, PartitionKeyT>>
+): PrivacyIdContributions {
+  val allPerFeatureValues = partitionContributions.flatMap { it.perFeatureValues() }
+  val perFeatureValuesById = allPerFeatureValues.groupBy { it.featureId }
+
+  return privacyIdContributions {
+    for ((featureId, values) in perFeatureValuesById) {
+      features += featureContribution {
+        this.featureId = featureId
+        for (perFeatureValue in values) {
+          if (perFeatureValue.values.size == 1) {
+            singleValueContributions += perFeatureValue.values
+          } else {
+            multiValueContributions += multiValueContribution {
+              this.values += perFeatureValue.values
+            }
+          }
+        }
+      }
     }
   }
 }
