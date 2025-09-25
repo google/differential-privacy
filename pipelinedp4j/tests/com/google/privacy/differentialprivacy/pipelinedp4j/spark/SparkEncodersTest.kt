@@ -23,6 +23,7 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.core.encoderOfMultiFe
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.multiFeatureContribution
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.CompoundAccumulator
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.compoundAccumulator
+import com.google.privacy.differentialprivacy.pipelinedp4j.proto.featureAccumulator
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.meanAccumulator
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.quantilesAccumulator
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.sumAccumulator
@@ -81,15 +82,19 @@ class SparkEncodersTest {
     val input =
       listOf(
         compoundAccumulator {
-          sumAccumulator = sumAccumulator { sum = -123.0 }
-          meanAccumulator = meanAccumulator {
-            count = 12
-            normalizedSum = -1.543
-          }
-          quantilesAccumulator = quantilesAccumulator {
-            serializedQuantilesSummary =
-              ByteString.copyFrom(byteArrayOf(0x48, 0x65, 0x6c, 0x6c, 0x6f))
-          }
+          featureAccumulators.add(
+            featureAccumulator {
+              sum = sumAccumulator { sum = -123.0 }
+              mean = meanAccumulator {
+                count = 12
+                normalizedSum = -1.543
+              }
+              quantiles = quantilesAccumulator {
+                serializedQuantilesSummary =
+                  ByteString.copyFrom(byteArrayOf(0x48, 0x65, 0x6c, 0x6c, 0x6f))
+              }
+            }
+          )
         },
         compoundAccumulator {},
       )

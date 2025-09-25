@@ -23,16 +23,15 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.core.DpEngine
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.DpEngineBudgetSpec
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.Encoder
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.EncoderFactory
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.FeatureSpec
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.FeatureValuesExtractor
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.FrameworkCollection
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.FrameworkTable
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.ScalarFeatureSpec
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.SelectPartitionsParams
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.DpAggregates
-import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PerFeature
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.copy
-import com.google.privacy.differentialprivacy.pipelinedp4j.proto.dpAggregates
-import com.google.privacy.differentialprivacy.pipelinedp4j.proto.perFeature
 
 sealed interface Query<ReturnT> {
   /** Executes the query (in production mode). */
@@ -142,21 +141,6 @@ protected constructor(
         valueAndVectorAggs.map { it.getFeatureId() }
       }
     return aggResults
-      .zip(featureIdPerRun)
-      .map { (table, featureId) ->
-        table.mapValues("TagWithFeatureId", encoderFactory.protos(DpAggregates::class)) { _, agg ->
-          if (featureId == null) {
-            agg
-          } else {
-            val perFeature = constructPerFeature(agg, featureId)
-            dpAggregates {
-              count = agg.count
-              privacyIdCount = agg.privacyIdCount
-              this.perFeature += perFeature
-            }
-          }
-        }
-      }
       .reduce {
         acc: FrameworkTable<GroupKeysT, DpAggregates>,
         table: FrameworkTable<GroupKeysT, DpAggregates> ->
@@ -496,41 +480,59 @@ protected constructor(
   ): AggregationParams {
     val valueContributionBounds = valueAggregations?.contributionBounds
     val vectorContributionBounds = vectorAggregations?.vectorContributionBounds
+
+    val topLevelMetrics =
+      aggregationSpecs
+        .filter { it is Count || it is PrivacyIdCount }
+        .map { it.toMetricDefinition() }
+    val features =
+      mutableListOf<com.google.privacy.differentialprivacy.pipelinedp4j.core.FeatureSpec>()
+    if (valueAggregations != null) {
+      features.add(
+        com.google.privacy.differentialprivacy.pipelinedp4j.core.ScalarFeatureSpec(
+          featureId = valueAggregations.getFeatureId(),
+          metrics =
+            ImmutableList.copyOf(
+              valueAggregations.valueAggregationSpecs.map { it.toMetricDefinition() }
+            ),
+          minValue = valueContributionBounds?.valueBounds?.minValue,
+          maxValue = valueContributionBounds?.valueBounds?.maxValue,
+          minTotalValue = valueContributionBounds?.totalValueBounds?.minValue,
+          maxTotalValue = valueContributionBounds?.totalValueBounds?.maxValue,
+        )
+      )
+    }
+    if (vectorAggregations != null) {
+      checkNotNull(vectorContributionBounds)
+      features.add(
+        com.google.privacy.differentialprivacy.pipelinedp4j.core.VectorFeatureSpec(
+          featureId = vectorAggregations.getFeatureId(),
+          metrics =
+            ImmutableList.copyOf(
+              vectorAggregations.vectorAggregationSpecs.map { it.toMetricDefinition() }
+            ),
+          vectorSize =
+            checkNotNull(vectorAggregations.vectorSize) {
+              "vectorSize must be set for vector aggregations"
+            },
+          normKind = vectorContributionBounds.maxVectorTotalNorm.normKind.toInternalNormKind(),
+          vectorMaxTotalNorm = vectorContributionBounds.maxVectorTotalNorm.value,
+        )
+      )
+    }
+
     return AggregationParams(
-      metrics = ImmutableList.copyOf(aggregationSpecs.metrics()),
+      metrics = ImmutableList.copyOf(topLevelMetrics),
+      features = ImmutableList.copyOf(features),
       noiseKind =
         checkNotNull(noiseKind) { "noiseKind cannot be null if there are aggregations." }
           .toInternalNoiseKind(),
       maxPartitionsContributed = contributionBoundingLevel.getMaxPartitionsContributed(),
       maxContributionsPerPartition = contributionBoundingLevel.getMaxContributionsPerPartition(),
-      minValue = valueContributionBounds?.valueBounds?.minValue,
-      maxValue = valueContributionBounds?.valueBounds?.maxValue,
-      minTotalValue = valueContributionBounds?.totalValueBounds?.minValue,
-      maxTotalValue = valueContributionBounds?.totalValueBounds?.maxValue,
-      vectorNormKind = vectorContributionBounds?.maxVectorTotalNorm?.normKind?.toInternalNormKind(),
-      vectorMaxTotalNorm = vectorContributionBounds?.maxVectorTotalNorm?.value,
-      vectorSize = vectorAggregations?.vectorSize,
       partitionSelectionBudget = groupsType.getBudget()?.toInternalBudgetPerOpSpec(),
       preThreshold = groupsType.getPreThreshold(),
       contributionBoundingLevel = contributionBoundingLevel.toInternalContributionBoundingLevel(),
       partitionsBalance = groupByAdditionalParameters.groupsBalance.toPartitionsBalance(),
     )
-  }
-
-  companion object {
-    private fun constructPerFeature(dpAggregates: DpAggregates, featureId: String): PerFeature {
-      return perFeature {
-        this.featureId = featureId
-        sum = dpAggregates.sum
-        mean = dpAggregates.mean
-        variance = dpAggregates.variance
-        if (dpAggregates.quantilesList.isNotEmpty()) {
-          quantiles += dpAggregates.quantilesList
-        }
-        if (dpAggregates.vectorSumList.isNotEmpty()) {
-          vectorSum += dpAggregates.vectorSumList
-        }
-      }
-    }
   }
 }
