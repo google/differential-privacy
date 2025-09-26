@@ -25,9 +25,11 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.VARIA
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.AllocatedBudget
 import com.google.privacy.differentialprivacy.pipelinedp4j.dplibrary.NoiseFactory
 import com.google.privacy.differentialprivacy.pipelinedp4j.dplibrary.ZeroNoiseFactory
+import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PrivacyIdContributionsKt.featureContribution
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.compoundAccumulator
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.countAccumulator
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.dpAggregates
+import com.google.privacy.differentialprivacy.pipelinedp4j.proto.featureAccumulator
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.meanAccumulator
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.privacyIdContributions
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.privacyIdCountAccumulator
@@ -96,7 +98,12 @@ class CompoundCombinerTest {
 
     val accumulator =
       compoundCombiner.createAccumulator(
-        privacyIdContributions { singleValueContributions += listOf(10.0, 10.0, 10.0) }
+        privacyIdContributions {
+          features += featureContribution {
+            featureId = ""
+            singleValueContributions += listOf(10.0, 10.0, 10.0)
+          }
+        }
       )
 
     assertThat(accumulator)
@@ -125,14 +132,22 @@ class CompoundCombinerTest {
 
     val accumulator =
       compoundCombiner.createAccumulator(
-        privacyIdContributions { singleValueContributions += listOf(10.0, 10.0, 10.0) }
+        privacyIdContributions {
+          features += featureContribution {
+            featureId = ""
+            singleValueContributions += listOf(10.0, 10.0, 10.0)
+          }
+        }
       )
 
     assertThat(accumulator)
       .isEqualTo(
         compoundAccumulator {
           countAccumulator = countAccumulator { count = 3 }
-          sumAccumulator = sumAccumulator { sum = 30.0 }
+          featureAccumulators += featureAccumulator {
+            featureId = ""
+            sum = sumAccumulator { sum = 30.0 }
+          }
         }
       )
   }
@@ -154,15 +169,23 @@ class CompoundCombinerTest {
 
     val accumulator =
       compoundCombiner.createAccumulator(
-        privacyIdContributions { singleValueContributions += listOf(5.0, 10.5, 19.0) }
+        privacyIdContributions {
+          features += featureContribution {
+            featureId = ""
+            singleValueContributions += listOf(5.0, 10.5, 19.0)
+          }
+        }
       )
 
     assertThat(accumulator)
       .isEqualTo(
         compoundAccumulator {
-          meanAccumulator = meanAccumulator {
-            count = 3
-            normalizedSum = 34.5
+          featureAccumulators += featureAccumulator {
+            featureId = ""
+            mean = meanAccumulator {
+              count = 3
+              normalizedSum = 34.5
+            }
           }
         }
       )
@@ -186,16 +209,24 @@ class CompoundCombinerTest {
 
     val accumulator =
       compoundCombiner.createAccumulator(
-        privacyIdContributions { singleValueContributions += listOf(5.0, 10.5, 19.0) }
+        privacyIdContributions {
+          features += featureContribution {
+            featureId = ""
+            singleValueContributions += listOf(5.0, 10.5, 19.0)
+          }
+        }
       )
 
     assertThat(accumulator)
       .isEqualTo(
         compoundAccumulator {
-          varianceAccumulator = varianceAccumulator {
-            count = 3
-            normalizedSum = 34.5
-            normalizedSumSquares = 496.25
+          featureAccumulators += featureAccumulator {
+            featureId = ""
+            variance = varianceAccumulator {
+              count = 3
+              normalizedSum = 34.5
+              normalizedSumSquares = 496.25
+            }
           }
         }
       )
@@ -225,11 +256,17 @@ class CompoundCombinerTest {
       compoundCombiner.mergeAccumulators(
         compoundAccumulator {
           countAccumulator = countAccumulator { count = 1 }
-          sumAccumulator = sumAccumulator { sum = 10.0 }
+          featureAccumulators += featureAccumulator {
+            featureId = ""
+            sum = sumAccumulator { sum = 10.0 }
+          }
         },
         compoundAccumulator {
           countAccumulator = countAccumulator { count = 2 }
-          sumAccumulator = sumAccumulator { sum = 20.0 }
+          featureAccumulators += featureAccumulator {
+            featureId = ""
+            sum = sumAccumulator { sum = 20.0 }
+          }
         },
       )
 
@@ -237,7 +274,10 @@ class CompoundCombinerTest {
       .isEqualTo(
         compoundAccumulator {
           countAccumulator = countAccumulator { count = 3 }
-          sumAccumulator = sumAccumulator { sum = 30.0 }
+          featureAccumulators += featureAccumulator {
+            featureId = ""
+            sum = sumAccumulator { sum = 30.0 }
+          }
         }
       )
   }
@@ -284,15 +324,21 @@ class CompoundCombinerTest {
     val mergedAccumulator =
       compoundCombiner.mergeAccumulators(
         compoundAccumulator {
-          meanAccumulator = meanAccumulator {
-            count = 1
-            normalizedSum = 10.0
+          featureAccumulators += featureAccumulator {
+            featureId = ""
+            mean = meanAccumulator {
+              count = 1
+              normalizedSum = 10.0
+            }
           }
         },
         compoundAccumulator {
-          meanAccumulator = meanAccumulator {
-            count = 2
-            normalizedSum = 20.0
+          featureAccumulators += featureAccumulator {
+            featureId = ""
+            mean = meanAccumulator {
+              count = 2
+              normalizedSum = 20.0
+            }
           }
         },
       )
@@ -300,9 +346,12 @@ class CompoundCombinerTest {
     assertThat(mergedAccumulator)
       .isEqualTo(
         compoundAccumulator {
-          meanAccumulator = meanAccumulator {
-            count = 3
-            normalizedSum = 30.0
+          featureAccumulators += featureAccumulator {
+            featureId = ""
+            mean = meanAccumulator {
+              count = 3
+              normalizedSum = 30.0
+            }
           }
         }
       )
@@ -327,17 +376,23 @@ class CompoundCombinerTest {
     val mergedAccumulator =
       compoundCombiner.mergeAccumulators(
         compoundAccumulator {
-          varianceAccumulator = varianceAccumulator {
-            count = 1
-            normalizedSum = 10.0
-            normalizedSumSquares = 100.0
+          featureAccumulators += featureAccumulator {
+            featureId = ""
+            variance = varianceAccumulator {
+              count = 1
+              normalizedSum = 10.0
+              normalizedSumSquares = 100.0
+            }
           }
         },
         compoundAccumulator {
-          varianceAccumulator = varianceAccumulator {
-            count = 2
-            normalizedSum = 20.0
-            normalizedSumSquares = 200.0
+          featureAccumulators += featureAccumulator {
+            featureId = ""
+            variance = varianceAccumulator {
+              count = 2
+              normalizedSum = 20.0
+              normalizedSumSquares = 200.0
+            }
           }
         },
       )
@@ -345,10 +400,13 @@ class CompoundCombinerTest {
     assertThat(mergedAccumulator)
       .isEqualTo(
         compoundAccumulator {
-          varianceAccumulator = varianceAccumulator {
-            count = 3
-            normalizedSum = 30.0
-            normalizedSumSquares = 300.0
+          featureAccumulators += featureAccumulator {
+            featureId = ""
+            variance = varianceAccumulator {
+              count = 3
+              normalizedSum = 30.0
+              normalizedSumSquares = 300.0
+            }
           }
         }
       )
@@ -378,7 +436,10 @@ class CompoundCombinerTest {
       compoundCombiner.computeMetrics(
         compoundAccumulator {
           countAccumulator = countAccumulator { count = 3 }
-          sumAccumulator = sumAccumulator { sum = 30.0 }
+          featureAccumulators += featureAccumulator {
+            featureId = ""
+            sum = sumAccumulator { sum = 30.0 }
+          }
         }
       )
 
@@ -431,9 +492,12 @@ class CompoundCombinerTest {
     val dpAggregates =
       compoundCombiner.computeMetrics(
         compoundAccumulator {
-          meanAccumulator = meanAccumulator {
-            count = 3
-            normalizedSum = 30.0
+          featureAccumulators += featureAccumulator {
+            featureId = ""
+            mean = meanAccumulator {
+              count = 3
+              normalizedSum = 30.0
+            }
           }
         }
       )
@@ -466,9 +530,12 @@ class CompoundCombinerTest {
     val dpAggregates =
       compoundCombiner.computeMetrics(
         compoundAccumulator {
-          meanAccumulator = meanAccumulator {
-            count = 3
-            normalizedSum = 30.0
+          featureAccumulators += featureAccumulator {
+            featureId = ""
+            mean = meanAccumulator {
+              count = 3
+              normalizedSum = 30.0
+            }
           }
         }
       )
@@ -502,10 +569,13 @@ class CompoundCombinerTest {
     val dpAggregates =
       compoundCombiner.computeMetrics(
         compoundAccumulator {
-          varianceAccumulator = varianceAccumulator {
-            count = 10
-            normalizedSum = 120.0
-            normalizedSumSquares = 1500.0
+          featureAccumulators += featureAccumulator {
+            featureId = ""
+            variance = varianceAccumulator {
+              count = 10
+              normalizedSum = 120.0
+              normalizedSumSquares = 1500.0
+            }
           }
         }
       )
@@ -540,10 +610,13 @@ class CompoundCombinerTest {
     val dpAggregates =
       compoundCombiner.computeMetrics(
         compoundAccumulator {
-          varianceAccumulator = varianceAccumulator {
-            count = 10
-            normalizedSum = 120.0
-            normalizedSumSquares = 1500.0
+          featureAccumulators += featureAccumulator {
+            featureId = ""
+            variance = varianceAccumulator {
+              count = 10
+              normalizedSum = 120.0
+              normalizedSumSquares = 1500.0
+            }
           }
         }
       )
@@ -565,7 +638,12 @@ class CompoundCombinerTest {
 
     val accumulator =
       compoundCombiner.createAccumulator(
-        privacyIdContributions { singleValueContributions += listOf(10.0, 5.0) }
+        privacyIdContributions {
+          features += featureContribution {
+            featureId = ""
+            singleValueContributions += listOf(10.0, 5.0)
+          }
+        }
       )
 
     assertThat(accumulator)

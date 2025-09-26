@@ -21,6 +21,7 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.local.LocalCollection
 import com.google.privacy.differentialprivacy.pipelinedp4j.local.LocalEncoderFactory
 import com.google.privacy.differentialprivacy.pipelinedp4j.local.LocalTable
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PrivacyIdContributions
+import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PrivacyIdContributionsKt.featureContribution
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.privacyIdContributions
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -34,10 +35,26 @@ class NoPrivacySamplerTest {
     val inputData =
       LocalCollection(
         sequenceOf(
-          contributionWithPrivacyId("privacyId1", "pk1", 1.0),
-          contributionWithPrivacyId("privacyId1", "pk1", 2.0),
-          contributionWithPrivacyId("privacyId1", "pk1", 3.0),
-          contributionWithPrivacyId("privacyId1", "pk1", 4.0),
+          multiFeatureContribution(
+            "privacyId1",
+            "pk1",
+            PerFeatureValues(featureId = "", values = listOf(1.0)),
+          ),
+          multiFeatureContribution(
+            "privacyId1",
+            "pk1",
+            PerFeatureValues(featureId = "", values = listOf(2.0)),
+          ),
+          multiFeatureContribution(
+            "privacyId1",
+            "pk1",
+            PerFeatureValues(featureId = "", values = listOf(3.0)),
+          ),
+          multiFeatureContribution(
+            "privacyId1",
+            "pk1",
+            PerFeatureValues(featureId = "", values = listOf(4.0)),
+          ),
         )
       )
 
@@ -45,10 +62,15 @@ class NoPrivacySamplerTest {
       NoPrivacySampler(LOCAL_EF.strings(), LOCAL_EF.strings(), LOCAL_EF)
         .sampleContributions(inputData) as LocalTable<String, PrivacyIdContributions>
     val returnedContributionsPk1 =
-      sampledData.data.toMap().getValue("pk1").singleValueContributionsList
+      sampledData.data
+        .toMap()
+        .getValue("pk1")
+        .featuresList
+        .find { it.featureId == "" }!!
+        .singleValueContributionsList
 
     // Returned contributions are of the same size as the originals.
-    assertThat(returnedContributionsPk1).hasSize(4)
+    assertThat(returnedContributionsPk1.size).isEqualTo(4)
     // Returned partition keys are all in the list of the contributed partition keys.
     assertThat(contributionsPk1).containsExactlyElementsIn(returnedContributionsPk1)
   }
@@ -58,14 +80,46 @@ class NoPrivacySamplerTest {
     val inputData =
       LocalCollection(
         sequenceOf(
-          contributionWithPrivacyId("privacyId1", "pk1", 1.0),
-          contributionWithPrivacyId("privacyId1", "pk1", 2.0),
-          contributionWithPrivacyId("privacyId1", "pk1", 3.0),
-          contributionWithPrivacyId("privacyId1", "pk1", 4.0),
-          contributionWithPrivacyId("privacyId1", "pk2", 5.0),
-          contributionWithPrivacyId("privacyId1", "pk2", 6.0),
-          contributionWithPrivacyId("privacyId2", "pk2", 7.0),
-          contributionWithPrivacyId("privacyId2", "pk2", 8.0),
+          multiFeatureContribution(
+            "privacyId1",
+            "pk1",
+            PerFeatureValues(featureId = "", values = listOf(1.0)),
+          ),
+          multiFeatureContribution(
+            "privacyId1",
+            "pk1",
+            PerFeatureValues(featureId = "", values = listOf(2.0)),
+          ),
+          multiFeatureContribution(
+            "privacyId1",
+            "pk1",
+            PerFeatureValues(featureId = "", values = listOf(3.0)),
+          ),
+          multiFeatureContribution(
+            "privacyId1",
+            "pk1",
+            PerFeatureValues(featureId = "", values = listOf(4.0)),
+          ),
+          multiFeatureContribution(
+            "privacyId1",
+            "pk2",
+            PerFeatureValues(featureId = "", values = listOf(5.0)),
+          ),
+          multiFeatureContribution(
+            "privacyId1",
+            "pk2",
+            PerFeatureValues(featureId = "", values = listOf(6.0)),
+          ),
+          multiFeatureContribution(
+            "privacyId2",
+            "pk2",
+            PerFeatureValues(featureId = "", values = listOf(7.0)),
+          ),
+          multiFeatureContribution(
+            "privacyId2",
+            "pk2",
+            PerFeatureValues(featureId = "", values = listOf(8.0)),
+          ),
         )
       )
 
@@ -80,12 +134,27 @@ class NoPrivacySamplerTest {
         mapOf(
           "pk1" to
             setOf(
-              privacyIdContributions { singleValueContributions += listOf(1.0, 2.0, 3.0, 4.0) }
+              privacyIdContributions {
+                features += featureContribution {
+                  featureId = ""
+                  singleValueContributions.addAll(listOf(1.0, 2.0, 3.0, 4.0))
+                }
+              }
             ),
           "pk2" to
             setOf(
-              privacyIdContributions { singleValueContributions += listOf(5.0, 6.0) },
-              privacyIdContributions { singleValueContributions += listOf(7.0, 8.0) },
+              privacyIdContributions {
+                features += featureContribution {
+                  featureId = ""
+                  singleValueContributions.addAll(listOf(5.0, 6.0))
+                }
+              },
+              privacyIdContributions {
+                features += featureContribution {
+                  featureId = ""
+                  singleValueContributions.addAll(listOf(7.0, 8.0))
+                }
+              },
             ),
         )
       )

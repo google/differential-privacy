@@ -27,6 +27,7 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.SUM
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.AllocatedBudget
 import com.google.privacy.differentialprivacy.pipelinedp4j.dplibrary.NoiseFactory
 import com.google.privacy.differentialprivacy.pipelinedp4j.dplibrary.ZeroNoiseFactory
+import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PrivacyIdContributionsKt.featureContribution
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.meanAccumulator
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.privacyIdContributions
 import com.google.testing.junit.testparameterinjector.TestParameter
@@ -95,7 +96,14 @@ class MeanCombinerTest {
       )
 
     val accumulator =
-      combiner.createAccumulator(privacyIdContributions { singleValueContributions += listOf(5.5) })
+      combiner.createAccumulator(
+        privacyIdContributions {
+          features += featureContribution {
+            featureId = ""
+            singleValueContributions.addAll(listOf(5.5))
+          }
+        }
+      )
 
     assertThat(accumulator)
       .isEqualTo(
@@ -119,7 +127,12 @@ class MeanCombinerTest {
 
     val accumulator =
       combiner.createAccumulator(
-        privacyIdContributions { singleValueContributions += listOf(-20.0, 30.0) }
+        privacyIdContributions {
+          features += featureContribution {
+            featureId = ""
+            singleValueContributions.addAll(listOf(-20.0, 30.0))
+          }
+        }
       )
 
     assertThat(accumulator)
@@ -144,7 +157,12 @@ class MeanCombinerTest {
 
     val accumulator =
       combiner.createAccumulator(
-        privacyIdContributions { singleValueContributions += listOf(-20.0, 30.0) }
+        privacyIdContributions {
+          features += featureContribution {
+            featureId = ""
+            singleValueContributions.addAll(listOf(-20.0, 30.0))
+          }
+        }
       )
 
     assertThat(accumulator)
@@ -168,7 +186,14 @@ class MeanCombinerTest {
       )
 
     val accumulator =
-      combiner.createAccumulator(privacyIdContributions { singleValueContributions += listOf(6.0) })
+      combiner.createAccumulator(
+        privacyIdContributions {
+          features += featureContribution {
+            featureId = ""
+            singleValueContributions.addAll(listOf(6.0))
+          }
+        }
+      )
 
     assertThat(accumulator)
       .isEqualTo(
@@ -192,7 +217,12 @@ class MeanCombinerTest {
 
     val accumulator =
       combiner.createAccumulator(
-        privacyIdContributions { singleValueContributions += listOf(30.0) }
+        privacyIdContributions {
+          features += featureContribution {
+            featureId = ""
+            singleValueContributions.addAll(listOf(30.0))
+          }
+        }
       )
 
     assertThat(accumulator)
@@ -217,7 +247,12 @@ class MeanCombinerTest {
 
     val accumulator =
       combiner.createAccumulator(
-        privacyIdContributions { singleValueContributions += listOf(3.0, 5.5, 6.0) }
+        privacyIdContributions {
+          features += featureContribution {
+            featureId = ""
+            singleValueContributions.addAll(listOf(3.0, 5.5, 6.0))
+          }
+        }
       )
 
     assertThat(accumulator)
@@ -428,10 +463,22 @@ class MeanCombinerTest {
     val accumulator0 = combiner.emptyAccumulator()
     val accumulator1 =
       combiner.createAccumulator(
-        privacyIdContributions { singleValueContributions += listOf(10.0, -10.0) }
+        privacyIdContributions {
+          features += featureContribution {
+            featureId = ""
+            singleValueContributions.addAll(listOf(10.0, -10.0))
+          }
+        }
       )
     val accumulator2 =
-      combiner.createAccumulator(privacyIdContributions { singleValueContributions += listOf(9.0) })
+      combiner.createAccumulator(
+        privacyIdContributions {
+          features += featureContribution {
+            featureId = ""
+            singleValueContributions.addAll(listOf(9.0))
+          }
+        }
+      )
     val accumulator3 = combiner.mergeAccumulators(accumulator0, accumulator1)
     val finalAccumulator = combiner.mergeAccumulators(accumulator2, accumulator3)
     val result = combiner.computeMetrics(finalAccumulator)

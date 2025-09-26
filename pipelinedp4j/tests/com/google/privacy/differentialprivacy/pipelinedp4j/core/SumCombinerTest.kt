@@ -26,6 +26,7 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.core.NoiseKind.GAUSSI
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.AllocatedBudget
 import com.google.privacy.differentialprivacy.pipelinedp4j.dplibrary.NoiseFactory
 import com.google.privacy.differentialprivacy.pipelinedp4j.dplibrary.ZeroNoiseFactory
+import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PrivacyIdContributionsKt.featureContribution
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.privacyIdContributions
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.sumAccumulator
 import com.google.testing.junit.testparameterinjector.TestParameterInjector
@@ -81,7 +82,12 @@ class SumCombinerTest {
 
     val accumulator =
       combiner.createAccumulator(
-        privacyIdContributions { singleValueContributions += listOf(-10.0, 15.0, 0.0) }
+        privacyIdContributions {
+          features += featureContribution {
+            featureId = ""
+            singleValueContributions += listOf(-10.0, 15.0, 0.0)
+          }
+        }
       )
 
     assertThat(accumulator).isEqualTo(sumAccumulator { sum = 5.0 })
@@ -104,7 +110,12 @@ class SumCombinerTest {
 
     val accumulator =
       combiner.createAccumulator(
-        privacyIdContributions { singleValueContributions += listOf(-1000.0, 1000.0, 500.0) }
+        privacyIdContributions {
+          features += featureContribution {
+            featureId = ""
+            singleValueContributions += listOf(-1000.0, 1000.0, 500.0)
+          }
+        }
       )
 
     assertThat(accumulator).isEqualTo(sumAccumulator { sum = 300.0 })
@@ -127,7 +138,12 @@ class SumCombinerTest {
 
     val accumulator =
       combiner.createAccumulator(
-        privacyIdContributions { singleValueContributions += listOf(-1000.0, 1000.0, 500.0) }
+        privacyIdContributions {
+          features += featureContribution {
+            featureId = ""
+            singleValueContributions += listOf(-1000.0, 1000.0, 500.0)
+          }
+        }
       )
 
     assertThat(accumulator).isEqualTo(sumAccumulator { sum = 500.0 })
@@ -211,11 +227,21 @@ class SumCombinerTest {
     val accumulator0 = combiner.emptyAccumulator()
     val accumulator1 =
       combiner.createAccumulator(
-        privacyIdContributions { singleValueContributions += listOf(-2.0, 3.0) }
+        privacyIdContributions {
+          features += featureContribution {
+            featureId = ""
+            singleValueContributions += listOf(-2.0, 3.0)
+          }
+        }
       )
     val accumulator2 =
       combiner.createAccumulator(
-        privacyIdContributions { singleValueContributions += listOf(4.0, -1.0) }
+        privacyIdContributions {
+          features += featureContribution {
+            featureId = ""
+            singleValueContributions += listOf(4.0, -1.0)
+          }
+        }
       )
     val accumulator3 = combiner.mergeAccumulators(accumulator0, accumulator1)
     val finalAccumulator = combiner.mergeAccumulators(accumulator2, accumulator3)

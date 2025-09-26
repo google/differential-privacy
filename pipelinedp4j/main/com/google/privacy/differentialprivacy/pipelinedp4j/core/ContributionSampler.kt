@@ -17,6 +17,7 @@
 package com.google.privacy.differentialprivacy.pipelinedp4j.core
 
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PrivacyIdContributions
+import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PrivacyIdContributionsKt.featureContribution
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PrivacyIdContributionsKt.multiValueContribution
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.privacyIdContributions
 
@@ -30,7 +31,7 @@ sealed interface ContributionSampler<PrivacyIdT : Any, PartitionKeyT : Any> {
    * [PartitionKey], all its contributions are grouped inside the same entry.
    */
   fun sampleContributions(
-    data: FrameworkCollection<ContributionWithPrivacyId<PrivacyIdT, PartitionKeyT>>
+    data: FrameworkCollection<MultiFeatureContribution<PrivacyIdT, PartitionKeyT>>
   ): FrameworkTable<PartitionKeyT, PrivacyIdContributions>
 }
 
@@ -39,9 +40,9 @@ sealed interface ContributionSampler<PrivacyIdT : Any, PartitionKeyT : Any> {
  * assuming that they all belong to the same [PrivacyId].
  */
 internal fun <PrivacyIdT : Any, PartitionKeyT : Any> samplePartitions(
-  contributions: Iterable<ContributionWithPrivacyId<PrivacyIdT, PartitionKeyT>>,
+  contributions: Iterable<MultiFeatureContribution<PrivacyIdT, PartitionKeyT>>,
   maxPartitionsContributed: Int,
-): Collection<ContributionWithPrivacyId<PrivacyIdT, PartitionKeyT>> {
+): Collection<MultiFeatureContribution<PrivacyIdT, PartitionKeyT>> {
   val allPartitions = contributions.map { it.partitionKey() }.toSet()
   val keptPartitions = sampleNElements(allPartitions, maxPartitionsContributed).toSet()
   return contributions.filter { it.partitionKey() in keptPartitions }
@@ -53,17 +54,28 @@ internal fun <PrivacyIdT : Any, PartitionKeyT : Any> samplePartitions(
  * into a [PrivacyIdContributions] and returns it.
  */
 internal fun <PrivacyIdT : Any, PartitionKeyT : Any> sampleContributionsPerPartition(
-  partitionContributions: Iterable<ContributionWithPrivacyId<PrivacyIdT, PartitionKeyT>>,
+  partitionContributions: Iterable<MultiFeatureContribution<PrivacyIdT, PartitionKeyT>>,
   maxContributionsPerPartition: Int,
 ): PrivacyIdContributions {
-  val sampledListsOfValues: Collection<List<Double>> =
-    sampleNElements(partitionContributions.map { it.values() }, maxContributionsPerPartition)
+  val sampledContributions =
+    sampleNElements(partitionContributions.toList(), maxContributionsPerPartition)
+
+  val allPerFeatureValues = sampledContributions.flatMap { it.perFeatureValues() }
+  val perFeatureValuesById = allPerFeatureValues.groupBy { it.featureId }
+
   return privacyIdContributions {
-    for (sampledValues in sampledListsOfValues) {
-      if (sampledValues.size == 1) {
-        singleValueContributions += sampledValues.first()
-      } else {
-        multiValueContributions += multiValueContribution { values += sampledValues }
+    for ((featureId, values) in perFeatureValuesById) {
+      features += featureContribution {
+        this.featureId = featureId
+        for (perFeatureValue in values) {
+          if (perFeatureValue.values.size == 1) {
+            singleValueContributions += perFeatureValue.values
+          } else {
+            multiValueContributions += multiValueContribution {
+              this.values += perFeatureValue.values
+            }
+          }
+        }
       }
     }
   }

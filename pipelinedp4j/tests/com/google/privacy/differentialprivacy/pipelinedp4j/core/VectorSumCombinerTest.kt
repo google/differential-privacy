@@ -29,6 +29,7 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.core.NoiseKind.GAUSSI
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.AllocatedBudget
 import com.google.privacy.differentialprivacy.pipelinedp4j.dplibrary.NoiseFactory
 import com.google.privacy.differentialprivacy.pipelinedp4j.dplibrary.ZeroNoiseFactory
+import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PrivacyIdContributionsKt.featureContribution
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PrivacyIdContributionsKt.multiValueContribution
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.privacyIdContributions
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.vectorSumAccumulator
@@ -91,11 +92,15 @@ class VectorSumCombinerTest {
     val accumulator =
       combiner.createAccumulator(
         privacyIdContributions {
-          multiValueContributions +=
-            listOf(
-              multiValueContribution { values += listOf(-10.0, 15.0, 0.0) },
-              multiValueContribution { values += listOf(10.0, 20.0, -1.0) },
+          features += featureContribution {
+            featureId = ""
+            multiValueContributions.addAll(
+              listOf(
+                multiValueContribution { values.addAll(listOf(-10.0, 15.0, 0.0)) },
+                multiValueContribution { values.addAll(listOf(10.0, 20.0, -1.0)) },
+              )
             )
+          }
         }
       )
 
@@ -123,11 +128,15 @@ class VectorSumCombinerTest {
     val accumulator =
       combiner.createAccumulator(
         privacyIdContributions {
-          multiValueContributions +=
-            listOf(
-              multiValueContribution { values += listOf(-10.0, 75.0, 0.0) },
-              multiValueContribution { values += listOf(10.0, -40.0, -1.0) },
+          features += featureContribution {
+            featureId = ""
+            multiValueContributions.addAll(
+              listOf(
+                multiValueContribution { values.addAll(listOf(-10.0, 75.0, 0.0)) },
+                multiValueContribution { values.addAll(listOf(10.0, -40.0, -1.0)) },
+              )
             )
+          }
         }
       )
 
@@ -154,12 +163,16 @@ class VectorSumCombinerTest {
     val accumulator =
       combiner.createAccumulator(
         privacyIdContributions {
-          multiValueContributions +=
-            listOf(
-              multiValueContribution { values += listOf(-4.0, 2.0) },
-              multiValueContribution { values += listOf(-5.0, 1.0) },
-              multiValueContribution { values += listOf(-3.0, 1.0) },
+          features += featureContribution {
+            featureId = ""
+            multiValueContributions.addAll(
+              listOf(
+                multiValueContribution { values.addAll(listOf(-4.0, 2.0)) },
+                multiValueContribution { values.addAll(listOf(-5.0, 1.0)) },
+                multiValueContribution { values.addAll(listOf(-3.0, 1.0)) },
+              )
             )
+          }
         }
       )
 
@@ -184,11 +197,15 @@ class VectorSumCombinerTest {
     val accumulator =
       combiner.createAccumulator(
         privacyIdContributions {
-          multiValueContributions +=
-            listOf(
-              multiValueContribution { values += listOf(-10.0, 2.0) },
-              multiValueContribution { values += listOf(-2.0, 3.0) },
+          features += featureContribution {
+            featureId = ""
+            multiValueContributions.addAll(
+              listOf(
+                multiValueContribution { values.addAll(listOf(-10.0, 2.0)) },
+                multiValueContribution { values.addAll(listOf(-2.0, 3.0)) },
+              )
             )
+          }
         }
       )
 
@@ -213,11 +230,15 @@ class VectorSumCombinerTest {
     val accumulator =
       combiner.createAccumulator(
         privacyIdContributions {
-          multiValueContributions +=
-            listOf(
-              multiValueContribution { values += listOf(-10.0, 15.0, 0.0) },
-              multiValueContribution { values += listOf(10.0, 20.0, -1.0) },
+          features += featureContribution {
+            featureId = ""
+            multiValueContributions.addAll(
+              listOf(
+                multiValueContribution { values.addAll(listOf(-10.0, 15.0, 0.0)) },
+                multiValueContribution { values.addAll(listOf(10.0, 20.0, -1.0)) },
+              )
             )
+          }
         }
       )
 
@@ -406,18 +427,26 @@ class VectorSumCombinerTest {
     val accumulator1 =
       combiner.createAccumulator(
         privacyIdContributions {
-          multiValueContributions +=
-            listOf(
-              multiValueContribution { values += listOf(-10.0, 15.0, 1.0) },
-              multiValueContribution { values += listOf(10.0, 20.0, -1.0) },
+          features += featureContribution {
+            featureId = ""
+            multiValueContributions.addAll(
+              listOf(
+                multiValueContribution { values.addAll(listOf(-10.0, 15.0, 1.0)) },
+                multiValueContribution { values.addAll(listOf(10.0, 20.0, -1.0)) },
+              )
             )
+          }
         }
       )
     val accumulator2 =
       combiner.createAccumulator(
         privacyIdContributions {
-          multiValueContributions +=
-            listOf(multiValueContribution { values += listOf(3.0, 0.0, 4.0) })
+          features += featureContribution {
+            featureId = ""
+            multiValueContributions.add(
+              multiValueContribution { values.addAll(listOf(3.0, 0.0, 4.0)) }
+            )
+          }
         }
       )
     val accumulator3 = combiner.mergeAccumulators(accumulator0, accumulator1)
