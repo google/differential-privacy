@@ -53,6 +53,11 @@ message PrivacyIdContributions {
   message MultiValueContribution {
     repeated double values = 1;
   }
+  message FeatureContribution {
+    string feature_id = 1;
+    repeated double single_value_contributions = 2;
+    repeated MultiValueContribution multi_value_contributions = 3;
+  }
 
   // Used for metrics like VECTOR_SUM where a single contribution has
   // multiple double values.
@@ -60,4 +65,6 @@ message PrivacyIdContributions {
   // Used for metrics like SUM where a single contribution has
   // a single double value.
   repeated double single_value_contributions = 2;
+  // User contributions per each feature.
+  repeated FeatureContribution features = 3;
 }
