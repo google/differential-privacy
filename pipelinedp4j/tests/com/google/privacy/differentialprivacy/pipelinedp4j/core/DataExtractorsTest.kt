@@ -25,17 +25,18 @@ import org.junit.runners.JUnit4
 @RunWith(JUnit4::class)
 class DataExtractorsTest {
   @Test
-  fun from_withValueExtractor_constructsDataExtractors() {
+  fun from_withScalarValueExtractor_constructsDataExtractors() {
     val inputRow = InputRow(privacyId = "userId", partitionKey = "partitionKey", value = 10.0)
     val ef = LocalEncoderFactory()
 
     val dataExtractors =
-      DataExtractors.from<InputRow, String, String>(
-        { it.privacyId },
+      DataExtractors.from(
+        { inputRow: InputRow -> inputRow.privacyId },
         ef.strings(),
-        { it.partitionKey },
+        { inputRow: InputRow -> inputRow.partitionKey },
         ef.strings(),
-        { it.value },
+        valuesExtractors =
+          listOf(FeatureValuesExtractor("feature") { inputRow: InputRow -> listOf(inputRow.value) }),
       )
     val extractedContribution = dataExtractors.contributionExtractor.invoke(inputRow)
 
@@ -44,23 +45,28 @@ class DataExtractorsTest {
         multiFeatureContribution(
           "userId",
           "partitionKey",
-          PerFeatureValues(featureId = "", values = listOf(10.0)),
+          PerFeatureValues(featureId = "feature", values = listOf(10.0)),
         )
       )
   }
 
   @Test
-  fun forVectorfrom_withValuesExtractor_constructsDataExtractors() {
+  fun from_withVectorValueExtractor_constructsDataExtractors() {
     val inputRow = InputRow(privacyId = "userId", partitionKey = "partitionKey", value = 10.0)
     val ef = LocalEncoderFactory()
 
     val dataExtractors =
-      DataExtractors.forVectorFrom<InputRow, String, String>(
-        { it.privacyId },
+      DataExtractors.from(
+        { inputRow: InputRow -> inputRow.privacyId },
         ef.strings(),
-        { it.partitionKey },
+        { inputRow: InputRow -> inputRow.partitionKey },
         ef.strings(),
-        { listOf(it.value, it.value, it.value) },
+        valuesExtractors =
+          listOf(
+            FeatureValuesExtractor("feature") { inputRow: InputRow ->
+              listOf(inputRow.value, inputRow.value, inputRow.value)
+            }
+          ),
       )
     val extractedContribution = dataExtractors.contributionExtractor.invoke(inputRow)
 
@@ -69,7 +75,7 @@ class DataExtractorsTest {
         multiFeatureContribution(
           "userId",
           "partitionKey",
-          PerFeatureValues(featureId = "", values = listOf(10.0, 10.0, 10.0)),
+          PerFeatureValues(featureId = "feature", values = listOf(10.0, 10.0, 10.0)),
         )
       )
   }
@@ -94,6 +100,40 @@ class DataExtractorsTest {
           "userId",
           "partitionKey",
           PerFeatureValues(featureId = "", values = listOf(0.0)),
+        )
+      )
+  }
+
+  @Test
+  fun from_withMultipleFeatures_constructsDataExtractors() {
+    val inputRow = InputRow(privacyId = "userId", partitionKey = "partitionKey", value = 10.0)
+    val ef = LocalEncoderFactory()
+
+    val dataExtractors =
+      DataExtractors.from(
+        { inputRow: InputRow -> inputRow.privacyId },
+        ef.strings(),
+        { inputRow: InputRow -> inputRow.partitionKey },
+        ef.strings(),
+        valuesExtractors =
+          listOf(
+            FeatureValuesExtractor("feature1") { inputRow: InputRow -> listOf(inputRow.value) },
+            FeatureValuesExtractor("feature2") { inputRow: InputRow ->
+              listOf(inputRow.value, inputRow.value)
+            },
+          ),
+      )
+    val extractedContribution = dataExtractors.contributionExtractor.invoke(inputRow)
+
+    assertThat(extractedContribution)
+      .isEqualTo(
+        multiFeatureContribution(
+          "userId",
+          "partitionKey",
+          listOf(
+            PerFeatureValues(featureId = "feature1", values = listOf(10.0)),
+            PerFeatureValues(featureId = "feature2", values = listOf(10.0, 10.0)),
+          ),
         )
       )
   }
