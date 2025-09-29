@@ -21,12 +21,12 @@ import java.io.Serializable
 /** An interface of a function that is also serializable. */
 fun interface SerializableFunction<S, T> : (S) -> T, Serializable {}
 
-/** An extractor of [ContributionWithPrivacyId] from the row of the input data being anonymized. */
+/** An extractor of [MultiFeatureContribution] from the row of the input data being anonymized. */
 class DataExtractors<T, PrivacyIdT : Any, PartitionKeyT : Any>
 @PublishedApi
 internal constructor(
   val contributionExtractor:
-    SerializableFunction<T, ContributionWithPrivacyId<PrivacyIdT, PartitionKeyT>>,
+    SerializableFunction<T, MultiFeatureContribution<PrivacyIdT, PartitionKeyT>>,
   val privacyIdEncoder: Encoder<PrivacyIdT>,
   val partitionKeyEncoder: Encoder<PartitionKeyT>,
   val hasValueExtractor: Boolean,
@@ -34,7 +34,7 @@ internal constructor(
   companion object {
     /**
      * Constructs a [DataExtractors] that uses the provided functions to extract a
-     * [ContributionWithPrivacyId] from the input data row.
+     * [MultiFeatureContribution] from the input data row.
      */
     inline fun <T, PrivacyIdT : Any, PartitionKeyT : Any> from(
       crossinline privacyIdExtractor: (T) -> PrivacyIdT,
@@ -45,10 +45,10 @@ internal constructor(
     ) =
       DataExtractors<T, PrivacyIdT, PartitionKeyT>(
         {
-          contributionWithPrivacyId(
+          multiFeatureContribution(
             privacyId = privacyIdExtractor(it),
             partitionKey = partitionKeyExtractor(it),
-            value = valueExtractor(it),
+            value = PerFeatureValues(featureId = "", values = listOf(valueExtractor(it))),
           )
         },
         privacyIdEncoder = privacyIdEncoder,
@@ -58,7 +58,7 @@ internal constructor(
 
     /**
      * Constructs a [DataExtractors] that uses the provided functions to extract a
-     * [ContributionWithPrivacyId] from the input data row.
+     * [MultiFeatureContribution] from the input data row.
      *
      * This version is useful when the user contribution consists of multiple values, e.g. when
      * claculating vector sum.
@@ -72,10 +72,10 @@ internal constructor(
     ) =
       DataExtractors<T, PrivacyIdT, PartitionKeyT>(
         {
-          contributionWithPrivacyId(
+          multiFeatureContribution(
             privacyId = privacyIdExtractor(it),
             partitionKey = partitionKeyExtractor(it),
-            values = valuesExtractor(it),
+            value = PerFeatureValues(featureId = "", values = valuesExtractor(it)),
           )
         },
         privacyIdEncoder = privacyIdEncoder,
@@ -85,7 +85,7 @@ internal constructor(
 
     /**
      * Constructs a [DataExtractors] that uses the provided functions to extract a privacy id and a
-     * partition key into [ContributionWithPrivacyId] from the input data row.
+     * partition key into [MultiFeatureContribution] from the input data row.
      */
     inline fun <T, PrivacyIdT : Any, PartitionKeyT : Any> from(
       crossinline privacyIdExtractor: (T) -> PrivacyIdT,
@@ -95,10 +95,10 @@ internal constructor(
     ) =
       DataExtractors<T, PrivacyIdT, PartitionKeyT>(
         {
-          contributionWithPrivacyId(
+          multiFeatureContribution(
             privacyId = privacyIdExtractor(it),
             partitionKey = partitionKeyExtractor(it),
-            value = .0,
+            value = PerFeatureValues(featureId = "", values = listOf(0.0)),
           )
         },
         privacyIdEncoder = privacyIdEncoder,

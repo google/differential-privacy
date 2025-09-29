@@ -18,9 +18,10 @@ package com.google.privacy.differentialprivacy.pipelinedp4j.beam
 
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder
 import com.google.common.truth.Truth.assertThat
-import com.google.privacy.differentialprivacy.pipelinedp4j.core.ContributionWithPrivacyId
-import com.google.privacy.differentialprivacy.pipelinedp4j.core.contributionWithPrivacyId
-import com.google.privacy.differentialprivacy.pipelinedp4j.core.encoderOfContributionWithPrivacyId
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.MultiFeatureContribution
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.PerFeatureValues
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.encoderOfMultiFeatureContribution
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.multiFeatureContribution
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.CompoundAccumulator
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.compoundAccumulator
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.meanAccumulator
@@ -146,21 +147,37 @@ class BeamEncodersTest {
   }
 
   @Test
-  fun contributionWithPrivacyIdOf_isPossibleToCreateBeamPCollectionOfThatType() {
+  fun multiFeatureContribution_isPossibleToCreateBeamPCollectionOfThatType() {
     val input =
       listOf(
-        contributionWithPrivacyId("privacyId1", "partitionKey1", -1.0),
-        contributionWithPrivacyId("privacyId2", "partitionKey1", 0.0),
-        contributionWithPrivacyId("privacyId1", "partitionKey2", 1.0),
-        contributionWithPrivacyId("privacyId3", "partitionKey3", 1.2345),
+        multiFeatureContribution(
+          "privacyId1",
+          "partitionKey1",
+          PerFeatureValues(featureId = "", values = listOf(-1.0)),
+        ),
+        multiFeatureContribution(
+          "privacyId2",
+          "partitionKey1",
+          PerFeatureValues(featureId = "", values = listOf(0.0)),
+        ),
+        multiFeatureContribution(
+          "privacyId1",
+          "partitionKey2",
+          PerFeatureValues(featureId = "", values = listOf(1.0)),
+        ),
+        multiFeatureContribution(
+          "privacyId3",
+          "partitionKey3",
+          PerFeatureValues(featureId = "", values = listOf(1.2345)),
+        ),
       )
     val inputCoder =
-      (encoderOfContributionWithPrivacyId(
+      (encoderOfMultiFeatureContribution(
           beamEncoderFactory.strings(),
           beamEncoderFactory.strings(),
           beamEncoderFactory,
         )
-          as BeamEncoder<ContributionWithPrivacyId<String, String>>)
+          as BeamEncoder<MultiFeatureContribution<String, String>>)
         .coder
 
     val pCollection = testPipeline.apply(Create.of(input).withCoder(inputCoder))

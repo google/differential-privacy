@@ -36,13 +36,41 @@ class PublicPartitionsTest {
     val inputData =
       LocalCollection(
         sequenceOf(
-          contributionWithPrivacyId("pid1", "privatePartition1", 1.0),
-          contributionWithPrivacyId("pid1", "privatePartition2", 1.0),
-          contributionWithPrivacyId("pid1", "publicPartition1", 1.0),
-          contributionWithPrivacyId("pid2", "publicPartition1", 1.0),
-          contributionWithPrivacyId("pid2", "publicPartition1", 1.0),
-          contributionWithPrivacyId("pid3", "publicPartition2", 1.0),
-          contributionWithPrivacyId("pid4", "privatePartition2", 1.0),
+          multiFeatureContribution(
+            "pid1",
+            "privatePartition1",
+            PerFeatureValues(featureId = "", values = listOf(1.0)),
+          ),
+          multiFeatureContribution(
+            "pid1",
+            "privatePartition2",
+            PerFeatureValues(featureId = "", values = listOf(1.0)),
+          ),
+          multiFeatureContribution(
+            "pid1",
+            "publicPartition1",
+            PerFeatureValues(featureId = "", values = listOf(1.0)),
+          ),
+          multiFeatureContribution(
+            "pid2",
+            "publicPartition1",
+            PerFeatureValues(featureId = "", values = listOf(1.0)),
+          ),
+          multiFeatureContribution(
+            "pid2",
+            "publicPartition1",
+            PerFeatureValues(featureId = "", values = listOf(1.0)),
+          ),
+          multiFeatureContribution(
+            "pid3",
+            "publicPartition2",
+            PerFeatureValues(featureId = "", values = listOf(1.0)),
+          ),
+          multiFeatureContribution(
+            "pid4",
+            "privatePartition2",
+            PerFeatureValues(featureId = "", values = listOf(1.0)),
+          ),
         )
       )
     val publicPartitions =
@@ -50,14 +78,30 @@ class PublicPartitionsTest {
 
     val result =
       inputData.dropNonPublicPartitions(publicPartitions, LOCAL_EF.strings(), partitionsBalance)
-        as LocalCollection<ContributionWithPrivacyId<String, String>>
+        as LocalCollection<MultiFeatureContribution<String, String>>
 
     assertThat(result.data.toList())
       .containsExactly(
-        contributionWithPrivacyId("pid1", "publicPartition1", 1.0),
-        contributionWithPrivacyId("pid2", "publicPartition1", 1.0),
-        contributionWithPrivacyId("pid2", "publicPartition1", 1.0),
-        contributionWithPrivacyId("pid3", "publicPartition2", 1.0),
+        multiFeatureContribution(
+          "pid1",
+          "publicPartition1",
+          PerFeatureValues(featureId = "", values = listOf(1.0)),
+        ),
+        multiFeatureContribution(
+          "pid2",
+          "publicPartition1",
+          PerFeatureValues(featureId = "", values = listOf(1.0)),
+        ),
+        multiFeatureContribution(
+          "pid2",
+          "publicPartition1",
+          PerFeatureValues(featureId = "", values = listOf(1.0)),
+        ),
+        multiFeatureContribution(
+          "pid3",
+          "publicPartition2",
+          PerFeatureValues(featureId = "", values = listOf(1.0)),
+        ),
       )
   }
 

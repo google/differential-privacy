@@ -20,17 +20,17 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.core.PartitionsBalanc
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.CompoundAccumulator
 
 /*
- * Filters out all [ContributionWithPrivacyId]s whose [PartitionKey]s are not present in
+ * Filters out all [MultiFeatureContribution]s whose [PartitionKey]s are not present in
  * the [publicPartitions] collection.
  */
 internal fun <PrivacyIdT : Any, PartitionKeyT : Any> FrameworkCollection<
-  ContributionWithPrivacyId<PrivacyIdT, PartitionKeyT>
+  MultiFeatureContribution<PrivacyIdT, PartitionKeyT>
 >
   .dropNonPublicPartitions(
   publicPartitions: FrameworkCollection<PartitionKeyT>,
   partitionKeyEncoder: Encoder<PartitionKeyT>,
   partitionsBalance: PartitionsBalance,
-): FrameworkCollection<ContributionWithPrivacyId<PrivacyIdT, PartitionKeyT>> {
+): FrameworkCollection<MultiFeatureContribution<PrivacyIdT, PartitionKeyT>> {
   return keyBy("KeyByPartitionKey", partitionKeyEncoder) { it.partitionKey() }
     .filterKeys(
       "DropNonPublicPartition",

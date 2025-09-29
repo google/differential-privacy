@@ -35,10 +35,26 @@ class PartitionSamplerTest {
     val inputData =
       LocalCollection(
         sequenceOf(
-          contributionWithPrivacyId("samePrivacyId", "red", 1.0),
-          contributionWithPrivacyId("samePrivacyId", "blue", 1.0),
-          contributionWithPrivacyId("samePrivacyId", "green", 1.0),
-          contributionWithPrivacyId("samePrivacyId", "orange", 1.0),
+          multiFeatureContribution(
+            "samePrivacyId",
+            "red",
+            PerFeatureValues(featureId = "", values = listOf(1.0)),
+          ),
+          multiFeatureContribution(
+            "samePrivacyId",
+            "blue",
+            PerFeatureValues(featureId = "", values = listOf(1.0)),
+          ),
+          multiFeatureContribution(
+            "samePrivacyId",
+            "green",
+            PerFeatureValues(featureId = "", values = listOf(1.0)),
+          ),
+          multiFeatureContribution(
+            "samePrivacyId",
+            "orange",
+            PerFeatureValues(featureId = "", values = listOf(1.0)),
+          ),
         )
       )
     val sampledData =
@@ -61,9 +77,21 @@ class PartitionSamplerTest {
     val inputData =
       LocalCollection(
         sequenceOf(
-          contributionWithPrivacyId("privacyId", "pk", 1.0),
-          contributionWithPrivacyId("privacyId", "pk", 1.0),
-          contributionWithPrivacyId("privacyId", "pk", 1.0),
+          multiFeatureContribution(
+            "privacyId",
+            "pk",
+            PerFeatureValues(featureId = "", values = listOf(1.0)),
+          ),
+          multiFeatureContribution(
+            "privacyId",
+            "pk",
+            PerFeatureValues(featureId = "", values = listOf(1.0)),
+          ),
+          multiFeatureContribution(
+            "privacyId",
+            "pk",
+            PerFeatureValues(featureId = "", values = listOf(1.0)),
+          ),
         )
       )
 
@@ -84,9 +112,21 @@ class PartitionSamplerTest {
     val inputData =
       LocalCollection(
         sequenceOf(
-          contributionWithPrivacyId("privacyId", "pk", 1.0),
-          contributionWithPrivacyId("privacyId", "pk", 1.0),
-          contributionWithPrivacyId("anotherPrivacyId", "pk", 2.0),
+          multiFeatureContribution(
+            "privacyId",
+            "pk",
+            PerFeatureValues(featureId = "", values = listOf(1.0)),
+          ),
+          multiFeatureContribution(
+            "privacyId",
+            "pk",
+            PerFeatureValues(featureId = "", values = listOf(1.0)),
+          ),
+          multiFeatureContribution(
+            "anotherPrivacyId",
+            "pk",
+            PerFeatureValues(featureId = "", values = listOf(2.0)),
+          ),
         )
       )
 
@@ -111,9 +151,21 @@ class PartitionSamplerTest {
     val inputData =
       LocalCollection(
         sequenceOf(
-          contributionWithPrivacyId("privacyId", "pk", listOf(1.0, 2.0)),
-          contributionWithPrivacyId("privacyId", "pk", listOf(3.0, 4.0)),
-          contributionWithPrivacyId("anotherPrivacyId", "pk", listOf(5.0, 6.0)),
+          multiFeatureContribution(
+            "privacyId",
+            "pk",
+            PerFeatureValues(featureId = "", values = listOf(1.0, 2.0)),
+          ),
+          multiFeatureContribution(
+            "privacyId",
+            "pk",
+            PerFeatureValues(featureId = "", values = listOf(3.0, 4.0)),
+          ),
+          multiFeatureContribution(
+            "anotherPrivacyId",
+            "pk",
+            PerFeatureValues(featureId = "", values = listOf(5.0, 6.0)),
+          ),
         )
       )
 
@@ -152,7 +204,15 @@ class PartitionSamplerTest {
     val contributedKeys = (0 until 100_000).map { it.toString() }
     val inputData =
       LocalCollection(
-        contributedKeys.map { contributionWithPrivacyId("privacyId", it, value = 1.0) }.asSequence()
+        contributedKeys
+          .map {
+            multiFeatureContribution(
+              "privacyId",
+              it,
+              PerFeatureValues(featureId = "", values = listOf(1.0)),
+            )
+          }
+          .asSequence()
       )
 
     val sampledData =

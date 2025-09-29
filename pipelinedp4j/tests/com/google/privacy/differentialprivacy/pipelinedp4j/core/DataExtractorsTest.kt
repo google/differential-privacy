@@ -40,7 +40,13 @@ class DataExtractorsTest {
     val extractedContribution = dataExtractors.contributionExtractor.invoke(inputRow)
 
     assertThat(extractedContribution)
-      .isEqualTo(contributionWithPrivacyId("userId", "partitionKey", 10.0))
+      .isEqualTo(
+        multiFeatureContribution(
+          "userId",
+          "partitionKey",
+          PerFeatureValues(featureId = "", values = listOf(10.0)),
+        )
+      )
   }
 
   @Test
@@ -59,7 +65,13 @@ class DataExtractorsTest {
     val extractedContribution = dataExtractors.contributionExtractor.invoke(inputRow)
 
     assertThat(extractedContribution)
-      .isEqualTo(contributionWithPrivacyId("userId", "partitionKey", listOf(10.0, 10.0, 10.0)))
+      .isEqualTo(
+        multiFeatureContribution(
+          "userId",
+          "partitionKey",
+          PerFeatureValues(featureId = "", values = listOf(10.0, 10.0, 10.0)),
+        )
+      )
   }
 
   @Test
@@ -77,7 +89,13 @@ class DataExtractorsTest {
     val extractedContribution = dataExtractors.contributionExtractor.invoke(inputRow)
 
     assertThat(extractedContribution)
-      .isEqualTo(contributionWithPrivacyId("userId", "partitionKey", 0.0))
+      .isEqualTo(
+        multiFeatureContribution(
+          "userId",
+          "partitionKey",
+          PerFeatureValues(featureId = "", values = listOf(0.0)),
+        )
+      )
   }
 }
 

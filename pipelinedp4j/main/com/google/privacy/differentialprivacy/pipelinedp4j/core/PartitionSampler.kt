@@ -67,7 +67,7 @@ class PartitionSamplerWithoutValues<PrivacyIdT : Any, PartitionKeyT : Any>(
     ),
 ) : ContributionSampler<PrivacyIdT, PartitionKeyT> {
   override fun sampleContributions(
-    data: FrameworkCollection<ContributionWithPrivacyId<PrivacyIdT, PartitionKeyT>>
+    data: FrameworkCollection<MultiFeatureContribution<PrivacyIdT, PartitionKeyT>>
   ): FrameworkTable<PartitionKeyT, PrivacyIdContributions> =
     sampler
       .sampleContributions(data)

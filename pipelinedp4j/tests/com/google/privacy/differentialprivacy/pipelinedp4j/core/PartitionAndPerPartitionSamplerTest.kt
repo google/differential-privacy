@@ -48,10 +48,26 @@ class PartitionAndPerPartitionSamplerTest {
     val inputData =
       LocalCollection(
         sequenceOf(
-          contributionWithPrivacyId("samePrivacyId", "red", 1.0),
-          contributionWithPrivacyId("samePrivacyId", "blue", 1.0),
-          contributionWithPrivacyId("samePrivacyId", "green", 1.0),
-          contributionWithPrivacyId("samePrivacyId", "orange", 1.0),
+          multiFeatureContribution(
+            "samePrivacyId",
+            "red",
+            PerFeatureValues(featureId = "", values = listOf(1.0)),
+          ),
+          multiFeatureContribution(
+            "samePrivacyId",
+            "blue",
+            PerFeatureValues(featureId = "", values = listOf(1.0)),
+          ),
+          multiFeatureContribution(
+            "samePrivacyId",
+            "green",
+            PerFeatureValues(featureId = "", values = listOf(1.0)),
+          ),
+          multiFeatureContribution(
+            "samePrivacyId",
+            "orange",
+            PerFeatureValues(featureId = "", values = listOf(1.0)),
+          ),
         )
       )
 
@@ -76,10 +92,26 @@ class PartitionAndPerPartitionSamplerTest {
     val inputData =
       LocalCollection(
         sequenceOf(
-          contributionWithPrivacyId("samePrivacyId", "samePk", 1.0),
-          contributionWithPrivacyId("samePrivacyId", "samePk", 2.0),
-          contributionWithPrivacyId("samePrivacyId", "samePk", 3.0),
-          contributionWithPrivacyId("samePrivacyId", "samePk", 4.0),
+          multiFeatureContribution(
+            "samePrivacyId",
+            "samePk",
+            PerFeatureValues(featureId = "", values = listOf(1.0)),
+          ),
+          multiFeatureContribution(
+            "samePrivacyId",
+            "samePk",
+            PerFeatureValues(featureId = "", values = listOf(2.0)),
+          ),
+          multiFeatureContribution(
+            "samePrivacyId",
+            "samePk",
+            PerFeatureValues(featureId = "", values = listOf(3.0)),
+          ),
+          multiFeatureContribution(
+            "samePrivacyId",
+            "samePk",
+            PerFeatureValues(featureId = "", values = listOf(4.0)),
+          ),
         )
       )
 
@@ -106,10 +138,26 @@ class PartitionAndPerPartitionSamplerTest {
     val inputData =
       LocalCollection(
         sequenceOf(
-          contributionWithPrivacyId("samePrivacyId", "samePk", listOf(1.0, 2.0)),
-          contributionWithPrivacyId("samePrivacyId", "samePk", listOf(3.0, 4.0)),
-          contributionWithPrivacyId("samePrivacyId", "samePk", listOf(5.0, 6.0)),
-          contributionWithPrivacyId("samePrivacyId", "samePk", listOf(7.0, 8.0)),
+          multiFeatureContribution(
+            "samePrivacyId",
+            "samePk",
+            PerFeatureValues(featureId = "", values = listOf(1.0, 2.0)),
+          ),
+          multiFeatureContribution(
+            "samePrivacyId",
+            "samePk",
+            PerFeatureValues(featureId = "", values = listOf(3.0, 4.0)),
+          ),
+          multiFeatureContribution(
+            "samePrivacyId",
+            "samePk",
+            PerFeatureValues(featureId = "", values = listOf(5.0, 6.0)),
+          ),
+          multiFeatureContribution(
+            "samePrivacyId",
+            "samePk",
+            PerFeatureValues(featureId = "", values = listOf(7.0, 8.0)),
+          ),
         )
       )
 
@@ -144,11 +192,31 @@ class PartitionAndPerPartitionSamplerTest {
     val inputData =
       LocalCollection(
         sequenceOf(
-          contributionWithPrivacyId("privacyId", "pk", value = 1.0),
-          contributionWithPrivacyId("privacyId", "pk", value = 2.0),
-          contributionWithPrivacyId("privacyId", "anotherPk", value = 3.0),
-          contributionWithPrivacyId("privacyId", "anotherPk", value = 4.0),
-          contributionWithPrivacyId("anotherPrivacyId", "pk", value = 5.0),
+          multiFeatureContribution(
+            "privacyId",
+            "pk",
+            PerFeatureValues(featureId = "", values = listOf(1.0)),
+          ),
+          multiFeatureContribution(
+            "privacyId",
+            "pk",
+            PerFeatureValues(featureId = "", values = listOf(2.0)),
+          ),
+          multiFeatureContribution(
+            "privacyId",
+            "anotherPk",
+            PerFeatureValues(featureId = "", values = listOf(3.0)),
+          ),
+          multiFeatureContribution(
+            "privacyId",
+            "anotherPk",
+            PerFeatureValues(featureId = "", values = listOf(4.0)),
+          ),
+          multiFeatureContribution(
+            "anotherPrivacyId",
+            "pk",
+            PerFeatureValues(featureId = "", values = listOf(5.0)),
+          ),
         )
       )
 
@@ -175,7 +243,15 @@ class PartitionAndPerPartitionSamplerTest {
     val contributedKeys = (0 until 100_000).map { it.toString() }
     val inputData =
       LocalCollection(
-        contributedKeys.map { contributionWithPrivacyId("privacyId", it, value = 1.0) }.asSequence()
+        contributedKeys
+          .map {
+            multiFeatureContribution(
+              "privacyId",
+              it,
+              PerFeatureValues(featureId = "", values = listOf(1.0)),
+            )
+          }
+          .asSequence()
       )
 
     val sampledData =
@@ -198,7 +274,13 @@ class PartitionAndPerPartitionSamplerTest {
     val inputData =
       LocalCollection(
         (0 until 100_000)
-          .map { contributionWithPrivacyId("privacyId", "pk", value = it.toDouble()) }
+          .map {
+            multiFeatureContribution(
+              "privacyId",
+              "pk",
+              PerFeatureValues(featureId = "", values = listOf(it.toDouble())),
+            )
+          }
           .asSequence()
       )
 

@@ -45,7 +45,7 @@ class PartitionAndPerPartitionSampler<PrivacyIdT : Any, PartitionKeyT : Any>(
   private val encoderFactory: EncoderFactory,
 ) : ContributionSampler<PrivacyIdT, PartitionKeyT> {
   override fun sampleContributions(
-    data: FrameworkCollection<ContributionWithPrivacyId<PrivacyIdT, PartitionKeyT>>
+    data: FrameworkCollection<MultiFeatureContribution<PrivacyIdT, PartitionKeyT>>
   ): FrameworkTable<PartitionKeyT, PrivacyIdContributions> {
     val perPartitionAggregatedData:
       FrameworkTable<PrivacyIdT, Pair<PartitionKeyT, PrivacyIdContributions>> =
@@ -95,14 +95,17 @@ class PartitionAndPerPartitionSampler<PrivacyIdT : Any, PartitionKeyT : Any>(
  * Merges contributions of the same (privacy ID, partition key) into one [PrivacyIdContributions].
  */
 private fun <PrivacyIdT : Any, PartitionKeyT : Any> mergeContributions(
-  partitionContributions: Iterable<ContributionWithPrivacyId<PrivacyIdT, PartitionKeyT>>
+  partitionContributions: Iterable<MultiFeatureContribution<PrivacyIdT, PartitionKeyT>>
 ): PrivacyIdContributions = privacyIdContributions {
   for (partitionContribution in partitionContributions) {
-    val contributionValues = partitionContribution.values()
-    if (contributionValues.size == 1) {
-      singleValueContributions += contributionValues.first()
+    // TODO: Update to add support for multiple features.
+    // We expect that contribution contains only one feature with featureId="",
+    // produced by DataExtractors.
+    val perFeatureValues = partitionContribution.perFeatureValues().single()
+    if (perFeatureValues.values.size == 1) {
+      singleValueContributions += perFeatureValues.values
     } else {
-      multiValueContributions += multiValueContribution { values += contributionValues }
+      multiValueContributions += multiValueContribution { values += perFeatureValues.values }
     }
   }
 }

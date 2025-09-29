@@ -98,10 +98,10 @@ internal constructor(
   override fun aggregate(
     collection: FrameworkCollection<T>
   ): FrameworkTable<PartitionKeyT, DpAggregates> {
-    val extractedCol: FrameworkCollection<ContributionWithPrivacyId<PrivacyIdT, PartitionKeyT>> =
+    val extractedCol: FrameworkCollection<MultiFeatureContribution<PrivacyIdT, PartitionKeyT>> =
       collection.map(
         "ExtractContributions",
-        encoderOfContributionWithPrivacyId(
+        encoderOfMultiFeatureContribution(
           extractors.privacyIdEncoder,
           extractors.partitionKeyEncoder,
           encodersFactory,
@@ -173,10 +173,10 @@ internal constructor(
   override fun aggregate(
     collection: FrameworkCollection<T>
   ): FrameworkTable<PartitionKeyT, DpAggregates> {
-    val extractedCol: FrameworkCollection<ContributionWithPrivacyId<PrivacyIdT, PartitionKeyT>> =
+    val extractedCol: FrameworkCollection<MultiFeatureContribution<PrivacyIdT, PartitionKeyT>> =
       collection.map(
         "ExtractContributions",
-        encoderOfContributionWithPrivacyId(
+        encoderOfMultiFeatureContribution(
           extractors.privacyIdEncoder,
           extractors.partitionKeyEncoder,
           encodersFactory,
@@ -236,10 +236,10 @@ internal class SelectPartitionsComputationalGraph<T, PrivacyIdT : Any, Partition
 ) {
 
   fun selectPartitions(collection: FrameworkCollection<T>): FrameworkCollection<PartitionKeyT> {
-    val extractedCol: FrameworkCollection<ContributionWithPrivacyId<PrivacyIdT, PartitionKeyT>> =
+    val extractedCol: FrameworkCollection<MultiFeatureContribution<PrivacyIdT, PartitionKeyT>> =
       collection.map(
         "ExtractContributions",
-        encoderOfContributionWithPrivacyId(
+        encoderOfMultiFeatureContribution(
           extractors.privacyIdEncoder,
           extractors.partitionKeyEncoder,
           encodersFactory,

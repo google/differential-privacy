@@ -34,10 +34,26 @@ class NoPrivacySamplerTest {
     val inputData =
       LocalCollection(
         sequenceOf(
-          contributionWithPrivacyId("privacyId1", "pk1", 1.0),
-          contributionWithPrivacyId("privacyId1", "pk1", 2.0),
-          contributionWithPrivacyId("privacyId1", "pk1", 3.0),
-          contributionWithPrivacyId("privacyId1", "pk1", 4.0),
+          multiFeatureContribution(
+            "privacyId1",
+            "pk1",
+            PerFeatureValues(featureId = "", values = listOf(1.0)),
+          ),
+          multiFeatureContribution(
+            "privacyId1",
+            "pk1",
+            PerFeatureValues(featureId = "", values = listOf(2.0)),
+          ),
+          multiFeatureContribution(
+            "privacyId1",
+            "pk1",
+            PerFeatureValues(featureId = "", values = listOf(3.0)),
+          ),
+          multiFeatureContribution(
+            "privacyId1",
+            "pk1",
+            PerFeatureValues(featureId = "", values = listOf(4.0)),
+          ),
         )
       )
 
@@ -58,14 +74,46 @@ class NoPrivacySamplerTest {
     val inputData =
       LocalCollection(
         sequenceOf(
-          contributionWithPrivacyId("privacyId1", "pk1", 1.0),
-          contributionWithPrivacyId("privacyId1", "pk1", 2.0),
-          contributionWithPrivacyId("privacyId1", "pk1", 3.0),
-          contributionWithPrivacyId("privacyId1", "pk1", 4.0),
-          contributionWithPrivacyId("privacyId1", "pk2", 5.0),
-          contributionWithPrivacyId("privacyId1", "pk2", 6.0),
-          contributionWithPrivacyId("privacyId2", "pk2", 7.0),
-          contributionWithPrivacyId("privacyId2", "pk2", 8.0),
+          multiFeatureContribution(
+            "privacyId1",
+            "pk1",
+            PerFeatureValues(featureId = "", values = listOf(1.0)),
+          ),
+          multiFeatureContribution(
+            "privacyId1",
+            "pk1",
+            PerFeatureValues(featureId = "", values = listOf(2.0)),
+          ),
+          multiFeatureContribution(
+            "privacyId1",
+            "pk1",
+            PerFeatureValues(featureId = "", values = listOf(3.0)),
+          ),
+          multiFeatureContribution(
+            "privacyId1",
+            "pk1",
+            PerFeatureValues(featureId = "", values = listOf(4.0)),
+          ),
+          multiFeatureContribution(
+            "privacyId1",
+            "pk2",
+            PerFeatureValues(featureId = "", values = listOf(5.0)),
+          ),
+          multiFeatureContribution(
+            "privacyId1",
+            "pk2",
+            PerFeatureValues(featureId = "", values = listOf(6.0)),
+          ),
+          multiFeatureContribution(
+            "privacyId2",
+            "pk2",
+            PerFeatureValues(featureId = "", values = listOf(7.0)),
+          ),
+          multiFeatureContribution(
+            "privacyId2",
+            "pk2",
+            PerFeatureValues(featureId = "", values = listOf(8.0)),
+          ),
         )
       )
 
