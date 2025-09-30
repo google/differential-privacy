@@ -41,7 +41,7 @@ import org.mockito.kotlin.verify
 class CountCombinerTest {
   private val AGG_PARAMS =
     AggregationParams(
-      metrics = ImmutableList.of(MetricDefinition(COUNT)),
+      nonFeatureMetrics = ImmutableList.of(MetricDefinition(COUNT)),
       noiseKind = GAUSSIAN,
       maxPartitionsContributed = 3,
       maxContributionsPerPartition = 5,
@@ -156,7 +156,7 @@ class CountCombinerTest {
   fun computeMetrics_addsNoise(noiseKind: NoiseKind, delta: Double) {
     val paramsWithNoise =
       AggregationParams(
-        metrics = ImmutableList.of(MetricDefinition(COUNT)),
+        nonFeatureMetrics = ImmutableList.of(MetricDefinition(COUNT)),
         noiseKind = noiseKind,
         maxPartitionsContributed = 30,
         maxContributionsPerPartition = 50,
@@ -175,7 +175,7 @@ class CountCombinerTest {
   fun computeMetrics_passesCorrectParametersToNoise() {
     val params =
       AggregationParams(
-        metrics = ImmutableList.of(MetricDefinition(COUNT)),
+        nonFeatureMetrics = ImmutableList.of(MetricDefinition(COUNT)),
         noiseKind = GAUSSIAN,
         maxPartitionsContributed = 3,
         maxContributionsPerPartition = 5,

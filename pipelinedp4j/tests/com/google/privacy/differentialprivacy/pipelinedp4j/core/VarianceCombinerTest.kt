@@ -50,6 +50,7 @@ class VarianceCombinerTest {
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
         ExecutionMode.PRODUCTION,
+        AGG_PARAMS.features[0] as ScalarFeatureSpec,
       )
 
     val accumulator = combiner.emptyAccumulator()
@@ -66,14 +67,27 @@ class VarianceCombinerTest {
 
   @Test
   fun createAccumulator_doesNotClampContributionsWithinBounds() {
+    val params =
+      AGG_PARAMS.copy(
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              featureId = "value",
+              metrics = ImmutableList.of(MetricDefinition(VARIANCE)),
+              minValue = -8.0,
+              maxValue = 12.0,
+            )
+          )
+      )
     val combiner =
       VarianceCombiner(
-        AGG_PARAMS.copy(minValue = -8.0, maxValue = 12.0),
+        params,
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
         ExecutionMode.PRODUCTION,
+        params.features[0] as ScalarFeatureSpec,
       )
 
     val accumulator =
@@ -91,14 +105,27 @@ class VarianceCombinerTest {
 
   @Test
   fun createAccumulator_privacyLevelWithContributionBounding_clampssingleValueContributions() {
+    val params =
+      AGG_PARAMS.copy(
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              featureId = "value",
+              metrics = ImmutableList.of(MetricDefinition(VARIANCE)),
+              minValue = -10.0,
+              maxValue = 10.0,
+            )
+          )
+      )
     val combiner =
       VarianceCombiner(
-        AGG_PARAMS.copy(minValue = -10.0, maxValue = 10.0),
+        params,
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
         ExecutionMode.PRODUCTION,
+        params.features[0] as ScalarFeatureSpec,
       )
 
     val accumulator =
@@ -119,14 +146,27 @@ class VarianceCombinerTest {
 
   @Test
   fun createAccumulator_fullTestMode_doesNotClampSingleValueContributions() {
+    val params =
+      AGG_PARAMS.copy(
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              featureId = "value",
+              metrics = ImmutableList.of(MetricDefinition(VARIANCE)),
+              minValue = -10.0,
+              maxValue = 10.0,
+            )
+          )
+      )
     val combiner =
       VarianceCombiner(
-        AGG_PARAMS.copy(minValue = -10.0, maxValue = 10.0),
+        params,
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
         FULL_TEST_MODE,
+        params.features[0] as ScalarFeatureSpec,
       )
 
     val accumulator =
@@ -146,14 +186,27 @@ class VarianceCombinerTest {
 
   @Test
   fun createAccumulator_normalizesSumAndSumOfSquares() {
+    val params =
+      AGG_PARAMS.copy(
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              featureId = "value",
+              metrics = ImmutableList.of(MetricDefinition(VARIANCE)),
+              minValue = 5.0,
+              maxValue = 10.0,
+            )
+          )
+      )
     val combiner =
       VarianceCombiner(
-        AGG_PARAMS.copy(minValue = 5.0, maxValue = 10.0),
+        params,
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
         ExecutionMode.PRODUCTION,
+        params.features[0] as ScalarFeatureSpec,
       )
 
     val accumulator =
@@ -171,14 +224,27 @@ class VarianceCombinerTest {
 
   @Test
   fun createAccumulator_normalizationAndClamping() {
+    val params =
+      AGG_PARAMS.copy(
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              featureId = "value",
+              metrics = ImmutableList.of(MetricDefinition(VARIANCE)),
+              minValue = 5.0,
+              maxValue = 10.0,
+            )
+          )
+      )
     val combiner =
       VarianceCombiner(
-        AGG_PARAMS.copy(minValue = 5.0, maxValue = 10.0),
+        params,
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
         ExecutionMode.PRODUCTION,
+        params.features[0] as ScalarFeatureSpec,
       )
 
     val accumulator =
@@ -198,14 +264,27 @@ class VarianceCombinerTest {
 
   @Test
   fun createAccumulator_aggregatesMultipleElements() {
+    val params =
+      AGG_PARAMS.copy(
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              featureId = "value",
+              metrics = ImmutableList.of(MetricDefinition(VARIANCE)),
+              minValue = 4.0,
+              maxValue = 10.0,
+            )
+          )
+      )
     val combiner =
       VarianceCombiner(
-        AGG_PARAMS.copy(minValue = 4.0),
+        params,
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
         ExecutionMode.PRODUCTION,
+        params.features[0] as ScalarFeatureSpec,
       )
 
     // Create list with one value that is clamped to min value.
@@ -234,6 +313,7 @@ class VarianceCombinerTest {
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
         ExecutionMode.PRODUCTION,
+        AGG_PARAMS.features[0] as ScalarFeatureSpec,
       )
 
     val accumulator =
@@ -271,20 +351,30 @@ class VarianceCombinerTest {
     val noise: Noise = mock()
     val noiseFactory: (NoiseKind) -> Noise = { _ -> noise }
 
+    val params =
+      AGG_PARAMS.copy(
+        nonFeatureMetrics = ImmutableList.of<MetricDefinition>(),
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              featureId = "value",
+              metrics = ImmutableList.of(MetricDefinition(MEAN), MetricDefinition(VARIANCE)),
+              minValue = 4.0,
+              maxValue = 10.0,
+            )
+          ),
+        maxPartitionsContributed = 5,
+        maxContributionsPerPartition = 7,
+      )
     val combiner =
       VarianceCombiner(
-        AGG_PARAMS.copy(
-          metrics = ImmutableList.of(MetricDefinition(MEAN), MetricDefinition(VARIANCE)),
-          maxPartitionsContributed = 5,
-          maxContributionsPerPartition = 7,
-          minValue = 4.0,
-          maxValue = 10.0,
-        ),
+        params,
         countBudget,
         sumBudget,
         sumSquaresBudget,
         noiseFactory,
         ExecutionMode.PRODUCTION,
+        params.features[0] as ScalarFeatureSpec,
       )
 
     val accumulator = varianceAccumulator {
@@ -334,27 +424,36 @@ class VarianceCombinerTest {
     val sumSquaresBudget = AllocatedBudget()
     sumSquaresBudget.initialize(10000.0, 0.0)
 
+    val params =
+      AGG_PARAMS.copy(
+        nonFeatureMetrics = ImmutableList.of(MetricDefinition(COUNT)),
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              featureId = "value",
+              metrics =
+                ImmutableList.of(
+                  MetricDefinition(VARIANCE),
+                  MetricDefinition(MEAN),
+                  MetricDefinition(SUM),
+                ),
+              minValue = 4.0,
+              maxValue = 12.0,
+            )
+          ),
+        maxPartitionsContributed = 5,
+        maxContributionsPerPartition = 7,
+        noiseKind = NoiseKind.LAPLACE,
+      )
     val combiner =
       VarianceCombiner(
-        AGG_PARAMS.copy(
-          metrics =
-            ImmutableList.of(
-              MetricDefinition(VARIANCE),
-              MetricDefinition(MEAN),
-              MetricDefinition(SUM),
-              MetricDefinition(COUNT),
-            ),
-          maxPartitionsContributed = 5,
-          maxContributionsPerPartition = 7,
-          minValue = 4.0,
-          maxValue = 12.0,
-          noiseKind = NoiseKind.LAPLACE,
-        ),
+        params,
         countBudget,
         sumBudget,
         sumSquaresBudget,
         NoiseFactory(),
         ExecutionMode.PRODUCTION,
+        params.features[0] as ScalarFeatureSpec,
       )
 
     val accumulator = varianceAccumulator {
@@ -375,43 +474,44 @@ class VarianceCombinerTest {
   }
 
   enum class ReturnedMetricsTestCase(
-    val requestedMetrics: ImmutableList<MetricDefinition>,
+    val nonFeatureMetrics: ImmutableList<MetricDefinition>,
+    val featureMetrics: ImmutableList<MetricDefinition>,
     val countExpected: Boolean,
     val sumExpected: Boolean,
     val meanExpected: Boolean,
   ) {
     NO_SUM_NO_COUNT_NO_MEAN(
-      requestedMetrics = ImmutableList.of(MetricDefinition(VARIANCE)),
+      nonFeatureMetrics = ImmutableList.of(),
+      featureMetrics = ImmutableList.of(MetricDefinition(VARIANCE)),
       countExpected = false,
       sumExpected = false,
       meanExpected = false,
     ),
     ONLY_SUM(
-      requestedMetrics = ImmutableList.of(MetricDefinition(VARIANCE), MetricDefinition(SUM)),
+      nonFeatureMetrics = ImmutableList.of(),
+      featureMetrics = ImmutableList.of(MetricDefinition(VARIANCE), MetricDefinition(SUM)),
       countExpected = false,
       sumExpected = true,
       meanExpected = false,
     ),
     ONLY_COUNT(
-      requestedMetrics = ImmutableList.of(MetricDefinition(VARIANCE), MetricDefinition(COUNT)),
+      nonFeatureMetrics = ImmutableList.of(MetricDefinition(COUNT)),
+      featureMetrics = ImmutableList.of(MetricDefinition(VARIANCE)),
       countExpected = true,
       sumExpected = false,
       meanExpected = false,
     ),
     ONLY_MEAN(
-      requestedMetrics = ImmutableList.of(MetricDefinition(VARIANCE), MetricDefinition(MEAN)),
+      nonFeatureMetrics = ImmutableList.of(),
+      featureMetrics = ImmutableList.of(MetricDefinition(VARIANCE), MetricDefinition(MEAN)),
       countExpected = false,
       sumExpected = false,
       meanExpected = true,
     ),
     COUNT_AND_SUM_AND_MEAN(
-      requestedMetrics =
-        ImmutableList.of(
-          MetricDefinition(VARIANCE),
-          MetricDefinition(MEAN),
-          MetricDefinition(SUM),
-          MetricDefinition(COUNT),
-        ),
+      nonFeatureMetrics = ImmutableList.of(MetricDefinition(COUNT)),
+      featureMetrics =
+        ImmutableList.of(MetricDefinition(VARIANCE), MetricDefinition(MEAN), MetricDefinition(SUM)),
       countExpected = true,
       sumExpected = true,
       meanExpected = true,
@@ -422,17 +522,29 @@ class VarianceCombinerTest {
   fun aggregate_computeMetrics_checkWhichMetricReturned(
     @TestParameter testCase: ReturnedMetricsTestCase
   ) {
+    val features: ImmutableList<FeatureSpec> =
+      ImmutableList.of(
+        ScalarFeatureSpec(
+          featureId = "value",
+          metrics = testCase.featureMetrics,
+          minValue = -10.0,
+          maxValue = 10.0,
+        )
+      )
+    val params =
+      AGG_PARAMS.copy(nonFeatureMetrics = testCase.nonFeatureMetrics, features = features)
     val combiner =
       VarianceCombiner(
-        AGG_PARAMS.copy(metrics = testCase.requestedMetrics),
+        params,
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
         ExecutionMode.PRODUCTION,
+        params.features[0] as ScalarFeatureSpec,
       )
 
-    val metrics =
+    val result =
       combiner.computeMetrics(
         varianceAccumulator {
           count = 10
@@ -441,38 +553,48 @@ class VarianceCombinerTest {
         }
       )
     if (testCase.countExpected) {
-      assertThat(metrics.count).isNotNull()
+      assertThat(result.count).isNotNull()
     } else {
-      assertThat(metrics.count).isNull()
+      assertThat(result.count).isNull()
     }
 
     if (testCase.sumExpected) {
-      assertThat(metrics.sum).isNotNull()
+      assertThat(result.sum).isNotNull()
     } else {
-      assertThat(metrics.sum).isNull()
+      assertThat(result.sum).isNull()
     }
 
     if (testCase.meanExpected) {
-      assertThat(metrics.mean).isNotNull()
+      assertThat(result.mean).isNotNull()
     } else {
-      assertThat(metrics.mean).isNull()
+      assertThat(result.mean).isNull()
     }
   }
 
   @Test
   fun computeMetrics_withoutNoise_withMultipleContributionsIncludingEmptyAccumulator_returnsCorrectResult() {
+    val params =
+      AGG_PARAMS.copy(
+        nonFeatureMetrics = ImmutableList.of<MetricDefinition>(),
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              featureId = "value",
+              metrics = ImmutableList.of(MetricDefinition(VARIANCE)),
+              minValue = -10.0,
+              maxValue = 10.0,
+            )
+          ),
+      )
     val combiner =
       VarianceCombiner(
-        AGG_PARAMS.copy(
-          ImmutableList.of(MetricDefinition(VARIANCE)),
-          minValue = -10.0,
-          maxValue = 10.0,
-        ),
+        params,
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         ZeroNoiseFactory(),
         ExecutionMode.PRODUCTION,
+        params.features[0] as ScalarFeatureSpec,
       )
 
     val accumulator0 = combiner.emptyAccumulator()
@@ -495,23 +617,33 @@ class VarianceCombinerTest {
 
   @Test
   fun computeMetrics_withoutNoise_onlyEmptyAccumulator_returnsZeroCountAndNaNForCountMeanAndVariance() {
+    val params =
+      AGG_PARAMS.copy(
+        nonFeatureMetrics = ImmutableList.of(MetricDefinition(COUNT)),
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              featureId = "value",
+              metrics =
+                ImmutableList.of(
+                  MetricDefinition(VARIANCE),
+                  MetricDefinition(MEAN),
+                  MetricDefinition(SUM),
+                ),
+              minValue = 4.0,
+              maxValue = 10.0,
+            )
+          ),
+      )
     val combiner =
       VarianceCombiner(
-        AGG_PARAMS.copy(
-          ImmutableList.of(
-            MetricDefinition(VARIANCE),
-            MetricDefinition(MEAN),
-            MetricDefinition(SUM),
-            MetricDefinition(COUNT),
-          ),
-          minValue = 4.0,
-          maxValue = 10.0,
-        ),
+        params,
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         ZeroNoiseFactory(),
         ExecutionMode.PRODUCTION,
+        params.features[0] as ScalarFeatureSpec,
       )
 
     val result = combiner.computeMetrics(combiner.emptyAccumulator())
@@ -530,12 +662,19 @@ class VarianceCombinerTest {
   companion object {
     private val AGG_PARAMS =
       AggregationParams(
-        metrics = ImmutableList.of(MetricDefinition(MEAN), MetricDefinition(VARIANCE)),
+        nonFeatureMetrics = ImmutableList.of<MetricDefinition>(),
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              featureId = "value",
+              metrics = ImmutableList.of(MetricDefinition(MEAN), MetricDefinition(VARIANCE)),
+              minValue = -10.0,
+              maxValue = 10.0,
+            )
+          ),
         noiseKind = NoiseKind.GAUSSIAN,
         maxPartitionsContributed = 3,
         maxContributionsPerPartition = 5,
-        minValue = -10.0,
-        maxValue = 10.0,
       )
 
     private val UNUSED_ALLOCATED_BUDGET = AllocatedBudget()
