@@ -54,25 +54,38 @@ class PublicPartitionsComputationalGraphTest {
       )
     private val SUM_PARAMS =
       AggregationParams(
-        metrics = ImmutableList.of(MetricDefinition(SUM)),
+        metrics = ImmutableList.of(),
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              "value",
+              ImmutableList.of(MetricDefinition(SUM)),
+              null,
+              null,
+              -Double.MAX_VALUE,
+              Double.MAX_VALUE,
+            )
+          ),
         noiseKind = GAUSSIAN,
         maxPartitionsContributed = Int.MAX_VALUE,
-        minTotalValue = -Double.MAX_VALUE,
-        maxTotalValue = Double.MAX_VALUE,
       )
     private val COUNT_SUM_AND_ID_COUNT_PARAMS =
       AggregationParams(
-        metrics =
+        metrics = ImmutableList.of(MetricDefinition(COUNT), MetricDefinition(PRIVACY_ID_COUNT)),
+        features =
           ImmutableList.of(
-            MetricDefinition(COUNT),
-            MetricDefinition(SUM),
-            MetricDefinition(PRIVACY_ID_COUNT),
+            ScalarFeatureSpec(
+              "value",
+              ImmutableList.of(MetricDefinition(SUM)),
+              null,
+              null,
+              -100.0,
+              100.0,
+            )
           ),
         noiseKind = GAUSSIAN,
         maxPartitionsContributed = 100,
         maxContributionsPerPartition = 100,
-        minTotalValue = -100.0,
-        maxTotalValue = 100.0,
       )
     private val ALLOCATED_BUDGET = AllocatedBudget()
 
@@ -95,6 +108,7 @@ class PublicPartitionsComputationalGraphTest {
             ALLOCATED_BUDGET,
             ZeroNoiseFactory(),
             ExecutionMode.PRODUCTION,
+            COUNT_SUM_AND_ID_COUNT_PARAMS.features[0] as ScalarFeatureSpec,
           ),
           PrivacyIdCountCombiner(
             COUNT_SUM_AND_ID_COUNT_PARAMS,
@@ -196,6 +210,7 @@ class PublicPartitionsComputationalGraphTest {
                   ALLOCATED_BUDGET,
                   ZeroNoiseFactory(),
                   ExecutionMode.PRODUCTION,
+                  SUM_PARAMS.features[0] as ScalarFeatureSpec,
                 )
               )
             ),

@@ -49,30 +49,43 @@ class CompoundCombinerTest {
     )
   private val COUNT_AND_SUM_PARAMS =
     AggregationParams(
-      metrics = ImmutableList.of(MetricDefinition(COUNT), MetricDefinition(SUM)),
+      metrics = ImmutableList.of(MetricDefinition(COUNT)),
+      features =
+        ImmutableList.of(
+          ScalarFeatureSpec(
+            "value",
+            ImmutableList.of(MetricDefinition(SUM)),
+            null,
+            null,
+            -Double.MAX_VALUE,
+            Double.MAX_VALUE,
+          )
+        ),
       noiseKind = NoiseKind.GAUSSIAN,
       maxPartitionsContributed = Int.MAX_VALUE,
       maxContributionsPerPartition = Int.MAX_VALUE,
-      minTotalValue = -Double.MAX_VALUE,
-      maxTotalValue = Double.MAX_VALUE,
     )
   private val COUNT_AND_MEAN_PARAMS =
     AggregationParams(
-      metrics = ImmutableList.of(MetricDefinition(COUNT), MetricDefinition(MEAN)),
+      metrics = ImmutableList.of(MetricDefinition(COUNT)),
+      features =
+        ImmutableList.of(
+          ScalarFeatureSpec("value", ImmutableList.of(MetricDefinition(MEAN)), -100.0, 100.0)
+        ),
       noiseKind = NoiseKind.GAUSSIAN,
       maxPartitionsContributed = 100,
       maxContributionsPerPartition = 10,
-      minValue = -100.0,
-      maxValue = 100.0,
     )
   private val COUNT_AND_VARIANCE_PARAMS =
     AggregationParams(
-      metrics = ImmutableList.of(MetricDefinition(COUNT), MetricDefinition(VARIANCE)),
+      metrics = ImmutableList.of(MetricDefinition(COUNT)),
+      features =
+        ImmutableList.of(
+          ScalarFeatureSpec("value", ImmutableList.of(MetricDefinition(VARIANCE)), -100.0, 100.0)
+        ),
       noiseKind = NoiseKind.GAUSSIAN,
       maxPartitionsContributed = 100,
       maxContributionsPerPartition = 10,
-      minValue = -100.0,
-      maxValue = 100.0,
     )
   private val UNUSED_ALLOCATED_BUDGET = AllocatedBudget()
 
@@ -119,6 +132,7 @@ class CompoundCombinerTest {
             UNUSED_ALLOCATED_BUDGET,
             NoiseFactory(),
             ExecutionMode.PRODUCTION,
+            COUNT_AND_SUM_PARAMS.features[0] as ScalarFeatureSpec,
           ),
         )
       )
@@ -148,6 +162,7 @@ class CompoundCombinerTest {
             UNUSED_ALLOCATED_BUDGET,
             NoiseFactory(),
             ExecutionMode.PRODUCTION,
+            COUNT_AND_MEAN_PARAMS.features[0] as ScalarFeatureSpec,
           )
         )
       )
@@ -174,12 +189,13 @@ class CompoundCombinerTest {
       CompoundCombiner(
         listOf(
           VarianceCombiner(
-            COUNT_AND_MEAN_PARAMS,
+            COUNT_AND_VARIANCE_PARAMS,
             UNUSED_ALLOCATED_BUDGET,
             UNUSED_ALLOCATED_BUDGET,
             UNUSED_ALLOCATED_BUDGET,
             NoiseFactory(),
             ExecutionMode.PRODUCTION,
+            COUNT_AND_VARIANCE_PARAMS.features[0] as ScalarFeatureSpec,
           )
         )
       )
@@ -217,6 +233,7 @@ class CompoundCombinerTest {
             UNUSED_ALLOCATED_BUDGET,
             NoiseFactory(),
             ExecutionMode.PRODUCTION,
+            COUNT_AND_SUM_PARAMS.features[0] as ScalarFeatureSpec,
           ),
         )
       )
@@ -277,6 +294,7 @@ class CompoundCombinerTest {
             UNUSED_ALLOCATED_BUDGET,
             NoiseFactory(),
             ExecutionMode.PRODUCTION,
+            COUNT_AND_MEAN_PARAMS.features[0] as ScalarFeatureSpec,
           )
         )
       )
@@ -320,6 +338,7 @@ class CompoundCombinerTest {
             UNUSED_ALLOCATED_BUDGET,
             NoiseFactory(),
             ExecutionMode.PRODUCTION,
+            COUNT_AND_VARIANCE_PARAMS.features[0] as ScalarFeatureSpec,
           )
         )
       )
@@ -370,6 +389,7 @@ class CompoundCombinerTest {
             UNUSED_ALLOCATED_BUDGET,
             ZeroNoiseFactory(),
             ExecutionMode.PRODUCTION,
+            COUNT_AND_SUM_PARAMS.features[0] as ScalarFeatureSpec,
           ),
         )
       )
@@ -415,21 +435,30 @@ class CompoundCombinerTest {
 
   @Test
   fun computeMetrics_meanCombiner_returnsMeanMetric() {
-    val compoundCombiner =
+    val params =
+      COUNT_AND_MEAN_PARAMS.copy(
+        metrics = ImmutableList.of(),
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec("value", ImmutableList.of(MetricDefinition(MEAN)), -100.0, 100.0)
+          ),
+      )
+    val combiner =
       CompoundCombiner(
         listOf(
           MeanCombiner(
-            COUNT_AND_MEAN_PARAMS.copy(metrics = ImmutableList.of(MetricDefinition(MEAN))),
+            params,
             UNUSED_ALLOCATED_BUDGET,
             UNUSED_ALLOCATED_BUDGET,
             ZeroNoiseFactory(),
             ExecutionMode.PRODUCTION,
+            params.features[0] as ScalarFeatureSpec,
           )
         )
       )
 
     val dpAggregates =
-      compoundCombiner.computeMetrics(
+      combiner.computeMetrics(
         compoundAccumulator {
           meanAccumulator = meanAccumulator {
             count = 3
@@ -443,28 +472,35 @@ class CompoundCombinerTest {
 
   @Test
   fun computeMetrics_meanCombiner_returnsCountSumMean() {
-    val compoundCombiner =
+    val params =
+      COUNT_AND_MEAN_PARAMS.copy(
+        metrics = ImmutableList.of(MetricDefinition(COUNT)),
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              "value",
+              ImmutableList.of(MetricDefinition(MEAN), MetricDefinition(SUM)),
+              -100.0,
+              100.0,
+            )
+          ),
+      )
+    val combiner =
       CompoundCombiner(
         listOf(
           MeanCombiner(
-            COUNT_AND_MEAN_PARAMS.copy(
-              metrics =
-                ImmutableList.of(
-                  MetricDefinition(MEAN),
-                  MetricDefinition(COUNT),
-                  MetricDefinition(SUM),
-                )
-            ),
+            params,
             UNUSED_ALLOCATED_BUDGET,
             UNUSED_ALLOCATED_BUDGET,
             ZeroNoiseFactory(),
             ExecutionMode.PRODUCTION,
+            params.features[0] as ScalarFeatureSpec,
           )
         )
       )
 
     val dpAggregates =
-      compoundCombiner.computeMetrics(
+      combiner.computeMetrics(
         compoundAccumulator {
           meanAccumulator = meanAccumulator {
             count = 3
@@ -485,22 +521,31 @@ class CompoundCombinerTest {
 
   @Test
   fun computeMetrics_varianceCombiner_returnsVarianceMetric() {
-    val compoundCombiner =
+    val params =
+      COUNT_AND_VARIANCE_PARAMS.copy(
+        metrics = ImmutableList.of(),
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec("value", ImmutableList.of(MetricDefinition(VARIANCE)), -100.0, 100.0)
+          ),
+      )
+    val combiner =
       CompoundCombiner(
         listOf(
           VarianceCombiner(
-            COUNT_AND_VARIANCE_PARAMS.copy(metrics = ImmutableList.of(MetricDefinition(VARIANCE))),
+            params,
             UNUSED_ALLOCATED_BUDGET,
             UNUSED_ALLOCATED_BUDGET,
             UNUSED_ALLOCATED_BUDGET,
             ZeroNoiseFactory(),
             ExecutionMode.PRODUCTION,
+            params.features[0] as ScalarFeatureSpec,
           )
         )
       )
 
     val dpAggregates =
-      compoundCombiner.computeMetrics(
+      combiner.computeMetrics(
         compoundAccumulator {
           varianceAccumulator = varianceAccumulator {
             count = 10
@@ -515,30 +560,40 @@ class CompoundCombinerTest {
 
   @Test
   fun computeMetrics_varianceCombiner_returnsCountSumMeanVariance() {
-    val compoundCombiner =
+    val params =
+      COUNT_AND_VARIANCE_PARAMS.copy(
+        metrics = ImmutableList.of(MetricDefinition(COUNT)),
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              "value",
+              ImmutableList.of(
+                MetricDefinition(MEAN),
+                MetricDefinition(SUM),
+                MetricDefinition(VARIANCE),
+              ),
+              -100.0,
+              100.0,
+            )
+          ),
+      )
+    val combiner =
       CompoundCombiner(
         listOf(
           VarianceCombiner(
-            COUNT_AND_VARIANCE_PARAMS.copy(
-              metrics =
-                ImmutableList.of(
-                  MetricDefinition(MEAN),
-                  MetricDefinition(COUNT),
-                  MetricDefinition(SUM),
-                  MetricDefinition(VARIANCE),
-                )
-            ),
+            params,
             UNUSED_ALLOCATED_BUDGET,
             UNUSED_ALLOCATED_BUDGET,
             UNUSED_ALLOCATED_BUDGET,
             ZeroNoiseFactory(),
             ExecutionMode.PRODUCTION,
+            params.features[0] as ScalarFeatureSpec,
           )
         )
       )
 
     val dpAggregates =
-      compoundCombiner.computeMetrics(
+      combiner.computeMetrics(
         compoundAccumulator {
           varianceAccumulator = varianceAccumulator {
             count = 10

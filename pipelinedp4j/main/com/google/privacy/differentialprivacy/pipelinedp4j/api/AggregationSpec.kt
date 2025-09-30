@@ -148,44 +148,6 @@ internal fun AggregationSpec.getFeatureId(): String {
   }
 }
 
-internal fun List<AggregationSpec>.metrics(): List<MetricDefinition> = buildList {
-  for (aggregation in this@metrics) {
-    when (aggregation) {
-      // Count and PrivacyIdCount do not aggregate any specific value, therefore they are handled
-      // differently.
-      is PrivacyIdCount ->
-        add(
-          MetricDefinition(
-            MetricType.PRIVACY_ID_COUNT,
-            aggregation.budget?.toInternalBudgetPerOpSpec(),
-          )
-        )
-      is Count ->
-        add(MetricDefinition(MetricType.COUNT, aggregation.budget?.toInternalBudgetPerOpSpec()))
-      is ValueAggregations<*> -> {
-        for (valueAggregationSpec in aggregation.valueAggregationSpecs) {
-          add(
-            MetricDefinition(
-              valueAggregationSpec.metricType,
-              valueAggregationSpec.budget?.toInternalBudgetPerOpSpec(),
-            )
-          )
-        }
-      }
-      is VectorAggregations<*> -> {
-        for (vectorAggregationSpec in aggregation.vectorAggregationSpecs) {
-          add(
-            MetricDefinition(
-              vectorAggregationSpec.metricType,
-              vectorAggregationSpec.budget?.toInternalBudgetPerOpSpec(),
-            )
-          )
-        }
-      }
-    }
-  }
-}
-
 internal fun List<AggregationSpec>.outputColumnNamesWithMetricTypes():
   List<Pair<String, MetricType>> = buildList {
   for (aggregation in this@outputColumnNamesWithMetricTypes) {
@@ -227,3 +189,41 @@ internal fun List<AggregationSpec>.outputColumnNameToFeatureIdMap(): Map<String,
 
 internal fun List<AggregationSpec>.outputColumnNames(): List<String> =
   outputColumnNamesWithMetricTypes().map { it.first }
+
+internal fun AggregationSpec.toMetricDefinition():
+  com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricDefinition {
+  val metricType =
+    when (this) {
+      is Count -> MetricType.COUNT
+      is PrivacyIdCount -> MetricType.PRIVACY_ID_COUNT
+      else ->
+        throw IllegalArgumentException("Unsupported AggregationSpec type for top-level metrics")
+    }
+  val budget =
+    when (this) {
+      is Count -> this.budget
+      is PrivacyIdCount -> this.budget
+      else ->
+        throw IllegalArgumentException("Unsupported AggregationSpec type for top-level metrics")
+    }
+  return com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricDefinition(
+    metricType,
+    budget?.toInternalBudgetPerOpSpec(),
+  )
+}
+
+internal fun ValueAggregationSpec.toMetricDefinition():
+  com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricDefinition {
+  return com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricDefinition(
+    this.metricType,
+    this.budget?.toInternalBudgetPerOpSpec(),
+  )
+}
+
+internal fun VectorAggregationSpec.toMetricDefinition():
+  com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricDefinition {
+  return com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricDefinition(
+    this.metricType,
+    this.budget?.toInternalBudgetPerOpSpec(),
+  )
+}

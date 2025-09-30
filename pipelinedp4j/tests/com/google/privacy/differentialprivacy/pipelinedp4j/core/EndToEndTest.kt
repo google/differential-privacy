@@ -75,13 +75,19 @@ class EndToEndTest {
     // Use low bounds to avoid sensitivity overflow when adding noise.
     val params =
       AggregationParams(
-        metrics =
-          ImmutableList.of(MetricDefinition(COUNT), MetricDefinition(SUM), MetricDefinition(MEAN)),
+        metrics = ImmutableList.of(MetricDefinition(COUNT)),
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              "value",
+              ImmutableList.of(MetricDefinition(SUM), MetricDefinition(MEAN)),
+              -2.0,
+              2.0,
+            )
+          ),
         noiseKind = LAPLACE,
         maxPartitionsContributed = 1,
         maxContributionsPerPartition = 1,
-        minValue = -2.0,
-        maxValue = 2.0,
       )
 
     val dpAggregates =
@@ -105,11 +111,10 @@ class EndToEndTest {
     val params =
       AggregationParams(
         metrics = ImmutableList.of(MetricDefinition(COUNT), MetricDefinition(PRIVACY_ID_COUNT)),
+        features = ImmutableList.of(ScalarFeatureSpec("value", ImmutableList.of(), -2.0, 2.0)),
         noiseKind = LAPLACE,
         maxPartitionsContributed = 1,
         maxContributionsPerPartition = 1,
-        minValue = -2.0,
-        maxValue = 2.0,
       )
 
     val dpAggregates =
@@ -218,13 +223,19 @@ class EndToEndTest {
     // Use low bounds to avoid sensitivity overflow when adding noise.
     val params =
       AggregationParams(
-        metrics =
-          ImmutableList.of(MetricDefinition(COUNT), MetricDefinition(SUM), MetricDefinition(MEAN)),
+        metrics = ImmutableList.of(MetricDefinition(COUNT)),
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              "value",
+              ImmutableList.of(MetricDefinition(SUM), MetricDefinition(MEAN)),
+              -2.0,
+              2.0,
+            )
+          ),
         noiseKind = LAPLACE,
         maxPartitionsContributed = 1,
         maxContributionsPerPartition = 1,
-        minValue = -2.0,
-        maxValue = 2.0,
       )
 
     val dpAggregates =
@@ -250,14 +261,22 @@ class EndToEndTest {
         metrics =
           ImmutableList.of(
             MetricDefinition(COUNT, AbsoluteBudgetPerOpSpec(0.1, 1e-5)),
-            MetricDefinition(SUM, AbsoluteBudgetPerOpSpec(0.1, 1e-5)),
             MetricDefinition(PRIVACY_ID_COUNT, AbsoluteBudgetPerOpSpec(0.1, 1e-5)),
+          ),
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              "value",
+              ImmutableList.of(MetricDefinition(SUM, AbsoluteBudgetPerOpSpec(0.1, 1e-5))),
+              null,
+              null,
+              -5.0,
+              5.0,
+            )
           ),
         noiseKind = GAUSSIAN,
         maxPartitionsContributed = 5,
         maxContributionsPerPartition = 5,
-        minTotalValue = -5.0,
-        maxTotalValue = 5.0,
       )
 
     val dpAggregates =

@@ -390,6 +390,7 @@ class SumCombiner(
   private val budget: AllocatedBudget,
   private val noiseFactory: (NoiseKind) -> Noise,
   private val executionMode: ExecutionMode,
+  private val featureSpec: ScalarFeatureSpec,
 ) : Combiner<SumAccumulator, Double>, Serializable {
   override val requiresPerPartitionBoundedInput = false
 
@@ -412,8 +413,8 @@ class SumCombiner(
           contributions.singleValueContributionsList
             .sum()
             .coerceInIfContributionBoundingEnabled(
-              aggregationParams.minTotalValue!!,
-              aggregationParams.maxTotalValue!!,
+              featureSpec.minTotalValue!!,
+              featureSpec.maxTotalValue!!,
               aggregationParams,
               executionMode,
             )
@@ -440,8 +441,7 @@ class SumCombiner(
    */
   override fun computeMetrics(accumulator: SumAccumulator): Double {
     val noise = noiseFactory(aggregationParams.noiseKind)
-    val lInfSensitivity =
-      max(abs(aggregationParams.minTotalValue!!), abs(aggregationParams.maxTotalValue!!))
+    val lInfSensitivity = max(abs(featureSpec.minTotalValue!!), abs(featureSpec.maxTotalValue!!))
 
     return noise.addNoise(
       accumulator.sum,
@@ -468,6 +468,7 @@ class VectorSumCombiner(
   private val budget: AllocatedBudget,
   private val noiseFactory: (NoiseKind) -> Noise,
   private val executionMode: ExecutionMode,
+  private val featureSpec: VectorFeatureSpec,
 ) : Combiner<VectorSumAccumulator, List<Double>>, Serializable {
   override val requiresPerPartitionBoundedInput = false
 
@@ -487,11 +488,18 @@ class VectorSumCombiner(
         .map { contribution -> ArrayRealVector(contribution.valuesList.toDoubleArray()) }
         .reduceOrNull { acc, vector -> acc.add(vector) }
         ?.clipIfContributionBoundingEnabled(
-          aggregationParams.vectorMaxTotalNorm!!,
-          aggregationParams.vectorNormKind!!,
+          featureSpec.vectorMaxTotalNorm!!,
+          featureSpec.normKind
+            ?: throw IllegalStateException("normKind should be validated before calling."),
         )
         ?.toArray()
-        ?.asList() ?: List(aggregationParams.vectorSize!!) { 0.0 }
+        ?.asList()
+        ?: List(
+          featureSpec.vectorSize
+            ?: throw IllegalStateException("vectorSize should be validated before calling.")
+        ) {
+          0.0
+        }
   }
 
   /**
@@ -525,9 +533,11 @@ class VectorSumCombiner(
         is LaplaceNoise -> {
           val l1Sensitivity =
             calculateL1Sensistivity(
-              aggregationParams.vectorNormKind!!,
-              aggregationParams.vectorMaxTotalNorm!!,
-              aggregationParams.vectorSize!!,
+              featureSpec.normKind
+                ?: throw IllegalStateException("normKind should be validated before calling."),
+              featureSpec.vectorMaxTotalNorm!!,
+              featureSpec.vectorSize
+                ?: throw IllegalStateException("vectorSize should be validated before calling."),
               aggregationParams.maxPartitionsContributed!!,
             )
           vector.map { noise.addNoise(it, l1Sensitivity, budget.epsilon(), budget.delta()) }
@@ -535,9 +545,11 @@ class VectorSumCombiner(
         is GaussianNoise -> {
           val l2Sensitivity =
             calculateL2Sensistivity(
-              aggregationParams.vectorNormKind!!,
-              aggregationParams.vectorMaxTotalNorm!!,
-              aggregationParams.vectorSize!!,
+              featureSpec.normKind
+                ?: throw IllegalStateException("normKind should be validated before calling."),
+              featureSpec.vectorMaxTotalNorm!!,
+              featureSpec.vectorSize
+                ?: throw IllegalStateException("vectorSize should be validated before calling."),
               aggregationParams.maxPartitionsContributed!!,
             )
           vector.map { noise.addNoise(it, l2Sensitivity, budget.epsilon(), budget.delta()) }
@@ -631,10 +643,12 @@ class MeanCombiner(
   private val sumBudget: AllocatedBudget,
   private val noiseFactory: (NoiseKind) -> Noise,
   private val executionMode: ExecutionMode,
+  private val featureSpec: ScalarFeatureSpec,
 ) : Combiner<MeanAccumulator, MeanCombinerResult>, Serializable {
-  private val midValue = (aggregationParams.minValue!! + aggregationParams.maxValue!!) / 2
-  private val returnCount = aggregationParams.metrics.any { it.type == COUNT }
-  private val returnSum = aggregationParams.metrics.any { it.type == SUM }
+  private val midValue = (featureSpec.minValue!! + featureSpec.maxValue!!) / 2
+  private val returnCount =
+    (aggregationParams.metrics + featureSpec.metrics).any { it.type == COUNT }
+  private val returnSum = (aggregationParams.metrics + featureSpec.metrics).any { it.type == SUM }
 
   override val requiresPerPartitionBoundedInput = true
 
@@ -657,8 +671,8 @@ class MeanCombiner(
         contributions.singleValueContributionsList
           .map {
             it.coerceInIfContributionBoundingEnabled(
-              aggregationParams.minValue!!,
-              aggregationParams.maxValue!!,
+              featureSpec.minValue!!,
+              featureSpec.maxValue!!,
               aggregationParams,
               executionMode,
             ) - midValue
@@ -696,6 +710,7 @@ class MeanCombiner(
         aggregationParams,
         sumBudget,
         noiseFactory,
+        featureSpec,
       )
     // Adding midValue denormalize mean to [minValue, maxValue] range.
     val dpMean = dpNormalizedSum / dpCount + midValue
@@ -734,6 +749,7 @@ class QuantilesCombiner(
   private val budget: AllocatedBudget,
   private val noiseFactory: (NoiseKind) -> Noise,
   private val executionMode: ExecutionMode,
+  private val featureSpec: ScalarFeatureSpec,
 ) : Combiner<QuantilesAccumulator, List<Double>>, Serializable {
   override val requiresPerPartitionBoundedInput = true
 
@@ -820,8 +836,8 @@ class QuantilesCombiner(
       )
       // Min and max values aren't changed if there is no contribution bounding because the extreme
       // values aren't supported by the DP library.
-      .lower(aggregationParams.minValue!!)
-      .upper(aggregationParams.maxValue!!)
+      .lower(featureSpec.minValue!!)
+      .upper(featureSpec.maxValue!!)
       .build()
 }
 
@@ -846,11 +862,13 @@ class VarianceCombiner(
   private val sumSquaresBudget: AllocatedBudget,
   private val noiseFactory: (NoiseKind) -> Noise,
   private val executionMode: ExecutionMode,
+  private val featureSpec: ScalarFeatureSpec,
 ) : Combiner<VarianceAccumulator, VarianceCombinerResult>, Serializable {
-  private val midValue = (aggregationParams.minValue!! + aggregationParams.maxValue!!) / 2
-  private val returnCount = aggregationParams.metrics.any { it.type == COUNT }
-  private val returnSum = aggregationParams.metrics.any { it.type == SUM }
-  private val returnMean = aggregationParams.metrics.any { it.type == MEAN }
+  private val midValue = (featureSpec.minValue!! + featureSpec.maxValue!!) / 2
+  private val returnCount =
+    (aggregationParams.metrics + featureSpec.metrics).any { it.type == COUNT }
+  private val returnSum = (aggregationParams.metrics + featureSpec.metrics).any { it.type == SUM }
+  private val returnMean = (aggregationParams.metrics + featureSpec.metrics).any { it.type == MEAN }
 
   override val requiresPerPartitionBoundedInput = true
 
@@ -872,8 +890,8 @@ class VarianceCombiner(
       val coercedValues =
         contributions.singleValueContributionsList.map {
           it.coerceInIfContributionBoundingEnabled(
-            aggregationParams.minValue!!,
-            aggregationParams.maxValue!!,
+            featureSpec.minValue!!,
+            featureSpec.maxValue!!,
             aggregationParams,
             executionMode,
           ) - midValue
@@ -917,6 +935,7 @@ class VarianceCombiner(
         aggregationParams,
         sumBudget,
         noiseFactory,
+        featureSpec,
       )
     val dpNormalizedSumSquares =
       getNoisedNormalizedSumOfSquares(
@@ -925,6 +944,7 @@ class VarianceCombiner(
         aggregationParams,
         sumSquaresBudget,
         noiseFactory,
+        featureSpec,
       )
     val dpNormalizedMean = dpNormalizedSum / dpCount
     val dpVariance = dpNormalizedSumSquares / dpCount - dpNormalizedMean * dpNormalizedMean
@@ -1177,12 +1197,13 @@ private fun getNoisedNormalizedSum(
   aggregationParams: AggregationParams,
   sumBudget: AllocatedBudget,
   noiseFactory: (NoiseKind) -> Noise,
+  featureSpec: ScalarFeatureSpec,
 ): Double {
   val noise = noiseFactory(aggregationParams.noiseKind)
   // All values were normalized to the symmetric range [minValue-midValue, maxValue-midValue].
   // So the linf sensitivity of 1 record is (maxValue-midValue).
   val lInfSensitivity =
-    (aggregationParams.maxValue!! - midValue) * aggregationParams.maxContributionsPerPartition!!
+    (featureSpec.maxValue!! - midValue) * aggregationParams.maxContributionsPerPartition!!
   return noise.addNoise(
     normalizedSum,
     aggregationParams.maxPartitionsContributed!!,
@@ -1198,13 +1219,14 @@ private fun getNoisedNormalizedSumOfSquares(
   aggregationParams: AggregationParams,
   sumOfSquaresBudget: AllocatedBudget,
   noiseFactory: (NoiseKind) -> Noise,
+  featureSpec: ScalarFeatureSpec,
 ): Double {
   val noise = noiseFactory(aggregationParams.noiseKind)
   // All values were normalized to the symmetric range [minValue-midValue, maxValue-midValue] which
   // were then squared and summed up.
   // So the linf sensitivity of 1 record is (maxValue-midValue)^2 distributed across allowed
   // partition contributions.
-  val distance = aggregationParams.maxValue!! - midValue
+  val distance = featureSpec.maxValue!! - midValue
   val lInfSensitivity = distance * distance * aggregationParams.maxContributionsPerPartition!!
   return noise.addNoise(
     normalizedSumOfSquares,

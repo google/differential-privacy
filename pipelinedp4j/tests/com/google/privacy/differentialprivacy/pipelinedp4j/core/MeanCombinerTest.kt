@@ -42,12 +42,14 @@ class MeanCombinerTest {
   companion object {
     private val AGG_PARAMS =
       AggregationParams(
-        metrics = ImmutableList.of(MetricDefinition(MEAN)),
+        metrics = ImmutableList.of(),
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec("value", ImmutableList.of(MetricDefinition(MEAN)), -10.0, 10.0)
+          ),
         noiseKind = NoiseKind.GAUSSIAN,
         maxPartitionsContributed = 3,
         maxContributionsPerPartition = 5,
-        minValue = -10.0,
-        maxValue = 10.0,
       )
 
     private val noiseMock: Noise = mock()
@@ -70,6 +72,7 @@ class MeanCombinerTest {
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
         ExecutionMode.PRODUCTION,
+        AGG_PARAMS.features[0] as ScalarFeatureSpec,
       )
 
     val accumulator = combiner.emptyAccumulator()
@@ -85,13 +88,21 @@ class MeanCombinerTest {
 
   @Test
   fun createAccumulator_doesNotClampContributionsWithinBounds() {
+    val params =
+      AGG_PARAMS.copy(
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec("value", ImmutableList.of(MetricDefinition(MEAN)), -10.0, 10.0)
+          )
+      )
     val combiner =
       MeanCombiner(
-        AGG_PARAMS.copy(minValue = -10.0, maxValue = 10.0),
+        params,
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
         ExecutionMode.PRODUCTION,
+        params.features[0] as ScalarFeatureSpec,
       )
 
     val accumulator =
@@ -108,13 +119,21 @@ class MeanCombinerTest {
 
   @Test
   fun createAccumulator_privacyLevelWithContributionBounding_clampsValues() {
+    val params =
+      AGG_PARAMS.copy(
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec("value", ImmutableList.of(MetricDefinition(MEAN)), -10.0, 10.0)
+          )
+      )
     val combiner =
       MeanCombiner(
-        AGG_PARAMS.copy(minValue = -10.0, maxValue = 10.0),
+        params,
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
         ExecutionMode.PRODUCTION,
+        params.features[0] as ScalarFeatureSpec,
       )
 
     val accumulator =
@@ -133,13 +152,21 @@ class MeanCombinerTest {
 
   @Test
   fun createAccumulator_fullTestMode_doesNotClampValues() {
+    val params =
+      AGG_PARAMS.copy(
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec("value", ImmutableList.of(MetricDefinition(MEAN)), -10.0, 10.0)
+          )
+      )
     val combiner =
       MeanCombiner(
-        AGG_PARAMS.copy(minValue = -10.0, maxValue = 10.0),
+        params,
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
         FULL_TEST_MODE,
+        params.features[0] as ScalarFeatureSpec,
       )
 
     val accumulator =
@@ -158,13 +185,21 @@ class MeanCombinerTest {
 
   @Test
   fun createAccumulator_normalizesSum() {
+    val params =
+      AGG_PARAMS.copy(
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec("value", ImmutableList.of(MetricDefinition(MEAN)), 5.0, 10.0)
+          )
+      )
     val combiner =
       MeanCombiner(
-        AGG_PARAMS.copy(minValue = 5.0),
+        params,
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
         ExecutionMode.PRODUCTION,
+        params.features[0] as ScalarFeatureSpec,
       )
 
     val accumulator =
@@ -181,13 +216,21 @@ class MeanCombinerTest {
 
   @Test
   fun createAccumulator_normalizationAndClamping() {
+    val params =
+      AGG_PARAMS.copy(
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec("value", ImmutableList.of(MetricDefinition(MEAN)), 5.0, 10.0)
+          )
+      )
     val combiner =
       MeanCombiner(
-        AGG_PARAMS.copy(minValue = 5.0, maxValue = 10.0),
+        params,
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
         ExecutionMode.PRODUCTION,
+        params.features[0] as ScalarFeatureSpec,
       )
 
     val accumulator =
@@ -206,13 +249,21 @@ class MeanCombinerTest {
 
   @Test
   fun createAccumulator_aggregatesMultipleElements() {
+    val params =
+      AGG_PARAMS.copy(
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec("value", ImmutableList.of(MetricDefinition(MEAN)), 4.0, 10.0)
+          )
+      )
     val combiner =
       MeanCombiner(
-        AGG_PARAMS.copy(minValue = 4.0),
+        params,
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
         ExecutionMode.PRODUCTION,
+        params.features[0] as ScalarFeatureSpec,
       )
 
     val accumulator =
@@ -238,6 +289,7 @@ class MeanCombinerTest {
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
         ExecutionMode.PRODUCTION,
+        AGG_PARAMS.features[0] as ScalarFeatureSpec,
       )
 
     val accumulator =
@@ -267,19 +319,24 @@ class MeanCombinerTest {
     countBudget.initialize(2.0, 1e-5)
     val sumBudget = AllocatedBudget()
     sumBudget.initialize(1.0, 1e-3)
+    val params =
+      AGG_PARAMS.copy(
+        metrics = ImmutableList.of(),
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec("value", ImmutableList.of(MetricDefinition(MEAN)), 4.0, 10.0)
+          ),
+        maxPartitionsContributed = 5,
+        maxContributionsPerPartition = 7,
+      )
     val combiner =
       MeanCombiner(
-        AGG_PARAMS.copy(
-          metrics = ImmutableList.of(MetricDefinition(MEAN)),
-          maxPartitionsContributed = 5,
-          maxContributionsPerPartition = 7,
-          minValue = 4.0,
-          maxValue = 10.0,
-        ),
+        params,
         countBudget,
         sumBudget,
         noiseFactoryMock,
         ExecutionMode.PRODUCTION,
+        params.features[0] as ScalarFeatureSpec,
       )
     val accumulator = meanAccumulator {
       count = 10
@@ -316,25 +373,30 @@ class MeanCombinerTest {
     val sumBudget = AllocatedBudget()
     sumBudget.initialize(10000.0, 0.0)
 
+    val params =
+      AGG_PARAMS.copy(
+        metrics = ImmutableList.of(MetricDefinition(COUNT)),
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              "value",
+              ImmutableList.of(MetricDefinition(MEAN), MetricDefinition(SUM)),
+              4.0,
+              12.0,
+            )
+          ),
+        maxPartitionsContributed = 5,
+        maxContributionsPerPartition = 7,
+        noiseKind = NoiseKind.LAPLACE,
+      )
     val combiner =
       MeanCombiner(
-        AGG_PARAMS.copy(
-          metrics =
-            ImmutableList.of(
-              MetricDefinition(MEAN),
-              MetricDefinition(SUM),
-              MetricDefinition(COUNT),
-            ),
-          maxPartitionsContributed = 5,
-          maxContributionsPerPartition = 7,
-          minValue = 4.0,
-          maxValue = 12.0,
-          noiseKind = NoiseKind.LAPLACE,
-        ),
+        params,
         countBudget,
         sumBudget,
         NoiseFactory(),
         ExecutionMode.PRODUCTION,
+        params.features[0] as ScalarFeatureSpec,
       )
 
     val accumulator = meanAccumulator {
@@ -385,13 +447,31 @@ class MeanCombinerTest {
   fun aggregate_computeMetrics_checkWhichMetricReturned(
     @TestParameter testCase: ReturnedMetricsTestCase
   ) {
+    val params =
+      AGG_PARAMS.copy(
+        metrics =
+          if (testCase.countExpected) ImmutableList.of(MetricDefinition(COUNT))
+          else ImmutableList.of(),
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              "value",
+              if (testCase.sumExpected)
+                ImmutableList.of(MetricDefinition(MEAN), MetricDefinition(SUM))
+              else ImmutableList.of(MetricDefinition(MEAN)),
+              -10.0,
+              10.0,
+            )
+          ),
+      )
     val combiner =
       MeanCombiner(
-        AGG_PARAMS.copy(metrics = testCase.requestedMetrics),
+        params,
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
         ExecutionMode.PRODUCTION,
+        params.features[0] as ScalarFeatureSpec,
       )
 
     val metrics =
@@ -416,13 +496,21 @@ class MeanCombinerTest {
 
   @Test
   fun computeMetrics_withoutNoise_withMultipleContributionsIncludingEmptyAccumulator_returnsCorrectResult() {
+    val params =
+      AGG_PARAMS.copy(
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec("value", ImmutableList.of(MetricDefinition(MEAN)), -10.0, 10.0)
+          )
+      )
     val combiner =
       MeanCombiner(
-        AGG_PARAMS.copy(minValue = -10.0, maxValue = 10.0),
+        params,
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         ZeroNoiseFactory(),
         ExecutionMode.PRODUCTION,
+        params.features[0] as ScalarFeatureSpec,
       )
 
     val accumulator0 = combiner.emptyAccumulator()
@@ -441,17 +529,27 @@ class MeanCombinerTest {
 
   @Test
   fun computeMetrics_withoutNoise_onlyEmptyAccumulator_returnsZeroCountAndNaNForSumAndMean() {
+    val params =
+      AGG_PARAMS.copy(
+        metrics = ImmutableList.of(MetricDefinition(COUNT)),
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              "value",
+              ImmutableList.of(MetricDefinition(MEAN), MetricDefinition(SUM)),
+              4.0,
+              10.0,
+            )
+          ),
+      )
     val combiner =
       MeanCombiner(
-        AGG_PARAMS.copy(
-          ImmutableList.of(MetricDefinition(MEAN), MetricDefinition(SUM), MetricDefinition(COUNT)),
-          minValue = 4.0,
-          maxValue = 10.0,
-        ),
+        params,
         UNUSED_ALLOCATED_BUDGET,
         UNUSED_ALLOCATED_BUDGET,
         ZeroNoiseFactory(),
         ExecutionMode.PRODUCTION,
+        params.features[0] as ScalarFeatureSpec,
       )
 
     val result = combiner.computeMetrics(combiner.emptyAccumulator())
