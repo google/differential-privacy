@@ -31,6 +31,7 @@
 #include "absl/strings/str_cat.h"
 #include "algorithms/internal/count-tree.h"
 #include "algorithms/numerical-mechanisms.h"
+#include "algorithms/util.h"
 #include "proto/confidence-interval.pb.h"
 #include "proto/summary.pb.h"
 #include "base/status_macros.h"
@@ -78,25 +79,17 @@ class QuantileTree {
   // input added.
   void Reset() { tree_.ClearNodes(); }
 
-  struct DPParams {
-    double epsilon;
-    double delta;
-    int max_contributions_per_partition;
-    int max_partitions_contributed_to;
-    std::unique_ptr<NumericalMechanismBuilder> mechanism_builder;
-  };
-
   // Returns a private version of the quantile tree, which can be used to get
-  // differentially private quantiles. Each call to this method expends the
-  // epsilon and delta specified in the params.
-  absl::StatusOr<Privatized> MakePrivate(const DPParams& params) {
+  // differentially private quantiles. Expands the privacy parameters passed to
+  // the constructor.
+  absl::StatusOr<Privatized> MakePrivate() {
     ASSIGN_OR_RETURN(
         std::unique_ptr<NumericalMechanism> mech,
-        params.mechanism_builder->SetEpsilon(params.epsilon)
-            .SetDelta(params.delta)
-            .SetL0Sensitivity(params.max_partitions_contributed_to *
-                              tree_.GetHeight())
-            .SetLInfSensitivity(params.max_contributions_per_partition)
+        mechanism_builder_->Clone()
+            ->SetEpsilon(epsilon_)
+            .SetDelta(delta_)
+            .SetL0Sensitivity(max_partitions_contributed_ * tree_.GetHeight())
+            .SetLInfSensitivity(max_contributions_per_partition_)
             .Build());
     return Privatized(upper_, lower_, std::move(mech), tree_);
   }
@@ -131,8 +124,18 @@ class QuantileTree {
   int GetBranchingFactor() { return tree_.GetBranchingFactor(); }
 
  private:
-  QuantileTree(T lower, T upper, int tree_height, int branching_factor)
-      : lower_(lower), upper_(upper), tree_(tree_height, branching_factor) {}
+  QuantileTree(double epsilon, double delta, int max_partitions_contributed,
+               int max_contributions_per_partition,
+               std::unique_ptr<NumericalMechanismBuilder> mechanism_builder,
+               T lower, T upper, int tree_height, int branching_factor)
+      : epsilon_(epsilon),
+        delta_(delta),
+        max_partitions_contributed_(max_partitions_contributed),
+        max_contributions_per_partition_(max_contributions_per_partition),
+        mechanism_builder_(std::move(mechanism_builder)),
+        lower_(lower),
+        upper_(upper),
+        tree_(tree_height, branching_factor) {}
 
   int getLeafIndex(T input) {
     double leaf_fraction =
@@ -156,6 +159,11 @@ class QuantileTree {
     }
   }
 
+  const double epsilon_;
+  const double delta_;
+  const int max_partitions_contributed_;
+  const int max_contributions_per_partition_;
+  const std::unique_ptr<NumericalMechanismBuilder> mechanism_builder_;
   T lower_;
   T upper_;
   internal::CountTree tree_;
@@ -514,6 +522,34 @@ class QuantileTree<T>::Builder {
  public:
   Builder() = default;
 
+  QuantileTree<T>::Builder& SetEpsilon(double epsilon) {
+    epsilon_ = epsilon;
+    return *this;
+  }
+
+  QuantileTree<T>::Builder& SetDelta(double delta) {
+    delta_ = delta;
+    return *this;
+  }
+
+  QuantileTree<T>::Builder& SetMaxPartitionsContributed(
+      int max_partitions_contributed) {
+    max_partitions_contributed_ = max_partitions_contributed;
+    return *this;
+  }
+
+  QuantileTree<T>::Builder& SetMaxContributionsPerPartition(
+      int max_contributions_per_partition) {
+    max_contributions_per_partition_ = max_contributions_per_partition;
+    return *this;
+  }
+
+  QuantileTree<T>::Builder& SetLaplaceMechanism(
+      std::unique_ptr<NumericalMechanismBuilder> builder) {
+    mechanism_builder_ = std::move(builder);
+    return *this;
+  }
+
   Builder& SetTreeHeight(int tree_height) {
     tree_height_ = tree_height;
     return *static_cast<Builder*>(this);
@@ -578,12 +614,40 @@ class QuantileTree<T>::Builder {
                        lower_.value(), " >= upper: ", upper_.value()));
     }
 
-    return std::unique_ptr<QuantileTree>(
-        new QuantileTree(lower_.value(), upper_.value(), tree_height_.value(),
-                         branching_factor_.value()));
+    RETURN_IF_ERROR(ValidateEpsilon(epsilon_));
+    RETURN_IF_ERROR(ValidateDelta(delta_));
+    RETURN_IF_ERROR(
+        ValidateMaxPartitionsContributed(max_partitions_contributed_));
+    RETURN_IF_ERROR(
+        ValidateMaxContributionsPerPartition(max_contributions_per_partition_));
+
+    // Try building a numerical mechanism so we can return an error now if any
+    // parameters are invalid. Otherwise, the error wouldn't be returned until
+    // we call MakePrivate.
+    RETURN_IF_ERROR(mechanism_builder_->Clone()
+                        ->SetEpsilon(epsilon_.value())
+                        .SetDelta(delta_)
+                        .SetL0Sensitivity(max_partitions_contributed_)
+                        .SetLInfSensitivity(max_contributions_per_partition_)
+                        .Build()
+                        .status());
+
+    return std::unique_ptr<QuantileTree>(new QuantileTree(
+        epsilon_.value(), delta_, max_partitions_contributed_,
+        max_contributions_per_partition_, mechanism_builder_->Clone(),
+        lower_.value(), upper_.value(), tree_height_.value(),
+        branching_factor_.value()));
   }
 
  private:
+  // DP parameters.
+  std::optional<double> epsilon_;
+  double delta_ = 0;
+  int max_partitions_contributed_ = 1;
+  int max_contributions_per_partition_ = 1;
+  std::unique_ptr<NumericalMechanismBuilder> mechanism_builder_ =
+      std::make_unique<LaplaceMechanism::Builder>();
+  // Tree parameters.
   std::optional<int> tree_height_;
   std::optional<int> branching_factor_;
   std::optional<T> lower_;

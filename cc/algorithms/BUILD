@@ -733,6 +733,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":numerical-mechanisms",
+        ":util",
         "//algorithms/internal:count-tree",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",

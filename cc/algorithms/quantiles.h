@@ -88,15 +88,8 @@ class Quantiles : public Algorithm<T> {
  protected:
   absl::StatusOr<Output> GenerateResult(
       double confidence_interval_level) override {
-    typename QuantileTree<T>::DPParams dp_params;
-    dp_params.epsilon = Algorithm<T>::GetEpsilon();
-    dp_params.delta = Algorithm<T>::GetDelta();
-    dp_params.max_contributions_per_partition =
-        max_contributions_per_partition_;
-    dp_params.max_partitions_contributed_to = max_partitions_contributed_to_;
-    dp_params.mechanism_builder = mechanism_builder_->Clone();
     absl::StatusOr<typename QuantileTree<T>::Privatized> result =
-        tree_->MakePrivate(dp_params);
+        tree_->MakePrivate();
     if (!result.ok()) {
       return result.status();
     }
@@ -126,21 +119,12 @@ class Quantiles : public Algorithm<T> {
 
  private:
   Quantiles(std::unique_ptr<QuantileTree<T>> tree,
-            std::vector<double> quantiles, double epsilon, double delta,
-            int max_contributions_per_partition,
-            int max_partitions_contributed_to,
-            std::unique_ptr<NumericalMechanismBuilder> mechanism_builder)
+            std::vector<double> quantiles, double epsilon, double delta)
       : Algorithm<T>(epsilon, delta),
         tree_(std::move(tree)),
-        quantiles_(quantiles),
-        max_contributions_per_partition_(max_contributions_per_partition),
-        max_partitions_contributed_to_(max_partitions_contributed_to),
-        mechanism_builder_(std::move(mechanism_builder)) {}
+        quantiles_(quantiles) {}
 
   std::unique_ptr<QuantileTree<T>> tree_;
-  int max_contributions_per_partition_;
-  int max_partitions_contributed_to_;
-  std::unique_ptr<NumericalMechanismBuilder> mechanism_builder_;
   std::vector<double> quantiles_;
 };
 
@@ -201,29 +185,15 @@ class Quantiles<T>::Builder {
                    << " is being used. Consider setting your own epsilon based "
                       "on privacy considerations.";
     }
-    RETURN_IF_ERROR(ValidateEpsilon(epsilon_));
-    RETURN_IF_ERROR(ValidateDelta(delta_));
     RETURN_IF_ERROR(ValidateBounds(lower_, upper_));
-    RETURN_IF_ERROR(
-        ValidateMaxPartitionsContributed(max_partitions_contributed_));
-    RETURN_IF_ERROR(
-        ValidateMaxContributionsPerPartition(max_contributions_per_partition_));
     RETURN_IF_ERROR(ValidateQuantiles(quantiles_));
 
-    // Try building a numerical mechanism so we can return an error now if any
-    // parameters are invalid. Otherwise, the error wouldn't be returned until
-    // we call MakePrivate in GenerateResult.
-    RETURN_IF_ERROR(mechanism_builder_->Clone()
-                        ->SetEpsilon(epsilon_.value())
-                        .SetDelta(delta_)
-                        .SetL0Sensitivity(max_partitions_contributed_)
-                        .SetLInfSensitivity(max_contributions_per_partition_)
-                        .Build()
-                        .status());
-
-    // All validation passed; construct quantiles algorithm below.
-
     typename QuantileTree<T>::Builder tree_builder;
+    tree_builder.SetEpsilon(epsilon_.value())
+        .SetDelta(delta_)
+        .SetMaxPartitionsContributed(max_partitions_contributed_)
+        .SetMaxContributionsPerPartition(max_contributions_per_partition_)
+        .SetLaplaceMechanism(mechanism_builder_->Clone());
     if (lower_.has_value()) {
       tree_builder.SetLower(lower_.value());
     }
@@ -232,11 +202,8 @@ class Quantiles<T>::Builder {
     }
     ASSIGN_OR_RETURN(std::unique_ptr<QuantileTree<T>> tree,
                      tree_builder.Build());
-
-    return absl::WrapUnique(new Quantiles<T>(
-        std::move(tree), quantiles_, epsilon_.value(), delta_,
-        max_contributions_per_partition_, max_partitions_contributed_,
-        mechanism_builder_->Clone()));
+    return absl::WrapUnique(new Quantiles<T>(std::move(tree), quantiles_,
+                                             epsilon_.value(), delta_));
   }
 
  private:
