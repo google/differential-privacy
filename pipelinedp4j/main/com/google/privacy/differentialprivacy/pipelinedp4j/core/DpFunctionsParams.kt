@@ -38,6 +38,33 @@ import kotlin.reflect.KClass
 // TODO: Implement this for DpEngine.Aggregate().
 const val MAX_PROCESSED_CONTRIBUTIONS_PER_PRIVACY_ID: Int = 100_000_000
 
+@Immutable
+sealed interface FeatureSpec : Serializable {
+  val featureId: String
+  val metrics: ImmutableList<MetricDefinition>
+}
+
+@Immutable
+data class ScalarFeatureSpec(
+  override val featureId: String,
+  override val metrics: ImmutableList<MetricDefinition>,
+  val minValue: Double?,
+  val maxValue: Double?,
+  val minTotalValue: Double? = null,
+  val maxTotalValue: Double? = null,
+) : FeatureSpec, Serializable
+
+@Immutable
+data class VectorFeatureSpec(
+  override val featureId: String,
+  override val metrics: ImmutableList<MetricDefinition>,
+  val vectorSize: Int? = null,
+  val elementMinValue: Double? = null,
+  val elementMaxValue: Double? = null,
+  val normKind: NormKind? = null,
+  val vectorMaxTotalNorm: Double? = null,
+) : FeatureSpec, Serializable
+
 /** Contains shared parameters for validation. */
 sealed interface Params {
   /** The contribution bounding level that determines the kind of bounding. */
@@ -118,6 +145,7 @@ private fun partitionsContributedBoundingShouldBeApplied(
 data class AggregationParams(
   /** The metrics being anonymized. */
   val metrics: ImmutableList<MetricDefinition>,
+  val features: ImmutableList<FeatureSpec> = ImmutableList.of(),
   val noiseKind: NoiseKind,
   /**
    * The maximum number of partitions that can be contributed by a privacy unit. Used by all
@@ -134,37 +162,6 @@ data class AggregationParams(
    * Note this is mutually exclusive with maxContributionsPerPartition.
    */
   val maxContributions: Int? = null,
-  /**
-   * The minimum bound on the individual value that can be contributed by a user to a partition.
-   * Used for MEAN and QUANTILES.
-   */
-  val minValue: Double? = null,
-  /**
-   * The maximum bound on the individual value that can be contributed by a user to a partition.
-   * Used for MEAN and QUANTILES.
-   */
-  val maxValue: Double? = null,
-  /**
-   * The minimum bound on the sum of the values that can be contributed by a user to a partition.
-   * Used for SUM.
-   */
-  val minTotalValue: Double? = null,
-  /**
-   * The maximum bound on the sum of the values that can be contributed by a user to a partition.
-   * Used for SUM.
-   */
-  val maxTotalValue: Double? = null,
-  /** The type of norm. Used for VECTOR_SUM. */
-  val vectorNormKind: NormKind? = null,
-  /**
-   * The maximum norm of the sum of the vectors that can be contributed by a user to a partition.
-   * Used for VECTOR_SUM.
-   */
-  val vectorMaxTotalNorm: Double? = null,
-  /**
-   * The size of the vectors that can be contributed by a user to a partition. Used for VECTOR_SUM.
-   */
-  val vectorSize: Int? = null,
   /**
    * The amount of budget used for partition selection.
    *
@@ -216,26 +213,40 @@ fun validateAggregationParams(
     }
   }
 
-  // Metrics.
-  require(!params.metrics.isEmpty()) { "metrics must not be empty." }
+  // Metrics & features validation.
+  require(params.metrics.isNotEmpty() || params.features.isNotEmpty()) {
+    "metrics or features must not be empty."
+  }
+  val featureMetrics = params.features.flatMap { it.metrics }
+  require(
+    params.metrics.all { it.type == MetricType.COUNT || it.type == MetricType.PRIVACY_ID_COUNT }
+  ) {
+    "Only COUNT and PRIVACY_ID_COUNT are allowed in AggregationParams.metrics. Other metrics should be provided via AggregationParams.features."
+  }
+  require(
+    featureMetrics.none { it.type == MetricType.COUNT || it.type == MetricType.PRIVACY_ID_COUNT }
+  ) {
+    "COUNT and PRIVACY_ID_COUNT are not allowed in features. They should be provided via AggregationParams.metrics."
+  }
+
   require(params.metrics.map { it.type }.distinct().size == params.metrics.size) {
     "metrics must not contain duplicate metric types. Provided ${params.metrics.map { it.type }}."
   }
+  for (feature in params.features) {
+    require(feature.metrics.map { it.type }.distinct().size == feature.metrics.size) {
+      "feature ${feature.featureId} must not contain duplicate metric types. Provided ${feature.metrics.map { it.type }}"
+    }
+  }
+  require(params.features.map { it.featureId }.distinct().size == params.features.size) {
+    "featureId must be unique. Provided ${params.features.map { it.featureId }}"
+  }
+
   // Max contributions per partition.
   require(isGreaterThanZeroIfSet(params.maxContributionsPerPartition)) {
     "maxContributionsPerPartition must be positive. Provided value: " +
       "${params.maxContributionsPerPartition}."
   }
-  if (params.contributionBoundingLevel.withContributionsPerPartitionBounding) {
-    require(
-      params.maxContributionsPerPartition != null ||
-        params.maxContributions != null ||
-        (params.minTotalValue != null && params.maxTotalValue != null) ||
-        params.vectorMaxTotalNorm != null
-    ) {
-      "maxContributionsPerPartition or maxContributions or (minTotalValue, maxTotalValue) or vectorMaxTotalNorm must be set because specified ${params.contributionBoundingLevel} contribution bounding level requires per partition bounding."
-    }
-  }
+
   // Max contributions.
   require(isGreaterThanZeroIfSet(params.maxContributions)) {
     "maxContributions must be positive. Provided value: " + "${params.maxContributions}."
@@ -251,133 +262,31 @@ fun validateAggregationParams(
       "Provided values: maxContributions=${params.maxContributions}, " +
       "maxContributionsPerPartition=${params.maxContributionsPerPartition}."
   }
-  // Min/Max bounds
-  require(sameNullability(params.minValue, params.maxValue)) {
-    "minValue and maxValue must be simultaneously equal or not equal to null. Provided values: " +
-      "minValue=${params.minValue}, maxValue=${params.maxValue}."
-  }
-  var areMinMaxValuesSet = false
-  if (params.minValue != null && params.maxValue != null) {
-    areMinMaxValuesSet = true
-    require(params.minValue < params.maxValue) {
-      "minValue must be less than maxValue. Provided values: " +
-        "minValue=${params.minValue}, maxValue=${params.maxValue}."
-    }
-  }
-  require(sameNullability(params.minTotalValue, params.maxTotalValue)) {
-    "minTotalValue and maxTotalValue must be simultaneously equal or not equal to null. " +
-      "Provided values: minTotalValue=${params.minTotalValue}, " +
-      "maxTotalValue=${params.maxTotalValue}."
-  }
-  var areMinMaxTotalValuesSet = false
-  if (params.minTotalValue != null && params.maxTotalValue != null) {
-    areMinMaxTotalValuesSet = true
-    require(params.minTotalValue <= params.maxTotalValue) {
-      "minTotalValue must be less or equal to maxTotalValue. Provided values: " +
-        "minTotalValue=${params.minTotalValue}, maxTotalValue=${params.maxTotalValue}."
-    }
-  }
 
   // Required parameters per each metric.
-  if (metricIsRequested(COUNT::class, params)) {
-    require(params.maxContributionsPerPartition != null || params.maxContributions != null) {
-      "maxContributionsPerPartition or maxContributions must be set for COUNT metric."
-    }
-  }
-  // When MEAN and SUM are set together, then contribution bounding with (minValue, maxValue)
-  // is used. SUM and VARIANCE should not be set together.
-  if (
-    metricIsRequested(SUM::class, params) &&
-      !metricIsRequested(MEAN::class, params) &&
-      !metricIsRequested(VARIANCE::class, params)
-  ) {
-    require(areMinMaxTotalValuesSet) {
-      "(minTotalValue, maxTotalValue) must be set for SUM metrics."
+  if (metricIsRequested(COUNT::class, params.metrics)) {
+    val perPartitionBoundsSet = params.maxContributionsPerPartition != null
+    val crossPartitionBoundsSet = params.maxContributions != null
+    val totalValueBoundsSet =
+      params.features.any {
+        (it is ScalarFeatureSpec && it.minTotalValue != null && it.maxTotalValue != null) ||
+          (it is VectorFeatureSpec && it.vectorMaxTotalNorm != null)
+      }
+    if (params.contributionBoundingLevel == PARTITION_LEVEL) {
+      require(perPartitionBoundsSet || crossPartitionBoundsSet || totalValueBoundsSet) {
+        "maxContributionsPerPartition or maxContributions or (minTotalValue, maxTotalValue) or vectorMaxTotalNorm must be set because specified ${params.contributionBoundingLevel} contribution bounding level requires per partition bounding"
+      }
+    } else { // DATASET_LEVEL
+      require(perPartitionBoundsSet || crossPartitionBoundsSet || totalValueBoundsSet) {
+        "maxContributionsPerPartition or maxContributions must be set for COUNT metric."
+      }
     }
   }
 
-  if (metricIsRequested(MEAN::class, params)) {
-    require(params.maxContributionsPerPartition != null || params.maxContributions != null) {
-      "maxContributionsPerPartition or maxContributions must be set for MEAN metric."
-    }
-    require(areMinMaxValuesSet) { "(minValue, maxValue) must be set for MEAN metric." }
-    require(!areMinMaxTotalValuesSet) {
-      "(minTotalValue, maxTotalValue) should not be set if MEAN metric is requested."
-    }
-  }
-  require(
-    params.metrics.find { it.type == COUNT }?.budgetSpec == null ||
-      params.metrics.find { it.type == MEAN }?.budgetSpec == null
-  ) {
-    "BudgetPerOpSpec can not be set for both COUNT and MEAN metrics."
-  }
-  require(
-    params.metrics.find { it.type == SUM }?.budgetSpec == null ||
-      params.metrics.find { it.type == MEAN }?.budgetSpec === null
-  ) {
-    "BudgetPerOpSpec can not be set for both SUM and MEAN metrics."
-  }
-  require(
-    params.metrics.find { it.type == MEAN }?.budgetSpec == null ||
-      params.metrics.find { it.type == VARIANCE }?.budgetSpec == null
-  ) {
-    "BudgetPerOpSpec can not be set for both MEAN and VARIANCE metrics."
-  }
-  // Validation for VARIANCE metric.
-  if (metricIsRequested(VARIANCE::class, params)) {
-    require(params.maxContributionsPerPartition != null || params.maxContributions != null) {
-      "maxContributionsPerPartition or maxContributions must be set for VARIANCE metric."
-    }
-    require(areMinMaxValuesSet) { "(minValue, maxValue) must be set for VARIANCE metric." }
-    require(!areMinMaxTotalValuesSet) {
-      "(minTotalValue, maxTotalValue) should not be set if VARIANCE metric is requested."
-    }
-  }
-  require(
-    params.metrics.find { it.type == SUM }?.budgetSpec == null ||
-      params.metrics.find { it.type == VARIANCE }?.budgetSpec == null
-  ) {
-    "BudgetPerOpSpec can not be set for both SUM and VARIANCE metrics."
-  }
-
-  require(
-    params.metrics.find { it.type == COUNT }?.budgetSpec == null ||
-      params.metrics.find { it.type == VARIANCE }?.budgetSpec == null
-  ) {
-    "BudgetPerOpSpec can not be set for both COUNT and VARIANCE metrics."
-  }
-  // Validation for QUANTILES metric.
-  if (metricIsRequested(QUANTILES::class, params)) {
-    require(params.maxContributionsPerPartition != null) {
-      "maxContributionsPerPartition must be set for QUANTILES metric."
-    }
-    require(areMinMaxValuesSet) { "(minValue, maxValue) must be set for QUANTILES metric." }
-  }
-  // Validation for VECTOR_SUM metric.
-  if (metricIsRequested(VECTOR_SUM::class, params)) {
-    require(params.vectorNormKind != null) { "vectorNormKind must be set for VECTOR_SUM metric." }
-    when (params.noiseKind) {
-      NoiseKind.LAPLACE ->
-        require(params.vectorNormKind in listOf(NormKind.L_INF, NormKind.L1)) {
-          "vectorNormKind must be L_INF or L1 for LAPLACE noise. Provided value: ${params.vectorNormKind}."
-        }
-      NoiseKind.GAUSSIAN ->
-        require(params.vectorNormKind in listOf(NormKind.L_INF, NormKind.L2)) {
-          "vectorNormKind must be L_INF or L2 for GAUSSIAN noise. Provided value: ${params.vectorNormKind}."
-        }
-    }
-    require(params.vectorMaxTotalNorm != null) {
-      "vectorMaxTotalNorm must be set for VECTOR_SUM metric."
-    }
-    require(params.vectorSize != null) { "vectorSize must be set for VECTOR_SUM metric." }
-
-    require(
-      !metricIsRequested(SUM::class, params) &&
-        !metricIsRequested(MEAN::class, params) &&
-        !metricIsRequested(VARIANCE::class, params) &&
-        !metricIsRequested(QUANTILES::class, params)
-    ) {
-      "VECTOR_SUM can not be computed together with scalar metrics such as SUM, MEAN, VARIANCE and QUANTILES."
+  for (feature in params.features) {
+    when (feature) {
+      is ScalarFeatureSpec -> validateScalarFeature(params, feature)
+      is VectorFeatureSpec -> validateVectorFeature(params, feature)
     }
   }
 
@@ -390,10 +299,151 @@ fun validateAggregationParams(
 
   // ValueExtractor: only COUNT and PRIVACY_ID_COUNT can be computed w/o a value extractor.
   if (!hasValueExtractor) {
-    val metricsWhichRequireValueExtractor =
-      params.metrics.map { it.type }.filter { it != COUNT && it != PRIVACY_ID_COUNT }
-    require(metricsWhichRequireValueExtractor.isEmpty()) {
-      "Metrics $metricsWhichRequireValueExtractor require a value extractor."
+    require(featureMetrics.isEmpty()) {
+      "Feature metrics ${featureMetrics.map { it.type }} require a value extractor."
+    }
+  }
+}
+
+private fun validateScalarFeature(params: AggregationParams, feature: ScalarFeatureSpec) {
+  // Min/Max bounds
+  require(sameNullability(feature.minValue, feature.maxValue)) {
+    "minValue and maxValue must be simultaneously equal or not equal to null. Provided values: " +
+      "minValue=${feature.minValue}, maxValue=${feature.maxValue}."
+  }
+  var areMinMaxValuesSet = false
+  if (feature.minValue != null && feature.maxValue != null) {
+    areMinMaxValuesSet = true
+    require(feature.minValue < feature.maxValue) {
+      "minValue must be less than maxValue. Provided values: " +
+        "minValue=${feature.minValue}, maxValue=${feature.maxValue}."
+    }
+  }
+  require(sameNullability(feature.minTotalValue, feature.maxTotalValue)) {
+    "minTotalValue and maxTotalValue must be simultaneously equal or not equal to null. " +
+      "Provided values: minTotalValue=${feature.minTotalValue}, " +
+      "maxTotalValue=${feature.maxTotalValue}."
+  }
+  var areMinMaxTotalValuesSet = false
+  if (feature.minTotalValue != null && feature.maxTotalValue != null) {
+    areMinMaxTotalValuesSet = true
+    require(feature.minTotalValue <= feature.maxTotalValue) {
+      "minTotalValue must be less or equal to maxTotalValue. Provided values: " +
+        "minTotalValue=${feature.minTotalValue}, maxTotalValue=${feature.maxTotalValue}."
+    }
+  }
+
+  if (params.contributionBoundingLevel.withContributionsPerPartitionBounding) {
+    val vectorMaxTotalNormIsSet =
+      params.features.any { (it as? VectorFeatureSpec)?.vectorMaxTotalNorm != null }
+    require(
+      params.maxContributionsPerPartition != null ||
+        params.maxContributions != null ||
+        areMinMaxTotalValuesSet ||
+        vectorMaxTotalNormIsSet
+    ) {
+      "maxContributionsPerPartition or maxContributions or (minTotalValue, maxTotalValue) or vectorMaxTotalNorm must be set because specified ${params.contributionBoundingLevel} contribution bounding level requires per partition bounding."
+    }
+  }
+
+  // When MEAN and SUM are set together, then contribution bounding with (minValue, maxValue)
+  // is used. SUM and VARIANCE should not be set together.
+  if (
+    metricIsRequested(SUM::class, feature.metrics) &&
+      !metricIsRequested(MEAN::class, feature.metrics) &&
+      !metricIsRequested(VARIANCE::class, feature.metrics)
+  ) {
+    require(areMinMaxTotalValuesSet) {
+      "(minTotalValue, maxTotalValue) must be set for SUM metrics."
+    }
+  }
+
+  if (metricIsRequested(MEAN::class, feature.metrics)) {
+    require(params.maxContributionsPerPartition != null || params.maxContributions != null) {
+      "maxContributionsPerPartition or maxContributions must be set for MEAN metric."
+    }
+    require(areMinMaxValuesSet) { "(minValue, maxValue) must be set for MEAN metric." }
+    require(!areMinMaxTotalValuesSet) {
+      "(minTotalValue, maxTotalValue) should not be set if MEAN metric is requested."
+    }
+  }
+  require(
+    params.metrics.find { it.type == COUNT }?.budgetSpec == null ||
+      feature.metrics.find { it.type == MEAN }?.budgetSpec == null
+  ) {
+    "BudgetPerOpSpec can not be set for both COUNT and MEAN metrics."
+  }
+  require(
+    feature.metrics.find { it.type == SUM }?.budgetSpec == null ||
+      feature.metrics.find { it.type == MEAN }?.budgetSpec === null
+  ) {
+    "BudgetPerOpSpec can not be set for both SUM and MEAN metrics."
+  }
+  require(
+    feature.metrics.find { it.type == MEAN }?.budgetSpec == null ||
+      feature.metrics.find { it.type == VARIANCE }?.budgetSpec == null
+  ) {
+    "BudgetPerOpSpec can not be set for both MEAN and VARIANCE metrics."
+  }
+  // Validation for VARIANCE metric.
+  if (metricIsRequested(VARIANCE::class, feature.metrics)) {
+    require(params.maxContributionsPerPartition != null || params.maxContributions != null) {
+      "maxContributionsPerPartition or maxContributions must be set for VARIANCE metric."
+    }
+    require(areMinMaxValuesSet) { "(minValue, maxValue) must be set for VARIANCE metric." }
+    require(!areMinMaxTotalValuesSet) {
+      "(minTotalValue, maxTotalValue) should not be set if VARIANCE metric is requested."
+    }
+  }
+  require(
+    feature.metrics.find { it.type == SUM }?.budgetSpec == null ||
+      feature.metrics.find { it.type == VARIANCE }?.budgetSpec == null
+  ) {
+    "BudgetPerOpSpec can not be set for both SUM and VARIANCE metrics."
+  }
+
+  require(
+    params.metrics.find { it.type == COUNT }?.budgetSpec == null ||
+      feature.metrics.find { it.type == VARIANCE }?.budgetSpec == null
+  ) {
+    "BudgetPerOpSpec can not be set for both COUNT and VARIANCE metrics."
+  }
+  // Validation for QUANTILES metric.
+  if (metricIsRequested(QUANTILES::class, feature.metrics)) {
+    require(params.maxContributionsPerPartition != null) {
+      "maxContributionsPerPartition must be set for QUANTILES metric."
+    }
+    require(areMinMaxValuesSet) { "(minValue, maxValue) must be set for QUANTILES metric." }
+  }
+}
+
+private fun validateVectorFeature(params: AggregationParams, feature: VectorFeatureSpec) {
+  if (params.contributionBoundingLevel.withContributionsPerPartitionBounding) {
+    require(
+      params.maxContributionsPerPartition != null ||
+        params.maxContributions != null ||
+        feature.vectorMaxTotalNorm != null
+    ) {
+      "maxContributionsPerPartition or maxContributions or vectorMaxTotalNorm must be set because specified ${params.contributionBoundingLevel} contribution bounding level requires per partition bounding."
+    }
+  }
+
+  // Validation for VECTOR_SUM metric.
+  if (metricIsRequested(VECTOR_SUM::class, feature.metrics)) {
+    require(feature.vectorSize != null) { "vectorSize must be set for VECTOR_SUM metric." }
+    require(feature.normKind != null) { "vectorNormKind must be set for VECTOR_SUM metric." }
+    when (params.noiseKind) {
+      NoiseKind.LAPLACE ->
+        require(feature.normKind in listOf(NormKind.L_INF, NormKind.L1)) {
+          "vectorNormKind must be L_INF or L1 for LAPLACE noise. Provided value: ${feature.normKind}."
+        }
+      NoiseKind.GAUSSIAN ->
+        require(feature.normKind in listOf(NormKind.L_INF, NormKind.L2)) {
+          "vectorNormKind must be L_INF or L2 for GAUSSIAN noise. Provided value: ${feature.normKind}."
+        }
+    }
+    require(feature.vectorMaxTotalNorm != null) {
+      "vectorMaxTotalNorm must be set for VECTOR_SUM metric."
     }
   }
 }
@@ -570,8 +620,10 @@ private fun sameNullability(a: Double?, b: Double?): Boolean {
   return (a == null) == (b == null)
 }
 
-private fun metricIsRequested(metricTypeClass: KClass<out MetricType>, params: AggregationParams) =
-  params.metrics.any { metricTypeClass.isInstance(it.type) }
+private fun metricIsRequested(
+  metricTypeClass: KClass<out MetricType>,
+  metrics: Collection<MetricDefinition>,
+) = metrics.any { metricTypeClass.isInstance(it.type) }
 
 private fun isGreaterThanZeroIfSet(value: Int?): Boolean = value == null || value > 0
 
