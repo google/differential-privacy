@@ -75,13 +75,19 @@ class EndToEndTest {
     // Use low bounds to avoid sensitivity overflow when adding noise.
     val params =
       AggregationParams(
-        metrics =
-          ImmutableList.of(MetricDefinition(COUNT), MetricDefinition(SUM), MetricDefinition(MEAN)),
+        metrics = ImmutableList.of(MetricDefinition(COUNT)),
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              "value",
+              ImmutableList.of(MetricDefinition(SUM), MetricDefinition(MEAN)),
+              -2.0,
+              2.0,
+            )
+          ),
         noiseKind = LAPLACE,
         maxPartitionsContributed = 1,
         maxContributionsPerPartition = 1,
-        minValue = -2.0,
-        maxValue = 2.0,
       )
 
     val dpAggregates =
@@ -90,8 +96,10 @@ class EndToEndTest {
 
     val partitionResult = dpAggregates.data.toMap()["US"]!!
     assertThat(partitionResult.count).isWithin(1e-1).of(100.0)
-    assertThat(partitionResult.sum).isWithin(1e-1).of(200.0)
-    assertThat(partitionResult.mean).isWithin(1e-10).of(partitionResult.sum / partitionResult.count)
+    assertThat(partitionResult.perFeatureList.first().sum).isWithin(1e-1).of(200.0)
+    assertThat(partitionResult.perFeatureList.first().mean)
+      .isWithin(1e-10)
+      .of(partitionResult.perFeatureList.first().sum / partitionResult.count)
   }
 
   @Test
@@ -105,11 +113,10 @@ class EndToEndTest {
     val params =
       AggregationParams(
         metrics = ImmutableList.of(MetricDefinition(COUNT), MetricDefinition(PRIVACY_ID_COUNT)),
+        features = ImmutableList.of(ScalarFeatureSpec("value", ImmutableList.of(), -2.0, 2.0)),
         noiseKind = LAPLACE,
         maxPartitionsContributed = 1,
         maxContributionsPerPartition = 1,
-        minValue = -2.0,
-        maxValue = 2.0,
       )
 
     val dpAggregates =
@@ -218,13 +225,19 @@ class EndToEndTest {
     // Use low bounds to avoid sensitivity overflow when adding noise.
     val params =
       AggregationParams(
-        metrics =
-          ImmutableList.of(MetricDefinition(COUNT), MetricDefinition(SUM), MetricDefinition(MEAN)),
+        metrics = ImmutableList.of(MetricDefinition(COUNT)),
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              "value",
+              ImmutableList.of(MetricDefinition(SUM), MetricDefinition(MEAN)),
+              -2.0,
+              2.0,
+            )
+          ),
         noiseKind = LAPLACE,
         maxPartitionsContributed = 1,
         maxContributionsPerPartition = 1,
-        minValue = -2.0,
-        maxValue = 2.0,
       )
 
     val dpAggregates =
@@ -234,8 +247,10 @@ class EndToEndTest {
 
     val partitionResult = dpAggregates.data.toMap()["US"]!!
     assertThat(partitionResult.count).isWithin(1e-1).of(2.0)
-    assertThat(partitionResult.sum).isWithin(1e-1).of(3.0)
-    assertThat(partitionResult.mean).isWithin(1e-10).of(partitionResult.sum / partitionResult.count)
+    assertThat(partitionResult.perFeatureList.first().sum).isWithin(1e-1).of(3.0)
+    assertThat(partitionResult.perFeatureList.first().mean)
+      .isWithin(1e-10)
+      .of(partitionResult.perFeatureList.first().sum / partitionResult.count)
   }
 
   @Test
@@ -250,14 +265,22 @@ class EndToEndTest {
         metrics =
           ImmutableList.of(
             MetricDefinition(COUNT, AbsoluteBudgetPerOpSpec(0.1, 1e-5)),
-            MetricDefinition(SUM, AbsoluteBudgetPerOpSpec(0.1, 1e-5)),
             MetricDefinition(PRIVACY_ID_COUNT, AbsoluteBudgetPerOpSpec(0.1, 1e-5)),
+          ),
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              "value",
+              ImmutableList.of(MetricDefinition(SUM, AbsoluteBudgetPerOpSpec(0.1, 1e-5))),
+              null,
+              null,
+              -5.0,
+              5.0,
+            )
           ),
         noiseKind = GAUSSIAN,
         maxPartitionsContributed = 5,
         maxContributionsPerPartition = 5,
-        minTotalValue = -5.0,
-        maxTotalValue = 5.0,
       )
 
     val dpAggregates =
@@ -270,8 +293,8 @@ class EndToEndTest {
 
     assertThat(dpAggregates.data.toMap()["US"]!!.count)
       .isNotEqualTo(dpAggregatesAnotherRun.data.toMap()["US"]!!.count)
-    assertThat(dpAggregates.data.toMap()["US"]!!.sum)
-      .isNotEqualTo(dpAggregatesAnotherRun.data.toMap()["US"]!!.sum)
+    assertThat(dpAggregates.data.toMap()["US"]!!.perFeatureList.first().sum)
+      .isNotEqualTo(dpAggregatesAnotherRun.data.toMap()["US"]!!.perFeatureList.first().sum)
     assertThat(dpAggregates.data.toMap()["US"]!!.privacyIdCount)
       .isNotEqualTo(dpAggregatesAnotherRun.data.toMap()["US"]!!.privacyIdCount)
   }

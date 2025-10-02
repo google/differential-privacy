@@ -27,6 +27,7 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.core.NoiseKind.GAUSSI
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.AllocatedBudget
 import com.google.privacy.differentialprivacy.pipelinedp4j.dplibrary.NoiseFactory
 import com.google.privacy.differentialprivacy.pipelinedp4j.dplibrary.ZeroNoiseFactory
+import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PrivacyIdContributionsKt.featureContribution
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PrivacyIdContributionsKt.multiValueContribution
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.countAccumulator
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.privacyIdContributions
@@ -72,7 +73,12 @@ class CountCombinerTest {
 
     val accumulator =
       combiner.createAccumulator(
-        privacyIdContributions { singleValueContributions += listOf(1.0, 1.0, 1.0) }
+        privacyIdContributions {
+          features += featureContribution {
+            featureId = "value"
+            singleValueContributions += listOf(1.0, 1.0, 1.0)
+          }
+        }
       )
 
     assertThat(accumulator).isEqualTo(countAccumulator { count = 3 })
@@ -86,12 +92,15 @@ class CountCombinerTest {
     val accumulator =
       combiner.createAccumulator(
         privacyIdContributions {
-          multiValueContributions +=
-            listOf(
-              multiValueContribution { values += listOf(1.0, 1.0, 1.0) },
-              multiValueContribution { values += listOf(2.0, 2.0, 2.0) },
-              multiValueContribution { values += listOf(3.0, 3.0, 3.0) },
-            )
+          features += featureContribution {
+            featureId = "value"
+            multiValueContributions +=
+              listOf(
+                multiValueContribution { values.addAll(listOf(1.0, 1.0, 1.0)) },
+                multiValueContribution { values.addAll(listOf(2.0, 2.0, 2.0)) },
+                multiValueContribution { values.addAll(listOf(3.0, 3.0, 3.0)) },
+              )
+          }
         }
       )
 
@@ -113,7 +122,12 @@ class CountCombinerTest {
 
     val accumulator =
       combiner.createAccumulator(
-        privacyIdContributions { singleValueContributions += listOf(1.0, 1.0, 1.0) }
+        privacyIdContributions {
+          features += featureContribution {
+            featureId = "value"
+            singleValueContributions += listOf(1.0, 1.0, 1.0)
+          }
+        }
       )
 
     assertThat(accumulator).isEqualTo(countAccumulator { count = 2 })
@@ -134,7 +148,12 @@ class CountCombinerTest {
 
     val accumulator =
       combiner.createAccumulator(
-        privacyIdContributions { singleValueContributions += listOf(1.0, 1.0, 1.0) }
+        privacyIdContributions {
+          features += featureContribution {
+            featureId = "value"
+            singleValueContributions += listOf(1.0, 1.0, 1.0)
+          }
+        }
       )
 
     assertThat(accumulator).isEqualTo(countAccumulator { count = 3 })
@@ -207,10 +226,22 @@ class CountCombinerTest {
     val accumulator0 = combiner.emptyAccumulator()
     val accumulator1 =
       combiner.createAccumulator(
-        privacyIdContributions { singleValueContributions += listOf(0.0, 0.0) }
+        privacyIdContributions {
+          features += featureContribution {
+            featureId = "value"
+            singleValueContributions += listOf(0.0, 0.0)
+          }
+        }
       )
     val accumulator2 =
-      combiner.createAccumulator(privacyIdContributions { singleValueContributions += listOf(0.0) })
+      combiner.createAccumulator(
+        privacyIdContributions {
+          features += featureContribution {
+            featureId = "value"
+            singleValueContributions += listOf(0.0)
+          }
+        }
+      )
     val accumulator3 = combiner.mergeAccumulators(accumulator0, accumulator1)
     val finalAccumulator = combiner.mergeAccumulators(accumulator2, accumulator3)
     val result = combiner.computeMetrics(finalAccumulator)

@@ -57,11 +57,16 @@ class DpFunctionsParamsTest {
     validateAggregationParams(
       AGGREGATION_PARAMS.copy(
         maxContributionsPerPartition = null,
-        metrics = ImmutableList.of(MetricDefinition(SUM)),
-        minValue = null,
-        maxValue = null,
-        minTotalValue = 1.0,
-        maxTotalValue = 2.0,
+        features =
+          ImmutableList.of(
+            createScalarFeatureSpec(
+              metrics = ImmutableList.of(MetricDefinition(SUM)),
+              minValue = null,
+              maxValue = null,
+              minTotalValue = 1.0,
+              maxTotalValue = 2.0,
+            )
+          ),
       ),
       usePublicPartitions = true,
       hasValueExtractor = true,
@@ -69,15 +74,16 @@ class DpFunctionsParamsTest {
     validateAggregationParams(
       AGGREGATION_PARAMS.copy(
         maxContributionsPerPartition = null,
-        metrics = ImmutableList.of(MetricDefinition(VECTOR_SUM)),
+        features =
+          ImmutableList.of(
+            createVectorFeatureSpec(
+              metrics = ImmutableList.of(MetricDefinition(VECTOR_SUM)),
+              vectorSize = 2,
+              vectorMaxTotalNorm = 1.0,
+              normKind = NormKind.L1,
+            )
+          ),
         noiseKind = NoiseKind.LAPLACE,
-        minValue = null,
-        maxValue = null,
-        minTotalValue = null,
-        maxTotalValue = null,
-        vectorSize = 2,
-        vectorMaxTotalNorm = 1.0,
-        vectorNormKind = NormKind.L1,
       ),
       usePublicPartitions = false,
       hasValueExtractor = true,
@@ -118,8 +124,12 @@ class DpFunctionsParamsTest {
       exceptionMessage = "preThreshold must be positive. Provided value: 0",
     ),
     NO_METRICS(
-      aggregationParams = AGGREGATION_PARAMS.copy(metrics = ImmutableList.of<MetricDefinition>()),
-      exceptionMessage = "metrics must not be empty.",
+      aggregationParams =
+        AGGREGATION_PARAMS.copy(
+          metrics = ImmutableList.of<MetricDefinition>(),
+          features = ImmutableList.of(),
+        ),
+      exceptionMessage = "metrics or features must not be empty.",
     ),
     ZERO_MAX_CONTRIBUTIONS_PER_PARTITION(
       aggregationParams = AGGREGATION_PARAMS.copy(maxContributionsPerPartition = 0),
@@ -180,38 +190,62 @@ class DpFunctionsParamsTest {
         "maxContributions and maxPartitionsContributed are mutually exclusive. Provided values: maxContributions=1, maxPartitionsContributed=1",
     ),
     MIN_VALUE_SET_MAX_VALUE_NOT_SET(
-      aggregationParams = AGGREGATION_PARAMS.copy(minValue = 1.0, maxValue = null),
+      aggregationParams =
+        AGGREGATION_PARAMS.copy(
+          features = ImmutableList.of(createScalarFeatureSpec(minValue = 1.0, maxValue = null))
+        ),
       exceptionMessage = "minValue and maxValue must be simultaneously equal or not equal to null.",
     ),
     MIN_VALUE_NOT_SET_MAX_VALUE_SET(
-      aggregationParams = AGGREGATION_PARAMS.copy(minValue = null, maxValue = 2.0),
+      aggregationParams =
+        AGGREGATION_PARAMS.copy(
+          features = ImmutableList.of(createScalarFeatureSpec(minValue = null, maxValue = 2.0))
+        ),
       exceptionMessage =
         "minValue and maxValue must be simultaneously equal or not equal to " +
           "null. Provided values: minValue=null, maxValue=2.0",
     ),
     MIN_VALUE_GREATER_THAN_MAX_VALUE(
-      aggregationParams = AGGREGATION_PARAMS.copy(minValue = 1.5, maxValue = 1.0),
+      aggregationParams =
+        AGGREGATION_PARAMS.copy(
+          features = ImmutableList.of(createScalarFeatureSpec(minValue = 1.5, maxValue = 1.0))
+        ),
       exceptionMessage =
         "minValue must be less than maxValue. Provided values: " + "minValue=1.5, maxValue=1.0",
     ),
     MIN_VALUE_IS_EQUAL_TO_MAX_VALUE(
-      aggregationParams = AGGREGATION_PARAMS.copy(minValue = 1.5, maxValue = 1.5),
+      aggregationParams =
+        AGGREGATION_PARAMS.copy(
+          features = ImmutableList.of(createScalarFeatureSpec(minValue = 1.5, maxValue = 1.5))
+        ),
       exceptionMessage =
         "minValue must be less than maxValue. Provided values: " + "minValue=1.5, maxValue=1.5",
     ),
     MIN_TOTAL_VALUE_SET_MAX_TOTAL_VALUE_NOT_SET(
-      aggregationParams = AGGREGATION_PARAMS.copy(minTotalValue = 1.0, maxTotalValue = null),
+      aggregationParams =
+        AGGREGATION_PARAMS.copy(
+          features =
+            ImmutableList.of(createScalarFeatureSpec(minTotalValue = 1.0, maxTotalValue = null))
+        ),
       exceptionMessage =
         "minTotalValue and maxTotalValue must be simultaneously equal or not equal to null. " +
           "Provided values: minTotalValue=1.0, maxTotalValue=null",
     ),
     MIN_TOTAL_VALUE_NOT_SET_MAX_TOTAL_VALUE_SET(
-      aggregationParams = AGGREGATION_PARAMS.copy(minTotalValue = null, maxTotalValue = 2.0),
+      aggregationParams =
+        AGGREGATION_PARAMS.copy(
+          features =
+            ImmutableList.of(createScalarFeatureSpec(minTotalValue = null, maxTotalValue = 2.0))
+        ),
       exceptionMessage =
         "minTotalValue and maxTotalValue must be simultaneously equal or not equal to null.",
     ),
     MIN_TOTAL_VALUE_GREATER_THAN_MAX_TOTAL_VALUE(
-      aggregationParams = AGGREGATION_PARAMS.copy(minTotalValue = 2.0, maxTotalValue = 0.0),
+      aggregationParams =
+        AGGREGATION_PARAMS.copy(
+          features =
+            ImmutableList.of(createScalarFeatureSpec(minTotalValue = 2.0, maxTotalValue = 0.0))
+        ),
       exceptionMessage =
         "minTotalValue must be less or equal to maxTotalValue. Provided values: " +
           "minTotalValue=2.0, maxTotalValue=0.0",
@@ -219,11 +253,16 @@ class DpFunctionsParamsTest {
     MEAN_WITH_TOTAL_VALUE(
       aggregationParams =
         AGGREGATION_PARAMS.copy(
-          metrics = ImmutableList.of(MetricDefinition(SUM), MetricDefinition(MEAN)),
-          minValue = 0.0,
-          maxValue = 3.0,
-          minTotalValue = 1.5,
-          maxTotalValue = 5.0,
+          features =
+            ImmutableList.of(
+              createScalarFeatureSpec(
+                metrics = ImmutableList.of(MetricDefinition(SUM), MetricDefinition(MEAN)),
+                minValue = 0.0,
+                maxValue = 3.0,
+                minTotalValue = 1.5,
+                maxTotalValue = 5.0,
+              )
+            )
         ),
       exceptionMessage =
         "(minTotalValue, maxTotalValue) should not be set if MEAN metric is requested",
@@ -231,11 +270,16 @@ class DpFunctionsParamsTest {
     VARIANCE_WITH_TOTAL_VALUE(
       aggregationParams =
         AGGREGATION_PARAMS.copy(
-          metrics = ImmutableList.of(MetricDefinition(SUM), MetricDefinition(VARIANCE)),
-          minValue = 0.0,
-          maxValue = 3.0,
-          minTotalValue = 1.5,
-          maxTotalValue = 5.0,
+          features =
+            ImmutableList.of(
+              createScalarFeatureSpec(
+                metrics = ImmutableList.of(MetricDefinition(SUM), MetricDefinition(VARIANCE)),
+                minValue = 0.0,
+                maxValue = 3.0,
+                minTotalValue = 1.5,
+                maxTotalValue = 5.0,
+              )
+            )
         ),
       exceptionMessage =
         "(minTotalValue, maxTotalValue) should not be set if VARIANCE metric is requested",
@@ -243,13 +287,10 @@ class DpFunctionsParamsTest {
     MAX_CONTRIBUTIONS_PER_PARTITION_MAX_CONTRIBUTIONS_NOT_SET_FOR_COUNT(
       aggregationParams =
         AGGREGATION_PARAMS.copy(
-          metrics = ImmutableList.of(MetricDefinition(COUNT), MetricDefinition(SUM)),
+          metrics = ImmutableList.of(MetricDefinition(COUNT)),
+          features = ImmutableList.of(),
           maxContributionsPerPartition = null,
           maxContributions = null,
-          minTotalValue = -1.0,
-          maxTotalValue = 1.0,
-          minValue = null,
-          maxValue = null,
         ),
       exceptionMessage =
         "maxContributionsPerPartition or maxContributions must be set for COUNT metric.",
@@ -257,13 +298,18 @@ class DpFunctionsParamsTest {
     MAX_CONTRIBUTIONS_PER_PARTITION_MAX_CONTRIBUTIONS_NOT_SET_FOR_MEAN(
       aggregationParams =
         AGGREGATION_PARAMS.copy(
-          metrics = ImmutableList.of(MetricDefinition(MEAN), MetricDefinition(SUM)),
+          features =
+            ImmutableList.of(
+              createScalarFeatureSpec(
+                metrics = ImmutableList.of(MetricDefinition(MEAN), MetricDefinition(SUM)),
+                minTotalValue = -1.0,
+                maxTotalValue = 1.0,
+                minValue = null,
+                maxValue = null,
+              )
+            ),
           maxContributionsPerPartition = null,
           maxContributions = null,
-          minTotalValue = -1.0,
-          maxTotalValue = 1.0,
-          minValue = null,
-          maxValue = null,
         ),
       exceptionMessage =
         "maxContributionsPerPartition or maxContributions must be set for MEAN metric.",
@@ -271,56 +317,81 @@ class DpFunctionsParamsTest {
     MAX_CONTRIBUTIONS_PER_PARTITION_MAX_CONTRIBUTIONS_NOT_SET_FOR_QUANTILES(
       aggregationParams =
         AGGREGATION_PARAMS.copy(
-          metrics =
+          features =
             ImmutableList.of(
-              MetricDefinition(QUANTILES(ranks = ImmutableList.of())),
-              MetricDefinition(SUM),
+              createScalarFeatureSpec(
+                metrics =
+                  ImmutableList.of(
+                    MetricDefinition(QUANTILES(ranks = ImmutableList.of())),
+                    MetricDefinition(SUM),
+                  ),
+                minTotalValue = -1.0,
+                maxTotalValue = 1.0,
+                minValue = null,
+                maxValue = null,
+              )
             ),
           maxContributionsPerPartition = null,
-          minTotalValue = -1.0,
-          maxTotalValue = 1.0,
-          minValue = null,
-          maxValue = null,
         ),
       exceptionMessage = "maxContributionsPerPartition must be set for QUANTILES metric.",
     ),
     MIN_TOTAL_VALUE_NOT_SET_FOR_SUM(
       aggregationParams =
         AGGREGATION_PARAMS.copy(
-          metrics = ImmutableList.of(MetricDefinition(SUM)),
-          minTotalValue = null,
-          maxTotalValue = null,
+          features =
+            ImmutableList.of(
+              createScalarFeatureSpec(
+                metrics = ImmutableList.of(MetricDefinition(SUM)),
+                minTotalValue = null,
+                maxTotalValue = null,
+              )
+            )
         ),
       exceptionMessage = "(minTotalValue, maxTotalValue) must be set for SUM metrics.",
     ),
     MIN_VALUE_NOT_SET_FOR_MEAN(
       aggregationParams =
         AGGREGATION_PARAMS.copy(
-          metrics = ImmutableList.of(MetricDefinition(MEAN), MetricDefinition(SUM)),
-          minTotalValue = 0.0,
-          maxTotalValue = 1.0,
-          minValue = null,
-          maxValue = null,
+          features =
+            ImmutableList.of(
+              createScalarFeatureSpec(
+                metrics = ImmutableList.of(MetricDefinition(MEAN), MetricDefinition(SUM)),
+                minTotalValue = 0.0,
+                maxTotalValue = 1.0,
+                minValue = null,
+                maxValue = null,
+              )
+            )
         ),
       exceptionMessage = "(minValue, maxValue) must be set for MEAN metric.",
     ),
     VALUE_EXTRACTOR_NOT_SET_FOR_SUM_AND_MEAN(
       aggregationParams =
         AGGREGATION_PARAMS.copy(
-          metrics =
-            ImmutableList.of(MetricDefinition(COUNT), MetricDefinition(MEAN), MetricDefinition(SUM))
+          metrics = ImmutableList.of(MetricDefinition(COUNT)),
+          features =
+            ImmutableList.of(
+              createScalarFeatureSpec(
+                metrics = ImmutableList.of(MetricDefinition(MEAN), MetricDefinition(SUM))
+              )
+            ),
         ),
       hasValueExtractor = false,
-      exceptionMessage = "Metrics [MEAN, SUM] require a value extractor.",
+      exceptionMessage = "Feature metrics [MEAN, SUM] require a value extractor.",
     ),
     MIN_VALUE_NOT_SET_FOR_QUANTILES(
       aggregationParams =
         AGGREGATION_PARAMS.copy(
-          metrics = ImmutableList.of(MetricDefinition(QUANTILES(ranks = ImmutableList.of()))),
-          minTotalValue = 0.0,
-          maxTotalValue = 1.0,
-          minValue = null,
-          maxValue = null,
+          features =
+            ImmutableList.of(
+              createScalarFeatureSpec(
+                metrics = ImmutableList.of(MetricDefinition(QUANTILES(ranks = ImmutableList.of()))),
+                minTotalValue = 0.0,
+                maxTotalValue = 1.0,
+                minValue = null,
+                maxValue = null,
+              )
+            )
         ),
       exceptionMessage = "(minValue, maxValue) must be set for QUANTILES metric.",
     ),
@@ -329,19 +400,30 @@ class DpFunctionsParamsTest {
         AGGREGATION_PARAMS.copy(
           metrics =
             ImmutableList.of(
-              MetricDefinition(MEAN, RelativeBudgetPerOpSpec(weight = 1.0)),
-              MetricDefinition(COUNT, AbsoluteBudgetPerOpSpec(epsilon = 2.0, delta = 1e-12)),
-            )
+              MetricDefinition(COUNT, AbsoluteBudgetPerOpSpec(epsilon = 2.0, delta = 1e-12))
+            ),
+          features =
+            ImmutableList.of(
+              createScalarFeatureSpec(
+                metrics =
+                  ImmutableList.of(MetricDefinition(MEAN, RelativeBudgetPerOpSpec(weight = 1.0)))
+              )
+            ),
         ),
       exceptionMessage = "BudgetPerOpSpec can not be set for both COUNT and MEAN metrics.",
     ),
     BUDGET_SPEC_SET_FOR_MEAN_AND_SUM(
       aggregationParams =
         AGGREGATION_PARAMS.copy(
-          metrics =
+          features =
             ImmutableList.of(
-              MetricDefinition(MEAN, RelativeBudgetPerOpSpec(weight = 1.0)),
-              MetricDefinition(SUM, RelativeBudgetPerOpSpec(weight = 2.0)),
+              createScalarFeatureSpec(
+                metrics =
+                  ImmutableList.of(
+                    MetricDefinition(MEAN, RelativeBudgetPerOpSpec(weight = 1.0)),
+                    MetricDefinition(SUM, RelativeBudgetPerOpSpec(weight = 2.0)),
+                  )
+              )
             )
         ),
       exceptionMessage = "BudgetPerOpSpec can not be set for both SUM and MEAN metrics.",
@@ -349,13 +431,18 @@ class DpFunctionsParamsTest {
     MAX_CONTRIBUTIONS_PER_PARTITION_MAX_CONTRIBUTIONS_NOT_SET_FOR_VARIANCE(
       aggregationParams =
         AGGREGATION_PARAMS.copy(
-          metrics = ImmutableList.of(MetricDefinition(VARIANCE)),
+          features =
+            ImmutableList.of(
+              createScalarFeatureSpec(
+                metrics = ImmutableList.of(MetricDefinition(VARIANCE)),
+                minTotalValue = -1.0,
+                maxTotalValue = 1.0,
+                minValue = null,
+                maxValue = null,
+              )
+            ),
           maxContributionsPerPartition = null,
           maxContributions = null,
-          minTotalValue = -1.0,
-          maxTotalValue = 1.0,
-          minValue = null,
-          maxValue = null,
         ),
       exceptionMessage =
         "maxContributionsPerPartition or maxContributions must be set for VARIANCE metric.",
@@ -363,32 +450,47 @@ class DpFunctionsParamsTest {
     MIN_VALUE_NOT_SET_FOR_VARIANCE(
       aggregationParams =
         AGGREGATION_PARAMS.copy(
-          metrics = ImmutableList.of(MetricDefinition(VARIANCE)),
-          minTotalValue = 0.0,
-          maxTotalValue = 1.0,
-          minValue = null,
-          maxValue = null,
+          features =
+            ImmutableList.of(
+              createScalarFeatureSpec(
+                metrics = ImmutableList.of(MetricDefinition(VARIANCE)),
+                minTotalValue = 0.0,
+                maxTotalValue = 1.0,
+                minValue = null,
+                maxValue = null,
+              )
+            )
         ),
       exceptionMessage = "(minValue, maxValue) must be set for VARIANCE metric.",
     ),
     MAX_VALUE_NOT_SET_FOR_VARIANCE(
       aggregationParams =
         AGGREGATION_PARAMS.copy(
-          metrics = ImmutableList.of(MetricDefinition(VARIANCE)),
-          minTotalValue = -1.0,
-          maxTotalValue = 0.0,
-          minValue = null,
-          maxValue = null,
+          features =
+            ImmutableList.of(
+              createScalarFeatureSpec(
+                metrics = ImmutableList.of(MetricDefinition(VARIANCE)),
+                minTotalValue = -1.0,
+                maxTotalValue = 0.0,
+                minValue = null,
+                maxValue = null,
+              )
+            )
         ),
       exceptionMessage = "(minValue, maxValue) must be set for VARIANCE metric.",
     ),
     BUDGET_SPEC_SET_FOR_VARIANCE_AND_MEAN(
       aggregationParams =
         AGGREGATION_PARAMS.copy(
-          metrics =
+          features =
             ImmutableList.of(
-              MetricDefinition(VARIANCE, RelativeBudgetPerOpSpec(weight = 1.0)),
-              MetricDefinition(MEAN, RelativeBudgetPerOpSpec(weight = 1.0)),
+              createScalarFeatureSpec(
+                metrics =
+                  ImmutableList.of(
+                    MetricDefinition(VARIANCE, RelativeBudgetPerOpSpec(weight = 1.0)),
+                    MetricDefinition(MEAN, RelativeBudgetPerOpSpec(weight = 1.0)),
+                  )
+              )
             )
         ),
       exceptionMessage = "BudgetPerOpSpec can not be set for both MEAN and VARIANCE metrics.",
@@ -398,19 +500,32 @@ class DpFunctionsParamsTest {
         AGGREGATION_PARAMS.copy(
           metrics =
             ImmutableList.of(
-              MetricDefinition(VARIANCE, RelativeBudgetPerOpSpec(weight = 1.0)),
-              MetricDefinition(COUNT, AbsoluteBudgetPerOpSpec(epsilon = 2.0, delta = 1e-12)),
-            )
+              MetricDefinition(COUNT, AbsoluteBudgetPerOpSpec(epsilon = 2.0, delta = 1e-12))
+            ),
+          features =
+            ImmutableList.of(
+              createScalarFeatureSpec(
+                metrics =
+                  ImmutableList.of(
+                    MetricDefinition(VARIANCE, RelativeBudgetPerOpSpec(weight = 1.0))
+                  )
+              )
+            ),
         ),
       exceptionMessage = "BudgetPerOpSpec can not be set for both COUNT and VARIANCE metrics.",
     ),
     BUDGET_SPEC_SET_FOR_VARIANCE_AND_SUM(
       aggregationParams =
         AGGREGATION_PARAMS.copy(
-          metrics =
+          features =
             ImmutableList.of(
-              MetricDefinition(VARIANCE, RelativeBudgetPerOpSpec(weight = 1.0)),
-              MetricDefinition(SUM, RelativeBudgetPerOpSpec(weight = 2.0)),
+              createScalarFeatureSpec(
+                metrics =
+                  ImmutableList.of(
+                    MetricDefinition(VARIANCE, RelativeBudgetPerOpSpec(weight = 1.0)),
+                    MetricDefinition(SUM, RelativeBudgetPerOpSpec(weight = 2.0)),
+                  )
+              )
             )
         ),
       exceptionMessage = "BudgetPerOpSpec can not be set for both SUM and VARIANCE metrics.",
@@ -440,72 +555,80 @@ class DpFunctionsParamsTest {
     NORM_KIND_NOT_SET_FOR_VECTOR_SUM(
       aggregationParams =
         AGGREGATION_PARAMS.copy(
-          metrics = ImmutableList.of(MetricDefinition(VECTOR_SUM)),
-          vectorNormKind = null,
-          vectorMaxTotalNorm = 2.3,
-          vectorSize = 2,
+          features =
+            ImmutableList.of(
+              createVectorFeatureSpec(
+                metrics = ImmutableList.of(MetricDefinition(VECTOR_SUM)),
+                normKind = null,
+                vectorMaxTotalNorm = 2.3,
+                vectorSize = 2,
+              )
+            )
         ),
       exceptionMessage = "vectorNormKind must be set for VECTOR_SUM metric.",
     ),
     L2_NORM_KIND_WHEN_LAPLACE_NOISE_IS_USED(
       aggregationParams =
         AGGREGATION_PARAMS.copy(
-          metrics = ImmutableList.of(MetricDefinition(VECTOR_SUM)),
           noiseKind = NoiseKind.LAPLACE,
-          vectorNormKind = NormKind.L2,
-          vectorMaxTotalNorm = 2.3,
-          vectorSize = 2,
+          features =
+            ImmutableList.of(
+              createVectorFeatureSpec(
+                metrics = ImmutableList.of(MetricDefinition(VECTOR_SUM)),
+                normKind = NormKind.L2,
+                vectorMaxTotalNorm = 2.3,
+                vectorSize = 2,
+              )
+            ),
         ),
       exceptionMessage = "vectorNormKind must be L_INF or L1 for LAPLACE noise.",
     ),
     L1_NORM_KIND_WHEN_LAPLACE_NOISE_IS_USED(
       aggregationParams =
         AGGREGATION_PARAMS.copy(
-          metrics = ImmutableList.of(MetricDefinition(VECTOR_SUM)),
           noiseKind = NoiseKind.GAUSSIAN,
-          vectorNormKind = NormKind.L1,
-          vectorMaxTotalNorm = 2.3,
-          vectorSize = 2,
+          features =
+            ImmutableList.of(
+              createVectorFeatureSpec(
+                metrics = ImmutableList.of(MetricDefinition(VECTOR_SUM)),
+                normKind = NormKind.L1,
+                vectorMaxTotalNorm = 2.3,
+                vectorSize = 2,
+              )
+            ),
         ),
       exceptionMessage = "vectorNormKind must be L_INF or L2 for GAUSSIAN noise.",
     ),
     MAX_TOTAL_NORM_NOT_SET_FOR_VECTOR_SUM(
       aggregationParams =
         AGGREGATION_PARAMS.copy(
-          metrics = ImmutableList.of(MetricDefinition(VECTOR_SUM)),
           noiseKind = NoiseKind.GAUSSIAN,
-          vectorNormKind = NormKind.L2,
-          vectorMaxTotalNorm = null,
-          vectorSize = 2,
+          features =
+            ImmutableList.of(
+              createVectorFeatureSpec(
+                metrics = ImmutableList.of(MetricDefinition(VECTOR_SUM)),
+                normKind = NormKind.L2,
+                vectorMaxTotalNorm = null,
+                vectorSize = 2,
+              )
+            ),
         ),
       exceptionMessage = "vectorMaxTotalNorm must be set for VECTOR_SUM metric.",
     ),
     VECTOR_SIZE_NOT_SET_FOR_VECTOR_SUM(
       aggregationParams =
         AGGREGATION_PARAMS.copy(
-          metrics = ImmutableList.of(MetricDefinition(VECTOR_SUM)),
-          vectorNormKind = NormKind.L_INF,
-          vectorMaxTotalNorm = 1.0,
-          vectorSize = null,
+          features =
+            ImmutableList.of(
+              createVectorFeatureSpec(
+                metrics = ImmutableList.of(MetricDefinition(VECTOR_SUM)),
+                normKind = NormKind.L_INF,
+                vectorMaxTotalNorm = 1.0,
+                vectorSize = null,
+              )
+            )
         ),
       exceptionMessage = "vectorSize must be set for VECTOR_SUM metric.",
-    ),
-    VECTOR_SUM_IS_REQUESTED_TOGETHER_WITH_SCALAR_METRICS(
-      aggregationParams =
-        AGGREGATION_PARAMS.copy(
-          metrics =
-            ImmutableList.of(
-              MetricDefinition(VECTOR_SUM),
-              MetricDefinition(SUM),
-              MetricDefinition(MEAN),
-              MetricDefinition(VARIANCE),
-            ),
-          vectorNormKind = NormKind.L_INF,
-          vectorMaxTotalNorm = 1.0,
-          vectorSize = 3,
-        ),
-      exceptionMessage =
-        "VECTOR_SUM can not be computed together with scalar metrics such as SUM, MEAN, VARIANCE and QUANTILES.",
     ),
   }
 
@@ -598,8 +721,7 @@ class DpFunctionsParamsTest {
         maxPartitionsContributed = 1,
         maxContributionsPerPartition = 1,
         maxContributions = null,
-        minValue = 0.0,
-        maxValue = 1.0,
+        features = ImmutableList.of(createScalarFeatureSpec(minValue = 0.0, maxValue = 1.0)),
       )
 
     val SELECT_PARTITIONS_PARAMS =
@@ -607,6 +729,34 @@ class DpFunctionsParamsTest {
         maxPartitionsContributed = 2,
         budget = AbsoluteBudgetPerOpSpec(epsilon = 1.0, delta = 1e-12),
         preThreshold = 10,
+      )
+
+    private fun createScalarFeatureSpec(
+      featureId: String = "value",
+      metrics: ImmutableList<MetricDefinition> = ImmutableList.of(),
+      minValue: Double? = 0.0,
+      maxValue: Double? = 1.0,
+      minTotalValue: Double? = null,
+      maxTotalValue: Double? = null,
+    ) = ScalarFeatureSpec(featureId, metrics, minValue, maxValue, minTotalValue, maxTotalValue)
+
+    private fun createVectorFeatureSpec(
+      featureId: String = "value",
+      metrics: ImmutableList<MetricDefinition> = ImmutableList.of(),
+      vectorSize: Int? = 1,
+      elementMinValue: Double? = null,
+      elementMaxValue: Double? = null,
+      normKind: NormKind? = NormKind.L1,
+      vectorMaxTotalNorm: Double? = null,
+    ) =
+      VectorFeatureSpec(
+        featureId,
+        metrics,
+        vectorSize,
+        elementMinValue,
+        elementMaxValue,
+        normKind,
+        vectorMaxTotalNorm,
       )
   }
 }

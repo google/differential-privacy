@@ -25,10 +25,13 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.VARIA
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.AllocatedBudget
 import com.google.privacy.differentialprivacy.pipelinedp4j.dplibrary.NoiseFactory
 import com.google.privacy.differentialprivacy.pipelinedp4j.dplibrary.ZeroNoiseFactory
+import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PrivacyIdContributionsKt.featureContribution
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.compoundAccumulator
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.countAccumulator
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.dpAggregates
+import com.google.privacy.differentialprivacy.pipelinedp4j.proto.featureAccumulator
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.meanAccumulator
+import com.google.privacy.differentialprivacy.pipelinedp4j.proto.perFeature
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.privacyIdContributions
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.privacyIdCountAccumulator
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.sumAccumulator
@@ -49,30 +52,43 @@ class CompoundCombinerTest {
     )
   private val COUNT_AND_SUM_PARAMS =
     AggregationParams(
-      metrics = ImmutableList.of(MetricDefinition(COUNT), MetricDefinition(SUM)),
+      metrics = ImmutableList.of(MetricDefinition(COUNT)),
+      features =
+        ImmutableList.of(
+          ScalarFeatureSpec(
+            "value",
+            ImmutableList.of(MetricDefinition(SUM)),
+            null,
+            null,
+            -Double.MAX_VALUE,
+            Double.MAX_VALUE,
+          )
+        ),
       noiseKind = NoiseKind.GAUSSIAN,
       maxPartitionsContributed = Int.MAX_VALUE,
       maxContributionsPerPartition = Int.MAX_VALUE,
-      minTotalValue = -Double.MAX_VALUE,
-      maxTotalValue = Double.MAX_VALUE,
     )
   private val COUNT_AND_MEAN_PARAMS =
     AggregationParams(
-      metrics = ImmutableList.of(MetricDefinition(COUNT), MetricDefinition(MEAN)),
+      metrics = ImmutableList.of(MetricDefinition(COUNT)),
+      features =
+        ImmutableList.of(
+          ScalarFeatureSpec("value", ImmutableList.of(MetricDefinition(MEAN)), -100.0, 100.0)
+        ),
       noiseKind = NoiseKind.GAUSSIAN,
       maxPartitionsContributed = 100,
       maxContributionsPerPartition = 10,
-      minValue = -100.0,
-      maxValue = 100.0,
     )
   private val COUNT_AND_VARIANCE_PARAMS =
     AggregationParams(
-      metrics = ImmutableList.of(MetricDefinition(COUNT), MetricDefinition(VARIANCE)),
+      metrics = ImmutableList.of(MetricDefinition(COUNT)),
+      features =
+        ImmutableList.of(
+          ScalarFeatureSpec("value", ImmutableList.of(MetricDefinition(VARIANCE)), -100.0, 100.0)
+        ),
       noiseKind = NoiseKind.GAUSSIAN,
       maxPartitionsContributed = 100,
       maxContributionsPerPartition = 10,
-      minValue = -100.0,
-      maxValue = 100.0,
     )
   private val UNUSED_ALLOCATED_BUDGET = AllocatedBudget()
 
@@ -91,12 +107,18 @@ class CompoundCombinerTest {
             NoiseFactory(),
             ExecutionMode.PRODUCTION,
           )
-        )
+        ),
+        COUNT_PARAMS,
       )
 
     val accumulator =
       compoundCombiner.createAccumulator(
-        privacyIdContributions { singleValueContributions += listOf(10.0, 10.0, 10.0) }
+        privacyIdContributions {
+          features += featureContribution {
+            featureId = "value"
+            singleValueContributions += listOf(10.0, 10.0, 10.0)
+          }
+        }
       )
 
     assertThat(accumulator)
@@ -119,20 +141,30 @@ class CompoundCombinerTest {
             UNUSED_ALLOCATED_BUDGET,
             NoiseFactory(),
             ExecutionMode.PRODUCTION,
+            COUNT_AND_SUM_PARAMS.features[0] as ScalarFeatureSpec,
           ),
-        )
+        ),
+        COUNT_AND_SUM_PARAMS,
       )
 
     val accumulator =
       compoundCombiner.createAccumulator(
-        privacyIdContributions { singleValueContributions += listOf(10.0, 10.0, 10.0) }
+        privacyIdContributions {
+          features += featureContribution {
+            featureId = "value"
+            singleValueContributions += listOf(10.0, 10.0, 10.0)
+          }
+        }
       )
 
     assertThat(accumulator)
       .isEqualTo(
         compoundAccumulator {
           countAccumulator = countAccumulator { count = 3 }
-          sumAccumulator = sumAccumulator { sum = 30.0 }
+          featureAccumulators += featureAccumulator {
+            featureId = "value"
+            sum = sumAccumulator { sum = 30.0 }
+          }
         }
       )
   }
@@ -148,21 +180,31 @@ class CompoundCombinerTest {
             UNUSED_ALLOCATED_BUDGET,
             NoiseFactory(),
             ExecutionMode.PRODUCTION,
+            COUNT_AND_MEAN_PARAMS.features[0] as ScalarFeatureSpec,
           )
-        )
+        ),
+        COUNT_AND_MEAN_PARAMS,
       )
 
     val accumulator =
       compoundCombiner.createAccumulator(
-        privacyIdContributions { singleValueContributions += listOf(5.0, 10.5, 19.0) }
+        privacyIdContributions {
+          features += featureContribution {
+            featureId = "value"
+            singleValueContributions += listOf(5.0, 10.5, 19.0)
+          }
+        }
       )
 
     assertThat(accumulator)
       .isEqualTo(
         compoundAccumulator {
-          meanAccumulator = meanAccumulator {
-            count = 3
-            normalizedSum = 34.5
+          featureAccumulators += featureAccumulator {
+            featureId = "value"
+            mean = meanAccumulator {
+              count = 3
+              normalizedSum = 34.5
+            }
           }
         }
       )
@@ -174,28 +216,38 @@ class CompoundCombinerTest {
       CompoundCombiner(
         listOf(
           VarianceCombiner(
-            COUNT_AND_MEAN_PARAMS,
+            COUNT_AND_VARIANCE_PARAMS,
             UNUSED_ALLOCATED_BUDGET,
             UNUSED_ALLOCATED_BUDGET,
             UNUSED_ALLOCATED_BUDGET,
             NoiseFactory(),
             ExecutionMode.PRODUCTION,
+            COUNT_AND_VARIANCE_PARAMS.features[0] as ScalarFeatureSpec,
           )
-        )
+        ),
+        COUNT_AND_VARIANCE_PARAMS,
       )
 
     val accumulator =
       compoundCombiner.createAccumulator(
-        privacyIdContributions { singleValueContributions += listOf(5.0, 10.5, 19.0) }
+        privacyIdContributions {
+          features += featureContribution {
+            featureId = "value"
+            singleValueContributions += listOf(5.0, 10.5, 19.0)
+          }
+        }
       )
 
     assertThat(accumulator)
       .isEqualTo(
         compoundAccumulator {
-          varianceAccumulator = varianceAccumulator {
-            count = 3
-            normalizedSum = 34.5
-            normalizedSumSquares = 496.25
+          featureAccumulators += featureAccumulator {
+            featureId = "value"
+            variance = varianceAccumulator {
+              count = 3
+              normalizedSum = 34.5
+              normalizedSumSquares = 496.25
+            }
           }
         }
       )
@@ -217,19 +269,27 @@ class CompoundCombinerTest {
             UNUSED_ALLOCATED_BUDGET,
             NoiseFactory(),
             ExecutionMode.PRODUCTION,
+            COUNT_AND_SUM_PARAMS.features[0] as ScalarFeatureSpec,
           ),
-        )
+        ),
+        COUNT_AND_SUM_PARAMS,
       )
 
     val mergedAccumulator =
       compoundCombiner.mergeAccumulators(
         compoundAccumulator {
           countAccumulator = countAccumulator { count = 1 }
-          sumAccumulator = sumAccumulator { sum = 10.0 }
+          featureAccumulators += featureAccumulator {
+            featureId = "value"
+            sum = sumAccumulator { sum = 10.0 }
+          }
         },
         compoundAccumulator {
           countAccumulator = countAccumulator { count = 2 }
-          sumAccumulator = sumAccumulator { sum = 20.0 }
+          featureAccumulators += featureAccumulator {
+            featureId = "value"
+            sum = sumAccumulator { sum = 20.0 }
+          }
         },
       )
 
@@ -237,7 +297,10 @@ class CompoundCombinerTest {
       .isEqualTo(
         compoundAccumulator {
           countAccumulator = countAccumulator { count = 3 }
-          sumAccumulator = sumAccumulator { sum = 30.0 }
+          featureAccumulators += featureAccumulator {
+            featureId = "value"
+            sum = sumAccumulator { sum = 30.0 }
+          }
         }
       )
   }
@@ -253,7 +316,8 @@ class CompoundCombinerTest {
             NoiseFactory(),
             ExecutionMode.PRODUCTION,
           )
-        )
+        ),
+        COUNT_PARAMS,
       )
 
     val mergedAccumulator =
@@ -277,22 +341,30 @@ class CompoundCombinerTest {
             UNUSED_ALLOCATED_BUDGET,
             NoiseFactory(),
             ExecutionMode.PRODUCTION,
+            COUNT_AND_MEAN_PARAMS.features[0] as ScalarFeatureSpec,
           )
-        )
+        ),
+        COUNT_AND_MEAN_PARAMS,
       )
 
     val mergedAccumulator =
       compoundCombiner.mergeAccumulators(
         compoundAccumulator {
-          meanAccumulator = meanAccumulator {
-            count = 1
-            normalizedSum = 10.0
+          featureAccumulators += featureAccumulator {
+            featureId = "value"
+            mean = meanAccumulator {
+              count = 1
+              normalizedSum = 10.0
+            }
           }
         },
         compoundAccumulator {
-          meanAccumulator = meanAccumulator {
-            count = 2
-            normalizedSum = 20.0
+          featureAccumulators += featureAccumulator {
+            featureId = "value"
+            mean = meanAccumulator {
+              count = 2
+              normalizedSum = 20.0
+            }
           }
         },
       )
@@ -300,9 +372,12 @@ class CompoundCombinerTest {
     assertThat(mergedAccumulator)
       .isEqualTo(
         compoundAccumulator {
-          meanAccumulator = meanAccumulator {
-            count = 3
-            normalizedSum = 30.0
+          featureAccumulators += featureAccumulator {
+            featureId = "value"
+            mean = meanAccumulator {
+              count = 3
+              normalizedSum = 30.0
+            }
           }
         }
       )
@@ -320,24 +395,32 @@ class CompoundCombinerTest {
             UNUSED_ALLOCATED_BUDGET,
             NoiseFactory(),
             ExecutionMode.PRODUCTION,
+            COUNT_AND_VARIANCE_PARAMS.features[0] as ScalarFeatureSpec,
           )
-        )
+        ),
+        COUNT_AND_VARIANCE_PARAMS,
       )
 
     val mergedAccumulator =
       compoundCombiner.mergeAccumulators(
         compoundAccumulator {
-          varianceAccumulator = varianceAccumulator {
-            count = 1
-            normalizedSum = 10.0
-            normalizedSumSquares = 100.0
+          featureAccumulators += featureAccumulator {
+            featureId = "value"
+            variance = varianceAccumulator {
+              count = 1
+              normalizedSum = 10.0
+              normalizedSumSquares = 100.0
+            }
           }
         },
         compoundAccumulator {
-          varianceAccumulator = varianceAccumulator {
-            count = 2
-            normalizedSum = 20.0
-            normalizedSumSquares = 200.0
+          featureAccumulators += featureAccumulator {
+            featureId = "value"
+            variance = varianceAccumulator {
+              count = 2
+              normalizedSum = 20.0
+              normalizedSumSquares = 200.0
+            }
           }
         },
       )
@@ -345,10 +428,13 @@ class CompoundCombinerTest {
     assertThat(mergedAccumulator)
       .isEqualTo(
         compoundAccumulator {
-          varianceAccumulator = varianceAccumulator {
-            count = 3
-            normalizedSum = 30.0
-            normalizedSumSquares = 300.0
+          featureAccumulators += featureAccumulator {
+            featureId = "value"
+            variance = varianceAccumulator {
+              count = 3
+              normalizedSum = 30.0
+              normalizedSumSquares = 300.0
+            }
           }
         }
       )
@@ -370,15 +456,20 @@ class CompoundCombinerTest {
             UNUSED_ALLOCATED_BUDGET,
             ZeroNoiseFactory(),
             ExecutionMode.PRODUCTION,
+            COUNT_AND_SUM_PARAMS.features[0] as ScalarFeatureSpec,
           ),
-        )
+        ),
+        COUNT_AND_SUM_PARAMS,
       )
 
     val dpAggregates =
       compoundCombiner.computeMetrics(
         compoundAccumulator {
           countAccumulator = countAccumulator { count = 3 }
-          sumAccumulator = sumAccumulator { sum = 30.0 }
+          featureAccumulators += featureAccumulator {
+            featureId = "value"
+            sum = sumAccumulator { sum = 30.0 }
+          }
         }
       )
 
@@ -386,7 +477,10 @@ class CompoundCombinerTest {
       .isEqualTo(
         dpAggregates {
           count = 3.0
-          sum = 30.0
+          perFeature += perFeature {
+            sum = 30.0
+            featureId = "value"
+          }
         }
       )
   }
@@ -402,7 +496,8 @@ class CompoundCombinerTest {
             ZeroNoiseFactory(),
             ExecutionMode.PRODUCTION,
           )
-        )
+        ),
+        COUNT_PARAMS,
       )
 
     val dpAggregates =
@@ -415,60 +510,92 @@ class CompoundCombinerTest {
 
   @Test
   fun computeMetrics_meanCombiner_returnsMeanMetric() {
-    val compoundCombiner =
+    val params =
+      COUNT_AND_MEAN_PARAMS.copy(
+        metrics = ImmutableList.of(),
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec("value", ImmutableList.of(MetricDefinition(MEAN)), -100.0, 100.0)
+          ),
+      )
+    val combiner =
       CompoundCombiner(
         listOf(
           MeanCombiner(
-            COUNT_AND_MEAN_PARAMS.copy(metrics = ImmutableList.of(MetricDefinition(MEAN))),
+            params,
             UNUSED_ALLOCATED_BUDGET,
             UNUSED_ALLOCATED_BUDGET,
             ZeroNoiseFactory(),
             ExecutionMode.PRODUCTION,
+            params.features[0] as ScalarFeatureSpec,
           )
-        )
+        ),
+        params,
       )
 
     val dpAggregates =
-      compoundCombiner.computeMetrics(
+      combiner.computeMetrics(
         compoundAccumulator {
-          meanAccumulator = meanAccumulator {
-            count = 3
-            normalizedSum = 30.0
+          featureAccumulators += featureAccumulator {
+            featureId = "value"
+            mean = meanAccumulator {
+              count = 3
+              normalizedSum = 30.0
+            }
           }
         }
       )
 
-    assertThat(dpAggregates).isEqualTo(dpAggregates { mean = 10.0 })
+    assertThat(dpAggregates)
+      .isEqualTo(
+        dpAggregates {
+          perFeature += perFeature {
+            mean = 10.0
+            featureId = "value"
+          }
+        }
+      )
   }
 
   @Test
   fun computeMetrics_meanCombiner_returnsCountSumMean() {
-    val compoundCombiner =
+    val params =
+      COUNT_AND_MEAN_PARAMS.copy(
+        metrics = ImmutableList.of(MetricDefinition(COUNT)),
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              "value",
+              ImmutableList.of(MetricDefinition(MEAN), MetricDefinition(SUM)),
+              -100.0,
+              100.0,
+            )
+          ),
+      )
+    val combiner =
       CompoundCombiner(
         listOf(
           MeanCombiner(
-            COUNT_AND_MEAN_PARAMS.copy(
-              metrics =
-                ImmutableList.of(
-                  MetricDefinition(MEAN),
-                  MetricDefinition(COUNT),
-                  MetricDefinition(SUM),
-                )
-            ),
+            params,
             UNUSED_ALLOCATED_BUDGET,
             UNUSED_ALLOCATED_BUDGET,
             ZeroNoiseFactory(),
             ExecutionMode.PRODUCTION,
+            params.features[0] as ScalarFeatureSpec,
           )
-        )
+        ),
+        params,
       )
 
     val dpAggregates =
-      compoundCombiner.computeMetrics(
+      combiner.computeMetrics(
         compoundAccumulator {
-          meanAccumulator = meanAccumulator {
-            count = 3
-            normalizedSum = 30.0
+          featureAccumulators += featureAccumulator {
+            featureId = "value"
+            mean = meanAccumulator {
+              count = 3
+              normalizedSum = 30.0
+            }
           }
         }
       )
@@ -477,73 +604,111 @@ class CompoundCombinerTest {
       .isEqualTo(
         dpAggregates {
           count = 3.0
-          sum = 30.0
-          mean = 10.0
+          perFeature += perFeature {
+            sum = 30.0
+            mean = 10.0
+            featureId = "value"
+          }
         }
       )
   }
 
   @Test
   fun computeMetrics_varianceCombiner_returnsVarianceMetric() {
-    val compoundCombiner =
+    val params =
+      COUNT_AND_VARIANCE_PARAMS.copy(
+        metrics = ImmutableList.of(),
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec("value", ImmutableList.of(MetricDefinition(VARIANCE)), -100.0, 100.0)
+          ),
+      )
+    val combiner =
       CompoundCombiner(
         listOf(
           VarianceCombiner(
-            COUNT_AND_VARIANCE_PARAMS.copy(metrics = ImmutableList.of(MetricDefinition(VARIANCE))),
+            params,
             UNUSED_ALLOCATED_BUDGET,
             UNUSED_ALLOCATED_BUDGET,
             UNUSED_ALLOCATED_BUDGET,
             ZeroNoiseFactory(),
             ExecutionMode.PRODUCTION,
+            params.features[0] as ScalarFeatureSpec,
           )
-        )
+        ),
+        params,
       )
 
     val dpAggregates =
-      compoundCombiner.computeMetrics(
+      combiner.computeMetrics(
         compoundAccumulator {
-          varianceAccumulator = varianceAccumulator {
-            count = 10
-            normalizedSum = 120.0
-            normalizedSumSquares = 1500.0
+          featureAccumulators += featureAccumulator {
+            featureId = "value"
+            variance = varianceAccumulator {
+              count = 10
+              normalizedSum = 120.0
+              normalizedSumSquares = 1500.0
+            }
           }
         }
       )
 
-    assertThat(dpAggregates).isEqualTo(dpAggregates { variance = 6.0 })
+    assertThat(dpAggregates)
+      .isEqualTo(
+        dpAggregates {
+          perFeature += perFeature {
+            variance = 6.0
+            featureId = "value"
+          }
+        }
+      )
   }
 
   @Test
   fun computeMetrics_varianceCombiner_returnsCountSumMeanVariance() {
-    val compoundCombiner =
+    val params =
+      COUNT_AND_VARIANCE_PARAMS.copy(
+        metrics = ImmutableList.of(MetricDefinition(COUNT)),
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              "value",
+              ImmutableList.of(
+                MetricDefinition(MEAN),
+                MetricDefinition(SUM),
+                MetricDefinition(VARIANCE),
+              ),
+              -100.0,
+              100.0,
+            )
+          ),
+      )
+    val combiner =
       CompoundCombiner(
         listOf(
           VarianceCombiner(
-            COUNT_AND_VARIANCE_PARAMS.copy(
-              metrics =
-                ImmutableList.of(
-                  MetricDefinition(MEAN),
-                  MetricDefinition(COUNT),
-                  MetricDefinition(SUM),
-                  MetricDefinition(VARIANCE),
-                )
-            ),
+            params,
             UNUSED_ALLOCATED_BUDGET,
             UNUSED_ALLOCATED_BUDGET,
             UNUSED_ALLOCATED_BUDGET,
             ZeroNoiseFactory(),
             ExecutionMode.PRODUCTION,
+            params.features[0] as ScalarFeatureSpec,
           )
-        )
+        ),
+        params,
       )
 
     val dpAggregates =
-      compoundCombiner.computeMetrics(
+      combiner.computeMetrics(
         compoundAccumulator {
-          varianceAccumulator = varianceAccumulator {
-            count = 10
-            normalizedSum = 120.0
-            normalizedSumSquares = 1500.0
+          featureAccumulators += featureAccumulator {
+            featureId = "value"
+            variance = varianceAccumulator {
+              count = 10
+              normalizedSum = 120.0
+              normalizedSumSquares = 1500.0
+            }
           }
         }
       )
@@ -552,20 +717,29 @@ class CompoundCombinerTest {
       .isEqualTo(
         dpAggregates {
           count = 10.0
-          sum = 120.0
-          mean = 12.0
-          variance = 6.0
+          perFeature += perFeature {
+            sum = 120.0
+            mean = 12.0
+            variance = 6.0
+            featureId = "value"
+          }
         }
       )
   }
 
   @Test
   fun createAccumulator_exactPrivacyIdCountCombiner_createsAccumulator() {
-    val compoundCombiner = CompoundCombiner(listOf(ExactPrivacyIdCountCombiner()))
+    val compoundCombiner =
+      CompoundCombiner(listOf(ExactPrivacyIdCountCombiner()), COUNT_AND_SUM_PARAMS)
 
     val accumulator =
       compoundCombiner.createAccumulator(
-        privacyIdContributions { singleValueContributions += listOf(10.0, 5.0) }
+        privacyIdContributions {
+          features += featureContribution {
+            featureId = "value"
+            singleValueContributions += listOf(10.0, 5.0)
+          }
+        }
       )
 
     assertThat(accumulator)
@@ -576,7 +750,8 @@ class CompoundCombinerTest {
 
   @Test
   fun mergeAccumulator_exactPrivacyIdCountCombiner_mergesAccumulators() {
-    val compoundCombiner = CompoundCombiner(listOf(ExactPrivacyIdCountCombiner()))
+    val compoundCombiner =
+      CompoundCombiner(listOf(ExactPrivacyIdCountCombiner()), COUNT_AND_SUM_PARAMS)
 
     val mergedAccumulator =
       compoundCombiner.mergeAccumulators(
@@ -592,7 +767,8 @@ class CompoundCombinerTest {
 
   @Test
   fun computeMetrics_exactPrivacyIdCountCombiner_returnsEmptyMetrics() {
-    val compoundCombiner = CompoundCombiner(listOf(ExactPrivacyIdCountCombiner()))
+    val compoundCombiner =
+      CompoundCombiner(listOf(ExactPrivacyIdCountCombiner()), COUNT_AND_SUM_PARAMS)
 
     val dpAggregates =
       compoundCombiner.computeMetrics(

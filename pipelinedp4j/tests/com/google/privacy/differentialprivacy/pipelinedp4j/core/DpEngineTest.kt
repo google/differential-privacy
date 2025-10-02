@@ -44,6 +44,7 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.local.LocalTable
 import com.google.privacy.differentialprivacy.pipelinedp4j.local.createLocalEngine
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.DpAggregates
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.dpAggregates
+import com.google.privacy.differentialprivacy.pipelinedp4j.proto.perFeature
 import com.google.testing.junit.testparameterinjector.TestParameter
 import com.google.testing.junit.testparameterinjector.TestParameterInjector
 import com.google.testing.junit.testparameterinjector.TestParameters
@@ -109,7 +110,7 @@ class DpEngineTest {
             LocalCollection(sequenceOf()),
           )
       }
-    assertThat(e).hasMessageThat().contains("metrics must not be empty")
+    assertThat(e).hasMessageThat().contains("metrics or features must not be empty")
   }
 
   @Test
@@ -127,7 +128,7 @@ class DpEngineTest {
         DpEngine.createForTesting(LOCAL_EF, LARGE_BUDGET_SPEC, ZeroNoiseFactory())
           .aggregate(LocalCollection(sequenceOf()), SUM_PARAMS, dataExtractorsWithoutValueExtractor)
       }
-    assertThat(e).hasMessageThat().contains("Metrics [SUM] require a value extractor")
+    assertThat(e).hasMessageThat().contains("require a value extractor")
   }
 
   @Test
@@ -188,7 +189,21 @@ class DpEngineTest {
       )
     val publicPartitions = LocalCollection(sequenceOf("US"))
     val dpEngine = DpEngine.createForTesting(LOCAL_EF, LARGE_BUDGET_SPEC, ZeroNoiseFactory())
-    val params = COUNT_AND_SUM_PARAMS.copy(maxContributionsPerPartition = 2, maxTotalValue = 30.0)
+    val params =
+      COUNT_AND_SUM_PARAMS.copy(
+        maxContributionsPerPartition = 2,
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              "value",
+              ImmutableList.of(MetricDefinition(SUM)),
+              null,
+              null,
+              -Double.MAX_VALUE,
+              30.0,
+            )
+          ),
+      )
 
     val dpAggregates =
       dpEngine.aggregate(inputData, params, testDataExtractors, publicPartitions)
@@ -201,7 +216,10 @@ class DpEngineTest {
           "US",
           dpAggregates {
             count = 2.0
-            sum = 30.0
+            perFeature += perFeature {
+              sum = 30.0
+              featureId = "value"
+            }
           },
         )
       )
@@ -220,7 +238,20 @@ class DpEngineTest {
       )
     val publicPartitions = LocalCollection(sequenceOf("US", "NL"))
     val dpEngine = DpEngine.createForTesting(LOCAL_EF, LARGE_BUDGET_SPEC, ZeroNoiseFactory())
-    val params = COUNT_AND_SUM_PARAMS.copy(minTotalValue = -25.0, maxTotalValue = 25.0)
+    val params =
+      COUNT_AND_SUM_PARAMS.copy(
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              "value",
+              ImmutableList.of(MetricDefinition(SUM)),
+              null,
+              null,
+              -25.0,
+              25.0,
+            )
+          )
+      )
 
     val dpAggregates =
       dpEngine.aggregate(inputData, params, testDataExtractors, publicPartitions)
@@ -233,14 +264,20 @@ class DpEngineTest {
           "US",
           dpAggregates {
             count = 2.0
-            sum = 25.0
+            perFeature += perFeature {
+              sum = 25.0
+              featureId = "value"
+            }
           },
         ),
         Pair(
           "NL",
           dpAggregates {
             count = 2.0
-            sum = -25.0
+            perFeature += perFeature {
+              sum = -25.0
+              featureId = "value"
+            }
           },
         ),
       )
@@ -258,14 +295,22 @@ class DpEngineTest {
         metrics =
           ImmutableList.of(
             MetricDefinition(COUNT, AbsoluteBudgetPerOpSpec(0.1, 1e-5)),
-            MetricDefinition(SUM, AbsoluteBudgetPerOpSpec(0.1, 1e-5)),
             MetricDefinition(PRIVACY_ID_COUNT, AbsoluteBudgetPerOpSpec(0.1, 1e-5)),
           ),
         noiseKind = GAUSSIAN,
         maxPartitionsContributed = 5,
         maxContributionsPerPartition = 5,
-        minTotalValue = -5.0,
-        maxTotalValue = 5.0,
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              "value",
+              ImmutableList.of(MetricDefinition(SUM, AbsoluteBudgetPerOpSpec(0.1, 1e-5))),
+              null,
+              null,
+              -5.0,
+              5.0,
+            )
+          ),
       )
 
     val dpAggregates =
@@ -278,8 +323,8 @@ class DpEngineTest {
 
     assertThat(dpAggregates.data.toMap()["US"]!!.count)
       .isNotEqualTo(dpAggregatesAnotherRun.data.toMap()["US"]!!.count)
-    assertThat(dpAggregates.data.toMap()["US"]!!.sum)
-      .isNotEqualTo(dpAggregatesAnotherRun.data.toMap()["US"]!!.sum)
+    assertThat(dpAggregates.data.toMap()["US"]!!.perFeatureList.first().sum)
+      .isNotEqualTo(dpAggregatesAnotherRun.data.toMap()["US"]!!.perFeatureList.first().sum)
     assertThat(dpAggregates.data.toMap()["US"]!!.privacyIdCount)
       .isNotEqualTo(dpAggregatesAnotherRun.data.toMap()["US"]!!.privacyIdCount)
   }
@@ -293,13 +338,19 @@ class DpEngineTest {
     // Use low bounds to avoid sensitivity overflow when adding noise.
     val params =
       AggregationParams(
-        metrics =
-          ImmutableList.of(MetricDefinition(COUNT), MetricDefinition(SUM), MetricDefinition(MEAN)),
+        metrics = ImmutableList.of(MetricDefinition(COUNT)),
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              "value",
+              ImmutableList.of(MetricDefinition(SUM), MetricDefinition(MEAN)),
+              -2.0,
+              2.0,
+            )
+          ),
         noiseKind = LAPLACE,
         maxPartitionsContributed = 1,
         maxContributionsPerPartition = 1,
-        minValue = -2.0,
-        maxValue = 2.0,
       )
 
     val dpAggregates =
@@ -308,9 +359,12 @@ class DpEngineTest {
     dpEngine.done()
 
     val partitionResult = dpAggregates.data.toMap()["US"]!!
+    val perFeatureResult = partitionResult.perFeatureList.first()
     assertThat(partitionResult.count).isWithin(1e-1).of(2.0)
-    assertThat(partitionResult.sum).isWithin(1e-1).of(3.0)
-    assertThat(partitionResult.mean).isWithin(1e-10).of(partitionResult.sum / partitionResult.count)
+    assertThat(perFeatureResult.sum).isWithin(1e-1).of(3.0)
+    assertThat(perFeatureResult.mean)
+      .isWithin(1e-10)
+      .of(perFeatureResult.sum / partitionResult.count)
   }
 
   @Test
@@ -322,18 +376,23 @@ class DpEngineTest {
     // Use low bounds to avoid sensitivity overflow when adding noise.
     val params =
       AggregationParams(
-        metrics =
+        metrics = ImmutableList.of(MetricDefinition(COUNT)),
+        features =
           ImmutableList.of(
-            MetricDefinition(COUNT),
-            MetricDefinition(SUM),
-            MetricDefinition(MEAN),
-            MetricDefinition(VARIANCE),
+            ScalarFeatureSpec(
+              "value",
+              ImmutableList.of(
+                MetricDefinition(SUM),
+                MetricDefinition(MEAN),
+                MetricDefinition(VARIANCE),
+              ),
+              -2.0,
+              2.0,
+            )
           ),
         noiseKind = LAPLACE,
         maxPartitionsContributed = 1,
         maxContributionsPerPartition = 1,
-        minValue = -2.0,
-        maxValue = 2.0,
       )
     val dpAggregates =
       dpEngine.aggregate(inputData, params, testDataExtractors, publicPartitions)
@@ -341,10 +400,13 @@ class DpEngineTest {
     dpEngine.done()
 
     val partitionResult = dpAggregates.data.toMap()["US"]!!
+    val perFeatureResult = partitionResult.perFeatureList.first()
     assertThat(partitionResult.count).isWithin(1e-1).of(2.0)
-    assertThat(partitionResult.sum).isWithin(1e-1).of(3.0)
-    assertThat(partitionResult.mean).isWithin(1e-10).of(partitionResult.sum / partitionResult.count)
-    assertThat(partitionResult.variance)
+    assertThat(perFeatureResult.sum).isWithin(1e-1).of(3.0)
+    assertThat(perFeatureResult.mean)
+      .isWithin(1e-10)
+      .of(perFeatureResult.sum / partitionResult.count)
+    assertThat(perFeatureResult.variance)
       .isWithin(1e-1)
       .of(((1.0 * 1.0) + (2.0 * 2.0)) / 2.0 - (3.0 / 2.0) * (3.0 / 2.0))
   }
@@ -426,18 +488,22 @@ class DpEngineTest {
       AggregationParams(
         contributionBoundingLevel = DATASET_LEVEL,
         noiseKind = GAUSSIAN,
-        metrics =
+        metrics = ImmutableList.of(MetricDefinition(PRIVACY_ID_COUNT), MetricDefinition(COUNT)),
+        features =
           ImmutableList.of(
-            MetricDefinition(PRIVACY_ID_COUNT),
-            MetricDefinition(COUNT),
-            MetricDefinition(SUM),
-            MetricDefinition(MEAN),
-            MetricDefinition(QUANTILES(ranks = ImmutableList.of())),
+            ScalarFeatureSpec(
+              "value",
+              ImmutableList.of(
+                MetricDefinition(SUM),
+                MetricDefinition(MEAN),
+                MetricDefinition(QUANTILES(ranks = ImmutableList.of())),
+              ),
+              -10.0,
+              10.0,
+            )
           ),
         maxPartitionsContributed = 10,
         maxContributionsPerPartition = 20,
-        minValue = -10.0,
-        maxValue = 10.0,
       ),
       PartitionAndPerPartitionSampler::class.java,
     ),
@@ -471,18 +537,22 @@ class DpEngineTest {
       AggregationParams(
         contributionBoundingLevel = PARTITION_LEVEL,
         noiseKind = GAUSSIAN,
-        metrics =
+        metrics = ImmutableList.of(MetricDefinition(PRIVACY_ID_COUNT), MetricDefinition(COUNT)),
+        features =
           ImmutableList.of(
-            MetricDefinition(PRIVACY_ID_COUNT),
-            MetricDefinition(COUNT),
-            MetricDefinition(SUM),
-            MetricDefinition(MEAN),
-            MetricDefinition(QUANTILES(ranks = ImmutableList.of())),
+            ScalarFeatureSpec(
+              "value",
+              ImmutableList.of(
+                MetricDefinition(SUM),
+                MetricDefinition(MEAN),
+                MetricDefinition(QUANTILES(ranks = ImmutableList.of())),
+              ),
+              -10.0,
+              10.0,
+            )
           ),
         maxPartitionsContributed = 1,
         maxContributionsPerPartition = 20,
-        minValue = -10.0,
-        maxValue = 10.0,
       ),
       PerPartitionContributionsSampler::class.java,
     ),
@@ -890,18 +960,21 @@ class DpEngineTest {
     // Use low bounds to avoid sensitivity overflow when adding noise.
     val params =
       AggregationParams(
-        metrics =
-          ImmutableList.of(
-            MetricDefinition(COUNT, testCase.requestedCountBudget),
-            MetricDefinition(SUM, testCase.requestedSumBudget),
-          ),
+        metrics = ImmutableList.of(MetricDefinition(COUNT, testCase.requestedCountBudget)),
         noiseKind = GAUSSIAN,
-        // Choose large values to avoid contribution clamping but keep the values low enough to
-        // avoid sensitivity overflow.
-        maxPartitionsContributed = 100,
-        maxContributionsPerPartition = 100,
-        minTotalValue = -100.0,
-        maxTotalValue = 100.0,
+        maxPartitionsContributed = 10,
+        maxContributionsPerPartition = 20,
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              "value",
+              ImmutableList.of(MetricDefinition(SUM, testCase.requestedSumBudget)),
+              null,
+              null,
+              -100.0,
+              100.0,
+            )
+          ),
       )
 
     val result =
@@ -1032,17 +1105,22 @@ class DpEngineTest {
     // Use low bounds to avoid sensitivity overflow when adding noise.
     val params =
       AggregationParams(
-        metrics =
+        metrics = ImmutableList.of(MetricDefinition(COUNT, testCase.requestedCountBudget)),
+        features =
           ImmutableList.of(
-            MetricDefinition(COUNT, testCase.requestedCountBudget),
-            MetricDefinition(SUM, testCase.requestedSumBudget),
-            MetricDefinition(MEAN, testCase.requestedMeanBudget),
+            ScalarFeatureSpec(
+              "value",
+              ImmutableList.of(
+                MetricDefinition(SUM, testCase.requestedSumBudget),
+                MetricDefinition(MEAN, testCase.requestedMeanBudget),
+              ),
+              -10.0,
+              10.0,
+            )
           ),
         noiseKind = GAUSSIAN,
         maxPartitionsContributed = 10,
         maxContributionsPerPartition = 20,
-        minValue = -10.0,
-        maxValue = 10.0,
       )
 
     val result =
@@ -1133,12 +1211,19 @@ class DpEngineTest {
     // Use low bounds to avoid sensitivity overflow when adding noise.
     val params =
       AggregationParams(
-        metrics = ImmutableList.of(MetricDefinition(VARIANCE, testCase.requestedVarianceBudget)),
+        metrics = ImmutableList.of(),
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              "value",
+              ImmutableList.of(MetricDefinition(VARIANCE, testCase.requestedVarianceBudget)),
+              -10.0,
+              10.0,
+            )
+          ),
         noiseKind = GAUSSIAN,
         maxPartitionsContributed = 10,
         maxContributionsPerPartition = 20,
-        minValue = -10.0,
-        maxValue = 10.0,
       )
 
     val result =
@@ -1203,43 +1288,69 @@ class DpEngineTest {
       )
     private val SUM_PARAMS =
       AggregationParams(
-        metrics = ImmutableList.of(MetricDefinition(SUM)),
+        metrics = ImmutableList.of(),
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              "value",
+              ImmutableList.of(MetricDefinition(SUM)),
+              null,
+              null,
+              -Double.MAX_VALUE,
+              Double.MAX_VALUE,
+            )
+          ),
         noiseKind = GAUSSIAN,
         maxPartitionsContributed = 1_000_000,
-        minTotalValue = -Double.MAX_VALUE,
-        maxTotalValue = Double.MAX_VALUE,
       )
     private val COUNT_AND_SUM_PARAMS =
       AggregationParams(
-        metrics = ImmutableList.of(MetricDefinition(COUNT), MetricDefinition(SUM)),
+        metrics = ImmutableList.of(MetricDefinition(COUNT)),
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              "value",
+              ImmutableList.of(MetricDefinition(SUM)),
+              null,
+              null,
+              -100.0,
+              100.0,
+            )
+          ),
         noiseKind = GAUSSIAN,
         // Choose large values to avoid contribution clamping but keep the values low enough to
         // avoid sensitivity overflow.
         maxPartitionsContributed = 100,
         maxContributionsPerPartition = 100,
-        minTotalValue = -100.0,
-        maxTotalValue = 100.0,
       )
     private val MEAN_PARAMS =
       AggregationParams(
-        metrics = ImmutableList.of(MetricDefinition(MEAN)),
-        noiseKind = GAUSSIAN,
-        maxPartitionsContributed = 10,
-        maxContributionsPerPartition = 20,
-        minValue = -10.0,
-        maxValue = 10.0,
-      )
-    private val QUANTILES_PARAMS =
-      AggregationParams(
-        metrics =
+        metrics = ImmutableList.of(),
+        features =
           ImmutableList.of(
-            MetricDefinition(QUANTILES(ranks = ImmutableList.of(0.0001, 0.0, 0.5, 0.999, 1.0)))
+            ScalarFeatureSpec("value", ImmutableList.of(MetricDefinition(MEAN)), -10.0, 10.0)
           ),
         noiseKind = GAUSSIAN,
         maxPartitionsContributed = 10,
         maxContributionsPerPartition = 20,
-        minValue = -10.0,
-        maxValue = 10.0,
+      )
+    private val QUANTILES_PARAMS =
+      AggregationParams(
+        metrics = ImmutableList.of(),
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              "value",
+              ImmutableList.of(
+                MetricDefinition(QUANTILES(ranks = ImmutableList.of(0.0001, 0.0, 0.5, 0.999, 1.0)))
+              ),
+              -10.0,
+              10.0,
+            )
+          ),
+        noiseKind = GAUSSIAN,
+        maxPartitionsContributed = 10,
+        maxContributionsPerPartition = 20,
       )
     private val LOCAL_EF = LocalEncoderFactory()
   }

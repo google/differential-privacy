@@ -16,6 +16,7 @@
 
 package com.google.privacy.differentialprivacy.pipelinedp4j.core
 
+import com.google.common.collect.ImmutableList
 import com.google.common.truth.Truth.assertThat
 import com.google.privacy.differentialprivacy.pipelinedp4j.local.LocalCollection
 import com.google.privacy.differentialprivacy.pipelinedp4j.local.LocalEncoderFactory
@@ -29,6 +30,9 @@ import org.junit.runner.RunWith
 
 @RunWith(TestParameterInjector::class)
 class PublicPartitionsTest {
+  private val defaultAggregationParams =
+    AggregationParams(metrics = ImmutableList.of(), noiseKind = NoiseKind.GAUSSIAN)
+
   @Test
   fun dropNonPublicPartitions_keepsOnlyPublicPartitions(
     @TestParameter partitionsBalance: PartitionsBalance
@@ -122,7 +126,7 @@ class PublicPartitionsTest {
           "partition5",
         )
       )
-    val compoundCombiner = CompoundCombiner(combiners = emptyList())
+    val compoundCombiner = CompoundCombiner(combiners = emptyList(), defaultAggregationParams)
 
     val result =
       inputData.insertPublicPartitions(
