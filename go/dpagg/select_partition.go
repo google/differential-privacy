@@ -130,8 +130,15 @@ type PreAggSelectPartitionOptions struct {
 	// Optional.
 	PreThreshold int64
 	// MaxPartitionsContributed is the number of distinct partitions a single
-	// privacy unit can contribute to. Required.
+	// privacy unit can contribute to.
+	//
+	// Mutually exclusive with MaxContributions. One of the two options is required.
 	MaxPartitionsContributed int64
+	// MaxContributions is the number of distinct contributions a single
+	// privacy unit can make.
+	//
+	// Mutually exclusive with MaxPartitionsContributed. One of the two options is required.
+	MaxContributions int64
 }
 
 // NewPreAggSelectPartition constructs a new PreAggSelectPartition from opt.
@@ -148,11 +155,17 @@ func NewPreAggSelectPartition(opt *PreAggSelectPartitionOptions) (*PreAggSelectP
 		opt.PreThreshold = 1
 	}
 
+	var l0Sensitivity int64
+	if opt.MaxContributions > 0 {
+		l0Sensitivity = opt.MaxContributions
+	} else {
+		l0Sensitivity = opt.MaxPartitionsContributed
+	}
 	s := PreAggSelectPartition{
 		epsilon:       opt.Epsilon,
 		delta:         opt.Delta,
 		preThreshold:  opt.PreThreshold,
-		l0Sensitivity: opt.MaxPartitionsContributed,
+		l0Sensitivity: l0Sensitivity,
 	}
 
 	if err := checks.CheckDeltaStrict(s.delta); err != nil {
