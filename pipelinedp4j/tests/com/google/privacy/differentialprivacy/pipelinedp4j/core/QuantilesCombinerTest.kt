@@ -32,12 +32,12 @@ import org.junit.runner.RunWith
 class QuantilesCombinerTest {
   private fun defaultQuantilesAggParams() =
     AggregationParams(
-      metrics = ImmutableList.of(),
+      nonFeatureMetrics = ImmutableList.of(),
+      features =
+        ImmutableList.of(ScalarFeatureSpec("value", ImmutableList.of(), -10000.0, 10000.0)),
       noiseKind = GAUSSIAN,
       maxPartitionsContributed = 1,
       maxContributionsPerPartition = 1,
-      minValue = -10000.0,
-      maxValue = 10000.0,
     )
 
   @Test
@@ -51,6 +51,7 @@ class QuantilesCombinerTest {
         allocatedBudget,
         ZeroNoiseFactory(),
         ExecutionMode.PRODUCTION,
+        defaultQuantilesAggParams().features[0] as ScalarFeatureSpec,
       )
 
     val accumulator0 = combiner.emptyAccumulator()
@@ -79,13 +80,19 @@ class QuantilesCombinerTest {
   fun computeMetrics_noNoise_onlyEmptyAccumulator_returnsQuantilesBetweenMinMaxValues() {
     val allocatedBudget = AllocatedBudget()
     allocatedBudget.initialize(1.1, 1e-5)
+    val params =
+      defaultQuantilesAggParams()
+        .copy(
+          features = ImmutableList.of(ScalarFeatureSpec("value", ImmutableList.of(), -10.0, 10.0))
+        )
     val combiner =
       QuantilesCombiner(
         sortedRanks = listOf(0.0, 0.5, 1.0),
-        defaultQuantilesAggParams().copy(minValue = -10.0, maxValue = 10.0),
+        params,
         allocatedBudget,
         ZeroNoiseFactory(),
         ExecutionMode.PRODUCTION,
+        params.features[0] as ScalarFeatureSpec,
       )
 
     val quantiles = combiner.computeMetrics(combiner.emptyAccumulator())
@@ -101,13 +108,20 @@ class QuantilesCombinerTest {
   fun computeMetrics_smallNoise_returnsQuantilesCloseToReal(noiseKind: NoiseKind, delta: Double) {
     val allocatedBudget = AllocatedBudget()
     allocatedBudget.initialize(100.0, delta)
+    val params =
+      defaultQuantilesAggParams()
+        .copy(
+          features = ImmutableList.of(ScalarFeatureSpec("value", ImmutableList.of(), 1.0, 1000.0)),
+          noiseKind = noiseKind,
+        )
     val combiner =
       QuantilesCombiner(
         sortedRanks = listOf(0.0, 0.5, 1.0),
-        defaultQuantilesAggParams().copy(minValue = 1.0, maxValue = 1000.0, noiseKind = noiseKind),
+        params,
         allocatedBudget,
         NoiseFactory(),
         ExecutionMode.PRODUCTION,
+        params.features[0] as ScalarFeatureSpec,
       )
 
     val accumulator =

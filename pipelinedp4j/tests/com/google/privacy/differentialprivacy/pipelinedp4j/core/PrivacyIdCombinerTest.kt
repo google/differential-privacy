@@ -40,7 +40,7 @@ class PrivacyIdCombinerTest {
   companion object {
     private val AGG_PARAMS =
       AggregationParams(
-        metrics = ImmutableList.of(MetricDefinition(PRIVACY_ID_COUNT)),
+        nonFeatureMetrics = ImmutableList.of(MetricDefinition(PRIVACY_ID_COUNT)),
         noiseKind = GAUSSIAN,
         maxPartitionsContributed = 3,
         maxContributionsPerPartition = 5,
