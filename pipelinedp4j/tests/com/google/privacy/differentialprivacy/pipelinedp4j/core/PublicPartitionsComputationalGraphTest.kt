@@ -41,38 +41,48 @@ class PublicPartitionsComputationalGraphTest {
   companion object {
     private val COUNT_PARAMS =
       AggregationParams(
-        metrics = ImmutableList.of(MetricDefinition(COUNT)),
+        nonFeatureMetrics = ImmutableList.of(MetricDefinition(COUNT)),
         noiseKind = GAUSSIAN,
         maxPartitionsContributed = Int.MAX_VALUE,
         maxContributionsPerPartition = Int.MAX_VALUE,
       )
     private val PRIVACY_ID_COUNT_PARAMS =
       AggregationParams(
-        metrics = ImmutableList.of(MetricDefinition(PRIVACY_ID_COUNT)),
+        nonFeatureMetrics = ImmutableList.of(MetricDefinition(PRIVACY_ID_COUNT)),
         noiseKind = GAUSSIAN,
         maxPartitionsContributed = Int.MAX_VALUE,
       )
     private val SUM_PARAMS =
       AggregationParams(
-        metrics = ImmutableList.of(MetricDefinition(SUM)),
+        nonFeatureMetrics = ImmutableList.of(),
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              featureId = "value",
+              metrics = ImmutableList.of(MetricDefinition(SUM)),
+              minTotalValue = -Double.MAX_VALUE,
+              maxTotalValue = Double.MAX_VALUE,
+            )
+          ),
         noiseKind = GAUSSIAN,
         maxPartitionsContributed = Int.MAX_VALUE,
-        minTotalValue = -Double.MAX_VALUE,
-        maxTotalValue = Double.MAX_VALUE,
       )
     private val COUNT_SUM_AND_ID_COUNT_PARAMS =
       AggregationParams(
-        metrics =
+        nonFeatureMetrics =
+          ImmutableList.of(MetricDefinition(COUNT), MetricDefinition(PRIVACY_ID_COUNT)),
+        features =
           ImmutableList.of(
-            MetricDefinition(COUNT),
-            MetricDefinition(SUM),
-            MetricDefinition(PRIVACY_ID_COUNT),
+            ScalarFeatureSpec(
+              featureId = "value",
+              metrics = ImmutableList.of(MetricDefinition(SUM)),
+              minTotalValue = -100.0,
+              maxTotalValue = 100.0,
+            )
           ),
         noiseKind = GAUSSIAN,
         maxPartitionsContributed = 100,
         maxContributionsPerPartition = 100,
-        minTotalValue = -100.0,
-        maxTotalValue = 100.0,
       )
     private val ALLOCATED_BUDGET = AllocatedBudget()
 
@@ -95,6 +105,7 @@ class PublicPartitionsComputationalGraphTest {
             ALLOCATED_BUDGET,
             ZeroNoiseFactory(),
             ExecutionMode.PRODUCTION,
+            COUNT_SUM_AND_ID_COUNT_PARAMS.features[0] as ScalarFeatureSpec,
           ),
           PrivacyIdCountCombiner(
             COUNT_SUM_AND_ID_COUNT_PARAMS,
@@ -196,6 +207,7 @@ class PublicPartitionsComputationalGraphTest {
                   ALLOCATED_BUDGET,
                   ZeroNoiseFactory(),
                   ExecutionMode.PRODUCTION,
+                  SUM_PARAMS.features[0] as ScalarFeatureSpec,
                 )
               )
             ),
