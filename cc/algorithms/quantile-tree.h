@@ -110,7 +110,8 @@ class QuantileTree {
   }
 
   absl::Status Merge(const BoundedQuantilesSummary& summary) {
-    if (summary.algorithm() != BoundedQuantilesSummary::TREE) {
+    if (summary.has_algorithm() &&
+        summary.algorithm() != BoundedQuantilesSummary::TREE) {
       return absl::InternalError("Algorithm type mismatch. Expected TREE");
     }
     if (static_cast<double>(lower_) != summary.lower() ||
