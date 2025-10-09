@@ -84,6 +84,10 @@ type BoundedSumInt64Options struct {
 	// Defaults to 1. This is only needed for other aggregation functions using BoundedSum;
 	// which is why the option is not exported.
 	maxContributionsPerPartition int64
+	// How many times may a single privacy unit contribute in total to all partitions?
+	//
+	// Mutually exclusive with MaxPartitionsContributed. One of the two options is required.
+	MaxContributions int64
 }
 
 // NewBoundedSumInt64 returns a new BoundedSumInt64, whose sum is initialized at 0.
@@ -91,10 +95,17 @@ func NewBoundedSumInt64(opt *BoundedSumInt64Options) (*BoundedSumInt64, error) {
 	if opt == nil {
 		opt = &BoundedSumInt64Options{} // Prevents panicking due to a nil pointer dereference.
 	}
+	// TODO: Add validation for MaxContributions as well. Currently only for MaxPartitionsContributed, Lower and Upper are validated.
+	if opt.MaxContributions == 0 && opt.MaxPartitionsContributed == 0 {
+		return nil, fmt.Errorf("NewBoundedSumInt64: Either MaxPartitionsContributed or MaxContributions must be set")
+	}
 
-	l0 := opt.MaxPartitionsContributed
-	if l0 == 0 {
-		return nil, fmt.Errorf("NewBoundedSumInt64: MaxPartitionsContributed must be set")
+	var l0 int64
+	if opt.MaxContributions > 0 {
+		// When using MaxContributions, l0Sensitivity is used to pass the L1 sensitivity to the noise layer.
+		l0 = opt.MaxContributions
+	} else {
+		l0 = opt.MaxPartitionsContributed
 	}
 
 	maxContributionsPerPartition := opt.maxContributionsPerPartition
@@ -108,8 +119,8 @@ func NewBoundedSumInt64(opt *BoundedSumInt64Options) (*BoundedSumInt64, error) {
 	}
 	// Check bounds & use them to compute L_∞ sensitivity
 	lower, upper := opt.Lower, opt.Upper
-	if lower == 0 && upper == 0 {
-		return nil, fmt.Errorf("NewBoundedSumInt64: Lower and Upper must be set (automatic bounds determination is not implemented yet). Lower and Upper cannot be both 0")
+	if opt.MaxPartitionsContributed > 0 && lower == 0 && upper == 0 {
+		return nil, fmt.Errorf("NewBoundedSumInt64: When using MaxPartitionsContributed, Lower and Upper must be set (automatic bounds determination is not implemented yet). Lower and Upper cannot be both 0")
 	}
 	var err error
 	switch noise.ToKind(opt.Noise) {
@@ -121,7 +132,17 @@ func NewBoundedSumInt64(opt *BoundedSumInt64Options) (*BoundedSumInt64, error) {
 	if err != nil {
 		return nil, fmt.Errorf("NewBoundedSumInt64: %w", err)
 	}
-	lInf, err := getLInfInt(lower, upper, maxContributionsPerPartition)
+
+	var lInf int64
+	if opt.MaxContributions > 0 {
+		// When using MaxContributions, lInfSensitivity is set to 1 because l0Sensitivity is used to pass
+		// L1 sensitivity to the noise layer.
+		lInf = 1
+		// The per-partition contribution is clamped so that it does not exceed the total contribution bound.
+		upper = opt.MaxContributions
+	} else {
+		lInf, err = getLInfInt(lower, upper, maxContributionsPerPartition)
+	}
 	if err != nil {
 		if noise.ToKind(opt.Noise) == noise.Unrecognised {
 			// Ignore sensitivity overflows if noise is not recognised.

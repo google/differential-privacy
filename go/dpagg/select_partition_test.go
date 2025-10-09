@@ -31,7 +31,7 @@ func TestNewPreAggSelectPartition(t *testing.T) {
 		want    *PreAggSelectPartition
 		wantErr bool
 	}{
-		{"MaxPartitionsContributed is not set",
+		{"MaxPartitionsContributed and MaxContributions are not set",
 			&PreAggSelectPartitionOptions{
 				Epsilon: ln3,
 				Delta:   tenten,
