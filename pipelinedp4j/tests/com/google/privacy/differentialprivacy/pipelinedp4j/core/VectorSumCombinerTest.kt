@@ -44,11 +44,18 @@ import org.mockito.kotlin.verifyNoMoreInteractions
 class VectorSumCombinerTest {
   private val VECTOR_SUM_AGG_PARAMS =
     AggregationParams(
-      metrics = ImmutableList.of(MetricDefinition(VECTOR_SUM)),
+      nonFeatureMetrics = ImmutableList.of(),
+      features =
+        ImmutableList.of(
+          VectorFeatureSpec(
+            "value",
+            ImmutableList.of(MetricDefinition(VECTOR_SUM)),
+            3,
+            NormKind.L_INF,
+            3.0,
+          )
+        ),
       noiseKind = GAUSSIAN,
-      vectorNormKind = NormKind.L_INF,
-      vectorMaxTotalNorm = 3.0,
-      vectorSize = 3,
       maxPartitionsContributed = 5,
     )
 
@@ -60,12 +67,26 @@ class VectorSumCombinerTest {
 
   @Test
   fun emptyAccumulator_returnsZeroVector() {
+    val params =
+      VECTOR_SUM_AGG_PARAMS.copy(
+        features =
+          ImmutableList.of(
+            VectorFeatureSpec(
+              "value",
+              ImmutableList.of(MetricDefinition(VECTOR_SUM)),
+              3,
+              NormKind.L_INF,
+              3.0,
+            )
+          )
+      )
     val combiner =
       VectorSumCombiner(
-        VECTOR_SUM_AGG_PARAMS.copy(vectorSize = 3),
+        params,
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
         ExecutionMode.PRODUCTION,
+        params.features[0] as VectorFeatureSpec,
       )
 
     val accumulator = combiner.emptyAccumulator()
@@ -76,16 +97,26 @@ class VectorSumCombinerTest {
 
   @Test
   fun createAccumulator_sumsVectors() {
+    val params =
+      VECTOR_SUM_AGG_PARAMS.copy(
+        features =
+          ImmutableList.of(
+            VectorFeatureSpec(
+              "value",
+              ImmutableList.of(MetricDefinition(VECTOR_SUM)),
+              3,
+              NormKind.L1,
+              300.0,
+            )
+          )
+      )
     val combiner =
       VectorSumCombiner(
-        VECTOR_SUM_AGG_PARAMS.copy(
-          vectorNormKind = NormKind.L1,
-          vectorMaxTotalNorm = 300.0,
-          vectorSize = 3,
-        ),
+        params,
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
         ExecutionMode.PRODUCTION,
+        params.features[0] as VectorFeatureSpec,
       )
 
     val accumulator =
@@ -107,17 +138,27 @@ class VectorSumCombinerTest {
 
   @Test
   fun createAccumulator_perPartitionContributionBoundingEnabledLInfNorm_clampsOnlyTotalVectorSum() {
+    val params =
+      VECTOR_SUM_AGG_PARAMS.copy(
+        features =
+          ImmutableList.of(
+            VectorFeatureSpec(
+              "value",
+              ImmutableList.of(MetricDefinition(VECTOR_SUM)),
+              3,
+              NormKind.L_INF,
+              30.0,
+            )
+          ),
+        contributionBoundingLevel = PARTITION_LEVEL,
+      )
     val combiner =
       VectorSumCombiner(
-        VECTOR_SUM_AGG_PARAMS.copy(
-          vectorNormKind = NormKind.L_INF,
-          vectorMaxTotalNorm = 30.0,
-          vectorSize = 3,
-          contributionBoundingLevel = PARTITION_LEVEL,
-        ),
+        params,
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
         ExecutionMode.PRODUCTION,
+        params.features[0] as VectorFeatureSpec,
       )
 
     val accumulator =
@@ -139,16 +180,26 @@ class VectorSumCombinerTest {
 
   @Test
   fun createAccumulator_perPartitionContributionBoundingEnabledL1Norm_clampsOnlyTotalVectorSum() {
+    val params =
+      VECTOR_SUM_AGG_PARAMS.copy(
+        features =
+          ImmutableList.of(
+            VectorFeatureSpec(
+              "value",
+              ImmutableList.of(MetricDefinition(VECTOR_SUM)),
+              2,
+              NormKind.L1,
+              10.0,
+            )
+          )
+      )
     val combiner =
       VectorSumCombiner(
-        VECTOR_SUM_AGG_PARAMS.copy(
-          vectorNormKind = NormKind.L1,
-          vectorMaxTotalNorm = 10.0,
-          vectorSize = 2,
-        ),
+        params,
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
         ExecutionMode.PRODUCTION,
+        params.features[0] as VectorFeatureSpec,
       )
 
     val accumulator =
@@ -169,16 +220,26 @@ class VectorSumCombinerTest {
 
   @Test
   fun createAccumulator_perPartitionContributionBoundingEnabledL2Norm_clampsOnlyTotalVectorSum() {
+    val params =
+      VECTOR_SUM_AGG_PARAMS.copy(
+        features =
+          ImmutableList.of(
+            VectorFeatureSpec(
+              "value",
+              ImmutableList.of(MetricDefinition(VECTOR_SUM)),
+              2,
+              NormKind.L2,
+              6.5,
+            )
+          )
+      )
     val combiner =
       VectorSumCombiner(
-        VECTOR_SUM_AGG_PARAMS.copy(
-          vectorNormKind = NormKind.L2,
-          vectorMaxTotalNorm = 6.5,
-          vectorSize = 2,
-        ),
+        params,
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
         ExecutionMode.PRODUCTION,
+        params.features[0] as VectorFeatureSpec,
       )
 
     val accumulator =
@@ -198,16 +259,26 @@ class VectorSumCombinerTest {
 
   @Test
   fun createAccumulator_fullTestMode_doesNotClampTotalSum() {
+    val params =
+      VECTOR_SUM_AGG_PARAMS.copy(
+        features =
+          ImmutableList.of(
+            VectorFeatureSpec(
+              "value",
+              ImmutableList.of(MetricDefinition(VECTOR_SUM)),
+              3,
+              NormKind.L_INF,
+              30.0,
+            )
+          )
+      )
     val combiner =
       VectorSumCombiner(
-        VECTOR_SUM_AGG_PARAMS.copy(
-          vectorNormKind = NormKind.L_INF,
-          vectorMaxTotalNorm = 30.0,
-          vectorSize = 3,
-        ),
+        params,
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
         FULL_TEST_MODE,
+        params.features[0] as VectorFeatureSpec,
       )
 
     val accumulator =
@@ -233,6 +304,7 @@ class VectorSumCombinerTest {
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
         ExecutionMode.PRODUCTION,
+        VECTOR_SUM_AGG_PARAMS.features[0] as VectorFeatureSpec,
       )
 
     val accumulator =
@@ -250,12 +322,14 @@ class VectorSumCombinerTest {
   fun computeMetrics_addsNoise(noiseKind: NoiseKind, delta: Double) {
     val allocatedBudget = AllocatedBudget()
     allocatedBudget.initialize(1.1, delta)
+    val params = VECTOR_SUM_AGG_PARAMS.copy(noiseKind = noiseKind)
     val combiner =
       VectorSumCombiner(
-        VECTOR_SUM_AGG_PARAMS.copy(noiseKind = noiseKind),
+        params,
         allocatedBudget,
         NoiseFactory(),
         ExecutionMode.PRODUCTION,
+        params.features[0] as VectorFeatureSpec,
       )
 
     val result =
@@ -280,17 +354,27 @@ class VectorSumCombinerTest {
     val noiseFactoryMock: (NoiseKind) -> Noise = { _ -> noiseMock }
     val allocatedBudget = AllocatedBudget()
     allocatedBudget.initialize(1.1, 1e-3)
+    val params =
+      VECTOR_SUM_AGG_PARAMS.copy(
+        features =
+          ImmutableList.of(
+            VectorFeatureSpec(
+              "value",
+              ImmutableList.of(MetricDefinition(VECTOR_SUM)),
+              3,
+              normKind,
+              30.0,
+            )
+          ),
+        maxPartitionsContributed = 10,
+      )
     val combiner =
       VectorSumCombiner(
-        VECTOR_SUM_AGG_PARAMS.copy(
-          vectorNormKind = normKind,
-          vectorMaxTotalNorm = 30.0,
-          vectorSize = 3,
-          maxPartitionsContributed = 10,
-        ),
+        params,
         allocatedBudget,
         noiseFactoryMock,
         ExecutionMode.PRODUCTION,
+        params.features[0] as VectorFeatureSpec,
       )
 
     val unused =
@@ -336,17 +420,27 @@ class VectorSumCombinerTest {
     val noiseFactoryMock: (NoiseKind) -> Noise = { _ -> noiseMock }
     val allocatedBudget = AllocatedBudget()
     allocatedBudget.initialize(1.1, 1e-3)
+    val params =
+      VECTOR_SUM_AGG_PARAMS.copy(
+        features =
+          ImmutableList.of(
+            VectorFeatureSpec(
+              "value",
+              ImmutableList.of(MetricDefinition(VECTOR_SUM)),
+              4,
+              normKind,
+              30.0,
+            )
+          ),
+        maxPartitionsContributed = 100,
+      )
     val combiner =
       VectorSumCombiner(
-        VECTOR_SUM_AGG_PARAMS.copy(
-          vectorNormKind = normKind,
-          vectorMaxTotalNorm = 30.0,
-          vectorSize = 4,
-          maxPartitionsContributed = 100,
-        ),
+        params,
         allocatedBudget,
         noiseFactoryMock,
         ExecutionMode.PRODUCTION,
+        params.features[0] as VectorFeatureSpec,
       )
 
     val unused =
@@ -389,17 +483,27 @@ class VectorSumCombinerTest {
   fun computeMetrics_withoutNoise_withMultipleContributionsIncludingEmptyAccumulator_returnsCorrectResult() {
     val allocatedBudget = AllocatedBudget()
     allocatedBudget.initialize(1.1, 1e-5)
+    val params =
+      VECTOR_SUM_AGG_PARAMS.copy(
+        features =
+          ImmutableList.of(
+            VectorFeatureSpec(
+              "value",
+              ImmutableList.of(MetricDefinition(VECTOR_SUM)),
+              3,
+              NormKind.L2,
+              30.0,
+            )
+          ),
+        maxPartitionsContributed = 10,
+      )
     val combiner =
       VectorSumCombiner(
-        VECTOR_SUM_AGG_PARAMS.copy(
-          vectorNormKind = NormKind.L2,
-          vectorMaxTotalNorm = 30.0,
-          vectorSize = 3,
-          maxPartitionsContributed = 10,
-        ),
+        params,
         allocatedBudget,
         ZeroNoiseFactory(),
         ExecutionMode.PRODUCTION,
+        params.features[0] as VectorFeatureSpec,
       )
 
     val accumulator0 = combiner.emptyAccumulator()
@@ -434,12 +538,26 @@ class VectorSumCombinerTest {
   fun computeMetrics_withoutNoiseAndEmptyAccumulator_returnsZeroVectorSum() {
     val allocatedBudget = AllocatedBudget()
     allocatedBudget.initialize(1.1, 1e-5)
+    val params =
+      VECTOR_SUM_AGG_PARAMS.copy(
+        features =
+          ImmutableList.of(
+            VectorFeatureSpec(
+              "value",
+              ImmutableList.of(MetricDefinition(VECTOR_SUM)),
+              3,
+              NormKind.L_INF,
+              3.0,
+            )
+          )
+      )
     val combiner =
       VectorSumCombiner(
-        VECTOR_SUM_AGG_PARAMS.copy(vectorSize = 3),
+        params,
         allocatedBudget,
         ZeroNoiseFactory(),
         ExecutionMode.PRODUCTION,
+        params.features[0] as VectorFeatureSpec,
       )
 
     val result = combiner.computeMetrics(combiner.emptyAccumulator())
