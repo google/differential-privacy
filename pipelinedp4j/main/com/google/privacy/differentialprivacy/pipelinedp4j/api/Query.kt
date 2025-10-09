@@ -27,12 +27,10 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.core.FeatureValuesExt
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.FrameworkCollection
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.FrameworkTable
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.ScalarFeatureSpec
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.SelectPartitionsParams
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.VectorFeatureSpec
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.DpAggregates
-import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PerFeature
-import com.google.privacy.differentialprivacy.pipelinedp4j.proto.copy
-import com.google.privacy.differentialprivacy.pipelinedp4j.proto.dpAggregates
-import com.google.privacy.differentialprivacy.pipelinedp4j.proto.perFeature
 
 sealed interface Query<ReturnT> {
   /** Executes the query (in production mode). */
@@ -81,8 +79,7 @@ protected constructor(
 
     // 1. If aggregation is empty then we do partition selection.
     if (aggregations.isEmpty()) {
-      val extractors =
-        createDataExtractors(valueExtractor = null, vectorExtractor = null, featureId = null)
+      val extractors = createDataExtractors(aggregations)
       val result = dpEngine.selectPartitions(data, createSelectPartitionsParams(), extractors)
       dpEngine.done()
 
@@ -94,81 +91,10 @@ protected constructor(
       )
     }
 
-    val isValueOrVectorAgg: (AggregationSpec) -> Boolean = {
-      it is ValueAggregations<*> || it is VectorAggregations<*>
-    }
-    val valueAndVectorAggs: List<AggregationSpec> = aggregations.filter(isValueOrVectorAgg)
-
-    // Count/PidCount aggregations
-    val countAggs: List<AggregationSpec> = aggregations.filterNot(isValueOrVectorAgg)
-
-    var partitions: FrameworkCollection<GroupKeysT>? = groupsType.getPublicGroups()
-    // 2. If aggregations are not empty, split them into runs.
-    // The first run contains all aggregations that do not relate to specific values or vectors
-    // (e.g. COUNT), plus the first value or vector aggregation (if any).
-    // The subsequent runs contain one value or vector aggregation each.
-    val firstFeatureAggregation = valueAndVectorAggs.firstOrNull()
-    val firstRun = buildList {
-      if (firstFeatureAggregation != null) {
-        add(firstFeatureAggregation)
-      }
-      addAll(countAggs)
-    }
-    val otherOneFeatureRuns = valueAndVectorAggs.drop(1)
-
-    val aggResults = mutableListOf<FrameworkTable<GroupKeysT, DpAggregates>>()
-
-    // 3. Run the first aggregation. If public partitions are not provided,
-    // this run performs partition selection, and the result partitions are used
-    // in subsequent runs.
-    val result = aggregateWithDpEngine(dpEngine, firstFeatureAggregation, firstRun, partitions)
-    aggResults.add(result)
-    if (partitions == null) {
-      partitions = result.keys("GetPartitions")
-    }
-
-    // 4. Run all subsequent aggregations using partitions from the first run.
-    for (featureAggregation in otherOneFeatureRuns) {
-      val result =
-        aggregateWithDpEngine(dpEngine, featureAggregation, listOf(featureAggregation), partitions)
-      aggResults.add(result)
-    }
+    val partitions: FrameworkCollection<GroupKeysT>? = groupsType.getPublicGroups()
+    val result = aggregateWithDpEngine(dpEngine, aggregations, partitions)
     dpEngine.done()
-
-    val featureIdPerRun =
-      if (valueAndVectorAggs.isEmpty()) {
-        listOf(null)
-      } else {
-        valueAndVectorAggs.map { it.getFeatureId() }
-      }
-    return aggResults
-      .zip(featureIdPerRun)
-      .map { (table, featureId) ->
-        table.mapValues("TagWithFeatureId", encoderFactory.protos(DpAggregates::class)) { _, agg ->
-          if (featureId == null) {
-            agg
-          } else {
-            val perFeature = constructPerFeature(agg, featureId)
-            dpAggregates {
-              count = agg.count
-              privacyIdCount = agg.privacyIdCount
-              this.perFeature += perFeature
-            }
-          }
-        }
-      }
-      .reduce {
-        acc: FrameworkTable<GroupKeysT, DpAggregates>,
-        table: FrameworkTable<GroupKeysT, DpAggregates> ->
-        acc.flattenWith("FlattenResultsFromMultipleRuns", table)
-      }
-      .groupAndCombineValues("MergeDpAggregates") { acc, dpAggregatesFromSingleRun ->
-        acc.copy {
-          count += dpAggregatesFromSingleRun.count
-          privacyIdCount += dpAggregatesFromSingleRun.privacyIdCount
-          perFeature += dpAggregatesFromSingleRun.perFeatureList
-        }
-      }
+    return result
   }
 
   private fun validate() {
@@ -413,73 +339,52 @@ protected constructor(
 
   private fun aggregateWithDpEngine(
     dpEngine: DpEngine,
-    featureAggregation: AggregationSpec?,
     aggregationSpecs: List<AggregationSpec>,
     partitions: FrameworkCollection<GroupKeysT>?,
   ): FrameworkTable<GroupKeysT, DpAggregates> {
-    @Suppress("UNCHECKED_CAST") val va = featureAggregation as? ValueAggregations<DataRowT>
-    @Suppress("UNCHECKED_CAST") val vea = featureAggregation as? VectorAggregations<DataRowT>
-    val extractors =
-      createDataExtractors(
-        va?.valueExtractor,
-        vea?.vectorExtractor,
-        featureAggregation?.getFeatureId(),
-      )
-    val params = createAggregationParams(aggregationSpecs, va, vea)
+    val extractors = createDataExtractors(aggregationSpecs)
+    val params = createAggregationParams(aggregationSpecs)
     return dpEngine.aggregate(data, params, extractors, partitions)
   }
 
   private fun createDataExtractors(
-    valueExtractor: ((DataRowT) -> Double)?,
-    vectorExtractor: ((DataRowT) -> List<Double>)?,
-    featureId: String?,
-  ) =
-    when {
-      valueExtractor == null && vectorExtractor == null ->
-        DataExtractors.from(
-          privacyUnitExtractor,
-          privacyUnitEncoder,
-          groupKeyExtractor,
-          groupKeyEncoder,
-        )
-      valueExtractor != null && vectorExtractor == null ->
-        DataExtractors.from(
-          privacyUnitExtractor,
-          privacyUnitEncoder,
-          groupKeyExtractor,
-          groupKeyEncoder,
-          valuesExtractors =
-            listOf(
-              FeatureValuesExtractor(
-                checkNotNull(featureId) {
-                  "featureId must not be null when a value extractor is provided."
-                }
-              ) {
-                listOf(valueExtractor(it))
-              }
-            ),
-        )
-      valueExtractor == null && vectorExtractor != null ->
-        DataExtractors.from(
-          privacyUnitExtractor,
-          privacyUnitEncoder,
-          groupKeyExtractor,
-          groupKeyEncoder,
-          valuesExtractors =
-            listOf(
-              FeatureValuesExtractor(
-                checkNotNull(featureId) {
-                  "featureId must not be null when a vector extractor is provided."
-                },
-                vectorExtractor,
-              )
-            ),
-        )
-      else ->
-        throw IllegalArgumentException(
-          "Only one of valueExtractor and vectorExtractor can be specified, but both were specified."
-        )
+    aggregations: List<AggregationSpec>
+  ): DataExtractors<DataRowT, PrivacyUnitT, GroupKeysT> {
+    val featureValueExtractors: List<FeatureValuesExtractor<DataRowT>> =
+      aggregations.mapNotNull {
+        when (it) {
+          is ValueAggregations<*> -> {
+            @Suppress("UNCHECKED_CAST") val va = it as ValueAggregations<DataRowT>
+            val featureId = va.getFeatureId()
+            val valueExtractor = va.valueExtractor
+            FeatureValuesExtractor<DataRowT>(featureId, { row -> listOf(valueExtractor(row)) })
+          }
+          is VectorAggregations<*> -> {
+            @Suppress("UNCHECKED_CAST") val vea = it as VectorAggregations<DataRowT>
+            val featureId = vea.getFeatureId()
+            val vectorExtractor = vea.vectorExtractor
+            FeatureValuesExtractor<DataRowT>(featureId, { row -> vectorExtractor(row) })
+          }
+          else -> null
+        }
+      }
+    return if (featureValueExtractors.isEmpty()) {
+      DataExtractors.from(
+        privacyUnitExtractor,
+        privacyUnitEncoder,
+        groupKeyExtractor,
+        groupKeyEncoder,
+      )
+    } else {
+      DataExtractors.from(
+        privacyUnitExtractor,
+        privacyUnitEncoder,
+        groupKeyExtractor,
+        groupKeyEncoder,
+        valuesExtractors = featureValueExtractors,
+      )
     }
+  }
 
   private fun createSelectPartitionsParams() =
     SelectPartitionsParams(
@@ -489,48 +394,53 @@ protected constructor(
       contributionBoundingLevel = contributionBoundingLevel.toInternalContributionBoundingLevel(),
     )
 
-  private fun createAggregationParams(
-    aggregationSpecs: List<AggregationSpec>,
-    valueAggregations: ValueAggregations<*>?,
-    vectorAggregations: VectorAggregations<*>?,
-  ): AggregationParams {
-    val valueContributionBounds = valueAggregations?.contributionBounds
-    val vectorContributionBounds = vectorAggregations?.vectorContributionBounds
+  private fun createAggregationParams(aggregationSpecs: List<AggregationSpec>): AggregationParams {
+    val nonFeatureMetrics =
+      aggregationSpecs
+        .filter { it is Count || it is PrivacyIdCount }
+        .map { it.toNonFeatureMetricDefinition() }
+    val features =
+      aggregationSpecs.mapNotNull {
+        when (it) {
+          is ValueAggregations<*> -> {
+            val valueContributionBounds = it.contributionBounds
+            ScalarFeatureSpec(
+              featureId = it.getFeatureId(),
+              metrics = it.valueAggregationSpecs.map { it.toMetricDefinition() }.toImmutableList(),
+              minValue = valueContributionBounds.valueBounds?.minValue,
+              maxValue = valueContributionBounds.valueBounds?.maxValue,
+              minTotalValue = valueContributionBounds.totalValueBounds?.minValue,
+              maxTotalValue = valueContributionBounds.totalValueBounds?.maxValue,
+            )
+          }
+          is VectorAggregations<*> -> {
+            val vectorContributionBounds = it.vectorContributionBounds
+            VectorFeatureSpec(
+              featureId = it.getFeatureId(),
+              metrics = it.vectorAggregationSpecs.map { it.toMetricDefinition() }.toImmutableList(),
+              vectorSize = it.vectorSize,
+              normKind = vectorContributionBounds.maxVectorTotalNorm.normKind.toInternalNormKind(),
+              vectorMaxTotalNorm = vectorContributionBounds.maxVectorTotalNorm.value,
+            )
+          }
+          else -> null
+        }
+      }
+
     return AggregationParams(
-      metrics = ImmutableList.copyOf(aggregationSpecs.metrics()),
+      nonFeatureMetrics = nonFeatureMetrics.toImmutableList(),
+      features = features.toImmutableList(),
       noiseKind =
         checkNotNull(noiseKind) { "noiseKind cannot be null if there are aggregations." }
           .toInternalNoiseKind(),
       maxPartitionsContributed = contributionBoundingLevel.getMaxPartitionsContributed(),
       maxContributionsPerPartition = contributionBoundingLevel.getMaxContributionsPerPartition(),
-      minValue = valueContributionBounds?.valueBounds?.minValue,
-      maxValue = valueContributionBounds?.valueBounds?.maxValue,
-      minTotalValue = valueContributionBounds?.totalValueBounds?.minValue,
-      maxTotalValue = valueContributionBounds?.totalValueBounds?.maxValue,
-      vectorNormKind = vectorContributionBounds?.maxVectorTotalNorm?.normKind?.toInternalNormKind(),
-      vectorMaxTotalNorm = vectorContributionBounds?.maxVectorTotalNorm?.value,
-      vectorSize = vectorAggregations?.vectorSize,
       partitionSelectionBudget = groupsType.getBudget()?.toInternalBudgetPerOpSpec(),
       preThreshold = groupsType.getPreThreshold(),
       contributionBoundingLevel = contributionBoundingLevel.toInternalContributionBoundingLevel(),
       partitionsBalance = groupByAdditionalParameters.groupsBalance.toPartitionsBalance(),
     )
   }
-
-  companion object {
-    private fun constructPerFeature(dpAggregates: DpAggregates, featureId: String): PerFeature {
-      return perFeature {
-        this.featureId = featureId
-        sum = dpAggregates.sum
-        mean = dpAggregates.mean
-        variance = dpAggregates.variance
-        if (dpAggregates.quantilesList.isNotEmpty()) {
-          quantiles += dpAggregates.quantilesList
-        }
-        if (dpAggregates.vectorSumList.isNotEmpty()) {
-          vectorSum += dpAggregates.vectorSumList
-        }
-      }
-    }
-  }
 }
+
+private fun <T : Any> Iterable<T>.toImmutableList(): ImmutableList<T> = ImmutableList.copyOf(this)
