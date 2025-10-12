@@ -657,8 +657,35 @@ func ComplementaryGaussianTolerance(flakinessK, l0Sensitivity, lInfSensitivity, 
 	return math.Erfinv(math.Pow(10, -flakinessK)) * noise.SigmaForGaussian(int64(l0Sensitivity), lInfSensitivity, epsilon, delta) * math.Sqrt(2)
 }
 
+// GaussianToleranceForMean returns tolerances to be used in approxEquals for tests
+// for mean using Gaussian Noise to pass with 10⁻ᵏ flakiness.
+//
+// The return values include the tolerances for count, normalized sum, and mean.
+//
+//   - flakinessK: parameter used to specify k in the flakiness.
+//   - lower: minimum possible value of the input entities.
+//   - upper: maximum possible value of the input entities.
+//   - epsilon: the differential privacy parameter epsilon.
+//   - stats.NormalizedSum: \sum { clamp(x_i, lower, upper) - midPoint }.
+//
+// distanceFromMidPoint = upper - midPoint, where midPoint = (lower + upper)/2.
+//
+// To see the logic and the math behind flakiness and tolerance calculation,
+// See https://github.com/google/differential-privacy/blob/main/privacy-on-beam/docs/Tolerance_Calculation.pdf
+func GaussianToleranceForMean(
+	flakinessK, lower, upper float64, maxContributionsPerPartition, maxPartitionsContributed int64,
+	epsilon float64, delta float64, stats VarianceStatistics,
+) (VarianceStatistics, error) {
+	getToleranceOfNoise := func(flakinessK, eps, delta float64, sensitivify sensitivity) float64 {
+		return GaussianTolerance(flakinessK, sensitivify.L0, sensitivify.LInf, eps, delta)
+	}
+	return toleranceForNoisyMeanImpl(
+		flakinessK, lower, upper, maxContributionsPerPartition, maxPartitionsContributed,
+		epsilon, delta, stats, getToleranceOfNoise)
+}
+
 // LaplaceToleranceForMean returns tolerances to be used in approxEquals for tests
-// for mean to pass with 10⁻ᵏ flakiness.
+// for mean using Laplace Noise to pass with 10⁻ᵏ flakiness.
 //
 // The return values include the tolerances for count, normalized sum, and mean.
 //
@@ -676,11 +703,32 @@ func LaplaceToleranceForMean(
 	flakinessK, lower, upper float64, maxContributionsPerPartition, maxPartitionsContributed int64,
 	epsilon float64, stats VarianceStatistics,
 ) (VarianceStatistics, error) {
+	getToleranceOfNoise := func(flakinessK, eps, delta float64, sensitivify sensitivity) float64 {
+		return LaplaceTolerance(flakinessK, sensitivify.L1, eps)
+	}
+	const delta float64 = 0 // Not used.
+	return toleranceForNoisyMeanImpl(
+		flakinessK, lower, upper, maxContributionsPerPartition, maxPartitionsContributed,
+		epsilon, delta, stats, getToleranceOfNoise)
+}
+
+// toleranceForNoisyMeanImpl calculates the tolerance for noisy mean of a certain noise kind.
+//
+// The return values include the tolerances for count, normalized sum, and mean.
+//
+//   - getToleranceOfNoise calculates the noise specific tolerance given flakiness and sensitivity.
+func toleranceForNoisyMeanImpl(
+	flakinessK, lower, upper float64,
+	maxContributionsPerPartition, maxPartitionsContributed int64,
+	epsilon, delta float64, stats VarianceStatistics,
+	getToleranceOfNoise func(flakinessK, eps, delta float64, sensitivify sensitivity) float64,
+) (VarianceStatistics, error) {
 	// The term below is equivalent to -log_10(1-sqrt(1-1e-k)).
 	// It is formulated this way to increase precision and to avoid having this term go to infinity.
 	// Count and normalized sum uses the same following flakiness for simplicity.
 	newFlakinessK := -math.Log10(-math.Expm1(0.5 * math.Log1p(-math.Pow(10, -flakinessK))))
 	halfEpsilon := epsilon / 2
+	halfDelta := delta / 2
 
 	computer := sensitivityComputer{
 		Lower:                        lower,
@@ -688,11 +736,12 @@ func LaplaceToleranceForMean(
 		MaxContributionsPerPartition: maxContributionsPerPartition,
 		MaxPartitionsContributed:     maxPartitionsContributed,
 	}
-	l1Count := computer.SensitivitiesForCount().L1
-	l1NormalizedSum := computer.SensitivitiesForNormalizedSum().L1
+	countSens := computer.SensitivitiesForCount()
+	normalizedSumSens := computer.SensitivitiesForNormalizedSum()
 
-	countTolerance := math.Ceil(LaplaceTolerance(newFlakinessK, l1Count, halfEpsilon))
-	normalizedSumTolerance := LaplaceTolerance(newFlakinessK, l1NormalizedSum, halfEpsilon)
+	countTolerance := math.Ceil(getToleranceOfNoise(newFlakinessK, halfEpsilon, halfDelta, countSens))
+	normalizedSumTolerance := getToleranceOfNoise(
+		newFlakinessK, halfEpsilon, halfDelta, normalizedSumSens)
 
 	tolerances := VarianceStatistics{
 		Count:         countTolerance,
