@@ -148,58 +148,20 @@ internal fun AggregationSpec.getFeatureId(): String {
   }
 }
 
-internal fun List<AggregationSpec>.metrics(): List<MetricDefinition> = buildList {
-  for (aggregation in this@metrics) {
-    when (aggregation) {
-      // Count and PrivacyIdCount do not aggregate any specific value, therefore they are handled
-      // differently.
-      is PrivacyIdCount ->
-        add(
-          MetricDefinition(
-            MetricType.PRIVACY_ID_COUNT,
-            aggregation.budget?.toInternalBudgetPerOpSpec(),
-          )
-        )
-      is Count ->
-        add(MetricDefinition(MetricType.COUNT, aggregation.budget?.toInternalBudgetPerOpSpec()))
-      is ValueAggregations<*> -> {
-        for (valueAggregationSpec in aggregation.valueAggregationSpecs) {
-          add(
-            MetricDefinition(
-              valueAggregationSpec.metricType,
-              valueAggregationSpec.budget?.toInternalBudgetPerOpSpec(),
-            )
-          )
-        }
-      }
-      is VectorAggregations<*> -> {
-        for (vectorAggregationSpec in aggregation.vectorAggregationSpecs) {
-          add(
-            MetricDefinition(
-              vectorAggregationSpec.metricType,
-              vectorAggregationSpec.budget?.toInternalBudgetPerOpSpec(),
-            )
-          )
-        }
-      }
-    }
-  }
-}
-
 internal fun List<AggregationSpec>.outputColumnNamesWithMetricTypes():
   List<Pair<String, MetricType>> = buildList {
   for (aggregation in this@outputColumnNamesWithMetricTypes) {
     when (aggregation) {
-      is PrivacyIdCount -> add(aggregation.outputColumnName to MetricType.PRIVACY_ID_COUNT)
-      is Count -> add(aggregation.outputColumnName to MetricType.COUNT)
+      is PrivacyIdCount -> add(Pair(aggregation.outputColumnName, MetricType.PRIVACY_ID_COUNT))
+      is Count -> add(Pair(aggregation.outputColumnName, MetricType.COUNT))
       is ValueAggregations<*> -> {
         for (valueAggregationSpec in aggregation.valueAggregationSpecs) {
-          add(valueAggregationSpec.outputColumnName to valueAggregationSpec.metricType)
+          add(Pair(valueAggregationSpec.outputColumnName, valueAggregationSpec.metricType))
         }
       }
       is VectorAggregations<*> -> {
         for (vectorAggregationSpec in aggregation.vectorAggregationSpecs) {
-          add(vectorAggregationSpec.outputColumnName to vectorAggregationSpec.metricType)
+          add(Pair(vectorAggregationSpec.outputColumnName, vectorAggregationSpec.metricType))
         }
       }
     }
@@ -227,3 +189,22 @@ internal fun List<AggregationSpec>.outputColumnNameToFeatureIdMap(): Map<String,
 
 internal fun List<AggregationSpec>.outputColumnNames(): List<String> =
   outputColumnNamesWithMetricTypes().map { it.first }
+
+internal fun AggregationSpec.toNonFeatureMetricDefinition(): MetricDefinition {
+  val (metricType, budget) =
+    when (this) {
+      is Count -> Pair(MetricType.COUNT, this.budget)
+      is PrivacyIdCount -> Pair(MetricType.PRIVACY_ID_COUNT, this.budget)
+      else ->
+        throw IllegalArgumentException("Unsupported AggregationSpec type for non feature metrics")
+    }
+  return MetricDefinition(metricType, budget?.toInternalBudgetPerOpSpec())
+}
+
+internal fun ValueAggregationSpec.toMetricDefinition(): MetricDefinition {
+  return MetricDefinition(this.metricType, this.budget?.toInternalBudgetPerOpSpec())
+}
+
+internal fun VectorAggregationSpec.toMetricDefinition(): MetricDefinition {
+  return MetricDefinition(this.metricType, this.budget?.toInternalBudgetPerOpSpec())
+}
