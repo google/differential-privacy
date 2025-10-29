@@ -25,10 +25,11 @@ data class TestDataRow(val privacyId: String, val partitionKey: String, val valu
 val testDataExtractors = testDataExtractors(LocalEncoderFactory())
 
 fun testDataExtractors(encoderFactory: EncoderFactory) =
-  DataExtractors.from<TestDataRow, String, String>(
-    { dataRow -> dataRow.privacyId },
-    encoderFactory.strings(),
-    { dataRow -> dataRow.partitionKey },
-    encoderFactory.strings(),
-    { dataRow -> dataRow.value },
+  DataExtractors.from(
+    privacyIdExtractor = { dataRow: TestDataRow -> dataRow.privacyId },
+    privacyIdEncoder = encoderFactory.strings(),
+    partitionKeyExtractor = { dataRow: TestDataRow -> dataRow.partitionKey },
+    partitionKeyEncoder = encoderFactory.strings(),
+    valuesExtractors =
+      listOf(FeatureValuesExtractor("value") { dataRow: TestDataRow -> listOf(dataRow.value) }),
   )

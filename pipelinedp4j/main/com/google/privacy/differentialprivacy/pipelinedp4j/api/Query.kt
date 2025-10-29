@@ -23,6 +23,7 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.core.DpEngine
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.DpEngineBudgetSpec
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.Encoder
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.EncoderFactory
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.FeatureValuesExtractor
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.FrameworkCollection
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.FrameworkTable
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType
@@ -80,7 +81,8 @@ protected constructor(
 
     // 1. If aggregation is empty then we do partition selection.
     if (aggregations.isEmpty()) {
-      val extractors = createDataExtractors(valueExtractor = null, vectorExtractor = null)
+      val extractors =
+        createDataExtractors(valueExtractor = null, vectorExtractor = null, featureId = null)
       val result = dpEngine.selectPartitions(data, createSelectPartitionsParams(), extractors)
       dpEngine.done()
 
@@ -417,7 +419,12 @@ protected constructor(
   ): FrameworkTable<GroupKeysT, DpAggregates> {
     @Suppress("UNCHECKED_CAST") val va = featureAggregation as? ValueAggregations<DataRowT>
     @Suppress("UNCHECKED_CAST") val vea = featureAggregation as? VectorAggregations<DataRowT>
-    val extractors = createDataExtractors(va?.valueExtractor, vea?.vectorExtractor)
+    val extractors =
+      createDataExtractors(
+        va?.valueExtractor,
+        vea?.vectorExtractor,
+        featureAggregation?.getFeatureId(),
+      )
     val params = createAggregationParams(aggregationSpecs, va, vea)
     return dpEngine.aggregate(data, params, extractors, partitions)
   }
@@ -425,30 +432,48 @@ protected constructor(
   private fun createDataExtractors(
     valueExtractor: ((DataRowT) -> Double)?,
     vectorExtractor: ((DataRowT) -> List<Double>)?,
+    featureId: String?,
   ) =
     when {
       valueExtractor == null && vectorExtractor == null ->
-        DataExtractors.from<DataRowT, PrivacyUnitT, GroupKeysT>(
+        DataExtractors.from(
           privacyUnitExtractor,
           privacyUnitEncoder,
           groupKeyExtractor,
           groupKeyEncoder,
         )
       valueExtractor != null && vectorExtractor == null ->
-        DataExtractors.from<DataRowT, PrivacyUnitT, GroupKeysT>(
+        DataExtractors.from(
           privacyUnitExtractor,
           privacyUnitEncoder,
           groupKeyExtractor,
           groupKeyEncoder,
-          valueExtractor,
+          valuesExtractors =
+            listOf(
+              FeatureValuesExtractor(
+                checkNotNull(featureId) {
+                  "featureId must not be null when a value extractor is provided."
+                }
+              ) {
+                listOf(valueExtractor(it))
+              }
+            ),
         )
       valueExtractor == null && vectorExtractor != null ->
-        DataExtractors.forVectorFrom<DataRowT, PrivacyUnitT, GroupKeysT>(
+        DataExtractors.from(
           privacyUnitExtractor,
           privacyUnitEncoder,
           groupKeyExtractor,
           groupKeyEncoder,
-          vectorExtractor,
+          valuesExtractors =
+            listOf(
+              FeatureValuesExtractor(
+                checkNotNull(featureId) {
+                  "featureId must not be null when a vector extractor is provided."
+                },
+                vectorExtractor,
+              )
+            ),
         )
       else ->
         throw IllegalArgumentException(
@@ -473,7 +498,9 @@ protected constructor(
     val vectorContributionBounds = vectorAggregations?.vectorContributionBounds
     return AggregationParams(
       metrics = ImmutableList.copyOf(aggregationSpecs.metrics()),
-      noiseKind = noiseKind!!.toInternalNoiseKind(),
+      noiseKind =
+        checkNotNull(noiseKind) { "noiseKind cannot be null if there are aggregations." }
+          .toInternalNoiseKind(),
       maxPartitionsContributed = contributionBoundingLevel.getMaxPartitionsContributed(),
       maxContributionsPerPartition = contributionBoundingLevel.getMaxContributionsPerPartition(),
       minValue = valueContributionBounds?.valueBounds?.minValue,

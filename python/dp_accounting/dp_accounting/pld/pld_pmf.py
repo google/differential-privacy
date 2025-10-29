@@ -33,6 +33,7 @@ from dp_accounting.pld import common
 
 ArrayLike = Union[np.ndarray, List[float]]
 _MAX_PMF_SPARSE_SIZE = 1000
+_DELTA_DIFF_TOLERANCE = 1e-12
 
 
 def _get_delta_for_epsilon(infinity_mass: float,
@@ -694,9 +695,11 @@ def create_pmf_pessimistic_connect_dots(
     raise ValueError(f'deltas are not between 0 and 1 : deltas={deltas}.')
   # delta_diffs = [delta_2 - delta_1, ... , delta_n - delta_{n-1}]
   delta_diffs = np.diff(deltas)
-  if np.any(delta_diffs > 0):
+  if np.any(delta_diffs > _DELTA_DIFF_TOLERANCE):
     raise ValueError(f'deltas are not in non-increasing order: '
                      f'deltas={deltas}.')
+  deltas = np.minimum.accumulate(deltas)
+  delta_diffs = np.diff(deltas)
 
   # delta_diffs_scaled_v1 = [y_0, y_1, ..., y_{n-1}]
   # where y_i = (delta_{i+1} - delta_i) / (exp(eps_i - eps_{i+1}) - 1)
@@ -802,9 +805,11 @@ def create_pmf_pessimistic_connect_dots_fixed_gap(
   # Notation: deltas = [delta_1, ... , delta_n]
   # delta_diffs = [delta_2 - delta_1, ... , delta_n - delta_{n-1}]
   delta_diffs = np.diff(deltas)
-  if np.any(delta_diffs > 0):
+  if np.any(delta_diffs > _DELTA_DIFF_TOLERANCE):
     raise ValueError(f'deltas are not in non-increasing order: '
                      f'deltas={deltas}.')
+  deltas = np.minimum.accumulate(deltas)
+  delta_diffs = np.diff(deltas)
 
   # probs = [p_1, p_2, ... , p_n]
   probs = np.zeros_like(deltas)

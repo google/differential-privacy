@@ -46,19 +46,31 @@ message CountSummary {
 }
 
 message BoundedQuantilesSummary {
-  // Distribution of the data subset, stored in the form of a quantile tree
-  map<int32, int64> quantile_tree = 1;
+  enum Algorithm {
+    TREE = 0;
+    EXPONENTIAL_DIVIDE_AND_CONQUER = 1;
+  }
 
-  // Quantiles parameters:
+  optional Algorithm algorithm = 11;
+
+  // Common metadata set for both algorithms.
   optional double epsilon = 2;
-  optional double delta = 3;
-  optional MechanismType mechanism_type = 4;
   optional double lower = 5;
   optional double upper = 6;
   optional int32 max_partitions_contributed = 7;
   optional int32 max_contributions_per_partition = 8;
+
+  // Quantile tree specific metadata.
+  // Distribution of the data subset, stored in the form of a quantile tree
+  optional double delta = 3;
+  map<int32, int64> quantile_tree = 1;
+  optional MechanismType mechanism_type = 4;
   optional int32 tree_height = 9;
   optional int32 branching_factor = 10;
+
+  // Exponential divide & conquer specific metadata:
+  // The list of data point to compute quantiles for.
+  repeated double data = 13;
 }
 
 // Next ID: 13

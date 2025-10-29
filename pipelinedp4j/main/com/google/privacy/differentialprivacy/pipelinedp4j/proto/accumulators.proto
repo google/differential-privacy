@@ -50,6 +50,15 @@ message VarianceAccumulator {
   double normalized_sum_squares = 3;
 }
 
+message FeatureAccumulator {
+  string feature_id = 1;
+  SumAccumulator sum = 2;
+  MeanAccumulator mean = 3;
+  VarianceAccumulator variance = 4;
+  QuantilesAccumulator quantiles = 5;
+  VectorSumAccumulator vector_sum = 6;
+}
+
 // A collection of accumulators for all metrics that can possibly be computed.
 // Only accumulators that correspond to the aggregations, which are actually
 // being computed, are populated.
@@ -61,4 +70,5 @@ message CompoundAccumulator {
   MeanAccumulator mean_accumulator = 4;
   QuantilesAccumulator quantiles_accumulator = 5;
   VarianceAccumulator variance_accumulator = 6;
+  repeated FeatureAccumulator feature_accumulators = 8;
 }
