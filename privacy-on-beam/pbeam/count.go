@@ -17,7 +17,6 @@
 package pbeam
 
 import (
-	"fmt"
 	"reflect"
 
 	log "github.com/golang/glog"
