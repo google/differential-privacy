@@ -38,6 +38,15 @@ func TestNewPreAggSelectPartition(t *testing.T) {
 			},
 			nil,
 			true},
+		{"MaxPartitionsContributed and MaxContributions are set at same time",
+			&PreAggSelectPartitionOptions{
+				Epsilon:                  ln3,
+				Delta:                    tenten,
+				MaxPartitionsContributed: 1,
+				MaxContributions:         1,
+			},
+			nil,
+			true},
 		{"Epsilon is not set",
 			&PreAggSelectPartitionOptions{
 				Delta:                    tenten,

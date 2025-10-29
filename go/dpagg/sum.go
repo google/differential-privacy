@@ -76,8 +76,10 @@ func bsEquallyInitializedint64(s1, s2 *BoundedSumInt64) bool {
 type BoundedSumInt64Options struct {
 	Epsilon                  float64 // Privacy parameter ε. Required.
 	Delta                    float64 // Privacy parameter δ. Required with Gaussian noise, must be 0 with Laplace noise.
-	MaxPartitionsContributed int64   // How many distinct partitions may a single privacy unit contribute to? Required.
-	// Lower and Upper bounds for clamping. Required; must be such that Lower <= Upper.
+	// How many distinct partitions may a single privacy unit contribute to?
+	// Required when not using MaxContributions. One of the two options is required.
+	MaxPartitionsContributed int64
+	// Lower and Upper bounds for clamping. Required when not using MaxContributions; must be such that Lower <= Upper.
 	Lower, Upper int64
 	Noise        noise.Noise // Type of noise used in BoundedSum. Defaults to Laplace noise.
 	// How many times may a single privacy unit contribute to a single partition?
@@ -85,8 +87,9 @@ type BoundedSumInt64Options struct {
 	// which is why the option is not exported.
 	maxContributionsPerPartition int64
 	// How many times may a single privacy unit contribute in total to all partitions?
+	// Currently only used for Count aggregation function.
 	//
-	// Mutually exclusive with MaxPartitionsContributed. One of the two options is required.
+	// Mutually exclusive with MaxPartitionsContributed, Lower and Upper. One of the two options is required.
 	MaxContributions int64
 }
 
@@ -98,6 +101,9 @@ func NewBoundedSumInt64(opt *BoundedSumInt64Options) (*BoundedSumInt64, error) {
 	// TODO: Add validation for MaxContributions as well. Currently only for MaxPartitionsContributed, Lower and Upper are validated.
 	if opt.MaxContributions == 0 && opt.MaxPartitionsContributed == 0 {
 		return nil, fmt.Errorf("NewBoundedSumInt64: Either MaxPartitionsContributed or MaxContributions must be set")
+	}
+	if opt.MaxContributions <= 0 && opt.MaxPartitionsContributed <= 0 {
+		return nil, fmt.Errorf("NewBoundedSumInt64: MaxPartitionsContributed and MaxContributions cannot be both 0  at the same time")
 	}
 
 	var l0 int64

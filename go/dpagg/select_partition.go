@@ -155,6 +155,9 @@ func NewPreAggSelectPartition(opt *PreAggSelectPartitionOptions) (*PreAggSelectP
 		opt.PreThreshold = 1
 	}
 
+	if err := checks.CheckContributionBoundingOptions(opt.MaxContributions, opt.MaxPartitionsContributed); err != nil {
+		return nil, fmt.Errorf("NewPreAggSelectPartition: %v", err)
+	}
 	var l0Sensitivity int64
 	if opt.MaxContributions > 0 {
 		l0Sensitivity = opt.MaxContributions

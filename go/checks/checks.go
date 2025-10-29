@@ -254,6 +254,17 @@ func CheckMaxContributionsPerPartition(maxContributionsPerPartition int64) error
 	return nil
 }
 
+// CheckContributionBoundingOptions returns an error if exactly one of MaxContributions and MaxPartitionsContributed is not set.
+func CheckContributionBoundingOptions(maxContributions, maxPartitionsContributed int64) error {
+	if maxContributions > 0 && maxPartitionsContributed > 0 {
+		return fmt.Errorf("MaxContributions and MaxPartitionsContributed cannot be set at the same time")
+	}
+	if maxContributions <= 0 && maxPartitionsContributed <= 0 {
+		return fmt.Errorf("MaxContributions and MaxPartitionsContributed cannot be both 0 at the same time")
+	}
+	return nil
+}
+
 // CheckAlpha returns an error if the supplied alpha is not between 0 and 1.
 func CheckAlpha(alpha float64) error {
 	if alpha <= 0 || alpha >= 1 || math.IsNaN(alpha) || math.IsInf(alpha, 0) {
