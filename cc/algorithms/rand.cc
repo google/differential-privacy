@@ -92,7 +92,7 @@ SecureURBG& SecureURBG::GetInstance() {
 }
 
 SecureURBG::result_type SecureURBG::operator()() {
-  absl::WriterMutexLock lock(&mutex_);
+  absl::WriterMutexLock lock(mutex_);
   if (current_index_ + sizeof(result_type) > kBufferSize) {
     RefreshBuffer();
   }
@@ -106,7 +106,7 @@ SecureURBG::result_type SecureURBG::operator()() {
 void SecureURBG::RefreshBuffer() {
   int one_on_success = 0;
   {
-    absl::MutexLock lock(&global_mutex);
+    absl::MutexLock lock(global_mutex);
     one_on_success = RAND_bytes(buffer_, kBufferSize);
   }
   CHECK(one_on_success == 1)
