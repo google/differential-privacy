@@ -455,11 +455,29 @@ class BoundedVarianceWithApproxBounds : public BoundedVariance<T> {
   absl::StatusOr<Output> GenerateResult(double noise_interval_level) override {
     Output output;
 
-    ASSIGN_OR_RETURN(BoundsResult<T> bounds_result,
+    ASSIGN_OR_RETURN(BoundsResult<T> bounds,
                      bounds_provider_->FinalizeAndCalculateBounds());
 
-    const T lower = bounds_result.lower_bound;
-    const T upper = bounds_result.upper_bound;
+    if (bounds.lower_bound == bounds.upper_bound) {
+      // When the bounds provider returns equal bounds, sensitivity is 0, so we
+      // need to slightly widen the bounds.  This is a quick fix that works with
+      // BoundsProvider returning powers of two.
+      //
+      // TODO: Find a better solution for this quick fix.
+      if (std::round(bounds.lower_bound) == -1 ||
+          std::round(bounds.lower_bound) == 0) {
+        bounds.upper_bound += 1;
+      } else if (std::round(bounds.upper_bound) == 1) {
+        bounds.lower_bound = 0;
+      } else if (bounds.lower_bound < 0) {
+        bounds.upper_bound = bounds.lower_bound / 2;
+      } else {
+        bounds.lower_bound = bounds.upper_bound / 2;
+      }
+    }
+
+    const T lower = bounds.lower_bound;
+    const T upper = bounds.upper_bound;
     RETURN_IF_ERROR(BoundedVariance<T>::CheckBounds(lower, upper));
 
     // To find the sum, pass the identity function as the transform.
@@ -477,7 +495,7 @@ class BoundedVarianceWithApproxBounds : public BoundedVariance<T> {
 
     // Populate the bounding report with ApproxBounds information.
     *(output.mutable_error_report()->mutable_bounding_report()) =
-        bounds_provider_->GetBoundingReport(bounds_result);
+        bounds_provider_->GetBoundingReport(bounds);
 
     const double noised_count = count_mechanism_->AddNoise(partial_count_);
 
