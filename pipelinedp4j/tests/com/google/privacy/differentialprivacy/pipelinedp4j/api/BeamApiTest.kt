@@ -1332,7 +1332,7 @@ class BeamApiTest {
   }
 
   @Test
-  fun run_publicGroupsProvidedAsIterableOfLists_respectsProvidedGroups() {
+  fun run_publicGroupsProvidedAsLocalList_respectsProvidedGroups() {
     val data =
       createInputData(
         listOf(
@@ -1342,6 +1342,43 @@ class BeamApiTest {
         )
       )
     val publicGroups = listOf("group1")
+    val query =
+      BeamQueryBuilder.from(
+          data,
+          StringExtractor { it.privacyUnit },
+          ContributionBoundingLevel.DATASET_LEVEL(
+            maxGroupsContributed = 1,
+            maxContributionsPerGroup = 2,
+          ),
+        )
+        .groupBy(StringExtractor { it.groupKey }, GroupsType.PublicGroups.create(publicGroups))
+        .count("cnt")
+        .build(TotalBudget(epsilon = 1000.0), NoiseKind.LAPLACE)
+
+    val result: PCollection<QueryPerGroupResult<String>> = query.run()
+
+    val expected =
+      listOf(
+        QueryPerGroupResultWithTolerance(
+          "group1",
+          mapOf("cnt" to DoubleWithTolerance(value = 3.0, tolerance = 0.5)),
+          vectorAggregationResults = mapOf(),
+        )
+      )
+    assertEquals(result, expected)
+  }
+
+  @Test
+  fun run_publicGroupsProvidedAsLocalSequence_respectsProvidedGroups() {
+    val data =
+      createInputData(
+        listOf(
+          TestDataRow("group1", "pid1", 1.0),
+          TestDataRow("group1", "pid1", 1.5),
+          TestDataRow("group1", "pid2", 2.0),
+        )
+      )
+    val publicGroups = sequenceOf("group1")
     val query =
       BeamQueryBuilder.from(
           data,
