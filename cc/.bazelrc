@@ -16,6 +16,6 @@
 
 # Platform specific compiler flags
 build --enable_platform_specific_config
-build:linux --copt="-Wno-sign-compare" --cxxopt="-std=c++17"
-build:macos --copt="-Wno-sign-compare" --cxxopt="-std=c++17"
-build:windows --copt="/wd4244" --cxxopt="/std:c++17"
+build:linux --copt="-Wno-sign-compare" --cxxopt="-std=c++20"
+build:macos --copt="-Wno-sign-compare" --cxxopt="-std=c++20"
+build:windows --copt="/wd4244" --cxxopt="/std:c++20"
