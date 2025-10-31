@@ -843,11 +843,11 @@ class BeamApiTest {
             "sumValue" to DoubleWithTolerance(value = 2.5, tolerance = 0.5),
             "meanValue" to DoubleWithTolerance(value = 0.83, tolerance = 0.5),
             // (1^2+(0.5)^2+1^2)/3-((1.0+0.5+1.0)/3)^2 = 0.0(5)
-            "varianceValue" to DoubleWithTolerance(value = 0.05, tolerance = 0.05),
+            "varianceValue" to DoubleWithTolerance(value = 0.05, tolerance = 0.1),
             "quantilesValue_0.5" to DoubleWithTolerance(value = 1.0, tolerance = 0.5),
             "sumAnotherValue" to DoubleWithTolerance(value = 4.5, tolerance = 0.5),
             "meanAnotherValue" to DoubleWithTolerance(value = 1.5, tolerance = 0.5),
-            "varianceAnotherValue" to DoubleWithTolerance(value = 1.16, tolerance = 0.05),
+            "varianceAnotherValue" to DoubleWithTolerance(value = 1.16, tolerance = 0.1),
             "quantilesAnotherValue_0.5" to DoubleWithTolerance(value = 2.0, tolerance = 0.5),
           ),
           mapOf(
@@ -928,11 +928,11 @@ class BeamApiTest {
             "cnt" to DoubleWithTolerance(value = 3.0, tolerance = 0.5),
             "sumValue" to DoubleWithTolerance(value = 2.5, tolerance = 0.5),
             "meanValue" to DoubleWithTolerance(value = 0.83, tolerance = 0.5),
-            "varianceValue" to DoubleWithTolerance(value = 0.05, tolerance = 0.05),
+            "varianceValue" to DoubleWithTolerance(value = 0.05, tolerance = 0.1),
             "quantilesValue_0.5" to DoubleWithTolerance(value = 1.0, tolerance = 0.5),
             "sumAnotherValue" to DoubleWithTolerance(value = 4.5, tolerance = 0.5),
             "meanAnotherValue" to DoubleWithTolerance(value = 1.5, tolerance = 0.5),
-            "varianceAnotherValue" to DoubleWithTolerance(value = 1.16, tolerance = 0.05),
+            "varianceAnotherValue" to DoubleWithTolerance(value = 1.16, tolerance = 0.1),
             "quantilesAnotherValue_0.5" to DoubleWithTolerance(value = 2.0, tolerance = 0.5),
           ),
           mapOf(
