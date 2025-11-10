@@ -83,8 +83,6 @@ message BoundedSumSummary {
   // neg_sum is used only when bounds are determined automatically.
   repeated ValueType neg_sum = 2;
 
-  // (DEPRECATED) ApproxBounds data if available.  Use `bounds` field instead.
-  optional ApproxBoundsSummary bounds_summary = 3 [deprecated = true];
   // BoundsProvider data if available.
   optional BoundsSummary bounds = 12;
 
@@ -103,6 +101,8 @@ message BoundedSumSummary {
   optional double upper = 9;
   optional int32 max_partitions_contributed = 10;
   optional int32 max_contributions_per_partition = 11;
+
+  reserved 3;  // was bounds_summary
 }
 
 message LongBoundedSumSummary {

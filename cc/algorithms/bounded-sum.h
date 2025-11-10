@@ -270,13 +270,6 @@ class BoundedSumWithApproxBounds : public BoundedSum<T> {
     }
     *bs_summary.mutable_bounds() = bounds_provider_->Serialize();
 
-    // TODO: Remove this old serialization code that we keep for
-    // limited backwards compatibility.
-    if (bs_summary.bounds().has_approx_bounds_summary()) {
-      *bs_summary.mutable_bounds_summary() =
-          bs_summary.bounds().approx_bounds_summary();
-    }
-
     // Create Summary.
     Summary summary;
     summary.mutable_data()->PackFrom(bs_summary);
@@ -310,13 +303,6 @@ class BoundedSumWithApproxBounds : public BoundedSum<T> {
     // Merge bounds summary.
     if (bs_summary.has_bounds()) {
       RETURN_IF_ERROR(bounds_provider_->Merge(bs_summary.bounds()));
-    } else if (bs_summary.has_bounds_summary()) {
-      // TODO: Remove this old serialization code that we keep for
-      // limited backwards compatibility.
-      BoundsSummary bounds_summary;
-      *bounds_summary.mutable_approx_bounds_summary() =
-          bs_summary.bounds_summary();
-      RETURN_IF_ERROR(bounds_provider_->Merge(bounds_summary));
     }
 
     return absl::OkStatus();
