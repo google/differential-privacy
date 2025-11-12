@@ -144,7 +144,7 @@ func NewBoundedSumInt64(opt *BoundedSumInt64Options) (*BoundedSumInt64, error) {
 		// L1 sensitivity to the noise layer.
 		lInf = 1
 		// The per-partition contribution is clamped so that it does not exceed the total contribution bound.
-		upper = opt.MaxContributions
+		// upper = opt.MaxContributions
 	} else {
 		lInf, err = getLInfInt(lower, upper, maxContributionsPerPartition)
 	}
