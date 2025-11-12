@@ -254,13 +254,13 @@ func CheckMaxContributionsPerPartition(maxContributionsPerPartition int64) error
 	return nil
 }
 
-// CheckContributionBoundingOptions returns an error if exactly one of MaxContributions and MaxPartitionsContributed is not set.
+// CheckContributionBoundingOptions returns an error unless exactly one of MaxContributions and MaxPartitionsContributed is set.
 func CheckContributionBoundingOptions(maxContributions, maxPartitionsContributed int64) error {
 	if maxContributions > 0 && maxPartitionsContributed > 0 {
-		return fmt.Errorf("MaxContributions and MaxPartitionsContributed cannot be set at the same time")
+		return fmt.Errorf("MaxContributions and MaxPartitionsContributed are both set, exactly one should be set.")
 	}
 	if maxContributions <= 0 && maxPartitionsContributed <= 0 {
-		return fmt.Errorf("MaxContributions and MaxPartitionsContributed cannot be both 0 at the same time")
+		return fmt.Errorf("MaxContributions and MaxPartitionsContributed are both unset, exactly one should be set.")
 	}
 	return nil
 }

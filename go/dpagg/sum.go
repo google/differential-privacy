@@ -77,19 +77,22 @@ type BoundedSumInt64Options struct {
 	Epsilon                  float64 // Privacy parameter ε. Required.
 	Delta                    float64 // Privacy parameter δ. Required with Gaussian noise, must be 0 with Laplace noise.
 	// How many distinct partitions may a single privacy unit contribute to?
-	// Required when not using MaxContributions. One of the two options is required.
+	// Mutually exclusive with MaxContributions. Required to be specified along with Lower and Upper when MaxContributions is not set.
 	MaxPartitionsContributed int64
-	// Lower and Upper bounds for clamping. Required when not using MaxContributions; must be such that Lower <= Upper.
+	// Lower and Upper bounds for clamping. Must be such that Lower <= Upper.
+	// Mutually exclusive with MaxContributions. Required to be specified along with MaxPartitionsContributed when MaxContributions is not set.
 	Lower, Upper int64
 	Noise        noise.Noise // Type of noise used in BoundedSum. Defaults to Laplace noise.
 	// How many times may a single privacy unit contribute to a single partition?
 	// Defaults to 1. This is only needed for other aggregation functions using BoundedSum;
 	// which is why the option is not exported.
+	//
+	// maxContributionsPerPartition is mutually exclusive with MaxContributions. This option has no effect if MaxContributions is set.
 	maxContributionsPerPartition int64
 	// How many times may a single privacy unit contribute in total to all partitions?
 	// Currently only used for Count aggregation function.
 	//
-	// Mutually exclusive with MaxPartitionsContributed, Lower and Upper. One of the two options is required.
+	// Mutually exclusive with set of {MaxPartitionsContributed, Lower, Upper}. Required when {MaxPartitionsContributed, Lower, Upper} are not set.
 	MaxContributions int64
 }
 
@@ -103,16 +106,13 @@ func NewBoundedSumInt64(opt *BoundedSumInt64Options) (*BoundedSumInt64, error) {
 		return nil, fmt.Errorf("NewBoundedSumInt64: Either MaxPartitionsContributed or MaxContributions must be set")
 	}
 	if opt.MaxContributions <= 0 && opt.MaxPartitionsContributed <= 0 {
-		return nil, fmt.Errorf("NewBoundedSumInt64: MaxPartitionsContributed and MaxContributions cannot be both 0  at the same time")
+		return nil, fmt.Errorf("NewBoundedSumInt64: MaxPartitionsContributed and MaxContributions cannot be both 0 at the same time")
 	}
 
-	var l0 int64
-	if opt.MaxContributions > 0 {
-		// When using MaxContributions, l0Sensitivity is used to pass the L1 sensitivity to the noise layer.
-		l0 = opt.MaxContributions
-	} else {
-		l0 = opt.MaxPartitionsContributed
-	}
+	l0, err := getL0Int(opt.MaxContributions, opt.MaxPartitionsContributed)  
+	if err != nil {
+		return nil, fmt.Errorf("NewBoundedSumInt64: %w", err)
+	}  
 
 	maxContributionsPerPartition := opt.maxContributionsPerPartition
 	if maxContributionsPerPartition == 0 {
@@ -128,7 +128,6 @@ func NewBoundedSumInt64(opt *BoundedSumInt64Options) (*BoundedSumInt64, error) {
 	if opt.MaxPartitionsContributed > 0 && lower == 0 && upper == 0 {
 		return nil, fmt.Errorf("NewBoundedSumInt64: When using MaxPartitionsContributed, Lower and Upper must be set (automatic bounds determination is not implemented yet). Lower and Upper cannot be both 0")
 	}
-	var err error
 	switch noise.ToKind(opt.Noise) {
 	case noise.Unrecognised:
 		err = checks.CheckBoundsInt64IgnoreOverflows(lower, upper)
@@ -185,6 +184,17 @@ func NewBoundedSumInt64(opt *BoundedSumInt64Options) (*BoundedSumInt64, error) {
 func lInfIntOverflows(bound, maxContributionsPerPartition int64) bool {
 	mult := bound * maxContributionsPerPartition
 	return mult/maxContributionsPerPartition != bound
+}
+
+func getL0Int(maxContributions, maxPartitionsContributed int64) (int64, error) {
+	if maxContributions <= 0 && maxPartitionsContributed <= 0 {
+		return 0, fmt.Errorf("Exactly one of MaxContributions and MaxPartitionsContributed must be set")
+	}
+	if maxContributions > 0 {
+		return maxContributions, nil
+	} else {
+		return maxPartitionsContributed, nil
+	}
 }
 
 // getLInfInt checks that the sensitivity parameters will not create overflow errors,
