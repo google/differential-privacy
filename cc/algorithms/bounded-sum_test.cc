@@ -436,33 +436,6 @@ TYPED_TEST(BoundedSumTest, SerializeMergePartialSumsTest) {
   EXPECT_EQ(GetValue<TypeParam>(*output1), GetValue<TypeParam>(*output2));
 }
 
-// This test will be removed when removing backwards compatibility for the
-// `bounds_summary` field.
-TYPED_TEST(BoundedSumTest, SerializeMergeApproxBoundsBackwardsCompatability) {
-  absl::StatusOr<std::unique_ptr<BoundedSum<TypeParam>>> bounds1 =
-      typename BoundedSum<TypeParam>::Builder().SetEpsilon(1e10).Build();
-  ASSERT_OK(bounds1.status());
-
-  for (int i = 0; i < 100; ++i) {
-    bounds1.value()->AddEntry(10);
-  }
-
-  absl::StatusOr<std::unique_ptr<BoundedSum<TypeParam>>> bounds2 =
-      typename BoundedSum<TypeParam>::Builder().SetEpsilon(1.0).Build();
-  ASSERT_OK(bounds2.status());
-
-  // Remove the newly introduced field as this field is ignored by versions
-  // before the proto change.
-  Summary bounds1_summary = bounds1.value()->Serialize();
-  BoundedSumSummary bs_summary;
-  bounds1_summary.data().UnpackTo(&bs_summary);
-  bs_summary.clear_bounds();
-  bounds1_summary.mutable_data()->PackFrom(bs_summary);
-
-  ASSERT_OK(bounds2.value()->Merge(bounds1_summary));
-  EXPECT_THAT(bounds2.value()->PartialResult(), IsOk());
-}
-
 TEST(BoundedSumTest, OverflowFromAddNoiseTypeCast) {
   // Overflowing should result in the sum + noise eventually wrapping around and
   // become negative.
