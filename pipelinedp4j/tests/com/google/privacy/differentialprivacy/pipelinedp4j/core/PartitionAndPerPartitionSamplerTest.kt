@@ -24,6 +24,7 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.local.LocalCollection
 import com.google.privacy.differentialprivacy.pipelinedp4j.local.LocalEncoderFactory
 import com.google.privacy.differentialprivacy.pipelinedp4j.local.LocalTable
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PrivacyIdContributions
+import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PrivacyIdContributionsKt.featureContribution
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PrivacyIdContributionsKt.multiValueContribution
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.privacyIdContributions
 import kotlin.Int.Companion.MAX_VALUE
@@ -35,12 +36,14 @@ import org.junit.runners.JUnit4
 class PartitionAndPerPartitionSamplerTest {
   val AGG_PARAMS =
     AggregationParams(
-      metrics = ImmutableList.of(MetricDefinition(MEAN)),
+      nonFeatureMetrics = ImmutableList.of(),
+      features =
+        ImmutableList.of(
+          ScalarFeatureSpec("value", ImmutableList.of(MetricDefinition(MEAN)), -1.0, 1.0)
+        ),
       noiseKind = GAUSSIAN,
       maxPartitionsContributed = MAX_VALUE,
       maxContributionsPerPartition = MAX_VALUE,
-      minValue = -1.0,
-      maxValue = 1.0,
     )
 
   @Test
@@ -126,8 +129,9 @@ class PartitionAndPerPartitionSamplerTest {
         .sampleContributions(inputData) as LocalTable<String, PrivacyIdContributions>
 
     val returnedContributions = sampledData.data.toMap().get("samePk")!!
-    assertThat(returnedContributions.multiValueContributionsList.count()).isEqualTo(0)
-    val singleValueContributions = returnedContributions.singleValueContributionsList
+    val featureContribution = returnedContributions.featuresList.find { it.featureId == "" }!!
+    assertThat(featureContribution.multiValueContributionsList.count()).isEqualTo(0)
+    val singleValueContributions = featureContribution.singleValueContributionsList
     assertThat(singleValueContributions.count()).isEqualTo(3)
     // Returned values are all in the list of the contributed values.
     assertThat(listOf(1.0, 2.0, 3.0, 4.0)).containsAtLeastElementsIn(singleValueContributions)
@@ -172,8 +176,9 @@ class PartitionAndPerPartitionSamplerTest {
         .sampleContributions(inputData) as LocalTable<String, PrivacyIdContributions>
 
     val returnedContributions = sampledData.data.toMap().get("samePk")!!
-    assertThat(returnedContributions.singleValueContributionsList.count()).isEqualTo(0)
-    val multiValueContributions = returnedContributions.multiValueContributionsList
+    val featureContribution = returnedContributions.featuresList.find { it.featureId == "" }!!
+    assertThat(featureContribution.singleValueContributionsList.count()).isEqualTo(0)
+    val multiValueContributions = featureContribution.multiValueContributionsList
     assertThat(multiValueContributions.count()).isEqualTo(3)
     // Returned values are all in the list of the contributed values.
     assertThat(
@@ -232,9 +237,33 @@ class PartitionAndPerPartitionSamplerTest {
 
     assertThat(sampledData.data.toList())
       .containsExactly(
-        Pair("pk", privacyIdContributions { singleValueContributions += listOf(1.0, 2.0) }),
-        Pair("anotherPk", privacyIdContributions { singleValueContributions += listOf(3.0, 4.0) }),
-        Pair("pk", privacyIdContributions { singleValueContributions += 5.0 }),
+        Pair(
+          "pk",
+          privacyIdContributions {
+            features += featureContribution {
+              featureId = ""
+              singleValueContributions += listOf(1.0, 2.0)
+            }
+          },
+        ),
+        Pair(
+          "anotherPk",
+          privacyIdContributions {
+            features += featureContribution {
+              featureId = ""
+              singleValueContributions += listOf(3.0, 4.0)
+            }
+          },
+        ),
+        Pair(
+          "pk",
+          privacyIdContributions {
+            features += featureContribution {
+              featureId = ""
+              singleValueContributions += 5.0
+            }
+          },
+        ),
       )
   }
 
@@ -294,7 +323,13 @@ class PartitionAndPerPartitionSamplerTest {
         )
         .sampleContributions(inputData) as LocalTable<String, PrivacyIdContributions>
 
-    val returnedContributions = sampledData.data.toMap().get("pk")!!.singleValueContributionsList
+    val returnedContributions =
+      sampledData.data
+        .toMap()
+        .get("pk")!!
+        .featuresList
+        .find { it.featureId == "" }!!
+        .singleValueContributionsList
     assertThat(returnedContributions.count()).isEqualTo(300)
   }
 
