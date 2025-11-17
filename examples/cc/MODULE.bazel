@@ -26,6 +26,6 @@ local_path_override(
     path = "../../cc",
 )
 
-bazel_dep(name = "rules_cc", version = "0.1.5")
-bazel_dep(name = "abseil-cpp", version = "20250127.1", repo_name = "com_google_absl")
+bazel_dep(name = "rules_cc", version = "0.2.14")
+bazel_dep(name = "abseil-cpp", version = "20250814.1", repo_name = "com_google_absl")
 bazel_dep(name = "googletest", version = "1.17.0", repo_name = "com_google_googletest")
