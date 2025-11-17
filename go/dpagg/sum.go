@@ -109,10 +109,10 @@ func NewBoundedSumInt64(opt *BoundedSumInt64Options) (*BoundedSumInt64, error) {
 		return nil, fmt.Errorf("NewBoundedSumInt64: MaxPartitionsContributed and MaxContributions cannot be both 0 at the same time")
 	}
 
-	l0, err := getL0Int(opt.MaxContributions, opt.MaxPartitionsContributed)  
+	l0, err := getL0Int(opt.MaxContributions, opt.MaxPartitionsContributed)
 	if err != nil {
 		return nil, fmt.Errorf("NewBoundedSumInt64: %w", err)
-	}  
+	}
 
 	maxContributionsPerPartition := opt.maxContributionsPerPartition
 	if maxContributionsPerPartition == 0 {
@@ -143,8 +143,9 @@ func NewBoundedSumInt64(opt *BoundedSumInt64Options) (*BoundedSumInt64, error) {
 		// When using MaxContributions, lInfSensitivity is set to 1 because l0Sensitivity is used to pass
 		// L1 sensitivity to the noise layer.
 		lInf = 1
-		// The per-partition contribution is clamped so that it does not exceed the total contribution bound.
-		// upper = opt.MaxContributions
+		// When using MaxContributions, no per-partition contribution bounding is performed.
+		// upper is set to MaxContributions to avoid clamping any contributions.
+		upper = opt.MaxContributions
 	} else {
 		lInf, err = getLInfInt(lower, upper, maxContributionsPerPartition)
 	}
