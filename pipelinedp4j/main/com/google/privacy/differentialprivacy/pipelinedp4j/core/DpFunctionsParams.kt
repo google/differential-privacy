@@ -20,6 +20,7 @@ import com.google.common.collect.ImmutableList
 import com.google.errorprone.annotations.Immutable
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.ContributionBoundingLevel.DATASET_LEVEL
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.ContributionBoundingLevel.PARTITION_LEVEL
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.ContributionBoundingLevel.RECORD_LEVEL
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.COUNT
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.MEAN
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.PRIVACY_ID_COUNT
@@ -457,6 +458,11 @@ enum class ContributionBoundingLevel(
     withPartitionsContributedBounding = false,
     withContributionsPerPartitionBounding = true,
   ),
+  /** No contribution bounding is applied. */
+  RECORD_LEVEL(
+    withPartitionsContributedBounding = false,
+    withContributionsPerPartitionBounding = false,
+  ),
 }
 
 /**
@@ -593,12 +599,15 @@ private fun validateBaseParams(params: Params) {
     "maxPartitionsContributed must be less than ${MAX_PROCESSED_CONTRIBUTIONS_PER_PRIVACY_ID} " +
       "Provided values: maxPartitionsContributed=${params.maxPartitionsContributed}."
   }
+  // TODO: Add validation for record level - max contributions per partition must be 1.
   // Contribution bounding level.
   require(
     params.contributionBoundingLevel != PARTITION_LEVEL ||
-      (params.contributionBoundingLevel == PARTITION_LEVEL && params.maxPartitionsContributed == 1)
+      (params.contributionBoundingLevel == PARTITION_LEVEL &&
+        params.maxPartitionsContributed == 1) ||
+      (params.contributionBoundingLevel == RECORD_LEVEL && params.maxPartitionsContributed == 1)
   ) {
-    "maxPartitionsContributed must be 1 if partition level contribution bounding is set. " +
+    "maxPartitionsContributed must be 1 if partition or record level contribution bounding is set. " +
       "Provided value: ${params.maxPartitionsContributed}."
   }
 
