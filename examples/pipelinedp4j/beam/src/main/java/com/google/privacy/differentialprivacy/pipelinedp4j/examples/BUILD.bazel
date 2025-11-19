@@ -20,6 +20,9 @@ java_binary(
     main_class = "com.google.privacy.differentialprivacy.pipelinedp4j.examples.BeamExample",
     runtime_deps = [
         "@maven//:org_apache_beam_beam_runners_direct_java",
+        "@maven//:org_apache_beam_beam_runners_spark_3",
+        
+        
     ],
     deps = [
         "//common/src/main/java/com/google/privacy/differentialprivacy/pipelinedp4j/examples:common",

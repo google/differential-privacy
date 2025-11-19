@@ -19,8 +19,8 @@ jobs:
       - name: Set up JDK 11
         uses: actions/setup-java@v3
         with:
-          java-version: '11'
-          distribution: 'temurin'
+          java-version: "11"
+          distribution: "temurin"
       - name: Install Maven
         run: sudo apt-get install -y maven
       - name: Create dummy input file for examples
@@ -44,5 +44,8 @@ jobs:
         working-directory: examples/pipelinedp4j/spark
         run: mvn compile exec:java -Dexec.mainClass=com.google.privacy.differentialprivacy.pipelinedp4j.examples.SparkExample -Dexec.args="--inputFilePath=$(pwd)/../input.csv --outputFolder=output"
       - name: Run Spark DataFrame Example
+        working-directory: examples/pipelinedp4j/spark
+        run: mvn compile exec:java -Dexec.mainClass=com.google.privacy.differentialprivacy.pipelinedp4j.examples.SparkDataFrameExample -Dexec.args="--inputFilePath=$(pwd)/../input.csv --outputFolder=output"
+      - name: Run Spark Runner Example
         working-directory: examples/pipelinedp4j/spark
         run: mvn compile exec:java -Dexec.mainClass=com.google.privacy.differentialprivacy.pipelinedp4j.examples.SparkDataFrameExample -Dexec.args="--inputFilePath=$(pwd)/../input.csv --outputFolder=output"

@@ -17,8 +17,8 @@
 -->
 
 <project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
@@ -32,6 +32,7 @@
 
     <properties>
         <beam.version>2.63.0</beam.version>
+        <spark.version>3.5.0</spark.version>
 
         <!-- Otherwise you get errors like https://shorturl.at/7mfCi -->
         <exec.cleanupDaemonThreads>false</exec.cleanupDaemonThreads>
@@ -53,7 +54,7 @@
             <artifactId>beam-sdks-java-core</artifactId>
             <version>${beam.version}</version>
         </dependency>
-     </dependencies>
+    </dependencies>
 
     <profiles>
         <profile>
@@ -73,14 +74,80 @@
         </profile>
 
         <profile>
-            <id>dataflow-runner</id>
+            <id>spark-runner</id>
             <!-- Makes the DataflowRunner available when running a pipeline. -->
             <dependencies>
                 <dependency>
                     <groupId>org.apache.beam</groupId>
-                    <artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
+                    <artifactId>beam-runners-spark-3</artifactId>
                     <version>${beam.version}</version>
                     <scope>runtime</scope>
+                </dependency>
+            </dependencies>
+
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-shade-plugin</artifactId>
+                        <configuration>
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                        <exclude>com.google.guava:guava</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>shade</goal>
+                                </goals>
+                                <configuration>
+                                    <shadedArtifactAttached>true</shadedArtifactAttached>
+                                    <shadedClassifierName>shaded</shadedClassifierName>
+                                    <relocations>
+                                        <relocation>
+                                            <pattern>com.google.common</pattern>
+                                            <shadedPattern>relocated.com.google.common</shadedPattern>
+                                        </relocation>
+                                    </relocations>
+                                    <transformers>
+                                        <transformer
+                                            implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer" />
+                                        <transformer
+                                            implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
+                                    </transformers>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                </plugins>
+            </build>
+        </profile>
+
+        <profile>
+            <id>spark-runner-embedeed</id>
+            <!-- Makes the DataflowRunner available when running a pipeline. -->
+            <dependencies>
+                <dependency>
+                    <groupId>org.apache.spark</groupId>
+                    <artifactId>spark-core_2.12</artifactId>
+                    <version>${spark.version}</version>
+                </dependency>
+
+                <dependency>
+                    <groupId>org.apache.spark</groupId>
+                    <artifactId>spark-streaming_2.12</artifactId>
+                    <version>${spark.version}</version>
                 </dependency>
             </dependencies>
         </profile>

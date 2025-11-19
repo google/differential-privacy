@@ -30,6 +30,9 @@ jobs:
       - name: Test C++ Examples
         working-directory: examples/cc
         run: bazelisk test --test_output=errors --test_verbose_timeout_warnings ...
+      - name: Run Beam example with SparkRunner
+        working-directory: examples/pipelinedp4j
+        run: bazelisk run beam/src/main/java/com/google/privacy/differentialprivacy/pipelinedp4j/examples:BeamExample -- --runner=SparkRunner --sparkMaster="[local]" --inputFilePath="$(pwd)/input.csv" --outputFilePath="$(pwd)/spark.txt"
 
   java-tests:
     name: Java Bazel Tests
@@ -93,6 +96,9 @@ jobs:
       - name: Run Spark DataFrame Example
         working-directory: examples/pipelinedp4j
         run: bazelisk run spark/src/main/java/com/google/privacy/differentialprivacy/pipelinedp4j/examples:SparkDataFrameExample -- --inputFilePath="$(pwd)/input.csv" --outputFolder="$(pwd)/output"
+      - name: Run Spark Runner Example
+        working-directory: examples/pipelinedp4j
+        run: bazelisk run spark/src/main/java/com/google/privacy/differentialprivacy/pipelinedp4j/examples:SparkDataFrameExample -- --inputFilePath="$(pwd)/input.csv" --outputFolder="$(pwd)/output"
 
   zetasql-build:
     name: ZetaSQL Examples Build Test
@@ -120,7 +126,7 @@ jobs:
       - name: Set up Python 3.10
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: "3.10"
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
