@@ -1,155 +1,153 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <!--
-  Copyright 2024 Google LLC
+Copyright 2024 Google LLC
 
-  Licensed under the Apache License, Version 2.0 (the "License");
-  you may not use this file except in compliance with the License.
-  You may obtain a copy of the License at
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+http://www.apache.org/licenses/LICENSE-2.0
 
-  Unless required by applicable law or agreed to in writing, software
-  distributed under the License is distributed on an "AS IS" BASIS,
-  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  See the License for the specific language governing permissions and
-  limitations under the License.
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 -->
 
 <project xmlns="http://maven.apache.org/POM/4.0.0"
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <modelVersion>4.0.0</modelVersion>
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<modelVersion>4.0.0</modelVersion>
 
-    <parent>
+<parent>
+    <groupId>com.google.privacy.differentialprivacy</groupId>
+    <artifactId>pipelinedp4j</artifactId>
+    <version>1.0-SNAPSHOT</version>
+</parent>
+
+<artifactId>beam</artifactId>
+<packaging>jar</packaging>
+
+<properties>
+    <beam.version>2.63.0</beam.version>
+    <spark.version>3.5.0</spark.version>
+    
+    <!-- Otherwise you get errors like https://shorturl.at/7mfCi -->
+    <exec.cleanupDaemonThreads>false</exec.cleanupDaemonThreads>
+    <!-- To get rid of the encoding warning. -->
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+</properties>
+
+<dependencies>
+    <!-- Shared module -->
+    <dependency>
         <groupId>com.google.privacy.differentialprivacy</groupId>
-        <artifactId>pipelinedp4j</artifactId>
+        <artifactId>common</artifactId>
         <version>1.0-SNAPSHOT</version>
-    </parent>
+    </dependency>
+    
+    <!-- Adds a dependency on the Beam SDK. -->
+    <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-core</artifactId>
+        <version>${beam.version}</version>
+    </dependency>
+</dependencies>
 
-    <artifactId>beam</artifactId>
-    <packaging>jar</packaging>
-
-    <properties>
-        <beam.version>2.63.0</beam.version>
-        <spark.version>3.5.0</spark.version>
-
-        <!-- Otherwise you get errors like https://shorturl.at/7mfCi -->
-        <exec.cleanupDaemonThreads>false</exec.cleanupDaemonThreads>
-        <!-- To get rid of the encoding warning. -->
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    </properties>
-
-    <dependencies>
-        <!-- Shared module -->
-        <dependency>
-            <groupId>com.google.privacy.differentialprivacy</groupId>
-            <artifactId>common</artifactId>
-            <version>1.0-SNAPSHOT</version>
-        </dependency>
-
-        <!-- Adds a dependency on the Beam SDK. -->
-        <dependency>
-            <groupId>org.apache.beam</groupId>
-            <artifactId>beam-sdks-java-core</artifactId>
-            <version>${beam.version}</version>
-        </dependency>
-    </dependencies>
-
-    <profiles>
-        <profile>
-            <id>direct-runner</id>
-            <activation>
-                <activeByDefault>true</activeByDefault>
-            </activation>
-            <!-- Makes the DirectRunner available when running a pipeline. -->
-            <dependencies>
-                <dependency>
-                    <groupId>org.apache.beam</groupId>
-                    <artifactId>beam-runners-direct-java</artifactId>
-                    <version>${beam.version}</version>
-                    <scope>runtime</scope>
-                </dependency>
-            </dependencies>
-        </profile>
-
-        <profile>
-            <id>spark-runner</id>
-            <!-- Makes the DataflowRunner available when running a pipeline. -->
-            <dependencies>
-                <dependency>
-                    <groupId>org.apache.beam</groupId>
-                    <artifactId>beam-runners-spark-3</artifactId>
-                    <version>${beam.version}</version>
-                    <scope>runtime</scope>
-                </dependency>
-            </dependencies>
-
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-shade-plugin</artifactId>
-                        <configuration>
-                            <createDependencyReducedPom>false</createDependencyReducedPom>
-                            <filters>
-                                <filter>
-                                    <artifact>*:*</artifact>
-                                    <excludes>
-                                        <exclude>META-INF/*.SF</exclude>
-                                        <exclude>META-INF/*.DSA</exclude>
-                                        <exclude>META-INF/*.RSA</exclude>
-                                        <exclude>com.google.guava:guava</exclude>
-                                    </excludes>
-                                </filter>
-                            </filters>
-                        </configuration>
-                        <executions>
-                            <execution>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>shade</goal>
-                                </goals>
-                                <configuration>
-                                    <shadedArtifactAttached>true</shadedArtifactAttached>
-                                    <shadedClassifierName>shaded</shadedClassifierName>
-                                    <relocations>
-                                        <relocation>
-                                            <pattern>com.google.common</pattern>
-                                            <shadedPattern>relocated.com.google.common</shadedPattern>
-                                        </relocation>
-                                    </relocations>
-                                    <transformers>
-                                        <transformer
-                                            implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer" />
-                                        <transformer
-                                            implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
-                                    </transformers>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-
-                </plugins>
-            </build>
-        </profile>
-
-        <profile>
-            <id>spark-runner-embedeed</id>
-            <!-- Makes the DataflowRunner available when running a pipeline. -->
-            <dependencies>
-                <dependency>
-                    <groupId>org.apache.spark</groupId>
-                    <artifactId>spark-core_2.12</artifactId>
-                    <version>${spark.version}</version>
-                </dependency>
-
-                <dependency>
-                    <groupId>org.apache.spark</groupId>
-                    <artifactId>spark-streaming_2.12</artifactId>
-                    <version>${spark.version}</version>
-                </dependency>
-            </dependencies>
-        </profile>
-    </profiles>
+<profiles>
+    <profile>
+        <id>direct-runner</id>
+        <activation>
+            <activeByDefault>true</activeByDefault>
+        </activation>
+        <!-- Makes the DirectRunner available when running a pipeline. -->
+        <dependencies>
+            <dependency>
+                <groupId>org.apache.beam</groupId>
+                <artifactId>beam-runners-direct-java</artifactId>
+                <version>${beam.version}</version>
+                <scope>runtime</scope>
+            </dependency>
+        </dependencies>
+    </profile>
+    
+    <profile>
+        <id>spark-runner</id>
+        <!-- Makes the DataflowRunner available when running a pipeline. -->
+        <dependencies>
+            <dependency>
+                <groupId>org.apache.beam</groupId>
+                <artifactId>beam-runners-spark-3</artifactId>
+                <version>${beam.version}</version>
+                <scope>runtime</scope>
+            </dependency>
+        </dependencies>
+        
+        <build>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-shade-plugin</artifactId>
+                    <configuration>
+                        <createDependencyReducedPom>false</createDependencyReducedPom>
+                        <filters>
+                            <filter>
+                                <artifact>*:*</artifact>
+                                <excludes>
+                                    <exclude>META-INF/*.SF</exclude>
+                                    <exclude>META-INF/*.DSA</exclude>
+                                    <exclude>META-INF/*.RSA</exclude>
+                                </excludes>
+                            </filter>
+                        </filters>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <phase>package</phase>
+                            <goals>
+                                <goal>shade</goal>
+                            </goals>
+                            <configuration>
+                                <shadedArtifactAttached>true</shadedArtifactAttached>
+                                <shadedClassifierName>shaded</shadedClassifierName>
+                                
+                                <transformers>
+                                    <transformer
+                                    implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>
+                                        com.google.privacy.differentialprivacy.pipelinedp4j.examples.BeamExample</mainClass>
+                                    </transformer>
+                                    <transformer
+                                    implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
+                                </transformers>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+                
+            </plugins>
+        </build>
+    </profile>
+    
+    <profile>
+        <id>spark-runner-embedeed</id>
+        <!-- Makes the DataflowRunner available when running a pipeline. -->
+        <dependencies>
+            <dependency>
+                <groupId>org.apache.spark</groupId>
+                <artifactId>spark-core_2.12</artifactId>
+                <version>${spark.version}</version>
+            </dependency>
+            
+            <dependency>
+                <groupId>org.apache.spark</groupId>
+                <artifactId>spark-streaming_2.12</artifactId>
+                <version>${spark.version}</version>
+            </dependency>
+        </dependencies>
+        
+    </profile>
+</profiles>
 </project>
