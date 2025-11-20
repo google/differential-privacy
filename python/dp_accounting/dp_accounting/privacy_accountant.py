@@ -101,33 +101,29 @@ class PrivacyAccountant(metaclass=abc.ABCMeta):
   def compose(self, event: dp_event.DpEvent, count: int = 1) -> Any:
     """Updates internal state to account for application of a `DpEvent`.
 
-    Calls to `get_epsilon` or `get_delta` after calling `compose` will return
-    values that account for this `DpEvent`.
-
-    Args:
-      event: A `DpEvent` to process.
-      count: The number of times to compose the event.
-
-    Returns:
-      Reference to this privacy accountant. This allows one to write, e.g.,
-      `eps = Accountant().compose(event1).compose(event2).get_epsilon(delta)`.
+    ...
 
     Raises:
       UnsupportedEventError: `event` is not supported by this
       `PrivacyAccountant`.
-
+      TypeError: if `event` is not a `DpEvent` or `count` is not an int.
+      ValueError: if `count` is not positive.
     """
     if not isinstance(event, dp_event.DpEvent):
       raise TypeError(f'`event` must be `DpEvent`. Found {type(event)}.')
-    composition_error = self._maybe_compose(event, count, False)
-    if composition_error:
-      raise UnsupportedEventError(
-          f'Unsupported event: {event}. Error: '
-          f'[{composition_error.error_message}] caused by subevent '
-          f'{composition_error.invalid_event}.')
+
+    # New: validate `count` early
+    if not isinstance(count, int):
+      raise TypeError(f'`count` must be an int. Found {type(count)}.')
+    if count < 1:
+      raise ValueError(f'`count` must be positive. Found {count}.')
+
+    if not self.supports(event):
+      raise UnsupportedEventError(f'Unsupported event: {event}.')
     self._ledger.compose(event, count)
-    self._maybe_compose(event, count, True)
+    self._compose(event, count)
     return self
+
 
   @property
   def ledger(self) -> dp_event.DpEvent:
