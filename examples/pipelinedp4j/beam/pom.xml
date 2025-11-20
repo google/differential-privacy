@@ -73,75 +73,73 @@ limitations under the License.
             </dependencies>
         </profile>
 
-
         <profile>
-            <profile>
-                <id>dataflow-runner</id>
-                <!-- Makes the DataflowRunner available when running a pipeline. -->
-                <dependencies>
-                    <dependency>
-                        <groupId>org.apache.beam</groupId>
-                        <artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
-                        <version>${beam.version}</version>
-                        <scope>runtime</scope>
-                    </dependency>
-                </dependencies>
-            </profile>
-            <id>spark-runner</id>
+            <id>dataflow-runner</id>
             <!-- Makes the DataflowRunner available when running a pipeline. -->
             <dependencies>
                 <dependency>
                     <groupId>org.apache.beam</groupId>
-                    <artifactId>beam-runners-spark-3</artifactId>
+                    <artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
                     <version>${beam.version}</version>
                     <scope>runtime</scope>
                 </dependency>
             </dependencies>
+        </profile>
+        <id>spark-runner</id>
+        <!-- Makes the DataflowRunner available when running a pipeline. -->
+        <dependencies>
+            <dependency>
+                <groupId>org.apache.beam</groupId>
+                <artifactId>beam-runners-spark-3</artifactId>
+                <version>${beam.version}</version>
+                <scope>runtime</scope>
+            </dependency>
+        </dependencies>
 
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-shade-plugin</artifactId>
-                        <configuration>
-                            <createDependencyReducedPom>false</createDependencyReducedPom>
-                            <filters>
-                                <filter>
-                                    <artifact>*:*</artifact>
-                                    <excludes>
-                                        <exclude>META-INF/*.SF</exclude>
-                                        <exclude>META-INF/*.DSA</exclude>
-                                        <exclude>META-INF/*.RSA</exclude>
-                                    </excludes>
-                                </filter>
-                            </filters>
-                        </configuration>
-                        <executions>
-                            <execution>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>shade</goal>
-                                </goals>
-                                <configuration>
-                                    <shadedArtifactAttached>true</shadedArtifactAttached>
-                                    <shadedClassifierName>shaded</shadedClassifierName>
+        <build>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-shade-plugin</artifactId>
+                    <configuration>
+                        <createDependencyReducedPom>false</createDependencyReducedPom>
+                        <filters>
+                            <filter>
+                                <artifact>*:*</artifact>
+                                <excludes>
+                                    <exclude>META-INF/*.SF</exclude>
+                                    <exclude>META-INF/*.DSA</exclude>
+                                    <exclude>META-INF/*.RSA</exclude>
+                                </excludes>
+                            </filter>
+                        </filters>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <phase>package</phase>
+                            <goals>
+                                <goal>shade</goal>
+                            </goals>
+                            <configuration>
+                                <shadedArtifactAttached>true</shadedArtifactAttached>
+                                <shadedClassifierName>shaded</shadedClassifierName>
 
-                                    <transformers>
-                                        <transformer
-                                            implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                            <mainClass>
-                                                com.google.privacy.differentialprivacy.pipelinedp4j.examples.BeamExample</mainClass>
-                                        </transformer>
-                                        <transformer
-                                            implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
-                                    </transformers>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
+                                <transformers>
+                                    <transformer
+                                        implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                        <mainClass>
+                                            com.google.privacy.differentialprivacy.pipelinedp4j.examples.BeamExample</mainClass>
+                                    </transformer>
+                                    <transformer
+                                        implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
+                                </transformers>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
 
-                </plugins>
-            </build>
+            </plugins>
+        </build>
         </profile>
 
         <profile>
