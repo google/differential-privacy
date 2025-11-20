@@ -85,8 +85,9 @@
                 </dependency>
             </dependencies>
         </profile>
+        <profile>
         <id>spark-runner</id>
-        <!-- Makes the DataflowRunner available when running a pipeline. -->
+            <!-- Makes the DataflowRunner available when running a pipeline. -->
         <dependencies>
             <dependency>
                 <groupId>org.apache.beam</groupId>
