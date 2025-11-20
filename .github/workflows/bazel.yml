@@ -30,6 +30,7 @@ jobs:
       - name: Test C++ Examples
         working-directory: examples/cc
         run: bazelisk test --test_output=errors --test_verbose_timeout_warnings ...
+
   java-tests:
     name: Java Bazel Tests
     runs-on: ubuntu-latest
