@@ -180,7 +180,7 @@ Then submit with Spark CLI:
 ```shell
 spark-submit \                                                                                                                                                                                                 
   --class com.google.privacy.differentialprivacy.pipelinedp4j.examples.BeamExample \
-  --master spark://localhost:7077 \
+  --master spark://<spark_cluster_host>:<spark_cluster_port> \
   target/beam-1.0-SNAPSHOT-shaded.jar \
   --runner=SparkRunner \
   --inputFilePath=<absolute_path_to>/netflix_data.csv  \
