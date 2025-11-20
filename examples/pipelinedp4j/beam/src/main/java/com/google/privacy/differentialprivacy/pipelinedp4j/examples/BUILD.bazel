@@ -21,7 +21,9 @@ java_binary(
     runtime_deps = [
         "@maven//:org_apache_beam_beam_runners_direct_java",
         "@maven//:org_apache_beam_beam_runners_spark_3",
-        
+        # Enforce Scala 2.12 artifacts as the Spark Runner is compiled against Scala 2.12
+        "@maven_spark_2_12//:org_apache_spark_spark_core_2_12",
+        "@maven_spark_2_12//:org_apache_spark_spark_streaming_2_12",
         
     ],
     deps = [

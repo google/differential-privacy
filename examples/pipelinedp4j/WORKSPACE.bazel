@@ -72,6 +72,8 @@ BEAM_TAG = "2.63.0"
 
 SCALA_TAG = "2.13"
 
+SCALA_SPARK_RUNNER_TAG = "2.12"
+
 SCALA_LIBRARY_TAG = "%s.16" % SCALA_TAG
 
 SPARK_TAG = "3.5.5"
@@ -100,6 +102,8 @@ maven_install(
         "com.fasterxml.jackson.module:jackson-module-scala_%s:%s" % (SCALA_TAG, JACKSON_TAG),
         "org.scala-lang:scala-library:%s" % SCALA_LIBRARY_TAG,
         "info.picocli:picocli:4.7.6",
+        # For Apache Spark Runner testing locally
+        "org.apache.spark:spark-streaming_%s:%s" % (2.12, SPARK_TAG),
     ],
     repositories = [
         "https://jcenter.bintray.com",
@@ -107,8 +111,27 @@ maven_install(
         "https://repo.maven.apache.org/maven2",
         "https://repo1.maven.org/maven2",
     ],
+    
 )
-
+maven_install(
+    name = "maven_spark_2_12",
+    artifacts = [
+        # Beam SDKs (Needed here to resolve transitive deps correctly within this namespace)
+        
+        # Spark (Scala 2.12) - Strictly 2.12
+        "org.apache.spark:spark-core_%s:%s" % (SCALA_SPARK_RUNNER_TAG,SPARK_TAG),
+        "org.apache.spark:spark-streaming_%s:%s" % (SCALA_SPARK_RUNNER_TAG,SPARK_TAG),
+        "org.apache.spark:spark-sql_%s:%s" % (SCALA_SPARK_RUNNER_TAG,SPARK_TAG),
+        "org.scala-lang:scala-library:%s.18" % SCALA_SPARK_RUNNER_TAG, 
+        "com.fasterxml.jackson.module:jackson-module-scala_%s:%s" % (SCALA_SPARK_RUNNER_TAG,JACKSON_TAG),
+    ],
+    repositories = [
+         "https://jcenter.bintray.com",
+        "https://maven.google.com",
+        "https://repo.maven.apache.org/maven2",
+        "https://repo1.maven.org/maven2",
+    ],
+)
 # gRPC
 grpc_kt_repositories()
 

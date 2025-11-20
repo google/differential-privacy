@@ -98,7 +98,7 @@ jobs:
         run: bazelisk run spark/src/main/java/com/google/privacy/differentialprivacy/pipelinedp4j/examples:SparkDataFrameExample -- --inputFilePath="$(pwd)/input.csv" --outputFolder="$(pwd)/output"
       - name: Run Spark Runner Example
         working-directory: examples/pipelinedp4j
-        run: bazelisk run spark/src/main/java/com/google/privacy/differentialprivacy/pipelinedp4j/examples:SparkDataFrameExample -- --inputFilePath="$(pwd)/input.csv" --outputFolder="$(pwd)/output"
+        run: bazelisk run beam/src/main/java/com/google/privacy/differentialprivacy/pipelinedp4j/examples:BeamExample -- --runner=SparkRunner --sparkMaster="local[*]" --inputFilePath="$(pwd)/input.csv" --outputFilePath="$(pwd)/output-sparkrunner.txt"
 
   zetasql-build:
     name: ZetaSQL Examples Build Test
