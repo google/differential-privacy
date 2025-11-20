@@ -162,7 +162,49 @@ output/part-00000<...>`
 
 ### Running with [Sparkrunner](https://beam.apache.org/documentation/runners/spark/) ( Beam )
 
+You can execute PipelineDP4j Beam examples using the Spark Runner. This allows your Beam pipeline to run on a Spark cluster or a locally simulated Spark environment.
 
+# Build and submit to a Spark Cluster
+ 
+To run the Beam example with SparkRunner, you need to use the `spark-runner` profile and add the `--runner=SparkRunner` parameter.
+
+
+First, build the package with the `spark-runner` profile:
+
+```shell
+mvn clean package -Pspark-runner
+```
+
+Then submit with Spark CLI:
+
+```shell
+spark-submit \                                                                                                                                                                                                 
+  --class com.google.privacy.differentialprivacy.pipelinedp4j.examples.BeamExample \
+  --master spark://localhost:7077 \
+  target/beam-1.0-SNAPSHOT-shaded.jar \
+  --runner=SparkRunner \
+  --inputFilePath=<absolute_path_to>/netflix_data.csv  \
+  --outputFilePath=output-spark-runner.txt
+```
+
+View the results with `cat output-spark-runner.txt`.
+
+# Build and execute locallcy
+
+You can also run PipelineDP4j with the Spark Runner locally.
+When running locally, the dependencies usually provided by the Spark Cluster are missing. Therefore, you must use the `spark-runner-embedeed` profile in addition to `spark-runner` to bundle the necessary Spark dependencies into your JAR.
+
+```shell
+mvn clean package -Pspark-runner,spark-runner-embedeed
+```
+
+Then execute the JAR file 
+
+```shell
+java --add-opens=java.base/sun.nio.ch=ALL-UNNAMED -jar target/beam-1.0-SNAPSHOT-shaded.jar --runner=SparkRunner --sparkMaster="local[*]"  --inputFilePath=<absolute_path_to>/netflix_data.csv --outputFilePath=output-spark-runner.txt
+```
+
+View the results with `cat output-spark-runner.txt`.
 
 ### Running on Google Cloud Platform
 
