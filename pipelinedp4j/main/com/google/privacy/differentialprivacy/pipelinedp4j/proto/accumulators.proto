@@ -29,34 +29,30 @@ message CountAccumulator {
 
 message SumAccumulator {
   double sum = 1;
+  string feature_id = 2;
 }
 
 message VectorSumAccumulator {
   repeated double sums_per_dimension = 1;
+  string feature_id = 2;
 }
 
 message MeanAccumulator {
   int64 count = 1;
   double normalized_sum = 2;
+  string feature_id = 3;
 }
 
 message QuantilesAccumulator {
   bytes serialized_quantiles_summary = 1;
+  string feature_id = 2;
 }
 
 message VarianceAccumulator {
   int64 count = 1;
   double normalized_sum = 2;
   double normalized_sum_squares = 3;
-}
-
-message FeatureAccumulator {
-  string feature_id = 1;
-  SumAccumulator sum = 2;
-  MeanAccumulator mean = 3;
-  VarianceAccumulator variance = 4;
-  QuantilesAccumulator quantiles = 5;
-  VectorSumAccumulator vector_sum = 6;
+  string feature_id = 4;
 }
 
 // A collection of accumulators for all metrics that can possibly be computed.
@@ -65,10 +61,9 @@ message FeatureAccumulator {
 message CompoundAccumulator {
   PrivacyIdCountAccumulator privacy_id_count_accumulator = 3;
   CountAccumulator count_accumulator = 1;
-  SumAccumulator sum_accumulator = 2;
-  VectorSumAccumulator vector_sum_accumulator = 7;
-  MeanAccumulator mean_accumulator = 4;
-  QuantilesAccumulator quantiles_accumulator = 5;
-  VarianceAccumulator variance_accumulator = 6;
-  repeated FeatureAccumulator feature_accumulators = 8;
+  repeated SumAccumulator sum_accumulators = 2;
+  repeated MeanAccumulator mean_accumulators = 4;
+  repeated VarianceAccumulator variance_accumulators = 5;
+  repeated QuantilesAccumulator quantiles_accumulators = 6;
+  repeated VectorSumAccumulator vector_sum_accumulators = 7;
 }
