@@ -24,6 +24,7 @@ import (
 	"github.com/google/differential-privacy/privacy-on-beam/v4/internal/kv"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
+	"github.com/google/differential-privacy/go/v4/checks"
 )
 
 // CountParams specifies the parameters associated with a Count aggregation.
@@ -81,8 +82,7 @@ type CountParams struct {
 	// aggregations is scaled according to maxPartitionsContributed, it also
 	// means that more noise is added to each count.
 	//
-	// MaxPartitionsContributed and MaxValue are mutually exclusive with MaxContributions.
-	// One of the two options is required.
+	// Mutually exclusive with MaxContributions. Required to be specified along with MaxValue when MaxContributions is not set.
 	MaxPartitionsContributed int64
 	// The maximum number of times that a privacy identifier can contribute to
 	// a single count (or, equivalently, the maximum value that a privacy
@@ -92,8 +92,7 @@ type CountParams struct {
 	// There is an inherent trade-off when choosing MaxValue: a larger
 	// parameter means that fewer records are lost, but a larger noise is added.
 	//
-	// MaxValue and MaxPartitionsContributed are mutually exclusive with MaxContributions.
-	// One of the two options is required.
+	// Mutually exclusive with MaxContributions. Required to be specified along with MaxPartitionsContributed when MaxContributions is not set.
 	MaxValue int64
 	// Allow negative counts in the output. Most users would expect a count
 	// aggregation to return non-negative values. However, to get better
@@ -113,8 +112,7 @@ type CountParams struct {
 	// aggregations is scaled according to MaxContributions, it also
 	// means that more noise is added to each count.
 	//
-	// MaxContributions is mutually exclusive with MaxPartitionsContributed and MaxValue.
-	// One of the two options is required.
+	// Mutually exclusive with set of {MaxPartitionsContributed, MaxValue}. Required when {MaxPartitionsContributed, MaxValue} are not set.
 	MaxContributions int64
 }
 
@@ -186,7 +184,11 @@ func Count(s beam.Scope, pcol PrivatePCollection, params CountParams) beam.PColl
 		rekeyed = boundContributions(s, rekeyed, params.MaxPartitionsContributed)
 	}
 	// Fourth, now that contribution bounding is done, remove the privacy keys,
-	// decode the value, and sum all the counts bounded by MaxValue or MaxContributions.
+	// decode the value, and sum all the counts. 
+	//
+	// If using per-partition contribution bounding, the sums are bounded by MaxValue.
+	// If using MaxContributions, we are already done with per-privacy identifier contribution 
+	// bounding. Thus, the bounding done after this point is a no-op.
 	countPairs := beam.DropKey(s, rekeyed)
 	countsKV := beam.ParDo(s,
 		newDecodePairInt64Fn(partitionT.Type()),
@@ -242,7 +244,7 @@ func checkCountParams(params CountParams, noiseKind noise.Kind, partitionType re
 	if err != nil {
 		return err
 	}
-	return checkContributionBounding(params.MaxContributions, params.MaxValue, params.MaxPartitionsContributed)
+	return checks.CheckContributionBoundingOptionsWithMaxValue(params.MaxContributions, params.MaxPartitionsContributed, params.MaxValue)
 }
 
 func addPublicPartitionsForCount(s beam.Scope, spec PrivacySpec, params CountParams, noiseKind noise.Kind, countsKV beam.PCollection) beam.PCollection {

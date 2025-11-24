@@ -912,45 +912,6 @@ func checkMaxPartitionsContributedPartitionSelection(maxPartitionsContributed in
 	return nil
 }
 
-// checkContributionBounding checks that either MaxContributions or MaxValue/MaxPartitionsContributed is set, but not both.
-// If MaxContributions is set, MaxValue and MaxPartitionsContributed must be 0.
-// If MaxValue/MaxPartitionsContributed is set, MaxContributions must be 0.
-func checkContributionBounding(maxContributions int64, maxValue int64, maxPartitionsContributed int64) error {
-	if maxContributions < 0 {
-		return fmt.Errorf("MaxContributions must be non-negative, was %d instead", maxContributions)
-	}
-	if maxValue < 0 {
-		return fmt.Errorf("MaxValue must be non-negative, was %d instead", maxValue)
-	}
-	if maxPartitionsContributed < 0 {
-		return fmt.Errorf("MaxPartitionsContributed must be non-negative, was %d instead", maxPartitionsContributed)
-	}
-
-	maxContributionsSet := maxContributions > 0
-	maxValueSet := maxValue > 0
-	maxPartitionsContributedSet := maxPartitionsContributed > 0
-
-	if maxContributionsSet {
-		// MaxContributions configuration must be used
-		if maxValue != 0 || maxPartitionsContributed != 0 {
-			return fmt.Errorf("when MaxContributions is set, MaxValue and MaxPartitionsContributed must be 0")
-		}
-		return nil
-	} else {
-		// MaxValue/MaxPartitionsContributed configuration must be used
-		if !maxValueSet && !maxPartitionsContributedSet {
-			return fmt.Errorf("when MaxContributions is not set, both MaxValue and MaxPartitionsContributed must be set to a positive value")
-		}
-		if !maxValueSet {
-			return fmt.Errorf("MaxValue must be set to a positive value, was %d instead", maxValue)
-		}
-		if !maxPartitionsContributedSet {
-			return fmt.Errorf("MaxPartitionsContributed must be set to a positive value, was %d instead", maxPartitionsContributed)
-		}
-		return nil
-	}
-}
-
 // checkNumericType returns an error if t is not a numeric type.
 func checkNumericType(t typex.FullType) error {
 	switch t.Type().Kind() {

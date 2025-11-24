@@ -101,12 +101,9 @@ func NewBoundedSumInt64(opt *BoundedSumInt64Options) (*BoundedSumInt64, error) {
 	if opt == nil {
 		opt = &BoundedSumInt64Options{} // Prevents panicking due to a nil pointer dereference.
 	}
-	// TODO: Add validation for MaxContributions as well. Currently only for MaxPartitionsContributed, Lower and Upper are validated.
-	if opt.MaxContributions == 0 && opt.MaxPartitionsContributed == 0 {
-		return nil, fmt.Errorf("NewBoundedSumInt64: Either MaxPartitionsContributed or MaxContributions must be set")
-	}
-	if opt.MaxContributions <= 0 && opt.MaxPartitionsContributed <= 0 {
-		return nil, fmt.Errorf("NewBoundedSumInt64: MaxPartitionsContributed and MaxContributions cannot be both 0 at the same time")
+	err := checks.CheckContributionBoundingOptions(opt.MaxContributions, opt.MaxPartitionsContributed)
+	if err != nil {
+		return nil, fmt.Errorf("NewBoundedSumInt64: %w", err)
 	}
 
 	l0, err := getL0Int(opt.MaxContributions, opt.MaxPartitionsContributed)
