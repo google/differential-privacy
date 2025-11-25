@@ -20,6 +20,7 @@ from dp_accounting import mechanism_calibration
 from dp_accounting import pld
 from dp_accounting import privacy_accountant
 from dp_accounting import rdp
+from dp_accounting import utilities
 from dp_accounting.dp_event import ComposedDpEvent
 from dp_accounting.dp_event import DpEvent
 from dp_accounting.dp_event import GaussianDpEvent
