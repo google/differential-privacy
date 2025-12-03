@@ -115,40 +115,23 @@ internal constructor(
             MetricType.PRIVACY_ID_COUNT -> put(outputColumnName, dpAggregates.privacyIdCount)
             MetricType.COUNT -> put(outputColumnName, dpAggregates.count)
             MetricType.SUM -> {
-              if (dpAggregates.perFeatureList.isNotEmpty()) {
-                val featureId = columnNameToFeatureIdMap[outputColumnName]!!
-                put(outputColumnName, featuresMap[featureId]!!.sum)
-              } else {
-                put(outputColumnName, dpAggregates.sum)
-              }
+              val featureId = columnNameToFeatureIdMap[outputColumnName]!!
+              put(outputColumnName, featuresMap[featureId]!!.sum)
             }
             MetricType.VECTOR_SUM -> {} // not processed in this function.
             MetricType.MEAN -> {
-              if (dpAggregates.perFeatureList.isNotEmpty()) {
-                val featureId = columnNameToFeatureIdMap[outputColumnName]!!
-                put(outputColumnName, featuresMap[featureId]!!.mean)
-              } else {
-                put(outputColumnName, dpAggregates.mean)
-              }
+              val featureId = columnNameToFeatureIdMap[outputColumnName]!!
+              put(outputColumnName, featuresMap[featureId]!!.mean)
             }
             MetricType.VARIANCE -> {
-              if (dpAggregates.perFeatureList.isNotEmpty()) {
-                val featureId = columnNameToFeatureIdMap[outputColumnName]!!
-                put(outputColumnName, featuresMap[featureId]!!.variance)
-              } else {
-                put(outputColumnName, dpAggregates.variance)
-              }
+              val featureId = columnNameToFeatureIdMap[outputColumnName]!!
+              put(outputColumnName, featuresMap[featureId]!!.variance)
             }
             is MetricType.QUANTILES -> {
               // TODO: consider creating a data class or resuing copy of
               // DpAggregates proto and not allowing outputColumnName.
-              val quantilesList =
-                if (dpAggregates.perFeatureList.isNotEmpty()) {
-                  val featureId = columnNameToFeatureIdMap[outputColumnName]!!
-                  featuresMap[featureId]!!.quantilesList
-                } else {
-                  dpAggregates.quantilesList
-                }
+              val featureId = columnNameToFeatureIdMap[outputColumnName]!!
+              val quantilesList = featuresMap[featureId]!!.quantilesList
               for ((rank, value) in metricType.sortedRanks.zip(quantilesList)) {
                 put(outputColumnName.withRank(rank), value)
               }
@@ -171,12 +154,8 @@ internal constructor(
             MetricType.COUNT -> {} // not processed in this function.
             MetricType.SUM -> {} // not processed in this function.
             MetricType.VECTOR_SUM -> {
-              if (dpAggregates.perFeatureList.isNotEmpty()) {
-                val featureId = colNameToFeatureIdMap[outputColumnName]!!
-                put(outputColumnName, featuresMap[featureId]!!.vectorSumList)
-              } else {
-                put(outputColumnName, dpAggregates.vectorSumList)
-              }
+              val featureId = colNameToFeatureIdMap[outputColumnName]!!
+              put(outputColumnName, featuresMap[featureId]!!.vectorSumList)
             }
             MetricType.MEAN -> {} // not processed in this function.
             MetricType.VARIANCE -> {} // not processed in this function.

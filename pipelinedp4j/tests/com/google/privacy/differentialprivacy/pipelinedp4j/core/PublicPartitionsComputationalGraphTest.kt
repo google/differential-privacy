@@ -30,6 +30,7 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.local.LocalEncoderFac
 import com.google.privacy.differentialprivacy.pipelinedp4j.local.LocalTable
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.DpAggregates
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.dpAggregates
+import com.google.privacy.differentialprivacy.pipelinedp4j.proto.perFeature
 import com.google.testing.junit.testparameterinjector.TestParameterInjector
 import com.google.testing.junit.testparameterinjector.TestParameters
 import com.google.testing.junit.testparameterinjector.TestParametersValuesProvider
@@ -41,38 +42,48 @@ class PublicPartitionsComputationalGraphTest {
   companion object {
     private val COUNT_PARAMS =
       AggregationParams(
-        metrics = ImmutableList.of(MetricDefinition(COUNT)),
+        nonFeatureMetrics = ImmutableList.of(MetricDefinition(COUNT)),
         noiseKind = GAUSSIAN,
         maxPartitionsContributed = Int.MAX_VALUE,
         maxContributionsPerPartition = Int.MAX_VALUE,
       )
     private val PRIVACY_ID_COUNT_PARAMS =
       AggregationParams(
-        metrics = ImmutableList.of(MetricDefinition(PRIVACY_ID_COUNT)),
+        nonFeatureMetrics = ImmutableList.of(MetricDefinition(PRIVACY_ID_COUNT)),
         noiseKind = GAUSSIAN,
         maxPartitionsContributed = Int.MAX_VALUE,
       )
     private val SUM_PARAMS =
       AggregationParams(
-        metrics = ImmutableList.of(MetricDefinition(SUM)),
+        nonFeatureMetrics = ImmutableList.of(),
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              featureId = "value",
+              metrics = ImmutableList.of(MetricDefinition(SUM)),
+              minTotalValue = -Double.MAX_VALUE,
+              maxTotalValue = Double.MAX_VALUE,
+            )
+          ),
         noiseKind = GAUSSIAN,
         maxPartitionsContributed = Int.MAX_VALUE,
-        minTotalValue = -Double.MAX_VALUE,
-        maxTotalValue = Double.MAX_VALUE,
       )
     private val COUNT_SUM_AND_ID_COUNT_PARAMS =
       AggregationParams(
-        metrics =
+        nonFeatureMetrics =
+          ImmutableList.of(MetricDefinition(COUNT), MetricDefinition(PRIVACY_ID_COUNT)),
+        features =
           ImmutableList.of(
-            MetricDefinition(COUNT),
-            MetricDefinition(SUM),
-            MetricDefinition(PRIVACY_ID_COUNT),
+            ScalarFeatureSpec(
+              featureId = "value",
+              metrics = ImmutableList.of(MetricDefinition(SUM)),
+              minTotalValue = -100.0,
+              maxTotalValue = 100.0,
+            )
           ),
         noiseKind = GAUSSIAN,
         maxPartitionsContributed = 100,
         maxContributionsPerPartition = 100,
-        minTotalValue = -100.0,
-        maxTotalValue = 100.0,
       )
     private val ALLOCATED_BUDGET = AllocatedBudget()
 
@@ -95,6 +106,7 @@ class PublicPartitionsComputationalGraphTest {
             ALLOCATED_BUDGET,
             ZeroNoiseFactory(),
             ExecutionMode.PRODUCTION,
+            COUNT_SUM_AND_ID_COUNT_PARAMS.features[0] as ScalarFeatureSpec,
           ),
           PrivacyIdCountCombiner(
             COUNT_SUM_AND_ID_COUNT_PARAMS,
@@ -137,9 +149,10 @@ class PublicPartitionsComputationalGraphTest {
     assertThat(dpAggregates.data.toMap().keys)
       .containsExactly("public_present_in_data", "public_not_present_in_data")
     // Check that the value corresponding to the public partition not present in data is noisy
-    assertThat(dpAggregates.data.toMap().get("public_present_in_data")!!.count).isNotEqualTo(0.0)
-    assertThat(dpAggregates.data.toMap().get("public_present_in_data")!!.sum).isNotEqualTo(0.0)
-    assertThat(dpAggregates.data.toMap().get("public_present_in_data")!!.privacyIdCount)
+    assertThat(dpAggregates.data.toMap()["public_present_in_data"]!!.count).isNotEqualTo(0.0)
+    assertThat(dpAggregates.data.toMap()["public_present_in_data"]!!.perFeatureList.first().sum)
+      .isNotEqualTo(0.0)
+    assertThat(dpAggregates.data.toMap()["public_present_in_data"]!!.privacyIdCount)
       .isNotEqualTo(0.0)
   }
 
@@ -196,6 +209,7 @@ class PublicPartitionsComputationalGraphTest {
                   ALLOCATED_BUDGET,
                   ZeroNoiseFactory(),
                   ExecutionMode.PRODUCTION,
+                  SUM_PARAMS.features[0] as ScalarFeatureSpec,
                 )
               )
             ),
@@ -214,9 +228,33 @@ class PublicPartitionsComputationalGraphTest {
           .addParameter(
             "expectedResult",
             arrayOf(
-              Pair("red", dpAggregates { sum = 20.0 }),
-              Pair("green", dpAggregates { sum = 20.0 }),
-              Pair("blue", dpAggregates { sum = 10.0 }),
+              Pair(
+                "red",
+                dpAggregates {
+                  perFeature += perFeature {
+                    sum = 20.0
+                    featureId = "value"
+                  }
+                },
+              ),
+              Pair(
+                "green",
+                dpAggregates {
+                  perFeature += perFeature {
+                    sum = 20.0
+                    featureId = "value"
+                  }
+                },
+              ),
+              Pair(
+                "blue",
+                dpAggregates {
+                  perFeature += perFeature {
+                    sum = 10.0
+                    featureId = "value"
+                  }
+                },
+              ),
             ),
           )
           .build(),
@@ -278,24 +316,33 @@ class PublicPartitionsComputationalGraphTest {
                 "red",
                 dpAggregates {
                   count = 2.0
-                  sum = 20.0
                   privacyIdCount = 1.0
+                  perFeature += perFeature {
+                    sum = 20.0
+                    featureId = "value"
+                  }
                 },
               ),
               Pair(
                 "green",
                 dpAggregates {
                   count = 2.0
-                  sum = 20.0
                   privacyIdCount = 2.0
+                  perFeature += perFeature {
+                    sum = 20.0
+                    featureId = "value"
+                  }
                 },
               ),
               Pair(
                 "blue",
                 dpAggregates {
                   count = 1.0
-                  sum = 10.0
                   privacyIdCount = 1.0
+                  perFeature += perFeature {
+                    sum = 10.0
+                    featureId = "value"
+                  }
                 },
               ),
             ),
@@ -366,7 +413,8 @@ class PublicPartitionsComputationalGraphTest {
     // The user contributed to 3 partitions but maxPartitionsContributed is set to 2. Hence,
     // contributions to 2 partitions should appear in the result.
     assertThat(dpAggregates.data.toMap().values.map { it.count }).containsExactly(1.0, 1.0, 0.0)
-    assertThat(dpAggregates.data.toMap().values.map { it.sum }).containsExactly(10.0, 10.0, 0.0)
+    assertThat(dpAggregates.data.toMap().values.map { it.perFeatureList.firstOrNull()?.sum ?: 0.0 })
+      .containsExactly(10.0, 10.0, 0.0)
     assertThat(dpAggregates.data.toMap().values.map { it.privacyIdCount })
       .containsExactly(1.0, 1.0, 0.0)
   }
