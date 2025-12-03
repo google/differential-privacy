@@ -287,7 +287,7 @@ func TestNewBoundedSumInt64(t *testing.T) {
 		want    *BoundedSumInt64
 		wantErr bool
 	}{
-		{"MaxPartitionsContributed is not set",
+		{"MaxPartitionsContributed is not set when using maxContributionsPerPartition",
 			&BoundedSumInt64Options{
 				Epsilon:                      ln3,
 				Delta:                        tenten,
@@ -298,7 +298,7 @@ func TestNewBoundedSumInt64(t *testing.T) {
 			},
 			nil,
 			true},
-		{"maxContributionsPerPartition is not set",
+		{"maxContributionsPerPartition is not set when using MaxPartitionsContributed",
 			&BoundedSumInt64Options{
 				Epsilon:                  ln3,
 				Delta:                    0,
@@ -320,6 +320,16 @@ func TestNewBoundedSumInt64(t *testing.T) {
 				state:           defaultState,
 			},
 			false},
+		{"MaxContributions is not set when not using maxContributionsPerPartition and MaxPartitionsContributed",
+			&BoundedSumInt64Options{
+				Epsilon: ln3,
+				Delta:   0,
+				Lower:   -1,
+				Upper:   5,
+				Noise:   noNoise{},
+			},
+			nil,
+			true},
 		{"Noise is not set",
 			&BoundedSumInt64Options{
 				Epsilon:                      ln3,
@@ -707,6 +717,24 @@ func TestCheckMergeBoundedSumInt64Compatibility(t *testing.T) {
 				maxContributionsPerPartition: 2,
 			},
 			false},
+		{"same options, all fields filled while using MaxContributions",
+			&BoundedSumInt64Options{
+				Epsilon:          ln3,
+				Delta:            tenten,
+				Lower:            -1,
+				Upper:            5,
+				Noise:            noise.Gaussian(),
+				MaxContributions: 2,
+			},
+			&BoundedSumInt64Options{
+				Epsilon:          ln3,
+				Delta:            tenten,
+				Lower:            -1,
+				Upper:            5,
+				Noise:            noise.Gaussian(),
+				MaxContributions: 2,
+			},
+			false},
 		{"same options, only required fields filled",
 			&BoundedSumInt64Options{
 				Epsilon:                  ln3,
@@ -719,6 +747,20 @@ func TestCheckMergeBoundedSumInt64Compatibility(t *testing.T) {
 				Lower:                    -1,
 				Upper:                    5,
 				MaxPartitionsContributed: 1,
+			},
+			false},
+		{"same options, only required fields filled while using MaxContributions",
+			&BoundedSumInt64Options{
+				Epsilon:          ln3,
+				Lower:            -1,
+				Upper:            5,
+				MaxContributions: 2,
+			},
+			&BoundedSumInt64Options{
+				Epsilon:          ln3,
+				Lower:            -1,
+				Upper:            5,
+				MaxContributions: 2,
 			},
 			false},
 		{"different epsilon",
@@ -781,6 +823,20 @@ func TestCheckMergeBoundedSumInt64Compatibility(t *testing.T) {
 				Upper:                        5,
 				maxContributionsPerPartition: 5,
 				MaxPartitionsContributed:     1,
+			},
+			true},
+		{"different MaxContributions",
+			&BoundedSumInt64Options{
+				Epsilon:                  ln3,
+				Lower:                    -1,
+				Upper:                    5,
+				MaxContributions:         2,
+			},
+			&BoundedSumInt64Options{
+				Epsilon:                  ln3,
+				Lower:                    -1,
+				Upper:                    5,
+				MaxContributions:         5,
 			},
 			true},
 		{"different lower bound",
