@@ -79,38 +79,42 @@ class QuantileTreeTest : public ::testing::Test {
     // interval contains the raw value keyed by quantile and confidence level.
     std::unordered_map<double, std::unordered_map<double, int>> hit_counter;
 
-    std::unique_ptr<QuantileTree<T>> quantile_tree =
-        tree_builder.Build().value();
-    for (const T& entry : entries) {
-      quantile_tree->AddEntry(entry);
-    }
-
-    typename QuantileTree<T>::DPParams dp_params;
-    dp_params.epsilon = kTestDefaultEpsilon;
-    dp_params.delta = kDefaultDelta;
-    dp_params.max_contributions_per_partition =
-        kDefaultMaxContributionsPerPartition;
-    dp_params.max_partitions_contributed_to = kDefaultMaxPartitionsContributed;
-    dp_params.mechanism_builder =
-        std::make_unique<ZeroNoiseMechanism::Builder>();
-
-    typename QuantileTree<T>::Privatized zero_noise_results =
-        quantile_tree->MakePrivate(dp_params).value();
+    tree_builder.SetEpsilon(kTestDefaultEpsilon)
+        .SetDelta(kDefaultDelta)
+        .SetMaxPartitionsContributed(kDefaultMaxPartitionsContributed)
+        .SetMaxContributionsPerPartition(kDefaultMaxContributionsPerPartition);
 
     // Approximate the raw quantile values by querying a zero noise instance of
     // the quantiles mechanism.
+    std::unique_ptr<QuantileTree<T>> zero_noise_tree =
+        tree_builder
+            .SetLaplaceMechanism(
+                std::make_unique<ZeroNoiseMechanism::Builder>())
+            .Build()
+            .value();
+    for (const T& entry : entries) {
+      zero_noise_tree->AddEntry(entry);
+    }
+    typename QuantileTree<T>::Privatized zero_noise_results =
+        zero_noise_tree->MakePrivate().value();
     std::unordered_map<double, double> zero_noise_quantiles;
     for (double quantile : kQuantilesToTest) {
       zero_noise_quantiles[quantile] =
           zero_noise_results.GetQuantile(quantile).value();
     }
 
-    dp_params.mechanism_builder = std::move(mech_builder);
+    std::unique_ptr<QuantileTree<T>> quantile_tree =
+        tree_builder.SetLaplaceMechanism(std::move(mech_builder))
+            .Build()
+            .value();
+    for (const T& entry : entries) {
+      zero_noise_tree->AddEntry(entry);
+    }
 
     // Sample the hit frequencies.
     for (int i = 0; i < kNumberOfSamples_; i++) {
       typename QuantileTree<T>::Privatized noised_results =
-          quantile_tree->MakePrivate(dp_params).value();
+          quantile_tree->MakePrivate().value();
 
       // Check whether the confidence intervals contain the respective raw value
       // for all quantiles and confidence levels.
@@ -183,6 +187,11 @@ double TrueQuantileFromSorted(std::vector<T> inputs, double quantile) {
 TYPED_TEST(QuantileTreeTest, ApproximatesTrueQuantile) {
   std::unique_ptr<QuantileTree<TypeParam>> test_quantiles =
       typename QuantileTree<TypeParam>::Builder()
+          .SetEpsilon(kTestDefaultEpsilon)
+          .SetDelta(kDefaultDelta)
+          .SetMaxPartitionsContributed(kDefaultMaxPartitionsContributed)
+          .SetMaxContributionsPerPartition(kDefaultMaxContributionsPerPartition)
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetUpper(50)
           .SetLower(-50)
           .SetTreeHeight(4)
@@ -199,16 +208,8 @@ TYPED_TEST(QuantileTreeTest, ApproximatesTrueQuantile) {
     test_quantiles->AddEntry(input);
   }
 
-  typename QuantileTree<TypeParam>::DPParams dp_params;
-  dp_params.epsilon = kTestDefaultEpsilon;
-  dp_params.delta = kDefaultDelta;
-  dp_params.max_contributions_per_partition =
-      kDefaultMaxContributionsPerPartition;
-  dp_params.max_partitions_contributed_to = kDefaultMaxPartitionsContributed;
-  dp_params.mechanism_builder = std::make_unique<ZeroNoiseMechanism::Builder>();
-
   typename QuantileTree<TypeParam>::Privatized results =
-      test_quantiles->MakePrivate(dp_params).value();
+      test_quantiles->MakePrivate().value();
 
   double tolerance = 0.01;  // > upper - lower / branchingFactor ^ treeHeight
   std::sort(inputs.begin(), inputs.end());
@@ -226,6 +227,11 @@ TYPED_TEST(QuantileTreeTest, EmptyLinearlyDistributed) {
   double upper = 50;
   std::unique_ptr<QuantileTree<TypeParam>> test_quantiles =
       typename QuantileTree<TypeParam>::Builder()
+          .SetEpsilon(kTestDefaultEpsilon)
+          .SetDelta(kDefaultDelta)
+          .SetMaxPartitionsContributed(kDefaultMaxPartitionsContributed)
+          .SetMaxContributionsPerPartition(kDefaultMaxContributionsPerPartition)
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetUpper(upper)
           .SetLower(lower)
           .SetTreeHeight(4)
@@ -235,16 +241,8 @@ TYPED_TEST(QuantileTreeTest, EmptyLinearlyDistributed) {
 
   double tolerance = 0.01;  // < (upper - lower) / branchingFactor ^ treeHeight
 
-  typename QuantileTree<TypeParam>::DPParams dp_params;
-  dp_params.epsilon = kTestDefaultEpsilon;
-  dp_params.delta = kDefaultDelta;
-  dp_params.max_contributions_per_partition =
-      kDefaultMaxContributionsPerPartition;
-  dp_params.max_partitions_contributed_to = kDefaultMaxPartitionsContributed;
-  dp_params.mechanism_builder = std::make_unique<ZeroNoiseMechanism::Builder>();
-
   typename QuantileTree<TypeParam>::Privatized results =
-      test_quantiles->MakePrivate(dp_params).value();
+      test_quantiles->MakePrivate().value();
 
   for (int i = 0; i < kNumRanksToTest; ++i) {
     double quantile = static_cast<double>(i) / kNumRanksToTest;
@@ -260,6 +258,11 @@ TYPED_TEST(QuantileTreeTest, LowerBoundClamps) {
   double upper = 50;
   std::unique_ptr<QuantileTree<TypeParam>> test_quantiles =
       typename QuantileTree<TypeParam>::Builder()
+          .SetEpsilon(kTestDefaultEpsilon)
+          .SetDelta(kDefaultDelta)
+          .SetMaxPartitionsContributed(kDefaultMaxPartitionsContributed)
+          .SetMaxContributionsPerPartition(kDefaultMaxContributionsPerPartition)
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetUpper(upper)
           .SetLower(lower)
           .SetTreeHeight(4)
@@ -271,16 +274,8 @@ TYPED_TEST(QuantileTreeTest, LowerBoundClamps) {
     test_quantiles->AddEntry(-100);
   }
 
-  typename QuantileTree<TypeParam>::DPParams dp_params;
-  dp_params.epsilon = kTestDefaultEpsilon;
-  dp_params.delta = kDefaultDelta;
-  dp_params.max_contributions_per_partition =
-      kDefaultMaxContributionsPerPartition;
-  dp_params.max_partitions_contributed_to = kDefaultMaxPartitionsContributed;
-  dp_params.mechanism_builder = std::make_unique<ZeroNoiseMechanism::Builder>();
-
   typename QuantileTree<TypeParam>::Privatized results =
-      test_quantiles->MakePrivate(dp_params).value();
+      test_quantiles->MakePrivate().value();
 
   for (int i = 0; i < kNumRanksToTest; ++i) {
     double quantile = static_cast<double>(i) / kNumRanksToTest;
@@ -294,6 +289,11 @@ TYPED_TEST(QuantileTreeTest, UpperBoundClamps) {
   double upper = 50;
   std::unique_ptr<QuantileTree<TypeParam>> test_quantiles =
       typename QuantileTree<TypeParam>::Builder()
+          .SetEpsilon(kTestDefaultEpsilon)
+          .SetDelta(kDefaultDelta)
+          .SetMaxPartitionsContributed(kDefaultMaxPartitionsContributed)
+          .SetMaxContributionsPerPartition(kDefaultMaxContributionsPerPartition)
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetUpper(upper)
           .SetLower(lower)
           .SetTreeHeight(4)
@@ -305,16 +305,8 @@ TYPED_TEST(QuantileTreeTest, UpperBoundClamps) {
     test_quantiles->AddEntry(100);
   }
 
-  typename QuantileTree<TypeParam>::DPParams dp_params;
-  dp_params.epsilon = kTestDefaultEpsilon;
-  dp_params.delta = kDefaultDelta;
-  dp_params.max_contributions_per_partition =
-      kDefaultMaxContributionsPerPartition;
-  dp_params.max_partitions_contributed_to = kDefaultMaxPartitionsContributed;
-  dp_params.mechanism_builder = std::make_unique<ZeroNoiseMechanism::Builder>();
-
   typename QuantileTree<TypeParam>::Privatized results =
-      test_quantiles->MakePrivate(dp_params).value();
+      test_quantiles->MakePrivate().value();
 
   for (int i = 0; i < kNumRanksToTest; ++i) {
     double quantile = static_cast<double>(i) / kNumRanksToTest;
@@ -326,6 +318,11 @@ TYPED_TEST(QuantileTreeTest, UpperBoundClamps) {
 TYPED_TEST(QuantileTreeTest, ApproximatesTrueQuantileNearUpperBound) {
   std::unique_ptr<QuantileTree<TypeParam>> test_quantiles =
       typename QuantileTree<TypeParam>::Builder()
+          .SetEpsilon(kTestDefaultEpsilon)
+          .SetDelta(kDefaultDelta)
+          .SetMaxPartitionsContributed(kDefaultMaxPartitionsContributed)
+          .SetMaxContributionsPerPartition(kDefaultMaxContributionsPerPartition)
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetUpper(50)
           .SetLower(-50)
           .SetTreeHeight(4)
@@ -337,15 +334,8 @@ TYPED_TEST(QuantileTreeTest, ApproximatesTrueQuantileNearUpperBound) {
     test_quantiles->AddEntry(50);
   }
 
-  typename QuantileTree<TypeParam>::DPParams dp_params;
-  dp_params.epsilon = kTestDefaultEpsilon;
-  dp_params.delta = kDefaultDelta;
-  dp_params.max_contributions_per_partition =
-      kDefaultMaxContributionsPerPartition;
-  dp_params.max_partitions_contributed_to = kDefaultMaxPartitionsContributed;
-  dp_params.mechanism_builder = std::make_unique<ZeroNoiseMechanism::Builder>();
   typename QuantileTree<TypeParam>::Privatized results =
-      test_quantiles->MakePrivate(dp_params).value();
+      test_quantiles->MakePrivate().value();
 
   double tolerance = 0.01;  // < (upper - lower) / branchingFactor ^ treeHeight
   EXPECT_NEAR(results.GetQuantile(0.5).value(), 50, tolerance);
@@ -354,6 +344,11 @@ TYPED_TEST(QuantileTreeTest, ApproximatesTrueQuantileNearUpperBound) {
 TYPED_TEST(QuantileTreeTest, ApproximatesTrueQuantileNearLowerBound) {
   std::unique_ptr<QuantileTree<TypeParam>> test_quantiles =
       typename QuantileTree<TypeParam>::Builder()
+          .SetEpsilon(kTestDefaultEpsilon)
+          .SetDelta(kDefaultDelta)
+          .SetMaxPartitionsContributed(kDefaultMaxPartitionsContributed)
+          .SetMaxContributionsPerPartition(kDefaultMaxContributionsPerPartition)
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetUpper(50)
           .SetLower(-50)
           .SetTreeHeight(4)
@@ -365,15 +360,8 @@ TYPED_TEST(QuantileTreeTest, ApproximatesTrueQuantileNearLowerBound) {
     test_quantiles->AddEntry(-50);
   }
 
-  typename QuantileTree<TypeParam>::DPParams dp_params;
-  dp_params.epsilon = kTestDefaultEpsilon;
-  dp_params.delta = kDefaultDelta;
-  dp_params.max_contributions_per_partition =
-      kDefaultMaxContributionsPerPartition;
-  dp_params.max_partitions_contributed_to = kDefaultMaxPartitionsContributed;
-  dp_params.mechanism_builder = std::make_unique<ZeroNoiseMechanism::Builder>();
   typename QuantileTree<TypeParam>::Privatized results =
-      test_quantiles->MakePrivate(dp_params).value();
+      test_quantiles->MakePrivate().value();
 
   double tolerance = 0.01;  // < (upper - lower) / branchingFactor ^ treeHeight
   EXPECT_NEAR(results.GetQuantile(0.5).value(), -50, tolerance);
@@ -382,6 +370,11 @@ TYPED_TEST(QuantileTreeTest, ApproximatesTrueQuantileNearLowerBound) {
 TYPED_TEST(QuantileTreeTest, InputOrderInvariant) {
   std::unique_ptr<QuantileTree<TypeParam>> test_quantiles1 =
       typename QuantileTree<TypeParam>::Builder()
+          .SetEpsilon(kTestDefaultEpsilon)
+          .SetDelta(kDefaultDelta)
+          .SetMaxPartitionsContributed(kDefaultMaxPartitionsContributed)
+          .SetMaxContributionsPerPartition(kDefaultMaxContributionsPerPartition)
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetUpper(50)
           .SetLower(-50)
           .SetTreeHeight(4)
@@ -390,6 +383,11 @@ TYPED_TEST(QuantileTreeTest, InputOrderInvariant) {
           .value();
   std::unique_ptr<QuantileTree<TypeParam>> test_quantiles2 =
       typename QuantileTree<TypeParam>::Builder()
+          .SetEpsilon(kTestDefaultEpsilon)
+          .SetDelta(kDefaultDelta)
+          .SetMaxPartitionsContributed(kDefaultMaxPartitionsContributed)
+          .SetMaxContributionsPerPartition(kDefaultMaxContributionsPerPartition)
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetUpper(50)
           .SetLower(-50)
           .SetTreeHeight(4)
@@ -412,19 +410,11 @@ TYPED_TEST(QuantileTreeTest, InputOrderInvariant) {
     test_quantiles2->AddEntry(input);
   }
 
-  typename QuantileTree<TypeParam>::DPParams dp_params;
-  dp_params.epsilon = kTestDefaultEpsilon;
-  dp_params.delta = kDefaultDelta;
-  dp_params.max_contributions_per_partition =
-      kDefaultMaxContributionsPerPartition;
-  dp_params.max_partitions_contributed_to = kDefaultMaxPartitionsContributed;
-  dp_params.mechanism_builder = std::make_unique<ZeroNoiseMechanism::Builder>();
-
   typename QuantileTree<TypeParam>::Privatized results1 =
-      test_quantiles1->MakePrivate(dp_params).value();
+      test_quantiles1->MakePrivate().value();
 
   typename QuantileTree<TypeParam>::Privatized results2 =
-      test_quantiles2->MakePrivate(dp_params).value();
+      test_quantiles2->MakePrivate().value();
 
   for (int i = 0; i < kNumRanksToTest; ++i) {
     double quantile = static_cast<double>(i) / kNumRanksToTest;
@@ -438,6 +428,11 @@ TYPED_TEST(QuantileTreeTest, InputOrderInvariant) {
 TYPED_TEST(QuantileTreeTest, RepeatedResultsIdentical) {
   std::unique_ptr<QuantileTree<TypeParam>> test_quantiles =
       typename QuantileTree<TypeParam>::Builder()
+          .SetEpsilon(kTestDefaultEpsilon)
+          .SetDelta(kDefaultDelta)
+          .SetMaxPartitionsContributed(kDefaultMaxPartitionsContributed)
+          .SetMaxContributionsPerPartition(kDefaultMaxContributionsPerPartition)
+          .SetLaplaceMechanism(std::make_unique<LaplaceMechanism::Builder>())
           .SetUpper(50)
           .SetLower(-50)
           .SetTreeHeight(4)
@@ -455,16 +450,8 @@ TYPED_TEST(QuantileTreeTest, RepeatedResultsIdentical) {
     test_quantiles->AddEntry(input);
   }
 
-  typename QuantileTree<TypeParam>::DPParams dp_params;
-  dp_params.epsilon = kTestDefaultEpsilon;
-  dp_params.delta = kDefaultDelta;
-  dp_params.max_contributions_per_partition =
-      kDefaultMaxContributionsPerPartition;
-  dp_params.max_partitions_contributed_to = kDefaultMaxPartitionsContributed;
-  dp_params.mechanism_builder = std::make_unique<LaplaceMechanism::Builder>();
-
   typename QuantileTree<TypeParam>::Privatized results =
-      test_quantiles->MakePrivate(dp_params).value();
+      test_quantiles->MakePrivate().value();
 
   for (int i = 0; i < kNumRanksToTest; ++i) {
     double quantile = static_cast<double>(i) / kNumRanksToTest;
@@ -478,6 +465,11 @@ TYPED_TEST(QuantileTreeTest, RepeatedResultsIdentical) {
 TYPED_TEST(QuantileTreeTest, ResultsIncreaseMonotonically) {
   std::unique_ptr<QuantileTree<TypeParam>> test_quantiles =
       typename QuantileTree<TypeParam>::Builder()
+          .SetEpsilon(kTestDefaultEpsilon)
+          .SetDelta(kDefaultDelta)
+          .SetMaxPartitionsContributed(kDefaultMaxPartitionsContributed)
+          .SetMaxContributionsPerPartition(kDefaultMaxContributionsPerPartition)
+          .SetLaplaceMechanism(std::make_unique<LaplaceMechanism::Builder>())
           .SetUpper(50)
           .SetLower(-50)
           .SetTreeHeight(4)
@@ -495,16 +487,8 @@ TYPED_TEST(QuantileTreeTest, ResultsIncreaseMonotonically) {
     test_quantiles->AddEntry(input);
   }
 
-  typename QuantileTree<TypeParam>::DPParams dp_params;
-  dp_params.epsilon = kTestDefaultEpsilon;
-  dp_params.delta = kDefaultDelta;
-  dp_params.max_contributions_per_partition =
-      kDefaultMaxContributionsPerPartition;
-  dp_params.max_partitions_contributed_to = kDefaultMaxPartitionsContributed;
-  dp_params.mechanism_builder = std::make_unique<LaplaceMechanism::Builder>();
-
   typename QuantileTree<TypeParam>::Privatized results =
-      test_quantiles->MakePrivate(dp_params).value();
+      test_quantiles->MakePrivate().value();
 
   double last_result = std::numeric_limits<double>::lowest();
   for (int i = 0; i < kNumRanksToTest; ++i) {
@@ -518,6 +502,11 @@ TYPED_TEST(QuantileTreeTest, ResultsIncreaseMonotonically) {
 TYPED_TEST(QuantileTreeTest, InvalidRanksReturnErrors) {
   std::unique_ptr<QuantileTree<TypeParam>> test_quantiles =
       typename QuantileTree<TypeParam>::Builder()
+          .SetEpsilon(kTestDefaultEpsilon)
+          .SetDelta(kDefaultDelta)
+          .SetMaxPartitionsContributed(kDefaultMaxPartitionsContributed)
+          .SetMaxContributionsPerPartition(kDefaultMaxContributionsPerPartition)
+          .SetLaplaceMechanism(std::make_unique<LaplaceMechanism::Builder>())
           .SetUpper(50)
           .SetLower(-50)
           .SetTreeHeight(4)
@@ -525,16 +514,8 @@ TYPED_TEST(QuantileTreeTest, InvalidRanksReturnErrors) {
           .Build()
           .value();
 
-  typename QuantileTree<TypeParam>::DPParams dp_params;
-  dp_params.epsilon = kTestDefaultEpsilon;
-  dp_params.delta = kDefaultDelta;
-  dp_params.max_contributions_per_partition =
-      kDefaultMaxContributionsPerPartition;
-  dp_params.max_partitions_contributed_to = kDefaultMaxPartitionsContributed;
-  dp_params.mechanism_builder = std::make_unique<LaplaceMechanism::Builder>();
-
   typename QuantileTree<TypeParam>::Privatized results =
-      test_quantiles->MakePrivate(dp_params).value();
+      test_quantiles->MakePrivate().value();
 
   EXPECT_THAT(results.GetQuantile(-0.5),
               StatusIs(absl::StatusCode::kInvalidArgument,
@@ -547,6 +528,11 @@ TYPED_TEST(QuantileTreeTest, InvalidRanksReturnErrors) {
 TYPED_TEST(QuantileTreeTest, SerializeMergeTest) {
   std::unique_ptr<QuantileTree<TypeParam>> test_quantiles1 =
       typename QuantileTree<TypeParam>::Builder()
+          .SetEpsilon(kTestDefaultEpsilon)
+          .SetDelta(kDefaultDelta)
+          .SetMaxPartitionsContributed(kDefaultMaxPartitionsContributed)
+          .SetMaxContributionsPerPartition(kDefaultMaxContributionsPerPartition)
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetUpper(50)
           .SetLower(-50)
           .SetTreeHeight(4)
@@ -555,6 +541,11 @@ TYPED_TEST(QuantileTreeTest, SerializeMergeTest) {
           .value();
   std::unique_ptr<QuantileTree<TypeParam>> test_quantiles2 =
       typename QuantileTree<TypeParam>::Builder()
+          .SetEpsilon(kTestDefaultEpsilon)
+          .SetDelta(kDefaultDelta)
+          .SetMaxPartitionsContributed(kDefaultMaxPartitionsContributed)
+          .SetMaxContributionsPerPartition(kDefaultMaxContributionsPerPartition)
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetUpper(50)
           .SetLower(-50)
           .SetTreeHeight(4)
@@ -585,19 +576,11 @@ TYPED_TEST(QuantileTreeTest, SerializeMergeTest) {
     test_quantiles2->AddEntry(input);
   }
 
-  typename QuantileTree<TypeParam>::DPParams dp_params;
-  dp_params.epsilon = kTestDefaultEpsilon;
-  dp_params.delta = kDefaultDelta;
-  dp_params.max_contributions_per_partition =
-      kDefaultMaxContributionsPerPartition;
-  dp_params.max_partitions_contributed_to = kDefaultMaxPartitionsContributed;
-  dp_params.mechanism_builder = std::make_unique<ZeroNoiseMechanism::Builder>();
-
   typename QuantileTree<TypeParam>::Privatized results1 =
-      test_quantiles1->MakePrivate(dp_params).value();
+      test_quantiles1->MakePrivate().value();
 
   typename QuantileTree<TypeParam>::Privatized results2 =
-      test_quantiles2->MakePrivate(dp_params).value();
+      test_quantiles2->MakePrivate().value();
 
   for (int i = 0; i < kNumRanksToTest; ++i) {
     double quantile = static_cast<double>(i) / kNumRanksToTest;
@@ -610,6 +593,7 @@ TYPED_TEST(QuantileTreeTest, SerializeMergeTest) {
 TEST(QuantileTreeTest, MergeFailsWithBadBounds) {
   std::unique_ptr<QuantileTree<double>> test_quantiles =
       typename QuantileTree<double>::Builder()
+          .SetEpsilon(kTestDefaultEpsilon)
           .SetUpper(50)
           .SetLower(-50)
           .SetTreeHeight(4)
@@ -618,6 +602,7 @@ TEST(QuantileTreeTest, MergeFailsWithBadBounds) {
           .value();
   std::unique_ptr<QuantileTree<double>> wrong_lower =
       typename QuantileTree<double>::Builder()
+          .SetEpsilon(kTestDefaultEpsilon)
           .SetUpper(50)
           .SetLower(-49)
           .SetTreeHeight(4)
@@ -626,6 +611,7 @@ TEST(QuantileTreeTest, MergeFailsWithBadBounds) {
           .value();
   std::unique_ptr<QuantileTree<double>> wrong_upper =
       typename QuantileTree<double>::Builder()
+          .SetEpsilon(kTestDefaultEpsilon)
           .SetUpper(49)
           .SetLower(-50)
           .SetTreeHeight(4)
@@ -642,6 +628,11 @@ TEST(QuantileTreeTest, MergeFailsWithBadBounds) {
 TYPED_TEST(QuantileTreeTest, Reset) {
   std::unique_ptr<QuantileTree<TypeParam>> test_quantiles1 =
       typename QuantileTree<TypeParam>::Builder()
+          .SetEpsilon(kTestDefaultEpsilon)
+          .SetDelta(kDefaultDelta)
+          .SetMaxPartitionsContributed(kDefaultMaxPartitionsContributed)
+          .SetMaxContributionsPerPartition(kDefaultMaxContributionsPerPartition)
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetUpper(50)
           .SetLower(-50)
           .SetTreeHeight(4)
@@ -650,6 +641,11 @@ TYPED_TEST(QuantileTreeTest, Reset) {
           .value();
   std::unique_ptr<QuantileTree<TypeParam>> test_quantiles2 =
       typename QuantileTree<TypeParam>::Builder()
+          .SetEpsilon(kTestDefaultEpsilon)
+          .SetDelta(kDefaultDelta)
+          .SetMaxPartitionsContributed(kDefaultMaxPartitionsContributed)
+          .SetMaxContributionsPerPartition(kDefaultMaxContributionsPerPartition)
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetUpper(50)
           .SetLower(-50)
           .SetTreeHeight(4)
@@ -680,19 +676,11 @@ TYPED_TEST(QuantileTreeTest, Reset) {
     test_quantiles2->AddEntry(input);
   }
 
-  typename QuantileTree<TypeParam>::DPParams dp_params;
-  dp_params.epsilon = kTestDefaultEpsilon;
-  dp_params.delta = kDefaultDelta;
-  dp_params.max_contributions_per_partition =
-      kDefaultMaxContributionsPerPartition;
-  dp_params.max_partitions_contributed_to = kDefaultMaxPartitionsContributed;
-  dp_params.mechanism_builder = std::make_unique<ZeroNoiseMechanism::Builder>();
-
   typename QuantileTree<TypeParam>::Privatized results1 =
-      test_quantiles1->MakePrivate(dp_params).value();
+      test_quantiles1->MakePrivate().value();
 
   typename QuantileTree<TypeParam>::Privatized results2 =
-      test_quantiles2->MakePrivate(dp_params).value();
+      test_quantiles2->MakePrivate().value();
 
   for (int i = 0; i < kNumRanksToTest; ++i) {
     double quantile = static_cast<double>(i) / kNumRanksToTest;
@@ -705,6 +693,11 @@ TYPED_TEST(QuantileTreeTest, Reset) {
 TEST(QuantileTreeTest, IgnoresNaN) {
   std::unique_ptr<QuantileTree<double>> test_quantiles =
       typename QuantileTree<double>::Builder()
+          .SetEpsilon(kTestDefaultEpsilon)
+          .SetDelta(kDefaultDelta)
+          .SetMaxPartitionsContributed(kDefaultMaxPartitionsContributed)
+          .SetMaxContributionsPerPartition(kDefaultMaxContributionsPerPartition)
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetUpper(50)
           .SetLower(-50)
           .SetTreeHeight(4)
@@ -712,24 +705,16 @@ TEST(QuantileTreeTest, IgnoresNaN) {
           .Build()
           .value();
 
-  typename QuantileTree<double>::DPParams dp_params;
-  dp_params.epsilon = kTestDefaultEpsilon;
-  dp_params.delta = kDefaultDelta;
-  dp_params.max_contributions_per_partition =
-      kDefaultMaxContributionsPerPartition;
-  dp_params.max_partitions_contributed_to = kDefaultMaxPartitionsContributed;
-  dp_params.mechanism_builder = std::make_unique<ZeroNoiseMechanism::Builder>();
-
   test_quantiles->AddEntry(5.0);
   typename QuantileTree<double>::Privatized results1 =
-      test_quantiles->MakePrivate(dp_params).value();
+      test_quantiles->MakePrivate().value();
 
   for (int i = 0; i < 100; ++i) {
     test_quantiles->AddEntry(std::nan(""));
   }
 
   typename QuantileTree<double>::Privatized results2 =
-      test_quantiles->MakePrivate(dp_params).value();
+      test_quantiles->MakePrivate().value();
 
   for (int i = 0; i < kNumRanksToTest; ++i) {
     double quantile = static_cast<double>(i) / kNumRanksToTest;
@@ -742,6 +727,11 @@ TEST(QuantileTreeTest, IgnoresNaN) {
 TEST(QuantileTreeTest, TreeOverflowsWithInputs) {
   std::unique_ptr<QuantileTree<int64_t>> test_quantiles =
       typename QuantileTree<int64_t>::Builder()
+          .SetEpsilon(kTestDefaultEpsilon)
+          .SetDelta(kDefaultDelta)
+          .SetMaxPartitionsContributed(kDefaultMaxPartitionsContributed)
+          .SetMaxContributionsPerPartition(kDefaultMaxContributionsPerPartition)
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetUpper(50)
           .SetLower(-50)
           .SetTreeHeight(4)
@@ -753,16 +743,8 @@ TEST(QuantileTreeTest, TreeOverflowsWithInputs) {
       25, std::numeric_limits<int64_t>::max(), test_quantiles.get());
   test_quantiles->AddEntry(25);
 
-  typename QuantileTree<int64_t>::DPParams dp_params;
-  dp_params.epsilon = kTestDefaultEpsilon;
-  dp_params.delta = kDefaultDelta;
-  dp_params.max_contributions_per_partition =
-      kDefaultMaxContributionsPerPartition;
-  dp_params.max_partitions_contributed_to = kDefaultMaxPartitionsContributed;
-  dp_params.mechanism_builder = std::make_unique<ZeroNoiseMechanism::Builder>();
-
   typename QuantileTree<int64_t>::Privatized results =
-      test_quantiles->MakePrivate(dp_params).value();
+      test_quantiles->MakePrivate().value();
 
   // With no noise and no overflow, we should always get 25. With overflow,
   // those nodes should register as empty, meaning the whole tree will be empty,
@@ -773,6 +755,11 @@ TEST(QuantileTreeTest, TreeOverflowsWithInputs) {
 TEST(QuantileTreeTest, TreeOverflowsWithNoise) {
   std::unique_ptr<QuantileTree<int64_t>> test_quantiles =
       typename QuantileTree<int64_t>::Builder()
+          .SetEpsilon(kTestDefaultEpsilon)
+          .SetDelta(kDefaultDelta)
+          .SetMaxPartitionsContributed(kDefaultMaxPartitionsContributed)
+          .SetMaxContributionsPerPartition(kDefaultMaxContributionsPerPartition)
+          .SetLaplaceMechanism(std::make_unique<LaplaceMechanism::Builder>())
           .SetUpper(50)
           .SetLower(-50)
           .SetTreeHeight(4)
@@ -782,14 +769,6 @@ TEST(QuantileTreeTest, TreeOverflowsWithNoise) {
 
   QuantileTreeTestPeer::AddMultipleEntries<int64_t>(
       25, std::numeric_limits<int64_t>::max(), test_quantiles.get());
-
-  typename QuantileTree<int64_t>::DPParams dp_params;
-  dp_params.epsilon = kTestDefaultEpsilon;
-  dp_params.delta = kDefaultDelta;
-  dp_params.max_contributions_per_partition =
-      kDefaultMaxContributionsPerPartition;
-  dp_params.max_partitions_contributed_to = kDefaultMaxPartitionsContributed;
-  dp_params.mechanism_builder = std::make_unique<LaplaceMechanism::Builder>();
 
   // All the entries are in one leaf node. If the counts don't overflow, they
   // should always be much larger than all the noisy zeroes, and so we should
@@ -802,7 +781,7 @@ TEST(QuantileTreeTest, TreeOverflowsWithNoise) {
   // time. Given 10^3 tries, an event with p=.5 should ~always occur.
   for (int i = 0; i < 1e3; ++i) {
     typename QuantileTree<int64_t>::Privatized results =
-        test_quantiles->MakePrivate(dp_params).value();
+        test_quantiles->MakePrivate().value();
 
     if (results.GetQuantile(0.5).value() == 0) {
       // An overflow occurred, so we can return from the test with a success.
@@ -815,6 +794,11 @@ TEST(QuantileTreeTest, TreeOverflowsWithNoise) {
 TYPED_TEST(QuantileTreeTest, PrivatizedConstantWithExtraInput) {
   std::unique_ptr<QuantileTree<TypeParam>> test_quantiles =
       typename QuantileTree<TypeParam>::Builder()
+          .SetEpsilon(kTestDefaultEpsilon)
+          .SetDelta(kDefaultDelta)
+          .SetMaxPartitionsContributed(kDefaultMaxPartitionsContributed)
+          .SetMaxContributionsPerPartition(kDefaultMaxContributionsPerPartition)
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetUpper(50)
           .SetLower(-50)
           .SetTreeHeight(4)
@@ -826,16 +810,8 @@ TYPED_TEST(QuantileTreeTest, PrivatizedConstantWithExtraInput) {
     test_quantiles->AddEntry(-25);
   }
 
-  typename QuantileTree<TypeParam>::DPParams dp_params;
-  dp_params.epsilon = kTestDefaultEpsilon;
-  dp_params.delta = kDefaultDelta;
-  dp_params.max_contributions_per_partition =
-      kDefaultMaxContributionsPerPartition;
-  dp_params.max_partitions_contributed_to = kDefaultMaxPartitionsContributed;
-  dp_params.mechanism_builder = std::make_unique<ZeroNoiseMechanism::Builder>();
-
   typename QuantileTree<TypeParam>::Privatized results =
-      test_quantiles->MakePrivate(dp_params).value();
+      test_quantiles->MakePrivate().value();
 
   double tolerance = 0.01;  // > upper - lower / branchingFactor ^ treeHeight
   EXPECT_NEAR(results.GetQuantile(0.5).value(), -25, tolerance);
@@ -850,6 +826,11 @@ TYPED_TEST(QuantileTreeTest, PrivatizedConstantWithExtraInput) {
 TYPED_TEST(QuantileTreeTest, ZeroNoiseConfidenceIntervalsMatchQuantile) {
   std::unique_ptr<QuantileTree<TypeParam>> test_quantiles =
       typename QuantileTree<TypeParam>::Builder()
+          .SetEpsilon(kTestDefaultEpsilon)
+          .SetDelta(kDefaultDelta)
+          .SetMaxPartitionsContributed(kDefaultMaxPartitionsContributed)
+          .SetMaxContributionsPerPartition(kDefaultMaxContributionsPerPartition)
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetUpper(50)
           .SetLower(-50)
           .SetTreeHeight(4)
@@ -866,16 +847,8 @@ TYPED_TEST(QuantileTreeTest, ZeroNoiseConfidenceIntervalsMatchQuantile) {
     test_quantiles->AddEntry(input);
   }
 
-  typename QuantileTree<TypeParam>::DPParams dp_params;
-  dp_params.epsilon = kTestDefaultEpsilon;
-  dp_params.delta = kDefaultDelta;
-  dp_params.max_contributions_per_partition =
-      kDefaultMaxContributionsPerPartition;
-  dp_params.max_partitions_contributed_to = kDefaultMaxPartitionsContributed;
-  dp_params.mechanism_builder = std::make_unique<ZeroNoiseMechanism::Builder>();
-
   typename QuantileTree<TypeParam>::Privatized results =
-      test_quantiles->MakePrivate(dp_params).value();
+      test_quantiles->MakePrivate().value();
 
   double tolerance = 0.01;  // > upper - lower / branchingFactor ^ treeHeight
   std::sort(inputs.begin(), inputs.end());
@@ -900,6 +873,12 @@ TYPED_TEST(QuantileTreeTest,
   for (int i = 0; i < 1000; i++) {
     std::unique_ptr<QuantileTree<TypeParam>> quantile_tree =
         typename QuantileTree<TypeParam>::Builder()
+            .SetEpsilon(kTestDefaultEpsilon)
+            .SetDelta(kDefaultDelta)
+            .SetMaxPartitionsContributed(kDefaultMaxPartitionsContributed)
+            .SetMaxContributionsPerPartition(
+                kDefaultMaxContributionsPerPartition)
+            .SetLaplaceMechanism(std::make_unique<LaplaceMechanism::Builder>())
             .SetUpper(50)
             .SetLower(-50)
             .SetTreeHeight(4)
@@ -907,16 +886,8 @@ TYPED_TEST(QuantileTreeTest,
             .Build()
             .value();
 
-    typename QuantileTree<TypeParam>::DPParams dp_params;
-    dp_params.epsilon = kTestDefaultEpsilon;
-    dp_params.delta = kDefaultDelta;
-    dp_params.max_contributions_per_partition =
-        kDefaultMaxContributionsPerPartition;
-    dp_params.max_partitions_contributed_to = kDefaultMaxPartitionsContributed;
-    dp_params.mechanism_builder = std::make_unique<LaplaceMechanism::Builder>();
-
     typename QuantileTree<TypeParam>::Privatized results =
-        quantile_tree->MakePrivate(dp_params).value();
+        quantile_tree->MakePrivate().value();
 
     // Use a small confidence level to increase the chance of a violation.
     double confidence_level = 0.01;
@@ -935,6 +906,12 @@ TYPED_TEST(QuantileTreeTest,
   for (int i = 0; i < 1000; i++) {
     std::unique_ptr<QuantileTree<TypeParam>> quantile_tree =
         typename QuantileTree<TypeParam>::Builder()
+            .SetEpsilon(kTestDefaultEpsilon)
+            .SetDelta(kDefaultDelta)
+            .SetMaxPartitionsContributed(kDefaultMaxPartitionsContributed)
+            .SetMaxContributionsPerPartition(
+                kDefaultMaxContributionsPerPartition)
+            .SetLaplaceMechanism(std::make_unique<LaplaceMechanism::Builder>())
             .SetUpper(50)
             .SetLower(-50)
             .SetTreeHeight(4)
@@ -951,16 +928,8 @@ TYPED_TEST(QuantileTreeTest,
       quantile_tree->AddEntry(input);
     }
 
-    typename QuantileTree<TypeParam>::DPParams dp_params;
-    dp_params.epsilon = kTestDefaultEpsilon;
-    dp_params.delta = kDefaultDelta;
-    dp_params.max_contributions_per_partition =
-        kDefaultMaxContributionsPerPartition;
-    dp_params.max_partitions_contributed_to = kDefaultMaxPartitionsContributed;
-    dp_params.mechanism_builder = std::make_unique<LaplaceMechanism::Builder>();
-
     typename QuantileTree<TypeParam>::Privatized results =
-        quantile_tree->MakePrivate(dp_params).value();
+        quantile_tree->MakePrivate().value();
 
     // Use a small confidence level to increase the chance of a violation.
     double confidence_level = 0.01;
@@ -980,6 +949,11 @@ TYPED_TEST(QuantileTreeTest, ConfidenceIntervalWithinBounds) {
 
   std::unique_ptr<QuantileTree<TypeParam>> quantile_tree =
       typename QuantileTree<TypeParam>::Builder()
+          .SetEpsilon(kTestDefaultEpsilon)
+          .SetDelta(kDefaultDelta)
+          .SetMaxPartitionsContributed(kDefaultMaxPartitionsContributed)
+          .SetMaxContributionsPerPartition(kDefaultMaxContributionsPerPartition)
+          .SetLaplaceMechanism(std::make_unique<LaplaceMechanism::Builder>())
           .SetUpper(upper_bound)
           .SetLower(lower_bound)
           .SetTreeHeight(4)
@@ -992,16 +966,8 @@ TYPED_TEST(QuantileTreeTest, ConfidenceIntervalWithinBounds) {
     quantile_tree->AddEntry(upper_bound);
   }
 
-  typename QuantileTree<TypeParam>::DPParams dp_params;
-  dp_params.epsilon = kTestDefaultEpsilon;
-  dp_params.delta = kDefaultDelta;
-  dp_params.max_contributions_per_partition =
-      kDefaultMaxContributionsPerPartition;
-  dp_params.max_partitions_contributed_to = kDefaultMaxPartitionsContributed;
-  dp_params.mechanism_builder = std::make_unique<LaplaceMechanism::Builder>();
-
   typename QuantileTree<TypeParam>::Privatized results =
-      quantile_tree->MakePrivate(dp_params).value();
+      quantile_tree->MakePrivate().value();
 
   // To increase the chance of a violation, we use a high confidence level and
   // test the confidence intervals of the min and max quantiles, which match the
@@ -1020,6 +986,11 @@ TYPED_TEST(QuantileTreeTest,
            ConfidenceIntervalWithGaussianNoiseReturnsSameResults) {
   std::unique_ptr<QuantileTree<TypeParam>> quantile_tree =
       typename QuantileTree<TypeParam>::Builder()
+          .SetEpsilon(kTestDefaultEpsilon)
+          .SetDelta(kDefaultDelta)
+          .SetMaxPartitionsContributed(kDefaultMaxPartitionsContributed)
+          .SetMaxContributionsPerPartition(kDefaultMaxContributionsPerPartition)
+          .SetLaplaceMechanism(std::make_unique<GaussianMechanism::Builder>())
           .SetUpper(50)
           .SetLower(-50)
           .SetTreeHeight(4)
@@ -1036,16 +1007,8 @@ TYPED_TEST(QuantileTreeTest,
     quantile_tree->AddEntry(input);
   }
 
-  typename QuantileTree<TypeParam>::DPParams dp_params;
-  dp_params.epsilon = kTestDefaultEpsilon;
-  dp_params.delta = kDefaultDelta;
-  dp_params.max_contributions_per_partition =
-      kDefaultMaxContributionsPerPartition;
-  dp_params.max_partitions_contributed_to = kDefaultMaxPartitionsContributed;
-  dp_params.mechanism_builder = std::make_unique<GaussianMechanism::Builder>();
-
   typename QuantileTree<TypeParam>::Privatized results =
-      quantile_tree->MakePrivate(dp_params).value();
+      quantile_tree->MakePrivate().value();
 
   double confidence_level = 0.95;
   for (double quantile : kQuantilesToTest) {
@@ -1066,6 +1029,11 @@ TYPED_TEST(QuantileTreeTest,
            ConfidenceIntervalWithLaplaceNoiseReturnsSameResults) {
   std::unique_ptr<QuantileTree<TypeParam>> quantile_tree =
       typename QuantileTree<TypeParam>::Builder()
+          .SetEpsilon(kTestDefaultEpsilon)
+          .SetDelta(kDefaultDelta)
+          .SetMaxPartitionsContributed(kDefaultMaxPartitionsContributed)
+          .SetMaxContributionsPerPartition(kDefaultMaxContributionsPerPartition)
+          .SetLaplaceMechanism(std::make_unique<LaplaceMechanism::Builder>())
           .SetUpper(50)
           .SetLower(-50)
           .SetTreeHeight(4)
@@ -1082,16 +1050,8 @@ TYPED_TEST(QuantileTreeTest,
     quantile_tree->AddEntry(input);
   }
 
-  typename QuantileTree<TypeParam>::DPParams dp_params;
-  dp_params.epsilon = kTestDefaultEpsilon;
-  dp_params.delta = kDefaultDelta;
-  dp_params.max_contributions_per_partition =
-      kDefaultMaxContributionsPerPartition;
-  dp_params.max_partitions_contributed_to = kDefaultMaxPartitionsContributed;
-  dp_params.mechanism_builder = std::make_unique<LaplaceMechanism::Builder>();
-
   typename QuantileTree<TypeParam>::Privatized results =
-      quantile_tree->MakePrivate(dp_params).value();
+      quantile_tree->MakePrivate().value();
 
   double confidence_level = 0.95;
   for (double quantile : kQuantilesToTest) {
@@ -1113,6 +1073,11 @@ TYPED_TEST(
     ConfidenceIntervalWithGaussianNoiseReturnsLowerLevelIntervalsWithinHigherLevelIntervals) {
   std::unique_ptr<QuantileTree<TypeParam>> quantile_tree =
       typename QuantileTree<TypeParam>::Builder()
+          .SetEpsilon(kTestDefaultEpsilon)
+          .SetDelta(kDefaultDelta)
+          .SetMaxPartitionsContributed(kDefaultMaxPartitionsContributed)
+          .SetMaxContributionsPerPartition(kDefaultMaxContributionsPerPartition)
+          .SetLaplaceMechanism(std::make_unique<GaussianMechanism::Builder>())
           .SetUpper(50)
           .SetLower(-50)
           .SetTreeHeight(4)
@@ -1129,16 +1094,8 @@ TYPED_TEST(
     quantile_tree->AddEntry(input);
   }
 
-  typename QuantileTree<TypeParam>::DPParams dp_params;
-  dp_params.epsilon = kTestDefaultEpsilon;
-  dp_params.delta = kDefaultDelta;
-  dp_params.max_contributions_per_partition =
-      kDefaultMaxContributionsPerPartition;
-  dp_params.max_partitions_contributed_to = kDefaultMaxPartitionsContributed;
-  dp_params.mechanism_builder = std::make_unique<GaussianMechanism::Builder>();
-
   typename QuantileTree<TypeParam>::Privatized results =
-      quantile_tree->MakePrivate(dp_params).value();
+      quantile_tree->MakePrivate().value();
 
   for (double quantile : kQuantilesToTest) {
     absl::StatusOr<ConfidenceInterval> ci_or_status_1 =
@@ -1159,6 +1116,11 @@ TYPED_TEST(
     ConfidenceIntervalWithLaplaceNoiseReturnsLowerLevelIntervalsWithinHigherLevelIntervals) {
   std::unique_ptr<QuantileTree<TypeParam>> quantile_tree =
       typename QuantileTree<TypeParam>::Builder()
+          .SetEpsilon(kTestDefaultEpsilon)
+          .SetDelta(kDefaultDelta)
+          .SetMaxPartitionsContributed(kDefaultMaxPartitionsContributed)
+          .SetMaxContributionsPerPartition(kDefaultMaxContributionsPerPartition)
+          .SetLaplaceMechanism(std::make_unique<LaplaceMechanism::Builder>())
           .SetUpper(50)
           .SetLower(-50)
           .SetTreeHeight(4)
@@ -1175,16 +1137,8 @@ TYPED_TEST(
     quantile_tree->AddEntry(input);
   }
 
-  typename QuantileTree<TypeParam>::DPParams dp_params;
-  dp_params.epsilon = kTestDefaultEpsilon;
-  dp_params.delta = kDefaultDelta;
-  dp_params.max_contributions_per_partition =
-      kDefaultMaxContributionsPerPartition;
-  dp_params.max_partitions_contributed_to = kDefaultMaxPartitionsContributed;
-  dp_params.mechanism_builder = std::make_unique<LaplaceMechanism::Builder>();
-
   typename QuantileTree<TypeParam>::Privatized results =
-      quantile_tree->MakePrivate(dp_params).value();
+      quantile_tree->MakePrivate().value();
 
   // Test that all higher levels' confidence intervals are within lower levels'
   // confidence intervals.
@@ -1211,44 +1165,34 @@ TYPED_TEST(
 TYPED_TEST(
     QuantileTreeTest,
     ConfidenceIntervalWithGaussianNoiseSatisfiesConfidenceLevelWithOneEntry) {
-  typename QuantileTree<TypeParam>::Builder builder =
-      typename QuantileTree<TypeParam>::Builder()
-          .SetUpper(50)
-          .SetLower(-50)
-          .SetTreeHeight(4)
-          .SetBranchingFactor(10);
+  typename QuantileTree<TypeParam>::Builder builder;
+  builder.SetUpper(50).SetLower(-50).SetTreeHeight(4).SetBranchingFactor(10);
 
   std::vector<TypeParam> entries = {0};
 
   this->StatisticallyAssertConfidenceLevel(
-      entries, builder, std::make_unique<GaussianMechanism::Builder>());
+      entries, std::move(builder),
+      std::make_unique<GaussianMechanism::Builder>());
 }
 
 TYPED_TEST(
     QuantileTreeTest,
     ConfidenceIntervalWithLaplaceNoiseSatisfiesConfidenceLevelWithOneEntry) {
-  typename QuantileTree<TypeParam>::Builder builder =
-      typename QuantileTree<TypeParam>::Builder()
-          .SetUpper(50)
-          .SetLower(-50)
-          .SetTreeHeight(4)
-          .SetBranchingFactor(10);
+  typename QuantileTree<TypeParam>::Builder builder;
+  builder.SetUpper(50).SetLower(-50).SetTreeHeight(4).SetBranchingFactor(10);
 
   std::vector<TypeParam> entries = {0};
 
   this->StatisticallyAssertConfidenceLevel(
-      entries, builder, std::make_unique<LaplaceMechanism::Builder>());
+      entries, std::move(builder),
+      std::make_unique<LaplaceMechanism::Builder>());
 }
 
 TYPED_TEST(
     QuantileTreeTest,
     ConfidenceIntervalWithGaussianNoiseSatisfiesConfidenceLevelWithUniformEntries) {
-  typename QuantileTree<TypeParam>::Builder builder =
-      typename QuantileTree<TypeParam>::Builder()
-          .SetUpper(250)
-          .SetLower(-250)
-          .SetTreeHeight(4)
-          .SetBranchingFactor(10);
+  typename QuantileTree<TypeParam>::Builder builder;
+  builder.SetUpper(250).SetLower(-250).SetTreeHeight(4).SetBranchingFactor(10);
 
   std::vector<TypeParam> entries;
   for (int i = -250; i <= 250; ++i) {
@@ -1256,18 +1200,15 @@ TYPED_TEST(
   }
 
   this->StatisticallyAssertConfidenceLevel(
-      entries, builder, std::make_unique<GaussianMechanism::Builder>());
+      entries, std::move(builder),
+      std::make_unique<GaussianMechanism::Builder>());
 }
 
 TYPED_TEST(
     QuantileTreeTest,
     ConfidenceIntervalWithLaplaceNoiseSatisfiesConfidenceLevelWithUniformEntries) {
-  typename QuantileTree<TypeParam>::Builder builder =
-      typename QuantileTree<TypeParam>::Builder()
-          .SetUpper(250)
-          .SetLower(-250)
-          .SetTreeHeight(4)
-          .SetBranchingFactor(10);
+  typename QuantileTree<TypeParam>::Builder builder;
+  builder.SetUpper(250).SetLower(-250).SetTreeHeight(4).SetBranchingFactor(10);
 
   std::vector<TypeParam> entries;
   for (int i = -250; i <= 250; ++i) {
@@ -1275,18 +1216,15 @@ TYPED_TEST(
   }
 
   this->StatisticallyAssertConfidenceLevel(
-      entries, builder, std::make_unique<LaplaceMechanism::Builder>());
+      entries, std::move(builder),
+      std::make_unique<LaplaceMechanism::Builder>());
 }
 
 TYPED_TEST(
     QuantileTreeTest,
     ConfidenceIntervalWithGaussianNoiseSatisfiesConfidenceLevelWithConstantEntries) {
-  typename QuantileTree<TypeParam>::Builder builder =
-      typename QuantileTree<TypeParam>::Builder()
-          .SetUpper(50)
-          .SetLower(-50)
-          .SetTreeHeight(4)
-          .SetBranchingFactor(10);
+  typename QuantileTree<TypeParam>::Builder builder;
+  builder.SetUpper(50).SetLower(-50).SetTreeHeight(4).SetBranchingFactor(10);
 
   std::vector<TypeParam> entries;
   for (int i = 0; i <= 20; ++i) {
@@ -1294,18 +1232,15 @@ TYPED_TEST(
   }
 
   this->StatisticallyAssertConfidenceLevel(
-      entries, builder, std::make_unique<GaussianMechanism::Builder>());
+      entries, std::move(builder),
+      std::make_unique<GaussianMechanism::Builder>());
 }
 
 TYPED_TEST(
     QuantileTreeTest,
     ConfidenceIntervalWithLaplaceNoiseSatisfiesConfidenceLevelWithConstantEntries) {
-  typename QuantileTree<TypeParam>::Builder builder =
-      typename QuantileTree<TypeParam>::Builder()
-          .SetUpper(50)
-          .SetLower(-50)
-          .SetTreeHeight(4)
-          .SetBranchingFactor(10);
+  typename QuantileTree<TypeParam>::Builder builder;
+  builder.SetUpper(50).SetLower(-50).SetTreeHeight(4).SetBranchingFactor(10);
 
   std::vector<TypeParam> entries;
   for (int i = 0; i <= 20; ++i) {
@@ -1313,18 +1248,15 @@ TYPED_TEST(
   }
 
   this->StatisticallyAssertConfidenceLevel(
-      entries, builder, std::make_unique<LaplaceMechanism::Builder>());
+      entries, std::move(builder),
+      std::make_unique<LaplaceMechanism::Builder>());
 }
 
 TYPED_TEST(
     QuantileTreeTest,
     ConfidenceIntervalWithGaussianNoiseSatisfiesConfidenceLevelWithBernoulliEntries) {
-  typename QuantileTree<TypeParam>::Builder builder =
-      typename QuantileTree<TypeParam>::Builder()
-          .SetUpper(50)
-          .SetLower(-50)
-          .SetTreeHeight(4)
-          .SetBranchingFactor(10);
+  typename QuantileTree<TypeParam>::Builder builder;
+  builder.SetUpper(50).SetLower(-50).SetTreeHeight(4).SetBranchingFactor(10);
 
   std::vector<TypeParam> entries;
   for (int i = 0; i <= 100; ++i) {
@@ -1333,18 +1265,15 @@ TYPED_TEST(
   }
 
   this->StatisticallyAssertConfidenceLevel(
-      entries, builder, std::make_unique<GaussianMechanism::Builder>());
+      entries, std::move(builder),
+      std::make_unique<GaussianMechanism::Builder>());
 }
 
 TYPED_TEST(
     QuantileTreeTest,
     ConfidenceIntervalWithLaplaceNoiseSatisfiesConfidenceLevelWithBernoulliEntries) {
-  typename QuantileTree<TypeParam>::Builder builder =
-      typename QuantileTree<TypeParam>::Builder()
-          .SetUpper(50)
-          .SetLower(-50)
-          .SetTreeHeight(4)
-          .SetBranchingFactor(10);
+  typename QuantileTree<TypeParam>::Builder builder;
+  builder.SetUpper(50).SetLower(-50).SetTreeHeight(4).SetBranchingFactor(10);
 
   std::vector<TypeParam> entries;
   for (int i = 0; i <= 100; ++i) {
@@ -1353,12 +1282,14 @@ TYPED_TEST(
   }
 
   this->StatisticallyAssertConfidenceLevel(
-      entries, builder, std::make_unique<LaplaceMechanism::Builder>());
+      entries, std::move(builder),
+      std::make_unique<LaplaceMechanism::Builder>());
 }
 
 TYPED_TEST(QuantileTreeTest, MemoryUsed) {
   std::unique_ptr<QuantileTree<TypeParam>> empty =
       typename QuantileTree<TypeParam>::Builder()
+          .SetEpsilon(kTestDefaultEpsilon)
           .SetUpper(50)
           .SetLower(-50)
           .SetTreeHeight(4)
@@ -1367,6 +1298,7 @@ TYPED_TEST(QuantileTreeTest, MemoryUsed) {
           .value();
   std::unique_ptr<QuantileTree<TypeParam>> once =
       typename QuantileTree<TypeParam>::Builder()
+          .SetEpsilon(kTestDefaultEpsilon)
           .SetUpper(50)
           .SetLower(-50)
           .SetTreeHeight(4)
@@ -1375,6 +1307,7 @@ TYPED_TEST(QuantileTreeTest, MemoryUsed) {
           .value();
   std::unique_ptr<QuantileTree<TypeParam>> twice =
       typename QuantileTree<TypeParam>::Builder()
+          .SetEpsilon(kTestDefaultEpsilon)
           .SetUpper(50)
           .SetLower(-50)
           .SetTreeHeight(4)
