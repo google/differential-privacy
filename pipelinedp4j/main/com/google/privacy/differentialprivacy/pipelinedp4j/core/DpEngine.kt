@@ -279,69 +279,54 @@ internal constructor(
     noiseFactory: (NoiseKind) -> Noise,
     executionMode: ExecutionMode,
   ): CompoundCombiner {
-    val meanInMetrics = params.metrics.any { it.type == MEAN }
-    val varianceInMetrics = params.metrics.any { it.type == VARIANCE }
-    val metricCombiners =
-      params.metrics
-        .mapNotNull { metric ->
-          when (metric.type) {
-            PRIVACY_ID_COUNT -> {
-              if (
-                usePostAggregationPartitionSelection(params, usePublicPartitions, executionMode)
-              ) {
-                PostAggregationPartitionSelectionCombiner(
-                  params,
-                  getBudgetForMetric(metric, params),
-                  getBudgetForPostAggregationPartitionSelection(params.partitionSelectionBudget),
-                  noiseFactory,
-                  executionMode,
-                )
-              } else {
-                PrivacyIdCountCombiner(
+    val metricCombiners = mutableListOf<Combiner<*, *>>()
+
+    // Per-feature metrics
+    for (feature in params.features) {
+      val featureMeanInMetrics = feature.metrics.any { it.type == MEAN }
+      val featureVarianceInMetrics = feature.metrics.any { it.type == VARIANCE }
+      for (metric in feature.metrics) {
+        when (metric.type) {
+          SUM -> {
+            if (!featureMeanInMetrics && !featureVarianceInMetrics) {
+              metricCombiners +=
+                SumCombiner(
                   params,
                   getBudgetForMetric(metric, params),
                   noiseFactory,
                   executionMode,
+                  feature as ScalarFeatureSpec,
                 )
-              }
             }
-            COUNT -> {
-              if (!meanInMetrics && !varianceInMetrics) {
-                CountCombiner(
-                  params,
-                  getBudgetForMetric(metric, params),
-                  noiseFactory,
-                  executionMode,
-                )
-              } else {
-                null
-              }
-            }
-            SUM -> {
-              if (!meanInMetrics && !varianceInMetrics) {
-                SumCombiner(params, getBudgetForMetric(metric, params), noiseFactory, executionMode)
-              } else {
-                null
-              }
-            }
-            VECTOR_SUM -> {
+          }
+          VECTOR_SUM -> {
+            metricCombiners +=
               VectorSumCombiner(
                 params,
                 getBudgetForMetric(metric, params),
                 noiseFactory,
                 executionMode,
+                feature as VectorFeatureSpec,
               )
+          }
+          MEAN -> {
+            if (!featureVarianceInMetrics) {
+              val (countBudget, sumBudget) = calculateCountSumBudgetsForMean(params, feature)
+              metricCombiners +=
+                MeanCombiner(
+                  params,
+                  countBudget,
+                  sumBudget,
+                  noiseFactory,
+                  executionMode,
+                  feature as ScalarFeatureSpec,
+                )
             }
-            MEAN -> {
-              if (!varianceInMetrics) {
-                val (countBudget, sumBudget) = calculateCountSumBudgetsForMean(params)
-                MeanCombiner(params, countBudget, sumBudget, noiseFactory, executionMode)
-              } else {
-                null
-              }
-            }
-            VARIANCE -> {
-              val (countBudget, sumBudget, sumSquaresBudget) = calculateBudgetsForVariance(params)
+          }
+          VARIANCE -> {
+            val (countBudget, sumBudget, sumSquaresBudget) =
+              calculateBudgetsForVariance(params, feature)
+            metricCombiners +=
               VarianceCombiner(
                 params,
                 countBudget,
@@ -349,22 +334,63 @@ internal constructor(
                 sumSquaresBudget,
                 noiseFactory,
                 executionMode,
+                feature as ScalarFeatureSpec,
               )
-            }
-
-            is QUANTILES -> {
+          }
+          is QUANTILES -> {
+            metricCombiners +=
               QuantilesCombiner(
                 (metric.type as QUANTILES).sortedRanks,
                 params,
                 getBudgetForMetric(metric, params),
                 noiseFactory,
                 executionMode,
+                feature as ScalarFeatureSpec,
               )
-            }
+          }
+          PRIVACY_ID_COUNT,
+          COUNT ->
+            throw IllegalStateException("PRIVACY_ID_COUNT and COUNT are not feature metrics.")
+        }
+      }
+    }
+
+    // Non-feature metrics
+    val meanOrVarianceRequested =
+      params.features.any { f -> f.metrics.any { it.type == MEAN || it.type == VARIANCE } }
+    for (metric in params.nonFeatureMetrics) {
+      when (metric.type) {
+        PRIVACY_ID_COUNT -> {
+          if (usePostAggregationPartitionSelection(params, usePublicPartitions, executionMode)) {
+            metricCombiners +=
+              PostAggregationPartitionSelectionCombiner(
+                params,
+                getBudgetForMetric(metric, params),
+                getBudgetForPostAggregationPartitionSelection(params.partitionSelectionBudget),
+                noiseFactory,
+                executionMode,
+              )
+          } else {
+            metricCombiners +=
+              PrivacyIdCountCombiner(
+                params,
+                getBudgetForMetric(metric, params),
+                noiseFactory,
+                executionMode,
+              )
           }
         }
-        .toMutableList()
-    if (!usePublicPartitions && !params.metrics.any { it.type == PRIVACY_ID_COUNT }) {
+        COUNT -> {
+          if (!meanOrVarianceRequested) {
+            metricCombiners +=
+              CountCombiner(params, getBudgetForMetric(metric, params), noiseFactory, executionMode)
+          }
+        }
+        else -> throw IllegalStateException("${metric.type} is not a non-feature metric.")
+      }
+    }
+
+    if (!usePublicPartitions && !params.nonFeatureMetrics.any { it.type == PRIVACY_ID_COUNT }) {
       // For private partitions, we need to compute the privacy ID count, even if PRIVACY_ID_COUNT
       // is not requested in metrics.
       metricCombiners.add(ExactPrivacyIdCountCombiner())
@@ -434,12 +460,16 @@ internal constructor(
   }
 
   private fun calculateCountSumBudgetsForMean(
-    params: AggregationParams
+    params: AggregationParams,
+    feature: FeatureSpec,
   ): Pair<AllocatedBudget, AllocatedBudget> {
-    fun getMetricDefinition(metricType: MetricType) = params.metrics.find { it.type == metricType }
+    fun getMetricDefinitionFromFeature(metricType: MetricType) =
+      feature.metrics.find { it.type == metricType }
+    fun getMetricDefinitionFromNonFeature(metricType: MetricType) =
+      params.nonFeatureMetrics.find { it.type == metricType }
 
     // meanDefinition is not null, because this function is called only when MEAN is in metrics.
-    val meanDefinition = getMetricDefinition(MEAN)!!
+    val meanDefinition = getMetricDefinitionFromFeature(MEAN)!!
 
     // Budget spec for COUNT.
     val countBudgetSpec: BudgetPerOpSpec =
@@ -448,7 +478,8 @@ internal constructor(
         meanDefinition.budgetSpec!!.times(0.5)
       } else {
         // Or COUNT spec or the default budget spec.
-        getMetricDefinition(COUNT)?.budgetSpec ?: RelativeBudgetPerOpSpec(weight = 1.0)
+        getMetricDefinitionFromNonFeature(COUNT)?.budgetSpec
+          ?: RelativeBudgetPerOpSpec(weight = 1.0)
       }
 
     // Budget spec for SUM.
@@ -458,7 +489,7 @@ internal constructor(
         meanDefinition.budgetSpec!!.times(0.5)
       } else {
         // Or SUM spec or the default budget spec.
-        getMetricDefinition(SUM)?.budgetSpec ?: RelativeBudgetPerOpSpec(weight = 1.0)
+        getMetricDefinitionFromFeature(SUM)?.budgetSpec ?: RelativeBudgetPerOpSpec(weight = 1.0)
       }
 
     return budgetAccountant.requestBudget(
@@ -470,10 +501,11 @@ internal constructor(
   }
 
   private fun calculateBudgetsForVariance(
-    params: AggregationParams
+    params: AggregationParams,
+    feature: FeatureSpec,
   ): Triple<AllocatedBudget, AllocatedBudget, AllocatedBudget> {
     // Variance is not null because this function is called only when it is in metrics.
-    val varianceDefinition = params.metrics.find { it.type == VARIANCE }!!
+    val varianceDefinition = feature.metrics.find { it.type == VARIANCE }!!
     // Budget is split equally between COUNT, SUM and SUM_SQUARES.
     val budgetSplit = 1.0 / 3.0
     // If varianceDefinition.budgetSpec is null, the default budget spec is used.
@@ -481,12 +513,13 @@ internal constructor(
     val noiseAccountedMechanism = getNoiseAccountedMechanism(params.noiseKind)
 
     val budgetSpec = varianceDefinition.budgetSpec?.times(budgetSplit) ?: defaultBudgetSpec
-    val budgetRequest = BudgetRequest(budgetSpec, noiseAccountedMechanism)
 
     return Triple(
-      budgetAccountant.requestBudget(budgetRequest), // COUNT
-      budgetAccountant.requestBudget(budgetRequest), // SUM
-      budgetAccountant.requestBudget(budgetRequest), // SUM_SQUARES
+      budgetAccountant.requestBudget(BudgetRequest(budgetSpec, noiseAccountedMechanism)), // COUNT
+      budgetAccountant.requestBudget(BudgetRequest(budgetSpec, noiseAccountedMechanism)), // SUM
+      budgetAccountant.requestBudget(
+        BudgetRequest(budgetSpec, noiseAccountedMechanism)
+      ), // SUM_SQUARES
     )
   }
 
@@ -512,5 +545,5 @@ private fun usePostAggregationPartitionSelection(
   executionMode: ExecutionMode,
 ): Boolean =
   !usePublicPartitions &&
-    params.metrics.any { it.type == PRIVACY_ID_COUNT } &&
+    params.nonFeatureMetrics.any { it.type == PRIVACY_ID_COUNT } &&
     executionMode.partitionSelectionIsNonDeterministic
