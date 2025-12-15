@@ -94,7 +94,7 @@ class QuantileTree {
         std::unique_ptr<NumericalMechanism> mech,
         params.mechanism_builder->SetEpsilon(params.epsilon)
             .SetDelta(params.delta)
-            .SetL0Sensitivity(params.max_partitions_contributed_to *
+            .SetL0Sensitivity(double{params.max_partitions_contributed_to} *
                               tree_.GetHeight())
             .SetLInfSensitivity(params.max_contributions_per_partition)
             .Build());
