@@ -487,7 +487,11 @@ cc_test(
     deps = [
         ":distributions",
         ":numerical-mechanisms",
+        ":rand",
+        ":util",
         "//base/testing:status_matchers",
+        "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_googletest//:gtest_main",
     ],
