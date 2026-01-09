@@ -284,7 +284,7 @@ type encodableCount struct {
 // GobEncode encodes Count.
 func (c *Count) GobEncode() ([]byte, error) {
 	if c.state != defaultState && c.state != serialized {
-		return nil, fmt.Errorf("Count object cannot be serialized: " + c.state.errorMessage())
+		return nil, fmt.Errorf("Count object cannot be serialized: %s", c.state.errorMessage())
 	}
 	enc := encodableCount{
 		Epsilon:         c.epsilon,

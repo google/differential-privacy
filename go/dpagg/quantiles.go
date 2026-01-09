@@ -418,7 +418,7 @@ type encodableBoundedQuantiles struct {
 // GobEncode encodes BoundedQuantiles.
 func (bq *BoundedQuantiles) GobEncode() ([]byte, error) {
 	if bq.state != defaultState && bq.state != serialized {
-		return nil, fmt.Errorf("BoundedQuantiles object cannot be serialized: " + bq.state.errorMessage())
+		return nil, fmt.Errorf("BoundedQuantiles object cannot be serialized: %s", bq.state.errorMessage())
 	}
 	enc := encodableBoundedQuantiles{
 		Epsilon:           bq.epsilon,
