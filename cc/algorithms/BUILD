@@ -430,6 +430,7 @@ cc_library(
     deps = [
         ":rand",
         ":util",
+        "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/memory",
         "@com_google_absl//absl/random",
         "@com_google_absl//absl/status",
