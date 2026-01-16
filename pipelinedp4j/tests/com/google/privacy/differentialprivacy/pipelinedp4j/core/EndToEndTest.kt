@@ -75,13 +75,19 @@ class EndToEndTest {
     // Use low bounds to avoid sensitivity overflow when adding noise.
     val params =
       AggregationParams(
-        metrics =
-          ImmutableList.of(MetricDefinition(COUNT), MetricDefinition(SUM), MetricDefinition(MEAN)),
+        nonFeatureMetrics = ImmutableList.of(MetricDefinition(COUNT)),
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              featureId = "value",
+              metrics = ImmutableList.of(MetricDefinition(SUM), MetricDefinition(MEAN)),
+              minValue = -2.0,
+              maxValue = 2.0,
+            )
+          ),
         noiseKind = LAPLACE,
         maxPartitionsContributed = 1,
         maxContributionsPerPartition = 1,
-        minValue = -2.0,
-        maxValue = 2.0,
       )
 
     val dpAggregates =
@@ -104,12 +110,20 @@ class EndToEndTest {
     // Use low bounds to avoid sensitivity overflow when adding noise.
     val params =
       AggregationParams(
-        metrics = ImmutableList.of(MetricDefinition(COUNT), MetricDefinition(PRIVACY_ID_COUNT)),
+        nonFeatureMetrics =
+          ImmutableList.of(MetricDefinition(COUNT), MetricDefinition(PRIVACY_ID_COUNT)),
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              featureId = "value",
+              metrics = ImmutableList.of(),
+              minValue = -2.0,
+              maxValue = 2.0,
+            )
+          ),
         noiseKind = LAPLACE,
         maxPartitionsContributed = 1,
         maxContributionsPerPartition = 1,
-        minValue = -2.0,
-        maxValue = 2.0,
       )
 
     val dpAggregates =
@@ -146,7 +160,7 @@ class EndToEndTest {
       )
     val params =
       AggregationParams(
-        metrics = ImmutableList.of(MetricDefinition(COUNT)),
+        nonFeatureMetrics = ImmutableList.of(MetricDefinition(COUNT)),
         noiseKind = LAPLACE,
         // Contribution bounding would be applied if it was not disabled.
         maxPartitionsContributed = 1,
@@ -190,7 +204,7 @@ class EndToEndTest {
       )
     val params =
       AggregationParams(
-        metrics = ImmutableList.of(MetricDefinition(COUNT)),
+        nonFeatureMetrics = ImmutableList.of(MetricDefinition(COUNT)),
         noiseKind = LAPLACE,
         maxPartitionsContributed = 2, // Contributions to each of the two partitions are kept.
         maxContributionsPerPartition = 1, // Double contributions per partition are removed.
@@ -218,13 +232,19 @@ class EndToEndTest {
     // Use low bounds to avoid sensitivity overflow when adding noise.
     val params =
       AggregationParams(
-        metrics =
-          ImmutableList.of(MetricDefinition(COUNT), MetricDefinition(SUM), MetricDefinition(MEAN)),
+        nonFeatureMetrics = ImmutableList.of(MetricDefinition(COUNT)),
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              featureId = "value",
+              metrics = ImmutableList.of(MetricDefinition(SUM), MetricDefinition(MEAN)),
+              minValue = -2.0,
+              maxValue = 2.0,
+            )
+          ),
         noiseKind = LAPLACE,
         maxPartitionsContributed = 1,
         maxContributionsPerPartition = 1,
-        minValue = -2.0,
-        maxValue = 2.0,
       )
 
     val dpAggregates =
@@ -247,17 +267,23 @@ class EndToEndTest {
     // Use low bounds to avoid sensitivity overflow when adding noise.
     val params =
       AggregationParams(
-        metrics =
+        nonFeatureMetrics =
           ImmutableList.of(
             MetricDefinition(COUNT, AbsoluteBudgetPerOpSpec(0.1, 1e-5)),
-            MetricDefinition(SUM, AbsoluteBudgetPerOpSpec(0.1, 1e-5)),
             MetricDefinition(PRIVACY_ID_COUNT, AbsoluteBudgetPerOpSpec(0.1, 1e-5)),
+          ),
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              featureId = "value",
+              metrics = ImmutableList.of(MetricDefinition(SUM, AbsoluteBudgetPerOpSpec(0.1, 1e-5))),
+              minTotalValue = -5.0,
+              maxTotalValue = 5.0,
+            )
           ),
         noiseKind = GAUSSIAN,
         maxPartitionsContributed = 5,
         maxContributionsPerPartition = 5,
-        minTotalValue = -5.0,
-        maxTotalValue = 5.0,
       )
 
     val dpAggregates =
