@@ -203,7 +203,7 @@ class PerPartitionContributionsSamplerTest {
   private companion object {
     val aggParams =
       AggregationParams(
-        metrics = ImmutableList.of(MetricDefinition(MEAN)),
+        nonFeatureMetrics = ImmutableList.of(MetricDefinition(MEAN)),
         noiseKind = GAUSSIAN,
         maxPartitionsContributed = 1,
         maxContributionsPerPartition = 2,
