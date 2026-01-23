@@ -31,14 +31,14 @@ local_path_override(
 ###
 # Module dependencies
 
-bazel_dep(name = "abseil-cpp", version = "20250814.1", repo_name = "com_google_absl")
-bazel_dep(name = "boringssl", version = "0.20250701.0")
-bazel_dep(name = "boost.math", version = "1.87.0")
-bazel_dep(name = "protobuf", version = "33.1", repo_name = "com_google_protobuf")
+bazel_dep(name = "abseil-cpp", version = "20260107.0", repo_name = "com_google_absl")
+bazel_dep(name = "boringssl", version = "0.20251124.0")
+bazel_dep(name = "boost.math", version = "1.89.0")
+bazel_dep(name = "protobuf", version = "33.4", repo_name = "com_google_protobuf")
 bazel_dep(name = "rules_foreign_cc", version = "0.15.1")
-bazel_dep(name = "google_benchmark", version = "1.9.4", repo_name = "com_google_benchmark")
+bazel_dep(name = "google_benchmark", version = "1.9.5", repo_name = "com_google_benchmark")
 bazel_dep(name = "googletest", version = "1.17.0", repo_name = "com_google_googletest")
-bazel_dep(name = "rules_cc", version = "0.2.14")
+bazel_dep(name = "rules_cc", version = "0.2.16")
 
 ###
 # HTTP dependencies
@@ -50,9 +50,9 @@ http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "ht
 http_archive(
     name = "kissfft",
     build_file_content = """filegroup(name = "all", srcs = glob(["**"]), visibility = ["//visibility:public"])""",
-    sha256 = "485d9c3049020685c53e444b32ea4807e77d1d79c76a3736854fcd6f0cfba4b3",
-    strip_prefix = "kissfft-9feadb98a9b03604479e94fe9b57afad9c9641d7",
-    urls = ["https://github.com/mborgerding/kissfft/archive/9feadb98a9b03604479e94fe9b57afad9c9641d7.tar.gz"],
+    sha256 = "205a8f6a448ef12b091f8ac6a514b5091bb5f6b0b543431ed75f673116cf5cbf",
+    strip_prefix = "kissfft-131.2.0",
+    urls = ["https://github.com/mborgerding/kissfft/archive/refs/tags/131.2.0.tar.gz"],
 )
 
 http_archive(
