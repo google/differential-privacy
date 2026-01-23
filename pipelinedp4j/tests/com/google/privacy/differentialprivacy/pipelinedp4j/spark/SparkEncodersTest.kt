@@ -81,12 +81,17 @@ class SparkEncodersTest {
     val input =
       listOf(
         compoundAccumulator {
-          sumAccumulator = sumAccumulator { sum = -123.0 }
-          meanAccumulator = meanAccumulator {
+          sumAccumulators += sumAccumulator {
+            featureId = "test_feature"
+            sum = -123.0
+          }
+          meanAccumulators += meanAccumulator {
+            featureId = "test_feature"
             count = 12
             normalizedSum = -1.543
           }
-          quantilesAccumulator = quantilesAccumulator {
+          quantilesAccumulators += quantilesAccumulator {
+            featureId = "test_feature"
             serializedQuantilesSummary =
               ByteString.copyFrom(byteArrayOf(0x48, 0x65, 0x6c, 0x6c, 0x6f))
           }
