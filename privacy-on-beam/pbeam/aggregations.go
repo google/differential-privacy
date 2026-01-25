@@ -98,7 +98,8 @@ func randBool(_, _ beam.V) bool {
 // boundContributions takes a PCollection<K,V> as input, and for each key, selects and returns
 // at most contributionLimit records with this key. The selection is "mostly random":
 // the records returned are selected randomly, but the randomness isn't secure.
-// This is fine to use in the cross-partition bounding stage or in the per-partition bounding stage,
+// This is fine to use in the cross-partition bounding stage, the per-partition bounding stage,
+// or per-privacy identifier contribution bounding stage,
 // since the privacy guarantee doesn't depend on the privacy unit contributions being selected randomly.
 //
 // In order to do the cross-partition contribution bounding we need:
@@ -111,6 +112,13 @@ func randBool(_, _ beam.V) bool {
 //  1. the key to be the pair = {privacy ID, partition ID}.
 //  2. the value to be just the value which is associated with that {privacy ID, partition ID} pair
 //     (there could be multiple entries with the same key).
+//
+// In order to do per-privacy-ID contribution bounding (L1 norm) we need:
+//  1. each record to represent a contribution of 1, such as Count. It cannot be used for aggregations
+//     such as Sum since the function can only bound the number of contributions, not the value of the
+//     contributions.
+//  2. the key should be the privacy ID.
+//  3. the value should be the partition ID.
 func boundContributions(s beam.Scope, kvCol beam.PCollection, contributionLimit int64) beam.PCollection {
 	s = s.Scope("boundContributions")
 	// Transform the PCollection<K,V> into a PCollection<K,[]V>, where
@@ -299,6 +307,7 @@ type boundedSumInt64Fn struct {
 	MaxPartitionsContributed  int64
 	Lower                     int64
 	Upper                     int64
+	MaxContributions          int64
 	NoiseKind                 noise.Kind
 	noise                     noise.Noise // Set during Setup phase according to NoiseKind.
 	PublicPartitions          bool
@@ -319,6 +328,7 @@ func newBoundedSumInt64Fn(spec PrivacySpec, params SumParams, noiseKind noise.Ki
 		MaxPartitionsContributed:  params.MaxPartitionsContributed,
 		Lower:                     int64(params.MinValue),
 		Upper:                     int64(params.MaxValue),
+		MaxContributions:          params.maxContributions,
 		NoiseKind:                 noiseKind,
 		PublicPartitions:          publicPartitions,
 		TestMode:                  spec.testMode,
@@ -345,6 +355,7 @@ func (fn *boundedSumInt64Fn) CreateAccumulator() (boundedSumAccumInt64, error) {
 		MaxPartitionsContributed: fn.MaxPartitionsContributed,
 		Lower:                    fn.Lower,
 		Upper:                    fn.Upper,
+		MaxContributions:         fn.MaxContributions,
 		Noise:                    fn.noise,
 	})
 	if err != nil {
@@ -357,6 +368,7 @@ func (fn *boundedSumInt64Fn) CreateAccumulator() (boundedSumAccumInt64, error) {
 			Delta:                    fn.PartitionSelectionDelta,
 			PreThreshold:             fn.PreThreshold,
 			MaxPartitionsContributed: fn.MaxPartitionsContributed,
+			MaxContributions:         fn.MaxContributions,
 		})
 	}
 	return accum, err
