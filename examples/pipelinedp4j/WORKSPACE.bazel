@@ -102,7 +102,7 @@ maven_install(
         "com.fasterxml.jackson.module:jackson-module-scala_%s:%s" % (SCALA_TAG, JACKSON_TAG),
         "org.scala-lang:scala-library:%s" % SCALA_LIBRARY_TAG,
         "info.picocli:picocli:4.7.6",
-        # For Apache Spark Runner testing locally
+        # For Apache Spark Runner running locally
         "org.apache.spark:spark-streaming_%s:%s" % (2.12, SPARK_TAG),
     ],
     repositories = [
