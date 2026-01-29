@@ -18,20 +18,25 @@
 
 #include <cmath>
 #include <cstdint>
-#include <cstdlib>
+#include <limits>
 #include <memory>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include "base/testing/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/memory/memory.h"
+#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "algorithms/distributions.h"
+#include "algorithms/rand.h"
+#include "algorithms/util.h"
 
 namespace differential_privacy {
 namespace {
 
-using ::testing::_;
 using ::testing::Contains;
 using ::testing::DoubleNear;
 using ::testing::Eq;
@@ -69,7 +74,7 @@ TYPED_TEST(NumericalMechanismsTest, LaplaceBuilder) {
 
   EXPECT_DOUBLE_EQ((*test_mechanism)->GetEpsilon(), 1);
   EXPECT_DOUBLE_EQ(
-      dynamic_cast<LaplaceMechanism *>(test_mechanism->get())->GetSensitivity(),
+      dynamic_cast<LaplaceMechanism*>(test_mechanism->get())->GetSensitivity(),
       3);
 }
 
@@ -607,7 +612,7 @@ TYPED_TEST(NumericalMechanismsTest, LaplaceBuilderClone) {
 
   EXPECT_DOUBLE_EQ((*test_mechanism)->GetEpsilon(), 1);
   EXPECT_DOUBLE_EQ(
-      dynamic_cast<LaplaceMechanism *>(test_mechanism->get())->GetSensitivity(),
+      dynamic_cast<LaplaceMechanism*>(test_mechanism->get())->GetSensitivity(),
       3);
 }
 
@@ -681,7 +686,7 @@ TEST(NumericalMechanismsTest, LaplaceEstimatesL1WithL0AndLInf) {
       builder.SetEpsilon(1).SetL0Sensitivity(5).SetLInfSensitivity(3).Build();
   ASSERT_OK(mechanism);
   EXPECT_THAT(
-      dynamic_cast<LaplaceMechanism *>(mechanism->get())->GetSensitivity(),
+      dynamic_cast<LaplaceMechanism*>(mechanism->get())->GetSensitivity(),
       Ge(3));
 }
 
@@ -904,7 +909,7 @@ TEST(NumericalMechanismsTest, GaussianMechanismAddsNoiseForLowDelta) {
                             .SetEpsilon(1.0)
                             .Build();
   ASSERT_TRUE(test_mechanism.ok());
-  EXPECT_NEAR(dynamic_cast<GaussianMechanism *>(test_mechanism->get())
+  EXPECT_NEAR(dynamic_cast<GaussianMechanism*>(test_mechanism->get())
                   ->CalculateStddev(1, 6.486452831e-47, 1),
               14.0, 0.0001);
 }
@@ -1060,9 +1065,9 @@ TEST(NumericalMechanismsTest, GaussianBuilderClone) {
 
   EXPECT_DOUBLE_EQ((*mechanism)->GetEpsilon(), 1.1);
   EXPECT_DOUBLE_EQ(
-      dynamic_cast<GaussianMechanism *>(mechanism->get())->GetDelta(), 0.5);
+      dynamic_cast<GaussianMechanism*>(mechanism->get())->GetDelta(), 0.5);
   EXPECT_DOUBLE_EQ(
-      dynamic_cast<GaussianMechanism *>(mechanism->get())->GetL2Sensitivity(),
+      dynamic_cast<GaussianMechanism*>(mechanism->get())->GetL2Sensitivity(),
       1.2);
 }
 
@@ -1072,7 +1077,7 @@ TEST(NumericalMechanismsTest, Stddev) {
                        .SetEpsilon(std::log(3))
                        .SetDelta(0.00001)
                        .Build();
-  auto gaussian = dynamic_cast<GaussianMechanism *>(mechanism.value().get());
+  auto gaussian = dynamic_cast<GaussianMechanism*>(mechanism.value().get());
   EXPECT_DOUBLE_EQ(gaussian->CalculateStddev(), 3.42578125);
   // Call CalculateStddev with parameters differing from the attributes.
   EXPECT_DOUBLE_EQ(gaussian->CalculateStddev(std::log(4), 0.00002, 3.0),
@@ -1118,8 +1123,8 @@ TEST(NumericalMechanismsTest, LaplaceMechanismSerialization) {
           .SetLInfSensitivity(linf)
           .Build();
   ASSERT_OK(test_mechanism);
-  auto *laplace_mechanism =
-      dynamic_cast<LaplaceMechanism *>(test_mechanism->get());
+  auto* laplace_mechanism =
+      dynamic_cast<LaplaceMechanism*>(test_mechanism->get());
 
   serialization::LaplaceMechanism serialized_data =
       laplace_mechanism->Serialize();
@@ -1131,7 +1136,7 @@ TEST(NumericalMechanismsTest, LaplaceMechanismSerialization) {
   EXPECT_EQ((*deserialized)->GetEpsilon(), epsilon);
   EXPECT_EQ(
       laplace_mechanism->GetSensitivity(),
-      dynamic_cast<LaplaceMechanism *>(deserialized->get())->GetSensitivity());
+      dynamic_cast<LaplaceMechanism*>(deserialized->get())->GetSensitivity());
 }
 
 TEST(NumericalMechanismsTest, GaussianMechanismSerialization) {
@@ -1147,8 +1152,8 @@ TEST(NumericalMechanismsTest, GaussianMechanismSerialization) {
           .SetLInfSensitivity(linf)
           .Build();
   ASSERT_OK(test_mechanism);
-  auto *gaussian_mechanism =
-      dynamic_cast<GaussianMechanism *>(test_mechanism->get());
+  auto* gaussian_mechanism =
+      dynamic_cast<GaussianMechanism*>(test_mechanism->get());
 
   serialization::GaussianMechanism serialized_data =
       gaussian_mechanism->Serialize();
@@ -1158,8 +1163,8 @@ TEST(NumericalMechanismsTest, GaussianMechanismSerialization) {
   ASSERT_OK(deserialized);
 
   EXPECT_EQ((*deserialized)->GetEpsilon(), epsilon);
-  auto *deserialized_gaussian =
-      dynamic_cast<GaussianMechanism *>(deserialized->get());
+  auto* deserialized_gaussian =
+      dynamic_cast<GaussianMechanism*>(deserialized->get());
   EXPECT_EQ(deserialized_gaussian->GetDelta(), delta);
   EXPECT_EQ(deserialized_gaussian->GetL2Sensitivity(),
             gaussian_mechanism->GetL2Sensitivity());
@@ -1177,12 +1182,12 @@ TEST(NumericalMechanismTest,
   ASSERT_OK(must_be_laplace);
 
   // dynamic_cast will return null when it cannot cast to the specified type.
-  LaplaceMechanism *laplace =
-      dynamic_cast<LaplaceMechanism *>(must_be_laplace->get());
+  LaplaceMechanism* laplace =
+      dynamic_cast<LaplaceMechanism*>(must_be_laplace->get());
   EXPECT_THAT(laplace, Not(IsNull()));
 
-  GaussianMechanism *will_be_null =
-      dynamic_cast<GaussianMechanism *>(must_be_laplace->get());
+  GaussianMechanism* will_be_null =
+      dynamic_cast<GaussianMechanism*>(must_be_laplace->get());
   EXPECT_THAT(will_be_null, IsNull());
 }
 
@@ -1198,12 +1203,12 @@ TEST(NumericalMechanismTest,
   ASSERT_OK(must_be_gaussian);
 
   // dynamic_cast will return null when it cannot cast to the specified type.
-  GaussianMechanism *gaussian =
-      dynamic_cast<GaussianMechanism *>(must_be_gaussian->get());
+  GaussianMechanism* gaussian =
+      dynamic_cast<GaussianMechanism*>(must_be_gaussian->get());
   EXPECT_THAT(gaussian, Not(IsNull()));
 
-  LaplaceMechanism *will_be_null =
-      dynamic_cast<LaplaceMechanism *>(must_be_gaussian->get());
+  LaplaceMechanism* will_be_null =
+      dynamic_cast<LaplaceMechanism*>(must_be_gaussian->get());
   EXPECT_THAT(will_be_null, IsNull());
 }
 
@@ -1218,12 +1223,12 @@ TEST(NumericalMechanismTest,
   ASSERT_OK(must_be_laplace);
 
   // dynamic_cast will return null when it cannot cast to the specified type.
-  LaplaceMechanism *laplace =
-      dynamic_cast<LaplaceMechanism *>(must_be_laplace->get());
+  LaplaceMechanism* laplace =
+      dynamic_cast<LaplaceMechanism*>(must_be_laplace->get());
   EXPECT_THAT(laplace, Not(IsNull()));
 
-  GaussianMechanism *will_be_null =
-      dynamic_cast<GaussianMechanism *>(must_be_laplace->get());
+  GaussianMechanism* will_be_null =
+      dynamic_cast<GaussianMechanism*>(must_be_laplace->get());
   EXPECT_THAT(will_be_null, IsNull());
 }
 

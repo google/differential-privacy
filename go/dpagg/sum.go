@@ -242,7 +242,7 @@ func checkMergeBoundedSumInt64(bs1, bs2 *BoundedSumInt64) error {
 // processing introduces bias to the result.
 func (bs *BoundedSumInt64) Result() (int64, error) {
 	if bs.state != defaultState {
-		return 0, fmt.Errorf("BoundedSumInt64's noised result cannot be computed: " + bs.state.errorMessage())
+		return 0, fmt.Errorf("BoundedSumInt64's noised result cannot be computed: %s", bs.state.errorMessage())
 	}
 	bs.state = resultReturned
 	var err error
@@ -317,7 +317,7 @@ type encodableBoundedSumInt64 struct {
 // GobEncode encodes BoundedSumInt64.
 func (bs *BoundedSumInt64) GobEncode() ([]byte, error) {
 	if bs.state != defaultState && bs.state != serialized {
-		return nil, fmt.Errorf("BoundedSumInt64 object cannot be serialized: " + bs.state.errorMessage())
+		return nil, fmt.Errorf("BoundedSumInt64 object cannot be serialized: %s", bs.state.errorMessage())
 	}
 	enc := encodableBoundedSumInt64{
 		Epsilon:         bs.epsilon,
@@ -565,7 +565,7 @@ func checkMergeBoundedSumFloat64(bs1, bs2 *BoundedSumFloat64) error {
 // processing introduces bias to the result.
 func (bs *BoundedSumFloat64) Result() (float64, error) {
 	if bs.state != defaultState {
-		return 0, fmt.Errorf("BoundedSumFloat64's noised result cannot be computed: " + bs.state.errorMessage())
+		return 0, fmt.Errorf("BoundedSumFloat64's noised result cannot be computed: %s", bs.state.errorMessage())
 	}
 	bs.state = resultReturned
 	var err error
@@ -634,7 +634,7 @@ type encodableBoundedSumFloat64 struct {
 // GobEncode encodes BoundedSumInt64.
 func (bs *BoundedSumFloat64) GobEncode() ([]byte, error) {
 	if bs.state != defaultState && bs.state != serialized {
-		return nil, fmt.Errorf("BoundedSumFloat64 object cannot be serialized: " + bs.state.errorMessage())
+		return nil, fmt.Errorf("BoundedSumFloat64 object cannot be serialized: %s", bs.state.errorMessage())
 	}
 	enc := encodableBoundedSumFloat64{
 		Epsilon:         bs.epsilon,

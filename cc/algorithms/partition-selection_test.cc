@@ -17,8 +17,11 @@
 #include "algorithms/partition-selection.h"
 
 #include <cmath>
-#include <cstdlib>
+#include <cstdint>
+#include <limits>
+#include <memory>
 #include <optional>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -26,7 +29,9 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/memory/memory.h"
+#include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "algorithms/numerical-mechanisms.h"
 #include "algorithms/partition-selection-testing.h"

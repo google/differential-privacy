@@ -58,6 +58,8 @@ sh_binary(
             "+differential_privacy_thresholding",
             "+differential_privacy_public_groups",
             "+differential_privacy_min_privacy_units_per_group",
+            "+differential_privacy_nested",
+            "+differential_privacy_per_aggregation_budget",
         ]),
         "--table_spec='" + ",".join([
             "day_data=csv:data/day_data.csv",
