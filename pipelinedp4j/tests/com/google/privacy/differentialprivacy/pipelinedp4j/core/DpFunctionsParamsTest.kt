@@ -82,6 +82,54 @@ class DpFunctionsParamsTest {
       usePublicPartitions = false,
       hasValueExtractor = true,
     )
+    validateAggregationParams(
+      AGGREGATION_PARAMS.copy(
+        maxContributionsPerPartition = null,
+        metrics = ImmutableList.of(MetricDefinition(VECTOR_SUM)),
+        noiseKind = NoiseKind.AUTO,
+        minValue = null,
+        maxValue = null,
+        minTotalValue = null,
+        maxTotalValue = null,
+        vectorSize = 2,
+        vectorMaxTotalNorm = 1.0,
+        vectorNormKind = NormKind.L1,
+      ),
+      usePublicPartitions = false,
+      hasValueExtractor = true,
+    )
+    validateAggregationParams(
+      AGGREGATION_PARAMS.copy(
+        maxContributionsPerPartition = null,
+        metrics = ImmutableList.of(MetricDefinition(VECTOR_SUM)),
+        noiseKind = NoiseKind.AUTO,
+        minValue = null,
+        maxValue = null,
+        minTotalValue = null,
+        maxTotalValue = null,
+        vectorSize = 2,
+        vectorMaxTotalNorm = 1.0,
+        vectorNormKind = NormKind.L2,
+      ),
+      usePublicPartitions = false,
+      hasValueExtractor = true,
+    )
+    validateAggregationParams(
+      AGGREGATION_PARAMS.copy(
+        maxContributionsPerPartition = null,
+        metrics = ImmutableList.of(MetricDefinition(VECTOR_SUM)),
+        noiseKind = NoiseKind.AUTO,
+        minValue = null,
+        maxValue = null,
+        minTotalValue = null,
+        maxTotalValue = null,
+        vectorSize = 2,
+        vectorMaxTotalNorm = 1.0,
+        vectorNormKind = NormKind.L_INF,
+      ),
+      usePublicPartitions = false,
+      hasValueExtractor = true,
+    )
   }
 
   enum class InvalidAggregationParamsTestCase(
@@ -465,6 +513,17 @@ class DpFunctionsParamsTest {
         ),
       exceptionMessage = "vectorNormKind must be set for VECTOR_SUM metric.",
     ),
+    NORM_KIND_NOT_SET_FOR_VECTOR_SUM_WITH_AUTO_NOISE(
+      aggregationParams =
+        AGGREGATION_PARAMS.copy(
+          metrics = ImmutableList.of(MetricDefinition(VECTOR_SUM)),
+          noiseKind = NoiseKind.AUTO,
+          vectorNormKind = null,
+          vectorMaxTotalNorm = 2.3,
+          vectorSize = 2,
+        ),
+      exceptionMessage = "vectorNormKind must be set for VECTOR_SUM metric.",
+    ),
     L2_NORM_KIND_WHEN_LAPLACE_NOISE_IS_USED(
       aggregationParams =
         AGGREGATION_PARAMS.copy(
@@ -521,6 +580,20 @@ class DpFunctionsParamsTest {
           vectorNormKind = NormKind.L_INF,
           vectorMaxTotalNorm = 1.0,
           vectorSize = 3,
+        ),
+      exceptionMessage =
+        "VECTOR_SUM can not be computed together with scalar metrics such as SUM, MEAN, VARIANCE and QUANTILES.",
+    ),
+    VECTOR_SUM_IS_REQUESTED_TOGETHER_WITH_SCALAR_METRICS_WITH_AUTO_NOISE(
+      aggregationParams =
+        AGGREGATION_PARAMS.copy(
+          metrics = ImmutableList.of(MetricDefinition(VECTOR_SUM), MetricDefinition(SUM)),
+          noiseKind = NoiseKind.AUTO,
+          vectorNormKind = NormKind.L_INF,
+          vectorMaxTotalNorm = 1.0,
+          vectorSize = 3,
+          minTotalValue = 0.0,
+          maxTotalValue = 1.0,
         ),
       exceptionMessage =
         "VECTOR_SUM can not be computed together with scalar metrics such as SUM, MEAN, VARIANCE and QUANTILES.",
