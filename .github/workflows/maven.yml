@@ -49,6 +49,6 @@ jobs:
       - name: Build Beam with Spark Runner
         working-directory: examples/pipelinedp4j/beam
         run: mvn package -Pspark-runner,spark-runner-embedeed
-      - name: Run Spark Runner Example
+      - name: Run Beam Example with Spark Runner
         working-directory: examples/pipelinedp4j/beam
-        run: java --add-opens=java.base/sun.nio.ch=ALL-UNNAMED -jar target/beam-1.0-SNAPSHOT-shaded.jar --runner=SparkRunner --sparkMaster="local[*]"  --inputFilePath=$(pwd)/../input.csv --outputFilePath=output-spark.txt
+        run: java --add-opens=java.base/sun.nio.ch=ALL-UNNAMED -jar target/beam-1.0-SNAPSHOT-shaded.jar --runner=SparkRunner --sparkMaster="local[*]"  --inputFilePath=../input.csv --outputFilePath=output-spark.txt

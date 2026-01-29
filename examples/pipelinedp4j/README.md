@@ -160,11 +160,11 @@ result is stored in a file whose name starts with `part-00000`: `cat
 output/part-00000<...>`
 
 
-### Running with [Sparkrunner](https://beam.apache.org/documentation/runners/spark/) ( Beam )
+#### Running with [Sparkrunner](https://beam.apache.org/documentation/runners/spark/) (Beam )
 
 You can execute PipelineDP4j Beam examples using the Spark Runner. This allows your Beam pipeline to run on a Spark cluster or a locally simulated Spark environment.
 
-# Build and submit to a Spark Cluster
+##### Build and submit to a Spark Cluster
  
 To run the Beam example with SparkRunner, you need to use the `spark-runner` profile and add the `--runner=SparkRunner` parameter.
 
@@ -189,7 +189,7 @@ spark-submit \
 
 View the results with `cat output-spark-runner.txt`.
 
-# Build and execute locallcy
+# Build and execute locally
 
 You can also run PipelineDP4j with the Spark Runner locally.
 When running locally, the dependencies usually provided by the Spark Cluster are missing. Therefore, you must use the `spark-runner-embedeed` profile in addition to `spark-runner` to bundle the necessary Spark dependencies into your JAR.
