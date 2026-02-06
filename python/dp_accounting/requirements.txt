@@ -1,7 +1,7 @@
-# The version of these dependencies need to be compatible with the versios of
+# The version of these dependencies need to be compatible with the versions of
 # the dependenices from `../learning/requirements.txt`.
 
-absl-py~=1.0
+absl-py>=1.0,<3
 attrs>=22,<24
 dm-tree~=0.1.8
 mpmath~=1.2
