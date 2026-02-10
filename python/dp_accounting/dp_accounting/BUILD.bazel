@@ -49,6 +49,7 @@ py_library(
         ":dp_event",
         ":privacy_accountant",
         "@accounting_py_pip_deps//attrs",
+        "@accounting_py_pip_deps//numpy",
         "@accounting_py_pip_deps//scipy",
     ],
 )

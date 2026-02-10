@@ -11,8 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests for mechanism_calibration."""
-
 from absl.testing import absltest
 from absl.testing import parameterized
 import attr
@@ -132,13 +130,29 @@ class MechanismCalibrationTest(parameterized.TestCase):
       ('neg_x', lambda x: -x, -1, -0.5),
       ('exp_minus_2', lambda x: np.exp(x) - 2, 0, 0.1),
       ('1_minus_sqrt_x', lambda x: 1 - np.sqrt(x), 0, 0.1),
-      ('log_minus_20', lambda x: np.log(x) - 20, 1, 2),
+      ('log_minus_20', lambda x: np.log(x) - 20, 0, 1),
+      ('log_plus_20', lambda x: np.log(x) + 20, 0, 1)
   )
   def test_search_for_explicit_bracket_interval(
       self, epsilon_gap, lower, guess
   ):
     interval = mechanism_calibration._search_for_explicit_bracket_interval(
         mechanism_calibration.LowerEndpointAndGuess(lower, guess),
+        epsilon_gap,
+    )
+    lower_value = epsilon_gap(interval.endpoint_1)
+    upper_value = epsilon_gap(interval.endpoint_2)
+    self.assertLessEqual(lower_value * upper_value, 0)
+
+  @parameterized.named_parameters(
+      ('bad_on_right', lambda x: np.log((1.5 - x) / 1.4)),  #  zero at 0.1.
+      ('bad_on_left', lambda x: 1 / (x - 0.5) - 1 / 20),  # zero at 20.5.
+  )
+  def test_search_for_explicit_bracket_interval_bad_on_one_side(
+      self, epsilon_gap
+  ):
+    interval = mechanism_calibration._search_for_explicit_bracket_interval(
+        mechanism_calibration.LowerEndpointAndGuess(0, 1),
         epsilon_gap,
     )
     lower_value = epsilon_gap(interval.endpoint_1)
