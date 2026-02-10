@@ -159,32 +159,6 @@ For Spark the output is written to a folder and the
 result is stored in a file whose name starts with `part-00000`: `cat
 output/part-00000<...>`
 
-#### Running with FlinkRunner (Beam)
-
-To run the Beam example with FlinkRunner, you need to use the `flink-runner` profile and add the `--runner=FlinkRunner` and `--reIterableGroupByKeyResult` parameters.
-
-The `--reIterableGroupByKeyResult` parameter is required because FlinkRunner's GroupByKey operation produces results that can only be iterated once by default. Since PipelineDP4j needs to iterate over grouped results multiple times for differential privacy computations, this flag enables re-iterable results.
-
-First, build the package with the `flink-runner` profile:
-
-```shell
-mvn clean package -Pflink-runner
-```
-
-Then run with Flink CLI:
-
-```shell
-$FLINK_HOME/bin/flink run \
-  -c com.google.privacy.differentialprivacy.pipelinedp4j.examples.BeamExample \
-  target/beam-1.0-SNAPSHOT.jar \
-  --runner=FlinkRunner \
-  --inputFilePath=<absolute_path_to>/netflix_data.csv \
-  --outputFilePath=output.txt \
-  --reIterableGroupByKeyResult
-```
-
-View the results with `cat output.txt`.
-
 ### Running on Google Cloud Platform
 
 This section explains the examples on Google Cloud Platform (GCP).

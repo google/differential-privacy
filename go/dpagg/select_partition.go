@@ -418,7 +418,7 @@ type encodablePreAggSelectPartition struct {
 // GobEncode encodes PreAggSelectPartition.
 func (s *PreAggSelectPartition) GobEncode() ([]byte, error) {
 	if s.state != defaultState && s.state != serialized {
-		return nil, fmt.Errorf("PreAggSelectPartition object cannot be serialized: " + s.state.errorMessage())
+		return nil, fmt.Errorf("PreAggSelectPartition object cannot be serialized: %s", s.state.errorMessage())
 	}
 	enc := encodablePreAggSelectPartition{
 		Epsilon:       s.epsilon,

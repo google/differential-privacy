@@ -15,21 +15,21 @@
 #
 
 bazel_dep(name = "platforms", version = "1.0.0")
-bazel_dep(name = "bazel_skylib", version = "1.8.1")
+bazel_dep(name = "bazel_skylib", version = "1.9.0")
 
 http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
 
 http_file(
     name = "zetasql_execute_query_linux",
     executable = True,
-    sha256 = "b01732643efa224630334ccf05df36e3ef95443c9e3e1691e810fa2522bcdca0",
-    urls = ["https://github.com/google/zetasql/releases/download/2025.06.1/execute_query_linux"],
+    sha256 = "dd9d121b000b58d31550dbd1091e109e589fa8272a9221867203d8307faef570",
+    urls = ["https://github.com/google/zetasql/releases/download/2025.12.1/execute_query_linux"],
 )
 
 # The Mac OS version only works for x86_64 (not arm64) in the current version.
 http_file(
     name = "zetasql_execute_query_macos",
     executable = True,
-    sha256 = "6565f5674a92c38024c6247317b33564fbf749434498bf9687f6ee5b00f2485e",
-    urls = ["https://github.com/google/zetasql/releases/download/2025.06.1/execute_query_macos"],
+    sha256 = "0a9a60198c2be089a8aa00b21c8ed8742095fea47f1dbfbd9b6a2097e1742799",
+    urls = ["https://github.com/google/zetasql/releases/download/2025.12.1/execute_query_macos"],
 )

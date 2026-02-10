@@ -103,7 +103,7 @@ func (bstdv *BoundedStandardDeviation) Add(e float64) error {
 // deviation.
 func (bstdv *BoundedStandardDeviation) Result() (float64, error) {
 	if bstdv.state != defaultState {
-		return 0, fmt.Errorf("BoundedStandardDeviation's noised result cannot be computed: " + bstdv.state.errorMessage())
+		return 0, fmt.Errorf("BoundedStandardDeviation's noised result cannot be computed: %s", bstdv.state.errorMessage())
 	}
 	bstdv.state = resultReturned
 	variance, err := bstdv.Variance.Result()
@@ -143,7 +143,7 @@ func checkMergeBoundedStandardDeviation(bstdv1, bstdv2 *BoundedStandardDeviation
 // GobEncode encodes BoundedStandardDeviation.
 func (bstdv *BoundedStandardDeviation) GobEncode() ([]byte, error) {
 	if bstdv.state != defaultState && bstdv.state != serialized {
-		return nil, fmt.Errorf("StandardDeviation object cannot be serialized: " + bstdv.state.errorMessage())
+		return nil, fmt.Errorf("StandardDeviation object cannot be serialized: %s", bstdv.state.errorMessage())
 	}
 	enc := encodableBoundedStandardDeviation{
 		EncodableVariance: &bstdv.Variance,
