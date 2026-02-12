@@ -43,6 +43,7 @@ py_library(
     name = "pld_privacy_accountant",
     srcs = ["pld_privacy_accountant.py"],
     deps = [
+        ":common",
         ":privacy_loss_distribution",
         "//dp_accounting:dp_event",
         "//dp_accounting:privacy_accountant",
