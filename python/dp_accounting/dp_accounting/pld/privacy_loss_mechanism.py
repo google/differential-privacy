@@ -2258,7 +2258,7 @@ class MixtureGaussianPrivacyLoss(MonotonePrivacyLoss):
     # Clip delta values to lie in [0,1] (to avoid numerical errors)
     deltas = np.clip(deltas, 0, 1)
     if isinstance(epsilon, numbers.Number):
-      return float(deltas)
+      return float(deltas[0])
     else:
       # For numerical stability reasons, deltas may not be non-increasing. This
       # is fixed post-hoc at small cost in accuracy.
@@ -2312,6 +2312,10 @@ class MixtureGaussianPrivacyLoss(MonotonePrivacyLoss):
           ),
           increasing=True,
       )
+      # If the above fails, perhaps due to stability issues, we can fall back to
+      # a conservative value.
+      if lower_x_truncation is None:
+        lower_x_truncation = z_value - self._max_sens
     else:
       raise ValueError(
           f'{self.adjacency_type} adjacency type is not supported.')
