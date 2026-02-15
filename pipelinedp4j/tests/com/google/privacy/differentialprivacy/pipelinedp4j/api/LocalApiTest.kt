@@ -1113,6 +1113,78 @@ class LocalApiTest {
   }
 
   @Test
+  fun run_recordLevelBounding_sumOnly_calculatesStatisticsCorrectly() {
+    val data =
+      createInputData(
+        listOf(
+          TestDataRow("group1", "pid1", 1.0),
+          TestDataRow("group1", "pid1", 3.0),
+          TestDataRow("group1", "pid2", 4.0),
+        )
+      )
+    val publicGroups = createPublicGroups(listOf("group1"))
+    val query =
+      LocalQueryBuilder.from(data, { it.privacyUnit }, ContributionBoundingLevel.RECORD_LEVEL())
+        .groupBy({ it.groupKey }, GroupsType.PublicGroups.create(publicGroups))
+        .aggregateValue(
+          { it.value },
+          ValueAggregationsBuilder().sum("sumResult"),
+          ContributionBounds(totalValueBounds = Bounds(minValue = 0.0, maxValue = 3.0)),
+        )
+        .build(TotalBudget(epsilon = 1000.0), NoiseKind.LAPLACE)
+
+    val result: Sequence<QueryPerGroupResult<String>> = query.run()
+
+    val expected =
+      listOf(
+        QueryPerGroupResultWithTolerance(
+          "group1",
+          mapOf("sumResult" to DoubleWithTolerance(value = 7.0, tolerance = 0.5)),
+          vectorAggregationResults = mapOf(),
+        )
+      )
+    assertEquals(result, expected)
+  }
+
+  @Test
+  fun run_recordLevelBounding_meanAndVariance_calculatesStatisticsCorrectly() {
+    val data =
+      createInputData(
+        listOf(
+          TestDataRow("group1", "pid1", 1.0),
+          TestDataRow("group1", "pid1", 3.0),
+          TestDataRow("group1", "pid2", 7.0),
+        )
+      )
+    val publicGroups = createPublicGroups(listOf("group1"))
+    val query =
+      LocalQueryBuilder.from(data, { it.privacyUnit }, ContributionBoundingLevel.RECORD_LEVEL())
+        .groupBy({ it.groupKey }, GroupsType.PublicGroups.create(publicGroups))
+        .aggregateValue(
+          { it.value },
+          ValueAggregationsBuilder().mean("meanResult").variance("varianceResult"),
+          ContributionBounds(valueBounds = Bounds(minValue = 0.0, maxValue = 3.0)),
+        )
+        .build(TotalBudget(epsilon = 1000.0), NoiseKind.LAPLACE)
+
+    val result: Sequence<QueryPerGroupResult<String>> = query.run()
+
+    val expected =
+      listOf(
+        QueryPerGroupResultWithTolerance(
+          "group1",
+          mapOf(
+            "meanResult" to DoubleWithTolerance(value = 2.33, tolerance = 0.5),
+            // (1^2+3^2+3^2)/3-((1.0+3.0+3.0)/3)^2 = 0.88
+            "varianceResult" to DoubleWithTolerance(value = 0.88, tolerance = 0.5),
+          ),
+          vectorAggregationResults = mapOf(),
+        )
+      )
+    assertEquals(result, expected)
+  }
+
+  @Test
   fun run_sumAndQuantiles_bothBoundTypesAreUsed_calculatesStatisticsCorrectly() {
     val data =
       createInputData(
