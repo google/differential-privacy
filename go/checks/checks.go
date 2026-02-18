@@ -254,6 +254,57 @@ func CheckMaxContributionsPerPartition(maxContributionsPerPartition int64) error
 	return nil
 }
 
+// CheckContributionBoundingOptions returns an error unless exactly one of MaxContributions and MaxPartitionsContributed is set.
+func CheckContributionBoundingOptions(maxContributions, maxPartitionsContributed int64) error {
+	if maxContributions > 0 && maxPartitionsContributed > 0 {
+		return fmt.Errorf("MaxContributions and MaxPartitionsContributed are both set, exactly one should be set.")
+	}
+	if maxContributions <= 0 && maxPartitionsContributed <= 0 {
+		return fmt.Errorf("MaxContributions and MaxPartitionsContributed are both unset, exactly one should be set.")
+	}
+	return nil
+}
+
+// CheckContributionBoundingWithMaxValue checks that either MaxContributions or {MaxValue, MaxPartitionsContributed} is set, but not both.
+// If MaxContributions is set, {MaxValue, MaxPartitionsContributed} must be 0.
+// If {MaxValue, MaxPartitionsContributed} are set, MaxContributions must be 0.
+func CheckContributionBoundingOptionsWithMaxValue(maxContributions, maxPartitionsContributed, maxValue int64) error {
+	if maxContributions < 0 {
+		return fmt.Errorf("MaxContributions must be non-negative, was %d instead", maxContributions)
+	}
+	if maxValue < 0 {
+		return fmt.Errorf("MaxValue must be non-negative, was %d instead", maxValue)
+	}
+	if maxPartitionsContributed < 0 {
+		return fmt.Errorf("MaxPartitionsContributed must be non-negative, was %d instead", maxPartitionsContributed)
+	}
+
+	maxContributionsSet := maxContributions > 0
+	maxValueSet := maxValue > 0
+	maxPartitionsContributedSet := maxPartitionsContributed > 0
+
+	if maxContributionsSet {
+		// MaxContributions configuration must be used
+		if maxValue != 0 || maxPartitionsContributed != 0 {
+			return fmt.Errorf("when MaxContributions is set, MaxValue and MaxPartitionsContributed must be 0")
+		}
+		return nil
+	} else {
+		// MaxValue/MaxPartitionsContributed configuration must be used
+		if !maxValueSet && !maxPartitionsContributedSet {
+			return fmt.Errorf("when MaxContributions is not set, both MaxValue and MaxPartitionsContributed must be set to a positive value")
+		}
+		if !maxValueSet {
+			return fmt.Errorf("MaxValue must be set to a positive value, was %d instead", maxValue)
+		}
+		if !maxPartitionsContributedSet {
+			return fmt.Errorf("MaxPartitionsContributed must be set to a positive value, was %d instead", maxPartitionsContributed)
+		}
+		return nil
+	}
+}
+
+
 // CheckAlpha returns an error if the supplied alpha is not between 0 and 1.
 func CheckAlpha(alpha float64) error {
 	if alpha <= 0 || alpha >= 1 || math.IsNaN(alpha) || math.IsInf(alpha, 0) {
