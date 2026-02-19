@@ -22,6 +22,7 @@ import com.google.privacy.differentialprivacy.GaussianNoise
 import com.google.privacy.differentialprivacy.Noise
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.ContributionBoundingLevel.DATASET_LEVEL
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.ContributionBoundingLevel.PARTITION_LEVEL
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.ContributionBoundingLevel.RECORD_LEVEL
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.ExecutionMode.FULL_TEST_MODE
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.ExecutionMode.TEST_MODE_WITH_CONTRIBUTION_BOUNDING
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.COUNT
@@ -486,6 +487,42 @@ class DpEngineTest {
       ),
       PerPartitionContributionsSampler::class.java,
     ),
+    RECORD_LEVEL_WITH_PRIVACY_ID_COUNT_METRIC(
+      PRIVACY_ID_COUNT_PARAMS.copy(
+        contributionBoundingLevel = RECORD_LEVEL,
+        maxPartitionsContributed = 1,
+        maxContributionsPerPartition = 1,
+      ),
+      NoPrivacySampler::class.java,
+    ),
+    RECORD_LEVEL_WITH_COUNT_METRIC(
+      COUNT_PARAMS.copy(
+        contributionBoundingLevel = RECORD_LEVEL,
+        maxPartitionsContributed = 1,
+        maxContributionsPerPartition = 1,
+      ),
+      NoPrivacySampler::class.java,
+    ),
+    RECORD_LEVEL_WITH_SUM_METRIC(
+      SUM_PARAMS.copy(
+        contributionBoundingLevel = RECORD_LEVEL,
+        maxPartitionsContributed = 1,
+        maxContributionsPerPartition = 1,
+      ),
+      NoPrivacySampler::class.java,
+    ),
+    RECORD_LEVEL_WITH_MEAN_METRIC(
+      MEAN_PARAMS.copy(
+        contributionBoundingLevel = RECORD_LEVEL,
+        maxPartitionsContributed = 1,
+        maxContributionsPerPartition = 1,
+      ),
+      NoPrivacySampler::class.java,
+    ),
+    RECORD_LEVEL_WITH_QUANTILES_METRIC(
+      QUANTILES_PARAMS.copy(contributionBoundingLevel = RECORD_LEVEL, maxPartitionsContributed = 1),
+      NoPrivacySampler::class.java,
+    ),
     // Count is an example of a metric that does not require per-partition bounded input.
     DATASET_LEVEL_COUNT_WITH_TEST_MODE_WITH_CONTRIBUTION_BOUNDING(
       COUNT_PARAMS.copy(contributionBoundingLevel = DATASET_LEVEL),
@@ -510,6 +547,24 @@ class DpEngineTest {
       PerPartitionContributionsSampler::class.java,
       TEST_MODE_WITH_CONTRIBUTION_BOUNDING,
     ),
+    RECORD_LEVEL_COUNT_WITH_TEST_MODE_WITH_CONTRIBUTION_BOUNDING(
+      COUNT_PARAMS.copy(
+        contributionBoundingLevel = RECORD_LEVEL,
+        maxPartitionsContributed = 1,
+        maxContributionsPerPartition = 1,
+      ),
+      NoPrivacySampler::class.java,
+      TEST_MODE_WITH_CONTRIBUTION_BOUNDING,
+    ),
+    RECORD_LEVEL_MEAN_WITH_TEST_MODE_WITH_CONTRIBUTION_BOUNDING(
+      MEAN_PARAMS.copy(
+        contributionBoundingLevel = RECORD_LEVEL,
+        maxPartitionsContributed = 1,
+        maxContributionsPerPartition = 1,
+      ),
+      NoPrivacySampler::class.java,
+      TEST_MODE_WITH_CONTRIBUTION_BOUNDING,
+    ),
     DATASET_LEVEL_WITH_FULL_TEST_MODE(
       COUNT_PARAMS.copy(contributionBoundingLevel = DATASET_LEVEL),
       NoPrivacySampler::class.java,
@@ -517,6 +572,15 @@ class DpEngineTest {
     ),
     PARTITION_LEVEL_WITH_FULL_TEST_MODE(
       COUNT_PARAMS.copy(contributionBoundingLevel = PARTITION_LEVEL, maxPartitionsContributed = 1),
+      NoPrivacySampler::class.java,
+      FULL_TEST_MODE,
+    ),
+    RECORD_LEVEL_WITH_FULL_TEST_MODE(
+      COUNT_PARAMS.copy(
+        contributionBoundingLevel = RECORD_LEVEL,
+        maxPartitionsContributed = 1,
+        maxContributionsPerPartition = 1,
+      ),
       NoPrivacySampler::class.java,
       FULL_TEST_MODE,
     ),
