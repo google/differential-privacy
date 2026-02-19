@@ -121,3 +121,35 @@ class PrivacyAccountantTest(parameterized.TestCase):
       except NotImplementedError:
         # Implementing `get_delta` is optional.
         pass
+
+# ----- New tests added for validating `count` in compose() -----
+
+class _DummyPrivacyAccountant(privacy_accountant.PrivacyAccountant):
+    """Minimal concrete PrivacyAccountant for testing compose() validation."""
+
+    def __init__(self):
+        super().__init__(privacy_accountant.NeighboringRelation.ADD_OR_REMOVE_ONE)
+
+    def _maybe_compose(self, event, count, do_compose):
+        # Treat all events as supported for this test.
+        return None
+
+    def get_epsilon(self, target_delta: float) -> float:
+        # Dummy implementation for testing.
+        return 0.0
+
+
+class PrivacyAccountantComposeCountValidationTest(absltest.TestCase):
+    """Tests for validating the `count` argument in compose()."""
+
+    def setUp(self):
+        self._acc = _DummyPrivacyAccountant()
+
+    def test_compose_rejects_non_int_count(self):
+        with self.assertRaisesRegex(TypeError, '`count` must be an int'):
+            self._acc.compose(dp_event.NoOpDpEvent(), count=1.0)
+
+    def test_compose_rejects_non_positive_count(self):
+        with self.assertRaisesRegex(ValueError, '`count` must be positive'):
+            self._acc.compose(dp_event.NoOpDpEvent(), count=0)
+
