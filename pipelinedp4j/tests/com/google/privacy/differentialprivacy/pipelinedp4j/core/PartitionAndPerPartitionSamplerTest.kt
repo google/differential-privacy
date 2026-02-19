@@ -35,12 +35,14 @@ import org.junit.runners.JUnit4
 class PartitionAndPerPartitionSamplerTest {
   val AGG_PARAMS =
     AggregationParams(
-      metrics = ImmutableList.of(MetricDefinition(MEAN)),
+      nonFeatureMetrics = ImmutableList.of(),
+      features =
+        ImmutableList.of(
+          ScalarFeatureSpec("value", ImmutableList.of(MetricDefinition(MEAN)), -1.0, 1.0)
+        ),
       noiseKind = GAUSSIAN,
       maxPartitionsContributed = MAX_VALUE,
       maxContributionsPerPartition = MAX_VALUE,
-      minValue = -1.0,
-      maxValue = 1.0,
     )
 
   @Test

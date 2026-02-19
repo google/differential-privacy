@@ -200,7 +200,7 @@ class PostAggregationPartitionSelectionCombinerTest {
   companion object {
     private val AGGREGATION_PARAMS =
       AggregationParams(
-        metrics = ImmutableList.of(MetricDefinition(MetricType.PRIVACY_ID_COUNT)),
+        nonFeatureMetrics = ImmutableList.of(MetricDefinition(MetricType.PRIVACY_ID_COUNT)),
         noiseKind = GAUSSIAN,
         maxPartitionsContributed = 3,
         maxContributionsPerPartition = 5,

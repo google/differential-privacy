@@ -23,11 +23,14 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.core.DpEngine
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.DpEngineBudgetSpec
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.Encoder
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.EncoderFactory
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.FeatureSpec
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.FeatureValuesExtractor
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.FrameworkCollection
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.FrameworkTable
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.ScalarFeatureSpec
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.SelectPartitionsParams
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.VectorFeatureSpec
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.DpAggregates
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PerFeature
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.copy
@@ -494,22 +497,53 @@ protected constructor(
     valueAggregations: ValueAggregations<*>?,
     vectorAggregations: VectorAggregations<*>?,
   ): AggregationParams {
-    val valueContributionBounds = valueAggregations?.contributionBounds
-    val vectorContributionBounds = vectorAggregations?.vectorContributionBounds
+    val nonFeatureMetrics =
+      aggregationSpecs
+        .filter { it is Count || it is PrivacyIdCount }
+        .map { it.toNonFeatureMetricDefinition() }
+    val features =
+      buildList<FeatureSpec> {
+        if (valueAggregations != null) {
+          val valueContributionBounds = valueAggregations.contributionBounds
+          add(
+            ScalarFeatureSpec(
+              featureId = valueAggregations.getFeatureId(),
+              metrics =
+                valueAggregations.valueAggregationSpecs
+                  .map { it.toMetricDefinition() }
+                  .toImmutableList(),
+              minValue = valueContributionBounds.valueBounds?.minValue,
+              maxValue = valueContributionBounds.valueBounds?.maxValue,
+              minTotalValue = valueContributionBounds.totalValueBounds?.minValue,
+              maxTotalValue = valueContributionBounds.totalValueBounds?.maxValue,
+            )
+          )
+        }
+        if (vectorAggregations != null) {
+          val vectorContributionBounds = vectorAggregations.vectorContributionBounds
+          add(
+            VectorFeatureSpec(
+              featureId = vectorAggregations.getFeatureId(),
+              metrics =
+                vectorAggregations.vectorAggregationSpecs
+                  .map { it.toMetricDefinition() }
+                  .toImmutableList(),
+              vectorSize = vectorAggregations.vectorSize,
+              normKind = vectorContributionBounds.maxVectorTotalNorm.normKind.toInternalNormKind(),
+              vectorMaxTotalNorm = vectorContributionBounds.maxVectorTotalNorm.value,
+            )
+          )
+        }
+      }
+
     return AggregationParams(
-      metrics = ImmutableList.copyOf(aggregationSpecs.metrics()),
+      nonFeatureMetrics = nonFeatureMetrics.toImmutableList(),
+      features = features.toImmutableList(),
       noiseKind =
         checkNotNull(noiseKind) { "noiseKind cannot be null if there are aggregations." }
           .toInternalNoiseKind(),
       maxPartitionsContributed = contributionBoundingLevel.getMaxPartitionsContributed(),
       maxContributionsPerPartition = contributionBoundingLevel.getMaxContributionsPerPartition(),
-      minValue = valueContributionBounds?.valueBounds?.minValue,
-      maxValue = valueContributionBounds?.valueBounds?.maxValue,
-      minTotalValue = valueContributionBounds?.totalValueBounds?.minValue,
-      maxTotalValue = valueContributionBounds?.totalValueBounds?.maxValue,
-      vectorNormKind = vectorContributionBounds?.maxVectorTotalNorm?.normKind?.toInternalNormKind(),
-      vectorMaxTotalNorm = vectorContributionBounds?.maxVectorTotalNorm?.value,
-      vectorSize = vectorAggregations?.vectorSize,
       partitionSelectionBudget = groupsType.getBudget()?.toInternalBudgetPerOpSpec(),
       preThreshold = groupsType.getPreThreshold(),
       contributionBoundingLevel = contributionBoundingLevel.toInternalContributionBoundingLevel(),
@@ -534,3 +568,5 @@ protected constructor(
     }
   }
 }
+
+private fun <T : Any> Iterable<T>.toImmutableList(): ImmutableList<T> = ImmutableList.copyOf(this)
