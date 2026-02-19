@@ -21,6 +21,7 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.local.LocalCollection
 import com.google.privacy.differentialprivacy.pipelinedp4j.local.LocalEncoderFactory
 import com.google.privacy.differentialprivacy.pipelinedp4j.local.LocalTable
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PrivacyIdContributions
+import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PrivacyIdContributionsKt.featureContribution
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.privacyIdContributions
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -61,7 +62,12 @@ class NoPrivacySamplerTest {
       NoPrivacySampler(LOCAL_EF.strings(), LOCAL_EF.strings(), LOCAL_EF)
         .sampleContributions(inputData) as LocalTable<String, PrivacyIdContributions>
     val returnedContributionsPk1 =
-      sampledData.data.toMap().getValue("pk1").singleValueContributionsList
+      sampledData.data
+        .toMap()
+        .getValue("pk1")
+        .featuresList
+        .find { it.featureId == "" }!!
+        .singleValueContributionsList
 
     // Returned contributions are of the same size as the originals.
     assertThat(returnedContributionsPk1).hasSize(4)
@@ -128,12 +134,27 @@ class NoPrivacySamplerTest {
         mapOf(
           "pk1" to
             setOf(
-              privacyIdContributions { singleValueContributions += listOf(1.0, 2.0, 3.0, 4.0) }
+              privacyIdContributions {
+                features += featureContribution {
+                  featureId = ""
+                  singleValueContributions += listOf(1.0, 2.0, 3.0, 4.0)
+                }
+              }
             ),
           "pk2" to
             setOf(
-              privacyIdContributions { singleValueContributions += listOf(5.0, 6.0) },
-              privacyIdContributions { singleValueContributions += listOf(7.0, 8.0) },
+              privacyIdContributions {
+                features += featureContribution {
+                  featureId = ""
+                  singleValueContributions += listOf(5.0, 6.0)
+                }
+              },
+              privacyIdContributions {
+                features += featureContribution {
+                  featureId = ""
+                  singleValueContributions += listOf(7.0, 8.0)
+                }
+              },
             ),
         )
       )

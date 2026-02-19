@@ -26,6 +26,7 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.core.NoiseKind.GAUSSI
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.AllocatedBudget
 import com.google.privacy.differentialprivacy.pipelinedp4j.dplibrary.NoiseFactory
 import com.google.privacy.differentialprivacy.pipelinedp4j.dplibrary.ZeroNoiseFactory
+import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PrivacyIdContributionsKt.featureContribution
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.privacyIdContributions
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.sumAccumulator
 import com.google.testing.junit.testparameterinjector.TestParameterInjector
@@ -39,10 +40,17 @@ import org.mockito.kotlin.verify
 class SumCombinerTest {
   private val SUM_AGG_PARAMS =
     AggregationParams(
-      metrics = ImmutableList.of(MetricDefinition(SUM)),
+      nonFeatureMetrics = ImmutableList.of(),
+      features =
+        ImmutableList.of(
+          ScalarFeatureSpec(
+            featureId = "value",
+            metrics = ImmutableList.of(MetricDefinition(SUM)),
+            minTotalValue = -1.0,
+            maxTotalValue = 3.0,
+          )
+        ),
       noiseKind = GAUSSIAN,
-      minTotalValue = -1.0,
-      maxTotalValue = 3.0,
       maxPartitionsContributed = 5,
     )
 
@@ -56,81 +64,166 @@ class SumCombinerTest {
 
   @Test
   fun emptyAccumulator_minIsGreaterThanZero_returnsZeroAndIgnoresContributionBounds() {
+    val params =
+      SUM_AGG_PARAMS.copy(
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              featureId = "value",
+              metrics = ImmutableList.of(MetricDefinition(SUM)),
+              minTotalValue = 1.0,
+              maxTotalValue = 2.0,
+            )
+          )
+      )
     val combiner =
       SumCombiner(
-        SUM_AGG_PARAMS.copy(minTotalValue = 1.0, maxTotalValue = 2.0),
+        params,
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
         ExecutionMode.PRODUCTION,
+        params.features[0] as ScalarFeatureSpec,
       )
 
     val accumulator = combiner.emptyAccumulator()
 
-    assertThat(accumulator).isEqualTo(sumAccumulator { sum = 0.0 })
+    assertThat(accumulator)
+      .isEqualTo(
+        sumAccumulator {
+          featureId = "value"
+          sum = 0.0
+        }
+      )
   }
 
   @Test
   fun createAccumulator_sumsItems() {
+    val params =
+      SUM_AGG_PARAMS.copy(
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              featureId = "value",
+              metrics = ImmutableList.of(MetricDefinition(SUM)),
+              minTotalValue = -300.0,
+              maxTotalValue = 300.0,
+            )
+          )
+      )
     val combiner =
       SumCombiner(
-        SUM_AGG_PARAMS.copy(minTotalValue = -300.0, maxTotalValue = 300.0),
+        params,
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
         ExecutionMode.TEST_MODE_WITH_CONTRIBUTION_BOUNDING,
+        params.features[0] as ScalarFeatureSpec,
       )
 
     val accumulator =
       combiner.createAccumulator(
-        privacyIdContributions { singleValueContributions += listOf(-10.0, 15.0, 0.0) }
+        privacyIdContributions {
+          features += featureContribution {
+            featureId = "value"
+            singleValueContributions += listOf(-10.0, 15.0, 0.0)
+          }
+        }
       )
 
-    assertThat(accumulator).isEqualTo(sumAccumulator { sum = 5.0 })
+    assertThat(accumulator)
+      .isEqualTo(
+        sumAccumulator {
+          featureId = "value"
+          sum = 5.0
+        }
+      )
   }
 
   @Test
   fun createAccumulator_privacyLevelWithContributionBounding_clampsOnlyTotalSum() {
+    val params =
+      SUM_AGG_PARAMS.copy(
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              featureId = "value",
+              metrics = ImmutableList.of(MetricDefinition(SUM)),
+              minValue = -1.0,
+              maxValue = 4.0,
+              minTotalValue = -2.0,
+              maxTotalValue = 300.0,
+            )
+          )
+      )
     val combiner =
       SumCombiner(
-        SUM_AGG_PARAMS.copy(
-          minValue = -1.0,
-          maxValue = 4.0,
-          minTotalValue = -2.0,
-          maxTotalValue = 300.0,
-        ),
+        params,
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
         ExecutionMode.TEST_MODE_WITH_CONTRIBUTION_BOUNDING,
+        params.features[0] as ScalarFeatureSpec,
       )
 
     val accumulator =
       combiner.createAccumulator(
-        privacyIdContributions { singleValueContributions += listOf(-1000.0, 1000.0, 500.0) }
+        privacyIdContributions {
+          features += featureContribution {
+            featureId = "value"
+            singleValueContributions += listOf(-1000.0, 1000.0, 500.0)
+          }
+        }
       )
 
-    assertThat(accumulator).isEqualTo(sumAccumulator { sum = 300.0 })
+    assertThat(accumulator)
+      .isEqualTo(
+        sumAccumulator {
+          featureId = "value"
+          sum = 300.0
+        }
+      )
   }
 
   @Test
   fun createAccumulator_fullTestMode_doesNotClampTotalSum() {
+    val params =
+      SUM_AGG_PARAMS.copy(
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              featureId = "value",
+              metrics = ImmutableList.of(MetricDefinition(SUM)),
+              minValue = -1.0,
+              maxValue = 4.0,
+              minTotalValue = -2.0,
+              maxTotalValue = 300.0,
+            )
+          )
+      )
     val combiner =
       SumCombiner(
-        SUM_AGG_PARAMS.copy(
-          minValue = -1.0,
-          maxValue = 4.0,
-          minTotalValue = -2.0,
-          maxTotalValue = 300.0,
-        ),
+        params,
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
         FULL_TEST_MODE,
+        params.features[0] as ScalarFeatureSpec,
       )
 
     val accumulator =
       combiner.createAccumulator(
-        privacyIdContributions { singleValueContributions += listOf(-1000.0, 1000.0, 500.0) }
+        privacyIdContributions {
+          features += featureContribution {
+            featureId = "value"
+            singleValueContributions += listOf(-1000.0, 1000.0, 500.0)
+          }
+        }
       )
 
-    assertThat(accumulator).isEqualTo(sumAccumulator { sum = 500.0 })
+    assertThat(accumulator)
+      .isEqualTo(
+        sumAccumulator {
+          featureId = "value"
+          sum = 500.0
+        }
+      )
   }
 
   @Test
@@ -141,12 +234,28 @@ class SumCombinerTest {
         UNUSED_ALLOCATED_BUDGET,
         NoiseFactory(),
         ExecutionMode.TEST_MODE_WITH_CONTRIBUTION_BOUNDING,
+        SUM_AGG_PARAMS.features[0] as ScalarFeatureSpec,
       )
 
     val accumulator =
-      combiner.mergeAccumulators(sumAccumulator { sum = 1000.0 }, sumAccumulator { sum = -2000.0 })
+      combiner.mergeAccumulators(
+        sumAccumulator {
+          featureId = "value"
+          sum = 1000.0
+        },
+        sumAccumulator {
+          featureId = "value"
+          sum = -2000.0
+        },
+      )
 
-    assertThat(accumulator).isEqualTo(sumAccumulator { sum = -1000.0 })
+    assertThat(accumulator)
+      .isEqualTo(
+        sumAccumulator {
+          featureId = "value"
+          sum = -1000.0
+        }
+      )
   }
 
   @Test
@@ -160,6 +269,7 @@ class SumCombinerTest {
         allocatedBudget,
         NoiseFactory(),
         ExecutionMode.PRODUCTION,
+        SUM_AGG_PARAMS.features[0] as ScalarFeatureSpec,
       )
 
     val result = combiner.computeMetrics(sumAccumulator { sum = 1.0 })
@@ -171,17 +281,27 @@ class SumCombinerTest {
   fun computeMetrics_passesCorrectParametersToNoise() {
     val allocatedBudget = AllocatedBudget()
     allocatedBudget.initialize(1.1, 1e-3)
+    val params =
+      SUM_AGG_PARAMS.copy(
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              featureId = "value",
+              metrics = ImmutableList.of(MetricDefinition(SUM)),
+              minTotalValue = -4.0,
+              maxTotalValue = 3.0,
+            )
+          ),
+        noiseKind = GAUSSIAN,
+        maxPartitionsContributed = 10,
+      )
     val combiner =
       SumCombiner(
-        SUM_AGG_PARAMS.copy(
-          noiseKind = GAUSSIAN,
-          maxPartitionsContributed = 10,
-          minTotalValue = -4.0,
-          maxTotalValue = 3.0,
-        ),
+        params,
         allocatedBudget,
         noiseFactoryMock,
         ExecutionMode.TEST_MODE_WITH_CONTRIBUTION_BOUNDING,
+        params.features[0] as ScalarFeatureSpec,
       )
 
     val unused = combiner.computeMetrics(sumAccumulator { sum = 1.0 })
@@ -200,22 +320,45 @@ class SumCombinerTest {
   fun computeMetrics_withoutNoise_withMultipleContributionsIncludingEmptyAccumulator_returnsCorrectResult() {
     val allocatedBudget = AllocatedBudget()
     allocatedBudget.initialize(1.1, 1e-5)
+    val params =
+      SUM_AGG_PARAMS.copy(
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              featureId = "value",
+              metrics = ImmutableList.of(MetricDefinition(SUM)),
+              minTotalValue = -1.0,
+              maxTotalValue = 3.0,
+            )
+          )
+      )
     val combiner =
       SumCombiner(
-        SUM_AGG_PARAMS.copy(minTotalValue = -1.0, maxTotalValue = 3.0),
+        params,
         allocatedBudget,
         ZeroNoiseFactory(),
         ExecutionMode.TEST_MODE_WITH_CONTRIBUTION_BOUNDING,
+        params.features[0] as ScalarFeatureSpec,
       )
 
     val accumulator0 = combiner.emptyAccumulator()
     val accumulator1 =
       combiner.createAccumulator(
-        privacyIdContributions { singleValueContributions += listOf(-2.0, 3.0) }
+        privacyIdContributions {
+          features += featureContribution {
+            featureId = "value"
+            singleValueContributions += listOf(-2.0, 3.0)
+          }
+        }
       )
     val accumulator2 =
       combiner.createAccumulator(
-        privacyIdContributions { singleValueContributions += listOf(4.0, -1.0) }
+        privacyIdContributions {
+          features += featureContribution {
+            featureId = "value"
+            singleValueContributions += listOf(4.0, -1.0)
+          }
+        }
       )
     val accumulator3 = combiner.mergeAccumulators(accumulator0, accumulator1)
     val finalAccumulator = combiner.mergeAccumulators(accumulator2, accumulator3)
@@ -228,12 +371,25 @@ class SumCombinerTest {
   fun computeMetrics_withoutNoiseAndEmptyAccumulatorThenMerged_returnsZeroSum() {
     val allocatedBudget = AllocatedBudget()
     allocatedBudget.initialize(1.1, 1e-5)
+    val params =
+      SUM_AGG_PARAMS.copy(
+        features =
+          ImmutableList.of(
+            ScalarFeatureSpec(
+              featureId = "value",
+              metrics = ImmutableList.of(MetricDefinition(SUM)),
+              minTotalValue = -1.0,
+              maxTotalValue = 3.0,
+            )
+          )
+      )
     val combiner =
       SumCombiner(
-        SUM_AGG_PARAMS.copy(minTotalValue = -1.0, maxTotalValue = 3.0),
+        params,
         allocatedBudget,
         ZeroNoiseFactory(),
         ExecutionMode.TEST_MODE_WITH_CONTRIBUTION_BOUNDING,
+        params.features[0] as ScalarFeatureSpec,
       )
 
     val result = combiner.computeMetrics(combiner.emptyAccumulator())
