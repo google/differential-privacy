@@ -98,12 +98,17 @@ class BeamEncodersTest {
     val input =
       listOf(
         compoundAccumulator {
-          sumAccumulator = sumAccumulator { sum = -123.0 }
-          meanAccumulator = meanAccumulator {
+          sumAccumulators += sumAccumulator {
+            featureId = ""
+            sum = -123.0
+          }
+          meanAccumulators += meanAccumulator {
+            featureId = ""
             count = 12
             normalizedSum = -1.543
           }
-          quantilesAccumulator = quantilesAccumulator {
+          quantilesAccumulators += quantilesAccumulator {
+            featureId = ""
             serializedQuantilesSummary =
               ByteString.copyFrom(byteArrayOf(0x48, 0x65, 0x6c, 0x6c, 0x6f))
           }

@@ -21,6 +21,7 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.local.LocalCollection
 import com.google.privacy.differentialprivacy.pipelinedp4j.local.LocalEncoderFactory
 import com.google.privacy.differentialprivacy.pipelinedp4j.local.LocalTable
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PrivacyIdContributions
+import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PrivacyIdContributionsKt.featureContribution
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PrivacyIdContributionsKt.multiValueContribution
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.privacyIdContributions
 import org.junit.Test
@@ -104,7 +105,16 @@ class PartitionSamplerTest {
         )
         .sampleContributions(inputData) as LocalTable<String, PrivacyIdContributions>
 
-    assertThat(sampledData.data.toMap().get("pk")!!.singleValueContributionsList.size).isEqualTo(3)
+    assertThat(
+        sampledData.data
+          .toMap()
+          .get("pk")!!
+          .featuresList
+          .find { it.featureId == "" }!!
+          .singleValueContributionsList
+          .size
+      )
+      .isEqualTo(3)
   }
 
   @Test
@@ -141,8 +151,24 @@ class PartitionSamplerTest {
 
     assertThat(sampledData.data.toList())
       .containsExactly(
-        Pair("pk", privacyIdContributions { singleValueContributions += listOf(1.0, 1.0) }),
-        Pair("pk", privacyIdContributions { singleValueContributions += 2.0 }),
+        Pair(
+          "pk",
+          privacyIdContributions {
+            features += featureContribution {
+              featureId = ""
+              singleValueContributions += listOf(1.0, 1.0)
+            }
+          },
+        ),
+        Pair(
+          "pk",
+          privacyIdContributions {
+            features += featureContribution {
+              featureId = ""
+              singleValueContributions += 2.0
+            }
+          },
+        ),
       )
   }
 
@@ -183,17 +209,24 @@ class PartitionSamplerTest {
         Pair(
           "pk",
           privacyIdContributions {
-            multiValueContributions +=
-              listOf(
-                multiValueContribution { values += listOf(1.0, 2.0) },
-                multiValueContribution { values += listOf(3.0, 4.0) },
-              )
+            features += featureContribution {
+              featureId = ""
+              multiValueContributions +=
+                listOf(
+                  multiValueContribution { values += listOf(1.0, 2.0) },
+                  multiValueContribution { values += listOf(3.0, 4.0) },
+                )
+            }
           },
         ),
         Pair(
           "pk",
           privacyIdContributions {
-            multiValueContributions += listOf(multiValueContribution { values += listOf(5.0, 6.0) })
+            features += featureContribution {
+              featureId = ""
+              multiValueContributions +=
+                listOf(multiValueContribution { values += listOf(5.0, 6.0) })
+            }
           },
         ),
       )

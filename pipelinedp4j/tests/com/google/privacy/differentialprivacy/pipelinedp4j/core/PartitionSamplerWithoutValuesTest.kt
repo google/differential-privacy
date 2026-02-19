@@ -104,7 +104,7 @@ class PartitionSamplerWithoutValuesTest {
         .sampleContributions(inputData) as LocalTable<String, PrivacyIdContributions>
 
     // Check that all values are dropped
-    assertThat(sampledData.data.toMap().get("pk")!!.singleValueContributionsList.size).isEqualTo(0)
+    assertThat(sampledData.data.toMap()["pk"]!!.featuresList).isEmpty()
   }
 
   @Test
