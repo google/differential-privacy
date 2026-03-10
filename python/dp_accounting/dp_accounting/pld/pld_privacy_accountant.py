@@ -18,6 +18,7 @@ from typing import Optional
 
 from dp_accounting import dp_event
 from dp_accounting import privacy_accountant
+from dp_accounting.pld import common
 from dp_accounting.pld import privacy_loss_distribution
 
 NeighborRel = privacy_accountant.NeighboringRelation
@@ -56,6 +57,17 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
         result = self._maybe_compose(e, count, do_compose)
         if result is not None:
           return result
+      return None
+    elif isinstance(event, dp_event.EpsilonDeltaDpEvent):
+      if do_compose:
+        self._pld = self._pld.compose(
+            PLD.from_privacy_parameters(
+                privacy_parameters=common.DifferentialPrivacyParameters(
+                    epsilon=event.epsilon, delta=event.delta
+                ),
+                value_discretization_interval=self._value_discretization_interval,
+            ).self_compose(count)
+        )
       return None
     elif isinstance(event, dp_event.RandomizedResponseDpEvent):
       if self.neighboring_relation not in [NeighborRel.REPLACE_ONE,

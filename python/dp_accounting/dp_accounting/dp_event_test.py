@@ -51,6 +51,7 @@ class DpEventTest(parameterized.TestCase):
       ('no_op', dp_event.NoOpDpEvent()),
       ('non_private', dp_event.NonPrivateDpEvent()),
       ('unsupported', dp_event.UnsupportedDpEvent()),
+      ('epsilon_delta', dp_event.EpsilonDeltaDpEvent(1.0, 0.1)),
       ('gaussian', dp_event.GaussianDpEvent(1.0)),
       ('laplace', dp_event.LaplaceDpEvent(1.0)),
       ('dlaplace', dp_event.DiscreteLaplaceDpEvent(0.5, 1)),

@@ -261,6 +261,18 @@ class RandomizedResponseDpEvent(DpEvent):
 
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
+class EpsilonDeltaDpEvent(DpEvent):
+  """Represents application of a mechanism which satisfies (epsilon, delta)-DP.
+
+  Note that for many mechanisms, a single (epsilon, delta)-DP does not fully
+  characterize the privacy loss. If a more specific DpEvent that characterizes
+  a mechanism is available, it should be preferred over this one.
+  """
+  epsilon: float
+  delta: float
+
+
+@attr.s(frozen=True, slots=True, auto_attribs=True)
 class GaussianDpEvent(DpEvent):
   """Represents an application of the Gaussian mechanism.
 

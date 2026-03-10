@@ -188,6 +188,15 @@ class PldPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
     self.assertEqual(accountant.get_delta(0), 0)
     self.assertEqual(accountant.get_epsilon(0), 0)
 
+  def test_epsilon_delta_basic(self):
+    event1 = dp_event.EpsilonDeltaDpEvent(epsilon=1.0, delta=0.1)
+    event2 = dp_event.EpsilonDeltaDpEvent(epsilon=2.0, delta=0.2)
+    accountant = pld_privacy_accountant.PLDAccountant()
+    accountant.compose(event1)
+    accountant.compose(event2)
+    self.assertEqual(accountant.get_delta(3.0), 0.28)
+    self.assertEqual(accountant.get_epsilon(0.28), 3.0)
+
   def test_gaussian_basic(self):
     gaussian_event = dp_event.GaussianDpEvent(noise_multiplier=math.sqrt(3))
     accountant = pld_privacy_accountant.PLDAccountant()

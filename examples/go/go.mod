@@ -4,7 +4,7 @@ go 1.25
 
 require (
 	github.com/golang/glog v1.2.5
-	github.com/google/differential-privacy/go/v4 v4.0.0
+	github.com/google/differential-privacy/go/v4 v4.1.0
 )
 
 // Use the current version of the Go DP Library.
