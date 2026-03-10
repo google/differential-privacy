@@ -5,7 +5,7 @@ go 1.25.0
 require (
 	github.com/apache/beam/sdks/v2 v2.70.0
 	github.com/golang/glog v1.2.5
-	github.com/google/differential-privacy/go/v4 v4.0.0
+	github.com/google/differential-privacy/go/v4 v4.1.0
 	github.com/google/go-cmp v0.7.0
 	gonum.org/v1/plot v0.16.0
 	google.golang.org/protobuf v1.36.11

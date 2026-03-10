@@ -20,6 +20,7 @@ budget.
 from typing import Callable, Optional, Union
 
 import attr
+import numpy as np
 from scipy import optimize
 
 from dp_accounting import dp_event
@@ -53,47 +54,72 @@ class NonEmptyAccountantError(Exception):
 def _search_for_explicit_bracket_interval(
     bracket_interval: LowerEndpointAndGuess,
     epsilon_gap: Callable[[float], float]) -> ExplicitBracketInterval:
-  """Explores exponentially increasing interval to find an explicit bracket.
+  """Explores exponentially sized intervals to find an explicit bracket.
 
   Args:
-    bracket_interval: A LowerEndpointAndGuess which will be expanded to find
-      an explicit interval.
-    epsilon_gap: Function computing the epsilon at the provided value minus
-      the target epsilon. It is assumed that this function is monotonic with
-      respect to its parameter, otherwise the search could fail.
+    bracket_interval: A LowerEndpointAndGuess which will be expanded to find an
+      explicit interval.
+    epsilon_gap: Function computing the epsilon at the provided value minus the
+      target epsilon. It is assumed that this function is monotonic with respect
+      to its parameter, otherwise the search could fail.
 
   Returns:
     A valid ExplicitBracketInterval.
 
   Raises:
+    ValueError: if `bracket_interval.lower_endpoint` is not less than
+      `bracket_interval.initial_guess`.
     NoBracketIntervalFoundError: if no valid bracketing interval is found
       within a factor of 2**30 of the initial guess.
   """
-  lower, upper = attr.astuple(bracket_interval)
-  if lower >= upper:
+
+  endpoint = bracket_interval.lower_endpoint
+  guess = bracket_interval.initial_guess
+  if endpoint >= guess:
     raise ValueError(
-        f'bracket_interval.lower_endpoint ({bracket_interval.lower_endpoint}) '
-        f'must be less than bracket_interval.initial_guess '
-        f'({bracket_interval.initial_guess}).')
+        f'bracket_interval.lower_endpoint ({endpoint}) must be less than '
+        f'bracket_interval.initial_guess ({guess}).'
+    )
 
-  lower_value = epsilon_gap(lower)
-  upper_value = epsilon_gap(upper)
+  scale = guess - endpoint
+  upper = lower = guess
+  search_up = search_down = True
+  orig_sign = np.sign(epsilon_gap(guess))
 
-  gap = upper - lower
-  num_tries = 0
+  # For i in (0, -1, 1, -2, 2, -3, 3, ...) try scaled interval (2**i, 2**(i+1)).
 
-  while lower_value * upper_value > 0:
-    num_tries += 1
-    if num_tries > 30:
-      raise NoBracketIntervalFoundError(
-          'Unable to find bracketing interval within 2**30 of initial guess. '
-          'Consider providing an ExplicitBracketInterval.')
+  for power in range(1, 31):
+    if search_up:
+      next_upper = endpoint + scale * (2**power)
+      try:
+        next_upper_value = epsilon_gap(next_upper)
+        if np.isnan(next_upper_value):
+          raise ValueError('Got NaN for epsilon gap.')
+        elif np.sign(next_upper_value) != orig_sign:
+          return ExplicitBracketInterval(upper, next_upper)
+        upper = next_upper
+      except Exception:  # pylint: disable=broad-except
+        search_up = False
 
-    gap *= 2  # Loop invariant: gap = initial_gap * (2 ** num_tries).
-    lower, upper = upper, upper + gap
-    lower_value, upper_value = upper_value, epsilon_gap(upper)
+    if search_down:
+      next_lower = endpoint + scale * (2**-power)
+      try:
+        next_lower_value = epsilon_gap(next_lower)
+        if np.isnan(next_lower_value):
+          raise ValueError('Got NaN for epsilon gap.')
+        elif np.sign(next_lower_value) != orig_sign:
+          return ExplicitBracketInterval(next_lower, lower)
+        lower = next_lower
+      except Exception:  # pylint: disable=broad-except
+        search_down = False
 
-  return ExplicitBracketInterval(lower, upper)
+    if not search_up and not search_down:
+      break
+
+  raise NoBracketIntervalFoundError(
+      'Unable to find bracketing interval within 2**30 of initial guess. '
+      'Consider providing an ExplicitBracketInterval.'
+  )
 
 
 def _bisect(

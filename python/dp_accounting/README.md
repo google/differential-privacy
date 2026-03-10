@@ -13,9 +13,9 @@ accounting are currently supported.
 More detailed definitions and references about PLDs can be found
 [in our supplementary pdf document](https://github.com/google/differential-privacy/tree/main/common_docs/Privacy_Loss_Distributions.pdf).
 
-Our library only support Python version >= 3.9. We test this library on Linux
-with Python version 3.9. If you experience any problems, please file an issue on
-GitHub, also for other platforms or Python versions.
+Our library only supports Python version >= 3.10. We test this library on Linux
+with Python version 3.10. If you experience any problems, please file an issue
+on GitHub, also for other platforms or Python versions.
 
 ## Examples
 
