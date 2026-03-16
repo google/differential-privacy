@@ -226,7 +226,7 @@ func TestDistinctPrivacyIDWithPartitionsTestModeAddsEmptyPartitions(t *testing.T
 	}
 }
 
-// Tests that Count bounds contributions correctly,
+// Tests that Count bounds per-partition and cross-partition contributions correctly,
 // adds no noise and keeps all partitions in test mode.
 func TestCountTestMode(t *testing.T) {
 	for _, tc := range []struct {
@@ -234,7 +234,6 @@ func TestCountTestMode(t *testing.T) {
 		privacySpec              *pbeam.PrivacySpec
 		maxPartitionsContributed int64
 		maxValue                 int64
-		maxContributions         int64
 		want                     int64
 	}{
 		{
@@ -251,28 +250,9 @@ func TestCountTestMode(t *testing.T) {
 		},
 		{
 			desc:                     "test mode without contribution bounding",
-			privacySpec:              privacySpec(t, pbeam.TestModeWithoutContributionBounding, false),
 			maxPartitionsContributed: 3,
 			maxValue:                 2,
-			// The same privacy ID contributes thrice to 10 partitions, which implies that count of each
-			// partition is 3. Contribution bounding is disabled. The sum of all counts must then be 30.
-			// This also ensures that no partitions (each with a single privacy id) gets thresholded.
-			want: 30,
-		},
-		{
-			desc:             "test mode with contribution bounding using max contributions",
-			privacySpec:      privacySpec(t, pbeam.TestModeWithContributionBounding, false),
-			maxContributions: 6,
-			// The same privacy ID contributes 6 times in total. Since we do not have per-partition and
-			// cross-partition contribution bounding, we can not determine the count of each partition.
-			// The sum of all counts must then be 6. This also ensures that no partitions (each with a
-			// single privacy id) gets thresholded.
-			want: 6,
-		},
-		{
-			desc:             "test mode without contribution bounding using max contributions",
-			privacySpec:      privacySpec(t, pbeam.TestModeWithoutContributionBounding, false),
-			maxContributions: 6,
+			privacySpec:              privacySpec(t, pbeam.TestModeWithoutContributionBounding, false),
 			// The same privacy ID contributes thrice to 10 partitions, which implies that count of each
 			// partition is 3. Contribution bounding is disabled. The sum of all counts must then be 30.
 			// This also ensures that no partitions (each with a single privacy id) gets thresholded.
@@ -297,7 +277,6 @@ func TestCountTestMode(t *testing.T) {
 		got := pbeam.Count(s, pcol, pbeam.CountParams{
 			MaxValue:                 tc.maxValue,
 			MaxPartitionsContributed: tc.maxPartitionsContributed,
-			MaxContributions:         tc.maxContributions,
 			NoiseKind:                pbeam.LaplaceNoise{}})
 		counts := beam.DropKey(s, got)
 		sumOverPartitions := stats.Sum(s, counts)
@@ -319,7 +298,6 @@ func TestCountWithPartitionsTestMode(t *testing.T) {
 		privacySpec              *pbeam.PrivacySpec
 		maxPartitionsContributed int64
 		maxValue                 int64
-		maxContributions         int64
 		want                     int64
 	}{
 		{
@@ -338,24 +316,6 @@ func TestCountWithPartitionsTestMode(t *testing.T) {
 			privacySpec:              privacySpec(t, pbeam.TestModeWithoutContributionBounding, true),
 			maxPartitionsContributed: 3,
 			maxValue:                 2,
-			// The same privacy ID contributes thrice to 10 partitions, which implies that count of each
-			// partition is 3. Contribution bounding is disabled and 5 out of 10 partitions are specified
-			// as public partitions. The sum of all counts must then be 15.
-			want: 15,
-		},
-		{
-			desc:             "test mode with contribution bounding using max contributions",
-			privacySpec:      privacySpec(t, pbeam.TestModeWithContributionBounding, true),
-			maxContributions: 6,
-			// The same privacy ID contributes 6 times in total. Since we do not have per-partition and
-			// cross-partition contribution bounding, we can not determine the count of each partition.
-			// The sum of all counts must be 6.
-			want: 6,
-		},
-		{
-			desc:             "test mode without contribution bounding using max contributions",
-			privacySpec:      privacySpec(t, pbeam.TestModeWithoutContributionBounding, true),
-			maxContributions: 6,
 			// The same privacy ID contributes thrice to 10 partitions, which implies that count of each
 			// partition is 3. Contribution bounding is disabled and 5 out of 10 partitions are specified
 			// as public partitions. The sum of all counts must then be 15.
@@ -383,7 +343,6 @@ func TestCountWithPartitionsTestMode(t *testing.T) {
 		got := pbeam.Count(s, pcol, pbeam.CountParams{
 			MaxValue:                 tc.maxValue,
 			MaxPartitionsContributed: tc.maxPartitionsContributed,
-			MaxContributions:         tc.maxContributions,
 			NoiseKind:                pbeam.LaplaceNoise{},
 			PublicPartitions:         publicPartitions})
 		counts := beam.DropKey(s, got)
