@@ -257,10 +257,10 @@ func CheckMaxContributionsPerPartition(maxContributionsPerPartition int64) error
 // CheckContributionBoundingOptions returns an error unless exactly one of MaxContributions and MaxPartitionsContributed is set.
 func CheckContributionBoundingOptions(maxContributions, maxPartitionsContributed int64) error {
 	if maxContributions > 0 && maxPartitionsContributed > 0 {
-		return fmt.Errorf("MaxContributions and MaxPartitionsContributed are both set, exactly one should be set.")
+		return fmt.Errorf("MaxContributions and MaxPartitionsContributed are both set, exactly one should be set")
 	}
 	if maxContributions <= 0 && maxPartitionsContributed <= 0 {
-		return fmt.Errorf("MaxContributions and MaxPartitionsContributed are both unset, exactly one should be set.")
+		return fmt.Errorf("MaxContributions and MaxPartitionsContributed are both unset, exactly one should be set")
 	}
 	return nil
 }
@@ -285,23 +285,22 @@ func CheckContributionBoundingOptionsWithMaxValue(maxContributions, maxPartition
 
 	if maxContributionsSet {
 		// MaxContributions configuration must be used
-		if maxValue != 0 || maxPartitionsContributed != 0 {
+		if maxValueSet || maxPartitionsContributedSet {
 			return fmt.Errorf("when MaxContributions is set, MaxValue and MaxPartitionsContributed must be 0")
 		}
 		return nil
-	} else {
-		// MaxValue/MaxPartitionsContributed configuration must be used
-		if !maxValueSet && !maxPartitionsContributedSet {
-			return fmt.Errorf("when MaxContributions is not set, both MaxValue and MaxPartitionsContributed must be set to a positive value")
-		}
-		if !maxValueSet {
-			return fmt.Errorf("MaxValue must be set to a positive value, was %d instead", maxValue)
-		}
-		if !maxPartitionsContributedSet {
-			return fmt.Errorf("MaxPartitionsContributed must be set to a positive value, was %d instead", maxPartitionsContributed)
-		}
-		return nil
 	}
+	// MaxValue/MaxPartitionsContributed configuration must be used
+	if !maxValueSet && !maxPartitionsContributedSet {
+		return fmt.Errorf("when MaxContributions is not set, both MaxValue and MaxPartitionsContributed must be set to a positive value")
+	}
+	if !maxValueSet {
+		return fmt.Errorf("MaxValue must be set to a positive value, was %d instead", maxValue)
+	}
+	if !maxPartitionsContributedSet {
+		return fmt.Errorf("MaxPartitionsContributed must be set to a positive value, was %d instead", maxPartitionsContributed)
+	}
+	return nil
 }
 
 

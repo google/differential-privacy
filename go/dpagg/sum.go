@@ -142,7 +142,8 @@ func NewBoundedSumInt64(opt *BoundedSumInt64Options) (*BoundedSumInt64, error) {
 		// This does not hold for privacy-ID count aggregations, where l0=MaxContributions and lInf=1.
 		lInf = opt.MaxContributions
 		// When using MaxContributions, no per-partition contribution bounding is performed.
-		// upper is set to math.MaxInt64 to avoid clamping any contributions.
+		// upper is set to a default of match.MaxInt64 because it is being used in the Add function below, 
+		// making it a no-op.
 		upper = math.MaxInt64
 	} else {
 		lInf, err = getLInfInt(lower, upper, maxContributionsPerPartition)
@@ -186,14 +187,13 @@ func lInfIntOverflows(bound, maxContributionsPerPartition int64) bool {
 }
 
 func getL0Int(maxContributions, maxPartitionsContributed int64) (int64, error) {
-	if maxContributions <= 0 && maxPartitionsContributed <= 0 {
-		return 0, fmt.Errorf("Exactly one of MaxContributions and MaxPartitionsContributed must be set")
+	if err := checks.CheckContributionBoundingOptions(maxContributions, maxPartitionsContributed); err != nil {
+		return 0, err
 	}
 	if maxContributions > 0 {
 		return 1, nil
-	} else {
-		return maxPartitionsContributed, nil
 	}
+	return maxPartitionsContributed, nil
 }
 
 // getLInfInt checks that the sensitivity parameters will not create overflow errors,

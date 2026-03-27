@@ -129,15 +129,15 @@ type PreAggSelectPartitionOptions struct {
 	// for more information.
 	// Optional.
 	PreThreshold int64
-	// MaxPartitionsContributed is the number of distinct partitions a single
-	// privacy unit can contribute to. For PreAggSelectPartition, MaxPartitionsContributed
-	// and MaxContributions have equivalent functionality, but are kept separate for consistency.
+	// MaxPartitionsContributed is the number of distinct partitions a single privacy unit can contribute to. 
+	// For PreAggSelectionPartition, setting MaxPartitionsContributed is functionally the same as 
+	// setting MaxContributions, but are kept separate for consistency with other aggregations.
 	//
 	// Mutually exclusive with MaxContributions. One of the two options is required.
 	MaxPartitionsContributed int64
 	// MaxContributions is the number of distinct contributions a single
-	// privacy unit can make. For PreAggSelectPartition, MaxContributions and 
-	// MaxPartitionsContributed have equivalent functionality, but are kept separate for consistency.
+	// privacy unit can make. For PreAggSelectionPartition, setting MaxContributions is functionally 
+	// the same as setting MaxPartitionsContributed, but are kept separate for consistency with other aggregations.
 	//
 	// Mutually exclusive with MaxPartitionsContributed. One of the two options is required.
 	MaxContributions int64
