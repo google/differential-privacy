@@ -217,8 +217,10 @@ int64_t LaplaceMechanism::AddInt64Noise(int64_t result) {
     granularity = granularity_cast_result.value;
   }
 
-  return RoundToNearestInt64Multiple(result, granularity) +
-         noise_cast_result.value;
+  SafeOpResult<int64_t> add_result =
+      SafeAdd(RoundToNearestInt64Multiple(result, granularity),
+              noise_cast_result.value);
+  return add_result.value;
 }
 
 absl::StatusOr<std::unique_ptr<NumericalMechanism>>
@@ -411,8 +413,10 @@ int64_t GaussianMechanism::AddInt64Noise(int64_t result) {
     granularity = granularity_cast_result.value;
   }
 
-  return RoundToNearestInt64Multiple(result, granularity) +
-         noise_cast_result.value;
+  SafeOpResult<int64_t> add_result =
+      SafeAdd(RoundToNearestInt64Multiple(result, granularity),
+              noise_cast_result.value);
+  return add_result.value;
 }
 
 }  // namespace differential_privacy
