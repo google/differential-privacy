@@ -107,6 +107,10 @@ type SumParams struct {
 	//
 	// Required.
 	MinValue, MaxValue float64
+	// The total contribution a single privacy identifier can make across all
+	// partitions. This is currently only supported for BoundedSumInt64, and is
+	// unexported.
+	maxContributions int64
 }
 
 // SumPerKey sums the values associated with each key in a
