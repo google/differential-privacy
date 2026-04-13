@@ -376,6 +376,13 @@ func (bs *BoundedSumInt64) GobDecode(data []byte) error {
 	if err != nil {
 		return fmt.Errorf("couldn't decode BoundedSumInt64 from bytes")
 	}
+	nObj, err := validateDecodedAggregation(enc.Epsilon, enc.Delta, float64(enc.LInfSensitivity), enc.L0Sensitivity, enc.NoiseKind)
+	if err != nil {
+		return fmt.Errorf("couldn't decode BoundedSumInt64: %v", err)
+	}
+	if err := checks.CheckBoundsInt64(enc.Lower, enc.Upper); err != nil {
+		return fmt.Errorf("couldn't decode BoundedSumInt64: %v", err)
+	}
 	*bs = BoundedSumInt64{
 		epsilon:         enc.Epsilon,
 		delta:           enc.Delta,
@@ -384,7 +391,7 @@ func (bs *BoundedSumInt64) GobDecode(data []byte) error {
 		lower:           enc.Lower,
 		upper:           enc.Upper,
 		noiseKind:       enc.NoiseKind,
-		Noise:           noise.ToNoise(enc.NoiseKind),
+		Noise:           nObj,
 		sum:             enc.Sum,
 		state:           defaultState,
 	}
@@ -693,6 +700,13 @@ func (bs *BoundedSumFloat64) GobDecode(data []byte) error {
 	if err != nil {
 		return fmt.Errorf("couldn't decode BoundedSumFloat64 from bytes")
 	}
+	nObj2, err := validateDecodedAggregation(enc.Epsilon, enc.Delta, enc.LInfSensitivity, enc.L0Sensitivity, enc.NoiseKind)
+	if err != nil {
+		return fmt.Errorf("couldn't decode BoundedSumFloat64: %v", err)
+	}
+	if err := checks.CheckBoundsFloat64(enc.Lower, enc.Upper); err != nil {
+		return fmt.Errorf("couldn't decode BoundedSumFloat64: %v", err)
+	}
 	*bs = BoundedSumFloat64{
 		epsilon:         enc.Epsilon,
 		delta:           enc.Delta,
@@ -701,7 +715,7 @@ func (bs *BoundedSumFloat64) GobDecode(data []byte) error {
 		lower:           enc.Lower,
 		upper:           enc.Upper,
 		noiseKind:       enc.NoiseKind,
-		Noise:           noise.ToNoise(enc.NoiseKind),
+		Noise:           nObj2,
 		sum:             enc.Sum,
 		state:           defaultState,
 	}
