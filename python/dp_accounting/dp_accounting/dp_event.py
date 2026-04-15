@@ -457,6 +457,22 @@ class ZCDpEvent(DpEvent):
 
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
+class ExponentialMechanismDpEvent(DpEvent):
+  """Represents an application of the epsilon-DP exponential mechanism.
+
+  For RDP accounting, we use the fact that the exponential mechanism is
+  epsilon-bounded range, i.e. for some t the privacy loss is always in the
+  interval [t, t+epsilon]. See https://arxiv.org/abs/1905.04273 for details.
+  For PLD accounting, we just treat it as a black-box epsilon-DP mechanism.
+
+  Attributes:
+    epsilon: The epsilon parameter of the exponential mechanism.
+  """
+
+  epsilon: float
+
+
+@attr.s(frozen=True, slots=True, auto_attribs=True)
 class TruncatedSubsampledGaussianDpEvent(DpEvent):
   """Represents the Gaussian mechanism with truncated Poisson sampling.
 

@@ -107,6 +107,10 @@ class DpEventTest(parameterized.TestCase):
           dp_event.MixtureOfGaussiansDpEvent(1.0, [0, 1, 2], [0.25, 0.5, 0.25]),
       ),
       (
+          'exponential_mechanism',
+          dp_event.ExponentialMechanismDpEvent(1.0),
+      ),
+      (
           'zcdp',
           dp_event.ZCDpEvent(1.0, 2.0),
       ),

@@ -130,6 +130,10 @@ class RdpPrivacyAccountantTest(
     self.assertTrue(aor_accountant.supports(event))
     self.assertTrue(ro_accountant.supports(event))
 
+    event = dp_event.ExponentialMechanismDpEvent(1.0)
+    self.assertTrue(aor_accountant.supports(event))
+    self.assertTrue(ro_accountant.supports(event))
+
     event = dp_event.PoissonSampledDpEvent(0.1, dp_event.GaussianDpEvent(1.0))
     self.assertTrue(aor_accountant.supports(event))
     self.assertFalse(ro_accountant.supports(event))
@@ -310,6 +314,13 @@ class RdpPrivacyAccountantTest(
     self.assertAlmostEqual(accountant1._rdp[0], accountant2._rdp[0])
 
   _LAPLACE_EVENT = dp_event.LaplaceDpEvent(1.0)
+
+  def test_compute_rdp_exponential_mechanism(self):
+    alphas = [1.0, 1000.0]
+    accountant = rdp_privacy_accountant.RdpAccountant(orders=alphas)
+    accountant.compose(dp_event.ExponentialMechanismDpEvent(1.0))
+    self.assertAlmostEqual(accountant._rdp[0], 0.123301561)
+    self.assertAlmostEqual(accountant._rdp[1], 1.0)
 
   @parameterized.named_parameters(
       ('simple', _LAPLACE_EVENT),

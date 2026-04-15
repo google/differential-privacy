@@ -1030,6 +1030,16 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
           raise ValueError(f'rho must be >= 0. Got {event.rho}')
         self._rdp += count * (event.xi + event.rho * self._orders)
       return None
+    elif isinstance(event, dp_event.ExponentialMechanismDpEvent):
+      if do_compose:
+        if event.epsilon < 0:
+          raise ValueError(f'epsilon must be >= 0. Got {event.epsilon}')
+        eps = event.epsilon  # Alias for brevity.
+        # zCDP bound from Section 3 of https://arxiv.org/pdf/2004.07223, plus
+        # epsilon-DP implies all orders are at most epsilon.
+        xi = eps / np.expm1(eps) - 1 - np.log(eps / np.expm1(eps)) - eps**2 / 8
+        self._rdp += np.minimum(xi + (eps**2 / 8) * self._orders, eps)
+      return None
     elif isinstance(event, dp_event.PoissonSampledDpEvent):
       if self._neighboring_relation not in [
           NeighborRel.ADD_OR_REMOVE_ONE,
