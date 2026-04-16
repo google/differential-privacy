@@ -44,6 +44,7 @@ import (
 // values. This aggregation is not hardened for such applications yet.
 //
 // Not thread-safe.
+
 type BoundedSumInt64 struct {
 	// Parameters
 	epsilon         float64
@@ -142,7 +143,7 @@ func NewBoundedSumInt64(opt *BoundedSumInt64Options) (*BoundedSumInt64, error) {
 		// This does not hold for privacy-ID count aggregations, where l0=MaxContributions and lInf=1.
 		lInf = opt.MaxContributions
 		// When using MaxContributions, no per-partition contribution bounding is performed.
-		// upper is set to a default of match.MaxInt64 because it is being used in the Add function below, 
+		// upper is set to a default of match.MaxInt64 because it is being used in the Add function below,
 		// making it a no-op.
 		upper = math.MaxInt64
 	} else {

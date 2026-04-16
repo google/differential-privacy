@@ -20,11 +20,11 @@ import (
 	"reflect"
 
 	log "github.com/golang/glog"
+	"github.com/google/differential-privacy/go/v4/checks"
 	"github.com/google/differential-privacy/go/v4/noise"
 	"github.com/google/differential-privacy/privacy-on-beam/v4/internal/kv"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
-	"github.com/google/differential-privacy/go/v4/checks"
 )
 
 // CountParams specifies the parameters associated with a Count aggregation.
@@ -184,10 +184,10 @@ func Count(s beam.Scope, pcol PrivatePCollection, params CountParams) beam.PColl
 		rekeyed = boundContributions(s, rekeyed, params.MaxPartitionsContributed)
 	}
 	// Fourth, now that contribution bounding is done, remove the privacy keys,
-	// decode the value, and sum all the counts. 
+	// decode the value, and sum all the counts.
 	//
 	// If using per-partition contribution bounding, the sums are bounded by MaxValue.
-	// If using MaxContributions, we are already done with per-privacy identifier contribution 
+	// If using MaxContributions, we are already done with per-privacy identifier contribution
 	// bounding. Thus, the bounding done after this point is a no-op.
 	countPairs := beam.DropKey(s, rekeyed)
 	countsKV := beam.ParDo(s,

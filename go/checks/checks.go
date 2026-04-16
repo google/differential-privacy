@@ -265,7 +265,7 @@ func CheckContributionBoundingOptions(maxContributions, maxPartitionsContributed
 	return nil
 }
 
-// CheckContributionBoundingWithMaxValue checks that either MaxContributions or {MaxValue, MaxPartitionsContributed} is set, but not both.
+// CheckContributionBoundingOptionsWithMaxValue checks that either MaxContributions or {MaxValue, MaxPartitionsContributed} is set, but not both.
 // If MaxContributions is set, {MaxValue, MaxPartitionsContributed} must be 0.
 // If {MaxValue, MaxPartitionsContributed} are set, MaxContributions must be 0.
 func CheckContributionBoundingOptionsWithMaxValue(maxContributions, maxPartitionsContributed, maxValue int64) error {
@@ -302,7 +302,6 @@ func CheckContributionBoundingOptionsWithMaxValue(maxContributions, maxPartition
 	}
 	return nil
 }
-
 
 // CheckAlpha returns an error if the supplied alpha is not between 0 and 1.
 func CheckAlpha(alpha float64) error {
