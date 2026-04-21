@@ -197,6 +197,15 @@ class PldPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
     self.assertEqual(accountant.get_delta(3.0), 0.28)
     self.assertEqual(accountant.get_epsilon(0.28), 3.0)
 
+  def test_exponential_mechanism_basic(self):
+    event1 = dp_event.ExponentialMechanismDpEvent(1.0)
+    event2 = dp_event.ExponentialMechanismDpEvent(2.0)
+    accountant = pld_privacy_accountant.PLDAccountant()
+    accountant.compose(event1)
+    accountant.compose(event2)
+    self.assertEqual(accountant.get_delta(3.0), 0.0)
+    self.assertEqual(accountant.get_epsilon(0.0), 3.0)
+
   def test_gaussian_basic(self):
     gaussian_event = dp_event.GaussianDpEvent(noise_multiplier=math.sqrt(3))
     accountant = pld_privacy_accountant.PLDAccountant()

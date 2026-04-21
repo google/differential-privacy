@@ -175,6 +175,21 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
           ).self_compose(count)
           self._pld = self._pld.compose(mog_pld)
       return None
+    elif isinstance(event, dp_event.ExponentialMechanismDpEvent):
+      if do_compose:
+        if event.epsilon < 0:
+          raise ValueError(f'epsilon must be >= 0. Got {event.epsilon}')
+      if do_compose:
+        # We use a worst-case PLD for any epsilon-DP mechanism, which is a
+        # (loose) upper bound for the PLD of the exponental mechanism.
+        eps_dp_pld = PLD.from_privacy_parameters(
+            privacy_parameters=common.DifferentialPrivacyParameters(
+                epsilon=event.epsilon, delta=0
+            ),
+            value_discretization_interval=self._value_discretization_interval,
+        ).self_compose(count)
+        self._pld = self._pld.compose(eps_dp_pld)
+      return None
     elif isinstance(event, dp_event.PoissonSampledDpEvent):
       if isinstance(event.event, dp_event.GaussianDpEvent):
         if do_compose:
