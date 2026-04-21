@@ -31,8 +31,8 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 <packaging>jar</packaging>
 
 <properties>
-    <beam.version>2.63.0</beam.version>
-    <spark.version>3.5.0</spark.version>
+    <beam.version>2.72.0</beam.version>
+    <spark.version>3.5.8</spark.version>
     
     <!-- Otherwise you get errors like https://shorturl.at/7mfCi -->
     <exec.cleanupDaemonThreads>false</exec.cleanupDaemonThreads>
@@ -95,6 +95,12 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
                 <version>${beam.version}</version>
                 <scope>runtime</scope>
             </dependency>
+                <!-- Pin gcsio version to 3.1.1 to avoid conflicts with the Spark Runner -->
+                <dependency>
+                    <groupId>com.google.cloud.bigdataoss</groupId>
+                    <artifactId>gcsio</artifactId>
+                    <version>3.1.1</version>
+                </dependency>
         </dependencies>
         
         <build>
@@ -106,6 +112,9 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
                         <createDependencyReducedPom>false</createDependencyReducedPom>
                         <filters>
                             <filter>
+                                    <!--
+                                    Exclude signature files from the shaded JAR to prevent issues with signed JARs and security exceptions.
+                                -->
                                 <artifact>*:*</artifact>
                                 <excludes>
                                     <exclude>META-INF/*.SF</exclude>
@@ -122,18 +131,39 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
                                 <goal>shade</goal>
                             </goals>
                             <configuration>
+                                    <!-- Attach the shaded artifact to the build lifecycle. -->
                                 <shadedArtifactAttached>true</shadedArtifactAttached>
+                                    <!-- Assign a classifier to the shaded JAR (e.g., beam-1.0-SNAPSHOT-shaded.jar). -->
                                 <shadedClassifierName>shaded</shadedClassifierName>
                                 
                                 <transformers>
+                                        <!--
+                                        Transform the Manifest file to ensure the correct main class is set for execution.
+                                    -->
                                     <transformer
                                     implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                                     <mainClass>
                                         com.google.privacy.differentialprivacy.pipelinedp4j.examples.BeamExample</mainClass>
                                     </transformer>
+                                        <!--
+                                        Merge service provider configuration files (e.g., META-INF/services) to ensure all services are discoverable.
+                                    -->
                                     <transformer
                                     implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
                                 </transformers>
+                                    <relocations>
+                                        <relocation>
+                                            <!--
+                                                Relocate the Guava library to avoid conflicts with different versions
+                                                of Guava that might be present in the runtime environment (e.g., Spark, spark-submit).
+                                                This renames the package `com.google.common` to `custom.guava.cache.com.google.common`
+                                                within the shaded JAR.
+                                            -->
+                                            <pattern>com.google.common</pattern>
+                                            <shadedPattern>custom.guava.cache.com.google.common</shadedPattern>
+                                        </relocation>
+                                   
+                                    </relocations>
                             </configuration>
                         </execution>
                     </executions>
@@ -144,8 +174,13 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
     </profile>
     
     <profile>
-        <id>spark-runner-embedeed</id>
-        <!-- Makes Spark Runner and Beam available for pipeline execution. For local use. -->
+        <id>spark-runner-embeddeed</id>
+         <!--
+            This profile is used for running the Beam pipeline with the Spark Runner in a local environment.
+            When running locally, a Spark cluster is not available to provide the necessary Spark dependencies.
+            This profile bundles the Spark dependencies (spark-core and spark-streaming) into the
+            executable JAR, allowing the pipeline to run standalone.
+        -->
         <dependencies>
             <dependency>
                 <groupId>org.apache.spark</groupId>

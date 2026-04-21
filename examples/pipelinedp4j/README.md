@@ -13,6 +13,9 @@ Next, explore the following options for building and running the example:
 Finally, delve into the [code walkthrough](#code-walkthrough) for a
 comprehensive understanding of how PipelineDP4j was employed to solve the task.
 
+> [!TIP]
+> If you are looking for specific `mvn` and `bazel` commands, you should have a look at the CI/CD files in the `.github` folder. You will find useful, up-to-date examples of `mvn` and `bazel` commands used in our automated workflows.
+
 ## Problem statement
 
 This example demonstrates how to compute differentially private statistics on a
@@ -159,37 +162,7 @@ For Spark the output is written to a folder and the
 result is stored in a file whose name starts with `part-00000`: `cat
 output/part-00000<...>`
 
-
-#### Running with [Sparkrunner](https://beam.apache.org/documentation/runners/spark/) (Beam )
-
-You can execute PipelineDP4j Beam examples using the Spark Runner. This allows your Beam pipeline to run on a Spark cluster or a locally simulated Spark environment.
-
-##### Build and submit to a Spark Cluster
- 
-To run the Beam example with SparkRunner, you need to use the `spark-runner` profile and add the `--runner=SparkRunner` parameter.
-
-
-First, build the package with the `spark-runner` profile:
-
-```shell
-mvn clean package -Pspark-runner
-```
-
-Then submit with Spark CLI:
-
-```shell
-spark-submit \                                                                                                                                                                                                 
-  --class com.google.privacy.differentialprivacy.pipelinedp4j.examples.BeamExample \
-  --master spark://<spark_cluster_host>:<spark_cluster_port> \
-  target/beam-1.0-SNAPSHOT-shaded.jar \
-  --runner=SparkRunner \
-  --inputFilePath=<absolute_path_to>/netflix_data.csv  \
-  --outputFilePath=output-spark-runner.txt
-```
-
-View the results with `cat output-spark-runner.txt`.
-
-# Build and execute locally
+### Running locally with SparkRunner
 
 You can also run PipelineDP4j with the Spark Runner locally.
 When running locally, the dependencies usually provided by the Spark Cluster are missing. Therefore, you must use the `spark-runner-embedeed` profile in addition to `spark-runner` to bundle the necessary Spark dependencies into your JAR.
@@ -282,6 +255,80 @@ to ensure your environment is correctly set up. Then do the following.
     ```
 
 After finish you can inspect the result on GCP bucket.
+
+
+#### Running on Dataproc (Spark) with [SparkRunner](https://beam.apache.org/documentation/runners/spark/) (Beam)
+
+> [!WARNING]
+> SparkRunner use a 2.12 scala version that can lead to conflict with your existing code of your Spark version. Be cautious when you build you jar to include the correct version of your libraries, compatible with the SparkRunner.
+
+You can execute PipelineDP4j Beam examples using the Spark Runner. This allows your Beam pipeline to run on a Spark cluster or a locally simulated Spark environment.
+
+##### Build with Maven
+ 
+To run the Beam example with SparkRunner, you need to use the `spark-runner` profile and add the `--runner=SparkRunner` parameter.
+
+
+First, build the package with the `spark-runner` profile:
+
+```shell
+mvn clean package -Pspark-runner
+```
+
+Then submit the Spark job:
+
+```shell
+gcloud dataproc batches submit spark --version 1.2 --region=us-central1 --jars=beam/target/beam-1.0-SNAPSHOT-shaded.jar --class=com.google.privacy.differentialprivacy.pipelinedp4j.examples.BeamExample --deps-bucket=gs://<bucket_name> -- --runner=SparkRunner --inputFilePath=gs://<bucket_name>/netflix_data.csv --outputFilePath=gs://<bucket_name>/output
+```
+
+##### Build with Bazel and library sources
+ 
+To run the Beam example with SparkRunner, please ensure you first follow the build commands outlined in the [Running using Bazel and library sources](#running-using-bazel-and-library-sources) section.
+
+Once built, submit the Spark job:
+
+Then submit the Spark job:
+
+```shell
+gcloud dataproc batches submit spark --version 1.2 --region=us-central1 --jars=bazel-bin/beam/src/main/java/com/google/privacy/differentialprivacy/pipelinedp4j/examples/BeamExampleSparkRunnerCluster_shaded.jar --class=com.google.privacy.differentialprivacy.pipelinedp4j.examples.BeamExample --deps-bucket=gs://<bucket_name> -- --runner=SparkRunner --inputFilePath=gs://<bucket_name>/netflix_data.csv --outputFilePath=gs://<bucket_name>/output
+```
+
+After finish you can inspect the result on GCP bucket.
+
+##### Build and execute locally
+
+To test your pipeline before submitting it to Spark, you can run it locally using the SparkRunner. Note that when running locally, the dependencies typically provided by the Spark cluster will be missing.
+
+###### Build and execute locally with Maven
+
+ Therefore, you must use the `spark-runner-embedeed` profile in addition to `spark-runner` to bundle the necessary Spark dependencies into your JAR.
+
+```shell
+mvn clean package -Pspark-runner,spark-runner-embeddeed
+```
+
+Then execute the JAR file 
+
+```shell
+java --add-opens=java.base/sun.nio.ch=ALL-UNNAMED -jar beam/target/beam-1.0-SNAPSHOT-shaded.jar --runner=SparkRunner --sparkMaster="local[*]"  --inputFilePath=<absolute_path_to>/netflix_data.csv --outputFilePath=output-spark-runner.txt
+```
+
+View the results with `cat output-spark-runner.txt`.
+
+###### Build and execute locally with Bazel
+
+To run the Beam example with SparkRunner, please ensure you first follow the build commands outlined in the [Running using Bazel and library sources](#running-using-bazel-and-library-sources) section.
+
+Then execute the Jar file : 
+
+```shell
+bazelisk run beam/src/main/java/com/google/privacy/differentialprivacy/pipelinedp4j/examples:BeamExampleSparkRunnerLocal -- --runner=SparkRunner --sparkMaster="local[*]" --inputFilePath="$(pwd)/input.csv" --outputFilePath="$(pwd)/output-sparkrunner.txt"
+
+```
+
+View the results with `cat output-spark-runner.txt`.
+
+
 
 ## Code walkthrough
 

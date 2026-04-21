@@ -68,7 +68,7 @@ load(
 )
 
 # Maven
-BEAM_TAG = "2.63.0"
+BEAM_TAG = "2.72.0"
 
 SCALA_TAG = "2.13"
 
@@ -76,7 +76,7 @@ SCALA_SPARK_RUNNER_TAG = "2.12"
 
 SCALA_LIBRARY_TAG = "%s.16" % SCALA_TAG
 
-SPARK_TAG = "3.5.5"
+SPARK_TAG = "3.5.8"
 
 JACKSON_TAG = "2.18.3"
 
@@ -103,8 +103,9 @@ maven_install(
         "org.scala-lang:scala-library:%s" % SCALA_LIBRARY_TAG,
         "info.picocli:picocli:4.7.6",
         # For Apache Spark Runner running locally
-        "org.apache.spark:spark-streaming_%s:%s" % (2.12, SPARK_TAG),
+        "org.apache.spark:spark-streaming_%s:%s" % (SCALA_TAG, SPARK_TAG),
     ],
+      
     repositories = [
         "https://jcenter.bintray.com",
         "https://maven.google.com",
@@ -116,14 +117,17 @@ maven_install(
 maven_install(
     name = "maven_spark_2_12",
     artifacts = [
-        # Beam SDKs (Needed here to resolve transitive deps correctly within this namespace)
+       "org.apache.beam:beam-runners-spark-3:%s" % BEAM_TAG,
+        "org.apache.beam:beam-sdks-java-core:%s" % BEAM_TAG,
+        "org.apache.beam:beam-sdks-java-extensions-avro:%s" % BEAM_TAG,
         
-        # Spark (Scala 2.12) - Strictly 2.12
-        "org.apache.spark:spark-core_%s:%s" % (SCALA_SPARK_RUNNER_TAG,SPARK_TAG),
-        "org.apache.spark:spark-streaming_%s:%s" % (SCALA_SPARK_RUNNER_TAG,SPARK_TAG),
-        "org.apache.spark:spark-sql_%s:%s" % (SCALA_SPARK_RUNNER_TAG,SPARK_TAG),
-        "org.scala-lang:scala-library:%s.18" % SCALA_SPARK_RUNNER_TAG, 
-        "com.fasterxml.jackson.module:jackson-module-scala_%s:%s" % (SCALA_SPARK_RUNNER_TAG,JACKSON_TAG),
+        # Spark et Jackson strictement en 2.12
+        "org.apache.spark:spark-core_2.12:%s" % SPARK_TAG,
+        "org.apache.spark:spark-streaming_2.12:%s" % SPARK_TAG,
+        "org.apache.spark:spark-sql_2.12:%s" % SPARK_TAG,
+        "com.fasterxml.jackson.module:jackson-module-scala_2.12:%s" % JACKSON_TAG,
+        "org.scala-lang:scala-library:2.12.18",
+        "org.jetbrains.kotlin:kotlin-stdlib:1.9.0", 
     ],
     repositories = [
          "https://jcenter.bintray.com",
@@ -148,3 +152,20 @@ local_repository(
     name = "com_google_privacy_differentialprivacy_pipelinedp4j",
     path = "../../pipelinedp4j",
 )
+
+# Uses Jarjar to shade JARs for the Apache Beam Spark Runner
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+http_archive(
+    name = "bazel_jar_jar",
+    sha256 = "ac11a42b7e3de37dae6ebd54ea5c1e306a17af12004b7f48fc7a46c451fd94b9",
+    strip_prefix = "bazel_jar_jar-0.1.15",
+    url = "https://github.com/bazeltools/bazel_jar_jar/releases/download/v0.1.15/bazel_jar_jar-v0.1.15.tar.gz",
+)
+
+load(
+    "@bazel_jar_jar//:jar_jar.bzl",
+    "jar_jar_repositories",
+)
+
+jar_jar_repositories()
