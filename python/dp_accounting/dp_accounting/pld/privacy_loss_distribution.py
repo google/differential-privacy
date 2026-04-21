@@ -325,6 +325,98 @@ class PrivacyLossDistribution:
     )
     # pylint:enable=protected-access
 
+  def get_tpr(
+      self, fprs: Union[float, np.ndarray], deltas: np.ndarray | None = None
+  ) -> Union[float, np.ndarray]:
+    """Computes an upper bound on the TPR at a given FPR or list of FPRs.
+
+    In particular, each (epsilon, delta) pair implied by the PLD also implies an
+    upper bound on the TPR for a given FPR. This function computes this upper
+    bound for a range of deltas (either user-specified, or a default range) and
+    then returns the minimum TPR across all deltas.
+
+    Note that this implementation reports a TPR-FPR curve which is symmetric
+    with respect to the line y=1-x, which is not true for the true TPR-FPR curve
+    for asymmetric mechanisms (e.g., subsampled Gaussian under add-remove). In
+    this case the curve is still a valid upper bound on the true TPR-FPR curve,
+    but perhaps overly pessimistic.
+
+    Args:
+      fprs: the FPR or list of FPRs at which to compute the TPR.
+      deltas: the list of deltas to use for the computation. If None, the
+        default deltas `np.logspace(np.log10(1e-13), np.log10(1), num=3000)` and
+        0 will be used. A denser and wider range of deltas will yield a more
+        accurate estimate, at the cost of increased run-time.
+
+    Returns:
+      A float or array of floats representing the upper bound on the TPR at the
+      given FPR or list of FPRs.
+    """
+    fprs_arr = np.array([fprs]) if isinstance(fprs, float) else fprs
+    tprs = np.ones_like(fprs_arr)
+    if deltas is None:
+      deltas = np.concatenate(
+          ([0], np.logspace(np.log10(1e-13), np.log10(1), num=3000))
+      )
+    for delta in deltas:
+      epsilon = self.get_epsilon_for_delta(delta)
+      tprs = np.minimum(tprs, np.exp(epsilon) * fprs_arr + delta)
+      tprs = np.minimum(tprs, 1 + (fprs_arr + delta - 1) * np.exp(-epsilon))
+    return tprs[0] if isinstance(fprs, float) else tprs
+
+  def get_mu(
+      self,
+      deltas: np.ndarray | None = None,
+      fprs: np.ndarray | None = None,
+  ) -> float:
+    """Computes an estimate of the mu-GDP parameter implied by the PLD.
+
+    Specifically, we upper bound the TPR at a given range of FPRs, and then find
+    the minimum mu-GDP value that upper bounds all of the TPR upper bounds. This
+    is pessimistic in that we are using upper bounds on the TPRs, but optimistic
+    in that we are using a finite grid of TPRs, which is not guaranteed to
+    contain the point at which the true mu-GDP parameter is tight.
+
+    If the privacy loss is infinite with probability greater than min(fprs),
+    then this function will return infinity. This is so that (i) when a PLD has
+    large infinity mass, we correctly report infinite mu-GDP, but simultaneously
+    (ii) the small infinity masses introduced by truncating a PLD to finite
+    support do not result in infinite mu-GDP. We recommend reporting the minimum
+    FPR used when reporting mu-GDP values computed using this function.
+
+    Args:
+      deltas: The list of deltas to use for the computation. If None, the
+        default deltas `np.logspace(np.log10(1e-13), np.log10(1), num=3000)` and
+        0 will be used. A denser and wider range of deltas will reduce pessimism
+        of the estimate, at the cost of increased run-time.
+      fprs: The list of FPRs to use for the computation. If None, the default
+        FPRs `np.logspace(np.log10(1e-12), np.log10(0.5), num=500)` will be
+        used. A denser and wider range of FPRs will reduce optimism of the
+        estimate, at the cost of increased run-time.
+
+    Returns:
+      The estimated mu-GDP parameter. Note that this is not guaranteed to be an
+      upper or lower bound on the true mu-GDP parameter (but can be made
+      arbitrarily close to the true mu-GDP parameter by increasing the precision
+      of the PLD, deltas, and FPRs).
+    """
+    if fprs is None:
+      fprs = np.logspace(np.log10(1e-12), np.log10(0.5), num=500)
+    else:
+      # Since the current implementation of `get_tpr` is symmetric with respect
+      # to the line y=1-x, we only need to consider FPR values up to 1/2.
+      fprs = fprs[fprs <= 0.5]
+
+    if self._pmf_remove._infinity_mass > min(fprs):  # pylint:disable=protected-access
+      return np.inf
+    if not self._symmetric:
+      if self._pmf_add._infinity_mass > min(fprs):  # pylint:disable=protected-access
+        return np.inf
+
+    tprs = self.get_tpr(fprs, deltas)
+    mus = stats.norm.ppf(tprs) - stats.norm.ppf(fprs)
+    return np.max(mus)
+
 
 def identity(
     value_discretization_interval: float = 1e-4,

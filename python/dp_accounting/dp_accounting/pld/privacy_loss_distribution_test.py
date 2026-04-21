@@ -1328,6 +1328,39 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
         sampling_prob=0.1,
         use_connect_dots=False)
 
+  @parameterized.parameters(
+      0.5,
+      1.0,
+      2.0,
+      4.0,
+  )
+  def test_gaussian_gdp(self, mu):
+    pld = privacy_loss_distribution.from_gaussian_mechanism(
+        standard_deviation=1.0,
+        sensitivity=mu,
+        value_discretization_interval=1e-2,
+    )
+    # For any FPR, we should get the correct mu, so we just check one value.
+    self.assertAlmostEqual(pld.get_mu(fprs=np.array([0.01])), mu, places=3)
+
+  @parameterized.parameters(
+      (1e-3, 0.01830),
+      (1e-4, 0.003274),
+      (1e-5, 0.0005475),
+      (1e-6, 8.7218e-5),
+      (1e-7, 1.3385e-5),
+      (1e-8, 1.99405e-6),
+      (1e-9, 2.8993e-7),
+      (1e-10, 4.1303e-8),
+  )
+  def test_gaussian_tpr_at_extreme_fpr(self, fpr, tpr):
+    pld = privacy_loss_distribution.from_gaussian_mechanism(
+        standard_deviation=1.0,
+        sensitivity=1.0,
+        value_discretization_interval=1e-2,
+    )
+    self.assertAlmostEqual(pld.get_tpr(fpr), tpr, places=3)
+
 
 class DiscreteLaplacePrivacyLossDistributionTest(parameterized.TestCase):
 
@@ -2866,6 +2899,42 @@ class RandomizedResponsePrivacyLossDistributionTest(parameterized.TestCase):
     with self.assertRaises(ValueError):
       privacy_loss_distribution.from_randomized_response(
           noise_parameter, num_buckets)
+
+  @parameterized.parameters(
+      (2, 0.125, 0.375),
+      (2, 0.25, 0.75),
+      (4, 0.0625, 0.3125),
+      (4, 0.125, 0.625),
+      (4, 0.375, 0.875),
+      (4, 0.75, 0.95),
+  )
+  def test_randomized_response_tpr(self, num_buckets, fpr, expected_tpr):
+    pld = privacy_loss_distribution.from_randomized_response(0.5, num_buckets)
+    actual_tpr = pld.get_tpr(fpr)
+    self.assertAlmostEqual(expected_tpr, actual_tpr, places=3)
+
+  @parameterized.parameters(
+      (1e-10, 3e-10),
+      (1e-9, 3e-9),
+      (1e-8, 3e-8),
+      (1e-7, 3e-7),
+      (1e-6, 3e-6),
+      (1e-5, 3e-5),
+      (1e-4, 3e-4),
+  )
+  def test_randomized_response_tpr_at_extreme_fprs(self, fpr, expected_tpr):
+    pld = privacy_loss_distribution.from_randomized_response(0.5, 2)
+    actual_tpr = pld.get_tpr(fpr)
+    self.assertAlmostEqual(expected_tpr, actual_tpr, places=3)
+
+  @parameterized.parameters(
+      (0.5, 1.34898),
+      (0.9, 0.25132),
+      (0.99, 0.025067),
+  )
+  def test_randomized_response_mu(self, noise_parameter, expected_mu):
+    pld = privacy_loss_distribution.from_randomized_response(noise_parameter, 2)
+    self.assertAlmostEqual(expected_mu, pld.get_mu(), places=3)
 
 
 class IdentityPrivacyLossDistributionTest(parameterized.TestCase):
