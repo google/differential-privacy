@@ -48,7 +48,7 @@ jobs:
         run: mvn compile exec:java -Dexec.mainClass=com.google.privacy.differentialprivacy.pipelinedp4j.examples.SparkDataFrameExample -Dexec.args="--inputFilePath=$(pwd)/../input.csv --outputFolder=output"
       - name: Build Beam with Spark Runner
         working-directory: examples/pipelinedp4j/beam
-        run: mvn package -Pspark-runner,spark-runner-embedeed
+        run: mvn package -Pspark-runner,spark-runner-embeddeed
       - name: Run Beam Example with Spark Runner
         working-directory: examples/pipelinedp4j/beam
         run: java --add-opens=java.base/sun.nio.ch=ALL-UNNAMED -jar target/beam-1.0-SNAPSHOT-shaded.jar --runner=SparkRunner --sparkMaster="local[*]"  --inputFilePath=../input.csv --outputFilePath=output-spark.txt
