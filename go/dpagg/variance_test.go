@@ -864,10 +864,12 @@ func TestBVSerialization(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Couldn't initialize bv: %v", err)
 		}
+		bv.Add(1)
 		bvUnchanged, err := NewBoundedVariance(tc.opts)
 		if err != nil {
 			t.Fatalf("Couldn't initialize bvUnchanged: %v", err)
 		}
+		bvUnchanged.Add(1)
 		bytes, err := encode(bv)
 		if err != nil {
 			t.Fatalf("encode(BoundedVariance) error: %v", err)

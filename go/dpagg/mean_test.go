@@ -816,10 +816,12 @@ func TestBMSerialization(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Couldn't initialize bm: %v", err)
 		}
+		bm.Add(1)
 		bmUnchanged, err := NewBoundedMean(tc.opts)
 		if err != nil {
 			t.Fatalf("Couldn't initialize bmUnchanged: %v", err)
 		}
+		bmUnchanged.Add(1)
 		bytes, err := encode(bm)
 		if err != nil {
 			t.Fatalf("encode(BoundedMean) error: %v", err)
