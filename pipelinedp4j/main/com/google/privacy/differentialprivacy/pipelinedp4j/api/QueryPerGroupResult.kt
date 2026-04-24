@@ -61,7 +61,15 @@ internal constructor(
           outputColumnNamesWithMetricTypes,
           colNameToFeatureIdMap,
         )
-      return QueryPerGroupResult<GroupKeysT>(groupKey, valueAggregationsMap, vectorAggregationsMap)
+
+      val finalValueMap = LinkedHashMap(valueAggregationsMap)
+      val finalVectorMap = LinkedHashMap(vectorAggregationsMap)
+
+      // Eagerly access entries to avoid lazy initialization race
+      val unusedValueEntries = finalValueMap.entries
+      val unusedVectorEntries = finalVectorMap.entries
+
+      return QueryPerGroupResult<GroupKeysT>(groupKey, finalValueMap, finalVectorMap)
     }
 
     internal fun valueColumnsNamesInAggregationResults(
