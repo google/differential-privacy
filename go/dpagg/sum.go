@@ -376,6 +376,16 @@ func (bs *BoundedSumInt64) GobDecode(data []byte) error {
 	if err != nil {
 		return fmt.Errorf("couldn't decode BoundedSumInt64 from bytes")
 	}
+	n := noise.ToNoise(enc.NoiseKind)
+	if n == nil {
+		return fmt.Errorf("GobDecode: invalid NoiseKind %d", enc.NoiseKind)
+	}
+	if err := checks.CheckL0Sensitivity(enc.L0Sensitivity); err != nil {
+		return fmt.Errorf("GobDecode BoundedSumInt64: %v", err)
+	}
+	if err := checks.CheckBoundsInt64IgnoreOverflows(enc.Lower, enc.Upper); err != nil {
+		return fmt.Errorf("GobDecode BoundedSumInt64: %v", err)
+	}
 	*bs = BoundedSumInt64{
 		epsilon:         enc.Epsilon,
 		delta:           enc.Delta,
@@ -384,7 +394,7 @@ func (bs *BoundedSumInt64) GobDecode(data []byte) error {
 		lower:           enc.Lower,
 		upper:           enc.Upper,
 		noiseKind:       enc.NoiseKind,
-		Noise:           noise.ToNoise(enc.NoiseKind),
+		Noise:           n,
 		sum:             enc.Sum,
 		state:           defaultState,
 	}
@@ -693,6 +703,19 @@ func (bs *BoundedSumFloat64) GobDecode(data []byte) error {
 	if err != nil {
 		return fmt.Errorf("couldn't decode BoundedSumFloat64 from bytes")
 	}
+	n := noise.ToNoise(enc.NoiseKind)
+	if n == nil {
+		return fmt.Errorf("GobDecode: invalid NoiseKind %d", enc.NoiseKind)
+	}
+	if err := checks.CheckL0Sensitivity(enc.L0Sensitivity); err != nil {
+		return fmt.Errorf("GobDecode BoundedSumFloat64: %v", err)
+	}
+	if err := checks.CheckLInfSensitivity(enc.LInfSensitivity); err != nil {
+		return fmt.Errorf("GobDecode BoundedSumFloat64: %v", err)
+	}
+	if err := checks.CheckBoundsFloat64IgnoreOverflows(enc.Lower, enc.Upper); err != nil {
+		return fmt.Errorf("GobDecode BoundedSumFloat64: %v", err)
+	}
 	*bs = BoundedSumFloat64{
 		epsilon:         enc.Epsilon,
 		delta:           enc.Delta,
@@ -701,7 +724,7 @@ func (bs *BoundedSumFloat64) GobDecode(data []byte) error {
 		lower:           enc.Lower,
 		upper:           enc.Upper,
 		noiseKind:       enc.NoiseKind,
-		Noise:           noise.ToNoise(enc.NoiseKind),
+		Noise:           n,
 		sum:             enc.Sum,
 		state:           defaultState,
 	}
