@@ -17,6 +17,7 @@ import math
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import numpy as np
 
 from dp_accounting import dp_event
 from dp_accounting import privacy_accountant
@@ -173,6 +174,8 @@ class PldPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
     accountant.compose(event)
     self.assertEqual(accountant.get_delta(1.0), 1)
     self.assertEqual(accountant.get_epsilon(0.01), math.inf)
+    self.assertEqual(accountant.get_tpr(0.1), 1)
+    self.assertEqual(accountant.get_mu(), math.inf)
 
   @parameterized.parameters(
       dp_event.PoissonSampledDpEvent(0, dp_event.GaussianDpEvent(1)),
@@ -187,6 +190,20 @@ class PldPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
     accountant.compose(event)
     self.assertEqual(accountant.get_delta(0), 0)
     self.assertEqual(accountant.get_epsilon(0), 0)
+    self.assertEqual(accountant.get_tpr(0.5), 0.5)
+    self.assertEqual(accountant.get_mu(), 0)
+
+  def test_epsilon_basic(self):
+    event1 = dp_event.EpsilonDeltaDpEvent(epsilon=1.0, delta=0.0)
+    event2 = dp_event.EpsilonDeltaDpEvent(epsilon=2.0, delta=0.0)
+    accountant = pld_privacy_accountant.PLDAccountant()
+    accountant.compose(event1)
+    accountant.compose(event2)
+    self.assertEqual(accountant.get_delta(3.0), 0.0)
+    self.assertEqual(accountant.get_epsilon(0.0), 3.0)
+    self.assertAlmostEqual(accountant.get_tpr(0.1), 0.8286, delta=1e-3)
+    fprs = np.logspace(np.log10(0.005), np.log10(0.5), num=20_000)
+    self.assertAlmostEqual(accountant.get_mu(fprs=fprs), 2.358, delta=1e-3)
 
   def test_epsilon_delta_basic(self):
     event1 = dp_event.EpsilonDeltaDpEvent(epsilon=1.0, delta=0.1)
@@ -196,6 +213,8 @@ class PldPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
     accountant.compose(event2)
     self.assertEqual(accountant.get_delta(3.0), 0.28)
     self.assertEqual(accountant.get_epsilon(0.28), 3.0)
+    self.assertAlmostEqual(accountant.get_tpr(0.1), 0.91938, delta=1e-3)
+    self.assertEqual(accountant.get_mu(), math.inf)
 
   def test_exponential_mechanism_basic(self):
     event1 = dp_event.ExponentialMechanismDpEvent(1.0)
@@ -214,10 +233,16 @@ class PldPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
 
     exact_epsilon = 1
     exact_delta = 0.126936
+    exact_tpr_at_0_1_fpr = 0.43329
+    exact_mu = 1.11355  # 1.25 ** 0.5
     self.assertAlmostEqual(
         accountant.get_delta(exact_epsilon), exact_delta, delta=1e-3)
     self.assertAlmostEqual(
         accountant.get_epsilon(exact_delta), exact_epsilon, delta=1e-3)
+    self.assertAlmostEqual(
+        accountant.get_tpr(0.1), exact_tpr_at_0_1_fpr, delta=1e-3
+    )
+    self.assertAlmostEqual(accountant.get_mu(), exact_mu, delta=1e-3)
 
   def test_poisson_subsampled_gaussian(self):
     subsampled_gaussian_event = dp_event.PoissonSampledDpEvent(

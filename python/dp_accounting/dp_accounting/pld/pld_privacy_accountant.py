@@ -14,12 +14,15 @@
 """Privacy accountant that uses Privacy Loss Distributions."""
 
 import math
-from typing import Optional
+from typing import Optional, Union
+
+import numpy as np
 
 from dp_accounting import dp_event
 from dp_accounting import privacy_accountant
 from dp_accounting.pld import common
 from dp_accounting.pld import privacy_loss_distribution
+
 
 NeighborRel = privacy_accountant.NeighboringRelation
 CompositionErrorDetails = (
@@ -277,3 +280,19 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
     if self._contains_non_dp_event:
       return 1
     return self._pld.get_delta_for_epsilon(target_epsilon)  # pytype: disable=bad-return-type
+
+  def get_tpr(
+      self, fprs: Union[float, np.ndarray], deltas: np.ndarray | None = None
+  ) -> Union[float, np.ndarray]:
+    if self._contains_non_dp_event:
+      return np.ones_like(fprs)
+    return self._pld.get_tpr(fprs, deltas)
+
+  def get_mu(
+      self,
+      deltas: np.ndarray | None = None,
+      fprs: np.ndarray | None = None,
+  ) -> float:
+    if self._contains_non_dp_event:
+      return math.inf
+    return self._pld.get_mu(deltas, fprs)
