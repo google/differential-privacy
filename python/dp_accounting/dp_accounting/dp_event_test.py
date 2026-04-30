@@ -123,6 +123,14 @@ class DpEventTest(parameterized.TestCase):
               1.0,
           ),
       ),
+      (
+          'random_allocation',
+          dp_event.RandomAllocationDpEvent(
+              event=dp_event.GaussianDpEvent(2.0),
+              k=10,
+              t=100,
+          ),
+      ),
   )
   def test_to_from_named_tuple(self, event):
     named_tuple = event.to_named_tuple()
@@ -133,6 +141,12 @@ class DpEventTest(parameterized.TestCase):
     reconstructed = dp_event.DpEvent.from_named_tuple(named_tuple)
     assert_not_contains_named_tuples(reconstructed)
     self.assertEqual(event, reconstructed)
+
+  def test_random_allocation_event_has_no_discretization_override(self):
+    event = dp_event.RandomAllocationDpEvent(
+        event=dp_event.GaussianDpEvent(2.0), k=10, t=100
+    )
+    self.assertFalse(hasattr(event, 'loss_discretization'))
 
 
 if __name__ == '__main__':
