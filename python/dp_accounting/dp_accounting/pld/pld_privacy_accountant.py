@@ -14,12 +14,16 @@
 """Privacy accountant that uses Privacy Loss Distributions."""
 
 import math
-from typing import Optional
+import numbers
+from typing import Optional, Union
+
+import numpy as np
 
 from dp_accounting import dp_event
 from dp_accounting import privacy_accountant
 from dp_accounting.pld import common
 from dp_accounting.pld import privacy_loss_distribution
+
 
 NeighborRel = privacy_accountant.NeighboringRelation
 CompositionErrorDetails = (
@@ -277,3 +281,83 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
     if self._contains_non_dp_event:
       return 1
     return self._pld.get_delta_for_epsilon(target_epsilon)  # pytype: disable=bad-return-type
+
+  def get_true_positive_rates(
+      self,
+      false_positive_rates: Union[float, np.ndarray],
+      deltas: Optional[np.ndarray] = None,
+  ) -> Union[float, np.ndarray]:
+    """Computes an upper bound on the true positive rate (TPR).
+
+    In particular, each (epsilon, delta) pair implied by the PLD also implies an
+    upper bound on the TPR for a given false positive rate (FPR). This function
+    computes this upper bound for a range of deltas (either user-specified, or a
+    default range) and then returns the minimum TPR across all deltas. See
+    Section 3.1 of the supplementary material for details.
+
+    Note that this implementation reports a TPR-FPR curve which is symmetric
+    with respect to the line y=1-x, which is not true for the true TPR-FPR curve
+    for asymmetric mechanisms (e.g., subsampled Gaussian under add-remove). In
+    this case the curve is still a valid upper bound on the true TPR-FPR curve,
+    but perhaps overly pessimistic.
+
+    Args:
+      false_positive_rates: the FPR or list of FPRs at which to compute the TPR.
+      deltas: the list of deltas to use for the computation. If None, the
+        default deltas `np.logspace(np.log10(1e-13), np.log10(1), num=3000)` and
+        0 will be used. A denser and wider range of deltas will yield a more
+        accurate estimate, at the cost of increased run-time.
+
+    Returns:
+      A float or array of floats representing the upper bound on the TPR at the
+      given FPR or list of FPRs.
+    """
+    if self._contains_non_dp_event:
+      if isinstance(false_positive_rates, numbers.Number):
+        return 1.0
+      else:
+        return np.ones_like(false_positive_rates)
+    return self._pld.get_true_positive_rates(false_positive_rates, deltas)
+
+  def get_gdp_parameter_estimate(
+      self,
+      false_positive_rates: Optional[np.ndarray] = None,
+      deltas: Optional[np.ndarray] = None,
+  ) -> float:
+    """Computes an estimate of the mu-GDP parameter implied by the PLD.
+
+    Specifically, we upper bound the true positive rate (TPR) at a given range
+    of false positive rates (FPRs), and then find the minimum mu-GDP value that
+    upper bounds all of the TPR upper bounds. This is pessimistic in that we are
+    using upper bounds on the TPRs, but optimistic in that we are using a finite
+    grid of TPRs, which is not guaranteed to contain the point at which the true
+    mu-GDP parameter is tight. See Section 3.2 of the supplementary material for
+    details.
+
+    If the privacy loss is infinite with probability greater than
+    min(false_positive_rates), then this function will return infinity.
+    This is so that (i) when a PLD has large infinity mass, we correctly report
+    infinite mu-GDP, but simultaneously (ii) the small infinity masses
+    introduced by truncating a PLD to finite support do not result in infinite
+    mu-GDP. We recommend reporting the minimum FPR used when reporting mu-GDP
+    values computed using this function.
+
+    Args:
+      false_positive_rates: The list of FPRs to use for the computation. If
+        None, the default FPRs `np.logspace(np.log10(1e-12), np.log10(0.5),
+        num=500)` will be used. A denser and wider range of FPRs will reduce
+        optimism of the estimate, at the cost of increased run-time.
+      deltas: The list of deltas to use for the computation. If None, the
+        default deltas `np.logspace(np.log10(1e-13), np.log10(1), num=3000)` and
+        0 will be used. A denser and wider range of deltas will reduce pessimism
+        of the estimate, at the cost of increased run-time.
+
+    Returns:
+      The estimated mu-GDP parameter. Note that this is not guaranteed to be an
+      upper or lower bound on the true mu-GDP parameter (but can be made
+      arbitrarily close to the true mu-GDP parameter by increasing the precision
+      of the PLD, deltas, and FPRs).
+    """
+    if self._contains_non_dp_event:
+      return math.inf
+    return self._pld.get_gdp_parameter_estimate(false_positive_rates, deltas)
