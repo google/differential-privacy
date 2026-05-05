@@ -16,7 +16,10 @@
 
 from absl import app
 
+from dp_accounting import GaussianDpEvent
+from dp_accounting import RandomAllocationDpEvent
 from dp_accounting.pld import privacy_loss_distribution
+from dp_accounting.pld.pld_privacy_accountant import PLDAccountant
 
 
 def main(argv):
@@ -65,6 +68,26 @@ def main(argv):
       f'{parameter_laplace} for a total of {num_laplace} times and in '
       'addition executes once the Gaussian Mechanism with STD '
       f'{standard_deviation} is ({epsilon}, {delta})-DP.'
+  )
+
+  # The PLDAccountant also supports the random allocation mechanism. Each
+  # element is independently assigned to k out of t calls to the mechanism.
+  noise_multiplier = 2.0
+  k = 10
+  t = 100
+  accountant = PLDAccountant()
+  accountant.compose(
+      RandomAllocationDpEvent(
+          event=GaussianDpEvent(noise_multiplier=noise_multiplier),
+          k=k,
+          t=t,
+      )
+  )
+  target_delta = 1e-6
+  epsilon = accountant.get_epsilon(target_delta)
+  print(
+      f'Random allocation with Gaussian noise (noise_multiplier={noise_multiplier},'
+      f' k={k}, t={t}) satisfies ({epsilon:.4f}, {target_delta})-DP.'
   )
 
 
