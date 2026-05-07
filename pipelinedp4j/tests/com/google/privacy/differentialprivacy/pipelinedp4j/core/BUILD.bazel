@@ -58,6 +58,7 @@ kt_jvm_test(
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core:framework_collections",
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core/budget:allocated_budget",
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core/budget:budget_accountant",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core/budget:budget_allocation_details",
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core/budget:budget_spec",
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/dplibrary:noise_factories",
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/dplibrary:pre_aggregation_partition_selection_factory",

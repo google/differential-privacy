@@ -34,6 +34,7 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.core.NoiseKind.GAUSSI
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.NoiseKind.LAPLACE
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.AbsoluteBudgetPerOpSpec
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.BudgetAccountingStrategy.NAIVE
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.BudgetAllocationDetails
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.BudgetPerOpSpec
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.RelativeBudgetPerOpSpec
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.TotalBudget
@@ -94,6 +95,36 @@ class DpEngineTest {
 
     val e = assertFailsWith<IllegalStateException> { dpEngine.done() }
     assertThat(e).hasMessageThat().contains("done() has already been called")
+  }
+
+  @Test
+  fun done_returnsBudgetAllocationDetails() {
+    val dpEngine = DpEngine.createForTesting(LOCAL_EF, LARGE_BUDGET_SPEC, ZeroNoiseFactory())
+    val params =
+      AggregationParams(
+        metrics = ImmutableList.of(MetricDefinition(COUNT, AbsoluteBudgetPerOpSpec(1.0, 1e-5))),
+        noiseKind = GAUSSIAN,
+        maxPartitionsContributed = 1,
+        maxContributionsPerPartition = 1,
+        partitionSelectionBudget = AbsoluteBudgetPerOpSpec(2.0, 2e-5),
+      )
+
+    val unused =
+      dpEngine.aggregate(
+        LocalCollection(sequenceOf(TestDataRow("Alice", "US", 1.0))),
+        params,
+        testDataExtractors,
+      )
+    val details = dpEngine.done()
+
+    assertThat(details)
+      .containsExactly(
+        BudgetAllocationDetails.GaussianAggregationAllocation(epsilon = 1.0, delta = 1e-5),
+        BudgetAllocationDetails.PreaggregatedPartitionSelectionAllocation(
+          epsilon = 2.0,
+          delta = 2e-5,
+        ),
+      )
   }
 
   @Test
