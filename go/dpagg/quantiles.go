@@ -445,6 +445,25 @@ func (bq *BoundedQuantiles) GobDecode(data []byte) error {
 	if err != nil {
 		return fmt.Errorf("couldn't decode BoundedQuantiles from bytes")
 	}
+	n := noise.ToNoise(enc.NoiseKind)
+	if n == nil {
+		return fmt.Errorf("GobDecode: invalid NoiseKind %d", enc.NoiseKind)
+	}
+	if err := checks.CheckL0Sensitivity(enc.L0Sensitivity); err != nil {
+		return fmt.Errorf("GobDecode BoundedQuantiles: %v", err)
+	}
+	if err := checks.CheckLInfSensitivity(enc.LInfSensitivity); err != nil {
+		return fmt.Errorf("GobDecode BoundedQuantiles: %v", err)
+	}
+	if err := checks.CheckBoundsFloat64IgnoreOverflows(enc.Lower, enc.Upper); err != nil {
+		return fmt.Errorf("GobDecode BoundedQuantiles: %v", err)
+	}
+	if err := checks.CheckTreeHeight(enc.TreeHeight); err != nil {
+		return fmt.Errorf("GobDecode BoundedQuantiles: %v", err)
+	}
+	if enc.BranchingFactor < 2 {
+		return fmt.Errorf("GobDecode BoundedQuantiles: branchingFactor must be at least 2, got %d", enc.BranchingFactor)
+	}
 	*bq = BoundedQuantiles{
 		epsilon:           enc.Epsilon,
 		delta:             enc.Delta,
@@ -455,7 +474,7 @@ func (bq *BoundedQuantiles) GobDecode(data []byte) error {
 		lower:             enc.Lower,
 		upper:             enc.Upper,
 		noiseKind:         enc.NoiseKind,
-		Noise:             noise.ToNoise(enc.NoiseKind),
+		Noise:             n,
 		numLeaves:         enc.NumLeaves,
 		leftmostLeafIndex: enc.LeftmostLeafIndex,
 		tree:              enc.QuantileTree,
