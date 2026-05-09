@@ -15,13 +15,20 @@
 //
 #include "algorithms/distributions.h"
 
+#include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <cstdlib>
+#include <limits>
+#include <memory>
+#include <utility>
 
+#include "absl/log/check.h"
 #include "absl/memory/memory.h"
 #include "absl/random/random.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "algorithms/rand.h"
 #include "algorithms/util.h"
@@ -145,7 +152,7 @@ double GaussianDistribution::SampleGeometric() {
 // of n must be at least 10^6. This is to ensure an accurate approximation of a
 // Gaussian distribution.
 double GaussianDistribution::SampleBinomial(double sqrt_n) {
-  long long step_size =
+  int64_t step_size =
       static_cast<long long>(std::round(std::sqrt(2.0) * sqrt_n + 1));
 
   SecureURBG& random = SecureURBG::GetInstance();

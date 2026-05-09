@@ -87,6 +87,12 @@ class GaussianDistribution {
 // be positive. If the result would be higher than the maximum int64_t, returns
 // the maximum int64_t, which means that users should be careful around the
 // edges of their distribution.
+//
+// Note that we are not using std::geometric_distribution, as samples returned
+// by that class are often not accurate enough for anonymization purposes. For
+// instance, when sampling with very low p, std::geometric_distribution does not
+// return odd values. In some cases, this could leak information about the
+// parity of the input.
 class GeometricDistribution {
  public:
   // Builder for GeometricDistribution.
