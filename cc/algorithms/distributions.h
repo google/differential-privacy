@@ -114,7 +114,11 @@ class GeometricDistribution {
   explicit GeometricDistribution(double lambda);
 
  private:
+  const std::vector<double>& GetProbs(double lambda);
+
   double lambda_;
+  std::vector<double> probs_;
+  double cached_lambda_ = 0.0;
 };
 
 // DO NOT USE. Use LaplaceMechanism instead. LaplaceMechanism has an interface
