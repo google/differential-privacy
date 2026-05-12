@@ -372,6 +372,23 @@ class ApproxBoundsProvider final : public BoundsProvider<T> {
     int lower_msb = MostSignificantBit(lower);
     int upper_msb = MostSignificantBit(upper);
 
+    auto wrap_add = [](T2 a, T2 b) -> T2 {
+      if constexpr (std::is_integral_v<T2>) {
+        using U = std::make_unsigned_t<T2>;
+        return static_cast<T2>(static_cast<U>(a) + static_cast<U>(b));
+      } else {
+        return a + b;
+      }
+    };
+    auto wrap_mul = [](T2 a, T2 b) -> T2 {
+      if constexpr (std::is_integral_v<T2>) {
+        using U = std::make_unsigned_t<T2>;
+        return static_cast<T2>(static_cast<U>(a) * static_cast<U>(b));
+      } else {
+        return a * b;
+      }
+    };
+
     // Find value from its per-bin partials.
     T2 value = 0;
     if (lower <= 0 && 0 <= upper) {
@@ -379,29 +396,31 @@ class ApproxBoundsProvider final : public BoundsProvider<T> {
       // to 0 to upper, and also from 0 to lower in the negative vectors.
       if (lower < 0) {
         for (int i = 0; i <= lower_msb; ++i) {
-          value += neg_partials[i];
+          value = wrap_add(value, neg_partials[i]);
         }
       }
       if (upper > 0) {
         for (int i = 0; i <= upper_msb; ++i) {
-          value += pos_partials[i];
+          value = wrap_add(value, pos_partials[i]);
         }
       }
     } else if (upper < 0) {
       // If lower and upper are negative, each value is clamped so that they
       // contributed at most upper. Anything less they contributed is stored
       // in partial values between lower and upper, which we add.
-      value += count * value_transform(upper);
+      value = wrap_add(
+          value, wrap_mul(static_cast<T2>(count), value_transform(upper)));
       for (int i = upper_msb + 1; i <= lower_msb; ++i) {
-        value += neg_partials[i];
+        value = wrap_add(value, neg_partials[i]);
       }
     } else {  // 0 < lower <= upper
       // If lower and upper are both positive, each value is clamped to it
       // contributed at least lower. Anything more contributed is stored
       // between lower and upper in positive vectors, which we add.
-      value += count * value_transform(lower);
+      value = wrap_add(
+          value, wrap_mul(static_cast<T2>(count), value_transform(lower)));
       for (int i = lower_msb + 1; i <= upper_msb; ++i) {
-        value += pos_partials[i];
+        value = wrap_add(value, pos_partials[i]);
       }
     }
     return value;
