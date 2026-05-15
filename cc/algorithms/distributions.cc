@@ -174,17 +174,11 @@ int64_t GeometricDistribution::Sample() { return Sample(1.0); }
 
 const std::vector<double>& GeometricDistribution::GetProbs(double lambda) {
   if (probs_.empty() || lambda != cached_lambda_) {
-    probs_.clear();
-    probs_.reserve(63);
+    probs_.resize(63);
     for (int i = 0; i < 63; ++i) {
       double c = lambda * (1LL << i);
-      if (c > 100) {
-        // If c is large, exp(c) is huge and 1 / (exp(c) + 1) is close to 0, no
-        // need to compute them.
-        break;
-      } else {
-        probs_.push_back(1.0 / (std::exp(c) + 1));
-      }
+      // If c is large, exp(c) is huge and 1 / (exp(c) + 1) is close to 0.
+      probs_[i] = c < 100 ? 1.0 / (std::exp(c) + 1) : 0.0;
     }
     cached_lambda_ = lambda;
   }
@@ -235,7 +229,7 @@ int64_t GeometricDistribution::Sample(double scale) {
   const std::vector<double>& probs = GetProbs(lambda);
 
   int64_t result = 0;
-  for (int i = probs.size() - 1; i >= 0; --i) {
+  for (int i = 62; i >= 0; --i) {
     if (GetUniformDouble() < probs[i]) {
       result |= (1LL << i);
     }
