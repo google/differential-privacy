@@ -36,7 +36,7 @@
 //     return absl::OkStatus();
 //   }
 #define RETURN_IF_ERROR(expr)                                              \
-  STATUS_MACROS_IMPL_ELSE_BLOCKER_                                         \
+  ABSL_INTERNAL_STATUS_MACROS_IMPL_ELSE_BLOCKER_                           \
   if (differential_privacy::base::status_macro_internal::                  \
           StatusAdaptorForMacros status_macro_internal_adaptor = {expr}) { \
   } else /* NOLINT */                                                      \
