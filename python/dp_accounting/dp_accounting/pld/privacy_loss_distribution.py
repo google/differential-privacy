@@ -1003,6 +1003,29 @@ def from_gaussian_mechanism(
   "Connect the Dots" algorithm. See Sections 2.1 and 2.2 of supplementary
   material for more details.
 
+  CORRELATED MULTI-OUTPUT RELEASES
+  If the mechanism releases k outputs jointly (M(D) = (f_1(D)+Z_1,...,f_k(D)+Z_k)
+  with independent noise Z_i ~ N(0, sigma^2) and coupling f_j(D) = c_j*f_1(D)),
+  and an adversary observes all outputs simultaneously, the exact epsilon-hockey-stick
+  divergence equals the scalar value at EFFECTIVE SENSITIVITY Delta_eff:
+
+    Delta_eff = Delta * np.linalg.norm(c_vec)    # c_vec = [c_1, ..., c_k]
+
+  This follows from the joint PLRV L(x) = (Delta/sigma^2)*sum(c_j*x_j) - Delta^2*||c||^2/(2*sigma^2)
+  being Gaussian N(Delta_eff^2/(2*sigma^2), Delta_eff^2/sigma^2) under D.
+
+  Example (2-client FL with coupling c=0.5):
+    # INCORRECT for jointly observed outputs:
+    delta = from_gaussian_mechanism(sigma, Delta).get_delta_for_epsilon(eps)
+
+    # CORRECT:
+    import numpy as np
+    c_vec = [1.0, 0.5]   # client coupling coefficients
+    Delta_eff = Delta * np.linalg.norm(c_vec)
+    delta = from_gaussian_mechanism(sigma, Delta_eff).get_delta_for_epsilon(eps)
+
+  See https://doi.org/10.5281/zenodo.20078486 for proof and experiments.
+
   Args:
     standard_deviation: the standard_deviation of the Gaussian distribution.
     sensitivity: the sensitivity of function f. (i.e. the maximum absolute
