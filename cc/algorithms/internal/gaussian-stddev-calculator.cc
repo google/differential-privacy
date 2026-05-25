@@ -43,6 +43,9 @@ double CalculateGaussianStddev(double epsilon, double delta,
                                double l2_sensitivity) {
   BoundsForGaussianStddev bounds =
       CalculateBoundsForGaussianStddev(epsilon, delta, l2_sensitivity);
+  if (std::isinf(bounds.upper)) {
+    return bounds.upper;
+  }
   while (bounds.upper - bounds.lower > kGaussianSigmaAccuracy * bounds.lower) {
     const double middle = (bounds.lower + bounds.upper) / 2.0;
     if (CalculateDeltaForGaussianStddev(epsilon, l2_sensitivity,
